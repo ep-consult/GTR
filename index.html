@@ -8534,14 +8534,64 @@ function mourir(){
   },1100);
 }
 /* ---------- bouton contextuel ---------- */
+/* marquerZone() grave le rayon de déclenchement sur l'objet interactable
+   lui-même, au moment précis où majAction() l'utilise pour de vrai — aucune
+   liste séparée à maintenir en synchro (voir scenarios.js, qui lit ces
+   rayons au lieu de les recopier). Une nouvelle salle qui suit le même
+   schéma (comparaison dist2(...)<marquerZone(objet,rayon²)) est donc
+   détectée automatiquement, sans toucher à cette fonction ni à scenarios.js. */
+function marquerZone(obj,r2){ if(obj) obj.r=Math.sqrt(r2); return r2; }
+// Champs { x, z, ... } d'une salle qui ne sont volontairement PAS des zones
+// d'interaction (décor animé, jamais lu par majAction()) : à distinguer
+// d'une zone simplement oubliée par marquerZone(), qui doit rester signalée.
+const CHAMPS_DECOR_SALLE=new Set(['pnj','culturiste','plaque']);
+// Rejoue majAction() avec le joueur hors de portée de tout, pour que la
+// chaîne if/else-if s'évalue en entier (aucune branche ne « gagne » et
+// n'interrompt les suivantes) et que chaque marquerZone() de la salle
+// active s'exécute au moins une fois. Deux branches sont en plus gardées par
+// un état de partie (pas seulement par la distance) : sans ce coup de pouce,
+// leur marquerZone() ne s'exécuterait jamais dans une salle fraîchement
+// construite. Puis relit génériquement, sur la salle, tout champ { x, z, r }
+// (ou tableau de tels champs) : c'est la liste réelle des zones
+// d'interaction, telle que le jeu les utilise — pas une copie. Tout champ
+// { x, z, ... } SANS r/rayon et hors CHAMPS_DECOR_SALLE remonte à part dans
+// `orphelins` : une salle qui a ajouté une zone dans majAction() sans passer
+// par marquerZone() doit faire échouer les scénarios, pas être ignorée.
+function zonesInterieurActives(){
+  const s=INT.actif;
+  if(!s) return {zones:[],orphelins:[]};
+  const px=P.x,pz=P.z,swEtat=s.swEtat,lessives=META.lessives;
+  P.x=1e6; P.z=1e6;
+  if(s.sodaPos) s.swEtat='defi';       // sinon cette branche, gardée par l'état, ne s'évalue jamais
+  if(s.filtre) META.lessives=1;        // idem : gardée par META.lessives>0
+  majAction();
+  P.x=px; P.z=pz; s.swEtat=swEtat; META.lessives=lessives;
+  const zones=[],orphelins=[];
+  for(const champ in s){
+    if(CHAMPS_DECOR_SALLE.has(champ)) continue;
+    const val=s[champ];
+    if(Array.isArray(val)){
+      for(const elem of val){
+        if(!elem||typeof elem.x!=='number'||typeof elem.z!=='number') continue;
+        const r=elem.r!==undefined?elem.r:elem.rayon;
+        if(typeof r==='number') zones.push({champ,x:elem.x,z:elem.z,r});
+        else orphelins.push(champ);
+      }
+    } else if(val&&typeof val.x==='number'&&typeof val.z==='number'){
+      if(typeof val.r==='number') zones.push({champ,x:val.x,z:val.z,r:val.r});
+      else orphelins.push(champ);
+    }
+  }
+  return {zones,orphelins};
+}
 function majAction(){
   const b=el('btnAction');
   let label=null,fn=null;
   if(INT.actif){
     const s=INT.actif;
-    if(dist2(P.x,P.z,s.sortie.x,s.sortie.z)<9&&(ETAT.intT||0)<=0){
+    if(dist2(P.x,P.z,s.sortie.x,s.sortie.z)<marquerZone(s.sortie,9)&&(ETAT.intT||0)<=0){
       label='SORTIR'; fn=()=>sortirInterieur();
-    } else if(s.caisse&&!s.caisse.pris&&dist2(P.x,P.z,s.caisse.x,s.caisse.z)<12){
+    } else if(s.caisse&&!s.caisse.pris&&dist2(P.x,P.z,s.caisse.x,s.caisse.z)<marquerZone(s.caisse,12)){
       label='BRAQUER LA CAISSE';
       fn=()=>{
         s.caisse.pris=true;
@@ -8551,7 +8601,7 @@ function majAction(){
         toast('Caisse braquée : +'+g+' $','warn'); SFX.achat(); bigMsg('BRAQUAGE !');
         s.caisse.mesh.material=mat(0x2a2e36);
       };
-    } else if(s.coffre&&!s.coffre.pris&&dist2(P.x,P.z,s.coffre.x,s.coffre.z)<14){
+    } else if(s.coffre&&!s.coffre.pris&&dist2(P.x,P.z,s.coffre.x,s.coffre.z)<marquerZone(s.coffre,14)){
       label='FORCER LE COFFRE';
       fn=()=>{
         s.coffre.pris=true;
@@ -8564,7 +8614,7 @@ function majAction(){
         declencherAlarme(s,'Le coffre a été forcé !');
       };
     /* ---------- LAVERIE ---------- */
-    } else if(s.machine7&&dist2(P.x,P.z,s.machine7.x,s.machine7.z)<11){
+    } else if(s.machine7&&dist2(P.x,P.z,s.machine7.x,s.machine7.z)<marquerZone(s.machine7,11)){
       if(s.sacPret){
         label='💰 RÉCUPÉRER LE SAC DE BILLETS';
         fn=()=>{
@@ -8591,14 +8641,14 @@ function majAction(){
           bigMsg('MACHINE 7 EN ROUTE');
         };
       }
-    } else if(s.filtre&&META.lessives>0&&dist2(P.x,P.z,s.filtre.x,s.filtre.z)<12){
+    } else if(s.filtre&&META.lessives>0&&dist2(P.x,P.z,s.filtre.x,s.filtre.z)<marquerZone(s.filtre,12)){
       const neuf=!aCurio('chaussette');
       label=neuf?'🧦 FOUILLER LE FILTRE À PELUCHES':'🧦 Filtre déjà vidé';
       fn=()=>{
         if(neuf){ donnerCurio('chaussette'); s.filtre.mesh.material=mat(0x5a6a74); checkDefis(); }
         else { SFX.refus(); toast('Il n\u2019y avait qu\u2019une chaussette. Il y en a toujours qu\u2019une.'); }
       };
-    } else if(s.machinesFond&&s.machinesFond.some(m=>!m.pris&&dist2(P.x,P.z,m.x,m.z)<12)){
+    } else if(s.machinesFond&&s.machinesFond.some(m=>!m.pris&&dist2(P.x,P.z,m.x,m.z)<marquerZone(m,12))){
       label='🟢 OUVRIR LA MACHINE DU FOND';
       fn=()=>{
         const m=s.machinesFond.find(m=>!m.pris&&dist2(P.x,P.z,m.x,m.z)<12);
@@ -8614,7 +8664,7 @@ function majAction(){
         checkDefis(); sauveMeta();
       };
     /* ---------- MADAME ZOHRA ---------- */
-    } else if(s.zohraPos&&dist2(P.x,P.z,s.zohraPos.x,s.zohraPos.z)<12){
+    } else if(s.zohraPos&&dist2(P.x,P.z,s.zohraPos.x,s.zohraPos.z)<marquerZone(s.zohraPos,12)){
       const donne=META.zohra>=2&&!aCurio('boule');
       label=donne?'🔮 ÉCOUTER MADAME ZOHRA':'🔮 PRÉDICTION — 150 $';
       fn=()=>{
@@ -8656,7 +8706,7 @@ function majAction(){
         sauveMeta();
       };
     /* ---------- KARAOKÉ ---------- */
-    } else if(s.scene2&&dist2(P.x,P.z,s.scene2.x,s.scene2.z)<16){
+    } else if(s.scene2&&dist2(P.x,P.z,s.scene2.x,s.scene2.z)<marquerZone(s.scene2,16)){
       if(s.karaOn){
         label='⏹ ARRÊTER LE CURSEUR ('+(s.karaStep+1)+'/3)';
         fn=()=>evaluerKaraoke(s);
@@ -8672,7 +8722,7 @@ function majAction(){
         };
       }
     /* ---------- AQUARIUM : la chasse à Gaston ---------- */
-    } else if(s.bassins&&s.bassins.some(b=>dist2(P.x,P.z,b.x,b.z)<13)){
+    } else if(s.bassins&&s.bassins.some(b=>dist2(P.x,P.z,b.x,b.z)<marquerZone(b,13))){
       const b=s.bassins.find(b=>dist2(P.x,P.z,b.x,b.z)<13);
       const dejaVu=s.gastonVague===WAVES.n&&s.gastonTrouve;
       label=dejaVu?'🐙 Gaston est déjà retrouvé':'🔎 SONDER LE BASSIN '+(b.idx+1);
@@ -8709,11 +8759,11 @@ function majAction(){
         }
       };
     /* ---------- CABINET DE CURIOSITÉS (planque) ---------- */
-    } else if(s.vitrine&&dist2(P.x,P.z,s.vitrine.x,s.vitrine.z)<15){
+    } else if(s.vitrine&&dist2(P.x,P.z,s.vitrine.x,s.vitrine.z)<marquerZone(s.vitrine,15)){
       label='🗄️ CABINET DE CURIOSITÉS — '+nbCurios()+'/'+CURIOS_ACTIVES.length;
       fn=()=>{ ETAT.retour='jeu'; renderDefis(); ecran('defis'); SFX.ui(); };
     /* ---------- BOWLING ---------- */
-    } else if(s.jeu&&dist2(P.x,P.z,s.jeu.x,s.jeu.z)<16){
+    } else if(s.jeu&&dist2(P.x,P.z,s.jeu.x,s.jeu.z)<marquerZone(s.jeu,16)){
       if(s.bwAnim>0){ label='🎳 ...'; fn=()=>{}; }
       else if(s.bwEtat==='ligne'){
         label='◀▶ FIXER LA LIGNE (lancer '+(s.bwLancers+1)+'/3)';
@@ -8741,7 +8791,7 @@ function majAction(){
         }
       }
     /* ---------- SALLE DE SPORT ---------- */
-    } else if(s.barres&&s.barres.some(b=>dist2(P.x,P.z,b.x,b.z)<13)){
+    } else if(s.barres&&s.barres.some(b=>dist2(P.x,P.z,b.x,b.z)<marquerZone(b,13))){
       const b=s.barres.find(b=>dist2(P.x,P.z,b.x,b.z)<13);
       if(s.spEtat==='soulevé'&&s.spIdx===b.idx){
         label='💪 POUSSE ! ('+Math.round(s.spForce)+' %)';
@@ -8771,7 +8821,7 @@ function majAction(){
           SFX.ui();
         };
       }
-    } else if(s.sac&&dist2(P.x,P.z,s.sac.x,s.sac.z)<11){
+    } else if(s.sac&&dist2(P.x,P.z,s.sac.x,s.sac.z)<marquerZone(s.sac,11)){
       label='🥊 FRAPPER LE SAC';
       fn=()=>{
         s.sac.ph+=2.2; SFX.coup(); vibre(25);
@@ -8781,14 +8831,14 @@ function majAction(){
           'Tu sens tes phalanges.','Le culturiste ne regarde même pas.']));
       };
     /* ---------- SERRE ---------- */
-    } else if(s.panneau&&dist2(P.x,P.z,s.panneau.x,s.panneau.z)<6){
+    } else if(s.panneau&&dist2(P.x,P.z,s.panneau.x,s.panneau.z)<marquerZone(s.panneau,6)){
       const cr=critereSerre(s);
       label='📋 CONSIGNE : '+cr.txt;
       fn=()=>{
         toast(cr.txt+' — '+s.srPris+'/3 cueillies','or');
         SFX.ui();
       };
-    } else if(s.pots&&s.pots.some(p=>!p.pris&&dist2(P.x,P.z,p.x,p.z)<9)){
+    } else if(s.pots&&s.pots.some(p=>!p.pris&&dist2(P.x,P.z,p.x,p.z)<marquerZone(p,9))){
       const cr=critereSerre(s);
       const po=s.pots.find(p=>!p.pris&&dist2(P.x,P.z,p.x,p.z)<9);
       if(s.srFini){
@@ -8839,14 +8889,14 @@ function majAction(){
       };
       }
     /* ---------- LE ROI DES SANDWICHS ---------- */
-    } else if(s.sodaPos&&s.swEtat==='defi'&&dist2(P.x,P.z,s.sodaPos.x,s.sodaPos.z)<7){
+    } else if(s.sodaPos&&s.swEtat==='defi'&&dist2(P.x,P.z,s.sodaPos.x,s.sodaPos.z)<marquerZone(s.sodaPos,7)){
       label='🥤 BOIRE (nausée '+Math.round(s.swNausee)+')';
       fn=()=>{
         s.swNausee=Math.max(0,s.swNausee-32);
         toast('Grande gorgée. Retourne au sandwich !');
         SFX.soin(); vibre(15);
       };
-    } else if(s.defiPos&&dist2(P.x,P.z,s.defiPos.x,s.defiPos.z)<8){
+    } else if(s.defiPos&&dist2(P.x,P.z,s.defiPos.x,s.defiPos.z)<marquerZone(s.defiPos,8)){
       if(s.swEtat==='defi'){
         label='😋 MORDRE ('+s.swBouchees+'/10 · nausée '+Math.round(s.swNausee)+')';
         fn=()=>{
@@ -8872,7 +8922,7 @@ function majAction(){
           SFX.ui();
         };
       }
-    } else if(s.tableau&&dist2(P.x,P.z,s.tableau.x,s.tableau.z)<13){
+    } else if(s.tableau&&dist2(P.x,P.z,s.tableau.x,s.tableau.z)<marquerZone(s.tableau,13)){
       label='🏆 TABLEAU DES CHAMPIONS';
       fn=()=>{
         toast(aCurio('ceinture')
@@ -8880,7 +8930,7 @@ function majAction(){
           :'1. Gérard  ·  2. un canard  ·  3. Gérard  ·  4. — ta place t\u2019attend','or');
         SFX.ui();
       };
-    } else if(s.rouePos&&dist2(P.x,P.z,s.rouePos.x,s.rouePos.z)<16){
+    } else if(s.rouePos&&dist2(P.x,P.z,s.rouePos.x,s.rouePos.z)<marquerZone(s.rouePos,16)){
       const tours=aCurio('chaussette')?2:1;   // La Chaussette Solitaire : deux tours
       if(s.roueVague!==WAVES.n) s.roueN=0;
       const pret=(s.roueN||0)<tours;
@@ -8894,19 +8944,19 @@ function majAction(){
         SFX.ui(); vibre(40);
         toast('La roue tourne...');
       };
-    } else if(s.slots&&dist2(P.x,P.z,s.slots.x,s.slots.z)<26){
+    } else if(s.slots&&dist2(P.x,P.z,s.slots.x,s.slots.z)<marquerZone(s.slots,26)){
       label='🎰 MACHINES À SOUS';
       fn=()=>ouvrirCasino('slots');
-    } else if(s.blackjack&&dist2(P.x,P.z,s.blackjack.x,s.blackjack.z)<16){
+    } else if(s.blackjack&&dist2(P.x,P.z,s.blackjack.x,s.blackjack.z)<marquerZone(s.blackjack,16)){
       label='🃏 TABLE DE BLACKJACK';
       fn=()=>ouvrirCasino('bj');
-    } else if(s.poker&&dist2(P.x,P.z,s.poker.x,s.poker.z)<16){
+    } else if(s.poker&&dist2(P.x,P.z,s.poker.x,s.poker.z)<marquerZone(s.poker,16)){
       label='♠ TABLE DE POKER';
       fn=()=>ouvrirCasino('poker');
-    } else if(s.comptoirArmes&&dist2(P.x,P.z,s.comptoirArmes.x,s.comptoirArmes.z)<14){
+    } else if(s.comptoirArmes&&dist2(P.x,P.z,s.comptoirArmes.x,s.comptoirArmes.z)<marquerZone(s.comptoirArmes,14)){
       label='🔫 ACHETER ARMES & MUNITIONS';
       fn=()=>{ ouvrirDepuis('shop','jeu'); };
-    } else if(s.vente&&dist2(P.x,P.z,s.vente.x,s.vente.z)<15){
+    } else if(s.vente&&dist2(P.x,P.z,s.vente.x,s.vente.z)<marquerZone(s.vente,15)){
       const off=CATALOGUE[s.artIdx||0];
       const dv=VEHDEFS[off.key];
       label='🚗 '+dv.nom+' — '+off.prix+' $';
@@ -8917,17 +8967,17 @@ function majAction(){
         toast(dv.nom+' achetée ! Elle t\u2019attend dehors','or'); bigMsg('🚗 NOUVELLE VOITURE');
         s.livrer=off.key;
       };
-    } else if(s.podiums&&s.podiums.some(p=>dist2(P.x,P.z,p.x,p.z)<20)){
+    } else if(s.podiums&&s.podiums.some(p=>dist2(P.x,P.z,p.x,p.z)<marquerZone(p,20))){
       label='◀ ▶ VOIR UN AUTRE MODÈLE';
       fn=()=>{ s.artIdx=((s.artIdx||0)+1)%CATALOGUE.length; SFX.ui();
         const o=CATALOGUE[s.artIdx]; toast(VEHDEFS[o.key].nom+' — '+o.prix+' $'); };
-    } else if(s.lit&&dist2(P.x,P.z,s.lit.x,s.lit.z)<14){
+    } else if(s.lit&&dist2(P.x,P.z,s.lit.x,s.lit.z)<marquerZone(s.lit,14)){
       label='🛏️ DORMIR (soins complets)';
       fn=()=>{
         soigner(P.maxHp); P.stam=P.stamMax; P.bouclier=Math.max(P.bouclier,30);
         toast('Bien reposé — en pleine forme','or'); SFX.soin();
       };
-    } else if(s.coffreP&&dist2(P.x,P.z,s.coffreP.x,s.coffreP.z)<12){
+    } else if(s.coffreP&&dist2(P.x,P.z,s.coffreP.x,s.coffreP.z)<marquerZone(s.coffreP,12)){
       const rev=Math.floor(META.revenus||0);
       label=rev>0?('💰 ENCAISSER LES REVENUS — '+rev+' $'):'💰 Coffre vide (revenus à venir)';
       fn=()=>{
@@ -8935,7 +8985,7 @@ function majAction(){
         META.argent+=rev; ETAT.cashRun+=rev; META.stats.cashTotal+=rev; META.revenus=0;
         toast('+'+rev+' $ encaissés','or'); SFX.achat();
       };
-    } else if(s.garage&&dist2(P.x,P.z,s.garage.x,s.garage.z)<14){
+    } else if(s.garage&&dist2(P.x,P.z,s.garage.x,s.garage.z)<marquerZone(s.garage,14)){
       label=META.garage?('🚗 SORTIR '+VEHDEFS[META.garage].nom):'🚗 Garage vide';
       fn=()=>{
         if(!META.garage){SFX.refus();toast('Achète une voiture au concessionnaire');return;}
@@ -8943,7 +8993,7 @@ function majAction(){
         toast('Elle t\u2019attend devant la villa','or'); SFX.ui();
         sortirInterieur();
       };
-    } else if(s.casier&&!s.casier.pris&&dist2(P.x,P.z,s.casier.x,s.casier.z)<12){
+    } else if(s.casier&&!s.casier.pris&&dist2(P.x,P.z,s.casier.x,s.casier.z)<marquerZone(s.casier,12)){
       label='FOUILLER LES CASIERS';
       fn=()=>{
         s.casier.pris=true;
@@ -8952,7 +9002,7 @@ function majAction(){
         toast('Trouvé au fond d\u2019un casier. Personne n\u2019a rien vu.','or');
         creerPickup('gilet',P.x+1.5,P.z,0);
       };
-    } else if(s.preuves&&!s.preuves.pris&&dist2(P.x,P.z,s.preuves.x,s.preuves.z)<13){
+    } else if(s.preuves&&!s.preuves.pris&&dist2(P.x,P.z,s.preuves.x,s.preuves.z)<marquerZone(s.preuves,13)){
       label='PILLER LA SALLE DES PREUVES';
       fn=()=>{
         s.preuves.pris=true;
@@ -8966,7 +9016,7 @@ function majAction(){
         bigMsg('SALLE DES PREUVES PILLÉE'); SFX.achat();
         declencherAlarme(s,'Effraction dans la salle des preuves !');
       };
-    } else if(s.ascenseur&&dist2(P.x,P.z,s.ascenseur.x,s.ascenseur.z)<13){
+    } else if(s.ascenseur&&dist2(P.x,P.z,s.ascenseur.x,s.ascenseur.z)<marquerZone(s.ascenseur,13)){
       label='▲ PRENDRE L\u2019ASCENSEUR';
       fn=()=>{
         if(!POIS.toitH){SFX.refus();toast('Ascenseur en panne');return;}
@@ -8975,7 +9025,7 @@ function majAction(){
         toast('🛗 Toit panoramique — vue imprenable','or'); SFX.niveau(); bigMsg('AU SOMMET');
         META.defis.sommet=true;
       };
-    } else if(s.pharmacie&&dist2(P.x,P.z,s.pharmacie.x,s.pharmacie.z)<13){
+    } else if(s.pharmacie&&dist2(P.x,P.z,s.pharmacie.x,s.pharmacie.z)<marquerZone(s.pharmacie,13)){
       const artP=ARTICLES_PHARMA[s.artIdx||0];
       label=artP.ico+' '+artP.nom+' — '+artP.prix+' $';
       fn=()=>{
@@ -8984,7 +9034,7 @@ function majAction(){
         META.argent-=artP.prix; artP.act(); SFX.achat();
         s.artIdx=((s.artIdx||0)+1)%ARTICLES_PHARMA.length;
       };
-    } else if(s.rayon&&dist2(P.x,P.z,s.rayon.x,s.rayon.z)<14){
+    } else if(s.rayon&&dist2(P.x,P.z,s.rayon.x,s.rayon.z)<marquerZone(s.rayon,14)){
       const art=ARTICLES_SUPERETTE[s.artIdx||0];
       label=art.ico+' '+art.nom+' — '+art.prix+' $';
       fn=()=>{
@@ -9006,7 +9056,7 @@ function majAction(){
         if(vide){ SFX.refus(); toast('Tu as déjà fait les poches de celui-là'); return; }
         lancerFouille(f);
       };
-    } else if(s.bar&&dist2(P.x,P.z,s.bar.x,s.bar.z)<12){
+    } else if(s.bar&&dist2(P.x,P.z,s.bar.x,s.bar.z)<marquerZone(s.bar,12)){
       label='BOIRE UN VERRE (40 $)';
       fn=()=>{
         if(P.hp>=P.maxHp){SFX.refus();toast('Tu es déjà en forme');return;}

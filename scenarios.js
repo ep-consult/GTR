@@ -60,74 +60,25 @@ function demarrerServeur() {
 const attendre = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // ---------------------------------------------------------------------------
-// Table des zones d'interaction en jeu, reconstruite depuis majAction()
-// (index.html, ~L8537-9016). L'ordre reproduit l'ordre des branches
-// if/else-if : `sortie` est TOUJOURS vérifiée en premier, quelle que soit la
-// salle. r2 est le seuil au carré utilisé par le jeu (dist2(...)<r2).
-// À resynchroniser si majAction() change de forme.
+// Les zones d'interaction ne sont PAS redéclarées ici : elles sont lues
+// directement depuis zonesInterieurActives() (index.html, juste avant
+// majAction()), qui rejoue la vraie logique du jeu et grave le rayon de
+// chaque zone sur l'objet interactable lui-même (voir marquerZone()). Une
+// salle qui ajoute une zone dans majAction() sans passer par marquerZone()
+// remonte dans `orphelins` et fait échouer le test au lieu d'être ignorée.
 // ---------------------------------------------------------------------------
-const ZONES_ACTION = [
-  { champ: 'sortie', r2: 9 },
-  { champ: 'caisse', r2: 12 },
-  { champ: 'coffre', r2: 14 },
-  { champ: 'machine7', r2: 11 },
-  { champ: 'filtre', r2: 12 },
-  { champ: 'machinesFond', r2: 12, tableau: true },
-  { champ: 'zohraPos', r2: 12 },
-  { champ: 'scene2', r2: 16 },
-  { champ: 'bassins', r2: 13, tableau: true },
-  { champ: 'vitrine', r2: 15 },
-  { champ: 'jeu', r2: 16 },
-  { champ: 'barres', r2: 13, tableau: true },
-  { champ: 'sac', r2: 11 },
-  { champ: 'panneau', r2: 6 },
-  { champ: 'pots', r2: 9, tableau: true },
-  { champ: 'sodaPos', r2: 7 },
-  { champ: 'defiPos', r2: 8 },
-  { champ: 'tableau', r2: 13 },
-  { champ: 'rouePos', r2: 16 },
-  { champ: 'slots', r2: 26 },
-  { champ: 'blackjack', r2: 16 },
-  { champ: 'poker', r2: 16 },
-  { champ: 'comptoirArmes', r2: 14 },
-  { champ: 'vente', r2: 15 },
-  { champ: 'podiums', r2: 20, tableau: true },
-  { champ: 'lit', r2: 14 },
-  { champ: 'coffreP', r2: 12 },
-  { champ: 'garage', r2: 14 },
-  { champ: 'casier', r2: 12 },
-  { champ: 'preuves', r2: 13 },
-  { champ: 'ascenseur', r2: 13 },
-  { champ: 'pharmacie', r2: 13 },
-  { champ: 'rayon', r2: 14 },
-  { champ: 'fouilles', tableau: true, rayonChamp: 'rayon' },
-  { champ: 'bar', r2: 12 },
-];
 
 // Boutons HUD qui doivent rester visibles et atteignables, quelle que soit la salle.
 const BOUTONS_HUD = ['btnFire', 'btnDodge', 'btnSprint', 'btnSwitch', 'btnSpec', 'btnGren', 'btnBrake', 'btnPause', 'zoneL', 'miniWrap'];
 
 async function verifierZonesSalle(page) {
-  return page.evaluate((ZONES) => {
-    const s = INT.actif;
-    if (!s) return { erreur: 'INT.actif absent' };
-    const zones = [];
-    for (const cfg of ZONES) {
-      const val = s[cfg.champ];
-      if (val === undefined || val === null) continue;
-      if (cfg.tableau) {
-        if (!Array.isArray(val)) continue;
-        for (const elem of val) {
-          if (!elem || typeof elem.x !== 'number') continue;
-          const r = (cfg.rayonChamp && typeof elem[cfg.rayonChamp] === 'number') ? elem[cfg.rayonChamp] : Math.sqrt(cfg.r2);
-          zones.push({ champ: cfg.champ, x: elem.x, z: elem.z, r });
-        }
-      } else {
-        if (typeof val.x !== 'number') continue;
-        zones.push({ champ: cfg.champ, x: val.x, z: val.z, r: Math.sqrt(cfg.r2) });
-      }
-    }
+  return page.evaluate(() => {
+    if (!INT.actif) return { erreur: 'INT.actif absent' };
+    const { zones, orphelins } = zonesInterieurActives();
     const problemes = [];
+    for (const champ of orphelins) {
+      problemes.push('« ' + champ + ' » a une position (x,z) mais aucun rayon de déclenchement : zone ajoutée à majAction() sans passer par marquerZone(), jamais vérifiée par ce test');
+    }
     for (let j = 1; j < zones.length; j++) {
       for (let i = 0; i < j; i++) {
         const a = zones[i], b = zones[j];
@@ -145,7 +96,7 @@ async function verifierZonesSalle(page) {
       if (!libre) problemes.push('« ' + z.champ + ' » : aucun point libre autour du déclencheur (coincé dans le décor)');
     }
     return { nbZones: zones.length, problemes };
-  }, ZONES_ACTION);
+  });
 }
 
 async function verifierHUD(page, contexte) {
