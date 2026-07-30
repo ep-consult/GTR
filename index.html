@@ -443,6 +443,9 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
   <button class="mbtn" id="dMenu">Menu principal</button>
 </div>
 
+<!-- DEBUG : console mobile eruda, à retirer avant toute version diffusée -->
+<script src="//cdn.jsdelivr.net/npm/eruda"></script>
+<script>eruda.init();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 // Garde : attendre que THREE soit chargé
@@ -504,7 +507,7 @@ const q=()=>QUAL[REGLAGES.qualite];
 /* =====================================================================
    AUDIO — tout est synthétisé (WebAudio), aucun fichier externe
 ===================================================================== */
-const AUDIO={ctx:null,master:null,sfxG:null,musG:null,noise:null,pret:false,
+const AUDIO={ctx:null,master:null,sfxG:null,musG:null,duckG:null,uiG:null,noise:null,pret:false,
   sirenOsc:null,sirenGain:null,sirenT:0,engOsc:null,engGain:null,engFil:null,musTimer:null,musStep:0};
 
 function audioInit(){
@@ -512,8 +515,12 @@ function audioInit(){
   const C=window.AudioContext||window.webkitAudioContext; if(!C) return;
   const ctx=new C(); AUDIO.ctx=ctx;
   AUDIO.master=ctx.createGain(); AUDIO.master.gain.value=0.9; AUDIO.master.connect(ctx.destination);
-  AUDIO.sfxG=ctx.createGain(); AUDIO.sfxG.gain.value=REGLAGES.sfx?0.85:0; AUDIO.sfxG.connect(AUDIO.master);
-  AUDIO.musG=ctx.createGain(); AUDIO.musG.gain.value=REGLAGES.musique?0.30:0; AUDIO.musG.connect(AUDIO.master);
+  // duck : atténue sfx+musique hors partie (menus/pause/interstices) sans toucher aux réglages joueur
+  AUDIO.duckG=ctx.createGain(); AUDIO.duckG.gain.value=1; AUDIO.duckG.connect(AUDIO.master);
+  AUDIO.sfxG=ctx.createGain(); AUDIO.sfxG.gain.value=REGLAGES.sfx?0.85:0; AUDIO.sfxG.connect(AUDIO.duckG);
+  AUDIO.musG=ctx.createGain(); AUDIO.musG.gain.value=REGLAGES.musique?0.30:0; AUDIO.musG.connect(AUDIO.duckG);
+  // sons d'interface : ne passent PAS par le duck, doivent rester audibles dans les menus
+  AUDIO.uiG=ctx.createGain(); AUDIO.uiG.gain.value=REGLAGES.sfx?0.85:0; AUDIO.uiG.connect(AUDIO.master);
   const len=ctx.sampleRate*1.2, buf=ctx.createBuffer(1,len,ctx.sampleRate), d=buf.getChannelData(0);
   for(let i=0;i<len;i++) d[i]=Math.random()*2-1;
   AUDIO.noise=buf;
@@ -530,22 +537,22 @@ function audioInit(){
   AUDIO.pret=true;
   musiqueStart();
 }
-function beep(f,dur,type,vol,slide){
+function beep(f,dur,type,vol,slide,dest){
   if(!AUDIO.pret) return;
   const ctx=AUDIO.ctx,t=ctx.currentTime;
   const o=ctx.createOscillator(),g=ctx.createGain();
   o.type=type||'square'; o.frequency.setValueAtTime(f,t);
   if(slide) o.frequency.exponentialRampToValueAtTime(Math.max(20,slide),t+dur);
   g.gain.setValueAtTime(vol||0.2,t); g.gain.exponentialRampToValueAtTime(0.001,t+dur);
-  o.connect(g); g.connect(AUDIO.sfxG); o.start(t); o.stop(t+dur+0.02);
+  o.connect(g); g.connect(dest||AUDIO.sfxG); o.start(t); o.stop(t+dur+0.02);
 }
-function bruit(dur,vol,freq,type){
+function bruit(dur,vol,freq,type,dest){
   if(!AUDIO.pret) return;
   const ctx=AUDIO.ctx,t=ctx.currentTime;
   const s=ctx.createBufferSource(); s.buffer=AUDIO.noise;
   const f=ctx.createBiquadFilter(); f.type=type||'lowpass'; f.frequency.value=freq||900;
   const g=ctx.createGain(); g.gain.setValueAtTime(vol||0.3,t); g.gain.exponentialRampToValueAtTime(0.001,t+dur);
-  s.connect(f); f.connect(g); g.connect(AUDIO.sfxG); s.start(t); s.stop(t+dur+0.02);
+  s.connect(f); f.connect(g); g.connect(dest||AUDIO.sfxG); s.start(t); s.stop(t+dur+0.02);
 }
 const SFX={
   coup(){bruit(0.09,0.5,420);beep(150,0.07,'sine',0.25,60);},
@@ -559,7 +566,7 @@ const SFX={
   recharge(){beep(500,0.05,'square',0.12);setTimeout(()=>beep(760,0.05,'square',0.12),120);},
   vide(){beep(220,0.05,'square',0.12);},
   ramasse(){beep(660,0.06,'square',0.16);setTimeout(()=>beep(990,0.08,'square',0.16),60);},
-  cash(){beep(880,0.05,'square',0.14);setTimeout(()=>beep(1320,0.09,'square',0.14),55);},
+  cash(){beep(880,0.05,'square',0.14,0,AUDIO.uiG);setTimeout(()=>beep(1320,0.09,'square',0.14,0,AUDIO.uiG),55);},
   soin(){beep(520,0.12,'sine',0.2,780);},
   explo(){bruit(0.6,1.0,250);beep(60,0.5,'sine',0.5,28);vibre(80);},
   degat(){bruit(0.08,0.4,600);},
@@ -567,15 +574,15 @@ const SFX={
   etoile(){beep(980,0.09,'square',0.22);setTimeout(()=>beep(740,0.12,'square',0.22),100);},
   vague(){beep(220,0.25,'sawtooth',0.25,440);setTimeout(()=>beep(330,0.3,'sawtooth',0.25,660),180);},
   niveau(){[523,659,784,1046].forEach((f,i)=>setTimeout(()=>beep(f,0.14,'square',0.2),i*90));},
-  achat(){beep(700,0.07,'square',0.18);setTimeout(()=>beep(1050,0.1,'square',0.18),80);},
-  refus(){beep(160,0.15,'square',0.2);},
+  achat(){beep(700,0.07,'square',0.18,0,AUDIO.uiG);setTimeout(()=>beep(1050,0.1,'square',0.18,0,AUDIO.uiG),80);},
+  refus(){beep(160,0.15,'square',0.2,0,AUDIO.uiG);},
   klaxon(){beep(310,0.22,'sawtooth',0.25);},
   spec(){beep(140,0.3,'sawtooth',0.35,600);},
   flamme(){bruit(0.09,0.16,700);},
   silence(){bruit(0.05,0.12,1400,'lowpass');beep(320,0.03,'sine',0.06);},
   sniper(){bruit(0.14,0.7,1200);beep(140,0.2,'square',0.3,50);},
   roquette(){bruit(0.3,0.6,900,'highpass');beep(220,0.35,'sawtooth',0.3,60);},
-  ui(){beep(480,0.04,'square',0.1);}
+  ui(){beep(480,0.04,'square',0.1,0,AUDIO.uiG);}
 };
 function sirenUpdate(dt,intens){
   if(!AUDIO.pret) return;
@@ -8320,7 +8327,7 @@ function bindSw(id,key,fn){
   });
 }
 bindSw('tMusic','musique',()=>{if(AUDIO.musG)AUDIO.musG.gain.value=REGLAGES.musique?0.30:0;});
-bindSw('tSfx','sfx',()=>{if(AUDIO.sfxG)AUDIO.sfxG.gain.value=REGLAGES.sfx?0.85:0;});
+bindSw('tSfx','sfx',()=>{if(AUDIO.sfxG)AUDIO.sfxG.gain.value=REGLAGES.sfx?0.85:0;if(AUDIO.uiG)AUDIO.uiG.gain.value=REGLAGES.sfx?0.85:0;});
 bindSw('tVib','vib');
 
 /* =====================================================================
@@ -9289,6 +9296,11 @@ function boucle(t){
       majMer(dt);
     }
     majHUD();
+  }
+  // duck audio : coupe sfx+musique hors partie (menus/pause/interstices), sourd pendant la mort
+  if(AUDIO.pret&&AUDIO.duckG){
+    const cibleDuck=(ETAT.mode==='jeu')?1:(ETAT.mode==='mort')?0.35:0;
+    AUDIO.duckG.gain.setTargetAtTime(cibleDuck,AUDIO.ctx.currentTime,0.08);
   }
   texEau.offset.x+=dtReel*0.008; texEau.offset.y+=dtReel*0.014;
   ETAT.defiT=(ETAT.defiT||0)+dtReel;
