@@ -482,6 +482,51 @@ async function main() {
     else ok('Musée : sprinter à 80 % de la poussée maximale fait bien du bruit');
 
     // -------------------------------------------------------------------
+    // Musée : lisibilité du casse — panneau explicatif lisible en
+    // s'approchant (distinct du boîtier), toast de confirmation du boîtier
+    // étendu (bruit + cône de vue), libellé d'objectif sous le chrono qui
+    // bascule une fois un artefact pris.
+    // -------------------------------------------------------------------
+    console.log('\n--- Musée : lisibilité du casse (panneau, toast, libellé d\'objectif) ---');
+    const legibilite = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'musee');
+      startRun();
+      entrerInterieur('musee', p);
+      const s = INT.actif;
+      const panneau = s.cartels.find((c) => c.titre === 'AVANT DE COUPER LE COURANT');
+      let texteToastPanneau = null;
+      if (panneau) {
+        P.x = panneau.x; P.z = panneau.z; majAction(); document.getElementById('btnAction')._fn();
+        texteToastPanneau = document.getElementById('toastBox').lastElementChild.textContent;
+      }
+      // premier appui sur le boîtier : arme + toast d'avertissement (pas encore le casse)
+      P.x = s.boitier.x; P.z = s.boitier.z; majAction(); document.getElementById('btnAction')._fn();
+      const texteToastBoitier = document.getElementById('toastBox').lastElementChild.textContent;
+      // confirme : démarre le casse
+      majAction(); document.getElementById('btnAction')._fn();
+      majInterieur(0.1);
+      const objAvant = document.getElementById('musObj').textContent;
+      // force la Machine à laver (vitrine non touchée par un test précédent :
+      // Le Cône et le Canard sont déjà définitivement pris ailleurs dans la suite)
+      const laveuse = s.vitrinesValeur.find((v) => v.cle === 'laveuse');
+      P.x = laveuse.x; P.z = laveuse.z; majAction(); document.getElementById('btnAction')._fn();
+      for (let i = 0; i < 20; i++) majInterieur(0.1);
+      const objApres = document.getElementById('musObj').textContent;
+      if (INT.actif) sortirInterieur();
+      return { panneauTrouve: !!panneau, texteToastPanneau, texteToastBoitier, objAvant, objApres };
+    });
+    if (!legibilite.panneauTrouve) fail('Musée : le panneau explicatif près du boîtier est introuvable');
+    else ok('Musée : le panneau explicatif existe et est lisible en s\'approchant');
+    if (!legibilite.texteToastPanneau || !/90/.test(legibilite.texteToastPanneau) || !/forçable/i.test(legibilite.texteToastPanneau) || !/entrée/i.test(legibilite.texteToastPanneau)) fail('Musée : le panneau explicatif ne couvre pas les 3 points attendus (90 s, vitrines forçables, ressortir par l\'entrée) — texte : ' + legibilite.texteToastPanneau);
+    else ok('Musée : le panneau explique bien les 3 points du casse (chrono, vitrines forçables, sortie par l\'entrée)');
+    if (!/bruit/i.test(legibilite.texteToastBoitier) || !(/cône/i.test(legibilite.texteToastBoitier) || /alarme/i.test(legibilite.texteToastBoitier))) fail('Musée : le toast de confirmation du boîtier ne mentionne pas le bruit et le cône de vue — texte : ' + legibilite.texteToastBoitier);
+    else ok('Musée : le toast du boîtier mentionne bien le bruit et le cône de vue');
+    if (legibilite.objAvant !== 'Forcer les vitrines') fail('Musée : libellé objectif initial incorrect (' + legibilite.objAvant + ')');
+    else ok('Musée : le libellé objectif affiche bien « Forcer les vitrines » au début du casse');
+    if (legibilite.objApres === legibilite.objAvant || !/entrée/i.test(legibilite.objApres)) fail('Musée : le libellé objectif ne bascule pas vers « Ressortir par l\'entrée » après une prise (' + legibilite.objApres + ')');
+    else ok('Musée : le libellé objectif bascule bien vers « Ressortir par l\'entrée » après une prise');
+
+    // -------------------------------------------------------------------
     // Arcade : VIPÈRE — jeton consommé, score, tickets, collision mortelle.
     // -------------------------------------------------------------------
     console.log('\n--- Arcade : VIPÈRE (jeton, score, tickets, collision) ---');
@@ -701,6 +746,105 @@ async function main() {
     if (!aimantMur.curioOk) fail('Arcade : le test suppose Le Jeton Doré déjà acquis (voir test précédent)');
     if (Math.abs(aimantMur.distApres - aimantMur.distAvant) > 0.05) fail('Arcade : un ramassable a traversé un mur sous l\'effet de l\'aimant (distance avant ' + aimantMur.distAvant.toFixed(2) + ', après ' + aimantMur.distApres.toFixed(2) + ')');
     else ok('Arcade : l\'aimant du Jeton Doré ne fait pas traverser les murs à un ramassable (bloqué, ne bouge pas)');
+
+    // -------------------------------------------------------------------
+    // Arcade : le modal des bornes doit occuper l'essentiel de la hauteur
+    // disponible (viewport de test 390×844, cf. setViewport) et sa résolution
+    // interne doit suivre le devicePixelRatio pour rester nette une fois
+    // agrandie (sinon l'image étirée est floue).
+    // -------------------------------------------------------------------
+    console.log('\n--- Arcade : modal agrandi (hauteur disponible, résolution du canvas) ---');
+    const modalTest = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'arcade');
+      startRun();
+      entrerInterieur('arcade', p);
+      const s = INT.actif;
+      META.argent = 100;
+      P.x = s.comptoirJetons.x; P.z = s.comptoirJetons.z;
+      majAction(); document.getElementById('btnAction')._fn();
+      const bv = s.bornes.find((b) => b.id === 'vipere');
+      P.x = bv.x; P.z = bv.z; majAction(); document.getElementById('btnAction')._fn();
+      majInterieur(0.016); // une frame : déclenche redimensionnerArcadeCv()
+      const rect = arcadeWrap.getBoundingClientRect();
+      const dpr = Math.min(window.devicePixelRatio || 1, 3);
+      const r = {
+        hauteurCss: rect.height, largeurCss: rect.width,
+        cvW: arcadeCv.width, cvH: arcadeCv.height, dpr,
+        ratioW: arcadeCv.width / rect.width, ratioH: arcadeCv.height / rect.height,
+      };
+      finirBorneJeu();
+      if (INT.actif) sortirInterieur();
+      return r;
+    });
+    if (!(modalTest.hauteurCss > 400)) fail('Arcade : le modal n\'occupe pas l\'essentiel de la hauteur disponible (hauteur CSS = ' + modalTest.hauteurCss.toFixed(0) + 'px sur un viewport de 844px)');
+    else ok('Arcade : le modal occupe bien l\'essentiel de la hauteur disponible (' + modalTest.hauteurCss.toFixed(0) + 'px)');
+    if (Math.abs(modalTest.ratioW - modalTest.dpr) > 0.05 || Math.abs(modalTest.ratioH - modalTest.dpr) > 0.05) fail('Arcade : la résolution interne du canvas ne suit pas le devicePixelRatio (attendu ×' + modalTest.dpr + ', obtenu ×' + modalTest.ratioW.toFixed(2) + '/' + modalTest.ratioH.toFixed(2) + ') — l\'image sera floue une fois agrandie');
+    else ok('Arcade : la résolution interne du canvas suit bien le devicePixelRatio (×' + modalTest.dpr + ', reste nette après agrandissement)');
+
+    // -------------------------------------------------------------------
+    // Arcade : croix directionnelle réutilisable — s'affiche et masque le
+    // joystick pendant une session de borne, configuration différente selon
+    // le jeu (VIPÈRE : 4 directions ; CHANTIER : gauche/droite/bas + un
+    // bouton de rotation dédié, pas de haut), pilote INPUT directement sans
+    // être écrasée par litEntrees, disparaît en quittant la partie.
+    // -------------------------------------------------------------------
+    console.log('\n--- Arcade : croix directionnelle (affichage, configuration par jeu, pilotage de l\'entrée) ---');
+    const croixTest = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'arcade');
+      entrerInterieur('arcade', p);
+      const s = INT.actif;
+      META.argent = 100;
+      P.x = s.comptoirJetons.x; P.z = s.comptoirJetons.z;
+      majAction(); document.getElementById('btnAction')._fn(); // jeton pour VIPÈRE
+      majAction(); document.getElementById('btnAction')._fn(); // jeton pour CHANTIER
+      const bv = s.bornes.find((b) => b.id === 'vipere');
+      P.x = bv.x; P.z = bv.z; majAction(); document.getElementById('btnAction')._fn();
+      const vipereConfig = {
+        croixVisible: croixWrap.style.display === 'block',
+        joystickCache: zoneL.style.display === 'none',
+        haut: document.getElementById('croixHaut').style.display,
+        bas: document.getElementById('croixBas').style.display,
+        gauche: document.getElementById('croixGauche').style.display,
+        droite: document.getElementById('croixDroite').style.display,
+        rotate: document.getElementById('croixRotate').style.display,
+      };
+      croixDown('droite');
+      const mxApresDroite = INPUT.mx;
+      litEntrees(); // ne doit RIEN écraser pendant une session de borne
+      const mxApresLitEntrees = INPUT.mx;
+      croixUp('droite');
+      const mxApresRelache = INPUT.mx;
+      ARCADE.score = 0; finirBorneJeu(); // quitte sans record
+      const croixCacheeApresJeu = croixWrap.style.display === 'none';
+      const joystickRevenu = zoneL.style.display !== 'none';
+      // CHANTIER : configuration différente (pas de bouton haut, un bouton de rotation)
+      const bc = s.bornes.find((b) => b.id === 'chantier');
+      P.x = bc.x; P.z = bc.z; majAction(); document.getElementById('btnAction')._fn();
+      const chantierConfig = {
+        haut: document.getElementById('croixHaut').style.display,
+        bas: document.getElementById('croixBas').style.display,
+        gauche: document.getElementById('croixGauche').style.display,
+        droite: document.getElementById('croixDroite').style.display,
+        rotate: document.getElementById('croixRotate').style.display,
+      };
+      ARCADE.score = 0; finirBorneJeu();
+      if (INT.actif) sortirInterieur();
+      return { vipereConfig, mxApresDroite, mxApresLitEntrees, mxApresRelache, croixCacheeApresJeu, joystickRevenu, chantierConfig };
+    });
+    if (!croixTest.vipereConfig.croixVisible || !croixTest.vipereConfig.joystickCache) fail('Arcade : la croix directionnelle ne s\'affiche pas (ou ne masque pas le joystick) pendant une partie de VIPÈRE');
+    else ok('Arcade : la croix directionnelle s\'affiche et masque bien le joystick pendant une partie');
+    if (croixTest.vipereConfig.haut !== 'flex' || croixTest.vipereConfig.bas !== 'flex' || croixTest.vipereConfig.gauche !== 'flex' || croixTest.vipereConfig.droite !== 'flex') fail('Arcade : VIPÈRE devrait afficher les 4 boutons directionnels (' + JSON.stringify(croixTest.vipereConfig) + ')');
+    else ok('Arcade : VIPÈRE affiche bien les 4 boutons directionnels');
+    if (croixTest.mxApresDroite !== 1) fail('Arcade : appuyer sur la flèche droite de la croix ne pilote pas INPUT.mx');
+    else ok('Arcade : la croix pilote bien INPUT.mx/mz directement');
+    if (croixTest.mxApresLitEntrees !== 1) fail('Arcade : litEntrees() écrase l\'entrée de la croix pendant une session de borne (joystick/clavier pas gelés)');
+    else ok('Arcade : litEntrees() est bien gelée pendant une session de borne (n\'écrase pas la croix)');
+    if (croixTest.mxApresRelache !== 0) fail('Arcade : relâcher un bouton de la croix ne remet pas INPUT.mx à 0');
+    else ok('Arcade : relâcher un bouton de la croix remet bien l\'entrée à 0');
+    if (!croixTest.croixCacheeApresJeu || !croixTest.joystickRevenu) fail('Arcade : quitter la partie ne cache pas la croix ou ne restaure pas le joystick');
+    else ok('Arcade : quitter la partie cache bien la croix et restaure le joystick');
+    if (croixTest.chantierConfig.haut !== 'none' || croixTest.chantierConfig.bas !== 'flex' || croixTest.chantierConfig.gauche !== 'flex' || croixTest.chantierConfig.droite !== 'flex' || croixTest.chantierConfig.rotate !== 'flex') fail('Arcade : CHANTIER n\'a pas sa propre configuration de croix (gauche/droite/bas + rotation, sans bouton haut) — ' + JSON.stringify(croixTest.chantierConfig));
+    else ok('Arcade : CHANTIER utilise bien sa propre configuration de croix (pas de bouton haut, bouton de rotation dédié)');
 
     // -------------------------------------------------------------------
     // Salle de sport (FER & SUEUR) : soulever une barre avec succès (palier
