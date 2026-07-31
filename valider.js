@@ -60,21 +60,87 @@ global.__CAPTURES__ = CAPTURES;
 process.on('uncaughtException', (e) => { ERREURS.push(e); });
 
 // ---------------------------------------------------------------------------
-// Bouchon canvas 2D "silencieux" : absorbe tout appel de dessin sans jamais
-// lever d'exception ni renvoyer une valeur incohérente utilisée en calcul.
-// ---------------------------------------------------------------------------
-function quietMock(label) {
+// Bouchon canvas 2D : absorbe les appels de dessin (aucun rendu réel en
+// headless Node) mais valide chaque nom de propriété/méthode accédé contre
+// la VRAIE liste des membres de CanvasRenderingContext2D — un nom inconnu
+// (typo comme fillRectt) lève une erreur au lieu d'être silencieusement
+// avalé. Liste extraite une fois depuis un vrai Chromium (Puppeteer) :
+//   const ctx=document.createElement('canvas').getContext('2d');
+//   let proto=Object.getPrototypeOf(ctx), props=new Set();
+//   while(proto&&proto!==Object.prototype){
+//     for(const n of Object.getOwnPropertyNames(proto)) if(n!=='constructor') props.add(n);
+//     proto=Object.getPrototypeOf(proto);
+//   }
+// À régénérer avec le même script si de nouvelles API canvas sont utilisées.
+const API_CANVAS_2D = new Set([
+  'arc', 'arcTo', 'beginPath', 'bezierCurveTo', 'canvas', 'clearRect', 'clip',
+  'closePath', 'createConicGradient', 'createImageData', 'createLinearGradient',
+  'createPattern', 'createRadialGradient', 'direction', 'drawFocusIfNeeded',
+  'drawImage', 'ellipse', 'fill', 'fillRect', 'fillStyle', 'fillText', 'filter',
+  'font', 'fontKerning', 'fontStretch', 'fontVariantCaps', 'getContextAttributes',
+  'getImageData', 'getLineDash', 'getTransform', 'globalAlpha',
+  'globalCompositeOperation', 'imageSmoothingEnabled', 'imageSmoothingQuality',
+  'isContextLost', 'isPointInPath', 'isPointInStroke', 'lang', 'letterSpacing',
+  'lineCap', 'lineDashOffset', 'lineJoin', 'lineTo', 'lineWidth', 'measureText',
+  'miterLimit', 'moveTo', 'putImageData', 'quadraticCurveTo', 'rect', 'reset',
+  'resetTransform', 'restore', 'rotate', 'roundRect', 'save', 'scale',
+  'setLineDash', 'setTransform', 'shadowBlur', 'shadowColor', 'shadowOffsetX',
+  'shadowOffsetY', 'stroke', 'strokeRect', 'strokeStyle', 'strokeText',
+  'textAlign', 'textBaseline', 'textRendering', 'transform', 'translate',
+  'wordSpacing',
+]);
+// createLinearGradient/createRadialGradient/createPattern renvoient un objet
+// à l'API distincte (CanvasGradient/CanvasPattern) : addColorStop n'est pas
+// une méthode de CanvasRenderingContext2D, valider avec la même liste que le
+// contexte y ferait planter du code parfaitement correct.
+const API_CANVAS_GRADIENT = new Set(['addColorStop']);
+const METHODES_GRADIENT = new Set(['createLinearGradient', 'createRadialGradient', 'createPattern']);
+// measureText() renvoie TextMetrics, une interface encore différente — et
+// c'est justement ce que dessinerIconePOI() interroge (actualBoundingBox*)
+// pour centrer un glyphe. Des vrais nombres plausibles (dérivés du texte et
+// de la taille de police couramment assignée à .font) sont nécessaires pour
+// que ce calcul soit réellement exercé, pas juste "ne plante pas".
+function extraireTaillePolice(fontCss) {
+  const m = /(\d+(?:\.\d+)?)px/.exec(String(fontCss || ''));
+  return m ? parseFloat(m[1]) : 10;
+}
+function makeTextMetrics(texte, taillePx) {
+  const largeur = String(texte).length * taillePx * 0.6; // approx. Arial
+  return {
+    width: largeur,
+    actualBoundingBoxLeft: largeur / 2,
+    actualBoundingBoxRight: largeur / 2,
+    actualBoundingBoxAscent: taillePx * 0.8,
+    actualBoundingBoxDescent: taillePx * 0.2,
+    fontBoundingBoxAscent: taillePx * 0.9,
+    fontBoundingBoxDescent: taillePx * 0.25,
+  };
+}
+function quietMock(label, apiSet) {
+  apiSet = apiSet || API_CANVAS_2D;
   const store = Object.create(null);
-  const fn = function () { return quietMock(label + '()'); };
+  const fn = function () { return quietMock(label + '()', apiSet); };
   return new Proxy(fn, {
     get(t, prop) {
       if (prop === Symbol.toPrimitive) return () => 0;
-      if (prop === 'width' || prop === 'height') return 0;
+      if (typeof prop === 'symbol') return undefined;
+      if (prop === 'measureText' && apiSet === API_CANVAS_2D) {
+        return (texte) => makeTextMetrics(texte, extraireTaillePolice(store.font));
+      }
       if (prop in store) return store[prop];
-      return quietMock(label + '.' + String(prop));
+      if (!apiSet.has(prop)) {
+        throw new Error('CanvasRenderingContext2D.' + String(prop) + ' n\'existe pas (typo ?) — accédé depuis ' + label);
+      }
+      const sousApi = METHODES_GRADIENT.has(prop) ? API_CANVAS_GRADIENT : apiSet;
+      return quietMock(label + '.' + String(prop), sousApi);
     },
-    set(t, prop, v) { store[prop] = v; return true; },
-    apply() { return quietMock(label + '()'); },
+    set(t, prop, v) {
+      if (typeof prop !== 'symbol' && !apiSet.has(prop)) {
+        throw new Error('CanvasRenderingContext2D.' + String(prop) + ' n\'existe pas (typo ?) — assigné depuis ' + label);
+      }
+      store[prop] = v; return true;
+    },
+    apply() { return quietMock(label + '()', apiSet); },
   });
 }
 
