@@ -148,7 +148,23 @@ function quietMock(label, apiSet) {
 // DOM minimal
 // ---------------------------------------------------------------------------
 function makeStyleProxy() {
-  return new Proxy({}, { get() { return ''; }, set() { return true; }, has() { return true; } });
+  // Mémorise ce qui est écrit et le relit, comme un vrai CSSStyleDeclaration
+  // (propriété jamais assignée -> '', pas undefined). Avant, toute lecture
+  // renvoyait toujours '' quoi qu'on ait écrit : du code qui relit un style
+  // pour décider quelque chose (if(x.style.display!=='none')...) voyait
+  // toujours '' — donc toujours vrai — sans jamais vérifier le vrai état.
+  const store = Object.create(null);
+  return new Proxy(store, {
+    get(t, prop) {
+      if (typeof prop === 'symbol') return undefined;
+      return prop in store ? store[prop] : '';
+    },
+    set(t, prop, v) {
+      if (typeof prop !== 'symbol') store[prop] = String(v);
+      return true;
+    },
+    has() { return true; },
+  });
 }
 class FakeClassList {
   constructor() { this._s = new Set(); }
