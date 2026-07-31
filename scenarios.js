@@ -703,6 +703,190 @@ async function main() {
     else ok('Arcade : l\'aimant du Jeton Doré ne fait pas traverser les murs à un ramassable (bloqué, ne bouge pas)');
 
     // -------------------------------------------------------------------
+    // Salle de sport (FER & SUEUR) : soulever une barre avec succès (palier
+    // de muscle, PV/endurance), puis un échec (le temps s'écoule).
+    // -------------------------------------------------------------------
+    console.log('\n--- Salle de sport : soulevé réussi puis raté ---');
+    const sport = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'sport');
+      startRun();
+      entrerInterieur('sport', p);
+      const s = INT.actif;
+      META.argent = 200;
+      const b0 = s.barres.find((b) => b.idx === 0);
+      P.x = b0.x; P.z = b0.z;
+      majAction(); document.getElementById('btnAction')._fn(); // SOULEVER — 40 $
+      const demarre = s.spEtat === 'soulevé';
+      for (let i = 0; i < 15 && s.spEtat === 'soulevé'; i++) {
+        majAction(); document.getElementById('btnAction')._fn(); // POUSSE !
+      }
+      const muscleApresReussite = META.muscle, spEtatApresReussite = s.spEtat;
+      // 2e barre (palier 1, débloquée) : on démarre puis on laisse le temps s'écouler sans pousser
+      const b1 = s.barres.find((b) => b.idx === 1);
+      P.x = b1.x; P.z = b1.z;
+      majAction(); document.getElementById('btnAction')._fn();
+      const demarre2 = s.spEtat === 'soulevé';
+      const hpAvantEchec = P.hp;
+      majInterieur(11); // largement plus que spT (10 s pour la barre 1) : le temps s'écoule
+      const muscleApresEchec = META.muscle, spEtatApresEchec = s.spEtat, hpApresEchec = P.hp;
+      if (INT.actif) sortirInterieur();
+      return { demarre, muscleApresReussite, spEtatApresReussite, demarre2, muscleApresEchec, spEtatApresEchec, hpAvantEchec, hpApresEchec };
+    });
+    if (!sport.demarre) fail('Sport : SOULEVER ne démarre pas le soulevé');
+    if (sport.muscleApresReussite !== 1 || sport.spEtatApresReussite !== null) fail('Sport : martèlement jusqu\'à 100 % n\'a pas fait passer META.muscle à 1 (obtenu ' + sport.muscleApresReussite + ', spEtat=' + sport.spEtatApresReussite + ')');
+    else ok('Sport : martèlement jusqu\'à 100 % fait bien passer un palier de muscle');
+    if (!sport.demarre2) fail('Sport : la 2e barre (palier débloqué) ne démarre pas le soulevé');
+    if (sport.muscleApresEchec !== 1) fail('Sport : un soulevé raté a quand même fait progresser le muscle (' + sport.muscleApresEchec + ')');
+    else ok('Sport : un soulevé raté (le temps s\'écoule) ne fait pas progresser le muscle');
+    if (sport.spEtatApresEchec !== null) fail('Sport : un soulevé raté ne remet pas spEtat à null');
+    if (sport.hpApresEchec >= sport.hpAvantEchec) fail('Sport : un soulevé raté ne blesse pas le joueur (toucherJoueur attendu)');
+    else ok('Sport : un soulevé raté blesse bien le joueur');
+
+    // -------------------------------------------------------------------
+    // Bowling : une partie complète jouée « parfaitement » (ligne et force à
+    // 0 à chaque lancer) doit produire trois strikes, la partie parfaite,
+    // le gain et la curiosité associée.
+    // -------------------------------------------------------------------
+    console.log('\n--- Bowling : partie complète (3 strikes) ---');
+    const bowlingComplet = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'bowling');
+      startRun();
+      entrerInterieur('bowling', p);
+      const s = INT.actif;
+      META.argent = 200;
+      const argentAvant = META.argent;
+      P.x = s.jeu.x; P.z = s.jeu.z;
+      majAction(); document.getElementById('btnAction')._fn(); // JOUER UNE PARTIE — 80 $
+      for (let lancer = 0; lancer < 3; lancer++) {
+        s.bwCur = 0; // ligne parfaite
+        majAction(); document.getElementById('btnAction')._fn(); // FIXER LA LIGNE
+        s.bwCur = 0; // force parfaite
+        majAction(); document.getElementById('btnAction')._fn(); // LÂCHER LA BOULE -> lancerBowling
+        majInterieur(1.2); // laisse l'animation de la boule se terminer avant le lancer suivant
+      }
+      const partieFinie = s.bwEtat === null;
+      const curioObtenue = aCurio('boule_bowling');
+      const armeObtenue = META.armes.bouleC.poss;
+      if (INT.actif) sortirInterieur();
+      return { argentAvant, argentApres: META.argent, partieFinie, curioObtenue, armeObtenue };
+    });
+    if (!bowlingComplet.partieFinie) fail('Bowling : la partie ne s\'est pas terminée après 3 lancers');
+    else ok('Bowling : une partie complète (3 lancers) se termine bien');
+    if (bowlingComplet.argentApres <= bowlingComplet.argentAvant) fail('Bowling : une partie parfaite n\'a pas rapporté d\'argent net (avant ' + bowlingComplet.argentAvant + ', après ' + bowlingComplet.argentApres + ')');
+    else ok('Bowling : une partie parfaite rapporte bien de l\'argent');
+    if (!bowlingComplet.curioObtenue || !bowlingComplet.armeObtenue) fail('Bowling : trois strikes n\'ont pas donné la Boule Comète (curio=' + bowlingComplet.curioObtenue + ', arme=' + bowlingComplet.armeObtenue + ')');
+    else ok('Bowling : trois strikes donnent bien la curiosité et l\'arme associées');
+
+    // -------------------------------------------------------------------
+    // Karaoké : trois arrêts parfaits d'affilée doivent donner le sans-faute
+    // (bonus, curiosité 'platine').
+    // -------------------------------------------------------------------
+    console.log('\n--- Karaoké : sans-faute (3 arrêts parfaits) ---');
+    const karaoke = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'karaoke');
+      startRun();
+      entrerInterieur('karaoke', p);
+      const s = INT.actif;
+      META.argent = 200;
+      P.x = s.scene2.x; P.z = s.scene2.z;
+      majAction(); document.getElementById('btnAction')._fn(); // CHANTER — 60 $
+      const demarre = s.karaOn === true;
+      for (let i = 0; i < 3 && s.karaOn; i++) {
+        s.karaPos = 0; // pile au centre : parfait
+        majAction(); document.getElementById('btnAction')._fn(); // ARRÊTER LE CURSEUR
+      }
+      const karaPerf = s.karaPerf, karaFini = s.karaOn === false;
+      const curioObtenue = aCurio('platine');
+      if (INT.actif) sortirInterieur();
+      return { demarre, karaPerf, karaFini, curioObtenue };
+    });
+    if (!karaoke.demarre) fail('Karaoké : CHANTER ne démarre pas la chanson');
+    if (karaoke.karaPerf !== 3 || !karaoke.karaFini) fail('Karaoké : trois arrêts parfaits n\'ont pas donné 3 « parfait » (karaPerf=' + karaoke.karaPerf + ', fini=' + karaoke.karaFini + ')');
+    else ok('Karaoké : trois arrêts parfaits d\'affilée sont bien comptés');
+    if (!karaoke.curioObtenue) fail('Karaoké : le sans-faute n\'a pas donné Le Disque de Platine');
+    else ok('Karaoké : le sans-faute donne bien Le Disque de Platine');
+
+    // -------------------------------------------------------------------
+    // Véhicule aérien (hélicoptère) : les libellés des boutons SPRINT/FREIN
+    // changent en MONTER/DESCENDRE à l'entrée et reviennent à la sortie ;
+    // décollage et atterrissage fonctionnent.
+    // -------------------------------------------------------------------
+    console.log('\n--- Véhicule aérien : hélicoptère (libellés, décollage, atterrissage) ---');
+    const vol = await page.evaluate(() => {
+      startRun();
+      const heli = creerVehicule('helico', P.x + 5, P.z, 0);
+      entrerVehicule(heli);
+      const labelsEntree = {
+        sprint: document.getElementById('btnSprint').querySelector('small').textContent,
+        brake: document.getElementById('btnBrake').querySelector('small').textContent,
+      };
+      INPUT.btn.sprint = true;
+      for (let i = 0; i < 30; i++) majConduite(0.1); // décolle et monte
+      INPUT.btn.sprint = false;
+      const volApresDecollage = heli.vol, altApresDecollage = heli.alt;
+      // redescend vite en altitude, puis relâche DESCENDRE avant le sol : se
+      // poser à pleine vitesse de descente (va=-13) déclenche un crash
+      // (crashAerien, va<-5.5) — un vrai pilote lève le pied avant de toucher
+      INPUT.btn.frein = true;
+      for (let i = 0; i < 60 && heli.alt > 8; i++) majConduite(0.1);
+      INPUT.btn.frein = false;
+      for (let i = 0; i < 200 && heli.vol; i++) majConduite(0.1); // pose en douceur (chute lente, sûre)
+      const volApresAtterrissage = heli.vol, altApresAtterrissage = heli.alt, crashe = !!heli.mort;
+      sortirVehicule();
+      const labelsSortie = {
+        sprint: document.getElementById('btnSprint').querySelector('small').textContent,
+        brake: document.getElementById('btnBrake').querySelector('small').textContent,
+      };
+      return { labelsEntree, volApresDecollage, altApresDecollage, volApresAtterrissage, altApresAtterrissage, crashe, labelsSortie };
+    });
+    if (vol.labelsEntree.sprint !== 'MONTER' || vol.labelsEntree.brake !== 'DESCENDRE') fail('Vol : les libellés des boutons ne changent pas à l\'entrée dans un appareil volant (' + JSON.stringify(vol.labelsEntree) + ')');
+    else ok('Vol : SPRINT/FREIN deviennent bien MONTER/DESCENDRE en hélicoptère');
+    if (!vol.volApresDecollage || vol.altApresDecollage < 3) fail('Vol : l\'hélicoptère n\'a pas décollé (vol=' + vol.volApresDecollage + ', alt=' + vol.altApresDecollage + ')');
+    else ok('Vol : maintenir MONTER fait bien décoller et monter l\'hélicoptère');
+    if (vol.volApresAtterrissage) fail('Vol : l\'hélicoptère n\'a pas atterri après DESCENDRE puis une chute lente (alt=' + vol.altApresAtterrissage + ', crashé=' + vol.crashe + ')');
+    else if (vol.crashe) fail('Vol : l\'hélicoptère s\'est crashé au lieu d\'atterrir en douceur — le test descend trop vite près du sol');
+    else ok('Vol : DESCENDRE puis relâcher avant le sol fait bien atterrir l\'hélicoptère sans le crasher');
+    if (vol.labelsSortie.sprint !== 'SPRINT' || vol.labelsSortie.brake !== 'FREIN') fail('Vol : les libellés des boutons ne reviennent pas à SPRINT/FREIN à la sortie (' + JSON.stringify(vol.labelsSortie) + ')');
+    else ok('Vol : les libellés reviennent bien à SPRINT/FREIN en sortant de l\'appareil');
+
+    // -------------------------------------------------------------------
+    // Navigation entre menus : ecran() doit toujours masquer TOUS les
+    // écrans précédents avant d'afficher le nouveau (document.
+    // querySelectorAll('.screen') — jamais exercé par valider.js, qui ne
+    // simule aucun clic).
+    // -------------------------------------------------------------------
+    console.log('\n--- Navigation entre menus ---');
+    const menuNav = await page.evaluate(() => {
+      const ecransOn = () => Array.from(document.querySelectorAll('.screen')).filter((s) => s.classList.contains('on')).map((s) => s.id);
+      const clic = (id) => document.getElementById(id).dispatchEvent(new Event('pointerdown', { bubbles: true }));
+      const paires = [
+        ['mShop', 'shopClose', 'shop'],
+        ['mChars', 'charsClose', 'chars'],
+        ['mUpg', 'upgClose', 'upg'],
+        ['mDefis', 'defisClose', 'defis'],
+        ['mStatsBtn', 'statsClose', 'statsScr'],
+        ['mHelp', 'helpClose', 'help'],
+      ];
+      const resultats = [];
+      for (const [ouvrir, fermer, ecranId] of paires) {
+        clic(ouvrir);
+        const pendantOuverture = ecransOn();
+        clic(fermer);
+        const apresFermeture = ecransOn();
+        resultats.push({ ouvrir, ecranId, pendantOuverture, apresFermeture });
+      }
+      return resultats;
+    });
+    for (const r of menuNav) {
+      if (r.pendantOuverture.length !== 1 || r.pendantOuverture[0] !== r.ecranId) {
+        fail('Navigation menu : ' + r.ouvrir + ' n\'affiche pas exactement l\'écran "' + r.ecranId + '" seul (' + r.pendantOuverture.join(',') + ')');
+      } else {
+        ok('Navigation menu : ' + r.ouvrir + ' affiche bien "' + r.ecranId + '" seul');
+      }
+      if (r.apresFermeture.includes(r.ecranId)) fail('Navigation menu : fermer "' + r.ecranId + '" ne le masque pas');
+    }
+
+    // -------------------------------------------------------------------
     // Persistance : sauvegarde, rechargement, META cohérent.
     // -------------------------------------------------------------------
     console.log('\n--- Persistance (sauvegarde / rechargement) ---');

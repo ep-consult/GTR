@@ -8340,7 +8340,7 @@ function majMissions(dt){
     fl.style.display='block';
     const a=Math.atan2(ciblePos.x-P.x,-(ciblePos.z-P.z));
     const dCible=Math.sqrt(dist2(P.x,P.z,ciblePos.x,ciblePos.z));
-    fl.querySelector('svg').style.transform='rotate('+(a*180/Math.PI)+'deg)';
+    const sv=fl.querySelector('svg'); if(sv) sv.style.transform='rotate('+(a*180/Math.PI)+'deg)';
     fl.title=Math.round(dCible)+' m';
   } else fl.style.display='none';
 }
