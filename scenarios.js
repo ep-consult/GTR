@@ -512,7 +512,7 @@ async function main() {
       ARCADE.v.corps[0] = { x: 0, y: 10 }; ARCADE.v.dir = { x: -1, y: 0 }; ARCADE.v.tickT = 0;
       majVipere(0.01);
       const jeuTermineApresMur = ARCADE.jeu === null;
-      const tickets = META.arcadeTickets || 0;
+      const tickets = s.tickets || 0;
       if (INT.actif) sortirInterieur();
       return { jetonsApresAchat, argentApresAchat, jeuDemarre, jetonsApresJeu, scoreApresRepas, timeScaleAvant, timeScalePendant, jeuTermineApresMur, tickets };
     });
@@ -558,7 +558,7 @@ async function main() {
       // abandon volontaire, en pleine partie : le bouton pause quitte la borne
       togglePause();
       const jeuFiniApresAbandon = ARCADE.jeu === null;
-      const ticketsFinal = META.arcadeTickets || 0;
+      const ticketsFinal = s.tickets || 0;
       const jetonsRestants = s.jetons;
       if (INT.actif) sortirInterieur();
       return { jeuDemarre, ligneEffacee, scoreApresLigne, jeuFiniApresAbandon, ticketsFinal, jetonsRestants };
@@ -575,28 +575,62 @@ async function main() {
     else ok('Arcade : abandonner en pleine partie conserve bien les tickets déjà gagnés');
 
     // -------------------------------------------------------------------
-    // Arcade : les jetons non utilisés sont perdus au game over, tickets et
-    // meilleurs scores survivent (ils vivent dans META, pas sur la salle).
+    // Arcade : ce qu'on PORTE est perdu au game over (jetons, tickets — y
+    // compris des tickets déjà banqués AVANT la partie en cours au moment de
+    // la mort, pas seulement le score de cette dernière partie), ce qu'on a
+    // ACCOMPLI reste (meilleurs scores, donc progression vers Le Jeton Doré).
+    // C'est ce qui empêche de vider son portefeuille dans les bornes juste
+    // avant de mourir pour convertir de l'argent condamné en valeur
+    // permanente.
     // -------------------------------------------------------------------
     console.log('\n--- Arcade : réinitialisation au game over ---');
     const resetArcade = await page.evaluate(() => {
       const p = PORTES.find((x) => x.id === 'arcade');
+      startRun(); // état de départ propre : ETAT.mode, P.hp, INT.actif...
       entrerInterieur('arcade', p);
       const s = INT.actif;
       META.argent = 100;
+      const scoresAvant = JSON.parse(JSON.stringify(META.arcadeScores));
+      // 1er jeton : une partie de VIPÈRE menée jusqu'au bout (4 Frelons, mur)
+      // — banque 1 ticket, un vrai ticket déjà en poche avant la seconde partie
       P.x = s.comptoirJetons.x; P.z = s.comptoirJetons.z;
       majAction(); document.getElementById('btnAction')._fn();
-      const jetonsAvant = s.jetons;
-      const ticketsAvant = META.arcadeTickets;
-      P.hp = 1; toucherJoueur(9999); // -> mourir()
+      const bv = s.bornes.find((b) => b.id === 'vipere');
+      P.x = bv.x; P.z = bv.z; majAction(); document.getElementById('btnAction')._fn();
+      for (let i = 0; i < 4; i++) {
+        const tete = ARCADE.v.corps[0];
+        ARCADE.v.frelon = { x: tete.x + ARCADE.v.dir.x, y: tete.y + ARCADE.v.dir.y };
+        ARCADE.v.tickT = 0;
+        majVipere(0.01);
+      }
+      ARCADE.v.corps[0] = { x: 0, y: 10 }; ARCADE.v.dir = { x: -1, y: 0 }; ARCADE.v.tickT = 0;
+      majVipere(0.01); // mur -> finirBorneJeu() banque le ticket
+      const ticketsDejaBanques = s.tickets || 0;
+      // 2e jeton : une nouvelle partie, en cours au moment de la mort
+      P.x = s.comptoirJetons.x; P.z = s.comptoirJetons.z;
+      majAction(); document.getElementById('btnAction')._fn();
+      const jetonsApresAchat = s.jetons; // avant de démarrer la partie, qui le consomme aussitôt
+      P.x = bv.x; P.z = bv.z; majAction(); document.getElementById('btnAction')._fn();
+      const jeuEnCoursAvantMort = ARCADE.jeu === 'vipere';
+      P.hp = 1; toucherJoueur(9999); // -> mourir(), EN PLEINE PARTIE
       startRun();
-      return { jetonsAvant, jetonsApres: s.jetons, ticketsApres: META.arcadeTickets, ticketsAvant };
+      return {
+        ticketsDejaBanques, jetonsApresAchat, jeuEnCoursAvantMort,
+        jetonsApres: s.jetons, ticketsApres: s.tickets || 0, jeuApres: ARCADE.jeu,
+        scoresAvant, scoresApres: META.arcadeScores,
+      };
     });
-    if (resetArcade.jetonsAvant < 1) fail('Arcade : le test n\'a pas pu acheter de jeton avant le game over');
+    if (resetArcade.ticketsDejaBanques < 1) fail('Arcade : le test n\'a pas pu banquer de ticket avant la seconde partie');
+    if (resetArcade.jetonsApresAchat < 1) fail('Arcade : le test n\'a pas pu acheter de second jeton avant le game over');
+    if (!resetArcade.jeuEnCoursAvantMort) fail('Arcade : le test n\'a pas pu démarrer une seconde partie avant le game over');
     if (resetArcade.jetonsApres !== 0) fail('Arcade : un jeton non utilisé a survécu au game over (jetons=' + resetArcade.jetonsApres + ')');
     else ok('Arcade : les jetons non utilisés sont bien perdus au game over');
-    if (resetArcade.ticketsApres < resetArcade.ticketsAvant) fail('Arcade : les tickets n\'ont pas survécu au game over');
-    else ok('Arcade : les tickets survivent bien au game over (META)');
+    if (resetArcade.jeuApres !== null) fail('Arcade : une partie en cours au moment de la mort n\'a pas été annulée');
+    else ok('Arcade : une partie en cours au moment de la mort est bien annulée');
+    if (resetArcade.ticketsApres !== 0) fail('Arcade : des tickets ont survécu au game over (' + resetArcade.ticketsApres + ', dont ' + resetArcade.ticketsDejaBanques + ' déjà banqués avant la partie en cours) — ce qu\'on porte doit être perdu, comme l\'argent et les jetons');
+    else ok('Arcade : les tickets sont bien perdus au game over, comme l\'argent et les jetons (y compris ceux déjà banqués avant la partie en cours)');
+    if (JSON.stringify(resetArcade.scoresApres) !== JSON.stringify(resetArcade.scoresAvant)) fail('Arcade : les meilleurs scores ont changé au game over alors qu\'aucun record n\'a été soumis');
+    else ok('Arcade : les meilleurs scores — donc la progression vers Le Jeton Doré — survivent bien au game over');
 
     // -------------------------------------------------------------------
     // Arcade : Le Jeton Doré — calculé sur la liste des bornes ACTIVES, pas
@@ -643,6 +677,30 @@ async function main() {
     if (!aimant.aCurio) fail('Arcade : le test suppose Le Jeton Doré déjà acquis (voir test précédent)');
     if (!(aimant.distApres < aimant.distAvant - 1)) fail('Arcade : un ramassable à 5,5 m ne se rapproche pas du joueur alors que Le Jeton Doré est acquis (avant ' + aimant.distAvant.toFixed(2) + ', après ' + aimant.distApres.toFixed(2) + ')');
     else ok('Arcade : Le Jeton Doré attire bien un ramassable à 5,5 m (hors de portée de l\'aimant de base)');
+
+    // -------------------------------------------------------------------
+    // Arcade : l'aimant du Jeton Doré doit respecter le décor — un
+    // ramassable tiré ne doit pas traverser un mur. Mur synthétique isolé
+    // (loin de tout), pour un test contrôlé indépendant de la géométrie
+    // d'une salle particulière.
+    // -------------------------------------------------------------------
+    console.log('\n--- Arcade : l\'aimant du Jeton Doré respecte le décor ---');
+    const aimantMur = await page.evaluate(() => {
+      const curioOk = aCurio('jeton_dore');
+      const wx = 6000, wz = 6000; // zone isolée, loin de toute géométrie réelle
+      addSolid({ x: wx, z: wz, hw: 0.5, hd: 5, h: 4 });
+      P.x = wx - 2; P.z = wz;
+      creerPickup('cash', wx + 2, wz, 50); // mur pile entre le joueur et le ramassable, distance 4 (<6 m)
+      const p = pickups[pickups.length - 1];
+      const avant = { x: p.x, z: p.z };
+      for (let i = 0; i < 20; i++) majPickups(0.1); // 2 s simulées
+      const distAvant = Math.hypot(avant.x - P.x, avant.z - P.z);
+      const distApres = Math.hypot(p.x - P.x, p.z - P.z);
+      return { curioOk, distAvant, distApres };
+    });
+    if (!aimantMur.curioOk) fail('Arcade : le test suppose Le Jeton Doré déjà acquis (voir test précédent)');
+    if (Math.abs(aimantMur.distApres - aimantMur.distAvant) > 0.05) fail('Arcade : un ramassable a traversé un mur sous l\'effet de l\'aimant (distance avant ' + aimantMur.distAvant.toFixed(2) + ', après ' + aimantMur.distApres.toFixed(2) + ')');
+    else ok('Arcade : l\'aimant du Jeton Doré ne fait pas traverser les murs à un ramassable (bloqué, ne bouge pas)');
 
     // -------------------------------------------------------------------
     // Persistance : sauvegarde, rechargement, META cohérent.

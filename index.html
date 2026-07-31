@@ -837,8 +837,10 @@ const META={
   muscle:0, strikes:0, bowlingMax:0, sandwich:0, plantes:0,
   // musée : chaque pièce de valeur n'est prenable qu'une fois, pour toute la partie
   museeArtefacts:{cone:false,laveuse:false,meteorite:false},
-  // arcade : tickets et meilleurs scores survivent au game over, pas les jetons
-  arcadeTickets:0,
+  // arcade : seuls les meilleurs scores survivent au game over — comme les
+  // curiosités, c'est un ACCOMPLISSEMENT, ça reste. Les tickets, eux, sont
+  // ce qu'on PORTE : perdus au game over, comme l'argent et les jetons
+  // (voir INT.salles.arcade.tickets, pas ici).
   arcadeScores:{
     vipere:[{init:'ZOH',score:24},{init:'GAS',score:18},{init:'MAX',score:14},{init:'BOB',score:9},{init:'AAA',score:5}],
     chantier:[{init:'ZOH',score:16},{init:'GAS',score:12},{init:'MAX',score:9},{init:'BOB',score:6},{init:'AAA',score:3}]
@@ -3639,8 +3641,16 @@ function majPickups(dt){
     if(aCurio('jeton_dore')&&d<36&&d>1.1&&(p.type==='cash'||p.type==='mun'||p.type==='med'||p.type==='med2')){
       const dReel=Math.sqrt(d);
       const facteur=lerp(10,2,clamp(dReel/6,0,1));
-      p.x=lerp(p.x,P.x,facteur*dt); p.z=lerp(p.z,P.z,facteur*dt);
-      p.mesh.position.x=p.x; p.mesh.position.z=p.z;
+      const nx=lerp(p.x,P.x,facteur*dt), nz=lerp(p.z,P.z,facteur*dt);
+      // le décor prime sur l'aimant : un ramassable tiré ne traverse ni mur ni
+      // bâtiment, ne change pas brutalement de niveau (ne tombe pas d'un
+      // toit), et le trajet direct vers le joueur doit rester dégagé — sinon
+      // il ne bouge pas cette frame (il retentera à la suivante)
+      const solDest=solPied(nx,nz);
+      if(!solidAt(nx,nz,0.3)&&Math.abs(solDest-(p.yBase||0))<2&&ligneLibre(p.x,p.z,P.x,P.z)){
+        p.x=nx; p.z=nz; p.yBase=solDest;
+        p.mesh.position.x=p.x; p.mesh.position.z=p.z;
+      }
     } else if(d<7&&d>0.8){ // aimant de base, courte portée
       p.x=lerp(p.x,P.x,6*dt); p.z=lerp(p.z,P.z,6*dt);
       p.mesh.position.x=p.x; p.mesh.position.z=p.z;
@@ -6072,7 +6082,9 @@ const FORMES_CHANTIER=[
   {nom:'J',c:0x4a9aff,rots:[[[0,0],[0,1],[1,1],[2,1]],[[1,0],[2,0],[1,1],[1,2]],[[0,1],[1,1],[2,1],[2,2]],[[1,0],[1,1],[0,2],[1,2]]]},
   {nom:'L',c:0xffa64a,rots:[[[2,0],[0,1],[1,1],[2,1]],[[1,0],[1,1],[1,2],[2,2]],[[0,1],[1,1],[2,1],[0,2]],[[0,0],[1,0],[1,1],[1,2]]]}
 ];
-// état de session (aucune persistance ici : voir META.arcadeTickets/arcadeScores)
+// état de session (aucune persistance ici : voir META.arcadeScores — les
+// tickets, eux, vivent sur INT.salles.arcade.tickets, pas dans META : ce
+// qu'on porte est perdu au game over, ce qu'on a accompli reste)
 const ARCADE={jeu:null,score:0,v:null,c:null,attenteInitiales:null};
 function finirBorneJeu(){
   if(!ARCADE.jeu) return;
@@ -6080,14 +6092,14 @@ function finirBorneJeu(){
   const diviseur=jeu==='vipere'?4:2;
   const tickets=Math.floor(ARCADE.score/diviseur);
   ARCADE.jeu=null;
-  if(tickets>0){ META.arcadeTickets=(META.arcadeTickets||0)+tickets; }
+  const salle=INT.salles.arcade;
+  if(tickets>0&&salle){ salle.tickets=(salle.tickets||0)+tickets; }
   const tab=META.arcadeScores[jeu];
   if(tab&&ARCADE.score>0&&ARCADE.score>tab[tab.length-1].score){
     ARCADE.attenteInitiales={borne:jeu,score:ARCADE.score,lettres:[0,0,0],curseur:0,repeatT:0};
   } else if(tickets>0){
     toast('+'+tickets+' ticket'+(tickets>1?'s':'')+' — score '+ARCADE.score,'or');
   }
-  sauveMeta();
 }
 // Le Jeton Doré : dépasser la référence sur TOUTES les bornes en état de
 // marche — calculé sur la liste des bornes actives, jamais une liste codée
@@ -7659,7 +7671,7 @@ function construireSalle(id){
     // distributeur de boissons (pur décor, aucune interaction)
     box(1.4,2,1,0xe8ecf2,0,1,7.5);
     for(let k=0;k<3;k++) box(1,0.3,0.05,pick([0xd8304a,0x35c8e0,0xf2c21f]),0,0.6+k*0.5,8.02,false);
-    inter.jetons=0;
+    inter.jetons=0; inter.tickets=0;
     lampe(-14,3,0xffe0a0,7); lampe(14,3,0xffe0a0,7); lampe(0,0,0xff5ec4,10);
   }
   scene.add(g);
@@ -9092,17 +9104,19 @@ function startRun(){
       if(sa.alerte) sa.alerte.visible=false;
       if(sa.gardiens) for(const gd of sa.gardiens) gd.deviationT=0;
     }
-    // arcade : les jetons non utilisés sont perdus au game over, comme
-    // l'argent — les tickets et les meilleurs scores, eux, vivent dans META
-    if(sa.bornes) sa.jetons=0;
+    // arcade : ce qu'on PORTE est perdu au game over, comme l'argent —
+    // jetons ET tickets. Ce qu'on a ACCOMPLI reste : les meilleurs scores
+    // (et donc la progression vers Le Jeton Doré, qui se lit dessus) vivent
+    // dans META, jamais touchés ici.
+    if(sa.bornes){ sa.jetons=0; sa.tickets=0; }
   }
-  // arcade : une partie de borne en cours est annulée. On passe par
-  // finirBorneJeu() plutôt qu'un simple reset direct, pour que les tickets
-  // déjà gagnés CE game-over soient quand même crédités (voir la règle :
-  // « tickets gagnés jusque-là conservés », qui doit valoir aussi ici, pas
-  // seulement pour un abandon volontaire) ; une éventuelle entrée au tableau
-  // des scores en attente, elle, ne survit pas à un game over.
-  finirBorneJeu(); ARCADE.attenteInitiales=null;
+  // arcade : une partie de borne en cours est annulée SANS banquer ses
+  // tickets — contrairement à un abandon volontaire (finirBorneJeu, appelé
+  // depuis sortirInterieur/togglePause), un game over ne doit rien laisser
+  // passer : la règle « ce qu'on porte est perdu » vaut aussi pour la
+  // partie en cours au moment de la mort, pas seulement pour ce qui était
+  // déjà dans la poche.
+  ARCADE.jeu=null; ARCADE.attenteInitiales=null; ARCADE.score=0;
   for(const g of grenades){g.on=false;g.mesh.visible=false;}
   P.mags={}; P.mun={};
   for(const id of ORDRE_ARMES) if(META.armes[id].poss&&ARMES[id].type==='gun'){
@@ -9427,10 +9441,9 @@ function majAction(){
       const lot=LOTS_ARCADE[s.lotIdx||0];
       label='🎟️ '+lot.ico+' '+lot.nom+' — '+lot.cout+' tickets';
       fn=()=>{
-        if((META.arcadeTickets||0)<lot.cout){ SFX.refus(); toast('Il te faut '+lot.cout+' tickets'); return; }
-        META.arcadeTickets-=lot.cout; lot.act(); SFX.achat();
+        if((s.tickets||0)<lot.cout){ SFX.refus(); toast('Il te faut '+lot.cout+' tickets'); return; }
+        s.tickets-=lot.cout; lot.act(); SFX.achat();
         s.lotIdx=((s.lotIdx||0)+1)%LOTS_ARCADE.length;
-        sauveMeta();
       };
     } else if(s.caisse&&!s.caisse.pris&&dist2(P.x,P.z,s.caisse.x,s.caisse.z)<marquerZone(s.caisse,12)){
       label='BRAQUER LA CAISSE';
