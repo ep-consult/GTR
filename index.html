@@ -2910,6 +2910,26 @@ function remplirBloc(qq,bx,bz,cx,cz){
 }
 
 /* ---------- minimap ---------- */
+/* Dessine txt centré sur (cx,cy) en se basant sur la boîte englobante RÉELLE
+   du glyphe (measureText().actualBoundingBox*) plutôt que sur la largeur
+   d'avance : une lettre latine et un emoji suivi d'un sélecteur de variation
+   U+FE0F (🏛️, 🏋️...) n'ont pas la même largeur d'avance que de rendu visible,
+   et centrer sur l'avance décale le glyphe visible vers la droite de la
+   pastille. On retire aussi U+FE0F, qui vient d'une police de secours aux
+   métriques différentes de celles du glyphe emoji lui-même. */
+function dessinerIconePOI(ctx,txt,cx,cy,taillePx,couleur){
+  txt=txt.replace(/️/g,'');
+  ctx.font='900 '+taillePx+'px Arial';
+  ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+  ctx.fillStyle=couleur;
+  const m=ctx.measureText(txt);
+  let ax=cx, ay=cy;
+  if(typeof m.actualBoundingBoxLeft==='number'&&typeof m.actualBoundingBoxRight==='number')
+    ax=cx-(m.actualBoundingBoxRight-m.actualBoundingBoxLeft)/2;
+  if(typeof m.actualBoundingBoxAscent==='number'&&typeof m.actualBoundingBoxDescent==='number')
+    ay=cy+(m.actualBoundingBoxAscent-m.actualBoundingBoxDescent)/2;
+  ctx.fillText(txt,ax,ay);
+}
 const mmCv=el('minimap'), mmCtx=mmCv.getContext('2d');
 const mmStatic=document.createElement('canvas'); mmStatic.width=mmStatic.height=384;
 const mmSpan=2*HALF+280, mmS=192/mmSpan, mmX=x=>(x+HALF+55)*mmS, mmZ=z=>(z+HALF+55)*mmS;
@@ -2925,8 +2945,8 @@ function construireMinimapStatique(){
     g.fillStyle=colsQ[quartier(bx,bz)];
     g.fillRect(mmX(cx-INNER/2),mmZ(cz-INNER/2),INNER*mmS,INNER*mmS);
   }
-  g.font='900 8px Arial'; g.textAlign='center';
-  const ic=(p,txt,c)=>{if(!p)return;g.fillStyle=c;g.beginPath();g.arc(mmX(p.x),mmZ(p.z),4.2,0,7);g.fill();g.fillStyle='#fff';g.fillText(txt,mmX(p.x),mmZ(p.z)+2.6);};
+  const ic=(p,txt,c)=>{if(!p)return;g.fillStyle=c;g.beginPath();g.arc(mmX(p.x),mmZ(p.z),4.2,0,7);g.fill();
+    dessinerIconePOI(g,txt,mmX(p.x),mmZ(p.z),8,'#fff');};
   ic(POIS.armurerie,'A','#ff3b5c'); ic(POIS.armurerie2,'A','#ff3b5c');
   ic(POIS.commissariat,'P','#2b6fd8'); ic(POIS.garage,'G','#c7a020');
   if(POIS.fastfoods) POIS.fastfoods.forEach(f=>ic(f,'F','#d88a20'));
@@ -8421,8 +8441,7 @@ function drawCarte(){
     const px=mmX(p.x)*k, pz=mmZ(p.z)*k;
     g.fillStyle='#15161a'; g.beginPath(); g.arc(px,pz,9,0,7); g.fill();
     g.strokeStyle='#ffd23f'; g.lineWidth=1.6; g.stroke();
-    g.font='11px Arial'; g.textAlign='center'; g.textBaseline='middle';
-    g.fillText(D.ico,px,pz+0.5);
+    dessinerIconePOI(g,D.ico,px,pz,11,'#fff');
   }
   // point d'arrivée choisi par le joueur
   if(WAYP.actif){
