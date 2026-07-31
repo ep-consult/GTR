@@ -108,6 +108,15 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
    pour un geste ample, sans inertie (la grue suit le doigt directement). */
 #glisseZone{position:absolute;left:0;right:0;bottom:0;height:56%;display:none;pointer-events:auto;touch-action:none}
 
+/* zone de visée (STAND DE CANARDS) : le viseur suit le doigt directement,
+   n'importe où sur l'écran (généreux, la conversion en coordonnées du jeu se
+   fait via le rectangle réel du canvas — voir scViseeDeplace). Viser et tirer
+   sont deux gestes séparés : #btnTirerCanards est un bouton à part, jamais un
+   simple contact avec la zone. */
+#viseeZone{position:absolute;inset:0;display:none;pointer-events:auto;touch-action:none}
+#btnTirerCanards{right:14px;bottom:calc(env(safe-area-inset-bottom,0px) + 70px);width:92px;height:92px;
+  font-size:32px;background:#3a0f16e6;border-color:#ff3b5c88;color:#ffd23f}
+
 /* boutons droite */
 .btn{position:absolute;pointer-events:auto;border-radius:50%;border:2px solid #ffffff30;background:#12141bd9;
   color:var(--blanc);display:flex;flex-direction:column;align-items:center;justify-content:center;
@@ -281,6 +290,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
     <div class="croixHit" id="croixRotate"><div class="croixVis vis-rotate">⟳</div></div>
   </div>
   <div id="glisseZone"></div>
+  <div id="viseeZone"></div>
+  <div class="btn" id="btnTirerCanards" style="display:none">🎯<small>TIRER</small></div>
   <div class="btn" id="btnFire"><span id="fireIco">✊</span><div id="fireAmmo"></div></div>
   <div class="btn" id="btnDodge">💨<small>ESQUIVE</small></div>
   <div class="btn" id="btnSprint">🏃<small>SPRINT</small></div>
@@ -841,9 +852,29 @@ for(const nom of ['haut','bas','gauche','droite','rotate']){
   const off=()=>{croixUp(nom);b.classList.remove('push');};
   b.addEventListener('pointerup',off); b.addEventListener('pointercancel',off); b.addEventListener('pointerleave',off);
 }
+// masque/restaure les boutons de combat normaux (tir, esquive, sprint...)
+// pendant une session de borne : ils n'ont aucun usage là-dedans, et une
+// borne peut avoir besoin de la même zone d'écran (ex : TIRER de STAND DE
+// CANARDS occupe la place de btnFire). Sauvegarde/restaure l'affichage
+// EXACT de chaque bouton (pas juste 'none'/''), car certains ont un état
+// caché par défaut pour une tout autre raison (ex : btnJump, masqué hors
+// hélicoptère via un style inline) qu'un simple '' écraserait à tort.
+const BOUTONS_COMBAT=['btnFire','btnDodge','btnSprint','btnSwitch','btnSpec','btnJump','btnGren','btnBrake'];
+let boutonsCombatSauves=null;
+function cacherBoutonsCombat(){
+  if(boutonsCombatSauves) return;
+  boutonsCombatSauves={};
+  for(const id of BOUTONS_COMBAT){ const b=el(id); boutonsCombatSauves[id]=b.style.display; b.style.display='none'; }
+}
+function afficherBoutonsCombat(){
+  if(!boutonsCombatSauves) return;
+  for(const id of BOUTONS_COMBAT) el(id).style.display=boutonsCombatSauves[id];
+  boutonsCombatSauves=null;
+}
 // cfg: {haut,bas,gauche,droite,rotate} booléens — quels boutons afficher
 function configurerCroix(cfg){
   if(glisseZone.style.display!=='none') cacherGlisse(); // deux bornes de types différents à la suite
+  if(viseeZone.style.display!=='none') cacherVisee();
   el('croixHaut').style.display=cfg.haut?'flex':'none';
   el('croixBas').style.display=cfg.bas?'flex':'none';
   el('croixGauche').style.display=cfg.gauche?'flex':'none';
@@ -882,6 +913,7 @@ glisseZone.addEventListener('pointerup',glisseFin);
 glisseZone.addEventListener('pointercancel',glisseFin);
 function configurerGlisse(){
   if(croixWrap.style.display!=='none') cacherCroix();
+  if(viseeZone.style.display!=='none') cacherVisee();
   glisseZone.style.display='block';
   zoneL.style.display='none'; joyBase.style.display='none';
   INPUT.joyOn=false; INPUT.jx=0; INPUT.jy=0;
@@ -892,14 +924,64 @@ function cacherGlisse(){
   glisseId=null;
   zoneL.style.display='';
 }
+/* ---------- zone de visée réutilisable (STAND DE CANARDS) ----------
+   Contrôle tactile en 2 gestes séparés : le viseur suit le doigt directement
+   n'importe où sur l'écran (généreux — la conversion en coordonnées de jeu
+   se fait via le rectangle réel du canvas), et un bouton TIRER distinct
+   déclenche le tir. Ne JAMAIS tirer au simple contact, sinon on tire par
+   accident en déplaçant le viseur. */
+const viseeZone=el('viseeZone'), btnTirerCanards=el('btnTirerCanards');
+let viseeId=null;
+function viseeDeplace(clientX,clientY){
+  if(!ARCADE.s) return;
+  const r=arcadeCv.getBoundingClientRect();
+  if(r.width<=0||r.height<=0) return;
+  const d=ARCADE.s;
+  d.viseurXEcran=clamp((clientX-r.left)/r.width,0,1);
+  d.viseurYEcran=clamp((clientY-r.top)/r.height,0,1);
+}
+viseeZone.addEventListener('pointerdown',e=>{
+  e.preventDefault(); viseeId=e.pointerId; viseeZone.setPointerCapture(e.pointerId);
+  viseeDeplace(e.clientX,e.clientY);
+});
+viseeZone.addEventListener('pointermove',e=>{ if(e.pointerId===viseeId) viseeDeplace(e.clientX,e.clientY); });
+const viseeFin=e=>{ if(e.pointerId===viseeId) viseeId=null; };
+viseeZone.addEventListener('pointerup',viseeFin);
+viseeZone.addEventListener('pointercancel',viseeFin);
+btnTirerCanards.addEventListener('pointerdown',e=>{
+  e.preventDefault(); btnTirerCanards.classList.add('push'); scTirer();
+});
+const tirerFin=()=>btnTirerCanards.classList.remove('push');
+btnTirerCanards.addEventListener('pointerup',tirerFin);
+btnTirerCanards.addEventListener('pointercancel',tirerFin);
+btnTirerCanards.addEventListener('pointerleave',tirerFin);
+function configurerVisee(){
+  if(croixWrap.style.display!=='none') cacherCroix();
+  if(glisseZone.style.display!=='none') cacherGlisse();
+  viseeZone.style.display='block';
+  btnTirerCanards.style.display='flex';
+  zoneL.style.display='none'; joyBase.style.display='none';
+  INPUT.joyOn=false; INPUT.jx=0; INPUT.jy=0;
+}
+function cacherVisee(){
+  if(viseeZone.style.display==='none') return;
+  viseeZone.style.display='none';
+  btnTirerCanards.style.display='none';
+  viseeId=null;
+  zoneL.style.display='';
+}
 // point d'entrée générique : chaque borne déclare son type de contrôle
 // (def.controle) dans BORNES_ARCADE — activer une future borne avec un
-// contrôle déjà existant ne demande aucune modification ici.
+// contrôle déjà existant ne demande aucune modification ici. Les boutons de
+// combat normaux (sans usage pendant une borne) restent masqués tout le
+// temps de la session, initiales comprises (voir majInitiales).
 function configurerControleBorne(def){
+  cacherBoutonsCombat();
   if(def.controle==='glisse') configurerGlisse();
+  else if(def.controle==='visee') configurerVisee();
   else configurerCroix(def.croix);
 }
-function cacherControlesBorne(){ cacherCroix(); cacherGlisse(); }
+function cacherControlesBorne(){ cacherCroix(); cacherGlisse(); cacherVisee(); afficherBoutonsCombat(); }
 function bindHold(id,nom){
   const b=el(id);
   b.addEventListener('pointerdown',e=>{e.preventDefault();INPUT.btn[nom]=true;INPUT.edge[nom]=true;b.classList.add('push');});
@@ -967,7 +1049,8 @@ const META={
     vipere:[{init:'ZOH',score:24},{init:'GAS',score:18},{init:'MAX',score:14},{init:'BOB',score:9},{init:'AAA',score:5}],
     chantier:[{init:'ZOH',score:16},{init:'GAS',score:12},{init:'MAX',score:9},{init:'BOB',score:6},{init:'AAA',score:3}],
     demolition:[{init:'ZOH',score:72},{init:'GAS',score:54},{init:'MAX',score:38},{init:'BOB',score:24},{init:'AAA',score:12}],
-    glouton:[{init:'ZOH',score:200},{init:'GAS',score:150},{init:'MAX',score:105},{init:'BOB',score:65},{init:'AAA',score:30}]
+    glouton:[{init:'ZOH',score:200},{init:'GAS',score:150},{init:'MAX',score:105},{init:'BOB',score:65},{init:'AAA',score:30}],
+    canards:[{init:'ZOH',score:320},{init:'GAS',score:240},{init:'MAX',score:170},{init:'BOB',score:110},{init:'AAA',score:60}]
   }
 };
 const DEFIS=[
@@ -6207,8 +6290,8 @@ const BORNES_ARCADE=[
    controle:'glisse'},
   {id:'glouton',nom:'GLOUTON',actif:true,refScore:250,diviseurTickets:25,couleur:0xffd23f,
    controle:'croix',croix:{haut:true,bas:true,gauche:true,droite:true,rotate:false}},
-  {id:'canards',nom:'STAND DE CANARDS',actif:false,couleur:0xff5ec4,
-   panneau:'Temporairement fermé pour enquête.'}
+  {id:'canards',nom:'STAND DE CANARDS',actif:true,refScore:400,diviseurTickets:25,couleur:0xff3b5c,
+   controle:'visee'}
 ];
 const LOTS_ARCADE=[
   {ico:'🧸',nom:'Peluche Vipère',cout:15,
@@ -6235,7 +6318,7 @@ const FORMES_CHANTIER=[
 // état de session (aucune persistance ici : voir META.arcadeScores — les
 // tickets, eux, vivent sur INT.salles.arcade.tickets, pas dans META : ce
 // qu'on porte est perdu au game over, ce qu'on a accompli reste)
-const ARCADE={jeu:null,score:0,v:null,c:null,d:null,g:null,attenteInitiales:null};
+const ARCADE={jeu:null,score:0,v:null,c:null,d:null,g:null,s:null,attenteInitiales:null};
 function finirBorneJeu(){
   if(!ARCADE.jeu) return;
   const jeu=ARCADE.jeu;
@@ -6274,6 +6357,7 @@ function demarrerBorneJeu(id){
   else if(id==='chantier') chantierInit();
   else if(id==='demolition') demolitionInit();
   else if(id==='glouton') glInit();
+  else if(id==='canards') scInit();
   configurerControleBorne(BORNES_ARCADE.find(b=>b.id===id));
 }
 /* ---------- VIPÈRE : grille 20×20, avance en continu, la croix dirige ---------- */
@@ -6898,6 +6982,182 @@ function dessinerGlouton(){
   arcadeCx.fillText('vies '+'❤'.repeat(Math.max(0,d.vies))+' · niveau '+d.niveau,W/2,H-4);
   arcadeScanlines(W,H);
 }
+/* ---------- STAND DE CANARDS : tir de fête foraine ----------
+   Trois rangées de canards défilent à des vitesses différentes, alternent
+   de sens, et accélèrent à chaque vague. Contrôle en 2 gestes séparés
+   (viser puis tirer, jamais l'un ne déclenche l'autre) : voir configurerVisee.
+   Clin d'œil au Canard d'Or du musée — d'où l'écriteau « fermé pour enquête ». */
+const SC_VAGUES=5, SC_VOIES=3, SC_CANARDS_PAR_VAGUE=10;
+const SC_DIRS=[1,-1,1];
+const SC_VIT_BASE=[0.26,0.4,0.32]; // fraction de la largeur du terrain / seconde, par voie
+const SC_VIT_PAR_VAGUE=0.16;
+const SC_PTS={blanc:5,dore:25,noir:-15};
+function scVitesseVoie(voie,vague){
+  return SC_VIT_BASE[voie]*(1+SC_VIT_PAR_VAGUE*(vague-1));
+}
+function scTypeAleatoire(){
+  const t=Math.random();
+  if(t<0.10) return 'dore';
+  if(t<0.10+0.18) return 'noir';
+  return 'blanc';
+}
+// dimensions de la zone de jeu (unités logiques du canvas, jamais des
+// pixels d'écran) — calcul PARTAGÉ par le rendu et la détection de tir, pour
+// que le viseur touche exactement ce qu'il montre à l'écran, quelle que
+// soit la résolution du canvas (même piège que la boule de DÉMOLITION).
+function scDimensionsZone(){
+  const W=ARCADE_ECRAN.w,H=ARCADE_ECRAN.h;
+  const taille=Math.max(13,Math.round(W*0.06));
+  const hautH=taille+16;
+  const zoneJeuH=Math.round(H*0.62);
+  return {W,H,hautH,zoneJeuH};
+}
+function scInit(){
+  ARCADE.jeu='canards';
+  ARCADE.s={
+    vague:0, chargeur:8, rechargeT:0, serie:0,
+    canards:[], canardsApparus:0, prochainSpawn:0.4, bonusCd:rand(4,7),
+    viseurXEcran:0.5, viseurYEcran:0.5, viseurX:0.5, viseurY:0.5,
+  };
+  scNouvelleVague();
+}
+function scNouvelleVague(){
+  const d=ARCADE.s;
+  d.vague++;
+  d.canardsApparus=0;
+  d.prochainSpawn=0.4;
+  d.canards=[];
+}
+function scFaireApparaitreCanard(d){
+  const voie=randi(0,SC_VOIES-1), dir=SC_DIRS[voie];
+  d.canards.push({type:scTypeAleatoire(),voie,x:dir>0?-0.06:1.06,vit:dir*scVitesseVoie(voie,d.vague),toucheT:0});
+  d.canardsApparus++;
+}
+function scFaireApparaitreBonus(d){
+  const voie=randi(0,SC_VOIES-1), dir=SC_DIRS[voie];
+  d.canards.push({type:'bonus',voie,x:dir>0?-0.06:1.06,vit:dir*scVitesseVoie(voie,d.vague)*1.15,toucheT:0});
+}
+function majCanards(dt){
+  const d=ARCADE.s;
+  // le viseur suit le doigt directement dans la zone de jeu — converti une
+  // seule fois par frame depuis la position écran brute (voir viseeDeplace)
+  const {hautH,zoneJeuH}=scDimensionsZone();
+  d.viseurX=d.viseurXEcran;
+  d.viseurY=clamp((d.viseurYEcran*ARCADE_ECRAN.h-hautH)/zoneJeuH,0,1);
+  if(d.rechargeT>0){ d.rechargeT-=dt; if(d.rechargeT<=0){ d.rechargeT=0; d.chargeur=8; } }
+  d.bonusCd-=dt;
+  if(d.bonusCd<=0){ scFaireApparaitreBonus(d); d.bonusCd=rand(5,8); }
+  if(d.canardsApparus<SC_CANARDS_PAR_VAGUE){
+    d.prochainSpawn-=dt;
+    if(d.prochainSpawn<=0){ scFaireApparaitreCanard(d); d.prochainSpawn=rand(0.5,0.95); }
+  }
+  for(let i=d.canards.length-1;i>=0;i--){
+    const c=d.canards[i];
+    if(c.toucheT>0){ c.toucheT-=dt; if(c.toucheT<=0) d.canards.splice(i,1); continue; }
+    c.x+=c.vit*dt;
+    if(c.x<-0.1||c.x>1.1) d.canards.splice(i,1);
+  }
+  if(d.canardsApparus>=SC_CANARDS_PAR_VAGUE&&d.canards.length===0){
+    if(d.vague>=SC_VAGUES){ finirBorneJeu(); return; }
+    scNouvelleVague();
+  }
+}
+function scTirer(){
+  const d=ARCADE.s; if(!d) return;
+  if(d.chargeur<=0){ SFX.vide(); return; }
+  d.chargeur--;
+  if(d.chargeur<=0) d.rechargeT=1.2;
+  const voieH=1/SC_VOIES;
+  let cible=null, distMin=Infinity;
+  for(const c of d.canards){
+    if(c.toucheT>0) continue;
+    const cyNorm=c.voie*voieH+voieH/2;
+    const dist=Math.hypot(c.x-d.viseurX,cyNorm-d.viseurY);
+    if(dist<0.12&&dist<distMin){ distMin=dist; cible=c; }
+  }
+  if(!cible){ d.serie=0; SFX.vide(); return; }
+  cible.toucheT=0.35;
+  if(cible.type==='bonus'){ d.chargeur=8; d.rechargeT=0; SFX.achat(); return; }
+  if(cible.type==='noir'){
+    ARCADE.score=Math.max(0,ARCADE.score+SC_PTS.noir);
+    d.serie=0;
+    beep(140,0.1,'sawtooth',0.2); vibre(40);
+    return;
+  }
+  d.serie++;
+  const mult=d.serie>=10?3:(d.serie>=5?2:1);
+  ARCADE.score+=SC_PTS[cible.type]*mult;
+  beep(cible.type==='dore'?1300:820,0.05,'square',0.08);
+  if(mult>1) vibre(20);
+}
+function dessinerCanards(){
+  const d=ARCADE.s;
+  const {W,H,taille}=arcadeEntete('STAND DE CANARDS',"#ff3b5c");
+  const hautH=taille+16, zoneJeuH=Math.round(H*0.62), basH=H-hautH-zoneJeuH;
+  for(let i=0;i<14;i++){
+    arcadeCx.fillStyle=i%2?'#ff3b5c':'#e8ecf2';
+    arcadeCx.fillRect(Math.round(i*(W/14)),hautH,Math.ceil(W/14),zoneJeuH);
+  }
+  arcadeCx.fillStyle='#ffd23f';
+  for(let i=0;i<Math.floor(W/18);i++){
+    arcadeCx.beginPath(); arcadeCx.arc(10+i*18,hautH+6,2.4,0,6.29); arcadeCx.fill();
+  }
+  const voieH=zoneJeuH/SC_VOIES;
+  for(let v=0;v<SC_VOIES;v++){
+    arcadeCx.fillStyle='rgba(5,6,10,0.35)';
+    arcadeCx.fillRect(0,hautH+voieH*v,W,voieH);
+  }
+  for(const c of d.canards){
+    const cyBase=hautH+voieH*c.voie+voieH/2;
+    const touche=c.toucheT>0;
+    const chute=touche?(0.35-c.toucheT)/0.35:0;
+    const cy=cyBase+chute*voieH*0.5;
+    const cx=c.x*W;
+    const alpha=touche?Math.max(0,c.toucheT/0.35):1;
+    const r=Math.min(voieH*0.32,W*0.045);
+    arcadeCx.globalAlpha=alpha;
+    const coul=c.type==='dore'?'#ffd23f':(c.type==='noir'?'#20222a':(c.type==='bonus'?'#8ad2ff':'#fff2c0'));
+    arcadeCx.fillStyle=coul;
+    arcadeCx.beginPath(); arcadeCx.ellipse(cx,cy,r,r*0.72,0,0,6.29); arcadeCx.fill();
+    arcadeCx.fillStyle='#ff9f2e';
+    const becX=c.vit>=0?cx+r*1.1:cx-r*1.1;
+    arcadeCx.beginPath();
+    arcadeCx.moveTo(cx+(c.vit>=0?r*0.7:-r*0.7),cy);
+    arcadeCx.lineTo(becX,cy-r*0.14); arcadeCx.lineTo(becX,cy+r*0.14);
+    arcadeCx.closePath(); arcadeCx.fill();
+    if(c.type==='noir'){
+      // chapeau + écharpe : distinguable au premier coup d'œil, pas seulement à la couleur
+      arcadeCx.fillStyle='#1c1830';
+      arcadeCx.fillRect(cx-r*0.55,cy-r*0.95,r*1.1,r*0.28);
+      arcadeCx.fillRect(cx-r*0.28,cy-r*1.25,r*0.56,r*0.35);
+      arcadeCx.fillStyle='#ff3b5c';
+      arcadeCx.fillRect(cx-r*0.5,cy+r*0.05,r*1.0,r*0.22);
+    } else if(c.type==='bonus'){
+      arcadeCx.fillStyle='#0b0c10'; arcadeCx.font=Math.round(r*1.1)+'px Arial';
+      arcadeCx.textAlign='center'; arcadeCx.textBaseline='middle';
+      arcadeCx.fillText('⚡',cx,cy+1);
+      arcadeCx.textBaseline='alphabetic';
+    }
+  }
+  arcadeCx.globalAlpha=1;
+  const vx=d.viseurX*W, vy=hautH+d.viseurY*zoneJeuH, rv=Math.min(W,H)*0.045;
+  arcadeCx.strokeStyle='#ffffffcc'; arcadeCx.lineWidth=2;
+  arcadeCx.beginPath(); arcadeCx.arc(vx,vy,rv,0,6.29); arcadeCx.stroke();
+  arcadeCx.beginPath(); arcadeCx.moveTo(vx-rv*1.6,vy); arcadeCx.lineTo(vx+rv*1.6,vy); arcadeCx.stroke();
+  arcadeCx.beginPath(); arcadeCx.moveTo(vx,vy-rv*1.6); arcadeCx.lineTo(vx,vy+rv*1.6); arcadeCx.stroke();
+  if(d.serie>=2){
+    arcadeCx.font='900 '+Math.max(16,Math.round(W*0.09))+'px Arial'; arcadeCx.textAlign='center';
+    arcadeCx.fillStyle=d.serie>=10?'#ffd23f':(d.serie>=5?'#ff9f2e':'#7dff7a');
+    arcadeCx.fillText('SÉRIE ×'+d.serie,W/2,hautH+zoneJeuH+Math.round(basH*0.42));
+  }
+  arcadeCx.font='800 '+Math.max(9,Math.round(W*0.045))+'px Arial'; arcadeCx.textAlign='left'; arcadeCx.fillStyle='#e8ecf2';
+  arcadeCx.fillText('SCORE '+ARCADE.score,10,H-16);
+  const meilleur=META.arcadeScores.canards[0]?META.arcadeScores.canards[0].score:0;
+  arcadeCx.textAlign='right'; arcadeCx.fillText('MEILLEUR '+meilleur,W-10,H-16);
+  arcadeCx.textAlign='center'; arcadeCx.font='800 '+Math.max(8,Math.round(W*0.033))+'px Arial'; arcadeCx.fillStyle='#8a8f9a';
+  arcadeCx.fillText('🔫×'+d.chargeur+' · vague '+d.vague+'/'+SC_VAGUES,W/2,H-4);
+  arcadeScanlines(W,H);
+}
 /* ---------- saisie des initiales (nouveau record) ---------- */
 function majInitiales(dt){
   const st=ARCADE.attenteInitiales;
@@ -6916,7 +7176,7 @@ function majInitiales(dt){
       tab.sort((a,b)=>b.score-a.score);
       tab.length=Math.min(tab.length,5);
       ARCADE.attenteInitiales=null;
-      cacherCroix();
+      cacherControlesBorne();
       bigMsg('🏆 NOUVEAU RECORD : '+init);
       SFX.niveau(); vibre(60);
       sauveMeta();
@@ -6930,6 +7190,7 @@ function majBorneJeu(dt){
   else if(ARCADE.jeu==='chantier') majChantier(dt);
   else if(ARCADE.jeu==='demolition') majDemolition(dt);
   else if(ARCADE.jeu==='glouton') majGlouton(dt);
+  else if(ARCADE.jeu==='canards') majCanards(dt);
 }
 /* ---------- rendu de l'écran de borne : cathodique, palette limitée ---------- */
 function arcadeScanlines(w,h){
@@ -7080,6 +7341,7 @@ function dessinerBorneJeu(){
   else if(ARCADE.jeu==='chantier') dessinerChantier();
   else if(ARCADE.jeu==='demolition') dessinerDemolition();
   else if(ARCADE.jeu==='glouton') dessinerGlouton();
+  else if(ARCADE.jeu==='canards') dessinerCanards();
 }
 
 const INTDEFS={
@@ -10130,7 +10392,7 @@ function majAction(){
   // directement par majBorneJeu/majInitiales (appelés depuis majInterieur),
   // pas ici, et le dispatch normal de la salle est court-circuité
   if(ARCADE.attenteInitiales){ b.style.display='block'; b.textContent='✅ VALIDER'; return; }
-  if(ARCADE.jeu==='demolition'){ b.style.display='none'; return; } // tout se joue au glissement
+  if(ARCADE.jeu==='demolition'||ARCADE.jeu==='canards'){ b.style.display='none'; return; } // glissement / TIRER dédié
   if(ARCADE.jeu){ b.style.display='block'; b.textContent=ARCADE.jeu==='chantier'?'⟳ PIVOTER':'ACTION'; return; }
   let label=null,fn=null;
   if(INT.actif){

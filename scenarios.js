@@ -1065,6 +1065,197 @@ async function main() {
     else ok('Arcade : GLOUTON — la règle de miséricorde recule bien un gardien quand le joueur est encerclé sans issue');
 
     // -------------------------------------------------------------------
+    // Arcade : STAND DE CANARDS — contrôle 'visee' (nouveau type ajouté au
+    // composant générique) : zone de visée + bouton TIRER séparé, ni croix ni
+    // glissement, joystick masqué. Les boutons de combat normaux (btnFire...)
+    // doivent AUSSI être masqués pendant toute session de borne — sinon
+    // TIRER, positionné au même endroit que btnFire, entrerait en conflit —
+    // et restaurés EXACTEMENT (pas juste '', qui révélerait à tort un bouton
+    // comme btnJump dont l'état masqué par défaut vient d'ailleurs).
+    // -------------------------------------------------------------------
+    console.log('\n--- Arcade : STAND DE CANARDS (contrôle visée+tir séparés, boutons de combat masqués) ---');
+    const canardsControle = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'arcade');
+      startRun();
+      entrerInterieur('arcade', p);
+      const s = INT.actif;
+      META.argent = 100;
+      const btnJumpAvant = document.getElementById('btnJump').style.display;
+      const btnFireAvant = document.getElementById('btnFire').style.display;
+      P.x = s.comptoirJetons.x; P.z = s.comptoirJetons.z;
+      majAction(); document.getElementById('btnAction')._fn();
+      const bo = s.bornes.find((b) => b.id === 'canards');
+      P.x = bo.x; P.z = bo.z; majAction(); document.getElementById('btnAction')._fn();
+      majAction();
+      const jeuDemarre = ARCADE.jeu === 'canards';
+      const controle = {
+        viseeVisible: viseeZone.style.display === 'block',
+        tirerVisible: document.getElementById('btnTirerCanards').style.display === 'flex',
+        croixVisible: croixWrap.style.display === 'block',
+        glisseVisible: glisseZone.style.display === 'block',
+        joystickCache: zoneL.style.display === 'none',
+        btnActionCache: document.getElementById('btnAction').style.display === 'none',
+        btnFireCache: document.getElementById('btnFire').style.display === 'none',
+      };
+      finirBorneJeu();
+      const btnFireApres = document.getElementById('btnFire').style.display;
+      const btnJumpApres = document.getElementById('btnJump').style.display;
+      if (INT.actif) sortirInterieur();
+      return { jeuDemarre, controle, btnJumpAvant, btnFireAvant, btnFireApres, btnJumpApres };
+    });
+    if (!canardsControle.jeuDemarre) fail('Arcade : STAND DE CANARDS ne démarre pas');
+    else ok('Arcade : STAND DE CANARDS démarre correctement');
+    if (!canardsControle.controle.viseeVisible || !canardsControle.controle.tirerVisible || canardsControle.controle.croixVisible || canardsControle.controle.glisseVisible || !canardsControle.controle.joystickCache) fail('Arcade : STAND DE CANARDS n\'affiche pas la bonne configuration de contrôle — ' + JSON.stringify(canardsControle.controle));
+    else ok('Arcade : STAND DE CANARDS affiche bien sa zone de visée et le bouton TIRER (ni croix ni glissement), joystick masqué');
+    if (!canardsControle.controle.btnActionCache) fail('Arcade : le bouton ACTION reste affiché en STAND DE CANARDS alors que TIRER est dédié');
+    else ok('Arcade : le bouton ACTION est bien masqué en STAND DE CANARDS');
+    if (!canardsControle.controle.btnFireCache) fail('Arcade : les boutons de combat normaux (btnFire) restent affichés pendant une partie de borne — conflit possible avec TIRER');
+    else ok('Arcade : les boutons de combat normaux sont bien masqués pendant une partie de borne');
+    if (canardsControle.btnFireApres !== canardsControle.btnFireAvant) fail('Arcade : btnFire n\'est pas restauré à son état exact d\'avant la borne (avant=' + JSON.stringify(canardsControle.btnFireAvant) + ', après=' + JSON.stringify(canardsControle.btnFireApres) + ')');
+    else ok('Arcade : les boutons de combat sont bien restaurés à leur état exact après avoir quitté la borne');
+    if (canardsControle.btnJumpApres !== canardsControle.btnJumpAvant) fail('Arcade : btnJump n\'est pas restauré à son état exact d\'avant la borne (avant=' + JSON.stringify(canardsControle.btnJumpAvant) + ', après=' + JSON.stringify(canardsControle.btnJumpApres) + ')');
+    else ok('Arcade : btnJump est bien restauré à son état exact d\'avant la borne (pas juste \'\', qui l\'aurait révélé à tort)');
+
+    // -------------------------------------------------------------------
+    // Arcade : STAND DE CANARDS — tir/série (double à 5, triple à 10, remise
+    // à zéro sur un tir manqué), canard noir (malus, jamais de score négatif,
+    // remet aussi la série à zéro), cible bonus (recharge instantanée),
+    // chargeur de 8 tirs avec recharge automatique en 1,2 s.
+    // -------------------------------------------------------------------
+    console.log('\n--- Arcade : STAND DE CANARDS (tir, série, canard noir, cible bonus, chargeur) ---');
+    const canards = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'arcade');
+      entrerInterieur('arcade', p);
+      const s = INT.actif;
+      META.argent = 100;
+      P.x = s.comptoirJetons.x; P.z = s.comptoirJetons.z;
+      majAction(); document.getElementById('btnAction')._fn();
+      const bo = s.bornes.find((b) => b.id === 'canards');
+      P.x = bo.x; P.z = bo.z; majAction(); document.getElementById('btnAction')._fn();
+      const d = ARCADE.s;
+      const viser = (voie) => { d.viseurX = 0.5; d.viseurY = voie / SC_VOIES + 0.5 / SC_VOIES; };
+      // 5 canards blancs d'affilée : le 5e (série atteint 5) vaut double
+      const scoresBlancs = [];
+      for (let i = 0; i < 5; i++) {
+        d.canards = [{ type: 'blanc', voie: 0, x: 0.5, vit: 0, toucheT: 0 }];
+        viser(0);
+        const avant = ARCADE.score;
+        scTirer();
+        scoresBlancs.push(ARCADE.score - avant);
+      }
+      const serieApres5 = d.serie;
+      // tir manqué : remet la série à zéro
+      d.canards = [];
+      scTirer();
+      const serieApresRate = d.serie;
+      // canard noir : malus de 15, remet la série à zéro
+      ARCADE.score = 5; d.serie = 3;
+      d.canards = [{ type: 'noir', voie: 1, x: 0.5, vit: 0, toucheT: 0 }];
+      viser(1);
+      scTirer();
+      const scoreApresNoir = ARCADE.score;
+      const serieApresNoir = d.serie;
+      // le score ne descend jamais sous zéro
+      ARCADE.score = 0;
+      d.canards = [{ type: 'noir', voie: 1, x: 0.5, vit: 0, toucheT: 0 }];
+      viser(1);
+      scTirer();
+      const scoreJamaisNegatif = ARCADE.score;
+      // cible bonus : recharge instantanément le chargeur
+      d.chargeur = 2; d.rechargeT = 0;
+      d.canards = [{ type: 'bonus', voie: 2, x: 0.5, vit: 0, toucheT: 0 }];
+      viser(2);
+      scTirer();
+      const chargeurApresBonus = d.chargeur;
+      // chargeur de 8 tirs, tir ignoré à vide, recharge automatique en 1,2 s
+      d.chargeur = 8; d.rechargeT = 0; d.canards = [];
+      for (let i = 0; i < 8; i++) scTirer();
+      const chargeurVide = d.chargeur;
+      const scoreAvantTirVide = ARCADE.score;
+      scTirer();
+      const tirIgnoreVide = ARCADE.score === scoreAvantTirVide;
+      majCanards(1.3);
+      const chargeurRecharge = d.chargeur;
+      if (INT.actif) sortirInterieur();
+      return {
+        scoresBlancs, serieApres5, serieApresRate, scoreApresNoir, serieApresNoir,
+        scoreJamaisNegatif, chargeurApresBonus, chargeurVide, tirIgnoreVide, chargeurRecharge,
+        ptsBlanc: SC_PTS.blanc,
+      };
+    });
+    if (canards.scoresBlancs.slice(0, 4).some((v) => v !== canards.ptsBlanc)) fail('Arcade : STAND DE CANARDS — les 4 premiers canards blancs d\'une série ne valent pas leur valeur normale (' + JSON.stringify(canards.scoresBlancs) + ')');
+    else ok('Arcade : STAND DE CANARDS — un canard blanc hors série vaut bien sa valeur normale');
+    if (canards.scoresBlancs[4] !== canards.ptsBlanc * 2 || canards.serieApres5 !== 5) fail('Arcade : STAND DE CANARDS — le 5e canard d\'une série ne vaut pas le double (série=' + canards.serieApres5 + ', valeurs=' + JSON.stringify(canards.scoresBlancs) + ')');
+    else ok('Arcade : STAND DE CANARDS — à partir de 5 d\'affilée, chaque canard vaut bien double');
+    if (canards.serieApresRate !== 0) fail('Arcade : STAND DE CANARDS — un tir manqué ne remet pas la série à zéro');
+    else ok('Arcade : STAND DE CANARDS — un tir manqué remet bien la série à zéro');
+    if (canards.scoreApresNoir !== 0 || canards.serieApresNoir !== 0) fail('Arcade : STAND DE CANARDS — un canard noir touché ne retire pas 15 points et/ou ne remet pas la série à zéro (score=' + canards.scoreApresNoir + ', série=' + canards.serieApresNoir + ')');
+    else ok('Arcade : STAND DE CANARDS — un canard noir touché retire bien 15 points et remet la série à zéro');
+    if (canards.scoreJamaisNegatif !== 0) fail('Arcade : STAND DE CANARDS — le score peut devenir négatif après un canard noir (' + canards.scoreJamaisNegatif + ')');
+    else ok('Arcade : STAND DE CANARDS — le score ne descend jamais sous zéro');
+    if (canards.chargeurApresBonus !== 8) fail('Arcade : STAND DE CANARDS — la cible bonus ne recharge pas instantanément le chargeur (' + canards.chargeurApresBonus + ')');
+    else ok('Arcade : STAND DE CANARDS — la cible bonus recharge bien instantanément le chargeur');
+    if (canards.chargeurVide !== 0 || !canards.tirIgnoreVide) fail('Arcade : STAND DE CANARDS — le chargeur ne se vide pas après 8 tirs et/ou un tir à vide n\'est pas ignoré');
+    else ok('Arcade : STAND DE CANARDS — le chargeur se vide bien après 8 tirs, un tir à vide ne fait rien');
+    if (canards.chargeurRecharge !== 8) fail('Arcade : STAND DE CANARDS — le chargeur ne se recharge pas automatiquement en 1,2 s (' + canards.chargeurRecharge + ')');
+    else ok('Arcade : STAND DE CANARDS — le chargeur se recharge bien automatiquement en 1,2 s');
+
+    // -------------------------------------------------------------------
+    // Arcade : STAND DE CANARDS — épuiser une vague passe à la suivante avec
+    // une vitesse accrue ; fin de partie à l'issue des 5 vagues, sans
+    // notion de vies (jeu de score pur, à la différence des 3 autres bornes).
+    // -------------------------------------------------------------------
+    console.log('\n--- Arcade : STAND DE CANARDS (vague suivante, vitesse croissante, fin après 5 vagues) ---');
+    const vagues = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'arcade');
+      startRun();
+      entrerInterieur('arcade', p);
+      const s = INT.actif;
+      META.argent = 100;
+      P.x = s.comptoirJetons.x; P.z = s.comptoirJetons.z;
+      majAction(); document.getElementById('btnAction')._fn();
+      const bo = s.bornes.find((b) => b.id === 'canards');
+      P.x = bo.x; P.z = bo.z; majAction(); document.getElementById('btnAction')._fn();
+      const d = ARCADE.s;
+      const vitesseVague1 = scVitesseVoie(0, 1);
+      d.canardsApparus = SC_CANARDS_PAR_VAGUE; d.canards = [];
+      majCanards(0.001);
+      const vagueApres1 = d.vague;
+      const vitesseVague2 = scVitesseVoie(0, d.vague);
+      for (let i = d.vague; i < SC_VAGUES; i++) { d.canardsApparus = SC_CANARDS_PAR_VAGUE; d.canards = []; majCanards(0.001); }
+      d.canardsApparus = SC_CANARDS_PAR_VAGUE; d.canards = [];
+      majCanards(0.001);
+      const jeuTermineApres5 = ARCADE.jeu === null;
+      if (INT.actif) sortirInterieur();
+      return { vitesseVague1, vagueApres1, vitesseVague2, jeuTermineApres5 };
+    });
+    if (vagues.vagueApres1 !== 2) fail('Arcade : STAND DE CANARDS — épuiser la vague 1 ne passe pas à la vague 2 (vague=' + vagues.vagueApres1 + ')');
+    else ok('Arcade : STAND DE CANARDS — épuiser une vague passe bien à la suivante');
+    if (!(vagues.vitesseVague2 > vagues.vitesseVague1)) fail('Arcade : STAND DE CANARDS — la vitesse n\'augmente pas à la vague suivante (' + vagues.vitesseVague1 + ' -> ' + vagues.vitesseVague2 + ')');
+    else ok('Arcade : STAND DE CANARDS — la vitesse augmente bien à chaque vague');
+    if (!vagues.jeuTermineApres5) fail('Arcade : STAND DE CANARDS — la partie ne se termine pas à l\'issue des 5 vagues');
+    else ok('Arcade : STAND DE CANARDS — la partie se termine bien à l\'issue des 5 vagues (pas de vies, jeu de score pur)');
+
+    // -------------------------------------------------------------------
+    // Arcade : STAND DE CANARDS — la vitesse des canards doit être exprimée
+    // en fraction de la largeur du terrain par seconde, jamais des pixels
+    // (même piège que la boule de DÉMOLITION avant son recalibrage).
+    // -------------------------------------------------------------------
+    console.log('\n--- Arcade : STAND DE CANARDS — vitesse indépendante de la résolution du canvas ---');
+    const resolutionCanards = await page.evaluate(() => {
+      const wAvant = ARCADE_ECRAN.w, hAvant = ARCADE_ECRAN.h;
+      const vitesseNormale = scVitesseVoie(1, 2);
+      ARCADE_ECRAN.w = 50; ARCADE_ECRAN.h = 50;
+      const vitessePetitCanvas = scVitesseVoie(1, 2);
+      ARCADE_ECRAN.w = 2000; ARCADE_ECRAN.h = 3000;
+      const vitesseGrandCanvas = scVitesseVoie(1, 2);
+      ARCADE_ECRAN.w = wAvant; ARCADE_ECRAN.h = hAvant;
+      return { vitesseNormale, vitessePetitCanvas, vitesseGrandCanvas };
+    });
+    if (resolutionCanards.vitessePetitCanvas !== resolutionCanards.vitesseNormale || resolutionCanards.vitesseGrandCanvas !== resolutionCanards.vitesseNormale) fail('Arcade : STAND DE CANARDS — la vitesse des canards dépend de la résolution du canvas (normale=' + resolutionCanards.vitesseNormale + ', petit=' + resolutionCanards.vitessePetitCanvas + ', grand=' + resolutionCanards.vitesseGrandCanvas + ')');
+    else ok('Arcade : STAND DE CANARDS — la vitesse des canards est bien indépendante de la résolution du canvas');
+
+    // -------------------------------------------------------------------
     // Arcade : bouton QUITTER pendant une partie de borne — visible, hors de
     // portée du pouce qui joue (en haut, alors que les commandes sont en
     // bas), consomme le jeton et banque les tickets via finirBorneJeu, comme
