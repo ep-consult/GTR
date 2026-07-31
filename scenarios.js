@@ -409,9 +409,9 @@ async function main() {
     else ok('Musée : sprinter à fond déclenche bien la déviation du gardien le plus proche');
 
     // -------------------------------------------------------------------
-    // Musée : le seuil (milieu entre plafond de marche et plafond de sprint)
-    // doit rester correct même si un futur bonus de vitesse est ADDITIF plutôt
-    // que multiplicatif — un pourcentage fixe (ex. 70 % du sprint) se ferait
+    // Musée : le seuil (plafond de marche + 15 % de l'écart avec le plafond de
+    // sprint) doit rester correct même si un futur bonus de vitesse est ADDITIF
+    // plutôt que multiplicatif — un pourcentage fixe du seul sprint se ferait
     // dépasser en marchant dès qu'un bonus additif compresse l'écart relatif
     // entre marche et sprint. On simule ce bonus en ajoutant la même valeur
     // absolue aux deux plafonds ET à la vitesse réelle juste après le calcul
@@ -444,8 +444,42 @@ async function main() {
       if (INT.actif) sortirInterieur();
       return { devie };
     });
-    if (bruitAdditif.devie) fail('Musée : avec un bonus de vitesse additif simulé, marcher à fond dévie un gardien — le seuil (milieu marche/sprint) ne résiste pas à un bonus additif');
+    if (bruitAdditif.devie) fail('Musée : avec un bonus de vitesse additif simulé, marcher à fond dévie un gardien — le seuil (marche + 15 % de l\'écart) ne résiste pas à un bonus additif');
     else ok('Musée : marcher à fond reste silencieux même avec un bonus de vitesse additif simulé sur les deux plafonds');
+
+    // -------------------------------------------------------------------
+    // Musée : zone intermédiaire du sprint (80 % de la poussée maximale) —
+    // NON couverte par les tests précédents (marche à 0,2/1, sprint à 1). Avec
+    // l'ancien seuil au milieu (50 % de l'écart marche/sprint), la moitié de
+    // la plage de sprint restait silencieuse : ce test aurait échoué avec
+    // cette formule. Avec le seuil à 15 % de l'écart, sprinter à 80 % doit
+    // faire du bruit.
+    // -------------------------------------------------------------------
+    console.log('\n--- Musée : le sprint partiel (80 %) doit faire du bruit ---');
+    const bruitPartiel = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'musee');
+      startRun();
+      entrerInterieur('musee', p);
+      const s = INT.actif;
+      P.x = s.boitier.x; P.z = s.boitier.z; majAction(); document.getElementById('btnAction')._fn();
+      majAction(); document.getElementById('btnAction')._fn();
+      P.x = s.sortie.x; P.z = s.sortie.z - 4;
+      P.stam = 999; P.stamMax = 999;
+      INPUT.btn.sprint = true; INPUT.mx = 0.8; INPUT.mz = 0;
+      let devie = false;
+      for (let i = 0; i < 40 && !devie; i++) {
+        majJoueur(0.1);
+        const seuilMilieu = (P.vitesseMarcheMax + P.vitesseSprintMax) / 2; // l'ancienne formule
+        if (i === 0 && P.vitesseReelle >= seuilMilieu) throw new Error('le scénario ne reproduit pas la régression : ajuster le taux de joystick');
+        majInterieur(0.1);
+        if (s.gardiens.some((gd) => gd.deviationT > 0)) devie = true;
+      }
+      INPUT.btn.sprint = false; INPUT.mx = 0; INPUT.mz = 0;
+      if (INT.actif) sortirInterieur();
+      return { devie };
+    });
+    if (!bruitPartiel.devie) fail('Musée : sprinter à 80 % de la poussée maximale ne fait pas de bruit — la moitié de la plage de sprint reste silencieuse, la mécanique perd sa substance');
+    else ok('Musée : sprinter à 80 % de la poussée maximale fait bien du bruit');
 
     // -------------------------------------------------------------------
     // Persistance : sauvegarde, rechargement, META cohérent.

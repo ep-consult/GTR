@@ -7782,13 +7782,17 @@ function majInterieur(dt){
       s.soupcon=clamp(s.soupcon+(dansCone?100/1.2:-100/5)*dt,0,100);
       // bruit : la vitesse réelle du moment (joystick analogique compris), pas un
       // booléen de bouton — sinon un joueur qui pousse à peine le joystick tout
-      // en maintenant sprint est classé « bruyant ». Seuil = milieu entre le
-      // plafond de marche et le plafond de sprint courants (améliorations et
-      // buffs compris des deux côtés) plutôt qu'un pourcentage codé en dur : la
-      // marge reste symétrique quelle que soit la façon dont un futur bonus de
-      // vitesse (additif ou multiplicatif) recompose les deux plafonds.
-      const seuilBruit=(P.vitesseMarcheMax+P.vitesseSprintMax)/2;
-      const court=seuilBruit>0&&P.vitesseReelle>=seuilBruit;
+      // en maintenant sprint est classé « bruyant ». Seuil = plafond de marche +
+      // 15 % de l'écart avec le plafond de sprint (pas le milieu : à 50 % de
+      // l'écart, la moitié de la plage de sprint restait silencieuse et la
+      // mécanique perdait sa substance). Exprimé en fraction de l'écart entre
+      // les deux plafonds courants (améliorations et buffs compris des deux
+      // côtés), donc toujours correct quelle que soit la façon dont un futur
+      // bonus de vitesse (additif ou multiplicatif) les recompose : les deux
+      // plafonds bougent ensemble, donc l'écart aussi.
+      const ecartVitesse=P.vitesseSprintMax-P.vitesseMarcheMax;
+      const seuilBruit=P.vitesseMarcheMax+0.15*ecartVitesse;
+      const court=ecartVitesse>0&&P.vitesseReelle>=seuilBruit;
       if(court){
         s.bruitAcc+=dt;
         if(s.bruitAcc>=2.2){
