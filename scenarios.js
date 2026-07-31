@@ -233,6 +233,10 @@ async function main() {
         if (sa.spEtat !== undefined) sa.spEtat = 'soulevé';
         if (sa.srVague !== undefined) { sa.srVague = WAVES.n; sa.srFini = true; }
         if (sa.cycleOn !== undefined) sa.cycleOn = true;
+        if (sa.casseEtat !== undefined) {
+          sa.casseEtat = 'actif'; sa.soupcon = 87; sa.museeFait = true; sa.museeVague = WAVES.n;
+          sa.canardEnMain = true; sa.boitierArme = true;
+        }
       }
       P.hp = 1;
       toucherJoueur(9999); // -> mourir()
@@ -250,6 +254,15 @@ async function main() {
         if (sa.srVague !== undefined && sa.srVague !== -1) soucis.push(id + '.srVague = ' + sa.srVague + ' (attendu -1)');
         if (sa.srFini !== undefined && sa.srFini !== false) soucis.push(id + '.srFini toujours vrai');
         if (sa.cycleOn !== undefined && sa.cycleOn !== false) soucis.push(id + '.cycleOn toujours vrai');
+        if (sa.casseEtat !== undefined) {
+          if (sa.casseEtat !== null) soucis.push(id + '.casseEtat = ' + sa.casseEtat + ' (attendu null)');
+          if (sa.soupcon !== 0) soucis.push(id + '.soupcon = ' + sa.soupcon + ' (attendu 0)');
+          if (sa.museeFait !== false) soucis.push(id + '.museeFait toujours vrai');
+          if (sa.museeVague !== -1) soucis.push(id + '.museeVague = ' + sa.museeVague + ' (attendu -1)');
+          if (sa.canardEnMain !== false) soucis.push(id + '.canardEnMain toujours vrai');
+          if (sa.boitierArme !== false) soucis.push(id + '.boitierArme toujours vrai');
+          if (sa.alerte && sa.alerte.visible !== false) soucis.push(id + '.alerte.visible toujours vrai (éclairage de secours pas rétabli)');
+        }
       }
       return { modeApresMort, modeApresRestart: ETAT.mode, soucis, nbSalles: Object.keys(INT.salles).length };
     });
@@ -258,6 +271,100 @@ async function main() {
     if (reset.modeApresRestart !== 'jeu') fail('startRun() après la mort n\'a pas remis ETAT.mode à "jeu"');
     if (reset.soucis.length) for (const s of reset.soucis) fail('État de minijeu survivant au game over : ' + s);
     else ok('Aucun état de minijeu n\'a survécu au game over (' + reset.nbSalles + ' salles vérifiées)');
+
+    // -------------------------------------------------------------------
+    // Musée : déterminisme des rondes. C'est la contrainte critique de la
+    // salle (voir CLAUDE.md / la description de la salle) — deux entrées
+    // avec le même temps écoulé doivent donner exactement les mêmes
+    // positions de gardiens/caméras, sinon le schéma qu'un joueur a observé
+    // ne vaut plus rien.
+    // -------------------------------------------------------------------
+    console.log('\n--- Musée : déterminisme des rondes ---');
+    const determinisme = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'musee');
+      entrerInterieur('musee', p);
+      for (let i = 0; i < 437; i++) majInterieur(0.1); // 43,7 s simulées
+      const pos1 = INT.actif.gardiens.map((gd) => ({ x: gd.x, z: gd.z, ang: gd.ang }));
+      const cam1 = INT.actif.cameras.map((c) => c.angActuel);
+      sortirInterieur();
+      entrerInterieur('musee', p);
+      for (let i = 0; i < 437; i++) majInterieur(0.1); // exactement le même temps simulé
+      const pos2 = INT.actif.gardiens.map((gd) => ({ x: gd.x, z: gd.z, ang: gd.ang }));
+      const cam2 = INT.actif.cameras.map((c) => c.angActuel);
+      sortirInterieur();
+      return { pos1, pos2, cam1, cam2 };
+    });
+    const memePos = JSON.stringify(determinisme.pos1) === JSON.stringify(determinisme.pos2);
+    const memeCam = JSON.stringify(determinisme.cam1) === JSON.stringify(determinisme.cam2);
+    if (!memePos || !memeCam) {
+      fail('Musée : ronde NON déterministe — deux entrées avec le même temps écoulé donnent des positions différentes : ' + JSON.stringify(determinisme));
+    } else {
+      ok('Musée : gardiens et caméras strictement déterministes (2 entrées, même museeT, mêmes positions)');
+    }
+
+    // -------------------------------------------------------------------
+    // Musée : un casse réussi (Le Cône + le Canard, sortie avant la fin du
+    // chrono) doit créditer l'argent, poser META.museeArtefacts.cone et
+    // donner la curiosité — puis un second casse raté (soupçon à 100) doit
+    // faire perdre le Canard s'il est en main sans toucher à ce qui est déjà
+    // définitivement acquis, et faire monter le niveau de recherche.
+    // -------------------------------------------------------------------
+    console.log('\n--- Musée : casse réussi puis casse raté ---');
+    const casse = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'musee');
+      startRun();
+      entrerInterieur('musee', p);
+      const s = INT.actif;
+      META.argent = 500;
+      const argentAvant = META.argent;
+      // arme + confirme le boîtier (flux à deux appuis)
+      P.x = s.boitier.x; P.z = s.boitier.z; majAction(); document.getElementById('btnAction')._fn();
+      majAction(); document.getElementById('btnAction')._fn();
+      const casseDemarre = s.casseEtat === 'actif';
+      // force Le Cône (1,5 s de maintien sur place)
+      const cone = s.vitrinesValeur.find((v) => v.cle === 'cone');
+      P.x = cone.x; P.z = cone.z; majAction(); document.getElementById('btnAction')._fn();
+      for (let i = 0; i < 20; i++) majInterieur(0.1); // 2 s : largement assez pour les 1,5 s de maintien
+      const coneForce = META.museeArtefacts.cone === true;
+      // force le Canard
+      P.x = s.canard.x; P.z = s.canard.z; majAction(); document.getElementById('btnAction')._fn();
+      for (let i = 0; i < 20; i++) majInterieur(0.1);
+      const canardEnMainApresForce = s.canardEnMain === true;
+      // ressort par l'entrée avant la fin du chrono
+      P.x = s.sortie.x; P.z = s.sortie.z; majAction(); document.getElementById('btnAction')._fn();
+      const reussite = { argentApres: META.argent, canardObtenu: aCurio('canard_or'), interActifApres: !!INT.actif };
+
+      // second casse : raté cette fois (soupçon forcé à 100)
+      const etoilesAvant = WANTED.stars;
+      entrerInterieur('musee', p);
+      const s2 = INT.actif;
+      s2.museeVague = -1; // repasse sous le plafond « 1 casse par vague » pour ce test
+      P.x = s2.boitier.x; P.z = s2.boitier.z; majAction(); document.getElementById('btnAction')._fn();
+      majAction(); document.getElementById('btnAction')._fn();
+      s2.casseT = 0.05; // chrono presque écoulé (même code d'échec que soupçon à 100 %)
+      majInterieur(0.1); // le chrono passe sous 0 -> alarme -> éjection
+      const echec = {
+        interActifApres: !!INT.actif, etoilesApres: WANTED.stars,
+        casseEtatApres: s2.casseEtat, canardToujoursAcquis: aCurio('canard_or'),
+      };
+      return { argentAvant, casseDemarre, coneForce, canardEnMainApresForce, reussite, etoilesAvant, echec };
+    });
+    if (!casse.casseDemarre) fail('Musée : le boîtier (deux appuis : armer puis confirmer) n\'a pas démarré le casse');
+    else ok('Musée : le boîtier démarre le casse après confirmation');
+    if (!casse.coneForce) fail('Musée : forcer « Le Cône » 1,5 s n\'a pas posé META.museeArtefacts.cone');
+    if (casse.reussite.argentApres < casse.argentAvant + 200) fail('Musée : Le Cône forcé n\'a pas crédité +200 $ (avant ' + casse.argentAvant + ', après ' + casse.reussite.argentApres + ')');
+    else ok('Musée : Le Cône forcé crédite bien +200 $');
+    if (!casse.canardEnMainApresForce) fail('Musée : forcer la vitrine du Canard n\'a pas posé canardEnMain');
+    if (!casse.reussite.canardObtenu) fail('Musée : ressorti dans les temps avec le Canard en main, mais la curiosité canard_or n\'a pas été accordée');
+    else ok('Musée : ressortir dans les temps avec le Canard en main donne bien la curiosité');
+    if (casse.reussite.interActifApres) fail('Musée : la sortie pendant un casse réussi n\'a pas fait quitter la salle');
+    if (casse.echec.interActifApres) fail('Musée : le chrono écoulé (même code que soupçon à 100 %) n\'a pas éjecté le joueur de la salle');
+    else ok('Musée : chrono écoulé (même code que soupçon à 100 %) éjecte immédiatement le joueur');
+    if (casse.echec.casseEtatApres !== null) fail('Musée : casseEtat pas remis à null après l\'alarme (' + casse.echec.casseEtatApres + ')');
+    if (casse.echec.etoilesApres < casse.etoilesAvant + 1) fail('Musée : une alarme n\'a pas augmenté le niveau de recherche (avant ' + casse.etoilesAvant + ', après ' + casse.echec.etoilesApres + ')');
+    else ok('Musée : une alarme augmente bien le niveau de recherche');
+    if (!casse.echec.canardToujoursAcquis) fail('Musée : le Canard obtenu lors du premier casse a été perdu à cause d\'un second casse raté (ne devrait affecter que ce qui était en main CE casse-ci)');
+    else ok('Musée : la curiosité déjà obtenue n\'est pas remise en cause par un casse raté ultérieur');
 
     // -------------------------------------------------------------------
     // Persistance : sauvegarde, rechargement, META cohérent.

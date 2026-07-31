@@ -834,7 +834,9 @@ const META={
   decouverts:{},
   // --- lieux spéciaux : curiosités collectées + progression propre à chaque lieu ---
   curios:{}, zohra:0, karaoke:0, gaston:0, lessives:0, fouilles:0,
-  muscle:0, strikes:0, bowlingMax:0, sandwich:0, plantes:0
+  muscle:0, strikes:0, bowlingMax:0, sandwich:0, plantes:0,
+  // musée : chaque pièce de valeur n'est prenable qu'une fois, pour toute la partie
+  museeArtefacts:{cone:false,laveuse:false,meteorite:false}
 };
 const DEFIS=[
   {id:'sang',nom:'Premier sang',det:'Neutralise 25 ennemis',rec:250,prog:m=>[m.killsTotal,25],cond:m=>m.killsTotal>=25},
@@ -936,7 +938,9 @@ const CURIOS=[
   {id:'ceinture',ico:'🥇',nom:'La Ceinture de Champion',lieu:'Le Roi des Sandwichs',
    eff:'+20 PV maximum, définitivement',
    ind:'Le Monstre entier. Sans rendre. Il paraît que c\u2019est faisable.',actif:true},
-  {id:'canard_or',ico:'🦆',nom:'Le Canard d\u2019Or',lieu:'Musée Mémoire de Solara',actif:false},
+  {id:'canard_or',ico:'🦆',nom:'Le Canard d\u2019Or',lieu:'Musée Mémoire de Solara',
+   eff:'Porte-bonheur du voleur : le niveau de recherche redescend 25 % plus vite',
+   ind:'Il est au fond du musée, sous cloche. Le courant, lui, se coupe à l’entrée.',actif:true},
   {id:'bobine',ico:'🎞️',nom:'La Bobine « ASPHALTE I »',lieu:'Ciné-Palace',actif:false},
   {id:'plaque',ico:'⚓',nom:'La Plaque du Capitaine',lieu:'Cale de l\u2019épave',actif:false},
   {id:'lampe',ico:'🔦',nom:'La Lampe de Mineur',lieu:'Métro abandonné',actif:false},
@@ -2643,6 +2647,8 @@ function placerPortes(){
   poser('serre',cSer.x,cSer.z,'SERRE',0x7dff7a);
   const cSan=caseCentre(9,13);   // front de mer : la baraque de la promenade
   poser('sandwich',cSan.x,cSan.z,'LE ROI DES SANDWICHS',0xffd23f);
+  const cMus=caseCentre(3,5);    // centre-ville : le musée, ouvert dès le début de partie
+  poser('musee',cMus.x,cMus.z,'MUSÉE DE SOLARA',0xffd23f);
   // secours : si un lieu manquait, on place la porte près de la grande place
   if(!PORTES.some(p=>p.id==='banque')&&POIS.place)
     poser('banque',POIS.place.x+CELL,POIS.place.z,'BANQUE',0x35e0ff);
@@ -2652,7 +2658,8 @@ function placerPortes(){
     ['laverie','LAVERIE 24H',0x8ad2ff],['voyance','VOYANCE',0xff5ad0],
     ['karaoke','KARAOKÉ',0xffd23f],['aquarium','AQUARIUM',0x35e0ff],
     ['bowling','STRIKE DORÉ',0xffd23f],['sport','FER & SUEUR',0xff5a6a],
-    ['serre','SERRE',0x7dff7a],['sandwich','LE ROI DES SANDWICHS',0xffd23f]
+    ['serre','SERRE',0x7dff7a],['sandwich','LE ROI DES SANDWICHS',0xffd23f],
+    ['musee','MUSÉE DE SOLARA',0xffd23f]
   ];
   for(const [id,nom,coul] of REPLIS){
     if(PORTES.some(p=>p.id===id)) continue;
@@ -3972,6 +3979,7 @@ function majJoueur(dt){
   let vx=0,vz=0;
   const bouge=Math.hypot(INPUT.mx,INPUT.mz)>0.12;
   const sprint=!P.nage&&(INPUT.btn.sprint||INPUT.btn.sprintK)&&bouge&&(P.stam>1||P.buffs.nitroT>0);
+  P.sprinte=sprint;   // exposé pour la détection de bruit du musée (courir vs marcher)
   el('btnSprint').classList.toggle('actif',!!sprint);
   let vit=P.vitBase*(sprint?1.5:1)*(P.nage?(aCurio('perle')?0.567:0.42):1);  // La Perle Noire : +35 % à la nage
   if(P.buffs.lourd>0) vit*=0.68;                    // digestion du Monstre
@@ -5403,7 +5411,7 @@ function majWanted(dt){
   WANTED.tirCd-=dt; WANTED.heliCd-=dt;
   let copProche=false;
   for(const e of ennemis){ if(!e.mort&&e.fac==='police'&&dist2(e.x,e.z,P.x,P.z)<2100){copProche=true;break;} }
-  if(!copProche) WANTED.heat=Math.max(0,WANTED.heat-0.10*dt*(WANTED.stars>=4?0.6:1));
+  if(!copProche) WANTED.heat=Math.max(0,WANTED.heat-0.10*dt*(WANTED.stars>=4?0.6:1)*(aCurio('canard_or')?1.25:1));
   WANTED.stars=Math.min(6,Math.floor(WANTED.heat));
   // zone militaire = alarme immédiate
   if(POIS.base&&Math.abs(P.x-POIS.base.x)<POIS.base.hw&&Math.abs(P.z-POIS.base.z)<POIS.base.hd){
@@ -5935,7 +5943,21 @@ const swWrap=faireJauge('<div id="swLbl" style="font:900 10px Arial;letter-spaci
   '<div style="font:800 8.5px Arial;color:#8a8f9a;margin-top:2px">progression · nausée</div>');
 const swFaimEl=swWrap.querySelector('#swFaim'), swNausEl=swWrap.querySelector('#swNaus'),
       swLblEl=swWrap.querySelector('#swLbl');
-const JAUGES=[fouilleWrap,karaWrap,bwWrap,spWrap,swWrap];
+// musée : chrono du casse + jauge de soupçon — positionnée plus haut pour ne
+// jamais recouvrir le joystick (bottom plus grand que les autres jauges)
+const musWrap=document.createElement('div');
+musWrap.style.cssText='position:absolute;left:50%;transform:translateX(-50%);'+
+  'bottom:calc(env(safe-area-inset-bottom,0px) + 380px);width:min(280px,76vw);display:none;'+
+  'text-align:center;pointer-events:none;z-index:6';
+musWrap.innerHTML='<div id="musLbl" style="font:900 11px Arial;letter-spacing:.06em;color:#ff5a3a;'+
+  'text-shadow:0 2px 6px #000">⚡ 90 s</div>'+
+  '<div style="position:relative;margin-top:4px;height:10px;background:#12141bee;'+
+  'border:1.5px solid #ffffff33;border-radius:4px;overflow:hidden">'+
+  '<i id="musSoup" style="display:block;height:100%;width:0%;background:linear-gradient(90deg,#ffd23f,#ff3b5c)"></i></div>'+
+  '<div style="font:800 8px Arial;color:#8a8f9a;margin-top:2px">soupçon</div>';
+el('hud').appendChild(musWrap);
+const musLblEl=musWrap.querySelector('#musLbl'), musSoupEl=musWrap.querySelector('#musSoup');
+const JAUGES=[fouilleWrap,karaWrap,bwWrap,spWrap,swWrap,musWrap];
 function cacherJauges(){ for(const j of JAUGES) if(j.style.display!=='none') j.style.display='none'; }
 
 const INTDEFS={
@@ -5976,7 +5998,10 @@ const INTDEFS={
   serre:{nom:'Serre du jardin botanique',ico:'🌿',w:24,d:19,sol:0x3a4a2e,mur:0x7a9a6a,
     ens:['SERRE TROPICALE','#7dff7a']},
   sandwich:{nom:'Le Roi des Sandwichs',ico:'🥪',w:20,d:16,sol:0x8a6a44,mur:0xd8b06a,
-    ens:['LE ROI DES SANDWICHS','#ffd23f']}
+    ens:['LE ROI DES SANDWICHS','#ffd23f']},
+  /* ---- lieu spécial (lot 3) : première salle à mécanique de furtivité ---- */
+  musee:{nom:'Musée Mémoire de Solara',ico:'🏛️',w:18,d:40,sol:0xd8d0bc,mur:0xe8e2d0,
+    ens:['MUSÉE DE SOLARA','#ffd23f']}
 };
 // véhicules en vente au concessionnaire
 const CATALOGUE=[
@@ -7071,6 +7096,172 @@ function construireSalle(id){
     pnj(6.5,4.8,{haut:pick(civHaut),bas:pick(civBas),peau:pick(civPeau),casq:0x2a2018,visage:'neutre'});
     lampe(0,-4,0xffe0a0,9); lampe(0,3,0xffe0a0,9); lampe(-7,-6,0xffd23f,6);
   }
+  /* ================= MUSÉE MÉMOIRE DE SOLARA =================
+     Première salle à mécanique de furtivité. Gardiens et caméras patrouillent
+     en continu dès qu'on entre, courant coupé ou pas : c'est le moment
+     d'observer leurs trajets. Leur position est une fonction PURE de
+     inter.museeT (remis à zéro à chaque entrée, voir entrerInterieur) —
+     jamais de Math.random ni de dépendance à ETAT.runT dans ces trajets,
+     pour rester strictement déterministes d'une entrée à l'autre. Le casse
+     lui-même (soupçon, chrono) ne démarre qu'au boîtier électrique. */
+  else if(id==='musee'){
+    // sol marbré clair
+    for(let i=-4;i<4;i++) for(let j=-9;j<9;j++){
+      if((i+j)%2) continue;
+      const t=new THREE.Mesh(new THREE.PlaneGeometry(2.3,2.3),mat(0xe8e2d0));
+      t.rotation.x=-Math.PI/2; t.position.set(ox+i*2.25+1.1,0.11,oz+j*2.25+1.1); g.add(t);
+    }
+    // murs de séparation entre les 3 halls : passage étroit (3 u) au centre
+    for(const dz of [7,-7]){
+      box(7.5,4.4,0.5,0xe8e2d0,-5.25,2.2,dz);
+      box(7.5,4.4,0.5,0xe8e2d0,5.25,2.2,dz);
+    }
+    // cordons de velours devant les 3 vitrines de valeur
+    const cordon=(x,z)=>{
+      for(const dx of [-1.1,1.1]){
+        const po=new THREE.Mesh(new THREE.CylinderGeometry(0.09,0.09,0.9,7),mat(0x2a2018));
+        po.position.set(ox+x+dx,0.45,oz+z); g.add(po);
+        const tt=new THREE.Mesh(new THREE.SphereGeometry(0.13,8,6),mat(0xd8b02a));
+        tt.position.set(ox+x+dx,0.92,oz+z); g.add(tt);
+      }
+      const corde=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,2.2,6),mat(0x7a1f2a));
+      corde.rotation.z=Math.PI/2; corde.position.set(ox+x,0.75,oz+z); g.add(corde);
+    };
+    // vitrine : socle + pièce exposée (juste cachée quand prise : pas de texte à regénérer)
+    const vitrine=(x,z,couleurPiece,forme)=>{
+      box(1.3,0.85,1.1,0xd8d0bc,x,0.42,z,false);
+      const piece=forme==='sphere'
+        ?new THREE.Mesh(new THREE.SphereGeometry(0.32,10,8),mat(couleurPiece))
+        :new THREE.Mesh(new THREE.BoxGeometry(0.5,0.4,0.5),mat(couleurPiece));
+      piece.position.set(ox+x,0.85+0.25,oz+z); g.add(piece);
+      const verre=new THREE.Mesh(new THREE.BoxGeometry(0.9,0.9,0.9),
+        new THREE.MeshBasicMaterial({color:0xbfe4ff,transparent:true,opacity:0.12,depthWrite:false}));
+      verre.position.set(ox+x,0.85+0.45,oz+z); g.add(verre);
+      return {piece};
+    };
+    inter.cartels=[]; inter.vitrinesValeur=[];
+    // cartel = décor pur, lisible en s'approchant. Les 4 pièces à la fois
+    // décoratives ET forçables (Cône/Laveuse/Météorite/Canard) n'ont PAS de
+    // cartel séparé : ce serait une seconde zone superposée à la vitrine
+    // forçable elle-même. Elles gardent juste leur plaque de nom (mkEnseigne).
+    const cartel=(x,z,titre,texte)=>{
+      mkEnseigne(titre,'#d8c8a8',ox+x,1.7,oz+z-0.9,0,Math.max(6,titre.length*0.5));
+      inter.cartels.push({x:ox+x,z:oz+z,titre,texte});
+    };
+    // ---- HALL 1 : ORIGINES ----
+    vitrine(-8,16,0x8a8a94,'box');
+    cartel(-8,16,'PAVÉ N°1','Premier pavé posé lors de la fondation de Solara. Les 40 000 suivants ont été posés par des gens dont on n’a pas retenu le nom.');
+    { const vc=vitrine(8,12,0xff8a2e,'box'); cordon(8,12);
+      if(META.museeArtefacts.cone) vc.piece.visible=false;
+      inter.vitrinesValeur.push({cle:'cone',x:ox+8,z:oz+12,gain:200,nom:'Le Cône',mesh:vc.piece}); }
+    mkEnseigne('LE CÔNE','#ff8a2e',ox+8,1.7,oz+11.1,0,7);
+    vitrine(-8,8,0xd8b02a,'box');
+    cartel(-8,8,'CLÉ DE LA VILLE','Clé honorifique remise aux personnalités de passage. N’ouvre rien. N’a jamais rien ouvert.');
+    // boîtier électrique : à distance de sécurité de la sortie — voir majAction,
+    // la zone "sortie" est TOUJOURS prioritaire et gagnerait si le boîtier était
+    // trop proche (exactement le bug qu'avait le défi du Roi des Sandwichs)
+    box(1,1.3,0.5,0x2a2e36,-7,0.65,12,false);
+    const voyant=new THREE.Mesh(new THREE.SphereGeometry(0.09,8,6),new THREE.MeshBasicMaterial({color:0x7dff7a}));
+    voyant.position.set(ox-7,1.15,oz+12.3); g.add(voyant);
+    inter.boitier={x:ox-7,z:oz+12};
+    mkEnseigne('BOÎTIER','#ff3b5c',ox-7,2.1,oz+12.6,0,6);
+    const compt=box(3.2,1.1,1.2,0x6a6458,6,0.55,15);
+    fouillable(6,16.3,'Comptoir d’accueil','standard',compt,2.8);
+    mkEnseigne('ACCUEIL','#ffd23f',ox+6,2,oz+16.6,0,7);
+    pnj(6,17.4,{haut:pick(civHaut),bas:0x1c2030,peau:pick(civPeau),casq:0x2a2018,visage:'gentil'},'caisse');
+    lampe(-8,16,0xffe0a0,6); lampe(8,12,0xffe0a0,6); lampe(-8,8,0xffe0a0,6); lampe(6,17,0xfff2c0,6);
+    // ---- HALL 2 : GRANDEUR ----
+    vitrine(-8,4,0xd8304a,'box');
+    cartel(-8,4,'LE SANDWICH','Reproduction fidèle du premier sandwich vendu sur la promenade. L’original a été mangé.');
+    { const vc=vitrine(8,0,0x9fe4ff,'box'); cordon(8,0);
+      if(META.museeArtefacts.laveuse) vc.piece.visible=false;
+      inter.vitrinesValeur.push({cle:'laveuse',x:ox+8,z:oz,gain:350,nom:'Machine à laver n°3',mesh:vc.piece}); }
+    mkEnseigne('MACHINE À LAVER N°3','#9fe4ff',ox+8,1.7,oz-0.9,0,9);
+    vitrine(-8,-4,0x2a2e36,'sphere');
+    cartel(-8,-4,'BOULE « ÉTOILE »','Ayant appartenu au champion municipal 1986. Il a perdu.');
+    const bout=box(3,1.1,1.2,0x8a6a44,6,0.55,5);
+    fouillable(6,3.7,'Boutique du musée','riche',bout,2.8);
+    mkEnseigne('BOUTIQUE','#ffd23f',ox+6,1.9,oz+3.4,0,7);
+    lampe(-8,4,0xffe0a0,6); lampe(8,0,0xffe0a0,6); lampe(-8,-4,0xffe0a0,6);
+    // ---- HALL 3 : TRÉSOR ----
+    { const vc=vitrine(-8,-10,0x8a5a3a,'sphere'); cordon(-8,-10);
+      if(META.museeArtefacts.meteorite) vc.piece.visible=false;
+      inter.vitrinesValeur.push({cle:'meteorite',x:ox-8,z:oz-10,gain:500,nom:'Météorite de Solara',mesh:vc.piece}); }
+    mkEnseigne('MÉTÉORITE DE SOLARA','#8a5a3a',ox-8,1.7,oz-10.9,0,10);
+    vitrine(8,-10,0xe8ecf2,'box');
+    cartel(8,-10,'PORTRAIT DU MAIRE','Portrait officiel. Le maire n’a pas souhaité poser. Peint de mémoire.');
+    // socle central du Canard d'Or
+    const socCanard=new THREE.Mesh(new THREE.CylinderGeometry(1,1.1,0.9,14),mat(0xd8d0bc));
+    socCanard.position.set(ox,0.45,oz-16); g.add(socCanard);
+    addSolid({x:ox,z:oz-16,hw:1,hd:1,h:0.9});
+    const cloche=new THREE.Mesh(new THREE.SphereGeometry(0.55,12,10,0,6.29,0,1.6),
+      new THREE.MeshBasicMaterial({color:0xbfe4ff,transparent:true,opacity:0.14,depthWrite:false,side:THREE.DoubleSide}));
+    cloche.position.set(ox,0.9+0.55,oz-16); g.add(cloche);
+    const canardM=new THREE.Group();
+    const corpsC=new THREE.Mesh(new THREE.SphereGeometry(0.32,10,8),mat(0xffd23f));
+    corpsC.scale.set(1,0.85,1.3); canardM.add(corpsC);
+    const teteC=new THREE.Mesh(new THREE.SphereGeometry(0.16,8,6),mat(0xffd23f));
+    teteC.position.set(0,0.22,0.32); canardM.add(teteC);
+    const becC=new THREE.Mesh(new THREE.ConeGeometry(0.07,0.18,6),mat(0xff8a2e));
+    becC.rotation.x=Math.PI/2; becC.position.set(0,0.2,0.5); canardM.add(becC);
+    canardM.position.set(ox,0.9+0.32,oz-16); g.add(canardM);
+    if(aCurio('canard_or')) canardM.visible=false;
+    inter.canard={x:ox,z:oz-16,mesh:canardM};
+    mkEnseigne('LE CANARD D’OR','#ffd23f',ox,2.4,oz-17.3,0,11);
+    // tronc à dons : petit don immédiat, jamais de risque
+    box(0.9,1,0.9,0x6a4a2a,6,0.5,-19);
+    inter.tronc={x:ox+6,z:oz-19};
+    mkEnseigne('DONS','#7dff7a',ox+6,1.7,oz-17.8,0,5);
+    lampe(-8,-10,0xffc46a,6); lampe(8,-10,0xffc46a,6); lampe(0,-16,0xbfe4ff,8);
+    // ---- gardiens et caméras ----
+    inter.museeT=0; inter.casseEtat=null; inter.casseT=0; inter.soupcon=0;
+    inter.bruitAcc=0; inter.museeVague=-1; inter.museeFait=false;
+    inter.boitierArme=false; inter.canardEnMain=false; inter.forcerCible=null; inter.forcerT=0;
+    const construireCone=(demiAngle,rayon,couleur,opac)=>{
+      const N=16, pos=new Float32Array((N+2)*3), idx=[];
+      for(let i=0;i<=N;i++){
+        const a=-demiAngle+(2*demiAngle)*(i/N);
+        pos[(i+1)*3]=Math.sin(a)*rayon; pos[(i+1)*3+1]=0; pos[(i+1)*3+2]=Math.cos(a)*rayon;
+        if(i<N) idx.push(0,i+1,i+2);
+      }
+      const geo=new THREE.BufferGeometry();
+      geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+      geo.setIndex(idx);
+      const m=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({color:couleur,transparent:true,
+        opacity:opac,depthWrite:false,side:THREE.DoubleSide}));
+      m.position.y=0.05; g.add(m);
+      return m;
+    };
+    inter.gardiens=[
+      {depart:{x:ox,z:oz+14},arrivee:{x:ox,z:oz-2},T:17,demiAngle:0.55,rayon:8.5,
+       x:ox,z:oz+14,ang:0,h:null,cone:null,deviationT:0,deviationDepart:null,deviationCible:null},
+      {depart:{x:ox,z:oz+2},arrivee:{x:ox,z:oz-14},T:17,demiAngle:0.55,rayon:8.5,
+       x:ox,z:oz+2,ang:0,h:null,cone:null,deviationT:0,deviationDepart:null,deviationCible:null}
+    ];
+    for(const gd of inter.gardiens){
+      gd.h=makeHumain({haut:0x2a3a4a,bas:0x1c2030,peau:pick(civPeau),casq:0x14161c,visage:'neutre'},1);
+      gd.h.g.position.set(gd.x,0,gd.z); g.add(gd.h.g);
+      gd.cone=construireCone(gd.demiAngle,gd.rayon,0xffcf6a,0.22);
+    }
+    inter.cameras=[
+      {x:ox-8.7,z:oz+13,ang0:Math.PI/2,amp:0.85,T:5.5,demiAngle:0.3,rayon:10,angActuel:Math.PI/2,cone:null},
+      {x:ox-8.7,z:oz,   ang0:Math.PI/2,amp:0.85,T:5.5,demiAngle:0.3,rayon:10,angActuel:Math.PI/2,cone:null},
+      {x:ox-8.7,z:oz-13,ang0:Math.PI/2,amp:0.85,T:5.5,demiAngle:0.3,rayon:10,angActuel:Math.PI/2,cone:null}
+    ];
+    for(const cam of inter.cameras){
+      box(0.5,0.4,0.5,0x14161c,cam.x-ox,3.1,cam.z-oz,false);
+      const lentille=new THREE.Mesh(new THREE.SphereGeometry(0.12,8,6),mat(0xff3b3b));
+      lentille.position.set(cam.x+0.35,2.95,cam.z); g.add(lentille);
+      cam.cone=construireCone(cam.demiAngle,cam.rayon,0xff5a5a,0.24);
+      cam.cone.position.set(cam.x,0.05,cam.z);
+    }
+    // éclairage de secours : voile rouge, invisible tant que le courant n'est pas coupé
+    const alerte=new THREE.Mesh(new THREE.PlaneGeometry(W,P2),
+      new THREE.MeshBasicMaterial({color:0xff2a2a,transparent:true,opacity:0.16,depthWrite:false}));
+    alerte.rotation.x=-Math.PI/2; alerte.position.set(ox,0.16,oz); alerte.visible=false;
+    g.add(alerte); inter.alerte=alerte;
+    lampe(0,13,0xffe0a0,7); lampe(0,-13,0xffc46a,7);
+  }
   scene.add(g);
   INT.salles[id]=inter;
   return inter;
@@ -7079,6 +7270,10 @@ function entrerInterieur(id,porte){
   if(INT.actif) return;
   const s=construireSalle(id);
   INT.actif=s; INT.rx=porte.x; INT.rz=porte.z+3;
+  // musée : horloge de ronde remise à zéro à CHAQUE entrée — gardiens et
+  // caméras sont une fonction pure de museeT, donc ce seul reset suffit à
+  // garantir un trajet strictement identique à chaque visite (voir majInterieur)
+  if(s.gardiens){ s.museeT=0; for(const gd of s.gardiens) gd.deviationT=0; }
   // gardes de la banque
   if(s.gardes&&!s.gardesFaits){
     s.gardesFaits=true;
@@ -7484,6 +7679,85 @@ function majInterieur(dt){
     } else {
       p.h.g.rotation.y+=dt*0.25;
     }
+  }
+  // ---- musée : gardiens + caméras (toujours actifs, pour l'observation),
+  // soupçon/chrono/bruit (seulement pendant un casse) ----
+  if(s.gardiens){
+    s.museeT+=dt;
+    for(const gd of s.gardiens){
+      if(gd.deviationT>0){
+        gd.deviationT-=dt;
+        const t2=clamp((6-gd.deviationT)/1.2,0,1);   // va vers le bruit en ~1,2 s puis y reste
+        gd.x=lerp(gd.deviationDepart.x,gd.deviationCible.x,t2);
+        gd.z=lerp(gd.deviationDepart.z,gd.deviationCible.z,t2);
+        gd.ang=Math.atan2(gd.deviationCible.x-gd.deviationDepart.x,gd.deviationCible.z-gd.deviationDepart.z);
+      } else {
+        // la ronde ne se remet JAMAIS à zéro : elle reprend exactement là où
+        // l'horloge de la salle (museeT, jamais interrompue) la place
+        const p=(s.museeT%gd.T)/gd.T*2, k=p<=1?p:2-p;
+        gd.x=gd.depart.x; gd.z=lerp(gd.depart.z,gd.arrivee.z,k);
+        gd.ang=(p<=1)?Math.atan2(gd.arrivee.x-gd.depart.x,gd.arrivee.z-gd.depart.z)
+                     :Math.atan2(gd.depart.x-gd.arrivee.x,gd.depart.z-gd.arrivee.z);
+      }
+      gd.h.g.position.set(gd.x,0,gd.z); gd.h.g.rotation.y=gd.ang;
+      const marche=Math.sin(s.museeT*6)*0.5;
+      gd.h.jambeG.rotation.x=marche; gd.h.jambeD.rotation.x=-marche;
+      gd.cone.position.set(gd.x,0.05,gd.z); gd.cone.rotation.y=gd.ang;
+    }
+    for(const cam of s.cameras){
+      cam.angActuel=cam.ang0+Math.sin(s.museeT/cam.T*Math.PI*2)*cam.amp;
+      cam.cone.rotation.y=cam.angActuel;
+    }
+    // maintien en cours sur une vitrine (annulé si le joueur s'éloigne ou si le courant revient)
+    if(s.forcerCible){
+      const c=s.forcerCible;
+      if(s.casseEtat!=='actif'||dist2(P.x,P.z,c.x,c.z)>16){ s.forcerCible=null; s.forcerT=0; }
+      else {
+        s.forcerT-=dt;
+        if(s.forcerT<=0){
+          if(s.forcerType==='valeur'){
+            META.museeArtefacts[c.cle]=true;
+            META.argent+=c.gain; ETAT.cashRun+=c.gain; META.stats.cashTotal+=c.gain;
+            if(c.mesh) c.mesh.visible=false;
+            spawnTexte(c.x,2,c.z,'+'+c.gain+' $','#ffd23f');
+            toast(c.nom+' subtilisé·e : +'+c.gain+' $','or'); SFX.achat(); vibre(40);
+            checkDefis(); sauveMeta();
+          } else if(s.forcerType==='canard'){
+            s.canardEnMain=true;
+            if(c.mesh) c.mesh.visible=false;
+            toast('Le Canard d’Or change de main. Reste à sortir sans te faire prendre.','or');
+            SFX.ui(); vibre(30);
+          }
+          s.forcerCible=null; s.forcerT=0;
+        }
+      }
+    }
+    if(s.casseEtat==='actif'&&ETAT.mode==='jeu'){
+      s.casseT-=dt;
+      let dansCone=false;
+      for(const gd of s.gardiens){
+        if(dist2(P.x,P.z,gd.x,gd.z)>=gd.rayon*gd.rayon) continue;
+        if(Math.abs(angDiff(gd.ang,Math.atan2(P.x-gd.x,P.z-gd.z)))<gd.demiAngle){ dansCone=true; break; }
+      }
+      if(!dansCone) for(const cam of s.cameras){
+        if(dist2(P.x,P.z,cam.x,cam.z)>=cam.rayon*cam.rayon) continue;
+        if(Math.abs(angDiff(cam.angActuel,Math.atan2(P.x-cam.x,P.z-cam.z)))<cam.demiAngle){ dansCone=true; break; }
+      }
+      s.soupcon=clamp(s.soupcon+(dansCone?100/1.2:-100/5)*dt,0,100);
+      if(P.sprinte){
+        s.bruitAcc+=dt;
+        if(s.bruitAcc>=2.2){
+          s.bruitAcc=0;
+          let gp=null,gd2=1e9;
+          for(const gd of s.gardiens){ const d=dist2(gd.x,gd.z,P.x,P.z); if(d<gd2){gd2=d;gp=gd;} }
+          if(gp){ gp.deviationT=6; gp.deviationDepart={x:gp.x,z:gp.z}; gp.deviationCible={x:P.x,z:P.z}; }
+        }
+      } else s.bruitAcc=Math.max(0,s.bruitAcc-dt*0.5);
+      musWrap.style.display='block';
+      musLblEl.textContent='⚡ '+Math.max(0,Math.ceil(s.casseT))+' s';
+      musSoupEl.style.width=Math.round(s.soupcon)+'%';
+      if(s.soupcon>=100||s.casseT<=0){ finirCasseMusee(s,false); sortirInterieur(); }
+    } else if(musWrap.style.display!=='none') musWrap.style.display='none';
   }
 }
 
@@ -8379,6 +8653,18 @@ function startRun(){
     if(sa.swEtat!==undefined){ sa.swEtat=null; sa.swVague=-1;
       if(sa.monstre){ sa.monstre.scale.set(1,1,1); sa.monstre.visible=true; } }
     if(sa.srVague!==undefined){ sa.srVague=-1; sa.srFini=false; }
+    // musée : un casse en cours est annulé (game over / mort pendant le casse),
+    // le plafond de la vague est levé, la ronde repartira propre à la prochaine
+    // entrée (voir entrerInterieur). Les pièces déjà volées restent volées :
+    // ça vit dans META, pas ici.
+    if(sa.casseEtat!==undefined){
+      sa.casseEtat=null; sa.casseT=0; sa.soupcon=0; sa.bruitAcc=0;
+      sa.forcerCible=null; sa.forcerT=0; sa.museeVague=-1; sa.museeFait=false;
+      sa.boitierArme=false;
+      if(sa.canardEnMain){ sa.canardEnMain=false; if(sa.canard&&sa.canard.mesh) sa.canard.mesh.visible=true; }
+      if(sa.alerte) sa.alerte.visible=false;
+      if(sa.gardiens) for(const gd of sa.gardiens) gd.deviationT=0;
+    }
   }
   for(const g of grenades){g.on=false;g.mesh.visible=false;}
   P.mags={}; P.mun={};
@@ -8544,7 +8830,7 @@ function marquerZone(obj,r2){ if(obj) obj.r=Math.sqrt(r2); return r2; }
 // Champs { x, z, ... } d'une salle qui ne sont volontairement PAS des zones
 // d'interaction (décor animé, jamais lu par majAction()) : à distinguer
 // d'une zone simplement oubliée par marquerZone(), qui doit rester signalée.
-const CHAMPS_DECOR_SALLE=new Set(['pnj','culturiste','plaque']);
+const CHAMPS_DECOR_SALLE=new Set(['pnj','culturiste','plaque','gardiens','cameras']);
 // Rejoue majAction() avec le joueur hors de portée de tout, pour que la
 // chaîne if/else-if s'évalue en entier (aucune branche ne « gagne » et
 // n'interrompt les suivantes) et que chaque marquerZone() de la salle
@@ -8560,12 +8846,13 @@ const CHAMPS_DECOR_SALLE=new Set(['pnj','culturiste','plaque']);
 function zonesInterieurActives(){
   const s=INT.actif;
   if(!s) return {zones:[],orphelins:[]};
-  const px=P.x,pz=P.z,swEtat=s.swEtat,lessives=META.lessives;
+  const px=P.x,pz=P.z,swEtat=s.swEtat,lessives=META.lessives,casseEtat=s.casseEtat;
   P.x=1e6; P.z=1e6;
   if(s.sodaPos) s.swEtat='defi';       // sinon cette branche, gardée par l'état, ne s'évalue jamais
   if(s.filtre) META.lessives=1;        // idem : gardée par META.lessives>0
+  if(s.vitrinesValeur||s.canard) s.casseEtat='actif'; // idem : vitrines forçables seulement pendant un casse
   majAction();
-  P.x=px; P.z=pz; s.swEtat=swEtat; META.lessives=lessives;
+  P.x=px; P.z=pz; s.swEtat=swEtat; META.lessives=lessives; s.casseEtat=casseEtat;
   const zones=[],orphelins=[];
   for(const champ in s){
     if(CHAMPS_DECOR_SALLE.has(champ)) continue;
@@ -8584,13 +8871,92 @@ function zonesInterieurActives(){
   }
   return {zones,orphelins};
 }
+/* ---------- musée : fin d'un casse, réussi ou raté ---------- */
+function finirCasseMusee(s,succes){
+  if(s.casseEtat!=='actif') return;
+  s.casseEtat=null; s.casseT=0; s.soupcon=0; s.bruitAcc=0;
+  s.forcerCible=null; s.forcerT=0;
+  for(const gd of s.gardiens) gd.deviationT=0;
+  s.alerte.visible=false;
+  if(succes){
+    if(s.canardEnMain){ s.canardEnMain=false; donnerCurio('canard_or'); }
+    bigMsg('✅ CASSE RÉUSSI'); toast('Tu ressors sans un bruit. Le musée ne se doute de rien.','or');
+    checkDefis(); sauveMeta();
+  } else {
+    if(s.canardEnMain){ s.canardEnMain=false; if(s.canard.mesh) s.canard.mesh.visible=true; }
+    bigMsg('🚨 ALARME !'); toast('ALARME ! Tout le quartier est au courant.','warn');
+    addHeat(2); SFX.etoile(); secousse(8); vibre(120);
+  }
+}
 function majAction(){
   const b=el('btnAction');
   let label=null,fn=null;
   if(INT.actif){
     const s=INT.actif;
     if(dist2(P.x,P.z,s.sortie.x,s.sortie.z)<marquerZone(s.sortie,9)&&(ETAT.intT||0)<=0){
-      label='SORTIR'; fn=()=>sortirInterieur();
+      label='SORTIR';
+      fn=()=>{ if(s.casseEtat==='actif') finirCasseMusee(s,true); sortirInterieur(); };
+    /* ---------- MUSÉE : boîtier électrique (déclenche/referme le casse) ---------- */
+    } else if(s.boitier&&dist2(P.x,P.z,s.boitier.x,s.boitier.z)<marquerZone(s.boitier,16)){
+      if(s.museeVague!==WAVES.n){ s.museeVague=WAVES.n; s.museeFait=false; s.boitierArme=false; }
+      if(s.casseEtat==='actif'){
+        label='⚡ Courant déjà coupé — le chrono tourne';
+        fn=()=>{ SFX.refus(); };
+      } else if(s.museeFait){
+        label='🔌 Le musée a fait changer les serrures. Reviens plus tard.';
+        fn=()=>{ SFX.refus(); toast('Un casse par vague. Question de discrétion.'); };
+      } else if(s.boitierArme){
+        label='⚡ CONFIRMER — COUPER LE COURANT (90 s)';
+        fn=()=>{
+          s.museeFait=true; s.boitierArme=false;
+          s.casseEtat='actif'; s.casseT=90; s.soupcon=0; s.bruitAcc=0;
+          s.forcerCible=null; s.forcerT=0; s.canardEnMain=false;
+          s.alerte.visible=true;
+          bigMsg('⚡ COURANT COUPÉ'); toast('90 secondes. Les caméras basculent sur batterie.','warn');
+          SFX.ui(); vibre(60); secousse(3);
+        };
+      } else {
+        label='🔌 BOÎTIER ÉLECTRIQUE';
+        fn=()=>{
+          s.boitierArme=true; SFX.ui();
+          toast('Couper le courant ? Le musée passera en éclairage de secours et les caméras basculeront sur batterie. Tu auras 90 secondes.','warn');
+        };
+      }
+    /* ---------- MUSÉE : vitrines de valeur — maintien de 1,5 s, casse en cours seulement ---------- */
+    } else if(s.vitrinesValeur&&s.casseEtat==='actif'&&
+              s.vitrinesValeur.some(v=>!META.museeArtefacts[v.cle]&&dist2(P.x,P.z,v.x,v.z)<marquerZone(v,12))){
+      const v=s.vitrinesValeur.find(v=>!META.museeArtefacts[v.cle]&&dist2(P.x,P.z,v.x,v.z)<12);
+      if(s.forcerCible===v){
+        label='🔓 FORCER — '+Math.min(99,Math.round((1-s.forcerT/1.5)*100))+' %';
+        fn=()=>{};
+      } else {
+        label='💎 FORCER LA VITRINE — '+v.nom;
+        fn=()=>{ s.forcerCible=v; s.forcerType='valeur'; s.forcerT=1.5; SFX.ui(); };
+      }
+    /* ---------- MUSÉE : le Canard d'Or — même mécanique, récompense différée à la sortie ---------- */
+    } else if(s.canard&&s.casseEtat==='actif'&&!aCurio('canard_or')&&!s.canardEnMain&&
+              dist2(P.x,P.z,s.canard.x,s.canard.z)<marquerZone(s.canard,12)){
+      if(s.forcerCible===s.canard){
+        label='🔓 FORCER — '+Math.min(99,Math.round((1-s.forcerT/1.5)*100))+' %';
+        fn=()=>{};
+      } else {
+        label='🦆 FORCER LA VITRINE DU CANARD';
+        fn=()=>{ s.forcerCible=s.canard; s.forcerType='canard'; s.forcerT=1.5; SFX.ui(); };
+      }
+    /* ---------- MUSÉE : tronc à dons — aucun risque, aucune fouille nécessaire ---------- */
+    } else if(s.tronc&&dist2(P.x,P.z,s.tronc.x,s.tronc.z)<marquerZone(s.tronc,9)){
+      label='🙏 GLISSER LA MAIN DANS LE TRONC';
+      fn=()=>{
+        const g2=randi(10,40); META.argent+=g2; ETAT.cashRun+=g2; META.stats.cashTotal+=g2;
+        META.fouilles++;
+        spawnTexte(s.tronc.x,1.6,s.tronc.z,'+'+g2+' $','#7dff7a');
+        toast('+'+g2+' $ — un don pour un don.','or'); SFX.achat(); checkDefis(); sauveMeta();
+      };
+    /* ---------- MUSÉE : cartels décoratifs (lecture libre, sans risque) ---------- */
+    } else if(s.cartels&&s.cartels.length&&s.cartels.some(c=>dist2(P.x,P.z,c.x,c.z)<marquerZone(c,16))){
+      const c=s.cartels.find(c=>dist2(P.x,P.z,c.x,c.z)<16);
+      label='📜 '+c.titre;
+      fn=()=>{ toast(c.texte,'or'); SFX.ui(); };
     } else if(s.caisse&&!s.caisse.pris&&dist2(P.x,P.z,s.caisse.x,s.caisse.z)<marquerZone(s.caisse,12)){
       label='BRAQUER LA CAISSE';
       fn=()=>{
