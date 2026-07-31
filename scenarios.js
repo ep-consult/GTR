@@ -367,6 +367,48 @@ async function main() {
     else ok('Musée : la curiosité déjà obtenue n\'est pas remise en cause par un casse raté ultérieur');
 
     // -------------------------------------------------------------------
+    // Musée : le seuil de bruit doit réagir à la vitesse RÉELLE (joystick
+    // analogique compris), pas à un booléen de bouton — bug rapporté :
+    // marcher avec le bouton sprint maintenu mais le joystick à peine
+    // poussé faisait monter la jauge de bruit.
+    // -------------------------------------------------------------------
+    console.log('\n--- Musée : seuil de bruit basé sur la vitesse réelle ---');
+    const bruit = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'musee');
+      startRun();
+      entrerInterieur('musee', p);
+      const s = INT.actif;
+      P.x = s.boitier.x; P.z = s.boitier.z; majAction(); document.getElementById('btnAction')._fn();
+      majAction(); document.getElementById('btnAction')._fn();
+      // loin de tout cône, pour isoler l'effet du bruit du reste du soupçon
+      P.x = s.sortie.x; P.z = s.sortie.z - 4;
+      P.stam = 999; P.stamMax = 999; // isole le test de la gestion d'endurance (hors sujet ici)
+      // "marche" : joystick à peine au-dessus du seuil de mouvement (0,12), sprint maintenu
+      INPUT.btn.sprint = true; INPUT.mx = 0.2; INPUT.mz = 0;
+      for (let i = 0; i < 40; i++) { majJoueur(0.1); majInterieur(0.1); } // 4 s simulées
+      const devieEnMarchant = s.gardiens.some((gd) => gd.deviationT > 0);
+      // "sprint" : joystick à fond, sprint maintenu. On observe le déclenchement
+      // lui-même (dans la boucle) : si on ne regardait qu'après coup, un gardien
+      // dévié qui rattrape ensuite le joueur resté sur place fait légitimement
+      // échouer le casse, ce qui remet deviationT à 0 (nettoyage normal de fin de
+      // casse) — et ferait passer le test à côté du vrai signal.
+      s.bruitAcc = 0;
+      INPUT.mx = 1; INPUT.mz = 0;
+      let devieEnSprintant = false;
+      for (let i = 0; i < 40 && !devieEnSprintant; i++) {
+        majJoueur(0.1); majInterieur(0.1);
+        if (s.gardiens.some((gd) => gd.deviationT > 0)) devieEnSprintant = true;
+      }
+      INPUT.btn.sprint = false; INPUT.mx = 0; INPUT.mz = 0;
+      if (INT.actif) sortirInterieur();
+      return { devieEnMarchant, devieEnSprintant };
+    });
+    if (bruit.devieEnMarchant) fail('Musée : marcher (joystick à 0,2, sprint maintenu) a fait dévier un gardien — le seuil de bruit réagit encore à un bouton, pas à la vitesse réelle');
+    else ok('Musée : marcher (joystick à peine au-dessus du seuil de mouvement) ne déclenche aucun bruit, même sprint maintenu');
+    if (!bruit.devieEnSprintant) fail('Musée : sprinter à fond (joystick à 1) ne fait plus jamais dévier un gardien — le seuil de bruit ne se déclenche plus du tout');
+    else ok('Musée : sprinter à fond déclenche bien la déviation du gardien le plus proche');
+
+    // -------------------------------------------------------------------
     // Persistance : sauvegarde, rechargement, META cohérent.
     // -------------------------------------------------------------------
     console.log('\n--- Persistance (sauvegarde / rechargement) ---');

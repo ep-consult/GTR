@@ -3999,12 +3999,17 @@ function majJoueur(dt){
   let vx=0,vz=0;
   const bouge=Math.hypot(INPUT.mx,INPUT.mz)>0.12;
   const sprint=!P.nage&&(INPUT.btn.sprint||INPUT.btn.sprintK)&&bouge&&(P.stam>1||P.buffs.nitroT>0);
-  P.sprinte=sprint;   // exposé pour la détection de bruit du musée (courir vs marcher)
   el('btnSprint').classList.toggle('actif',!!sprint);
   let vit=P.vitBase*(sprint?1.5:1)*(P.nage?(aCurio('perle')?0.567:0.42):1);  // La Perle Noire : +35 % à la nage
   if(P.buffs.lourd>0) vit*=0.68;                    // digestion du Monstre
   if(P.buffs.vit>0) vit*=(PERSOS[META.perso].spec==='nitro'&&P.buffs.nitroT>0)?1.6:1.3;
   if(P.buffs.nitroT!==undefined&&P.buffs.nitroT>0) P.buffs.nitroT-=dt;
+  // plafond de vitesse "sprint à fond" du moment (améliorations + buffs compris,
+  // hors amplitude du joystick) : sert de référence au seuil de bruit du musée,
+  // qui doit rester une FRACTION de la vitesse max courante et non une valeur
+  // absolue — sinon un personnage amélioré la dépasse en marchant simplement
+  const buffVit=(P.buffs.lourd>0?0.68:1)*(P.buffs.vit>0?((PERSOS[META.perso].spec==='nitro'&&P.buffs.nitroT>0)?1.6:1.3):1);
+  P.vitesseSprintMax=P.vitBase*(P.nage?(aCurio('perle')?0.567:0.42):1.5)*buffVit;
   if(P.nage){
     P.stam=Math.max(0,P.stam-(aCurio('perle')?0.8:1.6)*dt); P.stamDelai=0.8;   // nage longue distance possible
     if(P.stam<=0){ P.hp-=0.9*dt; if(P.hp<=0) mourir(); }
@@ -4020,6 +4025,7 @@ function majJoueur(dt){
     vx=INPUT.mx*vit; vz=INPUT.mz*vit;
     if(P.tirT<=0) P.ang=angLerp(P.ang,Math.atan2(INPUT.mx,INPUT.mz),0.35);
   }
+  P.vitesseReelle=Math.hypot(vx,vz);   // vitesse instantanée réelle (joystick analogique compris)
   const marchable=(x,z)=>{
     const s=solidAt(x,z,0.5,undefined,P.y);
     if(!s) return true;
@@ -5974,9 +5980,14 @@ musWrap.innerHTML='<div id="musLbl" style="font:900 11px Arial;letter-spacing:.0
   '<div style="position:relative;margin-top:4px;height:10px;background:#12141bee;'+
   'border:1.5px solid #ffffff33;border-radius:4px;overflow:hidden">'+
   '<i id="musSoup" style="display:block;height:100%;width:0%;background:linear-gradient(90deg,#ffd23f,#ff3b5c)"></i></div>'+
-  '<div style="font:800 8px Arial;color:#8a8f9a;margin-top:2px">soupçon</div>';
+  '<div style="font:800 8px Arial;color:#8a8f9a;margin-top:2px">soupçon</div>'+
+  '<div style="position:relative;margin-top:5px;height:6px;background:#12141bee;'+
+  'border:1.5px solid #ffffff33;border-radius:3px;overflow:hidden">'+
+  '<i id="musBruit" style="display:block;height:100%;width:0%;background:#8ad2ff"></i></div>'+
+  '<div style="font:800 8px Arial;color:#8a8f9a;margin-top:2px">bruit (courir attire l’attention)</div>';
 el('hud').appendChild(musWrap);
-const musLblEl=musWrap.querySelector('#musLbl'), musSoupEl=musWrap.querySelector('#musSoup');
+const musLblEl=musWrap.querySelector('#musLbl'), musSoupEl=musWrap.querySelector('#musSoup'),
+      musBruitEl=musWrap.querySelector('#musBruit');
 const JAUGES=[fouilleWrap,karaWrap,bwWrap,spWrap,swWrap,musWrap];
 function cacherJauges(){ for(const j of JAUGES) if(j.style.display!=='none') j.style.display='none'; }
 
@@ -7764,7 +7775,12 @@ function majInterieur(dt){
         if(Math.abs(angDiff(cam.angActuel,Math.atan2(P.x-cam.x,P.z-cam.z)))<cam.demiAngle){ dansCone=true; break; }
       }
       s.soupcon=clamp(s.soupcon+(dansCone?100/1.2:-100/5)*dt,0,100);
-      if(P.sprinte){
+      // bruit : une FRACTION de la vitesse de pointe du moment (améliorations et
+      // buffs compris), pas un booléen de bouton — sinon un joueur qui pousse à
+      // peine le joystick tout en maintenant sprint est classé « bruyant », et un
+      // seuil absolu se ferait dépasser en marchant par un personnage amélioré
+      const court=P.vitesseSprintMax>0&&(P.vitesseReelle/P.vitesseSprintMax)>=0.7;
+      if(court){
         s.bruitAcc+=dt;
         if(s.bruitAcc>=2.2){
           s.bruitAcc=0;
@@ -7776,6 +7792,7 @@ function majInterieur(dt){
       musWrap.style.display='block';
       musLblEl.textContent='⚡ '+Math.max(0,Math.ceil(s.casseT))+' s';
       musSoupEl.style.width=Math.round(s.soupcon)+'%';
+      musBruitEl.style.width=Math.round(s.bruitAcc/2.2*100)+'%';
       if(s.soupcon>=100||s.casseT<=0){ finirCasseMusee(s,false); sortirInterieur(); }
     } else if(musWrap.style.display!=='none') musWrap.style.display='none';
   }
