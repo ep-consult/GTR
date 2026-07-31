@@ -409,6 +409,45 @@ async function main() {
     else ok('Musée : sprinter à fond déclenche bien la déviation du gardien le plus proche');
 
     // -------------------------------------------------------------------
+    // Musée : le seuil (milieu entre plafond de marche et plafond de sprint)
+    // doit rester correct même si un futur bonus de vitesse est ADDITIF plutôt
+    // que multiplicatif — un pourcentage fixe (ex. 70 % du sprint) se ferait
+    // dépasser en marchant dès qu'un bonus additif compresse l'écart relatif
+    // entre marche et sprint. On simule ce bonus en ajoutant la même valeur
+    // absolue aux deux plafonds ET à la vitesse réelle juste après le calcul
+    // réel de majJoueur (aucun bonus additif n'existe encore dans le jeu :
+    // c'est une anticipation, comme demandé).
+    // -------------------------------------------------------------------
+    console.log('\n--- Musée : seuil de bruit robuste à un futur bonus additif ---');
+    const bruitAdditif = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'musee');
+      startRun();
+      entrerInterieur('musee', p);
+      const s = INT.actif;
+      P.x = s.boitier.x; P.z = s.boitier.z; majAction(); document.getElementById('btnAction')._fn();
+      majAction(); document.getElementById('btnAction')._fn();
+      P.x = s.sortie.x; P.z = s.sortie.z - 4;
+      P.stam = 999; P.stamMax = 999;
+      // marche à fond, SANS sprint : la vitesse réelle == le plafond de marche
+      INPUT.btn.sprint = false; INPUT.mx = 1; INPUT.mz = 0;
+      const BONUS = 8; // bonus additif simulé, appliqué également à marche et sprint
+      let devie = false;
+      for (let i = 0; i < 40 && !devie; i++) {
+        majJoueur(0.1);
+        P.vitesseMarcheMax += BONUS; P.vitesseSprintMax += BONUS; P.vitesseReelle += BONUS;
+        const seuilAncien = 0.7 * P.vitesseSprintMax; // l'ancienne formule, pour vérifier qu'elle aurait échoué
+        if (i === 0 && P.vitesseReelle < seuilAncien) throw new Error('le scénario ne reproduit pas la régression : ajuster BONUS');
+        majInterieur(0.1);
+        if (s.gardiens.some((gd) => gd.deviationT > 0)) devie = true;
+      }
+      INPUT.mx = 0; INPUT.mz = 0;
+      if (INT.actif) sortirInterieur();
+      return { devie };
+    });
+    if (bruitAdditif.devie) fail('Musée : avec un bonus de vitesse additif simulé, marcher à fond dévie un gardien — le seuil (milieu marche/sprint) ne résiste pas à un bonus additif');
+    else ok('Musée : marcher à fond reste silencieux même avec un bonus de vitesse additif simulé sur les deux plafonds');
+
+    // -------------------------------------------------------------------
     // Persistance : sauvegarde, rechargement, META cohérent.
     // -------------------------------------------------------------------
     console.log('\n--- Persistance (sauvegarde / rechargement) ---');

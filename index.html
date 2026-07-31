@@ -4004,11 +4004,16 @@ function majJoueur(dt){
   if(P.buffs.lourd>0) vit*=0.68;                    // digestion du Monstre
   if(P.buffs.vit>0) vit*=(PERSOS[META.perso].spec==='nitro'&&P.buffs.nitroT>0)?1.6:1.3;
   if(P.buffs.nitroT!==undefined&&P.buffs.nitroT>0) P.buffs.nitroT-=dt;
-  // plafond de vitesse "sprint à fond" du moment (améliorations + buffs compris,
-  // hors amplitude du joystick) : sert de référence au seuil de bruit du musée,
+  // plafonds de vitesse "à fond" du moment (améliorations + buffs compris, hors
+  // amplitude du joystick) : servent de référence au seuil de bruit du musée,
   // qui doit rester une FRACTION de la vitesse max courante et non une valeur
-  // absolue — sinon un personnage amélioré la dépasse en marchant simplement
+  // absolue — sinon un personnage amélioré la dépasse en marchant simplement.
+  // Les deux plafonds (marche et sprint) composent les MÊMES bonus multiplicatifs
+  // que le calcul de vit ci-dessus : un futur bonus additif les décalerait tous
+  // les deux pareil, donc le seuil (leur milieu, voir majInterieur) reste correct
+  // quelle que soit la façon dont les bonus se combinent.
   const buffVit=(P.buffs.lourd>0?0.68:1)*(P.buffs.vit>0?((PERSOS[META.perso].spec==='nitro'&&P.buffs.nitroT>0)?1.6:1.3):1);
+  P.vitesseMarcheMax=P.vitBase*(P.nage?(aCurio('perle')?0.567:0.42):1)*buffVit;
   P.vitesseSprintMax=P.vitBase*(P.nage?(aCurio('perle')?0.567:0.42):1.5)*buffVit;
   if(P.nage){
     P.stam=Math.max(0,P.stam-(aCurio('perle')?0.8:1.6)*dt); P.stamDelai=0.8;   // nage longue distance possible
@@ -7775,11 +7780,15 @@ function majInterieur(dt){
         if(Math.abs(angDiff(cam.angActuel,Math.atan2(P.x-cam.x,P.z-cam.z)))<cam.demiAngle){ dansCone=true; break; }
       }
       s.soupcon=clamp(s.soupcon+(dansCone?100/1.2:-100/5)*dt,0,100);
-      // bruit : une FRACTION de la vitesse de pointe du moment (améliorations et
-      // buffs compris), pas un booléen de bouton — sinon un joueur qui pousse à
-      // peine le joystick tout en maintenant sprint est classé « bruyant », et un
-      // seuil absolu se ferait dépasser en marchant par un personnage amélioré
-      const court=P.vitesseSprintMax>0&&(P.vitesseReelle/P.vitesseSprintMax)>=0.7;
+      // bruit : la vitesse réelle du moment (joystick analogique compris), pas un
+      // booléen de bouton — sinon un joueur qui pousse à peine le joystick tout
+      // en maintenant sprint est classé « bruyant ». Seuil = milieu entre le
+      // plafond de marche et le plafond de sprint courants (améliorations et
+      // buffs compris des deux côtés) plutôt qu'un pourcentage codé en dur : la
+      // marge reste symétrique quelle que soit la façon dont un futur bonus de
+      // vitesse (additif ou multiplicatif) recompose les deux plafonds.
+      const seuilBruit=(P.vitesseMarcheMax+P.vitesseSprintMax)/2;
+      const court=seuilBruit>0&&P.vitesseReelle>=seuilBruit;
       if(court){
         s.bruitAcc+=dt;
         if(s.bruitAcc>=2.2){
