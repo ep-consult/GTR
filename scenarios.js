@@ -705,6 +705,28 @@ async function main() {
     else ok('Arcade : battre toutes les bornes actives donne bien Le Jeton Doré');
 
     // -------------------------------------------------------------------
+    // Arcade : une curiosité déjà obtenue ne doit JAMAIS être reperdue quand
+    // une nouvelle borne est activée par la suite — la condition (toutes les
+    // bornes ACTIVES battues) est recalculée sur la liste courante à chaque
+    // appel de verifierJetonDore, donc activer une borne non battue la
+    // ferait échouer si le garde d'acquisition n'était pas monotone.
+    // -------------------------------------------------------------------
+    console.log('\n--- Arcade : Le Jeton Doré déjà acquis résiste à l\'activation d\'une nouvelle borne ---');
+    const jetonDoreStable = await page.evaluate(() => {
+      const dejaAcquis = aCurio('jeton_dore');
+      const glouton = BORNES_ARCADE.find((b) => b.id === 'glouton');
+      const actifAvant = glouton.actif;
+      glouton.actif = true; // nouvelle borne activée, jamais battue (pas d'entrée dans META.arcadeScores.glouton)
+      verifierJetonDore(); // la condition, recalculée sur les bornes actives courantes, échouerait sans le garde
+      const toujoursAcquisApresActivation = aCurio('jeton_dore');
+      glouton.actif = actifAvant; // restaure l'état pour ne pas perturber les autres scénarios
+      return { dejaAcquis, toujoursAcquisApresActivation };
+    });
+    if (!jetonDoreStable.dejaAcquis) fail('Arcade : le test suppose Le Jeton Doré déjà acquis (voir test précédent)');
+    if (!jetonDoreStable.toujoursAcquisApresActivation) fail('Arcade : Le Jeton Doré a été reperdu après l\'activation d\'une nouvelle borne non battue — la curiosité doit rester acquise pour toujours une fois donnée');
+    else ok('Arcade : Le Jeton Doré déjà acquis reste acquis même après l\'activation d\'une nouvelle borne non battue');
+
+    // -------------------------------------------------------------------
     // Arcade : effet aimant du Jeton Doré — portée 6 m, accélère à l'approche.
     // -------------------------------------------------------------------
     console.log('\n--- Arcade : effet aimant du Jeton Doré ---');
