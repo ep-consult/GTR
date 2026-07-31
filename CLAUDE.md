@@ -95,6 +95,16 @@ lancement. Vérifier l'ordre des `const` au niveau module.
 Bug déjà rencontré : crash moto/hélico sur `e.h` non gardé. Toujours garder les
 accès aux propriétés optionnelles des entités.
 
+### Tests : ne jamais recopier une liste du jeu
+Un test (`valider.js` ou `scenarios.js`) ne recopie jamais une liste du jeu
+(salles, bornes, zones, curiosités...) dans son propre code. Il la **lit
+depuis la source** (`INTDEFS`, `BORNES_ARCADE`, `zonesInterieurActives()`,
+`CURIOS_ACTIVES`...). Ce motif a déjà provoqué trois angles morts silencieux :
+une table de zones recopiée depuis `majAction`, une liste de salles dans un
+test de réinitialisation, une liste de bornes dans le test du Jeton Doré.
+Dans chaque cas le test continuait de passer au vert en ne vérifiant plus
+rien dès que la liste réelle changeait.
+
 ### Performance mobile
 - HUD : cache DOM via l'objet `HUDC`, jamais de `getElementById` par frame.
 - Boucles explicites plutôt que `filter`/`some`/`map` dans le `tick` — pas

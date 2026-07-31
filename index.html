@@ -62,6 +62,11 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
 #btnPause{position:absolute;top:calc(env(safe-area-inset-top,0px) + 112px);right:10px;pointer-events:auto;
   width:36px;height:36px;border-radius:10px;background:#0009;border:1px solid #ffffff2e;color:var(--blanc);
   font-size:15px;font-weight:900;display:flex;align-items:center;justify-content:center}
+/* pendant une partie de borne d'arcade : même bouton, élargi, rôle QUITTER —
+   en haut à droite, hors de portée du pouce qui joue (croix en bas à gauche,
+   zone de glissement en bas de l'écran) */
+#btnPause.quitBorne{width:92px;border-radius:10px;font-size:11px;letter-spacing:.03em;
+  background:#3a0f16e6;border-color:#ff3b5c66;color:#ffb0bc}
 
 #bossWrap{position:absolute;top:calc(env(safe-area-inset-top,0px) + 120px);left:50%;transform:translateX(-50%);width:220px;display:none;text-align:center}
 #bossName{font-size:11px;font-weight:900;letter-spacing:.1em;color:var(--rouge);text-shadow:0 0 8px #000}
@@ -6374,6 +6379,18 @@ function majChantier(dt){
 const GD_COLS=9, GD_RANGEES_BRIQUES=7, GD_RANGEES_TOTAL=16;
 const GD_GRUE_Y=GD_RANGEES_TOTAL-1.4, GD_GRUE_LARG=0.95, GD_BALLE_R=0.16;
 const GD_PTS_MATERIAU={1:1,2:2,3:4};
+// Toute vitesse ci-dessous est une FRACTION DE LA HAUTEUR DU TERRAIN par
+// seconde (jamais un nombre de pixels par frame) : le jeu se comporte à
+// l'identique quelle que soit la taille du modal ou la résolution du canvas
+// (voir redimensionnerArcadeCv — cell n'existe que dans dessinerDemolition,
+// jamais dans la physique). Calibré pour que la boule traverse le terrain en
+// ~1,2 s au départ, et nettement plus vite en fin de tour.
+const GD_VIT_BASE=GD_RANGEES_TOTAL/1.2;               // ~13,3 u/s : 1 terrain / 1,2 s au tour 1
+const GD_VIT_PAR_TOUR=GD_RANGEES_TOTAL*0.12;          // + 12 % de terrain/s par tour complété
+const GD_VIT_PAR_SEC=GD_RANGEES_TOTAL*0.04;           // accélération au fil du temps, plafonnée
+const GD_VIT_PLAFOND_TEMPS=GD_RANGEES_TOTAL*0.4;
+const GD_VIT_PAR_BRIQUE_MANQUANTE=GD_RANGEES_TOTAL*0.05; // par brique sous les 10 restantes
+const GD_VIT_BONUS=GD_RANGEES_TOTAL*0.12;             // chute des bonus
 function demolitionMateriauRangee(r){
   // r=0 tout en haut (près du sommet de la tour, le plus résistant) .. 6 en bas (près de la grue)
   const t=r/(GD_RANGEES_BRIQUES-1);
@@ -6417,9 +6434,12 @@ function demolitionInit(){
 }
 function demolitionVitesse(){
   const d=ARCADE.d;
-  const base=1.6+d.tourNum*0.22;
-  const parTemps=Math.min(0.5,d.vitesseT*0.01);
-  const parBriques=d.briquesRestantes<10?(10-d.briquesRestantes)*0.045:0;
+  // tourNum vaut déjà 1 pour la toute première tour (incrémenté par
+  // demolitionNouvelleTour avant qu'elle soit jouée) : (tourNum-1) pour que
+  // GD_VIT_BASE seul corresponde bien à « au départ », comme spécifié.
+  const base=GD_VIT_BASE+(d.tourNum-1)*GD_VIT_PAR_TOUR;
+  const parTemps=Math.min(GD_VIT_PLAFOND_TEMPS,d.vitesseT*GD_VIT_PAR_SEC);
+  const parBriques=d.briquesRestantes<10?(10-d.briquesRestantes)*GD_VIT_PAR_BRIQUE_MANQUANTE:0;
   return base+parTemps+parBriques;
 }
 function demolitionLancer(){
@@ -6485,12 +6505,17 @@ function majDemolition(dt){
     const mag=Math.hypot(b.vx,b.vy);
     if(mag>0){ const k=vitCible/mag; b.vx*=k; b.vy*=k; }
     b.traine.push({x:b.x,y:b.y}); if(b.traine.length>5) b.traine.shift();
+    const yAvant=b.y; // avant le déplacement de cette frame
     b.x+=b.vx*dt; b.y+=b.vy*dt;
     if(b.x<GD_BALLE_R){ b.x=GD_BALLE_R; b.vx=Math.abs(b.vx); }
     else if(b.x>GD_COLS-GD_BALLE_R){ b.x=GD_COLS-GD_BALLE_R; b.vx=-Math.abs(b.vx); }
     if(b.y<GD_BALLE_R){ b.y=GD_BALLE_R; b.vy=Math.abs(b.vy); }
     demolitionCollisionBriques(b);
-    if(b.vy>0&&b.y+GD_BALLE_R>=GD_GRUE_Y-0.12&&b.y-GD_BALLE_R<=GD_GRUE_Y+0.12&&
+    // grue : test de FRANCHISSEMENT (yAvant -> b.y), pas seulement la position
+    // finale — à vitesse élevée, un simple test de position peut laisser une
+    // boule « sauter » par-dessus la grue en un seul pas de frame sans jamais
+    // être détectée dans une bande étroite
+    if(b.vy>0&&yAvant<GD_GRUE_Y+GD_BALLE_R&&b.y+GD_BALLE_R>=GD_GRUE_Y&&
        Math.abs(b.x-d.grueX)<=largGrue+GD_BALLE_R){
       const off=clamp((b.x-d.grueX)/largGrue,-1,1), vit=Math.hypot(b.vx,b.vy);
       b.vx=off*vit*0.92;
@@ -6507,7 +6532,7 @@ function majDemolition(dt){
   }
   for(let i=d.bonusChute.length-1;i>=0;i--){
     const bo=d.bonusChute[i];
-    bo.y+=1.4*dt;
+    bo.y+=GD_VIT_BONUS*dt;
     if(Math.abs(bo.x-d.grueX)<largGrue+0.25&&bo.y>=GD_GRUE_Y-0.2&&bo.y<=GD_GRUE_Y+0.2){
       demolitionAppliquerBonus(bo.type); d.bonusChute.splice(i,1);
     } else if(bo.y>GD_RANGEES_TOTAL+0.5) d.bonusChute.splice(i,1);
@@ -9739,6 +9764,14 @@ function finirCasseMusee(s,succes){
 }
 function majAction(){
   const b=el('btnAction');
+  // le bouton pause double de rôle « QUITTER » pendant une partie de borne —
+  // togglePause() bascule déjà dessus (finirBorneJeu, banque les tickets),
+  // il ne manquait qu'un signal visible. Recalculé chaque frame (pas
+  // seulement aux points d'entrée/sortie de la session) pour rester correct
+  // quelle que soit la façon dont la session se termine.
+  const bp=el('btnPause');
+  if(ARCADE.jeu){ bp.textContent='✕ QUITTER'; bp.classList.add('quitBorne'); }
+  else { bp.textContent='Ⅱ'; bp.classList.remove('quitBorne'); }
   // le bouton d'action est monopolisé par la borne pendant une partie (ex :
   // pivoter à CHANTIER) ou par la saisie des initiales — l'entrée est lue
   // directement par majBorneJeu/majInitiales (appelés depuis majInterieur),

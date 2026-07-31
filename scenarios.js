@@ -743,6 +743,149 @@ async function main() {
     else ok('Arcade : quitter DÉMOLITION cache bien la zone de glissement et restaure le joystick');
 
     // -------------------------------------------------------------------
+    // Arcade : DÉMOLITION — la vitesse de la boule (et celle des bonus qui
+    // tombent) doit être exprimée en fraction du terrain par seconde, jamais
+    // en pixels par frame : bug rapporté après l'agrandissement du modal, la
+    // boule était devenue beaucoup trop lente. Vérifie le calibrage (~1,2 s
+    // pour traverser le terrain au départ, nettement plus vite en fin de
+    // tour) ET l'indépendance totale à la résolution du canvas.
+    // -------------------------------------------------------------------
+    console.log('\n--- Arcade : DÉMOLITION — vitesse calibrée, indépendante de la résolution ---');
+    const vitesseDemolition = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'arcade');
+      entrerInterieur('arcade', p);
+      demolitionInit(); // tourNum=1 (première tour), vitesseT=0 : « au départ »
+      const d = ARCADE.d;
+      d.briquesRestantes = 999; // au-dessus de 10 : pas de bonus de fin de tour
+      const vitDepart = demolitionVitesse();
+      const dureeTraversee = GD_RANGEES_TOTAL / vitDepart;
+      // la résolution du canvas (donc `cell`, utilisé seulement au dessin) ne
+      // doit avoir AUCUN effet sur la vitesse logique
+      const wAvant = ARCADE_ECRAN.w, hAvant = ARCADE_ECRAN.h;
+      ARCADE_ECRAN.w = 50; ARCADE_ECRAN.h = 50;
+      const vitPetitCanvas = demolitionVitesse();
+      ARCADE_ECRAN.w = 2000; ARCADE_ECRAN.h = 3000;
+      const vitGrandCanvas = demolitionVitesse();
+      ARCADE_ECRAN.w = wAvant; ARCADE_ECRAN.h = hAvant;
+      // fin de tour (peu de briques restantes) : nettement plus rapide
+      d.briquesRestantes = 0;
+      const vitFinDeTour = demolitionVitesse();
+      // trajectoire identique bit à bit quelle que soit la résolution : rejoue
+      // la même boule, sans brique (grille vidée) pour écarter tout aléa de
+      // tirage de matériaux, à deux tailles de canvas très différentes
+      const rejoue = (w, h) => {
+        demolitionInit();
+        const dd = ARCADE.d;
+        for (let i = 0; i < dd.grille.length; i++) dd.grille[i] = 0;
+        dd.briquesRestantes = 0;
+        dd.balles = [{ x: 4.5, y: 5, vx: 0.7, vy: 1.3, attente: false, traine: [] }];
+        ARCADE_ECRAN.w = w; ARCADE_ECRAN.h = h;
+        for (let i = 0; i < 40; i++) majDemolition(0.016);
+        return dd.balles[0] ? { x: dd.balles[0].x, y: dd.balles[0].y } : null;
+      };
+      const posPetit = rejoue(60, 60);
+      const posGrand = rejoue(1200, 1800);
+      ARCADE_ECRAN.w = wAvant; ARCADE_ECRAN.h = hAvant;
+      if (INT.actif) sortirInterieur();
+      return { vitDepart, dureeTraversee, vitPetitCanvas, vitGrandCanvas, vitFinDeTour, posPetit, posGrand };
+    });
+    if (Math.abs(vitesseDemolition.dureeTraversee - 1.2) > 0.05) fail('Arcade : DÉMOLITION — la boule ne traverse pas le terrain en ~1,2 s au départ (durée calculée : ' + vitesseDemolition.dureeTraversee.toFixed(2) + ' s)');
+    else ok('Arcade : DÉMOLITION — la boule traverse bien le terrain en ~1,2 s au départ');
+    if (vitesseDemolition.vitPetitCanvas !== vitesseDemolition.vitDepart || vitesseDemolition.vitGrandCanvas !== vitesseDemolition.vitDepart) fail('Arcade : DÉMOLITION — la vitesse de la boule dépend de la résolution du canvas (départ=' + vitesseDemolition.vitDepart + ', petit=' + vitesseDemolition.vitPetitCanvas + ', grand=' + vitesseDemolition.vitGrandCanvas + ')');
+    else ok('Arcade : DÉMOLITION — la vitesse de la boule est bien indépendante de la résolution du canvas');
+    if (!(vitesseDemolition.vitFinDeTour > vitesseDemolition.vitDepart * 1.3)) fail('Arcade : DÉMOLITION — l\'accélération de fin de tour n\'est pas perceptible (départ=' + vitesseDemolition.vitDepart.toFixed(2) + ', fin de tour=' + vitesseDemolition.vitFinDeTour.toFixed(2) + ')');
+    else ok('Arcade : DÉMOLITION — nettement plus rapide en fin de tour, comme spécifié');
+    const posDivergente = !vitesseDemolition.posPetit || !vitesseDemolition.posGrand ||
+      Math.abs(vitesseDemolition.posPetit.x - vitesseDemolition.posGrand.x) > 1e-9 ||
+      Math.abs(vitesseDemolition.posPetit.y - vitesseDemolition.posGrand.y) > 1e-9;
+    if (posDivergente) fail('Arcade : DÉMOLITION — la trajectoire de la boule diverge selon la résolution du canvas (petit=' + JSON.stringify(vitesseDemolition.posPetit) + ', grand=' + JSON.stringify(vitesseDemolition.posGrand) + ')');
+    else ok('Arcade : DÉMOLITION — trajectoire de la boule strictement identique quelle que soit la résolution du canvas');
+
+    // -------------------------------------------------------------------
+    // Arcade : DÉMOLITION — la boule ne doit jamais « traverser » la grue
+    // sans rebondir (un test de position finale dans une bande étroite peut
+    // être sauté par un grand déplacement en une frame ; il faut un test de
+    // franchissement). Simule une chute d'images (gros dt) juste au-dessus
+    // de la grue — un déplacement bien supérieur à l'ancienne bande de
+    // détection (±0,12 u), pour vérifier que la boule est bien attrapée au
+    // vol plutôt que comptée perdue.
+    // -------------------------------------------------------------------
+    console.log('\n--- Arcade : DÉMOLITION — la boule ne traverse pas la grue sur une frame lente ---');
+    const antiTunnel = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'arcade');
+      entrerInterieur('arcade', p);
+      demolitionInit();
+      const d = ARCADE.d;
+      for (let i = 0; i < d.grille.length; i++) d.grille[i] = 0; // pas de brique sur le trajet
+      d.grueX = 4.5; d.grueLarg = GD_GRUE_LARG;
+      // majDemolition renormalise TOUJOURS la vitesse de la boule sur la
+      // vitesse cible du moment avant de la déplacer : injecter une vitesse
+      // brute énorme ne sert à rien (rabotée à la première ligne). Le vrai
+      // stress-test est une chute d'images (gros dt) juste au-dessus de la
+      // grue, qui déplace la boule loin au-delà de l'ancienne bande étroite.
+      d.balles = [{ x: 4.5, y: GD_GRUE_Y - 1, vx: 0, vy: 1, attente: false, traine: [] }];
+      majDemolition(0.2);
+      const balleEncoreLa = d.balles.length === 1;
+      const aRebondi = balleEncoreLa && d.balles[0].vy < 0;
+      if (INT.actif) sortirInterieur();
+      return { balleEncoreLa, aRebondi };
+    });
+    if (!antiTunnel.balleEncoreLa || !antiTunnel.aRebondi) fail('Arcade : DÉMOLITION — une boule rapide traverse la grue sans rebondir (perdue au lieu de rebondir)');
+    else ok('Arcade : DÉMOLITION — une boule rapide rebondit bien sur la grue, même sur une frame lente');
+
+    // -------------------------------------------------------------------
+    // Arcade : bouton QUITTER pendant une partie de borne — visible, hors de
+    // portée du pouce qui joue (en haut, alors que les commandes sont en
+    // bas), consomme le jeton et banque les tickets via finirBorneJeu, comme
+    // les autres façons de quitter. Vérifié sur les 3 bornes actives.
+    // -------------------------------------------------------------------
+    console.log('\n--- Arcade : bouton QUITTER visible et fonctionnel sur les 3 bornes ---');
+    const boutonQuitter = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'arcade');
+      const resultats = {};
+      for (const id of ['vipere', 'chantier', 'demolition']) {
+        startRun();
+        entrerInterieur('arcade', p);
+        const s = INT.actif;
+        META.argent = 100;
+        P.x = s.comptoirJetons.x; P.z = s.comptoirJetons.z;
+        majAction(); document.getElementById('btnAction')._fn();
+        const bo = s.bornes.find((b) => b.id === id);
+        P.x = bo.x; P.z = bo.z; majAction(); document.getElementById('btnAction')._fn();
+        majAction(); // rafraîchit le libellé/la classe du bouton pause, comme la boucle le ferait
+        const bp = document.getElementById('btnPause');
+        const labelPendant = bp.textContent;
+        const classePendant = bp.classList.contains('quitBorne');
+        // hors de portée du pouce : en haut de l'écran, pas dans la moitié basse
+        const rect = bp.getBoundingClientRect();
+        const hautEcran = rect.top < window.innerHeight * 0.5;
+        if (id === 'demolition') { ARCADE.d.grueX = 4.5; }
+        else if (id === 'vipere') { for (let i = 0; i < 6; i++) { const t = ARCADE.v.corps[0]; ARCADE.v.frelon = { x: t.x + ARCADE.v.dir.x, y: t.y + ARCADE.v.dir.y }; ARCADE.v.tickT = 0; majVipere(0.01); } }
+        const scoreAvantQuitter = ARCADE.score;
+        bp.dispatchEvent(new PointerEvent('pointerdown'));
+        const jeuFiniApresClic = ARCADE.jeu === null;
+        const ticketsApres = s.tickets || 0;
+        const jetonsApres = s.jetons;
+        if (INT.actif) sortirInterieur();
+        resultats[id] = { labelPendant, classePendant, hautEcran, scoreAvantQuitter, jeuFiniApresClic, ticketsApres, jetonsApres };
+      }
+      return resultats;
+    });
+    for (const id of ['vipere', 'chantier', 'demolition']) {
+      const r = boutonQuitter[id];
+      if (r.labelPendant !== '✕ QUITTER' || !r.classePendant) fail('Arcade : ' + id + ' — le bouton pause n\'affiche pas « QUITTER » pendant la partie (' + r.labelPendant + ')');
+      else ok('Arcade : ' + id + ' — le bouton QUITTER est bien visible pendant la partie');
+      if (!r.hautEcran) fail('Arcade : ' + id + ' — le bouton QUITTER n\'est pas hors de portée du pouce qui joue (pas en haut de l\'écran)');
+      else ok('Arcade : ' + id + ' — le bouton QUITTER est bien hors de portée du pouce qui joue');
+      if (r.jetonsApres !== 0) fail('Arcade : ' + id + ' — QUITTER ne consomme pas le jeton (jetons restants=' + r.jetonsApres + ')');
+      else ok('Arcade : ' + id + ' — QUITTER consomme bien le jeton');
+      if (!r.jeuFiniApresClic) fail('Arcade : ' + id + ' — QUITTER ne termine pas la partie en cours');
+      else ok('Arcade : ' + id + ' — QUITTER termine bien la partie en cours (finirBorneJeu)');
+      if (r.scoreAvantQuitter > 0 && r.ticketsApres === 0) fail('Arcade : ' + id + ' — QUITTER avec un score > 0 n\'a banqué aucun ticket');
+      else if (r.scoreAvantQuitter > 0) ok('Arcade : ' + id + ' — QUITTER banque bien les tickets gagnés avant l\'abandon');
+    }
+
+    // -------------------------------------------------------------------
     // Arcade : ce qu'on PORTE est perdu au game over (jetons, tickets — y
     // compris des tickets déjà banqués AVANT la partie en cours au moment de
     // la mort, pas seulement le score de cette dernière partie), ce qu'on a
