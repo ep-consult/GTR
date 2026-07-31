@@ -620,6 +620,129 @@ async function main() {
     else ok('Arcade : abandonner en pleine partie conserve bien les tickets déjà gagnés');
 
     // -------------------------------------------------------------------
+    // Arcade : DÉMOLITION — casse-brique vertical, contrôle par glissement
+    // (composant réutilisable distinct de la croix), matériaux (verre 1 coup,
+    // acier 2 coups avec fissure visible, poutre indestructible), tour
+    // complétée (bonus + nouvelle tour), 3 boules perdues -> fin de partie.
+    // -------------------------------------------------------------------
+    console.log('\n--- Arcade : DÉMOLITION (grille, glissement, matériaux, tour complète) ---');
+    const demolition = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'arcade');
+      startRun();
+      entrerInterieur('arcade', p);
+      const s = INT.actif;
+      META.argent = 100;
+      P.x = s.comptoirJetons.x; P.z = s.comptoirJetons.z;
+      majAction(); document.getElementById('btnAction')._fn();
+      const bd = s.bornes.find((b) => b.id === 'demolition');
+      P.x = bd.x; P.z = bd.z; majAction(); document.getElementById('btnAction')._fn();
+      const jeuDemarre = ARCADE.jeu === 'demolition';
+      majAction(); // rafraîchit l'affichage du bouton ACTION (la boucle de jeu le ferait à la frame suivante)
+      const controle = {
+        glisseVisible: glisseZone.style.display === 'block',
+        croixVisible: croixWrap.style.display === 'block',
+        joystickCache: zoneL.style.display === 'none',
+        btnActionCache: document.getElementById('btnAction').style.display === 'none',
+      };
+      const d = ARCADE.d;
+      const materiaux = {
+        total: d.grille.length, cols: GD_COLS, rows: GD_RANGEES_BRIQUES,
+        poutres: d.grille.filter((m) => m === 4).length,
+        destructibles: d.briquesRestantes,
+      };
+      // la zone de glissement pilote directement la position logique de la
+      // grue (sans inertie), un appui n'importe où lance la boule qui attend
+      glisseDeplace(0);
+      const grueGauche = d.grueX;
+      glisseDeplace(window.innerWidth);
+      const grueDroite = d.grueX;
+      const attenteAvant = d.balles[0].attente;
+      demolitionLancer();
+      const attenteApres = d.balles[0].attente;
+      const vyApresLancer = d.balles[0].vy;
+      // verre : détruit en 1 coup, +1 point
+      let idxVerre = -1;
+      for (let i = 0; i < d.grille.length; i++) if (d.grille[i] === 1) { idxVerre = i; break; }
+      let verreDetruit = null, scoreApresVerre = null;
+      if (idxVerre >= 0) {
+        const r = Math.floor(idxVerre / GD_COLS), c = idxVerre % GD_COLS, b = d.balles[0];
+        b.x = c + 0.5; b.y = r + 0.5; b.vx = 0; b.vy = -1; b.attente = false;
+        demolitionCollisionBriques(b);
+        verreDetruit = d.grille[idxVerre] === 0;
+        scoreApresVerre = ARCADE.score;
+      }
+      // acier : fissure au premier coup (vie 2->1), détruit au second (+4 points)
+      let idxAcier = -1;
+      for (let i = 0; i < d.grille.length; i++) if (d.grille[i] === 3) { idxAcier = i; break; }
+      let vieApres1Coup = null, acierDetruitApres2Coups = null;
+      if (idxAcier >= 0) {
+        const r = Math.floor(idxAcier / GD_COLS), c = idxAcier % GD_COLS, b = d.balles[0];
+        b.x = c + 0.5; b.y = r + 0.5; b.vx = 0; b.vy = -1; b.attente = false;
+        demolitionCollisionBriques(b);
+        vieApres1Coup = d.vie[idxAcier];
+        b.x = c + 0.5; b.y = r + 0.5; b.vx = 0; b.vy = -1;
+        demolitionCollisionBriques(b);
+        acierDetruitApres2Coups = d.grille[idxAcier] === 0;
+      }
+      // poutre : ne se détruit jamais, quel que soit le nombre de coups
+      let idxPoutre = -1;
+      for (let i = 0; i < d.grille.length; i++) if (d.grille[i] === 4) { idxPoutre = i; break; }
+      let poutreResiste = null;
+      if (idxPoutre >= 0) {
+        const r = Math.floor(idxPoutre / GD_COLS), c = idxPoutre % GD_COLS, b = d.balles[0];
+        for (let k = 0; k < 5; k++) { b.x = c + 0.5; b.y = r + 0.5; b.vx = 0; b.vy = -1; demolitionCollisionBriques(b); }
+        poutreResiste = d.grille[idxPoutre] === 4;
+      }
+      // tour entièrement démolie : bonus de 25 points + nouvelle tour
+      ARCADE.score = 0;
+      const tourAvant = d.tourNum;
+      for (let i = 0; i < d.grille.length; i++) if (d.grille[i] !== 4) d.grille[i] = 0;
+      d.briquesRestantes = 0;
+      majDemolition(0.01);
+      const tourBonus = ARCADE.score;
+      const nouvelleTour = d.tourNum === tourAvant + 1 && d.briquesRestantes > 0;
+      // dernière boule perdue (déjà sous la grue) -> plus de vie -> finirBorneJeu
+      ARCADE.score = 0;
+      d.balles = [{ x: d.grueX, y: GD_RANGEES_TOTAL + 1, vx: 0, vy: 1, attente: false, traine: [] }];
+      d.boulesRestantes = 1;
+      majDemolition(0.01);
+      const jeuTermine = ARCADE.jeu === null;
+      const controleRestaure = { glisse: glisseZone.style.display === 'none', joystick: zoneL.style.display !== 'none' };
+      if (INT.actif) sortirInterieur();
+      return {
+        jeuDemarre, controle, materiaux, grueGauche, grueDroite, attenteAvant, attenteApres, vyApresLancer,
+        verreDetruit, scoreApresVerre, vieApres1Coup, acierDetruitApres2Coups, poutreResiste,
+        tourBonus, nouvelleTour, jeuTermine, controleRestaure,
+      };
+    });
+    if (!demolition.jeuDemarre) fail('Arcade : DÉMOLITION ne démarre pas');
+    else ok('Arcade : DÉMOLITION démarre correctement');
+    if (!demolition.controle.glisseVisible || demolition.controle.croixVisible || !demolition.controle.joystickCache) fail('Arcade : DÉMOLITION n\'affiche pas la bonne zone de contrôle (glissement, pas la croix, joystick masqué) — ' + JSON.stringify(demolition.controle));
+    else ok('Arcade : DÉMOLITION affiche bien sa zone de glissement (pas la croix), joystick masqué');
+    if (!demolition.controle.btnActionCache) fail('Arcade : le bouton ACTION reste affiché en DÉMOLITION alors que tout se joue au glissement');
+    else ok('Arcade : le bouton ACTION est bien masqué en DÉMOLITION (aucun usage)');
+    if (demolition.materiaux.total !== 63 || demolition.materiaux.poutres < 4 || demolition.materiaux.poutres > 6) fail('Arcade : DÉMOLITION — grille ou nombre de poutres incorrect (' + JSON.stringify(demolition.materiaux) + ')');
+    else ok('Arcade : DÉMOLITION — grille 9×7 avec 4 à 6 poutres, comme spécifié');
+    if (!(demolition.grueGauche < demolition.grueDroite)) fail('Arcade : la zone de glissement ne déplace pas la grue de gauche à droite (' + demolition.grueGauche + ' -> ' + demolition.grueDroite + ')');
+    else ok('Arcade : la zone de glissement déplace bien la grue de gauche à droite');
+    if (!demolition.attenteAvant || demolition.attenteApres || demolition.vyApresLancer >= 0) fail('Arcade : un appui ne lance pas la boule qui attendait sur la grue');
+    else ok('Arcade : un appui lance bien la boule qui attendait sur la grue');
+    if (demolition.verreDetruit === false || demolition.scoreApresVerre !== 1) fail('Arcade : le verre ne se détruit pas en 1 coup pour 1 point (détruit=' + demolition.verreDetruit + ', score=' + demolition.scoreApresVerre + ')');
+    else if (demolition.verreDetruit === null) info('Arcade : aucune brique de verre dans cette tour (tirage), sous-test ignoré');
+    else ok('Arcade : le verre se détruit bien en 1 coup pour 1 point');
+    if (demolition.vieApres1Coup === 1 && demolition.acierDetruitApres2Coups === true) ok('Arcade : l\'acier se fissure au 1er coup puis se détruit au 2e (4 points)');
+    else if (demolition.vieApres1Coup === null) info('Arcade : aucune brique d\'acier dans cette tour (tirage), sous-test ignoré');
+    else fail('Arcade : l\'acier ne suit pas la règle des 2 coups (vie après 1 coup=' + demolition.vieApres1Coup + ', détruit après 2=' + demolition.acierDetruitApres2Coups + ')');
+    if (demolition.poutreResiste === false) fail('Arcade : une poutre a été détruite alors qu\'elle doit être indestructible');
+    else ok('Arcade : la poutre est bien indestructible (résiste à 5 impacts)');
+    if (demolition.tourBonus !== 25 || !demolition.nouvelleTour) fail('Arcade : une tour entièrement démolie ne donne pas le bonus de 25 points et/ou ne fait pas apparaître une nouvelle tour (bonus=' + demolition.tourBonus + ', nouvelleTour=' + demolition.nouvelleTour + ')');
+    else ok('Arcade : une tour entièrement démolie donne bien +25 points et fait apparaître une nouvelle tour');
+    if (!demolition.jeuTermine) fail('Arcade : perdre la dernière boule ne termine pas la partie');
+    else ok('Arcade : perdre la dernière boule termine bien la partie (finirBorneJeu)');
+    if (!demolition.controleRestaure.glisse || !demolition.controleRestaure.joystick) fail('Arcade : quitter DÉMOLITION ne cache pas la zone de glissement ou ne restaure pas le joystick');
+    else ok('Arcade : quitter DÉMOLITION cache bien la zone de glissement et restaure le joystick');
+
+    // -------------------------------------------------------------------
     // Arcade : ce qu'on PORTE est perdu au game over (jetons, tickets — y
     // compris des tickets déjà banqués AVANT la partie en cours au moment de
     // la mort, pas seulement le score de cette dernière partie), ce qu'on a
@@ -684,23 +807,24 @@ async function main() {
     // -------------------------------------------------------------------
     console.log('\n--- Arcade : curiosité Le Jeton Doré (bornes actives) ---');
     const jetonDore = await page.evaluate(() => {
-      const actives = BORNES_ARCADE.filter((b) => b.actif).map((b) => b.id);
-      // une seule borne battue : pas de curiosité
-      META.arcadeScores.vipere[0] = { init: 'AAA', score: 999 };
-      META.arcadeScores.chantier[0] = { init: 'AAA', score: 0 };
+      // générique sur la liste des bornes ACTIVES courante (pas de liste codée
+      // en dur : une future borne activée doit être prise en compte sans
+      // toucher ce test) — toutes battues sauf la dernière, puis toutes battues.
+      const actives = BORNES_ARCADE.filter((b) => b.actif);
+      const derniere = actives[actives.length - 1];
+      for (const b of actives) META.arcadeScores[b.id][0] = { init: 'AAA', score: b.refScore };
+      META.arcadeScores[derniere.id][0] = { init: 'AAA', score: 0 };
       verifierJetonDore();
       const pasEncore = aCurio('jeton_dore');
-      // les deux bornes actives battues : curiosité accordée
-      META.arcadeScores.chantier[0] = { init: 'AAA', score: 999 };
+      META.arcadeScores[derniere.id][0] = { init: 'AAA', score: derniere.refScore };
       verifierJetonDore();
       const accordee = aCurio('jeton_dore');
-      return { actives, pasEncore, accordee };
+      return { actives: actives.map((b) => b.id), pasEncore, accordee };
     });
-    if (jetonDore.actives.length !== 2 || !jetonDore.actives.includes('vipere') || !jetonDore.actives.includes('chantier')) {
-      fail('Arcade : la liste des bornes actives n\'est plus vipere+chantier (' + jetonDore.actives.join(',') + ') — ce test suppose ces deux-là, à ajuster si de nouvelles bornes sont activées');
-    }
-    if (jetonDore.pasEncore) fail('Arcade : Le Jeton Doré accordé alors qu\'une seule borne active était battue');
-    else ok('Arcade : battre une seule borne active ne donne pas Le Jeton Doré');
+    if (jetonDore.actives.length < 2) fail('Arcade : moins de 2 bornes actives — ce test suppose au moins deux bornes actives pour être significatif');
+    else ok('Arcade : ' + jetonDore.actives.length + ' bornes actives (' + jetonDore.actives.join(', ') + ')');
+    if (jetonDore.pasEncore) fail('Arcade : Le Jeton Doré accordé alors qu\'une borne active restait sous sa référence');
+    else ok('Arcade : battre toutes les bornes actives sauf une ne donne pas Le Jeton Doré');
     if (!jetonDore.accordee) fail('Arcade : Le Jeton Doré non accordé alors que toutes les bornes actives sont battues');
     else ok('Arcade : battre toutes les bornes actives donne bien Le Jeton Doré');
 
