@@ -133,8 +133,13 @@ function makeElement(tag) {
     getAttribute(k) { return k in this.attributes ? this.attributes[k] : null; },
     hasAttribute(k) { return k in this.attributes; },
     removeAttribute(k) { delete this.attributes[k]; },
-    querySelector() { return null; },
-    querySelectorAll() { return []; },
+    // Un vrai querySelector nécessiterait de parser innerHTML (une chaîne
+    // ici, jamais de vrais nœuds enfants) : plutôt que de renvoyer null (et
+    // faire planter tout usage immédiat comme .getContext()), on renvoie un
+    // nouvel élément générique "capable de tout" (canvas compris), cohérent
+    // avec la philosophie de ce bouchon : jamais null, un porte-tout inerte.
+    querySelector() { return makeElement('canvas'); },
+    querySelectorAll() { return [makeElement('canvas')]; },
     setPointerCapture() {}, releasePointerCapture() {},
     focus() {}, blur() {}, click() {},
     getBoundingClientRect() { return { x: 0, y: 0, left: 0, top: 0, right: 0, bottom: 0, width: 0, height: 0 }; },

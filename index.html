@@ -836,7 +836,13 @@ const META={
   curios:{}, zohra:0, karaoke:0, gaston:0, lessives:0, fouilles:0,
   muscle:0, strikes:0, bowlingMax:0, sandwich:0, plantes:0,
   // musée : chaque pièce de valeur n'est prenable qu'une fois, pour toute la partie
-  museeArtefacts:{cone:false,laveuse:false,meteorite:false}
+  museeArtefacts:{cone:false,laveuse:false,meteorite:false},
+  // arcade : tickets et meilleurs scores survivent au game over, pas les jetons
+  arcadeTickets:0,
+  arcadeScores:{
+    vipere:[{init:'ZOH',score:24},{init:'GAS',score:18},{init:'MAX',score:14},{init:'BOB',score:9},{init:'AAA',score:5}],
+    chantier:[{init:'ZOH',score:16},{init:'GAS',score:12},{init:'MAX',score:9},{init:'BOB',score:6},{init:'AAA',score:3}]
+  }
 };
 const DEFIS=[
   {id:'sang',nom:'Premier sang',det:'Neutralise 25 ennemis',rec:250,prog:m=>[m.killsTotal,25],cond:m=>m.killsTotal>=25},
@@ -941,6 +947,9 @@ const CURIOS=[
   {id:'canard_or',ico:'🦆',nom:'Le Canard d\u2019Or',lieu:'Musée Mémoire de Solara',
    eff:'Porte-bonheur du voleur : le niveau de recherche redescend 25 % plus vite',
    ind:'Il est au fond du musée, sous cloche. Le courant, lui, se coupe à l’entrée.',actif:true},
+  {id:'jeton_dore',ico:'🪙',nom:'Le Jeton Doré',lieu:'Palais de l’Arcade',
+   eff:'Aimant à ramassables : l’argent, les munitions et les soins sont attirés vers toi dans un rayon de 6 m',
+   ind:'Il faut battre le tableau des scores. Toutes les bornes qui marchent encore.',actif:true},
   {id:'bobine',ico:'🎞️',nom:'La Bobine « ASPHALTE I »',lieu:'Ciné-Palace',actif:false},
   {id:'plaque',ico:'⚓',nom:'La Plaque du Capitaine',lieu:'Cale de l\u2019épave',actif:false},
   {id:'lampe',ico:'🔦',nom:'La Lampe de Mineur',lieu:'Métro abandonné',actif:false},
@@ -2649,6 +2658,8 @@ function placerPortes(){
   poser('sandwich',cSan.x,cSan.z,'LE ROI DES SANDWICHS',0xffd23f);
   const cMus=caseCentre(3,5);    // centre-ville : le musée, ouvert dès le début de partie
   poser('musee',cMus.x,cMus.z,'MUSÉE DE SOLARA',0xffd23f);
+  const cArc=caseCentre(6,10);   // quartier néon : le palais de l'arcade, ouvert dès le début
+  poser('arcade',cArc.x,cArc.z,'PALAIS DE L\'ARCADE',0xff5ec4);
   // secours : si un lieu manquait, on place la porte près de la grande place
   if(!PORTES.some(p=>p.id==='banque')&&POIS.place)
     poser('banque',POIS.place.x+CELL,POIS.place.z,'BANQUE',0x35e0ff);
@@ -2659,7 +2670,7 @@ function placerPortes(){
     ['karaoke','KARAOKÉ',0xffd23f],['aquarium','AQUARIUM',0x35e0ff],
     ['bowling','STRIKE DORÉ',0xffd23f],['sport','FER & SUEUR',0xff5a6a],
     ['serre','SERRE',0x7dff7a],['sandwich','LE ROI DES SANDWICHS',0xffd23f],
-    ['musee','MUSÉE DE SOLARA',0xffd23f]
+    ['musee','MUSÉE DE SOLARA',0xffd23f],['arcade','PALAIS DE L\'ARCADE',0xff5ec4]
   ];
   for(const [id,nom,coul] of REPLIS){
     if(PORTES.some(p=>p.id===id)) continue;
@@ -3621,7 +3632,16 @@ function majPickups(dt){
     if(p.t<=0){scene.remove(p.mesh);pickups.splice(i,1);continue;}
     if(ETAT.mode!=='jeu') continue;
     const d=dist2(p.x,p.z,P.x,P.z);
-    if(d<7&&d>0.8){ // aimant
+    // Le Jeton Doré : aimant à longue portée (6 m) sur l'argent, les munitions
+    // et les soins, qui accélère à l'approche (facteur de tir plus fort quand
+    // la distance réelle diminue) — remplace l'aimant de base à courte
+    // portée pour ces types-là tant que la curiosité est acquise
+    if(aCurio('jeton_dore')&&d<36&&d>1.1&&(p.type==='cash'||p.type==='mun'||p.type==='med'||p.type==='med2')){
+      const dReel=Math.sqrt(d);
+      const facteur=lerp(10,2,clamp(dReel/6,0,1));
+      p.x=lerp(p.x,P.x,facteur*dt); p.z=lerp(p.z,P.z,facteur*dt);
+      p.mesh.position.x=p.x; p.mesh.position.z=p.z;
+    } else if(d<7&&d>0.8){ // aimant de base, courte portée
       p.x=lerp(p.x,P.x,6*dt); p.z=lerp(p.z,P.z,6*dt);
       p.mesh.position.x=p.x; p.mesh.position.z=p.z;
     }
@@ -3991,6 +4011,10 @@ function majJoueur(dt){
   const dh=el('dirHit'); if(dh.style.opacity>0) dh.style.opacity=Math.max(0,(parseFloat(dh.style.opacity)||0)-dt*1.6);
 
   if(P.veh){ majConduite(dt); return; }
+  // le joystick est monopolisé par la borne d'arcade pendant une partie (ou la
+  // saisie des initiales) : le joueur reste immobile devant la machine, le
+  // temps qui passe n'en coûte pas moins ailleurs (pas de pause du jeu ici)
+  if(ARCADE.jeu||ARCADE.attenteInitiales) return;
 
   // déplacement à pied / à la nage
   const etaitNage=P.nage;
@@ -5993,8 +6017,291 @@ musWrap.innerHTML='<div id="musLbl" style="font:900 11px Arial;letter-spacing:.0
 el('hud').appendChild(musWrap);
 const musLblEl=musWrap.querySelector('#musLbl'), musSoupEl=musWrap.querySelector('#musSoup'),
       musBruitEl=musWrap.querySelector('#musBruit');
-const JAUGES=[fouilleWrap,karaWrap,bwWrap,spWrap,swWrap,musWrap];
+/* écran de borne d'arcade : canvas 2D en surimpression, style cathodique.
+   Centré, assez haut pour ne jamais recouvrir le joystick ni les boutons. */
+const arcadeWrap=document.createElement('div');
+arcadeWrap.style.cssText='position:absolute;left:50%;top:13%;transform:translateX(-50%);'+
+  'display:none;text-align:center;pointer-events:none;z-index:7';
+arcadeWrap.innerHTML='<canvas id="arcadeCv" width="220" height="260" style="'+
+  'width:220px;height:260px;background:#05060a;border:3px solid #3a3050;border-radius:8px;'+
+  'box-shadow:0 0 18px #ff5ec488, inset 0 0 22px #000000cc"></canvas>';
+el('hud').appendChild(arcadeWrap);
+const arcadeCv=arcadeWrap.querySelector('#arcadeCv'), arcadeCx=arcadeCv.getContext('2d');
+const JAUGES=[fouilleWrap,karaWrap,bwWrap,spWrap,swWrap,musWrap,arcadeWrap];
 function cacherJauges(){ for(const j of JAUGES) if(j.style.display!=='none') j.style.display='none'; }
+
+/* =====================================================================
+   PALAIS DE L'ARCADE — bornes, mini-jeux, tickets, tableau des scores.
+   Première salle où l'on reste plutôt qu'où l'on accomplit une tâche :
+   aucune tâche à remplir, on y dépense des jetons pour le plaisir.
+===================================================================== */
+// Registre des bornes : activer une future borne ne demande que d'ajouter
+// son entrée ici (actif:true, refScore) + son jeu (init/maj/dessiner) plus
+// bas, et un cas de dispatch dans demarrerBorneJeu/majBorneJeu/dessinerBorneJeu.
+// Rien d'autre dans la salle (décor, comptoirs, tableau des scores, curiosité)
+// n'a besoin d'être modifié.
+const BORNES_ARCADE=[
+  {id:'vipere',nom:'VIPÈRE',actif:true,refScore:30,couleur:0x7dff7a},
+  {id:'chantier',nom:'CHANTIER',actif:true,refScore:20,couleur:0x35e0ff},
+  {id:'glouton',nom:'GLOUTON',actif:false,couleur:0xffd23f,
+   panneau:'En panne depuis 1994. Le réparateur a dit qu’il repassait.'},
+  {id:'demolition',nom:'DÉMOLITION',actif:false,couleur:0xff5a3a,
+   panneau:'Hors service. Un client a pris le titre trop au sérieux.'},
+  {id:'canards',nom:'STAND DE CANARDS',actif:false,couleur:0xff5ec4,
+   panneau:'Temporairement fermé pour enquête.'}
+];
+const LOTS_ARCADE=[
+  {ico:'🧸',nom:'Peluche Vipère',cout:15,
+   act:()=>{ toast('Une peluche vipère en peluche. Personne ne sait vraiment pourquoi.','or'); }},
+  {ico:'🔫',nom:'Chargeur de munitions',cout:40,
+   act:()=>{ const id=(ARMES[P.armeCur].type==='gun')?P.armeCur:'pistolet';
+     if(META.armes[id].poss){ P.mun[id]=(P.mun[id]||0)+armeStats(id).mag; toast('Munitions : '+ARMES[id].nom,'or'); }
+     else toast('Rien à charger pour l’instant.'); }},
+  {ico:'🩹',nom:'Trousse de secours',cout:90,
+   act:()=>{ soigner(P.maxHp); toast('Trousse complète utilisée','or'); }},
+  {ico:'🦆',nom:'Grande peluche Canard',cout:200,
+   act:()=>{ toast('Le plus beau lot du Palais. Personne ne l’avait jamais gagné.','or'); }}
+];
+// sept formes classiques, 4 états de rotation précalculés dans une boîte 4×4
+const FORMES_CHANTIER=[
+  {nom:'I',c:0x35e0ff,rots:[[[0,1],[1,1],[2,1],[3,1]],[[2,0],[2,1],[2,2],[2,3]],[[0,2],[1,2],[2,2],[3,2]],[[1,0],[1,1],[1,2],[1,3]]]},
+  {nom:'O',c:0xffd23f,rots:[[[1,0],[2,0],[1,1],[2,1]],[[1,0],[2,0],[1,1],[2,1]],[[1,0],[2,0],[1,1],[2,1]],[[1,0],[2,0],[1,1],[2,1]]]},
+  {nom:'T',c:0xff5ec4,rots:[[[0,1],[1,1],[2,1],[1,0]],[[1,0],[1,1],[1,2],[2,1]],[[0,1],[1,1],[2,1],[1,2]],[[1,0],[1,1],[1,2],[0,1]]]},
+  {nom:'S',c:0x7dff7a,rots:[[[1,0],[2,0],[0,1],[1,1]],[[1,0],[1,1],[2,1],[2,2]],[[1,1],[2,1],[0,2],[1,2]],[[0,0],[0,1],[1,1],[1,2]]]},
+  {nom:'Z',c:0xff5a3a,rots:[[[0,0],[1,0],[1,1],[2,1]],[[2,0],[1,1],[2,1],[1,2]],[[0,1],[1,1],[1,2],[2,2]],[[1,0],[0,1],[1,1],[0,2]]]},
+  {nom:'J',c:0x4a9aff,rots:[[[0,0],[0,1],[1,1],[2,1]],[[1,0],[2,0],[1,1],[1,2]],[[0,1],[1,1],[2,1],[2,2]],[[1,0],[1,1],[0,2],[1,2]]]},
+  {nom:'L',c:0xffa64a,rots:[[[2,0],[0,1],[1,1],[2,1]],[[1,0],[1,1],[1,2],[2,2]],[[0,1],[1,1],[2,1],[0,2]],[[0,0],[1,0],[1,1],[1,2]]]}
+];
+// état de session (aucune persistance ici : voir META.arcadeTickets/arcadeScores)
+const ARCADE={jeu:null,score:0,v:null,c:null,attenteInitiales:null};
+function finirBorneJeu(){
+  if(!ARCADE.jeu) return;
+  const jeu=ARCADE.jeu;
+  const diviseur=jeu==='vipere'?4:2;
+  const tickets=Math.floor(ARCADE.score/diviseur);
+  ARCADE.jeu=null;
+  if(tickets>0){ META.arcadeTickets=(META.arcadeTickets||0)+tickets; }
+  const tab=META.arcadeScores[jeu];
+  if(tab&&ARCADE.score>0&&ARCADE.score>tab[tab.length-1].score){
+    ARCADE.attenteInitiales={borne:jeu,score:ARCADE.score,lettres:[0,0,0],curseur:0,repeatT:0};
+  } else if(tickets>0){
+    toast('+'+tickets+' ticket'+(tickets>1?'s':'')+' — score '+ARCADE.score,'or');
+  }
+  sauveMeta();
+}
+// Le Jeton Doré : dépasser la référence sur TOUTES les bornes en état de
+// marche — calculé sur la liste des bornes actives, jamais une liste codée
+// en dur, pour qu'activer une future borne l'inclue automatiquement.
+function verifierJetonDore(){
+  if(aCurio('jeton_dore')) return;
+  const actives=BORNES_ARCADE.filter(b=>b.actif);
+  const ok=actives.length>0&&actives.every(b=>{
+    const tab=META.arcadeScores[b.id];
+    return !!(tab&&tab[0]&&tab[0].score>=b.refScore);
+  });
+  if(ok) donnerCurio('jeton_dore');
+}
+function demarrerBorneJeu(id){
+  ARCADE.score=0;
+  if(id==='vipere') vipereInit();
+  else if(id==='chantier') chantierInit();
+}
+/* ---------- VIPÈRE : grille 20×20, avance en continu, le joystick tourne ---------- */
+function vipereInit(){
+  ARCADE.jeu='vipere';
+  ARCADE.v={corps:[{x:10,y:10},{x:9,y:10},{x:8,y:10}],dir:{x:1,y:0},
+    tick:0.16,tickT:0.16,tourneCd:0,frelon:null};
+  vipereFrelon();
+}
+function vipereFrelon(){
+  const v=ARCADE.v; let x,y,libre;
+  do{ x=randi(0,19); y=randi(0,19); libre=!v.corps.some(s=>s.x===x&&s.y===y); }while(!libre);
+  v.frelon={x,y};
+}
+function majVipere(dt){
+  const v=ARCADE.v;
+  v.tourneCd-=dt;
+  if(v.tourneCd<=0&&Math.abs(INPUT.mx)>0.4){
+    v.tourneCd=0.12;
+    // rotation relative de 90° : jamais un demi-tour direct dans son propre corps
+    v.dir=(INPUT.mx<0)?{x:v.dir.y,y:-v.dir.x}:{x:-v.dir.y,y:v.dir.x};
+  }
+  v.tickT-=dt;
+  if(v.tickT<=0){
+    v.tickT=v.tick;
+    const tete=v.corps[0], nx=tete.x+v.dir.x, ny=tete.y+v.dir.y;
+    if(nx<0||nx>=20||ny<0||ny>=20||v.corps.some(s=>s.x===nx&&s.y===ny)){ finirBorneJeu(); return; }
+    v.corps.unshift({x:nx,y:ny});
+    if(v.frelon&&nx===v.frelon.x&&ny===v.frelon.y){
+      ARCADE.score++; v.tick=Math.max(0.06,v.tick*0.98); vipereFrelon();
+    } else v.corps.pop();
+  }
+}
+/* ---------- CHANTIER : grille 10×18, pièces de 4 blocs, 7 formes ---------- */
+function chantierInit(){
+  ARCADE.jeu='chantier';
+  ARCADE.c={grille:new Array(10*18).fill(0),couleurs:new Array(10*18).fill(0),
+    pieceIdx:randi(0,6),rot:0,px:3,py:0,tick:0.8,tickT:0.8,lignes:0,deplaceCd:0};
+}
+function chantierCellules(idx,rot,px,py){
+  return FORMES_CHANTIER[idx].rots[rot].map(c=>({x:px+c[0],y:py+c[1]}));
+}
+function chantierPeutPlacer(idx,rot,px,py){
+  for(const c of chantierCellules(idx,rot,px,py)){
+    if(c.x<0||c.x>=10||c.y>=18) return false;
+    if(c.y>=0&&ARCADE.c.grille[c.y*10+c.x]) return false;
+  }
+  return true;
+}
+function majChantier(dt){
+  const c=ARCADE.c;
+  c.deplaceCd-=dt;
+  if(c.deplaceCd<=0&&Math.abs(INPUT.mx)>0.4){
+    c.deplaceCd=0.13;
+    const d=INPUT.mx<0?-1:1;
+    if(chantierPeutPlacer(c.pieceIdx,c.rot,c.px+d,c.py)) c.px+=d;
+  }
+  if(pressed('action')||edgeKey('KeyE')){
+    const nr=(c.rot+1)%4;
+    if(chantierPeutPlacer(c.pieceIdx,nr,c.px,c.py)) c.rot=nr;
+  }
+  const chuteRapide=INPUT.mz>0.4;
+  c.tickT-=dt*(chuteRapide?6:1);
+  if(c.tickT<=0){
+    c.tickT=c.tick;
+    if(chantierPeutPlacer(c.pieceIdx,c.rot,c.px,c.py+1)){ c.py++; return; }
+    let horsGrille=false;
+    for(const cel of chantierCellules(c.pieceIdx,c.rot,c.px,c.py)){
+      if(cel.y<0){ horsGrille=true; continue; }
+      c.grille[cel.y*10+cel.x]=1; c.couleurs[cel.y*10+cel.x]=FORMES_CHANTIER[c.pieceIdx].c;
+    }
+    if(horsGrille){ finirBorneJeu(); return; }
+    let nettoyees=0;
+    for(let y=17;y>=0;y--){
+      let plein=true;
+      for(let x=0;x<10;x++) if(!c.grille[y*10+x]){ plein=false; break; }
+      if(plein){
+        nettoyees++;
+        for(let yy=y;yy>0;yy--) for(let x=0;x<10;x++){
+          c.grille[yy*10+x]=c.grille[(yy-1)*10+x]; c.couleurs[yy*10+x]=c.couleurs[(yy-1)*10+x];
+        }
+        for(let x=0;x<10;x++){ c.grille[x]=0; c.couleurs[x]=0; }
+        y++; // réexamine la même ligne après le décalage
+      }
+    }
+    if(nettoyees){
+      ARCADE.score+=nettoyees;
+      const avant=c.lignes; c.lignes+=nettoyees;
+      if(Math.floor(c.lignes/5)>Math.floor(avant/5)) c.tick=Math.max(0.15,c.tick*0.9);
+    }
+    c.pieceIdx=randi(0,6); c.rot=0; c.px=3; c.py=0;
+    if(!chantierPeutPlacer(c.pieceIdx,c.rot,c.px,c.py)) finirBorneJeu();
+  }
+}
+/* ---------- saisie des initiales (nouveau record) ---------- */
+function majInitiales(dt){
+  const st=ARCADE.attenteInitiales;
+  st.repeatT-=dt;
+  if(Math.abs(INPUT.mz)>0.4&&st.repeatT<=0){
+    st.repeatT=0.16;
+    const d=INPUT.mz<0?1:-1;
+    st.lettres[st.curseur]=(st.lettres[st.curseur]+d+26)%26;
+  }
+  if(pressed('action')||edgeKey('KeyE')){
+    st.curseur++;
+    if(st.curseur>=3){
+      const init=st.lettres.map(i=>String.fromCharCode(65+i)).join('');
+      const tab=META.arcadeScores[st.borne];
+      tab.push({init,score:st.score});
+      tab.sort((a,b)=>b.score-a.score);
+      tab.length=Math.min(tab.length,5);
+      ARCADE.attenteInitiales=null;
+      bigMsg('🏆 NOUVEAU RECORD : '+init);
+      SFX.niveau(); vibre(60);
+      sauveMeta();
+      verifierJetonDore();
+    }
+  }
+}
+function majBorneJeu(dt){
+  if(ARCADE.attenteInitiales){ majInitiales(dt); return; }
+  if(ARCADE.jeu==='vipere') majVipere(dt);
+  else if(ARCADE.jeu==='chantier') majChantier(dt);
+}
+/* ---------- rendu de l'écran de borne : cathodique, palette limitée ---------- */
+function arcadeScanlines(w,h){
+  arcadeCx.fillStyle='rgba(0,0,0,0.14)';
+  for(let y=0;y<h;y+=3) arcadeCx.fillRect(0,y,w,1);
+}
+function arcadeEntete(titre,coul){
+  arcadeCx.fillStyle='#05060a'; arcadeCx.fillRect(0,0,220,260);
+  arcadeCx.font='900 13px Arial'; arcadeCx.textAlign='center'; arcadeCx.textBaseline='alphabetic';
+  arcadeCx.fillStyle=coul; arcadeCx.fillText(titre,110,18);
+}
+function dessinerVipere(){
+  const v=ARCADE.v; arcadeEntete('VIPÈRE',"#7dff7a");
+  const ox=10,oy=26,cell=9;
+  arcadeCx.strokeStyle='#1c2030'; arcadeCx.strokeRect(ox,oy,20*cell,20*cell);
+  arcadeCx.fillStyle='#ff5a3a';
+  if(v.frelon) arcadeCx.fillRect(ox+v.frelon.x*cell+1,oy+v.frelon.y*cell+1,cell-2,cell-2);
+  for(let i=v.corps.length-1;i>=0;i--){
+    const s=v.corps[i];
+    arcadeCx.fillStyle=i===0?'#bfffcf':'#7dff7a';
+    arcadeCx.fillRect(ox+s.x*cell+1,oy+s.y*cell+1,cell-2,cell-2);
+  }
+  arcadeCx.font='800 10px Arial'; arcadeCx.textAlign='left'; arcadeCx.fillStyle='#e8ecf2';
+  arcadeCx.fillText('SCORE '+ARCADE.score,10,242);
+  const meilleur=META.arcadeScores.vipere[0]?META.arcadeScores.vipere[0].score:0;
+  arcadeCx.textAlign='right'; arcadeCx.fillText('MEILLEUR '+meilleur,210,242);
+  arcadeCx.textAlign='center'; arcadeCx.font='800 8px Arial'; arcadeCx.fillStyle='#8a8f9a';
+  arcadeCx.fillText('joystick : tourner',110,254);
+  arcadeScanlines(220,260);
+}
+function dessinerChantier(){
+  const c=ARCADE.c; arcadeEntete('CHANTIER',"#35e0ff");
+  const ox=45,oy=26,cell=13;
+  arcadeCx.strokeStyle='#1c2030'; arcadeCx.strokeRect(ox,oy,10*cell,18*cell);
+  for(let y=0;y<18;y++) for(let x=0;x<10;x++){
+    if(!c.grille[y*10+x]) continue;
+    arcadeCx.fillStyle='#'+c.couleurs[y*10+x].toString(16).padStart(6,'0');
+    arcadeCx.fillRect(ox+x*cell+1,oy+y*cell+1,cell-2,cell-2);
+  }
+  arcadeCx.fillStyle='#'+FORMES_CHANTIER[c.pieceIdx].c.toString(16).padStart(6,'0');
+  for(const cel of chantierCellules(c.pieceIdx,c.rot,c.px,c.py)){
+    if(cel.y<0) continue;
+    arcadeCx.fillRect(ox+cel.x*cell+1,oy+cel.y*cell+1,cell-2,cell-2);
+  }
+  arcadeCx.font='800 10px Arial'; arcadeCx.textAlign='left'; arcadeCx.fillStyle='#e8ecf2';
+  arcadeCx.fillText('LIGNES '+ARCADE.score,10,242);
+  const meilleur=META.arcadeScores.chantier[0]?META.arcadeScores.chantier[0].score:0;
+  arcadeCx.textAlign='right'; arcadeCx.fillText('MEILLEUR '+meilleur,210,242);
+  arcadeCx.textAlign='center'; arcadeCx.font='800 8px Arial'; arcadeCx.fillStyle='#8a8f9a';
+  arcadeCx.fillText('gauche/droite : déplacer · bas : chute · action : pivoter',110,254);
+  arcadeScanlines(220,260);
+}
+function dessinerInitiales(){
+  const st=ARCADE.attenteInitiales;
+  arcadeEntete('NOUVEAU RECORD',"#ffd23f");
+  arcadeCx.font='800 10px Arial'; arcadeCx.textAlign='center'; arcadeCx.fillStyle='#e8ecf2';
+  arcadeCx.fillText('Score : '+st.score,110,40);
+  for(let i=0;i<3;i++){
+    const x=70+i*40;
+    arcadeCx.fillStyle=i===st.curseur?'#ffd23f':'#3a3050';
+    arcadeCx.fillRect(x-16,90,32,40);
+    arcadeCx.fillStyle=i===st.curseur?'#05060a':'#e8ecf2';
+    arcadeCx.font='900 22px Arial';
+    arcadeCx.fillText(String.fromCharCode(65+st.lettres[i]),x,118);
+  }
+  arcadeCx.font='800 9px Arial'; arcadeCx.fillStyle='#8a8f9a';
+  arcadeCx.fillText('joystick haut/bas : lettre',110,160);
+  arcadeCx.fillText('action : valider',110,174);
+  arcadeScanlines(220,260);
+}
+function dessinerBorneJeu(){
+  if(ARCADE.attenteInitiales){ dessinerInitiales(); return; }
+  if(ARCADE.jeu==='vipere') dessinerVipere();
+  else if(ARCADE.jeu==='chantier') dessinerChantier();
+}
 
 const INTDEFS={
   superette:{nom:'Supérette 24/7',ico:'🏪',w:22,d:16,sol:0x6a6458,mur:0xb8b49a,
@@ -6037,7 +6344,10 @@ const INTDEFS={
     ens:['LE ROI DES SANDWICHS','#ffd23f']},
   /* ---- lieu spécial (lot 3) : première salle à mécanique de furtivité ---- */
   musee:{nom:'Musée Mémoire de Solara',ico:'🏛️',w:18,d:40,sol:0xd8d0bc,mur:0xe8e2d0,
-    ens:['MUSÉE DE SOLARA','#ffd23f']}
+    ens:['MUSÉE DE SOLARA','#ffd23f']},
+  /* ---- lieu spécial (lot 4) : première salle où l'on reste, pas où l'on accomplit une tâche ---- */
+  arcade:{nom:'Palais de l\'Arcade',ico:'🕹️',w:46,d:22,sol:0x1c1830,mur:0x2a2040,
+    ens:['PALAIS DE L\'ARCADE','#ff5ec4']}
 };
 // véhicules en vente au concessionnaire
 const CATALOGUE=[
@@ -7298,6 +7608,60 @@ function construireSalle(id){
     g.add(alerte); inter.alerte=alerte;
     lampe(0,13,0xffe0a0,7); lampe(0,-13,0xffc46a,7);
   }
+  /* ================= PALAIS DE L'ARCADE =================
+     Première salle où l'on reste, pas où l'on accomplit une tâche : pas de
+     casse, pas de fouille, juste des bornes. 5 bornes alignées, 2 jouables,
+     3 en décor (voir BORNES_ARCADE, tout en haut du fichier — activer une
+     future borne n'ajoute qu'une entrée là-bas + son jeu, jamais rien ici). */
+  else if(id==='arcade'){
+    // moquette sombre à motifs géométriques (losanges)
+    for(let i=-11;i<11;i++) for(let j=-5;j<5;j++){
+      const t=new THREE.Mesh(new THREE.PlaneGeometry(2.05,2.05),mat((i+j)%2===0?0x1c1830:0x221c38));
+      t.rotation.x=-Math.PI/2; t.rotation.z=Math.PI/4; t.position.set(ox+i*2+1,0.11,oz+j*2+1); g.add(t);
+    }
+    // néons muraux roses et cyan
+    for(const [nx,coul] of [[-18,0xff5ec4],[-6,0x35e0ff],[6,0xff5ec4],[18,0x35e0ff]]){
+      box(0.3,0.6,3,coul,nx,3.2,-P2/2+0.3,false);
+      lampe(nx,-P2/2+2.5,coul,7);
+    }
+    box(3,0.6,0.3,0xff5ec4,-W/2+0.3,3.2,-7,false);
+    box(3,0.6,0.3,0x35e0ff,W/2-0.3,3.2,7,false);
+    // 5 bornes alignées, espacées de 9 u (≥8, leurs zones ne se mangent pas)
+    // et à ≥8 u de la sortie (au sud) : voir le registre BORNES_ARCADE
+    inter.bornes=[];
+    const poserBorne=(x,z,def)=>{
+      box(2.2,3,1.6,0x1c1830,x,1.5,z);
+      const ecran=new THREE.Mesh(new THREE.PlaneGeometry(1.5,1.1),
+        new THREE.MeshBasicMaterial({color:def.couleur,transparent:true,opacity:def.actif?0.9:0.25}));
+      ecran.position.set(ox+x,2.15,oz+z+0.81); g.add(ecran);
+      const lueur=new THREE.Mesh(new THREE.CircleGeometry(2.8,16),
+        new THREE.MeshBasicMaterial({color:def.couleur,transparent:true,opacity:def.actif?0.18:0.07,depthWrite:false}));
+      lueur.rotation.x=-Math.PI/2; lueur.position.set(ox+x,0.13,oz+z+1.6); g.add(lueur);
+      const coulHex='#'+def.couleur.toString(16).padStart(6,'0');
+      mkEnseigne(def.nom,coulHex,ox+x,3.3,oz+z-0.9,0,Math.max(6,def.nom.length*0.55));
+      if(!def.actif) mkEnseigne('HORS SERVICE','#ff3b5c',ox+x,2.7,oz+z-0.9,0,8);
+      inter.bornes.push({id:def.id,x:ox+x,z:oz+z});
+    };
+    const xsBornes=[-18,-9,0,9,18];
+    BORNES_ARCADE.forEach((def,i)=>poserBorne(xsBornes[i],-6,def));
+    // comptoir à jetons
+    box(4,1.1,1.4,0x2a2040,-14,0.55,6);
+    mkEnseigne('JETONS','#ffd23f',ox-14,2.2,oz+7.2,0,7);
+    inter.comptoirJetons={x:ox-14,z:oz+6};
+    pnj(-14,7.6,{haut:pick(civHaut),bas:0x1c2030,peau:pick(civPeau),casq:0x2a2018,visage:'cool'},'caisse');
+    // comptoir à lots, articles exposés derrière
+    box(4,1.1,1.4,0x2a2040,14,0.55,6);
+    for(let k=0;k<4;k++) box(0.7,0.7,0.5,pick([0xffd23f,0xff5ec4,0x35e0ff,0x7dff7a]),11.5+k*1,1.6,7.4,false);
+    mkEnseigne('LOTS','#ff5ec4',ox+14,2.2,oz+7.2,0,6);
+    inter.comptoirLots={x:ox+14,z:oz+6};
+    inter.lotIdx=0;
+    pnj(14,7.6,{haut:pick(civHaut),bas:0x1c2030,peau:pick(civPeau),casq:0x4a3520,visage:'gentil'},'caisse');
+    // distributeur de boissons (pur décor, aucune interaction)
+    box(1.4,2,1,0xe8ecf2,0,1,7.5);
+    for(let k=0;k<3;k++) box(1,0.3,0.05,pick([0xd8304a,0x35c8e0,0xf2c21f]),0,0.6+k*0.5,8.02,false);
+    inter.jetons=0;
+    lampe(-14,3,0xffe0a0,7); lampe(14,3,0xffe0a0,7); lampe(0,0,0xff5ec4,10);
+  }
   scene.add(g);
   INT.salles[id]=inter;
   return inter;
@@ -7344,6 +7708,7 @@ function sortirInterieur(){
   if(!INT.actif) return;
   const sc=INT.actif;
   annulerFouille(true); cacherJauges();
+  if(ARCADE.jeu||ARCADE.attenteInitiales){ finirBorneJeu(); ARCADE.attenteInitiales=null; }
   if(sc.karaOn){ sc.karaOn=false; sc.karaBarre.visible=false; toast('Tu quittes la scène en pleine chanson'); }
   for(let i=ennemis.length-1;i>=0;i--){
     const e=ennemis[i];
@@ -7808,6 +8173,15 @@ function majInterieur(dt){
       musBruitEl.style.width=Math.round(s.bruitAcc/2.2*100)+'%';
       if(s.soupcon>=100||s.casseT<=0){ finirCasseMusee(s,false); sortirInterieur(); }
     } else if(musWrap.style.display!=='none') musWrap.style.display='none';
+  }
+  // ---- arcade : bruit de fond discret + écran de borne en surimpression ----
+  if(s.bornes){
+    if(Math.random()<dt*0.4) beep(pick([500,700,900,1200]),0.05,'square',0.025);
+    if(ARCADE.jeu||ARCADE.attenteInitiales){
+      majBorneJeu(dt);
+      if(arcadeWrap.style.display!=='block') arcadeWrap.style.display='block';
+      dessinerBorneJeu();
+    } else if(arcadeWrap.style.display!=='none') arcadeWrap.style.display='none';
   }
 }
 
@@ -8629,6 +9003,10 @@ el('dRetry').addEventListener('pointerdown',()=>startRun());
 el('dUpg').addEventListener('pointerdown',()=>ouvrirDepuis('upg','death'));
 el('dMenu').addEventListener('pointerdown',()=>{el('hud').classList.remove('on');ecran('menu');ETAT.mode='menu';majMenuStats();});
 function togglePause(){
+  // pendant une partie de borne, le bouton pause sert à la quitter (le jeton
+  // est consommé, les tickets gagnés jusque-là sont conservés) : la vraie
+  // pause reste disponible normalement une fois la borne quittée
+  if(ARCADE.jeu){ finirBorneJeu(); return; }
   if(ETAT.mode==='jeu'){ETAT.mode='pause';ecran('pauseM');}
   else if(ETAT.mode==='pause'){ecran(null);ETAT.mode='jeu';}
 }
@@ -8714,7 +9092,17 @@ function startRun(){
       if(sa.alerte) sa.alerte.visible=false;
       if(sa.gardiens) for(const gd of sa.gardiens) gd.deviationT=0;
     }
+    // arcade : les jetons non utilisés sont perdus au game over, comme
+    // l'argent — les tickets et les meilleurs scores, eux, vivent dans META
+    if(sa.bornes) sa.jetons=0;
   }
+  // arcade : une partie de borne en cours est annulée. On passe par
+  // finirBorneJeu() plutôt qu'un simple reset direct, pour que les tickets
+  // déjà gagnés CE game-over soient quand même crédités (voir la règle :
+  // « tickets gagnés jusque-là conservés », qui doit valoir aussi ici, pas
+  // seulement pour un abandon volontaire) ; une éventuelle entrée au tableau
+  // des scores en attente, elle, ne survit pas à un game over.
+  finirBorneJeu(); ARCADE.attenteInitiales=null;
   for(const g of grenades){g.on=false;g.mesh.visible=false;}
   P.mags={}; P.mun={};
   for(const id of ORDRE_ARMES) if(META.armes[id].poss&&ARMES[id].type==='gun'){
@@ -8939,6 +9327,12 @@ function finirCasseMusee(s,succes){
 }
 function majAction(){
   const b=el('btnAction');
+  // le bouton d'action est monopolisé par la borne pendant une partie (ex :
+  // pivoter à CHANTIER) ou par la saisie des initiales — l'entrée est lue
+  // directement par majBorneJeu/majInitiales (appelés depuis majInterieur),
+  // pas ici, et le dispatch normal de la salle est court-circuité
+  if(ARCADE.attenteInitiales){ b.style.display='block'; b.textContent='✅ VALIDER'; return; }
+  if(ARCADE.jeu){ b.style.display='block'; b.textContent=ARCADE.jeu==='chantier'?'⟳ PIVOTER':'ACTION'; return; }
   let label=null,fn=null;
   if(INT.actif){
     const s=INT.actif;
@@ -9006,6 +9400,38 @@ function majAction(){
       const c=s.cartels.find(c=>dist2(P.x,P.z,c.x,c.z)<16);
       label='📜 '+c.titre;
       fn=()=>{ toast(c.texte,'or'); SFX.ui(); };
+    /* ---------- ARCADE : les 5 bornes ---------- */
+    } else if(s.bornes&&s.bornes.some(bo=>dist2(P.x,P.z,bo.x,bo.z)<marquerZone(bo,16))){
+      const bo=s.bornes.find(bo=>dist2(P.x,P.z,bo.x,bo.z)<16);
+      const def=BORNES_ARCADE.find(d=>d.id===bo.id);
+      if(!def.actif){
+        label='🚫 '+def.nom+' — HORS SERVICE';
+        fn=()=>{ toast(def.panneau,'warn'); SFX.refus(); };
+      } else if((s.jetons||0)<=0){
+        label='🕹️ '+def.nom+' — besoin d’un jeton';
+        fn=()=>{ SFX.refus(); toast('Un jeton s’achète 10 $ au comptoir.'); };
+      } else {
+        label='🕹️ '+def.nom+' — JOUER (1 jeton)';
+        fn=()=>{ s.jetons--; demarrerBorneJeu(def.id); SFX.ui(); };
+      }
+    /* ---------- ARCADE : comptoir à jetons ---------- */
+    } else if(s.comptoirJetons&&dist2(P.x,P.z,s.comptoirJetons.x,s.comptoirJetons.z)<marquerZone(s.comptoirJetons,16)){
+      label='🪙 ACHETER UN JETON — 10 $';
+      fn=()=>{
+        if(META.argent<10){ SFX.refus(); toast('Il te faut 10 $'); return; }
+        META.argent-=10; s.jetons=(s.jetons||0)+1; SFX.achat();
+        toast('Jeton acheté (tu en as '+s.jetons+')','or');
+      };
+    /* ---------- ARCADE : comptoir à lots ---------- */
+    } else if(s.comptoirLots&&dist2(P.x,P.z,s.comptoirLots.x,s.comptoirLots.z)<marquerZone(s.comptoirLots,16)){
+      const lot=LOTS_ARCADE[s.lotIdx||0];
+      label='🎟️ '+lot.ico+' '+lot.nom+' — '+lot.cout+' tickets';
+      fn=()=>{
+        if((META.arcadeTickets||0)<lot.cout){ SFX.refus(); toast('Il te faut '+lot.cout+' tickets'); return; }
+        META.arcadeTickets-=lot.cout; lot.act(); SFX.achat();
+        s.lotIdx=((s.lotIdx||0)+1)%LOTS_ARCADE.length;
+        sauveMeta();
+      };
     } else if(s.caisse&&!s.caisse.pris&&dist2(P.x,P.z,s.caisse.x,s.caisse.z)<marquerZone(s.caisse,12)){
       label='BRAQUER LA CAISSE';
       fn=()=>{

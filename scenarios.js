@@ -482,6 +482,169 @@ async function main() {
     else ok('Musée : sprinter à 80 % de la poussée maximale fait bien du bruit');
 
     // -------------------------------------------------------------------
+    // Arcade : VIPÈRE — jeton consommé, score, tickets, collision mortelle.
+    // -------------------------------------------------------------------
+    console.log('\n--- Arcade : VIPÈRE (jeton, score, tickets, collision) ---');
+    const vipereTest = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'arcade');
+      startRun();
+      entrerInterieur('arcade', p);
+      const s = INT.actif;
+      META.argent = 100;
+      P.x = s.comptoirJetons.x; P.z = s.comptoirJetons.z;
+      majAction(); document.getElementById('btnAction')._fn();
+      const jetonsApresAchat = s.jetons, argentApresAchat = META.argent;
+      const bv = s.bornes.find((b) => b.id === 'vipere');
+      P.x = bv.x; P.z = bv.z; majAction(); document.getElementById('btnAction')._fn();
+      const jeuDemarre = ARCADE.jeu === 'vipere';
+      const jetonsApresJeu = s.jetons;
+      const timeScaleAvant = ETAT.timeScale;
+      // place le frelon juste devant la tête et force un pas, 5 fois de suite
+      for (let i = 0; i < 5; i++) {
+        const tete = ARCADE.v.corps[0];
+        ARCADE.v.frelon = { x: tete.x + ARCADE.v.dir.x, y: tete.y + ARCADE.v.dir.y };
+        ARCADE.v.tickT = 0;
+        majVipere(0.01);
+      }
+      const scoreApresRepas = ARCADE.score;
+      const timeScalePendant = ETAT.timeScale;
+      // fonce dans le mur ouest
+      ARCADE.v.corps[0] = { x: 0, y: 10 }; ARCADE.v.dir = { x: -1, y: 0 }; ARCADE.v.tickT = 0;
+      majVipere(0.01);
+      const jeuTermineApresMur = ARCADE.jeu === null;
+      const tickets = META.arcadeTickets || 0;
+      if (INT.actif) sortirInterieur();
+      return { jetonsApresAchat, argentApresAchat, jeuDemarre, jetonsApresJeu, scoreApresRepas, timeScaleAvant, timeScalePendant, jeuTermineApresMur, tickets };
+    });
+    if (vipereTest.jetonsApresAchat !== 1 || vipereTest.argentApresAchat !== 90) fail('Arcade : achat d\'un jeton incorrect (jetons=' + vipereTest.jetonsApresAchat + ', argent=' + vipereTest.argentApresAchat + ', attendu 1 et 90)');
+    else ok('Arcade : un jeton coûte bien 10 $');
+    if (!vipereTest.jeuDemarre || vipereTest.jetonsApresJeu !== 0) fail('Arcade : jouer à VIPÈRE n\'a pas consommé le jeton comme attendu');
+    else ok('Arcade : jouer une partie consomme bien 1 jeton');
+    if (vipereTest.scoreApresRepas !== 5) fail('Arcade : VIPÈRE — score attendu 5 après 5 Frelons avalés, obtenu ' + vipereTest.scoreApresRepas);
+    else ok('Arcade : VIPÈRE compte bien les Frelons avalés');
+    if (vipereTest.timeScaleAvant !== 1 || vipereTest.timeScalePendant !== 1) fail('Arcade : jouer à une borne modifie ETAT.timeScale — le temps ne coûte plus le même prix qu\'ailleurs');
+    else ok('Arcade : jouer à une borne ne met pas le jeu en pause (ETAT.timeScale inchangé)');
+    if (!vipereTest.jeuTermineApresMur) fail('Arcade : VIPÈRE — toucher le mur n\'a pas terminé la partie');
+    else ok('Arcade : VIPÈRE se termine bien en touchant un mur');
+    if (vipereTest.tickets !== 1) fail('Arcade : VIPÈRE — tickets attendus 1 (5 Frelons / 4), obtenu ' + vipereTest.tickets);
+    else ok('Arcade : VIPÈRE crédite le bon nombre de tickets (1 par tranche de 4 Frelons)');
+
+    // -------------------------------------------------------------------
+    // Arcade : CHANTIER — ligne complétée, puis abandon volontaire en
+    // pleine partie (bouton pause détourné) : jeton déjà consommé, tickets
+    // gagnés jusque-là conservés.
+    // -------------------------------------------------------------------
+    console.log('\n--- Arcade : CHANTIER (ligne, tickets, abandon volontaire) ---');
+    const chantierTest = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'arcade');
+      entrerInterieur('arcade', p);
+      const s = INT.actif;
+      META.argent = 100;
+      P.x = s.comptoirJetons.x; P.z = s.comptoirJetons.z;
+      majAction(); document.getElementById('btnAction')._fn(); // 1 jeton : une seule partie, abandonnée
+      const bc = s.bornes.find((b) => b.id === 'chantier');
+      P.x = bc.x; P.z = bc.z; majAction(); document.getElementById('btnAction')._fn();
+      const jeuDemarre = ARCADE.jeu === 'chantier';
+      // remplit DEUX rangées du bas entièrement (sauf les deux colonnes où
+      // atterrira la pièce, deux rangées plus haut) : un seul verrouillage
+      // déclenche le balayage des lignes, qui trouve les deux rangées pleines
+      // d'un coup (score += 2, donc 1 ticket à 2 lignes/ticket)
+      const c = ARCADE.c;
+      for (let y = 16; y <= 17; y++) for (let x = 0; x < 10; x++) { c.grille[y * 10 + x] = 1; c.couleurs[y * 10 + x] = 0xffffff; }
+      c.pieceIdx = 1; c.rot = 0; c.px = 3; c.py = 14; c.tickT = 0;
+      majChantier(0.01); // se pose à py=14 (py=15 collisionne avec la rangée 16, pleine)
+      const ligneEffacee = c.grille[17 * 10] === 0; // les rangées pleines ont disparu (tout redescendu)
+      const scoreApresLigne = ARCADE.score;
+      // abandon volontaire, en pleine partie : le bouton pause quitte la borne
+      togglePause();
+      const jeuFiniApresAbandon = ARCADE.jeu === null;
+      const ticketsFinal = META.arcadeTickets || 0;
+      const jetonsRestants = s.jetons;
+      if (INT.actif) sortirInterieur();
+      return { jeuDemarre, ligneEffacee, scoreApresLigne, jeuFiniApresAbandon, ticketsFinal, jetonsRestants };
+    });
+    if (!chantierTest.jeuDemarre) fail('Arcade : CHANTIER ne démarre pas');
+    else ok('Arcade : CHANTIER démarre correctement');
+    if (!chantierTest.ligneEffacee || chantierTest.scoreApresLigne !== 2) fail('Arcade : CHANTIER — deux rangées pleines n\'ont pas été effacées (score=' + chantierTest.scoreApresLigne + ', attendu 2)');
+    else ok('Arcade : CHANTIER efface bien les lignes complètes et compte le score');
+    if (!chantierTest.jeuFiniApresAbandon) fail('Arcade : le bouton pause ne quitte pas une partie de borne en cours');
+    else ok('Arcade : quitter une partie en cours (bouton pause) fonctionne');
+    if (chantierTest.jetonsRestants !== 0) fail('Arcade : le jeton de la partie abandonnée n\'a pas été consommé (jetons restants=' + chantierTest.jetonsRestants + ')');
+    else ok('Arcade : le jeton est bien consommé même en abandonnant');
+    if (chantierTest.ticketsFinal < vipereTest.tickets + 1) fail('Arcade : abandonner en pleine partie n\'a pas conservé les tickets gagnés jusque-là (attendu ≥' + (vipereTest.tickets + 1) + ', obtenu ' + chantierTest.ticketsFinal + ')');
+    else ok('Arcade : abandonner en pleine partie conserve bien les tickets déjà gagnés');
+
+    // -------------------------------------------------------------------
+    // Arcade : les jetons non utilisés sont perdus au game over, tickets et
+    // meilleurs scores survivent (ils vivent dans META, pas sur la salle).
+    // -------------------------------------------------------------------
+    console.log('\n--- Arcade : réinitialisation au game over ---');
+    const resetArcade = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'arcade');
+      entrerInterieur('arcade', p);
+      const s = INT.actif;
+      META.argent = 100;
+      P.x = s.comptoirJetons.x; P.z = s.comptoirJetons.z;
+      majAction(); document.getElementById('btnAction')._fn();
+      const jetonsAvant = s.jetons;
+      const ticketsAvant = META.arcadeTickets;
+      P.hp = 1; toucherJoueur(9999); // -> mourir()
+      startRun();
+      return { jetonsAvant, jetonsApres: s.jetons, ticketsApres: META.arcadeTickets, ticketsAvant };
+    });
+    if (resetArcade.jetonsAvant < 1) fail('Arcade : le test n\'a pas pu acheter de jeton avant le game over');
+    if (resetArcade.jetonsApres !== 0) fail('Arcade : un jeton non utilisé a survécu au game over (jetons=' + resetArcade.jetonsApres + ')');
+    else ok('Arcade : les jetons non utilisés sont bien perdus au game over');
+    if (resetArcade.ticketsApres < resetArcade.ticketsAvant) fail('Arcade : les tickets n\'ont pas survécu au game over');
+    else ok('Arcade : les tickets survivent bien au game over (META)');
+
+    // -------------------------------------------------------------------
+    // Arcade : Le Jeton Doré — calculé sur la liste des bornes ACTIVES, pas
+    // une liste codée en dur. Battre une seule des deux bornes actives ne
+    // suffit pas ; battre les deux donne la curiosité.
+    // -------------------------------------------------------------------
+    console.log('\n--- Arcade : curiosité Le Jeton Doré (bornes actives) ---');
+    const jetonDore = await page.evaluate(() => {
+      const actives = BORNES_ARCADE.filter((b) => b.actif).map((b) => b.id);
+      // une seule borne battue : pas de curiosité
+      META.arcadeScores.vipere[0] = { init: 'AAA', score: 999 };
+      META.arcadeScores.chantier[0] = { init: 'AAA', score: 0 };
+      verifierJetonDore();
+      const pasEncore = aCurio('jeton_dore');
+      // les deux bornes actives battues : curiosité accordée
+      META.arcadeScores.chantier[0] = { init: 'AAA', score: 999 };
+      verifierJetonDore();
+      const accordee = aCurio('jeton_dore');
+      return { actives, pasEncore, accordee };
+    });
+    if (jetonDore.actives.length !== 2 || !jetonDore.actives.includes('vipere') || !jetonDore.actives.includes('chantier')) {
+      fail('Arcade : la liste des bornes actives n\'est plus vipere+chantier (' + jetonDore.actives.join(',') + ') — ce test suppose ces deux-là, à ajuster si de nouvelles bornes sont activées');
+    }
+    if (jetonDore.pasEncore) fail('Arcade : Le Jeton Doré accordé alors qu\'une seule borne active était battue');
+    else ok('Arcade : battre une seule borne active ne donne pas Le Jeton Doré');
+    if (!jetonDore.accordee) fail('Arcade : Le Jeton Doré non accordé alors que toutes les bornes actives sont battues');
+    else ok('Arcade : battre toutes les bornes actives donne bien Le Jeton Doré');
+
+    // -------------------------------------------------------------------
+    // Arcade : effet aimant du Jeton Doré — portée 6 m, accélère à l'approche.
+    // -------------------------------------------------------------------
+    console.log('\n--- Arcade : effet aimant du Jeton Doré ---');
+    const aimant = await page.evaluate(() => {
+      startRun();
+      const loin = { x: P.x + 5.5, z: P.z }; // 5,5 m : hors de portée de l'aimant de base (~2,65 u), dans les 6 m du Jeton Doré
+      creerPickup('cash', loin.x, loin.z, 50);
+      const p = pickups[pickups.length - 1];
+      const avant = { x: p.x, z: p.z };
+      for (let i = 0; i < 10; i++) majPickups(0.1); // 1 s simulée
+      const distAvant = Math.hypot(avant.x - P.x, avant.z - P.z);
+      const distApres = Math.hypot(p.x - P.x, p.z - P.z);
+      return { distAvant, distApres, aCurio: aCurio('jeton_dore') };
+    });
+    if (!aimant.aCurio) fail('Arcade : le test suppose Le Jeton Doré déjà acquis (voir test précédent)');
+    if (!(aimant.distApres < aimant.distAvant - 1)) fail('Arcade : un ramassable à 5,5 m ne se rapproche pas du joueur alors que Le Jeton Doré est acquis (avant ' + aimant.distAvant.toFixed(2) + ', après ' + aimant.distApres.toFixed(2) + ')');
+    else ok('Arcade : Le Jeton Doré attire bien un ramassable à 5,5 m (hors de portée de l\'aimant de base)');
+
+    // -------------------------------------------------------------------
     // Persistance : sauvegarde, rechargement, META cohérent.
     // -------------------------------------------------------------------
     console.log('\n--- Persistance (sauvegarde / rechargement) ---');
