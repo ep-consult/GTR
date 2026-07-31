@@ -834,16 +834,250 @@ async function main() {
     else ok('Arcade : DÉMOLITION — une boule rapide rebondit bien sur la grue, même sur une frame lente');
 
     // -------------------------------------------------------------------
+    // Arcade : GLOUTON — le labyrinthe est un tracé FIXE (aucune génération
+    // aléatoire) : lu depuis la source du jeu (GL_MUR/glMur), jamais recopié
+    // ici (voir CLAUDE.md, « Tests : ne jamais recopier une liste du jeu »).
+    // Deux règles non négociables : aucune impasse, deux tunnels latéraux
+    // pleinement ouverts à mi-hauteur.
+    // -------------------------------------------------------------------
+    console.log('\n--- Arcade : GLOUTON — labyrinthe (aucune impasse, connexe, tunnels ouverts) ---');
+    const labyrinthe = await page.evaluate(() => {
+      let impasses = 0;
+      const impassesListe = [];
+      for (let y = 0; y < GL_ROWS; y++) for (let x = 0; x < GL_COLS; x++) {
+        if (glMur(x, y)) continue;
+        let deg = 0;
+        if (!glMur(x, y - 1)) deg++;
+        if (!glMur(x, y + 1)) deg++;
+        if (!glMur(x - 1, y)) deg++;
+        if (!glMur(x + 1, y)) deg++;
+        if (deg < 2) { impasses++; impassesListe.push([x, y]); }
+      }
+      let depart = null;
+      for (let y = 0; y < GL_ROWS && !depart; y++) for (let x = 0; x < GL_COLS; x++) if (!glMur(x, y)) { depart = [x, y]; break; }
+      const vu = new Set([depart[0] + ',' + depart[1]]);
+      const pile = [depart];
+      while (pile.length) {
+        const [x, y] = pile.pop();
+        for (const [dx, dy] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) {
+          let nx = x + dx; const ny = y + dy;
+          if (nx < 0) nx = GL_COLS - 1; else if (nx >= GL_COLS) nx = 0;
+          if (ny < 0 || ny >= GL_ROWS || glMur(nx, ny)) continue;
+          const cle = nx + ',' + ny;
+          if (!vu.has(cle)) { vu.add(cle); pile.push([nx, ny]); }
+        }
+      }
+      let totalSol = 0;
+      for (let y = 0; y < GL_ROWS; y++) for (let x = 0; x < GL_COLS; x++) if (!glMur(x, y)) totalSol++;
+      const tunnelsOuverts = !glMur(0, 7) && !glMur(GL_COLS - 1, 7) && !glMur(0, 9) && !glMur(GL_COLS - 1, 9);
+      return { impasses, impassesListe, totalSol, atteint: vu.size, tunnelsOuverts, nbSandwichs: GL_SANDWICH_BASE.length };
+    });
+    if (labyrinthe.impasses > 0) fail('GLOUTON : ' + labyrinthe.impasses + ' impasse(s) détectée(s) — ' + JSON.stringify(labyrinthe.impassesListe));
+    else ok('GLOUTON : le labyrinthe n\'a aucune impasse (toute case de sol a au moins 2 voisins ouverts)');
+    if (labyrinthe.atteint !== labyrinthe.totalSol) fail('GLOUTON : le labyrinthe n\'est pas entièrement connexe (' + labyrinthe.atteint + '/' + labyrinthe.totalSol + ' cases atteintes)');
+    else ok('GLOUTON : le labyrinthe est bien entièrement connexe (' + labyrinthe.totalSol + ' cases)');
+    if (!labyrinthe.tunnelsOuverts) fail('GLOUTON : les deux tunnels latéraux ne sont pas pleinement ouverts');
+    else ok('GLOUTON : les deux tunnels latéraux sont bien pleinement ouverts');
+    if (labyrinthe.nbSandwichs < 100) fail('GLOUTON : nombre de sandwichs suspicieusement bas (' + labyrinthe.nbSandwichs + ')');
+    else ok('GLOUTON : ' + labyrinthe.nbSandwichs + ' sandwichs répartis dans le labyrinthe');
+
+    // -------------------------------------------------------------------
+    // Arcade : GLOUTON — démarrage, contrôle (croix à 4 directions, sans
+    // rotation), sandwich mangé, badge (effraie tous les gardiens actifs),
+    // combo de gardiens mangés (25 puis 50), contact mortel avec un gardien
+    // non effrayé (vie perdue, position remise à zéro, progression gardée).
+    // -------------------------------------------------------------------
+    console.log('\n--- Arcade : GLOUTON (démarrage, sandwich, badge, combo de gardiens, contact mortel) ---');
+    const glouton = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'arcade');
+      startRun();
+      entrerInterieur('arcade', p);
+      const s = INT.actif;
+      META.argent = 100;
+      P.x = s.comptoirJetons.x; P.z = s.comptoirJetons.z;
+      majAction(); document.getElementById('btnAction')._fn();
+      const bo = s.bornes.find((b) => b.id === 'glouton');
+      P.x = bo.x; P.z = bo.z; majAction(); document.getElementById('btnAction')._fn();
+      const jeuDemarre = ARCADE.jeu === 'glouton';
+      const controle = {
+        croixVisible: croixWrap.style.display === 'block',
+        joystickCache: zoneL.style.display === 'none',
+        haut: document.getElementById('croixHaut').style.display,
+        rotate: document.getElementById('croixRotate').style.display,
+      };
+      const d = ARCADE.g;
+      const cle = Math.round(d.joueur.x) + ',' + Math.round(d.joueur.y);
+      const sandwichAvant = !!d.sandwichs[cle];
+      const restantsAvant = d.sandwichsRestants;
+      majGlouton(0.001);
+      const sandwichMange = sandwichAvant && !d.sandwichs[cle] && d.sandwichsRestants === restantsAvant - 1;
+      const scoreApresSandwich = ARCADE.score;
+      // badge : les 3 gardiens (simulés actifs) deviennent effrayés
+      for (const g of d.fantomes) g.actif = true;
+      const badge = d.badges[0];
+      d.joueur.x = badge.x; d.joueur.y = badge.y;
+      majGlouton(0.001);
+      const badgePris = badge.pris;
+      const scoreApresBadge = ARCADE.score;
+      const tousEffrayes = d.fantomes.every((g) => g.effraye);
+      const dureeBadge = d.effraiT;
+      // 1er gardien effrayé mangé : +25, renvoyé au poste
+      const g0 = d.fantomes[0];
+      d.joueur.x = g0.x; d.joueur.y = g0.y;
+      majGlouton(0.001);
+      const g0RenvoyeAuPoste = !g0.actif && g0.x === GL_POSTE.x && g0.y === GL_POSTE.y;
+      const scoreApresPremierFantome = ARCADE.score - scoreApresBadge;
+      // 2e gardien effrayé mangé dans la foulée : +50 (combo)
+      const g1 = d.fantomes[1];
+      d.joueur.x = g1.x; d.joueur.y = g1.y;
+      const scoreAvantDeuxieme = ARCADE.score;
+      majGlouton(0.001);
+      const scoreApresDeuxiemeFantome = ARCADE.score - scoreAvantDeuxieme;
+      // gardien NON effrayé : contact mortel
+      const restantsAvantMort = d.sandwichsRestants;
+      const g2 = d.fantomes[2];
+      g2.effraye = false; g2.actif = true; g2.x = GL_SPAWN_JOUEUR.x; g2.y = GL_SPAWN_JOUEUR.y;
+      d.joueur.x = GL_SPAWN_JOUEUR.x; d.joueur.y = GL_SPAWN_JOUEUR.y;
+      const viesAvant = d.vies;
+      majGlouton(0.001);
+      const vieDunPerdue = d.vies === viesAvant - 1;
+      const positionReinitialisee = d.joueur.x === GL_SPAWN_JOUEUR.x && d.joueur.y === GL_SPAWN_JOUEUR.y;
+      const progressionConservee = d.sandwichsRestants === restantsAvantMort;
+      if (INT.actif) sortirInterieur();
+      return {
+        jeuDemarre, controle, sandwichMange, scoreApresSandwich, badgePris, scoreApresBadge, tousEffrayes, dureeBadge,
+        g0RenvoyeAuPoste, scoreApresPremierFantome, scoreApresDeuxiemeFantome,
+        vieDunPerdue, positionReinitialisee, progressionConservee, viesAvant,
+      };
+    });
+    if (!glouton.jeuDemarre) fail('Arcade : GLOUTON ne démarre pas');
+    else ok('Arcade : GLOUTON démarre correctement');
+    if (!glouton.controle.croixVisible || !glouton.controle.joystickCache || glouton.controle.haut !== 'flex' || glouton.controle.rotate !== 'none') fail('Arcade : GLOUTON n\'affiche pas la bonne configuration de croix (4 directions, sans rotation) — ' + JSON.stringify(glouton.controle));
+    else ok('Arcade : GLOUTON affiche bien la croix à 4 directions (sans bouton de rotation), joystick masqué');
+    if (!glouton.sandwichMange || glouton.scoreApresSandwich !== 2) fail('Arcade : GLOUTON — manger un sandwich ne donne pas 2 points (score=' + glouton.scoreApresSandwich + ')');
+    else ok('Arcade : GLOUTON — manger un sandwich retire bien la case et donne 2 points');
+    if (!glouton.badgePris || glouton.scoreApresBadge !== 12 || !glouton.tousEffrayes) fail('Arcade : GLOUTON — le badge ne donne pas 10 points et/ou n\'effraie pas tous les gardiens actifs (score=' + glouton.scoreApresBadge + ', tousEffrayes=' + glouton.tousEffrayes + ')');
+    else ok('Arcade : GLOUTON — le badge donne bien 10 points et effraie tous les gardiens actifs');
+    if (Math.abs(glouton.dureeBadge - 8) > 0.01) fail('Arcade : GLOUTON — la durée du badge au niveau 1 n\'est pas 8 s (' + glouton.dureeBadge + ')');
+    else ok('Arcade : GLOUTON — la durée du badge est bien de 8 s au niveau 1');
+    if (!glouton.g0RenvoyeAuPoste || glouton.scoreApresPremierFantome !== 25) fail('Arcade : GLOUTON — manger un 1er gardien effrayé ne donne pas 25 points et/ou ne le renvoie pas au poste (score=' + glouton.scoreApresPremierFantome + ', renvoye=' + glouton.g0RenvoyeAuPoste + ')');
+    else ok('Arcade : GLOUTON — manger un 1er gardien effrayé donne bien 25 points et le renvoie au poste');
+    if (glouton.scoreApresDeuxiemeFantome !== 50) fail('Arcade : GLOUTON — manger un 2e gardien effrayé dans la foulée ne donne pas 50 points (combo) (obtenu ' + glouton.scoreApresDeuxiemeFantome + ')');
+    else ok('Arcade : GLOUTON — le combo de gardiens mangés monte bien à 50 points pour le 2e');
+    if (!glouton.vieDunPerdue || !glouton.positionReinitialisee || !glouton.progressionConservee) fail('Arcade : GLOUTON — un contact avec un gardien non effrayé ne coûte pas une vie et/ou ne réinitialise pas correctement (' + JSON.stringify(glouton) + ')');
+    else ok('Arcade : GLOUTON — un contact avec un gardien non effrayé coûte bien une vie, remet les positions à zéro et garde la progression');
+
+    // -------------------------------------------------------------------
+    // Arcade : GLOUTON — manger tous les sandwichs passe au niveau suivant
+    // avec le MÊME labyrinthe (sandwichs replacés), des gardiens plus
+    // rapides et un badge plus court — mais jamais plus rapide que le joueur,
+    // même à un niveau très avancé (sinon le jeu devient ingagnable).
+    // -------------------------------------------------------------------
+    console.log('\n--- Arcade : GLOUTON — niveau suivant (même labyrinthe, gardiens plus rapides, badge plus court) ---');
+    const niveauSuivant = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'arcade');
+      entrerInterieur('arcade', p);
+      const s = INT.actif;
+      META.argent = 100;
+      P.x = s.comptoirJetons.x; P.z = s.comptoirJetons.z;
+      majAction(); document.getElementById('btnAction')._fn();
+      const bo = s.bornes.find((b) => b.id === 'glouton');
+      P.x = bo.x; P.z = bo.z; majAction(); document.getElementById('btnAction')._fn();
+      const d = ARCADE.g;
+      const niveauAvant = d.niveau;
+      const vitesseAvant = glVitesseFantome(d.niveau);
+      const dureeBadgeAvant = glDureeBadge(d.niveau);
+      const cles = Object.keys(d.sandwichs);
+      for (let i = 1; i < cles.length; i++) delete d.sandwichs[cles[i]];
+      d.sandwichsRestants = 1;
+      const [dx, dy] = cles[0].split(',').map(Number);
+      d.joueur.x = dx; d.joueur.y = dy;
+      majGlouton(0.001);
+      const niveauApres = d.niveau;
+      const sandwichsRestantsApres = d.sandwichsRestants;
+      const vitesseApres = glVitesseFantome(d.niveau);
+      const dureeBadgeApres = glDureeBadge(d.niveau);
+      const vitesseNiveauEleve = glVitesseFantome(50);
+      if (INT.actif) sortirInterieur();
+      return {
+        niveauAvant, niveauApres, sandwichsRestantsApres, totalSandwichs: GL_SANDWICH_BASE.length,
+        vitesseAvant, vitesseApres, dureeBadgeAvant, dureeBadgeApres, vitesseNiveauEleve, vitesseJoueur: GL_VIT_JOUEUR,
+      };
+    });
+    if (niveauSuivant.niveauApres !== niveauSuivant.niveauAvant + 1) fail('Arcade : GLOUTON — manger tous les sandwichs ne passe pas au niveau suivant');
+    else ok('Arcade : GLOUTON — manger tous les sandwichs passe bien au niveau suivant');
+    if (niveauSuivant.sandwichsRestantsApres !== niveauSuivant.totalSandwichs) fail('Arcade : GLOUTON — le niveau suivant ne replace pas tous les sandwichs (' + niveauSuivant.sandwichsRestantsApres + '/' + niveauSuivant.totalSandwichs + ')');
+    else ok('Arcade : GLOUTON — le niveau suivant replace bien tous les sandwichs (même labyrinthe)');
+    if (!(niveauSuivant.vitesseApres > niveauSuivant.vitesseAvant)) fail('Arcade : GLOUTON — les gardiens n\'accélèrent pas au niveau suivant (' + niveauSuivant.vitesseAvant + ' -> ' + niveauSuivant.vitesseApres + ')');
+    else ok('Arcade : GLOUTON — les gardiens accélèrent bien au niveau suivant');
+    if (!(niveauSuivant.dureeBadgeApres < niveauSuivant.dureeBadgeAvant)) fail('Arcade : GLOUTON — la durée du badge ne diminue pas au niveau suivant (' + niveauSuivant.dureeBadgeAvant + ' -> ' + niveauSuivant.dureeBadgeApres + ')');
+    else ok('Arcade : GLOUTON — la durée du badge diminue bien au niveau suivant');
+    if (!(niveauSuivant.vitesseNiveauEleve < niveauSuivant.vitesseJoueur)) fail('Arcade : GLOUTON — la vitesse des gardiens dépasse celle du joueur à un niveau avancé (' + niveauSuivant.vitesseNiveauEleve + ' >= ' + niveauSuivant.vitesseJoueur + ') — le jeu deviendrait ingagnable');
+    else ok('Arcade : GLOUTON — la vitesse des gardiens ne dépasse jamais celle du joueur, même à un niveau très avancé');
+
+    // -------------------------------------------------------------------
+    // Arcade : GLOUTON — virage demandé en file d'attente (s'applique dès
+    // que possible), tunnel latéral (passe d'un bord à l'autre), règle de
+    // miséricorde (aucune mort inévitable si le joueur est encerclé sans
+    // issue — même principe que l'anti-blocage de DÉMOLITION).
+    // -------------------------------------------------------------------
+    console.log('\n--- Arcade : GLOUTON — virage en file d\'attente, tunnel, règle de miséricorde ---');
+    const mecaniques = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'arcade');
+      entrerInterieur('arcade', p);
+      const s = INT.actif;
+      META.argent = 100;
+      P.x = s.comptoirJetons.x; P.z = s.comptoirJetons.z;
+      majAction(); document.getElementById('btnAction')._fn();
+      const bo = s.bornes.find((b) => b.id === 'glouton');
+      P.x = bo.x; P.z = bo.z; majAction(); document.getElementById('btnAction')._fn();
+      const d = ARCADE.g;
+      for (const g of d.fantomes) g.actif = false;
+      // virage en file d'attente : demande un virage AVANT l'intersection
+      // (7,1), un carrefour à 3 sorties (haut = bordure) ; doit s'appliquer
+      // dès qu'il devient possible, pas être ignoré
+      d.joueur.x = 3; d.joueur.y = 1; d.joueur.dir = { x: 1, y: 0 }; d.joueur.next = { x: 0, y: 1 };
+      for (let i = 0; i < 60 && !(d.joueur.dir.x === 0 && d.joueur.dir.y === 1); i++) majGlouton(0.02);
+      const virageApplique = d.joueur.dir.x === 0 && d.joueur.dir.y === 1;
+      // tunnel : sort par la gauche à la rangée 7, doit réapparaître à droite
+      d.joueur.x = 0; d.joueur.y = 7; d.joueur.dir = { x: -1, y: 0 }; d.joueur.next = { x: -1, y: 0 };
+      let xMax = d.joueur.x;
+      for (let i = 0; i < 10; i++) { majGlouton(0.02); if (d.joueur.x > xMax) xMax = d.joueur.x; }
+      const aTraverseLeTunnel = xMax > GL_COLS - 3;
+      // règle de miséricorde : joueur à l'intersection (7,1) (3 sorties),
+      // les 3 gardiens (non effrayés) occupent chacune des 3 sorties -> aucune issue
+      d.joueur.x = 7; d.joueur.y = 1; d.joueur.dir = { x: 0, y: 0 }; d.joueur.next = { x: 0, y: 0 };
+      d.fantomes[0].x = 6; d.fantomes[0].y = 1; d.fantomes[0].actif = true; d.fantomes[0].effraye = false;
+      d.fantomes[1].x = 8; d.fantomes[1].y = 1; d.fantomes[1].actif = true; d.fantomes[1].effraye = false;
+      d.fantomes[2].x = 7; d.fantomes[2].y = 2; d.fantomes[2].actif = true; d.fantomes[2].effraye = false;
+      const positionsAvant = d.fantomes.map((g) => ({ x: g.x, y: g.y }));
+      glVerifierMisericorde(d, 0.02);
+      const positionsApres = d.fantomes.map((g) => ({ x: g.x, y: g.y }));
+      const unGardienAReculee = positionsAvant.some((pa, i) => pa.x !== positionsApres[i].x || pa.y !== positionsApres[i].y);
+      if (INT.actif) sortirInterieur();
+      return { virageApplique, aTraverseLeTunnel, unGardienAReculee };
+    });
+    if (!mecaniques.virageApplique) fail('Arcade : GLOUTON — un virage demandé avant l\'intersection ne s\'applique pas dès qu\'il devient possible');
+    else ok('Arcade : GLOUTON — le virage en file d\'attente s\'applique bien dès que possible');
+    if (!mecaniques.aTraverseLeTunnel) fail('Arcade : GLOUTON — le joueur ne traverse pas le tunnel latéral d\'un bord à l\'autre');
+    else ok('Arcade : GLOUTON — le tunnel latéral fait bien passer d\'un bord à l\'autre');
+    if (!mecaniques.unGardienAReculee) fail('Arcade : GLOUTON — la règle de miséricorde ne recule pas un gardien quand le joueur est encerclé sans issue');
+    else ok('Arcade : GLOUTON — la règle de miséricorde recule bien un gardien quand le joueur est encerclé sans issue');
+
+    // -------------------------------------------------------------------
     // Arcade : bouton QUITTER pendant une partie de borne — visible, hors de
     // portée du pouce qui joue (en haut, alors que les commandes sont en
     // bas), consomme le jeton et banque les tickets via finirBorneJeu, comme
-    // les autres façons de quitter. Vérifié sur les 3 bornes actives.
+    // les autres façons de quitter. Vérifié sur TOUTES les bornes actives,
+    // lues depuis BORNES_ARCADE (jamais une liste recopiée en dur ici — voir
+    // CLAUDE.md, « Tests : ne jamais recopier une liste du jeu »).
     // -------------------------------------------------------------------
-    console.log('\n--- Arcade : bouton QUITTER visible et fonctionnel sur les 3 bornes ---');
+    console.log('\n--- Arcade : bouton QUITTER visible et fonctionnel sur toutes les bornes actives ---');
     const boutonQuitter = await page.evaluate(() => {
       const p = PORTES.find((x) => x.id === 'arcade');
+      const idsActifs = BORNES_ARCADE.filter((b) => b.actif).map((b) => b.id);
       const resultats = {};
-      for (const id of ['vipere', 'chantier', 'demolition']) {
+      for (const id of idsActifs) {
         startRun();
         entrerInterieur('arcade', p);
         const s = INT.actif;
@@ -861,6 +1095,7 @@ async function main() {
         const hautEcran = rect.top < window.innerHeight * 0.5;
         if (id === 'demolition') { ARCADE.d.grueX = 4.5; }
         else if (id === 'vipere') { for (let i = 0; i < 6; i++) { const t = ARCADE.v.corps[0]; ARCADE.v.frelon = { x: t.x + ARCADE.v.dir.x, y: t.y + ARCADE.v.dir.y }; ARCADE.v.tickT = 0; majVipere(0.01); } }
+        else if (id === 'glouton') { ARCADE.score = 30; } // diviseurTickets=25 : garantit >=1 ticket
         const scoreAvantQuitter = ARCADE.score;
         bp.dispatchEvent(new PointerEvent('pointerdown'));
         const jeuFiniApresClic = ARCADE.jeu === null;
@@ -869,10 +1104,10 @@ async function main() {
         if (INT.actif) sortirInterieur();
         resultats[id] = { labelPendant, classePendant, hautEcran, scoreAvantQuitter, jeuFiniApresClic, ticketsApres, jetonsApres };
       }
-      return resultats;
+      return { idsActifs, resultats };
     });
-    for (const id of ['vipere', 'chantier', 'demolition']) {
-      const r = boutonQuitter[id];
+    for (const id of boutonQuitter.idsActifs) {
+      const r = boutonQuitter.resultats[id];
       if (r.labelPendant !== '✕ QUITTER' || !r.classePendant) fail('Arcade : ' + id + ' — le bouton pause n\'affiche pas « QUITTER » pendant la partie (' + r.labelPendant + ')');
       else ok('Arcade : ' + id + ' — le bouton QUITTER est bien visible pendant la partie');
       if (!r.hautEcran) fail('Arcade : ' + id + ' — le bouton QUITTER n\'est pas hors de portée du pouce qui joue (pas en haut de l\'écran)');

@@ -966,7 +966,8 @@ const META={
   arcadeScores:{
     vipere:[{init:'ZOH',score:24},{init:'GAS',score:18},{init:'MAX',score:14},{init:'BOB',score:9},{init:'AAA',score:5}],
     chantier:[{init:'ZOH',score:16},{init:'GAS',score:12},{init:'MAX',score:9},{init:'BOB',score:6},{init:'AAA',score:3}],
-    demolition:[{init:'ZOH',score:72},{init:'GAS',score:54},{init:'MAX',score:38},{init:'BOB',score:24},{init:'AAA',score:12}]
+    demolition:[{init:'ZOH',score:72},{init:'GAS',score:54},{init:'MAX',score:38},{init:'BOB',score:24},{init:'AAA',score:12}],
+    glouton:[{init:'ZOH',score:200},{init:'GAS',score:150},{init:'MAX',score:105},{init:'BOB',score:65},{init:'AAA',score:30}]
   }
 };
 const DEFIS=[
@@ -6204,8 +6205,8 @@ const BORNES_ARCADE=[
    controle:'croix',croix:{haut:false,bas:true,gauche:true,droite:true,rotate:true}},
   {id:'demolition',nom:'DÉMOLITION',actif:true,refScore:90,diviseurTickets:15,couleur:0xff9f2e,
    controle:'glisse'},
-  {id:'glouton',nom:'GLOUTON',actif:false,couleur:0xffd23f,
-   panneau:'En panne depuis 1994. Le réparateur a dit qu’il repassait.'},
+  {id:'glouton',nom:'GLOUTON',actif:true,refScore:250,diviseurTickets:25,couleur:0xffd23f,
+   controle:'croix',croix:{haut:true,bas:true,gauche:true,droite:true,rotate:false}},
   {id:'canards',nom:'STAND DE CANARDS',actif:false,couleur:0xff5ec4,
    panneau:'Temporairement fermé pour enquête.'}
 ];
@@ -6234,7 +6235,7 @@ const FORMES_CHANTIER=[
 // état de session (aucune persistance ici : voir META.arcadeScores — les
 // tickets, eux, vivent sur INT.salles.arcade.tickets, pas dans META : ce
 // qu'on porte est perdu au game over, ce qu'on a accompli reste)
-const ARCADE={jeu:null,score:0,v:null,c:null,d:null,attenteInitiales:null};
+const ARCADE={jeu:null,score:0,v:null,c:null,d:null,g:null,attenteInitiales:null};
 function finirBorneJeu(){
   if(!ARCADE.jeu) return;
   const jeu=ARCADE.jeu;
@@ -6272,6 +6273,7 @@ function demarrerBorneJeu(id){
   if(id==='vipere') vipereInit();
   else if(id==='chantier') chantierInit();
   else if(id==='demolition') demolitionInit();
+  else if(id==='glouton') glInit();
   configurerControleBorne(BORNES_ARCADE.find(b=>b.id===id));
 }
 /* ---------- VIPÈRE : grille 20×20, avance en continu, la croix dirige ---------- */
@@ -6547,6 +6549,355 @@ function majDemolition(dt){
     demolitionNouvelleTour();
   }
 }
+/* ---------- GLOUTON : labyrinthe fixe, dessiné à la main ----------
+   Grille 15×17, tracé identique à chaque partie (aucune génération
+   aléatoire) — comme les rondes du musée, le joueur doit pouvoir
+   l'apprendre. Deux règles de tracé non négociables, VALIDÉES au chargement
+   par glVerifierLabyrinthe() (jamais supposées) :
+   - aucune impasse : toute case de sol a au moins 2 voisins ouverts ;
+   - deux tunnels latéraux pleinement ouverts (rangées 7 et 9) qui font
+     passer d'un bord à l'autre.
+   Positions en (x,y) = (colonne, rangée), jamais (rangée, colonne). */
+const GL_COLS=15, GL_ROWS=17;
+const GL_PLAN=[
+  '###############',
+  '#.............#',
+  '#.##.#...#.##.#',
+  '#.##.#...#.##.#',
+  '#....#...#....#',
+  '#.##.......##.#',
+  '#.............#',
+  '...............',
+  '#.............#',
+  '...............',
+  '#.............#',
+  '#.##.......##.#',
+  '#....#...#....#',
+  '#.##.#...#.##.#',
+  '#.##.#...#.##.#',
+  '#.............#',
+  '###############',
+];
+const GL_MUR=new Array(GL_COLS*GL_ROWS).fill(false);
+for(let r=0;r<GL_ROWS;r++) for(let c=0;c<GL_COLS;c++) GL_MUR[r*GL_COLS+c]=GL_PLAN[r][c]==='#';
+function glMur(x,y){
+  if(y<0||y>=GL_ROWS) return true;
+  if(x<0) x=GL_COLS-1; else if(x>=GL_COLS) x=0; // tunnels : bord logiquement relié au bord opposé
+  return GL_MUR[y*GL_COLS+x];
+}
+function glVerifierLabyrinthe(){
+  let impasses=0;
+  for(let y=0;y<GL_ROWS;y++) for(let x=0;x<GL_COLS;x++){
+    if(glMur(x,y)) continue;
+    let deg=0;
+    if(!glMur(x,y-1)) deg++; if(!glMur(x,y+1)) deg++;
+    if(!glMur(x-1,y)) deg++; if(!glMur(x+1,y)) deg++;
+    if(deg<2){ impasses++; console.error('GLOUTON : impasse détectée en',x,y); }
+  }
+  if(!glMur(0,7)&&!glMur(GL_COLS-1,7)&&!glMur(0,9)&&!glMur(GL_COLS-1,9)){}
+  else console.error('GLOUTON : les bouches de tunnel ne sont pas toutes ouvertes');
+  return impasses===0;
+}
+glVerifierLabyrinthe();
+const GL_BADGES_POS=[{x:1,y:1},{x:13,y:1},{x:1,y:15},{x:13,y:15}];
+const GL_POSTE_CELLS=[{x:6,y:8},{x:7,y:8},{x:8,y:8}];
+const GL_POSTE={x:7,y:8};
+const GL_SPAWN_JOUEUR={x:7,y:13};
+const GL_CENTRE={x:7,y:8};
+// toutes les cases de sol hors badges/poste portent un sandwich — référence
+// fixe, jamais mutée (l'état par partie vit dans ARCADE.g.sandwichs)
+const GL_SANDWICH_BASE=[];
+for(let y=0;y<GL_ROWS;y++) for(let x=0;x<GL_COLS;x++){
+  if(glMur(x,y)) continue;
+  if(GL_BADGES_POS.some(b=>b.x===x&&b.y===y)) continue;
+  if(GL_POSTE_CELLS.some(p=>p.x===x&&p.y===y)) continue;
+  GL_SANDWICH_BASE.push({x,y});
+}
+const GL_COULEURS_FANTOMES={zele:'#ff3b5c',malin:'#4a9aff',flemmard:'#7dff7a'};
+const GL_POINTS_COMBO=[25,50,100,200];
+const GL_BONUS_TYPES=[
+  {nom:'Chaussette',ico:'🧦',pts:50},{nom:'Boule de bowling',ico:'🎳',pts:100},
+  {nom:'Canard en plastique',ico:'🦆',pts:200},{nom:'Disque de platine',ico:'💿',pts:300},
+];
+// vitesses en CASES PAR SECONDE (unités logiques, jamais des pixels — même
+// piège que la boule de DÉMOLITION avant son recalibrage) ; la vitesse des
+// gardiens ne dépasse JAMAIS celle du joueur, sous peine de rendre le jeu
+// ingagnable plutôt que difficile.
+const GL_VIT_JOUEUR=5.2;
+const GL_VIT_FANTOME_BASE=3.6, GL_VIT_FANTOME_PAR_NIVEAU=0.25, GL_VIT_FANTOME_PLAFOND=GL_VIT_JOUEUR-0.4;
+function glVitesseFantome(niveau){
+  return Math.min(GL_VIT_FANTOME_PLAFOND,GL_VIT_FANTOME_BASE+(niveau-1)*GL_VIT_FANTOME_PAR_NIVEAU);
+}
+function glDureeBadge(niveau){
+  if(niveau<=1) return 8;
+  if(niveau===2) return 6;
+  if(niveau===3) return 5;
+  return 4;
+}
+function glInit(){
+  ARCADE.jeu='glouton';
+  ARCADE.g={
+    niveau:0, vies:3,
+    joueur:{x:GL_SPAWN_JOUEUR.x,y:GL_SPAWN_JOUEUR.y,dir:{x:0,y:0},next:{x:0,y:0},bouche:0},
+    fantomes:[], sandwichs:null, sandwichsRestants:0, badges:null,
+    effraiT:0, combo:0, bonus:null, bonusApparu:[false,false], bonusSeuils:[0,0],
+    tempsNiveau:0, misericordeCd:0,
+  };
+  glNouveauNiveau();
+}
+function glNouveauNiveau(){
+  const d=ARCADE.g;
+  d.niveau++;
+  d.sandwichs={};
+  for(const s of GL_SANDWICH_BASE) d.sandwichs[s.x+','+s.y]=true;
+  d.sandwichsRestants=GL_SANDWICH_BASE.length;
+  d.badges=GL_BADGES_POS.map(b=>({x:b.x,y:b.y,pris:false}));
+  d.effraiT=0; d.combo=0; d.bonus=null; d.bonusApparu=[false,false];
+  d.bonusSeuils=[Math.floor(d.sandwichsRestants/3),Math.floor(d.sandwichsRestants*2/3)];
+  d.tempsNiveau=0;
+  d.joueur.x=GL_SPAWN_JOUEUR.x; d.joueur.y=GL_SPAWN_JOUEUR.y;
+  d.joueur.dir={x:0,y:0}; d.joueur.next={x:0,y:0};
+  d.fantomes=[
+    {type:'zele',x:GL_POSTE_CELLS[0].x,y:GL_POSTE_CELLS[0].y,dir:{x:0,y:0},actif:false,effraye:false,attente:0},
+    {type:'malin',x:GL_POSTE_CELLS[1].x,y:GL_POSTE_CELLS[1].y,dir:{x:0,y:0},actif:false,effraye:false,attente:3},
+    {type:'flemmard',x:GL_POSTE_CELLS[2].x,y:GL_POSTE_CELLS[2].y,dir:{x:0,y:0},actif:false,effraye:false,attente:6,ancre:{x:13,y:15}},
+  ];
+}
+function glPerteVie(d){
+  d.joueur.x=GL_SPAWN_JOUEUR.x; d.joueur.y=GL_SPAWN_JOUEUR.y;
+  d.joueur.dir={x:0,y:0}; d.joueur.next={x:0,y:0};
+  d.tempsNiveau=0;
+  const delais=[0,3,6];
+  for(let i=0;i<d.fantomes.length;i++){
+    const g=d.fantomes[i];
+    g.x=GL_POSTE_CELLS[i].x; g.y=GL_POSTE_CELLS[i].y;
+    g.dir={x:0,y:0}; g.actif=false; g.effraye=false; g.attente=delais[i];
+  }
+  d.effraiT=0; d.combo=0;
+  SFX.degat(); vibre(60);
+}
+function glMurVoisin(x,y,dir){
+  if(dir.x===0&&dir.y===0) return true;
+  return glMur(x+dir.x,y+dir.y);
+}
+// déplacement générique (joueur ET fantômes) : à chaque case-centre, décide
+// (ou lit la direction demandée en file d'attente) — test de FRANCHISSEMENT
+// du centre de case, pas juste la position finale, pour ne jamais sauter
+// une intersection à haute vitesse/bas framerate (même piège que la grue de
+// DÉMOLITION). `choisir(e)` renvoie la direction proposée à cette case.
+function glDeplaceEntite(e,vitesse,dt,choisir){
+  if(e.x<0) e.x=GL_COLS-1; else if(e.x>GL_COLS-1) e.x=0; // tunnel : téléportation nette au bord opposé
+  const cx=Math.round(e.x), cy=Math.round(e.y);
+  const dAuCentre=Math.hypot(e.x-cx,e.y-cy);
+  const pas=vitesse*dt;
+  if(dAuCentre<=pas){
+    const surplus=pas-dAuCentre;
+    e.x=cx; e.y=cy;
+    const propose=choisir?choisir(e):e.next;
+    if(propose&&!(propose.x===0&&propose.y===0)&&!glMurVoisin(e.x,e.y,propose)) e.dir=propose;
+    else if(glMurVoisin(e.x,e.y,e.dir)) e.dir={x:0,y:0};
+    e.x+=e.dir.x*surplus; e.y+=e.dir.y*surplus;
+  } else {
+    e.x+=e.dir.x*pas; e.y+=e.dir.y*pas;
+  }
+}
+function glMajJoueur(d,dt){
+  const j=d.joueur;
+  if(INPUT.mx<-0.4) j.next={x:-1,y:0};
+  else if(INPUT.mx>0.4) j.next={x:1,y:0};
+  else if(INPUT.mz<-0.4) j.next={x:0,y:-1};
+  else if(INPUT.mz>0.4) j.next={x:0,y:1};
+  glDeplaceEntite(j,GL_VIT_JOUEUR,dt,e=>e.next);
+  j.bouche+=dt*10;
+}
+// cible de chaque gardien : ZÉLÉ fonce sur le joueur, MALIN vise 4 cases
+// devant lui, FLEMMARD patrouille vers son ancre et ne poursuit qu'à moins
+// de 5 cases — un comportement simple par gardien, lisible en une partie.
+function glCibleFantome(g,d){
+  const j=d.joueur;
+  if(g.effraye) return GL_POSTE;
+  if(g.type==='zele') return {x:j.x,y:j.y};
+  if(g.type==='malin'){
+    return {x:clamp(Math.round(j.x+j.dir.x*4),0,GL_COLS-1),y:clamp(Math.round(j.y+j.dir.y*4),0,GL_ROWS-1)};
+  }
+  return Math.hypot(j.x-g.x,j.y-g.y)<5 ? {x:j.x,y:j.y} : g.ancre;
+}
+function glChoisirDirectionFantome(g,d){
+  const cible=glCibleFantome(g,d);
+  const dirs=[{x:0,y:-1},{x:0,y:1},{x:-1,y:0},{x:1,y:0}];
+  let meilleur=null, meilleurD=Infinity;
+  for(const dd of dirs){
+    if(!(g.dir.x===0&&g.dir.y===0)&&g.dir.x===-dd.x&&g.dir.y===-dd.y) continue; // jamais de demi-tour
+    if(glMurVoisin(g.x,g.y,dd)) continue;
+    let nx=g.x+dd.x; if(nx<0) nx+=GL_COLS; else if(nx>GL_COLS-1) nx-=GL_COLS;
+    const ny=g.y+dd.y;
+    const dist=(nx-cible.x)*(nx-cible.x)+(ny-cible.y)*(ny-cible.y);
+    if(dist<meilleurD){ meilleurD=dist; meilleur=dd; }
+  }
+  return meilleur||g.dir;
+}
+function glMajFantome(g,d,dt){
+  if(!g.actif) return;
+  const vit=glVitesseFantome(d.niveau)*(g.effraye?0.6:1);
+  glDeplaceEntite(g,vit,dt,e=>glChoisirDirectionFantome(e,d));
+}
+function glFaireApparaitreBonus(d,idx){
+  d.bonusApparu[idx]=true;
+  const tier=GL_BONUS_TYPES[Math.min(d.niveau-1,GL_BONUS_TYPES.length-1)];
+  d.bonus={x:GL_CENTRE.x,y:GL_CENTRE.y,t:10,pts:tier.pts,nom:tier.nom,ico:tier.ico};
+}
+// règle de miséricorde : si le joueur est encerclé sans AUCUNE issue libre
+// (chaque case voisine est menacée par un gardien non effrayé tout proche),
+// il ne doit pas mourir d'une situation qu'aucun jeu ne lui permettait
+// d'éviter — recule le gardien le plus proche d'une case (même principe que
+// l'anti-blocage de DÉMOLITION). Cooldown pour ne pas repousser en boucle.
+function glVerifierMisericorde(d,dt){
+  if(d.misericordeCd>0){ d.misericordeCd-=dt; return; }
+  const pcx=Math.round(d.joueur.x), pcy=Math.round(d.joueur.y);
+  if(Math.abs(d.joueur.x-pcx)>0.1||Math.abs(d.joueur.y-pcy)>0.1) return; // seulement à une intersection
+  const dirs=[{x:0,y:-1},{x:0,y:1},{x:-1,y:0},{x:1,y:0}];
+  for(const dd of dirs){
+    if(glMurVoisin(pcx,pcy,dd)) continue;
+    let nx=pcx+dd.x; if(nx<0) nx+=GL_COLS; else if(nx>GL_COLS-1) nx-=GL_COLS;
+    const ny=pcy+dd.y;
+    let menacee=false;
+    for(const g of d.fantomes){
+      if(!g.actif||g.effraye) continue;
+      if(Math.hypot(g.x-nx,g.y-ny)<1.1){ menacee=true; break; }
+    }
+    if(!menacee) return; // au moins une issue libre : rien à faire
+  }
+  let plusProche=null, distMin=Infinity;
+  for(const g of d.fantomes){
+    if(!g.actif||g.effraye) continue;
+    const dist=Math.hypot(g.x-d.joueur.x,g.y-d.joueur.y);
+    if(dist<distMin){ distMin=dist; plusProche=g; }
+  }
+  if(!plusProche) return;
+  const dx=Math.sign(Math.round(plusProche.x)-pcx), dy=Math.sign(Math.round(plusProche.y)-pcy);
+  const nx=Math.round(plusProche.x)+dx, ny=Math.round(plusProche.y)+dy;
+  if(!glMur(nx,ny)){ plusProche.x=nx; plusProche.y=ny; plusProche.dir={x:0,y:0}; d.misericordeCd=1.5; }
+}
+function majGlouton(dt){
+  const d=ARCADE.g;
+  d.tempsNiveau+=dt;
+  for(const g of d.fantomes) if(!g.actif&&d.tempsNiveau>=g.attente){ g.actif=true; if(d.effraiT>0) g.effraye=true; }
+  if(d.effraiT>0){
+    d.effraiT-=dt;
+    if(d.effraiT<=0){ d.effraiT=0; for(const g of d.fantomes) g.effraye=false; }
+  }
+  glMajJoueur(d,dt);
+  for(const g of d.fantomes) glMajFantome(g,d,dt);
+  glVerifierMisericorde(d,dt);
+  // sandwichs
+  const cx=Math.round(d.joueur.x), cy=Math.round(d.joueur.y);
+  if(Math.abs(d.joueur.x-cx)<0.3&&Math.abs(d.joueur.y-cy)<0.3){
+    const cle=cx+','+cy;
+    if(d.sandwichs[cle]){
+      delete d.sandwichs[cle]; d.sandwichsRestants--; ARCADE.score+=2;
+      beep(900,0.03,'square',0.04);
+      const manges=GL_SANDWICH_BASE.length-d.sandwichsRestants;
+      if(!d.bonusApparu[0]&&manges>=d.bonusSeuils[0]) glFaireApparaitreBonus(d,0);
+      else if(!d.bonusApparu[1]&&manges>=d.bonusSeuils[1]) glFaireApparaitreBonus(d,1);
+      if(d.sandwichsRestants<=0){ glNouveauNiveau(); toast('Niveau '+d.niveau+' !','or'); SFX.niveau(); return; }
+    }
+  }
+  // badges
+  for(const b of d.badges){
+    if(b.pris) continue;
+    if(Math.abs(d.joueur.x-b.x)<0.35&&Math.abs(d.joueur.y-b.y)<0.35){
+      b.pris=true; ARCADE.score+=10;
+      d.effraiT=glDureeBadge(d.niveau); d.combo=0;
+      for(const g of d.fantomes) if(g.actif) g.effraye=true;
+      toast('🪪 Badge de visiteur — les gardiens te prennent pour un visiteur','or'); SFX.achat();
+    }
+  }
+  // bonus surprise
+  if(d.bonus){
+    d.bonus.t-=dt;
+    if(Math.abs(d.joueur.x-d.bonus.x)<0.35&&Math.abs(d.joueur.y-d.bonus.y)<0.35){
+      ARCADE.score+=d.bonus.pts;
+      toast(d.bonus.ico+' '+d.bonus.nom+' : +'+d.bonus.pts,'or'); SFX.achat();
+      d.bonus=null;
+    } else if(d.bonus.t<=0) d.bonus=null;
+  }
+  // gardiens : contact
+  for(const g of d.fantomes){
+    if(!g.actif) continue;
+    if(Math.hypot(d.joueur.x-g.x,d.joueur.y-g.y)<0.55){
+      if(g.effraye){
+        g.effraye=false; g.actif=false; g.x=GL_POSTE.x; g.y=GL_POSTE.y; g.dir={x:0,y:0};
+        g.attente=d.tempsNiveau+2;
+        const pts=GL_POINTS_COMBO[Math.min(d.combo,GL_POINTS_COMBO.length-1)];
+        d.combo++; ARCADE.score+=pts;
+        toast('👻 Gardien renvoyé au poste : +'+pts,'or'); SFX.ui(); vibre(30);
+      } else {
+        d.vies--;
+        if(d.vies<=0){ finirBorneJeu(); return; }
+        glPerteVie(d);
+        break;
+      }
+    }
+  }
+}
+function dessinerGlouton(){
+  const d=ARCADE.g;
+  const {W,H,taille}=arcadeEntete('GLOUTON',"#ffd23f");
+  const hautH=taille+20, basH=Math.max(30,Math.round(H*0.09));
+  const cell=Math.max(2,Math.floor(Math.min((W-16)/GL_COLS,(H-hautH-basH)/GL_ROWS)));
+  const gw=cell*GL_COLS, gh=cell*GL_ROWS;
+  const ox=Math.round((W-gw)/2), oy=Math.round(hautH+(H-hautH-basH-gh)/2);
+  const px=x=>ox+x*cell+cell/2, py=y=>oy+y*cell+cell/2;
+  arcadeCx.fillStyle='#161c30';
+  for(let y=0;y<GL_ROWS;y++) for(let x=0;x<GL_COLS;x++){
+    if(glMur(x,y)) continue;
+    arcadeCx.fillRect(ox+x*cell,oy+y*cell,cell,cell);
+  }
+  arcadeCx.fillStyle='#ffd23f';
+  for(const s of GL_SANDWICH_BASE){
+    if(!d.sandwichs[s.x+','+s.y]) continue;
+    arcadeCx.beginPath(); arcadeCx.arc(px(s.x),py(s.y),Math.max(1,cell*0.11),0,6.29); arcadeCx.fill();
+  }
+  for(const b of d.badges){
+    if(b.pris) continue;
+    arcadeCx.fillStyle='#8ad2ff';
+    arcadeCx.fillRect(px(b.x)-cell*0.24,py(b.y)-cell*0.24,cell*0.48,cell*0.48);
+  }
+  if(d.bonus){
+    const clignote=d.bonus.t<2&&Math.floor(d.bonus.t*8)%2===0;
+    if(!clignote){
+      arcadeCx.font=Math.round(cell*0.8)+'px Arial'; arcadeCx.textAlign='center'; arcadeCx.textBaseline='middle';
+      arcadeCx.fillText(d.bonus.ico,px(d.bonus.x),py(d.bonus.y)+1);
+      arcadeCx.textBaseline='alphabetic';
+    }
+  }
+  for(const g of d.fantomes){
+    if(!g.actif) continue;
+    const clignote=g.effraye&&d.effraiT<2&&Math.floor(d.effraiT*8)%2===0;
+    arcadeCx.fillStyle=g.effraye?(clignote?'#e8ecf2':'#7a86ff'):GL_COULEURS_FANTOMES[g.type];
+    arcadeCx.beginPath(); arcadeCx.arc(px(g.x),py(g.y),cell*0.38,0,6.29); arcadeCx.fill();
+    arcadeCx.fillStyle='#0b0c10';
+    arcadeCx.beginPath(); arcadeCx.arc(px(g.x)-cell*0.13,py(g.y)-cell*0.06,cell*0.08,0,6.29); arcadeCx.fill();
+    arcadeCx.beginPath(); arcadeCx.arc(px(g.x)+cell*0.13,py(g.y)-cell*0.06,cell*0.08,0,6.29); arcadeCx.fill();
+  }
+  const j=d.joueur;
+  const ouverture=Math.abs(Math.sin(j.bouche))*0.9+0.08;
+  let ang=0;
+  if(j.dir.x===1) ang=0; else if(j.dir.x===-1) ang=Math.PI;
+  else if(j.dir.y===-1) ang=-Math.PI/2; else if(j.dir.y===1) ang=Math.PI/2;
+  arcadeCx.fillStyle='#ffe066';
+  arcadeCx.beginPath();
+  arcadeCx.moveTo(px(j.x),py(j.y));
+  arcadeCx.arc(px(j.x),py(j.y),cell*0.42,ang+ouverture,ang-ouverture+6.2831);
+  arcadeCx.closePath(); arcadeCx.fill();
+  arcadeCx.font='800 '+Math.max(9,Math.round(W*0.045))+'px Arial'; arcadeCx.textAlign='left'; arcadeCx.fillStyle='#e8ecf2';
+  arcadeCx.fillText('SCORE '+ARCADE.score,10,H-16);
+  const meilleur=META.arcadeScores.glouton[0]?META.arcadeScores.glouton[0].score:0;
+  arcadeCx.textAlign='right'; arcadeCx.fillText('MEILLEUR '+meilleur,W-10,H-16);
+  arcadeCx.textAlign='center'; arcadeCx.font='800 '+Math.max(8,Math.round(W*0.033))+'px Arial'; arcadeCx.fillStyle='#8a8f9a';
+  arcadeCx.fillText('vies '+'❤'.repeat(Math.max(0,d.vies))+' · niveau '+d.niveau,W/2,H-4);
+  arcadeScanlines(W,H);
+}
 /* ---------- saisie des initiales (nouveau record) ---------- */
 function majInitiales(dt){
   const st=ARCADE.attenteInitiales;
@@ -6578,6 +6929,7 @@ function majBorneJeu(dt){
   if(ARCADE.jeu==='vipere') majVipere(dt);
   else if(ARCADE.jeu==='chantier') majChantier(dt);
   else if(ARCADE.jeu==='demolition') majDemolition(dt);
+  else if(ARCADE.jeu==='glouton') majGlouton(dt);
 }
 /* ---------- rendu de l'écran de borne : cathodique, palette limitée ---------- */
 function arcadeScanlines(w,h){
@@ -6727,6 +7079,7 @@ function dessinerBorneJeu(){
   if(ARCADE.jeu==='vipere') dessinerVipere();
   else if(ARCADE.jeu==='chantier') dessinerChantier();
   else if(ARCADE.jeu==='demolition') dessinerDemolition();
+  else if(ARCADE.jeu==='glouton') dessinerGlouton();
 }
 
 const INTDEFS={
