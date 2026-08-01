@@ -1562,6 +1562,279 @@ async function main() {
     else ok('Arcade : CHANTIER utilise bien sa propre configuration de croix (pas de bouton haut, bouton de rotation dédié)');
 
     // -------------------------------------------------------------------
+    // Ciné-Palace : porte au bon quartier, curiosité 'bobine' activée.
+    // -------------------------------------------------------------------
+    console.log('\n--- Ciné-Palace : porte, quartier, curiosité activée ---');
+    const cinePorte = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'cine');
+      const c = CURIOS.find((x) => x.id === 'bobine');
+      return {
+        porteExiste: !!p,
+        quartierAttendu: quartier(11, 5),
+        curioActive: c ? c.actif : null,
+        curioA_eff: c ? !!c.eff : false,
+        curioA_ind: c ? !!c.ind : false,
+      };
+    });
+    if (!cinePorte.porteExiste) fail('Ciné-Palace : aucune porte posée pour la salle');
+    else ok('Ciné-Palace : la porte est bien posée');
+    if (cinePorte.quartierAttendu !== 'commerce') fail('Ciné-Palace : quartier(11,5) ne vaut plus \'commerce\' (' + cinePorte.quartierAttendu + ') — repositionner caseCentre(11,5)');
+    else ok('Ciné-Palace : quartier(11,5) vaut bien \'commerce\', comme demandé');
+    if (!cinePorte.curioActive || !cinePorte.curioA_eff || !cinePorte.curioA_ind) fail('Ciné-Palace : la curiosité \'bobine\' n\'est pas correctement activée (actif/eff/ind)');
+    else ok('Ciné-Palace : la curiosité \'bobine\' est bien activée avec ses textes');
+
+    // -------------------------------------------------------------------
+    // Ciné-Palace : sans la curiosité 'bobine' (pas encore acquise à ce
+    // stade de la suite), une élimination qui prolonge un combo ne doit
+    // déclencher aucun ralenti. Vérifié ICI, avant tout test de séance :
+    // la curiosité est permanente, un test plus loin dans la suite qui
+    // réussirait une séance parfaite l'accorderait pour de bon (voir la
+    // suite de ce test juste après « fin de séance », plus bas).
+    // -------------------------------------------------------------------
+    console.log('\n--- Ciné-Palace : pas de ralenti sans la curiosité \'bobine\' ---');
+    const sansRalenti = await page.evaluate(() => {
+      startRun();
+      ETAT.mode = 'jeu';
+      const faux = () => ({ def: { cash: [0, 0], score: 10, xp: 0 }, x: P.x, z: P.z, fac: 'neutre', mort: false, wave: 1, libre: false });
+      const dejaAcquise = aCurio('bobine');
+      ETAT.combo = 2; ETAT.timeScale = 1;
+      tuerEnnemi(faux(), true);
+      const timeScaleSansCurio = ETAT.timeScale;
+      ETAT.timeScale = 1;
+      return { dejaAcquise, timeScaleSansCurio };
+    });
+    if (sansRalenti.dejaAcquise) fail('Ciné-Palace : le test suppose la curiosité \'bobine\' pas encore acquise à ce stade de la suite — un test antérieur l\'a accordée par erreur');
+    else if (sansRalenti.timeScaleSansCurio !== 1) fail('Ciné-Palace : un ralenti se déclenche sur un combo prolongé alors que la curiosité \'bobine\' n\'est pas encore acquise');
+    else ok('Ciné-Palace : aucun ralenti sans la curiosité \'bobine\'');
+
+    // -------------------------------------------------------------------
+    // Ciné-Palace : espacements — lus depuis la salle réelle, jamais
+    // recopiés ici (voir CLAUDE.md, « Tests : ne jamais recopier une liste
+    // du jeu »). Les 4 postes à au moins 8 u entre eux, toutes les zones
+    // interactives à au moins 8 u du centre de la sortie.
+    // -------------------------------------------------------------------
+    console.log('\n--- Ciné-Palace : espacements (postes entre eux, zones vs sortie) ---');
+    const espacements = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'cine');
+      entrerInterieur('cine', p);
+      const s = INT.actif;
+      const postes = Object.keys(s.postesPos);
+      const distPostePoste = [];
+      for (let i = 0; i < postes.length; i++) for (let j = i + 1; j < postes.length; j++) {
+        const a = s.postesPos[postes[i]], b = s.postesPos[postes[j]];
+        distPostePoste.push(Math.hypot(a.x - b.x, a.z - b.z));
+      }
+      const zonesVsSortie = [Math.hypot(s.projecteur.x - s.sortie.x, s.projecteur.z - s.sortie.z)];
+      for (const id of postes) { const a = s.postesPos[id]; zonesVsSortie.push(Math.hypot(a.x - s.sortie.x, a.z - s.sortie.z)); }
+      for (const f of s.fouilles) zonesVsSortie.push(Math.hypot(f.x - s.sortie.x, f.z - s.sortie.z));
+      const nbFouilles = s.fouilles.length;
+      if (INT.actif) sortirInterieur();
+      return { distPostePoste, zonesVsSortie, nbFouilles };
+    });
+    if (Math.min(...espacements.distPostePoste) < 7.99) fail('Ciné-Palace : deux postes sont à moins de 8 unités l\'un de l\'autre (' + JSON.stringify(espacements.distPostePoste) + ')');
+    else ok('Ciné-Palace : les 4 postes sont bien espacés d\'au moins 8 unités entre eux');
+    if (espacements.zonesVsSortie.some((d) => d < 7.99)) fail('Ciné-Palace : une zone interactive est à moins de 8 unités du centre de la sortie (' + JSON.stringify(espacements.zonesVsSortie) + ')');
+    else ok('Ciné-Palace : toutes les zones interactives sont bien à au moins 8 unités de la sortie');
+    if (espacements.nbFouilles !== 3) fail('Ciné-Palace : nombre de contenants fouillables inattendu (' + espacements.nbFouilles + ', attendu 3)');
+    else ok('Ciné-Palace : les 3 contenants fouillables sont bien enregistrés');
+
+    // -------------------------------------------------------------------
+    // Ciné-Palace : démarrage de la séance, dérive des 4 jauges exprimée en
+    // unités/seconde (même vitesse en gros ou petits pas de temps, jamais
+    // par frame), une jauge qui atteint sa limite fait chuter la
+    // satisfaction et se fige jusqu'à réparation du poste correspondant.
+    // -------------------------------------------------------------------
+    console.log('\n--- Ciné-Palace : séance (démarrage, dérive en unités/seconde, protestation, réparation) ---');
+    const seance = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'cine');
+      startRun();
+      entrerInterieur('cine', p);
+      const s = INT.actif;
+      P.x = s.projecteur.x; P.z = s.projecteur.z;
+      majAction(); document.getElementById('btnAction')._fn();
+      const seanceDemarree = s.seanceOn;
+      const satisfactionInitiale = s.satisfaction;
+      const multRef = cineMultVitesse(10);
+      const grandPas = CINE_VIT_BASE.bobine * multRef * 1.0;
+      let petitsPas = 0;
+      for (let i = 0; i < 10; i++) petitsPas += CINE_VIT_BASE.bobine * cineMultVitesse(10) * 0.1;
+      const memeVitesseGrosPetitsPas = Math.abs(grandPas - petitsPas) < 1e-9;
+      s.postes.bobine.probleme = 99.5;
+      majInterieur(1);
+      const jaugeEnAlerte = s.postes.bobine.enAlerte;
+      const satisfactionApresLimite = s.satisfaction;
+      const parfaiteApresLimite = s.parfaite;
+      P.x = s.postesPos.bobine.x; P.z = s.postesPos.bobine.z;
+      majAction(); document.getElementById('btnAction')._fn();
+      const jaugeApresReparation = s.postes.bobine.probleme;
+      const enAlerteApresReparation = s.postes.bobine.enAlerte;
+      if (INT.actif) sortirInterieur();
+      return {
+        seanceDemarree, satisfactionInitiale, memeVitesseGrosPetitsPas,
+        jaugeEnAlerte, satisfactionApresLimite, parfaiteApresLimite,
+        jaugeApresReparation, enAlerteApresReparation,
+      };
+    });
+    if (!seance.seanceDemarree || seance.satisfactionInitiale !== 100) fail('Ciné-Palace : interagir avec le projecteur ne démarre pas la séance à 100 % de satisfaction');
+    else ok('Ciné-Palace : la séance démarre bien via le projecteur, satisfaction à 100 %');
+    if (!seance.memeVitesseGrosPetitsPas) fail('Ciné-Palace : la dérive des jauges dépend du découpage en frames, pas juste du temps écoulé (devrait être en unités/seconde)');
+    else ok('Ciné-Palace : la dérive des jauges est bien exprimée en unités/seconde (indépendante du découpage en frames)');
+    if (!seance.jaugeEnAlerte || seance.satisfactionApresLimite !== 85 || seance.parfaiteApresLimite) fail('Ciné-Palace : une jauge qui atteint sa limite ne fait pas chuter la satisfaction de 15 et/ou ne marque pas la séance comme imparfaite (satisfaction=' + seance.satisfactionApresLimite + ', parfaite=' + seance.parfaiteApresLimite + ')');
+    else ok('Ciné-Palace : une jauge qui atteint sa limite fait bien chuter la satisfaction (-15) et casse la séance parfaite');
+    if (seance.jaugeApresReparation !== 0 || seance.enAlerteApresReparation) fail('Ciné-Palace : réparer un poste ne remet pas sa jauge à zéro');
+    else ok('Ciné-Palace : réparer un poste remet bien sa jauge à zéro');
+
+    // -------------------------------------------------------------------
+    // Ciné-Palace : limite de 2 séances par vague — abandonner une séance
+    // en cours (sortir de la salle) la consomme quand même.
+    // -------------------------------------------------------------------
+    console.log('\n--- Ciné-Palace : limite de 2 séances par vague, l\'abandon consomme la séance ---');
+    const cap = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'cine');
+      startRun();
+      entrerInterieur('cine', p);
+      const s = INT.actif;
+      P.x = s.projecteur.x; P.z = s.projecteur.z;
+      majAction(); document.getElementById('btnAction')._fn();
+      const premiereDemarree = s.seanceOn;
+      sortirInterieur();
+      const seanceAnnuleeApresSortie = !s.seanceOn;
+      const compteurApresAbandon = s.seancesVague;
+      entrerInterieur('cine', p);
+      P.x = s.projecteur.x; P.z = s.projecteur.z;
+      majAction(); document.getElementById('btnAction')._fn();
+      const deuxiemeDemarree = s.seanceOn;
+      sortirInterieur();
+      const compteurApres2 = s.seancesVague;
+      entrerInterieur('cine', p);
+      P.x = s.projecteur.x; P.z = s.projecteur.z;
+      majAction();
+      const label3e = document.getElementById('btnAction').textContent;
+      document.getElementById('btnAction')._fn();
+      const troisiemeRefusee = !s.seanceOn;
+      if (INT.actif) sortirInterieur();
+      return { premiereDemarree, seanceAnnuleeApresSortie, compteurApresAbandon, deuxiemeDemarree, compteurApres2, label3e, troisiemeRefusee };
+    });
+    if (!cap.premiereDemarree || !cap.seanceAnnuleeApresSortie || cap.compteurApresAbandon !== 1) fail('Ciné-Palace : abandonner une séance en cours (sortie) ne la consomme pas correctement (démarrée=' + cap.premiereDemarree + ', annulée=' + cap.seanceAnnuleeApresSortie + ', compteur=' + cap.compteurApresAbandon + ')');
+    else ok('Ciné-Palace : sortir en pleine séance l\'annule et la consomme quand même');
+    if (!cap.deuxiemeDemarree || cap.compteurApres2 !== 2) fail('Ciné-Palace : la 2e séance de la vague ne démarre pas correctement (compteur=' + cap.compteurApres2 + ')');
+    else ok('Ciné-Palace : la 2e séance de la vague démarre normalement');
+    if (!cap.troisiemeRefusee || !/deux séances/i.test(cap.label3e)) fail('Ciné-Palace : une 3e séance dans la même vague n\'est pas refusée (label=' + cap.label3e + ')');
+    else ok('Ciné-Palace : une 3e séance dans la même vague est bien refusée');
+
+    // -------------------------------------------------------------------
+    // Ciné-Palace : fin de séance — succès (100 s, recette = 500 $ ×
+    // satisfaction, curiosité sur séance parfaite) et fiasco (satisfaction
+    // à 0, recette nulle).
+    // -------------------------------------------------------------------
+    console.log('\n--- Ciné-Palace : fin de séance (succès parfait, fiasco), recette, curiosité ---');
+    const fin = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'cine');
+      startRun();
+      entrerInterieur('cine', p);
+      const s = INT.actif;
+      P.x = s.projecteur.x; P.z = s.projecteur.z;
+      majAction(); document.getElementById('btnAction')._fn();
+      const argentAvant = META.argent;
+      s.seanceT = CINE_DUREE;
+      majInterieur(0.001);
+      const seanceFinieParfaite = !s.seanceOn;
+      const argentApresParfaite = META.argent;
+      const curioObtenue = aCurio('bobine');
+      entrerInterieur('cine', p);
+      P.x = s.projecteur.x; P.z = s.projecteur.z;
+      majAction(); document.getElementById('btnAction')._fn();
+      s.satisfaction = 0;
+      const argentAvantFiasco = META.argent;
+      majInterieur(0.001);
+      const seanceFinieFiasco = !s.seanceOn;
+      const argentApresFiasco = META.argent;
+      if (INT.actif) sortirInterieur();
+      return { argentAvant, seanceFinieParfaite, argentApresParfaite, curioObtenue, argentAvantFiasco, seanceFinieFiasco, argentApresFiasco };
+    });
+    if (!fin.seanceFinieParfaite || fin.argentApresParfaite !== fin.argentAvant + 500) fail('Ciné-Palace : une séance parfaite de 100 s ne rapporte pas 500 $ (obtenu +' + (fin.argentApresParfaite - fin.argentAvant) + ')');
+    else ok('Ciné-Palace : une séance parfaite de 100 s rapporte bien 500 $ (500 × 100 % de satisfaction)');
+    if (!fin.curioObtenue) fail('Ciné-Palace : une séance à 100 % de satisfaction ne donne pas la curiosité \'bobine\'');
+    else ok('Ciné-Palace : une séance parfaite donne bien la curiosité \'bobine\'');
+    if (!fin.seanceFinieFiasco || fin.argentApresFiasco !== fin.argentAvantFiasco) fail('Ciné-Palace : une satisfaction à 0 ne termine pas la séance en fiasco à recette nulle (gain=' + (fin.argentApresFiasco - fin.argentAvantFiasco) + ')');
+    else ok('Ciné-Palace : une satisfaction à 0 termine bien la séance en fiasco, recette nulle');
+
+    // -------------------------------------------------------------------
+    // Ciné-Palace : effet de La Bobine « ASPHALTE I » (suite — la curiosité
+    // vient d'être acquise pour de bon ci-dessus, via une vraie séance
+    // parfaite) : ralenti uniquement sur une élimination qui PROLONGE un
+    // combo déjà actif (jamais la toute première), jamais cumulé sur des
+    // éliminations rapprochées, jamais au détriment du ralenti (plus fort)
+    // d'un chef éliminé.
+    // -------------------------------------------------------------------
+    console.log('\n--- Ciné-Palace : effet ralenti de la curiosité sur un combo prolongé ---');
+    const ralenti = await page.evaluate(() => {
+      startRun(); // ne touche jamais aux curiosités, déjà acquises pour de bon
+      ETAT.mode = 'jeu';
+      const aCurioBobine = aCurio('bobine');
+      const faux = () => ({ def: { cash: [0, 0], score: 10, xp: 0 }, x: P.x, z: P.z, fac: 'neutre', mort: false, wave: 1, libre: false });
+      ETAT.combo = 1; ETAT.timeScale = 1;
+      tuerEnnemi(faux(), true); // 1er kill (avant=1) : ne prolonge rien, pas d'effet
+      const timeScaleApresPremier = ETAT.timeScale;
+      tuerEnnemi(faux(), true); // 2e kill (avant=2>1) : prolonge -> ralenti
+      const timeScaleApresDeuxieme = ETAT.timeScale, slowTApresDeuxieme = ETAT.slowT;
+      ETAT.slowT = 0.14; // presque expiré
+      tuerEnnemi(faux(), true); // rapproché : recalé, jamais cumulé
+      const slowTApresTroisieme = ETAT.slowT;
+      const eBoss = Object.assign(faux(), { boss: true });
+      ETAT.combo = 5;
+      tuerEnnemi(eBoss, true); // jamais écrasé par le ralenti (plus fort) d'un chef
+      const timeScaleApresBoss = ETAT.timeScale, slowTApresBoss = ETAT.slowT;
+      ETAT.timeScale = 1;
+      return { aCurioBobine, timeScaleApresPremier, timeScaleApresDeuxieme, slowTApresDeuxieme, slowTApresTroisieme, timeScaleApresBoss, slowTApresBoss };
+    });
+    if (!ralenti.aCurioBobine) fail('Ciné-Palace : le test suppose la curiosité \'bobine\' déjà acquise (voir le test « fin de séance » précédent)');
+    if (ralenti.timeScaleApresPremier !== 1) fail('Ciné-Palace : la toute première élimination (qui démarre le combo, ne le prolonge pas) déclenche un ralenti à tort');
+    else ok('Ciné-Palace : la toute première élimination d\'un combo ne déclenche pas de ralenti');
+    if (ralenti.timeScaleApresDeuxieme !== 0.5 || ralenti.slowTApresDeuxieme !== 0.15) fail('Ciné-Palace : une élimination qui prolonge le combo ne déclenche pas le ralenti attendu (timeScale=' + ralenti.timeScaleApresDeuxieme + ', slowT=' + ralenti.slowTApresDeuxieme + ')');
+    else ok('Ciné-Palace : une élimination qui prolonge le combo déclenche bien le ralenti (×0,5 pendant 0,15 s)');
+    if (ralenti.slowTApresTroisieme !== 0.15) fail('Ciné-Palace : des éliminations rapprochées cumulent le ralenti au lieu de le recaler (slowT=' + ralenti.slowTApresTroisieme + ')');
+    else ok('Ciné-Palace : des éliminations rapprochées recalent bien le ralenti sans l\'accumuler');
+    if (ralenti.timeScaleApresBoss !== 0.35 || ralenti.slowTApresBoss !== 1.1) fail('Ciné-Palace : le ralenti de La Bobine écrase à tort le ralenti (plus fort) d\'un chef éliminé (timeScale=' + ralenti.timeScaleApresBoss + ', slowT=' + ralenti.slowTApresBoss + ')');
+    else ok('Ciné-Palace : le ralenti d\'un chef éliminé n\'est jamais écrasé par celui de La Bobine');
+
+    // -------------------------------------------------------------------
+    // Ciné-Palace : les trois tables de fouille sur mesure (confiserie,
+    // bureau du projectionniste, sous les fauteuils) ne produisent jamais
+    // de gain négatif et incrémentent bien META.fouilles.
+    // -------------------------------------------------------------------
+    console.log('\n--- Ciné-Palace : tables de fouille sur mesure ---');
+    const fouilleCine = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'cine');
+      startRun();
+      entrerInterieur('cine', p);
+      const s = INT.actif;
+      const resultat = { confiserie: [], bureauProjo: [], fauteuils: [] };
+      for (const table of ['confiserie', 'bureauProjo', 'fauteuils']) {
+        const f = s.fouilles.find((x) => x.table === table);
+        for (let i = 0; i < 60; i++) {
+          f.prisVague = -1;
+          const argentAvant = META.argent;
+          resoudreFouille(f);
+          resultat[table].push(META.argent - argentAvant);
+        }
+      }
+      const rareConfiserie = TABLES_FOUILLE.confiserie.items.find((it) => it.type === 'cash' && it.min >= 200);
+      const fouillesTotal = META.fouilles;
+      if (INT.actif) sortirInterieur();
+      return { resultat, rareConfiserie, fouillesTotal };
+    });
+    if (fouilleCine.fouillesTotal < 180) fail('Ciné-Palace : META.fouilles n\'est pas incrémenté à chaque fouille résolue (' + fouilleCine.fouillesTotal + '/180)');
+    else ok('Ciné-Palace : chaque fouille résolue incrémente bien META.fouilles');
+    for (const table of ['confiserie', 'bureauProjo', 'fauteuils']) {
+      const vals = fouilleCine.resultat[table];
+      if (vals.some((v) => v < 0)) fail('Ciné-Palace : la table ' + table + ' a produit un gain négatif sur 60 tirages');
+      else ok('Ciné-Palace : la table ' + table + ' ne produit jamais de gain négatif (60 tirages)');
+    }
+    if (!fouilleCine.rareConfiserie || !fouilleCine.resultat.confiserie.some((v) => v >= fouilleCine.rareConfiserie.min && v <= fouilleCine.rareConfiserie.max)) info('Ciné-Palace : la somme rare de la confiserie n\'est pas tombée sur 60 tirages (probabilité ~6 %, possible par hasard)');
+    else ok('Ciné-Palace : la somme rare de la confiserie est bien tombée dans sa fourchette déclarée au moins une fois');
+
+    // -------------------------------------------------------------------
     // Salle de sport (FER & SUEUR) : soulever une barre avec succès (palier
     // de muscle, PV/endurance), puis un échec (le temps s'écoule).
     // -------------------------------------------------------------------

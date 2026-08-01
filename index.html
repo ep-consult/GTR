@@ -555,7 +555,8 @@ const q=()=>QUAL[REGLAGES.qualite];
    AUDIO — tout est synthétisé (WebAudio), aucun fichier externe
 ===================================================================== */
 const AUDIO={ctx:null,master:null,sfxG:null,musG:null,duckG:null,uiG:null,noise:null,pret:false,
-  sirenOsc:null,sirenGain:null,sirenT:0,engOsc:null,engGain:null,engFil:null,musTimer:null,musStep:0};
+  sirenOsc:null,sirenGain:null,sirenT:0,engOsc:null,engGain:null,engFil:null,musTimer:null,musStep:0,
+  cineOn:false};
 
 function audioInit(){
   if(AUDIO.pret) return;
@@ -731,6 +732,44 @@ function moteurStop(){
   try{AUDIO.engOsc.stop();AUDIO.engOsc2.stop();AUDIO.engNoise.stop();AUDIO.engLfo.stop();}catch(e){}
   AUDIO.engOsc=null;AUDIO.engOsc2=null;AUDIO.engGain=null;AUDIO.engGain2=null;
   AUDIO.engNoise=null;AUDIO.engNG=null;AUDIO.engLfo=null;AUDIO.engPr=null;
+}
+/* ---- Ciné-Palace : trois sons continus (ronron du projecteur, bande-son
+   du film étouffée, rumeur de la salle) — même discipline que le moteur
+   des véhicules : jamais démarrés deux fois, coupés dans TOUS les chemins
+   de sortie (voir cineArreterSeance, sortirInterieur, mourir, startRun). */
+function cineAmbianceStart(){
+  if(!AUDIO.pret||AUDIO.cineOn) return;
+  const ctx=AUDIO.ctx, t=ctx.currentTime;
+  const whir=ctx.createBufferSource(); whir.buffer=AUDIO.noise; whir.loop=true;
+  const whirF=ctx.createBiquadFilter(); whirF.type='bandpass'; whirF.frequency.value=420; whirF.Q.value=2.2;
+  const whirG=ctx.createGain(); whirG.gain.value=0.09;
+  const lfo=ctx.createOscillator(); lfo.type='sine'; lfo.frequency.value=5.5;
+  const lfoG=ctx.createGain(); lfoG.gain.value=40;
+  lfo.connect(lfoG); lfoG.connect(whirF.frequency); lfo.start(t);
+  whir.connect(whirF); whirF.connect(whirG); whirG.connect(AUDIO.sfxG); whir.start(t);
+  const film=ctx.createOscillator(); film.type='sine'; film.frequency.value=180;
+  const filmF=ctx.createBiquadFilter(); filmF.type='lowpass'; filmF.frequency.value=500;
+  const filmG=ctx.createGain(); filmG.gain.value=0.02;
+  const filmLfo=ctx.createOscillator(); filmLfo.type='sine'; filmLfo.frequency.value=0.3;
+  const filmLfoG=ctx.createGain(); filmLfoG.gain.value=60;
+  filmLfo.connect(filmLfoG); filmLfoG.connect(film.frequency); filmLfo.start(t);
+  film.connect(filmF); filmF.connect(filmG); filmG.connect(AUDIO.sfxG); film.start(t);
+  const rumeur=ctx.createBufferSource(); rumeur.buffer=AUDIO.noise; rumeur.loop=true;
+  const rumeurF=ctx.createBiquadFilter(); rumeurF.type='lowpass'; rumeurF.frequency.value=220;
+  const rumeurG=ctx.createGain(); rumeurG.gain.value=0.05;
+  rumeur.connect(rumeurF); rumeurF.connect(rumeurG); rumeurG.connect(AUDIO.sfxG); rumeur.start(t);
+  AUDIO.cineOn=true;
+  AUDIO.cineWhir=whir; AUDIO.cineLfo=lfo; AUDIO.cineFilm=film; AUDIO.cineFilmLfo=filmLfo; AUDIO.cineRumeur=rumeur;
+}
+function cineAmbianceStop(){
+  if(!AUDIO.cineOn) return;
+  try{
+    AUDIO.cineWhir.stop(); AUDIO.cineLfo.stop();
+    AUDIO.cineFilm.stop(); AUDIO.cineFilmLfo.stop();
+    AUDIO.cineRumeur.stop();
+  }catch(e){}
+  AUDIO.cineOn=false;
+  AUDIO.cineWhir=null; AUDIO.cineLfo=null; AUDIO.cineFilm=null; AUDIO.cineFilmLfo=null; AUDIO.cineRumeur=null;
 }
 const STATIONS=['SOLARA FM','RUE 9','CÔTE BLEUE','— silence —','MICRO CASSÉ FM'];
 function notes(freq,dur,type,vol,filtre){
@@ -1159,7 +1198,9 @@ const CURIOS=[
   {id:'jeton_dore',ico:'🪙',nom:'Le Jeton Doré',lieu:'Palais de l’Arcade',
    eff:'Aimant à ramassables : l’argent, les munitions et les soins sont attirés vers toi dans un rayon de 6 m',
    ind:'Il faut battre le tableau des scores. Toutes les bornes qui marchent encore.',actif:true},
-  {id:'bobine',ico:'🎞️',nom:'La Bobine « ASPHALTE I »',lieu:'Ciné-Palace',actif:false},
+  {id:'bobine',ico:'🎞️',nom:'La Bobine « ASPHALTE I »',lieu:'Ciné-Palace',
+   eff:'Effet cinéma : le temps ralentit brièvement à chaque élimination qui prolonge ton combo',
+   ind:'Une séance parfaite. Pas une huée, pas un sifflet.',actif:true},
   {id:'plaque',ico:'⚓',nom:'La Plaque du Capitaine',lieu:'Cale de l\u2019épave',actif:false},
   {id:'lampe',ico:'🔦',nom:'La Lampe de Mineur',lieu:'Métro abandonné',actif:false},
   {id:'plans',ico:'📐',nom:'Les Plans du Rhinocéros',lieu:'Bunker militaire',actif:false}
@@ -2869,6 +2910,8 @@ function placerPortes(){
   poser('musee',cMus.x,cMus.z,'MUSÉE DE SOLARA',0xffd23f);
   const cArc=caseCentre(6,10);   // quartier néon : le palais de l'arcade, ouvert dès le début
   poser('arcade',cArc.x,cArc.z,'PALAIS DE L\'ARCADE',0xff5ec4);
+  const cCine=caseCentre(11,5);  // quartier commerçant : le vieux palace de cinéma, ouvert dès le début
+  poser('cine',cCine.x,cCine.z,'CINÉ-PALACE',0xe8503f);
   // secours : si un lieu manquait, on place la porte près de la grande place
   if(!PORTES.some(p=>p.id==='banque')&&POIS.place)
     poser('banque',POIS.place.x+CELL,POIS.place.z,'BANQUE',0x35e0ff);
@@ -2879,7 +2922,8 @@ function placerPortes(){
     ['karaoke','KARAOKÉ',0xffd23f],['aquarium','AQUARIUM',0x35e0ff],
     ['bowling','STRIKE DORÉ',0xffd23f],['sport','FER & SUEUR',0xff5a6a],
     ['serre','SERRE',0x7dff7a],['sandwich','LE ROI DES SANDWICHS',0xffd23f],
-    ['musee','MUSÉE DE SOLARA',0xffd23f],['arcade','PALAIS DE L\'ARCADE',0xff5ec4]
+    ['musee','MUSÉE DE SOLARA',0xffd23f],['arcade','PALAIS DE L\'ARCADE',0xff5ec4],
+    ['cine','CINÉ-PALACE',0xe8503f]
   ];
   for(const [id,nom,coul] of REPLIS){
     if(PORTES.some(p=>p.id===id)) continue;
@@ -5315,6 +5359,15 @@ function tuerEnnemi(e,parJoueur){
     if(ETAT.combo!==avant&&[5,10,15,20].includes(ETAT.combo)){
       bigMsg('COMBO ×'+ETAT.combo+' !'); SFX.etoile();
     }
+    // La Bobine « ASPHALTE I » : effet cinéma — bref ralenti à chaque
+    // élimination qui PROLONGE un combo déjà actif (jamais la toute
+    // première, qui ne fait que le démarrer). Recalé, jamais cumulé, sur
+    // des éliminations rapprochées : on réécrit slowT, on ne l'additionne
+    // pas — sinon un combo rapide figerait le jeu au ralenti en continu.
+    // N'écrase pas le ralenti (plus fort, plus long) d'un chef éliminé.
+    if(avant>1&&!e.boss&&aCurio('bobine')&&ETAT.mode==='jeu'){
+      ETAT.timeScale=0.5; ETAT.slowT=0.15;
+    }
     const pts=Math.round(e.def.score*ETAT.combo);
     ETAT.score+=pts;
     spawnTexte(e.x,2.6,e.z,'+'+pts,ETAT.combo>3?'#ffd23f':'#f2f4f8');
@@ -6071,7 +6124,30 @@ const TABLES_FOUILLE={
   riche:   {cash:[60,190], p:{cash:44,mun:14,soin:10,rare:12,rien:12,surprise:8}},
   pauvre:  {cash:[8,32],   p:{cash:30,mun:14,soin:12,rare:3,rien:33,surprise:8}},
   medical: {cash:[15,50],  p:{cash:22,mun:8, soin:44,rare:6, rien:16,surprise:4}},
-  louche:  {cash:[40,130], p:{cash:34,mun:26,soin:8, rare:9, rien:11,surprise:12}}
+  louche:  {cash:[40,130], p:{cash:34,mun:26,soin:8, rare:9, rien:11,surprise:12}},
+  // Ciné-Palace : le système générique cash/mun/soin/rare/rien/surprise ne
+  // peut pas exprimer deux paliers de somme (petite + rare) ni un objet
+  // purement décoratif dans le même contenant — `items` (poids, min/max,
+  // texte) court-circuite ce système, voir resoudreFouille.
+  confiserie:{items:[
+    {p:32,type:'cash',min:30,max:80,texte:'PETITE SOMME'},
+    {p:26,type:'cash',min:10,max:10,texte:'POP-CORN RASSIS'},
+    {p:20,type:'cash',min:60,max:110,texte:'BOÎTE DE BONBONS'},
+    {p:16,type:'soin'},
+    {p:6, type:'cash',min:200,max:320,texte:'SOMME RARE',rare:true},
+  ]},
+  bureauProjo:{items:[
+    {p:30,type:'cash',min:80,max:140,texte:'SOMME'},
+    {p:24,type:'mun'},
+    {p:20,type:'cash',min:20,max:20,texte:'VIEUX PROGRAMME'},
+    {p:18,type:'cash',min:120,max:200,texte:'PIÈCE DE PROJECTEUR'},
+    {p:8, type:'cash',min:300,max:420,texte:'SOMME RARE',rare:true},
+  ]},
+  fauteuils:{items:[
+    {p:78,type:'cash',min:15,max:50,texte:'SOUS LE FAUTEUIL'},
+    {p:22,type:'rien',liste:['Une chaussure. Une seule.','Un dentier. Personne ne l’a réclamé.',
+      'Une clé de voiture. Aucune idée de laquelle.']},
+  ]},
 };
 function tirerTypeFouille(tab){
   const p=Object.assign({},tab.p);
@@ -6089,14 +6165,47 @@ function annulerFouille(silence){
   if(FOUILLE.cible&&!silence) toast('Fouille interrompue');
   FOUILLE.cible=null; FOUILLE.t=0;
 }
+function tirerItemFouille(items){
+  let tot=0; for(const it of items) tot+=it.p;
+  let r=Math.random()*tot;
+  for(const it of items){ r-=it.p; if(r<=0) return it; }
+  return items[items.length-1];
+}
 function resoudreFouille(f){
   const s=INT.actif;
   f.prisVague=WAVES.n;
   META.fouilles++;
   const tab=TABLES_FOUILLE[f.table]||TABLES_FOUILLE.standard;
-  const typ=tirerTypeFouille(tab);
   if(f.mesh){ f.mesh.rotation.y+=0.25; }   // le contenant reste visiblement ouvert
   burst(f.x,1.1,f.z,5,0xffe9a0,4);
+  if(tab.items){
+    const it=tirerItemFouille(tab.items);
+    if(it.type==='cash'){
+      const g=it.min===it.max?it.min:randi(it.min,it.max);
+      META.argent+=g; ETAT.cashRun+=g; META.stats.cashTotal+=g;
+      spawnTexte(f.x,1.9,f.z,'+'+g+' $','#7dff7a');
+      if(it.rare){
+        toast(it.texte+' : +'+g+' $ !','or'); SFX.etoile(); vibre(50);
+        for(let i=0;i<12;i++) spawnP(f.x+rand(-0.6,0.6),rand(1,2.2),f.z+rand(-0.6,0.6),
+          rand(-1,1),rand(1,2.5),rand(-1,1),0.8,0.45,0xffd23f,0);
+      } else { toast(it.texte+' : +'+g+' $','or'); SFX.achat(); }
+    } else if(it.type==='soin'){
+      creerPickup('med',f.x+rand(-1,1),f.z+rand(0.8,1.6));
+      toast('Trousse de secours trouvée','or'); SFX.ui();
+    } else if(it.type==='mun'){
+      const id=(ARMES[P.armeCur].type==='gun')?P.armeCur:
+        ORDRE_ARMES.find(i=>META.armes[i].poss&&ARMES[i].type==='gun');
+      if(id){ P.mun[id]=(P.mun[id]||0)+armeStats(id).mag; toast('Munitions : '+ARMES[id].nom,'or'); }
+      else { const g=randi(20,50); META.argent+=g; toast('+'+g+' $ (rien à charger)','or'); }
+      SFX.achat();
+    } else { // rien
+      toast(pick(it.liste)); SFX.refus();
+    }
+    checkDefis(); sauveMeta();
+    FOUILLE.cible=null; FOUILLE.t=0;
+    return;
+  }
+  const typ=tirerTypeFouille(tab);
   if(typ==='cash'){
     const g=randi(tab.cash[0],tab.cash[1]);
     META.argent+=g; ETAT.cashRun+=g; META.stats.cashTotal+=g;
@@ -6268,7 +6377,33 @@ function redimensionnerArcadeCv(){
   arcadeCx.setTransform(dpr,0,0,dpr,0,0);
 }
 window.addEventListener('resize',()=>{ if(arcadeWrap.style.display!=='none') redimensionnerArcadeCv(); });
-const JAUGES=[fouilleWrap,karaWrap,bwWrap,spWrap,swWrap,musWrap,arcadeWrap];
+/* Ciné-Palace : chrono de séance, satisfaction, et les 4 jauges de panne —
+   affichées ensemble, jamais plus de 2 postes surveillables en même temps
+   dans la cabine, mais les 4 jauges restent visibles au joueur en permanence. */
+const cineWrap=document.createElement('div');
+cineWrap.style.cssText='position:absolute;left:50%;transform:translateX(-50%);'+
+  'bottom:calc(env(safe-area-inset-bottom,0px) + 380px);width:min(280px,76vw);display:none;'+
+  'text-align:center;pointer-events:none;z-index:6';
+cineWrap.innerHTML='<div id="cineLbl" style="font:900 11px Arial;letter-spacing:.06em;color:#ffd23f;'+
+  'text-shadow:0 2px 6px #000">🎬 100 s</div>'+
+  '<div style="position:relative;margin-top:4px;height:10px;background:#12141bee;'+
+  'border:1.5px solid #ffffff33;border-radius:4px;overflow:hidden">'+
+  '<i id="cineSat" style="display:block;height:100%;width:100%;'+
+  'background:linear-gradient(90deg,#ff3b5c,#ffd23f,#7dff7a)"></i></div>'+
+  '<div style="font:800 8px Arial;color:#8a8f9a;margin-top:2px">satisfaction</div>'+
+  '<div style="display:flex;gap:4px;margin-top:5px">'+
+  ['bobine','point','son','lampe'].map((id,i)=>
+    '<div style="flex:1"><div style="height:6px;background:#12141bee;border:1px solid #ffffff33;'+
+    'border-radius:3px;overflow:hidden"><i id="cine_'+id+'" style="display:block;height:100%;width:0%;'+
+    'background:'+['#35c8e0','#b48bff','#ff9f2e','#ffd23f'][i]+'"></i></div>'+
+    '<div style="font:700 7px Arial;color:#8a8f9a;margin-top:1px">'+
+    ['BOBINE','POINT','SON','LAMPE'][i]+'</div></div>').join('')+
+  '</div>';
+el('hud').appendChild(cineWrap);
+const cineLblEl=cineWrap.querySelector('#cineLbl'), cineSatEl=cineWrap.querySelector('#cineSat');
+const CINE_JAUGES_EL={bobine:cineWrap.querySelector('#cine_bobine'),point:cineWrap.querySelector('#cine_point'),
+  son:cineWrap.querySelector('#cine_son'),lampe:cineWrap.querySelector('#cine_lampe')};
+const JAUGES=[fouilleWrap,karaWrap,bwWrap,spWrap,swWrap,musWrap,arcadeWrap,cineWrap];
 function cacherJauges(){ for(const j of JAUGES) if(j.style.display!=='none') j.style.display='none'; }
 
 /* =====================================================================
@@ -7388,7 +7523,11 @@ const INTDEFS={
     ens:['MUSÉE DE SOLARA','#ffd23f']},
   /* ---- lieu spécial (lot 4) : première salle où l'on reste, pas où l'on accomplit une tâche ---- */
   arcade:{nom:'Palais de l\'Arcade',ico:'🕹️',w:46,d:22,sol:0x1c1830,mur:0x2a2040,
-    ens:['PALAIS DE L\'ARCADE','#ff5ec4']}
+    ens:['PALAIS DE L\'ARCADE','#ff5ec4']},
+  /* ---- lieu spécial (lot 5) : première salle de surcharge — aucune tâche
+     difficile en soi, c'est leur simultanéité qui l'est ---- */
+  cine:{nom:'Ciné-Palace',ico:'🎬',w:26,d:34,sol:0x3a1418,mur:0x241014,
+    ens:['CINÉ-PALACE','#e8503f']}
 };
 // véhicules en vente au concessionnaire
 const CATALOGUE=[
@@ -8708,6 +8847,99 @@ function construireSalle(id){
     inter.jetons=0; inter.tickets=0;
     lampe(-14,3,0xffe0a0,7); lampe(14,3,0xffe0a0,7); lampe(0,0,0xff5ec4,10);
   }
+  /* ---- lieu spécial (lot 5) : LE CINÉ-PALACE — salle de surcharge. Aucune
+     tâche n'est difficile en soi, c'est la simultanéité des quatre appareils
+     qui l'est. Deux espaces reliés : le HALL (au sud, près de la sortie) et
+     la CABINE de projection (au nord), séparés par un mur à passage étroit
+     comme au musée (voir ~L8500). */
+  else if(id==='cine'){
+    // moquette rouge élimée du hall
+    for(let i=-6;i<7;i++) for(let j=2;j<9;j++){
+      const t=new THREE.Mesh(new THREE.PlaneGeometry(2.1,2.1),mat((i+j)%2===0?0x5a1218:0x4e0f14));
+      t.rotation.x=-Math.PI/2; t.position.set(ox+i*2.15+1.05,0.11,oz+j*2.15+1.05); g.add(t);
+    }
+    // sol nu et sombre de la cabine
+    for(let i=-6;i<7;i++) for(let j=-9;j<2;j++){
+      const t=new THREE.Mesh(new THREE.PlaneGeometry(2.1,2.1),mat((i+j)%2===0?0x241014:0x1c0c10));
+      t.rotation.x=-Math.PI/2; t.position.set(ox+i*2.15+1.05,0.11,oz+j*2.15+1.05); g.add(t);
+    }
+    // mur de séparation hall/cabine, passage étroit au centre
+    box(11,4.4,0.5,0x2a1216,-7.5,2.2,4);
+    box(11,4.4,0.5,0x2a1216,7.5,2.2,4);
+    box(1.7,3,0.15,0x6a2a2a,-1.1,1.7,4,false);
+    box(1.7,3,0.15,0x6a2a2a,1.1,1.7,4,false);
+
+    // ---- HALL : comptoir, banquette, affiches ----
+    const compt=box(3.4,1.1,1.5,0x6a2a2a,-7,0.55,9);
+    box(1.2,0.5,1,0xffd23f,-7,1.35,9,false);
+    fouillable(-7,10.3,'Comptoir à confiserie','confiserie',compt,2.8);
+    mkEnseigne('CONFISERIE','#ffd23f',ox-7,2.1,oz+9.3,0,9);
+    pnj(-7,7.6,{haut:pick(civHaut),bas:0x1c2030,peau:pick(civPeau),casq:0x2a2018,visage:'gentil'},'caisse');
+    box(3,0.85,1.3,0x5a1f2a,7,0.42,9);
+    fouillable(7,10.3,'Sous les fauteuils','fauteuils',null,2.8);
+    inter.cartels=[];
+    const cartel=(x,z,titre,texte,coul)=>{
+      mkEnseigne(titre,coul||'#e8c8a0',ox+x,1.9,oz+z-0.9,0,Math.max(6,titre.length*0.4));
+      inter.cartels.push({x:ox+x,z:oz+z,titre,texte});
+    };
+    box(0.15,2.2,1.6,0x1c0c10,-11.5,1.3,13.5,false);
+    cartel(-11.3,13.5,'« ASPHALTE I »','Le film qui a tout changé. Personne ne l’a vu.');
+    box(0.15,2.2,1.6,0x1c0c10,-11.5,1.3,10.5,false);
+    cartel(-11.3,10.5,'« LA LAVERIE »','Ils croyaient laver leur linge. Ils avaient tort.');
+    box(0.15,2.2,1.6,0x1c0c10,-11.5,1.3,7.3,false);
+    cartel(-11.3,7.3,'« LE RETOUR DU CANARD »','Cette fois, c’est personnel.');
+    box(0.15,2.2,1.6,0x1c0c10,11.5,1.3,13.5,false);
+    cartel(11.3,13.5,'« MADAME ZOHRA VOIT TOUT »','Elle avait prévu ce film. Elle a quand même été déçue.');
+    box(0.15,2.2,1.6,0x1c0c10,11.5,1.3,10.5,false);
+    cartel(11.3,10.5,'« SANDWICH 3 : LA DERNIÈRE BOUCHÉE »','Interdit aux moins de 12 ans.');
+    box(0.15,1.6,1.3,0x1c0c10,11.5,1,9.2,false);
+    cartel(11.3,9.2,'SÉANCE ANNULÉE','Un carton griffonné à la main, à moitié collé sur l’affiche du dessous.','#ffe066');
+    lampe(-7,13,0xffb0a0,7); lampe(7,13,0xffb0a0,7); lampe(0,6,0xff8a70,8);
+
+    // ---- CABINE : projecteur central + 4 postes en carré de 8×8 ----
+    // (jamais plus de deux postes surveillables à la fois : le projecteur
+    // casse la vue en diagonale entre postes opposés)
+    box(1.8,1.6,2.4,0x2a2018,0,0.9,-8);
+    box(0.6,0.3,0.9,0x1c1416,0,1.85,-8,false);
+    const lentille=new THREE.Mesh(new THREE.CylinderGeometry(0.22,0.28,0.7,10),mat(0x0b0c10));
+    lentille.rotation.x=Math.PI/2; lentille.position.set(ox,1.1,oz-9.3); g.add(lentille);
+    const faisceau=new THREE.Mesh(new THREE.ConeGeometry(1.6,9,10,1,true),
+      new THREE.MeshBasicMaterial({color:0xfff2c0,transparent:true,opacity:0.06,depthWrite:false,side:THREE.DoubleSide}));
+    faisceau.rotation.x=Math.PI/2; faisceau.position.set(ox,1.1,oz-14); g.add(faisceau);
+    inter.faisceau=faisceau;
+    inter.projecteur={x:ox,z:oz-8};
+    mkEnseigne('PROJECTEUR','#e8503f',ox,2.6,oz-6.6,0,10);
+    const posteVisuel=(x,z,coul)=>{
+      box(1,1.3,0.9,coul,x,0.65,z);
+      const voy=new THREE.Mesh(new THREE.SphereGeometry(0.1,8,6),new THREE.MeshBasicMaterial({color:0x7dff7a}));
+      voy.position.set(ox+x,1.45,oz+z); g.add(voy);
+      return voy;
+    };
+    inter.posteVoyants={};
+    inter.posteVoyants.bobine=posteVisuel(-4,-12,0x35c8e0);
+    mkEnseigne('BOBINE','#35e0ff',ox-4,2,oz-12.9,0,6);
+    inter.posteVoyants.point=posteVisuel(4,-12,0x8a5adf);
+    mkEnseigne('MISE AU POINT','#b48bff',ox+4,2,oz-12.9,0,10);
+    inter.posteVoyants.son=posteVisuel(-4,-4,0xff9f2e);
+    mkEnseigne('SON','#ff9f2e',ox-4,2,oz-4.9,0,5);
+    inter.posteVoyants.lampe=posteVisuel(4,-4,0xffd23f);
+    mkEnseigne('LAMPE','#ffd23f',ox+4,2,oz-4.9,0,6);
+    inter.postesPos={bobine:{x:ox-4,z:oz-12},point:{x:ox+4,z:oz-12},son:{x:ox-4,z:oz-4},lampe:{x:ox+4,z:oz-4}};
+    inter.postes={bobine:{probleme:0,enAlerte:false},point:{probleme:0,enAlerte:false},
+      son:{probleme:0,enAlerte:false},lampe:{probleme:0,enAlerte:false}};
+
+    const bureau=box(2.6,1,1.4,0x3a2418,-9,0.5,-16);
+    fouillable(-9,-16,'Bureau du projectionniste','bureauProjo',bureau,2.8);
+    mkEnseigne('BUREAU','#e8c8a0',ox-9,1.8,oz-14.7,0,7);
+    const hublot=new THREE.Mesh(new THREE.CircleGeometry(1,16),
+      new THREE.MeshBasicMaterial({color:0xbfe4ff,transparent:true,opacity:0.5}));
+    hublot.position.set(ox,2,oz-16.7); g.add(hublot);
+    inter.hublot=hublot;
+    lampe(0,-4,0xffe0a0,6); lampe(-6,-14,0xff8a70,6); lampe(6,-14,0xff8a70,6);
+
+    inter.seanceOn=false; inter.seanceT=0; inter.satisfaction=100; inter.parfaite=true;
+    inter.seancesVague=0; inter.cineVagueRef=-1;
+  }
   scene.add(g);
   INT.salles[id]=inter;
   return inter;
@@ -8756,6 +8988,7 @@ function sortirInterieur(){
   annulerFouille(true); cacherJauges(); cacherControlesBorne();
   if(ARCADE.jeu||ARCADE.attenteInitiales){ finirBorneJeu(); ARCADE.attenteInitiales=null; }
   if(sc.karaOn){ sc.karaOn=false; sc.karaBarre.visible=false; toast('Tu quittes la scène en pleine chanson'); }
+  if(sc.seanceOn){ cineArreterSeance(sc); toast('Tu quittes en pleine séance. Le public n’est pas content.'); }
   for(let i=ennemis.length-1;i>=0;i--){
     const e=ennemis[i];
     if(e.interieur===sc.id&&!e.garde){ scene.remove(e.h?e.h.g:e.mesh); ennemis.splice(i,1); }
@@ -8952,6 +9185,67 @@ function finMonstre(s,gagne){
     for(let i=0;i<10;i++) spawnP(P.x+rand(-0.6,0.6),rand(0.6,1.6),P.z+rand(0,1.4),
       rand(-1,1),rand(0.5,1.5),rand(0,2),0.8,0.5,0x7a8a3a,3);
   }
+}
+/* =====================================================================
+   CINÉ-PALACE — salle de surcharge : quatre appareils qui se dérèglent en
+   permanence, chacun corrigé par une interaction courte et distincte.
+   Aucune tâche n'est difficile en soi, c'est leur simultanéité qui l'est.
+===================================================================== */
+const CINE_DUREE=100, CINE_PENALITE=15, CINE_SEANCES_MAX=2;
+const CINE_POSTES=['bobine','point','son','lampe'];
+// dérive en UNITÉS PAR SECONDE (jamais par frame), légèrement différente par
+// poste pour la texture ; le multiplicateur ci-dessous fait le reste
+const CINE_VIT_BASE={bobine:4.0,point:4.4,son:4.2,lampe:4.8};
+// montée en pression quadratique : lisible et continue, jamais un palier
+// brutal, mais franchement intenable dans les 30 dernières secondes
+// (mult passe de ×1 au départ à ×4 à la fin)
+function cineMultVitesse(t){
+  const frac=clamp(t/CINE_DUREE,0,1);
+  return 1+3*frac*frac;
+}
+const CINE_PROTESTS={
+  bobine:'🎞️ Le film s’arrête net. Sifflets dans la salle.',
+  point:'🔍 L’image est floue. « ON NE VOIT RIEN ! »',
+  son:'🔊 Le son est décalé. Un spectateur hurle.',
+  lampe:'💡 La lampe a grillé un instant. La salle proteste.',
+};
+function cineProteste(id){
+  toast(CINE_PROTESTS[id],'warn');
+  beep(160,0.15,'sawtooth',0.22); secousse(2); vibre(50);
+}
+// une case de sol vérifiée avant chaque lecture/écriture de seancesVague :
+// même principe que le musée (s.museeVague!==WAVES.n) — pas de hook séparé
+// sur le changement de vague, la vérification se fait paresseusement
+function cineVerifierVague(s){
+  if(s.cineVagueRef!==WAVES.n){ s.cineVagueRef=WAVES.n; s.seancesVague=0; }
+}
+function cineDemarrerSeance(s){
+  s.seanceOn=true; s.seanceT=0; s.satisfaction=100; s.parfaite=true;
+  s.seancesVague++;
+  for(const id of CINE_POSTES) s.postes[id]={probleme:0,enAlerte:false};
+  cineAmbianceStart();
+  cineWrap.style.display='block';
+  bigMsg('🎬 SÉANCE'); toast('Tiens la salle 100 secondes. Surveille les 4 postes.','or');
+  SFX.ui();
+}
+// point de reset commun : séance en cours annulée, sons coupés — utilisé par
+// la fin naturelle (succès/fiasco), la sortie en pleine séance, la mort et
+// le game over (voir sortirInterieur, mourir, startRun)
+function cineArreterSeance(s){
+  s.seanceOn=false; s.seanceT=0; s.satisfaction=100; s.parfaite=true;
+  for(const id of CINE_POSTES) s.postes[id]={probleme:0,enAlerte:false};
+  cineAmbianceStop();
+  if(cineWrap.style.display!=='none') cineWrap.style.display='none';
+}
+function cineTerminerSeance(s,succes){
+  const recette=Math.round(500*(s.satisfaction/100));
+  if(recette>0){ META.argent+=recette; ETAT.cashRun+=recette; META.stats.cashTotal+=recette; }
+  if(succes&&s.parfaite&&s.satisfaction>=100) donnerCurio('bobine');
+  if(succes){ bigMsg('🎬 SÉANCE TERMINÉE'); toast('Recette : +'+recette+' $ (satisfaction '+Math.round(s.satisfaction)+' %)','or'); }
+  else { bigMsg('😖 FIASCO'); toast('La salle se vide. Recette : +'+recette+' $','warn'); }
+  SFX.niveau();
+  checkDefis(); sauveMeta();
+  cineArreterSeance(s);
 }
 function majInterieur(dt){
   const s=INT.actif; if(!s) return;
@@ -9231,6 +9525,27 @@ function majInterieur(dt){
       if(arcadeWrap.style.display!=='flex'){ arcadeWrap.style.display='flex'; redimensionnerArcadeCv(); }
       dessinerBorneJeu();
     } else if(arcadeWrap.style.display!=='none') arcadeWrap.style.display='none';
+  }
+  // ---- Ciné-Palace : séance en cours (4 jauges de panne + satisfaction) ----
+  if(s.seanceOn){
+    s.seanceT+=dt;
+    const mult=cineMultVitesse(s.seanceT);
+    for(const id of CINE_POSTES){
+      const p=s.postes[id];
+      if(p.enAlerte) continue; // pinnée à 100, attend la réparation du poste
+      p.probleme=Math.min(100,p.probleme+CINE_VIT_BASE[id]*mult*dt);
+      if(p.probleme>=100){
+        p.enAlerte=true;
+        s.satisfaction=Math.max(0,s.satisfaction-CINE_PENALITE);
+        s.parfaite=false;
+        cineProteste(id);
+      }
+    }
+    cineLblEl.textContent='🎬 '+Math.max(0,Math.ceil(CINE_DUREE-s.seanceT))+' s';
+    cineSatEl.style.width=Math.round(s.satisfaction)+'%';
+    for(const id of CINE_POSTES) CINE_JAUGES_EL[id].style.width=Math.round(s.postes[id].probleme)+'%';
+    if(s.satisfaction<=0) cineTerminerSeance(s,false);
+    else if(s.seanceT>=CINE_DUREE) cineTerminerSeance(s,true);
   }
 }
 
@@ -10146,6 +10461,16 @@ function startRun(){
     // (et donc la progression vers Le Jeton Doré, qui se lit dessus) vivent
     // dans META, jamais touchés ici.
     if(sa.bornes){ sa.jetons=0; sa.tickets=0; }
+    // Ciné-Palace : une séance en cours au moment du game over/mort est
+    // annulée (le son a déjà été coupé tout de suite dans mourir(), ce
+    // second appel est sans effet si c'est déjà fait — cineArreterSeance
+    // est idempotente). Nouvelle partie = nouvelle vague : le compteur de
+    // séances est remis à zéro ici même si le pattern paresseux
+    // (cineVerifierVague, comme le musée) suffirait seul à le garantir.
+    if(sa.seanceOn!==undefined){
+      if(sa.seanceOn) cineArreterSeance(sa);
+      sa.seancesVague=0; sa.cineVagueRef=-1;
+    }
   }
   // arcade : une partie de borne en cours est annulée SANS banquer ses
   // tickets — contrairement à un abandon volontaire (finirBorneJeu, appelé
@@ -10288,6 +10613,7 @@ function mourir(){
   annulerFouille(true); cacherJauges();
   SFX.mort(); vibre(120);
   moteurStop();
+  if(INT.actif&&INT.actif.seanceOn) cineArreterSeance(INT.actif); // coupe le son tout de suite, le reste des jauges au retry
   P.h.g.rotation.z=Math.PI/2; P.h.g.position.y=0.35;
   reticule.visible=false;
   const record=ETAT.score>META.record;
@@ -10943,6 +11269,30 @@ function majAction(){
         if(!art.peut()){SFX.refus();return;}
         META.argent-=art.prix; art.act(); SFX.achat();
         s.artIdx=((s.artIdx||0)+1)%ARTICLES_SUPERETTE.length;   // l'étal propose autre chose
+      };
+    /* ---------- CINÉ-PALACE : projecteur (démarre la séance) ---------- */
+    } else if(s.projecteur&&dist2(P.x,P.z,s.projecteur.x,s.projecteur.z)<marquerZone(s.projecteur,16)){
+      cineVerifierVague(s);
+      if(s.seanceOn){
+        label='🎬 Séance en cours — surveille les postes';
+        fn=()=>{ SFX.refus(); };
+      } else if(s.seancesVague>=CINE_SEANCES_MAX){
+        label='🎬 Deux séances déjà données cette vague';
+        fn=()=>{ SFX.refus(); toast('La salle rouvrira à la prochaine vague.'); };
+      } else {
+        label='🎬 DÉMARRER LA SÉANCE';
+        fn=()=>{ cineDemarrerSeance(s); };
+      }
+    /* ---------- CINÉ-PALACE : les 4 postes, chacun avec une réparation courte ---------- */
+    } else if(s.postesPos&&s.seanceOn&&
+              CINE_POSTES.some(pid=>dist2(P.x,P.z,s.postesPos[pid].x,s.postesPos[pid].z)<marquerZone(s.postesPos[pid],9))){
+      const pid=CINE_POSTES.find(pid=>dist2(P.x,P.z,s.postesPos[pid].x,s.postesPos[pid].z)<9);
+      const NOMS={bobine:'RECHARGER LA BOBINE',point:'TOURNER LA MOLETTE',son:'CALER LE SON',lampe:'OUVRIR LA VENTILATION'};
+      label='🔧 '+NOMS[pid];
+      fn=()=>{
+        s.postes[pid]={probleme:0,enAlerte:false};
+        if(s.posteVoyants[pid]) s.posteVoyants[pid].material.color.setHex(0x7dff7a);
+        SFX.ui();
       };
     } else if(s.fouilles&&s.fouilles.length&&
               s.fouilles.some(f=>dist2(P.x,P.z,f.x,f.z)<f.rayon*f.rayon)){
