@@ -108,6 +108,11 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
    pour un geste ample, sans inertie (la grue suit le doigt directement). */
 #glisseZone{position:absolute;left:0;right:0;bottom:0;height:56%;display:none;pointer-events:auto;touch-action:none}
 
+/* zone de fréquence (RADIO PIRATE, salle L'ÉMISSION) : même principe que
+   #glisseZone (glissement horizontal direct, sans inertie), mais propre à la
+   salle — pas une borne d'arcade, ARCADE.d n'existe pas ici. */
+#radioZone{position:absolute;left:0;right:0;bottom:0;height:56%;display:none;pointer-events:auto;touch-action:none}
+
 /* zone de visée (STAND DE CANARDS) : le viseur suit le doigt directement,
    n'importe où sur l'écran (généreux, la conversion en coordonnées du jeu se
    fait via le rectangle réel du canvas — voir scViseeDeplace). Viser et tirer
@@ -291,6 +296,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
   </div>
   <div id="glisseZone"></div>
   <div id="viseeZone"></div>
+  <div id="radioZone"></div>
   <div class="btn" id="btnTirerCanards" style="display:none">🎯<small>TIRER</small></div>
   <div class="btn" id="btnFire"><span id="fireIco">✊</span><div id="fireAmmo"></div></div>
   <div class="btn" id="btnDodge">💨<small>ESQUIVE</small></div>
@@ -556,7 +562,7 @@ const q=()=>QUAL[REGLAGES.qualite];
 ===================================================================== */
 const AUDIO={ctx:null,master:null,sfxG:null,musG:null,duckG:null,uiG:null,noise:null,pret:false,
   sirenOsc:null,sirenGain:null,sirenT:0,engOsc:null,engGain:null,engFil:null,musTimer:null,musStep:0,
-  cineOn:false,metroOn:false};
+  cineOn:false,metroOn:false,radioOn:false};
 
 function audioInit(){
   if(AUDIO.pret) return;
@@ -818,6 +824,39 @@ function metroAmbianceUpdate(s){
   AUDIO.metroBeteG.gain.setTargetAtTime(cible,t,0.4);
   AUDIO.metroBeteF.frequency.setTargetAtTime(140-70*s.beteProx,t,0.4);
 }
+/* ---- Radio pirate : retour audio du minijeu L'ÉMISSION — porteuse claire
+   quand l'aiguille est dans la zone, friture proportionnelle à l'écart
+   sinon. Même discipline que les autres ambiances de salle : jamais
+   démarrée deux fois, coupée sur tous les chemins de sortie (voir
+   radioArreterEmission, sortirInterieur, mourir, startRun). */
+function radioAmbianceStart(){
+  if(!AUDIO.pret||AUDIO.radioOn) return;
+  const ctx=AUDIO.ctx, t=ctx.currentTime;
+  const porteuse=ctx.createOscillator(); porteuse.type='sine'; porteuse.frequency.value=460;
+  const porteuseG=ctx.createGain(); porteuseG.gain.value=0;
+  porteuse.connect(porteuseG); porteuseG.connect(AUDIO.sfxG); porteuse.start(t);
+  const friture=ctx.createBufferSource(); friture.buffer=AUDIO.noise; friture.loop=true;
+  const fritureF=ctx.createBiquadFilter(); fritureF.type='highpass'; fritureF.frequency.value=2200;
+  const fritureG=ctx.createGain(); fritureG.gain.value=0;
+  friture.connect(fritureF); fritureF.connect(fritureG); fritureG.connect(AUDIO.sfxG); friture.start(t);
+  AUDIO.radioOn=true;
+  AUDIO.radioPorteuse=porteuse; AUDIO.radioPorteuseG=porteuseG;
+  AUDIO.radioFriture=friture; AUDIO.radioFritureF=fritureF; AUDIO.radioFritureG=fritureG;
+}
+function radioAmbianceStop(){
+  if(!AUDIO.radioOn) return;
+  try{ AUDIO.radioPorteuse.stop(); AUDIO.radioFriture.stop(); }catch(e){}
+  AUDIO.radioOn=false;
+  AUDIO.radioPorteuse=null; AUDIO.radioPorteuseG=null;
+  AUDIO.radioFriture=null; AUDIO.radioFritureF=null; AUDIO.radioFritureG=null;
+}
+// ecart : 0 = aiguille pile dans la porteuse, 1 = signal totalement perdu
+function radioAmbianceUpdate(ecart){
+  if(!AUDIO.radioOn){ radioAmbianceStart(); return; }
+  const t=AUDIO.ctx.currentTime;
+  AUDIO.radioPorteuseG.gain.setTargetAtTime(0.05*(1-ecart),t,0.08);
+  AUDIO.radioFritureG.gain.setTargetAtTime(0.16*ecart,t,0.08);
+}
 const STATIONS=['SOLARA FM','RUE 9','CÔTE BLEUE','— silence —','MICRO CASSÉ FM'];
 function notes(freq,dur,type,vol,filtre){
   const ctx=AUDIO.ctx,t=ctx.currentTime;
@@ -1056,6 +1095,37 @@ function cacherVisee(){
   viseeId=null;
   zoneL.style.display='';
 }
+/* ---------- zone de fréquence (Radio pirate, salle L'ÉMISSION) ----------
+   Même principe que la zone de glissement de DÉMOLITION : le doigt pilote
+   l'aiguille directement, sans inertie, où qu'il touche l'écran dans la
+   moitié basse. Propre à la salle (écrit dans INT.actif, pas ARCADE.d) —
+   ce n'est pas une borne d'arcade. */
+const radioZone=el('radioZone');
+let radioZId=null;
+function radioDeplaceAiguille(clientX){
+  const s=INT.actif; if(!s||!s.emissionOn) return;
+  const frac=clamp(clientX/window.innerWidth,0,1);
+  s.aiguille=RADIO_BAND_MIN+frac*(RADIO_BAND_MAX-RADIO_BAND_MIN);
+}
+radioZone.addEventListener('pointerdown',e=>{
+  e.preventDefault(); radioZId=e.pointerId; radioZone.setPointerCapture(e.pointerId);
+  radioDeplaceAiguille(e.clientX);
+});
+radioZone.addEventListener('pointermove',e=>{ if(e.pointerId===radioZId) radioDeplaceAiguille(e.clientX); });
+const radioZFin=e=>{ if(e.pointerId===radioZId) radioZId=null; };
+radioZone.addEventListener('pointerup',radioZFin);
+radioZone.addEventListener('pointercancel',radioZFin);
+function configurerRadioZone(){
+  radioZone.style.display='block';
+  zoneL.style.display='none'; joyBase.style.display='none';
+  INPUT.joyOn=false; INPUT.jx=0; INPUT.jy=0;
+}
+function cacherRadioZone(){
+  if(radioZone.style.display==='none') return;
+  radioZone.style.display='none';
+  radioZId=null;
+  zoneL.style.display='';
+}
 // point d'entrée générique : chaque borne déclare son type de contrôle
 // (def.controle) dans BORNES_ARCADE — activer une future borne avec un
 // contrôle déjà existant ne demande aucune modification ici. Les boutons de
@@ -1229,7 +1299,9 @@ const CURIOS=[
   {id:'boule_bowling',ico:'🎳',nom:'La Boule « Comète »',lieu:'Bowling « Le Strike Doré »',
    eff:'Une arme de mêlée lente et dévastatrice, ajoutée à ton arsenal',
    ind:'Trois strikes dans la même partie. Pas deux : trois.',actif:true},
-  {id:'micro',ico:'🎙️',nom:'Le Micro Vintage',lieu:'Radio pirate Solara FM',actif:false},
+  {id:'micro',ico:'🎙️',nom:'Le Micro Vintage',lieu:'Radio pirate Solara FM',
+   eff:'Solara FM émet en continu : les caches non fouillées apparaissent sur la minimap dans un rayon de 40 m',
+   ind:'Une émission parfaite. Les trois segments, sans une seconde de friture.',actif:true},
   {id:'haltere',ico:'🏋️',nom:'L\u2019Haltère « Enclume »',lieu:'Salle de sport « Fer & Sueur »',
    eff:'Tes coups de mêlée projettent les ennemis 60 % plus loin',
    ind:'Il faut avoir soulevé les trois barres. Toutes les trois.',actif:true},
@@ -2963,6 +3035,15 @@ function placerPortes(){
   poser('cine',cCine.x,cCine.z,'CINÉ-PALACE',0xe8503f);
   const cMetro=caseCentre(2,11); // résidentiel délabré : une bouche de métro condamnée, ouverte dès le début
   poser('metro',cMetro.x,cMetro.z,'MÉTRO — STATION SOLARA',0x7a8a99);
+  // Radio pirate Solara FM : verrouillée sans La Disque de Platine, déjà
+  // acquis dans une partie précédente (les curiosités vivent dans META,
+  // persistantes entre parties). Sans lui, ni case, ni porte, ni REPLIS :
+  // la salle n'existe nulle part cette partie-ci — seule une prochaine
+  // partie, une fois la curiosité en poche, la fera apparaître.
+  if(aCurio('platine')){
+    const cRadio=caseCentre(8,6); // quartier industriel : un entrepôt discret
+    poser('radio',cRadio.x,cRadio.z,'SOLARA FM',0xb48bff);
+  }
   // secours : si un lieu manquait, on place la porte près de la grande place
   if(!PORTES.some(p=>p.id==='banque')&&POIS.place)
     poser('banque',POIS.place.x+CELL,POIS.place.z,'BANQUE',0x35e0ff);
@@ -2976,6 +3057,7 @@ function placerPortes(){
     ['musee','MUSÉE DE SOLARA',0xffd23f],['arcade','PALAIS DE L\'ARCADE',0xff5ec4],
     ['cine','CINÉ-PALACE',0xe8503f],['metro','MÉTRO — STATION SOLARA',0x7a8a99]
   ];
+  if(aCurio('platine')) REPLIS.push(['radio','SOLARA FM',0xb48bff]);
   for(const [id,nom,coul] of REPLIS){
     if(PORTES.some(p=>p.id===id)) continue;
     let mis=false;
@@ -6223,6 +6305,16 @@ const TABLES_FOUILLE={
     {p:15,type:'soin'},
     {p:15,type:'cash',min:500,max:700,texte:'SOMME RARE',rare:true},
   ]},
+  // Radio pirate : deux paliers de cash distincts (petite somme + pièce
+  // détachée) dans le même rack, comme le métro/ciné — voir resoudreFouille.
+  radio:{items:[
+    {p:30,type:'cash',min:40,max:90,texte:'SOMME'},
+    {p:22,type:'mun'},
+    {p:18,type:'cash',min:15,max:15,texte:'CASSETTE'},
+    {p:15,type:'cash',min:100,max:160,texte:'PIÈCE DÉTACHÉE'},
+    {p:10,type:'soin'},
+    {p:5, type:'cash',min:250,max:400,texte:'SOMME RARE',rare:true},
+  ]},
 };
 function tirerTypeFouille(tab){
   const p=Object.assign({},tab.p);
@@ -6515,7 +6607,32 @@ metroWrap.innerHTML='<div id="metroLbl" style="font:900 11px Arial;letter-spacin
 el('hud').appendChild(metroWrap);
 const metroLblEl=metroWrap.querySelector('#metroLbl'), metroBattEl=metroWrap.querySelector('#metroBatt'),
       metroBeteWrap=metroWrap.querySelector('#metroBeteWrap'), metroBeteEl=metroWrap.querySelector('#metroBete');
-const JAUGES=[fouilleWrap,karaWrap,bwWrap,spWrap,swWrap,musWrap,arcadeWrap,cineWrap,metroWrap];
+/* Radio pirate : segment/pause en cours, barre de fréquence (aiguille +
+   porteuse en surbrillance) et jauge de triangulation — la barre doit
+   rester lisible sans le son (voir CLAUDE.md / la demande d'origine). */
+const radioWrap=document.createElement('div');
+radioWrap.style.cssText='position:absolute;left:50%;transform:translateX(-50%);'+
+  'bottom:calc(env(safe-area-inset-bottom,0px) + 380px);width:min(280px,76vw);display:none;'+
+  'text-align:center;pointer-events:none;z-index:6';
+radioWrap.innerHTML='<div id="radioLbl" style="font:900 11px Arial;letter-spacing:.06em;color:#b48bff;'+
+  'text-shadow:0 2px 6px #000">📻 SEGMENT 1/3 · 8 s</div>'+
+  '<div style="position:relative;margin-top:5px;height:14px;background:#12141bee;'+
+  'border:1.5px solid #ffffff33;border-radius:4px;overflow:hidden">'+
+  '<i id="radioZoneBar" style="position:absolute;top:0;bottom:0;background:#7dff7a55;'+
+  'border-left:1px solid #7dff7a;border-right:1px solid #7dff7a;width:18%;left:40%"></i>'+
+  '<i id="radioAiguille" style="position:absolute;top:0;bottom:0;width:2px;background:#ffd23f;'+
+  'left:50%;box-shadow:0 0 6px #ffd23f"></i></div>'+
+  '<div id="radioFreqTxt" style="font:800 8px Arial;color:#8a8f9a;margin-top:2px">97.5 FM</div>'+
+  '<div style="position:relative;margin-top:5px;height:8px;background:#12141bee;'+
+  'border:1.5px solid #ffffff33;border-radius:4px;overflow:hidden">'+
+  '<i id="radioTriang" style="display:block;height:100%;width:0%;'+
+  'background:linear-gradient(90deg,#ffd23f,#ff3b5c)"></i></div>'+
+  '<div style="font:800 8px Arial;color:#8a8f9a;margin-top:2px">triangulation</div>';
+el('hud').appendChild(radioWrap);
+const radioLblEl=radioWrap.querySelector('#radioLbl'), radioZoneBarEl=radioWrap.querySelector('#radioZoneBar'),
+      radioAiguilleEl=radioWrap.querySelector('#radioAiguille'), radioFreqTxtEl=radioWrap.querySelector('#radioFreqTxt'),
+      radioTriangEl=radioWrap.querySelector('#radioTriang');
+const JAUGES=[fouilleWrap,karaWrap,bwWrap,spWrap,swWrap,musWrap,arcadeWrap,cineWrap,metroWrap,radioWrap];
 function cacherJauges(){ for(const j of JAUGES) if(j.style.display!=='none') j.style.display='none'; }
 
 /* =====================================================================
@@ -7645,7 +7762,11 @@ const INTDEFS={
      (comme les 3 halls du musée) séparés par des passages étroits, de plus
      en plus profonds et de plus en plus sombres. */
   metro:{nom:'Métro abandonné',ico:'🚇',w:30,d:90,sol:0x0d0e10,mur:0x1b1d24,
-    ens:['STATION SOLARA','#7a8a99']}
+    ens:['STATION SOLARA','#7a8a99']},
+  /* ---- lieu spécial (lot 7) : verrouillé sans aCurio('platine') — voir
+     placerPortes(). Studio clandestin dans un entrepôt du quartier industriel. */
+  radio:{nom:'Radio pirate Solara FM',ico:'📻',w:24,d:26,sol:0x2a2430,mur:0x241f2c,
+    ens:['SOLARA FM','#b48bff']}
 };
 // véhicules en vente au concessionnaire
 const CATALOGUE=[
@@ -9180,6 +9301,76 @@ function construireSalle(id){
     inter.metroVagueRef=-1; inter.lampeEnMain=false;
     inter.beteAvert1=false; inter.beteAvert2=false;
   }
+  /* ---- lieu spécial (lot 7) : LA RADIO PIRATE SOLARA FM — verrouillée
+     sans aCurio('platine') (voir placerPortes). Studio clandestin dans un
+     entrepôt : béton, murs gris-violet, néons rouges. Le minijeu se joue
+     planté devant la console, aiguille pilotée au doigt (radioZone), pas
+     de déplacement dans la salle contrairement au Ciné-Palace. */
+  else if(id==='radio'){
+    // sol béton, dalles ternes
+    for(let i=-5;i<5;i++) for(let j=-6;j<6;j++){
+      const t=new THREE.Mesh(new THREE.PlaneGeometry(2.3,2.3),mat((i+j)%2?0x2e2836:0x282230));
+      t.rotation.x=-Math.PI/2; t.position.set(ox+i*2.4+1.2,0.11,oz+j*2.4+1.2); g.add(t);
+    }
+    // néons rouges muraux
+    for(const [nx,nz] of [[-10,-11],[10,-11],[-10,9],[10,9]]) box(0.3,0.5,2.4,0xff1f3f,nx,3,nz,false);
+    lampe(-6,-6,0xff3b5c,7); lampe(6,-6,0xff3b5c,7); lampe(0,-1,0xb48bff,8); lampe(0,7,0xb48bff,7);
+
+    // ---- console de mixage ----
+    box(3.6,1.1,1.6,0x1c1a22,0,0.55,2);
+    box(3,0.15,1.2,0x2a2740,0,1.15,2,false);
+    for(let k=0;k<6;k++) box(0.18,0.3,0.18,pick([0xff3b5c,0xffd23f,0x35e0ff,0x7dff7a]),-1.3+k*0.5,1.28,1.7,false);
+    mkEnseigne('CONSOLE','#b48bff',ox,2,oz+3.3,0,7);
+    inter.console={x:ox,z:oz+2};
+
+    // ---- cabine vitrée + Micro Vintage sous cloche ----
+    box(3.4,2.6,2.6,0x1c1a22,-8,1.3,3,false);
+    const vitreCabine=new THREE.Mesh(new THREE.BoxGeometry(2.6,2,0.15),
+      new THREE.MeshBasicMaterial({color:0xbfe4ff,transparent:true,opacity:0.16,depthWrite:false}));
+    vitreCabine.position.set(ox-8,1.4,oz+1.75); g.add(vitreCabine);
+    const socleMicro=new THREE.Mesh(new THREE.CylinderGeometry(0.35,0.4,0.3,10),mat(0x2a2018));
+    socleMicro.position.set(ox-8,0.6,oz+3); g.add(socleMicro);
+    const microMesh=new THREE.Group();
+    microMesh.add(new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.16,0.5,10),mat(0x8a8f9a)));
+    const micGrille=new THREE.Mesh(new THREE.SphereGeometry(0.17,8,6),new THREE.MeshLambertMaterial({color:0xbfc6d0}));
+    micGrille.position.y=0.32; microMesh.add(micGrille);
+    microMesh.position.set(ox-8,0.9,oz+3); g.add(microMesh);
+    const clocheMicro=new THREE.Mesh(new THREE.SphereGeometry(0.5,12,10,0,6.29,0,1.7),
+      new THREE.MeshBasicMaterial({color:0xbfe4ff,transparent:true,opacity:0.14,depthWrite:false,side:THREE.DoubleSide}));
+    clocheMicro.position.set(ox-8,0.6+0.5,oz+3); g.add(clocheMicro);
+    if(aCurio('micro')){ clocheMicro.visible=false; micGrille.material.color.setHex(0xffd23f);
+      micGrille.material.emissive=new THREE.Color(0xffd23f).multiplyScalar(0.6); }
+    inter.microCloche=clocheMicro; inter.micGrille=micGrille;
+    mkEnseigne('LE MICRO VINTAGE','#ffd23f',ox-8,2.7,oz+1.7,0,13);
+
+    // ---- panneau ON AIR ----
+    box(1.6,0.6,0.15,0x1c1a22,8,3,3,false);
+    const onAir=new THREE.Mesh(new THREE.PlaneGeometry(1.3,0.4),
+      new THREE.MeshBasicMaterial({color:0xff1f3f,transparent:true,opacity:0.2}));
+    onAir.position.set(ox+8,3,oz+3.09); g.add(onAir);
+    inter.onAirMesh=onAir;
+
+    // ---- mur de lettres d'auditeurs (décor pur) ----
+    for(let k=0;k<14;k++)
+      box(0.5,0.35,0.03,pick([0xe8ecf2,0xd8cfa0,0xbfc6d0]),-9+(k%7)*3,2.1+Math.floor(k/7)*1.1,-12.4,false);
+
+    // ---- 3 racks fouillables ----
+    const rack1=box(1.6,2.2,1,0x1c1a22,-8,1.1,-5);
+    fouillable(-8,-6.4,'Rack audio','radio',rack1,2.8);
+    mkEnseigne('RACK','#ffd23f',ox-8,2.5,oz-6.7,0,5);
+    const rack2=box(1.6,2.2,1,0x1c1a22,0,1.1,-8);
+    fouillable(0,-9.4,'Rack audio','radio',rack2,2.8);
+    mkEnseigne('RACK','#ffd23f',ox,2.5,oz-9.7,0,5);
+    const rack3=box(1.6,2.2,1,0x1c1a22,8,1.1,-5);
+    fouillable(8,-6.4,'Rack audio','radio',rack3,2.8);
+    mkEnseigne('RACK','#ffd23f',ox+8,2.5,oz-6.7,0,5);
+
+    inter.emissionOn=false; inter.segmentIdx=0; inter.segmentT=0; inter.segmentPause=0;
+    inter.segTempsZone=0; inter.sautFait=false; inter.triangulation=0;
+    inter.aiguille=97.5; inter.zoneCentre=97.5; inter.zoneDir=1;
+    inter.segmentsReussis=0; inter.emissionsVague=0; inter.radioVagueRef=-1;
+    inter.emissionParfaite=true; inter.appelsUtilises=[];
+  }
   scene.add(g);
   INT.salles[id]=inter;
   return inter;
@@ -9234,6 +9425,7 @@ function sortirInterieur(){
   // ceci ne fait qu'éviter qu'un reliquat de butin/Bête ne survive à un
   // chemin de sortie qui n'est pas passé par là. Batterie non touchée.
   if(sc.piles){ sc.butin=0; sc.beteProx=0; sc.niveauPrecBlackout=undefined; metroAmbianceStop(); }
+  if(sc.emissionOn){ radioArreterEmission(sc); toast('Tu quittes en pleine émission. Le signal s’éteint.'); }
   for(let i=ennemis.length-1;i>=0;i--){
     const e=ennemis[i];
     if(e.interieur===sc.id&&!e.garde){ scene.remove(e.h?e.h.g:e.mesh); ennemis.splice(i,1); }
@@ -9557,6 +9749,111 @@ function metroDangerToucher(s,d){
   toast(d.type==='rail'?'⚡ Choc électrique !':'🕳️ Tu tombes dans un trou !','warn');
   if(perte>0) toast('-'+perte+' $ tombés dans le noir','warn');
   SFX.degat(); secousse(5); vibre(70);
+}
+/* =====================================================================
+   RADIO PIRATE SOLARA FM — minijeu L'ÉMISSION : garder l'aiguille dans la
+   porteuse qui dérive, sur 3 segments de plus en plus difficiles. La
+   triangulation et la dérive de la zone sont des compteurs subis par le
+   joueur : tout passe par dtJeu, jamais par dt (voir boucle()).
+===================================================================== */
+const RADIO_BAND_MIN=87, RADIO_BAND_MAX=108;   // 87.0–108.0 FM
+const RADIO_SEG_DUREE=8, RADIO_PAUSE_DUREE=2, RADIO_EMISSIONS_MAX=2;
+// largeur en fraction de la largeur de bande, vitesse en fraction de bande/s
+// (jamais en MHz/frame) — segment 3 avec un saut de fréquence à mi-parcours
+const RADIO_SEGMENTS=[
+  {largeur:0.18,vitesse:0.025},
+  {largeur:0.12,vitesse:0.05},
+  {largeur:0.08,vitesse:0.09,saut:true},
+];
+const RADIO_APPELS=[
+  'Allô ? C’est pour signaler que mon voisin a garé un char devant chez moi.',
+  'Vous pouvez passer une dédicace à Gaston ? Il s’est encore échappé.',
+  'Je suis coincé sur le toit de la Tour Solara depuis mardi. Sinon la vue est belle.',
+  'Bonjour, je cherche une chaussette. Bleue. Enfin, elle était bleue.',
+  'Est-ce qu’on peut arrêter les explosions ? J’essaie de faire dormir un bébé.',
+  'Madame Zohra avait prédit que j’appellerais. Ça m’a beaucoup troublé.',
+  'Ouais salut, c’est les Vipères. Les Frelons sentent mauvais.',
+  'Y’a un poulpe dans mon aquarium qui me regarde bizarrement.',
+  'Je voulais commander un sandwich. Ah, c’est pas le bon numéro ? Bon.',
+  'Franchement, la musique était mieux avant. Avant quoi ? Avant.',
+];
+// point de reset paresseux, comme metroVerifierVague/cineVerifierVague —
+// une vague qui tourne éteint aussi une émission en cours (voir spec) et
+// remet triangulation/ON AIR à zéro ; seul le compteur de vague est propre
+// à cette fonction, radioArreterEmission gère le reste (partagé avec les
+// autres chemins de sortie)
+function radioVerifierVague(s){
+  if(s.radioVagueRef!==WAVES.n){ s.radioVagueRef=WAVES.n; s.emissionsVague=0; radioArreterEmission(s); }
+}
+// point de reset commun : émission en cours annulée, triangulation à zéro,
+// ON AIR éteint, sons coupés — utilisé par la fin naturelle (police), la
+// sortie en pleine émission, la mort, le game over et le changement de vague
+function radioArreterEmission(s){
+  s.emissionOn=false; s.segmentPause=0; s.triangulation=0;
+  radioAmbianceStop();
+  cacherRadioZone();
+  if(radioWrap.style.display!=='none') radioWrap.style.display='none';
+}
+function radioDemarrerSegment(s){
+  const zdef=RADIO_SEGMENTS[s.segmentIdx];
+  const largeurMHz=zdef.largeur*(RADIO_BAND_MAX-RADIO_BAND_MIN);
+  const marge=largeurMHz/2+0.5;
+  s.zoneCentre=rand(RADIO_BAND_MIN+marge,RADIO_BAND_MAX-marge);
+  s.zoneDir=Math.random()<0.5?1:-1;
+  s.segmentT=0; s.segTempsZone=0; s.sautFait=false;
+}
+function radioAppelAuditeur(s){
+  let idx=randi(0,RADIO_APPELS.length-1);
+  while(s.appelsUtilises.includes(idx)) idx=randi(0,RADIO_APPELS.length-1);
+  s.appelsUtilises.push(idx);
+  toast('📞 '+RADIO_APPELS[idx],'warn');
+}
+function radioFinSegment(s){
+  const frac=s.segTempsZone/RADIO_SEG_DUREE;
+  const reussi=frac>=0.70;
+  if(reussi){
+    s.segmentsReussis++;
+    META.argent+=120; ETAT.cashRun+=120; META.stats.cashTotal+=120;
+    toast('Segment '+(s.segmentIdx+1)+' réussi : +120 $','or'); SFX.achat();
+  } else toast('Segment '+(s.segmentIdx+1)+' raté — trop de friture','warn');
+  if(frac<0.95) s.emissionParfaite=false;
+  s.segmentIdx++;
+  if(s.segmentIdx>=RADIO_SEGMENTS.length) radioTerminerEmission(s);
+  else { s.segmentPause=RADIO_PAUSE_DUREE; radioAppelAuditeur(s); }
+}
+// triangulation à 100 % : descente de police, +1 étoile, éjection
+function radioDescentePolice(s){
+  radioArreterEmission(s);
+  bigMsg('🚨 DESCENTE DE POLICE'); toast('Ils ont localisé le signal !','warn');
+  addHeat(1); SFX.etoile(); secousse(8); vibre(150);
+  sortirInterieur();
+}
+function radioTerminerEmission(s){
+  const parfaite=s.emissionParfaite&&s.segmentsReussis>=3;
+  radioArreterEmission(s);
+  if(s.segmentsReussis>=3){
+    META.argent+=150; ETAT.cashRun+=150; META.stats.cashTotal+=150;
+    bigMsg('📻 ÉMISSION RÉUSSIE'); toast('Les 3 segments tenus : +150 $ de bonus','or'); SFX.niveau();
+  } else { bigMsg('📻 ÉMISSION TERMINÉE'); toast(s.segmentsReussis+'/3 segments réussis','or'); SFX.achat(); }
+  if(parfaite&&!aCurio('micro')){
+    donnerCurio('micro');
+    if(s.microCloche) s.microCloche.visible=false;
+    if(s.micGrille){ s.micGrille.material.color.setHex(0xffd23f);
+      s.micGrille.material.emissive=new THREE.Color(0xffd23f).multiplyScalar(0.6); }
+  }
+  checkDefis(); sauveMeta();
+}
+function radioDemarrerEmission(s){
+  s.emissionOn=true; s.emissionsVague++; s.segmentIdx=0; s.segmentsReussis=0;
+  s.triangulation=0; s.emissionParfaite=true; s.segmentPause=0;
+  s.aiguille=rand(RADIO_BAND_MIN+2,RADIO_BAND_MAX-2);
+  s.appelsUtilises=[];
+  radioDemarrerSegment(s);
+  radioAmbianceStart();
+  configurerRadioZone();
+  radioWrap.style.display='block';
+  bigMsg('📻 ON AIR'); toast('Garde l’aiguille dans la porteuse. Trois segments.','or');
+  SFX.ui();
 }
 function majInterieur(dt,dtJeu){
   const s=INT.actif; if(!s) return;
@@ -9915,6 +10212,53 @@ function majInterieur(dt,dtJeu){
     metroBattEl.style.background=s.batterie<20?'#ff3b5c':(s.batterie<50?'#ffd23f':'#7dff7a');
     if(s.niveauActuel===3){ metroBeteWrap.style.display='block'; metroBeteEl.style.width=Math.round(s.beteProx*100)+'%'; }
     else metroBeteWrap.style.display='none';
+  }
+  // ---- Radio pirate : L'ÉMISSION (segments, pause, triangulation) ----
+  if(s.console){
+    radioVerifierVague(s);
+    if(s.onAirMesh) s.onAirMesh.material.opacity=s.emissionOn?(0.6+0.4*Math.sin(ETAT.runT*6)):0.2;
+    if(s.emissionOn){
+      if(s.segmentPause>0){
+        s.segmentPause=Math.max(0,s.segmentPause-dtJeu);
+        radioWrap.style.display='block';
+        radioLblEl.textContent='📞 PAUSE · '+Math.ceil(s.segmentPause)+' s';
+        if(s.segmentPause<=0) radioDemarrerSegment(s);
+      } else {
+        s.segmentT+=dtJeu;
+        const zdef=RADIO_SEGMENTS[s.segmentIdx];
+        const largeurMHz=zdef.largeur*(RADIO_BAND_MAX-RADIO_BAND_MIN);
+        const marge=largeurMHz/2+0.5;
+        // dérive en fraction de bande PAR SECONDE (jamais par frame), rebondit
+        // dans les bornes de la bande, avec un saut de fréquence au milieu du
+        // segment 3 — tout sur dtJeu, un ralenti ne doit ni faciliter ni durcir
+        s.zoneCentre+=s.zoneDir*zdef.vitesse*(RADIO_BAND_MAX-RADIO_BAND_MIN)*dtJeu;
+        if(s.zoneCentre>=RADIO_BAND_MAX-marge){ s.zoneCentre=RADIO_BAND_MAX-marge; s.zoneDir=-1; }
+        if(s.zoneCentre<=RADIO_BAND_MIN+marge){ s.zoneCentre=RADIO_BAND_MIN+marge; s.zoneDir=1; }
+        if(zdef.saut&&!s.sautFait&&s.segmentT>=RADIO_SEG_DUREE/2){
+          s.sautFait=true;
+          s.zoneCentre=rand(RADIO_BAND_MIN+marge,RADIO_BAND_MAX-marge);
+        }
+        const ecartMHz=Math.abs(s.aiguille-s.zoneCentre);
+        const dansZone=ecartMHz<=largeurMHz/2;
+        if(dansZone){
+          s.segTempsZone+=dtJeu;
+          s.triangulation=Math.max(0,s.triangulation-(100/12)*dtJeu);
+        } else {
+          s.triangulation=Math.min(100,s.triangulation+(100/6)*dtJeu);
+        }
+        if(s.triangulation>50) s.emissionParfaite=false;
+        radioAmbianceUpdate(clamp((ecartMHz-largeurMHz/2)/5,0,1));
+        radioWrap.style.display='block';
+        radioLblEl.textContent='📻 SEGMENT '+(s.segmentIdx+1)+'/3 · '+Math.max(0,Math.ceil(RADIO_SEG_DUREE-s.segmentT))+' s';
+        radioZoneBarEl.style.width=(zdef.largeur*100)+'%';
+        radioZoneBarEl.style.left=((s.zoneCentre-largeurMHz/2-RADIO_BAND_MIN)/(RADIO_BAND_MAX-RADIO_BAND_MIN)*100)+'%';
+        radioAiguilleEl.style.left=((s.aiguille-RADIO_BAND_MIN)/(RADIO_BAND_MAX-RADIO_BAND_MIN)*100)+'%';
+        radioFreqTxtEl.textContent=s.aiguille.toFixed(1)+' FM';
+        radioTriangEl.style.width=Math.round(s.triangulation)+'%';
+        if(s.triangulation>=100) radioDescentePolice(s);
+        else if(s.segmentT>=RADIO_SEG_DUREE) radioFinSegment(s);
+      }
+    }
   }
 }
 
@@ -10852,6 +11196,13 @@ function startRun(){
       if(sa.lampeEnMain){ sa.lampeEnMain=false; if(sa.lampeCache&&sa.lampeCache.mesh) sa.lampeCache.mesh.visible=true; }
       for(const p of sa.piles) p.prisVague=-1;
     }
+    // Radio pirate : émission annulée, triangulation à zéro, compteur de
+    // vague à zéro, ON AIR éteint. Le Micro Vintage, si déjà obtenu lors
+    // d'une partie précédente, reste acquis (aCurio('micro') vit dans META).
+    if(sa.console){
+      if(sa.emissionOn) radioArreterEmission(sa);
+      sa.emissionsVague=0; sa.radioVagueRef=-1;
+    }
   }
   // arcade : une partie de borne en cours est annulée SANS banquer ses
   // tickets — contrairement à un abandon volontaire (finirBorneJeu, appelé
@@ -11000,6 +11351,7 @@ function mourir(){
     if(INT.actif.lampeEnMain){ INT.actif.lampeEnMain=false; if(INT.actif.lampeCache&&INT.actif.lampeCache.mesh) INT.actif.lampeCache.mesh.visible=true; }
     metroAmbianceStop();
   }
+  if(INT.actif&&INT.actif.console&&INT.actif.emissionOn) radioArreterEmission(INT.actif); // coupe le son tout de suite
   P.h.g.rotation.z=Math.PI/2; P.h.g.position.y=0.35;
   reticule.visible=false;
   const record=ETAT.score>META.record;
@@ -11693,6 +12045,19 @@ function majAction(){
         bigMsg('🔦 TROUVÉE'); toast('Remonte à la surface avec — c’est là qu’elle compte.','or');
         SFX.etoile(); vibre(50);
       };
+    /* ---------- RADIO PIRATE : la console de mixage (démarre l'émission) ---------- */
+    } else if(s.console&&dist2(P.x,P.z,s.console.x,s.console.z)<marquerZone(s.console,16)){
+      radioVerifierVague(s);
+      if(s.emissionOn){
+        label='📻 Émission en cours...';
+        fn=()=>{ SFX.refus(); };
+      } else if(s.emissionsVague>=RADIO_EMISSIONS_MAX){
+        label='📻 Deux émissions déjà données cette vague';
+        fn=()=>{ SFX.refus(); toast('L’antenne rouvrira à la prochaine vague.'); };
+      } else {
+        label='📻 LANCER L’ÉMISSION';
+        fn=()=>{ radioDemarrerEmission(s); };
+      }
     } else if(s.fouilles&&s.fouilles.length&&
               s.fouilles.some(f=>dist2(P.x,P.z,f.x,f.z)<f.rayon*f.rayon)){
       // priorité basse : n'importe quel contenant fouillable de la salle
@@ -11948,6 +12313,16 @@ function majMinimap(){
   const dot=(x,z,c,r)=>{mmCtx.fillStyle=c;mmCtx.beginPath();mmCtx.arc(mmX(x),mmZ(z),r||2.4,0,7);mmCtx.fill();};
   for(const e of ennemis) if(!e.mort) dot(e.x,e.z,e.fac==='police'?'#4a9aff':(e.fac==='frelons'?'#e6a41f':'#ff5a5a'),e.boss?4.5:2.4);
   for(const p of pickups) dot(p.x,p.z,'#58ff7a',1.8);
+  // Le Micro Vintage : Solara FM émet en continu, les caches non fouillées
+  // de la salle où l'on se trouve apparaissent dans un rayon de 40 m —
+  // affichées à leur offset réel par rapport au joueur, autour de l'icône
+  // de la porte (posCarte() place déjà le joueur là quand il est dedans).
+  if(INT.actif&&aCurio('micro')) for(const f of INT.actif.fouilles){
+    if(f.prisVague===WAVES.n) continue;
+    const dx=f.x-P.x, dz=f.z-P.z;
+    if(dx*dx+dz*dz>1600) continue;
+    dot(INT.rx+dx,INT.rz+dz,'#ffd23f',2);
+  }
   if(MISSION.cur&&(MISSION.cur.poi||MISSION.cur.type==='rack')){
     const pp=MISSION.cur.poi||POIS.rack;
     dot(pp.x,pp.z,'#ffd23f',4);

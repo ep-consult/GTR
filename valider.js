@@ -356,6 +356,12 @@ Object.defineProperty(global, 'navigator', {
   writable: true, configurable: true, enumerable: true,
 });
 global.localStorage = makeLocalStorage();
+// Radio pirate Solara FM : porte verrouillée sans aCurio('platine') (curiosité
+// méta-persistante, gagnée dans une partie précédente) — sans quoi cette porte
+// n'existe nulle part, et il manquerait une salle sur les 23 attendues dans
+// PORTES ci-dessous. On simule donc un joueur qui l'a déjà obtenue, comme le
+// ferait une vraie sauvegarde chargée avant la génération de la ville.
+global.localStorage.setItem('asphalte_save_v1', JSON.stringify({ curios: { platine: 1 } }));
 global.requestAnimationFrame = fakeRAF;
 global.cancelAnimationFrame = fakeCancelRAF;
 global.THREE = THREE;

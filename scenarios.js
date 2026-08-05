@@ -2505,6 +2505,425 @@ async function main() {
     else ok('Vol : les libellés reviennent bien à SPRINT/FREIN en sortant de l\'appareil');
 
     // -------------------------------------------------------------------
+    // Radio pirate Solara FM : verrouillée sans la curiosité 'platine'. La
+    // porte n'existe nulle part tant qu'elle n'a pas été acquise AVANT la
+    // génération de la ville — vérifié ici, avant de l'accorder et de
+    // recharger (le karaoké, plus haut dans la suite, l'a déjà acquise en
+    // mémoire, mais la ville de ce chargement-ci a été générée avant).
+    // -------------------------------------------------------------------
+    console.log('\n--- Radio pirate Solara FM : verrouillée sans la curiosité \'platine\' ---');
+    const radioAvant = await page.evaluate(() => PORTES.some((p) => p.id === 'radio'));
+    if (radioAvant) fail('Radio : la porte existe alors que la ville a été générée sans la curiosité \'platine\'');
+    else ok('Radio : aucune porte tant que la curiosité \'platine\' n\'était pas acquise à la génération de la ville');
+
+    console.log('\n--- Radio pirate Solara FM : porte + curiosité \'micro\' après acquisition de \'platine\' (rechargement) ---');
+    await page.evaluate(() => { META.curios.platine = 1; sauveMeta(); });
+    await page.reload({ waitUntil: 'load', timeout: 30000 });
+    await page.waitForFunction(() => typeof PORTES !== 'undefined' && PORTES.length > 0, { timeout: 20000 });
+    const radioPorte = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'radio');
+      const c = CURIOS.find((x) => x.id === 'micro');
+      return {
+        porteExiste: !!p,
+        quartierAttendu: quartier(8, 6),
+        curioActive: c ? c.actif : null,
+        curioA_eff: c ? !!c.eff : false,
+        curioA_ind: c ? !!c.ind : false,
+      };
+    });
+    if (!radioPorte.porteExiste) fail('Radio : la porte n\'apparaît toujours pas après acquisition de \'platine\' et rechargement');
+    else ok('Radio : la porte apparaît bien une fois \'platine\' acquis, à la génération suivante');
+    if (radioPorte.quartierAttendu !== 'industriel') fail('Radio : quartier(8,6) ne vaut plus \'industriel\' (' + radioPorte.quartierAttendu + ') — repositionner caseCentre(8,6)');
+    else ok('Radio : quartier(8,6) vaut bien \'industriel\', comme demandé');
+    if (!radioPorte.curioActive || !radioPorte.curioA_eff || !radioPorte.curioA_ind) fail('Radio : la curiosité \'micro\' n\'est pas correctement activée (actif/eff/ind)');
+    else ok('Radio : la curiosité \'micro\' est bien activée avec ses textes');
+    // Isolation (voir le test de Persistance, même cause) : boucle() vérifie
+    // les défis toutes les ~2 s de temps réel, indépendamment de ce que fait
+    // ce test. Plusieurs tests ci-dessous vérifient des deltas EXACTS de
+    // META.argent ; un défi resté vrai mais pas encore vu à cause d'un effet
+    // de bord d'un scénario précédent pourrait sinon se déclencher pendant
+    // n'importe lequel d'entre eux et fausser le delta observé.
+    await page.evaluate(() => { for (const d of DEFIS) META.defis.faits[d.id] = true; });
+
+    // -------------------------------------------------------------------
+    // Espacements — lus depuis la salle réelle, jamais recopiés (voir
+    // CLAUDE.md). Console + 3 racks à ≥8 u entre eux et de la sortie.
+    // -------------------------------------------------------------------
+    console.log('\n--- Radio pirate Solara FM : espacements (console, racks, sortie) ---');
+    const espacementsRadio = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'radio');
+      entrerInterieur('radio', p);
+      const s = INT.actif;
+      const zones = [{ x: s.console.x, z: s.console.z }].concat(s.fouilles.map((f) => ({ x: f.x, z: f.z })));
+      const distEntreZones = [];
+      for (let i = 0; i < zones.length; i++) for (let j = i + 1; j < zones.length; j++) {
+        distEntreZones.push(Math.hypot(zones[i].x - zones[j].x, zones[i].z - zones[j].z));
+      }
+      const zonesVsSortie = zones.map((z) => Math.hypot(z.x - s.sortie.x, z.z - s.sortie.z));
+      const nbFouilles = s.fouilles.length;
+      if (INT.actif) sortirInterieur();
+      return { distEntreZones, zonesVsSortie, nbFouilles };
+    });
+    if (Math.min(...espacementsRadio.distEntreZones) < 7.99) fail('Radio : deux zones interactives sont à moins de 8 unités l\'une de l\'autre (' + JSON.stringify(espacementsRadio.distEntreZones) + ')');
+    else ok('Radio : la console et les racks sont bien espacés d\'au moins 8 unités entre eux');
+    if (espacementsRadio.zonesVsSortie.some((d) => d < 7.99)) fail('Radio : une zone interactive est à moins de 8 unités du centre de la sortie (' + JSON.stringify(espacementsRadio.zonesVsSortie) + ')');
+    else ok('Radio : toutes les zones interactives sont bien à au moins 8 unités de la sortie');
+    if (espacementsRadio.nbFouilles !== 3) fail('Radio : nombre de racks fouillables inattendu (' + espacementsRadio.nbFouilles + ', attendu 3)');
+    else ok('Radio : les 3 racks fouillables sont bien enregistrés');
+
+    // -------------------------------------------------------------------
+    // Démarrage de l'émission, aiguille dans/hors la porteuse : la
+    // triangulation baisse dedans, monte dehors ; le temps-dans-zone
+    // s'accumule dedans seulement.
+    // -------------------------------------------------------------------
+    console.log('\n--- Radio pirate Solara FM : démarrage, aiguille dans/hors la porteuse, triangulation ---');
+    const emission = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'radio');
+      startRun();
+      entrerInterieur('radio', p);
+      const s = INT.actif;
+      P.x = s.console.x; P.z = s.console.z;
+      majAction(); document.getElementById('btnAction')._fn();
+      const demarree = s.emissionOn, segment1 = s.segmentIdx === 0;
+      s.aiguille = s.zoneCentre; s.triangulation = 50;
+      majInterieur(1, 1);
+      const triangBaisseeDedans = s.triangulation < 50, tempsZoneApres = s.segTempsZone;
+      s.aiguille = s.zoneCentre + 20; s.triangulation = 0;
+      majInterieur(1, 1);
+      const triangMonteeDehors = s.triangulation > 0;
+      if (INT.actif) sortirInterieur();
+      return { demarree, segment1, triangBaisseeDedans, tempsZoneApres, triangMonteeDehors };
+    });
+    if (!emission.demarree || !emission.segment1) fail('Radio : la console ne démarre pas l\'émission au segment 1');
+    else ok('Radio : la console démarre bien l\'émission, au premier segment');
+    if (!emission.triangBaisseeDedans || emission.tempsZoneApres <= 0) fail('Radio : l\'aiguille dans la porteuse ne fait pas baisser la triangulation et/ou n\'accumule pas de temps-dans-zone');
+    else ok('Radio : l\'aiguille dans la porteuse fait bien baisser la triangulation et accumule le temps-dans-zone');
+    if (!emission.triangMonteeDehors) fail('Radio : l\'aiguille hors de la porteuse ne fait pas monter la triangulation');
+    else ok('Radio : l\'aiguille hors de la porteuse fait bien monter la triangulation');
+
+    // -------------------------------------------------------------------
+    // Le glissement du doigt pilote directement l'aiguille (pas d'inertie,
+    // pas d'effet hors émission), sur toute la largeur de bande.
+    // -------------------------------------------------------------------
+    console.log('\n--- Radio pirate Solara FM : le glissement du doigt pilote directement l\'aiguille ---');
+    const glisseTest = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'radio');
+      startRun();
+      entrerInterieur('radio', p);
+      const s = INT.actif;
+      P.x = s.console.x; P.z = s.console.z;
+      const aiguilleAvant = s.aiguille;
+      radioDeplaceAiguille(window.innerWidth * 0.5);
+      const inchangeeSansEmission = s.aiguille === aiguilleAvant;
+      majAction(); document.getElementById('btnAction')._fn();
+      radioDeplaceAiguille(0);
+      const auMinimum = Math.abs(s.aiguille - RADIO_BAND_MIN) < 0.05;
+      radioDeplaceAiguille(window.innerWidth);
+      const auMaximum = Math.abs(s.aiguille - RADIO_BAND_MAX) < 0.05;
+      radioDeplaceAiguille(window.innerWidth * 0.5);
+      const auMilieu = Math.abs(s.aiguille - (RADIO_BAND_MIN + RADIO_BAND_MAX) / 2) < 0.05;
+      if (INT.actif) sortirInterieur();
+      return { inchangeeSansEmission, auMinimum, auMaximum, auMilieu };
+    });
+    if (!glisseTest.inchangeeSansEmission) fail('Radio : radioDeplaceAiguille modifie l\'aiguille alors qu\'aucune émission n\'est en cours');
+    else ok('Radio : le glissement du doigt ne fait rien tant qu\'aucune émission n\'est en cours');
+    if (!glisseTest.auMinimum || !glisseTest.auMaximum || !glisseTest.auMilieu) fail('Radio : le glissement du doigt ne positionne pas l\'aiguille correctement sur toute la largeur de bande (' + JSON.stringify(glisseTest) + ')');
+    else ok('Radio : le glissement du doigt positionne bien l\'aiguille sur toute la largeur de bande (87.0–108.0 FM)');
+
+    // -------------------------------------------------------------------
+    // Segment réussi à 70 % de temps dans la zone (120 $), raté sinon (pas
+    // de gain) ; bonus de 150 $ réservé aux 3 segments réussis.
+    // -------------------------------------------------------------------
+    console.log('\n--- Radio pirate Solara FM : segment réussi à 70 %, gains, bonus des 3 segments ---');
+    const segments = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'radio');
+      startRun();
+      entrerInterieur('radio', p);
+      const s = INT.actif;
+      P.x = s.console.x; P.z = s.console.z;
+      majAction(); document.getElementById('btnAction')._fn();
+      const argentAvant = META.argent;
+      s.segTempsZone = RADIO_SEG_DUREE * 0.75; radioFinSegment(s); // réussi
+      const argentApres1 = META.argent, reussis1 = s.segmentsReussis, idx1 = s.segmentIdx;
+      s.segTempsZone = RADIO_SEG_DUREE * 0.5; radioFinSegment(s); // raté
+      const argentApres2 = META.argent, reussis2 = s.segmentsReussis, idx2 = s.segmentIdx;
+      s.segTempsZone = RADIO_SEG_DUREE * 0.8; radioFinSegment(s); // réussi, mais 2/3 seulement -> pas de bonus
+      const argentApres3 = META.argent, reussis3 = s.segmentsReussis, emissionFinie = !s.emissionOn;
+      if (INT.actif) sortirInterieur();
+      return { argentAvant, argentApres1, reussis1, idx1, argentApres2, reussis2, idx2, argentApres3, reussis3, emissionFinie };
+    });
+    if (segments.argentApres1 !== segments.argentAvant + 120 || segments.reussis1 !== 1 || segments.idx1 !== 1) fail('Radio : un segment à 75 % de temps dans la zone ne rapporte pas 120 $ (' + JSON.stringify(segments) + ')');
+    else ok('Radio : un segment réussi (≥70 % de temps dans la zone) rapporte bien 120 $');
+    if (segments.argentApres2 !== segments.argentApres1 || segments.reussis2 !== 1 || segments.idx2 !== 2) fail('Radio : un segment à 50 % de temps dans la zone rapporte de l\'argent alors qu\'il devrait être raté');
+    else ok('Radio : un segment à moins de 70 % de temps dans la zone est bien raté, sans gain');
+    if (segments.argentApres3 !== segments.argentApres2 + 120 || segments.reussis3 !== 2 || !segments.emissionFinie) fail('Radio : le 3e segment (2 réussis sur 3) donne un bonus à tort, ou l\'émission ne se termine pas — ' + JSON.stringify(segments));
+    else ok('Radio : seuls 2 segments sur 3 réussis ne donnent pas le bonus de fin d\'émission');
+
+    const bonusTest = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'radio');
+      startRun();
+      entrerInterieur('radio', p);
+      const s = INT.actif;
+      P.x = s.console.x; P.z = s.console.z;
+      majAction(); document.getElementById('btnAction')._fn();
+      const argentAvant = META.argent;
+      for (let i = 0; i < 3; i++) { s.segTempsZone = RADIO_SEG_DUREE * 0.9; radioFinSegment(s); }
+      const argentApres = META.argent, reussis = s.segmentsReussis, emissionFinie = !s.emissionOn;
+      if (INT.actif) sortirInterieur();
+      return { argentAvant, argentApres, reussis, emissionFinie };
+    });
+    if (bonusTest.reussis !== 3 || bonusTest.argentApres !== bonusTest.argentAvant + 120 * 3 + 150 || !bonusTest.emissionFinie) fail('Radio : réussir les 3 segments ne rapporte pas 120 × 3 + 150 $ (obtenu +' + (bonusTest.argentApres - bonusTest.argentAvant) + ')');
+    else ok('Radio : réussir les 3 segments rapporte bien 120 $ × 3 + 150 $ de bonus');
+
+    // -------------------------------------------------------------------
+    // Appels d'auditeurs pendant les pauses entre segments, jamais répétés
+    // dans la même émission.
+    // -------------------------------------------------------------------
+    console.log('\n--- Radio pirate Solara FM : appel d\'auditeur pendant la pause, jamais répété dans la même émission ---');
+    const appelTest = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'radio');
+      startRun();
+      entrerInterieur('radio', p);
+      const s = INT.actif;
+      P.x = s.console.x; P.z = s.console.z;
+      majAction(); document.getElementById('btnAction')._fn();
+      s.segTempsZone = RADIO_SEG_DUREE * 0.8; radioFinSegment(s);
+      const enPauseApres1 = s.segmentPause > 0;
+      s.segTempsZone = RADIO_SEG_DUREE * 0.8; radioFinSegment(s);
+      const distinct = s.appelsUtilises.length === 2 && s.appelsUtilises[0] !== s.appelsUtilises[1];
+      const texteValide = RADIO_APPELS[s.appelsUtilises[0]] !== undefined && RADIO_APPELS[s.appelsUtilises[1]] !== undefined;
+      if (INT.actif) sortirInterieur();
+      return { enPauseApres1, distinct, texteValide };
+    });
+    if (!appelTest.enPauseApres1) fail('Radio : la fin d\'un segment non final ne déclenche pas la pause de 2 s');
+    else ok('Radio : la fin d\'un segment non final déclenche bien la pause avant le suivant');
+    if (!appelTest.distinct || !appelTest.texteValide) fail('Radio : les appels d\'auditeurs des deux pauses ne sont pas distincts et valides');
+    else ok('Radio : les appels d\'auditeurs des pauses sont bien tirés sans répétition dans la même émission');
+
+    // -------------------------------------------------------------------
+    // Curiosité Le Micro Vintage : réservée à une émission VRAIMENT
+    // parfaite (3 segments ≥95 %, triangulation jamais au-dessus de 50 %).
+    // Testé AVANT toute émission qui l'obtiendrait pour de bon (voir
+    // CLAUDE.md, ordre déjà appliqué pour Le Disque de Platine/La Bobine).
+    // -------------------------------------------------------------------
+    console.log('\n--- Radio pirate Solara FM : curiosité Le Micro Vintage (émission parfaite uniquement) ---');
+    const microTest = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'radio');
+      startRun();
+      const dejaAcquise = aCurio('micro');
+      entrerInterieur('radio', p);
+      const s = INT.actif;
+      P.x = s.console.x; P.z = s.console.z;
+      majAction(); document.getElementById('btnAction')._fn();
+      s.emissionParfaite = false; // simule une triangulation passée au-dessus de 50 % pendant l'émission
+      for (let i = 0; i < 3; i++) { s.segTempsZone = RADIO_SEG_DUREE * 0.97; radioFinSegment(s); }
+      const curioApresPresqueParfait = aCurio('micro');
+      if (INT.actif) sortirInterieur();
+      entrerInterieur('radio', p);
+      const s2 = INT.actif;
+      P.x = s2.console.x; P.z = s2.console.z;
+      majAction(); document.getElementById('btnAction')._fn();
+      const clocheAvant = s2.microCloche.visible;
+      for (let i = 0; i < 3; i++) { s2.segTempsZone = RADIO_SEG_DUREE * 0.97; radioFinSegment(s2); }
+      const curioApresParfait = aCurio('micro'), clocheApres = s2.microCloche.visible;
+      if (INT.actif) sortirInterieur();
+      return { dejaAcquise, curioApresPresqueParfait, curioApresParfait, clocheAvant, clocheApres };
+    });
+    if (microTest.dejaAcquise) fail('Radio : le test suppose la curiosité \'micro\' pas encore acquise à ce stade de la suite');
+    if (microTest.curioApresPresqueParfait) fail('Radio : la curiosité est donnée alors que la triangulation est passée au-dessus de 50 % pendant l\'émission');
+    else ok('Radio : une émission avec triangulation passée au-dessus de 50 % ne donne pas la curiosité, même avec 3 segments réussis');
+    if (!microTest.curioApresParfait) fail('Radio : une émission vraiment parfaite (3 segments ≥95 %, triangulation ≤50 %) ne donne pas la curiosité');
+    else ok('Radio : une émission parfaite donne bien la curiosité Le Micro Vintage');
+    if (!microTest.clocheAvant || microTest.clocheApres) fail('Radio : la cloche du Micro Vintage ne se lève pas à l\'obtention de la curiosité');
+    else ok('Radio : la cloche du Micro Vintage se lève bien à l\'obtention de la curiosité');
+
+    // -------------------------------------------------------------------
+    // Limite de 2 émissions par vague, l'abandon (sortie en pleine
+    // émission) la consomme quand même (exploit du bowling, déjà rencontré).
+    // -------------------------------------------------------------------
+    console.log('\n--- Radio pirate Solara FM : limite de 2 émissions par vague, l\'abandon consomme l\'émission ---');
+    const capRadio = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'radio');
+      startRun();
+      entrerInterieur('radio', p);
+      const s = INT.actif;
+      P.x = s.console.x; P.z = s.console.z;
+      majAction(); document.getElementById('btnAction')._fn();
+      const premiereDemarree = s.emissionOn;
+      sortirInterieur();
+      const emissionAnnuleeApresSortie = !s.emissionOn;
+      const compteurApresAbandon = s.emissionsVague;
+      entrerInterieur('radio', p);
+      P.x = s.console.x; P.z = s.console.z;
+      majAction(); document.getElementById('btnAction')._fn();
+      const deuxiemeDemarree = s.emissionOn;
+      sortirInterieur();
+      const compteurApres2 = s.emissionsVague;
+      entrerInterieur('radio', p);
+      P.x = s.console.x; P.z = s.console.z;
+      majAction();
+      const label3e = document.getElementById('btnAction').textContent;
+      document.getElementById('btnAction')._fn();
+      const troisiemeRefusee = !s.emissionOn;
+      if (INT.actif) sortirInterieur();
+      return { premiereDemarree, emissionAnnuleeApresSortie, compteurApresAbandon, deuxiemeDemarree, compteurApres2, label3e, troisiemeRefusee };
+    });
+    if (!capRadio.premiereDemarree || !capRadio.emissionAnnuleeApresSortie || capRadio.compteurApresAbandon !== 1) fail('Radio : abandonner une émission en cours (sortie) ne la consomme pas correctement (' + JSON.stringify(capRadio) + ')');
+    else ok('Radio : sortir en pleine émission l\'annule et la consomme quand même');
+    if (!capRadio.deuxiemeDemarree || capRadio.compteurApres2 !== 2) fail('Radio : la 2e émission de la vague ne démarre pas correctement (compteur=' + capRadio.compteurApres2 + ')');
+    else ok('Radio : la 2e émission de la vague démarre normalement');
+    if (!capRadio.troisiemeRefusee || !/deux émissions/i.test(capRadio.label3e)) fail('Radio : une 3e émission dans la même vague n\'est pas refusée (label=' + capRadio.label3e + ')');
+    else ok('Radio : une 3e émission dans la même vague est bien refusée');
+
+    // -------------------------------------------------------------------
+    // Triangulation à 100 % : descente de police (+1 étoile), éjection.
+    // -------------------------------------------------------------------
+    console.log('\n--- Radio pirate Solara FM : triangulation à 100 % = descente de police ---');
+    const police = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'radio');
+      startRun();
+      entrerInterieur('radio', p);
+      const s = INT.actif;
+      P.x = s.console.x; P.z = s.console.z;
+      majAction(); document.getElementById('btnAction')._fn();
+      const etoilesAvant = WANTED.stars;
+      s.aiguille = s.zoneCentre + 20; // toujours hors zone
+      let frames = 0;
+      while (INT.actif && s.emissionOn && frames < 2000) { majInterieur(0.05, 0.05); frames++; }
+      const ejecte = !INT.actif;
+      const etoilesApres = WANTED.stars;
+      return { etoilesAvant, ejecte, etoilesApres, frames };
+    });
+    if (!police.ejecte) fail('Radio : la triangulation à 100 % ne finit pas par éjecter le joueur (frames=' + police.frames + ')');
+    else ok('Radio : la triangulation à 100 % éjecte bien le joueur à la surface');
+    if (police.etoilesApres !== police.etoilesAvant + 1) fail('Radio : la descente de police n\'ajoute pas exactement 1 étoile (avant=' + police.etoilesAvant + ', après=' + police.etoilesApres + ')');
+    else ok('Radio : la descente de police ajoute bien exactement 1 étoile');
+
+    // -------------------------------------------------------------------
+    // Réinitialisations : passage de vague et mort en pleine émission
+    // remettent triangulation à 0 et éteignent ON AIR ; seul le passage de
+    // vague (et le game over) remet le compteur d'émissions à 0.
+    // -------------------------------------------------------------------
+    console.log('\n--- Radio pirate Solara FM : réinitialisations (vague, mort, game over) ---');
+    const resetsRadio = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'radio');
+      startRun();
+      entrerInterieur('radio', p);
+      const s = INT.actif;
+      P.x = s.console.x; P.z = s.console.z;
+      majAction(); document.getElementById('btnAction')._fn();
+      s.triangulation = 40;
+      WAVES.n++;
+      majInterieur(0, 0);
+      const emissionApresVague = s.emissionOn, triangApresVague = s.triangulation, compteurApresVague = s.emissionsVague;
+      P.x = s.console.x; P.z = s.console.z;
+      majAction(); document.getElementById('btnAction')._fn();
+      s.triangulation = 35;
+      P.hp = 1; toucherJoueur(9999); // -> mourir(), en pleine émission
+      const emissionApresMort = s.emissionOn, triangApresMort = s.triangulation, modeApresMort = ETAT.mode;
+      startRun();
+      const sa = INT.salles.radio;
+      const emissionApresGameOver = sa.emissionOn, compteurApresGameOver = sa.emissionsVague;
+      return { emissionApresVague, triangApresVague, compteurApresVague, emissionApresMort, triangApresMort, modeApresMort, emissionApresGameOver, compteurApresGameOver };
+    });
+    if (resetsRadio.emissionApresVague || resetsRadio.triangApresVague !== 0 || resetsRadio.compteurApresVague !== 0) fail('Radio : le passage de vague ne coupe pas l\'émission et/ou ne remet pas triangulation/compteur à zéro (' + JSON.stringify(resetsRadio) + ')');
+    else ok('Radio : le passage de vague coupe bien l\'émission en cours et remet triangulation/compteur à zéro');
+    if (resetsRadio.modeApresMort !== 'mort') fail('Radio : mourir() n\'a pas été déclenché correctement pendant le test');
+    if (resetsRadio.emissionApresMort || resetsRadio.triangApresMort !== 0) fail('Radio : mourir en pleine émission ne coupe pas l\'émission et/ou ne remet pas la triangulation à zéro');
+    else ok('Radio : mourir en pleine émission coupe bien l\'émission et remet la triangulation à zéro');
+    if (resetsRadio.emissionApresGameOver || resetsRadio.compteurApresGameOver !== 0) fail('Radio : le game over ne coupe pas l\'émission et/ou ne remet pas le compteur à zéro');
+    else ok('Radio : le game over remet bien l\'émission et le compteur à zéro');
+
+    // -------------------------------------------------------------------
+    // Table de fouille des racks : jamais de gain négatif, encaissement
+    // immédiat (pas de butin différé, contrairement au Métro), META.fouilles
+    // incrémenté exactement une fois par fouille résolue.
+    // -------------------------------------------------------------------
+    console.log('\n--- Radio pirate Solara FM : table de fouille des racks (jamais négatif, encaissement immédiat) ---');
+    const fouilleRadio = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'radio');
+      startRun();
+      entrerInterieur('radio', p);
+      const s = INT.actif;
+      const f = s.fouilles[0];
+      const fouillesAvant = META.fouilles;
+      const gains = [];
+      for (let i = 0; i < 60; i++) {
+        f.prisVague = -1;
+        const argentAvant = META.argent;
+        resoudreFouille(f);
+        gains.push(META.argent - argentAvant);
+      }
+      const rareRadio = TABLES_FOUILLE.radio.items.find((it) => it.type === 'cash' && it.min >= 250);
+      const fouillesTotal = META.fouilles - fouillesAvant;
+      if (INT.actif) sortirInterieur();
+      return { gains, rareRadio, fouillesTotal };
+    });
+    if (fouilleRadio.fouillesTotal !== 60) fail('Radio : META.fouilles n\'est pas incrémenté exactement une fois par fouille résolue (delta=' + fouilleRadio.fouillesTotal + '/60)');
+    else ok('Radio : chaque fouille résolue incrémente bien META.fouilles');
+    if (fouilleRadio.gains.some((v) => v < 0)) fail('Radio : la table radio a produit un gain négatif sur 60 tirages');
+    else ok('Radio : la table radio ne produit jamais de gain négatif (60 tirages), encaissé immédiatement (pas de butin différé)');
+    if (!fouilleRadio.rareRadio || !fouilleRadio.gains.some((v) => v >= fouilleRadio.rareRadio.min && v <= fouilleRadio.rareRadio.max)) info('Radio : la somme rare n\'est pas tombée sur 60 tirages (probabilité ~5 %, possible par hasard)');
+    else ok('Radio : la somme rare est bien tombée dans sa fourchette déclarée au moins une fois');
+
+    // -------------------------------------------------------------------
+    // Horloges séparées : triangulation et dérive de la porteuse doivent
+    // suivre le temps réel (dtJeu) pendant un ralenti, jamais dt.
+    // -------------------------------------------------------------------
+    console.log('\n--- Horloges séparées : la triangulation et la dérive de la porteuse de la Radio avancent au temps réel pendant un ralenti ---');
+    const chronoRadio = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'radio');
+      startRun();
+      entrerInterieur('radio', p);
+      const s = INT.actif;
+      P.x = s.console.x; P.z = s.console.z;
+      majAction(); document.getElementById('btnAction')._fn();
+      s.zoneCentre = 97.5; s.zoneDir = 1; s.aiguille = s.zoneCentre + 20; s.triangulation = 0;
+      const centreAvant = s.zoneCentre, segmentTAvant = s.segmentT;
+      const dtReel = 1;
+      const dt = dtReel * 0.5, dtJeu = dtReel; // ralenti à ×0,5 simulé comme boucle()
+      majInterieur(dt, dtJeu);
+      const deriveReelle = s.zoneCentre - centreAvant;
+      const deriveAttendue = RADIO_SEGMENTS[s.segmentIdx].vitesse * (RADIO_BAND_MAX - RADIO_BAND_MIN) * dtJeu;
+      const triangReelle = s.triangulation;
+      const triangAttendue = Math.min(100, (100 / 6) * dtJeu);
+      const segmentTReel = s.segmentT - segmentTAvant;
+      if (INT.actif) sortirInterieur();
+      return { deriveReelle, deriveAttendue, triangReelle, triangAttendue, segmentTReel, dtJeu };
+    });
+    if (Math.abs(chronoRadio.deriveReelle - chronoRadio.deriveAttendue) > 1e-9) fail('Radio : la dérive de la porteuse ralentit pendant un ralenti au lieu de suivre le temps réel (obtenu ' + chronoRadio.deriveReelle + ', attendu ' + chronoRadio.deriveAttendue + ')');
+    else ok('Radio : la dérive de la porteuse avance bien au temps réel pendant un ralenti (sur dtJeu)');
+    if (Math.abs(chronoRadio.triangReelle - chronoRadio.triangAttendue) > 1e-9) fail('Radio : la triangulation ralentit pendant un ralenti au lieu de suivre le temps réel');
+    else ok('Radio : la triangulation avance bien au temps réel pendant un ralenti, jamais ralentie ni accélérée');
+    if (Math.abs(chronoRadio.segmentTReel - chronoRadio.dtJeu) > 1e-9) fail('Radio : le chrono de segment ralentit pendant un ralenti au lieu de suivre le temps réel');
+    else ok('Radio : le chrono de segment avance bien au temps réel pendant un ralenti (sur dtJeu)');
+
+    // -------------------------------------------------------------------
+    // Curiosité Le Micro Vintage : les caches non fouillées apparaissent
+    // sur la minimap dans un rayon de 40 m (smoke-test : pas d'exception,
+    // le pixel exact n'est pas vérifiable ici — voir CLAUDE.md).
+    // -------------------------------------------------------------------
+    console.log('\n--- Radio pirate Solara FM : la curiosité Le Micro Vintage n\'entraîne aucune erreur sur la minimap ---');
+    const minimapTest = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'radio');
+      startRun();
+      entrerInterieur('radio', p);
+      const s = INT.actif;
+      const f = s.fouilles[0];
+      f.prisVague = -1;
+      P.x = f.x; P.z = f.z;
+      const possedeAvant = aCurio('micro');
+      META.curios.micro = 1;
+      let exception = null;
+      try { majMinimap(); } catch (e) { exception = e && e.message; }
+      META.curios.micro = possedeAvant ? 1 : 0;
+      if (INT.actif) sortirInterieur();
+      return { exception };
+    });
+    if (minimapTest.exception) fail('Radio : majMinimap() lève une exception avec la curiosité \'micro\' active (' + minimapTest.exception + ')');
+    else ok('Radio : majMinimap() affiche bien les caches proches sans erreur avec la curiosité \'micro\' active');
+
+    // -------------------------------------------------------------------
     // Navigation entre menus : ecran() doit toujours masquer TOUS les
     // écrans précédents avant d'afficher le nouveau (document.
     // querySelectorAll('.screen') — jamais exercé par valider.js, qui ne
