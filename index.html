@@ -556,7 +556,7 @@ const q=()=>QUAL[REGLAGES.qualite];
 ===================================================================== */
 const AUDIO={ctx:null,master:null,sfxG:null,musG:null,duckG:null,uiG:null,noise:null,pret:false,
   sirenOsc:null,sirenGain:null,sirenT:0,engOsc:null,engGain:null,engFil:null,musTimer:null,musStep:0,
-  cineOn:false};
+  cineOn:false,metroOn:false};
 
 function audioInit(){
   if(AUDIO.pret) return;
@@ -770,6 +770,53 @@ function cineAmbianceStop(){
   }catch(e){}
   AUDIO.cineOn=false;
   AUDIO.cineWhir=null; AUDIO.cineLfo=null; AUDIO.cineFilm=null; AUDIO.cineFilmLfo=null; AUDIO.cineRumeur=null;
+}
+/* ---- Métro abandonné : trois sons continus (bourdonnement de la lampe,
+   goutte-à-goutte du tunnel, souffle de la Bête) — même discipline que le
+   Ciné-Palace : jamais démarrés deux fois, coupés dans TOUS les chemins de
+   sortie (voir sortirInterieur, mourir, startRun). Le bourdonnement et le
+   souffle varient en direct via metroAmbianceUpdate (appelée chaque frame
+   depuis majInterieur pendant la visite) : jamais figés au démarrage. */
+function metroAmbianceStart(){
+  if(!AUDIO.pret||AUDIO.metroOn) return;
+  const ctx=AUDIO.ctx, t=ctx.currentTime;
+  const hum=ctx.createOscillator(); hum.type='sawtooth'; hum.frequency.value=68;
+  const humF=ctx.createBiquadFilter(); humF.type='lowpass'; humF.frequency.value=300;
+  const humG=ctx.createGain(); humG.gain.value=0.03;
+  hum.connect(humF); humF.connect(humG); humG.connect(AUDIO.sfxG); hum.start(t);
+  const vent=ctx.createBufferSource(); vent.buffer=AUDIO.noise; vent.loop=true;
+  const ventF=ctx.createBiquadFilter(); ventF.type='lowpass'; ventF.frequency.value=260;
+  const ventG=ctx.createGain(); ventG.gain.value=0.045;
+  vent.connect(ventF); ventF.connect(ventG); ventG.connect(AUDIO.sfxG); vent.start(t);
+  // souffle de la Bête : silencieux tant qu'elle est loin, monte avec sa proximité
+  const bete=ctx.createBufferSource(); bete.buffer=AUDIO.noise; bete.loop=true;
+  const beteF=ctx.createBiquadFilter(); beteF.type='lowpass'; beteF.frequency.value=140;
+  const beteG=ctx.createGain(); beteG.gain.value=0;
+  bete.connect(beteF); beteF.connect(beteG); beteG.connect(AUDIO.sfxG); bete.start(t);
+  AUDIO.metroOn=true;
+  AUDIO.metroHum=hum; AUDIO.metroHumF=humF; AUDIO.metroHumG=humG; AUDIO.metroVent=vent;
+  AUDIO.metroBete=bete; AUDIO.metroBeteF=beteF; AUDIO.metroBeteG=beteG;
+}
+function metroAmbianceStop(){
+  if(!AUDIO.metroOn) return;
+  try{ AUDIO.metroHum.stop(); AUDIO.metroVent.stop(); AUDIO.metroBete.stop(); }catch(e){}
+  AUDIO.metroOn=false;
+  AUDIO.metroHum=null; AUDIO.metroHumF=null; AUDIO.metroHumG=null; AUDIO.metroVent=null;
+  AUDIO.metroBete=null; AUDIO.metroBeteF=null; AUDIO.metroBeteG=null;
+}
+function metroAmbianceUpdate(s){
+  if(!AUDIO.metroOn){ metroAmbianceStart(); return; }
+  const t=AUDIO.ctx.currentTime;
+  const frac=clamp(s.batterie/100,0,1);
+  // bourdonnement : s'affole sous 20 % de batterie, comme le clignotement visuel
+  let humVol=0.02+0.02*frac;
+  if(s.batterie<20) humVol*=0.6+0.4*Math.sin(ETAT.runT*24);
+  AUDIO.metroHumG.gain.setTargetAtTime(Math.max(0,humVol),t,0.05);
+  AUDIO.metroHumF.frequency.setTargetAtTime(220+140*frac,t,0.1);
+  // souffle de la Bête : silencieux hors niveau 3, monte et s'assourdit avec sa proximité
+  const cible=(s.niveauActuel===3)?s.beteProx*0.5:0;
+  AUDIO.metroBeteG.gain.setTargetAtTime(cible,t,0.4);
+  AUDIO.metroBeteF.frequency.setTargetAtTime(140-70*s.beteProx,t,0.4);
 }
 const STATIONS=['SOLARA FM','RUE 9','CÔTE BLEUE','— silence —','MICRO CASSÉ FM'];
 function notes(freq,dur,type,vol,filtre){
@@ -1202,7 +1249,9 @@ const CURIOS=[
    eff:'Effet cinéma : le temps ralentit brièvement à chaque élimination qui prolonge ton combo',
    ind:'Une séance parfaite. Pas une huée, pas un sifflet.',actif:true},
   {id:'plaque',ico:'⚓',nom:'La Plaque du Capitaine',lieu:'Cale de l\u2019épave',actif:false},
-  {id:'lampe',ico:'🔦',nom:'La Lampe de Mineur',lieu:'Métro abandonné',actif:false},
+  {id:'lampe',ico:'🔦',nom:'La Lampe de Mineur',lieu:'Métro abandonné',
+   eff:'Les nuits de Solara sont moins noires : ton halo de lumière nocturne est 50 % plus large',
+   ind:'Tout au fond, là où la lampe ne tient plus longtemps.',actif:true},
   {id:'plans',ico:'📐',nom:'Les Plans du Rhinocéros',lieu:'Bunker militaire',actif:false}
 ];
 const CURIOS_ACTIVES=CURIOS.filter(c=>c.actif);
@@ -2912,6 +2961,8 @@ function placerPortes(){
   poser('arcade',cArc.x,cArc.z,'PALAIS DE L\'ARCADE',0xff5ec4);
   const cCine=caseCentre(11,5);  // quartier commerçant : le vieux palace de cinéma, ouvert dès le début
   poser('cine',cCine.x,cCine.z,'CINÉ-PALACE',0xe8503f);
+  const cMetro=caseCentre(2,11); // résidentiel délabré : une bouche de métro condamnée, ouverte dès le début
+  poser('metro',cMetro.x,cMetro.z,'MÉTRO — STATION SOLARA',0x7a8a99);
   // secours : si un lieu manquait, on place la porte près de la grande place
   if(!PORTES.some(p=>p.id==='banque')&&POIS.place)
     poser('banque',POIS.place.x+CELL,POIS.place.z,'BANQUE',0x35e0ff);
@@ -2923,7 +2974,7 @@ function placerPortes(){
     ['bowling','STRIKE DORÉ',0xffd23f],['sport','FER & SUEUR',0xff5a6a],
     ['serre','SERRE',0x7dff7a],['sandwich','LE ROI DES SANDWICHS',0xffd23f],
     ['musee','MUSÉE DE SOLARA',0xffd23f],['arcade','PALAIS DE L\'ARCADE',0xff5ec4],
-    ['cine','CINÉ-PALACE',0xe8503f]
+    ['cine','CINÉ-PALACE',0xe8503f],['metro','MÉTRO — STATION SOLARA',0x7a8a99]
   ];
   for(const [id,nom,coul] of REPLIS){
     if(PORTES.some(p=>p.id===id)) continue;
@@ -6148,6 +6199,30 @@ const TABLES_FOUILLE={
     {p:22,type:'rien',liste:['Une chaussure. Une seule.','Un dentier. Personne ne l’a réclamé.',
       'Une clé de voiture. Aucune idée de laquelle.']},
   ]},
+  // Métro abandonné : trois paliers de richesse, un par niveau — de plus en
+  // plus généreux (et rares) à mesure qu'on descend, munitions/soins non
+  // affectés par le butin différé (voir metroEncaisser, resoudreFouille)
+  metro1:{items:[
+    {p:32,type:'cash',min:40,max:90,texte:'PETITE SOMME'},
+    {p:25,type:'mun'},
+    {p:20,type:'cash',min:10,max:10,texte:'TICKET DE MÉTRO PÉRIMÉ'},
+    {p:15,type:'soin'},
+    {p:8, type:'cash',min:200,max:300,texte:'SOMME RARE',rare:true},
+  ]},
+  metro2:{items:[
+    {p:30,type:'cash',min:90,max:160,texte:'SOMME'},
+    {p:24,type:'mun'},
+    {p:18,type:'cash',min:25,max:25,texte:'OUTIL ROUILLÉ'},
+    {p:18,type:'soin'},
+    {p:10,type:'cash',min:300,max:450,texte:'SOMME RARE',rare:true},
+  ]},
+  metro3:{items:[
+    {p:30,type:'cash',min:180,max:320,texte:'SOMME'},
+    {p:20,type:'mun'},
+    {p:20,type:'pile'},
+    {p:15,type:'soin'},
+    {p:15,type:'cash',min:500,max:700,texte:'SOMME RARE',rare:true},
+  ]},
 };
 function tirerTypeFouille(tab){
   const p=Object.assign({},tab.p);
@@ -6180,15 +6255,28 @@ function resoudreFouille(f){
   burst(f.x,1.1,f.z,5,0xffe9a0,4);
   if(tab.items){
     const it=tirerItemFouille(tab.items);
+    // Métro abandonné : le cash trouvé en descente n'est pas de l'argent
+    // encaissé tout de suite — c'est du butin porté, perdable (voir
+    // metroEncaisser, metroAttrapeParBete). Les autres salles à table
+    // `items` (Ciné-Palace) gardent le paiement immédiat habituel.
+    const enDescente=s&&s.id==='metro';
     if(it.type==='cash'){
       const g=it.min===it.max?it.min:randi(it.min,it.max);
-      META.argent+=g; ETAT.cashRun+=g; META.stats.cashTotal+=g;
+      if(enDescente){ s.butin+=g; } else { META.argent+=g; ETAT.cashRun+=g; META.stats.cashTotal+=g; }
       spawnTexte(f.x,1.9,f.z,'+'+g+' $','#7dff7a');
+      const suffixe=enDescente?' : +'+g+' $ portés (à ramener en surface)':' : +'+g+' $';
       if(it.rare){
-        toast(it.texte+' : +'+g+' $ !','or'); SFX.etoile(); vibre(50);
+        toast(it.texte+suffixe+(enDescente?'':' !'),'or'); SFX.etoile(); vibre(50);
         for(let i=0;i<12;i++) spawnP(f.x+rand(-0.6,0.6),rand(1,2.2),f.z+rand(-0.6,0.6),
           rand(-1,1),rand(1,2.5),rand(-1,1),0.8,0.45,0xffd23f,0);
-      } else { toast(it.texte+' : +'+g+' $','or'); SFX.achat(); }
+      } else { toast(it.texte+suffixe,'or'); SFX.achat(); }
+    } else if(it.type==='pile'){
+      if(enDescente){
+        s.batterie=Math.min(100,s.batterie+METRO_PILE_GAIN);
+        metroRepousserBete(s);   // regain immédiat et suffisant, jamais juste symbolique
+      }
+      spawnTexte(f.x,1.9,f.z,'+'+METRO_PILE_GAIN+' % 🔋','#8ad2ff');
+      toast('Pile trouvée : batterie +'+METRO_PILE_GAIN+' %','or'); SFX.ramasse();
     } else if(it.type==='soin'){
       creerPickup('med',f.x+rand(-1,1),f.z+rand(0.8,1.6));
       toast('Trousse de secours trouvée','or'); SFX.ui();
@@ -6196,7 +6284,11 @@ function resoudreFouille(f){
       const id=(ARMES[P.armeCur].type==='gun')?P.armeCur:
         ORDRE_ARMES.find(i=>META.armes[i].poss&&ARMES[i].type==='gun');
       if(id){ P.mun[id]=(P.mun[id]||0)+armeStats(id).mag; toast('Munitions : '+ARMES[id].nom,'or'); }
-      else { const g=randi(20,50); META.argent+=g; toast('+'+g+' $ (rien à charger)','or'); }
+      else {
+        const g=randi(20,50);
+        if(enDescente){ s.butin+=g; } else { META.argent+=g; }
+        toast('+'+g+' $ (rien à charger)','or');
+      }
       SFX.achat();
     } else { // rien
       toast(pick(it.liste)); SFX.refus();
@@ -6403,7 +6495,27 @@ el('hud').appendChild(cineWrap);
 const cineLblEl=cineWrap.querySelector('#cineLbl'), cineSatEl=cineWrap.querySelector('#cineSat');
 const CINE_JAUGES_EL={bobine:cineWrap.querySelector('#cine_bobine'),point:cineWrap.querySelector('#cine_point'),
   son:cineWrap.querySelector('#cine_son'),lampe:cineWrap.querySelector('#cine_lampe')};
-const JAUGES=[fouilleWrap,karaWrap,bwWrap,spWrap,swWrap,musWrap,arcadeWrap,cineWrap];
+/* Métro abandonné : niveau + batterie affichés en permanence pendant la
+   visite, plus une jauge de « souffle » de la Bête qui n'apparaît qu'au
+   niveau 3 — jamais de chiffre exact sur elle, juste la barre, pour rester
+   lisible sans casser la tension du « on ne la voit jamais ». */
+const metroWrap=document.createElement('div');
+metroWrap.style.cssText='position:absolute;left:50%;transform:translateX(-50%);'+
+  'bottom:calc(env(safe-area-inset-bottom,0px) + 380px);width:min(240px,72vw);display:none;'+
+  'text-align:center;pointer-events:none;z-index:6';
+metroWrap.innerHTML='<div id="metroLbl" style="font:900 11px Arial;letter-spacing:.05em;color:#8ad2ff;'+
+  'text-shadow:0 2px 6px #000">🚇 QUAI · 🔋 100 %</div>'+
+  '<div style="position:relative;margin-top:4px;height:10px;background:#12141bee;'+
+  'border:1.5px solid #ffffff33;border-radius:4px;overflow:hidden">'+
+  '<i id="metroBatt" style="display:block;height:100%;width:100%;background:#7dff7a"></i></div>'+
+  '<div style="font:800 8px Arial;color:#8a8f9a;margin-top:2px">batterie de la lampe</div>'+
+  '<div id="metroBeteWrap" style="display:none;position:relative;margin-top:5px;height:6px;'+
+  'background:#12141bee;border:1.5px solid #ff3b5c55;border-radius:3px;overflow:hidden">'+
+  '<i id="metroBete" style="display:block;height:100%;width:0%;background:#ff3b5c"></i></div>';
+el('hud').appendChild(metroWrap);
+const metroLblEl=metroWrap.querySelector('#metroLbl'), metroBattEl=metroWrap.querySelector('#metroBatt'),
+      metroBeteWrap=metroWrap.querySelector('#metroBeteWrap'), metroBeteEl=metroWrap.querySelector('#metroBete');
+const JAUGES=[fouilleWrap,karaWrap,bwWrap,spWrap,swWrap,musWrap,arcadeWrap,cineWrap,metroWrap];
 function cacherJauges(){ for(const j of JAUGES) if(j.style.display!=='none') j.style.display='none'; }
 
 /* =====================================================================
@@ -7527,7 +7639,13 @@ const INTDEFS={
   /* ---- lieu spécial (lot 5) : première salle de surcharge — aucune tâche
      difficile en soi, c'est leur simultanéité qui l'est ---- */
   cine:{nom:'Ciné-Palace',ico:'🎬',w:26,d:34,sol:0x3a1418,mur:0x241014,
-    ens:['CINÉ-PALACE','#e8503f']}
+    ens:['CINÉ-PALACE','#e8503f']},
+  /* ---- lieu spécial (lot 6) : première salle à ressource unique — la
+     lampe, et rien d'autre, limite la descente. Trois niveaux horizontaux
+     (comme les 3 halls du musée) séparés par des passages étroits, de plus
+     en plus profonds et de plus en plus sombres. */
+  metro:{nom:'Métro abandonné',ico:'🚇',w:30,d:90,sol:0x0d0e10,mur:0x1b1d24,
+    ens:['STATION SOLARA','#7a8a99']}
 };
 // véhicules en vente au concessionnaire
 const CATALOGUE=[
@@ -8940,6 +9058,128 @@ function construireSalle(id){
     inter.seanceOn=false; inter.seanceT=0; inter.satisfaction=100; inter.parfaite=true;
     inter.seancesVague=0; inter.cineVagueRef=-1;
   }
+  /* ---- lieu spécial (lot 6) : LE MÉTRO ABANDONNÉ — salle à ressource
+     unique. Trois niveaux horizontaux (comme les 3 halls du musée),
+     reliés par des passages étroits, de plus en plus profonds et sombres.
+     La lampe (inter.batterie) est la seule limite : pas de compteur de
+     descentes. Aucun luminaire de décor ici (voir lampe() ailleurs) —
+     la seule lumière de la salle est le halo du joueur, piloté par la
+     batterie dans jourNuit(). ---- */
+  else if(id==='metro'){
+    // sol sombre, quasiment invisible hors du halo (mêmes teintes que D.sol,
+    // juste assez de contraste pour se voir une fois éclairé)
+    for(let i=-3;i<3;i++) for(let j=-9;j<9;j++){
+      const t=new THREE.Mesh(new THREE.PlaneGeometry(4.8,4.8),mat((i+j)%2?0x0f1013:0x0a0b0e));
+      t.rotation.x=-Math.PI/2; t.position.set(ox+i*5+2.5,0.11,oz+j*5+2.5); g.add(t);
+    }
+    // murs de séparation entre niveaux : passage étroit (6 u) au centre,
+    // comme au musée / au Ciné-Palace
+    for(const dz of [13,-18]){
+      box(12,4.4,0.5,0x1b1d24,-9,2.2,dz);
+      box(12,4.4,0.5,0x1b1d24,9,2.2,dz);
+    }
+    // escalier (niveau 1 → 2) : marches qui descendent dans le passage
+    for(let m=0;m<5;m++) box(2.4,0.25,0.7,0x24262c,0,0.9-m*0.16,12.6-m*0.55,false);
+    mkEnseigne('QUAI','#7a8a99',ox,3,oz+15.5,0,5);
+    // échelle (niveau 2 → 3) : montants + barreaux
+    box(0.12,3.2,0.12,0x5a5f66,-0.6,1.6,-17.6,false);
+    box(0.12,3.2,0.12,0x5a5f66,0.6,1.6,-17.6,false);
+    for(let r=0;r<6;r++) box(1.2,0.08,0.1,0x5a5f66,0,0.35+r*0.5,-17.6,false);
+    mkEnseigne('TUNNEL','#7a8a99',ox,3,oz+10.5,0,7);
+    mkEnseigne('PROFONDEURS','#ff5a3a',ox,3,oz-15.5,0,12);
+
+    inter.cartels=[];
+    const cartel=(x,z,titre,texte,coul)=>{
+      mkEnseigne(titre,coul||'#8a95a0',ox+x,1.9,oz+z-0.9,0,Math.max(6,titre.length*0.4));
+      inter.cartels.push({x:ox+x,z:oz+z,titre,texte});
+    };
+
+    // ---- NIVEAU 1 : LE QUAI (consommation lente, 3 caches, danger nul) ----
+    // rame à l'arrêt contre le mur ouest, affiches décollées
+    box(4,3,16,0x2e333c,-12,1.5,31);
+    box(4,0.3,16,0x3a4048,-12,3,31,false);
+    for(let h=0;h<4;h++) box(0.1,1.2,2.2,0x0b0c10,-9.9,1.5,26+h*3.4,false); // vitres de la rame
+    const distrib=box(1.4,2,1,0x4a5058,-9,1,37);
+    box(1.2,0.7,0.1,0x0b0c10,-9,1.4,37.51,false);
+    fouillable(-9,38.3,'Distributeur éventré','metro1',distrib,2.8);
+    mkEnseigne('DISTRIBUTEUR','#ffd23f',ox-9,2.4,oz+38.6,0,9);
+    const guichet=box(2.6,1.1,1.2,0x3a4048,9,0.55,37);
+    fouillable(9,38.3,'Guichet abandonné','metro1',guichet,2.8);
+    mkEnseigne('GUICHET','#ffd23f',ox+9,1.9,oz+38.6,0,7);
+    const banc=box(2.2,0.5,0.7,0x3a4048,0,0.25,26,false);
+    fouillable(0,26,'Banc défoncé','metro1',banc,2.8);
+    mkEnseigne('BANC','#ffd23f',ox,1,oz+27.2,0,4);
+    cartel(-13,39,'AFFICHE DÉCOLLÉE','« LIGNE 3 — SERVICE SUSPENDU. Reprise prévue en 1998. »');
+    cartel(13,39,'PLAN DU RÉSEAU','Chaque station du plan s’appelle SOLARA. Toutes. Même le centre-ville.');
+    inter.piles=[];
+    const pile=(x,z)=>{
+      const pm=new THREE.Group();
+      pm.add(new THREE.Mesh(new THREE.CylinderGeometry(0.14,0.14,0.4,8),mat(0x2fae4f)));
+      const cap=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.09,0.1,8),mat(0x8a8f9a));
+      cap.position.y=0.25; pm.add(cap);
+      pm.position.set(ox+x,0.35,oz+z); g.add(pm);
+      inter.piles.push({x:ox+x,z:oz+z,mesh:pm,prisVague:-1});
+    };
+    pile(0,20);
+
+    // ---- NIVEAU 2 : LE TUNNEL (consommation moyenne, 4 caches, trous + rails) ----
+    const boiteMaint=box(1.8,1.3,1,0x4a5058,-9,0.65,5);
+    fouillable(-9,6.3,'Boîte de maintenance','metro2',boiteMaint,2.8);
+    mkEnseigne('MAINTENANCE','#ffd23f',ox-9,1.9,oz+6.6,0,10);
+    const chariot=box(2,1,1.1,0x3a4048,9,0.5,5);
+    fouillable(9,6.3,'Chariot à outils','metro2',chariot,2.8);
+    mkEnseigne('CHARIOT','#ffd23f',ox+9,1.7,oz+6.6,0,6);
+    const panneauChu=box(1.6,1.6,0.15,0x2a2e36,-9,0.8,-9,false);
+    fouillable(-9,-9,'Panneau tombé','metro2',panneauChu,2.8);
+    mkEnseigne('PANNEAU TOMBÉ','#ffd23f',ox-9,2,oz-7.8,0,10);
+    const grille=box(1.4,0.15,1.4,0x2a2e36,9,0.1,-9,false);
+    fouillable(9,-9,'Grille de drainage','metro2',grille,2.8);
+    mkEnseigne('GRILLE','#ffd23f',ox+9,1,oz-7.8,0,5);
+    cartel(-8,-16,'PANNEAU','« Ne pas nourrir ce qui vit dans le tunnel. — La Direction »');
+    cartel(8,-16,'PANNEAU','« Objets trouvés : niveau -3. Bonne chance. »');
+    cartel(-13,-1,'GRAFFITI','Un serpent tagué à la bombe verte. Les Vipères sont passées par là.');
+    cartel(-13,-4,'GRAFFITI','Un frelon jaune et noir, tagué par-dessus le serpent. Les Frelons ont eu le dernier mot.');
+    cartel(-13,-7,'GRAFFITI','« VOS GRAFFITIS SONT LAIDS » — écrit par-dessus les deux, en lettres bien plus soignées.');
+    pile(-9,-2); pile(9,-2);
+    inter.dangers=[];
+    const danger=(x,z,type)=>{
+      let dm;
+      if(type==='trou'){
+        dm=new THREE.Mesh(new THREE.CircleGeometry(1.3,12),mat(0x050506));
+      } else {
+        dm=new THREE.Mesh(new THREE.PlaneGeometry(0.3,2.6),mat(0x9aa5ad));
+      }
+      dm.rotation.x=-Math.PI/2; dm.position.set(ox+x,type==='trou'?0.05:0.09,oz+z); g.add(dm);
+      inter.dangers.push({x:ox+x,z:oz+z,type,coolT:0});
+    };
+    danger(0,7,'trou'); danger(0,-1,'rail'); danger(4,-11,'trou'); danger(-4,-11,'rail');
+
+    // ---- NIVEAU 3 : LES PROFONDEURS (consommation rapide, 5 caches, La Bête) ----
+    const cachesP3=[[-9,-24],[0,-24],[9,-24],[-4.5,-34],[4.5,-34]];
+    cachesP3.forEach(([x,z],i)=>{
+      const cm=box(1.5,1,1.2,0x3a4048,x,0.5,z);
+      fouillable(x,z,'Caisse abandonnée','metro3',cm,2.8);
+      mkEnseigne('CAISSE','#ff9f2e',ox+x,1.7,oz+z+1.3,0,6);
+    });
+    pile(-9,-30); pile(9,-30); pile(0,-38);
+    // la Lampe de Mineur : au point le plus éloigné de l'échelle de remontée,
+    // légèrement auto-éclairée (c'est une lampe : on la voit briller de loin,
+    // seule exception volontaire à la règle « rien n'est visible hors du halo »)
+    const lampeMesh=new THREE.Group();
+    lampeMesh.add(new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.6,0.4,10),mat(0x2a2018)));
+    const corpsLampe=new THREE.Mesh(new THREE.CylinderGeometry(0.18,0.22,0.32,10),mat(0x8a6a2a));
+    corpsLampe.position.y=0.36; lampeMesh.add(corpsLampe);
+    const verreLampe=new THREE.Mesh(new THREE.SphereGeometry(0.16,8,6),
+      new THREE.MeshBasicMaterial({color:0xffe9a0}));
+    verreLampe.position.y=0.56; lampeMesh.add(verreLampe);
+    lampeMesh.position.set(ox,0,oz-42); g.add(lampeMesh);
+    mkEnseigne('LA LAMPE DE MINEUR','#ffd23f',ox,1.6,oz-40.8,0,13);
+    inter.lampeCache={x:ox,z:oz-42,mesh:verreLampe};
+
+    inter.niveauActuel=1; inter.batterie=100; inter.butin=0; inter.beteProx=0;
+    inter.metroVagueRef=-1; inter.lampeEnMain=false;
+    inter.beteAvert1=false; inter.beteAvert2=false;
+  }
   scene.add(g);
   INT.salles[id]=inter;
   return inter;
@@ -8989,6 +9229,11 @@ function sortirInterieur(){
   if(ARCADE.jeu||ARCADE.attenteInitiales){ finirBorneJeu(); ARCADE.attenteInitiales=null; }
   if(sc.karaOn){ sc.karaOn=false; sc.karaBarre.visible=false; toast('Tu quittes la scène en pleine chanson'); }
   if(sc.seanceOn){ cineArreterSeance(sc); toast('Tu quittes en pleine séance. Le public n’est pas content.'); }
+  // Métro : filet de sécurité générique — le butin réellement gagné est déjà
+  // encaissé par metroEncaisser() avant cet appel (voir majAction, SORTIR) ;
+  // ceci ne fait qu'éviter qu'un reliquat de butin/Bête ne survive à un
+  // chemin de sortie qui n'est pas passé par là. Batterie non touchée.
+  if(sc.piles){ sc.butin=0; sc.beteProx=0; sc.niveauPrecBlackout=undefined; metroAmbianceStop(); }
   for(let i=ennemis.length-1;i>=0;i--){
     const e=ennemis[i];
     if(e.interieur===sc.id&&!e.garde){ scene.remove(e.h?e.h.g:e.mesh); ennemis.splice(i,1); }
@@ -9246,6 +9491,72 @@ function cineTerminerSeance(s,succes){
   SFX.niveau();
   checkDefis(); sauveMeta();
   cineArreterSeance(s);
+}
+/* =====================================================================
+   MÉTRO ABANDONNÉ — salle à ressource unique : la batterie de la lampe est
+   la seule limite de la descente. Consommation, dérive de la Bête et
+   déclenchement des dangers sont des compteurs subis par le joueur : tout
+   passe par dtJeu, jamais par dt (voir boucle()), sinon un ralenti déclenché
+   avant de descendre rallongerait artificiellement la descente.
+===================================================================== */
+const METRO_PILE_GAIN=25, METRO_PERTE_FRAC=0.3;
+// consommation en % DE BATTERIE PAR SECONDE, par niveau — lente/moyenne/rapide
+const METRO_CONSO={1:0.55,2:1.15,3:2.1};
+// vitesse de dérive de la proximité de la Bête (0..1 par seconde à vivacité
+// extrême) : elle recule à pleine lampe, avance à batterie nulle, neutre à
+// mi-charge — voir la note d'implémentation ci-dessous pour la lisibilité
+const METRO_BETE_VITESSE=0.09;
+function metroNiveauDe(zLoc){
+  if(zLoc>=13) return 1;
+  if(zLoc>=-18) return 2;
+  return 3;
+}
+// point de reset paresseux, comme cineVerifierVague/s.museeVague : évalué à
+// chaque frame où la salle est active, pas besoin de hook dédié au
+// changement de vague
+function metroVerifierVague(s){
+  if(s.metroVagueRef!==WAVES.n){ s.metroVagueRef=WAVES.n; s.batterie=100; }
+}
+// remontée volontaire à la surface, butin porté sur soi = butin encaissé
+function metroEncaisser(s){
+  if(s.butin>0){
+    META.argent+=s.butin; ETAT.cashRun+=s.butin; META.stats.cashTotal+=s.butin;
+    toast('Butin encaissé : +'+s.butin+' $','or'); SFX.achat();
+  }
+  s.butin=0;
+  if(s.lampeEnMain){ s.lampeEnMain=false; donnerCurio('lampe'); checkDefis(); sauveMeta(); }
+}
+// la Bête atteint le joueur : tout le butin porté est perdu, la Lampe de
+// Mineur (si en main, pas encore acquise) retourne dans sa cache, éjection
+// immédiate à la surface
+function metroAttrapeParBete(s){
+  s.beteProx=0; s.butin=0;
+  if(s.lampeEnMain){ s.lampeEnMain=false; if(s.lampeCache&&s.lampeCache.mesh) s.lampeCache.mesh.visible=true; }
+  bigMsg('💀 LA BÊTE T’A EU'); toast('Tu perds tout ce que tu portais.','warn');
+  SFX.explo(); secousse(10); vibre(180);
+  toucherJoueur(18);
+  if(ETAT.mode==='jeu') sortirInterieur();
+}
+// regain de lumière (pile) : repousse la Bête tout de suite, jamais un
+// simple symbole. Toujours retirer au moins 0,4 ET plafonner le résultat à
+// 0,35 — sinon une pile ramassée alors qu'elle est presque sur le joueur
+// (proximité proche de 1) ne la repousserait qu'à ~0,5-0,6, encore
+// dangereusement proche : la mort qui suivrait serait incompréhensible.
+function metroRepousserBete(s){
+  if(s.beteProx<=0) return;
+  s.beteProx=Math.max(0,Math.min(s.beteProx-0.4,0.35));
+}
+// trou ou rail électrifié du niveau 2 : dégâts + perte d'une partie du butin,
+// avec un court cooldown propre au danger pour ne pas re-déclencher en boucle
+function metroDangerToucher(s,d){
+  if(d.coolT>0) return;
+  d.coolT=1.6;
+  const perte=Math.floor(s.butin*METRO_PERTE_FRAC);
+  s.butin-=perte;
+  toucherJoueur(d.type==='rail'?10:7);
+  toast(d.type==='rail'?'⚡ Choc électrique !':'🕳️ Tu tombes dans un trou !','warn');
+  if(perte>0) toast('-'+perte+' $ tombés dans le noir','warn');
+  SFX.degat(); secousse(5); vibre(70);
 }
 function majInterieur(dt,dtJeu){
   const s=INT.actif; if(!s) return;
@@ -9548,6 +9859,62 @@ function majInterieur(dt,dtJeu){
     for(const id of CINE_POSTES) CINE_JAUGES_EL[id].style.width=Math.round(s.postes[id].probleme)+'%';
     if(s.satisfaction<=0) cineTerminerSeance(s,false);
     else if(s.seanceT>=CINE_DUREE) cineTerminerSeance(s,true);
+  }
+  // ---- Métro abandonné : batterie, niveau, dangers, piles, la Bête ----
+  if(s.piles){
+    metroVerifierVague(s);
+    const zLoc=P.z-s.oz;
+    s.niveauActuel=metroNiveauDe(zLoc);
+    if(s.niveauActuel!==3){ s.beteProx=0; s.beteAvert1=false; s.beteAvert2=false; }
+    if(s.batterie>0) s.batterie=Math.max(0,s.batterie-METRO_CONSO[s.niveauActuel]*dtJeu);
+    // remontée à l'aveugle (batterie à 0) : chaque niveau franchi fait
+    // lâcher une partie du butin porté — comparé sur dtJeu, un ralenti ne
+    // doit ni accélérer ni retarder cette pénalité
+    if(s.batterie<=0){
+      if(s.niveauPrecBlackout===undefined) s.niveauPrecBlackout=s.niveauActuel;
+      else if(s.niveauActuel<s.niveauPrecBlackout){
+        const perte=Math.floor(s.butin*METRO_PERTE_FRAC);
+        s.butin-=perte; s.niveauPrecBlackout=s.niveauActuel;
+        if(perte>0){ toast('Tu remontes à l’aveugle : -'+perte+' $ lâchés','warn'); SFX.refus(); }
+      } else if(s.niveauActuel>s.niveauPrecBlackout) s.niveauPrecBlackout=s.niveauActuel;
+    } else s.niveauPrecBlackout=undefined;
+    // la Bête : seulement au niveau 3, dérive symétrique autour de 50 % de
+    // vivacité (lampe pleine = recule, lampe morte = avance, mi-charge =
+    // neutre) — jamais abrupte, toujours sur dtJeu
+    if(s.niveauActuel===3){
+      const viv=clamp(s.batterie/100,0,1);
+      s.beteProx=clamp(s.beteProx+(0.5-viv)*2*METRO_BETE_VITESSE*dtJeu,0,1);
+      if(s.beteProx>=0.5&&!s.beteAvert1){ s.beteAvert1=true; toast('Un souffle, au loin. Ta lampe la tient à distance.','warn'); }
+      if(s.beteProx>=0.85&&!s.beteAvert2){ s.beteAvert2=true; bigMsg('⚠ ELLE EST TOUT PRÈS'); secousse(3); }
+      if(s.beteProx>=1) metroAttrapeParBete(s);
+    }
+    // dangers du niveau 2 : trous et rails, invisibles hors du halo de lumière
+    for(const d of s.dangers){
+      if(d.coolT>0) d.coolT-=dtJeu;
+      if(s.niveauActuel===2&&d.coolT<=0&&dist2(P.x,P.z,d.x,d.z)<2.89) metroDangerToucher(s,d);
+    }
+    // piles : ramassage automatique de proximité, propre à la salle —
+    // persistance/regarnissage par vague via prisVague, comme les caches
+    for(const p of s.piles){
+      if(p.prisVague===WAVES.n) continue;
+      p.mesh.visible=true; p.mesh.rotation.y+=dt*2;
+      if(dist2(P.x,P.z,p.x,p.z)<1.69){
+        p.prisVague=WAVES.n; p.mesh.visible=false;
+        s.batterie=Math.min(100,s.batterie+METRO_PILE_GAIN);
+        metroRepousserBete(s);   // regain immédiat et suffisant, jamais juste symbolique
+        spawnTexte(p.x,1.3,p.z,'+'+METRO_PILE_GAIN+' % 🔋','#8ad2ff');
+        toast('Pile ramassée : batterie +'+METRO_PILE_GAIN+' %','or'); SFX.ramasse();
+      }
+    }
+    metroAmbianceUpdate(s);
+    metroWrap.style.display='block';
+    const niveauNoms={1:'🚇 QUAI',2:'🕳️ TUNNEL',3:'👁️ PROFONDEURS'};
+    metroLblEl.textContent=niveauNoms[s.niveauActuel]+' · 🔋 '+Math.round(s.batterie)+' %'+
+      (s.butin>0?' · '+s.butin+' $ portés':'');
+    metroBattEl.style.width=Math.round(s.batterie)+'%';
+    metroBattEl.style.background=s.batterie<20?'#ff3b5c':(s.batterie<50?'#ffd23f':'#7dff7a');
+    if(s.niveauActuel===3){ metroBeteWrap.style.display='block'; metroBeteEl.style.width=Math.round(s.beteProx*100)+'%'; }
+    else metroBeteWrap.style.display='none';
   }
 }
 
@@ -10473,6 +10840,18 @@ function startRun(){
       if(sa.seanceOn) cineArreterSeance(sa);
       sa.seancesVague=0; sa.cineVagueRef=-1;
     }
+    // Métro abandonné : descente annulée, batterie remise à plein, caches
+    // ET piles regarnies (prisVague=-1, jamais égal à un WAVES.n réel), la
+    // Lampe de Mineur si portée retourne dans sa cache — mais si elle a déjà
+    // été rapportée lors d'une partie précédente, elle reste acquise
+    // (aCurio('lampe') vit dans META, jamais touché ici).
+    if(sa.piles){
+      sa.batterie=100; sa.butin=0; sa.beteProx=0; sa.niveauActuel=1;
+      sa.metroVagueRef=-1; sa.niveauPrecBlackout=undefined;
+      sa.beteAvert1=false; sa.beteAvert2=false;
+      if(sa.lampeEnMain){ sa.lampeEnMain=false; if(sa.lampeCache&&sa.lampeCache.mesh) sa.lampeCache.mesh.visible=true; }
+      for(const p of sa.piles) p.prisVague=-1;
+    }
   }
   // arcade : une partie de borne en cours est annulée SANS banquer ses
   // tickets — contrairement à un abandon volontaire (finirBorneJeu, appelé
@@ -10616,6 +10995,11 @@ function mourir(){
   SFX.mort(); vibre(120);
   moteurStop();
   if(INT.actif&&INT.actif.seanceOn) cineArreterSeance(INT.actif); // coupe le son tout de suite, le reste des jauges au retry
+  if(INT.actif&&INT.actif.piles){ // Métro : butin perdu et Bête réinitialisée tout de suite, batterie conservée
+    INT.actif.butin=0; INT.actif.beteProx=0; INT.actif.niveauPrecBlackout=undefined;
+    if(INT.actif.lampeEnMain){ INT.actif.lampeEnMain=false; if(INT.actif.lampeCache&&INT.actif.lampeCache.mesh) INT.actif.lampeCache.mesh.visible=true; }
+    metroAmbianceStop();
+  }
   P.h.g.rotation.z=Math.PI/2; P.h.g.position.y=0.35;
   reticule.visible=false;
   const record=ETAT.score>META.record;
@@ -10647,7 +11031,10 @@ function marquerZone(obj,r2){ if(obj) obj.r=Math.sqrt(r2); return r2; }
 // Champs { x, z, ... } d'une salle qui ne sont volontairement PAS des zones
 // d'interaction (décor animé, jamais lu par majAction()) : à distinguer
 // d'une zone simplement oubliée par marquerZone(), qui doit rester signalée.
-const CHAMPS_DECOR_SALLE=new Set(['pnj','culturiste','plaque','gardiens','cameras']);
+// piles/dangers (Métro) : proximité vérifiée directement dans majInterieur
+// (ramassage automatique / danger environnemental), jamais via le bouton
+// d'action — donc jamais de marquerZone à attendre sur ces champs-là non plus.
+const CHAMPS_DECOR_SALLE=new Set(['pnj','culturiste','plaque','gardiens','cameras','piles','dangers']);
 // Rejoue majAction() avec le joueur hors de portée de tout, pour que la
 // chaîne if/else-if s'évalue en entier (aucune branche ne « gagne » et
 // n'interrompt les suivantes) et que chaque marquerZone() de la salle
@@ -10727,7 +11114,7 @@ function majAction(){
     const s=INT.actif;
     if(dist2(P.x,P.z,s.sortie.x,s.sortie.z)<marquerZone(s.sortie,9)&&(ETAT.intT||0)<=0){
       label='SORTIR';
-      fn=()=>{ if(s.casseEtat==='actif') finirCasseMusee(s,true); sortirInterieur(); };
+      fn=()=>{ if(s.casseEtat==='actif') finirCasseMusee(s,true); if(s.piles) metroEncaisser(s); sortirInterieur(); };
     /* ---------- MUSÉE : boîtier électrique (déclenche/referme le casse) ---------- */
     } else if(s.boitier&&dist2(P.x,P.z,s.boitier.x,s.boitier.z)<marquerZone(s.boitier,16)){
       if(s.museeVague!==WAVES.n){ s.museeVague=WAVES.n; s.museeFait=false; s.boitierArme=false; }
@@ -11296,6 +11683,16 @@ function majAction(){
         if(s.posteVoyants[pid]) s.posteVoyants[pid].material.color.setHex(0x7dff7a);
         SFX.ui();
       };
+    /* ---------- MÉTRO : la Lampe de Mineur, au fond des Profondeurs ---------- */
+    } else if(s.lampeCache&&!s.lampeEnMain&&!aCurio('lampe')&&
+              dist2(P.x,P.z,s.lampeCache.x,s.lampeCache.z)<marquerZone(s.lampeCache,6)){
+      label='🔦 RAMASSER LA LAMPE DE MINEUR';
+      fn=()=>{
+        s.lampeEnMain=true;
+        if(s.lampeCache.mesh) s.lampeCache.mesh.visible=false;
+        bigMsg('🔦 TROUVÉE'); toast('Remonte à la surface avec — c’est là qu’elle compte.','or');
+        SFX.etoile(); vibre(50);
+      };
     } else if(s.fouilles&&s.fouilles.length&&
               s.fouilles.some(f=>dist2(P.x,P.z,f.x,f.z)<f.rayon*f.rayon)){
       // priorité basse : n'importe quel contenant fouillable de la salle
@@ -11404,13 +11801,36 @@ const CJourCiel=new THREE.Color(0x9fc2dd), CNuitCiel=new THREE.Color(0x0c1122);
 const CINT=new THREE.Color(0x0a0c12);   // ambiance intérieure : sombre, pas de ciel
 function jourNuit(dt){
   ETAT.jour=(ETAT.jour+dt)%170;
+  if(INT.actif&&INT.actif.piles){
+    // Métro abandonné : deuxième salle à manipuler la lumière de scène après
+    // le musée, en beaucoup plus agressif — c'est la lampe du joueur, et
+    // elle seule, qui éclaire. Aucun luminaire de décor dans cette salle
+    // (voir construireSalle) : hemi/soleil quasi nuls, lampeNuit réutilisée
+    // comme lampe de mineur, rayon et intensité pilotés par la batterie.
+    const s=INT.actif;
+    soleil.intensity=0.04; hemi.intensity=0.08;
+    scene.background.copy(CINT);
+    scene.fog.color.copy(CINT);
+    const frac=clamp(s.batterie/100,0,1);
+    scene.fog.near=lerp(2,9,frac);
+    scene.fog.far=lerp(7,48,frac);
+    let intens=lerp(0.18,1.15,frac);
+    if(s.batterie<20){
+      const flick=0.6+0.4*Math.sin(ETAT.runT*24)*Math.sin(ETAT.runT*6.3);
+      intens*=Math.max(0.15,flick);
+    }
+    lampeNuit.intensity=intens;
+    lampeNuit.distance=lerp(3.2,20,frac);
+    lampeNuit.position.set(P.x,3.4,P.z);
+    return;
+  }
   if(INT.actif){
     // à l'intérieur : lumière artificielle stable, fond sombre, aucun brouillard
     soleil.intensity=0.75; hemi.intensity=0.95;
     scene.background.copy(CINT);
     scene.fog.color.copy(CINT);
     scene.fog.near=120; scene.fog.far=900;
-    lampeNuit.intensity=0.55; lampeNuit.position.set(P.x,7,P.z);
+    lampeNuit.intensity=0.55; lampeNuit.distance=42; lampeNuit.position.set(P.x,7,P.z);
     return;
   }
   const t=ETAT.jour;
@@ -11435,6 +11855,7 @@ function jourNuit(dt){
   const gl=q().glow?f:0;
   for(const l of lampes) l.material.opacity=gl*0.8;
   lampeNuit.intensity=f*0.9;
+  lampeNuit.distance=aCurio('lampe')?63:42;   // La Lampe de Mineur : halo nocturne 50 % plus large
   lampeNuit.position.set(P.x,7,P.z);
   for(const v of vehicules){
     const on=(v.conduit==='joueur'||v.conduit==='trafic'||v.conduit==='police')?f:0;

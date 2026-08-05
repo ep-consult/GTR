@@ -1919,6 +1919,445 @@ async function main() {
     else ok('Arcade : l\'horloge d\'une borne avance bien au temps réel — aucun ralenti du monde extérieur ne l\'atteint');
 
     // -------------------------------------------------------------------
+    // Métro abandonné : porte, quartier, curiosité 'lampe' activée.
+    // -------------------------------------------------------------------
+    console.log('\n--- Métro abandonné : porte, quartier, curiosité activée ---');
+    const metroPorte = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'metro');
+      const c = CURIOS.find((x) => x.id === 'lampe');
+      return {
+        porteExiste: !!p,
+        quartierAttendu: quartier(2, 11),
+        curioActive: c ? c.actif : null,
+        curioA_eff: c ? !!c.eff : false,
+        curioA_ind: c ? !!c.ind : false,
+      };
+    });
+    if (!metroPorte.porteExiste) fail('Métro : aucune porte posée pour la salle');
+    else ok('Métro : la porte est bien posée');
+    if (metroPorte.quartierAttendu !== 'residentiel') fail('Métro : quartier(2,11) ne vaut plus \'residentiel\' (' + metroPorte.quartierAttendu + ') — repositionner caseCentre(2,11)');
+    else ok('Métro : quartier(2,11) vaut bien \'residentiel\', comme demandé');
+    if (!metroPorte.curioActive || !metroPorte.curioA_eff || !metroPorte.curioA_ind) fail('Métro : la curiosité \'lampe\' n\'est pas correctement activée (actif/eff/ind)');
+    else ok('Métro : la curiosité \'lampe\' est bien activée avec ses textes');
+
+    // -------------------------------------------------------------------
+    // Espacements — lus depuis la salle réelle, jamais recopiés ici (voir
+    // CLAUDE.md, « Tests : ne jamais recopier une liste du jeu »). Les 12
+    // caches + la cache de la Lampe de Mineur à au moins 8 u entre eux et
+    // du centre de la sortie.
+    // -------------------------------------------------------------------
+    console.log('\n--- Métro abandonné : espacements (caches, piles, dangers, sortie) ---');
+    const espacementsMetro = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'metro');
+      entrerInterieur('metro', p);
+      const s = INT.actif;
+      const zones = s.fouilles.map((f) => ({ x: f.x, z: f.z })).concat([{ x: s.lampeCache.x, z: s.lampeCache.z }]);
+      const distEntreZones = [];
+      for (let i = 0; i < zones.length; i++) for (let j = i + 1; j < zones.length; j++) {
+        distEntreZones.push(Math.hypot(zones[i].x - zones[j].x, zones[i].z - zones[j].z));
+      }
+      const zonesVsSortie = zones.map((z) => Math.hypot(z.x - s.sortie.x, z.z - s.sortie.z));
+      const nbFouilles = s.fouilles.length, nbPiles = s.piles.length, nbDangers = s.dangers.length;
+      if (INT.actif) sortirInterieur();
+      return { distEntreZones, zonesVsSortie, nbFouilles, nbPiles, nbDangers };
+    });
+    if (Math.min(...espacementsMetro.distEntreZones) < 7.99) fail('Métro : deux zones interactives (caches/Lampe) sont à moins de 8 unités l\'une de l\'autre (' + JSON.stringify(espacementsMetro.distEntreZones) + ')');
+    else ok('Métro : les caches et la Lampe de Mineur sont bien espacées d\'au moins 8 unités entre elles');
+    if (espacementsMetro.zonesVsSortie.some((d) => d < 7.99)) fail('Métro : une zone interactive est à moins de 8 unités du centre de la sortie (' + JSON.stringify(espacementsMetro.zonesVsSortie) + ')');
+    else ok('Métro : toutes les zones interactives sont bien à au moins 8 unités de la sortie');
+    if (espacementsMetro.nbFouilles !== 12) fail('Métro : nombre de caches fouillables inattendu (' + espacementsMetro.nbFouilles + ', attendu 12)');
+    else ok('Métro : les 12 caches fouillables sont bien réparties sur les 3 niveaux');
+    if (espacementsMetro.nbPiles !== 6) fail('Métro : nombre de piles inattendu (' + espacementsMetro.nbPiles + ', attendu 6, plus nombreuses en profondeur)');
+    else ok('Métro : les 6 piles sont bien placées dans les tunnels');
+    if (espacementsMetro.nbDangers !== 4) fail('Métro : nombre de dangers inattendu (' + espacementsMetro.nbDangers + ', attendu 4 au niveau 2)');
+    else ok('Métro : les 4 dangers du niveau 2 (trous + rails) sont bien enregistrés');
+
+    // -------------------------------------------------------------------
+    // Niveau détecté selon la position réelle du joueur, consommation de
+    // batterie exprimée en %/seconde (indépendante du découpage en frames,
+    // comme la dérive des jauges du Ciné-Palace), jamais négative.
+    // -------------------------------------------------------------------
+    console.log('\n--- Métro abandonné : niveau détecté selon la position, consommation de la batterie ---');
+    const niveauBatt = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'metro');
+      startRun();
+      entrerInterieur('metro', p);
+      const s = INT.actif;
+      P.x = s.sortie.x; P.z = s.sortie.z;
+      majInterieur(0.001, 0.001);
+      const niveau1Detecte = s.niveauActuel;
+      P.x = s.ox + 6; P.z = s.oz - 5; // au niveau 2, loin de tout danger/pile
+      majInterieur(0.001, 0.001);
+      const niveau2Detecte = s.niveauActuel;
+      P.x = s.lampeCache.x; P.z = s.lampeCache.z;
+      majInterieur(0.001, 0.001);
+      const niveau3Detecte = s.niveauActuel;
+      P.x = s.sortie.x; P.z = s.sortie.z; // retour au niveau 1 pour mesurer sa propre consommation
+      majInterieur(0.001, 0.001);
+      s.batterie = 100;
+      majInterieur(1, 1);
+      const battApresGrandPas = s.batterie;
+      s.batterie = 100;
+      for (let i = 0; i < 10; i++) majInterieur(0.1, 0.1);
+      const battApresPetitsPas = s.batterie;
+      s.batterie = 0.1;
+      majInterieur(5, 5);
+      const battJamaisNegative = s.batterie;
+      if (INT.actif) sortirInterieur();
+      return { niveau1Detecte, niveau2Detecte, niveau3Detecte, battApresGrandPas, battApresPetitsPas, battJamaisNegative };
+    });
+    if (niveauBatt.niveau1Detecte !== 1) fail('Métro : le niveau détecté près de la sortie n\'est pas 1 (QUAI), obtenu ' + niveauBatt.niveau1Detecte);
+    else ok('Métro : le niveau 1 (QUAI) est bien détecté près de la sortie');
+    if (niveauBatt.niveau2Detecte !== 2) fail('Métro : le niveau détecté dans le tunnel n\'est pas 2 (TUNNEL), obtenu ' + niveauBatt.niveau2Detecte);
+    else ok('Métro : le niveau 2 (TUNNEL) est bien détecté dans le tunnel');
+    if (niveauBatt.niveau3Detecte !== 3) fail('Métro : le niveau détecté près de la Lampe de Mineur n\'est pas 3 (PROFONDEURS), obtenu ' + niveauBatt.niveau3Detecte);
+    else ok('Métro : le niveau 3 (PROFONDEURS) est bien détecté près de la Lampe de Mineur');
+    if (Math.abs((100 - niveauBatt.battApresGrandPas) - (100 - niveauBatt.battApresPetitsPas)) > 1e-6) fail('Métro : la consommation de la batterie dépend du découpage en frames (grand pas=' + niveauBatt.battApresGrandPas + ', petits pas=' + niveauBatt.battApresPetitsPas + ')');
+    else ok('Métro : la consommation de la batterie est bien exprimée en %/seconde, indépendante du découpage en frames');
+    if (niveauBatt.battJamaisNegative < 0) fail('Métro : la batterie peut devenir négative (' + niveauBatt.battJamaisNegative + ')');
+    else ok('Métro : la batterie ne descend jamais sous 0 %');
+
+    // -------------------------------------------------------------------
+    // Piles : ramassage automatique de proximité, +25 % de batterie,
+    // plafonné à 100 %, jamais deux fois la même vague.
+    // -------------------------------------------------------------------
+    console.log('\n--- Métro abandonné : ramassage de pile (+25 % batterie, jamais plus de 100 %) ---');
+    const pileTest = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'metro');
+      startRun();
+      entrerInterieur('metro', p);
+      const s = INT.actif;
+      majInterieur(0, 0); // règle metroVagueRef sur la vague en cours avant de forcer une valeur de test
+      const pile = s.piles[0];
+      pile.prisVague = -1;
+      s.batterie = 50;
+      P.x = pile.x; P.z = pile.z;
+      majInterieur(0, 0); // dt/dtJeu nuls : isole le ramassage instantané de la consommation continue
+      const battApres1 = s.batterie, prisApres1 = pile.prisVague === WAVES.n, visibleApres1 = pile.mesh.visible;
+      majInterieur(0, 0);
+      const battApres2 = s.batterie;
+      s.batterie = 90; pile.prisVague = -1;
+      majInterieur(0, 0);
+      const battPlafonnee = s.batterie;
+      if (INT.actif) sortirInterieur();
+      return { battApres1, prisApres1, visibleApres1, battApres2, battPlafonnee };
+    });
+    if (pileTest.battApres1 !== 75 || !pileTest.prisApres1 || pileTest.visibleApres1) fail('Métro : ramasser une pile ne donne pas +25 % de batterie et/ou ne la retire pas de la salle (batterie=' + pileTest.battApres1 + ')');
+    else ok('Métro : ramasser une pile donne bien +25 % de batterie et la retire de la salle');
+    if (pileTest.battApres2 !== pileTest.battApres1) fail('Métro : une pile déjà ramassée cette vague redonne de la batterie en restant dessus');
+    else ok('Métro : une pile déjà ramassée cette vague ne redonne rien tant qu\'on reste dessus');
+    if (pileTest.battPlafonnee !== 100) fail('Métro : la batterie dépasse 100 % après une pile (' + pileTest.battPlafonnee + ')');
+    else ok('Métro : la batterie est bien plafonnée à 100 % par une pile');
+
+    // -------------------------------------------------------------------
+    // Dangers du niveau 2 : dégâts, perte de 30 % du butin porté, cooldown
+    // propre au danger (pas de second déclenchement immédiat).
+    // -------------------------------------------------------------------
+    console.log('\n--- Métro abandonné : danger du niveau 2 (dégâts, perte de butin, cooldown) ---');
+    const dangerTest = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'metro');
+      startRun();
+      entrerInterieur('metro', p);
+      const s = INT.actif;
+      const d = s.dangers[0];
+      s.butin = 100; P.hp = P.maxHp;
+      P.x = d.x; P.z = d.z;
+      majInterieur(0.001, 0.001);
+      const hpApres1 = P.hp, butinApres1 = s.butin, coolApres1 = d.coolT;
+      majInterieur(0.001, 0.001);
+      const hpApres2 = P.hp;
+      if (INT.actif) sortirInterieur();
+      return { hpMax: P.maxHp, hpApres1, butinApres1, coolApres1, hpApres2 };
+    });
+    if (dangerTest.hpApres1 >= dangerTest.hpMax) fail('Métro : toucher un danger du niveau 2 ne fait pas perdre de PV');
+    else ok('Métro : toucher un danger du niveau 2 fait bien perdre des PV');
+    if (dangerTest.butinApres1 !== 70) fail('Métro : toucher un danger ne fait pas lâcher 30 % du butin porté (butin=' + dangerTest.butinApres1 + ', attendu 70)');
+    else ok('Métro : toucher un danger fait bien lâcher 30 % du butin porté');
+    if (dangerTest.coolApres1 <= 0) fail('Métro : un danger touché ne pose pas de cooldown');
+    else ok('Métro : un danger touché pose bien un cooldown avant de pouvoir re-déclencher');
+    if (dangerTest.hpApres2 !== dangerTest.hpApres1) fail('Métro : un danger redéclenche immédiatement malgré son cooldown (PV encore perdus)');
+    else ok('Métro : le cooldown du danger empêche bien un second déclenchement immédiat');
+
+    // -------------------------------------------------------------------
+    // La Bête : dérive symétrique (recule à pleine lampe, avance à batterie
+    // nulle), jamais active hors niveau 3, regain immédiat et suffisant sur
+    // une pile, capture = perte du butin + éjection à la surface.
+    // -------------------------------------------------------------------
+    console.log('\n--- Métro abandonné : la Bête (dérive symétrique, regain sur pile, capture) ---');
+    const bete = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'metro');
+      startRun();
+      entrerInterieur('metro', p);
+      const s = INT.actif;
+      P.x = s.lampeCache.x; P.z = s.lampeCache.z; // niveau 3
+      s.batterie = 100; s.beteProx = 0.5;
+      majInterieur(1, 1);
+      const beteProxPleine = s.beteProx;
+      s.batterie = 0; s.beteProx = 0.5;
+      majInterieur(1, 1);
+      const beteProxNulle = s.beteProx;
+      s.beteProx = 0.5;
+      P.x = s.sortie.x; P.z = s.sortie.z; // niveau 1
+      majInterieur(1, 1);
+      const beteProxHorsNiveau3 = s.beteProx;
+      P.x = s.lampeCache.x; P.z = s.lampeCache.z;
+      s.batterie = 0; s.beteProx = 0.9;
+      const pileP3 = s.piles.find((pp) => metroNiveauDe(pp.z - s.oz) === 3);
+      pileP3.prisVague = -1;
+      P.x = pileP3.x; P.z = pileP3.z;
+      majInterieur(0.001, 0.001);
+      const beteProxApresPile = s.beteProx;
+      s.butin = 200; s.beteProx = 1; s.lampeEnMain = true; P.hp = P.maxHp;
+      P.x = s.lampeCache.x; P.z = s.lampeCache.z;
+      majInterieur(0.001, 0.001);
+      const ejecte = !INT.actif, butinApresCapture = s.butin, lampeEnMainApresCapture = s.lampeEnMain;
+      return { beteProxPleine, beteProxNulle, beteProxHorsNiveau3, beteProxApresPile, ejecte, butinApresCapture, lampeEnMainApresCapture };
+    });
+    if (bete.beteProxPleine >= 0.5) fail('Métro : la Bête ne recule pas à batterie pleine (beteProx=' + bete.beteProxPleine + ')');
+    else ok('Métro : la Bête recule bien quand la lampe est à pleine charge');
+    if (bete.beteProxNulle <= 0.5) fail('Métro : la Bête n\'avance pas à batterie nulle (beteProx=' + bete.beteProxNulle + ')');
+    else ok('Métro : la Bête avance bien quand la batterie est à 0');
+    if (bete.beteProxHorsNiveau3 !== 0) fail('Métro : la proximité de la Bête n\'est pas remise à zéro hors du niveau 3 (' + bete.beteProxHorsNiveau3 + ')');
+    else ok('Métro : la Bête ne peut jamais suivre hors du niveau 3 — remonter est toujours une échappatoire');
+    if (bete.beteProxApresPile > 0.36) fail('Métro : ramasser une pile ne repousse pas immédiatement et suffisamment la Bête (beteProx=' + bete.beteProxApresPile + ', était 0,9, plafond attendu 0,35)');
+    else ok('Métro : ramasser une pile repousse bien immédiatement et suffisamment la Bête');
+    if (!bete.ejecte || bete.butinApresCapture !== 0 || bete.lampeEnMainApresCapture) fail('Métro : la Bête qui atteint le joueur ne fait pas perdre le butin/la Lampe et ne l\'éjecte pas (éjecté=' + bete.ejecte + ', butin=' + bete.butinApresCapture + ', lampe=' + bete.lampeEnMainApresCapture + ')');
+    else ok('Métro : la Bête qui atteint le joueur fait bien perdre tout le butin et la Lampe portée, et éjecte à la surface');
+
+    // -------------------------------------------------------------------
+    // Le cash trouvé en descente n'est jamais encaissé tout de suite — il
+    // alimente le butin porté (s.butin), qui n'est encaissé qu'en sortant
+    // par la porte.
+    // -------------------------------------------------------------------
+    console.log('\n--- Métro abandonné : le butin trouvé en descente n\'est pas encaissé tout de suite ---');
+    const routage = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'metro');
+      startRun();
+      entrerInterieur('metro', p);
+      const s = INT.actif;
+      const f = s.fouilles.find((ff) => ff.table === 'metro1');
+      const argentAvant = META.argent;
+      for (let i = 0; i < 20; i++) { f.prisVague = -1; resoudreFouille(f); }
+      const argentApres = META.argent, butinApres = s.butin;
+      if (INT.actif) sortirInterieur();
+      return { argentAvant, argentApres, butinApres };
+    });
+    if (routage.argentApres !== routage.argentAvant) fail('Métro : du cash trouvé en descente a été encaissé immédiatement dans META.argent au lieu d\'être porté (' + (routage.argentApres - routage.argentAvant) + ' $)');
+    else ok('Métro : aucun cash trouvé en descente n\'est encaissé immédiatement — tout part dans le butin porté');
+    if (routage.butinApres <= 0) fail('Métro : 20 fouilles sur la table metro1 n\'ont ajouté aucun butin porté (chance quasi nulle si le routage marchait)');
+    else ok('Métro : les fouilles alimentent bien le butin porté (' + routage.butinApres + ' $ sur 20 tentatives)');
+
+    // -------------------------------------------------------------------
+    // Encaissement à la porte de sortie, jamais avant.
+    // -------------------------------------------------------------------
+    console.log('\n--- Métro abandonné : encaissement du butin en sortant par la porte ---');
+    const encaissement = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'metro');
+      startRun();
+      entrerInterieur('metro', p);
+      const s = INT.actif;
+      s.butin = 150;
+      const argentAvant = META.argent;
+      P.x = s.sortie.x; P.z = s.sortie.z;
+      ETAT.intT = 0; // passé le bref délai anti-double-sortie posé par entrerInterieur
+      majAction();
+      const label = document.getElementById('btnAction').textContent;
+      document.getElementById('btnAction')._fn();
+      const argentApres = META.argent, butinApres = s.butin, actifApres = !!INT.actif;
+      return { label, argentAvant, argentApres, butinApres, actifApres };
+    });
+    if (!/SORTIR/i.test(encaissement.label)) fail('Métro : le bouton d\'action à la porte de sortie n\'affiche pas SORTIR (' + encaissement.label + ')');
+    if (encaissement.actifApres) fail('Métro : appuyer sur SORTIR ne fait pas quitter la salle');
+    if (encaissement.argentApres !== encaissement.argentAvant + 150) fail('Métro : remonter à la surface avec 150 $ de butin ne les encaisse pas (obtenu +' + (encaissement.argentApres - encaissement.argentAvant) + ')');
+    else ok('Métro : remonter à la surface encaisse bien intégralement le butin porté');
+    if (encaissement.butinApres !== 0) fail('Métro : le butin porté n\'est pas remis à zéro après encaissement (' + encaissement.butinApres + ')');
+    else ok('Métro : le butin porté est bien remis à zéro après encaissement');
+
+    // -------------------------------------------------------------------
+    // La Lampe de Mineur : perdue face à la Bête (curiosité pas encore
+    // acquise à ce stade — testé AVANT toute descente qui l'obtiendrait
+    // pour de bon, voir CLAUDE.md), puis acquise en la rapportant en
+    // surface lors d'une seconde descente.
+    // -------------------------------------------------------------------
+    console.log('\n--- Métro abandonné : la Lampe de Mineur — perdue face à la Bête, acquise en la rapportant ---');
+    const lampeTest = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'metro');
+      startRun();
+      const dejaAcquise = aCurio('lampe');
+      entrerInterieur('metro', p);
+      const s = INT.actif;
+      majInterieur(0, 0); // règle metroVagueRef avant de forcer les valeurs de test
+      P.x = s.lampeCache.x; P.z = s.lampeCache.z;
+      majAction();
+      const label = document.getElementById('btnAction').textContent;
+      document.getElementById('btnAction')._fn();
+      const enMainApresRamassage = s.lampeEnMain, meshCacheeApresRamassage = !s.lampeCache.mesh.visible;
+      s.batterie = 0; s.beteProx = 1; P.hp = P.maxHp; // batterie nulle : la dérive ne fait pas retomber beteProx sous 1 sur cette même frame
+      majInterieur(0.001, 0.001);
+      const enMainApresCapture = s.lampeEnMain, meshRevenueApresCapture = s.lampeCache.mesh.visible;
+      const curioApresCapture = aCurio('lampe');
+      entrerInterieur('metro', p); // seconde descente : elle est bien revenue dans sa cache
+      const s2 = INT.actif;
+      P.x = s2.lampeCache.x; P.z = s2.lampeCache.z;
+      majAction(); document.getElementById('btnAction')._fn();
+      P.x = s2.sortie.x; P.z = s2.sortie.z;
+      ETAT.intT = 0; // passé le bref délai anti-double-sortie posé par entrerInterieur
+      majAction(); document.getElementById('btnAction')._fn();
+      const curioApresRetour = aCurio('lampe');
+      return {
+        dejaAcquise, label, enMainApresRamassage, meshCacheeApresRamassage,
+        enMainApresCapture, meshRevenueApresCapture, curioApresCapture, curioApresRetour,
+      };
+    });
+    if (lampeTest.dejaAcquise) fail('Métro : le test suppose la curiosité \'lampe\' pas encore acquise à ce stade de la suite');
+    if (!/RAMASSER LA LAMPE/i.test(lampeTest.label)) fail('Métro : le bouton d\'action à la cache de la Lampe de Mineur n\'affiche pas le bon libellé (' + lampeTest.label + ')');
+    if (!lampeTest.enMainApresRamassage || !lampeTest.meshCacheeApresRamassage) fail('Métro : ramasser la Lampe de Mineur ne la marque pas en main / ne cache pas son socle');
+    else ok('Métro : la Lampe de Mineur se ramasse bien au fond des Profondeurs');
+    if (lampeTest.enMainApresCapture || !lampeTest.meshRevenueApresCapture || lampeTest.curioApresCapture) fail('Métro : se faire attraper par la Bête avec la Lampe en main ne la fait pas retourner dans sa cache sans donner la curiosité');
+    else ok('Métro : la Lampe de Mineur retourne bien dans sa cache si la Bête attrape le joueur, sans donner la curiosité');
+    if (!lampeTest.curioApresRetour) fail('Métro : remonter à la surface avec la Lampe de Mineur en main ne donne pas la curiosité');
+    else ok('Métro : remonter à la surface avec la Lampe de Mineur donne bien la curiosité');
+
+    // -------------------------------------------------------------------
+    // Réinitialisations : passage de vague (batterie à 100 %), mort en
+    // pleine descente (butin perdu, Bête réinitialisée, batterie
+    // CONSERVÉE), game over (batterie à plein, butin à zéro).
+    // -------------------------------------------------------------------
+    console.log('\n--- Métro abandonné : réinitialisations (vague, mort en descente, game over) ---');
+    const resets = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'metro');
+      startRun();
+      entrerInterieur('metro', p);
+      const s = INT.actif;
+      s.batterie = 40;
+      WAVES.n++;
+      majInterieur(0, 0); // dt/dtJeu nuls : isole le reset du passage de vague de la consommation normale
+      const battApresVague = s.batterie;
+      s.butin = 300; s.batterie = 63; s.beteProx = 0.4;
+      P.hp = 1; toucherJoueur(9999); // -> mourir(), en pleine descente
+      const butinApresMort = s.butin, batterieApresMort = s.batterie, beteProxApresMort = s.beteProx, modeApresMort = ETAT.mode;
+      startRun(); // "retry" : game over pour de bon
+      const sa = INT.salles.metro;
+      const battApresGameOver = sa.batterie, butinApresGameOver = sa.butin;
+      return { battApresVague, butinApresMort, batterieApresMort, beteProxApresMort, modeApresMort, battApresGameOver, butinApresGameOver };
+    });
+    if (resets.battApresVague !== 100) fail('Métro : le passage de vague ne remet pas la batterie à 100 % (' + resets.battApresVague + ')');
+    else ok('Métro : le passage de vague remet bien la batterie à 100 %');
+    if (resets.modeApresMort !== 'mort') fail('Métro : mourir() n\'a pas été déclenché correctement pendant le test');
+    if (resets.butinApresMort !== 0 || resets.beteProxApresMort !== 0) fail('Métro : mourir en pleine descente ne fait pas perdre le butin porté et/ou ne réinitialise pas la Bête (butin=' + resets.butinApresMort + ', beteProx=' + resets.beteProxApresMort + ')');
+    else ok('Métro : mourir en pleine descente fait bien perdre le butin porté et réinitialise la Bête');
+    if (resets.batterieApresMort !== 63) fail('Métro : la batterie change au moment de la mort alors qu\'elle doit être conservée en l\'état (' + resets.batterieApresMort + ', attendu 63)');
+    else ok('Métro : la batterie est bien conservée en l\'état au moment de la mort (remise à plein seulement au game over)');
+    if (resets.battApresGameOver !== 100 || resets.butinApresGameOver !== 0) fail('Métro : le game over ne remet pas la batterie à 100 % et/ou le butin à zéro (batterie=' + resets.battApresGameOver + ', butin=' + resets.butinApresGameOver + ')');
+    else ok('Métro : le game over remet bien la batterie à 100 % et le butin à zéro');
+
+    // -------------------------------------------------------------------
+    // Tables de fouille metro1/metro2/metro3 : jamais de gain négatif,
+    // META.fouilles incrémenté exactement une fois par fouille résolue,
+    // une pile trouvée en fouille recharge bien la batterie.
+    // -------------------------------------------------------------------
+    console.log('\n--- Métro abandonné : tables de fouille (jamais négatif, META.fouilles) ---');
+    const fouilleMetro = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'metro');
+      startRun();
+      entrerInterieur('metro', p);
+      const s = INT.actif;
+      const fouillesAvant = META.fouilles;
+      const resultat = { metro1: [], metro2: [], metro3: [] };
+      for (const table of ['metro1', 'metro2', 'metro3']) {
+        const f = s.fouilles.find((x) => x.table === table);
+        for (let i = 0; i < 60; i++) {
+          f.prisVague = -1;
+          const butinAvant = s.butin;
+          resoudreFouille(f);
+          resultat[table].push(s.butin - butinAvant);
+        }
+      }
+      const rareMetro3 = TABLES_FOUILLE.metro3.items.find((it) => it.type === 'cash' && it.min >= 500);
+      const fouillesTotal = META.fouilles - fouillesAvant;
+      const f3 = s.fouilles.find((x) => x.table === 'metro3');
+      s.batterie = 50;
+      let pileTrouvee = false;
+      for (let i = 0; i < 60 && !pileTrouvee; i++) {
+        f3.prisVague = -1;
+        const avant = s.batterie;
+        resoudreFouille(f3);
+        if (s.batterie > avant) pileTrouvee = true;
+      }
+      if (INT.actif) sortirInterieur();
+      return { resultat, rareMetro3, fouillesTotal, pileTrouvee };
+    });
+    if (fouilleMetro.fouillesTotal !== 180) fail('Métro : META.fouilles n\'est pas incrémenté exactement une fois par fouille résolue (delta=' + fouilleMetro.fouillesTotal + '/180)');
+    else ok('Métro : chaque fouille résolue incrémente bien META.fouilles');
+    for (const table of ['metro1', 'metro2', 'metro3']) {
+      const vals = fouilleMetro.resultat[table];
+      if (vals.some((v) => v < 0)) fail('Métro : la table ' + table + ' a produit un gain négatif sur 60 tirages');
+      else ok('Métro : la table ' + table + ' ne produit jamais de butin négatif (60 tirages)');
+    }
+    if (!fouilleMetro.rareMetro3 || !fouilleMetro.resultat.metro3.some((v) => v >= fouilleMetro.rareMetro3.min && v <= fouilleMetro.rareMetro3.max)) info('Métro : la somme rare de la table metro3 n\'est pas tombée sur 60 tirages (probabilité ~15 %, possible par hasard)');
+    else ok('Métro : la somme rare de la table metro3 est bien tombée dans sa fourchette déclarée au moins une fois');
+    if (!fouilleMetro.pileTrouvee) info('Métro : aucune pile trouvée en fouille sur 60 tirages de la table metro3 (probabilité ~20 % par tirage, possible par hasard)');
+    else ok('Métro : une pile trouvée en fouille recharge bien la batterie');
+
+    // -------------------------------------------------------------------
+    // Horloges séparées : la consommation de la batterie et la dérive de la
+    // Bête doivent suivre le temps réel (dtJeu) pendant un ralenti, jamais
+    // dt — sinon un ralenti déclenché avant de descendre rallongerait
+    // artificiellement la descente.
+    // -------------------------------------------------------------------
+    console.log('\n--- Horloges séparées : la batterie et la Bête du Métro avancent au temps réel pendant un ralenti ---');
+    const chronoMetro = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'metro');
+      startRun();
+      entrerInterieur('metro', p);
+      const s = INT.actif;
+      majInterieur(0, 0); // règle metroVagueRef avant de forcer les valeurs de test
+      P.x = s.lampeCache.x; P.z = s.lampeCache.z; // niveau 3
+      s.batterie = 100; s.beteProx = 0.5;
+      const dtReel = 1;
+      const dt = dtReel * 0.5, dtJeu = dtReel; // ralenti à ×0,5 simulé comme boucle()
+      majInterieur(dt, dtJeu);
+      const consoReelle = 100 - s.batterie;
+      const consoAttendue = METRO_CONSO[3] * dtJeu;
+      // le code réel consomme la batterie PUIS dérive la Bête de la valeur mise
+      // à jour (s.batterie-=...; ...; const viv=clamp(s.batterie/100,...)) — la
+      // référence doit suivre le même ordre, sinon l'écart entre la batterie
+      // avant/après consommation fait échouer le test à tort.
+      const vivApresConso = clamp((100 - consoAttendue) / 100, 0, 1);
+      const beteAttendue = clamp(0.5 + (0.5 - vivApresConso) * 2 * METRO_BETE_VITESSE * dtJeu, 0, 1);
+      const beteProxApres = s.beteProx;
+      if (INT.actif) sortirInterieur();
+      return { consoReelle, consoAttendue, beteProxApres, beteAttendue };
+    });
+    if (Math.abs(chronoMetro.consoReelle - chronoMetro.consoAttendue) > 1e-9) fail('Métro : la consommation de la batterie ralentit pendant un ralenti au lieu de suivre le temps réel (obtenu ' + chronoMetro.consoReelle + ', attendu ' + chronoMetro.consoAttendue + ')');
+    else ok('Métro : la consommation de la batterie avance bien au temps réel pendant un ralenti (sur dtJeu)');
+    if (Math.abs(chronoMetro.beteProxApres - chronoMetro.beteAttendue) > 1e-9) fail('Métro : la dérive de la Bête ralentit ou accélère pendant un ralenti au lieu de suivre le temps réel');
+    else ok('Métro : la dérive de la Bête avance bien au temps réel pendant un ralenti, jamais ralentie ni accélérée');
+
+    // -------------------------------------------------------------------
+    // Curiosité La Lampe de Mineur : halo nocturne extérieur 50 % plus
+    // large (lampeNuit.distance, en pleine nuit, hors de tout intérieur).
+    // -------------------------------------------------------------------
+    console.log('\n--- Métro abandonné : la curiosité Lampe de Mineur élargit le halo nocturne extérieur de 50 % ---');
+    const haloTest = await page.evaluate(() => {
+      startRun();
+      ETAT.mode = 'jeu'; ETAT.jour = 130; // pleine nuit (f=1)
+      const possedeAvant = aCurio('lampe');
+      META.curios.lampe = 0;
+      jourNuit(0.001);
+      const distanceSans = lampeNuit.distance;
+      META.curios.lampe = 1;
+      jourNuit(0.001);
+      const distanceAvec = lampeNuit.distance;
+      META.curios.lampe = possedeAvant ? 1 : 0;
+      return { distanceSans, distanceAvec };
+    });
+    if (Math.abs(haloTest.distanceSans - 42) > 1e-9) fail('Métro : le halo nocturne de base n\'est pas de 42 unités sans la curiosité (' + haloTest.distanceSans + ')');
+    else ok('Métro : le halo nocturne de base est bien de 42 unités sans la curiosité');
+    if (Math.abs(haloTest.distanceAvec - 63) > 1e-9) fail('Métro : la curiosité \'lampe\' ne rend pas le halo nocturne 50 % plus large (' + haloTest.distanceAvec + ', attendu 63)');
+    else ok('Métro : la curiosité \'lampe\' rend bien le halo nocturne 50 % plus large (63 unités)');
+
+    // -------------------------------------------------------------------
     // Salle de sport (FER & SUEUR) : soulever une barre avec succès (palier
     // de muscle, PV/endurance), puis un échec (le temps s'écoule).
     // -------------------------------------------------------------------
