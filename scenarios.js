@@ -2547,7 +2547,18 @@ async function main() {
     console.log('\n--- Persistance (sauvegarde / rechargement) ---');
     const valeurs = { argent: 54321, niveau: 7 };
     await page.evaluate((v) => {
-      META.argent = v.argent; META.niveau = v.niveau; sauveMeta();
+      META.argent = v.argent; META.niveau = v.niveau;
+      // Isolation : boucle() vérifie les défis en tâche de fond toutes les
+      // ~2 s de temps réel (ETAT.defiT), indépendamment de ce que fait ce
+      // test — un défi resté « vrai mais pas encore vu » à cause d'un effet
+      // de bord d'un scénario précédent (ex. META.defis.dist poussé au-delà
+      // du seuil par un test véhicule) peut donc se déclencher à tout moment,
+      // y compris pendant la page rechargée, entre la sauvegarde et la
+      // lecture ci-dessous — modifiant META.argent sous le nez du test. On
+      // neutralise tous les défis avant de sauvegarder pour que checkDefis()
+      // ne puisse plus rien accorder, quel que soit le moment où il tourne.
+      for (const d of DEFIS) META.defis.faits[d.id] = true;
+      sauveMeta();
     }, valeurs);
     await page.reload({ waitUntil: 'load', timeout: 30000 });
     await page.waitForFunction(() => typeof PORTES !== 'undefined' && PORTES.length > 0, { timeout: 20000 });
