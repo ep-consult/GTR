@@ -283,12 +283,12 @@ async function main() {
     const determinisme = await page.evaluate(() => {
       const p = PORTES.find((x) => x.id === 'musee');
       entrerInterieur('musee', p);
-      for (let i = 0; i < 437; i++) majInterieur(0.1); // 43,7 s simulées
+      for (let i = 0; i < 437; i++) majInterieur(0.1, 0.1); // 43,7 s simulées
       const pos1 = INT.actif.gardiens.map((gd) => ({ x: gd.x, z: gd.z, ang: gd.ang }));
       const cam1 = INT.actif.cameras.map((c) => c.angActuel);
       sortirInterieur();
       entrerInterieur('musee', p);
-      for (let i = 0; i < 437; i++) majInterieur(0.1); // exactement le même temps simulé
+      for (let i = 0; i < 437; i++) majInterieur(0.1, 0.1); // exactement le même temps simulé
       const pos2 = INT.actif.gardiens.map((gd) => ({ x: gd.x, z: gd.z, ang: gd.ang }));
       const cam2 = INT.actif.cameras.map((c) => c.angActuel);
       sortirInterieur();
@@ -324,11 +324,11 @@ async function main() {
       // force Le Cône (1,5 s de maintien sur place)
       const cone = s.vitrinesValeur.find((v) => v.cle === 'cone');
       P.x = cone.x; P.z = cone.z; majAction(); document.getElementById('btnAction')._fn();
-      for (let i = 0; i < 20; i++) majInterieur(0.1); // 2 s : largement assez pour les 1,5 s de maintien
+      for (let i = 0; i < 20; i++) majInterieur(0.1, 0.1); // 2 s : largement assez pour les 1,5 s de maintien
       const coneForce = META.museeArtefacts.cone === true;
       // force le Canard
       P.x = s.canard.x; P.z = s.canard.z; majAction(); document.getElementById('btnAction')._fn();
-      for (let i = 0; i < 20; i++) majInterieur(0.1);
+      for (let i = 0; i < 20; i++) majInterieur(0.1, 0.1);
       const canardEnMainApresForce = s.canardEnMain === true;
       // ressort par l'entrée avant la fin du chrono
       P.x = s.sortie.x; P.z = s.sortie.z; majAction(); document.getElementById('btnAction')._fn();
@@ -342,7 +342,7 @@ async function main() {
       P.x = s2.boitier.x; P.z = s2.boitier.z; majAction(); document.getElementById('btnAction')._fn();
       majAction(); document.getElementById('btnAction')._fn();
       s2.casseT = 0.05; // chrono presque écoulé (même code d'échec que soupçon à 100 %)
-      majInterieur(0.1); // le chrono passe sous 0 -> alarme -> éjection
+      majInterieur(0.1, 0.1); // le chrono passe sous 0 -> alarme -> éjection
       const echec = {
         interActifApres: !!INT.actif, etoilesApres: WANTED.stars,
         casseEtatApres: s2.casseEtat, canardToujoursAcquis: aCurio('canard_or'),
@@ -385,7 +385,7 @@ async function main() {
       P.stam = 999; P.stamMax = 999; // isole le test de la gestion d'endurance (hors sujet ici)
       // "marche" : joystick à peine au-dessus du seuil de mouvement (0,12), sprint maintenu
       INPUT.btn.sprint = true; INPUT.mx = 0.2; INPUT.mz = 0;
-      for (let i = 0; i < 40; i++) { majJoueur(0.1); majInterieur(0.1); } // 4 s simulées
+      for (let i = 0; i < 40; i++) { majJoueur(0.1); majInterieur(0.1, 0.1); } // 4 s simulées
       const devieEnMarchant = s.gardiens.some((gd) => gd.deviationT > 0);
       // "sprint" : joystick à fond, sprint maintenu. On observe le déclenchement
       // lui-même (dans la boucle) : si on ne regardait qu'après coup, un gardien
@@ -396,7 +396,7 @@ async function main() {
       INPUT.mx = 1; INPUT.mz = 0;
       let devieEnSprintant = false;
       for (let i = 0; i < 40 && !devieEnSprintant; i++) {
-        majJoueur(0.1); majInterieur(0.1);
+        majJoueur(0.1); majInterieur(0.1, 0.1);
         if (s.gardiens.some((gd) => gd.deviationT > 0)) devieEnSprintant = true;
       }
       INPUT.btn.sprint = false; INPUT.mx = 0; INPUT.mz = 0;
@@ -437,7 +437,7 @@ async function main() {
         P.vitesseMarcheMax += BONUS; P.vitesseSprintMax += BONUS; P.vitesseReelle += BONUS;
         const seuilAncien = 0.7 * P.vitesseSprintMax; // l'ancienne formule, pour vérifier qu'elle aurait échoué
         if (i === 0 && P.vitesseReelle < seuilAncien) throw new Error('le scénario ne reproduit pas la régression : ajuster BONUS');
-        majInterieur(0.1);
+        majInterieur(0.1, 0.1);
         if (s.gardiens.some((gd) => gd.deviationT > 0)) devie = true;
       }
       INPUT.mx = 0; INPUT.mz = 0;
@@ -471,7 +471,7 @@ async function main() {
         majJoueur(0.1);
         const seuilMilieu = (P.vitesseMarcheMax + P.vitesseSprintMax) / 2; // l'ancienne formule
         if (i === 0 && P.vitesseReelle >= seuilMilieu) throw new Error('le scénario ne reproduit pas la régression : ajuster le taux de joystick');
-        majInterieur(0.1);
+        majInterieur(0.1, 0.1);
         if (s.gardiens.some((gd) => gd.deviationT > 0)) devie = true;
       }
       INPUT.btn.sprint = false; INPUT.mx = 0; INPUT.mz = 0;
@@ -504,13 +504,13 @@ async function main() {
       const texteToastBoitier = document.getElementById('toastBox').lastElementChild.textContent;
       // confirme : démarre le casse
       majAction(); document.getElementById('btnAction')._fn();
-      majInterieur(0.1);
+      majInterieur(0.1, 0.1);
       const objAvant = document.getElementById('musObj').textContent;
       // force la Machine à laver (vitrine non touchée par un test précédent :
       // Le Cône et le Canard sont déjà définitivement pris ailleurs dans la suite)
       const laveuse = s.vitrinesValeur.find((v) => v.cle === 'laveuse');
       P.x = laveuse.x; P.z = laveuse.z; majAction(); document.getElementById('btnAction')._fn();
-      for (let i = 0; i < 20; i++) majInterieur(0.1);
+      for (let i = 0; i < 20; i++) majInterieur(0.1, 0.1);
       const objApres = document.getElementById('musObj').textContent;
       if (INT.actif) sortirInterieur();
       return { panneauTrouve: !!panneau, texteToastPanneau, texteToastBoitier, objAvant, objApres };
@@ -1479,7 +1479,7 @@ async function main() {
       majAction(); document.getElementById('btnAction')._fn();
       const bv = s.bornes.find((b) => b.id === 'vipere');
       P.x = bv.x; P.z = bv.z; majAction(); document.getElementById('btnAction')._fn();
-      majInterieur(0.016); // une frame : déclenche redimensionnerArcadeCv()
+      majInterieur(0.016, 0.016); // une frame : déclenche redimensionnerArcadeCv()
       const rect = arcadeWrap.getBoundingClientRect();
       const dpr = Math.min(window.devicePixelRatio || 1, 3);
       const r = {
@@ -1660,7 +1660,7 @@ async function main() {
       for (let i = 0; i < 10; i++) petitsPas += CINE_VIT_BASE.bobine * cineMultVitesse(10) * 0.1;
       const memeVitesseGrosPetitsPas = Math.abs(grandPas - petitsPas) < 1e-9;
       s.postes.bobine.probleme = 99.5;
-      majInterieur(1);
+      majInterieur(1, 1);
       const jaugeEnAlerte = s.postes.bobine.enAlerte;
       const satisfactionApresLimite = s.satisfaction;
       const parfaiteApresLimite = s.parfaite;
@@ -1737,7 +1737,7 @@ async function main() {
       majAction(); document.getElementById('btnAction')._fn();
       const argentAvant = META.argent;
       s.seanceT = CINE_DUREE;
-      majInterieur(0.001);
+      majInterieur(0.001, 0.001);
       const seanceFinieParfaite = !s.seanceOn;
       const argentApresParfaite = META.argent;
       const curioObtenue = aCurio('bobine');
@@ -1746,7 +1746,7 @@ async function main() {
       majAction(); document.getElementById('btnAction')._fn();
       s.satisfaction = 0;
       const argentAvantFiasco = META.argent;
-      majInterieur(0.001);
+      majInterieur(0.001, 0.001);
       const seanceFinieFiasco = !s.seanceOn;
       const argentApresFiasco = META.argent;
       if (INT.actif) sortirInterieur();
@@ -1835,6 +1835,90 @@ async function main() {
     else ok('Ciné-Palace : la somme rare de la confiserie est bien tombée dans sa fourchette déclarée au moins une fois');
 
     // -------------------------------------------------------------------
+    // Deux horloges dans boucle() : dt (mis à l'échelle par ETAT.timeScale,
+    // pour le spectacle — rendu, déplacement des entités, physique) et
+    // dtJeu (temps réel, jamais mis à l'échelle, pour les compteurs de
+    // gameplay). Un ralenti (chef de gang, ou La Bobine « ASPHALTE I » sur
+    // un combo prolongé) ne doit JAMAIS donner plus de temps sur un chrono
+    // ni ralentir la difficulté — mais DOIT ralentir le déplacement des
+    // entités, c'est tout le principe de l'effet. Ces trois tests simulent
+    // un ralenti actif exactement comme boucle() le fait (dt=dtReel×
+    // timeScale, dtJeu=dtReel) et appellent directement les fonctions de
+    // mise à jour, sans passer par le vrai ETAT.timeScale ni attendre un
+    // vrai ralenti déclenché en jeu.
+    // -------------------------------------------------------------------
+    console.log('\n--- Horloges séparées : le chrono du musée avance au temps réel pendant un ralenti ---');
+    const chronoMusee = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'musee');
+      startRun();
+      entrerInterieur('musee', p);
+      const s = INT.actif;
+      P.x = s.boitier.x; P.z = s.boitier.z; majAction(); document.getElementById('btnAction')._fn();
+      majAction(); document.getElementById('btnAction')._fn(); // confirme : démarre le casse
+      const casseTAvant = s.casseT, museeTAvant = s.museeT;
+      const dtReel = 1; // 1 seconde réelle simulée
+      const dt = dtReel * 0.5, dtJeu = dtReel; // comme boucle() avec ETAT.timeScale=0.5
+      majInterieur(dt, dtJeu);
+      const casseTApres = s.casseT, museeTApres = s.museeT;
+      if (INT.actif) sortirInterieur();
+      return { casseTAvant, casseTApres, museeTAvant, museeTApres };
+    });
+    if (Math.abs((chronoMusee.casseTAvant - chronoMusee.casseTApres) - 1) > 1e-9) fail('Musée : le chrono du casse n\'avance pas au rythme réel pendant un ralenti (delta=' + (chronoMusee.casseTAvant - chronoMusee.casseTApres) + ', attendu 1 pour 1 s réelle)');
+    else ok('Musée : le chrono du casse avance bien au rythme réel, jamais ralenti (sur dtJeu)');
+    if (Math.abs((chronoMusee.museeTApres - chronoMusee.museeTAvant) - 0.5) > 1e-9) fail('Musée : le déplacement des gardiens (museeT) ne ralentit pas pendant un ralenti alors qu\'il le devrait (delta=' + (chronoMusee.museeTApres - chronoMusee.museeTAvant) + ', attendu 0,5 pour 1 s réelle à ×0,5)');
+    else ok('Musée : le déplacement des gardiens ralentit bien pendant un ralenti (spectacle sur dt)');
+
+    console.log('\n--- Horloges séparées : le compte à rebours du Ciné-Palace avance au temps réel pendant un ralenti ---');
+    const chronoCine = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'cine');
+      startRun();
+      entrerInterieur('cine', p);
+      const s = INT.actif;
+      P.x = s.projecteur.x; P.z = s.projecteur.z;
+      majAction(); document.getElementById('btnAction')._fn();
+      const seanceTAvant = s.seanceT, probleAvant = s.postes.bobine.probleme;
+      const dtReel = 1;
+      const dt = dtReel * 0.5, dtJeu = dtReel;
+      majInterieur(dt, dtJeu);
+      const seanceTApres = s.seanceT, probleApres = s.postes.bobine.probleme;
+      // le code réel avance seanceT PUIS dérive mult de la nouvelle valeur
+      // (s.seanceT+=dtJeu; const mult=cineMultVitesse(s.seanceT);) — la
+      // référence doit suivre le même ordre, sinon l'écart infime entre
+      // cineMultVitesse(avant) et cineMultVitesse(après) fait échouer le
+      // test à tort alors que le code lui-même est cohérent.
+      const deriveAttendue = CINE_VIT_BASE.bobine * cineMultVitesse(seanceTApres) * dtJeu;
+      if (INT.actif) sortirInterieur();
+      return { seanceTAvant, seanceTApres, probleAvant, probleApres, deriveAttendue };
+    });
+    if (Math.abs((chronoCine.seanceTApres - chronoCine.seanceTAvant) - 1) > 1e-9) fail('Ciné-Palace : le compte à rebours de séance n\'avance pas au rythme réel pendant un ralenti (delta=' + (chronoCine.seanceTApres - chronoCine.seanceTAvant) + ', attendu 1 pour 1 s réelle)');
+    else ok('Ciné-Palace : le compte à rebours de séance avance bien au rythme réel pendant un ralenti (sur dtJeu)');
+    if (Math.abs((chronoCine.probleApres - chronoCine.probleAvant) - chronoCine.deriveAttendue) > 1e-9) fail('Ciné-Palace : la dérive des jauges (et la montée en pression) ralentit pendant un ralenti au lieu de suivre le temps réel');
+    else ok('Ciné-Palace : la dérive des jauges et la montée en pression suivent bien le temps réel, jamais ralenties');
+
+    console.log('\n--- Horloges séparées : l\'horloge d\'une borne d\'arcade avance au temps réel pendant un ralenti ---');
+    const chronoBorne = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'arcade');
+      startRun();
+      entrerInterieur('arcade', p);
+      const s = INT.actif;
+      META.argent = 100;
+      P.x = s.comptoirJetons.x; P.z = s.comptoirJetons.z;
+      majAction(); document.getElementById('btnAction')._fn();
+      const bo = s.bornes.find((b) => b.id === 'vipere');
+      P.x = bo.x; P.z = bo.z; majAction(); document.getElementById('btnAction')._fn();
+      ARCADE.v.tickT = 1; // repart d'une valeur connue
+      const dtReel = 0.5;
+      const dt = dtReel * 0.5, dtJeu = dtReel;
+      majInterieur(dt, dtJeu);
+      const tickTApres = ARCADE.v.tickT;
+      finirBorneJeu();
+      if (INT.actif) sortirInterieur();
+      return { tickTApres };
+    });
+    if (Math.abs(chronoBorne.tickTApres - 0.5) > 1e-9) fail('Arcade : l\'horloge d\'une borne ralentit à cause d\'un ralenti extérieur au lieu de suivre le temps réel (tickT=' + chronoBorne.tickTApres + ', attendu 0,5 pour 0,5 s réelle)');
+    else ok('Arcade : l\'horloge d\'une borne avance bien au temps réel — aucun ralenti du monde extérieur ne l\'atteint');
+
+    // -------------------------------------------------------------------
     // Salle de sport (FER & SUEUR) : soulever une barre avec succès (palier
     // de muscle, PV/endurance), puis un échec (le temps s'écoule).
     // -------------------------------------------------------------------
@@ -1859,7 +1943,7 @@ async function main() {
       majAction(); document.getElementById('btnAction')._fn();
       const demarre2 = s.spEtat === 'soulevé';
       const hpAvantEchec = P.hp;
-      majInterieur(11); // largement plus que spT (10 s pour la barre 1) : le temps s'écoule
+      majInterieur(11, 11); // largement plus que spT (10 s pour la barre 1) : le temps s'écoule
       const muscleApresEchec = META.muscle, spEtatApresEchec = s.spEtat, hpApresEchec = P.hp;
       if (INT.actif) sortirInterieur();
       return { demarre, muscleApresReussite, spEtatApresReussite, demarre2, muscleApresEchec, spEtatApresEchec, hpAvantEchec, hpApresEchec };
@@ -1894,7 +1978,7 @@ async function main() {
         majAction(); document.getElementById('btnAction')._fn(); // FIXER LA LIGNE
         s.bwCur = 0; // force parfaite
         majAction(); document.getElementById('btnAction')._fn(); // LÂCHER LA BOULE -> lancerBowling
-        majInterieur(1.2); // laisse l'animation de la boule se terminer avant le lancer suivant
+        majInterieur(1.2, 1.2); // laisse l'animation de la boule se terminer avant le lancer suivant
       }
       const partieFinie = s.bwEtat === null;
       const curioObtenue = aCurio('boule_bowling');

@@ -9247,7 +9247,7 @@ function cineTerminerSeance(s,succes){
   checkDefis(); sauveMeta();
   cineArreterSeance(s);
 }
-function majInterieur(dt){
+function majInterieur(dt,dtJeu){
   const s=INT.actif; if(!s) return;
   // ---- fouille en cours ----
   if(FOUILLE.cible){
@@ -9476,7 +9476,7 @@ function majInterieur(dt){
       }
     }
     if(s.casseEtat==='actif'&&ETAT.mode==='jeu'){
-      s.casseT-=dt;
+      s.casseT-=dtJeu; // le chrono du casse ne bénéficie jamais d'un ralenti
       let dansCone=false;
       for(const gd of s.gardiens){
         if(dist2(P.x,P.z,gd.x,gd.z)>=gd.rayon*gd.rayon) continue;
@@ -9521,19 +9521,21 @@ function majInterieur(dt){
   if(s.bornes){
     if(Math.random()<dt*0.4) beep(pick([500,700,900,1200]),0.05,'square',0.025);
     if(ARCADE.jeu||ARCADE.attenteInitiales){
-      majBorneJeu(dt);
+      majBorneJeu(dtJeu); // les bornes ont leur propre temps, aucun ralenti extérieur ne les atteint
       if(arcadeWrap.style.display!=='flex'){ arcadeWrap.style.display='flex'; redimensionnerArcadeCv(); }
       dessinerBorneJeu();
     } else if(arcadeWrap.style.display!=='none') arcadeWrap.style.display='none';
   }
   // ---- Ciné-Palace : séance en cours (4 jauges de panne + satisfaction) ----
   if(s.seanceOn){
-    s.seanceT+=dt;
+    // chrono, montée en pression et dérive des jauges : tous sur dtJeu, un
+    // ralenti ne doit jamais donner plus de temps ni ralentir la panique
+    s.seanceT+=dtJeu;
     const mult=cineMultVitesse(s.seanceT);
     for(const id of CINE_POSTES){
       const p=s.postes[id];
       if(p.enAlerte) continue; // pinnée à 100, attend la réparation du poste
-      p.probleme=Math.min(100,p.probleme+CINE_VIT_BASE[id]*mult*dt);
+      p.probleme=Math.min(100,p.probleme+CINE_VIT_BASE[id]*mult*dtJeu);
       if(p.probleme>=100){
         p.enAlerte=true;
         s.satisfaction=Math.max(0,s.satisfaction-CINE_PENALITE);
@@ -9608,7 +9610,7 @@ function finirMission(){
   MISSION.cur=null; MISSION.t=6; balise.visible=false;
   el('missionArrow').style.display='none';
 }
-function majMissions(dt){
+function majMissions(dt,dtJeu){
   if(INT.actif) return;
   balise.rotation.y+=dt;
   if(!MISSION.cur){
@@ -9647,7 +9649,7 @@ function majMissions(dt){
     txt='Rejoins '+m.lieu; ciblePos=m.poi;
     if(dist2(P.x,P.z,m.poi.x,m.poi.z)<36){ finirMission(); return; }
   } else if(m.type==='vol'){
-    if(P.veh){ MISSION.volT+=dt; } else MISSION.volT=0;
+    if(P.veh){ MISSION.volT+=dtJeu; } else MISSION.volT=0;
     txt='Tiens 20 s au volant d\u2019un véhicule ('+Math.floor(MISSION.volT)+'/20)';
     if(MISSION.volT>=20){ finirMission(); return; }
   } else if(m.type==='caisses'){
@@ -9660,7 +9662,7 @@ function majMissions(dt){
     txt='Récupère la cargaison sur le yacht (nage ou bateau)'; ciblePos=m.poi;
     if(dist2(P.x,P.z,m.poi.x,m.poi.z)<20){ finirMission(); return; }
   } else if(m.type==='course'){
-    m.t-=dt;
+    m.t-=dtJeu;
     txt='Course : point '+(m.i+1)+'/3 — '+Math.ceil(Math.max(0,m.t))+' s';
     ciblePos=m.pts[m.i];
     if(m.t<=0){ toast('Course ratée... on remet ça ?','warn'); MISSION.cur=null; MISSION.t=6; balise.visible=false; el('missionArrow').style.display='none'; return; }
@@ -11564,6 +11566,13 @@ function boucle(t){
   litEntrees();
   const actif=(ETAT.mode==='jeu'||ETAT.mode==='mort');
   const dt=actif?dtReel*ETAT.timeScale:0;
+  // dtJeu : temps réel, JAMAIS mis à l'échelle par ETAT.timeScale — pour les
+  // compteurs de gameplay (chronos, dérives de jauges, minuteries de vague/
+  // mission, horloge des bornes d'arcade) qui ne doivent jamais bénéficier
+  // d'un ralenti déclenché ailleurs (chef de gang, combo prolongé avec La
+  // Bobine...). dt reste réservé au spectacle : rendu, déplacement des
+  // entités, physique, particules, animations.
+  const dtJeu=actif?dtReel:0;
   if(dt>0){
     ETAT.runT+=dt;
     DANGER.t-=dt;
@@ -11581,15 +11590,17 @@ function boucle(t){
     majGrenades(dt);
     majPickups(dt);
     if(ETAT.mode==='jeu'){
-      majWanted(dt);
+      majWanted(dt); // décroissance du niveau de recherche : reste sur dt, le
+                      // monde entier ralentit et la police avec (voir aussi
+                      // le Canard d'Or, qui joue déjà sur ce facteur)
       majPatrouilles(dt);
       majChasseursEau(dt);
       majEvenements(dt);
-      majVagues(dt);
-      majMissions(dt);
+      majVagues(dtJeu);
+      majMissions(dt,dtJeu);
       majAction();
     }
-    majInterieur(dt);
+    majInterieur(dt,dtJeu);
     if(!INT.actif){
       majFeux(dt);
       majCamp(dt);
