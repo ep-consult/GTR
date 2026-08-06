@@ -562,7 +562,7 @@ const q=()=>QUAL[REGLAGES.qualite];
 ===================================================================== */
 const AUDIO={ctx:null,master:null,sfxG:null,musG:null,duckG:null,uiG:null,noise:null,pret:false,
   sirenOsc:null,sirenGain:null,sirenT:0,engOsc:null,engGain:null,engFil:null,musTimer:null,musStep:0,
-  cineOn:false,metroOn:false,radioOn:false};
+  cineOn:false,metroOn:false,radioOn:false,chalOn:false};
 
 function audioInit(){
   if(AUDIO.pret) return;
@@ -856,6 +856,43 @@ function radioAmbianceUpdate(ecart){
   const t=AUDIO.ctx.currentTime;
   AUDIO.radioPorteuseG.gain.setTargetAtTime(0.05*(1-ecart),t,0.08);
   AUDIO.radioFritureG.gain.setTargetAtTime(0.16*ecart,t,0.08);
+}
+/* ---- Chalutier « Sainte-Odile » : moteur (réutilise le synthétiseur moteur
+   des véhicules — INT.actif exclut P.veh, aucun conflit possible), vagues et
+   vent qui monte avec la météo. Même discipline : jamais démarrée deux fois,
+   coupée sur tous les chemins de sortie (voir chalutierArreterSortie,
+   sortirInterieur, mourir, startRun). */
+function chalutierAmbianceStart(){
+  if(!AUDIO.pret) return;
+  moteurStart({eau:true});
+  if(AUDIO.chalOn) return;
+  const ctx=AUDIO.ctx, t=ctx.currentTime;
+  const vagues=ctx.createBufferSource(); vagues.buffer=AUDIO.noise; vagues.loop=true;
+  const vaguesF=ctx.createBiquadFilter(); vaguesF.type='lowpass'; vaguesF.frequency.value=340;
+  const vaguesG=ctx.createGain(); vaguesG.gain.value=0.05;
+  vagues.connect(vaguesF); vaguesF.connect(vaguesG); vaguesG.connect(AUDIO.sfxG); vagues.start(t);
+  const vent=ctx.createBufferSource(); vent.buffer=AUDIO.noise; vent.loop=true;
+  const ventF=ctx.createBiquadFilter(); ventF.type='highpass'; ventF.frequency.value=900;
+  const ventG=ctx.createGain(); ventG.gain.value=0;
+  vent.connect(ventF); ventF.connect(ventG); ventG.connect(AUDIO.sfxG); vent.start(t);
+  AUDIO.chalOn=true;
+  AUDIO.chalVagues=vagues; AUDIO.chalVaguesF=vaguesF; AUDIO.chalVaguesG=vaguesG;
+  AUDIO.chalVent=vent; AUDIO.chalVentF=ventF; AUDIO.chalVentG=ventG;
+}
+function chalutierAmbianceStop(){
+  moteurStop();
+  if(!AUDIO.chalOn) return;
+  try{ AUDIO.chalVagues.stop(); AUDIO.chalVent.stop(); }catch(e){}
+  AUDIO.chalOn=false;
+  AUDIO.chalVagues=null; AUDIO.chalVaguesF=null; AUDIO.chalVaguesG=null;
+  AUDIO.chalVent=null; AUDIO.chalVentF=null; AUDIO.chalVentG=null;
+}
+function chalutierAmbianceUpdate(s){
+  if(!AUDIO.chalOn){ chalutierAmbianceStart(); return; }
+  const t=AUDIO.ctx.currentTime;
+  moteurUpdate(clamp(Math.abs(s.bateau.v)/CHALUTIER_VIT_BASE,0,1));
+  const ventCible=s.meteoEtat==='tempete'?0.13:(s.meteoEtat==='houle'?0.06:0.02);
+  AUDIO.chalVentG.gain.setTargetAtTime(ventCible,t,0.4);
 }
 const STATIONS=['SOLARA FM','RUE 9','CÔTE BLEUE','— silence —','MICRO CASSÉ FM'];
 function notes(freq,dur,type,vol,filtre){
@@ -1324,7 +1361,10 @@ const CURIOS=[
   {id:'lampe',ico:'🔦',nom:'La Lampe de Mineur',lieu:'Métro abandonné',
    eff:'Les nuits de Solara sont moins noires : ton halo de lumière nocturne est 50 % plus large',
    ind:'Tout au fond, là où la lampe ne tient plus longtemps.',actif:true},
-  {id:'plans',ico:'📐',nom:'Les Plans du Rhinocéros',lieu:'Bunker militaire',actif:false}
+  {id:'plans',ico:'📐',nom:'Les Plans du Rhinocéros',lieu:'Bunker militaire',actif:false},
+  {id:'boussole',ico:'🧭',nom:'La Boussole du Capitaine',lieu:'Le chalutier Sainte-Odile',
+   eff:'Sens de l’orientation : la carte affiche en permanence la direction du prochain objectif de mission',
+   ind:'Rentrer de la Fosse avec la cale pleine. Sans rien rejeter à la mer.',actif:true}
 ];
 const CURIOS_ACTIVES=CURIOS.filter(c=>c.actif);
 const aCurio=id=>!!META.curios[id];
@@ -3044,6 +3084,8 @@ function placerPortes(){
     const cRadio=caseCentre(8,6); // quartier industriel : un entrepôt discret
     poser('radio',cRadio.x,cRadio.z,'SOLARA FM',0xb48bff);
   }
+  const cChal=caseCentre(11,8); // quartier du port : un ponton, le chalutier amarré
+  poser('chalutier',cChal.x,cChal.z,'LE SAINTE-ODILE',0x2a9ac0);
   // secours : si un lieu manquait, on place la porte près de la grande place
   if(!PORTES.some(p=>p.id==='banque')&&POIS.place)
     poser('banque',POIS.place.x+CELL,POIS.place.z,'BANQUE',0x35e0ff);
@@ -3055,7 +3097,8 @@ function placerPortes(){
     ['bowling','STRIKE DORÉ',0xffd23f],['sport','FER & SUEUR',0xff5a6a],
     ['serre','SERRE',0x7dff7a],['sandwich','LE ROI DES SANDWICHS',0xffd23f],
     ['musee','MUSÉE DE SOLARA',0xffd23f],['arcade','PALAIS DE L\'ARCADE',0xff5ec4],
-    ['cine','CINÉ-PALACE',0xe8503f],['metro','MÉTRO — STATION SOLARA',0x7a8a99]
+    ['cine','CINÉ-PALACE',0xe8503f],['metro','MÉTRO — STATION SOLARA',0x7a8a99],
+    ['chalutier','LE SAINTE-ODILE',0x2a9ac0]
   ];
   if(aCurio('platine')) REPLIS.push(['radio','SOLARA FM',0xb48bff]);
   for(const [id,nom,coul] of REPLIS){
@@ -6315,6 +6358,23 @@ const TABLES_FOUILLE={
     {p:10,type:'soin'},
     {p:5, type:'cash',min:250,max:400,texte:'SOMME RARE',rare:true},
   ]},
+  // Chalutier Sainte-Odile : deux contenants fixes à bord, accessibles avant
+  // de sortir en mer (pas de butin différé, contrairement à la cale de pêche
+  // elle-même — voir chalutierVendre).
+  chalutierPont:{items:[
+    {p:32,type:'cash',min:40,max:90,texte:'SOMME'},
+    {p:24,type:'mun'},
+    {p:20,type:'cash',min:15,max:15,texte:'VIEUX HAMEÇON'},
+    {p:16,type:'soin'},
+    {p:8, type:'cash',min:250,max:350,texte:'SOMME RARE',rare:true},
+  ]},
+  chalutierCabine:{items:[
+    {p:30,type:'cash',min:70,max:130,texte:'SOMME'},
+    {p:24,type:'cash',min:20,max:20,texte:'CARTE MARINE'},
+    {p:20,type:'mun'},
+    {p:18,type:'cash',min:100,max:180,texte:'PIÈCE DE MOTEUR'},
+    {p:8, type:'cash',min:300,max:450,texte:'SOMME RARE',rare:true},
+  ]},
 };
 function tirerTypeFouille(tab){
   const p=Object.assign({},tab.p);
@@ -6632,7 +6692,43 @@ el('hud').appendChild(radioWrap);
 const radioLblEl=radioWrap.querySelector('#radioLbl'), radioZoneBarEl=radioWrap.querySelector('#radioZoneBar'),
       radioAiguilleEl=radioWrap.querySelector('#radioAiguille'), radioFreqTxtEl=radioWrap.querySelector('#radioFreqTxt'),
       radioTriangEl=radioWrap.querySelector('#radioTriang');
-const JAUGES=[fouilleWrap,karaWrap,bwWrap,spWrap,swWrap,musWrap,arcadeWrap,cineWrap,metroWrap,radioWrap];
+/* Chalutier « Sainte-Odile » : chrono + zone, météo, cale (poids/valeur +
+   rejet de la dernière prise), boussole de retour, et une sous-jauge de
+   tension affichée seulement pendant un combat à la canne. */
+const chalutierWrap=document.createElement('div');
+chalutierWrap.style.cssText='position:absolute;left:50%;transform:translateX(-50%);'+
+  'bottom:calc(env(safe-area-inset-bottom,0px) + 380px);width:min(280px,78vw);display:none;'+
+  'text-align:center;pointer-events:none;z-index:6';
+chalutierWrap.innerHTML='<div style="display:flex;align-items:center;justify-content:center;gap:8px">'+
+  '<div id="chalLbl" style="font:900 11px Arial;letter-spacing:.05em;color:#2a9ac0;'+
+  'text-shadow:0 2px 6px #000">⚓ 180 s · HAUTS-FONDS</div>'+
+  '<div id="chalBoussoleWrap" style="width:20px;height:20px;border:1.5px solid #ffffff55;border-radius:50%;'+
+  'display:flex;align-items:center;justify-content:center;flex-shrink:0">'+
+  '<span id="chalBoussole" style="display:inline-block;color:#ffd23f;font-size:13px;'+
+  'transform:rotate(0deg)">⬆</span></div></div>'+
+  '<div id="chalMeteo" style="font:800 9px Arial;color:#7dff7a;margin-top:2px">☀ CALME</div>'+
+  '<div style="position:relative;margin-top:4px;height:9px;background:#12141bee;'+
+  'border:1.5px solid #ffffff33;border-radius:4px;overflow:hidden">'+
+  '<i id="chalCale" style="display:block;height:100%;width:0%;background:linear-gradient(90deg,#2a9ac0,#35e0ff)"></i></div>'+
+  '<div id="chalCaleTxt" style="font:800 8px Arial;color:#8a8f9a;margin-top:2px">0/400 kg · 0 $</div>'+
+  '<button id="chalRejeter" style="pointer-events:auto;margin-top:5px;padding:4px 10px;border-radius:8px;'+
+  'border:1px solid #ff3b5c66;background:#1a0f12e6;color:#ffb0bc;font:800 8.5px Arial;letter-spacing:.03em">'+
+  '🌊 REJETER LA DERNIÈRE PRISE</button>'+
+  '<div id="chalTensionWrap" style="display:none;position:relative;margin-top:6px;height:14px;'+
+  'background:#12141bee;border:1.5px solid #ffffff33;border-radius:4px;overflow:hidden">'+
+  '<i id="chalProgres" style="position:absolute;inset:0;width:0%;background:#7dff7a33"></i>'+
+  '<i id="chalTension" style="position:absolute;top:0;bottom:0;width:2px;background:#ffd23f;'+
+  'left:50%;box-shadow:0 0 6px #ffd23f"></i></div>';
+el('hud').appendChild(chalutierWrap);
+const chalLblEl=chalutierWrap.querySelector('#chalLbl'), chalMeteoEl=chalutierWrap.querySelector('#chalMeteo'),
+      chalCaleEl=chalutierWrap.querySelector('#chalCale'), chalCaleTxtEl=chalutierWrap.querySelector('#chalCaleTxt'),
+      chalBoussoleEl=chalutierWrap.querySelector('#chalBoussole'),
+      chalTensionWrap=chalutierWrap.querySelector('#chalTensionWrap'),
+      chalTensionEl=chalutierWrap.querySelector('#chalTension'), chalProgresEl=chalutierWrap.querySelector('#chalProgres');
+chalutierWrap.querySelector('#chalRejeter').addEventListener('pointerdown',e=>{
+  e.preventDefault(); if(INT.actif&&INT.actif.sortieEnCours) chalutierRejeterDerniere(INT.actif);
+});
+const JAUGES=[fouilleWrap,karaWrap,bwWrap,spWrap,swWrap,musWrap,arcadeWrap,cineWrap,metroWrap,radioWrap,chalutierWrap];
 function cacherJauges(){ for(const j of JAUGES) if(j.style.display!=='none') j.style.display='none'; }
 
 /* =====================================================================
@@ -7766,7 +7862,14 @@ const INTDEFS={
   /* ---- lieu spécial (lot 7) : verrouillé sans aCurio('platine') — voir
      placerPortes(). Studio clandestin dans un entrepôt du quartier industriel. */
   radio:{nom:'Radio pirate Solara FM',ico:'📻',w:24,d:26,sol:0x2a2430,mur:0x241f2c,
-    ens:['SOLARA FM','#b48bff']}
+    ens:['SOLARA FM','#b48bff']},
+  /* ---- lieu spécial (lot 8) : LE CHALUTIER « SAINTE-ODILE » — la seule
+     salle qui sort de la ville. Le pont reste un petit espace fixe (le
+     joueur y marche normalement) ; c'est la MER autour, et la position
+     virtuelle du bateau (s.bateau), qui donnent l'illusion du large — voir
+     construireSalle et majInterieur. */
+  chalutier:{nom:'Chalutier « Sainte-Odile »',ico:'🚢',w:18,d:46,sol:0x5a4530,mur:0x2a3f4a,
+    ens:['SAINTE-ODILE','#2a9ac0']}
 };
 // véhicules en vente au concessionnaire
 const CATALOGUE=[
@@ -9371,6 +9474,115 @@ function construireSalle(id){
     inter.segmentsReussis=0; inter.emissionsVague=0; inter.radioVagueRef=-1;
     inter.emissionParfaite=true; inter.appelsUtilises=[];
   }
+  /* ---- lieu spécial (lot 8) : LE CHALUTIER « SAINTE-ODILE » — la seule
+     salle qui sort de la ville. Le pont est un petit espace FIXE (le joueur
+     y marche normalement, murs génériques = bastingage) ; c'est la mer tout
+     autour et la ville qui semblent bouger : s.bateau est une position
+     virtuelle (jamais appliquée à un mesh), qui pilote seulement le défilement
+     de la texture d'eau et le fondu de la ville au loin. Voir majInterieur. */
+  else if(id==='chalutier'){
+    // pont : planches de bois usées
+    for(let i=-4;i<4;i++) for(let j=-11;j<11;j++){
+      const t=new THREE.Mesh(new THREE.PlaneGeometry(2.2,2.2),mat((i+j)%2?0x5a4530:0x4e3c28));
+      t.rotation.x=-Math.PI/2; t.position.set(ox+i*2.25+1.1,0.11,oz+j*2.25+1.1); g.add(t);
+    }
+    // mer tout autour (par-dessus le voile sombre générique de la salle),
+    // texture d'eau CLONÉE (jamais celle, partagée, de la mer extérieure) :
+    // son offset défile indépendamment, au rythme du bateau virtuel
+    const texMerSalle=cTex(256,(cvs,s)=>{
+      cvs.fillStyle='#1c5f86'; cvs.fillRect(0,0,s,s);
+      cvs.strokeStyle='rgba(180,230,255,0.25)'; cvs.lineWidth=2;
+      for(let i=0;i<26;i++){ const y=Math.random()*s; cvs.beginPath();
+        cvs.moveTo(Math.random()*s,y); cvs.lineTo(Math.random()*s,y+rand(-6,6)); cvs.stroke(); }
+    },26,26);
+    const merMat=new THREE.MeshBasicMaterial({map:texMerSalle});
+    const merMesh=new THREE.Mesh(new THREE.PlaneGeometry(420,420),merMat);
+    merMesh.rotation.x=-Math.PI/2; merMesh.position.set(ox,-0.15,oz); g.add(merMesh);
+    inter.merMat=merMat;
+    // silhouette de Solara qui s'éloigne, côté sortie (le ponton est resté là-bas)
+    // — matériaux DÉDIÉS (jamais mat(), partagé) : leur opacité est mutée
+    // chaque frame selon la distance au ponton, un matériau en cache serait
+    // altéré pour tout le reste de la scène.
+    const villeGrp=new THREE.Group();
+    for(let k=0;k<9;k++){
+      const h=rand(3,9);
+      const bMat=new THREE.MeshLambertMaterial({color:pick([0x2a3040,0x323850,0x262c3c]),transparent:true,opacity:1});
+      const b=new THREE.Mesh(new THREE.BoxGeometry(rand(2,4),h,rand(2,4)),bMat);
+      b.position.set(-16+k*4,h/2,0); villeGrp.add(b);
+    }
+    villeGrp.position.set(ox,0,oz+70); g.add(villeGrp);
+    inter.villeMesh=villeGrp;
+    // mouettes décoratives, tournent au-dessus du pont
+    inter.mouettes=[];
+    for(let k=0;k<3;k++){
+      const mo=new THREE.Group();
+      mo.add(mkBoxG(0.5,0.14,0.9,0xe8ecf2,0,0,0));
+      const aG=mkBoxG(0.7,0.05,0.3,0xd8dce4,-0.55,0.05,0); mo.add(aG);
+      const aD=mkBoxG(0.7,0.05,0.3,0xd8dce4,0.55,0.05,0); mo.add(aD);
+      mo.position.set(ox+rand(-6,6),6+rand(0,2),oz+rand(-8,8)); g.add(mo);
+      inter.mouettes.push({m:mo,aG,aD,a:rand(0,6.28),r:rand(6,11),cx:ox,cz:oz+rand(-4,4),ph:rand(0,6)});
+    }
+    // mât + bôme
+    box(0.35,7,0.35,0x3a2a1c,3,3.5,-4);
+    box(0.12,0.12,4,0x1c1416,3,5.5,-2,false);
+    // ---- treuil du filet (poste) ----
+    box(1.8,1.2,1.8,0x2a2e36,0,0.6,10);
+    const tambour=new THREE.Mesh(new THREE.CylinderGeometry(0.55,0.55,1.6,12),mat(0x4a4038));
+    tambour.rotation.z=Math.PI/2; tambour.position.set(ox,1.3,oz+10); g.add(tambour);
+    inter.tambour=tambour;
+    const filetMesh=new THREE.Mesh(new THREE.SphereGeometry(0.9,8,6),
+      new THREE.MeshBasicMaterial({color:0x8a9aa0,transparent:true,opacity:0.35,wireframe:true}));
+    filetMesh.position.set(ox,0.6,oz+11.6); filetMesh.visible=false; g.add(filetMesh);
+    inter.filetMesh=filetMesh;
+    mkEnseigne('TREUIL','#2a9ac0',ox,2.3,oz+11.3,0,6);
+    inter.treuil={x:ox,z:oz+10};
+    // ---- canne à pêche (poste) ----
+    box(0.4,1.4,0.4,0x2a2e36,-6,0.7,-1,false);
+    const canneTige=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.06,2.6,6),mat(0x6a5a3a));
+    canneTige.rotation.z=-0.5; canneTige.position.set(ox-6,1.8,oz-1); g.add(canneTige);
+    mkEnseigne('CANNE','#2a9ac0',ox-6,2.6,oz-2.3,0,6);
+    inter.canne={x:ox-6,z:oz-1};
+    // ---- coffre du pont (fouille) ----
+    const coffrePont=box(1.6,0.9,1,0x3a2a1c,6,0.45,2);
+    fouillable(6,3.4,'Coffre du pont','chalutierPont',coffrePont,2.8);
+    mkEnseigne('COFFRE','#ffd23f',ox+6,1.6,oz+3.7,0,7);
+    // ---- cabine + barre (poste) ----
+    box(4.4,3,7,0x2a3f4a,0,1.5,-14);
+    box(3.6,1.6,5.6,0x14202a,0,3.3,-14,false); // toit
+    const vitreCabine=new THREE.Mesh(new THREE.BoxGeometry(4,1.1,0.1),
+      new THREE.MeshBasicMaterial({color:0xbfe4ff,transparent:true,opacity:0.2,depthWrite:false}));
+    vitreCabine.position.set(ox,2.4,oz-10.55); g.add(vitreCabine);
+    const roue=new THREE.Mesh(new THREE.TorusGeometry(0.6,0.09,8,16),mat(0x2a2018));
+    roue.position.set(ox,1.3,oz-9); g.add(roue);
+    for(let k=0;k<6;k++){
+      const a=k/6*Math.PI*2;
+      box(0.08,0.5,0.08,0x2a2018,Math.sin(a)*0.6,1.3+Math.cos(a)*0.6,-9,false);
+    }
+    mkEnseigne('BARRE','#2a9ac0',ox,2.4,oz-7.7,0,6);
+    inter.barre={x:ox,z:oz-9};
+    // boussole du capitaine : décor pur, s'illumine à l'obtention (voir chalutierVendre)
+    const soclBoussole=new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.18,0.06,10),mat(0x2a2018));
+    soclBoussole.position.set(ox-1.4,2,oz-12.4); g.add(soclBoussole);
+    const cadranBoussole=new THREE.Mesh(new THREE.CircleGeometry(0.16,14),new THREE.MeshLambertMaterial({color:0x6a5a3a}));
+    cadranBoussole.rotation.x=-Math.PI/2; cadranBoussole.position.set(ox-1.4,2.04,oz-12.4); g.add(cadranBoussole);
+    if(aCurio('boussole')){ cadranBoussole.material.color.setHex(0xffd23f);
+      cadranBoussole.material.emissive=new THREE.Color(0xffd23f).multiplyScalar(0.6); }
+    inter.boussoleMesh=cadranBoussole;
+    mkEnseigne('LA BOUSSOLE DU CAPITAINE','#ffd23f',ox-1.4,2.5,oz-13.1,0,15);
+    // cabine du capitaine (fouille) : petit bureau au fond de la cabine
+    const bureauCabine=box(1.6,0.9,1,0x3a2a1c,0,0.45,-19);
+    fouillable(0,-17.6,'Cabine du capitaine','chalutierCabine',bureauCabine,2.8);
+    mkEnseigne('CABINE DU CAPITAINE','#ffd23f',ox,1.6,oz-16.9,0,13);
+    lampe(0,-14,0xfff2c0,6); // seule lumière artificielle : à l'intérieur de la cabine
+
+    inter.sortieEnCours=false; inter.sortiesVague=0; inter.chalutierVagueRef=-1;
+    inter.chrono=0; inter.meteoJauge=0; inter.meteoEtat='calme'; inter.tempeteT=0; inter.tempetePerteFaite=false;
+    inter.bateau={x:0,z:0,ang:0,v:0};
+    inter.zoneMax=1; inter.cale=[]; inter.calePoids=0; inter.caleValeur=0; inter.aRejete=false;
+    inter.canneEtat=null; inter.canneDelai=0; inter.canneFerrageT=0; inter.canneEspece=null;
+    inter.canneTension=50; inter.canneProgres=0;
+    inter.filetEtat=null; inter.filetCharge=0;
+  }
   scene.add(g);
   INT.salles[id]=inter;
   return inter;
@@ -9426,6 +9638,7 @@ function sortirInterieur(){
   // chemin de sortie qui n'est pas passé par là. Batterie non touchée.
   if(sc.piles){ sc.butin=0; sc.beteProx=0; sc.niveauPrecBlackout=undefined; metroAmbianceStop(); }
   if(sc.emissionOn){ radioArreterEmission(sc); toast('Tu quittes en pleine émission. Le signal s’éteint.'); }
+  if(sc.sortieEnCours){ chalutierArreterSortie(sc); toast('Tu abandonnes la sortie en pleine mer. Retour au ponton.'); }
   for(let i=ennemis.length-1;i>=0;i--){
     const e=ennemis[i];
     if(e.interieur===sc.id&&!e.garde){ scene.remove(e.h?e.h.g:e.mesh); ennemis.splice(i,1); }
@@ -9855,6 +10068,167 @@ function radioDemarrerEmission(s){
   bigMsg('📻 ON AIR'); toast('Garde l’aiguille dans la porteuse. Trois segments.','or');
   SFX.ui();
 }
+/* =====================================================================
+   LE CHALUTIER « SAINTE-ODILE » — sortie en mer : pilotage à la barre,
+   pêche à la canne (précision) et au filet (volume), cale/poids, météo.
+   Chrono, météo, charge du filet et tension du combat sont des compteurs
+   subis par le joueur : dtJeu, jamais dt. Le bateau lui-même (spectacle,
+   position virtuelle jamais appliquée à un mesh) reste sur dt.
+===================================================================== */
+const CHALUTIER_DUREE=180, CHALUTIER_SORTIES_MAX=2;
+const CHALUTIER_ZONE1_MAX=60, CHALUTIER_ZONE2_MAX=140, CHALUTIER_DIST_MAX=200;
+const CHALUTIER_VIT_BASE=9, CHALUTIER_ACCEL=0.6, CHALUTIER_DECEL=0.9, CHALUTIER_VIRAGE=1.1;
+const CHALUTIER_CALE_MAX=400;
+// vitesse de dégradation de la météo, en unités de jauge/seconde, par zone
+const CHALUTIER_METEO_VIT={1:0.28,2:0.42,3:0.62};
+const CHALUTIER_METEO_HOULE=40, CHALUTIER_METEO_TEMPETE=75, CHALUTIER_TEMPETE_DELAI=30;
+// canne : délai de morsure variable, fenêtre de ferrage courte, tension entre
+// deux limites dures (0 = le poisson se libère, 100 = la ligne casse)
+const CHALUTIER_MORSURE_DELAI=[4,11], CHALUTIER_FERRAGE_FENETRE=1.3;
+const CHALUTIER_TENSION_RATE=24, CHALUTIER_TENSION_BONNE=[35,65], CHALUTIER_COMBAT_VIT=26;
+const CHALUTIER_ESPECES_CANNE={
+  1:[{id:'maquereau',p:60},{id:'bar',p:30},{id:'congre',p:10}],
+  2:[{id:'maquereau',p:35},{id:'bar',p:35},{id:'congre',p:30}],
+  3:[{id:'maquereau',p:20},{id:'bar',p:25},{id:'congre',p:30},{id:'thon',p:25}],
+};
+const CHALUTIER_POISSONS={
+  maquereau:{nom:'Maquereau',valeur:40,poids:4,combatDur:1},
+  bar:{nom:'Bar',valeur:90,poids:7,combatDur:1.3},
+  congre:{nom:'Congre',valeur:160,poids:11,combatDur:1.8,tensionEtroite:true},
+  thon:{nom:'Thon de Solara',valeur:350,poids:22,combatDur:2.4,tensionEtroite:true},
+};
+// filet : charge continue pendant que le filet traîne, risque de déchirure
+// au-delà de la zone rouge (tout est reparti à l'eau)
+const CHALUTIER_FILET_VIT=9, CHALUTIER_FILET_ZONE_ROUGE=70, CHALUTIER_FILET_RISQUE=0.12;
+const CHALUTIER_VOLUME={
+  toutvenant:{nom:'Tout-venant',valeur:15,poids:2,p:55},
+  sardines:{nom:'Sardines',valeur:25,poids:1.5,p:30},
+  crustaces:{nom:'Crustacés',valeur:60,poids:3,p:15},
+};
+const CHALUTIER_OBJETS=[
+  {nom:'Botte',valeur:5,poids:1,texte:'Pointure 44. Encore lacée.'},
+  {nom:'Pneu',valeur:10,poids:3,texte:'Il y en a des milliers là-dessous.'},
+  {nom:'Coffre-fort rouillé',valeur:40,poids:8,texte:'Quelqu’un est arrivé avant toi.'},
+  {nom:'Plaque d’immatriculation',valeur:25,poids:1,texte:'Elle correspond à une voiture jamais déclarée volée.'},
+  {nom:'Panneau STOP',valeur:15,poids:4,texte:'Comment.'},
+  {nom:'Caisse scellée',valeur:200,poids:10,texte:'Ne pas ouvrir avant le 3 mars. On est en juin.'},
+  {nom:'Poisson à trois yeux',valeur:120,poids:3,texte:'L’usine en amont dit que tout va bien.'},
+];
+function chalutierZoneDe(dist){
+  if(dist<CHALUTIER_ZONE1_MAX) return 1;
+  if(dist<CHALUTIER_ZONE2_MAX) return 2;
+  return 3;
+}
+function chalutierTirerVolume(){
+  let tot=0; for(const k in CHALUTIER_VOLUME) tot+=CHALUTIER_VOLUME[k].p;
+  let r=Math.random()*tot;
+  for(const k in CHALUTIER_VOLUME){ r-=CHALUTIER_VOLUME[k].p; if(r<=0) return CHALUTIER_VOLUME[k]; }
+  return CHALUTIER_VOLUME[Object.keys(CHALUTIER_VOLUME)[0]];
+}
+function chalutierTirerEspeceCanne(zone){
+  const tab=CHALUTIER_ESPECES_CANNE[zone];
+  let tot=0; for(const e of tab) tot+=e.p;
+  let r=Math.random()*tot;
+  for(const e of tab){ r-=e.p; if(r<=0) return e.id; }
+  return tab[0].id;
+}
+// point de reset paresseux, comme les autres salles spéciales (metroVerifierVague...)
+function chalutierVerifierVague(s){
+  if(s.chalutierVagueRef!==WAVES.n){
+    s.chalutierVagueRef=WAVES.n; s.sortiesVague=0;
+    if(s.sortieEnCours) chalutierArreterSortie(s);
+  }
+}
+function chalutierDemarrerSortie(s){
+  s.sortieEnCours=true; s.sortiesVague++; s.auxCommandes=false;
+  s.chrono=0; s.meteoJauge=0; s.meteoEtat='calme'; s.tempeteT=0; s.tempetePerteFaite=false;
+  s.bateau={x:0,z:0,ang:0,v:0}; s.aQuitteLePort=false;
+  s.zoneMax=1; s.cale=[]; s.calePoids=0; s.caleValeur=0; s.aRejete=false;
+  s.canneEtat=null; s.canneDelai=0; s.canneFerrageT=0; s.canneEspece=null; s.canneTension=50; s.canneProgres=0;
+  s.filetEtat=null; s.filetCharge=0; if(s.filetMesh) s.filetMesh.visible=false;
+  chalutierAmbianceStart();
+  chalutierWrap.style.display='block';
+  bigMsg('⚓ EN MER'); toast('180 secondes. Reviens au ponton avant que ça tourne.','or');
+  SFX.ui();
+}
+// point de reset commun : sortie annulée, cale perdue, météo réinitialisée,
+// bateau replacé au ponton, sons coupés — utilisé par le retour naturel (via
+// chalutierVendre), l'abandon, la mort et le game over. Le compteur de
+// sorties de la vague n'est PAS remis à zéro ici (sauf par chalutierVerifierVague
+// et le game over) : un abandon doit consommer la sortie, comme au bowling.
+function chalutierArreterSortie(s){
+  s.sortieEnCours=false; s.auxCommandes=false;
+  s.cale=[]; s.calePoids=0; s.caleValeur=0; s.aRejete=false;
+  s.canneEtat=null; s.filetEtat=null; s.filetCharge=0;
+  if(s.filetMesh) s.filetMesh.visible=false;
+  s.meteoJauge=0; s.meteoEtat='calme'; s.tempeteT=0; s.tempetePerteFaite=false;
+  s.bateau={x:0,z:0,ang:0,v:0}; s.chrono=0;
+  chalutierAmbianceStop();
+  if(chalutierWrap.style.display!=='none') chalutierWrap.style.display='none';
+}
+function chalutierPerdreMoitieCale(s){
+  const cibleP=s.calePoids/2;
+  while(s.cale.length&&s.calePoids>cibleP){
+    const it=s.cale.pop(); s.calePoids-=it.poids; s.caleValeur-=it.valeur;
+  }
+}
+function chalutierAjouterCale(s,item){
+  if(s.calePoids+item.poids>CHALUTIER_CALE_MAX){ toast('La cale est pleine !','warn'); return false; }
+  s.cale.push(item); s.calePoids+=item.poids; s.caleValeur+=item.valeur;
+  return true;
+}
+function chalutierRejeterDerniere(s){
+  if(!s.cale.length){ SFX.refus(); return; }
+  const it=s.cale.pop();
+  s.calePoids-=it.poids; s.caleValeur-=it.valeur;
+  s.aRejete=true;
+  toast(it.nom+' rejeté à la mer (-'+it.valeur+' $)','warn'); SFX.refus();
+}
+function chalutierEchecCombat(s,raison){
+  s.canneEtat=null; s.canneProgres=0; s.canneTension=50;
+  if(raison==='casse'){ toast('La ligne casse !','warn'); } else { toast('Le poisson se libère...','warn'); }
+  SFX.refus(); secousse(2);
+}
+function chalutierPrise(s,poisson){
+  const ok=chalutierAjouterCale(s,{nom:poisson.nom,valeur:poisson.valeur,poids:poisson.poids});
+  s.canneEtat=null; s.canneProgres=0; s.canneTension=50;
+  if(ok){
+    bigMsg(poisson.nom.toUpperCase()+' !'); toast(poisson.nom+' à bord : +'+poisson.valeur+' $ (cale)','or');
+    SFX.niveau(); vibre(40);
+  }
+}
+function chalutierRemonterFilet(s){
+  const nb=Math.round(s.filetCharge/10);
+  let refuses=0;
+  for(let i=0;i<nb;i++){
+    const it=chalutierTirerVolume();
+    if(!chalutierAjouterCale(s,{nom:it.nom,valeur:it.valeur,poids:it.poids})) refuses++;
+  }
+  if(chalutierZoneDe(Math.hypot(s.bateau.x,s.bateau.z))===3&&Math.random()<0.125){
+    const obj=pick(CHALUTIER_OBJETS);
+    if(!chalutierAjouterCale(s,{nom:obj.nom,valeur:obj.valeur,poids:obj.poids,texte:obj.texte})) refuses++;
+    else toast(obj.nom+' — « '+obj.texte+' »','or');
+  }
+  s.filetEtat=null; s.filetCharge=0;
+  if(s.filetMesh) s.filetMesh.visible=false;
+  toast(Math.max(0,nb-refuses)+' prises remontées au filet','or'); SFX.ramasse(); vibre(30);
+}
+// retour au ponton : vente automatique de la cale, condition de la curiosité
+// vérifiée AVANT le reset (chalutierArreterSortie efface zoneMax/calePoids/...)
+function chalutierVendre(s){
+  const total=s.caleValeur, nb=s.cale.length;
+  if(total>0){ META.argent+=total; ETAT.cashRun+=total; META.stats.cashTotal+=total; }
+  const meritee=s.zoneMax>=3&&s.calePoids>=CHALUTIER_CALE_MAX&&!s.aRejete&&s.meteoEtat!=='tempete';
+  bigMsg('⚓ RETOUR AU PORT');
+  toast('Vente : +'+total+' $ ('+nb+' prise'+(nb>1?'s':'')+')','or'); SFX.achat();
+  chalutierArreterSortie(s);
+  if(meritee&&!aCurio('boussole')){
+    donnerCurio('boussole');
+    if(s.boussoleMesh){ s.boussoleMesh.material.color.setHex(0xffd23f);
+      s.boussoleMesh.material.emissive=new THREE.Color(0xffd23f).multiplyScalar(0.6); }
+  }
+  checkDefis(); sauveMeta();
+}
 function majInterieur(dt,dtJeu){
   const s=INT.actif; if(!s) return;
   // ---- fouille en cours ----
@@ -10260,6 +10634,130 @@ function majInterieur(dt,dtJeu){
       }
     }
   }
+  // ---- Chalutier « Sainte-Odile » : sortie en mer ----
+  if(s.barre){
+    chalutierVerifierVague(s);
+    // décor animé : mouettes, défilement de l'eau, ville qui s'estompe au loin (spectacle, dt)
+    for(const mo of s.mouettes){
+      mo.a+=dt*0.35; mo.ph+=dt*7;
+      mo.m.position.set(mo.cx+Math.sin(mo.a)*mo.r,6+Math.sin(mo.ph*0.2)*0.4,mo.cz+Math.cos(mo.a)*mo.r);
+      mo.m.rotation.y=mo.a+Math.PI/2;
+      mo.aG.rotation.z=Math.sin(mo.ph)*0.5; mo.aD.rotation.z=-Math.sin(mo.ph)*0.5;
+    }
+    const distPort=Math.hypot(s.bateau.x,s.bateau.z);
+    if(s.merMat&&s.merMat.map){
+      s.merMat.map.offset.x+=Math.sin(s.bateau.ang)*s.bateau.v*dt*0.01;
+      s.merMat.map.offset.y+=Math.cos(s.bateau.ang)*s.bateau.v*dt*0.01;
+    }
+    if(s.villeMesh){
+      const proche=clamp(1-distPort/CHALUTIER_DIST_MAX,0,1);
+      s.villeMesh.scale.setScalar(0.4+0.6*proche);
+      for(const c of s.villeMesh.children) c.material.opacity=proche;
+    }
+    if(s.sortieEnCours){
+      // chrono : 180 s maximum, au-delà le joueur rentre remorqué
+      s.chrono+=dtJeu;
+      if(s.chrono>=CHALUTIER_DUREE){
+        chalutierPerdreMoitieCale(s);
+        toast('Remorqué au port : la moitié de la cale est perdue.','warn'); SFX.refus();
+        s.bateau.x=0; s.bateau.z=0;
+        chalutierVendre(s);
+      } else {
+        // météo : se dégrade en continu, plus vite au large
+        const zoneActuelle=chalutierZoneDe(distPort);
+        s.meteoJauge=Math.min(100,s.meteoJauge+CHALUTIER_METEO_VIT[zoneActuelle]*dtJeu);
+        const meteoAvant=s.meteoEtat;
+        s.meteoEtat=s.meteoJauge>=CHALUTIER_METEO_TEMPETE?'tempete':(s.meteoJauge>=CHALUTIER_METEO_HOULE?'houle':'calme');
+        if(s.meteoEtat!==meteoAvant){
+          if(s.meteoEtat==='houle') toast('🌊 La houle se lève.','warn');
+          else if(s.meteoEtat==='tempete'){ bigMsg('⛈ TEMPÊTE'); toast('30 secondes pour rentrer ou la cale trinque.','warn'); secousse(3); }
+        }
+        if(s.meteoEtat==='tempete'){
+          s.tempeteT+=dtJeu;
+          if(s.tempeteT>=CHALUTIER_TEMPETE_DELAI&&!s.tempetePerteFaite){
+            s.tempetePerteFaite=true;
+            chalutierPerdreMoitieCale(s);
+            toast('La tempête arrache la moitié de la cale !','warn'); SFX.refus(); secousse(6); vibre(100);
+          }
+        }
+        // pilotage à la barre : joystick = cap direct, avec inertie — spectacle, sur dt
+        if(s.auxCommandes){
+          P.x=s.barre.x; P.z=s.barre.z;
+          const l=Math.hypot(INPUT.mx,INPUT.mz);
+          const chargeFrac=clamp(s.calePoids/CHALUTIER_CALE_MAX,0,1);
+          const meteoMalus=s.meteoEtat==='tempete'?0.55:(s.meteoEtat==='houle'?0.85:1);
+          const vitesseMax=CHALUTIER_VIT_BASE*(1-0.4*chargeFrac)*meteoMalus;
+          if(l>=0.15){
+            const cap=Math.atan2(INPUT.mx,INPUT.mz);
+            s.bateau.ang=angLerp(s.bateau.ang,cap,clamp(CHALUTIER_VIRAGE*dt,0,1));
+            s.bateau.v=lerp(s.bateau.v,vitesseMax*Math.min(l,1),clamp(CHALUTIER_ACCEL*dt,0,1));
+          } else s.bateau.v=lerp(s.bateau.v,0,clamp(CHALUTIER_DECEL*dt,0,1));
+        } else s.bateau.v=lerp(s.bateau.v,0,clamp(CHALUTIER_DECEL*0.5*dt,0,1));
+        s.bateau.x+=Math.sin(s.bateau.ang)*s.bateau.v*dt;
+        s.bateau.z+=Math.cos(s.bateau.ang)*s.bateau.v*dt;
+        const distApres=Math.hypot(s.bateau.x,s.bateau.z);
+        if(distApres>CHALUTIER_DIST_MAX){ const k=CHALUTIER_DIST_MAX/distApres; s.bateau.x*=k; s.bateau.z*=k; }
+        const zoneMaintenant=chalutierZoneDe(Math.hypot(s.bateau.x,s.bateau.z));
+        s.zoneMax=Math.max(s.zoneMax,zoneMaintenant);
+        if(!s.aQuitteLePort&&Math.hypot(s.bateau.x,s.bateau.z)>15) s.aQuitteLePort=true;
+        if(s.aQuitteLePort&&Math.hypot(s.bateau.x,s.bateau.z)<8){ chalutierVendre(s); }
+        else {
+          // canne à pêche : délai de morsure -> fenêtre de ferrage -> combat de tension
+          if(s.canneEtat==='attente'){
+            s.canneDelai-=dtJeu;
+            if(s.canneDelai<=0){ s.canneEtat='morsure'; s.canneFerrageT=CHALUTIER_FERRAGE_FENETRE;
+              beep(700,0.12,'square',0.2); vibre(50); secousse(1); }
+          } else if(s.canneEtat==='morsure'){
+            s.canneFerrageT-=dtJeu;
+            if(s.canneFerrageT<=0){ s.canneEtat=null; toast('Trop tard. Le poisson a filé.','warn'); }
+          } else if(s.canneEtat==='combat'){
+            const tenant=INPUT.btn.action;
+            s.canneTension=clamp(s.canneTension+(tenant?CHALUTIER_TENSION_RATE:-CHALUTIER_TENSION_RATE)*dtJeu,0,100);
+            const poisson=CHALUTIER_POISSONS[s.canneEspece];
+            // houle/tempête : plage utile plus étroite (canne plus difficile)
+            const houleMalus=s.meteoEtat==='calme'?1:(s.meteoEtat==='houle'?0.72:0.55);
+            const centre=(CHALUTIER_TENSION_BONNE[0]+CHALUTIER_TENSION_BONNE[1])/2;
+            const demiLarg=(poisson.tensionEtroite?16:30)/2*houleMalus;
+            if(s.canneTension<=0) chalutierEchecCombat(s,'libere');
+            else if(s.canneTension>=100) chalutierEchecCombat(s,'casse');
+            else {
+              if(Math.abs(s.canneTension-centre)<demiLarg) s.canneProgres+=CHALUTIER_COMBAT_VIT/poisson.combatDur*dtJeu;
+              if(s.canneProgres>=100) chalutierPrise(s,poisson);
+            }
+          }
+          // filet : charge tant qu'il traîne, risque de déchirure en zone rouge
+          if(s.filetEtat==='traine'){
+            const vitMult=s.meteoEtat==='houle'?1.5:(s.meteoEtat==='tempete'?2:1);
+            s.filetCharge=Math.min(100,s.filetCharge+CHALUTIER_FILET_VIT*vitMult*dtJeu);
+            if(s.filetCharge>=CHALUTIER_FILET_ZONE_ROUGE&&Math.random()<CHALUTIER_FILET_RISQUE*dtJeu){
+              s.filetEtat=null; s.filetCharge=0; if(s.filetMesh) s.filetMesh.visible=false;
+              toast('Le filet se déchire ! Tout est reparti à l’eau.','warn'); SFX.refus(); secousse(4);
+            }
+          }
+        }
+        if(s.tambour) s.tambour.rotation.x+=dt*(s.filetEtat==='traine'?2:0.3);
+        if(s.filetMesh&&s.filetMesh.visible) s.filetMesh.position.y=0.5+Math.sin(ETAT.runT*2)*0.1;
+      }
+    }
+    chalutierAmbianceUpdate(s);
+    if(s.sortieEnCours){
+      chalutierWrap.style.display='block';
+      const nomZone={1:'HAUTS-FONDS',2:'BANC DU LARGE',3:'LA FOSSE'}[chalutierZoneDe(distPort)];
+      const nomMeteo={calme:'☀ CALME',houle:'🌊 HOULE',tempete:'⛈ TEMPÊTE'}[s.meteoEtat];
+      chalLblEl.textContent='⚓ '+Math.max(0,Math.ceil(CHALUTIER_DUREE-s.chrono))+' s · '+nomZone;
+      chalMeteoEl.textContent=nomMeteo;
+      chalMeteoEl.style.color=s.meteoEtat==='tempete'?'#ff3b5c':(s.meteoEtat==='houle'?'#ffd23f':'#7dff7a');
+      chalCaleEl.style.width=Math.round(s.calePoids/CHALUTIER_CALE_MAX*100)+'%';
+      chalCaleTxtEl.textContent=Math.round(s.calePoids)+'/'+CHALUTIER_CALE_MAX+' kg · '+Math.round(s.caleValeur)+' $';
+      const cap=Math.atan2(-s.bateau.x,-s.bateau.z)-s.bateau.ang;
+      chalBoussoleEl.style.transform='rotate('+(cap*180/Math.PI)+'deg)';
+      if(s.canneEtat==='combat'){
+        chalTensionWrap.style.display='block';
+        chalTensionEl.style.left=Math.round(s.canneTension)+'%';
+        chalProgresEl.style.width=Math.round(s.canneProgres)+'%';
+      } else chalTensionWrap.style.display='none';
+    } else if(chalutierWrap.style.display!=='none') chalutierWrap.style.display='none';
+  }
 }
 
 const WAYP={actif:false,x:0,z:0,nom:''};
@@ -10399,6 +10897,7 @@ function majMissions(dt,dtJeu){
       WAYP.actif=false; toast('Arrivé : '+WAYP.nom,'or'); SFX.ramasse();
     }
   } else if(!ciblePos&&EVT.cible&&!EVT.cible.mort){ ciblePos={x:EVT.cible.x,z:EVT.cible.z}; }
+  MISSION.ciblePosActuel=ciblePos;   // La Boussole du Capitaine : lu par majMinimap()
   el('missionTxt').textContent='◈ '+txt;
   const fl=el('missionArrow');
   if(ciblePos){
@@ -11203,6 +11702,14 @@ function startRun(){
       if(sa.emissionOn) radioArreterEmission(sa);
       sa.emissionsVague=0; sa.radioVagueRef=-1;
     }
+    // Chalutier « Sainte-Odile » : sortie annulée, cale perdue, météo
+    // réinitialisée, bateau replacé au ponton, compteur de sorties à zéro.
+    // La Boussole du Capitaine, si déjà obtenue lors d'une partie
+    // précédente, reste acquise (aCurio('boussole') vit dans META).
+    if(sa.barre){
+      if(sa.sortieEnCours) chalutierArreterSortie(sa);
+      sa.sortiesVague=0; sa.chalutierVagueRef=-1;
+    }
   }
   // arcade : une partie de borne en cours est annulée SANS banquer ses
   // tickets — contrairement à un abandon volontaire (finirBorneJeu, appelé
@@ -11352,6 +11859,7 @@ function mourir(){
     metroAmbianceStop();
   }
   if(INT.actif&&INT.actif.console&&INT.actif.emissionOn) radioArreterEmission(INT.actif); // coupe le son tout de suite
+  if(INT.actif&&INT.actif.barre&&INT.actif.sortieEnCours) chalutierArreterSortie(INT.actif); // coupe le son tout de suite, cale perdue
   P.h.g.rotation.z=Math.PI/2; P.h.g.position.y=0.35;
   reticule.visible=false;
   const record=ETAT.score>META.record;
@@ -11386,7 +11894,9 @@ function marquerZone(obj,r2){ if(obj) obj.r=Math.sqrt(r2); return r2; }
 // piles/dangers (Métro) : proximité vérifiée directement dans majInterieur
 // (ramassage automatique / danger environnemental), jamais via le bouton
 // d'action — donc jamais de marquerZone à attendre sur ces champs-là non plus.
-const CHAMPS_DECOR_SALLE=new Set(['pnj','culturiste','plaque','gardiens','cameras','piles','dangers']);
+// bateau (Chalutier) : position VIRTUELLE du bateau en mer, jamais un point
+// d'interaction — jamais posée sur un mesh, jamais lue par majAction().
+const CHAMPS_DECOR_SALLE=new Set(['pnj','culturiste','plaque','gardiens','cameras','piles','dangers','bateau']);
 // Rejoue majAction() avec le joueur hors de portée de tout, pour que la
 // chaîne if/else-if s'évalue en entier (aucune branche ne « gagne » et
 // n'interrompt les suivantes) et que chaque marquerZone() de la salle
@@ -12058,6 +12568,58 @@ function majAction(){
         label='📻 LANCER L’ÉMISSION';
         fn=()=>{ radioDemarrerEmission(s); };
       }
+    /* ---------- CHALUTIER : la barre (largue les amarres / pilotage) ---------- */
+    } else if(s.barre&&dist2(P.x,P.z,s.barre.x,s.barre.z)<marquerZone(s.barre,10)){
+      chalutierVerifierVague(s);
+      if(!s.sortieEnCours){
+        if(s.sortiesVague>=CHALUTIER_SORTIES_MAX){
+          label='⚓ Deux sorties déjà faites cette vague';
+          fn=()=>{ SFX.refus(); toast('Le Sainte-Odile repart à la prochaine vague.'); };
+        } else {
+          label='⚓ LARGUER LES AMARRES';
+          fn=()=>{ chalutierDemarrerSortie(s); };
+        }
+      } else if(s.auxCommandes){
+        label='⚓ LÂCHER LA BARRE';
+        fn=()=>{ s.auxCommandes=false; };
+      } else {
+        label='🧭 PRENDRE LA BARRE';
+        fn=()=>{ s.auxCommandes=true; P.x=s.barre.x; P.z=s.barre.z; };
+      }
+    /* ---------- CHALUTIER : la canne (précision) ---------- */
+    } else if(s.canne&&dist2(P.x,P.z,s.canne.x,s.canne.z)<marquerZone(s.canne,9)){
+      if(!s.sortieEnCours){
+        label='🎣 La canne attend le grand large';
+        fn=()=>{ SFX.refus(); };
+      } else if(s.canneEtat===null){
+        label='🎣 JETER LA LIGNE';
+        fn=()=>{ s.canneEtat='attente'; s.canneDelai=rand(CHALUTIER_MORSURE_DELAI[0],CHALUTIER_MORSURE_DELAI[1]); SFX.ui(); };
+      } else if(s.canneEtat==='attente'){
+        label='🎣 La ligne est à l’eau...';
+        fn=()=>{ SFX.refus(); };
+      } else if(s.canneEtat==='morsure'){
+        label='🎣 FERRE !';
+        fn=()=>{
+          s.canneEtat='combat'; s.canneTension=50; s.canneProgres=0;
+          s.canneEspece=chalutierTirerEspeceCanne(chalutierZoneDe(Math.hypot(s.bateau.x,s.bateau.z)));
+          SFX.etoile(); vibre(40);
+        };
+      } else {
+        label='🎣 TIENS BON — maintiens / relâche';
+        fn=()=>{};
+      }
+    /* ---------- CHALUTIER : le treuil du filet (volume) ---------- */
+    } else if(s.treuil&&dist2(P.x,P.z,s.treuil.x,s.treuil.z)<marquerZone(s.treuil,9)){
+      if(!s.sortieEnCours){
+        label='🕸️ Le treuil attend le grand large';
+        fn=()=>{ SFX.refus(); };
+      } else if(s.filetEtat===null){
+        label='🕸️ JETER LE FILET';
+        fn=()=>{ s.filetEtat='traine'; s.filetCharge=0; if(s.filetMesh) s.filetMesh.visible=true; SFX.ui(); };
+      } else {
+        label='🕸️ REMONTER LE FILET ('+Math.round(s.filetCharge)+' %)';
+        fn=()=>{ chalutierRemonterFilet(s); };
+      }
     } else if(s.fouilles&&s.fouilles.length&&
               s.fouilles.some(f=>dist2(P.x,P.z,f.x,f.z)<f.rayon*f.rayon)){
       // priorité basse : n'importe quel contenant fouillable de la salle
@@ -12187,6 +12749,22 @@ function jourNuit(dt){
     lampeNuit.intensity=intens;
     lampeNuit.distance=lerp(3.2,20,frac);
     lampeNuit.position.set(P.x,3.4,P.z);
+    return;
+  }
+  if(INT.actif&&INT.actif.barre){
+    // Chalutier « Sainte-Odile » : la lumière suit la météo de la sortie en
+    // mer, pas le cycle jour/nuit de la ville (hors de propos en pleine mer
+    // pour une session de 180 s) — dorée au calme, grise à la houle, sombre
+    // et zébrée (éclairs) à la tempête.
+    const s=INT.actif, m=s.meteoEtat||'calme';
+    soleil.intensity=m==='tempete'?0.18:(m==='houle'?0.5:0.95);
+    hemi.intensity=m==='tempete'?0.25:(m==='houle'?0.55:0.85);
+    const coulCiel=m==='tempete'?new THREE.Color(0x14161c):(m==='houle'?new THREE.Color(0x6a7078):new THREE.Color(0xffdca0));
+    scene.background.copy(coulCiel);
+    scene.fog.color.copy(coulCiel);
+    scene.fog.near=40; scene.fog.far=m==='tempete'?110:(m==='houle'?170:260);
+    if(m==='tempete'&&Math.random()<dt*0.6) soleil.intensity=1.4;   // zébrure d'éclair
+    lampeNuit.intensity=0; lampeNuit.distance=42;
     return;
   }
   if(INT.actif){
@@ -12326,6 +12904,11 @@ function majMinimap(){
   if(MISSION.cur&&(MISSION.cur.poi||MISSION.cur.type==='rack')){
     const pp=MISSION.cur.poi||POIS.rack;
     dot(pp.x,pp.z,'#ffd23f',4);
+  // La Boussole du Capitaine : la carte affiche en permanence la direction du
+  // prochain objectif de mission — étend le marqueur ci-dessus à TOUS les
+  // types de mission (course, zone, vol...), pas seulement 'rack'/POI fixe
+  } else if(aCurio('boussole')&&MISSION.cur&&MISSION.ciblePosActuel){
+    dot(MISSION.ciblePosActuel.x,MISSION.ciblePosActuel.z,'#35e0ff',3.5);
   }
   // joueur : triangle orienté (position du bâtiment si on est à l'intérieur)
   const pc=posCarte();

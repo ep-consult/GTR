@@ -2924,6 +2924,634 @@ async function main() {
     else ok('Radio : majMinimap() affiche bien les caches proches sans erreur avec la curiosité \'micro\' active');
 
     // -------------------------------------------------------------------
+    // Chalutier « Sainte-Odile » : porte, quartier, curiosité activée.
+    // -------------------------------------------------------------------
+    console.log('\n--- Chalutier « Sainte-Odile » : porte, quartier, curiosité activée ---');
+    const chalPorte = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'chalutier');
+      const c = CURIOS.find((x) => x.id === 'boussole');
+      return {
+        porteExiste: !!p,
+        quartierAttendu: quartier(11, 8),
+        curioActive: c ? c.actif : null,
+        curioA_eff: c ? !!c.eff : false,
+        curioA_ind: c ? !!c.ind : false,
+      };
+    });
+    if (!chalPorte.porteExiste) fail('Chalutier : aucune porte posée pour la salle');
+    else ok('Chalutier : la porte est bien posée');
+    if (chalPorte.quartierAttendu !== 'port') fail('Chalutier : quartier(11,8) ne vaut plus \'port\' (' + chalPorte.quartierAttendu + ') — repositionner caseCentre(11,8)');
+    else ok('Chalutier : quartier(11,8) vaut bien \'port\', comme demandé');
+    if (!chalPorte.curioActive || !chalPorte.curioA_eff || !chalPorte.curioA_ind) fail('Chalutier : la curiosité \'boussole\' n\'est pas correctement activée (actif/eff/ind)');
+    else ok('Chalutier : la curiosité \'boussole\' est bien activée avec ses textes');
+
+    // -------------------------------------------------------------------
+    // Espacements — lus depuis la salle réelle, jamais recopiés (voir
+    // CLAUDE.md). Les 3 postes + les 2 contenants à ≥8 u entre eux et de
+    // la sortie.
+    // -------------------------------------------------------------------
+    console.log('\n--- Chalutier « Sainte-Odile » : espacements (barre, canne, treuil, contenants, sortie) ---');
+    const espacementsChal = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'chalutier');
+      entrerInterieur('chalutier', p);
+      const s = INT.actif;
+      const zones = [s.barre, s.canne, s.treuil].concat(s.fouilles.map((f) => ({ x: f.x, z: f.z })));
+      const distEntreZones = [];
+      for (let i = 0; i < zones.length; i++) for (let j = i + 1; j < zones.length; j++) {
+        distEntreZones.push(Math.hypot(zones[i].x - zones[j].x, zones[i].z - zones[j].z));
+      }
+      const zonesVsSortie = zones.map((z) => Math.hypot(z.x - s.sortie.x, z.z - s.sortie.z));
+      const nbFouilles = s.fouilles.length;
+      if (INT.actif) sortirInterieur();
+      return { distEntreZones, zonesVsSortie, nbFouilles };
+    });
+    if (Math.min(...espacementsChal.distEntreZones) < 7.99) fail('Chalutier : deux zones interactives sont à moins de 8 unités l\'une de l\'autre (' + JSON.stringify(espacementsChal.distEntreZones) + ')');
+    else ok('Chalutier : la barre, la canne, le treuil et les contenants sont bien espacés d\'au moins 8 unités entre eux');
+    if (espacementsChal.zonesVsSortie.some((d) => d < 7.99)) fail('Chalutier : une zone interactive est à moins de 8 unités du centre de la sortie (' + JSON.stringify(espacementsChal.zonesVsSortie) + ')');
+    else ok('Chalutier : toutes les zones interactives sont bien à au moins 8 unités de la sortie');
+    if (espacementsChal.nbFouilles !== 2) fail('Chalutier : nombre de contenants fouillables inattendu (' + espacementsChal.nbFouilles + ', attendu 2)');
+    else ok('Chalutier : les 2 contenants fouillables (coffre du pont, cabine du capitaine) sont bien enregistrés');
+
+    // -------------------------------------------------------------------
+    // Zones de pêche : seuils de distance.
+    // -------------------------------------------------------------------
+    console.log('\n--- Chalutier « Sainte-Odile » : zones de pêche selon la distance au ponton ---');
+    const zonesDist = await page.evaluate(() => ({
+      z1: chalutierZoneDe(0),
+      z1b: chalutierZoneDe(CHALUTIER_ZONE1_MAX - 1),
+      z2: chalutierZoneDe(CHALUTIER_ZONE1_MAX + 1),
+      z2b: chalutierZoneDe(CHALUTIER_ZONE2_MAX - 1),
+      z3: chalutierZoneDe(CHALUTIER_ZONE2_MAX + 1),
+    }));
+    if (zonesDist.z1 !== 1 || zonesDist.z1b !== 1) fail('Chalutier : les Hauts-Fonds ne couvrent pas correctement [0, ' + 'ZONE1_MAX[ (' + JSON.stringify(zonesDist) + ')');
+    else ok('Chalutier : les Hauts-Fonds sont bien la zone la plus proche du ponton');
+    if (zonesDist.z2 !== 2 || zonesDist.z2b !== 2) fail('Chalutier : le Banc du Large ne couvre pas correctement la zone intermédiaire (' + JSON.stringify(zonesDist) + ')');
+    else ok('Chalutier : le Banc du Large est bien la zone intermédiaire');
+    if (zonesDist.z3 !== 3) fail('Chalutier : la Fosse ne commence pas au-delà de ZONE2_MAX');
+    else ok('Chalutier : la Fosse est bien la zone la plus éloignée');
+
+    // -------------------------------------------------------------------
+    // Démarrage d'une sortie, prise de la barre, pilotage au joystick.
+    // -------------------------------------------------------------------
+    console.log('\n--- Chalutier « Sainte-Odile » : démarrage de la sortie, pilotage à la barre ---');
+    const sortie = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'chalutier');
+      startRun();
+      entrerInterieur('chalutier', p);
+      const s = INT.actif;
+      P.x = s.barre.x; P.z = s.barre.z;
+      majAction(); document.getElementById('btnAction')._fn(); // LARGUER LES AMARRES
+      const demarree = s.sortieEnCours;
+      majAction(); document.getElementById('btnAction')._fn(); // PRENDRE LA BARRE
+      const auxCommandes = s.auxCommandes;
+      INPUT.mx = 0; INPUT.mz = -1;
+      const xAvant = s.bateau.x, zAvant = s.bateau.z;
+      for (let i = 0; i < 60; i++) majInterieur(0.05, 0.05);
+      const distParcourue = Math.hypot(s.bateau.x - xAvant, s.bateau.z - zAvant);
+      INPUT.mx = 0; INPUT.mz = 0;
+      if (INT.actif) sortirInterieur();
+      return { demarree, auxCommandes, distParcourue };
+    });
+    if (!sortie.demarree) fail('Chalutier : LARGUER LES AMARRES ne démarre pas la sortie');
+    else ok('Chalutier : LARGUER LES AMARRES démarre bien la sortie en mer');
+    if (!sortie.auxCommandes) fail('Chalutier : PRENDRE LA BARRE ne passe pas aux commandes');
+    else ok('Chalutier : PRENDRE LA BARRE passe bien aux commandes');
+    if (sortie.distParcourue < 1) fail('Chalutier : le joystick à la barre ne fait pas avancer le bateau (distance=' + sortie.distParcourue + ')');
+    else ok('Chalutier : le joystick à la barre fait bien avancer le bateau, avec inertie');
+
+    // -------------------------------------------------------------------
+    // Combat à la canne : morsure -> ferrage -> tension entre deux limites.
+    // Une alternance simple (bascule près des bords de la bonne plage) doit
+    // suffire à ferrer un maquereau — vérifié en simulant vraiment la
+    // séquence, pas en supposant (voir CLAUDE.md, cadences de tap).
+    // -------------------------------------------------------------------
+    console.log('\n--- Chalutier « Sainte-Odile » : canne — morsure, ferrage, combat de tension ---');
+    const canneBase = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'chalutier');
+      startRun();
+      entrerInterieur('chalutier', p);
+      const s = INT.actif;
+      P.x = s.barre.x; P.z = s.barre.z;
+      majAction(); document.getElementById('btnAction')._fn();
+      P.x = s.canne.x; P.z = s.canne.z;
+      majAction(); document.getElementById('btnAction')._fn(); // jeter la ligne
+      const enAttente = s.canneEtat === 'attente';
+      s.canneDelai = 0;
+      majInterieur(0.01, 0.01);
+      const enMorsure = s.canneEtat === 'morsure';
+      majAction(); document.getElementById('btnAction')._fn(); // FERRE
+      const enCombat = s.canneEtat === 'combat', especeValide = !!CHALUTIER_POISSONS[s.canneEspece];
+      // tension à 0 : le poisson se libère
+      s.canneTension = 1; INPUT.btn.action = false;
+      majInterieur(1, 1);
+      const libereApres = s.canneEtat === null && s.canneTension === 50;
+      // tension à 100 : la ligne casse
+      s.canneEtat = 'combat'; s.canneTension = 98; s.canneEspece = 'maquereau'; s.canneProgres = 0;
+      INPUT.btn.action = true;
+      majInterieur(1, 1);
+      const casseApres = s.canneEtat === null && s.canneTension === 50;
+      INPUT.btn.action = false;
+      if (INT.actif) sortirInterieur();
+      return { enAttente, enMorsure, enCombat, especeValide, libereApres, casseApres };
+    });
+    if (!canneBase.enAttente) fail('Chalutier : JETER LA LIGNE ne passe pas en attente de morsure');
+    else ok('Chalutier : JETER LA LIGNE passe bien en attente de morsure');
+    if (!canneBase.enMorsure) fail('Chalutier : le délai de morsure écoulé ne déclenche pas la fenêtre de ferrage');
+    else ok('Chalutier : le délai de morsure écoulé déclenche bien la fenêtre de ferrage');
+    if (!canneBase.enCombat || !canneBase.especeValide) fail('Chalutier : FERRER pendant la fenêtre ne démarre pas un combat avec une espèce valide');
+    else ok('Chalutier : ferrer pendant la fenêtre démarre bien le combat de tension');
+    if (!canneBase.libereApres) fail('Chalutier : une tension à 0 ne libère pas le poisson');
+    else ok('Chalutier : une tension tombée à 0 libère bien le poisson (trop peu de tension)');
+    if (!canneBase.casseApres) fail('Chalutier : une tension à 100 ne casse pas la ligne');
+    else ok('Chalutier : une tension montée à 100 casse bien la ligne (trop de tension)');
+
+    const ferrageRate = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'chalutier');
+      startRun();
+      entrerInterieur('chalutier', p);
+      const s = INT.actif;
+      P.x = s.barre.x; P.z = s.barre.z;
+      majAction(); document.getElementById('btnAction')._fn();
+      P.x = s.canne.x; P.z = s.canne.z;
+      majAction(); document.getElementById('btnAction')._fn();
+      s.canneDelai = 0;
+      majInterieur(0.01, 0.01);
+      // fenêtre de ferrage manquée -> le poisson file, prêt à recaster
+      s.canneFerrageT = 0;
+      majInterieur(0.01, 0.01);
+      const fenetreManquee = s.canneEtat === null;
+      if (INT.actif) sortirInterieur();
+      return { fenetreManquee };
+    });
+    if (!ferrageRate.fenetreManquee) fail('Chalutier : une fenêtre de ferrage manquée ne relâche pas le poisson');
+    else ok('Chalutier : une fenêtre de ferrage manquée relâche bien le poisson (prêt à recaster)');
+
+    console.log('\n--- Chalutier « Sainte-Odile » : le combat se gagne avec une alternance simple, jamais en mashant un seul bouton ---');
+    const combatSim = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'chalutier');
+      const centre = (CHALUTIER_TENSION_BONNE[0] + CHALUTIER_TENSION_BONNE[1]) / 2;
+      const demiLarg = 15; // maquereau : bande large (35-65)
+      function combat(strategie) {
+        startRun();
+        entrerInterieur('chalutier', p);
+        const s = INT.actif;
+        P.x = s.barre.x; P.z = s.barre.z;
+        majAction(); document.getElementById('btnAction')._fn();
+        s.canneEtat = 'combat'; s.canneEspece = 'maquereau'; s.canneTension = 50; s.canneProgres = 0;
+        let tenant = true, ticks = 0, gagne = false, casse = false, libere = false;
+        while (ticks < 4000 && s.canneEtat === 'combat') {
+          if (strategie === 'alterne') {
+            if (s.canneTension > centre + demiLarg * 0.6) tenant = false;
+            else if (s.canneTension < centre - demiLarg * 0.6) tenant = true;
+          } else tenant = strategie === 'tenir';
+          INPUT.btn.action = tenant;
+          majInterieur(0.05, 0.05);
+          ticks++;
+        }
+        gagne = s.cale.length > 0;
+        casse = s.cale.length === 0 && ticks < 4000; // sorti du combat sans prise = échec (casse ou libéré)
+        INPUT.btn.action = false;
+        if (INT.actif) sortirInterieur();
+        return { gagne, ticks, tempsSimule: Math.round(ticks * 0.05 * 10) / 10 };
+      }
+      return { alterne: combat('alterne'), toujoursTenir: combat('tenir'), toujoursRelacher: combat('relacher') };
+    });
+    if (!combatSim.alterne.gagne) fail('Chalutier : une alternance simple (bascule près des bords de la bonne plage) ne suffit pas à ferrer un maquereau en ' + combatSim.alterne.tempsSimule + ' s simulées — le combat serait ingagnable à l\'intuition');
+    else ok('Chalutier : une alternance simple ferre bien un maquereau (' + combatSim.alterne.tempsSimule + ' s simulées)');
+    if (combatSim.toujoursTenir.gagne) fail('Chalutier : tenir en continu (sans jamais relâcher) réussit le combat — la ligne devrait casser');
+    else ok('Chalutier : tenir en continu casse bien la ligne, sans jamais aboutir à une prise');
+    if (combatSim.toujoursRelacher.gagne) fail('Chalutier : relâcher en continu (sans jamais tirer) réussit le combat — le poisson devrait se libérer');
+    else ok('Chalutier : relâcher en continu libère bien le poisson, sans jamais aboutir à une prise');
+
+    // -------------------------------------------------------------------
+    // Filet : charge tant qu'il traîne, conversion en prises au remontage,
+    // risque réel de déchirure au-delà de la zone rouge.
+    // -------------------------------------------------------------------
+    console.log('\n--- Chalutier « Sainte-Odile » : filet — charge, remontage, risque de déchirure ---');
+    const filet = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'chalutier');
+      startRun();
+      entrerInterieur('chalutier', p);
+      const s = INT.actif;
+      P.x = s.barre.x; P.z = s.barre.z;
+      majAction(); document.getElementById('btnAction')._fn();
+      P.x = s.treuil.x; P.z = s.treuil.z;
+      majAction(); document.getElementById('btnAction')._fn(); // jeter le filet
+      const traine = s.filetEtat === 'traine';
+      s.filetCharge = 55;
+      const caleAvant = s.cale.length;
+      majAction(); document.getElementById('btnAction')._fn(); // remonter
+      const caleApres = s.cale.length, filetVide = s.filetEtat === null;
+      // risque de déchirure : très nombreuses tentatives en zone rouge
+      let dechireAuMoinsUneFois = false;
+      for (let i = 0; i < 500 && !dechireAuMoinsUneFois; i++) {
+        if (s.filetEtat !== 'traine') { s.filetEtat = 'traine'; s.filetCharge = 99; }
+        majInterieur(0.3, 0.3);
+        if (s.filetEtat === null) dechireAuMoinsUneFois = true;
+      }
+      if (INT.actif) sortirInterieur();
+      return { traine, caleAvant, caleApres, filetVide, dechireAuMoinsUneFois };
+    });
+    if (!filet.traine) fail('Chalutier : JETER LE FILET ne passe pas en traîne');
+    else ok('Chalutier : JETER LE FILET passe bien en traîne');
+    if (filet.caleApres <= filet.caleAvant) fail('Chalutier : remonter un filet chargé à 55 % n\'ajoute aucune prise à la cale');
+    else ok('Chalutier : remonter le filet convertit bien la charge en prises dans la cale');
+    if (!filet.filetVide) fail('Chalutier : le filet reste en traîne après avoir été remonté');
+    else ok('Chalutier : le filet est bien vidé après remontage');
+    if (!filet.dechireAuMoinsUneFois) fail('Chalutier : le filet ne se déchire jamais au-delà de la zone rouge, même après 150 s cumulées simulées');
+    else ok('Chalutier : le filet finit bien par se déchirer (tout perdu) au-delà de la zone rouge');
+
+    // -------------------------------------------------------------------
+    // Objets étranges : uniquement à la Fosse, environ une fois sur huit.
+    // -------------------------------------------------------------------
+    console.log('\n--- Chalutier « Sainte-Odile » : objets étranges au filet, uniquement à la Fosse ---');
+    const objetsTest = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'chalutier');
+      startRun();
+      entrerInterieur('chalutier', p);
+      const s = INT.actif;
+      const estObjet = (it) => CHALUTIER_OBJETS.some((o) => o.nom === it.nom);
+      s.bateau.x = 0; s.bateau.z = CHALUTIER_ZONE2_MAX + 10; // en Fosse
+      let trouveEnFosse = false;
+      for (let i = 0; i < 200 && !trouveEnFosse; i++) {
+        s.cale = []; s.calePoids = 0; s.caleValeur = 0;
+        chalutierRemonterFilet(Object.assign(s, { filetCharge: 80 }));
+        if (s.cale.some(estObjet)) trouveEnFosse = true;
+      }
+      s.bateau.x = 0; s.bateau.z = 10; // Hauts-Fonds
+      let trouveHorsFosse = false;
+      for (let i = 0; i < 200; i++) {
+        s.cale = []; s.calePoids = 0; s.caleValeur = 0;
+        chalutierRemonterFilet(Object.assign(s, { filetCharge: 80 }));
+        if (s.cale.some(estObjet)) { trouveHorsFosse = true; break; }
+      }
+      if (INT.actif) sortirInterieur();
+      return { trouveEnFosse, trouveHorsFosse };
+    });
+    if (!objetsTest.trouveEnFosse) fail('Chalutier : aucun objet étrange remonté en 200 tentatives à la Fosse (probabilité ~1/8 par remontage, quasi impossible par hasard)');
+    else ok('Chalutier : les objets étranges apparaissent bien au filet, à la Fosse');
+    if (objetsTest.trouveHorsFosse) fail('Chalutier : un objet étrange est remonté hors de la Fosse');
+    else ok('Chalutier : aucun objet étrange hors de la Fosse, en 200 tentatives');
+
+    // -------------------------------------------------------------------
+    // Cale : poids/valeur cumulés, rejet de la dernière prise, refus une
+    // fois pleine.
+    // -------------------------------------------------------------------
+    console.log('\n--- Chalutier « Sainte-Odile » : la cale (poids, valeur, rejet, plafond) ---');
+    const caleTest = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'chalutier');
+      startRun();
+      entrerInterieur('chalutier', p);
+      const s = INT.actif;
+      s.cale = []; s.calePoids = 0; s.caleValeur = 0; // isole du test précédent (même salle mise en cache)
+      chalutierAjouterCale(s, { nom: 'Test1', valeur: 100, poids: 10 });
+      chalutierAjouterCale(s, { nom: 'Test2', valeur: 50, poids: 5 });
+      const poidsApres2 = s.calePoids, valeurApres2 = s.caleValeur;
+      chalutierRejeterDerniere(s);
+      const poidsApresRejet = s.calePoids, valeurApresRejet = s.caleValeur, aRejeteApres = s.aRejete;
+      const accepte = chalutierAjouterCale(s, { nom: 'OK', valeur: 5, poids: 1 });
+      const refusePleine = !chalutierAjouterCale(s, { nom: 'Trop', valeur: 10, poids: CHALUTIER_CALE_MAX + 1 });
+      if (INT.actif) sortirInterieur();
+      return { poidsApres2, valeurApres2, poidsApresRejet, valeurApresRejet, aRejeteApres, accepte, refusePleine };
+    });
+    if (caleTest.poidsApres2 !== 15 || caleTest.valeurApres2 !== 150) fail('Chalutier : la cale n\'accumule pas correctement poids/valeur (' + JSON.stringify(caleTest) + ')');
+    else ok('Chalutier : la cale accumule bien le poids et la valeur des prises');
+    if (caleTest.poidsApresRejet !== 10 || caleTest.valeurApresRejet !== 100 || !caleTest.aRejeteApres) fail('Chalutier : rejeter la dernière prise ne retire pas la bonne prise et/ou ne marque pas aRejete');
+    else ok('Chalutier : rejeter la dernière prise l\'enlève bien de la cale (poids et valeur) et marque le rejet');
+    if (!caleTest.accepte) fail('Chalutier : une prise qui tient dans la cale est refusée à tort');
+    if (!caleTest.refusePleine) fail('Chalutier : une prise qui dépasse la capacité de la cale est acceptée à tort');
+    else ok('Chalutier : une prise qui dépasserait la capacité de la cale est bien refusée');
+
+    // -------------------------------------------------------------------
+    // Le poids de la cale réduit la vitesse du bateau, jusqu'à 40 % à
+    // pleine charge.
+    // -------------------------------------------------------------------
+    console.log('\n--- Chalutier « Sainte-Odile » : le poids de la cale réduit la vitesse (jusqu\'à 40 %) ---');
+    const vitesseTest = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'chalutier');
+      startRun();
+      entrerInterieur('chalutier', p);
+      const s = INT.actif;
+      P.x = s.barre.x; P.z = s.barre.z;
+      majAction(); document.getElementById('btnAction')._fn();
+      majAction(); document.getElementById('btnAction')._fn();
+      INPUT.mx = 0; INPUT.mz = -1;
+      s.calePoids = 0; s.meteoEtat = 'calme'; s.bateau.v = 0;
+      for (let i = 0; i < 300; i++) majInterieur(0.05, 0.05);
+      const vitesseVide = s.bateau.v;
+      s.bateau.v = 0; s.calePoids = CHALUTIER_CALE_MAX; s.meteoEtat = 'calme';
+      for (let i = 0; i < 300; i++) majInterieur(0.05, 0.05);
+      const vitessePleine = s.bateau.v;
+      INPUT.mx = 0; INPUT.mz = 0;
+      if (INT.actif) sortirInterieur();
+      return { vitesseVide, vitessePleine };
+    });
+    if (vitesseTest.vitessePleine >= vitesseTest.vitesseVide) fail('Chalutier : la cale pleine ne réduit pas la vitesse du bateau (vide=' + vitesseTest.vitesseVide + ', pleine=' + vitesseTest.vitessePleine + ')');
+    else {
+      const ratio = vitesseTest.vitessePleine / vitesseTest.vitesseVide;
+      if (Math.abs(ratio - 0.6) > 0.05) fail('Chalutier : la perte de vitesse à pleine charge n\'est pas d\'environ 40 % (ratio=' + ratio.toFixed(3) + ')');
+      else ok('Chalutier : la cale pleine réduit bien la vitesse d\'environ 40 %');
+    }
+
+    // -------------------------------------------------------------------
+    // Météo : dégradation continue, seuils houle/tempête, perte de la
+    // moitié de la cale après 30 s de tempête.
+    // -------------------------------------------------------------------
+    console.log('\n--- Chalutier « Sainte-Odile » : météo — dégradation, seuils, perte de cale en tempête ---');
+    const meteoTest = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'chalutier');
+      startRun();
+      entrerInterieur('chalutier', p);
+      const s = INT.actif;
+      P.x = s.barre.x; P.z = s.barre.z;
+      majAction(); document.getElementById('btnAction')._fn();
+      s.bateau.x = 0; s.bateau.z = 0; // zone 1
+      s.meteoJauge = CHALUTIER_METEO_HOULE - 1;
+      majInterieur(0.01, 4);
+      const passageHoule = s.meteoEtat === 'houle';
+      s.meteoJauge = CHALUTIER_METEO_TEMPETE - 1;
+      majInterieur(0.01, 4);
+      const passageTempete = s.meteoEtat === 'tempete';
+      s.cale = []; s.calePoids = 0; s.caleValeur = 0;
+      for (let i = 0; i < 10; i++) chalutierAjouterCale(s, { nom: 'x' + i, valeur: 10, poids: 10 });
+      s.tempeteT = CHALUTIER_TEMPETE_DELAI - 0.1;
+      majInterieur(0.01, 1);
+      const poidsApresPerte = s.calePoids, valeurApresPerte = s.caleValeur;
+      if (INT.actif) sortirInterieur();
+      return { passageHoule, passageTempete, poidsApresPerte, valeurApresPerte };
+    });
+    if (!meteoTest.passageHoule) fail('Chalutier : la jauge météo ne fait pas passer en HOULE au seuil attendu');
+    else ok('Chalutier : la météo passe bien en HOULE au seuil attendu');
+    if (!meteoTest.passageTempete) fail('Chalutier : la jauge météo ne fait pas passer en TEMPÊTE au seuil attendu');
+    else ok('Chalutier : la météo passe bien en TEMPÊTE au seuil attendu');
+    if (meteoTest.poidsApresPerte !== 50 || meteoTest.valeurApresPerte !== 50) fail('Chalutier : 30 s de tempête ne font pas perdre exactement la moitié de la cale (poids=' + meteoTest.poidsApresPerte + ', valeur=' + meteoTest.valeurApresPerte + ')');
+    else ok('Chalutier : 30 s de tempête sans être rentré font bien perdre la moitié de la cale');
+
+    // -------------------------------------------------------------------
+    // Chrono de 180 s : au-delà, le joueur rentre remorqué et perd la
+    // moitié de sa cale.
+    // -------------------------------------------------------------------
+    console.log('\n--- Chalutier « Sainte-Odile » : chrono de 180 s — remorqué, moitié de la cale perdue ---');
+    const chronoExpire = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'chalutier');
+      startRun();
+      entrerInterieur('chalutier', p);
+      const s = INT.actif;
+      P.x = s.barre.x; P.z = s.barre.z;
+      majAction(); document.getElementById('btnAction')._fn();
+      s.cale = []; s.calePoids = 0; s.caleValeur = 0;
+      for (let i = 0; i < 10; i++) chalutierAjouterCale(s, { nom: 'x' + i, valeur: 10, poids: 10 });
+      s.bateau.x = 50; s.bateau.z = 50;
+      s.chrono = CHALUTIER_DUREE - 0.5;
+      const argentAvant = META.argent;
+      majInterieur(0.01, 1);
+      const sortieFinie = !s.sortieEnCours, argentApres = META.argent;
+      if (INT.actif) sortirInterieur();
+      return { sortieFinie, argentApres, argentAvant };
+    });
+    if (!chronoExpire.sortieFinie) fail('Chalutier : le chrono à 180 s ne termine pas la sortie');
+    else ok('Chalutier : le chrono à 180 s termine bien la sortie (remorqué)');
+    if (chronoExpire.argentApres !== chronoExpire.argentAvant + 50) fail('Chalutier : le remorquage ne vend pas exactement la moitié de la cale restante (obtenu +' + (chronoExpire.argentApres - chronoExpire.argentAvant) + ' $, attendu +50 $)');
+    else ok('Chalutier : le remorquage vend bien ce qu\'il reste de cale après avoir perdu la moitié');
+
+    // -------------------------------------------------------------------
+    // Retour au ponton : vente automatique dès qu'on est revenu à moins de
+    // 8 u, mais seulement après avoir vraiment quitté le port.
+    // -------------------------------------------------------------------
+    console.log('\n--- Chalutier « Sainte-Odile » : retour au ponton, vente automatique ---');
+    const retour = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'chalutier');
+      startRun();
+      entrerInterieur('chalutier', p);
+      const s = INT.actif;
+      P.x = s.barre.x; P.z = s.barre.z;
+      majAction(); document.getElementById('btnAction')._fn();
+      const pasDeVenteAuDepart = s.sortieEnCours; // bateau encore à (0,0), aQuitteLePort=false
+      s.cale = []; s.calePoids = 0; s.caleValeur = 0;
+      chalutierAjouterCale(s, { nom: 'Prise', valeur: 200, poids: 40 });
+      s.aQuitteLePort = true; s.bateau.x = 3; s.bateau.z = 3;
+      const argentAvant = META.argent;
+      majInterieur(0.01, 0.01);
+      const sortieFinie = !s.sortieEnCours, argentApres = META.argent;
+      if (INT.actif) sortirInterieur();
+      return { pasDeVenteAuDepart, sortieFinie, argentApres, argentAvant };
+    });
+    if (!retour.pasDeVenteAuDepart) fail('Chalutier : la sortie se termine toute seule dès le départ, sans jamais avoir quitté le port');
+    else ok('Chalutier : rester au ponton (sans l\'avoir quitté) ne termine pas la sortie tout seul');
+    if (!retour.sortieFinie || retour.argentApres !== retour.argentAvant + 200) fail('Chalutier : le retour au ponton (après avoir pris le large) ne vend pas automatiquement la cale (obtenu +' + (retour.argentApres - retour.argentAvant) + ' $)');
+    else ok('Chalutier : le retour au ponton vend bien automatiquement la cale');
+
+    // -------------------------------------------------------------------
+    // Curiosité La Boussole du Capitaine : condition stricte (Fosse, cale
+    // pleine, rien rejeté, avant la tempête). Testé AVANT toute sortie qui
+    // l'obtiendrait pour de bon (même discipline que les curiosités
+    // précédentes — voir CLAUDE.md).
+    // -------------------------------------------------------------------
+    console.log('\n--- Chalutier « Sainte-Odile » : curiosité La Boussole du Capitaine (condition stricte) ---');
+    const boussoleTest = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'chalutier');
+      startRun();
+      const dejaAcquise = aCurio('boussole');
+      // 1) presque mérité, mais une prise a été rejetée -> pas de curiosité
+      entrerInterieur('chalutier', p);
+      const s = INT.actif;
+      P.x = s.barre.x; P.z = s.barre.z;
+      majAction(); document.getElementById('btnAction')._fn();
+      s.zoneMax = 3; s.cale = []; s.calePoids = 0; s.caleValeur = 0;
+      chalutierAjouterCale(s, { nom: 'Pleine', valeur: 999, poids: CHALUTIER_CALE_MAX });
+      s.aRejete = true; s.meteoEtat = 'calme';
+      s.aQuitteLePort = true; s.bateau.x = 2; s.bateau.z = 2;
+      majInterieur(0.01, 0.01);
+      const curioApresRejet = aCurio('boussole');
+      if (INT.actif) sortirInterieur();
+      // 2) vraiment mérité
+      entrerInterieur('chalutier', p);
+      const s2 = INT.actif;
+      P.x = s2.barre.x; P.z = s2.barre.z;
+      majAction(); document.getElementById('btnAction')._fn();
+      s2.zoneMax = 3; s2.cale = []; s2.calePoids = 0; s2.caleValeur = 0;
+      chalutierAjouterCale(s2, { nom: 'Pleine', valeur: 999, poids: CHALUTIER_CALE_MAX });
+      s2.aRejete = false; s2.meteoEtat = 'calme';
+      const clocheAvant = s2.boussoleMesh.material.color.getHex();
+      s2.aQuitteLePort = true; s2.bateau.x = 2; s2.bateau.z = 2;
+      majInterieur(0.01, 0.01);
+      const curioApresMerite = aCurio('boussole');
+      const clocheApres = s2.boussoleMesh.material.color.getHex();
+      if (INT.actif) sortirInterieur();
+      return { dejaAcquise, curioApresRejet, curioApresMerite, clocheAvant, clocheApres };
+    });
+    if (boussoleTest.dejaAcquise) fail('Chalutier : le test suppose la curiosité \'boussole\' pas encore acquise à ce stade de la suite');
+    if (boussoleTest.curioApresRejet) fail('Chalutier : la curiosité est donnée alors qu\'une prise a été rejetée pendant la sortie');
+    else ok('Chalutier : rejeter ne serait-ce qu\'une prise prive bien de la curiosité, même cale pleine depuis la Fosse');
+    if (!boussoleTest.curioApresMerite) fail('Chalutier : rentrer de la Fosse avec la cale pleine, sans rien rejeter, ne donne pas la curiosité');
+    else ok('Chalutier : rentrer de la Fosse avec la cale pleine, sans rien rejeter, donne bien la curiosité');
+    if (boussoleTest.clocheAvant === boussoleTest.clocheApres) fail('Chalutier : la boussole ne s\'illumine pas à l\'obtention de la curiosité');
+    else ok('Chalutier : la boussole s\'illumine bien à l\'obtention de la curiosité');
+
+    // -------------------------------------------------------------------
+    // Limite de 2 sorties par vague, l'abandon (sortie en pleine mer) la
+    // consomme quand même.
+    // -------------------------------------------------------------------
+    console.log('\n--- Chalutier « Sainte-Odile » : limite de 2 sorties par vague, l\'abandon consomme la sortie ---');
+    const capChal = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'chalutier');
+      startRun();
+      entrerInterieur('chalutier', p);
+      const s = INT.actif;
+      P.x = s.barre.x; P.z = s.barre.z;
+      majAction(); document.getElementById('btnAction')._fn();
+      const premiereDemarree = s.sortieEnCours;
+      sortirInterieur();
+      const sortieAnnuleeApresAbandon = !s.sortieEnCours;
+      const compteurApresAbandon = s.sortiesVague;
+      entrerInterieur('chalutier', p);
+      P.x = s.barre.x; P.z = s.barre.z;
+      majAction(); document.getElementById('btnAction')._fn();
+      const deuxiemeDemarree = s.sortieEnCours;
+      sortirInterieur();
+      const compteurApres2 = s.sortiesVague;
+      entrerInterieur('chalutier', p);
+      P.x = s.barre.x; P.z = s.barre.z;
+      majAction();
+      const label3e = document.getElementById('btnAction').textContent;
+      document.getElementById('btnAction')._fn();
+      const troisiemeRefusee = !s.sortieEnCours;
+      if (INT.actif) sortirInterieur();
+      return { premiereDemarree, sortieAnnuleeApresAbandon, compteurApresAbandon, deuxiemeDemarree, compteurApres2, label3e, troisiemeRefusee };
+    });
+    if (!capChal.premiereDemarree || !capChal.sortieAnnuleeApresAbandon || capChal.compteurApresAbandon !== 1) fail('Chalutier : abandonner une sortie en cours ne la consomme pas correctement (' + JSON.stringify(capChal) + ')');
+    else ok('Chalutier : sortir en pleine mer annule la sortie et la consomme quand même');
+    if (!capChal.deuxiemeDemarree || capChal.compteurApres2 !== 2) fail('Chalutier : la 2e sortie de la vague ne démarre pas correctement (compteur=' + capChal.compteurApres2 + ')');
+    else ok('Chalutier : la 2e sortie de la vague démarre normalement');
+    if (!capChal.troisiemeRefusee || !/deux sorties/i.test(capChal.label3e)) fail('Chalutier : une 3e sortie dans la même vague n\'est pas refusée (label=' + capChal.label3e + ')');
+    else ok('Chalutier : une 3e sortie dans la même vague est bien refusée');
+
+    // -------------------------------------------------------------------
+    // Réinitialisations : passage de vague et mort en pleine sortie
+    // annulent la sortie (cale perdue, météo à zéro, bateau au ponton) ;
+    // seuls le passage de vague et le game over remettent le compteur à 0.
+    // -------------------------------------------------------------------
+    console.log('\n--- Chalutier « Sainte-Odile » : réinitialisations (vague, mort, game over) ---');
+    const resetsChal = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'chalutier');
+      startRun();
+      entrerInterieur('chalutier', p);
+      const s = INT.actif;
+      P.x = s.barre.x; P.z = s.barre.z;
+      majAction(); document.getElementById('btnAction')._fn();
+      s.cale = []; s.calePoids = 0; s.caleValeur = 0;
+      chalutierAjouterCale(s, { nom: 'x', valeur: 100, poids: 10 });
+      s.meteoJauge = 50; s.meteoEtat = 'houle'; s.bateau.x = 30; s.bateau.z = 30;
+      WAVES.n++;
+      majInterieur(0, 0);
+      const sortieApresVague = s.sortieEnCours, caleApresVague = s.calePoids, meteoApresVague = s.meteoJauge,
+        bateauApresVague = Math.hypot(s.bateau.x, s.bateau.z), compteurApresVague = s.sortiesVague;
+      P.x = s.barre.x; P.z = s.barre.z;
+      majAction(); document.getElementById('btnAction')._fn();
+      s.cale = []; s.calePoids = 0; s.caleValeur = 0;
+      chalutierAjouterCale(s, { nom: 'y', valeur: 100, poids: 10 });
+      P.hp = 1; toucherJoueur(9999); // -> mourir(), en pleine sortie
+      const sortieApresMort = s.sortieEnCours, caleApresMort = s.calePoids, modeApresMort = ETAT.mode;
+      startRun();
+      const sa = INT.salles.chalutier;
+      const sortieApresGameOver = sa.sortieEnCours, compteurApresGameOver = sa.sortiesVague;
+      return {
+        sortieApresVague, caleApresVague, meteoApresVague, bateauApresVague, compteurApresVague,
+        sortieApresMort, caleApresMort, modeApresMort, sortieApresGameOver, compteurApresGameOver,
+      };
+    });
+    if (resetsChal.sortieApresVague || resetsChal.caleApresVague !== 0 || resetsChal.meteoApresVague !== 0 || resetsChal.bateauApresVague !== 0) fail('Chalutier : le passage de vague ne coupe pas la sortie et/ou ne réinitialise pas cale/météo/position du bateau (' + JSON.stringify(resetsChal) + ')');
+    else ok('Chalutier : le passage de vague coupe bien la sortie en cours et réinitialise cale, météo et position du bateau');
+    if (resetsChal.compteurApresVague !== 0) fail('Chalutier : le passage de vague ne remet pas le compteur de sorties à zéro');
+    else ok('Chalutier : le passage de vague remet bien le compteur de sorties à zéro');
+    if (resetsChal.modeApresMort !== 'mort') fail('Chalutier : mourir() n\'a pas été déclenché correctement pendant le test');
+    if (resetsChal.sortieApresMort || resetsChal.caleApresMort !== 0) fail('Chalutier : mourir en pleine sortie ne coupe pas la sortie et/ou ne fait pas perdre la cale');
+    else ok('Chalutier : mourir en pleine sortie coupe bien la sortie et fait perdre la cale');
+    if (resetsChal.sortieApresGameOver || resetsChal.compteurApresGameOver !== 0) fail('Chalutier : le game over ne coupe pas la sortie et/ou ne remet pas le compteur à zéro');
+    else ok('Chalutier : le game over coupe bien la sortie et remet le compteur à zéro');
+
+    // -------------------------------------------------------------------
+    // Tables de fouille (coffre du pont, cabine du capitaine) : jamais de
+    // gain négatif, encaissement immédiat (contrairement à la cale de
+    // pêche, différée jusqu'à la vente), META.fouilles incrémenté.
+    // -------------------------------------------------------------------
+    console.log('\n--- Chalutier « Sainte-Odile » : tables de fouille (jamais négatif, encaissement immédiat) ---');
+    const fouilleChal = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'chalutier');
+      startRun();
+      entrerInterieur('chalutier', p);
+      const s = INT.actif;
+      const fouillesAvant = META.fouilles;
+      const resultat = { chalutierPont: [], chalutierCabine: [] };
+      for (const table of ['chalutierPont', 'chalutierCabine']) {
+        const f = s.fouilles.find((x) => x.table === table);
+        for (let i = 0; i < 60; i++) {
+          f.prisVague = -1;
+          const argentAvant = META.argent;
+          resoudreFouille(f);
+          resultat[table].push(META.argent - argentAvant);
+        }
+      }
+      const fouillesTotal = META.fouilles - fouillesAvant;
+      if (INT.actif) sortirInterieur();
+      return { resultat, fouillesTotal };
+    });
+    if (fouilleChal.fouillesTotal !== 120) fail('Chalutier : META.fouilles n\'est pas incrémenté exactement une fois par fouille résolue (delta=' + fouilleChal.fouillesTotal + '/120)');
+    else ok('Chalutier : chaque fouille résolue incrémente bien META.fouilles');
+    for (const table of ['chalutierPont', 'chalutierCabine']) {
+      const vals = fouilleChal.resultat[table];
+      if (vals.some((v) => v < 0)) fail('Chalutier : la table ' + table + ' a produit un gain négatif sur 60 tirages');
+      else ok('Chalutier : la table ' + table + ' ne produit jamais de gain négatif (60 tirages), encaissé immédiatement');
+    }
+
+    // -------------------------------------------------------------------
+    // Horloges séparées : chrono, météo et charge du filet doivent suivre
+    // le temps réel (dtJeu) pendant un ralenti — mais le bateau lui-même
+    // (spectacle pur, jamais listé dans les compteurs subis) doit bien
+    // ralentir avec dt, à l'inverse de toutes les autres salles testées.
+    // -------------------------------------------------------------------
+    console.log('\n--- Horloges séparées : chrono/météo/filet du Chalutier suivent dtJeu ; le bateau, lui, ralentit avec dt ---');
+    const chronoChal = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'chalutier');
+      startRun();
+      entrerInterieur('chalutier', p);
+      const s = INT.actif;
+      P.x = s.barre.x; P.z = s.barre.z;
+      majAction(); document.getElementById('btnAction')._fn();
+      s.bateau.x = 0; s.bateau.z = 0; // zone 1
+      s.filetEtat = 'traine'; s.filetCharge = 0;
+      const dtReel = 1;
+      const dt = dtReel * 0.5, dtJeu = dtReel; // ralenti à ×0,5 simulé comme boucle()
+      const chronoAvant = s.chrono;
+      majInterieur(dt, dtJeu);
+      const chronoDelta = s.chrono - chronoAvant;
+      const filetAttendu = CHALUTIER_FILET_VIT * dtJeu;
+      return { chronoDelta, dtJeu, filetDelta: s.filetCharge, filetAttendu };
+    });
+    if (Math.abs(chronoChal.chronoDelta - chronoChal.dtJeu) > 1e-9) fail('Chalutier : le chrono de sortie ralentit pendant un ralenti au lieu de suivre le temps réel');
+    else ok('Chalutier : le chrono de sortie avance bien au temps réel pendant un ralenti (sur dtJeu)');
+    if (Math.abs(chronoChal.filetDelta - chronoChal.filetAttendu) > 1e-9) fail('Chalutier : la charge du filet ralentit pendant un ralenti au lieu de suivre le temps réel');
+    else ok('Chalutier : la charge du filet avance bien au temps réel pendant un ralenti (sur dtJeu)');
+
+    const boatDtTest = await page.evaluate(() => {
+      const s = INT.actif; // toujours la salle du test précédent
+      P.x = s.barre.x; P.z = s.barre.z;
+      s.auxCommandes = true;
+      INPUT.mx = 0; INPUT.mz = -1;
+      s.bateau.v = 0;
+      majInterieur(0.01, 1); // dt minuscule (ralenti extrême), dtJeu normal
+      const vApresDtPetit = s.bateau.v;
+      s.bateau.v = 0;
+      majInterieur(1, 1); // dt normal
+      const vApresDtNormal = s.bateau.v;
+      INPUT.mx = 0; INPUT.mz = 0;
+      if (INT.actif) sortirInterieur();
+      return { vApresDtPetit, vApresDtNormal };
+    });
+    if (!(boatDtTest.vApresDtPetit < boatDtTest.vApresDtNormal * 0.1)) fail('Chalutier : la vitesse du bateau ne ralentit pas avec dt pendant un ralenti (petit=' + boatDtTest.vApresDtPetit + ', normal=' + boatDtTest.vApresDtNormal + ') — c\'est du spectacle, elle devrait');
+    else ok('Chalutier : le bateau (spectacle pur) ralentit bien avec dt pendant un ralenti, contrairement au chrono/météo/filet/tension');
+
+    // -------------------------------------------------------------------
     // Navigation entre menus : ecran() doit toujours masquer TOUS les
     // écrans précédents avant d'afficher le nouveau (document.
     // querySelectorAll('.screen') — jamais exercé par valider.js, qui ne
