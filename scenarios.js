@@ -3032,7 +3032,7 @@ async function main() {
       const p = PORTES.find((x) => x.id === 'chalutier');
       entrerInterieur('chalutier', p);
       const s = INT.actif;
-      const zones = [s.barre, s.canne, s.treuil].concat(s.fouilles.map((f) => ({ x: f.x, z: f.z })));
+      const zones = [s.barre, s.canne, s.treuil, s.billot].concat(s.fouilles.map((f) => ({ x: f.x, z: f.z })));
       const distEntreZones = [];
       for (let i = 0; i < zones.length; i++) for (let j = i + 1; j < zones.length; j++) {
         distEntreZones.push(Math.hypot(zones[i].x - zones[j].x, zones[i].z - zones[j].z));
@@ -3043,7 +3043,7 @@ async function main() {
       return { distEntreZones, zonesVsSortie, nbFouilles };
     });
     if (Math.min(...espacementsChal.distEntreZones) < 7.99) fail('Chalutier : deux zones interactives sont à moins de 8 unités l\'une de l\'autre (' + JSON.stringify(espacementsChal.distEntreZones) + ')');
-    else ok('Chalutier : la barre, la canne, le treuil et les contenants sont bien espacés d\'au moins 8 unités entre eux');
+    else ok('Chalutier : la barre, la canne, le treuil, le billot et les contenants sont bien espacés d\'au moins 8 unités entre eux');
     if (espacementsChal.zonesVsSortie.some((d) => d < 7.99)) fail('Chalutier : une zone interactive est à moins de 8 unités du centre de la sortie (' + JSON.stringify(espacementsChal.zonesVsSortie) + ')');
     else ok('Chalutier : toutes les zones interactives sont bien à au moins 8 unités de la sortie');
     if (espacementsChal.nbFouilles !== 2) fail('Chalutier : nombre de contenants fouillables inattendu (' + espacementsChal.nbFouilles + ', attendu 2)');
@@ -3269,6 +3269,116 @@ async function main() {
     else ok('Chalutier : les objets étranges apparaissent bien au filet, à la Fosse');
     if (objetsTest.trouveHorsFosse) fail('Chalutier : un objet étrange est remonté hors de la Fosse');
     else ok('Chalutier : aucun objet étrange hors de la Fosse, en 200 tentatives');
+
+    // -------------------------------------------------------------------
+    // Billot de préparation : suivre au doigt (en fraction, jamais en pixel)
+    // la ligne de découpe d'un poisson remonté. Précise = +40 %, approximative
+    // = bonus partiel, ratée (dérapage loin de la courbe, ou lâché avant la
+    // fin) = -20 %. Le chrono continue de tourner pendant la préparation
+    // (voir CLAUDE.md, dt vs dtJeu : rien à mettre à l'échelle ici, mais rien
+    // ne doit non plus le suspendre). Les objets étranges ne sont jamais
+    // proposés à la préparation (ce ne sont pas des poissons).
+    // -------------------------------------------------------------------
+    console.log('\n--- Chalutier « Sainte-Odile » : billot — préparation du poisson (découpe au doigt, valeur, chrono) ---');
+    const billotTest = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'chalutier');
+      startRun();
+      entrerInterieur('chalutier', p);
+      const s = INT.actif;
+      majInterieur(0, 0); // règle chalutierVagueRef avant de démarrer manuellement une sortie
+      chalutierDemarrerSortie(s);
+
+      chalutierAjouterCale(s, { nom: 'Bar', valeur: 90, poids: 7 });
+      chalutierAjouterCale(s, { nom: 'Botte', valeur: 5, poids: 1, texte: 'Pointure 44.' });
+      const prochainIgnoreObjet = chalutierProchainAPreparer(s).nom;
+
+      // découpe précise : suit exactement la courbe idéale, du début à la fin
+      chalutierDemarrerBillot(s, s.cale[0]);
+      let params = s.billotActif.params;
+      for (let i = 0; i <= 50; i++) { const t = i / 50; chalutierBillotAvancer(s, t, chalutierBillotCourbe(params, t)); }
+      const precise = { resultat: s.cale[0].qualitePrep, valeur: s.cale[0].valeur, preparee: s.cale[0].preparee };
+      const plusRienAPreparer = !chalutierProchainAPreparer(s); // le Bar est préparé, ne reste que l'objet étrange
+
+      // découpe approximative : décalage constant modéré par rapport à la courbe
+      chalutierAjouterCale(s, { nom: 'Maquereau', valeur: 40, poids: 4 });
+      const itApprox = s.cale[s.cale.length - 1];
+      chalutierDemarrerBillot(s, itApprox);
+      params = s.billotActif.params;
+      for (let i = 0; i <= 50; i++) { const t = i / 50; chalutierBillotAvancer(s, t, chalutierBillotCourbe(params, t) + 0.06); }
+      const approx = { resultat: itApprox.qualitePrep, valeur: itApprox.valeur };
+
+      // découpe ratée par dérapage : courbe connue (déterministe), point de test loin d'elle
+      chalutierAjouterCale(s, { nom: 'Congre', valeur: 160, poids: 11 });
+      const itDerapage = s.cale[s.cale.length - 1];
+      chalutierDemarrerBillot(s, itDerapage);
+      s.billotActif.params = { amp: 0.15, freq: 2, phase: 0, taille: 0.5 };
+      chalutierBillotAvancer(s, 0.1, 0.02); // très loin de la courbe (≈0,64 à t=0,1)
+      const derapage = { resultat: itDerapage.qualitePrep, valeur: itDerapage.valeur, billotActifApres: !!s.billotActif };
+
+      // découpe ratée par abandon : relâché à mi-chemin, jamais fini la ligne
+      chalutierAjouterCale(s, { nom: 'Thon de Solara', valeur: 350, poids: 22 });
+      const itAbandon = s.cale[s.cale.length - 1];
+      chalutierDemarrerBillot(s, itAbandon);
+      params = s.billotActif.params;
+      for (let i = 0; i <= 25; i++) { const t = i / 50; chalutierBillotAvancer(s, t, chalutierBillotCourbe(params, t)); }
+      chalutierBillotRelacher(s);
+      const abandon = { resultat: itAbandon.qualitePrep, valeur: itAbandon.valeur };
+
+      // le chrono de la sortie continue de décompter pendant une préparation, même sans toucher l'écran
+      chalutierAjouterCale(s, { nom: 'Bar', valeur: 90, poids: 7 });
+      chalutierDemarrerBillot(s, s.cale[s.cale.length - 1]);
+      const chronoAvant = s.chrono;
+      for (let i = 0; i < 30; i++) majInterieur(0.05, 0.05);
+      const chronoAvance = s.chrono - chronoAvant;
+      const encoreActifPendantAttente = !!s.billotActif && !s.billotActif.termine;
+      chalutierBillotRelacher(s);
+
+      // espacement (fait aussi partie du test dédié plus haut, ici on vérifie juste que le champ existe et est cohérent)
+      const billotExiste = !!s.billot;
+
+      // reset : abandonner la sortie efface l'état du billot en cours
+      chalutierAjouterCale(s, { nom: 'Bar', valeur: 90, poids: 7 });
+      chalutierDemarrerBillot(s, s.cale[s.cale.length - 1]);
+      chalutierArreterSortie(s);
+      const billotActifApresAbandonSortie = s.billotActif;
+
+      // rejeter la prise en cours de préparation ne double-compte pas sa valeur
+      chalutierDemarrerSortie(s);
+      chalutierAjouterCale(s, { nom: 'Bar', valeur: 90, poids: 7 });
+      chalutierDemarrerBillot(s, s.cale[s.cale.length - 1]);
+      const caleValeurAvantRejet = s.caleValeur;
+      chalutierRejeterDerniere(s);
+
+      if (INT.actif) sortirInterieur();
+      return {
+        prochainIgnoreObjet, precise, plusRienAPreparer, approx, derapage, abandon,
+        chronoAvance, encoreActifPendantAttente, billotExiste, billotActifApresAbandonSortie,
+        caleValeurApresRejet: s.caleValeur, caleValeurAttendueApresRejet: caleValeurAvantRejet - 90,
+        billotActifApresRejet: s.billotActif,
+      };
+    });
+    if (billotTest.prochainIgnoreObjet !== 'Bar') fail('Billot : un objet étrange est proposé à la préparation comme s\'il s\'agissait d\'un poisson (' + billotTest.prochainIgnoreObjet + ')');
+    else ok('Billot : les objets étranges ne sont jamais proposés à la préparation, seuls les poissons/prises le sont');
+    if (billotTest.precise.resultat !== 'precise' || billotTest.precise.valeur !== 126 || !billotTest.precise.preparee) fail('Billot : une découpe qui suit exactement la courbe idéale ne donne pas le bonus complet (' + JSON.stringify(billotTest.precise) + ', attendu valeur=126=round(90*1.4))');
+    else ok('Billot : une découpe précise (suit exactement la ligne) donne bien +40 % et marque la prise comme préparée');
+    if (!billotTest.plusRienAPreparer) fail('Billot : le Bar déjà préparé est encore proposé à la préparation');
+    else ok('Billot : une prise déjà préparée n\'est plus reproposée');
+    if (billotTest.approx.resultat !== 'approx' || billotTest.approx.valeur !== 46) fail('Billot : une découpe à écart constant modéré ne donne pas un bonus partiel (' + JSON.stringify(billotTest.approx) + ', attendu valeur=46=round(40*1.15))');
+    else ok('Billot : une découpe approximative donne bien un bonus partiel, inférieur au bonus complet');
+    if (billotTest.derapage.resultat !== 'ratee' || billotTest.derapage.valeur !== 128 || billotTest.derapage.billotActifApres) fail('Billot : un dérapage loin de la courbe ne rate pas immédiatement la découpe (' + JSON.stringify(billotTest.derapage) + ', attendu valeur=128=round(160*0.8))');
+    else ok('Billot : un dérapage loin de la ligne rate immédiatement la découpe (-20 %), la session se referme');
+    if (billotTest.abandon.resultat !== 'ratee' || billotTest.abandon.valeur !== 280) fail('Billot : lâcher avant la fin de la ligne ne compte pas comme une découpe ratée (' + JSON.stringify(billotTest.abandon) + ', attendu valeur=280=round(350*0.8))');
+    else ok('Billot : lâcher avant la fin de la ligne compte bien comme une découpe ratée (-20 %)');
+    if (billotTest.chronoAvance < 1.49 || billotTest.chronoAvance > 1.51) fail('Billot : le chrono de la sortie ne continue pas de décompter normalement pendant une préparation (avance de ' + billotTest.chronoAvance + ' s pour 1,5 s réelle)');
+    else ok('Billot : le chrono de la sortie continue bien de décompter pendant une préparation — un pari, pas une pause');
+    if (!billotTest.encoreActifPendantAttente) fail('Billot : une préparation en cours est annulée par la seule attente, sans intervention du joueur');
+    else ok('Billot : une préparation en cours n\'est pas annulée tant que le joueur ne relâche pas ou ne dérape pas');
+    if (!billotTest.billotExiste) fail('Billot : la salle du chalutier n\'a pas de poste billot (s.billot manquant)');
+    else ok('Billot : le poste billot est bien enregistré dans la salle');
+    if (billotTest.billotActifApresAbandonSortie !== null) fail('Billot : abandonner la sortie ne referme pas une préparation en cours (' + JSON.stringify(billotTest.billotActifApresAbandonSortie) + ')');
+    else ok('Billot : abandonner la sortie referme bien une préparation en cours');
+    if (Math.abs(billotTest.caleValeurApresRejet - billotTest.caleValeurAttendueApresRejet) > 1e-9 || billotTest.billotActifApresRejet !== null) fail('Billot : rejeter la prise en cours de préparation double-compte sa valeur ou laisse une préparation orpheline (' + JSON.stringify(billotTest) + ')');
+    else ok('Billot : rejeter la prise en cours de préparation referme proprement la session, sans double-compter sa valeur');
 
     // -------------------------------------------------------------------
     // Cale : poids/valeur cumulés, rejet de la dernière prise, refus une
@@ -3502,6 +3612,55 @@ async function main() {
     else ok('Chalutier : la 2e sortie de la vague démarre normalement');
     if (!capChal.troisiemeRefusee || !/deux sorties/i.test(capChal.label3e)) fail('Chalutier : une 3e sortie dans la même vague n\'est pas refusée (label=' + capChal.label3e + ')');
     else ok('Chalutier : une 3e sortie dans la même vague est bien refusée');
+
+    // -------------------------------------------------------------------
+    // Bug déjà rencontré : marcher jusqu'à la zone de SORTIE en pleine mer
+    // faisait quitter la salle (aucun sens, à des kilomètres du ponton). La
+    // zone doit être inerte pendant une sortie, avec un message dédié ; seul
+    // le bouton ⚓ ABANDONNER LA SORTIE peut écourter la sortie (et la
+    // consomme), sans jamais faire quitter la salle.
+    // -------------------------------------------------------------------
+    console.log('\n--- Chalutier « Sainte-Odile » : la zone de SORTIE est inerte en pleine mer, l\'abandon passe par un bouton dédié ---');
+    const sortieEnMer = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'chalutier');
+      startRun();
+      entrerInterieur('chalutier', p);
+      ETAT.intT = 0; // règle la temporisation « viens d'entrer » (0,5 s posée par entrerInterieur), sinon elle masque aussi la zone de SORTIE
+      const s = INT.actif;
+      P.x = s.barre.x; P.z = s.barre.z;
+      majAction(); document.getElementById('btnAction')._fn(); // LARGUER LES AMARRES
+      P.x = s.sortie.x; P.z = s.sortie.z; // debout dans la zone de SORTIE, en pleine mer
+      majAction();
+      const labelEnMer = document.getElementById('btnAction').textContent;
+      document.getElementById('btnAction')._fn();
+      const encoreDansLaSalleApresTentative = !!INT.actif;
+      const encoreEnMerApresTentative = s.sortieEnCours;
+      const compteurAvantAbandon = s.sortiesVague;
+      document.getElementById('chalAbandonner').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
+      const sortieAnnuleeParBouton = !s.sortieEnCours;
+      const encoreDansLaSalleApresAbandon = !!INT.actif;
+      const compteurApresAbandon = s.sortiesVague;
+      // de retour au ponton (sortieEnCours=false) : la même zone redevient utilisable normalement
+      majAction();
+      const labelAuPonton = document.getElementById('btnAction').textContent;
+      document.getElementById('btnAction')._fn();
+      const salleQuitteeAuPonton = !INT.actif;
+      return {
+        labelEnMer, encoreDansLaSalleApresTentative, encoreEnMerApresTentative,
+        compteurAvantAbandon, sortieAnnuleeParBouton, encoreDansLaSalleApresAbandon, compteurApresAbandon,
+        labelAuPonton, salleQuitteeAuPonton,
+      };
+    });
+    if (!/rentrer au port/i.test(sortieEnMer.labelEnMer)) fail('Chalutier : le bouton d\'action dans la zone de SORTIE en pleine mer n\'affiche pas le message attendu (label=' + sortieEnMer.labelEnMer + ')');
+    else ok('Chalutier : la zone de SORTIE affiche bien « il faut rentrer au port pour débarquer » en pleine mer');
+    if (!sortieEnMer.encoreDansLaSalleApresTentative || !sortieEnMer.encoreEnMerApresTentative) fail('Chalutier : la zone de SORTIE fait quitter la salle (ou annule la sortie) en pleine mer (' + JSON.stringify(sortieEnMer) + ')');
+    else ok('Chalutier : la zone de SORTIE ne fait ni quitter la salle ni annuler la sortie en pleine mer');
+    if (!sortieEnMer.sortieAnnuleeParBouton || !sortieEnMer.encoreDansLaSalleApresAbandon) fail('Chalutier : le bouton ⚓ ABANDONNER LA SORTIE n\'abandonne pas la sortie sans faire quitter la salle (' + JSON.stringify(sortieEnMer) + ')');
+    else ok('Chalutier : le bouton ⚓ ABANDONNER LA SORTIE abandonne bien la sortie en cours, sans faire quitter la salle');
+    if (sortieEnMer.compteurApresAbandon !== sortieEnMer.compteurAvantAbandon) fail('Chalutier : le bouton ⚓ ABANDONNER LA SORTIE modifie le compteur de sorties de la vague de façon inattendue (avant=' + sortieEnMer.compteurAvantAbandon + ', après=' + sortieEnMer.compteurApresAbandon + ')');
+    else ok('Chalutier : le bouton ⚓ ABANDONNER LA SORTIE consomme bien la sortie (compteur inchangé, pas remis à 0)');
+    if (!/^SORTIR/.test(sortieEnMer.labelAuPonton) || !sortieEnMer.salleQuitteeAuPonton) fail('Chalutier : la zone de SORTIE ne redevient pas utilisable normalement une fois de retour au ponton (' + JSON.stringify(sortieEnMer) + ')');
+    else ok('Chalutier : la zone de SORTIE redevient normalement utilisable une fois de retour au ponton');
 
     // -------------------------------------------------------------------
     // Réinitialisations : passage de vague et mort en pleine sortie

@@ -3120,16 +3120,13 @@ function placerPortes(){
     const cRadio=caseCentre(8,6); // quartier industriel : un entrepôt discret
     poser('radio',cRadio.x,cRadio.z,'SOLARA FM',0xb48bff);
   }
-  // Bug déjà rencontré : (11,8) est aussi la case du dock des Frelons
-  // (bx===11&&bz===8 plus haut, entrepôt RUCHE 9) — la porte du chalutier se
-  // retrouvait sur le même pâté de maisons que ce repaire de gang. Une seule
-  // case d'écart ne suffit pas : placeLibrePorte élargit sa recherche de
-  // façade jusqu'à 3,6 cases si le voisinage immédiat est peu bâti (cas
-  // fréquent en bord de port), et retombe alors quand même sur le dock voisin.
-  // (9,9) reste dans le même quartier du port mais à ~2 cases à la fois
-  // du dock et de l'aquarium.
-  const cChal=caseCentre(9,9); // quartier du port : un ponton, le chalutier amarré
-  poser('chalutier',cChal.x,cChal.z,'LE SAINTE-ODILE',0x2a9ac0);
+  // Bug déjà rencontré : la porte du chalutier visait une case du quartier
+  // « port », qui n'est en réalité qu'un quartier d'entrepôts sans façade sur
+  // la vraie mer — placeLibrePorte() la repoussait en pleine ville, contre le
+  // premier bâtiment venu (le dock des Frelons, ou un autre selon les runs).
+  // Le chalutier est désormais construit directement sur un ponton, en bord
+  // de mer, dans remplirBloc() (voir qq==='plage', bx===10) : sa porte existe
+  // donc déjà à ce stade, sans passer par poser()/placeLibrePorte.
   // secours : si un lieu manquait, on place la porte près de la grande place
   if(!PORTES.some(p=>p.id==='banque')&&POIS.place)
     poser('banque',POIS.place.x+CELL,POIS.place.z,'BANQUE',0x35e0ff);
@@ -3141,8 +3138,11 @@ function placerPortes(){
     ['bowling','STRIKE DORÉ',0xffd23f],['sport','FER & SUEUR',0xff5a6a],
     ['serre','SERRE',0x7dff7a],['sandwich','LE ROI DES SANDWICHS',0xffd23f],
     ['musee','MUSÉE DE SOLARA',0xffd23f],['arcade','PALAIS DE L\'ARCADE',0xff5ec4],
-    ['cine','CINÉ-PALACE',0xe8503f],['metro','MÉTRO — STATION SOLARA',0x7a8a99],
-    ['chalutier','LE SAINTE-ODILE',0x2a9ac0]
+    ['cine','CINÉ-PALACE',0xe8503f],['metro','MÉTRO — STATION SOLARA',0x7a8a99]
+    // 'chalutier' n'est volontairement pas dans ce filet de repli : sa porte
+    // est construite directement sur son ponton (voir remplirBloc, plage,
+    // bx===10) et existe donc toujours ; le filet de repli ignore de toute
+    // façon la rangée de la mer (bz>MER-CELL), il ne pourrait rien pour elle.
   ];
   if(aCurio('platine')) REPLIS.push(['radio','SOLARA FM',0xb48bff]);
   for(const [id,nom,coul] of REPLIS){
@@ -3225,6 +3225,30 @@ function remplirBloc(qq,bx,bz,cx,cz){
         });
         mkEnseigne('MARINA','#35e0ff',cx+CELL/2,3.4,cz-2,0,8);
       }
+    }
+    // Bug déjà rencontré : la porte du chalutier visait une case de grille
+    // (quartier « port ») qui n'est en réalité qu'un quartier d'entrepôts,
+    // à bonne distance de la vraie mer (MER=HALF-8) — placeLibrePorte()
+    // la repoussait alors sur la façade dégagée la plus proche, en pleine
+    // ville. Comme la marina juste au-dessus, le ponton du chalutier est
+    // donc construit ici, à la case (10,13) du quartier plage, directement
+    // ancré dans l'eau, et sa porte posée dessus sans passer par
+    // placeLibrePorte (aucune « façade » n'existe en pleine mer).
+    if(bx===10&&!PORTES.some(p=>p.id==='chalutier')){
+      const px=cx;
+      const plank=new THREE.Mesh(new THREE.BoxGeometry(3.6,0.3,32),new THREE.MeshLambertMaterial({map:texPlanche}));
+      plank.position.set(px,0.3,MER+10); scene.add(plank);
+      for(let k=0;k<6;k++){ mkBox(0.24,1,0.24,mat(0x4a3826),px-2,0.4,MER-4+k*6);
+        mkBox(0.24,1,0.24,mat(0x4a3826),px+2,0.4,MER-4+k*6); }
+      PONTONS.push({x:px,z:MER+10,hw:2.6,hd:16});
+      const g=new THREE.Group();
+      g.add(mkBoxG(4.6,2.2,13,0x2a4a58,0,1.1,0));          // coque
+      g.add(mkBoxG(3.4,2,3.6,0xd8dce4,0,2.6,-3.5));         // passerelle
+      g.add(mkBoxG(0.16,4,0.16,0xc7ccd2,0,4.6,-3.5));       // mât
+      g.add(mkBoxG(5.2,0.3,2.2,0x8a6a44,0,2.15,3.6));       // treuil arrière
+      g.position.set(px,0,MER+18); scene.add(g);
+      mkEnseigne('SAINTE-ODILE','#2a9ac0',px,4.4,MER+11.4,0,8);
+      mkPorte('chalutier',px,MER+13,'LE SAINTE-ODILE',0x2a9ac0);
     }
     return;
   }
@@ -6758,6 +6782,9 @@ chalutierWrap.innerHTML='<div style="display:flex;align-items:center;justify-con
   '<button id="chalRejeter" style="pointer-events:auto;margin-top:5px;padding:4px 10px;border-radius:8px;'+
   'border:1px solid #ff3b5c66;background:#1a0f12e6;color:#ffb0bc;font:800 8.5px Arial;letter-spacing:.03em">'+
   '🌊 REJETER LA DERNIÈRE PRISE</button>'+
+  '<button id="chalAbandonner" style="display:block;pointer-events:auto;margin:5px auto 0;padding:4px 10px;'+
+  'border-radius:8px;border:1px solid #ffffff33;background:#1a1a1ee6;color:#c8ccd4;font:800 8.5px Arial;'+
+  'letter-spacing:.03em">⚓ ABANDONNER LA SORTIE</button>'+
   '<div id="chalTensionWrap" style="display:none;position:relative;margin-top:6px;height:14px;'+
   'background:#12141bee;border:1.5px solid #ffffff33;border-radius:4px;overflow:hidden">'+
   '<i id="chalProgres" style="position:absolute;inset:0;width:0%;background:#7dff7a33"></i>'+
@@ -6772,7 +6799,63 @@ const chalLblEl=chalutierWrap.querySelector('#chalLbl'), chalMeteoEl=chalutierWr
 chalutierWrap.querySelector('#chalRejeter').addEventListener('pointerdown',e=>{
   e.preventDefault(); if(INT.actif&&INT.actif.sortieEnCours) chalutierRejeterDerniere(INT.actif);
 });
-const JAUGES=[fouilleWrap,karaWrap,bwWrap,spWrap,swWrap,musWrap,arcadeWrap,cineWrap,metroWrap,radioWrap,chalutierWrap];
+// Bug déjà rencontré : la seule façon d'écourter une sortie était de marcher
+// jusqu'à la zone de SORTIE, ce qui faisait aussi quitter la salle en pleine
+// mer (aucun sens : on ne descend pas du bateau au large). La zone de SORTIE
+// est désormais désactivée tant que sortieEnCours est vrai (voir majAction) ;
+// l'abandon passe uniquement par ce bouton dédié, explicite, qui consomme la
+// sortie (chalutierArreterSortie) sans faire quitter la salle.
+chalutierWrap.querySelector('#chalAbandonner').addEventListener('pointerdown',e=>{
+  e.preventDefault();
+  if(INT.actif&&INT.actif.sortieEnCours){
+    chalutierArreterSortie(INT.actif);
+    toast('Sortie abandonnée. Retour au ponton.','warn'); SFX.refus();
+  }
+});
+/* Chalutier « Sainte-Odile » : le billot — suivre au doigt la ligne de
+   découpe d'un poisson. Zone tactile dédiée avec son propre canvas (comme
+   viseeZone pour le stand de canards) : toute position y est immédiatement
+   convertie en fraction (0..1) du rectangle réel du canvas, jamais gardée en
+   pixels — voir billotDeplace/dessinerBillot. */
+const billotWrap=document.createElement('div');
+billotWrap.style.cssText='position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);'+
+  'width:min(320px,84vw);display:none;text-align:center;z-index:7;pointer-events:none';
+billotWrap.innerHTML='<div id="billotLbl" style="font:900 11px Arial;letter-spacing:.05em;color:#2a9ac0;'+
+  'text-shadow:0 2px 6px #000;margin-bottom:4px">🔪 SUIS LA DÉCOUPE, DU BOUT À L’AUTRE</div>'+
+  '<canvas id="billotCv" width="600" height="260" style="width:100%;aspect-ratio:600/260;'+
+  'display:block;border-radius:10px;border:1.5px solid #ffffff33;background:#0e1218;'+
+  'touch-action:none;pointer-events:auto"></canvas>';
+el('hud').appendChild(billotWrap);
+const billotLblEl=billotWrap.querySelector('#billotLbl');
+const billotCv=billotWrap.querySelector('#billotCv'), billotCx=billotCv.getContext('2d');
+let billotPointerId=null;
+function billotDeplace(clientX,clientY){
+  const s=INT.actif; if(!s||!s.billotActif) return;
+  const r=billotCv.getBoundingClientRect();
+  if(r.width<=0||r.height<=0) return;
+  const t=clamp((clientX-r.left)/r.width,0,1), y=clamp((clientY-r.top)/r.height,0,1);
+  chalutierBillotAvancer(s,t,y);
+}
+billotCv.addEventListener('pointerdown',e=>{
+  e.preventDefault();
+  const s=INT.actif; if(!s||!s.billotActif||s.billotActif.termine) return;
+  const r=billotCv.getBoundingClientRect();
+  if(r.width<=0) return;
+  const t=(e.clientX-r.left)/r.width;
+  if(t>0.15) return; // doit démarrer près du bout du poisson, pas n'importe où sur la ligne
+  billotPointerId=e.pointerId; billotCv.setPointerCapture(e.pointerId);
+  s.billotActif.avance=0; s.billotActif.erreurPond=0; s.billotActif.trace=[];
+  billotDeplace(e.clientX,e.clientY);
+});
+billotCv.addEventListener('pointermove',e=>{ if(e.pointerId===billotPointerId) billotDeplace(e.clientX,e.clientY); });
+const billotFin=e=>{
+  if(e.pointerId!==billotPointerId) return;
+  billotPointerId=null;
+  const s=INT.actif; if(s&&s.billotActif) chalutierBillotRelacher(s);
+};
+billotCv.addEventListener('pointerup',billotFin);
+billotCv.addEventListener('pointercancel',billotFin);
+const JAUGES=[fouilleWrap,karaWrap,bwWrap,spWrap,swWrap,musWrap,arcadeWrap,cineWrap,metroWrap,radioWrap,chalutierWrap,billotWrap];
 function cacherJauges(){ for(const j of JAUGES) if(j.style.display!=='none') j.style.display='none'; }
 
 /* =====================================================================
@@ -7955,7 +8038,7 @@ function construireSalle(id){
     new THREE.MeshBasicMaterial({color:0x35e0ff,transparent:true,opacity:0.38,depthWrite:false}));
   tapis.rotation.x=-Math.PI/2; tapis.position.set(sortie.x,0.12,sortie.z); g.add(tapis);
   mkEnseigne('SORTIE','#35e0ff',sortie.x,3.1,oz+P2/2-0.5,0,5);
-  const inter={id,g,ox,oz,sortie,objets:[],pnj:[],fouilles:[],D};
+  const inter={id,g,ox,oz,sortie,objets:[],pnj:[],fouilles:[],D,dehors};
   const box=(w,h,d,c,x,y,z,solide)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat(c));
     m.position.set(ox+x,y,oz+z); g.add(m);
     if(solide!==false) addSolid({x:ox+x,z:oz+z,hw:w/2,hd:d/2,h:y+h/2});
@@ -9530,9 +9613,15 @@ function construireSalle(id){
       const t=new THREE.Mesh(new THREE.PlaneGeometry(2.2,2.2),mat((i+j)%2?0x5a4530:0x4e3c28));
       t.rotation.x=-Math.PI/2; t.position.set(ox+i*2.25+1.1,0.11,oz+j*2.25+1.1); g.add(t);
     }
-    // mer tout autour (par-dessus le voile sombre générique de la salle),
-    // texture d'eau CLONÉE (jamais celle, partagée, de la mer extérieure) :
-    // son offset défile indépendamment, au rythme du bateau virtuel
+    // mer tout autour — remplace le voile sombre générique de la salle
+    // (inter.dehors, masqué juste après), texture d'eau CLONÉE (jamais celle,
+    // partagée, de la mer extérieure) : son offset défile indépendamment, au
+    // rythme du bateau virtuel. Bug déjà rencontré : merMesh était posé à la
+    // même hauteur (y=-0.15) que la face du dessus d'inter.dehors — deux plans
+    // quasi coïncidents provoquent un scintillement (z-fighting) au moindre
+    // mouvement de caméra, confirmé par un rendu Puppeteer réel (des tests
+    // purement logiques ne voient pas ce genre de défaut). dehors est
+    // maintenant masqué, et merMesh posé nettement plus bas par précaution.
     const texMerSalle=cTex(256,(cvs,s)=>{
       cvs.fillStyle='#1c5f86'; cvs.fillRect(0,0,s,s);
       cvs.strokeStyle='rgba(180,230,255,0.25)'; cvs.lineWidth=2;
@@ -9541,7 +9630,8 @@ function construireSalle(id){
     },26,26);
     const merMat=new THREE.MeshBasicMaterial({map:texMerSalle});
     const merMesh=new THREE.Mesh(new THREE.PlaneGeometry(420,420),merMat);
-    merMesh.rotation.x=-Math.PI/2; merMesh.position.set(ox,-0.15,oz); g.add(merMesh);
+    merMesh.rotation.x=-Math.PI/2; merMesh.position.set(ox,-0.4,oz); g.add(merMesh);
+    if(inter.dehors) inter.dehors.visible=false;
     inter.merMat=merMat;
     // silhouette de Solara qui s'éloigne, côté sortie (le ponton est resté là-bas)
     // — matériaux DÉDIÉS (jamais mat(), partagé) : leur opacité est mutée
@@ -9618,6 +9708,18 @@ function construireSalle(id){
     fouillable(0,-17.6,'Cabine du capitaine','chalutierCabine',bureauCabine,2.8);
     mkEnseigne('CABINE DU CAPITAINE','#ffd23f',ox,1.6,oz-16.9,0,13);
     lampe(0,-14,0xfff2c0,6); // seule lumière artificielle : à l'intérieur de la cabine
+    // ---- billot de préparation (poste) ----
+    // à 8 u ou plus de la barre (0,-9), de la canne (-6,-1), du treuil (0,10),
+    // du centre de la SORTIE (0,21) — ET des deux contenants fouillables,
+    // coffre du pont (6,3.4) et cabine du capitaine (0,-17.6) : le test
+    // d'espacements du chalutier les traite comme des zones interactives au
+    // même titre que les postes. (7,-13) reste à l'écart de tout le monde.
+    box(1.8,0.9,1.1,0x6a4a2e,7,0.45,-13);              // planche de bois
+    box(1.3,0.06,0.7,0xc9a06a,7,0.94,-13,false);        // dessus clair, entaillé
+    box(0.5,0.06,0.08,0xc7ccd2,6.6,1.0,-12.65,false);   // lame de couteau posée
+    mkEnseigne('BILLOT','#2a9ac0',ox+7,1.9,oz-14.3,0,6);
+    inter.billot={x:ox+7,z:oz-13};
+    inter.billotActif=null;
 
     inter.sortieEnCours=false; inter.sortiesVague=0; inter.chalutierVagueRef=-1;
     inter.chrono=0; inter.meteoJauge=0; inter.meteoEtat='calme'; inter.tempeteT=0; inter.tempetePerteFaite=false;
@@ -10181,6 +10283,95 @@ function chalutierTirerEspeceCanne(zone){
   for(const e of tab){ r-=e.p; if(r<=0) return e.id; }
   return tab[0].id;
 }
+/* ---- billot de préparation : suivre au doigt la ligne de découpe d'un
+   poisson, du bout à l'autre. Tout est exprimé en fraction (0..1) du billot,
+   jamais en pixels, pour se comporter à l'identique quelle que soit la
+   résolution — voir billotDeplace/dessinerBillot. Une prise préparée avec
+   précision vaut 40 % de plus ; une découpe approximative, un bonus partiel ;
+   une découpe ratée (ligne pas suivie, ou lâchée avant la fin) abîme la
+   prise (-20 %). Le chrono de la sortie et la météo continuent de tourner
+   pendant la préparation : c'est un pari délibéré (pêcher plus, ou valoriser
+   ce qu'on a), pas une pause. */
+const CHALUTIER_BILLOT_SEUIL_PRECIS=0.035, CHALUTIER_BILLOT_SEUIL_APPROX=0.09, CHALUTIER_BILLOT_DERAPAGE=0.4;
+const CHALUTIER_BILLOT_BONUS_PRECIS=0.4, CHALUTIER_BILLOT_BONUS_APPROX=0.15, CHALUTIER_BILLOT_MALUS_RATE=0.2;
+const CHALUTIER_BILLOT_POIDS_MIN=1.5, CHALUTIER_BILLOT_POIDS_MAX=22; // plus léger (sardine) → plus lourd (thon)
+function chalutierBillotParams(item){
+  const taille=clamp((item.poids-CHALUTIER_BILLOT_POIDS_MIN)/(CHALUTIER_BILLOT_POIDS_MAX-CHALUTIER_BILLOT_POIDS_MIN),0,1);
+  // gros poisson = ligne plus longue et plus sinueuse (plus d'oscillations, amplitude plus grande)
+  return {amp:lerp(0.08,0.22,taille),freq:lerp(1.1,3.2,taille),phase:rand(0,Math.PI*2),taille};
+}
+function chalutierBillotCourbe(params,t){
+  return 0.5+Math.sin(t*params.freq*Math.PI*2+params.phase)*params.amp;
+}
+function chalutierProchainAPreparer(s){
+  return s.cale.find(it=>!it.texte&&!it.preparee);
+}
+function chalutierDemarrerBillot(s,item){
+  s.billotActif={item,params:chalutierBillotParams(item),avance:0,erreurPond:0,trace:[],termine:false};
+  billotWrap.style.display='block';
+  dessinerBillot(s);
+  SFX.ui();
+}
+function chalutierBillotAvancer(s,t,y){
+  const b=s.billotActif; if(!b||b.termine) return;
+  if(t<b.avance-0.03) return; // pas de retour en arrière significatif : on ne recompte pas ce qui est déjà tracé
+  const erreur=Math.abs(y-chalutierBillotCourbe(b.params,t));
+  if(t>b.avance){ b.erreurPond+=erreur*(t-b.avance); b.avance=t; }
+  b.trace.push({t,y});
+  dessinerBillot(s);
+  if(erreur>=CHALUTIER_BILLOT_DERAPAGE){ chalutierFinirBillot(s,'ratee'); return; } // la lame a complètement dérapé
+  if(b.avance>=0.97) chalutierResoudreBillot(s);
+}
+function chalutierBillotRelacher(s){
+  const b=s.billotActif; if(!b||b.termine) return;
+  if(b.avance<0.05) return; // simple effleurement : pas une vraie tentative, on laisse réessayer
+  if(b.avance>=0.97) chalutierResoudreBillot(s);
+  else chalutierFinirBillot(s,'ratee'); // lâché avant la fin de la ligne
+}
+function chalutierResoudreBillot(s){
+  const b=s.billotActif; if(!b||b.termine) return;
+  const erreurMoy=b.avance>0?b.erreurPond/b.avance:1;
+  const resultat=erreurMoy<=CHALUTIER_BILLOT_SEUIL_PRECIS?'precise':(erreurMoy<=CHALUTIER_BILLOT_SEUIL_APPROX?'approx':'ratee');
+  chalutierFinirBillot(s,resultat);
+}
+function chalutierFinirBillot(s,resultat){
+  const b=s.billotActif; if(!b||b.termine) return;
+  b.termine=true;
+  const it=b.item;
+  const mult=resultat==='precise'?1+CHALUTIER_BILLOT_BONUS_PRECIS:(resultat==='approx'?1+CHALUTIER_BILLOT_BONUS_APPROX:1-CHALUTIER_BILLOT_MALUS_RATE);
+  const nouvelleValeur=Math.round(it.valeur*mult);
+  s.caleValeur+=(nouvelleValeur-it.valeur);
+  it.valeur=nouvelleValeur; it.preparee=true; it.qualitePrep=resultat;
+  const msgs={precise:'découpe précise : +40 %',approx:'découpe approximative : bonus partiel',ratee:'découpe ratée : -20 %'};
+  toast(it.nom+' — '+msgs[resultat]+' ('+nouvelleValeur+' $)',resultat==='ratee'?'warn':'or');
+  if(resultat==='precise'){ SFX.niveau(); vibre(30); } else if(resultat==='ratee') SFX.refus(); else SFX.ui();
+  s.billotActif=null;
+  billotWrap.style.display='none';
+}
+function dessinerBillot(s){
+  const b=s&&s.billotActif; if(!b||!billotCx) return;
+  const W=billotCv.width,H=billotCv.height,cx=billotCx;
+  cx.clearRect(0,0,W,H);
+  cx.fillStyle='#1c2027'; cx.fillRect(0,0,W,H);
+  cx.save();
+  cx.translate(W*0.5,H*0.5); cx.scale(1,0.5+0.3*b.params.taille);
+  cx.fillStyle='#2a4a58';
+  cx.beginPath(); cx.ellipse(0,0,W*0.46,H*0.34,0,0,Math.PI*2); cx.fill();
+  cx.restore();
+  cx.strokeStyle='rgba(255,255,255,0.55)'; cx.setLineDash([6,6]); cx.lineWidth=2;
+  cx.beginPath();
+  for(let i=0;i<=60;i++){ const t=i/60,y=chalutierBillotCourbe(b.params,t)*H;
+    if(i===0) cx.moveTo(t*W,y); else cx.lineTo(t*W,y); }
+  cx.stroke(); cx.setLineDash([]);
+  if(b.trace.length>1){
+    cx.strokeStyle=b.termine?'#ff3b5c':'#ffd23f'; cx.lineWidth=4; cx.lineCap='round'; cx.lineJoin='round';
+    cx.beginPath();
+    for(let i=0;i<b.trace.length;i++){ const p=b.trace[i];
+      if(i===0) cx.moveTo(p.t*W,p.y*H); else cx.lineTo(p.t*W,p.y*H); }
+    cx.stroke();
+  }
+  if(billotLblEl) billotLblEl.textContent='🔪 '+Math.round(b.avance*100)+' %';
+}
 // point de reset paresseux, comme les autres salles spéciales (metroVerifierVague...)
 function chalutierVerifierVague(s){
   if(s.chalutierVagueRef!==WAVES.n){
@@ -10195,6 +10386,7 @@ function chalutierDemarrerSortie(s){
   s.zoneMax=1; s.cale=[]; s.calePoids=0; s.caleValeur=0; s.aRejete=false;
   s.canneEtat=null; s.canneDelai=0; s.canneFerrageT=0; s.canneEspece=null; s.canneTension=50; s.canneProgres=0;
   s.filetEtat=null; s.filetCharge=0; if(s.filetMesh) s.filetMesh.visible=false;
+  s.billotActif=null; if(billotWrap.style.display!=='none') billotWrap.style.display='none';
   chalutierAmbianceStart();
   chalutierWrap.style.display='block';
   bigMsg('⚓ EN MER'); toast('180 secondes. Reviens au ponton avant que ça tourne.','or');
@@ -10210,6 +10402,7 @@ function chalutierArreterSortie(s){
   s.cale=[]; s.calePoids=0; s.caleValeur=0; s.aRejete=false;
   s.canneEtat=null; s.filetEtat=null; s.filetCharge=0;
   if(s.filetMesh) s.filetMesh.visible=false;
+  s.billotActif=null; if(billotWrap.style.display!=='none') billotWrap.style.display='none';
   s.meteoJauge=0; s.meteoEtat='calme'; s.tempeteT=0; s.tempetePerteFaite=false;
   s.bateau={x:0,z:0,ang:0,v:0}; s.chrono=0;
   chalutierAmbianceStop();
@@ -10219,6 +10412,11 @@ function chalutierPerdreMoitieCale(s){
   const cibleP=s.calePoids/2;
   while(s.cale.length&&s.calePoids>cibleP){
     const it=s.cale.pop(); s.calePoids-=it.poids; s.caleValeur-=it.valeur;
+    // voir chalutierRejeterDerniere : même garde contre le double comptage
+    // si la prise perdue était celle en cours de préparation sur le billot.
+    if(s.billotActif&&!s.billotActif.termine&&s.billotActif.item===it){
+      s.billotActif=null; billotWrap.style.display='none';
+    }
   }
 }
 function chalutierAjouterCale(s,item){
@@ -10231,6 +10429,13 @@ function chalutierRejeterDerniere(s){
   const it=s.cale.pop();
   s.calePoids-=it.poids; s.caleValeur-=it.valeur;
   s.aRejete=true;
+  // Bug déjà rencontré (classe) : si la prise rejetée est celle en cours de
+  // préparation sur le billot, la terminer plus tard réappliquerait un delta
+  // de valeur à un objet qui n'est plus dans la cale (double comptage). On
+  // annule la découpe en cours dans ce cas, sans pénalité supplémentaire.
+  if(s.billotActif&&!s.billotActif.termine&&s.billotActif.item===it){
+    s.billotActif=null; billotWrap.style.display='none';
+  }
   toast(it.nom+' rejeté à la mer (-'+it.valeur+' $)','warn'); SFX.refus();
 }
 function chalutierEchecCombat(s,raison){
@@ -12028,7 +12233,17 @@ function majAction(){
   let label=null,fn=null;
   if(INT.actif){
     const s=INT.actif;
-    if(dist2(P.x,P.z,s.sortie.x,s.sortie.z)<marquerZone(s.sortie,9)&&(ETAT.intT||0)<=0){
+    // Bug déjà rencontré : marcher jusqu'à la zone de SORTIE en pleine sortie
+    // en mer faisait quitter la salle (sortirInterieur() traitait ça comme un
+    // abandon, cf. son propre filet de sécurité) — un « pas de côté » hors du
+    // bateau, sans aucun sens à des kilomètres du ponton. La zone de SORTIE
+    // est désormais inerte tant que sortieEnCours est vrai ; seul le bouton
+    // dédié ⚓ ABANDONNER LA SORTIE (dans chalutierWrap) peut écourter la
+    // sortie, en la consommant, sans faire quitter la salle.
+    if(s.barre&&s.sortieEnCours&&dist2(P.x,P.z,s.sortie.x,s.sortie.z)<marquerZone(s.sortie,9)&&(ETAT.intT||0)<=0){
+      label='⚓ Il faut rentrer au port pour débarquer';
+      fn=()=>{ SFX.refus(); };
+    } else if(dist2(P.x,P.z,s.sortie.x,s.sortie.z)<marquerZone(s.sortie,9)&&(ETAT.intT||0)<=0){
       label='SORTIR';
       fn=()=>{ if(s.casseEtat==='actif') finirCasseMusee(s,true); if(s.piles) metroEncaisser(s); sortirInterieur(); };
     /* ---------- MUSÉE : boîtier électrique (déclenche/referme le casse) ---------- */
@@ -12673,6 +12888,24 @@ function majAction(){
       } else {
         label='🕸️ REMONTER LE FILET ('+Math.round(s.filetCharge)+' %)';
         fn=()=>{ chalutierRemonterFilet(s); };
+      }
+    /* ---------- CHALUTIER : le billot (préparation, +40 % si précis) ---------- */
+    } else if(s.billot&&dist2(P.x,P.z,s.billot.x,s.billot.z)<marquerZone(s.billot,9)){
+      if(!s.sortieEnCours){
+        label='🔪 Le billot attend le grand large';
+        fn=()=>{ SFX.refus(); };
+      } else if(s.billotActif&&!s.billotActif.termine){
+        label='🔪 Découpe en cours...';
+        fn=()=>{};
+      } else {
+        const prochain=chalutierProchainAPreparer(s);
+        if(!prochain){
+          label='🔪 Rien à préparer pour l’instant';
+          fn=()=>{ SFX.refus(); };
+        } else {
+          label='🔪 PRÉPARER — '+prochain.nom;
+          fn=()=>{ chalutierDemarrerBillot(s,prochain); };
+        }
       }
     } else if(s.fouilles&&s.fouilles.length&&
               s.fouilles.some(f=>dist2(P.x,P.z,f.x,f.z)<f.rayon*f.rayon)){
