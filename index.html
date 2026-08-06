@@ -2981,15 +2981,37 @@ function facadeProche(x,z,rayon){
   // devant la façade sud (côté rue), légèrement décalé
   return {x:best.x,z:best.z+best.hd+1.7,bat:best};
 }
-function placeLibrePorte(x,z){
-  // hors bâtiment, hors eau, accès dégagé, loin du point d'apparition et des autres portes
+// aplatit POIS en une liste de points {x,z}, en excluant la clé `sauf` (le POI
+// sur lequel la porte appelante s'ancre volontairement — voir poser()/ancre).
+function puntosPOI(sauf){
+  const pts=[];
+  for(const k in POIS){
+    if(k===sauf) continue;
+    const v=POIS[k]; if(!v) continue;
+    if(Array.isArray(v)){ for(const it of v) if(typeof it.x==='number'&&typeof it.z==='number') pts.push(it); }
+    else if(typeof v.x==='number'&&typeof v.z==='number') pts.push(v);
+  }
+  return pts;
+}
+function placeLibrePorte(x,z,ancre){
+  // hors bâtiment, hors eau, accès dégagé, loin du point d'apparition, des
+  // autres portes et des autres POI (bug déjà rencontré : sans cette dernière
+  // règle, une porte pouvait se plaquer sur la façade d'un POI sans rapport —
+  // le métro sur un fast-food, la voyance sur une armurerie, le chalutier sur
+  // le dock adverse — invisible/introuvable pour le joueur. `ancre` exempte le
+  // POI sur lequel cette porte est volontairement plaquée, voir poser()).
   const spawn=POIS.place?{x:POIS.place.x,z:POIS.place.z+8}:null;
+  const poisAeviter=puntosPOI(ancre);
+  const loinDesPOI=(px,pz)=>{
+    for(const q of poisAeviter) if(dist2(px,pz,q.x,q.z)<324) return false; // 18 u
+    return true;
+  };
   const ok=(px,pz)=>{
     if(solidAt(px,pz,2.2)||estEau(px,pz)) return false;
     if(solidAt(px,pz+3.5,1.2)||estEau(px,pz+3.5)) return false;
     if(spawn&&dist2(px,pz,spawn.x,spawn.z)<900) return false;      // 30 u autour du spawn
     for(const q of PORTES) if(dist2(px,pz,q.x,q.z)<600) return false; // portes espacées
-    return true;
+    return loinDesPOI(px,pz);
   };
   // contrôle assoupli pour une porte adossée : on tolère le mur juste derrière
   const okFacade=(px,pz)=>{
@@ -2997,7 +3019,7 @@ function placeLibrePorte(x,z){
     if(solidAt(px,pz+4,1.0)||estEau(px,pz+4)) return false;    // l'accès devant est dégagé
     if(spawn&&dist2(px,pz,spawn.x,spawn.z)<900) return false;
     for(const q of PORTES) if(dist2(px,pz,q.x,q.z)<600) return false;
-    return true;
+    return loinDesPOI(px,pz);
   };
   // 1) on privilégie une vraie façade de bâtiment (les 4 côtés)
   for(const ray of [CELL*0.9,CELL*1.7,CELL*2.6,CELL*3.6]){
@@ -3023,26 +3045,31 @@ function placeLibrePorte(x,z){
   return null;
 }
 function placerPortes(){
-  const poser=(id,bx,bz,nom,coul)=>{
+  // ancre : nom de la clé POIS sur laquelle cette porte est délibérément
+  // plaquée (façade du même bâtiment, ou décalage volontaire à proximité).
+  // Sert uniquement au test d'espacement (scenarios.js) pour ne pas confondre
+  // cette proximité voulue avec une vraie collision de case — voir
+  // « Portes et placement des lieux » dans CLAUDE.md.
+  const poser=(id,bx,bz,nom,coul,ancre)=>{
     if(bx===undefined) return;
-    const p=placeLibrePorte(bx,bz);
-    if(p) mkPorte(id,p.x,p.z,nom,coul);
+    const p=placeLibrePorte(bx,bz,ancre);
+    if(p){ mkPorte(id,p.x,p.z,nom,coul); if(ancre) PORTES[PORTES.length-1].ancre=ancre; }
   };
-  if(POIS.superette) poser('superette',POIS.superette.x,POIS.superette.z,'SUPÉRETTE',0xffd23f);
-  if(POIS.club)      poser('club',POIS.club.x,POIS.club.z,'CLUB NÉON',0xff5ad0);
+  if(POIS.superette) poser('superette',POIS.superette.x,POIS.superette.z,'SUPÉRETTE',0xffd23f,'superette');
+  if(POIS.club)      poser('club',POIS.club.x,POIS.club.z,'CLUB NÉON',0xff5ad0,'club');
   if(POIS.commissariat){
-    poser('banque',POIS.commissariat.x+CELL,POIS.commissariat.z,'BANQUE',0x35e0ff);
-    poser('poste',POIS.commissariat.x,POIS.commissariat.z+9,'COMMISSARIAT',0x4a9aff);
+    poser('banque',POIS.commissariat.x+CELL,POIS.commissariat.z,'BANQUE',0x35e0ff,'commissariat');
+    poser('poste',POIS.commissariat.x,POIS.commissariat.z+9,'COMMISSARIAT',0x4a9aff,'commissariat');
   }
-  if(POIS.toitH) poser('tour',POIS.toitH.x,POIS.toitH.z+11,'TOUR SOLARA',0x35e0ff);
-  if(POIS.armurerie) poser('armurerie',POIS.armurerie.x,POIS.armurerie.z,'ARMURERIE',0xff3b5c);
+  if(POIS.toitH) poser('tour',POIS.toitH.x,POIS.toitH.z+11,'TOUR SOLARA',0x35e0ff,'toitH');
+  if(POIS.armurerie) poser('armurerie',POIS.armurerie.x,POIS.armurerie.z,'ARMURERIE',0xff3b5c,'armurerie');
   // pharmacie : dans le quartier résidentiel ou commerçant, loin du centre
   const cibPharma=POIS.superette?{x:POIS.superette.x+CELL*1.5,z:POIS.superette.z}
                  :(POIS.parc?{x:POIS.parc.x+CELL,z:POIS.parc.z+CELL}:null);
-  if(cibPharma) poser('pharma',cibPharma.x,cibPharma.z,'PHARMACIE',0x7dff7a);
-  if(POIS.garage) poser('conces',POIS.garage.x+CELL,POIS.garage.z,'SOLARA MOTORS',0xffd23f);
-  if(POIS.club) poser('casino',POIS.club.x+CELL*1.4,POIS.club.z,'CASINO',0xffd23f);
-  if(POIS.villas) poser('planque',POIS.villas.x,POIS.villas.z+10,'VILLA À VENDRE',0x7dff7a);
+  if(cibPharma) poser('pharma',cibPharma.x,cibPharma.z,'PHARMACIE',0x7dff7a,POIS.superette?'superette':'parc');
+  if(POIS.garage) poser('conces',POIS.garage.x+CELL,POIS.garage.z,'SOLARA MOTORS',0xffd23f,'garage');
+  if(POIS.club) poser('casino',POIS.club.x+CELL*1.4,POIS.club.z,'CASINO',0xffd23f,'club');
+  if(POIS.villas) poser('planque',POIS.villas.x,POIS.villas.z+10,'VILLA À VENDRE',0x7dff7a,'villas');
   /* ---- LIEUX SPÉCIAUX (lot 1) ----
      La grille des quartiers est déterministe (voir quartier(bx,bz)) : on vise
      donc une case précise plutôt qu'un décalage relatif à un POI, ce qui
@@ -3052,7 +3079,11 @@ function placerPortes(){
   const caseCentre=(bx,bz)=>({x:-HALF+bx*CELL+CELL/2, z:-HALF+bz*CELL+CELL/2});
   const cLav=caseCentre(9,3);    // quartier commerçant : une laverie de rue passante
   poser('laverie',cLav.x,cLav.z,'LAVERIE 24H',0x8ad2ff);
-  const cVoy=caseCentre(6,8);    // quartier industriel : devanture discrète, presque cachée
+  // Bug déjà rencontré : (6,8) est aussi la case d'ARMURERIE SUD (bx===6&&bz===8
+  // plus bas) — la porte de la voyance se retrouvait plaquée contre la façade
+  // de l'armurerie. (6,7) reste dans le même quartier industriel, une case
+  // plus au nord, à l'écart.
+  const cVoy=caseCentre(6,7);    // quartier industriel : devanture discrète, presque cachée
   poser('voyance',cVoy.x,cVoy.z,'VOYANCE',0xff5ad0);
   const cKar=caseCentre(8,11);   // quartier néon : à deux pas du club et du casino
   poser('karaoke',cKar.x,cKar.z,'KARAOKÉ',0xffd23f);
@@ -3073,7 +3104,12 @@ function placerPortes(){
   poser('arcade',cArc.x,cArc.z,'PALAIS DE L\'ARCADE',0xff5ec4);
   const cCine=caseCentre(11,5);  // quartier commerçant : le vieux palace de cinéma, ouvert dès le début
   poser('cine',cCine.x,cCine.z,'CINÉ-PALACE',0xe8503f);
-  const cMetro=caseCentre(2,11); // résidentiel délabré : une bouche de métro condamnée, ouverte dès le début
+  // Bug déjà rencontré : (2,11) est aussi la case des FAST-FOODS (voir plus
+  // bas, bx===2&&bz===11 → TACO NOVA) — la porte du métro se retrouvait donc
+  // plaquée contre la façade du fast-food, quasi invisible. (4,10) reste dans
+  // le même quartier résidentiel délabré mais à un coin de rue dégagé, à
+  // l'écart de toute autre case spéciale.
+  const cMetro=caseCentre(4,10); // résidentiel délabré : une bouche de métro condamnée, ouverte dès le début
   poser('metro',cMetro.x,cMetro.z,'MÉTRO — STATION SOLARA',0x7a8a99);
   // Radio pirate Solara FM : verrouillée sans La Disque de Platine, déjà
   // acquis dans une partie précédente (les curiosités vivent dans META,
@@ -3084,7 +3120,15 @@ function placerPortes(){
     const cRadio=caseCentre(8,6); // quartier industriel : un entrepôt discret
     poser('radio',cRadio.x,cRadio.z,'SOLARA FM',0xb48bff);
   }
-  const cChal=caseCentre(11,8); // quartier du port : un ponton, le chalutier amarré
+  // Bug déjà rencontré : (11,8) est aussi la case du dock des Frelons
+  // (bx===11&&bz===8 plus haut, entrepôt RUCHE 9) — la porte du chalutier se
+  // retrouvait sur le même pâté de maisons que ce repaire de gang. Une seule
+  // case d'écart ne suffit pas : placeLibrePorte élargit sa recherche de
+  // façade jusqu'à 3,6 cases si le voisinage immédiat est peu bâti (cas
+  // fréquent en bord de port), et retombe alors quand même sur le dock voisin.
+  // (9,9) reste dans le même quartier du port mais à ~2 cases à la fois
+  // du dock et de l'aquarium.
+  const cChal=caseCentre(9,9); // quartier du port : un ponton, le chalutier amarré
   poser('chalutier',cChal.x,cChal.z,'LE SAINTE-ODILE',0x2a9ac0);
   // secours : si un lieu manquait, on place la porte près de la grande place
   if(!PORTES.some(p=>p.id==='banque')&&POIS.place)
@@ -3142,7 +3186,7 @@ function remplirBloc(qq,bx,bz,cx,cz){
     rack.add(mkBoxG(2.2,1.2,0.3,0x50555e,0,0.6,0));
     const bat=mkBoxG(0.14,1.15,0.14,0x9a6a34,0,0.85,0.2); bat.rotation.z=0.5; rack.add(bat);
     rack.position.set(rx,0,rz); scene.add(rack);
-    POIS.rack={x:rx,z:rz,pris:false,batMesh:bat};
+    POIS.rack={x:rx,z:rz,pris:false,batMesh:bat,ancre:'place'}; // le râtelier est un meuble de la place elle-même
     mkArbre(cx+9,cz-8,1); mkArbre(cx-9,cz-8,0.9);
     return;
   }
@@ -12748,10 +12792,19 @@ function jourNuit(dt){
     soleil.intensity=0.04; hemi.intensity=0.08;
     scene.background.copy(CINT);
     scene.fog.color.copy(CINT);
+    // Bug déjà rencontré : scene.fog est mesuré depuis la CAMÉRA, pas depuis
+    // le joueur — et la caméra de ce jeu (vue de dessus inclinée) est à
+    // ~46 unités du joueur (camH=42, camD=19) en permanence, dans TOUTES les
+    // salles. Un fog.far de quelques dizaines d'unités (pensé à tort comme
+    // « la portée de vision du joueur ») noyait donc toute la géométrie
+    // dans le fog AVANT même d'atteindre le rendu — salle entièrement noire,
+    // quels que soient l'intensité de la lampe ou la couleur des matériaux.
+    // La portée de vision réelle doit venir du point light lui-même
+    // (lampeNuit.distance ci-dessous), jamais du fog : le fog reste donc
+    // aussi lointain qu'une salle normale.
+    scene.fog.near=120; scene.fog.far=900;
     const frac=clamp(s.batterie/100,0,1);
-    scene.fog.near=lerp(2,9,frac);
-    scene.fog.far=lerp(7,48,frac);
-    let intens=lerp(0.18,1.15,frac);
+    let intens=lerp(0.5,3.5,frac);
     if(s.batterie<20){
       const flick=0.6+0.4*Math.sin(ETAT.runT*24)*Math.sin(ETAT.runT*6.3);
       intens*=Math.max(0.15,flick);

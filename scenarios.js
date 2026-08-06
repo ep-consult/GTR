@@ -1919,6 +1919,42 @@ async function main() {
     else ok('Arcade : l\'horloge d\'une borne avance bien au temps réel — aucun ralenti du monde extérieur ne l\'atteint');
 
     // -------------------------------------------------------------------
+    // Bug déjà rencontré : la porte du métro se plaquait sur la façade d'un
+    // fast-food (même case de grille), celle de la voyance sur l'armurerie
+    // sud, celle du chalutier sur le dock adverse — dans les trois cas une
+    // porte de lieu spécial totalement invisible, confondue avec un autre
+    // lieu. Lit les positions RÉELLES de PORTES et POIS depuis le jeu après
+    // génération de la ville (jamais une liste recopiée, voir CLAUDE.md) et
+    // vérifie qu'aucune paire de lieux sans rapport n'est trop rapprochée.
+    // Une porte volontairement plaquée sur son propre POI (armurerie sur
+    // poi:armurerie, tour sur poi:toitH...) porte un champ `ancre` posé par
+    // poser() dans placerPortes() ; la paire correspondante est exemptée.
+    // -------------------------------------------------------------------
+    console.log('\n--- Ville : aucune porte de lieu spécial ne chevauche un autre POI ou une autre porte ---');
+    const espacementVille = await page.evaluate(() => {
+      startRun();
+      const pts = [];
+      for (const p of PORTES) pts.push({ src: 'porte:' + p.id, x: p.x, z: p.z, ancre: p.ancre });
+      for (const k in POIS) {
+        const v = POIS[k];
+        if (!v) continue;
+        if (Array.isArray(v)) v.forEach((it, i) => { if (typeof it.x === 'number' && typeof it.z === 'number') pts.push({ src: 'poi:' + k + '[' + i + ']', poiKey: k, x: it.x, z: it.z, ancre: it.ancre }); });
+        else if (typeof v.x === 'number' && typeof v.z === 'number') pts.push({ src: 'poi:' + k, poiKey: k, x: v.x, z: v.z, ancre: v.ancre });
+      }
+      const tropProches = [];
+      for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) {
+        const a = pts[i], b = pts[j];
+        const exempte = (a.ancre && a.ancre === b.poiKey) || (b.ancre && b.ancre === a.poiKey);
+        if (exempte) continue;
+        const d = Math.hypot(a.x - b.x, a.z - b.z);
+        if (d < 20) tropProches.push({ a: a.src, b: b.src, d });
+      }
+      return { nbPts: pts.length, tropProches };
+    });
+    if (espacementVille.tropProches.length) fail('Ville : des lieux sans rapport se chevauchent (moins de 20 u) — ' + JSON.stringify(espacementVille.tropProches));
+    else ok('Ville : les ' + espacementVille.nbPts + ' portes et POI de la ville sont tous à au moins 20 u les uns des autres (hors ancrage volontaire)');
+
+    // -------------------------------------------------------------------
     // Métro abandonné : porte, quartier, curiosité 'lampe' activée.
     // -------------------------------------------------------------------
     console.log('\n--- Métro abandonné : porte, quartier, curiosité activée ---');
@@ -1927,7 +1963,7 @@ async function main() {
       const c = CURIOS.find((x) => x.id === 'lampe');
       return {
         porteExiste: !!p,
-        quartierAttendu: quartier(2, 11),
+        quartierAttendu: quartier(4, 10),
         curioActive: c ? c.actif : null,
         curioA_eff: c ? !!c.eff : false,
         curioA_ind: c ? !!c.ind : false,
@@ -1935,10 +1971,51 @@ async function main() {
     });
     if (!metroPorte.porteExiste) fail('Métro : aucune porte posée pour la salle');
     else ok('Métro : la porte est bien posée');
-    if (metroPorte.quartierAttendu !== 'residentiel') fail('Métro : quartier(2,11) ne vaut plus \'residentiel\' (' + metroPorte.quartierAttendu + ') — repositionner caseCentre(2,11)');
-    else ok('Métro : quartier(2,11) vaut bien \'residentiel\', comme demandé');
+    if (metroPorte.quartierAttendu !== 'residentiel') fail('Métro : quartier(4,10) ne vaut plus \'residentiel\' (' + metroPorte.quartierAttendu + ') — repositionner caseCentre(4,10)');
+    else ok('Métro : quartier(4,10) vaut bien \'residentiel\', comme demandé');
     if (!metroPorte.curioActive || !metroPorte.curioA_eff || !metroPorte.curioA_ind) fail('Métro : la curiosité \'lampe\' n\'est pas correctement activée (actif/eff/ind)');
     else ok('Métro : la curiosité \'lampe\' est bien activée avec ses textes');
+
+    // -------------------------------------------------------------------
+    // Bug déjà rencontré : la lampe de mineur (lampeNuit réutilisée) restait
+    // éteinte à l'entrée si on était de jour en ville, et/ou restait accrochée
+    // à une position de la ville au lieu de suivre le joueur (IOFF=-9000).
+    // La salle est entièrement noire sans elle : bloquant. Teste aussi le
+    // rétablissement de l'éclairage ville à la sortie, de jour comme de nuit.
+    // -------------------------------------------------------------------
+    console.log('\n--- Métro abandonné : la lampe de mineur s\'allume seule à l\'entrée, suit le joueur ---');
+    const lampeMetro = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'metro');
+      startRun();
+      ETAT.jour = 30; // plein jour en ville : la lampe ne doit pas en dépendre
+      entrerInterieur('metro', p);
+      majInterieur(0, 0);
+      jourNuit(0.016); // comme le fait boucle(), une fois par frame
+      const intensiteEntree = lampeNuit.intensity;
+      const posEntree = { x: lampeNuit.position.x, z: lampeNuit.position.z };
+      const posJoueur = { x: P.x, z: P.z };
+      sortirInterieur();
+      jourNuit(0.016);
+      const sortieJour = { intensity: lampeNuit.intensity, x: lampeNuit.position.x, z: lampeNuit.position.z };
+      const posVilleJour = { x: P.x, z: P.z };
+      ETAT.jour = 130; // pleine nuit
+      entrerInterieur('metro', p);
+      majInterieur(0, 0);
+      jourNuit(0.016);
+      sortirInterieur();
+      jourNuit(0.016);
+      const sortieNuit = { intensity: lampeNuit.intensity, x: lampeNuit.position.x, z: lampeNuit.position.z };
+      const posVilleNuit = { x: P.x, z: P.z };
+      return { intensiteEntree, posEntree, posJoueur, sortieJour, posVilleJour, sortieNuit, posVilleNuit };
+    });
+    if (!(lampeMetro.intensiteEntree > 0)) fail('Métro : la lampe de mineur reste éteinte à l\'entrée (intensité=' + lampeMetro.intensiteEntree + '), même en plein jour dehors');
+    else ok('Métro : la lampe de mineur s\'allume seule à l\'entrée, sans dépendre du jour/nuit de la ville');
+    if (Math.abs(lampeMetro.posEntree.x - lampeMetro.posJoueur.x) > 1e-6 || Math.abs(lampeMetro.posEntree.z - lampeMetro.posJoueur.z) > 1e-6) fail('Métro : la lampe reste à une position de la ville (' + JSON.stringify(lampeMetro.posEntree) + ') au lieu de suivre le joueur (' + JSON.stringify(lampeMetro.posJoueur) + ')');
+    else ok('Métro : la lampe suit bien la position du joueur, pas une position de la ville');
+    if (lampeMetro.sortieJour.intensity !== 0 || Math.abs(lampeMetro.sortieJour.x - lampeMetro.posVilleJour.x) > 1e-6 || Math.abs(lampeMetro.sortieJour.z - lampeMetro.posVilleJour.z) > 1e-6) fail('Métro : l\'éclairage de ville n\'est pas bien rétabli à la sortie de jour (' + JSON.stringify(lampeMetro.sortieJour) + ' vs joueur ' + JSON.stringify(lampeMetro.posVilleJour) + ')');
+    else ok('Métro : l\'éclairage de ville (lampe éteinte de jour) est bien rétabli à la sortie, à la position du joueur');
+    if (!(lampeMetro.sortieNuit.intensity > 0) || Math.abs(lampeMetro.sortieNuit.x - lampeMetro.posVilleNuit.x) > 1e-6 || Math.abs(lampeMetro.sortieNuit.z - lampeMetro.posVilleNuit.z) > 1e-6) fail('Métro : l\'éclairage de ville n\'est pas bien rétabli à la sortie de nuit (' + JSON.stringify(lampeMetro.sortieNuit) + ' vs joueur ' + JSON.stringify(lampeMetro.posVilleNuit) + ')');
+    else ok('Métro : l\'éclairage de ville (lampadaire allumé de nuit) est bien rétabli à la sortie, à la position du joueur');
 
     // -------------------------------------------------------------------
     // Espacements — lus depuis la salle réelle, jamais recopiés ici (voir
