@@ -3505,12 +3505,14 @@ async function main() {
     }
 
     // -------------------------------------------------------------------
-    // Horloges séparées : chrono, météo et charge du filet doivent suivre
-    // le temps réel (dtJeu) pendant un ralenti — mais le bateau lui-même
-    // (spectacle pur, jamais listé dans les compteurs subis) doit bien
-    // ralentir avec dt, à l'inverse de toutes les autres salles testées.
+    // Horloges séparées : chrono, météo, charge du filet ET déplacement du
+    // bateau doivent tous suivre le temps réel (dtJeu) pendant un ralenti.
+    // Le bateau semblait pur spectacle (aucune jauge dessus, jamais appliqué
+    // à un mesh) mais la distance parcourue est exactement ce qui se joue
+    // contre le chrono — un déplacement en course contre un chrono partage
+    // son horloge, même sans jauge dédiée (voir CLAUDE.md, « Horloges »).
     // -------------------------------------------------------------------
-    console.log('\n--- Horloges séparées : chrono/météo/filet du Chalutier suivent dtJeu ; le bateau, lui, ralentit avec dt ---');
+    console.log('\n--- Horloges séparées : chrono/météo/filet/déplacement du Chalutier suivent tous dtJeu ---');
     const chronoChal = await page.evaluate(() => {
       const p = PORTES.find((x) => x.id === 'chalutier');
       startRun();
@@ -3533,23 +3535,27 @@ async function main() {
     if (Math.abs(chronoChal.filetDelta - chronoChal.filetAttendu) > 1e-9) fail('Chalutier : la charge du filet ralentit pendant un ralenti au lieu de suivre le temps réel');
     else ok('Chalutier : la charge du filet avance bien au temps réel pendant un ralenti (sur dtJeu)');
 
-    const boatDtTest = await page.evaluate(() => {
-      const s = INT.actif; // toujours la salle du test précédent
+    console.log('\n--- Horloges séparées : la distance parcourue par le bateau du Chalutier est la même pendant un ralenti qu\'à vitesse normale ---');
+    const distanceRalenti = await page.evaluate(() => {
+      const s = INT.actif; // toujours la salle du test précédent, sortie en cours
       P.x = s.barre.x; P.z = s.barre.z;
       s.auxCommandes = true;
       INPUT.mx = 0; INPUT.mz = -1;
-      s.bateau.v = 0;
-      majInterieur(0.01, 1); // dt minuscule (ralenti extrême), dtJeu normal
-      const vApresDtPetit = s.bateau.v;
-      s.bateau.v = 0;
-      majInterieur(1, 1); // dt normal
-      const vApresDtNormal = s.bateau.v;
+      const dtJeu = 1; // une seconde réelle, dans les deux cas
+      // vitesse normale : dt = dtJeu (aucun ralenti)
+      s.bateau.v = 0; s.bateau.ang = 0; s.bateau.x = 0; s.bateau.z = 0;
+      majInterieur(dtJeu, dtJeu);
+      const distNormale = Math.hypot(s.bateau.x, s.bateau.z);
+      // ralenti actif : dt très inférieur à dtJeu, mais la même seconde réelle
+      s.bateau.v = 0; s.bateau.ang = 0; s.bateau.x = 0; s.bateau.z = 0;
+      majInterieur(dtJeu * 0.2, dtJeu);
+      const distRalentie = Math.hypot(s.bateau.x, s.bateau.z);
       INPUT.mx = 0; INPUT.mz = 0;
       if (INT.actif) sortirInterieur();
-      return { vApresDtPetit, vApresDtNormal };
+      return { distNormale, distRalentie };
     });
-    if (!(boatDtTest.vApresDtPetit < boatDtTest.vApresDtNormal * 0.1)) fail('Chalutier : la vitesse du bateau ne ralentit pas avec dt pendant un ralenti (petit=' + boatDtTest.vApresDtPetit + ', normal=' + boatDtTest.vApresDtNormal + ') — c\'est du spectacle, elle devrait');
-    else ok('Chalutier : le bateau (spectacle pur) ralentit bien avec dt pendant un ralenti, contrairement au chrono/météo/filet/tension');
+    if (Math.abs(distanceRalenti.distNormale - distanceRalenti.distRalentie) > 1e-9) fail('Chalutier : le bateau parcourt une distance différente en une seconde réelle selon qu\'un ralenti est actif ou non (normale=' + distanceRalenti.distNormale + ', ralentie=' + distanceRalenti.distRalentie + ') — la distance ne doit dépendre que de dtJeu, jamais de dt');
+    else ok('Chalutier : le bateau parcourt bien la même distance en une seconde réelle, ralenti actif ou non (déplacement sur dtJeu)');
 
     // -------------------------------------------------------------------
     // Navigation entre menus : ecran() doit toujours masquer TOUS les

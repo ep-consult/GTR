@@ -160,6 +160,38 @@ Contraintes tirées de la passe de debug — à respecter pour toute nouvelle sa
 
 ---
 
+## Horloges : `dt` vs `dtJeu`
+
+`boucle()` calcule deux horloges à partir du même temps réel écoulé :
+
+- `dt` = temps réel × `ETAT.timeScale` — le spectacle : rendu, déplacement des
+  entités, physique, particules, animations. Ralentit avec un effet de ralenti
+  (chef de gang, curiosités qui jouent sur le combo...).
+- `dtJeu` = temps réel, **jamais mis à l'échelle** — les compteurs que le
+  joueur subit : chronos, jauges qui dérivent, minuteries.
+
+**Le critère n'est pas « est-ce un compteur subi » mais « est-ce que ça se
+joue contre quelque chose qui est déjà sur `dtJeu` ».** Un déplacement peut
+sembler relever du spectacle (pas de jauge, pas de chrono explicite dessus)
+et pourtant être exactement ce qui court contre un chrono — auquel cas il
+doit partager l'horloge du chrono, pas celle du rendu.
+
+Piège déjà rencontré : dans la salle du Chalutier, le bateau semblait pur
+spectacle (juste une position virtuelle, jamais appliquée à un mesh) et avait
+été laissé sur `dt`, alors que le chrono de sortie et la météo tournent sur
+`dtJeu`. Un ralenti pendant une sortie ralentissait le bateau sans ralentir
+le chrono : un retour qui aurait dû réussir pouvait échouer — une punition
+arbitraire, pas un effet de ralenti cohérent. Corrigé en passant tout le
+déplacement du bateau (cap, vitesse, position) sur `dtJeu`. Seul l'habillage
+purement cosmétique sans effet sur l'issue (défilement de la texture d'eau,
+animation des mouettes) reste sur `dt`.
+
+Pour toute nouvelle salle avec un déplacement (bateau, plateforme, projectile
+du joueur...) : si ce déplacement détermine si un chrono est battu ou non, il
+va sur `dtJeu`, même sans jauge dédiée.
+
+---
+
 ## Joueur (`P`, ~L3644)
 
 `P.stamMax` est la source de vérité pour l'endurance — **jamais 100 en dur**.

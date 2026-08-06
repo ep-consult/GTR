@@ -10071,9 +10071,14 @@ function radioDemarrerEmission(s){
 /* =====================================================================
    LE CHALUTIER « SAINTE-ODILE » — sortie en mer : pilotage à la barre,
    pêche à la canne (précision) et au filet (volume), cale/poids, météo.
-   Chrono, météo, charge du filet et tension du combat sont des compteurs
-   subis par le joueur : dtJeu, jamais dt. Le bateau lui-même (spectacle,
-   position virtuelle jamais appliquée à un mesh) reste sur dt.
+   Chrono, météo, charge du filet, tension du combat ET déplacement du
+   bateau tournent tous sur dtJeu, jamais dt : la distance parcourue est
+   ce qui se joue contre le chrono (lui-même sur dtJeu), donc elle partage
+   son horloge — un déplacement en course contre un chrono n'est pas un
+   simple habillage de spectacle, même s'il n'a pas de mesh propre (voir
+   CLAUDE.md). Seuls le défilement cosmétique de la texture d'eau et
+   l'animation des mouettes restent sur dt (pur habillage visuel, sans
+   effet sur l'issue de la sortie).
 ===================================================================== */
 const CHALUTIER_DUREE=180, CHALUTIER_SORTIES_MAX=2;
 const CHALUTIER_ZONE1_MAX=60, CHALUTIER_ZONE2_MAX=140, CHALUTIER_DIST_MAX=200;
@@ -10680,7 +10685,12 @@ function majInterieur(dt,dtJeu){
             toast('La tempête arrache la moitié de la cale !','warn'); SFX.refus(); secousse(6); vibre(100);
           }
         }
-        // pilotage à la barre : joystick = cap direct, avec inertie — spectacle, sur dt
+        // pilotage à la barre : joystick = cap direct, avec inertie — sur dtJeu,
+        // jamais dt. La distance parcourue est ce qui se joue contre le chrono
+        // (lui-même sur dtJeu) : un ralenti ne doit ni voler de terrain au
+        // retour ni en offrir à l'aller. Règle générale (voir CLAUDE.md) : un
+        // déplacement en course contre un chrono partage l'horloge du chrono,
+        // qu'il soit ou non un « compteur subi » au sens strict.
         if(s.auxCommandes){
           P.x=s.barre.x; P.z=s.barre.z;
           const l=Math.hypot(INPUT.mx,INPUT.mz);
@@ -10689,12 +10699,12 @@ function majInterieur(dt,dtJeu){
           const vitesseMax=CHALUTIER_VIT_BASE*(1-0.4*chargeFrac)*meteoMalus;
           if(l>=0.15){
             const cap=Math.atan2(INPUT.mx,INPUT.mz);
-            s.bateau.ang=angLerp(s.bateau.ang,cap,clamp(CHALUTIER_VIRAGE*dt,0,1));
-            s.bateau.v=lerp(s.bateau.v,vitesseMax*Math.min(l,1),clamp(CHALUTIER_ACCEL*dt,0,1));
-          } else s.bateau.v=lerp(s.bateau.v,0,clamp(CHALUTIER_DECEL*dt,0,1));
-        } else s.bateau.v=lerp(s.bateau.v,0,clamp(CHALUTIER_DECEL*0.5*dt,0,1));
-        s.bateau.x+=Math.sin(s.bateau.ang)*s.bateau.v*dt;
-        s.bateau.z+=Math.cos(s.bateau.ang)*s.bateau.v*dt;
+            s.bateau.ang=angLerp(s.bateau.ang,cap,clamp(CHALUTIER_VIRAGE*dtJeu,0,1));
+            s.bateau.v=lerp(s.bateau.v,vitesseMax*Math.min(l,1),clamp(CHALUTIER_ACCEL*dtJeu,0,1));
+          } else s.bateau.v=lerp(s.bateau.v,0,clamp(CHALUTIER_DECEL*dtJeu,0,1));
+        } else s.bateau.v=lerp(s.bateau.v,0,clamp(CHALUTIER_DECEL*0.5*dtJeu,0,1));
+        s.bateau.x+=Math.sin(s.bateau.ang)*s.bateau.v*dtJeu;
+        s.bateau.z+=Math.cos(s.bateau.ang)*s.bateau.v*dtJeu;
         const distApres=Math.hypot(s.bateau.x,s.bateau.z);
         if(distApres>CHALUTIER_DIST_MAX){ const k=CHALUTIER_DIST_MAX/distApres; s.bateau.x*=k; s.bateau.z*=k; }
         const zoneMaintenant=chalutierZoneDe(Math.hypot(s.bateau.x,s.bateau.z));
