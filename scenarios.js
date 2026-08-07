@@ -3793,6 +3793,353 @@ async function main() {
     if (Math.abs(distanceRalenti.distNormale - distanceRalenti.distRalentie) > 1e-9) fail('Chalutier : le bateau parcourt une distance différente en une seconde réelle selon qu\'un ralenti est actif ou non (normale=' + distanceRalenti.distNormale + ', ralentie=' + distanceRalenti.distRalentie + ') — la distance ne doit dépendre que de dtJeu, jamais de dt');
     else ok('Chalutier : le bateau parcourt bien la même distance en une seconde réelle, ralenti actif ou non (déplacement sur dtJeu)');
 
+    // =====================================================================
+    // SITE 51
+    // =====================================================================
+    console.log('\n--- Site 51 : porte cachée, quartier, condition de déblocage, 1 visite/vague ---');
+    const site51Porte = await page.evaluate(() => {
+      const out = {};
+      startRun();
+      out.quartier = quartier(12, 1);
+      const p = PORTES.find((x) => x.id === 'site51');
+      out.portePresente = !!p;
+      out.icoAvant = INTDEFS.site51.ico;
+
+      META.fouilles = 10;
+      P.x = p.x; P.z = p.z;
+      majAction();
+      out.labelScellee = document.getElementById('btnAction').textContent;
+      document.getElementById('btnAction')._fn();
+      out.salleOuverteApresRefus = !!INT.actif;
+
+      META.fouilles = 25;
+      majAction();
+      out.labelOuverte = document.getElementById('btnAction').textContent;
+      document.getElementById('btnAction')._fn();
+      ETAT.intT = 0;
+      out.icoApresEntree = INTDEFS.site51.ico;
+      const s = INT.actif;
+      P.x = s.sortie.x; P.z = s.sortie.z;
+      majAction(); document.getElementById('btnAction')._fn(); // sort sans rien prendre : consomme quand même la visite
+
+      P.x = p.x; P.z = p.z;
+      majAction();
+      out.label2eTentativeMemeVague = document.getElementById('btnAction').textContent;
+      return out;
+    });
+    if (!site51Porte.portePresente) fail('Site 51 : aucune porte posée');
+    else ok('Site 51 : la porte (grille d\'aération) est bien posée');
+    if (site51Porte.quartier !== 'base') fail('Site 51 : quartier(12,1) ne vaut plus \'base\' (' + site51Porte.quartier + ') — repositionner caseCentre(12,1)');
+    else ok('Site 51 : quartier(12,1) vaut bien \'base\', comme demandé');
+    if (site51Porte.icoAvant !== '?') fail('Site 51 : l\'icône n\'est pas « ? » avant la première entrée (' + site51Porte.icoAvant + ')');
+    else ok('Site 51 : la carte/minimap affiche bien « ? » avant la première entrée');
+    if (!/Scellée/i.test(site51Porte.labelScellee) || site51Porte.salleOuverteApresRefus) fail('Site 51 : la grille n\'est pas scellée sous 25 fouilles (' + JSON.stringify(site51Porte) + ')');
+    else ok('Site 51 : la grille est bien scellée (avec message) tant que META.fouilles < 25');
+    if (!/^ENTRER/.test(site51Porte.labelOuverte)) fail('Site 51 : la grille reste scellée alors que META.fouilles >= 25 (' + site51Porte.labelOuverte + ')');
+    else ok('Site 51 : la grille s\'ouvre normalement dès que META.fouilles >= 25');
+    if (site51Porte.icoApresEntree === '?') fail('Site 51 : l\'icône reste « ? » après une première entrée réelle');
+    else ok('Site 51 : l\'icône change bien après la première entrée (jamais le nom réel, juste plus « ? »)');
+    if (!/Scellée/i.test(site51Porte.label2eTentativeMemeVague)) fail('Site 51 : une 2e visite est possible dans la même vague (' + site51Porte.label2eTentativeMemeVague + '), attendu 1 max');
+    else ok('Site 51 : une seule visite par vague, consommée même sans rien prendre');
+
+    console.log('\n--- Site 51 : structure de la salle et curiosité La Plaque du Capitaine ---');
+    const site51Structure = await page.evaluate(() => {
+      startRun();
+      META.fouilles = 25;
+      const p = PORTES.find((x) => x.id === 'site51');
+      entrerInterieur('site51', p);
+      const s = INT.actif;
+      const c = CURIOS.find((x) => x.id === 'plaque');
+      const out = {
+        nbObjets: s.objets51.length, nbFouilles: s.fouilles.length, nbTurrets: s.turrets.length,
+        curioActive: c ? c.actif : null, curioA_eff: c ? !!c.eff : false, curioA_ind: c ? !!c.ind : false,
+        sasInitial: Object.assign({}, s.sas),
+      };
+      if (INT.actif) sortirInterieur();
+      return out;
+    });
+    if (site51Structure.nbObjets !== 10) fail('Site 51 : nombre d\'objets de valeur inattendu (' + site51Structure.nbObjets + ', attendu 10)');
+    else ok('Site 51 : les 10 objets de valeur (dont la Plaque et le Désintégrateur) sont bien enregistrés');
+    if (site51Structure.nbFouilles !== 8) fail('Site 51 : nombre de caches fouillables inattendu (' + site51Structure.nbFouilles + ', attendu 8)');
+    else ok('Site 51 : les 8 caches fouillables (3×A, 3×B, 2×C) sont bien enregistrées');
+    if (site51Structure.nbTurrets !== 2) fail('Site 51 : nombre de tourelles inattendu (' + site51Structure.nbTurrets + ', attendu 2, niveau B)');
+    else ok('Site 51 : les 2 tourelles du niveau B sont bien enregistrées');
+    if (!site51Structure.curioActive || !site51Structure.curioA_eff || !site51Structure.curioA_ind) fail('Site 51 : la curiosité \'plaque\' n\'est pas correctement activée (actif/eff/ind)');
+    else ok('Site 51 : la curiosité \'plaque\' (La Plaque du Capitaine) est bien activée avec ses textes');
+    if (!Object.values(site51Structure.sasInitial).every(Boolean)) fail('Site 51 : les 4 sas ne sont pas tous ouverts à l\'entrée (' + JSON.stringify(site51Structure.sasInitial) + ')');
+    else ok('Site 51 : les 4 sas sont bien tous ouverts à l\'entrée');
+
+    // -------------------------------------------------------------------
+    // Réinitialisations : une visite interrompue (mort, passage de vague)
+    // rouvre les sas et perd le butin PORTÉ, mais le compteur de visites du
+    // mystère avance quand même. Testé AVANT les scénarios qui prennent
+    // réellement les 10 objets (ceux-ci sont définitifs pour toute la
+    // session — voir META.site51Objets, comme les artefacts du musée).
+    // Bug déjà rencontré ailleurs (mourir()) : la mort ne fait PAS quitter
+    // l'interieur (INT.actif reste posé, seul un futur startRun() le fera) —
+    // ce test vérifie donc la conclusion de la visite, pas une sortie physique.
+    // -------------------------------------------------------------------
+    console.log('\n--- Site 51 : réinitialisations (mort en pleine visite, passage de vague) ---');
+    const site51Resets = await page.evaluate(() => {
+      startRun();
+      META.fouilles = 25;
+      const p = PORTES.find((x) => x.id === 'site51');
+      const visitesAvant1 = META.site51Visites;
+      entrerInterieur('site51', p);
+      ETAT.intT = 0;
+      let s = INT.actif;
+      site51Ramasser(s, 'dossier'); // en poche, pas encore banqué
+      P.hp = 1; toucherJoueur(999); // déclenche mourir()
+      const out = {};
+      out.visiteConclueApresMort = s.visiteEnCours === false;
+      out.dossierPasBanque = !META.site51Objets.dossier;
+      out.visitesGagneesApresMort = META.site51Visites - visitesAvant1;
+      out.sasReouvertsApresMort = Object.assign({}, s.sas);
+
+      // passage de vague en pleine visite — startRun() d'abord, comme un
+      // vrai « rejouer » après la mort (INT.actif n'est jamais remis à null
+      // par mourir() lui-même, seul un nouveau départ de partie le fait)
+      startRun();
+      const visitesAvant2 = META.site51Visites;
+      entrerInterieur('site51', p);
+      ETAT.intT = 0;
+      s = INT.actif;
+      site51Ramasser(s, 'badge');
+      s.site51VagueRef = WAVES.n - 1; // force la détection d'un changement de vague au prochain tick
+      majInterieur(0.1, 0.1);
+      out.visiteConclueApresVague = s.visiteEnCours === false;
+      out.badgePasBanque = !META.site51Objets.badge;
+      out.visitesGagneesApresVague = META.site51Visites - visitesAvant2;
+      return out;
+    });
+    if (!site51Resets.visiteConclueApresMort) fail('Site 51 : mourir en pleine visite ne conclut pas la visite (visiteEnCours reste vrai)');
+    else ok('Site 51 : mourir en pleine visite conclut bien la visite (en échec)');
+    if (!site51Resets.dossierPasBanque) fail('Site 51 : un objet porté (non rapporté) au moment de la mort est quand même banqué définitivement');
+    else ok('Site 51 : le butin porté au moment de la mort est bien perdu, jamais banqué');
+    if (site51Resets.visitesGagneesApresMort !== 1) fail('Site 51 : mourir en pleine visite n\'avance pas exactement de 1 le compteur de visites du mystère (' + site51Resets.visitesGagneesApresMort + ')');
+    else ok('Site 51 : mourir en pleine visite compte quand même comme une visite terminée pour le mystère');
+    if (!Object.values(site51Resets.sasReouvertsApresMort).every(Boolean)) fail('Site 51 : les sas ne sont pas rouverts après une mort en pleine visite (' + JSON.stringify(site51Resets.sasReouvertsApresMort) + ')');
+    else ok('Site 51 : les 4 sas sont bien rouverts après une mort en pleine visite');
+    if (!site51Resets.visiteConclueApresVague) fail('Site 51 : un passage de vague en pleine visite n\'annule pas la visite en cours');
+    else ok('Site 51 : un passage de vague en pleine visite annule bien la visite en cours');
+    if (!site51Resets.badgePasBanque) fail('Site 51 : un objet porté au moment d\'un passage de vague est quand même banqué définitivement');
+    else ok('Site 51 : le butin porté au moment d\'un passage de vague est bien perdu, jamais banqué');
+    if (site51Resets.visitesGagneesApresVague !== 1) fail('Site 51 : un passage de vague en pleine visite n\'avance pas exactement de 1 le compteur de visites du mystère (' + site51Resets.visitesGagneesApresVague + ')');
+    else ok('Site 51 : un passage de vague en pleine visite compte aussi comme une visite terminée pour le mystère');
+
+    // -------------------------------------------------------------------
+    // Confinement : un ordre de prise qui vise systématiquement le hangar
+    // avant de fermer les deux sas d'un même palier réussit toujours à
+    // 100 % (vérifié aussi par simulation exhaustive hors du jeu — voir
+    // SITE51_OBJETS_DEF). Le butin n'est banqué qu'à la sortie réussie.
+    // -------------------------------------------------------------------
+    console.log('\n--- Site 51 : confinement — un ordre sûr récupère tout et sort avec le butin ---');
+    const site51Reussite = await page.evaluate(() => {
+      startRun();
+      META.fouilles = 25;
+      META.defis.faits.curieux = true; // neutralise le défi « première curiosité » pour un total exact
+      const p = PORTES.find((x) => x.id === 'site51');
+      const visitesAvant = META.site51Visites; // ne repart pas de 0 : accumule sur toute la session (voulu, survit au game over)
+      entrerInterieur('site51', p);
+      ETAT.intT = 0;
+      const s = INT.actif;
+      for (const id of ['dossier', 'badge', 'machine', 'echantillon', 'instrument', 'journal', 'combinaison', 'fragment', 'plaque', 'desintegrateur']) site51Ramasser(s, id);
+      const sasApresTout = Object.assign({}, s.sas);
+      const argentAvant = META.argent;
+      P.x = s.sortie.x; P.z = s.sortie.z;
+      majAction(); document.getElementById('btnAction')._fn();
+      return {
+        sasApresTout, argentGagne: META.argent - argentAvant,
+        salleQuittee: !INT.actif,
+        curioObtenue: aCurio('plaque'), armeObtenue: META.armes.desintegrateur.poss, magsDesint: P.mags.desintegrateur,
+        objetsPermanents: Object.assign({}, META.site51Objets), visitesGagnees: META.site51Visites - visitesAvant,
+      };
+    });
+    if (Object.values(site51Reussite.sasApresTout).some(Boolean)) fail('Site 51 : prendre les 4 objets de B ne ferme pas les 4 sas (' + JSON.stringify(site51Reussite.sasApresTout) + ')');
+    else ok('Site 51 : chaque objet de valeur pris ferme bien le(s) sas prévu(s) — les 4 sont fermés après les 4 objets de B');
+    if (site51Reussite.argentGagne !== 4450) fail('Site 51 : le butin banqué à la sortie n\'est pas le total attendu (obtenu ' + site51Reussite.argentGagne + ', attendu 4450 = 300+250+400+600+750+500+450+1200)');
+    else ok('Site 51 : le butin complet (4450 $) est bien banqué à la sortie réussie');
+    if (!site51Reussite.salleQuittee) fail('Site 51 : la salle n\'est pas quittée après un retour réussi à la SORTIE');
+    else ok('Site 51 : sortir par la SORTIE avec le butin conclut bien la visite');
+    if (!site51Reussite.curioObtenue) fail('Site 51 : la Plaque du Capitaine prise ET rapportée ne donne pas la curiosité');
+    else ok('Site 51 : prendre la Plaque et sortir avec donne bien la curiosité');
+    if (!site51Reussite.armeObtenue || site51Reussite.magsDesint !== 20) fail('Site 51 : le Désintégrateur pris ET rapporté n\'est pas obtenu avec 20 charges (' + JSON.stringify(site51Reussite) + ')');
+    else ok('Site 51 : prendre le Désintégrateur et sortir avec donne bien l\'arme, chargée à 20/20');
+    if (Object.keys(site51Reussite.objetsPermanents).length !== 10 || !Object.values(site51Reussite.objetsPermanents).every(Boolean)) fail('Site 51 : les 10 objets ne sont pas tous marqués définitivement pris (' + JSON.stringify(site51Reussite.objetsPermanents) + ')');
+    else ok('Site 51 : les 10 objets sont bien retirés définitivement (comme les artefacts du musée)');
+    if (site51Reussite.visitesGagnees !== 1) fail('Site 51 : le compteur de visites du mystère n\'avance pas exactement de 1 à une visite réussie (' + site51Reussite.visitesGagnees + ')');
+    else ok('Site 51 : une visite réussie avance bien le compteur de visites du mystère');
+
+    // -------------------------------------------------------------------
+    // Enfermement : fermer les 4 sas pendant que le joueur est en B coupe
+    // toute issue (vérifié directement sur le graphe réel, site51Reachable,
+    // pas une copie) ; au bout de 20 s (dtJeu) de sortie impossible, la
+    // sécurité neutralise et éjecte — butin perdu, sas rouverts, la visite
+    // compte quand même pour le mystère.
+    // -------------------------------------------------------------------
+    console.log('\n--- Site 51 : enfermement sans issue — neutralisation après 20 s (dtJeu), butin perdu ---');
+    const site51Enferme = await page.evaluate(() => {
+      startRun();
+      META.fouilles = 25;
+      const p = PORTES.find((x) => x.id === 'site51');
+      const visitesAvant = META.site51Visites;
+      entrerInterieur('site51', p);
+      ETAT.intT = 0;
+      const s = INT.actif;
+      for (const t of s.turrets) t.alarmeCd = 9999; // neutralise l'aléatoire des tourelles pour ce test
+      const peutSortirAvant = site51Reachable(s, 'B').has('E');
+      site51FermerSas(s, ['AB1', 'AB2', 'BC1', 'BC2']);
+      P.x = s.ox; P.z = s.oz + 10; // niveau B
+      const peutSortirApres = site51Reachable(s, site51SalleDe(s, P.z)).has('E');
+      let ticks = 0;
+      while (INT.actif === s && ticks < 30) { majInterieur(1, 1); ticks++; }
+      return {
+        peutSortirAvant, peutSortirApres, ticksAvantNeutralisation: ticks,
+        neutralise: INT.actif !== s, visitesGagnees: META.site51Visites - visitesAvant,
+      };
+    });
+    if (!site51Enferme.peutSortirAvant) fail('Site 51 : la sortie est jugée impossible alors qu\'aucun sas n\'est fermé');
+    else ok('Site 51 : la sortie est bien possible tant que les sas sont ouverts');
+    if (site51Enferme.peutSortirApres) fail('Site 51 : fermer les 4 sas depuis le niveau B ne coupe pas toute issue');
+    else ok('Site 51 : fermer les 4 sas alors qu\'on est en B coupe bien toute issue — un ordre peut condamner');
+    if (site51Enferme.ticksAvantNeutralisation !== 20 || !site51Enferme.neutralise) fail('Site 51 : la neutralisation ne survient pas après 20 s (dtJeu) sans issue (' + JSON.stringify(site51Enferme) + ')');
+    else ok('Site 51 : la sécurité neutralise et éjecte bien après exactement 20 s (dtJeu) sans aucune issue');
+    if (site51Enferme.visitesGagnees !== 1) fail('Site 51 : une visite neutralisée n\'avance pas le compteur de visites du mystère');
+    else ok('Site 51 : une visite neutralisée compte quand même pour le mystère (le joueur ne recommence pas à zéro)');
+
+    console.log('\n--- Site 51 : le hangar garde toujours une issue (grande porte, jamais fermée par un objet) ---');
+    const site51GrandePorte = await page.evaluate(() => {
+      startRun();
+      META.fouilles = 25;
+      const p = PORTES.find((x) => x.id === 'site51');
+      entrerInterieur('site51', p);
+      ETAT.intT = 0;
+      const s = INT.actif;
+      site51FermerSas(s, ['AB1', 'AB2', 'BC1', 'BC2']); // tout fermé
+      const peutSortirDepuisC = site51Reachable(s, 'C').has('E');
+      P.x = s.grandePorte.x; P.z = s.grandePorte.z;
+      majAction(); document.getElementById('btnAction')._fn();
+      return { peutSortirDepuisC, salleQuittee: !INT.actif };
+    });
+    if (!site51GrandePorte.peutSortirDepuisC) fail('Site 51 : le hangar n\'a plus d\'issue même quand les 4 sas de confinement sont fermés — la grande porte doit toujours rester ouverte');
+    else ok('Site 51 : le hangar garde toujours une issue via la grande porte, quel que soit l\'état des 4 sas');
+    if (!site51GrandePorte.salleQuittee) fail('Site 51 : la grande porte du hangar ne fait pas sortir de la salle');
+    else ok('Site 51 : la grande porte du hangar est bien une issue secondaire fonctionnelle');
+
+    // -------------------------------------------------------------------
+    // Le Désintégrateur : élimine tout ennemi humain en un tir, jamais
+    // rechargé par les munitions génériques (pasRecharge), et la créature
+    // (jamais dans `ennemis`) est repoussée par une arme normale sans
+    // jamais perdre de « vie », mais meurt en exactement 3 tirs au
+    // Désintégrateur.
+    // -------------------------------------------------------------------
+    console.log('\n--- Le Désintégrateur : élimine en un tir, munitions à part, tue la créature en 3 tirs ---');
+    const desintTest = await page.evaluate(() => {
+      startRun();
+      META.armes.desintegrateur.poss = true;
+      P.armeCur = 'desintegrateur'; P.mags.desintegrateur = 20;
+      majArmeJoueur('desintegrateur');
+      const e = creerEnnemi('vip_batte', P.x, P.z - 10, 0);
+      e.hp = e.hpMax = 5000;
+      P.ang = 0;
+      const magAvant = P.mags.desintegrateur;
+      tirDesintegrateur();
+      const humainMort = e.mort, magConsomme = magAvant - P.mags.desintegrateur;
+
+      P.mags.desintegrateur = 3; P.mun.desintegrateur = 0;
+      ramasser({ type: 'mun', x: P.x, z: P.z });
+      const magApresRamasserGenerique = P.mags.desintegrateur;
+
+      META.fouilles = 25;
+      const p = PORTES.find((x) => x.id === 'site51');
+      entrerInterieur('site51', p);
+      ETAT.intT = 0;
+      const s = INT.actif;
+      s.mystereNiveau = 2; // simule une 3e visite : la créature peut apparaître
+      P.z = s.oz - 60; // niveau C
+      for (let i = 0; i < 3; i++) majInterieur(0.1, 0.1);
+      const creatureApparait = !!s.creature;
+      let hp3Avant = null, hp3Apres1 = null, hp3Apres2 = null, creatureMorteApres3 = null, repousseeSansDegats = null;
+      if (s.creature) {
+        s.creature.x = P.x; s.creature.z = P.z + 3; P.ang = 0;
+        P.armeCur = 'pistolet'; META.armes.pistolet.poss = true; P.mags.pistolet = 12;
+        const zAvant = s.creature.z;
+        P.tirT = 0.5; // simule « vient de tirer » une arme normale
+        majInterieur(0.05, 0.05);
+        repousseeSansDegats = s.creature && s.creature.z !== zAvant && s.creature.hp3 === 0;
+        P.armeCur = 'desintegrateur'; P.mags.desintegrateur = 20;
+        tirDesintegrateur(); hp3Avant = s.creature ? s.creature.hp3 : null;
+        tirDesintegrateur(); hp3Apres1 = s.creature ? s.creature.hp3 : null;
+        tirDesintegrateur(); creatureMorteApres3 = !s.creature;
+      }
+      return { humainMort, magConsomme, magApresRamasserGenerique, creatureApparait, hp3Avant, hp3Apres1, creatureMorteApres3, repousseeSansDegats };
+    });
+    if (!desintTest.humainMort) fail('Désintégrateur : un ennemi humain (5000 PV) ne meurt pas en un seul tir');
+    else ok('Désintégrateur : élimine bien n\'importe quel ennemi humain en un tir');
+    if (desintTest.magConsomme !== 1) fail('Désintégrateur : un tir ne consomme pas exactement 1 charge (' + desintTest.magConsomme + ')');
+    else ok('Désintégrateur : chaque tir consomme bien 1 charge de la cellule d\'énergie');
+    if (desintTest.magApresRamasserGenerique !== 3) fail('Désintégrateur : une munition générique ramassée en ville recharge le Désintégrateur (' + desintTest.magApresRamasserGenerique + ', attendu 3 = inchangé)');
+    else ok('Désintégrateur : jamais rechargé par les munitions génériques — seules les cellules du Site 51 le rechargent');
+    if (!desintTest.creatureApparait) fail('Site 51 : la créature n\'apparaît pas au niveau C alors que mystereNiveau>=2');
+    else ok('Site 51 : la créature apparaît bien au niveau C à partir de la 3e visite');
+    if (!desintTest.repousseeSansDegats) fail('Site 51 : une arme normale ne repousse pas la créature sans lui infliger de dégâts (' + JSON.stringify(desintTest) + ')');
+    else ok('Site 51 : une arme normale repousse bien la créature, sans jamais compter comme un coup mortel');
+    if (desintTest.hp3Avant !== 1 || desintTest.hp3Apres1 !== 2 || !desintTest.creatureMorteApres3) fail('Site 51 : la créature ne meurt pas en exactement 3 tirs au Désintégrateur (' + JSON.stringify(desintTest) + ')');
+    else ok('Désintégrateur : tue bien la créature en exactement 3 tirs, jamais moins');
+
+    // -------------------------------------------------------------------
+    // Mystère : le niveau se fige au moment de l'entrée (META.site51Visites,
+    // qui ne compte que les visites terminées) et détermine la bâche
+    // déplacée (>=1) et l'apparition de la créature (>=2, niveau C only).
+    // -------------------------------------------------------------------
+    console.log('\n--- Site 51 : progression du mystère sur les visites (bâche, créature) ---');
+    const mystereTest = await page.evaluate(() => {
+      startRun();
+      META.fouilles = 25;
+      META.site51Visites = 0; // isole ce test : la bâche « intacte » suppose une vraie 1re visite
+      const p = PORTES.find((x) => x.id === 'site51');
+      const niveaux = [];
+      const bacheX = [];
+      for (let i = 0; i < 3; i++) {
+        entrerInterieur('site51', p);
+        ETAT.intT = 0;
+        const s = INT.actif;
+        niveaux.push(s.mystereNiveau);
+        bacheX.push(s.bacheMesh.position.x - s.ox);
+        P.x = s.sortie.x; P.z = s.sortie.z;
+        majAction(); document.getElementById('btnAction')._fn();
+      }
+      return { niveaux, bacheX };
+    });
+    if (JSON.stringify(mystereTest.niveaux) !== JSON.stringify([0, 1, 2])) fail('Site 51 : le niveau du mystère ne progresse pas 0→1→2 sur 3 visites successives (' + JSON.stringify(mystereTest.niveaux) + ')');
+    else ok('Site 51 : le mystère progresse bien (rien, puis indices, puis la créature) sur 3 visites');
+    if (mystereTest.bacheX[0] !== 0) fail('Site 51 : la bâche du hangar n\'est pas intacte à la première visite (offset=' + mystereTest.bacheX[0] + ')');
+    else ok('Site 51 : la bâche du hangar est bien intacte à la première visite');
+    if (mystereTest.bacheX[1] === 0) fail('Site 51 : la bâche n\'a pas bougé à la 2e visite');
+    else ok('Site 51 : la bâche a bien été déplacée à partir de la 2e visite');
+
+    // -------------------------------------------------------------------
+    // Horloges : le minuteur d'enfermement est un compteur subi (dtJeu),
+    // jamais accéléré ni ralenti par un ralenti de spectacle (dt).
+    // -------------------------------------------------------------------
+    console.log('\n--- Site 51 : le minuteur d\'enfermement tourne sur dtJeu, jamais dt ---');
+    const site51Horloge = await page.evaluate(() => {
+      startRun();
+      META.fouilles = 25;
+      const p = PORTES.find((x) => x.id === 'site51');
+      entrerInterieur('site51', p);
+      ETAT.intT = 0;
+      const s = INT.actif;
+      for (const t of s.turrets) t.alarmeCd = 9999;
+      site51FermerSas(s, ['AB1', 'AB2', 'BC1', 'BC2']);
+      P.x = s.ox; P.z = s.oz + 10;
+      majInterieur(0.2, 1); // ralenti extrême sur dt, dtJeu réel
+      const enfermeTApresRalenti = s.enfermeT;
+      return { enfermeTApresRalenti };
+    });
+    if (Math.abs(site51Horloge.enfermeTApresRalenti - 1) > 1e-9) fail('Site 51 : le minuteur d\'enfermement suit dt au lieu de dtJeu (obtenu ' + site51Horloge.enfermeTApresRalenti + ' pour 1 s réelle avec un ralenti actif, attendu 1)');
+    else ok('Site 51 : le minuteur d\'enfermement avance bien au temps réel (dtJeu), même pendant un ralenti');
+
     // -------------------------------------------------------------------
     // Navigation entre menus : ecran() doit toujours masquer TOUS les
     // écrans précédents avant d'afficher le nouveau (document.
