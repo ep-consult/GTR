@@ -78,6 +78,15 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
 #vehBar{height:8px}
 #vehFill{background:linear-gradient(90deg,#c77a12,var(--orange));width:100%}
 
+#jetWrap{position:absolute;bottom:calc(env(safe-area-inset-bottom,0px) + 190px);left:50%;transform:translateX(-50%);width:130px;display:none}
+#jetWrap .lbl{font-size:9px;font-weight:800;letter-spacing:.12em;color:var(--gris);text-align:center;margin-bottom:2px}
+#jetBar{height:8px}
+#jetFill{background:linear-gradient(90deg,#1a6ac7,#35c8ff);width:100%}
+#jetWarn{position:absolute;top:calc(env(safe-area-inset-top,0px) + 70px);left:50%;transform:translateX(-50%);
+  font:900 13px Arial;letter-spacing:.05em;color:#ff3b5c;text-shadow:0 0 8px #000;display:none;
+  animation:jetWarnPulse .35s infinite alternate}
+@keyframes jetWarnPulse{from{opacity:.55}to{opacity:1}}
+
 /* zone joystick */
 #zoneL{position:absolute;left:0;bottom:0;width:52%;height:56%;pointer-events:auto}
 #joyBase{position:absolute;width:118px;height:118px;border-radius:50%;border:2px solid #ffffff2c;
@@ -139,6 +148,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
 #btnGren small{font-size:8px}
 #btnSpec{right:108px;bottom:calc(env(safe-area-inset-bottom,0px) + 186px);width:52px;height:52px;font-size:19px;overflow:hidden}
 #btnJump{right:108px;bottom:calc(env(safe-area-inset-bottom,0px) + 186px);width:52px;height:52px;font-size:20px;overflow:hidden;border-color:#ffd23f88}
+#btnJetpack{right:108px;bottom:calc(env(safe-area-inset-bottom,0px) + 246px);width:58px;height:58px;font-size:21px;overflow:hidden;border-color:#35c8ff88}
 #btnJump small{font-size:8px;display:block}
 #specCd{position:absolute;inset:0;background:#000b;color:var(--cyan);font-size:15px;display:none;align-items:center;justify-content:center;border-radius:50%}
 #btnBrake{right:122px;bottom:calc(env(safe-area-inset-bottom,0px) + 42px);width:66px;height:66px;font-size:22px;display:none;border-color:#ff9f2e66}
@@ -285,6 +295,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
   <div id="btnPause">Ⅱ</div>
   <div id="bossWrap"><div id="bossName">CHEF</div><div class="barre" id="bossBar"><i id="bossFill"></i></div></div>
   <div id="vehWrap"><div class="lbl">VÉHICULE</div><div class="barre" id="vehBar"><i id="vehFill"></i></div></div>
+  <div id="jetWrap"><div class="lbl">CARBURANT</div><div class="barre" id="jetBar"><i id="jetFill"></i></div></div>
+  <div id="jetWarn">⚠ VITESSE DE CHUTE CRITIQUE</div>
 
   <div id="zoneL"><div id="joyBase"><div id="joyKnob"></div></div></div>
   <div id="croixWrap">
@@ -304,6 +316,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
   <div class="btn" id="btnSwitch">🔁<small>ARME</small></div>
   <div class="btn" id="btnSpec"><span id="specIco">⚡</span><div id="specCd">0</div></div>
   <div class="btn" id="btnJump" style="display:none">🪂<small>SAUT</small></div>
+  <div class="btn" id="btnJetpack" style="display:none">🚀<small>DÉCOLLER</small></div>
   <div class="btn" id="btnGren">💣<small id="grenN">3</small></div>
   <div class="btn" id="btnBrake">🛑<small>FREIN</small></div>
   <div id="btnAction">MONTER</div>
@@ -762,6 +775,30 @@ function sireneStop(){
   try{ AUDIO.sirOsc.stop(); AUDIO.sirLfo.stop(); }catch(e){}
   AUDIO.sirOn=false; AUDIO.sirOsc=null; AUDIO.sirGain=null; AUDIO.sirLfo=null; AUDIO.sirLfoG=null;
 }
+/* ---- Jetpack : souffle des réacteurs en continu pendant le vol (intensité
+   pilotée par majJetpackVol) + alarme de vitesse de chute critique. Même
+   discipline que la sirène des pompiers : jamais démarrés deux fois, coupés
+   sur tous les chemins de sortie (atterrissage, mort, entrée en salle). */
+function jetpackSonStart(){
+  if(!AUDIO.pret||AUDIO.jetOn) return;
+  const ctx=AUDIO.ctx, t=ctx.currentTime;
+  const n=ctx.createBufferSource(); n.buffer=AUDIO.noise; n.loop=true;
+  const nf=ctx.createBiquadFilter(); nf.type='bandpass'; nf.frequency.value=900; nf.Q.value=0.8;
+  const ng=ctx.createGain(); ng.gain.value=0.06;
+  n.connect(nf); nf.connect(ng); ng.connect(AUDIO.sfxG); n.start(t);
+  AUDIO.jetOn=true; AUDIO.jetNoise=n; AUDIO.jetNF=nf; AUDIO.jetNG=ng;
+}
+function jetpackSonStop(){
+  if(!AUDIO.jetOn) return;
+  try{ AUDIO.jetNoise.stop(); }catch(e){}
+  AUDIO.jetOn=false; AUDIO.jetNoise=null; AUDIO.jetNF=null; AUDIO.jetNG=null;
+}
+function jetpackSonUpdate(intens){
+  if(!AUDIO.jetOn){ jetpackSonStart(); return; }
+  const t=AUDIO.ctx.currentTime;
+  AUDIO.jetNG.gain.setTargetAtTime(0.05+0.09*clamp(intens,0,1),t,0.06);
+  AUDIO.jetNF.frequency.setTargetAtTime(700+500*clamp(intens,0,1),t,0.08);
+}
 function toggleSirenePompiers(v){
   v.sirene=!v.sirene;
   el('btnSwitch').innerHTML=(v.sirene?'🚨':'🔕')+'<small>SIRÈNE</small>';
@@ -1213,7 +1250,7 @@ function bindHold(id,nom){
 }
 bindHold('btnFire','tir'); bindHold('btnDodge','esquive'); bindHold('btnSprint','sprint');
 bindHold('btnSwitch','arme'); bindHold('btnSpec','spec'); bindHold('btnGren','gren'); bindHold('btnBrake','frein');
-bindHold('btnAction','action');
+bindHold('btnAction','action'); bindHold('btnJetpack','jetpack');
 
 function litEntrees(){
   // pendant une session de borne d'arcade, la croix directionnelle pilote
@@ -1232,6 +1269,7 @@ function litEntrees(){
   INPUT.btn.tirK=KEYS['Space']||KEYS['KeyJ'];
   INPUT.btn.sprintK=KEYS['ShiftLeft']||KEYS['ShiftRight'];
   INPUT.btn.freinK=KEYS['KeyS']||KEYS['ArrowDown'];
+  INPUT.btn.jetpackK=KEYS['KeyF'];
 }
 const EDGE_K={};
 function edgeKey(code){ // front montant clavier
@@ -1294,7 +1332,12 @@ const META={
   },
   // Monster Truck : un lieu, jamais un butin — découvert une fois pour
   // toutes (proximité, voir majCamp), jamais réinitialisé au game over.
-  monstertruckTrouve:false
+  monstertruckTrouve:false,
+  // Jetpack : même principe — un lieu (le toit), découvert une fois pour
+  // toutes, jamais réinitialisé au game over. L'équipement lui-même
+  // (P.jetpack) est perdu au game over, comme les armes : il faut
+  // remonter le chercher à chaque partie.
+  jetpackTrouve:false
 };
 const DEFIS=[
   {id:'sang',nom:'Premier sang',det:'Neutralise 25 ennemis',rec:250,prog:m=>[m.killsTotal,25],cond:m=>m.killsTotal>=25},
@@ -2182,6 +2225,25 @@ function mkBatiment(x,z,w,d,h,m,solide){
       g2.fillStyle='#ffd23f';g2.font='900 70px Arial';g2.textAlign='center';g2.textBaseline='middle';g2.fillText('H',s2/2,s2/2+2);});
     const pad=new THREE.Mesh(new THREE.PlaneGeometry(8,8),new THREE.MeshBasicMaterial({map:hpx,transparent:true,depthWrite:false}));
     pad.rotation.x=-Math.PI/2; pad.position.set(x,h+0.5,z); scene.add(pad);
+    // Jetpack (lot 12) : un seul exemplaire, en retrait de l'hélipad — un
+    // mannequin d'essai calciné et des traces de brûlure au sol. Accessible
+    // sans jetpack via l'ascenseur de la tour (voir majAction, ▲ PRENDRE
+    // L'ASCENSEUR) — vérifié, c'est le moyen fiable exigé par CLAUDE.md.
+    const jx=x-6, jz=z+7;
+    POIS.toitH.jetpack={x:jx,z:jz,h};
+    for(const [ddx,ddz,r] of [[0,0,2.2],[1.1,-0.8,1.3],[-1,0.9,1.1]]){
+      const tache=new THREE.Mesh(new THREE.CircleGeometry(r,14),new THREE.MeshBasicMaterial({color:0x0c0d10,transparent:true,opacity:0.6,depthWrite:false}));
+      tache.rotation.x=-Math.PI/2; tache.position.set(jx+ddx,h+0.02,jz+ddz); scene.add(tache);
+    }
+    const mannequin=makeHumain({haut:0x8a8f9a,bas:0x5a5f66,peau:0xc8ccd4,casq:0x3a3e46},1);
+    mannequin.g.position.set(jx+2.4,h,jz-1.6); mannequin.g.rotation.y=Math.PI*0.3; scene.add(mannequin.g);
+    mannequin.brasG.rotation.z=1.3; mannequin.brasD.rotation.z=-1.1; // bras figés, écartés
+    const socle=new THREE.Mesh(new THREE.CylinderGeometry(0.4,0.45,0.12,12),mat(0x2a2d34));
+    socle.position.set(jx+2.4,h+0.06,jz-1.6); scene.add(socle);
+    const jp=mkJetpackMesh();
+    jp.g.visible=true; jp.g.position.set(jx,h+0.75,jz); jp.g.rotation.y=Math.PI;
+    jp.g.scale.setScalar(1.15); scene.add(jp.g);
+    POIS.toitH.jetpack.mesh=jp.g;
   }
   if(solide!==false) addSolid({x,z,hw:w/2,hd:d/2,h,toit:true});
 }
@@ -3686,6 +3748,28 @@ function mkGunMesh(){
   c.position.set(0,-0.48,0.24); g.add(c);
   return g;
 }
+// Jetpack : deux réacteurs sur le dos, bien visibles au sol comme en vol —
+// « un objet dont on veut montrer qu'on l'a » (voir CLAUDE.md). Attaché à
+// P.h.g (le groupe du corps entier, pas le torse) pour rester rigide même
+// pendant les poses de chute/vol qui inclinent tout le corps. Flammes
+// (sprites, opacity pilotée par majJetpackVol) éteintes au sol.
+function mkJetpackMesh(){
+  const g=new THREE.Group();
+  const flammes=[];
+  const matCorps=mat(0x2e3138), matEmbout=mat(0x15171c);
+  g.add(mkBoxG(0.56,0.62,0.16,0x1c1f26,0,1.0,-0.26)); // plaque dorsale
+  [-0.22,0.22].forEach(dx=>{
+    const corps=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.14,0.6,10),matCorps);
+    corps.position.set(dx,1.02,-0.32); g.add(corps);
+    const embout=new THREE.Mesh(new THREE.CylinderGeometry(0.09,0.12,0.12,10),matEmbout);
+    embout.position.set(dx,0.72,-0.32); g.add(embout);
+    const flamme=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:0x35c8ff,transparent:true,depthWrite:false,opacity:0}));
+    flamme.scale.set(0.34,1.0,1); flamme.position.set(dx,0.5,-0.32); g.add(flamme);
+    flammes.push(flamme);
+  });
+  g.visible=false;
+  return {g,flammes};
+}
 function makeHumain(coul,taille){
   const g=new THREE.Group();
   const mh=mat(coul.haut), mb=mat(coul.bas), mp=mat(coul.peau);
@@ -4381,7 +4465,11 @@ function secousse(n){ETAT.shake=Math.max(ETAT.shake,n);}
 const P={x:0,z:0,y:0,vy:0,chute:false,ang:0,hp:100,maxHp:100,stam:100,stamMax:100,stamDelai:0,bouclier:0,
   armeCur:'poings',mags:{},mun:{},cadT:0,rechT:0,frappeT:0,
   dodgeT:0,dodgeCd:0,dodgeVx:0,dodgeVz:0,iframes:0,regenDelai:0,specCd:0,
-  buffs:{dmg:0,vit:0,butin:0,lourd:0},veh:null,h:null,armeMeshes:{},vitBase:10,meleeMul:1,tirT:0,grenades:3,chuteY0:0,para:false};
+  buffs:{dmg:0,vit:0,butin:0,lourd:0},veh:null,h:null,armeMeshes:{},vitBase:10,meleeMul:1,tirT:0,grenades:3,chuteY0:0,para:false,
+  // Jetpack (lot 12) : jetpack=équipé cette partie (perdu au game over,
+  // voir startRun), jetpackVol=en vol actif, jetFuel=carburant 0..100,
+  // jetVx/jetVz=inertie horizontale, jetWarnT=throttle de l'alarme sonore.
+  jetpack:false,jetpackVol:false,jetFuel:100,jetVx:0,jetVz:0,jetWarnT:0};
 
 function construireJoueur(){
   if(P.h) scene.remove(P.h.g);
@@ -4390,6 +4478,7 @@ function construireJoueur(){
   scene.add(P.h.g);
   P.armeMeshes={batte:mkBatteMesh(),gun:mkGunMesh(),lame:mkLameMesh()};
   P.h.brasD.add(P.armeMeshes.batte); P.h.brasD.add(P.armeMeshes.gun); P.h.brasD.add(P.armeMeshes.lame);
+  P.jetMesh=mkJetpackMesh(); P.h.g.add(P.jetMesh.g);
   appliqueMuscle();
   majArmeJoueur();
 }
@@ -4610,8 +4699,11 @@ function attaquer(){
   const dmg=st.degats*(P.buffs.dmg>0?1.35:1);
   const vitB=a.roquette?34:(a.flamme?26:72);
   const typ=a.roquette?'roquette':(a.flamme?'flamme':null);
+  // Jetpack : en vol, précision réduite (CLAUDE.md) — voler n'est pas un
+  // stand de tir stable.
+  const dispVol=P.jetpackVol?st.disp*2.4+6:st.disp;
   for(let i=0;i<st.pellets;i++)
-    tirer(P.x+Math.sin(ang)*0.8,P.y+1.45,P.z+Math.cos(ang)*0.8,ang,st.disp,vitB,dmg,'joueur',a.tr,cy,dc,typ);
+    tirer(P.x+Math.sin(ang)*0.8,P.y+1.45,P.z+Math.cos(ang)*0.8,ang,dispVol,vitB,dmg,'joueur',a.tr,cy,dc,typ);
   P.mags[P.armeCur]--; P.cadT=st.cad; META.stats.tirs++;
   const feel=ARME_FEEL[P.armeCur]||{shake:1,flash:0.9,vib:12,nudge:0,bras:-1.2};
   SFX[a.son](); vibre(feel.vib);
@@ -4685,7 +4777,7 @@ function capaciteSpeciale(){
   }
 }
 /* ---------- boucle joueur ---------- */
-function majJoueur(dt){
+function majJoueur(dt,dtJeu){
   P.cadT-=dt; P.iframes-=dt; P.dodgeCd-=dt; P.specCd=Math.max(0,P.specCd-dt);
   toastEauT-=dt;
   P.regenDelai-=dt; P.tirT-=dt; P.stamDelai-=dt;
@@ -4702,6 +4794,10 @@ function majJoueur(dt){
   // dt vs dtJeu). majConduite() tournerait sur dt (spectacle, ralentis
   // possibles) : appelée ici, elle romprait l'équité en pleine course.
   if(P.veh){ if(!(INT.actif&&INT.actif.depot&&INT.actif.courseEnCours)) majConduite(dt); return; }
+  // Jetpack : carburant, montée et chute sont des compteurs subis (dtJeu,
+  // jamais dt, voir CLAUDE.md) — fonction dédiée, en dehors du déplacement à
+  // pied normal, exactement comme P.veh court-circuite ce même déplacement.
+  if(P.jetpackVol){ majJetpackVol(dt,dtJeu); return; }
   // le joystick est monopolisé par la borne d'arcade pendant une partie (ou la
   // saisie des initiales) : le joueur reste immobile devant la machine, le
   // temps qui passe n'en coûte pas moins ailleurs (pas de pause du jeu ici)
@@ -4816,6 +4912,21 @@ function majJoueur(dt){
   if(pressed('arme')||edgeKey('KeyA')||edgeKey('Tab')) changerArme();
   if(pressed('spec')||edgeKey('KeyR')) capaciteSpeciale();
   if(pressed('gren')||edgeKey('KeyG')) lancerGrenade();
+  // Jetpack : décollage immédiat, tant qu'il reste du carburant — voir
+  // majJetpackVol pour la suite (montée, inertie, carburant, chute). Recharge
+  // au sol sinon (dtJeu : un compteur subi, jamais dt — CLAUDE.md).
+  if(P.jetpack&&!P.jetpackVol){
+    // reste équipé mais inutilisable à l'intérieur (CLAUDE.md) : Site 51, le
+    // musée et le métro reposent sur des trajets contraints qu'un vol
+    // rendrait absurdes — jamais de décollage tant qu'INT.actif.
+    if(!INT.actif&&!P.chute&&(INPUT.btn.jetpack||INPUT.btn.jetpackK)&&P.jetFuel>1){
+      P.jetpackVol=true; P.vy=0; P.jetVx=0; P.jetVz=0; P.chute=false;
+      el('jetWrap').style.display='block';
+      addHeat(0.8); toast('🚀 Décollage !','or'); SFX.spec(); vibre(40);
+    } else if(!P.chute&&P.jetFuel<100){
+      P.jetFuel=Math.min(100,P.jetFuel+JET_RECHARGE*dtJeu);
+    }
+  }
 
   // rendu
   if(!P.surMoto) P.h.g.position.set(P.x,P.nage?-0.78:P.y,P.z);
@@ -4868,6 +4979,88 @@ function majJoueur(dt){
   }
 }
 
+/* ---- Jetpack : montée franche (JET_ACC_MONTEE), plafond de vitesse de
+   montée (JET_VY_MAX), gravité au relâchement (JET_GRAVITE, un peu plus
+   douce que la chute libre à pied), vitesse de chute létale (JET_VY_LETALE)
+   et le seuil d'avertissement en dessous (JET_VY_AVERT). Vérifié par
+   simulation (voir verif_jetpack.js) : un vol tenu en montée continue dure
+   ~12 s (JET_DRAIN_MONTEE), un vol stabilisé/en descente contrôlée dure
+   plus longtemps (JET_DRAIN_STABLE) ; traverser 3 rues (~126 unités) à
+   JET_VMAX_H tient très largement dans ce budget ; une relance brève avant
+   impact ramène toujours une chute létale sous le seuil à temps. NE JAMAIS
+   changer ces constantes sans relancer cette vérification. */
+const JET_ACC_MONTEE=34, JET_VY_MAX=15, JET_GRAVITE=28, JET_VY_TERMINALE=40;
+const JET_VY_LETALE=20, JET_VY_AVERT=14, JET_VMAX_H=30, JET_ACCEL_H=3.5;
+const JET_DRAIN_MONTEE=100/12, JET_DRAIN_STABLE=4.2, JET_RECHARGE=5;
+// nettoyage commun à un atterrissage propre ET à un crash (avant mourir()) :
+// coupe le vol, le son des réacteurs, les flammes, la jauge.
+function atterrirJetpack(){
+  P.jetpackVol=false; P.vy=0; P.jetVx=0; P.jetVz=0;
+  el('jetWrap').style.display='none'; el('jetWarn').style.display='none';
+  if(P.jetMesh) for(const f of P.jetMesh.flammes) f.material.opacity=0;
+  jetpackSonStop();
+}
+function majJetpackVol(dt,dtJeu){
+  const monte=(INPUT.btn.jetpack||INPUT.btn.jetpackK)&&P.jetFuel>0;
+  if(monte){
+    P.vy=Math.min(P.vy+JET_ACC_MONTEE*dtJeu,JET_VY_MAX);
+    const rate=P.vy>3?JET_DRAIN_MONTEE:JET_DRAIN_STABLE; // montée franche = coûteuse, vol stabilisé = économe
+    P.jetFuel=Math.max(0,P.jetFuel-rate*dtJeu);
+    for(const f of P.jetMesh.flammes) f.material.opacity=lerp(f.material.opacity,0.85,clamp(10*dt,0,1));
+    jetpackSonUpdate(0.85);
+    if(Math.random()<dt*16) fumee(P.x-Math.sin(P.ang)*0.3,P.y+0.55,P.z-Math.cos(P.ang)*0.3,0x8a9aa8);
+  } else {
+    P.vy=Math.max(P.vy-JET_GRAVITE*dtJeu,-JET_VY_TERMINALE);
+    for(const f of P.jetMesh.flammes) f.material.opacity=lerp(f.material.opacity,0,clamp(10*dt,0,1));
+    jetpackSonUpdate(0.12);
+  }
+  // avertissement de vitesse de chute critique : clair, avant qu'il ne soit
+  // trop tard — une mort qu'on n'a pas vue venir est injuste (CLAUDE.md).
+  if(-P.vy>JET_VY_AVERT){
+    el('jetWarn').style.display='block';
+    P.jetWarnT-=dt;
+    if(P.jetWarnT<=0){ P.jetWarnT=0.26; beep(230,0.09,'square',0.18,700); vibre(25); }
+  } else { el('jetWarn').style.display='none'; }
+  // inertie horizontale : on glisse, on ne s'arrête jamais net (CLAUDE.md)
+  const l=Math.hypot(INPUT.mx,INPUT.mz);
+  let tx=0,tz=0;
+  if(l>0.15){ tx=INPUT.mx/l*JET_VMAX_H; tz=INPUT.mz/l*JET_VMAX_H; P.ang=Math.atan2(INPUT.mx,INPUT.mz); }
+  P.jetVx=lerp(P.jetVx,tx,clamp(JET_ACCEL_H*dtJeu,0,1));
+  P.jetVz=lerp(P.jetVz,tz,clamp(JET_ACCEL_H*dtJeu,0,1));
+  P.x+=P.jetVx*dtJeu; P.z+=P.jetVz*dtJeu;
+  // limites du ciel : ramené comme les autres véhicules aériens (voir majVol)
+  P.x=clamp(P.x,-HALF-30,HALF+170); P.z=clamp(P.z,-HALF-30,MER+140);
+  P.y+=P.vy*dtJeu;
+  el('jetFill').style.width=clamp(P.jetFuel,0,100)+'%';
+  // tir en vol : possible, précision réduite (voir attaquer(), st.disp)
+  if((INPUT.btn.tir||INPUT.btn.tirK)&&P.cadT<=0&&P.frappeT<=0&&!ARMES[P.armeCur].manuel) attaquer();
+  if(P.frappeT>0){P.frappeT-=dt;if(P.frappeT<=0)P.h.brasD.rotation.x=0;}
+  const gY=poseY(P.x,P.z);
+  if(P.y<=gY){
+    const chuteVit=-P.vy; // positif = vitesse d'impact au sol
+    P.y=gY;
+    if(chuteVit>JET_VY_LETALE){
+      // CRASH mortel : impact, explosion des réacteurs, mort immédiate —
+      // franc, sans ambiguïté (CLAUDE.md).
+      burst(P.x,P.y+0.6,P.z,22,0x35c8ff,9,7);
+      burst(P.x,P.y+0.6,P.z,16,0xffa53a,7,6);
+      bruit(0.4,0.6,180); secousse(14); vibre(150);
+      atterrirJetpack();
+      mourir();
+      return;
+    }
+    // atterrissage propre, quelle que soit la surface (toit, rue, ponton, eau)
+    burst(P.x,P.y+0.2,P.z,6,0xb8bec8,4);
+    atterrirJetpack();
+  }
+  // rendu : pose de vol (bras le long du corps, léger cabré/piqué selon vy)
+  P.h.g.position.set(P.x,P.y,P.z);
+  P.h.g.rotation.y=P.ang;
+  P.h.g.rotation.x=lerp(P.h.g.rotation.x,clamp(P.vy*0.012,-0.22,0.22),0.2);
+  P.h.brasG.rotation.z=0.15; P.h.brasD.rotation.z=-0.15;
+  P.h.brasG.rotation.x=-0.25; P.h.brasD.rotation.x=-0.25;
+  P.h.jambeG.rotation.x=0.12; P.h.jambeD.rotation.x=0.12;
+}
 /* =====================================================================
    VÉHICULES — physique arcade, trafic, dégâts
 ===================================================================== */
@@ -10510,6 +10703,12 @@ function entrerInterieur(id,porte){
     }
   }
   if(P.veh) sortirVehicule(true);
+  // Jetpack : reste équipé mais inutilisable à l'intérieur — atterrissage
+  // forcé et silencieux (jamais de crash ici, la position vient déjà d'être
+  // remise à zéro juste au-dessus). Sans ce garde, un joueur qui franchirait
+  // une porte en plein vol resterait bloqué en vol dans une salle à trajet
+  // contraint (Site 51, musée, métro) — voir CLAUDE.md.
+  if(P.jetpackVol) atterrirJetpack();
   // Site 51 : état de confinement propre à CHAQUE entrée (sas rouverts —
   // au cas où une visite précédente les aurait laissés fermés sans passer
   // par site51ConclureVisite), compteur de vague, niveau du mystère figé
@@ -12979,6 +13178,12 @@ function drawCarte(){
     g.strokeStyle='#ff3b1a'; g.lineWidth=1.6; g.stroke();
     dessinerIconePOI(g,'🚛',fx,fz,11,'#fff');
   }
+  if(META.jetpackTrouve&&POIS.toitH&&POIS.toitH.jetpack){
+    const jx=mmX(POIS.toitH.jetpack.x)*k, jz=mmZ(POIS.toitH.jetpack.z)*k;
+    g.fillStyle='#15161a'; g.beginPath(); g.arc(jx,jz,9,0,7); g.fill();
+    g.strokeStyle='#35c8ff'; g.lineWidth=1.6; g.stroke();
+    dessinerIconePOI(g,'🚀',jx,jz,11,'#fff');
+  }
   // point d'arrivée choisi par le joueur
   if(WAYP.actif){
     const wx=mmX(WAYP.x)*k, wz=mmZ(WAYP.z)*k;
@@ -13192,6 +13397,12 @@ function startRun(){
   P.hp=P.maxHp; P.stam=P.stamMax; P.bouclier=0; P.veh=null;
   P.buffs={dmg:0,vit:0,butin:0,lourd:0}; P.iframes=0; P.dodgeT=0; P.rechT=0; P.specCd=0;
   P.grenades=3; el('grenN').textContent=3;
+  // Jetpack : perdu au game over, comme les armes (voir CLAUDE.md) — il
+  // faut remonter le chercher. Le lieu, lui (META.jetpackTrouve), reste acquis.
+  P.jetpack=false; P.jetpackVol=false; P.jetFuel=100; P.jetVx=0; P.jetVz=0; P.jetWarnT=0;
+  if(P.jetMesh) P.jetMesh.g.visible=false;
+  el('jetWrap').style.display='none'; el('jetWarn').style.display='none';
+  jetpackSonStop();
   if(INT.actif){ INT.actif=null; el('minimap').style.opacity='1'; }
   // lieux spéciaux : on remet à zéro ce qui appartient à la partie (les
   // curiosités, elles, sont acquises pour de bon et vivent dans META)
@@ -13432,6 +13643,7 @@ function mourir(){
   SFX.mort(); vibre(120);
   moteurStop();
   if(P.veh&&P.veh.sirene){ P.veh.sirene=false; sireneStop(); } // pompiers : coupe la sirène tout de suite
+  if(P.jetpackVol) atterrirJetpack(); // mort en vol (ennemis au sol compris) : coupe tout de suite le son/les flammes
   if(INT.actif&&INT.actif.seanceOn) cineArreterSeance(INT.actif); // coupe le son tout de suite, le reste des jauges au retry
   if(INT.actif&&INT.actif.piles){ // Métro : butin perdu et Bête réinitialisée tout de suite, batterie conservée
     INT.actif.butin=0; INT.actif.beteProx=0; INT.actif.niveauPrecBlackout=undefined;
@@ -14337,7 +14549,18 @@ function majAction(){
                   (POIS.armurerie2&&dist2(P.x,P.z,POIS.armurerie2.x,POIS.armurerie2.z)<10);
     let ff=null;
     if(POIS.fastfoods) for(const f of POIS.fastfoods) if(dist2(P.x,P.z,f.x,f.z)<10){ff=f;break;}
-    if(POIS.marchand&&dist2(P.x,P.z,POIS.marchand.x,POIS.marchand.z)<12){
+    if(POIS.toitH&&POIS.toitH.jetpack&&dist2(P.x,P.z,POIS.toitH.jetpack.x,POIS.toitH.jetpack.z)<9&&Math.abs(P.y-POIS.toitH.jetpack.h)<4){
+      if(P.jetpack){ label='✅ JETPACK ÉQUIPÉ'; fn=()=>{SFX.refus();}; }
+      else {
+        label='🚀 ÉQUIPER LE JETPACK';
+        fn=()=>{
+          P.jetpack=true; P.jetFuel=100; P.jetMesh.g.visible=true;
+          bigMsg('🚀 JETPACK ÉQUIPÉ');
+          toast('Décolle en maintenant DÉCOLLER. Un crash à pleine vitesse est mortel.','or');
+          SFX.niveau(); vibre(60);
+        };
+      }
+    } else if(POIS.marchand&&dist2(P.x,P.z,POIS.marchand.x,POIS.marchand.z)<12){
       label='MARCHAND (-25 %)';
       fn=()=>{ETAT.promo=true;ETAT.mode='shopIn';ouvrirDepuis('shop','jeu');};
     } else if(pertArm){
@@ -14551,6 +14774,18 @@ function majCamp(dt){
       rand(-1.5,1.5),rand(1.5,3),rand(-1.5,1.5),1,0.5,pick([0xff3b1a,0xffd23f]),0);
     sauveMeta();
   }
+  // Jetpack : découverte à la proximité, comme le Monster Truck — mais sur
+  // un toit, donc en plus de la distance horizontale, il faut aussi y être
+  // (sinon un joueur au pied de la tour, très en dessous, le découvrirait).
+  if(POIS.toitH&&POIS.toitH.jetpack&&!META.jetpackTrouve&&dist2(P.x,P.z,POIS.toitH.jetpack.x,POIS.toitH.jetpack.z)<225&&Math.abs(P.y-POIS.toitH.jetpack.h)<8){
+    META.jetpackTrouve=true;
+    bigMsg('🔓 JETPACK DÉCOUVERT');
+    toast('Un mannequin calciné, des traces de brûlure... et un jetpack','or');
+    SFX.niveau(); vibre(90);
+    for(let i=0;i<20;i++) spawnP(POIS.toitH.jetpack.x+rand(-2,2),POIS.toitH.jetpack.h+rand(1,3),POIS.toitH.jetpack.z+rand(-2,2),
+      rand(-1.5,1.5),rand(1.5,3),rand(-1.5,1.5),1,0.5,pick([0x35c8ff,0xe8ecf2]),0);
+    sauveMeta();
+  }
 }
 function majFeux(dt){
   for(const f of feux){
@@ -14635,6 +14870,7 @@ function majMinimap(){
   for(const e of ennemis) if(!e.mort) dot(e.x,e.z,e.fac==='police'?'#4a9aff':(e.fac==='frelons'?'#e6a41f':'#ff5a5a'),e.boss?4.5:2.4);
   for(const p of pickups) dot(p.x,p.z,'#58ff7a',1.8);
   if(META.monstertruckTrouve&&POIS.friche) dot(POIS.friche.x,POIS.friche.z,'#ff3b1a',3);
+  if(META.jetpackTrouve&&POIS.toitH&&POIS.toitH.jetpack) dot(POIS.toitH.jetpack.x,POIS.toitH.jetpack.z,'#35c8ff',3);
   // Le Micro Vintage : Solara FM émet en continu, les caches non fouillées
   // de la salle où l'on se trouve apparaissent dans un rayon de 40 m —
   // affichées à leur offset réel par rapport au joueur, autour de l'icône
@@ -14702,7 +14938,7 @@ function boucle(t){
     ETAT.comboT-=dt;
     if(ETAT.comboT<=0) ETAT.combo=1;
     if(ETAT.slowT>0){ ETAT.slowT-=dtReel; if(ETAT.slowT<=0&&ETAT.mode==='jeu') ETAT.timeScale=1; }
-    if(ETAT.mode==='jeu') majJoueur(dt);
+    if(ETAT.mode==='jeu') majJoueur(dt,dtJeu);
     majEnnemis(dt);
     if(!INT.actif){
       majPietons(dt);

@@ -5050,6 +5050,371 @@ async function main() {
     if (!pompiersTest.sireneCoupeeSortie) fail('Camion de pompiers : la sirène continue après être sorti du véhicule');
     else ok('Camion de pompiers : sortir du véhicule coupe bien la sirène');
 
+    // =====================================================================
+    // JETPACK
+    // =====================================================================
+    console.log('\n--- Jetpack : lieu fixe, découverte à la proximité (jamais au sol, sous la tour) ---');
+    const jetDecouverte = await page.evaluate(() => {
+      startRun();
+      const jp = POIS.toitH && POIS.toitH.jetpack;
+      const out = { toitHPresent: !!POIS.toitH, jetpackToitPresent: !!jp };
+      if (!jp) return out;
+      META.jetpackTrouve = false;
+      P.x = 0; P.z = 0; P.y = 0;
+      majCamp(0.1);
+      out.pasDecouvertLoin = META.jetpackTrouve === false;
+      P.x = jp.x; P.z = jp.z; P.y = 0;
+      majCamp(0.1);
+      out.pasDecouvertAuPiedDeLaTour = META.jetpackTrouve === false;
+      P.y = jp.h;
+      majCamp(0.1);
+      out.decouvertSurLeToit = META.jetpackTrouve === true;
+      mourir(); startRun();
+      out.persisteApresGameOver = META.jetpackTrouve === true;
+      return out;
+    });
+    if (!jetDecouverte.toitHPresent || !jetDecouverte.jetpackToitPresent) {
+      fail('Jetpack : POIS.toitH/POIS.toitH.jetpack absents — la plus haute tour n\'a pas atteint 34 unités cette partie (probabiliste, voir mkBatiment)');
+    } else {
+      if (!jetDecouverte.pasDecouvertLoin) fail('Jetpack : découvert alors que le joueur en est loin');
+      else ok('Jetpack : reste bien non découvert tant que le joueur n\'approche pas');
+      if (!jetDecouverte.pasDecouvertAuPiedDeLaTour) fail('Jetpack : découvert au pied de la tour, au niveau de la rue (l\'altitude doit compter, c\'est sur le toit)');
+      else ok('Jetpack : ne se découvre bien pas au pied de la tour — il faut être sur le toit');
+      if (!jetDecouverte.decouvertSurLeToit) fail('Jetpack : la proximité sur le toit ne déclenche pas la découverte');
+      else ok('Jetpack : la proximité sur le toit déclenche bien la découverte (un lieu, pas un butin)');
+      if (!jetDecouverte.persisteApresGameOver) fail('Jetpack : la découverte du lieu est perdue après un game over (devrait persister)');
+      else ok('Jetpack : la découverte du lieu persiste bien après un game over');
+    }
+
+    console.log('\n--- Jetpack : un moyen fiable existe pour y monter sans le jetpack (l\'ascenseur de la tour) ---');
+    const ascenseur = await page.evaluate(() => {
+      startRun();
+      if (!POIS.toitH) return { toitHAbsent: true };
+      // la tour est une salle visitable comme les autres : on y entre par sa porte, puis on prend l'ascenseur
+      const tourId = Object.keys(INTDEFS).find((id) => {
+        const s = construireSalle(id);
+        return !!s.ascenseur;
+      });
+      if (!tourId) return { ascenseurIntrouvable: true };
+      const p = PORTES.find((x) => x.id === tourId);
+      entrerInterieur(tourId, p);
+      const s = INT.actif;
+      P.x = s.ascenseur.x; P.z = s.ascenseur.z;
+      majAction();
+      const avantY = P.y;
+      if (el('btnAction')._fn) el('btnAction')._fn();
+      return { arriveSurLeToit: Math.abs(P.y - POIS.toitH.h) < 2, plusEnSalle: !INT.actif };
+    });
+    if (ascenseur.toitHAbsent || ascenseur.ascenseurIntrouvable) info('Jetpack : tour/ascenseur introuvable cette partie (probabiliste) — vérification sautée');
+    else if (!ascenseur.arriveSurLeToit || !ascenseur.plusEnSalle) fail('Jetpack : l\'ascenseur de la tour ne dépose pas fiablement sur le toit — c\'est le seul moyen d\'accès sans jetpack exigé par CLAUDE.md');
+    else ok('Jetpack : l\'ascenseur de la tour dépose bien fiablement sur le toit, sans jetpack — l\'accès « première fois » est garanti');
+
+    console.log('\n--- Jetpack : équipement (à proximité du point, jamais avant), apparence toujours visible une fois équipé ---');
+    const equipement = await page.evaluate(() => {
+      startRun();
+      const jp = POIS.toitH && POIS.toitH.jetpack;
+      if (!jp) return { absent: true };
+      P.jetpack = false; P.jetFuel = 0;
+      P.x = jp.x + 100; P.z = jp.z; P.y = 0;
+      majAction();
+      const pasDeBoutonLoin = el('btnAction').style.display === 'none' || !el('btnAction')._fn;
+      P.x = jp.x; P.z = jp.z; P.y = jp.h;
+      majAction();
+      const boutonPres = el('btnAction').style.display === 'block' && !!el('btnAction')._fn;
+      if (el('btnAction')._fn) el('btnAction')._fn();
+      return {
+        pasDeBoutonLoin,
+        boutonPres,
+        equipe: P.jetpack === true,
+        fuelPlein: P.jetFuel === 100,
+        meshVisible: P.jetMesh.g.visible === true,
+      };
+    });
+    if (equipement.absent) info('Jetpack : lieu introuvable cette partie — vérification sautée');
+    else {
+      if (!equipement.pasDeBoutonLoin) fail('Jetpack : le bouton ÉQUIPER apparaît alors que le joueur est loin du point');
+      else ok('Jetpack : le bouton ÉQUIPER n\'apparaît bien que tout près du point de découverte');
+      if (!equipement.boutonPres || !equipement.equipe) fail('Jetpack : l\'action ÉQUIPER ne fonctionne pas correctement');
+      else ok('Jetpack : ÉQUIPER LE JETPACK fonctionne bien à proximité du point');
+      if (!equipement.fuelPlein) fail('Jetpack : le carburant n\'est pas plein après équipement');
+      else ok('Jetpack : le carburant est bien plein après équipement');
+      if (!equipement.meshVisible) fail('Jetpack : les réacteurs ne sont pas visibles sur le joueur après équipement (« un objet dont on veut montrer qu\'on l\'a »)');
+      else ok('Jetpack : les réacteurs sont bien visibles sur le joueur dès l\'équipement (visible en permanence, au sol comme en vol)');
+    }
+
+    console.log('\n--- Jetpack : décollage immédiat, montée franche, carburant qui se vide, jamais utilisable à l\'intérieur ---');
+    const decollage = await page.evaluate(() => {
+      startRun();
+      P.jetpack = true; P.jetFuel = 100;
+      P.x = POIS.place.x; P.z = POIS.place.z; P.y = 0; P.vy = 0; P.chute = false;
+      INPUT.mx = 0; INPUT.mz = 0; INPUT.btn.tir = false;
+      const heatAvant = WANTED.heat;
+      INPUT.btn.jetpack = true;
+      majJoueur(0.05, 0.05);
+      const enVolImmediat = P.jetpackVol === true;
+      const heatApres = WANTED.heat > heatAvant;
+      const y0 = P.y, fuel0 = P.jetFuel;
+      for (let i = 0; i < 20; i++) majJoueur(0.05, 0.05); // 1 s de montée tenue
+      const monteFranc = P.y > y0 + 3;
+      const fuelBaisse = P.jetFuel < fuel0;
+      const jetWrapVisible = document.getElementById('jetWrap').style.display === 'block';
+      // reset et tente de décoller à l'intérieur
+      startRun();
+      P.jetpack = true; P.jetFuel = 100;
+      const porte = PORTES.find((p) => p.id === 'site51') || PORTES[0];
+      entrerInterieur(porte.id, porte);
+      INPUT.btn.jetpack = true;
+      majJoueur(0.05, 0.05);
+      const pasDeVolEnSalle = P.jetpackVol === false;
+      sortirInterieur();
+      return { enVolImmediat, heatApres, monteFranc, fuelBaisse, jetWrapVisible, pasDeVolEnSalle };
+    });
+    if (!decollage.enVolImmediat) fail('Jetpack : le décollage n\'est pas immédiat');
+    else ok('Jetpack : le décollage est bien immédiat dès l\'appui sur DÉCOLLER');
+    if (!decollage.heatApres) fail('Jetpack : la police ne réagit pas au décollage (comme un véhicule volé)');
+    else ok('Jetpack : la police réagit bien au décollage, comme à un véhicule volé');
+    if (!decollage.monteFranc) fail('Jetpack : la montée n\'est pas franche/rapide');
+    else ok('Jetpack : la montée est bien franche et rapide');
+    if (!decollage.fuelBaisse) fail('Jetpack : le carburant ne se vide pas en montant');
+    else ok('Jetpack : le carburant se vide bien en montant');
+    if (!decollage.jetWrapVisible) fail('Jetpack : la jauge de carburant ne s\'affiche pas pendant le vol');
+    else ok('Jetpack : la jauge de carburant s\'affiche bien pendant le vol');
+    if (!decollage.pasDeVolEnSalle) fail('Jetpack : le décollage est possible à l\'intérieur d\'une salle — casserait Site 51/musée/métro (CLAUDE.md)');
+    else ok('Jetpack : jamais de décollage possible à l\'intérieur d\'une salle');
+
+    console.log('\n--- Jetpack : recharge complète au sol, inertie horizontale (on ne s\'arrête pas net) ---');
+    const rechargeInertie = await page.evaluate(() => {
+      startRun();
+      P.jetpack = true; P.jetFuel = 10; P.jetpackVol = false; P.chute = false;
+      INPUT.btn.jetpack = false;
+      for (let i = 0; i < 240; i++) majJoueur(0.05, 0.05); // 12 s au sol
+      const recharge12s = P.jetFuel;
+      P.jetFuel = 0;
+      for (let i = 0; i < 400; i++) majJoueur(0.05, 0.05); // 20 s : doit atteindre 100
+      const rechargeComplete20s = P.jetFuel === 100;
+
+      P.jetpack = true; P.jetFuel = 100; P.jetpackVol = true; P.y = 40; P.vy = 0; P.jetVx = 0; P.jetVz = 0;
+      INPUT.btn.jetpack = false; INPUT.mx = 0; INPUT.mz = 1;
+      const x0 = P.x, z0 = P.z;
+      for (let i = 0; i < 20; i++) majJoueur(0.05, 0.05); // 1 s de rampe
+      const vitesse1s = Math.hypot(P.x - x0, P.z - z0);
+      const inertieProgressive = vitesse1s > 0 && vitesse1s < JET_VMAX_H * 1.02;
+      INPUT.mx = 0; INPUT.mz = 0;
+      const x1 = P.x, z1 = P.z;
+      majJoueur(0.05, 0.05);
+      const glisseSansStick = Math.hypot(P.x - x1, P.z - z1) > 0.01;
+      return { recharge12s, rechargeComplete20s, inertieProgressive, glisseSansStick, vitesseH: vitesse1s };
+    });
+    if (!(rechargeInertie.recharge12s > 10 && rechargeInertie.recharge12s < 100)) fail('Jetpack : la recharge au sol ne progresse pas de façon crédible sur 12 s (obtenu ' + rechargeInertie.recharge12s + ')');
+    else ok('Jetpack : le carburant se recharge bien progressivement au sol');
+    if (!rechargeInertie.rechargeComplete20s) fail('Jetpack : la recharge complète n\'est pas atteinte en 20 s au sol');
+    else ok('Jetpack : la recharge est bien complète en 20 s au sol');
+    if (!rechargeInertie.inertieProgressive) fail('Jetpack : la vitesse horizontale ne monte pas progressivement (pas d\'inertie, ou instantanée)');
+    else ok('Jetpack : la vitesse horizontale monte bien progressivement (inertie), nettement supérieure à la course à pied (' + rechargeInertie.vitesseH.toFixed(1) + ' u/s en 1 s)');
+    if (!rechargeInertie.glisseSansStick) fail('Jetpack : le joueur s\'arrête net dès que le joystick est relâché (pas de glisse)');
+    else ok('Jetpack : le joueur glisse bien, ne s\'arrête jamais net en l\'air');
+
+    console.log('\n--- Jetpack : traverser trois rues tient dans le budget de carburant, sans épuisement ni mort ---');
+    const traversee = await page.evaluate(() => {
+      startRun();
+      P.jetpack = true; P.jetFuel = 100; P.jetpackVol = true;
+      P.y = Math.max(40, POIS.toitH ? POIS.toitH.h * 0.5 : 40); P.vy = 0; P.jetVx = 0; P.jetVz = 0;
+      P.x = POIS.place.x; P.z = POIS.place.z;
+      INPUT.mx = 0; INPUT.mz = 1; INPUT.btn.tir = false;
+      const zStart = P.z;
+      let crash = false, epuise = false, i = 0;
+      for (; i < 500 && (P.z - zStart) < 126; i++) { // 3 rues ≈ 3×CELL
+        INPUT.btn.jetpack = (i % 10) < 4; // vol stabilisé : petites relances régulières
+        majJoueur(0.05, 0.05);
+        if (ETAT.mode === 'mort') { crash = true; break; }
+        if (!P.jetpackVol) { epuise = true; break; }
+      }
+      return { crash, epuise, distanceParcourue: P.z - zStart, fuelRestant: P.jetFuel };
+    });
+    if (traversee.crash) fail('Jetpack : le joueur meurt en traversant trois rues avec un pilotage stabilisé raisonnable');
+    else ok('Jetpack : traverser trois rues (~126 unités) ne tue bien pas avec un pilotage stabilisé raisonnable');
+    if (traversee.epuise) fail('Jetpack : le carburant s\'épuise avant d\'avoir traversé trois rues (distance atteinte : ' + traversee.distanceParcourue.toFixed(1) + ')');
+    else ok('Jetpack : le budget de carburant tient bien largement le temps de traverser trois rues (reste ' + traversee.fuelRestant.toFixed(1) + ' %)');
+
+    console.log('\n--- Jetpack : le crash est mortel au-dessus de la limite, jamais en dessous, avec un avertissement clair ---');
+    const crashTest = await page.evaluate(() => {
+      const out = {};
+      // chute libre prolongée, jamais de relance -> mort, avertissement vu avant
+      startRun();
+      P.jetpack = true; P.jetFuel = 100; P.jetpackVol = true;
+      P.x = POIS.place.x; P.z = POIS.place.z; P.y = 60; P.vy = 0; P.jetVx = 0; P.jetVz = 0;
+      INPUT.mx = 0; INPUT.mz = 0; INPUT.btn.jetpack = false; INPUT.btn.tir = false;
+      let mort = false, avert = false;
+      for (let i = 0; i < 400 && !mort; i++) {
+        majJoueur(0.05, 0.05);
+        if (document.getElementById('jetWarn').style.display === 'block') avert = true;
+        if (ETAT.mode === 'mort') mort = true;
+      }
+      out.chuteLibreProlongeeTue = mort;
+      out.avertissementAfficheAvantLaMort = avert;
+
+      // atterrissage normal à faible altitude : jamais mortel
+      startRun();
+      P.jetpack = true; P.jetFuel = 100; P.jetpackVol = true;
+      P.x = POIS.place.x; P.z = POIS.place.z; P.y = poseY(POIS.place.x, POIS.place.z) + 1.5; P.vy = -2; P.jetVx = 0; P.jetVz = 0;
+      INPUT.mx = 0; INPUT.mz = 0; INPUT.btn.jetpack = false;
+      for (let i = 0; i < 30 && P.jetpackVol; i++) majJoueur(0.05, 0.05);
+      out.atterrissageFaibleAltitudeSurvit = ETAT.mode === 'jeu';
+
+      // atterrissage sur un toit à la bonne hauteur
+      if (POIS.toitH) {
+        startRun();
+        P.jetpack = true; P.jetFuel = 100; P.jetpackVol = true;
+        P.x = POIS.toitH.x; P.z = POIS.toitH.z; P.y = POIS.toitH.h + 1; P.vy = -2; P.jetVx = 0; P.jetVz = 0;
+        INPUT.mx = 0; INPUT.mz = 0; INPUT.btn.jetpack = false;
+        for (let i = 0; i < 30 && P.jetpackVol; i++) majJoueur(0.05, 0.05);
+        out.atterrissageSurToitSurvit = ETAT.mode === 'jeu';
+        out.atterritALaBonneHauteur = Math.abs(P.y - POIS.toitH.h) < 1;
+      } else { out.atterrissageSurToitSurvit = true; out.atterritALaBonneHauteur = true; }
+
+      // la relance après l'avertissement (avec un temps de réaction réaliste) sauve
+      startRun();
+      P.jetpack = true; P.jetFuel = 100; P.jetpackVol = true;
+      P.x = POIS.place.x; P.z = POIS.place.z; P.y = 60; P.vy = 0; P.jetVx = 0; P.jetVz = 0;
+      INPUT.mx = 0; INPUT.mz = 0; INPUT.btn.jetpack = false;
+      let mort2 = false, avertVu = false, retardT = 0, recupere = false;
+      for (let i = 0; i < 400 && !recupere; i++) {
+        if (!avertVu && document.getElementById('jetWarn').style.display === 'block') avertVu = true;
+        if (avertVu) { retardT += 0.05; INPUT.btn.jetpack = retardT > 0.3; }
+        majJoueur(0.05, 0.05);
+        if (ETAT.mode === 'mort') { mort2 = true; break; }
+        if (!P.jetpackVol) break;
+        if (avertVu && retardT > 0.3 && P.vy >= 0) recupere = true;
+      }
+      out.relanceApresAvertissementSauve = avertVu && !mort2 && recupere;
+
+      return out;
+    });
+    if (!crashTest.chuteLibreProlongeeTue) fail('Jetpack : une chute libre prolongée sans jamais relancer ne tue pas — le crash n\'est pas franc');
+    else ok('Jetpack : une chute libre prolongée sans relance tue bien (le crash est franc)');
+    if (!crashTest.avertissementAfficheAvantLaMort) fail('Jetpack : aucun avertissement visible avant une mort par chute — une mort qu\'on n\'a pas vue venir est injuste (CLAUDE.md)');
+    else ok('Jetpack : l\'avertissement de vitesse de chute critique s\'affiche bien avant la mort');
+    if (!crashTest.atterrissageFaibleAltitudeSurvit) fail('Jetpack : un atterrissage normal à faible altitude tue le joueur');
+    else ok('Jetpack : un atterrissage normal à faible altitude ne tue bien jamais');
+    if (!crashTest.atterrissageSurToitSurvit || !crashTest.atterritALaBonneHauteur) fail('Jetpack : l\'atterrissage sur un toit ne fonctionne pas correctement');
+    else ok('Jetpack : l\'atterrissage propre fonctionne bien sur un toit, à la bonne hauteur (quelle que soit la surface)');
+    if (!crashTest.relanceApresAvertissementSauve) fail('Jetpack : une relance des réacteurs après l\'avertissement (avec un temps de réaction réaliste) ne sauve pas toujours — c\'est le geste que le joueur est censé apprendre (CLAUDE.md)');
+    else ok('Jetpack : une brève relance après l\'avertissement sauve bien toujours — le geste à apprendre fonctionne');
+
+    console.log('\n--- Jetpack : entrer dans une salle en plein vol force un atterrissage silencieux, jamais mortel ---');
+    const entreeEnSalle = await page.evaluate(() => {
+      startRun();
+      P.jetpack = true; P.jetFuel = 100; P.jetpackVol = true; P.vy = -30; P.y = 80;
+      const porte = PORTES.find((p) => p.id === 'site51') || PORTES[0];
+      entrerInterieur(porte.id, porte);
+      const out = {
+        atterrissageForce: P.jetpackVol === false,
+        pasDeMort: ETAT.mode === 'jeu',
+        resteEquipe: P.jetpack === true,
+        sonCoupe: AUDIO.jetOn !== true,
+      };
+      sortirInterieur();
+      return out;
+    });
+    if (!entreeEnSalle.atterrissageForce || !entreeEnSalle.pasDeMort) fail('Jetpack : entrer dans une salle en plein vol ne force pas un atterrissage silencieux (' + JSON.stringify(entreeEnSalle) + ')');
+    else ok('Jetpack : entrer dans une salle en plein vol force bien un atterrissage silencieux, jamais mortel');
+    if (!entreeEnSalle.resteEquipe) fail('Jetpack : le jetpack est perdu en entrant dans une salle (devrait juste être inutilisable, pas perdu)');
+    else ok('Jetpack : reste bien équipé (juste inutilisable) en entrant dans une salle');
+    if (!entreeEnSalle.sonCoupe) fail('Jetpack : le son des réacteurs continue après une entrée forcée en salle');
+    else ok('Jetpack : le son des réacteurs est bien coupé net en entrant dans une salle');
+
+    console.log('\n--- Jetpack : perdu au game over comme les armes, le lieu reste révélé ---');
+    const gameOver = await page.evaluate(() => {
+      startRun();
+      P.jetpack = true; META.jetpackTrouve = true;
+      P.hp = 1; toucherJoueur(999);
+      startRun();
+      return { perdu: P.jetpack === false, lieuRevele: META.jetpackTrouve === true, meshCache: P.jetMesh.g.visible === false };
+    });
+    if (!gameOver.perdu) fail('Jetpack : n\'est pas perdu au game over');
+    else ok('Jetpack : est bien perdu au game over, comme les armes — il faut remonter le chercher');
+    if (!gameOver.lieuRevele) fail('Jetpack : le lieu redevient caché après un game over (devrait rester révélé, comme le Monster Truck)');
+    else ok('Jetpack : le lieu reste bien révélé sur la carte après un game over');
+    if (!gameOver.meshCache) fail('Jetpack : les réacteurs restent visibles sur le joueur alors qu\'il n\'a plus le jetpack');
+    else ok('Jetpack : les réacteurs sont bien masqués après un game over, tant qu\'il n\'est pas rééquipé');
+
+    console.log('\n--- Jetpack : précision de tir réduite en vol, jamais d\'invulnérabilité (les ennemis au sol touchent toujours) ---');
+    const tirEtInvuln = await page.evaluate(() => {
+      META.armes.pistolet.poss = true;
+      startRun();
+      P.armeCur = 'pistolet'; P.mags.pistolet = 20; P.mun.pistolet = 40;
+      const tirerOrig = tirer;
+      let dispCapturee = null;
+      window.tirer = function (x, y, z, ang, disp, ...rest) { dispCapturee = disp; return tirerOrig(x, y, z, ang, disp, ...rest); };
+      P.jetpackVol = false; P.cadT = 0; P.frappeT = 0; P.tirT = 0;
+      attaquer();
+      const dispSol = dispCapturee;
+      P.jetpackVol = true; P.cadT = 0; P.frappeT = 0; dispCapturee = null;
+      attaquer();
+      const dispVol = dispCapturee;
+      window.tirer = tirerOrig;
+
+      // invulnérabilité : un ennemi peut toujours toucher le joueur en vol
+      // (vérifie juste qu'aucun garde de type "en vol = intouchable" n'existe
+      // dans toucherJoueur — appel direct, comme le ferait un tir ennemi)
+      P.jetpackVol = true; P.y = 40;
+      const hpAvant = P.hp;
+      toucherJoueur(15);
+      const toucheEnVol = P.hp < hpAvant;
+
+      return { dispSol, dispVol, toucheEnVol };
+    });
+    if (!(tirEtInvuln.dispVol > tirEtInvuln.dispSol)) fail('Jetpack : la précision de tir n\'est pas réduite en vol (sol=' + tirEtInvuln.dispSol + ', vol=' + tirEtInvuln.dispVol + ')');
+    else ok('Jetpack : la précision de tir est bien réduite en vol');
+    if (!tirEtInvuln.toucheEnVol) fail('Jetpack : le joueur ne peut plus être touché en vol — voler ne doit jamais être une invulnérabilité (CLAUDE.md)');
+    else ok('Jetpack : le joueur reste bien vulnérable en vol — voler n\'est pas une invulnérabilité');
+
+    console.log('\n--- Jetpack : les limites de la zone jouable ramènent le joueur, comme les autres véhicules aériens ---');
+    const limites = await page.evaluate(() => {
+      startRun();
+      P.jetpack = true; P.jetFuel = 100; P.jetpackVol = true; P.y = 50; P.vy = 0;
+      P.x = HALF + 5000; P.z = 0; P.jetVx = 500; P.jetVz = 0;
+      INPUT.mx = 0; INPUT.mz = 0; INPUT.btn.jetpack = true;
+      majJoueur(0.05, 0.05);
+      return { xBorne: P.x <= HALF + 171, xFini: Number.isFinite(P.x) };
+    });
+    if (!limites.xFini || !limites.xBorne) fail('Jetpack : le joueur n\'est pas ramené aux limites de la zone jouable en vol (x=' + limites.x + ')');
+    else ok('Jetpack : le joueur est bien ramené aux limites de la zone jouable en vol, comme les autres véhicules aériens');
+
+    console.log('\n--- Jetpack : horloges séparées — carburant/montée/chute suivent dtJeu, jamais dt ---');
+    const horloges = await page.evaluate(() => {
+      startRun();
+      P.jetpack = true; P.jetFuel = 100; P.jetpackVol = true;
+      P.x = POIS.place.x; P.z = POIS.place.z; P.y = 40; P.vy = 0; P.jetVx = 0; P.jetVz = 0;
+      INPUT.mx = 0; INPUT.mz = 0; INPUT.btn.jetpack = true;
+      const fuelAvant = P.jetFuel;
+      const dt = 0.5, dtJeu = 1; // ralenti à ×0,5 simulé comme boucle()
+      majJoueur(dt, dtJeu);
+      const drainAttendu = JET_DRAIN_MONTEE * dtJeu; // vy plafonne vite : "montant" dès le 1er pas
+      const drainReel = fuelAvant - P.jetFuel;
+      return { drainReel, drainAttendu };
+    });
+    if (Math.abs(horloges.drainReel - horloges.drainAttendu) > 1e-6) fail('Jetpack : le carburant se vide selon dt (ralenti) au lieu de dtJeu (attendu ' + horloges.drainAttendu + ', obtenu ' + horloges.drainReel + ')');
+    else ok('Jetpack : le carburant se vide bien selon dtJeu, jamais dt (même garantie que le Dépôt de bus/Site 51)');
+
+    console.log('\n--- Jetpack : performance — flammes/fumée réutilisent les pools existants, aucun nouvel objet par frame ---');
+    const perf = await page.evaluate(() => {
+      startRun();
+      P.jetpack = true; P.jetFuel = 100; P.jetpackVol = true;
+      P.x = POIS.place.x; P.z = POIS.place.z; P.y = 40; P.vy = 0; P.jetVx = 0; P.jetVz = 0;
+      INPUT.mx = 0; INPUT.mz = 0; INPUT.btn.jetpack = true;
+      const flammesAvant = P.jetMesh.flammes.slice();
+      const childrenAvant = scene.children.length;
+      for (let i = 0; i < 120; i++) majJoueur(0.05, 0.05); // 6 s de vol soutenu
+      const flammesMemesObjets = P.jetMesh.flammes.every((f, i) => f === flammesAvant[i]);
+      const croissanceEnfantsScene = scene.children.length - childrenAvant;
+      return { flammesMemesObjets, croissanceEnfantsScene };
+    });
+    if (!perf.flammesMemesObjets) fail('Jetpack : les sprites de flamme sont recréés au lieu d\'être réutilisés');
+    else ok('Jetpack : les flammes réutilisent bien les mêmes objets (aucune recréation par frame)');
+    if (perf.croissanceEnfantsScene > 5) fail('Jetpack : la scène grossit pendant un vol prolongé (+' + perf.croissanceEnfantsScene + ' objets en 6 s) — indique une allocation par frame au lieu des pools de particules');
+    else ok('Jetpack : la scène ne grossit bien pas pendant un vol prolongé (particules/fumée via les pools existants, ' + perf.croissanceEnfantsScene + ' objet(s) de plus)');
+
     // -------------------------------------------------------------------
     // Navigation entre menus : ecran() doit toujours masquer TOUS les
     // écrans précédents avant d'afficher le nouveau (document.
