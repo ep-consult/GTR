@@ -5142,6 +5142,66 @@ async function main() {
       else ok('Jetpack : les réacteurs sont bien visibles sur le joueur dès l\'équipement (visible en permanence, au sol comme en vol)');
     }
 
+    // -------------------------------------------------------------------
+    // Bug déjà rencontré : le jetpack s'équipait normalement mais aucun
+    // bouton DÉCOLLER n'apparaissait jamais à l'écran — les tests
+    // précédents pilotaient INPUT.btn.jetpack directement (en contournant
+    // le DOM), donc ne pouvaient pas détecter qu'el('btnJetpack') restait
+    // en display:none en permanence. Ce test-ci lit exclusivement l'état
+    // RÉEL du bouton dans le DOM, jamais INPUT.btn.jetpack.
+    // -------------------------------------------------------------------
+    console.log('\n--- Jetpack : le bouton DÉCOLLER apparaît réellement à l\'écran une fois équipé, et seulement alors ---');
+    const boutonDecoller = await page.evaluate(() => {
+      startRun();
+      const jp = POIS.toitH && POIS.toitH.jetpack;
+      if (!jp) return { absent: true };
+      const out = {};
+      out.cacheAvantEquipement = getComputedStyle(el('btnJetpack')).display === 'none';
+      P.jetpack = false; P.jetFuel = 0;
+      P.x = jp.x; P.z = jp.z; P.y = jp.h;
+      majAction();
+      if (el('btnAction')._fn) el('btnAction')._fn(); // ÉQUIPER LE JETPACK
+      out.visibleApresEquipement = getComputedStyle(el('btnJetpack')).display !== 'none';
+
+      // en véhicule : inutilisable, le bouton doit disparaître, puis revenir en sortant
+      const v = creerVehicule('citadine', P.x, P.z, 0, null);
+      entrerVehicule(v);
+      out.cacheEnVehicule = getComputedStyle(el('btnJetpack')).display === 'none';
+      sortirVehicule(true);
+      out.revientApresVehicule = getComputedStyle(el('btnJetpack')).display !== 'none';
+
+      // en salle : inutilisable, le bouton doit disparaître, puis revenir en sortant
+      const porte = PORTES.find((p) => p.id === 'site51') || PORTES[0];
+      entrerInterieur(porte.id, porte);
+      out.cacheEnSalle = getComputedStyle(el('btnJetpack')).display === 'none';
+      sortirInterieur();
+      out.revientApresSalle = getComputedStyle(el('btnJetpack')).display !== 'none';
+
+      // game over : le jetpack est perdu, le bouton doit redisparaître
+      P.hp = 1; toucherJoueur(999);
+      startRun();
+      out.cacheApresGameOver = getComputedStyle(el('btnJetpack')).display === 'none';
+
+      return out;
+    });
+    if (boutonDecoller.absent) info('Jetpack : lieu introuvable cette partie — vérification du bouton sautée');
+    else {
+      if (!boutonDecoller.cacheAvantEquipement) fail('Jetpack : le bouton DÉCOLLER est visible avant même d\'avoir le jetpack');
+      else ok('Jetpack : le bouton DÉCOLLER reste bien caché tant que le jetpack n\'est pas équipé');
+      if (!boutonDecoller.visibleApresEquipement) fail('Jetpack : le bouton DÉCOLLER n\'apparaît jamais réellement à l\'écran après équipement — régression du bug déjà rencontré (jetpack équipé mais aucune commande pour l\'utiliser)');
+      else ok('Jetpack : le bouton DÉCOLLER apparaît bien réellement à l\'écran dès l\'équipement');
+      if (!boutonDecoller.cacheEnVehicule) fail('Jetpack : le bouton DÉCOLLER reste affiché alors que le joueur conduit un véhicule');
+      else ok('Jetpack : le bouton DÉCOLLER disparaît bien en montant dans un véhicule');
+      if (!boutonDecoller.revientApresVehicule) fail('Jetpack : le bouton DÉCOLLER ne revient pas en sortant du véhicule');
+      else ok('Jetpack : le bouton DÉCOLLER revient bien en sortant du véhicule');
+      if (!boutonDecoller.cacheEnSalle) fail('Jetpack : le bouton DÉCOLLER reste affiché à l\'intérieur d\'une salle');
+      else ok('Jetpack : le bouton DÉCOLLER disparaît bien à l\'intérieur d\'une salle');
+      if (!boutonDecoller.revientApresSalle) fail('Jetpack : le bouton DÉCOLLER ne revient pas en sortant de la salle');
+      else ok('Jetpack : le bouton DÉCOLLER revient bien en sortant de la salle');
+      if (!boutonDecoller.cacheApresGameOver) fail('Jetpack : le bouton DÉCOLLER reste affiché après un game over alors que le jetpack est perdu');
+      else ok('Jetpack : le bouton DÉCOLLER disparaît bien après un game over (jetpack perdu, comme les armes)');
+    }
+
     console.log('\n--- Jetpack : décollage immédiat, montée franche, carburant qui se vide, jamais utilisable à l\'intérieur ---');
     const decollage = await page.evaluate(() => {
       startRun();

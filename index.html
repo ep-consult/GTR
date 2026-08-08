@@ -1088,7 +1088,7 @@ for(const nom of ['haut','bas','gauche','droite','rotate']){
 // EXACT de chaque bouton (pas juste 'none'/''), car certains ont un état
 // caché par défaut pour une tout autre raison (ex : btnJump, masqué hors
 // hélicoptère via un style inline) qu'un simple '' écraserait à tort.
-const BOUTONS_COMBAT=['btnFire','btnDodge','btnSprint','btnSwitch','btnSpec','btnJump','btnGren','btnBrake'];
+const BOUTONS_COMBAT=['btnFire','btnDodge','btnSprint','btnSwitch','btnSpec','btnJump','btnGren','btnBrake','btnJetpack'];
 let boutonsCombatSauves=null;
 function cacherBoutonsCombat(){
   if(boutonsCombatSauves) return;
@@ -5434,6 +5434,7 @@ function entrerVehicule(v){
   el('btnSwitch').innerHTML='📻<small>RADIO</small>';
   el('btnBrake').style.display='flex'; el('btnBrake').classList.add('gros');
   el('vehWrap').style.display='block';
+  el('btnJetpack').style.display='none'; // inutilisable en véhicule — voir sortirVehicule
   if(v.def.canon){
     el('btnFire').style.display='flex';
     el('fireIco').textContent='💥'; el('fireAmmo').textContent='∞';
@@ -5505,6 +5506,7 @@ function sortirVehicule(force){
   el('btnBrake').querySelector('small').textContent='FREIN';
   el('btnDodge').innerHTML='💨<small>ESQUIVE</small>';
   el('btnJump').style.display='none'; el('btnSpec').style.display='flex';
+  if(P.jetpack&&!INT.actif) el('btnJetpack').style.display='flex';
   majArmeJoueur();
   moteurStop();
 }
@@ -10709,6 +10711,7 @@ function entrerInterieur(id,porte){
   // une porte en plein vol resterait bloqué en vol dans une salle à trajet
   // contraint (Site 51, musée, métro) — voir CLAUDE.md.
   if(P.jetpackVol) atterrirJetpack();
+  el('btnJetpack').style.display='none'; // rendu à la sortie (sortirInterieur), si toujours équipé
   // Site 51 : état de confinement propre à CHAQUE entrée (sas rouverts —
   // au cas où une visite précédente les aurait laissés fermés sans passer
   // par site51ConclureVisite), compteur de vague, niveau du mystère figé
@@ -10773,6 +10776,7 @@ function sortirInterieur(){
   }
   INT.actif=null;
   el('minimap').style.opacity='1';
+  if(P.jetpack&&!P.veh) el('btnJetpack').style.display='flex';
   SFX.ui();
 }
 function declencherAlarme(s,raison){
@@ -13401,7 +13405,7 @@ function startRun(){
   // faut remonter le chercher. Le lieu, lui (META.jetpackTrouve), reste acquis.
   P.jetpack=false; P.jetpackVol=false; P.jetFuel=100; P.jetVx=0; P.jetVz=0; P.jetWarnT=0;
   if(P.jetMesh) P.jetMesh.g.visible=false;
-  el('jetWrap').style.display='none'; el('jetWarn').style.display='none';
+  el('jetWrap').style.display='none'; el('jetWarn').style.display='none'; el('btnJetpack').style.display='none';
   jetpackSonStop();
   if(INT.actif){ INT.actif=null; el('minimap').style.opacity='1'; }
   // lieux spéciaux : on remet à zéro ce qui appartient à la partie (les
@@ -14555,6 +14559,7 @@ function majAction(){
         label='🚀 ÉQUIPER LE JETPACK';
         fn=()=>{
           P.jetpack=true; P.jetFuel=100; P.jetMesh.g.visible=true;
+          if(!P.veh&&!INT.actif) el('btnJetpack').style.display='flex';
           bigMsg('🚀 JETPACK ÉQUIPÉ');
           toast('Décolle en maintenant DÉCOLLER. Un crash à pleine vitesse est mortel.','or');
           SFX.niveau(); vibre(60);
