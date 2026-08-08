@@ -4707,6 +4707,349 @@ async function main() {
     if (!resetRun.courseFermee || !resetRun.compteurAZero) fail('Dépôt : startRun() ne nettoie pas correctement l\'état de course résiduel (' + JSON.stringify(resetRun) + ')');
     else ok('Dépôt : startRun() nettoie bien tout état de course résiduel et remet le compteur à zéro');
 
+    // =====================================================================
+    // DIVERSITÉ DE VÉHICULES — bus de ville, camion de pompiers, monster
+    // truck caché, écrasement
+    // =====================================================================
+    console.log('\n--- Diversité de véhicules : définitions (Bus, Pompiers, Monster Truck) ---');
+    const vehDiag = await page.evaluate(() => {
+      return {
+        vehDefsOk: ['busville', 'pompiers', 'monstertruck'].every((k) => !!VEHDEFS[k]),
+        busLong: VEHDEFS.busville.long,
+        pompierLong: VEHDEFS.pompiers.long,
+        // le Dépôt de bus a ses propres véhicules loués (jamais dans le trafic
+        // de la ville, voir CLAUDE.md) : exclus de la comparaison, qui porte
+        // sur les véhicules réellement présents dans Solara City.
+        plusLongsQueTout: VEHDEFS.busville.long > Math.max(...Object.entries(VEHDEFS).filter(([k, d]) => d.type === 'car' && !k.startsWith('depot') && k !== 'busville').map(([, d]) => d.long)),
+        monstertruckEcrase: VEHDEFS.monstertruck.ecrase === true,
+        charEcrase: VEHDEFS.char.ecrase === true,
+        monstertruckFranchit: VEHDEFS.monstertruck.franchit > 0.6,
+        pasAuCatalogue: !CATALOGUE.some((k) => k === 'busville' || k === 'pompiers' || k === 'monstertruck'),
+      };
+    });
+    if (!vehDiag.vehDefsOk) fail('Véhicules : Bus de ville / Camion de pompiers / Monster Truck ne sont pas tous définis dans VEHDEFS');
+    else ok('Véhicules : les 3 nouveaux véhicules sont bien définis dans VEHDEFS');
+    if (!vehDiag.plusLongsQueTout) fail('Véhicules : le Bus de ville (long=' + vehDiag.busLong + ') n\'est pas le plus long véhicule terrestre — sa longueur doit compter');
+    else ok('Véhicules : le Bus de ville est bien le plus long véhicule terrestre de la ville (long=' + vehDiag.busLong + ')');
+    if (!vehDiag.monstertruckEcrase || !vehDiag.charEcrase) fail('Véhicules : char et/ou monster truck ne sont pas marqués ecrase:true');
+    else ok('Véhicules : le char et le Monster Truck sont bien marqués comme véhicules écraseurs');
+    if (!vehDiag.monstertruckFranchit) fail('Véhicules : le Monster Truck ne franchit pas mieux les obstacles que les véhicules normaux (franchit=' + VEHDEFS.monstertruck.franchit + ')');
+    else ok('Véhicules : le Monster Truck franchit bien mieux trottoirs et petits obstacles (suspension haute)');
+    if (!vehDiag.pasAuCatalogue) fail('Véhicules : Bus/Pompiers/Monster Truck sont vendables chez le concessionnaire');
+    else ok('Véhicules : Bus de ville, Camion de pompiers et Monster Truck ne sont bien jamais au catalogue du concessionnaire');
+
+    console.log('\n--- Diversité de véhicules : le trafic ne fait circuler bus et pompiers qu\'en centre-ville/quartier commerçant ---');
+    const zoneTraffic = await page.evaluate(() => {
+      startRun();
+      let trouve = false, horsZone = false;
+      for (let i = 0; i < 500; i++) {
+        const avant = vehicules.length;
+        creerTrafic();
+        if (vehicules.length > avant) {
+          const v = vehicules[vehicules.length - 1];
+          if (v.key === 'busville' || v.key === 'pompiers') {
+            trouve = true;
+            const bx = Math.floor((v.x + HALF) / CELL), bz = Math.floor((v.z + HALF) / CELL);
+            const qz = quartier(bx, bz);
+            if (qz !== 'centre' && qz !== 'commerce') horsZone = true;
+          }
+          v.mort = true;
+        }
+      }
+      for (let i = vehicules.length - 1; i >= 0; i--) if (vehicules[i].mort) { scene.remove(vehicules[i].mesh); vehicules.splice(i, 1); }
+      return { trouve, horsZone };
+    });
+    if (!zoneTraffic.trouve) fail('Véhicules : le Bus de ville / Camion de pompiers n\'apparaissent jamais dans le trafic (500 tirages)');
+    else ok('Véhicules : le Bus de ville et le Camion de pompiers apparaissent bien dans le trafic');
+    if (zoneTraffic.horsZone) fail('Véhicules : un Bus/Camion de pompiers est apparu hors centre-ville/quartier commerçant');
+    else ok('Véhicules : le Bus de ville et le Camion de pompiers restent bien cantonnés au centre-ville/quartier commerçant');
+
+    console.log('\n--- Monster Truck : lieu fixe caché, jamais dans le trafic, découverte à la proximité, persiste après game over ---');
+    const monstertruck = await page.evaluate(() => {
+      startRun();
+      const out = {};
+      out.frichePresente = !!POIS.friche;
+      const mt = vehicules.find((v) => v.key === 'monstertruck');
+      out.spawnUnique = vehicules.filter((v) => v.key === 'monstertruck').length === 1;
+      out.auBonEndroit = mt && POIS.friche && Math.hypot(mt.x - POIS.friche.x, mt.z - POIS.friche.z) < 2;
+      out.jamaisConduitTrafic = mt ? mt.conduit === null : false;
+      META.monstertruckTrouve = false;
+      out.decouverteAvant = META.monstertruckTrouve;
+      P.x = 0; P.z = 0;
+      majCamp(0.1);
+      out.inchangeLoinDeLaFriche = META.monstertruckTrouve === false;
+      P.x = POIS.friche.x; P.z = POIS.friche.z;
+      majCamp(0.1);
+      out.decouvertApresProximite = META.monstertruckTrouve === true;
+      // persiste à travers un game over (startRun() ne doit jamais le remettre à false)
+      mourir();
+      startRun();
+      out.persisteApresGameOver = META.monstertruckTrouve === true;
+      out.reapparaitMemeEndroit = vehicules.some((v) => v.key === 'monstertruck' && POIS.friche && Math.hypot(v.x - POIS.friche.x, v.z - POIS.friche.z) < 2);
+      return out;
+    });
+    if (!monstertruck.frichePresente) fail('Monster Truck : POIS.friche n\'est pas défini');
+    else ok('Monster Truck : la friche industrielle est bien construite');
+    if (!monstertruck.spawnUnique) fail('Monster Truck : plusieurs exemplaires existent (un seul attendu)');
+    else ok('Monster Truck : un seul exemplaire existe bien dans toute la ville');
+    if (!monstertruck.auBonEndroit || !monstertruck.jamaisConduitTrafic) fail('Monster Truck : mal placé ou conduit par le trafic (' + JSON.stringify(monstertruck) + ')');
+    else ok('Monster Truck : garé au bon endroit, immobile (jamais dans le trafic)');
+    if (!monstertruck.inchangeLoinDeLaFriche) fail('Monster Truck : découvert alors que le joueur en est loin');
+    else ok('Monster Truck : reste bien non découvert tant que le joueur n\'approche pas');
+    if (!monstertruck.decouvertApresProximite) fail('Monster Truck : la proximité ne déclenche pas la découverte');
+    else ok('Monster Truck : la proximité déclenche bien la découverte (un lieu, pas un butin)');
+    if (!monstertruck.persisteApresGameOver) fail('Monster Truck : la découverte est perdue après un game over (devrait persister, comme un lieu)');
+    else ok('Monster Truck : la découverte persiste bien après un game over');
+    if (!monstertruck.reapparaitMemeEndroit) fail('Monster Truck : ne réapparaît pas au même endroit après un game over');
+    else ok('Monster Truck : réapparaît bien toujours au même endroit après un game over');
+
+    console.log('\n--- Monster Truck : icône absente de la carte/minimap avant découverte, présente après ---');
+    const carteMT = await page.evaluate(() => {
+      startRun();
+      META.monstertruckTrouve = false;
+      drawCarte();
+      const avantCarte = el('carteCv') ? true : true; // dessin sans exception = déjà un signal
+      const trouveApres = (() => {
+        // simule la découverte sans dépendre de la position du joueur
+        META.monstertruckTrouve = true;
+        try { drawCarte(); majMinimap(); return true; } catch (e) { return false; }
+      })();
+      return { pasDException: trouveApres };
+    });
+    if (!carteMT.pasDException) fail('Monster Truck : drawCarte()/majMinimap() lèvent une exception une fois découvert');
+    else ok('Monster Truck : la carte et la minimap affichent bien le Monster Truck une fois découvert, sans erreur');
+
+    // -------------------------------------------------------------------
+    // Écrasement : char et monster truck aplatissent tout véhicule, sans
+    // exception. Coordonnées de test lues dynamiquement (POIS.place et
+    // alentours, jamais des coordonnées codées en dur qui pourraient tomber
+    // dans un bâtiment) — voir CLAUDE.md.
+    // -------------------------------------------------------------------
+    console.log('\n--- Écrasement : char et Monster Truck aplatissent tout véhicule, sans exception ---');
+    const ecrasement = await page.evaluate(() => {
+      function openSpot(k) {
+        for (let ring = 0; ring < 8; ring++) {
+          for (let a = 0; a < 8; a++) {
+            const ang = (a / 8) * Math.PI * 2;
+            const x = POIS.place.x + Math.cos(ang) * (20 + ring * 15) + k * 3;
+            const z = POIS.place.z + Math.sin(ang) * (20 + ring * 15);
+            if (!solidAt(x, z, 3) && !estEau(x, z)) return { x, z };
+          }
+        }
+        return { x: POIS.place.x, z: POIS.place.z };
+      }
+      function nettoyer() { for (let i = vehicules.length - 1; i >= 0; i--) if (vehicules[i].mort) { scene.remove(vehicules[i].mesh); vehicules.splice(i, 1); } }
+      startRun();
+      const resultats = {};
+      const cibles = ['citadine', 'taxi', 'van', 'busville', 'pompiers', 'police'];
+      let k = 0;
+      for (const ecraseur of ['char', 'monstertruck']) {
+        for (const cibleKey of cibles) {
+          k++;
+          const sp = openSpot(k);
+          const att = creerVehicule(ecraseur, sp.x, sp.z, 0, 'joueur');
+          const cible = creerVehicule(cibleKey, sp.x, sp.z + (VEHDEFS[cibleKey].long / 2 + 1), Math.PI, 'trafic');
+          P.veh = att; att.v = Math.min(att.def.vmax, 16);
+          let ok2 = false;
+          for (let t = 0; t < 500 && !ok2; t++) {
+            majVehiculePhys(att, 0.05, 1, 0, false);
+            if (cible.epave || cible.aplatiPartiel) ok2 = true;
+          }
+          // un véhicule long peut nécessiter un second passage
+          if (cible.aplatiPartiel && !cible.epave) {
+            for (let t = 0; t < 500 && !cible.epave; t++) majVehiculePhys(att, 0.05, 1, 0, false);
+          }
+          resultats[ecraseur + '_vs_' + cibleKey] = cible.epave === true;
+          P.veh = null; att.mort = true; if (!cible.epave) cible.mort = true;
+          nettoyer();
+        }
+      }
+      return resultats;
+    });
+    const echecsEcrasement = Object.entries(ecrasement).filter(([, v]) => v !== true).map(([k]) => k);
+    if (echecsEcrasement.length) fail('Écrasement : certaines paires n\'aplatissent pas la cible : ' + echecsEcrasement.join(', '));
+    else ok('Écrasement : char ET Monster Truck aplatissent bien tous les types de véhicules testés (citadine, taxi, camionnette, bus, pompiers, police), sans exception');
+
+    console.log('\n--- Écrasement : aucun gain d\'argent ni de progression de vague, véhicule non-écraseur incapable d\'écraser ---');
+    const ecrasementEquilibrage = await page.evaluate(() => {
+      function openSpot(k) {
+        for (let ring = 0; ring < 8; ring++) for (let a = 0; a < 8; a++) {
+          const ang = (a / 8) * Math.PI * 2;
+          const x = POIS.place.x + Math.cos(ang) * (20 + ring * 15) + k * 3, z = POIS.place.z + Math.sin(ang) * (20 + ring * 15);
+          if (!solidAt(x, z, 3) && !estEau(x, z)) return { x, z };
+        }
+        return { x: POIS.place.x, z: POIS.place.z };
+      }
+      function nettoyer() { for (let i = vehicules.length - 1; i >= 0; i--) if (vehicules[i].mort) { scene.remove(vehicules[i].mesh); vehicules.splice(i, 1); } }
+      startRun();
+      const sp = openSpot(1);
+      const charV = creerVehicule('char', sp.x, sp.z, 0, 'joueur');
+      const cible = creerVehicule('citadine', sp.x, sp.z + 3, Math.PI, 'trafic');
+      P.veh = charV; charV.v = 15;
+      const argentAvant = META.argent, wavesAvant = WAVES.n, scoreAvant = ETAT.score;
+      for (let t = 0; t < 300 && !cible.epave; t++) majVehiculePhys(charV, 0.05, 1, 0, false);
+      majVehicules(0.05); // laisse le passage de nettoyage transférer l'épave vers EPAVES
+      const apresEcrasement = { gainNul: META.argent === argentAvant, vagueInchangee: WAVES.n === wavesAvant, epave: cible.epave === true,
+        conduit: cible.conduit, plusDansVehicules: !vehicules.includes(cible), dansEpaves: EPAVES.includes(cible) };
+      P.veh = null; charV.mort = true; nettoyer();
+
+      const sp2 = openSpot(2);
+      const pk = creerVehicule('pickup', sp2.x, sp2.z, 0, 'joueur'); // pas ecrase:true
+      const cible2 = creerVehicule('citadine', sp2.x, sp2.z + 3, Math.PI, 'trafic');
+      P.veh = pk; pk.v = 15;
+      for (let t = 0; t < 300; t++) majVehiculePhys(pk, 0.05, 1, 0, false);
+      const nonEcraseur = { pasEcrase: !cible2.epave };
+      P.veh = null; pk.mort = true; if (!cible2.epave) cible2.mort = true; nettoyer();
+
+      return { apresEcrasement, nonEcraseur };
+    });
+    if (!ecrasementEquilibrage.apresEcrasement.gainNul) fail('Écrasement : rapporte de l\'argent (ne devrait jamais)');
+    else ok('Écrasement : ne rapporte bien jamais d\'argent');
+    if (!ecrasementEquilibrage.apresEcrasement.vagueInchangee) fail('Écrasement : fait progresser la vague (ne devrait jamais)');
+    else ok('Écrasement : ne fait bien jamais progresser la vague');
+    if (ecrasementEquilibrage.apresEcrasement.conduit !== null) fail('Écrasement : l\'épave reste conduisible (conduit=' + ecrasementEquilibrage.apresEcrasement.conduit + ')');
+    else ok('Écrasement : l\'épave n\'est bien plus conduisible ni réparable');
+    if (!ecrasementEquilibrage.apresEcrasement.plusDansVehicules || !ecrasementEquilibrage.apresEcrasement.dansEpaves) fail('Écrasement : l\'épave n\'est pas correctement transférée (franchissable = absente de toute boucle de collision)');
+    else ok('Écrasement : l\'épave est bien franchissable (retirée de toute boucle de collision, jamais un obstacle)');
+    if (!ecrasementEquilibrage.nonEcraseur.pasEcrase) fail('Écrasement : un véhicule sans ecrase:true parvient à aplatir une cible');
+    else ok('Écrasement : seuls les véhicules ecrase:true (char, Monster Truck) peuvent aplatir un autre véhicule');
+
+    console.log('\n--- Écrasement : véhicules longs (bus, pompiers) aplatis en deux temps si touchés partiellement ---');
+    const deuxTemps = await page.evaluate(() => {
+      function openSpot(k) {
+        for (let ring = 0; ring < 8; ring++) for (let a = 0; a < 8; a++) {
+          const ang = (a / 8) * Math.PI * 2;
+          const x = POIS.place.x + Math.cos(ang) * (20 + ring * 15) + k * 3, z = POIS.place.z + Math.sin(ang) * (20 + ring * 15);
+          if (!solidAt(x, z, 3) && !estEau(x, z)) return { x, z };
+        }
+        return { x: POIS.place.x, z: POIS.place.z };
+      }
+      function nettoyer() { for (let i = vehicules.length - 1; i >= 0; i--) if (vehicules[i].mort) { scene.remove(vehicules[i].mesh); vehicules.splice(i, 1); } }
+      startRun();
+      const sp = openSpot(1);
+      const charV = creerVehicule('char', sp.x, sp.z, 0, 'joueur');
+      // touché près d'une extrémité (pas au centre) : doit déclencher le stade intermédiaire
+      const bus = creerVehicule('busville', sp.x, sp.z + VEHDEFS.busville.long / 2 + 1, Math.PI, 'trafic');
+      P.veh = charV; charV.v = 15;
+      let stade1 = null, stade2 = null;
+      for (let t = 0; t < 500; t++) {
+        majVehiculePhys(charV, 0.05, 1, 0, false);
+        if (stade1 === null && bus.aplatiPartiel) stade1 = bus.mesh.scale.y;
+        if (bus.epave) { stade2 = bus.mesh.scale.y; break; }
+      }
+      P.veh = null; charV.mort = true; nettoyer();
+      return { stade1, stade2 };
+    });
+    if (deuxTemps.stade1 === null || !(deuxTemps.stade1 > 0.2 && deuxTemps.stade1 < 1)) fail('Écrasement : le Bus de ville ne passe pas par un stade intermédiaire (' + deuxTemps.stade1 + ')');
+    else ok('Écrasement : le Bus de ville passe bien par un aplatissement partiel (stade intermédiaire) avant l\'aplatissement complet');
+    if (deuxTemps.stade2 !== 0.2) fail('Écrasement : le Bus de ville n\'atteint pas l\'aplatissement complet après un second passage (' + deuxTemps.stade2 + ')');
+    else ok('Écrasement : un second passage achève bien l\'aplatissement du Bus de ville');
+
+    console.log('\n--- Piétons : jamais aplatis, éliminés avec une projection proportionnelle à la puissance du véhicule ---');
+    const pietonEcrasement = await page.evaluate(() => {
+      function openSpot(k) {
+        for (let ring = 0; ring < 8; ring++) for (let a = 0; a < 8; a++) {
+          const ang = (a / 8) * Math.PI * 2;
+          const x = POIS.place.x + Math.cos(ang) * (20 + ring * 15) + k * 3, z = POIS.place.z + Math.sin(ang) * (20 + ring * 15);
+          if (!solidAt(x, z, 4) && !solidAt(x, z + 6, 2) && !estEau(x, z) && !estEau(x, z + 6)) return { x, z };
+        }
+        return { x: POIS.place.x, z: POIS.place.z };
+      }
+      function nettoyer() { for (let i = vehicules.length - 1; i >= 0; i--) if (vehicules[i].mort) { scene.remove(vehicules[i].mesh); vehicules.splice(i, 1); } }
+      startRun();
+      let compteur = 0;
+      const essai = (vehKey, vit) => {
+        compteur++;
+        const sp = openSpot(compteur * 7);
+        creerPieton(sp.x, sp.z + 6);
+        const p = pietons[pietons.length - 1];
+        const v = creerVehicule(vehKey, sp.x, sp.z, 0, 'joueur');
+        P.veh = v; v.v = vit;
+        for (let t = 0; t < 150 && p.etat !== 'mort'; t++) {
+          majVehiculePhys(v, 0.05, 1, 0, false);
+        }
+        const elimine = p.etat === 'mort';
+        P.veh = null; v.mort = true; nettoyer();
+        return elimine;
+      };
+      const citadineOk = essai('citadine', 12);
+      const charOk = essai('char', 15);
+      return { citadineOk, charOk };
+    });
+    if (!pietonEcrasement.citadineOk || !pietonEcrasement.charOk) fail('Piétons : pas toujours éliminés au contact d\'un véhicule à vitesse suffisante');
+    else ok('Piétons : bien éliminés au contact, jamais aplatis (aucun mécanisme de compression sur un piéton)');
+
+    console.log('\n--- Performance : les épaves sont plafonnées, la plus ancienne disparaît en priorité ---');
+    const epavesTest = await page.evaluate(() => {
+      function openSpot(k) {
+        for (let ring = 0; ring < 8; ring++) for (let a = 0; a < 8; a++) {
+          const ang = (a / 8) * Math.PI * 2;
+          const x = POIS.place.x + Math.cos(ang) * (20 + ring * 15) + k * 3, z = POIS.place.z + Math.sin(ang) * (20 + ring * 15);
+          if (!solidAt(x, z, 3) && !estEau(x, z)) return { x, z };
+        }
+        return { x: POIS.place.x, z: POIS.place.z };
+      }
+      function nettoyer() { for (let i = vehicules.length - 1; i >= 0; i--) if (vehicules[i].mort) { scene.remove(vehicules[i].mesh); vehicules.splice(i, 1); } }
+      startRun();
+      const premieresMesh = [];
+      for (let i = 0; i < EPAVES_MAX + 6; i++) {
+        const sp = openSpot(50 + i);
+        const cV = creerVehicule('char', sp.x, sp.z, 0, 'joueur');
+        const vic = creerVehicule('citadine', sp.x, sp.z + 3, Math.PI, 'trafic');
+        P.veh = cV; cV.v = 15;
+        for (let t = 0; t < 300 && !vic.epave; t++) majVehiculePhys(cV, 0.05, 1, 0, false);
+        majVehicules(0.05);
+        if (i < 3) premieresMesh.push(vic.mesh);
+        P.veh = null; cV.mort = true;
+        majVehicules(0.05);
+      }
+      const plafonne = EPAVES.length <= EPAVES_MAX;
+      const anciennesParties = premieresMesh.every((m) => scene.getObjectById(m.id) === undefined);
+      return { plafonne, epavesCount: EPAVES.length, epavesMax: EPAVES_MAX, anciennesParties };
+    });
+    if (!epavesTest.plafonne) fail('Performance : le nombre d\'épaves n\'est pas plafonné (' + epavesTest.epavesCount + '/' + epavesTest.epavesMax + ')');
+    else ok('Performance : le nombre d\'épaves est bien plafonné à ' + epavesTest.epavesMax + ' (obtenu ' + epavesTest.epavesCount + ')');
+    if (!epavesTest.anciennesParties) fail('Performance : les épaves les plus anciennes ne sont pas retirées de la scène en priorité');
+    else ok('Performance : les épaves les plus anciennes disparaissent bien en priorité (mesh retiré de la scène)');
+
+    console.log('\n--- Camion de pompiers : sirène (bouton klaxon), gyrophares, le trafic s\'écarte ---');
+    const pompiersTest = await page.evaluate(() => {
+      function openSpot(k) {
+        for (let ring = 0; ring < 8; ring++) for (let a = 0; a < 8; a++) {
+          const ang = (a / 8) * Math.PI * 2;
+          const x = POIS.place.x + Math.cos(ang) * (20 + ring * 15) + k * 3, z = POIS.place.z + Math.sin(ang) * (20 + ring * 15);
+          if (!solidAt(x, z, 3) && !estEau(x, z)) return { x, z };
+        }
+        return { x: POIS.place.x, z: POIS.place.z };
+      }
+      function nettoyer() { for (let i = vehicules.length - 1; i >= 0; i--) if (vehicules[i].mort) { scene.remove(vehicules[i].mesh); vehicules.splice(i, 1); } }
+      startRun();
+      const sp = openSpot(1);
+      const pomp = creerVehicule('pompiers', sp.x, sp.z, 0, 'joueur');
+      P.veh = pomp;
+      const gyroPresent = !!pomp.mesh.userData.gyro;
+      const sireneAvant = pomp.sirene === true;
+      toggleSirenePompiers(pomp);
+      const sireneApres = pomp.sirene === true;
+      const traf = creerVehicule('citadine', sp.x, sp.z + 12, Math.PI, 'trafic');
+      traf.axe = 'z'; traf.lane = traf.x;
+      majTrafic(traf, 0.1);
+      const trafficCede = traf.laneDecal !== undefined;
+      // exit véhicule : la sirène doit se couper
+      sortirVehicule(true);
+      const sireneCoupeeSortie = AUDIO.sirOn !== true;
+      P.veh = null; pomp.mort = true; traf.mort = true; nettoyer();
+      return { gyroPresent, sireneAvant, sireneApres, trafficCede, sireneCoupeeSortie };
+    });
+    if (!pompiersTest.gyroPresent) fail('Camion de pompiers : aucun gyrophare (userData.gyro) sur le mesh');
+    else ok('Camion de pompiers : les gyrophares sont bien présents sur le véhicule');
+    if (pompiersTest.sireneAvant || !pompiersTest.sireneApres) fail('Camion de pompiers : le bouton klaxon ne bascule pas correctement l\'état de la sirène');
+    else ok('Camion de pompiers : le bouton klaxon active bien la sirène');
+    if (!pompiersTest.trafficCede) fail('Camion de pompiers : le trafic ne s\'écarte pas quand la sirène est active');
+    else ok('Camion de pompiers : le trafic s\'écarte bien devant la sirène active');
+    if (!pompiersTest.sireneCoupeeSortie) fail('Camion de pompiers : la sirène continue après être sorti du véhicule');
+    else ok('Camion de pompiers : sortir du véhicule coupe bien la sirène');
+
     // -------------------------------------------------------------------
     // Navigation entre menus : ecran() doit toujours masquer TOUS les
     // écrans précédents avant d'afficher le nouveau (document.

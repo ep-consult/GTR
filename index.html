@@ -742,6 +742,33 @@ function moteurStop(){
   AUDIO.engOsc=null;AUDIO.engOsc2=null;AUDIO.engGain=null;AUDIO.engGain2=null;
   AUDIO.engNoise=null;AUDIO.engNG=null;AUDIO.engLfo=null;AUDIO.engPr=null;
 }
+/* ---- Camion de pompiers : sirène deux tons, activée/coupée au bouton
+   klaxon (voir majConduite, entrerVehicule). Même discipline que le moteur :
+   jamais démarrée deux fois, coupée sur tous les chemins de sortie
+   (sortirVehicule, mourir). */
+function sireneStart(){
+  if(!AUDIO.pret||AUDIO.sirOn) return;
+  const ctx=AUDIO.ctx, t=ctx.currentTime;
+  const o=ctx.createOscillator(); o.type='sine'; o.frequency.value=700;
+  const g=ctx.createGain(); g.gain.value=0.09;
+  const lfo=ctx.createOscillator(); lfo.type='sine'; lfo.frequency.value=0.55;
+  const lfoG=ctx.createGain(); lfoG.gain.value=280;
+  lfo.connect(lfoG); lfoG.connect(o.frequency); lfo.start(t);
+  o.connect(g); g.connect(AUDIO.sfxG); o.start(t);
+  AUDIO.sirOn=true; AUDIO.sirOsc=o; AUDIO.sirGain=g; AUDIO.sirLfo=lfo; AUDIO.sirLfoG=lfoG;
+}
+function sireneStop(){
+  if(!AUDIO.sirOn) return;
+  try{ AUDIO.sirOsc.stop(); AUDIO.sirLfo.stop(); }catch(e){}
+  AUDIO.sirOn=false; AUDIO.sirOsc=null; AUDIO.sirGain=null; AUDIO.sirLfo=null; AUDIO.sirLfoG=null;
+}
+function toggleSirenePompiers(v){
+  v.sirene=!v.sirene;
+  el('btnSwitch').innerHTML=(v.sirene?'🚨':'🔕')+'<small>SIRÈNE</small>';
+  if(v.sirene){ sireneStart(); toast('🚨 Sirène — le trafic s’écarte','or'); }
+  else { sireneStop(); toast('Sirène coupée'); }
+  SFX.ui();
+}
 /* ---- Ciné-Palace : trois sons continus (ronron du projecteur, bande-son
    du film étouffée, rumeur de la salle) — même discipline que le moteur
    des véhicules : jamais démarrés deux fois, coupés dans TOUS les chemins
@@ -1264,7 +1291,10 @@ const META={
     boucle:[{init:'ZOH',temps:29.8},{init:'GAS',temps:34.5},{init:'MAX',temps:39.2},{init:'BOB',temps:45.0},{init:'AAA',temps:52.5}],
     quais:[{init:'ZOH',temps:38.5},{init:'GAS',temps:45.0},{init:'MAX',temps:52.5},{init:'BOB',temps:61.0},{init:'AAA',temps:70.0}],
     toit:[{init:'ZOH',temps:22.5},{init:'GAS',temps:27.0},{init:'MAX',temps:32.0},{init:'BOB',temps:38.0},{init:'AAA',temps:46.0}]
-  }
+  },
+  // Monster Truck : un lieu, jamais un butin — découvert une fois pour
+  // toutes (proximité, voir majCamp), jamais réinitialisé au game over.
+  monstertruckTrouve:false
 };
 const DEFIS=[
   {id:'sang',nom:'Premier sang',det:'Neutralise 25 ennemis',rec:250,prog:m=>[m.killsTotal,25],cond:m=>m.killsTotal>=25},
@@ -1545,9 +1575,18 @@ const VEHDEFS={
   scarabee:{nom:'Buggy "Scarabée"',vmax:33,acc:21,man:3.3,hp:130,long:3.4,larg:1.9,type:'car',cols:[0x2fae4f],buggy:true,cache:true},
   baronne:{nom:'Ancienne "Baronne"',vmax:26,acc:10,man:2.0,hp:280,long:5.4,larg:2.1,type:'car',cols:[0x6a1f2a],cache:true},
   avion:{nom:'Avion "Colibri"',vmax:40,acc:11,man:1.3,hp:130,long:7.4,larg:2,type:'car',air:'avion',cols:[0xe8ecf2]},
-  char:{nom:'Char "Rhinocéros"',vmax:17,acc:7,man:1.0,hp:2600,long:6.6,larg:3.4,type:'car',blinde:true,canon:true,cache:true,cols:[0x4a5238]},
+  char:{nom:'Char "Rhinocéros"',vmax:17,acc:7,man:1.0,hp:2600,long:6.6,larg:3.4,type:'car',blinde:true,canon:true,cache:true,ecrase:true,cols:[0x4a5238]},
   chasseur:{nom:'Chasseur "Épervier"',vmax:56,acc:17,man:1.7,hp:240,long:8,larg:2,type:'car',air:'avion',armes:true,cache:true,cols:[0x3e4434]},
   helico:{nom:'Hélico "Libellule"',vmax:24,acc:14,man:2.6,hp:120,long:5,larg:1.8,type:'car',air:'helico',cols:[0xd83a3a]},
+  // Diversité du trafic (lot 11) : bus de ville et camion de pompiers,
+  // conduisibles, restreints au centre-ville/quartier commerçant (voir
+  // creerTrafic) ; monster truck cache: un seul exemplaire, jamais dans le
+  // trafic, placé une fois en friche industrielle (voir construireVille).
+  // ecrase:true (char, monster truck) — voir ecraserVehicule : aplatit
+  // n'importe quel autre véhicule au contact, sans exception.
+  busville:{nom:'Bus de ville',vmax:16,acc:6,man:0.9,hp:480,long:10.5,larg:2.5,type:'car',cols:[0xe8ecf2],bus:true},
+  pompiers:{nom:'Camion de pompiers',vmax:20,acc:8,man:1.5,hp:480,long:7.5,larg:2.4,type:'car',cols:[0xd0342e],pompier:true},
+  monstertruck:{nom:'Monster Truck',vmax:29,acc:8,man:2.2,hp:650,long:5.2,larg:2.7,type:'car',cols:[0xff3b1a],ecrase:true,franchit:1.5},
   // Dépôt de bus : loués au stand, jamais au concessionnaire (absents de
   // CATALOGUE — suffisant, pas besoin de cache:true qui déclencherait une
   // notification de « découverte » à chaque création). Quatre profils
@@ -3435,6 +3474,33 @@ function remplirBloc(qq,bx,bz,cx,cz){
     mkCaisse(cx,cz-6); mkCaisse(cx,cz+6);
     return;
   }
+  if(bx===5&&bz===9){ // FRICHE INDUSTRIELLE — Monster Truck caché derrière un grillage
+    const d=new THREE.Mesh(new THREE.BoxGeometry(INNER,0.14,INNER),mat(0x3a3a34));
+    d.position.set(cx,0.07,cz); scene.add(d);
+    for(let i=0;i<8;i++) mkCaisse(cx+rand(-14,14),cz+rand(-14,14));
+    // ironie assumée : la pancarte pointe droit sur l'accès, voir CLAUDE.md
+    mkEnseigne('DÉPÔT MUNICIPAL — PROPRIÉTÉ DE LA VILLE DE SOLARA. Accès interdit. ↓','#c8c4a8',cx,3.2,cz-15.4,0,15);
+    const texGrillage=cTex(64,(ctx,s)=>{
+      ctx.strokeStyle='rgba(190,196,204,0.6)'; ctx.lineWidth=1.4;
+      for(let i=-s;i<s*2;i+=9){
+        ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i+s,s); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(i,s); ctx.lineTo(i+s,0); ctx.stroke();
+      }
+    },6,1);
+    const matGrille=new THREE.MeshBasicMaterial({map:texGrillage,transparent:true,opacity:0.85,side:THREE.DoubleSide});
+    for(const [dx,dz,len,ry] of [[0,-13,26,0],[0,13,26,0],[-13,0,26,Math.PI/2],[13,0,26,Math.PI/2]]){
+      const gr=new THREE.Mesh(new THREE.PlaneGeometry(len,2.2),matGrille);
+      gr.position.set(cx+dx,1.1,cz+dz); gr.rotation.y=ry; scene.add(gr);
+    }
+    for(let i=-13;i<=13;i+=6.5){
+      mkBox(0.14,2.3,0.14,mat(0x23262e),cx+i,1.15,cz-13);
+      mkBox(0.14,2.3,0.14,mat(0x23262e),cx+i,1.15,cz+13);
+      mkBox(0.14,2.3,0.14,mat(0x23262e),cx-13,1.15,cz+i);
+      mkBox(0.14,2.3,0.14,mat(0x23262e),cx+13,1.15,cz+i);
+    }
+    POIS.friche={x:cx,z:cz};
+    return;
+  }
   // remplissage générique par quartier
   if(qq==='centre'){
     mkBatiment(cx,cz,rand(15,22),rand(15,22),rand(20,46),pick(paletteFacades.centre));
@@ -3862,10 +3928,29 @@ function makeVoiture(key){
       r.rotation.z=Math.PI/2; r.position.set(p[0],p[1],p[2]); g.add(r); ud.roues.push(r);
     });
   } else {
-    g.add(mkBoxG(W,0.6,L*0.92,coul,0,0.52,0));
-    g.add(mkBoxG(W*0.8,0.48,L*0.44,0x141b26,0,1.05,-L*0.06)); // habitacle vitré
-    g.add(mkBoxG(W*0.6,0.05,L*0.28,def.taxi?0xf2c21f:0x0d1119,0,1.32,-L*0.06)); // pavillon détaillé vu du dessus
-    g.add(mkBoxG(W*0.66,0.04,0.08,0x1a2028,0,0.84,L*0.2)); // ligne de capot
+    // Monster Truck : suspension très haute, roues énormes — voir CLAUDE.md.
+    const wheelR=key==='monstertruck'?0.72:0.38;
+    const bodyY=key==='monstertruck'?0.92:0.52;
+    const busH=key==='busville'?2.0:0.6; // bus : bien plus haut, boîte quasi constante sur toute la longueur
+    g.add(mkBoxG(W,busH,L*0.92,coul,0,bodyY+(busH-0.6)/2,0));
+    if(key!=='busville'){
+      g.add(mkBoxG(W*0.8,0.48,L*0.44,0x141b26,0,bodyY+0.53,-L*0.06)); // habitacle vitré
+      g.add(mkBoxG(W*0.6,0.05,L*0.28,def.taxi?0xf2c21f:0x0d1119,0,bodyY+0.8,-L*0.06)); // pavillon détaillé vu du dessus
+    } else {
+      // Bus de ville : bandeau de vitres continu, livrée et numéro de ligne
+      // (aléatoire par bus), girouette de destination — toujours SOLARA.
+      g.add(mkBoxG(W*0.94,0.55,L*0.86,0x141b26,0,bodyY+busH*0.42,0));  // bandeau vitré
+      g.add(mkBoxG(W*1.005,0.14,L*0.9,0x35e0ff,0,bodyY-busH*0.1,0));   // liseré bleu Solara
+      g.add(mkBoxG(W*1.005,0.14,L*0.86,0xffd23f,0,bodyY-busH*0.32,0)); // liseré or
+      const ligne=pick([4,7,9,12,21]);
+      const pLigne=new THREE.Mesh(new THREE.PlaneGeometry(0.9,0.9),
+        new THREE.MeshBasicMaterial({map:texEnseigne(String(ligne),'#ffd23f'),transparent:false}));
+      pLigne.position.set(-W*0.32,bodyY+busH*0.55,L/2*0.94+0.03); g.add(pLigne);
+      const pGir=new THREE.Mesh(new THREE.PlaneGeometry(1.7,0.42),
+        new THREE.MeshBasicMaterial({map:texEnseigne('SOLARA','#ffffff'),transparent:false}));
+      pGir.position.set(0.15,bodyY+busH*0.55,L/2*0.94+0.03); g.add(pGir);
+    }
+    g.add(mkBoxG(W*0.66,0.04,0.08,0x1a2028,0,bodyY+0.32,L*0.2)); // ligne de capot
     if(def.police){
       g.add(mkBoxG(W+0.02,0.26,L*0.5,0xe8ecf2,0,0.52,0));
       const br=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.14,0.24),new THREE.MeshBasicMaterial({color:0xff3b4b}));
@@ -3884,8 +3969,22 @@ function makeVoiture(key){
     if(def.buggy){ g.add(mkBoxG(0.1,0.9,0.1,0x23262e,-W*0.4,1.2,0));
       g.add(mkBoxG(0.1,0.9,0.1,0x23262e,W*0.4,1.2,0));
       g.add(mkBoxG(W*0.86,0.1,0.1,0x23262e,0,1.66,0)); }
-    [[W/2,0.38,L*0.32],[-W/2,0.38,L*0.32],[W/2,0.38,-L*0.32],[-W/2,0.38,-L*0.32]].forEach(p=>{
-      const r=new THREE.Mesh(new THREE.CylinderGeometry(0.38,0.38,0.26,10),mat(0x15171c));
+    if(def.pompier){
+      g.add(mkBoxG(W*0.9,0.22,L*0.7,0xe8ecf2,0,bodyY+0.62,-L*0.05)); // bande blanche réfléchissante
+      g.add(mkBoxG(0.3,0.28,L*0.55,0x8a8f9a,0,bodyY+0.85,-L*0.1));    // échelle sur le toit
+      const gy1=new THREE.Mesh(new THREE.BoxGeometry(0.28,0.16,0.24),new THREE.MeshBasicMaterial({color:0xff3b4b}));
+      gy1.position.set(-0.26,bodyY+0.98,-L*0.32);
+      const gy2=new THREE.Mesh(new THREE.BoxGeometry(0.28,0.16,0.24),new THREE.MeshBasicMaterial({color:0xff3b4b}));
+      gy2.position.set(0.26,bodyY+0.98,-L*0.32);
+      g.add(gy1); g.add(gy2); ud.gyro=[gy1,gy2];
+    }
+    if(key==='monstertruck'){
+      g.add(mkBoxG(0.08,0.5,0.08,0x23262e,-W*0.36,bodyY+0.5,L*0.15)); // arceau
+      g.add(mkBoxG(0.08,0.5,0.08,0x23262e,W*0.36,bodyY+0.5,L*0.15));
+      g.add(mkBoxG(W*0.7,0.08,0.08,0x23262e,0,bodyY+0.95,L*0.15));    // barre de toit
+    }
+    [[W/2,wheelR,L*0.32],[-W/2,wheelR,L*0.32],[W/2,wheelR,-L*0.32],[-W/2,wheelR,-L*0.32]].forEach(p=>{
+      const r=new THREE.Mesh(new THREE.CylinderGeometry(wheelR,wheelR,key==='monstertruck'?0.44:0.26,10),mat(0x15171c));
       r.rotation.z=Math.PI/2; r.position.set(p[0],p[1],p[2]); g.add(r); ud.roues.push(r);
     });
   }
@@ -4830,6 +4929,50 @@ function exploserVehicule(v){
   if(v.cibleMission&&MISSION.cur&&MISSION.cur.type==='detruire') MISSION.cur.fait++;
   scene.remove(v.mesh);
 }
+// ---------- Écrasement (char, monster truck) ----------
+// Épaves aplaties : jamais dans `vehicules` une fois complètes (voir
+// majVehicules) — un véhicule écrasé ne doit plus être conduit, réparé, ni
+// bloquer quoi que ce soit (« franchissable » = simplement absent de toute
+// boucle de collision). Plafonnées en nombre pour la fluidité mobile ; la
+// plus ancienne disparaît en priorité au-delà du plafond.
+const EPAVES=[], EPAVES_MAX=10;
+function enregistrerEpave(o){
+  EPAVES.push(o);
+  if(EPAVES.length>EPAVES_MAX){ const old=EPAVES.shift(); scene.remove(old.mesh); }
+}
+// écrase o (jamais v, l'attaquant) : aucune exception de véhicule — voitures,
+// taxis, camionnettes, bus, camion de pompiers, police, tout y passe.
+// Aucun gain d'argent ni de progression de vague ici (voir CLAUDE.md,
+// équilibrage) : mêmes retombées que exploserVehicule (défis/stats de
+// destruction, cargaisons de mission), jamais de nouvelle source de revenu.
+function ecraserVehicule(v,o){
+  if(o.mort||o.epave) return;
+  if(o===P.veh) sortirVehicule(true); // éjecte le joueur avant l'aplatissement — jamais de corps sous la tôle
+  const duJoueur=v.conduit==='joueur';
+  // véhicules longs (bus, camion de pompiers) : aplatis en deux temps si
+  // seule une partie de leur longueur est touchée — sinon en un seul passage.
+  const dx=v.x-o.x, dz=v.z-o.z;
+  const proj=(dx*Math.sin(o.ang)+dz*Math.cos(o.ang))/((o.def.long/2)||1); // -1..1 le long de o
+  if(o.def.long>7&&!o.aplatiPartiel&&Math.abs(proj)>0.4){
+    o.aplatiPartiel=true; o.v=0;
+    o.mesh.scale.y=0.6; o.mesh.rotation.z=rand(-0.06,0.06);
+    burst(o.x,1,o.z,10,0xd8dce4,6); bruit(0.2,0.4,300);
+    if(duJoueur){ secousse(4); vibre(50); }
+    return; // un second passage achèvera l'aplatissement
+  }
+  o.epave=true; o.conduit=null; o.v=0;
+  o.mesh.scale.set(1,0.2,1); o.mesh.rotation.z=rand(-0.18,0.18);
+  if(o.convoi){ for(let i=0;i<3;i++) creerPickup('cash',o.x+rand(-2,2),o.z+rand(-2,2),randi(30,60));
+    creerPickup('mun',o.x,o.z+2); }
+  if(o.contreb){ EVT.cible=null; for(let i=0;i<4;i++) creerPickup('cash',o.x+rand(-2.5,2.5),o.z+rand(-2.5,2.5),randi(35,70));
+    toast('La cargaison flotte — va la repêcher !','or'); }
+  if(o.cibleMission&&MISSION.cur&&MISSION.cur.type==='detruire') MISSION.cur.fait++;
+  if(duJoueur){ addHeat(1.0); META.defis.detruits++; META.stats.vehDetruits++; }
+  burst(o.x,1,o.z,18,0xd8dce4,8);   // débris de vitres
+  burst(o.x,0.6,o.z,10,0xffe08a,5); // étincelles
+  bruit(0.35,0.55,180);             // tôle froissée
+  if(duJoueur){ secousse(7); vibre(70); }
+}
 function pousseHorsSolide(o,r){
   const s=solidAt(o.x,o.z,r);
   if(!s) return false;
@@ -4876,11 +5019,13 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
   const sgn=Math.sign(v.v)||1;
   const fx=nx+Math.sin(v.ang)*d.long/2*sgn, fz=nz+Math.cos(v.ang)*d.long/2*sgn;
   let sFront=eau?null:solidAt(fx,fz,d.larg*0.35);
-  if(sFront&&sFront.h<=(v.h||0)+0.5) sFront=null; // on saute PAR-DESSUS
+  // d.franchit (Monster Truck) : franchit trottoirs et petits obstacles
+  // sans ralentir — suspension très haute, voir CLAUDE.md.
+  if(sFront&&sFront.h<=(v.h||0)+(d.franchit||0.5)) sFront=null; // on saute PAR-DESSUS
   // marche de trottoir : on grimpe en douceur au lieu de heurter/s'enfoncer
   if(!eau&&!d.air){
     const gAv=solY(fx,fz);
-    if(gAv-(v.h||0)>0.05&&gAv-(v.h||0)<0.6){ v.h=lerp(v.h||0,gAv,clamp(10*dt,0,1)); }
+    if(gAv-(v.h||0)>0.05&&gAv-(v.h||0)<(d.franchit||0.6)){ v.h=lerp(v.h||0,gAv,clamp(10*dt,0,1)); }
   }
   const heurte=eau?!estEau(nx,nz):(!!sFront||((v.h||0)<0.7&&estEau(fx,fz)));
   if(heurte){
@@ -4978,7 +5123,13 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
       }
     }
     for(const p of pietons){ if(p.etat==='mort') continue;
-      if(dist2(p.x,p.z,px,pz)<3){ tuerPieton(p,v.conduit==='joueur',9); v.v*=0.92; }
+      if(dist2(p.x,p.z,px,pz)<3){
+        // jamais aplatis (voir CLAUDE.md) : projection franche et lointaine,
+        // proportionnelle à la puissance du véhicule — la tôle porte la
+        // sensation d'écrasement, pas le corps.
+        const knock=9+Math.abs(v.v)*0.35+(d.ecrase?10:(d.milit?4:0));
+        tuerPieton(p,v.conduit==='joueur',knock); v.v*=0.92;
+      }
     }
     for(const c of cassables){ if(c.hp<=0) continue;
       if(dist2(c.x,c.z,px,pz)<3.4){ casserCaisse(c); }
@@ -4986,10 +5137,15 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
   }
   // collisions entre véhicules : la masse compte (un camion balaye une citadine)
   for(const o of vehicules){
-    if(o===v||o.mort) continue;
+    if(o===v||o.mort||o.epave) continue;
     if(Math.abs((v.h||0)-(o.h||0))>1.6) continue;
     const rr=(v.def.long+o.def.long)*0.28;
     if(dist2(v.x,v.z,o.x,o.z)<rr*rr){
+      // écrasement : char et monster truck aplatissent tout véhicule sans
+      // exception, remplace entièrement le rebond/dégâts de masse ci-dessous
+      // pour cette paire — voir ecraserVehicule (aucune exception, aucun
+      // véhicule assez lourd pour y résister, voir CLAUDE.md).
+      if(d.ecrase&&!o.def.ecrase){ ecraserVehicule(v,o); continue; }
       const rel=Math.abs(v.v)+Math.abs(o.v);
       const mV=v.def.long*v.def.larg*((v.def.milit||v.def.blinde)?2.2:1);
       const mO=o.def.long*o.def.larg*((o.def.milit||o.def.blinde)?2.2:1);
@@ -5092,6 +5248,10 @@ function entrerVehicule(v){
     toast('Canon prêt — appuie sur TIR','or');
   }
   moteurStart(v.def); SFX.ui();
+  if(v.def.pompier){
+    el('btnSwitch').innerHTML=(v.sirene?'🚨':'🔕')+'<small>SIRÈNE</small>';
+    toast('🚒 Appuie sur SIRÈNE pour faire s’écarter le trafic','or');
+  }
   if(v.def.air){
     el('btnSprint').querySelector('small').textContent='MONTER';
     el('btnBrake').querySelector('small').textContent='DESCENDRE';
@@ -5112,6 +5272,7 @@ function entrerVehicule(v){
 function sortirVehicule(force){
   const v=P.veh; if(!v) return;
   if(v.def.type==='moto') v.mesh.rotation.z=0; // on redresse la moto au parking
+  if(v.sirene){ v.sirene=false; sireneStop(); }
   v.conduit=null; P.veh=null;
   let sx=v.x+Math.cos(v.ang)*2.2, sz=v.z-Math.sin(v.ang)*2.2;
   if(v.def.air&&(v.alt||0)>3){
@@ -5369,7 +5530,9 @@ function majConduite(dt){
   const frein=INPUT.btn.frein||INPUT.btn.freinK;
   const c=controleDir(v,frein);
   majVehiculePhys(v,dt,c.throttle,c.steer,frein);
-  if(pressed('arme')||edgeKey('KeyA')||edgeKey('Tab')) changerRadio();
+  if(pressed('arme')||edgeKey('KeyA')||edgeKey('Tab')){
+    if(v.def.pompier) toggleSirenePompiers(v); else changerRadio();
+  }
   META.defis.dist+=Math.abs(v.v)*dt/1000;
   META.stats.distVeh+=Math.abs(v.v)*dt/1000;
   moteurUpdate(clamp(Math.abs(v.v)/v.def.vmax,0,1));
@@ -5387,8 +5550,14 @@ function creerTrafic(){
   else { ang=dir>0?Math.PI/2:-Math.PI/2; lane=r-3.2*dir; z=lane; x=clamp(P.x+off,-HALF+5,HALF-5); }
   if(solidAt(x,z,2)) return;
   if(z>MER-CELL*1.2) return;         // pas de trafic sur le sable
-    const poolT=Math.random()<0.05?['sport']
-    :['citadine','citadine','berline','berline','taxi','taxi','muscle','van','pickup'];
+  // bus de ville et camion de pompiers : jamais n'importe où — seulement
+  // sur les grands axes du centre-ville et du quartier commerçant.
+  const bx=Math.floor((x+HALF)/CELL), bz=Math.floor((z+HALF)/CELL);
+  const qz=quartier(bx,bz);
+  let poolT;
+  if(Math.random()<0.05) poolT=['sport'];
+  else if((qz==='centre'||qz==='commerce')&&Math.random()<0.1) poolT=['busville','pompiers'];
+  else poolT=['citadine','citadine','berline','berline','taxi','taxi','muscle','van','pickup'];
   const v=creerVehicule(pick(poolT),x,z,ang,'trafic'); v._traf=true;
   v.axe=vert?'z':'x'; v.lane=lane;
 }
@@ -5407,9 +5576,18 @@ function majTrafic(v,dt){
     v.klaxT-=dt;
     if(v.klaxT<=0&&Math.random()<0.3){v.klaxT=2.5;if(dist2(v.x,v.z,P.x,P.z)<650)SFX.klaxon();}
   }
+  // sirène d'un camion de pompiers proche : le trafic ralentit et se
+  // décale sur le bas-côté — c'est tout l'intérêt de conduite de la sirène.
+  let sirenProche=false;
+  for(const o of vehicules){ if(o===v||o.mort||!o.def.pompier||!o.sirene) continue;
+    if(dist2(v.x,v.z,o.x,o.z)<900){ sirenProche=true; break; } }
+  if(sirenProche&&v.laneDecal===undefined) v.laneDecal=Math.random()<0.5?2.6:-2.6;
+  if(!sirenProche) v.laneDecal=undefined;
+  if(sirenProche) cibleV=Math.min(cibleV,3);
+  const laneCible=v.lane+(v.laneDecal||0);
   v.v=lerp(v.v,cibleV,1.6*dt);
-  if(v.axe==='z'){ v.x=lerp(v.x,v.lane,2*dt); v.z+=cA*v.v*dt; }
-  else { v.z=lerp(v.z,v.lane,2*dt); v.x+=sA*v.v*dt; }
+  if(v.axe==='z'){ v.x=lerp(v.x,laneCible,2*dt); v.z+=cA*v.v*dt; }
+  else { v.z=lerp(v.z,laneCible,2*dt); v.x+=sA*v.v*dt; }
   v.mesh.position.set(v.x,0,v.z);
   for(const r of v.mesh.userData.roues) r.rotation.x+=v.v*dt*1.6;
   // aux limites de la ville : demi-tour propre au lieu de foncer dans le mur et disparaître
@@ -5426,11 +5604,23 @@ function majTrafic(v,dt){
   // on ne dépeuple que très loin du joueur (sinon la ville se vide sous ses yeux)
   if(dist2(v.x,v.z,P.x,P.z)>190*190) v.mort=true;
 }
+// gyrophares du camion de pompiers : tournent en continu (repérable dans le
+// trafic), s'accélèrent et passent au blanc/rouge vif quand la sirène est
+// active — appelée pour tout conduit (trafic, joueur), voir majVehicules.
+function majGyrophares(v,dt){
+  const ud=v.mesh.userData; if(!ud.gyro) return;
+  v.gyroPh=(v.gyroPh||0)+dt*(v.sirene?9:3);
+  const cl=Math.floor(v.gyroPh)%2;
+  ud.gyro[0].material.color.setHex(cl?0xff3b4b:0x501018);
+  ud.gyro[1].material.color.setHex(cl?0x501018:(v.sirene?0xffffff:0xff3b4b));
+}
 function majVehicules(dt){
   let nT=0; for(let i=0;i<vehicules.length;i++){const v2=vehicules[i];if(v2.conduit==='trafic'&&!v2.mort)nT++;}
   if(nT<q().trafic&&Math.random()<dt*2.2) creerTrafic();
   for(const v of vehicules){
-    if(v.mort) continue;
+    if(v.mort||v.epave) continue;
+    if(v.def.pompier) majGyrophares(v,dt); // tourne quel que soit le conduit (trafic, joueur...)
+    if(v.aplatiPartiel) continue; // à moitié aplati : immobile jusqu'au second passage
     if(v.conduit==='trafic') majTrafic(v,dt);
     else if(v.conduit==='police') majVoiturePolice(v,dt);
     else if(v.conduit==='iaCourse'){
@@ -5454,6 +5644,7 @@ function majVehicules(dt){
   for(let i=vehicules.length-1;i>=0;i--){
     const v=vehicules[i];
     if(v.mort){ scene.remove(v.mesh); vehicules.splice(i,1); }
+    else if(v.epave){ vehicules.splice(i,1); enregistrerEpave(v); }
   }
 }
 /* =====================================================================
@@ -12780,6 +12971,14 @@ function drawCarte(){
     g.strokeStyle='#ffd23f'; g.lineWidth=1.6; g.stroke();
     dessinerIconePOI(g,D.ico,px,pz,11,'#fff');
   }
+  // Monster Truck : un lieu, jamais un butin — n'apparaît qu'une fois découvert
+  // (voir majCamp), puis y reste en permanence, y compris après game over.
+  if(META.monstertruckTrouve&&POIS.friche){
+    const fx=mmX(POIS.friche.x)*k, fz=mmZ(POIS.friche.z)*k;
+    g.fillStyle='#15161a'; g.beginPath(); g.arc(fx,fz,9,0,7); g.fill();
+    g.strokeStyle='#ff3b1a'; g.lineWidth=1.6; g.stroke();
+    dessinerIconePOI(g,'🚛',fx,fz,11,'#fff');
+  }
   // point d'arrivée choisi par le joueur
   if(WAYP.actif){
     const wx=mmX(WAYP.x)*k, wz=mmZ(WAYP.z)*k;
@@ -13142,6 +13341,10 @@ function startRun(){
       if(s){ s.garde=true; s.posteX=s.x; s.posteZ=s.z; }
     });
   }
+  // Monster Truck : un seul exemplaire, garé derrière le grillage de la
+  // friche — jamais dans le trafic, réapparaît toujours au même endroit
+  // (voir POIS.friche, construireVille) : un lieu, pas un butin.
+  if(POIS.friche) creerVehicule('monstertruck',POIS.friche.x,POIS.friche.z,0.6);
   if(POIS.hangar) creerVehicule('van',POIS.hangar.x-14,POIS.hangar.z+14,0.4);
   if(POIS.helipad) creerVehicule('helico',POIS.helipad.x,POIS.helipad.z,Math.PI/2);
   if(POIS.yacht){
@@ -13228,6 +13431,7 @@ function mourir(){
   annulerFouille(true); cacherJauges();
   SFX.mort(); vibre(120);
   moteurStop();
+  if(P.veh&&P.veh.sirene){ P.veh.sirene=false; sireneStop(); } // pompiers : coupe la sirène tout de suite
   if(INT.actif&&INT.actif.seanceOn) cineArreterSeance(INT.actif); // coupe le son tout de suite, le reste des jauges au retry
   if(INT.actif&&INT.actif.piles){ // Métro : butin perdu et Bête réinitialisée tout de suite, batterie conservée
     INT.actif.butin=0; INT.actif.beteProx=0; INT.actif.niveauPrecBlackout=undefined;
@@ -14336,6 +14540,17 @@ function jourNuit(dt){
 function majCamp(dt){
   if(POIS.radar) POIS.radar.rotation.y+=dt*0.8;
   if(POIS.drapeau) POIS.drapeau.rotation.z=Math.sin(ETAT.runT*3)*0.06;
+  // Monster Truck : découverte à la proximité, une fois pour toutes (un lieu,
+  // pas un butin — jamais réinitialisé au game over, voir CLAUDE.md).
+  if(POIS.friche&&!META.monstertruckTrouve&&dist2(P.x,P.z,POIS.friche.x,POIS.friche.z)<400){
+    META.monstertruckTrouve=true;
+    bigMsg('🔓 MONSTER TRUCK DÉCOUVERT');
+    toast('Une friche industrielle... et un Monster Truck derrière le grillage','or');
+    SFX.niveau(); vibre(90);
+    for(let i=0;i<20;i++) spawnP(POIS.friche.x+rand(-2,2),rand(1,3),POIS.friche.z+rand(-2,2),
+      rand(-1.5,1.5),rand(1.5,3),rand(-1.5,1.5),1,0.5,pick([0xff3b1a,0xffd23f]),0);
+    sauveMeta();
+  }
 }
 function majFeux(dt){
   for(const f of feux){
@@ -14419,6 +14634,7 @@ function majMinimap(){
   const dot=(x,z,c,r)=>{mmCtx.fillStyle=c;mmCtx.beginPath();mmCtx.arc(mmX(x),mmZ(z),r||2.4,0,7);mmCtx.fill();};
   for(const e of ennemis) if(!e.mort) dot(e.x,e.z,e.fac==='police'?'#4a9aff':(e.fac==='frelons'?'#e6a41f':'#ff5a5a'),e.boss?4.5:2.4);
   for(const p of pickups) dot(p.x,p.z,'#58ff7a',1.8);
+  if(META.monstertruckTrouve&&POIS.friche) dot(POIS.friche.x,POIS.friche.z,'#ff3b1a',3);
   // Le Micro Vintage : Solara FM émet en continu, les caches non fouillées
   // de la salle où l'on se trouve apparaissent dans un rayon de 40 m —
   // affichées à leur offset réel par rapport au joueur, autour de l'icône
