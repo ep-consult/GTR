@@ -1252,6 +1252,18 @@ const META={
     demolition:[{init:'ZOH',score:72},{init:'GAS',score:54},{init:'MAX',score:38},{init:'BOB',score:24},{init:'AAA',score:12}],
     glouton:[{init:'ZOH',score:200},{init:'GAS',score:150},{init:'MAX',score:105},{init:'BOB',score:65},{init:'AAA',score:30}],
     canards:[{init:'ZOH',score:320},{init:'GAS',score:240},{init:'MAX',score:170},{init:'BOB',score:110},{init:'AAA',score:60}]
+  },
+  // Dépôt de bus : circuits débloqués progressivement (La Boucle dès le
+  // début), meilleurs temps par circuit (secondes, croissant = tableau
+  // trié du meilleur au pire, comme arcadeScores), et le déblocage du Bus
+  // (course gagnée sur Le Toit avec Le Bus — condition de la curiosité
+  // 'volant', voir CURIOS).
+  depotCircuits:{boucle:true,quais:false,toit:false},
+  depotBusDebloque:false,
+  depotTemps:{
+    boucle:[{init:'ZOH',temps:29.8},{init:'GAS',temps:34.5},{init:'MAX',temps:39.2},{init:'BOB',temps:45.0},{init:'AAA',temps:52.5}],
+    quais:[{init:'ZOH',temps:38.5},{init:'GAS',temps:45.0},{init:'MAX',temps:52.5},{init:'BOB',temps:61.0},{init:'AAA',temps:70.0}],
+    toit:[{init:'ZOH',temps:22.5},{init:'GAS',temps:27.0},{init:'MAX',temps:32.0},{init:'BOB',temps:38.0},{init:'AAA',temps:46.0}]
   }
 };
 const DEFIS=[
@@ -1374,7 +1386,10 @@ const CURIOS=[
   {id:'plans',ico:'📐',nom:'Les Plans du Rhinocéros',lieu:'Bunker militaire',actif:false},
   {id:'boussole',ico:'🧭',nom:'La Boussole du Capitaine',lieu:'Le chalutier Sainte-Odile',
    eff:'Sens de l’orientation : la carte affiche en permanence la direction du prochain objectif de mission',
-   ind:'Rentrer de la Fosse avec la cale pleine. Sans rien rejeter à la mer.',actif:true}
+   ind:'Rentrer de la Fosse avec la cale pleine. Sans rien rejeter à la mer.',actif:true},
+  {id:'volant',ico:'🏎️',nom:'Le Volant du Dépôt',lieu:'Le dépôt de bus',
+   eff:'Pilote confirmé : les véhicules que tu conduis accélèrent 15 % plus vite',
+   ind:'Gagner sur les toits. En bus.',actif:true}
 ];
 const CURIOS_ACTIVES=CURIOS.filter(c=>c.actif);
 const aCurio=id=>!!META.curios[id];
@@ -1532,7 +1547,16 @@ const VEHDEFS={
   avion:{nom:'Avion "Colibri"',vmax:40,acc:11,man:1.3,hp:130,long:7.4,larg:2,type:'car',air:'avion',cols:[0xe8ecf2]},
   char:{nom:'Char "Rhinocéros"',vmax:17,acc:7,man:1.0,hp:2600,long:6.6,larg:3.4,type:'car',blinde:true,canon:true,cache:true,cols:[0x4a5238]},
   chasseur:{nom:'Chasseur "Épervier"',vmax:56,acc:17,man:1.7,hp:240,long:8,larg:2,type:'car',air:'avion',armes:true,cache:true,cols:[0x3e4434]},
-  helico:{nom:'Hélico "Libellule"',vmax:24,acc:14,man:2.6,hp:120,long:5,larg:1.8,type:'car',air:'helico',cols:[0xd83a3a]}
+  helico:{nom:'Hélico "Libellule"',vmax:24,acc:14,man:2.6,hp:120,long:5,larg:1.8,type:'car',air:'helico',cols:[0xd83a3a]},
+  // Dépôt de bus : loués au stand, jamais au concessionnaire (absents de
+  // CATALOGUE — suffisant, pas besoin de cache:true qui déclencherait une
+  // notification de « découverte » à chaque création). Quatre profils
+  // vraiment différents, la même physique (majVehiculePhys), des
+  // paramètres ajustés — voir CLAUDE.md.
+  depotCitadine:{nom:'La Citadine',vmax:26,acc:20,man:3.2,hp:120,long:4.0,larg:1.9,type:'car',cols:[0xffd23f]},
+  depotPickup:{nom:'Le Pick-up',vmax:24,acc:15,man:2.3,hp:280,long:5.0,larg:2.2,type:'car',cols:[0xff8c1a],blinde:true},
+  depotBolide:{nom:'Le Bolide',vmax:48,acc:26,man:3.4,hp:90,long:4.3,larg:1.9,type:'car',cols:[0xff3b5c],sport:true},
+  depotBus:{nom:'Le Bus',vmax:16,acc:5,man:1.1,hp:500,long:11,larg:2.6,type:'car',cols:[0xffd23f,0x2a2e36],blinde:true}
 };
 
 /* ---------- Types d'ennemis ---------- */
@@ -3176,6 +3200,11 @@ function placerPortes(){
   const cSite51=caseCentre(12,1);
   const pSite51=placeLibrePorte(cSite51.x,cSite51.z);
   if(pSite51) mkPorteGrille('site51',pSite51.x,pSite51.z,'?',0x6de89a);
+  // Le Dépôt de bus : ouvert dès le début, aucune condition. Porte normale
+  // (grand hangar, porte roulante entrouverte) — contrairement au Site 51,
+  // rien à cacher ici.
+  const cDepot=caseCentre(7,7); // quartier industriel
+  poser('depot',cDepot.x,cDepot.z,'LE DÉPÔT — COURSES CLANDESTINES',0xff8c1a);
   // secours : si un lieu manquait, on place la porte près de la grande place
   if(!PORTES.some(p=>p.id==='banque')&&POIS.place)
     poser('banque',POIS.place.x+CELL,POIS.place.z,'BANQUE',0x35e0ff);
@@ -3188,7 +3217,7 @@ function placerPortes(){
     ['serre','SERRE',0x7dff7a],['sandwich','LE ROI DES SANDWICHS',0xffd23f],
     ['musee','MUSÉE DE SOLARA',0xffd23f],['arcade','PALAIS DE L\'ARCADE',0xff5ec4],
     ['cine','CINÉ-PALACE',0xe8503f],['metro','MÉTRO — STATION SOLARA',0x7a8a99],
-    ['site51','?',0x6de89a]
+    ['site51','?',0x6de89a],['depot','LE DÉPÔT — COURSES CLANDESTINES',0xff8c1a]
     // 'chalutier' n'est volontairement pas dans ce filet de repli : sa porte
     // est construite directement sur son ponton (voir remplirBloc, plage,
     // bx===10) et existe donc toujours ; le filet de repli ignore de toute
@@ -4568,7 +4597,12 @@ function majJoueur(dt){
   el('dmgV').style.opacity=Math.max(0,(parseFloat(el('dmgV').style.opacity)||0)-dt*2.2);
   const dh=el('dirHit'); if(dh.style.opacity>0) dh.style.opacity=Math.max(0,(parseFloat(dh.style.opacity)||0)-dt*1.6);
 
-  if(P.veh){ majConduite(dt); return; }
+  // Dépôt de bus : en pleine course, le véhicule du joueur est piloté à la
+  // main sur dtJeu (voir majInterieur, depotMajJoueur) — il est en course
+  // contre le chrono et les adversaires, eux-mêmes sur dtJeu (CLAUDE.md,
+  // dt vs dtJeu). majConduite() tournerait sur dt (spectacle, ralentis
+  // possibles) : appelée ici, elle romprait l'équité en pleine course.
+  if(P.veh){ if(!(INT.actif&&INT.actif.depot&&INT.actif.courseEnCours)) majConduite(dt); return; }
   // le joystick est monopolisé par la borne d'arcade pendant une partie (ou la
   // saisie des initiales) : le joueur reste immobile devant la machine, le
   // temps qui passe n'en coûte pas moins ailleurs (pas de pause du jeu ici)
@@ -4811,7 +4845,8 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
   if(Math.abs(throttle)>0.05){
     // courbe d'accélération : pleine poussée en bas, essoufflement vers la vitesse max → sensation de montée en régime
     const pousse=throttle>0?(1-fac0*fac0*0.55):1;
-    v.v+=d.acc*throttle*pousse*dt;
+    const accEff=d.acc*(v.conduit==='joueur'&&aCurio('volant')?1.15:1); // Le Volant du Dépôt
+    v.v+=accEff*throttle*pousse*dt;
     v.v*=(1-(eau?0.10:0.06)*dt);
   } else v.v*=(1-(eau?0.8:(lourd?1.1:1.6))*dt); // les lourds gardent leur élan
   if(frein&&!eau){
@@ -4860,14 +4895,24 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
     v.v*=-0.32;
   } else { v.x=nx; v.z=nz; }
   if(!eau&&(v.h||0)<1.4) pousseHorsSolide(v,d.larg*0.34);
-  const zMax=eau?MER+150:HALF+8;
-  v.x=clamp(v.x,-HALF-(eau?60:6),HALF+(eau?60:158)); v.z=clamp(v.z,-HALF-6,zMax);
+  // Dépôt de bus : véhicules construits hors-ville (loin sur l'axe X négatif,
+  // voir IOFF) — jamais bornés aux limites de la ville, sinon ils seraient
+  // instantanément ramenés en centre-ville dès le premier appel.
+  if(!v.horsVille){
+    const zMax=eau?MER+150:HALF+8;
+    v.x=clamp(v.x,-HALF-(eau?60:6),HALF+(eau?60:158)); v.z=clamp(v.z,-HALF-6,zMax);
+  }
   // === RELIEF : montées, descentes et sauts ===
   if(!eau&&!d.air){
     const gY=solY(v.x,v.z);
     if(v.h===undefined){v.h=gY;v.vy=0;v.airT=0;}
     if(v.enAir){
       v.vy-=26*dt; v.h+=v.vy*dt; v.airT+=dt;
+      // Dépôt de bus : inclinaison en l'air pilotable (roulis), générique —
+      // vaut pour tout véhicule à roues qui saute en ville, pas seulement au
+      // Dépôt (la physique de saut est partagée). Les motos gardent leur
+      // propre inclinaison en virage (ligne ci-dessous, hors saut).
+      if(d.type!=='moto') v.mesh.rotation.z=clamp((v.mesh.rotation.z||0)+steer*dt*2.6,-0.7,0.7);
       if(v.h<=gY){
         v.h=gY; v.enAir=false;
         if(estEau(v.x,v.z)){ // amerrissage forcé
@@ -4875,6 +4920,14 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
           abimerVehicule(v,80,false);
         } else {
           if(v.vy<-9){ abimerVehicule(v,-v.vy*1.6,false); }
+          // atterrissage sur les roues (roulis proche de zéro) : vitesse
+          // conservée, et un saut long réussi rapporte un petit bonus ; à
+          // plat ou de travers, perte nette de vitesse — voir CLAUDE.md
+          // (le geste de style du Dépôt de bus, générique à tout saut).
+          if(d.type!=='moto'){
+            if(Math.abs(v.mesh.rotation.z)<0.22){ if(v.airT>0.55) v.v=clamp(v.v*1.12,-d.vmax,d.vmax); }
+            else v.v*=0.35;
+          }
           burst(v.x,0.4,v.z,5,0xb8bec8,5);
           if(v.conduit==='joueur'){
             secousse(Math.min(8,-v.vy*0.5)); vibre(40);
@@ -4897,6 +4950,7 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
         v.enAir=true; v.h=prev; v.vy=Math.max(2,v.penteVy*0.85); v.airT=0;
         if(v.conduit==='joueur') SFX.swing();
       }
+      if(d.type!=='moto') v.mesh.rotation.z=lerp(v.mesh.rotation.z||0,0,clamp(6*dt,0,1));
     }
   } else if(v.h===undefined){v.h=0;v.vy=0;}
   // assiette selon la pente
@@ -6520,6 +6574,22 @@ const TABLES_FOUILLE={
     {p:14,type:'soin'},
     {p:18,type:'cash',min:700,max:900,texte:'SOMME RARE',rare:true},
   ]},
+  // Dépôt de bus : deux contenants du hangar d'accueil, accessibles à tout
+  // moment (pas de butin différé, contrairement aux gains de course).
+  depotBureau:{items:[
+    {p:30,type:'cash',min:80,max:150,texte:'SOMME'},
+    {p:24,type:'mun'},
+    {p:20,type:'cash',min:20,max:20,texte:'CLÉ À MOLETTE'},
+    {p:18,type:'cash',min:120,max:200,texte:'PIÈCE DE MOTEUR'},
+    {p:8, type:'cash',min:300,max:450,texte:'SOMME RARE',rare:true},
+  ]},
+  depotCasiers:{items:[
+    {p:32,type:'cash',min:50,max:100,texte:'SOMME'},
+    {p:26,type:'cash',min:10,max:10,texte:'SANDWICH OUBLIÉ'},
+    {p:20,type:'mun'},
+    {p:16,type:'soin'},
+    {p:6, type:'cash',min:250,max:350,texte:'SOMME RARE',rare:true},
+  ]},
 };
 function tirerTypeFouille(tab){
   const p=Object.assign({},tab.p);
@@ -6938,7 +7008,34 @@ const billotFin=e=>{
 };
 billotCv.addEventListener('pointerup',billotFin);
 billotCv.addEventListener('pointercancel',billotFin);
-const JAUGES=[fouilleWrap,karaWrap,bwWrap,spWrap,swWrap,musWrap,arcadeWrap,cineWrap,metroWrap,radioWrap,chalutierWrap,billotWrap];
+/* Dépôt de bus : jauge de course — chrono (dtJeu), tour/position, et le
+   bouton d'abandon dédié (même raison que chalAbandonner : marcher jusqu'à
+   la zone de SORTIE en pleine course, très loin sur le circuit, n'aurait
+   aucun sens géographique — l'abandon passe par ce bouton, qui consomme la
+   course sans faire quitter la salle). */
+const depotWrap=document.createElement('div');
+depotWrap.style.cssText='position:absolute;left:50%;transform:translateX(-50%);'+
+  'bottom:calc(env(safe-area-inset-bottom,0px) + 380px);width:min(260px,76vw);display:none;'+
+  'text-align:center;pointer-events:none;z-index:6';
+depotWrap.innerHTML='<div id="depotLbl" style="font:900 11px Arial;letter-spacing:.05em;color:#ff8c1a;'+
+  'text-shadow:0 2px 6px #000">🏁 LA BOUCLE · 12.3 s</div>'+
+  '<div id="depotPos" style="font:800 9px Arial;color:#c8ccd4;margin-top:2px">1ᵉʳ/4 · Tour 1/3</div>'+
+  '<div id="depotChute" style="display:none;font:900 12px Arial;color:#ff3b5c;margin-top:3px;'+
+  'text-shadow:0 2px 6px #000">CHUTE ! −4 s</div>'+
+  '<button id="depotAbandonner" style="display:block;pointer-events:auto;margin:5px auto 0;padding:4px 10px;'+
+  'border-radius:8px;border:1px solid #ffffff33;background:#1a1a1ee6;color:#c8ccd4;font:800 8.5px Arial;'+
+  'letter-spacing:.03em">🏳 ABANDONNER LA COURSE</button>';
+el('hud').appendChild(depotWrap);
+const depotLblEl=depotWrap.querySelector('#depotLbl'), depotPosEl=depotWrap.querySelector('#depotPos'),
+      depotChuteEl=depotWrap.querySelector('#depotChute');
+depotWrap.querySelector('#depotAbandonner').addEventListener('pointerdown',e=>{
+  e.preventDefault();
+  if(INT.actif&&INT.actif.depot&&INT.actif.courseEnCours){
+    depotAnnulerCourse(INT.actif);
+    toast('Course abandonnée. Retour au stand.','warn'); SFX.refus();
+  }
+});
+const JAUGES=[fouilleWrap,karaWrap,bwWrap,spWrap,swWrap,musWrap,arcadeWrap,cineWrap,metroWrap,radioWrap,chalutierWrap,billotWrap,depotWrap];
 function cacherJauges(){ for(const j of JAUGES) if(j.style.display!=='none') j.style.display='none'; }
 
 /* =====================================================================
@@ -8086,7 +8183,11 @@ const INTDEFS={
      (voir entrerInterieur) : c'est ce que montrent la carte et la minimap
      tant que le lieu n'a jamais été visité. */
   site51:{nom:'Grille d’aération',ico:'?',w:36,d:190,sol:0x24261e,mur:0x3a3d32,
-    ens:['SITE 51','#6de89a']}
+    ens:['SITE 51','#6de89a']},
+  /* ---- lieu spécial (lot 10) : LE DÉPÔT DE BUS — courses clandestines,
+     seule salle à utiliser le système de véhicules. */
+  depot:{nom:'Dépôt de bus',ico:'🏁',w:700,d:850,sol:0x2a2a2e,mur:0x3a3a40,
+    ens:['LE DÉPÔT','#ff8c1a']}
 };
 // SITE 51 — dix objets de valeur, position relative (dx,dz depuis ox,oz), et
 // sas fermés à la prise (définitivement, pour la visite). Graphe et fermetures
@@ -8125,6 +8226,51 @@ const SITE51_TOURELLE_PORTEE=14, SITE51_TOURELLE_DEMI_ANGLE=Math.PI/6, SITE51_TO
 // unités/seconde (jamais par frame), dégâts au contact, jamais tuable par une
 // arme normale (repoussée seulement) — seul le Désintégrateur la tue, en 3 tirs.
 const SITE51_CREATURE_VITESSE=6.2, SITE51_CREATURE_DEGATS=22, SITE51_CREATURE_COOLDOWN_CONTACT=0.8;
+/* ---- LE DÉPÔT DE BUS — courses clandestines ----
+   Tracés fixes en ellipse (points générés par depotWaypoints, jamais
+   aléatoires) : le joueur peut les apprendre, comme les rondes du musée.
+   plafondIAFrac est un plafond RELATIF au véhicule du joueur (pas un plafond
+   absolu) — vérifié par simulation hors du jeu (verif_depot.js) : à
+   pilotage parfait, les 4 véhicules gagnent sur les 3 circuits avec une
+   marge de 15 à 40 % sur le temps de l'IA. NE JAMAIS changer rx/rz/laps/
+   manReq/plafondIAFrac sans re-vérifier par simulation, pas à l'intuition.
+   cx/cz sont relatifs à ox/oz (voir construireSalle). */
+const DEPOT_VEHICULES=['depotCitadine','depotPickup','depotBolide','depotBus'];
+const DEPOT_CIRCUITS={
+  boucle:{id:'boucle',nom:'LA BOUCLE',cx:-160,cz:-120,rx:70,rz:45,largeur:16,laps:3,
+    manReq:2.0,plafondIAFrac:0.80,gain:400,requiert:null},
+  quais:{id:'quais',nom:'LES QUAIS',cx:160,cz:-120,rx:100,rz:55,largeur:16,laps:3,
+    manReq:2.6,plafondIAFrac:0.78,gain:700,requiert:'boucle',
+    raccourci:{depuis:2,vers:6}}, // « bus couché » : coupe depuis le point 2 vers le point 6
+  toit:{id:'toit',nom:'LE TOIT',cx:0,cz:-300,rx:80,rz:55,largeur:12,laps:2,
+    manReq:3.0,plafondIAFrac:0.76,gain:1200,requiert:'quais',chute:true},
+};
+const DEPOT_ORDRE_CIRCUITS=['boucle','quais','toit'];
+const DEPOT_COURSES_MAX=3; // par vague, échec/abandon compris
+const DEPOT_CHUTE_PENALITE=4; // s (dtJeu) — Le Toit seulement, sortir de piste = tomber
+const DEPOT_NB_WAYPOINTS=16;
+// génère les points d'un tracé elliptique fermé — jamais aléatoire, le
+// joueur doit pouvoir apprendre le tracé (voir CLAUDE.md)
+function depotWaypoints(cx,cz,rx,rz,n){
+  const pts=[];
+  for(let i=0;i<n;i++){
+    const a=(i/n)*Math.PI*2;
+    pts.push({x:cx+Math.sin(a)*rx,z:cz+Math.cos(a)*rz});
+  }
+  return pts;
+}
+function depotDistancePiste(x,z,pts){
+  let best=Infinity;
+  for(let i=0;i<pts.length;i++){
+    const a=pts[i], b=pts[(i+1)%pts.length];
+    const abx=b.x-a.x, abz=b.z-a.z, len2=abx*abx+abz*abz||1;
+    let t=((x-a.x)*abx+(z-a.z)*abz)/len2; t=clamp(t,0,1);
+    const px=a.x+abx*t, pz=a.z+abz*t;
+    const d=Math.hypot(x-px,z-pz);
+    if(d<best) best=d;
+  }
+  return best;
+}
 // véhicules en vente au concessionnaire
 const CATALOGUE=[
   {key:'citadine',prix:900},{key:'berline',prix:1400},{key:'taxi',prix:1100},
@@ -9975,6 +10121,166 @@ function construireSalle(id){
     inter.pris=[]; inter.visitesVague=0; inter.site51VagueRef=-1;
     inter.enfermeT=0; inter.creature=null; inter.tirFlashT=0;
   }
+  /* ---- lieu spécial (lot 10) : LE DÉPÔT DE BUS — courses clandestines,
+     seule salle à utiliser le système de véhicules. Hub (hangar d'accueil)
+     + 3 circuits en ellipse, chacun dans sa propre zone (le joueur y est
+     téléporté au lancement, comme les autres salles à sous-zones — Site 51
+     A/B/C). Nuit permanente : voir jourNuit. */
+  else if(id==='depot'){
+    const ens=(txt,coul,x,y,z,ry,larg)=>mkEnseigne(txt,coul,ox+x,y,oz+z,ry,larg);
+    const barriere=(dx,dz,largeur,solide)=>{
+      const b=box(0.6,1.6,largeur,0x3a3a3f,dx,0.8,dz,solide!==false);
+      return b;
+    };
+    // construit une double barrière (intérieure/extérieure) le long d'un
+    // tracé fermé — segments entre chaque paire de points consécutifs.
+    const construireBarrieres=(pts,demiLargeur,eviter)=>{
+      const skip=eviter?new Set(eviter):null;
+      for(let i=0;i<pts.length;i++){
+        // segments contournés : rampes de saut (Les Quais) — la barrière
+        // couperait sinon le tremplin, puisqu'il est planté sur le tracé.
+        if(skip&&(skip.has(i)||skip.has((i+1)%pts.length))) continue;
+        const a=pts[i], b2=pts[(i+1)%pts.length];
+        const mx=(a.x+b2.x)/2, mz=(a.z+b2.z)/2;
+        const dx=b2.x-a.x, dz=b2.z-a.z, len=Math.hypot(dx,dz)||1;
+        const nx=-dz/len, nz=dx/len; // normale unitaire
+        const ry=Math.atan2(dx,dz);
+        // Barrières VISUELLES uniquement, jamais solides : sur un tracé en
+        // polyligne à seulement 16 points, décaler chaque segment vers
+        // l'intérieur crée des tronçons qui se chevauchent aux sommets des
+        // virages serrés (bug déjà rencontré par simulation — la boîte
+        // englobante de deux tronçons adjacents fermait complètement le
+        // corridor, un mur invisible bien avant le mur visible). La sortie
+        // de piste est gérée uniformément par distance réelle au tracé
+        // (depotDistancePiste, voir depotMajCourse) : ralentissement doux
+        // (herbe/gravier) sur La Boucle et Les Quais, chute sur Le Toit —
+        // jamais par une collision physique contre ces murs.
+        for(const s2 of [-1,1]){
+          const px=mx+nx*(demiLargeur+0.4)*s2, pz=mz+nz*(demiLargeur+0.4)*s2;
+          const wall=new THREE.Mesh(new THREE.BoxGeometry(0.5,1.4,len+0.4),mat(0x3a3a3f));
+          wall.position.set(ox+px,0.7,oz+pz); wall.rotation.y=ry; g.add(wall);
+        }
+      }
+    };
+
+    // ======== HUB : hangar d'accueil ========
+    box(30,4.6,0.6,0x4a4a52,0,2.3,388,false); // porte roulante entrouverte (décor)
+    ens('LE DÉPÔT','#ff8c1a',0,5.2,389,0,14);
+    ens('DÉPÔT MUNICIPAL — PROPRIÉTÉ DE LA VILLE DE SOLARA. Accès interdit. ↓','#c8c4a8',0,3.4,382,0,20);
+    ens('RÈGLEMENT : 1. Pas de règles. 2. Voir règle 1. 3. Ne pas se garer devant le hangar 4.','#c8c4a8',-40,2.6,355,Math.PI/2,16);
+    const panneauBus=box(2,1.2,0.1,0x14161a,40,2.2,355,false);
+    inter.panneauBusRecord=panneauBus;
+    ens('RECORD DU TOUR EN BUS : néant','#ffd23f',40,3.0,354.9,-Math.PI/2,9);
+    inter.panneauBusEnseigne=null; // remplacé dynamiquement, voir depotMajRecordBus
+
+    // tableau des courses
+    box(4,3,0.4,0x1c1e22,0,2,360,false);
+    ens('TABLEAU DES COURSES','#ff8c1a',0,3.9,360.2,0,11);
+    inter.tableau={x:ox,z:oz+360};
+
+    // stand des véhicules (4 places)
+    inter.standVehicules=[];
+    const standX=[-30,-10,10,30];
+    for(let i=0;i<DEPOT_VEHICULES.length;i++){
+      const key=DEPOT_VEHICULES[i];
+      const dispo=key!=='depotBus'||META.depotBusDebloque;
+      const v=creerVehicule(key,ox+standX[i],oz+335,Math.PI,null);
+      v.horsVille=true; v.mesh.visible=dispo;
+      inter.standVehicules.push({key,v,x:ox+standX[i],z:oz+335,dispo});
+      ens(VEHDEFS[key].nom.toUpperCase(),'#ffd23f',standX[i],3.4,335-3.6,0,7);
+    }
+
+    // 2 contenants fouillables
+    const cB=box(1.6,1,1,0x2a2c30,-40,0.5,310,false);
+    fouillable(-40,310,'Bureau du régisseur','depotBureau',cB,2.8);
+    ens('BUREAU','#ffd23f',-40,1.7,311.6,0,7);
+    const cC=box(1.8,1.1,0.8,0x2a2c30,40,0.55,310,false);
+    fouillable(40,310,'Casiers des chauffeurs','depotCasiers',cC,2.8);
+    ens('CASIERS','#ffd23f',40,1.8,311.6,0,7);
+
+    // spectateurs (décor)
+    for(let i=0;i<6;i++){
+      const sx=(i%2?1:-1)*(24+Math.floor(i/2)*7), sz=345+((i*13)%20);
+      const h=makeHumain({haut:pick([0xff5ad0,0x35e0ff,0x7dff7a,0xffd23f]),bas:0x1c2030,peau:0xc98d5e,casq:0},1);
+      h.g.position.set(ox+sx,0,oz+sz); h.g.rotation.y=Math.atan2(-sx,360-sz); g.add(h.g);
+    }
+    ens('VAS-Y GASTON !','#ff5ad0',-31,2.4,352,0.4,6); // aucun pilote ne s'appelle Gaston
+    // projecteurs de chantier + néons : la nuit permanente (voir jourNuit)
+    // se joue surtout sur ces flaques de lumière, pas sur le soleil/hemi
+    lampe(0,375,0x8ad2ff,9); lampe(-24,340,0xff8c1a,7); lampe(24,340,0xff8c1a,7);
+    lampe(0,320,0xffd23f,6);
+
+    // ======== 3 CIRCUITS ========
+    inter.circuits={};
+    for(const cid of DEPOT_ORDRE_CIRCUITS){
+      const c=DEPOT_CIRCUITS[cid];
+      const pts=depotWaypoints(c.cx,c.cz,c.rx,c.rz,DEPOT_NB_WAYPOINTS);
+      // sol du circuit : rectangle plein sous toute l'ellipse (simple, roulant)
+      const solCoul=cid==='toit'?0x3a3d44:0x2e2e32;
+      mkBox((c.rx+30)*2,0.2,(c.rz+30)*2,mat(solCoul),ox+c.cx,-0.05,oz+c.cz);
+      if(cid==='toit'){
+        // vide tout autour : aucune barrière, juste un àpic visuel
+        ens('LE TOIT','#ff8c1a',c.cx,6,c.cz-c.rz-8,0,10);
+      } else {
+        construireBarrieres(pts,c.largeur/2,cid==='quais'?[3,12]:null);
+        ens(c.nom,'#ff8c1a',c.cx,4,c.cz-c.rz-6,0,10);
+      }
+      // ligne de départ/arrivée au point 0
+      const p0=pts[0];
+      mkBox(c.largeur,0.05,1.2,new THREE.MeshBasicMaterial({color:0xffffff}),ox+p0.x,0.07,oz+p0.z);
+      // obstacles/décor propres à chaque circuit
+      if(cid==='boucle'){
+        // cônes
+        for(const i of [2,5,9,13]){ const p=pts[i];
+          mkBox(0.5,0.7,0.5,mat(0xff8c1a),ox+p.x+rand(-2,2),0.35,oz+p.z+rand(-2,2)); }
+        // flaque d'huile (visuel, la glisse est gérée en jeu par proximité)
+        const huile=pts[7];
+        inter.boucleHuile={x:ox+huile.x,z:oz+huile.z,r:3.5};
+        const flq=new THREE.Mesh(new THREE.CircleGeometry(3.5,16),new THREE.MeshBasicMaterial({color:0x14120c,transparent:true,opacity:0.7}));
+        flq.rotation.x=-Math.PI/2; flq.position.set(ox+huile.x,0.03,oz+huile.z); g.add(flq);
+        // bus en travers : décalé du centre de la voie, pas planté dessus —
+        // un obstacle à contourner, pas un mur (La Boucle reste « douce »)
+        const pb=pts[11], pbNext=pts[(12)%pts.length];
+        const bdx=pbNext.x-pb.x, bdz=pbNext.z-pb.z, blen=Math.hypot(bdx,bdz)||1;
+        const bnx=-bdz/blen*4.2, bnz=bdx/blen*4.2;
+        box(11,3,2.6,0xffd23f,pb.x+bnx,1.5,pb.z+bnz);
+      } else if(cid==='quais'){
+        // 2 rampes de saut
+        for(const i of [3,12]){
+          const a=pts[i], b2=pts[(i+1)%pts.length];
+          const ang=Math.atan2(b2.x-a.x,b2.z-a.z);
+          mkRampe(ox+a.x,oz+a.z,ang,10,3.2,c.largeur*0.8,mat(0x5a5f66));
+        }
+        // palettes
+        for(const i of [8]){ const p=pts[i];
+          for(let k=0;k<3;k++) box(1.1,1,1.1,0x9a7a4a,p.x+rand(-3,3),0.5,p.z+rand(-3,3),false); }
+        // raccourci : bus couché entre les points 2 et 6
+        const rc=c.raccourci, pA=pts[rc.depuis], pB=pts[rc.vers];
+        const mxr=(pA.x+pB.x)/2, mzr=(pA.z+pB.z)/2;
+        box(3.2,3,12,0x8a6a44,mxr,1.5,mzr,false); // carcasse du bus couché, traversable
+        ens('RACCOURCI ?','#ff3b5c',mxr,3.4,mzr,0,7);
+        inter.quaisRaccourci={a:{x:ox+pA.x,z:oz+pA.z},b:{x:ox+pB.x,z:oz+pB.z},mid:{x:ox+mxr,z:oz+mzr}};
+      } else if(cid==='toit'){
+        // passerelle qui s'effondre au 2e tour (voir depotMajCourse)
+        const pp=pts[5];
+        const passerelle=box(c.largeur*0.7,0.3,6,0x5a5f66,pp.x,0.15,pp.z,false);
+        inter.toitPasserelle={mesh:passerelle,x:ox+pp.x,z:oz+pp.z,effondree:false};
+        // bouches d'aération (décor)
+        for(const i of [1,9]){ const p=pts[i]; box(1.6,1,1.6,0x4a4e42,p.x,0.5,p.z,false); }
+      }
+      // pts stockés en coordonnées MONDE (ox/oz déjà appliqués) : la piste
+      // sert telle quelle à la physique en jeu (v.x/v.z, P.x/P.z), jamais
+      // recalculée relative à la salle au moment de la course.
+      const ptsMonde=pts.map(p=>({x:ox+p.x,z:oz+p.z}));
+      inter.circuits[cid]={def:c,pts:ptsMonde,ligne:{x:ox+p0.x,z:oz+p0.z}};
+    }
+
+    // ---- état de la salle ----
+    inter.depot=true;
+    inter.courseEnCours=false; inter.course=null;
+    inter.coursesVague=0; inter.depotVagueRef=-1;
+    inter.vehiculeChoisi=null; inter.circuitIdx=0; inter.dernierTapTableau=-99; inter.circuitArme=false;
+  }
   scene.add(g);
   INT.salles[id]=inter;
   return inter;
@@ -10027,6 +10333,10 @@ function entrerInterieur(id,porte){
     if(s.bacheMesh) s.bacheMesh.position.x=s.ox+(s.mystereNiveau>=1?(Math.random()<0.5?-4:4):0);
     if(INTDEFS.site51.ico==='?') INTDEFS.site51.ico='🛰️';
   }
+  // Le Dépôt de bus : limite de courses remise à zéro au changement de
+  // vague (peut avoir changé pendant que le joueur était ailleurs), foule +
+  // moteur au ralenti démarrés dès l'entrée.
+  if(s.depot){ depotVerifierVague(s); depotAmbianceStart(); }
   ETAT.intT=0.5;
   toast('Tu entres : '+s.D.nom,'or'); SFX.ui();
   el('minimap').style.opacity='1';
@@ -10045,6 +10355,11 @@ function sortirInterieur(){
   if(sc.piles){ sc.butin=0; sc.beteProx=0; sc.niveauPrecBlackout=undefined; metroAmbianceStop(); }
   if(sc.emissionOn){ radioArreterEmission(sc); toast('Tu quittes en pleine émission. Le signal s’éteint.'); }
   if(sc.sortieEnCours){ chalutierArreterSortie(sc); toast('Tu abandonnes la sortie en pleine mer. Retour au ponton.'); }
+  // Le Dépôt de bus : filet de sécurité générique — l'abandon normal (bouton
+  // dédié, voir depotWrap) a déjà nettoyé la course ; ceci couvre tout autre
+  // chemin de sortie (ex : mort gérée séparément dans mourir()). La foule et
+  // le moteur au ralenti sont coupés dans tous les cas, course ou pas.
+  if(sc.depot){ if(sc.courseEnCours) depotAnnulerCourse(sc); depotAmbianceStop(); }
   // Site 51 : filet de sécurité générique — les sorties normales (SORTIE,
   // GRANDE PORTE) concluent déjà la visite avant d'appeler sortirInterieur
   // (visiteEnCours passe à false), donc ceci ne fait rien dans ce cas ; ça
@@ -10978,6 +11293,259 @@ function tirDesintegrateur(){
   SFX.desintegrateur(); vibre(40); secousse(1.5);
   if((P.mags.desintegrateur||0)<=0) toast('Cellule d’énergie épuisée.','warn');
 }
+/* =====================================================================
+   LE DÉPÔT DE BUS — courses clandestines. dtJeu partout : le chrono, les
+   adversaires ET le déplacement du véhicule du joueur sont en course les
+   uns contre les autres (voir CLAUDE.md, dt vs dtJeu) — majJoueur() court-
+   circuite déjà majConduite() (sur dt) pendant une course, voir son garde
+   sur P.veh. majVehicules(dt), le répartiteur générique, ne tourne QUE hors
+   salle (voir boucle()) : les véhicules du Dépôt (stand ET course) sont
+   donc à nettoyer nous-mêmes (scene.remove + splice), jamais via v.mort. */
+function depotVerifierVague(s){
+  if(s.depotVagueRef!==WAVES.n){ s.depotVagueRef=WAVES.n; s.coursesVague=0; }
+}
+/* ---- ambiance : moteur au ralenti (réutilise le synthétiseur moteur des
+   véhicules — INT.actif exclut la conduite classique pendant une course,
+   aucun conflit) + foule qui encourage, en continu. Même discipline que les
+   autres salles : jamais démarrée deux fois, coupée sur tous les chemins de
+   sortie (voir sortirInterieur, mourir). */
+function depotAmbianceStart(){
+  if(!AUDIO.pret) return;
+  if(!AUDIO.engOsc) moteurStart(VEHDEFS.depotCitadine);
+  if(AUDIO.depotOn) return;
+  const ctx=AUDIO.ctx, t=ctx.currentTime;
+  const foule=ctx.createBufferSource(); foule.buffer=AUDIO.noise; foule.loop=true;
+  const fouleF=ctx.createBiquadFilter(); fouleF.type='bandpass'; fouleF.frequency.value=700; fouleF.Q.value=0.6;
+  const fouleG=ctx.createGain(); fouleG.gain.value=0.045;
+  const fouleLfo=ctx.createOscillator(); fouleLfo.type='sine'; fouleLfo.frequency.value=0.18;
+  const fouleLfoG=ctx.createGain(); fouleLfoG.gain.value=0.018;
+  fouleLfo.connect(fouleLfoG); fouleLfoG.connect(fouleG.gain); fouleLfo.start(t);
+  foule.connect(fouleF); fouleF.connect(fouleG); fouleG.connect(AUDIO.sfxG); foule.start(t);
+  AUDIO.depotOn=true;
+  AUDIO.depotFoule=foule; AUDIO.depotFouleF=fouleF; AUDIO.depotFouleG=fouleG;
+  AUDIO.depotFouleLfo=fouleLfo; AUDIO.depotFouleLfoG=fouleLfoG;
+}
+function depotAmbianceStop(){
+  moteurStop();
+  if(!AUDIO.depotOn) return;
+  try{ AUDIO.depotFoule.stop(); AUDIO.depotFouleLfo.stop(); }catch(e){}
+  AUDIO.depotOn=false;
+  AUDIO.depotFoule=null; AUDIO.depotFouleF=null; AUDIO.depotFouleG=null;
+  AUDIO.depotFouleLfo=null; AUDIO.depotFouleLfoG=null;
+}
+function depotAmbianceMoteur(def){ moteurStop(); moteurStart(def); } // change de profil moteur sans couper la foule
+const DEPOT_ROSTER_IA=[
+  {key:'depotCitadine',perso:'regulier'}, // ligne propre, jamais d'erreur, vitesse constante
+  {key:'depotPickup',perso:'agressif'},   // cherche le contact, coupe les trajectoires, se plante parfois
+  {key:'depotBolide',perso:'malin'},      // prend toujours le raccourci, même ceux que le joueur n'a pas trouvés
+];
+function depotSupprimerVehicule(v){
+  scene.remove(v.mesh);
+  const idx=vehicules.indexOf(v);
+  if(idx>=0) vehicules.splice(idx,1);
+}
+function depotLancerCourse(s,cid){
+  if(s.courseEnCours) return;
+  depotVerifierVague(s);
+  if(!META.depotCircuits[cid]){ toast('Circuit verrouillé','warn'); SFX.refus(); return; }
+  if(s.coursesVague>=DEPOT_COURSES_MAX){ toast('Plus de course disponible cette vague','warn'); SFX.refus(); return; }
+  const key=(s.vehiculeChoisi&&(s.vehiculeChoisi!=='depotBus'||META.depotBusDebloque))?s.vehiculeChoisi:'depotCitadine';
+  const c=DEPOT_CIRCUITS[cid], circ=s.circuits[cid], pts=circ.pts;
+  s.coursesVague++;
+  const ang0=Math.atan2(pts[1].x-pts[0].x,pts[1].z-pts[0].z);
+  const vJ=creerVehicule(key,pts[0].x,pts[0].z,ang0,null);
+  vJ.horsVille=true;
+  P.veh=vJ; vJ.conduit='joueur';
+  P.h.g.visible=false; P.surMoto=false; reticule.visible=false;
+  el('btnFire').style.display='none'; el('btnDodge').style.display='none';
+  el('btnSwitch').style.display='none';
+  el('btnBrake').style.display='flex'; el('btnBrake').classList.add('gros');
+  el('vehWrap').style.display='block';
+  depotAmbianceMoteur(VEHDEFS[key]);
+  const entrants=[{v:vJ,perso:'joueur',prog:0,chuteT:0,fini:false,place:0}];
+  const decal=[-6,0,6];
+  for(let i=0;i<3;i++){
+    const r=DEPOT_ROSTER_IA[i];
+    const dx=Math.cos(ang0)*decal[i], dz=-Math.sin(ang0)*decal[i];
+    const vi=creerVehicule(r.key,pts[0].x+dx,pts[0].z+dz-4,ang0,'depotIA');
+    vi.horsVille=true;
+    entrants.push({v:vi,perso:r.perso,prog:0,chuteT:0,fini:false,place:0,erreurT:0,erreurOff:0});
+  }
+  s.course={cid,c,pts,vJoueurVmax:VEHDEFS[key].vmax,raccourciB:c.raccourci?s.quaisRaccourci.b:null,
+    chrono:0,placesDonnees:0,entrants,termine:false,gagneEnBus:key==='depotBus'};
+  s.courseEnCours=true;
+  if(cid==='toit'&&s.toitPasserelle){ s.toitPasserelle.effondree=false; s.toitPasserelle.mesh.visible=true; s.toitPasserelle.mesh.position.y=0.15; }
+  P.x=pts[0].x; P.z=pts[0].z; P.ang=ang0; P.y=0; P.vy=0; P.chute=false;
+  depotWrap.style.display='block'; depotChuteEl.style.display='none';
+  bigMsg('🏁 '+c.nom); toast('3, 2, 1... GO !','or'); SFX.niveau(); vibre(60);
+}
+function depotPiloterIA(ent,course,dtJeu){
+  const pts=course.pts, N=pts.length, c=course.c;
+  const idx=ent.prog%N;
+  let target=pts[idx];
+  if(ent.perso==='malin'&&c.raccourci&&idx<=c.raccourci.depuis&&course.raccourciB) target=course.raccourciB;
+  if(ent.perso==='agressif'){
+    const vj=course.entrants[0].v;
+    if(dist2(ent.v.x,ent.v.z,vj.x,vj.z)<400) target={x:target.x*0.55+vj.x*0.45,z:target.z*0.55+vj.z*0.45};
+    ent.erreurT-=dtJeu;
+    if(ent.erreurT<=0&&Math.random()<dtJeu*0.15){ ent.erreurT=0.45; ent.erreurOff=rand(-0.6,0.6); }
+  }
+  const va=Math.atan2(target.x-ent.v.x,target.z-ent.v.z);
+  let steer=clamp(angDiff(ent.v.ang,va)*1.8,-1,1);
+  if(ent.perso==='agressif'&&ent.erreurT>0) steer=clamp(steer+ent.erreurOff,-1,1);
+  // plafond RELATIF au véhicule du joueur — jamais dépassé, voir verif_depot.js :
+  // une victoire à pilotage parfait doit rester gagnable, quel que soit le véhicule.
+  let frac=c.plafondIAFrac;
+  if(ent.prog-course.entrants[0].prog>4) frac*=0.85; // trop en avance : lève le pied (jamais au-dessus du plafond)
+  // ralentit progressivement dans les virages (poursuite pure, sans
+  // anticipation) — une IA qui garde le pied au plancher en plein virage
+  // coupe trop large et sort de la piste (voir depotFrictionHorsPiste).
+  const freinageVirage=clamp(1-Math.abs(steer)*0.5,0.45,1);
+  const plafond=Math.min(ent.v.def.vmax,course.vJoueurVmax*frac)*freinageVirage;
+  const throttle=ent.v.v<plafond?1:-0.3; // plafond strict : jamais de zone grise qui laisse dépasser
+  majVehiculePhys(ent.v,dtJeu,throttle,steer,false);
+}
+function depotAvancerProgress(ent,course){
+  const pts=course.pts, N=pts.length, c=course.c;
+  const R2=Math.pow(c.largeur*1.5,2);
+  for(let k=0;k<4;k++){
+    const idx=(ent.prog+k)%N;
+    if(dist2(ent.v.x,ent.v.z,pts[idx].x,pts[idx].z)<R2){ ent.prog+=k+1; return; }
+  }
+  if(c.raccourci&&course.raccourciB){
+    const idx=ent.prog%N;
+    if(idx<=c.raccourci.depuis&&dist2(ent.v.x,ent.v.z,course.raccourciB.x,course.raccourciB.z)<R2*1.4){
+      const base=Math.floor(ent.prog/N)*N;
+      ent.prog=Math.max(ent.prog,base+c.raccourci.vers);
+    }
+  }
+}
+function depotVerifierChute(ent,course,s){
+  if(ent.chuteT>0) return;
+  const p=s.toitPasserelle;
+  let tombe=false;
+  if(p&&p.effondree&&dist2(ent.v.x,ent.v.z,p.x,p.z)<49) tombe=true;
+  else if(depotDistancePiste(ent.v.x,ent.v.z,course.pts)>course.c.largeur/2+7) tombe=true;
+  if(!tombe) return;
+  ent.chuteT=DEPOT_CHUTE_PENALITE;
+  const N=course.pts.length;
+  const backIdx=((ent.prog-1)%N+N)%N;
+  const back=course.pts[backIdx];
+  ent.v.x=back.x; ent.v.z=back.z; ent.v.v=0; ent.v.h=undefined; ent.v.enAir=false; ent.v.vy=0;
+  ent.v.mesh.position.set(back.x,0,back.z);
+  if(ent===course.entrants[0]){ toast('Tu tombes ! −4 s','warn'); secousse(6); vibre(80); burst(back.x,1,back.z,10,0xff8c1a,7); }
+}
+// La Boucle / Les Quais : pas de vide, donc pas de chute — sortir du tracé
+// (herbe/gravier) ralentit fortement au lieu d'un mur physique (voir
+// construireBarrieres : les barrières visuelles ne sont jamais solides).
+function depotFrictionHorsPiste(ent,course){
+  if(depotDistancePiste(ent.v.x,ent.v.z,course.pts)>course.c.largeur/2) ent.v.v*=0.90;
+}
+function depotMajHUD(s){
+  const c0=s.course; if(!c0) return;
+  const je=c0.entrants[0];
+  let rang=1; for(const e of c0.entrants) if(e!==je&&e.prog>je.prog) rang++;
+  const tour=Math.min(c0.c.laps,Math.floor(je.prog/DEPOT_NB_WAYPOINTS)+1);
+  const sc=c0.chrono, mn=Math.floor(sc/60), ss=(sc%60).toFixed(1);
+  depotLblEl.textContent='🏁 '+c0.c.nom+' · '+(mn>0?(mn+':'+(ss<10?'0':'')+ss):(ss+' s'));
+  depotPosEl.textContent=rang+'ᵉ/4 · Tour '+tour+'/'+c0.c.laps;
+  depotChuteEl.style.display=je.chuteT>0?'block':'none';
+}
+// nettoyage pur : détruit les véhicules de la course, ferme l'interface de
+// conduite, replace le joueur près du tableau (« véhicule replacé au
+// stand ») — ne touche pas au son, laissé aux deux appelants ci-dessous.
+function depotNettoyerCourse(s){
+  const c0=s.course; if(!c0) return;
+  for(const ent of c0.entrants) if(ent.v) depotSupprimerVehicule(ent.v);
+  s.courseEnCours=false; s.course=null;
+  P.veh=null;
+  P.h.g.visible=true; reticule.visible=true;
+  el('btnFire').style.display='flex'; el('btnDodge').style.display='flex';
+  el('btnSwitch').style.display='flex'; el('btnSwitch').innerHTML='🔁<small>ARME</small>';
+  el('btnBrake').style.display='none'; el('btnBrake').classList.remove('gros');
+  el('vehWrap').style.display='none';
+  depotWrap.style.display='none';
+  P.x=s.tableau.x; P.z=s.tableau.z+6; P.y=0;
+  if(solidAt(P.x,P.z,0.6)){
+    for(let r=1.5;r<=8&&solidAt(P.x,P.z,0.6);r+=1.2){
+      for(let a=0;a<10;a++){ const an=a/10*Math.PI*2;
+        const tx=s.tableau.x+Math.cos(an)*r, tz=s.tableau.z+6+Math.sin(an)*r;
+        if(!solidAt(tx,tz,0.6)){ P.x=tx; P.z=tz; break; } } }
+  }
+}
+function depotAnnulerCourse(s){
+  if(!s.courseEnCours) return;
+  depotNettoyerCourse(s);
+  depotAmbianceMoteur(VEHDEFS.depotCitadine);
+  toast('Course abandonnée.','warn');
+}
+function depotMajRecordBus(s,temps){
+  if(s.panneauBusEnseigne||!s.panneauBusRecord) return;
+  s.panneauBusRecord.visible=false;
+  const mn=Math.floor(temps/60), ss=(temps%60).toFixed(1);
+  mkEnseigne('RECORD DU TOUR EN BUS : '+(mn>0?mn+':':'')+ss+' s','#ffd23f',
+    s.panneauBusRecord.position.x,3.0,s.panneauBusRecord.position.z-0.05,-Math.PI/2,9);
+  s.panneauBusEnseigne=true;
+}
+function depotTerminerCourse(s,place){
+  const c0=s.course; if(!c0) return;
+  const cid=c0.cid, c=c0.c, temps=c0.chrono, gagneEnBus=c0.gagneEnBus;
+  const gain=place===1?c.gain:place===2?Math.round(c.gain/2):0;
+  if(gain>0){ META.argent+=gain; ETAT.cashRun+=gain; }
+  const tab=META.depotTemps[cid];
+  if(place===1&&(tab.length<5||temps<tab[tab.length-1].temps)){
+    tab.push({init:'TOI',temps:Math.round(temps*10)/10});
+    tab.sort((a,b)=>a.temps-b.temps);
+    if(tab.length>5) tab.length=5;
+  }
+  let debloque=null;
+  if(place===1){
+    const idx=DEPOT_ORDRE_CIRCUITS.indexOf(cid), suivant=DEPOT_ORDRE_CIRCUITS[idx+1];
+    if(suivant&&!META.depotCircuits[suivant]){ META.depotCircuits[suivant]=true; debloque=DEPOT_CIRCUITS[suivant].nom; }
+    if(cid==='toit'&&!META.depotBusDebloque){ META.depotBusDebloque=true; toast('🚌 Le Bus est maintenant disponible au stand !','or'); }
+    if(cid==='toit'&&gagneEnBus){ depotMajRecordBus(s,temps); donnerCurio('volant'); }
+  }
+  checkDefis(); sauveMeta();
+  depotNettoyerCourse(s);
+  depotAmbianceMoteur(VEHDEFS.depotCitadine);
+  const txt=place===1?('🏆 1ʳᵉ PLACE — +'+fmt$(gain)):place===2?('🥈 2ᵉ PLACE — +'+fmt$(gain)):('❌ '+place+'ᵉ PLACE — rien');
+  bigMsg(txt);
+  if(debloque) toast('Nouveau circuit débloqué : '+debloque,'or');
+  SFX.niveau();
+}
+function depotMajCourse(s,dtJeu){
+  const c0=s.course; if(!c0||c0.termine) return;
+  c0.chrono+=dtJeu;
+  const N=DEPOT_NB_WAYPOINTS;
+  for(const ent of c0.entrants){
+    if(ent.fini) continue;
+    if(ent.chuteT>0){ ent.chuteT=Math.max(0,ent.chuteT-dtJeu); continue; }
+    if(ent.perso==='joueur'){
+      const frein=INPUT.btn.frein||INPUT.btn.freinK;
+      const cd=controleDir(ent.v,frein);
+      majVehiculePhys(ent.v,dtJeu,cd.throttle,cd.steer,frein);
+      moteurUpdate(clamp(Math.abs(ent.v.v)/ent.v.def.vmax,0,1));
+      P.x=ent.v.x; P.z=ent.v.z; P.ang=ent.v.ang;
+      el('vehFill').style.width=clamp(ent.v.hp/ent.v.def.hp*100,0,100)+'%';
+      if(ent.v.mort){ depotAnnulerCourse(s); return; }
+    } else {
+      depotPiloterIA(ent,c0,dtJeu);
+    }
+    depotAvancerProgress(ent,c0);
+    if(c0.c.chute) depotVerifierChute(ent,c0,s); else depotFrictionHorsPiste(ent,c0);
+  }
+  if(c0.c.chute&&s.toitPasserelle&&!s.toitPasserelle.effondree&&Math.floor(c0.entrants[0].prog/N)>=1){
+    s.toitPasserelle.effondree=true;
+    s.toitPasserelle.mesh.position.y=-4;
+    toast('La passerelle s\'effondre !','warn'); secousse(4);
+  }
+  for(const ent of c0.entrants){
+    if(!ent.fini&&Math.floor(ent.prog/N)>=c0.c.laps){ ent.fini=true; ent.place=++c0.placesDonnees; }
+  }
+  const je=c0.entrants[0];
+  if(je.fini&&!c0.termine){ c0.termine=true; depotTerminerCourse(s,je.place); return; }
+  depotMajHUD(s);
+}
 function majInterieur(dt,dtJeu){
   const s=INT.actif; if(!s) return;
   // ---- fouille en cours ----
@@ -11546,6 +12114,7 @@ function majInterieur(dt,dtJeu){
       if(s.tirFlashT>0) s.tirFlashT=Math.max(0,s.tirFlashT-dt); // cosmétique pur : reste sur dt
     }
   }
+  if(s.depot&&s.courseEnCours) depotMajCourse(s,dtJeu);
 }
 
 const WAYP={actif:false,x:0,z:0,nom:''};
@@ -12506,6 +13075,17 @@ function startRun(){
       if(sa.visiteEnCours) site51ConclureVisite(sa,false);
       sa.visitesVague=0; sa.site51VagueRef=-1;
     }
+    // Le Dépôt de bus : course en cours annulée (nettoieMonde() a déjà
+    // supprimé les véhicules eux-mêmes), sélection du stand/tableau remise à
+    // zéro, compteur de courses à zéro. Ce qui survit : circuits débloqués,
+    // déblocage du Bus, meilleurs temps (META.depotCircuits/depotBusDebloque/
+    // depotTemps) et la curiosité (META.curios) — tous dans META, jamais
+    // touchés ici.
+    if(sa.depot){
+      sa.courseEnCours=false; sa.course=null;
+      sa.coursesVague=0; sa.depotVagueRef=-1;
+      sa.vehiculeChoisi=null; sa.circuitIdx=0; sa.circuitArme=false; sa.dernierTapTableau=-99;
+    }
   }
   // arcade : une partie de borne en cours est annulée SANS banquer ses
   // tickets — contrairement à un abandon volontaire (finirBorneJeu, appelé
@@ -12657,6 +13237,11 @@ function mourir(){
   if(INT.actif&&INT.actif.console&&INT.actif.emissionOn) radioArreterEmission(INT.actif); // coupe le son tout de suite
   if(INT.actif&&INT.actif.barre&&INT.actif.sortieEnCours) chalutierArreterSortie(INT.actif); // coupe le son tout de suite, cale perdue
   if(INT.actif&&INT.actif.site51&&INT.actif.visiteEnCours) site51ConclureVisite(INT.actif,false); // butin perdu, sas rouverts, mystère avance quand même
+  // Dépôt de bus : course en cours annulée tout de suite (rend P.h.g visible
+  // pour la pose de mort — invisible pendant qu'on pilote, voir
+  // depotLancerCourse), foule coupée (moteurStop() ci-dessus a déjà coupé le
+  // moteur). Course déjà propre : deuxième appel sans effet.
+  if(INT.actif&&INT.actif.depot){ if(INT.actif.courseEnCours) depotAnnulerCourse(INT.actif); depotAmbianceStop(); }
   P.h.g.rotation.z=Math.PI/2; P.h.g.position.y=0.35;
   reticule.visible=false;
   const record=ETAT.score>META.record;
@@ -12697,7 +13282,11 @@ function marquerZone(obj,r2){ if(obj) obj.r=Math.sqrt(r2); return r2; }
 // d'action — voir majInterieur) et creature (la créature, autonome, ignore
 // les sas et n'est jamais un point d'interaction) rejoignent la même
 // exemption que piles/dangers au métro.
-const CHAMPS_DECOR_SALLE=new Set(['pnj','culturiste','plaque','gardiens','cameras','piles','dangers','bateau','turrets','creature']);
+// Dépôt de bus : boucleHuile (flaque, effet automatique en conduite — jamais
+// via le bouton d'action) et toitPasserelle (passerelle qui s'effondre toute
+// seule au 2e tour, autonome comme turrets/creature) rejoignent la même
+// exemption — voir majInterieur, pas majAction.
+const CHAMPS_DECOR_SALLE=new Set(['pnj','culturiste','plaque','gardiens','cameras','piles','dangers','bateau','turrets','creature','boucleHuile','toitPasserelle']);
 // Rejoue majAction() avec le joueur hors de portée de tout, pour que la
 // chaîne if/else-if s'évalue en entier (aucune branche ne « gagne » et
 // n'interrompt les suivantes) et que chaque marquerZone() de la salle
@@ -13460,6 +14049,39 @@ function majAction(){
     } else if(s.grandePorte&&dist2(P.x,P.z,s.grandePorte.x,s.grandePorte.z)<marquerZone(s.grandePorte,9)){
       label='🚪 GRANDE PORTE — sortir avec le butin';
       fn=()=>{ site51ConclureVisite(s,true); sortirInterieur(); };
+    /* ---------- DÉPÔT DE BUS : stand des véhicules (choix, pas d'entrée physique) ---------- */
+    } else if(s.depot&&!s.courseEnCours&&s.standVehicules&&
+              s.standVehicules.some(st=>dist2(P.x,P.z,st.x,st.z)<marquerZone(st,9))){
+      const st=s.standVehicules.filter(st=>dist2(P.x,P.z,st.x,st.z)<st.r*st.r)
+        .sort((a,b)=>dist2(P.x,P.z,a.x,a.z)-dist2(P.x,P.z,b.x,b.z))[0];
+      const nom=VEHDEFS[st.key].nom.toUpperCase();
+      if(!st.dispo){ label='🔒 '+nom+' — à débloquer'; fn=()=>{SFX.refus();toast('Gagne sur Le Toit. En Bus.','warn');}; }
+      else if(s.vehiculeChoisi===st.key){ label='✅ '+nom+' choisi'; fn=()=>{SFX.ui();}; }
+      else { label='🏎️ CHOISIR — '+nom; fn=()=>{ s.vehiculeChoisi=st.key; toast(nom+' sélectionné','or'); SFX.ui(); }; }
+    /* ---------- DÉPÔT DE BUS : tableau des courses (cycle puis confirme) ---------- */
+    } else if(s.depot&&!s.courseEnCours&&s.tableau&&dist2(P.x,P.z,s.tableau.x,s.tableau.z)<marquerZone(s.tableau,16)){
+      const cid=DEPOT_ORDRE_CIRCUITS[s.circuitIdx], cdef=DEPOT_CIRCUITS[cid];
+      const arme=s.circuitArme&&(ETAT.runT-s.dernierTapTableau)<1.5;
+      if(arme){
+        const deverr=META.depotCircuits[cid];
+        label=deverr?('🏁 LANCER — '+cdef.nom):('🔒 '+cdef.nom+' verrouillé');
+        fn=()=>{
+          s.circuitArme=false;
+          if(!deverr){ SFX.refus(); toast('Gagne le circuit précédent pour débloquer celui-ci','warn'); return; }
+          depotLancerCourse(s,cid);
+        };
+      } else {
+        label='📋 TABLEAU — VOIR '+cdef.nom;
+        fn=()=>{
+          s.circuitIdx=(s.circuitIdx+1)%DEPOT_ORDRE_CIRCUITS.length;
+          const ncid=DEPOT_ORDRE_CIRCUITS[s.circuitIdx], ndef=DEPOT_CIRCUITS[ncid];
+          s.circuitArme=true; s.dernierTapTableau=ETAT.runT;
+          const deverr=META.depotCircuits[ncid], meilleur=META.depotTemps[ncid][0];
+          toast((deverr?'🏁 ':'🔒 ')+ndef.nom+' · '+ndef.laps+' tours · gain '+fmt$(ndef.gain)+
+            ' · record '+meilleur.temps.toFixed(1)+' s'+(deverr?' — appuie à nouveau pour lancer':' — verrouillé'),'or');
+          SFX.ui();
+        };
+      }
     } else if(s.fouilles&&s.fouilles.length&&
               s.fouilles.some(f=>dist2(P.x,P.z,f.x,f.z)<f.rayon*f.rayon)){
       // priorité basse : n'importe quel contenant fouillable de la salle
@@ -13659,6 +14281,18 @@ function jourNuit(dt){
       lampeNuit.color.setHex(0x39ff6a);
       lampeNuit.intensity=Math.max(lampeNuit.intensity,3*(s.tirFlashT/0.15));
     }
+    return;
+  }
+  if(INT.actif&&INT.actif.depot){
+    // Le Dépôt de bus : nuit permanente, quelle que soit l'heure en ville —
+    // néons, projecteurs de chantier, phares. Volontairement plus sombre que
+    // le générique « intérieur » ci-dessous : c'est l'éclairage qui vend
+    // l'ambiance de courses clandestines, pas un hangar bien éclairé.
+    soleil.intensity=0.2; hemi.intensity=0.3;
+    scene.background.copy(CINT);
+    scene.fog.color.copy(CINT);
+    scene.fog.near=60; scene.fog.far=420;
+    lampeNuit.intensity=0; lampeNuit.distance=42;
     return;
   }
   if(INT.actif){

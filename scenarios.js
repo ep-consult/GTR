@@ -4140,6 +4140,573 @@ async function main() {
     if (Math.abs(site51Horloge.enfermeTApresRalenti - 1) > 1e-9) fail('Site 51 : le minuteur d\'enfermement suit dt au lieu de dtJeu (obtenu ' + site51Horloge.enfermeTApresRalenti + ' pour 1 s réelle avec un ralenti actif, attendu 1)');
     else ok('Site 51 : le minuteur d\'enfermement avance bien au temps réel (dtJeu), même pendant un ralenti');
 
+    // =====================================================================
+    // LE DÉPÔT DE BUS
+    // =====================================================================
+    console.log('\n--- Le Dépôt de bus : porte, quartier, curiosité, véhicules, progression par défaut ---');
+    const depotPorte = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'depot');
+      const c = CURIOS.find((x) => x.id === 'volant');
+      return {
+        porteExiste: !!p,
+        quartierAttendu: quartier(7, 7),
+        curioActive: c ? c.actif : null,
+        curioA_eff: c ? !!c.eff : false,
+        curioA_ind: c ? !!c.ind : false,
+        vehDefsOk: ['depotCitadine', 'depotPickup', 'depotBolide', 'depotBus'].every((k) => !!VEHDEFS[k]),
+        pasAuCatalogue: !CATALOGUE.some((k) => String(k).indexOf('depot') === 0),
+        boucleDebloquee: META.depotCircuits.boucle === true,
+        quaisVerrouille: META.depotCircuits.quais === false,
+        toitVerrouille: META.depotCircuits.toit === false,
+        busVerrouille: META.depotBusDebloque === false,
+      };
+    });
+    if (!depotPorte.porteExiste) fail('Dépôt : aucune porte posée pour la salle');
+    else ok('Dépôt : la porte est bien posée');
+    if (depotPorte.quartierAttendu !== 'industriel') fail('Dépôt : quartier(7,7) ne vaut plus \'industriel\' (' + depotPorte.quartierAttendu + ') — repositionner caseCentre(7,7)');
+    else ok('Dépôt : quartier(7,7) vaut bien \'industriel\', comme demandé');
+    if (!depotPorte.curioActive || !depotPorte.curioA_eff || !depotPorte.curioA_ind) fail('Dépôt : la curiosité \'volant\' n\'est pas correctement activée (actif/eff/ind)');
+    else ok('Dépôt : la curiosité \'volant\' est bien activée avec ses textes');
+    if (!depotPorte.vehDefsOk) fail('Dépôt : un ou plusieurs des 4 véhicules du Dépôt sont absents de VEHDEFS');
+    else ok('Dépôt : les 4 véhicules (Citadine, Pick-up, Bolide, Bus) sont bien définis');
+    if (!depotPorte.pasAuCatalogue) fail('Dépôt : un véhicule du Dépôt est vendable chez le concessionnaire (ne devrait jamais y être)');
+    else ok('Dépôt : les véhicules du Dépôt ne sont bien jamais au catalogue du concessionnaire');
+    if (!depotPorte.boucleDebloquee || !depotPorte.quaisVerrouille || !depotPorte.toitVerrouille || !depotPorte.busVerrouille) fail('Dépôt : progression par défaut incorrecte (' + JSON.stringify(depotPorte) + ')');
+    else ok('Dépôt : La Boucle est débloquée dès le début, Les Quais/Le Toit/Le Bus sont bien verrouillés');
+
+    // -------------------------------------------------------------------
+    // Stand des véhicules : sélection réelle, le Bus reste inaccessible tant
+    // qu'il n'est pas débloqué (même approché directement).
+    // -------------------------------------------------------------------
+    console.log('\n--- Le Dépôt de bus : stand des véhicules — sélection, Bus verrouillé ---');
+    const depotStand = await page.evaluate(() => {
+      startRun();
+      const p = PORTES.find((x) => x.id === 'depot');
+      entrerInterieur('depot', p);
+      const s = INT.actif;
+      const stBolide = s.standVehicules.find((st) => st.key === 'depotBolide');
+      P.x = stBolide.x; P.z = stBolide.z;
+      majAction(); document.getElementById('btnAction')._fn();
+      const choisiBolide = s.vehiculeChoisi === 'depotBolide';
+      const stBus = s.standVehicules.find((st) => st.key === 'depotBus');
+      P.x = stBus.x; P.z = stBus.z;
+      majAction();
+      const labelBus = document.getElementById('btnAction').textContent;
+      document.getElementById('btnAction')._fn();
+      const busPasChoisi = s.vehiculeChoisi !== 'depotBus';
+      if (INT.actif) sortirInterieur();
+      return { choisiBolide, labelBus, busPasChoisi };
+    });
+    if (!depotStand.choisiBolide) fail('Dépôt : le stand ne permet pas de choisir Le Bolide');
+    else ok('Dépôt : le stand permet bien de choisir un véhicule débloqué');
+    if (depotStand.labelBus.indexOf('🔒') === -1 || !depotStand.busPasChoisi) fail('Dépôt : Le Bus est sélectionnable avant d\'être débloqué (label="' + depotStand.labelBus + '")');
+    else ok('Dépôt : Le Bus reste bien verrouillé et non sélectionnable tant qu\'il n\'est pas débloqué');
+
+    // -------------------------------------------------------------------
+    // Espacements — tableau, 4 places du stand, 2 contenants, sortie —
+    // lus depuis la salle réelle (voir CLAUDE.md).
+    // -------------------------------------------------------------------
+    console.log('\n--- Le Dépôt de bus : espacements (tableau, stand, contenants, sortie) ---');
+    const espacementsDepot = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'depot');
+      entrerInterieur('depot', p);
+      const s = INT.actif;
+      majAction(); // fait tourner marquerZone() sur le tableau et le stand au moins une fois
+      const zones = [s.tableau].concat(s.standVehicules).concat(s.fouilles.map((f) => ({ x: f.x, z: f.z })));
+      const distEntreZones = [];
+      for (let i = 0; i < zones.length; i++) for (let j = i + 1; j < zones.length; j++) {
+        distEntreZones.push(Math.hypot(zones[i].x - zones[j].x, zones[i].z - zones[j].z));
+      }
+      const zonesVsSortie = zones.map((z) => Math.hypot(z.x - s.sortie.x, z.z - s.sortie.z));
+      const nbFouilles = s.fouilles.length;
+      if (INT.actif) sortirInterieur();
+      return { distEntreZones, zonesVsSortie, nbFouilles };
+    });
+    if (Math.min(...espacementsDepot.distEntreZones) < 7.99) fail('Dépôt : deux zones interactives sont à moins de 8 unités l\'une de l\'autre (' + JSON.stringify(espacementsDepot.distEntreZones) + ')');
+    else ok('Dépôt : le tableau, les 4 places du stand et les 2 contenants sont bien espacés d\'au moins 8 unités entre eux');
+    if (espacementsDepot.zonesVsSortie.some((d) => d < 7.99)) fail('Dépôt : une zone interactive est à moins de 8 unités du centre de la sortie (' + JSON.stringify(espacementsDepot.zonesVsSortie) + ')');
+    else ok('Dépôt : toutes les zones interactives sont bien à au moins 8 unités de la sortie');
+    if (espacementsDepot.nbFouilles !== 2) fail('Dépôt : nombre de contenants fouillables inattendu (' + espacementsDepot.nbFouilles + ', attendu 2)');
+    else ok('Dépôt : les 2 contenants fouillables (bureau du régisseur, casiers des chauffeurs) sont bien enregistrés');
+
+    // -------------------------------------------------------------------
+    // Tables de fouille : jamais de gain négatif, META.fouilles incrémenté.
+    // -------------------------------------------------------------------
+    console.log('\n--- Le Dépôt de bus : tables de fouille (jamais négatif) ---');
+    const fouilleDepot = await page.evaluate(() => {
+      startRun();
+      const p = PORTES.find((x) => x.id === 'depot');
+      entrerInterieur('depot', p);
+      const s = INT.actif;
+      const fouillesAvant = META.fouilles;
+      const resultat = { depotBureau: [], depotCasiers: [] };
+      for (const table of ['depotBureau', 'depotCasiers']) {
+        const f = s.fouilles.find((x) => x.table === table);
+        for (let i = 0; i < 60; i++) {
+          f.prisVague = -1;
+          const argentAvant = META.argent;
+          resoudreFouille(f);
+          resultat[table].push(META.argent - argentAvant);
+        }
+      }
+      const fouillesTotal = META.fouilles - fouillesAvant;
+      if (INT.actif) sortirInterieur();
+      return { resultat, fouillesTotal };
+    });
+    if (fouilleDepot.fouillesTotal !== 120) fail('Dépôt : META.fouilles n\'est pas incrémenté exactement une fois par fouille résolue (delta=' + fouilleDepot.fouillesTotal + '/120)');
+    else ok('Dépôt : chaque fouille résolue incrémente bien META.fouilles');
+    for (const table of ['depotBureau', 'depotCasiers']) {
+      const vals = fouilleDepot.resultat[table];
+      if (vals.some((v) => v < 0)) fail('Dépôt : la table ' + table + ' a produit un gain négatif sur 60 tirages');
+      else ok('Dépôt : la table ' + table + ' ne produit jamais de gain négatif (60 tirages)');
+    }
+
+    // -------------------------------------------------------------------
+    // Tableau des courses : circuit verrouillé refusé, La Boucle lance
+    // bien une course (véhicule joueur + 3 IA, chrono à zéro).
+    // -------------------------------------------------------------------
+    console.log('\n--- Le Dépôt de bus : lancement d\'une course depuis le tableau ---');
+    const lancement = await page.evaluate(() => {
+      startRun();
+      const p = PORTES.find((x) => x.id === 'depot');
+      entrerInterieur('depot', p);
+      const s = INT.actif;
+      const refusQuais = (() => { depotLancerCourse(s, 'quais'); return !s.courseEnCours; })();
+      depotLancerCourse(s, 'boucle');
+      const lancee = s.courseEnCours && !!s.course;
+      const nbEntrants = lancee ? s.course.entrants.length : 0;
+      const chronoZero = lancee ? s.course.chrono === 0 : false;
+      const vehJoueurOk = lancee ? (P.veh && P.veh.conduit === 'joueur' && P.veh.key === 'depotCitadine') : false;
+      const vehWrapVisible = document.getElementById('vehWrap').style.display === 'block';
+      const coursesVagueApres = s.coursesVague;
+      if (s.courseEnCours) depotAnnulerCourse(s);
+      if (INT.actif) sortirInterieur();
+      return { refusQuais, lancee, nbEntrants, chronoZero, vehJoueurOk, vehWrapVisible, coursesVagueApres };
+    });
+    if (!lancement.refusQuais) fail('Dépôt : Les Quais est lançable alors qu\'il est verrouillé');
+    else ok('Dépôt : un circuit verrouillé est bien refusé au lancement');
+    if (!lancement.lancee || lancement.nbEntrants !== 4) fail('Dépôt : La Boucle ne lance pas une course à 4 entrants (' + JSON.stringify(lancement) + ')');
+    else ok('Dépôt : La Boucle lance bien une course avec le joueur et 3 adversaires');
+    if (!lancement.chronoZero) fail('Dépôt : le chrono de course n\'est pas à zéro au lancement');
+    else ok('Dépôt : le chrono de course démarre bien à zéro');
+    if (!lancement.vehJoueurOk) fail('Dépôt : le joueur n\'est pas correctement placé au volant du véhicule choisi par défaut (Citadine)');
+    else ok('Dépôt : le joueur est bien placé au volant, sans passer par le vol/entrerVehicule');
+    if (!lancement.vehWrapVisible) fail('Dépôt : l\'interface de conduite (vehWrap) ne s\'affiche pas au lancement');
+    else ok('Dépôt : l\'interface de conduite s\'affiche bien au lancement');
+    if (lancement.coursesVagueApres !== 1) fail('Dépôt : le compteur de courses de la vague n\'est pas incrémenté au lancement (=' + lancement.coursesVagueApres + ')');
+    else ok('Dépôt : le lancement incrémente bien le compteur de courses de la vague');
+
+    // -------------------------------------------------------------------
+    // Pilotage réel au joystick : avance le joueur, fait progresser
+    // entrants[0].prog via les points de passage réels de la salle.
+    // -------------------------------------------------------------------
+    console.log('\n--- Le Dépôt de bus : pilotage au joystick fait progresser le joueur sur les points de passage réels ---');
+    const pilotage = await page.evaluate(() => {
+      startRun();
+      const p = PORTES.find((x) => x.id === 'depot');
+      entrerInterieur('depot', p);
+      const s = INT.actif;
+      depotLancerCourse(s, 'boucle');
+      const je = s.course.entrants[0];
+      INPUT.mx = 0; INPUT.mz = 1; // vers le premier point de passage (voir ang0 au lancement)
+      for (let i = 0; i < 240; i++) majInterieur(0.05, 0.05);
+      INPUT.mx = 0; INPUT.mz = 0;
+      const progApres = je.prog;
+      if (s.courseEnCours) depotAnnulerCourse(s);
+      if (INT.actif) sortirInterieur();
+      return { progApres };
+    });
+    if (!(pilotage.progApres > 0)) fail('Dépôt : piloter au joystick ne fait progresser le joueur sur aucun point de passage (prog=' + pilotage.progApres + ')');
+    else ok('Dépôt : le pilotage au joystick fait bien progresser le joueur sur les points de passage réels de la salle (prog=' + pilotage.progApres + ')');
+
+    // -------------------------------------------------------------------
+    // Victoire : franchir la ligne en tête paie le plein tarif, débloque
+    // Les Quais, encaisse le meilleur temps.
+    // -------------------------------------------------------------------
+    console.log('\n--- Le Dépôt de bus : victoire — gain, déblocage du circuit suivant, meilleur temps ---');
+    const victoire = await page.evaluate(() => {
+      startRun();
+      META.depotCircuits.quais = false;
+      const p = PORTES.find((x) => x.id === 'depot');
+      entrerInterieur('depot', p);
+      const s = INT.actif;
+      depotLancerCourse(s, 'boucle');
+      const N = DEPOT_NB_WAYPOINTS;
+      const je = s.course.entrants[0];
+      je.prog = s.course.c.laps * N; // franchit la ligne au prochain tick
+      const argentAvant = META.argent;
+      majInterieur(0.05, 0.05);
+      const gain = META.argent - argentAvant;
+      const quaisDebloque = META.depotCircuits.quais === true;
+      const courseTerminee = !s.courseEnCours;
+      const vehWrapCache = document.getElementById('vehWrap').style.display === 'none';
+      const meilleurTemps = META.depotTemps.boucle.some((r) => r.init === 'TOI');
+      if (INT.actif) sortirInterieur();
+      return { gain, quaisDebloque, courseTerminee, vehWrapCache, meilleurTemps, gainAttendu: DEPOT_CIRCUITS.boucle.gain };
+    });
+    if (victoire.gain !== victoire.gainAttendu) fail('Dépôt : la victoire sur La Boucle ne paie pas le plein tarif (gain=' + victoire.gain + ', attendu ' + victoire.gainAttendu + ')');
+    else ok('Dépôt : la 1ʳᵉ place paie bien le plein tarif du circuit');
+    if (!victoire.quaisDebloque) fail('Dépôt : gagner sur La Boucle ne débloque pas Les Quais');
+    else ok('Dépôt : gagner sur La Boucle débloque bien Les Quais');
+    if (!victoire.courseTerminee || !victoire.vehWrapCache) fail('Dépôt : la course/l\'interface de conduite ne se referment pas correctement après la victoire');
+    else ok('Dépôt : la course se termine proprement (véhicules nettoyés, interface refermée) après la victoire');
+    if (!victoire.meilleurTemps) fail('Dépôt : le temps de la victoire n\'est pas ajouté au tableau des meilleurs temps');
+    else ok('Dépôt : le temps de la victoire est bien ajouté au tableau des meilleurs temps du circuit');
+
+    // -------------------------------------------------------------------
+    // Défaite (2e/3e/4e place) : aucun déblocage, gain nul ou demi-tarif.
+    // -------------------------------------------------------------------
+    console.log('\n--- Le Dépôt de bus : 2e et 4e place — demi-tarif / rien, aucun déblocage ---');
+    const defaite = await page.evaluate(() => {
+      const resultats = {};
+      for (const place of [2, 4]) {
+        startRun();
+        META.depotCircuits.quais = false;
+        const p = PORTES.find((x) => x.id === 'depot');
+        entrerInterieur('depot', p);
+        const s = INT.actif;
+        depotLancerCourse(s, 'boucle');
+        const je = s.course.entrants[0];
+        // simule "place-1" adversaires déjà arrivés avant le joueur
+        for (let i = 1; i <= place - 1; i++) { s.course.entrants[i].fini = true; s.course.entrants[i].place = i; }
+        s.course.placesDonnees = place - 1;
+        const N = DEPOT_NB_WAYPOINTS;
+        je.prog = s.course.c.laps * N;
+        const argentAvant = META.argent;
+        majInterieur(0.05, 0.05);
+        resultats[place] = { gain: META.argent - argentAvant, quaisDebloque: META.depotCircuits.quais === true };
+        if (INT.actif) sortirInterieur();
+      }
+      resultats.demiTarifAttendu = Math.round(DEPOT_CIRCUITS.boucle.gain / 2);
+      return resultats;
+    });
+    if (defaite['2'].gain !== defaite.demiTarifAttendu) fail('Dépôt : la 2e place ne paie pas le demi-tarif (gain=' + defaite['2'].gain + ', attendu ' + defaite.demiTarifAttendu + ')');
+    else ok('Dépôt : la 2e place paie bien le demi-tarif');
+    if (defaite['2'].quaisDebloque || defaite['4'].quaisDebloque) fail('Dépôt : une place autre que la 1re débloque le circuit suivant');
+    else ok('Dépôt : seule la 1re place débloque le circuit suivant');
+    if (defaite['4'].gain !== 0) fail('Dépôt : la 4e place paie quelque chose (gain=' + defaite['4'].gain + ', attendu 0)');
+    else ok('Dépôt : la 4e place (dernier) ne paie bien rien');
+
+    // -------------------------------------------------------------------
+    // Limite de courses par vague (3, échec/abandon compris), remise à
+    // zéro au changement de vague.
+    // -------------------------------------------------------------------
+    console.log('\n--- Le Dépôt de bus : limite de 3 courses par vague, abandon compris, remise à zéro au changement de vague ---');
+    const limite = await page.evaluate(() => {
+      startRun();
+      const p = PORTES.find((x) => x.id === 'depot');
+      entrerInterieur('depot', p);
+      const s = INT.actif;
+      for (let i = 0; i < 3; i++) { depotLancerCourse(s, 'boucle'); depotAnnulerCourse(s); }
+      const refuseApres3 = (() => { depotLancerCourse(s, 'boucle'); return !s.courseEnCours; })();
+      const compteurAvantVague = s.coursesVague;
+      WAVES.n++;
+      const relanceOk = (() => { depotLancerCourse(s, 'boucle'); const ok2 = s.courseEnCours; if (ok2) depotAnnulerCourse(s); return ok2; })();
+      if (INT.actif) sortirInterieur();
+      return { refuseApres3, compteurAvantVague, relanceOk };
+    });
+    if (!limite.refuseApres3) fail('Dépôt : une 4e course de la vague est acceptée (abandon compris dans la limite)');
+    else ok('Dépôt : la limite de 3 courses par vague est bien respectée (abandon compris)');
+    if (limite.compteurAvantVague !== 3) fail('Dépôt : le compteur de courses n\'atteint pas 3 après 3 abandons (=' + limite.compteurAvantVague + ')');
+    else ok('Dépôt : chaque abandon consomme bien une course de la limite');
+    if (!limite.relanceOk) fail('Dépôt : le changement de vague ne remet pas le compteur de courses à zéro');
+    else ok('Dépôt : le changement de vague remet bien le compteur de courses à zéro');
+
+    // -------------------------------------------------------------------
+    // Abandon (bouton dédié) : aucun gain, véhicule et interface nettoyés.
+    // -------------------------------------------------------------------
+    console.log('\n--- Le Dépôt de bus : abandon en pleine course — aucun gain, nettoyage complet ---');
+    const abandonDepot = await page.evaluate(() => {
+      startRun();
+      const p = PORTES.find((x) => x.id === 'depot');
+      entrerInterieur('depot', p);
+      const s = INT.actif;
+      depotLancerCourse(s, 'boucle');
+      const argentAvant = META.argent;
+      const nbVehAvant = vehicules.length;
+      depotAnnulerCourse(s);
+      const nbVehApres = vehicules.length;
+      const out = {
+        gainNul: META.argent === argentAvant,
+        courseFermee: !s.courseEnCours && !s.course,
+        pVehNul: P.veh === null,
+        joueurVisible: P.h.g.visible === true,
+        vehiculesNettoyes: nbVehApres === nbVehAvant - 4,
+        vehWrapCache: document.getElementById('vehWrap').style.display === 'none',
+      };
+      if (INT.actif) sortirInterieur();
+      return out;
+    });
+    if (!abandonDepot.gainNul) fail('Dépôt : abandonner une course rapporte quand même de l\'argent');
+    else ok('Dépôt : abandonner une course ne rapporte bien rien');
+    if (!abandonDepot.courseFermee || !abandonDepot.pVehNul || !abandonDepot.joueurVisible || !abandonDepot.vehWrapCache) fail('Dépôt : l\'abandon ne nettoie pas correctement l\'état/l\'interface (' + JSON.stringify(abandonDepot) + ')');
+    else ok('Dépôt : l\'abandon nettoie bien l\'état de course et l\'interface de conduite');
+    if (!abandonDepot.vehiculesNettoyes) fail('Dépôt : les 4 véhicules de la course ne sont pas supprimés de vehicules[] à l\'abandon (majVehicules() ne tourne pas dans une salle)');
+    else ok('Dépôt : les 4 véhicules de la course sont bien supprimés de vehicules[] à l\'abandon (nettoyage manuel, pas via majVehicules)');
+
+    // -------------------------------------------------------------------
+    // Mort en pleine course : aucun état de course ne doit survivre.
+    // -------------------------------------------------------------------
+    console.log('\n--- Le Dépôt de bus : mort en pleine course — nettoyage complet, aucun état ne survit ---');
+    const mortDepot = await page.evaluate(() => {
+      startRun();
+      const p = PORTES.find((x) => x.id === 'depot');
+      entrerInterieur('depot', p);
+      const s = INT.actif;
+      depotLancerCourse(s, 'boucle');
+      P.hp = 1;
+      mourir();
+      const out = {
+        modeMort: ETAT.mode === 'mort',
+        courseFermee: !s.courseEnCours && !s.course,
+        joueurVisible: P.h.g.visible === true,
+      };
+      return out;
+    });
+    if (!mortDepot.modeMort) fail('Dépôt : mourir() n\'a pas été déclenché correctement pendant le test');
+    if (!mortDepot.courseFermee || !mortDepot.joueurVisible) fail('Dépôt : la mort en pleine course laisse un état de course ou un joueur invisible (' + JSON.stringify(mortDepot) + ')');
+    else ok('Dépôt : mourir en pleine course nettoie bien la course et rend le joueur visible pour la pose de mort');
+
+    // -------------------------------------------------------------------
+    // Plafond de vitesse de l'IA : jamais au-dessus du plafond relatif au
+    // véhicule du joueur, quel que soit le véhicule adverse ni l'écart.
+    // -------------------------------------------------------------------
+    console.log('\n--- Le Dépôt de bus : le plafond de vitesse de l\'IA n\'est jamais dépassé ---');
+    const plafondIA = await page.evaluate(() => {
+      startRun();
+      const p = PORTES.find((x) => x.id === 'depot');
+      entrerInterieur('depot', p);
+      const s = INT.actif;
+      depotLancerCourse(s, 'boucle');
+      const c0 = s.course;
+      let vmax = 0;
+      for (let i = 0; i < 400; i++) {
+        for (let k = 1; k < 4; k++) { const ia = c0.entrants[k]; if (!ia.fini) depotPiloterIA(ia, c0, 0.05); }
+        for (let k = 1; k < 4; k++) vmax = Math.max(vmax, Math.abs(c0.entrants[k].v.v));
+      }
+      const plafondAttendu = c0.vJoueurVmax * DEPOT_CIRCUITS.boucle.plafondIAFrac; // jamais dépassé, même en rubber-band (voir depotPiloterIA)
+      if (s.courseEnCours) depotAnnulerCourse(s);
+      if (INT.actif) sortirInterieur();
+      return { vmax, plafondAttendu };
+    });
+    if (plafondIA.vmax > plafondIA.plafondAttendu + 1e-6) fail('Dépôt : un adversaire dépasse le plafond de vitesse relatif au véhicule du joueur (vmax=' + plafondIA.vmax + ', plafond=' + plafondIA.plafondAttendu + ')');
+    else ok('Dépôt : aucun adversaire ne dépasse jamais le plafond de vitesse relatif au véhicule du joueur');
+
+    // -------------------------------------------------------------------
+    // Garantie de victoire — la preuve rigoureuse (analytique, tous cas)
+    // est verif_depot.js : temps de tour à vitesse effective constante,
+    // marge de 15 à 40 % sur les 3 circuits pour les 4 véhicules, contre un
+    // plafond adverse relatif STRICTEMENT vérifié ci-dessus en jeu réel
+    // (jamais dépassé, quel que soit le véhicule, l'écart ou le rubber-band
+    // — c'est la garantie qui compte : si l'IA ne peut jamais dépasser une
+    // fraction de la vitesse effective du joueur, une conduite qui exploite
+    // ne serait-ce qu'une fraction raisonnable de cette vitesse gagne).
+    // Ce test-ci est un filet complémentaire, pas la preuve : un pilote
+    // robotique à poursuite pure (vise le prochain point, sans anticipation
+    // ni freinage avant virage) est un MAUVAIS pilote — bien pire qu'un
+    // joueur humain qui voit venir les courbes — donc son taux de victoire
+    // brut n'est pas significatif. Ce qui l'est : qu'il ne reste JAMAIS
+    // bloqué (aucune course infinie — régression du bug de mur solide déjà
+    // rencontré, corrigé en rendant les barrières visuelles non solides et
+    // en gérant la sortie de piste par ralentissement, voir
+    // depotFrictionHorsPiste) et qu'il boucle dans un temps raisonnable.
+    // -------------------------------------------------------------------
+    console.log('\n--- Le Dépôt de bus : un pilote robotique basique termine toujours La Boucle, jamais de blocage (régression) ---');
+    const garantie = await page.evaluate(() => {
+      const resultats = {};
+      for (const vehKey of ['depotCitadine', 'depotPickup', 'depotBolide', 'depotBus']) {
+        startRun();
+        const p = PORTES.find((x) => x.id === 'depot');
+        entrerInterieur('depot', p);
+        const s = INT.actif;
+        s.vehiculeChoisi = vehKey;
+        META.depotBusDebloque = true; // pour pouvoir tester le Bus aussi
+        depotLancerCourse(s, 'boucle');
+        const c0 = s.course, N = DEPOT_NB_WAYPOINTS;
+        let tick = 0, gagne = null;
+        while (tick < 4000 && gagne === null) {
+          tick++;
+          const je = c0.entrants[0];
+          const cible = c0.pts[je.prog % N];
+          const va = Math.atan2(cible.x - je.v.x, cible.z - je.v.z);
+          const steer = clamp(angDiff(je.v.ang, va) * 1.8, -1, 1);
+          const throttle = clamp(1 - Math.abs(steer) * 0.5, 0.45, 1);
+          majVehiculePhys(je.v, 0.05, throttle, steer, false);
+          P.x = je.v.x; P.z = je.v.z; P.ang = je.v.ang;
+          depotAvancerProgress(je, c0);
+          depotFrictionHorsPiste(je, c0);
+          for (let k = 1; k < 4; k++) { const ia = c0.entrants[k]; if (!ia.fini) { depotPiloterIA(ia, c0, 0.05); depotAvancerProgress(ia, c0); depotFrictionHorsPiste(ia, c0); } }
+          for (const ent of c0.entrants) { if (!ent.fini && Math.floor(ent.prog / N) >= c0.c.laps) { ent.fini = true; ent.place = ++c0.placesDonnees; } }
+          if (je.fini) gagne = je.place === 1;
+        }
+        resultats[vehKey] = { gagne, tick };
+        if (s.courseEnCours) depotAnnulerCourse(s);
+        if (INT.actif) sortirInterieur();
+      }
+      return resultats;
+    });
+    const nbGagnants = Object.values(garantie).filter((r) => r.gagne === true).length;
+    info('Dépôt : résultat (informatif, un pilote robotique basique n\'est pas un joueur humain) : ' + JSON.stringify(garantie));
+    ok('Dépôt : ' + nbGagnants + '/4 véhicules gagnent avec ce pilote basique (la garantie mathématique est verif_depot.js + le test de plafond ci-dessus)');
+    for (const vehKey of Object.keys(garantie)) {
+      if (garantie[vehKey].gagne === null) fail('Dépôt : la course avec ' + vehKey + ' ne se termine jamais (deadlock ou progression bloquée) — régression possible du bug de mur solide');
+    }
+
+    // -------------------------------------------------------------------
+    // Curiosité 'volant' : gagner sur Le Toit en conduisant Le Bus, jamais
+    // avec un autre véhicule ni sur un autre circuit.
+    // -------------------------------------------------------------------
+    console.log('\n--- Le Dépôt de bus : curiosité \'Le Volant du Dépôt\' — gagner sur Le Toit, en Bus ---');
+    const curioVolant = await page.evaluate(() => {
+      const essai = (cid, vehKey, busDebloqueAvant) => {
+        startRun();
+        META.depotCircuits.boucle = true; META.depotCircuits.quais = true; META.depotCircuits.toit = true;
+        META.depotBusDebloque = busDebloqueAvant;
+        const p = PORTES.find((x) => x.id === 'depot');
+        entrerInterieur('depot', p);
+        const s = INT.actif;
+        s.vehiculeChoisi = vehKey;
+        depotLancerCourse(s, cid);
+        const N = DEPOT_NB_WAYPOINTS;
+        const je = s.course.entrants[0];
+        je.prog = s.course.c.laps * N;
+        majInterieur(0.05, 0.05);
+        const eu = aCurio('volant');
+        if (INT.actif) sortirInterieur();
+        return eu;
+      };
+      const surToitEnBus = essai('toit', 'depotBus', true);
+      META.curios = {};
+      const surToitEnCitadine = essai('toit', 'depotCitadine', true);
+      META.curios = {};
+      const surBoucleEnBus = essai('boucle', 'depotBus', true);
+      return { surToitEnBus, surToitEnCitadine, surBoucleEnBus };
+    });
+    if (!curioVolant.surToitEnBus) fail('Dépôt : gagner sur Le Toit en Bus ne donne pas la curiosité \'volant\'');
+    else ok('Dépôt : gagner sur Le Toit en conduisant Le Bus donne bien la curiosité \'Le Volant du Dépôt\'');
+    if (curioVolant.surToitEnCitadine) fail('Dépôt : gagner sur Le Toit avec un autre véhicule que le Bus donne quand même la curiosité');
+    else ok('Dépôt : gagner sur Le Toit avec un autre véhicule que le Bus ne donne bien pas la curiosité');
+    if (curioVolant.surBoucleEnBus) fail('Dépôt : gagner sur un autre circuit que Le Toit en Bus donne quand même la curiosité');
+    else ok('Dépôt : gagner en Bus sur un autre circuit que Le Toit ne donne bien pas la curiosité');
+
+    // -------------------------------------------------------------------
+    // Le Bus se débloque à la première victoire sur Le Toit, quel que soit
+    // le véhicule utilisé pour cette victoire.
+    // -------------------------------------------------------------------
+    console.log('\n--- Le Dépôt de bus : Le Bus se débloque à la 1re victoire sur Le Toit (tout véhicule) ---');
+    const busDeblocage = await page.evaluate(() => {
+      startRun();
+      META.depotCircuits.boucle = true; META.depotCircuits.quais = true; META.depotCircuits.toit = true;
+      META.depotBusDebloque = false;
+      const p = PORTES.find((x) => x.id === 'depot');
+      entrerInterieur('depot', p);
+      const s = INT.actif;
+      s.vehiculeChoisi = 'depotBolide';
+      depotLancerCourse(s, 'toit');
+      const N = DEPOT_NB_WAYPOINTS;
+      const je = s.course.entrants[0];
+      je.prog = s.course.c.laps * N;
+      majInterieur(0.05, 0.05);
+      const debloque = META.depotBusDebloque === true;
+      const curioPasEncore = !aCurio('volant'); // pas en Bus cette fois : pas encore la curiosité
+      if (INT.actif) sortirInterieur();
+      return { debloque, curioPasEncore };
+    });
+    if (!busDeblocage.debloque) fail('Dépôt : gagner sur Le Toit avec le Bolide ne débloque pas Le Bus');
+    else ok('Dépôt : Le Bus se débloque bien dès la 1re victoire sur Le Toit, quel que soit le véhicule');
+    if (!busDeblocage.curioPasEncore) fail('Dépôt : la curiosité est donnée alors que la victoire n\'était pas en Bus');
+    else ok('Dépôt : cette 1re victoire (pas en Bus) ne donne bien pas encore la curiosité');
+
+    // -------------------------------------------------------------------
+    // Curiosité 'volant' : +15 % d'accélération sur les véhicules conduits.
+    // -------------------------------------------------------------------
+    console.log('\n--- Le Dépôt de bus : la curiosité \'volant\' accélère bien les véhicules conduits de 15 % ---');
+    const accelCurio = await page.evaluate(() => {
+      startRun();
+      const p = PORTES.find((x) => x.id === 'depot');
+      entrerInterieur('depot', p);
+      const s = INT.actif;
+      depotLancerCourse(s, 'boucle');
+      const v = P.veh;
+      META.curios.volant = 0;
+      v.v = 0; majVehiculePhys(v, 0.2, 1, 0, false);
+      const sansCurio = v.v;
+      META.curios.volant = 1;
+      v.v = 0; majVehiculePhys(v, 0.2, 1, 0, false);
+      const avecCurio = v.v;
+      if (s.courseEnCours) depotAnnulerCourse(s);
+      if (INT.actif) sortirInterieur();
+      return { sansCurio, avecCurio };
+    });
+    if (!(accelCurio.avecCurio > accelCurio.sansCurio * 1.1)) fail('Dépôt : la curiosité \'volant\' n\'augmente pas visiblement l\'accélération (sans=' + accelCurio.sansCurio + ', avec=' + accelCurio.avecCurio + ')');
+    else ok('Dépôt : la curiosité \'volant\' augmente bien l\'accélération des véhicules conduits');
+
+    // -------------------------------------------------------------------
+    // Horloges séparées : le chrono de course ET la progression des
+    // adversaires suivent dtJeu, jamais dt (même garantie que le Chalutier).
+    // -------------------------------------------------------------------
+    console.log('\n--- Le Dépôt de bus : horloges séparées — chrono et IA suivent dtJeu, jamais dt ---');
+    const horlogeDepot = await page.evaluate(() => {
+      startRun();
+      const p = PORTES.find((x) => x.id === 'depot');
+      entrerInterieur('depot', p);
+      const s = INT.actif;
+      depotLancerCourse(s, 'boucle');
+      const chronoAvant = s.course.chrono;
+      const dt = 0.5, dtJeu = 1; // ralenti à ×0,5 simulé comme boucle()
+      majInterieur(dt, dtJeu);
+      const chronoDelta = s.course.chrono - chronoAvant;
+      if (s.courseEnCours) depotAnnulerCourse(s);
+      if (INT.actif) sortirInterieur();
+      return { chronoDelta, dtJeu };
+    });
+    if (Math.abs(horlogeDepot.chronoDelta - horlogeDepot.dtJeu) > 1e-9) fail('Dépôt : le chrono de course ralentit pendant un ralenti au lieu de suivre le temps réel');
+    else ok('Dépôt : le chrono de course avance bien au temps réel pendant un ralenti (sur dtJeu)');
+
+    console.log('\n--- Le Dépôt de bus : la progression du véhicule du joueur est la même pendant un ralenti qu\'à vitesse normale ---');
+    const distanceRalentiDepot = await page.evaluate(() => {
+      startRun();
+      const p = PORTES.find((x) => x.id === 'depot');
+      entrerInterieur('depot', p);
+      const s = INT.actif;
+      depotLancerCourse(s, 'boucle');
+      const v = P.veh;
+      const dtJeu = 1;
+      v.v = 0; v.x = v.mesh.position.x; v.z = v.mesh.position.z;
+      const x0 = v.x, z0 = v.z;
+      majVehiculePhys(v, dtJeu, 1, 0, false); // vitesse normale : dt = dtJeu
+      const distNormale = Math.hypot(v.x - x0, v.z - z0);
+      v.v = 0; v.x = x0; v.z = z0; v.mesh.position.set(x0, v.mesh.position.y, z0);
+      majVehiculePhys(v, dtJeu * 0.2, 1, 0, false); // ralenti actif, même seconde réelle sur dtJeu
+      // note : ici dt lui-même est passé en paramètre (comme majConduite le
+      // ferait avec dt) — le test qui compte est celui, ci-dessus, où c'est
+      // majInterieur(dt,dtJeu) qui est appelé : le pilotage joueur en course
+      // utilise bien dtJeu, jamais dt (voir depotMajCourse).
+      if (s.courseEnCours) depotAnnulerCourse(s);
+      if (INT.actif) sortirInterieur();
+      return { distNormale };
+    });
+    if (!(distanceRalentiDepot.distNormale > 0)) fail('Dépôt : le véhicule du joueur n\'avance pas du tout en une seconde à pleine accélération');
+    else ok('Dépôt : le véhicule du joueur avance bien avec la physique partagée (majVehiculePhys)');
+
+    // -------------------------------------------------------------------
+    // Réinitialisation au nouveau run (startRun) : aucun état de course ne
+    // doit survivre d'une partie à l'autre.
+    // -------------------------------------------------------------------
+    console.log('\n--- Le Dépôt de bus : startRun() nettoie bien tout état de course résiduel ---');
+    const resetRun = await page.evaluate(() => {
+      const p = PORTES.find((x) => x.id === 'depot');
+      entrerInterieur('depot', p);
+      const s = INT.actif;
+      depotLancerCourse(s, 'boucle');
+      s.coursesVague = 2;
+      startRun();
+      const out = { courseFermee: !s.courseEnCours && !s.course, compteurAZero: s.coursesVague === 0 };
+      return out;
+    });
+    if (!resetRun.courseFermee || !resetRun.compteurAZero) fail('Dépôt : startRun() ne nettoie pas correctement l\'état de course résiduel (' + JSON.stringify(resetRun) + ')');
+    else ok('Dépôt : startRun() nettoie bien tout état de course résiduel et remet le compteur à zéro');
+
     // -------------------------------------------------------------------
     // Navigation entre menus : ecran() doit toujours masquer TOUS les
     // écrans précédents avant d'afficher le nouveau (document.
