@@ -4012,89 +4012,118 @@ function makeVoiture(key){
     g.userData=ud;
     return g;
   }
+  // hauteur de caisse de référence — 0.52 = valeur d'origine, INCHANGÉE pour
+  // tout véhicule autre que le Monster Truck (motos comprises : le bloc
+  // phares/feux partagé plus bas s'exprime maintenant en bodyY+décalage
+  // plutôt qu'en position absolue, pour que le Monster Truck puisse
+  // surélever tout son mobilier — feux compris — sans dupliquer ce bloc).
+  const bodyY=key==='monstertruck'?2.85:0.52;
+  // regroupe la caisse et tout ce qui est monté dessus (habitacle, feux,
+  // gyrophares...) — SAUF les roues, qui restent au sol — pour que le
+  // Monster Truck puisse faire tanguer son châssis indépendamment de ses
+  // roues (suspension molle, voir majVehiculePhys). Groupe neutre (aucune
+  // transform par défaut) pour tous les autres véhicules : zéro différence
+  // visuelle pour eux.
+  const corps=new THREE.Group(); g.add(corps); ud.corps=corps;
   if(def.type==='moto'){
-    g.add(mkBoxG(0.3,0.34,1.55,coul,0,0.62,0));
-    g.add(mkBoxG(0.4,0.24,0.55,coul,0,0.84,0.18));
-    g.add(mkBoxG(0.74,0.07,0.07,0x23262e,0,1.02,0.62));
-    g.add(mkBoxG(0.36,0.1,0.5,0x1a1d24,0,0.9,-0.4));
+    corps.add(mkBoxG(0.3,0.34,1.55,coul,0,0.62,0));
+    corps.add(mkBoxG(0.4,0.24,0.55,coul,0,0.84,0.18));
+    corps.add(mkBoxG(0.74,0.07,0.07,0x23262e,0,1.02,0.62));
+    corps.add(mkBoxG(0.36,0.1,0.5,0x1a1d24,0,0.9,-0.4));
     [[0,0.34,0.75],[0,0.34,-0.75]].forEach(p=>{
       const r=new THREE.Mesh(new THREE.CylinderGeometry(0.34,0.34,0.16,10),mat(0x181a20));
       r.rotation.z=Math.PI/2; r.position.set(p[0],p[1],p[2]); g.add(r); ud.roues.push(r);
     });
   } else {
-    // Monster Truck : suspension très haute, roues énormes — voir CLAUDE.md.
-    const wheelR=key==='monstertruck'?0.72:0.38;
-    const bodyY=key==='monstertruck'?0.92:0.52;
+    // Monster Truck : suspension à très grand débattement, roues énormes,
+    // châssis nettement surélevé — jamais « collé » sur les roues, un
+    // vrai vide visible entre le bas de caisse et le sommet des pneus,
+    // amortisseurs apparents qui comblent cet écart (voir CLAUDE.md).
+    const wheelR=key==='monstertruck'?1.12:0.38;
     const busH=key==='busville'?2.0:0.6; // bus : bien plus haut, boîte quasi constante sur toute la longueur
-    g.add(mkBoxG(W,busH,L*0.92,coul,0,bodyY+(busH-0.6)/2,0));
+    corps.add(mkBoxG(W,busH,L*0.92,coul,0,bodyY+(busH-0.6)/2,0));
     if(key!=='busville'){
-      g.add(mkBoxG(W*0.8,0.48,L*0.44,0x141b26,0,bodyY+0.53,-L*0.06)); // habitacle vitré
-      g.add(mkBoxG(W*0.6,0.05,L*0.28,def.taxi?0xf2c21f:0x0d1119,0,bodyY+0.8,-L*0.06)); // pavillon détaillé vu du dessus
+      corps.add(mkBoxG(W*0.8,0.48,L*0.44,0x141b26,0,bodyY+0.53,-L*0.06)); // habitacle vitré
+      corps.add(mkBoxG(W*0.6,0.05,L*0.28,def.taxi?0xf2c21f:0x0d1119,0,bodyY+0.8,-L*0.06)); // pavillon détaillé vu du dessus
     } else {
       // Bus de ville : bandeau de vitres continu, livrée et numéro de ligne
       // (aléatoire par bus), girouette de destination — toujours SOLARA.
-      g.add(mkBoxG(W*0.94,0.55,L*0.86,0x141b26,0,bodyY+busH*0.42,0));  // bandeau vitré
-      g.add(mkBoxG(W*1.005,0.14,L*0.9,0x35e0ff,0,bodyY-busH*0.1,0));   // liseré bleu Solara
-      g.add(mkBoxG(W*1.005,0.14,L*0.86,0xffd23f,0,bodyY-busH*0.32,0)); // liseré or
+      corps.add(mkBoxG(W*0.94,0.55,L*0.86,0x141b26,0,bodyY+busH*0.42,0));  // bandeau vitré
+      corps.add(mkBoxG(W*1.005,0.14,L*0.9,0x35e0ff,0,bodyY-busH*0.1,0));   // liseré bleu Solara
+      corps.add(mkBoxG(W*1.005,0.14,L*0.86,0xffd23f,0,bodyY-busH*0.32,0)); // liseré or
       const ligne=pick([4,7,9,12,21]);
       const pLigne=new THREE.Mesh(new THREE.PlaneGeometry(0.9,0.9),
         new THREE.MeshBasicMaterial({map:texEnseigne(String(ligne),'#ffd23f'),transparent:false}));
-      pLigne.position.set(-W*0.32,bodyY+busH*0.55,L/2*0.94+0.03); g.add(pLigne);
+      pLigne.position.set(-W*0.32,bodyY+busH*0.55,L/2*0.94+0.03); corps.add(pLigne);
       const pGir=new THREE.Mesh(new THREE.PlaneGeometry(1.7,0.42),
         new THREE.MeshBasicMaterial({map:texEnseigne('SOLARA','#ffffff'),transparent:false}));
-      pGir.position.set(0.15,bodyY+busH*0.55,L/2*0.94+0.03); g.add(pGir);
+      pGir.position.set(0.15,bodyY+busH*0.55,L/2*0.94+0.03); corps.add(pGir);
     }
-    g.add(mkBoxG(W*0.66,0.04,0.08,0x1a2028,0,bodyY+0.32,L*0.2)); // ligne de capot
+    corps.add(mkBoxG(W*0.66,0.04,0.08,0x1a2028,0,bodyY+0.32,L*0.2)); // ligne de capot
     if(def.police){
-      g.add(mkBoxG(W+0.02,0.26,L*0.5,0xe8ecf2,0,0.52,0));
+      corps.add(mkBoxG(W+0.02,0.26,L*0.5,0xe8ecf2,0,bodyY,0));
       const br=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.14,0.24),new THREE.MeshBasicMaterial({color:0xff3b4b}));
-      br.position.set(-0.24,1.36,-L*0.06);
+      br.position.set(-0.24,bodyY+0.84,-L*0.06);
       const bb=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.14,0.24),new THREE.MeshBasicMaterial({color:0x3a7bff}));
-      bb.position.set(0.24,1.36,-L*0.06);
-      g.add(br); g.add(bb); ud.bar=[br,bb];
+      bb.position.set(0.24,bodyY+0.84,-L*0.06);
+      corps.add(br); corps.add(bb); ud.bar=[br,bb];
     }
-    if(def.milit) g.add(mkBoxG(W*0.95,1.0,L*0.5,0x39402c,0,1.35,-L*0.16));
-    if(key==='gangcar') g.add(mkBoxG(0.5,0.04,L*0.85,0x0c2a14,0,0.83,0));
-    if(def.taxi){ g.add(mkBoxG(1.1,0.3,0.5,0x1a1d24,0,1.42,-L*0.06));
-      g.add(mkBoxG(1.0,0.22,0.42,0xffd23f,0,1.44,-L*0.06)); }
-    if(def.sport){ g.add(mkBoxG(W*0.9,0.1,0.5,0x14161c,0,1.15,-L*0.44));
-      g.add(mkBoxG(0.1,0.24,0.1,0x14161c,-W*0.32,0.95,-L*0.44));
-      g.add(mkBoxG(0.1,0.24,0.1,0x14161c,W*0.32,0.95,-L*0.44)); }
-    if(def.buggy){ g.add(mkBoxG(0.1,0.9,0.1,0x23262e,-W*0.4,1.2,0));
-      g.add(mkBoxG(0.1,0.9,0.1,0x23262e,W*0.4,1.2,0));
-      g.add(mkBoxG(W*0.86,0.1,0.1,0x23262e,0,1.66,0)); }
+    if(def.milit) corps.add(mkBoxG(W*0.95,1.0,L*0.5,0x39402c,0,bodyY+0.83,-L*0.16));
+    if(key==='gangcar') corps.add(mkBoxG(0.5,0.04,L*0.85,0x0c2a14,0,bodyY+0.31,0));
+    if(def.taxi){ corps.add(mkBoxG(1.1,0.3,0.5,0x1a1d24,0,bodyY+0.9,-L*0.06));
+      corps.add(mkBoxG(1.0,0.22,0.42,0xffd23f,0,bodyY+0.92,-L*0.06)); }
+    if(def.sport){ corps.add(mkBoxG(W*0.9,0.1,0.5,0x14161c,0,bodyY+0.63,-L*0.44));
+      corps.add(mkBoxG(0.1,0.24,0.1,0x14161c,-W*0.32,bodyY+0.43,-L*0.44));
+      corps.add(mkBoxG(0.1,0.24,0.1,0x14161c,W*0.32,bodyY+0.43,-L*0.44)); }
+    if(def.buggy){ corps.add(mkBoxG(0.1,0.9,0.1,0x23262e,-W*0.4,bodyY+0.68,0));
+      corps.add(mkBoxG(0.1,0.9,0.1,0x23262e,W*0.4,bodyY+0.68,0));
+      corps.add(mkBoxG(W*0.86,0.1,0.1,0x23262e,0,bodyY+1.14,0)); }
     if(def.pompier){
-      g.add(mkBoxG(W*0.9,0.22,L*0.7,0xe8ecf2,0,bodyY+0.62,-L*0.05)); // bande blanche réfléchissante
-      g.add(mkBoxG(0.3,0.28,L*0.55,0x8a8f9a,0,bodyY+0.85,-L*0.1));    // échelle sur le toit
+      corps.add(mkBoxG(W*0.9,0.22,L*0.7,0xe8ecf2,0,bodyY+0.62,-L*0.05)); // bande blanche réfléchissante
+      corps.add(mkBoxG(0.3,0.28,L*0.55,0x8a8f9a,0,bodyY+0.85,-L*0.1));    // échelle sur le toit
       const gy1=new THREE.Mesh(new THREE.BoxGeometry(0.28,0.16,0.24),new THREE.MeshBasicMaterial({color:0xff3b4b}));
       gy1.position.set(-0.26,bodyY+0.98,-L*0.32);
       const gy2=new THREE.Mesh(new THREE.BoxGeometry(0.28,0.16,0.24),new THREE.MeshBasicMaterial({color:0xff3b4b}));
       gy2.position.set(0.26,bodyY+0.98,-L*0.32);
-      g.add(gy1); g.add(gy2); ud.gyro=[gy1,gy2];
+      corps.add(gy1); corps.add(gy2); ud.gyro=[gy1,gy2];
     }
     if(key==='monstertruck'){
-      g.add(mkBoxG(0.08,0.5,0.08,0x23262e,-W*0.36,bodyY+0.5,L*0.15)); // arceau
-      g.add(mkBoxG(0.08,0.5,0.08,0x23262e,W*0.36,bodyY+0.5,L*0.15));
-      g.add(mkBoxG(W*0.7,0.08,0.08,0x23262e,0,bodyY+0.95,L*0.15));    // barre de toit
+      corps.add(mkBoxG(0.08,0.5,0.08,0x23262e,-W*0.36,bodyY+0.5,L*0.15)); // arceau
+      corps.add(mkBoxG(0.08,0.5,0.08,0x23262e,W*0.36,bodyY+0.5,L*0.15));
+      corps.add(mkBoxG(W*0.7,0.08,0.08,0x23262e,0,bodyY+0.95,L*0.15));    // barre de toit
+      // amortisseurs apparents : comblent l'écart entre le bas de caisse
+      // (surélevé) et le sommet des pneus — sans ça, un châssis flottant
+      // loin au-dessus de roues nues aurait l'air cassé, pas suspendu.
+      const stanceX=W/2+0.22, bodyBotY=bodyY-busH/2, wheelTopY=wheelR*1.85, gapH=Math.max(0.4,bodyBotY-wheelTopY);
+      [[stanceX,L*0.32],[-stanceX,L*0.32],[stanceX,-L*0.32],[-stanceX,-L*0.32]].forEach(p=>{
+        const choc=new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.12,gapH,8),mat(0xffb347));
+        choc.position.set(p[0]*0.72,wheelTopY+gapH/2,p[1]); g.add(choc); // grounded : suit les roues, pas le tangage du châssis
+      });
     }
-    [[W/2,wheelR,L*0.32],[-W/2,wheelR,L*0.32],[W/2,wheelR,-L*0.32],[-W/2,wheelR,-L*0.32]].forEach(p=>{
-      const r=new THREE.Mesh(new THREE.CylinderGeometry(wheelR,wheelR,key==='monstertruck'?0.44:0.26,10),mat(0x15171c));
+    // Monster Truck : roues énormes ET plus larges que la caisse (les pneus
+    // débordent nettement du châssis, allure typique) — jamais posées à
+    // fleur de carrosserie comme une voiture normale.
+    const stanceX=key==='monstertruck'?W/2+0.22:W/2;
+    [[stanceX,wheelR,L*0.32],[-stanceX,wheelR,L*0.32],[stanceX,wheelR,-L*0.32],[-stanceX,wheelR,-L*0.32]].forEach(p=>{
+      const r=new THREE.Mesh(new THREE.CylinderGeometry(wheelR,wheelR,key==='monstertruck'?0.64:0.26,10),mat(0x15171c));
       r.rotation.z=Math.PI/2; r.position.set(p[0],p[1],p[2]); g.add(r); ud.roues.push(r);
     });
   }
-  // phares + feux arrière
-  [[W*0.28,0.55,L/2*0.96],[-W*0.28,0.55,L/2*0.96]].forEach(p=>{
-    g.add(mkBoxG(0.2,0.12,0.06,0xfff0b8,p[0],p[1],p[2]));
+  // phares + feux arrière (bodyY+décalage : reconstruit exactement les
+  // anciennes positions absolues pour tout véhicule hors Monster Truck,
+  // et suit son châssis surélevé pour le Monster Truck)
+  [[W*0.28,bodyY+0.03,L/2*0.96],[-W*0.28,bodyY+0.03,L/2*0.96]].forEach(p=>{
+    corps.add(mkBoxG(0.2,0.12,0.06,0xfff0b8,p[0],p[1],p[2]));
     const s=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:0xffe9b0,transparent:true,depthWrite:false,opacity:0}));
-    s.scale.set(3.2,3.2,1); s.position.set(p[0],0.6,p[2]+0.5); g.add(s); ud.phG.push(s);
+    s.scale.set(3.2,3.2,1); s.position.set(p[0],bodyY+0.08,p[2]+0.5); corps.add(s); ud.phG.push(s);
   });
-  g.add(mkBoxG(W*0.7,0.1,0.05,0xd83a3a,0,0.6,-L/2*0.96));
+  corps.add(mkBoxG(W*0.7,0.1,0.05,0xd83a3a,0,bodyY+0.08,-L/2*0.96));
   if(def.type==='car'){
-    g.add(mkBoxG(W*0.96,0.2,0.14,0x22252c,0,0.34,L/2*0.94));
-    g.add(mkBoxG(W*0.96,0.2,0.14,0x22252c,0,0.34,-L/2*0.94));
-    if(Math.random()<0.3) g.add(mkBoxG(0.04,0.7,0.04,0x14161c,-W*0.34,1.4,-L*0.3));
+    corps.add(mkBoxG(W*0.96,0.2,0.14,0x22252c,0,bodyY-0.18,L/2*0.94));
+    corps.add(mkBoxG(W*0.96,0.2,0.14,0x22252c,0,bodyY-0.18,-L/2*0.94));
+    if(Math.random()<0.3) corps.add(mkBoxG(0.04,0.7,0.04,0x14161c,-W*0.34,bodyY+0.88,-L*0.3));
   }
-  g.add(spriteBlob(L*1.05));
+  g.add(spriteBlob(L*1.05)); // ombre au sol : jamais dans `corps`, elle ne doit pas tanguer avec le châssis
   g.userData=ud;
   return g;
 }
@@ -5371,6 +5400,20 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
   v.mesh.rotation.y=v.ang;
   if(eau) v.mesh.rotation.x=Math.sin(ETAT.runT*2.2)*0.03;
   for(const r of v.mesh.userData.roues) r.rotation.x+=v.v*dt*1.6;
+  // Monster Truck : suspension molle — le châssis (userData.corps, roues
+  // exclues) tangue et rebondit indépendamment des roues, qui restent au
+  // sol. Amplitude/fréquence croissent avec la vitesse, léger roulis en
+  // virage, plus un très léger balancement au ralenti (une suspension à
+  // grand débattement ne se fige jamais tout à fait) — voir CLAUDE.md.
+  if(v.key==='monstertruck'&&v.mesh.userData.corps){
+    v.suspPh=(v.suspPh||0)+dt*(1.7+Math.min(2.6,Math.abs(v.v)*0.16));
+    const amp=0.045+Math.min(0.15,Math.abs(v.v)*0.011);
+    const bounce=Math.sin(v.suspPh)*amp+Math.sin(v.suspPh*2.3+1)*amp*0.35;
+    const cc=v.mesh.userData.corps;
+    cc.position.y=bounce;
+    cc.rotation.z=lerp(cc.rotation.z||0,-steerEff*fac*0.16+Math.sin(v.suspPh*0.9)*0.02,clamp(6*dt,0,1));
+    cc.rotation.x=Math.sin(v.suspPh*1.3)*0.02;
+  }
 }
 function lancerRagdollJoueurFx(){ burst(P.x,1,P.z,8,0xff9f5a,8); secousse(8); }
 /* ---------- conduite joueur ---------- */

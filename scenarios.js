@@ -4915,6 +4915,56 @@ async function main() {
     else ok('Monster Truck : la carte et la minimap affichent bien le Monster Truck une fois découvert, sans erreur');
 
     // -------------------------------------------------------------------
+    // Signalé par l'utilisateur : les roues doivent être nettement plus
+    // grandes que sur une voiture normale, jamais collées à la carrosserie
+    // (un vrai vide visible entre le haut des pneus et le bas de caisse),
+    // avec un effet de suspension molle en conduite. Toutes les valeurs
+    // sont lues depuis les meshes RÉELLEMENT construits (géométrie/position
+    // des objets Three.js), jamais recopiées depuis les constantes du code
+    // — voir CLAUDE.md.
+    // -------------------------------------------------------------------
+    console.log('\n--- Monster Truck : roues énormes, châssis surélevé (jamais collé aux roues), suspension molle en conduite ---');
+    const gabarit = await page.evaluate(() => {
+      startRun();
+      const mt = creerVehicule('monstertruck', 500, 500, 0, null);
+      const citadine = creerVehicule('citadine', 520, 500, 0, null);
+      const roueMT = mt.mesh.userData.roues[0], roueC = citadine.mesh.userData.roues[0];
+      const corps = mt.mesh.userData.corps;
+      const bodyBox = (v) => v.mesh.userData.corps.children
+        .filter((c) => c.geometry && c.geometry.type === 'BoxGeometry')
+        .sort((a, b) => (b.geometry.parameters.width * b.geometry.parameters.height * b.geometry.parameters.depth)
+          - (a.geometry.parameters.width * a.geometry.parameters.height * a.geometry.parameters.depth))[0];
+      const boxMT = bodyBox(mt), boxC = bodyBox(citadine);
+      const gapMT = (boxMT.position.y - boxMT.geometry.parameters.height / 2) - (roueMT.position.y + roueMT.geometry.parameters.radiusTop);
+      const gapC = (boxC.position.y - boxC.geometry.parameters.height / 2) - (roueC.position.y + roueC.geometry.parameters.radiusTop);
+      const stanceMT = Math.abs(roueMT.position.x), demiCaisseMT = VEHDEFS.monstertruck.larg / 2;
+
+      // conduit un moment pour vérifier que le châssis (userData.corps)
+      // bouge réellement de façon indépendante des roues, jamais figé.
+      P.veh = mt; mt.conduit = 'joueur';
+      const yTrace = [];
+      for (let i = 0; i < 100; i++) { majVehiculePhys(mt, 0.05, 1, 0, false); if (i % 8 === 0) yTrace.push(corps.position.y); }
+      P.veh = null; mt.conduit = null;
+
+      return {
+        roueRadiusMT: roueMT.geometry.parameters.radiusTop,
+        roueRadiusCitadine: roueC.geometry.parameters.radiusTop,
+        gapMT, gapC,
+        stanceDebordeDeLaCaisse: stanceMT > demiCaisseMT,
+        yTrace,
+        bounceAmplitude: Math.max(...yTrace) - Math.min(...yTrace),
+      };
+    });
+    if (!(gabarit.roueRadiusMT > gabarit.roueRadiusCitadine * 2)) fail('Monster Truck : les roues ne sont pas nettement plus grandes qu\'une voiture normale (MT=' + gabarit.roueRadiusMT + ', citadine=' + gabarit.roueRadiusCitadine + ')');
+    else ok('Monster Truck : les roues sont bien nettement plus grandes qu\'une voiture normale (' + (gabarit.roueRadiusMT / gabarit.roueRadiusCitadine).toFixed(1) + '× le rayon)');
+    if (!(gabarit.gapMT > 0.15)) fail('Monster Truck : le châssis est collé (ou trop proche) du sommet des roues, écart=' + gabarit.gapMT.toFixed(3) + ' (attendu un vrai vide visible, > 0.15)');
+    else ok('Monster Truck : un vrai vide est bien visible entre le châssis et le sommet des roues (écart=' + gabarit.gapMT.toFixed(2) + ' unités), jamais collé — contrairement à une voiture normale (écart=' + gabarit.gapC.toFixed(2) + ')');
+    if (!gabarit.stanceDebordeDeLaCaisse) fail('Monster Truck : les roues ne débordent pas de la caisse (allure typique attendue)');
+    else ok('Monster Truck : les roues débordent bien de la caisse, allure typique d\'un monster truck');
+    if (!(gabarit.bounceAmplitude > 0.02)) fail('Monster Truck : le châssis ne bouge pas (ou trop peu) en conduite — pas d\'effet de suspension molle perceptible (amplitude=' + gabarit.bounceAmplitude.toFixed(4) + ')');
+    else ok('Monster Truck : le châssis tangue bien indépendamment des roues en conduite (effet de suspension molle, amplitude=' + gabarit.bounceAmplitude.toFixed(3) + ' unités)');
+
+    // -------------------------------------------------------------------
     // Écrasement : char et monster truck aplatissent tout véhicule, sans
     // exception. Coordonnées de test lues dynamiquement (POIS.place et
     // alentours, jamais des coordonnées codées en dur qui pourraient tomber
