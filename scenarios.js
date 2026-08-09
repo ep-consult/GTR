@@ -4331,6 +4331,35 @@ async function main() {
     if (!cheminJoueur.courseLanceeViaAction) fail('Dépôt : RÉGRESSION — le vrai chemin joueur (marcher jusqu\'au tableau, taper deux fois) ne lance jamais de course (labels: "' + cheminJoueur.labelTableau1 + '" puis "' + cheminJoueur.labelTableau2 + '")');
     else ok('Dépôt : le vrai chemin joueur (marcher jusqu\'au tableau, taper deux fois) lance bien une course');
 
+    // -------------------------------------------------------------------
+    // Signalé par un joueur réel : « je choisis le Bolide et rien ne se
+    // passe, je ne sais pas comment lancer une course ». Le stand ne lance
+    // effectivement rien en soi (il faut ensuite aller taper le tableau,
+    // ailleurs dans le hangar) — corrigé en rendant cette étape explicite
+    // par toast, à l'entrée dans la salle ET au moment du choix du véhicule.
+    // -------------------------------------------------------------------
+    console.log('\n--- Le Dépôt de bus : guidage explicite (entrée en salle + choix du véhicule pointent vers le tableau) ---');
+    const guidage = await page.evaluate(() => {
+      startRun();
+      const p = PORTES.find((x) => x.id === 'depot');
+      document.getElementById('toastBox').innerHTML = '';
+      entrerInterieur('depot', p);
+      const texteEntree = document.getElementById('toastBox').textContent;
+      const s = INT.actif;
+      const st = s.standVehicules[0];
+      P.x = st.x; P.z = st.z;
+      majAction();
+      document.getElementById('toastBox').innerHTML = '';
+      if (el('btnAction')._fn) el('btnAction')._fn();
+      const texteChoix = document.getElementById('toastBox').textContent;
+      sortirInterieur();
+      return { texteEntree, texteChoix };
+    });
+    if (!/TABLEAU DES COURSES/.test(guidage.texteEntree)) fail('Dépôt : aucun rappel du fonctionnement (stand puis tableau) à l\'entrée dans la salle');
+    else ok('Dépôt : un rappel explicite du fonctionnement (stand puis tableau) s\'affiche bien à l\'entrée dans la salle');
+    if (!/TABLEAU DES COURSES/.test(guidage.texteChoix)) fail('Dépôt : choisir un véhicule au stand ne pointe pas explicitement vers le tableau — un joueur qui ne connaît pas déjà le flux ne sait pas quoi faire ensuite (bug déjà signalé)');
+    else ok('Dépôt : choisir un véhicule au stand pointe bien explicitement vers le tableau des courses');
+
     console.log('\n--- Le Dépôt de bus : lancement d\'une course depuis le tableau ---');
     const lancement = await page.evaluate(() => {
       startRun();

@@ -10750,8 +10750,14 @@ function entrerInterieur(id,porte){
   }
   // Le Dépôt de bus : limite de courses remise à zéro au changement de
   // vague (peut avoir changé pendant que le joueur était ailleurs), foule +
-  // moteur au ralenti démarrés dès l'entrée.
-  if(s.depot){ depotVerifierVague(s); depotAmbianceStart(); }
+  // moteur au ralenti démarrés dès l'entrée. Rappel du fonctionnement à
+  // CHAQUE entrée (pas seulement la première) : choisir un véhicule au
+  // stand ne lance rien en soi, il faut ensuite aller taper le tableau —
+  // un joueur qui n'a pas compris ce point ne comprend pas mieux à la
+  // 2e visite qu'à la 1re (bug déjà rencontré : « je ne sais pas comment
+  // lancer une course »).
+  if(s.depot){ depotVerifierVague(s); depotAmbianceStart();
+    toast('🏎️ Choisis un véhicule au STAND, puis lance-toi depuis le TABLEAU DES COURSES','or'); }
   ETAT.intT=0.5;
   toast('Tu entres : '+s.D.nom,'or'); SFX.ui();
   el('minimap').style.opacity='1';
@@ -14501,7 +14507,11 @@ function majAction(){
       const nom=VEHDEFS[st.key].nom.toUpperCase();
       if(!st.dispo){ label='🔒 '+nom+' — à débloquer'; fn=()=>{SFX.refus();toast('Gagne sur Le Toit. En Bus.','warn');}; }
       else if(s.vehiculeChoisi===st.key){ label='✅ '+nom+' choisi'; fn=()=>{SFX.ui();}; }
-      else { label='🏎️ CHOISIR — '+nom; fn=()=>{ s.vehiculeChoisi=st.key; toast(nom+' sélectionné','or'); SFX.ui(); }; }
+      // choisir un véhicule ne lance rien en soi (bug déjà rencontré : le
+      // joueur pensait que "rien ne se passe" faute de savoir qu'il faut
+      // ensuite aller taper le TABLEAU DES COURSES, plus loin) — le toast
+      // pointe désormais explicitement vers l'étape suivante.
+      else { label='🏎️ CHOISIR — '+nom; fn=()=>{ s.vehiculeChoisi=st.key; toast(nom+' sélectionné — va au TABLEAU DES COURSES pour lancer une course','or'); SFX.ui(); }; }
     /* ---------- DÉPÔT DE BUS : tableau des courses (cycle puis confirme) ----------
        Bug déjà rencontré : la branche « non armée » affichait le circuit à
        l'index COURANT (« VOIR LA BOUCLE ») mais le tap l'armait en réalité à
