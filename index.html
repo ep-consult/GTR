@@ -177,7 +177,13 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
 #dirHit{position:fixed;left:50%;top:50%;width:180px;height:180px;margin:-90px 0 0 -90px;z-index:6;pointer-events:none;opacity:0}
 #dirHit i{position:absolute;left:50%;top:4px;margin-left:-26px;width:52px;height:20px;
   background:linear-gradient(180deg,#ff3b5c,#ff3b5c00);border-radius:6px 6px 40px 40px;transform-origin:50% 86px}
-#toastBox{position:fixed;bottom:calc(env(safe-area-inset-bottom,0px) + 232px);left:50%;transform:translateX(-50%);
+/* Signalé par un joueur : les toasts (centrés, jusqu'à 300px de large)
+   étaient ancrés à peu près à la même hauteur que #btnAction (232px contre
+   238px) — un bouton d'action ancré à droite, assez large lui aussi, se
+   retrouvait donc recouvert par les messages. Remonté au-dessus de TOUT le
+   groupe de boutons de droite (le plus haut, #btnJetpack, culmine à
+   246+58=304px) — jamais de collision, quel que soit le contexte. */
+#toastBox{position:fixed;bottom:calc(env(safe-area-inset-bottom,0px) + 310px);left:50%;transform:translateX(-50%);
   z-index:7;display:flex;flex-direction:column;align-items:center;gap:5px;pointer-events:none}
 /* Bordé en largeur avec retour à la ligne : sans ça, un toast un peu long
    (plusieurs phrases) débordait des deux côtés de l'écran au lieu de

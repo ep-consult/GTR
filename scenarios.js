@@ -5651,19 +5651,20 @@ async function main() {
       bigMsg(longestBig);
       toast(longestToast, 'or');
     }, messagesTest);
-    // une attente fixe suppose que l'horloge d'animation CSS du navigateur
-    // avance au même rythme que l'horloge réelle de Node — sous charge (toute
-    // la suite de scénarios qui tourne juste avant), Chromium peut prendre du
-    // retard et l'attente fixe mesurerait alors encore le survol transitoire
-    // ×1.7. On sonde donc la largeur réelle jusqu'à ce qu'elle se stabilise
-    // (deux mesures identiques d'affilée), avec un plafond de sécurité.
-    let largeurPrec = -1, stable = false;
-    for (let i = 0; i < 30 && !stable; i++) {
-      await attendre(100);
-      const w = await page.evaluate(() => document.getElementById('bigMsg').getBoundingClientRect().width);
-      stable = Math.abs(w - largeurPrec) < 0.5;
-      largeurPrec = w;
-    }
+    // Toute mesure répétée (relire la largeur, relire le temps écoulé de
+    // l'animation via Web Animations API...) suppose qu'au moins UNE
+    // frame a été rendue entre deux lectures. Sous charge (toute la suite
+    // de scénarios qui tourne juste avant), un onglet Chromium peut rester
+    // bloqué assez longtemps pour que TOUTES les lectures retombent sur la
+    // même image gelée, encore en plein survol transitoire ×1.7 — flake
+    // rencontré à deux reprises avec deux approches différentes de
+    // sondage. La seule attente qui ne dépend d'aucune frame réellement
+    // rendue entre deux lectures est une attente fixe couvrant TOUTE la
+    // durée de l'animation (1.7 s) avec une bonne marge : après quoi la
+    // transform est nécessairement figée à scale(1) (soit encore au palier
+    // des 12 %, soit l'animation « forwards » est simplement terminée) —
+    // vrai quel que soit le nombre de frames rendues entre-temps.
+    await attendre(2200);
     const bounds = await page.evaluate(() => {
       const big = document.getElementById('bigMsg');
       const t = document.querySelector('.toast');
