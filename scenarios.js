@@ -4212,7 +4212,7 @@ async function main() {
       entrerInterieur('depot', p);
       const s = INT.actif;
       majAction(); // fait tourner marquerZone() sur le tableau et le stand au moins une fois
-      const zones = [s.tableau].concat(s.standVehicules).concat(s.fouilles.map((f) => ({ x: f.x, z: f.z })));
+      const zones = [s.depotTableau].concat(s.standVehicules).concat(s.fouilles.map((f) => ({ x: f.x, z: f.z })));
       const distEntreZones = [];
       for (let i = 0; i < zones.length; i++) for (let j = i + 1; j < zones.length; j++) {
         distEntreZones.push(Math.hypot(zones[i].x - zones[j].x, zones[i].z - zones[j].z));
@@ -4265,6 +4265,72 @@ async function main() {
     // Tableau des courses : circuit verrouillé refusé, La Boucle lance
     // bien une course (véhicule joueur + 3 IA, chrono à zéro).
     // -------------------------------------------------------------------
+    // -------------------------------------------------------------------
+    // Bug déjà rencontré : le Roi des Sandwichs (majAction, ~L14225) a son
+    // propre champ `s.tableau` (son « TABLEAU DES CHAMPIONS » décoratif),
+    // et majAction() est un unique enchaînement if/else-if PARTAGÉ par
+    // toutes les salles, jamais filtré par salle avant de tester un champ
+    // générique comme `s.tableau`. Le vrai tableau des courses du Dépôt
+    // portait le même nom de champ : la branche du Roi des Sandwichs,
+    // testée plus tôt dans la chaîne, gagnait systématiquement — le joueur
+    // tombait sur une blague à propos de Gérard et d'un canard en tapant
+    // sur le vrai tableau des courses, qui ne se déclenchait JAMAIS. Aucun
+    // test existant ne passait par le vrai chemin joueur (majAction() +
+    // bouton), donc aucun ne l'avait détecté — corrigé en renommant le
+    // champ du Dépôt en `s.depotTableau`. Ce test-ci emprunte exactement
+    // le chemin d'un joueur réel (marche jusqu'au tableau, tape, marche
+    // jusqu'au stand, tape) pour que ce genre de collision ne puisse plus
+    // jamais passer inaperçu.
+    // -------------------------------------------------------------------
+    console.log('\n--- Le Dépôt de bus : le vrai chemin joueur (marcher + taper) lance une course, jamais la blague du Roi des Sandwichs ---');
+    const cheminJoueur = await page.evaluate(() => {
+      startRun();
+      const p = PORTES.find((x) => x.id === 'depot');
+      entrerInterieur('depot', p);
+      const s = INT.actif;
+      const out = { champDepotTableauExiste: !!s.depotTableau, champTableauGeneriqueAbsent: !('tableau' in s) };
+
+      // au stand : choisir un véhicule via le vrai bouton d'action
+      const st = s.standVehicules[0];
+      P.x = st.x; P.z = st.z;
+      majAction();
+      out.labelStand = el('btnAction').textContent;
+      if (el('btnAction')._fn) el('btnAction')._fn();
+      out.vehiculeChoisiViaAction = s.vehiculeChoisi === st.key;
+
+      // au tableau : premier tap doit armer le circuit affiché, jamais la
+      // blague du Roi des Sandwichs
+      P.x = s.depotTableau.x; P.z = s.depotTableau.z;
+      majAction();
+      out.labelTableau1 = el('btnAction').textContent;
+      out.pasLaBlagueDuSandwich = el('btnAction').textContent !== '🏆 TABLEAU DES CHAMPIONS';
+      if (el('btnAction')._fn) el('btnAction')._fn();
+      out.armeApresTap1 = s.circuitArme === true;
+
+      // un peu de temps réel s'écoule (comme dans une vraie partie), le
+      // joueur reste devant le tableau, tape une seconde fois : doit lancer
+      ETAT.runT += 0.4;
+      majAction();
+      out.labelTableau2 = el('btnAction').textContent;
+      const lance = !!el('btnAction')._fn;
+      if (el('btnAction')._fn) el('btnAction')._fn();
+      out.courseLanceeViaAction = s.courseEnCours === true && !!s.course;
+
+      if (s.courseEnCours) depotAnnulerCourse(s);
+      if (INT.actif) sortirInterieur();
+      return out;
+    });
+    if (!cheminJoueur.champDepotTableauExiste || !cheminJoueur.champTableauGeneriqueAbsent) fail('Dépôt : le champ depotTableau est absent, ou un champ générique `tableau` a été réintroduit — risque de collision avec le Roi des Sandwichs');
+    else ok('Dépôt : utilise bien son propre champ `depotTableau`, jamais le générique `tableau`');
+    if (!cheminJoueur.vehiculeChoisiViaAction) fail('Dépôt : choisir un véhicule via le vrai bouton d\'action ne fonctionne pas (label="' + cheminJoueur.labelStand + '")');
+    else ok('Dépôt : choisir un véhicule au stand fonctionne bien via le vrai bouton d\'action');
+    if (!cheminJoueur.pasLaBlagueDuSandwich) fail('Dépôt : RÉGRESSION — taper sur le tableau des courses déclenche la blague du Roi des Sandwichs (« TABLEAU DES CHAMPIONS ») au lieu du vrai tableau');
+    else ok('Dépôt : taper sur le tableau déclenche bien le vrai tableau des courses, jamais la blague du Roi des Sandwichs');
+    if (!cheminJoueur.armeApresTap1) fail('Dépôt : le premier tap sur le tableau n\'arme pas le circuit (label="' + cheminJoueur.labelTableau1 + '")');
+    else ok('Dépôt : le premier tap sur le tableau arme bien le circuit affiché');
+    if (!cheminJoueur.courseLanceeViaAction) fail('Dépôt : RÉGRESSION — le vrai chemin joueur (marcher jusqu\'au tableau, taper deux fois) ne lance jamais de course (labels: "' + cheminJoueur.labelTableau1 + '" puis "' + cheminJoueur.labelTableau2 + '")');
+    else ok('Dépôt : le vrai chemin joueur (marcher jusqu\'au tableau, taper deux fois) lance bien une course');
+
     console.log('\n--- Le Dépôt de bus : lancement d\'une course depuis le tableau ---');
     const lancement = await page.evaluate(() => {
       startRun();

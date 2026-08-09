@@ -10559,10 +10559,17 @@ function construireSalle(id){
     ens('RECORD DU TOUR EN BUS : néant','#ffd23f',40,3.0,354.9,-Math.PI/2,9);
     inter.panneauBusEnseigne=null; // remplacé dynamiquement, voir depotMajRecordBus
 
-    // tableau des courses
+    // tableau des courses — nommé depotTableau, PAS tableau : le Roi des
+    // Sandwichs a déjà un champ `tableau` (son « TABLEAU DES CHAMPIONS »
+    // décoratif, voir majAction) et majAction() est un unique enchaînement
+    // if/else-if partagé par toutes les salles, jamais filtré par salle
+    // avant de tester `s.tableau` — un nom en commun suffisait à faire
+    // gagner systématiquement la mauvaise branche (bug déjà rencontré : le
+    // joueur tombait sur la blague du Roi des Sandwichs en tapant sur le
+    // vrai tableau des courses, qui ne se déclenchait jamais).
     box(4,3,0.4,0x1c1e22,0,2,360,false);
     ens('TABLEAU DES COURSES','#ff8c1a',0,3.9,360.2,0,11);
-    inter.tableau={x:ox,z:oz+360};
+    inter.depotTableau={x:ox,z:oz+360};
 
     // stand des véhicules (4 places)
     inter.standVehicules=[];
@@ -10604,6 +10611,15 @@ function construireSalle(id){
       // sol du circuit : rectangle plein sous toute l'ellipse (simple, roulant)
       const solCoul=cid==='toit'?0x3a3d44:0x2e2e32;
       mkBox((c.rx+30)*2,0.2,(c.rz+30)*2,mat(solCoul),ox+c.cx,-0.05,oz+c.cz);
+      // projecteurs de chantier le long du tracé : un circuit sans lumière
+      // propre, loin des projecteurs du hub, se réduit au sol gris ambiant
+      // du hangar (nuit permanente, voir jourNuit) sur des centaines
+      // d'unités sans aucun repère — un vide sans fin plutôt qu'un circuit
+      // borné (bug déjà rencontré). Alterne chaud/froid pour le rythme.
+      for(let i=0;i<pts.length;i+=4){
+        const p=pts[i];
+        lampe(p.x,p.z,(i/4)%2?0x8ad2ff:0xffb347,10);
+      }
       if(cid==='toit'){
         // vide tout autour : aucune barrière, juste un àpic visuel
         ens('LE TOIT','#ff8c1a',c.cx,6,c.cz-c.rz-8,0,10);
@@ -10665,7 +10681,13 @@ function construireSalle(id){
     inter.depot=true;
     inter.courseEnCours=false; inter.course=null;
     inter.coursesVague=0; inter.depotVagueRef=-1;
-    inter.vehiculeChoisi=null; inter.circuitIdx=0; inter.dernierTapTableau=-99; inter.circuitArme=false;
+    inter.vehiculeChoisi=null;
+    // circuitIdx démarre au DERNIER circuit de l'ordre, pas au premier : le
+    // tableau arme toujours l'index SUIVANT (voir majAction) — partir du
+    // dernier garantit que le tout premier tap arme le premier circuit
+    // (La Boucle), au lieu de le sauter (bug déjà rencontré).
+    inter.circuitIdx=DEPOT_ORDRE_CIRCUITS.length-1;
+    inter.dernierTapTableau=-99; inter.circuitArme=false;
   }
   scene.add(g);
   INT.salles[id]=inter;
@@ -11859,11 +11881,11 @@ function depotNettoyerCourse(s){
   el('btnBrake').style.display='none'; el('btnBrake').classList.remove('gros');
   el('vehWrap').style.display='none';
   depotWrap.style.display='none';
-  P.x=s.tableau.x; P.z=s.tableau.z+6; P.y=0;
+  P.x=s.depotTableau.x; P.z=s.depotTableau.z+6; P.y=0;
   if(solidAt(P.x,P.z,0.6)){
     for(let r=1.5;r<=8&&solidAt(P.x,P.z,0.6);r+=1.2){
       for(let a=0;a<10;a++){ const an=a/10*Math.PI*2;
-        const tx=s.tableau.x+Math.cos(an)*r, tz=s.tableau.z+6+Math.sin(an)*r;
+        const tx=s.depotTableau.x+Math.cos(an)*r, tz=s.depotTableau.z+6+Math.sin(an)*r;
         if(!solidAt(tx,tz,0.6)){ P.x=tx; P.z=tz; break; } } }
   }
 }
@@ -13498,7 +13520,9 @@ function startRun(){
     if(sa.depot){
       sa.courseEnCours=false; sa.course=null;
       sa.coursesVague=0; sa.depotVagueRef=-1;
-      sa.vehiculeChoisi=null; sa.circuitIdx=0; sa.circuitArme=false; sa.dernierTapTableau=-99;
+      // circuitIdx : voir construireSalle — démarre au dernier circuit pour
+      // que le premier tap arme La Boucle, pas le suivant.
+      sa.vehiculeChoisi=null; sa.circuitIdx=DEPOT_ORDRE_CIRCUITS.length-1; sa.circuitArme=false; sa.dernierTapTableau=-99;
     }
   }
   // arcade : une partie de borne en cours est annulée SANS banquer ses
@@ -14478,23 +14502,39 @@ function majAction(){
       if(!st.dispo){ label='🔒 '+nom+' — à débloquer'; fn=()=>{SFX.refus();toast('Gagne sur Le Toit. En Bus.','warn');}; }
       else if(s.vehiculeChoisi===st.key){ label='✅ '+nom+' choisi'; fn=()=>{SFX.ui();}; }
       else { label='🏎️ CHOISIR — '+nom; fn=()=>{ s.vehiculeChoisi=st.key; toast(nom+' sélectionné','or'); SFX.ui(); }; }
-    /* ---------- DÉPÔT DE BUS : tableau des courses (cycle puis confirme) ---------- */
-    } else if(s.depot&&!s.courseEnCours&&s.tableau&&dist2(P.x,P.z,s.tableau.x,s.tableau.z)<marquerZone(s.tableau,16)){
-      const cid=DEPOT_ORDRE_CIRCUITS[s.circuitIdx], cdef=DEPOT_CIRCUITS[cid];
+    /* ---------- DÉPÔT DE BUS : tableau des courses (cycle puis confirme) ----------
+       Bug déjà rencontré : la branche « non armée » affichait le circuit à
+       l'index COURANT (« VOIR LA BOUCLE ») mais le tap l'armait en réalité à
+       l'index SUIVANT (« LES QUAIS ») — l'étiquette et l'effet du tap ne
+       correspondaient jamais. Sur une salle fraîchement construite (index à
+       0 = La Boucle, le seul circuit débloqué par défaut), le tout premier
+       tap sautait donc systématiquement La Boucle sans jamais l'armer — il
+       fallait faire un cycle complet (3 confirmations, dont deux refusées
+       pour verrouillage) avant de retomber dessus. Corrigé en calculant
+       toujours le label ET l'armement à partir du MÊME index (celui que le
+       tap va réellement armer), et en initialisant circuitIdx au DERNIER
+       circuit de l'ordre (voir construireSalle/startRun) pour que le tout
+       premier tap arme bien le premier circuit (La Boucle), pas le second. */
+    } else if(s.depot&&!s.courseEnCours&&s.depotTableau&&dist2(P.x,P.z,s.depotTableau.x,s.depotTableau.z)<marquerZone(s.depotTableau,16)){
       const arme=s.circuitArme&&(ETAT.runT-s.dernierTapTableau)<1.5;
       if(arme){
+        const cid=DEPOT_ORDRE_CIRCUITS[s.circuitIdx], cdef=DEPOT_CIRCUITS[cid];
         const deverr=META.depotCircuits[cid];
         label=deverr?('🏁 LANCER — '+cdef.nom):('🔒 '+cdef.nom+' verrouillé');
         fn=()=>{
+          // circuitIdx pointe déjà sur CE circuit (posé par l'armement, voir
+          // la branche non armée ci-dessous) — jamais ré-avancé ici, sinon
+          // le prochain tap non armé sauterait un circuit du cycle.
           s.circuitArme=false;
           if(!deverr){ SFX.refus(); toast('Gagne le circuit précédent pour débloquer celui-ci','warn'); return; }
           depotLancerCourse(s,cid);
         };
       } else {
-        label='📋 TABLEAU — VOIR '+cdef.nom;
+        const nidx=(s.circuitIdx+1)%DEPOT_ORDRE_CIRCUITS.length;
+        const ncid=DEPOT_ORDRE_CIRCUITS[nidx], ndef=DEPOT_CIRCUITS[ncid];
+        label='📋 TABLEAU — VOIR '+ndef.nom;
         fn=()=>{
-          s.circuitIdx=(s.circuitIdx+1)%DEPOT_ORDRE_CIRCUITS.length;
-          const ncid=DEPOT_ORDRE_CIRCUITS[s.circuitIdx], ndef=DEPOT_CIRCUITS[ncid];
+          s.circuitIdx=nidx;
           s.circuitArme=true; s.dernierTapTableau=ETAT.runT;
           const deverr=META.depotCircuits[ncid], meilleur=META.depotTemps[ncid][0];
           toast((deverr?'🏁 ':'🔒 ')+ndef.nom+' · '+ndef.laps+' tours · gain '+fmt$(ndef.gain)+
@@ -14723,7 +14763,14 @@ function jourNuit(dt){
     soleil.intensity=0.2; hemi.intensity=0.3;
     scene.background.copy(CINT);
     scene.fog.color.copy(CINT);
-    scene.fog.near=60; scene.fog.far=420;
+    // Un brouillard trop lointain (far=420, sur une salle large de 700x850
+    // pour loger 3 circuits) laisse le sol gris ambiant visible sur des
+    // centaines d'unités sans aucun repère : ça se lit comme un vide gris
+    // sans fin plutôt qu'un hangar borné (bug déjà rencontré). Resserré ici
+    // pour que l'obscurité franche prenne le relais, cohérent avec la nuit
+    // permanente — largement assez pour anticiper un virage même au
+    // véhicule le plus rapide (Le Bolide, 48 u/s : ~5 s de visibilité).
+    scene.fog.near=45; scene.fog.far=240;
     lampeNuit.intensity=0; lampeNuit.distance=42;
     return;
   }
