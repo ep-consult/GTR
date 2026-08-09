@@ -9023,15 +9023,38 @@ function construireSalle(id){
       const t=new THREE.Mesh(new THREE.PlaneGeometry(2.9,2.9),mat((i+j)%2?0xa6acb6:0x9aa0aa));
       t.rotation.x=-Math.PI/2; t.position.set(ox+i*3+1.5,0.11,oz+j*3+1.5); g.add(t);
     }
-    // podiums d'exposition avec véhicules réels dessus
+    // podiums d'exposition avec véhicules réels dessus — signalé par un
+    // joueur : « ce sont des ronds, on ne sait pas ce qu'on achète ». Le
+    // commentaire d'origine promettait « véhicules réels dessus » mais
+    // ne posait jamais qu'un anneau doré vide (mesh:null jamais rempli) :
+    // rien n'était jamais construit dessus. Affiche désormais 3 modèles à
+    // la fois — précédent / en vente (au centre, celui du comptoir) /
+    // suivant du catalogue — rafraîchis à chaque changement de modèle
+    // (voir majPodiums, appelé aussi depuis majAction au clic sur
+    // « VOIR UN AUTRE MODÈLE »).
     inter.podiums=[];
     [[-8,-4],[0,-6],[8,-4]].forEach((p,i)=>{
       const pod=new THREE.Mesh(new THREE.CylinderGeometry(4,4.3,0.35,20),mat(0x2a3038));
       pod.position.set(ox+p[0],0.18,oz+p[1]); g.add(pod);
       const anneau=new THREE.Mesh(new THREE.TorusGeometry(4,0.09,6,26),mat(0xffd23f));
       anneau.rotation.x=-Math.PI/2; anneau.position.set(ox+p[0],0.38,oz+p[1]); g.add(anneau);
-      inter.podiums.push({x:ox+p[0],z:oz+p[1],idx:i,mesh:null});
+      inter.podiums.push({x:ox+p[0],z:oz+p[1],idx:i,mesh:null,key:null});
     });
+    inter.majPodiums=()=>{
+      const borne=n=>((n%CATALOGUE.length)+CATALOGUE.length)%CATALOGUE.length;
+      const cIdx=borne(inter.artIdx||0);
+      const idxParPodium=[borne(cIdx-1),cIdx,borne(cIdx+1)];
+      inter.podiums.forEach((pod,i)=>{
+        const key=CATALOGUE[idxParPodium[i]].key;
+        if(pod.key===key) return; // déjà le bon modèle affiché, rien à refaire
+        if(pod.mesh) g.remove(pod.mesh);
+        const mesh=makeVoiture(key);
+        mesh.position.set(pod.x,0.355,pod.z); mesh.rotation.y=i*2.1;
+        g.add(mesh);
+        pod.mesh=mesh; pod.key=key;
+      });
+    };
+    inter.majPodiums();
     // comptoir de vente
     box(10,1.2,1.6,0xd8dce4,0,0.6,P2/2-5);
     box(2,0.5,1,0x35e0ff,0,1.4,P2/2-5,false);
@@ -12249,6 +12272,8 @@ function majInterieur(dt,dtJeu){
       SFX.etoile(); toast('🧺 Le cycle est terminé — quelque chose brille dedans','or');
     }
   }
+  // ---- concessionnaire : les véhicules exposés tournent doucement ----
+  if(s.podiums) for(const pod of s.podiums) if(pod.mesh) pod.mesh.rotation.y+=dt*0.35;
   // ---- karaoké : balayage du curseur ----
   if(s.karaOn){
     s.karaPos+=s.karaDir*s.karaVit*dt;
@@ -14550,6 +14575,7 @@ function majAction(){
     } else if(s.podiums&&s.podiums.some(p=>dist2(P.x,P.z,p.x,p.z)<marquerZone(p,20))){
       label='◀ ▶ VOIR UN AUTRE MODÈLE';
       fn=()=>{ s.artIdx=((s.artIdx||0)+1)%CATALOGUE.length; SFX.ui();
+        if(s.majPodiums) s.majPodiums();
         const o=CATALOGUE[s.artIdx]; toast(VEHDEFS[o.key].nom+' — '+o.prix+' $'); };
     } else if(s.lit&&dist2(P.x,P.z,s.lit.x,s.lit.z)<marquerZone(s.lit,14)){
       label='🛏️ DORMIR (soins complets)';

@@ -5913,6 +5913,50 @@ async function main() {
     else ok('Défis : \'broyeur\' se déclenche bien après 8 écrasements');
 
     // -------------------------------------------------------------------
+    // Signalé par un joueur : au concessionnaire, les podiums n'affichaient
+    // jamais aucun véhicule (juste un anneau doré vide, mesh:null jamais
+    // rempli) — impossible de voir ce qu'on achète. Vérifie que les 3
+    // podiums affichent bien un vrai modèle (lu depuis CATALOGUE/VEHDEFS en
+    // direct, jamais une liste recopiée), que le podium central correspond
+    // TOUJOURS à ce que le comptoir vend réellement, et que « voir un autre
+    // modèle » fait bien changer les 3 véhicules affichés.
+    // -------------------------------------------------------------------
+    console.log('\n--- Concessionnaire : les podiums affichent bien de vrais véhicules, synchronisés avec le comptoir ---');
+    const concesTest = await page.evaluate(() => {
+      startRun();
+      const p = PORTES.find((x) => x.id === 'conces');
+      entrerInterieur('conces', p);
+      const s = INT.actif;
+      const out = {};
+      out.les3ModelesPresents = s.podiums.every((pod) => !!pod.key && !!pod.mesh);
+      out.centreCorrespondAuCatalogue = s.podiums[1].key === CATALOGUE[s.artIdx || 0].key;
+      const avant = s.podiums.map((pod) => pod.key);
+      P.x = s.podiums[1].x; P.z = s.podiums[1].z + 1;
+      majAction();
+      out.labelCycle = el('btnAction').textContent;
+      if (el('btnAction')._fn) el('btnAction')._fn();
+      const apres = s.podiums.map((pod) => pod.key);
+      out.aChangeDeModeles = avant.some((k, i) => k !== apres[i]);
+      out.centreEncoreSyncApresCycle = s.podiums[1].key === CATALOGUE[s.artIdx].key;
+      P.x = s.vente.x; P.z = s.vente.z + 1;
+      majAction();
+      out.labelComptoir = el('btnAction').textContent;
+      out.comptoirCiteLeVehiculeDuPodiumCentral = out.labelComptoir.includes(VEHDEFS[s.podiums[1].key].nom);
+      return out;
+    });
+    if (!concesTest.les3ModelesPresents) fail('Concessionnaire : au moins un podium n\'affiche toujours aucun véhicule');
+    else ok('Concessionnaire : les 3 podiums affichent bien un vrai modèle de véhicule');
+    if (!concesTest.centreCorrespondAuCatalogue) fail('Concessionnaire : le podium central ne correspond pas au véhicule réellement en vente');
+    else ok('Concessionnaire : le podium central correspond bien à ce que le comptoir vend');
+    if (!concesTest.labelCycle.includes('AUTRE MODÈLE')) fail('Concessionnaire : le bouton « voir un autre modèle » n\'apparaît pas près des podiums');
+    else if (!concesTest.aChangeDeModeles) fail('Concessionnaire : les podiums n\'affichent toujours pas un nouveau modèle après « voir un autre modèle »');
+    else ok('Concessionnaire : « voir un autre modèle » change bien les véhicules affichés sur les 3 podiums');
+    if (!concesTest.centreEncoreSyncApresCycle) fail('Concessionnaire : le podium central se désynchronise du catalogue après un cycle');
+    else ok('Concessionnaire : le podium central reste bien synchronisé après un cycle');
+    if (!concesTest.comptoirCiteLeVehiculeDuPodiumCentral) fail('Concessionnaire : le comptoir de vente (' + concesTest.labelComptoir + ') ne correspond pas au véhicule affiché au podium central');
+    else ok('Concessionnaire : le comptoir de vente correspond bien au véhicule affiché sur le podium central');
+
+    // -------------------------------------------------------------------
     // Navigation entre menus : ecran() doit toujours masquer TOUS les
     // écrans précédents avant d'afficher le nouveau (document.
     // querySelectorAll('.screen') — jamais exercé par valider.js, qui ne
