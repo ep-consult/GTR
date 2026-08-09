@@ -159,9 +159,15 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
   color:var(--cyan);font-weight:900;font-size:11.5px;letter-spacing:.05em;box-shadow:0 0 14px #35e0ff44,0 3px 10px #000a;
   max-width:74vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right}
 
-#bigMsg{position:absolute;top:32%;left:50%;transform:translate(-50%,-50%) skewX(-6deg);font-size:29px;font-weight:900;
+/* Repoussé plus bas (60 % au lieu de 32 %) et borné en largeur : au centre
+   haut de l'écran, un message masquait le champ de vision principal, et
+   sans largeur maximale ni retour à la ligne, un texte un peu long
+   débordait purement et simplement des deux côtés de l'écran (bug déjà
+   signalé). Reste au-dessus de la pile de toasts et des boutons du bas. */
+#bigMsg{position:absolute;top:60%;left:50%;transform:translate(-50%,-50%) skewX(-6deg);font-size:29px;font-weight:900;
   font-style:italic;text-transform:uppercase;letter-spacing:.05em;text-align:center;color:var(--blanc);
-  text-shadow:0 0 16px #35e0ff88,0 4px 10px #000;opacity:0;pointer-events:none;white-space:nowrap}
+  text-shadow:0 0 16px #35e0ff88,0 4px 10px #000;opacity:0;pointer-events:none;
+  max-width:min(340px,86vw);white-space:normal;overflow-wrap:break-word;line-height:1.25}
 #bigMsg.pop{animation:bigpop 1.7s ease-out forwards}
 @keyframes bigpop{0%{opacity:0;transform:translate(-50%,-50%) skewX(-6deg) scale(1.7)}12%{opacity:1;transform:translate(-50%,-50%) skewX(-6deg) scale(1)}75%{opacity:1}100%{opacity:0}}
 #dmgV{position:fixed;inset:0;pointer-events:none;z-index:6;opacity:0;
@@ -173,8 +179,12 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
   background:linear-gradient(180deg,#ff3b5c,#ff3b5c00);border-radius:6px 6px 40px 40px;transform-origin:50% 86px}
 #toastBox{position:fixed;bottom:calc(env(safe-area-inset-bottom,0px) + 232px);left:50%;transform:translateX(-50%);
   z-index:7;display:flex;flex-direction:column;align-items:center;gap:5px;pointer-events:none}
+/* Bordé en largeur avec retour à la ligne : sans ça, un toast un peu long
+   (plusieurs phrases) débordait des deux côtés de l'écran au lieu de
+   s'empiler proprement en bas (bug déjà signalé). */
 .toast{background:#0e1119ee;border:1px solid var(--ligne);border-left:3px solid var(--cyan);border-radius:8px;
-  padding:6px 14px;font-size:12px;font-weight:700;box-shadow:0 6px 18px #000b;animation:tin .25s ease-out;white-space:nowrap}
+  padding:6px 14px;font-size:12px;font-weight:700;box-shadow:0 6px 18px #000b;animation:tin .25s ease-out;
+  max-width:min(300px,84vw);white-space:normal;overflow-wrap:break-word;text-align:center}
 .toast.or{border-left-color:var(--vert)} .toast.warn{border-left-color:var(--rouge)}
 @keyframes tin{from{opacity:0;transform:translateY(8px)}to{opacity:1}}
 

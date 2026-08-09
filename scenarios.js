@@ -5571,6 +5571,58 @@ async function main() {
     else ok('Jetpack : la scène ne grossit bien pas pendant un vol prolongé (particules/fumée via les pools existants, ' + perf.croissanceEnfantsScene + ' objet(s) de plus)');
 
     // -------------------------------------------------------------------
+    // Signalé par un joueur réel : les messages (bigMsg, toast) débordaient
+    // à droite et à gauche de l'écran sur les textes un peu longs, faute de
+    // largeur maximale et de retour à la ligne (white-space:nowrap). Vérifié
+    // ici avec les VRAIS plus longs messages du jeu (lus depuis le code,
+    // jamais recopiés — voir CLAUDE.md), sur le viewport mobile réel de la
+    // suite. bigMsg utilise une animation d'entrée qui grossit brièvement à
+    // ×1.7 (l'effet « pop ») : on laisse le temps à l'animation de se
+    // stabiliser avant de mesurer, sinon le test mesurerait ce survol
+    // transitoire au lieu de la taille au repos.
+    // -------------------------------------------------------------------
+    console.log('\n--- Messages (bigMsg, toast) : ne débordent jamais l\'écran, même avec les plus longs textes réels du jeu ---');
+    const messagesTest = await page.evaluate(() => {
+      // les plus longs bigMsg()/toast() réellement utilisés dans le jeu,
+      // trouvés dans le code source à l'exécution du test (jamais une
+      // liste recopiée à la main, qui dériverait silencieusement).
+      const src = document.documentElement.outerHTML;
+      const longest = (re) => {
+        let m, best = '';
+        while ((m = re.exec(src))) { if (m[1].length > best.length) best = m[1]; }
+        return best;
+      };
+      const longestBig = longest(/bigMsg\('([^']{15,})'\)/g) || 'MESSAGE DE TEST';
+      const longestToast = longest(/toast\('([^']{40,})'/g) || 'Message de test un peu long pour vérifier le retour à la ligne';
+      return { longestBig, longestToast };
+    });
+    await page.evaluate(({ longestBig, longestToast }) => {
+      startRun();
+      bigMsg(longestBig);
+      toast(longestToast, 'or');
+    }, messagesTest);
+    await attendre(400); // laisse l'animation « pop » (×1.7 -> ×1, ~200 ms) se stabiliser
+    const bounds = await page.evaluate(() => {
+      const big = document.getElementById('bigMsg');
+      const t = document.querySelector('.toast');
+      const br = big.getBoundingClientRect(), tr = t ? t.getBoundingClientRect() : null;
+      return {
+        viewportW: window.innerWidth,
+        big: { left: br.left, right: br.right, text: big.textContent },
+        toast: tr ? { left: tr.left, right: tr.right, text: t.textContent } : null,
+      };
+    });
+    const bigDeborde = bounds.big.left < -1 || bounds.big.right > bounds.viewportW + 1;
+    if (bigDeborde) fail('Messages : bigMsg déborde l\'écran avec le plus long message réel du jeu ("' + bounds.big.text + '", left=' + bounds.big.left.toFixed(1) + ' right=' + bounds.big.right.toFixed(1) + ' pour une largeur de ' + bounds.viewportW + ')');
+    else ok('Messages : bigMsg reste bien dans l\'écran, même avec le plus long message réel du jeu');
+    if (!bounds.toast) fail('Messages : le toast de test n\'a pas été trouvé dans le DOM');
+    else {
+      const toastDeborde = bounds.toast.left < -1 || bounds.toast.right > bounds.viewportW + 1;
+      if (toastDeborde) fail('Messages : un toast déborde l\'écran avec un texte un peu long ("' + bounds.toast.text + '", left=' + bounds.toast.left.toFixed(1) + ' right=' + bounds.toast.right.toFixed(1) + ' pour une largeur de ' + bounds.viewportW + ')');
+      else ok('Messages : les toasts restent bien dans l\'écran, même avec un texte un peu long (retour à la ligne)');
+    }
+
+    // -------------------------------------------------------------------
     // Navigation entre menus : ecran() doit toujours masquer TOUS les
     // écrans précédents avant d'afficher le nouveau (document.
     // querySelectorAll('.screen') — jamais exercé par valider.js, qui ne
