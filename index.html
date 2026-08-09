@@ -10631,6 +10631,100 @@ function construireSalle(id){
       }
     };
 
+    // ======== AMBIANCE PARTAGÉE ========
+    // Signalé par un joueur : le dallage propre à chaque circuit (ci-dessous,
+    // boucle « 3 CIRCUITS ») était posé à y=-0.05, entièrement SOUS le sol
+    // générique de la salle (y=0, épaisseur 0.2 → dessus à y=0.1, voir tout
+    // en haut de construireSalle) : invisible, recouvert par une géométrie
+    // plus proche de la caméra. Résultat : les 3 circuits affichaient tous
+    // la même teinte grise générique de la salle, jamais leur propre
+    // matériau — « La Boucle et Les Quais ont un état presque identique ».
+    // Tout élément posé comme dallage doit désormais dépasser y=0.16.
+    // taille de canevas en puissance de 2 (64/128/256, comme toutes les
+    // autres textures procédurales du jeu, jamais 96 ou autre) : REQUIS pour
+    // que RepeatWrapping fonctionne proprement avec le mipmapping — une
+    // taille non-POT dégradait le rendu en bruit/flou façon parasites TV à
+    // distance (bug déjà rencontré ici même, détecté par capture d'écran).
+    const texSolCircuit=(baseA,baseB,accent)=>cTex(128,(cx2,s)=>{
+      cx2.fillStyle=baseA; cx2.fillRect(0,0,s,s);
+      for(let i=0;i<500;i++){ cx2.fillStyle=Math.random()<0.5?baseB:baseA; cx2.fillRect(Math.random()*s,Math.random()*s,2,2); }
+      for(let i=0;i<6;i++){
+        cx2.fillStyle=accent; cx2.globalAlpha=0.1+Math.random()*0.16;
+        cx2.fillRect(Math.random()*s,Math.random()*s,rand(14,40),rand(8,20));
+      }
+      cx2.globalAlpha=1;
+    },5,5);
+    const matSolBoucle=new THREE.MeshLambertMaterial({map:texSolCircuit('#4a3a2c','#3e3024','#a85a28')});  // bitume rouillé, taches d'huile
+    const matSolQuais=new THREE.MeshLambertMaterial({map:texSolCircuit('#33454c','#293940','#8fa4ac')});   // béton de quai, traces de sel
+    // membrane de toiture propre au dépôt, pas une texture partagée de la
+    // ville (matsToitsPlats) : celles-ci sont calibrées pour l'ambiance
+    // extérieure moyenne, trop sombres sous l'ambiance délibérément tamisée
+    // du dépôt (voir jourNuit) — quasi illisibles, signalé par un joueur.
+    const matSolToit=new THREE.MeshLambertMaterial({map:texSolCircuit('#565a62','#484c54','#8a9098')});
+
+    // Signalé par un joueur : « tout est noir ». Les luminaires du dépôt
+    // étaient des plafonniers (comme dans une petite salle fermée) posés à
+    // y=4.15 — mais le dépôt (700×850, 3 circuits) n'a pas de plafond au-
+    // dessus des circuits, seulement des murs très lointains : ces
+    // plafonniers flottaient dans le vide, sans jamais rien éclairer.
+    // Remplacés par de vrais mâts de chantier posés au sol.
+    const lampe=(x,z,coul,taille)=>{
+      const tSize=taille||5;
+      const l=new THREE.Mesh(new THREE.PlaneGeometry(tSize*0.85,tSize*0.85),
+        new THREE.MeshBasicMaterial({map:texGlow,color:coul,transparent:true,opacity:0.26,depthWrite:false}));
+      l.rotation.x=-Math.PI/2; l.position.set(ox+x,0.22,oz+z); g.add(l); // au-dessus du dallage (y=0.16), voir plus haut
+      const mat_=new THREE.Mesh(new THREE.CylinderGeometry(0.09,0.14,5.2,6),mat(0x23262e));
+      mat_.position.set(ox+x,2.6,oz+z); g.add(mat_);
+      const tete=new THREE.Mesh(new THREE.BoxGeometry(0.9,0.5,0.6),new THREE.MeshBasicMaterial({color:coul}));
+      tete.position.set(ox+x,5.15,oz+z); tete.rotation.x=0.45; g.add(tete);
+    };
+    // clôture grillagée décorative (jamais solide, même logique que les
+    // barrières ci-dessus et que le grillage de la Friche industrielle) :
+    // marque la limite de la cour sans jamais gêner la conduite.
+    const texGrillageDepot=cTex(64,(cxg,s)=>{
+      cxg.strokeStyle='rgba(190,196,204,0.55)'; cxg.lineWidth=1.4;
+      for(let i=-s;i<s*2;i+=9){
+        cxg.beginPath();cxg.moveTo(i,0);cxg.lineTo(i+s,s);cxg.stroke();
+        cxg.beginPath();cxg.moveTo(i,s);cxg.lineTo(i+s,0);cxg.stroke();
+      }
+    },6,1);
+    const matGrillageDepot=new THREE.MeshBasicMaterial({map:texGrillageDepot,transparent:true,opacity:0.8,side:THREE.DoubleSide});
+    const cloture=(cx2,cz2,rx2,rz2)=>{
+      const bords=[[-rx2,-rz2,rx2,-rz2],[rx2,-rz2,rx2,rz2],[rx2,rz2,-rx2,rz2],[-rx2,rz2,-rx2,-rz2]];
+      for(const [x1,z1,x2,z2] of bords){
+        const dx=x2-x1,dz=z2-z1,len=Math.hypot(dx,dz)||1,ry2=Math.atan2(dx,dz);
+        const gr=new THREE.Mesh(new THREE.PlaneGeometry(len,2.4),matGrillageDepot);
+        gr.position.set(ox+cx2+(x1+x2)/2,1.2,oz+cz2+(z1+z2)/2); gr.rotation.y=ry2; g.add(gr);
+        const n=Math.max(2,Math.round(len/9));
+        for(let k=0;k<=n;k++) box(0.12,2.5,0.12,0x23262e,cx2+x1+dx*(k/n),1.25,cz2+z1+dz*(k/n),false);
+      }
+    };
+    // immeuble silhouette autolumineux : fenêtres peintes directement dans
+    // la texture (MeshBasicMaterial, jamais liées à emissiveIntensity — ce
+    // cycle jour/nuit ne tourne que pour la ville extérieure, jamais en
+    // intérieur, voir jourNuit — les fenêtres resteraient sinon toujours
+    // éteintes ici). Sert d'horizon lointain, surtout utile au Toit : un
+    // circuit censé être un toit n'avait jusqu'ici aucune ville sous lui.
+    const texImmeubleNuit=(teinte)=>cTex(64,(cxg,s)=>{
+      cxg.fillStyle=teinte; cxg.fillRect(0,0,s,s);
+      cxg.fillStyle='rgba(0,0,0,0.35)'; cxg.fillRect(0,0,s,4);
+      for(let y=6;y<s;y+=9) for(let x=4;x<s-4;x+=8)
+        if(Math.random()<0.4){ cxg.fillStyle=pick(['#ffd98a','#ffe8b8','#8ad2ff']); cxg.fillRect(x,y,4,5); }
+    });
+    const immeuble=(x,z,w,d,h,teinte)=>{
+      const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshBasicMaterial({map:texImmeubleNuit(teinte)}));
+      m.position.set(ox+x,h/2,oz+z); g.add(m);
+    };
+    // anneau d'immeubles lointains autour d'un point — toujours bien au-delà
+    // de rx/rz (jamais sur le tracé), un horizon, pas un obstacle.
+    const skyline=(cx2,cz2,rMin,rMax,n,hMin,hMax)=>{
+      for(let i=0;i<n;i++){
+        const a=(i/n)*Math.PI*2+rand(-0.15,0.15), r=rand(rMin,rMax);
+        immeuble(cx2+Math.sin(a)*r,cz2+Math.cos(a)*r,rand(8,16),rand(8,16),rand(hMin,hMax),
+          pick(['#232830','#1c2128','#2a3038','#1f242b']));
+      }
+    };
+
     // ======== HUB : hangar d'accueil ========
     box(30,4.6,0.6,0x4a4a52,0,2.3,388,false); // porte roulante entrouverte (décor)
     ens('LE DÉPÔT','#ff8c1a',0,5.2,389,0,14);
@@ -10691,19 +10785,33 @@ function construireSalle(id){
       const c=DEPOT_CIRCUITS[cid];
       const pts=depotWaypoints(c.cx,c.cz,c.rx,c.rz,DEPOT_NB_WAYPOINTS);
       // sol du circuit : rectangle plein sous toute l'ellipse (simple, roulant)
-      const solCoul=cid==='toit'?0x3a3d44:0x2e2e32;
-      mkBox((c.rx+30)*2,0.2,(c.rz+30)*2,mat(solCoul),ox+c.cx,-0.05,oz+c.cz);
+      // — matériau propre à chaque circuit, voir AMBIANCE PARTAGÉE plus haut.
+      const matSolCircuit=cid==='toit'?matSolToit:(cid==='boucle'?matSolBoucle:matSolQuais);
+      mkBox((c.rx+30)*2,0.1,(c.rz+30)*2,matSolCircuit,ox+c.cx,0.13,oz+c.cz);
       // projecteurs de chantier le long du tracé : un circuit sans lumière
       // propre, loin des projecteurs du hub, se réduit au sol gris ambiant
       // du hangar (nuit permanente, voir jourNuit) sur des centaines
       // d'unités sans aucun repère — un vide sans fin plutôt qu'un circuit
-      // borné (bug déjà rencontré). Alterne chaud/froid pour le rythme.
-      for(let i=0;i<pts.length;i+=4){
+      // borné (bug déjà rencontré). Un point sur deux (pas un sur quatre) :
+      // signalé par un joueur, « tout est noir » — la moitié du tracé
+      // restait hors de portée de tout projecteur. Alterne chaud/froid.
+      for(let i=0;i<pts.length;i+=2){
         const p=pts[i];
-        lampe(p.x,p.z,(i/4)%2?0x8ad2ff:0xffb347,10);
+        lampe(p.x,p.z,(i/2)%2?0x8ad2ff:0xffb347,11);
       }
       if(cid==='toit'){
-        // vide tout autour : aucune barrière, juste un àpic visuel
+        // vide tout autour : aucune barrière, juste un àpic visuel — mais un
+        // parapet bas, purement visuel (jamais solide), marque enfin le
+        // rebord : signalé par un joueur, « il n'y a pas de toit » — rien ne
+        // distinguait ce circuit d'un sol gris au niveau de la rue.
+        for(let i=0;i<pts.length;i++){
+          const a=pts[i], b2=pts[(i+1)%pts.length];
+          const mx=(a.x+b2.x)/2, mz=(a.z+b2.z)/2, dx=b2.x-a.x, dz=b2.z-a.z;
+          const len=Math.hypot(dx,dz)||1, ry2=Math.atan2(dx,dz);
+          const rebord=new THREE.Mesh(new THREE.BoxGeometry(len+0.3,0.5,0.35),
+            new THREE.MeshBasicMaterial({color:i%2?0xffb347:0x2a2d34}));
+          rebord.position.set(ox+mx,0.4,oz+mz); rebord.rotation.y=ry2; g.add(rebord);
+        }
         ens('LE TOIT','#ff8c1a',c.cx,6,c.cz-c.rz-8,0,10);
       } else {
         construireBarrieres(pts,c.largeur/2,cid==='quais'?[3,12]:null);
@@ -10711,7 +10819,7 @@ function construireSalle(id){
       }
       // ligne de départ/arrivée au point 0
       const p0=pts[0];
-      mkBox(c.largeur,0.05,1.2,new THREE.MeshBasicMaterial({color:0xffffff}),ox+p0.x,0.07,oz+p0.z);
+      mkBox(c.largeur,0.05,1.2,new THREE.MeshBasicMaterial({color:0xffffff}),ox+p0.x,0.2,oz+p0.z);
       // obstacles/décor propres à chaque circuit
       if(cid==='boucle'){
         // cônes
@@ -10721,13 +10829,27 @@ function construireSalle(id){
         const huile=pts[7];
         inter.boucleHuile={x:ox+huile.x,z:oz+huile.z,r:3.5};
         const flq=new THREE.Mesh(new THREE.CircleGeometry(3.5,16),new THREE.MeshBasicMaterial({color:0x14120c,transparent:true,opacity:0.7}));
-        flq.rotation.x=-Math.PI/2; flq.position.set(ox+huile.x,0.03,oz+huile.z); g.add(flq);
+        flq.rotation.x=-Math.PI/2; flq.position.set(ox+huile.x,0.17,oz+huile.z); g.add(flq);
         // bus en travers : décalé du centre de la voie, pas planté dessus —
         // un obstacle à contourner, pas un mur (La Boucle reste « douce »)
         const pb=pts[11], pbNext=pts[(12)%pts.length];
         const bdx=pbNext.x-pb.x, bdz=pbNext.z-pb.z, blen=Math.hypot(bdx,bdz)||1;
         const bnx=-bdz/blen*4.2, bnz=bdx/blen*4.2;
         box(11,3,2.6,0xffd23f,pb.x+bnx,1.5,pb.z+bnz);
+        // casse : identité propre à La Boucle (signalé par un joueur, se
+        // confondait avec Les Quais) — clôture, tas de ferraille, fûts.
+        cloture(c.cx,c.cz,c.rx+22,c.rz+22);
+        for(let i=0;i<4;i++){
+          const a=rand(0,6.28), r=c.rx+rand(10,18), px=c.cx+Math.sin(a)*r, pz=c.cz+Math.cos(a)*r*(c.rz/c.rx);
+          for(let k=0;k<3;k++) box(rand(1,1.6),rand(0.6,1.3),rand(1,1.6),pick([0x6a3a24,0x5a4a2a,0x4a3a2a]),
+            px+rand(-1.5,1.5),0.4+k*0.6,pz+rand(-1.5,1.5),false);
+        }
+        for(let i=0;i<5;i++){
+          const a=rand(0,6.28), r=c.rx+rand(8,16), px=c.cx+Math.sin(a)*r, pz=c.cz+Math.cos(a)*r*(c.rz/c.rx);
+          const fut=new THREE.Mesh(new THREE.CylinderGeometry(0.4,0.4,0.9,10),mat(pick([0xb5501e,0xd8b02a,0x6a7a3a])));
+          fut.position.set(ox+px,0.65,oz+pz); g.add(fut);
+        }
+        skyline(c.cx,c.cz,c.rx+55,c.rx+100,7,9,20);
       } else if(cid==='quais'){
         // 2 rampes de saut
         for(const i of [3,12]){
@@ -10744,6 +10866,23 @@ function construireSalle(id){
         box(3.2,3,12,0x8a6a44,mxr,1.5,mzr,false); // carcasse du bus couché, traversable
         ens('RACCOURCI ?','#ff3b5c',mxr,3.4,mzr,0,7);
         inter.quaisRaccourci={a:{x:ox+pA.x,z:oz+pA.z},b:{x:ox+pB.x,z:oz+pB.z},mid:{x:ox+mxr,z:oz+mzr}};
+        // quai : identité propre (signalé par un joueur, se confondait avec
+        // La Boucle) — conteneurs, grue, bittes d'amarrage, eau au loin.
+        for(let i=0;i<6;i++){
+          const a=(i/6)*6.28+rand(-0.2,0.2), r=c.rx+rand(14,24), px=c.cx+Math.sin(a)*r, pz=c.cz+Math.cos(a)*r*(c.rz/c.rx);
+          mkConteneur(ox+px,oz+pz,pick([0,Math.PI/2]),pick(['#c0392b','#2a5a8a','#2a7a4a','#d8912a']));
+        }
+        mkGrue(ox+c.cx-c.rx-30,oz+c.cz);
+        for(let i=0;i<8;i++){
+          const a=(i/8)*6.28, px=c.cx+Math.sin(a)*(c.rx+6), pz=c.cz+Math.cos(a)*(c.rz+6);
+          const boll=new THREE.Mesh(new THREE.CylinderGeometry(0.22,0.26,0.6,8),mat(0x2a2d34));
+          boll.position.set(ox+px,0.3,oz+pz); g.add(boll);
+        }
+        const eauQ=new THREE.Mesh(new THREE.PlaneGeometry(c.rx*2.4,40),
+          new THREE.MeshBasicMaterial({color:0x1a3a4a,transparent:true,opacity:0.55}));
+        eauQ.rotation.x=-Math.PI/2; eauQ.position.set(ox+c.cx,0.19,oz+c.cz+c.rz+45); g.add(eauQ);
+        ens('EAU NOIRE — NE PAS S’APPROCHER','#35c8ff',c.cx,3,c.cz+c.rz+40,0,10);
+        skyline(c.cx,c.cz,c.rx+70,c.rx+130,6,7,16);
       } else if(cid==='toit'){
         // passerelle qui s'effondre au 2e tour (voir depotMajCourse)
         const pp=pts[5];
@@ -10751,6 +10890,24 @@ function construireSalle(id){
         inter.toitPasserelle={mesh:passerelle,x:ox+pp.x,z:oz+pp.z,effondree:false};
         // bouches d'aération (décor)
         for(const i of [1,9]){ const p=pts[i]; box(1.6,1,1.6,0x4a4e42,p.x,0.5,p.z,false); }
+        // un vrai toit d'immeuble, pas un vide gris : climatiseurs, château
+        // d'eau, antenne à balise, et enfin un horizon en contrebas — signalé
+        // par un joueur, « il n'y a pas de toit ».
+        for(let i=0;i<5;i++){
+          const a=rand(0,6.28), r=c.rx+rand(10,20), px=c.cx+Math.sin(a)*r, pz=c.cz+Math.cos(a)*r*(c.rz/c.rx);
+          box(rand(1,1.8),rand(0.8,1.4),rand(1,1.8),0x4a4e56,px,0.9,pz,false);
+        }
+        const chateau=new THREE.Mesh(new THREE.CylinderGeometry(2,2.2,3,10),mat(0x5a4a38));
+        chateau.position.set(ox+c.cx-c.rx-14,7,oz+c.cz); g.add(chateau);
+        for(const dx2 of [-1.6,1.6]) for(const dz2 of [-1.6,1.6]){
+          const pied=new THREE.Mesh(new THREE.CylinderGeometry(0.14,0.14,5.5,6),mat(0x2a2d34));
+          pied.position.set(ox+c.cx-c.rx-14+dx2,2.75,oz+c.cz+dz2); g.add(pied);
+        }
+        const matAntenne=new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.12,9,6),mat(0x23262e));
+        matAntenne.position.set(ox+c.cx+c.rx+16,4.5,oz+c.cz); g.add(matAntenne);
+        const balise=new THREE.Mesh(new THREE.SphereGeometry(0.32,8,8),new THREE.MeshBasicMaterial({color:0xff2a2a}));
+        balise.position.set(ox+c.cx+c.rx+16,9.1,oz+c.cz); g.add(balise);
+        skyline(c.cx,c.cz,c.rx+50,c.rx+150,14,14,46);
       }
       // pts stockés en coordonnées MONDE (ox/oz déjà appliqués) : la piste
       // sert telle quelle à la physique en jeu (v.x/v.z, P.x/P.z), jamais
@@ -14864,7 +15021,15 @@ function jourNuit(dt){
     // néons, projecteurs de chantier, phares. Volontairement plus sombre que
     // le générique « intérieur » ci-dessous : c'est l'éclairage qui vend
     // l'ambiance de courses clandestines, pas un hangar bien éclairé.
-    soleil.intensity=0.2; hemi.intensity=0.3;
+    // Remonté légèrement (0.2/0.3 → 0.32/0.44) : signalé par un joueur,
+    // « tout est noir » — la plupart du décor (murs, dallage, obstacles)
+    // utilise des matériaux qui ont besoin de lumière pour être visibles
+    // (MeshLambertMaterial), et à 0.2/0.3 ils restaient quasi noirs même
+    // avec les couleurs propres à chaque circuit désormais visibles (voir
+    // DALLAGE DES CIRCUITS dans construireSalle). L'ambiance reste nettement
+    // plus sombre que l'intérieur générique (0.75/0.95) — l'obscurité fait
+    // toujours le travail, elle ne doit juste plus tout avaler.
+    soleil.intensity=0.42; hemi.intensity=0.58;
     scene.background.copy(CINT);
     scene.fog.color.copy(CINT);
     // Un brouillard trop lointain (far=420, sur une salle large de 700x850
