@@ -5651,7 +5651,19 @@ async function main() {
       bigMsg(longestBig);
       toast(longestToast, 'or');
     }, messagesTest);
-    await attendre(400); // laisse l'animation « pop » (×1.7 -> ×1, ~200 ms) se stabiliser
+    // une attente fixe suppose que l'horloge d'animation CSS du navigateur
+    // avance au même rythme que l'horloge réelle de Node — sous charge (toute
+    // la suite de scénarios qui tourne juste avant), Chromium peut prendre du
+    // retard et l'attente fixe mesurerait alors encore le survol transitoire
+    // ×1.7. On sonde donc la largeur réelle jusqu'à ce qu'elle se stabilise
+    // (deux mesures identiques d'affilée), avec un plafond de sécurité.
+    let largeurPrec = -1, stable = false;
+    for (let i = 0; i < 30 && !stable; i++) {
+      await attendre(100);
+      const w = await page.evaluate(() => document.getElementById('bigMsg').getBoundingClientRect().width);
+      stable = Math.abs(w - largeurPrec) < 0.5;
+      largeurPrec = w;
+    }
     const bounds = await page.evaluate(() => {
       const big = document.getElementById('bigMsg');
       const t = document.querySelector('.toast');
@@ -5671,6 +5683,233 @@ async function main() {
       if (toastDeborde) fail('Messages : un toast déborde l\'écran avec un texte un peu long ("' + bounds.toast.text + '", left=' + bounds.toast.left.toFixed(1) + ' right=' + bounds.toast.right.toFixed(1) + ' pour une largeur de ' + bounds.viewportW + ')');
       else ok('Messages : les toasts restent bien dans l\'écran, même avec un texte un peu long (retour à la ligne)');
     }
+
+    // -------------------------------------------------------------------
+    // Signalé par un joueur réel : la porte du Site 51, verrouillée, ne
+    // dit jamais où en est le joueur — lu depuis le vrai bouton d'action,
+    // jamais une valeur recopiée.
+    // -------------------------------------------------------------------
+    console.log('\n--- Site 51 : le bouton verrouillé affiche la progression réelle (X/25) ---');
+    const progressionSite51 = await page.evaluate(() => {
+      startRun();
+      const p = PORTES.find((x) => x.id === 'site51');
+      P.x = p.x; P.z = p.z + 3;
+      META.fouilles = 14;
+      majAction();
+      const label14 = el('btnAction').textContent;
+      META.fouilles = 0;
+      majAction();
+      const label0 = el('btnAction').textContent;
+      return { label14, label0 };
+    });
+    if (!progressionSite51.label14.includes('14/25')) fail('Site 51 : le bouton verrouillé n\'affiche pas la progression réelle (obtenu "' + progressionSite51.label14 + '", attendu quelque chose contenant "14/25")');
+    else ok('Site 51 : le bouton verrouillé affiche bien la progression réelle du joueur (14/25)');
+    if (!progressionSite51.label0.includes('0/25')) fail('Site 51 : la progression ne suit pas META.fouilles (obtenu "' + progressionSite51.label0 + '" pour 0 fouille)');
+    else ok('Site 51 : la progression suit bien META.fouilles en temps réel');
+
+    // -------------------------------------------------------------------
+    // Nouveaux défis (lot 11/12) : Dépôt de bus, Jetpack, Monster Truck —
+    // vérifie que chaque déclencheur pose bien le bon flag ET que checkDefis()
+    // verse alors la récompense correspondante, en lisant DEFIS/META en
+    // direct (jamais une liste de défis recopiée — voir CLAUDE.md).
+    // -------------------------------------------------------------------
+    console.log('\n--- Nouveaux défis : Dépôt de bus (victoires par circuit), Jetpack (équipement + sauvetage), Monster Truck, Broyeur ---');
+    const nouveauxDefis = await page.evaluate(() => {
+      const out = {};
+      const faitId = (id) => !!META.defis.faits[id];
+
+      // ces défis peuvent déjà avoir été déclenchés par des tests
+      // PRÉCÉDENTS de cette même suite (le Dépôt/le Toit sont testés
+      // ailleurs, sur la même page) : on repart d'un état propre, jamais
+      // supposé vierge.
+      META.defis.depotBoucle = false; META.defis.depotQuais = false; META.defis.depotToit = false;
+      META.defis.jetpack = false; META.defis.jetpackSauvetage = false; META.defis.monstertruck = false;
+      META.stats.vehEcrases = 0;
+      ['depotPremiere', 'depotBalayage', 'volantDefi', 'jetpackDefi', 'jetpackSauvetage', 'monstertruckDefi', 'broyeur']
+        .forEach((id) => { delete META.defis.faits[id]; });
+
+      // --- Dépôt de bus : une victoire sur La Boucle pose le bon flag et
+      // débloque le défi correspondant, jamais celui d'un autre circuit ---
+      startRun();
+      let p = PORTES.find((x) => x.id === 'depot');
+      entrerInterieur('depot', p);
+      let s = INT.actif;
+      s.vehiculeChoisi = 'depotCitadine';
+      depotLancerCourse(s, 'boucle');
+      s.course.entrants[0].prog = s.course.c.laps * DEPOT_NB_WAYPOINTS;
+      majInterieur(0.05, 0.05);
+      out.depotBoucleFlag = META.defis.depotBoucle === true;
+      out.depotQuaisFlagResteFaux = META.defis.depotQuais === false;
+      out.depotPremiereFait = faitId('depotPremiere');
+      out.depotBalayageNonFaitEncore = !faitId('depotBalayage');
+      if (INT.actif) sortirInterieur();
+
+      // --- gagner aussi Les Quais et Le Toit -> 'depotBalayage' se déclenche ---
+      META.depotCircuits.quais = true; META.depotCircuits.toit = true;
+      p = PORTES.find((x) => x.id === 'depot');
+      entrerInterieur('depot', p);
+      s = INT.actif;
+      s.vehiculeChoisi = 'depotCitadine';
+      depotLancerCourse(s, 'quais');
+      s.course.entrants[0].prog = s.course.c.laps * DEPOT_NB_WAYPOINTS;
+      majInterieur(0.05, 0.05);
+      s.vehiculeChoisi = 'depotCitadine';
+      depotLancerCourse(s, 'toit');
+      s.course.entrants[0].prog = s.course.c.laps * DEPOT_NB_WAYPOINTS;
+      majInterieur(0.05, 0.05);
+      out.depotBalayageFait = faitId('depotBalayage');
+      if (INT.actif) sortirInterieur();
+
+      // --- curiosité 'volant' (gagner Le Toit en Bus) -> défi dédié ---
+      startRun();
+      META.depotCircuits.boucle = true; META.depotCircuits.quais = true; META.depotCircuits.toit = true;
+      META.depotBusDebloque = true;
+      p = PORTES.find((x) => x.id === 'depot');
+      entrerInterieur('depot', p);
+      s = INT.actif;
+      s.vehiculeChoisi = 'depotBus';
+      depotLancerCourse(s, 'toit');
+      s.course.entrants[0].prog = s.course.c.laps * DEPOT_NB_WAYPOINTS;
+      majInterieur(0.05, 0.05);
+      out.volantDefiFait = faitId('volantDefi');
+      if (INT.actif) sortirInterieur();
+
+      // --- Jetpack : équiper pose le flag et verse la récompense ---
+      startRun();
+      const jp = POIS.toitH && POIS.toitH.jetpack;
+      out.jetpackToitPresent = !!jp;
+      if (jp) {
+        P.x = jp.x; P.z = jp.z; P.y = jp.h; P.jetpack = false;
+        majAction();
+        if (el('btnAction')._fn) el('btnAction')._fn();
+        out.jetpackDefiFlag = META.defis.jetpack === true;
+        out.jetpackDefiFait = faitId('jetpackDefi');
+
+        // --- sauvetage in extremis : chute lancée directement dans la zone
+        // d'alerte (entre JET_VY_AVERT et JET_VY_LETALE, jamais au-delà)
+        // pour déclencher l'avertissement dès la 1re frame de façon fiable,
+        // puis un pilotage réactif (relance dès que la chute s'accélère)
+        // ramène la vitesse de chute sous contrôle jusqu'à un atterrissage
+        // propre — imite le geste qu'un joueur ferait après l'alerte.
+        startRun();
+        META.defis.jetpackSauvetage = false; delete META.defis.faits.jetpackSauvetage;
+        P.jetpack = true; P.jetFuel = 100; P.jetpackVol = true; P.jetAvertVu = false;
+        P.x = POIS.place.x; P.z = POIS.place.z; P.y = 15; P.vy = -(JET_VY_AVERT + 2); P.jetVx = 0; P.jetVz = 0;
+        INPUT.mx = 0; INPUT.mz = 0; INPUT.btn.jetpack = false;
+        for (let i = 0; i < 600 && P.jetpackVol; i++) {
+          INPUT.btn.jetpack = -P.vy > 2; // relance réactive dès que la chute reprend
+          majJoueur(0.05, 0.05);
+        }
+        out.aBienAtterriPendantLeSauvetage = P.jetpackVol === false;
+        out.avertissementVuPendantLeSauvetage = P.jetAvertVu === true;
+        out.jetpackSauvetageFait = faitId('jetpackSauvetage');
+        out.pasMortPendantLeSauvetage = ETAT.mode === 'jeu';
+
+        // --- vol calme, sans jamais voir l'avertissement -> ne doit PAS compter.
+        // Mêmes paramètres que le test déjà existant "atterrissage normal à
+        // faible altitude" (offset +1.5, vy=-2) : un atterrissage qui reste
+        // franchement sous JET_VY_AVERT tout du long, jamais une chute libre. ---
+        startRun();
+        META.defis.jetpackSauvetage = false; delete META.defis.faits.jetpackSauvetage;
+        P.jetpack = true; P.jetFuel = 100; P.jetpackVol = true; P.jetAvertVu = false;
+        P.x = POIS.place.x; P.z = POIS.place.z; P.y = poseY(POIS.place.x, POIS.place.z) + 1.5; P.vy = -2; P.jetVx = 0; P.jetVz = 0;
+        INPUT.mx = 0; INPUT.mz = 0; INPUT.btn.jetpack = false;
+        let avertVuPendantVolCalme = false;
+        for (let i = 0; i < 30 && P.jetpackVol; i++) {
+          majJoueur(0.05, 0.05);
+          if (document.getElementById('jetWarn').style.display === 'block') avertVuPendantVolCalme = true;
+        }
+        out.avertJamaisVuPendantVolCalme = !avertVuPendantVolCalme && P.jetAvertVu === false;
+        out.volCalmeNeCompteJamaisCommeSauvetage = !faitId('jetpackSauvetage');
+      }
+
+      // --- Monster Truck : monter à bord pose le flag ---
+      startRun();
+      const mt = vehicules.find((v) => v.key === 'monstertruck');
+      out.monstertruckPresent = !!mt;
+      if (mt) {
+        entrerVehicule(mt);
+        // entrerVehicule() ne pose que le flag (même convention que 'bateau'/'heli') :
+        // la récompense n'arrive qu'au prochain tick périodique de checkDefis() dans
+        // boucle() — on le déclenche ici pour ne pas dépendre d'un vrai écoulement de temps.
+        checkDefis();
+        out.monstertruckDefiFlag = META.defis.monstertruck === true;
+        out.monstertruckDefiFait = faitId('monstertruckDefi');
+        sortirVehicule(true);
+      }
+
+      // --- Broyeur : 8 écrasements, y compris un véhicule long en deux
+      // temps qui ne doit compter qu'UNE fois ---
+      startRun();
+      function openSpot(k) {
+        for (let ring = 0; ring < 8; ring++) for (let a = 0; a < 8; a++) {
+          const ang = (a / 8) * Math.PI * 2;
+          const x = POIS.place.x + Math.cos(ang) * (20 + ring * 15) + k * 3, z = POIS.place.z + Math.sin(ang) * (20 + ring * 15);
+          if (!solidAt(x, z, 4) && !estEau(x, z)) return { x, z };
+        }
+        return { x: POIS.place.x, z: POIS.place.z };
+      }
+      function nettoyer() { for (let i = vehicules.length - 1; i >= 0; i--) if (vehicules[i].mort) { scene.remove(vehicules[i].mesh); vehicules.splice(i, 1); } }
+      const avant = META.stats.vehEcrases;
+      // 1 écrasement d'un bus (long, deux temps)
+      let sp = openSpot(1);
+      let att = creerVehicule('char', sp.x, sp.z, 0, 'joueur');
+      let cible = creerVehicule('busville', sp.x, sp.z + VEHDEFS.busville.long / 2 + 1, Math.PI, 'trafic');
+      P.veh = att; att.v = 15;
+      for (let t = 0; t < 800 && !cible.epave; t++) majVehiculePhys(att, 0.05, 1, 0, false);
+      out.busEnDeuxTempsCompteUneSeuleFois = (META.stats.vehEcrases - avant) === 1;
+      P.veh = null; att.mort = true; nettoyer();
+      // 7 écrasements de plus -> 8 au total -> le défi doit se déclencher
+      for (let i = 0; i < 7; i++) {
+        sp = openSpot(10 + i);
+        att = creerVehicule('char', sp.x, sp.z, 0, 'joueur');
+        cible = creerVehicule('citadine', sp.x, sp.z + 3, Math.PI, 'trafic');
+        P.veh = att; att.v = 15;
+        for (let t = 0; t < 300 && !cible.epave; t++) majVehiculePhys(att, 0.05, 1, 0, false);
+        P.veh = null; att.mort = true; nettoyer();
+      }
+      out.vehEcrasesTotal = META.stats.vehEcrases - avant;
+      // ecraserVehicule() ne fait qu'incrémenter le compteur (même convention) :
+      // simule le tick périodique de checkDefis() qui verserait la récompense
+      // quelques secondes plus tard dans une vraie partie.
+      checkDefis();
+      out.broyeurFait = faitId('broyeur');
+
+      return out;
+    });
+    if (!nouveauxDefis.depotBoucleFlag || !nouveauxDefis.depotQuaisFlagResteFaux) fail('Défis : la victoire sur La Boucle ne pose pas le bon flag isolé (' + JSON.stringify(nouveauxDefis) + ')');
+    else ok('Défis : gagner La Boucle pose bien son propre flag, jamais celui d\'un autre circuit');
+    if (!nouveauxDefis.depotPremiereFait) fail('Défis : \'depotPremiere\' ne se déclenche pas après une victoire au Dépôt de bus');
+    else ok('Défis : \'depotPremiere\' (première victoire au Dépôt de bus) se déclenche bien');
+    if (!nouveauxDefis.depotBalayageNonFaitEncore) fail('Défis : \'depotBalayage\' se déclenche après une seule victoire (devrait exiger les 3 circuits)');
+    else ok('Défis : \'depotBalayage\' n\'est bien pas déclenché après une seule victoire');
+    if (!nouveauxDefis.depotBalayageFait) fail('Défis : \'depotBalayage\' ne se déclenche pas après une victoire sur les 3 circuits');
+    else ok('Défis : \'depotBalayage\' se déclenche bien après une victoire sur les 3 circuits');
+    if (!nouveauxDefis.volantDefiFait) fail('Défis : \'volantDefi\' ne se déclenche pas en gagnant Le Toit avec Le Bus');
+    else ok('Défis : \'volantDefi\' se déclenche bien en gagnant Le Toit avec Le Bus');
+    if (!nouveauxDefis.jetpackToitPresent) info('Défis : tour/jetpack introuvable cette partie (probabiliste) — vérifications jetpack sautées');
+    else {
+      if (!nouveauxDefis.jetpackDefiFlag || !nouveauxDefis.jetpackDefiFait) fail('Défis : \'jetpackDefi\' ne se déclenche pas à l\'équipement du jetpack');
+      else ok('Défis : \'jetpackDefi\' se déclenche bien à l\'équipement du jetpack');
+      if (!nouveauxDefis.pasMortPendantLeSauvetage) fail('Défis : le scénario de test du sauvetage jetpack meurt (réglages de test à revoir)');
+      else if (!nouveauxDefis.avertissementVuPendantLeSauvetage) fail('Défis : le scénario de test ne déclenche jamais l\'avertissement de chute (réglages de test à revoir)');
+      else if (!nouveauxDefis.aBienAtterriPendantLeSauvetage) fail('Défis : le scénario de test n\'atterrit jamais dans le temps imparti (réglages de test à revoir)');
+      else if (!nouveauxDefis.jetpackSauvetageFait) fail('Défis : \'jetpackSauvetage\' ne se déclenche pas après un avertissement suivi d\'un atterrissage propre');
+      else ok('Défis : \'jetpackSauvetage\' se déclenche bien après avoir vu l\'avertissement et atterri proprement');
+      if (!nouveauxDefis.avertJamaisVuPendantVolCalme) fail('Défis : le scénario de vol calme déclenche quand même l\'avertissement (réglages de test à revoir, ce n\'est plus un vol calme)');
+      else if (!nouveauxDefis.volCalmeNeCompteJamaisCommeSauvetage) fail('Défis : \'jetpackSauvetage\' se déclenche même sans jamais avoir vu l\'avertissement (devrait exiger une vraie frayeur)');
+      else ok('Défis : un atterrissage calme, sans avertissement, ne compte bien jamais comme un sauvetage');
+    }
+    if (!nouveauxDefis.monstertruckPresent) fail('Défis : Monster Truck introuvable pour le test');
+    else {
+      if (!nouveauxDefis.monstertruckDefiFlag || !nouveauxDefis.monstertruckDefiFait) fail('Défis : \'monstertruckDefi\' ne se déclenche pas en montant dans le Monster Truck');
+      else ok('Défis : \'monstertruckDefi\' se déclenche bien en montant dans le Monster Truck');
+    }
+    if (!nouveauxDefis.busEnDeuxTempsCompteUneSeuleFois) fail('Défis : un véhicule long aplati en deux temps est compté plus d\'une fois dans vehEcrases (' + nouveauxDefis.vehEcrasesTotal + ')');
+    else ok('Défis : un véhicule long aplati en deux temps ne compte bien qu\'une seule fois');
+    if (nouveauxDefis.vehEcrasesTotal !== 8) fail('Défis : le compteur d\'écrasements n\'atteint pas 8 après 8 écrasements réels (obtenu ' + nouveauxDefis.vehEcrasesTotal + ')');
+    else if (!nouveauxDefis.broyeurFait) fail('Défis : \'broyeur\' ne se déclenche pas après 8 écrasements');
+    else ok('Défis : \'broyeur\' se déclenche bien après 8 écrasements');
 
     // -------------------------------------------------------------------
     // Navigation entre menus : ecran() doit toujours masquer TOUS les

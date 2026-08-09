@@ -1300,12 +1300,18 @@ const META={
   perso:'jax', persosPoss:['jax'], radio:0, planque:false, garage:null, revenus:0,
   stats:{kills:0,killsGang:0,killsPolice:0,killsArmee:0,chefs:0,vagues:0,parties:0,
     distVeh:0,distTotal:0,sauts:0,vehVoles:0,vehDetruits:0,tempsTotal:0,pietonsFuis:0,
-    grenades:0,tirs:0,critiques:0,meilleurCombo:0,cashTotal:0},
+    grenades:0,tirs:0,critiques:0,meilleurCombo:0,cashTotal:0,vehEcrases:0},
   skins:{jax:0,ria:0,malo:0}, skinsPoss:{jax:[0],ria:[0],malo:[0]},
   armes:{poings:{poss:true,lv:0},batte:{poss:false,lv:0},pistolet:{poss:false,lv:0},
          gadget:{poss:false,lv:0},couteau:{poss:false,lv:0},batte2:{poss:false,lv:0},bouleC:{poss:false,lv:0},sabre:{poss:false,lv:0},pompe:{poss:false,lv:0},uzi:{poss:false,lv:0},silence:{poss:false,lv:0},pm:{poss:false,lv:0},fusil:{poss:false,lv:0},sniper:{poss:false,lv:0},flamme:{poss:false,lv:0},roquette:{poss:false,lv:0},desintegrateur:{poss:false,lv:0}},
   upg:{vitesse:0,vie:0,regen:0,melee:0,recharge:0,butin:0},
-  defis:{vols:0,dist:0,detruits:0,chefs:0,etoile6:false,bateau:false,ile:false,avion:false,heli:false,crash:false,saut:false,toit:false,banque:false,sommet:false,villa:false,jackpot:false,faits:{}},
+  defis:{vols:0,dist:0,detruits:0,chefs:0,etoile6:false,bateau:false,ile:false,avion:false,heli:false,crash:false,saut:false,toit:false,banque:false,sommet:false,villa:false,jackpot:false,
+    // lot 11/12 (Dépôt de bus, Jetpack, Monster Truck) : chaque victoire de
+    // circuit est marquée séparément (jamais déduite de META.depotCircuits,
+    // qui ne dit que « débloqué », pas « gagné » — gagner Le Toit n'est
+    // requis par aucun déblocage puisque c'est le dernier circuit).
+    jetpack:false,jetpackSauvetage:false,monstertruck:false,depotBoucle:false,depotQuais:false,depotToit:false,
+    faits:{}},
   decouverts:{},
   // --- lieux spéciaux : curiosités collectées + progression propre à chaque lieu ---
   curios:{}, zohra:0, karaoke:0, gaston:0, lessives:0, fouilles:0,
@@ -1375,7 +1381,22 @@ const DEFIS=[
   {id:'guerre',nom:'Épervier',det:'Vole le chasseur militaire de l\u2019aéroport',rec:600,prog:m=>[m.decouverts.chasseur?1:0,1],cond:m=>!!m.decouverts.chasseur},
   {id:'curieux',nom:'Curieux',det:'Trouve ta première curiosité dans un lieu spécial',rec:300,prog:m=>[nbCurios(),1],cond:m=>nbCurios()>=1},
   {id:'cabinet',nom:'Cabinet complet',det:'Réunis les 4 curiosités des lieux spéciaux',rec:1500,prog:m=>[nbCurios(),CURIOS_ACTIVES.length],cond:m=>nbCurios()>=CURIOS_ACTIVES.length},
-  {id:'fouineur',nom:'Fouineur',det:'Fouille 40 caches dans les lieux visitables',rec:450,prog:m=>[m.fouilles,40],cond:m=>m.fouilles>=40}
+  {id:'fouineur',nom:'Fouineur',det:'Fouille 40 caches dans les lieux visitables',rec:450,prog:m=>[m.fouilles,40],cond:m=>m.fouilles>=40},
+  // --- lot 11/12 : Dépôt de bus, Jetpack, Monster Truck — des lieux/mécaniques
+  // entièrement optionnels, invisibles tant qu'on ne les a pas trouvés : ces
+  // défis existent pour donner une bonne raison d'aller les chercher.
+  {id:'depotPremiere',nom:'Sur les chapeaux de roue',det:'Gagne une course au Dépôt de bus',rec:350,
+    prog:m=>[(m.defis.depotBoucle||m.defis.depotQuais||m.defis.depotToit)?1:0,1],
+    cond:m=>m.defis.depotBoucle||m.defis.depotQuais||m.defis.depotToit},
+  {id:'depotBalayage',nom:'Roi du Dépôt',det:'Gagne sur les 3 circuits du Dépôt de bus (La Boucle, Les Quais, Le Toit)',rec:900,
+    prog:m=>[[m.defis.depotBoucle,m.defis.depotQuais,m.defis.depotToit].filter(Boolean).length,3],
+    cond:m=>m.defis.depotBoucle&&m.defis.depotQuais&&m.defis.depotToit},
+  {id:'volantDefi',nom:'Le Volant du Dépôt',det:'Gagne sur Le Toit en conduisant Le Bus',rec:800,prog:m=>[aCurio('volant')?1:0,1],cond:m=>aCurio('volant')},
+  {id:'jetpackDefi',nom:'Envol',det:'Trouve et équipe le jetpack',rec:400,prog:m=>[m.defis.jetpack?1:0,1],cond:m=>m.defis.jetpack},
+  {id:'jetpackSauvetage',nom:'Sauvetage in extremis',det:'Évite un crash mortel en relançant les réacteurs juste à temps',rec:600,
+    prog:m=>[m.defis.jetpackSauvetage?1:0,1],cond:m=>m.defis.jetpackSauvetage},
+  {id:'monstertruckDefi',nom:'Terrain vague',det:'Trouve le Monster Truck et prends le volant',rec:500,prog:m=>[m.defis.monstertruck?1:0,1],cond:m=>m.defis.monstertruck},
+  {id:'broyeur',nom:'Broyeur',det:'Écrase 8 véhicules (char ou Monster Truck)',rec:700,prog:m=>[m.stats.vehEcrases,8],cond:m=>m.stats.vehEcrases>=8}
 ];
 function checkDefis(){
   for(const d of DEFIS){
@@ -4508,7 +4529,7 @@ const P={x:0,z:0,y:0,vy:0,chute:false,ang:0,hp:100,maxHp:100,stam:100,stamMax:10
   // Jetpack (lot 12) : jetpack=équipé cette partie (perdu au game over,
   // voir startRun), jetpackVol=en vol actif, jetFuel=carburant 0..100,
   // jetVx/jetVz=inertie horizontale, jetWarnT=throttle de l'alarme sonore.
-  jetpack:false,jetpackVol:false,jetFuel:100,jetVx:0,jetVz:0,jetWarnT:0};
+  jetpack:false,jetpackVol:false,jetFuel:100,jetVx:0,jetVz:0,jetWarnT:0,jetAvertVu:false};
 
 function construireJoueur(){
   if(P.h) scene.remove(P.h.g);
@@ -4960,6 +4981,7 @@ function majJoueur(dt,dtJeu){
     // rendrait absurdes — jamais de décollage tant qu'INT.actif.
     if(!INT.actif&&!P.chute&&(INPUT.btn.jetpack||INPUT.btn.jetpackK)&&P.jetFuel>1){
       P.jetpackVol=true; P.vy=0; P.jetVx=0; P.jetVz=0; P.chute=false;
+      P.jetAvertVu=false; // un sauvetage compte pour CE vol, pas pour un vol calme après une frayeur passée
       el('jetWrap').style.display='block';
       addHeat(0.8); toast('🚀 Décollage !','or'); SFX.spec(); vibre(40);
     } else if(!P.chute&&P.jetFuel<100){
@@ -5057,6 +5079,7 @@ function majJetpackVol(dt,dtJeu){
   // trop tard — une mort qu'on n'a pas vue venir est injuste (CLAUDE.md).
   if(-P.vy>JET_VY_AVERT){
     el('jetWarn').style.display='block';
+    P.jetAvertVu=true; // voir DEFIS 'jetpackSauvetage' : a vu le danger et va quand même atterrir proprement
     P.jetWarnT-=dt;
     if(P.jetWarnT<=0){ P.jetWarnT=0.26; beep(230,0.09,'square',0.18,700); vibre(25); }
   } else { el('jetWarn').style.display='none'; }
@@ -5090,6 +5113,11 @@ function majJetpackVol(dt,dtJeu){
     }
     // atterrissage propre, quelle que soit la surface (toit, rue, ponton, eau)
     burst(P.x,P.y+0.2,P.z,6,0xb8bec8,4);
+    // le geste à apprendre, réussi : l'avertissement s'est déclenché pendant
+    // CE vol et l'atterrissage reste propre quand même — voir DEFIS.
+    if(P.jetAvertVu&&!META.defis.jetpackSauvetage){
+      META.defis.jetpackSauvetage=true; checkDefis(); sauveMeta();
+    }
     atterrirJetpack();
   }
   // rendu : pose de vol (bras le long du corps, léger cabré/piqué selon vy)
@@ -5199,7 +5227,7 @@ function ecraserVehicule(v,o){
   if(o.contreb){ EVT.cible=null; for(let i=0;i<4;i++) creerPickup('cash',o.x+rand(-2.5,2.5),o.z+rand(-2.5,2.5),randi(35,70));
     toast('La cargaison flotte — va la repêcher !','or'); }
   if(o.cibleMission&&MISSION.cur&&MISSION.cur.type==='detruire') MISSION.cur.fait++;
-  if(duJoueur){ addHeat(1.0); META.defis.detruits++; META.stats.vehDetruits++; }
+  if(duJoueur){ addHeat(1.0); META.defis.detruits++; META.stats.vehDetruits++; META.stats.vehEcrases++; }
   burst(o.x,1,o.z,18,0xd8dce4,8);   // débris de vitres
   burst(o.x,0.6,o.z,10,0xffe08a,5); // étincelles
   bruit(0.35,0.55,180);             // tôle froissée
@@ -5451,6 +5479,7 @@ function entrerVehicule(v){
     bigMsg('★ ALERTE GÉNÉRALE ★');
   }
   if(v.def.eau&&!META.defis.bateau){META.defis.bateau=true;toast('Bienvenue en mer, capitaine','or');}
+  if(v.key==='monstertruck'&&!META.defis.monstertruck){META.defis.monstertruck=true;toast('Terrain vague : le Monster Truck est à toi','or');}
   // sur une moto/jet-ski, le pilote reste visible et est attaché au véhicule
   if(v.def.type==='moto'||v.def.surf||v.key==='jetski'||v.def.eau){
     P.h.g.visible=true; P.surMoto=true;
@@ -11979,6 +12008,12 @@ function depotTerminerCourse(s,place){
     if(suivant&&!META.depotCircuits[suivant]){ META.depotCircuits[suivant]=true; debloque=DEPOT_CIRCUITS[suivant].nom; }
     if(cid==='toit'&&!META.depotBusDebloque){ META.depotBusDebloque=true; toast('🚌 Le Bus est maintenant disponible au stand !','or'); }
     if(cid==='toit'&&gagneEnBus){ depotMajRecordBus(s,temps); donnerCurio('volant'); }
+    // victoire marquée séparément du déblocage : gagner Le Toit ne débloque
+    // rien de plus, donc rien d'autre ne l'enregistrerait — voir DEFIS
+    // 'depotBalayage' (les 3 circuits) et 'depotPremiere'.
+    if(cid==='boucle') META.defis.depotBoucle=true;
+    else if(cid==='quais') META.defis.depotQuais=true;
+    else if(cid==='toit') META.defis.depotToit=true;
   }
   checkDefis(); sauveMeta();
   depotNettoyerCourse(s);
@@ -13484,7 +13519,7 @@ function startRun(){
   P.grenades=3; el('grenN').textContent=3;
   // Jetpack : perdu au game over, comme les armes (voir CLAUDE.md) — il
   // faut remonter le chercher. Le lieu, lui (META.jetpackTrouve), reste acquis.
-  P.jetpack=false; P.jetpackVol=false; P.jetFuel=100; P.jetVx=0; P.jetVz=0; P.jetWarnT=0;
+  P.jetpack=false; P.jetpackVol=false; P.jetFuel=100; P.jetVx=0; P.jetVz=0; P.jetWarnT=0; P.jetAvertVu=false;
   if(P.jetMesh) P.jetMesh.g.visible=false;
   el('jetWrap').style.display='none'; el('jetWarn').style.display='none'; el('btnJetpack').style.display='none';
   jetpackSonStop();
@@ -14666,6 +14701,7 @@ function majAction(){
           bigMsg('🚀 JETPACK ÉQUIPÉ');
           toast('Décolle en maintenant DÉCOLLER. Un crash à pleine vitesse est mortel.','or');
           SFX.niveau(); vibre(60);
+          if(!META.defis.jetpack){ META.defis.jetpack=true; checkDefis(); sauveMeta(); }
         };
       }
     } else if(POIS.marchand&&dist2(P.x,P.z,POIS.marchand.x,POIS.marchand.z)<12){
@@ -14693,8 +14729,13 @@ function majAction(){
       // Site 51 : accès difficile, c'est voulu. Scellée sous 25 fouilles (pas
       // arbitraire : un joueur qui a fouillé 25 caches a exploré la ville) ;
       // au-delà, 1 visite par vague comme les autres salles à sortie limitée.
+      // Le seuil reste caché du texte de la blague (le mystère reste entier
+      // tant qu'on n'a pas déjà compris que fouiller est la clé), mais le
+      // BOUTON affiche la progression chiffrée — un joueur qui répète déjà
+      // l'action doit voir qu'elle le rapproche de quelque chose, plutôt que
+      // de croire la porte simplement cassée (signalé par un joueur réel).
       } else if(porteP.id==='site51'&&META.fouilles<25){
-        label='🔒 Scellée';
+        label='🔒 Scellée ('+META.fouilles+'/25)';
         fn=()=>{ SFX.refus(); toast('Une grille d’aération. Scellée. On dirait qu’elle mène loin.'); };
       } else if(porteP.id==='site51'){
         const s51=construireSalle('site51');
