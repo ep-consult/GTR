@@ -5977,12 +5977,36 @@ function majConduite(dt){
 }
 /* ---------- trafic ---------- */
 function creerTrafic(){
-  const k=randi(0,NB), r=-HALF+k*CELL;
+  // Un premier passage rapprochait le trafic (voie choisie près du joueur
+  // sur les deux axes, ±3 cases, off 40-75) sans corriger le vrai problème :
+  // mesuré par projection caméra réelle (Vector3.project(camera)), la
+  // fenêtre effectivement visible à l'écran est un couloir bien plus étroit
+  // qu'il n'y paraît — environ [-10,+10] unités de large (à cause du format
+  // portrait, qui réduit fortement le champ de vision HORIZONTAL par
+  // rapport au vertical) et [-40,+20] de profondeur devant/derrière. Un
+  // rayon symétrique de 40-75 unités tombait donc presque toujours hors de
+  // cette fenêtre (signalé par un joueur — « pas de circulation » —
+  // persistait même après le premier resserrement).
+  // L'axe qui fixe la VOIE (X pour une route verticale, Z pour une
+  // horizontale) doit rester quasiment sur la voie du joueur (jamais un
+  // décalage de plusieurs cases : à 42 unités d'écart, une voie voisine est
+  // déjà 4× hors du couloir visible de ±10). L'axe libre (« off ») est
+  // calé sur la fenêtre mesurée : large et légèrement décalé vers l'avant
+  // pour une route verticale (profondeur), étroit pour une route
+  // horizontale (largeur) — les deux ne sont PAS symétriques.
   const vert=Math.random()<0.5, dir=Math.random()<0.5?1:-1;
   let x,z,ang,lane;
-  const off=rand(55,90)*(Math.random()<0.5?1:-1);
-  if(vert){ ang=dir>0?0:Math.PI; lane=r+3.2*dir; x=lane; z=clamp(P.z+off,-HALF+5,HALF-5); }
-  else { ang=dir>0?Math.PI/2:-Math.PI/2; lane=r-3.2*dir; z=lane; x=clamp(P.x+off,-HALF+5,HALF-5); }
+  if(vert){
+    const kJoueur=Math.floor((P.x+HALF)/CELL);
+    const k=clamp(kJoueur+(Math.random()<0.7?0:pick([-1,1])),0,NB-1);
+    lane=-HALF+k*CELL+3.2*dir; x=lane; ang=dir>0?0:Math.PI;
+    z=clamp(P.z+rand(-38,16),-HALF+5,HALF-5);
+  } else {
+    const kJoueur=Math.floor((P.z+HALF)/CELL);
+    const k=clamp(kJoueur+randi(-1,1),0,NB-1);
+    lane=-HALF+k*CELL-3.2*dir; z=lane; ang=dir>0?Math.PI/2:-Math.PI/2;
+    x=clamp(P.x+rand(-9,9),-HALF+5,HALF-5);
+  }
   if(solidAt(x,z,2)) return;
   if(z>MER-CELL*1.2) return;         // pas de trafic sur le sable
   // bus de ville et camion de pompiers : jamais n'importe où — seulement
@@ -6036,8 +6060,14 @@ function majTrafic(v,dt){
     if(v.axe==='z'){ v.lane=v.x+(Math.random()<0.5?3:-3); } else { v.lane=v.z+(Math.random()<0.5?3:-3); }
     v.mesh.rotation.y=v.ang;
   }
-  // on ne dépeuple que très loin du joueur (sinon la ville se vide sous ses yeux)
-  if(dist2(v.x,v.z,P.x,P.z)>190*190) v.mort=true;
+  // Resserré (190 → 120) : un rayon de suppression trop large laissait le
+  // trafic dériver bien au-delà de ce qui est visible avant d'être recyclé
+  // — le budget total (q().trafic) restait alors majoritairement englouti
+  // par des véhicules hors de vue au lieu d'être réinjecté près du joueur
+  // (signalé par un joueur, « pas de circulation » malgré une densité déjà
+  // triplée — vérifié par mesure directe des distances réelles). Encore
+  // largement assez pour ne jamais voir la ville se vider sous les yeux.
+  if(dist2(v.x,v.z,P.x,P.z)>120*120) v.mort=true;
 }
 // gyrophares du camion de pompiers : tournent en continu (repérable dans le
 // trafic), s'accélèrent et passent au blanc/rouge vif quand la sirène est
