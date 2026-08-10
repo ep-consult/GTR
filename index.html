@@ -1286,6 +1286,10 @@ function litEntrees(){
   INPUT.btn.sprintK=KEYS['ShiftLeft']||KEYS['ShiftRight'];
   INPUT.btn.freinK=KEYS['KeyS']||KEYS['ArrowDown'];
   INPUT.btn.jetpackK=KEYS['KeyF'];
+  // maintien clavier (pas juste un front montant, KeyK est déjà pris pour
+  // l'esquive à pied en edge) : nécessaire pour le cabrage de la Moto
+  // cross, qui doit monter progressivement tant que la touche est tenue.
+  INPUT.btn.esquiveK=KEYS['KeyK'];
 }
 const EDGE_K={};
 function edgeKey(code){ // front montant clavier
@@ -1634,6 +1638,12 @@ const VEHDEFS={
   milit:{nom:'Camion "Aigle"',vmax:23,acc:10,man:1.7,hp:520,long:6.2,larg:2.6,type:'car',cols:[0x4a5238],milit:true},
   moto:{nom:'Moto',vmax:34,acc:21,man:3.4,hp:70,long:2.4,larg:0.9,type:'moto',cols:[0xd05038,0x3a70c0,0x24272e]},
   motoR:{nom:'Moto "Frelon"',vmax:41,acc:24,man:3.6,hp:60,long:2.4,larg:0.9,type:'moto',cols:[0xe6a41f]},
+  // Moto cross : seule moto capable de cabrer (bouton CABRER, voir
+  // majConduite/entrerVehicule) — un vrai risque de chute si l'angle est
+  // tenu trop longtemps, jamais un simple effet cosmétique (CLAUDE.md,
+  // « un minigame doit être perdable »). Look tout-terrain propre, voir
+  // makeVoiture (def.cross).
+  motocross:{nom:'Moto cross',vmax:37,acc:23,man:3.5,hp:65,long:2.3,larg:0.85,type:'moto',cols:[0xff8c1a,0x35c8e0,0x7dff7a],cross:true},
   sport:{nom:'Supercar "Éclipse"',vmax:45,acc:24,man:3.0,hp:110,long:4.4,larg:2.0,type:'car',cols:[0xff4b2e,0x35e0ff,0xb8ff3a,0xf2f4f8],sport:true},
   taxi:{nom:'Taxi',vmax:25,acc:15,man:2.6,hp:130,long:4.3,larg:2.0,type:'car',cols:[0xf2c21f],taxi:true},
   pickup:{nom:'Pickup',vmax:26,acc:12,man:2.2,hp:210,long:5.0,larg:2.2,type:'car',cols:[0x8a3a2a,0x3a5a7a,0x4a5a3a]},
@@ -5605,6 +5615,13 @@ function entrerVehicule(v){
   el('btnBrake').style.display='flex'; el('btnBrake').classList.add('gros');
   el('vehWrap').style.display='block';
   el('btnJetpack').style.display='none'; // inutilisable en véhicule — voir sortirVehicule
+  if(v.def.cross){
+    // Moto cross : bouton CABRER, sur l'emplacement ESQUIVE (inutilisée en
+    // véhicule) — jamais un nouveau bouton, pas de place libre à l'écran.
+    el('btnDodge').style.display='flex';
+    el('btnDodge').innerHTML='🏍️<small>CABRER</small>';
+    toast('Maintiens CABRER pour te cabrer — trop longtemps et tu bascules','or');
+  }
   if(v.def.canon){
     el('btnFire').style.display='flex';
     el('fireIco').textContent='💥'; el('fireAmmo').textContent='∞';
@@ -5636,6 +5653,13 @@ function entrerVehicule(v){
 function sortirVehicule(force){
   const v=P.veh; if(!v) return;
   if(v.def.type==='moto') v.mesh.rotation.z=0; // on redresse la moto au parking
+  if(v.def.cross){
+    // on redescend la roue avant et on remet le châssis à plat au parking
+    // — sinon la Moto cross resterait visuellement cabrée après la descente.
+    v.wheelieA=0; v.wheelieChuteT=undefined;
+    if(v.mesh.userData.corps){ v.mesh.userData.corps.rotation.x=0; v.mesh.userData.corps.position.y=0; }
+    const roueAv=v.mesh.userData.roues[0]; if(roueAv) roueAv.position.y=0.4;
+  }
   if(v.sirene){ v.sirene=false; sireneStop(); }
   v.conduit=null; P.veh=null;
   let sx=v.x+Math.cos(v.ang)*2.2, sz=v.z-Math.sin(v.ang)*2.2;
@@ -5872,6 +5896,17 @@ function controleDir(v,frein){
     return {throttle:l*(1-Math.min(Math.abs(diff),1.2)*0.3),steer:clamp(diff*2.4,-1,1),l,cap};
   return {throttle:-l*0.75,steer:clamp(diff*1.4,-1,1),l,cap}; // cible derrière : marche arrière
 }
+/* ---- Moto cross : cabrage (bouton CABRER, tenu). L'angle monte tant
+   qu'on tient le bouton, redescend plus vite dès qu'on relâche. Passé le
+   seuil de danger, un compte à rebours démarre — visible (le pilote
+   bascule de plus en plus) avant la chute, jamais instantané, même
+   logique que l'avertissement du jetpack (CLAUDE.md) : « une mort qu'on
+   n'a pas vue venir est injuste ». Relâcher à temps ramène l'angle sous le
+   seuil et annule le compte à rebours. Vérifié par simulation
+   (scenarios.js) : tenir en continu fait toujours chuter, relâcher avant
+   la fin du délai de grâce sauve toujours. */
+const CROSS_CABRAGE_RATE=1.1, CROSS_CABRAGE_RELACHE=2.6, CROSS_CABRAGE_MAX=0.68,
+      CROSS_CABRAGE_DANGER=0.55, CROSS_CABRAGE_GRACE=0.8;
 function majConduite(dt){
   const v=P.veh;
   if(!v||!v.def){ P.veh=null; return; }
@@ -5895,6 +5930,27 @@ function majConduite(dt){
   const frein=INPUT.btn.frein||INPUT.btn.freinK;
   const c=controleDir(v,frein);
   majVehiculePhys(v,dt,c.throttle,c.steer,frein);
+  if(v.def.cross){
+    const cabre=(INPUT.btn.esquive||INPUT.btn.esquiveK)&&Math.abs(v.v)>3&&!v.enAir;
+    v.wheelieA=clamp((v.wheelieA||0)+(cabre?CROSS_CABRAGE_RATE:-CROSS_CABRAGE_RELACHE)*dt,0,CROSS_CABRAGE_MAX);
+    if(v.wheelieA>CROSS_CABRAGE_DANGER){
+      if(v.wheelieChuteT===undefined){ v.wheelieChuteT=CROSS_CABRAGE_GRACE; toast('Trop cabré !','warn'); SFX.refus(); vibre(25); }
+      v.wheelieChuteT-=dt;
+      if(v.wheelieChuteT<=0){
+        toucherJoueur(18);
+        sortirVehicule(true);
+        lancerRagdollJoueurFx();
+        toast('Tu bascules en arrière — trop cabré trop longtemps','warn');
+        return;
+      }
+    } else v.wheelieChuteT=undefined;
+    if(v.mesh.userData.corps){
+      v.mesh.userData.corps.rotation.x=-v.wheelieA;
+      v.mesh.userData.corps.position.y=Math.sin(v.wheelieA)*0.22;
+    }
+    const roueAv=v.mesh.userData.roues[0];
+    if(roueAv) roueAv.position.y=0.4+Math.sin(v.wheelieA)*0.5;
+  }
   if(pressed('arme')||edgeKey('KeyA')||edgeKey('Tab')){
     if(v.def.pompier) toggleSirenePompiers(v); else changerRadio();
   }
@@ -8830,7 +8886,7 @@ function depotDistancePiste(x,z,pts){
 // véhicules en vente au concessionnaire
 const CATALOGUE=[
   {key:'citadine',prix:900},{key:'berline',prix:1400},{key:'taxi',prix:1100},
-  {key:'moto',prix:1800},{key:'pickup',prix:2000},{key:'buggy',prix:2600},
+  {key:'moto',prix:1800},{key:'motocross',prix:2400},{key:'pickup',prix:2000},{key:'buggy',prix:2600},
   {key:'muscle',prix:3800},{key:'motoS',prix:4200},{key:'sport',prix:7500}
 ];
 function construireSalle(id){

@@ -5957,6 +5957,71 @@ async function main() {
     else ok('Concessionnaire : le comptoir de vente correspond bien au véhicule affiché sur le podium central');
 
     // -------------------------------------------------------------------
+    // Moto cross : demande explicite « qui puisse cabrer avec un bouton...
+    // avec aussi chute si trop cabré ». Vérifie mathématiquement (jamais à
+    // l'intuition, voir CLAUDE.md) les 3 cas : tenir en continu fait
+    // toujours chuter, relâcher avant la fin du délai de grâce sauve
+    // toujours, et une conduite normale sans jamais cabrer ne déclenche
+    // rien. Lit les constantes CROSS_CABRAGE_* en direct, jamais recopiées.
+    // -------------------------------------------------------------------
+    console.log('\n--- Moto cross : cabrage (bouton CABRER, chute si tenu trop longtemps, sauvetage si relâché à temps) ---');
+    const crossTest = await page.evaluate(() => {
+      const res = {};
+      res.vehdefPresent = !!VEHDEFS.motocross && VEHDEFS.motocross.type === 'moto' && !!VEHDEFS.motocross.cross;
+      res.auCatalogue = CATALOGUE.some((o) => o.key === 'motocross');
+
+      startRun();
+      const mt = creerVehicule('motocross', POIS.place.x, POIS.place.z, 0, null);
+      P.veh = mt; mt.conduit = 'joueur';
+      INPUT.btn.esquive = true;
+      let t = 0, chute = false;
+      for (let i = 0; i < 400 && P.veh; i++) {
+        mt.v = 15; // vitesse maintenue artificiellement : isole le cabrage du reste de la conduite
+        majConduite(0.016);
+        t += 0.016;
+      }
+      chute = !P.veh;
+      res.tenirEnContinuFaitChuter = chute && t < 3;
+
+      startRun();
+      const mt2 = creerVehicule('motocross', POIS.place.x, POIS.place.z, 0, null);
+      P.veh = mt2; mt2.conduit = 'joueur';
+      INPUT.btn.esquive = true;
+      let atteintDanger = false;
+      for (let i = 0; i < 60 && P.veh; i++) {
+        mt2.v = 15;
+        majConduite(0.016);
+        if (P.veh && P.veh.wheelieA > CROSS_CABRAGE_DANGER) { atteintDanger = true; break; }
+      }
+      INPUT.btn.esquive = false; // relâche dès l'entrée en zone de danger
+      for (let i = 0; i < 60 && P.veh; i++) { mt2.v = 15; majConduite(0.016); }
+      res.atteintLaZoneDeDanger = atteintDanger;
+      res.relacherATempsSauveToujours = !!P.veh;
+      res.angleRedescendBienAZero = P.veh ? P.veh.wheelieA < 0.01 : false;
+
+      startRun();
+      const mt3 = creerVehicule('motocross', POIS.place.x, POIS.place.z, 0, null);
+      P.veh = mt3; mt3.conduit = 'joueur';
+      INPUT.btn.esquive = false;
+      for (let i = 0; i < 90 && P.veh; i++) { mt3.v = 15; majConduite(0.016); }
+      res.conduiteNormaleNeDeclencheRien = !!P.veh && mt3.wheelieA === 0;
+
+      return res;
+    });
+    if (!crossTest.vehdefPresent) fail('Moto cross : VEHDEFS.motocross est absent ou mal configuré (type/cross)');
+    else ok('Moto cross : bien définie dans VEHDEFS (type moto, cross:true)');
+    if (!crossTest.auCatalogue) fail('Moto cross : absente du catalogue du concessionnaire');
+    else ok('Moto cross : bien disponible au concessionnaire');
+    if (!crossTest.tenirEnContinuFaitChuter) fail('Moto cross : tenir CABRER en continu ne fait jamais chuter (le risque doit être réel)');
+    else ok('Moto cross : tenir CABRER en continu fait bien chuter — le risque est réel');
+    if (!crossTest.atteintLaZoneDeDanger) fail('Moto cross : la zone de danger n\'est jamais atteinte (réglages de test à revoir)');
+    else if (!crossTest.relacherATempsSauveToujours) fail('Moto cross : relâcher CABRER dès l\'entrée en zone de danger fait quand même chuter — trop punitif, le geste n\'est pas rattrapable');
+    else if (!crossTest.angleRedescendBienAZero) fail('Moto cross : l\'angle ne redescend pas complètement à zéro après relâchement');
+    else ok('Moto cross : relâcher CABRER à temps sauve bien toujours, et le châssis redescend bien à plat');
+    if (!crossTest.conduiteNormaleNeDeclencheRien) fail('Moto cross : une conduite normale sans jamais cabrer déclenche quand même quelque chose');
+    else ok('Moto cross : une conduite normale, sans jamais cabrer, ne déclenche bien jamais rien');
+
+    // -------------------------------------------------------------------
     // Navigation entre menus : ecran() doit toujours masquer TOUS les
     // écrans précédents avant d'afficher le nouveau (document.
     // querySelectorAll('.screen') — jamais exercé par valider.js, qui ne
