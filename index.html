@@ -4185,6 +4185,17 @@ function makeVoiture(key){
       corps.add(mkBoxG(W*0.9,0.14,0.1,0x14161c,0,bodyY-0.14,L/2*0.98));
       [-W*0.44,W*0.44].forEach(dx=>corps.add(mkBoxG(0.14,0.1,0.5,coul,dx,bodyY+0.14,-L*0.4)));
     }
+    if(key==='berline'){
+      // silhouette Audi A4 : calandre « singleframe » large et basse,
+      // bandeau à LED avant, joncs chromés de vitrage, ligne de caractère
+      // sur le flanc, malle légèrement marquée à l'arrière — jamais une
+      // berline générique de plus (signalé par un joueur).
+      corps.add(mkBoxG(W*0.9,0.2,0.1,0x0d0f12,0,bodyY-0.2,L/2*0.98));       // calandre singleframe
+      corps.add(mkBoxG(W*0.68,0.04,0.05,0xe8ecf2,0,bodyY,L/2*0.98));        // bandeau LED avant
+      [-1,1].forEach(sx=>corps.add(mkBoxG(0.04,0.2,L*0.66,0x9aa2ad,sx*W*0.5,bodyY+0.18,-L*0.04))); // joncs chromés de vitrage
+      [-1,1].forEach(sx=>corps.add(mkBoxG(0.03,0.05,L*0.62,0x2a2d34,sx*W*0.5,bodyY-0.06,-L*0.02)));// ligne de caractère
+      corps.add(mkBoxG(W*0.8,0.08,L*0.16,coul,0,bodyY+0.3,-L*0.38));        // malle légèrement marquée
+    }
     if(def.pompier){
       corps.add(mkBoxG(W*0.9,0.22,L*0.7,0xe8ecf2,0,bodyY+0.62,-L*0.05)); // bande blanche réfléchissante
       corps.add(mkBoxG(0.3,0.28,L*0.55,0x8a8f9a,0,bodyY+0.85,-L*0.1));    // échelle sur le toit
