@@ -579,10 +579,13 @@ function vibre(ms){ if(REGLAGES.vib && navigator.vibrate){ try{navigator.vibrate
 
 /* ---------- Réglages / qualité ---------- */
 const REGLAGES={qualite:1, musique:true, sfx:true, vib:true};
+// trafic ×3 (7/12/17 → 21/36/51) : demandé explicitement pour tester
+// jusqu'où on peut aller côté densité — à surveiller sur mobile bas de
+// gamme (qualite=0), c'est le palier le plus sensible aux perfs.
 const QUAL=[
-  {px:0.72, peds:12, trafic:7,  parts:60,  fogF:110, glow:false},
-  {px:1.0,  peds:22, trafic:12, parts:100, fogF:150, glow:true},
-  {px:1.5,  peds:34, trafic:17, parts:140, fogF:190, glow:true}
+  {px:0.72, peds:12, trafic:21, parts:60,  fogF:110, glow:false},
+  {px:1.0,  peds:22, trafic:36, parts:100, fogF:150, glow:true},
+  {px:1.5,  peds:34, trafic:51, parts:140, fogF:190, glow:true}
 ];
 const q=()=>QUAL[REGLAGES.qualite];
 
@@ -6919,7 +6922,11 @@ function majVoiturePolice(v,dt){
 /* =====================================================================
    VAGUES + BONUS DE FIN DE VAGUE
 ===================================================================== */
-const WAVES={n:0,etat:'repos',t:6,queue:[],spawnT:0};
+// repos entre vagues 12→18s (demandé explicitement, laisse plus de temps
+// pour l'exploration) — même durée pour le tout premier répit, pour ne
+// pas repartir plus vite que les suivants.
+const WAVES_REPOS=18;
+const WAVES={n:0,etat:'repos',t:WAVES_REPOS,queue:[],spawnT:0};
 function lancerVague(){
   WAVES.n++; WAVES.etat='active'; WAVES.queue=[]; WAVES.spawnT=0.2;
   SFX.vague();
@@ -6929,7 +6936,7 @@ function lancerVague(){
   if(WAVES.n<3) gang=GANGS.includes(gang)&&gang!=='chrome'?gang:'viperes';
   WAVES.gang=gang;
   bigMsg('VAGUE '+WAVES.n+' — '+NOMS_GANG[gang].toUpperCase());
-  let budget=55+WAVES.n*32;
+  let budget=55+WAVES.n*24; // montée en difficulté plus douce (32 → 24 par vague, demandé explicitement)
   const rival=WAVES.n>=4?pick(GANGS.filter(g=>g!==gang)):null;
   while(budget>0){
     const g2=(rival&&Math.random()<0.3)?rival:gang;
@@ -6964,7 +6971,7 @@ function majVagues(dt){
   if(WAVES.queue.length){
     WAVES.spawnT-=dt;
     if(WAVES.spawnT<=0&&vivants<16){
-      WAVES.spawnT=0.75;
+      WAVES.spawnT=0.95; // cadence légèrement réduite (0.75 → 0.95, demandé explicitement)
       const p=spawnRing(32,48);
       creerEnnemi(WAVES.queue.shift(),p.x,p.z,true);
     }
@@ -7000,7 +7007,7 @@ function ouvrirBonus(){
     c.addEventListener('pointerdown',()=>{
       b.f(); SFX.achat();
       ecran(null); ETAT.mode='jeu';
-      WAVES.etat='repos'; WAVES.t=12;
+      WAVES.etat='repos'; WAVES.t=WAVES_REPOS;
     });
     el('bonusCards').appendChild(c);
   });
@@ -13976,7 +13983,7 @@ function startRun(){
   for(const g of GANGS) HOSTILITE[g]=0;
   if(POIS.marchand){scene.remove(POIS.marchand.mesh);POIS.marchand=null;}
   ETAT.promo=false; EVT.t=30; P.nage=false;
-  WAVES.n=0; WAVES.etat='repos'; WAVES.t=7; WAVES.queue=[];
+  WAVES.n=0; WAVES.etat='repos'; WAVES.t=WAVES_REPOS; WAVES.queue=[];
   MISSION.cur=null; MISSION.t=1.5; MISSION.volT=0; balise.visible=false;
   DANGER.t=0;
   el('bossWrap').style.display='none';
