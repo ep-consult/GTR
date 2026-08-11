@@ -4557,7 +4557,7 @@ function majPickups(dt){
     if(p.type!=='armeSol'){ p.mesh.rotation.y+=dt*2; p.mesh.position.y=Math.sin(p.bob)*0.12+(p.yBase||0); }
     else p.mesh.position.y=(p.yBase||0)+0.05;
     if(p.t<=0){scene.remove(p.mesh);pickups.splice(i,1);continue;}
-    if(ETAT.mode!=='jeu') continue;
+    if(ETAT.mode!=='jeu'||!auSol()) continue; // pas de ramassage (ni aimant) depuis les airs
     const d=dist2(p.x,p.z,P.x,P.z);
     // Le Jeton Doré : aimant à longue portée (6 m) sur l'argent, les munitions
     // et les soins, qui accélère à l'approche (facteur de tir plus fort quand
@@ -4638,6 +4638,13 @@ const P={x:0,z:0,y:0,vy:0,chute:false,ang:0,hp:100,maxHp:100,stam:100,stamMax:10
   // voir startRun), jetpackVol=en vol actif, jetFuel=carburant 0..100,
   // jetVx/jetVz=inertie horizontale, jetWarnT=throttle de l'alarme sonore.
   jetpack:false,jetpackVol:false,jetFuel:100,jetVx:0,jetVz:0,jetWarnT:0,jetAvertVu:false};
+// Bug déjà rencontré : voler au jetpack au-dessus d'une voiture ou d'un
+// immeuble suffisait à déclencher l'entrée dans le véhicule (le test ne
+// regardait que la distance horizontale, jamais l'altitude). auSol()
+// centralise la condition « pieds au sol » et doit garder TOUTE interaction
+// de proximité (véhicules, ramassables, portes, POI) : en vol jetpack ou en
+// chute, rien ne doit se déclencher.
+function auSol(){ return !P.jetpackVol&&!P.chute; }
 
 function construireJoueur(){
   if(P.h) scene.remove(P.h.g);
@@ -5808,7 +5815,10 @@ function majVol(v,dt){
         v.vol=false; v.alt=surf; SFX.ui();
         if(surf>4&&!META.defis.toit){ META.defis.toit=true; bigMsg('POSÉ SUR LE TOIT'); }
       }
-    }
+      // assiette : nez qui plonge/se relève selon la montée — inclinaison
+      // plus douce que l'avion (l'hélico n'a pas d'ailes à cabrer).
+      v.mesh.rotation.x=lerp(v.mesh.rotation.x,-v.va*0.025,0.2);
+    } else v.mesh.rotation.x=lerp(v.mesh.rotation.x,0,0.2); // posé : retour à l'horizontale
   } else { // avion
     if(!v.vol){
       const c=controleDir(v,false);
@@ -5994,21 +6004,35 @@ function creerTrafic(){
   // calé sur la fenêtre mesurée : large et légèrement décalé vers l'avant
   // pour une route verticale (profondeur), étroit pour une route
   // horizontale (largeur) — les deux ne sont PAS symétriques.
+  //
+  // Une fois le trafic bien visible, un nouveau problème signalé par un
+  // joueur : les voitures « apparaissent d'un coup », y compris sous les
+  // yeux du joueur — spawn PILE dans la fenêtre visible mesurée ci-dessus.
+  // Corrigé en spawnant toujours juste AU-DELÀ du bord de cette fenêtre,
+  // du côté d'où le véhicule vient (déterminé par son sens de circulation,
+  // `dir`) : il entre alors naturellement dans le champ de vision en
+  // roulant, jamais par un pop-in instantané au milieu de l'écran.
   const vert=Math.random()<0.5, dir=Math.random()<0.5?1:-1;
   let x,z,ang,lane;
   if(vert){
     const kJoueur=Math.floor((P.x+HALF)/CELL);
     const k=clamp(kJoueur+(Math.random()<0.7?0:pick([-1,1])),0,NB-1);
     lane=-HALF+k*CELL+3.2*dir; x=lane; ang=dir>0?0:Math.PI;
-    z=clamp(P.z+rand(-38,16),-HALF+5,HALF-5);
+    // dir>0 : le véhicule avance vers +z, donc il vient de l'arrière (bord -40) ; dir<0 : symétrique côté +20.
+    z=clamp(dir>0?P.z-rand(44,52):P.z+rand(24,32),-HALF+5,HALF-5);
   } else {
     const kJoueur=Math.floor((P.z+HALF)/CELL);
     const k=clamp(kJoueur+randi(-1,1),0,NB-1);
     lane=-HALF+k*CELL-3.2*dir; z=lane; ang=dir>0?Math.PI/2:-Math.PI/2;
-    x=clamp(P.x+rand(-9,9),-HALF+5,HALF-5);
+    x=clamp(dir>0?P.x-rand(13,20):P.x+rand(13,20),-HALF+5,HALF-5);
   }
   if(solidAt(x,z,2)) return;
   if(z>MER-CELL*1.2) return;         // pas de trafic sur le sable
+  // jamais superposé à un véhicule déjà là (trafic, joueur, police...) —
+  // un véhicule `mort` est déjà retiré de la scène (voir exploserVehicule),
+  // il ne doit pas bloquer un nouveau spawn, comme ailleurs dans ce fichier
+  // (ex : la sonde d'obstacle de majTrafic ignore aussi `o.mort`).
+  for(const o of vehicules){ if(o.mort) continue; if(dist2(x,z,o.x,o.z)<64) return; }
   // bus de ville et camion de pompiers : jamais n'importe où — seulement
   // sur les grands axes du centre-ville et du quartier commerçant.
   const bx=Math.floor((x+HALF)/CELL), bz=Math.floor((z+HALF)/CELL);
@@ -6019,6 +6043,11 @@ function creerTrafic(){
   else poolT=['citadine','citadine','berline','berline','taxi','taxi','muscle','van','pickup'];
   const v=creerVehicule(pick(poolT),x,z,ang,'trafic'); v._traf=true;
   v.axe=vert?'z':'x'; v.lane=lane;
+  // Fondu court à l'apparition (échelle, pas opacité : les matériaux sont
+  // partagés par couleur via _matCache — leur faire varier en opacité
+  // changerait aussi tous les autres objets de cette couleur dans la
+  // ville). Couvre les cas limites où le spawn tombe près du bord visible.
+  v.mesh.scale.setScalar(0.05); v.fadeT=0.3;
 }
 function majTrafic(v,dt){
   let cibleV=9;
@@ -6048,6 +6077,7 @@ function majTrafic(v,dt){
   if(v.axe==='z'){ v.x=lerp(v.x,laneCible,2*dt); v.z+=cA*v.v*dt; }
   else { v.z=lerp(v.z,laneCible,2*dt); v.x+=sA*v.v*dt; }
   v.mesh.position.set(v.x,0,v.z);
+  if(v.fadeT>0){ v.fadeT-=dt; v.mesh.scale.setScalar(v.fadeT>0?1-v.fadeT/0.3:1); }
   for(const r of v.mesh.userData.roues) r.rotation.x+=v.v*dt*1.6;
   // aux limites de la ville : demi-tour propre au lieu de foncer dans le mur et disparaître
   const LIMN=-HALF+6, LIMS=MER-CELL*1.4, LIMO=-HALF+6, LIME=HALF-6;
@@ -15042,7 +15072,7 @@ function majAction(){
     return;
   }
   let porteP=null;
-  if(!P.veh) for(const p of PORTES){ if(dist2(P.x,P.z,p.x,p.z)<11){ porteP=p; break; } }
+  if(!P.veh&&auSol()) for(const p of PORTES){ if(dist2(P.x,P.z,p.x,p.z)<11){ porteP=p; break; } }
   if(P.veh&&P.veh.def){
     if(P.veh.def.air&&P.veh.vol){
       label='EN VOL'; fn=()=>{SFX.refus();};
@@ -15050,7 +15080,7 @@ function majAction(){
       label='RÉPARER (60 $)';
       fn=()=>{if(META.argent>=60){META.argent-=60;P.veh.hp=P.veh.def.hp;SFX.achat();toast('Véhicule réparé','or');}else SFX.refus();};
     } else { label='SORTIR'; fn=()=>sortirVehicule(); }
-  } else {
+  } else if(auSol()) {
     let vp=null,vd=1e9;
     for(const v of vehicules){
       if(v.mort||v.conduit==='joueur') continue;
@@ -15343,7 +15373,14 @@ function majCamera(dt){
   ETAT.shake=Math.max(0,ETAT.shake-30*dt);
   const sx=(Math.random()-0.5)*ETAT.shake*0.12, sz=(Math.random()-0.5)*ETAT.shake*0.12;
   const chuteF=(P.chute&&!P.para)?Math.min(1,-P.vy/40):0;
-  const hSol=P.veh?(P.veh.def.air?0:(P.veh.h||0)):P.y;
+  // Bug déjà rencontré : hSol restait forcé à 0 pour un avion/hélico (« on
+  // regarde toujours le sol, jamais l'appareil »), alors que la caméra ne
+  // montait, elle, que via cibleH — la cible du regard restait au sol
+  // pendant que la caméra grimpait, donc l'appareil dérivait vers le haut
+  // de l'écran avec l'altitude jusqu'à sortir du cadre. hSol doit suivre
+  // l'altitude réelle de l'appareil, exactement comme il suit déjà la
+  // hauteur du véhicule au sol (v.h) ou du joueur qui saute (P.y).
+  const hSol=P.veh?(P.veh.def.air?(P.veh.alt||0):(P.veh.h||0)):P.y;
   camera.position.set(P.x+sx,camH+hSol*0.75+chuteF*16,P.z+camD+sz+chuteF*10);
   camera.lookAt(P.x+sx,hSol*0.75,P.z-2+sz);
   camera.fov=lerp(camera.fov,58+chuteF*14,0.12); camera.updateProjectionMatrix();
