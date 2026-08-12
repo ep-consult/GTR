@@ -400,6 +400,33 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
   <button class="retour" id="defisClose">Retour</button>
 </div>
 
+<!-- ================= TABLEAU DE LA VILLE (planque) ================= -->
+<div class="screen" id="tableauScr">
+  <div class="stitre">Tableau de la ville</div>
+  <div class="ssous">ce qu'il te reste à découvrir</div>
+  <div class="hazard"></div>
+  <div id="tableauList"></div>
+  <button class="retour" id="tableauClose">Retour</button>
+</div>
+
+<!-- ================= MUR DE TROPHÉES (planque) ================= -->
+<div class="screen" id="trophScr">
+  <div class="stitre">Mur de trophées</div>
+  <div class="ssous">la preuve de ce que tu as accompli</div>
+  <div class="hazard"></div>
+  <div id="trophList"></div>
+  <button class="retour" id="trophClose">Retour</button>
+</div>
+
+<!-- ================= PENDERIE (planque) ================= -->
+<div class="screen" id="penderieScr">
+  <div class="stitre">Penderie</div>
+  <div class="ssous">purement cosmétique</div>
+  <div class="hazard"></div>
+  <div id="penderieList"></div>
+  <button class="retour" id="penderieClose">Retour</button>
+</div>
+
 <!-- ================= CASINO ================= -->
 <div class="screen" id="casinoScr">
   <div class="stitre" id="casTitre">Casino</div>
@@ -1320,9 +1347,26 @@ const META={
   argent:150, xp:0, niveau:1,
   record:0, recordVague:0, killsTotal:0, parties:0,
   perso:'jax', persosPoss:['jax'], radio:0, planque:false, garage:null, revenus:0,
+  // Penderie (planque) : purement cosmétique, une préférence — pas un
+  // consommable. tenue = tenue actuellement portée, tenuesPoss = tenues
+  // débloquées (id:true). La tenue de départ est toujours débloquée.
+  tenue:'depart', tenuesPoss:{depart:true},
+  // Tableau de la ville (planque) : lieux spéciaux déjà visités au moins
+  // une fois (id de salle -> true), lu pour savoir quoi afficher en
+  // silhouette. Distinct d'INTDEFS[id].ico==='?' (Site 51), qui n'est
+  // qu'un état de session, jamais persisté.
+  lieuxVus:{},
   stats:{kills:0,killsGang:0,killsPolice:0,killsArmee:0,chefs:0,vagues:0,parties:0,
     distVeh:0,distTotal:0,sauts:0,vehVoles:0,vehDetruits:0,tempsTotal:0,pietonsFuis:0,
-    grenades:0,tirs:0,critiques:0,meilleurCombo:0,cashTotal:0,vehEcrases:0,loopings:0},
+    grenades:0,tirs:0,critiques:0,meilleurCombo:0,cashTotal:0,vehEcrases:0,loopings:0,
+    // Mur de trophées (planque) : casses réussis au musée, descentes au
+    // métro, séances tenues au Ciné-Palace, plus grosse prise du chalutier
+    // (poids, sert de critère — voir chalutierPrise) et meilleur score
+    // personnel par borne d'arcade (distinct de META.arcadeScores, qui
+    // mélange les scores de départ des PNJ et ceux du joueur : seule une
+    // entrée posée ici est garantie venir du joueur, voir majInitiales).
+    casses:0, metroDescentes:0, cineSeances:0,
+    plusGrossePrise:{nom:'',poids:0,valeur:0}, arcadePersoBest:{}},
   skins:{jax:0,ria:0,malo:0}, skinsPoss:{jax:[0],ria:[0],malo:[0]},
   armes:{poings:{poss:true,lv:0},batte:{poss:false,lv:0},pistolet:{poss:false,lv:0},
          gadget:{poss:false,lv:0},couteau:{poss:false,lv:0},batte2:{poss:false,lv:0},bouleC:{poss:false,lv:0},sabre:{poss:false,lv:0},pompe:{poss:false,lv:0},uzi:{poss:false,lv:0},silence:{poss:false,lv:0},pm:{poss:false,lv:0},fusil:{poss:false,lv:0},sniper:{poss:false,lv:0},flamme:{poss:false,lv:0},roquette:{poss:false,lv:0},desintegrateur:{poss:false,lv:0}},
@@ -1638,6 +1682,56 @@ function couleursPerso(id,skinIdx){
   const s=p.skins[skinIdx!==undefined?skinIdx:(META.skins[id]||0)]||p.skins[0];
   const peau=s.peau||p.couleurs.peau;
   return {haut:s.nu?peau:s.c.haut,bas:s.c.bas,casq:s.c.casq,peau,visage:s.visage||'neutre',props:s.props};
+}
+// ---------- PENDERIE : tenues cosmétiques (planque) ----------
+// Purement décoratif — un recolorage de haut/bas/casq par-dessus le skin du
+// personnage, jamais un remplacement de peau/visage/props (qui restent son
+// identité). Aucun champ vitesse/PV/dégâts nulle part ici : voir
+// coifCouleurs() et son unique point d'usage dans construireJoueur(), qui
+// n'entre jamais en jeu ailleurs que le rendu du modèle.
+// Débloquées par des accomplissements DÉJÀ EXISTANTS (curiosités, palier de
+// muscle, casse réussi, seuil d'argent) — aucun nouvel équilibrage ajouté.
+const TENUES=[
+  {id:'depart',nom:'Tenue de départ',ico:'👕',condTxt:'Disponible d’emblée',
+   cond:()=>true,haut:null,bas:null,casq:null},
+  {id:'survet',nom:'Survêtement',ico:'🏃',condTxt:'1er palier de muscle (salle de sport)',
+   cond:()=>(META.muscle||0)>=1,haut:0x3a3d44,bas:0x1c1f26,casq:0x2a2e36},
+  {id:'plongee',nom:'Combinaison de plongée',ico:'🤿',condTxt:'Curiosité : La Perle Noire (aquarium)',
+   cond:()=>aCurio('perle'),haut:0x16232c,bas:0x101a20,casq:0x0e1a22},
+  {id:'cire',nom:'Ciré de pêcheur',ico:'🎣',condTxt:'Curiosité : La Boussole du Capitaine (chalutier)',
+   cond:()=>aCurio('boussole'),haut:0xffc93f,bas:0x2a4a5a,casq:0xffc93f},
+  {id:'labo',nom:'Blouse de laboratoire',ico:'🥼',condTxt:'Avoir visité le Site 51',
+   cond:()=>!!META.lieuxVus.site51,haut:0xf2f4f8,bas:0x3a3f4a,casq:0xe8ecf2},
+  {id:'projo',nom:'Tenue de projectionniste',ico:'🎞️',condTxt:'Curiosité : La Bobine « ASPHALTE I » (Ciné-Palace)',
+   cond:()=>aCurio('bobine'),haut:0x6a1f2a,bas:0x1c1830,casq:0x2a2040},
+  {id:'pilote',nom:'Combinaison de pilote',ico:'🏎️',condTxt:'Curiosité : Le Volant du Dépôt (dépôt de bus)',
+   cond:()=>aCurio('volant'),haut:0xff8c1a,bas:0x2a2e36,casq:0xff8c1a},
+  {id:'costume',nom:'Costume',ico:'🕴️',condTxt:'Avoir 5 000 $ en poche',
+   cond:()=>META.argent>=5000,haut:0x14161c,bas:0x14161c,casq:0x2c3e50},
+  {id:'gardien',nom:'Tenue de gardien de musée',ico:'🛡️',condTxt:'Réussir un casse au musée',
+   cond:()=>(META.stats.casses||0)>=1,haut:0x2a3f6a,bas:0x1c2436,casq:0x2a3f6a},
+  {id:'dore',nom:'Tenue dorée',ico:'✨',condTxt:'Curiosité : Le Jeton Doré (arcade)',
+   cond:()=>aCurio('jeton_dore'),haut:0xffd700,bas:0xd8b02a,casq:0xffd700},
+];
+// Débloque à la volée dès qu'une condition est remplie (bouclé chaque frame
+// depuis majJoueur, coût négligeable : ~10 comparaisons booléennes, aucune
+// allocation) — irréversible une fois posé dans META.tenuesPoss, même si la
+// condition redevient fausse ensuite (ex. l'argent redescend sous 5 000 $).
+function checkTenues(){
+  for(const t of TENUES){
+    if(META.tenuesPoss[t.id]) continue;
+    if(t.cond()) META.tenuesPoss[t.id]=true;
+  }
+}
+// Couleurs réellement utilisées pour construire le modèle du joueur : les
+// couleurs du personnage/skin, avec haut/bas/casq recouverts par la tenue
+// équipée si elle en définit (jamais peau/visage/props, l'identité du
+// personnage). 'depart' (haut:null) ne recouvre rien : apparence par défaut.
+function coifCouleurs(){
+  const base=couleursPerso(META.perso);
+  const t=TENUES.find(t=>t.id===META.tenue)||TENUES[0];
+  if(t.haut===null) return base;
+  return {haut:t.haut,bas:t.bas,casq:t.casq,peau:base.peau,visage:base.visage,props:base.props};
 }
 
 /* ---------- Véhicules ---------- */
@@ -2043,6 +2137,14 @@ function estEau(x,z){
   for(const p of PONTONS) if(Math.abs(x-p.x)<p.hw&&Math.abs(z-p.z)<p.hd) return false;
   for(const i of ILES) if(dist2(x,z,i.x,i.z)<i.r*i.r) return false;
   return true;
+}
+// Piscine de la planque : estEau() est purement une coordonnée de plein air
+// (z<MER), donc ne reconnaît jamais l'intérieur — cette salle est construite
+// très loin de la ville (IOFF), avec un z constant, toujours < MER. Un
+// contrôle dédié, valide seulement quand la piscine de la salle active existe.
+function dansPiscine(x,z){
+  const p=INT.actif&&INT.actif.piscine; if(!p) return false;
+  return dist2(x,z,p.x,p.z)<p.r*p.r;
 }
 const TROTTOIRS=[]; // {x,z,hw,hd} : dalles surélevées de 0,22
 const COLLINES=[]; // {x,z,r,h} : bosses lisses (dunes, buttes)
@@ -4687,7 +4789,7 @@ function auSol(){ return !P.jetpackVol&&!P.chute; }
 function construireJoueur(){
   if(P.h) scene.remove(P.h.g);
   const c=PERSOS[META.perso];
-  P.h=makeHumain(couleursPerso(META.perso),1);
+  P.h=makeHumain(coifCouleurs(),1); // couleurs du perso, recouvertes par la tenue équipée (penderie) — voir coifCouleurs
   scene.add(P.h.g);
   P.armeMeshes={batte:mkBatteMesh(),gun:mkGunMesh(),lame:mkLameMesh()};
   P.h.brasD.add(P.armeMeshes.batte); P.h.brasD.add(P.armeMeshes.gun); P.h.brasD.add(P.armeMeshes.lame);
@@ -4991,6 +5093,7 @@ function capaciteSpeciale(){
 }
 /* ---------- boucle joueur ---------- */
 function majJoueur(dt,dtJeu){
+  checkTenues(); // penderie : débloque à la volée, coût négligeable (~10 comparaisons, aucune allocation)
   P.cadT-=dt; P.iframes-=dt; P.dodgeCd-=dt; P.specCd=Math.max(0,P.specCd-dt);
   P.ecraseT=Math.max(0,P.ecraseT-dtJeu);
   toastEauT-=dt;
@@ -5019,7 +5122,7 @@ function majJoueur(dt,dtJeu){
 
   // déplacement à pied / à la nage
   const etaitNage=P.nage;
-  P.nage=P.y<0.5&&estEau(P.x,P.z);
+  P.nage=P.y<0.5&&(estEau(P.x,P.z)||dansPiscine(P.x,P.z));
   if(P.nage&&!etaitNage){ burst(P.x,0.3,P.z,8,0x9fd8ff,5,6); bruit(0.2,0.3,700); }
   let vx=0,vz=0;
   const bouge=Math.hypot(INPUT.mx,INPUT.mz)>0.12;
@@ -8937,6 +9040,10 @@ function majInitiales(dt){
       tab.push({init,score:st.score});
       tab.sort((a,b)=>b.score-a.score);
       tab.length=Math.min(tab.length,5);
+      // mur de trophées (planque) : seule une entrée posée ICI est garantie
+      // venir du joueur — META.arcadeScores mélange aussi les scores de
+      // départ des PNJ, jamais fiable pour distinguer « le joueur a joué ».
+      if(st.score>(META.stats.arcadePersoBest[st.borne]||0)) META.stats.arcadePersoBest[st.borne]=st.score;
       ARCADE.attenteInitiales=null;
       cacherControlesBorne();
       bigMsg('🏆 NOUVEAU RECORD : '+init);
@@ -9123,7 +9230,12 @@ const INTDEFS={
     ens:['ARMURERIE','#ff3b5c']},
   conces:{nom:'Concessionnaire',ico:'🚗',w:30,d:24,sol:0x9aa0aa,mur:0xc8cdd4,
     ens:['SOLARA MOTORS','#ffd23f']},
-  planque:{nom:'Villa planque',ico:'🏡',w:26,d:20,sol:0x8a7a5e,mur:0xd8ccb0,
+  // Agrandie (26×20 → 44×38) pour loger le tableau de la ville, le mur de
+  // trophées, la penderie et la piscine sans jamais rapprocher deux zones
+  // d'interaction à moins de 8 unités — voir CLAUDE.md / le bug déjà
+  // rencontré où le garage et le cabinet de curiosités, à 2,24 unités l'un
+  // de l'autre, se marchaient dessus.
+  planque:{nom:'Villa planque',ico:'🏡',w:44,d:38,sol:0x8a7a5e,mur:0xd8ccb0,
     ens:['TA PLANQUE','#7dff7a']},
   casino:{nom:'Casino Solara',ico:'🎰',w:30,d:24,sol:0x5a1f2a,mur:0x2a1420,
     ens:['CASINO','#ffd23f']},
@@ -9584,51 +9696,122 @@ function construireSalle(id){
     inter.vente={x:ox,z:oz+P2/2-6.4};
     lampe(-8,-3,0xffffff,10); lampe(8,-3,0xffffff,10); lampe(0,4,0xffffff,10);
   } else if(id==='planque'){
-    // --- VILLA PLANQUE : salon, lit, coffre perso, garage ---
-    for(let i=-4;i<4;i++) for(let j=-3;j<3;j++){
+    // --- VILLA PLANQUE : le vrai chez-soi du joueur — salon, lit, coffre
+    // personnel, garage, cabinet de curiosités, tableau de la ville, mur de
+    // trophées, penderie, piscine. Bug déjà rencontré : le garage et le
+    // cabinet de curiosités n'étaient qu'à 2,24 unités l'un de l'autre — le
+    // cabinet, plus tôt dans la chaîne if/else-if de majAction, gagnait
+    // toujours et rendait le garage quasi impossible à déclencher. La villa
+    // est agrandie (26×20 → 44×38, voir INTDEFS.planque) et toutes les
+    // zones ci-dessous sont posées à au moins 8 unités les unes des autres
+    // ET de la sortie (première branche de la chaîne, rayon 3,00, toujours
+    // prioritaire en cas de chevauchement).
+    for(let i=-8;i<8;i++) for(let j=-7;j<7;j++){
       const t=new THREE.Mesh(new THREE.PlaneGeometry(2.9,2.9),mat((i+j)%2?0x94825f:0x8a7a5e));
-      t.rotation.x=-Math.PI/2; t.position.set(ox+i*3+1.5,0.11,oz+j*3+1.5); g.add(t);
+      t.rotation.x=-Math.PI/2; t.position.set(ox+i*2.9+1.45,0.11,oz+j*2.9+1.45); g.add(t);
     }
-    // tapis + canapé + table basse + télé
+    // salon (canapé + table basse + télé) — entre la piscine et la sortie,
+    // purement décoratif (jamais vérifié par majAction, pas de contrainte
+    // d'espacement pour lui).
     const tapis2=new THREE.Mesh(new THREE.PlaneGeometry(9,6),mat(0x7a3a3a));
-    tapis2.rotation.x=-Math.PI/2; tapis2.position.set(ox-3,0.13,oz+1); g.add(tapis2);
-    box(6,0.9,1.6,0x3a4a5a,-3,0.45,-1.5);
-    box(1.6,0.9,4,0x3a4a5a,-6.2,0.45,1.6);
-    box(3,0.4,1.6,0x5a4a38,-3,0.2,2.4,false);
-    box(4.4,2.6,0.3,0x14161c,-3,1.6,-P2/2+1.4);
-    // lit
-    box(4,0.7,5,0x8a7060,W/2-5,0.35,-3);
-    box(4,0.4,1.2,0xe8ecf2,W/2-5,0.85,-5.2,false);
-    // coffre personnel + plantes
-    const coffreP=box(2.4,1.6,1.4,0x5a5f66,W/2-4,0.8,4);
-    box(0.6,0.6,0.2,0xffd23f,W/2-4,1,4.75,false);
-    mkEnseigne('COFFRE','#ffd23f',ox+W/2-4,2.2,oz+4.9,0,5);
+    tapis2.rotation.x=-Math.PI/2; tapis2.position.set(ox-7,0.13,oz+11); g.add(tapis2);
+    box(6,0.9,1.6,0x3a4a5a,-7,0.45,9.5);
+    box(1.6,0.9,4,0x3a4a5a,-10.2,0.45,12.6);
+    box(3,0.4,1.6,0x5a4a38,-7,0.2,13.4,false);
+    box(4.4,2.6,0.3,0x14161c,-7,1.6,7.2);
+    // lit (nord-est)
+    box(4,0.7,5,0x8a7060,17,0.35,-10);
+    box(4,0.4,1.2,0xe8ecf2,17,0.85,-12.2,false);
+    inter.lit={x:ox+17,z:oz-10};
+    // coffre personnel + plante (est)
+    box(2.4,1.6,1.4,0x5a5f66,17,0.8,9);
+    box(0.6,0.6,0.2,0xffd23f,17,1,9.75,false);
+    mkEnseigne('COFFRE','#ffd23f',ox+17,2.2,oz+9.9,0,5);
+    inter.coffreP={x:ox+17,z:oz+9};
     [[-W/2+2,P2/2-3],[W/2-2,P2/2-3]].forEach(p=>{
       box(1,0.8,1,0x8a5a3a,p[0],0.4,p[1],false);
       const f=new THREE.Mesh(new THREE.SphereGeometry(1.1,8,6),mat(0x2fae4f));
       f.position.set(ox+p[0],1.6,oz+p[1]); f.scale.y=1.3; g.add(f);
     });
-    // porte de garage (bande au sol)
+    // porte de garage (nord-ouest)
     const gar=new THREE.Mesh(new THREE.PlaneGeometry(6,3),
       new THREE.MeshBasicMaterial({color:0x35e0ff,transparent:true,opacity:0.3,depthWrite:false}));
-    gar.rotation.x=-Math.PI/2; gar.position.set(ox-W/2+5,0.13,oz-P2/2+3); g.add(gar);
-    mkEnseigne('GARAGE','#35e0ff',ox-W/2+5,2.2,oz-P2/2+1.8,0,6);
-    inter.lit={x:ox+W/2-5,z:oz-3};
-    inter.coffreP={x:ox+W/2-4,z:oz+4.8};
-    inter.garage={x:ox-W/2+5,z:oz-P2/2+3};
-    // === CABINET DE CURIOSITÉS : la vitrine où s'exposent les objets uniques ===
-    box(4.4,0.5,1.4,0x5a4030,-W/2+7,0.25,-P2/2+2.4,false);
+    gar.rotation.x=-Math.PI/2; gar.position.set(ox-17,0.13,oz-10); g.add(gar);
+    mkEnseigne('GARAGE','#35e0ff',ox-17,2.2,oz-11.5,0,6);
+    inter.garage={x:ox-17,z:oz-10};
+    // === CABINET DE CURIOSITÉS (ouest) : la vitrine où s'exposent les objets uniques ===
+    box(4.4,0.5,1.4,0x5a4030,-17,0.25,9,false);
     const vitr=new THREE.Mesh(new THREE.BoxGeometry(4.4,2.4,1.4),
       new THREE.MeshLambertMaterial({color:0x9fd8ff,transparent:true,opacity:0.22,depthWrite:false}));
-    vitr.position.set(ox-W/2+7,1.7,oz-P2/2+2.4); g.add(vitr);
-    addSolid({x:ox-W/2+7,z:oz-P2/2+2.4,hw:2.2,hd:0.7,h:2.9});
+    vitr.position.set(ox-17,1.7,oz+9); g.add(vitr);
+    addSolid({x:ox-17,z:oz+9,hw:2.2,hd:0.7,h:2.9});
     for(let k=0;k<4;k++){
       const soc=new THREE.Mesh(new THREE.CylinderGeometry(0.26,0.32,0.3,10),mat(0xd8b02a));
-      soc.position.set(ox-W/2+5.3+k*1.15,0.85,oz-P2/2+2.4); g.add(soc);
+      soc.position.set(ox-18.7+k*1.15,0.85,oz+9); g.add(soc);
     }
-    mkEnseigne('CABINET DE CURIOSITÉS','#ffd23f',ox-W/2+7,3.3,oz-P2/2+1.6,0,12);
-    inter.vitrine={x:ox-W/2+7,z:oz-P2/2+4};
-    lampe(-4,0,0xffe9b0,9); lampe(6,-2,0xffe9b0,9); lampe(-W/2+7,-P2/2+3,0xffd23f,6);
+    mkEnseigne('CABINET DE CURIOSITÉS','#ffd23f',ox-17,3.3,oz+7.8,0,12);
+    inter.vitrine={x:ox-17,z:oz+9};
+    // === TABLEAU DE LA VILLE (mur nord) : ce qu'il reste à découvrir ===
+    const texTableau=cTex(256,(g2,s2)=>{
+      g2.fillStyle='#2a2415'; g2.fillRect(0,0,s2,s2);
+      g2.strokeStyle='#5a4c30'; g2.lineWidth=2;
+      for(let i=1;i<7;i++){
+        g2.beginPath(); g2.moveTo(i*s2/7,0); g2.lineTo(i*s2/7,s2); g2.stroke();
+        g2.beginPath(); g2.moveTo(0,i*s2/7); g2.lineTo(s2,i*s2/7); g2.stroke();
+      }
+      g2.fillStyle='#c8b888'; g2.font='900 20px Arial'; g2.textAlign='center';
+      g2.fillText('SOLARA CITY',s2/2,26);
+    });
+    box(9.8,6.7,0.2,0x2c2013,0,2.6,-P2/2+1.3,false);
+    const planTab=new THREE.Mesh(new THREE.PlaneGeometry(9,6),new THREE.MeshBasicMaterial({map:texTableau}));
+    planTab.position.set(ox,2.6,oz-P2/2+1.42); g.add(planTab);
+    for(let k=0;k<5;k++){
+      const pin=new THREE.Mesh(new THREE.SphereGeometry(0.12,6,5),mat(0xff3b5c));
+      pin.position.set(ox+rand(-3.6,3.6),2.2+rand(-1.8,1.8),oz-P2/2+1.5); g.add(pin);
+    }
+    mkEnseigne('TABLEAU DE LA VILLE','#ffd23f',ox,5.8,oz-P2/2+1.35,0,13);
+    inter.tableau={x:ox,z:oz-16};
+    // === MUR DE TROPHÉES (mur est) ===
+    for(let k=0;k<3;k++) box(3.4,0.14,1,0x5a4a38,W/2-1.6,1.3+k*1.5,-3+k*3,false);
+    const troph=new THREE.Mesh(new THREE.CylinderGeometry(0.3,0.5,0.7,10),mat(0xffd23f));
+    troph.position.set(ox+W/2-1.8,1.7,oz); g.add(troph);
+    const troph2=new THREE.Mesh(new THREE.ConeGeometry(0.35,0.5,4),mat(0xd8dce4));
+    troph2.position.set(ox+W/2-1.8,2.85,oz-3); g.add(troph2);
+    mkEnseigne('MUR DE TROPHÉES','#ffd23f',ox+W/2-2.2,4.6,oz,0,11);
+    inter.trophees={x:ox+19,z:oz};
+    // === PENDERIE (mur ouest) : vestiaire cosmétique ===
+    box(3.2,3.4,1.6,0x4a3c2c,-W/2+2,1.7,0);
+    box(3,0.08,1.4,0x2c2013,-W/2+2,3.3,0,false);
+    box(2.6,2.6,0.1,0x8a94a0,-W/2+2,1.6,0.85,false);
+    mkEnseigne('PENDERIE','#ff9f5a',ox-W/2+2,3.9,oz-1.5,0,7);
+    inter.penderie={x:ox-19,z:oz};
+    // === PISCINE (centre) : pas un minijeu, juste un endroit où souffler.
+    // Jamais de addSolid ici — ni la piscine ni le plongeoir ne doivent
+    // jamais bloquer un passage ni permettre de rester coincé.
+    const bordPisc=new THREE.Mesh(new THREE.PlaneGeometry(13,12),mat(0xcfc6b0));
+    bordPisc.rotation.x=-Math.PI/2; bordPisc.position.set(ox,0.04,oz+1.5); g.add(bordPisc);
+    const eauPisc=new THREE.Mesh(new THREE.PlaneGeometry(11,10),
+      new THREE.MeshLambertMaterial({color:0x3ea8d8,transparent:true,opacity:0.82}));
+    eauPisc.rotation.x=-Math.PI/2; eauPisc.position.set(ox,0.06,oz+1.5); g.add(eauPisc);
+    inter.piscine={x:ox,z:oz+1.5,r:6.2};
+    // plongeoir (décoratif, jamais solide : on peut marcher dessus/au travers)
+    box(1.6,1.6,1.6,0x8a94a0,0,0.8,-5.6,false);
+    box(0.5,0.9,0.5,0x8a94a0,0,0.45,-4.6,false);
+    box(2.6,0.15,0.9,0xe8ecf2,0,1.65,-4.2,false);
+    // transats + parasol
+    box(2,0.5,0.8,0xe8ecf2,-7.4,0.25,4,false);
+    box(2,0.5,0.8,0xe8ecf2,-7.4,0.25,6,false);
+    mkParasol(ox+7.4,oz+4);
+    // bouée canard, flotte sur l'eau
+    const anneau=new THREE.Mesh(new THREE.TorusGeometry(0.9,0.28,8,16),mat(0xffd23f));
+    anneau.rotation.x=Math.PI/2; anneau.position.set(ox+2.4,0.32,oz+2.5); g.add(anneau);
+    const teteC=new THREE.Mesh(new THREE.SphereGeometry(0.4,8,6),mat(0xffd23f));
+    teteC.position.set(ox+3.2,0.47,oz+2.5); g.add(teteC);
+    const becC=new THREE.Mesh(new THREE.ConeGeometry(0.14,0.3,6),mat(0xff8a2e));
+    becC.rotation.z=Math.PI/2; becC.position.set(ox+3.65,0.47,oz+2.5); g.add(becC);
+    mkEnseigne('PISCINE','#35e0ff',ox,3.2,oz-3.5,0,7);
+    lampe(0,10,0xffe9b0,9); lampe(17,-2,0xffe9b0,7); lampe(-17,-2,0xffe9b0,7);
+    lampe(0,-8,0xffd23f,7); lampe(19,7,0xffd23f,6); lampe(-19,7,0xff9f5a,6);
   }
   else if(id==='casino'){
     // --- CASINO : moquette rouge, machines à sous, tables de jeu ---
@@ -11486,6 +11669,15 @@ function entrerInterieur(id,porte){
   if(INT.actif) return;
   const s=construireSalle(id);
   INT.actif=s; INT.rx=porte.x; INT.rz=porte.z+3;
+  // Tableau de la ville (planque) : marque ce lieu comme visité au moins
+  // une fois, quelle que soit l'issue de la visite — jamais réinitialisé,
+  // survit au game over (voir META.lieuxVus). Mur de trophées : chaque
+  // entrée compte une descente au métro / une séance au Ciné-Palace, que
+  // la visite se termine bien ou non (symétrique de la façon dont une
+  // salle est marquée « visitée » dès qu'on y met les pieds).
+  if(!META.lieuxVus[id]) META.lieuxVus[id]=true;
+  if(id==='metro') META.stats.metroDescentes++;
+  else if(id==='cine') META.stats.cineSeances++;
   // musée : horloge de ronde remise à zéro à CHAQUE entrée — gardiens et
   // caméras sont une fonction pure de museeT, donc ce seul reset suffit à
   // garantir un trajet strictement identique à chaque visite (voir majInterieur)
@@ -12240,6 +12432,10 @@ function chalutierPrise(s,poisson){
   if(ok){
     bigMsg(poisson.nom.toUpperCase()+' !'); toast(poisson.nom+' à bord : +'+poisson.valeur+' $ (cale)','or');
     SFX.niveau(); vibre(40);
+    // mur de trophées (planque) : la plus grosse prise à la canne — au
+    // poids, jamais le vrac du filet (pas un poisson nommé, rien à empailler).
+    if(poisson.poids>META.stats.plusGrossePrise.poids)
+      META.stats.plusGrossePrise={nom:poisson.nom,poids:poisson.poids,valeur:poisson.valeur};
   }
 }
 function chalutierRemonterFilet(s){
@@ -13971,6 +14167,159 @@ function renderDefis(){
   h+='</div>';
   el('defisList').innerHTML=h;
 }
+// ---------- Mur de trophées (planque) : lecture seule, tout vient de META ----------
+function renderTrophees(){
+  let h='<div class="panneau"><h3>Bornes d’arcade — meilleurs scores</h3>';
+  for(const b of BORNES_ARCADE){
+    if(!b.actif) continue;
+    const best=META.stats.arcadePersoBest[b.id];
+    h+='<div class="ligneItem"'+(best?'':' style="opacity:.5"')+'><div class="ico">🕹️</div><div class="inf">'+
+      '<div class="nom">'+b.nom+'</div><div class="det">'+(best?'Ton meilleur score':'Jamais joué')+'</div></div>'+
+      '<span class="pill '+(best?'equip':'lock')+'">'+(best||'—')+'</span></div>';
+  }
+  h+='</div><div class="panneau"><h3>Dépôt de bus — meilleurs temps</h3>';
+  for(const cid of DEPOT_ORDRE_CIRCUITS){
+    const c=DEPOT_CIRCUITS[cid];
+    const perso=(META.depotTemps[cid]||[]).filter(t=>t.init==='TOI')[0];
+    const debloque=META.depotCircuits[cid];
+    h+='<div class="ligneItem"'+(perso?'':' style="opacity:.5"')+'><div class="ico">🏁</div><div class="inf">'+
+      '<div class="nom">'+c.nom+'</div><div class="det">'+(!debloque?'Verrouillé':(perso?'Ton record':'Jamais gagné'))+'</div></div>'+
+      '<span class="pill '+(perso?'equip':'lock')+'">'+(perso?perso.temps.toFixed(1)+' s':'—')+'</span></div>';
+  }
+  h+='</div><div class="panneau"><h3>Le reste de la collection</h3>';
+  const lignes=[
+    ['🏛️','Casses réussis au musée',META.stats.casses],
+    ['🐟','Plus grosse prise du chalutier',META.stats.plusGrossePrise.nom?
+      (META.stats.plusGrossePrise.nom+' — '+META.stats.plusGrossePrise.poids+' kg'):'Aucune prise empaillée'],
+    ['🔁','Loopings réussis',META.stats.loopings||0],
+    ['🔎','Caches fouillées, à vie',META.fouilles],
+    ['🚇','Descentes au métro',META.stats.metroDescentes],
+    ['🎬','Séances au Ciné-Palace',META.stats.cineSeances],
+  ];
+  for(const [ico,nom,val] of lignes){
+    const vide=val===0||val==='Aucune prise empaillée';
+    h+='<div class="ligneItem"'+(vide?' style="opacity:.5"':'')+'><div class="ico">'+ico+'</div><div class="inf">'+
+      '<div class="nom">'+nom+'</div></div><span class="pill '+(vide?'lock':'equip')+'">'+val+'</span></div>';
+  }
+  h+='</div>';
+  el('trophList').innerHTML=h;
+}
+// Correspondance curiosité -> salle : établie en recoupant le champ `lieu`
+// de chaque entrée de CURIOS (son nom affiché) avec INTDEFS[id].nom — les
+// deux tableaux SOURCES du jeu, jamais une liste tierce recopiée à la main
+// (voir CLAUDE.md, « ne jamais recopier une liste du jeu » — cette règle vise
+// d'abord les tests, mais le principe — lire depuis la source, pas deviner —
+// s'applique tout autant ici).
+const CURIO_SALLE={chaussette:'laverie',boule:'voyance',platine:'karaoke',perle:'aquarium',
+  boule_bowling:'bowling',micro:'radio',haltere:'sport',fleur:'serre',ceinture:'sandwich',
+  canard_or:'musee',jeton_dore:'arcade',bobine:'cine',plaque:'site51',lampe:'metro',
+  boussole:'chalutier',volant:'depot'};
+// ---------- Tableau de la ville (planque) : ce qu'il reste à découvrir ----------
+// Ne révèle jamais une position exacte (juste l'indice `ind` de CURIOS et le
+// quartier de la porte) ; les lieux à condition d'accès pas encore remplie
+// (Solara FM sans le Disque de Platine, Site 51 sous 25 fouilles) restent de
+// simples zones d'ombre, sans nom ni indice.
+function renderTableau(){
+  let h='<div class="panneau"><h3>Lieux et curiosités à découvrir</h3>';
+  let toutTrouve=true;
+  for(const c of CURIOS_ACTIVES){
+    if(META.curios[c.id]) continue;
+    toutTrouve=false;
+    const salle=CURIO_SALLE[c.id];
+    const zoneOmbre=(salle==='radio'&&!aCurio('platine'))||(salle==='site51'&&META.fouilles<25);
+    if(zoneOmbre){
+      h+='<div class="ligneItem" style="opacity:.42"><div class="ico">❓</div><div class="inf">'+
+        '<div class="nom">Zone d’ombre</div><div class="det">Une condition d’accès encore hors de portée</div></div>'+
+        '<span class="pill lock">?</span></div>';
+      continue;
+    }
+    const porte=PORTES.find(p=>p.id===salle);
+    let quart='';
+    if(porte){
+      const bx=Math.floor((porte.x+HALF)/CELL), bz=Math.floor((porte.z+HALF)/CELL);
+      const q=quartier(bx,bz); quart=q.charAt(0).toUpperCase()+q.slice(1);
+    }
+    const vu=!!META.lieuxVus[salle];
+    h+='<div class="ligneItem" style="opacity:.72"><div class="ico">'+(vu?'📍':'❔')+'</div><div class="inf">'+
+      '<div class="nom">'+(vu&&INTDEFS[salle]?INTDEFS[salle].nom:'Lieu jamais visité')+'</div>'+
+      '<div class="det">'+(quart?('Quartier : '+quart+' — '):'')+c.ind+'</div></div>'+
+      '<span class="pill lock">à trouver</span></div>';
+  }
+  if(toutTrouve) h+='<div class="ligneItem"><div class="ico">✅</div><div class="inf">'+
+    '<div class="nom">Toutes les curiosités actives sont trouvées</div></div><span class="pill equip">complet</span></div>';
+  h+='</div><div class="panneau"><h3>Caches actuellement fouillables, par quartier</h3>';
+  // Comptage honnête : uniquement les lieux déjà construits (visités au
+  // moins une fois — les salles se bâtissent à la première entrée, voir
+  // CLAUDE.md) et leurs caches non encore vidées CETTE vague. Pas un total
+  // « à vie » : une cache se regarnit chaque vague, ce n'est pas une
+  // collection figée.
+  const parQuartier={};
+  for(const id in INT.salles){
+    const s=INT.salles[id]; if(!s.fouilles||!s.fouilles.length) continue;
+    const porte=PORTES.find(p=>p.id===id); if(!porte) continue;
+    const bx=Math.floor((porte.x+HALF)/CELL), bz=Math.floor((porte.z+HALF)/CELL);
+    const q=quartier(bx,bz);
+    const dispo=s.fouilles.filter(f=>f.prisVague!==WAVES.n).length;
+    parQuartier[q]=(parQuartier[q]||0)+dispo;
+  }
+  const quartiersConnus=Object.keys(parQuartier);
+  if(!quartiersConnus.length){
+    h+='<div class="ligneItem" style="opacity:.6"><div class="ico">🔎</div><div class="inf">'+
+      '<div class="nom">Encore rien de répertorié</div><div class="det">Visite des lieux pour que le tableau les recense ici</div></div></div>';
+  } else for(const q of quartiersConnus){
+    h+='<div class="ligneItem"><div class="ico">🔎</div><div class="inf">'+
+      '<div class="nom">'+q.charAt(0).toUpperCase()+q.slice(1)+'</div>'+
+      '<div class="det">Dans les lieux déjà explorés de ce quartier</div></div>'+
+      '<span class="pill equip">'+parQuartier[q]+'</span></div>';
+  }
+  h+='</div><div class="panneau"><h3>Dépôt de bus — circuits</h3>';
+  for(const cid of DEPOT_ORDRE_CIRCUITS){
+    const deb=META.depotCircuits[cid];
+    h+='<div class="ligneItem"'+(deb?'':' style="opacity:.5"')+'><div class="ico">'+(deb?'🏁':'🔒')+'</div><div class="inf">'+
+      '<div class="nom">'+(deb?DEPOT_CIRCUITS[cid].nom:'Circuit verrouillé')+'</div>'+
+      '<div class="det">'+(deb?'Débloqué':'Gagne le circuit précédent pour le débloquer')+'</div></div>'+
+      '<span class="pill '+(deb?'equip':'lock')+'">'+(deb?'ouvert':'verrouillé')+'</span></div>';
+  }
+  h+='</div><div class="panneau"><h3>Bornes d’arcade jamais jouées</h3>';
+  let auMoinsUne=false;
+  for(const b of BORNES_ARCADE){
+    if(!b.actif||META.stats.arcadePersoBest[b.id]) continue;
+    auMoinsUne=true;
+    h+='<div class="ligneItem" style="opacity:.6"><div class="ico">🕹️</div><div class="inf">'+
+      '<div class="nom">'+b.nom+'</div><div class="det">Au Palais de l’Arcade</div></div>'+
+      '<span class="pill lock">jamais jouée</span></div>';
+  }
+  if(!auMoinsUne) h+='<div class="ligneItem"><div class="ico">✅</div><div class="inf">'+
+    '<div class="nom">Toutes les bornes actives essayées</div></div><span class="pill equip">fait</span></div>';
+  h+='</div>';
+  el('tableauList').innerHTML=h;
+}
+// ---------- Penderie (planque) : tenues cosmétiques ----------
+function renderPenderie(){
+  let h='<div class="panneau"><h3>Tenues — '+Object.keys(META.tenuesPoss).length+' / '+TENUES.length+'</h3>';
+  for(const t of TENUES){
+    const poss=!!META.tenuesPoss[t.id];
+    const equipe=META.tenue===t.id;
+    if(!poss){
+      h+='<div class="ligneItem" style="opacity:.42"><div class="ico">🔒</div><div class="inf">'+
+        '<div class="nom">Tenue verrouillée</div><div class="det">'+t.condTxt+'</div></div>'+
+        '<span class="pill lock">à débloquer</span></div>';
+      continue;
+    }
+    h+='<div class="ligneItem"><div class="ico">'+t.ico+'</div><div class="inf">'+
+      '<div class="nom">'+t.nom+'</div><div class="det">'+(equipe?'Portée actuellement':t.condTxt)+'</div></div>'+
+      (equipe?'<span class="pill equip">portée</span>':
+        '<button class="pill" data-tenue="'+t.id+'" style="border-color:var(--cyan);color:var(--cyan)">PORTER</button>')+
+      '</div>';
+  }
+  h+='</div>';
+  el('penderieList').innerHTML=h;
+}
+el('penderieList').addEventListener('pointerdown',e=>{
+  const id=e.target&&e.target.dataset&&e.target.dataset.tenue;
+  if(!id||!META.tenuesPoss[id]) return;
+  META.tenue=id; construireJoueur(); SFX.ui(); sauveMeta(); renderPenderie();
+});
 function drawCarte(){
   const g=el('carteCv').getContext('2d');
   g.imageSmoothingEnabled=true;
@@ -14140,6 +14489,9 @@ el('shopClose').addEventListener('pointerdown',fermerVers);
 el('upgClose').addEventListener('pointerdown',fermerVers);
 el('charsClose').addEventListener('pointerdown',fermerVers);
 el('setClose').addEventListener('pointerdown',fermerVers);
+el('tableauClose').addEventListener('pointerdown',fermerVers);
+el('trophClose').addEventListener('pointerdown',fermerVers);
+el('penderieClose').addEventListener('pointerdown',fermerVers);
 /* --- sauvegarde : information et effacement (double confirmation) --- */
 function majInfoSauve(){
   const i=el('saveInfo'); if(!i) return;
@@ -14587,6 +14939,7 @@ function finirCasseMusee(s,succes){
   s.alerte.visible=false;
   if(succes){
     if(s.canardEnMain){ s.canardEnMain=false; donnerCurio('canard_or'); }
+    META.stats.casses++; // mur de trophées (planque)
     bigMsg('✅ CASSE RÉUSSI'); toast('Tu ressors sans un bruit. Le musée ne se doute de rien.','or');
     checkDefis(); sauveMeta();
   } else {
@@ -14892,6 +15245,18 @@ function majAction(){
     } else if(s.vitrine&&dist2(P.x,P.z,s.vitrine.x,s.vitrine.z)<marquerZone(s.vitrine,15)){
       label='🗄️ CABINET DE CURIOSITÉS — '+nbCurios()+'/'+CURIOS_ACTIVES.length;
       fn=()=>{ ETAT.retour='jeu'; renderDefis(); ecran('defis'); SFX.ui(); };
+    /* ---------- TABLEAU DE LA VILLE (planque) ---------- */
+    } else if(s.tableau&&dist2(P.x,P.z,s.tableau.x,s.tableau.z)<marquerZone(s.tableau,15)){
+      label='📌 TABLEAU DE LA VILLE';
+      fn=()=>{ ETAT.retour='jeu'; renderTableau(); ecran('tableauScr'); SFX.ui(); };
+    /* ---------- MUR DE TROPHÉES (planque) ---------- */
+    } else if(s.trophees&&dist2(P.x,P.z,s.trophees.x,s.trophees.z)<marquerZone(s.trophees,12)){
+      label='🏆 MUR DE TROPHÉES';
+      fn=()=>{ ETAT.retour='jeu'; renderTrophees(); ecran('trophScr'); SFX.ui(); };
+    /* ---------- PENDERIE (planque) ---------- */
+    } else if(s.penderie&&dist2(P.x,P.z,s.penderie.x,s.penderie.z)<marquerZone(s.penderie,12)){
+      label='👕 PENDERIE';
+      fn=()=>{ ETAT.retour='jeu'; renderPenderie(); ecran('penderieScr'); SFX.ui(); };
     /* ---------- BOWLING ---------- */
     } else if(s.jeu&&dist2(P.x,P.z,s.jeu.x,s.jeu.z)<marquerZone(s.jeu,16)){
       if(s.bwAnim>0){ label='🎳 ...'; fn=()=>{}; }
@@ -15103,11 +15468,39 @@ function majAction(){
         if(s.majPodiums) s.majPodiums();
         const o=CATALOGUE[s.artIdx]; toast(VEHDEFS[o.key].nom+' — '+o.prix+' $'); };
     } else if(s.lit&&dist2(P.x,P.z,s.lit.x,s.lit.z)<marquerZone(s.lit,14)){
-      label='🛏️ DORMIR (soins complets)';
-      fn=()=>{
-        soigner(P.maxHp); P.stam=P.stamMax; P.bouclier=Math.max(P.bouclier,30);
-        toast('Bien reposé — en pleine forme','or'); SFX.soin();
-      };
+      // Dormir pour sauter directement à la vague suivante — seulement entre
+      // deux vagues (WAVES.etat==='repos'), jamais en pleine vague. Appelle
+      // lancerVague() directement plutôt que de se contenter de mettre
+      // WAVES.t à 0 : majVagues() est intégralement gelée tant que
+      // INT.actif (voir CLAUDE.md), donc rien ne se serait produit avant
+      // la sortie de la villa — l'appel direct rend l'effet vraiment
+      // immédiat, comme demandé. Un seul sommeil par vague sans y avoir
+      // rejoué : lancerVague() fait passer WAVES.etat à 'active', donc un
+      // nouvel appui juste après retombe sur le simple repos ci-dessous —
+      // il faut avoir fini cette nouvelle vague (repos à nouveau) pour
+      // pouvoir redormir. Impossible de farmer les salles/caches en boucle
+      // sans jamais affronter de vague.
+      if(s.litArme){
+        label='✅ CONFIRMER — dormir jusqu’à la vague suivante';
+        fn=()=>{
+          s.litArme=false;
+          soigner(P.maxHp); P.stam=P.stamMax; P.bouclier=Math.max(P.bouclier,30);
+          lancerVague();
+          bigMsg('🛏️ RÉVEIL'); toast('Tu te réveilles : la vague suivante a commencé','or'); SFX.soin();
+        };
+      } else if(WAVES.etat!=='repos'){
+        label='🛏️ DORMIR (soins complets)';
+        fn=()=>{
+          soigner(P.maxHp); P.stam=P.stamMax; P.bouclier=Math.max(P.bouclier,30);
+          toast('Bien reposé — en pleine forme','or'); SFX.soin();
+        };
+      } else {
+        label='🛏️ DORMIR — passer à la vague suivante';
+        fn=()=>{
+          s.litArme=true; SFX.ui();
+          toast('La vague montera d’un cran, les ennemis seront plus nombreux — mais le métro, les salles et les caches se regarnissent. Appuie à nouveau pour confirmer.','warn');
+        };
+      }
     } else if(s.coffreP&&dist2(P.x,P.z,s.coffreP.x,s.coffreP.z)<marquerZone(s.coffreP,12)){
       const rev=Math.floor(META.revenus||0);
       label=rev>0?('💰 ENCAISSER LES REVENUS — '+rev+' $'):'💰 Coffre vide (revenus à venir)';
