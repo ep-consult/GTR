@@ -1423,10 +1423,7 @@ const META={
   // toutes, jamais réinitialisé au game over. L'équipement lui-même
   // (P.jetpack) est perdu au game over, comme les armes : il faut
   // remonter le chercher à chaque partie.
-  jetpackTrouve:false,
-  // Aérodrome (avion de voltige) : même principe encore — un lieu, découvert
-  // une fois pour toutes à la proximité (voir majCamp), jamais réinitialisé.
-  aerodromeTrouve:false
+  jetpackTrouve:false
 };
 const DEFIS=[
   {id:'sang',nom:'Premier sang',det:'Neutralise 25 ennemis',rec:250,prog:m=>[m.killsTotal,25],cond:m=>m.killsTotal>=25},
@@ -1780,11 +1777,13 @@ const VEHDEFS={
   avion:{nom:'Avion "Colibri"',vmax:40,acc:11,man:1.3,hp:130,long:7.4,larg:2,type:'car',air:'avion',cols:[0xe8ecf2]},
   char:{nom:'Char "Rhinocéros"',vmax:17,acc:7,man:1.0,hp:2600,long:6.6,larg:3.4,type:'car',blinde:true,canon:true,cache:true,ecrase:true,cols:[0x4a5238]},
   // figures:true + figureSeuil : peut faire des loopings ET des vrilles,
-  // déclenchés par l'intensité/direction du joystick (voir majVol). Le
-  // chasseur garde un seuil de maintien un peu plus long (appareil lourd) ;
-  // la voltige garde son seuil court (déclenchement rapide et vif) via
-  // FIGURE_SEUIL_DEFAUT, voir plus bas.
-  chasseur:{nom:'Chasseur "Épervier"',vmax:56,acc:17,man:1.7,hp:240,long:8,larg:2,type:'car',air:'avion',armes:true,cache:true,figures:true,figureSeuil:0.4,cols:[0x3e4434]},
+  // déclenchées par un maintien franc, continu et à fond du joystick (voir
+  // majVol) — jamais par sa seule intensité (bug déjà rencontré : ça
+  // rendait l'avion incontrôlable, les figures partaient sans arrêt en
+  // pilotage normal). Le chasseur garde les 3 s pleines (appareil lourd) ;
+  // la voltige réduit à 1,5 s (déclenchement plus rapide et vif) via
+  // FIGURE_SEUIL_DEFAUT, voir plus haut.
+  chasseur:{nom:'Chasseur "Épervier"',vmax:56,acc:17,man:1.7,hp:240,long:8,larg:2,type:'car',air:'avion',armes:true,cache:true,figures:true,figureSeuil:3,cols:[0x3e4434]},
   // Avion de voltige : petit, léger, très vif — vmax/acc/man élevés, hp
   // faible (fragile). turnVol pilote son propre taux de virage EN VOL (les
   // autres avions restent sur le taux fixe partagé, voir majVol — ne pas y
@@ -3876,9 +3875,12 @@ function construireMinimapStatique(){
   ic(POIS.commissariat,'P','#2b6fd8'); ic(POIS.garage,'G','#c7a020');
   if(POIS.fastfoods) POIS.fastfoods.forEach(f=>ic(f,'F','#d88a20'));
   ic(POIS.marina,'M','#2a9ac0');
-  // L'aérodrome n'apparaît PAS ici : contrairement aux POI ci-dessus
-  // (toujours visibles), c'est un lieu à découvrir, comme le Monster Truck
-  // ou le jetpack — voir META.aerodromeTrouve, majCamp() et majMinimap().
+  // L'aérodrome : un véhicule à trouver, pas un secret — visible sur la
+  // carte dès le début de partie comme tous les POI ci-dessus, sans
+  // condition de découverte (revenu sur ce point : la version « à
+  // découvrir » façon Monster Truck/jetpack ne fonctionnait pas, un joueur
+  // ne l'a jamais trouvée après trois parties).
+  ic(POIS.aerodrome,'V','#f2c94c');
   g.fillStyle='#8a6a44';
   for(const p of PONTONS) g.fillRect(mmX(p.x-p.hw),mmZ(p.z-p.hd),p.hw*2*mmS,p.hd*2*mmS);
   for(const il of ILES){
@@ -6115,26 +6117,51 @@ const DECOL_GRACE=0.5;
 // d'appui séparément pour obtenir ce comportement.
 const PITCH_LISSAGE=6;
 // FIGURES (looping + vrille) — disponibles sur les appareils avec
-// figures:true (chasseur et voltige, voir VEHDEFS), déclenchées par
-// l'intensité et la direction réelles du joystick analogique (voir majVol) :
-//   FIGURE_L_SEUIL     — amplitude minimale du joystick pour compter comme
-//                        une poussée « franche » (0 à 1, comme Math.hypot
-//                        de INPUT.mx/mz).
+// figures:true (chasseur et voltige, voir VEHDEFS). Bug remonté par un
+// joueur : la 1re version se déclenchait sur l'INTENSITÉ du joystick, or
+// cette intensité sert aussi au pilotage normal (virages serrés, montées
+// franches) — les figures partaient sans arrêt, avion incontrôlable.
+// Reviens à un déclenchement sur la DURÉE, avec des seuils volontairement
+// longs (3 s par défaut) : une figure doit être une intention CLAIRE,
+// jamais un accident de pilotage normal.
+//   FIGURE_L_SEUIL     — amplitude minimale du joystick (0 à 1, comme
+//                        Math.hypot de INPUT.mx/mz) pour compter comme
+//                        « à fond » — proche du maximum, pas un simple
+//                        virage appuyé.
 //   FIGURE_ANGLE_LOOP  — écart angulaire MAX entre le joystick et le cap
-//                        actuel pour déclencher un LOOPING (poussée alignée
-//                        avec l'axe de vol).
-//   FIGURE_ANGLE_VRILLE— écart angulaire MIN pour déclencher une VRILLE
-//                        (poussée nettement latérale). Zone morte entre les
+//                        tenu au DÉBUT du geste pour compter comme
+//                        « vers le haut » (LOOPING).
+//   FIGURE_ANGLE_VRILLE— écart angulaire MIN pour compter comme
+//                        « sur le côté » (VRILLE). Zone morte entre les
 //                        deux seuils : ni looping ni vrille, juste le
-//                        virage normal — évite qu'une poussée en diagonale
-//                        déclenche une figure au hasard.
-// FIGURE_SEUIL_DEFAUT est le court maintien PAR DÉFAUT (def.figureSeuil
-// sinon) qui ignore le bruit tactile d'un joystick analogique — c'est le
-// seuil de la voltige (rapide et vif). Le chasseur, lui, garde un maintien
-// un peu plus long (def.figureSeuil, appareil lourd). LOOP_ALT_MIN garde
-// toute figure loin du sol.
-const FIGURE_L_SEUIL=0.88, FIGURE_ANGLE_LOOP=0.55, FIGURE_ANGLE_VRILLE=1.0,
-      FIGURE_SEUIL_DEFAUT=0.16, LOOP_DUREE=1.5, VRILLE_DUREE=0.9, LOOP_ALT_MIN=14;
+//                        virage normal.
+// FIGURE_DIR_TOL   — tolérance angulaire sur la direction du JOYSTICK
+//                    lui-même (pas le cap de l'appareil) d'une frame à
+//                    l'autre : au-delà, ce n'est plus « la même direction »
+//                    et tout se remet à zéro. Bug trouvé en testant : une
+//                    première version ne figeait la classification qu'à la
+//                    reprise d'une poussée franche (amplitude qui repasse
+//                    au-dessus du seuil), jamais quand la direction changeait
+//                    EN COURS de poussée continue — un joystick maintenu à
+//                    fond mais qui balaie plusieurs directions (n'importe
+//                    quel pilotage un peu nerveux) restait « un seul geste »
+//                    tant que l'amplitude ne retombait jamais, et finissait
+//                    par déclencher des figures au hasard. Comparer la
+//                    direction COURANTE du joystick à sa propre valeur
+//                    figée (pas au cap de l'appareil, qui de toute façon
+//                    tourne déjà vers le joystick) force une vraie tenue
+//                    immobile.
+// FIGURE_SEUIL_DEFAUT est la durée de maintien PAR DÉFAUT (def.figureSeuil
+// sinon) — c'est la valeur de la voltige (1,5 s, réduite, « c'est son
+// intérêt »). Le chasseur garde les 3 s pleines (def.figureSeuil). Le
+// compteur de maintien se remet à zéro dès que le joueur relâche, réduit
+// l'amplitude sous FIGURE_L_SEUIL, ou change de direction (joystick qui
+// s'écarte de plus de FIGURE_DIR_TOL de sa position figée) — seul un
+// maintien franc, continu, à fond et immobile compte. FIGURE_COOLDOWN
+// impose un délai après chaque figure avant qu'une nouvelle puisse se
+// déclencher. LOOP_ALT_MIN garde toute figure loin du sol.
+const FIGURE_L_SEUIL=0.97, FIGURE_ANGLE_LOOP=0.35, FIGURE_ANGLE_VRILLE=1.15, FIGURE_DIR_TOL=0.1,
+      FIGURE_SEUIL_DEFAUT=1.5, FIGURE_COOLDOWN=2, LOOP_DUREE=1.5, VRILLE_DUREE=0.9, LOOP_ALT_MIN=14;
 // Fumée colorée pendant les figures de la voltige uniquement (cycle sur la
 // durée de la figure) — le chasseur, qui peut aussi boucler, garde une
 // fumée blanche classique (voir coulFumee plus bas).
@@ -6328,58 +6355,60 @@ function majVol(v,dt){
       v.mesh.rotation.x=clamp(lerp(v.mesh.rotation.x,-v.va*0.06,Math.min(1,PITCH_LISSAGE*dt)),-1.1,1.1);
       // FIGURES — disponibles sur le chasseur ET la voltige (def.figures) ;
       // l'avion de ligne garde un vol stable, sans acrobaties. Déclenchées
-      // par l'INTENSITÉ RÉELLE du joystick analogique (son amplitude ET sa
-      // direction relative au cap TENU AU MOMENT DE LA POUSSÉE), pas par la
-      // durée d'un bouton : une poussée franche alignée avec ce cap →
-      // LOOPING (on « tire » dans l'axe de vol) ; une poussée franche
-      // nettement latérale → VRILLE (tonneau sur l'axe longitudinal, sens
-      // selon le côté poussé). Une poussée légère, ou une poussée franche
-      // dans la zone morte entre les deux (ni assez alignée ni assez
-      // latérale), ne déclenche jamais rien — juste le virage normal
-      // ci-dessus. Bug trouvé en testant : comparer au cap COURANT (v.ang)
-      // plutôt qu'à un cap de référence figé casse la détection, parce que
-      // le virage normal ci-dessus tire justement v.ang vers le joystick à
-      // chaque frame — une poussée latérale MAINTENUE finissait par ne plus
-      // sembler latérale (l'appareil avait eu le temps de se tourner vers
-      // elle) avant même que le seuil de maintien du chasseur (plus lent)
-      // soit atteint. v.figAngRef fige le cap au tout DÉBUT de la poussée
-      // et ne bouge plus tant que le maintien s'accumule. Court maintien
-      // (def.figureSeuil, plus court pour la voltige — « rapide et vif »,
-      // plus long pour le chasseur, appareil lourd) : sert seulement à
-      // ignorer le bruit tactile d'un joystick analogique, pas à mesurer
-      // une durée d'appui — voir FIGURE_L_SEUIL/FIGURE_ANGLE_LOOP/
-      // FIGURE_ANGLE_VRILLE. Toujours en vol stabilisé, assez haut et hors
-      // grâce de décollage : aucune figure ne se déclenche près du sol.
-      // dtJeu (pas dt) : la fenêtre de maintien ne doit jamais se
-      // raccourcir ou s'allonger sous l'effet d'un ralenti en cours
-      // (curiosités, combo).
-      if(v.def.figures&&v.alt>LOOP_ALT_MIN&&v.decolT<=0&&!INT.actif){
+      // par un MAINTIEN, pas par l'intensité seule : l'intensité du
+      // joystick sert aussi au pilotage normal (virage serré, montée
+      // franche), donc juger sur elle SEULE faisait partir des figures en
+      // permanence — avion incontrôlable, bug remonté par un joueur. Il
+      // faut maintenant un joystick à FOND (FIGURE_L_SEUIL, proche du
+      // maximum), IMMOBILE, aligné avec le cap qu'avait l'appareil au tout
+      // début du geste (LOOPING) ou nettement de côté (VRILLE), en CONTINU
+      // pendant la durée complète du seuil (def.figureSeuil : 3 s pour le
+      // chasseur, 1,5 s pour la voltige) — volontairement long, pour
+      // qu'une figure soit une intention claire, jamais un accident.
+      // v.figStickRef fige la direction du JOYSTICK LUI-MÊME (pas le cap de
+      // l'appareil, qui tourne déjà vers lui à chaque frame par le virage
+      // normal ci-dessus) dès qu'une poussée franche commence ou que sa
+      // direction s'écarte de plus de FIGURE_DIR_TOL de la référence — donc
+      // à chaque vrai changement de direction, même en poussée continue
+      // sans jamais relâcher. Bug trouvé en testant : une version qui ne
+      // re-figeait qu'au relâchement de l'amplitude laissait un joystick
+      // tenu à fond mais balayant plusieurs directions (pilotage nerveux
+      // normal) continuer d'accumuler comme un seul et même geste, et finir
+      // par déclencher des figures au hasard. Une fois la direction figée,
+      // diffCap (l'écart entre cette direction et le cap de l'appareil À CE
+      // MOMENT-LÀ) ne bouge plus : classification stable pour toute la
+      // durée du maintien. Le compteur retombe à zéro dès que le joueur
+      // relâche, réduit l'amplitude sous le seuil, ou bouge le joystick.
+      // Une fois une figure terminée, v.figureCdT impose FIGURE_COOLDOWN
+      // (2 s) avant qu'une nouvelle ne puisse s'armer. Toujours en vol
+      // stabilisé, assez haut et hors grâce de décollage : aucune figure ne
+      // se déclenche près du sol. dtJeu (pas dt) : les fenêtres de maintien
+      // et de recharge ne doivent jamais se raccourcir ou s'allonger sous
+      // l'effet d'un ralenti en cours (curiosités, combo).
+      if(v.figureCdT>0) v.figureCdT-=dt/ETAT.timeScale;
+      if(v.def.figures&&v.alt>LOOP_ALT_MIN&&v.decolT<=0&&!INT.actif&&!(v.figureCdT>0)){
         const stickAng=Math.atan2(INPUT.mx,INPUT.mz);
         const franc=l>FIGURE_L_SEUIL;
-        // Fige la référence UNIQUEMENT sur le front montant du geste (pas
-        // franc → franc), jamais tant que le geste continue — sinon, dans
-        // la zone morte, holdLoopT/holdVrilleT restent tous les deux à 0 et
-        // une figeage-par-frame se remettait à jour en continu sur le cap
-        // COURANT (qui tourne déjà vers le joystick), ce qui revenait à ne
-        // jamais figer du tout : une poussée franche en diagonale finissait
-        // quand même par déclencher un looping une fois l'appareil tourné
-        // assez près du joystick. v.figPoussePrec suit le geste lui-même,
-        // indépendamment de la zone (looping/vrille/morte) où il retombe.
-        if(franc&&!v.figPoussePrec) v.figAngRef=v.ang;
-        v.figPoussePrec=franc;
-        const diffCap=franc?Math.abs(angDiff(v.figAngRef,stickAng)):0;
-        if(franc&&diffCap<FIGURE_ANGLE_LOOP){
-          v.holdLoopT=(v.holdLoopT||0)+dt/ETAT.timeScale; v.holdVrilleT=0;
-          if(v.holdLoopT>=(v.def.figureSeuil||FIGURE_SEUIL_DEFAUT)){
-            v.loopEnCours={t:0,altDep:v.alt,vDep:v.v}; v.holdLoopT=0;
-          }
-        } else if(franc&&diffCap>FIGURE_ANGLE_VRILLE){
-          v.holdVrilleT=(v.holdVrilleT||0)+dt/ETAT.timeScale; v.holdLoopT=0;
-          if(v.holdVrilleT>=(v.def.figureSeuil||FIGURE_SEUIL_DEFAUT)){
-            v.vrilleEnCours={t:0,sens:INPUT.mx<0?1:-1}; v.holdVrilleT=0;
-          }
-        } else { v.holdLoopT=0; v.holdVrilleT=0; }
-      } else { v.holdLoopT=0; v.holdVrilleT=0; v.figPoussePrec=false; }
+        const memeDirection=franc&&v.figStickRef!==undefined&&Math.abs(angDiff(v.figStickRef,stickAng))<FIGURE_DIR_TOL;
+        if(franc&&!memeDirection){
+          v.figStickRef=stickAng; v.figHeadingRef=v.ang;
+          v.holdLoopT=0; v.holdVrilleT=0;
+        }
+        if(franc){
+          const diffCap=Math.abs(angDiff(v.figHeadingRef,v.figStickRef));
+          if(diffCap<FIGURE_ANGLE_LOOP){
+            v.holdLoopT=(v.holdLoopT||0)+dt/ETAT.timeScale; v.holdVrilleT=0;
+            if(v.holdLoopT>=(v.def.figureSeuil||FIGURE_SEUIL_DEFAUT)){
+              v.loopEnCours={t:0,altDep:v.alt,vDep:v.v}; v.holdLoopT=0; v.figureCdT=FIGURE_COOLDOWN;
+            }
+          } else if(diffCap>FIGURE_ANGLE_VRILLE){
+            v.holdVrilleT=(v.holdVrilleT||0)+dt/ETAT.timeScale; v.holdLoopT=0;
+            if(v.holdVrilleT>=(v.def.figureSeuil||FIGURE_SEUIL_DEFAUT)){
+              v.vrilleEnCours={t:0,sens:INPUT.mx<0?1:-1}; v.holdVrilleT=0; v.figureCdT=FIGURE_COOLDOWN;
+            }
+          } else { v.holdLoopT=0; v.holdVrilleT=0; }
+        } else { v.holdLoopT=0; v.holdVrilleT=0; v.figStickRef=undefined; }
+      } else { v.holdLoopT=0; v.holdVrilleT=0; v.figStickRef=undefined; }
     }
   }
   // limites du ciel : au-delà de la ville et de la mer, demi-tour
@@ -14631,13 +14660,9 @@ function drawCarte(){
     g.strokeStyle='#35c8ff'; g.lineWidth=1.6; g.stroke();
     dessinerIconePOI(g,'🚀',jx,jz,11,'#fff');
   }
-  // Aérodrome : même principe (voir majCamp).
-  if(META.aerodromeTrouve&&POIS.aerodrome){
-    const ax=mmX(POIS.aerodrome.x)*k, az=mmZ(POIS.aerodrome.z)*k;
-    g.fillStyle='#15161a'; g.beginPath(); g.arc(ax,az,9,0,7); g.fill();
-    g.strokeStyle='#f2c94c'; g.lineWidth=1.6; g.stroke();
-    dessinerIconePOI(g,'✈️',ax,az,11,'#fff');
-  }
+  // L'aérodrome n'a pas besoin d'icône ici : il est déjà dans la couche
+  // statique (construireMinimapStatique), dessinée en fond par g.drawImage
+  // au tout début de cette fonction — visible dès le début de partie.
   // point d'arrivée choisi par le joueur
   if(WAYP.actif){
     const wx=mmX(WAYP.x)*k, wz=mmZ(WAYP.z)*k;
@@ -16333,18 +16358,10 @@ function majCamp(dt){
       rand(-1.5,1.5),rand(1.5,3),rand(-1.5,1.5),1,0.5,pick([0x35c8ff,0xe8ecf2]),0);
     sauveMeta();
   }
-  // Aérodrome : même principe, découvert à la proximité du tarmac devant le
-  // hangar (POIS.aerodrome) — rayon large (30 unités) car le hangar est un
-  // vrai bâtiment identifiable, pas un détail à frôler au mètre près.
-  if(POIS.aerodrome&&!META.aerodromeTrouve&&dist2(P.x,P.z,POIS.aerodrome.x,POIS.aerodrome.z)<900){
-    META.aerodromeTrouve=true;
-    bigMsg('🔓 AÉRODROME DÉCOUVERT');
-    toast('Un hangar, une manche à air... et un avion de voltige','or');
-    SFX.niveau(); vibre(90);
-    for(let i=0;i<20;i++) spawnP(POIS.aerodrome.x+rand(-2,2),rand(1,3),POIS.aerodrome.z+rand(-2,2),
-      rand(-1.5,1.5),rand(1.5,3),rand(-1.5,1.5),1,0.5,pick([0xf2c94c,0xe8ecf2]),0);
-    sauveMeta();
-  }
+  // Pas de découverte à la proximité pour l'aérodrome : contrairement au
+  // Monster Truck ou au jetpack, ce n'est pas un secret mais un véhicule —
+  // il est affiché sur la carte dès le début de partie (voir
+  // construireMinimapStatique), sans condition.
 }
 function majFeux(dt){
   for(const f of feux){
@@ -16448,7 +16465,8 @@ function majMinimap(){
   for(const p of pickups) dot(p.x,p.z,'#58ff7a',1.8);
   if(META.monstertruckTrouve&&POIS.friche) dot(POIS.friche.x,POIS.friche.z,'#ff3b1a',3);
   if(META.jetpackTrouve&&POIS.toitH&&POIS.toitH.jetpack) dot(POIS.toitH.jetpack.x,POIS.toitH.jetpack.z,'#35c8ff',3);
-  if(META.aerodromeTrouve&&POIS.aerodrome) dot(POIS.aerodrome.x,POIS.aerodrome.z,'#f2c94c',3);
+  // L'aérodrome est dans la couche statique (mmStatic), pas ici — visible
+  // dès le début de partie, sans condition de découverte.
   // Le Micro Vintage : Solara FM émet en continu, les caches non fouillées
   // de la salle où l'on se trouve apparaissent dans un rayon de 40 m —
   // affichées à leur offset réel par rapport au joueur, autour de l'icône
