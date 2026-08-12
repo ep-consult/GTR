@@ -9845,12 +9845,25 @@ function construireSalle(id){
     // marche/nage par-dessus ; seul dansPiscine() déclenche la nage).
     const liserePisc=new THREE.Mesh(new THREE.PlaneGeometry((PISC_HW+2.2)*2,(PISC_HD+2.2)*2),mat(0x1f5f82));
     liserePisc.rotation.x=-Math.PI/2; liserePisc.position.set(ox+PISC_CX,0.115,oz+PISC_CZ); g.add(liserePisc);
-    // margelle : rebord surélevé qui dépasse nettement du carrelage
-    const mCol=0xe8e2c8;
-    box((PISC_HW+0.7)*2,0.3,0.75,mCol,PISC_CX,0.17,PISC_CZ-PISC_HD-0.35,false);
-    box((PISC_HW+0.7)*2,0.3,0.75,mCol,PISC_CX,0.17,PISC_CZ+PISC_HD+0.35,false);
-    box(0.75,0.3,(PISC_HD+0.7)*2-1.3,mCol,PISC_CX-PISC_HW-0.35,0.17,PISC_CZ,false);
-    box(0.75,0.3,(PISC_HD+0.7)*2-1.3,mCol,PISC_CX+PISC_HW+0.35,0.17,PISC_CZ,false);
+    // margelle : deck en bois clair chaud, lattes alternées — un carrelage
+    // beige clair (0xe8e2c8) se fondait avec le sol de la planque, déjà
+    // beige lui aussi (bug remonté par un joueur). Le bois doré saturé
+    // contraste à la fois avec le carrelage (plus pâle, plus froid) et
+    // l'eau (bleue) ; les lattes alternées et le rebord surélevé achèvent
+    // de le faire lire comme un vrai bord de bassin, pas un aplat peint.
+    const boisA=0xc4913f, boisB=0x9f7025, margH=0.42, margY=0.23;
+    const NPL=9, nsLong=(PISC_HW+0.7)*2, nsLat=nsLong/NPL;
+    for(let k=0;k<NPL;k++){
+      const lx=-nsLong/2+(k+0.5)*nsLat, col=k%2?boisA:boisB;
+      box(nsLat*0.92,margH,0.75,col,PISC_CX+lx,margY,PISC_CZ-PISC_HD-0.35,false);
+      box(nsLat*0.92,margH,0.75,col,PISC_CX+lx,margY,PISC_CZ+PISC_HD+0.35,false);
+    }
+    const NPL2=7, ewHalfD=(PISC_HD+0.7)-0.65, ewLat=(ewHalfD*2)/NPL2;
+    for(let k=0;k<NPL2;k++){
+      const lz=-ewHalfD+(k+0.5)*ewLat, col=k%2?boisA:boisB;
+      box(0.75,margH,ewLat*0.92,col,PISC_CX-PISC_HW-0.35,margY,PISC_CZ+lz,false);
+      box(0.75,margH,ewLat*0.92,col,PISC_CX+PISC_HW+0.35,margY,PISC_CZ+lz,false);
+    }
     // parois du bassin, du rebord jusqu'au fond
     const PISC_PROF=1.35, piscMidY=-PISC_PROF/2, wCol=0x123449;
     box(PISC_HW*2,PISC_PROF,0.4,wCol,PISC_CX,piscMidY,PISC_CZ-PISC_HD,false);
