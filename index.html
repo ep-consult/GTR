@@ -269,6 +269,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
 .paytable{font-size:10.5px;color:var(--gris);text-align:left;margin-top:8px;line-height:1.5}
 #persoCv{margin-top:10px;width:min(230px,62vw);height:auto;border-radius:18px;touch-action:none;
   background:radial-gradient(circle at 50% 24%,#232a3a,#0d0f15 72%);border:1px solid var(--ligne);box-shadow:0 10px 26px #000a}
+#penderieCv{margin-top:10px;width:min(230px,62vw);height:auto;border-radius:18px;touch-action:none;
+  background:radial-gradient(circle at 50% 24%,#2a241f,#0d0f15 72%);border:1px solid var(--ligne);box-shadow:0 10px 26px #000a}
 #skinRow{display:flex;gap:14px;margin-top:12px}
 .skinCol{display:flex;flex-direction:column;align-items:center;gap:4px}
 .skinChip{width:46px;height:46px;border-radius:13px;border:2px solid var(--ligne);box-shadow:0 4px 10px #0009}
@@ -423,6 +425,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
   <div class="stitre">Penderie</div>
   <div class="ssous">purement cosmétique</div>
   <div class="hazard"></div>
+  <canvas id="penderieCv" width="300" height="320"></canvas>
+  <div class="ssous" style="margin-top:6px;opacity:.65">fais glisser pour tourner</div>
   <div id="penderieList"></div>
   <button class="retour" id="penderieClose">Retour</button>
 </div>
@@ -9706,9 +9710,17 @@ function construireSalle(id){
     // zones ci-dessous sont posées à au moins 8 unités les unes des autres
     // ET de la sortie (première branche de la chaîne, rayon 3,00, toujours
     // prioritaire en cas de chevauchement).
+    // bassin : dimensions fixées à l'avance pour pouvoir évider le carrelage
+    // AVANT de le poser. Bug remonté par un joueur : le carrelage recouvrait
+    // entièrement la piscine (dessinée à plat au même niveau), qui devenait
+    // invisible — on ne voyait qu'un rectangle légèrement teinté. Voir le
+    // vrai bassin en contrebas plus bas (parois, margelle, liseré bleu).
+    const PISC_CX=0, PISC_CZ=1.5, PISC_HW=5.6, PISC_HD=5.0;
     for(let i=-8;i<8;i++) for(let j=-7;j<7;j++){
+      const lx=i*2.9+1.45, lz=j*2.9+1.45;
+      if(Math.abs(lx-PISC_CX)<PISC_HW+2.2&&Math.abs(lz-PISC_CZ)<PISC_HD+2.2) continue; // trou du bassin
       const t=new THREE.Mesh(new THREE.PlaneGeometry(2.9,2.9),mat((i+j)%2?0x94825f:0x8a7a5e));
-      t.rotation.x=-Math.PI/2; t.position.set(ox+i*2.9+1.45,0.11,oz+j*2.9+1.45); g.add(t);
+      t.rotation.x=-Math.PI/2; t.position.set(ox+lx,0.11,oz+lz); g.add(t);
     }
     // salon (canapé + table basse + télé) — entre la piscine et la sortie,
     // purement décoratif (jamais vérifié par majAction, pas de contrainte
@@ -9739,8 +9751,11 @@ function construireSalle(id){
     gar.rotation.x=-Math.PI/2; gar.position.set(ox-17,0.13,oz-10); g.add(gar);
     mkEnseigne('GARAGE','#35e0ff',ox-17,2.2,oz-11.5,0,6);
     inter.garage={x:ox-17,z:oz-10};
-    // === CABINET DE CURIOSITÉS (ouest) : la vitrine où s'exposent les objets uniques ===
-    box(4.4,0.5,1.4,0x5a4030,-17,0.25,9,false);
+    // === CABINET DE CURIOSITÉS (ouest) : ambiance musée — vitrine éclairée,
+    // objets sous verre, cordon de velours. Nettement différent du mur de
+    // trophées (ambiance salle de sport, bois et affiches) pour ne plus les
+    // confondre — signalé par un joueur sur iPhone.
+    box(4.4,0.5,1.4,0x2c2420,-17,0.25,9,false);                 // socle noir, style musée
     const vitr=new THREE.Mesh(new THREE.BoxGeometry(4.4,2.4,1.4),
       new THREE.MeshLambertMaterial({color:0x9fd8ff,transparent:true,opacity:0.22,depthWrite:false}));
     vitr.position.set(ox-17,1.7,oz+9); g.add(vitr);
@@ -9748,6 +9763,21 @@ function construireSalle(id){
     for(let k=0;k<4;k++){
       const soc=new THREE.Mesh(new THREE.CylinderGeometry(0.26,0.32,0.3,10),mat(0xd8b02a));
       soc.position.set(ox-18.7+k*1.15,0.85,oz+9); g.add(soc);
+    }
+    // spot lumineux au-dessus de la vitrine : lecture immédiate « musée »
+    const spotC=new THREE.Mesh(new THREE.ConeGeometry(0.22,0.4,8),mat(0x1c2028));
+    spotC.position.set(ox-17,3.15,oz+9); g.add(spotC);
+    const spotHalo=new THREE.Mesh(new THREE.PlaneGeometry(4.6,1.6),
+      new THREE.MeshBasicMaterial({map:texGlow,color:0xcfe9ff,transparent:true,opacity:0.14,depthWrite:false}));
+    spotHalo.rotation.x=-Math.PI/2; spotHalo.position.set(ox-17,2.98,oz+9); g.add(spotHalo);
+    // cordon de velours devant la vitrine
+    for(let k=0;k<3;k++){
+      const pot=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.1,0.7,8),mat(0xd8b02a));
+      pot.position.set(ox-18.4+k*1.4,0.35,oz+9.9); g.add(pot);
+      if(k<2){
+        const cord=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,1.4,6),mat(0x7a1622));
+        cord.rotation.z=Math.PI/2; cord.position.set(ox-17.7+k*1.4,0.6,oz+9.9); g.add(cord);
+      }
     }
     mkEnseigne('CABINET DE CURIOSITÉS','#ffd23f',ox-17,3.3,oz+7.8,0,12);
     inter.vitrine={x:ox-17,z:oz+9};
@@ -9771,12 +9801,33 @@ function construireSalle(id){
     }
     mkEnseigne('TABLEAU DE LA VILLE','#ffd23f',ox,5.8,oz-P2/2+1.35,0,13);
     inter.tableau={x:ox,z:oz-16};
-    // === MUR DE TROPHÉES (mur est) ===
-    for(let k=0;k<3;k++) box(3.4,0.14,1,0x5a4a38,W/2-1.6,1.3+k*1.5,-3+k*3,false);
-    const troph=new THREE.Mesh(new THREE.CylinderGeometry(0.3,0.5,0.7,10),mat(0xffd23f));
-    troph.position.set(ox+W/2-1.8,1.7,oz); g.add(troph);
-    const troph2=new THREE.Mesh(new THREE.ConeGeometry(0.35,0.5,4),mat(0xd8dce4));
-    troph2.position.set(ox+W/2-1.8,2.85,oz-3); g.add(troph2);
+    // === MUR DE TROPHÉES (mur est) : ambiance salle de sport — grand
+    // panneau de bois, coupes, plaques gravées, fanions, la prise du
+    // chalutier empaillée. Nettement différent du cabinet de curiosités
+    // (musée, verre, cordon) — signalé par un joueur sur iPhone.
+    box(1.0,4.4,6.6,0x3a2f22,W/2-0.9,2.2,0,false);                    // grand panneau de bois contre le mur
+    for(let k=0;k<3;k++) box(3.2,0.12,0.9,0x5a4a38,W/2-1.7,1.1+k*1.4,-3+k*3,false); // étagères
+    // coupes (cylindre + cône), tailles et couleurs variées
+    [[-3,0xffd23f,0.32],[0,0xd8dce4,0.26],[3,0xff9f5a,0.29]].forEach(p=>{
+      const coupe=new THREE.Mesh(new THREE.CylinderGeometry(p[2]*0.6,p[2],0.6,10),mat(p[1]));
+      coupe.position.set(ox+W/2-1.9,1.55,oz+p[0]); g.add(coupe);
+      const anse=new THREE.Mesh(new THREE.ConeGeometry(p[2]*0.7,0.4,4),mat(p[1]));
+      anse.position.set(ox+W/2-1.9,2.05,oz+p[0]); g.add(anse);
+    });
+    // plaques gravées (dorées, sur le panneau)
+    for(let k=0;k<4;k++) box(0.06,0.5,0.9,0xd8b02a,W/2-1.35,2.9,-4.5+k*3,false);
+    // fanions (petits triangles colorés, comme accrochés au mur)
+    [[-1.5,0xd8304a],[1.5,0x35c8e0],[4.5,0x7dff7a]].forEach(p=>{
+      const fanS=new THREE.Shape(); fanS.moveTo(0,0.35); fanS.lineTo(0,-0.35); fanS.lineTo(0.55,0); fanS.closePath();
+      const fan=new THREE.Mesh(new THREE.ShapeGeometry(fanS),new THREE.MeshLambertMaterial({color:p[1],side:THREE.DoubleSide}));
+      fan.rotation.y=Math.PI/2; fan.position.set(ox+W/2-1.4,3.55,oz+p[0]); g.add(fan);
+    });
+    // plus grosse prise du chalutier, empaillée sur son support
+    box(0.9,0.12,0.5,0x5a4a38,W/2-1.6,0.85,6.2,false);
+    const poisC=new THREE.Mesh(new THREE.SphereGeometry(0.34,10,7),mat(0x4a90b8));
+    poisC.scale.set(1.9,0.85,0.7); poisC.rotation.y=Math.PI/2; poisC.position.set(ox+W/2-1.7,1.15,oz+6.2); g.add(poisC);
+    const poisQ=new THREE.Mesh(new THREE.ConeGeometry(0.28,0.4,4),mat(0x357898));
+    poisQ.rotation.z=Math.PI/2; poisQ.rotation.y=Math.PI/2; poisQ.position.set(ox+W/2-2.05,1.15,oz+6.2); g.add(poisQ);
     mkEnseigne('MUR DE TROPHÉES','#ffd23f',ox+W/2-2.2,4.6,oz,0,11);
     inter.trophees={x:ox+19,z:oz};
     // === PENDERIE (mur ouest) : vestiaire cosmétique ===
@@ -9785,30 +9836,55 @@ function construireSalle(id){
     box(2.6,2.6,0.1,0x8a94a0,-W/2+2,1.6,0.85,false);
     mkEnseigne('PENDERIE','#ff9f5a',ox-W/2+2,3.9,oz-1.5,0,7);
     inter.penderie={x:ox-19,z:oz};
-    // === PISCINE (centre) : pas un minijeu, juste un endroit où souffler.
-    // Jamais de addSolid ici — ni la piscine ni le plongeoir ne doivent
-    // jamais bloquer un passage ni permettre de rester coincé.
-    const bordPisc=new THREE.Mesh(new THREE.PlaneGeometry(13,12),mat(0xcfc6b0));
-    bordPisc.rotation.x=-Math.PI/2; bordPisc.position.set(ox,0.04,oz+1.5); g.add(bordPisc);
-    const eauPisc=new THREE.Mesh(new THREE.PlaneGeometry(11,10),
-      new THREE.MeshLambertMaterial({color:0x3ea8d8,transparent:true,opacity:0.82}));
-    eauPisc.rotation.x=-Math.PI/2; eauPisc.position.set(ox,0.06,oz+1.5); g.add(eauPisc);
-    inter.piscine={x:ox,z:oz+1.5,r:6.2};
-    // plongeoir (décoratif, jamais solide : on peut marcher dessus/au travers)
-    box(1.6,1.6,1.6,0x8a94a0,0,0.8,-5.6,false);
-    box(0.5,0.9,0.5,0x8a94a0,0,0.45,-4.6,false);
-    box(2.6,0.15,0.9,0xe8ecf2,0,1.65,-4.2,false);
+    // === PISCINE (centre) : un vrai bassin en contrebas, pas un rectangle
+    // peint au sol — parois et fond visibles depuis la caméra plongeante,
+    // margelle surélevée qui dépasse nettement, liseré de carrelage bleu
+    // tout autour, eau bien plus foncée/translucide que le carrelage.
+    // Jamais de addSolid ici — ni les parois ni le plongeoir ne doivent
+    // jamais bloquer un passage ni permettre de rester coincé (le joueur
+    // marche/nage par-dessus ; seul dansPiscine() déclenche la nage).
+    const liserePisc=new THREE.Mesh(new THREE.PlaneGeometry((PISC_HW+2.2)*2,(PISC_HD+2.2)*2),mat(0x1f5f82));
+    liserePisc.rotation.x=-Math.PI/2; liserePisc.position.set(ox+PISC_CX,0.115,oz+PISC_CZ); g.add(liserePisc);
+    // margelle : rebord surélevé qui dépasse nettement du carrelage
+    const mCol=0xe8e2c8;
+    box((PISC_HW+0.7)*2,0.3,0.75,mCol,PISC_CX,0.17,PISC_CZ-PISC_HD-0.35,false);
+    box((PISC_HW+0.7)*2,0.3,0.75,mCol,PISC_CX,0.17,PISC_CZ+PISC_HD+0.35,false);
+    box(0.75,0.3,(PISC_HD+0.7)*2-1.3,mCol,PISC_CX-PISC_HW-0.35,0.17,PISC_CZ,false);
+    box(0.75,0.3,(PISC_HD+0.7)*2-1.3,mCol,PISC_CX+PISC_HW+0.35,0.17,PISC_CZ,false);
+    // parois du bassin, du rebord jusqu'au fond
+    const PISC_PROF=1.35, piscMidY=-PISC_PROF/2, wCol=0x123449;
+    box(PISC_HW*2,PISC_PROF,0.4,wCol,PISC_CX,piscMidY,PISC_CZ-PISC_HD,false);
+    box(PISC_HW*2,PISC_PROF,0.4,wCol,PISC_CX,piscMidY,PISC_CZ+PISC_HD,false);
+    box(0.4,PISC_PROF,PISC_HD*2,wCol,PISC_CX-PISC_HW,piscMidY,PISC_CZ,false);
+    box(0.4,PISC_PROF,PISC_HD*2,wCol,PISC_CX+PISC_HW,piscMidY,PISC_CZ,false);
+    // fond du bassin, visible en transparence sous l'eau
+    const fondPisc=new THREE.Mesh(new THREE.PlaneGeometry(PISC_HW*2-0.5,PISC_HD*2-0.5),mat(0x0c2230));
+    fondPisc.rotation.x=-Math.PI/2; fondPisc.position.set(ox+PISC_CX,-PISC_PROF+0.02,oz+PISC_CZ); g.add(fondPisc);
+    // eau : bien plus foncée et translucide que le carrelage, en retrait sous la margelle
+    const eauPisc=new THREE.Mesh(new THREE.PlaneGeometry(PISC_HW*2-0.7,PISC_HD*2-0.7),
+      new THREE.MeshLambertMaterial({color:0x0f6fa8,transparent:true,opacity:0.86}));
+    eauPisc.rotation.x=-Math.PI/2; eauPisc.position.set(ox+PISC_CX,-0.85,oz+PISC_CZ); g.add(eauPisc);
+    inter.piscine={x:ox+PISC_CX,z:oz+PISC_CZ,r:6};
+    // plongeoir : une vraie structure en hauteur — socle, échelle,
+    // plateforme, planche qui surplombe l'eau (jamais solide).
+    const tCol=0xd8d2be, echCol=0x6a7480;
+    box(1.8,0.3,1.1,tCol,0,0.15,-6.6,false);                              // socle au sol
+    box(0.12,1.6,0.12,echCol,-0.55,0.95,-6.6,false);                      // montant gauche (métal, contraste avec le reste)
+    box(0.12,1.6,0.12,echCol,0.55,0.95,-6.6,false);                       // montant droit
+    for(let k=0;k<4;k++) box(1.0,0.08,0.12,echCol,0,0.4+k*0.38,-6.6,false); // barreaux de l'échelle
+    box(2.0,0.14,1.6,tCol,0,1.78,-5.9,false);                             // plateforme
+    box(0.55,0.09,3.4,0xff9f5a,0,1.78,-3.9,false);                        // planche qui surplombe l'eau (couleur vive, se détache de l'eau et du sol)
     // transats + parasol
     box(2,0.5,0.8,0xe8ecf2,-7.4,0.25,4,false);
     box(2,0.5,0.8,0xe8ecf2,-7.4,0.25,6,false);
     mkParasol(ox+7.4,oz+4);
-    // bouée canard, flotte sur l'eau
+    // bouée canard, flotte sur l'eau (au niveau de la nouvelle surface, en contrebas)
     const anneau=new THREE.Mesh(new THREE.TorusGeometry(0.9,0.28,8,16),mat(0xffd23f));
-    anneau.rotation.x=Math.PI/2; anneau.position.set(ox+2.4,0.32,oz+2.5); g.add(anneau);
+    anneau.rotation.x=Math.PI/2; anneau.position.set(ox+2.4,-0.5,oz+2.5); g.add(anneau);
     const teteC=new THREE.Mesh(new THREE.SphereGeometry(0.4,8,6),mat(0xffd23f));
-    teteC.position.set(ox+3.2,0.47,oz+2.5); g.add(teteC);
+    teteC.position.set(ox+3.2,-0.35,oz+2.5); g.add(teteC);
     const becC=new THREE.Mesh(new THREE.ConeGeometry(0.14,0.3,6),mat(0xff8a2e));
-    becC.rotation.z=Math.PI/2; becC.position.set(ox+3.65,0.47,oz+2.5); g.add(becC);
+    becC.rotation.z=Math.PI/2; becC.position.set(ox+3.65,-0.35,oz+2.5); g.add(becC);
     mkEnseigne('PISCINE','#35e0ff',ox,3.2,oz-3.5,0,7);
     lampe(0,10,0xffe9b0,9); lampe(17,-2,0xffe9b0,7); lampe(-17,-2,0xffe9b0,7);
     lampe(0,-8,0xffd23f,7); lampe(19,7,0xffd23f,6); lampe(-19,7,0xff9f5a,6);
@@ -13842,6 +13918,50 @@ function majPreview(dt){
   PREVIEW.h.g.position.y=Math.sin(t*1.8)*0.025;
   PREVIEW.ren.render(PREVIEW.scene,PREVIEW.cam);
 }
+/* ---------- penderie : aperçu 3D rotatif de la tenue portée (même principe que PREVIEW) ---------- */
+const PREVIEW2={ren:null,scene:null,cam:null,grp:null,h:null,rotY:0.5,vel:0,drag:false,lastX:0};
+function initPreview2(){
+  if(PREVIEW2.ren) return;
+  const cv=el('penderieCv');
+  PREVIEW2.ren=new THREE.WebGLRenderer({canvas:cv,alpha:true,antialias:true});
+  PREVIEW2.ren.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+  PREVIEW2.ren.setSize(300,320,false);
+  PREVIEW2.scene=new THREE.Scene();
+  PREVIEW2.cam=new THREE.PerspectiveCamera(34,300/320,0.1,20);
+  PREVIEW2.cam.position.set(0,1.7,4.4); PREVIEW2.cam.lookAt(0,1,0);
+  PREVIEW2.scene.add(new THREE.HemisphereLight(0xcfe2ff,0x33291d,0.95));
+  const d=new THREE.DirectionalLight(0xfff0cd,0.9); d.position.set(2,4,3); PREVIEW2.scene.add(d);
+  const sol2=new THREE.Mesh(new THREE.CircleGeometry(1.5,26),new THREE.MeshLambertMaterial({color:0x1b1e26}));
+  sol2.rotation.x=-Math.PI/2; PREVIEW2.scene.add(sol2);
+  const ring=new THREE.Mesh(new THREE.TorusGeometry(1.5,0.03,8,40),new THREE.MeshBasicMaterial({color:0xff9f5a}));
+  ring.rotation.x=-Math.PI/2; ring.position.y=0.02; PREVIEW2.scene.add(ring);
+  PREVIEW2.grp=new THREE.Group(); PREVIEW2.scene.add(PREVIEW2.grp);
+  cv.addEventListener('pointerdown',e=>{PREVIEW2.drag=true;PREVIEW2.lastX=e.clientX;cv.setPointerCapture(e.pointerId);});
+  cv.addEventListener('pointermove',e=>{
+    if(!PREVIEW2.drag) return;
+    const dx=e.clientX-PREVIEW2.lastX; PREVIEW2.lastX=e.clientX;
+    PREVIEW2.rotY+=dx*0.014; PREVIEW2.vel=dx*0.45;
+  });
+  const fin=()=>{PREVIEW2.drag=false;};
+  cv.addEventListener('pointerup',fin); cv.addEventListener('pointercancel',fin);
+}
+function setPreview2(){
+  initPreview2();
+  if(PREVIEW2.h) PREVIEW2.grp.remove(PREVIEW2.h.g);
+  PREVIEW2.h=makeHumain(coifCouleurs(),1.1); // couleurs du perso + tenue équipée, exactement comme le vrai joueur
+  appliqueMuscle(PREVIEW2.h); // respecte le palier de muscle courant (règle explicite du point 4)
+  PREVIEW2.grp.add(PREVIEW2.h.g);
+}
+function majPreview2(dt){
+  if(!PREVIEW2.ren||!el('penderieScr').classList.contains('on')||!PREVIEW2.h) return;
+  if(!PREVIEW2.drag){ PREVIEW2.rotY+=(0.45+PREVIEW2.vel)*dt; PREVIEW2.vel*=Math.pow(0.02,dt); }
+  PREVIEW2.grp.rotation.y=PREVIEW2.rotY;
+  const t=performance.now()/1000;
+  PREVIEW2.h.brasG.rotation.x=Math.sin(t*1.8)*0.1;
+  PREVIEW2.h.brasD.rotation.x=-Math.sin(t*1.8)*0.1;
+  PREVIEW2.h.g.position.y=Math.sin(t*1.8)*0.025;
+  PREVIEW2.ren.render(PREVIEW2.scene,PREVIEW2.cam);
+}
 function renderChars(){
   el('charsMoney').textContent=fmt$(META.argent);
   if(!PREVIEW.persoAff) PREVIEW.persoAff=META.perso;
@@ -14314,6 +14434,7 @@ function renderPenderie(){
   }
   h+='</div>';
   el('penderieList').innerHTML=h;
+  setPreview2();
 }
 el('penderieList').addEventListener('pointerdown',e=>{
   const id=e.target&&e.target.dataset&&e.target.dataset.tenue;
@@ -16289,6 +16410,7 @@ function boucle(t){
   majCamera(Math.max(dtReel,0.001));
   majHitMarker(dtReel);
   majPreview(dtReel);
+  majPreview2(dtReel);
   mmFrame++;
   if(mmFrame%3===0&&el('hud').classList.contains('on')) majMinimap();
   // qualité auto si ça rame
