@@ -1679,6 +1679,12 @@ const VEHDEFS={
   avion:{nom:'Avion "Colibri"',vmax:40,acc:11,man:1.3,hp:130,long:7.4,larg:2,type:'car',air:'avion',cols:[0xe8ecf2]},
   char:{nom:'Char "Rhinocéros"',vmax:17,acc:7,man:1.0,hp:2600,long:6.6,larg:3.4,type:'car',blinde:true,canon:true,cache:true,ecrase:true,cols:[0x4a5238]},
   chasseur:{nom:'Chasseur "Épervier"',vmax:56,acc:17,man:1.7,hp:240,long:8,larg:2,type:'car',air:'avion',armes:true,cache:true,cols:[0x3e4434]},
+  // Avion de voltige : petit, léger, très vif — vmax/acc/man élevés, hp
+  // faible (fragile). turnVol pilote son propre taux de virage EN VOL (les
+  // autres avions restent sur le taux fixe partagé, voir majVol — ne pas y
+  // toucher pour eux). Seul véhicule avec voltige:true : c'est ce indicateur
+  // qui active le looping à déclenchement facile dans majVol.
+  voltige:{nom:'Voltige "Colibri Rouge"',vmax:44,acc:20,man:2.2,turnVol:2.3,hp:70,long:5.2,larg:1.7,type:'car',air:'avion',voltige:true,cols:[0xd8202c]},
   helico:{nom:'Hélico "Libellule"',vmax:24,acc:14,man:2.6,hp:120,long:5,larg:1.8,type:'car',air:'helico',cols:[0xd83a3a]},
   // Diversité du trafic (lot 11) : bus de ville et camion de pompiers,
   // conduisibles, restreints au centre-ville/quartier commerçant (voir
@@ -3588,6 +3594,21 @@ function remplirBloc(qq,bx,bz,cx,cz){
     mkEnseigne('RUCHE 9','#e6a41f',cx-6,3.8,cz+10.65,0,7);
     return;
   }
+  if(bx===6&&bz===9){ // PETIT AÉRODROME — piste à l'écart, avion de voltige
+    const piste=new THREE.Mesh(new THREE.PlaneGeometry(8,INNER-3),new THREE.MeshLambertMaterial({color:0x3a3d44}));
+    piste.rotation.x=-Math.PI/2; piste.position.set(cx,0.05,cz); scene.add(piste);
+    for(let i=-(INNER-3)/2+2;i<(INNER-3)/2-2;i+=4){ // marquage central en tirets
+      const tiret=new THREE.Mesh(new THREE.PlaneGeometry(0.5,2),new THREE.MeshBasicMaterial({color:0xf2c94c}));
+      tiret.rotation.x=-Math.PI/2; tiret.position.set(cx,0.06,cz+i); scene.add(tiret);
+    }
+    // manche à air
+    const mS=mkBoxG(0.08,3.4,0.08,0x8a8f9a,cx-INNER/2+2,1.7,cz); scene.add(mS);
+    const manche=new THREE.Mesh(new THREE.ConeGeometry(0.32,1.6,10),mat(0xff7a3a));
+    manche.rotation.z=Math.PI/2; manche.position.set(cx-INNER/2+2.9,3.3,cz); scene.add(manche);
+    mkEnseigne('AÉRO-CLUB DE SOLARA','#f2c94c',cx,3.4,cz-(INNER-3)/2+1.5,0,11);
+    POIS.aerodrome={x:cx,z:cz};
+    return;
+  }
   if(bx===8&&bz===9){ // ruelle au magot
     mkBatiment(cx-8,cz,10,24,7,pick(paletteFacades.industriel));
     mkBatiment(cx+8,cz,10,24,7,pick(paletteFacades.industriel));
@@ -3932,6 +3953,9 @@ function makeVoiture(key){
       r.rotation.z=Math.PI/2; r.position.set(p[0],0.4,p[1]); g.add(r); ud.roues.push(r);
     });
     const ombreA=spriteBlob(7); g.add(ombreA); ud.ombre=ombreA;
+    // Voltige : même silhouette civile (à hélice) que le Colibri, juste
+    // réduite et repeinte — pas de géométrie dédiée à maintenir en plus.
+    if(def.voltige) g.scale.setScalar(0.72);
     g.userData=ud; return g;
   }
   if(def.air==='helico'){
@@ -5678,8 +5702,14 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
         const cz=v.z+Math.sign(distFwd||1)*Math.min(Math.abs(distFwd),hlV)*cV-Math.sign(distRight||1)*Math.min(Math.abs(distRight),hwV)*sV;
         burst(cx,1,cz,4+Math.round(viol*8),0xffd88a,7+viol*6);
         burst(cx,1.1,cz,Math.round(2+viol*6),0xe8f4ff,5+viol*5,3); // débris de vitres
-        if(v.conduit==='joueur'){ secousse(clamp(2+viol*10,2,16)); vibre(30+viol*50); SFX.choc(viol); }
-        else if(o.conduit==='joueur'){ secousse(clamp(2+viol*10,2,16)); vibre(30+viol*50); SFX.choc(viol); }
+        // Secousse en rampe quadratique (pas linéaire) : un frôlement ou un
+        // choc ordinaire (viol modeste) reste presque imperceptible, seule
+        // une collision vraiment violente (viol proche de 1 ou plus) déclenche
+        // une secousse marquée — trop présente même sur un contact banal
+        // avec l'ancienne échelle linéaire (signalé par un joueur).
+        const secChoc=clamp(viol*viol*13,0.4,13);
+        if(v.conduit==='joueur'){ secousse(secChoc); vibre(30+viol*50); SFX.choc(viol); }
+        else if(o.conduit==='joueur'){ secousse(secChoc); vibre(30+viol*50); SFX.choc(viol); }
         // déformation visible : bref écrasement de la carrosserie le long de
         // l'axe d'impact, qui se résorbe — voir majDeformation. Jamais sur
         // un véhicule qui vient tout juste d'apparaître (fondu d'échelle en
@@ -5927,12 +5957,15 @@ function poseY(x,z){ // surface d'atterrissage : toit d'immeuble ou relief
 // Fenêtre pendant laquelle un avion/hélico qui vient de décoller (posé→en
 // vol) ignore les collisions avec son environnement immédiat — voir majVol.
 const DECOL_GRACE=0.5;
-// LOOPING (avion) : appui prolongé sur MONTER, en vol stabilisé. Le seuil de
-// maintien est volontairement long — un joueur qui monte normalement, même
-// en rafale, ne l'atteint jamais par accident — mais reste assez court pour
-// se découvrir en jouant (une seule vague suffit à le déclencher une fois
-// par curiosité). LOOP_ALT_MIN garde la figure loin du sol.
-const LOOP_HOLD_SEUIL=2.2, LOOP_DUREE=1.7, LOOP_ALT_MIN=14;
+// LOOPING — exclusif à l'avion de voltige (def.voltige, voir majVol).
+// Demandé explicitement facile à déclencher (« tire fermement vers le
+// haut », pas un appui interminable) : seuil de maintien court, c'est tout
+// l'intérêt de cet appareil précis. LOOP_ALT_MIN garde la figure loin du sol.
+const LOOP_HOLD_SEUIL=0.45, LOOP_DUREE=1.5, LOOP_ALT_MIN=14;
+// Fumée colorée pendant les figures de voltige (cycle sur la durée de la
+// figure) — les autres appareils (looping désormais impossible pour eux)
+// n'utilisent jamais cette palette.
+const FUMEE_VOLTIGE=[0xff3b5c,0xffd23f,0x35e0ff,0x7dff7a,0xb48bff];
 // Figure ANIMÉE et contrôlée, jamais une vraie rotation libre du véhicule :
 // passer réellement la tête en bas casserait la caméra (qui ne lit que
 // v.alt/x/z, jamais la rotation du mesh — elle ne se retourne donc jamais),
@@ -5953,9 +5986,12 @@ function majLooping(v,dt){
   v.va=26*Math.sin(frac*Math.PI);
   // fumée qui dessine la boucle : émise depuis la queue, qui suit la
   // vraie rotation du mesh et trace donc un cercle complet à l'écran.
+  // Colorée pour la voltige (cycle sur la durée de la figure), blanche
+  // sinon — même si seule la voltige peut en réalité déclencher un looping.
   const c=v.def.long*0.42;
   const tx=v.x-Math.sin(v.ang)*c*Math.cos(theta), tz=v.z-Math.cos(v.ang)*c*Math.cos(theta), ty=v.alt+c*Math.sin(theta);
-  if(Math.random()<0.85) fumee(tx,ty,tz,0xe8ecf2);
+  const coulFumee=v.def.voltige?FUMEE_VOLTIGE[Math.floor(frac*10)%FUMEE_VOLTIGE.length]:0xe8ecf2;
+  if(Math.random()<0.85) fumee(tx,ty,tz,coulFumee);
   if(frac>=1){
     v.loopEnCours=null; v.mesh.rotation.x=0; v.va=0;
     META.stats.loopings=(META.stats.loopings||0)+1;
@@ -6019,8 +6055,11 @@ function majVol(v,dt){
         if(surf>4&&!META.defis.toit){ META.defis.toit=true; bigMsg('POSÉ SUR LE TOIT'); }
       }
       // assiette : nez qui plonge/se relève selon la montée — inclinaison
-      // plus douce que l'avion (l'hélico n'a pas d'ailes à cabrer).
-      v.mesh.rotation.x=clamp(lerp(v.mesh.rotation.x,-v.va*0.0425,0.2),-1,1);
+      // plus douce que l'avion (l'hélico n'a pas d'ailes à cabrer). Réponse
+      // rapide (0.35, pas 0.2) : voir le commentaire détaillé sur l'avion,
+      // même cause — un appui bref n'atteignait jamais un angle assez marqué
+      // pour se lire à l'écran sous la caméra très inclinée de ce jeu.
+      v.mesh.rotation.x=clamp(lerp(v.mesh.rotation.x,-v.va*0.0475,0.35),-1.1,1.1);
     } else v.mesh.rotation.x=lerp(v.mesh.rotation.x,0,0.2); // posé : retour à l'horizontale
   } else { // avion
     if(!v.vol){
@@ -6045,7 +6084,11 @@ function majVol(v,dt){
     } else {
       v.v=lerp(v.v,desc?19:v.def.vmax,0.5*dt);
       const l=Math.hypot(INPUT.mx,INPUT.mz);
-      if(l>0.15) v.ang=angLerp(v.ang,Math.atan2(INPUT.mx,INPUT.mz),1.15*dt);
+      // taux de virage en vol : fixe pour l'avion de ligne et le chasseur
+      // (comportement existant, inchangé) ; def.turnVol permet à un
+      // appareil particulier (la voltige, « direction sensible ») de virer
+      // bien plus sec sans toucher au taux partagé des autres.
+      if(l>0.15) v.ang=angLerp(v.ang,Math.atan2(INPUT.mx,INPUT.mz),(v.def.turnVol||1.15)*dt);
       v.va=(monter?15:0)+(desc?-11:0);
       if(v.v<19){ v.va-=9; if(Math.random()<0.1) toast('DÉCROCHAGE — accélère !','warn'); }
       v.alt=clamp(v.alt+v.va*dt,0,180);  // très haut au-dessus de la ville
@@ -6060,12 +6103,35 @@ function majVol(v,dt){
         if(surfA>4&&!META.defis.toit){ META.defis.toit=true; bigMsg('POSÉ SUR LE TOIT'); }
       }
       v.mesh.rotation.z=lerp(v.mesh.rotation.z,-clamp(angDiff(v.ang,Math.atan2(INPUT.mx||Math.sin(v.ang),INPUT.mz||Math.cos(v.ang))),-1,1)*0.5,0.15);
-      v.mesh.rotation.x=clamp(lerp(v.mesh.rotation.x,-v.va*0.085,0.25),-1.4,1.4);
-      // LE LOOPING : maintien de MONTER assez longtemps, en vol stabilisé,
-      // assez haut et hors grâce de décollage — voir déclarations LOOP_*.
-      // dtJeu (pas dt) : la fenêtre de maintien ne doit jamais se raccourcir
-      // ou s'allonger sous l'effet d'un ralenti en cours (curiosités, combo).
-      if(monter&&v.alt>LOOP_ALT_MIN&&v.decolT<=0&&!INT.actif){
+      // Assiette : le sens (nez qui se relève en montée, plonge en descente)
+      // est correct — vérifié par un rendu de PROFIL réel (pas de calcul en
+      // l'air) : le nez (cône pointu du fuselage, littéralement nommé `nez`
+      // dans le code de construction du modèle, positionné à +Z alors que
+      // la queue et l'empennage sont à -Z) apparaît bien au-dessus de la
+      // queue à l'écran en montée, et l'inverse en descente — confirmé par
+      // quatre vérifications indépendantes (géométrie du fuselage, sens de
+      // déplacement, rendu de profil, inventaire des pièces du modèle).
+      // La difficulté à le percevoir en jeu vient d'ailleurs : la caméra de
+      // ce jeu est très inclinée vers le bas, et un avion qui pointe son
+      // nez vers elle se lit toujours un peu plus bas à l'écran que sa
+      // queue par pur effet de perspective — mesuré : ce biais existe même
+      // à plat, sans aucun tangage, et n'est pas complètement éliminable
+      // sans dégrader la lisibilité à haute altitude (une caméra bien plus
+      // aplatie pendant le tangage repoussait l'appareil hors du cadre,
+      // régression sur le cadrage déjà corrigé — voir majCamera). Réponse
+      // nettement plus rapide qu'avant (0.45, pas 0.25) : un appui BREF sur
+      // MONTER — le cas normal en jeu — n'avait pas le temps d'atteindre un
+      // angle net avant que le joueur ne relâche.
+      v.mesh.rotation.x=clamp(lerp(v.mesh.rotation.x,-v.va*0.06,0.45),-1.1,1.1);
+      // LE LOOPING — exclusif à l'avion de voltige (def.voltige) : l'avion
+      // de ligne et le chasseur gardent un vol stable, sans acrobaties.
+      // Déclenchement volontairement rapide (LOOP_HOLD_SEUIL court) — « tire
+      // fermement vers le haut » doit suffire, pas un appui interminable ;
+      // c'est tout l'intérêt de cet appareil. Toujours en vol stabilisé,
+      // assez haut et hors grâce de décollage. dtJeu (pas dt) : la fenêtre
+      // de maintien ne doit jamais se raccourcir ou s'allonger sous l'effet
+      // d'un ralenti en cours (curiosités, combo).
+      if(v.def.voltige&&monter&&v.alt>LOOP_ALT_MIN&&v.decolT<=0&&!INT.actif){
         v.holdMonterT=(v.holdMonterT||0)+dt/ETAT.timeScale;
         if(v.holdMonterT>=LOOP_HOLD_SEUIL){
           v.loopEnCours={t:0,altDep:v.alt,vDep:v.v};
@@ -14324,6 +14390,9 @@ function startRun(){
   if(POIS.friche) creerVehicule('monstertruck',POIS.friche.x,POIS.friche.z,0.6);
   if(POIS.hangar) creerVehicule('van',POIS.hangar.x-14,POIS.hangar.z+14,0.4);
   if(POIS.helipad) creerVehicule('helico',POIS.helipad.x,POIS.helipad.z,Math.PI/2);
+  // Avion de voltige : garé sur sa propre piste, à l'écart (voir POIS.
+  // aerodrome, remplirBloc) — jamais dans le trafic, un seul exemplaire.
+  if(POIS.aerodrome) creerVehicule('voltige',POIS.aerodrome.x,POIS.aerodrome.z,0);
   if(POIS.yacht){
     creerVehicule('yacht',POIS.yacht.x+30,POIS.yacht.z-6,Math.PI/2);
     // mini-hélico posé sur l'hélipad du yacht amarré
@@ -15608,7 +15677,18 @@ function majFeux(dt){
 let camH=42,camD=19;
 function majCamera(dt){
   const enVol=P.veh&&P.veh.def.air?(P.veh.alt||0):0;
-  const cibleH=(P.veh?52:42)+enVol*0.75, cibleD=(P.veh?23:19)+enVol*0.2;
+  // Assiette d'un avion/hélico : sous la vue très inclinée normale (quasi
+  // plongeante), un appareil qui pointe son nez vers la caméra se lit
+  // TOUJOURS plus bas à l'écran que sa queue, par pur effet de perspective
+  // — mesuré par projection caméra réelle, ce biais existe même à plat,
+  // sans aucun tangage. Une tentative d'aplatir fortement la caméra pendant
+  // le tangage (pour forcer ce biais à s'inverser) a été abandonnée : à
+  // haute altitude elle repoussait l'appareil hors du cadre (régression sur
+  // le bug de cadrage déjà corrigé). Aplatissement modeste conservé, sans
+  // risque pour le cadrage — le reste de la lisibilité vient de la réponse
+  // de tangage elle-même (voir majVol : coefficient et lerp revus).
+  const tangageF=P.veh&&P.veh.def.air?clamp(Math.abs(P.veh.va||0)/15,0,1):0;
+  const cibleH=(P.veh?52:42)+enVol*0.75-tangageF*8, cibleD=(P.veh?23:19)+enVol*0.2+tangageF*6;
   camH=lerp(camH,cibleH,2*dt); camD=lerp(camD,cibleD,2*dt);
   ETAT.shake=Math.max(0,ETAT.shake-30*dt);
   const sx=(Math.random()-0.5)*ETAT.shake*0.12, sz=(Math.random()-0.5)*ETAT.shake*0.12;
