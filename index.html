@@ -1776,13 +1776,20 @@ const VEHDEFS={
   baronne:{nom:'Ancienne "Baronne"',vmax:26,acc:10,man:2.0,hp:280,long:5.4,larg:2.1,type:'car',cols:[0x6a1f2a],cache:true},
   avion:{nom:'Avion "Colibri"',vmax:40,acc:11,man:1.3,hp:130,long:7.4,larg:2,type:'car',air:'avion',cols:[0xe8ecf2]},
   char:{nom:'Char "Rhinocéros"',vmax:17,acc:7,man:1.0,hp:2600,long:6.6,larg:3.4,type:'car',blinde:true,canon:true,cache:true,ecrase:true,cols:[0x4a5238]},
-  chasseur:{nom:'Chasseur "Épervier"',vmax:56,acc:17,man:1.7,hp:240,long:8,larg:2,type:'car',air:'avion',armes:true,cache:true,cols:[0x3e4434]},
+  // figures:true + loopSeuil : peut faire des loopings (voir majVol). Le
+  // chasseur garde un seuil de maintien long (appui prolongé, appareil
+  // lourd et stable) — régression corrigée : le looping du chasseur avait
+  // disparu quand l'avion de voltige a introduit la condition v.def.voltige,
+  // qui l'excluait de fait. La voltige garde son seuil court (déclenchement
+  // rapide et vif) via LOOP_HOLD_SEUIL, voir plus bas.
+  chasseur:{nom:'Chasseur "Épervier"',vmax:56,acc:17,man:1.7,hp:240,long:8,larg:2,type:'car',air:'avion',armes:true,cache:true,figures:true,loopSeuil:1.3,cols:[0x3e4434]},
   // Avion de voltige : petit, léger, très vif — vmax/acc/man élevés, hp
   // faible (fragile). turnVol pilote son propre taux de virage EN VOL (les
   // autres avions restent sur le taux fixe partagé, voir majVol — ne pas y
-  // toucher pour eux). Seul véhicule avec voltige:true : c'est ce indicateur
-  // qui active le looping à déclenchement facile dans majVol.
-  voltige:{nom:'Voltige "Colibri Rouge"',vmax:44,acc:20,man:2.2,turnVol:2.3,hp:70,long:5.2,larg:1.7,type:'car',air:'avion',voltige:true,cols:[0xd8202c]},
+  // toucher pour eux). def.voltige reste l'identité propre à cet appareil
+  // (fumée colorée, virage vif) ; figures:true (looping) est partagé avec
+  // le chasseur, voir ci-dessus.
+  voltige:{nom:'Voltige "Colibri Rouge"',vmax:44,acc:20,man:2.2,turnVol:2.3,hp:70,long:5.2,larg:1.7,type:'car',air:'avion',voltige:true,figures:true,cols:[0xd8202c]},
   helico:{nom:'Hélico "Libellule"',vmax:24,acc:14,man:2.6,hp:120,long:5,larg:1.8,type:'car',air:'helico',cols:[0xd83a3a]},
   // Diversité du trafic (lot 11) : bus de ville et camion de pompiers,
   // conduisibles, restreints au centre-ville/quartier commerçant (voir
@@ -3852,6 +3859,12 @@ function construireMinimapStatique(){
   ic(POIS.commissariat,'P','#2b6fd8'); ic(POIS.garage,'G','#c7a020');
   if(POIS.fastfoods) POIS.fastfoods.forEach(f=>ic(f,'F','#d88a20'));
   ic(POIS.marina,'M','#2a9ac0');
+  // Bug remonté par un joueur : l'aéro-club (avion de voltige) n'avait
+  // jamais d'icône sur la minimap, contrairement à tous les autres POI
+  // extérieurs ci-dessus — il est pourtant construit à chaque partie
+  // (bx=6,bz=9, quartier industriel), juste invisible sans explorer toute
+  // la ville au hasard.
+  ic(POIS.aerodrome,'V','#f2c94c');
   g.fillStyle='#8a6a44';
   for(const p of PONTONS) g.fillRect(mmX(p.x-p.hw),mmZ(p.z-p.hd),p.hw*2*mmS,p.hd*2*mmS);
   for(const il of ILES){
@@ -5404,6 +5417,18 @@ function creerVehicule(key,x,z,ang,conduit){
   const mesh=makeVoiture(key);
   mesh.position.set(x,0,z); mesh.rotation.y=ang||0; scene.add(mesh);
   const def=VEHDEFS[key];
+  // Bug déjà rencontré (3e tentative) : l'assiette avion/hélico était juste
+  // dans un sens de vol et fausse dans les autres. Cause : rotation.order
+  // par défaut 'XYZ' compose le tangage (rotation.x) APRÈS le cap
+  // (rotation.y) autour de l'axe MONDE X fixe, pas autour de l'axe
+  // transversal PROPRE à l'appareil — correct seulement quand le cap
+  // aligne cet axe transversal sur l'axe monde X (vol face/dos à la
+  // caméra), faux de côté. 'YXZ' compose le tangage/roulis dans le repère
+  // local de l'appareil AVANT d'appliquer le cap (qui devient extrinsèque,
+  // toujours autour de l'axe vertical monde) — convention standard pour ce
+  // cas (identique à celle utilisée pour les caméras FPS). N'affecte pas
+  // les véhicules au sol (seul rotation.y y est jamais utilisé).
+  if(def.air) mesh.rotation.order='YXZ';
   const v={key,def,mesh,x,z,ang:ang||0,dirAng:ang||0,v:0,hp:def.hp,conduit:conduit||null,mort:false,
     fumeT:0,volFait:false,tapeJoueur:false,lane:0,axe:'z',dirT:1,klaxT:0};
   vehicules.push(v);
@@ -6064,14 +6089,17 @@ function poseY(x,z){ // surface d'atterrissage : toit d'immeuble ou relief
 // Fenêtre pendant laquelle un avion/hélico qui vient de décoller (posé→en
 // vol) ignore les collisions avec son environnement immédiat — voir majVol.
 const DECOL_GRACE=0.5;
-// LOOPING — exclusif à l'avion de voltige (def.voltige, voir majVol).
-// Demandé explicitement facile à déclencher (« tire fermement vers le
-// haut », pas un appui interminable) : seuil de maintien court, c'est tout
-// l'intérêt de cet appareil précis. LOOP_ALT_MIN garde la figure loin du sol.
+// LOOPING — disponible sur les appareils avec figures:true (chasseur et
+// voltige, voir VEHDEFS), chacun avec son propre seuil de maintien
+// (def.loopSeuil) : LOOP_HOLD_SEUIL est le seuil PAR DÉFAUT, court et
+// facile à déclencher (« tire fermement vers le haut », pas un appui
+// interminable) — c'est le seuil de la voltige, qui n'en fixe pas de
+// spécifique. Le chasseur, lui, garde un appui prolongé (def.loopSeuil,
+// appareil lourd et stable). LOOP_ALT_MIN garde la figure loin du sol.
 const LOOP_HOLD_SEUIL=0.45, LOOP_DUREE=1.5, LOOP_ALT_MIN=14;
-// Fumée colorée pendant les figures de voltige (cycle sur la durée de la
-// figure) — les autres appareils (looping désormais impossible pour eux)
-// n'utilisent jamais cette palette.
+// Fumée colorée pendant les figures de la voltige uniquement (cycle sur la
+// durée de la figure) — le chasseur, qui peut aussi boucler, garde une
+// fumée blanche classique (voir coulFumee plus bas).
 const FUMEE_VOLTIGE=[0xff3b5c,0xffd23f,0x35e0ff,0x7dff7a,0xb48bff];
 // Figure ANIMÉE et contrôlée, jamais une vraie rotation libre du véhicule :
 // passer réellement la tête en bas casserait la caméra (qui ne lit que
@@ -6094,7 +6122,8 @@ function majLooping(v,dt){
   // fumée qui dessine la boucle : émise depuis la queue, qui suit la
   // vraie rotation du mesh et trace donc un cercle complet à l'écran.
   // Colorée pour la voltige (cycle sur la durée de la figure), blanche
-  // sinon — même si seule la voltige peut en réalité déclencher un looping.
+  // pour le chasseur — les deux peuvent boucler (def.figures), seule la
+  // voltige a droit à la fumée colorée, propre à son identité.
   const c=v.def.long*0.42;
   const tx=v.x-Math.sin(v.ang)*c*Math.cos(theta), tz=v.z-Math.cos(v.ang)*c*Math.cos(theta), ty=v.alt+c*Math.sin(theta);
   const coulFumee=v.def.voltige?FUMEE_VOLTIGE[Math.floor(frac*10)%FUMEE_VOLTIGE.length]:0xe8ecf2;
@@ -6230,17 +6259,19 @@ function majVol(v,dt){
       // MONTER — le cas normal en jeu — n'avait pas le temps d'atteindre un
       // angle net avant que le joueur ne relâche.
       v.mesh.rotation.x=clamp(lerp(v.mesh.rotation.x,-v.va*0.06,0.45),-1.1,1.1);
-      // LE LOOPING — exclusif à l'avion de voltige (def.voltige) : l'avion
-      // de ligne et le chasseur gardent un vol stable, sans acrobaties.
-      // Déclenchement volontairement rapide (LOOP_HOLD_SEUIL court) — « tire
-      // fermement vers le haut » doit suffire, pas un appui interminable ;
-      // c'est tout l'intérêt de cet appareil. Toujours en vol stabilisé,
-      // assez haut et hors grâce de décollage. dtJeu (pas dt) : la fenêtre
-      // de maintien ne doit jamais se raccourcir ou s'allonger sous l'effet
-      // d'un ralenti en cours (curiosités, combo).
-      if(v.def.voltige&&monter&&v.alt>LOOP_ALT_MIN&&v.decolT<=0&&!INT.actif){
+      // LE LOOPING — disponible sur le chasseur ET la voltige (def.figures) ;
+      // l'avion de ligne garde un vol stable, sans acrobaties. Seuil de
+      // maintien propre à chaque appareil (def.loopSeuil) : court et facile
+      // pour la voltige (« tire fermement vers le haut » doit suffire, pas
+      // un appui interminable — c'est tout l'intérêt de cet appareil léger
+      // et vif), plus long pour le chasseur (appareil lourd, appui
+      // prolongé). Toujours en vol stabilisé, assez haut et hors grâce de
+      // décollage. dtJeu (pas dt) : la fenêtre de maintien ne doit jamais se
+      // raccourcir ou s'allonger sous l'effet d'un ralenti en cours
+      // (curiosités, combo).
+      if(v.def.figures&&monter&&v.alt>LOOP_ALT_MIN&&v.decolT<=0&&!INT.actif){
         v.holdMonterT=(v.holdMonterT||0)+dt/ETAT.timeScale;
-        if(v.holdMonterT>=LOOP_HOLD_SEUIL){
+        if(v.holdMonterT>=(v.def.loopSeuil||LOOP_HOLD_SEUIL)){
           v.loopEnCours={t:0,altDep:v.alt,vDep:v.v};
           v.holdMonterT=0;
         }
