@@ -3720,11 +3720,7 @@ function remplirBloc(qq,bx,bz,cx,cz){
     const manche=new THREE.Mesh(new THREE.ConeGeometry(0.32,1.6,10),mat(0xff7a3a));
     manche.rotation.z=Math.PI/2; manche.position.set(cx-INNER/2+2.9,3.3,cz); scene.add(manche);
     mkEnseigne('AÉRO-CLUB DE SOLARA','#f2c94c',cx,3.4,cz-(INNER-3)/2+1.5,0,11);
-    // Hangar : demandé par un joueur qui ne trouvait toujours pas l'aérodrome
-    // malgré la manche à air et l'enseigne — trop peu identifiable depuis le
-    // sol, noyé dans le quartier industriel. Un vrai bâtiment (porte sombre
-    // grande ouverte, bien visible) à côté de la piste, avec la voltige garée
-    // sur son tarmac plutôt qu'au milieu de nulle part.
+    // Hangar : repère visuel identifiable depuis le sol, à côté de la piste.
     const hgX=cx+9, hgZ=cz-8;
     mkBatiment(hgX,hgZ,11,9,6.5,mat(0x5a6674));
     mkBox(0.3,0.3,9,mat(0xd8dce4),hgX-5.5,6.65,hgZ); // bordure de toit, lisible depuis le ciel
@@ -3732,10 +3728,24 @@ function remplirBloc(qq,bx,bz,cx,cz){
       new THREE.MeshBasicMaterial({color:0x0d0f14,transparent:true,opacity:0.92,depthWrite:false}));
     porteHangar.rotation.y=Math.PI/2; porteHangar.position.set(hgX-5.51,3.1,hgZ); scene.add(porteHangar);
     mkEnseigne('HANGAR','#f2c94c',hgX-5.6,6.6,hgZ,Math.PI/2,7);
-    // tarmac clair devant le hangar : la voltige y est garée, pas sur la piste
-    const tarmac=new THREE.Mesh(new THREE.PlaneGeometry(7,6),new THREE.MeshLambertMaterial({color:0x4a4e56}));
-    tarmac.rotation.x=-Math.PI/2; tarmac.position.set(hgX-3.5,0.05,hgZ); scene.add(tarmac);
-    POIS.aerodrome={x:hgX-3.5,z:hgZ};
+    // Bug trouvé en corrigeant ce ticket : le tarmac (et donc l'avion) était
+    // planté à (hgX-3.5,hgZ), qui tombe EN PLEIN dans l'empreinte solide du
+    // hangar (mkBatiment pose addSolid({hw:5.5,hd:4.5}) centré sur hgX,hgZ ;
+    // hgX-3.5 est à seulement 3,5 de hgX, largement à l'intérieur des 5,5 de
+    // marge) — le joueur ne pouvait tout simplement pas marcher jusqu'à
+    // l'avion, physiquement bloqué par le mur. C'était la vraie cause de
+    // « toujours pas accès », pas un problème de repérage. Avion déplacé en
+    // bout de piste, à l'écart de tout solide, dans une clairière entourée
+    // de buissons — bord nord-ouest du terrain, loin du hangar.
+    const avX=cx-INNER/2+6, avZ=cz-(INNER-3)/2-1.5;
+    const clairiere=new THREE.Mesh(new THREE.CircleGeometry(4.6,20),new THREE.MeshLambertMaterial({color:0x4a4e56}));
+    clairiere.rotation.x=-Math.PI/2; clairiere.position.set(avX,0.05,avZ); scene.add(clairiere);
+    const posBuissons=[[-3.6,-2.4],[3.4,-2.6],[-4,2.2],[3.8,2],[0,3.6],[-1.6,-3.8],[1.8,-3.6]];
+    for(const [bx2,bz2] of posBuissons){
+      const buisson=new THREE.Mesh(new THREE.SphereGeometry(rand(1,1.5),8,6),mat(0x1f7a3a));
+      buisson.position.set(avX+bx2,rand(0.7,1.1),avZ+bz2); buisson.scale.y=0.85; scene.add(buisson);
+    }
+    POIS.aerodrome={x:avX,z:avZ};
     return;
   }
   if(bx===8&&bz===9){ // ruelle au magot
