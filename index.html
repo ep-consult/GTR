@@ -5034,8 +5034,9 @@ function majJoueur(dt,dtJeu){
   P.vitesseReelle=Math.hypot(vx,vz);   // vitesse instantanée réelle (joystick analogique compris)
   const marchable=(x,z)=>{
     const s=solidAt(x,z,0.5,undefined,P.y);
-    if(!s) return true;
-    return !!s.toit&&Math.abs(s.h-P.y)<1.4; // on circule sur le même toit
+    if(s) return !!s.toit&&Math.abs(s.h-P.y)<1.4; // on circule sur le même toit
+    if(!auSol()) return true; // en l'air (jetpack, chute) : les véhicules au sol ne bloquent pas
+    return !vehiculeBloquant(x,z,0.45,P.veh);
   };
   // en chute libre on ne marche plus : on ne fait que dériver légèrement
   let facAir=1;
@@ -5043,6 +5044,12 @@ function majJoueur(dt,dtJeu){
   const nx=P.x+vx*dt*facAir, nz=P.z+vz*dt*facAir;
   if(marchable(nx,P.z)) P.x=nx;
   if(marchable(P.x,nz)) P.z=nz;
+  // dégagement inconditionnel : jamais enfermé sans issue entre deux
+  // véhicules, même si le déplacement normal ci-dessus reste bloqué.
+  if(!P.veh&&auSol()){
+    const deg=degageDeVehicule(P.x,P.z,0.3,null);
+    if(deg){ P.x=deg.x; P.z=deg.z; }
+  }
   // verticalité : suivre le sol, tomber des bords
   const gY=solPied(P.x,P.z);
   if(P.chute){
@@ -5296,6 +5303,113 @@ function majDeformation(v,dt){
   if(v.dentAxe==='z') v.mesh.scale.set(1,1,s); else v.mesh.scale.set(s,1,1);
   if(v.dentT<=0) v.mesh.scale.set(1,1,1);
 }
+// Bug déjà rencontré : le joueur ET les PNJ traversaient les véhicules comme
+// s'ils n'existaient pas — aucune collision entre personnages et carrosseries.
+// C'était la cause racine de l'écrasement « jamais déclenché » : le contact
+// n'avait tout simplement jamais lieu. vehiculeBloquant() teste l'emprise
+// RÉELLE du véhicule (rectangle orienté long × larg, pas juste son centre) —
+// un bus de 10,5 unités bloque donc sur toute sa longueur, pas seulement au
+// milieu. Ignore les épaves/véhicules détruits, les planches de surf (jamais
+// un obstacle), les véhicules aériens en vol, et `ignore` (le véhicule que le
+// personnage conduit lui-même, sinon il ne pourrait plus avancer dedans).
+function vehiculeBloquant(x,z,marge,ignore){
+  for(const o of vehicules){
+    if(o===ignore||o.mort||o.epave||o.def.surf) continue;
+    if(o.def.air&&(o.alt||0)>3) continue;
+    const dx=x-o.x, dz=z-o.z, sA=Math.sin(o.ang), cA=Math.cos(o.ang);
+    const fwd=dx*sA+dz*cA, right=dx*cA-dz*sA;
+    if(Math.abs(fwd)<o.def.long*0.5+marge&&Math.abs(right)<o.def.larg*0.5+marge) return o;
+  }
+  return null;
+}
+// Dégagement : si un personnage se retrouve malgré tout à l'intérieur d'un
+// véhicule (apparition, poussée d'un autre choc, ou coincé entre deux
+// carrosseries), le repousse hors de l'emprise le long de l'axe le MOINS
+// pénétré — même principe que pousseHorsSolide pour les bâtiments. Appelé
+// inconditionnellement (pas seulement quand le déplacement normal est
+// autorisé) pour qu'un personnage ne reste jamais enfermé sans issue.
+function degageDeVehicule(x,z,marge,ignore){
+  const o=vehiculeBloquant(x,z,marge,ignore);
+  if(!o) return null;
+  const dx=x-o.x, dz=z-o.z, sA=Math.sin(o.ang), cA=Math.cos(o.ang);
+  const fwd=dx*sA+dz*cA, right=dx*cA-dz*sA;
+  const hl=o.def.long*0.5+marge, hw=o.def.larg*0.5+marge;
+  const pFwd=hl-Math.abs(fwd), pRight=hw-Math.abs(right);
+  if(pFwd<pRight){ const s=Math.sign(fwd)||1; return {x:x+sA*s*(pFwd+0.05), z:z+cA*s*(pFwd+0.05)}; }
+  const s=Math.sign(right)||1; return {x:x+cA*s*(pRight+0.05), z:z-sA*s*(pRight+0.05)};
+}
+// Percussion d'un personnage par un véhicule en mouvement — commun à toute
+// conduite (joueur, police, trafic). Bug déjà rencontré : ce bloc (ex-
+// « écrasement arcade ») ne s'exécutait que dans majVehiculePhys, jamais
+// appelé pour le trafic IA (majTrafic a sa propre boucle de mouvement) —
+// un véhicule de trafic ne pouvait donc jamais heurter un piéton ni le
+// joueur, quelle que soit sa vitesse. Extrait ici pour être appelé des deux
+// côtés. vehiculeBloquant()/degageDeVehicule() gèrent le blocage à l'arrêt ;
+// ceci gère l'impact quand la vitesse est significative.
+function majImpactPersonnages(v,dt){
+  const d=v.def;
+  if(d.eau||d.air) return;
+  if(Math.abs(v.v)<=7) return;
+  if((v.h||0)-solY(v.x,v.z)>=1.2) return;
+  const sA=Math.sin(v.ang), cA=Math.cos(v.ang), sgn=Math.sign(v.v)||1;
+  const px=v.x+sA*d.long/2*sgn, pz=v.z+cA*d.long/2*sgn;
+  const deg=Math.abs(v.v)*2.1*(d.milit?2:d.type==='moto'?0.7:1);
+  for(const e of ennemis){ if(e.mort||e.heli) continue;
+    if(dist2(e.x,e.z,px,pz)<3.2){
+      toucherEnnemi(e,deg,v.conduit==='joueur',0);
+      if(e.h&&!e.moto&&!e.heli) lancerRagdoll(e,(e.x-v.x),(e.z-v.z),9);
+      v.v*=0.86; if(v.conduit==='joueur'){vibre(30);secousse(3);}
+      if(d.type==='moto'&&v.conduit==='joueur') toucherJoueur(4);
+    }
+  }
+  for(const p of pietons){ if(p.etat==='mort') continue;
+    if(dist2(p.x,p.z,px,pz)<3){
+      // jamais aplatis (voir CLAUDE.md) : projection franche et lointaine,
+      // proportionnelle à la puissance du véhicule — la tôle porte la
+      // sensation d'écrasement, pas le corps.
+      const knock=9+Math.abs(v.v)*0.35+(d.ecrase?10:(d.milit?4:0));
+      tuerPieton(p,v.conduit==='joueur',knock); v.v*=0.92;
+    }
+  }
+  for(const c of cassables){ if(c.hp<=0) continue;
+    if(dist2(c.x,c.z,px,pz)<3.4){ casserCaisse(c); }
+  }
+  // Le joueur À PIED est sensible à l'écrasement. Jamais de mort instantanée
+  // (dégâts plafonnés à P.hp-1), projection franche (réutilise l'inertie du
+  // dodge), et une brève invulnérabilité DÉDIÉE (P.ecraseT, sur dtJeu — voir
+  // majJoueur) pour qu'un enchaînement de contacts rapprochés ne devienne
+  // jamais une mort impossible à éviter.
+  if(!P.veh){
+    // signal d'alerte avant contact : rayon plus large que le point
+    // d'impact, avec un cooldown par véhicule pour ne pas spammer.
+    if(Math.abs(v.v)>10&&dist2(P.x,P.z,v.x,v.z)<196&&(v.avertPietonT||0)<=0){
+      v.avertPietonT=2.2;
+      toast('⚠️ Un véhicule fonce droit sur toi !','warn'); vibre(35);
+    }
+    if(v.avertPietonT>0) v.avertPietonT-=dt;
+    // Contact sur tout le corps du véhicule (pas seulement la pointe du
+    // pare-choc, px/pz) : à haute vitesse, un simple point avant peut
+    // « sauter » par-dessus le joueur en une frame sans jamais recouper
+    // un petit rayon de contact centré dessus.
+    const angC=v.ang, sC=Math.sin(angC), cC=Math.cos(angC);
+    const dxp=P.x-v.x, dzp=P.z-v.z, fwdP=dxp*sC+dzp*cC, rightP=dxp*cC-dzp*sC;
+    // Même garde que toucherJoueur (iframes/dodge en cours) : sinon la
+    // projection et l'invulnérabilité dédiée s'appliqueraient même quand
+    // toucherJoueur ne fait rien (protection déjà active pour une autre
+    // raison), un « écrasement fantôme » sans dégâts réels.
+    if(P.ecraseT<=0&&P.iframes<=0&&P.dodgeT<=0&&Math.abs(fwdP)<d.long*0.5+0.6&&Math.abs(rightP)<d.larg*0.5+0.6){
+      const dmgBrut=18+Math.abs(v.v)*1.1+(d.ecrase?22:(d.milit||d.blinde?9:0));
+      const dmg=Math.min(dmgBrut,64,Math.max(0,P.hp-1));
+      if(dmg>0){
+        toucherJoueur(dmg,v.x,v.z);
+        const kdx=P.x-v.x||0.01, kdz=P.z-v.z||0.01, kl=Math.hypot(kdx,kdz);
+        P.dodgeT=0.32; P.dodgeVx=kdx/kl*(14+Math.abs(v.v)*0.6); P.dodgeVz=kdz/kl*(14+Math.abs(v.v)*0.6);
+        lancerRagdollJoueurFx();
+        P.ecraseT=1.1;
+      }
+    }
+  }
+}
 function wipeout(v){
   // une planche de surf ne prend pas feu : le rider tombe à l'eau
   if(P.veh===v) sortirVehicule(true);
@@ -5513,70 +5627,8 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
   // sillage des bateaux
   if(eau&&Math.abs(v.v)>4&&Math.random()<0.5)
     spawnP(v.x-sA*d.long/2,0.2,v.z-cA*d.long/2,rand(-1,1),rand(0.5,1.5),rand(-1,1),0.5,0.7,0xcfeaff,2);
-  // écrasement arcade
-  if(Math.abs(v.v)>7&&!eau&&(v.h||0)-solY(v.x,v.z)<1.2){
-    const px=v.x+sA*d.long/2*sgn, pz=v.z+cA*d.long/2*sgn;
-    const deg=Math.abs(v.v)*2.1*(d.milit?2:d.type==='moto'?0.7:1);
-    for(const e of ennemis){ if(e.mort||e.heli) continue;
-      if(dist2(e.x,e.z,px,pz)<3.2){
-        toucherEnnemi(e,deg,v.conduit==='joueur',0);
-        if(e.h&&!e.moto&&!e.heli) lancerRagdoll(e,(e.x-v.x),(e.z-v.z),9);
-        v.v*=0.86; if(v.conduit==='joueur'){vibre(30);secousse(3);}
-        if(d.type==='moto'&&v.conduit==='joueur') toucherJoueur(4);
-      }
-    }
-    for(const p of pietons){ if(p.etat==='mort') continue;
-      if(dist2(p.x,p.z,px,pz)<3){
-        // jamais aplatis (voir CLAUDE.md) : projection franche et lointaine,
-        // proportionnelle à la puissance du véhicule — la tôle porte la
-        // sensation d'écrasement, pas le corps.
-        const knock=9+Math.abs(v.v)*0.35+(d.ecrase?10:(d.milit?4:0));
-        tuerPieton(p,v.conduit==='joueur',knock); v.v*=0.92;
-      }
-    }
-    for(const c of cassables){ if(c.hp<=0) continue;
-      if(dist2(c.x,c.z,px,pz)<3.4){ casserCaisse(c); }
-    }
-    // Le joueur À PIED est désormais sensible à l'écrasement — jusqu'ici
-    // aucun véhicule ne pouvait le toucher en marchant dessus. `v` n'est
-    // jamais le véhicule du joueur ici (P.veh serait alors non-null) : ce
-    // cas ne peut se produire qu'avec un véhicule adverse conduit par l'IA
-    // (voiture de police en chasse, via majVoiturePolice). Jamais de mort
-    // instantanée (dégâts plafonnés à P.hp-1), projection franche (réutilise
-    // l'inertie du dodge), et une brève invulnérabilité DÉDIÉE (P.ecraseT,
-    // sur dtJeu — voir majJoueur) pour qu'un enchaînement de contacts
-    // rapprochés ne devienne jamais une mort impossible à éviter.
-    if(!P.veh){
-      // signal d'alerte avant contact : rayon plus large que le point
-      // d'impact, avec un cooldown par véhicule pour ne pas spammer.
-      if(Math.abs(v.v)>10&&dist2(P.x,P.z,v.x,v.z)<196&&(v.avertPietonT||0)<=0){
-        v.avertPietonT=2.2;
-        toast('⚠️ Un véhicule fonce droit sur toi !','warn'); vibre(35);
-      }
-      if(v.avertPietonT>0) v.avertPietonT-=dt;
-      // Contact sur tout le corps du véhicule (pas seulement la pointe du
-      // pare-choc, px/pz) : à haute vitesse, un simple point avant peut
-      // « sauter » par-dessus le joueur en une frame sans jamais recouper
-      // un petit rayon de contact centré dessus.
-      const angC=v.ang, sC=Math.sin(angC), cC=Math.cos(angC);
-      const dxp=P.x-v.x, dzp=P.z-v.z, fwdP=dxp*sC+dzp*cC, rightP=dxp*cC-dzp*sC;
-      // Même garde que toucherJoueur (iframes/dodge en cours) : sinon la
-      // projection et l'invulnérabilité dédiée s'appliqueraient même quand
-      // toucherJoueur ne fait rien (protection déjà active pour une autre
-      // raison), un « écrasement fantôme » sans dégâts réels.
-      if(P.ecraseT<=0&&P.iframes<=0&&P.dodgeT<=0&&Math.abs(fwdP)<d.long*0.5+0.6&&Math.abs(rightP)<d.larg*0.5+0.6){
-        const dmgBrut=18+Math.abs(v.v)*1.1+(d.ecrase?22:(d.milit||d.blinde?9:0));
-        const dmg=Math.min(dmgBrut,64,Math.max(0,P.hp-1));
-        if(dmg>0){
-          toucherJoueur(dmg,v.x,v.z);
-          const kdx=P.x-v.x||0.01, kdz=P.z-v.z||0.01, kl=Math.hypot(kdx,kdz);
-          P.dodgeT=0.32; P.dodgeVx=kdx/kl*(14+Math.abs(v.v)*0.6); P.dodgeVz=kdz/kl*(14+Math.abs(v.v)*0.6);
-          lancerRagdollJoueurFx();
-          P.ecraseT=1.1;
-        }
-      }
-    }
-  }
+  // écrasement arcade — voir majImpactPersonnages (partagée avec majTrafic)
+  majImpactPersonnages(v,dt);
   // Collisions entre véhicules : la masse compte (un camion balaye une
   // citadine), et le contact se joue désormais au niveau des carrosseries.
   // Bug déjà rencontré : un simple rayon moyen (somme des longueurs) autour
@@ -6231,6 +6283,11 @@ function majTrafic(v,dt){
   if(!P.veh&&dist2(px,pz,P.x,P.z)<9) bloque=true;
   if(P.veh&&dist2(px,pz,P.x,P.z)<16) bloque=true;
   for(const o of vehicules){ if(o===v||o.mort) continue; if(dist2(px,pz,o.x,o.z)<13){bloque=true;break;} }
+  // freine aussi pour un piéton dans sa voie — le trafic essaie de les
+  // éviter comme il évite déjà le joueur ; s'il n'y arrive pas (piéton qui
+  // traverse au dernier moment, vitesse trop élevée), majImpactPersonnages
+  // gère le contact réel plus bas.
+  if(!bloque) for(const p of pietons){ if(p.etat==='mort') continue; if(dist2(px,pz,p.x,p.z)<8){bloque=true;break;} }
   if(bloque){
     cibleV=0;
     v.klaxT-=dt;
@@ -6250,6 +6307,7 @@ function majTrafic(v,dt){
   else { v.z=lerp(v.z,laneCible,2*dt); v.x+=sA*v.v*dt; }
   v.mesh.position.set(v.x,0,v.z);
   if(v.fadeT>0){ v.fadeT-=dt; v.mesh.scale.setScalar(v.fadeT>0?1-v.fadeT/0.3:1); }
+  majImpactPersonnages(v,dt);
   for(const r of v.mesh.userData.roues) r.rotation.x+=v.v*dt*1.6;
   // aux limites de la ville : demi-tour propre au lieu de foncer dans le mur et disparaître
   const LIMN=-HALF+6, LIMS=MER-CELL*1.4, LIMO=-HALF+6, LIME=HALF-6;
@@ -6426,9 +6484,13 @@ function majPietons(dt){
       if(p.t<=0){ p.t=rand(1.5,4); p.dir+=rand(-1.4,1.4); }
     }
     const nx=p.x+Math.sin(p.dir)*vit*dt, nz=p.z+Math.cos(p.dir)*vit*dt;
-    if(!solidAt(nx,p.z,0.4)&&!estEau(nx,p.z)) p.x=nx; else p.dir+=Math.PI/2;
-    if(!solidAt(p.x,nz,0.4)&&!estEau(p.x,nz)) p.z=nz; else p.dir+=Math.PI/2;
+    if(!solidAt(nx,p.z,0.4)&&!estEau(nx,p.z)&&!vehiculeBloquant(nx,p.z,0.35)) p.x=nx; else p.dir+=Math.PI/2;
+    if(!solidAt(p.x,nz,0.4)&&!estEau(p.x,nz)&&!vehiculeBloquant(p.x,nz,0.35)) p.z=nz; else p.dir+=Math.PI/2;
     p.x=clamp(p.x,-HALF,HALF); p.z=clamp(p.z,-HALF,HALF);
+    // dégagement : jamais un PNJ enfermé sans issue entre deux véhicules —
+    // même logique que pour le joueur, voir degageDeVehicule.
+    const deg=degageDeVehicule(p.x,p.z,0.25,null);
+    if(deg){ p.x=deg.x; p.z=deg.z; }
     p.h.g.position.set(p.x,solY(p.x,p.z),p.z);
     p.h.g.rotation.y=p.dir;
     animeHumain(p.h,dt,vit,false);
