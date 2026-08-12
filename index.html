@@ -671,7 +671,16 @@ const SFX={
   // Le Désintégrateur : son distinct, jamais entendu ailleurs — un
   // sifflement descendant continu plutôt qu'une détonation.
   desintegrateur(){beep(1500,0.2,'sawtooth',0.26,280);bruit(0.14,0.3,2400,'highpass');},
-  ui(){beep(480,0.04,'square',0.1,0,AUDIO.uiG);}
+  ui(){beep(480,0.04,'square',0.1,0,AUDIO.uiG);},
+  // Choc entre véhicules : un frôlement reste discret (court, sourd, pas de
+  // coup sec), un choc frontal à pleine vitesse est spectaculaire (plus
+  // long, plus fort, plus grave, avec un « thud » distinct) — viol 0..1,4.
+  choc(viol){
+    const v=clamp(viol,0,1.4);
+    bruit(0.06+0.16*v,0.2+0.5*v,850-450*v,'lowpass');
+    bruit(0.03+0.05*v,0.12+0.28*v,2600,'highpass');
+    if(v>0.45) beep(85,0.1+0.12*v,'square',0.15+0.3*v,45);
+  }
 };
 function sirenUpdate(dt,intens){
   if(!AUDIO.pret) return;
@@ -4633,6 +4642,11 @@ function secousse(n){ETAT.shake=Math.max(ETAT.shake,n);}
 const P={x:0,z:0,y:0,vy:0,chute:false,ang:0,hp:100,maxHp:100,stam:100,stamMax:100,stamDelai:0,bouclier:0,
   armeCur:'poings',mags:{},mun:{},cadT:0,rechT:0,frappeT:0,
   dodgeT:0,dodgeCd:0,dodgeVx:0,dodgeVz:0,iframes:0,regenDelai:0,specCd:0,
+  // ecraseT : brève invulnérabilité dédiée après un écrasement par un
+  // véhicule (distincte de iframes, bien plus courte) — sur dtJeu, voir
+  // majJoueur, pour qu'aucun ralenti en cours ne la raccourcisse ni ne
+  // l'allonge, et qu'un enchaînement d'écrasements rapprochés reste évitable.
+  ecraseT:0,
   buffs:{dmg:0,vit:0,butin:0,lourd:0},veh:null,h:null,armeMeshes:{},vitBase:10,meleeMul:1,tirT:0,grenades:3,chuteY0:0,para:false,
   // Jetpack (lot 12) : jetpack=équipé cette partie (perdu au game over,
   // voir startRun), jetpackVol=en vol actif, jetFuel=carburant 0..100,
@@ -4954,6 +4968,7 @@ function capaciteSpeciale(){
 /* ---------- boucle joueur ---------- */
 function majJoueur(dt,dtJeu){
   P.cadT-=dt; P.iframes-=dt; P.dodgeCd-=dt; P.specCd=Math.max(0,P.specCd-dt);
+  P.ecraseT=Math.max(0,P.ecraseT-dtJeu);
   toastEauT-=dt;
   P.regenDelai-=dt; P.tirT-=dt; P.stamDelai-=dt;
   for(const k of ['dmg','vit','butin','lourd']) if(P.buffs[k]>0) P.buffs[k]-=dt;
@@ -5268,6 +5283,19 @@ function abimerVehicule(v,d,parJoueur){
   burst(v.x,1,v.z,3,0xffd88a,6);
   if(v.hp<=0) exploserVehicule(v);
 }
+// Déformation visible de la carrosserie après un choc : bref écrasement du
+// mesh le long de l'axe d'impact (v.dentAxe), qui se résorbe sur v.dentT —
+// posé par la résolution de collision entre véhicules, voir majVehiculePhys.
+// Une échelle non-uniforme plutôt qu'une vraie déformation de géométrie :
+// les carrosseries sont procédurales et peu coûteuses à re-scaler, jamais à
+// re-générer par frame (voir CLAUDE.md, performance mobile).
+function majDeformation(v,dt){
+  if(!(v.dentT>0)) return;
+  v.dentT-=dt;
+  const t=Math.max(0,v.dentT)/0.4, s=1-v.dentAmt*t;
+  if(v.dentAxe==='z') v.mesh.scale.set(1,1,s); else v.mesh.scale.set(s,1,1);
+  if(v.dentT<=0) v.mesh.scale.set(1,1,1);
+}
 function wipeout(v){
   // une planche de surf ne prend pas feu : le rider tombe à l'eau
   if(P.veh===v) sortirVehicule(true);
@@ -5509,13 +5537,68 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
     for(const c of cassables){ if(c.hp<=0) continue;
       if(dist2(c.x,c.z,px,pz)<3.4){ casserCaisse(c); }
     }
+    // Le joueur À PIED est désormais sensible à l'écrasement — jusqu'ici
+    // aucun véhicule ne pouvait le toucher en marchant dessus. `v` n'est
+    // jamais le véhicule du joueur ici (P.veh serait alors non-null) : ce
+    // cas ne peut se produire qu'avec un véhicule adverse conduit par l'IA
+    // (voiture de police en chasse, via majVoiturePolice). Jamais de mort
+    // instantanée (dégâts plafonnés à P.hp-1), projection franche (réutilise
+    // l'inertie du dodge), et une brève invulnérabilité DÉDIÉE (P.ecraseT,
+    // sur dtJeu — voir majJoueur) pour qu'un enchaînement de contacts
+    // rapprochés ne devienne jamais une mort impossible à éviter.
+    if(!P.veh){
+      // signal d'alerte avant contact : rayon plus large que le point
+      // d'impact, avec un cooldown par véhicule pour ne pas spammer.
+      if(Math.abs(v.v)>10&&dist2(P.x,P.z,v.x,v.z)<196&&(v.avertPietonT||0)<=0){
+        v.avertPietonT=2.2;
+        toast('⚠️ Un véhicule fonce droit sur toi !','warn'); vibre(35);
+      }
+      if(v.avertPietonT>0) v.avertPietonT-=dt;
+      // Contact sur tout le corps du véhicule (pas seulement la pointe du
+      // pare-choc, px/pz) : à haute vitesse, un simple point avant peut
+      // « sauter » par-dessus le joueur en une frame sans jamais recouper
+      // un petit rayon de contact centré dessus.
+      const angC=v.ang, sC=Math.sin(angC), cC=Math.cos(angC);
+      const dxp=P.x-v.x, dzp=P.z-v.z, fwdP=dxp*sC+dzp*cC, rightP=dxp*cC-dzp*sC;
+      // Même garde que toucherJoueur (iframes/dodge en cours) : sinon la
+      // projection et l'invulnérabilité dédiée s'appliqueraient même quand
+      // toucherJoueur ne fait rien (protection déjà active pour une autre
+      // raison), un « écrasement fantôme » sans dégâts réels.
+      if(P.ecraseT<=0&&P.iframes<=0&&P.dodgeT<=0&&Math.abs(fwdP)<d.long*0.5+0.6&&Math.abs(rightP)<d.larg*0.5+0.6){
+        const dmgBrut=18+Math.abs(v.v)*1.1+(d.ecrase?22:(d.milit||d.blinde?9:0));
+        const dmg=Math.min(dmgBrut,64,Math.max(0,P.hp-1));
+        if(dmg>0){
+          toucherJoueur(dmg,v.x,v.z);
+          const kdx=P.x-v.x||0.01, kdz=P.z-v.z||0.01, kl=Math.hypot(kdx,kdz);
+          P.dodgeT=0.32; P.dodgeVx=kdx/kl*(14+Math.abs(v.v)*0.6); P.dodgeVz=kdz/kl*(14+Math.abs(v.v)*0.6);
+          lancerRagdollJoueurFx();
+          P.ecraseT=1.1;
+        }
+      }
+    }
   }
-  // collisions entre véhicules : la masse compte (un camion balaye une citadine)
+  // Collisions entre véhicules : la masse compte (un camion balaye une
+  // citadine), et le contact se joue désormais au niveau des carrosseries.
+  // Bug déjà rencontré : un simple rayon moyen (somme des longueurs) autour
+  // du centre, ignorant l'orientation, laissait les véhicules s'interpénétrer
+  // avant de réagir (ou se repousser alors qu'ils étaient encore visuellement
+  // écartés) — et un choc au FLANC d'un véhicule long (bus, camion de
+  // pompiers) se comportait exactement comme un choc pare-choc contre
+  // pare-choc. Remplacé par un test façon SAT sur les 2 axes de v (avant/
+  // droite) : la portée testée sur chaque axe tient compte de la vraie
+  // orientation de o (projection de son empan avant/largeur), et la
+  // résolution se fait sur l'axe le MOINS recouvert — un choc de flanc
+  // pousse donc sur le côté, un choc frontal dans l'axe.
   for(const o of vehicules){
     if(o===v||o.mort||o.epave) continue;
     if(Math.abs((v.h||0)-(o.h||0))>1.6) continue;
-    const rr=(v.def.long+o.def.long)*0.28;
-    if(dist2(v.x,v.z,o.x,o.z)<rr*rr){
+    const dxw=o.x-v.x, dzw=o.z-v.z;
+    const angV=v.ang, sV=Math.sin(angV), cV=Math.cos(angV);
+    const distFwd=dxw*sV+dzw*cV, distRight=dxw*cV-dzw*sV;
+    const hlV=v.def.long*0.5, hwV=v.def.larg*0.5, hlO=o.def.long*0.5, hwO=o.def.larg*0.5;
+    const dAng=o.ang-angV, cD=Math.abs(Math.cos(dAng)), sD=Math.abs(Math.sin(dAng));
+    const porteeFwd=hlV+hlO*cD+hwO*sD, porteeRight=hwV+hlO*sD+hwO*cD;
+    if(Math.abs(distFwd)<porteeFwd&&Math.abs(distRight)<porteeRight){
       // écrasement : char et monster truck aplatissent tout véhicule sans
       // exception, remplace entièrement le rebond/dégâts de masse ci-dessous
       // pour cette paire — voir ecraserVehicule (aucune exception, aucun
@@ -5525,18 +5608,38 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
       const mV=v.def.long*v.def.larg*((v.def.milit||v.def.blinde)?2.2:1);
       const mO=o.def.long*o.def.larg*((o.def.milit||o.def.blinde)?2.2:1);
       const rap=clamp(mV/mO,0.4,2.5);   // >1 : v est plus lourd que o
-      const dx=v.x-o.x||0.01, dz=v.z-o.z||0.01, dl=Math.hypot(dx,dz);
-      v.x+=dx/dl*0.25/rap; v.z+=dz/dl*0.25/rap;
-      if(!o.mort&&o.conduit!=='joueur'){ o.x-=dx/dl*0.22*rap; o.z-=dz/dl*0.22*rap; }
+      // séparation sur l'axe le MOINS recouvert (résolution façon SAT)
+      const overFwd=porteeFwd-Math.abs(distFwd), overRight=porteeRight-Math.abs(distRight);
+      let pushX,pushZ;
+      if(overFwd<overRight){ const s2=distFwd>=0?-1:1; pushX=sV*s2; pushZ=cV*s2; }
+      else { const s2=distRight>=0?-1:1; pushX=cV*s2; pushZ=-sV*s2; }
+      v.x+=pushX*0.25/rap; v.z+=pushZ*0.25/rap;
+      if(!o.mort&&o.conduit!=='joueur'){ o.x-=pushX*0.22*rap; o.z-=pushZ*0.22*rap; }
       if(rel>7){
+        const viol=clamp(rel/40,0,1.4);
         abimerVehicule(o,rel*0.8*rap,v.conduit==='joueur');
         abimerVehicule(v,rel*0.5/rap,false);
-        burst((v.x+o.x)/2,1,(v.z+o.z)/2,5,0xffd88a,7);
-        if(v.conduit==='joueur'){secousse(Math.min(6,4*rap));vibre(40);}
+        // point de contact réel (bord de v du côté de o), pas le milieu
+        // arbitraire entre les deux centres — pour la déformation et les
+        // étincelles/débris, dont l'intensité suit la violence du choc.
+        const cx=v.x+Math.sign(distFwd||1)*Math.min(Math.abs(distFwd),hlV)*sV+Math.sign(distRight||1)*Math.min(Math.abs(distRight),hwV)*cV;
+        const cz=v.z+Math.sign(distFwd||1)*Math.min(Math.abs(distFwd),hlV)*cV-Math.sign(distRight||1)*Math.min(Math.abs(distRight),hwV)*sV;
+        burst(cx,1,cz,4+Math.round(viol*8),0xffd88a,7+viol*6);
+        burst(cx,1.1,cz,Math.round(2+viol*6),0xe8f4ff,5+viol*5,3); // débris de vitres
+        if(v.conduit==='joueur'){ secousse(clamp(2+viol*10,2,16)); vibre(30+viol*50); SFX.choc(viol); }
+        else if(o.conduit==='joueur'){ secousse(clamp(2+viol*10,2,16)); vibre(30+viol*50); SFX.choc(viol); }
+        // déformation visible : bref écrasement de la carrosserie le long de
+        // l'axe d'impact, qui se résorbe — voir majDeformation. Jamais sur
+        // un véhicule qui vient tout juste d'apparaître (fondu d'échelle en
+        // cours), sous peine de conflit entre les deux animations d'échelle.
+        const axeDent=(overFwd<overRight)?'z':'x', amtDent=clamp(viol*0.22,0.05,0.24);
+        if(!(v.fadeT>0)){ v.dentAxe=axeDent; v.dentAmt=amtDent; v.dentT=0.4; }
+        if(!(o.fadeT>0)){ o.dentAxe=axeDent; o.dentAmt=amtDent*clamp(1/rap,0.4,1.6); o.dentT=0.4; }
       }
       v.v*=clamp(0.5+0.25*(rap-1),0.35,0.8); o.v*=clamp(0.7-0.2*(rap-1),0.3,0.85);
     }
   }
+  majDeformation(v,dt);
   // fumée si abîmé
   if(v.hp<v.def.hp*0.42){ v.fumeT-=dt; if(v.fumeT<=0){v.fumeT=0.12;fumee(v.x,1.1,v.z, v.hp<v.def.hp*0.2?0x22242a:0x555a63);} }
   v.mesh.position.set(v.x,eau?0.15:(v.h||0),v.z);
@@ -6185,6 +6288,11 @@ function majVehicules(dt){
     if(v.mort||v.epave) continue;
     if(v.def.pompier) majGyrophares(v,dt); // tourne quel que soit le conduit (trafic, joueur...)
     if(v.aplatiPartiel) continue; // à moitié aplati : immobile jusqu'au second passage
+    // Déformation après un choc (voir majVehiculePhys) : appliquée ici pour
+    // tout véhicule qui NE passe PAS par majVehiculePhys — la police y passe
+    // déjà (majVoiturePolice l'appelle), l'appeler aussi ici la ferait
+    // décroître deux fois plus vite pour elle.
+    if(v.conduit!=='police') majDeformation(v,dt);
     if(v.conduit==='trafic') majTrafic(v,dt);
     else if(v.conduit==='police') majVoiturePolice(v,dt);
     else if(v.conduit==='iaCourse'){
@@ -13989,7 +14097,7 @@ function startRun(){
   recalcJoueur(); construireJoueur();
   P.x=POIS.place.x; P.z=POIS.place.z+8; P.ang=0; P.y=0; P.vy=0; P.chute=false; P.para=false; paraMesh.visible=false;
   P.hp=P.maxHp; P.stam=P.stamMax; P.bouclier=0; P.veh=null;
-  P.buffs={dmg:0,vit:0,butin:0,lourd:0}; P.iframes=0; P.dodgeT=0; P.rechT=0; P.specCd=0;
+  P.buffs={dmg:0,vit:0,butin:0,lourd:0}; P.iframes=0; P.dodgeT=0; P.rechT=0; P.specCd=0; P.ecraseT=0;
   P.grenades=3; el('grenN').textContent=3;
   // Jetpack : perdu au game over, comme les armes (voir CLAUDE.md) — il
   // faut remonter le chercher. Le lieu, lui (META.jetpackTrouve), reste acquis.
