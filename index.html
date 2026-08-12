@@ -6117,50 +6117,63 @@ const DECOL_GRACE=0.5;
 // d'appui séparément pour obtenir ce comportement.
 const PITCH_LISSAGE=6;
 // FIGURES (looping + vrille) — disponibles sur les appareils avec
-// figures:true (chasseur et voltige, voir VEHDEFS). Bug remonté par un
-// joueur : la 1re version se déclenchait sur l'INTENSITÉ du joystick, or
+// figures:true (chasseur et voltige, voir VEHDEFS), déclenchées par un
+// MAINTIEN du joystick, jamais par sa seule intensité ni par un vecteur
+// mathématiquement parfait. Historique de deux régressions déjà corrigées
+// ici, pour ne pas les réintroduire :
+//
+// 1re régression : déclenchement sur la seule INTENSITÉ du joystick — or
 // cette intensité sert aussi au pilotage normal (virages serrés, montées
-// franches) — les figures partaient sans arrêt, avion incontrôlable.
-// Reviens à un déclenchement sur la DURÉE, avec des seuils volontairement
-// longs (3 s par défaut) : une figure doit être une intention CLAIRE,
-// jamais un accident de pilotage normal.
-//   FIGURE_L_SEUIL     — amplitude minimale du joystick (0 à 1, comme
-//                        Math.hypot de INPUT.mx/mz) pour compter comme
-//                        « à fond » — proche du maximum, pas un simple
-//                        virage appuyé.
-//   FIGURE_ANGLE_LOOP  — écart angulaire MAX entre le joystick et le cap
-//                        tenu au DÉBUT du geste pour compter comme
-//                        « vers le haut » (LOOPING).
-//   FIGURE_ANGLE_VRILLE— écart angulaire MIN pour compter comme
-//                        « sur le côté » (VRILLE). Zone morte entre les
-//                        deux seuils : ni looping ni vrille, juste le
-//                        virage normal.
-// FIGURE_DIR_TOL   — tolérance angulaire sur la direction du JOYSTICK
-//                    lui-même (pas le cap de l'appareil) d'une frame à
-//                    l'autre : au-delà, ce n'est plus « la même direction »
-//                    et tout se remet à zéro. Bug trouvé en testant : une
-//                    première version ne figeait la classification qu'à la
-//                    reprise d'une poussée franche (amplitude qui repasse
-//                    au-dessus du seuil), jamais quand la direction changeait
-//                    EN COURS de poussée continue — un joystick maintenu à
-//                    fond mais qui balaie plusieurs directions (n'importe
-//                    quel pilotage un peu nerveux) restait « un seul geste »
-//                    tant que l'amplitude ne retombait jamais, et finissait
-//                    par déclencher des figures au hasard. Comparer la
-//                    direction COURANTE du joystick à sa propre valeur
-//                    figée (pas au cap de l'appareil, qui de toute façon
-//                    tourne déjà vers le joystick) force une vraie tenue
-//                    immobile.
+// franches), donc les figures partaient sans arrêt, avion incontrôlable.
+// → passage à un déclenchement sur la DURÉE (def.figureSeuil).
+//
+// 2e régression : les seuils (amplitude quasi 100 %, moins de 6° d'écart)
+// étaient réglés pour une simulation qui tient un vecteur parfait, ce
+// qu'un pouce sur écran tactile ne fait jamais — la simulation passait,
+// le looping était pourtant injouable en vrai. Cause secondaire : la
+// classification (aligné/latéral) se refigeait sur le cap COURANT de
+// l'appareil dès le moindre petit écart de direction, or ce cap a déjà eu
+// le temps de suivre le joystick après une seconde de virage normal — un
+// maintien latéral sincère finissait reclassé « aligné ». → figHeadingRef
+// ne se fige plus qu'UNE SEULE FOIS par poussée franche continue (voir
+// plus bas), et les seuils sont ramenés à des valeurs tenables à la main.
+//
+//   FIGURE_L_SEUIL      — amplitude minimale du joystick (0 à 1, comme
+//                         Math.hypot de INPUT.mx/mz) pour compter comme
+//                         « à fond ».
+//   FIGURE_ANGLE_LOOP   — écart angulaire MAX entre le joystick et le cap
+//                         figé au DÉBUT du geste pour compter comme
+//                         « vers le haut » (LOOPING).
+//   FIGURE_ANGLE_VRILLE — écart angulaire MIN pour compter comme
+//                         « sur le côté » (VRILLE). Zone morte entre les
+//                         deux : ni looping ni vrille, juste le virage
+//                         normal.
+//   FIGURE_DECAY        — au lieu d'une remise à zéro INSTANTANÉE dès
+//                         qu'une frame sort de la zone valide (trop
+//                         fragile face au bruit tactile normal), le
+//                         maintien DÉCROÎT à ce rythme (plus vite qu'il ne
+//                         monte) : absorbe une frame ou deux de bruit sans
+//                         effacer plusieurs secondes de tenue par ailleurs
+//                         sincère, tout en punissant un relâchement ou un
+//                         changement de direction réel et soutenu.
 // FIGURE_SEUIL_DEFAUT est la durée de maintien PAR DÉFAUT (def.figureSeuil
 // sinon) — c'est la valeur de la voltige (1,5 s, réduite, « c'est son
-// intérêt »). Le chasseur garde les 3 s pleines (def.figureSeuil). Le
-// compteur de maintien se remet à zéro dès que le joueur relâche, réduit
-// l'amplitude sous FIGURE_L_SEUIL, ou change de direction (joystick qui
-// s'écarte de plus de FIGURE_DIR_TOL de sa position figée) — seul un
-// maintien franc, continu, à fond et immobile compte. FIGURE_COOLDOWN
-// impose un délai après chaque figure avant qu'une nouvelle puisse se
-// déclencher. LOOP_ALT_MIN garde toute figure loin du sol.
-const FIGURE_L_SEUIL=0.97, FIGURE_ANGLE_LOOP=0.35, FIGURE_ANGLE_VRILLE=1.15, FIGURE_DIR_TOL=0.1,
+// intérêt »). Le chasseur garde les 3 s pleines (def.figureSeuil).
+// FIGURE_COOLDOWN impose un délai après chaque figure avant qu'une
+// nouvelle puisse s'armer. LOOP_ALT_MIN garde toute figure loin du sol.
+// FIGURE_GESTE_MUL borne la durée de vie d'un même figHeadingRef figé, en
+// multiple du seuil de CET appareil (def.figureSeuil) : au-delà de cette
+// durée de poussée franche CONTINUE (sans jamais relâcher), la référence
+// est re-figée sur le cap courant même si aucune figure n'a abouti. Sans
+// ça, un joystick tenu à fond des dizaines de secondes d'affilée (un
+// pilotage très nerveux et prolongé, jamais vraiment relâché) garde une
+// seule et même référence figée tout du long, ce qui laisse bien trop de
+// temps à une dérive de cap complètement fortuite pour, par pur hasard,
+// se retrouver alignée avec elle assez longtemps — d'autant plus vrai pour
+// la voltige, dont le seuil court (1,5 s) tiendrait plusieurs fois dans
+// une seule poussée prolongée. En multiple du seuil (pas une durée fixe),
+// la marge reste proportionnelle pour les deux appareils.
+const FIGURE_L_SEUIL=0.82, FIGURE_ANGLE_LOOP=0.5, FIGURE_ANGLE_VRILLE=1.0, FIGURE_DECAY=3.5, FIGURE_GESTE_MUL=1.4,
       FIGURE_SEUIL_DEFAUT=1.5, FIGURE_COOLDOWN=2, LOOP_DUREE=1.5, VRILLE_DUREE=0.9, LOOP_ALT_MIN=14;
 // Fumée colorée pendant les figures de la voltige uniquement (cycle sur la
 // durée de la figure) — le chasseur, qui peut aussi boucler, garde une
@@ -6358,57 +6371,38 @@ function majVol(v,dt){
       // par un MAINTIEN, pas par l'intensité seule : l'intensité du
       // joystick sert aussi au pilotage normal (virage serré, montée
       // franche), donc juger sur elle SEULE faisait partir des figures en
-      // permanence — avion incontrôlable, bug remonté par un joueur. Il
-      // faut maintenant un joystick à FOND (FIGURE_L_SEUIL, proche du
-      // maximum), IMMOBILE, aligné avec le cap qu'avait l'appareil au tout
-      // début du geste (LOOPING) ou nettement de côté (VRILLE), en CONTINU
-      // pendant la durée complète du seuil (def.figureSeuil : 3 s pour le
-      // chasseur, 1,5 s pour la voltige) — volontairement long, pour
-      // qu'une figure soit une intention claire, jamais un accident.
-      // v.figStickRef fige la direction du JOYSTICK LUI-MÊME (pas le cap de
-      // l'appareil, qui tourne déjà vers lui à chaque frame par le virage
-      // normal ci-dessus) dès qu'une poussée franche commence ou que sa
-      // direction s'écarte de plus de FIGURE_DIR_TOL de la référence — donc
-      // à chaque vrai changement de direction, même en poussée continue
-      // sans jamais relâcher. Bug trouvé en testant : une version qui ne
-      // re-figeait qu'au relâchement de l'amplitude laissait un joystick
-      // tenu à fond mais balayant plusieurs directions (pilotage nerveux
-      // normal) continuer d'accumuler comme un seul et même geste, et finir
-      // par déclencher des figures au hasard. Une fois la direction figée,
-      // diffCap (l'écart entre cette direction et le cap de l'appareil À CE
-      // MOMENT-LÀ) ne bouge plus : classification stable pour toute la
-      // durée du maintien. Le compteur retombe à zéro dès que le joueur
-      // relâche, réduit l'amplitude sous le seuil, ou bouge le joystick.
-      // Une fois une figure terminée, v.figureCdT impose FIGURE_COOLDOWN
-      // (2 s) avant qu'une nouvelle ne puisse s'armer. Toujours en vol
-      // stabilisé, assez haut et hors grâce de décollage : aucune figure ne
-      // se déclenche près du sol. dtJeu (pas dt) : les fenêtres de maintien
-      // et de recharge ne doivent jamais se raccourcir ou s'allonger sous
-      // l'effet d'un ralenti en cours (curiosités, combo).
+      // permanence — voir le grand commentaire au-dessus de FIGURE_L_SEUIL
+      // pour l'historique complet des deux régressions déjà corrigées.
+      // v.figHeadingRef fige le cap de l'appareil UNE SEULE FOIS, au tout
+      // début d'une poussée franche continue (jamais re-figé tant qu'elle
+      // dure) : dc compare donc toujours la direction ACTUELLE du joystick
+      // au cap D'AVANT LE DÉBUT DU VIRAGE, stable sur toute la durée du
+      // maintien, même une fois que l'appareil a rattrapé le joystick.
       if(v.figureCdT>0) v.figureCdT-=dt/ETAT.timeScale;
       if(v.def.figures&&v.alt>LOOP_ALT_MIN&&v.decolT<=0&&!INT.actif&&!(v.figureCdT>0)){
-        const stickAng=Math.atan2(INPUT.mx,INPUT.mz);
         const franc=l>FIGURE_L_SEUIL;
-        const memeDirection=franc&&v.figStickRef!==undefined&&Math.abs(angDiff(v.figStickRef,stickAng))<FIGURE_DIR_TOL;
-        if(franc&&!memeDirection){
-          v.figStickRef=stickAng; v.figHeadingRef=v.ang;
-          v.holdLoopT=0; v.holdVrilleT=0;
-        }
+        const dtd=dt/ETAT.timeScale, decay=FIGURE_DECAY*dtd;
         if(franc){
-          const diffCap=Math.abs(angDiff(v.figHeadingRef,v.figStickRef));
-          if(diffCap<FIGURE_ANGLE_LOOP){
-            v.holdLoopT=(v.holdLoopT||0)+dt/ETAT.timeScale; v.holdVrilleT=0;
-            if(v.holdLoopT>=(v.def.figureSeuil||FIGURE_SEUIL_DEFAUT)){
-              v.loopEnCours={t:0,altDep:v.alt,vDep:v.v}; v.holdLoopT=0; v.figureCdT=FIGURE_COOLDOWN;
-            }
-          } else if(diffCap>FIGURE_ANGLE_VRILLE){
-            v.holdVrilleT=(v.holdVrilleT||0)+dt/ETAT.timeScale; v.holdLoopT=0;
-            if(v.holdVrilleT>=(v.def.figureSeuil||FIGURE_SEUIL_DEFAUT)){
-              v.vrilleEnCours={t:0,sens:INPUT.mx<0?1:-1}; v.holdVrilleT=0; v.figureCdT=FIGURE_COOLDOWN;
-            }
-          } else { v.holdLoopT=0; v.holdVrilleT=0; }
-        } else { v.holdLoopT=0; v.holdVrilleT=0; v.figStickRef=undefined; }
-      } else { v.holdLoopT=0; v.holdVrilleT=0; v.figStickRef=undefined; }
+          v.figGesteT=(v.figGesteT||0)+dtd;
+          const gesteMax=FIGURE_GESTE_MUL*(v.def.figureSeuil||FIGURE_SEUIL_DEFAUT);
+          if(v.figHeadingRef===undefined||v.figGesteT>gesteMax){ v.figHeadingRef=v.ang; v.figGesteT=0; }
+        } else v.figGesteT=0;
+        const dc=franc?Math.abs(angDiff(v.figHeadingRef,Math.atan2(INPUT.mx,INPUT.mz))):0;
+        if(franc&&dc<FIGURE_ANGLE_LOOP){
+          v.holdLoopT=(v.holdLoopT||0)+dtd; v.holdVrilleT=Math.max(0,(v.holdVrilleT||0)-decay);
+          if(v.holdLoopT>=(v.def.figureSeuil||FIGURE_SEUIL_DEFAUT)){
+            v.loopEnCours={t:0,altDep:v.alt,vDep:v.v}; v.holdLoopT=0; v.figureCdT=FIGURE_COOLDOWN; v.figHeadingRef=undefined;
+          }
+        } else if(franc&&dc>FIGURE_ANGLE_VRILLE){
+          v.holdVrilleT=(v.holdVrilleT||0)+dtd; v.holdLoopT=Math.max(0,(v.holdLoopT||0)-decay);
+          if(v.holdVrilleT>=(v.def.figureSeuil||FIGURE_SEUIL_DEFAUT)){
+            v.vrilleEnCours={t:0,sens:INPUT.mx<0?1:-1}; v.holdVrilleT=0; v.figureCdT=FIGURE_COOLDOWN; v.figHeadingRef=undefined;
+          }
+        } else {
+          v.holdLoopT=Math.max(0,(v.holdLoopT||0)-decay); v.holdVrilleT=Math.max(0,(v.holdVrilleT||0)-decay);
+        }
+        if(!franc) v.figHeadingRef=undefined;
+      } else { v.holdLoopT=0; v.holdVrilleT=0; v.figHeadingRef=undefined; }
     }
   }
   // limites du ciel : au-delà de la ville et de la mer, demi-tour
