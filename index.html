@@ -6579,17 +6579,28 @@ function creerTrafic(){
   // roulant, jamais par un pop-in instantané au milieu de l'écran.
   const vert=Math.random()<0.5, dir=Math.random()<0.5?1:-1;
   let x,z,ang,lane;
+  // Bug remonté par un joueur : le pop-in redevenait visible en prenant de
+  // la vitesse — la marge de spawn ci-dessus (mesurée sur la fenêtre visible
+  // à l'écran) était fixe, pensée pour une allure normale. En véhicule
+  // rapide, le joueur avale cette marge en une fraction de seconde : la
+  // distance de spawn reste hors-champ à l'instant T, mais la vitesse de
+  // rapprochement est telle que le véhicule franchit le bord du champ de
+  // vision presque aussitôt, perçu comme un pop-in. vBonus ajoute une
+  // marge PROPORTIONNELLE à la vitesse réelle du joueur (à pied ou en
+  // véhicule) — assez d'avance temporelle pour rester hors-champ le temps
+  // qu'il faudrait de toute façon pour la parcourir.
+  const vBonus=(P.veh?Math.abs(P.veh.v):(P.vitesseReelle||0))*1.4;
   if(vert){
     const kJoueur=Math.floor((P.x+HALF)/CELL);
     const k=clamp(kJoueur+(Math.random()<0.7?0:pick([-1,1])),0,NB-1);
     lane=-HALF+k*CELL+3.2*dir; x=lane; ang=dir>0?0:Math.PI;
     // dir>0 : le véhicule avance vers +z, donc il vient de l'arrière (bord -40) ; dir<0 : symétrique côté +20.
-    z=clamp(dir>0?P.z-rand(44,52):P.z+rand(24,32),-HALF+5,HALF-5);
+    z=clamp(dir>0?P.z-rand(44,52)-vBonus:P.z+rand(24,32)+vBonus,-HALF+5,HALF-5);
   } else {
     const kJoueur=Math.floor((P.z+HALF)/CELL);
     const k=clamp(kJoueur+randi(-1,1),0,NB-1);
     lane=-HALF+k*CELL-3.2*dir; z=lane; ang=dir>0?Math.PI/2:-Math.PI/2;
-    x=clamp(dir>0?P.x-rand(13,20):P.x+rand(13,20),-HALF+5,HALF-5);
+    x=clamp(dir>0?P.x-rand(13,20)-vBonus:P.x+rand(13,20)+vBonus,-HALF+5,HALF-5);
   }
   if(solidAt(x,z,2)) return;
   if(z>MER-CELL*1.2) return;         // pas de trafic sur le sable
@@ -6657,8 +6668,18 @@ function majTrafic(v,dt){
   if(v.x<LIMO){ v.x=LIMO; rebond=true; } else if(v.x>LIME){ v.x=LIME; rebond=true; }
   if(rebond){
     v.ang+=Math.PI; v.v*=0.5;
-    // se réaligner sur la voie inverse de l'axe courant
-    if(v.axe==='z'){ v.lane=v.x+(Math.random()<0.5?3:-3); } else { v.lane=v.z+(Math.random()<0.5?3:-3); }
+    // Bug remonté par un joueur : certains véhicules roulaient sur les
+    // trottoirs par endroits. Cause : au rebond sur le bord de la ville,
+    // la nouvelle voie était choisie à ±3 de la position COURANTE du
+    // véhicule — sans jamais vérifier qu'elle tombe sur une vraie route de
+    // la grille. Un véhicule qui rebondissait loin d'un axe pavé repartait
+    // filer tout droit à travers trottoirs et façades en suivant cette
+    // voie fictive. Recalculé exactement comme au premier spawn (voir
+    // creerTrafic) : la case de grille la plus proche, puis le même
+    // décalage de voie fixe (3.2) depuis le vrai axe de circulation.
+    const dirNow=(v.axe==='z'?Math.cos(v.ang):Math.sin(v.ang))>=0?1:-1;
+    if(v.axe==='z'){ const k=clamp(Math.round((v.x+HALF)/CELL),0,NB-1); v.lane=-HALF+k*CELL+3.2*dirNow; }
+    else { const k=clamp(Math.round((v.z+HALF)/CELL),0,NB-1); v.lane=-HALF+k*CELL-3.2*dirNow; }
     v.mesh.rotation.y=v.ang;
   }
   // Resserré (190 → 120) : un rayon de suppression trop large laissait le
