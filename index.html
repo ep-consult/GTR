@@ -1313,7 +1313,7 @@ const META={
   perso:'jax', persosPoss:['jax'], radio:0, planque:false, garage:null, revenus:0,
   stats:{kills:0,killsGang:0,killsPolice:0,killsArmee:0,chefs:0,vagues:0,parties:0,
     distVeh:0,distTotal:0,sauts:0,vehVoles:0,vehDetruits:0,tempsTotal:0,pietonsFuis:0,
-    grenades:0,tirs:0,critiques:0,meilleurCombo:0,cashTotal:0,vehEcrases:0},
+    grenades:0,tirs:0,critiques:0,meilleurCombo:0,cashTotal:0,vehEcrases:0,loopings:0},
   skins:{jax:0,ria:0,malo:0}, skinsPoss:{jax:[0],ria:[0],malo:[0]},
   armes:{poings:{poss:true,lv:0},batte:{poss:false,lv:0},pistolet:{poss:false,lv:0},
          gadget:{poss:false,lv:0},couteau:{poss:false,lv:0},batte2:{poss:false,lv:0},bouleC:{poss:false,lv:0},sabre:{poss:false,lv:0},pompe:{poss:false,lv:0},uzi:{poss:false,lv:0},silence:{poss:false,lv:0},pm:{poss:false,lv:0},fusil:{poss:false,lv:0},sniper:{poss:false,lv:0},flamme:{poss:false,lv:0},roquette:{poss:false,lv:0},desintegrateur:{poss:false,lv:0}},
@@ -5769,6 +5769,45 @@ function poseY(x,z){ // surface d'atterrissage : toit d'immeuble ou relief
   const s=solidToit(x,z,1.5);
   return s?s.h:solY(x,z);
 }
+// Fenêtre pendant laquelle un avion/hélico qui vient de décoller (posé→en
+// vol) ignore les collisions avec son environnement immédiat — voir majVol.
+const DECOL_GRACE=0.5;
+// LOOPING (avion) : appui prolongé sur MONTER, en vol stabilisé. Le seuil de
+// maintien est volontairement long — un joueur qui monte normalement, même
+// en rafale, ne l'atteint jamais par accident — mais reste assez court pour
+// se découvrir en jouant (une seule vague suffit à le déclencher une fois
+// par curiosité). LOOP_ALT_MIN garde la figure loin du sol.
+const LOOP_HOLD_SEUIL=2.2, LOOP_DUREE=1.7, LOOP_ALT_MIN=14;
+// Figure ANIMÉE et contrôlée, jamais une vraie rotation libre du véhicule :
+// passer réellement la tête en bas casserait la caméra (qui ne lit que
+// v.alt/x/z, jamais la rotation du mesh — elle ne se retourne donc jamais),
+// l'assiette (formule de tangage pensée pour un vol normal, pas 360°) et la
+// détection de crash (solidAt/poseY, désactivée le temps de la figure).
+// v.alt suit une simple bosse scriptée — jamais la vraie excursion
+// verticale d'un looping réel — avec un léger gain net à la sortie.
+function majLooping(v,dt){
+  const L=v.loopEnCours;
+  L.t+=dt/ETAT.timeScale; // dtJeu : la durée du looping n'est jamais affectée par un ralenti en cours
+  const frac=clamp(L.t/LOOP_DUREE,0,1);
+  const theta=-frac*Math.PI*2;
+  v.alt=L.altDep+Math.sin(frac*Math.PI)*6+frac*3;
+  v.x+=Math.sin(v.ang)*L.vDep*dt; v.z+=Math.cos(v.ang)*L.vDep*dt;
+  v.mesh.rotation.x=theta;
+  // régime moteur qui monte puis retombe : réutilise le calcul habituel de
+  // fin de majVol (moteurUpdate d'après v.v/v.va), pas de second appel.
+  v.va=26*Math.sin(frac*Math.PI);
+  // fumée qui dessine la boucle : émise depuis la queue, qui suit la
+  // vraie rotation du mesh et trace donc un cercle complet à l'écran.
+  const c=v.def.long*0.42;
+  const tx=v.x-Math.sin(v.ang)*c*Math.cos(theta), tz=v.z-Math.cos(v.ang)*c*Math.cos(theta), ty=v.alt+c*Math.sin(theta);
+  if(Math.random()<0.85) fumee(tx,ty,tz,0xe8ecf2);
+  if(frac>=1){
+    v.loopEnCours=null; v.mesh.rotation.x=0; v.va=0;
+    META.stats.loopings=(META.stats.loopings||0)+1;
+    spawnTexte(v.x,v.alt+2.4,v.z,'🔁 LOOPING !','#ffd23f');
+    toast('Looping réussi !','or'); SFX.niveau(); vibre(40);
+  }
+}
 function majVol(v,dt){
   const air=v.def.air;
   if(v.alt===undefined){v.alt=0;v.vol=false;v.va=0;}
@@ -5790,9 +5829,18 @@ function majVol(v,dt){
       beep(900,0.5,'sine',0.14,220);
     }
   }
+  // Bug déjà rencontré : un hélico posé sur le pont du yacht (ou un avion qui
+  // redécolle d'un toit où il s'était posé) explosait dès l'appui sur MONTER
+  // — la sonde d'obstacle (solidAt) redevient active la même frame que le
+  // décollage, alors que l'appareil est encore littéralement au contact de
+  // la surface qui vient de le porter. DECOL_GRACE ignore toute collision
+  // pendant les tout premiers instants après un passage posé→en vol, pour
+  // les deux appareils, sur n'importe quelle surface (yacht, toit, ponton,
+  // sol) — jamais de faux crash au décollage.
+  if(v.decolT>0) v.decolT-=dt;
   if(air==='helico'){
     if(!v.vol){
-      if(monter){ v.vol=true; if(!META.defis.heli){META.defis.heli=true;} SFX.spec(); }
+      if(monter){ v.vol=true; v.decolT=DECOL_GRACE; if(!META.defis.heli){META.defis.heli=true;} SFX.spec(); }
       v.v*=(1-2*dt);
     }
     if(v.vol){
@@ -5804,20 +5852,20 @@ function majVol(v,dt){
         v.v=lerp(v.v,l*v.def.vmax,1.3*dt);
       } else v.v=lerp(v.v,0,1.6*dt);
       const nx=v.x+Math.sin(v.ang)*v.v*dt, nz=v.z+Math.cos(v.ang)*v.v*dt;
-      const s=solidAt(nx,nz,2);
+      const s=v.decolT>0?null:solidAt(nx,nz,2);
       if(s&&s.h>v.alt){
         if(Math.abs(v.v)>6){ crashAerien(v); return; }
         v.v=0;
       } else { v.x=nx; v.z=nz; }
       const surf=poseY(v.x,v.z);
       if(v.alt<=surf+0.12&&v.va<=0){
-        if((surf<0.5&&estEau(v.x,v.z))||v.va<-5.5){ crashAerien(v); return; }
+        if(v.decolT<=0&&((surf<0.5&&estEau(v.x,v.z))||v.va<-5.5)){ crashAerien(v); return; }
         v.vol=false; v.alt=surf; SFX.ui();
         if(surf>4&&!META.defis.toit){ META.defis.toit=true; bigMsg('POSÉ SUR LE TOIT'); }
       }
       // assiette : nez qui plonge/se relève selon la montée — inclinaison
       // plus douce que l'avion (l'hélico n'a pas d'ailes à cabrer).
-      v.mesh.rotation.x=lerp(v.mesh.rotation.x,-v.va*0.025,0.2);
+      v.mesh.rotation.x=clamp(lerp(v.mesh.rotation.x,-v.va*0.0425,0.2),-1,1);
     } else v.mesh.rotation.x=lerp(v.mesh.rotation.x,0,0.2); // posé : retour à l'horizontale
   } else { // avion
     if(!v.vol){
@@ -5825,10 +5873,20 @@ function majVol(v,dt){
       majVehiculePhys(v,dt,c.throttle,c.steer,desc&&c.l<0.2);
       if(v.mort) return;
       if(v.v>=27){
-        v.vol=true; v.alt=0.3;
+        v.vol=true; v.decolT=DECOL_GRACE;
+        // Bug déjà rencontré : v.alt était remis à une valeur fixe proche du
+        // sol (0.3) quel que soit l'endroit du décollage. Sur un toit où
+        // l'avion s'était posé plus tôt, l'appareil se retrouvait donc
+        // « sous » son propre toit dès la frame suivante (solidAt du même
+        // toit, h > v.alt) → crash immédiat. v.alt part maintenant de la
+        // surface réelle sous l'appareil (0 sur une vraie piste, la hauteur
+        // du toit sinon), jamais d'un niveau sol supposé.
+        v.alt=poseY(v.x,v.z)+0.3;
         if(!META.defis.avion){META.defis.avion=true;}
         toast('Décollage !','or'); SFX.vague();
       }
+    } else if(v.loopEnCours){
+      majLooping(v,dt);
     } else {
       v.v=lerp(v.v,desc?19:v.def.vmax,0.5*dt);
       const l=Math.hypot(INPUT.mx,INPUT.mz);
@@ -5837,17 +5895,28 @@ function majVol(v,dt){
       if(v.v<19){ v.va-=9; if(Math.random()<0.1) toast('DÉCROCHAGE — accélère !','warn'); }
       v.alt=clamp(v.alt+v.va*dt,0,180);  // très haut au-dessus de la ville
       const nx=v.x+Math.sin(v.ang)*v.v*dt, nz=v.z+Math.cos(v.ang)*v.v*dt;
-      const s=solidAt(nx,nz,2.5);
+      const s=v.decolT>0?null:solidAt(nx,nz,2.5);
       if(s&&s.h>v.alt){ crashAerien(v); return; }
       v.x=nx; v.z=nz;
       const surfA=poseY(v.x,v.z);
       if(v.alt<=surfA+0.15&&v.va<=0){
-        if((surfA<0.5&&estEau(v.x,v.z))||v.va<-4.5||v.v>32){ crashAerien(v); return; }
+        if(v.decolT<=0&&((surfA<0.5&&estEau(v.x,v.z))||v.va<-4.5||v.v>32)){ crashAerien(v); return; }
         v.vol=false; v.alt=surfA; toast(surfA>4?'Posé sur le toit !':'Posé.','or');
         if(surfA>4&&!META.defis.toit){ META.defis.toit=true; bigMsg('POSÉ SUR LE TOIT'); }
       }
       v.mesh.rotation.z=lerp(v.mesh.rotation.z,-clamp(angDiff(v.ang,Math.atan2(INPUT.mx||Math.sin(v.ang),INPUT.mz||Math.cos(v.ang))),-1,1)*0.5,0.15);
-      v.mesh.rotation.x=lerp(v.mesh.rotation.x,-v.va*0.05,0.2);
+      v.mesh.rotation.x=clamp(lerp(v.mesh.rotation.x,-v.va*0.085,0.25),-1.4,1.4);
+      // LE LOOPING : maintien de MONTER assez longtemps, en vol stabilisé,
+      // assez haut et hors grâce de décollage — voir déclarations LOOP_*.
+      // dtJeu (pas dt) : la fenêtre de maintien ne doit jamais se raccourcir
+      // ou s'allonger sous l'effet d'un ralenti en cours (curiosités, combo).
+      if(monter&&v.alt>LOOP_ALT_MIN&&v.decolT<=0&&!INT.actif){
+        v.holdMonterT=(v.holdMonterT||0)+dt/ETAT.timeScale;
+        if(v.holdMonterT>=LOOP_HOLD_SEUIL){
+          v.loopEnCours={t:0,altDep:v.alt,vDep:v.v};
+          v.holdMonterT=0;
+        }
+      } else v.holdMonterT=0;
     }
   }
   // limites du ciel : au-delà de la ville et de la mer, demi-tour
@@ -13799,6 +13868,7 @@ function renderStats(){
     ['💣','Véhicules détruits',S.vehDetruits],
     ['🛞','Distance en véhicule',S.distVeh.toFixed(1)+' km'],
     ['🪂','Sauts réalisés',S.sauts],
+    ['🔁','Loopings réussis',S.loopings||0],
     ['💰','Argent total gagné',fmt$(S.cashTotal)],
     ['🔫','Coups de feu tirés',S.tirs],
     ['🧨','Grenades lancées',S.grenades],
