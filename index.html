@@ -460,8 +460,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
   <canvas id="carteCv" width="336" height="336" style="border:1px solid var(--ligne);border-radius:12px;margin-top:10px;width:min(336px,88vw);height:auto"></canvas>
   <div class="aide" style="margin-top:10px;font-size:12px;text-align:center">
     <b style="color:#ff3b5c">A</b> Armureries · <b style="color:#2b6fd8">P</b> Police · <b style="color:#c7a020">G</b> Garage ·
-    <b style="color:#d88a20">F</b> Fast-foods · <b style="color:#2a9ac0">M</b> Marina · <b style="color:#ffd23f">◆</b> Mission
-    · 🏪🎧🏦 Visitables
+    <b style="color:#d88a20">F</b> Fast-foods · <b style="color:#2a9ac0">M</b> Marina · <b style="color:#f2c94c">V</b> Aéro-club ·
+    <b style="color:#ffd23f">◆</b> Mission · 🏪🎧🏦 Visitables
   </div>
   <div id="waypInfo" style="margin-top:8px;font-size:11px;font-weight:800;color:#7dff7a;letter-spacing:.04em">Touche la carte pour définir une destination</div>
   <button class="retour" id="carteClose">Reprendre</button>
@@ -14685,9 +14685,19 @@ function drawCarte(){
     g.strokeStyle='#35c8ff'; g.lineWidth=1.6; g.stroke();
     dessinerIconePOI(g,'🚀',jx,jz,11,'#fff');
   }
-  // L'aérodrome n'a pas besoin d'icône ici : il est déjà dans la couche
-  // statique (construireMinimapStatique), dessinée en fond par g.drawImage
-  // au tout début de cette fonction — visible dès le début de partie.
+  // Aéro-club (avion de voltige) : la simple lettre « V » posée dans la
+  // couche statique (construireMinimapStatique) est bien présente dès le
+  // début de partie, mais trop discrète — un petit disque plein sans
+  // relief, noyé parmi une vingtaine d'autres repères sur une carte
+  // chargée (signalé par un joueur qui ne le repérait pas). Un vrai badge,
+  // comme les bâtiments visitables et le Monster Truck/jetpack juste
+  // au-dessus, se voit tout de suite.
+  if(POIS.aerodrome){
+    const vx=mmX(POIS.aerodrome.x)*k, vz=mmZ(POIS.aerodrome.z)*k;
+    g.fillStyle='#15161a'; g.beginPath(); g.arc(vx,vz,9,0,7); g.fill();
+    g.strokeStyle='#f2c94c'; g.lineWidth=1.6; g.stroke();
+    dessinerIconePOI(g,'✈️',vx,vz,11,'#fff');
+  }
   // point d'arrivée choisi par le joueur
   if(WAYP.actif){
     const wx=mmX(WAYP.x)*k, wz=mmZ(WAYP.z)*k;
