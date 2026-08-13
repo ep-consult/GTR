@@ -876,6 +876,29 @@ function jetpackSonUpdate(intens){
   AUDIO.jetNG.gain.setTargetAtTime(0.05+0.09*clamp(intens,0,1),t,0.06);
   AUDIO.jetNF.frequency.setTargetAtTime(700+500*clamp(intens,0,1),t,0.08);
 }
+/* ---- Lance à eau du camion de pompiers : souffle de haute pression en
+   continu tant qu'on arrose, même discipline que le jetpack (jamais démarré
+   deux fois, coupé sur tous les chemins de sortie). Bruit filtré en passe-
+   bande HAUT (2,2 kHz, Q serré) — un souffle d'air/eau sous pression, pas le
+   grondement grave du jetpack. Léger trémolo (LFO sur le gain) pour éviter
+   un souffle parfaitement plat, qui sonnerait synthétique. */
+function lanceSonStart(){
+  if(!AUDIO.pret||AUDIO.lanceOn) return;
+  const ctx=AUDIO.ctx, t=ctx.currentTime;
+  const n=ctx.createBufferSource(); n.buffer=AUDIO.noise; n.loop=true;
+  const nf=ctx.createBiquadFilter(); nf.type='bandpass'; nf.frequency.value=2200; nf.Q.value=0.7;
+  const ng=ctx.createGain(); ng.gain.value=0.13;
+  const lfo=ctx.createOscillator(); lfo.type='sine'; lfo.frequency.value=14;
+  const lfoG=ctx.createGain(); lfoG.gain.value=0.02;
+  lfo.connect(lfoG); lfoG.connect(ng.gain); lfo.start(t);
+  n.connect(nf); nf.connect(ng); ng.connect(AUDIO.sfxG); n.start(t);
+  AUDIO.lanceOn=true; AUDIO.lanceNoise=n; AUDIO.lanceNF=nf; AUDIO.lanceNG=ng; AUDIO.lanceLfo=lfo;
+}
+function lanceSonStop(){
+  if(!AUDIO.lanceOn) return;
+  try{ AUDIO.lanceNoise.stop(); AUDIO.lanceLfo.stop(); }catch(e){}
+  AUDIO.lanceOn=false; AUDIO.lanceNoise=null; AUDIO.lanceNF=null; AUDIO.lanceNG=null; AUDIO.lanceLfo=null;
+}
 function toggleSirenePompiers(v){
   v.sirene=!v.sirene;
   el('btnSwitch').innerHTML=(v.sirene?'🚨':'🔕')+'<small>SIRÈNE</small>';
@@ -5857,6 +5880,124 @@ function pousseHorsSolide(o,r){
   if(px<pz) o.x+=Math.sign(dx||1)*px; else o.z+=Math.sign(dz||1)*pz;
   return true;
 }
+// Impulsion de choc entre véhicules (voir resoudreCollisionsVehicule) :
+// v.knockVx/knockVz est une vitesse indépendante de v.v (qui reste la
+// vitesse VOULUE par le conducteur/l'IA le long de son cap), décroissant
+// par friction — c'est elle qui porte visuellement la sensation de choc
+// (le véhicule part loin puis ralentit), pas la caméra. Appelée pour tout
+// véhicule, quel que soit son mode de conduite (voir majVehiculePhys,
+// majTrafic, majVehicules pour les garés).
+const KNOCK_FRICTION=3.2, KNOCK_VMAX=48;
+function majKnockback(v,dt){
+  if(!v.knockVx&&!v.knockVz) return;
+  v.x+=(v.knockVx||0)*dt; v.z+=(v.knockVz||0)*dt;
+  const f=Math.max(0,1-KNOCK_FRICTION*dt);
+  v.knockVx=(v.knockVx||0)*f; v.knockVz=(v.knockVz||0)*f;
+  if(Math.hypot(v.knockVx,v.knockVz)<0.3){ v.knockVx=0; v.knockVz=0; }
+}
+// Collisions entre véhicules : la masse compte (un camion balaye une
+// citadine), et le contact se joue au niveau des carrosseries — un simple
+// rayon moyen centre à centre, ignorant l'orientation, laissait les
+// véhicules s'interpénétrer ou se repousser à tort selon leur orientation
+// (bug déjà rencontré, voir CLAUDE.md), et un choc au FLANC d'un véhicule
+// long (bus, camion de pompiers) se comportait comme un choc pare-choc
+// contre pare-choc. Test façon SAT sur les 2 axes de v (avant/droite) : la
+// portée testée sur chaque axe tient compte de la vraie orientation de o,
+// et la résolution se fait sur l'axe le MOINS recouvert.
+//
+// Partagée par TOUS les modes de conduite (joueur, police, trafic, garé —
+// voir les points d'appel dans majVehiculePhys/majTrafic/majVehicules) :
+// un mode qui n'appelait jamais cette résolution (le trafic, les véhicules
+// garés) pouvait laisser deux véhicules encastrés indéfiniment, sans jamais
+// se dégager — signalé par un joueur (véhicules « empilés », captures à
+// l'appui), en particulier des files de trafic qui se télescopaient à
+// l'arrêt puisque rien ne les séparait jamais.
+//
+// La réaction est une vraie IMPULSION (v.knockVx/knockVz, voir
+// majKnockback ci-dessus), pas juste une correction de position statique :
+// le véhicule le plus léger part loin, le plus lourd bouge à peine — la
+// masse (gabarit + blindage), la vitesse relative et l'axe d'impact
+// pilotent la force. La caméra ne porte plus la sensation de choc à elle
+// seule (demandé explicitement, « c'est le mouvement des véhicules qui
+// doit porter la sensation de choc ») : secousse fortement réduite,
+// réservée aux chocs vraiment violents.
+function resoudreCollisionsVehicule(v,dt){
+  const d=v.def;
+  for(const o of vehicules){
+    if(o===v||o.mort||o.epave) continue;
+    if(Math.abs((v.h||0)-(o.h||0))>1.6) continue;
+    const dxw=o.x-v.x, dzw=o.z-v.z;
+    const angV=v.ang, sV=Math.sin(angV), cV=Math.cos(angV);
+    const distFwd=dxw*sV+dzw*cV, distRight=dxw*cV-dzw*sV;
+    const hlV=d.long*0.5, hwV=d.larg*0.5, hlO=o.def.long*0.5, hwO=o.def.larg*0.5;
+    const dAng=o.ang-angV, cD=Math.abs(Math.cos(dAng)), sD=Math.abs(Math.sin(dAng));
+    const porteeFwd=hlV+hlO*cD+hwO*sD, porteeRight=hwV+hlO*sD+hwO*cD;
+    if(Math.abs(distFwd)<porteeFwd&&Math.abs(distRight)<porteeRight){
+      // écrasement : char et monster truck aplatissent tout véhicule sans
+      // exception, remplace entièrement le rebond/dégâts de masse ci-dessous
+      // pour cette paire — voir ecraserVehicule (aucune exception, aucun
+      // véhicule assez lourd pour y résister, voir CLAUDE.md).
+      if(d.ecrase&&!o.def.ecrase){ ecraserVehicule(v,o); continue; }
+      const rel=Math.abs(v.v)+Math.abs(o.v);
+      const mV=d.long*d.larg*((d.milit||d.blinde)?2.2:1);
+      const mO=o.def.long*o.def.larg*((o.def.milit||o.def.blinde)?2.2:1);
+      const rap=clamp(mV/mO,0.4,2.5);   // >1 : v est plus lourd que o
+      // séparation sur l'axe le MOINS recouvert (résolution façon SAT)
+      const overFwd=porteeFwd-Math.abs(distFwd), overRight=porteeRight-Math.abs(distRight);
+      let pushX,pushZ;
+      if(overFwd<overRight){ const s2=distFwd>=0?-1:1; pushX=sV*s2; pushZ=cV*s2; }
+      else { const s2=distRight>=0?-1:1; pushX=cV*s2; pushZ=-sV*s2; }
+      // dé-pénétration immédiate, TOUJOURS (même à l'arrêt, même choc
+      // léger) : deux véhicules ne restent jamais visuellement encastrés,
+      // qu'il y ait ou non une impulsion de choc plus bas.
+      v.x+=pushX*0.25/rap; v.z+=pushZ*0.25/rap;
+      if(!o.mort&&o.conduit!=='joueur'){ o.x-=pushX*0.22*rap; o.z-=pushZ*0.22*rap; }
+      if(rel>7){
+        const viol=clamp(rel/40,0,1.4);
+        abimerVehicule(o,rel*0.8*rap,v.conduit==='joueur');
+        abimerVehicule(v,rel*0.5/rap,false);
+        // point de contact réel (bord de v du côté de o), pas le milieu
+        // arbitraire entre les deux centres — pour la déformation et les
+        // étincelles/débris, dont l'intensité suit la violence du choc.
+        const cx=v.x+Math.sign(distFwd||1)*Math.min(Math.abs(distFwd),hlV)*sV+Math.sign(distRight||1)*Math.min(Math.abs(distRight),hwV)*cV;
+        const cz=v.z+Math.sign(distFwd||1)*Math.min(Math.abs(distFwd),hlV)*cV-Math.sign(distRight||1)*Math.min(Math.abs(distRight),hwV)*sV;
+        burst(cx,1,cz,4+Math.round(viol*8),0xffd88a,7+viol*6);
+        burst(cx,1.1,cz,Math.round(2+viol*6),0xe8f4ff,5+viol*5,3); // débris de vitres
+        // Impulsion de choc réelle : 1/rap pour v (grand si v est léger),
+        // rap pour o (grand si o est léger) — le plus léger des deux part
+        // loin, le plus lourd à peine, plafonnée à KNOCK_VMAX pour rester
+        // spectaculaire sans traverser un pâté de maisons en un instant.
+        const impulsion=rel*0.55;
+        v.knockVx=clamp((v.knockVx||0)+pushX*impulsion/rap,-KNOCK_VMAX,KNOCK_VMAX);
+        v.knockVz=clamp((v.knockVz||0)+pushZ*impulsion/rap,-KNOCK_VMAX,KNOCK_VMAX);
+        if(!o.mort&&o.conduit!=='joueur'){
+          o.knockVx=clamp((o.knockVx||0)-pushX*impulsion*rap,-KNOCK_VMAX,KNOCK_VMAX);
+          o.knockVz=clamp((o.knockVz||0)-pushZ*impulsion*rap,-KNOCK_VMAX,KNOCK_VMAX);
+        }
+        // Secousse quasi supprimée : réservée aux chocs VRAIMENT violents
+        // (viol proche ou au-delà de son plafond) — le mouvement des
+        // véhicules porte la sensation de choc, pas la caméra (demandé
+        // explicitement). Un choc franc sans être extrême garde quand même
+        // un retour sonore, pour ne pas paraître muet.
+        if(viol>1.0){
+          const secChoc=clamp((viol-1.0)*(viol-1.0)*22,0,6);
+          if(v.conduit==='joueur'){ secousse(secChoc); vibre(20+viol*25); SFX.choc(viol); }
+          else if(o.conduit==='joueur'){ secousse(secChoc); vibre(20+viol*25); SFX.choc(viol); }
+        } else if(v.conduit==='joueur'||o.conduit==='joueur'){
+          SFX.choc(viol*0.6);
+        }
+        // déformation visible : bref écrasement de la carrosserie le long de
+        // l'axe d'impact, qui se résorbe — voir majDeformation. Jamais sur
+        // un véhicule qui vient tout juste d'apparaître (fondu d'échelle en
+        // cours), sous peine de conflit entre les deux animations d'échelle.
+        const axeDent=(overFwd<overRight)?'z':'x', amtDent=clamp(viol*0.22,0.05,0.24);
+        if(!(v.fadeT>0)){ v.dentAxe=axeDent; v.dentAmt=amtDent; v.dentT=0.4; }
+        if(!(o.fadeT>0)){ o.dentAxe=axeDent; o.dentAmt=amtDent*clamp(1/rap,0.4,1.6); o.dentT=0.4; }
+      }
+      v.v*=clamp(0.5+0.25*(rap-1),0.35,0.8); o.v*=clamp(0.7-0.2*(rap-1),0.3,0.85);
+    }
+  }
+}
 function majVehiculePhys(v,dt,throttle,steer,frein){
   const d=v.def, eau=!!d.eau;
   const fac0=clamp(Math.abs(v.v)/d.vmax,0,1);
@@ -5988,74 +6129,8 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
     spawnP(v.x-sA*d.long/2,0.2,v.z-cA*d.long/2,rand(-1,1),rand(0.5,1.5),rand(-1,1),0.5,0.7,0xcfeaff,2);
   // écrasement arcade — voir majImpactPersonnages (partagée avec majTrafic)
   majImpactPersonnages(v,dt);
-  // Collisions entre véhicules : la masse compte (un camion balaye une
-  // citadine), et le contact se joue désormais au niveau des carrosseries.
-  // Bug déjà rencontré : un simple rayon moyen (somme des longueurs) autour
-  // du centre, ignorant l'orientation, laissait les véhicules s'interpénétrer
-  // avant de réagir (ou se repousser alors qu'ils étaient encore visuellement
-  // écartés) — et un choc au FLANC d'un véhicule long (bus, camion de
-  // pompiers) se comportait exactement comme un choc pare-choc contre
-  // pare-choc. Remplacé par un test façon SAT sur les 2 axes de v (avant/
-  // droite) : la portée testée sur chaque axe tient compte de la vraie
-  // orientation de o (projection de son empan avant/largeur), et la
-  // résolution se fait sur l'axe le MOINS recouvert — un choc de flanc
-  // pousse donc sur le côté, un choc frontal dans l'axe.
-  for(const o of vehicules){
-    if(o===v||o.mort||o.epave) continue;
-    if(Math.abs((v.h||0)-(o.h||0))>1.6) continue;
-    const dxw=o.x-v.x, dzw=o.z-v.z;
-    const angV=v.ang, sV=Math.sin(angV), cV=Math.cos(angV);
-    const distFwd=dxw*sV+dzw*cV, distRight=dxw*cV-dzw*sV;
-    const hlV=v.def.long*0.5, hwV=v.def.larg*0.5, hlO=o.def.long*0.5, hwO=o.def.larg*0.5;
-    const dAng=o.ang-angV, cD=Math.abs(Math.cos(dAng)), sD=Math.abs(Math.sin(dAng));
-    const porteeFwd=hlV+hlO*cD+hwO*sD, porteeRight=hwV+hlO*sD+hwO*cD;
-    if(Math.abs(distFwd)<porteeFwd&&Math.abs(distRight)<porteeRight){
-      // écrasement : char et monster truck aplatissent tout véhicule sans
-      // exception, remplace entièrement le rebond/dégâts de masse ci-dessous
-      // pour cette paire — voir ecraserVehicule (aucune exception, aucun
-      // véhicule assez lourd pour y résister, voir CLAUDE.md).
-      if(d.ecrase&&!o.def.ecrase){ ecraserVehicule(v,o); continue; }
-      const rel=Math.abs(v.v)+Math.abs(o.v);
-      const mV=v.def.long*v.def.larg*((v.def.milit||v.def.blinde)?2.2:1);
-      const mO=o.def.long*o.def.larg*((o.def.milit||o.def.blinde)?2.2:1);
-      const rap=clamp(mV/mO,0.4,2.5);   // >1 : v est plus lourd que o
-      // séparation sur l'axe le MOINS recouvert (résolution façon SAT)
-      const overFwd=porteeFwd-Math.abs(distFwd), overRight=porteeRight-Math.abs(distRight);
-      let pushX,pushZ;
-      if(overFwd<overRight){ const s2=distFwd>=0?-1:1; pushX=sV*s2; pushZ=cV*s2; }
-      else { const s2=distRight>=0?-1:1; pushX=cV*s2; pushZ=-sV*s2; }
-      v.x+=pushX*0.25/rap; v.z+=pushZ*0.25/rap;
-      if(!o.mort&&o.conduit!=='joueur'){ o.x-=pushX*0.22*rap; o.z-=pushZ*0.22*rap; }
-      if(rel>7){
-        const viol=clamp(rel/40,0,1.4);
-        abimerVehicule(o,rel*0.8*rap,v.conduit==='joueur');
-        abimerVehicule(v,rel*0.5/rap,false);
-        // point de contact réel (bord de v du côté de o), pas le milieu
-        // arbitraire entre les deux centres — pour la déformation et les
-        // étincelles/débris, dont l'intensité suit la violence du choc.
-        const cx=v.x+Math.sign(distFwd||1)*Math.min(Math.abs(distFwd),hlV)*sV+Math.sign(distRight||1)*Math.min(Math.abs(distRight),hwV)*cV;
-        const cz=v.z+Math.sign(distFwd||1)*Math.min(Math.abs(distFwd),hlV)*cV-Math.sign(distRight||1)*Math.min(Math.abs(distRight),hwV)*sV;
-        burst(cx,1,cz,4+Math.round(viol*8),0xffd88a,7+viol*6);
-        burst(cx,1.1,cz,Math.round(2+viol*6),0xe8f4ff,5+viol*5,3); // débris de vitres
-        // Secousse en rampe quadratique (pas linéaire) : un frôlement ou un
-        // choc ordinaire (viol modeste) reste presque imperceptible, seule
-        // une collision vraiment violente (viol proche de 1 ou plus) déclenche
-        // une secousse marquée — trop présente même sur un contact banal
-        // avec l'ancienne échelle linéaire (signalé par un joueur).
-        const secChoc=clamp(viol*viol*13,0.4,13);
-        if(v.conduit==='joueur'){ secousse(secChoc); vibre(30+viol*50); SFX.choc(viol); }
-        else if(o.conduit==='joueur'){ secousse(secChoc); vibre(30+viol*50); SFX.choc(viol); }
-        // déformation visible : bref écrasement de la carrosserie le long de
-        // l'axe d'impact, qui se résorbe — voir majDeformation. Jamais sur
-        // un véhicule qui vient tout juste d'apparaître (fondu d'échelle en
-        // cours), sous peine de conflit entre les deux animations d'échelle.
-        const axeDent=(overFwd<overRight)?'z':'x', amtDent=clamp(viol*0.22,0.05,0.24);
-        if(!(v.fadeT>0)){ v.dentAxe=axeDent; v.dentAmt=amtDent; v.dentT=0.4; }
-        if(!(o.fadeT>0)){ o.dentAxe=axeDent; o.dentAmt=amtDent*clamp(1/rap,0.4,1.6); o.dentT=0.4; }
-      }
-      v.v*=clamp(0.5+0.25*(rap-1),0.35,0.8); o.v*=clamp(0.7-0.2*(rap-1),0.3,0.85);
-    }
-  }
+  resoudreCollisionsVehicule(v,dt);
+  majKnockback(v,dt);
   majDeformation(v,dt);
   // fumée si abîmé
   if(v.hp<v.def.hp*0.42){ v.fumeT-=dt; if(v.fumeT<=0){v.fumeT=0.12;fumee(v.x,1.1,v.z, v.hp<v.def.hp*0.2?0x22242a:0x555a63);} }
@@ -6220,6 +6295,7 @@ function sortirVehicule(force){
     const roueAv=v.mesh.userData.roues[0]; if(roueAv) roueAv.position.y=0.4;
   }
   if(v.sirene){ v.sirene=false; sireneStop(); }
+  lanceSonStop();
   v.conduit=null; P.veh=null;
   let sx=v.x+Math.cos(v.ang)*2.2, sz=v.z-Math.sin(v.ang)*2.2;
   if(v.def.air&&(v.alt||0)>3){
@@ -6693,14 +6769,19 @@ function controleDir(v,frein){
 const CROSS_CABRAGE_RATE=1.1, CROSS_CABRAGE_RELACHE=2.6, CROSS_CABRAGE_MAX=0.68,
       CROSS_CABRAGE_DANGER=0.55, CROSS_CABRAGE_GRACE=0.8;
 /* ---- Lance à eau du camion de pompiers : outil de CONTRÔLE, pas une arme.
-   Repousse fortement et fait vaciller (stun) ennemis/piétons dans un cône
-   étroit devant le camion, dégâts volontairement dérisoires (quelques dps —
-   jamais assez pour neutraliser vite ni finir une vague seule). Éteint aussi
-   les véhicules en feu (voir abimerVehicule/majVehicules). Réserve limitée,
-   jauge affichée sur le bouton TIR (majHUD), recharge lente à l'arrêt.
-   Jet en particules : réutilise le pool `parts` existant via spawnP, jamais
-   de nouveau tableau — aucune allocation par frame (CLAUDE.md). */
-const LANCE_PORTEE=13, LANCE_DEMI_ANGLE=0.4, LANCE_DEBIT=22, LANCE_RECHARGE=7, LANCE_RESEUIL=15;
+   Repousse fortement et fait TOMBER (ragdoll non mortel, voir majRagdoll)
+   ennemis/piétons dans un cône devant le camion, dégâts volontairement
+   dérisoires (quelques dps — jamais assez pour neutraliser vite ni finir
+   une vague seule). Pousse légèrement les véhicules légers, éteint les
+   véhicules en feu. Réserve limitée, jauge affichée sur le bouton MONTER
+   (majHUD), recharge lente à l'arrêt.
+   Rendue spectaculaire (demandé explicitement, « actuellement trop
+   discrète ») : jet dense (plusieurs gouttes par tick, nozzle élargi),
+   éclaboussures au sol régulières, projection forte (ragdoll, pas un
+   simple recul), son de haute pression continu (voir lanceSonStart/Stop).
+   Jet et éclaboussures en particules : réutilisent les pools `parts`
+   (spawnP) et burst() existants, aucune allocation par frame (CLAUDE.md). */
+const LANCE_PORTEE=15, LANCE_DEMI_ANGLE=0.42, LANCE_DEBIT=26, LANCE_RECHARGE=7, LANCE_RESEUIL=15;
 function majLanceEau(v,dt){
   // Hystérésis anti-scintillement : une fois la réserve à sec, il faut
   // remonter à LANCE_RESEUIL avant de pouvoir retirer. Sans ça, un seul
@@ -6716,23 +6797,43 @@ function majLanceEau(v,dt){
   // utilisé pour cette mécanique.
   const tirLance=(INPUT.btn.sprint||INPUT.btn.sprintK)&&v.eau>0&&!v.lanceSeche;
   if(tirLance){
+    if(!AUDIO.lanceOn) lanceSonStart();
     v.eau=Math.max(0,v.eau-LANCE_DEBIT*dt);
+    // Jet dense et large : plusieurs gouttes par tick, légèrement dispersées
+    // en position ET en angle — un seul filet fin ne lisait pas comme un
+    // jet de pompier.
     v.jetFx=(v.jetFx||0)-dt;
     if(v.jetFx<=0){
-      v.jetFx=0.03;
+      v.jetFx=0.018;
       const bx=v.x+Math.sin(v.ang)*2.6, bz=v.z+Math.cos(v.ang)*2.6;
-      spawnP(bx,1.35,bz,Math.sin(v.ang)*15+rand(-1.5,1.5),rand(1.5,3.5),Math.cos(v.ang)*15+rand(-1.5,1.5),
-        0.32,0.45,0x9fd8f5,9,0);
+      for(let k=0;k<3;k++){
+        const a=v.ang+rand(-0.1,0.1);
+        spawnP(bx+rand(-0.3,0.3),1.15+rand(-0.15,0.3),bz+rand(-0.3,0.3),
+          Math.sin(a)*rand(13,17),rand(1.5,4),Math.cos(a)*rand(13,17),
+          0.3,rand(0.32,0.5),0x9fd8f5,9,0);
+      }
+    }
+    // Éclaboussures au sol, régulières, aux ~3/4 de la portée — le jet
+    // « atterrit » quelque part, ce n'est pas juste un rayon immatériel.
+    v.splashFx=(v.splashFx||0)-dt;
+    if(v.splashFx<=0){
+      v.splashFx=0.09;
+      const ix=v.x+Math.sin(v.ang)*LANCE_PORTEE*0.72+rand(-1,1);
+      const iz=v.z+Math.cos(v.ang)*LANCE_PORTEE*0.72+rand(-1,1);
+      burst(ix,0.15,iz,5,0xcfe8f8,4,2);
     }
     for(const e of ennemis){
-      if(e.mort||e.heli) continue;
+      if(e.mort||e.heli||e.rag) continue;
       const dx=e.x-v.x, dz=e.z-v.z, dist=Math.hypot(dx,dz);
       if(dist>LANCE_PORTEE||dist<0.1) continue;
       if(Math.abs(angDiff(v.ang,Math.atan2(dx,dz)))>LANCE_DEMI_ANGLE) continue;
       const fall=1-dist/LANCE_PORTEE;
-      const nx=e.x+Math.sin(v.ang)*LANCE_DEBIT*fall*dt, nz=e.z+Math.cos(v.ang)*LANCE_DEBIT*fall*dt;
-      if(!solidAt(nx,nz,0.4)){ e.x=nx; e.z=nz; }
       toucherEnnemi(e,2.5*dt,true,0);
+      // Projection forte : part loin et tombe (ragdoll NON mortel — voir le
+      // correctif de majRagdoll, qui relève tout seul un ragdoll dont la
+      // cible n'est pas morte). Un ennemi déjà à terre (e.rag, filtré plus
+      // haut) n'est pas re-projeté avant de s'être relevé.
+      lancerRagdoll(e,Math.sin(v.ang),Math.cos(v.ang),13+fall*11);
     }
     for(const p of pietons){
       if(p.etat==='mort'||p.rag) continue;
@@ -6740,21 +6841,28 @@ function majLanceEau(v,dt){
       if(dist>LANCE_PORTEE||dist<0.1) continue;
       if(Math.abs(angDiff(v.ang,Math.atan2(dx,dz)))>LANCE_DEMI_ANGLE) continue;
       const fall=1-dist/LANCE_PORTEE;
-      const nx=p.x+Math.sin(v.ang)*LANCE_DEBIT*fall*dt, nz=p.z+Math.cos(v.ang)*LANCE_DEBIT*fall*dt;
-      if(!solidAt(nx,nz,0.3)){ p.x=nx; p.z=nz; }
-      if(p.etat!=='fuite'){ p.etat='fuite'; p.t=1.4; }
-      if(Math.random()<dt*6) spawnP(p.x,0.8,p.z,rand(-1,1),rand(1,2),rand(-1,1),0.3,0.35,0x9fd8f5,6);
+      lancerRagdoll(p,Math.sin(v.ang),Math.cos(v.ang),12+fall*10);
+      if(Math.random()<dt*10) spawnP(p.x,0.8,p.z,rand(-1.5,1.5),rand(1.5,3),rand(-1.5,1.5),0.35,0.4,0x9fd8f5,6);
     }
     for(const o of vehicules){
-      if(o===v||!o.enFeu) continue;
+      if(o===v||o.mort) continue;
       const dx=o.x-v.x, dz=o.z-v.z, dist=Math.hypot(dx,dz);
-      if(dist>LANCE_PORTEE) continue;
+      if(dist>LANCE_PORTEE||dist<0.1) continue;
       if(Math.abs(angDiff(v.ang,Math.atan2(dx,dz)))>LANCE_DEMI_ANGLE) continue;
-      o.enFeu=false;
-      spawnP(o.x,1.5,o.z,0,2,0,0.4,1.4,0xd8ecff,2);
+      const fall=1-dist/LANCE_PORTEE;
+      if(o.enFeu){ o.enFeu=false; spawnP(o.x,1.5,o.z,0,2,0,0.4,1.4,0xd8ecff,2); }
+      // Pousse LÉGÈREMENT les véhicules légers seulement (masse = gabarit,
+      // même formule que resoudreCollisionsVehicule) — jamais un bus, un
+      // camion ou un blindé, demandé explicitement.
+      const masse=o.def.long*o.def.larg*((o.def.milit||o.def.blinde)?2.2:1);
+      if(masse<=12){
+        o.knockVx=clamp((o.knockVx||0)+Math.sin(v.ang)*10*fall*dt,-KNOCK_VMAX,KNOCK_VMAX);
+        o.knockVz=clamp((o.knockVz||0)+Math.cos(v.ang)*10*fall*dt,-KNOCK_VMAX,KNOCK_VMAX);
+      }
     }
-  } else if(v.eau<100){
-    v.eau=Math.min(100,v.eau+LANCE_RECHARGE*dt);
+  } else {
+    lanceSonStop();
+    if(v.eau<100) v.eau=Math.min(100,v.eau+LANCE_RECHARGE*dt);
   }
 }
 function majConduite(dt){
@@ -6919,6 +7027,14 @@ function majTrafic(v,dt){
   v.v=lerp(v.v,cibleV,1.6*dt);
   if(v.axe==='z'){ v.x=lerp(v.x,laneCible,2*dt); v.z+=cA*v.v*dt; }
   else { v.z=lerp(v.z,laneCible,2*dt); v.x+=sA*v.v*dt; }
+  // Séparation/impulsion de choc, partagée avec le joueur/la police (voir
+  // resoudreCollisionsVehicule) — sans ça, une file de trafic qui
+  // s'immobilise se télescopait sans jamais se dégager : la sonde
+  // d'obstacle ci-dessus (un seul point, un seul rayon) ralentit le trafic
+  // AVANT contact mais ne garantit rien une fois deux véhicules déjà en
+  // contact (spawn rapproché, sonde manquée sur un véhicule long...).
+  resoudreCollisionsVehicule(v,dt);
+  majKnockback(v,dt);
   v.mesh.position.set(v.x,0,v.z);
   if(v.fadeT>0){ v.fadeT-=dt; v.mesh.scale.setScalar(v.fadeT>0?1-v.fadeT/0.3:1); }
   majImpactPersonnages(v,dt);
@@ -6999,6 +7115,13 @@ function majVehicules(dt){
     else if(v.conduit===null){
       v.v*=(1-1.2*dt);
       if(Math.abs(v.v)>0.3){ v.x+=Math.sin(v.ang)*v.v*dt; v.z+=Math.cos(v.ang)*v.v*dt; }
+      // Séparation/impulsion de choc, partagée avec le joueur/la police/le
+      // trafic (voir resoudreCollisionsVehicule) — les véhicules garés
+      // (décor, voir startRun) n'appelaient jamais cette résolution et
+      // pouvaient rester encastrés dans un autre véhicule garé tout près
+      // (ou percuté par le joueur) sans jamais se dégager.
+      resoudreCollisionsVehicule(v,dt);
+      majKnockback(v,dt);
       v.mesh.position.y=v.def.eau?0.15:(v.def.air?(v.alt||0):solY(v.x,v.z));
       v.mesh.position.x=v.x; v.mesh.position.z=v.z;
       if(v.hp<v.def.hp*0.42){ v.fumeT-=dt; if(v.fumeT<=0){v.fumeT=0.14;fumee(v.x,1.1,v.z,0x555a63);} }
@@ -7059,10 +7182,28 @@ function majRagdoll(ent,dt){
   r.y+=r.vy*dt; r.vy-=22*dt;
   if(r.y<0){r.y=0;r.vy=0;r.vx*=0.7;r.vz*=0.7;}
   r.t-=dt;
+  // Un ragdoll (mort, projeté par un choc) glissait tout droit à travers un
+  // véhicule — sa trajectoire n'est jamais vérifiée à l'avance, contrairement
+  // à la marche normale des PNJ (voir majPietons). Même correction a
+  // posteriori que degageDeVehicule ailleurs : simple, cohérente avec le
+  // reste du code, et suffisante puisqu'un ragdoll ne « rebondit » pas
+  // physiquement sur un obstacle, il glisse puis s'arrête.
+  const deg=degageDeVehicule(ent.x,ent.z,0.25,null);
+  if(deg){ ent.x=deg.x; ent.z=deg.z; }
   const g=(ent.h||ent).g||ent.h.g;
   g.position.set(ent.x,r.y,ent.z);
-  g.rotation.z+=r.rot*dt; 
-  if(r.t<=0){ g.rotation.z=Math.PI/2; g.position.y=0.35; ent.rag=null; }
+  g.rotation.z+=r.rot*dt;
+  if(r.t<=0){
+    // Un ragdoll non mortel (projection de la lance à eau, voir
+    // majLanceEau) doit se RELEVER, pas rester figé de travers à jamais —
+    // la mise à jour normale (majPietons/majEnnemis) reprend la main dès la
+    // frame suivante et ne touche jamais rotation.z elle-même. Un ragdoll
+    // mortel garde sa pose au sol jusqu'au retrait du corps, inchangé.
+    const meurt=ent.etat==='mort'||ent.mort===true;
+    if(meurt){ g.rotation.z=Math.PI/2; g.position.y=0.35; }
+    else g.rotation.z=0;
+    ent.rag=null;
+  }
 }
 function majFauneRue(dt){
   // chiens
@@ -15249,6 +15390,7 @@ function startRun(){
   if(P.jetMesh) P.jetMesh.g.visible=false;
   el('jetWrap').style.display='none'; el('jetWarn').style.display='none'; el('btnJetpack').style.display='none';
   jetpackSonStop();
+  lanceSonStop();
   if(INT.actif){ INT.actif=null; el('minimap').style.opacity='1'; }
   // lieux spéciaux : on remet à zéro ce qui appartient à la partie (les
   // curiosités, elles, sont acquises pour de bon et vivent dans META)
