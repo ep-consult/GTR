@@ -159,17 +159,6 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
   color:var(--cyan);font-weight:900;font-size:11.5px;letter-spacing:.05em;box-shadow:0 0 14px #35e0ff44,0 3px 10px #000a;
   max-width:74vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right}
 
-/* Repoussé plus bas (60 % au lieu de 32 %) et borné en largeur : au centre
-   haut de l'écran, un message masquait le champ de vision principal, et
-   sans largeur maximale ni retour à la ligne, un texte un peu long
-   débordait purement et simplement des deux côtés de l'écran (bug déjà
-   signalé). Reste au-dessus de la pile de toasts et des boutons du bas. */
-#bigMsg{position:absolute;top:60%;left:50%;transform:translate(-50%,-50%) skewX(-6deg);font-size:29px;font-weight:900;
-  font-style:italic;text-transform:uppercase;letter-spacing:.05em;text-align:center;color:var(--blanc);
-  text-shadow:0 0 16px #35e0ff88,0 4px 10px #000;opacity:0;pointer-events:none;
-  max-width:min(340px,86vw);white-space:normal;overflow-wrap:break-word;line-height:1.25}
-#bigMsg.pop{animation:bigpop 1.7s ease-out forwards}
-@keyframes bigpop{0%{opacity:0;transform:translate(-50%,-50%) skewX(-6deg) scale(1.7)}12%{opacity:1;transform:translate(-50%,-50%) skewX(-6deg) scale(1)}75%{opacity:1}100%{opacity:0}}
 #dmgV{position:fixed;inset:0;pointer-events:none;z-index:6;opacity:0;
   background:radial-gradient(circle,#0000 46%,#ff1b3f66 100%)}
 #hitMk{position:fixed;left:50%;top:44%;transform:translate(-50%,-50%);z-index:7;pointer-events:none;
@@ -177,22 +166,42 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
 #dirHit{position:fixed;left:50%;top:50%;width:180px;height:180px;margin:-90px 0 0 -90px;z-index:6;pointer-events:none;opacity:0}
 #dirHit i{position:absolute;left:50%;top:4px;margin-left:-26px;width:52px;height:20px;
   background:linear-gradient(180deg,#ff3b5c,#ff3b5c00);border-radius:6px 6px 40px 40px;transform-origin:50% 86px}
-/* Signalé par un joueur : les toasts (centrés, jusqu'à 300px de large)
-   étaient ancrés à peu près à la même hauteur que #btnAction (232px contre
-   238px) — un bouton d'action ancré à droite, assez large lui aussi, se
-   retrouvait donc recouvert par les messages. Remonté au-dessus de TOUT le
-   groupe de boutons de droite (le plus haut, #btnJetpack, culmine à
-   246+58=304px) — jamais de collision, quel que soit le contexte. */
-#toastBox{position:fixed;bottom:calc(env(safe-area-inset-bottom,0px) + 310px);left:50%;transform:translateX(-50%);
-  z-index:7;display:flex;flex-direction:column;align-items:center;gap:5px;pointer-events:none}
-/* Bordé en largeur avec retour à la ligne : sans ça, un toast un peu long
-   (plusieurs phrases) débordait des deux côtés de l'écran au lieu de
-   s'empiler proprement en bas (bug déjà signalé). */
-.toast{background:#0e1119ee;border:1px solid var(--ligne);border-left:3px solid var(--cyan);border-radius:8px;
-  padding:6px 14px;font-size:12px;font-weight:700;box-shadow:0 6px 18px #000b;animation:tin .25s ease-out;
-  max-width:min(300px,84vw);white-space:normal;overflow-wrap:break-word;text-align:center}
-.toast.or{border-left-color:var(--vert)} .toast.warn{border-left-color:var(--rouge)}
-@keyframes tin{from{opacity:0;transform:translateY(8px)}to{opacity:1}}
+/* PILE UNIQUE DE NOTIFICATIONS — remplace les anciens #bigMsg (centre écran,
+   60% de hauteur) et #toastBox (bas d'écran, au-dessus des boutons) qui
+   masquaient encore les commandes par endroits malgré plusieurs correctifs
+   ciblés (signalé sur iPhone : ALERTE MAXIMALE, Trop cabré !, Vague
+   terminée recouvraient SORTIR/SPRINT/ESQUIVE/ARME). Correctif structurel,
+   pas cosmétique : TOUTE notification éphémère (toast() et bigMsg()) passe
+   maintenant par cette seule pile, ancrée en HAUT sous la barre d'objectif
+   (score/vague/mission) — la zone des commandes en bas de l'écran (joystick
+   + boutons, tiers inférieur droit) n'accueille plus jamais aucun élément
+   de HUD ni aucun message. Avec 2 entrées max de quelques lignes chacune,
+   la pile ne peut de toute façon jamais physiquement atteindre le bas de
+   l'écran — la séparation est garantie par construction, pas seulement par
+   un réglage de position. */
+#notifStack{position:fixed;top:calc(env(safe-area-inset-top,0px) + 150px);left:50%;transform:translateX(-50%);
+  z-index:7;display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none;
+  width:min(320px,88vw)}
+/* Fondu en apparition ET en disparition (pas d'apparition sèche), fond
+   semi-transparent flouté pour voir le jeu au travers — .on bascule
+   l'opacité/la position, la transition fait le fondu dans les deux sens.
+   -webkit-backdrop-filter obligatoire : cible iPhone/Safari en priorité. */
+.notif{background:#12141bb3;backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);
+  border:1px solid #ffffff26;border-left:3px solid var(--cyan);border-radius:10px;
+  padding:7px 16px;font-size:12.5px;font-weight:700;text-align:center;color:var(--blanc);
+  max-width:min(320px,88vw);white-space:normal;overflow-wrap:break-word;
+  box-shadow:0 6px 18px #0009;opacity:0;transform:translateY(-8px);
+  transition:opacity .28s ease,transform .28s ease}
+.notif.on{opacity:1;transform:translateY(0)}
+.notif.or{border-left-color:var(--vert)}
+/* alerte importante (toast(...,'warn')) : 4s, teinte rouge — ALERTE
+   MAXIMALE, Trop cabré !, etc. */
+.notif.alert{border-left-color:var(--rouge);background:#1c0f12b3}
+/* bigMsg() : grand moment (niveau, crash, vague terminée...), 4s, typo plus
+   marquée héritée de l'ancien #bigMsg — reste dans la pile, ne recouvre
+   plus jamais rien en dessous. */
+.notif.gros{font-size:15px;font-weight:900;font-style:italic;text-transform:uppercase;
+  letter-spacing:.03em;padding:9px 20px;border-left-color:var(--jaune)}
 
 /* ====== ÉCRANS ====== */
 .screen{position:fixed;inset:0;z-index:10;display:none;flex-direction:column;align-items:center;
@@ -338,12 +347,11 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
   <div class="btn" id="btnGren">💣<small id="grenN">3</small></div>
   <div class="btn" id="btnBrake">🛑<small>FREIN</small></div>
   <div id="btnAction">MONTER</div>
-  <div id="bigMsg"></div>
 </div>
 <div id="hitMk">✕</div>
 <div id="dmgV"></div>
 <div id="dirHit"></div>
-<div id="toastBox"></div>
+<div id="notifStack"></div>
 
 <!-- ================= MENU ================= -->
 <div class="screen on" id="menu">
@@ -1381,6 +1389,7 @@ const META={
     // qui ne dit que « débloqué », pas « gagné » — gagner Le Toit n'est
     // requis par aucun déblocage puisque c'est le dernier circuit).
     jetpack:false,jetpackSauvetage:false,monstertruck:false,depotBoucle:false,depotQuais:false,depotToit:false,
+    voltigePilote:false,
     faits:{}},
   decouverts:{},
   // --- lieux spéciaux : curiosités collectées + progression propre à chaque lieu ---
@@ -3728,24 +3737,34 @@ function remplirBloc(qq,bx,bz,cx,cz){
       new THREE.MeshBasicMaterial({color:0x0d0f14,transparent:true,opacity:0.92,depthWrite:false}));
     porteHangar.rotation.y=Math.PI/2; porteHangar.position.set(hgX-5.51,3.1,hgZ); scene.add(porteHangar);
     mkEnseigne('HANGAR','#f2c94c',hgX-5.6,6.6,hgZ,Math.PI/2,7);
-    // Bug trouvé en corrigeant ce ticket : le tarmac (et donc l'avion) était
-    // planté à (hgX-3.5,hgZ), qui tombe EN PLEIN dans l'empreinte solide du
-    // hangar (mkBatiment pose addSolid({hw:5.5,hd:4.5}) centré sur hgX,hgZ ;
-    // hgX-3.5 est à seulement 3,5 de hgX, largement à l'intérieur des 5,5 de
-    // marge) — le joueur ne pouvait tout simplement pas marcher jusqu'à
-    // l'avion, physiquement bloqué par le mur. C'était la vraie cause de
-    // « toujours pas accès », pas un problème de repérage. Avion déplacé en
-    // bout de piste, à l'écart de tout solide, dans une clairière entourée
-    // de buissons — bord nord-ouest du terrain, loin du hangar.
-    const avX=cx-INNER/2+6, avZ=cz-(INNER-3)/2-1.5;
-    const clairiere=new THREE.Mesh(new THREE.CircleGeometry(4.6,20),new THREE.MeshLambertMaterial({color:0x4a4e56}));
-    clairiere.rotation.x=-Math.PI/2; clairiere.position.set(avX,0.05,avZ); scene.add(clairiere);
-    const posBuissons=[[-3.6,-2.4],[3.4,-2.6],[-4,2.2],[3.8,2],[0,3.6],[-1.6,-3.8],[1.8,-3.6]];
-    for(const [bx2,bz2] of posBuissons){
-      const buisson=new THREE.Mesh(new THREE.SphereGeometry(rand(1,1.5),8,6),mat(0x1f7a3a));
-      buisson.position.set(avX+bx2,rand(0.7,1.1),avZ+bz2); buisson.scale.y=0.85; scene.add(buisson);
-    }
+    // Un joueur ne retrouvait toujours pas l'avion malgré les corrections
+    // précédentes (le vrai bug — planté dans le mur du hangar — était déjà
+    // corrigé, mais planqué dans une clairière entourée de buissons il
+    // restait visuellement noyé dans le décor). Nouvelle consigne
+    // explicite : le sacrifier la discrétion plutôt que le repérage.
+    // Position EXACTE : sur l'axe de la piste (avX=cx, centré en X comme
+    // les tirets de marquage), au seuil nord — le bout de piste le plus
+    // proche du centre-ville (bz=9 est au-delà du centre de la grille
+    // bz~6.5 : le centre-ville est donc du côté z DÉCROISSANT). Aucune
+    // clairière, aucun buisson : l'avion est posé à même le tarmac.
+    const avX=cx, avZ=cz-(INNER-3)/2+3;
     POIS.aerodrome={x:avX,z:avZ};
+    // Halo au sol, comme les objets à ramasser (makePickupMesh) — jamais
+    // manqué même de loin, en plus du reste (livrée, hélice, panneau).
+    const haloAv=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:0xf2c94c,transparent:true,depthWrite:false,opacity:0.55}));
+    haloAv.scale.set(9,9,1); haloAv.position.set(avX,0.5,avZ); scene.add(haloAv);
+    // Panneau dédié, à côté de l'avion (distinct du panneau général de
+    // l'aéro-club, resté à l'entrée de la piste) — même orientation que le
+    // panneau général (rotation 0) pour rester lisible de face en
+    // approchant depuis la ville, pas vu de tranche.
+    mkEnseigne('AÉRO-CLUB DE SOLARA — VOLTIGE','#ff3b3b',avX-7,3.2,avZ+3,0,9);
+    // Manche à air dédiée, juste à côté de l'avion (animée, voir POIS.
+    // mancheVoltige — balancée comme un drapeau au vent, même mécanique
+    // que POIS.drapeau).
+    scene.add(mkBoxG(0.08,3.2,0.08,0x8a8f9a,avX+3.6,1.6,avZ)); // mât (statique, pas besoin de référence)
+    const mancheV=new THREE.Mesh(new THREE.ConeGeometry(0.3,1.5,10),mat(0xff7a3a));
+    mancheV.rotation.z=Math.PI/2; mancheV.position.set(avX+3.6+0.75,3.1,avZ); scene.add(mancheV);
+    POIS.mancheVoltige=mancheV;
     return;
   }
   if(bx===8&&bz===9){ // ruelle au magot
@@ -4100,7 +4119,21 @@ function makeVoiture(key){
     const ombreA=spriteBlob(7); g.add(ombreA); ud.ombre=ombreA;
     // Voltige : même silhouette civile (à hélice) que le Colibri, juste
     // réduite et repeinte — pas de géométrie dédiée à maintenir en plus.
-    if(def.voltige) g.scale.setScalar(0.72);
+    // Livrée rouge et blanc à bandes (demandé explicitement, « impossible
+    // à manquer ») : une bande blanche courant sur le dessus du fuselage
+    // (visible de dessus, la vue du jeu) + le bout des deux ailes peint en
+    // blanc, posés au-dessus des surfaces existantes (jamais imbriqués
+    // dedans, sinon invisibles vus de dessus — même piège que le bus).
+    if(def.voltige){
+      const blanc=0xf4f2ea;
+      const bandeFus=new THREE.Mesh(new THREE.BoxGeometry(0.42,0.12,6.2),mat(blanc));
+      bandeFus.position.set(0,1.66,0.1); g.add(bandeFus);
+      [[-3.5],[3.5]].forEach(p=>{
+        const boutAile=new THREE.Mesh(new THREE.BoxGeometry(1.3,0.3,1.6),mat(blanc));
+        boutAile.position.set(p[0],1.58,0.5); g.add(boutAile);
+      });
+      g.scale.setScalar(0.72);
+    }
     g.userData=ud; return g;
   }
   if(def.air==='helico'){
@@ -4280,16 +4313,26 @@ function makeVoiture(key){
     const wheelR=key==='monstertruck'?1.12:(key==='pickup'?0.58:(def.buggy?0.5:0.38));
     const busH=key==='busville'?2.0:0.6; // bus : bien plus haut, boîte quasi constante sur toute la longueur
     if(key==='pickup'){
-      // Ford Raptor : cabine + benne ouverte, deux volumes nettement
-      // séparés — jamais la même caisse continue qu'une berline (signalé
-      // par un joueur : pickup/berline/citadine/sportive se confondaient).
+      // Pick-up japonais classique : cabine courte + benne ouverte, deux
+      // volumes nettement séparés — jamais la même caisse continue qu'une
+      // berline (signalé par un joueur : pickup/berline/citadine/sportive
+      // se confondaient). Vitres teintées distinctes de la carrosserie,
+      // arceau derrière la cabine, pare-chocs marqués (chromés) à l'avant
+      // ET à l'arrière — retravaillé une 2e fois (signalé « boîte sans
+      // caractère ») pour ajouter l'arceau, qui manquait complètement.
       const cabL=L*0.40, bedL=L*0.46;
       corps.add(mkBoxG(W,0.66,cabL,coul,0,bodyY+0.33,L*0.5-cabL/2-0.02));            // cabine
-      corps.add(mkBoxG(W*0.82,0.4,cabL*0.62,0x141b26,0,bodyY+0.66,L*0.5-cabL*0.72)); // vitrage cabine
+      corps.add(mkBoxG(W*0.82,0.4,cabL*0.62,0x141b26,0,bodyY+0.66,L*0.5-cabL*0.72)); // vitrage cabine, teinté
       corps.add(mkBoxG(W*0.97,0.3,bedL,0x23262e,0,bodyY-0.06,-L*0.5+bedL/2+0.03));   // plateau de benne
-      [-W*0.485,W*0.485].forEach(dx=>corps.add(mkBoxG(0.05,0.4,bedL,coul,dx,bodyY+0.22,-L*0.5+bedL/2+0.03))); // ridelles
+      [-W*0.485,W*0.485].forEach(dx=>corps.add(mkBoxG(0.12,0.4,bedL,coul,dx,bodyY+0.22,-L*0.5+bedL/2+0.03))); // ridelles, épaissies pour rester visibles vues de dessus
       corps.add(mkBoxG(W*0.97,0.4,0.05,coul,0,bodyY+0.22,-L*0.5+0.03));              // hayon
-      corps.add(mkBoxG(W*0.9,0.14,0.12,0x1a1d24,0,bodyY-0.2,L/2*0.97));              // pare-buffle avant
+      // arceau derrière la cabine, dans l'espace entre cabine et benne —
+      // silhouette pick-up immédiatement reconnaissable
+      const arceauZ=L*0.5-cabL-0.16, arceauH=1.0;
+      [-W*0.36,W*0.36].forEach(dx=>corps.add(mkBoxG(0.08,arceauH,0.08,0x23262e,dx,bodyY+arceauH/2-0.05,arceauZ)));
+      corps.add(mkBoxG(W*0.78,0.08,0.08,0x23262e,0,bodyY+arceauH-0.05,arceauZ));     // barre haute de l'arceau
+      corps.add(mkBoxG(W*0.94,0.2,0.16,0x9aa0a8,0,bodyY-0.22,L/2*0.98));             // pare-chocs avant, chromé et marqué
+      corps.add(mkBoxG(W*0.94,0.2,0.16,0x9aa0a8,0,bodyY-0.22,-L/2*0.98));            // pare-chocs arrière, chromé
       corps.add(mkBoxG(W*0.68,0.08,0.1,0xe8ecf2,0,bodyY+0.72,L*0.5-cabL*0.55));      // barre de toit à leds
     } else if(def.buggy){
       // buggy des dunes à ciel ouvert : châssis nu, cage tubulaire visible,
@@ -4312,26 +4355,73 @@ function makeVoiture(key){
         const choc=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.09,0.55,8),mat(0xffd23f));
         choc.position.set(p[0]*0.82,bodyY-0.34,p[1]); g.add(choc);
       });
-    } else {
+    } else if(key!=='busville'){
       corps.add(mkBoxG(W,busH,L*0.92,coul,0,bodyY+(busH-0.6)/2,0));
-      if(key!=='busville'){
-        corps.add(mkBoxG(W*0.8,0.48,L*0.44,0x141b26,0,bodyY+0.53,-L*0.06)); // habitacle vitré
-        corps.add(mkBoxG(W*0.6,0.05,L*0.28,def.taxi?0xf2c21f:0x0d1119,0,bodyY+0.8,-L*0.06)); // pavillon détaillé vu du dessus
-      } else {
-        // Bus de ville : bandeau de vitres continu, livrée et numéro de ligne
-        // (aléatoire par bus), girouette de destination — toujours SOLARA.
-        corps.add(mkBoxG(W*0.94,0.55,L*0.86,0x141b26,0,bodyY+busH*0.42,0));  // bandeau vitré
-        corps.add(mkBoxG(W*1.005,0.14,L*0.9,0x35e0ff,0,bodyY-busH*0.1,0));   // liseré bleu Solara
-        corps.add(mkBoxG(W*1.005,0.14,L*0.86,0xffd23f,0,bodyY-busH*0.32,0)); // liseré or
-        const ligne=pick([4,7,9,12,21]);
-        const pLigne=new THREE.Mesh(new THREE.PlaneGeometry(0.9,0.9),
-          new THREE.MeshBasicMaterial({map:texEnseigne(String(ligne),'#ffd23f'),transparent:false}));
-        pLigne.position.set(-W*0.32,bodyY+busH*0.55,L/2*0.94+0.03); corps.add(pLigne);
-        const pGir=new THREE.Mesh(new THREE.PlaneGeometry(1.7,0.42),
-          new THREE.MeshBasicMaterial({map:texEnseigne('SOLARA','#ffffff'),transparent:false}));
-        pGir.position.set(0.15,bodyY+busH*0.55,L/2*0.94+0.03); corps.add(pGir);
-      }
+      corps.add(mkBoxG(W*0.8,0.48,L*0.44,0x141b26,0,bodyY+0.53,-L*0.06)); // habitacle vitré
+      corps.add(mkBoxG(W*0.6,0.05,L*0.28,def.taxi?0xf2c21f:0x0d1119,0,bodyY+0.8,-L*0.06)); // pavillon détaillé vu du dessus
       corps.add(mkBoxG(W*0.66,0.04,0.08,0x1a2028,0,bodyY+0.32,L*0.2)); // ligne de capot
+    } else {
+      // Bus de ville : bandeau de vitres continu, pare-brise + lunette,
+      // portes accordéon, toit bombé + trappes d'aération, livrée et
+      // numéro de ligne (aléatoire par bus), girouette de destination.
+      //
+      // 3 bugs trouvés en creusant « pas de vitres, ça ne ressemble à
+      // rien » : (1) l'ancien bandeau (W*0.94, L*0.86) était plus ÉTROIT
+      // que la caisse principale (W, L*0.92) et donc entièrement enfermé à
+      // l'intérieur de son volume opaque — invisible sous tout angle.
+      // (2) même en l'élargissant, la caisse PARTAGÉE avec les autres
+      // véhicules restait une boîte pleine hauteur (busH) : son toit plat
+      // culminait plus haut que le bandeau, qui restait donc caché EN VUE
+      // DE DESSUS (la seule qui compte ici — la caméra du jeu est presque
+      // verticale) même en dépassant sur les côtés. (3) un pavillon plat
+      // séparé, presque pleine largeur (0.98W), au-dessus du vitrage
+      // recréait EXACTEMENT le même problème une couche plus haut — des
+      // vitres latérales verticales ne se voient de toute façon presque
+      // jamais depuis un angle quasi vertical, seul le HAUT du bandeau
+      // (sa face supérieure) est visible d'en haut, et seulement s'il
+      // n'est recouvert par RIEN de plus large juste au-dessus. Retiré le
+      // pavillon plat : seul le toit bombé (bien plus étroit) repose
+      // directement sur le bandeau, qui reste donc visible de part et
+      // d'autre sur toute sa largeur.
+      const busBottom=bodyY-0.3, skirtH=0.75, glassH=0.65;
+      corps.add(mkBoxG(W,skirtH,L*0.92,coul,0,busBottom+skirtH/2,0)); // bas de caisse
+      const vitrMat=new THREE.MeshPhongMaterial({color:0x10161f,shininess:70,specular:0x6a90b0});
+      const glassY=busBottom+skirtH+glassH/2;
+      const bandeVitres=new THREE.Mesh(new THREE.BoxGeometry(W*1.03,glassH,L*0.95),vitrMat);
+      bandeVitres.position.set(0,glassY,0); corps.add(bandeVitres);
+      corps.add(mkBoxG(W*1.03,0.05,L*0.95,0x8ab4d8,0,glassY+glassH*0.46,0)); // filet clair en haut du vitrage, suggère un reflet
+      // pare-brise avant + lunette arrière : même bandeau, dépasse à
+      // l'avant/arrière plutôt que sur les flancs
+      const pareBrise=new THREE.Mesh(new THREE.BoxGeometry(W*0.9,glassH*0.96,0.12),vitrMat);
+      pareBrise.position.set(0,glassY,L*0.47); corps.add(pareBrise);
+      const lunette=new THREE.Mesh(new THREE.BoxGeometry(W*0.9,glassH*0.96,0.12),vitrMat);
+      lunette.position.set(0,glassY,-L*0.47); corps.add(lunette);
+      // portes accordéon : deux battants à lattes verticales, en léger
+      // relief sur le flanc droit pour rester visibles (pas encastrées)
+      for(let dp=0;dp<2;dp++){
+        const doorZ=L*0.2-dp*L*0.32;
+        for(let lat=-1;lat<=1;lat++) corps.add(mkBoxG(0.06,glassH*0.9,0.1,0x1a1d24,W*0.515,glassY,doorZ+lat*0.13));
+      }
+      // toit bombé : un cylindre plein, centré exactement sur la surface du
+      // bandeau de vitres, bien plus étroit que la caisse (le vitrage reste
+      // visible de part et d'autre) — sa moitié basse s'enfonce dedans
+      // (cachée, occultée par le volume opaque), seule la moitié haute
+      // dépasse en bosse arrondie. Évite tout souci d'orientation d'un
+      // demi-cylindre.
+      const toitY=busBottom+skirtH+glassH, toitR=0.3;
+      const toitBus=new THREE.Mesh(new THREE.CylinderGeometry(toitR,toitR,L*0.86,10),mat(coul));
+      toitBus.rotation.x=Math.PI/2; toitBus.position.set(0,toitY,0); corps.add(toitBus);
+      // trappes d'aération sur le toit
+      for(let k=0;k<2;k++) corps.add(mkBoxG(0.44,0.1,0.36,0x2a2d34,0,toitY+toitR+0.05,-L*0.16+k*L*0.32));
+      corps.add(mkBoxG(W*1.02,0.12,L*0.9,0x35e0ff,0,busBottom+0.14,0));  // liseré bleu Solara
+      corps.add(mkBoxG(W*1.02,0.12,L*0.86,0xffd23f,0,busBottom+0.32,0)); // liseré or
+      const ligne=pick([4,7,9,12,21]);
+      const pLigne=new THREE.Mesh(new THREE.PlaneGeometry(0.9,0.9),
+        new THREE.MeshBasicMaterial({map:texEnseigne(String(ligne),'#ffd23f'),transparent:false}));
+      pLigne.position.set(-W*0.32,glassY,L/2*0.94+0.03); corps.add(pLigne);
+      const pGir=new THREE.Mesh(new THREE.PlaneGeometry(1.7,0.42),
+        new THREE.MeshBasicMaterial({map:texEnseigne('SOLARA','#ffffff'),transparent:false}));
+      pGir.position.set(0.15,glassY,L/2*0.94+0.03); corps.add(pGir);
     }
     if(def.police){
       corps.add(mkBoxG(W+0.02,0.26,L*0.5,0xe8ecf2,0,bodyY,0));
@@ -4378,12 +4468,24 @@ function makeVoiture(key){
       corps.add(mkBoxG(W*0.8,0.08,L*0.16,coul,0,bodyY+0.3,-L*0.38));        // malle légèrement marquée
     }
     if(def.pompier){
+      // Retravaillé (signalé « boîte sans caractère ») : caisson technique
+      // à l'arrière, nettement plus haut que la cabine partagée (jamais la
+      // même caisse continue), volets latéraux en relief, pare-chocs
+      // chromé, gyrophares BLEUS (jamais rouges — la police a déjà du
+      // rouge/bleu, un camion de pompiers tout en rouge s'y confondrait).
+      const caissonZ=-L*0.22, caissonL=L*0.5, caissonY=bodyY+0.42;
+      corps.add(mkBoxG(W*1.02,0.85,caissonL,0xd8dce4,0,caissonY,caissonZ)); // caisson technique, clair, distinct de la cabine rouge
+      for(let k=0;k<3;k++){ // volets latéraux : lattes horizontales en relief
+        const vy=bodyY+0.12+k*0.26;
+        [-W*0.505,W*0.505].forEach(dx=>corps.add(mkBoxG(0.05,0.06,caissonL*0.82,0x8a8f9a,dx,vy,caissonZ)));
+      }
       corps.add(mkBoxG(W*0.9,0.22,L*0.7,0xe8ecf2,0,bodyY+0.62,-L*0.05)); // bande blanche réfléchissante
-      corps.add(mkBoxG(0.3,0.28,L*0.55,0x8a8f9a,0,bodyY+0.85,-L*0.1));    // échelle sur le toit
-      const gy1=new THREE.Mesh(new THREE.BoxGeometry(0.28,0.16,0.24),new THREE.MeshBasicMaterial({color:0xff3b4b}));
-      gy1.position.set(-0.26,bodyY+0.98,-L*0.32);
-      const gy2=new THREE.Mesh(new THREE.BoxGeometry(0.28,0.16,0.24),new THREE.MeshBasicMaterial({color:0xff3b4b}));
-      gy2.position.set(0.26,bodyY+0.98,-L*0.32);
+      corps.add(mkBoxG(0.3,0.28,L*0.55,0x8a8f9a,0,bodyY+0.9,-L*0.1));    // échelle sur le toit
+      corps.add(mkBoxG(W*0.94,0.2,0.16,0xc4c8ce,0,bodyY-0.22,L/2*0.98)); // pare-chocs avant, chromé
+      const gy1=new THREE.Mesh(new THREE.BoxGeometry(0.28,0.16,0.24),new THREE.MeshBasicMaterial({color:0x3a7bff}));
+      gy1.position.set(-0.26,bodyY+1.03,-L*0.32);
+      const gy2=new THREE.Mesh(new THREE.BoxGeometry(0.28,0.16,0.24),new THREE.MeshBasicMaterial({color:0x3a7bff}));
+      gy2.position.set(0.26,bodyY+1.03,-L*0.32);
       corps.add(gy1); corps.add(gy2); ud.gyro=[gy1,gy2];
     }
     if(key==='monstertruck'){
@@ -5456,7 +5558,8 @@ function creerVehicule(key,x,z,ang,conduit){
   // les véhicules au sol (seul rotation.y y est jamais utilisé).
   if(def.air) mesh.rotation.order='YXZ';
   const v={key,def,mesh,x,z,ang:ang||0,dirAng:ang||0,v:0,hp:def.hp,conduit:conduit||null,mort:false,
-    fumeT:0,volFait:false,tapeJoueur:false,lane:0,axe:'z',dirT:1,klaxT:0};
+    fumeT:0,volFait:false,tapeJoueur:false,lane:0,axe:'z',dirT:1,klaxT:0,
+    eau:def.pompier?100:0,enFeu:false,feuT:0,feuFx:0};
   vehicules.push(v);
   return v;
 }
@@ -5471,6 +5574,10 @@ function abimerVehicule(v,d,parJoueur){
   v.hp-=d;
   burst(v.x,1,v.z,3,0xffd88a,6);
   if(v.hp<=0) exploserVehicule(v);
+  // Sous le tiers de sa vie, un véhicule (hors blindé/aérien) prend feu et
+  // finit par exploser si rien ne l'éteint — c'est ça que la lance à eau du
+  // camion de pompiers est censée combattre (voir majConduite/majVehicules).
+  else if(!v.enFeu&&!v.def.blinde&&!v.def.air&&v.hp<v.def.hp*0.32) { v.enFeu=true; v.feuT=rand(6,9); }
 }
 // Déformation visible de la carrosserie après un choc : bref écrasement du
 // mesh le long de l'axe d'impact (v.dentAxe), qui se résorbe sur v.dentT —
@@ -5995,7 +6102,9 @@ function entrerVehicule(v){
   moteurStart(v.def); SFX.ui();
   if(v.def.pompier){
     el('btnSwitch').innerHTML=(v.sirene?'🚨':'🔕')+'<small>SIRÈNE</small>';
-    toast('🚒 Appuie sur SIRÈNE pour faire s’écarter le trafic','or');
+    el('btnFire').style.display='flex';
+    el('fireIco').textContent='💦'; el('fireAmmo').textContent=Math.round(v.eau)+'%';
+    toast('🚒 SIRÈNE écarte le trafic — LANCE repousse la foule sans la blesser','or');
   }
   if(v.def.air){
     el('btnSprint').querySelector('small').textContent='MONTER';
@@ -6325,6 +6434,7 @@ function majVol(v,dt){
         // du toit sinon), jamais d'un niveau sol supposé.
         v.alt=poseY(v.x,v.z)+0.3;
         if(!META.defis.avion){META.defis.avion=true;}
+        if(v.def.voltige&&!META.defis.voltigePilote){META.defis.voltigePilote=true;}
         toast('Décollage !','or'); SFX.vague();
       }
     } else if(v.loopEnCours){
@@ -6496,6 +6606,68 @@ function controleDir(v,frein){
    la fin du délai de grâce sauve toujours. */
 const CROSS_CABRAGE_RATE=1.1, CROSS_CABRAGE_RELACHE=2.6, CROSS_CABRAGE_MAX=0.68,
       CROSS_CABRAGE_DANGER=0.55, CROSS_CABRAGE_GRACE=0.8;
+/* ---- Lance à eau du camion de pompiers : outil de CONTRÔLE, pas une arme.
+   Repousse fortement et fait vaciller (stun) ennemis/piétons dans un cône
+   étroit devant le camion, dégâts volontairement dérisoires (quelques dps —
+   jamais assez pour neutraliser vite ni finir une vague seule). Éteint aussi
+   les véhicules en feu (voir abimerVehicule/majVehicules). Réserve limitée,
+   jauge affichée sur le bouton TIR (majHUD), recharge lente à l'arrêt.
+   Jet en particules : réutilise le pool `parts` existant via spawnP, jamais
+   de nouveau tableau — aucune allocation par frame (CLAUDE.md). */
+const LANCE_PORTEE=13, LANCE_DEMI_ANGLE=0.4, LANCE_DEBIT=22, LANCE_RECHARGE=7, LANCE_RESEUIL=15;
+function majLanceEau(v,dt){
+  // Hystérésis anti-scintillement : une fois la réserve à sec, il faut
+  // remonter à LANCE_RESEUIL avant de pouvoir retirer. Sans ça, un seul
+  // frame de recharge (v.eau tout juste > 0) suffisait à rouvrir le tir un
+  // frame sur deux indéfiniment — un maintien continu du bouton ne
+  // s'arrêtait donc jamais vraiment, et sur une trentaine de secondes ça
+  // suffisait à tuer un ennemi malgré des dégâts/frame dérisoires (trouvé
+  // par test_lance_tmp.js : mort:true après 20 s de tir continu simulé).
+  if(v.eau<=0) v.lanceSeche=true;
+  if(v.lanceSeche&&v.eau>=LANCE_RESEUIL) v.lanceSeche=false;
+  const tirLance=(INPUT.btn.tir||INPUT.btn.tirK)&&v.eau>0&&!v.lanceSeche;
+  if(tirLance){
+    v.eau=Math.max(0,v.eau-LANCE_DEBIT*dt);
+    v.jetFx=(v.jetFx||0)-dt;
+    if(v.jetFx<=0){
+      v.jetFx=0.03;
+      const bx=v.x+Math.sin(v.ang)*2.6, bz=v.z+Math.cos(v.ang)*2.6;
+      spawnP(bx,1.35,bz,Math.sin(v.ang)*15+rand(-1.5,1.5),rand(1.5,3.5),Math.cos(v.ang)*15+rand(-1.5,1.5),
+        0.32,0.45,0x9fd8f5,9,0);
+    }
+    for(const e of ennemis){
+      if(e.mort||e.heli) continue;
+      const dx=e.x-v.x, dz=e.z-v.z, dist=Math.hypot(dx,dz);
+      if(dist>LANCE_PORTEE||dist<0.1) continue;
+      if(Math.abs(angDiff(v.ang,Math.atan2(dx,dz)))>LANCE_DEMI_ANGLE) continue;
+      const fall=1-dist/LANCE_PORTEE;
+      const nx=e.x+Math.sin(v.ang)*LANCE_DEBIT*fall*dt, nz=e.z+Math.cos(v.ang)*LANCE_DEBIT*fall*dt;
+      if(!solidAt(nx,nz,0.4)){ e.x=nx; e.z=nz; }
+      toucherEnnemi(e,2.5*dt,true,0);
+    }
+    for(const p of pietons){
+      if(p.etat==='mort'||p.rag) continue;
+      const dx=p.x-v.x, dz=p.z-v.z, dist=Math.hypot(dx,dz);
+      if(dist>LANCE_PORTEE||dist<0.1) continue;
+      if(Math.abs(angDiff(v.ang,Math.atan2(dx,dz)))>LANCE_DEMI_ANGLE) continue;
+      const fall=1-dist/LANCE_PORTEE;
+      const nx=p.x+Math.sin(v.ang)*LANCE_DEBIT*fall*dt, nz=p.z+Math.cos(v.ang)*LANCE_DEBIT*fall*dt;
+      if(!solidAt(nx,nz,0.3)){ p.x=nx; p.z=nz; }
+      if(p.etat!=='fuite'){ p.etat='fuite'; p.t=1.4; }
+      if(Math.random()<dt*6) spawnP(p.x,0.8,p.z,rand(-1,1),rand(1,2),rand(-1,1),0.3,0.35,0x9fd8f5,6);
+    }
+    for(const o of vehicules){
+      if(o===v||!o.enFeu) continue;
+      const dx=o.x-v.x, dz=o.z-v.z, dist=Math.hypot(dx,dz);
+      if(dist>LANCE_PORTEE) continue;
+      if(Math.abs(angDiff(v.ang,Math.atan2(dx,dz)))>LANCE_DEMI_ANGLE) continue;
+      o.enFeu=false;
+      spawnP(o.x,1.5,o.z,0,2,0,0.4,1.4,0xd8ecff,2);
+    }
+  } else if(v.eau<100){
+    v.eau=Math.min(100,v.eau+LANCE_RECHARGE*dt);
+  }
+}
 function majConduite(dt){
   const v=P.veh;
   if(!v||!v.def){ P.veh=null; return; }
@@ -6516,6 +6688,7 @@ function majConduite(dt){
       addHeat(0.5,true);
     }
   }
+  if(v.def.pompier) majLanceEau(v,dt);
   const frein=INPUT.btn.frein||INPUT.btn.freinK;
   const c=controleDir(v,frein);
   majVehiculePhys(v,dt,c.throttle,c.steer,frein);
@@ -6691,15 +6864,17 @@ function majTrafic(v,dt){
   // largement assez pour ne jamais voir la ville se vider sous les yeux.
   if(dist2(v.x,v.z,P.x,P.z)>120*120) v.mort=true;
 }
-// gyrophares du camion de pompiers : tournent en continu (repérable dans le
-// trafic), s'accélèrent et passent au blanc/rouge vif quand la sirène est
-// active — appelée pour tout conduit (trafic, joueur), voir majVehicules.
+// gyrophares du camion de pompiers : bleus (demandé explicitement — jamais
+// rouges, pour ne pas se confondre avec les gyrophares rouge/bleu de la
+// police), tournent en continu (repérable dans le trafic), s'accélèrent et
+// passent au blanc vif quand la sirène est active — appelée pour tout
+// conduit (trafic, joueur), voir majVehicules.
 function majGyrophares(v,dt){
   const ud=v.mesh.userData; if(!ud.gyro) return;
   v.gyroPh=(v.gyroPh||0)+dt*(v.sirene?9:3);
   const cl=Math.floor(v.gyroPh)%2;
-  ud.gyro[0].material.color.setHex(cl?0xff3b4b:0x501018);
-  ud.gyro[1].material.color.setHex(cl?0x501018:(v.sirene?0xffffff:0xff3b4b));
+  ud.gyro[0].material.color.setHex(cl?0x3a7bff:0x0d2a52);
+  ud.gyro[1].material.color.setHex(cl?0x0d2a52:(v.sirene?0xffffff:0x3a7bff));
 }
 function majVehicules(dt){
   let nT=0; for(let i=0;i<vehicules.length;i++){const v2=vehicules[i];if(v2.conduit==='trafic'&&!v2.mort)nT++;}
@@ -6707,6 +6882,13 @@ function majVehicules(dt){
   for(const v of vehicules){
     if(v.mort||v.epave) continue;
     if(v.def.pompier) majGyrophares(v,dt); // tourne quel que soit le conduit (trafic, joueur...)
+    if(v.enFeu){
+      v.feuT-=dt;
+      v.feuFx-=dt;
+      if(v.feuFx<=0){ v.feuFx=0.12; fumee(v.x+rand(-0.6,0.6),1.3,v.z+rand(-0.6,0.6),0x3a3d44);
+        burst(v.x,1,v.z,2,0xff7a2e,4,3); }
+      if(v.feuT<=0){ exploserVehicule(v); continue; }
+    }
     if(v.aplatiPartiel) continue; // à moitié aplati : immobile jusqu'au second passage
     // Déformation après un choc (voir majVehiculePhys) : appliquée ici pour
     // tout véhicule qui NE passe PAS par majVehiculePhys — la police y passe
@@ -6731,6 +6913,14 @@ function majVehicules(dt){
       v.mesh.position.y=v.def.eau?0.15:(v.def.air?(v.alt||0):solY(v.x,v.z));
       v.mesh.position.x=v.x; v.mesh.position.z=v.z;
       if(v.hp<v.def.hp*0.42){ v.fumeT-=dt; if(v.fumeT<=0){v.fumeT=0.14;fumee(v.x,1.1,v.z,0x555a63);} }
+      // Avion de voltige garé : hélice qui tourne au ralenti + rotation lente
+      // sur lui-même — en vue de dessus, seul un élément qui BOUGE attire
+      // l'œil (demandé explicitement, voir repositionnement plus bas).
+      if(v.def.voltige){
+        const ud2=v.mesh.userData;
+        if(ud2.rotor) ud2.rotor.rotation.y+=3*dt;
+        v.mesh.rotation.y+=0.12*dt;
+      }
     }
   }
   for(let i=vehicules.length-1;i>=0;i--){
@@ -13971,18 +14161,40 @@ function gainXp(n){
     if(deb) toast(deb,'or');
   }
 }
+// Pile unique de notifications (voir #notifStack) : toast() ET bigMsg()
+// poussent tous les deux ici, jamais plus de 2 visibles à la fois — la plus
+// ancienne est retirée IMMÉDIATEMENT (sans fondu, demandé explicitement)
+// pour laisser la place, le fondu restant réservé à l'apparition et à la
+// fin de vie normale. NOTIF_FADE doit rester cohérent avec la durée de
+// transition CSS de .notif (.28s). `void n.offsetWidth` force le calcul de
+// mise en page avant de basculer .on — sans ça le navigateur applique le
+// style final directement, sans jouer la transition (même technique que
+// l'ancien #bigMsg, qui s'en servait déjà pour son animation d'apparition).
+// Pas de requestAnimationFrame ici : le faux rAF à un seul slot de
+// valider.js (piloté à la main, pas de vraie file d'attente) entrait en
+// conflit avec le rAF de reprogrammation de boucle() elle-même — la
+// boucle principale s'arrêtait de se replanifier (bug trouvé en validant).
+const NOTIF_FADE=280;
+function pousseNotif(txt,classes,dureeMs){
+  const pile=el('notifStack');
+  while(pile.children.length>=2) pile.removeChild(pile.firstChild);
+  const n=document.createElement('div');
+  n.className='notif'+(classes?' '+classes:'');
+  n.textContent=txt;
+  pile.appendChild(n);
+  void n.offsetWidth;
+  n.classList.add('on');
+  setTimeout(()=>{
+    if(!n.parentNode) return;
+    n.classList.remove('on');
+    setTimeout(()=>{if(n.parentNode) n.parentNode.removeChild(n);},NOTIF_FADE);
+  },dureeMs);
+}
 function toast(txt,cls){
-  const t=document.createElement('div');
-  t.className='toast'+(cls?' '+cls:'');
-  t.textContent=txt;
-  el('toastBox').appendChild(t);
-  while(el('toastBox').children.length>3) el('toastBox').removeChild(el('toastBox').firstChild);
-  setTimeout(()=>{if(t.parentNode)t.parentNode.removeChild(t);},2800);
+  pousseNotif(txt,cls==='warn'?'alert':(cls||''),cls==='warn'?4000:2500);
 }
 function bigMsg(txt){
-  const b=el('bigMsg');
-  b.textContent=txt;
-  b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop');
+  pousseNotif(txt,'gros',4000);
 }
 
 /* =====================================================================
@@ -14694,9 +14906,21 @@ function drawCarte(){
   // au-dessus, se voit tout de suite.
   if(POIS.aerodrome){
     const vx=mmX(POIS.aerodrome.x)*k, vz=mmZ(POIS.aerodrome.z)*k;
-    g.fillStyle='#15161a'; g.beginPath(); g.arc(vx,vz,9,0,7); g.fill();
-    g.strokeStyle='#f2c94c'; g.lineWidth=1.6; g.stroke();
-    dessinerIconePOI(g,'✈️',vx,vz,11,'#fff');
+    // Tant que le joueur n'a jamais décollé avec la voltige : le plus gros
+    // badge de la carte, clignotant doucement (rayon qui pulse). Une fois
+    // pilotée une première fois, il redevient un badge normal — même
+    // taille que les autres (friche, jetpack).
+    if(!META.defis.voltigePilote){
+      const pulse=0.75+Math.sin(ETAT.runT*3)*0.25;
+      const rB=13*pulse;
+      g.fillStyle='#15161a'; g.beginPath(); g.arc(vx,vz,rB,0,7); g.fill();
+      g.strokeStyle='#f2c94c'; g.lineWidth=2.2; g.stroke();
+      dessinerIconePOI(g,'✈️',vx,vz,14*pulse,'#fff');
+    } else {
+      g.fillStyle='#15161a'; g.beginPath(); g.arc(vx,vz,9,0,7); g.fill();
+      g.strokeStyle='#f2c94c'; g.lineWidth=1.6; g.stroke();
+      dessinerIconePOI(g,'✈️',vx,vz,11,'#fff');
+    }
   }
   // point d'arrivée choisi par le joueur
   if(WAYP.actif){
@@ -14908,6 +15132,10 @@ function nettoieMonde(){
 function startRun(){
   nettoieMonde();
   META.parties++; META.stats.parties++;
+  // Message d'indication, une seule fois dans la vie de la sauvegarde — au
+  // tout premier lancement de partie, jamais republié ensuite (même après
+  // un game over), pour ne pas polluer les runs suivants.
+  if(META.parties===1) setTimeout(()=>toast('Un avion de voltige attend à l’aéro-club, au bout de la piste','or'),1200);
   ETAT.mode='jeu'; ETAT.runT=0; ETAT.kills=0; ETAT.cashRun=0;
   ETAT.score=0; ETAT.combo=1; ETAT.comboT=0; ETAT.timeScale=1;
   recalcJoueur(); construireJoueur();
@@ -16370,6 +16598,7 @@ function jourNuit(dt){
 function majCamp(dt){
   if(POIS.radar) POIS.radar.rotation.y+=dt*0.8;
   if(POIS.drapeau) POIS.drapeau.rotation.z=Math.sin(ETAT.runT*3)*0.06;
+  if(POIS.mancheVoltige) POIS.mancheVoltige.rotation.y=Math.sin(ETAT.runT*1.4)*0.35;
   // Monster Truck : découverte à la proximité, une fois pour toutes (un lieu,
   // pas un butin — jamais réinitialisé au game over, voir CLAUDE.md).
   if(POIS.friche&&!META.monstertruckTrouve&&dist2(P.x,P.z,POIS.friche.x,POIS.friche.z)<400){
@@ -16472,7 +16701,8 @@ function majHUD(){
     for(let i=0;i<6;i++) st[i].className=i<WANTED.stars?(WANTED.stars>=6?'on mil':'on'):'';
   }
   const a=ARMES[P.armeCur];
-  if(P.veh&&P.veh.def.armes) hudT('fireAmmo','∞');
+  if(P.veh&&P.veh.def.pompier) hudT('fireAmmo',Math.round(P.veh.eau)+'%');
+  else if(P.veh&&P.veh.def.armes) hudT('fireAmmo','∞');
   else hudT('fireAmmo',a.type==='melee'?'':
     (P.rechT>0?'⟳':(P.mags[P.armeCur]||0)+'/'+(P.mun[P.armeCur]||0)));
   // progression de recharge visible

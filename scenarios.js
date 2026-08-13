@@ -497,11 +497,11 @@ async function main() {
       let texteToastPanneau = null;
       if (panneau) {
         P.x = panneau.x; P.z = panneau.z; majAction(); document.getElementById('btnAction')._fn();
-        texteToastPanneau = document.getElementById('toastBox').lastElementChild.textContent;
+        texteToastPanneau = document.getElementById('notifStack').lastElementChild.textContent;
       }
       // premier appui sur le boîtier : arme + toast d'avertissement (pas encore le casse)
       P.x = s.boitier.x; P.z = s.boitier.z; majAction(); document.getElementById('btnAction')._fn();
-      const texteToastBoitier = document.getElementById('toastBox').lastElementChild.textContent;
+      const texteToastBoitier = document.getElementById('notifStack').lastElementChild.textContent;
       // confirme : démarre le casse
       majAction(); document.getElementById('btnAction')._fn();
       majInterieur(0.1, 0.1);
@@ -4342,16 +4342,16 @@ async function main() {
     const guidage = await page.evaluate(() => {
       startRun();
       const p = PORTES.find((x) => x.id === 'depot');
-      document.getElementById('toastBox').innerHTML = '';
+      document.getElementById('notifStack').innerHTML = '';
       entrerInterieur('depot', p);
-      const texteEntree = document.getElementById('toastBox').textContent;
+      const texteEntree = document.getElementById('notifStack').textContent;
       const s = INT.actif;
       const st = s.standVehicules[0];
       P.x = st.x; P.z = st.z;
       majAction();
-      document.getElementById('toastBox').innerHTML = '';
+      document.getElementById('notifStack').innerHTML = '';
       if (el('btnAction')._fn) el('btnAction')._fn();
-      const texteChoix = document.getElementById('toastBox').textContent;
+      const texteChoix = document.getElementById('notifStack').textContent;
       sortirInterieur();
       return { texteEntree, texteChoix };
     });
@@ -5626,10 +5626,11 @@ async function main() {
     // largeur maximale et de retour à la ligne (white-space:nowrap). Vérifié
     // ici avec les VRAIS plus longs messages du jeu (lus depuis le code,
     // jamais recopiés — voir CLAUDE.md), sur le viewport mobile réel de la
-    // suite. bigMsg utilise une animation d'entrée qui grossit brièvement à
-    // ×1.7 (l'effet « pop ») : on laisse le temps à l'animation de se
-    // stabiliser avant de mesurer, sinon le test mesurerait ce survol
-    // transitoire au lieu de la taille au repos.
+    // suite. Depuis le passage à la pile unique #notifStack (toast() et
+    // bigMsg() poussent tous les deux le même type d'élément .notif),
+    // l'animation d'entrée est un simple fondu CSS de 280 ms (plus l'ancien
+    // « pop » ×1.7 de #bigMsg) : une attente courte suffit largement à la
+    // laisser se stabiliser avant de mesurer.
     // -------------------------------------------------------------------
     console.log('\n--- Messages (bigMsg, toast) : ne débordent jamais l\'écran, même avec les plus longs textes réels du jeu ---');
     const messagesTest = await page.evaluate(() => {
@@ -5651,33 +5652,23 @@ async function main() {
       bigMsg(longestBig);
       toast(longestToast, 'or');
     }, messagesTest);
-    // Toute mesure répétée (relire la largeur, relire le temps écoulé de
-    // l'animation via Web Animations API...) suppose qu'au moins UNE
-    // frame a été rendue entre deux lectures. Sous charge (toute la suite
-    // de scénarios qui tourne juste avant), un onglet Chromium peut rester
-    // bloqué assez longtemps pour que TOUTES les lectures retombent sur la
-    // même image gelée, encore en plein survol transitoire ×1.7 — flake
-    // rencontré à deux reprises avec deux approches différentes de
-    // sondage. La seule attente qui ne dépend d'aucune frame réellement
-    // rendue entre deux lectures est une attente fixe couvrant TOUTE la
-    // durée de l'animation (1.7 s) avec une bonne marge : après quoi la
-    // transform est nécessairement figée à scale(1) (soit encore au palier
-    // des 12 %, soit l'animation « forwards » est simplement terminée) —
-    // vrai quel que soit le nombre de frames rendues entre-temps.
-    await attendre(2200);
+    await attendre(500);
     const bounds = await page.evaluate(() => {
-      const big = document.getElementById('bigMsg');
-      const t = document.querySelector('.toast');
-      const br = big.getBoundingClientRect(), tr = t ? t.getBoundingClientRect() : null;
+      const big = document.querySelector('#notifStack .gros');
+      const t = document.querySelector('#notifStack .or');
+      const br = big ? big.getBoundingClientRect() : null, tr = t ? t.getBoundingClientRect() : null;
       return {
         viewportW: window.innerWidth,
-        big: { left: br.left, right: br.right, text: big.textContent },
+        big: br ? { left: br.left, right: br.right, text: big.textContent } : null,
         toast: tr ? { left: tr.left, right: tr.right, text: t.textContent } : null,
       };
     });
-    const bigDeborde = bounds.big.left < -1 || bounds.big.right > bounds.viewportW + 1;
-    if (bigDeborde) fail('Messages : bigMsg déborde l\'écran avec le plus long message réel du jeu ("' + bounds.big.text + '", left=' + bounds.big.left.toFixed(1) + ' right=' + bounds.big.right.toFixed(1) + ' pour une largeur de ' + bounds.viewportW + ')');
-    else ok('Messages : bigMsg reste bien dans l\'écran, même avec le plus long message réel du jeu');
+    if (!bounds.big) fail('Messages : le bigMsg de test n\'a pas été trouvé dans #notifStack');
+    else {
+      const bigDeborde = bounds.big.left < -1 || bounds.big.right > bounds.viewportW + 1;
+      if (bigDeborde) fail('Messages : bigMsg déborde l\'écran avec le plus long message réel du jeu ("' + bounds.big.text + '", left=' + bounds.big.left.toFixed(1) + ' right=' + bounds.big.right.toFixed(1) + ' pour une largeur de ' + bounds.viewportW + ')');
+      else ok('Messages : bigMsg reste bien dans l\'écran, même avec le plus long message réel du jeu');
+    }
     if (!bounds.toast) fail('Messages : le toast de test n\'a pas été trouvé dans le DOM');
     else {
       const toastDeborde = bounds.toast.left < -1 || bounds.toast.right > bounds.viewportW + 1;
