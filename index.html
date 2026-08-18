@@ -94,6 +94,21 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
 #joyKnob{position:absolute;left:50%;top:50%;width:52px;height:52px;border-radius:50%;
   background:radial-gradient(circle at 35% 30%,#4ae6ff,#1590ad);box-shadow:0 4px 14px #000a;transform:translate(-50%,-50%)}
 
+/* Joysticks de visée, superposés directement sur LANCE (camion de pompiers)
+   et TIR (tourelle du char) — visent dans une direction indépendante du cap
+   du véhicule pendant qu'il continue de rouler, demandé explicitement.
+   Même principe que #joyBase/#joyKnob (position fixée au premier contact,
+   fixed en position:fixed pour suivre le doigt hors des bornes du petit
+   bouton d'origine), en position:fixed pour ne dépendre d'aucun ancêtre
+   positionné, taille réduite (bouton, pas zone plein écran). */
+#viseeLanceBase,#viseeCanonBase{position:fixed;width:132px;height:132px;border-radius:50%;
+  border:2px solid #9fd8f566;background:radial-gradient(circle,#9fd8f51a,#0000);
+  display:none;transform:translate(-50%,-50%);pointer-events:none;z-index:6}
+#viseeCanonBase{border-color:#ffd28a66;background:radial-gradient(circle,#ffd28a1a,#0000)}
+#viseeLanceKnob,#viseeCanonKnob{position:absolute;left:50%;top:50%;width:38px;height:38px;border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,#9fd8f5,#2c7ea6);box-shadow:0 4px 12px #000a;transform:translate(-50%,-50%)}
+#viseeCanonKnob{background:radial-gradient(circle at 35% 30%,#ffd28a,#a66a2c)}
+
 /* croix directionnelle des bornes d'arcade : remplace le joystick pendant une
    partie. Chaque bouton a une zone tactile (.croixHit) nettement plus grande
    que sa partie visible (.croixVis), pour un pouce qui ne vise pas au pixel près. */
@@ -335,6 +350,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
   <div id="jetWarn">⚠ VITESSE DE CHUTE CRITIQUE</div>
 
   <div id="zoneL"><div id="joyBase"><div id="joyKnob"></div></div></div>
+  <div id="viseeLanceBase"><div id="viseeLanceKnob"></div></div>
+  <div id="viseeCanonBase"><div id="viseeCanonKnob"></div></div>
   <div id="croixWrap">
     <div class="croixHit" id="croixHaut"><div class="croixVis">▲</div></div>
     <div class="croixHit" id="croixBas"><div class="croixVis">▼</div></div>
@@ -1157,6 +1174,51 @@ function joyEnd(e){
 }
 zoneL.addEventListener('pointerup',joyEnd);
 zoneL.addEventListener('pointercancel',joyEnd);
+
+/* ---------- Joysticks de visée superposés à un bouton (LANCE, TIR/tourelle) ----------
+   Même principe que le joystick de déplacement (position figée au premier
+   contact, setPointerCapture pour continuer à suivre le doigt même sorti
+   des bornes du petit bouton), mais réutilise le bouton d'ACTION existant
+   au lieu d'une zone dédiée — demandé explicitement (« un joystick qui
+   serait sur le bouton de lance à eau »). N'active la visée que si `actif`
+   est vrai au moment du contact (sinon le bouton garde son usage normal —
+   TIR sert aussi au tir à pied, hors char). `holdKey` est un champ dédié de
+   INPUT (pas INPUT.btn.x, qui se coupe sur pointerleave dès que le doigt
+   quitte le petit bouton en visant loin — voir bindHold) : c'est LUI qui
+   fait foi pour « le bouton est-il tenu », le temps de la visée. */
+function bindViseeJoystick(btnEl,baseEl,knobEl,holdKey,dxKey,dyKey,actif){
+  let pid=null;
+  btnEl.addEventListener('pointerdown',e=>{
+    if(!actif()) return;
+    pid=e.pointerId; INPUT[holdKey]=true;
+    const r=btnEl.getBoundingClientRect();
+    baseEl._cx=r.left+r.width/2; baseEl._cy=r.top+r.height/2;
+    INPUT[dxKey]=0; INPUT[dyKey]=0;
+    baseEl.style.display='block';
+    baseEl.style.left=baseEl._cx+'px'; baseEl.style.top=baseEl._cy+'px';
+    knobEl.style.transform='translate(-50%,-50%)';
+    btnEl.setPointerCapture(e.pointerId);
+  });
+  btnEl.addEventListener('pointermove',e=>{
+    if(e.pointerId!==pid) return;
+    let dx=e.clientX-baseEl._cx, dy=e.clientY-baseEl._cy;
+    const d=Math.hypot(dx,dy), max=60;
+    if(d>max){dx=dx/d*max; dy=dy/d*max;}
+    INPUT[dxKey]=dx/max; INPUT[dyKey]=dy/max;
+    knobEl.style.transform='translate(calc(-50% + '+dx+'px), calc(-50% + '+dy+'px))';
+  });
+  function end(e){
+    if(e.pointerId!==pid) return;
+    pid=null; INPUT[holdKey]=false; INPUT[dxKey]=0; INPUT[dyKey]=0;
+    baseEl.style.display='none';
+  }
+  btnEl.addEventListener('pointerup',end);
+  btnEl.addEventListener('pointercancel',end);
+}
+bindViseeJoystick(el('btnSprint'),el('viseeLanceBase'),el('viseeLanceKnob'),
+  'lanceHold','lanceDx','lanceDy',()=>!!(P.veh&&P.veh.def.pompier));
+bindViseeJoystick(el('btnFire'),el('viseeCanonBase'),el('viseeCanonKnob'),
+  'canonHold','canonDx','canonDy',()=>!!(P.veh&&P.veh.def.canon));
 
 /* ---------- croix directionnelle réutilisable (bornes d'arcade) ----------
    Remplace le joystick virtuel pendant une session de borne : composant
@@ -4090,9 +4152,21 @@ function makeVoiture(key){
       g.add(mkBoxG(W*0.22,0.6,L*0.96,0x23262e,p[0],0.32,0));
       for(let k=-2;k<=2;k++) g.add(mkBoxG(W*0.24,0.5,0.16,0x15171c,p[0],0.32,k*L*0.17));
     });
-    const tour=mkBoxG(W*0.62,0.5,L*0.46,coul,0,1.1,-L*0.04); g.add(tour);
-    g.add(mkBoxG(0.22,0.22,L*0.62,0x3a4030,0,1.14,L*0.42));          // canon
-    g.add(mkBoxG(0.34,0.16,0.34,0x2c3026,0,1.42,-L*0.1));            // écoutille
+    // Tourelle DÉTACHÉE du châssis (groupe indépendant, pas fusionnée dans
+    // g comme avant) : peut viser dans une direction pendant que le char
+    // continue d'avancer dans une autre — demandé explicitement. Origine du
+    // groupe calée sur la position d'origine de la tourelle (l'ancien point
+    // (0,1.1,-L*0.04)) ; les enfants ci-dessous sont donc repositionnés en
+    // RELATIF à cette origine, pas en absolu comme avant. rotation.y de ce
+    // groupe reste toujours RELATIVE au châssis (0 = aligné avec l'avant du
+    // char) — c'est majConduite qui la pilote frame par frame (voir
+    // ud.tourelle et VISEE_CANON).
+    const tourelle=new THREE.Group();
+    tourelle.position.set(0,1.1,-L*0.04);
+    tourelle.add(mkBoxG(W*0.62,0.5,L*0.46,coul,0,0,0));
+    tourelle.add(mkBoxG(0.22,0.22,L*0.62,0x3a4030,0,0.04,L*0.46));   // canon
+    tourelle.add(mkBoxG(0.34,0.16,0.34,0x2c3026,0,0.32,-L*0.06));    // écoutille
+    g.add(tourelle); ud.tourelle=tourelle;
     g.add(spriteBlob(L*1.05));
     g.userData=ud; return g;
   }
@@ -6795,7 +6869,16 @@ function majLanceEau(v,dt){
   // LANCE est réaffectée sur le bouton SPRINT (voir entrerVehicule) — TIR
   // reste physiquement recouvert par FREIN au volant du camion, jamais
   // utilisé pour cette mécanique.
-  const tirLance=(INPUT.btn.sprint||INPUT.btn.sprintK)&&v.eau>0&&!v.lanceSeche;
+  // Visée indépendante du cap (joystick superposé sur LANCE, voir
+  // bindViseeJoystick) : tenir le bouton ET faire glisser vise dans la
+  // direction du glissement — vers l'arrière si besoin — sans que le
+  // camion cesse d'avancer dans SA propre direction. v.ang (le cap) n'est
+  // jamais modifié ici. INPUT.lanceHold fait foi pour « le bouton est
+  // tenu » (pas INPUT.btn.sprint, qui se coupe dès que le doigt sort des
+  // bornes du petit bouton en visant loin).
+  const viseeLibre=INPUT.lanceHold&&Math.hypot(INPUT.lanceDx||0,INPUT.lanceDy||0)>0.12;
+  const aimAng=viseeLibre?Math.atan2(INPUT.lanceDx,INPUT.lanceDy):v.ang;
+  const tirLance=(INPUT.lanceHold||INPUT.btn.sprintK)&&v.eau>0&&!v.lanceSeche;
   if(tirLance){
     if(!AUDIO.lanceOn) lanceSonStart();
     v.eau=Math.max(0,v.eau-LANCE_DEBIT*dt);
@@ -6805,9 +6888,9 @@ function majLanceEau(v,dt){
     v.jetFx=(v.jetFx||0)-dt;
     if(v.jetFx<=0){
       v.jetFx=0.018;
-      const bx=v.x+Math.sin(v.ang)*2.6, bz=v.z+Math.cos(v.ang)*2.6;
+      const bx=v.x+Math.sin(aimAng)*2.6, bz=v.z+Math.cos(aimAng)*2.6;
       for(let k=0;k<3;k++){
-        const a=v.ang+rand(-0.1,0.1);
+        const a=aimAng+rand(-0.1,0.1);
         spawnP(bx+rand(-0.3,0.3),1.15+rand(-0.15,0.3),bz+rand(-0.3,0.3),
           Math.sin(a)*rand(13,17),rand(1.5,4),Math.cos(a)*rand(13,17),
           0.3,rand(0.32,0.5),0x9fd8f5,9,0);
@@ -6818,37 +6901,37 @@ function majLanceEau(v,dt){
     v.splashFx=(v.splashFx||0)-dt;
     if(v.splashFx<=0){
       v.splashFx=0.09;
-      const ix=v.x+Math.sin(v.ang)*LANCE_PORTEE*0.72+rand(-1,1);
-      const iz=v.z+Math.cos(v.ang)*LANCE_PORTEE*0.72+rand(-1,1);
+      const ix=v.x+Math.sin(aimAng)*LANCE_PORTEE*0.72+rand(-1,1);
+      const iz=v.z+Math.cos(aimAng)*LANCE_PORTEE*0.72+rand(-1,1);
       burst(ix,0.15,iz,5,0xcfe8f8,4,2);
     }
     for(const e of ennemis){
       if(e.mort||e.heli||e.rag) continue;
       const dx=e.x-v.x, dz=e.z-v.z, dist=Math.hypot(dx,dz);
       if(dist>LANCE_PORTEE||dist<0.1) continue;
-      if(Math.abs(angDiff(v.ang,Math.atan2(dx,dz)))>LANCE_DEMI_ANGLE) continue;
+      if(Math.abs(angDiff(aimAng,Math.atan2(dx,dz)))>LANCE_DEMI_ANGLE) continue;
       const fall=1-dist/LANCE_PORTEE;
       toucherEnnemi(e,2.5*dt,true,0);
       // Projection forte : part loin et tombe (ragdoll NON mortel — voir le
       // correctif de majRagdoll, qui relève tout seul un ragdoll dont la
       // cible n'est pas morte). Un ennemi déjà à terre (e.rag, filtré plus
       // haut) n'est pas re-projeté avant de s'être relevé.
-      lancerRagdoll(e,Math.sin(v.ang),Math.cos(v.ang),13+fall*11);
+      lancerRagdoll(e,Math.sin(aimAng),Math.cos(aimAng),13+fall*11);
     }
     for(const p of pietons){
       if(p.etat==='mort'||p.rag) continue;
       const dx=p.x-v.x, dz=p.z-v.z, dist=Math.hypot(dx,dz);
       if(dist>LANCE_PORTEE||dist<0.1) continue;
-      if(Math.abs(angDiff(v.ang,Math.atan2(dx,dz)))>LANCE_DEMI_ANGLE) continue;
+      if(Math.abs(angDiff(aimAng,Math.atan2(dx,dz)))>LANCE_DEMI_ANGLE) continue;
       const fall=1-dist/LANCE_PORTEE;
-      lancerRagdoll(p,Math.sin(v.ang),Math.cos(v.ang),12+fall*10);
+      lancerRagdoll(p,Math.sin(aimAng),Math.cos(aimAng),12+fall*10);
       if(Math.random()<dt*10) spawnP(p.x,0.8,p.z,rand(-1.5,1.5),rand(1.5,3),rand(-1.5,1.5),0.35,0.4,0x9fd8f5,6);
     }
     for(const o of vehicules){
       if(o===v||o.mort) continue;
       const dx=o.x-v.x, dz=o.z-v.z, dist=Math.hypot(dx,dz);
       if(dist>LANCE_PORTEE||dist<0.1) continue;
-      if(Math.abs(angDiff(v.ang,Math.atan2(dx,dz)))>LANCE_DEMI_ANGLE) continue;
+      if(Math.abs(angDiff(aimAng,Math.atan2(dx,dz)))>LANCE_DEMI_ANGLE) continue;
       const fall=1-dist/LANCE_PORTEE;
       if(o.enFeu){ o.enFeu=false; spawnP(o.x,1.5,o.z,0,2,0,0.4,1.4,0xd8ecff,2); }
       // Pousse LÉGÈREMENT les véhicules légers seulement (masse = gabarit,
@@ -6856,8 +6939,8 @@ function majLanceEau(v,dt){
       // camion ou un blindé, demandé explicitement.
       const masse=o.def.long*o.def.larg*((o.def.milit||o.def.blinde)?2.2:1);
       if(masse<=12){
-        o.knockVx=clamp((o.knockVx||0)+Math.sin(v.ang)*10*fall*dt,-KNOCK_VMAX,KNOCK_VMAX);
-        o.knockVz=clamp((o.knockVz||0)+Math.cos(v.ang)*10*fall*dt,-KNOCK_VMAX,KNOCK_VMAX);
+        o.knockVx=clamp((o.knockVx||0)+Math.sin(aimAng)*10*fall*dt,-KNOCK_VMAX,KNOCK_VMAX);
+        o.knockVz=clamp((o.knockVz||0)+Math.cos(aimAng)*10*fall*dt,-KNOCK_VMAX,KNOCK_VMAX);
       }
     }
   } else {
@@ -6878,9 +6961,18 @@ function majConduite(dt){
   if(v.def.surf){ majSurfJoueur(v,dt); return; }
   if(v.def.canon){
     v.cadCanon=(v.cadCanon||0)-dt;
-    if((INPUT.btn.tir||INPUT.btn.tirK)&&v.cadCanon<=0){
+    // Visée indépendante du cap (joystick superposé sur TIR, voir
+    // bindViseeJoystick) : la tourelle pivote vers la direction du
+    // glissement pendant que le char continue d'avancer dans SA propre
+    // direction — le joystick de déplacement pilote toujours le châssis,
+    // jamais la tourelle. Par défaut (pas de glissement en cours), la
+    // tourelle reste alignée avec le châssis, comme avant ce correctif.
+    const viseeCanon=INPUT.canonHold&&Math.hypot(INPUT.canonDx||0,INPUT.canonDy||0)>0.12;
+    const aimCanon=viseeCanon?Math.atan2(INPUT.canonDx,INPUT.canonDy):v.ang;
+    if(v.mesh.userData.tourelle) v.mesh.userData.tourelle.rotation.y=angDiff(v.ang,aimCanon);
+    if((INPUT.canonHold||INPUT.btn.tirK)&&v.cadCanon<=0){
       v.cadCanon=1.6;
-      tirer(v.x+Math.sin(v.ang)*4,1.2,v.z+Math.cos(v.ang)*4,v.ang,0.6,70,150,'joueur',0xffd28a,1.2,40,'roquette');
+      tirer(v.x+Math.sin(aimCanon)*4,1.2,v.z+Math.cos(aimCanon)*4,aimCanon,0.6,70,150,'joueur',0xffd28a,1.2,40,'roquette');
       SFX.roquette(); secousse(7); vibre(60);
       addHeat(0.5,true);
     }
@@ -6998,13 +7090,36 @@ function creerTrafic(){
 function majTrafic(v,dt){
   let cibleV=9;
   if(DANGER.t>0&&dist2(v.x,v.z,DANGER.x,DANGER.z)<900) cibleV=16;
-  // sonde d'obstacle
+  // sonde d'obstacle — portée et seuil désormais dépendants du GABARIT réel
+  // de v et de o (avant : 6.5 fixes, seuil dist2<13 soit ~3.6 unités réelles
+  // — beaucoup trop tôt pour un long véhicule comme le bus, et surtout ça
+  // freinait le trafic à une petite distance de contact au lieu de le
+  // laisser rouler jusqu'au contact réel carrosserie contre carrosserie,
+  // signalé par un joueur). La sonde ne fait plus que dégrossir (empêcher
+  // un carambolage à pleine vitesse) ; c'est la résolution SAT
+  // (resoudreCollisionsVehicule, qui tourne aussi pour le trafic) qui fixe
+  // la distance d'arrêt FINALE, exactement au contact.
   const sA=Math.sin(v.ang), cA=Math.cos(v.ang);
-  const px=v.x+sA*6.5, pz=v.z+cA*6.5;
+  const hlV=v.def.long*0.5;
+  const px=v.x+sA*(hlV+0.3), pz=v.z+cA*(hlV+0.3);
   let bloque=false;
   if(!P.veh&&dist2(px,pz,P.x,P.z)<9) bloque=true;
   if(P.veh&&dist2(px,pz,P.x,P.z)<16) bloque=true;
-  for(const o of vehicules){ if(o===v||o.mort) continue; if(dist2(px,pz,o.x,o.z)<13){bloque=true;break;} }
+  for(const o of vehicules){
+    if(o===v||o.mort) continue;
+    // Marge volontairement TRÈS courte (0.3) : la sonde ne sert plus qu'à
+    // éviter un carambolage à pleine vitesse, jamais à fixer la distance
+    // d'arrêt finale — sinon, selon l'élan au moment du freinage, le
+    // véhicule s'arrêtait tantôt collé, tantôt à plusieurs unités du
+    // contact réel (signalé par un joueur, incohérent d'une fois sur
+    // l'autre). Une marge courte fait toujours déborder très légèrement
+    // dans le contact réel avant l'arrêt complet, ce que la résolution SAT
+    // (resoudreCollisionsVehicule, qui tourne aussi pour le trafic) corrige
+    // alors systématiquement à l'exacte distance de contact — c'est ELLE
+    // qui doit trancher, pas la sonde d'évitement.
+    const seuil=o.def.long*0.5+0.3;
+    if(dist2(px,pz,o.x,o.z)<seuil*seuil){bloque=true;break;}
+  }
   // freine aussi pour un piéton dans sa voie — le trafic essaie de les
   // éviter comme il évite déjà le joueur ; s'il n'y arrive pas (piéton qui
   // traverse au dernier moment, vitesse trop élevée), majImpactPersonnages
