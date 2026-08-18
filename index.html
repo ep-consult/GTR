@@ -4628,6 +4628,17 @@ function makeVoiture(key){
       const gy2=new THREE.Mesh(new THREE.BoxGeometry(0.28,0.16,0.24),new THREE.MeshBasicMaterial({color:0x3a7bff}));
       gy2.position.set(0.26,bodyY+1.03,-L*0.32);
       corps.add(gy1); corps.add(gy2); ud.gyro=[gy1,gy2];
+      // Canon de la lance à eau : groupe 3D INDÉPENDANT (même principe que
+      // la tourelle du char, ud.tourelle) pour pouvoir viser sans dépendre
+      // du cap du camion. Rouge et bien visible depuis la caméra de dessus
+      // (signalé : « on ne voit simplement pas la tourelle tourner, il
+      // faudrait un canon rouge qui tourne au-dessus »). rotation.y piloté
+      // par majLanceEau (voir ud.lance), pointe vers l'avant par défaut.
+      const lanceGrp=new THREE.Group();
+      lanceGrp.position.set(0,bodyY+0.98,L*0.18);
+      lanceGrp.add(mkBoxG(0.36,0.2,0.36,0x3a3e46,0,0,0));       // socle gris, contraste net avec la caisse
+      lanceGrp.add(mkBoxG(0.17,0.17,0.62,0xff2323,0,0.03,0.36));// buse ROUGE VIF, bien plus grande — vers l'avant par défaut
+      corps.add(lanceGrp); ud.lance=lanceGrp;
     }
     if(key==='monstertruck'){
       corps.add(mkBoxG(0.08,0.5,0.08,0x23262e,-W*0.36,bodyY+0.5,L*0.15)); // arceau
@@ -6878,6 +6889,11 @@ function majLanceEau(v,dt){
   // bornes du petit bouton en visant loin).
   const viseeLibre=INPUT.lanceHold&&Math.hypot(INPUT.lanceDx||0,INPUT.lanceDy||0)>0.12;
   const aimAng=viseeLibre?Math.atan2(INPUT.lanceDx,INPUT.lanceDy):v.ang;
+  // Canon rouge visible sur le toit (ud.lance, voir makeVoiture) : pivote
+  // vers la visée en continu, même hors tir (relâché ou réserve à sec), pour
+  // que le geste de visée se voie tout de suite — c'est lui qui « tourne »
+  // à l'écran, pas juste un calcul invisible (signalé explicitement).
+  if(v.mesh.userData.lance) v.mesh.userData.lance.rotation.y=angDiff(v.ang,aimAng);
   const tirLance=(INPUT.lanceHold||INPUT.btn.sprintK)&&v.eau>0&&!v.lanceSeche;
   if(tirLance){
     if(!AUDIO.lanceOn) lanceSonStart();
@@ -7075,6 +7091,10 @@ function creerTrafic(){
   // sur les grands axes du centre-ville et du quartier commerçant.
   const bx=Math.floor((x+HALF)/CELL), bz=Math.floor((z+HALF)/CELL);
   const qz=quartier(bx,bz);
+  // Zone militaire : jamais de trafic civil (voir aussi le demi-tour dans
+  // majTrafic, qui gère les véhicules déjà en approche depuis une voie
+  // voisine) — seuls des véhicules/patrouilles militaires y ont leur place.
+  if(qz==='base') return;
   let poolT;
   if(Math.random()<0.05) poolT=['sport'];
   else if((qz==='centre'||qz==='commerce')&&Math.random()<0.1) poolT=['busville','pompiers'];
@@ -7159,6 +7179,22 @@ function majTrafic(v,dt){
   let rebond=false;
   if(v.z<LIMN){ v.z=LIMN; rebond=true; } else if(v.z>LIMS){ v.z=LIMS; rebond=true; }
   if(v.x<LIMO){ v.x=LIMO; rebond=true; } else if(v.x>LIME){ v.x=LIME; rebond=true; }
+  // Zone militaire interdite à la circulation civile — signalé : des
+  // véhicules civils y roulaient, traversaient les murs (majTrafic ne
+  // vérifie jamais solidAt, seuls les murs eux-mêmes existent) et
+  // s'accumulaient au lieu d'être escortés dehors. Même demi-tour que les
+  // limites de la ville, déclenché un peu AVANT le mur réel (marge) pour
+  // ne jamais s'y encastrer, sur tout le pourtour du complexe (les murs ne
+  // couvrent que 3 des 4 côtés, avec des ouvertures d'entrée au sud).
+  if(POIS.base){
+    const dbx=v.x-POIS.base.x, dbz=v.z-POIS.base.z, mBase=4;
+    if(Math.abs(dbx)<POIS.base.hw+mBase&&Math.abs(dbz)<POIS.base.hd+mBase){
+      const pX=POIS.base.hw+mBase-Math.abs(dbx), pZ=POIS.base.hd+mBase-Math.abs(dbz);
+      if(pX<pZ) v.x=POIS.base.x+Math.sign(dbx||1)*(POIS.base.hw+mBase);
+      else v.z=POIS.base.z+Math.sign(dbz||1)*(POIS.base.hd+mBase);
+      rebond=true;
+    }
+  }
   if(rebond){
     v.ang+=Math.PI; v.v*=0.5;
     // Bug remonté par un joueur : certains véhicules roulaient sur les
