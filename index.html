@@ -3201,6 +3201,67 @@ function mkRampe(x,z,ang,long,haut,larg,matR){
     scene.add(f);
   });
 }
+// Épave de pirate échouée : coque inclinée sur le flanc, mât brisé, voile
+// déchirée, canon monté à la proue — demandé explicitement, avec un canon
+// TOUJOURS actif (voir majEpaveCanon, appelée depuis boucle()). Retourne le
+// point d'ancrage {x,z,ang} du canon (direction de tir), stocké en
+// POIS.naufrage par l'appelant.
+function mkEpavePirate(x,z,ang){
+  const g=new THREE.Group();
+  const matBois=new THREE.MeshLambertMaterial({map:texPlanche});
+  const coque=new THREE.Mesh(new THREE.BoxGeometry(3.4,1.8,9),matBois);
+  coque.position.set(0,0.7,0); g.add(coque);
+  g.add(mkBoxG(3.6,0.28,9.2,0x2a1f14,0,1.55,0));           // pont, plus sombre que la coque
+  // proue effondrée : planches sombres qui dépassent en biais, jamais alignées
+  [[-0.8,3.8,0.4,-0.3],[0.6,4.1,-0.35,0.25],[0,3.5,0.15,0.15]].forEach(p=>{
+    const planche=mkBoxG(0.18,0.18,2,0x2a1f14,p[0],1.15,p[1]);
+    planche.rotation.x=p[2]; planche.rotation.z=p[3];
+    g.add(planche);
+  });
+  // mât brisé, penché — jamais droit sur une épave échouée
+  const mat1=mkBoxG(0.22,4.2,0.22,0x3a2c1c,0,1.8,-0.6);
+  mat1.rotation.z=0.5; mat1.rotation.x=0.12; g.add(mat1);
+  // voile déchirée, pendante
+  const voile=new THREE.Mesh(new THREE.PlaneGeometry(2.2,2.6),
+    new THREE.MeshLambertMaterial({color:0xd8cbb0,side:THREE.DoubleSide}));
+  voile.position.set(1.1,2.7,-0.6); voile.rotation.y=0.35; voile.rotation.z=0.55;
+  g.add(voile);
+  // canon monté à la proue — voir majEpaveCanon pour le tir, jamais un
+  // simple décor immobile.
+  const canonGrp=new THREE.Group();
+  canonGrp.position.set(0,1.72,3.6);
+  canonGrp.add(mkBoxG(0.7,0.4,0.7,0x2a2d34,0,0,0));         // affût
+  const bbl=new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.2,1.6,10),mat(0x1a1d24));
+  bbl.rotation.x=Math.PI/2; bbl.position.set(0,0.14,0.9); canonGrp.add(bbl);
+  g.add(canonGrp);
+  // tonneaux échoués à proximité — un peu de vie/pillage, jamais une épave toute seule
+  [[2.6,-1.5],[3.2,-0.4],[-2.8,1.2]].forEach(p=>{
+    const baril=new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.5,0.9,10),mat(pick([0x6a4a2c,0x5a3f26])));
+    baril.position.set(p[0],0.45,p[1]); baril.rotation.z=Math.random()<0.4?1.4:0;
+    g.add(baril);
+  });
+  g.position.set(x,0,z); g.rotation.y=ang; g.rotation.z=0.16; // gîte sur le flanc
+  scene.add(g);
+  return {x,z,ang};
+}
+// Canon de l'épave : tire en continu (dt — spectacle, aucun chrono subi par
+// le joueur ne court contre lui, voir CLAUDE.md), boulet réel (tirer(),
+// typ='roquette' — explose à l'impact OU à expiration, dégâts partagés à
+// tout ce qui traverse sa trajectoire, joueur compris). « Toujours actif »
+// demandé explicitement : tourne qu'un joueur soit à proximité ou non.
+const EPAVE_CANON={cd:6};
+function majEpaveCanon(dt){
+  const ep=POIS.naufrage; if(!ep) return;
+  EPAVE_CANON.cd-=dt;
+  if(EPAVE_CANON.cd<=0){
+    EPAVE_CANON.cd=rand(4.5,6.5);
+    const ox=ep.x+Math.sin(ep.ang)*3.6, oz=ep.z+Math.cos(ep.ang)*3.6;
+    tirer(ox,1.72,oz,ep.ang,3,26,22,'ennemi',0x2a2d34,0,40,'roquette');
+    burst(ox,1.72,oz,10,0xffd88a,9,3); // lueur/fumée à la bouche du canon
+    SFX.roquette();
+    if(dist2(ox,oz,P.x,P.z)<3600){ secousse(3); vibre(30); bruit(0.4,0.5,220,'lowpass'); }
+  }
+}
 function construireRelief(){
   const mSable=new THREE.MeshLambertMaterial({map:texSable});
   const mHerbe=new THREE.MeshLambertMaterial({map:texHerbe});
@@ -3256,6 +3317,12 @@ function construireRelief(){
     // de la rampe et le début du plateau — solY ne recouvre rien entre
     // les deux formules sinon).
     mkRampe(fx,fz-55,0,45,fH,6,mDesert);
+    // Épave échouée au bord de l'eau, au sud du désert (demandé
+    // explicitement) : le coin restait silencieux, mort — canon TOUJOURS
+    // actif (jamais un simple décor, voir majEpaveCanon) pour « faire vivre
+    // l'endroit ». Sable puis MER commence à MER=286 : posée bien avant,
+    // face au large.
+    POIS.naufrage=mkEpavePirate(pd.x-10,262,0);
   }
   // tremplins
   if(POIS.chantier){
@@ -18167,6 +18234,7 @@ function boucle(t){
       majCamp(dt);
       majMeteo(dt);
       majMer(dt);
+      majEpaveCanon(dt);
     }
     majHUD();
   }
