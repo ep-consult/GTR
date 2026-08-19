@@ -1218,7 +1218,7 @@ function bindViseeJoystick(btnEl,baseEl,knobEl,holdKey,dxKey,dyKey,actif){
 bindViseeJoystick(el('btnSprint'),el('viseeLanceBase'),el('viseeLanceKnob'),
   'lanceHold','lanceDx','lanceDy',()=>!!(P.veh&&P.veh.def.pompier));
 bindViseeJoystick(el('btnFire'),el('viseeCanonBase'),el('viseeCanonKnob'),
-  'canonHold','canonDx','canonDy',()=>!!(P.veh&&P.veh.def.canon));
+  'canonHold','canonDx','canonDy',()=>!!(P.veh&&(P.veh.def.canon||P.veh.def.mitrailleuse||P.veh.def.dca)));
 
 /* ---------- croix directionnelle réutilisable (bornes d'arcade) ----------
    Remplace le joystick virtuel pendant une session de borne : composant
@@ -1874,6 +1874,16 @@ const VEHDEFS={
   peche:{nom:'Bateau de pêche',vmax:17,acc:6,man:1.3,hp:300,long:7.2,larg:2.8,type:'bateau',eau:true,cols:[0x6a7f8a,0x8a6a44]},
   fantome:{nom:'Moto "Fantôme"',vmax:49,acc:28,man:3.8,hp:70,long:2.4,larg:0.9,type:'moto',cols:[0x0e1014],cache:true},
   blinde:{nom:'Blindé "Bastion"',vmax:21,acc:9,man:1.6,hp:900,long:5.8,larg:2.6,type:'car',cols:[0x2e3328],milit:true,cache:true},
+  // Jeep militaire : le contrepoint du char — légère, rapide, agile,
+  // mitrailleuse montée sur affût pivotant (visée au joystick superposé
+  // sur TIR, voir bindViseeJoystick/majConduite — même mécanique que la
+  // tourelle du char, juste plus vive et bien moins blindée).
+  jeepMil:{nom:'Jeep militaire "Guépard"',vmax:37,acc:24,man:3.2,hp:85,long:3.6,larg:1.7,type:'car',mitrailleuse:true,cache:true,cols:[0x5a6244]},
+  // Camion DCA : canon anti-aérien qui grimpe assez vite pour toucher un
+  // hélicoptère (voir collisionBalle, seuil b.y>11) — vise au même
+  // joystick, sur TIR. Lent et lourd, l'inverse de la Jeep : c'est un outil
+  // de niche (abattre l'hélico de police), pas un char de rechange.
+  dca:{nom:'Camion DCA "Foudre"',vmax:18,acc:8,man:1.2,hp:220,long:6.4,larg:2.3,type:'car',milit:true,dca:true,cache:true,cols:[0x47502e]},
   espadon:{nom:'Vedette "Espadon"',vmax:42,acc:15,man:2.4,hp:150,long:6.2,larg:2.2,type:'bateau',eau:true,cols:[0x14161c],cache:true},
   mirage:{nom:'Supercar "Mirage"',vmax:52,acc:27,man:3.1,hp:100,long:4.4,larg:2.0,type:'car',cols:[0xd8b02a],sport:true,cache:true},
   scarabee:{nom:'Buggy "Scarabée"',vmax:33,acc:21,man:3.3,hp:130,long:3.4,larg:1.9,type:'car',cols:[0x2fae4f],buggy:true,cache:true},
@@ -4496,6 +4506,29 @@ function makeVoiture(key){
         const choc=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.09,0.55,8),mat(0xffd23f));
         choc.position.set(p[0]*0.82,bodyY-0.34,p[1]); g.add(choc);
       });
+    } else if(def.mitrailleuse){
+      // Jeep militaire à ciel ouvert : châssis nu façon buggy (jamais une
+      // berline avec un fusil dessus), mais capot marqué et mitrailleuse
+      // montée à l'arrière sur un affût qui pivote INDÉPENDAMMENT du
+      // châssis (groupe détaché, ud.tourelle — même principe que la
+      // tourelle du char, piloté par majConduite).
+      corps.add(mkBoxG(W*0.86,0.4,L*0.7,coul,0,bodyY,0.02));                    // châssis/capot
+      corps.add(mkBoxG(W*0.7,0.28,0.05,0x141b26,0,bodyY+0.32,L*0.18));          // pare-brise plat
+      corps.add(mkBoxG(W*0.5,0.28,0.4,0x23262e,0,bodyY+0.06,-L*0.04));          // baquets avant
+      const cageHJ=0.85, postAvZJ=-L*0.08, postArZJ=-L*0.34;
+      [-1,1].forEach(sx=>{
+        const px=sx*W*0.42;
+        corps.add(mkBoxG(0.07,cageHJ,0.07,0x23262e,px,bodyY+cageHJ/2,postAvZJ));
+        corps.add(mkBoxG(0.07,cageHJ,0.07,0x23262e,px,bodyY+cageHJ/2,postArZJ));
+      });
+      corps.add(mkBoxG(W*0.84,0.07,0.07,0x23262e,0,bodyY+cageHJ,(postAvZJ+postArZJ)/2)); // longeron haut
+      corps.add(mkBoxG(0.34,0.34,0.1,0x1a1d24,W*0.36,bodyY+0.12,-L*0.46));      // roue de secours
+      corps.add(mkBoxG(W*0.9,0.16,0.14,0x8a8f2a,0,bodyY-0.2,L/2*0.96));         // pare-chocs avant
+      const tourJeep=new THREE.Group();
+      tourJeep.position.set(0,bodyY+0.58,-L*0.34);
+      tourJeep.add(mkBoxG(0.22,0.16,0.22,0x2a2d20,0,0,0));                      // socle de l'affût
+      tourJeep.add(mkBoxG(0.09,0.09,0.64,0x1a1d24,0,0.06,0.35));                // canon de mitrailleuse
+      corps.add(tourJeep); ud.tourelle=tourJeep;
     } else if(key!=='busville'){
       corps.add(mkBoxG(W,busH,L*0.92,coul,0,bodyY+(busH-0.6)/2,0));
       corps.add(mkBoxG(W*0.8,0.48,L*0.44,0x141b26,0,bodyY+0.53,-L*0.06)); // habitacle vitré
@@ -4573,6 +4606,23 @@ function makeVoiture(key){
       corps.add(br); corps.add(bb); ud.bar=[br,bb];
     }
     if(def.milit) corps.add(mkBoxG(W*0.95,1.0,L*0.5,0x39402c,0,bodyY+0.83,-L*0.16));
+    if(def.dca){
+      // Canon anti-aérien double, incliné vers le ciel — sur le fourgon
+      // bâché du camion DCA. Groupe DÉTACHÉ (ud.tourelle, même principe que
+      // la tourelle du char et l'affût de la Jeep) : pivote en azimut vers
+      // la visée, les deux canons restent inclinés (pas de visée en
+      // élévation, juste assez pour que le tir grimpe passer le seuil
+      // d'altitude des hélicoptères — voir majConduite/collisionBalle).
+      const dcaGrp=new THREE.Group();
+      dcaGrp.position.set(0,bodyY+1.32,-L*0.14);
+      dcaGrp.add(mkBoxG(0.5,0.22,0.5,0x2a2d20,0,0,0));
+      [-0.15,0.15].forEach(dx=>{
+        const canon=mkBoxG(0.09,0.09,0.92,0x1a1d24,dx,0.3,0.3);
+        canon.rotation.x=-0.75;
+        dcaGrp.add(canon);
+      });
+      corps.add(dcaGrp); ud.tourelle=dcaGrp;
+    }
     if(key==='gangcar') corps.add(mkBoxG(0.5,0.04,L*0.85,0x0c2a14,0,bodyY+0.31,0));
     if(def.taxi){ corps.add(mkBoxG(1.1,0.3,0.5,0x1a1d24,0,bodyY+0.9,-L*0.06));
       corps.add(mkBoxG(1.0,0.22,0.42,0xffd23f,0,bodyY+0.92,-L*0.06)); }
@@ -4896,6 +4946,7 @@ function majPools(dt){
     b.x+=b.vx*dt; b.z+=b.vz*dt; b.y+=b.vy*dt;
     b.mesh.position.set(b.x,b.y,b.z);
     if(b.typ==='roquette'&&Math.random()<0.8) fumee(b.x,b.y,b.z,0x8a8f9a);
+    if(b.typ==='dca'&&Math.random()<0.7) fumee(b.x,b.y,b.z,0xd8a878); // traceur DCA : fumée claire, pas d'explosion à l'impact
     if(b.typ==='bombe'){ b.vy-=24*dt; b.mesh.rotation.x=Math.atan2(-b.vy,Math.hypot(b.vx,b.vz)||1); }
     if(b.typ==='flamme'){
       spawnP(b.x,b.y,b.z,rand(-1,1),rand(0.5,2.5),rand(-1,1),rand(0.2,0.42),rand(0.6,1.2),pick([0xff7b2e,0xffb23a,0xff4b2e]),-1,1.4);
@@ -6323,9 +6374,10 @@ function entrerVehicule(v){
     el('btnDodge').innerHTML='🏍️<small>CABRER</small>';
     toast('Maintiens CABRER pour te cabrer — trop longtemps et tu bascules','or');
   }
-  if(v.def.canon){
+  if(v.def.canon||v.def.mitrailleuse||v.def.dca){
     el('btnFire').style.display='flex';
-    el('fireIco').textContent='💥'; el('fireAmmo').textContent='∞';
+    el('fireIco').textContent=v.def.mitrailleuse?'🔫':(v.def.dca?'🚀':'💥');
+    el('fireAmmo').textContent='∞';
     el('btnBrake').classList.remove('gros'); el('btnBrake').classList.add('volA');
     // Bug déjà rencontré (trouvé par audit géométrique, test_boutons_tmp.js) :
     // #btnBrake.volA occupe EXACTEMENT la même zone que #btnSwitch (RADIO,
@@ -6333,8 +6385,12 @@ function entrerVehicule(v){
     // intactable, plus tard dans le DOM (btnBrake gagne le clic). Comme
     // aucune autre zone libre n'existe pour un char en pleine conduite,
     // RADIO est simplement masquée tant que ce réaménagement est actif.
+    // Même chevauchement, même correctif pour la Jeep (mitrailleuse) et le
+    // camion DCA, qui réutilisent exactement ce même bouton TIR.
     el('btnSwitch').style.display='none';
-    toast('Canon prêt — appuie sur TIR','or');
+    if(v.def.mitrailleuse) toast('Mitrailleuse prête — maintiens TIR, glisse pour viser','or');
+    else if(v.def.dca) toast('DCA prête — maintiens TIR, glisse pour viser le ciel','or');
+    else toast('Canon prêt — appuie sur TIR','or');
   }
   moteurStart(v.def); SFX.ui();
   if(v.def.pompier){
@@ -6991,6 +7047,38 @@ function majConduite(dt){
       tirer(v.x+Math.sin(aimCanon)*4,1.2,v.z+Math.cos(aimCanon)*4,aimCanon,0.6,70,150,'joueur',0xffd28a,1.2,40,'roquette');
       SFX.roquette(); secousse(7); vibre(60);
       addHeat(0.5,true);
+    }
+  }
+  if(v.def.mitrailleuse){
+    // Jeep militaire : mitrailleuse rapide sur affût pivotant — même visée
+    // indépendante du cap que le char (voir ci-dessus), cadence bien plus
+    // rapide, dégâts modestes par coup (c'est le nombre de coups qui
+    // compte, pas la puissance — l'inverse du canon du char).
+    v.cadMitr=(v.cadMitr||0)-dt;
+    const viseeMitr=INPUT.canonHold&&Math.hypot(INPUT.canonDx||0,INPUT.canonDy||0)>0.12;
+    const aimMitr=viseeMitr?Math.atan2(INPUT.canonDx,INPUT.canonDy):v.ang;
+    if(v.mesh.userData.tourelle) v.mesh.userData.tourelle.rotation.y=angDiff(v.ang,aimMitr);
+    if((INPUT.canonHold||INPUT.btn.tirK)&&v.cadMitr<=0){
+      v.cadMitr=0.1;
+      tirer(v.x+Math.sin(aimMitr)*2,1.3,v.z+Math.cos(aimMitr)*2,aimMitr,2.5,60,9,'joueur',0xffe08a,1.3,30,null);
+      SFX.pm(); vibre(15);
+    }
+  }
+  if(v.def.dca){
+    // Camion DCA : le tir grimpe fort (cibleY très au-dessus de l'origine
+    // sur une portée modeste) pour dépasser vite le seuil d'altitude des
+    // hélicoptères (b.y>11, voir collisionBalle) — un outil de niche pour
+    // abattre l'hélico de police, pas une arme sol efficace (la balle
+    // dépasse la fenêtre de collision au sol, b.y<2.6, en une fraction de
+    // seconde).
+    v.cadDca=(v.cadDca||0)-dt;
+    const viseeDca=INPUT.canonHold&&Math.hypot(INPUT.canonDx||0,INPUT.canonDy||0)>0.12;
+    const aimDca=viseeDca?Math.atan2(INPUT.canonDx,INPUT.canonDy):v.ang;
+    if(v.mesh.userData.tourelle) v.mesh.userData.tourelle.rotation.y=angDiff(v.ang,aimDca);
+    if((INPUT.canonHold||INPUT.btn.tirK)&&v.cadDca<=0){
+      v.cadDca=0.4;
+      tirer(v.x+Math.sin(aimDca)*2.5,1.4,v.z+Math.cos(aimDca)*2.5,aimDca,1.2,55,26,'joueur',0xff5a3a,27.4,20,'dca');
+      SFX.roquette(); vibre(25);
     }
   }
   if(v.def.pompier) majLanceEau(v,dt);
@@ -15738,6 +15826,8 @@ function startRun(){
   const cacheA=(id,x,z)=>{const p=posLibre(x,z,false);creerPickup('arme',p.x,p.z,0,id);};
   cacheV('fantome',POIS.secret.x,POIS.secret.z-9,0);                  // ruelle au magot
   if(POIS.base) cacheV('blinde',POIS.base.x,POIS.base.z+8,Math.PI);   // base militaire (dangereux)
+  if(POIS.base) cacheV('jeepMil',POIS.base.x-26,POIS.base.z-10,0.6);  // même base, à l'écart du char
+  if(POIS.base) cacheV('dca',POIS.base.x+22,POIS.base.z-16,-1.2);     // même base, dégagé côté ciel
   cacheV('espadon',-HALF+34,MER+26,Math.PI/2);                        // crique à l'ouest
   if(POIS.villas) cacheV('mirage',POIS.villas.x+11,POIS.villas.z-11,1.1); // recoin des villas
   if(POIS.chantier) cacheV('scarabee',POIS.chantier.x-13,POIS.chantier.z+12,2.4); // derrière la grue
