@@ -1967,7 +1967,7 @@ const VEHDEFS={
   // majVehicules) et bouton ESQUIVE = soin d'urgence sur le joueur, plafonné
   // par un cooldown (def.ambulance, voir majConduite) pour éviter le soin
   // infini en spam — réutilise soigner() telle quelle.
-  ambulance:{nom:'Ambulance "Secours"',vmax:31,acc:19,man:2.9,hp:140,long:4.9,larg:2.0,type:'car',ambulance:true,cache:true,cols:[0xf2f4f8,0xff3b4b]},
+  ambulance:{nom:'Ambulance "Secours"',vmax:31,acc:19,man:2.9,hp:140,long:4.9,larg:2.0,type:'car',ambulance:true,cache:true,cols:[0xf2f4f8]},
   // Dépanneuse : bouton ESQUIVE accroche/décroche le véhicule le plus proche
   // à l'arrière (def.depanneuse, voir majConduite) — tracte VRAIMENT
   // n'importe quel véhicule (aucune restriction de poids/type), le véhicule
@@ -5023,21 +5023,58 @@ function makeVoiture(key){
       corps.add(br); corps.add(bb); ud.bar=[br,bb];
     }
     if(def.ambulance){
-      // Gyrophare rouge/blanc (jamais bleu — déjà pris par police/pompiers).
-      // Animé même garée (voir majVehicules) ET en conduite (majConduite),
-      // car majVoiturePolice — qui anime ud.bar normalement — ne tourne
-      // jamais pour un véhicule piloté par le joueur.
-      corps.add(mkBoxG(W+0.02,0.24,L*0.42,0xf2f4f8,0,bodyY,0));
+      // Retravaillé pour un vrai look de fourgon médicalisé plutôt qu'une
+      // berline à autocollants (même principe que le caisson technique du
+      // camion de pompiers, def.pompier) : caisson blanc nettement plus
+      // haut et plus large que la cabine, bande rouge réfléchissante en
+      // ceinture, pare-chocs avant chromé, gyrophare rouge/blanc posé sur
+      // le bord avant du toit du caisson (jamais bleu — déjà pris par
+      // police/pompiers). Animé même garée (voir majVehicules) ET en
+      // conduite (majConduite), car majVoiturePolice — qui anime ud.bar
+      // normalement — ne tourne jamais pour un véhicule piloté par le joueur.
+      const caissonZ=-L*0.16, caissonL=L*0.66, caissonY=bodyY+0.44;
+      corps.add(mkBoxG(W*1.02,0.9,caissonL,0xf2f4f8,0,caissonY,caissonZ));            // caisson médicalisé, haut et blanc
+      corps.add(mkBoxG(W*0.98,0.16,caissonL*0.76,0xff3b4b,0,caissonY+0.14,caissonZ)); // bande rouge réfléchissante
+      // vitrage arrière teinté, sur la porte arrière — hauteur choisie pour
+      // rester SOUS le toit du caisson (bug déjà rencontré ailleurs cette
+      // session : un élément qui dépasse le sommet du volume plus grand qui
+      // l'englobe reste visible en train de crever le toit, vu de dessus).
+      corps.add(mkBoxG(W*0.5,0.28,caissonL*0.14,0x141b26,0,caissonY+0.05,caissonZ-caissonL*0.42));
+      corps.add(mkBoxG(W*0.94,0.2,0.16,0xc4c8ce,0,bodyY-0.22,L/2*0.98));              // pare-chocs avant, chromé
       const br=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.14,0.24),new THREE.MeshBasicMaterial({color:0xff3b4b}));
-      br.position.set(-0.22,bodyY+0.8,-L*0.08);
+      br.position.set(-0.22,caissonY+0.6,caissonZ+caissonL*0.36);
       const bb=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.14,0.24),new THREE.MeshBasicMaterial({color:0xf2f4f8}));
-      bb.position.set(0.22,bodyY+0.8,-L*0.08);
+      bb.position.set(0.22,caissonY+0.6,caissonZ+caissonL*0.36);
       corps.add(br); corps.add(bb); ud.bar=[br,bb];
-      // croix rouge sur les flancs
-      [-1,1].forEach(sx=>corps.add(mkBoxG(0.5,0.32,0.06,0xff3b4b,sx*(W/2+0.02),bodyY+0.3,0)));
-      [-1,1].forEach(sx=>corps.add(mkBoxG(0.18,0.5,0.06,0xff3b4b,sx*(W/2+0.02),bodyY+0.3,0)));
+      // croix rouge sur les flancs du caisson (jamais sur la cabine — c'est
+      // là qu'elle se lit sur un vrai véhicule de secours)
+      [-1,1].forEach(sx=>corps.add(mkBoxG(0.5,0.32,0.06,0xff3b4b,sx*(W/2+0.03),caissonY,caissonZ)));
+      [-1,1].forEach(sx=>corps.add(mkBoxG(0.18,0.5,0.06,0xff3b4b,sx*(W/2+0.03),caissonY,caissonZ)));
     }
     if(def.depanneuse){
+      // Retravaillé pour un vrai look de camion d'assistance plutôt qu'une
+      // berline avec un crochet planté dedans : plateau/châssis à nu à
+      // l'arrière (longerons apparents, comme le châssis du Buggy — jamais
+      // une caisse fermée, contrairement à l'ambulance ci-dessus), gyrophare
+      // AMBRE (couleur universelle des dépanneuses, jamais rouge/bleu déjà
+      // pris par police/pompiers/ambulance — voir majGyroAmbre, animé même
+      // garée comme majBarAmbulance), chevrons jaune/noir de sécurité à
+      // l'arrière, pare-chocs avant chromé.
+      // plateauY posé AU-DESSUS du toit de la caisse de base (bodyY+0.3 —
+      // busH=0.6 par défaut) : en dessous, tout resterait caché à
+      // l'intérieur du volume opaque de la caisse, invisible (même bug que
+      // le vitrage de l'ambulance ci-dessus, déjà rencontré cette session
+      // avec le bus/la ville : un élément posé DANS le volume d'un autre
+      // reste invisible vu de dessus même si sa cote semble « au-dessus »).
+      const plateauZ=-L*0.22, plateauL=L*0.46, plateauY=bodyY+0.36;
+      corps.add(mkBoxG(W*0.9,0.1,plateauL,0x6a6f78,0,plateauY,plateauZ));             // plateau/châssis à nu, gris clair — contraste net avec la caisse sombre
+      [-1,1].forEach(sx=>corps.add(mkBoxG(0.09,0.24,plateauL,0xffd23f,sx*W*0.42,plateauY+0.15,plateauZ))); // longerons jaunes, façon rambardes de sécurité
+      for(let k=0;k<3;k++) corps.add(mkBoxG(0.12,0.5,0.06,k%2?0x1a1d24:0xffd23f,-W*0.3+k*W*0.3,bodyY+0.5,-L/2*0.96)); // chevrons de sécurité
+      corps.add(mkBoxG(W*0.94,0.2,0.16,0xc4c8ce,0,bodyY-0.22,L/2*0.98));              // pare-chocs avant, chromé
+      // posé nettement au-dessus du panneau de toit existant (bodyY+0.8,
+      // haut ~0.05) pour ne pas s'y fondre/z-fighter.
+      const gyroAmbre=new THREE.Mesh(new THREE.BoxGeometry(0.6,0.16,0.26),new THREE.MeshBasicMaterial({color:0xffb100}));
+      gyroAmbre.position.set(0,bodyY+0.95,L*0.04); corps.add(gyroAmbre); ud.gyroAmbre=gyroAmbre;
       // Bras-grue arrière SIMPLE (pas un pendule comme la Grue "Marteau" —
       // ici il ne fait que tenir visuellement le câble/crochet, la traction
       // réelle est une position calculée dans majConduite, pas une physique
@@ -8048,6 +8085,15 @@ function majBarAmbulance(v,dt){
   ud.bar[0].material.color.setHex(cl?0xff3b4b:0x701824);
   ud.bar[1].material.color.setHex(cl?0xf2f4f8:0x9aa2ad);
 }
+// gyrophare ambre de la dépanneuse : même principe que majBarAmbulance,
+// couleur qui pulse entre vif et sombre plutôt qu'un bicolore alterné
+// (un seul bloc ambre, contrairement aux barres bicolores police/ambulance).
+function majGyroAmbre(v,dt){
+  const ud=v.mesh.userData; if(!ud.gyroAmbre) return;
+  v.gyroPh=(v.gyroPh||0)+dt*8;
+  const cl=Math.floor(v.gyroPh)%2;
+  ud.gyroAmbre.material.color.setHex(cl?0xffb100:0x7a5000);
+}
 function majVehicules(dt){
   let nT=0; for(let i=0;i<vehicules.length;i++){const v2=vehicules[i];if(v2.conduit==='trafic'&&!v2.mort)nT++;}
   if(nT<q().trafic&&Math.random()<dt*2.2) creerTrafic();
@@ -8064,6 +8110,7 @@ function majVehicules(dt){
     if(v.tracte) continue;
     if(v.def.pompier) majGyrophares(v,dt); // tourne quel que soit le conduit (trafic, joueur...)
     if(v.def.ambulance) majBarAmbulance(v,dt); // tourne quel que soit le conduit
+    if(v.def.depanneuse) majGyroAmbre(v,dt); // idem, gyrophare ambre
     if(v.enFeu){
       v.feuT-=dt;
       v.feuFx-=dt;
