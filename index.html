@@ -1265,7 +1265,7 @@ function bindViseeJoystick(btnEl,baseEl,knobEl,holdKey,dxKey,dyKey,actif){
 bindViseeJoystick(el('btnSprint'),el('viseeLanceBase'),el('viseeLanceKnob'),
   'lanceHold','lanceDx','lanceDy',()=>!!(P.veh&&P.veh.def.pompier));
 bindViseeJoystick(el('btnFire'),el('viseeCanonBase'),el('viseeCanonKnob'),
-  'canonHold','canonDx','canonDy',()=>!!(P.veh&&(P.veh.def.canon||P.veh.def.mitrailleuse||P.veh.def.dca)));
+  'canonHold','canonDx','canonDy',()=>!!(P.veh&&(P.veh.def.canon||P.veh.def.mitrailleuse||P.veh.def.dca||P.veh.def.grue)));
 
 /* ---------- croix directionnelle réutilisable (bornes d'arcade) ----------
    Remplace le joystick virtuel pendant une session de borne : composant
@@ -1951,6 +1951,18 @@ const VEHDEFS={
   // militaire (def.mitrailleuse — affût pivotant, voir makeVoiture), mais
   // plus léger et plus rapide que la Jeep, pensé pour le sable, pas la base.
   buggyCanon:{nom:'Buggy-canon "Sirocco"',vmax:35,acc:23,man:3.4,hp:95,long:3.3,larg:1.85,type:'car',mitrailleuse:true,cache:true,cols:[0xc98d4a,0xd8b02a]},
+  // Bulldozer : lent et lourd (vmax/acc bas, hp élevé), la pelle avant
+  // (def.pelle, bouton ESQUIVE — voir majConduite) pousse VRAIMENT tout ce
+  // qui est devant tant qu'elle est baissée (masse effective multipliée
+  // dans resoudreCollisionsVehicule, jamais un nouveau système de collision
+  // séparé à maintenir).
+  bulldozer:{nom:'Bulldozer "Titan"',vmax:14,acc:9,man:1.3,hp:380,long:4.6,larg:2.4,type:'car',pelle:true,cache:true,cols:[0xffd23f,0xe07020]},
+  // Grue "Marteau" : boulet de démolition suspendu au bras (def.grue —
+  // pendule réel, voir majGrueBoulet), pousse/percute tout ce qu'il
+  // traverse en balançant assez vite. Bouton ESQUIVE + joystick pour
+  // pousser le balancement dans une direction, sinon il suit tout seul les
+  // virages/accélérations du véhicule.
+  grue:{nom:'Grue "Marteau"',vmax:16,acc:8,man:1.2,hp:300,long:5,larg:2.3,type:'car',grue:true,cache:true,cols:[0xffd23f,0x2a2d34]},
   scarabee:{nom:'Buggy "Scarabée"',vmax:33,acc:21,man:3.3,hp:130,long:3.4,larg:1.9,type:'car',cols:[0x2fae4f],buggy:true,cache:true},
   baronne:{nom:'Ancienne "Baronne"',vmax:26,acc:10,man:2.0,hp:280,long:5.4,larg:2.1,type:'car',cols:[0x6a1f2a],cache:true},
   avion:{nom:'Avion "Colibri"',vmax:40,acc:11,man:1.3,hp:130,long:7.4,larg:2,type:'car',air:'avion',cols:[0xe8ecf2]},
@@ -4797,7 +4809,7 @@ function makeVoiture(key){
     // vide visible entre le bas de caisse et le sommet des pneus,
     // amortisseurs apparents qui comblent cet écart (voir CLAUDE.md). Le
     // Buggy des dunes a ses propres roues larges et sa propre suspension.
-    const wheelR=key==='monstertruck'?1.12:(key==='pickup'?0.58:(def.buggy?0.5:(def.quad?0.36:0.38)));
+    const wheelR=key==='monstertruck'?1.12:(key==='pickup'?0.58:(def.buggy?0.5:(def.quad?0.36:((def.pelle||def.grue)?0.5:0.38))));
     const busH=key==='busville'?2.0:0.6; // bus : bien plus haut, boîte quasi constante sur toute la longueur
     if(key==='pickup'){
       // Pick-up japonais classique : cabine courte + benne ouverte, deux
@@ -4856,6 +4868,50 @@ function makeVoiture(key){
       [[-1,1],[1,1],[-1,-1],[1,-1]].forEach(p=>{ // garde-boue nus au-dessus de chaque roue
         corps.add(mkBoxG(0.34,0.06,0.4,coul,p[0]*W*0.42,bodyY+0.24,p[1]*L*0.32));
       });
+    } else if(def.pelle){
+      // bulldozer : châssis trapu, larges bandes sombres façon chenilles
+      // sur chaque flanc, cabine ouverte, pelle avant montée sur un bras
+      // DÉTACHÉ (ud.pelle) qui pivote pour de vrai — VRAIMENT baissée/
+      // relevée en jeu (voir majConduite), jamais un ornement fixe.
+      corps.add(mkBoxG(W*0.9,0.6,L*0.62,coul,0,bodyY,0.08));                 // châssis haut, trapu
+      corps.add(mkBoxG(W*0.5,0.5,0.5,0x2a2d34,0,bodyY+0.5,-L*0.06));         // cabine
+      corps.add(mkBoxG(W*0.44,0.3,0.02,0x141b26,0,bodyY+0.5,-L*0.06+0.26));  // vitre avant, plate
+      [-1,1].forEach(sx=>{ // chenilles : large bande sombre sur chaque flanc
+        corps.add(mkBoxG(0.16,0.5,L*0.92,0x15171c,sx*(W*0.5+0.03),bodyY-0.05,0));
+      });
+      const bras=new THREE.Group();
+      bras.position.set(0,bodyY+0.15,L*0.32); // pivot, au ras de l'avant du châssis
+      bras.add(mkBoxG(0.1,0.1,0.85,0x3a3e46,-W*0.36,0,0.42));
+      bras.add(mkBoxG(0.1,0.1,0.85,0x3a3e46,W*0.36,0,0.42));
+      bras.add(mkBoxG(W*0.92,0.55,0.14,0xffd23f,0,0,0.85));                  // la pelle elle-même
+      bras.add(mkBoxG(W*0.92,0.1,0.14,0xe07020,0,0.3,0.85));                 // liseré orange en haut
+      corps.add(bras); ud.pelle=bras;
+    } else if(def.grue){
+      // grue mobile : châssis camion + bras oblique + câble/boulet, VRAIMENT
+      // animés en pendule (ud.boulet/ud.cable, voir majGrueBoulet), jamais
+      // un ornement statique. Point d'ancrage (bout du bras) gardé en
+      // repère LOCAL (ud.ancrage) pour que majConduite calcule sa position
+      // MONDE chaque frame, quels que soient la position/le cap du camion.
+      corps.add(mkBoxG(W*0.86,0.55,L*0.62,coul,0,bodyY,0.12));               // châssis/plateau
+      corps.add(mkBoxG(W*0.5,0.5,0.5,0x2a2d34,0,bodyY+0.5,-L*0.28));         // cabine, à l'arrière
+      corps.add(mkBoxG(W*0.44,0.3,0.02,0x141b26,0,bodyY+0.5,-L*0.28-0.26));  // vitre avant, plate
+      const armLen=6.2, armAng=0.95;
+      const bras2=mkBoxG(0.4,0.4,armLen,0xd8b02a,0,0,armLen/2);
+      const brasGrp=new THREE.Group();
+      brasGrp.position.set(0,bodyY+0.4,-L*0.05);
+      brasGrp.rotation.x=Math.PI/2-armAng;
+      brasGrp.add(bras2);
+      corps.add(brasGrp);
+      ud.ancrage={y:bodyY+0.4+Math.cos(armAng)*armLen,z:-L*0.05+Math.sin(armAng)*armLen};
+      const cable=new THREE.Mesh(new THREE.CylinderGeometry(0.025,0.025,1,4),mat(0x1a1d24));
+      g.add(cable); ud.cable=cable;
+      const boulet=new THREE.Mesh(new THREE.SphereGeometry(0.55,12,10),mat(0x232323));
+      g.add(boulet); ud.boulet=boulet;
+      // position par défaut (garé, jamais encore piloté) : pend tout droit
+      // sous le point d'ancrage, câble tendu à sa longueur normale.
+      boulet.position.set(0,ud.ancrage.y-1.6,ud.ancrage.z);
+      cable.position.set(0,ud.ancrage.y-0.8,ud.ancrage.z);
+      cable.scale.set(1,1.6,1);
     } else if(def.mitrailleuse){
       // Jeep militaire à ciel ouvert : châssis nu façon buggy (jamais une
       // berline avec un fusil dessus), mais capot marqué et mitrailleuse
@@ -5063,8 +5119,8 @@ function makeVoiture(key){
     // Monster Truck / Pickup / Buggy : roues plus larges que la caisse (les
     // pneus débordent nettement du châssis, allure typique tout-terrain) —
     // jamais posées à fleur de carrosserie comme une berline normale.
-    const stanceX=key==='monstertruck'?W/2+0.22:(key==='pickup'?W/2+0.14:(def.buggy?W/2+0.16:(def.quad?W/2+0.05:W/2)));
-    const tireW=key==='monstertruck'?0.64:(key==='pickup'?0.42:(def.buggy?0.44:(def.quad?0.32:0.26)));
+    const stanceX=key==='monstertruck'?W/2+0.22:(key==='pickup'?W/2+0.14:(def.buggy?W/2+0.16:(def.quad?W/2+0.05:((def.pelle||def.grue)?W/2+0.1:W/2))));
+    const tireW=key==='monstertruck'?0.64:(key==='pickup'?0.42:(def.buggy?0.44:(def.quad?0.32:((def.pelle||def.grue)?0.5:0.26))));
     [[stanceX,wheelR,L*0.32],[-stanceX,wheelR,L*0.32],[stanceX,wheelR,-L*0.32],[-stanceX,wheelR,-L*0.32]].forEach(p=>{
       const r=new THREE.Mesh(new THREE.CylinderGeometry(wheelR,wheelR,tireW,10),mat(0x15171c));
       r.rotation.z=Math.PI/2; r.position.set(p[0],p[1],p[2]); g.add(r); ud.roues.push(r);
@@ -6458,8 +6514,13 @@ function resoudreCollisionsVehicule(v,dt){
       // véhicule assez lourd pour y résister, voir CLAUDE.md).
       if(d.ecrase&&!o.def.ecrase){ ecraserVehicule(v,o); continue; }
       const rel=Math.abs(v.v)+Math.abs(o.v);
-      const mV=d.long*d.larg*((d.milit||d.blinde)?2.2:1);
-      const mO=o.def.long*o.def.larg*((o.def.milit||o.def.blinde)?2.2:1);
+      // Bulldozer, pelle baissée (voir majConduite) : masse effective
+      // multipliée pour de vrai — pousse tout ce qui est plus léger que
+      // lui au lieu de rebondir dessus, en réutilisant tel quel le système
+      // de masse/poussée déjà là (rap ci-dessous, déjà plafonné à 2.5,
+      // donne déjà l'effet maximal disponible sans y toucher).
+      const mV=d.long*d.larg*((d.milit||d.blinde)?2.2:1)*((d.pelle&&v.pelleBaisse)?4:1);
+      const mO=o.def.long*o.def.larg*((o.def.milit||o.def.blinde)?2.2:1)*((o.def.pelle&&o.pelleBaisse)?4:1);
       const rap=clamp(mV/mO,0.4,2.5);   // >1 : v est plus lourd que o
       // séparation sur l'axe le MOINS recouvert (résolution façon SAT)
       const overFwd=porteeFwd-Math.abs(distFwd), overRight=porteeRight-Math.abs(distRight);
@@ -6769,10 +6830,17 @@ function entrerVehicule(v){
     el('btnDodge').innerHTML='🏍️<small>CABRER</small>';
     toast('Maintiens CABRER pour te cabrer — trop longtemps et tu bascules','or');
   }
-  if(v.def.canon||v.def.mitrailleuse||v.def.dca){
+  if(v.def.pelle){
+    // Bulldozer : bouton ESQUIVE (inutilisé — pas d'arme), bascule la
+    // pelle — voir majConduite/resoudreCollisionsVehicule.
+    el('btnDodge').style.display='flex';
+    el('btnDodge').innerHTML='🚜<small>PELLE</small>';
+    toast('PELLE bascule la pelle — baissée, elle pousse tout ce qui est plus léger','or');
+  }
+  if(v.def.canon||v.def.mitrailleuse||v.def.dca||v.def.grue){
     el('btnFire').style.display='flex';
-    el('fireIco').textContent=v.def.mitrailleuse?'🔫':(v.def.dca?'🚀':'💥');
-    el('fireAmmo').textContent='∞';
+    el('fireIco').textContent=v.def.mitrailleuse?'🔫':(v.def.dca?'🚀':(v.def.grue?'⚫':'💥'));
+    el('fireAmmo').textContent=v.def.grue?'':'∞';
     el('btnBrake').classList.remove('gros'); el('btnBrake').classList.add('volA');
     // Bug déjà rencontré (trouvé par audit géométrique, test_boutons_tmp.js) :
     // #btnBrake.volA occupe EXACTEMENT la même zone que #btnSwitch (RADIO,
@@ -6780,11 +6848,14 @@ function entrerVehicule(v){
     // intactable, plus tard dans le DOM (btnBrake gagne le clic). Comme
     // aucune autre zone libre n'existe pour un char en pleine conduite,
     // RADIO est simplement masquée tant que ce réaménagement est actif.
-    // Même chevauchement, même correctif pour la Jeep (mitrailleuse) et le
-    // camion DCA, qui réutilisent exactement ce même bouton TIR.
+    // Même chevauchement, même correctif pour la Jeep (mitrailleuse), le
+    // camion DCA et la Grue, qui réutilisent exactement ce même bouton TIR
+    // (aim-joystick déjà posé dessus, voir bindViseeJoystick) — sur la
+    // Grue il pousse le boulet plutôt que de tirer.
     el('btnSwitch').style.display='none';
     if(v.def.mitrailleuse) toast('Mitrailleuse prête — maintiens TIR, glisse pour viser','or');
     else if(v.def.dca) toast('DCA prête — maintiens TIR, glisse pour viser le ciel','or');
+    else if(v.def.grue) toast('Le boulet balance tout seul dans les virages — maintiens TIR, glisse pour le pousser','or');
     else toast('Canon prêt — appuie sur TIR','or');
   }
   moteurStart(v.def); SFX.ui();
@@ -7496,6 +7567,56 @@ function majLanceEau(v,dt){
     if(v.eau<100) v.eau=Math.min(100,v.eau+LANCE_RECHARGE*dt);
   }
 }
+// Boulet de démolition de la Grue "Marteau" : vrai pendule en repère LOCAL
+// du camion (ud.ancrage, voir makeVoiture/def.grue) — jamais une position
+// fixe. « Coup » d'inertie sur les virages/accélérations brusques (un
+// pendule porté par un bras en mouvement accuse toujours du retard), plus
+// une poussée active au joystick de visée (bouton TIR, même widget que le
+// canon du char — voir bindViseeJoystick), reconvertie du repère MONDE
+// (canonDx/Dy) au repère local avant d'être appliquée. Dégâts réels à tout
+// ce qu'il traverse en balançant assez vite — jamais juste un décor animé.
+const GRUE_SPRING=10, GRUE_DAMPING=2.6, GRUE_KICK_TURN=9, GRUE_KICK_ACCEL=0.7, GRUE_BOOST=30, GRUE_SAG=1.6, GRUE_PORTEE_MAX=3.2;
+function majGrueBoulet(v,dt){
+  const ud=v.mesh.userData; if(!ud.ancrage) return;
+  if(!v.boulet) v.boulet={x:0,z:0,vx:0,vz:0,angPrev:v.ang,vPrev:v.v};
+  const b=v.boulet;
+  const dAng=angDiff(b.angPrev,v.ang), dV=v.v-b.vPrev;
+  b.vx-=dAng*GRUE_KICK_TURN;
+  b.vz-=dV*GRUE_KICK_ACCEL;
+  b.angPrev=v.ang; b.vPrev=v.v;
+  b.vx+=(-b.x*GRUE_SPRING-b.vx*GRUE_DAMPING)*dt;
+  b.vz+=(-b.z*GRUE_SPRING-b.vz*GRUE_DAMPING)*dt;
+  if(INPUT.canonHold&&Math.hypot(INPUT.canonDx||0,INPUT.canonDy||0)>0.12){
+    const lx=INPUT.canonDx*Math.cos(v.ang)-INPUT.canonDy*Math.sin(v.ang);
+    const lz=INPUT.canonDx*Math.sin(v.ang)+INPUT.canonDy*Math.cos(v.ang);
+    b.vx+=lx*GRUE_BOOST*dt; b.vz+=lz*GRUE_BOOST*dt;
+  }
+  b.x+=b.vx*dt; b.z+=b.vz*dt;
+  const sw=Math.hypot(b.x,b.z);
+  if(sw>GRUE_PORTEE_MAX){ b.x=b.x/sw*GRUE_PORTEE_MAX; b.z=b.z/sw*GRUE_PORTEE_MAX; b.vx*=0.6; b.vz*=0.6; }
+  const bx=b.x, by=ud.ancrage.y-GRUE_SAG, bz=ud.ancrage.z+b.z;
+  ud.boulet.position.set(bx,by,bz);
+  const dxL=bx-0, dyL=by-ud.ancrage.y, dzL=bz-ud.ancrage.z;
+  const len=Math.hypot(dxL,dyL,dzL)||0.01;
+  ud.cable.position.set(dxL/2,(ud.ancrage.y+by)/2,ud.ancrage.z+dzL/2);
+  ud.cable.scale.set(1,len,1);
+  ud.cable.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),new THREE.Vector3(dxL,dyL,dzL).normalize());
+  const speed=Math.hypot(b.vx,b.vz);
+  if(speed>3.5){
+    const wx=v.x+bx*Math.cos(v.ang)+bz*Math.sin(v.ang), wz=v.z-bx*Math.sin(v.ang)+bz*Math.cos(v.ang);
+    for(const e of ennemis){ if(e.mort||e.heli||e.captureOvni) continue;
+      if(dist2(wx,wz,e.x,e.z)<3){ toucherEnnemi(e,26,true,10,'joueur',wx,wz); if(e.h&&!e.moto) lancerRagdoll(e,b.vx,b.vz,14); } }
+    for(const p of pietons){ if(p.etat==='mort'||p.captureOvni) continue;
+      if(dist2(wx,wz,p.x,p.z)<3) tuerPieton(p,true,14); }
+    for(const o of vehicules){ if(o===v||o.mort||o.captureOvni) continue;
+      if(dist2(wx,wz,o.x,o.z)<o.def.long*o.def.long*0.16+2){
+        abimerVehicule(o,18,true);
+        o.knockVx=clamp((o.knockVx||0)+b.vx*1.4,-KNOCK_VMAX,KNOCK_VMAX);
+        o.knockVz=clamp((o.knockVz||0)+b.vz*1.4,-KNOCK_VMAX,KNOCK_VMAX);
+      } }
+    for(const c of cassables){ if(c.hp>0&&dist2(wx,wz,c.x,c.z)<3) casserCaisse(c); }
+  }
+}
 function majConduite(dt){
   const v=P.veh;
   if(!v||!v.def){ P.veh=null; return; }
@@ -7582,6 +7703,19 @@ function majConduite(dt){
     const roueAv=v.mesh.userData.roues[0];
     if(roueAv) roueAv.position.y=0.4+Math.sin(v.wheelieA)*0.5;
   }
+  if(v.def.pelle){
+    // Bouton ESQUIVE (libre — le bulldozer n'a pas d'arme) : bascule la
+    // pelle, baissée ou relevée — un front montant, pas un maintien (la
+    // pelle reste baissée tant qu'on n'appuie pas de nouveau, pour pousser
+    // en roulant sans garder le pouce dessus). VRAIMENT baissée : voir
+    // resoudreCollisionsVehicule, masse effective multipliée tant que
+    // v.pelleBaisse est vrai — pousse pour de vrai, pas un décor animé.
+    if(pressed('esquive')||edgeKey('KeyK')) v.pelleBaisse=!v.pelleBaisse;
+    if(v.mesh.userData.pelle){
+      v.mesh.userData.pelle.rotation.x=lerp(v.mesh.userData.pelle.rotation.x,v.pelleBaisse?0.5:-0.15,clamp(6*dt,0,1));
+    }
+  }
+  if(v.def.grue) majGrueBoulet(v,dt);
   if(pressed('arme')||edgeKey('KeyA')||edgeKey('Tab')){
     if(v.def.pompier) toggleSirenePompiers(v); else changerRadio();
   }
@@ -16740,6 +16874,8 @@ function startRun(){
   if(POIS.desert) cacheV('buggyCanon',385,175,0.5);
   if(POIS.villas) cacheV('mirage',POIS.villas.x+11,POIS.villas.z-11,1.1); // recoin des villas
   if(POIS.chantier) cacheV('scarabee',POIS.chantier.x-13,POIS.chantier.z+12,2.4); // derrière la grue
+  if(POIS.chantier) cacheV('bulldozer',POIS.chantier.x+10,POIS.chantier.z-10,-0.6); // au chantier, loin de la grue fixe
+  if(POIS.chantier) cacheV('grue',POIS.chantier.x+14,POIS.chantier.z+6,1.0);        // idem, véhicule cette fois
   if(POIS.port) cacheV('baronne',POIS.port.x+13,POIS.port.z-11,Math.PI/2);  // entrepôt du port
   // armes cachées (une seule fois : ensuite elles t'appartiennent)
   if(!META.armes.batte2.poss&&POIS.parc) cacheA('batte2',POIS.parc.x+11,POIS.parc.z-11);
