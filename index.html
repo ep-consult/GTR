@@ -2931,8 +2931,12 @@ function mkAeroport(){
   // au lieu du fond nettement plus bas prévu : scintillement (z-fighting)
   // qui rendait le cratère illisible, parfois carrément invisible dessous.
   // Boîte bien plus fine : le dessus reste maintenant loin sous le cratère.
-  const desert=new THREE.Mesh(new THREE.BoxGeometry(230,0.01,560),new THREE.MeshLambertMaterial({map:texDesert}));
-  desert.position.set(AX+10,0.006,-3); scene.add(desert);
+  // Agrandi vers l'est/sud-est (demandé explicitement) : la falaise du saut
+  // géant (voir construireRelief, POIS.desert.x+140) tombait hors de cette
+  // couche — bitume nu sous elle au lieu du sable. Bord ouest inchangé
+  // (269, jamais rapproché de la ville, HALF=294).
+  const desert=new THREE.Mesh(new THREE.BoxGeometry(320,0.01,570),new THREE.MeshLambertMaterial({map:texDesert}));
+  desert.position.set(AX+63,0.006,-3); scene.add(desert);
   // herbe d'aérodrome tout autour, puis tarmac texturé
   const gaz=new THREE.Mesh(new THREE.BoxGeometry(190,0.08,380),new THREE.MeshLambertMaterial({map:texHerbe}));
   gaz.position.set(AX+8,0.03,-70); scene.add(gaz);
@@ -3203,19 +3207,31 @@ function construireRelief(){
   const mBois=new THREE.MeshLambertMaterial({map:texPlanche});
   const mTerre=mat(0x6a5c46);
   const mDesert=new THREE.MeshLambertMaterial({map:texDesert});
+  // Teinte légèrement plus chaude/sombre que le sol plat (mDesert utilise
+  // du blanc, un multiplicateur neutre) : signalé par un joueur, « je ne
+  // trouve aucune dune » — même texture ET même teinte que le sol autour
+  // rendait une pente pourtant bien réelle très difficile à repérer, vue de
+  // dessus sous la caméra très plongeante du jeu (l'ombrage seul, sur une
+  // courbe aussi douce, ne suffit pas). color agit comme un multiplicateur
+  // sur la texture (MeshLambertMaterial) : jamais une texture différente,
+  // juste assez de contraste pour que le regard accroche.
+  const mDune=new THREE.MeshLambertMaterial({map:texDesert,color:0xdba869});
   // (l'ancienne raison du retrait — les grosses collines déformaient les
   // véhicules et rendaient mal — était en réalité un mesh qui ne suivait
   // jamais le même profil que la formule de collision, voir mkColline :
   // corrigé à la racine, les dunes peuvent maintenant être vraiment
   // imposantes sans jamais qu'on les traverse ni qu'on flotte au-dessus.)
   // Dunes du désert (demandé explicitement, « beaucoup plus imposantes ») —
-  // écartées du cratère (voir POIS.crash) pour ne jamais l'envahir.
+  // rapprochées du cratère (signalé par un joueur, jamais trouvées : les
+  // bords les plus proches restent maintenant sous ~55 unités, dans la
+  // zone claire du brouillard, voir scene.fog — au-delà elles s'estompaient
+  // trop pour qu'on les remarque) sans jamais l'envahir.
   if(POIS.desert){
     const pd=POIS.desert;
-    mkColline(pd.x+40,pd.z-42,34,11,mDesert);
-    mkColline(pd.x-80,pd.z-27,30,9.5,mDesert);
-    mkColline(pd.x+45,pd.z+48,32,10.5,mDesert);
-    mkColline(pd.x-85,pd.z+48,28,9,mDesert);
+    mkColline(pd.x+30,pd.z-35,34,11,mDune);
+    mkColline(pd.x-55,pd.z-20,30,9.5,mDune);
+    mkColline(pd.x+35,pd.z+40,32,10.5,mDune);
+    mkColline(pd.x-62,pd.z+42,28,9,mDune);
     // tremplins aux deux bouts de la zone, lancent l'un vers l'autre à
     // travers les dunes.
     mkRampe(pd.x+15,pd.z-55,0,9,2.6,4.6,mDesert);
@@ -16650,7 +16666,11 @@ function startRun(){
   // des dunes plutôt qu'empilés au même endroit.
   if(POIS.crash) cacheV('quad',POIS.crash.x+15,POIS.crash.z-10,1.4);       // à deux pas du cratère
   if(POIS.crash) cacheV('motoMil',POIS.crash.x-15,POIS.crash.z+12,-0.8);   // abandonnée près du crash
-  if(POIS.desert) cacheV('buggyCanon',POIS.desert.x-20,POIS.desert.z+5,0.5); // au milieu des dunes
+  // Bug déjà rencontré (signalé par un joueur, jamais retrouvé) : l'ancien
+  // point (POIS.desert.x-20,+5) tombait à peine 2 unités de l'OVNI/du
+  // cratère — quasi superposé, invisible en tant que découverte à part.
+  // Déplacé franchement entre le cratère et le champ de dunes.
+  if(POIS.desert) cacheV('buggyCanon',385,175,0.5);
   if(POIS.villas) cacheV('mirage',POIS.villas.x+11,POIS.villas.z-11,1.1); // recoin des villas
   if(POIS.chantier) cacheV('scarabee',POIS.chantier.x-13,POIS.chantier.z+12,2.4); // derrière la grue
   if(POIS.port) cacheV('baronne',POIS.port.x+13,POIS.port.z-11,Math.PI/2);  // entrepôt du port
