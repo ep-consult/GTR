@@ -2827,7 +2827,7 @@ function mkAeroport(){
   }
   // hangar
   mkBatiment(AX-40,-140,30,22,10,paletteFacades.industriel[0]);
-  mkEnseigne('HANGAR 7','#35e0ff',AX-40,7.6,-128.6,0,12);
+  mkEnseigne('HANGAR 51','#35e0ff',AX-40,7.6,-128.6,0,12);
   // tour de contrôle
   const tour=new THREE.Mesh(new THREE.CylinderGeometry(2.4,3,17,10),mat(0x5a5f66));
   tour.position.set(AX-38,8.5,-20); scene.add(tour);
@@ -15893,7 +15893,7 @@ function startRun(){
   if(POIS.base) cacheV('jeepMil',POIS.base.x-26,POIS.base.z-10,0.6);  // même base, à l'écart du char
   if(POIS.base) cacheV('dca',POIS.base.x+22,POIS.base.z-16,-1.2);     // même base, dégagé côté ciel
   cacheV('espadon',-HALF+34,MER+26,Math.PI/2);                        // crique à l'ouest
-  // OVNI : garé au pied du Hangar 7, désaffecté (aérodrome, voir mkAeroport)
+  // OVNI : garé au pied du Hangar 51, désaffecté (aérodrome, voir mkAeroport)
   // — plus un van banal garé devant, juste ce qui n'aurait jamais dû être
   // là. posLibre() l'écarte un peu du mur du hangar au besoin.
   if(POIS.hangar) cacheV('ovni',POIS.hangar.x-14,POIS.hangar.z+14,0.4);
