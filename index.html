@@ -2238,6 +2238,32 @@ const texSable=cTex(256,(g,s)=>{
     g.beginPath();g.arc(Math.random()*s,Math.random()*s,rand(1.4,2.6),0,7);g.fill();
   }
 },6,6);
+// Désert autour de l'aérodrome : demandé explicitement, « différent de la
+// plage » — plus orangé/rocailleux que texSable (jaune, ondulations de
+// vent lisses), terre craquelée et cailloux plutôt que sable de bord de mer.
+const texDesert=cTex(256,(g,s)=>{
+  const gr=g.createLinearGradient(0,0,s,s);
+  gr.addColorStop(0,'#c9915a');gr.addColorStop(0.5,'#bc8550');gr.addColorStop(1,'#c48d56');
+  g.fillStyle=gr;g.fillRect(0,0,s,s);
+  for(let i=0;i<2400;i++){
+    g.fillStyle=pick(['#d69f68','#a8703e','#b87c48','#dba572']);
+    g.fillRect(Math.random()*s,Math.random()*s,1.4,1.4);
+  }
+  // terre craquelée : fines lignes sombres en réseau, jamais des ondulations
+  for(let i=0;i<26;i++){
+    const x0=Math.random()*s,y0=Math.random()*s;
+    g.strokeStyle='rgba(90,55,25,0.3)';g.lineWidth=rand(1,2.2);
+    g.beginPath();g.moveTo(x0,y0);
+    let x=x0,y=y0;
+    for(let k=0;k<rand(2,4);k++){x+=rand(-26,26);y+=rand(-26,26);g.lineTo(x,y);}
+    g.stroke();
+  }
+  // cailloux
+  for(let i=0;i<14;i++){
+    g.fillStyle=pick(['#7a6248','#5e4c38','#8a7256']);
+    g.beginPath();g.arc(Math.random()*s,Math.random()*s,rand(1.6,3.4),0,7);g.fill();
+  }
+},7,7);
 const texMur=cTex(256,(g,s)=>{
   g.fillStyle='#4e5158';g.fillRect(0,0,s,s);
   for(let i=0;i<600;i++){g.fillStyle=Math.random()<0.5?'rgba(255,255,255,0.05)':'rgba(0,0,0,0.07)';g.fillRect(Math.random()*s,Math.random()*s,2,2);}
@@ -2875,6 +2901,13 @@ function mkCraterOvni(x,z){
 }
 function mkAeroport(){
   const AX=HALF+80; // centre du tarmac
+  // Désert tout autour de l'aérodrome, demandé explicitement (« différent
+  // de la plage ») — couche de fond sous l'herbe/le tarmac/le cratère du
+  // crash : ne se voit que là où rien d'autre ne recouvre (au sud, entre
+  // l'herbe qui s'arrête vers z=120 et la clôture sud à MER-32, voir plus
+  // bas), plutôt que le bitume nu par défaut (construireVille, sol général).
+  const desert=new THREE.Mesh(new THREE.BoxGeometry(230,0.06,560),new THREE.MeshLambertMaterial({map:texDesert}));
+  desert.position.set(AX+10,0.01,-3); scene.add(desert);
   // herbe d'aérodrome tout autour, puis tarmac texturé
   const gaz=new THREE.Mesh(new THREE.BoxGeometry(190,0.08,380),new THREE.MeshLambertMaterial({map:texHerbe}));
   gaz.position.set(AX+8,0.03,-70); scene.add(gaz);
@@ -6213,11 +6246,20 @@ function majKnockback(v,dt){
 // seule (demandé explicitement, « c'est le mouvement des véhicules qui
 // doit porter la sensation de choc ») : secousse fortement réduite,
 // réservée aux chocs vraiment violents.
+// Bug déjà rencontré (signalé par un joueur) : un avion/hélico/OVNI bien
+// EN L'AIR percutait un véhicule au sol comme s'ils étaient à la même
+// hauteur — v.h (utilisé ici pour l'écart de hauteur) n'est JAMAIS renseigné
+// pour un véhicule aérien (il se positionne via v.alt, voir majVol), donc
+// (v.h||0) valait 0 pour un avion à 50 unités d'altitude autant que pour
+// une voiture au sol : l'écart mesuré était toujours nul, jamais >1.6.
+// hauteurReelle() lit v.alt pour tout véhicule def.air, v.h sinon.
+function hauteurReelleVehicule(x){ return x.def.air?(x.alt||0):(x.h||0); }
 function resoudreCollisionsVehicule(v,dt){
   const d=v.def;
+  const hV=hauteurReelleVehicule(v);
   for(const o of vehicules){
     if(o===v||o.mort||o.epave) continue;
-    if(Math.abs((v.h||0)-(o.h||0))>1.6) continue;
+    if(Math.abs(hV-hauteurReelleVehicule(o))>1.6) continue;
     const dxw=o.x-v.x, dzw=o.z-v.z;
     const angV=v.ang, sV=Math.sin(angV), cV=Math.cos(angV);
     const distFwd=dxw*sV+dzw*cV, distRight=dxw*cV-dzw*sV;
@@ -6679,6 +6721,15 @@ function sauterEnParachute(){
   const v=P.veh;
   if(!v||!v.def.air||!v.vol){ SFX.refus(); return; }
   loopRingEl.style.display='none'; // au cas où on sautait en pleine charge de looping
+  // Bug déjà rencontré (signalé par un joueur) : sauter en parachute est un
+  // chemin de sortie ENTIÈREMENT séparé de sortirVehicule() (jamais appelée
+  // ici) qui duplique une partie de son travail sans le rayon tracteur de
+  // l'OVNI — une cible suspendue restait accrochée pour toujours (v.mort
+  // devient vrai deux lignes plus bas, donc majRayonOvni ignore cet OVNI dès
+  // la prochaine frame ; sans ce nettoyage ICI, avant, la cible ne serait
+  // jamais relâchée). Même hook que exploserVehicule (rayonNettoyerVehicule
+  // gère aussi une charge de Désintégrateur en cours, voir sa définition).
+  if(v.def.ovni) rayonNettoyerVehicule(v);
   const vx=v.x, vz=v.z, valt=v.alt||0;
   v.conduit=null; P.veh=null;
   P.x=vx; P.z=vz; P.y=valt+0.5; P.ang=v.ang;
@@ -6932,8 +6983,16 @@ function majVol(v,dt){
       // 0.0475 contre 0.06), même lissage progressif (PITCH_LISSAGE, voir
       // le commentaire détaillé sur l'avion plus bas — même cause, même
       // correctif, demandé explicitement pour les deux appareils).
-      v.mesh.rotation.x=clamp(lerp(v.mesh.rotation.x,-v.va*0.0475,Math.min(1,PITCH_LISSAGE*dt)),-1.1,1.1);
-    } else v.mesh.rotation.x=lerp(v.mesh.rotation.x,0,Math.min(1,PITCH_LISSAGE*dt)); // posé : retour à l'horizontale
+      // L'OVNI ne s'incline JAMAIS (signalé par un joueur) : un disque qui
+      // tangue n'a pas de sens visuel (pas d'ailes, pas de nez), et ça
+      // inclinait avec lui le rayon tracteur (enfant du même groupe, voir
+      // makeVoiture/def.ovni), donnant l'impression étrange d'un « champ
+      // magnétique » penché. Reste parfaitement à plat, tourne sur lui-même
+      // à la place — signature visuelle demandée explicitement.
+      if(v.def.ovni){ v.mesh.rotation.x=0; v.mesh.rotation.z=0; }
+      else v.mesh.rotation.x=clamp(lerp(v.mesh.rotation.x,-v.va*0.0475,Math.min(1,PITCH_LISSAGE*dt)),-1.1,1.1);
+    } else if(v.def.ovni) v.mesh.rotation.x=0;
+    else v.mesh.rotation.x=lerp(v.mesh.rotation.x,0,Math.min(1,PITCH_LISSAGE*dt)); // posé : retour à l'horizontale
   } else { // avion
     if(!v.vol){
       const c=controleDir(v,false);
@@ -7055,7 +7114,11 @@ function majVol(v,dt){
     ud.ombre.material.opacity=clamp(0.6-(v.alt-surfO)*0.012,0.15,0.6);
   }
   v.mesh.position.set(v.x,v.alt,v.z);
-  if(air==='helico'||!v.vol) v.mesh.rotation.y=v.ang; else v.mesh.rotation.y=v.ang;
+  // OVNI : tourne sur lui-même en continu, jamais aligné sur v.ang (le cap
+  // n'en a de toute façon pas besoin — le déplacement se calcule à partir
+  // de v.ang directement, jamais de mesh.rotation.y, voir plus haut).
+  if(v.def.ovni) v.mesh.rotation.y+=1.1*dt;
+  else v.mesh.rotation.y=v.ang;
   moteurUpdate(clamp((Math.abs(v.v)+Math.abs(v.va)*3)/v.def.vmax,0,1));
   if(pressed('arme')||edgeKey('KeyA')||edgeKey('Tab')) changerRadio();
   P.x=v.x; P.z=v.z; P.ang=v.ang;
@@ -7590,6 +7653,7 @@ function majVehicules(dt){
       // Épinglé à sa position d'origine tant qu'il n'est pas piloté (v.conduit
       // reste null) : « jamais déplacé », même s'il encaisse un choc d'un
       // autre véhicule qui lui donnerait une vitesse résiduelle.
+      if(v.def.ovni) v.mesh.rotation.y+=0.35*dt; // tourne doucement même posé, cohérent avec le vol (voir majVol)
       if(v.def.voltige&&POIS.aerodrome){
         const ud2=v.mesh.userData;
         if(ud2.rotor) ud2.rotor.rotation.y+=3*dt;
@@ -8282,7 +8346,13 @@ const RAYON_POIDS_MAX=3;            // budget total de cibles simultanées (perf
 // vitesse de montée max de l'OVNI (16), sans quoi l'écart ne fait que
 // grandir au lieu de se refermer.
 const RAYON_MONTEE_VIT=22;          // unités/s pendant la montée
-const RAYON_SUSPEND_GAP=3.4;        // hauteur sous l'OVNI une fois suspendue
+// Relevé de 3,4 à 5,5 (signalé par un joueur, « collée à la soucoupe ») :
+// rec.y positionne la BASE de la cible (pieds d'un PNJ, plancher d'un
+// véhicule), pas son sommet — un PNJ debout (~1,8 de haut) ou un véhicule
+// remontait donc son sommet bien plus près de la coque que l'écart affiché
+// ne le laissait croire. Combiné au décrochage horizontal hors du disque
+// (voir rayonCapturer), la cible se lit maintenant clairement en dessous.
+const RAYON_SUSPEND_GAP=5.5;        // hauteur sous l'OVNI une fois suspendue
 const RAYON_SPIN_VIT=2.6;           // rad/s de rotation sur elle-même, montée uniquement
 const RAYON_OSC_VIT=5, RAYON_OSC_AMP=0.35; // oscillation légère, montée uniquement
 const RAYON_GRAVITE=22;             // chute libre, unités/s²
@@ -8326,10 +8396,14 @@ function rayonCapturer(v,ent,type,poids){
   const rec={ent,type,poids,phase:'montee',y:y0,y0,ang:rand(0,6.28),oscPh:rand(0,6.28),relX:0,relZ:0,vyChute:0,rebond:false};
   ent.captureOvni=rec;
   v.cibles.push(rec);
-  // décale chaque cible sous la coque pour ne jamais les empiler exactement
-  // au même point une fois suspendues.
+  // Décale chaque cible en dehors du disque (rayon de la coque ~2,1, voir
+  // makeVoiture/def.ovni) — signalé par un joueur : à 1,3, une cible restait
+  // toujours sous la silhouette du disque vue de dessus, donc « collée » à
+  // la soucoupe même avec un vrai écart vertical (peu lisible sous la
+  // caméra très plongeante, voir majCamera). Bien visible, décrochée du
+  // disque, sans jamais s'empiler exactement au même point.
   const a=(v.cibles.length-1)*2.4;
-  rec.relX=Math.sin(a)*1.3; rec.relZ=Math.cos(a)*1.3;
+  rec.relX=Math.sin(a)*3.2; rec.relZ=Math.cos(a)*3.2;
 }
 // Cherche de nouvelles cibles dans le cône, dans la limite du budget de
 // poids — appelée uniquement pendant que le rayon est actif.
@@ -8507,6 +8581,20 @@ function rayonLarguerTout(v){
   for(const rec of v.cibles) if(rec.phase!=='chute') rayonDebuterChute(v,rec);
   rayonCouperSon();
 }
+// Nuage de poussière : ce qu'il reste d'une cible dissoute par le
+// Désintégrateur de l'OVNI — demandé explicitement (« transforme les PNJ/
+// véhicules en poussière ») : beige/gris, dérive lente vers le haut, jamais
+// rouge/feu comme l'explosion au point d'impact (voir ovniDesintegrer) — la
+// couleur doit se lire comme « réduit en poussière », pas « brûlé ».
+function ovniPoussiere(x,y,z){
+  spawnP(x,y+0.3,z,0,1.6,0,0.9,3.2,0xe0d4b0,-0.6,3); // flash clair bref : la silhouette « s'efface »
+  for(let i=0;i<26;i++){
+    const a=rand(0,6.28), r=rand(0.3,1.7);
+    spawnP(x+Math.sin(a)*r,y+rand(-0.2,1.4),z+Math.cos(a)*r,
+      Math.sin(a)*rand(0.4,1.6),rand(0.6,1.8),Math.cos(a)*rand(0.4,1.6),
+      rand(1.1,1.9),rand(0.4,0.85),pick([0xc9b48a,0xa89468,0x8a7a5a,0xd8cbb0]),-0.3,2.4);
+  }
+}
 // PNJ dissous par le Désintégrateur de l'OVNI : jamais de cadavre (comme
 // desintegrerEnnemi pour l'arme portée) — tuerPieton() lance un ragdoll,
 // annulé tout de suite (p.rag=null, p.t=0) pour une disparition immédiate.
@@ -8514,15 +8602,13 @@ function ovniDesintegrerPnj(p){
   const x=p.x,z=p.z;
   tuerPieton(p,true,0);
   p.rag=null; p.t=0; p.h.g.visible=false;
-  for(let i=0;i<16;i++) spawnP(x+rand(-0.4,0.4),0.7+rand(-0.2,0.9),z+rand(-0.4,0.4),
-    rand(-2.5,2.5),rand(1,4),rand(-2.5,2.5),1.1,rand(0.35,0.6),pick([0xff3b1a,0xff8a4a,0x5a5a5a]),0,6);
+  ovniPoussiere(x,0.7,z);
 }
 function ovniDesintegrerEnnemi(e){
   const x=e.x,z=e.z,y=1.1+(e.hSol||0);
   tuerEnnemi(e,true);
   if(!e.moto){ e.corpseT=0; if(e.h) e.h.g.visible=false; } // la moto garde son propre traitement (épave roulante, voir tuerEnnemi)
-  for(let i=0;i<16;i++) spawnP(x+rand(-0.4,0.4),y+rand(-0.2,0.9),z+rand(-0.4,0.4),
-    rand(-2.5,2.5),rand(1,4),rand(-2.5,2.5),1.1,rand(0.35,0.6),pick([0xff3b1a,0xff8a4a,0x5a5a5a]),0,6);
+  ovniPoussiere(x,y,z);
 }
 // Le Désintégrateur de l'OVNI : tire tout seul à pleine charge (voir
 // majRayonOvni), toujours droit vers le bas — « tout au sol dessous la
@@ -8557,7 +8643,10 @@ function ovniDesintegrer(v){
   const r2=DESINT_RAYON*DESINT_RAYON;
   for(const p of pietons){ if(p.etat==='mort'||p.captureOvni) continue; if(dist2(p.x,p.z,x,z)<r2) ovniDesintegrerPnj(p); }
   for(const e of ennemis){ if(e.mort||e.captureOvni||e.heli) continue; if(dist2(e.x,e.z,x,z)<r2) ovniDesintegrerEnnemi(e); }
-  for(const o of vehicules){ if(o===v||o.mort||o.captureOvni||o.def.air) continue; if(dist2(o.x,o.z,x,z)<r2) exploserVehicule(o); }
+  for(const o of vehicules){
+    if(o===v||o.mort||o.captureOvni||o.def.air) continue;
+    if(dist2(o.x,o.z,x,z)<r2){ const ox=o.x,oz=o.z; exploserVehicule(o); ovniPoussiere(ox,1,oz); }
+  }
 }
 function majRayonOvni(dt){
   const dtJ=dt/ETAT.timeScale; // dtJeu local (CLAUDE.md, dt vs dtJeu) : montée/chute/oscillation ne bénéficient jamais d'un ralenti
