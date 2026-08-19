@@ -1939,6 +1939,18 @@ const VEHDEFS={
   // silencieux qu'un vrai hélico — vmax/man supérieurs, hp modeste (fragile,
   // c'est une trouvaille pour le plaisir, pas un blindé volant).
   ovni:{nom:'OVNI "Zeta-9"',vmax:46,acc:22,man:3.6,hp:70,long:4.4,larg:4.4,type:'car',air:'helico',altMax:400,ovni:true,cache:true,cols:[0x8ab4c8]},
+  // Quad des sables : mono-place, très maniable, taillé pour les dunes du
+  // désert (voir POIS.desert) — accélération très vive, virages courts,
+  // fragile (aucune carrosserie pour protéger le pilote, hp modeste).
+  quad:{nom:'Quad "Scorpide"',vmax:34,acc:26,man:4.2,hp:55,long:2.1,larg:1.15,type:'car',quad:true,cache:true,cols:[0xd8842a,0x35c8e0,0xff5a3a]},
+  // Moto cross militaire : même moteur/agilité que la Moto cross civile
+  // (def.cross, cabrage compris — voir majConduite/entrerVehicule) — juste
+  // une livrée militaire, abandonnée près du cratère de l'OVNI (startRun).
+  motoMil:{nom:'Moto cross militaire',vmax:37,acc:23,man:3.5,hp:65,long:2.3,larg:0.85,type:'moto',cross:true,cache:true,cols:[0x4a5238,0x39402c]},
+  // Buggy-canon : même carrosserie ouverte que le Buggy des dunes/la Jeep
+  // militaire (def.mitrailleuse — affût pivotant, voir makeVoiture), mais
+  // plus léger et plus rapide que la Jeep, pensé pour le sable, pas la base.
+  buggyCanon:{nom:'Buggy-canon "Sirocco"',vmax:35,acc:23,man:3.4,hp:95,long:3.3,larg:1.85,type:'car',mitrailleuse:true,cache:true,cols:[0xc98d4a,0xd8b02a]},
   scarabee:{nom:'Buggy "Scarabée"',vmax:33,acc:21,man:3.3,hp:130,long:3.4,larg:1.9,type:'car',cols:[0x2fae4f],buggy:true,cache:true},
   baronne:{nom:'Ancienne "Baronne"',vmax:26,acc:10,man:2.0,hp:280,long:5.4,larg:2.1,type:'car',cols:[0x6a1f2a],cache:true},
   avion:{nom:'Avion "Colibri"',vmax:40,acc:11,man:1.3,hp:130,long:7.4,larg:2,type:'car',air:'avion',cols:[0xe8ecf2]},
@@ -3148,11 +3160,27 @@ function mkSacsSable(x,z){
   g.position.set(x,0,z); g.rotation.y=rand(0,6); scene.add(g);
   addSolid({x,z,hw:2.5,hd:0.5,h:0.9,toit:false});
 }
+// Bug déjà rencontré (signalé par un joueur, « on dirait qu'on traverse la
+// dune ») : l'ancien mesh (demi-sphère aplatie) n'avait JAMAIS le même
+// profil que la formule de collision utilisée par solY() pour les COLLINES
+// (h·cos²(d/r·π/2), plate au bord, raide au milieu) — une demi-sphère est
+// au contraire raide au bord et plate au sommet. Les deux courbes ne se
+// recoupent qu'aux deux extrémités (centre et bord) ; entre les deux, le
+// sol RÉEL (invisible, celui que suivent les véhicules/PNJ) passait tantôt
+// bien AU-DESSUS tantôt bien EN DESSOUS de la surface visible — d'où
+// l'impression de s'enfoncer dans la dune ou de flotter au-dessus.
+// LatheGeometry dessine directement la vraie formule de collision,
+// révolutionnée autour de l'axe Y : le mesh EST le profil, plus jamais
+// d'écart possible entre ce qu'on voit et ce qu'on roule.
 function mkColline(x,z,r,h,matSol){
   COLLINES.push({x,z,r,h});
-  const m=new THREE.Mesh(new THREE.SphereGeometry(r,16,10,0,Math.PI*2,0,Math.PI/2),matSol);
-  m.scale.y=h/r*1.05;
-  m.position.set(x,0.02,z); scene.add(m);
+  const segs=24, pts=[];
+  for(let i=0;i<=segs;i++){
+    const dRad=i/segs*r, t=Math.cos(dRad/r*Math.PI/2);
+    pts.push(new THREE.Vector2(dRad,h*t*t));
+  }
+  const m=new THREE.Mesh(new THREE.LatheGeometry(pts,28),matSol);
+  m.position.set(x,0,z); scene.add(m);
 }
 function mkRampe(x,z,ang,long,haut,larg,matR){
   RAMPES.push({x,z,ang,long,haut,larg});
@@ -3175,23 +3203,43 @@ function construireRelief(){
   const mBois=new THREE.MeshLambertMaterial({map:texPlanche});
   const mTerre=mat(0x6a5c46);
   const mDesert=new THREE.MeshLambertMaterial({map:texDesert});
-  // (les grosses collines ont été retirées : elles déformaient les véhicules et rendaient mal)
-  // Dunes du désert (demandé explicitement) : reprend mkColline() — jamais
-  // utilisée depuis le retrait des grosses collines ci-dessus — mais bien
-  // plus modeste (rayon large, hauteur ~2-2,5, pente douce) que ce qui avait
-  // posé problème, dans le même esprit que les tremplins déjà en place
-  // ailleurs (haut ~2-2,7, jamais retirés, donc une échelle éprouvée).
-  // Écartées du cratère (voir POIS.crash) pour ne jamais l'envahir.
+  // (l'ancienne raison du retrait — les grosses collines déformaient les
+  // véhicules et rendaient mal — était en réalité un mesh qui ne suivait
+  // jamais le même profil que la formule de collision, voir mkColline :
+  // corrigé à la racine, les dunes peuvent maintenant être vraiment
+  // imposantes sans jamais qu'on les traverse ni qu'on flotte au-dessus.)
+  // Dunes du désert (demandé explicitement, « beaucoup plus imposantes ») —
+  // écartées du cratère (voir POIS.crash) pour ne jamais l'envahir.
   if(POIS.desert){
     const pd=POIS.desert;
-    mkColline(pd.x+35,pd.z-40,17,2.5,mDesert);
-    mkColline(pd.x-65,pd.z-25,15,2.2,mDesert);
-    mkColline(pd.x+40,pd.z+45,16,2.4,mDesert);
-    mkColline(pd.x-70,pd.z+45,14,2,mDesert);
+    mkColline(pd.x+40,pd.z-42,34,11,mDesert);
+    mkColline(pd.x-80,pd.z-27,30,9.5,mDesert);
+    mkColline(pd.x+45,pd.z+48,32,10.5,mDesert);
+    mkColline(pd.x-85,pd.z+48,28,9,mDesert);
     // tremplins aux deux bouts de la zone, lancent l'un vers l'autre à
     // travers les dunes.
     mkRampe(pd.x+15,pd.z-55,0,9,2.6,4.6,mDesert);
     mkRampe(pd.x-15,pd.z+60,Math.PI,9,2.6,4.6,mDesert);
+    // Falaise et énorme saut (demandé explicitement) : à l'écart des dunes
+    // et du cratère, à l'est de la zone — un vrai plateau (PLATS, comme le
+    // pont du yacht/les îles : palier plat, jamais une pente) avec une
+    // longue rampe d'accès au nord. bord SUD franchement à pic (les PLATS
+    // n'ont aucune transition — hauteur h dans l'emprise, 0 dehors, voir
+    // solY) : quiconque fonce par là s'envole pour de vrai (v.h suit gY
+    // chaque frame, un décrochage soudain déclenche déjà l'envol, voir
+    // majVehiculePhys, RELIEF).
+    const fx=pd.x+140, fz=200, fH=17, fHW=14, fHD=18;
+    PLATS.push({x:fx,z:fz,hw:fHW,hd:fHD,h:fH});
+    const blocFalaise=new THREE.Mesh(new THREE.BoxGeometry(fHW*2,fH,fHD*2),mat(0x8a6a48));
+    blocFalaise.position.set(fx,fH/2,fz); scene.add(blocFalaise);
+    const dessusFalaise=new THREE.Mesh(new THREE.BoxGeometry(fHW*2,0.1,fHD*2),mDesert);
+    dessusFalaise.position.set(fx,fH+0.02,fz); scene.add(dessusFalaise);
+    // Rampe : base à fz-55, atteint fH à fz-55+45=fz-10 — bien À
+    // L'INTÉRIEUR de l'emprise du plateau (fz±fHD=182..218), jamais juste
+    // à son bord (un écart, même petit, laisserait un creux entre le haut
+    // de la rampe et le début du plateau — solY ne recouvre rien entre
+    // les deux formules sinon).
+    mkRampe(fx,fz-55,0,45,fH,6,mDesert);
   }
   // tremplins
   if(POIS.chantier){
@@ -4666,7 +4714,7 @@ function makeVoiture(key){
     // vide visible entre le bas de caisse et le sommet des pneus,
     // amortisseurs apparents qui comblent cet écart (voir CLAUDE.md). Le
     // Buggy des dunes a ses propres roues larges et sa propre suspension.
-    const wheelR=key==='monstertruck'?1.12:(key==='pickup'?0.58:(def.buggy?0.5:0.38));
+    const wheelR=key==='monstertruck'?1.12:(key==='pickup'?0.58:(def.buggy?0.5:(def.quad?0.36:0.38)));
     const busH=key==='busville'?2.0:0.6; // bus : bien plus haut, boîte quasi constante sur toute la longueur
     if(key==='pickup'){
       // Pick-up japonais classique : cabine courte + benne ouverte, deux
@@ -4710,6 +4758,20 @@ function makeVoiture(key){
       [[stanceBu,L*0.32],[-stanceBu,L*0.32],[stanceBu,-L*0.32],[-stanceBu,-L*0.32]].forEach(p=>{
         const choc=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.09,0.55,8),mat(0xffd23f));
         choc.position.set(p[0]*0.82,bodyY-0.34,p[1]); g.add(choc);
+      });
+    } else if(def.quad){
+      // quad tout-terrain à ciel ouvert : mono-place, guidon, garde-boue
+      // nus — jamais une carrosserie complète, la silhouette doit se lire
+      // « moto à 4 roues », pas « petite voiture ».
+      corps.add(mkBoxG(W*0.62,0.2,L*0.8,coul,0,bodyY-0.1,0));                // plancher/châssis bas
+      corps.add(mkBoxG(W*0.34,0.22,0.36,0x1a1d24,0,bodyY+0.14,-L*0.02));     // selle
+      corps.add(mkBoxG(W*0.5,0.3,0.22,0x2a2d34,0,bodyY+0.1,-L*0.32));        // bloc moteur exposé, arrière
+      corps.add(mkBoxG(0.06,0.5,0.06,0x23262e,0,bodyY+0.26,L*0.36));         // colonne de direction
+      corps.add(mkBoxG(0.62,0.07,0.07,0x23262e,0,bodyY+0.52,L*0.36));        // guidon
+      const phareQ=new THREE.Mesh(new THREE.SphereGeometry(0.1,8,6),new THREE.MeshBasicMaterial({color:0xfff2c0}));
+      phareQ.position.set(0,bodyY+0.2,L*0.44); corps.add(phareQ);
+      [[-1,1],[1,1],[-1,-1],[1,-1]].forEach(p=>{ // garde-boue nus au-dessus de chaque roue
+        corps.add(mkBoxG(0.34,0.06,0.4,coul,p[0]*W*0.42,bodyY+0.24,p[1]*L*0.32));
       });
     } else if(def.mitrailleuse){
       // Jeep militaire à ciel ouvert : châssis nu façon buggy (jamais une
@@ -4918,8 +4980,8 @@ function makeVoiture(key){
     // Monster Truck / Pickup / Buggy : roues plus larges que la caisse (les
     // pneus débordent nettement du châssis, allure typique tout-terrain) —
     // jamais posées à fleur de carrosserie comme une berline normale.
-    const stanceX=key==='monstertruck'?W/2+0.22:(key==='pickup'?W/2+0.14:(def.buggy?W/2+0.16:W/2));
-    const tireW=key==='monstertruck'?0.64:(key==='pickup'?0.42:(def.buggy?0.44:0.26));
+    const stanceX=key==='monstertruck'?W/2+0.22:(key==='pickup'?W/2+0.14:(def.buggy?W/2+0.16:(def.quad?W/2+0.05:W/2)));
+    const tireW=key==='monstertruck'?0.64:(key==='pickup'?0.42:(def.buggy?0.44:(def.quad?0.32:0.26)));
     [[stanceX,wheelR,L*0.32],[-stanceX,wheelR,L*0.32],[stanceX,wheelR,-L*0.32],[-stanceX,wheelR,-L*0.32]].forEach(p=>{
       const r=new THREE.Mesh(new THREE.CylinderGeometry(wheelR,wheelR,tireW,10),mat(0x15171c));
       r.rotation.z=Math.PI/2; r.position.set(p[0],p[1],p[2]); g.add(r); ud.roues.push(r);
@@ -16584,6 +16646,11 @@ function startRun(){
   // garé juste à côté du Hangar 51, il était bien trop facile à trouver.
   // posLibre() l'écarte un peu du décor du cratère au besoin.
   if(POIS.crash) cacheV('ovni',POIS.crash.x,POIS.crash.z,rand(0,6.28));
+  // Trio du désert (demandé explicitement) : dispersés autour du cratère et
+  // des dunes plutôt qu'empilés au même endroit.
+  if(POIS.crash) cacheV('quad',POIS.crash.x+15,POIS.crash.z-10,1.4);       // à deux pas du cratère
+  if(POIS.crash) cacheV('motoMil',POIS.crash.x-15,POIS.crash.z+12,-0.8);   // abandonnée près du crash
+  if(POIS.desert) cacheV('buggyCanon',POIS.desert.x-20,POIS.desert.z+5,0.5); // au milieu des dunes
   if(POIS.villas) cacheV('mirage',POIS.villas.x+11,POIS.villas.z-11,1.1); // recoin des villas
   if(POIS.chantier) cacheV('scarabee',POIS.chantier.x-13,POIS.chantier.z+12,2.4); // derrière la grue
   if(POIS.port) cacheV('baronne',POIS.port.x+13,POIS.port.z-11,Math.PI/2);  // entrepôt du port
