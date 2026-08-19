@@ -2343,6 +2343,13 @@ function estEau(x,z){
   for(const i of ILES) if(dist2(x,z,i.x,i.z)<i.r*i.r) return false;
   return true;
 }
+// Zone du désert (POIS.desert, voir mkAeroport) : adhérence réduite et
+// traînée de poussière en conduite, voir majVehiculePhys — demandé
+// explicitement (« effet course dans le désert »).
+function estDesert(x,z){
+  const dz=POIS.desert; if(!dz) return false;
+  return Math.abs(x-dz.x)<dz.hw&&Math.abs(z-dz.z)<dz.hd;
+}
 // Piscine de la planque : estEau() est purement une coordonnée de plein air
 // (z<MER), donc ne reconnaît jamais l'intérieur — cette salle est construite
 // très loin de la ville (IOFF), avec un z constant, toujours < MER. Un
@@ -2906,8 +2913,14 @@ function mkAeroport(){
   // crash : ne se voit que là où rien d'autre ne recouvre (au sud, entre
   // l'herbe qui s'arrête vers z=120 et la clôture sud à MER-32, voir plus
   // bas), plutôt que le bitume nu par défaut (construireVille, sol général).
-  const desert=new THREE.Mesh(new THREE.BoxGeometry(230,0.06,560),new THREE.MeshLambertMaterial({map:texDesert}));
-  desert.position.set(AX+10,0.01,-3); scene.add(desert);
+  // Bug déjà rencontré (signalé par un joueur) : hauteur de boîte 0,06 →
+  // demi-hauteur 0,03, donc surface RÉELLE du dessus à 0,01+0,03=0,04 — quasi
+  // coplanaire avec le cratère (sol à 0,03, sol2 à 0,04, voir mkCraterOvni)
+  // au lieu du fond nettement plus bas prévu : scintillement (z-fighting)
+  // qui rendait le cratère illisible, parfois carrément invisible dessous.
+  // Boîte bien plus fine : le dessus reste maintenant loin sous le cratère.
+  const desert=new THREE.Mesh(new THREE.BoxGeometry(230,0.01,560),new THREE.MeshLambertMaterial({map:texDesert}));
+  desert.position.set(AX+10,0.006,-3); scene.add(desert);
   // herbe d'aérodrome tout autour, puis tarmac texturé
   const gaz=new THREE.Mesh(new THREE.BoxGeometry(190,0.08,380),new THREE.MeshLambertMaterial({map:texHerbe}));
   gaz.position.set(AX+8,0.03,-70); scene.add(gaz);
@@ -2983,6 +2996,12 @@ function mkAeroport(){
   // maintenir en synchro.
   POIS.crash={x:AX-10,z:190};
   mkCraterOvni(POIS.crash.x,POIS.crash.z);
+  // Zone jouable du désert — demandé explicitement (« plus glissante, effet
+  // course dans le désert ») : la partie du sol désert réellement visible
+  // (herbe/tarmac s'arrêtent vers z=120, clôture sud à MER-32=254), voir
+  // estDesert()/majVehiculePhys pour l'adhérence réduite et la traînée de
+  // poussière.
+  POIS.desert={x:AX+10,z:187,hw:100,hd:70};
   // hangar militaire ouvert (murs + toit, façade libre) — l'Épervier dort ici
   const HMX=AX-42, HMZ=-64;
   const matH=mat(0x39402c);
@@ -6354,14 +6373,26 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
   v.ang+=steerEff*d.man*(frein?2.05:1)*fac*dt*(v.v<0?-1:1);
   // adhérence par type : la trajectoire suit le cap avec retard → drift au frein à main
   if(v.dirAng===undefined) v.dirAng=v.ang;
+  // Désert (voir estDesert/POIS.desert) : sol meuble, moins d'adhérence que
+  // la route — demandé explicitement (« plus glissante, effet course dans
+  // le désert »), même principe que l'eau (grip très bas) ou la pluie
+  // (grip réduit par METEO.inten), juste une zone au sol plutôt qu'un état
+  // global.
+  const surfDesert=!eau&&estDesert(v.x,v.z);
   const gripSec=d.sport?11:(d.type==='moto'?12:(lourd?6.5:8.5));
-  const grip=eau?2.6:(frein?1.15:gripSec*(1-METEO.inten*0.4));
+  const grip=eau?2.6:(frein?1.15:(surfDesert?gripSec*0.4:gripSec)*(1-METEO.inten*0.4));
   v.dirAng=angLerp(v.dirAng,v.ang,clamp(grip*dt,0,1));
   const derive=Math.abs(angDiff(v.ang,v.dirAng));
   if(!eau&&!v.enAir&&derive>0.18&&Math.abs(v.v)>8){
     spawnSkid(v.x,v.z,v.dirAng);
     if(v.conduit==='joueur'&&Math.random()<0.3)bruit(0.05,0.12,900,'highpass');
     if(derive>0.32&&Math.random()<0.25) fumee(v.x-Math.sin(v.dirAng)*d.long*0.4,0.3,v.z-Math.cos(v.dirAng)*d.long*0.4,0x8a8f9a);
+  }
+  // Traînée de poussière du désert : indépendante du drift ci-dessus (se
+  // voit même en ligne droite, à vitesse correcte — « effet course »),
+  // couleur sable distincte de la fumée grise des dérapages.
+  if(surfDesert&&!v.enAir&&Math.abs(v.v)>5&&Math.random()<0.55){
+    fumee(v.x-Math.sin(v.dirAng)*d.long*0.35+rand(-0.5,0.5),0.2,v.z-Math.cos(v.dirAng)*d.long*0.35+rand(-0.5,0.5),0xd0a868);
   }
   // inclinaison des motos dans les virages
   if(d.type==='moto'&&!eau) v.mesh.rotation.z=lerp(v.mesh.rotation.z||0,-steerEff*fac*0.45,clamp(8*dt,0,1));
