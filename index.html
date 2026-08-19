@@ -756,6 +756,17 @@ const SFX={
   // Le Désintégrateur : son distinct, jamais entendu ailleurs — un
   // sifflement descendant continu plutôt qu'une détonation.
   desintegrateur(){beep(1500,0.2,'sawtooth',0.26,280);bruit(0.14,0.3,2400,'highpass');},
+  // Désintégrateur de l'OVNI : « assourdissant », demandé explicitement —
+  // couche un sifflement du rayon (aigu, descend vite), un sub-bass grave et
+  // long (le poids de l'impact) et un grondement large (l'onde de choc), le
+  // tout nettement plus fort/long que le Désintégrateur porté (arme discrète
+  // à munitions limitées ; ici un événement ponctuel, sans limite de tir).
+  desintOvni(){
+    beep(2600,0.4,'sawtooth',0.4,200);
+    beep(70,1.1,'sawtooth',0.55,25);
+    bruit(1.0,0.9,200,'lowpass');
+    bruit(0.5,0.7,3400,'highpass');
+  },
   ui(){beep(480,0.04,'square',0.1,0,AUDIO.uiG);},
   // Choc entre véhicules : un frôlement reste discret (court, sourd, pas de
   // coup sec), un choc frontal à pleine vitesse est spectaculaire (plus
@@ -791,11 +802,19 @@ const MOTEURS={
   bateau:{base:20, haut:46,  vit:1, saw:0.056, sq:0.010, souffle:0.065, filtre:400,  rug:1.6},
   avion: {base:30, haut:66,  vit:1, saw:0.050, sq:0.014, souffle:0.070, filtre:700,  rug:2},
   helico:{base:14, haut:26,  vit:1, saw:0.034, sq:0.020, souffle:0.070, filtre:420,  rug:1.2},
-  char:  {base:15, haut:34,  vit:3, saw:0.078, sq:0.012, souffle:0.055, filtre:360,  rug:1.6}
+  char:  {base:15, haut:34,  vit:3, saw:0.078, sq:0.012, souffle:0.055, filtre:360,  rug:1.6},
+  // OVNI : bourdonnement électrique lisse, jamais le souffle rotor de
+  // l'hélicoptère qu'il réutilise pourtant en physique de vol (def.air=
+  // 'helico') — demandé explicitement (« bruit de soucoupe au vol »). Peu
+  // de saw/sq (harmoniques dures écartées), souffle discret, filtre plus
+  // ouvert (plus clair/électrique), vibrato lent (rug bas) pour un
+  // ondulement, jamais un tremblement mécanique.
+  ovni:  {base:110,haut:260, vit:1, saw:0.022, sq:0.004, souffle:0.05,  filtre:1400, rug:0.7}
 };
 function profilMoteur(def){
   if(!def) return MOTEURS.car;
   if(def.surf) return null;                       // le surf n'a pas de moteur
+  if(def.ovni) return MOTEURS.ovni;
   if(def.air==='helico') return MOTEURS.helico;
   if(def.air) return MOTEURS.avion;
   if(def.canon) return MOTEURS.char;
@@ -1919,7 +1938,7 @@ const VEHDEFS={
   // entièrement dédié (voir makeVoiture, def.ovni). Plus vif et plus
   // silencieux qu'un vrai hélico — vmax/man supérieurs, hp modeste (fragile,
   // c'est une trouvaille pour le plaisir, pas un blindé volant).
-  ovni:{nom:'OVNI "Zeta-9"',vmax:46,acc:22,man:3.6,hp:70,long:4.4,larg:4.4,type:'car',air:'helico',ovni:true,cache:true,cols:[0x8ab4c8]},
+  ovni:{nom:'OVNI "Zeta-9"',vmax:46,acc:22,man:3.6,hp:70,long:4.4,larg:4.4,type:'car',air:'helico',altMax:400,ovni:true,cache:true,cols:[0x8ab4c8]},
   scarabee:{nom:'Buggy "Scarabée"',vmax:33,acc:21,man:3.3,hp:130,long:3.4,larg:1.9,type:'car',cols:[0x2fae4f],buggy:true,cache:true},
   baronne:{nom:'Ancienne "Baronne"',vmax:26,acc:10,man:2.0,hp:280,long:5.4,larg:2.1,type:'car',cols:[0x6a1f2a],cache:true},
   avion:{nom:'Avion "Colibri"',vmax:40,acc:11,man:1.3,hp:130,long:7.4,larg:2,type:'car',air:'avion',cols:[0xe8ecf2]},
@@ -2831,6 +2850,29 @@ const texPiste=cTex(256,(g,s)=>{
   }
 });
 texPiste.wrapS=texPiste.wrapT=THREE.RepeatWrapping;texPiste.repeat.set(1,10);
+// Site du crash de l'OVNI (voir mkAeroport, POIS.crash) : sol calciné +
+// anneau de roches irrégulières autour du point de pose — jamais une vraie
+// dépression (le sol de la ville est un plan, solY() ne fait qu'AJOUTER de
+// la hauteur — collines/plats — jamais en retirer ; une fausse fosse par
+// simple décor visuel plutôt qu'un vrai trou dans le terrain).
+function mkCraterOvni(x,z){
+  const sol=new THREE.Mesh(new THREE.CircleGeometry(9.5,28),new THREE.MeshLambertMaterial({color:0x1c1a17}));
+  sol.rotation.x=-Math.PI/2; sol.position.set(x,0.03,z); scene.add(sol);
+  const sol2=new THREE.Mesh(new THREE.CircleGeometry(6.5,24),new THREE.MeshLambertMaterial({color:0x110f0d}));
+  sol2.rotation.x=-Math.PI/2; sol2.position.set(x,0.04,z); scene.add(sol2);
+  for(let i=0;i<16;i++){
+    const a=i/16*Math.PI*2+rand(-0.13,0.13), r=rand(7.6,9.6), taille=rand(0.5,1.4);
+    const roc=new THREE.Mesh(new THREE.DodecahedronGeometry(taille,0),mat(pick([0x3a362f,0x2e2b26,0x453f36])));
+    roc.position.set(x+Math.sin(a)*r,taille*0.42,z+Math.cos(a)*r);
+    roc.rotation.set(rand(0,6.28),rand(0,6.28),rand(0,6.28));
+    scene.add(roc);
+  }
+  for(let i=0;i<9;i++){
+    const t=new THREE.Mesh(new THREE.ConeGeometry(rand(0.15,0.3),rand(1.4,2.6),5),mat(0x1a1712));
+    t.position.set(x+rand(-8,8),0,z+rand(-8,8)); t.rotation.z=rand(-0.5,0.5);
+    scene.add(t); // arbre calciné, silhouette simple
+  }
+}
 function mkAeroport(){
   const AX=HALF+80; // centre du tarmac
   // herbe d'aérodrome tout autour, puis tarmac texturé
@@ -2898,6 +2940,16 @@ function mkAeroport(){
     c.position.set(HALF+16+i*12,0.45,-36); scene.add(c);
   }
   POIS.hangar={x:AX-40,z:-140};
+  // Site du crash de l'OVNI : au sud de tout le reste de l'aérodrome (herbe/
+  // tarmac/hangar s'arrêtent vers z=120, la clôture sud est à MER-32=254) —
+  // signalé par un joueur : garé juste à côté du Hangar 51, l'OVNI était
+  // beaucoup trop facile à trouver. Isolé, aucune autre construction de
+  // l'aéroport à proximité. Cratère de dressing (sol calciné + anneau de
+  // roche) construit ici ; l'OVNI lui-même est placé sur ce même point dans
+  // startRun() (POIS.crash), jamais un second jeu de coordonnées à
+  // maintenir en synchro.
+  POIS.crash={x:AX-10,z:190};
+  mkCraterOvni(POIS.crash.x,POIS.crash.z);
   // hangar militaire ouvert (murs + toit, façade libre) — l'Épervier dort ici
   const HMX=AX-42, HMZ=-64;
   const matH=mat(0x39402c);
@@ -4934,6 +4986,17 @@ const ONDE=new THREE.Mesh(new THREE.TorusGeometry(1,0.16,8,30),
   new THREE.MeshBasicMaterial({color:0xffd88a,transparent:true,opacity:0,depthWrite:false}));
 ONDE.rotation.x=-Math.PI/2; ONDE.visible=false; scene.add(ONDE);
 ONDE.userData={t:0};
+// Onde de choc dédiée au Désintégrateur de l'OVNI : bien plus large et plus
+// longue que ONDE (explosions normales) — demandé explicitement (« onde de
+// choc rouge impressionnante »). Instance séparée plutôt que de réutiliser
+// ONDE avec une échelle différente : sa propre boucle d'animation
+// (majPools) réécrit ONDE.scale chaque frame à partir de son propre timer,
+// une échelle de départ différente serait donc écrasée dès la frame
+// suivante — jamais un simple paramètre de plus sur l'existant.
+const ONDE_ROUGE=new THREE.Mesh(new THREE.TorusGeometry(1,0.4,8,32),
+  new THREE.MeshBasicMaterial({color:0xff2020,transparent:true,opacity:0,depthWrite:false}));
+ONDE_ROUGE.rotation.x=-Math.PI/2; ONDE_ROUGE.visible=false; scene.add(ONDE_ROUGE);
+ONDE_ROUGE.userData={t:0};
 function explosionFx(x,z){
   spawnP(x,1.5,z,0,0,0,0.34,7,0xfff2c0,0,44);
   spawnP(x,1.5,z,0,0,0,0.42,4.5,0xff9f2e,0,30);
@@ -5067,6 +5130,13 @@ function majPools(dt){
     ONDE.scale.set(k,k,k);
     ONDE.material.opacity=ONDE.userData.t*2.2;
     if(ONDE.userData.t<=0) ONDE.visible=false;
+  }
+  if(ONDE_ROUGE.userData.t>0){
+    ONDE_ROUGE.userData.t-=dt;
+    const k=1+(0.85-ONDE_ROUGE.userData.t)*80; // bien plus large/longue que ONDE
+    ONDE_ROUGE.scale.set(k,k,k);
+    ONDE_ROUGE.material.opacity=clamp(ONDE_ROUGE.userData.t*1.3,0,1);
+    if(ONDE_ROUGE.userData.t<=0) ONDE_ROUGE.visible=false;
   }
   for(const s of skids) if(s.on){
     s.t-=dt;
@@ -6522,7 +6592,13 @@ function entrerVehicule(v){
       // pour charger puis tire tout seul — voir majRayonOvni/ovniDesintegrer.
       el('btnDodge').style.display='flex';
       el('btnDodge').innerHTML='☢️<small>DÉSINT.</small>';
-      toast('Le rayon accroche tout seul ce qui passe dessous — LÂCHER (bouton TIR) relâche tout de suite. Maintiens DÉSINT. 10 s pour désintégrer tout au sol dessous','or');
+      // Propulsion éclair : bouton GRENADE — jamais utilisable en véhicule de
+      // toute façon (majJoueur court-circuite tout appui dessus tant que
+      // P.veh est posé, voir majJoueur), donc libre pour l'OVNI sans priver
+      // aucun autre véhicule d'une fonction qu'il n'avait pas.
+      el('btnGren').style.display='flex';
+      el('btnGren').innerHTML='⚡<small>FLASH</small>';
+      toast('Le rayon accroche tout seul ce qui passe dessous — LÂCHER (bouton TIR) relâche tout de suite. Maintiens DÉSINT. 10 s pour désintégrer tout au sol dessous. FLASH pour une pointe de vitesse','or');
     }
     if(v.def.air==='avion') toast('Pointe le joystick vers le bout de la piste et fonce !','or');
     else if(!v.def.ovni) toast('Maintiens MONTER pour décoller','or');
@@ -6833,7 +6909,7 @@ function majVol(v,dt){
     }
     if(v.vol){
       v.va=(monter?16:0)+(desc?-13:0)+((!monter&&!desc)?-0.5:0);
-      v.alt=clamp(v.alt+v.va*dt,0,150);  // très haut au-dessus de la ville
+      v.alt=clamp(v.alt+v.va*dt,0,v.def.altMax||150);  // très haut au-dessus de la ville (OVNI : encore plus, voir VEHDEFS)
       const l=Math.hypot(INPUT.mx,INPUT.mz);
       if(l>0.15){
         v.ang=angLerp(v.ang,Math.atan2(INPUT.mx,INPUT.mz),2.6*dt);
@@ -8198,7 +8274,14 @@ const RAYON_ALT_MIN=1.5;            // altitude mini de l'OVNI avant que le rayo
 const RAYON_ANGLE=Math.tan(0.34);   // demi-angle du cône (précalculé, jamais un atan/tan par frame)
 const RAYON_R_MIN=2.4, RAYON_R_MAX=8.5;
 const RAYON_POIDS_MAX=3;            // budget total de cibles simultanées (perf mobile, voir CLAUDE.md)
-const RAYON_MONTEE_VIT=4.5;         // unités/s pendant la montée
+// Bug déjà rencontré (signalé par un joueur) : à 4.5 u/s, une cible en
+// pleine montée ne rattrapait JAMAIS l'OVNI tant que le joueur maintenait
+// MONTER (16 u/s, voir majVol) — la cible restait perpétuellement en phase
+// « montee », jamais « suspendue », abandonnée de plus en plus bas pendant
+// que la soucoupe grimpait librement. Doit donc TOUJOURS dépasser la
+// vitesse de montée max de l'OVNI (16), sans quoi l'écart ne fait que
+// grandir au lieu de se refermer.
+const RAYON_MONTEE_VIT=22;          // unités/s pendant la montée
 const RAYON_SUSPEND_GAP=3.4;        // hauteur sous l'OVNI une fois suspendue
 const RAYON_SPIN_VIT=2.6;           // rad/s de rotation sur elle-même, montée uniquement
 const RAYON_OSC_VIT=5, RAYON_OSC_AMP=0.35; // oscillation légère, montée uniquement
@@ -8214,6 +8297,14 @@ const RAYON_MORT_PNJ_ALT=7.5;       // hauteur de chute au-delà de laquelle un 
 // la charge (jamais un reset instantané — même tolérance au bruit tactile
 // que le LOOPING, voir FIGURE_DECAY) au lieu de la remettre à zéro net.
 const DESINT_CHARGE_TEMPS=10, DESINT_DECAY=4, DESINT_RAYON=7;
+// PROPULSION ÉCLAIR — bouton GRENADE (libre sur l'OVNI, voir entrerVehicule),
+// front montant (pressed, un appui = une poussée) : v.v est directement
+// porté à OVNI_FLASH_VITESSE, très au-dessus de vmax (46) — majVol (qui
+// tourne juste après, voir majJoueur→majConduite→majVol) le fait ensuite
+// redécroître tout seul vers la vitesse voulue par le joystick (son lerp
+// habituel), d'où l'effet de pointe qui retombe plutôt qu'une nouvelle
+// vitesse de croisière durable.
+const OVNI_FLASH_VITESSE=150, OVNI_FLASH_CD=2.2;
 function poidsCibleOvni(o){ return clamp(Math.round(o.def.long/3.6),1,3); }
 // Position de retombée validée : repousse hors des murs (pousseHorsSolide),
 // hors d'un autre véhicule (degageDeVehicule), et s'éloigne de l'eau par
@@ -8435,26 +8526,34 @@ function ovniDesintegrerEnnemi(e){
 }
 // Le Désintégrateur de l'OVNI : tire tout seul à pleine charge (voir
 // majRayonOvni), toujours droit vers le bas — « tout au sol dessous la
-// soucoupe », jamais une visée. Un vrai gros événement, pas un tir discret :
-// laser rouge le temps d'un flash, explosion + onde de choc partagées
-// (explosionFx, recolorée en rouge le temps de l'appel — ONDE est un
-// singleton réutilisé par toutes les explosions du jeu, jamais altéré
-// durablement), fumée sombre, tout ce qui est au sol dans le rayon d'effet
-// est dissous (PNJ/ennemis) ou détruit (véhicules) — jamais les cibles déjà
-// suspendues au rayon tracteur (captureOvni), hors de portée par nature.
+// soucoupe », jamais une visée. Une ÉNORME explosion rouge, demandé
+// explicitement (pas un simple tir) : laser rouge le temps d'un flash,
+// boule de feu et fumée bien plus grosses qu'une explosion normale, onde de
+// choc dédiée ONDE_ROUGE (bien plus large/longue que la ONDE partagée par le
+// reste du jeu — jamais réutilisée telle quelle, voir sa définition), son
+// dédié assourdissant (SFX.desintOvni). Tout ce qui est au sol dans le
+// rayon d'effet est dissous (PNJ/ennemis) ou détruit (véhicules) — jamais
+// les cibles déjà suspendues au rayon tracteur (captureOvni), hors de
+// portée par nature (elles ne sont plus « au sol »).
 function ovniDesintegrer(v){
   const x=v.x,z=v.z, y0=v.alt, y1=poseY(x,z);
-  const laser=new THREE.Mesh(new THREE.CylinderGeometry(0.55,0.9,Math.max(0.6,y0-y1),12,1,true),
-    new THREE.MeshBasicMaterial({color:0xff1a1a,transparent:true,opacity:0.88,depthWrite:false,side:THREE.DoubleSide}));
+  const laser=new THREE.Mesh(new THREE.CylinderGeometry(0.7,1.1,Math.max(0.6,y0-y1),14,1,true),
+    new THREE.MeshBasicMaterial({color:0xff1a1a,transparent:true,opacity:0.92,depthWrite:false,side:THREE.DoubleSide}));
   laser.position.set(x,(y0+y1)/2,z); scene.add(laser);
-  setTimeout(()=>scene.remove(laser),260);
-  const ondeColAvant=ONDE.material.color.getHex();
-  ONDE.material.color.setHex(0xff2020);
-  explosionFx(x,z);
-  ONDE.material.color.setHex(ondeColAvant);
-  burst(x,1,z,26,0xff2010,11,6);
-  burst(x,1.6,z,16,0x2a2a2a,7,4); // fumée sombre : « tout se désintègre en fumée »
-  secousse(9); vibre(80); SFX.desintegrateur();
+  setTimeout(()=>scene.remove(laser),320);
+  // Boule de feu massive : plusieurs sprites superposés (cœur blanc, jupe
+  // rouge, halo sombre), bien plus grands que ceux d'explosionFx (7/4.5).
+  spawnP(x,1.5,z,0,0,0,0.55,20,0xffe8c0,0,50);
+  spawnP(x,1.5,z,0,0,0,0.7,15,0xff3010,0,38);
+  spawnP(x,1.6,z,0,0,0,0.9,11,0xff0000,0,28);
+  burst(x,1.2,z,42,0xff2010,18,8);
+  burst(x,1.2,z,28,0xff6a2a,14,6);
+  burst(x,1.4,z,20,0xffd23f,11,5);
+  for(let i=0;i<20;i++) fumee(x+rand(-4,4),rand(0.5,4.2),z+rand(-4,4),0x1c1c1c); // « tout se désintègre en fumée »
+  ONDE_ROUGE.visible=true; ONDE_ROUGE.position.set(x,0.45,z); ONDE_ROUGE.scale.set(1,1,1);
+  ONDE_ROUGE.material.opacity=1; ONDE_ROUGE.userData.t=0.85;
+  DANGER.x=x; DANGER.z=z; DANGER.t=3.5;
+  secousse(18); vibre(160); SFX.desintOvni();
   const r2=DESINT_RAYON*DESINT_RAYON;
   for(const p of pietons){ if(p.etat==='mort'||p.captureOvni) continue; if(dist2(p.x,p.z,x,z)<r2) ovniDesintegrerPnj(p); }
   for(const e of ennemis){ if(e.mort||e.captureOvni||e.heli) continue; if(dist2(e.x,e.z,x,z)<r2) ovniDesintegrerEnnemi(e); }
@@ -8499,8 +8598,27 @@ function majRayonOvni(dt){
         desintRingEl.style.setProperty('--pct',Math.min(100,v.desintCharge/DESINT_CHARGE_TEMPS*100));
       } else desintRingEl.style.display='none';
     } else { v.desintCharge=0; desintRingEl.style.display='none'; }
+    // Propulsion éclair — bouton GRENADE (voir entrerVehicule), front montant.
+    v.flashCd=Math.max(0,(v.flashCd||0)-dtJ);
+    if(ETAT.mode==='jeu'&&v.conduit==='joueur'&&v.vol&&v.flashCd<=0&&pressed('gren')){
+      v.flashCd=OVNI_FLASH_CD;
+      v.v=OVNI_FLASH_VITESSE;
+      ovniFlashFx(v);
+    }
   }
   rayonUpdate(dt,sonIntens);
+}
+// Traînée + flash + son de la propulsion éclair — purement cosmétique, la
+// vitesse elle-même est posée directement sur v.v (voir majRayonOvni).
+function ovniFlashFx(v){
+  const a=v.ang;
+  for(let i=0;i<3;i++){
+    const d=i*1.4;
+    burst(v.x-Math.sin(a)*d,1.3+rand(-0.3,0.3),v.z-Math.cos(a)*d,7,0xbfe8ff,9,2);
+  }
+  spawnP(v.x,1.3,v.z,0,0,0,0.3,4.5,0xe8f8ff,0,20);
+  secousse(3); vibre(35);
+  beep(1400,0.12,'sine',0.22,90); bruit(0.22,0.35,4200,'highpass');
 }
 
 /* =====================================================================
@@ -16320,10 +16438,11 @@ function startRun(){
   if(POIS.base) cacheV('jeepMil',POIS.base.x-26,POIS.base.z-10,0.6);  // même base, à l'écart du char
   if(POIS.base) cacheV('dca',POIS.base.x+22,POIS.base.z-16,-1.2);     // même base, dégagé côté ciel
   cacheV('espadon',-HALF+34,MER+26,Math.PI/2);                        // crique à l'ouest
-  // OVNI : garé au pied du Hangar 51, désaffecté (aérodrome, voir mkAeroport)
-  // — plus un van banal garé devant, juste ce qui n'aurait jamais dû être
-  // là. posLibre() l'écarte un peu du mur du hangar au besoin.
-  if(POIS.hangar) cacheV('ovni',POIS.hangar.x-14,POIS.hangar.z+14,0.4);
+  // OVNI : posé sur son cratère, tout au sud de l'aérodrome, à l'écart de
+  // tout le reste (voir POIS.crash/mkCraterOvni) — signalé par un joueur :
+  // garé juste à côté du Hangar 51, il était bien trop facile à trouver.
+  // posLibre() l'écarte un peu du décor du cratère au besoin.
+  if(POIS.crash) cacheV('ovni',POIS.crash.x,POIS.crash.z,rand(0,6.28));
   if(POIS.villas) cacheV('mirage',POIS.villas.x+11,POIS.villas.z-11,1.1); // recoin des villas
   if(POIS.chantier) cacheV('scarabee',POIS.chantier.x-13,POIS.chantier.z+12,2.4); // derrière la grue
   if(POIS.port) cacheV('baronne',POIS.port.x+13,POIS.port.z-11,Math.PI/2);  // entrepôt du port
