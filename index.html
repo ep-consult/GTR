@@ -6494,8 +6494,16 @@ function entrerVehicule(v){
       // Même chevauchement RADIO/volA que le char ci-dessus, voir le commentaire.
       el('btnSwitch').style.display='none';
     }
+    if(v.def.ovni){
+      // Rayon tracteur : bouton TIR (inutilisé sur l'OVNI, pas d'arme) —
+      // signalé par un joueur : sans lui, impossible de relâcher une cible
+      // volontairement avant d'atterrir ou de sortir du véhicule.
+      el('btnFire').style.display='flex';
+      el('fireIco').textContent='🧲'; el('fireAmmo').textContent='';
+      toast('Le rayon accroche tout seul ce qui passe dessous — LÂCHER (bouton TIR) relâche tout de suite','or');
+    }
     if(v.def.air==='avion') toast('Pointe le joystick vers le bout de la piste et fonce !','or');
-    else toast('Maintiens MONTER pour décoller','or');
+    else if(!v.def.ovni) toast('Maintiens MONTER pour décoller','or');
     el('btnSpec').style.display='none'; el('btnJump').style.display='flex';
   }
   MISSION.volT=0;
@@ -8370,6 +8378,13 @@ function majRayonOvni(dt){
     // monde continue de tourner après la mort (même principe que majJoueur,
     // déjà gardé par ETAT.mode==='jeu').
     const actif=ETAT.mode==='jeu'&&v.conduit==='joueur'&&v.vol&&v.alt>RAYON_ALT_MIN;
+    // LÂCHER volontaire (bouton TIR, voir entrerVehicule) — sans ça, la
+    // seule façon de relâcher une cible est d'atterrir ou de sortir du
+    // véhicule (signalé par un joueur). pressed() consomme un front montant
+    // global : ne jamais l'évaluer pour un OVNI qui n'est pas piloté, sinon
+    // un appui sur TIR pendant qu'on conduit un AUTRE véhicule serait
+    // consommé ici sans effet plutôt que là où il compte vraiment.
+    if(v.conduit==='joueur'&&v.vol&&v.cibles.length&&pressed('tir')) rayonLarguerTout(v);
     if(actif){ sonIntens=1; rayonCapturerNouvelles(v); }
     for(let i=v.cibles.length-1;i>=0;i--){
       const rec=v.cibles[i];
@@ -17565,6 +17580,16 @@ function majHUD(){
   } else if(P.veh&&P.veh.def.armes) hudT('fireAmmo','∞');
   else hudT('fireAmmo',a.type==='melee'?'':
     (P.rechT>0?'⟳':(P.mags[P.armeCur]||0)+'/'+(P.mun[P.armeCur]||0)));
+  // Altitude chiffrée sur DESCENDRE : signalé par un joueur — vue de dessus,
+  // la caméra qui recule avec l'altitude (majCamera) masque la vraie
+  // hauteur (elle recule justement pour garder l'appareil dans le cadre,
+  // donc sa taille à l'écran ne grandit presque pas) ; sans ce chiffre,
+  // « on se croit en haut » alors que l'altitude réelle est basse, et un
+  // atterrissage trop rapide (DESCENDRE tenu jusqu'au sol) surprend en crash.
+  if(P.veh&&P.veh.def.ovni){
+    const txt='DESCENDRE '+Math.round(P.veh.alt||0)+'m';
+    if(HUDC.ovniAlt!==txt){ HUDC.ovniAlt=txt; const sm=el('btnBrake').querySelector('small'); if(sm) sm.textContent=txt; }
+  }
   // progression de recharge visible
   if(P.rechT>0&&P.rechTot){
     if(HUDC.rb!==1){HUDC.rb=1;rechBar.style.display='block';}
