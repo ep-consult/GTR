@@ -660,6 +660,7 @@ const q=()=>QUAL[REGLAGES.qualite];
 ===================================================================== */
 const AUDIO={ctx:null,master:null,sfxG:null,musG:null,duckG:null,uiG:null,noise:null,pret:false,
   sirenOsc:null,sirenGain:null,sirenT:0,engOsc:null,engGain:null,engFil:null,musTimer:null,musStep:0,
+  rayonOsc:null,rayonGain:null,rayonT:0,
   cineOn:false,metroOn:false,radioOn:false,chalOn:false};
 
 function audioInit(){
@@ -681,6 +682,15 @@ function audioInit(){
   const sg=ctx.createGain(); sg.gain.value=0;
   so.connect(sg); sg.connect(AUDIO.sfxG); so.start();
   AUDIO.sirenOsc=so; AUDIO.sirenGain=sg;
+  // Rayon tracteur de l'OVNI : bourdonnement continu, jamais démarré/arrêté,
+  // juste modulé (même principe que la sirène ci-dessus) — voir rayonUpdate
+  // (modulation en jeu) et rayonCouperSon (coupe net à chaque point de
+  // sortie : sortie de véhicule, mort, entrée en intérieur, changement de
+  // vague — voir CLAUDE.md, nettoyage d'état).
+  const ro=ctx.createOscillator(); ro.type='sine'; ro.frequency.value=170;
+  const rg=ctx.createGain(); rg.gain.value=0;
+  ro.connect(rg); rg.connect(AUDIO.sfxG); ro.start();
+  AUDIO.rayonOsc=ro; AUDIO.rayonGain=rg;
   const pl=ctx.createBufferSource(); pl.buffer=buf; pl.loop=true;
   const plF=ctx.createBiquadFilter(); plF.type='lowpass'; plF.frequency.value=900;
   const plG=ctx.createGain(); plG.gain.value=0;
@@ -753,6 +763,15 @@ function sirenUpdate(dt,intens){
   AUDIO.sirenT+=dt;
   if(AUDIO.sirenT>0.34){AUDIO.sirenT=0;AUDIO.sirenOsc.frequency.value=(AUDIO.sirenOsc.frequency.value>760)?690:830;}
   AUDIO.sirenGain.gain.value=lerp(AUDIO.sirenGain.gain.value,intens*0.06,0.1);
+}
+// Rayon tracteur de l'OVNI : voir AUDIO.rayonOsc (audioInit) — modulation en
+// jeu appelée depuis majRayonOvni ; rayonCouperSon (voir plus bas, section
+// RAYON TRACTEUR DE L'OVNI) fait le coupé-net dans tous les autres cas.
+function rayonUpdate(dt,intens){
+  if(!AUDIO.pret) return;
+  AUDIO.rayonT+=dt;
+  AUDIO.rayonOsc.frequency.value=170+Math.sin(AUDIO.rayonT*2.6)*35;
+  AUDIO.rayonGain.gain.value=lerp(AUDIO.rayonGain.gain.value,intens*0.045,0.1);
 }
 /* --- moteur : boîte de vitesses simulée + harmoniques + souffle d'admission --- */
 const MOTEURS={
@@ -5884,7 +5903,7 @@ function majDeformation(v,dt){
 // personnage conduit lui-même, sinon il ne pourrait plus avancer dedans).
 function vehiculeBloquant(x,z,marge,ignore){
   for(const o of vehicules){
-    if(o===ignore||o.mort||o.epave||o.def.surf) continue;
+    if(o===ignore||o.mort||o.epave||o.def.surf||o.captureOvni) continue;
     if(o.def.air&&(o.alt||0)>3) continue;
     const dx=x-o.x, dz=z-o.z, sA=Math.sin(o.ang), cA=Math.cos(o.ang);
     const fwd=dx*sA+dz*cA, right=dx*cA-dz*sA;
@@ -5924,7 +5943,7 @@ function majImpactPersonnages(v,dt){
   const sA=Math.sin(v.ang), cA=Math.cos(v.ang), sgn=Math.sign(v.v)||1;
   const px=v.x+sA*d.long/2*sgn, pz=v.z+cA*d.long/2*sgn;
   const deg=Math.abs(v.v)*2.1*(d.milit?2:d.type==='moto'?0.7:1);
-  for(const e of ennemis){ if(e.mort||e.heli) continue;
+  for(const e of ennemis){ if(e.mort||e.heli||e.captureOvni) continue;
     if(dist2(e.x,e.z,px,pz)<3.2){
       toucherEnnemi(e,deg,v.conduit==='joueur',0);
       if(e.h&&!e.moto&&!e.heli) lancerRagdoll(e,(e.x-v.x),(e.z-v.z),9);
@@ -5932,7 +5951,7 @@ function majImpactPersonnages(v,dt){
       if(d.type==='moto'&&v.conduit==='joueur') toucherJoueur(4);
     }
   }
-  for(const p of pietons){ if(p.etat==='mort') continue;
+  for(const p of pietons){ if(p.etat==='mort'||p.captureOvni) continue;
     if(dist2(p.x,p.z,px,pz)<3){
       // jamais aplatis (voir CLAUDE.md) : projection franche et lointaine,
       // proportionnelle à la puissance du véhicule — la tôle porte la
@@ -6002,12 +6021,17 @@ function exploserVehicule(v){
   }
   if(v.mort) return;
   v.mort=true;
+  // Le rayon tracteur de l'OVNI ne doit jamais laisser une cible bloquée en
+  // l'air si son porteur est détruit pendant qu'il la soulève — no-op
+  // immédiat pour tout véhicule qui n'a jamais rien soulevé (voir
+  // rayonNettoyerVehicule, CLAUDE.md nettoyage d'état).
+  rayonNettoyerVehicule(v);
   const duJoueur=(v===P.veh);
   explosionFx(v.x,v.z);
   if(duJoueur){ sortirVehicule(true); toucherJoueur(35); }
   else if(dist2(v.x,v.z,P.x,P.z)<36) toucherJoueur(45);
-  for(const e of ennemis){ if(!e.mort&&!e.heli&&dist2(e.x,e.z,v.x,v.z)<40) toucherEnnemi(e,95,v.tapeJoueur,10); }
-  for(const p of pietons){ if(p.etat!=='mort'&&dist2(p.x,p.z,v.x,v.z)<30) tuerPieton(p,v.tapeJoueur,8); }
+  for(const e of ennemis){ if(!e.mort&&!e.heli&&!e.captureOvni&&dist2(e.x,e.z,v.x,v.z)<40) toucherEnnemi(e,95,v.tapeJoueur,10); }
+  for(const p of pietons){ if(p.etat!=='mort'&&!p.captureOvni&&dist2(p.x,p.z,v.x,v.z)<30) tuerPieton(p,v.tapeJoueur,8); }
   if(v.tapeJoueur){ addHeat(1.0); META.defis.detruits++; META.stats.vehDetruits++; }
   if(v.convoi){ for(let i=0;i<3;i++) creerPickup('cash',v.x+rand(-2,2),v.z+rand(-2,2),randi(30,60));
     creerPickup('mun',v.x,v.z+2); }
@@ -6478,6 +6502,10 @@ function entrerVehicule(v){
 }
 function sortirVehicule(force){
   const v=P.veh; if(!v) return;
+  // Rayon tracteur de l'OVNI : couper la sortie du véhicule coupe le rayon —
+  // tout ce qu'il portait tombe (chute animée, le jeu continue de tourner
+  // ici, contrairement à rayonNettoyerTout ailleurs — voir CLAUDE.md).
+  if(v.def.ovni) rayonLarguerTout(v);
   loopRingEl.style.display='none'; // au cas où on sortait en pleine charge de looping
   if(v.def.type==='moto') v.mesh.rotation.z=0; // on redresse la moto au parking
   if(v.def.cross){
@@ -7278,7 +7306,7 @@ function majTrafic(v,dt){
   if(!P.veh&&dist2(px,pz,P.x,P.z)<9) bloque=true;
   if(P.veh&&dist2(px,pz,P.x,P.z)<16) bloque=true;
   for(const o of vehicules){
-    if(o===v||o.mort) continue;
+    if(o===v||o.mort||o.captureOvni) continue;
     // Marge volontairement TRÈS courte (0.3) : la sonde ne sert plus qu'à
     // éviter un carambolage à pleine vitesse, jamais à fixer la distance
     // d'arrêt finale — sinon, selon l'élan au moment du freinage, le
@@ -7296,7 +7324,7 @@ function majTrafic(v,dt){
   // éviter comme il évite déjà le joueur ; s'il n'y arrive pas (piéton qui
   // traverse au dernier moment, vitesse trop élevée), majImpactPersonnages
   // gère le contact réel plus bas.
-  if(!bloque) for(const p of pietons){ if(p.etat==='mort') continue; if(dist2(px,pz,p.x,p.z)<8){bloque=true;break;} }
+  if(!bloque) for(const p of pietons){ if(p.etat==='mort'||p.captureOvni) continue; if(dist2(px,pz,p.x,p.z)<8){bloque=true;break;} }
   if(bloque){
     cibleV=0;
     v.klaxT-=dt;
@@ -7389,6 +7417,10 @@ function majVehicules(dt){
   if(nT<q().trafic&&Math.random()<dt*2.2) creerTrafic();
   for(const v of vehicules){
     if(v.mort||v.epave) continue;
+    // Véhicule soulevé par le rayon tracteur de l'OVNI : plus aucune
+    // physique sol, entièrement pris en charge par majRayonOvni (position,
+    // rotation, atterrissage) — voir la section RAYON TRACTEUR DE L'OVNI.
+    if(v.captureOvni) continue;
     if(v.def.pompier) majGyrophares(v,dt); // tourne quel que soit le conduit (trafic, joueur...)
     if(v.enFeu){
       v.feuT-=dt;
@@ -7562,6 +7594,9 @@ function majPietons(dt){
   }
   for(let i=pietons.length-1;i>=0;i--){
     const p=pietons[i];
+    // Suspendu au rayon tracteur de l'OVNI : entièrement pris en charge par
+    // majRayonOvni, IA totalement coupée (voir la section RAYON TRACTEUR).
+    if(p.captureOvni) continue;
     if(p.rag){ majRagdoll(p,dt); continue; }
     if(p.etat==='mort'){
       p.t-=dt;
@@ -7766,6 +7801,9 @@ function majEnnemis(dt){
   sepFrame=!sepFrame;
   for(let i=ennemis.length-1;i>=0;i--){
     const e=ennemis[i];
+    // Suspendu au rayon tracteur de l'OVNI : entièrement pris en charge par
+    // majRayonOvni, IA totalement coupée (voir la section RAYON TRACTEUR).
+    if(e.captureOvni) continue;
     if(INT.actif){ if(e.interieur!==INT.actif.id) continue; }
     else if(e.interieur) continue;
     if(e.mort){
@@ -8054,6 +8092,13 @@ function collisionBalle(b){
       if(b.y>11&&dist2(b.x,b.z,e.x,e.z)<10){ toucherEnnemi(e,b.dmg,b.fac==='joueur',0,b.fac,b.x,b.z); return true; }
       continue;
     }
+    // Suspendu au rayon tracteur : b.y<2.6 suppose une cible au sol, jamais
+    // vérifié contre la hauteur RÉELLE de la cible (voir CLAUDE.md, accès
+    // non gardés) — un tir bas traverserait sinon une cible en plein
+    // levage sans jamais la toucher (b.y n'atteint jamais son altitude
+    // réelle) tout en la déclarant à tort « au sol ». Hors de portée des
+    // tirs le temps du levage, cohérent avec l'IA déjà coupée.
+    if(e.captureOvni) continue;
     if(b.y<2.6&&dist2(b.x,b.z,e.x,e.z)<(e.boss?2.2:0.8)){ toucherEnnemi(e,b.dmg,b.fac==='joueur',2,b.fac,b.x-b.vx*0.1,b.z-b.vz*0.1); return true; }
   }
   if(b.fac!=='joueur'){
@@ -8066,11 +8111,11 @@ function collisionBalle(b){
     }
   }
   for(const p of pietons){
-    if(p.etat==='mort') continue;
+    if(p.etat==='mort'||p.captureOvni) continue;
     if(b.y<2.2&&dist2(b.x,b.z,p.x,p.z)<0.55){ tuerPieton(p,b.fac==='joueur',5); return true; }
   }
   for(const v of vehicules){
-    if(v.mort||v===P.veh) continue;
+    if(v.mort||v===P.veh||v.captureOvni) continue;
     if(b.y<2.2&&dist2(b.x,b.z,v.x,v.z)<v.def.long*v.def.long*0.14){
       abimerVehicule(v,b.dmg*0.6,b.fac==='joueur'); return true; }
   }
@@ -8079,6 +8124,260 @@ function collisionBalle(b){
     if(b.y<1.6&&dist2(b.x,b.z,c.x,c.z)<1.2){ c.hp-=b.dmg; if(c.hp<=0)casserCaisse(c); return true; }
   }
   return false;
+}
+
+/* =====================================================================
+   RAYON TRACTEUR DE L'OVNI
+   Tant que l'OVNI (VEHDEFS.ovni) est piloté par le joueur ET en vol, tout
+   PNJ/ennemi/véhicule au sol dont le centre entre dans le cône vertical du
+   faisceau (voir makeVoiture, def.ovni — le faisceau lui-même reste un
+   simple mesh cosmétique, c'est ICI que la capture existe réellement) est
+   soulevé : montée progressive (jamais de téléportation), rotation +
+   oscillation pendant la montée, suspension stable qui suit l'OVNI une fois
+   en haut. Couper le rayon (sortir du véhicule, atterrir, le perdre) relâche
+   tout ce qui est accroché : chute libre, dégâts/casse proportionnels à la
+   hauteur, position de retombée toujours validée (jamais un mur, jamais
+   l'intérieur d'un autre véhicule).
+   Chaque cible captée porte un flag `captureOvni` (le record ci-dessous) que
+   TOUT le reste du jeu doit respecter : IA coupée (majPietons/majEnnemis),
+   plus de physique sol (majVehicules), invulnérable aux dégâts externes
+   pendant le levage (collisionBalle/majImpactPersonnages/exploserVehicule —
+   ces systèmes testent une hauteur qui n'a jamais connaissance de l'altitude
+   réelle d'une cible suspendue, la exempter évite qu'un tir ras du sol la
+   traverse « par en dessous » en la déclarant à tort touchée).
+===================================================================== */
+const RAYON_ALT_MIN=1.5;            // altitude mini de l'OVNI avant que le rayon ne capture quoi que ce soit
+const RAYON_ANGLE=Math.tan(0.34);   // demi-angle du cône (précalculé, jamais un atan/tan par frame)
+const RAYON_R_MIN=2.4, RAYON_R_MAX=8.5;
+const RAYON_POIDS_MAX=3;            // budget total de cibles simultanées (perf mobile, voir CLAUDE.md)
+const RAYON_MONTEE_VIT=4.5;         // unités/s pendant la montée
+const RAYON_SUSPEND_GAP=3.4;        // hauteur sous l'OVNI une fois suspendue
+const RAYON_SPIN_VIT=2.6;           // rad/s de rotation sur elle-même, montée uniquement
+const RAYON_OSC_VIT=5, RAYON_OSC_AMP=0.35; // oscillation légère, montée uniquement
+const RAYON_GRAVITE=22;             // chute libre, unités/s²
+const RAYON_REBOND_VEH=0.34;        // fraction de la vitesse d'impact restituée au rebond (véhicule)
+const RAYON_EXPLOSION_ALT=11;       // hauteur de chute au-delà de laquelle un véhicule explose net
+const RAYON_MORT_PNJ_ALT=7.5;       // hauteur de chute au-delà de laquelle un PNJ meurt
+function poidsCibleOvni(o){ return clamp(Math.round(o.def.long/3.6),1,3); }
+// Position de retombée validée : repousse hors des murs (pousseHorsSolide),
+// hors d'un autre véhicule (degageDeVehicule), et s'éloigne de l'eau par
+// petites touches — jamais une cible relâchée coincée dans le décor.
+function posAtterrissageValide(x,z,r,ignoreVeh){
+  const o={x,z};
+  for(let t=0;t<5;t++){
+    let bouge=false;
+    if(pousseHorsSolide(o,r)) bouge=true;
+    const deg=degageDeVehicule(o.x,o.z,r,ignoreVeh);
+    if(deg){ o.x=deg.x; o.z=deg.z; bouge=true; }
+    if(estEau(o.x,o.z)){ o.x*=0.94; o.z*=0.94; bouge=true; }
+    if(!bouge) break;
+  }
+  return o;
+}
+function rayonCapturer(v,ent,type,poids){
+  const y0=type==='veh'?poseY(ent.x,ent.z):solY(ent.x,ent.z);
+  const rec={ent,type,poids,phase:'montee',y:y0,y0,ang:rand(0,6.28),oscPh:rand(0,6.28),relX:0,relZ:0,vyChute:0,rebond:false};
+  ent.captureOvni=rec;
+  v.cibles.push(rec);
+  // décale chaque cible sous la coque pour ne jamais les empiler exactement
+  // au même point une fois suspendues.
+  const a=(v.cibles.length-1)*2.4;
+  rec.relX=Math.sin(a)*1.3; rec.relZ=Math.cos(a)*1.3;
+}
+// Cherche de nouvelles cibles dans le cône, dans la limite du budget de
+// poids — appelée uniquement pendant que le rayon est actif.
+function rayonCapturerNouvelles(v){
+  let poidsTot=0; for(const r of v.cibles) poidsTot+=r.poids;
+  if(poidsTot>=RAYON_POIDS_MAX) return;
+  const rayonR=clamp(v.alt*RAYON_ANGLE,RAYON_R_MIN,RAYON_R_MAX), r2=rayonR*rayonR;
+  for(let i=0;i<pietons.length&&poidsTot<RAYON_POIDS_MAX;i++){
+    const p=pietons[i];
+    if(p.captureOvni||p.etat==='mort'||p.rag) continue;
+    if(dist2(p.x,p.z,v.x,v.z)>r2) continue;
+    rayonCapturer(v,p,'pnj',1); poidsTot+=1;
+  }
+  for(let i=0;i<ennemis.length&&poidsTot<RAYON_POIDS_MAX;i++){
+    const e=ennemis[i];
+    if(e.captureOvni||e.mort||e.rag||e.heli||e.moto) continue; // hélico/moto : pas de cible « au sol » standard
+    if(dist2(e.x,e.z,v.x,v.z)>r2) continue;
+    rayonCapturer(v,e,'ennemi',1); poidsTot+=1;
+  }
+  for(let i=0;i<vehicules.length&&poidsTot<RAYON_POIDS_MAX;i++){
+    const o=vehicules[i];
+    if(o===v||o.captureOvni||o.mort||o.epave||o.def.air) continue; // jamais soi-même, jamais un véhicule volant
+    const poids=poidsCibleOvni(o);
+    if(poidsTot+poids>RAYON_POIDS_MAX) continue;
+    if(dist2(o.x,o.z,v.x,v.z)>r2) continue;
+    rayonCapturer(v,o,'veh',poids); poidsTot+=poids;
+  }
+}
+function rayonDebuterChute(v,rec){
+  rec.phase='chute'; rec.vyChute=0; rec.rebond=false; rec.yDepart=rec.y;
+}
+function rayonAppliquerVisuel(rec,dt){
+  const ent=rec.ent;
+  // Oscillation latérale pendant la montée uniquement : un DÉCALAGE
+  // D'AFFICHAGE borné (jamais accumulé dans ent.x/z, qui restent la
+  // position logique réelle) — accumuler l'oscillation dans la position
+  // logique dériverait sans jamais revenir, un peu plus loin à chaque
+  // frame au lieu d'un vrai balancement.
+  const oscX=rec.phase==='montee'?Math.sin(rec.oscPh)*RAYON_OSC_AMP:0;
+  if(rec.type==='veh'){
+    ent.mesh.position.set(ent.x+oscX,rec.y,ent.z);
+    ent.mesh.rotation.y=rec.ang;
+    ent.h=rec.y; // hauteur simulée au sol : exclut automatiquement la cible
+                 // des collisions véhicule-véhicule au sol, voir
+                 // resoudreCollisionsVehicule (écart de hauteur >1.6).
+  } else if(ent.h){
+    ent.h.g.position.set(ent.x+oscX,rec.y,ent.z);
+    ent.h.g.rotation.y=rec.ang;
+    // gesticulation : jamais animeHumain (marche), un flottement de membres
+    // distinct qui lit clairement « capturé, IA coupée » — cosmétique pur,
+    // reste sur dt comme le scintillement du faisceau (CLAUDE.md, dt/dtJeu).
+    const fl=(rec.flailPh=(rec.flailPh||0)+dt*6);
+    ent.h.brasG.rotation.x=-1.1+Math.sin(fl)*0.9;
+    ent.h.brasD.rotation.x=-1.1+Math.sin(fl+2.1)*0.9;
+    ent.h.jambeG.rotation.x=Math.sin(fl*0.8)*0.5;
+    ent.h.jambeD.rotation.x=Math.sin(fl*0.8+3.1)*0.5;
+  }
+}
+function rayonAtterrirCorps(v,rec){
+  const ent=rec.ent, hauteurChute=Math.max(0,rec.yDepart-rec.y);
+  const pos=posAtterrissageValide(ent.x,ent.z,0.5,null);
+  ent.x=pos.x; ent.z=pos.z;
+  ent.captureOvni=undefined;
+  // Jamais laissé flotté à l'ancienne hauteur suspendue : tuerPieton/
+  // lancerRagdoll ne replacent le mesh qu'à la prochaine passe de
+  // majPietons/majEnnemis (majRagdoll) — un jeu qui s'arrête juste après
+  // (mort du joueur, voir rayonForcerAtterrissage) laisserait sinon le
+  // corps visiblement suspendu en l'air malgré captureOvni déjà libéré.
+  if(ent.h) ent.h.g.position.set(ent.x,rec.y,ent.z);
+  if(rec.type==='pnj'){
+    if(hauteurChute>=RAYON_MORT_PNJ_ALT) tuerPieton(ent,true,10+hauteurChute);
+    else { lancerRagdoll(ent,rand(-1,1),rand(-1,1),4+hauteurChute*1.4); SFX.degat(); }
+  } else {
+    const dmg=hauteurChute*4.5;
+    if(dmg>=1) toucherEnnemi(ent,dmg,true,0,'joueur',ent.x,ent.z);
+    if(!ent.mort) lancerRagdoll(ent,rand(-1,1),rand(-1,1),4+hauteurChute*1.2);
+  }
+  burst(ent.x,0.6,ent.z,4,0xd8c8a8,5);
+  return true;
+}
+function rayonAtterrirVehicule(v,rec){
+  const ent=rec.ent;
+  if(!rec.rebond){
+    rec.hauteurChute=Math.max(0,rec.yDepart-rec.y);
+    if(rec.hauteurChute>RAYON_EXPLOSION_ALT){
+      ent.captureOvni=undefined;
+      exploserVehicule(ent);
+      return true;
+    }
+    const pos=posAtterrissageValide(ent.x,ent.z,Math.max(ent.def.long,ent.def.larg)*0.5,ent);
+    ent.x=pos.x; ent.z=pos.z;
+    abimerVehicule(ent,clamp(rec.hauteurChute*7,12,ent.def.hp*0.65),false);
+    burst(ent.x,0.6,ent.z,6,0xffd88a,7);
+    SFX.choc(clamp(rec.hauteurChute/8,0,1.3));
+    if(dist2(ent.x,ent.z,P.x,P.z)<900){ secousse(4); vibre(30); }
+    if(ent.mort){ ent.captureOvni=undefined; return true; }
+    rec.vyChute=Math.abs(rec.vyChute)*RAYON_REBOND_VEH;
+    rec.y+=0.05;
+    rec.rebond=true;
+    ent.h=rec.y; ent.mesh.position.set(ent.x,rec.y,ent.z); ent.mesh.rotation.y=rec.ang;
+    return false;
+  }
+  abimerVehicule(ent,clamp((rec.hauteurChute||0)*5,8,ent.def.hp*0.5),false);
+  ent.captureOvni=undefined;
+  if(ent.mort) return true;
+  const groundY=poseY(ent.x,ent.z);
+  ent.h=groundY; ent.v=0; ent.mesh.rotation.x=0; ent.mesh.rotation.z=0;
+  ent.mesh.position.set(ent.x,groundY,ent.z);
+  return true;
+}
+// Met à jour une cible captée ; renvoie true quand elle est totalement
+// résolue (atterrie), auquel cas l'appelant la retire de v.cibles.
+function rayonMajCible(v,rec,dtJ,dt){
+  const ent=rec.ent;
+  if(rec.phase==='montee'){
+    const xt=v.x+rec.relX, zt=v.z+rec.relZ;
+    const ySusp=Math.max(rec.y0+2.5,v.alt-RAYON_SUSPEND_GAP);
+    rec.y=Math.min(ySusp,rec.y+RAYON_MONTEE_VIT*dtJ);
+    const k=clamp(3*dtJ,0,1);
+    ent.x=lerp(ent.x,xt,k); ent.z=lerp(ent.z,zt,k);
+    rec.ang+=RAYON_SPIN_VIT*dtJ;
+    rec.oscPh+=RAYON_OSC_VIT*dtJ;
+    if(Math.abs(rec.y-ySusp)<0.2&&dist2(ent.x,ent.z,xt,zt)<0.5) rec.phase='suspendue';
+  } else if(rec.phase==='suspendue'){
+    ent.x=v.x+rec.relX; ent.z=v.z+rec.relZ;
+    rec.y=Math.max(rec.y0+2.5,v.alt-RAYON_SUSPEND_GAP);
+  } else { // chute
+    rec.vyChute-=RAYON_GRAVITE*dtJ;
+    rec.y+=rec.vyChute*dtJ;
+    const groundY=rec.type==='veh'?poseY(ent.x,ent.z):solY(ent.x,ent.z);
+    if(rec.y<=groundY){
+      rec.y=groundY;
+      return rec.type==='veh'?rayonAtterrirVehicule(v,rec):rayonAtterrirCorps(v,rec);
+    }
+  }
+  rayonAppliquerVisuel(rec,dt);
+  return false;
+}
+// Résolution IMMÉDIATE (jamais animée) : utilisée par les points de
+// nettoyage où la boucle normale peut s'arrêter avant qu'une chute animée
+// n'ait le temps de se jouer (entrée en intérieur : majVehicules cesse
+// tout court ; mort ou changement de vague : l'état peut geler avant la
+// frame suivante). Une cible ne doit JAMAIS rester bloquée en l'air.
+function rayonForcerAtterrissage(v,rec){
+  rayonDebuterChute(v,rec);
+  const ent=rec.ent;
+  rec.y=rec.type==='veh'?poseY(ent.x,ent.z):solY(ent.x,ent.z);
+  if(rec.type==='veh'){
+    if(!rayonAtterrirVehicule(v,rec)) rayonAtterrirVehicule(v,rec); // rebond puis atterrissage final, tout de suite
+  } else rayonAtterrirCorps(v,rec);
+}
+function rayonCouperSon(){ if(AUDIO.rayonGain) AUDIO.rayonGain.gain.value=0; }
+// Relâche IMMÉDIATEMENT tout ce que porte un OVNI donné (ne laisse rien
+// animé) — utilisée quand SON porteur est détruit (voir exploserVehicule).
+function rayonNettoyerVehicule(v){
+  if(!v.cibles||!v.cibles.length) return;
+  for(const rec of v.cibles) rayonForcerAtterrissage(v,rec);
+  v.cibles.length=0;
+  rayonCouperSon();
+}
+// Relâche IMMÉDIATEMENT tout ce que porte TOUT OVNI présent — points de
+// nettoyage globaux (mort du joueur, entrée en intérieur, changement de
+// vague ; voir mourir()/entrerInterieur()/lancerVague(), CLAUDE.md).
+function rayonNettoyerTout(){
+  for(const v of vehicules) if(v.def.ovni) rayonNettoyerVehicule(v);
+}
+// Relâche EN DOUCEUR (chute animée sur les frames suivantes) tout ce que
+// porte un OVNI — utilisée à la sortie normale du véhicule (voir
+// sortirVehicule) : le jeu continue de tourner, la cible tombe pour de vrai.
+function rayonLarguerTout(v){
+  if(!v.cibles) return;
+  for(const rec of v.cibles) if(rec.phase!=='chute') rayonDebuterChute(v,rec);
+  rayonCouperSon();
+}
+function majRayonOvni(dt){
+  const dtJ=dt/ETAT.timeScale; // dtJeu local (CLAUDE.md, dt vs dtJeu) : montée/chute/oscillation ne bénéficient jamais d'un ralenti
+  let sonIntens=0;
+  for(const v of vehicules){
+    if(!v.def.ovni||v.mort) continue;
+    if(!v.cibles) v.cibles=[];
+    // ETAT.mode==='jeu' (pas seulement conduit/vol) : mourir() ne remet
+    // jamais P.veh/v.conduit/v.vol à zéro (voir mourir(), rayonNettoyerTout
+    // s'occupe déjà des cibles) — sans cette garde, le rayon resterait
+    // « actif » (son, nouvelles captures) pendant la courte fenêtre où le
+    // monde continue de tourner après la mort (même principe que majJoueur,
+    // déjà gardé par ETAT.mode==='jeu').
+    const actif=ETAT.mode==='jeu'&&v.conduit==='joueur'&&v.vol&&v.alt>RAYON_ALT_MIN;
+    if(actif){ sonIntens=1; rayonCapturerNouvelles(v); }
+    for(let i=v.cibles.length-1;i>=0;i--){
+      const rec=v.cibles[i];
+      if(!actif&&rec.phase!=='chute') rayonDebuterChute(v,rec);
+      if(rayonMajCible(v,rec,dtJ,dt)) v.cibles.splice(i,1);
+    }
+  }
+  rayonUpdate(dt,sonIntens);
 }
 
 /* =====================================================================
@@ -8324,6 +8623,7 @@ function majVoiturePolice(v,dt){
 const WAVES_REPOS=18;
 const WAVES={n:0,etat:'repos',t:WAVES_REPOS,queue:[],spawnT:0};
 function lancerVague(){
+  rayonNettoyerTout(); // rayon tracteur de l'OVNI : jamais une cible bloquée en l'air au changement de vague
   WAVES.n++; WAVES.etat='active'; WAVES.queue=[]; WAVES.spawnT=0.2;
   SFX.vague();
   // le gang dépend du quartier où se trouve le joueur (sinon rotation)
@@ -12680,6 +12980,10 @@ function construireSalle(id){
 }
 function entrerInterieur(id,porte){
   if(INT.actif) return;
+  // Rayon tracteur de l'OVNI : majVehicules cesse tout court tant que
+  // INT.actif est posé (voir boucle()) — une cible encore en l'air resterait
+  // gelée jusqu'à la sortie de la salle sans ce nettoyage immédiat.
+  rayonNettoyerTout();
   const s=construireSalle(id);
   INT.actif=s; INT.rx=porte.x; INT.rz=porte.z+3;
   // Tableau de la ville (planque) : marque ce lieu comme visité au moins
@@ -15944,6 +16248,7 @@ function mourir(){
   annulerFouille(true); cacherJauges();
   SFX.mort(); vibre(120);
   moteurStop();
+  rayonNettoyerTout(); // rayon tracteur de l'OVNI : jamais une cible bloquée en l'air (CLAUDE.md, nettoyage d'état)
   if(P.veh&&P.veh.sirene){ P.veh.sirene=false; sireneStop(); } // pompiers : coupe la sirène tout de suite
   if(P.jetpackVol) atterrirJetpack(); // mort en vol (ennemis au sol compris) : coupe tout de suite le son/les flammes
   if(INT.actif&&INT.actif.seanceOn) cineArreterSeance(INT.actif); // coupe le son tout de suite, le reste des jauges au retry
@@ -17360,6 +17665,7 @@ function boucle(t){
       majPietons(dt);
       majFauneRue(dt);
       majVehicules(dt);
+      majRayonOvni(dt);
     }
     majPools(dt);
     majGrenades(dt);
