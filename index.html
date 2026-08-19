@@ -4880,22 +4880,39 @@ function makeVoiture(key){
         corps.add(mkBoxG(0.34,0.06,0.4,coul,p[0]*W*0.42,bodyY+0.24,p[1]*L*0.32));
       });
     } else if(def.pelle){
-      // bulldozer : châssis trapu, larges bandes sombres façon chenilles
-      // sur chaque flanc, cabine ouverte, pelle avant montée sur un bras
+      // Bulldozer retravaillé (signalé « on ne voit pas bien la pelle, la
+      // cabine doit être plus haute, comme un tracteur ») : cabine ROPS
+      // ouverte (montants + toit + arceau, même principe que la cage du
+      // Buggy) qui dépasse largement le châssis, plutôt qu'un petit cube
+      // plat noyé dedans ; pelle bien plus large et plus haute que le
+      // châssis, avec une arête tranchante contrastée en bas et des bras
+      // de poussée épais et visibles — jamais un ornement fin qui se
+      // perdait dans la masse du châssis. Pelle montée sur un bras
       // DÉTACHÉ (ud.pelle) qui pivote pour de vrai — VRAIMENT baissée/
       // relevée en jeu (voir majConduite), jamais un ornement fixe.
-      corps.add(mkBoxG(W*0.9,0.6,L*0.62,coul,0,bodyY,0.08));                 // châssis haut, trapu
-      corps.add(mkBoxG(W*0.5,0.5,0.5,0x2a2d34,0,bodyY+0.5,-L*0.06));         // cabine
-      corps.add(mkBoxG(W*0.44,0.3,0.02,0x141b26,0,bodyY+0.5,-L*0.06+0.26));  // vitre avant, plate
+      corps.add(mkBoxG(W*0.86,0.5,L*0.58,coul,0,bodyY-0.05,0.02));           // châssis, trapu
       [-1,1].forEach(sx=>{ // chenilles : large bande sombre sur chaque flanc
-        corps.add(mkBoxG(0.16,0.5,L*0.92,0x15171c,sx*(W*0.5+0.03),bodyY-0.05,0));
+        corps.add(mkBoxG(0.18,0.55,L*0.92,0x15171c,sx*(W*0.5+0.03),bodyY-0.08,0));
       });
+      // cabine ROPS : plancher, 4 montants, toit, vitrage avant sous le
+      // toit — silhouette « tracteur » lisible même vue de dessus, car le
+      // toit dépasse nettement le sommet du châssis (bodyY+0.2 contre un
+      // châssis qui culmine à bodyY+0.2 lui aussi mais BIEN plus bas que
+      // le toit de cabine ci-dessous, à bodyY+1.35).
+      const cabY=bodyY+0.15, cabH=1.2, cabW=W*0.56, cabD=0.6, cabZ=-L*0.16;
+      corps.add(mkBoxG(cabW,0.08,cabD,0x2a2d34,0,cabY,cabZ));                // plancher de cabine
+      [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(p=>corps.add(
+        mkBoxG(0.07,cabH,0.07,0x2a2d34,p[0]*cabW*0.42,cabY+cabH/2,cabZ+p[1]*cabD*0.42)));
+      corps.add(mkBoxG(cabW,0.08,cabD,0x2a2d34,0,cabY+cabH,cabZ));           // toit de cabine
+      corps.add(mkBoxG(cabW*0.84,cabH*0.6,0.02,0x141b26,0,cabY+cabH*0.56,cabZ+cabD*0.44)); // vitre avant, sous le toit
+      corps.add(mkBoxG(cabW*0.5,0.4,cabD*0.4,0x1a1d24,0,cabY+0.24,cabZ-cabD*0.16));  // siège, se lit comme une cabine occupée, pas un gazebo vide
       const bras=new THREE.Group();
-      bras.position.set(0,bodyY+0.15,L*0.32); // pivot, au ras de l'avant du châssis
-      bras.add(mkBoxG(0.1,0.1,0.85,0x3a3e46,-W*0.36,0,0.42));
-      bras.add(mkBoxG(0.1,0.1,0.85,0x3a3e46,W*0.36,0,0.42));
-      bras.add(mkBoxG(W*0.92,0.55,0.14,0xffd23f,0,0,0.85));                  // la pelle elle-même
-      bras.add(mkBoxG(W*0.92,0.1,0.14,0xe07020,0,0.3,0.85));                 // liseré orange en haut
+      bras.position.set(0,bodyY+0.05,L*0.3); // pivot, au ras de l'avant du châssis
+      bras.add(mkBoxG(0.18,0.18,0.95,0x3a3e46,-W*0.4,0.1,0.5));             // bras de poussée épais
+      bras.add(mkBoxG(0.18,0.18,0.95,0x3a3e46,W*0.4,0.1,0.5));
+      bras.add(mkBoxG(W*1.04,0.85,0.16,0xffd23f,0,0.42,0.98));              // la lame, large et haute
+      bras.add(mkBoxG(W*1.04,0.14,0.16,0x1a1d24,0,-0.03,0.98));             // arête tranchante, contrastée
+      bras.add(mkBoxG(W*1.04,0.12,0.16,0xe07020,0,0.78,0.98));              // liseré orange en haut de lame
       corps.add(bras); ud.pelle=bras;
     } else if(def.grue){
       // grue mobile : châssis camion + bras oblique + câble/boulet, VRAIMENT
