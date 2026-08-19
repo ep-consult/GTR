@@ -1963,6 +1963,17 @@ const VEHDEFS={
   // pousser le balancement dans une direction, sinon il suit tout seul les
   // virages/accélérations du véhicule.
   grue:{nom:'Grue "Marteau"',vmax:16,acc:8,man:1.2,hp:300,long:5,larg:2.3,type:'car',grue:true,cache:true,cols:[0xffd23f,0x2a2d34]},
+  // Ambulance : gyrophare rouge/blanc animé en permanence (même garée, voir
+  // majVehicules) et bouton ESQUIVE = soin d'urgence sur le joueur, plafonné
+  // par un cooldown (def.ambulance, voir majConduite) pour éviter le soin
+  // infini en spam — réutilise soigner() telle quelle.
+  ambulance:{nom:'Ambulance "Secours"',vmax:31,acc:19,man:2.9,hp:140,long:4.9,larg:2.0,type:'car',ambulance:true,cache:true,cols:[0xf2f4f8,0xff3b4b]},
+  // Dépanneuse : bouton ESQUIVE accroche/décroche le véhicule le plus proche
+  // à l'arrière (def.depanneuse, voir majConduite) — tracte VRAIMENT
+  // n'importe quel véhicule (aucune restriction de poids/type), le véhicule
+  // tracté a sa physique normale coupée (v.tracte, voir majVehicules) tant
+  // qu'il suit au bout du câble.
+  depanneuse:{nom:'Dépanneuse "Grizzly"',vmax:25,acc:13,man:1.9,hp:260,long:5.1,larg:2.2,type:'car',depanneuse:true,cache:true,cols:[0xe07020,0x2a2d34]},
   scarabee:{nom:'Buggy "Scarabée"',vmax:33,acc:21,man:3.3,hp:130,long:3.4,larg:1.9,type:'car',cols:[0x2fae4f],buggy:true,cache:true},
   baronne:{nom:'Ancienne "Baronne"',vmax:26,acc:10,man:2.0,hp:280,long:5.4,larg:2.1,type:'car',cols:[0x6a1f2a],cache:true},
   avion:{nom:'Avion "Colibri"',vmax:40,acc:11,man:1.3,hp:130,long:7.4,larg:2,type:'car',air:'avion',cols:[0xe8ecf2]},
@@ -5011,6 +5022,37 @@ function makeVoiture(key){
       bb.position.set(0.24,bodyY+0.84,-L*0.06);
       corps.add(br); corps.add(bb); ud.bar=[br,bb];
     }
+    if(def.ambulance){
+      // Gyrophare rouge/blanc (jamais bleu — déjà pris par police/pompiers).
+      // Animé même garée (voir majVehicules) ET en conduite (majConduite),
+      // car majVoiturePolice — qui anime ud.bar normalement — ne tourne
+      // jamais pour un véhicule piloté par le joueur.
+      corps.add(mkBoxG(W+0.02,0.24,L*0.42,0xf2f4f8,0,bodyY,0));
+      const br=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.14,0.24),new THREE.MeshBasicMaterial({color:0xff3b4b}));
+      br.position.set(-0.22,bodyY+0.8,-L*0.08);
+      const bb=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.14,0.24),new THREE.MeshBasicMaterial({color:0xf2f4f8}));
+      bb.position.set(0.22,bodyY+0.8,-L*0.08);
+      corps.add(br); corps.add(bb); ud.bar=[br,bb];
+      // croix rouge sur les flancs
+      [-1,1].forEach(sx=>corps.add(mkBoxG(0.5,0.32,0.06,0xff3b4b,sx*(W/2+0.02),bodyY+0.3,0)));
+      [-1,1].forEach(sx=>corps.add(mkBoxG(0.18,0.5,0.06,0xff3b4b,sx*(W/2+0.02),bodyY+0.3,0)));
+    }
+    if(def.depanneuse){
+      // Bras-grue arrière SIMPLE (pas un pendule comme la Grue "Marteau" —
+      // ici il ne fait que tenir visuellement le câble/crochet, la traction
+      // réelle est une position calculée dans majConduite, pas une physique
+      // de bras). Groupe détaché pour pouvoir viser/relever indépendamment
+      // du châssis si besoin plus tard.
+      const brasGrp=new THREE.Group();
+      brasGrp.position.set(0,bodyY+0.55,-L*0.42);
+      brasGrp.add(mkBoxG(0.5,1.0,0.3,0xffd23f,0,0.5,0));
+      const potence=mkBoxG(0.16,0.16,1.1,0x2a2d34,0,1.05,-0.5);
+      potence.rotation.x=0.5; brasGrp.add(potence);
+      corps.add(brasGrp);
+      const crochet=new THREE.Mesh(new THREE.TorusGeometry(0.14,0.04,6,10),mat(0x2a2d34));
+      crochet.position.set(0,bodyY+0.35,-L*0.62); corps.add(crochet);
+      ud.crochet=crochet;
+    }
     if(def.milit) corps.add(mkBoxG(W*0.95,1.0,L*0.5,0x39402c,0,bodyY+0.83,-L*0.16));
     if(def.dca){
       // Canon anti-aérien double, incliné vers le ciel — sur le fourgon
@@ -6837,6 +6879,18 @@ function entrerVehicule(v){
     el('btnDodge').innerHTML='🚜<small>PELLE</small>';
     toast('PELLE bascule la pelle — baissée, elle pousse tout ce qui est plus léger','or');
   }
+  if(v.def.ambulance){
+    // Ambulance : bouton ESQUIVE (inutilisé — pas d'arme), soin d'urgence.
+    el('btnDodge').style.display='flex';
+    el('btnDodge').innerHTML='💉<small>SOIN</small>';
+    toast('SOIN te soigne — cooldown '+AMBULANCE_SOIN_CD+'s entre deux soins','or');
+  }
+  if(v.def.depanneuse){
+    // Dépanneuse : bouton ESQUIVE (inutilisé — pas d'arme), accroche/décroche.
+    el('btnDodge').style.display='flex';
+    el('btnDodge').innerHTML='🪝<small>ACCROCHER</small>';
+    toast('ACCROCHER attrape le véhicule le plus proche et le tracte — rappuie pour décrocher','or');
+  }
   if(v.def.canon||v.def.mitrailleuse||v.def.dca||v.def.grue){
     el('btnFire').style.display='flex';
     el('fireIco').textContent=v.def.mitrailleuse?'🔫':(v.def.dca?'🚀':(v.def.grue?'⚫':'💥'));
@@ -6922,6 +6976,10 @@ function sortirVehicule(force){
   // tout ce qu'il portait tombe (chute animée, le jeu continue de tourner
   // ici, contrairement à rayonNettoyerTout ailleurs — voir CLAUDE.md).
   if(v.def.ovni) rayonLarguerTout(v);
+  // Dépanneuse : décrocher en sortant, sinon le véhicule tracté resterait
+  // figé pour toujours (v.tracte n'est mis à jour que dans majConduite de
+  // la dépanneuse, qui ne tourne plus une fois le joueur descendu).
+  if(v.def.depanneuse&&v.remorque){ v.remorque.tracte=null; v.remorque=null; }
   loopRingEl.style.display='none'; // au cas où on sortait en pleine charge de looping
   desintRingEl.style.display='none'; // au cas où on sortait en pleine charge du Désintégrateur
   if(v.def.type==='moto') v.mesh.rotation.z=0; // on redresse la moto au parking
@@ -7576,6 +7634,7 @@ function majLanceEau(v,dt){
 // (canonDx/Dy) au repère local avant d'être appliquée. Dégâts réels à tout
 // ce qu'il traverse en balançant assez vite — jamais juste un décor animé.
 const GRUE_SPRING=10, GRUE_DAMPING=2.6, GRUE_KICK_TURN=9, GRUE_KICK_ACCEL=0.7, GRUE_BOOST=30, GRUE_SAG=1.6, GRUE_PORTEE_MAX=3.2;
+const AMBULANCE_SOIN_CD=9, DEPANNEUSE_PORTEE=8;
 function majGrueBoulet(v,dt){
   const ud=v.mesh.userData; if(!ud.ancrage) return;
   if(!v.boulet) v.boulet={x:0,z:0,vx:0,vz:0,angPrev:v.ang,vPrev:v.v};
@@ -7716,6 +7775,54 @@ function majConduite(dt){
     }
   }
   if(v.def.grue) majGrueBoulet(v,dt);
+  if(v.def.ambulance){
+    // Bouton ESQUIVE (libre — l'ambulance n'a pas d'arme) = soin d'urgence
+    // sur le joueur, réutilise soigner() telle quelle (CLAUDE.md : jamais
+    // recopier de logique). Cooldown, pas un coût en argent comme les
+    // camions-restaurants — sinon un joueur riche pourrait spammer un soin
+    // instantané sans aucune limite (règle « pas de farming infini »).
+    v.soinCd=(v.soinCd||0)-dt;
+    if(pressed('esquive')||edgeKey('KeyK')){
+      if(v.soinCd<=0&&P.hp<P.maxHp){
+        soigner(45); v.soinCd=AMBULANCE_SOIN_CD; SFX.soin(); vibre(30);
+      } else if(v.soinCd>0){
+        toast('Soin en recharge ('+Math.ceil(v.soinCd)+'s)','warn'); SFX.refus();
+      }
+    }
+  }
+  if(v.def.depanneuse){
+    // Bouton ESQUIVE (libre) : accroche/décroche le véhicule le plus proche.
+    // Aucune restriction de poids/type (demandé explicitement « qui peut
+    // tout tracter ») — tant qu'accroché, le véhicule tracté a sa physique
+    // normale coupée (v.tracte, voir majVehicules) et suit une position
+    // calculée ici, comme le rayon tracteur de l'OVNI (captureOvni) mais en
+    // plus simple/rigide (pas de pendule, juste un point fixe à l'arrière).
+    if(pressed('esquive')||edgeKey('KeyK')){
+      if(v.remorque){
+        v.remorque.tracte=null; v.remorque=null;
+        toast('Véhicule décroché','warn'); SFX.refus();
+      } else {
+        let meilleur=null,meilleurD=DEPANNEUSE_PORTEE*DEPANNEUSE_PORTEE;
+        for(const o of vehicules){
+          if(o===v||o.mort||o.epave||o.captureOvni||o.tracte||o.conduit==='joueur'||o.def.air) continue;
+          const dd=dist2(o.x,o.z,v.x,v.z);
+          if(dd<meilleurD){ meilleurD=dd; meilleur=o; }
+        }
+        if(meilleur){ v.remorque=meilleur; meilleur.tracte=v; meilleur.v=0; toast('Véhicule accroché','or'); SFX.achat(); }
+        else { toast('Aucun véhicule à proximité','warn'); SFX.refus(); }
+      }
+    }
+    if(v.remorque){
+      const r=v.remorque;
+      if(r.mort||r.epave){ r.tracte=null; v.remorque=null; }
+      else{
+        const off=v.def.long*0.5+r.def.long*0.5+1.1;
+        const tx=v.x-Math.sin(v.ang)*off, tz=v.z-Math.cos(v.ang)*off;
+        r.x=lerp(r.x,tx,clamp(5*dt,0,1)); r.z=lerp(r.z,tz,clamp(5*dt,0,1)); r.ang=v.ang; r.v=0;
+        if(r.mesh){ r.mesh.position.set(r.x,r.mesh.position.y,r.z); r.mesh.rotation.y=r.ang; }
+      }
+    }
+  }
   if(pressed('arme')||edgeKey('KeyA')||edgeKey('Tab')){
     if(v.def.pompier) toggleSirenePompiers(v); else changerRadio();
   }
@@ -7930,6 +8037,17 @@ function majGyrophares(v,dt){
   ud.gyro[0].material.color.setHex(cl?0x3a7bff:0x0d2a52);
   ud.gyro[1].material.color.setHex(cl?0x0d2a52:(v.sirene?0xffffff:0x3a7bff));
 }
+// gyrophare de l'ambulance : rouge/blanc, tourne en continu quel que soit le
+// conduit — même logique que majGyrophares (pompiers), nécessaire car
+// majVoiturePolice (qui anime ud.bar pour la police) ne tourne jamais pour
+// un véhicule piloté par le joueur.
+function majBarAmbulance(v,dt){
+  const ud=v.mesh.userData; if(!ud.bar) return;
+  v.gyroPh=(v.gyroPh||0)+dt*7;
+  const cl=Math.floor(v.gyroPh)%2;
+  ud.bar[0].material.color.setHex(cl?0xff3b4b:0x701824);
+  ud.bar[1].material.color.setHex(cl?0xf2f4f8:0x9aa2ad);
+}
 function majVehicules(dt){
   let nT=0; for(let i=0;i<vehicules.length;i++){const v2=vehicules[i];if(v2.conduit==='trafic'&&!v2.mort)nT++;}
   if(nT<q().trafic&&Math.random()<dt*2.2) creerTrafic();
@@ -7939,7 +8057,13 @@ function majVehicules(dt){
     // physique sol, entièrement pris en charge par majRayonOvni (position,
     // rotation, atterrissage) — voir la section RAYON TRACTEUR DE L'OVNI.
     if(v.captureOvni) continue;
+    // Véhicule tracté par la dépanneuse : plus aucune physique/IA normale,
+    // sa position est entièrement pilotée par le majConduite de la
+    // dépanneuse (même principe que captureOvni ci-dessus) — sinon sa
+    // propre IA (trafic/police) se battrait contre la traction.
+    if(v.tracte) continue;
     if(v.def.pompier) majGyrophares(v,dt); // tourne quel que soit le conduit (trafic, joueur...)
+    if(v.def.ambulance) majBarAmbulance(v,dt); // tourne quel que soit le conduit
     if(v.enFeu){
       v.feuT-=dt;
       v.feuFx-=dt;
@@ -16877,6 +17001,8 @@ function startRun(){
   if(POIS.chantier) cacheV('bulldozer',POIS.chantier.x+10,POIS.chantier.z-10,-0.6); // au chantier, loin de la grue fixe
   if(POIS.chantier) cacheV('grue',POIS.chantier.x+14,POIS.chantier.z+6,1.0);        // idem, véhicule cette fois
   if(POIS.port) cacheV('baronne',POIS.port.x+13,POIS.port.z-11,Math.PI/2);  // entrepôt du port
+  if(POIS.commissariat) cacheV('ambulance',POIS.commissariat.x-12,POIS.commissariat.z+9,2.0); // pôle secours, à côté des véhicules de police
+  if(POIS.garage) cacheV('depanneuse',POIS.garage.x-9,POIS.garage.z-8,-1.4);                  // devant le garage, sa place naturelle
   // armes cachées (une seule fois : ensuite elles t'appartiennent)
   if(!META.armes.batte2.poss&&POIS.parc) cacheA('batte2',POIS.parc.x+11,POIS.parc.z-11);
   if(!META.armes.pompe.poss&&POIS.qgViperes) cacheA('pompe',POIS.qgViperes.x-13,POIS.qgViperes.z+11);
