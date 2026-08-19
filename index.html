@@ -167,6 +167,14 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
   --pct:0;background:conic-gradient(var(--jaune) calc(var(--pct)*1%),transparent 0);
   -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 6px),#000 calc(100% - 5px));
   mask:radial-gradient(farthest-side,transparent calc(100% - 6px),#000 calc(100% - 5px))}
+/* Anneau de charge du Désintégrateur de l'OVNI (bouton ESQUIVE/btnDodge,
+   maintenu 10 s — voir majRayonOvni). Même principe que #loopRing ci-dessus,
+   sibling pour survivre à l'innerHTML de btnDodge (icône ☢️/DÉSINT.). */
+#desintRing{position:absolute;right:119px;bottom:calc(env(safe-area-inset-bottom,0px) + 39px);
+  width:68px;height:68px;border-radius:50%;display:none;pointer-events:none;
+  --pct:0;background:conic-gradient(#ff3b3b calc(var(--pct)*1%),transparent 0);
+  -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 6px),#000 calc(100% - 5px));
+  mask:radial-gradient(farthest-side,transparent calc(100% - 6px),#000 calc(100% - 5px))}
 #btnSwitch{right:20px;bottom:calc(env(safe-area-inset-bottom,0px) + 172px);width:56px;height:56px;font-size:18px}
 #btnGren{right:170px;bottom:calc(env(safe-area-inset-bottom,0px) + 176px);width:50px;height:50px;font-size:19px}
 #btnGren small{font-size:8px}
@@ -367,6 +375,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
   <div class="btn" id="btnDodge">💨<small>ESQUIVE</small></div>
   <div class="btn" id="btnSprint">🏃<small>SPRINT</small></div>
   <div id="loopRing"></div>
+  <div id="desintRing"></div>
   <div class="btn" id="btnSwitch">🔁<small>ARME</small></div>
   <div class="btn" id="btnSpec"><span id="specIco">⚡</span><div id="specCd">0</div></div>
   <div class="btn" id="btnJump" style="display:none">🪂<small>SAUT</small></div>
@@ -4354,7 +4363,7 @@ function makeVoiture(key){
     // « ça a l'air de léviter » se lise tout de suite, même à l'arrêt.
     const faisceau=new THREE.Mesh(new THREE.CylinderGeometry(0.3,1.7,1.3,16,1,true),
       new THREE.MeshBasicMaterial({color:0x9fe8b0,transparent:true,opacity:0.14,depthWrite:false,side:THREE.DoubleSide}));
-    faisceau.position.y=0.4; g.add(faisceau);
+    faisceau.position.y=0.4; g.add(faisceau); ud.faisceau=faisceau;
     const ombreO=spriteBlob(5.5); g.add(ombreO); ud.ombre=ombreO;
     g.userData=ud; return g;
   }
@@ -5294,6 +5303,7 @@ const CHUTE_ACC_MIN=3, CHUTE_ACC_MAX=16, CHUTE_VY_MAX=32;
 // le CSS #loopRing. Élément caché en DOM dès le départ (display:none dans
 // sa règle CSS), jamais recréé : une seule référence mise en cache ici.
 const loopRingEl=document.getElementById('loopRing');
+const desintRingEl=document.getElementById('desintRing');
 // voile de parapente : surface bombée, caissons quadrillés, suspentes convergentes
 const paraMesh=new THREE.Group();
 {
@@ -6500,7 +6510,19 @@ function entrerVehicule(v){
       // volontairement avant d'atterrir ou de sortir du véhicule.
       el('btnFire').style.display='flex';
       el('fireIco').textContent='🧲'; el('fireAmmo').textContent='';
-      toast('Le rayon accroche tout seul ce qui passe dessous — LÂCHER (bouton TIR) relâche tout de suite','or');
+      // Bug déjà rencontré (même famille que #btnBrake.volA/#btnSwitch plus
+      // haut) : #btnFire affiché à sa position PAR DÉFAUT tombe EXACTEMENT
+      // sous #btnBrake.gros (DESCENDRE, right:16/bottom:62 contre right:14/
+      // bottom:64) — signalé par un joueur, LÂCHER invisible et intactable.
+      // DESCENDRE déplacé sur volA comme pour le char/la jeep/le DCA plus
+      // haut ; RADIO masquée pour la même raison qu'eux (même zone que volA).
+      el('btnBrake').classList.remove('gros'); el('btnBrake').classList.add('volA');
+      el('btnSwitch').style.display='none';
+      // Désintégrateur : bouton ESQUIVE (inutilisé sur l'OVNI), maintenu 10 s
+      // pour charger puis tire tout seul — voir majRayonOvni/ovniDesintegrer.
+      el('btnDodge').style.display='flex';
+      el('btnDodge').innerHTML='☢️<small>DÉSINT.</small>';
+      toast('Le rayon accroche tout seul ce qui passe dessous — LÂCHER (bouton TIR) relâche tout de suite. Maintiens DÉSINT. 10 s pour désintégrer tout au sol dessous','or');
     }
     if(v.def.air==='avion') toast('Pointe le joystick vers le bout de la piste et fonce !','or');
     else if(!v.def.ovni) toast('Maintiens MONTER pour décoller','or');
@@ -6515,6 +6537,7 @@ function sortirVehicule(force){
   // ici, contrairement à rayonNettoyerTout ailleurs — voir CLAUDE.md).
   if(v.def.ovni) rayonLarguerTout(v);
   loopRingEl.style.display='none'; // au cas où on sortait en pleine charge de looping
+  desintRingEl.style.display='none'; // au cas où on sortait en pleine charge du Désintégrateur
   if(v.def.type==='moto') v.mesh.rotation.z=0; // on redresse la moto au parking
   if(v.def.cross){
     // on redescend la roue avant et on remet le châssis à plat au parking
@@ -6696,6 +6719,23 @@ function majLumieresOvni(v,dt){
   const coul=FUMEE_VOLTIGE[Math.floor(ETAT.runT*2.5)%FUMEE_VOLTIGE.length];
   for(const l of lum.children) l.material.color.setHex(coul);
   lum.rotation.y+=dt*0.5;
+  // Faisceau étiré du dessous de la coque jusqu'au sol : seul repère fiable
+  // de l'altitude réelle vue de dessus — signalé par un joueur : la caméra
+  // recule avec l'altitude (majCamera) pour garder la soucoupe dans le
+  // cadre, donc sa taille apparente grandit à peine avec la vraie hauteur,
+  // « on se croit en haut » alors que ça ne monte presque pas à l'écran.
+  // Coordonnées LOCALES au groupe du véhicule (déjà positionné à v.alt en Y,
+  // voir majVol/majVehicules) : le sol tombe donc à (groundY - v.alt) dans
+  // ce repère, jamais à 0 — sinon le faisceau resterait de la même taille
+  // fixe quelle que soit l'altitude, exactement le bug signalé.
+  const fais=v.mesh.userData.faisceau;
+  if(fais){
+    const groundY=poseY(v.x,v.z);
+    const topLocal=0.5, botLocal=groundY-(v.alt||0);
+    fais.scale.y=Math.max(0.3,topLocal-botLocal)/1.3;
+    fais.position.y=(topLocal+botLocal)/2;
+    fais.material.opacity=clamp(0.22-(v.alt||0)*0.0015,0.08,0.22);
+  }
 }
 // Figure ANIMÉE et contrôlée, jamais une vraie rotation libre du véhicule :
 // passer réellement la tête en bas casserait la caméra (qui ne lit que
@@ -8166,6 +8206,14 @@ const RAYON_GRAVITE=22;             // chute libre, unités/s²
 const RAYON_REBOND_VEH=0.34;        // fraction de la vitesse d'impact restituée au rebond (véhicule)
 const RAYON_EXPLOSION_ALT=11;       // hauteur de chute au-delà de laquelle un véhicule explose net
 const RAYON_MORT_PNJ_ALT=7.5;       // hauteur de chute au-delà de laquelle un PNJ meurt
+// DÉSINTÉGRATEUR DE L'OVNI — distinct du Désintégrateur porté par le joueur
+// (arme verte trouvée au Site 51, voir tirDesintegrateur) : rouge, aucun
+// lien mécanique, juste le même nom/thème. Bouton ESQUIVE (btnDodge, libre
+// sur l'OVNI — pas d'arme), maintenu DESINT_CHARGE_TEMPS secondes (dtJeu,
+// jamais dt) avant de tirer tout seul ; relâcher avant la fin fait décroître
+// la charge (jamais un reset instantané — même tolérance au bruit tactile
+// que le LOOPING, voir FIGURE_DECAY) au lieu de la remettre à zéro net.
+const DESINT_CHARGE_TEMPS=10, DESINT_DECAY=4, DESINT_RAYON=7;
 function poidsCibleOvni(o){ return clamp(Math.round(o.def.long/3.6),1,3); }
 // Position de retombée validée : repousse hors des murs (pousseHorsSolide),
 // hors d'un autre véhicule (degageDeVehicule), et s'éloigne de l'eau par
@@ -8345,7 +8393,10 @@ function rayonForcerAtterrissage(v,rec){
 function rayonCouperSon(){ if(AUDIO.rayonGain) AUDIO.rayonGain.gain.value=0; }
 // Relâche IMMÉDIATEMENT tout ce que porte un OVNI donné (ne laisse rien
 // animé) — utilisée quand SON porteur est détruit (voir exploserVehicule).
+// Coupe aussi une charge de Désintégrateur en cours : mêmes points d'appel
+// (mort, intérieur, vague), même risque de rester visible/armé pour rien.
 function rayonNettoyerVehicule(v){
+  if(v.desintCharge){ v.desintCharge=0; desintRingEl.style.display='none'; }
   if(!v.cibles||!v.cibles.length) return;
   for(const rec of v.cibles) rayonForcerAtterrissage(v,rec);
   v.cibles.length=0;
@@ -8364,6 +8415,50 @@ function rayonLarguerTout(v){
   if(!v.cibles) return;
   for(const rec of v.cibles) if(rec.phase!=='chute') rayonDebuterChute(v,rec);
   rayonCouperSon();
+}
+// PNJ dissous par le Désintégrateur de l'OVNI : jamais de cadavre (comme
+// desintegrerEnnemi pour l'arme portée) — tuerPieton() lance un ragdoll,
+// annulé tout de suite (p.rag=null, p.t=0) pour une disparition immédiate.
+function ovniDesintegrerPnj(p){
+  const x=p.x,z=p.z;
+  tuerPieton(p,true,0);
+  p.rag=null; p.t=0; p.h.g.visible=false;
+  for(let i=0;i<16;i++) spawnP(x+rand(-0.4,0.4),0.7+rand(-0.2,0.9),z+rand(-0.4,0.4),
+    rand(-2.5,2.5),rand(1,4),rand(-2.5,2.5),1.1,rand(0.35,0.6),pick([0xff3b1a,0xff8a4a,0x5a5a5a]),0,6);
+}
+function ovniDesintegrerEnnemi(e){
+  const x=e.x,z=e.z,y=1.1+(e.hSol||0);
+  tuerEnnemi(e,true);
+  if(!e.moto){ e.corpseT=0; if(e.h) e.h.g.visible=false; } // la moto garde son propre traitement (épave roulante, voir tuerEnnemi)
+  for(let i=0;i<16;i++) spawnP(x+rand(-0.4,0.4),y+rand(-0.2,0.9),z+rand(-0.4,0.4),
+    rand(-2.5,2.5),rand(1,4),rand(-2.5,2.5),1.1,rand(0.35,0.6),pick([0xff3b1a,0xff8a4a,0x5a5a5a]),0,6);
+}
+// Le Désintégrateur de l'OVNI : tire tout seul à pleine charge (voir
+// majRayonOvni), toujours droit vers le bas — « tout au sol dessous la
+// soucoupe », jamais une visée. Un vrai gros événement, pas un tir discret :
+// laser rouge le temps d'un flash, explosion + onde de choc partagées
+// (explosionFx, recolorée en rouge le temps de l'appel — ONDE est un
+// singleton réutilisé par toutes les explosions du jeu, jamais altéré
+// durablement), fumée sombre, tout ce qui est au sol dans le rayon d'effet
+// est dissous (PNJ/ennemis) ou détruit (véhicules) — jamais les cibles déjà
+// suspendues au rayon tracteur (captureOvni), hors de portée par nature.
+function ovniDesintegrer(v){
+  const x=v.x,z=v.z, y0=v.alt, y1=poseY(x,z);
+  const laser=new THREE.Mesh(new THREE.CylinderGeometry(0.55,0.9,Math.max(0.6,y0-y1),12,1,true),
+    new THREE.MeshBasicMaterial({color:0xff1a1a,transparent:true,opacity:0.88,depthWrite:false,side:THREE.DoubleSide}));
+  laser.position.set(x,(y0+y1)/2,z); scene.add(laser);
+  setTimeout(()=>scene.remove(laser),260);
+  const ondeColAvant=ONDE.material.color.getHex();
+  ONDE.material.color.setHex(0xff2020);
+  explosionFx(x,z);
+  ONDE.material.color.setHex(ondeColAvant);
+  burst(x,1,z,26,0xff2010,11,6);
+  burst(x,1.6,z,16,0x2a2a2a,7,4); // fumée sombre : « tout se désintègre en fumée »
+  secousse(9); vibre(80); SFX.desintegrateur();
+  const r2=DESINT_RAYON*DESINT_RAYON;
+  for(const p of pietons){ if(p.etat==='mort'||p.captureOvni) continue; if(dist2(p.x,p.z,x,z)<r2) ovniDesintegrerPnj(p); }
+  for(const e of ennemis){ if(e.mort||e.captureOvni||e.heli) continue; if(dist2(e.x,e.z,x,z)<r2) ovniDesintegrerEnnemi(e); }
+  for(const o of vehicules){ if(o===v||o.mort||o.captureOvni||o.def.air) continue; if(dist2(o.x,o.z,x,z)<r2) exploserVehicule(o); }
 }
 function majRayonOvni(dt){
   const dtJ=dt/ETAT.timeScale; // dtJeu local (CLAUDE.md, dt vs dtJeu) : montée/chute/oscillation ne bénéficient jamais d'un ralenti
@@ -8391,6 +8486,19 @@ function majRayonOvni(dt){
       if(!actif&&rec.phase!=='chute') rayonDebuterChute(v,rec);
       if(rayonMajCible(v,rec,dtJ,dt)) v.cibles.splice(i,1);
     }
+    // Désintégrateur — bouton ESQUIVE (btnDodge, voir entrerVehicule),
+    // maintenu DESINT_CHARGE_TEMPS s (dtJ, jamais dt). Décroît (jamais un
+    // reset net) si relâché avant la fin, tombe à 0 hors pilotage/vol.
+    if(ETAT.mode==='jeu'&&v.conduit==='joueur'&&v.vol){
+      if(INPUT.btn.esquive){
+        v.desintCharge=Math.min(DESINT_CHARGE_TEMPS,(v.desintCharge||0)+dtJ);
+        if(v.desintCharge>=DESINT_CHARGE_TEMPS){ v.desintCharge=0; ovniDesintegrer(v); }
+      } else v.desintCharge=Math.max(0,(v.desintCharge||0)-DESINT_DECAY*dtJ);
+      if(v.desintCharge>0){
+        desintRingEl.style.display='block';
+        desintRingEl.style.setProperty('--pct',Math.min(100,v.desintCharge/DESINT_CHARGE_TEMPS*100));
+      } else desintRingEl.style.display='none';
+    } else { v.desintCharge=0; desintRingEl.style.display='none'; }
   }
   rayonUpdate(dt,sonIntens);
 }
