@@ -1886,6 +1886,12 @@ const VEHDEFS={
   dca:{nom:'Camion DCA "Foudre"',vmax:18,acc:8,man:1.2,hp:220,long:6.4,larg:2.3,type:'car',milit:true,dca:true,cache:true,cols:[0x47502e]},
   espadon:{nom:'Vedette "Espadon"',vmax:42,acc:15,man:2.4,hp:150,long:6.2,larg:2.2,type:'bateau',eau:true,cols:[0x14161c],cache:true},
   mirage:{nom:'Supercar "Mirage"',vmax:52,acc:27,man:3.1,hp:100,long:4.4,larg:2.0,type:'car',cols:[0xd8b02a],sport:true,cache:true},
+  // OVNI : réutilise intégralement la physique de vol de l'hélicoptère
+  // (décollage vertical, vol stationnaire — voir majVol) sous un modèle 3D
+  // entièrement dédié (voir makeVoiture, def.ovni). Plus vif et plus
+  // silencieux qu'un vrai hélico — vmax/man supérieurs, hp modeste (fragile,
+  // c'est une trouvaille pour le plaisir, pas un blindé volant).
+  ovni:{nom:'OVNI "Zeta-9"',vmax:46,acc:22,man:3.6,hp:70,long:4.4,larg:4.4,type:'car',air:'helico',ovni:true,cache:true,cols:[0x8ab4c8]},
   scarabee:{nom:'Buggy "Scarabée"',vmax:33,acc:21,man:3.3,hp:130,long:3.4,larg:1.9,type:'car',cols:[0x2fae4f],buggy:true,cache:true},
   baronne:{nom:'Ancienne "Baronne"',vmax:26,acc:10,man:2.0,hp:280,long:5.4,larg:2.1,type:'car',cols:[0x6a1f2a],cache:true},
   avion:{nom:'Avion "Colibri"',vmax:40,acc:11,man:1.3,hp:130,long:7.4,larg:2,type:'car',air:'avion',cols:[0xe8ecf2]},
@@ -4287,6 +4293,52 @@ function makeVoiture(key){
     const ombreA=spriteBlob(7); g.add(ombreA); ud.ombre=ombreA;
     g.userData=ud; return g;
   }
+  if(def.ovni){
+    // OVNI : réutilise la physique de vol de l'hélicoptère telle quelle
+    // (def.air='helico' — décollage vertical, vol stationnaire, voir
+    // majVol) mais un modèle 3D entièrement dédié, aucune pièce en commun
+    // avec le Libellule. Trouvaille cachée dans un hangar désaffecté —
+    // demandé explicitement, effet « je n'y crois pas » : silhouette
+    // instantanément reconnaissable vue de dessus (disque + dôme + anneau
+    // de lumières), rien de comparable ailleurs dans le jeu.
+    // Bug déjà rencontré (bus, ~même session) : un élément plus étroit
+    // posé À L'INTÉRIEUR du volume d'un autre, même à une hauteur qui
+    // semble « au-dessus » en apparence, reste invisible vu de dessus si
+    // la coque au même rayon culmine plus haut que lui. Ici la coque est
+    // un DISQUE PLAT (cylindre, hauteur/rayon connus avec précision), pas
+    // une sphère écrasée dont la hauteur réelle varie avec le rayon —
+    // l'anneau/les lumières sont posés EXACTEMENT à la cote du dessus du
+    // disque (discTop), jamais devinés.
+    const discY=1.3, discH=0.36, discTop=discY+discH/2;
+    const coque=new THREE.Mesh(new THREE.CylinderGeometry(2.1,2.1,discH,22),mat(coul));
+    coque.position.y=discY; g.add(coque);
+    const soucoupeBas=new THREE.Mesh(new THREE.CylinderGeometry(2.1,0.35,0.55,22),mat(coul));
+    soucoupeBas.position.y=discY-discH/2-0.27; g.add(soucoupeBas); // effilée vers le bas
+    const dome=new THREE.Mesh(new THREE.SphereGeometry(0.85,14,10),
+      new THREE.MeshPhongMaterial({color:0x8adfff,transparent:true,opacity:0.55,shininess:90,specular:0xffffff}));
+    dome.position.y=discTop+0.1; g.add(dome); // posé SUR le disque, dépasse largement
+    const anneau=new THREE.Mesh(new THREE.TorusGeometry(2.03,0.14,8,26),mat(0x23262e));
+    anneau.rotation.x=Math.PI/2; anneau.position.y=discTop+0.02; g.add(anneau);
+    // anneau de lumières : cycle de couleur façon fumée colorée de la
+    // voltige (même idée, une palette qui tourne dans le temps) — voir
+    // ud.lumieresOvni, animé dans majVol/majVehicules pour tout OVNI, garé
+    // ou piloté, jamais éteint (« ça doit intriguer même vu de loin »).
+    const lumieres=new THREE.Group();
+    for(let k=0;k<10;k++){
+      const a=k/10*Math.PI*2;
+      const l=new THREE.Mesh(new THREE.SphereGeometry(0.15,6,6),new THREE.MeshBasicMaterial({color:0x7dff7a}));
+      l.position.set(Math.sin(a)*1.96,discTop+0.05,Math.cos(a)*1.96); lumieres.add(l);
+    }
+    g.add(lumieres); ud.lumieresOvni=lumieres;
+    // faisceau translucide sous la coque : purement cosmétique, jamais un
+    // vrai rayon tracteur (aucune interaction physique) — juste pour que
+    // « ça a l'air de léviter » se lise tout de suite, même à l'arrêt.
+    const faisceau=new THREE.Mesh(new THREE.CylinderGeometry(0.3,1.7,1.3,16,1,true),
+      new THREE.MeshBasicMaterial({color:0x9fe8b0,transparent:true,opacity:0.14,depthWrite:false,side:THREE.DoubleSide}));
+    faisceau.position.y=0.4; g.add(faisceau);
+    const ombreO=spriteBlob(5.5); g.add(ombreO); ud.ombre=ombreO;
+    g.userData=ud; return g;
+  }
   if(def.air==='helico'){
     const cab=new THREE.Mesh(new THREE.SphereGeometry(1.05,14,10),mat(coul));
     cab.scale.set(0.82,0.86,1.15); cab.position.set(0,1.25,0.35); g.add(cab);
@@ -6598,6 +6650,17 @@ const FIGURE_L_SEUIL=0.82, FIGURE_ANGLE_VRILLE=1.0, FIGURE_DECAY=3.5, FIGURE_GES
 // durée de la figure) — le chasseur, qui peut aussi boucler, garde une
 // fumée blanche classique (voir coulFumee plus bas).
 const FUMEE_VOLTIGE=[0xff3b5c,0xffd23f,0x35e0ff,0x7dff7a,0xb48bff];
+// Anneau de lumières de l'OVNI : cycle de couleur (même palette que la
+// fumée de la voltige) + rotation lente, garé ou piloté, jamais éteint —
+// « ça doit intriguer même vu de loin » (demandé explicitement). Appelée
+// depuis majVol (piloté) ET majVehicules (garé), voir plus bas.
+function majLumieresOvni(v,dt){
+  const lum=v.mesh.userData.lumieresOvni;
+  if(!lum) return;
+  const coul=FUMEE_VOLTIGE[Math.floor(ETAT.runT*2.5)%FUMEE_VOLTIGE.length];
+  for(const l of lum.children) l.material.color.setHex(coul);
+  lum.rotation.y+=dt*0.5;
+}
 // Figure ANIMÉE et contrôlée, jamais une vraie rotation libre du véhicule :
 // passer réellement la tête en bas casserait la caméra (qui ne lit que
 // v.alt/x/z, jamais la rotation du mesh — elle ne se retourne donc jamais),
@@ -6659,6 +6722,7 @@ function majVrille(v,dt){
 function majVol(v,dt){
   const air=v.def.air;
   if(v.alt===undefined){v.alt=0;v.vol=false;v.va=0;}
+  majLumieresOvni(v,dt);
   const monter=INPUT.btn.sprint||INPUT.btn.sprintK;
   const desc=INPUT.btn.frein||INPUT.btn.freinK;
   el('btnSprint').classList.toggle('actif',!!monter);
@@ -7377,6 +7441,7 @@ function majVehicules(dt){
         v.v=0; v.x=POIS.aerodrome.x; v.z=POIS.aerodrome.z;
         v.mesh.position.x=v.x; v.mesh.position.z=v.z;
       }
+      majLumieresOvni(v,dt);
     }
   }
   for(let i=vehicules.length-1;i>=0;i--){
@@ -15785,7 +15850,6 @@ function startRun(){
   // friche — jamais dans le trafic, réapparaît toujours au même endroit
   // (voir POIS.friche, construireVille) : un lieu, pas un butin.
   if(POIS.friche) creerVehicule('monstertruck',POIS.friche.x,POIS.friche.z,0.6);
-  if(POIS.hangar) creerVehicule('van',POIS.hangar.x-14,POIS.hangar.z+14,0.4);
   if(POIS.helipad) creerVehicule('helico',POIS.helipad.x,POIS.helipad.z,Math.PI/2);
   // Avion de voltige : garé sur sa propre piste, à l'écart (voir POIS.
   // aerodrome, remplirBloc) — jamais dans le trafic, un seul exemplaire.
@@ -15829,6 +15893,10 @@ function startRun(){
   if(POIS.base) cacheV('jeepMil',POIS.base.x-26,POIS.base.z-10,0.6);  // même base, à l'écart du char
   if(POIS.base) cacheV('dca',POIS.base.x+22,POIS.base.z-16,-1.2);     // même base, dégagé côté ciel
   cacheV('espadon',-HALF+34,MER+26,Math.PI/2);                        // crique à l'ouest
+  // OVNI : garé au pied du Hangar 7, désaffecté (aérodrome, voir mkAeroport)
+  // — plus un van banal garé devant, juste ce qui n'aurait jamais dû être
+  // là. posLibre() l'écarte un peu du mur du hangar au besoin.
+  if(POIS.hangar) cacheV('ovni',POIS.hangar.x-14,POIS.hangar.z+14,0.4);
   if(POIS.villas) cacheV('mirage',POIS.villas.x+11,POIS.villas.z-11,1.1); // recoin des villas
   if(POIS.chantier) cacheV('scarabee',POIS.chantier.x-13,POIS.chantier.z+12,2.4); // derrière la grue
   if(POIS.port) cacheV('baronne',POIS.port.x+13,POIS.port.z-11,Math.PI/2);  // entrepôt du port
