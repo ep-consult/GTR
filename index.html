@@ -2975,7 +2975,10 @@ function mkAeroport(){
     addSolid({x,z,hw:w/2,hd:d/2,h:1.5});};
   clot(AX+70,-70,0.3,364);
   clot(AX+8,-HALF+22,186,0.3);
-  clot(AX+8,MER-32,186,0.3);
+  // Clôture sud retirée (demandé explicitement, « en bas enlever le mur ») :
+  // ouvre tout le désert au sud (POIS.desert/dunes/tremplins, voir
+  // construireRelief) au lieu de le couper net avant la clôture — estEau()
+  // empêche déjà toute sortie en mer, aucune barrière artificielle requise.
   // barils, cônes et matériel au sol
   for(let i=0;i<4;i++){
     const b=new THREE.Mesh(new THREE.CylinderGeometry(0.55,0.55,1.1,10),mat(pick([0xe07020,0x2a5a8a])));
@@ -3171,7 +3174,25 @@ function construireRelief(){
   const mHerbe=new THREE.MeshLambertMaterial({map:texHerbe});
   const mBois=new THREE.MeshLambertMaterial({map:texPlanche});
   const mTerre=mat(0x6a5c46);
+  const mDesert=new THREE.MeshLambertMaterial({map:texDesert});
   // (les grosses collines ont été retirées : elles déformaient les véhicules et rendaient mal)
+  // Dunes du désert (demandé explicitement) : reprend mkColline() — jamais
+  // utilisée depuis le retrait des grosses collines ci-dessus — mais bien
+  // plus modeste (rayon large, hauteur ~2-2,5, pente douce) que ce qui avait
+  // posé problème, dans le même esprit que les tremplins déjà en place
+  // ailleurs (haut ~2-2,7, jamais retirés, donc une échelle éprouvée).
+  // Écartées du cratère (voir POIS.crash) pour ne jamais l'envahir.
+  if(POIS.desert){
+    const pd=POIS.desert;
+    mkColline(pd.x+35,pd.z-40,17,2.5,mDesert);
+    mkColline(pd.x-65,pd.z-25,15,2.2,mDesert);
+    mkColline(pd.x+40,pd.z+45,16,2.4,mDesert);
+    mkColline(pd.x-70,pd.z+45,14,2,mDesert);
+    // tremplins aux deux bouts de la zone, lancent l'un vers l'autre à
+    // travers les dunes.
+    mkRampe(pd.x+15,pd.z-55,0,9,2.6,4.6,mDesert);
+    mkRampe(pd.x-15,pd.z+60,Math.PI,9,2.6,4.6,mDesert);
+  }
   // tremplins
   if(POIS.chantier){
     mkRampe(POIS.chantier.x-16,POIS.chantier.z-14,Math.PI,8,2.5,4.4,mTerre); // saute par-dessus la route
