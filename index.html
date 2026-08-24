@@ -3312,10 +3312,15 @@ function construireRelief(){
   // trop pour qu'on les remarque) sans jamais l'envahir.
   if(POIS.desert){
     const pd=POIS.desert;
-    mkColline(pd.x+30,pd.z-35,34,11,mDune);
-    mkColline(pd.x-55,pd.z-20,30,9.5,mDune);
-    mkColline(pd.x+35,pd.z+40,32,10.5,mDune);
-    mkColline(pd.x-62,pd.z+42,28,9,mDune);
+    // Accentuées encore plus (demandé explicitement, « énormes dunes, qu'on
+    // les voie sauter aux yeux ») : hauteur quasi doublée, rayon monté
+    // modérément — la hauteur porte l'essentiel de l'effet vu de dessus,
+    // pousser surtout le rayon aurait fait déborder les bords hors de la
+    // zone jouable du désert (hw:100/hd:70 autour de pd, mer à MER=286).
+    mkColline(pd.x+30,pd.z-35,39,19,mDune);
+    mkColline(pd.x-55,pd.z-20,35,17,mDune);
+    mkColline(pd.x+35,pd.z+40,37,18.5,mDune);
+    mkColline(pd.x-62,pd.z+42,33,16,mDune);
     // tremplins aux deux bouts de la zone, lancent l'un vers l'autre à
     // travers les dunes.
     mkRampe(pd.x+15,pd.z-55,0,9,2.6,4.6,mDesert);
