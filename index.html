@@ -4915,25 +4915,43 @@ function makeVoiture(key){
       bras.add(mkBoxG(W*1.04,0.12,0.16,0xe07020,0,0.78,0.98));              // liseré orange en haut de lame
       corps.add(bras); ud.pelle=bras;
     } else if(def.grue){
-      // grue mobile : châssis camion + bras oblique + câble/boulet, VRAIMENT
-      // animés en pendule (ud.boulet/ud.cable, voir majGrueBoulet), jamais
-      // un ornement statique. Point d'ancrage (bout du bras) gardé en
+      // grue mobile : châssis camion + tourelle + bras oblique + câble/boulet,
+      // VRAIMENT animés en pendule (ud.boulet/ud.cable, voir majGrueBoulet),
+      // jamais un ornement statique. Point d'ancrage (bout du bras) gardé en
       // repère LOCAL (ud.ancrage) pour que majConduite calcule sa position
       // MONDE chaque frame, quels que soient la position/le cap du camion.
+      //
+      // Rework lisibilité (retour joueur : bras illisible + impossible à
+      // repérer comme grue). Captures d'écran isolées → bug de SIGNE trouvé :
+      // brasGrp.rotation.x=Math.PI/2-armAng envoyait le bout du bras à
+      // y'=-armLen*sin(θ) (SOUS le pivot, bras planté dans le sol), alors que
+      // ud.ancrage (qui positionne câble+boulet, indépendant du maillage du
+      // bras) suppose le bout EN HAUT de +cos(armAng)*armLen — signe opposé.
+      // Le boulet flottait donc dans le vide, détaché d'un bras invisible.
+      // Fixé en inversant en armAng-Math.PI/2 (mêmes y'/z' que ud.ancrage,
+      // dont les formules étaient déjà correctes et ne changent pas). En
+      // plus : cabine minuscule remplacée par une cabine fermée plus haute,
+      // et tourelle + contrepoids ajoutés sous le bras pour que l'engin se
+      // lise comme une grue au premier coup d'œil, comme pour le Bulldozer.
       corps.add(mkBoxG(W*0.86,0.55,L*0.62,coul,0,bodyY,0.12));               // châssis/plateau
-      corps.add(mkBoxG(W*0.5,0.5,0.5,0x2a2d34,0,bodyY+0.5,-L*0.28));         // cabine, à l'arrière
-      corps.add(mkBoxG(W*0.44,0.3,0.02,0x141b26,0,bodyY+0.5,-L*0.28-0.26));  // vitre avant, plate
-      const armLen=6.2, armAng=0.95;
-      const bras2=mkBoxG(0.4,0.4,armLen,0xd8b02a,0,0,armLen/2);
+      const cabY=bodyY+0.15, cabH=1.05, cabW=W*0.5, cabD=0.56, cabZ=-L*0.28;
+      corps.add(mkBoxG(cabW,cabH,cabD,0x2a2d34,0,cabY+cabH/2,cabZ));         // cabine fermée, haute
+      corps.add(mkBoxG(cabW*0.86,cabH*0.5,0.02,0x141b26,0,cabY+cabH*0.62,cabZ-cabD*0.5)); // pare-brise avant
+      corps.add(mkBoxG(0.18,0.14,0.18,0xff6a1a,0,cabY+cabH+0.09,cabZ));      // gyrophare, marque le sommet
+      const armLen=6.2, armAng=0.95, tourZ=-L*0.05;
+      corps.add(mkBoxG(W*0.7,0.42,0.9,0x3a3e46,0,bodyY+0.35,tourZ));        // tourelle, socle du bras
+      corps.add(mkBoxG(W*0.5,0.34,0.5,0x232323,0,bodyY+0.4,tourZ-0.55));    // contrepoids, à l'opposé du bras
+      const bras2=mkBoxG(0.5,0.5,armLen,0xd8b02a,0,0,armLen/2);
       const brasGrp=new THREE.Group();
-      brasGrp.position.set(0,bodyY+0.4,-L*0.05);
-      brasGrp.rotation.x=Math.PI/2-armAng;
+      brasGrp.position.set(0,bodyY+0.4,tourZ);
+      brasGrp.rotation.x=armAng-Math.PI/2;                                  // signe corrigé, voir note ci-dessus
       brasGrp.add(bras2);
+      brasGrp.add(mkBoxG(0.62,0.62,0.3,0x1a1d24,0,0,armLen-0.1));           // tête de mât, contrastée
       corps.add(brasGrp);
-      ud.ancrage={y:bodyY+0.4+Math.cos(armAng)*armLen,z:-L*0.05+Math.sin(armAng)*armLen};
-      const cable=new THREE.Mesh(new THREE.CylinderGeometry(0.025,0.025,1,4),mat(0x1a1d24));
+      ud.ancrage={y:bodyY+0.4+Math.cos(armAng)*armLen,z:tourZ+Math.sin(armAng)*armLen};
+      const cable=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.05,1,6),mat(0x1a1d24));
       g.add(cable); ud.cable=cable;
-      const boulet=new THREE.Mesh(new THREE.SphereGeometry(0.55,12,10),mat(0x232323));
+      const boulet=new THREE.Mesh(new THREE.SphereGeometry(0.6,12,10),mat(0x232323));
       g.add(boulet); ud.boulet=boulet;
       // position par défaut (garé, jamais encore piloté) : pend tout droit
       // sous le point d'ancrage, câble tendu à sa longueur normale.
