@@ -7110,6 +7110,12 @@ function sortirVehicule(force){
   el('btnSprint').innerHTML='🏃<small>SPRINT</small>'; // reset complet : LANCE (pompier) change aussi l'icône, pas que le texte
   el('btnBrake').querySelector('small').textContent='FREIN';
   el('btnDodge').innerHTML='💨<small>ESQUIVE</small>';
+  // Bug déjà rencontré (trouvé en préparant un nouveau véhicule) : l'OVNI
+  // remplace TOUT le innerHTML de #btnGren (FLASH), détruisant au passage le
+  // <small id="grenN"> qu'il contenait — sans ce reset, #grenN reste introuvable
+  // pour le reste de la session et le prochain startRun() plante net sur
+  // el('grenN').textContent=... (aucune régénération ailleurs).
+  el('btnGren').innerHTML='💣<small id="grenN">'+P.grenades+'</small>';
   el('btnJump').style.display='none'; el('btnSpec').style.display='flex';
   if(P.jetpack&&!INT.actif) el('btnJetpack').style.display='flex';
   majArmeJoueur();
@@ -7149,6 +7155,7 @@ function sauterEnParachute(){
   el('vehWrap').style.display='none';
   el('btnSprint').innerHTML='🏃<small>SPRINT</small>'; // reset complet : LANCE (pompier) change aussi l'icône, pas que le texte
   el('btnBrake').querySelector('small').textContent='FREIN';
+  el('btnGren').innerHTML='💣<small id="grenN">'+P.grenades+'</small>'; // voir le même correctif dans sortirVehicule
   el('btnSpec').style.display='flex';
   el('btnJump').style.display='flex'; // reste dispo : appuie pour ouvrir la voile
   majArmeJoueur(); moteurStop();
