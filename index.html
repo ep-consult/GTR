@@ -643,11 +643,12 @@ const fmt$=n=>Math.floor(n)+' $';
 const el=id=>document.getElementById(id);
 
 let hitT=0;
+const elHitMk=el('hitMk'); // mis en cache une fois, jamais un getElementById par frame (règle HUD)
 function hitMarker(){ hitT=0.09; }
 function majHitMarker(dt){
   if(hitT>0){ hitT-=dt;
-    const hm=el('hitMk'); hm.style.opacity=hitT>0?0.9:0;
-    hm.style.transform='translate(-50%,-50%) scale('+(1.4-hitT*3)+')';
+    elHitMk.style.opacity=hitT>0?0.9:0;
+    elHitMk.style.transform='translate(-50%,-50%) scale('+(1.4-hitT*3)+')';
   }
 }
 function vibre(ms){ if(REGLAGES.vib && navigator.vibrate){ try{navigator.vibrate(ms);}catch(e){} } }
@@ -6046,8 +6047,10 @@ function majJoueur(dt,dtJeu){
   P.vitesseMarcheMax=P.vitBase*(P.nage?(aCurio('perle')?0.567:0.42):1)*buffVit;
   P.vitesseSprintMax=P.vitBase*(P.nage?(aCurio('perle')?0.567:0.42):1.5)*buffVit;
   if(P.nage){
-    P.stam=Math.max(0,P.stam-(aCurio('perle')?0.8:1.6)*dt); P.stamDelai=0.8;   // nage longue distance possible
-    if(P.stam<=0){ P.hp-=0.9*dt; if(P.hp<=0) mourir(); }
+    // Sur dtJeu, pas dt : cette jauge détermine la noyade (comme P.chuteT et
+    // le parachute juste en dessous), un ralenti ne doit jamais l'amortir.
+    P.stam=Math.max(0,P.stam-(aCurio('perle')?0.8:1.6)*dtJeu); P.stamDelai=0.8;   // nage longue distance possible
+    if(P.stam<=0){ P.hp-=0.9*dtJeu; if(P.hp<=0) mourir(); }
     if(bouge&&Math.random()<0.35) spawnP(P.x+rand(-0.5,0.5),0.15,P.z+rand(-0.5,0.5),rand(-0.6,0.6),rand(0.8,1.8),rand(-0.6,0.6),0.4,0.5,0xcfeaff,3);
   } else if(sprint&&!(P.buffs.nitroT>0)){P.stam=Math.max(0,P.stam-22*dt);P.stamDelai=0.8;}
   else if(P.stamDelai<=0) P.stam=Math.min(P.stamMax,P.stam+20*dt);
@@ -8672,20 +8675,21 @@ function majEnnemis(dt){
     }
     /* --- boss : charge télégraphe --- */
     if(e.boss){
+      // e.chargeT est décrémenté UNE SEULE FOIS ici, pour les deux états
+      // (tele/dash) — bug déjà rencontré : la branche 'dash' avait un second
+      // décrément réel en plus de celui-ci, ce qui vidait chargeT deux fois
+      // plus vite qu'annoncé (0.8 s de charge ne durait en réalité que 0.4 s).
       e.chargeT-=dt;
       if(e.chargeEtat==='tele'){
-        e.chargeT-=dt*0; // le télé utilise chargeT
         if(Math.random()<0.5) spawnP(e.x+rand(-1,1),0.5,e.z+rand(-1,1),0,2,0,0.3,0.6,0xff3b5c,0);
         if(e.chargeT<=0){ e.chargeEtat='dash'; e.chargeT=0.8;
           e.cx=Math.sin(versT); e.cz=Math.cos(versT); SFX.spec(); }
       } else if(e.chargeEtat==='dash'){
-        e.chargeT-=0;
         const nx=e.x+e.cx*30*dt, nz=e.z+e.cz*30*dt;
         if(solidAt(nx,nz,0.8)){ e.chargeEtat=null; e.chargeT=rand(5,7); secousse(6); }
         else { e.x=nx; e.z=nz; }
         fumee(e.x,0.4,e.z,0x2fae4f);
         if(!P.veh&&P.y<2&&dist2(e.x,e.z,P.x,P.z)<4){ toucherJoueur(30); e.chargeEtat=null; e.chargeT=rand(5,7); }
-        e.chargeT-=dt;
         if(e.chargeT<=0){ e.chargeEtat=null; e.chargeT=rand(5,7); }
         e.h.g.position.set(e.x,0,e.z); e.h.g.rotation.y=e.ang;
         continue;
@@ -9396,21 +9400,32 @@ const CHASSE_EAU={t:0};
 function majChasseursEau(dt){
   CHASSE_EAU.t-=dt;
   const surEau=P.nage||(P.veh&&P.veh.def.eau);
-  const chasseurs=vehicules.filter(v=>v.iaEau&&!v.mort);
+  // Boucles explicites plutôt que filter/some (règle perf CLAUDE.md) : cette
+  // fonction tourne chaque frame, un chasseurs=vehicules.filter(...) allouait
+  // un tableau à chaque frame même sans jamais être sur l'eau.
   if(surEau&&CHASSE_EAU.t<=0){
     CHASSE_EAU.t=7;
-    if(WANTED.stars>=3&&!chasseurs.some(v=>v.iaFac==='police')){
-      const v=creerVehicule('bateauP',clamp(P.x+pick([-1,1])*45,-HALF,HALF),Math.max(MER+18,P.z+20),Math.PI);
-      v.iaEau=true; v.iaFac='police'; v.cad=1.5; v.sirene=true;
-      toast('Vedette de police en approche !','warn');
+    if(WANTED.stars>=3){
+      let dejaPolice=false;
+      for(const v of vehicules){ if(v.iaEau&&!v.mort&&v.iaFac==='police'){ dejaPolice=true; break; } }
+      if(!dejaPolice){
+        const v=creerVehicule('bateauP',clamp(P.x+pick([-1,1])*45,-HALF,HALF),Math.max(MER+18,P.z+20),Math.PI);
+        v.iaEau=true; v.iaFac='police'; v.cad=1.5; v.sirene=true;
+        toast('Vedette de police en approche !','warn');
+      }
     }
-    if(WAVES.etat==='active'&&WAVES.gang==='murenes'&&chasseurs.filter(v=>v.iaFac==='murenes').length<1){
-      const v=creerVehicule('bateau',clamp(P.x+pick([-1,1])*40,-HALF,HALF),Math.max(MER+14,P.z+16),Math.PI);
-      v.iaEau=true; v.iaFac='murenes'; v.cad=1.2;
-      v.mesh.traverse(o=>{if(o.material&&o.material.color&&!o.material.map)o.material=new THREE.MeshLambertMaterial({color:0x1f6a7a});});
+    if(WAVES.etat==='active'&&WAVES.gang==='murenes'){
+      let nbMurenes=0;
+      for(const v of vehicules){ if(v.iaEau&&!v.mort&&v.iaFac==='murenes') nbMurenes++; }
+      if(nbMurenes<1){
+        const v=creerVehicule('bateau',clamp(P.x+pick([-1,1])*40,-HALF,HALF),Math.max(MER+14,P.z+16),Math.PI);
+        v.iaEau=true; v.iaFac='murenes'; v.cad=1.2;
+        v.mesh.traverse(o=>{if(o.material&&o.material.color&&!o.material.map)o.material=new THREE.MeshLambertMaterial({color:0x1f6a7a});});
+      }
     }
   }
-  for(const v of chasseurs){
+  for(const v of vehicules){
+    if(!v.iaEau||v.mort) continue;
     const d=Math.sqrt(dist2(v.x,v.z,P.x,P.z));
     const va=Math.atan2(P.x-v.x,P.z-v.z);
     if(surEau){
@@ -15389,7 +15404,13 @@ function majInterieur(dt,dtJeu){
         if(dist2(P.x,P.z,cam.x,cam.z)>=cam.rayon*cam.rayon) continue;
         if(Math.abs(angDiff(cam.angActuel,Math.atan2(P.x-cam.x,P.z-cam.z)))<cam.demiAngle){ dansCone=true; break; }
       }
-      s.soupcon=clamp(s.soupcon+(dansCone?100/1.2:-100/5)*dt,0,100);
+      // soupcon (comme casseT juste au-dessus) détermine la fin du casse —
+      // bug déjà rencontré ailleurs (le bateau du Chalutier) pour ce motif
+      // exact : sur dt, un ralenti amortirait la jauge sans jamais ralentir
+      // casseT, rendant le casse artificiellement plus facile pendant un
+      // ralenti. bruitAcc (juste en dessous), qui déclenche la détection
+      // d'un garde, joue contre le même résultat et doit suivre la même règle.
+      s.soupcon=clamp(s.soupcon+(dansCone?100/1.2:-100/5)*dtJeu,0,100);
       // bruit : la vitesse réelle du moment (joystick analogique compris), pas un
       // booléen de bouton — sinon un joueur qui pousse à peine le joystick tout
       // en maintenant sprint est classé « bruyant ». Seuil = plafond de marche +
@@ -15404,14 +15425,14 @@ function majInterieur(dt,dtJeu){
       const seuilBruit=P.vitesseMarcheMax+0.15*ecartVitesse;
       const court=ecartVitesse>0&&P.vitesseReelle>=seuilBruit;
       if(court){
-        s.bruitAcc+=dt;
+        s.bruitAcc+=dtJeu;
         if(s.bruitAcc>=2.2){
           s.bruitAcc=0;
           let gp=null,gd2=1e9;
           for(const gd of s.gardiens){ const d=dist2(gd.x,gd.z,P.x,P.z); if(d<gd2){gd2=d;gp=gd;} }
           if(gp){ gp.deviationT=6; gp.deviationDepart={x:gp.x,z:gp.z}; gp.deviationCible={x:P.x,z:P.z}; }
         }
-      } else s.bruitAcc=Math.max(0,s.bruitAcc-dt*0.5);
+      } else s.bruitAcc=Math.max(0,s.bruitAcc-dtJeu*0.5);
       musWrap.style.display='block';
       musLblEl.textContent='⚡ '+Math.max(0,Math.ceil(s.casseT))+' s';
       musObjEl.textContent=(s.artefactsPris>0)?'Ressortir par l’entrée':'Forcer les vitrines';
@@ -16229,7 +16250,6 @@ function evaluerPoker(m){
   let suite=rangs.every((r,i)=>i===0||r===rangs[i-1]+1);
   const royale=rangs.join()==='0,9,10,11,12';
   if(royale) suite=true;
-  const hauteSuite=royale||(suite&&rangs[0]>=8);
   if(flush&&royale) return {nom:'QUINTE FLUSH ROYALE',mult:250};
   if(flush&&suite)  return {nom:'QUINTE FLUSH',mult:50};
   if(grp[0]===4)    return {nom:'CARRÉ',mult:25};
@@ -16318,7 +16338,13 @@ function renderCasino(){
         CAS.etat={p,joueur:[p.pop(),p.pop()],croupier:[p.pop(),p.pop()],fini:false,mise:CAS.mise};
         const vj=valMain(CAS.etat.joueur);
         if(vj===21){ CAS.etat.fini=true; renderCasino();
-          gagner(Math.round(CAS.etat.mise*2.5),'BLACKJACK !','#ffd23f'); return; }
+          // Le croupier peut lui aussi avoir un blackjack naturel à la donne —
+          // bug déjà rencontré : le joueur touchait 3:2 dans ce cas au lieu
+          // d'une égalité remboursée, réduisant l'avantage de la maison
+          // annoncé par la table (« Blackjack payé 3:2 · égalité remboursée »).
+          if(valMain(CAS.etat.croupier)===21) gagner(CAS.etat.mise,'Double blackjack — égalité remboursée','#8b93a7');
+          else gagner(Math.round(CAS.etat.mise*2.5),'BLACKJACK !','#ffd23f');
+          return; }
         renderCasino(); el('casMsg').textContent='';
       },'#7dff7a');
     } else {
@@ -17992,8 +18018,14 @@ function majAction(){
       }
     /* ---------- SITE 51 : objets de valeur (banqués seulement à la sortie réussie) ---------- */
     } else if(s.objets51&&s.objets51.some(o=>!o.pris&&!META.site51Objets[o.id]&&dist2(P.x,P.z,o.x,o.z)<marquerZone(o,9))){
-      const it=s.objets51.filter(o=>!o.pris&&!META.site51Objets[o.id]&&dist2(P.x,P.z,o.x,o.z)<marquerZone(o,9))
-        .sort((a,b)=>dist2(P.x,P.z,a.x,a.z)-dist2(P.x,P.z,b.x,b.z))[0];
+      // boucle explicite plutôt que filter+sort (règle perf CLAUDE.md) : ce
+      // bloc tourne chaque frame tant qu'on est dans le hangar du Site 51.
+      let it=null,itD=Infinity;
+      for(const o of s.objets51){
+        if(o.pris||META.site51Objets[o.id]) continue;
+        const dd=dist2(P.x,P.z,o.x,o.z); if(dd>=marquerZone(o,9)) continue;
+        if(dd<itD){itD=dd;it=o;}
+      }
       label='🔍 PRENDRE — '+it.nom;
       fn=()=>{ site51Ramasser(s,it.id); };
     /* ---------- SITE 51 : grande porte du hangar — issue secondaire, jamais fermée ---------- */
@@ -18003,8 +18035,17 @@ function majAction(){
     /* ---------- DÉPÔT DE BUS : stand des véhicules (choix, pas d'entrée physique) ---------- */
     } else if(s.depot&&!s.courseEnCours&&s.standVehicules&&
               s.standVehicules.some(st=>dist2(P.x,P.z,st.x,st.z)<marquerZone(st,9))){
-      const st=s.standVehicules.filter(st=>dist2(P.x,P.z,st.x,st.z)<st.r*st.r)
-        .sort((a,b)=>dist2(P.x,P.z,a.x,a.z)-dist2(P.x,P.z,b.x,b.z))[0];
+      // Bug déjà rencontré ici : le filtre comparait à st.r*st.r, mais st.r
+      // n'est jamais posé sur ces objets (voir leur construction) — la
+      // comparaison valait toujours NaN, le tableau filtré était TOUJOURS
+      // vide, st valait toujours undefined, et VEHDEFS[st.key] plantait dès
+      // qu'on s'approchait du stand de véhicules. Boucle explicite avec le
+      // MÊME rayon que la condition ci-dessus (règle perf CLAUDE.md en prime).
+      let st=null,stD=Infinity;
+      for(const s2 of s.standVehicules){
+        const dd=dist2(P.x,P.z,s2.x,s2.z); if(dd>=marquerZone(s2,9)) continue;
+        if(dd<stD){stD=dd;st=s2;}
+      }
       const nom=VEHDEFS[st.key].nom.toUpperCase();
       if(!st.dispo){ label='🔒 '+nom+' — à débloquer'; fn=()=>{SFX.refus();toast('Gagne sur Le Toit. En Bus.','warn');}; }
       else if(s.vehiculeChoisi===st.key){ label='✅ '+nom+' choisi'; fn=()=>{SFX.ui();}; }
@@ -18055,9 +18096,13 @@ function majAction(){
       }
     } else if(s.fouilles&&s.fouilles.length&&
               s.fouilles.some(f=>dist2(P.x,P.z,f.x,f.z)<f.rayon*f.rayon)){
-      // priorité basse : n'importe quel contenant fouillable de la salle
-      const f=s.fouilles.filter(f=>dist2(P.x,P.z,f.x,f.z)<f.rayon*f.rayon)
-        .sort((a,b)=>dist2(P.x,P.z,a.x,a.z)-dist2(P.x,P.z,b.x,b.z))[0];
+      // priorité basse : n'importe quel contenant fouillable de la salle.
+      // Boucle explicite plutôt que filter+sort (règle perf CLAUDE.md).
+      let f=null,fD=Infinity;
+      for(const f2 of s.fouilles){
+        const dd=dist2(P.x,P.z,f2.x,f2.z); if(dd>=f2.rayon*f2.rayon) continue;
+        if(dd<fD){fD=dd;f=f2;}
+      }
       const vide=f.prisVague===WAVES.n;
       if(FOUILLE.cible===f) label='⏳ FOUILLE EN COURS...';
       else label=vide?('✔ '+f.nom+' — déjà fouillé'):('🔎 FOUILLER — '+f.nom);
