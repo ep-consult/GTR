@@ -1976,6 +1976,20 @@ const VEHDEFS={
   // qu'il suit au bout du câble.
   depanneuse:{nom:'Dépanneuse "Grizzly"',vmax:25,acc:13,man:1.9,hp:260,long:5.1,larg:2.2,type:'car',depanneuse:true,cache:true,cols:[0xe07020,0x2a2d34]},
   scarabee:{nom:'Buggy "Scarabée"',vmax:33,acc:21,man:3.3,hp:130,long:3.4,larg:1.9,type:'car',cols:[0x2fae4f],buggy:true,cache:true},
+  // 4x4 amphibie : def.amphibie fait basculer majVehiculePhys/la position
+  // verticale sur une vraie physique flottante DÈS que le châssis touche
+  // l'eau (voir surEauVeh/majVehiculePhys), et retour à une physique de
+  // 4x4 normale dès qu'il retouche la terre — jamais un statique eau:true
+  // comme les bateaux, qui l'aurait rendu inconduisible sur terre.
+  amphibie:{nom:'4x4 Amphibie "Loutre"',vmax:23,acc:13,man:2.0,hp:200,long:4.6,larg:2.15,type:'car',amphibie:true,cache:true,cols:[0x4a6b3e]},
+  // Voiture d'espion : mitrailleuse fixe à l'avant (def.mitrailleuse —
+  // réutilise TEL QUEL le tir/la visée de la Jeep militaire, CLAUDE.md :
+  // jamais recopier de logique), missile sur ESQUIVE (def.bond, cooldown,
+  // voir majConduite) et flaque d'huile sur GRENADE (bouton libre en
+  // véhicule, même réemploi que le FLASH de l'OVNI). Découverte dans le
+  // garage caché du Ciné-Palace (voir construireVille/startRun).
+  bond:{nom:'GT "Agent Gris"',vmax:36,acc:19,man:2.7,hp:150,long:4.5,larg:1.95,type:'car',mitrailleuse:true,bond:true,cache:true,cols:[0xc7ccd2]},
+  baronne:{nom:'Ancienne "Baronne"',vmax:26,acc:10,man:2.0,hp:280,long:5.4,larg:2.1,type:'car',cols:[0x6a1f2a],cache:true},
   baronne:{nom:'Ancienne "Baronne"',vmax:26,acc:10,man:2.0,hp:280,long:5.4,larg:2.1,type:'car',cols:[0x6a1f2a],cache:true},
   avion:{nom:'Avion "Colibri"',vmax:40,acc:11,man:1.3,hp:130,long:7.4,larg:2,type:'car',air:'avion',cols:[0xe8ecf2]},
   char:{nom:'Char "Rhinocéros"',vmax:17,acc:7,man:1.0,hp:2600,long:6.6,larg:3.4,type:'car',blinde:true,canon:true,cache:true,ecrase:true,cols:[0x4a5238]},
@@ -2379,6 +2393,12 @@ function estEau(x,z){
   for(const i of ILES) if(dist2(x,z,i.x,i.z)<i.r*i.r) return false;
   return true;
 }
+// Un véhicule flotte si son def porte eau:true (bateaux, toujours) OU s'il
+// est amphibie ET actuellement sur l'eau (def.amphibie, jamais un simple
+// def.eau statique — sinon il serait aussi traité comme un bateau à terre,
+// inconduisible). Point d'entrée UNIQUE utilisé partout où le comportement
+// bateau/4x4 doit dépendre de la position réelle, pas juste du type déclaré.
+function surEauVeh(v){ return !!v.def.eau||(!!v.def.amphibie&&estEau(v.x,v.z)); }
 // Zone du désert (POIS.desert, voir mkAeroport) : adhérence réduite et
 // traînée de poussière en conduite, voir majVehiculePhys — demandé
 // explicitement (« effet course dans le désert »).
@@ -3881,6 +3901,21 @@ function placerPortes(){
   poser('arcade',cArc.x,cArc.z,'PALAIS DE L\'ARCADE',0xff5ec4);
   const cCine=caseCentre(11,5);  // quartier commerçant : le vieux palace de cinéma, ouvert dès le début
   poser('cine',cCine.x,cCine.z,'CINÉ-PALACE',0xe8503f);
+  // Garage caché (demandé explicitement, « non loin du cinéma ») : case
+  // VOISINE du ciné (12,5), jamais un simple décalage depuis cCine — le
+  // ciné occupe déjà sa propre case, une case adjacente évite tout
+  // chevauchement de bâtiment (CLAUDE.md, règle des portes/POI). Pas de
+  // poser()/mkPorte : ce n'est pas une salle visitable, juste un lock-up
+  // sans enseigne (volontairement anonyme, jamais éclairé comme les autres
+  // devantures) où dort la voiture d'espion (def.bond, voir startRun).
+  const cGarageSecret=caseCentre(12,5);
+  const pGarageSecret=placeLibrePorte(cGarageSecret.x,cGarageSecret.z);
+  if(pGarageSecret){
+    mkBox(3.2,3,2.6,mat(0x3a3d42),pGarageSecret.x,1.5,pGarageSecret.z);
+    mkBox(2.6,2.2,0.12,mat(0x1c1e22),pGarageSecret.x,1.1,pGarageSecret.z+1.36); // porte de garage, plus sombre que les murs
+    addSolid({x:pGarageSecret.x,z:pGarageSecret.z,hw:1.6,hd:1.3,h:3});
+    POIS.garageSecret={x:pGarageSecret.x,z:pGarageSecret.z};
+  }
   // Bug déjà rencontré : (2,11) est aussi la case des FAST-FOODS (voir plus
   // bas, bx===2&&bz===11 → TACO NOVA) — la porte du métro se retrouvait donc
   // plaquée contre la façade du fast-food, quasi invisible. (4,10) reste dans
@@ -4964,6 +4999,47 @@ function makeVoiture(key){
       boulet.position.set(0,ud.ancrage.y-1.6,ud.ancrage.z);
       cable.position.set(0,ud.ancrage.y-0.8,ud.ancrage.z);
       cable.scale.set(1,1.6,1);
+    } else if(def.bond){
+      // Voiture d'espion : silhouette basse de coupé grand tourisme des
+      // années 60 — capot long, habitacle bas ramené vers l'arrière, jamais
+      // la carrosserie haute d'une berline (même logique de contraste que
+      // def.sport plus bas, mais un toit rigide fermé, pas une supercar à
+      // ciel ouvert). Phares ronds jumelés + canons de mitrailleuse (courte
+      // paire de tubes sombres, tirée par def.mitrailleuse — voir
+      // majConduite, TEL QUEL) postés juste en dessous, façon gadget caché
+      // derrière la calandre.
+      corps.add(mkBoxG(W*0.86,0.38,L*0.94,coul,0,bodyY,0));                       // caisse basse et longue
+      corps.add(mkBoxG(W*0.62,0.4,L*0.42,0x1a1d24,0,bodyY+0.55,-L*0.06));         // habitacle fermé, bas, ramené vers l'arrière
+      corps.add(mkBoxG(W*0.58,0.06,L*0.4,coul,0,bodyY+0.78,-L*0.06));             // toit rigide
+      corps.add(mkBoxG(W*0.5,0.3,0.04,0x0c0e12,0,bodyY+0.56,L*0.16));             // pare-brise incliné
+      corps.add(mkBoxG(W*0.5,0.3,0.04,0x0c0e12,0,bodyY+0.56,-L*0.28));            // lunette arrière
+      corps.add(mkBoxG(W*0.9,0.16,0.14,0xc4c8ce,0,bodyY-0.18,L/2*0.98));          // pare-chocs avant, chromé
+      corps.add(mkBoxG(W*0.9,0.16,0.14,0xc4c8ce,0,bodyY-0.18,-L/2*0.98));         // pare-chocs arrière, chromé
+      [-1,1].forEach(sx=>{ // phares ronds jumelés
+        const phare=new THREE.Mesh(new THREE.SphereGeometry(0.14,10,8),new THREE.MeshBasicMaterial({color:0xfff2c0}));
+        phare.position.set(sx*W*0.32,bodyY+0.06,L*0.49); corps.add(phare);
+        const canon=new THREE.Mesh(new THREE.CylinderGeometry(0.055,0.055,0.5,8),mat(0x1a1d24)); // canon de mitrailleuse, sous le phare
+        canon.rotation.x=Math.PI/2; canon.position.set(sx*W*0.32,bodyY-0.08,L*0.62); corps.add(canon);
+      });
+      // trappe de la flaque d'huile, sous le pare-chocs arrière — purement
+      // indicative, larguerHuile() lâche la flaque à la position réelle du
+      // véhicule quel que soit l'angle de la caméra.
+      corps.add(mkBoxG(0.3,0.06,0.2,0x0c0e12,0,bodyY-0.2,-L/2*0.92));
+    } else if(def.amphibie){
+      // 4x4 amphibie : coque basse et large SOUS la caisse (jamais une
+      // caisse de 4x4 ordinaire posée à même les roues — c'est cette coque
+      // qui vend l'idée « ça flotte »), snorkel sur le capot, galerie de
+      // toit et roue de secours arrière, comme un vrai 4x4 d'expédition.
+      corps.add(mkBoxG(W*0.98,0.32,L*0.9,0x2a2d2a,0,bodyY-0.16,0));               // coque étanche, large et basse
+      corps.add(mkBoxG(W*0.8,0.6,L*0.62,coul,0,bodyY+0.3,-L*0.04));               // carrosserie 4x4, haute et droite
+      corps.add(mkBoxG(W*0.64,0.4,0.05,0x141b26,0,bodyY+0.56,L*0.13));            // pare-brise vertical
+      corps.add(mkBoxG(W*0.7,0.06,L*0.5,0x2a2d34,0,bodyY+0.64,-L*0.06));          // galerie de toit
+      const snorkel=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.05,1.1,8),mat(0x1a1d24));
+      snorkel.position.set(W*0.36,bodyY+0.9,L*0.2); corps.add(snorkel);          // snorkel, côté conducteur
+      const roueSecours=new THREE.Mesh(new THREE.CylinderGeometry(0.36,0.36,0.18,14),mat(0x14161a));
+      roueSecours.rotation.z=Math.PI/2; roueSecours.position.set(0,bodyY+0.32,-L/2*0.98); corps.add(roueSecours);
+      corps.add(mkBoxG(W*0.9,0.16,0.14,0x6a7f6a,0,bodyY-0.34,L/2*0.98));          // pare-chocs avant, robuste
+      corps.add(mkBoxG(0.5,0.3,0.06,0x1a1d24,0,bodyY-0.1,-L/2*0.96));             // gouvernail arrière, discret, façon hors-bord
     } else if(def.mitrailleuse){
       // Jeep militaire à ciel ouvert : châssis nu façon buggy (jamais une
       // berline avec un fusil dessus), mais capot marqué et mitrailleuse
@@ -5477,6 +5553,26 @@ function spawnSkid(x,z,ang){
   s.on=true; s.t=5; s.mesh.visible=true;
   s.mesh.position.set(x,0.05,z); s.mesh.rotation.z=-ang; s.mesh.material.opacity=0.35;
 }
+// Flaques d'huile de la voiture d'espion (def.bond, GRENADE) : contrairement
+// aux traces de pneus ci-dessus, purement cosmétiques, une flaque a un vrai
+// effet de jeu (grip très bas dans majVehiculePhys, voir surHuile) — d'où un
+// pool séparé plutôt qu'une simple réutilisation de skids.
+const HUILES=[];
+for(let i=0;i<6;i++){
+  const m=new THREE.Mesh(new THREE.CircleGeometry(2.2,16),new THREE.MeshBasicMaterial({color:0x0a0a0c,transparent:true,opacity:0}));
+  m.rotation.x=-Math.PI/2; m.visible=false; scene.add(m);
+  HUILES.push({on:false,x:0,z:0,r:2.2,t:0,mesh:m});
+}
+let huileCursor=0;
+function larguerHuile(x,z){
+  const h=HUILES[huileCursor++%HUILES.length]; // au pire on recycle la plus ancienne, jamais un tableau qui grossit
+  h.on=true; h.x=x; h.z=z; h.t=8;
+  h.mesh.visible=true; h.mesh.position.set(x,0.03,z); h.mesh.material.opacity=0.75;
+}
+function surHuile(x,z){
+  for(const h of HUILES) if(h.on&&dist2(x,z,h.x,h.z)<h.r*h.r) return true;
+  return false;
+}
 function majPools(dt){
   for(const b of balles) if(b.on){
     b.t-=dt;
@@ -5536,6 +5632,11 @@ function majPools(dt){
     s.t-=dt;
     if(s.t<=0){s.on=false;s.mesh.visible=false;continue;}
     s.mesh.material.opacity=Math.min(0.35,s.t*0.12);
+  }
+  for(const h of HUILES) if(h.on){
+    h.t-=dt;
+    if(h.t<=0){h.on=false;h.mesh.visible=false;continue;}
+    if(h.t<2) h.mesh.material.opacity=0.75*h.t/2; // fondu en sortie, sur la dernière seconde
   }
 }
 
@@ -6701,7 +6802,7 @@ function resoudreCollisionsVehicule(v,dt){
   }
 }
 function majVehiculePhys(v,dt,throttle,steer,frein){
-  const d=v.def, eau=!!d.eau;
+  const d=v.def, eau=surEauVeh(v); // surEauVeh : dynamique pour l'amphibie, statique pour les bateaux
   const fac0=clamp(Math.abs(v.v)/d.vmax,0,1);
   const lourd=!eau&&(d.milit||d.blinde||d.hp>=260);
   if(Math.abs(throttle)>0.05){
@@ -6728,8 +6829,13 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
   // (grip réduit par METEO.inten), juste une zone au sol plutôt qu'un état
   // global.
   const surfDesert=!eau&&estDesert(v.x,v.z);
+  // Flaque d'huile (voiture d'espion, def.bond) : même principe que le sable
+  // du désert, mais un grip encore plus bas qu'une simple perte d'adhérence
+  // — une vraie perte de contrôle, y compris pour un poursuivant IA (police,
+  // gang), pas juste un ralentissement.
+  const surHuileV=!eau&&surHuile(v.x,v.z);
   const gripSec=d.sport?11:(d.type==='moto'?12:(lourd?6.5:8.5));
-  const grip=eau?2.6:(frein?1.15:(surfDesert?gripSec*0.4:gripSec)*(1-METEO.inten*0.4));
+  const grip=eau?2.6:(frein?1.15:(surHuileV?1.4:(surfDesert?gripSec*0.4:gripSec))*(1-METEO.inten*0.4));
   v.dirAng=angLerp(v.dirAng,v.ang,clamp(grip*dt,0,1));
   const derive=Math.abs(angDiff(v.ang,v.dirAng));
   if(!eau&&!v.enAir&&derive>0.18&&Math.abs(v.v)>8){
@@ -6991,6 +7097,18 @@ function entrerVehicule(v){
     else if(v.def.dca) toast('DCA prête — maintiens TIR, glisse pour viser le ciel','or');
     else if(v.def.grue) toast('Le boulet balance tout seul dans les virages — maintiens TIR, glisse pour le pousser','or');
     else toast('Canon prêt — appuie sur TIR','or');
+  }
+  if(v.def.bond){
+    // Voiture d'espion : 3 gadgets, 3 boutons déjà libres au volant — jamais
+    // de nouveau bouton à inventer. TIR (mitrailleuse, voir bloc juste
+    // au-dessus) + ESQUIVE (missile, voir majConduite) + GRENADE (flaque
+    // d'huile, inutilisable en véhicule de toute façon — même réemploi que
+    // le FLASH de l'OVNI, voir majJoueur). Un seul toast : les 3 boutons
+    // changent en même temps, un toast par gadget s'écraserait l'un l'autre.
+    el('btnDodge').style.display='flex';
+    el('btnDodge').innerHTML='🚀<small>MISSILE</small>';
+    el('btnGren').innerHTML='🛢️<small>HUILE</small>';
+    toast('🔫 TIR mitraille (vise en glissant) · 🚀 ESQUIVE tire un missile · 🛢️ GRENADE largue une flaque d’huile qui fait déraper les poursuivants','or');
   }
   moteurStart(v.def); SFX.ui();
   if(v.def.pompier){
@@ -7910,6 +8028,31 @@ function majConduite(dt){
       }
     }
   }
+  if(v.def.bond){
+    // Missile sur ESQUIVE : tir unique à cooldown, droit devant — jamais
+    // aimable comme la mitrailleuse (TIR, def.mitrailleuse ci-dessus), un
+    // vrai gadget « appuie et ça part », pas une arme secondaire à viser.
+    v.missileCd=(v.missileCd||0)-dt;
+    if(pressed('esquive')||edgeKey('KeyK')){
+      if(v.missileCd<=0){
+        v.missileCd=4;
+        tirer(v.x+Math.sin(v.ang)*v.def.long*0.5,0.6,v.z+Math.cos(v.ang)*v.def.long*0.5,v.ang,0.8,48,90,'joueur',0xff5a3a,0.6,30,'roquette');
+        SFX.roquette(); secousse(5); vibre(45);
+        addHeat(0.3,true);
+      } else { toast('Missile en recharge ('+Math.ceil(v.missileCd)+'s)','warn'); SFX.refus(); }
+    }
+    // Flaque d'huile sur GRENADE (bouton libre en véhicule, voir majJoueur) :
+    // lâchée pile derrière le véhicule, jamais sous lui — sinon le joueur se
+    // ferait déraper lui-même en la larguant à l'arrêt.
+    v.huileCd=(v.huileCd||0)-dt;
+    if((pressed('gren')||edgeKey('KeyG'))){
+      if(v.huileCd<=0){
+        v.huileCd=3;
+        larguerHuile(v.x-Math.sin(v.ang)*v.def.long*0.6,v.z-Math.cos(v.ang)*v.def.long*0.6);
+        SFX.achat(); vibre(25);
+      } else { toast('Huile en recharge ('+Math.ceil(v.huileCd)+'s)','warn'); SFX.refus(); }
+    }
+  }
   if(pressed('arme')||edgeKey('KeyA')||edgeKey('Tab')){
     if(v.def.pompier) toggleSirenePompiers(v); else changerRadio();
   }
@@ -8196,7 +8339,7 @@ function majVehicules(dt){
       // (ou percuté par le joueur) sans jamais se dégager.
       resoudreCollisionsVehicule(v,dt);
       majKnockback(v,dt);
-      v.mesh.position.y=v.def.eau?0.15:(v.def.air?(v.alt||0):solY(v.x,v.z));
+      v.mesh.position.y=surEauVeh(v)?0.15:(v.def.air?(v.alt||0):solY(v.x,v.z));
       v.mesh.position.x=v.x; v.mesh.position.z=v.z;
       if(v.hp<v.def.hp*0.42){ v.fumeT-=dt; if(v.fumeT<=0){v.fumeT=0.14;fumee(v.x,1.1,v.z,0x555a63);} }
       // Avion de voltige garé : hélice qui tourne au ralenti + rotation lente
@@ -9406,7 +9549,7 @@ function majEvenements(dt){
 const CHASSE_EAU={t:0};
 function majChasseursEau(dt){
   CHASSE_EAU.t-=dt;
-  const surEau=P.nage||(P.veh&&P.veh.def.eau);
+  const surEau=P.nage||(P.veh&&surEauVeh(P.veh));
   // Boucles explicites plutôt que filter/some (règle perf CLAUDE.md) : cette
   // fonction tourne chaque frame, un chasseurs=vehicules.filter(...) allouait
   // un tableau à chaque frame même sans jamais être sur l'eau.
@@ -17123,6 +17266,8 @@ function startRun(){
   if(POIS.port) cacheV('baronne',POIS.port.x+13,POIS.port.z-11,Math.PI/2);  // entrepôt du port
   if(POIS.commissariat) cacheV('ambulance',POIS.commissariat.x-12,POIS.commissariat.z+9,2.0); // pôle secours, à côté des véhicules de police
   if(POIS.garage) cacheV('depanneuse',POIS.garage.x-9,POIS.garage.z-8,-1.4);                  // devant le garage, sa place naturelle
+  if(POIS.garageSecret) cacheV('bond',POIS.garageSecret.x,POIS.garageSecret.z-3,0);           // garée devant son propre lock-up, tout près du Ciné-Palace
+  if(POIS.port) cacheV('amphibie',POIS.port.x-14,POIS.port.z+12,-Math.PI/2);                  // rampe de mise à l'eau du port, à l'écart de la Baronne
   // armes cachées (une seule fois : ensuite elles t'appartiennent)
   if(!META.armes.batte2.poss&&POIS.parc) cacheA('batte2',POIS.parc.x+11,POIS.parc.z-11);
   if(!META.armes.pompe.poss&&POIS.qgViperes) cacheA('pompe',POIS.qgViperes.x-13,POIS.qgViperes.z+11);
@@ -18146,7 +18291,7 @@ function majAction(){
       if(v.mort||v.conduit==='joueur') continue;
       // tout est volable : trafic, police, poursuivants, coureurs, contrebandiers
       const d=dist2(v.x,v.z,P.x,P.z);
-      const portee=v.def.eau?64:14;   // les bateaux sont gros : on les aborde de plus loin
+      const portee=surEauVeh(v)?64:14;   // les bateaux (et l'amphibie, si posé sur l'eau) sont abordés de plus loin
       if(d>portee) continue;
       if(d<vd){vd=d;vp=v;}
     }
@@ -18230,8 +18375,8 @@ function majAction(){
     } else if(vp){
       const occupe=vp.conduit&&vp.conduit!=='trafic';
       label=vp.def.surf?'PRENDRE LA PLANCHE'
-        :(vp.conduit==='trafic'||occupe)?(vp.def.eau?'ABORDER LE BATEAU':'VOLER LE VÉHICULE')
-        :(vp.def.air?'PILOTER':(vp.def.eau?'EMBARQUER':'CONDUIRE'));
+        :(vp.conduit==='trafic'||occupe)?(surEauVeh(vp)?'ABORDER LE BATEAU':'VOLER LE VÉHICULE')
+        :(vp.def.air?'PILOTER':(surEauVeh(vp)?'EMBARQUER':'CONDUIRE'));
       fn=()=>entrerVehicule(vp);
     }
   }
