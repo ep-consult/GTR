@@ -8839,28 +8839,76 @@ function majEnnemis(dt){
       }
       continue;
     }
-    /* --- boss : charge télégraphe --- */
+    /* --- boss : une spécialité par chef de gang, jamais le même move recopié 4 fois --- */
     if(e.boss){
-      // e.chargeT est décrémenté UNE SEULE FOIS ici, pour les deux états
-      // (tele/dash) — bug déjà rencontré : la branche 'dash' avait un second
-      // décrément réel en plus de celui-ci, ce qui vidait chargeT deux fois
-      // plus vite qu'annoncé (0.8 s de charge ne durait en réalité que 0.4 s).
+      // e.chargeT est décrémenté UNE SEULE FOIS ici, pour tous les états de
+      // toutes les spécialités ci-dessous — bug déjà rencontré sur la charge
+      // (l'ancienne branche 'dash' avait un second décrément réel en plus de
+      // celui-ci, ce qui vidait chargeT deux fois plus vite qu'annoncé).
       e.chargeT-=dt;
-      if(e.chargeEtat==='tele'){
-        if(Math.random()<0.5) spawnP(e.x+rand(-1,1),0.5,e.z+rand(-1,1),0,2,0,0.3,0.6,0xff3b5c,0);
-        if(e.chargeT<=0){ e.chargeEtat='dash'; e.chargeT=0.8;
-          e.cx=Math.sin(versT); e.cz=Math.cos(versT); SFX.spec(); }
-      } else if(e.chargeEtat==='dash'){
-        const nx=e.x+e.cx*30*dt, nz=e.z+e.cz*30*dt;
-        if(solidAt(nx,nz,0.8)){ e.chargeEtat=null; e.chargeT=rand(5,7); secousse(6); }
-        else { e.x=nx; e.z=nz; }
-        fumee(e.x,0.4,e.z,0x2fae4f);
-        if(!P.veh&&P.y<2&&dist2(e.x,e.z,P.x,P.z)<4){ toucherJoueur(30); e.chargeEtat=null; e.chargeT=rand(5,7); }
-        if(e.chargeT<=0){ e.chargeEtat=null; e.chargeT=rand(5,7); }
-        e.h.g.position.set(e.x,0,e.z); e.h.g.rotation.y=e.ang;
-        continue;
+      if(e.fac==='murenes'){
+        // Silas : ne charge pas, prépare puis frappe un choc au sol en
+        // cercle autour de lui — profil tankier/embuscade, immobile pendant
+        // la préparation, à l'opposé d'un chef qui vient chercher le joueur.
+        if(e.chargeEtat==='tele'){
+          if(Math.random()<0.6) spawnP(e.x+rand(-1.2,1.2),0.4,e.z+rand(-1.2,1.2),0,1.6,0,0.3,0.7,0x2a8a9a,0);
+          if(e.chargeT<=0){
+            e.chargeEtat=null; e.chargeT=rand(5,7);
+            if(!P.veh&&P.y<2&&dist2(e.x,e.z,P.x,P.z)<49){
+              toucherJoueur(26,e.x,e.z);
+              const kAng=Math.atan2(P.x-e.x,P.z-e.z);
+              P.dodgeVx=Math.sin(kAng)*10; P.dodgeVz=Math.cos(kAng)*10; P.dodgeT=0.32;
+            }
+            ONDE.visible=true; ONDE.position.set(e.x,0.4,e.z); ONDE.scale.set(1,1,1);
+            ONDE.material.opacity=0.9; ONDE.userData.t=0.4;
+            secousse(9); SFX.explo();
+          }
+        } else if(e.chargeEtat===null&&e.chargeT<=0&&d<14){ e.chargeEtat='tele'; e.chargeT=0.9; }
+      } else if(e.fac==='frelons'){
+        // Dax : rafale en éventail — plusieurs projectiles d'un coup, sur le
+        // même PM que ses hommes, au lieu d'une frappe corps à corps.
+        if(e.chargeEtat==='tele'){
+          if(Math.random()<0.6) spawnP(e.x+rand(-0.6,0.6),1.2,e.z+rand(-0.6,0.6),0,1.2,0,0.2,0.5,0xe6a41f,0);
+          if(e.chargeT<=0){
+            e.chargeEtat=null; e.chargeT=rand(4.5,6.5);
+            const N=7, spread=0.65; // ~37° de part et d'autre du cap visé
+            for(let k=0;k<N;k++){
+              const a=versT+(k/(N-1)-0.5)*spread*2;
+              tirer(e.x+Math.sin(a)*0.6,1.3,e.z+Math.cos(a)*0.6,a,1,50,7,e.fac,0xffc46a,1.3,d);
+            }
+            SFX.pm(); vibre(30);
+          }
+        } else if(e.chargeEtat===null&&e.chargeT<=0&&d<24&&ligneLibre(e.x,e.z,tx,tz)){ e.chargeEtat='tele'; e.chargeT=0.6; }
+      } else if(e.fac==='chrome'){
+        // César : tir chargé unique et lourd, longue portée — profil sniper,
+        // ne charge jamais au corps à corps (def.esquive s'occupe déjà de le
+        // faire reculer périodiquement, voir plus bas).
+        if(e.chargeEtat==='tele'){
+          if(Math.random()<0.7) spawnP(e.x+Math.sin(versT)*1.2,1.3,e.z+Math.cos(versT)*1.2,0,0.4,0,0.5,0.28,0xff3b3b,0);
+          if(e.chargeT<=0){
+            e.chargeEtat=null; e.chargeT=rand(5,7.5);
+            tirer(e.x,1.3,e.z,versT,0.3,70,32,e.fac,0xff3b3b,1.3,d);
+            SFX.sniper(); secousse(4); vibre(35);
+          }
+        } else if(e.chargeEtat===null&&e.chargeT<=0&&d<40&&ligneLibre(e.x,e.z,tx,tz)){ e.chargeEtat='tele'; e.chargeT=1.2; }
+      } else {
+        // Kaa (Vipères) et repli par défaut : charge-dash d'origine, inchangée.
+        if(e.chargeEtat==='tele'){
+          if(Math.random()<0.5) spawnP(e.x+rand(-1,1),0.5,e.z+rand(-1,1),0,2,0,0.3,0.6,0xff3b5c,0);
+          if(e.chargeT<=0){ e.chargeEtat='dash'; e.chargeT=0.8;
+            e.cx=Math.sin(versT); e.cz=Math.cos(versT); SFX.spec(); }
+        } else if(e.chargeEtat==='dash'){
+          const nx=e.x+e.cx*30*dt, nz=e.z+e.cz*30*dt;
+          if(solidAt(nx,nz,0.8)){ e.chargeEtat=null; e.chargeT=rand(5,7); secousse(6); }
+          else { e.x=nx; e.z=nz; }
+          fumee(e.x,0.4,e.z,0x2fae4f);
+          if(!P.veh&&P.y<2&&dist2(e.x,e.z,P.x,P.z)<4){ toucherJoueur(30); e.chargeEtat=null; e.chargeT=rand(5,7); }
+          if(e.chargeT<=0){ e.chargeEtat=null; e.chargeT=rand(5,7); }
+          e.h.g.position.set(e.x,0,e.z); e.h.g.rotation.y=e.ang;
+          continue;
+        }
+        if(e.chargeEtat===null&&e.chargeT<=0&&d<26){ e.chargeEtat='tele'; e.chargeT=0.7; }
       }
-      if(e.chargeEtat===null&&e.chargeT<=0&&d<26){ e.chargeEtat='tele'; e.chargeT=0.7; }
     }
     /* --- fantassins (mêlée / tir) --- */
     if(e.garde&&e.passif){
