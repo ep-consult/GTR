@@ -5781,7 +5781,7 @@ const P={x:0,z:0,y:0,vy:0,chute:false,ang:0,hp:100,maxHp:100,stam:100,stamMax:10
   // majJoueur, pour qu'aucun ralenti en cours ne la raccourcisse ni ne
   // l'allonge, et qu'un enchaînement d'écrasements rapprochés reste évitable.
   ecraseT:0,
-  buffs:{dmg:0,vit:0,butin:0,lourd:0,sprintLibre:0,vol:0,cadence:0},bonusMaxHp:0,veh:null,h:null,armeMeshes:{},vitBase:10,meleeMul:1,tirT:0,grenades:3,chuteY0:0,chuteT:0,chuteHaut:0,para:false,
+  buffs:{dmg:0,vit:0,butin:0,lourd:0,sprintLibre:0,vol:0,cadence:0},bonusMaxHp:0,veh:null,h:null,armeMeshes:{},vitBase:10,meleeMul:1,tirT:0,grenades:3,chuteY0:0,chuteT:0,chuteHaut:0,chuteVx:0,chuteVz:0,para:false,
   // Jetpack (lot 12) : jetpack=équipé cette partie (perdu au game over,
   // voir startRun), jetpackVol=en vol actif, jetFuel=carburant 0..100,
   // jetVx/jetVz=inertie horizontale, jetWarnT=throttle de l'alarme sonore.
@@ -5879,6 +5879,16 @@ const PARA_DIST=4.4; // distance voile <-> personnage
 // dépend de P.chuteHaut (calculée à l'entrée en chute), pas d'une constante
 // fixe : un trottoir reste instantané, un immeuble haut dure plusieurs secondes.
 const CHUTE_ACC_MIN=3, CHUTE_ACC_MAX=16, CHUTE_VY_MAX=32;
+// Pilotage horizontal en l'air (demandé explicitement : « vraie chute libre
+// avec direction, prise de vitesse » + parachute « fun et dynamique ») —
+// remplace un déplacement instantané (vx=joystick*vitesse de marche*facteur
+// fixe, aucune inertie : lâcher le stick arrêtait la dérive NET, comme un
+// pantin) par un vrai modèle vitesse/inertie (P.chuteVx/Vz, voir majJoueur) :
+// on accélère dans la direction visée, on garde son élan en relâchant, la
+// vitesse plafonne. Le parachute accélère plus fort et plafonne plus haut
+// que la chute libre — une vraie voile qu'on pilote, pas un simple frein.
+const CHUTE_ACC_H=16, CHUTE_DRAG_H=0.7, CHUTE_VMAX_H=13;
+const PARA_ACC_H=20, PARA_DRAG_H=0.85, PARA_VMAX_H=17;
 // Anneau de progression du LOOPING (appui long sur MONTER) — voir majVol et
 // le CSS #loopRing. Élément caché en DOM dès le départ (display:none dans
 // sa règle CSS), jamais recréé : une seule référence mise en cache ici.
@@ -6179,6 +6189,21 @@ function majJoueur(dt,dtJeu){
     vx=INPUT.mx*vit; vz=INPUT.mz*vit;
     if(P.tirT<=0) P.ang=angLerp(P.ang,Math.atan2(INPUT.mx,INPUT.mz),0.35);
   }
+  // En l'air (chute libre / parachute) : vrai pilotage à inertie plutôt
+  // qu'un déplacement instantané qui s'arrêtait NET dès qu'on relâchait le
+  // stick (demandé explicitement : « vraie chute libre avec direction,
+  // prise de vitesse », parachute « fun et dynamique »). vx/vz calculés
+  // juste au-dessus (vitesse de marche) ne servent plus alors qu'à réorienter
+  // P.ang vers la direction visée ; la vitesse horizontale réelle vit dans
+  // P.chuteVx/Vz, avec accélération + traînée — on garde son élan.
+  if(P.chute){
+    const accH=P.para?PARA_ACC_H:CHUTE_ACC_H, dragH=P.para?PARA_DRAG_H:CHUTE_DRAG_H, maxH=P.para?PARA_VMAX_H:CHUTE_VMAX_H;
+    if(bouge){ P.chuteVx+=INPUT.mx*accH*dt; P.chuteVz+=INPUT.mz*accH*dt; }
+    P.chuteVx*=Math.max(0,1-dragH*dt); P.chuteVz*=Math.max(0,1-dragH*dt);
+    const spH=Math.hypot(P.chuteVx,P.chuteVz);
+    if(spH>maxH){ P.chuteVx=P.chuteVx/spH*maxH; P.chuteVz=P.chuteVz/spH*maxH; }
+    vx=P.chuteVx; vz=P.chuteVz;
+  }
   P.vitesseReelle=Math.hypot(vx,vz);   // vitesse instantanée réelle (joystick analogique compris)
   const marchable=(x,z)=>{
     const s=solidAt(x,z,0.5,undefined,P.y);
@@ -6186,10 +6211,7 @@ function majJoueur(dt,dtJeu){
     if(!auSol()) return true; // en l'air (jetpack, chute) : les véhicules au sol ne bloquent pas
     return !vehiculeBloquant(x,z,0.45,P.veh);
   };
-  // en chute libre on ne marche plus : on ne fait que dériver légèrement
-  let facAir=1;
-  if(P.chute) facAir=P.para?0.85:0.18;
-  const nx=P.x+vx*dt*facAir, nz=P.z+vz*dt*facAir;
+  const nx=P.x+vx*dt, nz=P.z+vz*dt;
   if(marchable(nx,P.z)) P.x=nx;
   if(marchable(P.x,nz)) P.z=nz;
   // dégagement inconditionnel : jamais enfermé sans issue entre deux
@@ -6234,10 +6256,10 @@ function majJoueur(dt,dtJeu){
       if(P.para){ burst(P.x,P.y+0.2,P.z,10,0xe8ecf2,5,6); SFX.ui(); }
       else if(P.vy<-12){ toucherJoueur((-P.vy-12)*3.5); secousse(6); }
       else burst(P.x,P.y+0.2,P.z,4,0xb8bec8,4);
-      P.vy=0; P.para=false; paraMesh.visible=false;
+      P.vy=0; P.para=false; paraMesh.visible=false; paraMesh.rotation.z=0; P.chuteVx=0; P.chuteVz=0;
       if(!P.veh) el('btnJump').style.display='none';
     }
-  } else if(P.y>gY+0.4){ P.chute=true; P.chuteY0=P.y; P.chuteT=0; P.chuteHaut=P.y-gY; P.vy=0; P.para=false; }
+  } else if(P.y>gY+0.4){ P.chute=true; P.chuteY0=P.y; P.chuteT=0; P.chuteHaut=P.y-gY; P.vy=0; P.para=false; P.chuteVx=0; P.chuteVz=0; }
   else P.y=gY;
   if(INT.actif){
     // en intérieur : on reste borné à la salle, pas aux limites de la ville
@@ -6293,23 +6315,43 @@ function majJoueur(dt,dtJeu){
   // rendu
   if(!P.surMoto) P.h.g.position.set(P.x,P.nage?-0.78:P.y,P.z);
   if(P.chute&&!P.para){
-    // posture de chute libre : bras et jambes écartés, corps penché
-    P.h.brasG.rotation.z=1.7; P.h.brasD.rotation.z=-1.7;
-    P.h.brasG.rotation.x=-0.5; P.h.brasD.rotation.x=-0.5;
-    P.h.jambeG.rotation.x=0.5; P.h.jambeD.rotation.x=-0.5;
-    P.h.g.rotation.x=-0.5;
-    // traînées de vitesse qui filent vers le haut
-    const vv=Math.min(1,-P.vy/26);
+    // Posture de VRAIE chute libre (demandé explicitement) : bras tendus en
+    // avant façon Superman (jamais juste écartés comme un pantin), jambes
+    // tendues en arrière, corps proche de l'horizontale. Le piqué (corps
+    // plus à plat, bras plus resserrés) ET le roulis (bascule latérale)
+    // suivent la vitesse horizontale RÉELLE (P.chuteVx/Vz, voir plus haut) :
+    // on voit qu'on pilote sa chute, pas juste qu'on tombe droit.
+    const speedH=Math.hypot(P.chuteVx,P.chuteVz);
+    const pique=clamp(speedH/CHUTE_VMAX_H,0,1);
+    P.h.brasG.rotation.z=1.5-pique*0.35; P.h.brasD.rotation.z=-(1.5-pique*0.35);
+    P.h.brasG.rotation.x=-0.85-pique*0.35; P.h.brasD.rotation.x=-0.85-pique*0.35;
+    P.h.jambeG.rotation.x=0.55+pique*0.25; P.h.jambeD.rotation.x=-0.55-pique*0.25;
+    P.h.g.rotation.x=-0.95-pique*0.35;
+    // roulis projeté sur l'axe latéral du personnage (composante de la
+    // vitesse perpendiculaire au cap) — s'efface en douceur sans pilotage.
+    P.h.g.rotation.z=speedH>0.4?clamp((P.chuteVx*Math.cos(P.ang)-P.chuteVz*Math.sin(P.ang))*0.05,-0.55,0.55):lerp(P.h.g.rotation.z,0,0.15);
+    // traînées de vitesse : suivent la vitesse TOTALE (verticale + pilotage
+    // horizontal), jamais seulement la chute verticale — piloter à fond doit
+    // se sentir aussi vif qu'une chute franche.
+    const vv=Math.min(1,Math.hypot(P.vy,speedH*1.4)/26);
     for(let i=0;i<Math.round(vv*3);i++)
       spawnP(P.x+rand(-2.2,2.2),P.y+rand(-1,2),P.z+rand(-2.2,2.2),0,14+vv*16,0,0.32,0.5,0xdfe8ff,0);
     secousse(vv*1.1);
   } else if(P.para){
-    P.h.brasG.rotation.z=1.3; P.h.brasD.rotation.z=-1.3;
-    P.h.brasG.rotation.x=-1.5; P.h.brasD.rotation.x=-1.5;
+    // Parachute « fun et dynamique » (demandé explicitement) : tirer une
+    // suspente incline vraiment le corps ET la voile dans le virage, jamais
+    // rigide comme un mât. Même principe de projection latérale que la
+    // chute libre ci-dessus, sur P.chuteVx/Vz.
+    const speedH=Math.hypot(P.chuteVx,P.chuteVz);
+    const virage=speedH>0.4?clamp((P.chuteVx*Math.cos(P.ang)-P.chuteVz*Math.sin(P.ang))*0.07,-1,1):0;
+    P.h.brasG.rotation.z=1.3-virage*0.3; P.h.brasD.rotation.z=-1.3-virage*0.3;
+    P.h.brasG.rotation.x=-1.5+virage*0.2; P.h.brasD.rotation.x=-1.5-virage*0.2;
     P.h.jambeG.rotation.x=0.25; P.h.jambeD.rotation.x=0.25;
     P.h.g.rotation.x=0;
-  } else if(P.h.g.rotation.x!==0){
-    P.h.g.rotation.x=0; P.h.brasG.rotation.z=0; P.h.brasD.rotation.z=0;
+    P.h.g.rotation.z=lerp(P.h.g.rotation.z,virage*0.5,0.15);
+    paraMesh.rotation.z=lerp(paraMesh.rotation.z||0,-virage*0.35,0.1);
+  } else if(P.h.g.rotation.x!==0||P.h.g.rotation.z!==0){
+    P.h.g.rotation.x=0; P.h.g.rotation.z=0; P.h.brasG.rotation.z=0; P.h.brasD.rotation.z=0;
   }
   P.h.g.rotation.y=P.ang;
   if(P.nage){
@@ -7288,6 +7330,11 @@ function sauterEnParachute(){
   P.x=vx; P.z=vz; P.y=valt+0.5; P.ang=v.ang;
   P.h.g.visible=true; reticule.visible=false;
   P.chute=true; P.chuteY0=P.y; P.chuteT=0; P.chuteHaut=P.y-solPied(P.x,P.z); P.para=false; P.vy=0;
+  // Saut d'un avion en vol : garde un peu de l'élan de l'appareil (v.v/v.ang)
+  // au lieu de retomber à vitesse horizontale nulle — plus réaliste et plus
+  // fun (on est vraiment lancé hors de l'avion, pas juste lâché en l'air).
+  const spInit=clamp(Math.abs(v.v||0)*0.6,0,CHUTE_VMAX_H);
+  P.chuteVx=Math.sin(v.ang)*spInit; P.chuteVz=Math.cos(v.ang)*spInit;
   paraMesh.visible=false;
   el('btnFire').style.display='flex'; el('btnDodge').style.display='flex';
   el('btnDodge').innerHTML='💨<small>ESQUIVE</small>';
@@ -17144,7 +17191,7 @@ function startRun(){
   // toute la nouvelle partie.
   P.bonusMaxHp=0;
   recalcJoueur(); construireJoueur();
-  P.x=POIS.place.x; P.z=POIS.place.z+8; P.ang=0; P.y=0; P.vy=0; P.chute=false; P.para=false; paraMesh.visible=false;
+  P.x=POIS.place.x; P.z=POIS.place.z+8; P.ang=0; P.y=0; P.vy=0; P.chute=false; P.para=false; P.chuteVx=0; P.chuteVz=0; paraMesh.visible=false;
   P.hp=P.maxHp; P.stam=P.stamMax; P.bouclier=0; P.veh=null;
   P.buffs={dmg:0,vit:0,butin:0,lourd:0,sprintLibre:0,vol:0,cadence:0}; P.iframes=0; P.dodgeT=0; P.rechT=0; P.specCd=0; P.ecraseT=0;
   P.grenades=3; el('grenN').textContent=3;
