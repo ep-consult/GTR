@@ -36,6 +36,10 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
 #stFill{background:var(--cyan);width:100%}
 #shWrap{margin-top:4px;height:7px;display:none}
 #shFill{background:var(--jaune);width:100%}
+#buffsBox{position:absolute;top:calc(env(safe-area-inset-top,0px) + 46px);left:10px;display:flex;gap:4px;flex-wrap:wrap;width:140px}
+.buffChip{display:none;align-items:center;gap:3px;background:#101625dd;border:1px solid #ffffff22;border-radius:8px;
+  padding:2px 5px;font-size:12px;line-height:1;box-shadow:0 2px 6px #0006}
+.buffChip span{font-size:9px;font-weight:900;color:var(--jaune);min-width:12px;text-align:right}
 
 #scoreBox{position:absolute;top:calc(env(safe-area-inset-top,0px) + 6px);left:50%;transform:translateX(-50%);text-align:center;min-width:150px}
 #scoreVal{font-size:21px;font-weight:900;letter-spacing:.03em;text-shadow:0 2px 6px #000}
@@ -335,6 +339,17 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
     <div class="barre" id="hpBar"><i id="hpFill"></i></div>
     <div class="barre" id="stBar"><i id="stFill"></i></div>
     <div class="barre" id="shWrap"><i id="shFill"></i></div>
+  </div>
+  <!-- Bonus de fin de vague actifs (P.buffs) : jamais visibles avant, un
+       joueur ne pouvait pas voir CE qu'il avait choisi ni combien de temps
+       il lui restait — signalé « on comprend pas », corrigé ici. -->
+  <div id="buffsBox">
+    <div class="buffChip" id="buffDmg">👊<span id="buffDmgT"></span></div>
+    <div class="buffChip" id="buffVit">👟<span id="buffVitT"></span></div>
+    <div class="buffChip" id="buffButin">💰<span id="buffButinT"></span></div>
+    <div class="buffChip" id="buffSprintLibre">💨<span id="buffSprintLibreT"></span></div>
+    <div class="buffChip" id="buffVol">🧛<span id="buffVolT"></span></div>
+    <div class="buffChip" id="buffCadence">⚡<span id="buffCadenceT"></span></div>
   </div>
   <div id="scoreBox">
     <div id="scoreVal">0</div>
@@ -1802,7 +1817,7 @@ function armeStats(id){
     degats:a.degats*(1+0.15*lv),
     mag:a.mag?Math.round(a.mag*(1+0.15*lv)):0,
     rech:a.rech?a.rech*(1-0.08*lv)*(1-0.09*META.upg.recharge):0,
-    cad:a.cad, portee:a.portee, disp:a.disp||0, pellets:a.pellets||1, knock:a.knock||3
+    cad:a.cad*(P.buffs.cadence>0?0.75:1), portee:a.portee, disp:a.disp||0, pellets:a.pellets||1, knock:a.knock||3
   };
 }
 
@@ -5766,7 +5781,7 @@ const P={x:0,z:0,y:0,vy:0,chute:false,ang:0,hp:100,maxHp:100,stam:100,stamMax:10
   // majJoueur, pour qu'aucun ralenti en cours ne la raccourcisse ni ne
   // l'allonge, et qu'un enchaînement d'écrasements rapprochés reste évitable.
   ecraseT:0,
-  buffs:{dmg:0,vit:0,butin:0,lourd:0},veh:null,h:null,armeMeshes:{},vitBase:10,meleeMul:1,tirT:0,grenades:3,chuteY0:0,chuteT:0,chuteHaut:0,para:false,
+  buffs:{dmg:0,vit:0,butin:0,lourd:0,sprintLibre:0,vol:0,cadence:0},bonusMaxHp:0,veh:null,h:null,armeMeshes:{},vitBase:10,meleeMul:1,tirT:0,grenades:3,chuteY0:0,chuteT:0,chuteHaut:0,para:false,
   // Jetpack (lot 12) : jetpack=équipé cette partie (perdu au game over,
   // voir startRun), jetpackVol=en vol actif, jetFuel=carburant 0..100,
   // jetVx/jetVz=inertie horizontale, jetWarnT=throttle de l'alarme sonore.
@@ -5793,7 +5808,7 @@ function construireJoueur(){
 function recalcJoueur(){
   const c=PERSOS[META.perso];
   const mus=META.muscle||0;                       // paliers de la salle de sport
-  P.maxHp=c.hp+18*META.upg.vie+8*mus+(aCurio('ceinture')?20:0);
+  P.maxHp=c.hp+18*META.upg.vie+8*mus+(aCurio('ceinture')?20:0)+(P.bonusMaxHp||0);
   P.vitBase=10*c.vit*(1+0.06*META.upg.vitesse);
   P.meleeMul=c.melee*(1+0.12*META.upg.melee)*(1+0.09*mus);
   P.stamMax=100+12*mus;
@@ -6102,7 +6117,7 @@ function majJoueur(dt,dtJeu){
   P.ecraseT=Math.max(0,P.ecraseT-dtJeu);
   toastEauT-=dt;
   P.regenDelai-=dt; P.tirT-=dt; P.stamDelai-=dt;
-  for(const k of ['dmg','vit','butin','lourd']) if(P.buffs[k]>0) P.buffs[k]-=dt;
+  for(const k of ['dmg','vit','butin','lourd','sprintLibre','vol','cadence']) if(P.buffs[k]>0) P.buffs[k]-=dt;
   if(P.rechT>0){ P.rechT-=dt; if(P.rechT<=0) finRecharge(); }
   if(P.h._frappe!==undefined&&P.h._frappe>0) P.h._frappe-=dt;
   if(META.upg.regen>0&&P.regenDelai<=0&&P.hp<P.maxHp) P.hp=Math.min(P.maxHp,P.hp+1.1*META.upg.regen*dt);
@@ -6153,7 +6168,7 @@ function majJoueur(dt,dtJeu){
     P.stam=Math.max(0,P.stam-(aCurio('perle')?0.8:1.6)*dtJeu); P.stamDelai=0.8;   // nage longue distance possible
     if(P.stam<=0){ P.hp-=0.9*dtJeu; if(P.hp<=0) mourir(); }
     if(bouge&&Math.random()<0.35) spawnP(P.x+rand(-0.5,0.5),0.15,P.z+rand(-0.5,0.5),rand(-0.6,0.6),rand(0.8,1.8),rand(-0.6,0.6),0.4,0.5,0xcfeaff,3);
-  } else if(sprint&&!(P.buffs.nitroT>0)){P.stam=Math.max(0,P.stam-22*dt);P.stamDelai=0.8;}
+  } else if(sprint&&!(P.buffs.nitroT>0)&&!(P.buffs.sprintLibre>0)){P.stam=Math.max(0,P.stam-22*dt);P.stamDelai=0.8;}
   else if(P.stamDelai<=0) P.stam=Math.min(P.stamMax,P.stam+20*dt);
 
   if(P.dodgeT>0){
@@ -8615,6 +8630,7 @@ function tuerEnnemi(e,parJoueur){
   if(e.mort) return;
   e.mort=true; e.corpseT=2.2; e.dmgAcc=0;
   SFX.mort();
+  if(parJoueur&&P.buffs.vol>0) soigner(3); // bonus « Vengeance »
   if(parJoueur&&GANGS.includes(e.fac)) HOSTILITE[e.fac]=Math.min(6,HOSTILITE[e.fac]+0.9);
   if(GANGS.includes(e.fac)&&!e.boss&&Math.random()<0.28&&nbFac(e.fac)<9){
     const p=spawnRing(30,44);
@@ -9727,7 +9743,25 @@ const BONUS_DEFS=[
   {t:'Gilet de fortune',d:'Bouclier de 30 points',f:()=>{P.bouclier=Math.min(60,P.bouclier+30);el('shWrap').style.display='block';}},
   {t:'Caisse de munitions',d:'Chargeurs et réserves pleins',f:()=>{
     for(const id of ORDRE_ARMES){ if(META.armes[id].poss&&ARMES[id].type==='gun'&&!ARMES[id].pasRecharge){
-      const st=armeStats(id); P.mags[id]=st.mag; P.mun[id]=st.mag*3; } } }}
+      const st=armeStats(id); P.mags[id]=st.mag; P.mun[id]=st.mag*3; } } }},
+  // Nouveaux (demandé explicitement : plus de variété, jamais « toujours la
+  // même chose »). Endurcissement est le seul PERMANENT pour la partie en
+  // cours (voir P.bonusMaxHp/recalcJoueur) ; les autres sont des buffs
+  // temporaires comme ci-dessus, mais sur des leviers encore inutilisés
+  // (endurance, vol de vie, cadence) pour que chaque carte se sente vraiment
+  // différente, pas juste un pourcentage de plus sur les 3 mêmes stats.
+  {t:'Endurcissement',d:'+15 PV MAX pour le reste de la partie',f:()=>{P.bonusMaxHp+=15;recalcJoueur();P.hp+=15;}},
+  {t:'Poumons d’acier',d:'Le sprint ne coûte plus d’endurance pendant 30 s',f:()=>P.buffs.sprintLibre=30},
+  {t:'Vengeance',d:'Chaque ennemi vaincu te rend 3 PV pendant 40 s',f:()=>P.buffs.vol=40},
+  {t:'Rafale nerveuse',d:'Cadence de tir +25 % pendant 30 s',f:()=>P.buffs.cadence=30},
+  {t:'Poche à grenades',d:'+2 grenades tout de suite',f:()=>{P.grenades=Math.min(5,P.grenades+2);el('grenN').textContent=P.grenades;}},
+  // Grossit avec la vague atteinte — demandé explicitement : « créer une
+  // histoire par le biais des vagues ». Reste pertinent en vague 3 comme en
+  // vague 20, jamais dérisoire ni cassé (contrairement à un montant fixe).
+  {t:'Prime de la vague',d:'Argent immédiat, proportionnel à la vague passée',f:()=>{
+    const g=Math.round(30+WAVES.n*18); META.argent+=g; ETAT.cashRun+=g;
+    spawnTexte(P.x,2.6,P.z,'+'+g+' $','#ffd23f');
+  }}
 ];
 function ouvrirBonus(){
   ETAT.mode='bonus';
@@ -17035,10 +17069,16 @@ function startRun(){
   if(META.parties===1) setTimeout(()=>toast('Un avion de voltige attend à l’aéro-club, au bout de la piste','or'),1200);
   ETAT.mode='jeu'; ETAT.runT=0; ETAT.kills=0; ETAT.cashRun=0;
   ETAT.score=0; ETAT.combo=1; ETAT.comboT=0; ETAT.timeScale=1;
+  // P.bonusMaxHp (bonus de fin de vague « Endurcissement ») remis à zéro
+  // AVANT recalcJoueur() — sinon recalcJoueur() calculerait P.maxHp avec le
+  // bonus de la partie PRÉCÉDENTE (il est lu depuis P, jamais réinitialisé
+  // ailleurs), et P.hp=P.maxHp juste en dessous figerait ce trop-plein pour
+  // toute la nouvelle partie.
+  P.bonusMaxHp=0;
   recalcJoueur(); construireJoueur();
   P.x=POIS.place.x; P.z=POIS.place.z+8; P.ang=0; P.y=0; P.vy=0; P.chute=false; P.para=false; paraMesh.visible=false;
   P.hp=P.maxHp; P.stam=P.stamMax; P.bouclier=0; P.veh=null;
-  P.buffs={dmg:0,vit:0,butin:0,lourd:0}; P.iframes=0; P.dodgeT=0; P.rechT=0; P.specCd=0; P.ecraseT=0;
+  P.buffs={dmg:0,vit:0,butin:0,lourd:0,sprintLibre:0,vol:0,cadence:0}; P.iframes=0; P.dodgeT=0; P.rechT=0; P.specCd=0; P.ecraseT=0;
   P.grenades=3; el('grenN').textContent=3;
   // Jetpack : perdu au game over, comme les armes (voir CLAUDE.md) — il
   // faut remonter le chercher. Le lieu, lui (META.jetpackTrouve), reste acquis.
@@ -18608,6 +18648,15 @@ function majCamera(dt){
 }
 /* cache HUD : le DOM n'est réécrit que si la valeur a changé (gros gain sur mobile) */
 const HUDC={};
+// Bonus de fin de vague affichés en chip HUD (voir #buffsBox, majHUD) : une
+// entrée par clé de P.buffs qui a un sens à afficher (dmg/vit/butin/
+// sprintLibre/vol/cadence) — lourd et nitroT restent volontairement hors
+// HUD (lourd = pénalité de digestion déjà lisible via l'animation du
+// personnage, nitroT = déjà son propre indicateur de personnage).
+const BUFF_CHIPS=[
+  {cle:'dmg',id:'buffDmg'},{cle:'vit',id:'buffVit'},{cle:'butin',id:'buffButin'},
+  {cle:'sprintLibre',id:'buffSprintLibre'},{cle:'vol',id:'buffVol'},{cle:'cadence',id:'buffCadence'}
+];
 function hudW(id,pct){ pct=Math.round(pct); if(HUDC['w'+id]!==pct){HUDC['w'+id]=pct;el(id).style.width=pct+'%';} }
 function hudT(id,txt){ if(HUDC['t'+id]!==txt){HUDC['t'+id]=txt;el(id).textContent=txt;} }
 function hudD(id,disp){ if(HUDC['d'+id]!==disp){HUDC['d'+id]=disp;el(id).style.display=disp;} }
@@ -18629,6 +18678,15 @@ function majHUD(){
   hudW('stFill',clamp(P.stam/P.stamMax*100,0,100));
   if(P.bouclier>0){hudD('shWrap','block');hudW('shFill',clamp(P.bouclier/60*100,0,100));}
   else hudD('shWrap','none');
+  // Bonus de fin de vague actifs : chip + décompte, voir buffsBox. Boucle
+  // explicite sur une petite table fixe (règle perf CLAUDE.md) plutôt qu'un
+  // bloc if/else par buff — même 6 buffs, jamais plus, pas un souci si ça
+  // grandit un peu, mais pas de raison de le refaire à la main à chaque ajout.
+  for(const k of BUFF_CHIPS){
+    const v=P.buffs[k.cle];
+    if(v>0){ hudD(k.id,'flex'); hudT(k.id+'T',Math.ceil(v)+'s'); }
+    else hudD(k.id,'none');
+  }
   hudT('scoreVal',''+ETAT.score);
   hudT('moneyVal',fmt$(META.argent));
   if(HUDC.combo!==(ETAT.combo>1)){HUDC.combo=ETAT.combo>1;el('comboWrap').classList.toggle('on',HUDC.combo);}
