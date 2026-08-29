@@ -6318,7 +6318,15 @@ function majJoueur(dt,dtJeu){
     P.h.jambeG.rotation.x=1.1+s*0.3; P.h.jambeD.rotation.x=1.1-s*0.3;
     P.h.brasG.rotation.x=-1.5+Math.sin(P.h.phase)*0.9;
     P.h.brasD.rotation.x=-1.5+Math.sin(P.h.phase+Math.PI)*0.9;
-  } else animeHumain(P.h,dt,Math.hypot(vx,vz),ARMES[P.armeCur].type==='gun'&&P.tirT>0);
+  }
+  // Bug déjà rencontré (signalé par un joueur) : animeHumain() tournait ici
+  // sans condition, y compris en chute libre/sous voile — la posture de
+  // parachute (bras aux suspentes) posée juste au-dessus était donc
+  // écrasée dès que le joueur avait la moindre dérive horizontale (vx/vz),
+  // remplacée par un cycle de marche complet en plein vol. P.chute couvre
+  // les deux (chute libre ET parachute, voir ouvrirParachute qui exige
+  // P.chute déjà vrai sans jamais le repasser à faux) : un seul garde suffit.
+  else if(!P.chute) animeHumain(P.h,dt,Math.hypot(vx,vz),ARMES[P.armeCur].type==='gun'&&P.tirT>0);
   // viseur manuel du sniper
   if(P_SNIPE.vise){
     const tx=P.x+Math.sin(P.ang)*P_SNIPE.dist, tz=P.z+Math.cos(P.ang)*P_SNIPE.dist;
@@ -8259,6 +8267,18 @@ function majTrafic(v,dt){
     const dirNow=(v.axe==='z'?Math.cos(v.ang):Math.sin(v.ang))>=0?1:-1;
     if(v.axe==='z'){ const k=clamp(Math.round((v.x+HALF)/CELL),0,NB-1); v.lane=-HALF+k*CELL+3.2*dirNow; }
     else { const k=clamp(Math.round((v.z+HALF)/CELL),0,NB-1); v.lane=-HALF+k*CELL-3.2*dirNow; }
+    // Bug déjà rencontré (signalé par un joueur : véhicules qui « tremblent »
+    // et s'empilent au bord de la carte) : plusieurs véhicules déjà en file
+    // sur la MÊME voie (même z pour un axe='x', même x pour un axe='z')
+    // rebondissent au même endroit et retombent sur la voie recalculée
+    // ci-dessus, STRICTEMENT IDENTIQUE pour tous — ils convergent alors vers
+    // le même point, et resoudreCollisionsVehicule se met à lutter sans fin
+    // contre le recentrage de voie qui les ramène ensemble à chaque frame :
+    // ce va-et-vient est le tremblement observé. Léger décalage stable (pas
+    // aléatoire — une voie qui « saute » d'une frame à l'autre serait pire),
+    // dérivé de l'identité du véhicule (son rang dans vehicules), pour les
+    // répartir sur des files voisines au lieu de les superposer.
+    v.lane+=((vehicules.indexOf(v)%5)-2)*1.1;
     v.mesh.rotation.y=v.ang;
   }
   // Resserré (190 → 120) : un rayon de suppression trop large laissait le
