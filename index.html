@@ -2730,6 +2730,33 @@ function mkMaison(x,z,w,d,h,m){
   mergeBox(0.9,1.5,0.1,mat(0x3a2c1e),x,0.75,z+d/2+0.02);
   addSolid({x,z,hw:w/2,hd:d/2,h,toit:true});
 }
+// Villa moderne, toit plat + terrasse en porte-à-faux : contraste
+// DÉLIBÉRÉ avec mkMaison (toit en pente) — demandé explicitement, « trop
+// de bâtiments se ressemblent ». Même signature que mkMaison (x,z,w,d,h,m)
+// pour pouvoir choisir l'une ou l'autre au hasard sans code séparé.
+function mkVillaModerne(x,z,w,d,h,m){
+  mergeBox(w,h,d,m,x,h/2,z);
+  mergeBox(w+0.3,0.25,d+0.3,mat(0xd8d4c8),x,h+0.12,z);              // acrotère de toit plat
+  mergeBox(w*0.7,h*0.55,0.08,mat(0x1a2430),x,h*0.5,z+d/2+0.03);     // grande baie vitrée
+  mergeBox(w*0.55,0.2,2.4,mat(0xc8c2b0),x,h*0.62,z+d/2+1.3);        // terrasse en porte-à-faux
+  [-1,1].forEach(sg=>mergeBox(0.08,1.0,0.08,mat(0x2a2d34),x+sg*w*0.25,h*0.62+0.5,z+d/2+2.4)); // garde-corps
+  addSolid({x,z,hw:w/2,hd:d/2,h,toit:true});
+}
+// Maison de plage sur pilotis : surélevée (on peut passer dessous, comme le
+// hangar militaire — voir base:pil), toit bas à quatre pans (jamais aussi
+// pointu que mkMaison, qui doit rester la silhouette « maison de ville »),
+// véranda ouverte côté mer — jamais un mur, une vraie terrasse.
+function mkMaisonPlage(x,z,w,d,h,m){
+  const pil=1.3;
+  [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(p=>mergeBox(0.3,pil,0.3,mat(0x5a4028),x+p[0]*w*0.4,pil/2,z+p[1]*d*0.4));
+  mergeBox(w,h,d,m,x,pil+h/2,z);
+  const toit=new THREE.Mesh(new THREE.ConeGeometry(0.72,h*0.4,4),pick(matsToits));
+  toit.rotation.y=Math.PI/4;
+  toit.scale.set(w*1.15,1,d*1.15);
+  toit.position.set(x,pil+h+h*0.2,z); scene.add(toit);
+  mergeBox(w*0.9,0.15,2.2,mat(0x8a6a44),x,pil-0.05,z+d/2+1.1);      // véranda/ponton, ouverte
+  addSolid({x,z,hw:w/2,hd:d/2,h:pil+h,toit:true,base:pil});
+}
 function mkPalmier(x,z){
   const g=new THREE.Group();
   const tr=new THREE.Mesh(new THREE.CylinderGeometry(0.14,0.22,4.6,6),mat(0x8a6a44));
@@ -4078,6 +4105,13 @@ function remplirBloc(qq,bx,bz,cx,cz){
     for(let i=0;i<2;i++) mkParasol(cx+rand(-M+3,M-3),cz+rand(-2,M-6));
     const sv=new THREE.Mesh(new THREE.PlaneGeometry(1.2,2.2),mat(pick([0xe05252,0x35c8e0,0xffd23f])));
     sv.rotation.x=-Math.PI/2; sv.position.set(cx+rand(-8,8),0.12,cz+rand(0,8)); scene.add(sv);
+    // Maisons de plage sur pilotis (demandé explicitement, « ajoute des
+    // bâtiments en plus ») : jamais sur les cases marina/chalutier
+    // ci-dessous, qui ont déjà leur propre aménagement dédié sur toute la
+    // largeur de la case.
+    if(bx!==6&&bx!==7&&bx!==10&&Math.random()<0.5){
+      mkMaisonPlage(cx+rand(-M+5,M-8),cz-rand(2,M-4),rand(7,10),rand(6,8),rand(2.6,3.6),pick(paletteFacades.villas));
+    }
     if(bx===6||bx===7){ // MARINA
       if(!POIS.marina){
         POIS.marina={x:cx+CELL/2,z:MER+6};
@@ -4300,12 +4334,18 @@ function remplirBloc(qq,bx,bz,cx,cz){
   }
   // remplissage générique par quartier
   if(qq==='centre'){
-    mkBatiment(cx,cz,rand(15,22),rand(15,22),rand(20,46),pick(paletteFacades.centre));
+    // Repère de skyline occasionnel (demandé explicitement, « varie les
+    // hauteurs ») : une tour nettement plus haute que la norme de temps en
+    // temps, jamais systématique — POIS.toitH (hélipad/jetpack, voir
+    // mkBatiment) continue de se poser sur la première tour >34 rencontrée,
+    // inchangé.
+    const hCentre=Math.random()<0.12?rand(46,68):rand(20,46);
+    mkBatiment(cx,cz,rand(15,22),rand(15,22),hCentre,pick(paletteFacades.centre));
   } else if(qq==='commerce'||qq==='neon'){
     if(qq==='neon'&&!POIS.club) POIS.club={x:cx,z:cz+9};
     if(qq==='commerce'&&!POIS.superette) POIS.superette={x:cx,z:cz+9};
     const pal=qq==='neon'?paletteFacades.neon:paletteFacades.commerce;
-    const w=rand(16,22),d=rand(10,14),h=rand(8,14);
+    const w=rand(16,22),d=rand(10,14),h=rand(7,18);
     mkBatiment(cx,cz-4,w,d,h,pick(pal));
     // vitrine au rez-de-chaussée + store banne
     mkBox(w*0.8,2.2,0.3,mat(0x121a24),cx,1.3,cz-4+d/2+0.2);
@@ -4328,18 +4368,27 @@ function remplirBloc(qq,bx,bz,cx,cz){
     if(Math.random()<0.55) mkBatiment(cx+rand(-5,5),cz+8,rand(8,12),rand(5,7),rand(5,8),pick(pal));
     if(Math.random()<0.4) mkCaisse(cx+rand(-10,10),cz+rand(6,11));
   } else if(qq==='residentiel'){
+    // Touche de variété (demandé explicitement, « tout se ressemble trop ») :
+    // une maison sur 5 environ est une villa moderne au toit plat plutôt que
+    // le pavillon à toit pointu par défaut — mkMaison reste la norme du
+    // quartier, jamais remplacée en masse.
     for(let i=0;i<2;i++)for(let j=0;j<2;j++){
-      if(Math.random()<0.85)
-        mkMaison(cx-7+i*14+rand(-1,1),cz-7+j*14+rand(-1,1),rand(6.5,9),rand(6.5,9),rand(3.6,5),pick(paletteFacades.residentiel));
+      if(Math.random()<0.85){
+        const arch=Math.random()<0.2?mkVillaModerne:mkMaison;
+        arch(cx-7+i*14+rand(-1,1),cz-7+j*14+rand(-1,1),rand(6.5,9),rand(6.5,9),rand(3.6,5),pick(paletteFacades.residentiel));
+      }
     }
     if(Math.random()<0.7) mkArbre(cx+rand(-M+2,M-2),cz+rand(-M+2,M-2),rand(0.8,1.1));
   } else if(qq==='villas'){
     if(!POIS.villas) POIS.villas={x:cx,z:cz};
-    mkMaison(cx-6,cz-5,rand(9,12),rand(8,10),rand(4.5,6),pick(paletteFacades.villas));
-    if(Math.random()<0.6){
-      const pisc=new THREE.Mesh(new THREE.BoxGeometry(6,0.2,4),new THREE.MeshLambertMaterial({map:texEau}));
+    // Silhouette de la villa principale tirée au sort (toit en pente OU toit
+    // plat + terrasse) — deux villas voisines ne se ressemblent plus
+    // systématiquement, contrairement à avant (toujours mkMaison).
+    pick([mkMaison,mkVillaModerne])(cx-6,cz-5,rand(9,13),rand(8,11),rand(4.5,6.5),pick(paletteFacades.villas));
+    if(Math.random()<0.55){
+      const pisc=new THREE.Mesh(new THREE.BoxGeometry(rand(5,7),0.2,rand(3,5)),new THREE.MeshLambertMaterial({map:texEau}));
       pisc.position.set(cx+7,0.18,cz+7); scene.add(pisc);
-    } else mkMaison(cx+7,cz+7,rand(7,9),rand(6,8),rand(4,5),pick(paletteFacades.villas));
+    } else pick([mkMaison,mkVillaModerne])(cx+7,cz+7,rand(7,9),rand(6,8),rand(4,5),pick(paletteFacades.villas));
     mkPalmier(cx+rand(-M+2,M-2),cz-rand(2,M-2));
     if(Math.random()<0.5) mkArbre(cx-rand(2,M-2),cz+rand(2,M-2),1);
   } else if(qq==='industriel'){
