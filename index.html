@@ -523,6 +523,10 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
     <b style="color:#ffd23f">◆</b> Mission · 🏪🎧🏦 Visitables
   </div>
   <div id="waypInfo" style="margin-top:8px;font-size:11px;font-weight:800;color:#7dff7a;letter-spacing:.04em">Touche la carte pour définir une destination</div>
+  <!-- Récompense du métier Taxi (10 courses) : transport rapide vers la
+       destination déjà pointée sur la carte (WAYP), jamais un second système
+       de sélection de lieu à construire — celui-ci existe déjà. -->
+  <button class="pill" id="btnAppelTaxi" style="margin-top:8px;display:none">🚕 APPELER UN TAXI — 50 $</button>
   <button class="retour" id="carteClose">Reprendre</button>
 </div>
 
@@ -1590,7 +1594,17 @@ const META={
   // toutes, jamais réinitialisé au game over. L'équipement lui-même
   // (P.jetpack) est perdu au game over, comme les armes : il faut
   // remonter le chercher à chaque partie.
-  jetpackTrouve:false
+  jetpackTrouve:false,
+  // Métiers (demandé explicitement) : missions liées à un véhicule
+  // spécifique (pompier, taxi, dépanneuse, ambulance, police). Comme les
+  // curiosités/le mur de trophées, c'est un ACCOMPLISSEMENT qui ne se
+  // réinitialise JAMAIS au game over — seule une mission EN COURS
+  // (MET.actif, hors de META) est abandonnée à la mort, jamais comptée.
+  // Plafonné à 10 (jamais compté au-delà) : une chaîne à accomplir une fois,
+  // comme les circuits du Dépôt de bus, pas une jauge à faire grimper à
+  // l'infini — METIERS_CIBLE=10 (voir plus bas) fait foi partout, jamais
+  // recopié en dur ailleurs.
+  metiers:{pompier:0,taxi:0,depanneuse:0,ambulance:0,police:0}
 };
 const DEFIS=[
   {id:'sang',nom:'Premier sang',det:'Neutralise 25 ennemis',rec:250,prog:m=>[m.killsTotal,25],cond:m=>m.killsTotal>=25},
@@ -1830,7 +1844,16 @@ const PERSOS={
            {nom:'Nuit',prix:400,visage:'cool',c:{haut:0x1c2434,bas:0x12141c,casq:0x35e0ff}},
            {nom:'Jungle',prix:400,visage:'mechant',c:{haut:0x4e5e3a,bas:0x3a3a28,casq:0x2a3020}},
            {nom:'Torse nu',prix:250,visage:'cool',nu:true,c:{haut:0,bas:0x27364a,casq:0x1b1e26}},
-           {nom:'Policier',prix:600,visage:'neutre',c:{haut:0x2b4d86,bas:0x1b2436,casq:0x22304e}}]},
+           {nom:'Policier',prix:600,visage:'neutre',c:{haut:0x2b4d86,bas:0x1b2436,casq:0x22304e}},
+           // Récompenses de métier (demandé explicitement) : jamais achetables
+           // (prix purement indicatif, le bouton d'achat est remplacé par un
+           // verrou tant que META.metiers[x] n'atteint pas METIERS_CIBLE — voir
+           // renderChars), gagnées en accomplissant les 10 missions du métier.
+           {nom:'Pompier',prix:0,visage:'neutre',metier:'pompier',c:{haut:0xd8342a,bas:0x2a2d34,casq:0xffd23f}},
+           {nom:'Chauffeur',prix:0,visage:'cool',metier:'taxi',c:{haut:0xf2c21f,bas:0x1a1d24,casq:0x1a1d24}},
+           {nom:'Mécano',prix:0,visage:'neutre',metier:'depanneuse',c:{haut:0xe07020,bas:0x2a2d34,casq:0x2a2d34}},
+           {nom:'Secouriste',prix:0,visage:'gentil',metier:'ambulance',c:{haut:0xf2f4f8,bas:0x2a2d34,casq:0xf2f4f8}},
+           {nom:'Agent',prix:0,visage:'cool',metier:'police',c:{haut:0x2b4d86,bas:0x14161c,casq:0x14161c}}]},
   ria:{nom:'RIA',ico:'⚡',prix:1500,niv:4,hp:85,vit:1.15,melee:0.9,cd:20,spec:'nitro',specNom:'Nitro',
     desc:'Rapide et fragile, née pour la fuite. Spécial : vitesse +60 % et endurance infinie 4 s.',
     couleurs:{haut:0x35c8e0,bas:0x1c2030,peau:0xc98d5e,casq:0xeae6da},
@@ -7893,6 +7916,15 @@ function majLanceEau(v,dt){
       if(masse<=12){
         o.knockVx=clamp((o.knockVx||0)+Math.sin(aimAng)*10*fall*dt,-KNOCK_VMAX,KNOCK_VMAX);
         o.knockVz=clamp((o.knockVz||0)+Math.cos(aimAng)*10*fall*dt,-KNOCK_VMAX,KNOCK_VMAX);
+      }
+    }
+    // Métier Pompier (voir majMetierPompier) : même cône visée/portée que
+    // ci-dessus, contre l'incendie de la mission en cours s'il y en a une.
+    if(MET.pompier&&MET.pompier.pret){
+      const fm=MET.pompier;
+      const dxf=fm.x-v.x, dzf=fm.z-v.z, distf=Math.hypot(dxf,dzf);
+      if(distf<=LANCE_PORTEE&&Math.abs(angDiff(aimAng,Math.atan2(dxf,dzf)))<=LANCE_DEMI_ANGLE){
+        fm.vie=Math.max(0,fm.vie-40*dt);
       }
     }
   } else {
@@ -16216,6 +16248,167 @@ function majMissions(dt,dtJeu){
   } else fl.style.display='none';
 }
 
+/* =====================================================================
+   MÉTIERS — missions liées à un véhicule spécifique (demandé explicitement)
+   Pompier (incendies), Taxi (courses + appel rapide, voir btnAppelTaxi),
+   Dépanneuse (remorquages), Ambulance (urgences), Police (interpellations).
+   METIERS_CIBLE réussites par métier débloquent un skin dédié (voir
+   PERSOS.jax.skins, gating dans renderChars). Une mission EN COURS (MET.x)
+   est simplement abandonnée en sortant du véhicule/à la mort — seul le
+   COMPTEUR (META.metiers, persistant) survit, exactement comme MISSION.cur.
+===================================================================== */
+const METIERS_CIBLE=10;
+const NOMS_METIER={pompier:'Pompier',taxi:'Taxi',depanneuse:'Dépanneuse',ambulance:'Ambulance',police:'Police'};
+const MET={pompier:null,taxi:null,depanneuse:null,ambulance:null,police:null};
+// Balise dédiée, jamais la même que `balise` (déjà prise par MISSION.cur) —
+// les deux peuvent être actives en même temps sans se marcher dessus.
+const metierBalise=new THREE.Mesh(new THREE.CylinderGeometry(1.4,1.4,9,12,1,true),
+  new THREE.MeshBasicMaterial({color:0xff7a2e,transparent:true,opacity:0.32,side:THREE.DoubleSide,depthWrite:false}));
+metierBalise.visible=false; scene.add(metierBalise);
+function metierReussite(job){
+  META.metiers[job]=Math.min(METIERS_CIBLE,(META.metiers[job]||0)+1);
+  const n=META.metiers[job];
+  if(n>=METIERS_CIBLE) toast('🏅 '+NOMS_METIER[job]+' : dernière mission accomplie ! Skin dispo aux personnages','or');
+  else toast(NOMS_METIER[job]+' accompli ('+n+'/'+METIERS_CIBLE+')','or');
+  SFX.achat(); sauveMeta();
+}
+function majMetierPompier(v,dt,dtJeu){
+  const actif=v&&v.def.pompier&&META.metiers.pompier<METIERS_CIBLE;
+  if(!actif){ if(MET.pompier) MET.pompier=null; return; }
+  let m=MET.pompier;
+  if(!m) m=MET.pompier={t:1.5,pret:false};
+  if(!m.pret){
+    m.t-=dtJeu;
+    if(m.t<=0){
+      const p=spawnRing(24,44);
+      m.x=p.x; m.z=p.z; m.vie=100; m.pret=true;
+      toast('🔥 Incendie signalé — arrose-le avec LANCE (bouton SPRINT) !','warn');
+    }
+    return;
+  }
+  if(Math.random()<dt*10) fumee(m.x+rand(-1,1),0.4,m.z+rand(-1,1),0x3a3d44);
+  if(Math.random()<dt*16) spawnP(m.x+rand(-0.8,0.8),rand(0.3,1.8),m.z+rand(-0.8,0.8),
+    rand(-0.4,0.4),rand(2,4),rand(-0.4,0.4),0.5,rand(0.4,0.7),pick([0xff7a2e,0xffb23a,0xff4b2e]),-1);
+  metierBalise.position.set(m.x,4,m.z); metierBalise.visible=true;
+  if(m.vie<=0){
+    metierBalise.visible=false; MET.pompier=null;
+    toast('🚒 Incendie éteint !','or');
+    metierReussite('pompier');
+  }
+}
+function majMetierTaxi(v,dt,dtJeu){
+  const actif=v&&v.def.taxi&&META.metiers.taxi<METIERS_CIBLE;
+  if(!actif){ if(MET.taxi) MET.taxi=null; return; }
+  let m=MET.taxi;
+  if(!m){
+    const p=spawnRing(20,50);
+    m=MET.taxi={etat:'ramasse',x:p.x,z:p.z};
+    toast('🚕 Un client attend — va le chercher','or');
+  }
+  if(m.etat==='ramasse'){
+    metierBalise.position.set(m.x,4,m.z); metierBalise.visible=true;
+    if(dist2(P.x,P.z,m.x,m.z)<36){
+      const d=spawnRing(40,80);
+      m.etat='depose'; m.dx=d.x; m.dz=d.z;
+      toast('Client à bord — direction sa destination','or');
+    }
+  } else {
+    metierBalise.position.set(m.dx,4,m.dz); metierBalise.visible=true;
+    if(dist2(P.x,P.z,m.dx,m.dz)<36){
+      metierBalise.visible=false; MET.taxi=null;
+      toast('🚕 Client déposé !','or');
+      metierReussite('taxi');
+    }
+  }
+}
+function majMetierDepanneuse(v,dt,dtJeu){
+  const actif=v&&v.def.depanneuse&&META.metiers.depanneuse<METIERS_CIBLE;
+  if(!actif){ if(MET.depanneuse) MET.depanneuse=null; return; }
+  let m=MET.depanneuse;
+  if(!m){
+    const p=spawnRing(24,50);
+    const cible=creerVehicule(pick(['citadine','berline','muscle']),p.x,p.z,rand(0,6.28));
+    cible.v=0; cible.panne=true;
+    m=MET.depanneuse={veh:cible};
+    toast('🔧 Véhicule en panne signalé — accroche-le et ramène-le au garage','or');
+  }
+  if(m.veh.mort){ MET.depanneuse=null; return; } // détruit entre-temps : mission perdue, silencieuse
+  if(Math.random()<dt*2) fumee(m.veh.x+rand(-0.6,0.6),0.6,m.veh.z+rand(-0.6,0.6),0x5a5f66);
+  metierBalise.position.set(m.veh.x,4,m.veh.z); metierBalise.visible=(v.remorque!==m.veh);
+  if(v.remorque===m.veh&&POIS.garage&&dist2(m.veh.x,m.veh.z,POIS.garage.x,POIS.garage.z)<64){
+    m.veh.mort=true; MET.depanneuse=null;
+    toast('🔧 Véhicule ramené au garage !','or');
+    metierReussite('depanneuse');
+  }
+}
+function majMetierAmbulance(v,dt,dtJeu){
+  const actif=v&&v.def.ambulance&&META.metiers.ambulance<METIERS_CIBLE;
+  if(!actif){ if(MET.ambulance) MET.ambulance=null; return; }
+  let m=MET.ambulance;
+  if(!m){
+    const p=spawnRing(20,50);
+    m=MET.ambulance={etat:'ramasse',x:p.x,z:p.z};
+    toast('🚑 Un blessé attend des secours','warn');
+  }
+  if(m.etat==='ramasse'){
+    metierBalise.position.set(m.x,4,m.z); metierBalise.visible=true;
+    if(Math.random()<dt*8) spawnP(m.x+rand(-0.5,0.5),rand(0.5,1.4),m.z+rand(-0.5,0.5),0,1,0,0.4,0.4,0xff5a6a,0);
+    if(dist2(P.x,P.z,m.x,m.z)<36){
+      m.etat='depose';
+      toast('Blessé à bord — fonce au commissariat','or');
+    }
+  } else if(POIS.commissariat){
+    metierBalise.position.set(POIS.commissariat.x,4,POIS.commissariat.z); metierBalise.visible=true;
+    if(dist2(P.x,P.z,POIS.commissariat.x,POIS.commissariat.z)<49){
+      metierBalise.visible=false; MET.ambulance=null;
+      toast('🚑 Blessé pris en charge !','or');
+      metierReussite('ambulance');
+    }
+  }
+}
+function majMetierPolice(v,dt,dtJeu){
+  const actif=v&&v.def.police&&META.metiers.police<METIERS_CIBLE;
+  if(!actif){ if(MET.police) MET.police=null; return; }
+  let m=MET.police;
+  if(!m){
+    const p=spawnRing(30,55);
+    const cible=creerVehicule(pick(['muscle','sport','berline']),p.x,p.z,rand(0,6.28));
+    cible.v=cible.def.vmax*0.7;
+    m=MET.police={veh:cible,coince:0};
+    toast('🚨 Suspect repéré — rattrape-le et bloque-le','warn');
+  }
+  const c=m.veh;
+  if(c.mort){ MET.police=null; return; }
+  // fuite en ligne droite loin du joueur, s'écarte des solides plutôt que de s'y encastrer
+  const fa=Math.atan2(c.x-P.x,c.z-P.z);
+  c.ang=angLerp(c.ang,fa,2*dt);
+  const nx=c.x+Math.sin(c.ang)*c.v*dt, nz=c.z+Math.cos(c.ang)*c.v*dt;
+  if(!solidAt(nx,nz,1)&&!estEau(nx,nz)){ c.x=nx; c.z=nz; } else c.ang+=1.4;
+  c.mesh.position.set(c.x,0,c.z); c.mesh.rotation.y=c.ang;
+  for(const r of c.mesh.userData.roues) r.rotation.x+=c.v*dt*1.6;
+  metierBalise.position.set(c.x,4,c.z); metierBalise.visible=true;
+  if(P.veh&&Math.sqrt(dist2(P.x,P.z,c.x,c.z))<6) m.coince+=dtJeu; else m.coince=Math.max(0,m.coince-dtJeu*2);
+  if(m.coince>=2){
+    metierBalise.visible=false; c.mort=true; MET.police=null;
+    toast('🚨 Suspect interpellé !','or');
+    metierReussite('police');
+  } else if(dist2(P.x,P.z,c.x,c.z)>150*150){
+    metierBalise.visible=false; c.mort=true; MET.police=null;
+    toast('Le suspect a filé...','warn');
+  }
+}
+function majMetiers(dt,dtJeu){
+  if(INT.actif) return;
+  metierBalise.rotation.y+=dt;
+  const v=P.veh;
+  majMetierPompier(v,dt,dtJeu);
+  majMetierTaxi(v,dt,dtJeu);
+  majMetierDepanneuse(v,dt,dtJeu);
+  majMetierAmbulance(v,dt,dtJeu);
+  majMetierPolice(v,dt,dtJeu);
+  hudD('btnAppelTaxi',META.metiers.taxi>=METIERS_CIBLE?'block':'none');
+}
+
 /* ---------- score, XP, messages ---------- */
 function gainXp(n){
   META.xp+=n;
@@ -16471,7 +16664,7 @@ function renderChars(){
     ch.addEventListener('pointerdown',()=>{PREVIEW.skinAff=i;SFX.ui();renderChars();});
     const lab=document.createElement('small');
     const pSkin=META.skinsPoss[pa].includes(i);
-    lab.textContent=pSkin?s.nom:s.prix+' $';
+    lab.textContent=pSkin?s.nom:(s.metier?'🔒 '+(META.metiers[s.metier]||0)+'/'+METIERS_CIBLE:s.prix+' $');
     if(!pSkin) lab.className='prix';
     col.appendChild(ch); col.appendChild(lab);
     el('skinRow').appendChild(col);
@@ -16482,6 +16675,11 @@ function renderChars(){
     btn=META.niveau>=c.niv
       ?'<button class="pill buy" id="persoAct">ACHETER — '+c.prix+' $</button>'
       :'<button class="pill lock">NIVEAU '+c.niv+' REQUIS</button>';
+  } else if(!possSkin&&c.skins[PREVIEW.skinAff].metier){
+    const mNom=c.skins[PREVIEW.skinAff].metier, mN=META.metiers[mNom]||0;
+    btn=mN>=METIERS_CIBLE
+      ?'<button class="pill buy" id="persoAct">RÉCUPÉRER LE SKIN — mission accomplie</button>'
+      :'<button class="pill lock">'+NOMS_METIER[mNom]+' : '+mN+'/'+METIERS_CIBLE+' missions</button>';
   } else if(!possSkin){
     btn='<button class="pill buy" id="persoAct">DÉBLOQUER LE SKIN — '+c.skins[PREVIEW.skinAff].prix+' $</button>';
   } else if(META.perso===pa&&(META.skins[pa]||0)===PREVIEW.skinAff){
@@ -16497,6 +16695,10 @@ function renderChars(){
     if(!possChar){
       if(META.argent<c.prix){SFX.refus();return;}
       META.argent-=c.prix; META.persosPoss.push(pa); SFX.achat();
+    } else if(!possSkin&&c.skins[PREVIEW.skinAff].metier){
+      if((META.metiers[c.skins[PREVIEW.skinAff].metier]||0)<METIERS_CIBLE){ SFX.refus(); return; }
+      META.skinsPoss[pa].push(PREVIEW.skinAff); SFX.achat();
+      toast('Skin '+c.skins[PREVIEW.skinAff].nom+' récupéré','or'); sauveMeta();
     } else if(!possSkin){
       const px=c.skins[PREVIEW.skinAff].prix;
       if(META.argent<px){SFX.refus();return;}
@@ -17066,6 +17268,14 @@ el('miniWrap').addEventListener('pointerdown',()=>{
   ETAT.mode='carte'; drawCarte(); ecran('carte'); SFX.ui();
 });
 el('carteClose').addEventListener('pointerdown',()=>{ecran(null);ETAT.mode='jeu';});
+el('btnAppelTaxi').addEventListener('pointerdown',()=>{
+  if(!WAYP.actif){ SFX.refus(); toast('Touche d’abord la carte pour choisir une destination'); return; }
+  if(META.argent<50){ SFX.refus(); toast('Il te faut 50 $'); return; }
+  if(P.veh) sortirVehicule(true);
+  META.argent-=50; P.x=WAYP.x; P.z=WAYP.z; P.y=solPied(P.x,P.z); P.chute=false; P.para=false;
+  WAYP.actif=false; SFX.achat(); toast('🚕 Dépose minute — te voilà arrivé','or');
+  ecran(null); ETAT.mode='jeu';
+});
 el('mDefis').addEventListener('pointerdown',()=>{ETAT.retour='menu';renderDefis();ecran('defis');});
 function renderStats(){
   const S=META.stats;
@@ -18985,6 +19195,7 @@ function boucle(t){
       majEvenements(dt);
       majVagues(dtJeu);
       majMissions(dt,dtJeu);
+      majMetiers(dt,dtJeu);
       majAction();
     }
     majInterieur(dt,dtJeu);
