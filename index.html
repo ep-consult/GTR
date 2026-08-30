@@ -18744,11 +18744,22 @@ function majCamera(dt){
   // risque pour le cadrage — le reste de la lisibilité vient de la réponse
   // de tangage elle-même (voir majVol : coefficient et lerp revus).
   const tangageF=P.veh&&P.veh.def.air?clamp(Math.abs(P.veh.va||0)/15,0,1):0;
-  const cibleH=(P.veh?52:42)+enVol*0.75-tangageF*8, cibleD=(P.veh?23:19)+enVol*0.2+tangageF*6;
+  // Chute libre à mains nues (jamais le parachute, qui a besoin de voir le
+  // sol pour se poser) : signalé par un joueur — la vue de jeu normale, très
+  // plongeante, ne laisse pas voir la posture à l'horizontale (vue de
+  // directement au-dessus, un corps allongé et un corps debout se
+  // ressemblent, silhouette presque identique). Caméra qui recule et
+  // s'abaisse nettement (angle bien moins vertical, façon vraie caméra de
+  // poursuite en chute) pour que la posture se voie enfin. Montée en
+  // douceur sur P.chuteT (jamais un bond instantané) — même logique que la
+  // rampe d'accélération de la chute elle-même.
+  const enChuteLibre=P.chute&&!P.para;
+  const chuteAngF=enChuteLibre?clamp(P.chuteT/1.2,0,1):0;
+  const cibleH=(P.veh?52:42)+enVol*0.75-tangageF*8-chuteAngF*24, cibleD=(P.veh?23:19)+enVol*0.2+tangageF*6+chuteAngF*18;
   camH=lerp(camH,cibleH,2*dt); camD=lerp(camD,cibleD,2*dt);
   ETAT.shake=Math.max(0,ETAT.shake-30*dt);
   const sx=(Math.random()-0.5)*ETAT.shake*0.12, sz=(Math.random()-0.5)*ETAT.shake*0.12;
-  const chuteF=(P.chute&&!P.para)?Math.min(1,-P.vy/40):0;
+  const chuteF=enChuteLibre?Math.min(1,-P.vy/40):0;
   // Bug déjà rencontré : hSol restait forcé à 0 pour un avion/hélico (« on
   // regarde toujours le sol, jamais l'appareil »), alors que la caméra ne
   // montait, elle, que via cibleH — la cible du regard restait au sol
@@ -18756,9 +18767,12 @@ function majCamera(dt){
   // de l'écran avec l'altitude jusqu'à sortir du cadre. hSol doit suivre
   // l'altitude réelle de l'appareil, exactement comme il suit déjà la
   // hauteur du véhicule au sol (v.h) ou du joueur qui saute (P.y).
+  // En chute libre, le sursaut de vitesse (chuteF) renforce maintenant le
+  // recul (distance) plutôt que la hauteur — sinon il re-plongeait la vue
+  // vers le vertical pile quand on va le plus vite, à l'inverse du but.
   const hSol=P.veh?(P.veh.def.air?(P.veh.alt||0):(P.veh.h||0)):P.y;
-  camera.position.set(P.x+sx,camH+hSol*0.75+chuteF*16,P.z+camD+sz+chuteF*10);
-  camera.lookAt(P.x+sx,hSol*0.75,P.z-2+sz);
+  camera.position.set(P.x+sx,camH+hSol*0.75+chuteF*6,P.z+camD+sz+chuteF*14);
+  camera.lookAt(P.x+sx,hSol*0.75+chuteAngF*6,P.z-2+sz);
   camera.fov=lerp(camera.fov,58+chuteF*14,0.12); camera.updateProjectionMatrix();
 }
 /* cache HUD : le DOM n'est réécrit que si la valeur a changé (gros gain sur mobile) */
