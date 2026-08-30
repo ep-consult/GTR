@@ -8321,11 +8321,37 @@ function majTrafic(v,dt){
     // ci-dessus, STRICTEMENT IDENTIQUE pour tous — ils convergent alors vers
     // le même point, et resoudreCollisionsVehicule se met à lutter sans fin
     // contre le recentrage de voie qui les ramène ensemble à chaque frame :
-    // ce va-et-vient est le tremblement observé. Léger décalage stable (pas
-    // aléatoire — une voie qui « saute » d'une frame à l'autre serait pire),
-    // dérivé de l'identité du véhicule (son rang dans vehicules), pour les
-    // répartir sur des files voisines au lieu de les superposer.
-    v.lane+=((vehicules.indexOf(v)%5)-2)*1.1;
+    // ce va-et-vient est le tremblement observé.
+    // Deux correctifs abandonnés en cours de route, tous deux vérifiés PAR
+    // reproduction réelle (pas supposés) :
+    // 1) décalage à taille fixe selon le rang du véhicule (modulo 5) —
+    //    insuffisant, un 6e véhicule dans la même file retombe sur le même
+    //    décalage qu'un des 5 premiers.
+    // 2) recherche d'une voie LATÉRALE libre (voie voisine) — recrée le tout
+    //    premier bug (véhicules sur le trottoir, voir le commentaire du
+    //    tout début de ce bloc) : au-delà de ±3,3 unités du centre de la
+    //    route, on quitte la chaussée (13 de large au total), or il faut
+    //    plusieurs multiples de la largeur d'une voie (2,6) pour espacer ne
+    //    serait-ce que 4-5 véhicules — confirmé par reproduction, plusieurs
+    //    finissaient bien sur le trottoir.
+    // Solution retenue : étaler EN LONGUEUR le long de la route (jamais en
+    // travers), comme une vraie file qui se forme au lieu de se superposer.
+    // La voie (position latérale) ne change jamais, seule la position DE
+    // DÉPART le long de la route recule d'autant de véhicules déjà présents
+    // ici — toujours sur la chaussée, quelle que soit la taille du bouchon.
+    let dejaLa=0;
+    for(const o of vehicules){
+      if(o===v||o.mort||o.axe!==v.axe) continue;
+      if(Math.abs(o.lane-v.lane)<2.2&&dist2(o.x,o.z,v.x,v.z)<36) dejaLa++;
+    }
+    if(dejaLa>0){
+      // Plafonné : un rebond réellement simultané de 9+ véhicules (cas
+      // extrême, jamais vu hors d'un test forcé) pousserait sinon le
+      // dernier de la file à près d'une case entière en arrière, assez loin
+      // pour parfois retomber près du trottoir d'un carrefour suivant.
+      const recul=Math.min(dejaLa,6)*5.2; // ~une longueur de citadine par véhicule déjà là
+      if(v.axe==='z') v.z-=dirNow*recul; else v.x-=dirNow*recul;
+    }
     v.mesh.rotation.y=v.ang;
   }
   // Resserré (190 → 120) : un rayon de suppression trop large laissait le
