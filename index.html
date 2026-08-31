@@ -3956,6 +3956,19 @@ function puntosPOI(sauf){
   }
   return pts;
 }
+// Vrai si (x,z) tombe dans la case bâtie de son quartier (jamais dans la
+// bande de route qui sépare les cases) — bug déjà rencontré : le repli
+// « n'importe quel emplacement dégagé » de placeLibrePorte ne testait que
+// solidAt/estEau, or la route elle-même n'est pas solide (les véhicules y
+// roulent), donc une porte pouvait s'y retrouver plaquée en plein milieu
+// d'une rue (Palais de l'Arcade notamment) quand aucune façade propre
+// n'était trouvée à proximité.
+function dansBloc(x,z,marge){
+  marge=marge||0;
+  const bx=Math.floor((x+HALF)/CELL), bz=Math.floor((z+HALF)/CELL);
+  const cx=-HALF+bx*CELL+CELL/2, cz=-HALF+bz*CELL+CELL/2;
+  return Math.abs(x-cx)<=INNER/2-marge && Math.abs(z-cz)<=INNER/2-marge;
+}
 function placeLibrePorte(x,z,ancre){
   // hors bâtiment, hors eau, accès dégagé, loin du point d'apparition, des
   // autres portes et des autres POI (bug déjà rencontré : sans cette dernière
@@ -3970,6 +3983,7 @@ function placeLibrePorte(x,z,ancre){
     return true;
   };
   const ok=(px,pz)=>{
+    if(!dansBloc(px,pz,1)) return false;                        // jamais sur la route
     if(solidAt(px,pz,2.2)||estEau(px,pz)) return false;
     if(solidAt(px,pz+3.5,1.2)||estEau(px,pz+3.5)) return false;
     if(spawn&&dist2(px,pz,spawn.x,spawn.z)<900) return false;      // 30 u autour du spawn
@@ -3978,6 +3992,7 @@ function placeLibrePorte(x,z,ancre){
   };
   // contrôle assoupli pour une porte adossée : on tolère le mur juste derrière
   const okFacade=(px,pz)=>{
+    if(!dansBloc(px,pz,1)) return false;                        // jamais sur la route
     if(solidAt(px,pz,0.9)||estEau(px,pz)) return false;        // la porte elle-même est au clair
     if(solidAt(px,pz+4,1.0)||estEau(px,pz+4)) return false;    // l'accès devant est dégagé
     if(spawn&&dist2(px,pz,spawn.x,spawn.z)<900) return false;
