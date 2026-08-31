@@ -55,6 +55,9 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
 #missionArrow{position:absolute;top:calc(env(safe-area-inset-top,0px) + 92px);left:50%;margin-left:-26px;
   width:52px;height:52px;display:none;filter:drop-shadow(0 0 8px #ffd23fcc);animation:gpsPulse 1.5s ease-in-out infinite}
 @keyframes gpsPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
+#metierWrap{position:absolute;top:calc(env(safe-area-inset-top,0px) + 150px);left:50%;transform:translateX(-50%);width:130px;display:none}
+#metierBar{height:8px}
+#metierFill{background:linear-gradient(90deg,#ff7a2e,#ffb23a);width:100%}
 
 #coinBox{position:absolute;top:calc(env(safe-area-inset-top,0px) + 8px);right:10px;text-align:right}
 #miniWrap{pointer-events:auto;border:1px solid #ffffff2e;border-radius:8px;overflow:hidden;box-shadow:0 3px 12px #000a;background:#0e1015}
@@ -361,6 +364,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
     <circle cx="26" cy="26" r="22" fill="#15161acc" stroke="#ffd23f" stroke-width="2.5"/>
     <path d="M26 8 L38 34 L26 27 L14 34 Z" fill="#ffd23f" stroke="#15161a" stroke-width="1.5" stroke-linejoin="round"/>
   </svg></div>
+  <div id="metierWrap"><div class="barre" id="metierBar"><i id="metierFill"></i></div></div>
   <div id="coinBox">
     <div id="miniWrap"><canvas id="minimap" width="192" height="192"></canvas></div>
     <div id="moneyVal">0 $</div>
@@ -9930,7 +9934,12 @@ function lancerVague(){
   if(WAVES.n>META.recordVague) META.recordVague=WAVES.n;
 }
 function majVagues(dt){
-  if(INT.actif) return;
+  // Un métier en cours (pompier/taxi/dépanneuse/ambulance/police) gèle les
+  // vagues comme un intérieur : aucun nouvel ennemi ne s'accumule pendant
+  // que le joueur se concentre sur l'objectif — demandé explicitement, les
+  // vagues rendaient ces missions illisibles. Les ennemis déjà en vie
+  // restent une menace, ils continuent d'être mis à jour ailleurs.
+  if(INT.actif||metierEnCours()) return;
   if(WAVES.etat==='repos'){
     WAVES.t-=dt;
     el('waveLabel').textContent='VAGUE '+(WAVES.n+1)+' DANS '+Math.ceil(Math.max(0,WAVES.t))+' s';
@@ -16207,23 +16216,45 @@ function finirMission(){
   MISSION.cur=null; MISSION.t=6; balise.visible=false;
   el('missionArrow').style.display='none';
 }
+// Oriente la flèche GPS + distance affichée vers une position cible —
+// factorisé car utilisé aussi bien sans mission courte (juste un métier ou
+// un waypoint) qu'avec (voir majMissions()).
+function pointerVersCible(fl,pos){
+  fl.style.display='block';
+  const a=Math.atan2(pos.x-P.x,-(pos.z-P.z));
+  const sv=fl.querySelector('svg'); if(sv) sv.style.transform='rotate('+(a*180/Math.PI)+'deg)';
+  fl.title=Math.round(Math.sqrt(dist2(P.x,P.z,pos.x,pos.z)))+' m';
+}
 function majMissions(dt,dtJeu){
   if(INT.actif) return;
   balise.rotation.y+=dt;
+  // Jauge de métier (feu à éteindre, suspect à bloquer...) — indépendante de
+  // MISSION.cur, affichée tant que majMetiers() (appelé juste avant, voir
+  // boucle()) a rempli MET.jauge cette frame.
+  hudD('metierWrap',MET.jauge!=null?'block':'none');
+  if(MET.jauge!=null) hudW('metierFill',clamp(MET.jauge*100,0,100));
   if(!MISSION.cur){
     MISSION.t-=dt;
-    el('missionTxt').style.display='none';
-    // pas de mission : le GPS guide vers la destination choisie sur la carte
     const fl0=el('missionArrow');
+    // Priorité : destination choisie sur la carte > métier en cours (feu,
+    // client, remorquage...) > cible d'événement — un métier a lui aussi
+    // besoin d'un texte d'objectif et d'une flèche, pas seulement de son
+    // halo 3D (« on ne sait pas où aller », signalé explicitement).
     if(WAYP.actif){
-      fl0.style.display='block';
-      const a0=Math.atan2(WAYP.x-P.x,-(WAYP.z-P.z));
-      const sv=fl0.querySelector('svg'); if(sv) sv.style.transform='rotate('+(a0*180/Math.PI)+'deg)';
+      el('missionTxt').style.display='none';
+      pointerVersCible(fl0,{x:WAYP.x,z:WAYP.z});
       if(dist2(P.x,P.z,WAYP.x,WAYP.z)<90){
         WAYP.actif=false; fl0.style.display='none';
         toast('Arrivé : '+WAYP.nom,'or'); SFX.ramasse();
       }
-    } else if(!EVT.cible) fl0.style.display='none';
+    } else if(MET.txt){
+      el('missionTxt').style.display='block';
+      el('missionTxt').textContent='◈ '+MET.txt;
+      if(MET.ciblePos) pointerVersCible(fl0,MET.ciblePos); else fl0.style.display='none';
+    } else {
+      el('missionTxt').style.display='none';
+      if(!EVT.cible) fl0.style.display='none';
+    }
     if(MISSION.t<=0) nouvelleMission();
     return;
   }
@@ -16278,6 +16309,12 @@ function majMissions(dt,dtJeu){
     if(dist2(P.x,P.z,POIS.marina.x,POIS.marina.z-6)<70){
       WANTED.heat=Math.max(0,WANTED.heat-2); finirMission(); return; }
   }
+  // Un métier en cours (feu à éteindre, client à déposer...) prend le pas sur
+  // le texte/la cible de la mission courte, même si les deux tournent en même
+  // temps : la mission courte continue de progresser en silence (le code
+  // ci-dessus vient de tourner), mais un seul objectif s'affiche à la fois —
+  // demandé explicitement, deux cibles en même temps rendaient ça illisible.
+  if(MET.txt){ txt=MET.txt; ciblePos=MET.ciblePos; }
   // PRIORITÉ : la destination que le joueur a choisie sur la carte
   if(WAYP.actif){
     ciblePos={x:WAYP.x,z:WAYP.z};
@@ -16288,13 +16325,7 @@ function majMissions(dt,dtJeu){
   MISSION.ciblePosActuel=ciblePos;   // La Boussole du Capitaine : lu par majMinimap()
   el('missionTxt').textContent='◈ '+txt;
   const fl=el('missionArrow');
-  if(ciblePos){
-    fl.style.display='block';
-    const a=Math.atan2(ciblePos.x-P.x,-(ciblePos.z-P.z));
-    const dCible=Math.sqrt(dist2(P.x,P.z,ciblePos.x,ciblePos.z));
-    const sv=fl.querySelector('svg'); if(sv) sv.style.transform='rotate('+(a*180/Math.PI)+'deg)';
-    fl.title=Math.round(dCible)+' m';
-  } else fl.style.display='none';
+  if(ciblePos) pointerVersCible(fl,ciblePos); else fl.style.display='none';
 }
 
 /* =====================================================================
@@ -16308,7 +16339,12 @@ function majMissions(dt,dtJeu){
 ===================================================================== */
 const METIERS_CIBLE=10;
 const NOMS_METIER={pompier:'Pompier',taxi:'Taxi',depanneuse:'Dépanneuse',ambulance:'Ambulance',police:'Police'};
-const MET={pompier:null,taxi:null,depanneuse:null,ambulance:null,police:null};
+const MET={pompier:null,taxi:null,depanneuse:null,ambulance:null,police:null,
+  // Cible/texte/jauge du métier EN COURS, lus par majMissions() pour la
+  // flèche GPS/le texte d'objectif/la minimap — remis à zéro à chaque frame
+  // par majMetiers(), repeuplés par la fonction du métier actif s'il y en a un.
+  ciblePos:null,txt:'',jauge:null};
+function metierEnCours(){ return !!(MET.pompier||MET.taxi||MET.depanneuse||MET.ambulance||MET.police); }
 // Balise dédiée, jamais la même que `balise` (déjà prise par MISSION.cur) —
 // les deux peuvent être actives en même temps sans se marcher dessus.
 const metierBalise=new THREE.Mesh(new THREE.CylinderGeometry(1.4,1.4,9,12,1,true),
@@ -16325,9 +16361,10 @@ function majMetierPompier(v,dt,dtJeu){
   const actif=v&&v.def.pompier&&META.metiers.pompier<METIERS_CIBLE;
   if(!actif){ if(MET.pompier) MET.pompier=null; return; }
   let m=MET.pompier;
-  if(!m) m=MET.pompier={t:1.5,pret:false};
+  if(!m){ m=MET.pompier={t:1.5,pret:false}; toast('🚒 Repérage d’un incendie en cours...','warn'); }
   if(!m.pret){
     m.t-=dtJeu;
+    MET.txt='Repérage de l’incendie en cours...';
     if(m.t<=0){
       const p=spawnRing(24,44);
       m.x=p.x; m.z=p.z; m.vie=100; m.pret=true;
@@ -16339,6 +16376,7 @@ function majMetierPompier(v,dt,dtJeu){
   if(Math.random()<dt*16) spawnP(m.x+rand(-0.8,0.8),rand(0.3,1.8),m.z+rand(-0.8,0.8),
     rand(-0.4,0.4),rand(2,4),rand(-0.4,0.4),0.5,rand(0.4,0.7),pick([0xff7a2e,0xffb23a,0xff4b2e]),-1);
   metierBalise.position.set(m.x,4,m.z); metierBalise.visible=true;
+  MET.txt='Éteins l’incendie'; MET.ciblePos={x:m.x,z:m.z}; MET.jauge=m.vie/100;
   if(m.vie<=0){
     metierBalise.visible=false; MET.pompier=null;
     toast('🚒 Incendie éteint !','or');
@@ -16356,6 +16394,7 @@ function majMetierTaxi(v,dt,dtJeu){
   }
   if(m.etat==='ramasse'){
     metierBalise.position.set(m.x,4,m.z); metierBalise.visible=true;
+    MET.txt='Va chercher le client'; MET.ciblePos={x:m.x,z:m.z};
     if(dist2(P.x,P.z,m.x,m.z)<36){
       const d=spawnRing(40,80);
       m.etat='depose'; m.dx=d.x; m.dz=d.z;
@@ -16363,6 +16402,7 @@ function majMetierTaxi(v,dt,dtJeu){
     }
   } else {
     metierBalise.position.set(m.dx,4,m.dz); metierBalise.visible=true;
+    MET.txt='Dépose le client à destination'; MET.ciblePos={x:m.dx,z:m.dz};
     if(dist2(P.x,P.z,m.dx,m.dz)<36){
       metierBalise.visible=false; MET.taxi=null;
       toast('🚕 Client déposé !','or');
@@ -16383,8 +16423,11 @@ function majMetierDepanneuse(v,dt,dtJeu){
   }
   if(m.veh.mort){ MET.depanneuse=null; return; } // détruit entre-temps : mission perdue, silencieuse
   if(Math.random()<dt*2) fumee(m.veh.x+rand(-0.6,0.6),0.6,m.veh.z+rand(-0.6,0.6),0x5a5f66);
-  metierBalise.position.set(m.veh.x,4,m.veh.z); metierBalise.visible=(v.remorque!==m.veh);
-  if(v.remorque===m.veh&&POIS.garage&&dist2(m.veh.x,m.veh.z,POIS.garage.x,POIS.garage.z)<64){
+  const accroche=v.remorque===m.veh;
+  metierBalise.position.set(m.veh.x,4,m.veh.z); metierBalise.visible=!accroche;
+  MET.txt=accroche?'Ramène le véhicule au garage':'Accroche le véhicule en panne';
+  MET.ciblePos=accroche?POIS.garage:{x:m.veh.x,z:m.veh.z};
+  if(accroche&&POIS.garage&&dist2(m.veh.x,m.veh.z,POIS.garage.x,POIS.garage.z)<64){
     m.veh.mort=true; MET.depanneuse=null;
     toast('🔧 Véhicule ramené au garage !','or');
     metierReussite('depanneuse');
@@ -16401,6 +16444,7 @@ function majMetierAmbulance(v,dt,dtJeu){
   }
   if(m.etat==='ramasse'){
     metierBalise.position.set(m.x,4,m.z); metierBalise.visible=true;
+    MET.txt='Récupère le blessé'; MET.ciblePos={x:m.x,z:m.z};
     if(Math.random()<dt*8) spawnP(m.x+rand(-0.5,0.5),rand(0.5,1.4),m.z+rand(-0.5,0.5),0,1,0,0.4,0.4,0xff5a6a,0);
     if(dist2(P.x,P.z,m.x,m.z)<36){
       m.etat='depose';
@@ -16408,6 +16452,7 @@ function majMetierAmbulance(v,dt,dtJeu){
     }
   } else if(POIS.commissariat){
     metierBalise.position.set(POIS.commissariat.x,4,POIS.commissariat.z); metierBalise.visible=true;
+    MET.txt='Fonce au commissariat'; MET.ciblePos=POIS.commissariat;
     if(dist2(P.x,P.z,POIS.commissariat.x,POIS.commissariat.z)<49){
       metierBalise.visible=false; MET.ambulance=null;
       toast('🚑 Blessé pris en charge !','or');
@@ -16436,7 +16481,9 @@ function majMetierPolice(v,dt,dtJeu){
   c.mesh.position.set(c.x,0,c.z); c.mesh.rotation.y=c.ang;
   for(const r of c.mesh.userData.roues) r.rotation.x+=c.v*dt*1.6;
   metierBalise.position.set(c.x,4,c.z); metierBalise.visible=true;
+  MET.txt='Bloque le suspect'; MET.ciblePos={x:c.x,z:c.z};
   if(P.veh&&Math.sqrt(dist2(P.x,P.z,c.x,c.z))<6) m.coince+=dtJeu; else m.coince=Math.max(0,m.coince-dtJeu*2);
+  MET.jauge=m.coince/2;
   if(m.coince>=2){
     metierBalise.visible=false; c.mort=true; MET.police=null;
     toast('🚨 Suspect interpellé !','or');
@@ -16449,6 +16496,12 @@ function majMetierPolice(v,dt,dtJeu){
 function majMetiers(dt,dtJeu){
   if(INT.actif) return;
   metierBalise.rotation.y+=dt;
+  // Remise à zéro à chaque frame : si aucun métier n'est actif ci-dessous,
+  // le halo et la flèche GPS doivent bien disparaître (bug corrigé : avant,
+  // sortir du véhicule en pleine mission laissait le halo affiché pour
+  // toujours, seul un succès l'éteignait).
+  metierBalise.visible=false;
+  MET.ciblePos=null; MET.txt=''; MET.jauge=null;
   const v=P.veh;
   majMetierPompier(v,dt,dtJeu);
   majMetierTaxi(v,dt,dtJeu);
@@ -17193,7 +17246,10 @@ function drawCarte(){
     dot(EVT.cible.x,EVT.cible.z,'#fff',3);
   }
   if(WAYP.actif) dot(WAYP.x,WAYP.z,'#7dff7a',5);
-  if(MISSION.cur&&(MISSION.cur.poi||MISSION.cur.type==='rack'||MISSION.cur.type==='livraison')){
+  if(MET.ciblePos){
+    g.fillStyle='#ff7a2e'; g.save(); g.translate(mmX(MET.ciblePos.x)*k,mmZ(MET.ciblePos.z)*k); g.rotate(Math.PI/4);
+    g.fillRect(-5,-5,10,10); g.restore();
+  } else if(MISSION.cur&&(MISSION.cur.poi||MISSION.cur.type==='rack'||MISSION.cur.type==='livraison')){
     const pp=MISSION.cur.poi||(MISSION.cur.type==='livraison'?POIS.garage:POIS.rack);
     g.fillStyle='#ffd23f'; g.save(); g.translate(mmX(pp.x)*k,mmZ(pp.z)*k); g.rotate(Math.PI/4);
     g.fillRect(-5,-5,10,10); g.restore();
@@ -19167,7 +19223,12 @@ function majMinimap(){
     if(dx*dx+dz*dz>1600) continue;
     dot(INT.rx+dx,INT.rz+dz,'#ffd23f',2);
   }
-  if(MISSION.cur&&(MISSION.cur.poi||MISSION.cur.type==='rack')){
+  // Métier en cours (feu, client, remorquage...) prioritaire sur la mission
+  // courte — même code couleur que son halo 3D (metierBalise), pour qu'on
+  // associe les deux facilement.
+  if(MET.ciblePos){
+    dot(MET.ciblePos.x,MET.ciblePos.z,'#ff7a2e',4);
+  } else if(MISSION.cur&&(MISSION.cur.poi||MISSION.cur.type==='rack')){
     const pp=MISSION.cur.poi||POIS.rack;
     dot(pp.x,pp.z,'#ffd23f',4);
   // La Boussole du Capitaine : la carte affiche en permanence la direction du
@@ -19243,8 +19304,8 @@ function boucle(t){
       majChasseursEau(dt);
       majEvenements(dt);
       majVagues(dtJeu);
+      majMetiers(dt,dtJeu); // avant majMissions() : la flèche/jauge de mission lit MET.ciblePos/txt/jauge à jour
       majMissions(dt,dtJeu);
-      majMetiers(dt,dtJeu);
       majAction();
     }
     majInterieur(dt,dtJeu);
