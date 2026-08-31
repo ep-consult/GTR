@@ -327,6 +327,11 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
 .skinCol small.prix{color:var(--vert)}
 #persoInfo{width:min(400px,92vw)}
 .togg{width:min(340px,84vw);display:flex;justify-content:space-between;align-items:center;margin-top:12px;font-weight:800;font-size:14px}
+.zoomBtn{width:34px;height:34px;border-radius:9px;background:#0d0f15dd;border:1px solid var(--ligne);
+  color:var(--blanc);font-weight:900;font-size:18px;line-height:1;box-shadow:0 2px 8px #0008}
+.chipF{padding:6px 10px;border-radius:9px;font-size:11px;font-weight:800;border:1px solid var(--ligne);
+  background:#0d0f15;color:var(--gris);white-space:nowrap}
+.chipF.on{border-color:var(--cyan);color:var(--cyan);box-shadow:0 0 8px #35e0ff2e}
 .sw{width:52px;height:28px;border-radius:15px;background:#232733;position:relative;border:1px solid var(--ligne)}
 .sw::after{content:"";position:absolute;top:3px;left:4px;width:20px;height:20px;border-radius:50%;background:#8b93a7;transition:.15s}
 .sw.on{background:#0d3f52;border-color:var(--cyan)}
@@ -520,8 +525,20 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
 <div class="screen" id="carte">
   <div class="stitre">Solara City</div>
   <div class="hazard"></div>
-  <canvas id="carteCv" width="336" height="336" style="border:1px solid var(--ligne);border-radius:12px;margin-top:10px;width:min(336px,88vw);height:auto"></canvas>
-  <div class="aide" style="margin-top:10px;font-size:12px;text-align:center">
+  <div style="position:relative;width:min(336px,88vw);margin:10px auto 0">
+    <canvas id="carteCv" width="336" height="336" style="display:block;border:1px solid var(--ligne);border-radius:12px;width:100%;height:auto;touch-action:none"></canvas>
+    <div id="carteZoom" style="position:absolute;top:8px;right:8px;display:flex;flex-direction:column;gap:6px">
+      <button class="zoomBtn" id="carteZoomIn">+</button>
+      <button class="zoomBtn" id="carteZoomOut">−</button>
+    </div>
+  </div>
+  <div id="carteFiltres" style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:9px">
+    <button class="chipF on" data-f="ennemis">👥 Ennemis</button>
+    <button class="chipF on" data-f="vehicules">🚗 Véhicules</button>
+    <button class="chipF on" data-f="commerces">🏪 Commerces</button>
+    <button class="chipF on" data-f="batiments">🎯 Bâtiments</button>
+  </div>
+  <div class="aide" style="margin-top:8px;font-size:12px;text-align:center">
     <b style="color:#ff3b5c">A</b> Armureries · <b style="color:#2b6fd8">P</b> Police · <b style="color:#c7a020">G</b> Garage ·
     <b style="color:#d88a20">F</b> Fast-foods · <b style="color:#2a9ac0">M</b> Marina · <b style="color:#f2c94c">V</b> Aéro-club ·
     <b style="color:#ffd23f">◆</b> Mission · 🏪🎧🏦 Visitables
@@ -4561,10 +4578,49 @@ function dessinerIconePOI(ctx,txt,cx,cy,taillePx,couleur){
 const mmCv=el('minimap'), mmCtx=mmCv.getContext('2d');
 const mmStatic=document.createElement('canvas'); mmStatic.width=mmStatic.height=384;
 const mmSpan=2*HALF+280, mmS=192/mmSpan, mmX=x=>(x+HALF+55)*mmS, mmZ=z=>(z+HALF+55)*mmS;
+// Badge rond uniforme (fond sombre + anneau coloré + pictogramme centré),
+// utilisé partout sur la mini-carte et la grande carte pour que tous les
+// marqueurs (portes, commerces, découvertes...) aient le même langage
+// visuel — demandé explicitement, « des pictogrammes soignés ».
+function dessinerBadge(ctx,x,y,r,couleurAnneau,icone,tailleIcone){
+  ctx.save();
+  ctx.shadowColor='rgba(0,0,0,0.55)'; ctx.shadowBlur=r*0.55; ctx.shadowOffsetY=r*0.12;
+  ctx.fillStyle='#15161ae8';
+  ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.fill();
+  ctx.restore();
+  ctx.strokeStyle=couleurAnneau; ctx.lineWidth=Math.max(1,r*0.18); ctx.stroke();
+  if(icone) dessinerIconePOI(ctx,icone,x,y,tailleIcone,'#fff');
+}
+// Commerces/POI génériques (armurerie, police, garage, fast-foods, marina,
+// aéro-club) — recalculée à la demande (peu d'entrées, coût négligeable)
+// plutôt que pré-cuite dans mmStatic, pour pouvoir être filtrée sur la
+// grande carte (voir MAPUI.filtres) sans dédoubler le dessin.
+function listeCommerces(){
+  const L=[];
+  const add=(p,txt,c,id)=>{ if(p) L.push({x:p.x,z:p.z,txt,c,id}); };
+  add(POIS.armurerie,'A','#ff3b5c'); add(POIS.armurerie2,'A','#ff3b5c');
+  add(POIS.commissariat,'P','#2b6fd8'); add(POIS.garage,'G','#c7a020');
+  if(POIS.fastfoods) for(const f of POIS.fastfoods) add(f,'F','#d88a20');
+  add(POIS.marina,'M','#2a9ac0');
+  // L'aérodrome : un véhicule à trouver, pas un secret — visible dès le
+  // début de partie comme les commerces ci-dessus, sans condition de
+  // découverte (un joueur ne l'a jamais trouvé quand il fallait le
+  // débloquer d'abord). id dédié : drawCarte() lui donne un badge spécial
+  // (avion qui pulse tant qu'il n'a jamais été piloté), à exclure de la
+  // boucle générique pour ne pas dessiner les deux au même endroit.
+  add(POIS.aerodrome,'V','#f2c94c','aerodrome');
+  return L;
+}
 function construireMinimapStatique(){
   const g=mmStatic.getContext('2d');
   g.setTransform(2,0,0,2,0,0);
-  g.fillStyle='#101319'; g.fillRect(0,0,192,192);
+  g.fillStyle='#101319'; g.fillRect(0,0,192,192); // hors zone jouable : vide
+  // Route partout dans la zone jouable, AVANT les blocs de bâtiments : avant
+  // cette passe, seul le fond très sombre apparaissait entre les blocs de
+  // couleur, illisible comme rue — demandé explicitement, « rendre la
+  // minimap réaliste comme le rendu des rues, mais en version mini ».
+  g.fillStyle='#3a3c48';
+  g.fillRect(mmX(-HALF-1),mmZ(-HALF-1),(2*HALF+2)*mmS,(MER+HALF+2)*mmS);
   g.fillStyle='#1c4a66'; g.fillRect(0,mmZ(MER),192,192-mmZ(MER));
   const colsQ={centre:'#2a3648',commerce:'#3a3040',residentiel:'#34342a',industriel:'#37332c',port:'#263640',
     parc:'#24402a',base:'#3c3626',place:'#3a3a30',villas:'#3e3a2c',neon:'#38283e',plage:'#6a5c3c'};
@@ -4573,18 +4629,25 @@ function construireMinimapStatique(){
     g.fillStyle=colsQ[quartier(bx,bz)];
     g.fillRect(mmX(cx-INNER/2),mmZ(cz-INNER/2),INNER*mmS,INNER*mmS);
   }
-  const ic=(p,txt,c)=>{if(!p)return;g.fillStyle=c;g.beginPath();g.arc(mmX(p.x),mmZ(p.z),4.2,0,7);g.fill();
-    dessinerIconePOI(g,txt,mmX(p.x),mmZ(p.z),8,'#fff');};
-  ic(POIS.armurerie,'A','#ff3b5c'); ic(POIS.armurerie2,'A','#ff3b5c');
-  ic(POIS.commissariat,'P','#2b6fd8'); ic(POIS.garage,'G','#c7a020');
-  if(POIS.fastfoods) POIS.fastfoods.forEach(f=>ic(f,'F','#d88a20'));
-  ic(POIS.marina,'M','#2a9ac0');
-  // L'aérodrome : un véhicule à trouver, pas un secret — visible sur la
-  // carte dès le début de partie comme tous les POI ci-dessus, sans
-  // condition de découverte (revenu sur ce point : la version « à
-  // découvrir » façon Monster Truck/jetpack ne fonctionnait pas, un joueur
-  // ne l'a jamais trouvée après trois parties).
-  ic(POIS.aerodrome,'V','#f2c94c');
+  // Axe de chaque rue, en pointillés clairs — un vrai plan de rues, pas
+  // seulement des blocs de couleur sur fond d'asphalte uni. Jamais sous la
+  // mer (la route s'arrête à la plage).
+  g.strokeStyle='rgba(255,255,255,0.28)'; g.lineWidth=0.55;
+  g.setLineDash([1.6,2]);
+  for(let bx=0;bx<=NB;bx++){
+    const rx=mmX(-HALF+bx*CELL);
+    g.beginPath(); g.moveTo(rx,mmZ(-HALF)); g.lineTo(rx,Math.min(192,mmZ(MER))); g.stroke();
+  }
+  for(let bz=0;bz<=NB;bz++){
+    const rz=mmZ(-HALF+bz*CELL);
+    if(rz>mmZ(MER)) continue;
+    g.beginPath(); g.moveTo(mmX(-HALF),rz); g.lineTo(mmX(HALF),rz); g.stroke();
+  }
+  g.setLineDash([]);
+  // Pontons, îlots, yacht, aéroport : décor fixe. Les commerces/POI et les
+  // portes des bâtiments visitables sont désormais dessinés en dynamique
+  // (voir listeCommerces/dessinerBadge, majMinimap, drawCarte) pour pouvoir
+  // être filtrés sur la grande carte — demandé explicitement.
   g.fillStyle='#8a6a44';
   for(const p of PONTONS) g.fillRect(mmX(p.x-p.hw),mmZ(p.z-p.hd),p.hw*2*mmS,p.hd*2*mmS);
   for(const il of ILES){
@@ -4598,7 +4661,6 @@ function construireMinimapStatique(){
   g.fillStyle='#d8dce4'; g.fillRect(mmX(HALF+99),mmZ(-200),1.4,270*mmS);
   g.strokeStyle='#565b64'; g.lineWidth=1.2;
   g.strokeRect(mmX(-HALF-14),mmZ(-HALF-14),(2*HALF+28)*mmS,(MER+HALF+10)*mmS);
-  for(const p of PORTES){ g.fillStyle='#ffd23f'; g.fillRect(mmX(p.x)-2,mmZ(p.z)-2,4,4); }
 }
 
 /* =====================================================================
@@ -17356,100 +17418,113 @@ el('penderieList').addEventListener('pointerdown',e=>{
   if(!id||!META.tenuesPoss[id]) return;
   META.tenue=id; construireJoueur(); SFX.ui(); sauveMeta(); renderPenderie();
 });
+// État de la grande carte : zoom (1 = tout l'écran, comme avant la refonte),
+// centre de vue (recentré sur le joueur à chaque ouverture, voir miniWrap),
+// filtres d'affichage — demandé explicitement (« plus de zoom, sélectionner
+// et désélectionner les éléments »).
+const MAPUI={zoom:1,panX:0,panZ:0,filtres:{ennemis:true,vehicules:true,commerces:true,batiments:true}};
+// Fenêtre visible actuelle, en unités mm-logiques (0..192, voir mmX/mmZ) —
+// recalculée à chaque dessin. Le clamp garantit qu'à zoom=1 toute la ville
+// est visible quel que soit panX/panZ (ils n'ont alors aucun effet), et
+// qu'on ne peut jamais faire défiler la vue au-delà des bords de la carte.
+function mapVue(){
+  const demiVisible=96/MAPUI.zoom;
+  const mcx=clamp(mmX(MAPUI.panX),demiVisible,192-demiVisible);
+  const mcz=clamp(mmZ(MAPUI.panZ),demiVisible,192-demiVisible);
+  return {mcx,mcz,demiVisible};
+}
+// Monde -> pixel de #carteCv, en tenant compte du zoom/pan courant. Les
+// badges/points ne sont PAS mis à l'échelle par le zoom (voir dessinerBadge/
+// dot) : seul le terrain sous-jacent grossit, comme sur une vraie carte.
+function carteProj(x,z){
+  const {mcx,mcz,demiVisible}=mapVue();
+  const ech=336/(demiVisible*2);
+  return {x:(mmX(x)-(mcx-demiVisible))*ech, z:(mmZ(z)-(mcz-demiVisible))*ech};
+}
 function drawCarte(){
   const g=el('carteCv').getContext('2d');
   g.imageSmoothingEnabled=true;
   g.clearRect(0,0,336,336);
-  g.drawImage(mmStatic,0,0,384,384,0,0,336,336);
-  const k=336/192;
-  const dot=(x,z,c,r)=>{g.fillStyle=c;g.beginPath();g.arc(mmX(x)*k,mmZ(z)*k,r,0,7);g.fill();};
-  for(const v of vehicules) if(!v.mort&&!v.def.cache&&(v.conduit===null||v.conduit==='trafic')&&dist2(v.x,v.z,P.x,P.z)<7000)
+  const {mcx,mcz,demiVisible}=mapVue();
+  const srcCote=demiVisible*4; // *2 (fenêtre totale) *2 (résolution mmStatic = 2x la logique)
+  g.drawImage(mmStatic,(mcx-demiVisible)*2,(mcz-demiVisible)*2,srcCote,srcCote,0,0,336,336);
+  const dot=(x,z,c,r)=>{const p=carteProj(x,z); g.fillStyle=c; g.beginPath(); g.arc(p.x,p.z,r,0,7); g.fill();};
+  if(MAPUI.filtres.vehicules) for(const v of vehicules) if(!v.mort&&!v.def.cache&&(v.conduit===null||v.conduit==='trafic')&&dist2(v.x,v.z,P.x,P.z)<7000)
     dot(v.x,v.z,'#8b93a7',2.2);
-  for(const e of ennemis) if(!e.mort) dot(e.x,e.z,e.fac==='police'?'#4a9aff':'#ff5a5a',e.boss?6:3);
+  if(MAPUI.filtres.ennemis) for(const e of ennemis) if(!e.mort) dot(e.x,e.z,e.fac==='police'?'#4a9aff':'#ff5a5a',e.boss?6:3);
   if(EVT.cible&&!EVT.cible.mort){
     dot(EVT.cible.x,EVT.cible.z,'#ffd23f',7);
     dot(EVT.cible.x,EVT.cible.z,'#fff',3);
   }
   if(WAYP.actif) dot(WAYP.x,WAYP.z,'#7dff7a',5);
   if(MET.ciblePos){
-    g.fillStyle='#ff7a2e'; g.save(); g.translate(mmX(MET.ciblePos.x)*k,mmZ(MET.ciblePos.z)*k); g.rotate(Math.PI/4);
+    const p=carteProj(MET.ciblePos.x,MET.ciblePos.z);
+    g.fillStyle='#ff7a2e'; g.save(); g.translate(p.x,p.z); g.rotate(Math.PI/4);
     g.fillRect(-5,-5,10,10); g.restore();
   } else if(MISSION.cur&&(MISSION.cur.poi||MISSION.cur.type==='rack'||MISSION.cur.type==='livraison')){
     const pp=MISSION.cur.poi||(MISSION.cur.type==='livraison'?POIS.garage:POIS.rack);
-    g.fillStyle='#ffd23f'; g.save(); g.translate(mmX(pp.x)*k,mmZ(pp.z)*k); g.rotate(Math.PI/4);
+    const p=carteProj(pp.x,pp.z);
+    g.fillStyle='#ffd23f'; g.save(); g.translate(p.x,p.z); g.rotate(Math.PI/4);
     g.fillRect(-5,-5,10,10); g.restore();
   }
-  // bâtiments visitables
-  for(const p of PORTES){
-    const D=INTDEFS[p.id]; if(!D) continue;
-    const px=mmX(p.x)*k, pz=mmZ(p.z)*k;
-    g.fillStyle='#15161a'; g.beginPath(); g.arc(px,pz,9,0,7); g.fill();
-    g.strokeStyle='#ffd23f'; g.lineWidth=1.6; g.stroke();
-    dessinerIconePOI(g,D.ico,px,pz,11,'#fff');
+  // Commerces/POI (armurerie, police, garage, fast-foods, marina) + aéro-club
+  // à part (badge spécial, avion qui pulse tant qu'il n'a jamais été piloté).
+  if(MAPUI.filtres.commerces){
+    for(const c of listeCommerces()){
+      if(c.id==='aerodrome') continue;
+      const p=carteProj(c.x,c.z); dessinerBadge(g,p.x,p.z,9,c.c,c.txt,11);
+    }
+    if(POIS.aerodrome){
+      const p=carteProj(POIS.aerodrome.x,POIS.aerodrome.z);
+      if(!META.defis.voltigePilote){
+        const pulse=0.75+Math.sin(ETAT.runT*3)*0.25;
+        dessinerBadge(g,p.x,p.z,13*pulse,'#f2c94c','✈️',14*pulse);
+      } else dessinerBadge(g,p.x,p.z,9,'#f2c94c','✈️',11);
+    }
   }
-  // Monster Truck : un lieu, jamais un butin — n'apparaît qu'une fois découvert
-  // (voir majCamp), puis y reste en permanence, y compris après game over.
-  if(META.monstertruckTrouve&&POIS.friche){
-    const fx=mmX(POIS.friche.x)*k, fz=mmZ(POIS.friche.z)*k;
-    g.fillStyle='#15161a'; g.beginPath(); g.arc(fx,fz,9,0,7); g.fill();
-    g.strokeStyle='#ff3b1a'; g.lineWidth=1.6; g.stroke();
-    dessinerIconePOI(g,'🚛',fx,fz,11,'#fff');
-  }
-  if(META.jetpackTrouve&&POIS.toitH&&POIS.toitH.jetpack){
-    const jx=mmX(POIS.toitH.jetpack.x)*k, jz=mmZ(POIS.toitH.jetpack.z)*k;
-    g.fillStyle='#15161a'; g.beginPath(); g.arc(jx,jz,9,0,7); g.fill();
-    g.strokeStyle='#35c8ff'; g.lineWidth=1.6; g.stroke();
-    dessinerIconePOI(g,'🚀',jx,jz,11,'#fff');
-  }
-  // Aéro-club (avion de voltige) : la simple lettre « V » posée dans la
-  // couche statique (construireMinimapStatique) est bien présente dès le
-  // début de partie, mais trop discrète — un petit disque plein sans
-  // relief, noyé parmi une vingtaine d'autres repères sur une carte
-  // chargée (signalé par un joueur qui ne le repérait pas). Un vrai badge,
-  // comme les bâtiments visitables et le Monster Truck/jetpack juste
-  // au-dessus, se voit tout de suite.
-  if(POIS.aerodrome){
-    const vx=mmX(POIS.aerodrome.x)*k, vz=mmZ(POIS.aerodrome.z)*k;
-    // Tant que le joueur n'a jamais décollé avec la voltige : le plus gros
-    // badge de la carte, clignotant doucement (rayon qui pulse). Une fois
-    // pilotée une première fois, il redevient un badge normal — même
-    // taille que les autres (friche, jetpack).
-    if(!META.defis.voltigePilote){
-      const pulse=0.75+Math.sin(ETAT.runT*3)*0.25;
-      const rB=13*pulse;
-      g.fillStyle='#15161a'; g.beginPath(); g.arc(vx,vz,rB,0,7); g.fill();
-      g.strokeStyle='#f2c94c'; g.lineWidth=2.2; g.stroke();
-      dessinerIconePOI(g,'✈️',vx,vz,14*pulse,'#fff');
-    } else {
-      g.fillStyle='#15161a'; g.beginPath(); g.arc(vx,vz,9,0,7); g.fill();
-      g.strokeStyle='#f2c94c'; g.lineWidth=1.6; g.stroke();
-      dessinerIconePOI(g,'✈️',vx,vz,11,'#fff');
+  // Bâtiments visitables (les 26 salles) + découvertes uniques (Monster
+  // Truck, jetpack) — même filtre, ce sont tous des « lieux à visiter ».
+  if(MAPUI.filtres.batiments){
+    for(const pt of PORTES){
+      const D=INTDEFS[pt.id]; if(!D) continue;
+      const p=carteProj(pt.x,pt.z);
+      dessinerBadge(g,p.x,p.z,9,'#ffd23f',D.ico,11);
+    }
+    // Monster Truck : un lieu, jamais un butin — n'apparaît qu'une fois
+    // découvert (voir majCamp), puis y reste en permanence, y compris après
+    // game over.
+    if(META.monstertruckTrouve&&POIS.friche){
+      const p=carteProj(POIS.friche.x,POIS.friche.z); dessinerBadge(g,p.x,p.z,9,'#ff3b1a','🚛',11);
+    }
+    if(META.jetpackTrouve&&POIS.toitH&&POIS.toitH.jetpack){
+      const p=carteProj(POIS.toitH.jetpack.x,POIS.toitH.jetpack.z); dessinerBadge(g,p.x,p.z,9,'#35c8ff','🚀',11);
     }
   }
   // point d'arrivée choisi par le joueur
   if(WAYP.actif){
-    const wx=mmX(WAYP.x)*k, wz=mmZ(WAYP.z)*k;
+    const w=carteProj(WAYP.x,WAYP.z), wx=w.x, wz=w.z;
     g.strokeStyle='#7dff7a'; g.lineWidth=2.4;
     g.beginPath(); g.arc(wx,wz,10,0,7); g.stroke();
     g.beginPath(); g.moveTo(wx-14,wz); g.lineTo(wx+14,wz);
     g.moveTo(wx,wz-14); g.lineTo(wx,wz+14); g.stroke();
     g.fillStyle='#7dff7a'; g.beginPath(); g.arc(wx,wz,3.5,0,7); g.fill();
     // trait joueur -> destination
+    const pj=carteProj(P.x,P.z);
     g.setLineDash([5,5]); g.strokeStyle='#7dff7a88'; g.lineWidth=1.6;
-    g.beginPath(); g.moveTo(mmX(P.x)*k,mmZ(P.z)*k); g.lineTo(wx,wz); g.stroke();
+    g.beginPath(); g.moveTo(pj.x,pj.z); g.lineTo(wx,wz); g.stroke();
     g.setLineDash([]);
   }
-  const pc=posCarte();
+  const pc=posCarte(), ppc=carteProj(pc.x,pc.z);
   if(pc.dedans){
-    dot(pc.x,pc.z,'#ffd23f',7);
+    g.fillStyle='#ffd23f'; g.beginPath(); g.arc(ppc.x,ppc.z,7,0,7); g.fill();
     g.strokeStyle='#ffd23f'; g.lineWidth=2.4;
-    g.beginPath(); g.arc(mmX(pc.x)*k,mmZ(pc.z)*k,12,0,7); g.stroke();
-    g.fillStyle='#15161a'; g.beginPath(); g.arc(mmX(pc.x)*k,mmZ(pc.z)*k,3,0,7); g.fill();
+    g.beginPath(); g.arc(ppc.x,ppc.z,12,0,7); g.stroke();
+    g.fillStyle='#15161a'; g.beginPath(); g.arc(ppc.x,ppc.z,3,0,7); g.fill();
   } else {
-    dot(pc.x,pc.z,'#35e0ff',6);
+    g.fillStyle='#35e0ff'; g.beginPath(); g.arc(ppc.x,ppc.z,6,0,7); g.fill();
     g.strokeStyle='#35e0ff'; g.lineWidth=2;
-    g.beginPath(); g.arc(mmX(pc.x)*k,mmZ(pc.z)*k,9,0,7); g.stroke();
-    g.save(); g.translate(mmX(pc.x)*k,mmZ(pc.z)*k); g.rotate(P.ang);
+    g.beginPath(); g.arc(ppc.x,ppc.z,9,0,7); g.stroke();
+    g.save(); g.translate(ppc.x,ppc.z); g.rotate(P.ang);
     g.fillStyle='#35e0ff'; g.beginPath(); g.moveTo(0,-14); g.lineTo(-5,-7); g.lineTo(5,-7); g.closePath(); g.fill();
     g.restore();
   }
@@ -17458,10 +17533,11 @@ function drawCarte(){
 function carteVersMonde(px,py){
   const cv=el('carteCv');
   const r=cv.getBoundingClientRect();
-  const cx=(px-r.left)/r.width*336, cy=(py-r.top)/r.height*336;
-  const k=336/192;
-  // inverse de mmX / mmZ
-  return {x:(cx/k)/mmS-HALF-55, z:(cy/k)/mmS-HALF-55};
+  const sx=(px-r.left)/r.width*336, sy=(py-r.top)/r.height*336;
+  const {mcx,mcz,demiVisible}=mapVue();
+  const ech=336/(demiVisible*2);
+  const mmXv=sx/ech+(mcx-demiVisible), mmZv=sy/ech+(mcz-demiVisible);
+  return {x:mmXv/mmS-HALF-55, z:mmZv/mmS-HALF-55};
 }
 function poserWaypoint(px,py){
   const w=carteVersMonde(px,py);
@@ -17482,8 +17558,32 @@ function poserWaypoint(px,py){
   const wi=el('waypInfo'); if(wi) wi.textContent='🎯 '+WAYP.nom+' — appuie de nouveau pour effacer';
   drawCarte(); SFX.ui();
 }
+// Glisser pour déplacer la vue (seulement utile zoomé, sinon toute la ville
+// est déjà visible) vs. taper pour poser une destination : distingués par un
+// seuil de déplacement, sinon impossible de faire les deux sur le même
+// canvas — demandé explicitement, le zoom devait rester compatible avec la
+// pose de destination déjà en place.
+let carteDrag=null;
 el('carteCv').addEventListener('pointerdown',e=>{
   e.preventDefault();
+  carteDrag={x0:e.clientX,y0:e.clientY,panX0:MAPUI.panX,panZ0:MAPUI.panZ,dragged:false};
+});
+el('carteCv').addEventListener('pointermove',e=>{
+  if(!carteDrag||MAPUI.zoom<=1) return;
+  const dx=e.clientX-carteDrag.x0, dz=e.clientY-carteDrag.y0;
+  if(!carteDrag.dragged&&Math.hypot(dx,dz)<8) return;
+  carteDrag.dragged=true;
+  const r=el('carteCv').getBoundingClientRect();
+  const {demiVisible}=mapVue();
+  const pxParUniteMonde=r.width*mmS/(demiVisible*2);
+  MAPUI.panX=carteDrag.panX0-dx/pxParUniteMonde;
+  MAPUI.panZ=carteDrag.panZ0-dz/pxParUniteMonde;
+  drawCarte();
+});
+el('carteCv').addEventListener('pointerup',e=>{
+  if(!carteDrag) return;
+  const dragged=carteDrag.dragged; carteDrag=null;
+  if(dragged) return; // vue déplacée : pas de destination posée
   try{
   const w=carteVersMonde(e.clientX,e.clientY);
   if(WAYP.actif&&dist2(w.x,w.z,WAYP.x,WAYP.z)<400){   // re-clic sur le point : on l'efface
@@ -17493,8 +17593,24 @@ el('carteCv').addEventListener('pointerdown',e=>{
   poserWaypoint(e.clientX,e.clientY);
   }catch(err){ console.error('carte',err); }
 });
+function carteZoomSet(z){ MAPUI.zoom=clamp(z,1,4); drawCarte(); }
+el('carteZoomIn').addEventListener('pointerdown',e=>{ e.preventDefault(); carteZoomSet(MAPUI.zoom*1.5); SFX.ui(); });
+el('carteZoomOut').addEventListener('pointerdown',e=>{ e.preventDefault(); carteZoomSet(MAPUI.zoom/1.5); SFX.ui(); });
+for(const btn of document.querySelectorAll('#carteFiltres .chipF')){
+  btn.addEventListener('pointerdown',e=>{
+    e.preventDefault();
+    const f=btn.dataset.f;
+    MAPUI.filtres[f]=!MAPUI.filtres[f];
+    btn.classList.toggle('on',MAPUI.filtres[f]);
+    drawCarte(); SFX.ui();
+  });
+}
 el('miniWrap').addEventListener('pointerdown',()=>{
   if(ETAT.mode!=='jeu') return;
+  // Recentré et dézoomé à chaque ouverture — les filtres, eux, restent tels
+  // que le joueur les a laissés (préférence d'affichage, pas un état de vue).
+  const pc0=posCarte();
+  MAPUI.zoom=1; MAPUI.panX=pc0.x; MAPUI.panZ=pc0.z;
   ETAT.mode='carte'; drawCarte(); ecran('carte'); SFX.ui();
 });
 el('carteClose').addEventListener('pointerdown',()=>{ecran(null);ETAT.mode='jeu';});
@@ -19332,12 +19448,17 @@ function majMinimap(){
   mmCtx.clearRect(0,0,192,192);
   mmCtx.drawImage(mmStatic,0,0,384,384,0,0,192,192);
   const dot=(x,z,c,r)=>{mmCtx.fillStyle=c;mmCtx.beginPath();mmCtx.arc(mmX(x),mmZ(z),r||2.4,0,7);mmCtx.fill();};
+  // Portes des bâtiments visitables : simple point, comme avant (jusqu'à 26
+  // à la fois, pas la place pour un badge complet sur 96 px d'écran) — la
+  // version soignée avec pictogramme est réservée à la grande carte.
+  for(const p of PORTES) dot(p.x,p.z,'#ffd23f',2);
+  // Commerces/POI : peu nombreux, badge complet comme sur la grande carte
+  // (demandé explicitement, « des pictogrammes soignés »).
+  for(const c of listeCommerces()) dessinerBadge(mmCtx,mmX(c.x),mmZ(c.z),3.6,c.c,c.txt,6);
   for(const e of ennemis) if(!e.mort) dot(e.x,e.z,e.fac==='police'?'#4a9aff':(e.fac==='frelons'?'#e6a41f':'#ff5a5a'),e.boss?4.5:2.4);
   for(const p of pickups) dot(p.x,p.z,'#58ff7a',1.8);
-  if(META.monstertruckTrouve&&POIS.friche) dot(POIS.friche.x,POIS.friche.z,'#ff3b1a',3);
-  if(META.jetpackTrouve&&POIS.toitH&&POIS.toitH.jetpack) dot(POIS.toitH.jetpack.x,POIS.toitH.jetpack.z,'#35c8ff',3);
-  // L'aérodrome est dans la couche statique (mmStatic), pas ici — visible
-  // dès le début de partie, sans condition de découverte.
+  if(META.monstertruckTrouve&&POIS.friche) dessinerBadge(mmCtx,mmX(POIS.friche.x),mmZ(POIS.friche.z),3.6,'#ff3b1a','🚛',6);
+  if(META.jetpackTrouve&&POIS.toitH&&POIS.toitH.jetpack) dessinerBadge(mmCtx,mmX(POIS.toitH.jetpack.x),mmZ(POIS.toitH.jetpack.z),3.6,'#35c8ff','🚀',6);
   // Le Micro Vintage : Solara FM émet en continu, les caches non fouillées
   // de la salle où l'on se trouve apparaissent dans un rayon de 40 m —
   // affichées à leur offset réel par rapport au joueur, autour de l'icône
