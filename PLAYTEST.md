@@ -3,7 +3,7 @@
 Objectif : tester **toutes les salles existantes** sur iPhone (Safari, écran
 d'accueil) avant publication. On inventorie, on ne corrige rien dans cette passe.
 
-Les lignes de la grille suivent `INTDEFS` (index.html) : **26 salles**,
+Les lignes de la grille suivent `INTDEFS` (index.html) : **27 salles**,
 dans l'ordre de la source. Pour vérifier que la grille n'a pas dérivé :
 
 ```bash
@@ -32,7 +32,7 @@ ne répond jamais.
 - `valider.js` : porte posée dans `PORTES`, salle construite puis quittée sans exception.
 - `scenarios.js`, « Balayage des salles » : boutons du HUD visibles, aucune zone
   **entièrement** masquée par une autre, aucune zone coincée dans le décor.
-- `scenarios.js`, « Règle des 8 unités » (dernier test de la suite) : les 26
+- `scenarios.js`, « Règle des 8 unités » (dernier test de la suite) : les 27
   salles d'`INTDEFS`, avec un **cliquet** sur la dette connue (`DETTE_REGLE_8U`,
   26 zones dans 12 salles). Une nouvelle violation, une zone qui se rapproche de
   la SORTIE, ou une zone corrigée encore présente dans la baseline fait échouer la suite.
@@ -76,6 +76,7 @@ console eruda.
 | `chalutier` 🚢 Chalutier « Sainte-Odile » | ✓ 2 sorties/vague.<br>✓ Game over.<br>— SORTIE : 11 u, inerte en mer.<br>✓ Cadence : combat de canne gagnable par alternance simple.<br>✓ Perdable : chrono de 180 s → remorqué, moitié de la cale perdue ; tempête.<br>✓ Récompense unique : garde d'entrée `if(!s.sortieEnCours) return;` dans `chalutierVendre` (`2281bb1`). | Tests dédiés : pilotage, canne, filet, billot, cale, météo, chrono 180 s, limite, reset, horloges `dtJeu`. | Maintien de la canne sans que le pouce glisse (`pointerleave`).<br>Découpe au doigt sur le billot ; lisibilité de la météo. | 
 | `site51` ? Grille d’aération | ✓ 1 visite/vague.<br>✓ Reset (mort, vague).<br>— SORTIE : 23 u.<br>✓ Perdable : enfermé sans issue → neutralisé après 20 s, butin perdu.<br>✓ Récompense unique : garde `visiteEnCours` ; objets acquis une fois dans `META.site51Objets`. | Tests dédiés : déblocage, structure, confinement, enfermement, hangar, créature, Désintégrateur, minuteur `dtJeu`. | Lecture d'une salle de 190 u de long à l'écran ; cônes des tourelles visibles. | 
 | `depot` 🏁 Dépôt de bus | ✓ 3 courses/vague.<br>✓ Game over (`startRun` nettoie).<br>— SORTIE : 63 u.<br>✓ Plafond de vitesse de l'IA : le dépassement d'un pas d'accélération est corrigé (`0c6db2b`, graine 3141483545).<br>✓ Perdable : 2e place = demi-gain, au-delà rien (IA plafonnée, vérifiée par simulation).<br>✓ Récompense unique : garde `c0.termine`. | Tests dédiés : chemin joueur, IA plafonnée, pilote robotique, victoire/défaite, abandon, mort, horloges. | Pilotage au joystick réel (Le Toit, chutes) ; fluidité avec 4 véhicules sur iPhone. | 
+| `tuning` 🔧 Garage | ✓ Farming : aucun gain d'argent (le garage ne fait que dépenser).<br>✓ Game over : menu fermé, état d'entrée/sortie remis à zéro (`garageReinitSalle`) ; le véhicule garé vit dans `META.garages` et survit, voulu.<br>— SORTIE : atelier à 17 u.<br>Seule salle où l'on entre **en véhicule** ; une seule salle partagée par les 3 garages (`porte.garageId`).<br>✓ Recherche : porte fermée (1 s) puis étoiles qui tombent une à une (`dtJeu`).<br>✓ Entrée refusée sous le feu (ennemi hostile à moins de 12 u).<br>✓ Nitro verrouillée dans toute salle, donc pendant les courses du Dépôt.<br>— Perdable : pas de minijeu (atelier d'achats).<br>✓ Récompense unique : chaque achat a sa garde d'entrée (`acheterPalier`, `acheterNitro`, `acheterNeons`, `peindreGarage` — même teinte refusée) ; double appui dans le menu testé. | Tests dédiés : portes et quartiers, entrée au volant, porte qui se ferme, étoiles, entrée à pied, sous le feu, paiements uniques (fonctions et double appui dans le menu), véhicule retrouvé après sortie / game over / rechargement, effets des paliers, peinture sans toucher le matériau partagé, nitro (poussée, épuisement, recharge, verrou du Dépôt), vieille sauvegarde. | Entrer au volant de chacun des 3 garages ; voir la porte se fermer puis les étoiles tomber.<br>Menu d'atelier : lisibilité en 9:16, défilement au pouce, voiture visible au-dessus.<br>Nitro : sensation de poussée, jauge en haut à gauche, recharge après relâcher ; refus au Dépôt.<br>Néons de nuit : lisibles sans éblouir. | 
 
 ## Constats à arbitrer (relevés dans le code, rien de corrigé)
 

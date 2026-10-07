@@ -11,7 +11,7 @@ Ville fictive : **Solara City**. Gangs : les **Vipères** et les **Frelons**.
 
 ## Règles de travail
 
-1. **Édition ciblée uniquement.** Le fichier fait **~19 600 lignes / 1,03 Mo**.
+1. **Édition ciblée uniquement.** Le fichier fait **~20 200 lignes / 1,06 Mo**.
    Ne jamais le régénérer en entier, ni le relire en entier « pour voir » : localiser
    la section via la carte ci-dessous, lire la tranche concernée, modifier ce passage.
 2. **Toujours valider avant de dire que c'est fini.** Voir « Validation » plus bas.
@@ -37,70 +37,77 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
   echo "$ln | $(sed -n "$((ln+1))p" index.html | sed 's/^[ \t]*//')"; done
 ```
 
-**Relevé au 7 octobre 2026 — 19 622 lignes.**
+**Relevé au 8 octobre 2026 — 20 217 lignes.**
 
 | Ligne | Section |
 |---|---|
-| 1–666 | `<head>`, CSS, HUD, écrans (menu, game over, panneaux) |
-| 643–645 | **eruda** (console mobile de dev — à retirer avant diffusion) |
-| 646 | chargement Three.js r128 depuis CDN |
-| 653 | handler `window.onerror` → affichage dans `#errBox` |
-| 667 | en-tête ASPHALTE, début du code du jeu |
-| 708 | AUDIO — WebAudio synthétisé, boîte de vitesses simulée |
-| 1229 | ENTRÉES — joystick virtuel, boutons tactiles, clavier ZQSD/WASD |
-| 1536 | MÉTA-PROGRESSION — `META`, défis, sauvegarde |
-| 2164 | THREE.JS — rendu, scène, lumières |
-| 2441 | VILLE DE SOLARA — génération procédurale par quartiers |
-| 4666 | MODÈLES — humains, armes, véhicules, hélico, ramassables |
-| 5675 | POOLS — balles, particules, textes flottants, traces de pneus |
-| 6033 | ÉTAT GLOBAL + JOUEUR (`P`) |
-| 6747 | VÉHICULES — physique arcade, trafic, dégâts |
-| 8756 | PIÉTONS |
-| 8908 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
-| 9444 | **RAYON TRACTEUR DE L'OVNI** |
-| 9840 | NIVEAU DE RECHERCHE (étoiles) |
-| 10085 | VAGUES + bonus de fin de vague |
-| 10204 | MISSIONS COURTES |
-| 10207 | BÂTIMENTS VISITABLES — intérieurs |
-| 10277 | FOUILLE — mécanique générique |
-| 10858 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
-| 14776 | CINÉ-PALACE |
-| 14837 | MÉTRO ABANDONNÉ |
-| 14903 | RADIO PIRATE SOLARA FM |
-| 15008 | LE CHALUTIER « SAINTE-ODILE » |
-| 15281 | SITE 51 |
-| 15511 | LE DÉPÔT DE BUS — courses clandestines |
-| 16520 | **MÉTIERS** — missions liées à un véhicule |
-| 16751 | ÉCRANS / MENUS / BOUTIQUES |
-| 17018 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
-| 17743 | DÉBUT / FIN DE PARTIE |
-| 19127 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
-| 19504 | BOUCLE PRINCIPALE |
+| 1–689 | `<head>`, CSS, HUD, écrans (menu, game over, panneaux) |
+| 666–668 | **eruda** (console mobile de dev — à retirer avant diffusion) |
+| 669 | chargement Three.js r128 depuis CDN |
+| 674 | `<script id="gamejs">` + handler `window.onerror` → affichage dans `#errBox` |
+| 690 | en-tête ASPHALTE, début du code du jeu |
+| 731 | AUDIO — WebAudio synthétisé, boîte de vitesses simulée |
+| 1252 | ENTRÉES — joystick virtuel, boutons tactiles, clavier ZQSD/WASD |
+| 1559 | MÉTA-PROGRESSION — `META`, défis, sauvegarde |
+| 2204 | THREE.JS — rendu, scène, lumières |
+| 2481 | VILLE DE SOLARA — génération procédurale par quartiers |
+| 4734 | MODÈLES — humains, armes, véhicules, hélico, ramassables |
+| 5745 | POOLS — balles, particules, textes flottants, traces de pneus |
+| 6103 | ÉTAT GLOBAL + JOUEUR (`P`) |
+| 6817 | VÉHICULES — physique arcade, trafic, dégâts |
+| 8844 | PIÉTONS |
+| 8996 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
+| 9532 | **RAYON TRACTEUR DE L'OVNI** |
+| 9928 | NIVEAU DE RECHERCHE (étoiles) |
+| 10173 | VAGUES + bonus de fin de vague |
+| 10292 | MISSIONS COURTES |
+| 10295 | BÂTIMENTS VISITABLES — intérieurs |
+| 10365 | FOUILLE — mécanique générique |
+| 10946 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
+| 14881 | CINÉ-PALACE |
+| 14943 | MÉTRO ABANDONNÉ |
+| 15009 | RADIO PIRATE SOLARA FM |
+| 15114 | LE CHALUTIER « SAINTE-ODILE » |
+| 15388 | SITE 51 |
+| 15618 | LE DÉPÔT DE BUS — courses clandestines |
+| 16633 | **MÉTIERS** — missions liées à un véhicule |
+| 16864 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
+| 17258 | ÉCRANS / MENUS / BOUTIQUES |
+| 17525 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
+| 18250 | DÉBUT / FIN DE PARTIE |
+| 19711 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
+| 20099 | BOUCLE PRINCIPALE |
 
 ### Ancres fines (hors bandeaux)
 
 | Ligne | Repère |
 |---|---|
-| 1719 | `CURIOS` — tableau des curiosités |
-| 1770 | `CURIOS_ACTIVES` |
-| 1784 | déblocage de `batte2` (toutes curiosités actives réunies) |
-| 2591 | `finaliserMerge()` |
-| 3989 | `placeLibrePorte()` |
-| 4048 | helper `poser()` — placement des lieux |
-| 4074 | `caseCentre(bx,bz)` |
-| 4159 | `REPLIS` — filet de sécurité en spirale |
-| 6041 | `const P` — état du joueur |
-| 6079 | `P.stamMax = 100 + 12*mus` |
-| 10213 | `IOFF = -9000` |
-| 11935 | `INTDEFS` — définitions des **26 salles** |
-| 12106 | `construireSalle(id)` |
-| 16529 | `METIERS_CIBLE` |
+| 1567 | `GARAGES_TUNING` — les garages de la ville (déclarés avant `META`) |
+| 1729 | `fusionMeta()` — deep-merge de la sauvegarde |
+| 1759 | `CURIOS` — tableau des curiosités |
+| 1810 | `CURIOS_ACTIVES` |
+| 1824 | déblocage de `batte2` (toutes curiosités actives réunies) |
+| 2631 | `finaliserMerge()` |
+| 3977 | `mkPorteGarage()` — porte roulante des garages |
+| 4045 | `placeLibrePorte()` |
+| 4104 | helper `poser()` — placement des lieux |
+| 4130 | `caseCentre(bx,bz)` |
+| 4223 | `REPLIS` — filet de sécurité en spirale |
+| 6111 | `const P` — état du joueur |
+| 6149 | `P.stamMax = 100 + 12*mus` |
+| 10301 | `IOFF = -9000` |
+| 12023 | `INTDEFS` — définitions des **27 salles** |
+| 12203 | `construireSalle(id)` |
+| 16642 | `METIERS_CIBLE` |
+| 16878 | `TUNING_PRIX` — tous les prix du garage, groupés |
+| 17011 | `construireGarageTuning()` — la salle partagée |
+| 17232 | `majNitro()` |
 
 ---
 
 ## Conventions et pièges connus
 
-### Portes et placement des lieux (~L3989–4200)
+### Portes et placement des lieux (~L4045–4260)
 La grille de quartiers est **déterministe**. On vise donc une **case précise** via
 le helper `caseCentre(bx,bz)`, **jamais un décalage relatif à un POI** — les offsets
 relatifs provoquaient une dérive de quartier (un lieu censé être au port finissait
@@ -112,15 +119,24 @@ poser('laverie', cLav.x, cLav.z, 'LAVERIE 24H', 0x8ad2ff);
 ```
 
 `placeLibrePorte()` trouve ensuite la façade dégagée la plus proche.
-Un **filet de sécurité en spirale** (tableau `REPLIS`, ~L4159) garantit qu'aucun lieu
+Un **filet de sécurité en spirale** (tableau `REPLIS`, ~L4223) garantit qu'aucun lieu
 spécial ne reste inaccessible. Toute nouvelle salle doit être ajoutée à `REPLIS`.
+Une salle à **plusieurs portes** (les garages) y ajoute une entrée par porte, avec
+un 4e élément (`garageId`) : la présence se vérifie alors porte par porte.
 
-### Intérieurs (~L10207)
-Les salles sont construites **très loin de la ville** : `const IOFF = -9000` (~L10213).
+### Intérieurs (~L10295)
+Les salles sont construites **très loin de la ville** : `const IOFF = -9000` (~L10301).
 Chaque salle occupe une tranche de 400 unités : `ox = IOFF + nbSalles*400`.
 Rien de la ville ne doit être visible depuis un intérieur. `construireSalle(id)`
-(~L12106) est paresseux — la salle n'est bâtie qu'à la première entrée, puis mise
+(~L12203) est paresseux — la salle n'est bâtie qu'à la première entrée, puis mise
 en cache dans `INT.salles`.
+
+**Géométrie partagée.** Un lieu présent en plusieurs exemplaires en ville (les
+garages) ne construit PAS N décors identiques sur N tranches : une seule entrée
+`INTDEFS`, une seule tranche, et chaque porte porte un identifiant (`garageId`)
+que la salle relit à l'entrée pour se reconfigurer (enseigne, accent, contenu).
+Les champs internes d'une salle ne sont jamais des objets `{x,z}` sans rayon :
+`zonesInterieurActives()` les prendrait pour une zone oubliée.
 
 ### Zones interactives et SORTIE
 Une zone interactive doit se tenir à **au moins 8 unités** du centre de la zone
@@ -128,7 +144,7 @@ SORTIE (rayon 3,00, et elle gagne toutes les chaînes `if / else if`). Bug déj�
 rencontré : le bouton du défi Monstre chevauchait la SORTIE et était inatteignable.
 
 ### Merge de géométries
-Le merge des bâtiments **doit** se terminer par `finaliserMerge()` (~L2591), sinon
+Le merge des bâtiments **doit** se terminer par `finaliserMerge()` (~L2631), sinon
 tous les bâtiments sont invisibles. Bug déjà rencontré, ne pas le réintroduire.
 
 ### Ordre de déclaration
@@ -177,9 +193,9 @@ logique. Trop de régressions d'affichage passent au vert en logique pure.
 
 ---
 
-## Rayon tracteur de l'OVNI (~L9444)
+## Rayon tracteur de l'OVNI (~L9532)
 
-**Le faisceau translucide sous la coque (dans `makeVoiture`, ~L4959) est un simple
+**Le faisceau translucide sous la coque (dans `makeVoiture`, ~L5029) est un simple
 mesh d'habillage.** La capture réelle vit dans la section RAYON TRACTEUR — ne jamais
 tester une collision contre ce cylindre, il ne décrit pas la zone de capture.
 
@@ -205,7 +221,7 @@ de marcher dans le vide une fois soulevée.
 
 ---
 
-## Métiers (~L16520)
+## Métiers (~L16633)
 
 Missions liées à un véhicule précis : Pompier (incendies), Taxi (courses + appel
 rapide via `btnAppelTaxi`), Dépanneuse (remorquages), Ambulance (urgences),
@@ -220,6 +236,36 @@ comme `MISSION.cur`.
 
 ---
 
+## Garages tuning (~L16864)
+
+Trois garages (`GARAGES_TUNING`, ~L1567), un par quartier, placés par `caseCentre`
+et tous dans `REPLIS`. **Une seule salle partagée** (`INTDEFS.tuning`), voir
+« Géométrie partagée ». Seule salle où l'on entre **en véhicule** :
+
+- Au volant, près de la porte : « ENTRER AU GARAGE ». Le véhicule de la ville est
+  retiré (`garageRetirerVehicule`), son type et sa teinte partent dans
+  `META.garages[id]`. Dans la salle, seul un **modèle d'exposition** tourne sur le
+  plateau — hors de `vehicules`, aucune physique, aucun trafic.
+- À la sortie, un véhicule neuf est créé devant la porte et reçoit ses
+  améliorations (`appliquerTuning`) : `v.def` devient une **copie propre** au
+  véhicule, `VEHDEFS` n'est jamais modifié. Peinture : matériau propre au
+  véhicule (`mat()` est partagé par couleur — le modifier repeindrait la ville).
+- Un véhicule par garage. Il est « dehors » tant qu'une instance vivante porte
+  son `garageId`, sinon il est de retour sur le plateau (après game over,
+  rechargement, ou destruction).
+- À pied : on n'entre que pour reprendre le véhicule garé.
+- Entrée refusée sous le feu (ennemi hostile à moins de `GARAGE_FEU_DIST`).
+- Recherche : porte roulante fermée, puis les étoiles tombent une à une (`dtJeu`).
+- **Nitro** : bouton ESQUIVE au volant, décidée par `majNitro(dtJeu)` AVANT la
+  physique. **Verrouillée dans toute salle, donc pendant les courses du Dépôt**
+  (le plafond de vitesse des IA y est garanti par simulation).
+- Tous les prix sont groupés dans `TUNING_PRIX` (en tête de section), à calibrer
+  en jouant. Chaque achat a sa propre garde d'entrée.
+- **Pas encore** : pièces de carrosserie par type de véhicule (chantier séparé,
+  après playtest sur iPhone).
+
+---
+
 ## Sauvegarde
 
 Clé : `asphalte_save_v1`. Objet persisté : `META`.
@@ -231,10 +277,16 @@ Clé : `asphalte_save_v1`. Objet persisté : `META`.
 - `META.curios` — dictionnaire des curiosités obtenues
 - `META.fouilles` — compteur de caches fouillées
 - `META.metiers` — compteur de réussites par métier
+- `META.garages` — un emplacement par garage (véhicule garé + améliorations).
+  `fusionMeta` ne reprend que les clés **déjà présentes** dans `META` : chaque
+  garage y est donc déclaré d'avance (`garagesMetaDefaut()`), avec des champs de
+  type fixe (`cle:''`, `coul:-1`...). Un `{}` vide perdrait tout au rechargement.
+  Vérifié par `scenarios.js` (vieille sauvegarde sans le champ, et emplacement
+  incomplet).
 
 ---
 
-## Curiosités (`CURIOS`, ~L1719)
+## Curiosités (`CURIOS`, ~L1759)
 
 **17 entrées, 16 actives** (`actif:true`). La seule inactive est *Les Plans du
 Rhinocéros* (Bunker militaire), affichée en silhouette verrouillée dans le cabinet
@@ -250,7 +302,7 @@ Ceinture de Champion (sandwichs) · Canard d'Or (musée) · Jeton Doré (arcade)
 Bobine « ASPHALTE I » (ciné) · Plaque du Capitaine (Site 51) · Lampe de Mineur
 (métro) · Boussole du Capitaine (chalutier) · Volant du Dépôt (dépôt de bus).
 
-Réunir toutes les curiosités actives débloque `batte2` (~L1784).
+Réunir toutes les curiosités actives débloque `batte2` (~L1824).
 Helpers : `aCurio(id)`, `nbCurios()`, `CURIOS_ACTIVES`.
 
 ---
@@ -315,10 +367,10 @@ en pixels par frame.
 
 ---
 
-## Joueur (`P`, ~L6041)
+## Joueur (`P`, ~L6111)
 
 `P.stamMax` est la source de vérité pour l'endurance — **jamais 100 en dur**.
-`P.stamMax = 100 + 12*mus` (~L6079) où `mus` est le palier de muscle.
+`P.stamMax = 100 + 12*mus` (~L6149) où `mus` est le palier de muscle.
 
 `appliqueMuscle(h)` met à l'échelle le torse (×1,57 au palier 3), les bras (×1,88),
 les jambes (×1,36), le corps entier (×1,11), et rétrécit légèrement la tête.
@@ -366,7 +418,7 @@ reste obligatoire avant publication.
 - Serveur local : `npx live-server --host=0.0.0.0 --port=8080` dans le dossier du projet
 - Test sur iPhone : Safari → adresse `192.168.x.x:8080` → Partager → Sur l'écran
   d'accueil (plein écran, safe-areas réelles)
-- Console mobile : `eruda` injecté dans le `<head>` (L643–645) **en phase de dev
+- Console mobile : `eruda` injecté dans le `<head>` (L666–668) **en phase de dev
   seulement**, à retirer avant toute version diffusée
 - Packaging natif iOS : nécessitera un Mac + Xcode (Capacitor / WKWebView).
   Non bloquant : Safari en écran d'accueil utilise déjà WebKit, donc le rendu et
@@ -380,5 +432,5 @@ reste obligatoire avant publication.
    `unhandledrejection` et les POSTer vers un petit serveur Node local, pour lire
    les erreurs du device en direct dans le terminal. Architecture validée,
    **décision en suspens** : toujours actif, ou derrière un flag debug ?
-   (Il existe déjà un handler `window.onerror` minimal → `#errBox`, L653.)
+   (Il existe déjà un handler `window.onerror` minimal → `#errBox`, L674.)
 3. Publication mobile via wrapper Capacitor ou Cordova.
