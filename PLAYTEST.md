@@ -32,8 +32,10 @@ ne répond jamais.
 - `valider.js` : porte posée dans `PORTES`, salle construite puis quittée sans exception.
 - `scenarios.js`, « Balayage des salles » : boutons du HUD visibles, aucune zone
   **entièrement** masquée par une autre, aucune zone coincée dans le décor.
-  Ce balayage **ne vérifie pas la règle des 8 u autour de la SORTIE** : seuls le
-  Ciné, le Métro, la Radio, le Chalutier et le Dépôt ont un test « espacements ».
+- `scenarios.js`, « Règle des 8 unités » (dernier test de la suite) : les 26
+  salles d'`INTDEFS`, avec un **cliquet** sur la dette connue (`DETTE_REGLE_8U`,
+  26 zones dans 12 salles). Une nouvelle violation, une zone qui se rapproche de
+  la SORTIE, ou une zone corrigée encore présente dans la baseline fait échouer la suite.
 - `scenarios.js`, « Mort pendant un défi » : remise à zéro au game over des
   champs génériques (`alarme`, `bw*`, `karaOn`, `sw*`, `spEtat`, `sr*`,
   `cycleOn`, `casse*`).
@@ -66,21 +68,20 @@ console eruda.
 | `sport` 🏋️ Salle de sport « Fer & Sueur » | ⚠ **Cadence** : force de 12 à 100 contre une chute continue ; minimum tenu **3,3 / 4,4 / 5,0 appuis/s** (barres 1/2/3), la dernière **pendant 13 s**.<br>✓ Game over : `spEtat`.<br>— Farming : aucun gain d'argent (sac = endurance).<br>— SORTIE : cache à 7,88 u.<br>✓ Perdable : chrono 9/10/13 s, −4 PV, 40 $ perdus.<br>— Récompense unique : aucun gain d'argent ; palier via `Math.max`. | « Soulevé réussi puis raté » — appels directs, **sans cadence humaine**. Reset `spEtat`. | Tenir 5 appuis/s pendant 13 s au pouce, puis à deux doigts alternés : le 2e doigt est-il compté (`pointerdown` multi-touch) ? | 
 | `serre` 🌿 Serre du jardin botanique | ⚠ **SORTIE** : pot central de l'étagère du fond à **0,60 u** (r 3) — quasi recouvert ; 2 pots à 5,38 u chevauchent.<br>✓ Game over : `srVague`, `srFini`.<br>⚠ **Perdable** : impossible de perdre — les erreurs réduisent le gain (140–240 $ au lieu de 340–520 $) sans l'annuler.<br>✓ Récompense unique : garde-fou `srFini` (bug historique) — **non testé**. | Reset `srVague`/`srFini`. **Aucun test de paiement.** | Cueillir le pot central de l'étagère du fond.<br>3 bonnes plantes, puis tenter une 4e valide → aucun 2e paiement. | 
 | `sandwich` 🥪 Le Roi des Sandwichs | ⚠ **SORTIE** : table du défi (5,09 u, r 2,83) et soda (5,09 u, r 2,65) chevauchent **encore** — zone du bug historique.<br>✓ 1 défi/vague.<br>✓ Game over : `swEtat`.<br>✓ Perdable : +11–16 + n par bouchée, −5/s, soda −32 ; 6 bouchées sans soda ≈ 102 → perdu ; chrono 32 s.<br>✓ Récompense unique : `swEtat=null` en tête de `finMonstre`. | « Abandon en plein minijeu », reset `swEtat`/`swVague`. **Ni victoire ni défaite testées.** | Allers-retours table ↔ soda en plein défi sans déclencher SORTIR.<br>Gagner une fois, perdre une fois. | 
-| `musee` 🏛️ Musée Mémoire de Solara | ⚠ **Farming** : tronc à dons = 10–40 $ **par appui**, sans limite ni délai, et `META.fouilles++` à chaque appui.<br>✓ Casse : 1/vague, reset complet.<br>— SORTIE : cartel à 4,24 u (r 4) chevauche (lecture seule).<br>✓ Perdable : alarme (cône de vue, bruit) ou fin des 90 s.<br>✓ Récompense unique : vitrine inscrite dans `META.museeArtefacts`, `forcerCible` vidé ; Canard via `aCurio`. | Tests dédiés : rondes déterministes, casse réussi/raté, seuils de bruit, lisibilité, chrono sur `dtJeu`, reset `casse*`. **Rien sur le tronc.** | Taper le tronc 20 fois → confirmer.<br>FORCER une vitrine (maintien 1,5 s) sans que le pouce glisse (`pointerleave` annule le maintien). | 
+| `musee` 🏛️ Musée Mémoire de Solara | ✓ Farming : tronc à dons plafonné à **3 dons/vague** (30–120 $), levé à la vague suivante et au game over (`dd74818`).<br>✓ Le tronc ne touche plus `META.fouilles` (il ouvrait le Site 51 à 25 appuis et validait Fouineur à 40).<br>✓ Casse : 1/vague, reset complet.<br>— SORTIE : cartel à 4,24 u (r 4) chevauche (lecture seule).<br>✓ Perdable : alarme (cône de vue, bruit) ou fin des 90 s.<br>✓ Récompense unique : vitrine inscrite dans `META.museeArtefacts`, `forcerCible` vidé ; Canard via `aCurio`. | Tests dédiés : rondes déterministes, casse réussi/raté, seuils de bruit, lisibilité, chrono sur `dtJeu`, reset `casse*`, tronc (`META.fouilles` inchangé, refus au 4e don, plafond levé à la vague suivante et au game over). | Taper le tronc 4 fois → refus au 4e, et le compteur du Site 51 (« Scellée X/25 ») ne bouge pas.<br>FORCER une vitrine (maintien 1,5 s) sans que le pouce glisse (`pointerleave` annule le maintien). | 
 | `arcade` 🕹️ Palais de l'Arcade | — Farming : rien de monétaire (tickets → lots sans argent ; jeton = 10 $).<br>✓ Game over : jetons, tickets, partie en cours.<br>— SORTIE : 14,3 u.<br>Cadence : selon les bornes (croix directionnelle).<br>✓ Perdable : 1 jeton (10 $) engagé par partie, tickets au score — une mauvaise partie ne rend rien.<br>✓ Récompense unique : `ARCADE.jeu=null` avant de verser les tickets. | Bornes une à une, QUITTER, reset au game over, Jeton Doré (lu depuis `BORNES_ARCADE`), modal, croix, horloge. | Jouabilité réelle de chaque borne au doigt (croix, glissement de la Démolition).<br>Modal en 9:16 sous les safe-areas. | 
-| `cine` 🎬 Ciné-Palace | ✓ 2 séances/vague, abandon compris.<br>✓ Game over : séance annulée + compteur (dans le code — hors du test générique).<br>— SORTIE : 8,43 u.<br>Pas de cadence, mais 4 postes simultanés = déplacements.<br>✓ Perdable : satisfaction à 0 = fiasco.<br>✓ Récompense unique, mais **seulement grâce aux appelants** (branches exclusives, `cineArreterSeance` efface l'état) : `cineTerminerSeance` n'a pas de garde à l'entrée. | Tests dédiés : espacements, séance, limite, fin, ralenti de la Bobine, fouilles, horloge. | Une séance parfaite est-elle faisable au doigt (distances entre postes) ?<br>Mort en pleine séance → le son se coupe. | 
+| `cine` 🎬 Ciné-Palace | ✓ 2 séances/vague, abandon compris.<br>✓ Game over : séance annulée + compteur (dans le code — hors du test générique).<br>— SORTIE : 8,43 u.<br>Pas de cadence, mais 4 postes simultanés = déplacements.<br>✓ Perdable : satisfaction à 0 = fiasco.<br>✓ Récompense unique : garde d'entrée `if(!s.seanceOn) return;` dans `cineTerminerSeance` (`2281bb1`). | Tests dédiés : espacements, séance, limite, fin, ralenti de la Bobine, fouilles, horloge. | Une séance parfaite est-elle faisable au doigt (distances entre postes) ?<br>Mort en pleine séance → le son se coupe. | 
 | `metro` 🚇 Métro abandonné | ✓ Caches et piles par vague.<br>✓ Game over.<br>— SORTIE : 10,15 u.<br>✓ Perdable : la Bête emporte tout le butin porté.<br>✓ Récompense unique : `butin=0` après l'encaissement. | Tests dédiés : niveaux, batterie, piles, Bête, butin, Lampe, réinitialisations (vague, mort, game over), horloges. | Lisibilité dans le noir sur l'écran iPhone (halo de la lampe, luminosité auto). | 
 | `radio` 📻 Radio pirate Solara FM | ✓ 2 émissions/vague.<br>✓ Game over.<br>— SORTIE : 9,0 u. Porte absente sans la curiosité `platine`.<br>✓ Perdable : segment raté sous 70 % ; triangulation à 100 % = police.<br>✓ Récompense unique : un paiement par `segmentIdx` ; bonus versé après `radioArreterEmission`. | Tests dédiés : verrou, glissement du doigt, segments, limite, police, réinitialisations, fouilles, horloges. | Précision du glissement au pouce sur la vraie dalle ; appel d'auditeur lisible. | 
-| `chalutier` 🚢 Chalutier « Sainte-Odile » | ✓ 2 sorties/vague.<br>✓ Game over.<br>— SORTIE : 11 u, inerte en mer.<br>✓ Cadence : combat de canne gagnable par alternance simple.<br>✓ Perdable : chrono de 180 s → remorqué, moitié de la cale perdue ; tempête.<br>✓ Récompense unique, mais **seulement grâce aux appelants** (2 appelants, branches exclusives sous `sortieEnCours`) : `chalutierVendre` n'a pas de garde à l'entrée. | Tests dédiés : pilotage, canne, filet, billot, cale, météo, chrono 180 s, limite, reset, horloges `dtJeu`. | Maintien de la canne sans que le pouce glisse (`pointerleave`).<br>Découpe au doigt sur le billot ; lisibilité de la météo. | 
+| `chalutier` 🚢 Chalutier « Sainte-Odile » | ✓ 2 sorties/vague.<br>✓ Game over.<br>— SORTIE : 11 u, inerte en mer.<br>✓ Cadence : combat de canne gagnable par alternance simple.<br>✓ Perdable : chrono de 180 s → remorqué, moitié de la cale perdue ; tempête.<br>✓ Récompense unique : garde d'entrée `if(!s.sortieEnCours) return;` dans `chalutierVendre` (`2281bb1`). | Tests dédiés : pilotage, canne, filet, billot, cale, météo, chrono 180 s, limite, reset, horloges `dtJeu`. | Maintien de la canne sans que le pouce glisse (`pointerleave`).<br>Découpe au doigt sur le billot ; lisibilité de la météo. | 
 | `site51` ? Grille d’aération | ✓ 1 visite/vague.<br>✓ Reset (mort, vague).<br>— SORTIE : 23 u.<br>✓ Perdable : enfermé sans issue → neutralisé après 20 s, butin perdu.<br>✓ Récompense unique : garde `visiteEnCours` ; objets acquis une fois dans `META.site51Objets`. | Tests dédiés : déblocage, structure, confinement, enfermement, hangar, créature, Désintégrateur, minuteur `dtJeu`. | Lecture d'une salle de 190 u de long à l'écran ; cônes des tourelles visibles. | 
-| `depot` 🏁 Dépôt de bus | ✓ 3 courses/vague.<br>✓ Game over (`startRun` nettoie).<br>— SORTIE : 63 u.<br>✓ Perdable : 2e place = demi-gain, au-delà rien (IA plafonnée, vérifiée par simulation).<br>✓ Récompense unique : garde `c0.termine`. | Tests dédiés : chemin joueur, IA plafonnée, pilote robotique, victoire/défaite, abandon, mort, horloges. | Pilotage au joystick réel (Le Toit, chutes) ; fluidité avec 4 véhicules sur iPhone. | 
+| `depot` 🏁 Dépôt de bus | ✓ 3 courses/vague.<br>✓ Game over (`startRun` nettoie).<br>— SORTIE : 63 u.<br>✓ Plafond de vitesse de l'IA : le dépassement d'un pas d'accélération est corrigé (`0c6db2b`, graine 3141483545).<br>✓ Perdable : 2e place = demi-gain, au-delà rien (IA plafonnée, vérifiée par simulation).<br>✓ Récompense unique : garde `c0.termine`. | Tests dédiés : chemin joueur, IA plafonnée, pilote robotique, victoire/défaite, abandon, mort, horloges. | Pilotage au joystick réel (Le Toit, chutes) ; fluidité avec 4 véhicules sur iPhone. | 
 
 ## Constats à arbitrer (relevés dans le code, rien de corrigé)
 
 1. **Farming illimité**, contraire à la règle « limite par vague » : machine 7 de
-   la Laverie, Karaoké, tronc à dons du Musée. Le tronc incrémente aussi
-   `META.fouilles` (sauvegardé), qui ouvre le **Site 51 à 25** et valide le défi
-   « Fouineur » (450 $) **à 40** : 25 appuis sur le tronc ouvrent la salle cachée.
+   la Laverie et Karaoké (décisions de design en attente). Le tronc du Musée
+   n'en fait plus partie (voir « Corrigé depuis la première grille »).
 2. **Braquages jamais réinitialisés** : caisse (Supérette), coffre (Banque),
    casiers et preuves (Commissariat). Les salles restent en cache dans
    `INT.salles`, donc un braquage reste fait après un game over, jusqu'au
@@ -88,19 +89,33 @@ console eruda.
 3. **Zones qui chevauchent la SORTIE** dans 10 salles (12 sous la règle des 8 u :
    + Bowling et Salle de sport, sous 8 u sans chevauchement), dont 3 critiques :
    pot de la Serre (0,60 u), bar du Karaoké (1,90 u), défi et soda du Roi des
-   Sandwichs (5,09 u — zone du bug historique, toujours en chevauchement).
+   Sandwichs (5,09 u — positions inchangées depuis le premier commit du dépôt).
+   Rien n'a été déplacé, mais la dette est maintenant **figée par le test à cliquet** :
+   elle ne peut plus s'aggraver sans faire échouer la suite.
 4. **Minijeux sans défaite** : chasse à Gaston (Aquarium) et Serre. La machine 7
    de la Laverie n'est pas un minijeu mais ne peut pas échouer non plus.
 5. **Récompense unique** : aucun double paiement trouvé, sur tous les chemins
-   de paiement des 26 salles. Deux paiements ne tiennent que grâce à leurs
-   appelants, sans garde à l'entrée : `cineTerminerSeance` (Ciné) et
-   `chalutierVendre` (Chalutier, 2 appelants). Ils sont fragiles si un appelant
-   s'ajoute.
+   de paiement des 26 salles. Les deux paiements qui ne tenaient que par leurs
+   appelants ont maintenant leur propre garde d'entrée (voir ci-dessous).
 6. **Horloges** (hors des six risques) : les minijeux les plus anciens font
    avancer leurs chronos sur `dt`, pas sur `dtJeu` (Sport `spT`, Sandwich
    `swT`, curseurs du Karaoké et du Bowling, cycle de la Laverie). C'est
    contraire à la règle « Horloges » de CLAUDE.md. Sans effet tant qu'aucun
    ralenti ne joue en intérieur.
+
+## Corrigé depuis la première grille
+
+- **Tronc du Musée** (`dd74818`) : il ne compte plus comme une fouille.
+  `META.fouilles` (sauvegardé) n'est plus incrémenté que par
+  `resoudreFouille()`, c'est-à-dire par de vraies caches. Avant, 25 appuis ouvraient le
+  Site 51 et 40 validaient le défi Fouineur (450 $). Plafond de **3 dons par
+  vague**.
+- **Gardes d'entrée** (`2281bb1`) sur `cineTerminerSeance` et
+  `chalutierVendre`.
+- **Règle des 8 unités** (`f35f767`) : test universel avec cliquet.
+- **Dépôt** (`0c6db2b`) : une IA pouvait dépasser son plafond de vitesse d'un
+  pas d'accélération (21,52 pour 20,8). Reproduit avec `SEED=3141483545`, une
+  exécution sur deux ; 10/10 après correction.
 
 ## Par où commencer
 
@@ -109,4 +124,4 @@ risques non couverts par les scripts : deux règles violées, plus un garde-fou
 jamais testé. Le Karaoké passe devant à cause de la gravité : son farming
 illimité casse l'économie du jeu, alors que les problèmes de la Serre ne
 touchent qu'une plante et un montant. Ordre conseillé ensuite : Serre, Laverie,
-Roi des Sandwichs, Aquarium, Musée (tronc), Salle de sport (cadence), puis le reste.
+Roi des Sandwichs, Aquarium, Musée (vérifier le plafond du tronc), Salle de sport (cadence), puis le reste.
