@@ -1946,7 +1946,7 @@ async function main() {
       if (vals.some((v) => v < 0)) fail('Ciné-Palace : la table ' + table + ' a produit un gain négatif sur 60 tirages');
       else ok('Ciné-Palace : la table ' + table + ' ne produit jamais de gain négatif (60 tirages)');
     }
-    if (!fouilleCine.rareConfiserie || !fouilleCine.resultat.confiserie.some((v) => v >= fouilleCine.rareConfiserie.min && v <= fouilleCine.rareConfiserie.max)) info('Ciné-Palace : la somme rare de la confiserie n\'est pas tombée sur 60 tirages (probabilité ~6 %, possible par hasard)');
+    if (!fouilleCine.rareConfiserie || !fouilleCine.resultat.confiserie.some((v) => v >= fouilleCine.rareConfiserie.min && v <= fouilleCine.rareConfiserie.max)) saute('Ciné-Palace : la somme rare de la confiserie n\'est pas tombée sur 60 tirages (probabilité ~6 %, possible par hasard)');
     else ok('Ciné-Palace : la somme rare de la confiserie est bien tombée dans sa fourchette déclarée au moins une fois');
 
     // -------------------------------------------------------------------
@@ -3055,7 +3055,7 @@ async function main() {
     else ok('Radio : chaque fouille résolue incrémente bien META.fouilles');
     if (fouilleRadio.gains.some((v) => v < 0)) fail('Radio : la table radio a produit un gain négatif sur 60 tirages');
     else ok('Radio : la table radio ne produit jamais de gain négatif (60 tirages), encaissé immédiatement (pas de butin différé)');
-    if (!fouilleRadio.rareRadio || !fouilleRadio.gains.some((v) => v >= fouilleRadio.rareRadio.min && v <= fouilleRadio.rareRadio.max)) info('Radio : la somme rare n\'est pas tombée sur 60 tirages (probabilité ~5 %, possible par hasard)');
+    if (!fouilleRadio.rareRadio || !fouilleRadio.gains.some((v) => v >= fouilleRadio.rareRadio.min && v <= fouilleRadio.rareRadio.max)) saute('Radio : la somme rare n\'est pas tombée sur 60 tirages (probabilité ~5 %, possible par hasard)');
     else ok('Radio : la somme rare est bien tombée dans sa fourchette déclarée au moins une fois');
 
     // -------------------------------------------------------------------

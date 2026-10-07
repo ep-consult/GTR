@@ -345,9 +345,11 @@ SEED=random node scenarios.js   # tirage libre — attrape les bugs dépendants 
 
 La graine fixe la ville (construite avant la 1re frame) ; les tirages faits
 ensuite par `boucle()` dépendent du temps réel écoulé, d'où la règle « un test
-maîtrise sa scène ». Avec la graine par défaut, aucune vérification n'est
-sautée : si un changement du jeu en fait sauter une, le résumé la liste — la
-traiter comme un angle mort, pas comme un succès.
+maîtrise sa scène ». Avec la graine par défaut, toutes les vérifications qui
+dépendent de la ville tournent. Deux tirages de butin (sommes rares de la
+Radio et du Ciné) dépendent du temps réel et peuvent apparaître en SAUTÉ :
+c'est connu. Tout autre saut listé dans le résumé est un angle mort, pas un
+succès.
 
 Scénarios à couvrir pour toute modif de salle : tentative de farming, abandon en
 plein minijeu, mort pendant un défi, balayage de tous les boutons cliquables
