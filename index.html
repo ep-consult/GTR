@@ -12043,6 +12043,7 @@ const SITE51_PORTES={AB1:{x:-8,z:39},AB2:{x:8,z:39},BC1:{x:-8,z:-21},BC2:{x:8,z:
 // tourelle peut la fermer) — c'est elle qui garantit qu'atteindre le hangar
 // laisse toujours au moins une issue, voir site51Accessible().
 const SITE51_GRANDE_PORTE={x:0,z:-79};
+const TRONC_DONS_MAX=3; // Musée : dons du tronc par vague (30–120 $), voir majAction
 const SITE51_VISITES_MAX=1; // par vague, échec compris — consommée dans tous les cas
 const SITE51_ENFERME_DELAI=20; // secondes (dtJeu) avant neutralisation si plus aucune issue
 // tourelles (niveau B uniquement) : cône de détection, jamais létales — la
@@ -17810,6 +17811,8 @@ function startRun(){
     // le plafond de la vague est levé, la ronde repartira propre à la prochaine
     // entrée (voir entrerInterieur). Les pièces déjà volées restent volées :
     // ça vit dans META, pas ici.
+    // musée : plafond du tronc à dons levé (nouvelle partie = nouvelle vague)
+    if(sa.tronc){ sa.troncVague=-1; sa.troncN=0; }
     if(sa.casseEtat!==undefined){
       sa.casseEtat=null; sa.casseT=0; sa.soupcon=0; sa.bruitAcc=0;
       sa.forcerCible=null; sa.forcerT=0; sa.museeVague=-1; sa.museeFait=false;
@@ -18252,15 +18255,25 @@ function majAction(){
         label='🦆 FORCER LA VITRINE DU CANARD';
         fn=()=>{ s.forcerCible=s.canard; s.forcerType='canard'; s.forcerT=1.5; SFX.ui(); };
       }
-    /* ---------- MUSÉE : tronc à dons — aucun risque, aucune fouille nécessaire ---------- */
+    /* ---------- MUSÉE : tronc à dons — aucun risque, aucune fouille nécessaire ----------
+       Bug déjà rencontré : chaque appui incrémentait META.fouilles — 25 appuis
+       ouvraient le Site 51, 40 validaient le défi Fouineur. Un tronc n'est pas
+       une cache : seul resoudreFouille() compte une fouille. Plafonné à
+       TRONC_DONS_MAX par vague (même esprit que les 2 parties du bowling). */
     } else if(s.tronc&&dist2(P.x,P.z,s.tronc.x,s.tronc.z)<marquerZone(s.tronc,9)){
-      label='🙏 GLISSER LA MAIN DANS LE TRONC';
-      fn=()=>{
-        const g2=randi(10,40); META.argent+=g2; ETAT.cashRun+=g2; META.stats.cashTotal+=g2;
-        META.fouilles++;
-        spawnTexte(s.tronc.x,1.6,s.tronc.z,'+'+g2+' $','#7dff7a');
-        toast('+'+g2+' $ — un don pour un don.','or'); SFX.achat(); checkDefis(); sauveMeta();
-      };
+      if(s.troncVague!==WAVES.n){ s.troncVague=WAVES.n; s.troncN=0; }
+      if((s.troncN||0)>=TRONC_DONS_MAX){
+        label='🙏 Le tronc est vide — reviens à la prochaine vague';
+        fn=()=>{ SFX.refus(); toast('Le gardien vient de vider le tronc. Patience.'); };
+      } else {
+        label='🙏 GLISSER LA MAIN DANS LE TRONC';
+        fn=()=>{
+          s.troncN=(s.troncN||0)+1;
+          const g2=randi(10,40); META.argent+=g2; ETAT.cashRun+=g2; META.stats.cashTotal+=g2;
+          spawnTexte(s.tronc.x,1.6,s.tronc.z,'+'+g2+' $','#7dff7a');
+          toast('+'+g2+' $ — un don pour un don.','or'); SFX.achat(); checkDefis(); sauveMeta();
+        };
+      }
     /* ---------- MUSÉE : cartels décoratifs (lecture libre, sans risque) ---------- */
     } else if(s.cartels&&s.cartels.length&&s.cartels.some(c=>dist2(P.x,P.z,c.x,c.z)<marquerZone(c,16))){
       const c=s.cartels.find(c=>dist2(P.x,P.z,c.x,c.z)<16);

@@ -561,6 +561,61 @@ async function main() {
     else ok('Musée : le libellé objectif bascule bien vers « Ressortir par l\'entrée » après une prise');
 
     // -------------------------------------------------------------------
+    // Musée : tronc à dons. Bug déjà rencontré : chaque appui incrémentait
+    // META.fouilles (25 appuis ouvraient le Site 51, 40 validaient Fouineur).
+    // Un tronc n'est pas une cache. Plafond TRONC_DONS_MAX par vague, lu
+    // depuis le jeu, levé à la vague suivante et au game over.
+    // -------------------------------------------------------------------
+    console.log('\n--- Musée : tronc à dons (jamais une fouille, plafond par vague) ---');
+    const tronc = await page.evaluate(() => {
+      startRun();
+      const p = PORTES.find((x) => x.id === 'musee');
+      entrerInterieur('musee', p);
+      const s = INT.actif;
+      if (!s || !s.tronc) return { erreur: 'salle musée sans tronc' };
+      const appuyer = () => {
+        P.x = s.tronc.x; P.z = s.tronc.z;
+        majAction();
+        const b = document.getElementById('btnAction');
+        if (b._fn) b._fn();
+        return b.textContent;
+      };
+      const fouillesAvant = META.fouilles;
+      const argent0 = META.argent;
+      for (let i = 0; i < TRONC_DONS_MAX; i++) appuyer();
+      const argentApresDons = META.argent;
+      const labelPlafond = appuyer();   // un appui de plus que le plafond
+      const argentApresRefus = META.argent;
+      const fouillesApres = META.fouilles;
+      WAVES.n++;                         // vague suivante : le tronc se regarnit
+      const argentAvantVague = META.argent;
+      appuyer();
+      const payeApresVague = META.argent > argentAvantVague;
+      for (let i = 0; i < TRONC_DONS_MAX; i++) appuyer(); // re-plafonne cette vague
+      sortirInterieur();
+      startRun();                        // game over → nouvelle partie
+      entrerInterieur('musee', p);
+      const argentAvantRun = META.argent;
+      appuyer();
+      const payeApresGameOver = META.argent > argentAvantRun;
+      sortirInterieur();
+      return { max: TRONC_DONS_MAX, fouillesAvant, fouillesApres, donsPayes: argentApresDons > argent0,
+        refusPaie: argentApresRefus !== argentApresDons, labelPlafond, payeApresVague, payeApresGameOver };
+    });
+    if (tronc.erreur) fail('Tronc : ' + tronc.erreur);
+    else {
+      if (tronc.fouillesApres !== tronc.fouillesAvant) fail('Tronc : META.fouilles a bougé (' + tronc.fouillesAvant + ' → ' + tronc.fouillesApres + ') — un tronc n\'est pas une cache');
+      else ok('Tronc : ' + (tronc.max + 1) + ' appuis ne touchent jamais META.fouilles (Site 51 et Fouineur intacts)');
+      if (!tronc.donsPayes) fail('Tronc : les dons sous le plafond ne paient rien');
+      else if (tronc.refusPaie) fail('Tronc : le don n° ' + (tronc.max + 1) + ' de la vague paie encore (plafond ' + tronc.max + ' non respecté)');
+      else ok('Tronc : plafonné à ' + tronc.max + ' dons par vague (label = "' + tronc.labelPlafond + '")');
+      if (!tronc.payeApresVague) fail('Tronc : le plafond n\'est pas levé à la vague suivante');
+      else ok('Tronc : le plafond est bien levé à la vague suivante');
+      if (!tronc.payeApresGameOver) fail('Tronc : le plafond survit au game over');
+      else ok('Tronc : le plafond ne survit pas au game over');
+    }
+
+    // -------------------------------------------------------------------
     // Arcade : VIPÈRE — jeton consommé, score, tickets, collision mortelle.
     // -------------------------------------------------------------------
     console.log('\n--- Arcade : VIPÈRE (jeton, score, tickets, collision) ---');
