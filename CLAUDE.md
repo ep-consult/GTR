@@ -254,11 +254,18 @@ et tous dans `REPLIS`. **Une seule salle partagée** (`INTDEFS.tuning`), voir
   son `garageId`, sinon il est de retour sur le plateau (après game over,
   rechargement, ou destruction).
 - À pied : on n'entre que pour reprendre le véhicule garé.
-- Entrée refusée sous le feu (ennemi hostile à moins de `GARAGE_FEU_DIST`).
+- On entre **en pleine poursuite** : la police ne bloque jamais l'entrée, rentrer
+  au garage EST la façon de la semer (demandé explicitement). Seul un tireur de
+  **gang** à bout portant (`GARAGE_FEU_DIST` = 6 u) refuse l'entrée.
 - Recherche : porte roulante fermée, puis les étoiles tombent une à une (`dtJeu`).
 - **Nitro** : bouton ESQUIVE au volant, décidée par `majNitro(dtJeu)` AVANT la
   physique. **Verrouillée dans toute salle, donc pendant les courses du Dépôt**
   (le plafond de vitesse des IA y est garanti par simulation).
+- **Blindage** : 4e palier, multiplie les dégâts reçus (`v.blindage`, appliqué
+  dans `abimerVehicule`). Propre au véhicule — jamais le drapeau `def.blinde` du
+  char (×0,12 et masse ×2,2, qui rendrait une voiture quasi indestructible).
+- **Néons** : lueur tamisée, deux plans additifs texturés par `texGlow` (halo +
+  cœur), aucune vraie lumière.
 - Tous les prix sont groupés dans `TUNING_PRIX` (en tête de section), à calibrer
   en jouant. Chaque achat a sa propre garde d'entrée.
 - **Pas encore** : pièces de carrosserie par type de véhicule (chantier séparé,

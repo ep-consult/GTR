@@ -1570,7 +1570,7 @@ const GARAGES_TUNING=[
   {id:'g_port',nom:'GARAGE DU PORT',bx:10,bz:9,coul:0x7dff7a}, // port
 ];
 // emplacement vide : cle '' = aucun véhicule, coul/neon -1 = aucun
-function slotGarageDefaut(){ return {cle:'',coul:-1,neon:-1,nitro:false,moteur:0,vitesse:0,tenue:0}; }
+function slotGarageDefaut(){ return {cle:'',coul:-1,neon:-1,nitro:false,moteur:0,vitesse:0,tenue:0,blindage:0}; }
 function garagesMetaDefaut(){ const o={}; for(const g of GARAGES_TUNING) o[g.id]=slotGarageDefaut(); return o; }
 const META={
   argent:150, xp:0, niveau:1,
@@ -6848,6 +6848,7 @@ function abimerVehicule(v,d,parJoueur){
     return;
   }
   if(v.def.blinde) d*=0.12;       // char : blindage très épais
+  if(v.blindage) d*=v.blindage;   // blindage acheté au garage tuning (propre au véhicule)
   v.hp-=d;
   burst(v.x,1,v.z,3,0xffd88a,6);
   if(v.hp<=0) exploserVehicule(v);
@@ -16882,11 +16883,15 @@ const TUNING_PRIX={
   moteur:[500,1100,2000],  // paliers 1 → 3 (accélération)
   vitesse:[600,1300,2400], // paliers 1 → 3 (vitesse max)
   tenue:[400,900,1700],    // paliers 1 → 3 (maniabilité)
+  blindage:[700,1500,2800],// paliers 1 → 3 (résistance aux dégâts)
 };
 // ---- EFFETS des paliers (index = palier atteint, 0 = d'origine) ----
-const TUNING_EFFETS={moteur:[1,1.12,1.25,1.4],vitesse:[1,1.06,1.12,1.2],tenue:[1,1.1,1.2,1.3]};
+// moteur/vitesse/tenue : multiplicateurs de acc/vmax/man ;
+// blindage : multiplicateur des dégâts REÇUS (v.blindage, voir abimerVehicule)
+// — propre au véhicule, jamais le drapeau def.blinde du char (×0,12, masse ×2,2).
+const TUNING_EFFETS={moteur:[1,1.12,1.25,1.4],vitesse:[1,1.06,1.12,1.2],tenue:[1,1.1,1.2,1.3],blindage:[1,0.75,0.55,0.4]};
 const TUNING_PALIERS_MAX=3;
-const TUNING_NOMS={moteur:'MOTEUR',vitesse:'VITESSE',tenue:'TENUE DE ROUTE'};
+const TUNING_NOMS={moteur:'MOTEUR',vitesse:'VITESSE',tenue:'TENUE DE ROUTE',blindage:'BLINDAGE'};
 const TUNING_TEINTES=[0xe8323a,0xff8c1a,0xffd23f,0x2fae4f,0x2a6ad8,0x8a4de0,0xe8ecf2,0x1c1e24];
 const TUNING_NEONS=[0x35e0ff,0xff5ad0,0x7dff7a,0xffd23f,0xff3b3b,0x9b6bff];
 // ---- NITRO (toutes les durées sur dtJeu) ----
@@ -16897,7 +16902,9 @@ const NITRO_ACC=22;              // u/s² ajoutés pendant la poussée
 const NITRO_VMAX_MULT=1.3;       // vitesse max relevée de 30 % pendant la poussée
 // ---- GARAGE ----
 const GARAGE_RAYON_PORTE=7;          // u : portée du bouton ENTRER AU GARAGE au volant
-const GARAGE_FEU_DIST=12;            // u : un ennemi hostile plus proche = entrée refusée
+// u : un tireur de GANG plus proche = entrée refusée (« à bout portant »).
+// La POLICE ne bloque jamais : rentrer au garage EST la façon de la semer.
+const GARAGE_FEU_DIST=6;
 const GARAGE_FERMETURE_DUREE=1.0;    // s (dtJeu) : la porte roulante se ferme
 const GARAGE_DELAI_ETOILES=1.5;      // s (dtJeu) après fermeture, avant que les étoiles tombent
 const GARAGE_PAS_ETOILE=0.6;         // s (dtJeu) entre deux étoiles perdues
@@ -16925,11 +16932,13 @@ function porteGarageProche(x,z){
   for(const p of PORTES) if(p.id==='tuning'&&dist2(x,z,p.x,p.z)<GARAGE_RAYON_PORTE*GARAGE_RAYON_PORTE) return p;
   return null;
 }
-// « sous le feu à bout portant » : un ennemi hostile (ni calme, ni passif,
-// ni dans une salle, ni soulevé par l'OVNI) à moins de r unités
+// « sous le feu à bout portant » : un tireur de gang hostile (ni calme, ni
+// passif, ni dans une salle, ni soulevé par l'OVNI) à moins de r unités.
+// La police est exclue (demandé explicitement) : on doit pouvoir rentrer
+// en pleine poursuite — c'est tout l'intérêt du garage.
 function ennemiHostileProche(x,z,r){
   for(const e of ennemis){
-    if(e.mort||e.calme||e.passif||e.interieur||e.captureOvni) continue;
+    if(e.mort||e.calme||e.passif||e.interieur||e.captureOvni||e.fac==='police') continue;
     if(dist2(e.x,e.z,x,z)<r*r) return e;
   }
   return null;
@@ -16980,17 +16989,26 @@ function peindreMesh(mesh,coul){
   }
   ud.matPeinture.color.setHex(coul);
 }
-// bandeau lumineux sous le châssis : un plan additif, aucune vraie lumière (perf mobile)
+// éclairage néon sous le châssis : lueur tamisée, sans aucun angle — deux
+// plans additifs texturés par texGlow (dégradé radial) : un halo large et
+// diffus qui déborde au sol, un cœur plus vif sous la caisse. Aucune vraie
+// lumière (perf mobile). Signalé par le joueur : la 1re version (un plan
+// uni) se lisait comme un rectangle à angles droits, pas comme un néon.
 function neonMesh(mesh,coul){
   const ud=mesh&&mesh.userData; if(!ud) return;
   if(coul<0){ if(ud.neon) ud.neon.visible=false; return; }
   if(!ud.neon){
     const d=ud.def||{larg:2,long:4};
-    const p=new THREE.Mesh(new THREE.PlaneGeometry(d.larg*1.35,d.long*1.12),
-      new THREE.MeshBasicMaterial({color:coul,transparent:true,opacity:0.6,depthWrite:false,blending:THREE.AdditiveBlending}));
-    p.rotation.x=-Math.PI/2; p.position.y=0.07; mesh.add(p); ud.neon=p;
+    const grp=new THREE.Group(); ud.neonMats=[];
+    for(const [kl,kL,op,y] of [[2.6,1.75,0.6,0.05],[1.45,1.2,0.75,0.07]]){ // halo, puis cœur (lisible de nuit, vu en rendu réel)
+      const m=new THREE.MeshBasicMaterial({map:texGlow,color:coul,transparent:true,opacity:op,depthWrite:false,blending:THREE.AdditiveBlending});
+      const p=new THREE.Mesh(new THREE.PlaneGeometry(d.larg*kl,d.long*kL),m);
+      p.rotation.x=-Math.PI/2; p.position.y=y; grp.add(p); ud.neonMats.push(m);
+    }
+    mesh.add(grp); ud.neon=grp;
   }
-  ud.neon.visible=true; ud.neon.material.color.setHex(coul);
+  ud.neon.visible=true;
+  for(const m of ud.neonMats) m.color.setHex(coul);
 }
 // applique les améliorations d'un garage à un véhicule de la ville. v.def
 // devient une copie PROPRE à ce véhicule (jamais VEHDEFS modifié).
@@ -17004,6 +17022,7 @@ function appliquerTuning(v,gid){
     man:base.man*TUNING_EFFETS.tenue[slot.tenue]});
   peindreMesh(v.mesh,slot.coul);
   neonMesh(v.mesh,slot.neon);
+  v.blindage=TUNING_EFFETS.blindage[slot.blindage]; // 1 = d'origine (voir abimerVehicule)
   v.nitro=!!slot.nitro; v.nitroJauge=100; v.nitroRepos=0; v.nitroActif=false;
 }
 
@@ -17185,7 +17204,7 @@ function renderGarageMenu(s){
   h+=slot.nitro?'<div class="gmBtn ok">✔ ÉQUIPÉE (bouton NITRO au volant)</div>'
                :'<div class="gmBtn" data-a="nitro">INSTALLER — '+TUNING_PRIX.nitro+' $</div>';
   h+='</div>';
-  for(const cat of ['moteur','vitesse','tenue']){
+  for(const cat of Object.keys(TUNING_EFFETS)){ // moteur, vitesse, tenue, blindage
     const n=slot[cat];
     h+='<div class="gmSec">'+TUNING_NOMS[cat]+' — palier '+n+'/'+TUNING_PALIERS_MAX+'</div><div class="gmLigne">';
     h+=n>=TUNING_PALIERS_MAX?'<div class="gmBtn ok">✔ AU MAXIMUM</div>'

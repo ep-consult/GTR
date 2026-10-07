@@ -6368,10 +6368,19 @@ async function main() {
       out.entreRetour = !!(INT.actif && INT.actif.tuning);
       out.vitrineRetour = !!(INT.actif && INT.actif.voiture && INT.actif.voitureCle === 'taxi');
       if (INT.actif) sortirInterieur();
-      // 4) sous le feu à bout portant : refusé au volant ET à pied, lisible
+      // 4) en pleine poursuite POLICIÈRE : on entre quand même (c'est le but
+      // du garage : semer la police), au volant, policier collé à la porte
+      G.prep();
+      WANTED.heat = 3.5; WANTED.stars = 3;
+      G.auVolantDevant(porte, 'citadine');
+      const flic = creerEnnemi('cop2', porte.x + 2, porte.z + 4, false);
+      flic.calme = false; flic.passif = false;
+      out.labelPolice = G.appuyer(); out.entrePolice = !!(INT.actif && INT.actif.tuning);
+      if (INT.actif) sortirInterieur();
+      // 5) tireur de GANG à bout portant : refusé au volant ET à pied, lisible
       G.prep();
       const v2 = G.auVolantDevant(porte, 'citadine');
-      const e = creerEnnemi('cop2', porte.x + 3, porte.z + 5, false);
+      const e = creerEnnemi('vip_pistol', porte.x + 2, porte.z + 4, false);
       e.calme = false; e.passif = false;
       out.labelFeuVolant = G.appuyer(); out.entreFeuVolant = !!INT.actif;
       G.aPiedDevant(porte);
@@ -6389,7 +6398,9 @@ async function main() {
     else ok('Garages : à pied, véhicule du garage dehors → refus (label = "' + garPied.labelDehors + '")');
     if (!garPied.entreRetour || !garPied.vitrineRetour) fail('Garages : véhicule détruit dehors, il ne revient pas au garage (label = "' + garPied.labelRetour + '")');
     else ok('Garages : à pied, véhicule garé → on entre le reprendre (il est sur le plateau)');
-    if (garPied.entreFeuVolant || garPied.entreFeuPied) fail('Garages : entrée possible sous le feu à bout portant');
+    if (!garPied.entrePolice) fail('Garages : un policier collé à la porte empêche d\'entrer (label = "' + garPied.labelPolice + '") — il faut pouvoir semer la police en rentrant');
+    else ok('Garages : en pleine poursuite, policier collé à la porte, on entre quand même (label = "' + garPied.labelPolice + '")');
+    if (garPied.entreFeuVolant || garPied.entreFeuPied) fail('Garages : entrée possible sous le feu d\'un gang à bout portant');
     else if (!/🔒/.test(garPied.labelFeuVolant) || !/🔒/.test(garPied.labelFeuPied)) fail('Garages : le refus sous le feu n\'est pas lisible (' + garPied.labelFeuVolant + ' / ' + garPied.labelFeuPied + ')');
     else ok('Garages : entrée refusée sous le feu, au volant comme à pied (label = "' + garPied.labelFeuVolant + '")');
     if (!garPied.entreLoin) fail('Garages : l\'entrée reste bloquée une fois l\'ennemi loin');
@@ -6450,6 +6461,7 @@ async function main() {
       const porte = G.porte(0), gid = GARAGES_TUNING[0].id;
       G.auVolantDevant(porte, 'pickup'); G.appuyer();
       acheterPalier(gid, 'vitesse'); acheterPalier(gid, 'vitesse'); acheterPalier(gid, 'moteur');
+      for (let i = 0; i < TUNING_PALIERS_MAX; i++) acheterPalier(gid, 'blindage');
       acheterNitro(gid); acheterNeons(gid);
       peindreGarage(gid, TUNING_TEINTES.find((c) => c !== META.garages[gid].coul));
       // laisser garé, sortir à pied
@@ -6501,7 +6513,16 @@ async function main() {
       out.vehdefsIntact = VEHDEFS.pickup === base && base.vmax === VEHDEFS.pickup.vmax;
       out.nitro = v.nitro === true;
       out.peint = !!v.mesh.userData.matPeinture && v.mesh.userData.matPeinture.color.getHex() === slot.coul;
-      out.neon = !!v.mesh.userData.neon && v.mesh.userData.neon.visible && v.mesh.userData.neon.material.color.getHex() === slot.neon;
+      const ud = v.mesh.userData;
+      out.neon = !!ud.neon && ud.neon.visible && ud.neonMats.length >= 2 && ud.neonMats.every((m) => m.color.getHex() === slot.neon && m.map === texGlow);
+      // blindage : dégâts reçus multipliés par l'effet du palier, comparés à
+      // un véhicule identique non tuné (effets lus depuis le jeu)
+      const temoin = creerVehicule('pickup', v.x + 40, v.z, 0, null);
+      const hv = v.hp, ht = temoin.hp;
+      abimerVehicule(v, 10); abimerVehicule(temoin, 10);
+      out.blindageAttendu = TUNING_EFFETS.blindage[slot.blindage];
+      out.perteTunee = hv - v.hp; out.perteTemoin = ht - temoin.hp;
+      v.hp = hv;
       // la peinture n'a pas touché le matériau partagé de la ville
       out.matPartageIntact = mat(v.mesh.userData.coul).color.getHex() === v.mesh.userData.coul;
       return out;
@@ -6519,6 +6540,8 @@ async function main() {
       else ok('Garages : nitro, peinture et néons présents sur le véhicule ressorti');
       if (!garRecharge.matPartageIntact) fail('Garages : la peinture a modifié le matériau partagé (toute la ville repeinte)');
       else ok('Garages : la peinture ne touche que ce véhicule (matériau partagé intact)');
+      if (garRecharge.slot.blindage !== 3 || Math.abs(garRecharge.perteTunee - garRecharge.perteTemoin * garRecharge.blindageAttendu) > 1e-9 || !(garRecharge.perteTunee < garRecharge.perteTemoin)) fail('Garages : blindage mal appliqué (perte ' + garRecharge.perteTunee + ' contre ' + garRecharge.perteTemoin + ', facteur attendu ' + garRecharge.blindageAttendu + ')');
+      else ok('Garages : blindage au palier max — dégâts reçus ×' + garRecharge.blindageAttendu + ' (' + garRecharge.perteTunee + ' contre ' + garRecharge.perteTemoin + ' pour un véhicule non tuné)');
     }
 
     console.log('\n--- Garages tuning : la nitro pousse, se vide, se recharge ; refusée en course au Dépôt ---');
