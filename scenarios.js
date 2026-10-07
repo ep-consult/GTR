@@ -58,6 +58,32 @@ function fail(msg) { echecs++; console.error('✗ ' + msg); }
 // est compté et listé nommément dans le résumé final.
 const sautes = [];
 function saute(msg) { sautes.push(msg); console.log('  ⤼ SAUTÉ : ' + msg); }
+
+// ---------------------------------------------------------------------------
+// Dette connue de la règle des 8 unités (CLAUDE.md « Zones interactives et
+// SORTIE »), relevée le 7 octobre 2026. Ce n'est PAS une liste du jeu : c'est
+// un cliquet. Le test lit salles et zones dans le jeu, et n'accepte une zone
+// à moins de 8 u de la SORTIE que si elle figure ici, à une distance au moins
+// égale. Corriger une zone -> le test exige de la retirer d'ici. Ne jamais
+// ajouter d'entrée pour faire passer une nouvelle violation.
+//   'zone#rang' : [distance mesurée, catégorie]
+//   chevauche  : distance < rayon zone + rayon SORTIE (zone en partie injouable)
+//   sous-marge : sans chevauchement, mais sous 8 u
+// ---------------------------------------------------------------------------
+const DETTE_REGLE_8U = {
+  superette: { 'caisse#1': [3.5, 'chevauche'] },
+  conces: { 'vente#1': [4.4, 'chevauche'] },
+  casino: { 'poker#1': [6.32, 'chevauche'] },
+  laverie: { 'fouilles#9': [7.33, 'sous-marge'], 'fouilles#10': [6.51, 'sous-marge'], 'machine7#1': [5.69, 'chevauche'] },
+  voyance: { 'fouilles#3': [4.61, 'chevauche'], 'zohraPos#1': [4.5, 'chevauche'] },
+  karaoke: { 'fouilles#5': [3.64, 'chevauche'], 'bar#1': [1.9, 'chevauche'] },
+  aquarium: { 'fouilles#3': [6.43, 'sous-marge'], 'fouilles#4': [4.04, 'chevauche'], 'bassins#5': [5.8, 'chevauche'] },
+  bowling: { 'fouilles#2': [7.28, 'sous-marge'], 'jeu#1': [7.81, 'sous-marge'] },
+  sport: { 'fouilles#1': [7.88, 'sous-marge'] },
+  serre: { 'fouilles#2': [7.2, 'sous-marge'], 'pots#8': [5.38, 'chevauche'], 'pots#9': [5.38, 'chevauche'], 'pots#11': [0.6, 'chevauche'] },
+  sandwich: { 'fouilles#1': [6.58, 'sous-marge'], 'fouilles#2': [6.58, 'sous-marge'], 'defiPos#1': [5.09, 'chevauche'], 'sodaPos#1': [5.09, 'chevauche'] },
+  musee: { 'fouilles#1': [6.24, 'sous-marge'], 'cartels#3': [4.24, 'chevauche'] },
+};
 function ok(msg) { console.log('✓ ' + msg); }
 function info(msg) { console.log('  · ' + msg); }
 
@@ -6192,6 +6218,82 @@ async function main() {
       fail('META non restauré après rechargement : attendu ' + JSON.stringify(valeurs) + ', obtenu ' + JSON.stringify(metaApres));
     } else {
       ok('META restauré correctement après sauvegarde + rechargement de page');
+    }
+
+    // -------------------------------------------------------------------
+    // Règle des 8 unités, universelle, avec cliquet (voir CLAUDE.md « Zones
+    // interactives et SORTIE » et DETTE_REGLE_8U en tête de fichier) : dans
+    // TOUTES les salles d'INTDEFS, aucune zone interactive à moins de 8 u du
+    // centre de la SORTIE, hors dette connue. Échoue si, et seulement si :
+    //   - une zone sous 8 u n'est pas dans la baseline (nouvelle violation) ;
+    //   - une zone de la baseline s'est rapprochée (tolérance 0,01) ;
+    //   - une zone de la baseline est à >= 8 u ou a disparu (corrigée : la
+    //     retirer de la baseline, pour que le cliquet ne se desserre jamais).
+    // Placé en dernier, après le rechargement de la Persistance : entrer dans
+    // les 26 salles a des effets de bord (1re visite du Site 51, compteurs de
+    // visite...) qui ne doivent toucher aucun autre test. Salles lues dans
+    // INTDEFS, zones dans zonesInterieurActives() — jamais recopiées.
+    // Positions des intérieurs vérifiées identiques quelle que soit la graine.
+    // -------------------------------------------------------------------
+    console.log('\n--- Règle des 8 unités : aucune zone interactive à moins de 8 u de la SORTIE, hors dette connue (toutes les salles d\'INTDEFS) ---');
+    // le test maîtrise sa scène : la porte de la Radio n'existe qu'avec
+    // 'platine', posée à la génération de la ville — on l'acquiert puis on
+    // recharge, sans dépendre de ce qu'ont laissé les tests précédents.
+    await page.evaluate(() => { META.curios.platine = 1; sauveMeta(); });
+    await page.reload({ waitUntil: 'load', timeout: 30000 });
+    await page.waitForFunction(() => typeof PORTES !== 'undefined' && PORTES.length > 0, { timeout: 20000 });
+    const regle8 = await page.evaluate(() => {
+      startRun();
+      const mesures = {}, nonMesurees = [];
+      for (const id of Object.keys(INTDEFS)) {
+        const porte = PORTES.find((p) => p.id === id);
+        if (!porte) { nonMesurees.push(id + ' (aucune porte)'); continue; }
+        entrerInterieur(id, porte);
+        if (!INT.actif || INT.actif.id !== id) { nonMesurees.push(id + ' (entrée refusée)'); if (INT.actif) sortirInterieur(); continue; }
+        const { zones } = zonesInterieurActives();
+        const so = zones.find((z) => z.champ === 'sortie');
+        if (!so) { nonMesurees.push(id + ' (zone SORTIE introuvable)'); sortirInterieur(); continue; }
+        mesures[id] = {};
+        const rang = {};
+        for (const z of zones) {
+          if (z.champ === 'sortie') continue;
+          rang[z.champ] = (rang[z.champ] || 0) + 1;
+          mesures[id][z.champ + '#' + rang[z.champ]] = { d: Math.hypot(z.x - so.x, z.z - so.z), r: z.r, rSortie: so.r };
+        }
+        sortirInterieur();
+      }
+      return { mesures, nonMesurees };
+    });
+    {
+      const DIST_MIN = 8, TOL = 0.01;
+      const arrondi = (x) => Math.round(x * 100) / 100;
+      const categorie = (m) => (m.d < m.r + m.rSortie ? 'chevauche' : 'sous-marge');
+      for (const n of regle8.nonMesurees) fail('Règle des 8 u : salle non mesurée — ' + n);
+      const nouvelles = [], rapprochees = [], corrigees = [];
+      for (const id of Object.keys(regle8.mesures)) {
+        for (const [zone, m] of Object.entries(regle8.mesures[id])) {
+          if (m.d < DIST_MIN && !(DETTE_REGLE_8U[id] && DETTE_REGLE_8U[id][zone])) {
+            nouvelles.push(id + ' › ' + zone + ' à ' + arrondi(m.d) + ' u (' + categorie(m) + ")  →  baseline : '" + zone + "': [" + arrondi(m.d) + ", '" + categorie(m) + "']");
+          }
+        }
+      }
+      for (const [id, zonesDette] of Object.entries(DETTE_REGLE_8U)) {
+        for (const [zone, [dBase]] of Object.entries(zonesDette)) {
+          const m = regle8.mesures[id] && regle8.mesures[id][zone];
+          if (!regle8.mesures[id]) continue; // salle non mesurée : déjà en échec ci-dessus
+          if (!m) corrigees.push(id + ' › ' + zone + ' a disparu de la salle — à retirer de DETTE_REGLE_8U');
+          else if (m.d >= DIST_MIN) corrigees.push(id + ' › ' + zone + ' est maintenant à ' + arrondi(m.d) + ' u (≥ 8) — corrigée, à retirer de DETTE_REGLE_8U');
+          else if (m.d < dBase - TOL) rapprochees.push(id + ' › ' + zone + ' : ' + dBase + ' u → ' + arrondi(m.d) + ' u (s\'est rapprochée de la SORTIE)');
+        }
+      }
+      for (const n of nouvelles) fail('Règle des 8 u : NOUVELLE violation, absente de la dette connue — ' + n);
+      for (const r of rapprochees) fail('Règle des 8 u : dette aggravée — ' + r);
+      for (const c of corrigees) fail('Règle des 8 u : ' + c);
+      if (!nouvelles.length && !rapprochees.length && !corrigees.length && !regle8.nonMesurees.length) {
+        const nbZones = Object.values(DETTE_REGLE_8U).reduce((n, z) => n + Object.keys(z).length, 0);
+        const nbChev = Object.values(DETTE_REGLE_8U).reduce((n, z) => n + Object.values(z).filter(([, c]) => c === 'chevauche').length, 0);
+        ok('Règle des 8 u : ' + Object.keys(regle8.mesures).length + ' salles mesurées, aucune nouvelle violation — dette connue : ' + nbZones + ' zones dans ' + Object.keys(DETTE_REGLE_8U).length + ' salles (' + nbChev + ' chevauchent la SORTIE)');
+      }
     }
   } catch (e) {
     fail('Exception pendant les scénarios : ' + (e && e.stack || e));
