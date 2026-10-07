@@ -60,9 +60,9 @@ console eruda.
 | `conces` 🚗 Concessionnaire | ⚠ **SORTIE** : comptoir de vente à 4,40 u (r 3,87) — chevauche.<br>— Farming : achat seul.<br>— Perdable : pas de minijeu.<br>— Récompense unique : rien à valider (achat). | Test « podiums synchronisés avec le comptoir ». | Atteindre la VENTE sans SORTIR ; achat → véhicule livré devant la porte. | 
 | `planque` 🏡 Villa planque | ✓ Farming : le lit saute à la vague suivante, une seule fois par repos (repasse par une vague active).<br>— SORTIE : 15,5 u.<br>— Perdable : pas de minijeu.<br>✓ Récompense unique : `META.revenus` remis à 0 au paiement. | Socle (9 zones, aucune masquée). | DORMIR → CONFIRMER → vague lancée ; re-dormir refusé avant la fin de la vague.<br>Cabinet, tableau, trophées, penderie : ouverture et retour. | 
 | `casino` 🎰 Casino Solara | ⚠ **SORTIE** : table de poker à 6,32 u (r 4) — chevauche.<br>✓ Farming : roue plafonnée à 1 tour/vague (2 avec la Chaussette) ; jeux à avantage maison — **espérance jamais vérifiée** par un script.<br>✓ Game over : `roueN`/`roueVague` remis à zéro (non testé).<br>✓ Perdable : jeux de hasard à avantage maison ; la roue est gratuite (22 % « Rien »), il n'y a rien à y perdre.<br>✓ Récompense unique : `e.fini` / `phase='fini'` posés avant `gagner()`, boutons redessinés ; roue : `roueLot` vidé avant le lot. À confirmer au double-tap. | Socle seul — **aucun test casino**. | Atteindre le POKER.<br>~20 mains de chaque jeu : la perte moyenne est-elle réelle ?<br>Roue : 2 tours avec la Chaussette, refus ensuite. Écrans de jeu en 9:16. | 
-| `laverie` 🧺 Laverie « Bulle Bleue » | ⚠ **Farming** : machine 7 = 50 $ → 420–760 $ toutes les 42 s, **aucune limite par vague**.<br>⚠ **SORTIE** : machine 7 à 5,69 u (r 3,32) — chevauche ; une cache à 6,51 u.<br>✓ Game over : `cycleOn`, `sacPret`, machines du fond remis à zéro.<br>— Perdable : pas un minijeu, mais le cycle n'échoue jamais : gain garanti (voir Farming).<br>✓ Récompense unique : `sacPret=false` avant le gain ; `m.pris` pour les machines du fond ; Chaussette via `aCurio`. | Reset de `cycleOn`. | Lancer 3 cycles d'affilée dans une même vague → confirmer l'absence de plafond.<br>Atteindre la machine 7 depuis l'entrée. Machines du fond → alarme des Vipères. | 
+| `laverie` 🧺 Laverie « Bulle Bleue » | ✓ Farming : machine 7 plafonnée à **2 lavages/vague** (50 $ → 420–760 $), compté au lancement, levé à la vague suivante et au game over.<br>⚠ **SORTIE** : machine 7 à 5,69 u (r 3,32) — chevauche ; une cache à 6,51 u.<br>✓ Game over : `cycleOn`, `sacPret`, machines du fond remis à zéro.<br>— Perdable : pas un minijeu, mais le cycle n'échoue jamais : gain garanti (voir Farming).<br>✓ Récompense unique : `sacPret=false` avant le gain ; `m.pris` pour les machines du fond ; Chaussette via `aCurio`. | Reset de `cycleOn`. Plafond : 3e lavage refusé sans débit, levé à la vague suivante et au game over. | Lancer 3 cycles d'affilée dans une même vague → le 3e est refusé (« Machine 7 en maintenance »), sans débit.<br>Atteindre la machine 7 depuis l'entrée. Machines du fond → alarme des Vipères. | 
 | `voyance` 🔮 Chez Madame Zohra | ⚠ **SORTIE** : Zohra à 4,50 u (r 3,46) et une cache à 4,61 u — chevauchent.<br>— Farming : 150 $ pour au mieux 10–40 $.<br>— Perdable : pas de minijeu (prédiction tirée au sort, coûte toujours plus qu'elle ne rapporte).<br>✓ Récompense unique : Boule via `aCurio`. | Socle seul. | Atteindre Zohra sans SORTIR ; la Boule n'est donnée qu'une fois. | 
-| `karaoke` 🎤 Karaoké « Micro Cassé » | ⚠ **Farming** : 60 $ → 160–320 $ (600–900 $ en sans-faute), **aucune limite par vague** (aucun champ `*Vague` pour cette salle).<br>⚠ **SORTIE** : bar à **1,90 u** (r 3,46) et cache à 3,64 u (r 2,80) — chevauchements forts.<br>✓ Game over : `karaOn` remis à `false`.<br>✓ Perdable : hors de \|pos\| < 0,36 = fausse note, 60 $ perdus + 5 PV.<br>✓ Récompense unique : `karaOn=false` avant le gain. | « Karaoké : sans-faute » et reset de `karaOn`. **La défaite et la répétition ne sont pas testées.** | Enchaîner 5 sessions dans une même vague → confirmer le farming.<br>Atteindre le bar.<br>Lisibilité du curseur au doigt (fenêtre parfaite \|pos\| < 0,14). | 
+| `karaoke` 🎤 Karaoké « Micro Cassé » | ✓ Farming : plafonné à **2 sessions/vague** (60 $ → 160–900 $), comptée au lancement (fausse note et abandon compris), levé à la vague suivante et au game over.<br>⚠ **SORTIE** : bar à **1,90 u** (r 3,46) et cache à 3,64 u (r 2,80) — chevauchements forts.<br>✓ Game over : `karaOn` remis à `false`.<br>✓ Perdable : hors de \|pos\| < 0,36 = fausse note, 60 $ perdus + 5 PV.<br>✓ Récompense unique : `karaOn=false` avant le gain. | « Karaoké : sans-faute » et reset de `karaOn`. Plafond : 3e session refusée sans débit, levé à la vague suivante et au game over (la fausse note sert à clore chaque session). | Enchaîner 3 sessions dans une même vague → la 3e est refusée (« Le micro est réservé »), sans débit.<br>Atteindre le bar.<br>Lisibilité du curseur au doigt (fenêtre parfaite \|pos\| < 0,14). | 
 | `aquarium` 🐙 Aquarium « Bleu Profond » | ⚠ **SORTIE** : cache à 4,04 u (r 2,70), bassin à 5,80 u (r 3,61) — chevauchent.<br>✓ Farming : 1 Gaston/vague.<br>✓ Game over : `gastonVague` remis à −1 (non testé).<br>⚠ **Perdable** : la chasse ne se perd pas — sonder les 6 bassins est gratuit, gain garanti de 180–380 $/vague après la Perle.<br>✓ Récompense unique : `gastonTrouve` par vague. | Socle seul. | Atteindre le bassin le plus proche de l'entrée ; re-sonder après avoir trouvé Gaston → refus.<br>Arbitrage de design : un gain garanti est-il acceptable ? | 
 | `bowling` 🎳 Bowling « Le Strike Doré » | ✓ Farming : 2 parties/vague.<br>✓ Game over : `bwEtat`, `bwParties`.<br>— SORTIE : jeu à 7,81 u (r 4), cache à 7,28 u — sous 8 u mais sans chevauchement.<br>✓ Perdable : erreur ≥ 0,75 → 0–1 quille ; il faut ≥ 5 quilles sur 3 lancers pour rentrer dans les 80 $.<br>✓ Récompense unique : `bwEtat=null` en fin de partie ; gros lot parfait une seule fois (`aCurio`). | « Tentative de farming (bowling) », « partie complète (3 strikes) », reset `bw*`. | Timing des deux curseurs au doigt (ligne puis force, vitesse 1,6 + 0,3 par lancer). | 
 | `sport` 🏋️ Salle de sport « Fer & Sueur » | ⚠ **Cadence** : force de 12 à 100 contre une chute continue ; minimum tenu **3,3 / 4,4 / 5,0 appuis/s** (barres 1/2/3), la dernière **pendant 13 s**.<br>✓ Game over : `spEtat`.<br>— Farming : aucun gain d'argent (sac = endurance).<br>— SORTIE : cache à 7,88 u.<br>✓ Perdable : chrono 9/10/13 s, −4 PV, 40 $ perdus.<br>— Récompense unique : aucun gain d'argent ; palier via `Math.max`. | « Soulevé réussi puis raté » — appels directs, **sans cadence humaine**. Reset `spEtat`. | Tenir 5 appuis/s pendant 13 s au pouce, puis à deux doigts alternés : le 2e doigt est-il compté (`pointerdown` multi-touch) ? | 
@@ -79,9 +79,9 @@ console eruda.
 
 ## Constats à arbitrer (relevés dans le code, rien de corrigé)
 
-1. **Farming illimité**, contraire à la règle « limite par vague » : machine 7 de
-   la Laverie et Karaoké (décisions de design en attente). Le tronc du Musée
-   n'en fait plus partie (voir « Corrigé depuis la première grille »).
+1. **Farming illimité** : plus aucun cas connu. Karaoké et machine 7 de la Laverie
+   sont plafonnés à 2 par vague, le tronc du Musée à 3 (voir « Corrigé depuis la
+   première grille »).
 2. **Braquages jamais réinitialisés** : caisse (Supérette), coffre (Banque),
    casiers et preuves (Commissariat). Les salles restent en cache dans
    `INT.salles`, donc un braquage reste fait après un game over, jusqu'au
@@ -113,15 +113,17 @@ console eruda.
 - **Gardes d'entrée** (`2281bb1`) sur `cineTerminerSeance` et
   `chalutierVendre`.
 - **Règle des 8 unités** (`f35f767`) : test universel avec cliquet.
+- **Karaoké et Laverie** : plafonds de **2 sessions** et **2 lavages par vague**
+  (même motif que le tronc), testés : dépassement refusé, plafond levé à la vague
+  suivante et au game over.
 - **Dépôt** (`0c6db2b`) : une IA pouvait dépasser son plafond de vitesse d'un
   pas d'accélération (21,52 pour 20,8). Reproduit avec `SEED=3141483545`, une
   exécution sur deux ; 10/10 après correction.
 
 ## Par où commencer
 
-**Karaoké** (`karaoke`). Avec la Serre, c'est la salle qui cumule le plus de
-risques non couverts par les scripts : deux règles violées, plus un garde-fou
-jamais testé. Le Karaoké passe devant à cause de la gravité : son farming
-illimité casse l'économie du jeu, alors que les problèmes de la Serre ne
-touchent qu'une plante et un montant. Ordre conseillé ensuite : Serre, Laverie,
-Roi des Sandwichs, Aquarium, Musée (vérifier le plafond du tronc), Salle de sport (cadence), puis le reste.
+**Serre** (`serre`) : le pot à 0,60 u de la SORTIE, le minijeu sans défaite et
+le double paiement jamais testé en font maintenant la salle la plus à risque.
+Ordre conseillé ensuite : Karaoké (vérifier le plafond, atteindre le bar), Roi des
+Sandwichs, Aquarium, Laverie (vérifier le plafond), Musée (plafond du tronc), Salle
+de sport (cadence), puis le reste.

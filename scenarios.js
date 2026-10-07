@@ -642,6 +642,62 @@ async function main() {
     }
 
     // -------------------------------------------------------------------
+    // Plafonds par vague du Karaoké et de la machine 7 de la Laverie (règle
+    // « pas de farming infini ») : même motif que le tronc. Plafonds lus
+    // depuis le jeu ; une session compte dès son lancement. Entre deux
+    // lancements, on termine la session comme le ferait le jeu (fausse note
+    // pour le karaoké, cycle fini et sac récupéré pour la laverie).
+    // -------------------------------------------------------------------
+    for (const cas of [
+      { salle: 'karaoke', nom: 'Karaoké', max: 'KARAOKE_SESSIONS_MAX', zone: 'scene2' },
+      { salle: 'laverie', nom: 'Laverie (machine 7)', max: 'LAVERIE_LAVAGES_MAX', zone: 'machine7' },
+    ]) {
+      console.log('\n--- ' + cas.nom + ' : plafond par vague (dépassement refusé, levé à la vague suivante et au game over) ---');
+      const r = await page.evaluate((cas) => {
+        startRun();
+        const p = PORTES.find((x) => x.id === cas.salle);
+        entrerInterieur(cas.salle, p);
+        const s = INT.actif;
+        if (!s || !s[cas.zone]) return { erreur: 'salle ' + cas.salle + ' sans zone ' + cas.zone };
+        const MAX = window[cas.max] !== undefined ? window[cas.max] : eval(cas.max);
+        const terminer = () => {
+          if (cas.salle === 'karaoke') { if (s.karaOn) { s.karaPos = 1; evaluerKaraoke(s); } }
+          else { s.cycleOn = false; s.sacPret = false; }
+        };
+        const lancer = () => {
+          META.argent = Math.max(META.argent, 1000);
+          P.x = s[cas.zone].x; P.z = s[cas.zone].z; P.hp = P.maxHp;
+          majAction();
+          const b = document.getElementById('btnAction');
+          const avant = META.argent;
+          if (b._fn) b._fn();
+          const lance = META.argent < avant;
+          terminer();
+          return { lance, label: b.textContent };
+        };
+        const res = [];
+        for (let i = 0; i < MAX; i++) res.push(lancer().lance);
+        const refus = lancer();
+        WAVES.n++;
+        const apresVague = lancer().lance;
+        sortirInterieur();
+        startRun();
+        entrerInterieur(cas.salle, p);
+        const apresGameOver = lancer().lance;
+        sortirInterieur();
+        return { MAX, sousPlafond: res.every(Boolean), refusLance: refus.lance, labelRefus: refus.label, apresVague, apresGameOver };
+      }, cas);
+      if (r.erreur) { fail(cas.nom + ' : ' + r.erreur); continue; }
+      if (!r.sousPlafond) fail(cas.nom + ' : les ' + r.MAX + ' sessions sous le plafond ne se lancent pas toutes');
+      else if (r.refusLance) fail(cas.nom + ' : la session n° ' + (r.MAX + 1) + ' de la vague se lance encore (plafond ' + r.MAX + ' non respecté)');
+      else ok(cas.nom + ' : plafonné à ' + r.MAX + ' par vague, la suivante est refusée sans rien débiter (label = "' + r.labelRefus + '")');
+      if (!r.apresVague) fail(cas.nom + ' : le plafond n\'est pas levé à la vague suivante');
+      else ok(cas.nom + ' : le plafond est bien levé à la vague suivante');
+      if (!r.apresGameOver) fail(cas.nom + ' : le plafond survit au game over');
+      else ok(cas.nom + ' : le plafond ne survit pas au game over');
+    }
+
+    // -------------------------------------------------------------------
     // Arcade : VIPÈRE — jeton consommé, score, tickets, collision mortelle.
     // -------------------------------------------------------------------
     console.log('\n--- Arcade : VIPÈRE (jeton, score, tickets, collision) ---');

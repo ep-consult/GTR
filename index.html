@@ -12044,6 +12044,8 @@ const SITE51_PORTES={AB1:{x:-8,z:39},AB2:{x:8,z:39},BC1:{x:-8,z:-21},BC2:{x:8,z:
 // laisse toujours au moins une issue, voir site51Accessible().
 const SITE51_GRANDE_PORTE={x:0,z:-79};
 const TRONC_DONS_MAX=3; // Musée : dons du tronc par vague (30–120 $), voir majAction
+const KARAOKE_SESSIONS_MAX=2; // Karaoké : sessions par vague, comptée au lancement
+const LAVERIE_LAVAGES_MAX=2;  // Laverie : lavages de la machine 7 par vague, compté au lancement
 const SITE51_VISITES_MAX=1; // par vague, échec compris — consommée dans tous les cas
 const SITE51_ENFERME_DELAI=20; // secondes (dtJeu) avant neutralisation si plus aucune issue
 // tourelles (niveau B uniquement) : cône de détection, jamais létales — la
@@ -17805,7 +17807,8 @@ function startRun(){
     if(sa.cycleOn!==undefined){ sa.cycleOn=false; sa.cycleT=0; sa.sacPret=false;
       if(sa.hublot7) sa.hublot7.material.color.setHex(0x9fe4ff); }
     if(sa.machinesFond) for(const m of sa.machinesFond) m.pris=false;
-    if(sa.karaOn!==undefined){ sa.karaOn=false; if(sa.karaBarre) sa.karaBarre.visible=false; }
+    if(sa.karaOn!==undefined){ sa.karaOn=false; if(sa.karaBarre) sa.karaBarre.visible=false; sa.karaVague=-1; sa.karaN=0; }
+    if(sa.machine7){ sa.lavVague=-1; sa.lavN=0; } // laverie : plafond de la machine 7 levé
     if(sa.gastonMesh){ sa.gastonMesh.visible=false; sa.gastonVague=-1; sa.gastonTrouve=false; }
     if(sa.bwEtat!==undefined){ sa.bwEtat=null; sa.bwAnim=0; if(sa.boule) sa.boule.visible=false;
       sa.bwParties=0; sa.bwVague=-1; }
@@ -18359,13 +18362,22 @@ function majAction(){
         label='🌀 CYCLE EN COURS — '+Math.ceil(s.cycleT)+' s';
         fn=()=>{ SFX.refus(); toast('Le linge ne se lave pas plus vite parce que tu insistes'); };
       } else {
+        // plafond par vague (règle « pas de farming infini ») : un lavage
+        // compte dès qu'il est lancé — remise à zéro dans startRun()
+        if(s.lavVague!==WAVES.n){ s.lavVague=WAVES.n; s.lavN=0; }
+        if((s.lavN||0)>=LAVERIE_LAVAGES_MAX){
+          label='🧺 Machine 7 en maintenance — reviens à la prochaine vague';
+          fn=()=>{ SFX.refus(); toast('Deux lessives par vague. Le gérant commence à se poser des questions.'); };
+        } else {
         label='🧺 LANCER LA MACHINE 7 — 50 $';
         fn=()=>{
           if(META.argent<50){SFX.refus();toast('Il te faut 50 $ de jetons');return;}
+          s.lavN=(s.lavN||0)+1;
           META.argent-=50; s.cycleOn=true; s.cycleT=42;
           SFX.achat(); toast('Cycle lancé. Reste dans le coin — ou pas.','or');
           bigMsg('MACHINE 7 EN ROUTE');
         };
+        }
       }
     } else if(s.filtre&&META.lessives>0&&dist2(P.x,P.z,s.filtre.x,s.filtre.z)<marquerZone(s.filtre,12)){
       const neuf=!aCurio('chaussette');
@@ -18437,15 +18449,24 @@ function majAction(){
         label='⏹ ARRÊTER LE CURSEUR ('+(s.karaStep+1)+'/3)';
         fn=()=>evaluerKaraoke(s);
       } else {
+        // plafond par vague (règle « pas de farming infini ») : une session
+        // compte dès qu'elle est lancée, fausse note ou abandon compris
+        if(s.karaVague!==WAVES.n){ s.karaVague=WAVES.n; s.karaN=0; }
+        if((s.karaN||0)>=KARAOKE_SESSIONS_MAX){
+          label='🎤 Le micro est réservé — reviens à la prochaine vague';
+          fn=()=>{ SFX.refus(); toast('Deux chansons par vague. Laisse les autres massacrer un tube aussi.'); };
+        } else {
         label='🎤 CHANTER — 60 $';
         fn=()=>{
           if(META.argent<60){SFX.refus();toast('Le micro se loue 60 $');return;}
+          s.karaN=(s.karaN||0)+1;
           META.argent-=60; s.karaOn=true; s.karaStep=0; s.karaPerf=0;
           s.karaPos=0; s.karaDir=1; s.karaVit=1.05;
           s.karaBarre.visible=true;
           bigMsg('🎤 À TOI DE CHANTER'); toast('Arrête le curseur dans le vert. Trois fois.','or');
           SFX.ui();
         };
+        }
       }
     /* ---------- AQUARIUM : la chasse à Gaston ---------- */
     } else if(s.bassins&&s.bassins.some(b=>dist2(P.x,P.z,b.x,b.z)<marquerZone(b,13))){
