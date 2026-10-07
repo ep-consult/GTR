@@ -4956,9 +4956,11 @@ function makeVoiture(key){
       l.position.set(Math.sin(a)*1.96,discTop+0.05,Math.cos(a)*1.96); lumieres.add(l);
     }
     g.add(lumieres); ud.lumieresOvni=lumieres;
-    // faisceau translucide sous la coque : purement cosmétique, jamais un
-    // vrai rayon tracteur (aucune interaction physique) — juste pour que
-    // « ça a l'air de léviter » se lise tout de suite, même à l'arrêt.
+    // faisceau translucide sous la coque : habillage seul, pour que « ça a
+    // l'air de léviter » se lise tout de suite, même à l'arrêt. La capture
+    // réelle (cône, levage, suspension, relâche) ne vit PAS dans ce mesh :
+    // voir la section RAYON TRACTEUR DE L'OVNI. Ne jamais tester une collision
+    // contre ce cylindre — il ne décrit pas la zone de capture.
     const faisceau=new THREE.Mesh(new THREE.CylinderGeometry(0.3,1.7,1.3,16,1,true),
       new THREE.MeshBasicMaterial({color:0x9fe8b0,transparent:true,opacity:0.14,depthWrite:false,side:THREE.DoubleSide}));
     faisceau.position.y=0.4; g.add(faisceau); ud.faisceau=faisceau;
