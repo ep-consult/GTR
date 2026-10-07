@@ -4985,6 +4985,9 @@ async function main() {
       }
       function nettoyer() { for (let i = vehicules.length - 1; i >= 0; i--) if (vehicules[i].mort) { scene.remove(vehicules[i].mesh); vehicules.splice(i, 1); } }
       startRun();
+      // le test maîtrise sa scène : aucun véhicule de la ville sur la trajectoire (voir Broyeur)
+      function viderVehiculesVille() { for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0; }
+      viderVehiculesVille();
       const resultats = {};
       const cibles = ['citadine', 'taxi', 'van', 'busville', 'pompiers', 'police'];
       let k = 0;
@@ -5027,6 +5030,9 @@ async function main() {
       }
       function nettoyer() { for (let i = vehicules.length - 1; i >= 0; i--) if (vehicules[i].mort) { scene.remove(vehicules[i].mesh); vehicules.splice(i, 1); } }
       startRun();
+      // le test maîtrise sa scène : aucun véhicule de la ville sur la trajectoire (voir Broyeur)
+      function viderVehiculesVille() { for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0; }
+      viderVehiculesVille();
       const sp = openSpot(1);
       const charV = creerVehicule('char', sp.x, sp.z, 0, 'joueur');
       const cible = creerVehicule('citadine', sp.x, sp.z + 3, Math.PI, 'trafic');
@@ -5071,6 +5077,9 @@ async function main() {
       }
       function nettoyer() { for (let i = vehicules.length - 1; i >= 0; i--) if (vehicules[i].mort) { scene.remove(vehicules[i].mesh); vehicules.splice(i, 1); } }
       startRun();
+      // le test maîtrise sa scène : aucun véhicule de la ville sur la trajectoire (voir Broyeur)
+      function viderVehiculesVille() { for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0; }
+      viderVehiculesVille();
       const sp = openSpot(1);
       const charV = creerVehicule('char', sp.x, sp.z, 0, 'joueur');
       // touché près d'une extrémité (pas au centre) : doit déclencher le stade intermédiaire
@@ -5102,6 +5111,9 @@ async function main() {
       }
       function nettoyer() { for (let i = vehicules.length - 1; i >= 0; i--) if (vehicules[i].mort) { scene.remove(vehicules[i].mesh); vehicules.splice(i, 1); } }
       startRun();
+      // le test maîtrise sa scène : aucun véhicule garé entre le véhicule et le piéton (voir Broyeur)
+      function viderVehiculesVille() { for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0; }
+      viderVehiculesVille();
       let compteur = 0;
       const essai = (vehKey, vit) => {
         compteur++;
@@ -5136,6 +5148,9 @@ async function main() {
       }
       function nettoyer() { for (let i = vehicules.length - 1; i >= 0; i--) if (vehicules[i].mort) { scene.remove(vehicules[i].mesh); vehicules.splice(i, 1); } }
       startRun();
+      // le test maîtrise sa scène : aucun véhicule de la ville sur la trajectoire (voir Broyeur)
+      function viderVehiculesVille() { for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0; }
+      viderVehiculesVille();
       const premieresMesh = [];
       for (let i = 0; i < EPAVES_MAX + 6; i++) {
         const sp = openSpot(50 + i);
@@ -5169,6 +5184,9 @@ async function main() {
       }
       function nettoyer() { for (let i = vehicules.length - 1; i >= 0; i--) if (vehicules[i].mort) { scene.remove(vehicules[i].mesh); vehicules.splice(i, 1); } }
       startRun();
+      // le test maîtrise sa scène : aucun véhicule de la ville autour du camion (voir Broyeur)
+      function viderVehiculesVille() { for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0; }
+      viderVehiculesVille();
       const sp = openSpot(1);
       const pomp = creerVehicule('pompiers', sp.x, sp.z, 0, 'joueur');
       P.veh = pomp;
@@ -5833,6 +5851,14 @@ async function main() {
       // --- Broyeur : 8 écrasements, y compris un véhicule long en deux
       // temps qui ne doit compter qu'UNE fois ---
       startRun();
+      // Le test maîtrise sa scène : startRun() gare des véhicules de la ville
+      // (dont trois à 13-16 unités de POIS.place) et openSpot() n'évite que
+      // les bâtiments et l'eau. Bug déjà rencontré : ~3 % des tirages, un
+      // véhicule garé traînait sur la trajectoire du char et devenait un 9e
+      // écrasement. Même motif que nettoieMonde() — aucune autre structure ne
+      // retient ces véhicules juste après startRun().
+      function viderVehiculesVille() { for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0; }
+      viderVehiculesVille();
       function openSpot(k) {
         for (let ring = 0; ring < 8; ring++) for (let a = 0; a < 8; a++) {
           const ang = (a / 8) * Math.PI * 2;
@@ -5961,7 +5987,9 @@ async function main() {
       res.vehdefPresent = !!VEHDEFS.motocross && VEHDEFS.motocross.type === 'moto' && !!VEHDEFS.motocross.cross;
       res.auCatalogue = CATALOGUE.some((o) => o.key === 'motocross');
 
-      startRun();
+      // le test maîtrise sa scène : aucun véhicule de la ville sur les ~100 unités parcourues (voir Broyeur)
+      function viderVehiculesVille() { for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0; }
+      startRun(); viderVehiculesVille();
       const mt = creerVehicule('motocross', POIS.place.x, POIS.place.z, 0, null);
       P.veh = mt; mt.conduit = 'joueur';
       INPUT.btn.esquive = true;
@@ -5974,7 +6002,7 @@ async function main() {
       chute = !P.veh;
       res.tenirEnContinuFaitChuter = chute && t < 3;
 
-      startRun();
+      startRun(); viderVehiculesVille();
       const mt2 = creerVehicule('motocross', POIS.place.x, POIS.place.z, 0, null);
       P.veh = mt2; mt2.conduit = 'joueur';
       INPUT.btn.esquive = true;
@@ -5990,7 +6018,7 @@ async function main() {
       res.relacherATempsSauveToujours = !!P.veh;
       res.angleRedescendBienAZero = P.veh ? P.veh.wheelieA < 0.01 : false;
 
-      startRun();
+      startRun(); viderVehiculesVille();
       const mt3 = creerVehicule('motocross', POIS.place.x, POIS.place.z, 0, null);
       P.veh = mt3; mt3.conduit = 'joueur';
       INPUT.btn.esquive = false;
