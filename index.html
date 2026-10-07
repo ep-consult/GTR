@@ -14826,6 +14826,7 @@ function cineArreterSeance(s){
   if(cineWrap.style.display!=='none') cineWrap.style.display='none';
 }
 function cineTerminerSeance(s,succes){
+  if(!s.seanceOn) return; // garde d'entrée propre (voir CLAUDE.md) : cineArreterSeance la referme
   const recette=Math.round(500*(s.satisfaction/100));
   if(recette>0){ META.argent+=recette; ETAT.cashRun+=recette; META.stats.cashTotal+=recette; }
   if(succes&&s.parfaite&&s.satisfaction>=100) donnerCurio('bobine');
@@ -15266,6 +15267,7 @@ function chalutierRemonterFilet(s){
 // retour au ponton : vente automatique de la cale, condition de la curiosité
 // vérifiée AVANT le reset (chalutierArreterSortie efface zoneMax/calePoids/...)
 function chalutierVendre(s){
+  if(!s.sortieEnCours) return; // garde d'entrée propre (voir CLAUDE.md) : chalutierArreterSortie la referme
   const total=s.caleValeur, nb=s.cale.length;
   if(total>0){ META.argent+=total; ETAT.cashRun+=total; META.stats.cashTotal+=total; }
   const meritee=s.zoneMax>=3&&s.calePoids>=CHALUTIER_CALE_MAX&&!s.aRejete&&s.meteoEtat!=='tempete';

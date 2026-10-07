@@ -267,6 +267,9 @@ Contraintes tirées de la passe de debug — à respecter pour toute nouvelle sa
   jamais survivre dans une nouvelle partie.
 - **Récompense unique par validation.** La serre payait double quand un critère
   avait 4 plantes valides.
+- **Un chemin de paiement porte SA PROPRE garde d'entrée.** Ne jamais compter
+  sur l'exclusivité des appelants : elle disparaît au premier appelant ajouté.
+  (Modèle : `if(!s.visiteEnCours) return;` en tête de `site51ConclureVisite`.)
 - **Vérifier l'accessibilité des boutons.** Le bouton du défi Monstre chevauchait
   la zone de SORTIE et était inatteignable.
 - **Cadences de tap réalistes.** Modéliser le rythme de tap humain avant de fixer
