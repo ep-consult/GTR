@@ -153,6 +153,18 @@ test de réinitialisation, une liste de bornes dans le test du Jeton Doré.
 Dans chaque cas le test continuait de passer au vert en ne vérifiant plus
 rien dès que la liste réelle changeait.
 
+**Un test de scénario maîtrise sa scène.** Il ne suppose jamais qu'une zone
+est vide : il la vide. Bug déjà rencontré — le test du Broyeur échouait 3 fois
+sur 100 parce qu'un véhicule de la ville traînait à portée du char et devenait
+un 9e écrasement (`startRun()` gare des véhicules autour de `POIS.place`).
+Motif en place dans `scenarios.js` : `viderVehiculesVille()` juste après
+`startRun()`.
+
+**Un test sauté doit être visible et compté dans le résumé.** Un test
+silencieusement sauté par la graine est un angle mort qui passe au vert.
+Dans `scenarios.js`, un saut passe par `saute(msg)`, jamais par `info()` :
+il est listé nommément dans le résumé final.
+
 ### Bugs visuels
 Un bug visuel se valide par un **rendu Three.js réel**, jamais par un test de
 logique. Trop de régressions d'affichage passent au vert en logique pure.
@@ -319,6 +331,20 @@ supposant. Three.js r128 est installé via npm dans le projet.
 node valider.js          # runtime simulé : charge le jeu, détecte les erreurs
 node scenarios.js        # Puppeteer headless : scénarios de jeu réels
 ```
+
+Les deux scripts sont **seedés par défaut** (mulberry32, graine `20260731`,
+affichée en tête de run et rappelée dans le résumé en cas d'échec) :
+
+```bash
+SEED=12345 node scenarios.js    # rejoue un tirage précis
+SEED=random node scenarios.js   # tirage libre — attrape les bugs dépendants du tirage
+```
+
+La graine fixe la ville (construite avant la 1re frame) ; les tirages faits
+ensuite par `boucle()` dépendent du temps réel écoulé, d'où la règle « un test
+maîtrise sa scène ». Avec la graine par défaut, aucune vérification n'est
+sautée : si un changement du jeu en fait sauter une, le résumé la liste — la
+traiter comme un angle mort, pas comme un succès.
 
 Scénarios à couvrir pour toute modif de salle : tentative de farming, abandon en
 plein minijeu, mort pendant un défi, balayage de tous les boutons cliquables

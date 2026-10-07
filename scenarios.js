@@ -24,8 +24,40 @@ const PORT = 8842;
 const INDEX_HTML = path.join(__dirname, 'index.html');
 const THREE_MIN = path.join(__dirname, 'node_modules/three/build/three.min.js');
 
+// ---------------------------------------------------------------------------
+// PRNG déterministe : même motif et même graine par défaut que valider.js.
+// mulberry32 remplace Math.random dans la page avant tout script du jeu
+// (evaluateOnNewDocument, réappliqué à chaque rechargement) : la ville,
+// construite au premier niveau avant la 1re frame, est la même d'une run à
+// l'autre. Les tirages faits ensuite par boucle() dépendent du nombre de
+// frames réelles écoulées entre deux evaluate — le reste n'est donc
+// reproductible qu'au mieux, d'où la règle « un test maîtrise sa scène ».
+//   SEED=12345 node scenarios.js   rejoue un tirage précis
+//   SEED=random node scenarios.js  tirage libre (graine tirée puis affichée)
+// ---------------------------------------------------------------------------
+const SEED = (() => {
+  const s = process.env.SEED;
+  if (!s) return 20260731;
+  if (s === 'random') return (Math.random() * 4294967296) >>> 0;
+  const n = Number(s);
+  if (!Number.isInteger(n)) { console.error('SEED invalide : « ' + s + ' » (entier ou « random » attendu)'); process.exit(2); }
+  return n;
+})();
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 let echecs = 0;
 function fail(msg) { echecs++; console.error('✗ ' + msg); }
+// Un test sauté (tirage défavorable) n'est jamais un succès silencieux : il
+// est compté et listé nommément dans le résumé final.
+const sautes = [];
+function saute(msg) { sautes.push(msg); console.log('  ⤼ SAUTÉ : ' + msg); }
 function ok(msg) { console.log('✓ ' + msg); }
 function info(msg) { console.log('  · ' + msg); }
 
@@ -120,6 +152,7 @@ async function verifierHUD(page, contexte) {
 }
 
 async function main() {
+  console.log('Seed PRNG : ' + SEED + ' (SEED=<n> node scenarios.js pour rejouer ce tirage, SEED=random pour un tirage libre)\n');
   console.log('Démarrage du serveur local...');
   const server = await demarrerServeur();
   info('http://127.0.0.1:' + PORT + '/ (Three.js et eruda servis en local, aucun réseau requis)');
@@ -128,6 +161,7 @@ async function main() {
   const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
   const page = await browser.newPage();
   await page.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true, deviceScaleFactor: 3 });
+  await page.evaluateOnNewDocument('Math.random = (' + mulberry32.toString() + ')(' + SEED + ');');
 
   const erreursPage = [];
   page.on('pageerror', (e) => erreursPage.push('pageerror: ' + (e && e.message || e)));
@@ -728,10 +762,10 @@ async function main() {
     if (!demolition.attenteAvant || demolition.attenteApres || demolition.vyApresLancer >= 0) fail('Arcade : un appui ne lance pas la boule qui attendait sur la grue');
     else ok('Arcade : un appui lance bien la boule qui attendait sur la grue');
     if (demolition.verreDetruit === false || demolition.scoreApresVerre !== 1) fail('Arcade : le verre ne se détruit pas en 1 coup pour 1 point (détruit=' + demolition.verreDetruit + ', score=' + demolition.scoreApresVerre + ')');
-    else if (demolition.verreDetruit === null) info('Arcade : aucune brique de verre dans cette tour (tirage), sous-test ignoré');
+    else if (demolition.verreDetruit === null) saute('Arcade : aucune brique de verre dans cette tour (tirage), sous-test ignoré');
     else ok('Arcade : le verre se détruit bien en 1 coup pour 1 point');
     if (demolition.vieApres1Coup === 1 && demolition.acierDetruitApres2Coups === true) ok('Arcade : l\'acier se fissure au 1er coup puis se détruit au 2e (4 points)');
-    else if (demolition.vieApres1Coup === null) info('Arcade : aucune brique d\'acier dans cette tour (tirage), sous-test ignoré');
+    else if (demolition.vieApres1Coup === null) saute('Arcade : aucune brique d\'acier dans cette tour (tirage), sous-test ignoré');
     else fail('Arcade : l\'acier ne suit pas la règle des 2 coups (vie après 1 coup=' + demolition.vieApres1Coup + ', détruit après 2=' + demolition.acierDetruitApres2Coups + ')');
     if (demolition.poutreResiste === false) fail('Arcade : une poutre a été détruite alors qu\'elle doit être indestructible');
     else ok('Arcade : la poutre est bien indestructible (résiste à 5 impacts)');
@@ -2371,9 +2405,9 @@ async function main() {
       if (vals.some((v) => v < 0)) fail('Métro : la table ' + table + ' a produit un gain négatif sur 60 tirages');
       else ok('Métro : la table ' + table + ' ne produit jamais de butin négatif (60 tirages)');
     }
-    if (!fouilleMetro.rareMetro3 || !fouilleMetro.resultat.metro3.some((v) => v >= fouilleMetro.rareMetro3.min && v <= fouilleMetro.rareMetro3.max)) info('Métro : la somme rare de la table metro3 n\'est pas tombée sur 60 tirages (probabilité ~15 %, possible par hasard)');
+    if (!fouilleMetro.rareMetro3 || !fouilleMetro.resultat.metro3.some((v) => v >= fouilleMetro.rareMetro3.min && v <= fouilleMetro.rareMetro3.max)) saute('Métro : la somme rare de la table metro3 n\'est pas tombée sur 60 tirages (probabilité ~15 %, possible par hasard)');
     else ok('Métro : la somme rare de la table metro3 est bien tombée dans sa fourchette déclarée au moins une fois');
-    if (!fouilleMetro.pileTrouvee) info('Métro : aucune pile trouvée en fouille sur 60 tirages de la table metro3 (probabilité ~20 % par tirage, possible par hasard)');
+    if (!fouilleMetro.pileTrouvee) saute('Métro : aucune pile trouvée en fouille sur 60 tirages de la table metro3 (probabilité ~20 % par tirage, possible par hasard)');
     else ok('Métro : une pile trouvée en fouille recharge bien la batterie');
 
     // -------------------------------------------------------------------
@@ -5268,7 +5302,7 @@ async function main() {
       if (el('btnAction')._fn) el('btnAction')._fn();
       return { arriveSurLeToit: Math.abs(P.y - POIS.toitH.h) < 2, plusEnSalle: !INT.actif };
     });
-    if (ascenseur.toitHAbsent || ascenseur.ascenseurIntrouvable) info('Jetpack : tour/ascenseur introuvable cette partie (probabiliste) — vérification sautée');
+    if (ascenseur.toitHAbsent || ascenseur.ascenseurIntrouvable) saute('Jetpack : tour/ascenseur introuvable cette partie (probabiliste) — vérification sautée');
     else if (!ascenseur.arriveSurLeToit || !ascenseur.plusEnSalle) fail('Jetpack : l\'ascenseur de la tour ne dépose pas fiablement sur le toit — c\'est le seul moyen d\'accès sans jetpack exigé par CLAUDE.md');
     else ok('Jetpack : l\'ascenseur de la tour dépose bien fiablement sur le toit, sans jetpack — l\'accès « première fois » est garanti');
 
@@ -5293,7 +5327,7 @@ async function main() {
         meshVisible: P.jetMesh.g.visible === true,
       };
     });
-    if (equipement.absent) info('Jetpack : lieu introuvable cette partie — vérification sautée');
+    if (equipement.absent) saute('Jetpack : lieu introuvable cette partie — vérification sautée');
     else {
       if (!equipement.pasDeBoutonLoin) fail('Jetpack : le bouton ÉQUIPER apparaît alors que le joueur est loin du point');
       else ok('Jetpack : le bouton ÉQUIPER n\'apparaît bien que tout près du point de découverte');
@@ -5347,7 +5381,7 @@ async function main() {
 
       return out;
     });
-    if (boutonDecoller.absent) info('Jetpack : lieu introuvable cette partie — vérification du bouton sautée');
+    if (boutonDecoller.absent) saute('Jetpack : lieu introuvable cette partie — vérification du bouton sautée');
     else {
       if (!boutonDecoller.cacheAvantEquipement) fail('Jetpack : le bouton DÉCOLLER est visible avant même d\'avoir le jetpack');
       else ok('Jetpack : le bouton DÉCOLLER reste bien caché tant que le jetpack n\'est pas équipé');
@@ -5905,7 +5939,7 @@ async function main() {
     else ok('Défis : \'depotBalayage\' se déclenche bien après une victoire sur les 3 circuits');
     if (!nouveauxDefis.volantDefiFait) fail('Défis : \'volantDefi\' ne se déclenche pas en gagnant Le Toit avec Le Bus');
     else ok('Défis : \'volantDefi\' se déclenche bien en gagnant Le Toit avec Le Bus');
-    if (!nouveauxDefis.jetpackToitPresent) info('Défis : tour/jetpack introuvable cette partie (probabiliste) — vérifications jetpack sautées');
+    if (!nouveauxDefis.jetpackToitPresent) saute('Défis : tour/jetpack introuvable cette partie (probabiliste) — vérifications jetpack sautées');
     else {
       if (!nouveauxDefis.jetpackDefiFlag || !nouveauxDefis.jetpackDefiFait) fail('Défis : \'jetpackDefi\' ne se déclenche pas à l\'équipement du jetpack');
       else ok('Défis : \'jetpackDefi\' se déclenche bien à l\'équipement du jetpack');
@@ -6122,8 +6156,15 @@ async function main() {
   }
 
   console.log('\n' + '='.repeat(60));
+  if (sautes.length) {
+    console.log(sautes.length + ' vérification(s) SAUTÉE(S) par le tirage (graine ' + SEED + ') — angles morts de cette run :');
+    for (const s of sautes) console.log('  ⤼ ' + s);
+  } else {
+    console.log('Aucune vérification sautée (graine ' + SEED + ').');
+  }
   if (echecs) {
     console.error(echecs + ' vérification(s) en échec.');
+    console.error('Graine : ' + SEED + ' — rejouer ce tirage exact : SEED=' + SEED + ' node scenarios.js');
     process.exit(1);
   } else {
     console.log('Tous les scénarios sont passés.');
