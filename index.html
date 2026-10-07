@@ -15622,6 +15622,11 @@ function depotPiloterIA(ent,course,dtJeu){
   const plafond=Math.min(ent.v.def.vmax,course.vJoueurVmax*frac)*freinageVirage;
   const throttle=ent.v.v<plafond?1:-0.3; // plafond strict : jamais de zone grise qui laisse dépasser
   majVehiculePhys(ent.v,dtJeu,throttle,steer,false);
+  // Bug déjà rencontré (SEED=3141483545) : le throttle est décidé AVANT
+  // l'intégration, un pas d'accélération pleine partant juste sous le plafond
+  // le dépassait (21,52 pour 20,8). On rabote ce seul dépassement — jamais un
+  // freinage sous la vitesse d'avant le pas (throttle>0 ⇒ v était < plafond).
+  if(throttle>0&&ent.v.v>plafond) ent.v.v=plafond;
 }
 function depotAvancerProgress(ent,course){
   const pts=course.pts, N=pts.length, c=course.c;
