@@ -1,4 +1,4 @@
-   88 %  ico-arme-poings
+   43 %  ico-arme-poings
    76 %  ico-arme-couteau
    62 %  ico-arme-batte
    77 %  ico-arme-batte2

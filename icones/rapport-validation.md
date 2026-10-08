@@ -70,10 +70,11 @@ La référence visuelle reste la comparaison côte à côte : `rapport/cote_*.pn
 | Recouvrement | Icônes |
 |---|---|
 | 90 % et plus | pause 98, bouleC 92, switch 90, action 90 |
-| 80 à 89 % | poings 88, munitions 82, cible 81, vitesse 81, pistolet 80 |
+| 80 à 89 % | munitions 82, cible 81, vitesse 81, pistolet 80 |
 | 70 à 79 % | grenade 78, bâtiments 78, batte2 77, brake 77, néon 77, couteau 76, pompe 76, sabre 76, ennemis 76, véhicules 76, adrénaline 75, gadget 74, taxi 74, roquette 73, commerces 73, fusil 72, uzi 72, porte 72, nitro 72, pm 70, jetpack 70, onde 70 |
 | 60 à 69 % | peinture 68, sniper 67, sprint 67, jump 65, silence 63, batte 62, flamme 61, dodge 60 |
 | sous 60 % | désintégrateur 59, moteur 56, pneu (tenue) 55 |
+| hors comparaison | **poings** : redessiné à la demande en poing fermé de face, façon emoji ✊, plus lisible en gros bouton ; il ne suit plus la planche |
 
 ## 4. Simplifications et écarts, icône par icône
 
@@ -83,7 +84,7 @@ des évidements. Les détails sous ~0,75 unité sont soit élargis (rainures,
 fentes : 0,4 à 0,75 u), soit supprimés lorsqu'ils disparaissent à 24 px.
 
 **Armes**
-- **poings** : plis du poignet et séparations des doigts ramenés à 2 étoiles et 5 fentes.
+- **poings** : **redessiné volontairement plus simple**, sur demande, car c'est le gros bouton affiché sans arme : poing fermé de face façon ✊, avec quatre doigts séparés et pliés, le pouce replié et le revers du poignet. Il s'écarte donc de la planche (poing de trois quarts).
 - **couteau** : 4 crans de dos (la référence en a davantage), gorge de lame réduite à une fente effilée, 3 bagues de manche.
 - **batte** : 9 clous à tête ronde au lieu du fil barbelé enchevêtré ; le barbelé devient 3 bagues évidées.
 - **batte2** : tête d'os bosselée simplifiée, 2 fissures, 3 ligatures.
