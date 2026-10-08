@@ -23,7 +23,7 @@ const I = {};
 I['ico-arme-poings'] = () => {
   // Poing fermé de face, façon emoji ✊ — version simplifiée demandée pour
   // rester lisible en gros bouton (combat à mains nues) : quatre doigts
-  // arrondis séparés par des encoches, pouce replié par-dessus (détaché par
+  // arrondis séparés par des encoches, pouce replié court (détaché par
   // un liseré évidé), poignet avec revers. Un seul contour : les évidements
   // tombent toujours dans une seule épaisseur de plein.
   const doigts = [[4.6, 7.95, 5.2], [8.75, 12.1, 3.7], [12.9, 16.25, 4.0], [17.05, 20.4, 5.4]]; // [x0, x1, haut]
@@ -33,11 +33,11 @@ I['ico-arme-poings'] = () => {
     if (i < 3) c.push([x1, 8.4, 1], [x1 + 0.4, 9.7, 1], [doigts[i + 1][0], 8.4, 1]);
   });
   c.push([20.4, 7.4], [20.4, 15.6], [20.0, 17.4], [17.8, 17.9], [16.4, 18.4, 1], [16.4, 22.6, 1], [7.6, 22.6, 1], [7.6, 18.4, 1],
-    [6.2, 17.9], [4.9, 17.1], [4.6, 15.6], [3.4, 15.0], [2.8, 13.0], [3.4, 11.3]);
+    [6.2, 17.9], [4.9, 17.1], [4.6, 15.4], [4.2, 14.4], [3.6, 13.3], [4.0, 12.0]);
   return [[
     lisse(c),
     // liseré qui détache le pouce replié (dessus, bout, dessous)
-    epais([[4.9, 11.5], [12.4, 10.6], [14.0, 10.9], [15.0, 12.0], [14.9, 13.6], [13.8, 14.7], [4.9, 15.0]], 0.8, true),
+    epais([[4.9, 11.9], [9.4, 11.4], [10.6, 11.8], [11.1, 12.7], [10.6, 13.7], [9.4, 14.1], [4.9, 14.3]], 0.75, true),
     // pli de chaque doigt replié
     ...doigts.map(([x0, x1, h]) => boite((x0 + x1) / 2, h + 2.7, 2.0, 0.6, 0, 0.3, true)),
     // revers du poignet

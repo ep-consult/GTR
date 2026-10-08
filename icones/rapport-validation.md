@@ -84,7 +84,7 @@ des évidements. Les détails sous ~0,75 unité sont soit élargis (rainures,
 fentes : 0,4 à 0,75 u), soit supprimés lorsqu'ils disparaissent à 24 px.
 
 **Armes**
-- **poings** : **redessiné volontairement plus simple**, sur demande, car c'est le gros bouton affiché sans arme : poing fermé de face façon ✊, avec quatre doigts séparés et pliés, le pouce replié et le revers du poignet. Il s'écarte donc de la planche (poing de trois quarts).
+- **poings** : **redessiné volontairement plus simple**, sur demande, car c'est le gros bouton affiché sans arme : poing fermé de face façon ✊, avec quatre doigts séparés et pliés, un pouce replié court et le revers du poignet. Il s'écarte donc de la planche (poing de trois quarts).
 - **couteau** : 4 crans de dos (la référence en a davantage), gorge de lame réduite à une fente effilée, 3 bagues de manche.
 - **batte** : 9 clous à tête ronde au lieu du fil barbelé enchevêtré ; le barbelé devient 3 bagues évidées.
 - **batte2** : tête d'os bosselée simplifiée, 2 fissures, 3 ligatures.
