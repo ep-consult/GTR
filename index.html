@@ -7939,25 +7939,32 @@ function sortirVehicule(force){
     P.surMoto=false;
   }
   P.h.g.visible=true;
+  boutonsAPied();
+  v.nitroActif=false; // garages tuning : les DEUX chemins de sortie
+  if(P.jetpack&&!INT.actif) el('btnJetpack').style.display='flex';
+  majArmeJoueur();
+  moteurStop();
+}
+// Boutons du HUD remis dans leur état « à pied » : au volant, plusieurs sont
+// réaffectés (ESQUIVE → MISSILE/DÉSINT./NITRO, GRENADE → FLASH/HUILE/TREUIL,
+// SPRINT → LANCE, FREIN...). Appelée en descendant du véhicule ET au début de
+// chaque partie : bug trouvé par l'audit de nuit — mourir au volant ne passe
+// pas par sortirVehicule, la partie suivante gardait les boutons du véhicule
+// et, après l'OVNI (dont le FLASH remplace tout le contenu de #btnGren,
+// compteur <small id="grenN"> compris), startRun() plantait net sur
+// el('grenN').textContent : impossible de relancer une partie.
+function boutonsAPied(){
   el('btnFire').style.display='flex'; el('btnDodge').style.display='flex';
   el('btnSwitch').style.display='flex';
   el('btnSwitch').innerHTML=ico('ico-btn-switch','🔁')+'<small>ARME</small>';
   el('btnBrake').style.display='none'; el('btnBrake').classList.remove('gros'); el('btnBrake').classList.remove('volA');
   el('vehWrap').style.display='none';
-  NITRO_HUD.wrap.style.display='none'; v.nitroActif=false; // garages tuning : les DEUX chemins de sortie
+  NITRO_HUD.wrap.style.display='none';
   el('btnSprint').innerHTML=ico('ico-btn-sprint','🏃')+'<small>SPRINT</small>'; // reset complet : LANCE (pompier) change aussi l'icône, pas que le texte
   el('btnBrake').querySelector('small').textContent='FREIN';
   el('btnDodge').innerHTML=ico('ico-btn-dodge','💨')+'<small>ESQUIVE</small>';
-  // Bug déjà rencontré (trouvé en préparant un nouveau véhicule) : l'OVNI
-  // remplace TOUT le innerHTML de #btnGren (FLASH), détruisant au passage le
-  // <small id="grenN"> qu'il contenait — sans ce reset, #grenN reste introuvable
-  // pour le reste de la session et le prochain startRun() plante net sur
-  // el('grenN').textContent=... (aucune régénération ailleurs).
   el('btnGren').innerHTML=ico('ico-btn-grenade','💣')+'<small id="grenN">'+P.grenades+'</small>';
   el('btnJump').style.display='none'; el('btnSpec').style.display='flex';
-  if(P.jetpack&&!INT.actif) el('btnJetpack').style.display='flex';
-  majArmeJoueur();
-  moteurStop();
 }
 function ouvrirParachute(){
   if(P.para||!P.chute){ SFX.refus(); return; }
@@ -19294,7 +19301,7 @@ function startRun(){
   P.x=POIS.place.x; P.z=POIS.place.z+8; P.ang=0; P.y=0; P.vy=0; P.chute=false; P.para=false; P.chuteVx=0; P.chuteVz=0; paraMesh.visible=false;
   P.hp=P.maxHp; P.stam=P.stamMax; P.bouclier=0; P.veh=null;
   P.buffs={dmg:0,vit:0,butin:0,lourd:0,sprintLibre:0,vol:0,cadence:0}; P.iframes=0; P.dodgeT=0; P.rechT=0; P.specCd=0; P.ecraseT=0;
-  P.grenades=3; el('grenN').textContent=3;
+  P.grenades=3; boutonsAPied(); // jamais el('grenN') seul : voir boutonsAPied (mort au volant)
   // Jetpack : perdu au game over, comme les armes (voir CLAUDE.md) — il
   // faut remonter le chercher. Le lieu, lui (META.jetpackTrouve), reste acquis.
   P.jetpack=false; P.jetpackVol=false; P.jetFuel=100; P.jetVx=0; P.jetVz=0; P.jetWarnT=0; P.jetAvertVu=false;

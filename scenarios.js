@@ -5408,6 +5408,31 @@ async function main() {
       ETAT.timeScale = 1; startRun();
       return { avant, apres };
     });
+    // Audit de nuit : mourir au volant ne passe pas par sortirVehicule ; après
+    // l'OVNI (FLASH remplace tout #btnGren, compteur #grenN compris), la partie
+    // suivante plantait au lancement. Tous les véhicules du jeu (lus dans
+    // VEHDEFS) : monter, mourir au volant, relancer → aucune exception, boutons
+    // revenus à l'état « à pied ».
+    const mortVolant = await page.evaluate(() => {
+      const ko = [];
+      for (const key of Object.keys(VEHDEFS)) {
+        try {
+          startRun();
+          const v = creerVehicule(key, P.x + 8, P.z, 0, null); if (!v) { ko.push(key + ' : non créé'); continue; }
+          P.x = v.x + 3; P.z = v.z; entrerVehicule(v);
+          mourir(); ETAT.timeScale = 1;
+          startRun();
+          const g = document.getElementById('grenN');
+          const esq = document.getElementById('btnDodge').textContent, spr = document.getElementById('btnSprint').textContent;
+          if (!g) ko.push(key + ' : #grenN absent'); else if (!/ESQUIVE/.test(esq) || !/SPRINT/.test(spr)) ko.push(key + ' : boutons « ' + esq.trim() + ' / ' + spr.trim() + ' »');
+          if (P.veh) ko.push(key + ' : encore au volant');
+        } catch (e) { ko.push(key + ' : ' + e.message); }
+      }
+      startRun();
+      return { ko, n: Object.keys(VEHDEFS).length };
+    });
+    if (mortVolant.ko.length) fail('Mort au volant puis nouvelle partie : ' + mortVolant.ko.slice(0, 6).join(' | '));
+    else ok('Mort au volant puis nouvelle partie : relance propre pour les ' + mortVolant.n + ' véhicules de VEHDEFS (boutons à pied, aucun plantage)');
     if (!lanceMort.avant) saute('Camion de pompiers : son de la lance non démarrable ici (AudioContext absent) — coupure à la mort non vérifiée');
     else if (lanceMort.apres) fail('Camion de pompiers : le son de la lance continue après la mort');
     else ok('Camion de pompiers : mourir lance ouverte coupe bien le son de la lance');
