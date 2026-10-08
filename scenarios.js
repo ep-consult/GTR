@@ -7389,6 +7389,32 @@ async function main() {
     }
 
     // -------------------------------------------------------------------
+    // Bouton d'action : aucun libellé rogné par « … » à 390 px. Audit de
+    // nuit : 12 libellés fixes et la consigne de la serre étaient coupés en
+    // plein milieu. Libellés lus dans le source (label='…' / label="…"), plus
+    // les consignes de la serre (CRITERES_SERRE).
+    // -------------------------------------------------------------------
+    console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');
+    {
+      const srcIdx = fs.readFileSync(INDEX_HTML, 'utf8');
+      const libs = [];
+      for (const m of srcIdx.matchAll(/\blabel=(['"])((?:(?!\1)[^\\]|\\.)*)\1\s*[;,)]/g)) libs.push(m[2].replace(/\\u2019/g, '’').replace(/\\(['"])/g, '$1'));
+      const rognes = await page.evaluate((libs) => {
+        const b = document.getElementById('btnAction'), avant = b.style.display, lab0 = b._label;
+        b.style.display = 'block'; const out = [];
+        const tous = libs.slice();
+        // consignes dynamiques de la serre, lues dans CRITERES_SERRE (même préfixe que majAction)
+        if (typeof CRITERES_SERRE !== 'undefined') for (const c of CRITERES_SERRE) tous.push('📋 CONSIGNE : ' + c.txt);
+        for (const l of tous) { b._label = null; labelAction(b, l); if (b.scrollWidth > b.clientWidth + 1) out.push(l); }
+        b._label = null; if (lab0) labelAction(b, lab0); b.style.display = avant;
+        return { out, n: tous.length };
+      }, libs);
+      if (libs.length < 40) fail('Bouton d\'action : seulement ' + libs.length + ' libellés trouvés dans le source — l\'extraction ne marche plus');
+      else if (rognes.out.length) fail('Bouton d\'action : libellés rognés à 390 px — ' + rognes.out.slice(0, 5).join(' | '));
+      else ok('Bouton d\'action : aucun des ' + rognes.n + ' libellés n\'est rogné à 390 px (passage sur deux lignes si besoin)');
+    }
+
+    // -------------------------------------------------------------------
     // Icônes vectorielles : la copie intégrée à index.html est celle du
     // sprite livré, chaque arme du jeu (lue dans ARMES) a son icône, et
     // toute référence <use> de la page pointe vers un symbole existant.
