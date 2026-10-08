@@ -319,7 +319,12 @@ que les catégories qui ont du sens :
   jamais toucher au joueur attaché à une moto (`P.h.g`, géométries humaines
   partagées), aux sprites (géométrie partagée) ni au cache `mat()`.
 - **Cadrage de la présentation** proportionné au véhicule exposé, mesuré sur ses
-  seuls meshes (le sprite d'ombre gonflait la hauteur).
+  seuls meshes (le sprite d'ombre gonflait la hauteur). Caméra **fixe** pendant le
+  menu : le véhicule tourne seul, ou **au doigt** (glisser sur la zone 3D,
+  `GAR_DRAG`) — la rotation automatique se suspend `GARAGE_ROT_PAUSE` s après un geste.
+- **Jupes et marchepieds** calés entre les passages de roue mesurés sur les roues
+  réelles (`ctx` passé aux fabricants) — à longueur fixe, ils mangeaient sur les
+  roues (signalé en playtest). Testé sur toutes les familles.
 
 ---
 

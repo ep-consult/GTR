@@ -16921,8 +16921,11 @@ const P_={ // fabricants partagés entre familles (paramétrés)
     pBox(g,d.larg*0.98,haut,0.22+saillie,mc?m:MAT_SOMBRE,0,y,a.avant.z+saillie/2);
     if(prises) for(const sx of [-1,1]) pBox(g,d.larg*0.22,haut*0.45,0.05,MAT_SOMBRE,sx*d.larg*0.27,y,a.avant.z+saillie+0.11);
     return g; }; },
-  jupes(ep,haut,mc){ return (a,d,m)=>{ const g=new THREE.Group();
-    for(const sx of [-1,1]) pBox(g,ep,haut,d.long*0.56,mc?m:MAT_SOMBRE,sx*(a.basCaisse.x+ep/2-0.02),a.basCaisse.y+haut/2,0);
+  // jupes / marchepieds : calés ENTRE les passages de roue réels (ctx, mesuré
+  // sur ud.roues) — signalé par le joueur : à longueur fixe (56 % du
+  // véhicule), les « jupes élargies » mangeaient sur les roues
+  jupes(ep,haut,mc,matFixe){ return (a,d,m,ctx)=>{ const g=new THREE.Group(), long=ctx.jupeZ1-ctx.jupeZ0;
+    if(long>0.3) for(const sx of [-1,1]) pBox(g,ep,haut,long,matFixe||(mc?m:MAT_SOMBRE),sx*(a.basCaisse.x+ep/2-0.02),a.basCaisse.y+haut/2,(ctx.jupeZ0+ctx.jupeZ1)/2);
     return g; }; },
   ecopes(n){ return (a,d)=>{ const g=new THREE.Group(), z=a.avant.z-d.long*0.2;
     for(let i=0;i<n;i++){ const x=n===1?0:(i?0.32:-0.32); pBox(g,0.46,0.12,0.5,MAT_SOMBRE,x,a.avant.y+0.06,z); pBox(g,0.36,0.06,0.04,MAT_GRIS,x,a.avant.y+0.08,z+0.25); }
@@ -16975,8 +16978,7 @@ const PIECES_FAMILLES={
         pBox(g,d.larg*0.75,0.08,0.08,MAT_CHROME,0,y+0.72,z); pBox(g,d.larg*0.95,0.1,0.1,MAT_CHROME,0,y+0.18,z); return g; }},
       {nom:'Treuil',f:(a,d)=>{ const g=new THREE.Group(), z=a.avant.z+0.14, y=a.basCaisse.y+0.22;
         pBox(g,d.larg*0.98,0.26,0.22,MAT_SOMBRE,0,y,z); pCyl(g,0.12,0.5,MAT_GRIS,0,y,z+0.12); return g; }}]},
-    jupes:{nom:'MARCHEPIEDS',variantes:[ORIGINE,{nom:'Marchepieds',f:P_.jupes(0.22,0.06,false)},{nom:'Marchepieds chromés',f:(a,d)=>{ const g=new THREE.Group();
-      for(const sx of [-1,1]) pBox(g,0.24,0.06,d.long*0.5,MAT_CHROME,sx*(a.basCaisse.x+0.1),a.basCaisse.y+0.03,0); return g; }}]},
+    jupes:{nom:'MARCHEPIEDS',variantes:[ORIGINE,{nom:'Marchepieds',f:P_.jupes(0.22,0.06,false)},{nom:'Marchepieds chromés',f:P_.jupes(0.24,0.06,false,MAT_CHROME)}]},
     jantes:{nom:'JANTES',variantes:[ORIGINE,{nom:'Acier noir',f:P_.jante('rayons')},{nom:'Chrome',f:P_.jante('chrome')}]},
     echappement:{nom:'ÉCHAPPEMENT',variantes:[ORIGINE,{nom:'Double',f:P_.echappement(2,0.08)},{nom:'Latéral',f:P_.echappement(0,0.07,true)}]},
   },
@@ -17027,6 +17029,9 @@ const GARAGE_FERMETURE_DUREE=1.0;    // s (dtJeu) : la porte roulante se ferme
 const GARAGE_DELAI_ETOILES=1.5;      // s (dtJeu) après fermeture, avant que les étoiles tombent
 const GARAGE_PAS_ETOILE=0.6;         // s (dtJeu) entre deux étoiles perdues
 const GARAGE_CAM_DIST=12.5, GARAGE_CAM_H=7.5, GARAGE_CAM_VISEE_Y=-2.2; // vue de présentation
+const GARAGE_CAM_ANGLE=0.7;    // rad : caméra FIXE pendant le menu — c'est le véhicule qui tourne
+const GARAGE_ROT_SENS=0.012;   // rad par pixel glissé : le joueur fait tourner le véhicule au doigt
+const GARAGE_ROT_PAUSE=2.5;    // s (dtJeu) sans rotation automatique après un geste
 const GARAGE_MSG_FEU='🔥 Trop chaud pour rentrer — sème-les d’abord';
 
 const GARAGE_PAR_ID={}; for(const gt of GARAGES_TUNING) GARAGE_PAR_ID[gt.id]=gt;
@@ -17164,11 +17169,19 @@ function appliquerCarrosserie(groupe,key,pieces){
   if(!tc||!pieces) return 0;
   const fam=PIECES_FAMILLES[tc.famille]; if(!fam) return 0;
   const d=VEHDEFS[key], mc=ud.matPeinture||mat(ud.coul);
+  // espace libre entre les passages de roue, mesuré sur les roues RÉELLES du
+  // châssis (jamais recopié de makeVoiture) — sert aux jupes et marchepieds
+  let zAv=Infinity, zAr=-Infinity;
+  for(const r of ud.roues||[]){
+    const R=r.geometry.parameters.radiusTop||0.4;
+    if(r.position.z>0) zAv=Math.min(zAv,r.position.z-R); else zAr=Math.max(zAr,r.position.z+R);
+  }
+  const ctx=(isFinite(zAv)&&isFinite(zAr))?{jupeZ0:zAr+0.1,jupeZ1:zAv-0.1}:{jupeZ0:-d.long*0.28,jupeZ1:d.long*0.28};
   const grp=new THREE.Group(); let n=0;
   for(const cat of PIECES_CATS){
     if(cat==='jantes'||!fam[cat]) continue;
     const v=fam[cat].variantes[pieces[cat]|0];
-    if(v&&v.f){ grp.add(v.f(tc.ancrages,d,mc)); n++; }
+    if(v&&v.f){ grp.add(v.f(tc.ancrages,d,mc,ctx)); n++; }
   }
   (ud.corps||groupe).add(grp); ud.carro=grp;
   if(fam.jantes){
@@ -17322,10 +17335,28 @@ function garageMajInterieur(s,dt,dtJeu){
       }
     }
   }
-  // plateau et véhicule exposé : pur habillage, sur dt
-  s.plateauMesh.rotation.y+=dt*0.5;
-  if(s.voiture) s.voiture.rotation.y+=dt*0.5;
+  // plateau et véhicule exposé : rotation automatique (habillage, sur dt),
+  // suspendue quelques secondes après que le joueur l'a fait tourner au doigt
+  if(s.rotPauseT>0) s.rotPauseT-=dtJeu;
+  else { s.plateauMesh.rotation.y+=dt*0.5; if(s.voiture) s.voiture.rotation.y+=dt*0.5; }
 }
+// Rotation au doigt du véhicule exposé (menu d'atelier ouvert) : glisser
+// horizontalement sur la zone 3D le fait tourner, plateau compris. Le HUD
+// est en pointer-events:none, seuls ses boutons captent le doigt ; le menu
+// (moitié basse) les arrête aussi — le geste se fait sur la moitié haute.
+const GAR_DRAG={id:null,x:0};
+renderer.domElement.addEventListener('pointerdown',e=>{
+  const s=INT.actif; if(!s||!s.tuning||!s.menuOuvert||!s.voiture) return;
+  GAR_DRAG.id=e.pointerId; GAR_DRAG.x=e.clientX; s.rotPauseT=GARAGE_ROT_PAUSE;
+});
+window.addEventListener('pointermove',e=>{
+  if(GAR_DRAG.id===null||e.pointerId!==GAR_DRAG.id) return;
+  const s=INT.actif; if(!s||!s.tuning||!s.voiture){ GAR_DRAG.id=null; return; }
+  const a=(e.clientX-GAR_DRAG.x)*GARAGE_ROT_SENS; GAR_DRAG.x=e.clientX;
+  s.voiture.rotation.y+=a; s.plateauMesh.rotation.y+=a; s.rotPauseT=GARAGE_ROT_PAUSE;
+});
+const garFinDrag=e=>{ if(e.pointerId===GAR_DRAG.id) GAR_DRAG.id=null; };
+window.addEventListener('pointerup',garFinDrag); window.addEventListener('pointercancel',garFinDrag);
 function garageApresSortie(sc){
   fermerGarageMenu(sc);
   const enVoiture=sc.sortirEnVoiture; sc.sortirEnVoiture=false;
@@ -20144,12 +20175,13 @@ function majFeux(dt){
 }
 let camH=42,camD=19;
 function majCamera(dt){
-  // Garage tuning, menu d'atelier ouvert : vue de présentation — la caméra
-  // tourne lentement autour du plateau, le véhicule cadré dans la moitié
+  // Garage tuning, menu d'atelier ouvert : vue de présentation — caméra
+  // fixe face au plateau (le joueur fait tourner le véhicule au doigt, voir
+  // GAR_DRAG ; sinon il tourne seul), le véhicule cadré dans la moitié
   // haute de l'écran (le menu occupe la moitié basse). Retour en douceur
   // à la vue normale à la fermeture (camH/camD reprennent leur lerp).
   if(INT.actif&&INT.actif.tuning&&INT.actif.menuOuvert&&INT.actif.voiture){
-    const s=INT.actif, a=ETAT.runT*0.22, k=s.camK||1;
+    const s=INT.actif, a=GARAGE_CAM_ANGLE, k=s.camK||1; // caméra fixe : le véhicule tourne (seul ou au doigt)
     camera.position.set(s.plateauX+Math.sin(a)*GARAGE_CAM_DIST*k,GARAGE_CAM_H*k,s.plateauZ+Math.cos(a)*GARAGE_CAM_DIST*k);
     camera.lookAt(s.plateauX,GARAGE_CAM_VISEE_Y*k+(s.camHautVeh||1.4)*0.5,s.plateauZ);
     camera.fov=lerp(camera.fov,52,0.12); camera.updateProjectionMatrix();

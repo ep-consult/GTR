@@ -6771,6 +6771,60 @@ async function main() {
     if (!garCarroRl.vitrine || !garCarroRl.sorti) fail('Garages : après rechargement, pièces absentes de l\'exposition ou du véhicule sorti');
     else ok('Garages : après rechargement, pièces sur l\'exposition et sur le véhicule sorti');
 
+    console.log('\n--- Garages tuning : jupes et marchepieds ne mangent jamais sur les roues (toutes familles) ---');
+    const garJupes = await page.evaluate(() => {
+      const chevauchements = []; let testes = 0;
+      for (const k of Object.keys(VEHDEFS)) {
+        const tc = VEHDEFS[k].tuningCarro, fam = tc && PIECES_FAMILLES[tc.famille];
+        if (!fam || !fam.jupes) continue;
+        for (let i = 1; i < fam.jupes.variantes.length; i++) {
+          const m = makeVoiture(k);
+          const pieces = { aileron: 0, parechocs: 0, jupes: i, capot: 0, jantes: 0, echappement: 0 };
+          appliquerCarrosserie(m, k, pieces);
+          m.updateMatrixWorld(true);
+          const boites = []; m.userData.carro.traverse((o) => { if (o.isMesh) boites.push(new THREE.Box3().setFromObject(o)); });
+          for (const r of m.userData.roues) {
+            const br = new THREE.Box3().setFromObject(r);
+            if (boites.some((b) => b.intersectsBox(br))) { chevauchements.push(k + ' › ' + fam.jupes.variantes[i].nom); break; }
+          }
+          testes++;
+        }
+      }
+      return { chevauchements, testes };
+    });
+    if (garJupes.chevauchements.length) fail('Garages : des jupes / marchepieds mangent sur les roues — ' + garJupes.chevauchements.join(', '));
+    else ok('Garages : ' + garJupes.testes + ' jupes / marchepieds testés, aucun ne touche une roue');
+
+    console.log('\n--- Garages tuning : le joueur fait tourner le véhicule exposé au doigt ---');
+    const garRot = await page.evaluate(() => {
+      const G = window.__gar, out = {};
+      G.prep();
+      const porte = G.porte(0);
+      G.auVolantDevant(porte, 'citadine'); G.appuyer();
+      const s = INT.actif, cv = renderer.domElement;
+      const ev = (type, x) => (type === 'pointerdown' ? cv : window).dispatchEvent(new PointerEvent(type, { bubbles: true, pointerId: 7, clientX: x, clientY: 200 }));
+      // menu fermé : le geste ne fait rien
+      let r0 = s.voiture.rotation.y; ev('pointerdown', 100); ev('pointermove', 200); ev('pointerup', 200);
+      out.inertSansMenu = s.voiture.rotation.y === r0;
+      ouvrirGarageMenu(s);
+      r0 = s.voiture.rotation.y;
+      ev('pointerdown', 100); ev('pointermove', 150); ev('pointermove', 200); ev('pointerup', 200);
+      out.tourne = Math.abs(s.voiture.rotation.y - r0 - 100 * GARAGE_ROT_SENS) < 1e-9;
+      // rotation automatique suspendue juste après le geste, puis reprise
+      const r1 = s.voiture.rotation.y;
+      garageMajInterieur(s, 0.1, 0.1);
+      out.pauseApresGeste = s.voiture.rotation.y === r1;
+      for (let i = 0; i < Math.ceil(GARAGE_ROT_PAUSE / 0.1) + 2; i++) garageMajInterieur(s, 0.1, 0.1);
+      out.repriseAuto = s.voiture.rotation.y !== r1;
+      fermerGarageMenu(s); sortirInterieur();
+      return out;
+    });
+    if (!garRot.inertSansMenu) fail('Garages : glisser fait tourner le véhicule alors que le menu est fermé');
+    else if (!garRot.tourne) fail('Garages : glisser sur la zone 3D ne fait pas tourner le véhicule exposé');
+    else ok('Garages : glisser au doigt fait tourner le véhicule exposé (menu ouvert seulement)');
+    if (!garRot.pauseApresGeste || !garRot.repriseAuto) fail('Garages : la rotation automatique ne se suspend / ne reprend pas après un geste (' + JSON.stringify(garRot) + ')');
+    else ok('Garages : rotation automatique suspendue après un geste, puis reprise');
+
     console.log('\n--- Garages tuning : allers-retours répétés sans fuite (géométries libérées, aucun mesh accumulé) ---');
     const garFuite = await page.evaluate(() => {
       const G = window.__gar, out = {};
