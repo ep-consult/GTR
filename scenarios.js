@@ -6864,6 +6864,81 @@ async function main() {
     if (!garRot.pauseApresGeste || !garRot.repriseAuto) fail('Garages : la rotation automatique ne se suspend / ne reprend pas après un geste (' + JSON.stringify(garRot) + ')');
     else ok('Garages : rotation automatique suspendue après un geste, puis reprise');
 
+    console.log('\n--- Garages tuning : essai gratuit de la peinture et des néons, variante réservée, treuil, rail de défilement ---');
+    const garEssai = await page.evaluate(() => {
+      const G = window.__gar, out = {};
+      G.prep();
+      const porte = G.porte(0);
+      G.auVolantDevant(porte, 'pickup'); G.appuyer();
+      const s = INT.actif;
+      ouvrirGarageMenu(s);
+      const clic = (sel) => { const b = document.querySelector('#gmCorps ' + sel); if (!b) return false; b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); return true; };
+      const couleurVitrine = () => s.voiture.userData.matPeinture ? s.voiture.userData.matPeinture.color.getHex() : -1;
+      // rail dessiné : visible, la liste déborde
+      out.rail = getComputedStyle(document.getElementById('gmRail')).display !== 'none' && document.getElementById('gmPouce').offsetHeight > 0;
+      // peinture : 1er appui = essai sur le plateau, rien débité ; 2e appui = achat
+      const i = TUNING_TEINTES.findIndex((c) => c !== ficheVue(s).coul), c = TUNING_TEINTES[i];
+      let a = META.argent; clic('[data-a="peinture"][data-i="' + i + '"]');
+      out.peintEssai = META.argent === a && couleurVitrine() === c && ficheVue(s).coul !== c && !!document.querySelector('#gmCorps [data-a="peintureAchat"]');
+      clic('[data-a="peinture"][data-i="' + i + '"]');
+      out.peintAchat = a - META.argent === TUNING_PRIX.peinture && ficheVue(s).coul === c;
+      // essai d'une autre teinte puis fermeture du menu : retour à la teinte achetée, rien débité
+      const j = TUNING_TEINTES.findIndex((x) => x !== c);
+      a = META.argent; clic('[data-a="peinture"][data-i="' + j + '"]'); fermerGarageMenu(s);
+      out.peintAnnule = META.argent === a && couleurVitrine() === c;
+      // néons : essai d'une couleur (lueur sur le plateau), rien débité ; 2e appui = kit posé dans CETTE couleur
+      ouvrirGarageMenu(s);
+      const n = 2, cn = TUNING_NEONS[n];
+      a = META.argent; clic('[data-a="neonc"][data-i="' + n + '"]');
+      const ud = s.voiture.userData;
+      out.neonEssai = META.argent === a && !!ud.neon && ud.neon.visible && ud.neonMats[0].color.getHex() === cn && ficheVue(s).neon < 0;
+      clic('[data-a="neonc"][data-i="' + n + '"]');
+      out.neonAchat = a - META.argent === TUNING_PRIX.neons && ficheVue(s).neon === cn;
+      // variante réservée au pickup (seul) : proposée ici, achetable
+      const fam = PIECES_FAMILLES[VEHDEFS.pickup.tuningCarro.famille];
+      const iSeul = fam.echappement.variantes.findIndex((v) => v.seul);
+      out.seulMenu = iSeul > 0 && !!document.querySelector('#gmCorps [data-a="piece"][data-c="echappement"][data-i="' + iSeul + '"]');
+      out.seulAchat = choisirPiece(s, 'echappement', iSeul);
+      // treuil (variante marquée treuil, lue dans le catalogue)
+      const cT = PIECES_CATS.find((k) => fam[k] && fam[k].variantes.some((v) => v.treuil));
+      const iT = fam[cT].variantes.findIndex((v) => v.treuil);
+      choisirPiece(s, cT, iT);
+      fermerGarageMenu(s);
+      G.versSortie(); G.appuyer();
+      const v = P.veh;
+      out.treuilVeh = !!v && v.treuil === true;
+      out.boutonTreuil = /TREUIL/.test(document.getElementById('btnGren').textContent);
+      for (const o of vehicules.slice()) if (o !== v) garageRetirerVehicule(o);
+      const cible = creerVehicule('citadine', v.x - Math.sin(v.ang) * 5, v.z - Math.cos(v.ang) * 5, v.ang, null);
+      majRemorquage(v, 0.016, true);
+      out.accroche = v.remorque === cible && cible.tracte === v && !!v.mesh.userData.cable && v.mesh.userData.cable.visible;
+      sortirVehicule(true);
+      out.decrocheEnSortant = !v.remorque && !cible.tracte && !v.mesh.userData.cable.visible;
+      // jamais sur un autre véhicule : la variante réservée est refusée sur le van, et un pickup sans treuil n'en a pas
+      G.prep();
+      G.auVolantDevant(porte, 'van'); G.appuyer();
+      const s2 = INT.actif; ouvrirGarageMenu(s2);
+      const famV = PIECES_FAMILLES[VEHDEFS.van.tuningCarro.famille];
+      const iSeulV = famV.echappement.variantes.findIndex((x) => x.seul && x.seul.indexOf('van') < 0);
+      const a2 = META.argent;
+      out.seulRefuseVan = iSeulV > 0 && !document.querySelector('#gmCorps [data-a="piece"][data-c="echappement"][data-i="' + iSeulV + '"]') && !choisirPiece(s2, 'echappement', iSeulV) && META.argent === a2;
+      fermerGarageMenu(s2); G.versSortie(); G.appuyer();
+      out.sansTreuil = !!P.veh && !P.veh.treuil;
+      return out;
+    });
+    if (!garEssai.rail) fail('Garages : rail de défilement absent alors que la liste déborde');
+    else ok('Garages : rail de défilement dessiné, visible quand la liste déborde');
+    if (!garEssai.peintEssai || !garEssai.peintAchat || !garEssai.peintAnnule) fail('Garages : essai de peinture incorrect (' + JSON.stringify(garEssai) + ')');
+    else ok('Garages : peinture — 1er appui = essai sur le plateau sans débit, 2e appui = achat, fermer annule l\'essai');
+    if (!garEssai.neonEssai || !garEssai.neonAchat) fail('Garages : essai des néons incorrect (' + JSON.stringify(garEssai) + ')');
+    else ok('Garages : néons — couleur essayée sans débit, puis kit posé dans cette couleur');
+    if (!garEssai.seulMenu || !garEssai.seulAchat || !garEssai.seulRefuseVan) fail('Garages : variante réservée au pickup mal gérée (' + JSON.stringify(garEssai) + ')');
+    else ok('Garages : cheminée + prise d\'air proposée au pickup, refusée au van');
+    if (!garEssai.treuilVeh || !garEssai.boutonTreuil || !garEssai.accroche || !garEssai.decrocheEnSortant) fail('Garages : treuil — remorquage absent ou mal décroché (' + JSON.stringify(garEssai) + ')');
+    else ok('Garages : treuil acheté = bouton TREUIL, accroche et remorque comme la dépanneuse, câble visible, décroché en sortant');
+    if (!garEssai.sansTreuil) fail('Garages : un véhicule sans treuil peut remorquer');
+    else ok('Garages : sans treuil, pas de remorquage');
+
     console.log('\n--- Garages tuning : « Mes véhicules » — plusieurs véhicules, choix, casse, collection pleine ---');
     const garColl = await page.evaluate(() => {
       const G = window.__gar, out = {};

@@ -37,77 +37,78 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
   echo "$ln | $(sed -n "$((ln+1))p" index.html | sed 's/^[ \t]*//')"; done
 ```
 
-**Relevé au 8 octobre 2026 (« Mes véhicules ») — 20 669 lignes.**
+**Relevé au 8 octobre 2026 (essais, treuil, pickup) — 20 796 lignes.**
 
 | Ligne | Section |
 |---|---|
-| 1–689 | `<head>`, CSS, HUD, écrans (menu, game over, panneaux) |
-| 666–668 | **eruda** (console mobile de dev — à retirer avant diffusion) |
-| 669 | chargement Three.js r128 depuis CDN |
-| 674 | `<script id="gamejs">` + handler `window.onerror` → affichage dans `#errBox` |
-| 690 | en-tête ASPHALTE, début du code du jeu |
-| 731 | AUDIO — WebAudio synthétisé, boîte de vitesses simulée |
-| 1252 | ENTRÉES — joystick virtuel, boutons tactiles, clavier ZQSD/WASD |
-| 1559 | MÉTA-PROGRESSION — `META`, défis, sauvegarde |
-| 2218 | THREE.JS — rendu, scène, lumières |
-| 2495 | VILLE DE SOLARA — génération procédurale par quartiers |
-| 4748 | MODÈLES — humains, armes, véhicules, hélico, ramassables |
-| 5759 | POOLS — balles, particules, textes flottants, traces de pneus |
-| 6117 | ÉTAT GLOBAL + JOUEUR (`P`) |
-| 6831 | VÉHICULES — physique arcade, trafic, dégâts |
-| 8859 | PIÉTONS |
-| 9011 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
-| 9547 | **RAYON TRACTEUR DE L'OVNI** |
-| 9943 | NIVEAU DE RECHERCHE (étoiles) |
-| 10188 | VAGUES + bonus de fin de vague |
-| 10307 | MISSIONS COURTES |
-| 10310 | BÂTIMENTS VISITABLES — intérieurs |
-| 10380 | FOUILLE — mécanique générique |
-| 10961 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
-| 14896 | CINÉ-PALACE |
-| 14958 | MÉTRO ABANDONNÉ |
-| 15024 | RADIO PIRATE SOLARA FM |
-| 15129 | LE CHALUTIER « SAINTE-ODILE » |
-| 15403 | SITE 51 |
-| 15633 | LE DÉPÔT DE BUS — courses clandestines |
-| 16648 | **MÉTIERS** — missions liées à un véhicule |
-| 16879 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
-| 17710 | ÉCRANS / MENUS / BOUTIQUES |
-| 17977 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
-| 18702 | DÉBUT / FIN DE PARTIE |
-| 20162 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
-| 20551 | BOUCLE PRINCIPALE |
+| 1–706 | `<head>`, CSS, HUD, écrans (menu, game over, panneaux) |
+| 683–685 | **eruda** (console mobile de dev — à retirer avant diffusion) |
+| 686 | chargement Three.js r128 depuis CDN |
+| 691 | `<script id="gamejs">` + handler `window.onerror` → affichage dans `#errBox` |
+| 707 | en-tête ASPHALTE, début du code du jeu |
+| 748 | AUDIO — WebAudio synthétisé, boîte de vitesses simulée |
+| 1269 | ENTRÉES — joystick virtuel, boutons tactiles, clavier ZQSD/WASD |
+| 1576 | MÉTA-PROGRESSION — `META`, défis, sauvegarde |
+| 2235 | THREE.JS — rendu, scène, lumières |
+| 2512 | VILLE DE SOLARA — génération procédurale par quartiers |
+| 4765 | MODÈLES — humains, armes, véhicules, hélico, ramassables |
+| 5787 | POOLS — balles, particules, textes flottants, traces de pneus |
+| 6145 | ÉTAT GLOBAL + JOUEUR (`P`) |
+| 6859 | VÉHICULES — physique arcade, trafic, dégâts |
+| 8915 | PIÉTONS |
+| 9067 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
+| 9603 | **RAYON TRACTEUR DE L'OVNI** |
+| 9999 | NIVEAU DE RECHERCHE (étoiles) |
+| 10244 | VAGUES + bonus de fin de vague |
+| 10363 | MISSIONS COURTES |
+| 10366 | BÂTIMENTS VISITABLES — intérieurs |
+| 10436 | FOUILLE — mécanique générique |
+| 11017 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
+| 14952 | CINÉ-PALACE |
+| 15014 | MÉTRO ABANDONNÉ |
+| 15080 | RADIO PIRATE SOLARA FM |
+| 15185 | LE CHALUTIER « SAINTE-ODILE » |
+| 15459 | SITE 51 |
+| 15689 | LE DÉPÔT DE BUS — courses clandestines |
+| 16704 | **MÉTIERS** — missions liées à un véhicule |
+| 16935 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
+| 17837 | ÉCRANS / MENUS / BOUTIQUES |
+| 18104 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
+| 18829 | DÉBUT / FIN DE PARTIE |
+| 20289 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
+| 20678 | BOUCLE PRINCIPALE |
 
 ### Ancres fines (hors bandeaux)
 
 | Ligne | Repère |
 |---|---|
-| 1567 | `GARAGES_TUNING` — les garages de la ville (déclarés avant `META`) |
-| 1587 | `VEHPERSO_MAX` — taille de « Mes véhicules » (`META.vehPerso`) |
-| 1744 | `fusionMeta()` — deep-merge de la sauvegarde |
-| 1774 | `CURIOS` — tableau des curiosités |
-| 1825 | `CURIOS_ACTIVES` |
-| 1839 | déblocage de `batte2` (toutes curiosités actives réunies) |
-| 2008 | `VEHDEFS` — véhicules, éligibilité garage (`tuningMeca`, `tuningCarro`) |
-| 2645 | `finaliserMerge()` |
-| 3991 | `mkPorteGarage()` — porte roulante des garages |
-| 4059 | `placeLibrePorte()` |
-| 4118 | helper `poser()` — placement des lieux |
-| 4144 | `caseCentre(bx,bz)` |
-| 4237 | `REPLIS` — filet de sécurité en spirale |
-| 6125 | `const P` — état du joueur |
-| 6163 | `P.stamMax = 100 + 12*mus` |
-| 10316 | `IOFF = -9000` |
-| 12038 | `INTDEFS` — définitions des **27 salles** |
-| 12218 | `construireSalle(id)` |
-| 16657 | `METIERS_CIBLE` |
-| 16897 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
-| 16966 | `PIECES_FAMILLES` — catalogues de pièces par famille |
-| 17215 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
-| 17268 | `libererObjet()` — libère les géométries d'un objet retiré |
-| 17284 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
-| 17348 | `construireGarageTuning()` — la salle partagée |
-| 17684 | `majNitro()` |
+| 1584 | `GARAGES_TUNING` — les garages de la ville (déclarés avant `META`) |
+| 1604 | `VEHPERSO_MAX` — taille de « Mes véhicules » (`META.vehPerso`) |
+| 1761 | `fusionMeta()` — deep-merge de la sauvegarde |
+| 1791 | `CURIOS` — tableau des curiosités |
+| 1842 | `CURIOS_ACTIVES` |
+| 1856 | déblocage de `batte2` (toutes curiosités actives réunies) |
+| 2025 | `VEHDEFS` — véhicules, éligibilité garage (`tuningMeca`, `tuningCarro`) |
+| 2662 | `finaliserMerge()` |
+| 4008 | `mkPorteGarage()` — porte roulante des garages |
+| 4076 | `placeLibrePorte()` |
+| 4135 | helper `poser()` — placement des lieux |
+| 4161 | `caseCentre(bx,bz)` |
+| 4254 | `REPLIS` — filet de sécurité en spirale |
+| 6153 | `const P` — état du joueur |
+| 6191 | `P.stamMax = 100 + 12*mus` |
+| 7644 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
+| 10372 | `IOFF = -9000` |
+| 12094 | `INTDEFS` — définitions des **27 salles** |
+| 12274 | `construireSalle(id)` |
+| 16713 | `METIERS_CIBLE` |
+| 16953 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
+| 17022 | `PIECES_FAMILLES` — catalogues de pièces par famille |
+| 17300 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
+| 17353 | `libererObjet()` — libère les géométries d'un objet retiré |
+| 17369 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
+| 17447 | `construireGarageTuning()` — la salle partagée |
+| 17811 | `majNitro()` |
 
 ---
 
@@ -330,12 +331,24 @@ que les catégories qui ont du sens :
 | toutterrain | buggy, scarabee, quad, monstertruck | rampe de phares, pare-buffle, jantes, échappement |
 | deuxroues | moto, motoR, motocross, motoS, fantome | carénage, saute-vent, jantes, échappement |
 
-- **Aperçu avant achat** : 1er appui = la pièce apparaît sur le plateau, rien
-  débité ; 2e appui = achat. Fermer le menu annule un aperçu non acheté.
+- **Aperçu avant achat** — pièces, **peinture et néons** (demandé : « du style, à
+  confirmer avant de payer ») : 1er appui = essai sur le plateau, rien débité
+  (`s.apercu`, `s.apercuCoul`, `s.apercuNeon`) ; 2e appui (ou le bouton ACHETER)
+  = achat. Fermer le menu annule tout essai non acheté (`annulerApercus`).
+- **Variante réservée** : `seul:['pickup']` dans le catalogue = proposée à ces
+  véhicules seulement (`varianteDispo`, vérifié aussi dans `choisirPiece` et
+  `appliquerCarrosserie`). Ex. : « Cheminée + prise d'air » du pickup, 4e prix
+  de `TUNING_PRIX.pieces.echappement`.
+- **Treuil** (`treuil:true`, famille utilitaire) : la seule pièce qui n'est pas
+  que cosmétique. Posé, il donne au véhicule l'accroche/remorquage de la
+  dépanneuse (`v.treuil`, `majRemorquage`), sur le bouton GRENADE (ESQUIVE y est
+  déjà la nitro), avec un câble visible. Décroché dans `sortirVehicule`.
 - **Une pièce se paie une fois** (`piecesPossedees`, bits) ; reposer une pièce
   possédée ou l'origine est gratuit. `choisirPiece` porte sa garde d'entrée.
-- **Purement cosmétiques** : aucun effet sur la physique (piste proposée, non
-  retenue : un pare-buffle réduisant les chocs frontaux).
+- **Purement cosmétiques**, sauf le treuil : aucun effet sur la physique (piste
+  proposée, non retenue : un pare-buffle réduisant les chocs frontaux).
+- **Menu** : barre de défilement native masquée (Safari iOS ignore son style),
+  remplacée par un rail dessiné et des fondus haut/bas (`majRailGarage`).
 - **Aucune fuite** : `libererObjet()` libère les géométries de tout ce qui est
   retiré (véhicule rangé, modèle d'exposition, passe de pièces précédente), sans
   jamais toucher au joueur attaché à une moto (`P.h.g`, géométries humaines

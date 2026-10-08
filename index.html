@@ -93,13 +93,29 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
 #gmTete{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-size:14px;letter-spacing:.06em}
 #gmTete b{color:#ff8c1a}
 #gmArgent{color:#7dff7a;font-weight:800}
-#gmCorps{overflow-y:auto;-webkit-overflow-scrolling:touch;flex:1}
+/* défilement : barre native masquée (Safari iOS ignore tout style de barre
+   native), remplacée par un rail dessiné + fondus haut/bas qui annoncent
+   qu'il reste du contenu (majRailGarage) — signalé « trop basique » */
+#gmZone{position:relative;flex:1;min-height:0;display:flex}
+#gmCorps{overflow-y:auto;-webkit-overflow-scrolling:touch;flex:1;padding-right:14px;scrollbar-width:none}
+#gmCorps::-webkit-scrollbar{display:none}
+#gmRail{position:absolute;top:4px;bottom:4px;right:0;width:5px;border-radius:3px;background:rgba(255,140,26,.14);pointer-events:none}
+#gmPouce{position:absolute;left:-1px;width:7px;border-radius:4px;background:linear-gradient(180deg,#ffd23f,#ff8c1a);
+  box-shadow:0 0 8px rgba(255,140,26,.75)}
+.gmFondu{position:absolute;left:0;right:14px;height:26px;pointer-events:none;transition:opacity .2s;opacity:0}
+#gmFonduH{top:0;background:linear-gradient(180deg,rgba(10,12,18,.95),rgba(10,12,18,0))}
+#gmFonduB{bottom:0;background:linear-gradient(0deg,rgba(10,12,18,.95),rgba(10,12,18,0))}
+#gmFonduB::after{content:'▼';position:absolute;left:50%;bottom:1px;transform:translateX(-50%);font-size:10px;color:#ff8c1a;
+  animation:gmRebond 1.2s ease-in-out infinite}
+@keyframes gmRebond{0%,100%{transform:translate(-50%,0)}50%{transform:translate(-50%,3px)}}
 .gmSec{margin:8px 0 4px;font-size:10px;font-weight:800;letter-spacing:.14em;color:#8b93a7}
 .gmLigne{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .gmBtn{padding:8px 10px;border-radius:9px;background:#23283a;border:1px solid #3a4258;font-weight:700;font-size:12px}
 .gmBtn.ok{background:#1d3a26;border-color:#3f8a52;color:#9dffb0}
 .gmBtn.off{opacity:.45}
+.gmBtn.achat{border-color:#ffd23f;color:#ffd23f;background:#3a2f12}
 .gmTeinte{width:30px;height:30px;border-radius:50%;border:2px solid rgba(255,255,255,.25)}
+.gmTeinte.apercu{outline:2px dashed #ffd23f;outline-offset:3px}
 .gmTeinte.actuelle{border:3px solid #fff}
 #gmFermer{margin-top:8px;text-align:center;padding:10px;border-radius:10px;background:#3a2a1a;font-weight:800;letter-spacing:.12em;color:#ffd23f}
 #vehBar{height:8px}
@@ -401,7 +417,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
   <div id="vehWrap"><div class="lbl">VÉHICULE</div><div class="barre" id="vehBar"><i id="vehFill"></i></div></div>
   <div id="jetWrap"><div class="lbl">CARBURANT</div><div class="barre" id="jetBar"><i id="jetFill"></i></div></div>
   <div id="garageMenu"><div id="gmTete"><b id="gmTitre">GARAGE</b><span id="gmArgent"></span></div>
-    <div id="gmCorps"></div><div id="gmFermer">FERMER</div></div>
+    <div id="gmZone"><div id="gmCorps"></div><div class="gmFondu" id="gmFonduH"></div><div class="gmFondu" id="gmFonduB"></div>
+      <div id="gmRail"><div id="gmPouce"></div></div></div><div id="gmFermer">FERMER</div></div>
   <div id="jetWarn">⚠ VITESSE DE CHUTE CRITIQUE</div>
 
   <div id="zoneL"><div id="joyBase"><div id="joyKnob"></div></div></div>
@@ -5235,15 +5252,26 @@ function makeVoiture(key){
       // arceau derrière la cabine, pare-chocs marqués (chromés) à l'avant
       // ET à l'arrière — retravaillé une 2e fois (signalé « boîte sans
       // caractère ») pour ajouter l'arceau, qui manquait complètement.
-      const cabL=L*0.40, bedL=L*0.46;
+      // 3e passe (signalé : « séparé dans rien qui attache l'avant de
+      // l'arrière ») : la benne flottait à 0,7 u derrière la cabine, sans
+      // rien entre les deux. Elle va désormais jusqu'à la cabine (fermée par
+      // une paroi avant), et un châssis à longerons court sous tout le
+      // véhicule — deux volumes distincts, mais un seul véhicule.
+      const cabL=L*0.40, cabArZ=L*0.5-cabL-0.02;              // arrière de la cabine
+      const bedAvZ=cabArZ-0.05, bedArZ=-L*0.5+0.03, bedL=bedAvZ-bedArZ, bedZ=(bedAvZ+bedArZ)/2;
       corps.add(mkBoxG(W,0.66,cabL,coul,0,bodyY+0.33,L*0.5-cabL/2-0.02));            // cabine
       corps.add(mkBoxG(W*0.82,0.4,cabL*0.62,0x141b26,0,bodyY+0.66,L*0.5-cabL*0.72)); // vitrage cabine, teinté
-      corps.add(mkBoxG(W*0.97,0.3,bedL,0x23262e,0,bodyY-0.06,-L*0.5+bedL/2+0.03));   // plateau de benne
-      [-W*0.485,W*0.485].forEach(dx=>corps.add(mkBoxG(0.12,0.4,bedL,coul,dx,bodyY+0.22,-L*0.5+bedL/2+0.03))); // ridelles, épaissies pour rester visibles vues de dessus
-      corps.add(mkBoxG(W*0.97,0.4,0.05,coul,0,bodyY+0.22,-L*0.5+0.03));              // hayon
-      // arceau derrière la cabine, dans l'espace entre cabine et benne —
-      // silhouette pick-up immédiatement reconnaissable
-      const arceauZ=L*0.5-cabL-0.16, arceauH=1.0;
+      corps.add(mkBoxG(W*0.97,0.3,bedL,0x23262e,0,bodyY-0.06,bedZ));                 // plateau de benne
+      [-W*0.485,W*0.485].forEach(dx=>corps.add(mkBoxG(0.12,0.4,bedL,coul,dx,bodyY+0.22,bedZ))); // ridelles, épaissies pour rester visibles vues de dessus
+      corps.add(mkBoxG(W*0.97,0.4,0.05,coul,0,bodyY+0.22,bedArZ));                   // hayon
+      corps.add(mkBoxG(W*0.97,0.46,0.1,coul,0,bodyY+0.2,bedAvZ-0.05));               // paroi avant de benne, contre la cabine
+      // châssis : deux longerons et des traverses sous toute la longueur,
+      // en retrait des roues (le vide entre caisse et pneus reste visible)
+      [-W*0.3,W*0.3].forEach(dx=>corps.add(mkBoxG(0.16,0.18,L*0.9,0x1a1d24,dx,bodyY-0.3,0)));
+      [L*0.32,0,-L*0.32].forEach(dz=>corps.add(mkBoxG(W*0.62,0.12,0.14,0x1a1d24,0,bodyY-0.3,dz)));
+      // arceau sur la paroi avant de benne — silhouette pick-up
+      // immédiatement reconnaissable
+      const arceauZ=bedAvZ-0.16, arceauH=1.0;
       [-W*0.36,W*0.36].forEach(dx=>corps.add(mkBoxG(0.08,arceauH,0.08,0x23262e,dx,bodyY+arceauH/2-0.05,arceauZ)));
       corps.add(mkBoxG(W*0.78,0.08,0.08,0x23262e,0,bodyY+arceauH-0.05,arceauZ));     // barre haute de l'arceau
       corps.add(mkBoxG(W*0.94,0.2,0.16,0x9aa0a8,0,bodyY-0.22,L/2*0.98));             // pare-chocs avant, chromé et marqué
@@ -7592,12 +7620,68 @@ function entrerVehicule(v){
   }
   // Nitro (garages tuning) : bouton ESQUIVE, libre au volant — même réemploi
   // que CABRER/PELLE/AMBULANCE/MISSILE, qui gardent la priorité.
+  // Treuil (garages tuning) : bouton GRENADE, libre au volant (voir majRemorquage)
+  if(v.treuil){
+    el('btnGren').style.display='flex';
+    el('btnGren').innerHTML='🪝<small>TREUIL</small>';
+    toast('🪝 TREUIL accroche le véhicule le plus proche et le tracte — rappuie pour décrocher','or');
+  }
   if(v.nitro&&!v.def.cross&&!v.def.pelle&&!v.def.ambulance&&!v.def.bond){
     el('btnDodge').style.display='flex';
     el('btnDodge').innerHTML='🔥<small>NITRO</small>';
     NITRO_HUD.wrap.style.display='block'; NITRO_HUD.dernier=-1;
   }
   MISSION.volT=0;
+}
+// Accroche / remorquage — dépanneuse ET véhicule équipé d'un treuil (garage).
+// Accroche/décroche le véhicule le plus proche. Aucune restriction de
+// poids/type (demandé explicitement « qui peut tout tracter ») — tant
+// qu'accroché, le véhicule tracté a sa physique normale coupée (v.tracte,
+// voir majVehicules) et suit une position calculée ici, comme le rayon
+// tracteur de l'OVNI (captureOvni) mais en plus simple/rigide (pas de
+// pendule, juste un point fixe à l'arrière). Le treuil, sans flèche de
+// grue, montre un câble tendu (enfant du véhicule : libéré avec lui).
+function majRemorquage(v,dt,appui){
+  if(appui){
+    if(v.remorque){
+      v.remorque.tracte=null; v.remorque=null;
+      toast('Véhicule décroché','warn'); SFX.refus();
+    } else {
+      let meilleur=null,meilleurD=DEPANNEUSE_PORTEE*DEPANNEUSE_PORTEE;
+      for(const o of vehicules){
+        if(o===v||o.mort||o.epave||o.captureOvni||o.tracte||o.remorque||o.conduit==='joueur'||o.def.air) continue;
+        const dd=dist2(o.x,o.z,v.x,v.z);
+        if(dd<meilleurD){ meilleurD=dd; meilleur=o; }
+      }
+      if(meilleur){ v.remorque=meilleur; meilleur.tracte=v; meilleur.v=0; toast('Véhicule accroché','or'); SFX.achat(); }
+      else { toast('Aucun véhicule à proximité','warn'); SFX.refus(); }
+    }
+  }
+  if(v.remorque){
+    const r=v.remorque;
+    if(r.mort||r.epave){ r.tracte=null; v.remorque=null; }
+    else{
+      const off=v.def.long*0.5+r.def.long*0.5+1.1;
+      const tx=v.x-Math.sin(v.ang)*off, tz=v.z-Math.cos(v.ang)*off;
+      r.x=lerp(r.x,tx,clamp(5*dt,0,1)); r.z=lerp(r.z,tz,clamp(5*dt,0,1)); r.ang=v.ang; r.v=0;
+      if(r.mesh){ r.mesh.position.set(r.x,r.mesh.position.y,r.z); r.mesh.rotation.y=r.ang; }
+    }
+  }
+  if(!v.def.depanneuse){
+    const ud=v.mesh.userData;
+    if(v.remorque&&!ud.cable){
+      ud.cable=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.06,1),mat(0x15171c));
+      v.mesh.add(ud.cable);
+    }
+    if(ud.cable){
+      ud.cable.visible=!!v.remorque;
+      if(v.remorque){ // du pare-chocs arrière à l'avant du véhicule tracté (repère du véhicule)
+        const z0=-v.def.long*0.5, z1=-(v.def.long*0.5+1.1);
+        const tc=v.def.tuningCarro, yc=tc?tc.ancrages.basCaisse.y+0.1:0.7; // hauteur du pare-chocs
+        ud.cable.scale.z=z0-z1; ud.cable.position.set(0,yc,(z0+z1)/2);
+      }
+    }
+  }
 }
 function sortirVehicule(force){
   const v=P.veh; if(!v) return;
@@ -7608,7 +7692,7 @@ function sortirVehicule(force){
   // Dépanneuse : décrocher en sortant, sinon le véhicule tracté resterait
   // figé pour toujours (v.tracte n'est mis à jour que dans majConduite de
   // la dépanneuse, qui ne tourne plus une fois le joueur descendu).
-  if(v.def.depanneuse&&v.remorque){ v.remorque.tracte=null; v.remorque=null; }
+  if(v.remorque){ v.remorque.tracte=null; v.remorque=null; if(v.mesh.userData.cable) v.mesh.userData.cable.visible=false; } // dépanneuse ou treuil
   loopRingEl.style.display='none'; // au cas où on sortait en pleine charge de looping
   desintRingEl.style.display='none'; // au cas où on sortait en pleine charge du Désintégrateur
   if(v.def.type==='moto') v.mesh.rotation.z=0; // on redresse la moto au parking
@@ -8442,39 +8526,11 @@ function majConduite(dt){
       }
     }
   }
-  if(v.def.depanneuse){
-    // Bouton ESQUIVE (libre) : accroche/décroche le véhicule le plus proche.
-    // Aucune restriction de poids/type (demandé explicitement « qui peut
-    // tout tracter ») — tant qu'accroché, le véhicule tracté a sa physique
-    // normale coupée (v.tracte, voir majVehicules) et suit une position
-    // calculée ici, comme le rayon tracteur de l'OVNI (captureOvni) mais en
-    // plus simple/rigide (pas de pendule, juste un point fixe à l'arrière).
-    if(pressed('esquive')||edgeKey('KeyK')){
-      if(v.remorque){
-        v.remorque.tracte=null; v.remorque=null;
-        toast('Véhicule décroché','warn'); SFX.refus();
-      } else {
-        let meilleur=null,meilleurD=DEPANNEUSE_PORTEE*DEPANNEUSE_PORTEE;
-        for(const o of vehicules){
-          if(o===v||o.mort||o.epave||o.captureOvni||o.tracte||o.conduit==='joueur'||o.def.air) continue;
-          const dd=dist2(o.x,o.z,v.x,v.z);
-          if(dd<meilleurD){ meilleurD=dd; meilleur=o; }
-        }
-        if(meilleur){ v.remorque=meilleur; meilleur.tracte=v; meilleur.v=0; toast('Véhicule accroché','or'); SFX.achat(); }
-        else { toast('Aucun véhicule à proximité','warn'); SFX.refus(); }
-      }
-    }
-    if(v.remorque){
-      const r=v.remorque;
-      if(r.mort||r.epave){ r.tracte=null; v.remorque=null; }
-      else{
-        const off=v.def.long*0.5+r.def.long*0.5+1.1;
-        const tx=v.x-Math.sin(v.ang)*off, tz=v.z-Math.cos(v.ang)*off;
-        r.x=lerp(r.x,tx,clamp(5*dt,0,1)); r.z=lerp(r.z,tz,clamp(5*dt,0,1)); r.ang=v.ang; r.v=0;
-        if(r.mesh){ r.mesh.position.set(r.x,r.mesh.position.y,r.z); r.mesh.rotation.y=r.ang; }
-      }
-    }
-  }
+  // Dépanneuse : bouton ESQUIVE (libre). Treuil acheté au garage (v.treuil) :
+  // bouton GRENADE — ESQUIVE y est déjà la nitro, et GRENADE est libre au
+  // volant (même réemploi que l'HUILE et le FLASH, voir entrerVehicule).
+  if(v.def.depanneuse) majRemorquage(v,dt,pressed('esquive')||edgeKey('KeyK'));
+  else if(v.treuil) majRemorquage(v,dt,pressed('gren')||edgeKey('KeyG'));
   if(v.def.bond){
     // Missile sur ESQUIVE : tir unique à cooldown, droit devant — jamais
     // aimable comme la mitrailleuse (TIR, def.mitrailleuse ci-dessus), un
@@ -16905,7 +16961,7 @@ const TUNING_PRIX={
   // pièces de carrosserie, par catégorie et par variante (0 = d'origine,
   // gratuite) — À CALIBRER ; mêmes prix pour toutes les familles
   pieces:{aileron:[0,300,650],parechocs:[0,300,600],jupes:[0,250,550],
-          capot:[0,250,500],jantes:[0,400,800],echappement:[0,200,450]},
+          capot:[0,250,500],jantes:[0,400,800],echappement:[0,200,450,700]}, // 4e : réservé au pickup (voir seul)
 };
 // part de ce qui a été investi dans un véhicule rendue en le mettant à la casse
 const TUNING_CASSE_TAUX=0.25;
@@ -16992,11 +17048,26 @@ const PIECES_FAMILLES={
       {nom:'Pare-buffle',f:(a,d)=>{ const g=new THREE.Group(), z=a.avant.z+0.18, y=a.basCaisse.y;
         for(const sx of [-1,1]) pBox(g,0.08,0.75,0.08,MAT_CHROME,sx*d.larg*0.3,y+0.38,z);
         pBox(g,d.larg*0.75,0.08,0.08,MAT_CHROME,0,y+0.72,z); pBox(g,d.larg*0.95,0.1,0.1,MAT_CHROME,0,y+0.18,z); return g; }},
-      {nom:'Treuil',f:(a,d)=>{ const g=new THREE.Group(), z=a.avant.z+0.14, y=a.basCaisse.y+0.22;
+      // treuil:true = PAS seulement cosmétique : posé, il donne au véhicule
+      // l'accroche/remorquage de la dépanneuse (v.treuil, voir majRemorquage)
+      {nom:'Treuil',treuil:true,f:(a,d)=>{ const g=new THREE.Group(), z=a.avant.z+0.14, y=a.basCaisse.y+0.22;
         pBox(g,d.larg*0.98,0.26,0.22,MAT_SOMBRE,0,y,z); pCyl(g,0.12,0.5,MAT_GRIS,0,y,z+0.12); return g; }}]},
     jupes:{nom:'MARCHEPIEDS',variantes:[ORIGINE,{nom:'Marchepieds',f:P_.jupes(0.22,0.06,false)},{nom:'Marchepieds chromés',f:P_.jupes(0.24,0.06,false,MAT_CHROME)}]},
     jantes:{nom:'JANTES',variantes:[ORIGINE,{nom:'Acier noir',f:P_.jante('rayons')},{nom:'Chrome',f:P_.jante('chrome')}]},
-    echappement:{nom:'ÉCHAPPEMENT',variantes:[ORIGINE,{nom:'Double',f:P_.echappement(2,0.08)},{nom:'Latéral',f:P_.echappement(0,0.07,true)}]},
+    echappement:{nom:'ÉCHAPPEMENT',variantes:[ORIGINE,{nom:'Double',f:P_.echappement(2,0.08)},{nom:'Latéral',f:P_.echappement(0,0.07,true)},
+      // seul : variante réservée à ces véhicules (demandé pour le pickup) —
+      // cheminée chromée derrière la cabine + prise d'air (snorkel) sur le
+      // montant avant, côté passager
+      {nom:'Cheminée + prise d’air',seul:['pickup'],f:(a,d)=>{ const g=new THREE.Group(), x=d.larg*0.5+0.08;
+        const y0=a.basCaisse.y+0.25, y1=a.toit.y+0.45, zc=a.toit.z+0.12;
+        const ch=new THREE.Mesh(new THREE.CylinderGeometry(0.09,0.1,y1-y0,10),MAT_CHROME); ch.position.set(x,(y0+y1)/2,zc); g.add(ch);
+        pBox(g,0.2,0.05,0.24,MAT_CHROME,x,y1+0.02,zc-0.04,-0.35);                           // clapet incliné
+        pBox(g,0.08,0.2,0.3,MAT_SOMBRE,x-0.06,y0+0.3,zc+0.05);                              // collier de fixation
+        const zs=a.avant.z-d.long*0.33, s0=a.basCaisse.y+0.35, s1=a.avant.y+0.12;
+        const sn=new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.08,s1-s0,8),MAT_SOMBRE); sn.position.set(-x,(s0+s1)/2,zs); g.add(sn);
+        pBox(g,0.2,0.18,0.32,MAT_SOMBRE,-x,s1+0.04,zs+0.1);                                // tête de prise d'air, vers l'avant
+        pBox(g,0.16,0.12,0.03,MAT_GRIS,-x,s1+0.04,zs+0.27);                                // grille
+        return g; }}]},
   },
   toutterrain:{ // pas de jupes ni de prise d'air : rampe de phares et pare-buffle
     aileron:{nom:'RAMPE DE PHARES',variantes:[ORIGINE,
@@ -17060,7 +17131,21 @@ const GARAGE_HP={};
 // véhicule pas (encore) dans sa collection
 let GARAGE_ARRIVEE=null;
 const NITRO_HUD={wrap:el('nitroWrap'),fill:el('nitroFill'),dernier:-1,refusT:0};
-const GM={el:el('garageMenu'),titre:el('gmTitre'),argent:el('gmArgent'),corps:el('gmCorps')};
+const GM={el:el('garageMenu'),titre:el('gmTitre'),argent:el('gmArgent'),corps:el('gmCorps'),
+  rail:el('gmRail'),pouce:el('gmPouce'),fonduH:el('gmFonduH'),fonduB:el('gmFonduB')};
+// rail de défilement dessiné : pouce proportionné au contenu visible, rail
+// masqué s'il n'y a rien à faire défiler, fondus haut/bas selon la position
+function majRailGarage(){
+  const c=GM.corps, h=c.clientHeight, total=c.scrollHeight, deborde=total>h+2;
+  GM.rail.style.display=deborde?'block':'none';
+  GM.fonduH.style.opacity=deborde&&c.scrollTop>4?'1':'0';
+  GM.fonduB.style.opacity=deborde&&c.scrollTop+h<total-4?'1':'0';
+  if(!deborde) return;
+  const railH=GM.rail.clientHeight, pouceH=Math.max(28,railH*h/total);
+  GM.pouce.style.height=pouceH+'px';
+  GM.pouce.style.top=((railH-pouceH)*c.scrollTop/Math.max(1,total-h))+'px';
+}
+GM.corps.addEventListener('scroll',majRailGarage,{passive:true});
 
 /* ---------- « Mes véhicules » : META.vehPerso ---------- */
 function fichePerso(id){ const f=META.vehPerso&&META.vehPerso[id]; return (f&&f.cle&&VEHDEFS[f.cle])?f:null; }
@@ -17206,7 +17291,7 @@ function garageChoisirVehicule(s,id){
     }
     s.courant=id;
   }
-  s.apercu=null; s.casseArmee=null; garageMajVitrine(s);
+  annulerApercus(s); s.casseArmee=null; garageMajVitrine(s);
   return true;
 }
 // Mise à la casse du véhicule exposé — garde d'entrée PROPRE : seul un
@@ -17221,7 +17306,7 @@ function garageCasser(s){
   const nom=VEHDEFS[f.cle].nom;
   Object.assign(f,slotGarageDefaut()); delete GARAGE_HP[id];
   META.argent+=remb;
-  s.courant=''; s.casseArmee=null; s.apercu=null; // revient au véhicule non enregistré, s'il y en a un
+  s.courant=''; s.casseArmee=null; annulerApercus(s); // revient au véhicule non enregistré, s'il y en a un
   sauveMeta(); garageMajVitrine(s);
   SFX.achat(); toast('♻️ '+nom+' à la casse'+(remb?' (+'+remb+' $)':''),'or');
   return true;
@@ -17301,7 +17386,7 @@ function appliquerCarrosserie(groupe,key,pieces){
   for(const cat of PIECES_CATS){
     if(cat==='jantes'||!fam[cat]) continue;
     const v=fam[cat].variantes[pieces[cat]|0];
-    if(v&&v.f){ grp.add(v.f(tc.ancrages,d,mc,ctx)); n++; }
+    if(v&&v.f&&varianteDispo(v,key)){ grp.add(v.f(tc.ancrages,d,mc,ctx)); n++; }
   }
   (ud.corps||groupe).add(grp); ud.carro=grp;
   if(fam.jantes){
@@ -17310,6 +17395,19 @@ function appliquerCarrosserie(groupe,key,pieces){
   }
   return n;
 }
+// une variante marquée seul:[clés] n'existe que pour ces véhicules
+function varianteDispo(v,key){ return !v.seul||v.seul.indexOf(key)>=0; }
+// une pièce POSÉE porte-t-elle ce drapeau (ex. treuil) ? Lu dans le
+// catalogue, jamais un index en dur.
+function piecePosee(key,pieces,drapeau){
+  const tc=VEHDEFS[key]&&VEHDEFS[key].tuningCarro, fam=tc&&PIECES_FAMILLES[tc.famille];
+  if(!fam||!pieces) return false;
+  for(const cat of PIECES_CATS){
+    const v=fam[cat]&&fam[cat].variantes[pieces[cat]|0];
+    if(v&&v[drapeau]&&varianteDispo(v,key)) return true;
+  }
+  return false;
+}
 // Achat / pose d'une pièce — garde d'entrée PROPRE : une variante se paie une
 // fois ; reposer une variante déjà possédée (ou l'origine) est gratuit.
 function choisirPiece(s,cat,i){
@@ -17317,7 +17415,7 @@ function choisirPiece(s,cat,i){
   if(!slot||!slot.cle) return false;
   const tc=VEHDEFS[slot.cle]&&VEHDEFS[slot.cle].tuningCarro;
   const fc=tc&&PIECES_FAMILLES[tc.famille]&&PIECES_FAMILLES[tc.famille][cat];
-  if(!fc||!(i>=0&&i<fc.variantes.length)) return false;
+  if(!fc||!(i>=0&&i<fc.variantes.length)||!varianteDispo(fc.variantes[i],slot.cle)) return false;
   if(slot.pieces[cat]===i) return false;                    // déjà posée : rien à faire
   const bit=1<<i;
   if(!(slot.piecesPossedees[cat]&bit)){
@@ -17342,6 +17440,7 @@ function appliquerTuning(v,id){
   appliquerCarrosserie(v.mesh,v.key,slot.pieces); // véhicule du JOUEUR uniquement (jamais le trafic)
   v.blindage=TUNING_EFFETS.blindage[slot.blindage]; // 1 = d'origine (voir abimerVehicule)
   v.nitro=!!slot.nitro; v.nitroJauge=100; v.nitroRepos=0; v.nitroActif=false;
+  v.treuil=piecePosee(v.key,slot.pieces,'treuil'); // accroche/remorquage (majRemorquage)
 }
 
 /* ---------- la salle partagée ---------- */
@@ -17407,7 +17506,7 @@ function garageMajVitrine(s){
   const ref=cle?cle+'|'+(s.courant||'visiteur'):'';
   if(s.voitureRef!==ref){
     if(s.voiture){ s.g.remove(s.voiture); libererObjet(s.voiture); s.voiture=null; }
-    s.voitureCle=cle; s.voitureRef=ref; s.apercu=null;
+    s.voitureCle=cle; s.voitureRef=ref; s.apercu=null; s.apercuCoul=-1; s.apercuNeon=-1;
     if(cle){
       const m=makeVoiture(cle);
       m.position.set(s.plateauX,0.42,s.plateauZ); s.g.add(m); s.voiture=m;
@@ -17423,8 +17522,11 @@ function garageMajVitrine(s){
     }
   }
   if(s.voiture){
-    peindreMesh(s.voiture,slot.coul); neonMesh(s.voiture,slot.neon);
-    // on VOIT avant d'acheter : l'aperçu remplace la pièce posée sur l'exposition
+    // on VOIT avant d'acheter : teinte et néons en aperçu (s.apercuCoul,
+    // s.apercuNeon, -1 = aucun) remplacent ceux de la fiche sur l'exposition
+    peindreMesh(s.voiture,s.apercuCoul>=0?s.apercuCoul:slot.coul);
+    neonMesh(s.voiture,s.apercuNeon>=0?s.apercuNeon:slot.neon);
+    // de même, l'aperçu d'une pièce remplace la pièce posée
     const pieces=s.apercu?Object.assign({},slot.pieces,{[s.apercu.cat]:s.apercu.i}):slot.pieces;
     appliquerCarrosserie(s.voiture,cle,pieces);
   }
@@ -17512,7 +17614,7 @@ function garageApresSortie(sc){
 }
 function garageReinitSalle(sa){
   fermerGarageMenu(sa);
-  sa.laisser=false; sa.sortirEnVoiture=false; sa.apercu=null;
+  sa.laisser=false; sa.sortirEnVoiture=false; annulerApercus(sa);
   sa.courant=''; sa.visiteur=null; sa.casseArmee=null;
   sa.porteFermee=true; sa.etoilesT=-1;
   if(sa.voiture){ sa.g.remove(sa.voiture); libererObjet(sa.voiture); sa.voiture=null; }
@@ -17533,11 +17635,12 @@ function peindreGarage(s,coul){
   slot=garageAcheter(s,TUNING_PRIX.peinture); if(!slot) return false;
   slot.coul=coul; sauveMeta(); return true;
 }
-function acheterNeons(s){
+function acheterNeons(s,coul){ // coul : la couleur essayée (par défaut la 1re)
   let slot=ficheAchat(s);
   if(!slot||slot.neon>=0) return false; // kit déjà posé
+  if(TUNING_NEONS.indexOf(coul)<0) coul=TUNING_NEONS[0];
   slot=garageAcheter(s,TUNING_PRIX.neons); if(!slot) return false;
-  slot.neon=TUNING_NEONS[0]; sauveMeta(); return true;
+  slot.neon=coul; sauveMeta(); return true;
 }
 function couleurNeons(s,coul){ // gratuit une fois le kit posé
   const slot=ficheAchat(s);
@@ -17586,11 +17689,15 @@ function renderGarageMenu(s){
        '<div class="gmSec" style="color:#ffb46a">Le '+VEHDEFS[s.visiteur.cle].nom+' n’est pas dans ta collection : garde-le ou améliore-le, sinon il est abandonné si tu sors sans lui.</div>';
   }
   if(!slot){ GM.corps.innerHTML=h; return; }
-  h+='<div class="gmSec">PEINTURE — '+TUNING_PRIX.peinture+' $ la teinte</div><div class="gmLigne">';
-  TUNING_TEINTES.forEach((c,i)=>{ h+='<div class="gmTeinte'+(slot.coul===c?' actuelle':'')+'" data-a="peinture" data-i="'+i+'" style="background:'+hexCss(c)+'"></div>'; });
-  h+='</div><div class="gmSec">NÉONS</div><div class="gmLigne">';
-  if(slot.neon<0) h+='<div class="gmBtn" data-a="neons">POSER LE KIT — '+TUNING_PRIX.neons+' $</div>';
-  else TUNING_NEONS.forEach((c,i)=>{ h+='<div class="gmTeinte'+(slot.neon===c?' actuelle':'')+'" data-a="neonc" data-i="'+i+'" style="background:'+hexCss(c)+'"></div>'; });
+  // peinture et néons : comme les pièces, 1er appui = aperçu sur le plateau
+  // (rien débité), 2e appui (ou le bouton ACHETER) = achat — demandé : « du
+  // style, à confirmer avant de payer »
+  h+='<div class="gmSec">PEINTURE — '+TUNING_PRIX.peinture+' $ la teinte · touche pour essayer</div><div class="gmLigne">';
+  TUNING_TEINTES.forEach((c,i)=>{ h+='<div class="gmTeinte'+(slot.coul===c?' actuelle':'')+(s.apercuCoul===c?' apercu':'')+'" data-a="peinture" data-i="'+i+'" style="background:'+hexCss(c)+'"></div>'; });
+  if(s.apercuCoul>=0) h+='<div class="gmBtn achat" data-a="peintureAchat">ACHETER CETTE TEINTE — '+TUNING_PRIX.peinture+' $</div>';
+  h+='</div><div class="gmSec">NÉONS'+(slot.neon<0?' — kit '+TUNING_PRIX.neons+' $ · touche une couleur pour essayer':' — couleur gratuite')+'</div><div class="gmLigne">';
+  TUNING_NEONS.forEach((c,i)=>{ h+='<div class="gmTeinte neon'+(slot.neon===c?' actuelle':'')+(s.apercuNeon===c?' apercu':'')+'" data-a="neonc" data-i="'+i+'" style="background:'+hexCss(c)+';box-shadow:0 0 10px '+hexCss(c)+'"></div>'; });
+  if(slot.neon<0) h+='<div class="gmBtn'+(s.apercuNeon>=0?' achat':'')+'" data-a="neons">'+(s.apercuNeon>=0?'POSER CE KIT — ':'ESSAYER LE KIT — ')+TUNING_PRIX.neons+' $</div>';
   h+='</div><div class="gmSec">NITRO</div><div class="gmLigne">';
   h+=slot.nitro?'<div class="gmBtn ok">✔ ÉQUIPÉE (bouton NITRO au volant)</div>'
                :'<div class="gmBtn" data-a="nitro">INSTALLER — '+TUNING_PRIX.nitro+' $</div>';
@@ -17611,10 +17718,12 @@ function renderGarageMenu(s){
       if(!fam[cat]) continue;
       h+='<div class="gmSec">'+fam[cat].nom+'</div><div class="gmLigne">';
       fam[cat].variantes.forEach((v,i)=>{
+        if(!varianteDispo(v,slot.cle)) return;
         const posee=slot.pieces[cat]===i, possede=!!(slot.piecesPossedees[cat]&(1<<i));
         const vue=s.apercu&&s.apercu.cat===cat&&s.apercu.i===i;
         const prix=TUNING_PRIX.pieces[cat][i];
-        const txt=posee?'✔ '+v.nom:(possede?v.nom+' — POSER':(vue?'ACHETER '+v.nom+' — '+prix+' $':v.nom+' — '+prix+' $'));
+        const nomV=v.nom+(v.treuil?' 🪝 remorquage':'');
+        const txt=posee?'✔ '+nomV:(possede?nomV+' — POSER':(vue?'ACHETER '+nomV+' — '+prix+' $':nomV+' — '+prix+' $'));
         h+='<div class="gmBtn'+(posee?' ok':'')+'"'+(posee?'':' data-a="piece" data-c="'+cat+'" data-i="'+i+'"')+(vue?' style="border-color:#ffd23f;color:#ffd23f"':'')+'>'+txt+'</div>';
       });
       h+='</div>';
@@ -17630,16 +17739,19 @@ function renderGarageMenu(s){
                                 :'<div class="gmBtn" data-a="casse">♻️ METTRE À LA CASSE (+'+remb+' $)</div>')+'</div>';
   }
   GM.corps.innerHTML=h;
+  majRailGarage();
 }
+// annule tout aperçu non acheté (pièce, teinte, néons)
+function annulerApercus(s){ s.apercu=null; s.apercuCoul=-1; s.apercuNeon=-1; }
 function ouvrirGarageMenu(s){
   if(!s||!s.tuning) return;
-  s.menuOuvert=true; s.apercu=null; GM.el.style.display='flex';
+  s.menuOuvert=true; annulerApercus(s); GM.el.style.display='flex';
   renderGarageMenu(s); SFX.ui();
 }
 function fermerGarageMenu(s){
   if(s&&s.tuning){
     s.menuOuvert=false;
-    if(s.apercu){ s.apercu=null; if(s.voiture) garageMajVitrine(s); } // aperçu non acheté : retour aux pièces posées
+    if(s.apercu||s.apercuCoul>=0||s.apercuNeon>=0){ annulerApercus(s); if(s.voiture) garageMajVitrine(s); } // aperçu non acheté : retour à la fiche
   }
   GM.el.style.display='none';
 }
@@ -17650,9 +17762,24 @@ GM.corps.addEventListener('pointerdown',e=>{
   const a=b.dataset.a, i=+b.dataset.i;
   const avant=s.courant; // un 1er achat sur un véhicule hors collection l'y fait entrer
   if(a!=='casse') s.casseArmee=null; // toute autre action désarme la casse
-  if(a==='peinture'){ if(peindreGarage(s,TUNING_TEINTES[i])) toast('🎨 Nouvelle peinture','or'); else if(ficheAchat(s)&&ficheAchat(s).coul===TUNING_TEINTES[i]) SFX.refus(); }
-  else if(a==='neons'){ if(acheterNeons(s)) toast('💡 Néons posés — choisis leur couleur','or'); }
-  else if(a==='neonc'){ if(couleurNeons(s,TUNING_NEONS[i])) SFX.ui(); }
+  const fiche=ficheAchat(s);
+  if(a==='peinture'){
+    const c=TUNING_TEINTES[i];
+    if(fiche&&fiche.coul===c){ s.apercuCoul=-1; SFX.ui(); }                  // sa teinte actuelle : on annule l'essai
+    else if(s.apercuCoul===c){ if(peindreGarage(s,c)){ s.apercuCoul=-1; toast('🎨 Nouvelle peinture','or'); } } // 2e appui : achat
+    else { s.apercuCoul=c; SFX.ui(); }                                        // 1er appui : aperçu, rien débité
+  }
+  else if(a==='peintureAchat'){ if(s.apercuCoul>=0&&peindreGarage(s,s.apercuCoul)){ s.apercuCoul=-1; toast('🎨 Nouvelle peinture','or'); } }
+  else if(a==='neons'){
+    if(s.apercuNeon<0){ s.apercuNeon=TUNING_NEONS[0]; SFX.ui(); }            // 1er appui : on essaie le kit
+    else if(acheterNeons(s,s.apercuNeon)){ s.apercuNeon=-1; toast('💡 Néons posés — couleur modifiable gratuitement','or'); }
+  }
+  else if(a==='neonc'){
+    const c=TUNING_NEONS[i];
+    if(fiche&&fiche.neon>=0){ if(couleurNeons(s,c)) SFX.ui(); }             // kit posé : changer de couleur est gratuit
+    else if(s.apercuNeon===c){ if(acheterNeons(s,c)){ s.apercuNeon=-1; toast('💡 Néons posés — couleur modifiable gratuitement','or'); } }
+    else { s.apercuNeon=c; SFX.ui(); }
+  }
   else if(a==='nitro'){ if(acheterNitro(s)) toast('🔥 Nitro installée — bouton NITRO au volant','or'); }
   else if(a==='palier'){ const c=b.dataset.c; if(acheterPalier(s,c)) toast('⚙️ '+TUNING_NOMS[c]+' : palier '+ficheAchat(s)[c],'or'); }
   else if(a==='laisser'){ s.laisser=!s.laisser; SFX.ui(); }
