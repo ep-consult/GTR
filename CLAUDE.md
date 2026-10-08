@@ -531,6 +531,16 @@ reste obligatoire avant publication.
   Non bloquant : Safari en écran d'accueil utilise déjà WebKit, donc le rendu et
   les perfs observés sont représentatifs.
 
+### Minimap et grande carte (zoom au pincement)
+
+Pincer la minimap du HUD zoome/dézoome (`MINI.zoom`, ×1 = toute la ville à
+×`MINI_ZOOM_MAX` = 4), vue centrée sur le joueur et bornée aux bords (même
+principe que `mapVue()`) ; points et badges gardent leur taille. Un simple
+toucher ouvre la grande carte **au relâcher** (pour ne pas confondre avec un
+pincement), au zoom de la minimap. Sur la grande carte, le pincement s'ajoute
+aux boutons + / − et ne pose jamais de destination ; le toucher simple la
+pose toujours. Testé par `scenarios.js` (gestes à deux doigts simulés).
+
 ### Icônes vectorielles (`icones/`)
 
 42 pictogrammes SVG dessinés à la main d'après `icones/references/*.png`

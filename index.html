@@ -18838,11 +18838,24 @@ function poserWaypoint(px,py){
 // canvas — demandé explicitement, le zoom devait rester compatible avec la
 // pose de destination déjà en place.
 let carteDrag=null;
+// pincement à deux doigts : zoom (les boutons + / − restent) ; un geste à
+// deux doigts ne pose jamais de destination
+const cartePince={doigts:new Map(),d0:1,z0:1};
+const carteDeux=()=>{ const [a,b]=[...cartePince.doigts.values()]; return Math.hypot(a.x-b.x,a.y-b.y)||1; };
 el('carteCv').addEventListener('pointerdown',e=>{
   e.preventDefault();
+  cartePince.doigts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(cartePince.doigts.size>=2){
+    cartePince.d0=carteDeux(); cartePince.z0=MAPUI.zoom;
+    if(carteDrag) carteDrag.dragged=true;
+    return;
+  }
   carteDrag={x0:e.clientX,y0:e.clientY,panX0:MAPUI.panX,panZ0:MAPUI.panZ,dragged:false};
 });
 el('carteCv').addEventListener('pointermove',e=>{
+  const doigt=cartePince.doigts.get(e.pointerId);
+  if(doigt){ doigt.x=e.clientX; doigt.y=e.clientY; }
+  if(cartePince.doigts.size>=2){ carteZoomSet(cartePince.z0*carteDeux()/cartePince.d0); return; }
   if(!carteDrag||MAPUI.zoom<=1) return;
   const dx=e.clientX-carteDrag.x0, dz=e.clientY-carteDrag.y0;
   if(!carteDrag.dragged&&Math.hypot(dx,dz)<8) return;
@@ -18854,7 +18867,12 @@ el('carteCv').addEventListener('pointermove',e=>{
   MAPUI.panZ=carteDrag.panZ0-dz/pxParUniteMonde;
   drawCarte();
 });
+const carteDoigtLeve=e=>{ cartePince.doigts.delete(e.pointerId); };
+el('carteCv').addEventListener('pointercancel',e=>{ carteDoigtLeve(e); carteDrag=null; });
 el('carteCv').addEventListener('pointerup',e=>{
+  const pincait=cartePince.doigts.size>=2;
+  carteDoigtLeve(e);
+  if(pincait||cartePince.doigts.size>0){ if(carteDrag) carteDrag.dragged=true; return; }
   if(!carteDrag) return;
   const dragged=carteDrag.dragged; carteDrag=null;
   if(dragged) return; // vue déplacée : pas de destination posée
@@ -18879,14 +18897,43 @@ for(const btn of document.querySelectorAll('#carteFiltres .chipF')){
     drawCarte(); SFX.ui();
   });
 }
-el('miniWrap').addEventListener('pointerdown',()=>{
-  if(ETAT.mode!=='jeu') return;
-  // Recentré et dézoomé à chaque ouverture — les filtres, eux, restent tels
-  // que le joueur les a laissés (préférence d'affichage, pas un état de vue).
+// Minimap : PINCER zoome/dézoome (demandé explicitement), un simple TOUCHER
+// ouvre la grande carte — au relâcher, pour ne jamais confondre les deux.
+const MINI_ZOOM_MAX=4;
+const MINI={zoom:1,doigts:new Map(),d0:1,z0:1,pince:false,bouge:false,x0:0,y0:0};
+function ouvrirCarte(){
+  // Recentrée sur le joueur, au zoom de la minimap — les filtres, eux,
+  // restent tels que le joueur les a laissés (préférence d'affichage).
   const pc0=posCarte();
-  MAPUI.zoom=1; MAPUI.panX=pc0.x; MAPUI.panZ=pc0.z;
+  MAPUI.zoom=MINI.zoom; MAPUI.panX=pc0.x; MAPUI.panZ=pc0.z;
   ETAT.mode='carte'; drawCarte(); ecran('carte'); SFX.ui();
-});
+}
+{
+  const mw=el('miniWrap'); mw.style.touchAction='none';
+  const deux=()=>{ const [a,b]=[...MINI.doigts.values()]; return Math.hypot(a.x-b.x,a.y-b.y)||1; };
+  mw.addEventListener('pointerdown',e=>{
+    if(ETAT.mode!=='jeu') return;
+    e.preventDefault();
+    try{ mw.setPointerCapture(e.pointerId); }catch(err){}
+    MINI.doigts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(MINI.doigts.size===1){ MINI.pince=false; MINI.bouge=false; MINI.x0=e.clientX; MINI.y0=e.clientY; }
+    else if(MINI.doigts.size===2){ MINI.d0=deux(); MINI.z0=MINI.zoom; MINI.pince=true; }
+  });
+  mw.addEventListener('pointermove',e=>{
+    const d=MINI.doigts.get(e.pointerId); if(!d) return;
+    d.x=e.clientX; d.y=e.clientY;
+    if(MINI.doigts.size>=2){ MINI.zoom=clamp(MINI.z0*deux()/MINI.d0,1,MINI_ZOOM_MAX); majMinimap(); }
+    else if(Math.hypot(e.clientX-MINI.x0,e.clientY-MINI.y0)>8) MINI.bouge=true;
+  });
+  const fin=e=>{
+    if(!MINI.doigts.delete(e.pointerId)) return;
+    if(MINI.doigts.size>0) return;
+    const toucher=e.type==='pointerup'&&!MINI.pince&&!MINI.bouge;
+    MINI.pince=false;
+    if(toucher&&ETAT.mode==='jeu') ouvrirCarte();
+  };
+  mw.addEventListener('pointerup',fin); mw.addEventListener('pointercancel',fin);
+}
 el('carteClose').addEventListener('pointerdown',()=>{ecran(null);ETAT.mode='jeu';});
 el('btnAppelTaxi').addEventListener('pointerdown',()=>{
   if(!WAYP.actif){ SFX.refus(); toast('Touche d’abord la carte pour choisir une destination'); return; }
@@ -20813,20 +20860,26 @@ function posCarte(){
   return {x:P.x,z:P.z,dedans:false};
 }
 function majMinimap(){
+  // Zoom au pincement (MINI.zoom, 1 = toute la ville) : fenêtre centrée sur
+  // le joueur, bornée aux bords de la carte — même principe que mapVue().
+  // Les points et badges gardent leur taille : seul le fond grossit.
+  const pc=posCarte(), dv=96/MINI.zoom;
+  const cx=clamp(mmX(pc.x),dv,192-dv), cz=clamp(mmZ(pc.z),dv,192-dv), ech=192/(2*dv);
+  const PX=x=>(mmX(x)-(cx-dv))*ech, PZ=z=>(mmZ(z)-(cz-dv))*ech;
   mmCtx.clearRect(0,0,192,192);
-  mmCtx.drawImage(mmStatic,0,0,384,384,0,0,192,192);
-  const dot=(x,z,c,r)=>{mmCtx.fillStyle=c;mmCtx.beginPath();mmCtx.arc(mmX(x),mmZ(z),r||2.4,0,7);mmCtx.fill();};
+  mmCtx.drawImage(mmStatic,(cx-dv)*2,(cz-dv)*2,dv*4,dv*4,0,0,192,192);
+  const dot=(x,z,c,r)=>{mmCtx.fillStyle=c;mmCtx.beginPath();mmCtx.arc(PX(x),PZ(z),r||2.4,0,7);mmCtx.fill();};
   // Portes des bâtiments visitables : simple point, comme avant (jusqu'à 26
   // à la fois, pas la place pour un badge complet sur 96 px d'écran) — la
   // version soignée avec pictogramme est réservée à la grande carte.
   for(const p of PORTES) dot(p.x,p.z,'#ffd23f',2);
   // Commerces/POI : peu nombreux, badge complet comme sur la grande carte
   // (demandé explicitement, « des pictogrammes soignés »).
-  for(const c of listeCommerces()) dessinerBadge(mmCtx,mmX(c.x),mmZ(c.z),3.6,c.c,c.txt,6);
+  for(const c of listeCommerces()) dessinerBadge(mmCtx,PX(c.x),PZ(c.z),3.6,c.c,c.txt,6);
   for(const e of ennemis) if(!e.mort) dot(e.x,e.z,e.fac==='police'?'#4a9aff':(e.fac==='frelons'?'#e6a41f':'#ff5a5a'),e.boss?4.5:2.4);
   for(const p of pickups) dot(p.x,p.z,'#58ff7a',1.8);
-  if(META.monstertruckTrouve&&POIS.friche) dessinerBadge(mmCtx,mmX(POIS.friche.x),mmZ(POIS.friche.z),3.6,'#ff3b1a','🚛',6);
-  if(META.jetpackTrouve&&POIS.toitH&&POIS.toitH.jetpack) dessinerBadge(mmCtx,mmX(POIS.toitH.jetpack.x),mmZ(POIS.toitH.jetpack.z),3.6,'#35c8ff','🚀',6);
+  if(META.monstertruckTrouve&&POIS.friche) dessinerBadge(mmCtx,PX(POIS.friche.x),PZ(POIS.friche.z),3.6,'#ff3b1a','🚛',6);
+  if(META.jetpackTrouve&&POIS.toitH&&POIS.toitH.jetpack) dessinerBadge(mmCtx,PX(POIS.toitH.jetpack.x),PZ(POIS.toitH.jetpack.z),3.6,'#35c8ff','🚀',6);
   // Le Micro Vintage : Solara FM émet en continu, les caches non fouillées
   // de la salle où l'on se trouve apparaissent dans un rayon de 40 m —
   // affichées à leur offset réel par rapport au joueur, autour de l'icône
@@ -20852,9 +20905,8 @@ function majMinimap(){
     dot(MISSION.ciblePosActuel.x,MISSION.ciblePosActuel.z,'#35e0ff',3.5);
   }
   // joueur : triangle orienté (position du bâtiment si on est à l'intérieur)
-  const pc=posCarte();
   mmCtx.save();
-  mmCtx.translate(mmX(pc.x),mmZ(pc.z));
+  mmCtx.translate(PX(pc.x),PZ(pc.z));
   if(pc.dedans){
     mmCtx.fillStyle='#ffd23f';
     mmCtx.beginPath();mmCtx.arc(0,0,5.5,0,7);mmCtx.fill();

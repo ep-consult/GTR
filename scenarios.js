@@ -7131,6 +7131,55 @@ async function main() {
     }
 
     // -------------------------------------------------------------------
+    // Minimap et grande carte : pincer zoome, un toucher ouvre la carte,
+    // un pincement ne pose jamais de destination.
+    // -------------------------------------------------------------------
+    console.log('\n--- Minimap : zoom au pincement, toucher pour ouvrir la carte ---');
+    {
+      const pz = await page.evaluate(() => {
+        startRun(); ETAT.mode = 'jeu'; MINI.zoom = 1; WAYP.actif = false;
+        const ev = (cible, type, id, x, y) => cible.dispatchEvent(new PointerEvent(type, { bubbles: true, pointerId: id, clientX: x, clientY: y, isPrimary: id === 1 }));
+        const mw = document.getElementById('miniWrap'), r = mw.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+        const out = {};
+        // pincement qui écarte les doigts : zoom > 1, borné, sans ouvrir la carte
+        ev(mw, 'pointerdown', 1, cx - 10, cy); ev(mw, 'pointerdown', 2, cx + 10, cy);
+        ev(mw, 'pointermove', 2, cx + 40, cy); ev(mw, 'pointermove', 1, cx - 40, cy);
+        ev(mw, 'pointerup', 2, cx + 40, cy); ev(mw, 'pointerup', 1, cx - 40, cy);
+        out.zoomApres = MINI.zoom; out.modeApresPince = ETAT.mode;
+        ev(mw, 'pointerdown', 1, cx - 5, cy); ev(mw, 'pointerdown', 2, cx + 5, cy); ev(mw, 'pointermove', 2, cx + 400, cy);
+        ev(mw, 'pointerup', 2, cx + 400, cy); ev(mw, 'pointerup', 1, cx - 5, cy);
+        out.zoomMax = MINI.zoom; out.borneMax = MINI_ZOOM_MAX;
+        // le joueur reste dans la fenêtre zoomée (centrage)
+        majMinimap();
+        // toucher simple : ouvre la grande carte au zoom de la minimap
+        MINI.zoom = 2;
+        ev(mw, 'pointerdown', 1, cx, cy); ev(mw, 'pointerup', 1, cx, cy);
+        out.modeApresToucher = ETAT.mode; out.zoomCarte = MAPUI.zoom;
+        // grande carte : pincement = zoom, jamais de destination posée
+        const cv = document.getElementById('carteCv'), rc = cv.getBoundingClientRect(), mx = rc.left + rc.width / 2, my = rc.top + rc.height / 2;
+        const z0 = MAPUI.zoom;
+        ev(cv, 'pointerdown', 1, mx - 20, my); ev(cv, 'pointerdown', 2, mx + 20, my);
+        ev(cv, 'pointermove', 2, mx + 70, my); ev(cv, 'pointerup', 2, mx + 70, my); ev(cv, 'pointerup', 1, mx - 20, my);
+        out.carteZoomAvant = z0; out.carteZoomApres = MAPUI.zoom; out.waypApresPince = WAYP.actif;
+        // un toucher simple pose toujours la destination
+        ev(cv, 'pointerdown', 1, mx + 30, my + 30); ev(cv, 'pointerup', 1, mx + 30, my + 30);
+        out.waypApresToucher = WAYP.actif;
+        WAYP.actif = false; ecran(null); ETAT.mode = 'jeu'; MINI.zoom = 1;
+        return out;
+      });
+      if (!(pz.zoomApres > 1.5) || pz.modeApresPince !== 'jeu') fail('Minimap : le pincement ne zoome pas ou ouvre la carte (' + JSON.stringify(pz) + ')');
+      else ok('Minimap : pincer zoome (×' + pz.zoomApres.toFixed(2) + ') sans ouvrir la grande carte');
+      if (pz.zoomMax !== pz.borneMax) fail('Minimap : zoom non borné (' + pz.zoomMax + ')');
+      else ok('Minimap : zoom borné à ×' + pz.borneMax);
+      if (pz.modeApresToucher !== 'carte' || pz.zoomCarte !== 2) fail('Minimap : un toucher n\'ouvre pas la carte au zoom de la minimap (' + JSON.stringify(pz) + ')');
+      else ok('Minimap : un toucher ouvre la grande carte, au même zoom');
+      if (!(pz.carteZoomApres > pz.carteZoomAvant) || pz.waypApresPince) fail('Grande carte : pincement sans zoom ou destination posée par erreur (' + JSON.stringify(pz) + ')');
+      else ok('Grande carte : pincer zoome (×' + pz.carteZoomAvant + ' → ×' + pz.carteZoomApres.toFixed(2) + ') sans poser de destination');
+      if (!pz.waypApresToucher) fail('Grande carte : un toucher simple ne pose plus la destination');
+      else ok('Grande carte : un toucher simple pose toujours la destination');
+    }
+
+    // -------------------------------------------------------------------
     // Icônes vectorielles : la copie intégrée à index.html est celle du
     // sprite livré, chaque arme du jeu (lue dans ARMES) a son icône, et
     // toute référence <use> de la page pointe vers un symbole existant.
