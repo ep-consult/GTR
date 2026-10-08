@@ -7394,6 +7394,41 @@ async function main() {
     // plein milieu. Libellés lus dans le source (label='…' / label="…"), plus
     // les consignes de la serre (CRITERES_SERRE).
     // -------------------------------------------------------------------
+    // -------------------------------------------------------------------
+    // Ambiances des salles : jamais de son qui survit à la mort ni à la
+    // partie suivante. Audit de nuit : mort au métro ou au chalutier →
+    // l'ambiance repartait sur l'écran de mort (majInterieur tourne encore)
+    // et suivait le joueur en ville dans la partie suivante. Toutes les
+    // salles d'INTDEFS, avec la vraie boucle qui tourne entre chaque étape.
+    // -------------------------------------------------------------------
+    console.log('\n--- Ambiances des salles : coupées à la mort et à la partie suivante ---');
+    {
+      const amb = await page.evaluate(async () => {
+        const dors = (ms) => new Promise((r) => setTimeout(r, ms));
+        const drapeaux = () => Object.keys(AUDIO).filter((k) => /On$/.test(k) && AUDIO[k] === true);
+        audioInit();
+        const ko = [], vues = [];
+        for (const id of Object.keys(INTDEFS)) {
+          startRun(); ETAT.mode = 'jeu';
+          const po = PORTES.find((x) => x.id === id); if (!po) continue;
+          P.x = po.x; P.z = po.z + 1.5; entrerInterieur(id, po);
+          if (!INT.actif) continue;
+          P.hp = 1e6; await dors(350);
+          const dedans = drapeaux(); if (dedans.length) vues.push(id + ':' + dedans.join('+'));
+          P.hp = 0; mourir(); await dors(450);
+          const mort = drapeaux(); if (mort.length) ko.push(id + ' (écran de mort : ' + mort.join(',') + ')');
+          ETAT.timeScale = 1; startRun(); await dors(150);
+          const apres = drapeaux(); if (apres.length) ko.push(id + ' (partie suivante : ' + apres.join(',') + ')');
+        }
+        ETAT.timeScale = 1; startRun();
+        return { ko, vues, pret: AUDIO.pret };
+      });
+      if (!amb.pret) saute('Ambiances des salles : AudioContext indisponible, coupure non vérifiée');
+      else if (!amb.vues.length) fail('Ambiances des salles : aucune ambiance n\'a démarré dans aucune salle — le test ne vérifie plus rien');
+      else if (amb.ko.length) fail('Ambiances des salles : son qui survit — ' + amb.ko.join(' | '));
+      else ok('Ambiances des salles : coupées à la mort et à la partie suivante (' + amb.vues.join(', ') + ')');
+    }
+
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');
     {
       const srcIdx = fs.readFileSync(INDEX_HTML, 'utf8');

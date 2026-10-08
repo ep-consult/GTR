@@ -16700,7 +16700,7 @@ function majInterieur(dt,dtJeu){
         toast('Pile ramassée : batterie +'+METRO_PILE_GAIN+' %','or'); SFX.ramasse();
       }
     }
-    metroAmbianceUpdate(s);
+    if(ETAT.mode!=='mort') metroAmbianceUpdate(s); // jamais relancée sur l'écran de mort (mourir() vient de la couper)
     metroWrap.style.display='block';
     const niveauNoms={1:'🚇 QUAI',2:'🕳️ TUNNEL',3:'👁️ PROFONDEURS'};
     metroLblEl.textContent=niveauNoms[s.niveauActuel]+' · 🔋 '+Math.round(s.batterie)+' %'+
@@ -16867,7 +16867,7 @@ function majInterieur(dt,dtJeu){
         if(s.filetMesh&&s.filetMesh.visible) s.filetMesh.position.y=0.5+Math.sin(ETAT.runT*2)*0.1;
       }
     }
-    chalutierAmbianceUpdate(s);
+    if(ETAT.mode!=='mort') chalutierAmbianceUpdate(s); // idem métro : jamais relancée sur l'écran de mort
     if(s.sortieEnCours){
       chalutierWrap.style.display='block';
       const nomZone={1:'HAUTS-FONDS',2:'BANC DU LARGE',3:'LA FOSSE'}[chalutierZoneDe(distPort)];
@@ -19316,6 +19316,12 @@ function startRun(){
   el('jetWrap').style.display='none'; el('jetWarn').style.display='none'; el('btnJetpack').style.display='none';
   jetpackSonStop();
   lanceSonStop();
+  // Ambiances des salles : coupées à chaque nouvelle partie, quel que soit le
+  // chemin de fin de la précédente. Audit de nuit : mort au métro ou au
+  // chalutier → l'ambiance repartait pendant l'écran de mort (majInterieur
+  // tourne encore) et suivait le joueur dans la partie suivante, en pleine
+  // ville. Chaque arrêt est sans effet si l'ambiance ne tourne pas.
+  metroAmbianceStop(); chalutierAmbianceStop(); radioAmbianceStop(); cineAmbianceStop(); depotAmbianceStop();
   if(INT.actif){ INT.actif=null; el('minimap').style.opacity='1'; }
   // lieux spéciaux : on remet à zéro ce qui appartient à la partie (les
   // curiosités, elles, sont acquises pour de bon et vivent dans META)
@@ -19602,6 +19608,7 @@ function mourir(){
   }
   if(INT.actif&&INT.actif.console&&INT.actif.emissionOn) radioArreterEmission(INT.actif); // coupe le son tout de suite
   if(INT.actif&&INT.actif.barre&&INT.actif.sortieEnCours) chalutierArreterSortie(INT.actif); // coupe le son tout de suite, cale perdue
+  chalutierAmbianceStop(); // l'ambiance du port tourne dès qu'on est dans la salle, sortie en mer ou non (audit de nuit)
   if(INT.actif&&INT.actif.site51&&INT.actif.visiteEnCours) site51ConclureVisite(INT.actif,false); // butin perdu, sas rouverts, mystère avance quand même
   // Dépôt de bus : course en cours annulée tout de suite (rend P.h.g visible
   // pour la pose de mort — invisible pendant qu'on pilote, voir
