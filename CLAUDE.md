@@ -187,7 +187,23 @@ accès aux propriétés optionnelles des entités.
 
 ### Sons à la sortie
 Les sons doivent être coupés dans **tous** les chemins de sortie, y compris
-directement dans `mourir()`.
+directement dans `mourir()`. Piège (audit de nuit) : la boucle continue
+`majInterieur` **pendant la mort** — une mise à jour d'ambiance du type
+`if(!AUDIO.xxxOn) xxxStart()` relance alors le son que `mourir()` vient de
+couper. Ces mises à jour sont gardées par `ETAT.mode!=='mort'`, et
+`startRun()` coupe toutes les ambiances de salle par sécurité.
+
+### Boutons réaffectés au volant
+Au volant, ESQUIVE/GRENADE/SPRINT/FREIN changent de rôle (MISSILE, FLASH,
+HUILE, TREUIL, LANCE...). Leur retour « à pied » passe par `boutonsAPied()`,
+appelée par `sortirVehicule` **et** `startRun()` : mourir au volant ne passe
+pas par `sortirVehicule` (bug : après l'OVNI, plus de `#grenN`, `startRun()`
+plantait). Ne jamais lire `el('grenN')` sans être sûr qu'il existe.
+
+### Bouton d'action
+Un libellé trop long passe sur deux lignes (`labelAction`, classe
+`deuxLignes`), jamais rogné par « … ». Vérifié par `scenarios.js` sur tous
+les libellés statiques du source.
 
 ### Tests : ne jamais recopier une liste du jeu
 Un test (`valider.js` ou `scenarios.js`) ne recopie jamais une liste du jeu
