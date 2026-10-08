@@ -55,8 +55,31 @@ masqué placé au début du `<body>` d'`index.html`, puis on y fait référence 
 ```
 
 Ce mécanisme est exactement celui d'`apercu.html` : il marche hors ligne, en
-`file://` comme sur iPhone en écran d'accueil. Le remplacement des emojis
-actuels du HUD (💣, 🔁, 🪝…) par ces icônes reste à faire, dans une étape séparée.
+`file://` comme sur iPhone en écran d'accueil.
+
+**C'est fait dans le jeu.**
+- **Copie des symboles.** `node outils/integrer.js` recopie les symboles entre
+  deux repères en tête du `<body>` d'`index.html`. Il faut le relancer après
+  chaque `node construire.js`. `node outils/integrer.js --verifier` contrôle la
+  copie, et `scenarios.js` échoue si elle diffère du sprite.
+- **Rendu.** Côté code, `ico(id, emojiDeSecours)` rend l'icône, et `icoArme(id)`
+  rend celle d'une arme.
+- **Où sont les icônes.**
+  - HUD : le bouton de tir affiche l'arme équipée ; s'y ajoutent l'esquive, le
+    sprint, l'arme, la grenade, le saut, le jetpack, le frein, la pause et le
+    tir des canards.
+  - Capacité spéciale selon le personnage, et nitro au volant.
+  - Armurerie et caisse de munitions.
+  - Filtres de la grande carte, appel taxi et menu du garage.
+  - Main « action » devant les libellés du bouton d'action qui n'ont pas déjà
+    leur pictogramme.
+- **Restent en emoji :** les gadgets de véhicules, qui n'ont pas d'icône
+  dessinée, les textes flottants et les toasts.
+
+**Retour en arrière :** passer `const ICONES_SVG=true;` à `false` dans
+`index.html` remet tous les emojis d'origine. Chaque appel garde son emoji de
+secours. Un point git `avant-icones-svg` marque aussi l'état d'avant
+l'intégration.
 
 ## Modifier ou ajouter une icône
 

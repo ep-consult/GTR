@@ -7131,6 +7131,38 @@ async function main() {
     }
 
     // -------------------------------------------------------------------
+    // Icônes vectorielles : la copie intégrée à index.html est celle du
+    // sprite livré, chaque arme du jeu (lue dans ARMES) a son icône, et
+    // toute référence <use> de la page pointe vers un symbole existant.
+    // -------------------------------------------------------------------
+    console.log('\n--- Icônes vectorielles intégrées au jeu ---');
+    {
+      const sprite = fs.readFileSync(path.join(__dirname, 'icones', 'icones.svg'), 'utf8');
+      const html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
+      const blocs = (t) => (t.match(/<symbol id="[^"]+"[\s\S]*?<\/symbol>/g) || []);
+      const a = blocs(sprite), b = blocs(html);
+      if (a.length && JSON.stringify(a) === JSON.stringify(b)) ok('Icônes : les ' + a.length + ' symboles de index.html sont identiques à icones/icones.svg');
+      else fail('Icônes : copie intégrée différente du sprite (' + b.length + ' / ' + a.length + ') — lancer node icones/outils/integrer.js');
+      const ic = await page.evaluate(() => {
+        startRun();
+        const out = { armesSansIcone: [], refsCassees: [], fire: null, pause: null };
+        for (const id of Object.keys(ARMES)) if (!document.getElementById('ico-arme-' + id)) out.armesSansIcone.push(id);
+        for (const id of Object.keys(ARMES)) { META.armes[id].poss = true; majArmeJoueur(id); const u = document.querySelector('#fireIco use'); if (!u || u.getAttribute('href') !== '#ico-arme-' + id) out.armesSansIcone.push(id + ' (bouton de tir)'); }
+        majArmeJoueur('poings');
+        for (const u of document.querySelectorAll('use')) { const h = u.getAttribute('href') || ''; if (!document.getElementById(h.slice(1))) out.refsCassees.push(h); }
+        out.ico = ICONES_SVG;
+        return out;
+      });
+      if (!ic.ico) saute('Icônes : ICONES_SVG = false (retour aux emojis) — vérifications d\'affichage non faites');
+      else {
+        if (ic.armesSansIcone.length) fail('Icônes : armes sans icône — ' + ic.armesSansIcone.join(', '));
+        else ok('Icônes : chaque arme de ARMES a son icône, affichée sur le bouton de tir');
+        if (ic.refsCassees.length) fail('Icônes : références <use> cassées — ' + ic.refsCassees.join(', '));
+        else ok('Icônes : toutes les références <use> de la page pointent vers un symbole existant');
+      }
+    }
+
+    // -------------------------------------------------------------------
     // Persistance : sauvegarde, rechargement, META cohérent.
     // -------------------------------------------------------------------
     console.log('\n--- Persistance (sauvegarde / rechargement) ---');

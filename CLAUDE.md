@@ -37,78 +37,80 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
   echo "$ln | $(sed -n "$((ln+1))p" index.html | sed 's/^[ \t]*//')"; done
 ```
 
-**Relevé au 8 octobre 2026 (essais, treuil, pickup) — 20 796 lignes.**
+**Relevé au 8 octobre 2026 (icônes vectorielles intégrées) — 20 988 lignes.**
 
 | Ligne | Section |
 |---|---|
-| 1–706 | `<head>`, CSS, HUD, écrans (menu, game over, panneaux) |
-| 683–685 | **eruda** (console mobile de dev — à retirer avant diffusion) |
-| 686 | chargement Three.js r128 depuis CDN |
-| 691 | `<script id="gamejs">` + handler `window.onerror` → affichage dans `#errBox` |
-| 707 | en-tête ASPHALTE, début du code du jeu |
-| 748 | AUDIO — WebAudio synthétisé, boîte de vitesses simulée |
-| 1269 | ENTRÉES — joystick virtuel, boutons tactiles, clavier ZQSD/WASD |
-| 1576 | MÉTA-PROGRESSION — `META`, défis, sauvegarde |
-| 2235 | THREE.JS — rendu, scène, lumières |
-| 2512 | VILLE DE SOLARA — génération procédurale par quartiers |
-| 4765 | MODÈLES — humains, armes, véhicules, hélico, ramassables |
-| 5787 | POOLS — balles, particules, textes flottants, traces de pneus |
-| 6145 | ÉTAT GLOBAL + JOUEUR (`P`) |
-| 6859 | VÉHICULES — physique arcade, trafic, dégâts |
-| 8915 | PIÉTONS |
-| 9067 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
-| 9603 | **RAYON TRACTEUR DE L'OVNI** |
-| 9999 | NIVEAU DE RECHERCHE (étoiles) |
-| 10244 | VAGUES + bonus de fin de vague |
-| 10363 | MISSIONS COURTES |
-| 10366 | BÂTIMENTS VISITABLES — intérieurs |
-| 10436 | FOUILLE — mécanique générique |
-| 11017 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
-| 14952 | CINÉ-PALACE |
-| 15014 | MÉTRO ABANDONNÉ |
-| 15080 | RADIO PIRATE SOLARA FM |
-| 15185 | LE CHALUTIER « SAINTE-ODILE » |
-| 15459 | SITE 51 |
-| 15689 | LE DÉPÔT DE BUS — courses clandestines |
-| 16704 | **MÉTIERS** — missions liées à un véhicule |
-| 16935 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
-| 17837 | ÉCRANS / MENUS / BOUTIQUES |
-| 18104 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
-| 18829 | DÉBUT / FIN DE PARTIE |
-| 20289 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
-| 20678 | BOUCLE PRINCIPALE |
+| 1–854 | `<head>`, CSS, HUD, écrans (menu, game over, panneaux) |
+| 387–525 | **icônes SVG** : copie des 42 `<symbol>` de `icones/icones.svg` (générée, ne pas éditer) |
+| 831–833 | **eruda** (console mobile de dev — à retirer avant diffusion) |
+| 834 | chargement Three.js r128 depuis CDN |
+| 839 | `<script id="gamejs">` + handler `window.onerror` → affichage dans `#errBox` |
+| 855 | en-tête ASPHALTE, début du code du jeu |
+| 932 | AUDIO — WebAudio synthétisé, boîte de vitesses simulée |
+| 1453 | ENTRÉES — joystick virtuel, boutons tactiles, clavier ZQSD/WASD |
+| 1760 | MÉTA-PROGRESSION — `META`, défis, sauvegarde |
+| 2419 | THREE.JS — rendu, scène, lumières |
+| 2696 | VILLE DE SOLARA — génération procédurale par quartiers |
+| 4949 | MODÈLES — humains, armes, véhicules, hélico, ramassables |
+| 5971 | POOLS — balles, particules, textes flottants, traces de pneus |
+| 6329 | ÉTAT GLOBAL + JOUEUR (`P`) |
+| 7043 | VÉHICULES — physique arcade, trafic, dégâts |
+| 9099 | PIÉTONS |
+| 9251 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
+| 9787 | **RAYON TRACTEUR DE L'OVNI** |
+| 10183 | NIVEAU DE RECHERCHE (étoiles) |
+| 10428 | VAGUES + bonus de fin de vague |
+| 10547 | MISSIONS COURTES |
+| 10550 | BÂTIMENTS VISITABLES — intérieurs |
+| 10620 | FOUILLE — mécanique générique |
+| 11201 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
+| 15136 | CINÉ-PALACE |
+| 15198 | MÉTRO ABANDONNÉ |
+| 15264 | RADIO PIRATE SOLARA FM |
+| 15369 | LE CHALUTIER « SAINTE-ODILE » |
+| 15643 | SITE 51 |
+| 15873 | LE DÉPÔT DE BUS — courses clandestines |
+| 16888 | **MÉTIERS** — missions liées à un véhicule |
+| 17119 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
+| 18023 | ÉCRANS / MENUS / BOUTIQUES |
+| 18290 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
+| 19015 | DÉBUT / FIN DE PARTIE |
+| 20481 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
+| 20870 | BOUCLE PRINCIPALE |
 
 ### Ancres fines (hors bandeaux)
 
 | Ligne | Repère |
 |---|---|
-| 1584 | `GARAGES_TUNING` — les garages de la ville (déclarés avant `META`) |
-| 1604 | `VEHPERSO_MAX` — taille de « Mes véhicules » (`META.vehPerso`) |
-| 1761 | `fusionMeta()` — deep-merge de la sauvegarde |
-| 1791 | `CURIOS` — tableau des curiosités |
-| 1842 | `CURIOS_ACTIVES` |
-| 1856 | déblocage de `batte2` (toutes curiosités actives réunies) |
-| 2025 | `VEHDEFS` — véhicules, éligibilité garage (`tuningMeca`, `tuningCarro`) |
-| 2662 | `finaliserMerge()` |
-| 4008 | `mkPorteGarage()` — porte roulante des garages |
-| 4076 | `placeLibrePorte()` |
-| 4135 | helper `poser()` — placement des lieux |
-| 4161 | `caseCentre(bx,bz)` |
-| 4254 | `REPLIS` — filet de sécurité en spirale |
-| 6153 | `const P` — état du joueur |
-| 6191 | `P.stamMax = 100 + 12*mus` |
-| 7644 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
-| 10372 | `IOFF = -9000` |
-| 12094 | `INTDEFS` — définitions des **27 salles** |
-| 12274 | `construireSalle(id)` |
-| 16713 | `METIERS_CIBLE` |
-| 16953 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
-| 17022 | `PIECES_FAMILLES` — catalogues de pièces par famille |
-| 17300 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
-| 17353 | `libererObjet()` — libère les géométries d'un objet retiré |
-| 17369 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
-| 17447 | `construireGarageTuning()` — la salle partagée |
-| 17811 | `majNitro()` |
+| 877 | `ICONES_SVG` — interrupteur des icônes, `ico()`, `icoArme()`, `labelAction()` |
+| 1768 | `GARAGES_TUNING` — les garages de la ville (déclarés avant `META`) |
+| 1788 | `VEHPERSO_MAX` — taille de « Mes véhicules » (`META.vehPerso`) |
+| 1945 | `fusionMeta()` — deep-merge de la sauvegarde |
+| 1975 | `CURIOS` — tableau des curiosités |
+| 2026 | `CURIOS_ACTIVES` |
+| 2040 | déblocage de `batte2` (toutes curiosités actives réunies) |
+| 2209 | `VEHDEFS` — véhicules, éligibilité garage (`tuningMeca`, `tuningCarro`) |
+| 2846 | `finaliserMerge()` |
+| 4192 | `mkPorteGarage()` — porte roulante des garages |
+| 4260 | `placeLibrePorte()` |
+| 4319 | helper `poser()` — placement des lieux |
+| 4345 | `caseCentre(bx,bz)` |
+| 4438 | `REPLIS` — filet de sécurité en spirale |
+| 6337 | `const P` — état du joueur |
+| 6375 | `P.stamMax = 100 + 12*mus` |
+| 7828 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
+| 10556 | `IOFF = -9000` |
+| 12278 | `INTDEFS` — définitions des **27 salles** |
+| 12458 | `construireSalle(id)` |
+| 16897 | `METIERS_CIBLE` |
+| 17137 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
+| 17208 | `PIECES_FAMILLES` — catalogues de pièces par famille |
+| 17486 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
+| 17539 | `libererObjet()` — libère les géométries d'un objet retiré |
+| 17555 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
+| 17633 | `construireGarageTuning()` — la salle partagée |
+| 17997 | `majNitro()` |
 
 ---
 
@@ -536,9 +538,21 @@ reste obligatoire avant publication.
 automatiquement). `icones/icones.svg` est **produit** : la source est
 `icones/outils/dessins.js` ; `node construire.js` régénère sprite + aperçu,
 `node recette.js ../rapport` rejoue la recette. Détails et usage :
-`icones/README-integration.md`. **Pas encore intégrées au jeu** : le jeu étant
-mono-fichier, l'intégration recopiera les `<symbol>` dans un SVG masqué
-d'`index.html` (jamais de chargement externe).
+`icones/README-integration.md`.
+
+**Intégrées au jeu** (mono-fichier) : les `<symbol>` sont recopiés en tête
+de `<body>` par `node icones/outils/integrer.js` (à relancer après chaque
+`construire.js` ; `scenarios.js` échoue si la copie diffère du sprite).
+Tout passe par `ico(id, emojiDeSecours)` / `icoArme(id)` (~L877) : HUD
+(tir = arme équipée, esquive, sprint, arme, grenade, saut, jetpack, frein,
+pause, tir des canards), capacité spéciale du perso, nitro, armurerie,
+caisse de munitions, filtres de la carte, appel taxi, menu du garage, et
+l'icône « action » devant les libellés du bouton d'action sans pictogramme
+(`labelAction`, réécrit seulement au changement de libellé). Restent en
+emoji : gadgets de véhicules, textes flottants et toasts.
+**Retour en arrière** : `const ICONES_SVG=false;` remet tous les emojis
+d'origine (chaque appel garde son emoji de secours) ; point git
+`avant-icones-svg`.
 
 ### Chantiers ouverts
 
