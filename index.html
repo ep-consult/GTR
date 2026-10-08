@@ -1570,7 +1570,12 @@ const GARAGES_TUNING=[
   {id:'g_port',nom:'GARAGE DU PORT',bx:10,bz:9,coul:0x7dff7a}, // port
 ];
 // emplacement vide : cle '' = aucun véhicule, coul/neon -1 = aucun
-function slotGarageDefaut(){ return {cle:'',coul:-1,neon:-1,nitro:false,moteur:0,vitesse:0,tenue:0,blindage:0}; }
+// pieces : variante posée par catégorie (0 = d'origine) ; piecesPossedees :
+// variantes déjà payées, en bits (bit 0 = d'origine, toujours possédée).
+// Objets à clés FIXES : fusionMeta complète une vieille sauvegarde sans eux.
+function slotGarageDefaut(){ return {cle:'',coul:-1,neon:-1,nitro:false,moteur:0,vitesse:0,tenue:0,blindage:0,
+  pieces:{aileron:0,parechocs:0,jupes:0,capot:0,jantes:0,echappement:0},
+  piecesPossedees:{aileron:1,parechocs:1,jupes:1,capot:1,jantes:1,echappement:1}}; }
 function garagesMetaDefaut(){ const o={}; for(const g of GARAGES_TUNING) o[g.id]=slotGarageDefaut(); return o; }
 const META={
   argent:150, xp:0, niveau:1,
@@ -1991,48 +1996,48 @@ function coifCouleurs(){
 
 /* ---------- Véhicules ---------- */
 const VEHDEFS={
-  citadine:{nom:'Citadine',vmax:24,acc:16,man:2.7,hp:120,long:4.2,larg:2.0,type:'car',cols:[0xd7dade,0xe05252,0x4f7fe0,0x53c46a,0xe0b23a]},
-  muscle:{nom:'Muscle "Rafale"',vmax:33,acc:13,man:2.2,hp:150,long:4.8,larg:2.1,type:'car',cols:[0xc0392b,0x2c3e50,0x7a4dc7]},
-  van:{nom:'Fourgon',vmax:20,acc:9,man:1.8,hp:260,long:5.4,larg:2.3,type:'car',cols:[0x9aa2ad,0x6a7f8a]},
-  police:{nom:'Interceptor',vmax:31,acc:15,man:2.5,hp:180,long:4.6,larg:2.05,type:'car',cols:[0x232833],police:true},
-  gangcar:{nom:'Berline Vipère',vmax:29,acc:14,man:2.4,hp:160,long:4.7,larg:2.05,type:'car',cols:[0x1f7a3a]},
-  milit:{nom:'Camion "Aigle"',vmax:23,acc:10,man:1.7,hp:520,long:6.2,larg:2.6,type:'car',cols:[0x4a5238],milit:true},
-  moto:{nom:'Moto',vmax:34,acc:21,man:3.4,hp:70,long:2.4,larg:0.9,type:'moto',cols:[0xd05038,0x3a70c0,0x24272e]},
-  motoR:{nom:'Moto "Frelon"',vmax:41,acc:24,man:3.6,hp:60,long:2.4,larg:0.9,type:'moto',cols:[0xe6a41f]},
+  citadine:{nom:'Citadine',tuningMeca:true,tuningCarro:{famille:'compacte',ancrages:{avant:{x:0,y:0.86,z:2.05},arriere:{x:0,y:0.65,z:-2.04},toit:{x:0,y:1.35,z:-0.25},basCaisse:{x:1,y:0.22,z:0}}},vmax:24,acc:16,man:2.7,hp:120,long:4.2,larg:2.0,type:'car',cols:[0xd7dade,0xe05252,0x4f7fe0,0x53c46a,0xe0b23a]},
+  muscle:{nom:'Muscle "Rafale"',tuningMeca:true,tuningCarro:{famille:'sportive',ancrages:{avant:{x:0,y:0.88,z:2.4},arriere:{x:0,y:0.65,z:-2.33},toit:{x:0,y:1.35,z:-0.29},basCaisse:{x:1.05,y:0.22,z:0}}},vmax:33,acc:13,man:2.2,hp:150,long:4.8,larg:2.1,type:'car',cols:[0xc0392b,0x2c3e50,0x7a4dc7]},
+  van:{nom:'Fourgon',tuningMeca:true,tuningCarro:{famille:'utilitaire',ancrages:{avant:{x:0,y:0.86,z:2.62},arriere:{x:0,y:0.65,z:-2.62},toit:{x:0,y:1.35,z:-0.32},basCaisse:{x:1.15,y:0.22,z:0}}},vmax:20,acc:9,man:1.8,hp:260,long:5.4,larg:2.3,type:'car',cols:[0x9aa2ad,0x6a7f8a]},
+  police:{nom:'Interceptor',tuningMeca:true,vmax:31,acc:15,man:2.5,hp:180,long:4.6,larg:2.05,type:'car',cols:[0x232833],police:true},
+  gangcar:{nom:'Berline Vipère',tuningMeca:true,tuningCarro:{famille:'compacte',ancrages:{avant:{x:0,y:0.86,z:2.29},arriere:{x:0,y:0.65,z:-2.28},toit:{x:0,y:1.35,z:-0.28},basCaisse:{x:1.02,y:0.22,z:0}}},vmax:29,acc:14,man:2.4,hp:160,long:4.7,larg:2.05,type:'car',cols:[0x1f7a3a]},
+  milit:{nom:'Camion "Aigle"',tuningMeca:true,vmax:23,acc:10,man:1.7,hp:520,long:6.2,larg:2.6,type:'car',cols:[0x4a5238],milit:true},
+  moto:{nom:'Moto',tuningMeca:true,tuningCarro:{famille:'deuxroues',ancrages:{avant:{x:0,y:1.06,z:1.18},arriere:{x:0,y:0.65,z:-1.18},toit:{x:0,y:1.06,z:0.62},basCaisse:{x:0.37,y:0.45,z:0}}},vmax:34,acc:21,man:3.4,hp:70,long:2.4,larg:0.9,type:'moto',cols:[0xd05038,0x3a70c0,0x24272e]},
+  motoR:{nom:'Moto "Frelon"',tuningMeca:true,tuningCarro:{famille:'deuxroues',ancrages:{avant:{x:0,y:1.06,z:1.18},arriere:{x:0,y:0.65,z:-1.18},toit:{x:0,y:1.06,z:0.62},basCaisse:{x:0.37,y:0.45,z:0}}},vmax:41,acc:24,man:3.6,hp:60,long:2.4,larg:0.9,type:'moto',cols:[0xe6a41f]},
   // Moto cross : seule moto capable de cabrer (bouton CABRER, voir
   // majConduite/entrerVehicule) — un vrai risque de chute si l'angle est
   // tenu trop longtemps, jamais un simple effet cosmétique (CLAUDE.md,
   // « un minigame doit être perdable »). Look tout-terrain propre, voir
   // makeVoiture (def.cross).
-  motocross:{nom:'Moto cross',vmax:37,acc:23,man:3.5,hp:65,long:2.3,larg:0.85,type:'moto',cols:[0xff8c1a,0x35c8e0,0x7dff7a],cross:true},
-  sport:{nom:'Supercar "Éclipse"',vmax:45,acc:24,man:3.0,hp:110,long:4.4,larg:2.0,type:'car',cols:[0xff4b2e,0x35e0ff,0xb8ff3a,0xf2f4f8],sport:true},
-  taxi:{nom:'Taxi',vmax:25,acc:15,man:2.6,hp:130,long:4.3,larg:2.0,type:'car',cols:[0xf2c21f],taxi:true},
-  pickup:{nom:'Pickup',vmax:26,acc:12,man:2.2,hp:210,long:5.0,larg:2.2,type:'car',cols:[0x8a3a2a,0x3a5a7a,0x4a5a3a]},
-  buggy:{nom:'Buggy des dunes',vmax:30,acc:19,man:3.1,hp:90,long:3.4,larg:1.9,type:'car',cols:[0xd8b02a,0x35c8e0],buggy:true},
+  motocross:{nom:'Moto cross',tuningMeca:true,tuningCarro:{famille:'deuxroues',ancrages:{avant:{x:0,y:1.19,z:1.13},arriere:{x:0,y:0.65,z:-1.13},toit:{x:0,y:1.19,z:0.58},basCaisse:{x:0.45,y:0.49,z:0}}},vmax:37,acc:23,man:3.5,hp:65,long:2.3,larg:0.85,type:'moto',cols:[0xff8c1a,0x35c8e0,0x7dff7a],cross:true},
+  sport:{nom:'Supercar "Éclipse"',tuningMeca:true,tuningCarro:{famille:'sportive',ancrages:{avant:{x:0,y:0.94,z:2.14},arriere:{x:0,y:1.12,z:-2.25},toit:{x:0,y:1.23,z:-0.26},basCaisse:{x:1,y:0.1,z:0}}},vmax:45,acc:24,man:3.0,hp:110,long:4.4,larg:2.0,type:'car',cols:[0xff4b2e,0x35e0ff,0xb8ff3a,0xf2f4f8],sport:true},
+  taxi:{nom:'Taxi',tuningMeca:true,tuningCarro:{famille:'compacte',ancrages:{avant:{x:0,y:0.86,z:2.09},arriere:{x:0,y:0.65,z:-2.09},toit:{x:0,y:1.57,z:-0.26},basCaisse:{x:1,y:0.22,z:0}}},vmax:25,acc:15,man:2.6,hp:130,long:4.3,larg:2.0,type:'car',cols:[0xf2c21f],taxi:true},
+  pickup:{nom:'Pickup',tuningMeca:true,tuningCarro:{famille:'utilitaire',ancrages:{avant:{x:0,y:2.36,z:2.53},arriere:{x:0,y:1.92,z:-2.53},toit:{x:0,y:2.49,z:0.34},basCaisse:{x:1.13,y:1.18,z:0}}},vmax:26,acc:12,man:2.2,hp:210,long:5.0,larg:2.2,type:'car',cols:[0x8a3a2a,0x3a5a7a,0x4a5a3a]},
+  buggy:{nom:'Buggy des dunes',tuningMeca:true,tuningCarro:{famille:'toutterrain',ancrages:{avant:{x:0,y:1.41,z:1.67},arriere:{x:0,y:0.89,z:-1.67},toit:{x:0,y:1.41,z:1.02},basCaisse:{x:0.91,y:0.24,z:0}}},vmax:30,acc:19,man:3.1,hp:90,long:3.4,larg:1.9,type:'car',cols:[0xd8b02a,0x35c8e0],buggy:true},
   yacht:{nom:'Yacht "Impérial"',vmax:21,acc:6,man:0.9,hp:900,long:17,larg:5.4,type:'bateau',eau:true,
     pont:true,cols:[0xf2f4f8]},
   bateau:{nom:'Vedette "Sirène"',vmax:27,acc:9,man:1.7,hp:220,long:6.5,larg:2.4,type:'bateau',eau:true,cols:[0xe8ecf2,0x2a5a8a,0xc0392b]},
   surf:{nom:'Planche de surf',vmax:19,acc:14,man:5.2,hp:26,long:2.4,larg:0.75,type:'bateau',eau:true,surf:true,
     cols:[0xff5a3a,0x35e0ff,0xffd23f,0xff5ad0,0xe8ecf2]},
   jetski:{nom:'Jet-ski',vmax:37,acc:20,man:3.2,hp:60,long:2.6,larg:1.1,type:'bateau',eau:true,cols:[0xffd23f,0x35e0ff]},
-  berline:{nom:'Berline',vmax:28,acc:14,man:2.4,hp:170,long:4.7,larg:2.05,type:'car',cols:[0x3a3f4a,0x5a3a3a,0x2c3e50,0x6a6a72]},
-  motoS:{nom:'Moto sportive',vmax:42,acc:26,man:3.7,hp:60,long:2.4,larg:0.9,type:'moto',cols:[0x35e0ff,0xff4b2e,0xd8dce4]},
+  berline:{nom:'Berline',tuningMeca:true,tuningCarro:{famille:'compacte',ancrages:{avant:{x:0,y:0.54,z:2.35},arriere:{x:0,y:0.86,z:-2.28},toit:{x:0,y:1.35,z:-0.28},basCaisse:{x:1.04,y:0.22,z:0}}},vmax:28,acc:14,man:2.4,hp:170,long:4.7,larg:2.05,type:'car',cols:[0x3a3f4a,0x5a3a3a,0x2c3e50,0x6a6a72]},
+  motoS:{nom:'Moto sportive',tuningMeca:true,tuningCarro:{famille:'deuxroues',ancrages:{avant:{x:0,y:1.06,z:1.18},arriere:{x:0,y:0.65,z:-1.18},toit:{x:0,y:1.06,z:0.62},basCaisse:{x:0.37,y:0.45,z:0}}},vmax:42,acc:26,man:3.7,hp:60,long:2.4,larg:0.9,type:'moto',cols:[0x35e0ff,0xff4b2e,0xd8dce4]},
   bateauP:{nom:'Vedette de police',vmax:33,acc:12,man:2.0,hp:260,long:6.8,larg:2.5,type:'bateau',eau:true,cols:[0x232833],police:true},
   peche:{nom:'Bateau de pêche',vmax:17,acc:6,man:1.3,hp:300,long:7.2,larg:2.8,type:'bateau',eau:true,cols:[0x6a7f8a,0x8a6a44]},
-  fantome:{nom:'Moto "Fantôme"',vmax:49,acc:28,man:3.8,hp:70,long:2.4,larg:0.9,type:'moto',cols:[0x0e1014],cache:true},
-  blinde:{nom:'Blindé "Bastion"',vmax:21,acc:9,man:1.6,hp:900,long:5.8,larg:2.6,type:'car',cols:[0x2e3328],milit:true,cache:true},
+  fantome:{nom:'Moto "Fantôme"',tuningMeca:true,tuningCarro:{famille:'deuxroues',ancrages:{avant:{x:0,y:1.06,z:1.18},arriere:{x:0,y:0.65,z:-1.18},toit:{x:0,y:1.06,z:0.62},basCaisse:{x:0.37,y:0.45,z:0}}},vmax:49,acc:28,man:3.8,hp:70,long:2.4,larg:0.9,type:'moto',cols:[0x0e1014],cache:true},
+  blinde:{nom:'Blindé "Bastion"',tuningMeca:true,vmax:21,acc:9,man:1.6,hp:900,long:5.8,larg:2.6,type:'car',cols:[0x2e3328],milit:true,cache:true},
   // Jeep militaire : le contrepoint du char — légère, rapide, agile,
   // mitrailleuse montée sur affût pivotant (visée au joystick superposé
   // sur TIR, voir bindViseeJoystick/majConduite — même mécanique que la
   // tourelle du char, juste plus vive et bien moins blindée).
-  jeepMil:{nom:'Jeep militaire "Guépard"',vmax:37,acc:24,man:3.2,hp:85,long:3.6,larg:1.7,type:'car',mitrailleuse:true,cache:true,cols:[0x5a6244]},
+  jeepMil:{nom:'Jeep militaire "Guépard"',tuningMeca:true,vmax:37,acc:24,man:3.2,hp:85,long:3.6,larg:1.7,type:'car',mitrailleuse:true,cache:true,cols:[0x5a6244]},
   // Camion DCA : canon anti-aérien qui grimpe assez vite pour toucher un
   // hélicoptère (voir collisionBalle, seuil b.y>11) — vise au même
   // joystick, sur TIR. Lent et lourd, l'inverse de la Jeep : c'est un outil
   // de niche (abattre l'hélico de police), pas un char de rechange.
-  dca:{nom:'Camion DCA "Foudre"',vmax:18,acc:8,man:1.2,hp:220,long:6.4,larg:2.3,type:'car',milit:true,dca:true,cache:true,cols:[0x47502e]},
+  dca:{nom:'Camion DCA "Foudre"',tuningMeca:true,vmax:18,acc:8,man:1.2,hp:220,long:6.4,larg:2.3,type:'car',milit:true,dca:true,cache:true,cols:[0x47502e]},
   espadon:{nom:'Vedette "Espadon"',vmax:42,acc:15,man:2.4,hp:150,long:6.2,larg:2.2,type:'bateau',eau:true,cols:[0x14161c],cache:true},
-  mirage:{nom:'Supercar "Mirage"',vmax:52,acc:27,man:3.1,hp:100,long:4.4,larg:2.0,type:'car',cols:[0xd8b02a],sport:true,cache:true},
+  mirage:{nom:'Supercar "Mirage"',tuningMeca:true,tuningCarro:{famille:'sportive',ancrages:{avant:{x:0,y:0.94,z:2.14},arriere:{x:0,y:1.12,z:-2.25},toit:{x:0,y:1.23,z:-0.26},basCaisse:{x:1,y:0.1,z:0}}},vmax:52,acc:27,man:3.1,hp:100,long:4.4,larg:2.0,type:'car',cols:[0xd8b02a],sport:true,cache:true},
   // OVNI : réutilise intégralement la physique de vol de l'hélicoptère
   // (décollage vertical, vol stationnaire — voir majVol) sous un modèle 3D
   // entièrement dédié (voir makeVoiture, def.ovni). Plus vif et plus
@@ -2042,56 +2047,55 @@ const VEHDEFS={
   // Quad des sables : mono-place, très maniable, taillé pour les dunes du
   // désert (voir POIS.desert) — accélération très vive, virages courts,
   // fragile (aucune carrosserie pour protéger le pilote, hp modeste).
-  quad:{nom:'Quad "Scorpide"',vmax:34,acc:26,man:4.2,hp:55,long:2.1,larg:1.15,type:'car',quad:true,cache:true,cols:[0xd8842a,0x35c8e0,0xff5a3a]},
+  quad:{nom:'Quad "Scorpide"',tuningMeca:true,tuningCarro:{famille:'toutterrain',ancrages:{avant:{x:0,y:1.08,z:1.06},arriere:{x:0,y:0.65,z:-1.06},toit:{x:0,y:1.08,z:0.76},basCaisse:{x:0.65,y:0.24,z:0}}},vmax:34,acc:26,man:4.2,hp:55,long:2.1,larg:1.15,type:'car',quad:true,cache:true,cols:[0xd8842a,0x35c8e0,0xff5a3a]},
   // Moto cross militaire : même moteur/agilité que la Moto cross civile
   // (def.cross, cabrage compris — voir majConduite/entrerVehicule) — juste
   // une livrée militaire, abandonnée près du cratère de l'OVNI (startRun).
-  motoMil:{nom:'Moto cross militaire',vmax:37,acc:23,man:3.5,hp:65,long:2.3,larg:0.85,type:'moto',cross:true,cache:true,cols:[0x4a5238,0x39402c]},
+  motoMil:{nom:'Moto cross militaire',tuningMeca:true,vmax:37,acc:23,man:3.5,hp:65,long:2.3,larg:0.85,type:'moto',cross:true,cache:true,cols:[0x4a5238,0x39402c]},
   // Buggy-canon : même carrosserie ouverte que le Buggy des dunes/la Jeep
   // militaire (def.mitrailleuse — affût pivotant, voir makeVoiture), mais
   // plus léger et plus rapide que la Jeep, pensé pour le sable, pas la base.
-  buggyCanon:{nom:'Buggy-canon "Sirocco"',vmax:35,acc:23,man:3.4,hp:95,long:3.3,larg:1.85,type:'car',mitrailleuse:true,cache:true,cols:[0xc98d4a,0xd8b02a]},
+  buggyCanon:{nom:'Buggy-canon "Sirocco"',tuningMeca:true,vmax:35,acc:23,man:3.4,hp:95,long:3.3,larg:1.85,type:'car',mitrailleuse:true,cache:true,cols:[0xc98d4a,0xd8b02a]},
   // Bulldozer : lent et lourd (vmax/acc bas, hp élevé), la pelle avant
   // (def.pelle, bouton ESQUIVE — voir majConduite) pousse VRAIMENT tout ce
   // qui est devant tant qu'elle est baissée (masse effective multipliée
   // dans resoudreCollisionsVehicule, jamais un nouveau système de collision
   // séparé à maintenir).
-  bulldozer:{nom:'Bulldozer "Titan"',vmax:14,acc:9,man:1.3,hp:380,long:4.6,larg:2.4,type:'car',pelle:true,cache:true,cols:[0xffd23f,0xe07020]},
+  bulldozer:{nom:'Bulldozer "Titan"',tuningMeca:true,vmax:14,acc:9,man:1.3,hp:380,long:4.6,larg:2.4,type:'car',pelle:true,cache:true,cols:[0xffd23f,0xe07020]},
   // Grue "Marteau" : boulet de démolition suspendu au bras (def.grue —
   // pendule réel, voir majGrueBoulet), pousse/percute tout ce qu'il
   // traverse en balançant assez vite. Bouton ESQUIVE + joystick pour
   // pousser le balancement dans une direction, sinon il suit tout seul les
   // virages/accélérations du véhicule.
-  grue:{nom:'Grue "Marteau"',vmax:16,acc:8,man:1.2,hp:300,long:5,larg:2.3,type:'car',grue:true,cache:true,cols:[0xffd23f,0x2a2d34]},
+  grue:{nom:'Grue "Marteau"',tuningMeca:true,vmax:16,acc:8,man:1.2,hp:300,long:5,larg:2.3,type:'car',grue:true,cache:true,cols:[0xffd23f,0x2a2d34]},
   // Ambulance : gyrophare rouge/blanc animé en permanence (même garée, voir
   // majVehicules) et bouton ESQUIVE = soin d'urgence sur le joueur, plafonné
   // par un cooldown (def.ambulance, voir majConduite) pour éviter le soin
   // infini en spam — réutilise soigner() telle quelle.
-  ambulance:{nom:'Ambulance "Secours"',vmax:31,acc:19,man:2.9,hp:140,long:4.9,larg:2.0,type:'car',ambulance:true,cache:true,cols:[0xf2f4f8]},
+  ambulance:{nom:'Ambulance "Secours"',tuningMeca:true,vmax:31,acc:19,man:2.9,hp:140,long:4.9,larg:2.0,type:'car',ambulance:true,cache:true,cols:[0xf2f4f8]},
   // Dépanneuse : bouton ESQUIVE accroche/décroche le véhicule le plus proche
   // à l'arrière (def.depanneuse, voir majConduite) — tracte VRAIMENT
   // n'importe quel véhicule (aucune restriction de poids/type), le véhicule
   // tracté a sa physique normale coupée (v.tracte, voir majVehicules) tant
   // qu'il suit au bout du câble.
-  depanneuse:{nom:'Dépanneuse "Grizzly"',vmax:25,acc:13,man:1.9,hp:260,long:5.1,larg:2.2,type:'car',depanneuse:true,cache:true,cols:[0xe07020,0x2a2d34]},
-  scarabee:{nom:'Buggy "Scarabée"',vmax:33,acc:21,man:3.3,hp:130,long:3.4,larg:1.9,type:'car',cols:[0x2fae4f],buggy:true,cache:true},
+  depanneuse:{nom:'Dépanneuse "Grizzly"',tuningMeca:true,vmax:25,acc:13,man:1.9,hp:260,long:5.1,larg:2.2,type:'car',depanneuse:true,cache:true,cols:[0xe07020,0x2a2d34]},
+  scarabee:{nom:'Buggy "Scarabée"',tuningMeca:true,tuningCarro:{famille:'toutterrain',ancrages:{avant:{x:0,y:1.41,z:1.67},arriere:{x:0,y:0.89,z:-1.67},toit:{x:0,y:1.41,z:1.02},basCaisse:{x:0.91,y:0.24,z:0}}},vmax:33,acc:21,man:3.3,hp:130,long:3.4,larg:1.9,type:'car',cols:[0x2fae4f],buggy:true,cache:true},
   // 4x4 amphibie : def.amphibie fait basculer majVehiculePhys/la position
   // verticale sur une vraie physique flottante DÈS que le châssis touche
   // l'eau (voir surEauVeh/majVehiculePhys), et retour à une physique de
   // 4x4 normale dès qu'il retouche la terre — jamais un statique eau:true
   // comme les bateaux, qui l'aurait rendu inconduisible sur terre.
-  amphibie:{nom:'4x4 Amphibie "Loutre"',vmax:23,acc:13,man:2.0,hp:200,long:4.6,larg:2.15,type:'car',amphibie:true,cache:true,cols:[0x4a6b3e]},
+  amphibie:{nom:'4x4 Amphibie "Loutre"',tuningMeca:true,vmax:23,acc:13,man:2.0,hp:200,long:4.6,larg:2.15,type:'car',amphibie:true,cache:true,cols:[0x4a6b3e]},
   // Voiture d'espion : mitrailleuse fixe à l'avant (def.mitrailleuse —
   // réutilise TEL QUEL le tir/la visée de la Jeep militaire, CLAUDE.md :
   // jamais recopier de logique), missile sur ESQUIVE (def.bond, cooldown,
   // voir majConduite) et flaque d'huile sur GRENADE (bouton libre en
   // véhicule, même réemploi que le FLASH de l'OVNI). Découverte dans le
   // garage caché du Ciné-Palace (voir construireVille/startRun).
-  bond:{nom:'GT "Agent Gris"',vmax:36,acc:19,man:2.7,hp:150,long:4.5,larg:1.95,type:'car',mitrailleuse:true,bond:true,cache:true,cols:[0xc7ccd2]},
-  baronne:{nom:'Ancienne "Baronne"',vmax:26,acc:10,man:2.0,hp:280,long:5.4,larg:2.1,type:'car',cols:[0x6a1f2a],cache:true},
-  baronne:{nom:'Ancienne "Baronne"',vmax:26,acc:10,man:2.0,hp:280,long:5.4,larg:2.1,type:'car',cols:[0x6a1f2a],cache:true},
+  bond:{nom:'GT "Agent Gris"',tuningMeca:true,vmax:36,acc:19,man:2.7,hp:150,long:4.5,larg:1.95,type:'car',mitrailleuse:true,bond:true,cache:true,cols:[0xc7ccd2]},
+  baronne:{nom:'Ancienne "Baronne"',tuningMeca:true,tuningCarro:{famille:'compacte',ancrages:{avant:{x:0,y:0.86,z:2.62},arriere:{x:0,y:0.65,z:-2.62},toit:{x:0,y:1.35,z:-0.32},basCaisse:{x:1.05,y:0.22,z:0}}},vmax:26,acc:10,man:2.0,hp:280,long:5.4,larg:2.1,type:'car',cols:[0x6a1f2a],cache:true},
   avion:{nom:'Avion "Colibri"',vmax:40,acc:11,man:1.3,hp:130,long:7.4,larg:2,type:'car',air:'avion',cols:[0xe8ecf2]},
-  char:{nom:'Char "Rhinocéros"',vmax:17,acc:7,man:1.0,hp:2600,long:6.6,larg:3.4,type:'car',blinde:true,canon:true,cache:true,ecrase:true,cols:[0x4a5238]},
+  char:{nom:'Char "Rhinocéros"',tuningMeca:true,vmax:17,acc:7,man:1.0,hp:2600,long:6.6,larg:3.4,type:'car',blinde:true,canon:true,cache:true,ecrase:true,cols:[0x4a5238]},
   // figures:true + figureSeuil : peut faire des loopings ET des vrilles,
   // déclenchées par un maintien franc, continu et à fond du joystick (voir
   // majVol) — jamais par sa seule intensité (bug déjà rencontré : ça
@@ -2114,9 +2118,9 @@ const VEHDEFS={
   // trafic, placé une fois en friche industrielle (voir construireVille).
   // ecrase:true (char, monster truck) — voir ecraserVehicule : aplatit
   // n'importe quel autre véhicule au contact, sans exception.
-  busville:{nom:'Bus de ville',vmax:16,acc:6,man:0.9,hp:480,long:10.5,larg:2.5,type:'car',cols:[0xe8ecf2],bus:true},
-  pompiers:{nom:'Camion de pompiers',vmax:20,acc:8,man:1.5,hp:480,long:7.5,larg:2.4,type:'car',cols:[0xd0342e],pompier:true},
-  monstertruck:{nom:'Monster Truck',vmax:29,acc:8,man:2.2,hp:650,long:5.2,larg:2.7,type:'car',cols:[0xff3b1a],ecrase:true,franchit:1.5},
+  busville:{nom:'Bus de ville',tuningMeca:true,vmax:16,acc:6,man:0.9,hp:480,long:10.5,larg:2.5,type:'car',cols:[0xe8ecf2],bus:true},
+  pompiers:{nom:'Camion de pompiers',tuningMeca:true,vmax:20,acc:8,man:1.5,hp:480,long:7.5,larg:2.4,type:'car',cols:[0xd0342e],pompier:true},
+  monstertruck:{nom:'Monster Truck',tuningMeca:true,tuningCarro:{famille:'toutterrain',ancrages:{avant:{x:0,y:3.19,z:2.53},arriere:{x:0,y:2.98,z:-2.52},toit:{x:0,y:3.84,z:0.78},basCaisse:{x:1.35,y:2.55,z:0}}},vmax:29,acc:8,man:2.2,hp:650,long:5.2,larg:2.7,type:'car',cols:[0xff3b1a],ecrase:true,franchit:1.5},
   // Dépôt de bus : loués au stand, jamais au concessionnaire (absents de
   // CATALOGUE — suffisant, pas besoin de cache:true qui déclencherait une
   // notification de « découverte » à chaque création). Quatre profils
@@ -16884,6 +16888,10 @@ const TUNING_PRIX={
   vitesse:[600,1300,2400], // paliers 1 → 3 (vitesse max)
   tenue:[400,900,1700],    // paliers 1 → 3 (maniabilité)
   blindage:[700,1500,2800],// paliers 1 → 3 (résistance aux dégâts)
+  // pièces de carrosserie, par catégorie et par variante (0 = d'origine,
+  // gratuite) — À CALIBRER ; mêmes prix pour toutes les familles
+  pieces:{aileron:[0,300,650],parechocs:[0,300,600],jupes:[0,250,550],
+          capot:[0,250,500],jantes:[0,400,800],echappement:[0,200,450]},
 };
 // ---- EFFETS des paliers (index = palier atteint, 0 = d'origine) ----
 // moteur/vitesse/tenue : multiplicateurs de acc/vmax/man ;
@@ -16894,6 +16902,116 @@ const TUNING_PALIERS_MAX=3;
 const TUNING_NOMS={moteur:'MOTEUR',vitesse:'VITESSE',tenue:'TENUE DE ROUTE',blindage:'BLINDAGE'};
 const TUNING_TEINTES=[0xe8323a,0xff8c1a,0xffd23f,0x2fae4f,0x2a6ad8,0x8a4de0,0xe8ecf2,0x1c1e24];
 const TUNING_NEONS=[0x35e0ff,0xff5ad0,0x7dff7a,0xffd23f,0xff3b3b,0x9b6bff];
+// ---- PIÈCES DE CARROSSERIE : un catalogue par FAMILLE (VEHDEFS.tuningCarro.famille) ----
+// Les pièces se greffent par une passe d'ancrage (appliquerCarrosserie), JAMAIS
+// dans makeVoiture. Clés de catégorie fixes (stockage META stable) ; le libellé
+// change selon la famille, et une famille n'a que les catégories qui ont du sens.
+// Chaque variante : {nom, f(a,d,mc)} → groupe de meshes en coordonnées du
+// châssis (a = ancrages déclarés, d = VEHDEFS, mc = matériau de carrosserie).
+// Purement cosmétiques : aucun effet sur la physique.
+const PIECES_CATS=['aileron','parechocs','jupes','capot','jantes','echappement'];
+const MAT_CHROME=mat(0xd8dce4), MAT_SOMBRE=mat(0x1a1d24), MAT_GRIS=mat(0x3a3f48);
+function pBox(grp,w,h,l,m,x,y,z,rx){ const b=new THREE.Mesh(new THREE.BoxGeometry(w,h,l),m); b.position.set(x,y,z); if(rx) b.rotation.x=rx; grp.add(b); return b; }
+function pCyl(grp,r,l,m,x,y,z){ const c=new THREE.Mesh(new THREE.CylinderGeometry(r,r,l,10),m); c.rotation.x=Math.PI/2; c.position.set(x,y,z); grp.add(c); return c; }
+const P_={ // fabricants partagés entre familles (paramétrés)
+  aileron(h,largFrac,prof,mc){ return (a,d,m)=>{ const g=new THREE.Group(), W=d.larg*largFrac, y=a.arriere.y, z=a.arriere.z+0.32;
+    if(h>0) for(const sx of [-1,1]) pBox(g,0.08,h,0.12,MAT_SOMBRE,sx*W*0.32,y+h/2,z);
+    pBox(g,W,0.07,prof,mc?m:MAT_SOMBRE,0,y+h+0.035,z-0.04); return g; }; },
+  pareChocs(haut,saillie,mc,prises){ return (a,d,m)=>{ const g=new THREE.Group(), y=a.basCaisse.y+haut/2+0.04;
+    pBox(g,d.larg*0.98,haut,0.22+saillie,mc?m:MAT_SOMBRE,0,y,a.avant.z+saillie/2);
+    if(prises) for(const sx of [-1,1]) pBox(g,d.larg*0.22,haut*0.45,0.05,MAT_SOMBRE,sx*d.larg*0.27,y,a.avant.z+saillie+0.11);
+    return g; }; },
+  jupes(ep,haut,mc){ return (a,d,m)=>{ const g=new THREE.Group();
+    for(const sx of [-1,1]) pBox(g,ep,haut,d.long*0.56,mc?m:MAT_SOMBRE,sx*(a.basCaisse.x+ep/2-0.02),a.basCaisse.y+haut/2,0);
+    return g; }; },
+  ecopes(n){ return (a,d)=>{ const g=new THREE.Group(), z=a.avant.z-d.long*0.2;
+    for(let i=0;i<n;i++){ const x=n===1?0:(i?0.32:-0.32); pBox(g,0.46,0.12,0.5,MAT_SOMBRE,x,a.avant.y+0.06,z); pBox(g,0.36,0.06,0.04,MAT_GRIS,x,a.avant.y+0.08,z+0.25); }
+    return g; }; },
+  echappement(n,r,lateral){ return (a,d)=>{ const g=new THREE.Group(), y=a.basCaisse.y+0.12;
+    if(lateral) for(const sx of [-1,1]) pCyl(g,r,0.9,MAT_CHROME,sx*(a.basCaisse.x+0.06),y,-d.long*0.08);
+    else for(let i=0;i<n;i++) pCyl(g,r,0.42,MAT_CHROME,n===1?d.larg*0.28:(i?0.3:-0.3)+d.larg*0.05,y,a.arriere.z-0.1);
+    return g; }; },
+  // jantes : greffées sur chaque roue réelle (ud.roues), elles tournent avec
+  // elle. Axe de la roue = axe y LOCAL du cylindre (voir makeVoiture).
+  jante(style){ return (roue)=>{ const g=new THREE.Group(), pr=roue.geometry.parameters, R=pr.radiusTop, h=pr.height;
+    for(const sy of [-1,1]){
+      const y=sy*(h/2+0.012);
+      const disque=new THREE.Mesh(new THREE.CylinderGeometry(R*0.66,R*0.66,0.025,14),style==='chrome'?MAT_CHROME:MAT_SOMBRE);
+      disque.position.y=y; g.add(disque);
+      if(style==='rayons') for(let k=0;k<3;k++){ const r=pBox(g,R*1.2,0.03,R*0.12,MAT_CHROME,0,y+sy*0.012,0); r.rotation.y=k*Math.PI/3; }
+      else { const moyeu=new THREE.Mesh(new THREE.CylinderGeometry(R*0.18,R*0.18,0.04,8),MAT_SOMBRE); moyeu.position.y=y+sy*0.015; g.add(moyeu); }
+    }
+    return g; }; },
+};
+const ORIGINE={nom:'D’origine'};
+const PIECES_FAMILLES={
+  compacte:{
+    aileron:{nom:'AILERON',variantes:[ORIGINE,{nom:'Becquet',f:P_.aileron(0,0.82,0.34,true)},{nom:'Aileron sport',f:P_.aileron(0.32,0.9,0.4,false)}]},
+    parechocs:{nom:'PARE-CHOCS',variantes:[ORIGINE,{nom:'Lame avant',f:P_.pareChocs(0.08,0.1,false,false)},{nom:'Bouclier sport',f:P_.pareChocs(0.28,0.06,true,true)}]},
+    jupes:{nom:'JUPES',variantes:[ORIGINE,{nom:'Jupes fines',f:P_.jupes(0.08,0.12,false)},{nom:'Jupes larges',f:P_.jupes(0.14,0.2,true)}]},
+    capot:{nom:'PRISE D’AIR',variantes:[ORIGINE,{nom:'Écope',f:P_.ecopes(1)},{nom:'Double écope',f:P_.ecopes(2)}]},
+    jantes:{nom:'JANTES',variantes:[ORIGINE,{nom:'Sport',f:P_.jante('rayons')},{nom:'Chrome',f:P_.jante('chrome')}]},
+    echappement:{nom:'ÉCHAPPEMENT',variantes:[ORIGINE,{nom:'Double sortie',f:P_.echappement(2,0.08)},{nom:'Gros calibre',f:P_.echappement(1,0.14)}]},
+  },
+  sportive:{
+    aileron:{nom:'AILERON',variantes:[ORIGINE,{nom:'Aileron GT',f:P_.aileron(0.5,0.95,0.46,false)},{nom:'Aileron carrosserie',f:P_.aileron(0.22,1.0,0.5,true)}]},
+    parechocs:{nom:'PARE-CHOCS',variantes:[ORIGINE,{nom:'Splitter',f:P_.pareChocs(0.06,0.22,false,false)},{nom:'Bouclier course',f:P_.pareChocs(0.3,0.12,true,true)}]},
+    jupes:{nom:'JUPES',variantes:[ORIGINE,{nom:'Jupes carbone',f:P_.jupes(0.1,0.14,false)},{nom:'Jupes élargies',f:P_.jupes(0.18,0.22,true)}]},
+    capot:{nom:'PRISE D’AIR',variantes:[ORIGINE,{nom:'Écope',f:P_.ecopes(1)},{nom:'Double écope',f:P_.ecopes(2)}]},
+    jantes:{nom:'JANTES',variantes:[ORIGINE,{nom:'Course',f:P_.jante('rayons')},{nom:'Chrome',f:P_.jante('chrome')}]},
+    echappement:{nom:'ÉCHAPPEMENT',variantes:[ORIGINE,{nom:'Quadruple',f:P_.echappement(2,0.1)},{nom:'Central',f:P_.echappement(1,0.16)}]},
+  },
+  utilitaire:{ // pas d'aileron ni de prise d'air : galerie de toit et marchepieds
+    aileron:{nom:'GALERIE DE TOIT',variantes:[ORIGINE,
+      {nom:'Galerie',f:(a,d)=>{ const g=new THREE.Group(), y=a.toit.y+0.08;
+        for(const sx of [-1,1]) pBox(g,0.07,0.07,d.long*0.42,MAT_GRIS,sx*d.larg*0.38,y,a.toit.z);
+        for(let k=-1;k<=1;k++) pBox(g,d.larg*0.8,0.05,0.07,MAT_GRIS,0,y+0.05,a.toit.z+k*d.long*0.18); return g; }},
+      {nom:'Galerie + coffre',f:(a,d)=>{ const g=new THREE.Group(), y=a.toit.y+0.08;
+        for(const sx of [-1,1]) pBox(g,0.07,0.07,d.long*0.42,MAT_GRIS,sx*d.larg*0.38,y,a.toit.z);
+        pBox(g,d.larg*0.62,0.32,d.long*0.34,MAT_SOMBRE,0,y+0.2,a.toit.z); return g; }}]},
+    parechocs:{nom:'PARE-CHOCS',variantes:[ORIGINE,
+      {nom:'Pare-buffle',f:(a,d)=>{ const g=new THREE.Group(), z=a.avant.z+0.18, y=a.basCaisse.y;
+        for(const sx of [-1,1]) pBox(g,0.08,0.75,0.08,MAT_CHROME,sx*d.larg*0.3,y+0.38,z);
+        pBox(g,d.larg*0.75,0.08,0.08,MAT_CHROME,0,y+0.72,z); pBox(g,d.larg*0.95,0.1,0.1,MAT_CHROME,0,y+0.18,z); return g; }},
+      {nom:'Treuil',f:(a,d)=>{ const g=new THREE.Group(), z=a.avant.z+0.14, y=a.basCaisse.y+0.22;
+        pBox(g,d.larg*0.98,0.26,0.22,MAT_SOMBRE,0,y,z); pCyl(g,0.12,0.5,MAT_GRIS,0,y,z+0.12); return g; }}]},
+    jupes:{nom:'MARCHEPIEDS',variantes:[ORIGINE,{nom:'Marchepieds',f:P_.jupes(0.22,0.06,false)},{nom:'Marchepieds chromés',f:(a,d)=>{ const g=new THREE.Group();
+      for(const sx of [-1,1]) pBox(g,0.24,0.06,d.long*0.5,MAT_CHROME,sx*(a.basCaisse.x+0.1),a.basCaisse.y+0.03,0); return g; }}]},
+    jantes:{nom:'JANTES',variantes:[ORIGINE,{nom:'Acier noir',f:P_.jante('rayons')},{nom:'Chrome',f:P_.jante('chrome')}]},
+    echappement:{nom:'ÉCHAPPEMENT',variantes:[ORIGINE,{nom:'Double',f:P_.echappement(2,0.08)},{nom:'Latéral',f:P_.echappement(0,0.07,true)}]},
+  },
+  toutterrain:{ // pas de jupes ni de prise d'air : rampe de phares et pare-buffle
+    aileron:{nom:'RAMPE DE PHARES',variantes:[ORIGINE,
+      {nom:'Rampe 4 phares',f:(a,d)=>{ const g=new THREE.Group(), y=a.toit.y+0.1;
+        pBox(g,d.larg*0.8,0.07,0.07,MAT_SOMBRE,0,y,a.toit.z);
+        for(let k=0;k<4;k++) pBox(g,0.16,0.16,0.08,mat(0xfff2c0),(k-1.5)*d.larg*0.2,y+0.1,a.toit.z+0.04); return g; }},
+      {nom:'Barre LED longue',f:(a,d)=>{ const g=new THREE.Group(), y=a.toit.y+0.1;
+        pBox(g,d.larg*0.95,0.08,0.08,MAT_SOMBRE,0,y,a.toit.z); pBox(g,d.larg*0.88,0.12,0.06,mat(0xe8f4ff),0,y+0.1,a.toit.z+0.05); return g; }}]},
+    parechocs:{nom:'PARE-BUFFLE',variantes:[ORIGINE,
+      {nom:'Tube',f:(a,d)=>{ const g=new THREE.Group(), z=a.avant.z+0.16, y=a.basCaisse.y;
+        for(const sx of [-1,1]) pBox(g,0.08,0.55,0.08,MAT_SOMBRE,sx*d.larg*0.32,y+0.28,z);
+        pBox(g,d.larg*0.72,0.08,0.08,MAT_SOMBRE,0,y+0.52,z); return g; }},
+      {nom:'Intégral',f:(a,d)=>{ const g=new THREE.Group(), z=a.avant.z+0.18, y=a.basCaisse.y;
+        for(let k=0;k<3;k++) pBox(g,d.larg*(0.8-k*0.1),0.08,0.08,MAT_SOMBRE,0,y+0.15+k*0.22,z);
+        for(const sx of [-1,1]) pBox(g,0.1,0.7,0.1,MAT_SOMBRE,sx*d.larg*0.36,y+0.35,z); return g; }}]},
+    jantes:{nom:'JANTES',variantes:[ORIGINE,{nom:'Beadlock',f:P_.jante('rayons')},{nom:'Chrome',f:P_.jante('chrome')}]},
+    echappement:{nom:'ÉCHAPPEMENT',variantes:[ORIGINE,{nom:'Latéral',f:P_.echappement(0,0.08,true)},{nom:'Double',f:P_.echappement(2,0.1)}]},
+  },
+  deuxroues:{ // pas d'aileron, de pare-chocs ni de jupes : carénage et saute-vent
+    jupes:{nom:'CARÉNAGE',variantes:[ORIGINE,
+      {nom:'Tête de fourche',f:(a,d,m)=>{ const g=new THREE.Group(); pBox(g,0.42,0.34,0.3,m,0,a.toit.y-0.22,a.toit.z+0.14); return g; }},
+      {nom:'Carénage intégral',f:(a,d,m)=>{ const g=new THREE.Group();
+        pBox(g,0.44,0.38,0.32,m,0,a.toit.y-0.2,a.toit.z+0.14);
+        for(const sx of [-1,1]) pBox(g,0.06,0.36,0.9,m,sx*0.2,a.toit.y-0.5,a.toit.z-0.3); return g; }}]},
+    capot:{nom:'SAUTE-VENT',variantes:[ORIGINE,
+      {nom:'Bulle courte',f:(a)=>{ const g=new THREE.Group(); pBox(g,0.36,0.22,0.03,mat(0x9fd8ff),0,a.toit.y+0.12,a.toit.z+0.12,-0.45); return g; }},
+      {nom:'Bulle haute',f:(a)=>{ const g=new THREE.Group(); pBox(g,0.42,0.42,0.03,mat(0x9fd8ff),0,a.toit.y+0.22,a.toit.z+0.1,-0.35); return g; }}]},
+    jantes:{nom:'JANTES',variantes:[ORIGINE,{nom:'Bâtons',f:P_.jante('rayons')},{nom:'Chrome',f:P_.jante('chrome')}]},
+    echappement:{nom:'ÉCHAPPEMENT',variantes:[ORIGINE,
+      {nom:'Silencieux',f:(a)=>{ const g=new THREE.Group(); pCyl(g,0.07,0.5,MAT_CHROME,0.2,a.basCaisse.y,a.arriere.z+0.45); return g; }},
+      {nom:'Double canon',f:(a)=>{ const g=new THREE.Group(); for(const sy of [0,0.14]) pCyl(g,0.06,0.55,MAT_CHROME,0.2,a.basCaisse.y+sy,a.arriere.z+0.42); return g; }}]},
+  },
+};
 // ---- NITRO (toutes les durées sur dtJeu) ----
 const NITRO_CONSO=25;            // % de jauge par seconde de poussée (4 s de pleine poussée)
 const NITRO_RECHARGE=10;         // % par seconde
@@ -16924,9 +17042,16 @@ function garageVehiculeDehors(gid){
   for(const v of vehicules) if(v.garageId===gid&&!v.mort&&!v.epave) return v;
   return null;
 }
-function vehiculeGarable(v){
+// Éligibilité DÉCLARÉE dans VEHDEFS (jamais une liste ici) : tuningMeca =
+// tout ce qui roule et se conduit (char compris) ; tuningCarro = voitures et
+// motos civiles, avec famille + ancrages. Tout le reste est refusé à la porte.
+function vehiculeGarable(v){ return !!(v&&v.def&&v.def.tuningMeca); }
+function messageNonGarable(v){
   const d=v.def;
-  return !(d.air||d.eau||d.surf||d.ovni||d.canon||v.key.indexOf('depot')===0);
+  if(d.eau||d.surf) return 'Les bateaux, c’est au port — pas au garage';
+  if(d.air||d.ovni) return 'Pose-le d’abord… sur un héliport, pas dans un garage';
+  if(v.key.indexOf('depot')===0) return 'Ce véhicule ne quitte pas le Dépôt';
+  return 'Ce garage ne s’occupe pas de ce véhicule';
 }
 function porteGarageProche(x,z){
   for(const p of PORTES) if(p.id==='tuning'&&dist2(x,z,p.x,p.z)<GARAGE_RAYON_PORTE*GARAGE_RAYON_PORTE) return p;
@@ -16947,7 +17072,7 @@ function ennemiHostileProche(x,z,r){
 function garageRefusVehicule(v,gt){
   if(!v||!gt) return 'Garage introuvable';
   if(ennemiHostileProche(P.x,P.z,GARAGE_FEU_DIST)) return GARAGE_MSG_FEU;
-  if(!vehiculeGarable(v)) return 'Ce garage ne s’occupe que des véhicules routiers';
+  if(!vehiculeGarable(v)) return messageNonGarable(v);
   if(v.garageId&&v.garageId!==gt.id) return 'Ce véhicule est rangé au '+GARAGE_PAR_ID[v.garageId].nom;
   const slot=garageSlot(gt.id);
   if(slot&&slot.cle&&v.garageId!==gt.id) return gt.nom+' : place déjà prise ('+(VEHDEFS[slot.cle]?VEHDEFS[slot.cle].nom:'un véhicule')+')';
@@ -16956,7 +17081,7 @@ function garageRefusVehicule(v,gt){
 function garageRetirerVehicule(v){
   if(v.remorque){ v.remorque.tracte=null; v.remorque=null; }
   if(v.tracte){ v.tracte.remorque=null; v.tracte=null; }
-  scene.remove(v.mesh);
+  scene.remove(v.mesh); libererObjet(v.mesh); // le véhicule renaîtra neuf à la sortie
   const i=vehicules.indexOf(v); if(i>=0) vehicules.splice(i,1);
 }
 function entrerGarageEnVehicule(porte){
@@ -17010,6 +17135,64 @@ function neonMesh(mesh,coul){
   ud.neon.visible=true;
   for(const m of ud.neonMats) m.color.setHex(coul);
 }
+// Libère les géométries d'un objet retiré de la scène (pas de fuite sur les
+// allers-retours au garage). Ne touche JAMAIS : le joueur (P.h.g, attaché au
+// mesh d'une moto — géométries humaines partagées), les sprites (géométrie
+// partagée par Three.js), ni les matériaux du cache mat() ; seuls les
+// matériaux PROPRES au véhicule (peinture, néons) sont libérés.
+function libererObjet(o){
+  if(!o||o===P.h.g||o.isSprite) return;
+  for(let i=o.children.length-1;i>=0;i--) libererObjet(o.children[i]);
+  if(o.geometry) o.geometry.dispose();
+  const ud=o.userData;
+  if(ud){
+    if(ud.matPeinture){ ud.matPeinture.dispose(); ud.matPeinture=null; }
+    if(ud.neonMats){ for(const m of ud.neonMats) m.dispose(); ud.neonMats=null; }
+  }
+}
+// Passe d'ancrage des pièces de carrosserie (JAMAIS dans makeVoiture) :
+// retire et libère la passe précédente, puis greffe les pièces choisies —
+// sur ud.corps (elles suivent la suspension) aux ancrages déclarés dans
+// VEHDEFS.tuningCarro, et les jantes sur les roues réelles du châssis.
+// Appelée UNIQUEMENT pour le véhicule du joueur sorti du garage et pour le
+// modèle d'exposition : jamais pour le trafic. Renvoie le nb de pièces posées.
+function appliquerCarrosserie(groupe,key,pieces){
+  const ud=groupe.userData;
+  if(ud.carro){ ud.carro.parent&&ud.carro.parent.remove(ud.carro); libererObjet(ud.carro); ud.carro=null; }
+  if(ud.carroJantes){ for(const j of ud.carroJantes){ j.parent&&j.parent.remove(j); libererObjet(j); } ud.carroJantes=null; }
+  const tc=VEHDEFS[key]&&VEHDEFS[key].tuningCarro;
+  if(!tc||!pieces) return 0;
+  const fam=PIECES_FAMILLES[tc.famille]; if(!fam) return 0;
+  const d=VEHDEFS[key], mc=ud.matPeinture||mat(ud.coul);
+  const grp=new THREE.Group(); let n=0;
+  for(const cat of PIECES_CATS){
+    if(cat==='jantes'||!fam[cat]) continue;
+    const v=fam[cat].variantes[pieces[cat]|0];
+    if(v&&v.f){ grp.add(v.f(tc.ancrages,d,mc)); n++; }
+  }
+  (ud.corps||groupe).add(grp); ud.carro=grp;
+  if(fam.jantes){
+    const v=fam.jantes.variantes[pieces.jantes|0];
+    if(v&&v.f&&ud.roues){ ud.carroJantes=[]; for(const r of ud.roues){ const j=v.f(r,d); r.add(j); ud.carroJantes.push(j); } n++; }
+  }
+  return n;
+}
+// Achat / pose d'une pièce — garde d'entrée PROPRE : une variante se paie une
+// fois ; reposer une variante déjà possédée (ou l'origine) est gratuit.
+function choisirPiece(gid,cat,i){
+  const slot=garageSlot(gid);
+  if(!slot||!slot.cle) return false;
+  const tc=VEHDEFS[slot.cle]&&VEHDEFS[slot.cle].tuningCarro;
+  const fc=tc&&PIECES_FAMILLES[tc.famille]&&PIECES_FAMILLES[tc.famille][cat];
+  if(!fc||!(i>=0&&i<fc.variantes.length)) return false;
+  if(slot.pieces[cat]===i) return false;                    // déjà posée : rien à faire
+  const bit=1<<i;
+  if(!(slot.piecesPossedees[cat]&bit)){
+    if(!garagePayer(TUNING_PRIX.pieces[cat][i])) return false;
+    slot.piecesPossedees[cat]|=bit;
+  }
+  slot.pieces[cat]=i; sauveMeta(); return true;
+}
 // applique les améliorations d'un garage à un véhicule de la ville. v.def
 // devient une copie PROPRE à ce véhicule (jamais VEHDEFS modifié).
 function appliquerTuning(v,gid){
@@ -17022,6 +17205,7 @@ function appliquerTuning(v,gid){
     man:base.man*TUNING_EFFETS.tenue[slot.tenue]});
   peindreMesh(v.mesh,slot.coul);
   neonMesh(v.mesh,slot.neon);
+  appliquerCarrosserie(v.mesh,v.key,slot.pieces); // véhicule du JOUEUR uniquement (jamais le trafic)
   v.blindage=TUNING_EFFETS.blindage[slot.blindage]; // 1 = d'origine (voir abimerVehicule)
   v.nitro=!!slot.nitro; v.nitroJauge=100; v.nitroRepos=0; v.nitroActif=false;
 }
@@ -17085,14 +17269,28 @@ function garageMajVitrine(s){
   const slot=garageSlot(s.gid);
   const cle=(slot&&slot.cle&&VEHDEFS[slot.cle]&&!garageVehiculeDehors(s.gid))?slot.cle:'';
   if(s.voitureCle!==cle){
-    if(s.voiture){ s.g.remove(s.voiture); s.voiture=null; }
-    s.voitureCle=cle;
+    if(s.voiture){ s.g.remove(s.voiture); libererObjet(s.voiture); s.voiture=null; }
+    s.voitureCle=cle; s.apercu=null;
     if(cle){
       const m=makeVoiture(cle);
       m.position.set(s.plateauX,0.42,s.plateauZ); s.g.add(m); s.voiture=m;
+      // cadrage de la vue de présentation proportionné au véhicule : réglé
+      // pour une voiture, il coupait le Pickup et le Monster Truck (vu en
+      // rendu réel — on ne voyait plus que leurs roues)
+      // boîte des seuls MESHES : le sprite d'ombre (spriteBlob) se mesurerait
+      // comme un carré vertical et gonflerait la hauteur (moto « haute de 3,4 u »)
+      const b=new THREE.Box3(); m.updateMatrixWorld(true);
+      m.traverse(o=>{ if(o.isMesh) b.union(new THREE.Box3().setFromObject(o)); });
+      s.camK=clamp(Math.max((b.max.z-b.min.z)/4.4,(b.max.y-b.min.y)/1.6,(b.max.x-b.min.x)/2.1),0.55,2.6); // < 1 : on se rapproche des motos et du quad
+      s.camHautVeh=b.max.y-b.min.y;
     }
   }
-  if(s.voiture){ peindreMesh(s.voiture,slot.coul); neonMesh(s.voiture,slot.neon); }
+  if(s.voiture){
+    peindreMesh(s.voiture,slot.coul); neonMesh(s.voiture,slot.neon);
+    // on VOIT avant d'acheter : l'aperçu remplace la pièce posée sur l'exposition
+    const pieces=s.apercu?Object.assign({},slot.pieces,{[s.apercu.cat]:s.apercu.i}):slot.pieces;
+    appliquerCarrosserie(s.voiture,cle,pieces);
+  }
 }
 function garageSurEntree(s,porte){
   s.gid=(porte&&porte.garageId&&GARAGE_PAR_ID[porte.garageId])?porte.garageId:GARAGES_TUNING[0].id;
@@ -17142,13 +17340,13 @@ function garageApresSortie(sc){
   nv.perso=true;
   entrerVehicule(nv);
   // le plateau est vide tant que le véhicule roule dehors
-  if(sc.voiture){ sc.g.remove(sc.voiture); sc.voiture=null; sc.voitureCle=''; }
+  if(sc.voiture){ sc.g.remove(sc.voiture); libererObjet(sc.voiture); sc.voiture=null; sc.voitureCle=''; }
 }
 function garageReinitSalle(sa){
   fermerGarageMenu(sa);
-  sa.laisser=false; sa.sortirEnVoiture=false;
+  sa.laisser=false; sa.sortirEnVoiture=false; sa.apercu=null;
   sa.porteFermee=true; sa.etoilesT=-1;
-  if(sa.voiture){ sa.g.remove(sa.voiture); sa.voiture=null; sa.voitureCle=''; }
+  if(sa.voiture){ sa.g.remove(sa.voiture); libererObjet(sa.voiture); sa.voiture=null; sa.voitureCle=''; }
 }
 
 /* ---------- paiements : CHACUN porte sa propre garde d'entrée ---------- */
@@ -17211,17 +17409,38 @@ function renderGarageMenu(s){
       :'<div class="gmBtn" data-a="palier" data-c="'+cat+'">PALIER '+(n+1)+' — '+TUNING_PRIX[cat][n]+' $</div>';
     h+='</div>';
   }
+  // carrosserie (voitures et motos civiles) : 1er appui = aperçu sur le
+  // plateau, 2e appui = achat ; une variante possédée se repose gratuitement
+  const tc=VEHDEFS[slot.cle]&&VEHDEFS[slot.cle].tuningCarro, fam=tc&&PIECES_FAMILLES[tc.famille];
+  if(fam){
+    h+='<div class="gmSec" style="color:#ff8c1a">CARROSSERIE — touche une pièce pour la voir sur le plateau</div>';
+    for(const cat of PIECES_CATS){
+      if(!fam[cat]) continue;
+      h+='<div class="gmSec">'+fam[cat].nom+'</div><div class="gmLigne">';
+      fam[cat].variantes.forEach((v,i)=>{
+        const posee=slot.pieces[cat]===i, possede=!!(slot.piecesPossedees[cat]&(1<<i));
+        const vue=s.apercu&&s.apercu.cat===cat&&s.apercu.i===i;
+        const prix=TUNING_PRIX.pieces[cat][i];
+        const txt=posee?'✔ '+v.nom:(possede?v.nom+' — POSER':(vue?'ACHETER '+v.nom+' — '+prix+' $':v.nom+' — '+prix+' $'));
+        h+='<div class="gmBtn'+(posee?' ok':'')+'"'+(posee?'':' data-a="piece" data-c="'+cat+'" data-i="'+i+'"')+(vue?' style="border-color:#ffd23f;color:#ffd23f"':'')+'>'+txt+'</div>';
+      });
+      h+='</div>';
+    }
+  }
   h+='<div class="gmSec">EN SORTANT</div><div class="gmLigne"><div class="gmBtn'+(s.laisser?' ok':'')+'" data-a="laisser">'+
      (s.laisser?'🅿️ LE LAISSER GARÉ (sortie à pied)':'🚗 REPARTIR AU VOLANT')+'</div></div>';
   GM.corps.innerHTML=h;
 }
 function ouvrirGarageMenu(s){
   if(!s||!s.tuning) return;
-  s.menuOuvert=true; GM.el.style.display='flex';
+  s.menuOuvert=true; s.apercu=null; GM.el.style.display='flex';
   renderGarageMenu(s); SFX.ui();
 }
 function fermerGarageMenu(s){
-  if(s&&s.tuning) s.menuOuvert=false;
+  if(s&&s.tuning){
+    s.menuOuvert=false;
+    if(s.apercu){ s.apercu=null; if(s.voiture) garageMajVitrine(s); } // aperçu non acheté : retour aux pièces posées
+  }
   GM.el.style.display='none';
 }
 GM.corps.addEventListener('pointerdown',e=>{
@@ -17235,6 +17454,12 @@ GM.corps.addEventListener('pointerdown',e=>{
   else if(a==='nitro'){ if(acheterNitro(s.gid)) toast('🔥 Nitro installée — bouton NITRO au volant','or'); }
   else if(a==='palier'){ const c=b.dataset.c; if(acheterPalier(s.gid,c)) toast('⚙️ '+TUNING_NOMS[c]+' : palier '+garageSlot(s.gid)[c],'or'); }
   else if(a==='laisser'){ s.laisser=!s.laisser; SFX.ui(); }
+  else if(a==='piece'){
+    const c=b.dataset.c, slot=garageSlot(s.gid), possede=!!(slot.piecesPossedees[c]&(1<<i));
+    if(possede||(s.apercu&&s.apercu.cat===c&&s.apercu.i===i)){
+      if(choisirPiece(s.gid,c,i)){ s.apercu=null; toast('🔩 Pièce posée','or'); }
+    } else { s.apercu={cat:c,i}; SFX.ui(); } // aperçu sur le plateau, rien n'est débité
+  }
   garageMajVitrine(s); renderGarageMenu(s);
 });
 el('gmFermer').addEventListener('pointerdown',e=>{ e.preventDefault(); fermerGarageMenu(INT.actif); SFX.ui(); });
@@ -19924,9 +20149,9 @@ function majCamera(dt){
   // haute de l'écran (le menu occupe la moitié basse). Retour en douceur
   // à la vue normale à la fermeture (camH/camD reprennent leur lerp).
   if(INT.actif&&INT.actif.tuning&&INT.actif.menuOuvert&&INT.actif.voiture){
-    const s=INT.actif, a=ETAT.runT*0.22;
-    camera.position.set(s.plateauX+Math.sin(a)*GARAGE_CAM_DIST,GARAGE_CAM_H,s.plateauZ+Math.cos(a)*GARAGE_CAM_DIST);
-    camera.lookAt(s.plateauX,GARAGE_CAM_VISEE_Y,s.plateauZ);
+    const s=INT.actif, a=ETAT.runT*0.22, k=s.camK||1;
+    camera.position.set(s.plateauX+Math.sin(a)*GARAGE_CAM_DIST*k,GARAGE_CAM_H*k,s.plateauZ+Math.cos(a)*GARAGE_CAM_DIST*k);
+    camera.lookAt(s.plateauX,GARAGE_CAM_VISEE_Y*k+(s.camHautVeh||1.4)*0.5,s.plateauZ);
     camera.fov=lerp(camera.fov,52,0.12); camera.updateProjectionMatrix();
     return;
   }

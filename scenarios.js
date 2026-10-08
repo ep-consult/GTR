@@ -6257,6 +6257,11 @@ async function main() {
     const injecterAidesGarage = () => page.evaluate(() => {
       window.__gar = {
         prep() {
+          // descendre proprement du véhicule AVANT startRun() : quitter l'OVNI
+          // sans passer par un chemin de sortie laisse #grenN détruit et fait
+          // planter startRun() — c'est le constat n° 5 du playtest (mort en
+          // soucoupe), non corrigé à ce jour ; le test ne doit pas en dépendre.
+          if (P.veh) sortirVehicule(true);
           startRun();
           for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0;
           for (const e of ennemis) scene.remove(e.h ? e.h.g : e.mesh); ennemis.length = 0;
@@ -6616,13 +6621,225 @@ async function main() {
       else ok('Garages : nitro refusée pendant une course du Dépôt (jauge intacte)');
     }
 
+    // -------------------------------------------------------------------
+    // Garages, phase 3 : éligibilité DÉCLARÉE dans VEHDEFS et pièces de
+    // carrosserie. Véhicules, familles, catégories, prix et ancrages lus
+    // depuis le jeu — jamais recopiés.
+    // -------------------------------------------------------------------
+    console.log('\n--- Garages tuning : éligibilité déclarée dans VEHDEFS, refus à la porte ---');
+    await injecterAidesGarage();
+    const garElig = await page.evaluate(() => {
+      const G = window.__gar, out = { incoherences: [], refusOk: [], refusKo: [] };
+      G.prep();
+      for (const k of Object.keys(VEHDEFS)) {
+        const d = VEHDEFS[k];
+        const refus = garageRefusVehicule({ key: k, def: d }, GARAGES_TUNING[0]);
+        if (!!d.tuningMeca === (refus !== null)) out.incoherences.push(k + ' (tuningMeca=' + !!d.tuningMeca + ', refus=' + refus + ')');
+        if (d.tuningCarro) {
+          const tc = d.tuningCarro;
+          if (!d.tuningMeca) out.incoherences.push(k + ' : tuningCarro sans tuningMeca');
+          if (!PIECES_FAMILLES[tc.famille]) out.incoherences.push(k + ' : famille inconnue ' + tc.famille);
+          for (const an of ['avant', 'arriere', 'toit', 'basCaisse']) {
+            const p = tc.ancrages && tc.ancrages[an];
+            if (!p || [p.x, p.y, p.z].some((v) => typeof v !== 'number')) out.incoherences.push(k + ' : ancrage ' + an + ' invalide');
+          }
+          const m = makeVoiture(k);
+          if (!m.userData.corps || !(m.userData.roues && m.userData.roues.length)) out.incoherences.push(k + ' : pas de corps / roues pour greffer les pièces');
+        }
+      }
+      out.nbMeca = Object.keys(VEHDEFS).filter((k) => VEHDEFS[k].tuningMeca).length;
+      out.nbCarro = Object.keys(VEHDEFS).filter((k) => VEHDEFS[k].tuningCarro).length;
+      out.nbTotal = Object.keys(VEHDEFS).length;
+      // le vrai chemin de la porte, au volant : aéronefs, bateaux, OVNI refusés ; le char entre
+      const porte = G.porte(0);
+      for (const cle of ['helico', 'bateau', 'ovni', 'avion']) {
+        G.prep(); G.auVolantDevant(porte, cle);
+        const label = G.appuyer();
+        if (INT.actif) { out.refusKo.push(cle + ' est entré'); sortirInterieur(); }
+        else if (!/🔒/.test(label)) out.refusKo.push(cle + ' : refus illisible (« ' + label + ' »)');
+        else out.refusOk.push(cle);
+      }
+      G.prep(); G.auVolantDevant(porte, 'char');
+      out.labelChar = G.appuyer(); out.charEntre = !!(INT.actif && INT.actif.tuning);
+      if (INT.actif) sortirInterieur();
+      return out;
+    });
+    if (garElig.incoherences.length) for (const e of garElig.incoherences) fail('Garages : éligibilité incohérente — ' + e);
+    else ok('Garages : éligibilité lue dans VEHDEFS pour les ' + garElig.nbTotal + ' véhicules (' + garElig.nbMeca + ' tuningMeca, dont ' + garElig.nbCarro + ' tuningCarro, ancrages et châssis valides)');
+    if (garElig.refusKo.length) fail('Garages : véhicule non éligible mal refusé — ' + garElig.refusKo.join(', '));
+    else ok('Garages : refusés à la porte avec un message clair : ' + garElig.refusOk.join(', '));
+    if (!garElig.charEntre) fail('Garages : le char devrait entrer (tuningMeca) — label « ' + garElig.labelChar + ' »');
+    else ok('Garages : le char entre (tuning mécanique, pas de carrosserie)');
+
+    console.log('\n--- Garages tuning : pièces de carrosserie (aperçu gratuit, payées une fois, visibles, jamais sur le trafic) ---');
+    const garCarro = await page.evaluate(() => {
+      const G = window.__gar, out = { echecs: [] };
+      G.prep();
+      const porte = G.porte(1), gid = GARAGES_TUNING[1].id;
+      G.auVolantDevant(porte, 'muscle'); G.appuyer();
+      const s = INT.actif, slot = META.garages[gid];
+      const fam = PIECES_FAMILLES[VEHDEFS.muscle.tuningCarro.famille];
+      const cats = PIECES_CATS.filter((c) => fam[c]);
+      ouvrirGarageMenu(s);
+      const clic = (cat, i) => {
+        const b = document.querySelector('#gmCorps [data-a="piece"][data-c="' + cat + '"][data-i="' + i + '"]');
+        if (!b) return false;
+        b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); return true;
+      };
+      const nbPieces = () => (s.voiture.userData.carro ? s.voiture.userData.carro.children.length : 0);
+      // 1) premier appui : aperçu sur le plateau, rien n'est débité
+      const cat = cats[0], prix = TUNING_PRIX.pieces[cat][1];
+      let a = META.argent; clic(cat, 1);
+      out.apercuGratuit = META.argent === a; out.apercuVisible = nbPieces() === 1 && slot.pieces[cat] === 0;
+      // 2) deuxième appui sur la même : achat
+      a = META.argent; clic(cat, 1);
+      out.achatDebit = a - META.argent; out.prix = prix; out.posee = slot.pieces[cat] === 1;
+      // 3) déjà posée : plus de bouton actif ; reposer l'origine puis la variante possédée : gratuit
+      out.plusDeBouton = !document.querySelector('#gmCorps [data-a="piece"][data-c="' + cat + '"][data-i="1"]');
+      a = META.argent; clic(cat, 0); clic(cat, 1);
+      out.reposeGratuite = META.argent === a && slot.pieces[cat] === 1;
+      // 4) appel direct en double : la garde d'entrée refuse le 2e
+      const cat2 = cats[1];
+      a = META.argent; const r1 = choisirPiece(gid, cat2, 2), r2 = choisirPiece(gid, cat2, 2);
+      out.doubleAppel = r1 && !r2 && a - META.argent === TUNING_PRIX.pieces[cat2][2];
+      // 5) aperçu non acheté puis fermeture du menu : le plateau revient aux pièces posées
+      const cat3 = cats[2]; clic(cat3, 2);
+      const avecApercu = nbPieces();
+      fermerGarageMenu(s);
+      out.apercuAnnule = nbPieces() === avecApercu - 1 && slot.pieces[cat3] === 0;
+      // 6) tout poser (variante 2), visible sur l'exposition puis sur le véhicule sorti
+      for (const c of cats) choisirPiece(gid, c, 2);
+      garageMajVitrine(s);
+      const attendues = cats.filter((c) => c !== 'jantes').length;
+      out.vitrine = nbPieces() === attendues && (s.voiture.userData.carroJantes || []).length === s.voiture.userData.roues.length;
+      G.versSortie(); G.appuyer();
+      const v = P.veh, udv = v && v.mesh.userData;
+      out.sorti = !!v && v.key === 'muscle' && !!udv.carro && udv.carro.children.length === attendues && (udv.carroJantes || []).length === udv.roues.length;
+      // 7) jamais sur le trafic : un véhicule identique créé par le jeu n'a aucune pièce
+      const trafic = creerVehicule('muscle', v.x + 30, v.z, 0, 'trafic');
+      out.traficNu = !trafic.mesh.userData.carro && !trafic.mesh.userData.carroJantes;
+      // 8) purement cosmétique : la physique ne change pas
+      out.physiqueInchangee = v.def.vmax === VEHDEFS.muscle.vmax * TUNING_EFFETS.vitesse[slot.vitesse] && v.def.acc === VEHDEFS.muscle.acc * TUNING_EFFETS.moteur[slot.moteur];
+      out.attendues = attendues;
+      sauveMeta();
+      return out;
+    });
+    if (!garCarro.apercuGratuit || !garCarro.apercuVisible) fail('Garages : le 1er appui sur une pièce ne montre pas un aperçu gratuit (' + JSON.stringify(garCarro) + ')');
+    else ok('Garages : 1er appui = aperçu sur le plateau, rien débité');
+    if (garCarro.achatDebit !== garCarro.prix || !garCarro.posee) fail('Garages : 2e appui — débit ' + garCarro.achatDebit + ' $ (attendu ' + garCarro.prix + ')');
+    else ok('Garages : 2e appui = achat au prix de TUNING_PRIX.pieces');
+    if (!garCarro.plusDeBouton || !garCarro.reposeGratuite || !garCarro.doubleAppel) fail('Garages : une pièce se paie plus d\'une fois (' + JSON.stringify(garCarro) + ')');
+    else ok('Garages : une pièce se paie une fois ; reposer une pièce possédée est gratuit ; double appel refusé');
+    if (!garCarro.apercuAnnule) fail('Garages : un aperçu non acheté reste sur le plateau après fermeture du menu');
+    else ok('Garages : aperçu non acheté annulé à la fermeture du menu');
+    if (!garCarro.vitrine) fail('Garages : pièces absentes de l\'exposition');
+    else ok('Garages : les ' + garCarro.attendues + ' pièces + jantes visibles sur le modèle d\'exposition');
+    if (!garCarro.sorti) fail('Garages : pièces absentes du véhicule sorti');
+    else ok('Garages : mêmes pièces sur le véhicule sorti');
+    if (!garCarro.traficNu) fail('Garages : un véhicule du trafic porte des pièces');
+    else ok('Garages : jamais de pièces sur le trafic');
+    if (!garCarro.physiqueInchangee) fail('Garages : les pièces modifient la physique');
+    else ok('Garages : pièces purement cosmétiques (physique inchangée)');
+
+    console.log('\n--- Garages tuning : pièces conservées après game over et rechargement ---');
+    const garCarroGO = await page.evaluate(() => {
+      const gid = GARAGES_TUNING[1].id;
+      P.hp = 1; toucherJoueur(9999); startRun();
+      sauveMeta();
+      return JSON.parse(JSON.stringify(META.garages[gid].pieces));
+    });
+    await page.reload({ waitUntil: 'load', timeout: 30000 });
+    await page.waitForFunction(() => typeof PORTES !== 'undefined' && PORTES.length > 0, { timeout: 20000 });
+    await injecterAidesGarage();
+    const garCarroRl = await page.evaluate(() => {
+      const G = window.__gar, gid = GARAGES_TUNING[1].id, slot = META.garages[gid];
+      const out = { pieces: JSON.parse(JSON.stringify(slot.pieces)) };
+      startRun();
+      for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0;
+      for (const e of ennemis) scene.remove(e.h ? e.h.g : e.mesh); ennemis.length = 0;
+      WANTED.heat = 0; WANTED.stars = 0;
+      G.aPiedDevant(G.porte(1)); G.appuyer();
+      const s = INT.actif;
+      out.vitrine = !!(s && s.voiture && s.voiture.userData.carro && s.voiture.userData.carro.children.length > 0);
+      if (s) { G.versSortie(); G.appuyer(); }
+      out.sorti = !!(P.veh && P.veh.mesh.userData.carro && P.veh.mesh.userData.carro.children.length > 0);
+      return out;
+    });
+    const memesPieces = (a, b) => Object.keys(a).length === Object.keys(b).length && Object.keys(a).every((k) => a[k] === b[k]);
+    if (!memesPieces(garCarroGO, garCarroRl.pieces) || !Object.values(garCarroGO).some((v) => v > 0)) fail('Garages : pièces perdues (game over ' + JSON.stringify(garCarroGO) + ' / rechargement ' + JSON.stringify(garCarroRl.pieces) + ')');
+    else ok('Garages : pièces conservées après game over et après rechargement');
+    if (!garCarroRl.vitrine || !garCarroRl.sorti) fail('Garages : après rechargement, pièces absentes de l\'exposition ou du véhicule sorti');
+    else ok('Garages : après rechargement, pièces sur l\'exposition et sur le véhicule sorti');
+
+    console.log('\n--- Garages tuning : allers-retours répétés sans fuite (géométries libérées, aucun mesh accumulé) ---');
+    const garFuite = await page.evaluate(() => {
+      const G = window.__gar, out = {};
+      // on marque toute géométrie libérée, sans changer son comportement
+      const proto = THREE.BufferGeometry.prototype, orig = proto.dispose;
+      proto.dispose = function () { this.__libere = true; return orig.call(this); };
+      const geosDe = (o) => { const l = []; (function rec(n) { if (n === P.h.g || n.isSprite) return; if (n.geometry) l.push(n.geometry); for (const c of n.children) rec(c); })(o); return l; };
+      try {
+        G.prep();
+        const porte = G.porte(2), gid = GARAGES_TUNING[2].id;
+        G.auVolantDevant(porte, 'citadine'); G.appuyer();
+        for (const c of PIECES_CATS) choisirPiece(gid, c, 1);
+        const s = INT.actif;
+        garageMajVitrine(s);
+        // a) changer de pièce 30 fois sur l'exposition : rien ne s'accumule,
+        //    chaque passe précédente est libérée
+        const desc = () => { let n = 0; s.voiture.traverse(() => n++); return n; };
+        const n0 = desc(); let nonLiberees = 0;
+        for (let k = 0; k < 30; k++) {
+          const avant = geosDe(s.voiture.userData.carro).concat(...(s.voiture.userData.carroJantes || []).map(geosDe));
+          choisirPiece(gid, PIECES_CATS[k % PIECES_CATS.length], k % 2 ? 1 : 2);
+          garageMajVitrine(s);
+          nonLiberees += avant.filter((g) => !g.__libere).length;
+        }
+        for (const c of PIECES_CATS) choisirPiece(gid, c, 1);
+        garageMajVitrine(s);
+        out.descStable = desc() === n0; out.nonLibereesPieces = nonLiberees;
+        // b) 6 allers-retours complets : le véhicule rangé et le modèle
+        //    d'exposition retirés sont libérés, la salle n'accumule rien
+        const enfantsSalle = [], vehiculesGarage = [];
+        let fuitesVeh = 0, fuitesVitrine = 0;
+        G.versSortie(); G.appuyer(); // ressort au volant
+        for (let k = 0; k < 6; k++) {
+          // revenir devant la porte, au volant, pour ce tour
+          P.veh.x = porte.x; P.veh.z = porte.z + 4; P.veh.mesh.position.set(P.veh.x, 0, P.veh.z);
+          P.x = P.veh.x; P.z = P.veh.z;
+          const geosVeh = geosDe(P.veh.mesh);
+          G.appuyer(); // entre : le véhicule de la ville est retiré
+          fuitesVeh += geosVeh.filter((g) => !g.__libere).length;
+          enfantsSalle.push(s.g.children.length);
+          const geosVitrine = geosDe(s.voiture);
+          G.versSortie(); G.appuyer(); // ressort : l'exposition est retirée
+          fuitesVitrine += geosVitrine.filter((g) => !g.__libere).length;
+          vehiculesGarage.push(vehicules.filter((v) => v.garageId === gid).length);
+        }
+        out.fuitesVeh = fuitesVeh; out.fuitesVitrine = fuitesVitrine;
+        out.salleStable = enfantsSalle.every((n) => n === enfantsSalle[0]);
+        out.unSeulDehors = vehiculesGarage.every((n) => n === 1);
+        out.enfantsSalle = enfantsSalle;
+        if (INT.actif) sortirInterieur();
+      } finally { proto.dispose = orig; }
+      return out;
+    });
+    if (!garFuite.descStable || garFuite.nonLibereesPieces) fail('Garages : changer de pièce accumule des meshes ou ne libère pas (' + JSON.stringify(garFuite) + ')');
+    else ok('Garages : 30 changements de pièce — aucun mesh accumulé, chaque passe précédente libérée');
+    if (garFuite.fuitesVeh || garFuite.fuitesVitrine) fail('Garages : allers-retours — géométries non libérées (véhicule rangé : ' + garFuite.fuitesVeh + ', exposition : ' + garFuite.fuitesVitrine + ')');
+    else ok('Garages : 6 allers-retours — véhicule rangé et modèle d\'exposition libérés à chaque fois');
+    if (!garFuite.salleStable || !garFuite.unSeulDehors) fail('Garages : allers-retours — la salle accumule des objets (' + garFuite.enfantsSalle + ') ou plusieurs véhicules du garage coexistent');
+    else ok('Garages : 6 allers-retours — la salle n\'accumule rien, un seul véhicule du garage en ville');
+
     console.log('\n--- Garages tuning : une vieille sauvegarde sans META.garages se charge sans rien casser ---');
-    for (const cas of ['sans garages', 'emplacement incomplet']) {
+    for (const cas of ['sans garages', 'emplacement incomplet', 'avant la phase 3']) {
       await page.evaluate((cas) => {
         const vieux = JSON.parse(JSON.stringify(META));
         vieux.argent = 4242;
         if (cas === 'sans garages') delete vieux.garages;
-        else vieux.garages = { [GARAGES_TUNING[0].id]: { cle: 'taxi', moteur: 2 } };
+        else if (cas === 'emplacement incomplet') vieux.garages = { [GARAGES_TUNING[0].id]: { cle: 'taxi', moteur: 2 } };
+        // emplacement de la phase 2 complet, mais sans pièces de carrosserie
+        else vieux.garages = { [GARAGES_TUNING[0].id]: { cle: 'muscle', coul: 2771672, neon: 3530239, nitro: true, moteur: 1, vitesse: 2, tenue: 0, blindage: 1 } };
         localStorage.setItem(SAVE_KEY, JSON.stringify(vieux));
       }, cas);
       await page.reload({ waitUntil: 'load', timeout: 30000 });
@@ -6638,6 +6855,15 @@ async function main() {
           const s = META.garages[GARAGES_TUNING[0].id];
           if (s.cle !== 'taxi' || s.moteur !== 2) probs.push('valeurs anciennes perdues (' + JSON.stringify(s) + ')');
           if (s.vitesse !== 0 || s.nitro !== false || s.coul !== -1) probs.push('champs manquants non complétés (' + JSON.stringify(s) + ')');
+        }
+        if (cas === 'avant la phase 3') {
+          const s = META.garages[GARAGES_TUNING[0].id], def = slotGarageDefaut();
+          if (s.cle !== 'muscle' || !s.nitro || s.vitesse !== 2 || s.blindage !== 1) probs.push('améliorations de la phase 2 perdues (' + JSON.stringify(s) + ')');
+          for (const o of ['pieces', 'piecesPossedees']) for (const c of Object.keys(def[o]))
+            if (s[o][c] !== def[o][c]) probs.push(o + '.' + c + ' = ' + s[o][c] + ' (attendu ' + def[o][c] + ')');
+          // et le véhicule se construit avec ses pièces d'origine, sans erreur
+          const m = makeVoiture('muscle'); appliquerCarrosserie(m, 'muscle', s.pieces);
+          if (m.userData.carro && m.userData.carro.children.length !== 0) probs.push('des pièces apparaissent sur une sauvegarde qui n\'en avait pas');
         }
         if (META.argent !== 4242) probs.push('argent non restauré (' + META.argent + ')');
         return probs;
