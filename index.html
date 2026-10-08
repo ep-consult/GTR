@@ -19577,6 +19577,7 @@ function mourir(){
   moteurStop();
   rayonNettoyerTout(); // rayon tracteur de l'OVNI : jamais une cible bloquée en l'air (CLAUDE.md, nettoyage d'état)
   if(P.veh&&P.veh.sirene){ P.veh.sirene=false; sireneStop(); } // pompiers : coupe la sirène tout de suite
+  lanceSonStop(); // pompiers : la lance ouverte au moment de la mort sifflait jusqu'à la partie suivante (audit de nuit)
   if(P.jetpackVol) atterrirJetpack(); // mort en vol (ennemis au sol compris) : coupe tout de suite le son/les flammes
   fermerGarageMenu(INT.actif); // garage tuning : le menu ne reste jamais affiché sur l'écran de mort
   if(INT.actif&&INT.actif.seanceOn) cineArreterSeance(INT.actif); // coupe le son tout de suite, le reste des jauges au retry

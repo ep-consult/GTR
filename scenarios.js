@@ -5396,6 +5396,21 @@ async function main() {
     else ok('Camion de pompiers : le trafic s\'écarte bien devant la sirène active');
     if (!pompiersTest.sireneCoupeeSortie) fail('Camion de pompiers : la sirène continue après être sorti du véhicule');
     else ok('Camion de pompiers : sortir du véhicule coupe bien la sirène');
+    // Audit de nuit : mourir lance ouverte laissait le son de la lance tourner
+    // sur l'écran de mort jusqu'à la partie suivante (mourir() ne la coupait pas).
+    const lanceMort = await page.evaluate(() => {
+      startRun(); audioInit();
+      const v = creerVehicule('pompiers', P.x + 6, P.z, 0, null); P.x = v.x + 2; P.z = v.z; entrerVehicule(v);
+      lanceSonStart();
+      const avant = AUDIO.lanceOn === true;
+      mourir();
+      const apres = AUDIO.lanceOn === true;
+      ETAT.timeScale = 1; startRun();
+      return { avant, apres };
+    });
+    if (!lanceMort.avant) saute('Camion de pompiers : son de la lance non démarrable ici (AudioContext absent) — coupure à la mort non vérifiée');
+    else if (lanceMort.apres) fail('Camion de pompiers : le son de la lance continue après la mort');
+    else ok('Camion de pompiers : mourir lance ouverte coupe bien le son de la lance');
 
     // =====================================================================
     // TRAFIC : files sans carambolage, contournement, priorité au carrefour
