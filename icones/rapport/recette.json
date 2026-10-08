@@ -1,0 +1,831 @@
+{
+ "resultats": [
+  "✓ inventaire.csv : 42 IDs",
+  "✓ 42 éléments <symbol>",
+  "✓ aucun ID dupliqué",
+  "✓ IDs identiques à inventaire.csv (casse comprise, ex. ico-arme-bouleC)",
+  "✓ ordre des symboles = ordre de inventaire.csv",
+  "✓ racine <svg xmlns=\"http://www.w3.org/2000/svg\">, en-tête XML UTF-8",
+  "✓ aucun élément ni attribut interdit (image, text, rect, circle, polygon, masque, filtre, dégradé, script, transform, data URI, lien…)",
+  "✓ chaque symbole : viewBox=\"0 0 24 24\", 1 à 3 <path> non vides, fill=\"currentColor\", rien d'autre",
+  "✓ taille des tracés : 48 à 1022 nombres par icône (62.8 Ko au total), arrondis au centième — aucun autotrace",
+  "✓ apercu.html : copie embarquée des 42 symboles identique à icones.svg",
+  "✓ 126 rendus dans la galerie (42 × 24/48/64 px)",
+  "✓ dimensions effectives exactes : 24 × 24, 48 × 48 et 64 × 64 px (aucun zoom CSS)",
+  "✓ géométrie entièrement dans le viewBox 0 0 24 24 (aucun clipping)",
+  "✓ marge minimale 0.80 u (ico-btn-cible), médiane 1.00 u — cible 1 u, silhouettes longues calées sur leur plus grande dimension",
+  "✓ les 42 icônes produisent un rendu non vide à 24, 48 et 64 px",
+  "✓ currentColor hérité partout : seules la couleur CSS et le fond apparaissent (aucune couleur codée en dur, y compris les tracés fins)",
+  "✓ évidements transparents : sur fond clair comme sombre, chaque pixel vide prend la couleur du fond",
+  "✓ recherche par ID : « nitro » → ico-spec-nitro seul, « ico-arme- » → 17, vide → 42",
+  "✓ valeurs initiales : icônes claires sur fond sombre",
+  "✓ sélecteur de couleur : pilote currentColor de toutes les icônes",
+  "✓ bascule fond clair / sombre",
+  "✓ section « Références PNG — images raster, pas les SVG finaux » : 4 planches chargées",
+  "✓ ouverture directe en file:// : aucune requête réseau, aucun fetch",
+  "✓ aucune erreur de chargement ni erreur JS"
+ ],
+ "echecs": 0,
+ "parSymbole": {
+  "ico-arme-poings": {
+   "paths": 1,
+   "nombres": 268
+  },
+  "ico-arme-couteau": {
+   "paths": 1,
+   "nombres": 220
+  },
+  "ico-arme-batte": {
+   "paths": 2,
+   "nombres": 706
+  },
+  "ico-arme-batte2": {
+   "paths": 1,
+   "nombres": 380
+  },
+  "ico-arme-sabre": {
+   "paths": 1,
+   "nombres": 234
+  },
+  "ico-arme-bouleC": {
+   "paths": 1,
+   "nombres": 90
+  },
+  "ico-arme-gadget": {
+   "paths": 1,
+   "nombres": 294
+  },
+  "ico-arme-pistolet": {
+   "paths": 1,
+   "nombres": 272
+  },
+  "ico-arme-silence": {
+   "paths": 2,
+   "nombres": 310
+  },
+  "ico-arme-pompe": {
+   "paths": 1,
+   "nombres": 230
+  },
+  "ico-arme-uzi": {
+   "paths": 1,
+   "nombres": 160
+  },
+  "ico-arme-pm": {
+   "paths": 1,
+   "nombres": 168
+  },
+  "ico-arme-fusil": {
+   "paths": 1,
+   "nombres": 198
+  },
+  "ico-arme-sniper": {
+   "paths": 1,
+   "nombres": 210
+  },
+  "ico-arme-flamme": {
+   "paths": 1,
+   "nombres": 256
+  },
+  "ico-arme-roquette": {
+   "paths": 1,
+   "nombres": 288
+  },
+  "ico-arme-desintegrateur": {
+   "paths": 1,
+   "nombres": 398
+  },
+  "ico-btn-sprint": {
+   "paths": 1,
+   "nombres": 252
+  },
+  "ico-btn-dodge": {
+   "paths": 1,
+   "nombres": 288
+  },
+  "ico-btn-switch": {
+   "paths": 1,
+   "nombres": 48
+  },
+  "ico-btn-grenade": {
+   "paths": 1,
+   "nombres": 342
+  },
+  "ico-btn-brake": {
+   "paths": 2,
+   "nombres": 514
+  },
+  "ico-btn-jump": {
+   "paths": 1,
+   "nombres": 242
+  },
+  "ico-btn-jetpack": {
+   "paths": 1,
+   "nombres": 302
+  },
+  "ico-btn-action": {
+   "paths": 1,
+   "nombres": 286
+  },
+  "ico-btn-pause": {
+   "paths": 1,
+   "nombres": 76
+  },
+  "ico-btn-taxi": {
+   "paths": 2,
+   "nombres": 356
+  },
+  "ico-btn-cible": {
+   "paths": 1,
+   "nombres": 392
+  },
+  "ico-btn-munitions": {
+   "paths": 1,
+   "nombres": 250
+  },
+  "ico-spec-adrenaline": {
+   "paths": 1,
+   "nombres": 132
+  },
+  "ico-spec-nitro": {
+   "paths": 1,
+   "nombres": 360
+  },
+  "ico-spec-onde": {
+   "paths": 1,
+   "nombres": 436
+  },
+  "ico-carte-ennemis": {
+   "paths": 2,
+   "nombres": 356
+  },
+  "ico-carte-vehicules": {
+   "paths": 1,
+   "nombres": 308
+  },
+  "ico-carte-commerces": {
+   "paths": 1,
+   "nombres": 228
+  },
+  "ico-carte-batiments": {
+   "paths": 1,
+   "nombres": 202
+  },
+  "ico-garage-porte": {
+   "paths": 1,
+   "nombres": 130
+  },
+  "ico-garage-peinture": {
+   "paths": 2,
+   "nombres": 774
+  },
+  "ico-garage-neon": {
+   "paths": 2,
+   "nombres": 336
+  },
+  "ico-garage-moteur": {
+   "paths": 2,
+   "nombres": 1022
+  },
+  "ico-garage-vitesse": {
+   "paths": 1,
+   "nombres": 262
+  },
+  "ico-garage-tenue": {
+   "paths": 2,
+   "nombres": 630
+  }
+ },
+ "mesures": {
+  "ico-arme-poings": {
+   "bb": [
+    1,
+    1.6428571939468384,
+    22,
+    21.157142639160156
+   ],
+   "encre24": 0.4826388888888889,
+   "etrange24": 0,
+   "encre48": 0.44140625,
+   "etrange48": 0,
+   "encre64": 0.433837890625,
+   "etrange64": 0,
+   "trous": 0
+  },
+  "ico-arme-couteau": {
+   "bb": [
+    1.1399999856948853,
+    2.5,
+    21.760000228881836,
+    18.920000076293945
+   ],
+   "encre24": 0.19444444444444445,
+   "etrange24": 0,
+   "encre48": 0.15885416666666666,
+   "etrange48": 0,
+   "encre64": 0.148681640625,
+   "etrange64": 0,
+   "trous": 0
+  },
+  "ico-arme-batte": {
+   "bb": [
+    0.8799999952316284,
+    2.240000009536743,
+    20.740001678466797,
+    20.479999542236328
+   ],
+   "encre24": 0.1736111111111111,
+   "etrange24": 0,
+   "encre48": 0.14930555555555555,
+   "etrange48": 0,
+   "encre64": 0.138427734375,
+   "etrange64": 0,
+   "trous": 0
+  },
+  "ico-arme-batte2": {
+   "bb": [
+    1.100000023841858,
+    1.940000057220459,
+    21.799999237060547,
+    20.5
+   ],
+   "encre24": 0.19791666666666666,
+   "etrange24": 0,
+   "encre48": 0.1723090277777778,
+   "etrange48": 0,
+   "encre64": 0.162841796875,
+   "etrange64": 0,
+   "trous": 0
+  },
+  "ico-arme-sabre": {
+   "bb": [
+    1.2300000190734863,
+    1.2000000476837158,
+    21.770000457763672,
+    20.719999313354492
+   ],
+   "encre24": 0.16493055555555555,
+   "etrange24": 0,
+   "encre48": 0.14149305555555555,
+   "etrange48": 0,
+   "encre64": 0.1298828125,
+   "etrange64": 0,
+   "trous": 0
+  },
+  "ico-arme-bouleC": {
+   "bb": [
+    1,
+    1,
+    22,
+    22
+   ],
+   "encre24": 0.6614583333333334,
+   "etrange24": 0,
+   "encre48": 0.6519097222222222,
+   "etrange48": 0,
+   "encre64": 0.639404296875,
+   "etrange64": 0,
+   "trous": 0
+  },
+  "ico-arme-gadget": {
+   "bb": [
+    1.399999976158142,
+    1.2000000476837158,
+    21.5,
+    21.399999618530273
+   ],
+   "encre24": 0.24305555555555555,
+   "etrange24": 0,
+   "encre48": 0.21006944444444445,
+   "etrange48": 0,
+   "encre64": 0.203857421875,
+   "etrange64": 0,
+   "trous": 0
+  },
+  "ico-arme-pistolet": {
+   "bb": [
+    1,
+    0.9000000357627869,
+    22,
+    21.5
+   ],
+   "encre24": 0.3732638888888889,
+   "etrange24": 0,
+   "encre48": 0.3324652777777778,
+   "etrange48": 0,
+   "encre64": 0.32275390625,
+   "etrange64": 0,
+   "trous": 0
+  },
+  "ico-arme-silence": {
+   "bb": [
+    1,
+    2.5903029441833496,
+    21.98769187927246,
+    17.409696578979492
+   ],
+   "encre24": 0.2170138888888889,
+   "etrange24": 0,
+   "encre48": 0.1957465277777778,
+   "etrange48": 0,
+   "encre64": 0.184814453125,
+   "etrange64": 0,
+   "trous": 0
+  },
+  "ico-arme-pompe": {
+   "bb": [
+    1.100000023841858,
+    3.9319803714752197,
+    21.979555130004883,
+    15.468019485473633
+   ],
+   "encre24": 0.16145833333333334,
+   "etrange24": 0,
+   "encre48": 0.13975694444444445,
+   "etrange48": 0,
+   "encre64": 0.13330078125,
+   "etrange64": 0,
+   "trous": 0
+  },
+  "ico-arme-uzi": {
+   "bb": [
+    1.2999999523162842,
+    0.800000011920929,
+    21.600000381469727,
+    21.700000762939453
+   ],
+   "encre24": 0.3402777777777778,
+   "etrange24": 0,
+   "encre48": 0.3081597222222222,
+   "etrange48": 0,
+   "encre64": 0.29150390625,
+   "etrange64": 0,
+   "trous": 0
+  },
+  "ico-arme-pm": {
+   "bb": [
+    0.9000000357627869,
+    5.099999904632568,
+    22,
+    14.19999885559082
+   ],
+   "encre24": 0.20833333333333334,
+   "etrange24": 0,
+   "encre48": 0.18836805555555555,
+   "etrange48": 0,
+   "encre64": 0.1806640625,
+   "etrange64": 0,
+   "trous": 0
+  },
+  "ico-arme-fusil": {
+   "bb": [
+    1,
+    4.900000095367432,
+    22,
+    13.700000762939453
+   ],
+   "encre24": 0.17708333333333334,
+   "etrange24": 0,
+   "encre48": 0.1545138888888889,
+   "etrange48": 0,
+   "encre64": 0.147216796875,
+   "etrange64": 0,
+   "trous": 0
+  },
+  "ico-arme-sniper": {
+   "bb": [
+    1,
+    5.440000057220459,
+    21.520000457763672,
+    13.15999984741211
+   ],
+   "encre24": 0.1597222222222222,
+   "etrange24": 0,
+   "encre48": 0.1328125,
+   "etrange48": 0,
+   "encre64": 0.126953125,
+   "etrange64": 0,
+   "trous": 0
+  },
+  "ico-arme-flamme": {
+   "bb": [
+    0.9200000166893005,
+    4.599999904632568,
+    21.979999542236328,
+    15.049999237060547
+   ],
+   "encre24": 0.2152777777777778,
+   "etrange24": 0,
+   "encre48": 0.1796875,
+   "etrange48": 0,
+   "encre64": 0.17333984375,
+   "etrange64": 0,
+   "trous": 0
+  },
+  "ico-arme-roquette": {
+   "bb": [
+    0.9800000190734863,
+    5.880000114440918,
+    21.899999618530273,
+    11.878064155578613
+   ],
+   "encre24": 0.1388888888888889,
+   "etrange24": 0,
+   "encre48": 0.12369791666666667,
+   "etrange48": 0,
+   "encre64": 0.119140625,
+   "etrange64": 0,
+   "trous": 0
+  },
+  "ico-arme-desintegrateur": {
+   "bb": [
+    1,
+    4.676864147186279,
+    21.979999542236328,
+    14.523136138916016
+   ],
+   "encre24": 0.2170138888888889,
+   "etrange24": 0,
+   "encre48": 0.19444444444444445,
+   "etrange48": 0,
+   "encre64": 0.184814453125,
+   "etrange64": 0,
+   "trous": 0
+  },
+  "ico-btn-sprint": {
+   "bb": [
+    1,
+    1.7999995946884155,
+    21.600000381469727,
+    20.80000114440918
+   ],
+   "encre24": 0.3142361111111111,
+   "etrange24": 0,
+   "encre48": 0.2734375,
+   "etrange48": 0,
+   "encre64": 0.26123046875,
+   "etrange64": 0,
+   "trous": 0
+  },
+  "ico-btn-dodge": {
+   "bb": [
+    1.1783784627914429,
+    4.400000095367432,
+    21.82162094116211,
+    15.100000381469727
+   ],
+   "encre24": 0.2916666666666667,
+   "etrange24": 0,
+   "encre48": 0.2508680555555556,
+   "etrange48": 0,
+   "encre64": 0.24072265625,
+   "etrange64": 0,
+   "trous": 0
+  },
+  "ico-btn-switch": {
+   "bb": [
+    1.7968608140945435,
+    0.9000000357627869,
+    20.396686553955078,
+    22.100000381469727
+   ],
+   "encre24": 0.3229166666666667,
+   "etrange24": 0,
+   "encre48": 0.2977430555555556,
+   "etrange48": 0,
+   "encre64": 0.288330078125,
+   "etrange64": 0,
+   "trous": 0
+  },
+  "ico-btn-grenade": {
+   "bb": [
+    3.799999952316284,
+    1.0317143201828003,
+    16.36250114440918,
+    21.968286514282227
+   ],
+   "encre24": 0.4479166666666667,
+   "etrange24": 0,
+   "encre48": 0.3797743055555556,
+   "etrange48": 0,
+   "encre64": 0.360107421875,
+   "etrange64": 0,
+   "trous": 0
+  },
+  "ico-btn-brake": {
+   "bb": [
+    0.9999993443489075,
+    1.7964791059494019,
+    22,
+    20.40704345703125
+   ],
+   "encre24": 0.6197916666666666,
+   "etrange24": 0,
+   "encre48": 0.5551215277777778,
+   "etrange48": 0,
+   "encre64": 0.5361328125,
+   "etrange64": 0,
+   "trous": 0
+  },
+  "ico-btn-jump": {
+   "bb": [
+    2.880000114440918,
+    1.1714285612106323,
+    18.31999969482422,
+    21.52857208251953
+   ],
+   "encre24": 0.2899305555555556,
+   "etrange24": 0,
+   "encre48": 0.2478298611111111,
+   "etrange48": 0,
+   "encre64": 0.22998046875,
+   "etrange64": 0,
+   "trous": 0
+  },
+  "ico-btn-jetpack": {
+   "bb": [
+    2.5999999046325684,
+    1.2999999523162842,
+    18.69999885559082,
+    21.30000114440918
+   ],
+   "encre24": 0.3871527777777778,
+   "etrange24": 0,
+   "encre48": 0.3324652777777778,
+   "etrange48": 0,
+   "encre64": 0.323974609375,
+   "etrange64": 0,
+   "trous": 0
+  },
+  "ico-btn-action": {
+   "bb": [
+    1.159999966621399,
+    1.0099999904632568,
+    21.69505500793457,
+    21.690120697021484
+   ],
+   "encre24": 0.4670138888888889,
+   "etrange24": 0,
+   "encre48": 0.4058159722222222,
+   "etrange48": 0,
+   "encre64": 0.388671875,
+   "etrange64": 0,
+   "trous": 0
+  },
+  "ico-btn-pause": {
+   "bb": [
+    1.7999999523162842,
+    0.9000000357627869,
+    20.400001525878906,
+    22.200000762939453
+   ],
+   "encre24": 0.6805555555555556,
+   "etrange24": 0,
+   "encre48": 0.6671006944444444,
+   "etrange48": 0,
+   "encre64": 0.6650390625,
+   "etrange64": 0,
+   "trous": 0
+  },
+  "ico-btn-taxi": {
+   "bb": [
+    1.0833333730697632,
+    5.829999923706055,
+    21.91666603088379,
+    12.519998550415039
+   ],
+   "encre24": 0.3263888888888889,
+   "etrange24": 0,
+   "encre48": 0.2790798611111111,
+   "etrange48": 0,
+   "encre64": 0.281494140625,
+   "etrange64": 0,
+   "trous": 0
+  },
+  "ico-btn-cible": {
+   "bb": [
+    1.2000000476837158,
+    0.800000011920929,
+    21.599998474121094,
+    22.400001525878906
+   ],
+   "encre24": 0.2552083333333333,
+   "etrange24": 0,
+   "encre48": 0.1840277777777778,
+   "etrange48": 0,
+   "encre64": 0.1845703125,
+   "etrange64": 0,
+   "trous": 0
+  },
+  "ico-btn-munitions": {
+   "bb": [
+    6,
+    0.800000011920929,
+    12.100000381469727,
+    22.100000381469727
+   ],
+   "encre24": 0.3072916666666667,
+   "etrange24": 0,
+   "encre48": 0.2743055555555556,
+   "etrange48": 0,
+   "encre64": 0.26025390625,
+   "etrange64": 0,
+   "trous": 0
+  },
+  "ico-spec-adrenaline": {
+   "bb": [
+    1,
+    5.5714287757873535,
+    21.81333351135254,
+    13.128572463989258
+   ],
+   "encre24": 0.3055555555555556,
+   "etrange24": 0,
+   "encre48": 0.2638888888888889,
+   "etrange48": 0,
+   "encre64": 0.2490234375,
+   "etrange64": 0,
+   "trous": 0
+  },
+  "ico-spec-nitro": {
+   "bb": [
+    1,
+    2.5,
+    21.950000762939453,
+    18.079999923706055
+   ],
+   "encre24": 0.2673611111111111,
+   "etrange24": 0,
+   "encre48": 0.22786458333333334,
+   "etrange48": 0,
+   "encre64": 0.22021484375,
+   "etrange64": 0,
+   "trous": 0
+  },
+  "ico-spec-onde": {
+   "bb": [
+    1.0732792615890503,
+    2.500844955444336,
+    22.053442001342773,
+    19.398311614990234
+   ],
+   "encre24": 0.4809027777777778,
+   "etrange24": 0,
+   "encre48": 0.3819444444444444,
+   "etrange48": 0,
+   "encre64": 0.354248046875,
+   "etrange64": 0,
+   "trous": 0
+  },
+  "ico-carte-ennemis": {
+   "bb": [
+    1.5,
+    0.800000011920929,
+    21.100000381469727,
+    22.400001525878906
+   ],
+   "encre24": 0.3923611111111111,
+   "etrange24": 0,
+   "encre48": 0.3259548611111111,
+   "etrange48": 0,
+   "encre64": 0.3125,
+   "etrange64": 0,
+   "trous": 0
+  },
+  "ico-carte-vehicules": {
+   "bb": [
+    6.184615135192871,
+    0.9500000476837158,
+    11.630768775939941,
+    22.049999237060547
+   ],
+   "encre24": 0.3125,
+   "etrange24": 0,
+   "encre48": 0.2842881944444444,
+   "etrange48": 0,
+   "encre64": 0.272216796875,
+   "etrange64": 0,
+   "trous": 0
+  },
+  "ico-carte-commerces": {
+   "bb": [
+    1.4219653606414795,
+    1.850000023841858,
+    21.04862403869629,
+    20.94999885559082
+   ],
+   "encre24": 0.5677083333333334,
+   "etrange24": 0,
+   "encre48": 0.4743923611111111,
+   "etrange48": 0,
+   "encre64": 0.46142578125,
+   "etrange64": 0,
+   "trous": 0
+  },
+  "ico-carte-batiments": {
+   "bb": [
+    0.9999999403953552,
+    1,
+    22,
+    21.799999237060547
+   ],
+   "encre24": 0.5243055555555556,
+   "etrange24": 0,
+   "encre48": 0.4717881944444444,
+   "etrange48": 0,
+   "encre64": 0.44775390625,
+   "etrange64": 0,
+   "trous": 0
+  },
+  "ico-garage-porte": {
+   "bb": [
+    1.2000000476837158,
+    2.5999999046325684,
+    21.799999237060547,
+    19
+   ],
+   "encre24": 0.6545138888888888,
+   "etrange24": 0,
+   "encre48": 0.5668402777777778,
+   "etrange48": 0,
+   "encre64": 0.545166015625,
+   "etrange64": 0,
+   "trous": 0
+  },
+  "ico-garage-peinture": {
+   "bb": [
+    1.6437500715255737,
+    1.683333396911621,
+    21.056251525878906,
+    20.916667938232422
+   ],
+   "encre24": 0.3263888888888889,
+   "etrange24": 0,
+   "encre48": 0.2986111111111111,
+   "etrange48": 0,
+   "encre64": 0.286865234375,
+   "etrange64": 0,
+   "trous": 0
+  },
+  "ico-garage-neon": {
+   "bb": [
+    1.100000023841858,
+    5.800000190734863,
+    21.899999618530273,
+    12.40000057220459
+   ],
+   "encre24": 0.3402777777777778,
+   "etrange24": 0,
+   "encre48": 0.2921006944444444,
+   "etrange48": 0,
+   "encre64": 0.2626953125,
+   "etrange64": 0,
+   "trous": 0
+  },
+  "ico-garage-moteur": {
+   "bb": [
+    1.1200000047683716,
+    1.7999999523162842,
+    21.779998779296875,
+    20.950984954833984
+   ],
+   "encre24": 0.5190972222222222,
+   "etrange24": 0,
+   "encre48": 0.4652777777777778,
+   "etrange48": 0,
+   "encre64": 0.44921875,
+   "etrange64": 0,
+   "trous": 0
+  },
+  "ico-garage-vitesse": {
+   "bb": [
+    0.9887663125991821,
+    3.1335675716400146,
+    22.062110900878906,
+    17.576431274414062
+   ],
+   "encre24": 0.2743055555555556,
+   "etrange24": 0,
+   "encre48": 0.22005208333333334,
+   "etrange48": 0,
+   "encre64": 0.206787109375,
+   "etrange64": 0,
+   "trous": 0
+  },
+  "ico-garage-tenue": {
+   "bb": [
+    1.9000000953674316,
+    3.8964595794677734,
+    20.979999542236328,
+    16.203540802001953
+   ],
+   "encre24": 0.3333333333333333,
+   "etrange24": 0,
+   "encre48": 0.2951388888888889,
+   "etrange48": 0,
+   "encre64": 0.2724609375,
+   "etrange64": 0,
+   "trous": 0
+  }
+ }
+}

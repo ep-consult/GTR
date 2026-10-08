@@ -529,6 +529,17 @@ reste obligatoire avant publication.
   Non bloquant : Safari en écran d'accueil utilise déjà WebKit, donc le rendu et
   les perfs observés sont représentatifs.
 
+### Icônes vectorielles (`icones/`)
+
+42 pictogrammes SVG dessinés à la main d'après `icones/references/*.png`
+(références raster uniquement — jamais intégrées ni vectorisées
+automatiquement). `icones/icones.svg` est **produit** : la source est
+`icones/outils/dessins.js` ; `node construire.js` régénère sprite + aperçu,
+`node recette.js ../rapport` rejoue la recette. Détails et usage :
+`icones/README-integration.md`. **Pas encore intégrées au jeu** : le jeu étant
+mono-fichier, l'intégration recopiera les `<symbol>` dans un SVG masqué
+d'`index.html` (jamais de chargement externe).
+
 ### Chantiers ouverts
 
 1. **Passe de playtest systématique** sur toutes les salles existantes — priorité

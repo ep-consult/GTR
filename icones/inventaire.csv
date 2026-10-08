@@ -1,0 +1,43 @@
+planche,id,description
+01-armes.png,ico-arme-poings,Poing fermé avec doigts et pouce distincts
+01-armes.png,ico-arme-couteau,Couteau à lame droite et manche strié
+01-armes.png,ico-arme-batte,Batte avec éléments saillants autour du haut
+01-armes.png,ico-arme-batte2,Batte osseuse avec extrémité irrégulière
+01-armes.png,ico-arme-sabre,Sabre courbe avec garde enveloppante
+01-armes.png,ico-arme-bouleC,Boule de bowling avec trois trous
+01-armes.png,ico-arme-gadget,Poulet en caoutchouc
+01-armes.png,ico-arme-pistolet,Pistolet de profil avec poignée et pontet
+01-armes.png,ico-arme-silence,Pistolet avec silencieux long
+01-armes.png,ico-arme-pompe,Fusil à pompe avec crosse et canon long
+01-armes.png,ico-arme-uzi,Arme compacte avec chargeur vertical
+01-armes.png,ico-arme-pm,Pistolet mitrailleur avec crosse légère et chargeur courbe
+01-armes.png,ico-arme-fusil,Fusil avec crosse pleine et chargeur courbe
+01-armes.png,ico-arme-sniper,Fusil long avec lunette
+01-armes.png,ico-arme-flamme,Lance-flammes avec réservoirs et flamme
+01-armes.png,ico-arme-roquette,Lance-roquettes avec projectile pointu
+01-armes.png,ico-arme-desintegrateur,Arme futuriste avec anneaux autour du canon
+02-hud.png,ico-btn-sprint,Personnage courant avec traits de vitesse
+02-hud.png,ico-btn-dodge,Personnage en esquive latérale avec arc de mouvement
+02-hud.png,ico-btn-switch,Deux flèches circulaires opposées
+02-hud.png,ico-btn-grenade,Grenade quadrillée avec anneau et levier
+02-hud.png,ico-btn-brake,Disque de frein avec étrier et perforations
+02-hud.png,ico-btn-jump,Personnage suspendu à un parachute
+02-hud.png,ico-btn-jetpack,Deux propulseurs avec jets dirigés vers le bas
+02-hud.png,ico-btn-action,Main ouverte dans un cercle interrompu
+02-hud.png,ico-btn-pause,Deux barres verticales arrondies
+02-hud.png,ico-btn-taxi,Taxi en vue trois quarts avec enseigne
+02-hud.png,ico-btn-cible,Réticule avec centre et quatre axes
+02-hud.png,ico-btn-munitions,Deux cartouches de tailles différentes
+03-capacites-carte.png,ico-spec-adrenaline,Cœur avec tracé de pulsation et traits de vitesse
+03-capacites-carte.png,ico-spec-nitro,Bouteille de nitro inclinée avec robinet et traits de vitesse
+03-capacites-carte.png,ico-spec-onde,Disque central et ondes concentriques interrompues
+03-capacites-carte.png,ico-carte-ennemis,Buste hostile dans un réticule
+03-capacites-carte.png,ico-carte-vehicules,Voiture vue du dessus
+03-capacites-carte.png,ico-carte-commerces,Devanture avec store porte et vitrine
+03-capacites-carte.png,ico-carte-batiments,Groupe de bâtiments avec tour centrale
+04-garage.png,ico-garage-porte,Porte de garage à panneaux horizontaux
+04-garage.png,ico-garage-peinture,Pistolet à peinture avec pulvérisation et pot
+04-garage.png,ico-garage-neon,Voiture de face avec éclairage sous la caisse
+04-garage.png,ico-garage-moteur,Bloc moteur avec cylindres et poulies
+04-garage.png,ico-garage-vitesse,Compteur avec graduations et aiguille
+04-garage.png,ico-garage-tenue,Pneu avec sculpture et trace courbe de trajectoire
