@@ -6266,9 +6266,14 @@ async function main() {
           for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0;
           for (const e of ennemis) scene.remove(e.h ? e.h.g : e.mesh); ennemis.length = 0;
           for (const g of GARAGES_TUNING) Object.assign(META.garages[g.id], slotGarageDefaut());
+          for (const id in META.vehPerso) Object.assign(META.vehPerso[id], slotGarageDefaut());
+          for (const k in GARAGE_HP) delete GARAGE_HP[k];
           WANTED.heat = 0; WANTED.stars = 0; META.argent = 100000;
           INPUT.btn.esquive = false;
         },
+        // la fiche « Mes véhicules » d'un type donné (lue dans META, jamais recopiée)
+        fiche(cle) { for (const id in META.vehPerso) if (META.vehPerso[id].cle === cle) return META.vehPerso[id]; return null; },
+        nbPerso() { return vehPersoIds().length; },
         porte(i) { return PORTES.find((p) => p.id === 'tuning' && p.garageId === GARAGES_TUNING[i].id); },
         appuyer() {
           majAction();
@@ -6307,7 +6312,8 @@ async function main() {
       out.dansGarage = !!(s && s.tuning);
       if (!out.dansGarage) return out;
       out.gid = s.gid; out.gidAttendu = GARAGES_TUNING[1].id;
-      out.slotCle = META.garages[s.gid].cle;
+      // pas encore dans la collection : fiche temporaire, rien dans META
+      out.slotCle = s.visiteur && !s.courant && G.nbPerso() === 0 ? s.visiteur.cle : '';
       out.vehRetireDeLaVille = !vehicules.includes(v);
       out.aPiedDedans = P.veh === null;
       out.vitrine = !!s.voiture && s.voitureCle === 'citadine';
@@ -6324,7 +6330,7 @@ async function main() {
       G.versSortie();
       out.labelSortie = G.appuyer();
       out.horsSalle = INT.actif === null;
-      out.auVolant = !!P.veh && P.veh.key === 'citadine' && P.veh.garageId === out.gid;
+      out.auVolant = !!P.veh && P.veh.key === 'citadine' && !P.veh.persoId;
       return out;
     });
     if (garEntree.nbGarages < 2) fail('Garages : il faut plusieurs garages (' + garEntree.nbGarages + ')');
@@ -6340,14 +6346,14 @@ async function main() {
       if (garEntree.gid !== garEntree.gidAttendu || !garEntree.enseigneBonne) fail('Garages : la salle partagée n\'est pas reconfigurée pour le garage franchi (gid=' + garEntree.gid + ')');
       else ok('Garages : la salle partagée se reconfigure pour le garage franchi (enseigne, emplacement)');
       if (garEntree.slotCle !== 'citadine' || !garEntree.vehRetireDeLaVille || !garEntree.aPiedDedans || !garEntree.vitrine) fail('Garages : véhicule mal transféré au garage (' + JSON.stringify(garEntree) + ')');
-      else ok('Garages : le véhicule quitte la ville, entre dans l\'emplacement du garage et tourne sur le plateau');
+      else ok('Garages : le véhicule quitte la ville et tourne sur le plateau, sans entrer dans la collection (rien acheté)');
       if (garEntree.porteFermeeA05 !== false || garEntree.porteFermeeA16 !== true) fail('Garages : la porte roulante ne se ferme pas en ~1 s (' + garEntree.porteFermeeA05 + ' / ' + garEntree.porteFermeeA16 + ')');
       else ok('Garages : la porte roulante se ferme derrière le véhicule');
       if (garEntree.etoilesA05 !== 3 || garEntree.etoilesA16 !== 3) fail('Garages : les étoiles tombent avant la fermeture et le délai (' + garEntree.etoilesA05 + ', ' + garEntree.etoilesA16 + ')');
       else if (garEntree.etoilesFin !== 0 || garEntree.heatFin !== 0) fail('Garages : le niveau de recherche n\'est pas effacé (étoiles ' + garEntree.etoilesFin + ')');
       else ok('Garages : porte fermée, puis les étoiles tombent une à une jusqu\'à zéro (jamais d\'un coup)');
       if (!garEntree.horsSalle || !garEntree.auVolant) fail('Garages : la sortie au volant échoue (label = "' + garEntree.labelSortie + '")');
-      else ok('Garages : ressortie au volant du véhicule du garage (label = "' + garEntree.labelSortie + '")');
+      else ok('Garages : ressortie au volant du véhicule avec lequel on est entré (label = "' + garEntree.labelSortie + '")');
     }
 
     console.log('\n--- Garages tuning : entrée à pied (comportement défini) et entrée sous le feu ---');
@@ -6355,19 +6361,26 @@ async function main() {
       const G = window.__gar, out = {};
       G.prep();
       const porte = G.porte(0), gid = GARAGES_TUNING[0].id;
-      // 1) emplacement vide : à pied, la porte reste fermée
+      // 1) collection vide : à pied, la porte reste fermée
       G.aPiedDevant(porte);
       out.labelVide = G.appuyer(); out.entreVide = !!INT.actif;
       if (INT.actif) sortirInterieur();
-      // 2) un véhicule y est garé, puis ressorti : il roule dehors → refus à pied
-      const v = G.auVolantDevant(porte, 'taxi');
-      G.appuyer(); G.versSortie(); G.appuyer(); // entre, ressort au volant
+      // 2) un taxi gardé (gratuit), puis ressorti : il roule en ville. À pied,
+      // on entre quand même, et le menu le rapatrie (il quitte la ville)
+      G.auVolantDevant(porte, 'taxi');
+      G.appuyer(); garageEnregistrer(INT.actif); G.versSortie(); G.appuyer(); // entre, garde, ressort au volant
       const dehors = P.veh;
+      out.dehorsPerso = !!(dehors && dehors.persoId);
       G.aPiedDevant(porte);
-      out.labelDehors = G.appuyer(); out.entreDehors = !!INT.actif;
-      if (INT.actif) sortirInterieur();
-      // 3) le véhicule disparaît de la ville (détruit) : il est de retour au garage
-      garageRetirerVehicule(dehors);
+      out.labelDehors = G.appuyer(); out.entreDehors = !!(INT.actif && INT.actif.tuning);
+      out.plateauVideDehors = !!(INT.actif && !INT.actif.voiture);
+      if (INT.actif) {
+        out.rapatrie = garageChoisirVehicule(INT.actif, dehors.persoId) && !vehicules.includes(dehors) && INT.actif.voitureCle === 'taxi';
+        sortirInterieur();
+      }
+      // 3) le véhicule détruit en ville est de retour sur le plateau
+      if (P.veh) sortirVehicule(true);
+      const v2b = vehicules.find((v) => v.persoId); if (v2b) garageRetirerVehicule(v2b);
       G.aPiedDevant(porte);
       out.labelRetour = G.appuyer();
       out.entreRetour = !!(INT.actif && INT.actif.tuning);
@@ -6395,14 +6408,29 @@ async function main() {
       const v3 = G.auVolantDevant(porte, 'citadine');
       out.labelLoin = G.appuyer(); out.entreLoin = !!(INT.actif && INT.actif.tuning);
       if (INT.actif) sortirInterieur();
+      // 6) ne bloquent PAS (signalé en playtest : un passant de gang devant la
+      // porte bloquait l'entrée) : un gangster à la batte, et un tireur
+      // occupé par une faction rivale
+      const autres = [];
+      for (const cas of ['batte', 'rival']) {
+        G.prep();
+        G.auVolantDevant(porte, 'citadine');
+        const g = creerEnnemi(cas === 'batte' ? 'vip_batte' : 'vip_pistol', porte.x + 2, porte.z + 4, false);
+        g.calme = false; g.passif = false;
+        if (cas === 'rival') g.cible = creerEnnemi('fre_batte', porte.x + 40, porte.z + 40, false);
+        const l = G.appuyer(); const entre = !!(INT.actif && INT.actif.tuning);
+        if (!entre) autres.push(cas + ' (« ' + l + ' »)');
+        if (INT.actif) sortirInterieur();
+      }
+      out.bloquesATort = autres;
       return out;
     });
-    if (garPied.entreVide) fail('Garages : on entre à pied dans un garage vide (label = "' + garPied.labelVide + '")');
-    else ok('Garages : à pied, garage vide → porte fermée (label = "' + garPied.labelVide + '")');
-    if (garPied.entreDehors) fail('Garages : on entre à pied alors que le véhicule roule dehors');
-    else ok('Garages : à pied, véhicule du garage dehors → refus (label = "' + garPied.labelDehors + '")');
-    if (!garPied.entreRetour || !garPied.vitrineRetour) fail('Garages : véhicule détruit dehors, il ne revient pas au garage (label = "' + garPied.labelRetour + '")');
-    else ok('Garages : à pied, véhicule garé → on entre le reprendre (il est sur le plateau)');
+    if (garPied.entreVide) fail('Garages : on entre à pied sans aucun véhicule dans la collection (label = "' + garPied.labelVide + '")');
+    else ok('Garages : à pied, collection vide → porte fermée (label = "' + garPied.labelVide + '")');
+    if (!garPied.dehorsPerso || !garPied.entreDehors || !garPied.plateauVideDehors || !garPied.rapatrie) fail('Garages : véhicule de la collection en ville — entrée à pied ou rapatriement en échec (' + JSON.stringify(garPied) + ')');
+    else ok('Garages : à pied, véhicule resté en ville → on entre, le menu le rapatrie (il quitte la ville)');
+    if (!garPied.entreRetour || !garPied.vitrineRetour) fail('Garages : véhicule rangé introuvable sur le plateau (label = "' + garPied.labelRetour + '")');
+    else ok('Garages : à pied, véhicule rangé → on entre le reprendre (il est sur le plateau)');
     if (!garPied.entrePolice) fail('Garages : un policier collé à la porte empêche d\'entrer (label = "' + garPied.labelPolice + '") — il faut pouvoir semer la police en rentrant');
     else ok('Garages : en pleine poursuite, policier collé à la porte, on entre quand même (label = "' + garPied.labelPolice + '")');
     if (garPied.entreFeuVolant || garPied.entreFeuPied) fail('Garages : entrée possible sous le feu d\'un gang à bout portant');
@@ -6410,31 +6438,37 @@ async function main() {
     else ok('Garages : entrée refusée sous le feu, au volant comme à pied (label = "' + garPied.labelFeuVolant + '")');
     if (!garPied.entreLoin) fail('Garages : l\'entrée reste bloquée une fois l\'ennemi loin');
     else ok('Garages : l\'entrée redevient possible une fois la menace éloignée');
+    if (garPied.bloquesATort.length) fail('Garages : « trop chaud » à tort — ' + garPied.bloquesATort.join(', '));
+    else ok('Garages : un gangster à la batte ou occupé par un rival ne bloque pas l\'entrée');
 
     console.log('\n--- Garages tuning : chaque amélioration se paie une seule fois ---');
     const garPaie = await page.evaluate(() => {
       const G = window.__gar, out = { echecs: [] };
       G.prep();
-      const porte = G.porte(2), gid = GARAGES_TUNING[2].id;
+      const porte = G.porte(2);
       G.auVolantDevant(porte, 'muscle'); G.appuyer();
-      const s = INT.actif, slot = META.garages[gid];
+      const s = INT.actif, slot = () => ficheVue(s); // la fiche change au 1er achat (entrée dans la collection)
+      out.horsCollectionAvant = !s.courant && G.nbPerso() === 0;
+      let total = 0;
       const essai = (nom, f, prixAttendu) => {
-        const a = META.argent; const r = f(); const debit = a - META.argent;
+        const a = META.argent; const r = f(); const debit = a - META.argent; total += debit;
         if (prixAttendu === 0 ? (r || debit !== 0) : (!r || debit !== prixAttendu)) out.echecs.push(nom + ' (r=' + r + ', débit=' + debit + ', attendu=' + prixAttendu + ')');
       };
       for (const cat of Object.keys(TUNING_EFFETS)) {
-        for (let n = 0; n < TUNING_PALIERS_MAX; n++) essai(cat + ' palier ' + (n + 1), () => acheterPalier(gid, cat), TUNING_PRIX[cat][n]);
-        essai(cat + ' au-delà du max', () => acheterPalier(gid, cat), 0);
+        for (let n = 0; n < TUNING_PALIERS_MAX; n++) essai(cat + ' palier ' + (n + 1), () => acheterPalier(s, cat), TUNING_PRIX[cat][n]);
+        essai(cat + ' au-delà du max', () => acheterPalier(s, cat), 0);
       }
-      essai('nitro', () => acheterNitro(gid), TUNING_PRIX.nitro);
-      essai('nitro (2e fois)', () => acheterNitro(gid), 0);
-      essai('néons', () => acheterNeons(gid), TUNING_PRIX.neons);
-      essai('néons (2e fois)', () => acheterNeons(gid), 0);
-      const autreNeon = TUNING_NEONS.find((c) => c !== slot.neon);
-      const aN = META.argent; out.neonChange = couleurNeons(gid, autreNeon) && META.argent === aN && slot.neon === autreNeon;
-      const teinte = TUNING_TEINTES.find((c) => c !== slot.coul);
-      essai('peinture', () => peindreGarage(gid, teinte), TUNING_PRIX.peinture);
-      essai('peinture même teinte', () => peindreGarage(gid, teinte), 0);
+      out.dansCollectionApres = !!s.courant && G.fiche('muscle') === slot();
+      essai('nitro', () => acheterNitro(s), TUNING_PRIX.nitro);
+      essai('nitro (2e fois)', () => acheterNitro(s), 0);
+      essai('néons', () => acheterNeons(s), TUNING_PRIX.neons);
+      essai('néons (2e fois)', () => acheterNeons(s), 0);
+      const autreNeon = TUNING_NEONS.find((c) => c !== slot().neon);
+      const aN = META.argent; out.neonChange = couleurNeons(s, autreNeon) && META.argent === aN && slot().neon === autreNeon;
+      const teinte = TUNING_TEINTES.find((c) => c !== slot().coul);
+      essai('peinture', () => peindreGarage(s, teinte), TUNING_PRIX.peinture);
+      essai('peinture même teinte', () => peindreGarage(s, teinte), 0);
+      out.investiOk = slot().investi === total; out.investi = slot().investi; out.total = total;
       // chemin du menu : deux appuis rapides sur le même bouton ne paient qu'une fois
       G.prep(); G.auVolantDevant(porte, 'muscle'); G.appuyer();
       const s2 = INT.actif;
@@ -6452,6 +6486,10 @@ async function main() {
     });
     if (garPaie.echecs.length) for (const e of garPaie.echecs) fail('Garages : paiement incorrect — ' + e);
     else ok('Garages : chaque palier, la nitro, les néons et la peinture se paient une fois ; au-delà, refus sans débit');
+    if (!garPaie.horsCollectionAvant || !garPaie.dansCollectionApres) fail('Garages : le véhicule n\'entre pas dans la collection à son premier achat (' + JSON.stringify(garPaie) + ')');
+    else ok('Garages : un véhicule entre dans « Mes véhicules » à son premier achat, pas avant');
+    if (!garPaie.investiOk) fail('Garages : montant investi faux (' + garPaie.investi + ' noté, ' + garPaie.total + ' $ débités)');
+    else ok('Garages : montant investi = somme exacte des débits (' + garPaie.total + ' $)');
     if (!garPaie.neonChange) fail('Garages : changer la couleur des néons n\'est pas gratuit une fois le kit posé');
     else ok('Garages : couleur des néons modifiable gratuitement une fois le kit posé');
     if (garPaie.doubleAppuiDebit !== garPaie.prixNitro) fail('Garages : deux appuis rapides dans le menu débitent ' + garPaie.doubleAppuiDebit + ' $ (attendu ' + garPaie.prixNitro + ')');
@@ -6463,23 +6501,25 @@ async function main() {
     const garGare = await page.evaluate(() => {
       const G = window.__gar, out = {};
       G.prep();
-      const porte = G.porte(0), gid = GARAGES_TUNING[0].id;
+      const porte = G.porte(0);
       G.auVolantDevant(porte, 'pickup'); G.appuyer();
-      acheterPalier(gid, 'vitesse'); acheterPalier(gid, 'vitesse'); acheterPalier(gid, 'moteur');
-      for (let i = 0; i < TUNING_PALIERS_MAX; i++) acheterPalier(gid, 'blindage');
-      acheterNitro(gid); acheterNeons(gid);
-      peindreGarage(gid, TUNING_TEINTES.find((c) => c !== META.garages[gid].coul));
+      const s = INT.actif;
+      acheterPalier(s, 'vitesse'); acheterPalier(s, 'vitesse'); acheterPalier(s, 'moteur');
+      for (let i = 0; i < TUNING_PALIERS_MAX; i++) acheterPalier(s, 'blindage');
+      acheterNitro(s); acheterNeons(s);
+      peindreGarage(s, TUNING_TEINTES.find((c) => c !== ficheVue(s).coul));
       // laisser garé, sortir à pied
       INT.actif.laisser = true; G.versSortie();
       out.labelSortiePied = G.appuyer();
       out.aPiedDehors = !INT.actif && !P.veh;
-      out.slotApresSortie = META.garages[gid].cle;
-      G.aPiedDevant(porte); G.appuyer();
+      out.slotApresSortie = G.fiche('pickup') ? 'pickup' : '';
+      // retrouvé depuis un AUTRE garage : la collection est commune aux garages
+      G.aPiedDevant(G.porte(2)); G.appuyer();
       out.retrouveApresSortie = !!(INT.actif && INT.actif.voitureCle === 'pickup');
       if (INT.actif) sortirInterieur();
       // game over
       P.hp = 1; toucherJoueur(9999); startRun();
-      out.slotApresGameOver = META.garages[gid].cle;
+      out.slotApresGameOver = G.fiche('pickup') ? 'pickup' : '';
       for (const e of ennemis) scene.remove(e.h ? e.h.g : e.mesh); ennemis.length = 0;
       G.aPiedDevant(porte); G.appuyer();
       out.retrouveApresGameOver = !!(INT.actif && INT.actif.voitureCle === 'pickup');
@@ -6489,8 +6529,8 @@ async function main() {
     });
     if (!garGare.aPiedDehors || garGare.slotApresSortie !== 'pickup') fail('Garages : « le laisser garé » ne fait pas sortir à pied (' + JSON.stringify(garGare) + ')');
     else ok('Garages : laissé garé, on ressort à pied (label = "' + garGare.labelSortiePied + '")');
-    if (!garGare.retrouveApresSortie) fail('Garages : véhicule garé introuvable après une sortie');
-    else ok('Garages : véhicule garé retrouvé après une sortie');
+    if (!garGare.retrouveApresSortie) fail('Garages : véhicule garé introuvable depuis un autre garage');
+    else ok('Garages : véhicule laissé dans un garage, retrouvé depuis un autre garage');
     if (garGare.slotApresGameOver !== 'pickup' || !garGare.retrouveApresGameOver) fail('Garages : véhicule garé perdu au game over');
     else ok('Garages : véhicule garé retrouvé après un game over');
     await page.reload({ waitUntil: 'load', timeout: 30000 });
@@ -6498,7 +6538,7 @@ async function main() {
     await injecterAidesGarage();
     const garRecharge = await page.evaluate(() => {
       const G = window.__gar, out = {};
-      const gid = GARAGES_TUNING[0].id, slot = META.garages[gid];
+      const slot = G.fiche('pickup') || slotGarageDefaut();
       out.slot = JSON.parse(JSON.stringify(slot));
       startRun();
       for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0;
@@ -6675,9 +6715,9 @@ async function main() {
     const garCarro = await page.evaluate(() => {
       const G = window.__gar, out = { echecs: [] };
       G.prep();
-      const porte = G.porte(1), gid = GARAGES_TUNING[1].id;
+      const porte = G.porte(1);
       G.auVolantDevant(porte, 'muscle'); G.appuyer();
-      const s = INT.actif, slot = META.garages[gid];
+      const s = INT.actif, slot = () => G.fiche('muscle') || ficheVue(s); // fiche temporaire, puis celle de la collection après le 1er achat
       const fam = PIECES_FAMILLES[VEHDEFS.muscle.tuningCarro.famille];
       const cats = PIECES_CATS.filter((c) => fam[c]);
       ouvrirGarageMenu(s);
@@ -6690,25 +6730,25 @@ async function main() {
       // 1) premier appui : aperçu sur le plateau, rien n'est débité
       const cat = cats[0], prix = TUNING_PRIX.pieces[cat][1];
       let a = META.argent; clic(cat, 1);
-      out.apercuGratuit = META.argent === a; out.apercuVisible = nbPieces() === 1 && slot.pieces[cat] === 0;
+      out.apercuGratuit = META.argent === a; out.apercuVisible = nbPieces() === 1 && slot().pieces[cat] === 0;
       // 2) deuxième appui sur la même : achat
       a = META.argent; clic(cat, 1);
-      out.achatDebit = a - META.argent; out.prix = prix; out.posee = slot.pieces[cat] === 1;
+      out.achatDebit = a - META.argent; out.prix = prix; out.posee = slot().pieces[cat] === 1;
       // 3) déjà posée : plus de bouton actif ; reposer l'origine puis la variante possédée : gratuit
       out.plusDeBouton = !document.querySelector('#gmCorps [data-a="piece"][data-c="' + cat + '"][data-i="1"]');
       a = META.argent; clic(cat, 0); clic(cat, 1);
-      out.reposeGratuite = META.argent === a && slot.pieces[cat] === 1;
+      out.reposeGratuite = META.argent === a && slot().pieces[cat] === 1;
       // 4) appel direct en double : la garde d'entrée refuse le 2e
       const cat2 = cats[1];
-      a = META.argent; const r1 = choisirPiece(gid, cat2, 2), r2 = choisirPiece(gid, cat2, 2);
+      a = META.argent; const r1 = choisirPiece(s, cat2, 2), r2 = choisirPiece(s, cat2, 2);
       out.doubleAppel = r1 && !r2 && a - META.argent === TUNING_PRIX.pieces[cat2][2];
       // 5) aperçu non acheté puis fermeture du menu : le plateau revient aux pièces posées
       const cat3 = cats[2]; clic(cat3, 2);
       const avecApercu = nbPieces();
       fermerGarageMenu(s);
-      out.apercuAnnule = nbPieces() === avecApercu - 1 && slot.pieces[cat3] === 0;
+      out.apercuAnnule = nbPieces() === avecApercu - 1 && slot().pieces[cat3] === 0;
       // 6) tout poser (variante 2), visible sur l'exposition puis sur le véhicule sorti
-      for (const c of cats) choisirPiece(gid, c, 2);
+      for (const c of cats) choisirPiece(s, c, 2);
       garageMajVitrine(s);
       const attendues = cats.filter((c) => c !== 'jantes').length;
       out.vitrine = nbPieces() === attendues && (s.voiture.userData.carroJantes || []).length === s.voiture.userData.roues.length;
@@ -6719,7 +6759,7 @@ async function main() {
       const trafic = creerVehicule('muscle', v.x + 30, v.z, 0, 'trafic');
       out.traficNu = !trafic.mesh.userData.carro && !trafic.mesh.userData.carroJantes;
       // 8) purement cosmétique : la physique ne change pas
-      out.physiqueInchangee = v.def.vmax === VEHDEFS.muscle.vmax * TUNING_EFFETS.vitesse[slot.vitesse] && v.def.acc === VEHDEFS.muscle.acc * TUNING_EFFETS.moteur[slot.moteur];
+      out.physiqueInchangee = v.def.vmax === VEHDEFS.muscle.vmax * TUNING_EFFETS.vitesse[slot().vitesse] && v.def.acc === VEHDEFS.muscle.acc * TUNING_EFFETS.moteur[slot().moteur];
       out.attendues = attendues;
       sauveMeta();
       return out;
@@ -6743,16 +6783,15 @@ async function main() {
 
     console.log('\n--- Garages tuning : pièces conservées après game over et rechargement ---');
     const garCarroGO = await page.evaluate(() => {
-      const gid = GARAGES_TUNING[1].id;
       P.hp = 1; toucherJoueur(9999); startRun();
       sauveMeta();
-      return JSON.parse(JSON.stringify(META.garages[gid].pieces));
+      return JSON.parse(JSON.stringify((window.__gar.fiche('muscle') || slotGarageDefaut()).pieces));
     });
     await page.reload({ waitUntil: 'load', timeout: 30000 });
     await page.waitForFunction(() => typeof PORTES !== 'undefined' && PORTES.length > 0, { timeout: 20000 });
     await injecterAidesGarage();
     const garCarroRl = await page.evaluate(() => {
-      const G = window.__gar, gid = GARAGES_TUNING[1].id, slot = META.garages[gid];
+      const G = window.__gar, slot = G.fiche('muscle') || slotGarageDefaut();
       const out = { pieces: JSON.parse(JSON.stringify(slot.pieces)) };
       startRun();
       for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0;
@@ -6825,6 +6864,76 @@ async function main() {
     if (!garRot.pauseApresGeste || !garRot.repriseAuto) fail('Garages : la rotation automatique ne se suspend / ne reprend pas après un geste (' + JSON.stringify(garRot) + ')');
     else ok('Garages : rotation automatique suspendue après un geste, puis reprise');
 
+    console.log('\n--- Garages tuning : « Mes véhicules » — plusieurs véhicules, choix, casse, collection pleine ---');
+    const garColl = await page.evaluate(() => {
+      const G = window.__gar, out = {};
+      G.prep();
+      const p0 = G.porte(0), p1 = G.porte(1);
+      // 1) un véhicule amélioré au garage 0, puis un AUTRE véhicule au même
+      //    garage : plus jamais de « place déjà prise »
+      G.auVolantDevant(p0, 'citadine'); G.appuyer();
+      acheterNitro(INT.actif);
+      G.versSortie(); G.appuyer();
+      if (P.veh) sortirVehicule(true);
+      for (const v of vehicules.slice()) garageRetirerVehicule(v); // la citadine « détruite » : rangée
+      G.auVolantDevant(p0, 'muscle');
+      out.labelAutre = G.appuyer(); out.autreEntre = !!(INT.actif && INT.actif.tuning);
+      if (!out.autreEntre) return out;
+      const s = INT.actif;
+      acheterPalier(s, 'moteur');
+      out.nb2 = G.nbPerso();
+      // 2) choisir la citadine dans le menu : on ressort avec ELLE, ses améliorations comprises
+      ouvrirGarageMenu(s);
+      const bCit = [...document.querySelectorAll('#gmCorps [data-a="choisir"]')].find((b) => META.vehPerso[b.dataset.v] && META.vehPerso[b.dataset.v].cle === 'citadine');
+      out.boutonChoix = !!bCit;
+      if (bCit) bCit.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+      out.citadineExposee = s.voitureCle === 'citadine';
+      fermerGarageMenu(s);
+      G.versSortie(); G.appuyer();
+      out.sortEnCitadine = !!P.veh && P.veh.key === 'citadine' && P.veh.nitro === true && !!P.veh.persoId;
+      // 3) casse en deux appuis, depuis un AUTRE garage : 1er appui sans effet, 2e = casse + remboursement
+      if (P.veh) sortirVehicule(true);
+      G.aPiedDevant(p1); G.appuyer();
+      const s2 = INT.actif;
+      const idMuscle = vehPersoIds().find((id) => META.vehPerso[id].cle === 'muscle');
+      garageChoisirVehicule(s2, idMuscle);
+      const investi = META.vehPerso[idMuscle].investi, a = META.argent;
+      const r1 = garageCasser(s2);
+      out.premierAppuiInerte = !r1 && !!fichePerso(idMuscle) && META.argent === a;
+      const r2 = garageCasser(s2);
+      out.casse = r2 && !fichePerso(idMuscle) && G.nbPerso() === 1;
+      out.remb = META.argent - a; out.rembAttendu = Math.floor(investi * TUNING_CASSE_TAUX);
+      out.casseDouble = !garageCasser(s2) && !garageCasser(s2); // plus rien d'exposé à casser
+      // un véhicule qui roule en ville ne se casse pas (la citadine est dehors)
+      const idCit = vehPersoIds()[0];
+      s2.courant = idCit; out.casseDehorsRefusee = !!vehPersoDehors(idCit) && !garageCasser(s2) && !garageCasser(s2) && !!fichePerso(idCit);
+      s2.courant = '';
+      sortirInterieur();
+      // 4) collection pleine : un achat sur un véhicule hors collection est refusé SANS débit
+      G.prep();
+      for (const id in META.vehPerso) Object.assign(META.vehPerso[id], slotGarageDefaut(), { cle: 'taxi' });
+      G.auVolantDevant(p0, 'van'); G.appuyer();
+      const s3 = INT.actif, a3 = META.argent;
+      out.pleineRefus = !acheterNitro(s3) && META.argent === a3 && !garageEnregistrer(s3) && G.nbPerso() === VEHPERSO_MAX && !s3.courant;
+      // 5) sortir avec un véhicule de la collection : le véhicule hors collection est abandonné
+      garageChoisirVehicule(s3, vehPersoIds()[0]);
+      G.versSortie(); G.appuyer();
+      out.abandonVan = !!P.veh && P.veh.key === 'taxi' && !vehicules.some((v) => v.key === 'van');
+      return out;
+    });
+    if (!garColl.autreEntre || garColl.nb2 !== 2) fail('Garages : un 2e véhicule ne peut pas entrer ou rejoindre la collection (« ' + garColl.labelAutre + ' », ' + JSON.stringify(garColl) + ')');
+    else ok('Garages : un autre véhicule entre au même garage et rejoint la collection (2 véhicules)');
+    if (!garColl.boutonChoix || !garColl.citadineExposee || !garColl.sortEnCitadine) fail('Garages : choix du véhicule de sortie en échec (' + JSON.stringify(garColl) + ')');
+    else ok('Garages : on choisit dans le menu le véhicule avec lequel on sort, améliorations comprises');
+    if (!garColl.premierAppuiInerte || !garColl.casse || garColl.remb !== garColl.rembAttendu || !garColl.casseDouble) fail('Garages : casse incorrecte (' + JSON.stringify(garColl) + ')');
+    else ok('Garages : casse en deux appuis, depuis un autre garage, ' + garColl.remb + ' $ remboursés (TUNING_CASSE_TAUX de l\'investi), une seule fois');
+    if (!garColl.casseDehorsRefusee) fail('Garages : un véhicule qui roule en ville peut être mis à la casse');
+    else ok('Garages : un véhicule qui roule en ville ne se met pas à la casse');
+    if (!garColl.pleineRefus) fail('Garages : collection pleine — achat ou ajout accepté, ou argent débité');
+    else ok('Garages : collection pleine — achat refusé sans débit, rien ajouté');
+    if (!garColl.abandonVan) fail('Garages : sortie avec un véhicule de la collection — le véhicule hors collection n\'est pas abandonné');
+    else ok('Garages : sortie avec un autre véhicule — le véhicule hors collection est abandonné, comme annoncé');
+
     console.log('\n--- Garages tuning : allers-retours répétés sans fuite (géométries libérées, aucun mesh accumulé) ---');
     const garFuite = await page.evaluate(() => {
       const G = window.__gar, out = {};
@@ -6834,10 +6943,11 @@ async function main() {
       const geosDe = (o) => { const l = []; (function rec(n) { if (n === P.h.g || n.isSprite) return; if (n.geometry) l.push(n.geometry); for (const c of n.children) rec(c); })(o); return l; };
       try {
         G.prep();
-        const porte = G.porte(2), gid = GARAGES_TUNING[2].id;
+        const porte = G.porte(2);
         G.auVolantDevant(porte, 'citadine'); G.appuyer();
-        for (const c of PIECES_CATS) choisirPiece(gid, c, 1);
         const s = INT.actif;
+        for (const c of PIECES_CATS) choisirPiece(s, c, 1);
+        const id = s.courant; // entrée dans la collection au 1er achat
         garageMajVitrine(s);
         // a) changer de pièce 30 fois sur l'exposition : rien ne s'accumule,
         //    chaque passe précédente est libérée
@@ -6845,11 +6955,11 @@ async function main() {
         const n0 = desc(); let nonLiberees = 0;
         for (let k = 0; k < 30; k++) {
           const avant = geosDe(s.voiture.userData.carro).concat(...(s.voiture.userData.carroJantes || []).map(geosDe));
-          choisirPiece(gid, PIECES_CATS[k % PIECES_CATS.length], k % 2 ? 1 : 2);
+          choisirPiece(s, PIECES_CATS[k % PIECES_CATS.length], k % 2 ? 1 : 2);
           garageMajVitrine(s);
           nonLiberees += avant.filter((g) => !g.__libere).length;
         }
-        for (const c of PIECES_CATS) choisirPiece(gid, c, 1);
+        for (const c of PIECES_CATS) choisirPiece(s, c, 1);
         garageMajVitrine(s);
         out.descStable = desc() === n0; out.nonLibereesPieces = nonLiberees;
         // b) 6 allers-retours complets : le véhicule rangé et le modèle
@@ -6868,7 +6978,7 @@ async function main() {
           const geosVitrine = geosDe(s.voiture);
           G.versSortie(); G.appuyer(); // ressort : l'exposition est retirée
           fuitesVitrine += geosVitrine.filter((g) => !g.__libere).length;
-          vehiculesGarage.push(vehicules.filter((v) => v.garageId === gid).length);
+          vehiculesGarage.push(vehicules.filter((v) => v.persoId === id).length);
         }
         out.fuitesVeh = fuitesVeh; out.fuitesVitrine = fuitesVitrine;
         out.salleStable = enfantsSalle.every((n) => n === enfantsSalle[0]);
@@ -6885,33 +6995,52 @@ async function main() {
     if (!garFuite.salleStable || !garFuite.unSeulDehors) fail('Garages : allers-retours — la salle accumule des objets (' + garFuite.enfantsSalle + ') ou plusieurs véhicules du garage coexistent');
     else ok('Garages : 6 allers-retours — la salle n\'accumule rien, un seul véhicule du garage en ville');
 
-    console.log('\n--- Garages tuning : une vieille sauvegarde sans META.garages se charge sans rien casser ---');
-    for (const cas of ['sans garages', 'emplacement incomplet', 'avant la phase 3']) {
+    console.log('\n--- Garages tuning : vieilles sauvegardes (sans garages, emplacements par garage) migrées vers « Mes véhicules » ---');
+    for (const cas of ['sans garages', 'emplacement incomplet', 'avant la phase 3', 'deux garages occupés', 'collection incomplète']) {
       await page.evaluate((cas) => {
         const vieux = JSON.parse(JSON.stringify(META));
         vieux.argent = 4242;
+        delete vieux.vehPerso; // toutes ces sauvegardes précèdent la collection, sauf la dernière
         if (cas === 'sans garages') delete vieux.garages;
         else if (cas === 'emplacement incomplet') vieux.garages = { [GARAGES_TUNING[0].id]: { cle: 'taxi', moteur: 2 } };
         // emplacement de la phase 2 complet, mais sans pièces de carrosserie
-        else vieux.garages = { [GARAGES_TUNING[0].id]: { cle: 'muscle', coul: 2771672, neon: 3530239, nitro: true, moteur: 1, vitesse: 2, tenue: 0, blindage: 1 } };
+        else if (cas === 'avant la phase 3') vieux.garages = { [GARAGES_TUNING[0].id]: { cle: 'muscle', coul: 2771672, neon: 3530239, nitro: true, moteur: 1, vitesse: 2, tenue: 0, blindage: 1 } };
+        else if (cas === 'deux garages occupés') vieux.garages = { [GARAGES_TUNING[0].id]: { cle: 'van', vitesse: 1 }, [GARAGES_TUNING[2].id]: { cle: 'char', blindage: 2, nitro: true } };
+        else { delete vieux.garages; vieux.vehPerso = { v1: { cle: 'sport', tenue: 3 } }; }
         localStorage.setItem(SAVE_KEY, JSON.stringify(vieux));
       }, cas);
       await page.reload({ waitUntil: 'load', timeout: 30000 });
       await page.waitForFunction(() => typeof PORTES !== 'undefined' && PORTES.length > 0, { timeout: 20000 });
       const r = await page.evaluate((cas) => {
         const att = slotGarageDefaut(), probs = [];
-        for (const g of GARAGES_TUNING) {
-          const s = META.garages && META.garages[g.id];
-          if (!s) { probs.push(g.id + ' absent'); continue; }
-          for (const k of Object.keys(att)) if (typeof s[k] !== typeof att[k]) probs.push(g.id + '.' + k + ' de type ' + typeof s[k]);
+        // toutes les fiches présentes et bien typées ; les anciens emplacements vidés (migrés une seule fois)
+        for (const [nom, o] of [['garages', META.garages], ['vehPerso', META.vehPerso]]) {
+          const ids = nom === 'garages' ? GARAGES_TUNING.map((g) => g.id) : Object.keys(vehPersoMetaDefaut());
+          for (const id of ids) {
+            const s = o && o[id];
+            if (!s) { probs.push(nom + '.' + id + ' absent'); continue; }
+            for (const k of Object.keys(att)) if (typeof s[k] !== typeof att[k]) probs.push(nom + '.' + id + '.' + k + ' de type ' + typeof s[k]);
+            if (nom === 'garages' && s.cle) probs.push('garages.' + id + ' non vidé après migration');
+          }
         }
+        const fiches = vehPersoIds().map((id) => META.vehPerso[id]);
+        if (cas === 'sans garages' && fiches.length) probs.push('collection non vide (' + fiches.length + ')');
         if (cas === 'emplacement incomplet') {
-          const s = META.garages[GARAGES_TUNING[0].id];
-          if (s.cle !== 'taxi' || s.moteur !== 2) probs.push('valeurs anciennes perdues (' + JSON.stringify(s) + ')');
+          const s = fiches[0] || {};
+          if (fiches.length !== 1 || s.cle !== 'taxi' || s.moteur !== 2) probs.push('valeurs anciennes perdues (' + JSON.stringify(s) + ')');
           if (s.vitesse !== 0 || s.nitro !== false || s.coul !== -1) probs.push('champs manquants non complétés (' + JSON.stringify(s) + ')');
+          if (s.investi !== TUNING_PRIX.moteur[0] + TUNING_PRIX.moteur[1]) probs.push('investi non reconstitué (' + s.investi + ')');
+        }
+        if (cas === 'deux garages occupés') {
+          const cles = fiches.map((f) => f.cle).sort().join(',');
+          if (cles !== 'char,van' || !fiches.find((f) => f.cle === 'char').nitro) probs.push('migration de deux garages incomplète (' + cles + ')');
+        }
+        if (cas === 'collection incomplète') {
+          const s = META.vehPerso.v1;
+          if (s.cle !== 'sport' || s.tenue !== 3 || s.investi !== 0 || s.pieces.jantes !== 0) probs.push('fiche incomplète mal complétée (' + JSON.stringify(s) + ')');
         }
         if (cas === 'avant la phase 3') {
-          const s = META.garages[GARAGES_TUNING[0].id], def = slotGarageDefaut();
+          const s = fiches[0] || slotGarageDefaut(), def = slotGarageDefaut();
           if (s.cle !== 'muscle' || !s.nitro || s.vitesse !== 2 || s.blindage !== 1) probs.push('améliorations de la phase 2 perdues (' + JSON.stringify(s) + ')');
           for (const o of ['pieces', 'piecesPossedees']) for (const c of Object.keys(def[o]))
             if (s[o][c] !== def[o][c]) probs.push(o + '.' + c + ' = ' + s[o][c] + ' (attendu ' + def[o][c] + ')');
@@ -6923,7 +7052,7 @@ async function main() {
         return probs;
       }, cas);
       if (r.length) fail('Garages : vieille sauvegarde (' + cas + ') — ' + r.join(', '));
-      else ok('Garages : vieille sauvegarde (' + cas + ') chargée par deep-merge, champs manquants complétés, rien perdu');
+      else ok('Garages : vieille sauvegarde (' + cas + ') chargée par deep-merge et migrée, champs manquants complétés, rien perdu');
     }
 
     // -------------------------------------------------------------------

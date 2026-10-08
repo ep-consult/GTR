@@ -37,7 +37,7 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
   echo "$ln | $(sed -n "$((ln+1))p" index.html | sed 's/^[ \t]*//')"; done
 ```
 
-**Relevé au 8 octobre 2026 (phase 3 du garage) — 20 461 lignes.**
+**Relevé au 8 octobre 2026 (« Mes véhicules ») — 20 669 lignes.**
 
 | Ligne | Section |
 |---|---|
@@ -49,63 +49,65 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
 | 731 | AUDIO — WebAudio synthétisé, boîte de vitesses simulée |
 | 1252 | ENTRÉES — joystick virtuel, boutons tactiles, clavier ZQSD/WASD |
 | 1559 | MÉTA-PROGRESSION — `META`, défis, sauvegarde |
-| 2208 | THREE.JS — rendu, scène, lumières |
-| 2485 | VILLE DE SOLARA — génération procédurale par quartiers |
-| 4738 | MODÈLES — humains, armes, véhicules, hélico, ramassables |
-| 5749 | POOLS — balles, particules, textes flottants, traces de pneus |
-| 6107 | ÉTAT GLOBAL + JOUEUR (`P`) |
-| 6821 | VÉHICULES — physique arcade, trafic, dégâts |
-| 8849 | PIÉTONS |
-| 9001 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
-| 9537 | **RAYON TRACTEUR DE L'OVNI** |
-| 9933 | NIVEAU DE RECHERCHE (étoiles) |
-| 10178 | VAGUES + bonus de fin de vague |
-| 10297 | MISSIONS COURTES |
-| 10300 | BÂTIMENTS VISITABLES — intérieurs |
-| 10370 | FOUILLE — mécanique générique |
-| 10951 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
-| 14886 | CINÉ-PALACE |
-| 14948 | MÉTRO ABANDONNÉ |
-| 15014 | RADIO PIRATE SOLARA FM |
-| 15119 | LE CHALUTIER « SAINTE-ODILE » |
-| 15393 | SITE 51 |
-| 15623 | LE DÉPÔT DE BUS — courses clandestines |
-| 16638 | **MÉTIERS** — missions liées à un véhicule |
-| 16869 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
-| 17502 | ÉCRANS / MENUS / BOUTIQUES |
-| 17769 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
-| 18494 | DÉBUT / FIN DE PARTIE |
-| 19955 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
-| 20343 | BOUCLE PRINCIPALE |
+| 2218 | THREE.JS — rendu, scène, lumières |
+| 2495 | VILLE DE SOLARA — génération procédurale par quartiers |
+| 4748 | MODÈLES — humains, armes, véhicules, hélico, ramassables |
+| 5759 | POOLS — balles, particules, textes flottants, traces de pneus |
+| 6117 | ÉTAT GLOBAL + JOUEUR (`P`) |
+| 6831 | VÉHICULES — physique arcade, trafic, dégâts |
+| 8859 | PIÉTONS |
+| 9011 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
+| 9547 | **RAYON TRACTEUR DE L'OVNI** |
+| 9943 | NIVEAU DE RECHERCHE (étoiles) |
+| 10188 | VAGUES + bonus de fin de vague |
+| 10307 | MISSIONS COURTES |
+| 10310 | BÂTIMENTS VISITABLES — intérieurs |
+| 10380 | FOUILLE — mécanique générique |
+| 10961 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
+| 14896 | CINÉ-PALACE |
+| 14958 | MÉTRO ABANDONNÉ |
+| 15024 | RADIO PIRATE SOLARA FM |
+| 15129 | LE CHALUTIER « SAINTE-ODILE » |
+| 15403 | SITE 51 |
+| 15633 | LE DÉPÔT DE BUS — courses clandestines |
+| 16648 | **MÉTIERS** — missions liées à un véhicule |
+| 16879 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
+| 17710 | ÉCRANS / MENUS / BOUTIQUES |
+| 17977 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
+| 18702 | DÉBUT / FIN DE PARTIE |
+| 20162 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
+| 20551 | BOUCLE PRINCIPALE |
 
 ### Ancres fines (hors bandeaux)
 
 | Ligne | Repère |
 |---|---|
 | 1567 | `GARAGES_TUNING` — les garages de la ville (déclarés avant `META`) |
-| 1734 | `fusionMeta()` — deep-merge de la sauvegarde |
-| 1764 | `CURIOS` — tableau des curiosités |
-| 1815 | `CURIOS_ACTIVES` |
-| 1829 | déblocage de `batte2` (toutes curiosités actives réunies) |
-| 1998 | `VEHDEFS` — véhicules, éligibilité garage (`tuningMeca`, `tuningCarro`) |
-| 2635 | `finaliserMerge()` |
-| 3981 | `mkPorteGarage()` — porte roulante des garages |
-| 4049 | `placeLibrePorte()` |
-| 4108 | helper `poser()` — placement des lieux |
-| 4134 | `caseCentre(bx,bz)` |
-| 4227 | `REPLIS` — filet de sécurité en spirale |
-| 6115 | `const P` — état du joueur |
-| 6153 | `P.stamMax = 100 + 12*mus` |
-| 10306 | `IOFF = -9000` |
-| 12028 | `INTDEFS` — définitions des **27 salles** |
-| 12208 | `construireSalle(id)` |
-| 16647 | `METIERS_CIBLE` |
-| 16883 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises) |
-| 16947 | `PIECES_FAMILLES` — catalogues de pièces par famille |
-| 17143 | `libererObjet()` — libère les géométries d'un objet retiré |
-| 17159 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
-| 17214 | `construireGarageTuning()` — la salle partagée |
-| 17476 | `majNitro()` |
+| 1587 | `VEHPERSO_MAX` — taille de « Mes véhicules » (`META.vehPerso`) |
+| 1744 | `fusionMeta()` — deep-merge de la sauvegarde |
+| 1774 | `CURIOS` — tableau des curiosités |
+| 1825 | `CURIOS_ACTIVES` |
+| 1839 | déblocage de `batte2` (toutes curiosités actives réunies) |
+| 2008 | `VEHDEFS` — véhicules, éligibilité garage (`tuningMeca`, `tuningCarro`) |
+| 2645 | `finaliserMerge()` |
+| 3991 | `mkPorteGarage()` — porte roulante des garages |
+| 4059 | `placeLibrePorte()` |
+| 4118 | helper `poser()` — placement des lieux |
+| 4144 | `caseCentre(bx,bz)` |
+| 4237 | `REPLIS` — filet de sécurité en spirale |
+| 6125 | `const P` — état du joueur |
+| 6163 | `P.stamMax = 100 + 12*mus` |
+| 10316 | `IOFF = -9000` |
+| 12038 | `INTDEFS` — définitions des **27 salles** |
+| 12218 | `construireSalle(id)` |
+| 16657 | `METIERS_CIBLE` |
+| 16897 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
+| 16966 | `PIECES_FAMILLES` — catalogues de pièces par famille |
+| 17215 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
+| 17268 | `libererObjet()` — libère les géométries d'un objet retiré |
+| 17284 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
+| 17348 | `construireGarageTuning()` — la salle partagée |
+| 17684 | `majNitro()` |
 
 ---
 
@@ -246,21 +248,41 @@ Trois garages (`GARAGES_TUNING`, ~L1567), un par quartier, placés par `caseCent
 et tous dans `REPLIS`. **Une seule salle partagée** (`INTDEFS.tuning`), voir
 « Géométrie partagée ». Seule salle où l'on entre **en véhicule** :
 
+- **Les améliorations appartiennent au VÉHICULE, jamais au garage** (« Mes
+  véhicules », `META.vehPerso`, `VEHPERSO_MAX` = 6 fiches). Tout garage accepte
+  tout véhicule éligible — plus de « place déjà prise » (l'ancien modèle, une
+  place par garage jamais libérée, bloquait le joueur : signalé en playtest).
 - Au volant, près de la porte : « ENTRER AU GARAGE ». Le véhicule de la ville est
-  retiré (`garageRetirerVehicule`), son type et sa teinte partent dans
-  `META.garages[id]`. Dans la salle, seul un **modèle d'exposition** tourne sur le
-  plateau — hors de `vehicules`, aucune physique, aucun trafic.
+  retiré (`garageRetirerVehicule`). Dans la salle, seul un **modèle d'exposition**
+  tourne sur le plateau — hors de `vehicules`, aucune physique, aucun trafic.
+  Un véhicule hors collection y est exposé avec une **fiche temporaire**
+  (`s.visiteur`, hors META) : il n'entre dans la collection qu'à son **premier
+  achat** (`garageAcheter`, refusé AVANT débit si la collection est pleine) ou
+  par « GARDER CE VÉHICULE » (gratuit, `garageEnregistrer`). Sorti sans lui, il
+  est abandonné — le menu le dit.
+- Menu « MES VÉHICULES » : on choisit le véhicule avec lequel on sort, **depuis
+  n'importe quel garage**. Un véhicule de la collection resté en ville est
+  **rapatrié** (retiré de la ville, `garageChoisirVehicule`).
+- **Casse** (`garageCasser`, garde d'entrée propre) : en deux appuis, véhicule de
+  la collection exposé (jamais un véhicule en ville), rembourse
+  `TUNING_CASSE_TAUX` (25 %) de `investi` — le total réellement dépensé sur ce
+  véhicule, tenu à jour par `garageAcheter`.
 - À la sortie, un véhicule neuf est créé devant la porte et reçoit ses
   améliorations (`appliquerTuning`) : `v.def` devient une **copie propre** au
   véhicule, `VEHDEFS` n'est jamais modifié. Peinture : matériau propre au
   véhicule (`mat()` est partagé par couleur — le modifier repeindrait la ville).
-- Un véhicule par garage. Il est « dehors » tant qu'une instance vivante porte
-  son `garageId`, sinon il est de retour sur le plateau (après game over,
-  rechargement, ou destruction).
-- À pied : on n'entre que pour reprendre le véhicule garé.
+- Un véhicule de la collection est « en ville » tant qu'une instance vivante
+  porte son `persoId`, sinon il est rangé (après game over, rechargement, ou
+  destruction) et se sort de n'importe quel garage.
+- À pied : on entre dès que la collection n'est pas vide.
 - On entre **en pleine poursuite** : la police ne bloque jamais l'entrée, rentrer
-  au garage EST la façon de la semer (demandé explicitement). Seul un tireur de
-  **gang** à bout portant (`GARAGE_FEU_DIST` = 6 u) refuse l'entrée.
+  au garage EST la façon de la semer (demandé explicitement). Seul bloque
+  (« trop chaud », `ennemiHostileProche`) un **tireur de gang** armé d'une arme
+  à feu, qui vise le joueur lui-même, à moins de `GARAGE_FEU_DIST` = 6 u et en
+  ligne de vue. Ne bloquent pas : batte, gangster occupé par un rival, en fuite,
+  passif. (1re version : tout gangster non passif à 6 u — or un gangster de
+  patrouille cesse d'être passif dès qu'on passe à ~15 u : un passant devant la
+  porte bloquait l'entrée, signalé en playtest.)
 - Recherche : porte roulante fermée, puis les étoiles tombent une à une (`dtJeu`).
 - **Nitro** : bouton ESQUIVE au volant, décidée par `majNitro(dtJeu)` AVANT la
   physique. **Verrouillée dans toute salle, donc pendant les courses du Dépôt**
@@ -339,13 +361,20 @@ Clé : `asphalte_save_v1`. Objet persisté : `META`.
 - `META.curios` — dictionnaire des curiosités obtenues
 - `META.fouilles` — compteur de caches fouillées
 - `META.metiers` — compteur de réussites par métier
-- `META.garages` — un emplacement par garage (véhicule garé + améliorations).
-  `fusionMeta` ne reprend que les clés **déjà présentes** dans `META` : chaque
-  garage y est donc déclaré d'avance (`garagesMetaDefaut()`), avec des champs de
-  type fixe (`cle:''`, `coul:-1`...). Un `{}` vide perdrait tout au rechargement.
-  `pieces` et `piecesPossedees` y sont des objets à clés fixes. Vérifié par
-  `scenarios.js` : vieille sauvegarde sans le champ, emplacement incomplet, et
-  sauvegarde antérieure à la phase 3 (sans pièces).
+- `META.vehPerso` — « Mes véhicules » : `VEHPERSO_MAX` fiches à clés **fixes**
+  `v0`…`v5` (un tableau serait recopié tel quel par `fusionMeta`, sans compléter
+  ses champs). `fusionMeta` ne reprend que les clés **déjà présentes** dans
+  `META` : chaque fiche y est donc déclarée d'avance (`vehPersoMetaDefaut()`),
+  avec des champs de type fixe (`cle:''`, `coul:-1`, `investi:0`...). Un `{}`
+  vide perdrait tout au rechargement. `pieces` et `piecesPossedees` y sont des
+  objets à clés fixes.
+- `META.garages` — **ancien modèle** (un emplacement par garage), resté déclaré
+  pour être relu, puis migré au chargement par `migrerGaragesVersVehPerso()` :
+  chaque véhicule garé devient une fiche de la collection (son `investi` est
+  reconstitué depuis les achats visibles), l'emplacement est vidé (jamais deux
+  migrations). Vérifié par `scenarios.js` : sauvegarde sans le champ,
+  emplacement incomplet, antérieure à la phase 3, deux garages occupés,
+  collection incomplète.
 
 ---
 

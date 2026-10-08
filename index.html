@@ -1569,14 +1569,23 @@ const GARAGES_TUNING=[
   {id:'g_centre',nom:'GARAGE CENTRE',bx:5,bz:5,coul:0x35e0ff}, // centre-ville
   {id:'g_port',nom:'GARAGE DU PORT',bx:10,bz:9,coul:0x7dff7a}, // port
 ];
-// emplacement vide : cle '' = aucun véhicule, coul/neon -1 = aucun
+// FICHE d'un véhicule personnel — les améliorations appartiennent au
+// VÉHICULE, plus au garage. cle '' = fiche libre, coul/neon -1 = aucun ;
 // pieces : variante posée par catégorie (0 = d'origine) ; piecesPossedees :
-// variantes déjà payées, en bits (bit 0 = d'origine, toujours possédée).
+// variantes déjà payées, en bits (bit 0 = d'origine, toujours possédée) ;
+// investi : total dépensé sur ce véhicule (base du remboursement à la casse).
 // Objets à clés FIXES : fusionMeta complète une vieille sauvegarde sans eux.
-function slotGarageDefaut(){ return {cle:'',coul:-1,neon:-1,nitro:false,moteur:0,vitesse:0,tenue:0,blindage:0,
+function slotGarageDefaut(){ return {cle:'',coul:-1,neon:-1,nitro:false,moteur:0,vitesse:0,tenue:0,blindage:0,investi:0,
   pieces:{aileron:0,parechocs:0,jupes:0,capot:0,jantes:0,echappement:0},
   piecesPossedees:{aileron:1,parechocs:1,jupes:1,capot:1,jantes:1,echappement:1}}; }
+// ANCIEN modèle (un emplacement par garage) : reste déclaré pour que
+// fusionMeta relise une vieille sauvegarde ; migré ensuite vers vehPerso
+// (migrerGaragesVersVehPerso) puis remis à vide.
 function garagesMetaDefaut(){ const o={}; for(const g of GARAGES_TUNING) o[g.id]=slotGarageDefaut(); return o; }
+// « Mes véhicules » : VEHPERSO_MAX fiches à clés FIXES v0, v1… (un tableau
+// serait recopié tel quel par fusionMeta, sans compléter ses champs)
+const VEHPERSO_MAX=6;
+function vehPersoMetaDefaut(){ const o={}; for(let i=0;i<VEHPERSO_MAX;i++) o['v'+i]=slotGarageDefaut(); return o; }
 const META={
   argent:150, xp:0, niveau:1,
   record:0, recordVague:0, killsTotal:0, parties:0,
@@ -1665,12 +1674,13 @@ const META={
   // l'infini — METIERS_CIBLE=10 (voir plus bas) fait foi partout, jamais
   // recopié en dur ailleurs.
   metiers:{pompier:0,taxi:0,depanneuse:0,ambulance:0,police:0},
-  // Garages tuning (voir la section GARAGES TUNING) : un emplacement par
-  // garage, CHAQUE clé déclarée ici avec des champs de type fixe — fusionMeta
-  // ne reprend que les clés déjà connues de META, donc un {} vide perdrait
-  // tout au rechargement, et une vieille sauvegarde sans ce champ garde ces
-  // valeurs par défaut (vérifié par scenarios.js).
-  garages:garagesMetaDefaut()
+  // Garages tuning (voir la section GARAGES TUNING) : CHAQUE clé déclarée
+  // ici avec des champs de type fixe — fusionMeta ne reprend que les clés
+  // déjà connues de META, donc un {} vide perdrait tout au rechargement, et
+  // une vieille sauvegarde sans ce champ garde ces valeurs par défaut
+  // (vérifié par scenarios.js). garages = ancien modèle, à migrer seulement.
+  garages:garagesMetaDefaut(),
+  vehPerso:vehPersoMetaDefaut() // « Mes véhicules » : les fiches des véhicules personnels
 };
 const DEFIS=[
   {id:'sang',nom:'Premier sang',det:'Neutralise 25 ennemis',rec:250,prog:m=>[m.killsTotal,25],cond:m=>m.killsTotal>=25},
@@ -16870,14 +16880,18 @@ function bigMsg(txt){
    GARAGES TUNING — plusieurs garages en ville, UNE seule salle partagée
    Géométrie partagée : une seule entrée INTDEFS ('tuning'), donc une seule
    tranche de 400 u ; chaque porte de la ville porte un garageId et
-   garageSurEntree() reconfigure la salle (enseigne, accent, véhicule garé)
-   d'après META.garages[garageId] à chaque entrée — jamais N décors.
+   garageSurEntree() reconfigure la salle (enseigne, accent, véhicule
+   exposé) à chaque entrée — jamais N décors.
+   Les améliorations appartiennent au VÉHICULE (« Mes véhicules »,
+   META.vehPerso, VEHPERSO_MAX fiches), jamais au garage : tout garage
+   accepte tout véhicule éligible, et chacun des garages donne accès à
+   toute la collection. Un véhicule entre dans la collection à son premier
+   achat (ou par « garder ce véhicule », gratuit) ; « mettre à la casse »
+   le retire en remboursant TUNING_CASSE_TAUX de ce qui y a été investi.
    Seule salle où l'on entre EN VÉHICULE : le véhicule de la ville est
-   retiré à l'entrée (son état part dans META.garages), seul un modèle
-   d'exposition (hors de `vehicules`, aucune physique) tourne sur le
-   plateau ; à la sortie, un véhicule neuf est créé devant la porte avec
-   ses améliorations. La liste des garages (GARAGES_TUNING) est déclarée
-   avant META, qui en tire ses emplacements par défaut.
+   retiré à l'entrée, seul un modèle d'exposition (hors de `vehicules`,
+   aucune physique) tourne sur le plateau ; à la sortie, un véhicule neuf
+   est créé devant la porte avec ses améliorations.
 ===================================================================== */
 // ---- PRIX — à calibrer en jouant ----
 const TUNING_PRIX={
@@ -16893,6 +16907,8 @@ const TUNING_PRIX={
   pieces:{aileron:[0,300,650],parechocs:[0,300,600],jupes:[0,250,550],
           capot:[0,250,500],jantes:[0,400,800],echappement:[0,200,450]},
 };
+// part de ce qui a été investi dans un véhicule rendue en le mettant à la casse
+const TUNING_CASSE_TAUX=0.25;
 // ---- EFFETS des paliers (index = palier atteint, 0 = d'origine) ----
 // moteur/vitesse/tenue : multiplicateurs de acc/vmax/man ;
 // blindage : multiplicateur des dégâts REÇUS (v.blindage, voir abimerVehicule)
@@ -17035,18 +17051,58 @@ const GARAGE_ROT_PAUSE=2.5;    // s (dtJeu) sans rotation automatique après un 
 const GARAGE_MSG_FEU='🔥 Trop chaud pour rentrer — sème-les d’abord';
 
 const GARAGE_PAR_ID={}; for(const gt of GARAGES_TUNING) GARAGE_PAR_ID[gt.id]=gt;
-// PV du véhicule au moment où il a été garé — partie en cours seulement
-// (vidé dans startRun : nouvelle partie = véhicule garé à pleins PV)
+// PV de chaque véhicule personnel au moment où il a été rangé, par id de
+// fiche — partie en cours seulement (vidé dans startRun : nouvelle partie =
+// véhicules rangés à pleins PV)
 const GARAGE_HP={};
+// ce avec quoi le joueur franchit la porte, relu par garageSurEntree :
+// null = à pied ; {persoId} = un de ses véhicules ; {visiteur, hp} = un
+// véhicule pas (encore) dans sa collection
+let GARAGE_ARRIVEE=null;
 const NITRO_HUD={wrap:el('nitroWrap'),fill:el('nitroFill'),dernier:-1,refusT:0};
 const GM={el:el('garageMenu'),titre:el('gmTitre'),argent:el('gmArgent'),corps:el('gmCorps')};
 
-function garageSlot(gid){ return (META.garages&&META.garages[gid])||null; }
-// le véhicule d'un garage roule-t-il en ville ? (sinon il est sur le plateau)
-function garageVehiculeDehors(gid){
-  for(const v of vehicules) if(v.garageId===gid&&!v.mort&&!v.epave) return v;
+/* ---------- « Mes véhicules » : META.vehPerso ---------- */
+function fichePerso(id){ const f=META.vehPerso&&META.vehPerso[id]; return (f&&f.cle&&VEHDEFS[f.cle])?f:null; }
+function vehPersoIds(){ const l=[]; for(const id in META.vehPerso) if(fichePerso(id)) l.push(id); return l; }
+function vehPersoNb(){ let n=0; for(const id in META.vehPerso) if(fichePerso(id)) n++; return n; } // sans allocation (majAction)
+function vehPersoLibre(){ for(const id in META.vehPerso) if(!META.vehPerso[id].cle) return id; return null; }
+// ce véhicule personnel roule-t-il en ville ? (sinon il est rangé : il peut
+// être sorti de n'importe quel garage)
+function vehPersoDehors(id){
+  for(const v of vehicules) if(v.persoId===id&&!v.mort&&!v.epave) return v;
   return null;
 }
+// la fiche du véhicule exposé : un véhicule de la collection, ou celui avec
+// lequel on est entré s'il n'y est pas encore (fiche temporaire, hors META)
+function ficheVue(s){ return s.courant?fichePerso(s.courant):(s.visiteur||null); }
+// Ancien modèle → nouveau : chaque véhicule garé dans META.garages devient
+// un véhicule personnel, avec toutes ses améliorations ; l'emplacement est
+// remis à vide pour ne jamais migrer deux fois. Le montant investi est
+// reconstitué depuis les achats visibles (la peinture n'est pas tracée).
+function estimerInvesti(f){
+  let t=(f.neon>=0?TUNING_PRIX.neons:0)+(f.nitro?TUNING_PRIX.nitro:0);
+  for(const c in TUNING_EFFETS) for(let n=0;n<f[c]&&n<TUNING_PALIERS_MAX;n++) t+=TUNING_PRIX[c][n];
+  for(const c of PIECES_CATS) TUNING_PRIX.pieces[c].forEach((p,i)=>{ if(f.piecesPossedees[c]&(1<<i)) t+=p; });
+  return t;
+}
+function migrerGaragesVersVehPerso(){
+  let n=0;
+  for(const gid in META.garages){
+    const ancien=META.garages[gid];
+    if(!ancien.cle) continue;
+    const id=vehPersoLibre();
+    if(id&&VEHDEFS[ancien.cle]){
+      const f=META.vehPerso[id];
+      Object.assign(f,JSON.parse(JSON.stringify(ancien)));
+      f.investi=estimerInvesti(f); n++;
+    }
+    Object.assign(ancien,slotGarageDefaut());
+  }
+  if(n) sauveMeta();
+  return n;
+}
+migrerGaragesVersVehPerso();
 // Éligibilité DÉCLARÉE dans VEHDEFS (jamais une liste ici) : tuningMeca =
 // tout ce qui roule et se conduit (char compris) ; tuningCarro = voitures et
 // motos civiles, avec famille + ancrages. Tout le reste est refusé à la porte.
@@ -17062,25 +17118,28 @@ function porteGarageProche(x,z){
   for(const p of PORTES) if(p.id==='tuning'&&dist2(x,z,p.x,p.z)<GARAGE_RAYON_PORTE*GARAGE_RAYON_PORTE) return p;
   return null;
 }
-// « sous le feu à bout portant » : un tireur de gang hostile (ni calme, ni
-// passif, ni dans une salle, ni soulevé par l'OVNI) à moins de r unités.
-// La police est exclue (demandé explicitement) : on doit pouvoir rentrer
-// en pleine poursuite — c'est tout l'intérêt du garage.
+// « sous le feu à bout portant » : un TIREUR de gang (arme à feu) qui vise
+// le joueur lui-même, à moins de r unités ET en ligne de vue. Ne comptent
+// pas : la police (demandé explicitement : rentrer au garage EST la façon de
+// la semer), les ennemis calmes, passifs, en fuite, dans une salle, soulevés
+// par l'OVNI, occupés par une faction rivale, ou armés d'une batte.
+// Signalé en playtest : la 1re version comptait tout membre de gang non
+// passif — or un gangster de patrouille cesse d'être passif dès qu'on passe
+// à ~15 u, donc un passant devant la porte bloquait l'entrée.
 function ennemiHostileProche(x,z,r){
   for(const e of ennemis){
     if(e.mort||e.calme||e.passif||e.interieur||e.captureOvni||e.fac==='police') continue;
-    if(dist2(e.x,e.z,x,z)<r*r) return e;
+    if(e.cible||e.fuiteT!==undefined||!e.def||e.def.arme==='melee') continue;
+    if(dist2(e.x,e.z,x,z)<r*r&&ligneLibre(e.x,e.z,x,z)) return e;
   }
   return null;
 }
-// raison d'un refus d'entrée au volant, ou null si l'entrée est possible
+// raison d'un refus d'entrée au volant, ou null si l'entrée est possible :
+// tout véhicule éligible entre dans tout garage (plus de « place prise »)
 function garageRefusVehicule(v,gt){
   if(!v||!gt) return 'Garage introuvable';
   if(ennemiHostileProche(P.x,P.z,GARAGE_FEU_DIST)) return GARAGE_MSG_FEU;
   if(!vehiculeGarable(v)) return messageNonGarable(v);
-  if(v.garageId&&v.garageId!==gt.id) return 'Ce véhicule est rangé au '+GARAGE_PAR_ID[v.garageId].nom;
-  const slot=garageSlot(gt.id);
-  if(slot&&slot.cle&&v.garageId!==gt.id) return gt.nom+' : place déjà prise ('+(VEHDEFS[slot.cle]?VEHDEFS[slot.cle].nom:'un véhicule')+')';
   return null;
 }
 function garageRetirerVehicule(v){
@@ -17093,17 +17152,78 @@ function entrerGarageEnVehicule(porte){
   const v=P.veh, gt=GARAGE_PAR_ID[porte.garageId];
   const refus=garageRefusVehicule(v,gt);
   if(refus){ SFX.refus(); toast(refus,'warn'); return false; }
-  const slot=garageSlot(gt.id);
-  if(!slot.cle){
-    Object.assign(slot,slotGarageDefaut());
-    slot.cle=v.key;
-    slot.coul=v.mesh.userData.coul!==undefined?v.mesh.userData.coul:-1; // il garde sa teinte d'origine
+  if(v.persoId&&fichePerso(v.persoId)){
+    GARAGE_HP[v.persoId]=v.hp;
+    GARAGE_ARRIVEE={persoId:v.persoId};
+  } else {
+    // pas (encore) dans la collection : fiche temporaire, il garde sa teinte
+    const f=slotGarageDefaut();
+    f.cle=v.key; f.coul=v.mesh.userData.coul!==undefined?v.mesh.userData.coul:-1;
+    GARAGE_ARRIVEE={visiteur:f,hp:v.hp};
   }
-  GARAGE_HP[gt.id]=v.hp;
   sortirVehicule(true);
   garageRetirerVehicule(v);
   entrerInterieur('tuning',porte);
-  sauveMeta();
+  GARAGE_ARRIVEE=null;
+  return true;
+}
+// Ajoute le véhicule exposé (pas encore dans la collection) à « Mes
+// véhicules » — garde d'entrée PROPRE : rien à ajouter, ou collection pleine.
+function garageEnregistrer(s){
+  if(!s||!s.tuning||s.courant||!s.visiteur) return false;
+  const id=vehPersoLibre();
+  if(!id){ SFX.refus(); toast('Collection pleine ('+VEHPERSO_MAX+'/'+VEHPERSO_MAX+') — mets un véhicule à la casse','warn'); return false; }
+  Object.assign(META.vehPerso[id],JSON.parse(JSON.stringify(s.visiteur)));
+  GARAGE_HP[id]=s.visiteurHp;
+  s.courant=id; s.visiteur=null; s.casseArmee=null;
+  sauveMeta(); return true;
+}
+// Paiement d'une amélioration sur le véhicule exposé : un véhicule hors
+// collection y entre au moment de l'achat (refusé AVANT de débiter si la
+// collection est pleine). Rend la fiche à modifier, ou null.
+function garageAcheter(s,prix){
+  if(!s.courant&&!vehPersoLibre()){ SFX.refus(); toast('Collection pleine ('+VEHPERSO_MAX+'/'+VEHPERSO_MAX+') — mets un véhicule à la casse','warn'); return null; }
+  if(!garagePayer(prix)) return null;
+  if(!s.courant&&!garageEnregistrer(s)) return null;
+  const f=fichePerso(s.courant); f.investi+=prix;
+  return f;
+}
+// Choisit le véhicule exposé (celui avec lequel on sortira) parmi la
+// collection, ou revient au véhicule non enregistré avec lequel on est
+// entré (s.visiteur reste connu tant qu'on n'est pas ressorti). Un véhicule
+// personnel qui roule en ville est rapatrié : il quitte la ville (le
+// joueur est dans la salle, il ne peut pas être à bord).
+function garageChoisirVehicule(s,id){
+  if(!s||!s.tuning) return false;
+  if(id==='visiteur'){ if(!s.visiteur||!s.courant) return false; s.courant=''; }
+  else {
+    if(!fichePerso(id)||s.courant===id) return false;
+    const dehors=vehPersoDehors(id);
+    if(dehors){
+      if(dehors.conduit==='joueur') return false;
+      GARAGE_HP[id]=dehors.hp; garageRetirerVehicule(dehors);
+      toast('🚚 '+VEHDEFS[fichePerso(id).cle].nom+' rapatrié de la ville','or');
+    }
+    s.courant=id;
+  }
+  s.apercu=null; s.casseArmee=null; garageMajVitrine(s);
+  return true;
+}
+// Mise à la casse du véhicule exposé — garde d'entrée PROPRE : seul un
+// véhicule de la collection, exposé ici (donc pas en ville), et en deux
+// appuis (s.casseArmee). Rembourse TUNING_CASSE_TAUX de l'investi.
+function garageCasser(s){
+  if(!s||!s.tuning||!s.courant) return false;
+  const id=s.courant, f=fichePerso(id);
+  if(!f||vehPersoDehors(id)) return false;
+  if(s.casseArmee!==id){ s.casseArmee=id; SFX.ui(); return false; }
+  const remb=Math.floor(f.investi*TUNING_CASSE_TAUX);
+  const nom=VEHDEFS[f.cle].nom;
+  Object.assign(f,slotGarageDefaut()); delete GARAGE_HP[id];
+  META.argent+=remb;
+  s.courant=''; s.casseArmee=null; s.apercu=null; // revient au véhicule non enregistré, s'il y en a un
+  sauveMeta(); garageMajVitrine(s);
+  SFX.achat(); toast('♻️ '+nom+' à la casse'+(remb?' (+'+remb+' $)':''),'or');
   return true;
 }
 
@@ -17192,8 +17312,8 @@ function appliquerCarrosserie(groupe,key,pieces){
 }
 // Achat / pose d'une pièce — garde d'entrée PROPRE : une variante se paie une
 // fois ; reposer une variante déjà possédée (ou l'origine) est gratuit.
-function choisirPiece(gid,cat,i){
-  const slot=garageSlot(gid);
+function choisirPiece(s,cat,i){
+  let slot=s&&s.tuning?ficheVue(s):null;
   if(!slot||!slot.cle) return false;
   const tc=VEHDEFS[slot.cle]&&VEHDEFS[slot.cle].tuningCarro;
   const fc=tc&&PIECES_FAMILLES[tc.famille]&&PIECES_FAMILLES[tc.famille][cat];
@@ -17201,17 +17321,18 @@ function choisirPiece(gid,cat,i){
   if(slot.pieces[cat]===i) return false;                    // déjà posée : rien à faire
   const bit=1<<i;
   if(!(slot.piecesPossedees[cat]&bit)){
-    if(!garagePayer(TUNING_PRIX.pieces[cat][i])) return false;
+    slot=garageAcheter(s,TUNING_PRIX.pieces[cat][i]); if(!slot) return false;
     slot.piecesPossedees[cat]|=bit;
   }
   slot.pieces[cat]=i; sauveMeta(); return true;
 }
-// applique les améliorations d'un garage à un véhicule de la ville. v.def
-// devient une copie PROPRE à ce véhicule (jamais VEHDEFS modifié).
-function appliquerTuning(v,gid){
-  const slot=garageSlot(gid); if(!slot) return;
+// applique les améliorations d'un véhicule personnel (fiche id) à un
+// véhicule de la ville. v.def devient une copie PROPRE à ce véhicule
+// (jamais VEHDEFS modifié).
+function appliquerTuning(v,id){
+  const slot=fichePerso(id); if(!slot) return;
   const base=VEHDEFS[v.key];
-  v.garageId=gid;
+  v.persoId=id;
   v.def=Object.assign({},base,{
     acc:base.acc*TUNING_EFFETS.moteur[slot.moteur],
     vmax:base.vmax*TUNING_EFFETS.vitesse[slot.vitesse],
@@ -17277,13 +17398,16 @@ function construireGarageTuning(inter,box,lampe){
   inter.menuOuvert=false; inter.laisser=false; inter.sortirEnVoiture=false;
   inter.porteT=0; inter.porteFermee=true; inter.etoilesT=-1;
 }
-// remet le véhicule exposé en accord avec META.garages[gid]
+// remet le véhicule exposé en accord avec sa fiche (ficheVue). Le modèle
+// est reconstruit dès que la FICHE change, même à type égal : deux
+// citadines de la collection n'ont pas la même peinture.
 function garageMajVitrine(s){
-  const slot=garageSlot(s.gid);
-  const cle=(slot&&slot.cle&&VEHDEFS[slot.cle]&&!garageVehiculeDehors(s.gid))?slot.cle:'';
-  if(s.voitureCle!==cle){
+  const slot=ficheVue(s);
+  const cle=(slot&&slot.cle&&VEHDEFS[slot.cle]&&!(s.courant&&vehPersoDehors(s.courant)))?slot.cle:'';
+  const ref=cle?cle+'|'+(s.courant||'visiteur'):'';
+  if(s.voitureRef!==ref){
     if(s.voiture){ s.g.remove(s.voiture); libererObjet(s.voiture); s.voiture=null; }
-    s.voitureCle=cle; s.apercu=null;
+    s.voitureCle=cle; s.voitureRef=ref; s.apercu=null;
     if(cle){
       const m=makeVoiture(cle);
       m.position.set(s.plateauX,0.42,s.plateauZ); s.g.add(m); s.voiture=m;
@@ -17310,6 +17434,13 @@ function garageSurEntree(s,porte){
   const gt=GARAGE_PAR_ID[s.gid];
   for(const id in s.enseignes) s.enseignes[id].visible=(id===s.gid);
   s.bandeauMat.color.setHex(gt.coul);
+  // véhicule exposé : celui avec lequel on arrive ; à pied, le premier
+  // véhicule de la collection qui ne roule pas en ville
+  const arr=GARAGE_ARRIVEE;
+  s.courant=''; s.visiteur=null; s.visiteurHp=0; s.casseArmee=null;
+  if(arr&&arr.persoId) s.courant=arr.persoId;
+  else if(arr&&arr.visiteur){ s.visiteur=arr.visiteur; s.visiteurHp=arr.hp; }
+  else for(const id of vehPersoIds()) if(!vehPersoDehors(id)){ s.courant=id; break; }
   garageMajVitrine(s);
   s.laisser=false; s.sortirEnVoiture=false; fermerGarageMenu(s);
   // porte roulante ouverte → se ferme ; les étoiles ne tombent qu'ensuite
@@ -17360,24 +17491,32 @@ window.addEventListener('pointerup',garFinDrag); window.addEventListener('pointe
 function garageApresSortie(sc){
   fermerGarageMenu(sc);
   const enVoiture=sc.sortirEnVoiture; sc.sortirEnVoiture=false;
-  const gid=sc.gid, slot=garageSlot(gid);
-  if(!enVoiture||!slot||!slot.cle||!VEHDEFS[slot.cle]||garageVehiculeDehors(gid)) return;
+  // un véhicule hors collection n'est gardé nulle part : on ressort avec,
+  // ou il est abandonné (le menu le dit)
+  const id=sc.courant, slot=ficheVue(sc), hpVisiteur=sc.visiteurHp;
+  sc.courant=''; sc.visiteur=null; sc.casseArmee=null;
+  const libererVitrine=()=>{ if(sc.voiture){ sc.g.remove(sc.voiture); libererObjet(sc.voiture); sc.voiture=null; } sc.voitureCle=''; sc.voitureRef=''; };
+  if(!enVoiture||!slot||!slot.cle||!VEHDEFS[slot.cle]||(id&&vehPersoDehors(id))){ libererVitrine(); return; }
   let px=P.x, pz=P.z+3;
   for(let r=2;r<=14&&solidAt(px,pz,2.2);r+=2){ px=P.x+rand(-r,r); pz=P.z+rand(2,r); }
   const nv=creerVehicule(slot.cle,px,pz,0);
-  if(!nv) return;
-  appliquerTuning(nv,gid);
-  if(GARAGE_HP[gid]!==undefined) nv.hp=Math.min(nv.def.hp,GARAGE_HP[gid]);
+  if(!nv){ libererVitrine(); return; }
+  if(id){
+    appliquerTuning(nv,id);
+    if(GARAGE_HP[id]!==undefined) nv.hp=Math.min(nv.def.hp,GARAGE_HP[id]);
+  } else nv.hp=Math.min(nv.def.hp,hpVisiteur||nv.def.hp);
   nv.perso=true;
   entrerVehicule(nv);
-  // le plateau est vide tant que le véhicule roule dehors
-  if(sc.voiture){ sc.g.remove(sc.voiture); libererObjet(sc.voiture); sc.voiture=null; sc.voitureCle=''; }
+  // le modèle d'exposition est retiré : le véhicule roule dehors
+  libererVitrine();
 }
 function garageReinitSalle(sa){
   fermerGarageMenu(sa);
   sa.laisser=false; sa.sortirEnVoiture=false; sa.apercu=null;
+  sa.courant=''; sa.visiteur=null; sa.casseArmee=null;
   sa.porteFermee=true; sa.etoilesT=-1;
-  if(sa.voiture){ sa.g.remove(sa.voiture); libererObjet(sa.voiture); sa.voiture=null; sa.voitureCle=''; }
+  if(sa.voiture){ sa.g.remove(sa.voiture); libererObjet(sa.voiture); sa.voiture=null; }
+  sa.voitureCle=''; sa.voitureRef='';
 }
 
 /* ---------- paiements : CHACUN porte sa propre garde d'entrée ---------- */
@@ -17385,46 +17524,69 @@ function garagePayer(prix){
   if(META.argent<prix){ SFX.refus(); toast('Il te faut '+prix+' $'); return false; }
   META.argent-=prix; SFX.achat(); return true;
 }
-function peindreGarage(gid,coul){
-  const slot=garageSlot(gid);
-  if(!slot||!slot.cle||coul<0||slot.coul===coul) return false; // même teinte : rien à payer
-  if(!garagePayer(TUNING_PRIX.peinture)) return false;
+// Tous portent sur le véhicule EXPOSÉ dans la salle s (ficheVue) ; un
+// véhicule hors collection y entre au premier achat (garageAcheter).
+function ficheAchat(s){ const f=s&&s.tuning?ficheVue(s):null; return (f&&f.cle)?f:null; }
+function peindreGarage(s,coul){
+  let slot=ficheAchat(s);
+  if(!slot||coul<0||slot.coul===coul) return false; // même teinte : rien à payer
+  slot=garageAcheter(s,TUNING_PRIX.peinture); if(!slot) return false;
   slot.coul=coul; sauveMeta(); return true;
 }
-function acheterNeons(gid){
-  const slot=garageSlot(gid);
-  if(!slot||!slot.cle||slot.neon>=0) return false; // kit déjà posé
-  if(!garagePayer(TUNING_PRIX.neons)) return false;
+function acheterNeons(s){
+  let slot=ficheAchat(s);
+  if(!slot||slot.neon>=0) return false; // kit déjà posé
+  slot=garageAcheter(s,TUNING_PRIX.neons); if(!slot) return false;
   slot.neon=TUNING_NEONS[0]; sauveMeta(); return true;
 }
-function couleurNeons(gid,coul){ // gratuit une fois le kit posé
-  const slot=garageSlot(gid);
+function couleurNeons(s,coul){ // gratuit une fois le kit posé
+  const slot=ficheAchat(s);
   if(!slot||slot.neon<0||coul<0||slot.neon===coul) return false;
   slot.neon=coul; sauveMeta(); return true;
 }
-function acheterNitro(gid){
-  const slot=garageSlot(gid);
-  if(!slot||!slot.cle||slot.nitro) return false; // déjà équipée
-  if(!garagePayer(TUNING_PRIX.nitro)) return false;
+function acheterNitro(s){
+  let slot=ficheAchat(s);
+  if(!slot||slot.nitro) return false; // déjà équipée
+  slot=garageAcheter(s,TUNING_PRIX.nitro); if(!slot) return false;
   slot.nitro=true; sauveMeta(); return true;
 }
-function acheterPalier(gid,cat){
-  const slot=garageSlot(gid);
-  if(!slot||!slot.cle||!TUNING_EFFETS[cat]) return false;
+function acheterPalier(s,cat){
+  let slot=ficheAchat(s);
+  if(!slot||!TUNING_EFFETS[cat]) return false;
   const n=slot[cat];
   if(!(n>=0&&n<TUNING_PALIERS_MAX)) return false; // palier max atteint
-  if(!garagePayer(TUNING_PRIX[cat][n])) return false;
+  slot=garageAcheter(s,TUNING_PRIX[cat][n]); if(!slot) return false;
   slot[cat]=n+1; sauveMeta(); return true;
 }
 
 /* ---------- menu d'atelier (panneau bas, la voiture reste visible au-dessus) ---------- */
 function hexCss(c){ return '#'+c.toString(16).padStart(6,'0'); }
 function renderGarageMenu(s){
-  const slot=garageSlot(s.gid), gt=GARAGE_PAR_ID[s.gid];
+  const slot=ficheAchat(s), gt=GARAGE_PAR_ID[s.gid];
   GM.titre.textContent='🔧 '+gt.nom+(s.voitureCle?' — '+VEHDEFS[s.voitureCle].nom:'');
   GM.argent.textContent=fmt$(META.argent);
-  if(!slot||!slot.cle){ GM.corps.innerHTML='<div class="gmSec">AUCUN VÉHICULE</div>'; return; }
-  let h='<div class="gmSec">PEINTURE — '+TUNING_PRIX.peinture+' $ la teinte</div><div class="gmLigne">';
+  // MES VÉHICULES : toute la collection, depuis n'importe quel garage ;
+  // celui qui est sur le plateau est celui avec lequel on sortira
+  const ids=vehPersoIds();
+  let h='<div class="gmSec">MES VÉHICULES — '+ids.length+'/'+VEHPERSO_MAX+' (choisis celui avec lequel tu sors)</div><div class="gmLigne">';
+  for(const id of ids){
+    const nom=VEHDEFS[META.vehPerso[id].cle].nom;
+    if(s.courant===id) h+='<div class="gmBtn ok">✔ '+nom+'</div>';
+    else h+='<div class="gmBtn" data-a="choisir" data-v="'+id+'">'+nom+(vehPersoDehors(id)?' — en ville, RAPATRIER':'')+'</div>';
+  }
+  if(s.visiteur){
+    const nom=VEHDEFS[s.visiteur.cle].nom;
+    h+=s.courant?'<div class="gmBtn" data-a="choisir" data-v="visiteur">'+nom+' (pas à toi)</div>'
+                :'<div class="gmBtn ok">✔ '+nom+' (pas à toi)</div>';
+  }
+  if(!ids.length&&!s.visiteur) h+='<div class="gmBtn off">Aucun véhicule — reviens au volant</div>';
+  h+='</div>';
+  if(s.visiteur){
+    h+='<div class="gmLigne" style="margin-top:6px">'+(s.courant?'':'<div class="gmBtn" data-a="garder">🅿️ GARDER CE '+VEHDEFS[s.visiteur.cle].nom.toUpperCase()+' (gratuit)</div>')+'</div>'+
+       '<div class="gmSec" style="color:#ffb46a">Le '+VEHDEFS[s.visiteur.cle].nom+' n’est pas dans ta collection : garde-le ou améliore-le, sinon il est abandonné si tu sors sans lui.</div>';
+  }
+  if(!slot){ GM.corps.innerHTML=h; return; }
+  h+='<div class="gmSec">PEINTURE — '+TUNING_PRIX.peinture+' $ la teinte</div><div class="gmLigne">';
   TUNING_TEINTES.forEach((c,i)=>{ h+='<div class="gmTeinte'+(slot.coul===c?' actuelle':'')+'" data-a="peinture" data-i="'+i+'" style="background:'+hexCss(c)+'"></div>'; });
   h+='</div><div class="gmSec">NÉONS</div><div class="gmLigne">';
   if(slot.neon<0) h+='<div class="gmBtn" data-a="neons">POSER LE KIT — '+TUNING_PRIX.neons+' $</div>';
@@ -17460,6 +17622,13 @@ function renderGarageMenu(s){
   }
   h+='<div class="gmSec">EN SORTANT</div><div class="gmLigne"><div class="gmBtn'+(s.laisser?' ok':'')+'" data-a="laisser">'+
      (s.laisser?'🅿️ LE LAISSER GARÉ (sortie à pied)':'🚗 REPARTIR AU VOLANT')+'</div></div>';
+  // casse : véhicule de la collection uniquement, en deux appuis
+  if(s.courant){
+    const remb=Math.floor(slot.investi*TUNING_CASSE_TAUX);
+    h+='<div class="gmSec">CASSE — libère une place ('+Math.round(TUNING_CASSE_TAUX*100)+' % de ce que tu y as investi)</div><div class="gmLigne">'+
+       (s.casseArmee===s.courant?'<div class="gmBtn" data-a="casse" style="border-color:#ff3b3b;color:#ff8080">⚠️ CONFIRMER : '+VEHDEFS[slot.cle].nom+' détruit, +'+remb+' $</div>'
+                                :'<div class="gmBtn" data-a="casse">♻️ METTRE À LA CASSE (+'+remb+' $)</div>')+'</div>';
+  }
   GM.corps.innerHTML=h;
 }
 function ouvrirGarageMenu(s){
@@ -17479,18 +17648,26 @@ GM.corps.addEventListener('pointerdown',e=>{
   const b=e.target.closest('[data-a]'); if(!b) return;
   e.preventDefault();
   const a=b.dataset.a, i=+b.dataset.i;
-  if(a==='peinture'){ if(peindreGarage(s.gid,TUNING_TEINTES[i])) toast('🎨 Nouvelle peinture','or'); else if(garageSlot(s.gid).coul===TUNING_TEINTES[i]) SFX.refus(); }
-  else if(a==='neons'){ if(acheterNeons(s.gid)) toast('💡 Néons posés — choisis leur couleur','or'); }
-  else if(a==='neonc'){ if(couleurNeons(s.gid,TUNING_NEONS[i])) SFX.ui(); }
-  else if(a==='nitro'){ if(acheterNitro(s.gid)) toast('🔥 Nitro installée — bouton NITRO au volant','or'); }
-  else if(a==='palier'){ const c=b.dataset.c; if(acheterPalier(s.gid,c)) toast('⚙️ '+TUNING_NOMS[c]+' : palier '+garageSlot(s.gid)[c],'or'); }
+  const avant=s.courant; // un 1er achat sur un véhicule hors collection l'y fait entrer
+  if(a!=='casse') s.casseArmee=null; // toute autre action désarme la casse
+  if(a==='peinture'){ if(peindreGarage(s,TUNING_TEINTES[i])) toast('🎨 Nouvelle peinture','or'); else if(ficheAchat(s)&&ficheAchat(s).coul===TUNING_TEINTES[i]) SFX.refus(); }
+  else if(a==='neons'){ if(acheterNeons(s)) toast('💡 Néons posés — choisis leur couleur','or'); }
+  else if(a==='neonc'){ if(couleurNeons(s,TUNING_NEONS[i])) SFX.ui(); }
+  else if(a==='nitro'){ if(acheterNitro(s)) toast('🔥 Nitro installée — bouton NITRO au volant','or'); }
+  else if(a==='palier'){ const c=b.dataset.c; if(acheterPalier(s,c)) toast('⚙️ '+TUNING_NOMS[c]+' : palier '+ficheAchat(s)[c],'or'); }
   else if(a==='laisser'){ s.laisser=!s.laisser; SFX.ui(); }
+  else if(a==='choisir'){ if(garageChoisirVehicule(s,b.dataset.v)) SFX.ui(); }
+  else if(a==='garder'){ if(garageEnregistrer(s)){ SFX.achat(); toast('🅿️ Ajouté à tes véhicules','or'); } }
+  else if(a==='casse'){ garageCasser(s); }
   else if(a==='piece'){
-    const c=b.dataset.c, slot=garageSlot(s.gid), possede=!!(slot.piecesPossedees[c]&(1<<i));
+    const c=b.dataset.c, slot=ficheAchat(s), possede=!!(slot&&slot.piecesPossedees[c]&(1<<i));
     if(possede||(s.apercu&&s.apercu.cat===c&&s.apercu.i===i)){
-      if(choisirPiece(s.gid,c,i)){ s.apercu=null; toast('🔩 Pièce posée','or'); }
+      const ap=s.apercu;
+      if(choisirPiece(s,c,i)){ s.apercu=null; toast('🔩 Pièce posée','or'); }
+      else s.apercu=ap;
     } else { s.apercu={cat:c,i}; SFX.ui(); } // aperçu sur le plateau, rien n'est débité
   }
+  if(!avant&&s.courant&&a!=='garder'&&a!=='choisir') toast('🅿️ '+VEHDEFS[fichePerso(s.courant).cle].nom+' ajouté à tes véhicules','or');
   garageMajVitrine(s); renderGarageMenu(s);
 });
 el('gmFermer').addEventListener('pointerdown',e=>{ e.preventDefault(); fermerGarageMenu(INT.actif); SFX.ui(); });
@@ -18596,7 +18773,7 @@ function startRun(){
     // musée : plafond du tronc à dons levé (nouvelle partie = nouvelle vague)
     if(sa.tronc){ sa.troncVague=-1; sa.troncN=0; }
     // garage tuning : menu fermé, état d'entrée/sortie remis à zéro. Le
-    // véhicule garé, lui, vit dans META.garages et survit au game over.
+    // la collection, elle, vit dans META.vehPerso et survit au game over.
     if(sa.tuning) garageReinitSalle(sa);
     if(sa.casseEtat!==undefined){
       sa.casseEtat=null; sa.casseT=0; sa.soupcon=0; sa.bruitAcc=0;
@@ -19511,7 +19688,8 @@ function majAction(){
       };
     /* ---------- GARAGE TUNING : l'atelier ouvre le menu de personnalisation ---------- */
     } else if(s.atelier&&dist2(P.x,P.z,s.atelier.x,s.atelier.z)<marquerZone(s.atelier,12)){
-      if(!s.voiture){
+      // plateau vide mais collection non vide : le menu permet d'en choisir un
+      if(!s.voiture&&!s.visiteur&&!vehPersoNb()){
         label='🔧 ATELIER — aucun véhicule sur le plateau';
         fn=()=>{ SFX.refus(); toast('Reviens au volant d’un véhicule pour le personnaliser.'); };
       } else if(s.menuOuvert){
@@ -19937,20 +20115,18 @@ function majAction(){
           label='ENTRER — '+INTDEFS.site51.nom;
           fn=()=>entrerInterieur('site51',porteP);
         }
-      // Garage tuning À PIED (comportement défini) : on n'y entre à pied que
-      // pour reprendre le véhicule qui y est garé. Sans véhicule garé, ou
-      // s'il roule dehors, la porte reste fermée — on y entre au volant.
+      // Garage tuning À PIED (comportement défini) : on y entre à pied dès
+      // qu'on a au moins un véhicule dans sa collection — n'importe lequel
+      // des garages y donne accès, et un véhicule resté en ville se rapatrie
+      // depuis le menu. Sans collection, on y entre au volant.
       } else if(porteP.id==='tuning'){
-        const gt=GARAGE_PAR_ID[porteP.garageId]||GARAGES_TUNING[0], slot=META.garages[gt.id];
+        const gt=GARAGE_PAR_ID[porteP.garageId]||GARAGES_TUNING[0];
         if(ennemiHostileProche(P.x,P.z,GARAGE_FEU_DIST)){
           label='🔒 '+gt.nom+' — trop chaud';
           fn=()=>{ SFX.refus(); toast(GARAGE_MSG_FEU,'warn'); };
-        } else if(!slot.cle){
+        } else if(!vehPersoNb()){
           label='🔧 '+gt.nom+' — entre au volant';
           fn=()=>{ SFX.refus(); toast('Un garage, ça se visite au volant. Reviens avec un véhicule.'); };
-        } else if(garageVehiculeDehors(gt.id)){
-          label='🔧 '+gt.nom+' — ton véhicule est dehors';
-          fn=()=>{ SFX.refus(); toast('Ton '+VEHDEFS[slot.cle].nom+' roule quelque part en ville : ramène-le au volant.'); };
         } else {
           label='🔧 ENTRER — '+gt.nom;
           fn=()=>entrerInterieur('tuning',porteP);
