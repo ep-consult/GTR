@@ -1,11 +1,29 @@
-# ASPHALTE — contexte projet
+# GTRoyal — contexte projet
 
 Jeu d'action arcade urbain 3D, vue de dessus, **fichier HTML unique** (`index.html`).
 Cible : navigateur mobile en portrait 9:16, iPhone en priorité (Safari + écran d'accueil).
 Three.js **r128** chargé depuis CDN — ne pas monter de version, plusieurs API utilisées
 ici ont changé après r128 (`Geometry`, `THREE.CapsuleGeometry` absent, etc.).
 
-Ville fictive : **Solara City**. Gangs : les **Vipères** et les **Frelons**.
+Nom du jeu : **GTRoyal** — casse exacte et sacrée partout (« GTR » majuscules
+collé à « oyal » minuscules, un seul mot ; toute autre casse ou graphie est
+interdite, de même que toute référence à un autre jeu). Historique du renommage : `RENOMMAGE.md`.
+Le logo de l'écran titre neutralise le `text-transform:uppercase` de `.titre`,
+et garde une marge basse (`.2em`) pour la descendante du « y » — sans elle,
+le « y » mordait sur « LOS REYES — CHAOS URBAIN » (vérifié par `scenarios.js`).
+
+Ville fictive : **Los Reyes**. Gangs (noms AFFICHÉS → id interne inchangé,
+couleurs inchangées) : **Sunset Vipers** (`viperes`, vert, quartier
+industriel, premier rival, chef KAA), **Los Calaveras** (`frelons`, jaune et
+noir, quartier néon, motards, chef EL DIABLO), **Dockside Boys** (`murenes`,
+bleu-vert, port et plage, chef SILAS), **Krasnaya Brigada** (`chrome`, argent
+et or, villas et centre, le gang riche, chef VOLKOV). Libellés dans
+`NOMS_GANG` / `NOMS_GANG_DE` ; en réserve, non utilisés : Cedar Street
+Familia, Jade Lotus.
+
+**La clé de sauvegarde reste `asphalte_save_v1` VOLONTAIREMENT** (la changer
+ferait perdre toutes les sauvegardes) ; les ids internes (`viperes`,
+`frelons`, `murenes`, `chrome`, `vipere`…) ne sont jamais renommés.
 
 ---
 
@@ -37,80 +55,80 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
   echo "$ln | $(sed -n "$((ln+1))p" index.html | sed 's/^[ \t]*//')"; done
 ```
 
-**Relevé au 8 octobre 2026 (icônes vectorielles intégrées) — 20 988 lignes.**
+**Relevé au 8 octobre 2026 (renommage GTRoyal) — 21 051 lignes.**
 
 | Ligne | Section |
 |---|---|
-| 1–854 | `<head>`, CSS, HUD, écrans (menu, game over, panneaux) |
-| 387–525 | **icônes SVG** : copie des 42 `<symbol>` de `icones/icones.svg` (générée, ne pas éditer) |
-| 831–833 | **eruda** (console mobile de dev — à retirer avant diffusion) |
-| 834 | chargement Three.js r128 depuis CDN |
-| 839 | `<script id="gamejs">` + handler `window.onerror` → affichage dans `#errBox` |
-| 855 | en-tête ASPHALTE, début du code du jeu |
-| 932 | AUDIO — WebAudio synthétisé, boîte de vitesses simulée |
-| 1453 | ENTRÉES — joystick virtuel, boutons tactiles, clavier ZQSD/WASD |
-| 1760 | MÉTA-PROGRESSION — `META`, défis, sauvegarde |
-| 2419 | THREE.JS — rendu, scène, lumières |
-| 2696 | VILLE DE SOLARA — génération procédurale par quartiers |
-| 4949 | MODÈLES — humains, armes, véhicules, hélico, ramassables |
-| 5971 | POOLS — balles, particules, textes flottants, traces de pneus |
-| 6329 | ÉTAT GLOBAL + JOUEUR (`P`) |
-| 7043 | VÉHICULES — physique arcade, trafic, dégâts |
-| 9099 | PIÉTONS |
-| 9251 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
-| 9787 | **RAYON TRACTEUR DE L'OVNI** |
-| 10183 | NIVEAU DE RECHERCHE (étoiles) |
-| 10428 | VAGUES + bonus de fin de vague |
-| 10547 | MISSIONS COURTES |
-| 10550 | BÂTIMENTS VISITABLES — intérieurs |
-| 10620 | FOUILLE — mécanique générique |
-| 11201 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
-| 15136 | CINÉ-PALACE |
-| 15198 | MÉTRO ABANDONNÉ |
-| 15264 | RADIO PIRATE SOLARA FM |
-| 15369 | LE CHALUTIER « SAINTE-ODILE » |
-| 15643 | SITE 51 |
-| 15873 | LE DÉPÔT DE BUS — courses clandestines |
-| 16888 | **MÉTIERS** — missions liées à un véhicule |
-| 17119 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
-| 18023 | ÉCRANS / MENUS / BOUTIQUES |
-| 18290 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
-| 19015 | DÉBUT / FIN DE PARTIE |
-| 20481 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
-| 20870 | BOUCLE PRINCIPALE |
+| 1–856 | `<head>`, CSS, HUD, écrans (menu, game over, panneaux) |
+| 389–527 | **icônes SVG** : copie des 42 `<symbol>` de `icones/icones.svg` (générée, ne pas éditer) |
+| 833–835 | **eruda** (console mobile de dev — à retirer avant diffusion) |
+| 836 | chargement Three.js r128 depuis CDN |
+| 841 | `<script id="gamejs">` + handler `window.onerror` → affichage dans `#errBox` |
+| 857 | en-tête GTRoyal, début du code du jeu |
+| 934 | AUDIO — WebAudio synthétisé, boîte de vitesses simulée |
+| 1455 | ENTRÉES — joystick virtuel, boutons tactiles, clavier ZQSD/WASD |
+| 1762 | MÉTA-PROGRESSION — `META`, défis, sauvegarde |
+| 2430 | THREE.JS — rendu, scène, lumières |
+| 2707 | VILLE DE LOS REYES — génération procédurale par quartiers |
+| 4960 | MODÈLES — humains, armes, véhicules, hélico, ramassables |
+| 5982 | POOLS — balles, particules, textes flottants, traces de pneus |
+| 6340 | ÉTAT GLOBAL + JOUEUR (`P`) |
+| 7054 | VÉHICULES — physique arcade, trafic, dégâts |
+| 9110 | PIÉTONS |
+| 9262 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
+| 9798 | **RAYON TRACTEUR DE L'OVNI** |
+| 10194 | NIVEAU DE RECHERCHE (étoiles) |
+| 10439 | VAGUES + bonus de fin de vague |
+| 10558 | MISSIONS COURTES |
+| 10561 | BÂTIMENTS VISITABLES — intérieurs |
+| 10631 | FOUILLE — mécanique générique |
+| 11212 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
+| 15147 | CINÉ-PALACE |
+| 15209 | MÉTRO ABANDONNÉ |
+| 15275 | RADIO PIRATE REYES FM |
+| 15380 | LE CHALUTIER « SAINTE-ODILE » |
+| 15654 | SITE 51 |
+| 15884 | LE DÉPÔT DE BUS — courses clandestines |
+| 16899 | **MÉTIERS** — missions liées à un véhicule |
+| 17130 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
+| 18034 | ÉCRANS / MENUS / BOUTIQUES |
+| 18301 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
+| 19073 | DÉBUT / FIN DE PARTIE |
+| 20539 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
+| 20933 | BOUCLE PRINCIPALE |
 
 ### Ancres fines (hors bandeaux)
 
 | Ligne | Repère |
 |---|---|
-| 877 | `ICONES_SVG` — interrupteur des icônes, `ico()`, `icoArme()`, `labelAction()` |
-| 1768 | `GARAGES_TUNING` — les garages de la ville (déclarés avant `META`) |
-| 1788 | `VEHPERSO_MAX` — taille de « Mes véhicules » (`META.vehPerso`) |
-| 1945 | `fusionMeta()` — deep-merge de la sauvegarde |
-| 1975 | `CURIOS` — tableau des curiosités |
-| 2026 | `CURIOS_ACTIVES` |
-| 2040 | déblocage de `batte2` (toutes curiosités actives réunies) |
-| 2209 | `VEHDEFS` — véhicules, éligibilité garage (`tuningMeca`, `tuningCarro`) |
-| 2846 | `finaliserMerge()` |
-| 4192 | `mkPorteGarage()` — porte roulante des garages |
-| 4260 | `placeLibrePorte()` |
-| 4319 | helper `poser()` — placement des lieux |
-| 4345 | `caseCentre(bx,bz)` |
-| 4438 | `REPLIS` — filet de sécurité en spirale |
-| 6337 | `const P` — état du joueur |
-| 6375 | `P.stamMax = 100 + 12*mus` |
-| 7828 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
-| 10556 | `IOFF = -9000` |
-| 12278 | `INTDEFS` — définitions des **27 salles** |
-| 12458 | `construireSalle(id)` |
-| 16897 | `METIERS_CIBLE` |
-| 17137 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
-| 17208 | `PIECES_FAMILLES` — catalogues de pièces par famille |
-| 17486 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
-| 17539 | `libererObjet()` — libère les géométries d'un objet retiré |
-| 17555 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
-| 17633 | `construireGarageTuning()` — la salle partagée |
-| 17997 | `majNitro()` |
+| 879 | `ICONES_SVG` — interrupteur des icônes, `ico()`, `icoArme()`, `labelAction()` |
+| 1770 | `GARAGES_TUNING` — les garages de la ville (déclarés avant `META`) |
+| 1790 | `VEHPERSO_MAX` — taille de « Mes véhicules » (`META.vehPerso`) |
+| 1952 | `fusionMeta()` — deep-merge de la sauvegarde |
+| 1982 | `CURIOS` — tableau des curiosités |
+| 2033 | `CURIOS_ACTIVES` |
+| 2047 | déblocage de `batte2` (toutes curiosités actives réunies) |
+| 2216 | `VEHDEFS` — véhicules, éligibilité garage (`tuningMeca`, `tuningCarro`) |
+| 2857 | `finaliserMerge()` |
+| 4203 | `mkPorteGarage()` — porte roulante des garages |
+| 4271 | `placeLibrePorte()` |
+| 4330 | helper `poser()` — placement des lieux |
+| 4356 | `caseCentre(bx,bz)` |
+| 4449 | `REPLIS` — filet de sécurité en spirale |
+| 6348 | `const P` — état du joueur |
+| 6386 | `P.stamMax = 100 + 12*mus` |
+| 7839 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
+| 10567 | `IOFF = -9000` |
+| 12289 | `INTDEFS` — définitions des **27 salles** |
+| 12469 | `construireSalle(id)` |
+| 16908 | `METIERS_CIBLE` |
+| 17148 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
+| 17219 | `PIECES_FAMILLES` — catalogues de pièces par famille |
+| 17497 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
+| 17550 | `libererObjet()` — libère les géométries d'un objet retiré |
+| 17566 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
+| 17644 | `construireGarageTuning()` — la salle partagée |
+| 18008 | `majNitro()` |
 
 ---
 
@@ -367,12 +385,20 @@ que les catégories qui ont du sens :
 
 ## Sauvegarde
 
-Clé : `asphalte_save_v1`. Objet persisté : `META`.
+Clé : `asphalte_save_v1` (ancien nom du jeu, **gardée volontairement** : la
+renommer ferait perdre les sauvegardes). Objet persisté : `META`.
 
 - `sauveMeta()` — écrit, dans un `try/catch` silencieux
 - `chargeMeta()` — lit avec **deep-merge prudent** : ne jamais écraser une
   structure `META` par un vieux JSON incomplet, toujours fusionner champ par champ.
   Ajouter un champ à `META` ne doit pas casser les sauvegardes existantes.
+- **Dictionnaires ouverts** (`DICOS_OUVERTS`, juste avant `fusionMeta`) :
+  `fusionMeta` ne reprend que les clés déjà déclarées dans `META`. Un
+  dictionnaire dont les clés sont des ids de contenu ajoutés en jouant (déclaré
+  `{}` ou presque vide) DOIT figurer dans `DICOS_OUVERTS`, sinon il est vidé à
+  chaque rechargement. Bug déjà rencontré (trouvé au test de compatibilité du
+  renommage) : `lieuxVus`, `tenuesPoss`, `stats.arcadePersoBest` repartaient à
+  zéro. Vérifié par `scenarios.js` au rechargement de la Radio.
 - `META.curios` — dictionnaire des curiosités obtenues
 - `META.fouilles` — compteur de caches fouillées
 - `META.metiers` — compteur de réussites par métier
@@ -404,9 +430,9 @@ sont petits, permanents et cumulables.
 
 Actives : Chaussette Solitaire (laverie) · Boule Fissurée (voyance) · Disque de
 Platine (karaoké) · Perle Noire (aquarium) · Boule « Comète » (bowling) · Micro
-Vintage (Solara FM) · Haltère « Enclume » (sport) · Étoile de Solara (serre) ·
+Vintage (Reyes FM) · Haltère « Enclume » (sport) · Étoile de Los Reyes (serre) ·
 Ceinture de Champion (sandwichs) · Canard d'Or (musée) · Jeton Doré (arcade) ·
-Bobine « ASPHALTE I » (ciné) · Plaque du Capitaine (Site 51) · Lampe de Mineur
+Bobine « GTRoyal I » (ciné) · Plaque du Capitaine (Site 51) · Lampe de Mineur
 (métro) · Boussole du Capitaine (chalutier) · Volant du Dépôt (dépôt de bus).
 
 Réunir toutes les curiosités actives débloque `batte2` (~L1829).

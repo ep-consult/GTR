@@ -6,7 +6,9 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>ASPHALTE — chaos urbain arcade</title>
+<meta name="apple-mobile-web-app-title" content="GTRoyal">
+<meta name="application-name" content="GTRoyal">
+<title>GTRoyal — chaos urbain arcade</title>
 <style>
 :root{
   --noir:#0b0c10; --beton:#15171d; --carte:#1b1e26; --ligne:#2b303d;
@@ -311,7 +313,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
 .retour{margin-top:18px;padding:13px 34px;border-radius:12px;background:#e9edf5;color:#0b0c10;font-weight:900;font-size:15px;letter-spacing:.05em;border:0}
 .argentTag{margin-top:8px;font-size:15px;font-weight:900;color:var(--vert)}
 
-#menu .logoBig{font-size:52px;line-height:1;margin-top:5vh;text-shadow:0 0 26px #35e0ff55,0 8px 22px #000}
+#menu .logoBig{text-transform:none;font-size:52px;line-height:1;margin-top:5vh;margin-bottom:.2em;text-shadow:0 0 26px #35e0ff55,0 8px 22px #000}
 #menu .ville{color:var(--orange)}
 #mStats{margin-top:20px;font-size:12px;color:var(--gris);text-align:center;line-height:1.8}
 #mStats b{color:var(--blanc)}
@@ -603,8 +605,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
 
 <!-- ================= MENU ================= -->
 <div class="screen on" id="menu">
-  <div class="titre logoBig">ASPHALTE</div>
-  <div class="ssous">SOLARA CITY — <span class="ville">CHAOS URBAIN</span></div>
+  <div class="titre logoBig">GTRoyal</div>
+  <div class="ssous">LOS REYES — <span class="ville">CHAOS URBAIN</span></div>
   <div class="hazard"></div>
   <button class="mbtn play" id="mPlay">▶ Jouer</button>
   <button class="mbtn" id="mChars">Personnages <span class="fl">›</span></button>
@@ -711,7 +713,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
 
 <!-- ================= CARTE ================= -->
 <div class="screen" id="carte">
-  <div class="stitre">Solara City</div>
+  <div class="stitre">Los Reyes</div>
   <div class="hazard"></div>
   <div style="position:relative;width:min(336px,88vw);margin:10px auto 0">
     <canvas id="carteCv" width="336" height="336" style="display:block;border:1px solid var(--ligne);border-radius:12px;width:100%;height:auto;touch-action:none"></canvas>
@@ -773,8 +775,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
     décoller — prends de la vitesse, les crêtes s'occupent du reste. Touche la <b>minimap</b> pour ouvrir la grande carte.
     À la marina (plage sud), le <b>sniper Faucon</b> se vise à la main (maintiens TIR, oriente au joystick, relâche pour transpercer), et tu <b>ramasses l'arme des ennemis tués</b> en marchant dessus. Des <b>bateaux et jet-skis</b> t'attendent — et tu peux carrément
     <b>nager</b> : entre dans la mer depuis la plage (vitesse réduite, seul le pistolet fonctionne,
-    surveille ton endurance). Les <b>gangs tiennent des quartiers</b> (Vipères en zone industrielle,
-    Frelons au quartier néon, Murènes au port, Syndicat Chrome côté villas) et se battent entre eux
+    surveille ton endurance). Les <b>gangs tiennent des quartiers</b> (Sunset Vipers en zone industrielle,
+    Los Calaveras au quartier néon, Dockside Boys au port, Krasnaya Brigada côté villas) et se battent entre eux
     et contre la police — profites-en. Des <b>véhicules uniques et des armes rares</b> sont cachés
     sur la carte : un léger scintillement les trahit quand tu es tout près.
     Un <b>aéroport</b> se trouve à l'est (portail dans l'enceinte) : avion et hélico pilotables.
@@ -853,8 +855,8 @@ if(typeof THREE==='undefined'){
 }
 'use strict';
 /* =====================================================================
-   ASPHALTE — chaos urbain arcade  (Three.js r128, fichier unique)
-   Jeu original : ville de Solara, gangs des Vipères et des Frelons.
+   GTRoyal — chaos urbain arcade  (Three.js r128, fichier unique)
+   Jeu original : ville de Los Reyes, gangs des Sunset Vipers et de Los Calaveras.
    Aucun élément repris d'une licence existante.
 ===================================================================== */
 
@@ -1390,7 +1392,7 @@ function chalutierAmbianceUpdate(s){
   const ventCible=s.meteoEtat==='tempete'?0.13:(s.meteoEtat==='houle'?0.06:0.02);
   AUDIO.chalVentG.gain.setTargetAtTime(ventCible,t,0.4);
 }
-const STATIONS=['SOLARA FM','RUE 9','CÔTE BLEUE','— silence —','MICRO CASSÉ FM'];
+const STATIONS=['REYES FM','RUE 9','CÔTE BLEUE','— silence —','MICRO CASSÉ FM'];
 function notes(freq,dur,type,vol,filtre){
   const ctx=AUDIO.ctx,t=ctx.currentTime;
   const o=ctx.createOscillator(),g=ctx.createGain();
@@ -1422,7 +1424,7 @@ function musiqueStart(){
   AUDIO.musTimer=setInterval(()=>{
     if(!REGLAGES.musique||META.radio===3) return;
     const s=AUDIO.musStep++%8;
-    if(META.radio===0){ // SOLARA FM — synthwave
+    if(META.radio===0){ // REYES FM — synthwave
       if(s%4===0) kickM(120,38,0.9);
       notes(bassA[s],0.21,'sawtooth',0.30,260);
       percu(s%2?0.05:0.1,6500,0.05);
@@ -1895,7 +1897,7 @@ const DEFIS=[
   {id:'surv',nom:'Survivant',det:'Atteins la vague 8',rec:900,prog:m=>[m.recordVague,8],cond:m=>m.recordVague>=8},
   {id:'jackpot',nom:'Coup de chance',det:'Décroche un gros gain au casino (jackpot ou quinte flush)',rec:500,prog:m=>[m.defis.jackpot?1:0,1],cond:m=>m.defis.jackpot},
   {id:'proprio',nom:'Propriétaire',det:'Achète la villa planque du quartier résidentiel',rec:600,prog:m=>[m.planque?1:0,1],cond:m=>m.planque},
-  {id:'sommet',nom:'Tout en haut',det:'Monte au toit panoramique par l\u2019ascenseur de la Tour Solara',rec:400,prog:m=>[m.defis.sommet?1:0,1],cond:m=>m.defis.sommet},
+  {id:'sommet',nom:'Tout en haut',det:'Monte au toit panoramique par l\u2019ascenseur de la Tour Los Reyes',rec:400,prog:m=>[m.defis.sommet?1:0,1],cond:m=>m.defis.sommet},
   {id:'gadget',nom:'Objet trouvé',det:'Découvre ce que cache le vestiaire du commissariat',rec:250,prog:m=>[m.armes.gadget.poss?1:0,1],cond:m=>m.armes.gadget.poss},
   {id:'casse',nom:'Casse du siècle',det:'Force le coffre de la banque',rec:800,prog:m=>[m.defis.banque?1:0,1],cond:m=>m.defis.banque},
   {id:'perche',nom:'Perché',det:'Pose l\u2019hélicoptère sur le toit d\u2019un immeuble',rec:350,prog:m=>[m.defis.toit?1:0,1],cond:m=>m.defis.toit},
@@ -1937,14 +1939,19 @@ function checkDefis(){
 }
 /* ---------- SAUVEGARDE (localStorage) ----------
    On fusionne prudemment : seules les clés déjà connues de META sont reprises,
-   sauf les dictionnaires « ouverts » (défis faits, découvertes, curiosités) qui
-   sont recopiés tels quels. Une sauvegarde d'une ancienne version ne casse donc
-   jamais le jeu : les nouveautés gardent leur valeur par défaut. */
+   sauf les dictionnaires « ouverts » (défis faits, découvertes, curiosités,
+   lieux vus, tenues, records d'arcade) dont les clés sont des ids de contenu :
+   ceux-là sont repris en entier, par-dessus leurs valeurs par défaut (la tenue
+   de départ reste acquise). Tout dictionnaire de META déclaré vide ({}) ou
+   rempli au fil du jeu DOIT figurer ici, sinon il est vidé à chaque
+   rechargement (bug déjà rencontré : lieux vus, tenues, records d'arcade).
+   Une sauvegarde d'une ancienne version ne casse donc jamais le jeu : les
+   nouveautés gardent leur valeur par défaut. */
 const SAVE_KEY='asphalte_save_v1';
-const DICOS_OUVERTS=new Set(['faits','decouverts','curios','site51Objets']);
+const DICOS_OUVERTS=new Set(['faits','decouverts','curios','site51Objets','lieuxVus','tenuesPoss','arcadePersoBest']);
 function fusionMeta(cible,src){
   for(const k in src){
-    if(DICOS_OUVERTS.has(k)){ if(src[k]&&typeof src[k]==='object') cible[k]=Object.assign({},src[k]); continue; }
+    if(DICOS_OUVERTS.has(k)){ if(src[k]&&typeof src[k]==='object'&&!Array.isArray(src[k])) cible[k]=Object.assign({},cible[k],src[k]); continue; }
     if(!(k in cible)) continue;
     const a=cible[k], b=src[k];
     if(Array.isArray(a)){ if(Array.isArray(b)) cible[k]=b.slice(); }
@@ -1988,32 +1995,32 @@ const CURIOS=[
   {id:'boule_bowling',ico:'🎳',nom:'La Boule « Comète »',lieu:'Bowling « Le Strike Doré »',
    eff:'Une arme de mêlée lente et dévastatrice, ajoutée à ton arsenal',
    ind:'Trois strikes dans la même partie. Pas deux : trois.',actif:true},
-  {id:'micro',ico:'🎙️',nom:'Le Micro Vintage',lieu:'Radio pirate Solara FM',
-   eff:'Solara FM émet en continu : les caches non fouillées apparaissent sur la minimap dans un rayon de 40 m',
+  {id:'micro',ico:'🎙️',nom:'Le Micro Vintage',lieu:'Radio pirate Reyes FM',
+   eff:'Reyes FM émet en continu : les caches non fouillées apparaissent sur la minimap dans un rayon de 40 m',
    ind:'Une émission parfaite. Les trois segments, sans une seconde de friture.',actif:true},
   {id:'haltere',ico:'🏋️',nom:'L\u2019Haltère « Enclume »',lieu:'Salle de sport « Fer & Sueur »',
    eff:'Tes coups de mêlée projettent les ennemis 60 % plus loin',
    ind:'Il faut avoir soulevé les trois barres. Toutes les trois.',actif:true},
-  {id:'fleur',ico:'🌺',nom:'L\u2019Étoile de Solara',lieu:'Serre du jardin botanique',
+  {id:'fleur',ico:'🌺',nom:'L\u2019Étoile de Los Reyes',lieu:'Serre du jardin botanique',
    eff:'Les soins que tu ramasses rendent 35 % de PV en plus',
    ind:'Trois bonnes plantes du premier coup. Lis les étiquettes, regarde la lumière.',actif:true},
   {id:'ceinture',ico:'🥇',nom:'La Ceinture de Champion',lieu:'Le Roi des Sandwichs',
    eff:'+20 PV maximum, définitivement',
    ind:'Le Monstre entier. Sans rendre. Il paraît que c\u2019est faisable.',actif:true},
-  {id:'canard_or',ico:'🦆',nom:'Le Canard d\u2019Or',lieu:'Musée Mémoire de Solara',
+  {id:'canard_or',ico:'🦆',nom:'Le Canard d\u2019Or',lieu:'Musée Mémoire de Los Reyes',
    eff:'Porte-bonheur du voleur : le niveau de recherche redescend 25 % plus vite',
    ind:'Il est au fond du musée, sous cloche. Le courant, lui, se coupe à l’entrée.',actif:true},
   {id:'jeton_dore',ico:'🪙',nom:'Le Jeton Doré',lieu:'Palais de l’Arcade',
    eff:'Aimant à ramassables : l’argent, les munitions et les soins sont attirés vers toi dans un rayon de 6 m',
    ind:'Il faut battre le tableau des scores. Toutes les bornes qui marchent encore.',actif:true},
-  {id:'bobine',ico:'🎞️',nom:'La Bobine « ASPHALTE I »',lieu:'Ciné-Palace',
+  {id:'bobine',ico:'🎞️',nom:'La Bobine « GTRoyal I »',lieu:'Ciné-Palace',
    eff:'Effet cinéma : le temps ralentit brièvement à chaque élimination qui prolonge ton combo',
    ind:'Une séance parfaite. Pas une huée, pas un sifflet.',actif:true},
   {id:'plaque',ico:'🎖️',nom:'La Plaque du Capitaine',lieu:'Site 51',
    eff:'Autorisation militaire : les soldats mettent 30 % plus de temps à te repérer',
    ind:'Au fond du hangar. Là où on ne va pas deux fois pour rien.',actif:true},
   {id:'lampe',ico:'🔦',nom:'La Lampe de Mineur',lieu:'Métro abandonné',
-   eff:'Les nuits de Solara sont moins noires : ton halo de lumière nocturne est 50 % plus large',
+   eff:'Les nuits de Los Reyes sont moins noires : ton halo de lumière nocturne est 50 % plus large',
    ind:'Tout au fond, là où la lampe ne tient plus longtemps.',actif:true},
   {id:'plans',ico:'📐',nom:'Les Plans du Rhinocéros',lieu:'Bunker militaire',actif:false},
   {id:'boussole',ico:'🧭',nom:'La Boussole du Capitaine',lieu:'Le chalutier Sainte-Odile',
@@ -2146,7 +2153,7 @@ const PERSOS={
            {nom:'Champion',prix:400,visage:'mechant',c:{haut:0xd0342e,bas:0x1c1a18,casq:0xd8b02a}},
            {nom:'Torse nu',prix:250,visage:'mechant',nu:true,c:{haut:0,bas:0x3a3f4a,casq:0x23262e}},
            {nom:'Poulet',prix:800,visage:'bete',props:'crete',peau:0xe8ecf2,c:{haut:0xe8ecf2,bas:0xff8a2e,casq:0xe8ecf2}},
-           {nom:'Vipère',prix:600,visage:'mechant',c:{haut:0x2fae4f,bas:0x1c2030,casq:0x175c2b}}]}
+           {nom:'Viper',prix:600,visage:'mechant',c:{haut:0x2fae4f,bas:0x1c2030,casq:0x175c2b}}]}
 };
 function couleursPerso(id,skinIdx){
   const p=PERSOS[id];
@@ -2173,7 +2180,7 @@ const TENUES=[
    cond:()=>aCurio('boussole'),haut:0xffc93f,bas:0x2a4a5a,casq:0xffc93f},
   {id:'labo',nom:'Blouse de laboratoire',ico:'🥼',condTxt:'Avoir visité le Site 51',
    cond:()=>!!META.lieuxVus.site51,haut:0xf2f4f8,bas:0x3a3f4a,casq:0xe8ecf2},
-  {id:'projo',nom:'Tenue de projectionniste',ico:'🎞️',condTxt:'Curiosité : La Bobine « ASPHALTE I » (Ciné-Palace)',
+  {id:'projo',nom:'Tenue de projectionniste',ico:'🎞️',condTxt:'Curiosité : La Bobine « GTRoyal I » (Ciné-Palace)',
    cond:()=>aCurio('bobine'),haut:0x6a1f2a,bas:0x1c1830,casq:0x2a2040},
   {id:'pilote',nom:'Combinaison de pilote',ico:'🏎️',condTxt:'Curiosité : Le Volant du Dépôt (dépôt de bus)',
    cond:()=>aCurio('volant'),haut:0xff8c1a,bas:0x2a2e36,casq:0xff8c1a},
@@ -2211,7 +2218,7 @@ const VEHDEFS={
   muscle:{nom:'Muscle "Rafale"',tuningMeca:true,tuningCarro:{famille:'sportive',ancrages:{avant:{x:0,y:0.88,z:2.4},arriere:{x:0,y:0.65,z:-2.33},toit:{x:0,y:1.35,z:-0.29},basCaisse:{x:1.05,y:0.22,z:0}}},vmax:33,acc:13,man:2.2,hp:150,long:4.8,larg:2.1,type:'car',cols:[0xc0392b,0x2c3e50,0x7a4dc7]},
   van:{nom:'Fourgon',tuningMeca:true,tuningCarro:{famille:'utilitaire',ancrages:{avant:{x:0,y:0.86,z:2.62},arriere:{x:0,y:0.65,z:-2.62},toit:{x:0,y:1.35,z:-0.32},basCaisse:{x:1.15,y:0.22,z:0}}},vmax:20,acc:9,man:1.8,hp:260,long:5.4,larg:2.3,type:'car',cols:[0x9aa2ad,0x6a7f8a]},
   police:{nom:'Interceptor',tuningMeca:true,vmax:31,acc:15,man:2.5,hp:180,long:4.6,larg:2.05,type:'car',cols:[0x232833],police:true},
-  gangcar:{nom:'Berline Vipère',tuningMeca:true,tuningCarro:{famille:'compacte',ancrages:{avant:{x:0,y:0.86,z:2.29},arriere:{x:0,y:0.65,z:-2.28},toit:{x:0,y:1.35,z:-0.28},basCaisse:{x:1.02,y:0.22,z:0}}},vmax:29,acc:14,man:2.4,hp:160,long:4.7,larg:2.05,type:'car',cols:[0x1f7a3a]},
+  gangcar:{nom:'Berline Viper',tuningMeca:true,tuningCarro:{famille:'compacte',ancrages:{avant:{x:0,y:0.86,z:2.29},arriere:{x:0,y:0.65,z:-2.28},toit:{x:0,y:1.35,z:-0.28},basCaisse:{x:1.02,y:0.22,z:0}}},vmax:29,acc:14,man:2.4,hp:160,long:4.7,larg:2.05,type:'car',cols:[0x1f7a3a]},
   milit:{nom:'Camion "Aigle"',tuningMeca:true,vmax:23,acc:10,man:1.7,hp:520,long:6.2,larg:2.6,type:'car',cols:[0x4a5238],milit:true},
   moto:{nom:'Moto',tuningMeca:true,tuningCarro:{famille:'deuxroues',ancrages:{avant:{x:0,y:1.06,z:1.18},arriere:{x:0,y:0.65,z:-1.18},toit:{x:0,y:1.06,z:0.62},basCaisse:{x:0.37,y:0.45,z:0}}},vmax:34,acc:21,man:3.4,hp:70,long:2.4,larg:0.9,type:'moto',cols:[0xd05038,0x3a70c0,0x24272e]},
   motoR:{nom:'Moto "Frelon"',tuningMeca:true,tuningCarro:{famille:'deuxroues',ancrages:{avant:{x:0,y:1.06,z:1.18},arriere:{x:0,y:0.65,z:-1.18},toit:{x:0,y:1.06,z:0.62},basCaisse:{x:0.37,y:0.45,z:0}}},vmax:41,acc:24,man:3.6,hp:60,long:2.4,larg:0.9,type:'moto',cols:[0xe6a41f]},
@@ -2345,16 +2352,16 @@ const VEHDEFS={
 
 /* ---------- Types d'ennemis ---------- */
 const ETYPES={
-  vip_batte:{nom:'Vipère',fac:'viperes',hp:32,vit:8.6,degats:9,arme:'melee',portee:1.9,cad:1.0,score:60,cash:[6,14],xp:8,cout:10,armeM:'batte',
+  vip_batte:{nom:'Viper',fac:'viperes',hp:32,vit:8.6,degats:9,arme:'melee',portee:1.9,cad:1.0,score:60,cash:[6,14],xp:8,cout:10,armeM:'batte',
     couleurs:{haut:0x2fae4f,bas:0x1c2030,peau:0xc98d5e,casq:0x175c2b}},
-  vip_pistol:{nom:'Vipère armée',fac:'viperes',hp:28,vit:7.6,degats:7,arme:'pistolet',portee:25,cad:0.55,burst:3,acc:9,score:85,cash:[8,16],xp:10,cout:14,
+  vip_pistol:{nom:'Viper armé',fac:'viperes',hp:28,vit:7.6,degats:7,arme:'pistolet',portee:25,cad:0.55,burst:3,acc:9,score:85,cash:[8,16],xp:10,cout:14,
     couleurs:{haut:0x2fae4f,bas:0x232a36,peau:0xd9a066,casq:0x1c1f27}},
-  vip_chef:{nom:'KAA — CHEF DES VIPÈRES',fac:'viperes',boss:true,hp:680,vit:7.2,degats:8,arme:'pompe',pellets:5,portee:19,cad:1.5,burst:1,acc:10,
+  vip_chef:{nom:'KAA — CHEF DES VIPERS',fac:'viperes',boss:true,hp:680,vit:7.2,degats:8,arme:'pompe',pellets:5,portee:19,cad:1.5,burst:1,acc:10,
     score:1500,cash:[230,320],xp:130,cout:0,taille:1.4,
     couleurs:{haut:0x0f5c26,bas:0x11151d,peau:0xc98d5e,casq:0x2fae4f}},
-  fre_batte:{nom:'Frelon',fac:'frelons',hp:36,vit:9.2,degats:11,arme:'melee',portee:1.9,cad:0.9,score:75,cash:[8,16],xp:9,cout:13,armeM:'batte',
+  fre_batte:{nom:'Calavera',fac:'frelons',hp:36,vit:9.2,degats:11,arme:'melee',portee:1.9,cad:0.9,score:75,cash:[8,16],xp:9,cout:13,armeM:'batte',
     couleurs:{haut:0xe6a41f,bas:0x191c22,peau:0xb8865a,casq:0x191c22}},
-  fre_moto:{nom:'Frelon motard',fac:'frelons',moto:true,hp:42,vit:0,degats:7,arme:'pistolet',portee:23,cad:0.8,burst:2,acc:11,score:130,cash:[12,24],xp:14,cout:22,
+  fre_moto:{nom:'Calavera motard',fac:'frelons',moto:true,hp:42,vit:0,degats:7,arme:'pistolet',portee:23,cad:0.8,burst:2,acc:11,score:130,cash:[12,24],xp:14,cout:22,
     couleurs:{haut:0xe6a41f,bas:0x191c22,peau:0xb8865a,casq:0x30343d}},
   cop:{nom:'Policier',fac:'police',hp:34,vit:8.2,degats:6,arme:'pistolet',portee:24,cad:0.6,burst:2,acc:8,score:100,cash:[4,10],xp:10,cout:0,
     couleurs:{haut:0x2b4d86,bas:0x1b2436,peau:0xd9a066,casq:0x22304e}},
@@ -2369,23 +2376,23 @@ const ETYPES={
   heli:{nom:'Hélico "Rapace"',fac:'police',heli:true,hp:340,degats:8,score:900,cash:[60,110],xp:70,cout:0},
   cop_moto:{nom:'Motard de police',fac:'police',moto:true,motoKey:'motoS',hp:46,vit:0,degats:7,arme:'pistolet',portee:24,cad:0.7,burst:2,acc:10,score:180,cash:[8,14],xp:16,cout:0,
     couleurs:{haut:0x2b4d86,bas:0x1b2436,peau:0xd9a066,casq:0xe8ecf2}},
-  mur_batte:{nom:'Murène',fac:'murenes',hp:42,vit:8.4,degats:12,arme:'melee',portee:1.9,cad:0.95,score:85,cash:[9,18],xp:11,cout:14,armeM:'batte',
+  mur_batte:{nom:'Docker',fac:'murenes',hp:42,vit:8.4,degats:12,arme:'melee',portee:1.9,cad:0.95,score:85,cash:[9,18],xp:11,cout:14,armeM:'batte',
     couleurs:{haut:0x1f6a7a,bas:0x14202a,peau:0xb8865a,casq:0x0e3a46}},
-  mur_pompe:{nom:'Murène armée',fac:'murenes',hp:46,vit:7.4,degats:6,arme:'pompe',pellets:4,portee:15,cad:1.25,burst:1,acc:12,score:120,cash:[10,20],xp:14,cout:20,
+  mur_pompe:{nom:'Docker armé',fac:'murenes',hp:46,vit:7.4,degats:6,arme:'pompe',pellets:4,portee:15,cad:1.25,burst:1,acc:12,score:120,cash:[10,20],xp:14,cout:20,
     couleurs:{haut:0x1f6a7a,bas:0x1a262e,peau:0xc98d5e,casq:0x14202a}},
-  mur_nageur:{nom:'Murène nageuse',fac:'murenes',nage:true,hp:32,vit:8.8,degats:6,arme:'pistolet',portee:22,cad:0.65,burst:2,acc:10,score:110,cash:[9,18],xp:12,cout:15,
+  mur_nageur:{nom:'Docker nageur',fac:'murenes',nage:true,hp:32,vit:8.8,degats:6,arme:'pistolet',portee:22,cad:0.65,burst:2,acc:10,score:110,cash:[9,18],xp:12,cout:15,
     couleurs:{haut:0x2a8a9a,bas:0x14202a,peau:0xb8865a,casq:0x1f6a7a}},
-  chr_pm:{nom:'Sbire du Chrome',fac:'chrome',hp:58,vit:9.2,degats:7,arme:'pm',portee:26,cad:0.14,burst:4,acc:8,score:170,cash:[16,30],xp:18,cout:24,
+  chr_pm:{nom:'Sbire de la Brigada',fac:'chrome',hp:58,vit:9.2,degats:7,arme:'pm',portee:26,cad:0.14,burst:4,acc:8,score:170,cash:[16,30],xp:18,cout:24,
     couleurs:{haut:0xd8dce4,bas:0x23262e,peau:0xd9a066,casq:0x8a8f9a}},
-  chr_fusil:{nom:'Garde du Chrome',fac:'chrome',hp:72,vit:9.0,degats:9,arme:'fusil',portee:30,cad:0.17,burst:3,acc:6,score:240,cash:[20,36],xp:24,cout:32,esquive:true,
+  chr_fusil:{nom:'Garde de la Brigada',fac:'chrome',hp:72,vit:9.0,degats:9,arme:'fusil',portee:30,cad:0.17,burst:3,acc:6,score:240,cash:[20,36],xp:24,cout:32,esquive:true,
     couleurs:{haut:0xb8a86a,bas:0x1b1e26,peau:0xc98d5e,casq:0xd8b02a}},
-  chef_frelons:{nom:'DAX — CHEF DES FRELONS',fac:'frelons',boss:true,hp:620,vit:9.5,degats:8,arme:'pm',portee:24,cad:0.13,burst:6,acc:9,
+  chef_frelons:{nom:'EL DIABLO — CHEF DES CALAVERAS',fac:'frelons',boss:true,hp:620,vit:9.5,degats:8,arme:'pm',portee:24,cad:0.13,burst:6,acc:9,
     score:1600,cash:[240,330],xp:135,cout:0,taille:1.3,
     couleurs:{haut:0xe6a41f,bas:0x0e1014,peau:0xb8865a,casq:0x0e1014}},
-  chef_murenes:{nom:'SILAS — CHEF DES MURÈNES',fac:'murenes',boss:true,hp:820,vit:6.4,degats:9,arme:'pompe',pellets:6,portee:17,cad:1.6,burst:1,acc:11,
+  chef_murenes:{nom:'SILAS — CHEF DES DOCKSIDE BOYS',fac:'murenes',boss:true,hp:820,vit:6.4,degats:9,arme:'pompe',pellets:6,portee:17,cad:1.6,burst:1,acc:11,
     score:1700,cash:[260,350],xp:140,cout:0,taille:1.5,
     couleurs:{haut:0x0e3a46,bas:0x0a1218,peau:0xb8865a,casq:0x2a8a9a}},
-  chef_chrome:{nom:'CÉSAR — TÊTE DU SYNDICAT',fac:'chrome',boss:true,hp:700,vit:8.8,degats:10,arme:'fusil',portee:30,cad:0.15,burst:4,acc:5,esquive:true,
+  chef_chrome:{nom:'VOLKOV — TÊTE DE LA BRIGADA',fac:'chrome',boss:true,hp:700,vit:8.8,degats:10,arme:'fusil',portee:30,cad:0.15,burst:4,acc:5,esquive:true,
     score:1900,cash:[300,400],xp:150,cout:0,taille:1.32,
     couleurs:{haut:0xd8b02a,bas:0x14161c,peau:0xd9a066,casq:0xd8dce4}}
 };
@@ -2399,7 +2406,11 @@ const POOLS_GANG={
   chrome:['chr_pm','chr_pm','chr_fusil']
 };
 const CHEFS_GANG={viperes:'vip_chef',frelons:'chef_frelons',murenes:'chef_murenes',chrome:'chef_chrome'};
-const NOMS_GANG={viperes:'les Vipères',frelons:'les Frelons',murenes:'les Murènes',chrome:'le Syndicat Chrome'};
+// noms AFFICHÉS des gangs (les ids restent viperes / frelons / murenes / chrome) :
+// Sunset Vipers, Los Calaveras, Dockside Boys, Krasnaya Brigada
+const NOMS_GANG={viperes:'les Vipers',frelons:'les Calaveras',murenes:'les Dockside Boys',chrome:'la Brigada'};
+// forme « de » : « le chef des Vipers », « le chef de la Brigada »
+const NOMS_GANG_DE={viperes:'des Vipers',frelons:'des Calaveras',murenes:'des Dockside Boys',chrome:'de la Brigada'};
 const HOSTILITE={viperes:0,frelons:0,murenes:0,chrome:0};
 function rivaux(a,b){
   if(a===b) return false;
@@ -2659,7 +2670,7 @@ function texGraffiti(txt,coul){
   });
 }
 function texAffiche(){
-  const titres=[['SOLARA NIGHTS','#ff5ad0'],['GRAND DÉFI','#ffd23f'],['NÉON FESTIVAL','#35e0ff'],['CONCERT LIVE','#7dff7a'],['EXPO MOTEURS','#ff9f2e']];
+  const titres=[['REYES NIGHTS','#ff5ad0'],['GRAND DÉFI','#ffd23f'],['NÉON FESTIVAL','#35e0ff'],['CONCERT LIVE','#7dff7a'],['EXPO MOTEURS','#ff9f2e']];
   const t=pick(titres);
   return cTex(128,(g,s)=>{
     g.fillStyle='#e8e4d2'; g.fillRect(0,0,s,s);
@@ -2694,7 +2705,7 @@ function spriteBlob(sc){
 }
 
 /* =====================================================================
-   VILLE DE SOLARA — génération procédurale par quartiers
+   VILLE DE LOS REYES — génération procédurale par quartiers
 ===================================================================== */
 const CELL=42, ROADW=13, NB=14, HALF=NB*CELL/2, INNER=CELL-ROADW;
 const MER=HALF-8; // la mer commence derrière la plage
@@ -3351,7 +3362,7 @@ function mkEnceinte(){
       const p=mkBox(2,4.4,2,mat(0x3a3d44),vert?c.x:c.x+k,2.2,vert?c.z+k:c.z);
     }
   }
-  mkEnseigne('SOLARA','#35e0ff',0,5.6,-HALF-13.2,0,14);
+  mkEnseigne('LOS REYES','#35e0ff',0,5.6,-HALF-13.2,0,14);
   mkEnseigne('AÉROPORT →','#ffd23f',HALF-2,4.2,-42,Math.PI/2,10);
   mkBox(2.2,5,2.2,mat(0x3a3d44),HALF+14,2.5,pG-1);
   mkBox(2.2,5,2.2,mat(0x3a3d44),HALF+14,2.5,pD+1);
@@ -3527,7 +3538,7 @@ function mkIleCanard(){
   ile.position.set(ix,0.02,iz); scene.add(ile);
   mkPalmier(ix-7,iz-4); mkPalmier(ix+6,iz+5); mkPalmier(ix-3,iz+7);
   mkParasol(ix+5,iz-5);
-  // LE CANARD GÉANT DE SOLARA
+  // LE CANARD GÉANT DE LOS REYES
   const c=new THREE.Group();
   const jaune=mat(0xffd23f);
   const corps=new THREE.Mesh(new THREE.SphereGeometry(2.4,12,10),jaune);
@@ -4327,13 +4338,13 @@ function placerPortes(){
     poser('banque',POIS.commissariat.x+CELL,POIS.commissariat.z,'BANQUE',0x35e0ff,'commissariat');
     poser('poste',POIS.commissariat.x,POIS.commissariat.z+9,'COMMISSARIAT',0x4a9aff,'commissariat');
   }
-  if(POIS.toitH) poser('tour',POIS.toitH.x,POIS.toitH.z+11,'TOUR SOLARA',0x35e0ff,'toitH');
+  if(POIS.toitH) poser('tour',POIS.toitH.x,POIS.toitH.z+11,'TOUR LOS REYES',0x35e0ff,'toitH');
   if(POIS.armurerie) poser('armurerie',POIS.armurerie.x,POIS.armurerie.z,'ARMURERIE',0xff3b5c,'armurerie');
   // pharmacie : dans le quartier résidentiel ou commerçant, loin du centre
   const cibPharma=POIS.superette?{x:POIS.superette.x+CELL*1.5,z:POIS.superette.z}
                  :(POIS.parc?{x:POIS.parc.x+CELL,z:POIS.parc.z+CELL}:null);
   if(cibPharma) poser('pharma',cibPharma.x,cibPharma.z,'PHARMACIE',0x7dff7a,POIS.superette?'superette':'parc');
-  if(POIS.garage) poser('conces',POIS.garage.x+CELL,POIS.garage.z,'SOLARA MOTORS',0xffd23f,'garage');
+  if(POIS.garage) poser('conces',POIS.garage.x+CELL,POIS.garage.z,'REYES MOTORS',0xffd23f,'garage');
   if(POIS.club) poser('casino',POIS.club.x+CELL*1.4,POIS.club.z,'CASINO',0xffd23f,'club');
   if(POIS.villas) poser('planque',POIS.villas.x,POIS.villas.z+10,'VILLA À VENDRE',0x7dff7a,'villas');
   /* ---- LIEUX SPÉCIAUX (lot 1) ----
@@ -4365,7 +4376,7 @@ function placerPortes(){
   const cSan=caseCentre(9,13);   // front de mer : la baraque de la promenade
   poser('sandwich',cSan.x,cSan.z,'LE ROI DES SANDWICHS',0xffd23f);
   const cMus=caseCentre(3,5);    // centre-ville : le musée, ouvert dès le début de partie
-  poser('musee',cMus.x,cMus.z,'MUSÉE DE SOLARA',0xffd23f);
+  poser('musee',cMus.x,cMus.z,'MUSÉE DE LOS REYES',0xffd23f);
   const cArc=caseCentre(6,10);   // quartier néon : le palais de l'arcade, ouvert dès le début
   poser('arcade',cArc.x,cArc.z,'PALAIS DE L\'ARCADE',0xff5ec4);
   const cCine=caseCentre(11,5);  // quartier commerçant : le vieux palace de cinéma, ouvert dès le début
@@ -4391,20 +4402,20 @@ function placerPortes(){
   // le même quartier résidentiel délabré mais à un coin de rue dégagé, à
   // l'écart de toute autre case spéciale.
   const cMetro=caseCentre(4,10); // résidentiel délabré : une bouche de métro condamnée, ouverte dès le début
-  poser('metro',cMetro.x,cMetro.z,'MÉTRO — STATION SOLARA',0x7a8a99);
-  // Radio pirate Solara FM : verrouillée sans La Disque de Platine, déjà
+  poser('metro',cMetro.x,cMetro.z,'MÉTRO — STATION LOS REYES',0x7a8a99);
+  // Radio pirate Reyes FM : verrouillée sans La Disque de Platine, déjà
   // acquis dans une partie précédente (les curiosités vivent dans META,
   // persistantes entre parties). Sans lui, ni case, ni porte, ni REPLIS :
   // la salle n'existe nulle part cette partie-ci — seule une prochaine
   // partie, une fois la curiosité en poche, la fera apparaître.
   if(aCurio('platine')){
     const cRadio=caseCentre(8,6); // quartier industriel : un entrepôt discret
-    poser('radio',cRadio.x,cRadio.z,'SOLARA FM',0xb48bff);
+    poser('radio',cRadio.x,cRadio.z,'REYES FM',0xb48bff);
   }
   // Bug déjà rencontré : la porte du chalutier visait une case du quartier
   // « port », qui n'est en réalité qu'un quartier d'entrepôts sans façade sur
   // la vraie mer — placeLibrePorte() la repoussait en pleine ville, contre le
-  // premier bâtiment venu (le dock des Frelons, ou un autre selon les runs).
+  // premier bâtiment venu (le dock des Calaveras, ou un autre selon les runs).
   // Le chalutier est désormais construit directement sur un ponton, en bord
   // de mer, dans remplirBloc() (voir qq==='plage', bx===10) : sa porte existe
   // donc déjà à ce stade, sans passer par poser()/placeLibrePorte.
@@ -4440,15 +4451,15 @@ function placerPortes(){
     ['karaoke','KARAOKÉ',0xffd23f],['aquarium','AQUARIUM',0x35e0ff],
     ['bowling','STRIKE DORÉ',0xffd23f],['sport','FER & SUEUR',0xff5a6a],
     ['serre','SERRE',0x7dff7a],['sandwich','LE ROI DES SANDWICHS',0xffd23f],
-    ['musee','MUSÉE DE SOLARA',0xffd23f],['arcade','PALAIS DE L\'ARCADE',0xff5ec4],
-    ['cine','CINÉ-PALACE',0xe8503f],['metro','MÉTRO — STATION SOLARA',0x7a8a99],
+    ['musee','MUSÉE DE LOS REYES',0xffd23f],['arcade','PALAIS DE L\'ARCADE',0xff5ec4],
+    ['cine','CINÉ-PALACE',0xe8503f],['metro','MÉTRO — STATION LOS REYES',0x7a8a99],
     ['site51','?',0x6de89a],['depot','LE DÉPÔT — COURSES CLANDESTINES',0xff8c1a]
     // 'chalutier' n'est volontairement pas dans ce filet de repli : sa porte
     // est construite directement sur son ponton (voir remplirBloc, plage,
     // bx===10) et existe donc toujours ; le filet de repli ignore de toute
     // façon la rangée de la mer (bz>MER-CELL), il ne pourrait rien pour elle.
   ];
-  if(aCurio('platine')) REPLIS.push(['radio','SOLARA FM',0xb48bff]);
+  if(aCurio('platine')) REPLIS.push(['radio','REYES FM',0xb48bff]);
   // garages tuning : une entrée PAR garage (4e élément = garageId) — ils
   // partagent l'identifiant de salle 'tuning', la présence se vérifie donc
   // garage par garage, jamais par le seul identifiant de salle.
@@ -4657,14 +4668,14 @@ function remplirBloc(qq,bx,bz,cx,cz){
     POIS.garage={x:cx,z:cz+9};
     return;
   }
-  if(bx===7&&bz===8){ // QG des Vipères
+  if(bx===7&&bz===8){ // QG des Vipers
     mkBatiment(cx,cz,20,15,8,paletteFacades.industriel[1]);
     mkEnseigne('SERPENTERIE','#2fae4f',cx,6.4,cz+7.95,0,11);
     POIS.qgViperes={x:cx,z:cz};
     mkCaisse(cx-12,cz+9); mkCaisse(cx+12,cz+9); mkCaisse(cx+12,cz-9);
     return;
   }
-  if(bx===11&&bz===8){ // dock des Frelons
+  if(bx===11&&bz===8){ // dock des Calaveras
     if(!POIS.port) POIS.port={x:cx,z:cz};
     mkConteneur(cx-6,cz-6,0,'#e6a41f'); mkConteneur(cx+5,cz-6,0,'#8a5a1f'); mkConteneur(cx+5,cz+5,Math.PI/2,'#e6a41f');
     mkBatiment(cx-6,cz+6,10,8,5,paletteFacades.port[0]);
@@ -4682,7 +4693,7 @@ function remplirBloc(qq,bx,bz,cx,cz){
     const mS=mkBoxG(0.08,3.4,0.08,0x8a8f9a,cx-INNER/2+2,1.7,cz); scene.add(mS);
     const manche=new THREE.Mesh(new THREE.ConeGeometry(0.32,1.6,10),mat(0xff7a3a));
     manche.rotation.z=Math.PI/2; manche.position.set(cx-INNER/2+2.9,3.3,cz); scene.add(manche);
-    mkEnseigne('AÉRO-CLUB DE SOLARA','#f2c94c',cx,3.4,cz-(INNER-3)/2+1.5,0,11);
+    mkEnseigne('AÉRO-CLUB DE LOS REYES','#f2c94c',cx,3.4,cz-(INNER-3)/2+1.5,0,11);
     // Hangar : repère visuel identifiable depuis le sol, à côté de la piste.
     const hgX=cx+9, hgZ=cz-8;
     mkBatiment(hgX,hgZ,11,9,6.5,mat(0x5a6674));
@@ -4711,7 +4722,7 @@ function remplirBloc(qq,bx,bz,cx,cz){
     // l'aéro-club, resté à l'entrée de la piste) — même orientation que le
     // panneau général (rotation 0) pour rester lisible de face en
     // approchant depuis la ville, pas vu de tranche.
-    mkEnseigne('AÉRO-CLUB DE SOLARA — VOLTIGE','#ff3b3b',avX-7,3.2,avZ+3,0,9);
+    mkEnseigne('AÉRO-CLUB DE LOS REYES — VOLTIGE','#ff3b3b',avX-7,3.2,avZ+3,0,9);
     // Manche à air dédiée, juste à côté de l'avion (animée, voir POIS.
     // mancheVoltige — balancée comme un drapeau au vent, même mécanique
     // que POIS.drapeau).
@@ -4733,7 +4744,7 @@ function remplirBloc(qq,bx,bz,cx,cz){
     d.position.set(cx,0.07,cz); scene.add(d);
     for(let i=0;i<8;i++) mkCaisse(cx+rand(-14,14),cz+rand(-14,14));
     // ironie assumée : la pancarte pointe droit sur l'accès, voir CLAUDE.md
-    mkEnseigne('DÉPÔT MUNICIPAL — PROPRIÉTÉ DE LA VILLE DE SOLARA. Accès interdit. ↓','#c8c4a8',cx,3.2,cz-15.4,0,15);
+    mkEnseigne('DÉPÔT MUNICIPAL — PROPRIÉTÉ DE LA VILLE DE LOS REYES. Accès interdit. ↓','#c8c4a8',cx,3.2,cz-15.4,0,15);
     const texGrillage=cTex(64,(ctx,s)=>{
       ctx.strokeStyle='rgba(190,196,204,0.6)'; ctx.lineWidth=1.4;
       for(let i=-s;i<s*2;i+=9){
@@ -4824,7 +4835,7 @@ function remplirBloc(qq,bx,bz,cx,cz){
     const bw=rand(18,24),bd=rand(12,16),bh=rand(6,9),bcx=cx+rand(-2,2),bcz=cz+rand(-2,2);
     pick([mkBatiment,mkEntrepot,mkEntrepot])(bcx,bcz,bw,bd,bh,pick(paletteFacades.industriel));
     if(Math.random()<0.45){
-      const tag=pick([['VIP3R','#2fae4f'],['ZZZT','#ff5ad0'],['SOLARA','#35e0ff'],['R9','#e6a41f'],['KAA','#7dff7a']]);
+      const tag=pick([['VIP3R','#2fae4f'],['ZZZT','#ff5ad0'],['REYES','#35e0ff'],['R9','#e6a41f'],['KAA','#7dff7a']]);
       const gr=new THREE.Mesh(new THREE.PlaneGeometry(5,2.5),new THREE.MeshLambertMaterial({map:texGraffiti(tag[0],tag[1]),transparent:true}));
       gr.position.set(bcx+rand(-bw/4,bw/4),1.7,bcz+bd/2+0.05); scene.add(gr);
     }
@@ -5697,14 +5708,14 @@ function makeVoiture(key){
       toitBus.rotation.x=Math.PI/2; toitBus.position.set(0,toitY,0); corps.add(toitBus);
       // trappes d'aération sur le toit
       for(let k=0;k<2;k++) corps.add(mkBoxG(0.44,0.1,0.36,0x2a2d34,0,toitY+toitR+0.05,-L*0.16+k*L*0.32));
-      corps.add(mkBoxG(W*1.02,0.12,L*0.9,0x35e0ff,0,busBottom+0.14,0));  // liseré bleu Solara
+      corps.add(mkBoxG(W*1.02,0.12,L*0.9,0x35e0ff,0,busBottom+0.14,0));  // liseré bleu de Los Reyes
       corps.add(mkBoxG(W*1.02,0.12,L*0.86,0xffd23f,0,busBottom+0.32,0)); // liseré or
       const ligne=pick([4,7,9,12,21]);
       const pLigne=new THREE.Mesh(new THREE.PlaneGeometry(0.9,0.9),
         new THREE.MeshBasicMaterial({map:texEnseigne(String(ligne),'#ffd23f'),transparent:false}));
       pLigne.position.set(-W*0.32,glassY,L/2*0.94+0.03); corps.add(pLigne);
       const pGir=new THREE.Mesh(new THREE.PlaneGeometry(1.7,0.42),
-        new THREE.MeshBasicMaterial({map:texEnseigne('SOLARA','#ffffff'),transparent:false}));
+        new THREE.MeshBasicMaterial({map:texEnseigne('LOS REYES','#ffffff'),transparent:false}));
       pGir.position.set(0.15,glassY,L/2*0.94+0.03); corps.add(pGir);
     }
     if(def.police){
@@ -6070,7 +6081,7 @@ function majMeteo(dt){
   METEO.t-=dt;
   if(METEO.t<=0){
     if(METEO.etat==='sec'){ METEO.etat='pluie'; METEO.t=rand(38,65);
-      toast('☔ La pluie s\u2019abat sur Solara — chaussée glissante','warn'); }
+      toast('☔ La pluie s\u2019abat sur Los Reyes — chaussée glissante','warn'); }
     else { METEO.etat='sec'; METEO.t=rand(70,130); }
   }
   METEO.inten=lerp(METEO.inten,METEO.etat==='pluie'?1:0,0.35*dt);
@@ -6408,7 +6419,7 @@ function changerArme(){
   SFX.ui();
 }
 function soigner(n){
-  if(aCurio('fleur')) n*=1.35;          // L'Étoile de Solara
+  if(aCurio('fleur')) n*=1.35;          // L'Étoile de Los Reyes
   P.hp=Math.min(P.maxHp,P.hp+n);
   spawnTexte(P.x,2.6,P.z,'+'+Math.round(n)+' PV','#58ff7a');
 }
@@ -9376,7 +9387,7 @@ function tuerEnnemi(e,parJoueur){
     if(ETAT.combo!==avant&&[5,10,15,20].includes(ETAT.combo)){
       bigMsg('COMBO ×'+ETAT.combo+' !'); SFX.etoile();
     }
-    // La Bobine « ASPHALTE I » : effet cinéma — bref ralenti à chaque
+    // La Bobine « GTRoyal I » : effet cinéma — bref ralenti à chaque
     // élimination qui PROLONGE un combo déjà actif (jamais la toute
     // première, qui ne fait que le démarrer). Recalé, jamais cumulé, sur
     // des éliminations rapprochées : on réécrit slowT, on ne l'additionne
@@ -9575,7 +9586,7 @@ function majEnnemis(dt){
           }
         } else if(e.chargeEtat===null&&e.chargeT<=0&&d<14){ e.chargeEtat='tele'; e.chargeT=0.9; }
       } else if(e.fac==='frelons'){
-        // Dax : rafale en éventail — plusieurs projectiles d'un coup, sur le
+        // El Diablo : rafale en éventail — plusieurs projectiles d'un coup, sur le
         // même PM que ses hommes, au lieu d'une frappe corps à corps.
         if(e.chargeEtat==='tele'){
           if(Math.random()<0.6) spawnP(e.x+rand(-0.6,0.6),1.2,e.z+rand(-0.6,0.6),0,1.2,0,0.2,0.5,0xe6a41f,0);
@@ -9590,7 +9601,7 @@ function majEnnemis(dt){
           }
         } else if(e.chargeEtat===null&&e.chargeT<=0&&d<24&&ligneLibre(e.x,e.z,tx,tz)){ e.chargeEtat='tele'; e.chargeT=0.6; }
       } else if(e.fac==='chrome'){
-        // César : tir chargé unique et lourd, longue portée — profil sniper,
+        // Volkov : tir chargé unique et lourd, longue portée — profil sniper,
         // ne charge jamais au corps à corps (def.esquive s'occupe déjà de le
         // faire reculer périodiquement, voir plus bas).
         if(e.chargeEtat==='tele'){
@@ -9602,7 +9613,7 @@ function majEnnemis(dt){
           }
         } else if(e.chargeEtat===null&&e.chargeT<=0&&d<40&&ligneLibre(e.x,e.z,tx,tz)){ e.chargeEtat='tele'; e.chargeT=1.2; }
       } else {
-        // Kaa (Vipères) et repli par défaut : charge-dash d'origine, inchangée.
+        // Kaa (Vipers) et repli par défaut : charge-dash d'origine, inchangée.
         if(e.chargeEtat==='tele'){
           if(Math.random()<0.5) spawnP(e.x+rand(-1,1),0.5,e.z+rand(-1,1),0,2,0,0.3,0.6,0xff3b5c,0);
           if(e.chargeT<=0){ e.chargeEtat='dash'; e.chargeT=0.8;
@@ -10274,7 +10285,7 @@ function majEvenements(dt){
     const k=randi(1,NB-1), r2=-HALF+k*CELL;
     const v=creerVehicule('milit',r2+3.2,clamp(P.z-70,-HALF+10,HALF-CELL),0,'trafic');
     v.axe='z'; v.lane=r2+3.2; v.convoi=true;
-    toast('Un convoi militaire traverse Solara','warn');
+    toast('Un convoi militaire traverse Los Reyes','warn');
   } else if(r<0.68){ // marchand clandestin (prix -25 %)
     const p=spawnRing(18,30);
     const g=new THREE.Group();
@@ -10292,7 +10303,7 @@ function majEvenements(dt){
       const p=spawnRing(34,48);
       const c=creerEnnemi(CHEFS_GANG[g],p.x,p.z,false);
       if(c){ c.hp=c.hpMax*0.65; c.libre=true;
-        toast('Le chef de '+NOMS_GANG[g]+' se balade dans le coin...','warn'); }
+        toast('Le chef '+NOMS_GANG_DE[g]+' se balade dans le coin...','warn'); }
     } else EVT.t=15;
   } else { // ÉVÉNEMENTS EN MER
     const rm=Math.random();
@@ -10309,13 +10320,13 @@ function majEvenements(dt){
         v.conduit='iaCourse'; v.crVit=rand(23,29);
       }
       toast('Des jet-skis font la course le long de la plage !');
-    } else { // contrebande des Murènes
+    } else { // contrebande des Dockside Boys
       const dir=Math.random()<0.5?1:-1;
       const v=creerVehicule('bateau',-dir*(HALF+22),MER+rand(18,32),dir>0?Math.PI/2:-Math.PI/2);
       v.conduit='iaCourse'; v.crVit=13; v.contreb=true;
       EVT.cible=v;  // repérable sur la carte et guidé par la flèche
       v.mesh.traverse(o=>{if(o.material&&o.material.color&&!o.material.map)o.material=new THREE.MeshLambertMaterial({color:0x1f6a7a});});
-      toast('Contrebande des Murènes — suis la flèche et coule le bateau !','warn');
+      toast('Contrebande des Dockside Boys — suis la flèche et coule le bateau !','warn');
     }
   }
 }
@@ -10450,12 +10461,12 @@ function lancerVague(){
     const t=pick(POOLS_GANG[g2]);
     WAVES.queue.push(t); budget-=ETYPES[t].cout;
   }
-  if(rival) toast(NOMS_GANG[rival]+' débarquent aussi — laisse-les s\u2019entretuer','warn');
+  if(rival) toast(NOMS_GANG[rival].charAt(0).toUpperCase()+NOMS_GANG[rival].slice(1)+(rival==='chrome'?' débarque':' débarquent')+' aussi — laisse-les s\u2019entretuer','warn');
   if(WAVES.n%5===0){
     const chef=CHEFS_GANG[gang];
     WAVES.queue.push(chef);
     if(gang==='frelons'){WAVES.queue.push('fre_moto');WAVES.queue.push('fre_moto');}
-    toast('Le chef de '+NOMS_GANG[gang]+' entre en scène','warn');
+    toast('Le chef '+NOMS_GANG_DE[gang]+' entre en scène','warn');
   }
   META.stats.vagues++;
   if(META.planque){
@@ -12280,18 +12291,18 @@ const INTDEFS={
     ens:['SUPÉRETTE','#ffd23f']},
   club:{nom:'Club Néon',ico:'🎧',w:26,d:20,sol:0x241d33,mur:0x3a2f52,
     ens:['CLUB NÉON','#ff5ad0']},
-  banque:{nom:'Banque de Solara',ico:'🏦',w:28,d:22,sol:0x8a8676,mur:0xd0cbb4,
+  banque:{nom:'Banque de Los Reyes',ico:'🏦',w:28,d:22,sol:0x8a8676,mur:0xd0cbb4,
     ens:['BANQUE','#35e0ff']},
   poste:{nom:'Commissariat',ico:'🚔',w:26,d:22,sol:0x4e5560,mur:0x6a7280,
     ens:['POLICE','#4a9aff']},
-  tour:{nom:'Tour Solara',ico:'🛗',w:22,d:18,sol:0x2a2e38,mur:0x3e4552,
-    ens:['TOUR SOLARA','#35e0ff']},
+  tour:{nom:'Tour Los Reyes',ico:'🛗',w:22,d:18,sol:0x2a2e38,mur:0x3e4552,
+    ens:['TOUR LOS REYES','#35e0ff']},
   pharma:{nom:'Pharmacie',ico:'💊',w:20,d:16,sol:0xd8dce4,mur:0xe8ecf2,
     ens:['PHARMACIE','#7dff7a']},
   armurerie:{nom:'Armurerie du Port',ico:'🔫',w:24,d:18,sol:0x4a443a,mur:0x6a6252,
     ens:['ARMURERIE','#ff3b5c']},
   conces:{nom:'Concessionnaire',ico:'🚗',w:30,d:24,sol:0x9aa0aa,mur:0xc8cdd4,
-    ens:['SOLARA MOTORS','#ffd23f']},
+    ens:['REYES MOTORS','#ffd23f']},
   // Agrandie (26×20 → 44×38) pour loger le tableau de la ville, le mur de
   // trophées, la penderie et la piscine sans jamais rapprocher deux zones
   // d'interaction à moins de 8 unités — voir CLAUDE.md / le bug déjà
@@ -12299,7 +12310,7 @@ const INTDEFS={
   // de l'autre, se marchaient dessus.
   planque:{nom:'Villa planque',ico:'🏡',w:44,d:38,sol:0x8a7a5e,mur:0xd8ccb0,
     ens:['TA PLANQUE','#7dff7a']},
-  casino:{nom:'Casino Solara',ico:'🎰',w:30,d:24,sol:0x5a1f2a,mur:0x2a1420,
+  casino:{nom:'Casino Los Reyes',ico:'🎰',w:30,d:24,sol:0x5a1f2a,mur:0x2a1420,
     ens:['CASINO','#ffd23f']},
   /* ---- lieux spéciaux (lot 1) ---- */
   laverie:{nom:'Laverie « Bulle Bleue »',ico:'🧺',w:22,d:16,sol:0x8e9aa2,mur:0xbcdfe8,
@@ -12320,8 +12331,8 @@ const INTDEFS={
   sandwich:{nom:'Le Roi des Sandwichs',ico:'🥪',w:20,d:16,sol:0x8a6a44,mur:0xd8b06a,
     ens:['LE ROI DES SANDWICHS','#ffd23f']},
   /* ---- lieu spécial (lot 3) : première salle à mécanique de furtivité ---- */
-  musee:{nom:'Musée Mémoire de Solara',ico:'🏛️',w:18,d:40,sol:0xd8d0bc,mur:0xe8e2d0,
-    ens:['MUSÉE DE SOLARA','#ffd23f']},
+  musee:{nom:'Musée Mémoire de Los Reyes',ico:'🏛️',w:18,d:40,sol:0xd8d0bc,mur:0xe8e2d0,
+    ens:['MUSÉE DE LOS REYES','#ffd23f']},
   /* ---- lieu spécial (lot 4) : première salle où l'on reste, pas où l'on accomplit une tâche ---- */
   arcade:{nom:'Palais de l\'Arcade',ico:'🕹️',w:46,d:22,sol:0x1c1830,mur:0x2a2040,
     ens:['PALAIS DE L\'ARCADE','#ff5ec4']},
@@ -12334,11 +12345,11 @@ const INTDEFS={
      (comme les 3 halls du musée) séparés par des passages étroits, de plus
      en plus profonds et de plus en plus sombres. */
   metro:{nom:'Métro abandonné',ico:'🚇',w:30,d:90,sol:0x0d0e10,mur:0x1b1d24,
-    ens:['STATION SOLARA','#7a8a99']},
+    ens:['STATION LOS REYES','#7a8a99']},
   /* ---- lieu spécial (lot 7) : verrouillé sans aCurio('platine') — voir
      placerPortes(). Studio clandestin dans un entrepôt du quartier industriel. */
-  radio:{nom:'Radio pirate Solara FM',ico:'📻',w:24,d:26,sol:0x2a2430,mur:0x241f2c,
-    ens:['SOLARA FM','#b48bff']},
+  radio:{nom:'Radio pirate Reyes FM',ico:'📻',w:24,d:26,sol:0x2a2430,mur:0x241f2c,
+    ens:['REYES FM','#b48bff']},
   /* ---- lieu spécial (lot 8) : LE CHALUTIER « SAINTE-ODILE » — la seule
      salle qui sort de la ville. Le pont reste un petit espace fixe (le
      joueur y marche normalement) ; c'est la MER autour, et la position
@@ -12762,7 +12773,7 @@ function construireSalle(id){
     // comptoir de vente
     box(10,1.2,1.6,0xd8dce4,0,0.6,P2/2-5);
     box(2,0.5,1,0x35e0ff,0,1.4,P2/2-5,false);
-    mkEnseigne('SOLARA MOTORS','#ffd23f',ox,3.4,oz+P2/2-5.9,0,12);
+    mkEnseigne('REYES MOTORS','#ffd23f',ox,3.4,oz+P2/2-5.9,0,12);
     pnj(2.6,P2/2-6.4,{haut:0x27394a,bas:0x1c2030,peau:pick(civPeau),casq:0x2a2018,visage:'cool'},'caisse');
     inter.vente={x:ox,z:oz+P2/2-6.4};
     lampe(-8,-3,0xffffff,10); lampe(8,-3,0xffffff,10); lampe(0,4,0xffffff,10);
@@ -12857,7 +12868,7 @@ function construireSalle(id){
         g2.beginPath(); g2.moveTo(0,i*s2/7); g2.lineTo(s2,i*s2/7); g2.stroke();
       }
       g2.fillStyle='#c8b888'; g2.font='900 20px Arial'; g2.textAlign='center';
-      g2.fillText('SOLARA CITY',s2/2,26);
+      g2.fillText('LOS REYES',s2/2,26);
     });
     box(9.8,6.7,0.2,0x2c2013,0,2.6,-P2/2+1.3,false);
     const planTab=new THREE.Mesh(new THREE.PlaneGeometry(9,6),new THREE.MeshBasicMaterial({map:texTableau}));
@@ -13080,7 +13091,7 @@ function construireSalle(id){
   /* ================= LAVERIE « BULLE BLEUE » =================
      But : lancer la machine 7 et attendre la fin du cycle pour récupérer le
      sac de billets. Au fond, trois machines marquées d'une étiquette verte
-     appartiennent aux Vipères — les ouvrir, c'est chercher les ennuis.
+     appartiennent aux Vipers — les ouvrir, c'est chercher les ennuis.
      Curiosité : la Chaussette Solitaire, dans le filtre à peluches, qui
      n'existe qu'une fois un cycle terminé. */
   else if(id==='laverie'){
@@ -13113,7 +13124,7 @@ function construireSalle(id){
       fouillable(8.2,mz,'Sécheuse n°'+(k+1),'pauvre',null,2.6);
     }
     mkEnseigne('SÉCHAGE','#ffc46a',ox+9.4,3.2,oz-7.2,0,7);
-    // === machines du fond : celles des Vipères (étiquette verte) ===
+    // === machines du fond : celles des Vipers (étiquette verte) ===
     inter.machinesFond=[];
     for(let k=0;k<3;k++){
       const mx=-3.6+k*3.6;
@@ -13548,7 +13559,7 @@ function construireSalle(id){
   /* ================= SERRE DU JARDIN BOTANIQUE =================
      But : cueillir les trois bonnes plantes. L'énigme change à chaque vague
      et se lit dans la salle : à l'ombre, près du bassin, ou en hauteur.
-     Trois bonnes du premier coup = l'Étoile de Solara. */
+     Trois bonnes du premier coup = l'Étoile de Los Reyes. */
   else if(id==='serre'){
     // dallage de terre battue
     for(let i=-4;i<4;i++) for(let j=-3;j<3;j++){
@@ -13721,7 +13732,7 @@ function construireSalle(id){
     pnj(6.5,4.8,{haut:pick(civHaut),bas:pick(civBas),peau:pick(civPeau),casq:0x2a2018,visage:'neutre'});
     lampe(0,-4,0xffe0a0,9); lampe(0,3,0xffe0a0,9); lampe(-7,-6,0xffd23f,6);
   }
-  /* ================= MUSÉE MÉMOIRE DE SOLARA =================
+  /* ================= MUSÉE MÉMOIRE DE LOS REYES =================
      Première salle à mécanique de furtivité. Gardiens et caméras patrouillent
      en continu dès qu'on entre, courant coupé ou pas : c'est le moment
      d'observer leurs trajets. Leur position est une fonction PURE de
@@ -13775,7 +13786,7 @@ function construireSalle(id){
     };
     // ---- HALL 1 : ORIGINES ----
     vitrine(-8,16,0x8a8a94,'box');
-    cartel(-8,16,'PAVÉ N°1','Premier pavé posé lors de la fondation de Solara. Les 40 000 suivants ont été posés par des gens dont on n’a pas retenu le nom.');
+    cartel(-8,16,'PAVÉ N°1','Premier pavé posé lors de la fondation de Los Reyes. Les 40 000 suivants ont été posés par des gens dont on n’a pas retenu le nom.');
     { const vc=vitrine(8,12,0xff8a2e,'box'); cordon(8,12);
       if(META.museeArtefacts.cone) vc.piece.visible=false;
       inter.vitrinesValeur.push({cle:'cone',x:ox+8,z:oz+12,gain:200,nom:'Le Cône',mesh:vc.piece}); }
@@ -13815,8 +13826,8 @@ function construireSalle(id){
     // ---- HALL 3 : TRÉSOR ----
     { const vc=vitrine(-8,-10,0x8a5a3a,'sphere'); cordon(-8,-10);
       if(META.museeArtefacts.meteorite) vc.piece.visible=false;
-      inter.vitrinesValeur.push({cle:'meteorite',x:ox-8,z:oz-10,gain:500,nom:'Météorite de Solara',mesh:vc.piece}); }
-    mkEnseigne('MÉTÉORITE DE SOLARA','#8a5a3a',ox-8,1.7,oz-10.9,0,10);
+      inter.vitrinesValeur.push({cle:'meteorite',x:ox-8,z:oz-10,gain:500,nom:'Météorite de Los Reyes',mesh:vc.piece}); }
+    mkEnseigne('MÉTÉORITE DE LOS REYES','#8a5a3a',ox-8,1.7,oz-10.9,0,10);
     vitrine(8,-10,0xe8ecf2,'box');
     cartel(8,-10,'PORTRAIT DU MAIRE','Portrait officiel. Le maire n’a pas souhaité poser. Peint de mémoire.');
     // socle central du Canard d'Or
@@ -13982,7 +13993,7 @@ function construireSalle(id){
       inter.cartels.push({x:ox+x,z:oz+z,titre,texte});
     };
     box(0.15,2.2,1.6,0x1c0c10,-11.5,1.3,13.5,false);
-    cartel(-11.3,13.5,'« ASPHALTE I »','Le film qui a tout changé. Personne ne l’a vu.');
+    cartel(-11.3,13.5,'« GTRoyal I »','Le film qui a tout changé. Personne ne l’a vu.');
     box(0.15,2.2,1.6,0x1c0c10,-11.5,1.3,10.5,false);
     cartel(-11.3,10.5,'« LA LAVERIE »','Ils croyaient laver leur linge. Ils avaient tort.');
     box(0.15,2.2,1.6,0x1c0c10,-11.5,1.3,7.3,false);
@@ -14091,7 +14102,7 @@ function construireSalle(id){
     fouillable(0,26,'Banc défoncé','metro1',banc,2.8);
     mkEnseigne('BANC','#ffd23f',ox,1,oz+27.2,0,4);
     cartel(-13,39,'AFFICHE DÉCOLLÉE','« LIGNE 3 — SERVICE SUSPENDU. Reprise prévue en 1998. »');
-    cartel(13,39,'PLAN DU RÉSEAU','Chaque station du plan s’appelle SOLARA. Toutes. Même le centre-ville.');
+    cartel(13,39,'PLAN DU RÉSEAU','Chaque station du plan s’appelle LOS REYES. Toutes. Même le centre-ville.');
     inter.piles=[];
     const pile=(x,z)=>{
       const pm=new THREE.Group();
@@ -14118,8 +14129,8 @@ function construireSalle(id){
     mkEnseigne('GRILLE','#ffd23f',ox+9,1,oz-7.8,0,5);
     cartel(-8,-16,'PANNEAU','« Ne pas nourrir ce qui vit dans le tunnel. — La Direction »');
     cartel(8,-16,'PANNEAU','« Objets trouvés : niveau -3. Bonne chance. »');
-    cartel(-13,-1,'GRAFFITI','Un serpent tagué à la bombe verte. Les Vipères sont passées par là.');
-    cartel(-13,-4,'GRAFFITI','Un frelon jaune et noir, tagué par-dessus le serpent. Les Frelons ont eu le dernier mot.');
+    cartel(-13,-1,'GRAFFITI','Un serpent tagué à la bombe verte. Les Vipers sont passés par là.');
+    cartel(-13,-4,'GRAFFITI','Une tête de mort jaune et noire, taguée par-dessus le serpent. Les Calaveras ont eu le dernier mot.');
     cartel(-13,-7,'GRAFFITI','« VOS GRAFFITIS SONT LAIDS » — écrit par-dessus les deux, en lettres bien plus soignées.');
     pile(-9,-2); pile(9,-2);
     inter.dangers=[];
@@ -14161,7 +14172,7 @@ function construireSalle(id){
     inter.metroVagueRef=-1; inter.lampeEnMain=false;
     inter.beteAvert1=false; inter.beteAvert2=false;
   }
-  /* ---- lieu spécial (lot 7) : LA RADIO PIRATE SOLARA FM — verrouillée
+  /* ---- lieu spécial (lot 7) : LA RADIO PIRATE REYES FM — verrouillée
      sans aCurio('platine') (voir placerPortes). Studio clandestin dans un
      entrepôt : béton, murs gris-violet, néons rouges. Le minijeu se joue
      planté devant la console, aiguille pilotée au doigt (radioZone), pas
@@ -14263,7 +14274,7 @@ function construireSalle(id){
     merMesh.rotation.x=-Math.PI/2; merMesh.position.set(ox,-0.4,oz); g.add(merMesh);
     if(inter.dehors) inter.dehors.visible=false;
     inter.merMat=merMat;
-    // silhouette de Solara qui s'éloigne, côté sortie (le ponton est resté là-bas)
+    // silhouette de Los Reyes qui s'éloigne, côté sortie (le ponton est resté là-bas)
     // — matériaux DÉDIÉS (jamais mat(), partagé) : leur opacité est mutée
     // chaque frame selon la distance au ponton, un matériau en cache serait
     // altéré pour tout le reste de la scène.
@@ -14617,7 +14628,7 @@ function construireSalle(id){
     // ======== HUB : hangar d'accueil ========
     box(30,4.6,0.6,0x4a4a52,0,2.3,388,false); // porte roulante entrouverte (décor)
     ens('LE DÉPÔT','#ff8c1a',0,5.2,389,0,14);
-    ens('DÉPÔT MUNICIPAL — PROPRIÉTÉ DE LA VILLE DE SOLARA. Accès interdit. ↓','#c8c4a8',0,3.4,382,0,20);
+    ens('DÉPÔT MUNICIPAL — PROPRIÉTÉ DE LA VILLE DE LOS REYES. Accès interdit. ↓','#c8c4a8',0,3.4,382,0,20);
     ens('RÈGLEMENT : 1. Pas de règles. 2. Voir règle 1. 3. Ne pas se garer devant le hangar 4.','#c8c4a8',-40,2.6,355,Math.PI/2,16);
     const panneauBus=box(2,1.2,0.1,0x14161a,40,2.2,355,false);
     inter.panneauBusRecord=panneauBus;
@@ -15262,7 +15273,7 @@ function metroDangerToucher(s,d){
   SFX.degat(); secousse(5); vibre(70);
 }
 /* =====================================================================
-   RADIO PIRATE SOLARA FM — minijeu L'ÉMISSION : garder l'aiguille dans la
+   RADIO PIRATE REYES FM — minijeu L'ÉMISSION : garder l'aiguille dans la
    porteuse qui dérive, sur 3 segments de plus en plus difficiles. La
    triangulation et la dérive de la zone sont des compteurs subis par le
    joueur : tout passe par dtJeu, jamais par dt (voir boucle()).
@@ -15279,11 +15290,11 @@ const RADIO_SEGMENTS=[
 const RADIO_APPELS=[
   'Allô ? C’est pour signaler que mon voisin a garé un char devant chez moi.',
   'Vous pouvez passer une dédicace à Gaston ? Il s’est encore échappé.',
-  'Je suis coincé sur le toit de la Tour Solara depuis mardi. Sinon la vue est belle.',
+  'Je suis coincé sur le toit de la Tour Los Reyes depuis mardi. Sinon la vue est belle.',
   'Bonjour, je cherche une chaussette. Bleue. Enfin, elle était bleue.',
   'Est-ce qu’on peut arrêter les explosions ? J’essaie de faire dormir un bébé.',
   'Madame Zohra avait prédit que j’appellerais. Ça m’a beaucoup troublé.',
-  'Ouais salut, c’est les Vipères. Les Frelons sentent mauvais.',
+  'Ouais salut, c’est les Vipers. Les Calaveras sentent mauvais.',
   'Y’a un poulpe dans mon aquarium qui me regarde bizarrement.',
   'Je voulais commander un sandwich. Ah, c’est pas le bon numéro ? Bon.',
   'Franchement, la musique était mieux avant. Avant quoi ? Avant.',
@@ -15398,7 +15409,7 @@ const CHALUTIER_POISSONS={
   maquereau:{nom:'Maquereau',valeur:40,poids:4,combatDur:1},
   bar:{nom:'Bar',valeur:90,poids:7,combatDur:1.3},
   congre:{nom:'Congre',valeur:160,poids:11,combatDur:1.8,tensionEtroite:true},
-  thon:{nom:'Thon de Solara',valeur:350,poids:22,combatDur:2.4,tensionEtroite:true},
+  thon:{nom:'Thon de Los Reyes',valeur:350,poids:22,combatDur:2.4,tensionEtroite:true},
 };
 // filet : charge continue pendant que le filet traîne, risque de déchirure
 // au-delà de la zone rouge (tout est reparti à l'eau)
@@ -16731,7 +16742,7 @@ function nouvelleMission(){
   if(t==='purge'){
     MISSION.cur={type:'purge',n:4+WAVES.n,fait:0};
   } else if(t==='zone'){
-    const lieux=[['parc','le parc'],['port','le port des Frelons'],['garage','le garage'],['place','la place centrale'],
+    const lieux=[['parc','le parc'],['port','le port des Dockside Boys'],['garage','le garage'],['place','la place centrale'],
       ['plage','la plage'],['marina','la marina'],['chantier','le chantier'],['secret','la ruelle au magot']];
     const l=pick(lieux.filter(x=>POIS[x[0]]));
     MISSION.cur={type:'zone',poi:POIS[l[0]],lieu:l[1]};
@@ -18527,7 +18538,7 @@ function renderDefis(){
   h+='<div class="panneau"><h3>Exploration</h3><div class="ligneItem"><div class="ico">🗺️</div><div class="inf">'+
     '<div class="nom">Véhicules cachés découverts</div><div class="det">Ils scintillent discrètement quand tu approches — fouille les recoins, la mer et le ciel</div></div>'+
     '<span class="pill equip">'+Object.keys(META.decouverts).length+' / 7</span></div></div>'+
-    '<div class="panneau"><h3>Défis de Solara</h3>';
+    '<div class="panneau"><h3>Défis de Los Reyes</h3>';
   for(const d of DEFIS){
     const fait=!!META.defis.faits[d.id];
     const [v,mx]=d.prog(META);
@@ -18588,7 +18599,7 @@ const CURIO_SALLE={chaussette:'laverie',boule:'voyance',platine:'karaoke',perle:
 // ---------- Tableau de la ville (planque) : ce qu'il reste à découvrir ----------
 // Ne révèle jamais une position exacte (juste l'indice `ind` de CURIOS et le
 // quartier de la porte) ; les lieux à condition d'accès pas encore remplie
-// (Solara FM sans le Disque de Platine, Site 51 sous 25 fouilles) restent de
+// (Reyes FM sans le Disque de Platine, Site 51 sous 25 fouilles) restent de
 // simples zones d'ombre, sans nom ni indice.
 function renderTableau(){
   let h='<div class="panneau"><h3>Lieux et curiosités à découvrir</h3>';
@@ -19721,10 +19732,10 @@ function majAction(){
         const g2=randi(240,460);
         META.argent+=g2; ETAT.cashRun+=g2; META.stats.cashTotal+=g2;
         toast('De l\u2019argent bien plié, bien propre : +'+g2+' $','or'); SFX.achat();
-        // les Vipères n'apprécient pas du tout
+        // les Vipers n’apprécient pas du tout
         HOSTILITE.viperes=Math.min(6,HOSTILITE.viperes+2);
         s.alarmePool=['vip_batte','vip_pistol'];
-        declencherAlarme(s,'Les Vipères lavaient leur argent ici !');
+        declencherAlarme(s,'Les Vipers lavaient leur argent ici !');
         checkDefis(); sauveMeta();
       };
     /* ---------- MADAME ZOHRA ---------- */
@@ -20880,7 +20891,7 @@ function majMinimap(){
   for(const p of pickups) dot(p.x,p.z,'#58ff7a',1.8);
   if(META.monstertruckTrouve&&POIS.friche) dessinerBadge(mmCtx,PX(POIS.friche.x),PZ(POIS.friche.z),3.6,'#ff3b1a','🚛',6);
   if(META.jetpackTrouve&&POIS.toitH&&POIS.toitH.jetpack) dessinerBadge(mmCtx,PX(POIS.toitH.jetpack.x),PZ(POIS.toitH.jetpack.z),3.6,'#35c8ff','🚀',6);
-  // Le Micro Vintage : Solara FM émet en continu, les caches non fouillées
+  // Le Micro Vintage : Reyes FM émet en continu, les caches non fouillées
   // de la salle où l'on se trouve apparaissent dans un rayon de 40 m —
   // affichées à leur offset réel par rapport au joueur, autour de l'icône
   // de la porte (posCarte() place déjà le joueur là quand il est dedans).

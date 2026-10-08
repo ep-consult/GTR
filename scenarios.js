@@ -715,7 +715,7 @@ async function main() {
       const jeuDemarre = ARCADE.jeu === 'vipere';
       const jetonsApresJeu = s.jetons;
       const timeScaleAvant = ETAT.timeScale;
-      // place le frelon juste devant la tête et force un pas, 5 fois de suite
+      // place la proie juste devant la tête et force un pas, 5 fois de suite
       for (let i = 0; i < 5; i++) {
         const tete = ARCADE.v.corps[0];
         ARCADE.v.frelon = { x: tete.x + ARCADE.v.dir.x, y: tete.y + ARCADE.v.dir.y };
@@ -736,14 +736,14 @@ async function main() {
     else ok('Arcade : un jeton coûte bien 10 $');
     if (!vipereTest.jeuDemarre || vipereTest.jetonsApresJeu !== 0) fail('Arcade : jouer à VIPÈRE n\'a pas consommé le jeton comme attendu');
     else ok('Arcade : jouer une partie consomme bien 1 jeton');
-    if (vipereTest.scoreApresRepas !== 5) fail('Arcade : VIPÈRE — score attendu 5 après 5 Frelons avalés, obtenu ' + vipereTest.scoreApresRepas);
-    else ok('Arcade : VIPÈRE compte bien les Frelons avalés');
+    if (vipereTest.scoreApresRepas !== 5) fail('Arcade : VIPÈRE — score attendu 5 après 5 proies avalées, obtenu ' + vipereTest.scoreApresRepas);
+    else ok('Arcade : VIPÈRE compte bien les proies avalées');
     if (vipereTest.timeScaleAvant !== 1 || vipereTest.timeScalePendant !== 1) fail('Arcade : jouer à une borne modifie ETAT.timeScale — le temps ne coûte plus le même prix qu\'ailleurs');
     else ok('Arcade : jouer à une borne ne met pas le jeu en pause (ETAT.timeScale inchangé)');
     if (!vipereTest.jeuTermineApresMur) fail('Arcade : VIPÈRE — toucher le mur n\'a pas terminé la partie');
     else ok('Arcade : VIPÈRE se termine bien en touchant un mur');
-    if (vipereTest.tickets !== 1) fail('Arcade : VIPÈRE — tickets attendus 1 (5 Frelons / 4), obtenu ' + vipereTest.tickets);
-    else ok('Arcade : VIPÈRE crédite le bon nombre de tickets (1 par tranche de 4 Frelons)');
+    if (vipereTest.tickets !== 1) fail('Arcade : VIPÈRE — tickets attendus 1 (5 proies / 4), obtenu ' + vipereTest.tickets);
+    else ok('Arcade : VIPÈRE crédite le bon nombre de tickets (1 par tranche de 4 proies)');
 
     // -------------------------------------------------------------------
     // Arcade : CHANTIER — ligne complétée, puis abandon volontaire en
@@ -1499,7 +1499,7 @@ async function main() {
       const s = INT.actif;
       META.argent = 100;
       const scoresAvant = JSON.parse(JSON.stringify(META.arcadeScores));
-      // 1er jeton : une partie de VIPÈRE menée jusqu'au bout (4 Frelons, mur)
+      // 1er jeton : une partie de VIPÈRE menée jusqu'au bout (4 proies, mur)
       // — banque 1 ticket, un vrai ticket déjà en poche avant la seconde partie
       P.x = s.comptoirJetons.x; P.z = s.comptoirJetons.z;
       majAction(); document.getElementById('btnAction')._fn();
@@ -1931,7 +1931,7 @@ async function main() {
     else ok('Ciné-Palace : une satisfaction à 0 termine bien la séance en fiasco, recette nulle');
 
     // -------------------------------------------------------------------
-    // Ciné-Palace : effet de La Bobine « ASPHALTE I » (suite — la curiosité
+    // Ciné-Palace : effet de La Bobine « GTRoyal I » (suite — la curiosité
     // vient d'être acquise pour de bon ci-dessus, via une vraie séance
     // parfaite) : ralenti uniquement sur une élimination qui PROLONGE un
     // combo déjà actif (jamais la toute première), jamais cumulé sur des
@@ -2009,7 +2009,7 @@ async function main() {
     // Deux horloges dans boucle() : dt (mis à l'échelle par ETAT.timeScale,
     // pour le spectacle — rendu, déplacement des entités, physique) et
     // dtJeu (temps réel, jamais mis à l'échelle, pour les compteurs de
-    // gameplay). Un ralenti (chef de gang, ou La Bobine « ASPHALTE I » sur
+    // gameplay). Un ralenti (chef de gang, ou La Bobine « GTRoyal I » sur
     // un combo prolongé) ne doit JAMAIS donner plus de temps sur un chrono
     // ni ralentir la difficulté — mais DOIT ralentir le déplacement des
     // entités, c'est tout le principe de l'effet. Ces trois tests simulent
@@ -2753,21 +2753,34 @@ async function main() {
     else ok('Vol : les libellés reviennent bien à SPRINT/FREIN en sortant de l\'appareil');
 
     // -------------------------------------------------------------------
-    // Radio pirate Solara FM : verrouillée sans la curiosité 'platine'. La
+    // Radio pirate Reyes FM : verrouillée sans la curiosité 'platine'. La
     // porte n'existe nulle part tant qu'elle n'a pas été acquise AVANT la
     // génération de la ville — vérifié ici, avant de l'accorder et de
     // recharger (le karaoké, plus haut dans la suite, l'a déjà acquise en
     // mémoire, mais la ville de ce chargement-ci a été générée avant).
     // -------------------------------------------------------------------
-    console.log('\n--- Radio pirate Solara FM : verrouillée sans la curiosité \'platine\' ---');
+    console.log('\n--- Radio pirate Reyes FM : verrouillée sans la curiosité \'platine\' ---');
     const radioAvant = await page.evaluate(() => PORTES.some((p) => p.id === 'radio'));
     if (radioAvant) fail('Radio : la porte existe alors que la ville a été générée sans la curiosité \'platine\'');
     else ok('Radio : aucune porte tant que la curiosité \'platine\' n\'était pas acquise à la génération de la ville');
 
-    console.log('\n--- Radio pirate Solara FM : porte + curiosité \'micro\' après acquisition de \'platine\' (rechargement) ---');
-    await page.evaluate(() => { META.curios.platine = 1; sauveMeta(); });
+    console.log('\n--- Radio pirate Reyes FM : porte + curiosité \'micro\' après acquisition de \'platine\' (rechargement) ---');
+    // Profite du rechargement : les dictionnaires de META remplis au fil du jeu
+    // (lieux vus, tenues, records d'arcade) doivent survivre — fusionMeta les
+    // vidait à chaque chargement tant qu'ils n'étaient pas dans DICOS_OUVERTS.
+    // Ids lus dans les tables du jeu, jamais recopiés.
+    const dicosAvant = await page.evaluate(() => {
+      const salle = Object.keys(INTDEFS)[0], tenue = TENUES[TENUES.length - 1].id, borne = BORNES_ARCADE[0].id;
+      META.lieuxVus[salle] = true; META.tenuesPoss[tenue] = true; META.stats.arcadePersoBest[borne] = 4321;
+      META.curios.platine = 1; sauveMeta();
+      return { salle, tenue, borne };
+    });
     await page.reload({ waitUntil: 'load', timeout: 30000 });
     await page.waitForFunction(() => typeof PORTES !== 'undefined' && PORTES.length > 0, { timeout: 20000 });
+    const dicosApres = await page.evaluate((d) => ({ lieu: META.lieuxVus[d.salle] === true, tenue: META.tenuesPoss[d.tenue] === true,
+      depart: META.tenuesPoss.depart === true, record: META.stats.arcadePersoBest[d.borne] === 4321 }), dicosAvant);
+    if (!dicosApres.lieu || !dicosApres.tenue || !dicosApres.depart || !dicosApres.record) fail('Sauvegarde : un dictionnaire de META est vidé au rechargement (' + JSON.stringify({ ...dicosAvant, ...dicosApres }) + ')');
+    else ok('Sauvegarde : lieux vus (' + dicosAvant.salle + '), tenue (' + dicosAvant.tenue + ') et record d\'arcade (' + dicosAvant.borne + ') survivent au rechargement');
     const radioPorte = await page.evaluate(() => {
       const p = PORTES.find((x) => x.id === 'radio');
       const c = CURIOS.find((x) => x.id === 'micro');
@@ -2797,7 +2810,7 @@ async function main() {
     // Espacements — lus depuis la salle réelle, jamais recopiés (voir
     // CLAUDE.md). Console + 3 racks à ≥8 u entre eux et de la sortie.
     // -------------------------------------------------------------------
-    console.log('\n--- Radio pirate Solara FM : espacements (console, racks, sortie) ---');
+    console.log('\n--- Radio pirate Reyes FM : espacements (console, racks, sortie) ---');
     const espacementsRadio = await page.evaluate(() => {
       const p = PORTES.find((x) => x.id === 'radio');
       entrerInterieur('radio', p);
@@ -2824,7 +2837,7 @@ async function main() {
     // triangulation baisse dedans, monte dehors ; le temps-dans-zone
     // s'accumule dedans seulement.
     // -------------------------------------------------------------------
-    console.log('\n--- Radio pirate Solara FM : démarrage, aiguille dans/hors la porteuse, triangulation ---');
+    console.log('\n--- Radio pirate Reyes FM : démarrage, aiguille dans/hors la porteuse, triangulation ---');
     const emission = await page.evaluate(() => {
       const p = PORTES.find((x) => x.id === 'radio');
       startRun();
@@ -2853,7 +2866,7 @@ async function main() {
     // Le glissement du doigt pilote directement l'aiguille (pas d'inertie,
     // pas d'effet hors émission), sur toute la largeur de bande.
     // -------------------------------------------------------------------
-    console.log('\n--- Radio pirate Solara FM : le glissement du doigt pilote directement l\'aiguille ---');
+    console.log('\n--- Radio pirate Reyes FM : le glissement du doigt pilote directement l\'aiguille ---');
     const glisseTest = await page.evaluate(() => {
       const p = PORTES.find((x) => x.id === 'radio');
       startRun();
@@ -2882,7 +2895,7 @@ async function main() {
     // Segment réussi à 70 % de temps dans la zone (120 $), raté sinon (pas
     // de gain) ; bonus de 150 $ réservé aux 3 segments réussis.
     // -------------------------------------------------------------------
-    console.log('\n--- Radio pirate Solara FM : segment réussi à 70 %, gains, bonus des 3 segments ---');
+    console.log('\n--- Radio pirate Reyes FM : segment réussi à 70 %, gains, bonus des 3 segments ---');
     const segments = await page.evaluate(() => {
       const p = PORTES.find((x) => x.id === 'radio');
       startRun();
@@ -2927,7 +2940,7 @@ async function main() {
     // Appels d'auditeurs pendant les pauses entre segments, jamais répétés
     // dans la même émission.
     // -------------------------------------------------------------------
-    console.log('\n--- Radio pirate Solara FM : appel d\'auditeur pendant la pause, jamais répété dans la même émission ---');
+    console.log('\n--- Radio pirate Reyes FM : appel d\'auditeur pendant la pause, jamais répété dans la même émission ---');
     const appelTest = await page.evaluate(() => {
       const p = PORTES.find((x) => x.id === 'radio');
       startRun();
@@ -2954,7 +2967,7 @@ async function main() {
     // Testé AVANT toute émission qui l'obtiendrait pour de bon (voir
     // CLAUDE.md, ordre déjà appliqué pour Le Disque de Platine/La Bobine).
     // -------------------------------------------------------------------
-    console.log('\n--- Radio pirate Solara FM : curiosité Le Micro Vintage (émission parfaite uniquement) ---');
+    console.log('\n--- Radio pirate Reyes FM : curiosité Le Micro Vintage (émission parfaite uniquement) ---');
     const microTest = await page.evaluate(() => {
       const p = PORTES.find((x) => x.id === 'radio');
       startRun();
@@ -2989,7 +3002,7 @@ async function main() {
     // Limite de 2 émissions par vague, l'abandon (sortie en pleine
     // émission) la consomme quand même (exploit du bowling, déjà rencontré).
     // -------------------------------------------------------------------
-    console.log('\n--- Radio pirate Solara FM : limite de 2 émissions par vague, l\'abandon consomme l\'émission ---');
+    console.log('\n--- Radio pirate Reyes FM : limite de 2 émissions par vague, l\'abandon consomme l\'émission ---');
     const capRadio = await page.evaluate(() => {
       const p = PORTES.find((x) => x.id === 'radio');
       startRun();
@@ -3026,7 +3039,7 @@ async function main() {
     // -------------------------------------------------------------------
     // Triangulation à 100 % : descente de police (+1 étoile), éjection.
     // -------------------------------------------------------------------
-    console.log('\n--- Radio pirate Solara FM : triangulation à 100 % = descente de police ---');
+    console.log('\n--- Radio pirate Reyes FM : triangulation à 100 % = descente de police ---');
     const police = await page.evaluate(() => {
       const p = PORTES.find((x) => x.id === 'radio');
       startRun();
@@ -3052,7 +3065,7 @@ async function main() {
     // remettent triangulation à 0 et éteignent ON AIR ; seul le passage de
     // vague (et le game over) remet le compteur d'émissions à 0.
     // -------------------------------------------------------------------
-    console.log('\n--- Radio pirate Solara FM : réinitialisations (vague, mort, game over) ---');
+    console.log('\n--- Radio pirate Reyes FM : réinitialisations (vague, mort, game over) ---');
     const resetsRadio = await page.evaluate(() => {
       const p = PORTES.find((x) => x.id === 'radio');
       startRun();
@@ -3087,7 +3100,7 @@ async function main() {
     // immédiat (pas de butin différé, contrairement au Métro), META.fouilles
     // incrémenté exactement une fois par fouille résolue.
     // -------------------------------------------------------------------
-    console.log('\n--- Radio pirate Solara FM : table de fouille des racks (jamais négatif, encaissement immédiat) ---');
+    console.log('\n--- Radio pirate Reyes FM : table de fouille des racks (jamais négatif, encaissement immédiat) ---');
     const fouilleRadio = await page.evaluate(() => {
       const p = PORTES.find((x) => x.id === 'radio');
       startRun();
@@ -3151,7 +3164,7 @@ async function main() {
     // sur la minimap dans un rayon de 40 m (smoke-test : pas d'exception,
     // le pixel exact n'est pas vérifiable ici — voir CLAUDE.md).
     // -------------------------------------------------------------------
-    console.log('\n--- Radio pirate Solara FM : la curiosité Le Micro Vintage n\'entraîne aucune erreur sur la minimap ---');
+    console.log('\n--- Radio pirate Reyes FM : la curiosité Le Micro Vintage n\'entraîne aucune erreur sur la minimap ---');
     const minimapTest = await page.evaluate(() => {
       const p = PORTES.find((x) => x.id === 'radio');
       startRun();
@@ -3487,7 +3500,7 @@ async function main() {
       const derapage = { resultat: itDerapage.qualitePrep, valeur: itDerapage.valeur, billotActifApres: !!s.billotActif };
 
       // découpe ratée par abandon : relâché à mi-chemin, jamais fini la ligne
-      chalutierAjouterCale(s, { nom: 'Thon de Solara', valeur: 350, poids: 22 });
+      chalutierAjouterCale(s, { nom: 'Thon de Los Reyes', valeur: 350, poids: 22 });
       const itAbandon = s.cale[s.cale.length - 1];
       chalutierDemarrerBillot(s, itAbandon);
       params = s.billotActif.params;
@@ -4985,7 +4998,7 @@ async function main() {
         pompierLong: VEHDEFS.pompiers.long,
         // le Dépôt de bus a ses propres véhicules loués (jamais dans le trafic
         // de la ville, voir CLAUDE.md) : exclus de la comparaison, qui porte
-        // sur les véhicules réellement présents dans Solara City.
+        // sur les véhicules réellement présents dans Los Reyes.
         plusLongsQueTout: VEHDEFS.busville.long > Math.max(...Object.entries(VEHDEFS).filter(([k, d]) => d.type === 'car' && !k.startsWith('depot') && k !== 'busville').map(([, d]) => d.long)),
         monstertruckEcrase: VEHDEFS.monstertruck.ecrase === true,
         charEcrase: VEHDEFS.char.ecrase === true,
@@ -7177,6 +7190,63 @@ async function main() {
       else ok('Grande carte : pincer zoome (×' + pz.carteZoomAvant + ' → ×' + pz.carteZoomApres.toFixed(2) + ') sans poser de destination');
       if (!pz.waypApresToucher) fail('Grande carte : un toucher simple ne pose plus la destination');
       else ok('Grande carte : un toucher simple pose toujours la destination');
+    }
+
+    // -------------------------------------------------------------------
+    // Renommage GTRoyal / Los Reyes : aucun ancien nom affiché. Les textes
+    // sont LUS dans le jeu vivant (tous les nœuds texte du document, hors
+    // scripts, et les noms des tables du jeu), jamais recopiés ici. Seules
+    // exceptions voulues (RENOMMAGE.md) : la borne d'arcade VIPÈRE et sa
+    // peluche (le serpent, pas le gang) et la Moto « Frelon » (modèle de moto).
+    // -------------------------------------------------------------------
+    console.log('\n--- Renommage GTRoyal : titre, ville, gangs ---');
+    {
+      const rn = await page.evaluate(() => {
+        const textes = [];
+        const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, { acceptNode: (n) => (n.parentNode && /^(SCRIPT|STYLE)$/.test(n.parentNode.nodeName) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT) });
+        while (w.nextNode()) textes.push(w.currentNode.textContent);
+        const tables = [ETYPES, INTDEFS, VEHDEFS, ARMES, PERSOS, BORNES_ARCADE, CURIOS, DEFIS];
+        for (const t of tables) for (const k in t) { const o = t[k]; if (!o) continue; for (const c of ['nom', 'lieu', 'eff', 'det', 'condTxt']) if (typeof o[c] === 'string') textes.push(o[c]);
+          if (o.skins) for (const sk of o.skins) if (sk && sk.nom) textes.push(sk.nom); }
+        textes.push(...STATIONS, ...Object.values(NOMS_GANG), ...Object.values(NOMS_GANG_DE));
+        const exceptions = new Set(['VIPÈRE', 'Moto "Frelon"', 'Peluche Vipère']);
+        const interdits = /asphalte|solara|syndicat|mur[eè]nes?\b|vip[eè]res?\b|frelons?\b|gran[d] the[f]t|\bdax\b|c[eé]sar/i;
+        const fautes = textes.filter((t) => t && interdits.test(t) && !exceptions.has(t.trim()));
+        const casse = textes.filter((t) => /gt ?royal/i.test(t) && (t.match(/gt ?royal/gi) || []).some((m) => m !== 'GTRoyal'));
+        const logo = document.querySelector('#menu .logoBig');
+        const meta = (n) => { const m = document.querySelector('meta[name="' + n + '"]'); return m ? m.content : null; };
+        return { fautes: [...new Set(fautes)].slice(0, 12), nbTextes: textes.length, casse, logo: logo.textContent, logoTransform: getComputedStyle(logo).textTransform,
+          titre: document.title, appleTitre: meta('apple-mobile-web-app-title'), appName: meta('application-name'), chefDe: NOMS_GANG_DE.chrome };
+      });
+      if (rn.fautes.length) fail('Renommage : ancien nom encore affiché — ' + rn.fautes.join(' | '));
+      else ok('Renommage : aucun ancien nom (Asphalte, Solara, Vipères, Frelons, Murènes, Syndicat, Dax, César) dans ' + rn.nbTextes + ' textes du jeu vivant');
+      if (rn.casse.length) fail('Renommage : « GTRoyal » mal écrit — ' + rn.casse.join(' | '));
+      else ok('Renommage : « GTRoyal » toujours écrit avec sa casse exacte');
+      if (rn.logo !== 'GTRoyal' || rn.logoTransform !== 'none') fail('Renommage : logo « ' + rn.logo + ' » (text-transform ' + rn.logoTransform + ')');
+      else ok('Renommage : logo « GTRoyal », sans mise en majuscules forcée');
+      if (!/^GTRoyal\b/.test(rn.titre) || rn.appleTitre !== 'GTRoyal' || rn.appName !== 'GTRoyal') fail('Renommage : titre / metas incorrects (' + JSON.stringify(rn) + ')');
+      else ok('Renommage : <title>, apple-mobile-web-app-title et application-name = GTRoyal');
+      // Le « y » de GTRoyal descend sous la ligne de base (l'ancien titre tout en
+      // capitales n'avait aucune descendante) : il ne doit pas mordre sur le
+      // sous-titre « LOS REYES — CHAOS URBAIN » (signalé en revue de capture).
+      const geo = await page.evaluate(() => {
+        const menu = document.getElementById('menu'), etaitOn = menu.classList.contains('on');
+        menu.classList.add('on');
+        const logo = menu.querySelector('.logoBig'), ss = menu.querySelector('.ssous'), cs = getComputedStyle(logo);
+        const repere = document.createElement('span'); repere.style.cssText = 'display:inline-block;width:0;height:0;vertical-align:baseline';
+        logo.appendChild(repere);
+        const base = repere.getBoundingClientRect().bottom; repere.remove();
+        const ctx = document.createElement('canvas').getContext('2d');
+        ctx.font = cs.fontStyle + ' ' + cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
+        const descente = ctx.measureText(logo.textContent).actualBoundingBoxDescent;
+        const r = logo.getBoundingClientRect(), haut = ss.getBoundingClientRect().top;
+        if (!etaitOn) menu.classList.remove('on');
+        return { basGlyphe: base + descente, hautSous: haut, gauche: r.left, droite: r.right, largeur: innerWidth };
+      });
+      if (!(geo.basGlyphe <= geo.hautSous)) fail('Renommage : le « y » du logo chevauche le sous-titre (' + JSON.stringify(geo) + ')');
+      else ok('Renommage : le « y » du logo s\'arrête ' + (geo.hautSous - geo.basGlyphe).toFixed(1) + ' px au-dessus du sous-titre');
+      if (geo.gauche < 0 || geo.droite > geo.largeur) fail('Renommage : le logo déborde de l\'écran (' + JSON.stringify(geo) + ')');
+      else ok('Renommage : le logo tient dans la largeur (' + Math.round(geo.gauche) + '–' + Math.round(geo.droite) + ' px sur ' + geo.largeur + ')');
     }
 
     // -------------------------------------------------------------------

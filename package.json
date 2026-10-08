@@ -2,7 +2,7 @@
   "name": "asphalte",
   "version": "1.0.0",
   "private": true,
-  "description": "Outils de validation pour ASPHALTE (voir CLAUDE.md)",
+  "description": "Outils de validation pour GTRoyal (voir CLAUDE.md)",
   "scripts": {
     "valider": "node valider.js",
     "scenarios": "node scenarios.js"

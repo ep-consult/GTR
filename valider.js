@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 /*
- * valider.js — runtime simulé pour ASPHALTE (voir CLAUDE.md, section « Validation »).
+ * valider.js — runtime simulé pour GTRoyal (voir CLAUDE.md, section « Validation »).
  *
  * Charge index.html, extrait les blocs <script> inline, les exécute dans le
  * vrai contexte global Node. vm.runInThisContext partage un seul environnement

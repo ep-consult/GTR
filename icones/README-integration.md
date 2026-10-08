@@ -1,4 +1,4 @@
-# Icônes ASPHALTE — intégration
+# Icônes GTRoyal — intégration
 
 42 pictogrammes vectoriels, dessinés à la main d'après les quatre planches de
 `references/`. Ce sont de vrais tracés SVG : aucune image, aucun tracé automatique.

@@ -1,4 +1,4 @@
-# Icônes ASPHALTE — rapport de validation
+# Icônes GTRoyal — rapport de validation
 
 **Livrés :** `icones.svg` (42 symboles), `apercu.html`, `README-integration.md`,
 `inventaire.csv`, `references/` (les 4 PNG d'origine).
