@@ -5398,6 +5398,105 @@ async function main() {
     else ok('Camion de pompiers : sortir du véhicule coupe bien la sirène');
 
     // =====================================================================
+    // TRAFIC : files sans carambolage, contournement, priorité au carrefour
+    // Signalé en playtest (captures) : des files de trafic qui se rentraient
+    // dedans en permanence. Le test maîtrise sa scène : ville vidée de ses
+    // véhicules et piétons, aucun spawn pendant la simulation (Math.random
+    // forcé haut), pas de temps réel (majTrafic appelé directement).
+    // =====================================================================
+    console.log('\n--- Trafic : files sans carambolage, contournement, priorité au carrefour ---');
+    const traficFile = await page.evaluate(() => {
+      function scene0() {
+        startRun();
+        for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0;
+        for (const pe of pietons) pe.etat = 'mort';
+        // une voie verticale dégagée sur 90 u (lue dans la vraie grille)
+        for (let k = 2; k < NB - 2; k++) {
+          const lane = -HALF + k * CELL + 3.2;
+          for (let zz = -HALF + 60; zz < MER - 120; zz += CELL) {
+            let libre = true; for (let d = 0; d < 90; d += 2) if (solidAt(lane, zz + d, 1.6)) { libre = false; break; }
+            if (libre) return { lane, z0: zz };
+          }
+        }
+        return null;
+      }
+      function file(lane, z0) {
+        return ['citadine', 'taxi', 'berline', 'van', 'taxi', 'pickup'].map((k, i) => {
+          const v = creerVehicule(k, lane, z0 + 52 - i * 9, 0, 'trafic'); v._traf = true; v.axe = 'z'; v.lane = lane; v.v = 9; v.uidT = 1000 + i; return v;
+        });
+      }
+      function simuler(trafs, duree, pendant) {
+        const hp0 = trafs.map((v) => v.hp); let chocs = 0, knock = 0;
+        const rnd = Math.random; Math.random = () => 0.999;
+        try {
+          const dt = 1 / 60;
+          for (let t = 0; t < duree; t += dt) {
+            const dent = trafs.map((v) => v.dentT || 0);
+            for (const v of trafs) if (!v.mort) majTrafic(v, dt);
+            trafs.forEach((v, i) => { if ((v.dentT || 0) > dent[i] + 0.01) chocs++; knock = Math.max(knock, Math.hypot(v.knockVx || 0, v.knockVz || 0)); });
+            if (pendant) pendant(t);
+          }
+        } finally { Math.random = rnd; }
+        return { chocs, knock, hp: trafs.reduce((s, v, i) => s + Math.max(0, hp0[i] - v.hp), 0) };
+      }
+      const out = {};
+      // 1) véhicule garé sur la voie : la file s'arrête sans contact, puis le contourne
+      let sc = scene0(); if (!sc) return { erreur: 'aucune voie dégagée' };
+      P.x = sc.lane - 20; P.z = sc.z0 + 60; P.veh = null;
+      const gare = creerVehicule('citadine', sc.lane, sc.z0 + 70, 0, null);
+      let f = file(sc.lane, sc.z0);
+      let r = simuler(f, 20);
+      out.gare = { ...r, passes: f.filter((v) => v.z > gare.z + 4).length, total: f.length };
+      // 2) le joueur arrêté au volant sur la voie : arrêt sans contact, puis contournement
+      sc = scene0();
+      const moi = creerVehicule('muscle', sc.lane, sc.z0 + 70, 0, 'joueur'); P.veh = moi; P.x = moi.x; P.z = moi.z;
+      f = file(sc.lane, sc.z0);
+      let ecartMin = Infinity;
+      // écart pare-chocs mesuré tant que le véhicule de tête est encore dans la
+      // voie du joueur (une fois décalé, il le dépasse par le côté)
+      r = simuler(f, 3, () => { for (const t of f) if (Math.abs(t.x - moi.x) < (t.def.larg + moi.def.larg) / 2 && t.z < moi.z) ecartMin = Math.min(ecartMin, (moi.z - moi.def.long / 2) - (t.z + t.def.long / 2)); });
+      out.joueur = { ...r, ecartMin };
+      P.veh = null; moi.conduit = null; P.x = sc.lane - 20;
+      // 3) carrefour : deux véhicules qui arrivent en même temps sur deux axes
+      // qui se coupent — jamais de choc, et les deux finissent par passer
+      sc = scene0();
+      const cx = sc.lane, cz = -HALF + Math.round((sc.z0 + 45 + HALF) / CELL) * CELL - 3.2; // voie d'un axe horizontal
+      P.x = cx - 30; P.z = cz - 30;
+      const a = creerVehicule('taxi', cx, cz - 14, 0, 'trafic'); a._traf = true; a.axe = 'z'; a.lane = cx; a.v = 9; a.uidT = 2000;
+      const b = creerVehicule('berline', cx - 14, cz, Math.PI / 2, 'trafic'); b._traf = true; b.axe = 'x'; b.lane = cz; b.v = 9; b.uidT = 2001;
+      r = simuler([a, b], 6);
+      out.carrefour = { ...r, aPasse: a.z > cz + 4, bPasse: b.x > cx + 4 };
+      // 4) faux choc de biais (SAT incomplet) : un bus à 7 u d'une moto garée
+      // en diagonale, séparés de 3,4 u sur un axe du bus, ne la touche pas —
+      // l'ancien test, sur les seuls axes de la moto, y voyait un choc
+      sc = scene0();
+      // moto à 1,2 rad (comme la moto garée de la place), bus cap π, bus à
+      // (-4,2 ; -5,7) dans le repère de la moto
+      const moto = creerVehicule('moto', sc.lane, sc.z0 + 40, 1.2, null);
+      const sM = Math.sin(1.2), cM = Math.cos(1.2);
+      const bus = creerVehicule('busville', moto.x - 4.2 * sM - 5.7 * cM, moto.z - 4.2 * cM + 5.7 * sM, Math.PI, 'trafic'); bus.v = 9;
+      const hpM = moto.hp, hpB = bus.hp; const mx = moto.x, mz = moto.z;
+      resoudreCollisionsVehicule(moto, 1 / 60); resoudreCollisionsVehicule(bus, 1 / 60);
+      out.biais = { touche: moto.hp < hpM || bus.hp < hpB || moto.x !== mx || moto.z !== mz };
+      for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0;
+      return out;
+    });
+    if (traficFile.erreur) fail('Trafic : ' + traficFile.erreur);
+    else {
+      const g = traficFile.gare, j = traficFile.joueur, c = traficFile.carrefour;
+      if (g.chocs || g.hp > 0 || g.knock > 0.01) fail('Trafic : la file se carambole derrière un véhicule garé (' + JSON.stringify(g) + ')');
+      else ok('Trafic : 6 véhicules en file derrière un véhicule garé, aucun choc ni dégât');
+      if (g.passes !== g.total) fail('Trafic : la file reste bloquée derrière le véhicule garé (' + g.passes + '/' + g.total + ' passés en 20 s)');
+      else ok('Trafic : toute la file contourne le véhicule garé (' + g.passes + '/' + g.total + ' en 20 s)');
+      if (j.chocs || j.hp > 0 || !(j.ecartMin > 0)) fail('Trafic : la file percute le joueur arrêté au volant (' + JSON.stringify(j) + ')');
+      else ok('Trafic : arrêt derrière le joueur sans contact (écart mini ' + j.ecartMin.toFixed(2) + ' u)');
+      if (c.chocs || c.hp > 0 || !c.aPasse || !c.bPasse) fail('Trafic : croisement au carrefour raté (' + JSON.stringify(c) + ')');
+      else ok('Trafic : deux véhicules qui se croisent au carrefour passent tous les deux, sans choc');
+      if (traficFile.biais.touche) fail('Collisions : faux choc entre un bus et une moto garée de biais, à 7 u l\'un de l\'autre');
+      else ok('Collisions : aucun faux choc de biais (test de séparation sur les axes des deux véhicules)');
+    }
+
+    // =====================================================================
     // JETPACK
     // =====================================================================
     console.log('\n--- Jetpack : lieu fixe, découverte à la proximité (jamais au sol, sous la tour) ---');

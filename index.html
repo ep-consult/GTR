@@ -7369,6 +7369,15 @@ function resoudreCollisionsVehicule(v,dt){
     const dAng=o.ang-angV, cD=Math.abs(Math.cos(dAng)), sD=Math.abs(Math.sin(dAng));
     const porteeFwd=hlV+hlO*cD+hwO*sD, porteeRight=hwV+hlO*sD+hwO*cD;
     if(Math.abs(distFwd)<porteeFwd&&Math.abs(distRight)<porteeRight){
+      // SAT COMPLET : les 2 axes de o aussi. Bug trouvé en simulation de
+      // trafic : tester les seuls axes de v donnait de faux chocs avec un
+      // véhicule de biais — vu depuis une moto garée en diagonale, un bus qui
+      // passait à 5,9 u sur le côté « recouvrait » la moto (dégâts,
+      // étincelles, impulsion, sans le moindre contact réel). Sur des
+      // véhicules alignés ou perpendiculaires, ce test est identique au
+      // premier : rien ne change hors des cas de biais.
+      const sO=Math.sin(o.ang), cO=Math.cos(o.ang);
+      if(Math.abs(dxw*sO+dzw*cO)>=hlO+hlV*cD+hwV*sD||Math.abs(dxw*cO-dzw*sO)>=hwO+hlV*sD+hwV*cD) continue;
       // écrasement : char et monster truck aplatissent tout véhicule sans
       // exception, remplace entièrement le rebond/dégâts de masse ci-dessous
       // pour cette paire — voir ecraserVehicule (aucune exception, aucun
@@ -8762,6 +8771,43 @@ function majConduite(dt){
   el('vehFill').style.width=clamp(v.hp/v.def.hp*100,0,100)+'%';
 }
 /* ---------- trafic ---------- */
+// Suivi de file et contournement (voir majTrafic). Distances en unités,
+// vitesses en u/s.
+const TRAFIC_PORTEE=22;        // portée du regard devant soi
+const TRAFIC_ECART=1.2;        // écart pare-chocs à pare-chocs à l'arrêt
+const TRAFIC_DECEL=14;         // décélération de référence (u/s²)
+const TRAFIC_CONTOURNE=12;     // décide de contourner un obstacle immobile à cette distance
+const TRAFIC_V_CONTOURNE=6;    // allure pendant un dépassement
+const TRAFIC_ABANDON=3;        // s de blocage en plein dépassement avant d'y renoncer
+const TRAFIC_DEMI_CHAUSSEE=ROADW*0.5-0.3;
+const TRAFIC_CROISE=15;         // portée de la priorité au carrefour (côté de l'autre)
+const TRAFIC_PATIENCE=8;       // s d'arrêt avant recyclage d'un véhicule hors écran
+let TRAFIC_UID=0;              // ordre d'apparition : départage les égalités au carrefour
+// Point hors de l'écran (projection par la vraie caméra, avec une marge
+// pour la carrosserie qui dépasse du point projeté).
+const _vHorsEcran=new THREE.Vector3();
+function horsEcran(x,z){
+  _vHorsEcran.set(x,1,z).project(camera);
+  return _vHorsEcran.z>1||Math.abs(_vHorsEcran.x)>1.25||Math.abs(_vHorsEcran.y)>1.25;
+}
+// Obstacle immobile hors trafic (garé, abandonné, épave) qui occupe la voie
+// de v, de son arrière jusqu'à TRAFIC_CONTOURNE devant lui (le plus proche),
+// ou null si la voie est libre (fin d'un dépassement).
+function obstacleSurVoie(v,sA,cA,hlV,hwV){
+  let best=null, bf=Infinity, bext=0;
+  for(const o of vehicules){
+    if(o===v||o.mort||o.captureOvni||o.conduit==='trafic'||Math.abs(o.v||0)>=0.5) continue;
+    if(hauteurReelleVehicule(o)>1.6) continue;
+    const fwd=(o.x-v.x)*sA+(o.z-v.z)*cA;
+    const dA=o.ang-v.ang, cD=Math.abs(Math.cos(dA)), sD=Math.abs(Math.sin(dA));
+    const extLat=o.def.long*0.5*sD+o.def.larg*0.5*cD, extLong=o.def.long*0.5*cD+o.def.larg*0.5*sD;
+    if(fwd+extLong<-hlV-1||fwd-extLong>hlV+TRAFIC_CONTOURNE) continue;
+    const latO=v.axe==='z'?o.x:o.z;
+    if(Math.abs(latO-v.lane)>=hwV+extLat+0.3) continue;
+    if(fwd<bf){ bf=fwd; best=o; bext=extLat; }
+  }
+  return best?{o:best,ext:bext}:null;
+}
 function creerTrafic(){
   // Un premier passage rapprochait le trafic (voie choisie près du joueur
   // sur les deux axes, ±3 cases, off 40-75) sans corriger le vrai problème :
@@ -8833,7 +8879,7 @@ function creerTrafic(){
   else if((qz==='centre'||qz==='commerce')&&Math.random()<0.1) poolT=['busville','pompiers'];
   else poolT=['citadine','citadine','berline','berline','taxi','taxi','muscle','van','pickup'];
   const v=creerVehicule(pick(poolT),x,z,ang,'trafic'); v._traf=true;
-  v.axe=vert?'z':'x'; v.lane=lane;
+  v.axe=vert?'z':'x'; v.lane=lane; v.uidT=++TRAFIC_UID;
   // Fondu court à l'apparition (échelle, pas opacité : les matériaux sont
   // partagés par couleur via _matCache — leur faire varier en opacité
   // changerait aussi tous les autres objets de cette couleur dans la
@@ -8853,33 +8899,108 @@ function majTrafic(v,dt){
   // (resoudreCollisionsVehicule, qui tourne aussi pour le trafic) qui fixe
   // la distance d'arrêt FINALE, exactement au contact.
   const sA=Math.sin(v.ang), cA=Math.cos(v.ang);
-  const hlV=v.def.long*0.5;
+  const hlV=v.def.long*0.5, hwV=v.def.larg*0.5;
   const px=v.x+sA*(hlV+0.3), pz=v.z+cA*(hlV+0.3);
   let bloque=false;
   if(!P.veh&&dist2(px,pz,P.x,P.z)<9) bloque=true;
-  if(P.veh&&dist2(px,pz,P.x,P.z)<16) bloque=true;
+  // SUIVI DE FILE (remplace l'ancienne sonde à un point pour les véhicules).
+  // Bug signalé en playtest, captures à l'appui : les files de trafic se
+  // rentraient dedans en permanence. Cause, mesurée par reproduction : la
+  // sonde ne voyait le véhicule de devant qu'à 0,6 u du contact, alors que
+  // le freinage (lerp à 1,6/s) demande ~5,6 u depuis 9 u/s — chaque suiveur
+  // arrivait donc presque à pleine vitesse, au-delà du seuil de choc de
+  // resoudreCollisionsVehicule (vitesse relative > 7) : dégâts, étincelles
+  // et impulsion qui projetait le véhicule de devant sur le suivant, le
+  // suiveur rebondissait, ne voyait plus rien, réaccélérait et recognait.
+  // Désormais : chaque véhicule cherche le plus proche obstacle dans SON
+  // couloir (recouvrement latéral réel, orientation de l'autre comprise) et
+  // plafonne sa vitesse à celle qui lui permet de s'arrêter à TRAFIC_ECART
+  // du pare-chocs de devant avec une décélération TRAFIC_DECEL — un arrêt
+  // garanti sans contact, même si le meneur pile net. La vitesse du meneur
+  // n'est volontairement pas prise en compte (il peut s'arrêter d'un coup).
+  let vSure=Infinity, obstFixe=null, gapFixe=Infinity, extFixe=0, devantJoueur=false, meneur=null, meneurExt=0;
   for(const o of vehicules){
     if(o===v||o.mort||o.captureOvni) continue;
-    // Marge volontairement TRÈS courte (0.3) : la sonde ne sert plus qu'à
-    // éviter un carambolage à pleine vitesse, jamais à fixer la distance
-    // d'arrêt finale — sinon, selon l'élan au moment du freinage, le
-    // véhicule s'arrêtait tantôt collé, tantôt à plusieurs unités du
-    // contact réel (signalé par un joueur, incohérent d'une fois sur
-    // l'autre). Une marge courte fait toujours déborder très légèrement
-    // dans le contact réel avant l'arrêt complet, ce que la résolution SAT
-    // (resoudreCollisionsVehicule, qui tourne aussi pour le trafic) corrige
-    // alors systématiquement à l'exacte distance de contact — c'est ELLE
-    // qui doit trancher, pas la sonde d'évitement.
-    const seuil=o.def.long*0.5+0.3;
-    if(dist2(px,pz,o.x,o.z)<seuil*seuil){bloque=true;break;}
+    if(hauteurReelleVehicule(o)>1.6) continue; // aéronef en vol : jamais un obstacle de chaussée
+    const dx=o.x-v.x, dz=o.z-v.z;
+    const fwd=dx*sA+dz*cA; if(fwd<=0||fwd>TRAFIC_PORTEE) continue;
+    const lat=dx*cA-dz*sA;
+    const dAng=o.ang-v.ang, cD=Math.abs(Math.cos(dAng)), sD=Math.abs(Math.sin(dAng));
+    const hlO=o.def.long*0.5, hwO=o.def.larg*0.5;
+    const extLat=hlO*sD+hwO*cD, extLong=hlO*cD+hwO*sD;
+    if(Math.abs(lat)>=hwV+extLat+0.3) continue;
+    const gap=fwd-hlV-extLong;
+    // Trafic qui croise : géré par la priorité au point de conflit (plus
+    // bas) ; ici seulement s'il est déjà physiquement devant nous, tout près
+    // — et alors JAMAIS ignoré (bug trouvé en simulation : un départage qui
+    // « ignorait » l'autre envoyait un taxi dans un bus arrêté devant lui).
+    if(o.conduit==='trafic'&&cD<0.7&&gap>4) continue;
+    const vs=Math.sqrt(2*TRAFIC_DECEL*Math.max(0,gap-TRAFIC_ECART));
+    if(vs<vSure){ vSure=vs; devantJoueur=o.conduit==='joueur';
+      if(Math.cos(dAng)>0.7){ meneur=o; meneurExt=extLong; } else meneur=null; }
+    // immobile et hors trafic (garé, abandonné par le joueur, épave, joueur
+    // arrêté) : candidat au contournement, voir plus bas
+    if(o.conduit!=='trafic'&&Math.abs(o.v||0)<0.5&&gap<gapFixe){ obstFixe=o; gapFixe=gap; extFixe=extLat; }
   }
   // freine aussi pour un piéton dans sa voie — le trafic essaie de les
   // éviter comme il évite déjà le joueur ; s'il n'y arrive pas (piéton qui
   // traverse au dernier moment, vitesse trop élevée), majImpactPersonnages
   // gère le contact réel plus bas.
   if(!bloque) for(const p of pietons){ if(p.etat==='mort'||p.captureOvni) continue; if(dist2(px,pz,p.x,p.z)<8){bloque=true;break;} }
-  if(bloque){
-    cibleV=0;
+  // PRIORITÉ AU CARREFOUR, au point de conflit (là où nos deux trajectoires
+  // se coupent), décidée assez tôt pour que les deux carrosseries ne se
+  // retrouvent jamais chacune dans le couloir de l'autre (blocage mutuel
+  // sans issue). Ordre : celui qui est déjà dans le croisement passe ;
+  // sinon celui qui y arrive le premier ; un véhicule arrêté avant la ligne
+  // laisse passer ; égalité → ordre d'apparition. Celui qui cède s'arrête
+  // avant le croisement.
+  for(const o of vehicules){
+    if(o===v||o.mort||o.captureOvni||o.conduit!=='trafic') continue;
+    const dx=o.x-v.x, dz=o.z-v.z;
+    if(dx*dx+dz*dz>(TRAFIC_PORTEE+TRAFIC_CROISE)*(TRAFIC_PORTEE+TRAFIC_CROISE)) continue; // tri rapide, avant toute trigo
+    const sO=Math.sin(o.ang), cO=Math.cos(o.ang), den=sA*cO-cA*sO;
+    if(Math.abs(den)<0.7) continue;                   // pas un croisement
+    const t=(dx*cO-dz*sO)/den, u=(dx*cA-dz*sA)/den;  // distances au point de conflit (v, o)
+    const zoneV=hlV+o.def.larg*0.5+0.5, zoneO=o.def.long*0.5+hwV+0.5;
+    if(t+zoneV<0||u+zoneO<0) continue;                // l'un des deux a déjà dégagé
+    if(t-zoneV>TRAFIC_PORTEE||u-zoneO>TRAFIC_CROISE) continue; // trop loin pour compter
+    if(Math.abs(t)<zoneV) continue;                   // déjà engagé : on dégage (le suivi de file garde le contact)
+    let cede;
+    if(Math.abs(u)<zoneO) cede=true;                  // l'autre est dans le croisement
+    else if(Math.abs(o.v||0)<0.5) cede=false;         // l'autre attend avant la ligne
+    else {
+      const tv=(t-zoneV)/Math.max(Math.abs(v.v),1), to=(u-zoneO)/Math.max(Math.abs(o.v),1);
+      cede=Math.abs(to-tv)<0.2?(o.uidT||0)<(v.uidT||0):to<tv;
+    }
+    if(cede) vSure=Math.min(vSure,Math.sqrt(2*TRAFIC_DECEL*Math.max(0,t-zoneV-TRAFIC_ECART*0.5)));
+  }
+  // NE PAS BLOQUER LE CARREFOUR. Bug trouvé en simulation longue (trafic
+  // réel, 90 s) : une file arrêtée qui débordait DANS un carrefour coupait
+  // l'axe transversal, dont la file finissait par couper la première plus
+  // loin — blocage en boucle autour d'un pâté de maisons (jusqu'à 46 s,
+  // une vingtaine de véhicules figés). Comme dans la vraie vie : derrière
+  // une file à l'arrêt, on ne s'engage dans le carrefour que s'il reste la
+  // place de se garer de l'autre côté ; sinon on attend avant la ligne.
+  // Seulement derrière une FILE de trafic (qui finira par avancer) : derrière
+  // un véhicule garé, on attendrait pour toujours au lieu de le contourner
+  // (trouvé en simulation : file figée derrière une moto garée après un
+  // carrefour).
+  if(meneur&&meneur.conduit==='trafic'&&Math.abs(meneur.v||0)<2){
+    const sens=(v.axe==='z'?cA:sA)>=0?1:-1, posL=v.axe==='z'?v.z:v.x;
+    const avantL=posL+sens*hlV, demi=ROADW*0.5;
+    let entree=Infinity, sortie=0, dedans=false;
+    for(let k=0;k<=NB;k++){
+      const c=-HALF+k*CELL;
+      const dE=(c-sens*demi-avantL)*sens, dS=(c+sens*demi-avantL)*sens;
+      if(dE<=0&&dS>0){ dedans=true; break; }        // déjà engagé : on dégage
+      if(dE>0&&dE<entree){ entree=dE; sortie=dS; }
+    }
+    const arriereMeneur=((v.axe==='z'?meneur.z:meneur.x)-sens*meneurExt-avantL)*sens; // depuis notre avant
+    if(!dedans&&entree<arriereMeneur&&arriereMeneur-sortie<v.def.long+TRAFIC_ECART)
+      vSure=Math.min(vSure,Math.sqrt(2*TRAFIC_DECEL*Math.max(0,entree-0.5)));
+  }
+  if(bloque) cibleV=0;
+  if(bloque||(vSure<0.5&&devantJoueur)){ // klaxonne aussi derrière le joueur arrêté
     v.klaxT-=dt;
     if(v.klaxT<=0&&Math.random()<0.3){v.klaxT=2.5;if(dist2(v.x,v.z,P.x,P.z)<650)SFX.klaxon();}
   }
@@ -8891,8 +9012,61 @@ function majTrafic(v,dt){
   if(sirenProche&&v.laneDecal===undefined) v.laneDecal=Math.random()<0.5?2.6:-2.6;
   if(!sirenProche) v.laneDecal=undefined;
   if(sirenProche) cibleV=Math.min(cibleV,3);
-  const laneCible=v.lane+(v.laneDecal||0);
+  // CONTOURNEMENT d'un obstacle immobile hors trafic (véhicule garé sur la
+  // voie, abandonné par le joueur, épave). Avant, la file s'arrêtait
+  // derrière POUR TOUJOURS et s'allongeait (signalé en playtest). Le
+  // véhicule se décale vers le centre de la chaussée juste assez pour
+  // passer, puis regagne sa voie une fois l'obstacle dépassé. Jamais hors
+  // de la chaussée (sinon il attend), jamais si quelque chose occupe déjà
+  // le passage (trafic en face, autre obstacle) ; abandon s'il reste
+  // bloqué en plein dépassement (un véhicule surgi en face).
+  // Le dépassement dure tant qu'un obstacle immobile occupe encore la voie
+  // À CÔTÉ ou juste devant — pas seulement celui qui l'a déclenché. Bug
+  // trouvé en simulation : deux véhicules garés à la suite, le bus
+  // regagnait sa voie après le premier et rabattait sur le second, qu'il
+  // avait encore à son flanc (choc latéral à pleine vitesse).
+  if(v.contourne){
+    const c=v.contourne, gene=obstacleSurVoie(v,sA,cA,hlV,hwV);
+    if(!gene) v.contourne=null;
+    else {
+      if(gene.o!==c.o){ // obstacle suivant : on garde le décalage le plus large des deux
+        c.o=gene.o;
+        const centre=-HALF+Math.round((v.lane+HALF)/CELL)*CELL, cote=Math.sign(v.lane-centre)||1;
+        const latO=v.axe==='z'?gene.o.x:gene.o.z, cible=latO-cote*(hwV+gene.ext+0.6);
+        if(Math.abs(cible-centre)<=TRAFIC_DEMI_CHAUSSEE-hwV&&(cible-c.lat)*cote<0) c.lat=cible;
+      }
+      if(vSure<0.5){ c.bloqueT+=dt; if(c.bloqueT>TRAFIC_ABANDON) v.contourne=null; }
+      else c.bloqueT=0;
+    }
+  }
+  if(!v.contourne&&obstFixe&&gapFixe<TRAFIC_CONTOURNE&&!sirenProche&&!(v.contourneAttente>0)){
+    const latV=v.axe==='z'?v.x:v.z, latO=v.axe==='z'?obstFixe.x:obstFixe.z;
+    const centre=-HALF+Math.round((v.lane+HALF)/CELL)*CELL;
+    const cote=Math.sign(v.lane-centre)||1;              // notre côté de la chaussée
+    const cible=latO-cote*(hwV+extFixe+0.6);              // juste assez pour passer, vers le centre
+    let ok=Math.abs(cible-centre)<=TRAFIC_DEMI_CHAUSSEE-hwV;
+    if(ok){
+      const finPassage=gapFixe+hlV+obstFixe.def.long+TRAFIC_PORTEE;
+      for(const q of vehicules){
+        if(q===v||q===obstFixe||q.mort||hauteurReelleVehicule(q)>1.6) continue;
+        const fq=(q.x-v.x)*sA+(q.z-v.z)*cA; if(fq<-(hlV+2)||fq>finPassage) continue;
+        const latQ=v.axe==='z'?q.x:q.z;
+        const dAq=q.ang-v.ang;
+        // un véhicule qui roule dans NOTRE sens (dépassement déjà engagé
+        // devant nous) ne ferme pas le passage : on le suit (SUIVI DE FILE)
+        if(q.conduit==='trafic'&&Math.cos(dAq)>0.7&&Math.abs(q.v||0)>0.5) continue;
+        const extQ=q.def.long*0.5*Math.abs(Math.sin(dAq))+q.def.larg*0.5*Math.abs(Math.cos(dAq));
+        if(Math.abs(latQ-cible)<hwV+extQ+0.4){ ok=false; break; }
+      }
+    }
+    if(ok) v.contourne={o:obstFixe,lat:cible,bloqueT:0};
+    else v.contourneAttente=0.5; // réessaie un peu plus tard (pas de recherche à chaque frame)
+  }
+  if(v.contourneAttente>0) v.contourneAttente-=dt;
+  if(v.contourne) cibleV=Math.min(cibleV,TRAFIC_V_CONTOURNE);
+  const laneCible=v.contourne?v.contourne.lat:v.lane+(v.laneDecal||0);
   v.v=lerp(v.v,cibleV,1.6*dt);
+  v.v=Math.min(v.v,vSure); // arrêt garanti avant le contact (voir SUIVI DE FILE)
   if(v.axe==='z'){ v.x=lerp(v.x,laneCible,2*dt); v.z+=cA*v.v*dt; }
   else { v.z=lerp(v.z,laneCible,2*dt); v.x+=sA*v.v*dt; }
   // Séparation/impulsion de choc, partagée avec le joueur/la police (voir
@@ -8929,7 +9103,7 @@ function majTrafic(v,dt){
     }
   }
   if(rebond){
-    v.ang+=Math.PI; v.v*=0.5;
+    v.ang+=Math.PI; v.v*=0.5; v.contourne=null;
     // Bug remonté par un joueur : certains véhicules roulaient sur les
     // trottoirs par endroits. Cause : au rebond sur le bord de la ville,
     // la nouvelle voie était choisie à ±3 de la position COURANTE du
@@ -8990,6 +9164,16 @@ function majTrafic(v,dt){
   // triplée — vérifié par mesure directe des distances réelles). Encore
   // largement assez pour ne jamais voir la ville se vider sous les yeux.
   if(dist2(v.x,v.z,P.x,P.z)>120*120) v.mort=true;
+  // FILET ANTI-BLOCAGE. Les règles ci-dessus (suivi, contournement,
+  // carrefour dégagé) ne couvrent pas tout : un véhicule garé qui retire
+  // une voie près d'un carrefour suffit à figer des files en boucle autour
+  // d'un pâté de maisons (trouvé en simulation longue, plusieurs graines :
+  // jusqu'à 23 véhicules figés près d'une minute). Un véhicule de trafic
+  // arrêté depuis TRAFIC_PATIENCE s est recyclé, mais SEULEMENT hors de
+  // l'écran : une boucle autour d'un pâté a toujours des maillons hors
+  // champ, elle se défait donc sans que rien ne disparaisse sous les yeux.
+  v.arretT=Math.abs(v.v)<0.3?(v.arretT||0)+dt:0;
+  if(v.arretT>TRAFIC_PATIENCE&&horsEcran(v.x,v.z)) v.mort=true;
 }
 // gyrophares du camion de pompiers : bleus (demandé explicitement — jamais
 // rouges, pour ne pas se confondre avec les gyrophares rouge/bleu de la

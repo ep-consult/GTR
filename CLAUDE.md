@@ -55,7 +55,7 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
   echo "$ln | $(sed -n "$((ln+1))p" index.html | sed 's/^[ \t]*//')"; done
 ```
 
-**Relevé au 8 octobre 2026 (renommage GTRoyal) — 21 051 lignes.**
+**Relevé au 8 octobre 2026 (trafic : files, contournement, carrefours) — 21 235 lignes.**
 
 | Ligne | Section |
 |---|---|
@@ -74,28 +74,28 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
 | 5982 | POOLS — balles, particules, textes flottants, traces de pneus |
 | 6340 | ÉTAT GLOBAL + JOUEUR (`P`) |
 | 7054 | VÉHICULES — physique arcade, trafic, dégâts |
-| 9110 | PIÉTONS |
-| 9262 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
-| 9798 | **RAYON TRACTEUR DE L'OVNI** |
-| 10194 | NIVEAU DE RECHERCHE (étoiles) |
-| 10439 | VAGUES + bonus de fin de vague |
-| 10558 | MISSIONS COURTES |
-| 10561 | BÂTIMENTS VISITABLES — intérieurs |
-| 10631 | FOUILLE — mécanique générique |
-| 11212 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
-| 15147 | CINÉ-PALACE |
-| 15209 | MÉTRO ABANDONNÉ |
-| 15275 | RADIO PIRATE REYES FM |
-| 15380 | LE CHALUTIER « SAINTE-ODILE » |
-| 15654 | SITE 51 |
-| 15884 | LE DÉPÔT DE BUS — courses clandestines |
-| 16899 | **MÉTIERS** — missions liées à un véhicule |
-| 17130 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
-| 18034 | ÉCRANS / MENUS / BOUTIQUES |
-| 18301 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
-| 19073 | DÉBUT / FIN DE PARTIE |
-| 20539 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
-| 20933 | BOUCLE PRINCIPALE |
+| 9294 | PIÉTONS |
+| 9446 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
+| 9982 | **RAYON TRACTEUR DE L'OVNI** |
+| 10378 | NIVEAU DE RECHERCHE (étoiles) |
+| 10623 | VAGUES + bonus de fin de vague |
+| 10742 | MISSIONS COURTES |
+| 10745 | BÂTIMENTS VISITABLES — intérieurs |
+| 10815 | FOUILLE — mécanique générique |
+| 11396 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
+| 15331 | CINÉ-PALACE |
+| 15393 | MÉTRO ABANDONNÉ |
+| 15459 | RADIO PIRATE REYES FM |
+| 15564 | LE CHALUTIER « SAINTE-ODILE » |
+| 15838 | SITE 51 |
+| 16068 | LE DÉPÔT DE BUS — courses clandestines |
+| 17083 | **MÉTIERS** — missions liées à un véhicule |
+| 17314 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
+| 18218 | ÉCRANS / MENUS / BOUTIQUES |
+| 18485 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
+| 19257 | DÉBUT / FIN DE PARTIE |
+| 20723 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
+| 21117 | BOUCLE PRINCIPALE |
 
 ### Ancres fines (hors bandeaux)
 
@@ -104,7 +104,7 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
 | 879 | `ICONES_SVG` — interrupteur des icônes, `ico()`, `icoArme()`, `labelAction()` |
 | 1770 | `GARAGES_TUNING` — les garages de la ville (déclarés avant `META`) |
 | 1790 | `VEHPERSO_MAX` — taille de « Mes véhicules » (`META.vehPerso`) |
-| 1952 | `fusionMeta()` — deep-merge de la sauvegarde |
+| 1952 | `fusionMeta()` — deep-merge de la sauvegarde, `DICOS_OUVERTS` juste avant |
 | 1982 | `CURIOS` — tableau des curiosités |
 | 2033 | `CURIOS_ACTIVES` |
 | 2047 | déblocage de `batte2` (toutes curiosités actives réunies) |
@@ -117,18 +117,21 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
 | 4449 | `REPLIS` — filet de sécurité en spirale |
 | 6348 | `const P` — état du joueur |
 | 6386 | `P.stamMax = 100 + 12*mus` |
-| 7839 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
-| 10567 | `IOFF = -9000` |
-| 12289 | `INTDEFS` — définitions des **27 salles** |
-| 12469 | `construireSalle(id)` |
-| 16908 | `METIERS_CIBLE` |
-| 17148 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
-| 17219 | `PIECES_FAMILLES` — catalogues de pièces par famille |
-| 17497 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
-| 17550 | `libererObjet()` — libère les géométries d'un objet retiré |
-| 17566 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
-| 17644 | `construireGarageTuning()` — la salle partagée |
-| 18008 | `majNitro()` |
+| 7359 | `resoudreCollisionsVehicule()` — collisions entre véhicules (SAT sur les 4 axes) |
+| 7848 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
+| 8776 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
+| 8889 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
+| 10751 | `IOFF = -9000` |
+| 12473 | `INTDEFS` — définitions des **27 salles** |
+| 12653 | `construireSalle(id)` |
+| 17092 | `METIERS_CIBLE` |
+| 17332 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
+| 17403 | `PIECES_FAMILLES` — catalogues de pièces par famille |
+| 17681 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
+| 17734 | `libererObjet()` — libère les géométries d'un objet retiré |
+| 17750 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
+| 17828 | `construireGarageTuning()` — la salle partagée |
+| 18192 | `majNitro()` |
 
 ---
 
@@ -217,6 +220,45 @@ logique. Trop de régressions d'affichage passent au vert en logique pure.
 - Boucles explicites plutôt que `filter`/`some`/`map` dans le `tick` — pas
   d'allocation par frame.
 - LOD d'animation pour les ennemis lointains.
+
+---
+
+## Trafic (`majTrafic`, ~L8889)
+
+Signalé en playtest : des files qui se rentraient dedans en permanence. Règles
+en place, toutes vérifiées par simulation longue puis `scenarios.js` :
+
+- **Suivi de file** : chaque véhicule cherche l'obstacle le plus proche dans
+  SON couloir (recouvrement latéral réel, orientation comprise) et plafonne sa
+  vitesse à `√(2·TRAFIC_DECEL·(écart − TRAFIC_ECART))` : arrêt garanti sans
+  contact même si le meneur pile net. Jamais de sonde ponctuelle au contact
+  (l'ancienne voyait le véhicule de devant à 0,6 u, le freinage en demandait
+  5,6 : chocs à pleine vitesse, impulsions en chaîne).
+- **Contournement** d'un obstacle immobile hors trafic (garé, abandonné par le
+  joueur, épave) : décalage vers le centre de la chaussée juste assez pour
+  passer, seulement si le passage est libre, tant qu'un obstacle occupe la voie
+  à côté ou devant (`obstacleSurVoie`). Sans ça, la file restait figée pour
+  toujours.
+- **Priorité au carrefour**, au point de conflit des deux trajectoires : celui
+  qui est dans le croisement passe, sinon le premier arrivé ; un véhicule arrêté
+  avant la ligne laisse passer. **Jamais** « ignorer » un véhicule physiquement
+  devant soi pour départager (un taxi finissait dans un bus arrêté).
+- **Ne pas bloquer le carrefour** : derrière une FILE de trafic à l'arrêt, on
+  ne s'engage que s'il reste la place de l'autre côté (sinon blocages en boucle
+  autour d'un pâté). Jamais derrière un véhicule garé : on le contourne.
+- **Filet anti-blocage** : un véhicule de trafic arrêté depuis
+  `TRAFIC_PATIENCE` s est recyclé, **seulement hors écran** (`horsEcran`, vraie
+  projection caméra). Ne se déclenche pas en simulation sur 10 graines : c'est
+  un dernier recours, pas la règle.
+- `resoudreCollisionsVehicule` teste la séparation sur les **4 axes** (ceux des
+  deux véhicules) : sur les 2 seuls axes de v, un véhicule de biais déclenchait
+  de faux chocs à plusieurs unités de distance.
+
+Outil de mesure (non versionné, à refaire au besoin) : `majVehicules` réel
+pendant 90 s simulées en 3 points de la ville, `requestAnimationFrame` coupé
+pour un tirage déterministe, en comptant chocs (`dentT`), dégâts et véhicules
+arrêtés plus de 10 s. Avant : 359 chocs, 16 véhicules figés (jusqu'à 77 s).
+Après : 0 choc, 0 figé, sur 10 graines.
 
 ---
 
