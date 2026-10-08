@@ -7429,6 +7429,35 @@ async function main() {
       else ok('Ambiances des salles : coupées à la mort et à la partie suivante (' + amb.vues.join(', ') + ')');
     }
 
+    // -------------------------------------------------------------------
+    // Écran PERSONNAGES : chaque skin de chaque perso (lus dans PERSOS) est
+    // atteignable à 390 px. Audit de nuit : les 9 skins de Jax débordaient
+    // des deux côtés d'une rangée centrée non défilante — le premier
+    // (« Classique ») et le dernier étaient intouchables.
+    // -------------------------------------------------------------------
+    console.log('\n--- Écran Personnages : toutes les skins atteignables à 390 px ---');
+    {
+      const sk = await page.evaluate(() => {
+        const ko = []; let n = 0; const persoAvant = PREVIEW.persoAff;
+        ecran('chars');
+        for (const id of Object.keys(PERSOS)) {
+          PREVIEW.persoAff = id; PREVIEW.skinAff = 0; renderChars();
+          const row = el('skinRow'), cols = [...row.children]; n += cols.length;
+          const R = row.getBoundingClientRect();
+          if (R.left < -1 || R.right > innerWidth + 1) ko.push(id + ' : rangée hors écran');
+          row.scrollLeft = 0;
+          if (cols[0].getBoundingClientRect().left < R.left - 1) ko.push(id + ' : première skin coupée à gauche');
+          row.scrollLeft = 1e5;
+          if (cols[cols.length - 1].getBoundingClientRect().right > R.right + 1) ko.push(id + ' : dernière skin inatteignable');
+          row.scrollLeft = 0;
+        }
+        PREVIEW.persoAff = persoAvant; ecran('menu');
+        return { ko, n };
+      });
+      if (sk.ko.length) fail('Écran Personnages : ' + sk.ko.join(' | '));
+      else ok('Écran Personnages : les ' + sk.n + ' skins de tous les persos sont atteignables à 390 px');
+    }
+
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');
     {
       const srcIdx = fs.readFileSync(INDEX_HTML, 'utf8');
