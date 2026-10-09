@@ -6,15 +6,52 @@
 
 ## Résumé
 
-*(complété en fin de nuit)*
+1. **3 branches**, toutes partant de `master`, rien de poussé ni fusionné :
+   `nuit-audit-1` (audit), `nuit-mer` et `nuit-course`. Les deux dernières
+   partent de l'audit et sont **indépendantes** l'une de l'autre.
+2. **Audit** : les 27 salles, les 5 bornes, les 51 véhicules et les
+   16 écrans ont été balayés par un vrai joueur simulé, avec mesure du **son
+   réel** à la sortie et à la mort. **5 bugs corrigés**, chacun avec un test
+   qui échoue sur l'ancienne version.
+3. **Bug n° 1 de la nuit** : mourir au volant de l'**OVNI rendait impossible
+   de relancer une partie** (plantage au démarrage). Corrigé.
+4. Autres bugs corrigés : ambiances du métro et du chalutier qui suivaient le
+   joueur en ville après la mort, lance à incendie qui sifflait sur l'écran de
+   mort, 12 libellés du bouton d'action rognés, skins de Jax impossibles à
+   toucher.
+5. **Mer** : dégradé de profondeur, vagues, reflets (plus doux la nuit),
+   ressac, écume autour des pontons, sillage en V, éclaboussures, houle
+   partagée par les bateaux, les bouées et le nageur. Interrupteur `MER_V2`,
+   **coût de rendu mesuré identique**.
+6. **Course** : en course de référence, une partie **ne pouvait pas
+   aboutir**. Trois IA bloquées (hors piste ou dans le décor), une friction
+   qui dépendait du FPS, une grille qui faisait s'entrechoquer les voitures
+   au départ.
+7. Course, ajouts : vrai décompte 3-2-1-GO, HUD lisible qui ne cache plus la
+   voiture, carte du circuit, chrono du tour et meilleur tour, écart,
+   records personnels sauvegardés, écran de fin, chevrons au sol, ligne
+   d'arrivée en travers, effet de vitesse.
+8. Toutes les branches passent `valider.js` et `scenarios.js` (graine fixe
+   et aléatoire), et une **sauvegarde d'avant la nuit se charge sans perte**
+   sur chacune (voir « Fin de nuit »).
+9. **Reste à faire** : fantôme du meilleur tour, évitement entre IA (contacts
+   au départ des Quais), écume de ponton qui suit la forme réelle des coques.
+10. **Les 3 points les plus importants** : le correctif OVNI/relance,
+    les IA de course qui finissent enfin leurs courses, et la mer à vérifier
+    **en vrai sur iPhone** (coût du shader par pixel).
 
 ## Branches
 
-| Branche | Créée depuis | État |
-|---|---|---|
-| `nuit-audit-1` | `master` (6e6c6ab) | en cours |
-| `nuit-mer` | `nuit-audit-1` | pas encore créée |
-| `nuit-course` | `nuit-audit-1` | pas encore créée |
+| Branche | Créée depuis | Commits | État |
+|---|---|---|---|
+| `nuit-audit-1` | `master` (6e6c6ab) | 5 correctifs + docs | **fonctionne** (tests au vert, voir « Fin de nuit ») |
+| `nuit-mer` | `nuit-audit-1` | mer V2 + docs | **fonctionne** — à vérifier à l'œil sur iPhone |
+| `nuit-course` | `nuit-audit-1` | 7 commits course + docs | **fonctionne** — à jouer sur iPhone |
+
+`nuit-mer` et `nuit-course` ne se connaissent pas. Si les deux sont
+retenues, la fusion touchera `index.html` à des endroits différents (mer : section VILLE ;
+course : section DÉPÔT DE BUS, HUD, `majCamera`), plus `scenarios.js` et
+`CLAUDE.md`. Elle devrait se faire sans conflit de fond.
 
 ## Phase 1 — Audit
 
@@ -254,10 +291,196 @@ comptée comme un échec par la suite.
 - Reflet de la lune la nuit (un scintillement bleuté plus rare) : simple à
   ajouter sur le même principe.
 
+## Phase 3 — La course (branche `nuit-course`)
+
+### Diagnostic avant de coder
+
+Course de référence avec pilote automatique : il suit les waypoints par le
+vrai joystick. Plus une trace des concurrents seconde par seconde.
+
+**Ce qui marchait** :
+- trois circuits au caractère distinct ;
+- trois IA à personnalité (régulière, agressive, malin) ;
+- vitesse des IA plafonnée **relativement au véhicule du joueur** : la course
+  reste gagnable ;
+- le Toit a ses chutes et sa passerelle ;
+- le raccourci des Quais ;
+- l'abandon, la mort et la sortie sont déjà nettoyés ;
+- un top 5 des temps par circuit (`META.depotTemps`, **victoires seulement**).
+
+**Bugs trouvés en course de référence** :
+
+1. **Départ** : pas de vrai décompte (un toast « 3, 2, 1... GO ! » et tout le
+   monde part tout de suite). La grille décalait les IA de −4 sur l'axe Z,
+   quelle que soit l'orientation de la piste. Résultat : deux voitures à
+   2 u l'une de l'autre, et une IA qui démarre **hors piste**, donc freinée
+   d'office.
+2. **Friction hors piste par frame** (×0,90 à chaque image) : à 30 FPS, deux
+   fois moins sévère qu'à 60. La même faute ne coûtait pas la même chose
+   selon l'appareil.
+3. **IA bloquées** :
+   - la Malin ne finissait **ni la Boucle ni les Quais**. Elle filait vers
+     la sortie du raccourci à travers l'herbe et y rampait à 3 u/s ;
+   - l'Agressive suivait le joueur sorti de piste et y restait (2,2 u/s
+     pendant toute la course) ;
+   - le raccourci « bus couché » était lui-même un **piège** : la friction
+     hors piste s'y appliquait.
+4. **HUD** : le panneau de course (circuit, chrono, place, bouton ABANDONNER)
+   est posé **exactement sur la voiture du joueur**, au centre de l'écran.
+   Il tient en deux lignes de 9 à 11 px, sans chrono du tour, sans meilleur
+   tour, sans écart ni carte.
+5. **Fin** : un simple message (place et gain), sans temps ni record.
+6. **Lisibilité** : sol sombre, barrières fines, aucun chevron dans les
+   virages. Seule la ligne de départ est marquée.
+
+**Anti-triche vérifié** : la progression ne fait qu'augmenter, avec une
+anticipation de 3 waypoints au plus. Reculer ne revalide rien, et couper par
+l'herbe est très lent : pas de faille trouvée.
+
+### Fait (commits)
+
+| Commit | Contenu |
+|---|---|
+| `94bce37` | **Vrai décompte 3-2-1-GO** (grands chiffres, bips, `dtJeu`), voitures bloquées jusqu'au GO, départ anticipé impossible par construction. **Grille 2×2** derrière la ligne, sur la tangente de la piste : toutes les voitures sur la piste, à ≥ 5,4 u les unes des autres |
+| `17956c5` | Friction hors piste **indépendante du FPS** (même force qu'avant à 60 FPS) |
+| `ca35d9a` | **IA** : la Malin passe par l'entrée du raccourci, le couloir du raccourci compte comme piste, l'Agressive ne suit plus un joueur hors piste, toute IA hors piste rejoint la piste au plus court. Les 9 combinaisons IA × circuit finissent, sur 4 graines |
+| `0fbff1f` | **HUD de course** en haut à gauche, voiture dégagée. Il affiche la place en grand, le tour (« DERNIER TOUR »), le chrono du tour, le meilleur tour et l'écart avec la voiture de devant (ou de derrière, en tête). En course, la **minimap dessine le circuit** : tracé, raccourci, ligne de départ, concurrents. **Joueur en pole** : sur une grille en 2×2, le premier contact à pleine vitesse détruisait la Citadine avant le premier virage (−23, −36, −70 PV en 0,6 s) |
+| `4ea9069` | **Records personnels** par circuit (`META.depotRecords`, clés fixes) : meilleur temps et meilleur tour, même hors podium. **Retours de tour** : bip, « TOUR 2 — 31,5 s », « ★ Record du tour », « DERNIER TOUR ! ». **Écran de fin** : place, temps, meilleur tour, record battu ou ancien record, gain. **Manœuvre de dégagement** des IA : recul en braquant ; en dernier recours, remise en piste comptée. La Malin restait coincée dans les conteneurs des Quais toute la course |
+| `868a430` | **Ligne d'arrivée en damier, en travers de la piste** (elle était posée *dans le sens* de la piste). **Chevrons peints au sol** dans les 4 virages les plus serrés de chaque circuit. **Effet de vitesse** : +7° de champ à pleine vitesse, en course seulement |
+| `0126439` | Tests de robustesse : anti-triche, abandon au tour 1, mort en course, 5 courses d'affilée |
+
+### Course complète de référence
+
+Pilote automatique sur La Boucle, avec la Citadine.
+- **Avant** : la course n'aboutissait jamais. Le pilote sortait de piste et
+  rampait, l'Agressive le suivait dans l'herbe, et la Malin ne finissait pas.
+- **Après** : **1ʳᵉ place en 38,07 s**, identique sur 3 passes. Le joueur garde
+  ses 120 PV jusqu'au dernier tour, et l'écran de fin annonce les deux
+  records.
+
+### Performance
+
+| Mesure (joueur sur la grille, IA en course, 8 s) | Avant | Après |
+|---|---|---|
+| `depotMajCourse` par frame | 2,2–2,3 ms | 3,2–3,4 ms |
+| Rendu 3D par frame | ~18 ms | ~18–19 ms |
+| Carte du circuit (dessinée 1 frame sur 3) | — | 0,46 ms, soit ~0,15 ms/frame |
+
+Environ **+1 ms par frame (~5 %)**, sous le seuil de 10 %. Cette milliseconde
+paie des IA qui rejoignent la piste et se dégagent. Le rendu 3D (chevrons,
+damier) ne bouge pas.
+
+### Captures (`captures/course/`)
+
+- `hud_avant` / `hud_apres` : le panneau était posé sur la voiture ;
+- `decompte_avant` / `decompte_apres` / `decompte_lisib` : décompte, grille
+  en quinconce, ligne d'arrivée ;
+- `fin_avant` / `fin_apres` : écran de fin ;
+- `chevrons_boucle` : chevron au sol dans un virage.
+
+### Vérifications anti-triche
+
+- **Marche arrière** : des allers-retours sur des points déjà validés donnent
+  **+1 point au plus, sans cumul**. Le rayon de validation, 1,5 × la largeur
+  de piste, vaut à peu près l'écart entre deux points : se tenir sur un
+  point « touche » déjà le suivant. Le gain (≈ 23 u) est inférieur au temps
+  perdu en reculant : pas exploitable. Un **tour complet à l'envers ne valide
+  jamais un tour** (+5 points contre +16).
+- **Couper par l'herbe** : la friction hors piste reste forte (même force
+  qu'avant à 60 FPS). Seul le couloir du raccourci officiel est rapide.
+
+### Idées non réalisées
+
+- **Fantôme du meilleur tour** : non fait. Le temps a servi aux bugs bloquants
+  (IA, grille, HUD). Le coût serait faible : un mesh de plus et un
+  enregistrement position/angle 10 fois par seconde, soit ~300 points par tour.
+- **Évitement entre IA** : au départ des Quais, la Malin (le Bolide, plus
+  rapide) percute parfois les IA plus lentes et finit dans les conteneurs.
+  Elle s'en sort désormais, mais elle peut y perdre jusqu'à 18 s. Le vrai
+  remède est un dépassement par le côté au lieu de pousser.
+- **Rayon de validation des points** : il pourrait être réduit pour une
+  progression plus fine. Je n'y ai pas touché : il fixe la difficulté du
+  pilotage, et le changer relève de l'équilibrage.
+- Faire disparaître le score et la vague (sans objet en course) pendant la
+  course.
+
+## Fin de nuit — vérification de chaque branche
+
+| Branche | `valider.js` | `scenarios.js` (graine fixe) | `scenarios.js` (graine aléatoire) | Sauvegarde d'avant la nuit |
+|---|---|---|---|---|
+| `nuit-audit-1` | ✓ | 0 échec | 0 échec — 1 saut **connu** (somme rare de la Radio, ~5 %, voir CLAUDE.md) | rechargée **sans aucun écart**, champ par champ |
+| `nuit-mer` | ✓ | 0 échec | 0 échec, aucun saut | sans aucun écart |
+| `nuit-course` | ✓ | 0 échec | 0 échec, aucun saut | sans aucun écart (seule la nouvelle clé `depotRecords` s'ajoute, à ses valeurs par défaut) |
+
+Méthode pour la sauvegarde : une partie riche (argent, niveau, 15 curiosités,
+tenues, armes, améliorations, défis, skins, métiers, « Mes véhicules »,
+lieux vus, records d'arcade) est créée avec la version d'avant la nuit
+(`master`). Elle est ensuite relue par chaque branche **sur la même origine**
+(même `localStorage`, clé `asphalte_save_v1` inchangée) et comparée **champ
+par champ**.
+
+Les captures de chaque phase sont dans `rapport_nuit/captures/` **sur la
+branche de la phase** :
+- `audit/` sur les trois branches ;
+- `mer/` sur `nuit-mer` ;
+- `course/` sur `nuit-course`.
+
+Le dépôt est laissé sur **`nuit-audit-1`**.
+
 ## Décisions prises seul
 
-*(en cours)*
+- **Faux départ** (course) : plutôt qu'une pénalité, aucune commande n'est
+  lue avant le GO. Un départ anticipé est donc impossible, et rien ne change
+  à l'équilibrage. Le moteur peut quand même ronfler pendant le décompte.
+- **Raccourci des Quais** : traité comme de la piste. Le panneau
+  « RACCOURCI ? » et l'IA Malin (« prend toujours le raccourci ») montrent
+  que c'était l'intention ; le laisser lent en faisait un piège. La course
+  reste gagnable : la Malin y met au mieux ~51 s, et un joueur à pleine
+  vitesse sur la piste ~43 s.
+
+- **Commits** : un commit par changement, sauf `4ea9069` (course). Il
+  réunit les records et l'écran de fin d'une part, la manœuvre de dégagement
+  des IA d'autre part : les deux touchaient le même passage de `index.html`
+  au même moment. Le message de commit sépare clairement les deux parties.
+- **Remise en piste des IA** (course) : en dernier recours seulement, après
+  3 tentatives de dégagement ratées. C'est le même principe que la chute
+  sur le Toit. La remise est comptée (`ent.remises`), donc visible dans les
+  tests.
+- **Rayon de validation des points de course** : inchangé. Il permet de
+  gagner 1 point en faisant un aller-retour, sans aucun cumul : c'est de
+  l'équilibrage, pas un bug.
+- **Rapport** : la version complète est la même sur les trois branches.
 
 ## À tester à la main sur iPhone demain
 
-*(complété en fin de nuit)*
+Les plus importants d'abord, chacun se vérifie en moins d'une minute :
+
+1. **`nuit-audit-1`** — Monter dans l'OVNI, se faire tuer au volant, puis
+   REJOUER : la partie doit démarrer, avec les boutons « à pied » (ESQUIVE,
+   SPRINT, grenade avec son compteur).
+2. **`nuit-audit-1`** — Mourir au métro (ou au chalutier), puis rejouer : en
+   ville, aucun bourdonnement de métro ni bruit de mer.
+3. **`nuit-mer`** — Face au large depuis la plage : la fluidité reste-t-elle
+   la même qu'avant ? Si ça saccade, passer `MER_V2` à `false` pour comparer.
+4. **`nuit-mer`** — Piloter un bateau : sillage en V, tangage. Puis entrer
+   dans l'eau à pied : anneau d'écume, et le nageur flotte avec la houle.
+5. **`nuit-course`** — Une course sur La Boucle : décompte 3-2-1-GO, panneau
+   en haut à gauche, voiture **jamais cachée**, carte du circuit à la place
+   de la minimap.
+6. **`nuit-course`** — Finir une course : écran de fin (temps, meilleur tour,
+   « RECORD ! ») puis recommencer. Le record doit s'afficher, et rester après
+   avoir fermé et rouvert l'app.
+7. **`nuit-course`** — Les Quais : la Malin prend le raccourci « bus couché »
+   et ne reste plus bloquée. Prendre soi-même le raccourci : il doit être
+   rapide.
+8. **`nuit-course`** — Lisibilité des chevrons au sol dans les virages, et
+   confort de l'effet de vitesse (+7° de champ). Il se règle avec
+   `DEPOT_FOV_VITESSE`.
+9. **`nuit-audit-1`** — Serre et musée : les libellés longs du bouton d'action
+   passent sur deux lignes sans rien cacher.
+10. **`nuit-audit-1`** — Écran Personnages, Jax : la rangée de skins défile au
+    doigt, et « Classique » se touche.
+11. **`nuit-mer`** — La nuit, au bord de l'eau : les reflets doivent être nettement
+    plus discrets que le jour.
+12. **`nuit-course`** — Abandonner une course en plein tour 1 (bouton
+    🏳 ABANDONNER) : retour propre au stand, aucun son qui reste.
