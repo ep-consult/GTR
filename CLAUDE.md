@@ -55,83 +55,86 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
   echo "$ln | $(sed -n "$((ln+1))p" index.html | sed 's/^[ \t]*//')"; done
 ```
 
-**Relevé au 8 octobre 2026 (trafic : files, contournement, carrefours) — 21 235 lignes.**
+**Relevé au 10 octobre 2026 (branche nuit-mer) — 21 454 lignes.**
 
 | Ligne | Section |
 |---|---|
-| 1–856 | `<head>`, CSS, HUD, écrans (menu, game over, panneaux) |
-| 389–527 | **icônes SVG** : copie des 42 `<symbol>` de `icones/icones.svg` (générée, ne pas éditer) |
-| 833–835 | **eruda** (console mobile de dev — à retirer avant diffusion) |
-| 836 | chargement Three.js r128 depuis CDN |
-| 841 | `<script id="gamejs">` + handler `window.onerror` → affichage dans `#errBox` |
-| 857 | en-tête GTRoyal, début du code du jeu |
-| 934 | AUDIO — WebAudio synthétisé, boîte de vitesses simulée |
-| 1455 | ENTRÉES — joystick virtuel, boutons tactiles, clavier ZQSD/WASD |
-| 1762 | MÉTA-PROGRESSION — `META`, défis, sauvegarde |
-| 2430 | THREE.JS — rendu, scène, lumières |
-| 2707 | VILLE DE LOS REYES — génération procédurale par quartiers |
-| 4960 | MODÈLES — humains, armes, véhicules, hélico, ramassables |
-| 5982 | POOLS — balles, particules, textes flottants, traces de pneus |
-| 6340 | ÉTAT GLOBAL + JOUEUR (`P`) |
-| 7054 | VÉHICULES — physique arcade, trafic, dégâts |
-| 9294 | PIÉTONS |
-| 9446 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
-| 9982 | **RAYON TRACTEUR DE L'OVNI** |
-| 10378 | NIVEAU DE RECHERCHE (étoiles) |
-| 10623 | VAGUES + bonus de fin de vague |
-| 10742 | MISSIONS COURTES |
-| 10745 | BÂTIMENTS VISITABLES — intérieurs |
-| 10815 | FOUILLE — mécanique générique |
-| 11396 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
-| 15331 | CINÉ-PALACE |
-| 15393 | MÉTRO ABANDONNÉ |
-| 15459 | RADIO PIRATE REYES FM |
-| 15564 | LE CHALUTIER « SAINTE-ODILE » |
-| 15838 | SITE 51 |
-| 16068 | LE DÉPÔT DE BUS — courses clandestines |
-| 17083 | **MÉTIERS** — missions liées à un véhicule |
-| 17314 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
-| 18218 | ÉCRANS / MENUS / BOUTIQUES |
-| 18485 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
-| 19257 | DÉBUT / FIN DE PARTIE |
-| 20723 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
-| 21117 | BOUCLE PRINCIPALE |
+| 1–865 | `<head>`, CSS, HUD, écrans (menu, game over, panneaux) |
+| 398–536 | **icônes SVG** : copie des 42 `<symbol>` de `icones/icones.svg` (générée, ne pas éditer) |
+| 842–844 | **eruda** (console mobile de dev — à retirer avant diffusion) |
+| 845 | chargement Three.js r128 depuis CDN |
+| 850 | `<script id="gamejs">` + handler `window.onerror` → affichage dans `#errBox` |
+| 866 | en-tête GTRoyal, début du code du jeu |
+| 955 | AUDIO — WebAudio synthétisé, boîte de vitesses simulée |
+| 1476 | ENTRÉES — joystick virtuel, boutons tactiles, clavier ZQSD/WASD |
+| 1783 | MÉTA-PROGRESSION — `META`, défis, sauvegarde |
+| 2451 | THREE.JS — rendu, scène, lumières |
+| 2728 | VILLE DE LOS REYES — génération procédurale par quartiers |
+| 5158 | MODÈLES — humains, armes, véhicules, hélico, ramassables |
+| 6180 | POOLS — balles, particules, textes flottants, traces de pneus |
+| 6538 | ÉTAT GLOBAL + JOUEUR (`P`) |
+| 7252 | VÉHICULES — physique arcade, trafic, dégâts |
+| 9503 | PIÉTONS |
+| 9655 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
+| 10191 | **RAYON TRACTEUR DE L'OVNI** |
+| 10587 | NIVEAU DE RECHERCHE (étoiles) |
+| 10832 | VAGUES + bonus de fin de vague |
+| 10951 | MISSIONS COURTES |
+| 10954 | BÂTIMENTS VISITABLES — intérieurs |
+| 11024 | FOUILLE — mécanique générique |
+| 11605 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
+| 15540 | CINÉ-PALACE |
+| 15602 | MÉTRO ABANDONNÉ |
+| 15668 | RADIO PIRATE REYES FM |
+| 15773 | LE CHALUTIER « SAINTE-ODILE » |
+| 16047 | SITE 51 |
+| 16277 | LE DÉPÔT DE BUS — courses clandestines |
+| 17292 | **MÉTIERS** — missions liées à un véhicule |
+| 17523 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
+| 18427 | ÉCRANS / MENUS / BOUTIQUES |
+| 18694 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
+| 19466 | DÉBUT / FIN DE PARTIE |
+| 20940 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
+| 21334 | BOUCLE PRINCIPALE |
 
 ### Ancres fines (hors bandeaux)
 
 | Ligne | Repère |
 |---|---|
-| 879 | `ICONES_SVG` — interrupteur des icônes, `ico()`, `icoArme()`, `labelAction()` |
-| 1770 | `GARAGES_TUNING` — les garages de la ville (déclarés avant `META`) |
-| 1790 | `VEHPERSO_MAX` — taille de « Mes véhicules » (`META.vehPerso`) |
-| 1952 | `fusionMeta()` — deep-merge de la sauvegarde, `DICOS_OUVERTS` juste avant |
-| 1982 | `CURIOS` — tableau des curiosités |
-| 2033 | `CURIOS_ACTIVES` |
-| 2047 | déblocage de `batte2` (toutes curiosités actives réunies) |
-| 2216 | `VEHDEFS` — véhicules, éligibilité garage (`tuningMeca`, `tuningCarro`) |
-| 2857 | `finaliserMerge()` |
-| 4203 | `mkPorteGarage()` — porte roulante des garages |
-| 4271 | `placeLibrePorte()` |
-| 4330 | helper `poser()` — placement des lieux |
-| 4356 | `caseCentre(bx,bz)` |
-| 4449 | `REPLIS` — filet de sécurité en spirale |
-| 6348 | `const P` — état du joueur |
-| 6386 | `P.stamMax = 100 + 12*mus` |
-| 7359 | `resoudreCollisionsVehicule()` — collisions entre véhicules (SAT sur les 4 axes) |
-| 7848 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
-| 8776 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
-| 8889 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
-| 10751 | `IOFF = -9000` |
-| 12473 | `INTDEFS` — définitions des **27 salles** |
-| 12653 | `construireSalle(id)` |
-| 17092 | `METIERS_CIBLE` |
-| 17332 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
-| 17403 | `PIECES_FAMILLES` — catalogues de pièces par famille |
-| 17681 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
-| 17734 | `libererObjet()` — libère les géométries d'un objet retiré |
-| 17750 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
-| 17828 | `construireGarageTuning()` — la salle partagée |
-| 18192 | `majNitro()` |
+| 888 | `ICONES_SVG` — interrupteur des icônes, `ico()`, `icoArme()`, `labelAction()` |
+| 894 | `MER_V2` — interrupteur de la mer améliorée (false = mer d'avant à l'identique) |
+| 1791 | `GARAGES_TUNING` — les garages de la ville (déclarés avant `META`) |
+| 1811 | `VEHPERSO_MAX` — taille de « Mes véhicules » (`META.vehPerso`) |
+| 1973 | `fusionMeta()` — deep-merge de la sauvegarde, `DICOS_OUVERTS` juste avant |
+| 2003 | `CURIOS` — tableau des curiosités |
+| 2054 | `CURIOS_ACTIVES` |
+| 2068 | déblocage de `batte2` (toutes curiosités actives réunies) |
+| 2237 | `VEHDEFS` — véhicules, éligibilité garage (`tuningMeca`, `tuningCarro`) |
+| 2748 | mer V2 : `houle()`/`houleY()`, shader (`merV2Materiau`), sillage, éclaboussures, `assietteHoule()` |
+| 3050 | `finaliserMerge()` |
+| 4401 | `mkPorteGarage()` — porte roulante des garages |
+| 4469 | `placeLibrePorte()` |
+| 4528 | helper `poser()` — placement des lieux |
+| 4554 | `caseCentre(bx,bz)` |
+| 4647 | `REPLIS` — filet de sécurité en spirale |
+| 6546 | `const P` — état du joueur |
+| 6584 | `P.stamMax = 100 + 12*mus` |
+| 7557 | `resoudreCollisionsVehicule()` — collisions entre véhicules (SAT sur les 4 axes) |
+| 8049 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
+| 8157 | `boutonsAPied()` — boutons du HUD remis « à pied » (sortie de véhicule ET début de partie) |
+| 8984 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
+| 9097 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
+| 10960 | `IOFF = -9000` |
+| 12682 | `INTDEFS` — définitions des **27 salles** |
+| 12862 | `construireSalle(id)` |
+| 17301 | `METIERS_CIBLE` |
+| 17541 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
+| 17612 | `PIECES_FAMILLES` — catalogues de pièces par famille |
+| 17890 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
+| 17943 | `libererObjet()` — libère les géométries d'un objet retiré |
+| 17959 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
+| 18037 | `construireGarageTuning()` — la salle partagée |
+| 18401 | `majNitro()` |
 
 ---
 
@@ -275,6 +278,26 @@ pendant 90 s simulées en 3 points de la ville, `requestAnimationFrame` coupé
 pour un tirage déterministe, en comptant chocs (`dentT`), dégâts et véhicules
 arrêtés plus de 10 s. Avant : 359 chocs, 16 véhicules figés (jusqu'à 77 s).
 Après : 0 choc, 0 figé, sur 10 graines.
+
+---
+
+## Mer V2 (nuit du 9 octobre 2026) — interrupteur `MER_V2`
+
+- **Shader injecté** (`onBeforeCompile`) dans le matériau **Lambert d'origine**
+  de la mer : brouillard et éclairage jour/nuit conservés. Dégradé de
+  profondeur (distance au rivage `uMer`), vagues, reflets pilotés par
+  `soleil.intensity` (plus doux la nuit), ressac, écume des 8 pontons et
+  4 îles les plus proches (uniformes en nombre fixe, recalculés toutes les
+  0,5 s). Pas de déformation de sommets (invisible de dessus).
+- **Houle partagée** : `houle(x,z,t)` existe en JS **et** en GLSL, identique —
+  bateaux (pilotés et garés), bouées et nageur suivent les vagues qu'on voit
+  (`assietteHoule`, `houleY`). Toute modification de l'une se reporte sur
+  l'autre.
+- **Sillage / éclaboussures** : pool fixe `SILLAGES` (48 quads, jamais
+  d'allocation en jeu), `sillageBateau`, `eclaboussure(x,z,force)`.
+- Tout est cosmétique : horloge `dt` (spectacle), jamais `dtJeu`.
+- Coût de rendu mesuré identique (~2 ms, 3 vues) ; sur iPhone, le shader
+  ajoute une dizaine de sinus par pixel d'eau : à surveiller.
 
 ---
 
