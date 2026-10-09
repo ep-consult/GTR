@@ -886,6 +886,12 @@ const el=id=>document.getElementById(id);
    ico(id, secours) rend un <svg><use> de 1em, coloré par `color` (currentColor) ;
    si l'icône n'existe pas dans le document, l'emoji de secours est rendu. */
 const ICONES_SVG=true;
+/* MER_V2 = INTERRUPTEUR DE RETOUR EN ARRIÈRE de la mer améliorée (nuit du
+   9 octobre 2026) : dégradé de profondeur, vagues et reflets animés, ressac
+   et écume autour des pontons (shader injecté dans le matériau Lambert
+   d'origine), sillage des bateaux, éclaboussures, houle partagée par les
+   bateaux, les bouées et le nageur. À false : la mer d'avant, à l'identique. */
+const MER_V2=true;
 function ico(id,secours){
   if(!ICONES_SVG||!document.getElementById(id)) return secours||'';
   return '<svg class="icoSvg" viewBox="0 0 24 24" aria-hidden="true"><use href="#'+id+'"></use></svg>';
@@ -2739,6 +2745,178 @@ function estEau(x,z){
 // inconduisible). Point d'entrée UNIQUE utilisé partout où le comportement
 // bateau/4x4 doit dépendre de la position réelle, pas juste du type déclaré.
 function surEauVeh(v){ return !!v.def.eau||(!!v.def.amphibie&&estEau(v.x,v.z)); }
+/* ---------- MER V2 (voir MER_V2 en tête de fichier) ----------
+   Tout est cosmétique : rien ici ne décide d'une issue de jeu, donc horloge
+   du spectacle (dt). Coût mesuré avant/après (rapport de nuit) : un seul
+   matériau modifié (aucun mesh ajouté pour l'eau elle-même), quelques sinus
+   par pixel, un petit pool d'objets à durée de vie fixe. */
+const MER_U={uTemps:{value:0},uSoleil:{value:1},uMer:{value:0},
+  uPontons:{value:[]},uNbPontons:{value:0},uIles:{value:[]},uNbIles:{value:0}};
+const MER_MAX_PONTONS=8, MER_MAX_ILES=4;
+for(let i=0;i<MER_MAX_PONTONS;i++) MER_U.uPontons.value.push(new THREE.Vector4(0,0,0,0));
+for(let i=0;i<MER_MAX_ILES;i++) MER_U.uIles.value.push(new THREE.Vector3(0,0,0));
+let MER_T=0;
+// Houle partagée : la MÊME fonction que le shader (houle() en GLSL), pour
+// que bateaux, bouées et nageur montent et descendent avec les vagues
+// qu'on voit. Renvoie environ [-1.25, 1.25].
+function houle(x,z,t){
+  return Math.sin(x*0.21+t*1.3)*0.5+Math.sin(z*0.17-t*1.1)*0.35+Math.sin((x+z)*0.11+t*0.7)*0.4;
+}
+const MER_AMPL=0.13; // hauteur de houle en unités (objets posés sur l'eau)
+function houleY(x,z){ return MER_V2?houle(x,z,MER_T)*MER_AMPL:0; }
+const MER_GLSL_ENTETE=`uniform float uTemps; uniform float uSoleil; uniform float uMer;
+uniform vec4 uPontons[${MER_MAX_PONTONS}]; uniform int uNbPontons;
+uniform vec3 uIles[${MER_MAX_ILES}]; uniform int uNbIles;
+varying vec3 vMerPos;
+float houle(vec2 p,float t){ return sin(p.x*0.21+t*1.3)*0.5+sin(p.y*0.17-t*1.1)*0.35+sin((p.x+p.y)*0.11+t*0.7)*0.4; }
+`;
+// Couleur de l'eau : turquoise près du bord, bleu profond au large, vagues
+// qui assombrissent/éclaircissent doucement, détail de la texture d'origine.
+const MER_GLSL_COULEUR=`#include <map_fragment>
+  {
+    float distRive=vMerPos.z-uMer;
+    float prof=smoothstep(2.0,48.0,distRive);
+    float lum=dot(diffuseColor.rgb,vec3(0.3,0.59,0.11))/0.311;
+    float detail=clamp(lum,0.85,1.8);
+    vec3 turquoise=vec3(0.09,0.40,0.44), large=vec3(0.07,0.29,0.46), fond=vec3(0.04,0.16,0.32);
+    vec3 c=mix(turquoise,large,smoothstep(0.0,0.45,prof));
+    c=mix(c,fond,smoothstep(0.45,1.0,prof));
+    float h=houle(vMerPos.xz*1.6,uTemps);
+    c*=0.94+0.06*h;
+    diffuseColor.rgb=c*mix(1.0,detail,0.55);
+  }`;
+// Reflets du soleil (plus doux la nuit), ressac sur la plage, écume au pied
+// des pontons et des îles proches.
+const MER_GLSL_ECUME=`{
+    float distRive=vMerPos.z-uMer;
+    float prof=smoothstep(2.0,48.0,distRive);
+    // deux réseaux de vagues fines croisés : leur produit ne dépasse le seuil
+    // que sur de petits points qui naissent et s'éteignent (scintillement)
+    float g1=houle(vMerPos.xz*7.0,uTemps*2.2), g2=houle(vMerPos.zx*5.3+vec2(31.0,17.0),uTemps*1.8);
+    float reflet=smoothstep(0.9,1.25,g1*g2)*uSoleil*(0.4+0.6*prof);
+    gl_FragColor.rgb+=vec3(1.0,0.97,0.88)*reflet*0.7;
+    float b=houle(vMerPos.xz*2.3,uTemps*0.6);
+    float larg=1.5+0.9*sin(uTemps*0.9+vMerPos.x*0.045);
+    float ecume=1.0-smoothstep(0.0,larg,distRive+b*0.35);
+    for(int i=0;i<${MER_MAX_PONTONS};i++){
+      if(i>=uNbPontons) break;
+      vec4 pt=uPontons[i];
+      vec2 q=abs(vMerPos.xz-pt.xy)-pt.zw;
+      float d=length(max(q,0.0))+min(max(q.x,q.y),0.0);
+      ecume=max(ecume,(1.0-smoothstep(0.0,0.9,d+b*0.18))*0.75);
+    }
+    for(int i=0;i<${MER_MAX_ILES};i++){
+      if(i>=uNbIles) break;
+      float d=length(vMerPos.xz-uIles[i].xy)-uIles[i].z;
+      ecume=max(ecume,(1.0-smoothstep(0.0,1.3,d+b*0.3))*0.8);
+    }
+    gl_FragColor.rgb=mix(gl_FragColor.rgb,vec3(0.92,0.97,1.0)*(0.5+0.5*uSoleil),clamp(ecume,0.0,1.0)*0.85);
+  }
+#include <fog_fragment>`;
+function merV2Materiau(m){
+  m.onBeforeCompile=(sh)=>{
+    Object.assign(sh.uniforms,MER_U);
+    sh.uniforms.uMer.value=MER;
+    sh.vertexShader='varying vec3 vMerPos;\n'+sh.vertexShader.replace('#include <worldpos_vertex>',
+      '#include <worldpos_vertex>\n  vMerPos=(modelMatrix*vec4(transformed,1.0)).xyz;');
+    sh.fragmentShader=MER_GLSL_ENTETE+sh.fragmentShader
+      .replace('#include <map_fragment>',MER_GLSL_COULEUR)
+      .replace('#include <fog_fragment>',MER_GLSL_ECUME);
+  };
+  m.customProgramCacheKey=()=>'merV2';
+}
+// Sillage et éclaboussures : quads d'écume posés à plat, qui s'élargissent et
+// s'effacent. Pool fixe (jamais d'allocation en jeu), recyclé en boucle.
+const texSillage=cTex(64,(g,s)=>{
+  const gr=g.createRadialGradient(s/2,s/2,2,s/2,s/2,s/2);
+  gr.addColorStop(0,'rgba(240,250,255,0.9)'); gr.addColorStop(0.55,'rgba(225,242,252,0.45)'); gr.addColorStop(1,'rgba(225,242,252,0)');
+  g.fillStyle=gr; g.fillRect(0,0,s,s);
+});
+// anneau d'écume des éclaboussures : un vrai cercle, lisible même sur l'eau claire
+const texAnneau=cTex(64,(g,s)=>{
+  const gr=g.createRadialGradient(s/2,s/2,s*0.22,s/2,s/2,s/2);
+  gr.addColorStop(0,'rgba(240,250,255,0)'); gr.addColorStop(0.55,'rgba(245,252,255,0.95)');
+  gr.addColorStop(0.75,'rgba(235,248,255,0.6)'); gr.addColorStop(1,'rgba(235,248,255,0)');
+  g.fillStyle=gr; g.fillRect(0,0,s,s);
+});
+const SILLAGES=[];
+if(MER_V2){
+  const geoSillage=new THREE.PlaneGeometry(1,1);
+  for(let i=0;i<48;i++){
+    const m=new THREE.Mesh(geoSillage,new THREE.MeshBasicMaterial({map:texSillage,transparent:true,depthWrite:false,opacity:0}));
+    m.rotation.x=-Math.PI/2; m.visible=false; scene.add(m);
+    SILLAGES.push({on:false,mesh:m,t:0,vie:1,x:0,z:0,vx:0,vz:0,s0:1,s1:1,op:1});
+  }
+}
+let sillageCursor=0;
+function spawnSillage(x,z,vx,vz,vie,s0,s1,op,tex){
+  if(!SILLAGES.length) return;
+  const w=SILLAGES[sillageCursor++%SILLAGES.length];
+  w.mesh.material.map=tex||texSillage; // même type de texture : pas de recompilation
+  w.on=true; w.t=0; w.vie=vie; w.x=x; w.z=z; w.vx=vx; w.vz=vz; w.s0=s0; w.s1=s1; w.op=op;
+  w.mesh.visible=true; w.mesh.position.set(x,0.17,z); w.mesh.scale.set(s0,s0,1); w.mesh.material.opacity=op;
+}
+// force ~1 (nageur) à ~3 (véhicule qui tombe à l'eau)
+function eclaboussure(x,z,force){
+  if(!MER_V2) return;
+  spawnSillage(x,z,0,0,0.9+0.3*force,0.8*force,4.2*force,1,texAnneau);
+  spawnSillage(x,z,0,0,0.7+0.2*force,0.4*force,2.4*force,0.9,texAnneau);
+  spawnSillage(x,z,0,0,0.5,0.8*force,1.6*force,0.8);
+  burst(x,0.3,z,Math.round(6+6*force),0xd8f0ff,4+2.5*force,4+2*force);
+}
+// Pontons et îles les plus proches du joueur : seuls ceux-là ont leur écume
+// (uniformes en nombre fixe, boucle bornée dans le shader).
+function merV2Proches(){
+  const pr=PONTONS.slice().sort((a,b)=>dist2(a.x,a.z,P.x,P.z)-dist2(b.x,b.z,P.x,P.z));
+  const n=Math.min(MER_MAX_PONTONS,pr.length);
+  for(let i=0;i<n;i++) MER_U.uPontons.value[i].set(pr[i].x,pr[i].z,pr[i].hw,pr[i].hd);
+  MER_U.uNbPontons.value=n;
+  const il=ILES.slice().sort((a,b)=>dist2(a.x,a.z,P.x,P.z)-dist2(b.x,b.z,P.x,P.z));
+  const m=Math.min(MER_MAX_ILES,il.length);
+  for(let i=0;i<m;i++) MER_U.uIles.value[i].set(il[i].x,il[i].z,il[i].r);
+  MER_U.uNbIles.value=m;
+}
+let merProchesT=0;
+function majMerV2(dt){
+  if(!MER_V2) return;
+  MER_T+=dt;
+  MER_U.uTemps.value=MER_T;
+  MER_U.uSoleil.value=clamp((soleil.intensity-0.1)/0.82,0.08,1);
+  merProchesT-=dt; if(merProchesT<=0){ merProchesT=0.5; merV2Proches(); } // pas besoin à chaque frame
+  for(let i=0;i<SILLAGES.length;i++){
+    const w=SILLAGES[i]; if(!w.on) continue;
+    w.t+=dt; const k=w.t/w.vie;
+    if(k>=1){ w.on=false; w.mesh.visible=false; continue; }
+    w.x+=w.vx*dt; w.z+=w.vz*dt; w.vx*=1-1.5*dt; w.vz*=1-1.5*dt;
+    const sc=w.s0+(w.s1-w.s0)*k;
+    w.mesh.position.set(w.x,0.17,w.z); w.mesh.scale.set(sc,sc,1);
+    w.mesh.material.opacity=w.op*(1-k)*(1-k);
+  }
+}
+// Sillage d'un bateau en mouvement : une traînée centrale + deux bras qui
+// s'écartent (le « V » d'un sillage), cadence liée à la vitesse.
+function sillageBateau(v,dt){
+  if(!MER_V2) return;
+  const vit=Math.abs(v.v); if(vit<2.5) return;
+  v.sillT=(v.sillT||0)-dt; if(v.sillT>0) return;
+  v.sillT=clamp(0.5/vit,0.035,0.12);
+  const sA=Math.sin(v.ang), cA=Math.cos(v.ang), arr=v.def.long*0.5, lat=v.def.larg*0.45;
+  const bx=v.x-sA*arr, bz=v.z-cA*arr, ouv=Math.min(4,vit*0.3);
+  const t=clamp(vit/14,0.4,1.2);
+  spawnSillage(bx,bz,-sA*1.2,-cA*1.2,1.8,v.def.larg*0.8,v.def.larg*2.0,0.8*t);
+  spawnSillage(bx+cA*lat,bz-sA*lat, cA*ouv,-sA*ouv,1.5,0.7,1.8,0.7*t);
+  spawnSillage(bx-cA*lat,bz+sA*lat,-cA*ouv, sA*ouv,1.5,0.7,1.8,0.7*t);
+}
+// Assiette d'un objet flottant selon la houle locale : hauteur + tangage le
+// long de son cap + roulis en travers.
+function assietteHoule(mesh,x,z,ang,base,longueur){
+  const h=houleY(x,z), sA=Math.sin(ang), cA=Math.cos(ang), L=Math.max(1,longueur*0.5);
+  const hAv=houleY(x+sA*L,z+cA*L), hAr=houleY(x-sA*L,z-cA*L);
+  const hG=houleY(x+cA*1.2,z-sA*1.2), hD=houleY(x-cA*1.2,z+sA*1.2);
+  mesh.position.y=base+h;
+  mesh.rotation.x=Math.atan2(hAr-hAv,2*L)*1.4;
+  mesh.rotation.z=Math.atan2(hG-hD,2.4)*1.4;
+}
 // Zone du désert (POIS.desert, voir mkAeroport) : adhérence réduite et
 // traînée de poussière en conduite, voir majVehiculePhys — demandé
 // explicitement (« effet course dans le désert »).
@@ -3255,7 +3433,9 @@ function construireVille(){
   // sol + mer
   const sol=new THREE.Mesh(new THREE.PlaneGeometry(2*HALF+520,2*HALF+180),new THREE.MeshLambertMaterial({map:texAsphalte}));
   sol.rotation.x=-Math.PI/2; sol.position.x=85; scene.add(sol);
-  const eau=new THREE.Mesh(new THREE.PlaneGeometry(2*HALF+520,260),new THREE.MeshLambertMaterial({map:texEau}));
+  const matMer=new THREE.MeshLambertMaterial({map:texEau});
+  if(MER_V2) merV2Materiau(matMer);
+  const eau=new THREE.Mesh(new THREE.PlaneGeometry(2*HALF+520,260),matMer);
   eau.rotation.x=-Math.PI/2; eau.position.set(85,0.12,MER+130); scene.add(eau);
   // bande de sable mouillé puis ligne d'écume
   const texMouille=cTex(64,(g2,s2)=>{
@@ -3270,6 +3450,7 @@ function construireVille(){
   const ecume=new THREE.Mesh(new THREE.PlaneGeometry(2*HALF+40,1.6),
     new THREE.MeshBasicMaterial({color:0xeaf6ff,transparent:true,opacity:0.55,depthWrite:false}));
   ecume.rotation.x=-Math.PI/2; ecume.position.set(0,0.14,MER); scene.add(ecume);
+  if(MER_V2) ecume.visible=false; // le ressac animé du shader la remplace
   // bateaux décoratifs au large
   mkCargo(-HALF*0.5,MER+105); mkCargo(HALF*0.6,MER+125);
   mkYacht(-30,MER+40); mkYacht(-160,MER+34);
@@ -4166,7 +4347,9 @@ function majSurf(dt){
 }
 const DAUPHIN={t:14,mesh:null,ph:0,x:0,z:0,dir:1};
 function majMer(dt){
-  for(const b of BOUEES){ b.ph+=dt*1.6; b.m.position.y=Math.sin(b.ph)*0.16; b.m.rotation.z=Math.sin(b.ph*0.7)*0.08; }
+  for(const b of BOUEES){ b.ph+=dt*1.6;
+    if(MER_V2) assietteHoule(b.m,b.m.position.x,b.m.position.z,b.ph*0.2,Math.sin(b.ph)*0.06,1.2);
+    else { b.m.position.y=Math.sin(b.ph)*0.16; b.m.rotation.z=Math.sin(b.ph*0.7)*0.08; } }
   for(const g of MOUETTES){
     g.a+=dt*0.5; g.ph+=dt*9;
     g.m.position.set(g.cx+Math.sin(g.a)*g.r,g.vy+Math.sin(g.ph*0.3)*0.6,g.cz+Math.cos(g.a)*g.r);
@@ -6739,7 +6922,7 @@ function majJoueur(dt,dtJeu){
   // déplacement à pied / à la nage
   const etaitNage=P.nage;
   P.nage=P.y<0.5&&(estEau(P.x,P.z)||dansPiscine(P.x,P.z));
-  if(P.nage&&!etaitNage){ burst(P.x,0.3,P.z,8,0x9fd8ff,5,6); bruit(0.2,0.3,700); }
+  if(P.nage&&!etaitNage){ if(MER_V2) eclaboussure(P.x,P.z,1+Math.min(1.5,Math.max(0,-P.vy)*0.08)); else burst(P.x,0.3,P.z,8,0x9fd8ff,5,6); bruit(0.2,0.3,700); }
   let vx=0,vz=0;
   const bouge=Math.hypot(INPUT.mx,INPUT.mz)>0.12;
   const sprint=!P.nage&&(INPUT.btn.sprint||INPUT.btn.sprintK)&&bouge&&(P.stam>1||P.buffs.nitroT>0);
@@ -6900,7 +7083,7 @@ function majJoueur(dt,dtJeu){
   }
 
   // rendu
-  if(!P.surMoto) P.h.g.position.set(P.x,P.nage?-0.78:P.y,P.z);
+  if(!P.surMoto) P.h.g.position.set(P.x,P.nage?-0.78+(dansPiscine(P.x,P.z)?0:houleY(P.x,P.z)):P.y,P.z);
   if(P.chute&&!P.para){
     // Posture de VRAIE chute libre (demandé explicitement) : bras tendus en
     // avant façon Superman (jamais juste écartés comme un pantin), jambes
@@ -7569,7 +7752,8 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
       if(v.h<=gY){
         v.h=gY; v.enAir=false;
         if(estEau(v.x,v.z)){ // amerrissage forcé
-          burst(v.x,0.4,v.z,12,0x9fd8ff,7,6); bruit(0.3,0.5,600);
+          if(MER_V2) eclaboussure(v.x,v.z,2.4+Math.min(1,v.def.long/8)); else burst(v.x,0.4,v.z,12,0x9fd8ff,7,6);
+          bruit(0.3,0.5,600);
           abimerVehicule(v,80,false);
         } else {
           if(v.vy<-9){ abimerVehicule(v,-v.vy*1.6,false); }
@@ -7616,7 +7800,8 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
     }
   }
   // sillage des bateaux
-  if(eau&&Math.abs(v.v)>4&&Math.random()<0.5)
+  if(eau&&MER_V2) sillageBateau(v,dt);
+  else if(eau&&Math.abs(v.v)>4&&Math.random()<0.5)
     spawnP(v.x-sA*d.long/2,0.2,v.z-cA*d.long/2,rand(-1,1),rand(0.5,1.5),rand(-1,1),0.5,0.7,0xcfeaff,2);
   // écrasement arcade — voir majImpactPersonnages (partagée avec majTrafic)
   majImpactPersonnages(v,dt);
@@ -7627,7 +7812,8 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
   if(v.hp<v.def.hp*0.42){ v.fumeT-=dt; if(v.fumeT<=0){v.fumeT=0.12;fumee(v.x,1.1,v.z, v.hp<v.def.hp*0.2?0x22242a:0x555a63);} }
   v.mesh.position.set(v.x,eau?0.15:(v.h||0),v.z);
   v.mesh.rotation.y=v.ang;
-  if(eau) v.mesh.rotation.x=Math.sin(ETAT.runT*2.2)*0.03;
+  if(eau&&MER_V2) assietteHoule(v.mesh,v.x,v.z,v.ang,0.15,d.long); // houle partagée (voir MER_V2)
+  else if(eau) v.mesh.rotation.x=Math.sin(ETAT.runT*2.2)*0.03;
   for(const r of v.mesh.userData.roues) r.rotation.x+=v.v*dt*1.6;
   // Monster Truck : suspension molle — le châssis (userData.corps, roues
   // exclues) tangue et rebondit indépendamment des roues, qui restent au
@@ -9282,6 +9468,7 @@ function majVehicules(dt){
       resoudreCollisionsVehicule(v,dt);
       majKnockback(v,dt);
       v.mesh.position.y=surEauVeh(v)?0.15:(v.def.air?(v.alt||0):solY(v.x,v.z));
+      if(MER_V2&&surEauVeh(v)&&!v.def.air) assietteHoule(v.mesh,v.x,v.z,v.ang,0.15,v.def.long);
       v.mesh.position.x=v.x; v.mesh.position.z=v.z;
       if(v.hp<v.def.hp*0.42){ v.fumeT-=dt; if(v.fumeT<=0){v.fumeT=0.14;fumee(v.x,1.1,v.z,0x555a63);} }
       // Avion de voltige garé : hélice qui tourne au ralenti + rotation lente
@@ -21205,6 +21392,7 @@ function boucle(t){
       majCamp(dt);
       majMeteo(dt);
       majMer(dt);
+      majMerV2(dt);
       majEpaveCanon(dt);
     }
     majHUD();

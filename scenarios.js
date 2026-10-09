@@ -7458,6 +7458,67 @@ async function main() {
       else ok('Écran Personnages : les ' + sk.n + ' skins de tous les persos sont atteignables à 390 px');
     }
 
+    // -------------------------------------------------------------------
+    // Mer V2 (MER_V2) : sillage, éclaboussures, houle partagée. Le rendu
+    // lui-même est validé par captures réelles (rapport de nuit) ; ici on
+    // vérifie le comportement : un bateau qui avance laisse un sillage et
+    // tangue, le nageur suit la houle, tomber à l'eau (à pied ou en voiture)
+    // éclabousse. Une erreur de compilation du shader remonterait en
+    // console.error, déjà comptée en fin de suite.
+    // -------------------------------------------------------------------
+    console.log('\n--- Mer : sillage, éclaboussures, houle ---');
+    {
+      const mer = await page.evaluate(async () => {
+        if (typeof MER_V2 === 'undefined' || !MER_V2) return { off: true };
+        const dors = (ms) => new Promise((r) => setTimeout(r, ms));
+        const actifs = () => SILLAGES.filter((w) => w.on).length;
+        const out = {};
+        startRun(); ETAT.mode = 'jeu'; ETAT.timeScale = 1; P.hp = P.hpMax = 1e6; // le test maîtrise son horloge (une mort précédente laisse 0.28)
+        for (const w of SILLAGES) { w.on = false; w.mesh.visible = false; }
+        // 1) bateau qui avance : sillage + assiette qui varie
+        const b = creerVehicule('bateau', POIS.plage.x + 20, MER + 45, 0, null);
+        P.x = b.x + 2; P.z = b.z; entrerVehicule(b); KEYS.KeyW = true;
+        const ys = [], rx = [];
+        for (let i = 0; i < 12; i++) { await dors(120); ys.push(b.mesh.position.y); rx.push(b.mesh.rotation.x); }
+        KEYS.KeyW = false;
+        out.sillage = actifs(); out.vitesse = Math.abs(b.v);
+        out.houleBateau = Math.max(...ys) - Math.min(...ys); out.tangage = Math.max(...rx) - Math.min(...rx);
+        sortirVehicule(true); b.mort = true;
+        // 2) nage : la hauteur du nageur suit la houle
+        for (const w of SILLAGES) { w.on = false; w.mesh.visible = false; }
+        P.x = POIS.plage.x + 6; P.z = MER - 1.2; P.y = 0; P.nage = false;
+        KEYS.KeyS = true; let t = 0; while (!P.nage && t < 40) { await dors(100); t++; }
+        KEYS.KeyS = false;
+        out.nage = P.nage; out.eclabPied = actifs();
+        const yn = []; for (let i = 0; i < 16; i++) { await dors(160); yn.push(P.h.g.position.y); }
+        out.houleNage = Math.max(...yn) - Math.min(...yn);
+        // 3) voiture qui tombe à l'eau
+        for (const w of SILLAGES) { w.on = false; w.mesh.visible = false; }
+        const v = creerVehicule('muscle', POIS.plage.x - 10, MER - 1, 0, null);
+        P.x = v.x + 2; P.z = v.z; P.y = 0; entrerVehicule(v);
+        v.enAir = true; v.h = 2.5; v.vy = 7; v.v = 16; KEYS.KeyW = true;
+        t = 0; while (v.enAir && t < 40) { await dors(80); t++; }
+        KEYS.KeyW = false;
+        out.voitureDansEau = estEau(v.x, v.z); out.eclabVoiture = actifs();
+        sortirVehicule(true); startRun();
+        return out;
+      });
+      if (mer.off) saute('Mer : MER_V2 désactivée — sillage/éclaboussures/houle non vérifiés');
+      else {
+        if (!(mer.sillage > 0) || !(mer.vitesse > 2.5)) fail('Mer : un bateau qui avance ne laisse aucun sillage (' + JSON.stringify(mer) + ')');
+        else ok('Mer : un bateau en mouvement laisse un sillage (' + mer.sillage + ' traces actives)');
+        if (!(mer.houleBateau > 0.01) || !(mer.tangage > 0.002)) fail('Mer : le bateau ne suit pas la houle (' + JSON.stringify(mer) + ')');
+        else ok('Mer : le bateau monte, descend et tangue avec la houle');
+        if (!mer.nage || !(mer.eclabPied > 0)) fail('Mer : entrer dans l\'eau à pied n\'éclabousse pas (' + JSON.stringify(mer) + ')');
+        else ok('Mer : entrer dans l\'eau à pied éclabousse');
+        if (!(mer.houleNage > 0.01)) fail('Mer : le nageur ne suit pas la houle (' + JSON.stringify(mer) + ')');
+        else ok('Mer : le nageur monte et descend avec la houle');
+        if (!mer.voitureDansEau) saute('Mer : la voiture du test n\'a pas atteint l\'eau — éclaboussure en voiture non vérifiée');
+        else if (!(mer.eclabVoiture > 0)) fail('Mer : une voiture qui tombe à l\'eau n\'éclabousse pas');
+        else ok('Mer : une voiture qui tombe à l\'eau éclabousse');
+      }
+    }
+
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');
     {
       const srcIdx = fs.readFileSync(INDEX_HTML, 'utf8');
