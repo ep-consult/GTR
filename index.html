@@ -3289,6 +3289,14 @@ function mkImmeubleBriques(x,z,w,d,h,m){
   const toitCit=new THREE.Mesh(new THREE.ConeGeometry(1.05,0.6,10),mat(0x4a3a26));
   toitCit.position.set(cx2,h+1.85,cz2); scene.add(toitCit);
   for(let i=0;i<4;i++) mergeBox(0.1,1.3,0.1,mat(0x3a2c22),cx2+Math.sin(i*1.6)*0.55,h+0.65,cz2+Math.cos(i*1.6)*0.55);
+  // « Brooklyn » (DECOR_V2) : escalier de secours noir sur la façade sud, à
+  // chaque étage — aucun tirage aléatoire (la ville n'est pas décalée)
+  if(DECOR_V2&&h>6){
+    const fx=x+w*0.18, fz=z+d/2+0.5, fe=mat(0x1a1c20), lw=Math.min(3.2,w*0.4);
+    for(let r=1;r<rangs;r++){ const y=r*(h/rangs);
+      mergeBox(lw,0.08,0.9,fe,fx,y,fz); mergeBox(lw,0.06,0.04,fe,fx,y+0.75,fz+0.43);
+      mergeBox(0.05,h/rangs,0.05,fe,fx+(r%2?lw/2-0.1:-lw/2+0.1),y-h/rangs/2,fz+0.35); }
+  }
   addSolid({x,z,hw:w/2,hd:d/2,h,toit:true});
 }
 // Entrepôt industriel : bâtiment bas et long, toit en dents de scie, portes
@@ -3381,7 +3389,10 @@ function mkEnseigne(txt,coul,x,y,z,ry,larg){
     new THREE.MeshBasicMaterial({map:texEnseigne(txt,coul),transparent:false}));
   p.position.set(x,y,z); p.rotation.y=ry; scene.add(p);
 }
+// flaques de lumière au sol sous les lampadaires (DECOR_V2), fusionnées plus tard
+const FLAQUES_LUM=[];
 function mkLampadaire(x,z){
+  if(DECOR_V2) FLAQUES_LUM.push([x+0.8,z]);
   const g=new THREE.Group();
   g.add(mkBoxG(0.14,4.6,0.14,0x33363e,0,2.3,0));
   g.add(mkBoxG(0.9,0.1,0.1,0x33363e,0.4,4.55,0));
@@ -3779,6 +3790,7 @@ const MOB_CAT={
   volley:{pieces:[['cyl',0.06,2.4,0.06,-3.6,1.2,0,0xe8e4d2],['cyl',0.06,2.4,0.06,3.6,1.2,0,0xe8e4d2],['box',7.2,0.8,0.03,0,1.9,0,0xf2f2ec],['box',7.2,0.05,0.05,0,2.32,0,0x1a1d24],['box',0.25,0.25,0.25,1.4,0.15,1.8,0xffd23f]],casse:false,r:3.8},
   chariotGlace:{pieces:[['box',1.6,0.9,0.9,0,0.75,0,0xf2f2ec],['box',1.62,0.25,0.92,0,0.95,0,0xff7ab0],['cyl',0.3,0.06,0.3,-0.6,0.3,0.48,0x1a1d24],['cyl',0.3,0.06,0.3,0.6,0.3,0.48,0x1a1d24],['cyl',0.03,1.2,0.03,0,1.8,0,0xe8e4d2],['cone',1.0,0.4,1.0,0,2.45,0,0x35c8e0]],casse:false,solide:{hw:0.8,hd:0.45,h:1.4}},
   cabine:{pieces:[['box',1.3,2.4,1.3,0,1.2,0,0xf2f2ec],['box',1.32,0.35,1.32,0,0.6,0,0x2a7ae0],['box',1.32,0.35,1.32,0,1.3,0,0x2a7ae0],['box',1.32,0.35,1.32,0,2.0,0,0x2a7ae0],['box',1.5,0.15,1.5,0,2.48,0,0xd83a3a],['box',0.7,1.6,0.04,0,0.9,0.66,0x8a6038]],casse:false,solide:{hw:0.7,hd:0.7,h:2.5}},
+  pilierRouge:{pieces:[['box',0.8,0.4,0.8,0,0.2,0,0xd8a830],['box',0.6,6.4,0.6,0,3.4,0,0xc0281e],['box',0.8,0.3,0.8,0,6.5,0,0xd8a830]],casse:false,solide:{hw:0.4,hd:0.4,h:6.6}},
   // solides
   haie:{pieces:[['box',3.2,0.95,0.8,0,0.48,0,0x2f5a2a],['box',3.0,0.25,0.7,0,1.0,0,0x3d6b30]],casse:false,solide:{hw:1.6,hd:0.4,h:1.1}},
   kiosque:{pieces:[['box',2,2.2,1.6,0,1.1,0,0x2f6b4a],['box',2.4,0.2,2,0,2.3,0,0x1e4a34],['box',1.6,0.9,0.05,0,1.5,0.82,0xe8e4d2]],casse:false,solide:{hw:1.1,hd:0.9,h:2.4},lum:[['box',1.5,0.35,0.06,0,1.95,0.83,0xffd23f]]},
@@ -3822,6 +3834,7 @@ function mkMobilierUrbain(){
     if(D.lum) mobPieces(D.lum,x,z,ry,zn.l,yPose);
     if(D.solide){ const c=Math.abs(Math.cos(ry)), s=Math.abs(Math.sin(ry));
       addSolid({x,z,hw:D.solide.hw*c+D.solide.hd*s,hd:D.solide.hw*s+D.solide.hd*c,h:D.solide.h}); }
+    if(type==='lampadaire') FLAQUES_LUM.push([x+0.8*Math.cos(ry),z-0.8*Math.sin(ry)]);
     if(D.casse){
       const k=Math.floor(x/8)+','+Math.floor(z/8);
       if(!MOB.cassables.has(k)) MOB.cassables.set(k,[]);
@@ -3864,6 +3877,20 @@ function mkMobilierUrbain(){
       if(!libre(x,z,r)) continue;
       poser(type,x,z,type==='volley'?aD(-0.2,0.2):aD(0,Math.PI*2),0.1); poses++;
     }
+  }
+  // lumières de quartier (Times Square, quartier chinois, Brooklyn)
+  const ajoutLum=(pieces,x,z,ry,lum)=>{ const zn=zones[mobZone(x,z)]; mobPieces(pieces,x,z,ry,lum?zn.l:zn.b,0); };
+  mkLumieresQuartiers(poser,libre,ajoutLum);
+  // flaques de lumière : un quad additif par lampadaire, fusionnés par zone,
+  // allumés la nuit par jourNuit (via « lampes », comme les halos existants)
+  const parZone={};
+  // regroupées par carrés de 200 u (mesuré : par zone de 84 u, +23 appels de rendu de nuit au centre)
+  for(const [x,z] of FLAQUES_LUM){ const k=Math.floor((x+HALF)/200)+','+Math.floor((z+HALF)/200); (parZone[k]=parZone[k]||[]).push([x,z]); }
+  const matFlaque=new THREE.MeshBasicMaterial({map:texGlow,color:0xffc070,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,opacity:0});
+  for(const k in parZone){
+    const geos=parZone[k].map(([x,z])=>{ const g=new THREE.PlaneGeometry(7,7); g.rotateX(-Math.PI/2); g.translate(x,0.25,z); return g; });
+    const m=new THREE.Mesh(mergeGeoManuel(geos),matFlaque); m.matrixAutoUpdate=false; m.updateMatrix(); scene.add(m);
+    lampes.push(m); LUM.flaques.push(m); // matériau partagé : jourNuit règle son opacité une fois pour toutes
   }
   // fusion par zone
   zones.forEach((zn,i)=>{
@@ -4006,6 +4033,117 @@ function majLac(dt){
   for(const c of LAC_CANARDS){ c.a+=c.v*dt;
     c.g.position.set(LAC.x+Math.cos(c.a)*c.r,0.15+Math.sin(t*3+c.a*5)*0.02,LAC.z+Math.sin(c.a)*c.r*0.8);
     c.g.rotation.y=-c.a+(c.v>0?0:Math.PI); }
+}
+/* ---------- LUMIÈRES DE QUARTIER (DECOR_V2) ----------
+   Chaque quartier a sa signature lumineuse, surtout la nuit :
+   - quartier néon → « Times Square » : écrans géants animés sur mâts,
+     tubes de néon qui clignotent ;
+   - un tronçon du quartier commerçant → « quartier chinois » : portiques
+     rouges aux deux bouts de la rue, guirlandes de lanternes en travers ;
+   - résidentiel en brique → « Brooklyn » : escaliers de secours en façade
+     (voir mkImmeubleBriques), guirlandes d'ampoules chaudes en travers des
+     rues ;
+   - partout : flaques de lumière au sol sous les lampadaires la nuit.
+   Coût : tout ce qui est statique rejoint la couche lumineuse fusionnée du
+   mobilier ; seuls les écrans (3 textures partagées, redessinées 6 fois par
+   seconde) et 3 matériaux de néon sont animés. */
+const LUM={ecrans:[],texEcrans:[],neons:[],flaques:[],objets:[],t:0,tEcran:0,ecranPas:0};
+const CHINATOWN={x:-HALF+9*CELL, z0:-HALF+2*CELL, z1:-HALF+4*CELL}; // rue nord-sud entre les colonnes 8 et 9
+function texEcranAnime(i){
+  const cv=document.createElement('canvas'); cv.width=128; cv.height=64;
+  const t=new THREE.CanvasTexture(cv); t.userData={cv,g:cv.getContext('2d'),i};
+  return t;
+}
+function dessinerEcran(t,pas){
+  const {g,i}=t.userData, W=128, H=64;
+  if(i===0){ // bandeau qui défile
+    g.fillStyle='#07070c'; g.fillRect(0,0,W,H);
+    const txt='GTRoyal ★ LOS REYES ★ REYES FM 98.4 ★ ', x=-(pas*6)%(txt.length*9);
+    g.font='900 22px Arial'; g.textBaseline='middle';
+    for(let k=0;k<3;k++){ g.fillStyle=['#ff3bd0','#35e0ff','#ffd23f'][(k+(pas>>3))%3]; g.fillText(txt,x+k*txt.length*9,H/2); }
+  } else if(i===1){ // pub aux couleurs qui tournent
+    const h=(pas*12)%360;
+    const gr=g.createLinearGradient(0,0,W,H); gr.addColorStop(0,'hsl('+h+',90%,55%)'); gr.addColorStop(1,'hsl('+((h+120)%360)+',90%,45%)');
+    g.fillStyle=gr; g.fillRect(0,0,W,H);
+    g.fillStyle='#fff'; g.font='900 26px Arial'; g.textAlign='center'; g.textBaseline='middle';
+    g.fillText(pas%16<8?'SODA BOOM':'-50 %',W/2,H/2); g.textAlign='left';
+  } else { // égaliseur de la radio
+    g.fillStyle='#0a0612'; g.fillRect(0,0,W,H);
+    for(let k=0;k<16;k++){ const hh=8+Math.abs(Math.sin(pas*0.7+k*0.9))*44; g.fillStyle='hsl('+(k*20)+',95%,60%)'; g.fillRect(k*8+1,H-hh,6,hh); }
+  }
+  t.needsUpdate=true;
+}
+// Pose les lumières de quartier ; « poser » et « libre » viennent du mobilier
+// urbain (même fusion, mêmes règles : jamais devant une porte).
+function mkLumieresQuartiers(poser,libre,ajoutLum){
+  for(let i=0;i<3;i++) LUM.texEcrans.push(texEcranAnime(i));
+  for(const c of [0xff3bd0,0x35e0ff,0xffd23f]) LUM.neons.push(new THREE.MeshBasicMaterial({color:c}));
+  const B=(INNER+2)/2;
+  // --- TIMES SQUARE : écrans géants sur mâts aux coins des pâtés néon
+  for(let bx=0;bx<NB;bx++) for(let bz=0;bz<NB;bz++){
+    if(quartier(bx,bz)!=='neon') continue;
+    const cx=-HALF+bx*CELL+CELL/2, cz=-HALF+bz*CELL+CELL/2;
+    for(const [sx,sz] of [[-1,1],[1,1]]){
+      const x=cx+sx*(B-3.5), z=cz+sz*(B-1.6);
+      if(!libre(x,z,1.2)) continue;
+      // mât + cadre
+      poser('lampadaire',x+sx*2.2,z,Math.PI); // un lampadaire au pied de l'écran
+      const W=aD(7,9.5), H=W*0.5, y=aD(7.5,10);
+      const ecran=new THREE.Mesh(new THREE.PlaneGeometry(W,H),new THREE.MeshBasicMaterial({map:LUM.texEcrans[Math.floor(aleaDecor()*3)]}));
+      ecran.position.set(x,y,z+0.2); scene.add(ecran); LUM.ecrans.push(ecran);
+      const cadre=new THREE.Mesh(new THREE.BoxGeometry(W+0.5,H+0.5,0.3),mat(0x14161c)); cadre.position.set(x,y,z); scene.add(cadre);
+      const mat1=new THREE.Mesh(new THREE.BoxGeometry(0.4,y-H/2,0.4),mat(0x23262e)); mat1.position.set(x,(y-H/2)/2,z-0.1); scene.add(mat1);
+      LUM.objets.push(cadre,mat1);
+      addSolid({x,z:z-0.1,hw:0.3,hd:0.3,h:y});
+      // tubes de néon verticaux qui clignotent de part et d'autre
+      for(const s of [-1,1]){ const tube=new THREE.Mesh(new THREE.BoxGeometry(0.18,H+0.6,0.18),LUM.neons[Math.floor(aleaDecor()*3)]);
+        tube.position.set(x+s*(W/2+0.45),y,z+0.25); scene.add(tube); LUM.objets.push(tube); }
+    }
+  }
+  // --- QUARTIER CHINOIS : portiques rouges + guirlandes de lanternes
+  const X=CHINATOWN.x, demiR=ROADW/2+0.9;
+  for(const zg of [CHINATOWN.z0+B*0.2,CHINATOWN.z1-B*0.2]){
+    const rouge=0xc0281e, vertT=0x1f6a4a, or=0xd8a830;
+    // piliers sur les trottoirs (solides), poutres et toit bien au-dessus de la chaussée
+    for(const s of [-1,1]){ const px=X+s*demiR; poser('pilierRouge',px,zg,0); }
+    ajoutLum([['box',2*demiR+1.2,0.5,0.6,0,6.6,0,rouge],['box',2*demiR+2.4,0.35,1.4,0,7.3,0,vertT],['box',2*demiR+1.6,0.25,1.1,0,7.6,0,vertT],['box',2.6,0.9,0.12,0,6.6,0.32,or]],X,zg,0,false);
+    mkEnseigne('QUARTIER CHINOIS','#ffd23f',X,6.6,zg+0.4,0,5.4);
+  }
+  for(let z=CHINATOWN.z0+10;z<CHINATOWN.z1-8;z+=6.5){
+    if(Math.abs(((z+HALF)%CELL+CELL)%CELL)<ROADW/2+2||Math.abs(((z+HALF)%CELL+CELL)%CELL-CELL)<ROADW/2+2) continue; // pas au-dessus d'un carrefour
+    const n=7, pieces=[];
+    for(let k=0;k<=n;k++){ const u=k/n, x=-demiR+u*2*demiR, y=6.3-Math.sin(Math.PI*u)*1.1;
+      if(k<n) pieces.push(['box',2*demiR/n,0.04,0.04,x+demiR/n,y-0.5,0,0x1a1a1a]);
+      if(k>0&&k<n){ pieces.push(['oct',0.45,0.6,0.45,x,y-1.1,0,k%2?0xff3b2a:0xff9a2a]); pieces.push(['box',0.28,0.1,0.28,x,y-0.5,0,0xd8a830]); } }
+    ajoutLum(pieces,X,z,0,true);
+  }
+  // --- BROOKLYN : guirlandes d'ampoules chaudes en travers des rues résidentielles
+  for(let k=1;k<NB;k++){
+    const xr=-HALF+k*CELL;
+    for(let bz=0;bz<NB;bz++){
+      if(quartier(k-1,bz)!=='residentiel'||quartier(Math.min(NB-1,k),bz)!=='residentiel') continue;
+      const cz=-HALF+bz*CELL+CELL/2;
+      for(const dz of [-8,0,8]){
+        const z=cz+dz, pieces=[], n=10;
+        for(let i=0;i<=n;i++){ const u=i/n, x=-demiR+u*2*demiR, y=5.4-Math.sin(Math.PI*u)*0.8;
+          if(i<n) pieces.push(['box',2*demiR/n,0.03,0.03,x+demiR/n,y,0,0x1a1a1a]);
+          if(i>0&&i<n) pieces.push(['oct',0.17,0.22,0.17,x,y-0.2,0,0xffd890]); }
+        ajoutLum(pieces,xr,z,0,true);
+      }
+    }
+  }
+}
+// Animation : écrans (6 fois par seconde), néons qui clignotent, couche
+// lumineuse plus vive la nuit.
+function majLumieres(dt){
+  const f=ETAT.nuitF||0;
+  MOB_MAT_LUM.color.setScalar(0.6+0.4*f);
+  LUM.t+=dt; LUM.tEcran-=dt;
+  if(LUM.tEcran<=0&&LUM.ecrans.length){ LUM.tEcran=1/6; LUM.ecranPas++; for(const t of LUM.texEcrans) dessinerEcran(t,LUM.ecranPas); }
+  for(let i=0;i<LUM.neons.length;i++){
+    const on=Math.sin(LUM.t*(2.1+i*0.7)+i*2)>-0.6||Math.sin(LUM.t*13+i)>0.95;
+    LUM.neons[i].color.setHex(on?[0xff3bd0,0x35e0ff,0xffd23f][i]:[0x3a0d30,0x0d2a33,0x33280d][i]);
+  }
 }
 // limite ouest en mer : la ligne du mur (jetée comprise)
 const LIMITE_OUEST_MER=-HALF-11.5;
@@ -21575,6 +21713,7 @@ function jourNuit(dt){
   else if(t<110) f=(t-95)/15;
   else if(t<155) f=1;
   else f=1-(t-155)/15;
+  ETAT.nuitF=f; // lu par les lumières de quartier (DECOR_V2)
   soleil.intensity=lerp(0.92,0.14,f)*(1-METEO.inten*0.45);
   hemi.intensity=lerp(0.8,0.3,f)*(1-METEO.inten*0.3);
   scene.background.copy(CJourCiel).lerp(CNuitCiel,f);
@@ -21905,7 +22044,7 @@ function boucle(t){
       majMeteo(dt);
       majMer(dt);
       majMerV2(dt);
-      if(DECOR_V2){ majHorsLesMurs(dt); majMobilier(); majLac(dt); }
+      if(DECOR_V2){ majHorsLesMurs(dt); majMobilier(); majLac(dt); majLumieres(dt); }
       majEpaveCanon(dt);
     }
     majHUD();
