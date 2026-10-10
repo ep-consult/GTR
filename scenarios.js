@@ -7926,6 +7926,30 @@ async function main() {
       else ok('Brooklyn : ' + br.fresques + ' fresques, ' + br.cordes + ' cordes à linge, ' + br.bornes + ' bornes ouvertes, courts grillagés avec portillons');
     }
 
+    // -------------------------------------------------------------------
+    // Crique des plongeurs (DECOR_V2) : la baie est de l'eau, un vrai
+    // plongeon depuis 17 u (boucle réelle) ne blesse pas et rapporte un
+    // bonus, et des marches ramènent de l'eau au bras de 5 u.
+    // -------------------------------------------------------------------
+    console.log('\n--- Crique des plongeurs : plongeon de 17 u sans dégâts, bonus, marches pour remonter ---');
+    {
+      const cr = await page.evaluate(async () => {
+        if (typeof CRIQUE === 'undefined' || !CRIQUE) return { off: true };
+        const dors = (ms) => new Promise((r) => setTimeout(r, ms));
+        startRun(); ETAT.timeScale = 1; P.hp = P.hpMax = 1000;
+        const o = { eau: estEau(365, 278), sommet: solPied(365, 255) };
+        P.x = 365; P.z = 262; P.y = solPied(365, 262); await dors(300);
+        const hp0 = P.hp, sc0 = ETAT.score;
+        P.z = 273.2; await dors(3200); // un pas dans le vide au bout du plongeoir
+        o.nage = P.nage; o.degats = hp0 - P.hp; o.bonus = ETAT.score - sc0; o.salto = P.h.g.rotation.x;
+        o.marches = solPied(CRIQUE.x1 - 1.3, CRIQUE.z0 + 18.8); o.bras = solPied(CRIQUE.x1 + 5, 284); // haut des marches (rampe de z0+2 à z0+19), bras de 5 u
+        startRun(); return o;
+      });
+      if (cr.off) saute('Crique des plongeurs : DECOR_V2 désactivé');
+      else if (!cr.eau || !(cr.sommet > 16) || !cr.nage || cr.degats > 0 || !(cr.bonus > 0) || cr.salto !== 0 || !(cr.marches > 4.5) || !(Math.abs(cr.bras - 5) < 0.2)) fail('Crique des plongeurs : ' + JSON.stringify(cr));
+      else ok('Crique des plongeurs : plongeon de 17 u → dans l\'eau, 0 dégât, bonus +' + cr.bonus + ', marches jusqu\'au bras de 5 u');
+    }
+
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');
     {
       const srcIdx = fs.readFileSync(INDEX_HTML, 'utf8');
