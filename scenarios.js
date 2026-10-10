@@ -7908,6 +7908,24 @@ async function main() {
       else ok('Port vivant : ' + po.parcs + ' parcs à conteneurs aux portiques en mouvement, îlot du phare praticable, faisceau éteint le jour et allumé la nuit (' + po.nuit.toFixed(2) + ')');
     }
 
+    // -------------------------------------------------------------------
+    // Brooklyn (DECOR_V2) : fresques, cordes à linge, bornes ouvertes, et
+    // courts de basket grillagés avec une entrée libre.
+    // -------------------------------------------------------------------
+    console.log('\n--- Brooklyn : fresques, cordes à linge, bornes ouvertes, courts grillagés ouverts au sud ---');
+    {
+      const br = await page.evaluate(() => {
+        if (typeof BROOK === 'undefined' || !BROOK.ok) return { off: true };
+        const c = POIS.courts, o = { fresques: BROOK.fresques, cordes: BROOK.cordes, bornes: BROOK.bornes.length };
+        o.grillage = !!solidAt(c.x, c.z - 12.6, 0.2); o.portillon = !solidAt(c.x - 6.6, c.z + 12.6, 0.2);
+        o.bornesPortes = BROOK.bornes.filter((h) => PORTES.some((p) => Math.hypot(p.x - h.x, p.z - h.z) < 6)).length;
+        return o;
+      });
+      if (br.off) saute('Brooklyn : DECOR_V2 désactivé');
+      else if (!(br.fresques > 3) || !(br.cordes > 3) || !(br.bornes > 2) || !br.grillage || !br.portillon || br.bornesPortes) fail('Brooklyn : ' + JSON.stringify(br));
+      else ok('Brooklyn : ' + br.fresques + ' fresques, ' + br.cordes + ' cordes à linge, ' + br.bornes + ' bornes ouvertes, courts grillagés avec portillons');
+    }
+
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');
     {
       const srcIdx = fs.readFileSync(INDEX_HTML, 'utf8');

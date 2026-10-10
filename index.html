@@ -3284,7 +3284,9 @@ function mkTourArtDeco(x,z,w,d,h,m){
 // Immeuble en briques : bandeaux de linteaux clairs + citerne d'eau sur le
 // toit (cliché assumé de l'immeuble dense) — pour varier le résidentiel/
 // commerce. Même signature (x,z,w,d,h,m).
+const BRIQUES=[], MAISONS=[]; // DECOR_V2 : immeubles en brique (fresques) et maisons du résidentiel (cordes à linge)
 function mkImmeubleBriques(x,z,w,d,h,m){
+  if(DECOR_V2) BRIQUES.push({x,z,w,d,h});
   mergeBox(w,h,d,m,x,h/2,z);
   mergeBox(w+0.25,0.3,d+0.25,mat(0x3a2c22),x,h+0.15,z);
   const rangs=Math.max(2,Math.round(h/2.6));
@@ -3565,7 +3567,7 @@ function construireVille(){
     if(qq!=='plage'&&qq!=='parc'&&bx%3===1&&bz%3===1) mkFeu(cx+INNER/2+1.4,cz-INNER/2-1.4);
   }
   placerPortes();
-  if(DECOR_V2){ sansAleaVille(()=>{ mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); }); mkMobilierUrbain(); mkTransitionsSols(); } // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
+  if(DECOR_V2){ sansAleaVille(()=>{ mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); }); mkMobilierUrbain(); mkTransitionsSols(); } // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
   finaliserMerge();
   construireMinimapStatique();
 }
@@ -4483,6 +4485,128 @@ function majPortVivant(dt){
   for(const s of PORT.feux) s.material.opacity=(Math.sin(t*3)>0?0.9:0.15)*(0.3+0.7*f);
   if(PORT.faisceau){ PORT.faisceau.rotation.y+=dt*0.6; PORT.matFaisceau.opacity=0.55*f; PORT.lanterne.material.color.setScalar(0.75+0.25*f); }
   if(PORT.cargo){ PORT.cargo.position.y=Math.sin(t*0.5)*0.25; PORT.cargo.rotation.z=Math.sin(t*0.35)*0.012; }
+}
+/* ---------- BROOKLYN PLUS ANIMÉ (DECOR_V2) ----------
+   - Fresques murales sur une façade sud sur deux des immeubles en brique
+     (BRIQUES, notés à leur construction), jamais devant une porte ni sur
+     l'escalier de secours.
+   - Cordes à linge entre deux maisons voisines du même pâté (MAISONS).
+   - Bornes à incendie ouvertes qui arrosent la rue l'été (jet animé près du
+     joueur seulement, flaque au sol).
+   - « Courts de Brooklyn » : deux terrains de basket grillagés dans le pâté
+     de parc (6,0), ballon qui rebondit, projecteurs. */
+const BROOK={bornes:[],ballon:null,fresques:0,cordes:0};
+function texFresque(k){
+  return cTex(256,(g,s)=>{
+    if(k===0){ // coucher de soleil, palmiers, LOS REYES
+      const gr=g.createLinearGradient(0,0,0,s); gr.addColorStop(0,'#2a1a5e'); gr.addColorStop(0.45,'#ff5a8a'); gr.addColorStop(0.75,'#ffb23a'); gr.addColorStop(1,'#ffd23f'); g.fillStyle=gr; g.fillRect(0,0,s,s);
+      g.fillStyle='#ffe9a0'; g.beginPath(); g.arc(s/2,s*0.62,s*0.2,Math.PI,0); g.fill();
+      g.fillStyle='#1c1430'; for(const [x,h] of [[s*0.15,0.55],[s*0.82,0.48]]){ g.fillRect(x-4,s*(1-h),8,s*h); for(let a=0;a<6;a++){ g.save(); g.translate(x,s*(1-h)); g.rotate(-1.2+a*0.48); g.fillRect(0,-4,s*0.16,8); g.restore(); } }
+      g.font='900 40px Arial'; g.textAlign='center'; g.lineWidth=8; g.strokeStyle='#1c1430'; g.strokeText('LOS REYES',s/2,s*0.92); g.fillStyle='#35e0ff'; g.fillText('LOS REYES',s/2,s*0.92);
+    } else if(k===1){ // formes géométriques pop
+      g.fillStyle='#ffd23f'; g.fillRect(0,0,s,s);
+      const c=['#ff3bd0','#35e0ff','#2a6ad8','#ff5a3a','#1c1c24','#7dff7a'];
+      for(let i=0;i<18;i++){ g.fillStyle=choixD(c); g.save(); g.translate(aD(0,s),aD(0,s)); g.rotate(aD(0,6.3)); const t=aD(18,60);
+        if(i%3===0){ g.beginPath(); g.arc(0,0,t/2,0,7); g.fill(); } else if(i%3===1) g.fillRect(-t/2,-t/2,t,t*0.4); else { g.beginPath(); g.moveTo(0,-t/2); g.lineTo(t/2,t/2); g.lineTo(-t/2,t/2); g.fill(); } g.restore(); }
+      g.strokeStyle='#1c1c24'; g.lineWidth=6; g.strokeRect(6,6,s-12,s-12);
+    } else if(k===2){ // la vague
+      g.fillStyle='#e8f4ff'; g.fillRect(0,0,s,s);
+      for(let i=0;i<7;i++){ g.fillStyle=['#0a3a6a','#1a5a9a','#2a7ac9','#5aa8e8','#9fd8ff','#e8f4ff','#ffffff'][i]; g.beginPath(); g.moveTo(0,s);
+        for(let x=0;x<=s;x+=8) g.lineTo(x,s*0.35+i*22+Math.sin(x*0.03+i)*(30-i*3)); g.lineTo(s,s); g.fill(); }
+      g.font='900 34px Arial'; g.textAlign='center'; g.fillStyle='#ff5a3a'; g.fillText('SURF CITY',s/2,46);
+    } else { // lettrage « wild style »
+      g.fillStyle='#2a2d34'; g.fillRect(0,0,s,s);
+      for(let i=0;i<40;i++){ g.fillStyle=choixD(['#ff3bd055','#35e0ff55','#ffd23f55']); g.beginPath(); g.arc(aD(0,s),aD(0,s),aD(4,22),0,7); g.fill(); }
+      g.save(); g.translate(s/2,s/2); g.rotate(-0.12); g.font='900 64px Arial'; g.textAlign='center'; g.textBaseline='middle'; g.lineJoin='round';
+      g.lineWidth=16; g.strokeStyle='#14141a'; g.strokeText('REYES',0,0); g.lineWidth=7; g.strokeStyle='#ffffff'; g.strokeText('REYES',0,0);
+      const gr=g.createLinearGradient(0,-30,0,30); gr.addColorStop(0,'#ff3bd0'); gr.addColorStop(1,'#ffd23f'); g.fillStyle=gr; g.fillText('REYES',0,0); g.restore();
+    }
+  });
+}
+function mkBrooklyn(){
+  // 1) fresques
+  const mats=[0,1,2,3].map((k)=>new THREE.MeshLambertMaterial({map:texFresque(k)}));
+  BRIQUES.forEach((b,i)=>{
+    if(i%2) return;
+    const lw=Math.min(b.w*0.42,6), lh=Math.min(b.h*0.62,6.5), x=b.x-b.w*0.2, z=b.z+b.d/2+0.1; // devant les bandeaux d'étage (+0,05)
+    if(PORTES.some((p)=>dist2(p.x,p.z,x,z)<25)) return;
+    const f=new THREE.Mesh(new THREE.PlaneGeometry(lw,lh),mats[i/2%4]); f.position.set(x,0.6+lh/2,z); scene.add(f); BROOK.fresques++;
+  });
+  // 2) cordes à linge entre maisons voisines d'un même pâté (côte à côte en x)
+  const linge=[0xe8e8e2,0xd83a3a,0x2a6ad8,0xffd23f,0xff8ab4,0x7dc96a,0xf2f2ec];
+  const pieces=[];
+  for(const a of MAISONS) for(const b of MAISONS){
+    if(a.bx!==b.bx||a.bz!==b.bz||a.j!==b.j||b.i!==a.i+1) continue;
+    const x0=a.x+a.w/2, x1=b.x-b.w/2, gap=x1-x0; if(gap<1.5||gap>9||aleaDecor()<0.45) continue;
+    const z=(a.z+b.z)/2+aD(-1.5,1.5), y=Math.min(a.h,b.h)*0.72, n=Math.max(2,Math.floor(gap/1.1));
+    for(let k=0;k<n;k++){ const u0=k/n, u1=(k+1)/n, y0=y-Math.sin(Math.PI*u0)*0.5, y1=y-Math.sin(Math.PI*u1)*0.5, xm=x0+gap*(u0+u1)/2;
+      pieces.push(['box',gap/n+0.02,0.03,0.03,xm,(y0+y1)/2,z,0x2a2d34]);
+      if(aleaDecor()<0.8){ const t=aD(0.4,0.75); pieces.push(['box',t,aD(0.5,0.9),0.04,xm,(y0+y1)/2-0.45,z,choixD(linge)]); } }
+    BROOK.cordes++;
+  }
+  if(pieces.length) scene.add(meshPieces(pieces));
+  // 3) bornes à incendie ouvertes : aux coins des pâtés résidentiels (une sur trois)
+  let k=0;
+  for(let bx=0;bx<NB;bx++) for(let bz=0;bz<NB;bz++){
+    if(quartier(bx,bz)!=='residentiel') continue;
+    if((k++)%3) continue;
+    const cx=-HALF+bx*CELL+CELL/2, cz=-HALF+bz*CELL+CELL/2, B=(INNER+2)/2, x=cx+B-1.1, z=cz+B-3.5;
+    if(solidAt(x,z,0.8)||PORTES.some((p)=>dist2(p.x,p.z,x,z)<36)) continue;
+    const g=new THREE.Group(); g.position.set(x,0.22,z); scene.add(g);
+    g.add(mkBoxG(0.42,0.7,0.42,0xd83a3a,0,0.35,0)); g.add(mkBoxG(0.52,0.14,0.52,0xd83a3a,0,0.72,0)); g.add(mkBoxG(0.7,0.18,0.18,0xc0392b,0,0.5,0));
+    const flaque=new THREE.Mesh(new THREE.CircleGeometry(2.6,16),new THREE.MeshBasicMaterial({color:0x6ab8e8,transparent:true,opacity:0.32,depthWrite:false}));
+    flaque.rotation.x=-Math.PI/2; flaque.position.set(x+2.6,0.03,z); scene.add(flaque);
+    addSolid({x,z,hw:0.3,hd:0.3,h:0.9});
+    BROOK.bornes.push({x,z,t:0});
+  }
+  // 4) courts de Brooklyn : parc (6,0), vidé de son contenu comme le skatepark (jamais le parc (4,0) : c'est POIS.parc, son musicien et sa cache)
+  const cx=-HALF+6*CELL+CELL/2, cz=-HALF+0*CELL+CELL/2, M=13.5;
+  for(let i=scene.children.length-1;i>=0;i--){ const o=scene.children[i];
+    if(Math.abs(o.position.x-cx)<M+0.5&&Math.abs(o.position.z-cz)<M+0.5&&o.position.y<3&&!(o.geometry&&o.geometry.parameters&&o.geometry.parameters.width>=INNER)){ scene.remove(o); if(o.isMesh&&o.geometry) o.geometry.dispose(); } }
+  ZONES_SANS_MOBILIER.push({x0:cx-CELL/2,x1:cx+CELL/2,z0:cz-CELL/2,z1:cz+CELL/2});
+  POIS.courts={x:cx,z:cz};
+  const sol=cTex(256,(g,s)=>{ g.fillStyle='#2a6a8a'; g.fillRect(0,0,s,s); g.fillStyle='#c0582a'; g.fillRect(s*0.08,s*0.06,s*0.84,s*0.88);
+    g.strokeStyle='#f2f2ec'; g.lineWidth=4; g.strokeRect(s*0.08,s*0.06,s*0.84,s*0.88); g.beginPath(); g.moveTo(s*0.08,s/2); g.lineTo(s*0.92,s/2); g.stroke();
+    g.beginPath(); g.arc(s/2,s/2,s*0.12,0,7); g.stroke();
+    for(const y of [s*0.06,s*0.94]){ g.beginPath(); g.arc(s/2,y,s*0.3,y<s/2?0:Math.PI,y<s/2?Math.PI:0); g.stroke(); g.strokeRect(s*0.38,y<s/2?y:y-s*0.22,s*0.24,s*0.22); } });
+  const mGrille=(()=>{ const duo=canvasDuo(64,64,'#9aa0a8'), m=duo.m.x; m.strokeStyle='#fff'; m.lineWidth=2.5;
+    for(let k=-64;k<128;k+=16){ m.beginPath(); m.moveTo(k,0); m.lineTo(k+64,64); m.stroke(); m.beginPath(); m.moveTo(k+64,0); m.lineTo(k,64); m.stroke(); }
+    const t=texDuo(duo,false); for(const x of [t.map,t.alphaMap]){ x.wrapS=x.wrapT=THREE.RepeatWrapping; x.repeat.set(8,1.2); }
+    return new THREE.MeshLambertMaterial({map:t.map,alphaMap:t.alphaMap,alphaTest:0.5,side:THREE.DoubleSide}); })();
+  for(const dx of [-6.6,6.6]){
+    const x=cx+dx, L=24, W=11.6;
+    const f=new THREE.Mesh(new THREE.PlaneGeometry(W,L),new THREE.MeshLambertMaterial({map:sol})); f.rotation.x=-Math.PI/2; f.position.set(x,0.16,cz); scene.add(f);
+    for(const s of [-1,1]){ // panneaux
+      const z=cz+s*(L/2-1.2); mkBox(0.2,3.4,0.2,mat(0x2a2d34),x,1.7,z+s*0.7); mkBox(1.9,1.2,0.1,mat(0xf2f2ec),x,3.4,z); mkBox(0.7,0.45,0.11,mat(0xd83a3a),x,3.25,z-s*0.01);
+      const cer=new THREE.Mesh(new THREE.TorusGeometry(0.3,0.04,5,12),mat(0xff6a1a)); cer.rotation.x=Math.PI/2; cer.position.set(x,3.05,z-s*0.35); scene.add(cer);
+      addSolid({x,z:z+s*0.7,hw:0.15,hd:0.15,h:3.4});
+    }
+  }
+  // grillage tout autour (solide), une ouverture au sud de chaque terrain
+  const haut=3.6, X0=cx-13.3, X1=cx+13.3, Z0=cz-12.6, Z1=cz+12.6;
+  const pan=(x,z,lx,lz)=>{ const p=new THREE.Mesh(new THREE.PlaneGeometry(Math.max(lx,lz),haut),mGrille); p.position.set(x,haut/2+0.15,z); if(lz>lx) p.rotation.y=Math.PI/2; scene.add(p);
+    addSolid({x,z,hw:Math.max(lx/2,0.12),hd:Math.max(lz/2,0.12),h:haut}); };
+  pan(cx,Z0,X1-X0,0); pan(X0,cz,0,Z1-Z0); pan(X1,cz,0,Z1-Z0);
+  pan(cx-10.3,Z1,6,0); pan(cx,Z1,6.6,0); pan(cx+10.3,Z1,6,0); // deux portillons au sud
+  for(const x of [X0,cx-6.6,cx,cx+6.6,X1]) for(const z of [Z0,Z1]) mkBox(0.12,haut,0.12,mat(0x6a7078),x,haut/2+0.15,z);
+  // projecteurs
+  for(const [sx,sz] of [[-1,-1],[1,1]]){ const x=cx+sx*13.6, z=cz+sz*13; mkBox(0.22,7,0.22,mat(0x2a2d34),x,3.5,z);
+    const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:0xfff0c0,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending}));
+    sp.scale.set(8,8,1); sp.position.set(x,6.9,z); scene.add(sp); lampes.push(sp); }
+  // ballon qui rebondit sous un panier
+  const ballon=new THREE.Mesh(new THREE.IcosahedronGeometry(0.28,1),mat(0xe0662a)); scene.add(ballon);
+  BROOK.ballon={m:ballon,x:cx+6.6,z:cz-9.2,t:0};
+  BROOK.ok=true;
+}
+function majBrooklyn(dt){
+  if(!BROOK.ok) return;
+  const b=BROOK.ballon; b.t+=dt;
+  const ph=(b.t%1.1)/1.1; b.m.position.set(b.x+Math.sin(b.t*0.7)*1.2,0.45+Math.abs(Math.sin(Math.PI*ph))*2.6,b.z+Math.cos(b.t*0.9)*0.8);
+  for(const h of BROOK.bornes){ // jet d'eau : seulement près du joueur (particules)
+    if(dist2(h.x,h.z,P.x,P.z)>4900) continue;
+    h.t-=dt; if(h.t>0) continue; h.t=0.05;
+    for(let k=0;k<2;k++) spawnP(h.x+0.4,0.75,h.z,rand(4,6.5),rand(2.5,4.5),rand(-0.7,0.7),rand(0.5,0.8),rand(0.2,0.34),0x9fd8f5,9,0);
+  }
 }
 // Un véhicule lancé (joueur ou autre) renverse les petits objets sur son passage.
 function majMobilier(){
@@ -6549,7 +6673,9 @@ function remplirBloc(qq,bx,bz,cx,cz){
         let arch=mkMaison, hh=rand(3.6,5);
         if(roll<0.1){ arch=mkImmeubleBriques; hh=rand(7,11); }
         else if(roll<0.3) arch=mkVillaModerne;
-        arch(cx-7+i*14+rand(-1,1),cz-7+j*14+rand(-1,1),rand(6.5,9),rand(6.5,9),hh,pick(paletteFacades.residentiel));
+        const X=cx-7+i*14+rand(-1,1), Z=cz-7+j*14+rand(-1,1), W=rand(6.5,9), D=rand(6.5,9); // même ordre de tirages qu'avant
+        arch(X,Z,W,D,hh,pick(paletteFacades.residentiel));
+        if(DECOR_V2) MAISONS.push({x:X,z:Z,w:W,d:D,h:hh,bx,bz,i,j}); // cordes à linge (mkBrooklyn)
       }
     }
     if(Math.random()<0.7) mkArbre(cx+rand(-M+2,M-2),cz+rand(-M+2,M-2),rand(0.8,1.1));
@@ -23073,7 +23199,7 @@ function boucle(t){
       majMeteo(dt);
       majMer(dt);
       majMerV2(dt);
-      if(DECOR_V2){ majHorsLesMurs(dt); majMobilier(); majLac(dt); majLumieres(dt); majJetee(dt); majPortVivant(dt); }
+      if(DECOR_V2){ majHorsLesMurs(dt); majMobilier(); majLac(dt); majLumieres(dt); majJetee(dt); majPortVivant(dt); majBrooklyn(dt); }
       majEpaveCanon(dt);
     }
     majHUD();
