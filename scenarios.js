@@ -7950,6 +7950,25 @@ async function main() {
       else ok('Crique des plongeurs : plongeon de 17 u → dans l\'eau, 0 dégât, bonus +' + cr.bonus + ', marches jusqu\'au bras de 5 u');
     }
 
+    // -------------------------------------------------------------------
+    // Quartier néon (DECOR_V2) : panneaux de toit, file d'attente devant le
+    // club (qui ne bloque jamais sa porte), projecteurs allumés la nuit.
+    // -------------------------------------------------------------------
+    console.log('\n--- Quartier néon : panneaux de toit, file devant le club, porte libre, projecteurs la nuit ---');
+    {
+      const ne = await page.evaluate(() => {
+        if (typeof NEON === 'undefined' || !NEON.matFx) return { off: true };
+        const d = PORTES.find((q) => q.id === 'club'), j0 = ETAT.jour;
+        const o = { panneaux: NEON.panneaux, file: NEON.file.length, porteLibre: !solidAt(d.x, d.z + 1.2, 0.4) };
+        ETAT.jour = 20; jourNuit(0); majNeonVivant(0.016); o.jour = NEON.matFx.opacity;
+        ETAT.jour = 130; jourNuit(0); majNeonVivant(0.016); o.nuit = NEON.matFx.opacity;
+        ETAT.jour = j0; jourNuit(0); return o;
+      });
+      if (ne.off) saute('Quartier néon : DECOR_V2 désactivé');
+      else if (!(ne.panneaux >= 4) || !(ne.file >= 5) || !ne.porteLibre || !(ne.nuit > 0.2) || !(ne.jour < 0.05)) fail('Quartier néon : ' + JSON.stringify(ne));
+      else ok('Quartier néon : ' + ne.panneaux + ' panneaux de toit, ' + ne.file + ' noctambules dans la file, porte du club libre, projecteurs allumés la nuit seulement');
+    }
+
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');
     {
       const srcIdx = fs.readFileSync(INDEX_HTML, 'utf8');

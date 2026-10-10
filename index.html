@@ -3174,6 +3174,7 @@ const matsToitsPlats=[
 ].map(t=>new THREE.MeshLambertMaterial({map:t}));
 const matsToits=[mat(0x8a4030),mat(0x6a4a3a),mat(0x4a5a6a),mat(0x74584a)];
 function mkBatiment(x,z,w,d,h,m,solide){
+  if(DECOR_V2) BATIMENTS.push({x,z,w,d,h}); // panneaux de toit du quartier néon (mkNeonVivant)
   // corps : façade fusionnée + toit texturé séparé (petit, gardé en mesh simple pour le tri de matériau)
   mergeBox(w,h,d,m,x,h/2,z);
   const toitTop=new THREE.Mesh(new THREE.PlaneGeometry(w,d),pick(matsToitsPlats));
@@ -3567,7 +3568,7 @@ function construireVille(){
     if(qq!=='plage'&&qq!=='parc'&&bx%3===1&&bz%3===1) mkFeu(cx+INNER/2+1.4,cz-INNER/2-1.4);
   }
   placerPortes();
-  if(DECOR_V2){ sansAleaVille(()=>{ mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkCiel(); mkCrique(); }); mkMobilierUrbain(); mkTransitionsSols(); } // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
+  if(DECOR_V2){ sansAleaVille(()=>{ mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkCiel(); mkCrique(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>mkNeonVivant()); } // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
   finaliserMerge();
   construireMinimapStatique();
 }
@@ -4776,6 +4777,67 @@ function plongeonJoueur(haut){
   const pts=Math.round(haut*12*ETAT.combo); ETAT.score+=pts;
   spawnTexte(P.x,3,P.z,(haut>=15?'PLONGEON DE L’EXTRÊME ! +':'PLONGEON ! +')+pts,haut>=15?'#ff5ad0':'#35e0ff');
   if(haut>PLONGEON.record){ PLONGEON.record=haut; if(haut>=15) toast('🤿 Plongeon de '+Math.round(haut)+' u — respect','or'); }
+}
+/* ---------- QUARTIER NÉON PLUS VIVANT (DECOR_V2) ----------
+   - Panneaux géants animés sur les toits (un immeuble sur deux du quartier,
+     notés à leur construction dans BATIMENTS) : écrans de Times Square
+     réutilisés, penchés vers la caméra, liseré de néon qui clignote.
+   - Devant le CLUB NÉON : tapis rouge, potelets dorés et cordons, file
+     d'attente de noctambules et videur.
+   - La nuit, deux projecteurs balaient le ciel au-dessus du club.
+   La zone de la file est réservée AVANT le mobilier (reserverNeon) ; le
+   reste se pose après lui (les écrans animés naissent avec les lumières). */
+const NEON={file:[],faisceaux:[],matFx:null};
+const BATIMENTS=[]; // DECOR_V2 : {x,z,w,d,h} de chaque mkBatiment
+function reserverNeon(){
+  const p=PORTES.find((q)=>q.id==='club'); if(!p) return;
+  ZONES_SANS_MOBILIER.push({x0:p.x-14,x1:p.x+3,z0:p.z,z1:p.z+8});
+}
+function mkNeonVivant(){
+  // 1) panneaux géants sur les toits
+  let n=0;
+  BATIMENTS.forEach((b,i)=>{
+    if(i%2||b.w<7||quartierAt(b.x,b.z)!=='neon'||!LUM.texEcrans.length) return;
+    const W=Math.min(b.w*0.8,9), H=W*0.45, y=b.h+1.4+H/2, z=b.z+b.d*0.2, g=new THREE.Group();
+    g.position.set(b.x,y,z); g.rotation.x=-0.35; scene.add(g);
+    g.add(mkBoxG(W+0.5,H+0.5,0.3,0x14161c,0,0,-0.12));
+    const e=new THREE.Mesh(new THREE.PlaneGeometry(W,H),new THREE.MeshBasicMaterial({map:LUM.texEcrans[n%LUM.texEcrans.length]})); e.position.z=0.05; g.add(e);
+    const neon=LUM.neons[n%LUM.neons.length];
+    for(const [w,h,px,py] of [[W+0.7,0.12,0,H/2+0.3],[W+0.7,0.12,0,-H/2-0.3],[0.12,H+0.7,W/2+0.3,0],[0.12,H+0.7,-W/2-0.3,0]]){ const t=new THREE.Mesh(new THREE.BoxGeometry(w,h,0.12),neon); t.position.set(px,py,0.05); g.add(t); }
+    for(const s of [-1,1]) mkBox(0.2,1.6,0.2,mat(0x2a2d34),b.x+s*W*0.35,b.h+0.8,z);
+    n++;
+  });
+  NEON.panneaux=n;
+  // 2) tapis rouge, cordons, file d'attente et videur devant le club
+  const p=PORTES.find((q)=>q.id==='club');
+  if(p){
+    const tapis=new THREE.Mesh(new THREE.PlaneGeometry(2.2,7),mat(0xb01a2a)); tapis.rotation.x=-Math.PI/2; tapis.position.set(p.x,0.235,p.z+3.6); scene.add(tapis);
+    for(const s of [-1,1]) for(let k=0;k<4;k++){ const z=p.z+1+k*2; mkBox(0.12,0.9,0.12,mat(0xd8b040),p.x+s*1.5,0.67,z);
+      if(k<3){ const c=mkBox(0.06,0.06,2,mat(0x8a1020),p.x+s*1.5,0.95,z+1); } }
+    const tenues=[[0xff3bd0,0x1c1c24],[0x35e0ff,0x2a2d34],[0xffd23f,0x1c1c24],[0xe8e8e2,0x2a2d34],[0x8a4de0,0x14141a],[0x2f8a4a,0x1c1c24],[0xd83a3a,0x2a2d34]];
+    const peaux=[0xf0c8a0,0xc68e64,0x8a5a3a,0xe8b890];
+    tenues.forEach(([haut,bas],k)=>{ const hm=makeHumain({haut,bas,peau:peaux[k%4]},1); const x=p.x-3.6-k*1.15, z=p.z+3.2+(k%2)*0.35;
+      hm.g.position.set(x,0.22,z); hm.g.rotation.y=Math.PI/2; scene.add(hm.g); addSolid({x,z,hw:0.3,hd:0.3,h:1.8});
+      NEON.file.push({h:hm,ph:k*0.9}); });
+    const videur=makeHumain({haut:0x14141a,bas:0x14141a,peau:0x8a5a3a},1.15); videur.g.position.set(p.x+2.4,0.22,p.z+1.6); videur.g.scale.setScalar(1.15); scene.add(videur.g);
+    videur.brasG.rotation.x=-1.2; videur.brasD.rotation.x=-1.2; videur.brasG.rotation.z=0.6; videur.brasD.rotation.z=-0.6; // bras croisés
+    addSolid({x:p.x+2.4,z:p.z+1.6,hw:0.4,hd:0.4,h:2});
+    // 3) projecteurs qui balaient le ciel (la nuit)
+    NEON.matFx=new THREE.MeshBasicMaterial({map:texGlow,color:0xd8ecff,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide});
+    for(const s of [-1,1]){
+      const x=p.x+s*9, z=p.z+5.5;
+      mkBox(1.2,0.6,1.2,mat(0x2a2d34),x,0.52,z); const lampe=mkBox(0.8,0.8,0.8,mat(0xd8dce4),x,1.2,z);
+      const pivot=new THREE.Group(); pivot.position.set(x,1.4,z); scene.add(pivot);
+      const bras=new THREE.Group(); bras.rotation.z=0.42; pivot.add(bras);
+      for(const r of [0,Math.PI/2]){ const f=new THREE.Mesh(new THREE.PlaneGeometry(3.2,46),NEON.matFx); f.position.y=23; f.rotation.y=r; bras.add(f); }
+      NEON.faisceaux.push({pivot,ph:s>0?0:Math.PI});
+    }
+  }
+}
+function majNeonVivant(dt){
+  const t=ETAT.runT||0, f=ETAT.nuitF||0;
+  for(const q of NEON.file){ q.ph+=dt*1.5; q.h.g.position.y=0.22+Math.abs(Math.sin(q.ph*2))*0.05; q.h.tete.rotation.y=Math.sin(q.ph*0.6)*0.5; } // on piétine, on regarde autour
+  if(NEON.matFx){ NEON.matFx.opacity=0.32*f; for(const b of NEON.faisceaux) b.pivot.rotation.y=b.ph+t*0.5; }
 }
 // Un véhicule lancé (joueur ou autre) renverse les petits objets sur son passage.
 function majMobilier(){
@@ -23371,7 +23433,7 @@ function boucle(t){
       majMeteo(dt);
       majMer(dt);
       majMerV2(dt);
-      if(DECOR_V2){ majHorsLesMurs(dt); majMobilier(); majLac(dt); majLumieres(dt); majJetee(dt); majPortVivant(dt); majBrooklyn(dt); majCiel(dt); }
+      if(DECOR_V2){ majHorsLesMurs(dt); majMobilier(); majLac(dt); majLumieres(dt); majJetee(dt); majPortVivant(dt); majBrooklyn(dt); majCiel(dt); majNeonVivant(dt); }
       majEpaveCanon(dt);
     }
     majHUD();

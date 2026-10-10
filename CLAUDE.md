@@ -55,7 +55,7 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
   echo "$ln | $(sed -n "$((ln+1))p" index.html | sed 's/^[ \t]*//')"; done
 ```
 
-**Relevé au 10 octobre 2026 (décor V2, crique) — 23 433 lignes.**
+**Relevé au 10 octobre 2026 (décor V2, néon) — 23 495 lignes.**
 
 | Ligne | Section |
 |---|---|
@@ -70,32 +70,32 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
 | 1790 | MÉTA-PROGRESSION — `META`, défis, sauvegarde |
 | 2464 | THREE.JS — rendu, scène, lumières |
 | 2746 | VILLE DE LOS REYES — génération procédurale par quartiers |
-| 6989 | MODÈLES — humains, armes, véhicules, hélico, ramassables |
-| 8075 | POOLS — balles, particules, textes flottants, traces de pneus |
-| 8435 | ÉTAT GLOBAL + JOUEUR (`P`) |
-| 9156 | VÉHICULES — physique arcade, trafic, dégâts |
-| 11436 | PIÉTONS |
-| 11588 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
-| 12124 | **RAYON TRACTEUR DE L'OVNI** |
-| 12520 | NIVEAU DE RECHERCHE (étoiles) |
-| 12765 | VAGUES + bonus de fin de vague |
-| 12884 | MISSIONS COURTES |
-| 12887 | BÂTIMENTS VISITABLES — intérieurs |
-| 12957 | FOUILLE — mécanique générique |
-| 13538 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
-| 17473 | CINÉ-PALACE |
-| 17535 | MÉTRO ABANDONNÉ |
-| 17601 | RADIO PIRATE REYES FM |
-| 17706 | LE CHALUTIER « SAINTE-ODILE » |
-| 17980 | SITE 51 |
-| 18210 | LE DÉPÔT DE BUS — courses clandestines |
-| 19225 | **MÉTIERS** — missions liées à un véhicule |
-| 19456 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
-| 20399 | ÉCRANS / MENUS / BOUTIQUES |
-| 20666 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
-| 21438 | DÉBUT / FIN DE PARTIE |
-| 22917 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
-| 23312 | BOUCLE PRINCIPALE |
+| 7051 | MODÈLES — humains, armes, véhicules, hélico, ramassables |
+| 8137 | POOLS — balles, particules, textes flottants, traces de pneus |
+| 8497 | ÉTAT GLOBAL + JOUEUR (`P`) |
+| 9218 | VÉHICULES — physique arcade, trafic, dégâts |
+| 11498 | PIÉTONS |
+| 11650 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
+| 12186 | **RAYON TRACTEUR DE L'OVNI** |
+| 12582 | NIVEAU DE RECHERCHE (étoiles) |
+| 12827 | VAGUES + bonus de fin de vague |
+| 12946 | MISSIONS COURTES |
+| 12949 | BÂTIMENTS VISITABLES — intérieurs |
+| 13019 | FOUILLE — mécanique générique |
+| 13600 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
+| 17535 | CINÉ-PALACE |
+| 17597 | MÉTRO ABANDONNÉ |
+| 17663 | RADIO PIRATE REYES FM |
+| 17768 | LE CHALUTIER « SAINTE-ODILE » |
+| 18042 | SITE 51 |
+| 18272 | LE DÉPÔT DE BUS — courses clandestines |
+| 19287 | **MÉTIERS** — missions liées à un véhicule |
+| 19518 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
+| 20461 | ÉCRANS / MENUS / BOUTIQUES |
+| 20728 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
+| 21500 | DÉBUT / FIN DE PARTIE |
+| 22979 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
+| 23374 | BOUCLE PRINCIPALE |
 
 ### Ancres fines (hors bandeaux)
 
@@ -113,44 +113,45 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
 | 2244 | `VEHDEFS` — véhicules, éligibilité garage (`tuningMeca`, `tuningCarro`) |
 | 2766 | mer V2 : `houle()`/`houleY()`, shader (`merV2Materiau`), sillage, éclaboussures, `assietteHoule()` |
 | 3068 | `finaliserMerge()` |
-| 3608 | `mkLittoral()` — fondus sable/mer/désert, vagues sur le sable |
-| 3663 | `mkHorsLesMurs()` — décor factice hors de l'enceinte |
-| 3779 | `MOB_CAT` — catalogue du mobilier urbain, puis `mkMobilierUrbain()`, `majMobilier()`, `garerVelos()` |
-| 4185 | `JETEE` — jetée de fête foraine : `ZONES_SANS_MOBILIER`, `mkJeteeForaine()`, `majJetee()` |
-| 4316 | `SKATE` — skatepark : `mkSkatepark()`, `texGraffiti()` |
-| 4392 | `PORT` — port vivant : `mkPortVivant()`, `majPortVivant()` |
-| 4498 | `BROOK` — Brooklyn : `texFresque()`, `mkBrooklyn()`, `majBrooklyn()` |
-| 4619 | `CIEL` — dirigeable, avion à banderole, mouettes, feux d'artifice : `mkCiel()`, `majCiel()` |
-| 4688 | `CRIQUE` — crique des plongeurs : `dansCrique()`, `mkCrique()`, `plongeonJoueur()` |
-| 3938 | `SOLS` — dalles de sol enregistrées, puis `mkTransitionsSols()` (jonctions entre sols) |
-| 4837 | `mkLacParc()` — lac du parc, passerelle, barques |
-| 4966 | `mkLumieresQuartiers()` — Times Square, quartier chinois, Brooklyn |
-| 5052 | `mkEnceinte()` — murs, enseigne, jetées de rochers |
-| 5493 | `GALION` — galion échoué : `sansAleaVille()`, `coqueGalion()`, `mkGalion()`, `majGalion()` |
-| 6220 | `mkPorteGarage()` — porte roulante des garages |
-| 6288 | `placeLibrePorte()` |
-| 6347 | helper `poser()` — placement des lieux |
-| 6373 | `caseCentre(bx,bz)` |
-| 6466 | `REPLIS` — filet de sécurité en spirale |
-| 7966 | `makeVelo()` — vélo de ville et BMX |
-| 8443 | `const P` — état du joueur |
-| 8481 | `P.stamMax = 100 + 12*mus` |
-| 9461 | `resoudreCollisionsVehicule()` — collisions entre véhicules (SAT sur les 4 axes) |
-| 9967 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
-| 10075 | `boutonsAPied()` — boutons du HUD remis « à pied » (sortie de véhicule ET début de partie) |
-| 10917 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
-| 11030 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
-| 12893 | `IOFF = -9000` |
-| 14615 | `INTDEFS` — définitions des **27 salles** |
-| 14795 | `construireSalle(id)` |
-| 19234 | `METIERS_CIBLE` |
-| 19474 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
-| 19556 | `PIECES_FAMILLES` — catalogues de pièces par famille |
-| 19856 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
-| 19909 | `libererObjet()` — libère les géométries d'un objet retiré |
-| 19925 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
-| 20005 | `construireGarageTuning()` — la salle partagée |
-| 20373 | `majNitro()` |
+| 3609 | `mkLittoral()` — fondus sable/mer/désert, vagues sur le sable |
+| 3664 | `mkHorsLesMurs()` — décor factice hors de l'enceinte |
+| 3780 | `MOB_CAT` — catalogue du mobilier urbain, puis `mkMobilierUrbain()`, `majMobilier()`, `garerVelos()` |
+| 4186 | `JETEE` — jetée de fête foraine : `ZONES_SANS_MOBILIER`, `mkJeteeForaine()`, `majJetee()` |
+| 4317 | `SKATE` — skatepark : `mkSkatepark()`, `texGraffiti()` |
+| 4393 | `PORT` — port vivant : `mkPortVivant()`, `majPortVivant()` |
+| 4499 | `BROOK` — Brooklyn : `texFresque()`, `mkBrooklyn()`, `majBrooklyn()` |
+| 4620 | `CIEL` — dirigeable, avion à banderole, mouettes, feux d'artifice : `mkCiel()`, `majCiel()` |
+| 4689 | `CRIQUE` — crique des plongeurs : `dansCrique()`, `mkCrique()`, `plongeonJoueur()` |
+| 4790 | `NEON` — quartier néon : `BATIMENTS`, `reserverNeon()`, `mkNeonVivant()` |
+| 3939 | `SOLS` — dalles de sol enregistrées, puis `mkTransitionsSols()` (jonctions entre sols) |
+| 4899 | `mkLacParc()` — lac du parc, passerelle, barques |
+| 5028 | `mkLumieresQuartiers()` — Times Square, quartier chinois, Brooklyn |
+| 5114 | `mkEnceinte()` — murs, enseigne, jetées de rochers |
+| 5555 | `GALION` — galion échoué : `sansAleaVille()`, `coqueGalion()`, `mkGalion()`, `majGalion()` |
+| 6282 | `mkPorteGarage()` — porte roulante des garages |
+| 6350 | `placeLibrePorte()` |
+| 6409 | helper `poser()` — placement des lieux |
+| 6435 | `caseCentre(bx,bz)` |
+| 6528 | `REPLIS` — filet de sécurité en spirale |
+| 8028 | `makeVelo()` — vélo de ville et BMX |
+| 8505 | `const P` — état du joueur |
+| 8543 | `P.stamMax = 100 + 12*mus` |
+| 9523 | `resoudreCollisionsVehicule()` — collisions entre véhicules (SAT sur les 4 axes) |
+| 10029 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
+| 10137 | `boutonsAPied()` — boutons du HUD remis « à pied » (sortie de véhicule ET début de partie) |
+| 10979 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
+| 11092 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
+| 12955 | `IOFF = -9000` |
+| 14677 | `INTDEFS` — définitions des **27 salles** |
+| 14857 | `construireSalle(id)` |
+| 19296 | `METIERS_CIBLE` |
+| 19536 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
+| 19618 | `PIECES_FAMILLES` — catalogues de pièces par famille |
+| 19918 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
+| 19971 | `libererObjet()` — libère les géométries d'un objet retiré |
+| 19987 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
+| 20067 | `construireGarageTuning()` — la salle partagée |
+| 20435 | `majNitro()` |
 
 ---
 
@@ -405,6 +406,10 @@ décor sur un générateur **à part** (`aleaDecor()`, `aD()`, `choixD()`, grain
   rampes d'accès, des marches pour ressortir de l'eau. **Atterrir dans l'eau
   ne blesse jamais** (`plongeonJoueur`) : salto pendant la chute, gerbe,
   bonus de score selon la hauteur (6 s entre deux bonus).
+- **Quartier néon** (`reserverNeon` avant le mobilier, `mkNeonVivant` après) :
+  panneaux animés sur les toits (un `mkBatiment` sur deux du quartier, notés
+  dans `BATIMENTS`), tapis rouge, file d'attente et videur devant le CLUB
+  NÉON (porte toujours libre), projecteurs qui balaient le ciel la nuit.
 - **Lac du parc** (`mkLacParc`, case bx=5, bz=0) : vraie eau pour `estEau`
   (on y nage, les voitures s'arrêtent au bord), passerelle praticable
   (5 `PLATS` en dos d'âne), barques et canards = décor.
