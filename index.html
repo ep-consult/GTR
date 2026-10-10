@@ -2953,6 +2953,7 @@ function dansPiscine(x,z){
 const TROTTOIRS=[]; // {x,z,hw,hd} : dalles surélevées de 0,22
 const COLLINES=[]; // {x,z,r,h} : bosses lisses (dunes, buttes)
 const RAMPES=[];   // {x,z,ang,long,haut,larg} : tremplins
+const RELIEFS=[];  // DECOR_V2 : {x0,x1,z0,z1,f(x,z)} — reliefs libres, même fonction pour le maillage et le sol (reliefCrique)
 function solPied(x,z){ // sol + toits accessibles (les surplombs ne comptent qu'en hauteur)
   let y=solY(x,z);
   const s=solidAt(x,z,0,undefined,y);
@@ -2976,6 +2977,7 @@ function solY(x,z){
       if(h>y) y=h;
     }
   }
+  for(const r of RELIEFS) if(x>r.x0&&x<r.x1&&z>r.z0&&z<r.z1){ const h=r.f(x,z); if(h>y) y=h; }
   for(const r of RAMPES){
     const dx=x-r.x,dz=z-r.z;
     const ca=Math.cos(r.ang),sa=Math.sin(r.ang);
@@ -4701,6 +4703,86 @@ function texGres(){
     g.strokeStyle='rgba(60,35,15,0.35)'; g.lineWidth=2; for(let i=0;i<6;i++){ g.beginPath(); let x=aD(0,s), y=0; g.moveTo(x,y); while(y<s){ x+=aD(-8,8); y+=aD(8,16); g.lineTo(x,y); } g.stroke(); } // fissures verticales
   },1,1);
 }
+// Accès aux falaises de la crique : collines escarpées (RELIEFS) au lieu des
+// trois rampes droites (« de gros carrés pas beaux », signalé). La forme est
+// une fonction de hauteur partagée par le maillage ET par solY : ce qu'on
+// voit est exactement ce sur quoi on marche. Un sentier en lacets grimpe la
+// colline nord jusqu'au grand plongeoir.
+const lisse=(t)=>{ t=clamp(t,0,1); return t*t*(3-2*t); };
+function reliefCrique(){
+  const X0=CRIQUE.x0, X1=CRIQUE.x1, Z0=CRIQUE.z0;
+  // bosses et ravines (même formule pour le maillage et la collision), nulles au pied et au sommet
+  const relief=(x,z,u)=>(0.55*Math.sin(x*0.42+z*0.17)*Math.sin(z*0.36-x*0.11)+0.3*Math.sin(x*1.1)*Math.cos(z*0.9))*4*u*(1-u);
+  // colline nord : du désert (z=196) jusqu'au bord du plateau (z=246, h=17), flancs abrupts
+  const nord=(x,z)=>{ const u=(z-196)/50; if(u<=0) return 0; const uu=Math.min(1,u);
+    const demi=lerp(14,30,uu), lat=lisse((demi-Math.abs(x-366))/10); // flancs abrupts mais jamais un mur
+    return Math.max(0,17*lisse(uu)*lat+relief(x,z,uu)*lat); };
+  RELIEFS.push({x0:326,x1:406,z0:196,z1:246.5,f:nord,sol:texDesert}); // déborde de 0,5 u sur le plateau : jamais de fente à la jonction (bornes strictes des deux côtés)
+  // colline ouest : de la plage jusqu'au bras de 10 u
+  const ouest=(x,z)=>{ const u=(x-304)/27; if(u<=0) return 0; const uu=Math.min(1,u);
+    const lat=lisse((7.5-Math.abs(z-276))/5); return Math.max(0,10*lisse(uu)*lat+relief(x,z,uu)*lat*0.6); };
+  RELIEFS.push({x0:304,x1:331.5,z0:263,z1:289,f:ouest,sol:texSable});
+  // colline est : vers le bras de 5 u
+  const est=(x,z)=>{ const u=(421-x)/22; if(u<=0) return 0; const uu=Math.min(1,u);
+    const lat=lisse((7-Math.abs(z-276))/5); return Math.max(0,5*lisse(uu)*lat+relief(x,z,uu)*lat*0.4); };
+  RELIEFS.push({x0:398.5,x1:421,z0:263,z1:289,f:est,sol:texSable});
+  // maillages : grille lissée de 1 u (sommets partagés : ombrage doux), couleur par sommet selon
+  // la pente — roche nue sur les à-pics, sable et herbes sèches ailleurs, jamais un damier
+  const c3=new THREE.Color(), roche=new THREE.Color(0xa87a50), sable=new THREE.Color(0xd8a870), sec=new THREE.Color(0xb8a060), blanc=new THREE.Color(0xffffff);
+  for(const R of RELIEFS.slice(-3)){
+    const nx=Math.ceil(R.x1-R.x0), nz=Math.ceil(R.z1-R.z0), pos=[], col=[], uv=[], idx=[];
+    const H=(i,j)=>R.f(R.x0+i,R.z0+j);
+    for(let i=0;i<=nx;i++) for(let j=0;j<=nz;j++){
+      const h=H(i,j), x=R.x0+i, z=R.z0+j;
+      const pente=Math.max(Math.abs(H(i+1,j)-H(i-1,j)),Math.abs(H(i,j+1)-H(i,j-1)))/2;
+      const k=clamp((pente-0.55)/0.8,0,1), bruit=0.92+0.12*Math.sin(x*1.7)*Math.cos(z*1.3);
+      c3.copy(sable).lerp(sec,clamp(Math.sin(x*0.31+z*0.27)*0.5,0,0.5)).lerp(roche,k).multiplyScalar(bruit);
+      c3.lerp(blanc,1-lisse(h/1.6)); // au pied : la couleur exacte du sol dessous (même texture, teinte neutre)
+      pos.push(x,h+0.03,z); col.push(c3.r,c3.g,c3.b); uv.push(x/7,z/7);
+    }
+    const id=(i,j)=>i*(nz+1)+j;
+    for(let i=0;i<nx;i++) for(let j=0;j<nz;j++){
+      if(Math.max(H(i,j),H(i+1,j),H(i+1,j+1),H(i,j+1))<0.002) continue; // le pied se fond dans le sol (couleur neutre) : plus de bord en escalier
+      idx.push(id(i,j),id(i,j+1),id(i+1,j+1),id(i,j),id(i+1,j+1),id(i+1,j));
+    }
+    const g=new THREE.BufferGeometry(); g.setIndex(idx); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(col,3)); g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));
+    g.computeVertexNormals();
+    scene.add(new THREE.Mesh(g,new THREE.MeshLambertMaterial({map:R.sol,vertexColors:true})));
+  }
+  // sentier en lacets sur la colline nord : du pied jusqu'au plongeoir
+  const lacets=[[366,198],[352,204],[380,212],[350,220],[378,228],[356,236],[372,242],[366,247]];
+  const ruban={pos:[],uv:[]}, pieces=[];
+  for(let s=0;s<lacets.length-1;s++){
+    const [ax,az]=lacets[s], [bx,bz]=lacets[s+1], L=Math.hypot(bx-ax,bz-az), n=Math.ceil(L/1.2), tx=(bx-ax)/L, tz=(bz-az)/L;
+    for(let k=0;k<n;k++){
+      const p=(t)=>{ const x=ax+tx*L*t, z=az+tz*L*t; return [x,z]; }, u0=k/n, u1=(k+1)/n;
+      const [x0,z0]=p(u0), [x1,z1]=p(u1), w=0.6;
+      const pt=(x,z,d,v)=>{ const X=x-tz*d, Z=z+tx*d; ruban.pos.push(X,Math.max(solY(X,Z),0)+0.07,Z); ruban.uv.push(d,v); };
+      const quad=[[x0,z0,-w,u0],[x1,z1,-w,u1],[x1,z1,w,u1],[x0,z0,w,u0]];
+      for(const t of [0,2,1,0,3,2]) pt(...quad[t]); // face vers le ciel (t × n pointe vers le bas)
+      if(k%3===0){ const d=(s%2?1:-1)*1.4, X=x0-tz*d, Z=z0+tx*d; pieces.push(['box',0.16,0.9,0.16,X,solY(X,Z)+0.45,Z,0x6a4a2c]); } // piquets côté vide
+      if(aleaDecor()<0.3){ const d=aD(1.6,3)*(aleaDecor()<0.5?1:-1), X=x0-tz*d, Z=z0+tx*d; pieces.push(['boule',aD(0.3,0.7),aD(0.25,0.5),aD(0.3,0.7),X,solY(X,Z)+0.15,Z,choixD([0x8a5a3a,0x9a7048,0x6e4a2e])]); }
+    }
+  }
+  const gr=new THREE.BufferGeometry(); gr.setAttribute('position',new THREE.Float32BufferAttribute(ruban.pos,3)); gr.setAttribute('uv',new THREE.Float32BufferAttribute(ruban.uv,2)); gr.computeVertexNormals();
+  scene.add(new THREE.Mesh(gr,new THREE.MeshLambertMaterial({map:texDesert,color:0xe8d4b0,polygonOffset:true,polygonOffsetFactor:-2})));
+  // arbustes secs, cactus et rochers épars sur les collines (jamais sur le sentier)
+  for(let i=0;i<70;i++){
+    const R=RELIEFS[RELIEFS.length-3+(i%3===0?(i%2?1:2):0)], x=aD(R.x0,R.x1), z=aD(R.z0,R.z1), h=R.f(x,z);
+    if(h<0.4) continue;
+    let pres=false; for(let s=0;s<lacets.length-1&&!pres;s++){ const [ax,az]=lacets[s],[bx,bz]=lacets[s+1], t=clamp(((x-ax)*(bx-ax)+(z-az)*(bz-az))/((bx-ax)**2+(bz-az)**2),0,1); if(dist2(x,z,ax+(bx-ax)*t,az+(bz-az)*t)<4) pres=true; }
+    if(pres) continue;
+    const r=aleaDecor();
+    if(r<0.45) pieces.push(['boule',aD(0.5,1.4),aD(0.4,1),aD(0.5,1.4),x,h+0.2,z,choixD([0x8a5a3a,0x9a7048,0x6e4a2e,0xb07a48])]);
+    else if(r<0.8) pieces.push(['boule',aD(0.4,0.8),aD(0.3,0.55),aD(0.4,0.8),x,h+0.25,z,choixD([0x6a7a3a,0x8a8a44,0x5a6a34])]);
+    else { const t=aD(1.2,2.2); pieces.push(['box',0.35,t,0.35,x,h+t/2,z,0x3d7a34],['box',0.25,0.8,0.25,x+0.4,h+t*0.6,z,0x3d7a34],['box',0.25,0.25,0.25,x+0.4,h+t*0.6-0.4,z,0x3d7a34]); } // cactus
+  }
+  // marches taillées dans le grès : sortir de l'eau jusqu'au bras est (physique : RAMPES, sans flancs orange)
+  const mx=X1-1.3, mz0=Z0+2, L=17, Hs=5;
+  RAMPES.push({x:mx,z:mz0,ang:0,long:L,haut:Hs,larg:2.4});
+  for(let k=0;k<17;k++){ const z=mz0+k+0.5, y=Hs*(k+1)/L; pieces.push(['box',2.4,y,1,mx,y/2,z,k%2?0xb07a48:0xa06a3e]); }
+  scene.add(meshPieces(pieces));
+}
 function mkCrique(){
   const X0=345, X1=385, Z0=266;
   CRIQUE={x0:X0,x1:X1,z0:Z0};
@@ -4743,10 +4825,6 @@ function mkCrique(){
   falaise(X1,399,Z0,MER+6,5.4);
   plongeoir(X1,279,-1,0,5,5.4,false);
   // rampes d'accès : depuis le désert (nord), la plage ouest, la plage est
-  const mR=new THREE.MeshLambertMaterial({map:texDesert,color:0xc89a68});
-  mkRampe(366,207,0,39,17,6,mR);
-  mkRampe(301,279,Math.PI/2,30,10,6,mR);
-  mkRampe(412,279,-Math.PI/2,13,5,5,mR);
   // faces de la baie moins droites : avancées de roche incrustées et éboulis (une seule fusion)
   const rocs=[];
   const roc=(x,y,z,r)=>{ const g=new THREE.DodecahedronGeometry(r,0); g.rotateY(aD(0,6)); g.rotateX(aD(0,6)); g.translate(x,y,z); rocs.push(g); };
@@ -4754,8 +4832,6 @@ function mkCrique(){
   for(let i=0;i<14;i++){ const z=aD(Z0+1,MER+4); roc(X0+aD(0.1,0.6),aD(1,9),z,aD(1,2.2)); roc(X1-aD(0.1,0.6),aD(0.5,4.5),z,aD(0.9,1.8)); } // bras ouest et est
   for(let i=0;i<10;i++) roc(aD(X0+1,X1-1),aD(15.5,17.6),aD(248,Z0-0.5),aD(0.8,1.6)); // crête irrégulière en haut
   scene.add(new THREE.Mesh(mergeGeoManuel(rocs),new THREE.MeshLambertMaterial({map:texGres()})));
-  // marches taillées dans la roche : sortir de l'eau jusqu'au bras est (5 u), pour replonger
-  mkRampe(X1-1.3,Z0+2,0,17,5,2.4,new THREE.MeshLambertMaterial({map:texGres()}));
   // eau de la baie : turquoise, plus sombre au milieu, reflets (même esprit que le lac)
   const mEau=new THREE.MeshLambertMaterial({map:texEau,color:0x7fd8d0});
   mEau.onBeforeCompile=(sh)=>{ sh.uniforms.uTemps=MER_U.uTemps; sh.uniforms.uSoleil=MER_U.uSoleil;
@@ -4770,6 +4846,7 @@ function mkCrique(){
   // panneau
   mkBox(0.2,3.4,0.2,mat(0x5a3a22),X0-3,1.7,Z0-24);
   mkEnseigne('CRIQUE DES PLONGEURS','#35e0ff',X0-3,3.8,Z0-23.9,0,6).rotation.x=-0.45;
+  reliefCrique(); // collines escarpées, sentier en lacets, marches taillées
   POIS.crique={x:(X0+X1)/2,z:(Z0+MER)/2};
 }
 // Atterrissage du joueur : dans l'eau, jamais de dégâts — c'est un plongeon.

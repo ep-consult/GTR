@@ -7938,6 +7938,9 @@ async function main() {
         const dors = (ms) => new Promise((r) => setTimeout(r, ms));
         startRun(); ETAT.timeScale = 1; P.hp = P.hpMax = 1000;
         const o = { eau: estEau(365, 278), sommet: solPied(365, 255) };
+        // collines d'accès : montée continue jusqu'aux plateaux (aucune marche de plus de 1,2 u par pas de 1 u)
+        let saut = 0; for (let z = 190; z < 247; z++) saut = Math.max(saut, Math.abs(solY(366, z + 1) - solY(366, z))); o.sautNord = +saut.toFixed(2);
+        saut = 0; for (let x = 300; x < 331; x++) saut = Math.max(saut, Math.abs(solY(x + 1, 276) - solY(x, 276))); o.sautOuest = +saut.toFixed(2);
         P.x = 365; P.z = 262; P.y = solPied(365, 262); await dors(300);
         const hp0 = P.hp, sc0 = ETAT.score;
         P.z = 273.2; await dors(400); // un pas dans le vide au bout du plongeoir
@@ -7947,8 +7950,8 @@ async function main() {
         startRun(); return o;
       });
       if (cr.off) saute('Crique des plongeurs : DECOR_V2 désactivé');
-      else if (!cr.eau || !(cr.sommet > 16) || !cr.nage || cr.degats > 0 || !(cr.bonus > 0) || cr.salto !== 0 || !(cr.marches > 4.5) || !(Math.abs(cr.bras - 5) < 0.2)) fail('Crique des plongeurs : ' + JSON.stringify(cr));
-      else ok('Crique des plongeurs : plongeon de 17 u → dans l\'eau, 0 dégât, bonus +' + cr.bonus + ', marches jusqu\'au bras de 5 u');
+      else if (!cr.eau || !(cr.sommet > 16) || !cr.nage || cr.degats > 0 || !(cr.bonus > 0) || cr.salto !== 0 || !(cr.marches > 4.5) || !(Math.abs(cr.bras - 5) < 0.2) || !(cr.sautNord < 1.2) || !(cr.sautOuest < 1.2)) fail('Crique des plongeurs : ' + JSON.stringify(cr));
+      else ok('Crique des plongeurs : plongeon de 17 u → dans l\'eau, 0 dégât, bonus +' + cr.bonus + ', marches jusqu\'au bras de 5 u, collines d\'accès continues (pas max ' + cr.sautNord + ' / ' + cr.sautOuest + ' u)');
     }
 
     // -------------------------------------------------------------------
