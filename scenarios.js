@@ -7561,6 +7561,47 @@ async function main() {
       else ok('Bordures : véhicule et piéton vont jusqu\'au mur sans le traverser, la nage s\'arrête à la ligne du mur, enseigne longue jamais coupée');
     }
 
+    // -------------------------------------------------------------------
+    // Mobilier urbain (DECOR_V2) : jamais sur la chaussée ni devant une porte,
+    // les petits objets se renversent sous un véhicule lancé et reviennent à
+    // la partie suivante.
+    // -------------------------------------------------------------------
+    console.log('\n--- Mobilier urbain : trottoirs, portes dégagées, objets cassables ---');
+    {
+      const mob = await page.evaluate(() => {
+        if (typeof DECOR_V2 === 'undefined' || !DECOR_V2 || typeof MOB === 'undefined') return { off: true };
+        const out = { nbCassables: 0, surChaussee: [] }; // l'accès aux portes est vérifié par les tests REPLIS existants
+        const B = (INNER + 2) / 2, horsBloc = (x, z) => {
+          const bx = Math.floor((x + HALF) / CELL), bz = Math.floor((z + HALF) / CELL);
+          const cx = -HALF + bx * CELL + CELL / 2, cz = -HALF + bz * CELL + CELL / 2;
+          return Math.abs(x - cx) > B || Math.abs(z - cz) > B;
+        };
+        for (const l of MOB.cassables.values()) for (const o of l) { out.nbCassables++; if (horsBloc(o.x, o.z)) out.surChaussee.push(o.type + '@' + o.x.toFixed(0) + ',' + o.z.toFixed(0)); }
+        // renversement : une voiture lancée sur le premier objet cassable trouvé
+        startRun(); ETAT.timeScale = 1;
+        let cible = null; for (const l of MOB.cassables.values()) { for (const o of l) { if (!o.casse) { cible = o; break; } } if (cible) break; }
+        const v = creerVehicule('muscle', cible.x, cible.z, 0, null); P.x = v.x + 3; P.z = v.z; entrerVehicule(v); v.v = 15;
+        majMobilier();
+        out.renverse = cible.casse === true;
+        const zone = MOB.zones[cible.zone], A = zone.geometry.attributes.position.array, O = zone.userData.orig;
+        out.replie = A[cible.debut * 3 + 1] === -2;
+        sortirVehicule(true); v.mort = true;
+        startRun();
+        out.repare = cible.casse === false && A[cible.debut * 3 + 1] === O[cible.debut * 3 + 1];
+        return out;
+      });
+      if (mob.off) saute('Mobilier urbain : DECOR_V2 désactivé');
+      else {
+        const ko = [];
+        if (mob.nbCassables < 100) ko.push('trop peu d\'objets posés (' + mob.nbCassables + ')');
+        if (mob.surChaussee.length) ko.push('objets sur la chaussée : ' + mob.surChaussee.slice(0, 4).join(', '));
+        if (!mob.renverse || !mob.replie) ko.push('une voiture lancée ne renverse pas l\'objet (' + JSON.stringify(mob) + ')');
+        if (!mob.repare) ko.push('l\'objet renversé ne revient pas à la partie suivante');
+        if (ko.length) fail('Mobilier urbain : ' + ko.join(' | '));
+        else ok('Mobilier urbain : ' + mob.nbCassables + ' objets cassables, tous sur les trottoirs ; renversé par une voiture lancée, réparé à la partie suivante');
+      }
+    }
+
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');
     {
       const srcIdx = fs.readFileSync(INDEX_HTML, 'utf8');

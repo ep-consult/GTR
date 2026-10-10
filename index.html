@@ -3546,6 +3546,7 @@ function construireVille(){
     if(qq!=='plage'&&qq!=='parc'&&bx%3===1&&bz%3===1) mkFeu(cx+INNER/2+1.4,cz-INNER/2-1.4);
   }
   placerPortes();
+  if(DECOR_V2) mkMobilierUrbain(); // après les portes : jamais devant l'une d'elles
   finaliserMerge();
   construireMinimapStatique();
 }
@@ -3703,6 +3704,180 @@ function majHorsLesMurs(dt){
     const c=HORS_VOITURES[i]; c.g.position.x+=c.sens*c.v*dt;
     if(c.g.position.x>c.L1) c.g.position.x=c.L0; else if(c.g.position.x<c.L0) c.g.position.x=c.L1;
   }
+}
+/* ---------- MOBILIER URBAIN (DECOR_V2) ----------
+   Arbres d'alignement, abribus, bancs, poubelles, bornes d'incendie,
+   jardinières, kiosques, terrasses, boîtes aux lettres, haies, massifs,
+   fûts, palettes, bittes d'amarrage, distributeurs lumineux… selon le
+   quartier, le long du trottoir (côté bordure, laisse le passage le long des
+   façades). Jamais devant une porte ni sur un point d'intérêt.
+   Perf : tout le mobilier d'une zone (4×4 zones sur la ville) est FUSIONNÉ
+   en une géométrie à couleurs par sommet (1 appel de rendu par zone), plus
+   une couche « lumineuse » (têtes de lampadaires, pubs, distributeurs) que
+   le cycle jour/nuit fait briller. Les petits objets sont CASSABLES : un
+   véhicule lancé les renverse (leurs sommets sont repliés, mise à jour
+   partielle du tampon) ; tout revient à la partie suivante.
+   Aléa PROPRE (graine fixe) : le décor ne décale pas les tirages du reste
+   de la ville. */
+let _aleaDecorS=917;
+function aleaDecor(){ _aleaDecorS|=0; _aleaDecorS=(_aleaDecorS+0x6D2B79F5)|0; let t=Math.imul(_aleaDecorS^(_aleaDecorS>>>15),1|_aleaDecorS); t=(t+Math.imul(t^(t>>>7),61|t))^t; return ((t^(t>>>14))>>>0)/4294967296; }
+const aD=(a,b)=>a+aleaDecor()*(b-a), choixD=(t)=>t[Math.floor(aleaDecor()*t.length)];
+const MOB_ZONES=7;                 // 7×7 zones de fusion (~2 pâtés chacune) : seules celles en vue sont dessinées
+const MOB={zones:[],cassables:new Map(),casses:[]}; // cassables : grille 8 u -> [{zone,debut,nb,x,z,r}]
+const MOB_MAT=new THREE.MeshLambertMaterial({vertexColors:true});
+const MOB_MAT_LUM=new THREE.MeshBasicMaterial({vertexColors:true});
+// --- géométrie d'un objet : pièces [type, dims..., x, y, z, couleur, (ry)] -> tableaux à plat
+// formes sobres (mesuré : sphères à 36 facettes et cylindres à 8 côtés
+// multipliaient les triangles par 6 sur une vue de rue)
+const _gBox=new THREE.BoxGeometry(1,1,1).toNonIndexed(), _gCyl=new THREE.CylinderGeometry(1,1,1,6).toNonIndexed(),
+      _gBoule=new THREE.IcosahedronGeometry(1,0), _gCone=new THREE.ConeGeometry(1,1,5).toNonIndexed(),
+      _gOcta=new THREE.OctahedronGeometry(1,0);
+const _c3=new THREE.Color(), _m4=new THREE.Matrix4(), _v3=new THREE.Vector3(), _n3=new THREE.Vector3(), _m3=new THREE.Matrix3();
+function mobPieces(pieces,X,Z,ry,cible){
+  // cible : {pos:[], nor:[], col:[]} ; renvoie le nombre de sommets ajoutés
+  const c=Math.cos(ry), s=Math.sin(ry); let n=0;
+  for(const p of pieces){
+    const [type,a,b,d,px,py,pz,coul]=p;
+    const g=type==='box'?_gBox:type==='cyl'?_gCyl:type==='cone'?_gCone:type==='oct'?_gOcta:_gBoule;
+    const P=g.attributes.position.array, N=g.attributes.normal.array;
+    _c3.setHex(coul);
+    for(let i=0;i<P.length;i+=3){
+      const lx=P[i]*a+px, ly=P[i+1]*b+py, lz=P[i+2]*d+pz;
+      cible.pos.push(X+lx*c+lz*s, ly, Z-lx*s+lz*c);
+      const nx=N[i]/a, ny=N[i+1]/b, nz=N[i+2]/d, l=Math.hypot(nx,ny,nz)||1;
+      cible.nor.push((nx*c+nz*s)/l, ny/l, (-nx*s+nz*c)/l);
+      cible.col.push(_c3.r,_c3.g,_c3.b); n++;
+    }
+  }
+  return n;
+}
+// --- catalogue (origine au sol, face « avant » vers +z = vers la chaussée)
+const BOIS=0x8a5a34, METAL=0x2a2d34, VERT=0x2f6b3a;
+const MOB_CAT={
+  banc:{pieces:[['box',2,0.12,0.6,0,0.5,0,BOIS],['box',2,0.45,0.1,0,0.8,-0.27,BOIS],['box',0.1,0.5,0.5,-0.85,0.25,0,METAL],['box',0.1,0.5,0.5,0.85,0.25,0,METAL]],casse:true,r:1.1},
+  poubelle:{pieces:[['cyl',0.3,0.85,0.3,0,0.43,0,VERT],['cyl',0.33,0.08,0.33,0,0.9,0,0x1e4a28]],casse:true,r:0.4},
+  borne:{pieces:[['cyl',0.17,0.6,0.17,0,0.3,0,0xc8322e],['cyl',0.21,0.1,0.21,0,0.62,0,0xa52824],['box',0.5,0.1,0.1,0,0.4,0,0xc8322e]],casse:true,r:0.3},
+  jardiniere:{pieces:[['box',1.6,0.55,0.7,0,0.28,0,0x8a8d93],['boule',0.55,0.45,0.32,-0.4,0.75,0,0x3d7a34],['boule',0.5,0.4,0.3,0.4,0.72,0,0x4a8a3a],['oct',0.18,0.18,0.18,0.1,0.95,0.05,0xe0508a]],casse:true,r:0.9},
+  boiteLettres:{pieces:[['box',0.08,1,0.08,0,0.5,0,METAL],['box',0.45,0.35,0.3,0,1.1,0,0xf0c020]],casse:true,r:0.3},
+  fut:{pieces:[['cyl',0.35,1,0.35,0,0.5,0,0x2a6ab8],['cyl',0.36,0.06,0.36,0,0.75,0,0x1e4f8a]],casse:true,r:0.4},
+  futOrange:{pieces:[['cyl',0.35,1,0.35,0,0.5,0,0xe07020],['cyl',0.36,0.06,0.36,0,0.75,0,0xb05010]],casse:true,r:0.4},
+  palette:{pieces:[['box',1.2,0.14,1,0,0.07,0,0x9a7a4a],['box',1.1,0.5,0.9,0,0.4,0,0x6a5a48]],casse:true,r:0.8},
+  bitte:{pieces:[['cyl',0.25,0.55,0.25,0,0.28,0,0x24262b],['cyl',0.34,0.1,0.34,0,0.58,0,0x24262b]],casse:false,r:0.3},
+  cone:{pieces:[['cone',0.3,0.75,0.3,0,0.38,0,0xe86a1a],['box',0.6,0.05,0.6,0,0.03,0,0x1a1a1a]],casse:true,r:0.35},
+  terrasse:{pieces:[['cyl',0.45,0.05,0.45,0,0.75,0,0xe8e4d2],['cyl',0.05,0.75,0.05,0,0.38,0,METAL],['box',0.4,0.45,0.4,-0.75,0.23,0,0xb0362e],['box',0.4,0.45,0.4,0.75,0.23,0,0xb0362e],['cyl',0.04,2.2,0.04,0,1.1,0,METAL],['cone',1.3,0.5,1.3,0,2.3,0,0xe0b030]],casse:true,r:1.1},
+  massif:{pieces:[['box',2.4,0.18,1,0,0.09,0,0x4a3424],['oct',0.25,0.25,0.25,-0.8,0.3,0,0xe05252],['oct',0.25,0.25,0.25,-0.25,0.3,0.15,0xf0d040],['oct',0.25,0.25,0.25,0.3,0.3,-0.1,0xb060e0],['oct',0.25,0.25,0.25,0.85,0.3,0.1,0xff8a40],['oct',0.3,0.2,0.3,0,0.25,-0.3,0x3d7a34]],casse:true,r:1.2},
+  arceaux:{pieces:[['box',0.06,0.8,0.06,-0.6,0.4,-0.3,METAL],['box',0.06,0.8,0.06,-0.6,0.4,0.3,METAL],['box',0.06,0.06,0.66,-0.6,0.8,0,METAL],['box',0.06,0.8,0.06,0.6,0.4,-0.3,METAL],['box',0.06,0.8,0.06,0.6,0.4,0.3,METAL],['box',0.06,0.06,0.66,0.6,0.8,0,METAL]],casse:false,r:0.9},
+  // solides
+  haie:{pieces:[['box',3.2,0.95,0.8,0,0.48,0,0x2f5a2a],['box',3.0,0.25,0.7,0,1.0,0,0x3d6b30]],casse:false,solide:{hw:1.6,hd:0.4,h:1.1}},
+  kiosque:{pieces:[['box',2,2.2,1.6,0,1.1,0,0x2f6b4a],['box',2.4,0.2,2,0,2.3,0,0x1e4a34],['box',1.6,0.9,0.05,0,1.5,0.82,0xe8e4d2]],casse:false,solide:{hw:1.1,hd:0.9,h:2.4},lum:[['box',1.5,0.35,0.06,0,1.95,0.83,0xffd23f]]},
+  distributeur:{pieces:[['box',0.9,1.8,0.7,0,0.9,0,0x1a1d24]],casse:false,solide:{hw:0.45,hd:0.35,h:1.8},lum:[['box',0.7,1.2,0.04,0,1.05,0.36,0x35e0ff]]},
+  abribus:{pieces:[['box',3.6,0.12,1.6,0,2.4,0,0x3a3f4a],['box',0.1,2.4,0.1,-1.7,1.2,-0.7,METAL],['box',0.1,2.4,0.1,1.7,1.2,-0.7,METAL],['box',3.4,1.8,0.05,0,1.3,-0.75,0x7aa6c0],['box',2.2,0.1,0.4,-0.4,0.5,-0.45,BOIS],['box',0.08,0.5,0.4,-1.45,0.25,-0.45,METAL],['box',0.08,0.5,0.4,0.65,0.25,-0.45,METAL],['box',0.06,2.6,0.06,1.95,1.3,0.3,METAL]],casse:false,solide:{hw:1.85,hd:0.85,h:2.5},
+    lum:[['box',0.05,1.4,0.9,1.68,1.3,-0.1,0xff5ad0],['box',0.5,0.5,0.06,1.95,2.5,0.3,0x2a7ae0]]},
+  lampadaire:{pieces:[['cyl',0.08,4.6,0.08,0,2.3,0,METAL],['box',0.9,0.08,0.08,0.4,4.55,0,METAL]],casse:false,solide:{hw:0.15,hd:0.15,h:4.6},lum:[['box',0.45,0.12,0.3,0.8,4.48,0,0xfff0c0]]},
+  // arbres d'alignement : tronc + houppier, fosse au pied ; 3 essences
+  platane:{pieces:[['box',1.3,0.04,1.3,0,0.24,0,0x3a2e22],['cyl',0.18,2.6,0.18,0,1.3,0,0x6a5038],['boule',1.6,1.3,1.6,0,3.2,0,0x3f7a34],['boule',1.1,1.0,1.1,0.6,3.7,0.3,0x4c8a3c]],casse:false,solide:{hw:0.25,hd:0.25,h:3}},
+  tilleul:{pieces:[['box',1.3,0.04,1.3,0,0.24,0,0x3a2e22],['cyl',0.16,2.2,0.16,0,1.1,0,0x5a4430],['cone',1.4,3.2,1.4,0,3.4,0,0x2f6a2c]],casse:false,solide:{hw:0.25,hd:0.25,h:3}},
+  palmierRue:{pieces:[['cyl',0.16,4.2,0.16,0,2.1,0,0x8a6a44],['box',3,0.08,0.6,0,4.2,0,0x3f8a3a],['box',0.6,0.08,3,0,4.25,0,0x4a9a44],['oct',0.3,0.3,0.3,0,4.1,0,0x6a4a2a]],casse:false,solide:{hw:0.22,hd:0.22,h:4}},
+};
+// ce qui pousse dans chaque quartier : [objet, poids]
+const MOB_QUARTIERS={
+  centre:[['platane',4],['banc',2],['poubelle',2],['borne',1],['jardiniere',2],['kiosque',0.5],['lampadaire',2],['arceaux',1]],
+  commerce:[['tilleul',3],['terrasse',2],['jardiniere',2],['poubelle',2],['borne',1],['arceaux',1],['lampadaire',2],['banc',1]],
+  residentiel:[['tilleul',3],['platane',2],['haie',2],['boiteLettres',2],['poubelle',1],['borne',1],['lampadaire',1.5]],
+  villas:[['palmierRue',3],['massif',3],['haie',2],['boiteLettres',1],['lampadaire',1]],
+  neon:[['distributeur',3],['poubelle',2],['borne',1],['lampadaire',2],['banc',1]],
+  industriel:[['fut',2],['futOrange',2],['palette',2],['cone',2],['borne',1],['lampadaire',1.5]],
+  port:[['bitte',3],['fut',2],['palette',2],['futOrange',1],['lampadaire',1.5]],
+  place:[['platane',3],['banc',3],['poubelle',1],['jardiniere',2]],
+};
+function mobChoix(liste){ let t=0; for(const [,p] of liste) t+=p; let r=aleaDecor()*t; for(const [k,p] of liste){ r-=p; if(r<=0) return k; } return liste[0][0]; }
+function mobZone(x,z){ const k=Math.floor((x+HALF)/(2*HALF)*MOB_ZONES), l=Math.floor((z+HALF)/(2*HALF)*MOB_ZONES); return clamp(k,0,MOB_ZONES-1)*MOB_ZONES+clamp(l,0,MOB_ZONES-1); }
+function mkMobilierUrbain(){
+  const zones=[]; for(let i=0;i<MOB_ZONES*MOB_ZONES;i++) zones.push({b:{pos:[],nor:[],col:[]},l:{pos:[],nor:[],col:[]},casses:[]});
+  const pois=[]; for(const k in POIS){ const p=POIS[k]; if(p&&typeof p.x==='number'&&typeof p.z==='number') pois.push(p); }
+  const libre=(x,z,r)=>{
+    if(solidAt(x,z,r+0.4)) return false;
+    for(const p of PORTES) if(dist2(x,z,p.x,p.z)<(p.garageId!==undefined?64:30)) return false;
+    for(const p of pois) if(dist2(x,z,p.x,p.z)<36) return false;
+    return true;
+  };
+  const poser=(type,x,z,ry)=>{
+    const D=MOB_CAT[type], zn=zones[mobZone(x,z)];
+    const debut=zn.b.pos.length/3, nb=mobPieces(D.pieces,x,z,ry,zn.b);
+    if(D.lum) mobPieces(D.lum,x,z,ry,zn.l);
+    if(D.solide){ const c=Math.abs(Math.cos(ry)), s=Math.abs(Math.sin(ry));
+      addSolid({x,z,hw:D.solide.hw*c+D.solide.hd*s,hd:D.solide.hw*s+D.solide.hd*c,h:D.solide.h}); }
+    if(D.casse){
+      const k=Math.floor(x/8)+','+Math.floor(z/8);
+      if(!MOB.cassables.has(k)) MOB.cassables.set(k,[]);
+      MOB.cassables.get(k).push({zone:mobZone(x,z),debut,nb,x,z,r:D.r,casse:false,type});
+    }
+  };
+  const B=(INNER+2)/2;
+  for(let bx=0;bx<NB;bx++) for(let bz=0;bz<NB;bz++){
+    const q=quartier(bx,bz), liste=MOB_QUARTIERS[q]; if(!liste) continue;
+    const cx=-HALF+bx*CELL+CELL/2, cz=-HALF+bz*CELL+CELL/2;
+    // 4 bords : [x du bord, z du bord, direction le long, normale vers la chaussée]
+    for(const [ex,ez,lx,lz,nx,nz] of [[0,-B,1,0,0,-1],[0,B,1,0,0,1],[-B,0,0,1,-1,0],[B,0,0,1,1,0]]){
+      const ry=Math.atan2(nx,nz); // face avant vers la chaussée
+      // un abribus par bord des grands axes du centre et du commerce, au milieu
+      let t0=-B+4.5;
+      if((q==='centre'||q==='commerce')&&aleaDecor()<0.32){
+        const x=cx+ex*1+lx*aD(-4,4)+nx*(-1.3), z=cz+ez*1+lz*aD(-4,4)+nz*(-1.3);
+        const X=x, Z=z; if(libre(X,Z,1.9)) poser('abribus',X,Z,ry);
+      }
+      for(let t=t0;t<=B-4.5;t+=aD(4.5,7)){
+        const type=mobChoix(liste), D=MOB_CAT[type];
+        const retrait=type==='haie'?aD(2.6,3.2):(D.solide&&D.solide.h>2.6?1.4:aD(1.0,1.6));
+        const x=cx+ex+lx*t-nx*retrait, z=cz+ez+lz*t-nz*retrait;
+        const rr=D.r||Math.max(D.solide?D.solide.hw:0.5,0.5);
+        if(libre(x,z,rr)) poser(type,x,z,type==='haie'?Math.atan2(lx,lz)+Math.PI/2:ry+(D.casse&&type!=='banc'&&type!=='terrasse'?aD(-0.4,0.4):0));
+      }
+    }
+  }
+  // fusion par zone
+  zones.forEach((zn,i)=>{
+    for(const [cle,mat] of [['b',MOB_MAT],['l',MOB_MAT_LUM]]){
+      const d=zn[cle]; if(!d.pos.length) continue;
+      const g=new THREE.BufferGeometry();
+      const pos=new THREE.BufferAttribute(new Float32Array(d.pos),3); pos.setUsage(THREE.DynamicDrawUsage);
+      g.setAttribute('position',pos); g.setAttribute('normal',new THREE.BufferAttribute(new Float32Array(d.nor),3));
+      g.setAttribute('color',new THREE.BufferAttribute(new Float32Array(d.col),3));
+      g.computeBoundingSphere();
+      const m=new THREE.Mesh(g,mat); m.matrixAutoUpdate=false; m.updateMatrix(); scene.add(m);
+      if(cle==='b'){ MOB.zones[i]=m; m.userData.orig=new Float32Array(d.pos); }
+    }
+  });
+}
+// Un véhicule lancé (joueur ou autre) renverse les petits objets sur son passage.
+function majMobilier(){
+  if(!MOB.cassables.size) return;
+  const v=P.veh; if(!v||v.def.air||Math.abs(v.v)<4.5) return;
+  const cx=Math.floor(v.x/8), cz=Math.floor(v.z/8), rv=Math.max(v.def.larg,v.def.long)*0.5;
+  for(let i=-1;i<=1;i++) for(let j=-1;j<=1;j++){
+    const l=MOB.cassables.get((cx+i)+','+(cz+j)); if(!l) continue;
+    for(const o of l){
+      if(o.casse) continue;
+      const r=o.r+rv*0.75; if(dist2(o.x,o.z,v.x,v.z)>r*r) continue;
+      o.casse=true; MOB.casses.push(o);
+      const m=MOB.zones[o.zone], a=m.geometry.attributes.position, A=a.array;
+      for(let k=o.debut*3;k<(o.debut+o.nb)*3;k+=3){ A[k]=o.x; A[k+1]=-2; A[k+2]=o.z; } // repliés sous le sol
+      a.needsUpdate=true;
+      burst(o.x,0.6,o.z,8,o.type==='poubelle'||o.type==='jardiniere'?0x3d7a34:o.type==='borne'?0x9fd8ff:0xa08060,6);
+      bruit(0.12,0.4,700); v.v*=0.94;
+      if(o.type==='borne'){ for(let k=0;k<14;k++) spawnP(o.x,0.6,o.z,rand(-1.5,1.5),rand(6,10),rand(-1.5,1.5),1.2,rand(0.3,0.5),0x9fd8f5,9,0); }
+    }
+  }
+}
+// Remise en état à chaque nouvelle partie.
+function reparerMobilier(){
+  for(const o of MOB.casses){
+    o.casse=false;
+    const m=MOB.zones[o.zone], a=m.geometry.attributes.position, A=a.array, O=m.userData.orig;
+    for(let k=o.debut*3;k<(o.debut+o.nb)*3;k++) A[k]=O[k];
+    a.needsUpdate=true;
+  }
+  MOB.casses.length=0;
 }
 // limite ouest en mer : la ligne du mur (jetée comprise)
 const LIMITE_OUEST_MER=-HALF-11.5;
@@ -19701,7 +19876,8 @@ function startRun(){
   P.x=POIS.place.x; P.z=POIS.place.z+8; P.ang=0; P.y=0; P.vy=0; P.chute=false; P.para=false; P.chuteVx=0; P.chuteVz=0; paraMesh.visible=false;
   P.hp=P.maxHp; P.stam=P.stamMax; P.bouclier=0; P.veh=null;
   P.buffs={dmg:0,vit:0,butin:0,lourd:0,sprintLibre:0,vol:0,cadence:0}; P.iframes=0; P.dodgeT=0; P.rechT=0; P.specCd=0; P.ecraseT=0;
-  P.grenades=3; boutonsAPied(); // jamais el('grenN') seul : voir boutonsAPied (mort au volant)
+  P.grenades=3; boutonsAPied();
+  if(DECOR_V2) reparerMobilier(); // le mobilier renversé revient à chaque partie // jamais el('grenN') seul : voir boutonsAPied (mort au volant)
   // Jetpack : perdu au game over, comme les armes (voir CLAUDE.md) — il
   // faut remonter le chercher. Le lieu, lui (META.jetpackTrouve), reste acquis.
   P.jetpack=false; P.jetpackVol=false; P.jetFuel=100; P.jetVx=0; P.jetVz=0; P.jetWarnT=0; P.jetAvertVu=false;
@@ -21591,7 +21767,7 @@ function boucle(t){
       majMeteo(dt);
       majMer(dt);
       majMerV2(dt);
-      if(DECOR_V2) majHorsLesMurs(dt);
+      if(DECOR_V2){ majHorsLesMurs(dt); majMobilier(); }
       majEpaveCanon(dt);
     }
     majHUD();
