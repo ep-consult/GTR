@@ -7519,6 +7519,48 @@ async function main() {
       }
     }
 
+    // -------------------------------------------------------------------
+    // Bordures de la carte : le mur est la vraie limite. Avant : un véhicule
+    // s'arrêtait 8 u avant les murs ouest et nord, un piéton 6 u avant le mur
+    // nord (limite invisible), et « LOS REYES » sur le mur nord était coupé
+    // (texte d'enseigne jamais mesuré).
+    // -------------------------------------------------------------------
+    console.log('\n--- Bordures : le mur est la limite, enseignes lisibles ---');
+    {
+      const bord = await page.evaluate(async () => {
+        const dors = (ms) => new Promise((r) => setTimeout(r, ms));
+        const out = {};
+        startRun(); ETAT.timeScale = 1; P.hp = P.hpMax = 1e6;
+        // véhicule lancé plein ouest le long d'une rue
+        const v = creerVehicule('citadine', -HALF + 4, -HALF + CELL * 3, -Math.PI / 2, null);
+        for (let i = 0; i < 160; i++) majVehiculePhys(v, 1 / 30, 1, 0, false);
+        out.vehX = v.x; v.mort = true;
+        // piéton plein nord
+        P.x = 3; P.z = -HALF + 3; P.y = 0; INPUT.jx = 0; INPUT.jy = -1; await dors(2500); INPUT.jy = 0;
+        out.pietonZ = P.z;
+        // nageur plein ouest au large : jamais au-delà de la ligne du mur
+        P.x = -HALF + 6; P.z = MER + 20; INPUT.jx = -1; await dors(2500); INPUT.jx = 0;
+        out.nageX = P.x; out.limite = typeof LIMITE_OUEST_MER === 'number' ? LIMITE_OUEST_MER : null;
+        // enseigne longue : aucun pixel lumineux sur les bords gauche/droit du canevas
+        const t = texEnseigne('RECORD DU TOUR EN BUS : 1:23.4 s', '#ffd23f'); // la plus longue enseigne du jeu
+        const cv = t.image, g = cv.getContext('2d'), w = cv.width, h = cv.height;
+        const bordG = g.getImageData(0, 0, 3, h).data, bordD = g.getImageData(w - 3, 0, 3, h).data;
+        let clair = 0; for (const d of [bordG, bordD]) for (let i = 0; i < d.length; i += 4) if (d[i] + d[i + 1] + d[i + 2] > 300) clair++;
+        out.enseigneCoupee = clair;
+        out.HALF = HALF;
+        startRun();
+        return out;
+      });
+      const HALF_S = bord.HALF, ko = [];
+      if (!(bord.vehX < -HALF_S - 10)) ko.push('le véhicule s\'arrête avant le mur ouest (x=' + bord.vehX.toFixed(1) + ')');
+      if (!(bord.vehX > -HALF_S - 13.4)) ko.push('le véhicule traverse le mur ouest (x=' + bord.vehX.toFixed(1) + ')');
+      if (!(bord.pietonZ < -HALF_S - 11)) ko.push('le piéton s\'arrête avant le mur nord (z=' + bord.pietonZ.toFixed(1) + ')');
+      if (bord.limite === null || bord.nageX < bord.limite - 0.01) ko.push('à la nage, on dépasse la ligne du mur ouest (x=' + bord.nageX.toFixed(1) + ')');
+      if (bord.enseigneCoupee > 0) ko.push('texte d\'enseigne coupé sur les bords (' + bord.enseigneCoupee + ' pixels)');
+      if (ko.length) fail('Bordures : ' + ko.join(' | '));
+      else ok('Bordures : véhicule et piéton vont jusqu\'au mur sans le traverser, la nage s\'arrête à la ligne du mur, enseigne longue jamais coupée');
+    }
+
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');
     {
       const srcIdx = fs.readFileSync(INDEX_HTML, 'utf8');

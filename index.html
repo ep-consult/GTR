@@ -892,6 +892,13 @@ const ICONES_SVG=true;
    d'origine), sillage des bateaux, éclaboussures, houle partagée par les
    bateaux, les bouées et le nageur. À false : la mer d'avant, à l'identique. */
 const MER_V2=true;
+/* DECOR_V2 = INTERRUPTEUR DE RETOUR EN ARRIÈRE du décor enrichi (octobre
+   2026) : bande côtière continue (sable, sable mouillé, vagues qui montent
+   sur la plage, transition plage/désert), jetées de rochers au bout des
+   murs, décor factice hors les murs, mobilier urbain, lac du parc, lumières
+   de quartier. À false : le décor d'avant (les correctifs de bordure, eux,
+   restent — ce sont des bugs, pas du décor). */
+const DECOR_V2=true;
 function ico(id,secours){
   if(!ICONES_SVG||!document.getElementById(id)) return secours||'';
   return '<svg class="icoSvg" viewBox="0 0 24 24" aria-hidden="true"><use href="#'+id+'"></use></svg>';
@@ -2604,6 +2611,11 @@ function texEnseigne(txt,coul){
   return cTex(256,(g,s)=>{
     g.fillStyle='#0c0e13';g.fillRect(0,0,s,s);
     g.font='900 64px Arial';g.textAlign='center';g.textBaseline='middle';
+    // Le texte est réduit jusqu'à tenir dans l'enseigne. Audit des bordures :
+    // jamais mesuré, tout texte plus large que le canevas était coupé
+    // (« LOS REYES » sur le mur nord se lisait « OS REYE »).
+    const lt=g.measureText(txt).width, maxL=s-2*30; // place pour le halo (shadowBlur 26)
+    if(lt>maxL) g.font='900 '+Math.max(10,Math.floor(64*maxL/lt))+'px Arial';
     g.shadowColor=coul;g.shadowBlur=26;g.fillStyle=coul;
     g.fillText(txt,s/2,s/2);
   });
@@ -3536,6 +3548,21 @@ function construireVille(){
   finaliserMerge();
   construireMinimapStatique();
 }
+// limite ouest en mer : la ligne du mur (jetée comprise)
+const LIMITE_OUEST_MER=-HALF-11.5;
+// Jetée de rochers le long de x, de z0 à z1 : décor fusionné (rochers de
+// tailles et teintes variées), pas de collision (les limites de nage et de
+// navigation s'arrêtent avant).
+function mkJeteeRochers(x,z0,z1){
+  const teintes=[0x5a5650,0x4a4741,0x6a645a,0x3e3c38];
+  for(let z=z0;z<=z1;z+=1.3){
+    const n=z>MER?3:2;
+    for(let k=0;k<n;k++){
+      const t=rand(0.7,1.6), g=new THREE.DodecahedronGeometry(t,0);
+      pushMerge(g,mat(pick(teintes)),x+rand(-2.4,2.4),rand(-0.2,0.5)+(z>MER?-0.1:0.1),z+rand(-0.6,0.6),rand(0,6));
+    }
+  }
+}
 function mkEnceinte(){
   const matM=new THREE.MeshLambertMaterial({map:texMur});
   // le mur est s'ouvre sur l'aéroport (portail au niveau de la route z = -42)
@@ -3544,12 +3571,16 @@ function mkEnceinte(){
   const eH2=(pD+MER-3)/2, eL2=MER-3-pD;
   const cotes=[
     {x:0,z:-HALF-14,w:2*HALF+32,d:1.4},                 // nord (dégagé des routes)
-    {x:-HALF-14,z:(-HALF+MER)/2-4,w:1.4,d:MER+HALF+20}, // ouest
+    {x:-HALF-14,z:(-HALF+MER-2)/2-7,w:1.4,d:MER+HALF+12}, // ouest (s'arrête au rivage : la jetée de rochers prend le relais)
     {x:HALF+14,z:eH1,w:1.4,d:eL1},                      // est haut
     {x:HALF+14,z:eH2,w:1.4,d:eL2}                       // est bas
   ];
   for(const c of cotes){
-    const m=new THREE.Mesh(new THREE.BoxGeometry(c.w,3.4,c.d),matM);
+    // Texture répétée selon la longueur réelle du côté. Audit des bordures :
+    // une seule image étirée sur 600 u donnait de longues rayures verticales.
+    const tx=texMur.clone(); tx.needsUpdate=true; tx.wrapS=tx.wrapT=THREE.RepeatWrapping;
+    tx.repeat.set(Math.max(c.w,c.d)/7,1);
+    const m=new THREE.Mesh(new THREE.BoxGeometry(c.w,3.4,c.d),new THREE.MeshLambertMaterial({map:tx}));
     m.position.set(c.x,1.7,c.z); scene.add(m);
     addSolid({x:c.x,z:c.z,hw:c.w/2,hd:c.d/2,h:3.4});
     // piliers rythmés
@@ -3558,7 +3589,11 @@ function mkEnceinte(){
       const p=mkBox(2,4.4,2,mat(0x3a3d44),vert?c.x:c.x+k,2.2,vert?c.z+k:c.z);
     }
   }
-  mkEnseigne('LOS REYES','#35e0ff',0,5.6,-HALF-13.2,0,14);
+  // devant le mur, pas dedans (on lisait « OS REYE », le panneau traversait la maçonnerie)
+  mkEnseigne('LOS REYES','#35e0ff',0,5.6,-HALF-12.3,0,14);
+  // Jetées de rochers au bout des murs côté mer (le mur ouest finissait en
+  // poutre posée sur l'eau, le mur est en moignon au-dessus du sable).
+  if(DECOR_V2){ mkJeteeRochers(-HALF-14,MER-3,MER+14); mkJeteeRochers(HALF+14,MER-6,MER+2); }
   mkEnseigne('AÉROPORT →','#ffd23f',HALF-2,4.2,-42,Math.PI/2,10);
   mkBox(2.2,5,2.2,mat(0x3a3d44),HALF+14,2.5,pG-1);
   mkBox(2.2,5,2.2,mat(0x3a3d44),HALF+14,2.5,pD+1);
@@ -7036,7 +7071,11 @@ function majJoueur(dt,dtJeu){
     const s=INT.actif, mW=s.D.w/2-1.2, mP=s.D.d/2-1.2;
     P.x=clamp(P.x,s.ox-mW,s.ox+mW); P.z=clamp(P.z,s.oz-mP,s.oz+mP);
   } else {
-    P.x=clamp(P.x,-HALF-30,HALF+158); P.z=clamp(P.z,-HALF-8,MER+150); // la mer est nageable jusqu'au large
+    // Le MUR est la limite (ouest x=-HALF-14, nord z=-HALF-14, ép. 1,4) : avant,
+    // un piéton s'arrêtait 6 u avant le mur nord sans jamais le toucher. À la
+    // nage, jamais à l'ouest de la ligne du mur (sinon on contournerait sa
+    // jetée pour remonter sur la terre hors les murs).
+    P.x=clamp(P.x,P.z>MER?LIMITE_OUEST_MER:-HALF-30,HALF+158); P.z=clamp(P.z,-HALF-12.6,MER+150); // la mer est nageable jusqu'au large
   }
 
   // sniper : viser en maintenant, tirer au relâchement
@@ -7736,7 +7775,10 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
   // instantanément ramenés en centre-ville dès le premier appel.
   if(!v.horsVille){
     const zMax=eau?MER+150:HALF+8;
-    v.x=clamp(v.x,-HALF-(eau?60:6),HALF+(eau?60:158)); v.z=clamp(v.z,-HALF-6,zMax);
+    // Audit des bordures : un véhicule s'arrêtait 8 u avant les murs ouest et
+    // nord (limite invisible) ; il va désormais jusqu'au mur, qui l'arrête.
+    // En mer, jamais à l'ouest de la ligne du mur (jetée).
+    v.x=clamp(v.x,eau?LIMITE_OUEST_MER:-HALF-12,HALF+(eau?60:158)); v.z=clamp(v.z,-HALF-12,zMax);
   }
   // === RELIEF : montées, descentes et sauts ===
   if(!eau&&!d.air){
