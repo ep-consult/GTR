@@ -7963,7 +7963,7 @@ async function main() {
       const ne = await page.evaluate(() => {
         if (typeof NEON === 'undefined' || !NEON.matFx) return { off: true };
         const d = PORTES.find((q) => q.id === 'club'), j0 = ETAT.jour;
-        const o = { panneaux: NEON.panneaux, file: NEON.file.length, porteLibre: !solidAt(d.x, d.z + 1.2, 0.4) };
+        const o = { panneaux: NEON.panneaux, file: NEON.nbFile || 0, porteLibre: !solidAt(d.x, d.z + 1.2, 0.4) };
         ETAT.jour = 20; jourNuit(0); majNeonVivant(0.016); o.jour = NEON.matFx.opacity;
         ETAT.jour = 130; jourNuit(0); majNeonVivant(0.016); o.nuit = NEON.matFx.opacity;
         ETAT.jour = j0; jourNuit(0); return o;
