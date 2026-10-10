@@ -117,7 +117,7 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
 | 3664 | `mkHorsLesMurs()` — décor factice hors de l'enceinte |
 | 3780 | `MOB_CAT` — catalogue du mobilier urbain, puis `mkMobilierUrbain()`, `majMobilier()`, `garerVelos()` |
 | 4186 | `JETEE` — jetée de fête foraine : `ZONES_SANS_MOBILIER`, `mkJeteeForaine()`, `majJetee()` |
-| 4317 | `SKATE` — skatepark : `mkSkatepark()`, `texGraffiti()` |
+| 4317 | `SKATE` — skatepark : `mkSkatepark()`, `texMurSkate()` |
 | 4393 | `PORT` — port vivant : `mkPortVivant()`, `majPortVivant()` |
 | 4499 | `BROOK` — Brooklyn : `texFresque()`, `mkBrooklyn()`, `majBrooklyn()` |
 | 4620 | `CIEL` — dirigeable, avion à banderole, mouettes, feux d'artifice : `mkCiel()`, `majCiel()` |

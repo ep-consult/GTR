@@ -4315,7 +4315,7 @@ function majJetee(dt){
    Les arbres et allées du parc sont construits comme avant (la ville ne se
    décale pas), puis retirés de l'emprise. */
 const SKATE={ok:false,x:0,z:0};
-function texGraffiti(){
+function texMurSkate(){ // murs du skatepark (jamais texGraffiti(txt,coul), les tags du quartier industriel)
   return cTex(256,(g,s)=>{
     g.fillStyle='#9a9a96'; g.fillRect(0,0,s,s);
     for(let i=0;i<400;i++){ const v=Math.floor(aD(130,175)); g.fillStyle='rgb('+v+','+v+','+(v-4)+')'; g.fillRect(aD(0,s),aD(0,s),2,2); }
@@ -4338,7 +4338,7 @@ function mkSkatepark(bx,bz){
     if(Math.abs(o.position.x-cx)<M+0.5&&Math.abs(o.position.z-cz)<M+0.5&&o.position.y<3&&!(o.geometry&&o.geometry.parameters&&o.geometry.parameters.width>=INNER)) { scene.remove(o); if(o.isMesh&&o.geometry) o.geometry.dispose(); } }
   ZONES_SANS_MOBILIER.push({x0:cx-CELL/2,x1:cx+CELL/2,z0:cz-CELL/2,z1:cz+CELL/2}); // tout le pâté : haies et bancs muraient l'accès
   POIS.skatepark={x:cx,z:cz};
-  const beton=new THREE.MeshLambertMaterial({map:texBetonSkate(),color:0xd0d0cc}), graf=new THREE.MeshLambertMaterial({map:texGraffiti()});
+  const beton=new THREE.MeshLambertMaterial({map:texBetonSkate(),color:0xd0d0cc}), graf=new THREE.MeshLambertMaterial({map:texMurSkate()});
   const dalle=new THREE.Mesh(new THREE.BoxGeometry(2*M,0.12,2*M),beton); dalle.position.set(cx,0.15,cz); scene.add(dalle);
   PLATS.push({x:cx,z:cz,hw:M,hd:M,h:0.21});
   // tremplins face à face (vol de 10 u entre les deux), à l'ouest
