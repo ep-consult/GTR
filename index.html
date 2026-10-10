@@ -3722,6 +3722,7 @@ function majHorsLesMurs(dt){
 let _aleaDecorS=917;
 function aleaDecor(){ _aleaDecorS|=0; _aleaDecorS=(_aleaDecorS+0x6D2B79F5)|0; let t=Math.imul(_aleaDecorS^(_aleaDecorS>>>15),1|_aleaDecorS); t=(t+Math.imul(t^(t>>>7),61|t))^t; return ((t^(t>>>14))>>>0)/4294967296; }
 const aD=(a,b)=>a+aleaDecor()*(b-a), choixD=(t)=>t[Math.floor(aleaDecor()*t.length)];
+const MOB_Y_TROTTOIR=0.22;         // dessus des dalles de trottoir (boîte de 0,22 posée à 0,11)
 const MOB_ZONES=7;                 // 7×7 zones de fusion (~2 pâtés chacune) : seules celles en vue sont dessinées
 const MOB={zones:[],cassables:new Map(),casses:[]}; // cassables : grille 8 u -> [{zone,debut,nb,x,z,r}]
 const MOB_MAT=new THREE.MeshLambertMaterial({vertexColors:true});
@@ -3733,7 +3734,7 @@ const _gBox=new THREE.BoxGeometry(1,1,1).toNonIndexed(), _gCyl=new THREE.Cylinde
       _gBoule=new THREE.IcosahedronGeometry(1,0), _gCone=new THREE.ConeGeometry(1,1,5).toNonIndexed(),
       _gOcta=new THREE.OctahedronGeometry(1,0);
 const _c3=new THREE.Color(), _m4=new THREE.Matrix4(), _v3=new THREE.Vector3(), _n3=new THREE.Vector3(), _m3=new THREE.Matrix3();
-function mobPieces(pieces,X,Z,ry,cible){
+function mobPieces(pieces,X,Z,ry,cible,Y0){
   // cible : {pos:[], nor:[], col:[]} ; renvoie le nombre de sommets ajoutés
   const c=Math.cos(ry), s=Math.sin(ry); let n=0;
   for(const p of pieces){
@@ -3743,7 +3744,7 @@ function mobPieces(pieces,X,Z,ry,cible){
     _c3.setHex(coul);
     for(let i=0;i<P.length;i+=3){
       const lx=P[i]*a+px, ly=P[i+1]*b+py, lz=P[i+2]*d+pz;
-      cible.pos.push(X+lx*c+lz*s, ly, Z-lx*s+lz*c);
+      cible.pos.push(X+lx*c+lz*s, ly+(Y0||0), Z-lx*s+lz*c);
       const nx=N[i]/a, ny=N[i+1]/b, nz=N[i+2]/d, l=Math.hypot(nx,ny,nz)||1;
       cible.nor.push((nx*c+nz*s)/l, ny/l, (-nx*s+nz*c)/l);
       cible.col.push(_c3.r,_c3.g,_c3.b); n++;
@@ -3803,8 +3804,10 @@ function mkMobilierUrbain(){
   };
   const poser=(type,x,z,ry)=>{
     const D=MOB_CAT[type], zn=zones[mobZone(x,z)];
-    const debut=zn.b.pos.length/3, nb=mobPieces(D.pieces,x,z,ry,zn.b);
-    if(D.lum) mobPieces(D.lum,x,z,ry,zn.l);
+    // posé SUR le trottoir (dessus à 0,22) : à y=0, tout était enfoncé de
+    // 0,22 (pieds de bancs, fosses d'arbres, terre des massifs invisibles)
+    const debut=zn.b.pos.length/3, nb=mobPieces(D.pieces,x,z,ry,zn.b,MOB_Y_TROTTOIR);
+    if(D.lum) mobPieces(D.lum,x,z,ry,zn.l,MOB_Y_TROTTOIR);
     if(D.solide){ const c=Math.abs(Math.cos(ry)), s=Math.abs(Math.sin(ry));
       addSolid({x,z,hw:D.solide.hw*c+D.solide.hd*s,hd:D.solide.hw*s+D.solide.hd*c,h:D.solide.h}); }
     if(D.casse){
@@ -3861,7 +3864,7 @@ function majMobilier(){
       const r=o.r+rv*0.75; if(dist2(o.x,o.z,v.x,v.z)>r*r) continue;
       o.casse=true; MOB.casses.push(o);
       const m=MOB.zones[o.zone], a=m.geometry.attributes.position, A=a.array;
-      for(let k=o.debut*3;k<(o.debut+o.nb)*3;k+=3){ A[k]=o.x; A[k+1]=-2; A[k+2]=o.z; } // repliés sous le sol
+      for(let k=o.debut*3;k<(o.debut+o.nb)*3;k+=3){ A[k]=o.x; A[k+1]=-2; A[k+2]=o.z; } // repliés sous le sol (y = -2 : marqueur testé)
       a.needsUpdate=true;
       burst(o.x,0.6,o.z,8,o.type==='poubelle'||o.type==='jardiniere'?0x3d7a34:o.type==='borne'?0x9fd8ff:0xa08060,6);
       bruit(0.12,0.4,700); v.v*=0.94;
