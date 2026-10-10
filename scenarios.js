@@ -7731,6 +7731,51 @@ async function main() {
       }
     }
 
+    // -------------------------------------------------------------------
+    // Transitions entre sols (DECOR_V2) : chaque frontière visible entre un
+    // sol meuble (herbe, sable, désert) et un sol différent reçoit sa bande
+    // de transition. Dalles lues dans SOLS et visibilité calculée par le jeu
+    // (mkIndexSols) — jamais une liste de bords recopiée ici. Les bandes ne
+    // sont pas éclairées par sommet (bug vu en rendu : orange vif la nuit
+    // près des lampes) : elles suivent l'éclairage du sol, plus sombre la nuit.
+    // -------------------------------------------------------------------
+    console.log('\n--- Transitions entre sols : chaque frontière visible a sa bande, assombrie la nuit ---');
+    {
+      const tr = await page.evaluate(() => {
+        if (typeof DECOR_V2 === 'undefined' || !DECOR_V2 || typeof SOLS === 'undefined') return { off: true };
+        const sol = mkIndexSols(), type = (x, z) => { const r = sol(x, z); return r ? r.type : 'bitume'; };
+        const sommets = [];
+        scene.traverse((o) => { if (o.isMesh && (o.material === TRANS.matBande)) { const a = o.geometry.attributes.position.array; for (let i = 0; i < a.length; i += 3) sommets.push(a[i], a[i + 2]); } });
+        const pres = (x, z, r) => { for (let i = 0; i < sommets.length; i += 2) if ((sommets[i] - x) ** 2 + (sommets[i + 1] - z) ** 2 < r * r) return true; return false; };
+        let testes = 0; const manquants = [];
+        for (const r of SOLS) {
+          if (!SOL_MEUBLE[r.type]) continue;
+          for (const [x, z, nx, nz] of [[(r.x0 + r.x1) / 2, r.z0, 0, -1], [(r.x0 + r.x1) / 2, r.z1, 0, 1], [r.x0, (r.z0 + r.z1) / 2, -1, 0], [r.x1, (r.z0 + r.z1) / 2, 1, 0]]) {
+            const A = type(x - nx * 0.6, z - nz * 0.6), B = type(x + nx * 0.6, z + nz * 0.6);
+            if (A === B || estEau(x + nx * 0.6, z + nz * 0.6) || estEau(x - nx * 0.6, z - nz * 0.6) || (SOL_MEUBLE[A] || 0) === (SOL_MEUBLE[B] || 0)) continue;
+            testes++;
+            if (!pres(x, z, 1.5)) manquants.push(A + '|' + B + ' @' + x.toFixed(0) + ',' + z.toFixed(0));
+          }
+        }
+        const o = { testes, manquants, paires: Object.keys(TRANS.frontieres).length, eclaire: !!(TRANS.mat.isMeshLambertMaterial || TRANS.matBande.isMeshLambertMaterial) };
+        const j0 = ETAT.jour;
+        ETAT.jour = 20; jourNuit(0); majEclairageSols(); o.jour = TRANS.matBande.color.r;
+        ETAT.jour = 130; jourNuit(0); majEclairageSols(); o.nuit = TRANS.matBande.color.r;
+        ETAT.jour = j0; jourNuit(0); majEclairageSols();
+        return o;
+      });
+      if (tr.off) saute('Transitions entre sols : DECOR_V2 désactivé');
+      else {
+        const ko = [];
+        if (!(tr.testes >= 10)) ko.push('trop peu de frontières mesurées (' + tr.testes + ')');
+        if (tr.manquants.length) ko.push('frontières sans bande : ' + tr.manquants.slice(0, 6).join(', '));
+        if (tr.eclaire) ko.push('matériau éclairé par sommet (orange vif la nuit près des lampes)');
+        if (!(tr.nuit < tr.jour * 0.6)) ko.push('pas assombri la nuit (jour ' + tr.jour.toFixed(2) + ', nuit ' + tr.nuit.toFixed(2) + ')');
+        if (ko.length) fail('Transitions entre sols : ' + ko.join(' | '));
+        else ok('Transitions entre sols : ' + tr.testes + ' frontières visibles mesurées, toutes ont leur bande (' + tr.paires + ' types de jonction), assombries la nuit (' + tr.jour.toFixed(2) + ' → ' + tr.nuit.toFixed(2) + ')');
+      }
+    }
+
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');
     {
       const srcIdx = fs.readFileSync(INDEX_HTML, 'utf8');

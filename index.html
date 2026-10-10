@@ -3547,13 +3547,13 @@ function construireVille(){
     const cx=-HALF+bx*CELL+CELL/2, cz=-HALF+bz*CELL+CELL/2;
     if(qq==='parc'){
       const d=new THREE.Mesh(new THREE.BoxGeometry(INNER+2,0.14,INNER+2),new THREE.MeshLambertMaterial({map:texHerbe}));
-      d.position.set(cx,0.07,cz); scene.add(d);
+      d.position.set(cx,0.07,cz); scene.add(d); solRect('herbe',cx,cz,INNER+2,INNER+2,0.14);
     } else if(qq==='plage'){
       const d=new THREE.Mesh(new THREE.BoxGeometry(CELL+1,0.1,INNER+18),new THREE.MeshLambertMaterial({map:texSable}));
-      d.position.set(cx,0.05,cz+4); scene.add(d);
+      d.position.set(cx,0.05,cz+4); scene.add(d); solRect('sable',cx,cz+4,CELL+1,INNER+18,0.1);
     } else {
       const d=new THREE.Mesh(new THREE.BoxGeometry(INNER+2,0.22,INNER+2),matTrottoir[qq]||matTrottoir.centre);
-      d.position.set(cx,0.11,cz); scene.add(d);
+      d.position.set(cx,0.11,cz); scene.add(d); solRect('trottoir',cx,cz,INNER+2,INNER+2,0.22);
       TROTTOIRS.push({x:cx,z:cz,hw:(INNER+2)/2,hd:(INNER+2)/2});
       // bordure biseautée pour un raccord franc route↔trottoir
       const bord=new THREE.Mesh(new THREE.BoxGeometry(INNER+2.4,0.1,INNER+2.4),mat(0x9a9488));
@@ -3564,7 +3564,7 @@ function construireVille(){
     if(qq!=='plage'&&qq!=='parc'&&bx%3===1&&bz%3===1) mkFeu(cx+INNER/2+1.4,cz-INNER/2-1.4);
   }
   placerPortes();
-  if(DECOR_V2) mkMobilierUrbain(); // après les portes : jamais devant l'une d'elles
+  if(DECOR_V2){ mkMobilierUrbain(); mkTransitionsSols(); } // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
   finaliserMerge();
   construireMinimapStatique();
 }
@@ -3605,7 +3605,7 @@ function plaqueSable(x0,x1,z0,z1,y,tex,rep){
 function mkLittoral(){
   // 1) sable entre le mur ouest et la première case de plage (bitume nu avant)
   const tA=texSable.clone(); tA.needsUpdate=true; tA.wrapS=tA.wrapT=THREE.RepeatWrapping; tA.repeat.set(1,3);
-  plaqueSable(LITTORAL_X0,-HALF+0.5,MER-34,MER+0.6,0.045,tA);
+  plaqueSable(LITTORAL_X0,-HALF+0.5,MER-34,MER+0.6,0.045,tA); solRect('sable',(LITTORAL_X0-HALF+0.5)/2,(MER-34+MER+0.6)/2,-HALF+0.5-LITTORAL_X0,34.6,0.045);
   // 2) côte de l'aérodrome : plage dont le bord nord se fond dans le désert
   //    (texture répétée en largeur, fondu seulement en v)
   const tB=texSableFondu(null,[[0,0],[0.45,1],[1,1]]); tB.wrapS=THREE.RepeatWrapping; tB.repeat.set(12,1);
@@ -3677,6 +3677,7 @@ function mkHorsLesMurs(){
   champ(W-260,W-0.8,N-260,MER-2);            // ouest
   champ(W-0.8,E,N-260,N-0.8);                // nord
   champ(E,E+300,N-260,-HALF+6);              // nord de l'aérodrome (bitume nu entre le désert et la limite)
+  solRect('herbe',E+150,(N-260-HALF+6)/2,300,-HALF+6-(N-260),0.02); // le seul champ visible de l'intérieur (transitions)
   // 2) bande de forêt le long des murs (2 essences, troncs + houppiers)
   const gCone=new THREE.ConeGeometry(1,1,5), gBoule=new THREE.DodecahedronGeometry(1,0), gTronc=new THREE.BoxGeometry(0.4,1,0.4);
   const mFeuil=[mat(0x34602c),mat(0x45733a)], mTronc=mat(0x5a3f2a); // peu de matériaux = peu d'appels de rendu par tronçon
@@ -3912,6 +3913,262 @@ function mkMobilierUrbain(){
       if(cle==='b'){ MOB.zones[i]=m; m.userData.orig=new Float32Array(d.pos); }
     }
   });
+}
+/* ---------- TRANSITIONS ENTRE SOLS (DECOR_V2) ----------
+   Signalé en playtest : « ça passe de l'asphalte à l'herbe au sable sans
+   transition ». Chaque sol est une dalle rectangulaire : on les enregistre
+   (SOLS, au moment où elles sont posées), puis on retrouve TOUTES les
+   frontières visibles entre deux sols différents — jamais une liste de
+   bords écrite à la main. Sur chaque frontière, le matériau le plus meuble
+   déborde sur l'autre, de façon désordonnée :
+   - sable / désert → bitume, tarmac : langues et traînées de sable soufflé,
+     bitume fissuré et troué en approchant ;
+   - sable → trottoir : sable sur la dalle, petits tas contre la bordure ;
+   - sable ↔ herbe : herbe qui sèche en touffes, taches de sable dans l'herbe ;
+   - herbe → bitume, tarmac, trottoir : touffes qui débordent, terre battue,
+     herbe dans les fissures.
+   Purement visuel : solY, estEau, collisions inchangés. Taches plates à
+   bords irréguliers (un atlas dessiné ici, teinté par sommet), fusionnées
+   par carré de 120 u ; petits volumes (touffes, tas, cailloux) fusionnés de
+   même avec le matériau du mobilier. Tirages sur aleaDecor. */
+const SOLS=[]; // {x0,x1,z0,z1,type,y} — y : dessus de la dalle
+function solRect(type,cx,cz,w,d,y){ SOLS.push({x0:cx-w/2,x1:cx+w/2,z0:cz-d/2,z1:cz+d/2,type,y}); }
+// matériau meuble : qui déborde sur qui (0 = dur, ne déborde jamais)
+const SOL_MEUBLE={desert:3,sable:3,terre:2,herbe:1};
+// teintes des taches, prises sur les textures des sols (moyennes)
+const SOL_TEINTE={desert:0xc48c56,sable:0xdcc08a,herbe:0x4a7a36,herbeSeche:0xa89850,terre:0x5e5242,
+  fissure:0x202026,trou:0x1a1a20,fissureHerbe:0x2c4424};
+const TRANS={chunks:{},bandes:{},props:{},nb:0,frontieres:{}};
+// Textures des transitions : chaque texture est OPAQUE (le détail, en gris
+// neutre — la teinte vient du sommet) et sa transparence vit dans une
+// seconde texture opaque (alphaMap, canal vert). Une texture de canvas à
+// pixels transparents est stockée « noire » là où elle est vide : filtrée,
+// elle ourlait chaque tache d'un liseré sombre (vu en rendu réel).
+function canvasDuo(W,H,fond){
+  const mk=(f)=>{ const c=document.createElement('canvas'); c.width=W; c.height=H; const x=c.getContext('2d'); x.fillStyle=f; x.fillRect(0,0,W,H); return {c,x}; };
+  return {m:mk('#000'),d:mk(fond)};
+}
+function texDuo(duo,repeterU){
+  const out=[duo.d.c,duo.m.c].map((c)=>{ const t=new THREE.CanvasTexture(c); if(repeterU){ t.wrapS=THREE.RepeatWrapping; t.wrapT=THREE.ClampToEdgeWrapping; } t.anisotropy=2; return t; });
+  return {map:out[0],alphaMap:out[1]};
+}
+// atlas 2×2 : 0 tache grenue, 1 touffes, 2 fissures, 3 traînée soufflée
+function texTransitions(){
+  const S=512, H=S/2, duo=canvasDuo(S,S,'rgb(248,248,248)'), m=duo.m.x, g=duo.d.x;
+  const gauss=()=>(aleaDecor()+aleaDecor()+aleaDecor()-1.5)/1.5; // ~ cloche sur [-1,1]
+  const blanc=(a)=>'rgba(255,255,255,'+a+')';
+  const amas=(cx,cy,n,etal,r0,r1,a,ex,ey)=>{ // disques flous groupés en cloche, sur le masque
+    for(let i=0;i<n;i++){
+      const x=cx+gauss()*etal*(ex||1), y=cy+gauss()*etal*(ey||1), r=aD(r0,r1);
+      const gr=m.createRadialGradient(x,y,0,x,y,r); gr.addColorStop(0,blanc(a)); gr.addColorStop(0.6,blanc(a*0.55)); gr.addColorStop(1,blanc(0));
+      m.fillStyle=gr; m.beginPath(); m.arc(x,y,r,0,7); m.fill();
+    }
+  };
+  const ronger=(cx,cy,R,n)=>{ for(let i=0;i<n;i++){ const a=aD(0,6.3), d=R*aD(0.75,1.05), r=aD(6,18); m.fillStyle='rgba(0,0,0,0.8)'; m.beginPath(); m.arc(cx+Math.cos(a)*d,cy+Math.sin(a)*d,r,0,7); m.fill(); } };
+  const grain=(x0,y0,n)=>{ for(let i=0;i<n;i++){ const v=aleaDecor()<0.5?255:205; g.fillStyle='rgb('+v+','+v+','+v+')'; g.fillRect(x0+aD(2,H-2),y0+aD(2,H-2),2,2); } };
+  // 0) tache : nappe pleine au centre, bord flou et rongé, grain
+  amas(H/2,H/2,70,38,22,52,0.6); ronger(H/2,H/2,92,26); grain(0,0,1400);
+  // 1) touffes : nappe d'herbe + brins serrés (gris neutres : la teinte vient du sommet)
+  amas(H+H/2,H/2,40,36,18,42,0.45); ronger(H+H/2,H/2,90,22);
+  g.fillStyle='rgb(205,205,205)'; g.fillRect(H,0,H,H); g.lineCap=m.lineCap='round';
+  for(let i=0;i<520;i++){
+    const x=H+H/2+gauss()*62, y=H/2+gauss()*62, l=aD(5,13), b=aD(-0.7,0.7), v=Math.floor(aD(150,255)), w=aD(1.2,2.4);
+    for(const [c,col] of [[m,blanc(0.95)],[g,'rgb('+v+','+v+','+v+')']]){ c.strokeStyle=col; c.lineWidth=w; c.beginPath(); c.moveTo(x,y); c.lineTo(x+Math.sin(b)*l,y-Math.cos(b)*l); c.stroke(); }
+  }
+  // 2) fissures : lignes brisées qui se ramifient (masque seul, le détail reste uni)
+  m.strokeStyle=blanc(0.95);
+  for(let k=0;k<3;k++){
+    let x=aD(40,H-40), y=H+aD(40,H-40);
+    for(let st=0;st<5;st++){
+      const nx=clamp(x+aD(-30,30),8,H-8), ny=clamp(y+aD(-30,30),H+8,S-8);
+      m.lineWidth=aD(1.5,3.2); m.beginPath(); m.moveTo(x,y); m.lineTo(nx,ny); m.stroke();
+      if(aleaDecor()<0.2){ m.lineWidth=1.2; m.beginPath(); m.moveTo(nx,ny); m.lineTo(clamp(nx+aD(-22,22),8,H-8),clamp(ny+aD(-22,22),H+8,S-8)); m.stroke(); }
+      x=nx; y=ny;
+    }
+  }
+  // 3) traînée : nappe étirée en v (le long de la normale au bord), rides plus sombres
+  amas(H+H/2,H+H/2,60,40,16,34,0.38,0.7,1.15); grain(H,H,700);
+  g.strokeStyle='rgb(170,170,170)'; g.lineWidth=2;
+  for(let i=0;i<7;i++){ const y=H+H/2+aD(-80,80); g.beginPath(); g.moveTo(H+H/2-18,y); g.quadraticCurveTo(H+H/2,y+7,H+H/2+18,y); g.stroke(); }
+  return texDuo(duo,false);
+}
+// bandes continues le long des bords (répétées en u) : en haut la bande
+// grenue (sable, terre), en bas la bande d'herbe. Côté v=bord : opaque ;
+// la limite du fondu ondule (somme de sinus périodiques), rongée de trous,
+// avec des îlots au-delà — jamais une ligne droite.
+function texBandes(){
+  const W=512, TAU=Math.PI*2, duo=canvasDuo(W,256,'rgb(248,248,248)'), m=duo.m.x, g=duo.d.x;
+  const blanc=(a)=>'rgba(255,255,255,'+a+')';
+  for(const [y0,herbe] of [[0,false],[128,true]]){
+    const p1=aD(0,TAU),p2=aD(0,TAU),p3=aD(0,TAU);
+    const e=(x)=>clamp(0.46+0.15*Math.sin(TAU*x/W+p1)+0.08*Math.sin(TAU*2*x/W+p2)+0.04*Math.sin(TAU*5*x/W+p3),0.36,0.72); // onde douce : jamais des flammèches
+    const p4=aD(0,TAU), d=(x)=>0.06+0.05*Math.sin(TAU*2*x/W+p4); // départ du fondu, ondulé lui aussi
+    for(let x=0;x<W;x++){
+      const f=e(x), f0=d(x), gr=m.createLinearGradient(0,y0,0,y0+128);
+      gr.addColorStop(0,blanc(0)); gr.addColorStop(f0,blanc(0)); gr.addColorStop(f0+0.08,blanc(0.9)); gr.addColorStop(f-0.16,blanc(0.88)); gr.addColorStop(f,blanc(0.45)); gr.addColorStop(Math.min(0.98,f+0.2),blanc(0)); gr.addColorStop(1,blanc(0)); // fondu aussi au départ (ondulé) : jamais un trait net
+      m.fillStyle=gr; m.fillRect(x,y0,1,128);
+    }
+    for(let i=0;i<25;i++){ const x=aD(0,W), y=y0+e(x)*128+aD(-14,8), r=aD(2,5); m.fillStyle='rgba(0,0,0,0.6)'; m.beginPath(); m.arc(x,clamp(y,y0+4,y0+124),r,0,7); m.fill(); }
+    for(let i=0;i<70;i++){ const x=aD(8,W-8), y=y0+(e(x)+aD(0.12,0.34))*128, r=aD(3,9);
+      if(y>y0+118) continue;
+      const gr=m.createRadialGradient(x,y,0,x,y,r); gr.addColorStop(0,blanc(0.75)); gr.addColorStop(1,blanc(0)); m.fillStyle=gr; m.beginPath(); m.arc(x,y,r,0,7); m.fill(); }
+    if(herbe){
+      g.fillStyle='rgb(205,205,205)'; g.fillRect(0,y0,W,128); g.lineCap=m.lineCap='round';
+      for(let i=0;i<1600;i++){ const x=aD(2,W-2), y=y0+clamp(e(x)*128*aD(0,1.2),3,122), l=aD(4,10), b=aD(-0.8,0.8), v=Math.floor(aD(140,255)), w=aD(1.1,2.2);
+        const y2=clamp(y+Math.cos(b)*l*(aleaDecor()<0.5?1:-1),y0+2,y0+126);
+        for(const [c,col] of [[m,blanc(0.95)],[g,'rgb('+v+','+v+','+v+')']]){ c.strokeStyle=col; c.lineWidth=w; c.beginPath(); c.moveTo(x,y); c.lineTo(x+Math.sin(b)*l,y2); c.stroke(); } }
+    } else {
+      for(let i=0;i<2600;i++){ const v=aleaDecor()<0.5?255:205; g.fillStyle='rgb('+v+','+v+','+v+')'; g.fillRect(aD(0,W),y0+aD(0,126),2,2); }
+    }
+  }
+  return texDuo(duo,true);
+}
+// Éclairage d'un sol plat (normale vers le haut) tel que Lambert le calcule
+// pour la grande dalle : soleil × cos(angle) + ciel de l'hémisphère. Reporté
+// sur les matériaux non éclairés des transitions, à chaque image.
+const _dirSoleil=new THREE.Vector3();
+function majEclairageSols(){
+  if(!TRANS.mat) return;
+  _dirSoleil.copy(soleil.position).sub(soleil.target.position).normalize();
+  const k=Math.max(0,_dirSoleil.y)*soleil.intensity, h=hemi.intensity;
+  for(const m of [TRANS.mat,TRANS.matBande])
+    m.color.setRGB(soleil.color.r*k+hemi.color.r*h,soleil.color.g*k+hemi.color.g*h,soleil.color.b*k+hemi.color.b*h);
+}
+// visibilité : le sol le plus haut qui couvre le point (bitume par défaut)
+function mkIndexSols(){
+  const idx=new Map(), C=42;
+  for(const r of SOLS) for(let i=Math.floor(r.x0/C);i<=Math.floor(r.x1/C);i++) for(let j=Math.floor(r.z0/C);j<=Math.floor(r.z1/C);j++){
+    const k=i+','+j; if(!idx.has(k)) idx.set(k,[]); idx.get(k).push(r); }
+  return (x,z)=>{ let best=null; const l=idx.get(Math.floor(x/C)+','+Math.floor(z/C));
+    if(l) for(const r of l) if(x>=r.x0&&x<=r.x1&&z>=r.z0&&z<=r.z1&&(!best||r.y>best.y)) best=r;
+    return best; };
+}
+function mkTransitionsSols(){
+  const solA=mkIndexSols(), typeA=(x,z)=>{ const r=solA(x,z); return r?r.type:'bitume'; }, hautA=(x,z)=>{ const r=solA(x,z); return r?r.y:0; };
+  const ATLAS=[[0,0.5],[0.5,0.5],[0,0],[0.5,0]]; // coin (u,v) bas-gauche de chaque case
+  const c3=new THREE.Color();
+  // tache plate : case de l'atlas, centre, demi-tailles (largeur, longueur), angle, teinte
+  const tache=(cas,x,z,w,l,ang,coul)=>{
+    if(estEau(x,z)) return;
+    const k=Math.floor(x/120)+','+Math.floor(z/120), ch=TRANS.chunks[k]||(TRANS.chunks[k]={pos:[],uv:[],col:[]});
+    const y=hautA(x,z)+0.014, c=Math.cos(ang), s=Math.sin(ang), [u0,v0]=ATLAS[cas], m=0.01;
+    c3.setHex(coul); const vb=aD(0.88,1.08);
+    const P=[[-w,-l,u0+m,v0+m],[w,-l,u0+0.5-m,v0+m],[w,l,u0+0.5-m,v0+0.5-m],[-w,l,u0+m,v0+0.5-m]].map(([a,b,u,v])=>[x+a*c+b*s,z-a*s+b*c,u,v]);
+    for(const i of [0,2,1,0,3,2]){ const p=P[i]; ch.pos.push(p[0],y,p[1]); ch.uv.push(p[2],p[3]); ch.col.push(c3.r*vb,c3.g*vb,c3.b*vb); }
+    TRANS.nb++;
+  };
+  // bande continue : de -0,3 (côté S) à b (dans T), deux rangées de quads ;
+  // chaque sommet est posé sur le sol réel (la bande enjambe la marche).
+  // u suit la position le long du bord : la bande est continue d'un
+  // échantillon à l'autre et ondule sans jamais se répéter visiblement.
+  const bande=(cas,x,z,nx,nz,tx,tz,b,coul,d0)=>{
+    const k=Math.floor(x/120)+','+Math.floor(z/120), ch=TRANS.bandes[k]||(TRANS.bandes[k]={pos:[],uv:[],col:[]});
+    const vS=cas?0.497:0.997, vT=cas?0.003:0.503, // bord exact de la bande : le fondu de départ compris
+          dA=d0===undefined?-0.3:d0, ds=[dA,0.03,b], vs=ds.map((d)=>vS+(vT-vS)*(d-dA)/(b-dA));
+    const u0=(x*tx+z*tz-0.5)/7, u1=u0+1/7;
+    c3.setHex(coul);
+    const pt=(l,d,u,v)=>{ const px=x+tx*l+nx*d, pz=z+tz*l+nz*d; ch.pos.push(px,hautA(px,pz)+0.012,pz); ch.uv.push(u,v); ch.col.push(c3.r,c3.g,c3.b); };
+    // face tournée vers le ciel : l'ordre des sommets dépend du sens (t, n).
+    // Jamais en double face : une face vue de dos a sa normale retournée vers
+    // le sol et sort noire (vu en rendu réel sur la bande d'herbe sèche).
+    const ordre=(tz*nx-tx*nz)>0?[0,1,2,0,2,3]:[0,2,1,0,3,2];
+    for(let r=0;r<2;r++){
+      const q=[[-0.5,ds[r],u0,vs[r]],[0.5,ds[r],u1,vs[r]],[0.5,ds[r+1],u1,vs[r+1]],[-0.5,ds[r+1],u0,vs[r+1]]];
+      for(const i of ordre) pt(...q[i]);
+    }
+  };
+  // petit volume (touffe, tas, caillou) : pièces du mobilier, fusionnées par carré
+  const volume=(pieces,x,z,ry)=>{
+    if(estEau(x,z)||solidAt(x,z,0.2)) return;
+    const k=Math.floor(x/120)+','+Math.floor(z/120), pr=TRANS.props[k]||(TRANS.props[k]={pos:[],nor:[],col:[]});
+    mobPieces(pieces,x,z,ry,pr,hautA(x,z));
+  };
+  // une frontière : S (meuble) déborde sur T ; (x,z) sur le bord, (nx,nz) de S vers T, (tx,tz) le long du bord
+  const deborde=(S,T,x,z,nx,nz,tx,tz)=>{
+    const P=(d,l)=>[x+nx*d+tx*l,z+nz*d+tz*l], angN=Math.atan2(nx,nz);
+    const sable=S==='desert'||S==='sable', teinte=SOL_TEINTE[S];
+    if(sable&&(T==='bitume'||T==='tarmac')){
+      bande(0,x,z,nx,nz,tx,tz,3.4,teinte);                                                                                         // le sable gagne la route
+      if(aleaDecor()<0.12){ const [a,b]=P(aD(1,6),aD(-1,1)); tache(2,a,b,aD(1.2,2.2),aD(1.2,2.2),aD(0,6.3),SOL_TEINTE.fissure); } // bitume fissuré
+      if(aleaDecor()<0.05){ const [a,b]=P(aD(1.5,5),aD(-1,1)), r=aD(0.3,0.6); tache(0,a,b,r,r*aD(0.8,1.3),aD(0,6.3),SOL_TEINTE.trou); } // nids de poule
+      if(aleaDecor()<0.06){ const [a,b]=P(aD(0.5,4),0); volume([['boule',0.12,0.09,0.1,0,0.05,0,0x8a8278]],a,b,0); }
+    } else if(sable&&T==='trottoir'){
+      bande(0,x,z,nx,nz,tx,tz,1.5,teinte);                                                                                         // sable sur la dalle
+    } else if(sable&&T==='herbe'){
+      bande(1,x,z,-nx,-nz,tx,tz,2.8,SOL_TEINTE.herbeSeche,-2.4);                                                                    // la pelouse jaunit puis gagne le sable
+      bande(0,x,z,nx,nz,tx,tz,1.8,teinte);                                                                                         // le sable par-dessus, qui mord l'herbe sèche
+      if(aleaDecor()<0.3){ const [a,b]=P(-aD(2.8,5.5),aD(-1,1)); tache(1,a,b,aD(0.8,1.5),aD(0.8,1.5),aD(0,6.3),SOL_TEINTE.herbeSeche); } // touffes isolées
+      if(aleaDecor()<0.22){ const [a,b]=P(-aD(0,2),aD(-0.5,0.5)); volume([['cone',0.16,aD(0.25,0.45),0.16,0,0.15,0,SOL_TEINTE.herbeSeche]],a,b,0); }
+      if(aleaDecor()<0.04){ const [a,b]=P(-aD(0.5,2.5),0); volume([['boule',aD(0.4,0.6),aD(0.3,0.45),aD(0.4,0.6),0,0.2,0,0x6a7a3a]],a,b,aD(0,6)); }
+    } else if(S==='herbe'&&(T==='bitume'||T==='tarmac'||T==='trottoir')){
+      const dur=T!=='trottoir';
+      bande(0,x,z,nx,nz,tx,tz,dur?1.7:0.8,SOL_TEINTE.terre);                                                                         // terre battue au pied
+      bande(1,x,z,nx,nz,tx,tz,dur?1.0:0.55,SOL_TEINTE.herbe);                                                                         // l'herbe déborde
+      if(dur&&aleaDecor()<0.18){ const [a,b]=P(aD(1,3.5),aD(-1,1)); tache(2,a,b,aD(0.6,1.3),aD(0.6,1.3),aD(0,6.3),SOL_TEINTE.fissureHerbe); } // herbe dans les fissures
+      if(dur&&aleaDecor()<0.08){ const [a,b]=P(aD(1.2,3),aD(-1,1)); tache(1,a,b,aD(0.4,0.8),aD(0.4,0.8),aD(0,6.3),SOL_TEINTE.herbe); }   // touffe échappée
+      if(aleaDecor()<0.2){ const [a,b]=P(aD(-0.1,0.5),aD(-0.5,0.5)); volume([['cone',0.12,aD(0.18,0.3),0.12,0,0.1,0,0x4f8a38],['cone',0.1,aD(0.15,0.25),0.1,0.1,0.08,0.06,0x3f7030]],a,b,aD(0,6)); }
+    } else if(S==='terre'){
+      bande(0,x,z,nx,nz,tx,tz,1.4,teinte);
+    } else return false;
+    return true;
+  };
+  // parcours de tous les bords de toutes les dalles, un échantillon par unité
+  const vus=new Set();
+  for(const r of SOLS){
+    const bords=[[r.x0,r.z0,r.x1,r.z0,0,-1],[r.x0,r.z1,r.x1,r.z1,0,1],[r.x0,r.z0,r.x0,r.z1,-1,0],[r.x1,r.z0,r.x1,r.z1,1,0]];
+    for(const [xa,za,xb,zb,nx,nz] of bords){
+      const L=Math.hypot(xb-xa,zb-za), tx=(xb-xa)/(L||1), tz=(zb-za)/(L||1);
+      for(let t=0.5;t<L;t+=1){
+        const x=xa+tx*t, z=za+tz*t, cle=Math.round(x*2)+','+Math.round(z*2);
+        if(vus.has(cle)) continue; vus.add(cle);
+        const A=typeA(x-nx*0.6,z-nz*0.6), B=typeA(x+nx*0.6,z+nz*0.6);
+        if(A===B||estEau(x+nx*0.6,z+nz*0.6)||estEau(x-nx*0.6,z-nz*0.6)) continue;
+        const mA=SOL_MEUBLE[A]||0, mB=SOL_MEUBLE[B]||0;
+        if(mA===mB) continue; // désert/plage (le littoral s'en charge), dur/dur
+        const ok=mA>mB?deborde(A,B,x,z,nx,nz,tx,tz):deborde(B,A,x,z,-nx,-nz,tx,tz);
+        if(ok){ const p=mA>mB?A+'|'+B:B+'|'+A; TRANS.frontieres[p]=(TRANS.frontieres[p]||0)+1; }
+      }
+    }
+  }
+  // fusion par carré de 120 u
+  const tx=texTransitions();
+  // Matériaux NON éclairés, teintés chaque image comme le sol plat qu'ils
+  // recouvrent (majEclairageSols) : Lambert calcule la lumière par sommet —
+  // les petits quads, près de la lampe de nuit, s'allumaient en orange vif
+  // alors que la grande dalle du sol (4 sommets lointains) restait sombre.
+  TRANS.mat=new THREE.MeshBasicMaterial({map:tx.map,alphaMap:tx.alphaMap,vertexColors:true,transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});
+  for(const k in TRANS.chunks){
+    const d=TRANS.chunks[k], n=d.pos.length/3, g=new THREE.BufferGeometry(), nor=new Float32Array(n*3);
+    for(let i=1;i<n*3;i+=3) nor[i]=1;
+    g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(d.pos),3));
+    g.setAttribute('normal',new THREE.BufferAttribute(nor,3));
+    g.setAttribute('uv',new THREE.BufferAttribute(new Float32Array(d.uv),2));
+    g.setAttribute('color',new THREE.BufferAttribute(new Float32Array(d.col),3));
+    g.computeBoundingSphere();
+    const m=new THREE.Mesh(g,TRANS.mat); m.matrixAutoUpdate=false; m.updateMatrix(); m.renderOrder=2; scene.add(m); // taches par-dessus les bandes
+  }
+  const tb=texBandes();
+  TRANS.matBande=new THREE.MeshBasicMaterial({map:tb.map,alphaMap:tb.alphaMap,vertexColors:true,transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1});
+  for(const k in TRANS.bandes){
+    const d=TRANS.bandes[k], n=d.pos.length/3, g=new THREE.BufferGeometry(), nor=new Float32Array(n*3);
+    for(let i=1;i<n*3;i+=3) nor[i]=1;
+    g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(d.pos),3));
+    g.setAttribute('normal',new THREE.BufferAttribute(nor,3));
+    g.setAttribute('uv',new THREE.BufferAttribute(new Float32Array(d.uv),2));
+    g.setAttribute('color',new THREE.BufferAttribute(new Float32Array(d.col),3));
+    g.computeBoundingSphere();
+    const m=new THREE.Mesh(g,TRANS.matBande); m.matrixAutoUpdate=false; m.updateMatrix(); m.renderOrder=1; scene.add(m);
+  }
+  for(const k in TRANS.props){
+    const d=TRANS.props[k], g=new THREE.BufferGeometry();
+    g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(d.pos),3));
+    g.setAttribute('normal',new THREE.BufferAttribute(new Float32Array(d.nor),3));
+    g.setAttribute('color',new THREE.BufferAttribute(new Float32Array(d.col),3));
+    g.computeBoundingSphere();
+    const m=new THREE.Mesh(g,MOB_MAT); m.matrixAutoUpdate=false; m.updateMatrix(); scene.add(m);
+  }
+  TRANS.chunks=null; TRANS.bandes=null; TRANS.props=null;
+  majEclairageSols(); // données de construction : plus utiles
 }
 // Un véhicule lancé (joueur ou autre) renverse les petits objets sur son passage.
 function majMobilier(){
@@ -4160,6 +4417,7 @@ function mkLumieresQuartiers(poser,libre,ajoutLum){
 // Animation : écrans (6 fois par seconde), néons qui clignotent, couche
 // lumineuse plus vive la nuit.
 function majLumieres(dt){
+  majEclairageSols();
   const f=ETAT.nuitF||0;
   MOB_MAT_LUM.color.setScalar(0.6+0.4*f);
   LUM.t+=dt; LUM.tEcran-=dt;
@@ -4281,14 +4539,14 @@ function mkAeroport(){
   // couche — bitume nu sous elle au lieu du sable. Bord ouest inchangé
   // (269, jamais rapproché de la ville, HALF=294).
   const desert=new THREE.Mesh(new THREE.BoxGeometry(320,0.01,570),new THREE.MeshLambertMaterial({map:texDesert}));
-  desert.position.set(AX+63,0.006,-3); scene.add(desert);
+  desert.position.set(AX+63,0.006,-3); scene.add(desert); solRect('desert',AX+63,-3,320,570,0.011); // SOLS : transitions (DECOR_V2)
   // herbe d'aérodrome tout autour, puis tarmac texturé
   const gaz=new THREE.Mesh(new THREE.BoxGeometry(190,0.08,380),new THREE.MeshLambertMaterial({map:texHerbe}));
-  gaz.position.set(AX+8,0.03,-70); scene.add(gaz);
+  gaz.position.set(AX+8,0.03,-70); scene.add(gaz); solRect('herbe',AX+8,-70,190,380,0.07);
   const tar=new THREE.Mesh(new THREE.BoxGeometry(120,0.12,330),new THREE.MeshLambertMaterial({map:texTarmac}));
-  tar.position.set(AX-16,0.06,-70); scene.add(tar);
+  tar.position.set(AX-16,0.06,-70); scene.add(tar); solRect('tarmac',AX-16,-70,120,330,0.12);
   const piste=new THREE.Mesh(new THREE.BoxGeometry(16,0.16,300),new THREE.MeshLambertMaterial({map:texPiste}));
-  piste.position.set(AX+20,0.09,-70); scene.add(piste);
+  piste.position.set(AX+20,0.09,-70); scene.add(piste); solRect('tarmac',AX+20,-70,16,300,0.17);
   const axe=new THREE.Mesh(new THREE.PlaneGeometry(0.6,280),new THREE.MeshBasicMaterial({map:texDash,transparent:true,depthWrite:false}));
   axe.rotation.x=-Math.PI/2; axe.position.set(AX+20,0.16,-70); scene.add(axe);
   for(let i=0;i<6;i++){

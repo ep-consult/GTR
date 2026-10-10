@@ -513,6 +513,7 @@ vélos garés compris. Les correctifs de bordure restent : ce sont des bugs.
 | Plage | `ea29bed` | Transats, serviettes, parasols, châteaux de sable, kayaks, cabines, chariot de glaces, filet de volley. |
 | Lac du parc | `3d0061f`, `e768516` | Lac rond, margelle de pierres, roseaux, passerelle en bois **praticable** en dos d'âne, 4 barques qui tanguent, canards, bancs. C'est de la vraie eau : on y nage, une voiture s'arrête au bord. |
 | Lumières de quartier | `bae85fb` | **Times Square** (quartier néon) : écrans géants animés, néons qui clignotent. **Quartier chinois** : portiques rouges, guirlandes de lanternes. **Brooklyn** (brique) : escaliers de secours, guirlandes d'ampoules. Partout : flaques de lumière sous les lampadaires la nuit. |
+| Transitions entre sols | (ce commit) | Retour de playtest : « ça passe de l'asphalte à l'herbe au sable sans transition ». Chaque frontière visible entre deux sols (retrouvée par le jeu, aucune liste écrite à la main) reçoit une transition où le matériau le plus meuble déborde : sable soufflé sur la route et les trottoirs (bitume fissuré au bord), pelouse qui jaunit avant le sable, herbe et terre battue qui débordent sur le bitume et le tarmac. Bande continue au bord ondulé, taches, touffes. |
 | Vélos | `7e8ec5f` | Vélo de ville et BMX, 12 garés aux arceaux à chaque partie. Pédalage animé, aucun bruit de moteur. **BUNNY HOP** sur ESQUIVE : 0,9 u de haut en vélo, 1,7 u en BMX, assez pour passer un banc. Personnalisation au garage. |
 
 ### Captures (`rapport_nuit/captures/decor/`, rendus Three.js réels)
@@ -530,6 +531,28 @@ vélos garés compris. Les correctifs de bordure restent : ce sont des bugs.
   `lumiere_brooklyn_nuit` ;
 - vélos : `velo_profil`, `velo_en_selle`, `bmx_bunny_hop`, `bmx_tune_profil`
   (toutes les pièces), `velo_garage_menu`, `bmx_vue_jeu`.
+
+### Transitions entre sols — captures et pièges
+
+Captures avant / après (`transition_*_avant.png` / `transition_*_apres.png`) :
+- `ville_aerodrome_jour` / `ville_aerodrome_nuit` : l'endroit exact de la 1re
+  capture du playtest (trottoir → désert → gazon de l'aérodrome) ;
+- `aerodrome_sud` : la 2e capture (tarmac → gazon → désert) ;
+- `parc_route`, `plage_route`, `champ_desert` ;
+- `transition_vue_zenithale_*` : vues du dessus.
+
+Trois pièges, chacun vu en rendu réel puis corrigé :
+- textures de canvas transparentes : un liseré noir se forme au filtrage ;
+  corrigé avec un détail opaque et un masque séparé (`alphaMap`) ;
+- une bande dessinée « à l'envers » sortait noire : l'ordre des sommets
+  dépend maintenant du sens du bord ;
+- la nuit, les petites taches s'allumaient en orange vif près des lampes,
+  alors que le sol autour restait sombre. Lambert éclaire par sommet : les
+  taches sont maintenant teintées chaque image comme le sol plat.
+
+Coût mesuré dans un même build, transitions affichées ou cachées : 0 à 5 %,
+dans le bruit de la mesure. Elles ajoutent 4 à 9 appels de rendu et 5 000 à
+10 000 triangles par vue.
 
 ### Performance (rendu seul, sans entités, GPU de bureau)
 
@@ -613,3 +636,6 @@ mobilier (`MOB_QUARTIERS`).
 6. Lac : traverser la passerelle à pied, puis plonger.
 7. Foncer dans une rangée de poubelles et une borne à incendie : elles
    tombent, le geyser part. Elles reviennent à la partie suivante.
+8. **Transitions** : longer la bordure entre la ville et l'aérodrome, de jour
+   puis de nuit. Le sable doit déborder sur la route sans briller la nuit, et
+   aucune ligne droite ne doit séparer herbe et sable.
