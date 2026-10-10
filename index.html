@@ -4839,7 +4839,7 @@ function mkCrique(){
   const plongeoir=(x,z,dx,dz,l,h,beton)=>{
     const cx=x+dx*l/2, cz=z+dz*l/2, w=dx?l:1.6, d=dz?l:1.6;
     const p=new THREE.Mesh(new THREE.BoxGeometry(w,0.25,d),beton?mat(0xd8d8d0):new THREE.MeshLambertMaterial({map:texPlanche,color:0xd0b090})); p.position.set(cx,h-0.52,cz); scene.add(p);
-    addSolid({x:cx,z:cz,hw:w/2,hd:d/2,h:h-0.4,toit:true}); PLATS.push({x:cx,z:cz,hw:w/2,hd:d/2,h:h-0.4});
+    addSolid({x:cx,z:cz,hw:w/2,hd:d/2,h:h-0.4,toit:true,base:h-0.65}); PLATS.push({x:cx,z:cz,hw:w/2,hd:d/2,h:h-0.4}); // surplomb : on nage dessous
     for(const s of [-1,1]){ const rx=dz?cx+s*0.75:cx, rz=dx?cz+s*0.75:cz; const r=mkBox(dx?l*0.5:0.06,0.06,dz?l*0.5:0.06,mat(0xc8ccd2),dx?x+dx*l*0.25:rx,h+0.5,dz?z+dz*l*0.25:rz); }
     const bout=mkBox(1.6,0.08,1.6,mat(0xffd23f),x+dx*(l-0.4),h-0.38,z+dz*(l-0.4)); // bout peint : « c'est d'ici qu'on saute »
     const mt=mkBox(0.12,1.6,0.12,mat(0x5a3a22),x+dx*0.4+(dz?0.9:0),h+0.4,z+dz*0.4+(dx?0.9:0));
@@ -9210,7 +9210,15 @@ function majJoueur(dt,dtJeu){
   P.vitesseReelle=Math.hypot(vx,vz);   // vitesse instantanée réelle (joystick analogique compris)
   const marchable=(x,z)=>{
     const s=solidAt(x,z,0.5,undefined,P.y);
-    if(s) return !!s.toit&&Math.abs(s.h-P.y)<1.4; // on circule sur le même toit
+    if(s){
+      if(s.toit&&Math.abs(s.h-P.y)<1.4) return true; // on circule sur le même toit
+      // Déjà collé à ce solide (tombé du bord d'un toit ou d'une falaise : on
+      // atterrit dans la marge de 0,5 u) : on peut toujours s'en ÉLOIGNER.
+      // Bug signalé : bloqué au pied d'une falaise de la crique, plus aucun
+      // mouvement possible, partie à quitter.
+      const pen=(px,pz)=>Math.min(s.hw+0.5-Math.abs(px-s.x),s.hd+0.5-Math.abs(pz-s.z));
+      return pen(x,z)<=pen(P.x,P.z)+1e-4; // s'éloigner ou longer le mur, jamais s'y enfoncer
+    }
     if(!auSol()) return true; // en l'air (jetpack, chute) : les véhicules au sol ne bloquent pas
     return !vehiculeBloquant(x,z,0.45,P.veh);
   };

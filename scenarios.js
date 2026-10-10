@@ -8021,6 +8021,34 @@ async function main() {
       else ok('Portes : ' + po.testees + ' portes avec au moins 2,5 u de trottoir devant (seuil jamais sur la bordure), sortie de salle devant la porte (pharmacie, concession, laverie, arcade), aucune enseigne de lieu masquée');
     }
 
+    // -------------------------------------------------------------------
+    // Jamais bloqué contre un mur (bug signalé : coincé au pied d'une falaise
+    // de la crique après un saut, partie à quitter). On pose le joueur dans
+    // la marge de collision de chaque falaise et sous un plongeoir, puis on
+    // le fait bouger AU CLAVIER (vraie boucle) : il doit pouvoir s'éloigner.
+    // -------------------------------------------------------------------
+    console.log('\n--- Jamais bloqué contre une falaise ou sous un plongeoir ---');
+    {
+      const C = await page.evaluate(() => { if (typeof CRIQUE === 'undefined' || !CRIQUE) return null; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.hpMax = 1e6; return { x0: CRIQUE.x0, x1: CRIQUE.x1, z0: CRIQUE.z0 }; });
+      if (!C) saute('Jamais bloqué : crique absente (DECOR_V2 désactivé)');
+      else {
+        const bloques = [];
+        for (const [nom, x0, z0] of [['contre le bras ouest', C.x0 + 0.3, 284], ['contre la falaise nord', 360, C.z0 + 0.3], ['sous le plongeoir ouest', C.x0 + 3, 280.2], ['contre le bras est', C.x1 - 0.3, 284]]) {
+          await page.evaluate((x0, z0) => { P.x = x0; P.z = z0; P.y = 0; P.chute = false; P.vy = 0; }, x0, z0);
+          await new Promise((r) => setTimeout(r, 300));
+          let total = 0;
+          for (const k of ['KeyD', 'KeyA', 'KeyS', 'KeyW']) {
+            const a = await page.evaluate(() => [P.x, P.z]); await page.keyboard.down(k); await new Promise((r) => setTimeout(r, 500)); await page.keyboard.up(k);
+            const b = await page.evaluate(() => [P.x, P.z]); total += Math.hypot(b[0] - a[0], b[1] - a[1]);
+          }
+          if (total < 2) bloques.push(nom + ' (' + total.toFixed(2) + ' u)');
+        }
+        await page.evaluate(() => startRun());
+        if (bloques.length) fail('Jamais bloqué : joueur coincé — ' + bloques.join(', '));
+        else ok('Jamais bloqué : le joueur repart depuis le pied de chaque falaise et de sous le plongeoir');
+      }
+    }
+
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');
     {
       const srcIdx = fs.readFileSync(INDEX_HTML, 'utf8');
