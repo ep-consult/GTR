@@ -7571,10 +7571,11 @@ async function main() {
       const mob = await page.evaluate(() => {
         if (typeof DECOR_V2 === 'undefined' || !DECOR_V2 || typeof MOB === 'undefined') return { off: true };
         const out = { nbCassables: 0, surChaussee: [] }; // l'accès aux portes est vérifié par les tests REPLIS existants
-        const B = (INNER + 2) / 2, horsBloc = (x, z) => {
-          const bx = Math.floor((x + HALF) / CELL), bz = Math.floor((z + HALF) / CELL);
-          const cx = -HALF + bx * CELL + CELL / 2, cz = -HALF + bz * CELL + CELL / 2;
-          return Math.abs(x - cx) > B || Math.abs(z - cz) > B;
+        // sur la chaussée = à moins d'une demi-largeur de route de l'axe d'une rue
+        const horsBloc = (x, z) => {
+          const dx = Math.abs(((x + HALF) % CELL + CELL) % CELL), dz = Math.abs(((z + HALF) % CELL + CELL) % CELL);
+          const ax = Math.min(dx, CELL - dx), az = Math.min(dz, CELL - dz);
+          return (ax < ROADW / 2 && z < MER - 30) || (az < ROADW / 2 && z < MER - 30);
         };
         for (const l of MOB.cassables.values()) for (const o of l) { out.nbCassables++; if (horsBloc(o.x, o.z)) out.surChaussee.push(o.type + '@' + o.x.toFixed(0) + ',' + o.z.toFixed(0)); }
         // renversement : une voiture lancée sur le premier objet cassable trouvé
