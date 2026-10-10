@@ -3993,17 +3993,19 @@ function mkLacParc(cx,cz){
   mEau.customProgramCacheKey=()=>'lacParc';
   const eau=new THREE.Mesh(new THREE.CircleGeometry(R,40),mEau);
   eau.rotation.x=-Math.PI/2; eau.position.set(cx,0.17,cz); scene.add(eau);
+  // Tout ce qui ne bouge pas rejoint la fusion de la ville (pushMerge) :
+  // mesuré, le lac en maillages séparés doublait les appels de rendu de sa
+  // vue (80 → 160). Seuls l'eau, les barques et les canards restent à part.
+  const plat=(geo,m,x,y,z)=>{ geo.rotateX(-Math.PI/2); pushMerge(geo,m,x,y,z); };
   // margelle de pierres + chemin de gravier
-  const marg=new THREE.Mesh(new THREE.RingGeometry(R-0.1,R+0.75,40),mat(0x8d8a82));
-  marg.rotation.x=-Math.PI/2; marg.position.set(cx,0.2,cz); scene.add(marg);
-  const chem=new THREE.Mesh(new THREE.RingGeometry(R+0.75,R+3,40),mat(0x9a8c6c));
-  chem.rotation.x=-Math.PI/2; chem.position.set(cx,0.165,cz); scene.add(chem);
+  plat(new THREE.RingGeometry(R-0.1,R+0.75,40),mat(0x8d8a82),cx,0.2,cz);
+  plat(new THREE.RingGeometry(R+0.75,R+3,40),mat(0x9a8c6c),cx,0.165,cz);
   for(let i=0;i<34;i++){ const a=i/34*Math.PI*2+aD(-0.05,0.05), t=aD(0.25,0.45);
     pushMerge(new THREE.DodecahedronGeometry(t,0),mat(choixD([0x7a776f,0x8f8b82,0x6a675f])),cx+Math.cos(a)*(R+0.35),0.25,cz+Math.sin(a)*(R+0.35),aD(0,6)); }
   // allées vers les bords du pâté (nord, sud) + prolongement de la passerelle (est, ouest)
   const B=(INNER+2)/2, mAll=mat(0x9a8c6c);
   for(const [dx,dz,w,d] of [[0,-(R+3+B)/2,2.6,B-R-3],[0,(R+3+B)/2,2.6,B-R-3],[-(R+3+B)/2,0,B-R-3,2.6],[(R+3+B)/2,0,B-R-3,2.6]]){
-    const a=new THREE.Mesh(new THREE.PlaneGeometry(w,d),mAll); a.rotation.x=-Math.PI/2; a.position.set(cx+dx,0.16,cz+dz); scene.add(a); }
+    plat(new THREE.PlaneGeometry(w,d),mAll,cx+dx,0.16,cz+dz); }
   // roseaux en touffes au bord de l'eau (évite la passerelle)
   const gRos=new THREE.BoxGeometry(0.06,1,0.06);
   for(let i=0;i<9;i++){
@@ -4015,16 +4017,18 @@ function mkLacParc(cx,cz){
   const mBois=mat(0x8a6038), mRamb=mat(0x6a4a2c), L=2*(R+1.2), n=5;
   for(let i=0;i<n;i++){
     const x0=cx-L/2+L*(i+0.5)/n, h=0.25+0.5*Math.sin(Math.PI*(i+0.5)/n);
-    mkBox(L/n+0.05,0.18,2.4,mBois,x0,h-0.09,cz);
+    mergeBox(L/n+0.05,0.18,2.4,mBois,x0,h-0.09,cz);
     PLATS.push({x:x0,z:cz,hw:L/n/2,hd:1.2,h});
-    for(const s of [-1,1]){ mkBox(0.12,0.9,0.12,mRamb,x0-L/n/2+0.1,h+0.45,cz+s*1.12); mkBox(L/n,0.08,0.08,mRamb,x0,h+0.85,cz+s*1.12); }
+    for(const s of [-1,1]){ mergeBox(0.12,0.9,0.12,mRamb,x0-L/n/2+0.1,h+0.45,cz+s*1.12); mergeBox(L/n,0.08,0.08,mRamb,x0,h+0.85,cz+s*1.12); }
   }
   // barques (décor qui tangue) et canards
   for(let i=0;i<4;i++){
     const a=i/4*Math.PI*2+0.6, r=aD(4.2,6.8), g=new THREE.Group();
     g.add(mkBoxG(1.1,0.35,2.6,choixD([0xd8dce4,0x2a7ae0,0xd83a3a,0x2f8a4a]),0,0.12,0));
-    g.add(mkBoxG(0.9,0.06,2.3,0x8a6038,0,0.28,0)); g.add(mkBoxG(1.0,0.08,0.3,0x6a4a2c,0,0.32,0.3));
-    g.add(mkBoxG(0.06,0.06,1.6,0x6a4a2c,0.55,0.4,0.1)); g.add(mkBoxG(0.06,0.06,1.6,0x6a4a2c,-0.55,0.4,0.1)); // rames
+    g.add(mkBoxG(0.9,0.06,2.3,0x8a6038,0,0.28,0));
+    const bancRames=[[1.0,0.08,0.3,0,0.32,0.3],[0.06,0.06,1.6,0.55,0.4,0.1],[0.06,0.06,1.6,-0.55,0.4,0.1]] // banc + rames : un seul maillage
+      .map(([w,hh,d,x,y,z])=>new THREE.BoxGeometry(w,hh,d).translate(x,y,z));
+    g.add(new THREE.Mesh(mergeGeoManuel(bancRames),mat(0x6a4a2c)));
     const bx=cx+Math.cos(a)*r, bz=cz+Math.sin(a)*r*0.75;
     g.position.set(bx,0.12,bz); g.rotation.y=aD(0,6); scene.add(g);
     LAC_BARQUES.push({g,x:bx,z:bz,ph:aD(0,6),ang:g.rotation.y});
@@ -4038,9 +4042,9 @@ function mkLacParc(cx,cz){
   // jamais sur les 4 allées (0°, 90°, 180°, 270°)
   [35,62,118,145,215,325].forEach((deg,i)=>{
     const a=deg*Math.PI/180, r=R+3.9, x=cx+Math.cos(a)*r, z=cz+Math.sin(a)*r, ry=-a+Math.PI/2;
-    const banc=new THREE.Group(); banc.add(mkBoxG(2,0.12,0.6,0x8a5a34,0,0.5,0)); banc.add(mkBoxG(2,0.45,0.1,0x8a5a34,0,0.8,0.27));
-    banc.add(mkBoxG(0.1,0.5,0.5,0x2a2d34,-0.85,0.25,0)); banc.add(mkBoxG(0.1,0.5,0.5,0x2a2d34,0.85,0.25,0));
-    banc.position.set(x,0.14,z); banc.rotation.y=ry+Math.PI; scene.add(banc);
+    const t=ry+Math.PI, c=Math.cos(t), sn=Math.sin(t); // banc fusionné : pièces tournées à la main
+    for(const [w,hh,d,lx,ly,lz,col] of [[2,0.12,0.6,0,0.5,0,0x8a5a34],[2,0.45,0.1,0,0.8,0.27,0x8a5a34],[0.1,0.5,0.5,-0.85,0.25,0,0x2a2d34],[0.1,0.5,0.5,0.85,0.25,0,0x2a2d34]])
+      mergeBox(w,hh,d,mat(col),x+lx*c+lz*sn,0.14+ly,z-lx*sn+lz*c,t);
     if(i%2===0) mkLampadaire(cx+Math.cos(a+0.42)*(R+4.2),cz+Math.sin(a+0.42)*(R+4.2));
   });
 }
