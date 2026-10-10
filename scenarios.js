@@ -7940,7 +7940,8 @@ async function main() {
         const o = { eau: estEau(365, 278), sommet: solPied(365, 255) };
         P.x = 365; P.z = 262; P.y = solPied(365, 262); await dors(300);
         const hp0 = P.hp, sc0 = ETAT.score;
-        P.z = 273.2; await dors(3200); // un pas dans le vide au bout du plongeoir
+        P.z = 273.2; await dors(400); // un pas dans le vide au bout du plongeoir
+        for (let i = 0; i < 40 && (P.chute || !P.nage); i++) await dors(200); // jusqu'à la fin de la chute (machine lente : jamais un délai fixe)
         o.nage = P.nage; o.degats = hp0 - P.hp; o.bonus = ETAT.score - sc0; o.salto = P.h.g.rotation.x;
         o.marches = solPied(CRIQUE.x1 - 1.3, CRIQUE.z0 + 18.8); o.bras = solPied(CRIQUE.x1 + 5, 284); // haut des marches (rampe de z0+2 à z0+19), bras de 5 u
         startRun(); return o;
@@ -7967,6 +7968,25 @@ async function main() {
       if (ne.off) saute('Quartier néon : DECOR_V2 désactivé');
       else if (!(ne.panneaux >= 4) || !(ne.file >= 5) || !ne.porteLibre || !(ne.nuit > 0.2) || !(ne.jour < 0.05)) fail('Quartier néon : ' + JSON.stringify(ne));
       else ok('Quartier néon : ' + ne.panneaux + ' panneaux de toit, ' + ne.file + ' noctambules dans la file, porte du club libre, projecteurs allumés la nuit seulement');
+    }
+
+    // -------------------------------------------------------------------
+    // Finitions de quartier (DECOR_V2) : piscines décorées, cheminées,
+    // miradors (faisceaux la nuit seulement), étals et cagettes du marché.
+    // -------------------------------------------------------------------
+    console.log('\n--- Finitions de quartier : piscines, cheminées, miradors, marché ---');
+    {
+      const qf = await page.evaluate(() => {
+        if (typeof QUART === 'undefined' || !QUART.ok) return { off: true };
+        const j0 = ETAT.jour, o = { piscines: VILLA_PISC.length, cheminees: QUART.cheminees.length, miradors: QUART.miradors.length, etals: 0, cagettes: 0 };
+        for (const l of MOB.cassables.values()) for (const c of l) if (c.type === 'cagettes') o.cagettes++;
+        ETAT.jour = 20; jourNuit(0); majQuartiersFinitions(0.016); o.jour = QUART.matMir.opacity;
+        ETAT.jour = 130; jourNuit(0); majQuartiersFinitions(0.016); o.nuit = QUART.matMir.opacity;
+        ETAT.jour = j0; jourNuit(0); return o;
+      });
+      if (qf.off) saute('Finitions de quartier : DECOR_V2 désactivé');
+      else if (!(qf.piscines >= 3) || !(qf.cheminees >= 2) || qf.miradors !== 2 || !(qf.cagettes >= 10) || !(qf.nuit > 0.3) || qf.jour > 0.05) fail('Finitions de quartier : ' + JSON.stringify(qf));
+      else ok('Finitions de quartier : ' + qf.piscines + ' piscines décorées, ' + qf.cheminees + ' cheminées, 2 miradors (faisceaux la nuit), ' + qf.cagettes + ' cagettes de marché');
     }
 
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');

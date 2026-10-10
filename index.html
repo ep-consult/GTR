@@ -3312,6 +3312,7 @@ function mkImmeubleBriques(x,z,w,d,h,m){
 // de quai de chargement en façade — silhouette bien distincte de mkBatiment
 // pour le quartier industriel. Même signature (x,z,w,d,h,m).
 function mkEntrepot(x,z,w,d,h,m){
+  if(DECOR_V2) ENTREPOTS.push({x,z,w,d,h}); // cheminées et gyrophares (mkQuartiersFinitions)
   mergeBox(w,h,d,m,x,h/2,z);
   const nb=Math.max(2,Math.round(d/5));
   for(let i=0;i<nb;i++){
@@ -3568,7 +3569,7 @@ function construireVille(){
     if(qq!=='plage'&&qq!=='parc'&&bx%3===1&&bz%3===1) mkFeu(cx+INNER/2+1.4,cz-INNER/2-1.4);
   }
   placerPortes();
-  if(DECOR_V2){ sansAleaVille(()=>{ mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkCiel(); mkCrique(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>mkNeonVivant()); } // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
+  if(DECOR_V2){ sansAleaVille(()=>{ mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkCiel(); mkCrique(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkNeonVivant(); mkQuartiersFinitions(); }); } // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
   finaliserMerge();
   construireMinimapStatique();
 }
@@ -3804,6 +3805,10 @@ const MOB_CAT={
   pilierRouge:{pieces:[['box',0.8,0.4,0.8,0,0.2,0,0xd8a830],['box',0.6,6.4,0.6,0,3.4,0,0xc0281e],['box',0.8,0.3,0.8,0,6.5,0,0xd8a830]],casse:false,solide:{hw:0.4,hd:0.4,h:6.6}},
   // solides
   haie:{pieces:[['box',3.2,0.95,0.8,0,0.48,0,0x2f5a2a],['box',3.0,0.25,0.7,0,1.0,0,0x3d6b30]],casse:false,solide:{hw:1.6,hd:0.4,h:1.1}},
+  // marché de rue (commerce) : étal à auvent rayé, cagettes de fruits qui volent au passage d'une voiture
+  etal:{pieces:[['box',2.2,0.85,1,0,0.43,0,0x8a6038],['box',2,0.12,0.9,0,0.92,0,0xc89a58],['oct',0.16,0.16,0.16,-0.6,1.05,-0.15,0xe83a2a],['oct',0.16,0.16,0.16,-0.3,1.05,0.15,0xff9a1a],['oct',0.16,0.16,0.16,0.1,1.05,-0.1,0x7dc93a],['oct',0.16,0.16,0.16,0.5,1.05,0.15,0xffd23f],
+    ['box',0.06,2.2,0.06,-1.05,1.1,-0.45,METAL],['box',0.06,2.2,0.06,1.05,1.1,-0.45,METAL],['box',2.4,0.08,0.7,0,2.25,-0.1,0xe83a5a],['box',2.4,0.08,0.7,0,2.15,0.55,0xf2ece0]],casse:false,solide:{hw:1.1,hd:0.5,h:1}},
+  cagettes:{pieces:[['box',0.6,0.3,0.45,0,0.15,0,0xb08850],['box',0.6,0.3,0.45,0.05,0.45,0,0xb08850],['oct',0.12,0.12,0.12,-0.15,0.65,0,0xe83a2a],['oct',0.12,0.12,0.12,0.12,0.65,0.05,0xff9a1a],['box',0.6,0.3,0.45,0.7,0.15,0.1,0xb08850],['oct',0.12,0.12,0.12,0.7,0.36,0.1,0x7dc93a]],casse:true,r:0.7},
   kiosque:{pieces:[['box',2,2.2,1.6,0,1.1,0,0x2f6b4a],['box',2.4,0.2,2,0,2.3,0,0x1e4a34],['box',1.6,0.9,0.05,0,1.5,0.82,0xe8e4d2]],casse:false,solide:{hw:1.1,hd:0.9,h:2.4},lum:[['box',1.5,0.35,0.06,0,1.95,0.83,0xffd23f]]},
   distributeur:{pieces:[['box',0.9,1.8,0.7,0,0.9,0,0x1a1d24]],casse:false,solide:{hw:0.45,hd:0.35,h:1.8},lum:[['box',0.7,1.2,0.04,0,1.05,0.36,0x35e0ff]]},
   abribus:{pieces:[['box',3.6,0.12,1.6,0,2.4,0,0x3a3f4a],['box',0.1,2.4,0.1,-1.7,1.2,-0.7,METAL],['box',0.1,2.4,0.1,1.7,1.2,-0.7,METAL],['box',3.4,1.8,0.05,0,1.3,-0.75,0x7aa6c0],['box',2.2,0.1,0.4,-0.4,0.5,-0.45,BOIS],['box',0.08,0.5,0.4,-1.45,0.25,-0.45,METAL],['box',0.08,0.5,0.4,0.65,0.25,-0.45,METAL],['box',0.06,2.6,0.06,1.95,1.3,0.3,METAL]],casse:false,solide:{hw:1.85,hd:0.85,h:2.5},
@@ -3817,7 +3822,7 @@ const MOB_CAT={
 // ce qui pousse dans chaque quartier : [objet, poids]
 const MOB_QUARTIERS={
   centre:[['platane',4],['banc',2],['poubelle',2],['borne',1],['jardiniere',2],['kiosque',0.5],['lampadaire',2],['arceaux',1]],
-  commerce:[['tilleul',3],['terrasse',2],['jardiniere',2],['poubelle',2],['borne',1],['arceaux',1],['lampadaire',2],['banc',1]],
+  commerce:[['tilleul',3],['terrasse',2],['jardiniere',2],['poubelle',2],['borne',1],['arceaux',1],['lampadaire',2],['banc',1],['etal',1.6],['cagettes',1.4]],
   residentiel:[['tilleul',3],['platane',2],['haie',2],['boiteLettres',2],['poubelle',1],['borne',1],['lampadaire',1.5]],
   villas:[['palmierRue',3],['massif',3],['haie',2],['boiteLettres',1],['lampadaire',1]],
   neon:[['distributeur',3],['poubelle',2],['borne',1],['lampadaire',2],['banc',1]],
@@ -4839,6 +4844,79 @@ function majNeonVivant(dt){
   for(const q of NEON.file){ q.ph+=dt*1.5; q.h.g.position.y=0.22+Math.abs(Math.sin(q.ph*2))*0.05; q.h.tete.rotation.y=Math.sin(q.ph*0.6)*0.5; } // on piétine, on regarde autour
   if(NEON.matFx){ NEON.matFx.opacity=0.32*f; for(const b of NEON.faisceaux) b.pivot.rotation.y=b.ph+t*0.5; }
 }
+/* ---------- VILLAS, INDUSTRIEL, BASE (DECOR_V2) ----------
+   Finitions de quartier, sans rien déplacer de l'existant :
+   - villas : chaque piscine (notée à sa construction, VILLA_PISC) reçoit sa
+     margelle, son plongeoir, son échelle, ses transats et son parasol, et
+     s'illumine en turquoise la nuit ;
+   - industriel : une cheminée qui fume sur chaque entrepôt (ENTREPOTS),
+     gyrophares orange sur les quais (fumée près du joueur seulement) ;
+   - base militaire : barbelés en rouleaux sur les murs, deux miradors dont
+     les projecteurs balaient le terrain la nuit.
+   Le marché de rue du commerce passe par le mobilier (MOB_CAT : étals et
+   cagettes qui volent quand on fonce dedans). */
+const VILLA_PISC=[], ENTREPOTS=[];
+const QUART={cheminees:[],gyros:[],miradors:[],matPisc:null,matMir:null};
+function mkQuartiersFinitions(){
+  // 1) piscines des villas
+  QUART.matPisc=new THREE.MeshBasicMaterial({map:texGlow,color:0x35e0ff,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending});
+  const pieces=[];
+  for(const p of VILLA_PISC){
+    const {x,z,w,d}=p, m=0.6, pierre=0xe8e2d4;
+    pieces.push(['box',w+2*m,0.26,m,x,0.13,z-d/2-m/2,pierre],['box',w+2*m,0.26,m,x,0.13,z+d/2+m/2,pierre],['box',m,0.26,d,x-w/2-m/2,0.13,z,pierre],['box',m,0.26,d,x+w/2+m/2,0.13,z,pierre]);
+    pieces.push(['box',0.5,0.5,0.6,x-w/2-0.3,0.3,z,0xd8d8d0],['box',1.8,0.08,0.5,x-w/2+0.6,0.58,z,0x2a7ae0]);               // plongeoir
+    pieces.push(['box',0.05,0.8,0.05,x+w/2-0.2,0.5,z-d/4-0.25,0xc8ccd2],['box',0.05,0.8,0.05,x+w/2-0.2,0.5,z-d/4+0.25,0xc8ccd2]); // échelle
+    for(const s of [-1,1]) pieces.push(['box',0.8,0.15,1.9,x+s*1.4,0.3,z+d/2+m+1.4,0xf2f2ec],['box',0.8,0.5,0.12,x+s*1.4,0.55,z+d/2+m+0.5,0xf2f2ec]); // transats
+    pieces.push(['cyl',0.04,2.2,0.04,x+2.9,1.1,z+d/2+m+1.4,0xc8ccd2],['cone',1.5,0.5,1.5,x+2.9,2.3,z+d/2+m+1.4,0xff8c1a]);       // parasol
+    const sp=new THREE.Mesh(new THREE.PlaneGeometry(w*1.5,d*1.6),QUART.matPisc); sp.rotation.x=-Math.PI/2; sp.position.set(x,0.3,z); scene.add(sp);
+  }
+  if(pieces.length) scene.add(meshPieces(pieces));
+  // 2) cheminées des entrepôts, gyrophares
+  const ch=[];
+  ENTREPOTS.forEach((e,i)=>{
+    if(i%2) return;
+    const x=e.x+e.w/2-2, z=e.z-e.d/2+2, h=e.h+aD(5,8);
+    ch.push(['cyl',0.75,h,0.75,x,h/2,z,0x8a5a44],['cyl',0.85,0.4,0.85,x,h-0.6,z,0xd8d8d0],['cyl',0.85,0.4,0.85,x,h-2,z,0xd83a3a]);
+    QUART.cheminees.push({x,y:h+0.3,z,t:aD(0,1)});
+    const g=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:0xff9a1a,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending}));
+    g.scale.set(2.4,2.4,1); g.position.set(e.x-e.w/2+0.4,e.h*0.55,e.z+e.d/2+0.4); scene.add(g); QUART.gyros.push(g);
+  });
+  if(ch.length) scene.add(meshPieces(ch));
+  // 3) base militaire : barbelés sur les murs, miradors à projecteurs
+  const b=POIS.base;
+  if(b){
+    const geo=[], gT=new THREE.TorusGeometry(0.32,0.03,3,8);
+    const rouleau=(x0,z0,x1,z1)=>{ const L=Math.hypot(x1-x0,z1-z0), n=Math.floor(L/0.45);
+      for(let k=0;k<n;k++){ const u=k/n, t=gT.clone(); t.rotateY(Math.atan2(x1-x0,z1-z0)); t.translate(x0+(x1-x0)*u,2.75,z0+(z1-z0)*u); geo.push(t); } };
+    rouleau(b.x-b.hw,b.z-b.hd,b.x-b.hw,b.z+b.hd); rouleau(b.x+b.hw,b.z-b.hd,b.x+b.hw,b.z+b.hd); rouleau(b.x-b.hw,b.z-b.hd,b.x+b.hw,b.z-b.hd);
+    rouleau(b.x-b.hw,b.z+b.hd,b.x-6,b.z+b.hd); rouleau(b.x+6,b.z+b.hd,b.x+b.hw,b.z+b.hd);
+    scene.add(new THREE.Mesh(mergeGeoManuel(geo),mat(0x8a8f96)));
+    QUART.matMir=new THREE.MeshBasicMaterial({map:texGlow,color:0xf2f8ff,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide});
+    for(const [sx,sz] of [[-1,1],[1,1]]){
+      let x=b.x+sx*(b.hw-12); const z=b.z+sz*(b.hd-4), H=8;
+      for(let k=0;k<12&&solidAt(x,z,2.2);k++) x-=sx*3; // jamais sur un baraquement ou un conteneur
+      const p=[]; for(const [dx,dz] of [[-1,-1],[1,-1],[-1,1],[1,1]]) p.push(['box',0.2,H,0.2,x+dx*1.2,H/2,z+dz*1.2,0x4a5238]);
+      p.push(['box',3.2,0.3,3.2,x,H,z,0x4a5238],['box',3.2,1,0.12,x,H+0.6,z-1.55,0x5a6244],['box',3.2,1,0.12,x,H+0.6,z+1.55,0x5a6244],['box',0.12,1,3.2,x-1.55,H+0.6,z,0x5a6244],['box',0.12,1,3.2,x+1.55,H+0.6,z,0x5a6244],['box',3.6,0.2,3.6,x,H+2.2,z,0x3a4030]);
+      for(const k of [0.25,0.5,0.75]) p.push(['box',2.5,0.08,0.08,x,H*k,z-1.2,0x4a5238]);
+      scene.add(meshPieces(p)); addSolid({x,z,hw:1.4,hd:1.4,h:H+2.2});
+      const pivot=new THREE.Group(); pivot.position.set(x,H+1.3,z); scene.add(pivot);
+      const bras=new THREE.Group(); bras.rotation.x=2.2; pivot.add(bras); // projecteur penché vers le sol (au-delà de π/2 : le faisceau descend)
+      for(const r of [0,Math.PI/2]){ const f=new THREE.Mesh(new THREE.PlaneGeometry(2.4,15),QUART.matMir); f.position.y=7.5; f.rotation.y=r; bras.add(f); } // faisceau jusqu'au sol
+      const tache=new THREE.Mesh(new THREE.PlaneGeometry(10,10),QUART.matMir); tache.rotation.x=-Math.PI/2; tache.position.set(0,-(H+1.3)+0.3,12.2); pivot.add(tache); // le cercle de lumière qui balaie le terrain
+      pivot.add(mkBoxG(0.7,0.7,0.9,0xd8dce4,0,0.2,0));
+      QUART.miradors.push({pivot,ph:Math.PI+sx*0.5}); // balaie l'intérieur de la base (vers le nord)
+    }
+  }
+  QUART.ok=true;
+}
+function majQuartiersFinitions(dt){
+  if(!QUART.ok) return;
+  const f=ETAT.nuitF||0, t=ETAT.runT||0;
+  QUART.matPisc.opacity=0.55*f;
+  for(const c of QUART.cheminees){ if(dist2(c.x,c.z,P.x,P.z)>90*90) continue; c.t-=dt; if(c.t<=0){ c.t=0.35; fumee(c.x+rand(-0.3,0.3),c.y,c.z+rand(-0.3,0.3),0x9a9a94); } }
+  const on=Math.sin(t*5)>0; for(const g of QUART.gyros) g.material.opacity=on?0.9*(0.4+0.6*f):0.1;
+  if(QUART.matMir){ QUART.matMir.opacity=0.55*f; for(const m of QUART.miradors) m.pivot.rotation.y=m.ph+Math.sin(t*0.4+m.ph)*1.3; }
+}
 // Un véhicule lancé (joueur ou autre) renverse les petits objets sur son passage.
 function majMobilier(){
   if(!MOB.cassables.size) return;
@@ -4855,6 +4933,7 @@ function majMobilier(){
       a.needsUpdate=true;
       burst(o.x,0.6,o.z,8,o.type==='poubelle'||o.type==='jardiniere'?0x3d7a34:o.type==='borne'?0x9fd8ff:0xa08060,6);
       bruit(0.12,0.4,700); v.v*=0.94;
+      if(o.type==='cagettes'){ for(let k=0;k<12;k++) spawnP(o.x,0.7,o.z,rand(-4,4),rand(3,7),rand(-4,4),0.9,rand(0.25,0.38),pick([0xe83a2a,0xff9a1a,0x7dc93a,0xffd23f]),14,0); } // les fruits volent
       if(o.type==='borne'){ for(let k=0;k<14;k++) spawnP(o.x,0.6,o.z,rand(-1.5,1.5),rand(6,10),rand(-1.5,1.5),1.2,rand(0.3,0.5),0x9fd8f5,9,0); }
     }
   }
@@ -6917,8 +6996,10 @@ function remplirBloc(qq,bx,bz,cx,cz){
     // systématiquement, contrairement à avant (toujours mkMaison).
     pick([mkMaison,mkVillaModerne])(cx-6,cz-5,rand(9,13),rand(8,11),rand(4.5,6.5),pick(paletteFacades.villas));
     if(Math.random()<0.55){
-      const pisc=new THREE.Mesh(new THREE.BoxGeometry(rand(5,7),0.2,rand(3,5)),new THREE.MeshLambertMaterial({map:texEau}));
+      const pw=rand(5,7), pdp=rand(3,5); // même ordre de tirages qu'avant
+      const pisc=new THREE.Mesh(new THREE.BoxGeometry(pw,0.2,pdp),new THREE.MeshLambertMaterial({map:texEau}));
       pisc.position.set(cx+7,0.18,cz+7); scene.add(pisc);
+      if(DECOR_V2) VILLA_PISC.push({x:cx+7,z:cz+7,w:pw,d:pdp}); // margelle, plongeoir, transats (mkQuartiersFinitions)
     } else pick([mkMaison,mkVillaModerne])(cx+7,cz+7,rand(7,9),rand(6,8),rand(4,5),pick(paletteFacades.villas));
     mkPalmier(cx+rand(-M+2,M-2),cz-rand(2,M-2));
     if(Math.random()<0.5) mkArbre(cx-rand(2,M-2),cz+rand(2,M-2),1);
@@ -23433,7 +23514,7 @@ function boucle(t){
       majMeteo(dt);
       majMer(dt);
       majMerV2(dt);
-      if(DECOR_V2){ majHorsLesMurs(dt); majMobilier(); majLac(dt); majLumieres(dt); majJetee(dt); majPortVivant(dt); majBrooklyn(dt); majCiel(dt); majNeonVivant(dt); }
+      if(DECOR_V2){ majHorsLesMurs(dt); majMobilier(); majLac(dt); majLumieres(dt); majJetee(dt); majPortVivant(dt); majBrooklyn(dt); majCiel(dt); majNeonVivant(dt); majQuartiersFinitions(dt); }
       majEpaveCanon(dt);
     }
     majHUD();
