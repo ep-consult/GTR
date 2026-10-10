@@ -8049,6 +8049,33 @@ async function main() {
       }
     }
 
+    // -------------------------------------------------------------------
+    // Banderole de l'avion (DECOR_V2) : paiement avec sa garde d'entrée
+    // (texte vide, même texte, pas assez d'argent → rien débité), message
+    // nettoyé, sauvegardé et repris à la partie suivante ; trajet de l'avion
+    // jamais dans la grande roue de la jetée.
+    // -------------------------------------------------------------------
+    console.log('\n--- Banderole de l\'avion : paiement gardé, message sauvegardé, trajet hors de la grande roue ---');
+    {
+      const ba = await page.evaluate(() => {
+        if (typeof acheterBanderole === 'undefined' || !POIS.banderole) return { off: true };
+        startRun(); const m0 = META.banderole, o = {};
+        META.banderole = ''; META.argent = 100; o.pauvre = acheterBanderole('SALUT') || META.argent !== 100;
+        META.argent = 1000; o.vide = acheterBanderole('   ') || META.argent !== 1000;
+        o.ok = acheterBanderole('salut <b>los reyes</b> !!') && META.argent === 1000 - BANDEROLE_PRIX;
+        o.texte = META.banderole;
+        const a1 = META.argent; o.meme = acheterBanderole(o.texte) || META.argent !== a1;
+        let sauve = null; try { sauve = JSON.parse(localStorage.getItem('asphalte_save_v1')).banderole; } catch (e) {}
+        o.sauve = sauve === o.texte;
+        let xmin = 1e9; for (let s = 0; s < AVION.L; s += 2) xmin = Math.min(xmin, trajetAvion(s).x);
+        o.horsRoue = xmin - AVION.R > JETEE.x + 12;
+        META.banderole = m0; sauveMeta(); startRun(); return o;
+      });
+      if (ba.off) saute('Banderole : DECOR_V2 désactivé');
+      else if (ba.pauvre || ba.vide || ba.meme || !ba.ok || !ba.sauve || !ba.horsRoue || !/^SALUT/.test(ba.texte) || /[<>]/.test(ba.texte)) fail('Banderole : ' + JSON.stringify(ba));
+      else ok('Banderole : refus sans argent / texte vide / même texte (rien débité), « ' + ba.texte + ' » payé et sauvegardé, trajet de l\'avion hors de la grande roue');
+    }
+
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');
     {
       const srcIdx = fs.readFileSync(INDEX_HTML, 'utf8');

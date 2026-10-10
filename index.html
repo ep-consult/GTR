@@ -1825,6 +1825,7 @@ const META={
   // consommable. tenue = tenue actuellement portée, tenuesPoss = tenues
   // débloquées (id:true). La tenue de départ est toujours débloquée.
   tenue:'depart', tenuesPoss:{depart:true},
+  banderole:'', // message acheté au kiosque de la plage, tiré par l'avion (DECOR_V2)
   // Tableau de la ville (planque) : lieux spéciaux déjà visités au moins
   // une fois (id de salle -> true), lu pour savoir quoi afficher en
   // silhouette. Distinct d'INTDEFS[id].ico==='?' (Site 51), qui n'est
@@ -3603,7 +3604,7 @@ function construireVille(){
     if(qq!=='plage'&&qq!=='parc'&&bx%3===1&&bz%3===1) mkFeu(cx+INNER/2+1.4,cz-INNER/2-1.4);
   }
   placerPortes();
-  if(DECOR_V2){ sansAleaVille(()=>{ ameliorerPortes(); mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkCiel(); mkCrique(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkNeonVivant(); mkQuartiersFinitions(); }); } // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
+  if(DECOR_V2){ sansAleaVille(()=>{ ameliorerPortes(); mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkCiel(); mkKiosqueBanderole(); mkCrique(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkNeonVivant(); mkQuartiersFinitions(); }); } // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
   finaliserMerge();
   construireMinimapStatique();
 }
@@ -4662,6 +4663,138 @@ function texBanderole(txt,fond,coul){
   g.fillStyle=fond; g.fillRect(0,0,512,64); g.font='900 40px Arial'; g.textAlign='center'; g.textBaseline='middle'; g.fillStyle=coul; g.fillText(txt,256,34);
   return new THREE.CanvasTexture(c);
 }
+/* ---------- AVION À BANDEROLE + KIOSQUE « TON MESSAGE DANS LE CIEL » ----------
+   Petit avion de tourisme (aile haute, haubans, train fixe, hélice qui
+   tourne, livrée jaune et rouge) qui fait une boucle au-dessus de la plage à
+   19 u/s (avant : 12 u/s au plus) en tirant une banderole qui ondule. Le texte se lit toujours à
+   l'endroit vu de la caméra, dans les deux sens de vol.
+   Au kiosque de la plage (près de la jetée), on paie BANDEROLE_PRIX pour y
+   écrire son propre message : il est gardé dans la sauvegarde (META.banderole)
+   et repris à chaque partie. */
+const BANDEROLE_PRIX=250, BANDEROLE_MAX=30, BANDEROLE_DEFAUT='PLAGE DE LOS REYES ★ JETÉE OUVERTE';
+const AVION={v:19,s:0,L:0,x0:-160,x1:285,zA:MER-16,zB:MER+14,y:10}; // jamais à l'ouest de -160 : la grande roue de la jetée (x -205) monte à 23 u
+function nettoyerBanderole(txt){
+  return String(txt||'').toUpperCase().replace(/[^A-Z0-9ÀÂÄÇÉÈÊËÎÏÔÖÙÛÜŸ ★!?'.,\-&♥]/g,'').replace(/\s+/g,' ').trim().slice(0,BANDEROLE_MAX);
+}
+function texBanderoleCiel(txt){
+  const c=document.createElement('canvas'); c.width=1024; c.height=128; const g=c.getContext('2d');
+  g.fillStyle='#f6f2e6'; g.fillRect(0,0,1024,128);
+  g.fillStyle='#d83a3a'; g.fillRect(0,0,1024,10); g.fillRect(0,118,1024,10);                   // liserés
+  for(let x=0;x<1024;x+=64){ g.fillStyle='rgba(0,0,0,0.05)'; g.fillRect(x,10,2,108); }         // coutures
+  let t=86; g.font='900 '+t+'px Arial'; const lt=g.measureText(txt).width; if(lt>960){ t=Math.floor(t*960/lt); g.font='900 '+t+'px Arial'; }
+  g.textAlign='center'; g.textBaseline='middle'; g.lineJoin='round';
+  g.lineWidth=Math.max(4,t*0.12); g.strokeStyle='#1c1c24'; g.strokeText(txt,512,66);
+  g.fillStyle='#d83a3a'; g.fillText(txt,512,66);
+  const tx=new THREE.CanvasTexture(c); tx.anisotropy=4; return tx;
+}
+function poserTexteBanderole(txt){
+  if(!CIEL.matBan) return;
+  if(CIEL.matBan.map) CIEL.matBan.map.dispose();
+  CIEL.matBan.map=texBanderoleCiel(txt||BANDEROLE_DEFAUT); CIEL.matBan.needsUpdate=true;
+}
+function mkAvionBanderole(){
+  const a=new THREE.Group(); scene.add(a); CIEL.avion=a;
+  const jaune=0xffc928, rouge=0xd83a3a, vitre=0x1c2a44, gris=0x2a2d34, P=[];
+  // fuselage effilé : nez, cabine, queue (le long de +x = vers l'avant)
+  P.push(['box',1.3,0.95,0.95,0.9,0,0,jaune],['box',1.4,0.85,0.85,-0.4,0.02,0,jaune],['box',1.3,0.6,0.6,-1.7,0.12,0,jaune],['box',0.9,0.38,0.38,-2.7,0.22,0,jaune],
+    ['box',0.5,0.8,0.8,1.75,-0.02,0,gris],['cyl',0.18,0.3,0.18,2.08,-0.02,0,0xd8dce4],                               // capot moteur et cône d'hélice
+    ['box',4.2,0.12,0.97,-0.6,-0.12,0,rouge],                                                                         // bande rouge
+    ['box',0.9,0.42,0.98,0.55,0.48,0,vitre],['box',0.05,0.4,0.9,1.02,0.42,0,vitre]);                                 // verrière
+  P.push(['box',1.4,0.1,7.6,0.45,0.7,0,jaune],['box',1.42,0.11,0.9,0.45,0.71,3.4,rouge],['box',1.42,0.11,0.9,0.45,0.71,-3.4,rouge]); // aile haute, saumons rouges
+  for(const s of [-1,1]) P.push(['box',0.08,0.08,2.2,0.35,0.15,s*1.35,gris]);                                         // haubans
+  P.push(['box',0.6,0.08,2.4,-3.0,0.3,0,jaune],['box',0.7,0.9,0.08,-3.05,0.75,0,rouge],['box',0.4,0.5,0.09,-3.2,0.6,0,jaune]); // empennage
+  for(const s of [-1,1]) P.push(['box',0.08,0.6,0.08,0.9,-0.65,s*0.6,gris],['cyl',0.22,0.14,0.22,0.9,-0.95,s*0.66,0x1c1e22]); // train fixe
+  P.push(['box',0.6,0.06,0.06,-3.4,0.1,0,gris]);                                                                       // crochet de remorquage
+  a.add(meshPieces(P));
+  const helice=new THREE.Group(); helice.position.set(2.2,-0.02,0); a.add(helice); CIEL.helice=helice;
+  helice.add(mkBoxG(0.05,1.9,0.18,0x1c1e22,0,0,0));
+  const disque=new THREE.Mesh(new THREE.CircleGeometry(0.95,16),new THREE.MeshBasicMaterial({color:0x9aa0a8,transparent:true,opacity:0.18,depthWrite:false,side:THREE.DoubleSide}));
+  disque.rotation.y=Math.PI/2; helice.add(disque);
+  // câble + banderole qui ondule (bord avant tenu, bout libre)
+  a.scale.setScalar(0.72); // vue de dessus, la caméra est proche : à l'échelle 1 il masquait la plage
+  a.add(mkBoxG(2.4,0.03,0.03,gris,-4.6,0.1,0));
+  CIEL.matBan=matOndulant({map:texBanderoleCiel(BANDEROLE_DEFAUT),alphaMap:null},'banderoleCiel',0.35,'xinv');
+  CIEL.matBan.alphaTest=0;
+  const ban=new THREE.Mesh(new THREE.PlaneGeometry(12,1.8,12,1),CIEL.matBan);
+  ban.position.set(-11.8,0.1,0); ban.rotation.x=-Math.PI/2; a.add(ban); CIEL.ban=ban; // à plat : lisible de dessus
+  // trajet : boucle (deux lignes droites, deux demi-tours)
+  const R=(AVION.zB-AVION.zA)/2; AVION.R=R; AVION.ligne=AVION.x1-AVION.x0; AVION.L=2*AVION.ligne+2*Math.PI*R;
+  CIEL.av={t:0};
+}
+// position sur la boucle (s en u) → {x,z,cap}
+function trajetAvion(s){
+  const A=AVION, l=A.ligne, R=A.R, demi=Math.PI*R; s=((s%A.L)+A.L)%A.L;
+  if(s<l) return {x:A.x0+s,z:A.zA,cap:0};
+  s-=l; if(s<demi){ const t=s/R; return {x:A.x1+Math.sin(t)*R,z:A.zA+R-Math.cos(t)*R,cap:-t}; }
+  s-=demi; if(s<l) return {x:A.x1-s,z:A.zB,cap:-Math.PI};
+  s-=l; const t=s/R; return {x:A.x0-Math.sin(t)*R,z:A.zB-R+Math.cos(t)*R,cap:-Math.PI-t};
+}
+function majAvionBanderole(dt){
+  const a=CIEL.avion; if(!a||!AVION.L) return;
+  AVION.s+=AVION.v*dt;
+  const p=trajetAvion(AVION.s), t=(CIEL.av.t+=dt);
+  a.position.set(p.x,AVION.y+Math.sin(t*0.7)*0.4,p.z);
+  a.rotation.order='YXZ'; a.rotation.y=p.cap;
+  const vire=Math.abs(p.z-AVION.zA)>0.5&&Math.abs(p.z-AVION.zB)>0.5;  // en virage : inclinaison
+  a.rotation.x=vire?-0.45:Math.sin(t*0.9)*0.05;
+  CIEL.helice.rotation.x+=dt*45;
+  // vers l'ouest, l'avion est retourné : la banderole tourne dans son plan pour rester lisible
+  const versOuest=Math.cos(p.cap)<0; CIEL.ban.rotation.z=versOuest?Math.PI:0;
+}
+// ---- le kiosque ----
+function mkKiosqueBanderole(){
+  const x=JETEE.x+17, z=JETEE.z0-9;
+  ZONES_SANS_MOBILIER.push({x0:x-5,x1:x+5,z0:z-4,z1:z+5});
+  const P=[['box',4,2.6,3,0,1.3,0,0xf2ece0],['box',4.6,0.25,3.6,0,2.75,0,0x2a7ae0],['box',3.6,0.9,0.15,0,1.1,1.55,0x8a6038],
+    ['box',0.15,3.8,0.15,1.7,1.9,1.6,0x2a2d34],['box',0.15,3.8,0.15,-1.7,1.9,1.6,0x2a2d34]];
+  // petit avion jaune sur le toit
+  P.push(['box',1.6,0.5,0.5,0,3.3,0,0xffc928],['box',0.5,0.07,2.6,0.2,3.6,0,0xffc928],['box',0.3,0.5,0.07,-0.75,3.55,0,0xd83a3a],['box',0.04,0.7,0.1,0.85,3.3,0,0x1c1e22]);
+  const m=meshPieces(P); m.position.set(x,0.1,z); scene.add(m);
+  addSolid({x,z,hw:2,hd:1.5,h:2.9});
+  mkEnseigne('TON MESSAGE DANS LE CIEL','#ffc928',x,3.9,z+1.7,0,7);
+  POIS.banderole={x,z:z+3.2};
+}
+// ---- saisie du message (jeu en pause : ETAT.mode='banderole') ----
+function ouvrirBanderole(){
+  if(ETAT.mode!=='jeu') return;
+  ETAT.mode='banderole';
+  let d=el('dlgBanderole');
+  if(!d){
+    d=document.createElement('div'); d.id='dlgBanderole';
+    d.style.cssText='position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;background:rgba(6,8,14,0.72);font-family:inherit';
+    d.innerHTML='<div style="width:min(92vw,360px);background:#14161f;border:2px solid #ffc928;border-radius:14px;padding:16px;color:#fff;text-align:center">'+
+      '<div style="font-weight:900;font-size:18px;color:#ffc928;letter-spacing:.04em">✈️ TON MESSAGE DANS LE CIEL</div>'+
+      '<div style="font-size:13px;opacity:.8;margin:6px 0 10px">L’avion de la plage le tirera au-dessus de Los Reyes. '+BANDEROLE_MAX+' caractères au plus.</div>'+
+      '<input id="banTxt" maxlength="'+BANDEROLE_MAX+'" autocomplete="off" autocapitalize="characters" style="width:100%;box-sizing:border-box;font-size:18px;font-weight:800;padding:10px;border-radius:8px;border:2px solid #35e0ff;background:#0a0c12;color:#fff;text-transform:uppercase">'+
+      '<div id="banApercu" style="margin:10px 0;padding:6px;background:#f6f2e6;color:#d83a3a;font-weight:900;border-top:4px solid #d83a3a;border-bottom:4px solid #d83a3a;min-height:22px;word-break:break-word"></div>'+
+      '<div style="display:flex;gap:8px;justify-content:center">'+
+      '<button id="banOk" style="flex:1;padding:12px;border-radius:10px;border:0;background:#ffc928;color:#14161f;font-weight:900;font-size:15px"></button>'+
+      '<button id="banNon" style="flex:1;padding:12px;border-radius:10px;border:2px solid #555;background:transparent;color:#fff;font-weight:800;font-size:15px">ANNULER</button></div></div>';
+    document.body.appendChild(d);
+    const inp=el('banTxt');
+    for(const ev of ['keydown','keyup']) inp.addEventListener(ev,(e)=>{ e.stopPropagation(); if(ev==='keydown'&&e.key==='Enter') el('banOk').click(); }); // les touches tapées ne pilotent pas le jeu
+    inp.addEventListener('input',()=>{ el('banApercu').textContent=nettoyerBanderole(inp.value)||'—'; });
+    el('banOk').addEventListener('click',()=>{ if(acheterBanderole(inp.value)) fermerBanderole(); });
+    el('banNon').addEventListener('click',fermerBanderole);
+  }
+  el('banOk').textContent='PAYER '+BANDEROLE_PRIX+' $';
+  const inp=el('banTxt'); inp.value=META.banderole||''; el('banApercu').textContent=nettoyerBanderole(inp.value)||'—';
+  d.style.display='flex'; setTimeout(()=>{ try{ inp.focus(); }catch(e){} },50);
+}
+function fermerBanderole(){
+  const d=el('dlgBanderole'); if(d) d.style.display='none';
+  if(ETAT.mode==='banderole') ETAT.mode='jeu';
+}
+// Paiement : garde d'entrée propre (texte valide, argent suffisant, texte différent)
+function acheterBanderole(brut){
+  const txt=nettoyerBanderole(brut);
+  if(!txt){ SFX.refus(); toast('Écris d’abord ton message'); return false; }
+  if(txt===META.banderole){ SFX.refus(); toast('C’est déjà ce message qui vole'); return false; }
+  if(META.argent<BANDEROLE_PRIX){ SFX.refus(); toast('Il te faut '+BANDEROLE_PRIX+' $'); return false; }
+  META.argent-=BANDEROLE_PRIX; META.banderole=txt; sauveMeta();
+  poserTexteBanderole(txt); SFX.achat(); toast('✈️ Ton message vole au-dessus de la plage','or');
+  return true;
+}
 function mkCiel(){
   // dirigeable
   const d=new THREE.Group(); scene.add(d); CIEL.dirigeable=d;
@@ -4674,14 +4807,7 @@ function mkCiel(){
   for(const rx of [0,Math.PI/2]){ const e=new THREE.Mesh(new THREE.BoxGeometry(3.2,0.12,4.2),rouge); e.position.x=-11.6; e.rotation.x=rx; d.add(e); }
   CIEL.matsDir=[env.material,pub,nac,rouge];
   CIEL.dir={t:0};
-  // avion à banderole
-  const a=new THREE.Group(); scene.add(a); CIEL.avion=a;
-  a.add(mkBoxG(3,0.7,0.8,0xffd23f,0,0,0)); a.add(mkBoxG(0.5,0.12,5.4,0xffd23f,0.3,0.3,0)); a.add(mkBoxG(0.4,0.8,0.12,0xd83a3a,-1.4,0.4,0));
-  const helice=mkBoxG(0.06,1.2,0.12,0x1c1e22,1.55,0,0); a.add(helice); CIEL.helice=helice;
-  const mBan=new THREE.MeshBasicMaterial({map:texBanderole('PLAGE DE LOS REYES ★ JETÉE OUVERTE','#f2f2ec','#d83a3a')});
-  const ban=new THREE.Mesh(new THREE.PlaneGeometry(10,1.4),mBan); ban.position.set(-8.5,-0.4,0); ban.rotation.x=-Math.PI/2; a.add(ban); // à plat : lisible de dessus
-  a.add(mkBoxG(2.5,0.03,0.03,0x2a2d34,-2.8,-0.2,0));
-  CIEL.av={t:0};
+  mkAvionBanderole(); // avion de tourisme et sa banderole (voir AVION)
   // mouettes (même dessin que celles du galion)
   for(let k=0;k<7;k++){ const o=new THREE.Group(); o.scale.setScalar(0.6); o.add(mkBoxG(0.2,0.16,0.5,0xf0f0ec,0,0,0));
     const ag=mkBoxG(0.9,0.04,0.3,0xe0e0dc,-0.5,0,0), ad=mkBoxG(0.9,0.04,0.3,0xe0e0dc,0.5,0,0); o.add(ag); o.add(ad); scene.add(o);
@@ -4698,8 +4824,7 @@ function majCiel(dt){
   if(Math.abs((CIEL.opDir||1)-cible)>0.01){ CIEL.opDir=(CIEL.opDir||1)+(cible-(CIEL.opDir||1))*Math.min(1,dt*3);
     for(const m of CIEL.matsDir){ m.transparent=CIEL.opDir<0.99; m.opacity=CIEL.opDir; m.depthWrite=CIEL.opDir>=0.99; } }
   // avion : le long de la plage, au-dessus de l'eau
-  const ta=(CIEL.av.t+=dt), ua=Math.sin(ta*0.04), a=CIEL.avion; a.position.set(ua*300,11+Math.sin(ta*0.6)*0.4,MER-14); a.rotation.y=Math.cos(ta*0.04)>=0?0:Math.PI; a.rotation.x=Math.sin(ta*0.9)*0.06;
-  CIEL.helice.rotation.x+=dt*40;
+  majAvionBanderole(dt);
   for(const m of CIEL.mouettes){ m.a+=m.v*dt; m.ph+=dt*7;
     m.o.position.set(m.cx+Math.cos(m.a)*m.r,m.h+Math.sin(m.a*2)*0.8,m.cz+Math.sin(m.a)*m.r); m.o.rotation.y=-m.a+(m.v>0?0:Math.PI);
     const b=Math.sin(m.ph)*0.5; m.ag.rotation.z=b; m.ad.rotation.z=-b; }
@@ -5783,7 +5908,7 @@ function matOndulant(tex,cle,amp,libre){
   mt.onBeforeCompile=(sh)=>{
     sh.uniforms.uTemps=MER_U.uTemps;
     sh.vertexShader='uniform float uTemps;\n'+sh.vertexShader.replace('#include <begin_vertex>',`#include <begin_vertex>
-  float liberte=${libre==='x'?'uv.x':'(1.0-uv.y)'};
+  float liberte=${libre==='x'?'uv.x':(libre==='xinv'?'(1.0-uv.x)':'(1.0-uv.y)')};
   transformed.z+=(sin(uTemps*2.6+position.x*1.3+position.y*0.9)*${amp.toFixed(2)}+sin(uTemps*4.3+position.x*2.9)*${(amp*0.35).toFixed(2)})*liberte;`);
   };
   mt.customProgramCacheKey=()=>cle;
@@ -21819,8 +21944,8 @@ function startRun(){
   P.x=POIS.place.x; P.z=POIS.place.z+8; P.ang=0; P.y=0; P.vy=0; P.chute=false; P.para=false; P.chuteVx=0; P.chuteVz=0; paraMesh.visible=false;
   P.hp=P.maxHp; P.stam=P.stamMax; P.bouclier=0; P.veh=null;
   P.buffs={dmg:0,vit:0,butin:0,lourd:0,sprintLibre:0,vol:0,cadence:0}; P.iframes=0; P.dodgeT=0; P.rechT=0; P.specCd=0; P.ecraseT=0;
-  P.grenades=3; boutonsAPied();
-  if(DECOR_V2) reparerMobilier(); // le mobilier renversé revient à chaque partie // jamais el('grenN') seul : voir boutonsAPied (mort au volant)
+  P.grenades=3; boutonsAPied(); // jamais el('grenN') seul : voir boutonsAPied (mort au volant)
+  if(DECOR_V2){ reparerMobilier(); poserTexteBanderole(META.banderole); } // mobilier renversé réparé ; message acheté sur la banderole
   // Jetpack : perdu au game over, comme les armes (voir CLAUDE.md) — il
   // faut remonter le chercher. Le lieu, lui (META.jetpackTrouve), reste acquis.
   P.jetpack=false; P.jetpackVol=false; P.jetFuel=100; P.jetVx=0; P.jetVz=0; P.jetWarnT=0; P.jetAvertVu=false;
@@ -23174,6 +23299,9 @@ function majAction(){
     } else if(POIS.marchand&&dist2(P.x,P.z,POIS.marchand.x,POIS.marchand.z)<12){
       label='MARCHAND (-25 %)';
       fn=()=>{ETAT.promo=true;ETAT.mode='shopIn';ouvrirDepuis('shop','jeu');};
+    } else if(POIS.banderole&&dist2(P.x,P.z,POIS.banderole.x,POIS.banderole.z)<10){
+      label='✈️ TON MESSAGE DANS LE CIEL — '+BANDEROLE_PRIX+' $';
+      fn=ouvrirBanderole;
     } else if(pertArm){
       label='ARMURERIE';
       fn=()=>{ETAT.promo=false;ETAT.mode='shopIn';ouvrirDepuis('shop','jeu');};
