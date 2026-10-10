@@ -3459,6 +3459,7 @@ function construireVille(){
   const mouille=new THREE.Mesh(new THREE.PlaneGeometry(2*HALF+40,6),
     new THREE.MeshBasicMaterial({map:texMouille,transparent:true,depthWrite:false}));
   mouille.rotation.x=-Math.PI/2; mouille.position.set(0,0.13,MER-3); scene.add(mouille);
+  if(DECOR_V2){ mouille.visible=false; mkLittoral(); } // bande côtière continue + vagues sur le sable
   const ecume=new THREE.Mesh(new THREE.PlaneGeometry(2*HALF+40,1.6),
     new THREE.MeshBasicMaterial({color:0xeaf6ff,transparent:true,opacity:0.55,depthWrite:false}));
   ecume.rotation.x=-Math.PI/2; ecume.position.set(0,0.14,MER); scene.add(ecume);
@@ -3547,6 +3548,77 @@ function construireVille(){
   placerPortes();
   finaliserMerge();
   construireMinimapStatique();
+}
+/* ---------- LITTORAL (DECOR_V2) ----------
+   Bande côtière continue du mur ouest jusqu'au bout de l'aérodrome :
+   - sable de plage là où il n'y avait que le bitume nu du sol général
+     (entre le mur ouest et la première case de plage, et tout le long de la
+     côte de l'aérodrome) ;
+   - transitions douces plage ↔ désert (dégradés, jamais un bord droit) ;
+   - les vagues montent sur le sable : une pellicule d'eau qui avance et
+     recule, une ligne d'écume à son bord, le sable mouillé derrière.
+   Cosmétique : horloge de la mer (MER_U.uTemps, dt), assombri la nuit. */
+const LITTORAL_X0=-HALF-14, LITTORAL_X1=600;
+// Texture de sable à transparence = produit de deux dégradés (est-ouest ×
+// nord-sud), chacun donné par ses arrêts [position, opacité] : fondus doux
+// dans les deux directions, jamais un bord droit. Deux passes
+// « destination-in » (aucun accès pixel par pixel).
+function texSableFondu(arretsU,arretsV){
+  const s=128, cv=document.createElement('canvas'); cv.width=cv.height=s;
+  const g=cv.getContext('2d');
+  g.drawImage(texSable.image,0,0,s,s);
+  g.globalCompositeOperation='destination-in';
+  for(const [arrets,horiz] of [[arretsU,true],[arretsV,false]]){
+    if(!arrets) continue;
+    const gr=horiz?g.createLinearGradient(0,0,s,0):g.createLinearGradient(0,0,0,s);
+    for(const [pos,a] of arrets) gr.addColorStop(pos,'rgba(0,0,0,'+a+')');
+    g.fillStyle=gr; g.fillRect(0,0,s,s);
+  }
+  return new THREE.CanvasTexture(cv);
+}
+function plaqueSable(x0,x1,z0,z1,y,tex,rep){
+  const w=x1-x0, d=z1-z0;
+  const m=new THREE.Mesh(new THREE.PlaneGeometry(w,d),new THREE.MeshLambertMaterial({map:tex,transparent:!!rep&&rep.transparent,depthWrite:!(rep&&rep.transparent)}));
+  if(rep&&rep.u){ tex.wrapS=THREE.RepeatWrapping; tex.repeat.set(rep.u,1); }
+  m.rotation.x=-Math.PI/2; m.position.set((x0+x1)/2,y,(z0+z1)/2); scene.add(m);
+  return m;
+}
+function mkLittoral(){
+  // 1) sable entre le mur ouest et la première case de plage (bitume nu avant)
+  const tA=texSable.clone(); tA.needsUpdate=true; tA.wrapS=tA.wrapT=THREE.RepeatWrapping; tA.repeat.set(1,3);
+  plaqueSable(LITTORAL_X0,-HALF+0.5,MER-34,MER+0.6,0.045,tA);
+  // 2) côte de l'aérodrome : plage dont le bord nord se fond dans le désert
+  //    (texture répétée en largeur, fondu seulement en v)
+  const tB=texSableFondu(null,[[0,0],[0.45,1],[1,1]]); tB.wrapS=THREE.RepeatWrapping; tB.repeat.set(12,1);
+  plaqueSable(HALF+30,LITTORAL_X1,MER-16,MER+0.6,0.03,tB,{transparent:true});
+  // 3) jonction plage ↔ désert au bout de la ville : une seule plaque, fondue
+  //    à l'ouest (sur la plage), à l'est (vers la côte de l'aérodrome, qui
+  //    prend le relais) et au nord (dans le désert)
+  const tC=texSableFondu([[0,0],[0.2,1],[0.6,1],[1,0]],[[0,0],[0.42,1],[1,1]]);
+  plaqueSable(HALF-12,HALF+40,MER-40,MER+0.6,0.106,tC,{transparent:true});
+  // 4) les vagues sur le sable : pellicule d'eau animée, écume, sable mouillé
+  const m=new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,depthWrite:false});
+  m.onBeforeCompile=(sh)=>{
+    sh.uniforms.uTemps=MER_U.uTemps; sh.uniforms.uSoleil=MER_U.uSoleil; sh.uniforms.uMer={value:MER};
+    sh.vertexShader='varying vec3 vLitPos;\n'+sh.vertexShader.replace('#include <worldpos_vertex>',
+      '#include <worldpos_vertex>\n  vLitPos=(modelMatrix*vec4(transformed,1.0)).xyz;');
+    sh.fragmentShader='uniform float uTemps; uniform float uSoleil; uniform float uMer; varying vec3 vLitPos;\n'+
+      sh.fragmentShader.replace('vec4 diffuseColor = vec4( diffuse, opacity );',`
+  float d=uMer-vLitPos.z;                                   // distance à la ligne d'eau, vers la terre
+  float x=vLitPos.x;
+  float portee=0.6+2.2*(0.5+0.5*sin(uTemps*0.55+x*0.035))*(0.65+0.35*sin(uTemps*0.21+x*0.012));
+  float film=1.0-smoothstep(portee-0.35,portee,d);           // l'eau qui recouvre le sable
+  float ecume=smoothstep(portee-0.5,portee-0.12,d)*(1.0-smoothstep(portee-0.12,portee+0.08,d));
+  float mouille=(1.0-smoothstep(0.0,3.4,d))*0.42;            // le sable reste sombre derrière
+  vec3 cSable=vec3(0.42,0.33,0.22), cEau=vec3(0.55,0.80,0.84), cEcume=vec3(0.95,0.98,1.0);
+  vec3 c=mix(cSable,cEau,film*0.85); c=mix(c,cEcume,ecume);
+  float a=max(mouille,max(film*0.55,ecume*0.9))*step(-0.6,d);
+  vec4 diffuseColor=vec4(c*(0.35+0.65*uSoleil),a);`);
+  };
+  m.customProgramCacheKey=()=>'littoralVagues';
+  const lame=new THREE.Mesh(new THREE.PlaneGeometry(LITTORAL_X1-LITTORAL_X0,7,1,1),m);
+  lame.rotation.x=-Math.PI/2; lame.position.set((LITTORAL_X0+LITTORAL_X1)/2,0.13,MER-3); scene.add(lame);
+  return lame;
 }
 // limite ouest en mer : la ligne du mur (jetée comprise)
 const LIMITE_OUEST_MER=-HALF-11.5;
