@@ -7569,7 +7569,260 @@ function animeHumain(h,dt,vitesse,vise){
   if(vise){ h.brasD.rotation.x=lerp(h.brasD.rotation.x,-1.35,0.35); }
   else if(h._frappe===undefined||h._frappe<=0){ h.brasD.rotation.x=s*0.7; }
 }
+/* ---------- BATEAUX RESTYLÉS (DECOR_V2) ----------
+   Signalé : « des bateaux carrés, sans détail ». Et un vrai défaut : la
+   coque d'origine (geoCoque) a son étrave vers -z alors que les véhicules
+   avancent vers +z — tous les bateaux naviguaient en marche arrière.
+   coqueBateau : vraie coque en V par couples, étrave vers +z, tonture qui
+   remonte à l'avant, bouchain, quille qui remonte en étrave, tableau arrière
+   plat ; couleurs par bande (bordé, liseré de flottaison, carène), pont à part.
+   Rend {g, yPont(z), demi(z)} pour poser l'accastillage au bon endroit. */
+var _MAT_COQUE=null; // créé à la première coque : jamais au chargement du script (un tirage de plus décalerait la ville)
+function coqueBateau(L,W,H,coulHaut,coulBande,coulBas,coulPont,opt){
+  opt=opt||{};
+  const N=22, c3=new THREE.Color(), pos=[], col=[];
+  const demi=(t)=>W/2*(t<0.55?0.9+0.1*t/0.55:Math.pow(Math.max(0,Math.cos((t-0.55)/0.45*Math.PI/2)),0.75));
+  const yd=(t)=>H*(1+(opt.tonture||0.3)*Math.pow(Math.max(0,t-0.45)/0.55,2));
+  const yk=(t)=>t<0.7?-0.12:lerp(-0.12,yd(t)*0.75,Math.pow((t-0.7)/0.3,1.6));
+  const sec=(i)=>{ const t=i/N, z=-L/2+t*L, w=demi(t), d=yd(t), k=yk(t), ch=k+(d-k)*0.32;
+    return {z,d,w,R:[[w,d],[w*0.98,lerp(d,ch,0.62)],[w*0.92,ch],[0,k]]}; }; // bordé haut, liseré, bouchain, quille
+  const S=[]; for(let i=0;i<=N;i++) S.push(sec(i));
+  const tri=(a,b,c,coul)=>{ c3.setHex(coul); for(const p of [a,b,c]){ pos.push(p[0],p[1],p[2]); col.push(c3.r,c3.g,c3.b); } };
+  const bandes=[coulHaut,coulBande,coulBas];
+  for(let i=0;i<N;i++){ const A=S[i], B=S[i+1];
+    for(let j=0;j<3;j++) for(const s of [1,-1]){
+      const a=[s*A.R[j][0],A.R[j][1],A.z], b=[s*B.R[j][0],B.R[j][1],B.z], c=[s*B.R[j+1][0],B.R[j+1][1],B.z], d=[s*A.R[j+1][0],A.R[j+1][1],A.z];
+      tri(a,b,c,bandes[j]); tri(a,c,d,bandes[j]);
+    } }
+  // tableau arrière
+  const T=S[0]; for(let j=0;j<3;j++) for(const s of [1,-1]){ tri([0,T.d*0.5,T.z],[s*T.R[j][0],T.R[j][1],T.z],[s*T.R[j+1][0],T.R[j+1][1],T.z],j?coulBas:coulHaut); }
+  tri([0,T.d*0.5,T.z],[T.w,T.d,T.z],[-T.w,T.d,T.z],coulHaut);
+  // pont (un peu en retrait du livet : on voit le bordé autour)
+  for(let i=0;i<N;i++){ const A=S[i], B=S[i+1], ra=0.94, rb=0.94;
+    tri([-A.w*ra,A.d,A.z],[A.w*ra,A.d,A.z],[B.w*rb,B.d,B.z],coulPont); tri([-A.w*ra,A.d,A.z],[B.w*rb,B.d,B.z],[-B.w*rb,B.d,B.z],coulPont); }
+  const geo=new THREE.BufferGeometry(); geo.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); geo.setAttribute('color',new THREE.Float32BufferAttribute(col,3)); geo.computeVertexNormals();
+  const g=new THREE.Group(); g.add(new THREE.Mesh(geo,_MAT_COQUE||(_MAT_COQUE=new THREE.MeshLambertMaterial({vertexColors:true,side:THREE.DoubleSide}))));
+  const tDe=(z)=>clamp((z+L/2)/L,0,1);
+  return {g,yPont:(z)=>yd(tDe(z)),demi:(z)=>demi(tDe(z))};
+}
+// rambarde chromée le long du pont, de z0 à z1 (filières + chandeliers)
+function rambarde(g,c,z0,z1,h,retrait){
+  const n=Math.max(2,Math.round((z1-z0)/0.9)), M=mat(0xd8dce4);
+  for(const s of [-1,1]){
+    let prev=null;
+    for(let k=0;k<=n;k++){ const z=z0+(z1-z0)*k/n, x=s*(c.demi(z)-(retrait||0.08)), y=c.yPont(z);
+      const ch=new THREE.Mesh(new THREE.BoxGeometry(0.05,h,0.05),M); ch.position.set(x,y+h/2,z); g.add(ch);
+      if(prev){ const dx=x-prev[0], dy=(y+h)-prev[1], dz=z-prev[2], l=Math.hypot(dx,dy,dz);
+        const f=new THREE.Mesh(new THREE.BoxGeometry(0.04,0.04,l),M); f.position.set((x+prev[0])/2,(y+h+prev[1])/2,(z+prev[2])/2); f.lookAt(x,y+h,z); g.add(f); }
+      prev=[x,y+h,z]; } }
+}
+function moteurHorsBord(g,x,zArr,yPont,coul){
+  g.add(mkBoxG(0.42,0.6,0.55,coul,x,yPont+0.3,zArr-0.3));          // capot
+  g.add(mkBoxG(0.44,0.08,0.57,0xd8dce4,x,yPont+0.04,zArr-0.3));    // liseré
+  g.add(mkBoxG(0.14,0.75,0.2,0x2a2d34,x,yPont-0.38,zArr-0.42));    // embase
+  g.add(mkBoxG(0.06,0.32,0.3,0x8a8f96,x,yPont-0.72,zArr-0.42));    // hélice (vue de profil)
+}
+// Construit tous les bateaux sauf le surf (géré à part). def, key, coul, L, W : comme makeVoiture.
+function makeBateauV2(def,key,coul,L,W,g,ud){
+  const blanc=0xf2f4f8, noir=0x1c1e24, rougeAF=0x7a2420, vitre=0x1a2a3e;
+  if(def.pont){ // ---- YACHT ----
+    const c=coqueBateau(L,W,1.15,blanc,0x1b2430,0x23303e,0xd8c4a0,{tonture:0.22}); g.add(c.g);
+    // hublots en bande le long de la coque
+    for(const s of [-1,1]){ const b=mkBoxG(0.06,0.32,L*0.5,vitre,s*(c.demi(-L*0.05)+0.01),0.72,-L*0.05); g.add(b); }
+    g.add(mkBoxG(W*0.72,1.5,L*0.34,blanc,0,1.95,-L*0.10));      // superstructure
+    g.add(mkBoxG(W*0.74,0.55,L*0.30,vitre,0,2.15,-L*0.08));     // bandeau vitré
+    g.add(mkBoxG(W*0.56,1.2,L*0.22,blanc,0,3.3,-L*0.14));        // fly-bridge
+    g.add(mkBoxG(W*0.58,0.4,L*0.18,vitre,0,3.55,-L*0.12));
+    g.add(mkBoxG(W*0.62,0.08,L*0.26,0xd8dce4,0,3.95,-L*0.15));   // toit du fly
+    g.add(mkBoxG(1.6,0.5,0.9,0x2a3038,0,3.95,-L*0.04));          // poste de pilotage
+    g.add(mkBoxG(W*0.8,0.14,1.2,0xd8c4a0,0,0.55,-L/2-0.5));      // plateforme de bain
+    // hélipad sur le pont avant
+    const hpTx=cTex(128,(g2,s2)=>{ g2.clearRect(0,0,s2,s2); g2.strokeStyle='#ffd23f'; g2.lineWidth=7; g2.beginPath(); g2.arc(s2/2,s2/2,48,0,7); g2.stroke();
+      g2.fillStyle='#ffd23f'; g2.font='900 66px Arial'; g2.textAlign='center'; g2.textBaseline='middle'; g2.fillText('H',s2/2,s2/2+2); });
+    const hp2=new THREE.Mesh(new THREE.PlaneGeometry(W*0.62,W*0.62),new THREE.MeshBasicMaterial({map:hpTx,transparent:true,depthWrite:false}));
+    hp2.rotation.x=-Math.PI/2; hp2.position.set(0,c.yPont(L*0.26)+0.03,L*0.26); g.add(hp2);
+    rambarde(g,c,-L*0.46,L*0.42,0.7,0.12);
+    for(const x of [-1.3,1.3]){ const t=mkBoxG(1,0.16,2.2,x<0?0xe05252:0x35c8e0,x,c.yPont(-L*0.38)+0.18,-L*0.38); t.rotation.x=0.16; g.add(t); } // transats, pont arrière
+    g.add(mkBoxG(0.1,2.6,0.1,0xd8dce4,0,5.2,-L*0.16)); g.add(mkBoxG(1.2,0.06,0.06,0xd8dce4,0,6.2,-L*0.16));
+    const radar=mkBoxG(1.4,0.1,0.25,0x2a2d34,0,6.5,-L*0.16); g.add(radar);
+    g.add(spriteBlob(L*0.9)); g.userData=ud; return g;
+  }
+  if(key==='jetski'){
+    const c=coqueBateau(2.6,1.1,0.42,coul,blanc,noir,coul,{tonture:0.5}); g.add(c.g);
+    g.add(mkBoxG(0.46,0.28,1.0,noir,0,c.yPont(-0.35)+0.12,-0.35));            // selle
+    g.add(mkBoxG(0.5,0.22,0.55,coul,0,c.yPont(0.45)+0.1,0.45));               // capot avant
+    g.add(mkBoxG(0.62,0.06,0.06,0x23262e,0,c.yPont(0.6)+0.42,0.6));           // guidon
+    g.add(mkBoxG(0.05,0.3,0.05,0x23262e,0,c.yPont(0.6)+0.27,0.62));
+    g.add(mkBoxG(0.3,0.1,0.12,vitre,0,c.yPont(0.7)+0.28,0.75));               // petit pare-brise
+    for(const s of [-1,1]) g.add(mkBoxG(0.2,0.06,1.0,0x2a2d34,s*0.36,c.yPont(-0.3)+0.02,-0.3)); // repose-pieds
+    ud.siege={y:0.3,z:-0.35}; g.add(spriteBlob(2.6)); g.userData=ud; return g;
+  }
+  if(key==='peche'){ // ---- BATEAU DE PÊCHE : timonerie à l'avant, pont de travail, portique
+    const c=coqueBateau(L,W,1.0,coul,blanc,rougeAF,0x8a6a44,{tonture:0.45}); g.add(c.g);
+    const zT=L*0.12, yT=c.yPont(zT);
+    g.add(mkBoxG(W*0.62,1.5,L*0.24,blanc,0,yT+0.75,zT));                        // timonerie
+    g.add(mkBoxG(W*0.64,0.42,L*0.25,vitre,0,yT+1.2,zT+0.02));                   // vitres
+    g.add(mkBoxG(W*0.7,0.12,L*0.28,0x2a3a48,0,yT+1.55,zT));                     // toit
+    g.add(mkBoxG(0.1,2.2,0.1,0xd8dce4,0,yT+2.6,zT-0.2)); g.add(mkBoxG(0.9,0.08,0.2,0x2a2d34,0,yT+3.6,zT-0.2)); // mât et radar
+    // portique arrière (A) et tangon
+    const zA=-L*0.42, yA=c.yPont(zA);
+    for(const s of [-1,1]){ const p=mkBoxG(0.12,2.2,0.12,0xe0a020,s*W*0.32,yA+1.1,zA); p.rotation.z=-s*0.15; g.add(p); }
+    g.add(mkBoxG(W*0.5,0.12,0.12,0xe0a020,0,yA+2.15,zA));
+    g.add(mkBoxG(0.12,0.12,1.4,0x2a2d34,0,yA+1.9,zA-0.6));
+    // filets en tas, caisses, bouées
+    const fil=new THREE.Mesh(new THREE.IcosahedronGeometry(0.55,0),mat(0x2f5a3a)); fil.scale.set(1.3,0.5,1); fil.position.set(-0.4,yA+0.3,-L*0.2); g.add(fil);
+    for(const [x,z] of [[0.6,-L*0.16],[0.6,-L*0.28],[0.1,-L*0.3]]) g.add(mkBoxG(0.5,0.32,0.4,0x3a7ac9,x,yA+0.16,z));
+    for(const s of [-1,1]) for(const z of [-L*0.05,-L*0.25]){ const b=new THREE.Mesh(new THREE.SphereGeometry(0.16,8,6),mat(0xff7a1a)); b.position.set(s*(c.demi(z)+0.1),c.yPont(z)-0.3,z); g.add(b); }
+    rambarde(g,c,L*0.26,L*0.47,0.6);
+    ud.siege={y:c.yPont(-L*0.03),z:-L*0.03}; // debout derrière la timonerie
+    g.add(spriteBlob(L*0.9)); g.userData=ud; return g;
+  }
+  if(key==='espadon'){ // ---- OFFSHORE : long, bas, pointu, deux hors-bord
+    const c=coqueBateau(L,W,0.62,coul,0xff3b5c,noir,coul,{tonture:0.2}); g.add(c.g);
+    for(const s of [-1,1]) g.add(mkBoxG(0.04,0.1,L*0.7,0xf2f4f8,s*(c.demi(0)+0.005),0.5,L*0.02)); // filets de course
+    for(const s of [-1,1]) g.add(mkBoxG(W*0.1,0.05,L*0.5,0xff3b5c,s*W*0.14,c.yPont(L*0.2)+0.04,L*0.2)); // deux bandes de course sur le pont
+    const zC=-L*0.18, yC=c.yPont(zC);
+    g.add(mkBoxG(W*0.7,0.12,L*0.3,0x0a0c12,0,yC+0.02,zC));                   // cockpit
+    const pb=mkBoxG(W*0.74,0.36,0.08,vitre,0,yC+0.24,zC+L*0.15); pb.rotation.x=-0.6; g.add(pb); // pare-brise enveloppant
+    for(const s of [-1,1]) g.add(mkBoxG(0.42,0.5,0.45,0xd8dce4,s*0.5,yC+0.22,zC-0.2)); // baquets
+    for(const s of [-1,1]) moteurHorsBord(g,s*0.45,-L/2,c.yPont(-L/2),noir);
+    ud.siege={y:yC,z:zC}; // dans le cockpit, derrière le pare-brise
+    g.add(spriteBlob(L*0.9)); g.userData=ud; return g;
+  }
+  // ---- VEDETTE (Sirène) et VEDETTE DE POLICE : console centrale
+  const police=!!def.police, haut=police?0x232833:coul, bande=police?0xf2f4f8:(coul===blanc?0x2a5a8a:blanc);
+  const c=coqueBateau(L,W,0.78,haut,bande,rougeAF,0xe8ecf2,{tonture:0.35}); g.add(c.g);
+  const zK=L*0.06, yK=c.yPont(zK);
+  g.add(mkBoxG(W*0.66,0.1,L*0.5,0xc8ccd2,0,c.yPont(-L*0.1)+0.03,-L*0.1));   // fond de cockpit antidérapant
+  g.add(mkBoxG(W*0.4,0.85,0.75,blanc,0,yK+0.42,zK));                         // console
+  const pb=mkBoxG(W*0.42,0.42,0.06,vitre,0,yK+1.02,zK+0.3); pb.rotation.x=-0.5; g.add(pb);
+  const vol=new THREE.Mesh(new THREE.TorusGeometry(0.17,0.03,4,10),mat(noir)); vol.position.set(0,yK+0.95,zK-0.34); vol.rotation.x=-0.6; g.add(vol);
+  g.add(mkBoxG(W*0.72,0.42,0.5,0x2a5a8a,0,c.yPont(-L*0.4)+0.21,-L*0.4));    // banquette arrière
+  g.add(mkBoxG(W*0.6,0.12,L*0.16,0x2a5a8a,0,c.yPont(L*0.32)+0.06,L*0.32));  // bain de soleil avant
+  rambarde(g,c,L*0.1,L*0.46,0.5);
+  moteurHorsBord(g,0,-L/2,c.yPont(-L/2),police?noir:blanc);
+  if(police){
+    // T-top : arceau, toit, rampe de gyrophares, projecteur ; « POLICE » sur les flancs
+    for(const s of [-1,1]) g.add(mkBoxG(0.07,1.5,0.07,0xd8dce4,s*W*0.24,yK+0.75,zK-0.55));
+    g.add(mkBoxG(W*0.62,0.1,1.3,noir,0,yK+1.55,zK-0.3));
+    const br=new THREE.Mesh(new THREE.BoxGeometry(0.34,0.14,0.24),new THREE.MeshBasicMaterial({color:0xff3b4b})); br.position.set(-0.26,yK+1.68,zK-0.3);
+    const bb=new THREE.Mesh(new THREE.BoxGeometry(0.34,0.14,0.24),new THREE.MeshBasicMaterial({color:0x3a7bff})); bb.position.set(0.26,yK+1.68,zK-0.3);
+    g.add(br); g.add(bb); ud.bar=[br,bb];
+    g.add(mkBoxG(0.22,0.2,0.3,0xd8dce4,0,yK+1.72,zK+0.25));
+    const mP=new THREE.MeshBasicMaterial({map:texEnseigne('POLICE','#ffffff',5),side:THREE.DoubleSide});
+    for(const s of [-1,1]){ const t=new THREE.Mesh(new THREE.PlaneGeometry(2.6,0.52),mP); t.position.set(s*(c.demi(L*0.12)+0.02),0.62,L*0.12); t.rotation.y=s*Math.PI/2; g.add(t); }
+  } else {
+    g.add(mkBoxG(0.08,1.4,0.08,0xd8dce4,0,yK+1.45,zK-0.2));                 // antenne
+  }
+  ud.siege={y:c.yPont(-L*0.04),z:-L*0.04}; // debout derrière la console
+  g.add(spriteBlob(L*0.9)); g.userData=ud; return g;
+}
+// Barre (boîte) d'un point à un autre, dans un groupe
+function barreG(grp,p,q,ep,coul){ const a=new THREE.Vector3(...p), b=new THREE.Vector3(...q), l=a.distanceTo(b);
+  const m=mkBoxG(ep,ep,l,coul,(a.x+b.x)/2,(a.y+b.y)/2,(a.z+b.z)/2); m.lookAt(b.x,b.y,b.z); grp.add(m); return m; }
+function texNumeroCourse(n){ return cTex(64,(g,s)=>{ g.fillStyle='#f2f4f8'; g.beginPath(); g.arc(s/2,s/2,s/2-2,0,7); g.fill();
+  g.strokeStyle='#14161c'; g.lineWidth=4; g.stroke(); g.fillStyle='#14161c'; g.font='900 38px Arial'; g.textAlign='center'; g.textBaseline='middle'; g.fillText(String(n),s/2,s/2+2); }); }
+// ---- BUGGY (des dunes, Scarabée) : baquet en fibre, ailes, cage, moteur à nu ----
+// (signalé : « buggy tout jaune ») — mêmes cotes que l'ancien (ancrages de pièces
+// du garage mesurés dessus : cage à la même hauteur, bas de caisse au même niveau)
+function buggyV2(corps,g,coul,L,W,bodyY,key){
+  const sombre=0x23262e, chrome=0xd8dce4, blanc=0xf2f4f8;
+  const cage=coul===0xd8b02a||coul===0xffd23f?0x14161c:blanc;   // cage contrastée avec la caisse
+  corps.add(mkBoxG(W*0.6,0.12,L*0.86,sombre,0,bodyY-0.22,0));                // châssis tubulaire bas
+  for(const s of [-1,1]) corps.add(mkBoxG(W*0.17,0.34,L*0.5,coul,s*W*0.33,bodyY-0.03,-L*0.04)); // flancs du baquet
+  corps.add(mkBoxG(W*0.5,0.08,L*0.5,0x2a2d34,0,bodyY-0.16,-L*0.04));         // plancher
+  const capot=mkBoxG(W*0.62,0.2,L*0.28,coul,0,bodyY+0.06,L*0.3); capot.rotation.x=0.22; corps.add(capot); // capot plongeant
+  for(const s of [-0.12,0.12]){ const b=mkBoxG(0.1,0.01,L*0.26,blanc,s,bodyY+0.17,L*0.3); b.rotation.x=0.22; corps.add(b); } // bandes
+  const num=new THREE.Mesh(new THREE.PlaneGeometry(0.5,0.5),new THREE.MeshLambertMaterial({map:texNumeroCourse(key==='scarabee'?7:23),transparent:true}));
+  num.rotation.x=-Math.PI/2+0.22; num.position.set(0,bodyY+0.18,L*0.25); corps.add(num);
+  for(const s of [-1,1]){ // ailes avant et arrière au-dessus des roues
+    for(const z of [L*0.32,-L*0.32]){ corps.add(mkBoxG(0.5,0.07,0.95,coul,s*(W/2+0.12),bodyY+0.22,z));
+      const av=mkBoxG(0.5,0.07,0.32,coul,s*(W/2+0.12),bodyY+0.12,z+0.58); av.rotation.x=0.6; corps.add(av);
+      const ar=mkBoxG(0.5,0.07,0.32,coul,s*(W/2+0.12),bodyY+0.12,z-0.58); ar.rotation.x=-0.6; corps.add(ar); }
+    corps.add(mkBoxG(0.08,0.08,L*0.32,sombre,s*(W/2+0.02),bodyY-0.2,0));       // marchepieds tubulaires
+  }
+  corps.add(mkBoxG(W*0.7,0.08,0.08,sombre,0,bodyY-0.08,L*0.48));             // pare-chocs tube
+  for(const s of [-1,1]){ corps.add(mkBoxG(0.42,0.12,0.45,0x14161c,s*0.33,bodyY+0.0,-L*0.04));  // baquets
+    const d=mkBoxG(0.42,0.6,0.1,0x14161c,s*0.33,bodyY+0.32,-L*0.12); d.rotation.x=-0.18; corps.add(d); }
+  const vol=new THREE.Mesh(new THREE.TorusGeometry(0.16,0.03,4,10),mat(0x14161c)); vol.position.set(-0.33,bodyY+0.45,L*0.12); vol.rotation.x=-0.9; corps.add(vol);
+  // cage : montants, arceaux, diagonales, barre de phares
+  const cH=0.95, zAv=L*0.3, zAr=-L*0.32, y0=bodyY-0.1;
+  for(const s of [-1,1]){ const x=s*W*0.4;
+    barreG(corps,[x,y0,zAv+0.2],[x*0.92,y0+cH,zAv],0.08,cage); barreG(corps,[x,y0,zAr],[x*0.92,y0+cH*0.95,zAr+0.15],0.08,cage);
+    barreG(corps,[x*0.92,y0+cH,zAv],[x*0.92,y0+cH*0.95,zAr+0.15],0.08,cage); }
+  barreG(corps,[-W*0.37,y0+cH,zAv],[W*0.37,y0+cH,zAv],0.08,cage); barreG(corps,[-W*0.37,y0+cH*0.95,zAr+0.15],[W*0.37,y0+cH*0.95,zAr+0.15],0.08,cage);
+  barreG(corps,[-W*0.37,y0+cH*0.95,zAr+0.15],[W*0.37,y0+0.1,zAr],0.06,cage);   // diagonale arrière
+  corps.add(mkBoxG(W*0.7,0.1,0.12,0x14161c,0,y0+cH+0.1,zAv));
+  for(let k=0;k<4;k++) corps.add(mkBoxG(0.14,0.12,0.06,0xfff2c0,(k-1.5)*0.24,y0+cH+0.1,zAv+0.07)); // rampe de phares
+  // moteur arrière à nu : bloc, filtre chromé, échappements relevés, roue de secours
+  corps.add(mkBoxG(W*0.42,0.42,0.5,0x3a3e46,0,bodyY+0.12,-L*0.43));
+  const filtre=new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.16,0.14,10),mat(chrome)); filtre.position.set(0.1,bodyY+0.42,-L*0.42); corps.add(filtre);
+  for(const s of [-1,1]) barreG(corps,[s*0.28,bodyY+0.0,-L*0.45],[s*0.36,bodyY+0.45,-L*0.52],0.07,chrome);
+  const sec=new THREE.Mesh(new THREE.CylinderGeometry(0.4,0.4,0.24,12),mat(0x15171c)); sec.rotation.x=Math.PI/2; sec.position.set(0,y0+cH*0.62,zAr-0.12); corps.add(sec);
+  const jante=new THREE.Mesh(new THREE.CylinderGeometry(0.22,0.22,0.26,8),mat(chrome)); jante.rotation.x=Math.PI/2; jante.position.copy(sec.position); corps.add(jante);
+  const stanceBu=W/2+0.16;
+  for(const p of [[stanceBu,L*0.32],[-stanceBu,L*0.32],[stanceBu,-L*0.32],[-stanceBu,-L*0.32]]){
+    const choc=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.09,0.55,8),mat(0xff6a1a)); choc.position.set(p[0]*0.82,bodyY-0.34,p[1]); g.add(choc); }
+}
+// ---- BULLDOZER : chenilles qui enveloppent les galets, capot moteur,
+// cabine vitrée, lame incurvée sur bras de poussée et vérins, ripper ----
+// (signalé : « le bulldozer en vrai bulldozer »). Les 4 roues du châssis
+// deviennent barbotin et galets DANS les chenilles ; la lame garde son pivot
+// (ud.pelle, baissée/relevée en jeu).
+function bulldozerV2(corps,g,ud,coul,L,W,bodyY,wheelR,stanceX){
+  const noir=0x15171c, acier=0x3a3e46, vitre=0x1a2a3e, jaune=coul;
+  // chenilles : brin haut, brin bas, enroulement avant/arrière, patins
+  for(const s of [-1,1]){ const x=s*stanceX, zf=L*0.32, R=wheelR+0.1;
+    corps.add(mkBoxG(0.6,0.1,2*zf,noir,x,2*wheelR+0.05,0)); corps.add(mkBoxG(0.6,0.1,2*zf,noir,x,0.05,0));
+    for(const z of [zf,-zf]){ const e=new THREE.Mesh(new THREE.CylinderGeometry(R,R,0.6,12,1,true,z>0?0:Math.PI,Math.PI),new THREE.MeshLambertMaterial({color:noir,side:THREE.DoubleSide}));
+      e.rotation.z=Math.PI/2; e.position.set(x,wheelR,z); corps.add(e); }
+    for(let k=-6;k<=6;k++) corps.add(mkBoxG(0.62,0.06,0.12,0x2a2d34,x,2*wheelR+0.12,k*zf/6.5)); // patins (brin haut)
+    for(let k=-2;k<=2;k++){ const r=new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.16,0.4,8),mat(acier)); r.rotation.z=Math.PI/2; r.position.set(x,0.22,k*zf/3); corps.add(r); } // galets porteurs
+    corps.add(mkBoxG(0.3,0.25,2*zf*0.8,jaune,x-s*0.32,wheelR+0.1,0));         // longeron de châssis de chenille
+  }
+  // caisse : châssis, capot moteur à l'avant, grille, échappement, préfiltre
+  corps.add(mkBoxG(W*0.62,0.6,L*0.62,jaune,0,bodyY+0.2,-L*0.02));
+  corps.add(mkBoxG(W*0.5,0.6,L*0.32,jaune,0,bodyY+0.78,L*0.14));
+  corps.add(mkBoxG(W*0.46,0.5,0.06,noir,0,bodyY+0.72,L*0.3+0.02));          // grille de radiateur
+  for(let k=0;k<5;k++) corps.add(mkBoxG(W*0.44,0.04,0.07,acier,0,bodyY+0.52+k*0.1,L*0.3+0.03));
+  for(const s of [-1,1]) corps.add(mkBoxG(0.04,0.3,L*0.24,noir,s*W*0.251,bodyY+0.82,L*0.14)); // ouïes latérales
+  const ech=new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.09,1.0,8),mat(noir)); ech.position.set(W*0.15,bodyY+1.55,L*0.18); corps.add(ech);
+  const pre=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.12,0.5,8),mat(acier)); pre.position.set(-W*0.15,bodyY+1.3,L*0.2); corps.add(pre);
+  // cabine fermée : montants jaunes, vitres sur 4 faces, toit débordant, gyrophare
+  const cZ=-L*0.16, cY=bodyY+0.5, cH=1.25, cW=W*0.58, cD=1.2;
+  corps.add(mkBoxG(cW*0.96,cH*0.8,cD*0.96,vitre,0,cY+cH*0.5,cZ));
+  for(const [sx,sz] of [[-1,-1],[1,-1],[-1,1],[1,1]]) corps.add(mkBoxG(0.1,cH,0.1,jaune,sx*cW/2,cY+cH/2,cZ+sz*cD/2));
+  corps.add(mkBoxG(cW+0.2,0.12,cD+0.25,jaune,0,cY+cH+0.06,cZ));
+  corps.add(mkBoxG(cW*0.98,0.14,cD*0.98,jaune,0,cY+0.07,cZ));
+  const gyro=new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.1,0.16,8),new THREE.MeshBasicMaterial({color:0xff9a1a})); gyro.position.set(cW*0.3,cY+cH+0.2,cZ-0.3); corps.add(gyro);
+  for(const s of [-1,1]) corps.add(mkBoxG(0.16,0.12,0.1,0xfff2c0,s*cW*0.35,cY+cH-0.05,cZ+cD/2+0.13)); // phares de cabine
+  // ripper arrière
+  corps.add(mkBoxG(W*0.5,0.14,0.18,acier,0,bodyY+0.1,-L*0.36));
+  const dent=mkBoxG(0.14,0.9,0.18,acier,0,bodyY-0.25,-L*0.42); dent.rotation.x=-0.35; corps.add(dent);
+  // lame incurvée (pivot ud.pelle conservé) : 4 lattes en arc, couteau, flasques, bras et vérins
+  const bras=new THREE.Group(); bras.position.set(0,bodyY+0.05,L*0.3);
+  const lw=W*1.12;
+  [[0.0,0.14,-0.35],[0.3,0.06,-0.12],[0.6,0.02,0.1],[0.88,0.06,0.35]].forEach(([y,dz,rx])=>{ const l=mkBoxG(lw,0.32,0.08,jaune,0,y,0.98+dz); l.rotation.x=rx; bras.add(l); });
+  bras.add(mkBoxG(lw,0.12,0.14,noir,0,-0.12,1.12));                          // couteau
+  for(const s of [-1,1]) bras.add(mkBoxG(0.08,1.05,0.4,jaune,s*lw/2,0.38,1.02)); // flasques
+  for(const s of [-1,1]){ bras.add(mkBoxG(0.16,0.2,1.3,acier,s*stanceX,-0.22,0.25)); // bras de poussée, depuis les chenilles
+    barreG(bras,[s*W*0.22,0.95,-0.15],[s*W*0.3,0.55,0.92],0.12,acier); }       // vérins de levage
+  corps.add(bras); ud.pelle=bras;
+}
+// Modèles restylés (DECOR_V2) : bateaux, buggys, bulldozer. Ils créent un
+// autre nombre d'objets que les anciens, or Three.js tire Math.random pour
+// l'identifiant de chacun : des bateaux sont construits pendant la
+// génération de la ville, qui se serait décalée (portes déplacées). On
+// construit donc l'ancien modèle (mêmes tirages, puis abandonné) et le
+// nouveau sur le générateur du décor.
+var _VEH_V2=false;
+function vehiculeRestyle(def){ return DECOR_V2&&((def.type==='bateau'&&!def.surf)||def.buggy||def.pelle); }
 function makeVoiture(key){
+  if(!vehiculeRestyle(VEHDEFS[key])) return makeVoitureBase(key);
+  makeVoitureBase(key);
+  _VEH_V2=true; try{ return sansAleaVille(()=>makeVoitureBase(key)); } finally{ _VEH_V2=false; }
+}
+function makeVoitureBase(key){
   // ud.coul : teinte de carrosserie tirée ici — retrouvée par peindreMesh()
   // (garages tuning) pour ne repeindre QUE les pièces de carrosserie.
   const def=VEHDEFS[key], coul=pick(def.cols), g=new THREE.Group(), ud={roues:[],phG:[],def,key,coul};
@@ -7806,6 +8059,7 @@ function makeVoiture(key){
       g.add(spriteBlob(2.6));
       g.userData=ud; return g;
     }
+    if(_VEH_V2) return makeBateauV2(def,key,coul,L,W,g,ud); // coques en V, étrave vers l'avant, accastillage
     if(def.pont){
       // ---- YACHT DE LUXE ----
       g.add(mkCoque(L,W,0.95,coul,0.05));                       // coque
@@ -7963,6 +8217,7 @@ function makeVoiture(key){
       corps.add(mkBoxG(W*0.94,0.2,0.16,0x9aa0a8,0,bodyY-0.22,L/2*0.98));             // pare-chocs avant, chromé et marqué
       corps.add(mkBoxG(W*0.94,0.2,0.16,0x9aa0a8,0,bodyY-0.22,-L/2*0.98));            // pare-chocs arrière, chromé
       corps.add(mkBoxG(W*0.68,0.08,0.1,0xe8ecf2,0,bodyY+0.72,L*0.5-cabL*0.55));      // barre de toit à leds
+    } else if(def.buggy&&_VEH_V2){ buggyV2(corps,g,coul,L,W,bodyY,key);
     } else if(def.buggy){
       // buggy des dunes à ciel ouvert : châssis nu, cage tubulaire visible,
       // suspensions apparentes, moteur arrière exposé — jamais une berline
@@ -7998,6 +8253,7 @@ function makeVoiture(key){
       [[-1,1],[1,1],[-1,-1],[1,-1]].forEach(p=>{ // garde-boue nus au-dessus de chaque roue
         corps.add(mkBoxG(0.34,0.06,0.4,coul,p[0]*W*0.42,bodyY+0.24,p[1]*L*0.32));
       });
+    } else if(def.pelle&&_VEH_V2){ bulldozerV2(corps,g,ud,coul,L,W,bodyY,wheelR,W/2+0.1);
     } else if(def.pelle){
       // Bulldozer retravaillé (signalé « on ne voit pas bien la pelle, la
       // cabine doit être plus haute, comme un tracteur ») : cabine ROPS
@@ -10257,7 +10513,7 @@ function entrerVehicule(v){
       P.h.brasG.rotation.z=0.9; P.h.brasD.rotation.z=-0.9;
       P.h.brasG.rotation.x=0; P.h.brasD.rotation.x=0;
     } else if(v.key==='jetski'){   // assis, penché sur le guidon
-      P.h.g.position.set(0,0.5,-0.35); P.h.g.rotation.set(0,0,0);
+      const sg=v.mesh.userData.siege; P.h.g.position.set(0,sg?sg.y:0.5,sg?sg.z:-0.35); P.h.g.rotation.set(0,0,0);
       P.h.jambeG.rotation.x=-1.2; P.h.jambeD.rotation.x=-1.2;
       P.h.brasG.rotation.x=-1.3; P.h.brasD.rotation.x=-1.3;
       P.h.brasG.rotation.z=0; P.h.brasD.rotation.z=0;
@@ -10267,7 +10523,7 @@ function entrerVehicule(v){
       P.h.brasG.rotation.x=-1.2; P.h.brasD.rotation.x=-1.2;
       P.h.brasG.rotation.z=0; P.h.brasD.rotation.z=0;
     } else if(v.def.eau){           // vedette : debout derrière le pare-brise
-      P.h.g.position.set(0,0.75,-v.def.long*0.02); P.h.g.rotation.set(0,0,0);
+      const sg=v.mesh.userData.siege; P.h.g.position.set(0,sg?sg.y:0.75,sg?sg.z:-v.def.long*0.02); P.h.g.rotation.set(0,0,0);
       P.h.jambeG.rotation.x=0; P.h.jambeD.rotation.x=0;
       P.h.brasG.rotation.x=-1.1; P.h.brasD.rotation.x=-1.1;
       P.h.brasG.rotation.z=0; P.h.brasD.rotation.z=0;

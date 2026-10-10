@@ -8076,6 +8076,33 @@ async function main() {
       else ok('Banderole : refus sans argent / texte vide / même texte (rien débité), « ' + ba.texte + ' » payé et sauvegardé, trajet de l\'avion hors de la grande roue');
     }
 
+    // -------------------------------------------------------------------
+    // Bateaux (DECOR_V2) : ils avancent l'étrave devant (bug trouvé : la
+    // coque d'origine pointait vers -z, tous naviguaient à reculons). Pour
+    // chaque bateau de VEHDEFS : la coque est plus étroite à l'avant (+z, sens
+    // de la marche) qu'à l'arrière.
+    // -------------------------------------------------------------------
+    console.log('\n--- Bateaux : l\'étrave est devant (sens de la marche) ---');
+    {
+      const bt = await page.evaluate(() => {
+        if (!DECOR_V2) return { off: true };
+        const ko = [], vus = [];
+        for (const k of Object.keys(VEHDEFS)) {
+          const d = VEHDEFS[k]; if (d.type !== 'bateau' || d.surf) continue;
+          const m = makeVoiture(k); m.updateMatrixWorld(true);
+          const L = d.long, pts = [];
+          m.traverse((o) => { if (o.isMesh && o.geometry && o.geometry.attributes.position && o.material && o.material.vertexColors) { const a = o.geometry.attributes.position.array; for (let i = 0; i < a.length; i += 3) pts.push([a[i], a[i + 2]]); } });
+          const larg = (z0) => { let w = 0; for (const [x, z] of pts) if (Math.abs(z - z0) < L * 0.06) w = Math.max(w, Math.abs(x)); return w; };
+          const av = larg(L * 0.44), ar = larg(-L * 0.44); vus.push(k);
+          if (!pts.length || !(av < ar * 0.7)) ko.push(k + ' (avant ' + av.toFixed(2) + ', arrière ' + ar.toFixed(2) + ')');
+        }
+        return { ko, vus };
+      });
+      if (bt.off) saute('Bateaux : DECOR_V2 désactivé');
+      else if (bt.ko.length || bt.vus.length < 5) fail('Bateaux : étrave à l\'arrière — ' + bt.ko.join(', '));
+      else ok('Bateaux : ' + bt.vus.length + ' bateaux, étrave devant dans le sens de la marche (' + bt.vus.join(', ') + ')');
+    }
+
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');
     {
       const srcIdx = fs.readFileSync(INDEX_HTML, 'utf8');
