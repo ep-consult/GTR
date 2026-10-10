@@ -3394,6 +3394,7 @@ function mkEnseigne(txt,coul,x,y,z,ry,larg){
   const p=new THREE.Mesh(new THREE.PlaneGeometry(larg||6,(larg||6)/2.4),
     new THREE.MeshBasicMaterial({map:texEnseigne(txt,coul),transparent:false}));
   p.position.set(x,y,z); p.rotation.y=ry; scene.add(p);
+  return p;
 }
 // flaques de lumière au sol sous les lampadaires (DECOR_V2), fusionnées plus tard
 const FLAQUES_LUM=[];
@@ -3564,7 +3565,7 @@ function construireVille(){
     if(qq!=='plage'&&qq!=='parc'&&bx%3===1&&bz%3===1) mkFeu(cx+INNER/2+1.4,cz-INNER/2-1.4);
   }
   placerPortes();
-  if(DECOR_V2){ mkMobilierUrbain(); mkTransitionsSols(); } // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
+  if(DECOR_V2){ sansAleaVille(()=>mkJeteeForaine(-205)); mkMobilierUrbain(); mkTransitionsSols(); } // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
   finaliserMerge();
   construireMinimapStatique();
 }
@@ -3831,6 +3832,7 @@ function mkMobilierUrbain(){
     // garages : on en sort en voiture, la voie de sortie reste dégagée (14 u)
     for(const p of PORTES) if(dist2(x,z,p.x,p.z)<(p.garageId!==undefined?196:30)) return false;
     for(const p of pois) if(dist2(x,z,p.x,p.z)<36) return false;
+    for(const r of ZONES_SANS_MOBILIER) if(x>r.x0&&x<r.x1&&z>r.z0&&z<r.z1) return false; // sous la jetée, etc.
     return true;
   };
   const poser=(type,x,z,ry,Y0)=>{
@@ -4169,6 +4171,137 @@ function mkTransitionsSols(){
   }
   TRANS.chunks=null; TRANS.bandes=null; TRANS.props=null;
   majEclairageSols(); // données de construction : plus utiles
+}
+/* ---------- JETÉE DE FÊTE FORAINE (DECOR_V2) ----------
+   Sur la partie ouest de la plage, vide (aucun ponton ni lieu) : une jetée
+   en bois façon Santa Monica qui part du sable vers le large. Praticable à
+   pied ET en véhicule (rampe RAMPES, pont PLATS, PONTONS : ce n'est plus de
+   l'eau dessous). Grande roue de 21 u qui tourne (nacelles toujours droites,
+   ampoules en chenillard la nuit), manège de chevaux de bois, stands à
+   auvents rayés, guirlandes et lampadaires, arche d'entrée illuminée.
+   Le mobilier de plage ne pousse jamais dessous (ZONES_SANS_MOBILIER). */
+const JETEE={ok:false,roue:null,nacelles:[],manege:null,chevaux:[],ampoules:[],x:0,z0:0,z1:0};
+const ZONES_SANS_MOBILIER=[]; // {x0,x1,z0,z1} : rectangles où mkMobilierUrbain ne pose rien
+function texRayures(c1,c2,n){ return cTex(128,(g,s)=>{ for(let i=0;i<n;i++){ g.fillStyle=i%2?c2:c1; g.fillRect(i*s/n,0,s/n+1,s); } }); }
+// fusion par matériau des pièces fixes d'un groupe (comme le galion)
+function fusionnerFixes(fixes,parent){
+  const parMat=new Map();
+  for(const o of fixes){ o.updateMatrix(); const gg=o.geometry.clone().applyMatrix4(o.matrix); o.geometry.dispose();
+    if(!parMat.has(o.material)) parMat.set(o.material,[]); parMat.get(o.material).push(gg); }
+  for(const [m,gs] of parMat){ const me=new THREE.Mesh(mergeGeoManuel(gs),m); parent.add(me); }
+}
+function mkJeteeForaine(PX){
+  const H=1.3, z0=MER-14, z1=MER+64, HW=7, zc=(z0+z1)/2;
+  Object.assign(JETEE,{x:PX,z0,z1});
+  ZONES_SANS_MOBILIER.push({x0:PX-HW-3,x1:PX+HW+3,z0:z0-12,z1:z1});
+  PLATS.push({x:PX,z:zc,hw:HW,hd:(z1-z0)/2,h:H});
+  PONTONS.push({x:PX,z:(MER+z1)/2,hw:HW,hd:(z1-MER)/2});
+  mkRampe(PX,z0-8,0,8,H,HW*2-1,new THREE.MeshLambertMaterial({map:texPlanche}));
+  POIS.jetee={x:PX,z:zc};
+  const fixes=[], g=new THREE.Group(); scene.add(g);
+  const boite=(w,h,d,coul,x,y,z,rx,ry,rz)=>{ const b=mkBoxG(w,h,d,coul,x,y,z); if(rx) b.rotation.x=rx; if(ry) b.rotation.y=ry; if(rz) b.rotation.z=rz; fixes.push(b); return b; };
+  const mPlanches=new THREE.MeshLambertMaterial({map:texPlanche,color:0xb08a62});
+  const pont=new THREE.Mesh(new THREE.BoxGeometry(HW*2,0.3,z1-z0),mPlanches); pont.position.set(PX,H-0.15,zc); fixes.push(pont);
+  // pilotis
+  for(let z=MER-2;z<z1;z+=6) for(const dx of [-HW+0.6,0,HW-0.6]){ const p=new THREE.Mesh(new THREE.CylinderGeometry(0.32,0.38,4,7),mat(0x4a3826)); p.position.set(PX+dx,H-2.2,z); fixes.push(p); }
+  // rambardes blanches + guirlandes d'ampoules (couche lumineuse, plus vive la nuit)
+  const mAmp=[new THREE.MeshBasicMaterial({color:0xffe6a0}),new THREE.MeshBasicMaterial({color:0xff5a5a}),new THREE.MeshBasicMaterial({color:0x5ab4ff})];
+  JETEE.ampoules=mAmp;
+  const amp=[[],[],[]], gAmp=new THREE.OctahedronGeometry(0.13,0);
+  const ampoule=(x,y,z,k)=>{ const gg=gAmp.clone(); gg.translate(x,y,z); amp[k%3].push(gg); };
+  for(const s of [-1,1]){
+    const x=PX+s*(HW-0.15);
+    for(let z=z0+0.5;z<z1;z+=2){ boite(0.14,1.0,0.14,0xe8e2d4,x,H+0.5,z); }
+    boite(0.12,0.12,z1-z0,0xe8e2d4,x,H+1.0,zc); boite(0.08,0.08,z1-z0,0xe8e2d4,x,H+0.55,zc);
+    for(let z=z0+6;z<z1-4;z+=12){ // lampadaire à globe + guirlande jusqu'au suivant
+      boite(0.14,3.6,0.14,0x2a2d34,x,H+1.8,z); const glob=new THREE.Mesh(new THREE.IcosahedronGeometry(0.32,1),mAmp[0]); glob.position.set(x,H+3.75,z); fixes.push(glob);
+      const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:0xffd890,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending}));
+      sp.scale.set(5,5,1); sp.position.set(x,H+3.75,z); scene.add(sp); lampes.push(sp);
+      for(let k=1;k<12;k++){ const u=k/12, zz=z+u*12; if(zz>=z1-4) break; ampoule(x,H+3.5-Math.sin(Math.PI*u)*0.9,zz,k); }
+    }
+  }
+  // arche d'entrée
+  const zA=z0+1.2;
+  for(const s of [-1,1]){ boite(0.7,6,0.7,0xe8e2d4,PX+s*(HW-0.5),H+3,zA); boite(1.0,0.3,1.0,0xc9a43a,PX+s*(HW-0.5),H+6.1,zA); }
+  boite(HW*2,1.4,0.5,0x1c4a8a,PX,H+5.6,zA); boite(HW*2+0.3,0.15,0.6,0xc9a43a,PX,H+6.35,zA); boite(HW*2+0.3,0.15,0.6,0xc9a43a,PX,H+4.85,zA);
+  for(let k=0;k<=16;k++) ampoule(PX-HW+k*HW*2/16,H+6.55,zA+0.3,k);
+  mkEnseigne('JETÉE DE LOS REYES','#ffd23f',PX,H+5.9,zA+0.6,0,HW*1.85).rotation.x=-0.55; // penchée vers la caméra (vue de dessus)
+  // stands à auvents rayés, de part et d'autre
+  const stands=[['CHURROS','#ff8c1a',0xd83a3a],['GLACES','#35e0ff',0x2a7ae0],['BARBE À PAPA','#ff5ad0',0xff5ad0],['TIR','#ffd23f',0x2f8a4a]];
+  stands.forEach(([nom,cs,c],i)=>{
+    const s=i%2?1:-1, x=PX+s*(HW-2.2), z=z0+10+Math.floor(i/2)*9;
+    boite(2.8,2.2,2.6,0xf2ece0,x,H+1.1,z); boite(2.9,0.25,0.5,0x8a6038,x,H+1.15,z+1.35); // comptoir
+    const auvent=new THREE.Mesh(new THREE.BoxGeometry(3.2,0.12,2.0),new THREE.MeshLambertMaterial({map:texRayures('#f2ece0',hexCss(c),8)}));
+    auvent.position.set(x-s*1.0,H+2.5,z); auvent.rotation.z=s*0.35; fixes.push(auvent);
+    mkEnseigne(nom,cs,x,H+3.1,z+1.32,0,2.6);
+    addSolid({x,z,hw:1.5,hd:1.4,h:H+2.4});
+  });
+  // grande roue au bout de la jetée, face à la ville
+  const zR=z1-14, yR=H+12.2, R=10.5;
+  for(const dz of [-1.6,1.6]) for(const s of [-1,1]) { const pied=new THREE.Mesh(new THREE.CylinderGeometry(0.28,0.4,yR-H+0.6,8),mat(0xe8e2d4));
+    pied.position.set(PX+s*3.4,(yR+H)/2,zR+dz); pied.rotation.z=s*0.27; fixes.push(pied); }
+  boite(0.5,0.5,3.6,0xc9a43a,PX,yR,zR);
+  addSolid({x:PX,z:zR,hw:4.2,hd:2.2,h:yR});
+  const roue=new THREE.Group(); roue.position.set(PX,yR,zR); scene.add(roue); JETEE.roue=roue;
+  const fixR=[];
+  for(const dz of [-0.6,0.6]){ const t=new THREE.Mesh(new THREE.TorusGeometry(R,0.16,6,48),mat(0xe8e2d4)); t.position.z=dz; fixR.push(t);
+    const t2=new THREE.Mesh(new THREE.TorusGeometry(R*0.55,0.1,5,32),mat(0xe8e2d4)); t2.position.z=dz; fixR.push(t2); }
+  for(let k=0;k<16;k++){ const a=k/16*Math.PI*2; for(const dz of [-0.6,0.6]){ const r=mkBoxG(0.1,R,0.1,0xd8d2c4,Math.cos(a)*R/2,Math.sin(a)*R/2,dz); r.rotation.z=a-Math.PI/2; fixR.push(r); } }
+  const moyeu=new THREE.Mesh(new THREE.CylinderGeometry(0.7,0.7,1.6,10),mat(0xc9a43a)); moyeu.rotation.x=Math.PI/2; fixR.push(moyeu);
+  fusionnerFixes(fixR,roue);
+  const ampR=[[],[],[]];
+  for(let k=0;k<48;k++){ const a=k/48*Math.PI*2; for(const dz of [-0.75,0.75]){ const gg=gAmp.clone(); gg.translate(Math.cos(a)*R,Math.sin(a)*R,dz); ampR[k%3].push(gg); } }
+  ampR.forEach((l,k)=>{ const m=new THREE.Mesh(mergeGeoManuel(l),mAmp[k]); roue.add(m); });
+  // matériaux PROPRES à la roue (jamais ceux du cache mat() : la fondre
+  // rendrait translucides les rambardes de toute la ville)
+  JETEE.matsRoue=[]; const mNac=MOB_MAT.clone();
+  roue.traverse((o)=>{ if(o.isMesh&&o.material!==MOB_MAT&&!mAmp.includes(o.material)){ o.material=o.material.clone(); JETEE.matsRoue.push(o.material); } }); // les ampoules gardent le chenillard
+  const couleursN=[0xd83a3a,0xffd23f,0x2a7ae0,0x2f8a4a,0xff8c1a,0x8a4de0];
+  for(let k=0;k<12;k++){ const a=k/12*Math.PI*2, ped={pos:[],nor:[],col:[]}, c=couleursN[k%6];
+    mobPieces([['box',0.08,1.2,0.08,0,-0.6,0,0x2a2d34],['box',1.6,1.2,1.4,0,-1.6,0,c],['box',1.3,0.6,1.1,0,-1.55,0,0x1c2030],['box',1.8,0.2,1.6,0,-0.95,0,0xf2ece0],['box',1.7,0.15,1.5,0,-2.25,0,0xf2ece0]],0,0,0,ped,0);
+    const gg=new THREE.BufferGeometry(); gg.setAttribute('position',new THREE.Float32BufferAttribute(ped.pos,3)); gg.setAttribute('normal',new THREE.Float32BufferAttribute(ped.nor,3)); gg.setAttribute('color',new THREE.Float32BufferAttribute(ped.col,3));
+    const n=new THREE.Mesh(gg,mNac); roue.add(n); JETEE.nacelles.push({m:n,a}); }
+  JETEE.matsRoue.push(mNac); JETEE.zRoue=zR; JETEE.fondu=1;
+  // manège de chevaux de bois
+  const zM=z0+30, Rm=4.4;
+  boite(Rm*2+0.4,0.4,Rm*2+0.4,0x8a2a1c,PX,H+0.2,zM);
+  addSolid({x:PX,z:zM,hw:Rm,hd:Rm,h:H+4});
+  const man=new THREE.Group(); man.position.set(PX,H+0.4,zM); scene.add(man); JETEE.manege=man;
+  const fixM=[];
+  const plat=new THREE.Mesh(new THREE.CylinderGeometry(Rm,Rm,0.3,20),mat(0xe8e2d4)); plat.position.y=0.15; fixM.push(plat);
+  const mat_=new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.5,4,10),mat(0xc9a43a)); mat_.position.y=2.2; fixM.push(mat_);
+  const toit=new THREE.Mesh(new THREE.ConeGeometry(Rm+0.8,2.2,16,1,false),new THREE.MeshLambertMaterial({map:texRayures('#d83a3a','#f2ece0',16)})); toit.position.y=5.3; fixM.push(toit);
+  const lambr=new THREE.Mesh(new THREE.CylinderGeometry(Rm+0.8,Rm+0.8,0.6,16,1,true),new THREE.MeshLambertMaterial({map:texRayures('#ffd23f','#2a7ae0',16),side:THREE.DoubleSide})); lambr.position.y=3.95; fixM.push(lambr);
+  const fanion=mkBoxG(0.06,1.2,0.06,0x2a2d34,0,7,0); fixM.push(fanion);
+  fusionnerFixes(fixM,man);
+  const ampM=[[],[],[]]; for(let k=0;k<24;k++){ const a=k/24*Math.PI*2, gg=gAmp.clone(); gg.translate(Math.cos(a)*(Rm+0.85),3.6,Math.sin(a)*(Rm+0.85)); ampM[k%3].push(gg); }
+  ampM.forEach((l,k)=>man.add(new THREE.Mesh(mergeGeoManuel(l),mAmp[k])));
+  for(let k=0;k<8;k++){ const a=k/8*Math.PI*2, cv={pos:[],nor:[],col:[]}, robe=[0xf2ece0,0x8a5a34,0x2a2d34,0xd8b080][k%4];
+    mobPieces([['box',0.06,3.6,0.06,0,1.8,0,0xc9a43a],['box',0.4,0.5,1.3,0,1.3,0,robe],['box',0.32,0.6,0.4,0,1.75,0.65,robe],['box',0.28,0.25,0.55,0,2.0,0.85,robe],
+      ['box',0.12,0.7,0.12,0.12,0.75,0.45,robe],['box',0.12,0.7,0.12,-0.12,0.75,-0.45,robe],['box',0.42,0.12,0.5,0,1.6,0,0xd83a3a]],0,0,0,cv,0);
+    const gg=new THREE.BufferGeometry(); gg.setAttribute('position',new THREE.Float32BufferAttribute(cv.pos,3)); gg.setAttribute('normal',new THREE.Float32BufferAttribute(cv.nor,3)); gg.setAttribute('color',new THREE.Float32BufferAttribute(cv.col,3));
+    const ch=new THREE.Mesh(gg,MOB_MAT); ch.position.set(Math.cos(a)*(Rm-1.2),0,Math.sin(a)*(Rm-1.2)); ch.rotation.y=-a; man.add(ch); JETEE.chevaux.push({m:ch,ph:k*0.8}); }
+  // bout de la jetée : bancs et longues-vues face au large
+  for(const dx of [-4,0,4]){ boite(2,0.12,0.6,0x8a5a34,PX+dx,H+0.5,z1-2.5); boite(2,0.45,0.1,0x8a5a34,PX+dx,H+0.8,z1-2.2); }
+  for(const dx of [-5.5,5.5]){ boite(0.16,1.2,0.16,0x2a2d34,PX+dx,H+0.6,z1-1); const lv=new THREE.Mesh(new THREE.CylinderGeometry(0.14,0.2,0.7,8),mat(0xc9a43a)); lv.position.set(PX+dx,H+1.3,z1-0.9); lv.rotation.x=1.2; fixes.push(lv); }
+  amp.forEach((l,k)=>{ if(l.length) fixes.push(new THREE.Mesh(mergeGeoManuel(l),mAmp[k])); });
+  fusionnerFixes(fixes,g);
+  JETEE.ok=true;
+}
+function majJetee(dt){
+  if(!JETEE.ok) return;
+  const r=JETEE.roue; r.rotation.z+=dt*0.1;
+  // vue de dessus, la roue cache le joueur qui marche à son pied côté plage : elle s'efface
+  const derriere=!P.veh&&Math.abs(P.x-JETEE.x)<15&&P.z>JETEE.zRoue-28&&P.z<JETEE.zRoue+2;
+  const cible=derriere?0.22:1; if(Math.abs(JETEE.fondu-cible)>0.01){
+    JETEE.fondu+=(cible-JETEE.fondu)*Math.min(1,dt*5);
+    for(const m of JETEE.matsRoue){ m.transparent=JETEE.fondu<0.99; m.opacity=JETEE.fondu; m.depthWrite=JETEE.fondu>=0.99; } }
+  for(const n of JETEE.nacelles){ n.m.position.set(Math.cos(n.a)*10.5,Math.sin(n.a)*10.5,0); n.m.rotation.z=-r.rotation.z; }
+  JETEE.manege.rotation.y+=dt*0.55;
+  for(const c of JETEE.chevaux){ c.ph+=dt*2.2; c.m.position.y=Math.sin(c.ph)*0.25; }
+  // ampoules : plus vives la nuit, chenillard (une couleur sur trois s'éteint à tour de rôle)
+  const f=ETAT.nuitF||0, pas=Math.floor(ETAT.runT*3)%3, base=[0xffe6a0,0xff5a5a,0x5ab4ff];
+  JETEE.ampoules.forEach((m,k)=>{ m.color.setHex(base[k]); m.color.multiplyScalar(f>0.3&&k===pas?0.25:(0.65+0.35*f)); });
 }
 // Un véhicule lancé (joueur ou autre) renverse les petits objets sur son passage.
 function majMobilier(){
@@ -22759,7 +22892,7 @@ function boucle(t){
       majMeteo(dt);
       majMer(dt);
       majMerV2(dt);
-      if(DECOR_V2){ majHorsLesMurs(dt); majMobilier(); majLac(dt); majLumieres(dt); }
+      if(DECOR_V2){ majHorsLesMurs(dt); majMobilier(); majLac(dt); majLumieres(dt); majJetee(dt); }
       majEpaveCanon(dt);
     }
     majHUD();

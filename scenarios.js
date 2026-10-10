@@ -7823,6 +7823,47 @@ async function main() {
       }
     }
 
+    // -------------------------------------------------------------------
+    // Jetée de fête foraine (DECOR_V2) : praticable à pied (pas d'eau sous
+    // le pont) et en voiture (rampe), aucun mobilier de plage dessous, la
+    // grande roue tourne et s'efface quand elle cache le joueur.
+    // -------------------------------------------------------------------
+    console.log('\n--- Jetée de fête foraine : praticable à pied et en voiture, roue qui tourne et s\'efface ---');
+    {
+      const je = await page.evaluate(() => {
+        if (typeof JETEE === 'undefined' || !JETEE.ok) return { off: true };
+        startRun(); ETAT.timeScale = 1; P.hp = P.hpMax = 1e6;
+        for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0;
+        const o = {}, zMer = JETEE.z1 - 6;
+        o.eauSous = estEau(JETEE.x, zMer); o.hPont = solY(JETEE.x, zMer); o.eauACote = estEau(JETEE.x + 20, zMer);
+        // mobilier : aucun objet cassable sous l'emprise
+        o.mobDessous = 0; for (const l of MOB.cassables.values()) for (const c of l) for (const r of ZONES_SANS_MOBILIER) if (c.x > r.x0 && c.x < r.x1 && c.z > r.z0 && c.z < r.z1) o.mobDessous++;
+        // une voiture monte la rampe et roule sur le pont
+        const v = creerVehicule('citadine', JETEE.x, JETEE.z0 - 14, 0, null);
+        for (let i = 0; i < 150; i++) majVehiculePhys(v, 1 / 60, 1, 0, false);
+        o.voitureZ = +(v.z - JETEE.z0).toFixed(1); o.voitureH = +(v.h || 0).toFixed(2); o.voitureEau = estEau(v.x, v.z); v.mort = true;
+        // roue : tourne, et s'efface quand le joueur est à son pied côté plage
+        const r0 = JETEE.roue.rotation.z;
+        P.x = JETEE.x; P.z = JETEE.zRoue - 10; for (let i = 0; i < 90; i++) majJetee(1 / 60);
+        o.tourne = JETEE.roue.rotation.z > r0; o.fonduDerriere = +JETEE.fondu.toFixed(2);
+        P.x = JETEE.x; P.z = JETEE.z0 + 5; for (let i = 0; i < 90; i++) majJetee(1 / 60);
+        o.fonduLoin = +JETEE.fondu.toFixed(2);
+        startRun();
+        return o;
+      });
+      if (je.off) saute('Jetée de fête foraine : DECOR_V2 désactivé');
+      else {
+        const ko = [];
+        if (je.eauSous || !(je.hPont > 1) || !je.eauACote) ko.push('pont (eau dessous ' + je.eauSous + ', h ' + je.hPont + ', eau à côté ' + je.eauACote + ')');
+        if (je.mobDessous) ko.push(je.mobDessous + ' objets de plage sous la jetée');
+        if (!(je.voitureZ > 5) || !(je.voitureH > 1) || je.voitureEau) ko.push('la voiture ne monte pas sur la jetée (' + JSON.stringify(je) + ')');
+        if (!je.tourne) ko.push('la grande roue ne tourne pas');
+        if (!(je.fonduDerriere < 0.5) || !(je.fonduLoin > 0.95)) ko.push('fondu de la roue (derrière ' + je.fonduDerriere + ', loin ' + je.fonduLoin + ')');
+        if (ko.length) fail('Jetée de fête foraine : ' + ko.join(' | '));
+        else ok('Jetée de fête foraine : pont praticable (h ' + je.hPont + ', pas d\'eau dessous), voiture montée par la rampe (h ' + je.voitureH + '), roue qui tourne et s\'efface derrière le joueur (' + je.fonduDerriere + ')');
+      }
+    }
+
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');
     {
       const srcIdx = fs.readFileSync(INDEX_HTML, 'utf8');
