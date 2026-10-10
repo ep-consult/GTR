@@ -7602,6 +7602,40 @@ async function main() {
       }
     }
 
+    // -------------------------------------------------------------------
+    // Lac du parc (DECOR_V2) : de la vraie eau (on y nage), sauf sur la
+    // passerelle praticable ; une voiture s'arrête au bord.
+    // -------------------------------------------------------------------
+    console.log('\n--- Lac du parc : nage, passerelle, voiture arrêtée au bord ---');
+    {
+      const lac = await page.evaluate(async () => {
+        if (typeof LAC === 'undefined' || !LAC) return { off: true };
+        const dors = (ms) => new Promise((r) => setTimeout(r, ms)); const o = {};
+        o.eauDedans = estEau(LAC.x + LAC.r * 0.5, LAC.z + LAC.r * 0.5);
+        o.eauPasserelle = estEau(LAC.x, LAC.z);
+        o.horsLac = estEau(LAC.x + LAC.r + 4, LAC.z);
+        o.hPasserelle = solY(LAC.x, LAC.z);
+        startRun(); ETAT.timeScale = 1; P.hp = P.hpMax = 1e6;
+        P.x = LAC.x + 4; P.z = LAC.z + 5; P.y = 0; await dors(400); o.nage = P.nage;
+        // voiture lancée vers le lac depuis le sud
+        const v = creerVehicule('citadine', LAC.x + 4, LAC.z + LAC.r + 6, Math.PI, null);
+        for (let i = 0; i < 120; i++) majVehiculePhys(v, 1 / 30, 1, 0, false);
+        o.voitureDansEau = estEau(v.x, v.z); o.voitureZ = +(v.z - LAC.z).toFixed(1); v.mort = true;
+        startRun();
+        return o;
+      });
+      if (lac.off) saute('Lac du parc : DECOR_V2 désactivé');
+      else {
+        const ko = [];
+        if (!lac.eauDedans || lac.horsLac) ko.push('estEau ne reconnaît pas le lac (' + JSON.stringify(lac) + ')');
+        if (lac.eauPasserelle || !(lac.hPasserelle > 0.5)) ko.push('passerelle non praticable (' + JSON.stringify(lac) + ')');
+        if (!lac.nage) ko.push('on ne nage pas dans le lac');
+        if (lac.voitureDansEau) ko.push('une voiture entre dans le lac');
+        if (ko.length) fail('Lac du parc : ' + ko.join(' | '));
+        else ok('Lac du parc : on y nage, la passerelle est praticable (h ' + lac.hPasserelle.toFixed(2) + '), une voiture s\'arrête au bord');
+      }
+    }
+
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');
     {
       const srcIdx = fs.readFileSync(INDEX_HTML, 'utf8');

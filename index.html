@@ -2746,7 +2746,7 @@ const PONTONS=[];
 const ILES=[];   // {x,z,r} : terres émergées au large
 const PLATS=[];  // {x,z,hw,hd|r,h} : plateformes marchables (pontons, pont du yacht, îles)
 function estEau(x,z){
-  if(z<MER) return false;
+  if(z<MER) return DECOR_V2&&LAC!==null&&surLac(x,z); // le lac du parc est de l'eau (sauf sa passerelle)
   for(const p of PONTONS) if(Math.abs(x-p.x)<p.hw&&Math.abs(z-p.z)<p.hd) return false;
   for(const i of ILES) if(dist2(x,z,i.x,i.z)<i.r*i.r) return false;
   return true;
@@ -3403,6 +3403,7 @@ function mkArbre(x,z,t){
   const f2=new THREE.Mesh(new THREE.ConeGeometry(1.05*t,1.9*t,6),f.material);
   f2.position.y=2.2+1.6*t; g.add(f2);
   g.position.set(x,0,z); g.rotation.y=rand(0,6); scene.add(g);
+  return g;
 }
 function mkCaisse(x,z){
   const m=mkBox(1.2,1.1,1.2,mat(pick([0x8a6a3a,0x6e5a34,0x7a7a52])),x,0.55,z);
@@ -3798,7 +3799,8 @@ function mkMobilierUrbain(){
   const pois=[]; for(const k in POIS){ const p=POIS[k]; if(p&&typeof p.x==='number'&&typeof p.z==='number') pois.push(p); }
   const libre=(x,z,r)=>{
     if(solidAt(x,z,r+0.4)) return false;
-    for(const p of PORTES) if(dist2(x,z,p.x,p.z)<(p.garageId!==undefined?64:30)) return false;
+    // garages : on en sort en voiture, la voie de sortie reste dégagée (14 u)
+    for(const p of PORTES) if(dist2(x,z,p.x,p.z)<(p.garageId!==undefined?196:30)) return false;
     for(const p of pois) if(dist2(x,z,p.x,p.z)<36) return false;
     return true;
   };
@@ -3881,6 +3883,104 @@ function reparerMobilier(){
     a.needsUpdate=true;
   }
   MOB.casses.length=0;
+}
+/* ---------- LAC DU PARC (DECOR_V2) ----------
+   En haut de la carte, au milieu du parc : un lac rond, bordé de pierres,
+   un chemin de gravier tout autour, des roseaux, une passerelle en bois
+   (praticable, légèrement en dos d'âne) qui le traverse d'est en ouest,
+   quatre petites barques qui tanguent et des canards. C'est de la vraie eau
+   pour le jeu : estEau() le reconnaît (on y nage, les voitures s'arrêtent
+   au bord), sauf sur la passerelle. Barques : décor (choix prudent). */
+let LAC=null; // {x,z,r,r2,pont:{x,z,hw,hd}}
+const LAC_BARQUES=[], LAC_CANARDS=[];
+function surLac(x,z){
+  if(!LAC) return false;
+  if(dist2(x,z,LAC.x,LAC.z)>=LAC.r2) return false;
+  const p=LAC.pont; return !(Math.abs(x-p.x)<p.hw&&Math.abs(z-p.z)<p.hd);
+}
+function mkLacParc(cx,cz){
+  const R=9.5;
+  LAC={x:cx,z:cz,r:R,r2:R*R,pont:{x:cx,z:cz,hw:R+1.2,hd:1.25}};
+  // eau : dégradé vers le centre (plus profond), légères rides, reflets doux
+  const mEau=new THREE.MeshLambertMaterial({map:texEau});
+  mEau.onBeforeCompile=(sh)=>{
+    sh.uniforms.uTemps=MER_U.uTemps; sh.uniforms.uSoleil=MER_U.uSoleil; sh.uniforms.uCentre={value:new THREE.Vector3(cx,R,cz)};
+    sh.vertexShader='varying vec3 vLacPos;\n'+sh.vertexShader.replace('#include <worldpos_vertex>','#include <worldpos_vertex>\n  vLacPos=(modelMatrix*vec4(transformed,1.0)).xyz;');
+    sh.fragmentShader='uniform float uTemps; uniform float uSoleil; uniform vec3 uCentre; varying vec3 vLacPos;\n'+sh.fragmentShader
+      .replace('#include <map_fragment>',`#include <map_fragment>
+  { float d=length(vLacPos.xz-uCentre.xz)/uCentre.y;
+    vec3 c=mix(vec3(0.16,0.42,0.40),vec3(0.06,0.20,0.26),smoothstep(0.2,1.0,1.0-d));
+    float r=sin(length(vLacPos.xz-uCentre.xz)*2.2-uTemps*1.6)*0.5+0.5;
+    diffuseColor.rgb=c*(0.94+0.08*r); }`)
+      .replace('#include <fog_fragment>',`{ float g=sin(vLacPos.x*3.1+uTemps*1.9)*sin(vLacPos.z*2.7-uTemps*1.4)*sin((vLacPos.x+vLacPos.z)*1.7+uTemps*0.7);
+    gl_FragColor.rgb+=vec3(1.0,0.97,0.9)*smoothstep(0.55,0.85,g)*0.35*uSoleil;
+    float bord=smoothstep(0.86,0.99,length(vLacPos.xz-uCentre.xz)/uCentre.y);
+    gl_FragColor.rgb=mix(gl_FragColor.rgb,vec3(0.85,0.92,0.9)*(0.5+0.5*uSoleil),bord*0.35); }
+#include <fog_fragment>`);
+  };
+  mEau.customProgramCacheKey=()=>'lacParc';
+  const eau=new THREE.Mesh(new THREE.CircleGeometry(R,40),mEau);
+  eau.rotation.x=-Math.PI/2; eau.position.set(cx,0.17,cz); scene.add(eau);
+  // margelle de pierres + chemin de gravier
+  const marg=new THREE.Mesh(new THREE.RingGeometry(R-0.1,R+0.75,40),mat(0x8d8a82));
+  marg.rotation.x=-Math.PI/2; marg.position.set(cx,0.2,cz); scene.add(marg);
+  const chem=new THREE.Mesh(new THREE.RingGeometry(R+0.75,R+3,40),mat(0x9a8c6c));
+  chem.rotation.x=-Math.PI/2; chem.position.set(cx,0.165,cz); scene.add(chem);
+  for(let i=0;i<34;i++){ const a=i/34*Math.PI*2+aD(-0.05,0.05), t=aD(0.25,0.45);
+    pushMerge(new THREE.DodecahedronGeometry(t,0),mat(choixD([0x7a776f,0x8f8b82,0x6a675f])),cx+Math.cos(a)*(R+0.35),0.25,cz+Math.sin(a)*(R+0.35),aD(0,6)); }
+  // allées vers les bords du pâté (nord, sud) + prolongement de la passerelle (est, ouest)
+  const B=(INNER+2)/2, mAll=mat(0x9a8c6c);
+  for(const [dx,dz,w,d] of [[0,-(R+3+B)/2,2.6,B-R-3],[0,(R+3+B)/2,2.6,B-R-3],[-(R+3+B)/2,0,B-R-3,2.6],[(R+3+B)/2,0,B-R-3,2.6]]){
+    const a=new THREE.Mesh(new THREE.PlaneGeometry(w,d),mAll); a.rotation.x=-Math.PI/2; a.position.set(cx+dx,0.16,cz+dz); scene.add(a); }
+  // roseaux en touffes au bord de l'eau (évite la passerelle)
+  const gRos=new THREE.BoxGeometry(0.06,1,0.06);
+  for(let i=0;i<9;i++){
+    let a=aD(0,Math.PI*2); if(Math.abs(Math.sin(a))<0.25) a+=0.6;
+    const bx=cx+Math.cos(a)*(R-0.9), bz=cz+Math.sin(a)*(R-0.9);
+    for(let k=0;k<7;k++) pushMerge(gRos,mat(choixD([0x5a7a34,0x6a8a3a,0x7a8a44])),bx+aD(-0.6,0.6),aD(0.4,0.75),bz+aD(-0.6,0.6),aD(0,1));
+  }
+  // passerelle en bois, légèrement en dos d'âne : 5 tronçons praticables
+  const mBois=mat(0x8a6038), mRamb=mat(0x6a4a2c), L=2*(R+1.2), n=5;
+  for(let i=0;i<n;i++){
+    const x0=cx-L/2+L*(i+0.5)/n, h=0.25+0.5*Math.sin(Math.PI*(i+0.5)/n);
+    mkBox(L/n+0.05,0.18,2.4,mBois,x0,h-0.09,cz);
+    PLATS.push({x:x0,z:cz,hw:L/n/2,hd:1.2,h});
+    for(const s of [-1,1]){ mkBox(0.12,0.9,0.12,mRamb,x0-L/n/2+0.1,h+0.45,cz+s*1.12); mkBox(L/n,0.08,0.08,mRamb,x0,h+0.85,cz+s*1.12); }
+  }
+  // barques (décor qui tangue) et canards
+  for(let i=0;i<4;i++){
+    const a=i/4*Math.PI*2+0.6, r=aD(4.2,6.8), g=new THREE.Group();
+    g.add(mkBoxG(1.1,0.35,2.6,choixD([0xd8dce4,0x2a7ae0,0xd83a3a,0x2f8a4a]),0,0.12,0));
+    g.add(mkBoxG(0.9,0.06,2.3,0x8a6038,0,0.28,0)); g.add(mkBoxG(1.0,0.08,0.3,0x6a4a2c,0,0.32,0.3));
+    g.add(mkBoxG(0.06,0.06,1.6,0x6a4a2c,0.55,0.4,0.1)); g.add(mkBoxG(0.06,0.06,1.6,0x6a4a2c,-0.55,0.4,0.1)); // rames
+    const bx=cx+Math.cos(a)*r, bz=cz+Math.sin(a)*r*0.75;
+    g.position.set(bx,0.12,bz); g.rotation.y=aD(0,6); scene.add(g);
+    LAC_BARQUES.push({g,x:bx,z:bz,ph:aD(0,6),ang:g.rotation.y});
+  }
+  for(let i=0;i<5;i++){
+    const g=new THREE.Group(), c=i===0?0xf0d040:0xf2f2ec;
+    g.add(mkBoxG(0.35,0.22,0.5,c,0,0.12,0)); g.add(mkBoxG(0.2,0.2,0.2,i===0?0xf0d040:0x2a6a3a,0,0.3,0.25)); g.add(mkBoxG(0.1,0.05,0.14,0xff9a2a,0,0.28,0.38));
+    scene.add(g); LAC_CANARDS.push({g,a:aD(0,6),r:aD(2.5,7.5),v:aD(0.15,0.3)*(i%2?1:-1)});
+  }
+  // bancs et lampadaires autour du chemin
+  // jamais sur les 4 allées (0°, 90°, 180°, 270°)
+  [35,62,118,145,215,325].forEach((deg,i)=>{
+    const a=deg*Math.PI/180, r=R+3.9, x=cx+Math.cos(a)*r, z=cz+Math.sin(a)*r, ry=-a+Math.PI/2;
+    const banc=new THREE.Group(); banc.add(mkBoxG(2,0.12,0.6,0x8a5a34,0,0.5,0)); banc.add(mkBoxG(2,0.45,0.1,0x8a5a34,0,0.8,0.27));
+    banc.add(mkBoxG(0.1,0.5,0.5,0x2a2d34,-0.85,0.25,0)); banc.add(mkBoxG(0.1,0.5,0.5,0x2a2d34,0.85,0.25,0));
+    banc.position.set(x,0.14,z); banc.rotation.y=ry+Math.PI; scene.add(banc);
+    if(i%2===0) mkLampadaire(cx+Math.cos(a+0.42)*(R+4.2),cz+Math.sin(a+0.42)*(R+4.2));
+  });
+}
+function majLac(dt){
+  if(!LAC) return;
+  const t=MER_T;
+  for(const b of LAC_BARQUES){ b.ph+=dt*1.3;
+    b.g.position.y=0.12+Math.sin(b.ph)*0.04; b.g.rotation.z=Math.sin(b.ph*0.8)*0.05; b.g.rotation.x=Math.sin(b.ph*0.6+1)*0.03;
+    b.g.rotation.y=b.ang+Math.sin(t*0.1+b.ph)*0.15; }
+  for(const c of LAC_CANARDS){ c.a+=c.v*dt;
+    c.g.position.set(LAC.x+Math.cos(c.a)*c.r,0.15+Math.sin(t*3+c.a*5)*0.02,LAC.z+Math.sin(c.a)*c.r*0.8);
+    c.g.rotation.y=-c.a+(c.v>0?0:Math.PI); }
 }
 // limite ouest en mer : la ligne du mur (jetée comprise)
 const LIMITE_OUEST_MER=-HALF-11.5;
@@ -5080,17 +5180,27 @@ function remplirBloc(qq,bx,bz,cx,cz){
     if(!POIS.parc) POIS.parc={x:cx,z:cz};
     // allées de gravier
     const matAll=mat(0x9a8c6c);
-    const a1=new THREE.Mesh(new THREE.PlaneGeometry(2.6,INNER+1),matAll);
-    a1.rotation.x=-Math.PI/2; a1.position.set(cx,0.15,cz); scene.add(a1);
-    const a2=new THREE.Mesh(new THREE.PlaneGeometry(INNER+1,2.6),matAll);
-    a2.rotation.x=-Math.PI/2; a2.position.set(cx,0.15,cz); scene.add(a2);
-    for(let i=0;i<7;i++) mkArbre(cx+rand(-M+2,M-2),cz+rand(-M+2,M-2),rand(0.8,1.3));
+    // Lac rond dans le pâté du haut au milieu (DECOR_V2). Les tirages
+    // aléatoires restent EXACTEMENT les mêmes qu'avant (sinon toute la suite
+    // de la ville serait décalée) : on retire seulement ce qui tomberait
+    // dans l'eau ou sur son chemin.
+    const lac=DECOR_V2&&bx===5&&bz===0, dansLac=(x,z,m)=>lac&&dist2(x,z,cx,cz)<(9.5+3+m)*(9.5+3+m);
+    if(lac) mkLacParc(cx,cz);
+    if(!lac){
+      const a1=new THREE.Mesh(new THREE.PlaneGeometry(2.6,INNER+1),matAll);
+      a1.rotation.x=-Math.PI/2; a1.position.set(cx,0.15,cz); scene.add(a1);
+      const a2=new THREE.Mesh(new THREE.PlaneGeometry(INNER+1,2.6),matAll);
+      a2.rotation.x=-Math.PI/2; a2.position.set(cx,0.15,cz); scene.add(a2);
+    }
+    for(let i=0;i<7;i++){ const ax=cx+rand(-M+2,M-2), az=cz+rand(-M+2,M-2), ar=mkArbre(ax,az,rand(0.8,1.3)); if(dansLac(ax,az,1.5)) scene.remove(ar); }
     if(Math.random()<0.5){
       const ex=cx+rand(-6,6),ez=cz+rand(-6,6);
-      mkBox(6.8,0.22,4.8,mat(0x7a7468),ex,0.11,ez);
-      mkBox(6,0.12,4,new THREE.MeshLambertMaterial({map:texEau}),ex,0.2,ez);
+      if(!lac){
+        mkBox(6.8,0.22,4.8,mat(0x7a7468),ex,0.11,ez);
+        mkBox(6,0.12,4,new THREE.MeshLambertMaterial({map:texEau}),ex,0.2,ez);
+      }
     }
-    for(let i=0;i<2;i++) mkBox(1.8,0.5,0.5,mat(0x7a5a38),cx+rand(-M+2,M-2),0.4,cz+rand(-M+2,M-2));
+    for(let i=0;i<2;i++){ const bx2=cx+rand(-M+2,M-2), bz2=cz+rand(-M+2,M-2); if(!dansLac(bx2,bz2,0.5)) mkBox(1.8,0.5,0.5,mat(0x7a5a38),bx2,0.4,bz2); }
     return;
   }
   if(qq==='plage'){
@@ -21770,7 +21880,7 @@ function boucle(t){
       majMeteo(dt);
       majMer(dt);
       majMerV2(dt);
-      if(DECOR_V2){ majHorsLesMurs(dt); majMobilier(); }
+      if(DECOR_V2){ majHorsLesMurs(dt); majMobilier(); majLac(dt); }
       majEpaveCanon(dt);
     }
     majHUD();
