@@ -2613,7 +2613,35 @@ function matFacade(base,type){
   matsBatiments.push(m);
   return m;
 }
-function texEnseigne(txt,coul){
+// DECOR_V2 : enseigne refaite (signalé : « on n'arrive pas à lire, très
+// mauvaise qualité »). L'ancienne dessinait sur un canevas CARRÉ de 256 px
+// étiré sur un panneau 2,4 fois plus large que haut : texte écrasé puis
+// noyé dans un halo de 26 px. Ici : canevas aux proportions réelles du
+// panneau (ratio), haute définition, cadre, lettres épaisses cernées de noir,
+// halo léger. Mise en cache par texte : à chaque réutilisation on consomme
+// les 4 tirages que Three.js fait pour l'uuid d'une texture neuve (sinon la
+// ville tirée ensuite se décalerait, portes comprises).
+const ENSEIGNES_CACHE=new Map();
+function texEnseigneV2(txt,coul,ratio){
+  ratio=ratio||2.4; const cle=txt+'|'+coul+'|'+ratio;
+  if(ENSEIGNES_CACHE.has(cle)){ THREE.MathUtils.generateUUID(); return ENSEIGNES_CACHE.get(cle); }
+  const W=ratio>=1?512:Math.round(512*ratio), H=Math.round(W/ratio), c=document.createElement('canvas'); c.width=W; c.height=H;
+  const g=c.getContext('2d'), m=Math.round(Math.min(W,H)*0.07);
+  const gr=g.createLinearGradient(0,0,0,H); gr.addColorStop(0,'#1c2030'); gr.addColorStop(1,'#0a0c12'); g.fillStyle=gr; g.fillRect(0,0,W,H);
+  g.lineWidth=m*0.55; g.strokeStyle=coul; g.strokeRect(m*0.5,m*0.5,W-m,H-m);                               // liseré de la couleur de l'enseigne
+  g.lineWidth=2; g.strokeStyle='rgba(255,255,255,0.35)'; g.strokeRect(m*1.05,m*1.05,W-m*2.1,H-m*2.1);       // filet clair intérieur
+  for(const [x,y] of [[m*1.6,m*1.6],[W-m*1.6,m*1.6],[m*1.6,H-m*1.6],[W-m*1.6,H-m*1.6]]){ g.fillStyle='#8a8f9a'; g.beginPath(); g.arc(x,y,m*0.22,0,7); g.fill(); } // rivets
+  let taille=Math.floor((H-m*3.2)*0.92); g.font='900 '+taille+'px Arial';
+  const maxL=W-m*4; let lt=g.measureText(txt).width; if(lt>maxL){ taille=Math.max(12,Math.floor(taille*maxL/lt)); g.font='900 '+taille+'px Arial'; }
+  g.textAlign='center'; g.textBaseline='middle'; g.lineJoin='round';
+  const y=H/2+taille*0.04;
+  g.shadowColor=coul; g.shadowBlur=taille*0.18; g.lineWidth=Math.max(4,taille*0.16); g.strokeStyle='#04050a'; g.strokeText(txt,W/2,y);
+  g.shadowBlur=0; g.fillStyle=coul; g.fillText(txt,W/2,y);
+  g.globalAlpha=0.45; g.fillStyle='#ffffff'; g.save(); g.beginPath(); g.rect(0,0,W,y-taille*0.12); g.clip(); g.fillText(txt,W/2,y); g.restore(); g.globalAlpha=1; // reflet sur le haut des lettres
+  const t=new THREE.CanvasTexture(c); t.anisotropy=4; ENSEIGNES_CACHE.set(cle,t); return t;
+}
+function texEnseigne(txt,coul,ratio){
+  if(DECOR_V2) return texEnseigneV2(txt,coul,ratio);
   return cTex(256,(g,s)=>{
     g.fillStyle='#0c0e13';g.fillRect(0,0,s,s);
     g.font='900 64px Arial';g.textAlign='center';g.textBaseline='middle';
@@ -3400,6 +3428,9 @@ function mkEnseigne(txt,coul,x,y,z,ry,larg){
   const p=new THREE.Mesh(new THREE.PlaneGeometry(larg||6,(larg||6)/2.4),
     new THREE.MeshBasicMaterial({map:texEnseigne(txt,coul),transparent:false}));
   p.position.set(x,y,z); p.rotation.y=ry; scene.add(p);
+  if(DECOR_V2&&x>-4000){ // en ville seulement (salles : x vers IOFF=-9000, caméra plus rasante — penchée, l'enseigne cachait l'action) : penchée vers le ciel et décollée d'autant du mur
+    const t=0.32, hh=(larg||6)/2.4/2; p.rotation.order='YXZ'; p.rotation.x=-t;
+    p.position.x+=Math.sin(ry)*hh*Math.sin(t); p.position.z+=Math.cos(ry)*hh*Math.sin(t); }
   return p;
 }
 // flaques de lumière au sol sous les lampadaires (DECOR_V2), fusionnées plus tard
@@ -7962,10 +7993,10 @@ function makeVoiture(key){
       corps.add(mkBoxG(W*1.02,0.12,L*0.86,0xffd23f,0,busBottom+0.32,0)); // liseré or
       const ligne=pick([4,7,9,12,21]);
       const pLigne=new THREE.Mesh(new THREE.PlaneGeometry(0.9,0.9),
-        new THREE.MeshBasicMaterial({map:texEnseigne(String(ligne),'#ffd23f'),transparent:false}));
+        new THREE.MeshBasicMaterial({map:texEnseigne(String(ligne),'#ffd23f',1),transparent:false}));
       pLigne.position.set(-W*0.32,glassY,L/2*0.94+0.03); corps.add(pLigne);
       const pGir=new THREE.Mesh(new THREE.PlaneGeometry(1.7,0.42),
-        new THREE.MeshBasicMaterial({map:texEnseigne('LOS REYES','#ffffff'),transparent:false}));
+        new THREE.MeshBasicMaterial({map:texEnseigne('LOS REYES','#ffffff',4),transparent:false}));
       pGir.position.set(0.15,glassY,L/2*0.94+0.03); corps.add(pGir);
     }
     if(def.police){
