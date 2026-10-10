@@ -3,6 +3,9 @@
 > Mis à jour en continu. Si ce fichier semble s'arrêter en plein milieu, c'est
 > que la session a été interrompue : tout ce qui est écrit ici est à jour au
 > moment de l'écriture.
+>
+> **Ajout du 10 octobre** : le décor de Los Reyes (branche `decor-ville`),
+> voir la dernière section, « Décor de Los Reyes ».
 
 ## Résumé
 
@@ -47,6 +50,7 @@
 | `nuit-audit-1` | `master` (6e6c6ab) | 5 correctifs + docs | **fonctionne** (tests au vert, voir « Fin de nuit ») |
 | `nuit-mer` | `nuit-audit-1` | mer V2 + docs | **fonctionne** — à vérifier à l'œil sur iPhone |
 | `nuit-course` | `nuit-audit-1` | 7 commits course + docs | **fonctionne** — à jouer sur iPhone |
+| `decor-ville` (10 oct.) | `nuit-mer` | 11 commits décor + docs | **fonctionne** — à parcourir sur iPhone (coût de rendu) |
 
 `nuit-mer` et `nuit-course` ne se connaissent pas. Si les deux sont
 retenues, la fusion touchera `index.html` à des endroits différents (mer : section VILLE ;
@@ -484,3 +488,128 @@ Les plus importants d'abord, chacun se vérifie en moins d'une minute :
     plus discrets que le jour.
 12. **`nuit-course`** — Abandonner une course en plein tour 1 (bouton
     🏳 ABANDONNER) : retour propre au stand, aucun son qui reste.
+
+---
+
+## Décor de Los Reyes — branche `decor-ville` (10 octobre)
+
+Demande : varier les rues, un petit lac rond en haut avec passerelle et
+barques, retravailler les bordures et la clôture, un décor factice là où on
+ne va pas, des jonctions entre sable, mer et aéroport, des quartiers animés
+par la lumière, et un vélo à conduire, qui saute et se personnalise au garage.
+
+Branche créée depuis `nuit-mer` (la houle de la mer sert aux vagues sur le
+sable). Interrupteur **`DECOR_V2`** : à `false`, le décor d'avant revient,
+vélos garés compris. Les correctifs de bordure restent : ce sont des bugs.
+
+### Ce qui a été fait (un commit par étape)
+
+| Étape | Commit | En bref |
+|---|---|---|
+| Bordures | `b5388f6` | Le mur est la vraie limite : avant, une voiture s'arrêtait 8 u avant le mur et un piéton 6 u avant. Texture du mur répétée au lieu d'être étirée. Enseigne « LOS REYES » jamais coupée : le texte est mesuré et la police réduite. Jetées de rochers au bout des murs, dans la mer. |
+| Littoral | `b8dfb2f` | Bande côtière continue : plus de bande de bitume entre le sable et la mer. Fondu sable → désert de l'aéroport, sable mouillé, vagues qui montent sur la plage. |
+| Hors les murs | `a11022e` | Décor factice inaccessible : champs, forêt le long du mur, collines, ville lointaine, autoroute surélevée au nord avec voitures qui défilent. |
+| Mobilier urbain | `b22ca52`, `0a104bb` | Abribus, arbres d'alignement (3 essences), bancs, poubelles, bornes à incendie, jardinières, terrasses, kiosques, arceaux, lampadaires... **choisis par quartier**. Les petits objets se renversent au passage d'une voiture lancée (geyser pour les bornes à incendie) et sont réparés à chaque partie. |
+| Plage | `ea29bed` | Transats, serviettes, parasols, châteaux de sable, kayaks, cabines, chariot de glaces, filet de volley. |
+| Lac du parc | `3d0061f`, `e768516` | Lac rond, margelle de pierres, roseaux, passerelle en bois **praticable** en dos d'âne, 4 barques qui tanguent, canards, bancs. C'est de la vraie eau : on y nage, une voiture s'arrête au bord. |
+| Lumières de quartier | `bae85fb` | **Times Square** (quartier néon) : écrans géants animés, néons qui clignotent. **Quartier chinois** : portiques rouges, guirlandes de lanternes. **Brooklyn** (brique) : escaliers de secours, guirlandes d'ampoules. Partout : flaques de lumière sous les lampadaires la nuit. |
+| Vélos | `7e8ec5f` | Vélo de ville et BMX, 12 garés aux arceaux à chaque partie. Pédalage animé, aucun bruit de moteur. **BUNNY HOP** sur ESQUIVE : 0,9 u de haut en vélo, 1,7 u en BMX, assez pour passer un banc. Personnalisation au garage. |
+
+### Captures (`rapport_nuit/captures/decor/`, rendus Three.js réels)
+
+- Bordures, avant / après : `bordure_nord_*`, `coin_nord_ouest_*`,
+  `coin_sud_ouest_*`, `coin_sud_est_*`, `cote_aeroport_*` ;
+- hors les murs : `hors_les_murs_nord`, `hors_les_murs_ouest`,
+  `hors_les_murs_coin_nord_ouest` ;
+- rues par quartier : `rue_centre`, `rue_commerce`, `rue_industriel`,
+  `rue_neon`, `rue_port`, `rue_residentiel`, `rue_villas` ;
+- plage : `plage_decor`, `plage_vagues_apres` ;
+- lac : `lac`, `lac_passerelle` ;
+- lumières, jour / nuit : `lumiere_timesSquare_*`,
+  `lumiere_quartierChinois_*`, `lumiere_portiqueChinois_nuit`,
+  `lumiere_brooklyn_nuit` ;
+- vélos : `velo_profil`, `velo_en_selle`, `bmx_bunny_hop`, `bmx_tune_profil`
+  (toutes les pièces), `velo_garage_menu`, `bmx_vue_jeu`.
+
+### Performance (rendu seul, sans entités, GPU de bureau)
+
+| Vue | Appels de rendu avant → après | Triangles avant → après |
+|---|---|---|
+| Centre | 89 → 107 | 11 062 → 29 320 |
+| Lac | 80 → 98 (160 avant la fusion du lac) | 8 896 → 16 633 |
+| Plage | 96 → 119 | 9 178 → 19 832 |
+| Coin nord-ouest | 45 → 59 | 7 340 → 16 440 |
+| Quartier chinois | 68 → 81 | 8 038 → 21 299 |
+| Aéroport | 59 → 74 | 8 886 → 21 807 |
+
+Le temps de rendu mesuré passe d'environ 2,1 ms à 2,4–2,8 ms, soit
+**+10 à +20 %**. La mesure est bruitée : la même vue « avant » varie de
+2,0 à 3,2 ms d'une passe à l'autre.
+
+Mesures prises en cours de route :
+- le décor hors les murs, d'abord fusionné en un seul maillage par côté,
+  coûtait +19 % : il est désormais découpé en tronçons de 120 u ;
+- le mobilier faisait 66 000 triangles : 7×7 zones fusionnées et des formes
+  plus simples le ramènent à 20–30 000 ;
+- les flaques de lumière sont fusionnées par carré de 200 u ;
+- le lac est fusionné avec la ville ;
+- le cadre des vélos est fusionné par matériau.
+
+**C'est le point n° 1 à vérifier sur iPhone.** Si ça saccade, comparer avec
+`DECOR_V2=false`. Le levier le plus simple serait de réduire la densité du
+mobilier (`MOB_QUARTIERS`).
+
+### Décisions prises seul
+
+- **Barques du lac** : décor qui tangue, pas des bateaux pilotables (choix
+  prudent). Le lac fait 9,5 u de rayon, trop petit pour piloter.
+- **Deux vélos** : vélo de ville (15 u/s, saut de 0,9 u) et BMX (17 u/s,
+  saut de 1,7 u), un BMX sur trois aux arceaux.
+- **Garage des vélos : style seulement.** Peinture, néons, porte-bagages ou
+  caisse de livreur, garde-boue, panier ou plaque de course, jantes, fanion.
+  Ni nitro, ni moteur, ni blindage : masqués dans le menu **et** refusés à
+  l'achat. Les **prix sont ceux des voitures** (`TUNING_PRIX`, mêmes
+  catégories) : ils sont peut-être chers pour un vélo, à calibrer en jouant.
+- **Bunny hop** : un saut par appui (le maintenir ne fait pas sautiller) et
+  **aucun point de cascade**, pour éviter de faire du score en sautillant sur
+  place. Un saut depuis une vraie crête rapporte toujours ses points.
+- **Pas de police pour un vélo garé** : il n'est à personne, le prendre
+  n'est pas un vol (comme pour les autres véhicules garés).
+- **Tirages du décor séparés** (générateur `aleaDecor`, graine 917) : ajouter
+  un banc ne déplace ni un bâtiment, ni une porte, ni un lieu de la ville.
+
+### Vérifications
+
+- Tests ajoutés à `scenarios.js` :
+  - bordures : véhicule et piéton vont jusqu'au mur, nage bornée, enseigne
+    la plus longue jamais rognée ;
+  - mobilier : au moins 100 objets cassables, aucun sur la chaussée,
+    renversement et réparation ;
+  - lac : nage, passerelle, voiture arrêtée au bord ;
+  - vélos : garés sur les arceaux, sans moteur, un saut par appui, BMX plus
+    haut, aucun point ; au garage, style seulement avec les gardes d'achat ;
+    sauvegarde ; sortie du garage en selle.
+- Deux tests de garage adaptés **en lisant la source** : un vélo a
+  `tuningCarro` sans `tuningMeca`, et ses garde-boue sont *au-dessus* des
+  roues (`surRoues`, testés contre le cercle de la roue).
+- Fin de travail : `valider.js` ✓, `scenarios.js` 0 échec en graine fixe
+  (20260731) et en graine aléatoire (894418076), aucun saut.
+- Sauvegarde : une partie faite sur `master` (avant la nuit) et une faite
+  sur `nuit-mer` (avant le décor) se rechargent **sans aucun écart**, clé
+  `asphalte_save_v1` inchangée.
+
+### À tester à la main sur iPhone (`decor-ville`)
+
+1. Parcourir le centre, la plage et le quartier néon la nuit : fluidité
+   comparable à `nuit-mer` ? Sinon, passer `DECOR_V2` à `false` pour
+   comparer.
+2. Prendre un vélo à un arceau, faire un BUNNY HOP par-dessus un banc et
+   par-dessus une bordure de trottoir.
+3. Entrer au garage à vélo, essayer le panier, la caisse et le fanion, puis
+   ressortir en selle.
+4. Longer les murs nord et ouest en voiture : aucun arrêt avant le mur,
+   enseigne « LOS REYES » entière.
+5. Plage : les vagues montent bien sur le sable, sans bande de bitume.
+6. Lac : traverser la passerelle à pied, puis plonger.
+7. Foncer dans une rangée de poubelles et une borne à incendie : elles
+   tombent, le geyser part. Elles reviennent à la partie suivante.
