@@ -3431,6 +3431,7 @@ function mkEnseigne(txt,coul,x,y,z,ry,larg){
   if(DECOR_V2&&x>-4000){ // en ville seulement (salles : x vers IOFF=-9000, caméra plus rasante — penchée, l'enseigne cachait l'action) : penchée vers le ciel et décollée d'autant du mur
     const t=0.32, hh=(larg||6)/2.4/2; p.rotation.order='YXZ'; p.rotation.x=-t;
     p.position.x+=Math.sin(ry)*hh*Math.sin(t); p.position.z+=Math.cos(ry)*hh*Math.sin(t); }
+  ENSEIGNES.push({p,lieu:false});
   return p;
 }
 // flaques de lumière au sol sous les lampadaires (DECOR_V2), fusionnées plus tard
@@ -3602,7 +3603,7 @@ function construireVille(){
     if(qq!=='plage'&&qq!=='parc'&&bx%3===1&&bz%3===1) mkFeu(cx+INNER/2+1.4,cz-INNER/2-1.4);
   }
   placerPortes();
-  if(DECOR_V2){ sansAleaVille(()=>{ mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkCiel(); mkCrique(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkNeonVivant(); mkQuartiersFinitions(); }); } // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
+  if(DECOR_V2){ sansAleaVille(()=>{ ameliorerPortes(); mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkCiel(); mkCrique(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkNeonVivant(); mkQuartiersFinitions(); }); } // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
   finaliserMerge();
   construireMinimapStatique();
 }
@@ -6450,6 +6451,81 @@ function majMer(dt){
     }
   }
 }
+/* ---------- PORTES MIEUX PLACÉES, ENSEIGNES DÉGAGÉES (DECOR_V2) ----------
+   Signalé : « certaines portes donnent dans la rue, sur la route
+   directement » et des enseignes de lieu illisibles. Trois corrections,
+   après placerPortes, sans aucun tirage (la ville ne bouge pas) :
+   1) chaque porte regarde vers l'extérieur de SA façade (avant : toujours
+      vers le sud, même plaquée sur un flanc est/ouest) ; si elle n'a pas
+      au moins 3 u de trottoir devant elle avant la chaussée, elle passe sur
+      la façade du même bâtiment qui en a le plus — jamais la face nord
+      (cachée par le bâtiment : la caméra regarde vers le nord) ;
+   2) une porte sans bâtiment derrière elle reçoit une devanture (bâtiment
+      d'entrée aux couleurs du lieu) ;
+   3) les enseignes de boutique tirées au hasard qui recouvraient
+      l'enseigne d'un lieu (KEBAB sur la SUPÉRETTE, LIVE sur le GARAGE NORD…)
+      sont retirées.
+   Les garages tuning gardent leur place (sortie en voiture calée sur le sud)
+   mais profitent de 3). Le chalutier et le Site 51 ne bougent pas. */
+var ENSEIGNES=[]; // (var : jamais en zone morte) {p, lieu} : toutes les enseignes posées par mkEnseigne
+function surChaussee(x,z){
+  if(Math.abs(x)>HALF||Math.abs(z)>HALF||z>MER-30) return false;
+  const m=(v)=>{ const k=((v+HALF)%CELL+CELL)%CELL; return Math.min(k,CELL-k); };
+  return m(x)<ROADW/2||m(z)<ROADW/2;
+}
+// trottoir dégagé devant (x,z) dans la direction n, jusqu'à la chaussée, un solide ou 10 u
+function profondeurDevant(x,z,nx,nz){
+  for(let d=0.5;d<=10;d+=0.5){ const px=x+nx*d, pz=z+nz*d; if(surChaussee(px,pz)||estEau(px,pz)||solidAt(px,pz,0.4)) return d; }
+  return 10;
+}
+function orienterPorte(p,nx,nz){
+  p.nx=nx; p.nz=nz;
+  const ang=Math.atan2(nx,nz);
+  if(p.g){ p.g.position.set(p.x,0,p.z); p.g.rotation.y=ang; }
+  if(p.ens){ const e=p.ens, t=0.32; e.rotation.order='YXZ';
+    if(nz>0){ // façade sud : au-dessus de la porte, en avant du store banne (y 2,6, 1,3 u de saillie) qui la coupait
+      e.rotation.set(-t,0,0); e.position.set(p.x,4.3,p.z+0.35); }
+    else { // flanc est/ouest : vue par la tranche, elle se lisait à la verticale → enseigne drapeau tournée vers la caméra
+      e.scale.setScalar(0.62); e.rotation.set(-t,0,0); e.position.set(p.x-nx*1.2+nx*(0.3+(p.larg||7)*0.62/2),4.4,p.z+0.2); } }
+}
+function ameliorerPortes(){
+  const autres=(q)=>PORTES.filter((o)=>o!==q);
+  for(const p of PORTES){
+    if(!p.g||p.id==='tuning'||p.id==='chalutier'||p.id==='site51') continue;
+    // bâtiment adossé : le solide « toit » le plus proche à moins de 3,5 u
+    let b=null, bd=1e9;
+    for(let a=0;a<16;a++) for(let d=0.5;d<=3.5;d+=0.5){ const s=solidAt(p.x+Math.cos(a/16*6.283)*d,p.z+Math.sin(a/16*6.283)*d,0);
+      if(s&&s.toit&&s.h>=3&&dist2(s.x,s.z,p.x,p.z)<bd){ b=s; bd=dist2(s.x,s.z,p.x,p.z); } }
+    if(!b&&p.z>MER-30){ p.nx=0; p.nz=1; continue; } // sur la plage (Roi des Sandwichs) : on n'y touche pas, le toit de la baraque couperait l'enseigne relevée
+    if(!b){ // 2) devanture : un bâtiment d'entrée derrière la porte (au nord, vers la caméra elle reste visible)
+      const w=12, d=7, cx=p.x, cz=p.z-1.2-d/2;
+      if(!solidAt(cx,cz,2)){ mkBatiment(cx,cz,w,d,6.5,matFacade('#3a2f48','mur')); p.devanture=true; }
+      orienterPorte(p,0,1); continue;
+    }
+    // 1) côté de la façade où est la porte, et sa profondeur
+    const cote=(nx,nz,dec)=>{ const x=b.x+nx*(b.hw+1.5)+(nz?dec*b.hw:0), z=b.z+nz*(b.hd+1.5)+(nx?dec*b.hd:0); return {x,z,nx,nz}; };
+    const ici={x:p.x,z:p.z,nx:0,nz:1};
+    { const dx=(p.x-b.x)/b.hw, dz=(p.z-b.z)/b.hd; if(Math.abs(dx)>Math.abs(dz)){ ici.nx=Math.sign(dx); ici.nz=0; } else { ici.nx=0; ici.nz=Math.sign(dz); } }
+    let meilleur=ici, prof=ici.nz<0?0:profondeurDevant(ici.x,ici.z,ici.nx,ici.nz);
+    if(prof<3){ // moins de 3 u de trottoir : la porte donne sur la chaussée
+      for(const c of [cote(0,1,0),cote(0,1,-0.5),cote(0,1,0.5),cote(1,0,0),cote(-1,0,0)]){
+        if(!dansBloc(c.x,c.z,1)||solidAt(c.x,c.z,0.9)||estEau(c.x,c.z)) continue;
+        if(autres(p).some((o)=>dist2(o.x,o.z,c.x,c.z)<400)) continue;
+        const pr=profondeurDevant(c.x,c.z,c.nx,c.nz);
+        if(pr>prof+1){ meilleur=c; prof=pr; }
+      }
+      if(meilleur!==ici){ p.x=meilleur.x; p.z=meilleur.z; p.deplacee=true; }
+    }
+    orienterPorte(p,meilleur.nx,meilleur.nz);
+  }
+  // 3) enseignes de boutique sur l'enseigne d'un lieu
+  const lieux=ENSEIGNES.filter((e)=>e.lieu);
+  for(const e of ENSEIGNES){
+    if(e.lieu) continue;
+    const ep=e.p.position;
+    if(lieux.some((l)=>{ const lp=l.p.position; return Math.abs(lp.x-ep.x)<8&&Math.abs(lp.z-ep.z)<4&&Math.abs(lp.y-ep.y)<14; })){ e.p.visible=false; e.masquee=true; } // toute la façade du lieu
+  }
+}
 const PORTES=[];
 function mkPorte(id,x,z,nom,coul){
   const g=new THREE.Group();
@@ -6460,8 +6536,10 @@ function mkPorte(id,x,z,nom,coul){
     new THREE.MeshBasicMaterial({color:coul,transparent:true,opacity:0.22,depthWrite:false}));
   halo.rotation.x=-Math.PI/2; halo.position.set(0,0.14,0.2); g.add(halo);
   g.position.set(x,0,z); scene.add(g);
-  mkEnseigne(nom,'#'+coul.toString(16).padStart(6,'0'),x,3.6,z-1.2,0,7);
-  PORTES.push({id,x,z,halo});
+  const larg=DECOR_V2?clamp(nom.length*0.62,7,12):7; // nom long : enseigne plus large, jamais des lettres minuscules
+  const ens=mkEnseigne(nom,'#'+coul.toString(16).padStart(6,'0'),x,3.6,z-1.2,0,larg);
+  if(ENSEIGNES.length) ENSEIGNES[ENSEIGNES.length-1].lieu=true;
+  PORTES.push({id,x,z,halo,g,ens,larg}); // g, ens : réorientées par ameliorerPortes (DECOR_V2)
 }
 // GARAGES TUNING : grande porte roulante (on y entre en véhicule), même
 // contrat que mkPorte (pousse une entrée dans PORTES) + le garageId qui
@@ -6477,6 +6555,7 @@ function mkPorteGarage(gt,x,z){
   halo.rotation.x=-Math.PI/2; halo.position.set(0,0.14,0.6); g.add(halo);
   g.position.set(x,0,z); scene.add(g);
   mkEnseigne(gt.nom,'#'+gt.coul.toString(16).padStart(6,'0'),x,4.6,z-1.2,0,8);
+  if(ENSEIGNES.length) ENSEIGNES[ENSEIGNES.length-1].lieu=true;
   PORTES.push({id:'tuning',x,z,halo,garageId:gt.id});
 }
 // SITE 51 : « la porte n'apparaît pas comme les autres » — une grille
@@ -6492,6 +6571,7 @@ function mkPorteGrille(id,x,z,nom,coul){
   halo.rotation.x=-Math.PI/2; halo.position.set(0,0.14,0.2); g.add(halo);
   g.position.set(x,0,z); scene.add(g);
   mkEnseigne(nom,'#'+coul.toString(16).padStart(6,'0'),x,3.6,z-1.2,0,7);
+  if(ENSEIGNES.length) ENSEIGNES[ENSEIGNES.length-1].lieu=true;
   PORTES.push({id,x,z,halo});
 }
 // cherche le bâtiment le plus proche et renvoie un point contre sa façade sud
@@ -17418,7 +17498,7 @@ function entrerInterieur(id,porte){
   // gelée jusqu'à la sortie de la salle sans ce nettoyage immédiat.
   rayonNettoyerTout();
   const s=construireSalle(id);
-  INT.actif=s; INT.rx=porte.x; INT.rz=porte.z+3;
+  INT.actif=s; INT.rx=porte.x+(porte.nx||0)*3; INT.rz=porte.z+(porte.nz===undefined?1:porte.nz)*3; // devant la porte, dans le sens où elle regarde
   // Tableau de la ville (planque) : marque ce lieu comme visité au moins
   // une fois, quelle que soit l'issue de la visite — jamais réinitialisé,
   // survit au game over (voir META.lieuxVus). Mur de trophées : chaque

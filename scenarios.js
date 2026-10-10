@@ -7992,6 +7992,35 @@ async function main() {
       else ok('Finitions de quartier : ' + qf.piscines + ' piscines décorées, ' + qf.cheminees + ' cheminées, 2 miradors (faisceaux la nuit), ' + qf.cagettes + ' cagettes de marché');
     }
 
+    // -------------------------------------------------------------------
+    // Portes (DECOR_V2) : aucune ne donne sur la chaussée (≥ 2,5 u de trottoir
+    // devant, dans le sens où elle regarde), la sortie de salle replace le
+    // joueur devant la porte (jamais dans un mur), les enseignes de lieu ne
+    // sont jamais masquées. Liste lue dans PORTES, jamais recopiée.
+    // -------------------------------------------------------------------
+    console.log('\n--- Portes : jamais sur la chaussée, sortie devant la porte, enseignes de lieu visibles ---');
+    {
+      const po = await page.evaluate(() => {
+        if (typeof ameliorerPortes === 'undefined' || !DECOR_V2) return { off: true };
+        const o = { courtes: [], sorties: [], masquees: ENSEIGNES.filter((e) => e.lieu && !e.p.visible).length, testees: 0 };
+        for (const p of PORTES) {
+          if (p.id === 'tuning' || p.id === 'chalutier' || p.id === 'site51' || p.z > MER - 30) continue;
+          o.testees++;
+          const nx = p.nx || 0, nz = p.nz === undefined ? 1 : p.nz, pr = profondeurDevant(p.x, p.z, nx, nz);
+          if (pr < 2.5) o.courtes.push(p.id + ' ' + pr); // < 2,5 u : le seuil de la porte (2,4 u de profondeur) toucherait la bordure
+        }
+        for (const id of ['pharma', 'conces', 'laverie', 'arcade']) {
+          const p = PORTES.find((q) => q.id === id); if (!p) continue;
+          startRun(); P.x = p.x; P.z = p.z; entrerInterieur(id, p); sortirInterieur();
+          if (solidAt(P.x, P.z, 0.3) || surChaussee(P.x, P.z) || Math.hypot(P.x - p.x, P.z - p.z) > 4) o.sorties.push(id + ' @' + P.x.toFixed(1) + ',' + P.z.toFixed(1));
+        }
+        startRun(); return o;
+      });
+      if (po.off) saute('Portes : DECOR_V2 désactivé');
+      else if (po.courtes.length || po.sorties.length || po.masquees || po.testees < 15) fail('Portes : ' + JSON.stringify(po));
+      else ok('Portes : ' + po.testees + ' portes avec au moins 2,5 u de trottoir devant (seuil jamais sur la bordure), sortie de salle devant la porte (pharmacie, concession, laverie, arcade), aucune enseigne de lieu masquée');
+    }
+
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');
     {
       const srcIdx = fs.readFileSync(INDEX_HTML, 'utf8');
