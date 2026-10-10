@@ -3567,7 +3567,7 @@ function construireVille(){
     if(qq!=='plage'&&qq!=='parc'&&bx%3===1&&bz%3===1) mkFeu(cx+INNER/2+1.4,cz-INNER/2-1.4);
   }
   placerPortes();
-  if(DECOR_V2){ sansAleaVille(()=>{ mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); }); mkMobilierUrbain(); mkTransitionsSols(); } // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
+  if(DECOR_V2){ sansAleaVille(()=>{ mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkCiel(); }); mkMobilierUrbain(); mkTransitionsSols(); } // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
   finaliserMerge();
   construireMinimapStatique();
 }
@@ -4606,6 +4606,72 @@ function majBrooklyn(dt){
     if(dist2(h.x,h.z,P.x,P.z)>4900) continue;
     h.t-=dt; if(h.t>0) continue; h.t=0.05;
     for(let k=0;k<2;k++) spawnP(h.x+0.4,0.75,h.z,rand(4,6.5),rand(2.5,4.5),rand(-0.7,0.7),rand(0.5,0.8),rand(0.2,0.34),0x9fd8f5,9,0);
+  }
+}
+/* ---------- LE CIEL DE LOS REYES (DECOR_V2) ----------
+   La caméra regarde vers le nord depuis le sud : rien de ce qui vole au large
+   n'est jamais vu. Les objets volants passent donc AU-DESSUS du jeu, sous la
+   caméra, et s'effacent (translucides) quand ils passent sur le joueur.
+   - dirigeable publicitaire REYES FM : grande boucle lente au-dessus de la ville ;
+   - petit avion qui tire une banderole le long de la plage ;
+   - mouettes qui tournent au-dessus du sable et de la jetée ;
+   - la nuit, feux d'artifice au-dessus de l'entrée de la jetée (vus de la plage). */
+const CIEL={dirigeable:null,avion:null,mouettes:[],fx:0};
+function texBanderole(txt,fond,coul){
+  const c=document.createElement('canvas'); c.width=512; c.height=64; const g=c.getContext('2d');
+  g.fillStyle=fond; g.fillRect(0,0,512,64); g.font='900 40px Arial'; g.textAlign='center'; g.textBaseline='middle'; g.fillStyle=coul; g.fillText(txt,256,34);
+  return new THREE.CanvasTexture(c);
+}
+function mkCiel(){
+  // dirigeable
+  const d=new THREE.Group(); scene.add(d); CIEL.dirigeable=d;
+  const env=new THREE.Mesh(new THREE.SphereGeometry(1,16,10),new THREE.MeshLambertMaterial({color:0xe8ecf2})); env.scale.set(13,3.8,3.8); d.add(env); d.scale.setScalar(0.7); // près de la caméra : déjà très grand à l'écran
+  const pub=new THREE.MeshBasicMaterial({map:texBanderole('REYES FM 98.4','#1c2a6a','#ffd23f')});
+  for(const s of [-1,1]){ const p=new THREE.Mesh(new THREE.PlaneGeometry(14,2.6),pub); p.position.set(0,0.2,s*3.86); if(s<0) p.rotation.y=Math.PI; d.add(p); }
+  const pub2=new THREE.Mesh(new THREE.PlaneGeometry(14,2.6),pub); pub2.position.set(0,3.83,0); pub2.rotation.x=-Math.PI/2; d.add(pub2); // lisible de dessus
+  const nac=new THREE.MeshLambertMaterial({color:0x2a2d34}), rouge=new THREE.MeshLambertMaterial({color:0xd83a3a});
+  const go=new THREE.Mesh(new THREE.BoxGeometry(3.4,1.1,1.4),nac); go.position.y=-4.2; d.add(go);
+  for(const rx of [0,Math.PI/2]){ const e=new THREE.Mesh(new THREE.BoxGeometry(3.2,0.12,4.2),rouge); e.position.x=-11.6; e.rotation.x=rx; d.add(e); }
+  CIEL.matsDir=[env.material,pub,nac,rouge];
+  CIEL.dir={t:0};
+  // avion à banderole
+  const a=new THREE.Group(); scene.add(a); CIEL.avion=a;
+  a.add(mkBoxG(3,0.7,0.8,0xffd23f,0,0,0)); a.add(mkBoxG(0.5,0.12,5.4,0xffd23f,0.3,0.3,0)); a.add(mkBoxG(0.4,0.8,0.12,0xd83a3a,-1.4,0.4,0));
+  const helice=mkBoxG(0.06,1.2,0.12,0x1c1e22,1.55,0,0); a.add(helice); CIEL.helice=helice;
+  const mBan=new THREE.MeshBasicMaterial({map:texBanderole('PLAGE DE LOS REYES ★ JETÉE OUVERTE','#f2f2ec','#d83a3a')});
+  const ban=new THREE.Mesh(new THREE.PlaneGeometry(10,1.4),mBan); ban.position.set(-8.5,-0.4,0); ban.rotation.x=-Math.PI/2; a.add(ban); // à plat : lisible de dessus
+  a.add(mkBoxG(2.5,0.03,0.03,0x2a2d34,-2.8,-0.2,0));
+  CIEL.av={t:0};
+  // mouettes (même dessin que celles du galion)
+  for(let k=0;k<7;k++){ const o=new THREE.Group(); o.scale.setScalar(0.6); o.add(mkBoxG(0.2,0.16,0.5,0xf0f0ec,0,0,0));
+    const ag=mkBoxG(0.9,0.04,0.3,0xe0e0dc,-0.5,0,0), ad=mkBoxG(0.9,0.04,0.3,0xe0e0dc,0.5,0,0); o.add(ag); o.add(ad); scene.add(o);
+    const cx=k<4?aD(-250,250):JETEE.x, cz=k<4?MER-8:JETEE.z0+30;
+    CIEL.mouettes.push({o,ag,ad,a:aD(0,6.3),r:aD(6,14),h:aD(9,15),v:aD(0.3,0.55)*(k%2?1:-1),cx,cz,ph:aD(0,6)}); }
+  CIEL.ok=true;
+}
+function majCiel(dt){
+  if(!CIEL.ok) return;
+  const t=(CIEL.dir.t+=dt);
+  // dirigeable : aller-retour lent au large, demi-tour en douceur aux extrémités
+  const d=CIEL.dirigeable, w=t*0.012, R=190; d.position.set(Math.cos(w)*R,19,Math.sin(w)*R*0.8); d.rotation.y=-w-Math.PI/2; // grande boucle, sens anti-horaire
+  const proche=dist2(d.position.x,d.position.z,P.x,P.z)<40*40, cible=proche?0.25:1;
+  if(Math.abs((CIEL.opDir||1)-cible)>0.01){ CIEL.opDir=(CIEL.opDir||1)+(cible-(CIEL.opDir||1))*Math.min(1,dt*3);
+    for(const m of CIEL.matsDir){ m.transparent=CIEL.opDir<0.99; m.opacity=CIEL.opDir; m.depthWrite=CIEL.opDir>=0.99; } }
+  // avion : le long de la plage, au-dessus de l'eau
+  const ta=(CIEL.av.t+=dt), ua=Math.sin(ta*0.04), a=CIEL.avion; a.position.set(ua*300,11+Math.sin(ta*0.6)*0.4,MER-14); a.rotation.y=Math.cos(ta*0.04)>=0?0:Math.PI; a.rotation.x=Math.sin(ta*0.9)*0.06;
+  CIEL.helice.rotation.x+=dt*40;
+  for(const m of CIEL.mouettes){ m.a+=m.v*dt; m.ph+=dt*7;
+    m.o.position.set(m.cx+Math.cos(m.a)*m.r,m.h+Math.sin(m.a*2)*0.8,m.cz+Math.sin(m.a)*m.r); m.o.rotation.y=-m.a+(m.v>0?0:Math.PI);
+    const b=Math.sin(m.ph)*0.5; m.ag.rotation.z=b; m.ad.rotation.z=-b; }
+  // feux d'artifice la nuit au-dessus de la jetée, si le joueur est dans le coin
+  if(JETEE.ok&&(ETAT.nuitF||0)>0.6&&dist2(P.x,P.z,JETEE.x,JETEE.z0+30)<180*180){
+    CIEL.fx-=dt;
+    if(CIEL.fx<=0){ CIEL.fx=rand(1.2,3);
+      const x=P.x+rand(-8,8), y=rand(10,16), z=P.z-rand(6,18), c=pick([0xff3bd0,0x35e0ff,0xffd23f,0x7dff7a,0xff5a3a,0xffffff]); // dans le champ (portrait : ±9 u de large à cette hauteur), devant la caméra qui regarde vers le nord
+      for(let k=0;k<40;k++){ const th=rand(0,6.283), ph=rand(-1.2,1.2), v=rand(7,11); spawnP(x,y,z,Math.cos(th)*Math.cos(ph)*v,Math.sin(ph)*v,Math.sin(th)*Math.cos(ph)*v,rand(1.0,1.5),rand(0.8,1.2),c,5,0); }
+      spawnP(x,y,z,0,0,0,0.25,7,0xffffff,0,0); // éclair au cœur de la gerbe
+      if(dist2(P.x,P.z,x,z)<120*120) bruit(0.3,0.25,140,'lowpass');
+    }
   }
 }
 // Un véhicule lancé (joueur ou autre) renverse les petits objets sur son passage.
@@ -23199,7 +23265,7 @@ function boucle(t){
       majMeteo(dt);
       majMer(dt);
       majMerV2(dt);
-      if(DECOR_V2){ majHorsLesMurs(dt); majMobilier(); majLac(dt); majLumieres(dt); majJetee(dt); majPortVivant(dt); majBrooklyn(dt); }
+      if(DECOR_V2){ majHorsLesMurs(dt); majMobilier(); majLac(dt); majLumieres(dt); majJetee(dt); majPortVivant(dt); majBrooklyn(dt); majCiel(dt); }
       majEpaveCanon(dt);
     }
     majHUD();
