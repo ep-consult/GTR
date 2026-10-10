@@ -4845,7 +4845,7 @@ function mkEpavePirate(x,z,ang){
   });
   g.position.set(x,0,z); g.rotation.y=ang; g.rotation.z=0.16; // gîte sur le flanc
   scene.add(g);
-  return {x,z,ang};
+  return {x,z,ang,g};
 }
 // Canon de l'épave : tire en continu (dt — spectacle, aucun chrono subi par
 // le joueur ne court contre lui, voir CLAUDE.md), boulet réel (tirer(),
@@ -4854,6 +4854,7 @@ function mkEpavePirate(x,z,ang){
 // demandé explicitement : tourne qu'un joueur soit à proximité ou non.
 const EPAVE_CANON={cd:6};
 function majEpaveCanon(dt){
+  if(GALION.ok){ majGalion(dt); return; } // DECOR_V2 : bordée du galion
   const ep=POIS.naufrage; if(!ep) return;
   EPAVE_CANON.cd-=dt;
   if(EPAVE_CANON.cd<=0){
@@ -4864,6 +4865,294 @@ function majEpaveCanon(dt){
     SFX.roquette();
     if(dist2(ox,oz,P.x,P.z)<3600){ secousse(3); vibre(30); bruit(0.4,0.5,220,'lowpass'); }
   }
+}
+/* ---------- GALION PIRATE ÉCHOUÉ (DECOR_V2) ----------
+   Remplace la petite épave (mkEpavePirate, gardée pour DECOR_V2=false) en
+   gardant son âme : échoué sur la plage au sud du désert, canons TOUJOURS
+   actifs, tonneaux autour. Trois fois plus grand (26 u), sur la plage vide
+   à l'est de la ville, la poupe dans l'eau :
+   - coque bombée en bordages (loft par couples), préceinte rouge, carène
+     verdie sous la flottaison ; château arrière à fenêtres de poupe et
+     lanternes allumées la nuit ; gaillard d'avant, beaupré, figure de proue ;
+   - grand mât debout (nid de pie, vergues, haubans) aux voiles en lambeaux
+     qui ondulent, pavillon noir qui claque ; misaine brisée ; artimon tombé
+     dans le sable ; squelette à la barre ;
+   - brèche côté plage (vrai trou dans la coque) : on entre dans la cale, sous
+     le pont crevé, jusqu'au coffre (butin posé à chaque partie, startRun) ;
+   - bordée de 6 canons côté large : salves en cascade, recul, fumée, boulets
+     en cloche et gerbes d'eau ; 1 tir sur 5 vise le joueur s'il est à portée
+     (demandé : « tire vers le large et 1 sur 5 sur le joueur »).
+   Habillage cosmétique sur dt ; la coque est solide (anneau d'addSolid). */
+const GALION={ok:false,canons:[],mouettes:[],eau:[],tresor:null,matFen:null};
+// Construit fn() sans toucher au générateur de la ville : Three.js tire
+// Math.random pour l'uuid de chaque objet, matériau, géométrie et texture.
+function sansAleaVille(fn){ const r=Math.random; Math.random=aleaDecor; try{ return fn(); } finally{ Math.random=r; } }
+const GAL_SALVE={cd:4,i:-1,t:0};
+const GAL_G=14;               // gravité des boulets (u/s²)
+const GAL_PORTEE_JOUEUR=70;   // au-delà, tous les tirs partent vers le large
+function texVoileGalion(dechiree){
+  const duo=canvasDuo(128,128,'rgb(226,214,184)'), m=duo.m.x, g=duo.d.x;
+  m.fillStyle='#fff'; m.fillRect(0,0,128,128);
+  for(let i=0;i<30;i++){ g.fillStyle='rgba(110,90,60,'+aD(0.05,0.2).toFixed(2)+')'; g.beginPath(); g.arc(aD(0,128),aD(0,128),aD(4,18),0,7); g.fill(); }
+  g.strokeStyle='rgba(140,120,90,0.55)'; g.lineWidth=1;
+  for(let x=14;x<128;x+=19){ g.beginPath(); g.moveTo(x,0); g.lineTo(x,128); g.stroke(); }
+  m.fillStyle='#000';
+  const trou=(x,y,r)=>{ m.beginPath(); for(let k=0;k<9;k++){ const a=k/9*6.283, rr=r*aD(0.45,1.25); k?m.lineTo(x+Math.cos(a)*rr,y+Math.sin(a)*rr):m.moveTo(x+rr,y); } m.fill(); };
+  for(let i=0;i<(dechiree?10:4);i++) trou(aD(12,116),aD(18,100),aD(4,dechiree?14:8));
+  m.beginPath(); m.moveTo(0,128); for(let x=0;x<=128;x+=7) m.lineTo(x,128-aD(3,dechiree?46:16)); m.lineTo(128,128); m.fill(); // bas déchiqueté
+  return texDuo(duo,false);
+}
+function texPavillonPirate(){
+  const duo=canvasDuo(128,80,'#151515'), m=duo.m.x, g=duo.d.x;
+  m.fillStyle='#fff'; m.fillRect(0,0,128,80);
+  g.fillStyle='#ece6d6';
+  g.save(); g.translate(60,40);
+  for(const s of [-1,1]){ g.save(); g.rotate(s*0.65); g.fillRect(-30,-3.5,60,7); g.beginPath(); g.arc(-31,0,5,0,7); g.arc(31,0,5,0,7); g.fill(); g.restore(); } // tibias croisés
+  g.beginPath(); g.arc(0,-6,15,0,7); g.fill(); g.fillRect(-8,4,16,9);                                                                    // crâne
+  g.fillStyle='#151515'; g.beginPath(); g.arc(-6,-7,4.2,0,7); g.arc(6,-7,4.2,0,7); g.fill(); g.fillRect(-1.5,0,3,4);
+  for(let k=-6;k<=6;k+=4) g.fillRect(k-0.6,7,1.2,6);
+  g.restore();
+  m.fillStyle='#000'; m.beginPath(); m.moveTo(128,0); for(let y=0;y<=80;y+=8) m.lineTo(128-aD(4,18),y); m.lineTo(128,80); m.fill(); // bord effiloché
+  return texDuo(duo,false);
+}
+// toile qui ondule au vent (shader) : libre = 'bas' (voile accrochée en haut) ou 'x' (pavillon tenu à gauche)
+function matOndulant(tex,cle,amp,libre){
+  const mt=new THREE.MeshLambertMaterial({map:tex.map,alphaMap:tex.alphaMap,alphaTest:0.5,side:THREE.DoubleSide});
+  mt.onBeforeCompile=(sh)=>{
+    sh.uniforms.uTemps=MER_U.uTemps;
+    sh.vertexShader='uniform float uTemps;\n'+sh.vertexShader.replace('#include <begin_vertex>',`#include <begin_vertex>
+  float liberte=${libre==='x'?'uv.x':'(1.0-uv.y)'};
+  transformed.z+=(sin(uTemps*2.6+position.x*1.3+position.y*0.9)*${amp.toFixed(2)}+sin(uTemps*4.3+position.x*2.9)*${(amp*0.35).toFixed(2)})*liberte;`);
+  };
+  mt.customProgramCacheKey=()=>cle;
+  return mt;
+}
+// Coque par couples : N+1 couples le long de x (poupe -L/2 → proue +L/2), 11
+// points par couple (tribord en haut → quille → bâbord en haut). Faces non
+// partagées (ombrage à facettes, comme le reste de la ville), teinte par
+// bande : préceinte rouge en haut, bois, carène verdie près de la quille.
+// trou = {i0,i1} : couples où le haut du flanc bâbord (côté plage) manque.
+function coqueGalion(L,W,H,trou){
+  const N=26, prof=[[0.92,1],[1.0,0.72],[0.97,0.45],[0.75,0.18],[0.35,0.04],[0,0]];
+  const larg=(t)=>t<0.06?0.86:(t>0.7?0.03+0.97*Math.pow(Math.max(0,Math.cos((t-0.7)/0.3*Math.PI/2)),0.75):1);
+  const tonture=(t)=>0.35*Math.pow(Math.max(0,(0.22-t)/0.22),1.4)+0.28*Math.pow(Math.max(0,(t-0.78)/0.22),2);
+  const quille=(t)=>0.5*Math.pow(Math.max(0,(t-0.8)/0.2),2)+0.12*Math.pow(Math.max(0,(0.08-t)/0.08),2);
+  const couple=(i)=>{ const t=i/N, x=-L/2+t*L, w=W*larg(t), hd=H*(1+tonture(t)), ky=quille(t)*H, pts=[];
+    for(let k=0;k<6;k++) pts.push([x,ky+(hd-ky)*prof[k][1],prof[k][0]*w]);
+    for(let k=4;k>=0;k--) pts.push([x,ky+(hd-ky)*prof[k][1],-prof[k][0]*w]);
+    return {x,w,hd,ky,pts}; };
+  const C=[]; for(let i=0;i<=N;i++) C.push(couple(i));
+  const pos=[],uv=[],col=[], c3=new THREE.Color();
+  const teinte=(j)=>(j===0||j===9)?0x8a2a1c:(j>=3&&j<=6?0x46432c:0x7a5434);
+  const quad=(a,b,c,d,ua,ub,va,vb,coul)=>{ c3.setHex(coul);
+    for(const [p,u,v] of [[a,ua,va],[b,ub,va],[c,ub,vb],[a,ua,va],[c,ub,vb],[d,ua,vb]]){ pos.push(p[0],p[1],p[2]); uv.push(u,v); col.push(c3.r,c3.g,c3.b); } };
+  for(let i=0;i<N;i++) for(let j=0;j<10;j++){
+    if(trou&&i>=trou.i0&&i<trou.i1&&j>=7) continue; // la brèche
+    const A=C[i].pts[j], B=C[i+1].pts[j], Cc=C[i+1].pts[j+1], D=C[i].pts[j+1];
+    quad(A,B,Cc,D,C[i].x/2.2,C[i+1].x/2.2,j*0.35,(j+1)*0.35,teinte(j));
+  }
+  // tableau arrière (poupe) : éventail
+  const p0=C[0]; for(let j=0;j<10;j++){ const a=p0.pts[j], b=p0.pts[j+1], m=[p0.x,(p0.ky+p0.hd)/2,0]; c3.setHex(0x6a4428);
+    for(const p of [m,b,a]){ pos.push(p[0],p[1],p[2]); uv.push(p[2]/2,p[1]/2); col.push(c3.r,c3.g,c3.b); } }
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2)); g.setAttribute('color',new THREE.Float32BufferAttribute(col,3));
+  g.computeVertexNormals();
+  // pont : trois bandes en travers, celle du milieu et celle de bâbord crevées au-dessus de la cale
+  const pp=[],pu=[];
+  for(let i=0;i<N;i++){ const a=C[i], b=C[i+1];
+    for(let s=0;s<3;s++){
+      if(trou&&i>=trou.i0-1&&i<trou.i1+1&&s<2) continue;
+      const z0=[-0.92,-0.3,0.3][s], z1=[-0.3,0.3,0.92][s];
+      const P4=[[a.x,a.hd,z0*a.w],[b.x,b.hd,z0*b.w],[b.x,b.hd,z1*b.w],[a.x,a.hd,z1*a.w]];
+      for(const k of [0,2,1,0,3,2]){ const p=P4[k]; pp.push(p[0],p[1]+0.02,p[2]); pu.push(p[0]/1.6,p[2]/1.6); }
+    } }
+  const gp=new THREE.BufferGeometry(); gp.setAttribute('position',new THREE.Float32BufferAttribute(pp,3)); gp.setAttribute('uv',new THREE.Float32BufferAttribute(pu,2)); gp.computeVertexNormals();
+  return {coque:g,pont:gp,C,N};
+}
+function mkGalion(cx,cz){
+  const L=26, W=3.8, H=3.8, trou={i0:9,i1:14};
+  const g=new THREE.Group(); scene.add(g);
+  const mBois=new THREE.MeshLambertMaterial({map:texPlanche,vertexColors:true,side:THREE.DoubleSide});
+  const mPont=new THREE.MeshLambertMaterial({map:texPlanche,color:0x9a7650,side:THREE.DoubleSide});
+  const {coque,pont,C,N}=coqueGalion(L,W,H,trou);
+  g.add(new THREE.Mesh(coque,mBois)); g.add(new THREE.Mesh(pont,mPont));
+  const fixes=[]; // pièces statiques, fusionnées par matériau à la fin
+  const boite=(w,h,d,coul,x,y,z,rx,ry,rz)=>{ const b=mkBoxG(w,h,d,coul,x,y,z); if(rx) b.rotation.x=rx; if(ry) b.rotation.y=ry; if(rz) b.rotation.z=rz; fixes.push(b); return b; };
+  const _a=new THREE.Vector3(), _b=new THREE.Vector3();
+  const barre=(p,q,ep,coul)=>{ _a.set(...p); _b.set(...q); const l=_a.distanceTo(_b); const b=mkBoxG(ep,ep,l,coul,(_a.x+_b.x)/2,(_a.y+_b.y)/2,(_a.z+_b.z)/2); b.lookAt(_b); fixes.push(b); return b; };
+  const cyl=(r0,r1,h,coul,p,q)=>{ _a.set(...p); _b.set(...q); const m=new THREE.Mesh(new THREE.CylinderGeometry(r1,r0,h,8),mat(coul));
+    m.position.copy(_a).add(_b).multiplyScalar(0.5); m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),_b.clone().sub(_a).normalize()); fixes.push(m); return m; };
+  const pont_=(t)=>{ const i=Math.round(t*N); return C[clamp(i,0,N)]; };
+  // liseré en cadre (jamais une plaque pleine : vue de dessus, elle couvrait le pont d'une tache jaune)
+  const cadre=(x,y,z,lx,lz,ep,h,coul)=>{ boite(lx,h,ep,coul,x,y,z-lz/2); boite(lx,h,ep,coul,x,y,z+lz/2); boite(ep,h,lz,coul,x-lx/2,y,z); boite(ep,h,lz,coul,x+lx/2,y,z); };
+  // lisses : rambarde dorée le long des deux bords
+  for(let i=0;i<N;i++) for(const s of [1,-1]){
+    if(s<0&&i>=trou.i0-1&&i<trou.i1+1) continue;
+    const a=C[i], b=C[i+1];
+    barre([a.x,a.hd+0.75,s*a.w*0.92],[b.x,b.hd+0.75,s*b.w*0.92],0.12,0xc9a43a);
+    if(i%2===0) boite(0.12,0.75,0.12,0x5a3a22,a.x,a.hd+0.37,s*a.w*0.92);
+  }
+  // château arrière : bloc surélevé, fenêtres de poupe, galerie, lanternes, barre et squelette
+  const cP=pont_(0.1), xC=-L/2+2.9, lC=5.4, hC=1.9, yC=cP.hd;
+  const chateau=new THREE.Mesh(new THREE.BoxGeometry(lC,hC,W*1.62),new THREE.MeshLambertMaterial({map:texPlanche,color:0x7a5232}));
+  chateau.position.set(xC,yC+hC/2,0); fixes.push(chateau);
+  boite(lC-0.1,0.08,W*1.56,0x5e4228,xC,yC+hC+0.03,0);                                   // pont du château
+  cadre(xC,yC+hC-0.1,0,lC+0.25,W*1.66,0.16,0.3,0x8a2a1c);                                // corniche rouge
+  cadre(xC,yC+hC+0.12,0,lC+0.3,W*1.7,0.1,0.12,0xc9a43a);                                 // filet doré
+  GALION.matFen=new THREE.MeshBasicMaterial({color:0x3a2a12});
+  for(let k=0;k<4;k++){ const f=new THREE.Mesh(new THREE.BoxGeometry(0.12,0.75,0.6),GALION.matFen); f.position.set(-L/2+0.12,yC+0.85,-1.95+k*1.3); g.add(f); }
+  boite(0.8,0.12,W*1.5,0x5a3a22,-L/2-0.35,yC+0.25,0);                                    // galerie de poupe
+  for(let k=0;k<6;k++) boite(0.08,0.55,0.08,0xc9a43a,-L/2-0.7,yC+0.55,-2.4+k*0.96);
+  const lanternes=[];
+  for(const s of [-1,1]){ boite(0.12,1.4,0.12,0x2a1f14,-L/2+0.4,yC+hC+0.7,s*2.3); const lt=boite(0.36,0.46,0.36,0xffc060,-L/2+0.4,yC+hC+1.6,s*2.3); lanternes.push(lt.position.clone()); }
+  // barre (roue) + squelette du capitaine
+  const roue=new THREE.Mesh(new THREE.TorusGeometry(0.55,0.06,5,12),mat(0x5a3a22)); roue.position.set(xC+1.4,yC+hC+0.9,0); roue.rotation.y=Math.PI/2; fixes.push(roue);
+  for(let k=0;k<4;k++){ const r=mkBoxG(0.05,1.3,0.05,0x5a3a22,xC+1.4,yC+hC+0.9,0); r.rotation.x=k*Math.PI/4; fixes.push(r); }
+  boite(0.12,0.9,0.12,0x5a3a22,xC+1.45,yC+hC+0.45,0);
+  const os=0xe8e2d0; // squelette affalé contre la barre
+  boite(0.32,0.32,0.3,os,xC+0.8,yC+hC+1.15,0.1,0,0,-0.4); boite(0.22,0.5,0.3,os,xC+0.75,yC+hC+0.65,0,0,0,-0.3);
+  for(let k=0;k<3;k++) boite(0.05,0.05,0.42,os,xC+0.78,yC+hC+0.55+k*0.12,0);
+  boite(0.06,0.6,0.06,os,xC+1.05,yC+hC+0.95,0.22,0.9,0,-1.2); boite(0.06,0.6,0.06,os,xC+1.05,yC+hC+0.95,-0.22,-0.9,0,-1.2);
+  boite(0.07,0.6,0.07,os,xC+0.85,yC+hC+0.3,0.12,0,0,0.6); boite(0.07,0.6,0.07,os,xC+0.85,yC+hC+0.3,-0.12,0,0,0.9);
+  // gaillard d'avant, beaupré, figure de proue
+  const cF=pont_(0.86); boite(3.2,0.9,W*0.95,0x6a4428,cF.x,cF.hd+0.45,0); boite(3.1,0.06,W*0.9,0x5e4228,cF.x,cF.hd+0.92,0); cadre(cF.x,cF.hd+0.95,0,3.3,W*1.0,0.1,0.1,0xc9a43a);
+  const nez=C[N], xB=nez.x, yB=nez.hd;
+  cyl(0.18,0.1,8,0x5a3a22,[xB-1.5,yB+0.3,0],[xB+5.2,yB+2.6,0]);
+  const or=0xc9a43a; boite(0.5,0.9,0.4,or,xB+0.2,yB-0.5,0,0,0,-0.6);
+  const tete=new THREE.Mesh(new THREE.IcosahedronGeometry(0.28,0),mat(or)); tete.position.set(xB+0.62,yB+0.05,0); fixes.push(tete);
+  boite(0.18,0.7,0.18,or,xB+0.45,yB+0.1,0.25,0.3,0,-1.2);
+  const queue=new THREE.Mesh(new THREE.ConeGeometry(0.28,1.0,5),mat(or)); queue.position.set(xB-0.2,yB-1.1,0); queue.rotation.z=2.4; fixes.push(queue);
+  // grand mât debout : nid de pie, vergues, haubans
+  const mP=pont_(0.47), yM=mP.hd, xM=mP.x, hM=15;
+  cyl(0.32,0.2,hM,0x4a3020,[xM,yM-0.5,0],[xM,yM+hM,0]);
+  const nid=new THREE.Mesh(new THREE.CylinderGeometry(1.0,0.75,0.7,8),mat(0x5a3a22)); nid.position.set(xM,yM+11.2,0); fixes.push(nid);
+  for(const [h,l] of [[5.6,8.6],[10,6.4]]) cyl(0.14,0.14,l,0x4a3020,[xM,yM+h,-l/2],[xM,yM+h,l/2]);
+  for(const s of [1,-1]) for(let k=-1;k<=1;k++){ const pb=pont_(0.47+k*0.035); barre([pb.x,pb.hd+0.7,s*pb.w*0.95],[xM,yM+10.6,s*0.2],0.05,0x2a2014); }
+  for(let k=1;k<=6;k++){ const h=0.7+k*1.4, f=1-(h-0.7)/10; for(const s of [1,-1]) barre([xM-0.6,yM+h,s*(mP.w*0.95*f+0.2)],[xM+0.6,yM+h,s*(mP.w*0.95*f+0.2)],0.04,0x2a2014); } // enfléchures
+  // voiles en lambeaux (ondulent) et pavillon noir
+  const mV1=matOndulant(texVoileGalion(true),'voileGalion1',0.35,'bas'), mV2=matOndulant(texVoileGalion(false),'voileGalion2',0.3,'bas');
+  const voile=(m,w,h,x,y,z)=>{ const v=new THREE.Mesh(new THREE.PlaneGeometry(w,h,6,5),m); v.position.set(x,y,z); v.rotation.y=Math.PI/2; g.add(v); return v; };
+  voile(mV1,8,4.2,xM+0.35,yM+3.4,0); voile(mV2,6,3.6,xM+0.3,yM+8.1,0);
+  const drap=new THREE.Mesh(new THREE.PlaneGeometry(2.6,1.6,8,3),matOndulant(texPavillonPirate(),'pavillonGalion',0.28,'x'));
+  drap.position.set(xM-1.3,yM+hM-0.6,0); drap.rotation.y=Math.PI; g.add(drap);
+  // misaine brisée : tronçon déchiqueté, vergue pendante, lambeau de voile
+  const mF=pont_(0.71), xF=mF.x, yF=mF.hd;
+  cyl(0.28,0.24,6.2,0x4a3020,[xF,yF-0.5,0],[xF,yF+5.7,0]);
+  for(let k=0;k<4;k++) boite(0.12,0.7,0.12,0x4a3020,xF+aD(-0.15,0.15),yF+5.9,aD(-0.15,0.15),aD(-0.4,0.4),0,aD(-0.4,0.4)); // échardes
+  cyl(0.12,0.12,6,0x4a3020,[xF+0.2,yF+4.8,-3],[xF+0.2,yF+2.2,2.8]);
+  voile(mV1,4.2,2.6,xF+0.45,yF+2.6,0.3).rotation.x=0.45;
+  barre([xB+5.2,yB+2.6,0],[xF,yF+5.6,0],0.05,0x2a2014); // étai du beaupré à la misaine brisée
+  // artimon tombé : couché du château jusque dans le sable, voile drapée
+  const mA=pont_(0.24);
+  cyl(0.26,0.2,12,0x4a3020,[mA.x,mA.hd+0.2,-mA.w*0.6],[mA.x-2.6,0.4+0.9,-mA.w-10]);
+  const dr=voile(mV2,4.5,3.4,mA.x-1.6,1.25,-mA.w-6.5); dr.rotation.set(-1.35,0.25,0);
+  // sabords : 6 canons côté large (tribord, +z), 4 sabords fermés côté plage
+  for(let k=0;k<6;k++){
+    const t=0.3+k*0.085, c=pont_(t), y=c.ky+(c.hd-c.ky)*0.62, z=c.w*1.0;
+    boite(0.75,0.62,0.12,0x14100c,c.x,y,z+0.02);
+    const fut=new THREE.Group(); fut.position.set(c.x,y,z-0.2); g.add(fut);
+    const canon=new THREE.Mesh(new THREE.CylinderGeometry(0.15,0.21,1.7,9),mat(0x1c1e22)); canon.rotation.x=Math.PI/2-0.12; canon.position.z=0.55; fut.add(canon);
+    const bord=new THREE.Mesh(new THREE.TorusGeometry(0.17,0.05,4,8),mat(0x1c1e22)); bord.position.set(0,0.1,1.38); fut.add(bord);
+    GALION.canons.push({fut,base:fut.position.clone(),recul:0,bouche:new THREE.Vector3(c.x,y+0.2,z+1.6),ang:0,monde:new THREE.Vector3()});
+  }
+  for(let k=0;k<4;k++){ const t=0.22+k*0.15, i=Math.round(t*N), c=C[i]; if(i>=trou.i0-1&&i<=trou.i1) continue; // jamais sur la brèche
+    boite(0.7,0.6,0.1,0x14100c,c.x,c.ky+(c.hd-c.ky)*0.62,-c.w-0.02); }
+  // brèche : membrures apparentes dans la cale, planches arrachées autour
+  for(let i=trou.i0;i<=trou.i1;i++){ const c=C[i];
+    for(let j=5;j<10;j++){ const a=c.pts[j], b=c.pts[j+1]; barre([a[0],a[1],a[2]*0.96],[b[0],b[1],b[2]*0.96],0.18,0x3a2616); } }
+  for(let k=0;k<9;k++){ const i=trou.i0+aD(0,trou.i1-trou.i0), c=C[Math.round(i)]; const p=c.pts[aleaDecor()<0.5?7:9];
+    boite(0.14,0.1,aD(1.2,2.4),0x5a3a22,c.x+aD(-0.4,0.4),p[1]+aD(-0.2,0.3),p[2]-aD(0,0.6),aD(-0.6,0.6),aD(-0.8,0.8),aD(-0.5,0.5)); }
+  // fusion des pièces fixes par matériau
+  const parMat=new Map();
+  for(const o of fixes){ o.updateMatrix(); const gg=o.geometry.clone().applyMatrix4(o.matrix); o.geometry.dispose();
+    if(!parMat.has(o.material)) parMat.set(o.material,[]); parMat.get(o.material).push(gg); }
+  for(const [m,gs] of parMat) g.add(new THREE.Mesh(mergeGeoManuel(gs),m));
+  // pose : quille enfoncée, poupe vers le large, gîte côté plage, proue relevée
+  g.position.set(cx,-0.9,cz); g.rotation.order='YXZ'; g.rotation.set(-0.13,0.5,0.05);
+  g.updateMatrixWorld(true);
+  // canons : bouche et direction de tir dans le monde
+  const _d=new THREE.Vector3();
+  for(const c of GALION.canons){
+    c.monde.copy(c.bouche); g.localToWorld(c.monde);
+    _d.set(0,0,1).applyQuaternion(g.quaternion); c.ang=Math.atan2(_d.x,_d.z);
+  }
+  // lueurs des lanternes (allumées la nuit, comme les lampadaires)
+  for(const p of lanternes){ const w=p.clone(); g.localToWorld(w);
+    const s=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:0xffc060,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending}));
+    s.scale.set(4,4,1); s.position.copy(w); scene.add(s); lampes.push(s); }
+  // coque solide : anneau de blocs le long des deux bords, ouvert à la brèche
+  const _p=new THREE.Vector3();
+  for(let i=0;i<=N;i++) for(const s of [1,-1]){
+    if(s<0&&i>=trou.i0&&i<=trou.i1) continue;
+    const c=C[i]; _p.set(c.x,c.hd,s*c.w*0.9); g.localToWorld(_p);
+    addSolid({x:_p.x,z:_p.z,hw:0.75,hd:0.75,h:4.5});
+  }
+  // coffre au trésor dans la cale, sous le pont crevé (le butin est posé par startRun)
+  const ic=(trou.i0+trou.i1)/2, cc=C[Math.round(ic)]; _p.set(cc.x,0,-cc.w*0.35); g.localToWorld(_p);
+  GALION.tresor={x:_p.x,z:_p.z};
+  const coffre=new THREE.Group(); coffre.position.set(_p.x,0,_p.z); coffre.rotation.y=0.5; scene.add(coffre);
+  coffre.add(mkBoxG(1.3,0.7,0.85,0x6a3f22,0,0.35,0)); coffre.add(mkBoxG(1.36,0.1,0.9,0xc9a43a,0,0.55,0)); coffre.add(mkBoxG(0.12,0.72,0.9,0xc9a43a,-0.4,0.36,0)); coffre.add(mkBoxG(0.12,0.72,0.9,0xc9a43a,0.4,0.36,0));
+  const couv=mkBoxG(1.3,0.12,0.85,0x6a3f22,0,0.95,-0.62); couv.rotation.x=-1.1; coffre.add(couv);
+  for(let k=0;k<7;k++){ const p=new THREE.Mesh(new THREE.IcosahedronGeometry(aD(0.12,0.2),0),mat(0xf2c33a)); p.position.set(aD(-0.45,0.45),0.72+aD(0,0.12),aD(-0.25,0.25)); coffre.add(p); }
+  const lueur=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:0xffd060,transparent:true,opacity:0.55,depthWrite:false,blending:THREE.AdditiveBlending}));
+  lueur.scale.set(3.2,3.2,1); lueur.position.y=1.0; coffre.add(lueur); GALION.lueur=lueur;
+  // alentours : tonneaux, caisses, ancre plantée, boulets en pyramide, canon tombé, tas de sable contre la coque
+  const _q=new THREE.Vector3(), alentour=(lx,lz)=>{ _q.set(lx,0,lz); _q.applyAxisAngle(new THREE.Vector3(0,1,0),0.5); return [cx+_q.x,cz+_q.z]; };
+  for(const [lx,lz,cou] of [[-3,-7.5,1],[2,-8.2,0],[4.5,-6.8,1],[-6,-6.6,0],[8,-6,0],[-9,-5.2,1]]){
+    const [x,z]=alentour(lx,lz); const b=new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.5,0.95,10),mat(aleaDecor()<0.5?0x6a4a2c:0x5a3f26));
+    b.position.set(x,cou?0.5:0.48,z); if(cou){ b.rotation.z=Math.PI/2; b.rotation.y=aD(0,6); } scene.add(b); }
+  for(const [lx,lz] of [[0,-9.6],[6,-8.8],[-4.5,-9]]){ const [x,z]=alentour(lx,lz); const k=mkBoxG(1.1,0.9,1.1,0x7a5a36,x,0.4,z); k.rotation.set(aD(-0.3,0.3),aD(0,6),aD(-0.2,0.2)); scene.add(k); }
+  { const [x,z]=alentour(10.5,-7.5), a=new THREE.Group(); a.position.set(x,0,z); a.rotation.set(0.35,aD(0,6),0.2); scene.add(a);
+    a.add(mkBoxG(0.28,3.2,0.28,0x3a3d44,0,1.3,0)); a.add(mkBoxG(2.2,0.3,0.3,0x3a3d44,0,0.1,0)); a.add(mkBoxG(0.3,0.7,0.3,0x3a3d44,-1.05,0.4,0)); a.add(mkBoxG(0.3,0.7,0.3,0x3a3d44,1.05,0.4,0));
+    const an=new THREE.Mesh(new THREE.TorusGeometry(0.4,0.08,5,10),mat(0x3a3d44)); an.position.y=3.0; a.add(an); }
+  { const [x,z]=alentour(-1.5,-10.8); const gb=new THREE.IcosahedronGeometry(0.22,0);
+    for(let n=0,k=0;k<3;k++) for(let i=0;i<3-k;i++) for(let j=0;j<3-k;j++,n++){ const b=new THREE.Mesh(gb,mat(0x1c1e22)); b.position.set(x+(i-(2-k)/2)*0.42,0.22+k*0.34,z+(j-(2-k)/2)*0.42); scene.add(b); } }
+  { const [x,z]=alentour(-7.5,-9.2), cn=new THREE.Mesh(new THREE.CylinderGeometry(0.17,0.24,1.9,9),mat(0x1c1e22)); cn.position.set(x,0.25,z); cn.rotation.set(Math.PI/2,0,0.7); scene.add(cn); }
+  for(let k=0;k<8;k++){ const [x,z]=alentour(-11+k*3.2,-5.4+aD(-0.4,0.4)); const d=new THREE.Mesh(new THREE.IcosahedronGeometry(1,0),mat(0xe0c890)); d.scale.set(aD(1.6,2.6),aD(0.25,0.45),aD(0.8,1.2)); d.position.set(x,0.05,z); d.rotation.y=0.5+aD(-0.3,0.3); scene.add(d); }
+  // mouettes qui tournent au-dessus du grand mât
+  _p.set(xM,yM+hM,0); g.localToWorld(_p);
+  for(let k=0;k<4;k++){ const o=new THREE.Group(); o.scale.setScalar(0.6); o.add(mkBoxG(0.2,0.16,0.5,0xf0f0ec,0,0,0));
+    const ag=mkBoxG(0.9,0.04,0.3,0xe0e0dc,-0.5,0,0), ad=mkBoxG(0.9,0.04,0.3,0xe0e0dc,0.5,0,0); o.add(ag); o.add(ad); scene.add(o);
+    GALION.mouettes.push({o,ag,ad,a:aD(0,6.3),r:aD(5,11),h:_p.y+aD(-2,3),v:aD(0.35,0.6)*(k%2?1:-1),cx:_p.x,cz:_p.z,ph:aD(0,6)}); }
+  // points de la coque dans l'eau : écume qui s'y brise (majGalion)
+  for(let i=0;i<=8;i++){ _p.set(C[i].x,0.9,(i%2?1:-1)*C[i].w); g.localToWorld(_p); if(estEau(_p.x,_p.z)) GALION.eau.push([_p.x,_p.z]); }
+  GALION.ok=true;
+  return {x:cx,z:cz,ang:GALION.canons[0].ang};
+}
+function tirCanonGalion(c){
+  c.recul=1;
+  const o=c.monde; let ang=c.ang+rand(-0.12,0.12), vit=rand(24,30), vy=rand(7,10);
+  const dx=P.x-o.x, dz=P.z-o.z, d=Math.hypot(dx,dz);
+  // 1 tir sur 5 vise le joueur, s'il est à portée et en ville (jamais dans une salle)
+  if(ETAT.mode==='jeu'&&!INT.actif&&d>5&&d<GAL_PORTEE_JOUEUR&&Math.random()<0.2){
+    ang=Math.atan2(dx,dz)+rand(-0.04,0.04); const tt=d/vit; vy=((P.y||0)+0.8-o.y)/tt+0.5*GAL_G*tt;
+  }
+  const b=tirer(o.x,o.y,o.z,ang,0,vit,30,'ennemi',0x1a1a1a,undefined,0,'boulet');
+  if(b){ b.vy=vy; b.t=6; }
+  burst(o.x,o.y,o.z,8,0xffd88a,9,2);
+  for(let k=0;k<4;k++) fumee(o.x+Math.sin(ang)*k*0.6,o.y+0.2,o.z+Math.cos(ang)*k*0.6,0xb8b8b0);
+  if(d<90){ SFX.roquette(); if(d<35){ secousse(2); vibre(20); } }
+}
+// boulet tombé : gerbe d'eau en mer, explosion à terre
+function impactBoulet(b){
+  if(estEau(b.x,b.z)){ eclaboussure(b.x,b.z,1.3); if(dist2(b.x,b.z,P.x,P.z)<3600) bruit(0.25,0.4,500); }
+  else explosionArme(b.x,b.z,false);
+}
+function majGalion(dt){
+  if(!GALION.ok) return;
+  const f=ETAT.nuitF||0;
+  GALION.matFen.color.setRGB(0.23+0.77*f,0.16+0.6*f,0.07+0.18*f);   // fenêtres de poupe allumées la nuit
+  if(GALION.lueur) GALION.lueur.material.opacity=0.35+0.25*Math.sin(ETAT.runT*2.2);
+  // salve en cascade d'un bout à l'autre de la bordée
+  const S=GAL_SALVE;
+  if(S.i<0){ S.cd-=dt; if(S.cd<=0){ S.i=0; S.t=0; } }
+  else { S.t-=dt; if(S.t<=0){ tirCanonGalion(GALION.canons[S.i]); S.i++; S.t=rand(0.18,0.32);
+    if(S.i>=GALION.canons.length){ S.i=-1; S.cd=rand(6,9); } } }
+  for(const c of GALION.canons){ if(c.recul>0) c.recul=Math.max(0,c.recul-dt*1.5); c.fut.position.set(c.base.x,c.base.y,c.base.z-c.recul*0.55); }
+  for(const m of GALION.mouettes){ m.a+=m.v*dt; m.ph+=dt*7;
+    m.o.position.set(m.cx+Math.cos(m.a)*m.r,m.h+Math.sin(m.a*2)*0.6,m.cz+Math.sin(m.a)*m.r); m.o.rotation.y=-m.a+(m.v>0?0:Math.PI);
+    const b=Math.sin(m.ph)*0.5; m.ag.rotation.z=b; m.ad.rotation.z=-b; }
+  if(GALION.eau.length&&Math.random()<dt*0.9){ const p=GALION.eau[Math.floor(Math.random()*GALION.eau.length)]; eclaboussure(p[0]+rand(-1,1),p[1]+rand(-1,1),0.35); }
 }
 function construireRelief(){
   const mSable=new THREE.MeshLambertMaterial({map:texSable});
@@ -4930,7 +5219,16 @@ function construireRelief(){
     // actif (jamais un simple décor, voir majEpaveCanon) pour « faire vivre
     // l'endroit ». Sable puis MER commence à MER=286 : posée bien avant,
     // face au large.
-    POIS.naufrage=mkEpavePirate(pd.x-10,262,0);
+    // DECOR_V2 : le galion, trois fois plus grand, sur la plage vide à l'est (même rivage, même âme)
+    if(DECOR_V2){
+      // L'ancienne épave tirait des nombres du générateur de la VILLE (ses
+      // tonneaux, et Three.js en tire 4 par objet créé pour son uuid) : la
+      // ville d'après en dépend (portes déplacées sinon, vu par scenarios.js).
+      // On la construit donc à l'identique puis on la retire, et le galion se
+      // construit sur le générateur du décor (sansAleaVille).
+      const ancienne=mkEpavePirate(pd.x-10,262,0); scene.remove(ancienne.g); ancienne.g.traverse((o)=>{ if(o.geometry) o.geometry.dispose(); }); // (libererObjet lit P.h, pas encore créé ici)
+      POIS.naufrage=sansAleaVille(()=>mkGalion(430,281));
+    } else POIS.naufrage=mkEpavePirate(pd.x-10,262,0);
   }
   // tremplins
   if(POIS.chantier){
@@ -7180,14 +7478,15 @@ function tirer(x,y,z,ang,disp,vitesse,dmg,fac,coul,cibleY,distCible,typ){
   b.on=true; b.x=x; b.y=y; b.z=z; b.typ=typ||null;
   b.vx=Math.sin(a)*vitesse; b.vz=Math.cos(a)*vitesse;
   b.vy=(cibleY!==undefined&&distCible>1)?(cibleY-y)/(distCible/vitesse):0;
-  b.t=typ==='flamme'?0.5:(typ==='roquette'?2.2:(typ==='bombe'?4:1.4));
+  b.t=typ==='flamme'?0.5:(typ==='roquette'?2.2:(typ==='bombe'?4:(typ==='boulet'?6:1.4)));
   b.dmg=dmg; b.fac=fac;
   b.mesh.material.color.setHex(coul||0xffe08a);
   const sc=typ==='roquette'?2.4:(typ==='bombe'?2:1);
-  b.mesh.scale.set(sc,sc,sc);
+  if(typ==='boulet') b.mesh.scale.set(2.8,2.8,0.6); else b.mesh.scale.set(sc,sc,sc);
   b.mesh.visible=typ!=='flamme';
   b.mesh.position.set(x,y,z); b.mesh.rotation.y=a;
   b.mesh.rotation.x=Math.atan2(-b.vy,vitesse)*0.6;
+  return b; // le galion règle ensuite la cloche du boulet (vy)
 }
 function explosionArme(x,z,duJoueur){
   explosionFx(x,z);
@@ -7354,21 +7653,22 @@ function majPools(dt){
     if(b.typ==='roquette'&&Math.random()<0.8) fumee(b.x,b.y,b.z,0x8a8f9a);
     if(b.typ==='dca'&&Math.random()<0.7) fumee(b.x,b.y,b.z,0xd8a878); // traceur DCA : fumée claire, pas d'explosion à l'impact
     if(b.typ==='bombe'){ b.vy-=24*dt; b.mesh.rotation.x=Math.atan2(-b.vy,Math.hypot(b.vx,b.vz)||1); }
+    if(b.typ==='boulet'){ b.vy-=GAL_G*dt; if(Math.random()<0.45) fumee(b.x,b.y,b.z,0x9a9a94); } // boulet du galion : cloche + traînée
     if(b.typ==='flamme'){
       spawnP(b.x,b.y,b.z,rand(-1,1),rand(0.5,2.5),rand(-1,1),rand(0.2,0.42),rand(0.6,1.2),pick([0xff7b2e,0xffb23a,0xff4b2e]),-1,1.4);
     }
     if(b.t<=0||b.y<0.05||b.y>40){
-      if(b.typ==='roquette'||b.typ==='bombe') explosionArme(b.x,b.z,b.fac==='joueur');
+      if(b.typ==='boulet') impactBoulet(b); else if(b.typ==='roquette'||b.typ==='bombe') explosionArme(b.x,b.z,b.fac==='joueur');
       b.on=false;b.mesh.visible=false;b.mesh.scale.set(1,1,1);continue;
     }
     const s=solidAt(b.x,b.z,0.1);
     if(s&&s.h>b.y){
-      if(b.typ==='roquette'||b.typ==='bombe') explosionArme(b.x,b.z,b.fac==='joueur');
+      if(b.typ==='boulet') impactBoulet(b); else if(b.typ==='roquette'||b.typ==='bombe') explosionArme(b.x,b.z,b.fac==='joueur');
       else burst(b.x,b.y,b.z,3,0xd8dce4,5);
       b.on=false;b.mesh.visible=false;b.mesh.scale.set(1,1,1);continue;
     }
     if(collisionBalle(b)){
-      if(b.typ==='roquette'||b.typ==='bombe') explosionArme(b.x,b.z,b.fac==='joueur');
+      if(b.typ==='boulet') impactBoulet(b); else if(b.typ==='roquette'||b.typ==='bombe') explosionArme(b.x,b.z,b.fac==='joueur');
       b.on=false;b.mesh.visible=false;b.mesh.scale.set(1,1,1);
     }
   }
@@ -20840,6 +21140,9 @@ function startRun(){
     creerVehicule(pick(['citadine','citadine','muscle','pickup','van','moto','taxi']),x,z,vert?0:Math.PI/2);
   }
   garerVelos();
+  if(GALION.tresor){ // coffre du galion : une fois par partie, et il attend le joueur (un butin dure 26 s par défaut)
+    creerPickup('cash',GALION.tresor.x,GALION.tresor.z,120); pickups[pickups.length-1].t=1e9;
+    creerPickup('mun',GALION.tresor.x+1.2,GALION.tresor.z-0.6); pickups[pickups.length-1].t=1e9; }
   if(POIS.secret){creerPickup('cash',POIS.secret.x,POIS.secret.z,60);
     creerPickup('cash',POIS.secret.x+1.5,POIS.secret.z+1,45);creerPickup('med',POIS.secret.x-1.5,POIS.secret.z+1);}
   ecran(null);

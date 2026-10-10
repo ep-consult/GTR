@@ -7776,6 +7776,53 @@ async function main() {
       }
     }
 
+    // -------------------------------------------------------------------
+    // Galion échoué (DECOR_V2) : coque solide mais brèche ouverte jusqu'au
+    // coffre (butin posé à chaque partie), bordée qui tire vers le large, et
+    // ~1 tir sur 5 vers le joueur quand il est à portée (demandé). tirer()
+    // est intercepté le temps du test : on compte les angles, rien ne part.
+    // -------------------------------------------------------------------
+    console.log('\n--- Galion échoué : coque solide, brèche vers le coffre, tirs vers le large et 1 sur 5 sur le joueur ---');
+    {
+      const ga = await page.evaluate(() => {
+        if (typeof GALION === 'undefined' || !GALION.ok) return { off: true };
+        startRun(); ETAT.timeScale = 1; P.hp = P.hpMax = 1e6;
+        const o = { canons: GALION.canons.length, t: GALION.tresor };
+        o.butin = pickups.some((p) => p.on !== false && p.type === 'cash' && Math.hypot(p.x - GALION.tresor.x, p.z - GALION.tresor.z) < 0.5);
+        o.coffreLibre = !solidAt(GALION.tresor.x, GALION.tresor.z, 0.3);
+        let pleins = 0; for (const c of GALION.canons) if (solidAt(c.monde.x - Math.sin(c.ang) * 2.2, c.monde.z - Math.cos(c.ang) * 2.2, 0.2)) pleins++;
+        o.coqueSolide = pleins >= GALION.canons.length - 1;
+        const vrai = tirer, tirs = [];
+        tirer = function (x, y, z, ang) { tirs.push({ ang, typ: arguments[11] }); return null; };
+        const angDiff2 = (a, b) => { let d = a - b; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return Math.abs(d); };
+        const salves = (n) => { for (let i = 0; i < n * 600; i++) majGalion(1 / 60); };
+        try {
+          P.x = 0; P.z = 0; salves(12); o.loin = tirs.splice(0).map((t) => t.ang);
+          const c0 = GALION.canons[0]; P.x = c0.monde.x - 6; P.z = c0.monde.z - 24; // côté plage, à portée
+          salves(60); o.pres = tirs.splice(0);
+          const versJoueur = (t, c) => angDiff2(t.ang, Math.atan2(P.x - c.monde.x, P.z - c.monde.z)) < 0.12;
+          o.nbPres = o.pres.length; o.visesJoueur = o.pres.filter((t) => GALION.canons.some((c) => versJoueur(t, c))).length;
+          o.loinVersLarge = o.loin.every((a) => angDiff2(a, GALION.canons[0].ang) < 0.2);
+          o.typ = o.pres.length ? o.pres[0].typ : null;
+        } finally { tirer = vrai; }
+        startRun();
+        return o;
+      });
+      if (ga.off) saute('Galion échoué : DECOR_V2 désactivé');
+      else {
+        const ko = [], part = ga.nbPres ? ga.visesJoueur / ga.nbPres : 0;
+        if (ga.canons !== 6) ko.push(ga.canons + ' canons');
+        if (!ga.coqueSolide) ko.push('la coque se traverse');
+        if (!ga.coffreLibre) ko.push('le coffre est muré (brèche fermée)');
+        if (!ga.butin) ko.push('pas de butin au coffre en début de partie');
+        if (!ga.loin.length || !ga.loinVersLarge) ko.push('joueur loin : des tirs ne partent pas vers le large (' + ga.loin.length + ' tirs)');
+        if (ga.typ !== 'boulet') ko.push('projectile ' + ga.typ);
+        if (!(ga.nbPres >= 100) || !(part > 0.1 && part < 0.32)) ko.push('joueur à portée : ' + ga.visesJoueur + '/' + ga.nbPres + ' tirs sur lui (attendu ~1 sur 5)');
+        if (ko.length) fail('Galion échoué : ' + ko.join(' | '));
+        else ok('Galion échoué : 6 canons, coque solide, brèche ouverte jusqu\'au coffre (butin posé), joueur loin → ' + ga.loin.length + ' tirs tous vers le large, à portée → ' + ga.visesJoueur + '/' + ga.nbPres + ' sur lui (' + Math.round(part * 100) + ' %)');
+      }
+    }
+
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');
     {
       const srcIdx = fs.readFileSync(INDEX_HTML, 'utf8');
