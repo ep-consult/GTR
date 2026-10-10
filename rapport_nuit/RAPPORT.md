@@ -5,7 +5,7 @@
 > moment de l'écriture.
 >
 > **Ajout du 10 octobre** : le décor de Los Reyes (branche `decor-ville`),
-> voir la dernière section, « Décor de Los Reyes ».
+> voir les deux dernières sections, « Décor de Los Reyes » et son 2e lot.
 
 ## Résumé
 
@@ -639,3 +639,89 @@ mobilier (`MOB_QUARTIERS`).
 8. **Transitions** : longer la bordure entre la ville et l'aérodrome, de jour
    puis de nuit. Le sable doit déborder sur la route sans briller la nuit, et
    aucune ligne droite ne doit séparer herbe et sable.
+
+---
+
+## Décor de Los Reyes, 2e lot — galion, quartiers, enseignes, portes (10 octobre)
+
+Demandes :
+- refaire le bateau échoué « beaucoup plus majestueux », ses canons tirant
+  vers le large, et un tir sur cinq sur le joueur ;
+- de nouvelles choses dans chaque quartier, en gardant l'âme de l'existant ;
+- ajoutées en cours de route :
+  - une crique avec de hauts plongeoirs ;
+  - un accès moins « gros carrés » ;
+  - des enseignes lisibles ;
+  - des portes mieux placées.
+
+Tout est derrière `DECOR_V2`, un commit par élément, sur `decor-ville`.
+
+### Ce qui a été fait
+
+| Élément | Commit | En bref |
+|---|---|---|
+| Galion échoué | `6e831cc` | 26 u (trois fois l'ancienne épave), sur la plage vide à l'est. Coque bordée avec préceinte, château arrière aux fenêtres allumées la nuit, figure de proue, trois mâts (dont un brisé et un tombé dans le sable), voiles et pavillon noir qui ondulent, squelette à la barre, mouettes, écume. Brèche côté plage jusqu'au coffre : butin une fois par partie. **6 canons en salves, boulets en cloche, 1 tir sur 5 sur le joueur à portée** (mesuré : 20 à 21 %). |
+| Jetée de fête foraine | `f29c815` | Plage ouest, praticable à pied et en voiture. Grande roue de 21 u (ampoules en chenillard la nuit, elle s'efface quand elle cache le joueur), manège, 4 stands, arche illuminée. |
+| Skatepark | `59e899c` | Parc voisin du lac. Deux tremplins face à face au-dessus d'un vide de 10 u (le BMX s'envole vraiment), funbox, quarter-pipe, rails, murs tagués, projecteurs. |
+| Port vivant | `fde5bab` | Trois parcs à conteneurs avec un portique qui roule en portant un conteneur, phare rayé sur un îlot praticable (faisceau la nuit), porte-conteneurs au large. |
+| Brooklyn | `095a5ea` | 11 fresques murales, 20 cordes à linge, 8 bornes à incendie ouvertes, deux courts de basket grillagés. |
+| Ciel | `9512d68` | Dirigeable REYES FM, avion à banderole le long de la plage, mouettes, feux d'artifice la nuit près de la jetée. |
+| Crique des plongeurs | `99ac9d5`, `7eba435` | Baie d'eau de mer entre trois falaises de grès (17, 10 et 5 u), un plongeoir chacune. **Atterrir dans l'eau ne blesse plus** : salto, gerbe, bonus de score selon la hauteur. Accès refait : collines escarpées et sentier en lacets à la place des trois rampes. |
+| Quartier néon | `a78882e`, `356cf0d` | 10 panneaux animés sur les toits, tapis rouge, file d'attente et videur devant le CLUB NÉON, projecteurs qui balaient le ciel la nuit. |
+| Finitions de quartier | `8569099` | Villas : 11 piscines décorées. Commerce : marché de rue (cagettes de fruits qui volent au passage d'une voiture). Industriel : cheminées qui fument. Base : barbelés et deux miradors à projecteurs. |
+| Enseignes | `89d56bf` | **Toutes refaites.** L'ancienne texture était un canevas carré de 256 px étiré sur un panneau 2,4 fois plus large : texte écrasé, puis noyé dans un halo. Désormais nettes, cadrées, aux bonnes proportions, penchées vers la caméra en ville. Cela touche les 132 enseignes : rues, lieux, salles, garages, bus. |
+| Portes | `200bdf7` | Chaque porte regarde vers sa façade (avant : toujours vers le sud). Pharmacie et concession, qui donnaient sur la chaussée, passent sur une façade avec du trottoir. L'arcade, qui n'avait aucun bâtiment, reçoit une devanture. L'enseigne du lieu passe devant le store qui la coupait, et les enseignes de boutique tirées au hasard qui la recouvraient sont retirées. |
+
+### Bugs trouvés en route (corrigés)
+
+- **Ville décalée par le décor.** Three.js tire `Math.random` pour l'identifiant de chaque objet créé. Construire le galion à la place de l'ancienne épave déplaçait toutes les portes de la ville (vu par `scenarios.js`). Le décor neuf est maintenant construit sur son propre générateur (`sansAleaVille`). L'ancienne épave est construite puis retirée, pour que la ville tire exactement les mêmes nombres. Vérifié après chaque élément : 28 portes identiques à la version d'avant.
+- **Les tags du quartier industriel étaient remplacés** par la texture du skatepark : deux fonctions portaient le même nom (`texGraffiti`).
+- **Fente à la jonction colline / falaise de la crique** : un trou de hauteur 0. Trouvé par le test de continuité.
+- **Le butin du coffre du galion disparaissait** au bout de 26 s (durée par défaut d'un butin) : il attend maintenant le joueur.
+- **Test Moto cross fragile** : la moto du test roulait vers la statue de la place. Le test est désormais maître de sa scène.
+
+### Performance
+
+Mesure de rendu seul sur les six vues les plus chargées, avant le galion puis maintenant :
+
+| Vue | Appels de rendu | Triangles |
+|---|---|---|
+| Centre | 107 → 108 | 29 320 → 31 393 |
+| Jetée | 111 → 136 | 30 767 → 38 490 |
+| Crique | 58 → 75 | 14 820 → 23 401 |
+| Port | 84 → 101 | 26 443 → 27 721 |
+| Club | 119 → 143 (246 avant la fusion de la file d'attente) | 24 982 → 29 284 |
+| Skatepark | 129 → 140 | 27 406 → 28 892 |
+
+Le temps de rendu mesuré augmente de **5 à 10 %**. La machine de mesure rendait cette fois en logiciel (environ 18 ms), donc les écarts relatifs comptent plus que les valeurs absolues. **À vérifier sur iPhone**, en particulier la jetée de nuit et le quartier néon.
+
+### Vérifications
+
+- `valider.js` ✓.
+- `scenarios.js` : 0 échec en graine fixe et en graine aléatoire (3774822559), aucun saut. Nouveaux tests :
+  - galion : coque solide, brèche ouverte, tirs au large, environ 1 sur 5 sur le joueur ;
+  - jetée : praticable à pied et en voiture, roue qui s'efface ;
+  - skatepark : vrai saut en BMX ;
+  - port : portiques en mouvement, îlot praticable, faisceau la nuit seulement ;
+  - Brooklyn ;
+  - crique : plongeon réel de 17 u sans dégâts, bonus, montée continue ;
+  - quartier néon : porte du club libre ;
+  - finitions de quartier ;
+  - portes : trottoir devant, sortie devant la porte, aucune enseigne de lieu masquée.
+- Sauvegarde : une partie faite sur `master` se recharge sans aucun écart, clé `asphalte_save_v1` inchangée.
+
+### Décisions prises seul
+
+- **Galion** posé sur la plage vide à l'est, plutôt qu'à la place exacte de l'ancienne épave : trois fois plus grand, il n'y tenait pas. Même rivage, même âme (canons toujours actifs, tonneaux).
+- **Plongeons** : atterrir dans n'importe quelle eau (mer, lac, crique) ne blesse plus, quelle que soit la hauteur. Le bonus ne tombe qu'au-dessus de 4 u, et au plus une fois toutes les 6 s, pour qu'on ne fasse pas du score à la chaîne.
+- **Enseignes de boutique retirées** quand elles recouvraient celle d'un lieu (KEBAB, DISCO, LIVE, SUSHI, POLICE…). Les autres restent.
+- **Bowling** : sa porte garde 2,5 u de trottoir. Aucune autre façade de son bâtiment ne fait mieux, et le seuil reste à 1,3 u de la bordure.
+
+### À tester sur iPhone (2e lot)
+
+1. Galion : s'approcher par la plage (un boulet sur cinq part sur le joueur), entrer par la brèche et prendre le trésor.
+2. Crique : monter le sentier en lacets jusqu'au plongeoir de 17 u, sauter, puis ressortir par les marches et replonger du bras de 5 u.
+3. Jetée de nuit : grande roue, manège, feux d'artifice. Contrôler la fluidité.
+4. Skatepark en BMX : prendre le tremplin et franchir le vide.
+5. Enseignes : se promener dans le quartier néon et le commerce, et entrer dans deux ou trois salles. Tout doit se lire.
+6. Pharmacie, concession, laverie, karaoké, arcade : entrer puis ressortir. On doit ressortir devant la porte, jamais dans un mur.
