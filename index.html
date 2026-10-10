@@ -3565,7 +3565,7 @@ function construireVille(){
     if(qq!=='plage'&&qq!=='parc'&&bx%3===1&&bz%3===1) mkFeu(cx+INNER/2+1.4,cz-INNER/2-1.4);
   }
   placerPortes();
-  if(DECOR_V2){ sansAleaVille(()=>mkJeteeForaine(-205)); mkMobilierUrbain(); mkTransitionsSols(); } // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
+  if(DECOR_V2){ sansAleaVille(()=>{ mkJeteeForaine(-205); mkSkatepark(4,1); }); mkMobilierUrbain(); mkTransitionsSols(); } // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
   finaliserMerge();
   construireMinimapStatique();
 }
@@ -4302,6 +4302,80 @@ function majJetee(dt){
   // ampoules : plus vives la nuit, chenillard (une couleur sur trois s'éteint à tour de rôle)
   const f=ETAT.nuitF||0, pas=Math.floor(ETAT.runT*3)%3, base=[0xffe6a0,0xff5a5a,0x5ab4ff];
   JETEE.ampoules.forEach((m,k)=>{ m.color.setHex(base[k]); m.color.multiplyScalar(f>0.3&&k===pas?0.25:(0.65+0.35*f)); });
+}
+/* ---------- SKATEPARK (DECOR_V2) ----------
+   Le pâté de parc à côté du lac (4,1) devient un skatepark en béton,
+   praticable à pied, en BMX et en voiture : deux tremplins face à face
+   au-dessus d'un vide de 10 u (on s'envole pour de vrai : RAMPES + envol de
+   majVehiculePhys), une funbox (plateau PLATS, rampes sur deux faces), un
+   quarter-pipe, des rails, des murs tagués, des projecteurs allumés la nuit.
+   Les arbres et allées du parc sont construits comme avant (la ville ne se
+   décale pas), puis retirés de l'emprise. */
+const SKATE={ok:false,x:0,z:0};
+function texGraffiti(){
+  return cTex(256,(g,s)=>{
+    g.fillStyle='#9a9a96'; g.fillRect(0,0,s,s);
+    for(let i=0;i<400;i++){ const v=Math.floor(aD(130,175)); g.fillStyle='rgb('+v+','+v+','+(v-4)+')'; g.fillRect(aD(0,s),aD(0,s),2,2); }
+    const tags=[['SK8','#ff3bd0'],['LOS REYES','#35e0ff'],['RIDE','#ffd23f'],['OLLIE','#7dff7a'],['WOW','#ff8c1a']];
+    for(let i=0;i<5;i++){
+      const [t,c]=tags[i]; g.save(); g.translate(aD(30,s-30),aD(40,s-30)); g.rotate(aD(-0.35,0.35));
+      g.font='900 '+Math.floor(aD(30,46))+'px Arial'; g.textAlign='center'; g.lineJoin='round';
+      g.lineWidth=9; g.strokeStyle='#14141a'; g.strokeText(t,0,0); g.lineWidth=4; g.strokeStyle='#ffffff'; g.strokeText(t,0,0);
+      g.fillStyle=c; g.fillText(t,0,0); g.restore();
+    }
+    for(let i=0;i<14;i++){ g.fillStyle=pickD(['#ff3bd0','#35e0ff','#ffd23f','#7dff7a'])+'99'; g.beginPath(); g.arc(aD(0,s),aD(0,s),aD(2,5),0,7); g.fill(); } // éclaboussures de bombe
+  });
+}
+function pickD(t){ return t[Math.floor(aleaDecor()*t.length)]; }
+function mkSkatepark(bx,bz){
+  const cx=-HALF+bx*CELL+CELL/2, cz=-HALF+bz*CELL+CELL/2, M=13;
+  Object.assign(SKATE,{x:cx,z:cz});
+  // l'emprise est vidée de ce que le parc y avait posé (arbres, allées, bassin, bancs) — jamais la pelouse
+  for(let i=scene.children.length-1;i>=0;i--){ const o=scene.children[i];
+    if(Math.abs(o.position.x-cx)<M+0.5&&Math.abs(o.position.z-cz)<M+0.5&&o.position.y<3&&!(o.geometry&&o.geometry.parameters&&o.geometry.parameters.width>=INNER)) { scene.remove(o); if(o.isMesh&&o.geometry) o.geometry.dispose(); } }
+  ZONES_SANS_MOBILIER.push({x0:cx-CELL/2,x1:cx+CELL/2,z0:cz-CELL/2,z1:cz+CELL/2}); // tout le pâté : haies et bancs muraient l'accès
+  POIS.skatepark={x:cx,z:cz};
+  const beton=new THREE.MeshLambertMaterial({map:texBetonSkate(),color:0xd0d0cc}), graf=new THREE.MeshLambertMaterial({map:texGraffiti()});
+  const dalle=new THREE.Mesh(new THREE.BoxGeometry(2*M,0.12,2*M),beton); dalle.position.set(cx,0.15,cz); scene.add(dalle);
+  PLATS.push({x:cx,z:cz,hw:M,hd:M,h:0.21});
+  // tremplins face à face (vol de 10 u entre les deux), à l'ouest
+  const xK=cx-7.5; mkRampe(xK,cz+11,Math.PI,6,1.9,5,beton); mkRampe(xK,cz-11,0,6,1.9,5,beton);
+  // funbox au centre-est : plateau + rampes nord et sud, rail sur le plateau
+  const xF=cx+4, hF=1.4;
+  PLATS.push({x:xF,z:cz,hw:3,hd:3,h:hF});
+  const fb=new THREE.Mesh(new THREE.BoxGeometry(6,hF,6),graf); fb.position.set(xF,hF/2,cz); scene.add(fb);
+  mkRampe(xF,cz+8,Math.PI,5,hF,6,beton); mkRampe(xF,cz-8,0,5,hF,6,beton);
+  mkBox(0.12,0.12,5.4,mat(0xc8ccd2),xF,hF+0.55,cz); for(const dz of [-2.4,2.4]) mkBox(0.08,0.55,0.08,mat(0xc8ccd2),xF,hF+0.27,cz+dz);
+  // quarter-pipe le long du bord est (on y monte et on retombe)
+  mkRampe(cx+8.2,cz,Math.PI/2,4.2,2.3,12,beton);
+  // rails et curb au sol, côté ouest
+  for(const dz of [-3,3]){ mkBox(0.1,0.1,7,mat(0xffd23f),cx-2,0.75,cz+dz); for(const d of [-3,3]) mkBox(0.08,0.55,0.08,mat(0x2a2d34),cx-2,0.48,cz+dz+d); }
+  mkBox(0.9,0.45,6,graf,cx-11.5,0.45,cz); addSolid({x:cx-11.5,z:cz,hw:0.45,hd:3,h:0.66}); // curb tagué
+  // murs tagués sur les bords ouest et est (solides) : le nord et le sud restent
+  // ouverts, c'est par là qu'on prend son élan vers les tremplins et la funbox
+  for(const [x,z,l] of [[cx-M+0.25,cz-8,9],[cx-M+0.25,cz+8,9],[cx+M-0.25,cz-10.25,4.5],[cx+M-0.25,cz+10.25,4.5]]){
+    mkBox(0.5,1.5,l,graf,x,0.95,z); addSolid({x,z,hw:0.25,hd:l/2,h:1.7}); }
+  // projecteurs aux quatre coins (lueurs allumées la nuit)
+  for(const [sx,sz] of [[-1,-1],[1,-1],[-1,1],[1,1]]){
+    const x=cx+sx*(M-0.6), z=cz+sz*(M-0.6);
+    mkBox(0.22,7,0.22,mat(0x2a2d34),x,3.5,z); mkBox(1.2,0.5,0.5,mat(0x1c1e22),x-sx*0.3,7,z-sz*0.3).rotation.y=Math.atan2(sx,sz);
+    const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:0xe8f4ff,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending}));
+    sp.scale.set(7,7,1); sp.position.set(x-sx*0.6,6.9,z-sz*0.6); scene.add(sp); lampes.push(sp);
+    addSolid({x,z,hw:0.2,hd:0.2,h:7});
+  }
+  // enseigne
+  mkBox(0.2,4,0.2,mat(0x2a2d34),cx+11,2,cz+M+1.2);
+  mkEnseigne('SKATEPARK','#ff3bd0',cx+11,4.6,cz+M+1.3,0,5).rotation.x=-0.5;
+  SKATE.ok=true;
+}
+// béton lissé, joints de dilatation, quelques traces de roues
+function texBetonSkate(){
+  return cTex(256,(g,s)=>{
+    g.fillStyle='#bdbdb8'; g.fillRect(0,0,s,s);
+    for(let i=0;i<900;i++){ const v=Math.floor(aD(170,205)); g.fillStyle='rgb('+v+','+v+','+v+')'; g.fillRect(aD(0,s),aD(0,s),2,2); }
+    g.strokeStyle='rgba(80,80,80,0.5)'; g.lineWidth=2; for(let k=0;k<=s;k+=s/2){ g.beginPath(); g.moveTo(k,0); g.lineTo(k,s); g.stroke(); g.beginPath(); g.moveTo(0,k); g.lineTo(s,k); g.stroke(); }
+    g.strokeStyle='rgba(40,40,40,0.18)'; g.lineWidth=3; for(let i=0;i<6;i++){ g.beginPath(); g.moveTo(aD(0,s),aD(0,s)); g.quadraticCurveTo(aD(0,s),aD(0,s),aD(0,s),aD(0,s)); g.stroke(); }
+  },4,4);
 }
 // Un véhicule lancé (joueur ou autre) renverse les petits objets sur son passage.
 function majMobilier(){

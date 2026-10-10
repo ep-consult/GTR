@@ -6307,18 +6307,19 @@ async function main() {
     console.log('\n--- Moto cross : cabrage (bouton CABRER, chute si tenu trop longtemps, sauvetage si relâché à temps) ---');
     const crossTest = await page.evaluate(() => {
       const res = {};
+      const X0 = -HALF + 6 * CELL, Z0 = -HALF + 6 * CELL; // carrefour dégagé (jamais le centre de la place : sa statue est solide)
       res.vehdefPresent = !!VEHDEFS.motocross && VEHDEFS.motocross.type === 'moto' && !!VEHDEFS.motocross.cross;
       res.auCatalogue = CATALOGUE.some((o) => o.key === 'motocross');
 
       // le test maîtrise sa scène : aucun véhicule de la ville sur les ~100 unités parcourues (voir Broyeur)
       function viderVehiculesVille() { for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0; }
       startRun(); viderVehiculesVille();
-      const mt = creerVehicule('motocross', POIS.place.x, POIS.place.z, 0, null);
+      const mt = creerVehicule('motocross', X0, Z0, 0, null);
       P.veh = mt; mt.conduit = 'joueur';
       INPUT.btn.esquive = true;
       let t = 0, chute = false;
       for (let i = 0; i < 400 && P.veh; i++) {
-        mt.v = 15; // vitesse maintenue artificiellement : isole le cabrage du reste de la conduite
+        mt.v = 15; mt.x = X0; mt.z = Z0; // vitesse maintenue, position figée : isole le cabrage du reste de la conduite (aucun décor sur le trajet)
         majConduite(0.016);
         t += 0.016;
       }
@@ -6326,26 +6327,26 @@ async function main() {
       res.tenirEnContinuFaitChuter = chute && t < 3;
 
       startRun(); viderVehiculesVille();
-      const mt2 = creerVehicule('motocross', POIS.place.x, POIS.place.z, 0, null);
+      const mt2 = creerVehicule('motocross', X0, Z0, 0, null);
       P.veh = mt2; mt2.conduit = 'joueur';
       INPUT.btn.esquive = true;
       let atteintDanger = false;
       for (let i = 0; i < 60 && P.veh; i++) {
-        mt2.v = 15;
+        mt2.v = 15; mt2.x = X0; mt2.z = Z0;
         majConduite(0.016);
         if (P.veh && P.veh.wheelieA > CROSS_CABRAGE_DANGER) { atteintDanger = true; break; }
       }
       INPUT.btn.esquive = false; // relâche dès l'entrée en zone de danger
-      for (let i = 0; i < 60 && P.veh; i++) { mt2.v = 15; majConduite(0.016); }
+      for (let i = 0; i < 60 && P.veh; i++) { mt2.v = 15; mt2.x = X0; mt2.z = Z0; majConduite(0.016); }
       res.atteintLaZoneDeDanger = atteintDanger;
       res.relacherATempsSauveToujours = !!P.veh;
       res.angleRedescendBienAZero = P.veh ? P.veh.wheelieA < 0.01 : false;
 
       startRun(); viderVehiculesVille();
-      const mt3 = creerVehicule('motocross', POIS.place.x, POIS.place.z, 0, null);
+      const mt3 = creerVehicule('motocross', X0, Z0, 0, null);
       P.veh = mt3; mt3.conduit = 'joueur';
       INPUT.btn.esquive = false;
-      for (let i = 0; i < 90 && P.veh; i++) { mt3.v = 15; majConduite(0.016); }
+      for (let i = 0; i < 90 && P.veh; i++) { mt3.v = 15; mt3.x = X0; mt3.z = Z0; majConduite(0.016); }
       res.conduiteNormaleNeDeclencheRien = !!P.veh && mt3.wheelieA === 0;
 
       return res;
@@ -7862,6 +7863,25 @@ async function main() {
         if (ko.length) fail('Jetée de fête foraine : ' + ko.join(' | '));
         else ok('Jetée de fête foraine : pont praticable (h ' + je.hPont + ', pas d\'eau dessous), voiture montée par la rampe (h ' + je.voitureH + '), roue qui tourne et s\'efface derrière le joueur (' + je.fonduDerriere + ')');
       }
+    }
+
+    // -------------------------------------------------------------------
+    // Skatepark (DECOR_V2) : un BMX lancé plein gaz décolle du tremplin et
+    // franchit le vide ; ni arbre ni mobilier ne bloque l'élan.
+    // -------------------------------------------------------------------
+    console.log('\n--- Skatepark : le BMX décolle du tremplin, accès dégagé ---');
+    {
+      const sk = await page.evaluate(() => {
+        if (typeof SKATE === 'undefined' || !SKATE.ok) return { off: true };
+        startRun(); for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0;
+        const v = creerVehicule('bmx', SKATE.x - 7.5, SKATE.z + 22, Math.PI, null);
+        let hMax = 0, air = false; for (let i = 0; i < 200; i++) { majVehiculePhys(v, 1 / 60, 1, 0, false); hMax = Math.max(hMax, v.h || 0); air = air || !!v.enAir; }
+        const o = { hMax: +hMax.toFixed(2), air, traverse: +(SKATE.z - v.z).toFixed(1), auSol: !v.enAir };
+        v.mort = true; startRun(); return o;
+      });
+      if (sk.off) saute('Skatepark : DECOR_V2 désactivé');
+      else if (!sk.air || !(sk.hMax > 1.2) || !(sk.traverse > 8) || !sk.auSol) fail('Skatepark : saut raté ' + JSON.stringify(sk));
+      else ok('Skatepark : le BMX décolle du tremplin (h ' + sk.hMax + '), franchit le vide et retombe ' + sk.traverse + ' u plus loin');
     }
 
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');
