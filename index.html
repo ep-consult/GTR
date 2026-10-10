@@ -3469,7 +3469,7 @@ function construireVille(){
   mkYacht(-30,MER+40); mkYacht(-160,MER+34);
   mkGrandYacht(90,MER+55);   // amarré : décor + pont praticable
   mkIleCanard(); mkIlotRocher();
-  mkEnceinte(); mkAeroport(); construireRelief(); mkVieMarine();
+  mkEnceinte(); if(DECOR_V2) mkHorsLesMurs(); mkAeroport(); construireRelief(); mkVieMarine();
   // vie de rue fixe
   if(POIS.parc){ mkFoodTruck(POIS.parc.x-CELL,POIS.parc.z+10); mkMusicien(POIS.parc.x+4,POIS.parc.z); }
   if(POIS.place){ mkFoodTruck(POIS.place.x+12,POIS.place.z-10); mkMusicien(POIS.place.x-6,POIS.place.z-4); }
@@ -3619,6 +3619,90 @@ function mkLittoral(){
   const lame=new THREE.Mesh(new THREE.PlaneGeometry(LITTORAL_X1-LITTORAL_X0,7,1,1),m);
   lame.rotation.x=-Math.PI/2; lame.position.set((LITTORAL_X0+LITTORAL_X1)/2,0.13,MER-3); scene.add(lame);
   return lame;
+}
+/* ---------- HORS LES MURS (DECOR_V2) ----------
+   Décor factice, inaccessible, au-delà de l'enceinte : avant, du bitume gris
+   à perte de vue. Champs, bande de forêt le long du mur, collines, silhouette
+   d'une autre ville à l'horizon, et au nord une autoroute surélevée où
+   défilent quelques voitures. Fusionné PAR CÔTÉ (ouest, nord, est) : la
+   caméra ne dessine que le côté qu'elle voit. Le brouillard fait le reste. */
+const texChamps=cTex(256,(g,s)=>{
+  const coul=['#55702f','#62783a','#7a783c','#4c672d','#73663a','#5c7436']; // sourds : le hors-champ ne doit pas voler la vedette à la ville
+  for(let y=0;y<s;y+=64) for(let x=0;x<s;x+=64){
+    const c=pick(coul); g.fillStyle=c; g.fillRect(x,y,64,64);
+    g.strokeStyle='rgba(0,0,0,0.12)'; g.lineWidth=2;
+    const vert=Math.random()<0.5;
+    for(let k=4;k<64;k+=7){ g.beginPath(); if(vert){g.moveTo(x+k,y);g.lineTo(x+k,y+64);} else {g.moveTo(x,y+k);g.lineTo(x+64,y+k);} g.stroke(); }
+  }
+  g.strokeStyle='rgba(60,50,30,0.5)'; g.lineWidth=3;
+  for(let k=0;k<=s;k+=64){ g.beginPath(); g.moveTo(k,0); g.lineTo(k,s); g.stroke(); g.beginPath(); g.moveTo(0,k); g.lineTo(s,k); g.stroke(); }
+},6,6);
+const HORS_VOITURES=[]; // voitures factices de l'autoroute nord
+function mkHorsLesMurs(){
+  const W=-HALF-14, N=-HALF-14, E=HALF+14;
+  const groupes={}; // côté -> clé matériau -> {mat, geos}
+  // Fusion par TRONÇONS de 120 u le long de chaque côté : un seul gros mesh
+  // par côté était dessiné dès qu'un bout entrait dans le champ (mesuré :
+  // +30 000 triangles même vu du centre-ville ou de la plage).
+  const ajoute=(cote,m,geo,x,y,z,ry,sx,sy,sz)=>{
+    geo=geo.clone(); if(sx) geo.scale(sx,sy,sz); if(ry) geo.rotateY(ry); geo.translate(x,y,z);
+    const tr=cote+Math.floor((cote==='ouest'?z:x)/120);
+    const G=groupes[tr]||(groupes[tr]={}), k=matKey(m);
+    (G[k]||(G[k]={mat:m,geos:[]})).geos.push(geo);
+  };
+  // 1) sol : champs (ouest, nord, et au-delà de l'aérodrome au nord)
+  const champ=(x0,x1,z0,z1)=>{
+    const m=new THREE.Mesh(new THREE.PlaneGeometry(x1-x0,z1-z0),new THREE.MeshLambertMaterial({map:texChamps}));
+    m.rotation.x=-Math.PI/2; m.position.set((x0+x1)/2,0.02,(z0+z1)/2); scene.add(m);
+  };
+  champ(W-260,W-0.8,N-260,MER-2);            // ouest
+  champ(W-0.8,E,N-260,N-0.8);                // nord
+  champ(E,E+300,N-260,-HALF+6);              // nord de l'aérodrome (bitume nu entre le désert et la limite)
+  // 2) bande de forêt le long des murs (2 essences, troncs + houppiers)
+  const gCone=new THREE.ConeGeometry(1,1,5), gBoule=new THREE.DodecahedronGeometry(1,0), gTronc=new THREE.BoxGeometry(0.4,1,0.4);
+  const mFeuil=[mat(0x34602c),mat(0x45733a)], mTronc=mat(0x5a3f2a); // peu de matériaux = peu d'appels de rendu par tronçon
+  const arbre=(cote,x,z)=>{
+    const h=rand(5,9), sapin=Math.random()<0.55;
+    ajoute(cote,mTronc,gTronc,x,h*0.15,z,0,1,h*0.3,1);
+    if(sapin) ajoute(cote,pick(mFeuil),gCone,x,h*0.62,z,0,h*0.28,h*0.75,h*0.28);
+    else ajoute(cote,pick(mFeuil),gBoule,x,h*0.62,z,rand(0,6),h*0.32,h*0.3,h*0.32);
+  };
+  for(let z=N-4;z<MER-6;z+=rand(4,6.5)) for(let k=0;k<2;k++) arbre('ouest',W-rand(4,24),z+rand(-2,2));
+  for(let x=W;x<E+260;x+=rand(4,6.5)){ for(let k=0;k<2;k++) arbre('nord',x+rand(-2,2),N-rand(4,22)); }
+  // 3) collines au loin
+  const gColl=new THREE.SphereGeometry(1,8,4,0,Math.PI*2,0,Math.PI/2);
+  const mColl=[mat(0x5f7d45)];
+  for(let i=0;i<9;i++) ajoute('ouest',pick(mColl),gColl,W-rand(70,150),0,rand(N,MER-60),0,rand(30,55),rand(10,22),rand(30,55));
+  for(let i=0;i<12;i++) ajoute('nord',pick(mColl),gColl,rand(W-60,E+240),0,N-rand(80,150),0,rand(30,60),rand(12,26),rand(30,60));
+  // 4) silhouette d'une autre ville à l'horizon (nord-ouest), bleutée
+  const gImm=new THREE.BoxGeometry(1,1,1), mImm=[mat(0x6a7488)];
+  for(let i=0;i<40;i++){ const h=rand(18,60); ajoute('nord',pick(mImm),gImm,rand(W-180,W+200),h/2,N-rand(175,215),0,rand(8,18),h,rand(8,16)); }
+  // 5) autoroute surélevée au nord, avec ses piles et ses glissières
+  const ZA=N-36, Y=7, L0=W-260, L1=E+260;
+  const mBeton=mat(0x8a8d93), mRail=mat(0xb8bcc4), mBitume=mat(0x3a3c42);
+  ajoute('nord',mBitume,gImm,(L0+L1)/2,Y,ZA,0,L1-L0,0.8,16);
+  ajoute('nord',mRail,gImm,(L0+L1)/2,Y+0.9,ZA-7.6,0,L1-L0,1,0.4);
+  ajoute('nord',mRail,gImm,(L0+L1)/2,Y+0.9,ZA+7.6,0,L1-L0,1,0.4);
+  for(let x=L0+20;x<L1;x+=48) ajoute('nord',mBeton,gImm,x,Y/2,ZA,0,2.4,Y,5);
+  // voitures factices : boîtes colorées qui défilent dans les deux sens
+  for(let i=0;i<14;i++){
+    const sens=i%2?1:-1, c=pick([0xd83a3a,0x35c8e0,0xffd23f,0xe8ecf2,0x2a2d34,0x4a7ac9]);
+    const g=new THREE.Group();
+    g.add(mkBoxG(4,1.2,1.9,c,0,0.6,0)); g.add(mkBoxG(2.2,0.8,1.7,0x141b26,-0.2,1.5,0));
+    g.position.set(rand(L0,L1),Y+0.4,ZA+sens*3.6); scene.add(g);
+    HORS_VOITURES.push({g,sens,v:rand(22,34),L0,L1});
+  }
+  // fusion par côté
+  for(const cote in groupes) for(const k in groupes[cote]){
+    const e=groupes[cote][k]; const geo=mergeGeoManuel(e.geos);
+    const mesh=new THREE.Mesh(geo,e.mat); mesh.matrixAutoUpdate=false; mesh.updateMatrix(); scene.add(mesh);
+  }
+}
+function majHorsLesMurs(dt){
+  for(let i=0;i<HORS_VOITURES.length;i++){
+    const c=HORS_VOITURES[i]; c.g.position.x+=c.sens*c.v*dt;
+    if(c.g.position.x>c.L1) c.g.position.x=c.L0; else if(c.g.position.x<c.L0) c.g.position.x=c.L1;
+  }
 }
 // limite ouest en mer : la ligne du mur (jetée comprise)
 const LIMITE_OUEST_MER=-HALF-11.5;
@@ -21507,6 +21591,7 @@ function boucle(t){
       majMeteo(dt);
       majMer(dt);
       majMerV2(dt);
+      if(DECOR_V2) majHorsLesMurs(dt);
       majEpaveCanon(dt);
     }
     majHUD();
