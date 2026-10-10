@@ -1108,7 +1108,7 @@ const MOTEURS={
 };
 function profilMoteur(def){
   if(!def) return MOTEURS.car;
-  if(def.surf) return null;                       // le surf n'a pas de moteur
+  if(def.surf||def.velo) return null;             // ni le surf ni le vélo n'ont de moteur
   if(def.ovni) return MOTEURS.ovni;
   if(def.air==='helico') return MOTEURS.helico;
   if(def.air) return MOTEURS.avion;
@@ -2255,6 +2255,12 @@ const VEHDEFS={
   // tenu trop longtemps, jamais un simple effet cosmétique (CLAUDE.md,
   // « un minigame doit être perdable »). Look tout-terrain propre, voir
   // makeVoiture (def.cross).
+  // Vélos (DECOR_V2) : garés aux arceaux, sans moteur (profilMoteur → null),
+  // BUNNY HOP sur ESQUIVE (def.hop = vitesse verticale du saut, voir
+  // majConduite). Garage : style seulement (tuningCarro sans tuningMeca :
+  // peinture, néons, pièces — jamais moteur, nitro ni blindage).
+  velo:{nom:'Vélo de ville',tuningCarro:{famille:'velo',ancrages:{avant:{x:0,y:1.08,z:0.48},arriere:{x:0,y:0.74,z:-0.56},toit:{x:0,y:1.08,z:0.4},basCaisse:{x:0.08,y:0.36,z:0}}},vmax:15,acc:9,man:3.6,hp:60,long:1.8,larg:0.6,type:'moto',velo:true,roue:0.34,hop:7,cols:[0x2a6ad8,0x2f8a4a,0xe8ecf2,0xd83a3a]},
+  bmx:{nom:'BMX',tuningCarro:{famille:'velo',ancrages:{avant:{x:0,y:0.94,z:0.42},arriere:{x:0,y:0.62,z:-0.56},toit:{x:0,y:0.94,z:0.34},basCaisse:{x:0.08,y:0.3,z:0}}},vmax:17,acc:12,man:4.2,hp:50,long:1.6,larg:0.6,type:'moto',velo:true,bmx:true,roue:0.28,hop:9.5,cols:[0xff8c1a,0x35e0ff,0xff5ad0,0x1c1e24]},
   motocross:{nom:'Moto cross',tuningMeca:true,tuningCarro:{famille:'deuxroues',ancrages:{avant:{x:0,y:1.19,z:1.13},arriere:{x:0,y:0.65,z:-1.13},toit:{x:0,y:1.19,z:0.58},basCaisse:{x:0.45,y:0.49,z:0}}},vmax:37,acc:23,man:3.5,hp:65,long:2.3,larg:0.85,type:'moto',cols:[0xff8c1a,0x35c8e0,0x7dff7a],cross:true},
   sport:{nom:'Supercar "Éclipse"',tuningMeca:true,tuningCarro:{famille:'sportive',ancrages:{avant:{x:0,y:0.94,z:2.14},arriere:{x:0,y:1.12,z:-2.25},toit:{x:0,y:1.23,z:-0.26},basCaisse:{x:1,y:0.1,z:0}}},vmax:45,acc:24,man:3.0,hp:110,long:4.4,larg:2.0,type:'car',cols:[0xff4b2e,0x35e0ff,0xb8ff3a,0xf2f4f8],sport:true},
   taxi:{nom:'Taxi',tuningMeca:true,tuningCarro:{famille:'compacte',ancrages:{avant:{x:0,y:0.86,z:2.09},arriere:{x:0,y:0.65,z:-2.09},toit:{x:0,y:1.57,z:-0.26},basCaisse:{x:1,y:0.22,z:0}}},vmax:25,acc:15,man:2.6,hp:130,long:4.3,larg:2.0,type:'car',cols:[0xf2c21f],taxi:true},
@@ -3736,7 +3742,7 @@ function aleaDecor(){ _aleaDecorS|=0; _aleaDecorS=(_aleaDecorS+0x6D2B79F5)|0; le
 const aD=(a,b)=>a+aleaDecor()*(b-a), choixD=(t)=>t[Math.floor(aleaDecor()*t.length)];
 const MOB_Y_TROTTOIR=0.22;         // dessus des dalles de trottoir (boîte de 0,22 posée à 0,11)
 const MOB_ZONES=7;                 // 7×7 zones de fusion (~2 pâtés chacune) : seules celles en vue sont dessinées
-const MOB={zones:[],cassables:new Map(),casses:[]}; // cassables : grille 8 u -> [{zone,debut,nb,x,z,r}]
+const MOB={zones:[],cassables:new Map(),casses:[],arceaux:[]}; // arceaux : [{x,z,ry}] où garer les vélos (startRun) // cassables : grille 8 u -> [{zone,debut,nb,x,z,r}]
 const MOB_MAT=new THREE.MeshLambertMaterial({vertexColors:true});
 const MOB_MAT_LUM=new THREE.MeshBasicMaterial({vertexColors:true});
 // --- géométrie d'un objet : pièces [type, dims..., x, y, z, couleur, (ry)] -> tableaux à plat
@@ -3835,6 +3841,7 @@ function mkMobilierUrbain(){
     if(D.solide){ const c=Math.abs(Math.cos(ry)), s=Math.abs(Math.sin(ry));
       addSolid({x,z,hw:D.solide.hw*c+D.solide.hd*s,hd:D.solide.hw*s+D.solide.hd*c,h:D.solide.h}); }
     if(type==='lampadaire') FLAQUES_LUM.push([x+0.8*Math.cos(ry),z-0.8*Math.sin(ry)]);
+    if(type==='arceaux') MOB.arceaux.push({x,z,ry});
     if(D.casse){
       const k=Math.floor(x/8)+','+Math.floor(z/8);
       if(!MOB.cassables.has(k)) MOB.cassables.set(k,[]);
@@ -3924,6 +3931,19 @@ function majMobilier(){
       bruit(0.12,0.4,700); v.v*=0.94;
       if(o.type==='borne'){ for(let k=0;k<14;k++) spawnP(o.x,0.6,o.z,rand(-1.5,1.5),rand(6,10),rand(-1.5,1.5),1.2,rand(0.3,0.5),0x9fd8f5,9,0); }
     }
+  }
+}
+// Vélos garés aux arceaux en début de partie : au plus VELOS_GARES, répartis
+// sur toute la liste (choix déterministe, aucun tirage), un BMX sur trois.
+const VELOS_GARES=12;
+function garerVelos(){
+  if(!DECOR_V2||!MOB.arceaux.length) return;
+  const pas=Math.max(1,Math.floor(MOB.arceaux.length/VELOS_GARES));
+  for(let i=0,n=0;i<MOB.arceaux.length&&n<VELOS_GARES;i+=pas){
+    const a=MOB.arceaux[i];
+    let libre=true; for(const o of vehicules) if(dist2(o.x,o.z,a.x,a.z)<9){ libre=false; break; }
+    if(!libre) continue;
+    creerVehicule(n%3===2?'bmx':'velo',a.x,a.z,a.ry); n++;
   }
 }
 // Remise en état à chaque nouvelle partie.
@@ -6245,6 +6265,7 @@ function makeVoiture(key){
   // majVehiculePhys). Groupe neutre (aucune transform par défaut) pour tous
   // les autres véhicules : zéro différence visuelle pour eux.
   const corps=new THREE.Group(); g.add(corps); ud.corps=corps;
+  if(def.velo) return makeVelo(def,coul,g,ud,corps);
   if(def.type==='moto'){
     if(def.cross){
       // Moto cross : garde-boue haut sur ses suspensions, guidon large et
@@ -6764,6 +6785,69 @@ function makeVoiture(key){
     if(Math.random()<0.3) corps.add(mkBoxG(0.04,0.7,0.04,0x14161c,-W*0.34,bodyY+0.88,-L*0.3));
   }
   g.add(spriteBlob(L*1.05)); // ombre au sol : jamais dans `corps`, elle ne doit pas tanguer avec le châssis
+  g.userData=ud;
+  return g;
+}
+// Vélo de ville / BMX (DECOR_V2) : cadre en tubes fins, roues à jante creuse
+// (cylindre ouvert, axe y local comme toutes les roues : les jantes du
+// garage s'y greffent telles quelles), pédalier qui tourne (ud.pedalier,
+// animé dans majConduite). Le vélo de ville a un cadre col-de-cygne et un
+// guidon relevé ; le BMX, petites roues, cadre bas et guidon à barre.
+var MAT_PNEU_VELO=null; // var : jamais en zone morte, même si un vélo était créé pendant la génération
+function makeVelo(def,coul,g,ud,corps){
+  const R=def.roue, L=def.long, wz=L*0.31, bmx=!!def.bmx, NOIR=0x1c1e24, ACIER=0x9aa0a8;
+  const tube=(x0,y0,z0,x1,y1,z1,ep,c)=>{ // tube droit d'un point à un autre (plan x constant)
+    const dy=y1-y0, dz=z1-z0, l=Math.hypot(dy,dz);
+    const b=mkBoxG(ep,ep,l,c,(x0+x1)/2,(y0+y1)/2,(z0+z1)/2); b.rotation.x=Math.atan2(-dy,dz); corps.add(b); return b;
+  };
+  const bb={y:R+0.02,z:-0.04}, sY=bmx?0.74:0.96, sZ=-0.22, hY=bmx?0.84:0.98, hZ=wz-0.14, hbY=bmx?0.64:0.76, hbZ=wz-0.1;
+  tube(0,bb.y,bb.z,0,sY,sZ,0.05,coul);                          // tube de selle
+  tube(0,bb.y,bb.z,0,hbY,hbZ,0.06,coul);                        // tube oblique
+  if(bmx) tube(0,sY-0.04,sZ+0.02,0,hY-0.04,hZ,0.05,coul);        // tube horizontal
+  else tube(0,(bb.y+sY)/2+0.06,(bb.z+sZ)/2,0,hbY+0.06,hbZ,0.05,coul); // col-de-cygne, bas
+  tube(0,hbY,hbZ,0,hY,hZ,0.06,coul);                             // tube de direction
+  for(const sx of [-0.05,0.05]){
+    tube(sx,bb.y,bb.z,sx,R,-wz,0.035,coul);                      // bases
+    tube(sx,sY-0.1,sZ+0.01,sx,R,-wz,0.035,coul);                 // haubans
+    tube(sx,hbY,hbZ,sx,R,wz,0.04,bmx?ACIER:coul);                // fourche
+  }
+  // selle, tige de selle, potence, guidon
+  corps.add(mkBoxG(0.16,0.06,0.28,NOIR,0,sY+0.06,sZ-0.04));
+  const gY=hY+(bmx?0.1:0.12), gZ=hZ+(bmx?0.02:-0.1);
+  tube(0,hY,hZ,0,gY,gZ,0.04,ACIER);
+  corps.add(mkBoxG(bmx?0.62:0.56,0.04,0.04,ACIER,0,gY,gZ));
+  if(bmx) corps.add(mkBoxG(0.3,0.03,0.03,ACIER,0,gY-0.1,gZ-0.01)); // barre de renfort
+  for(const sx of [-1,1]) corps.add(mkBoxG(0.05,0.05,0.12,NOIR,sx*(bmx?0.29:0.26),gY,gZ-0.02)); // poignées
+  // pédalier : plateau + manivelles + pédales, tourne en roulant
+  const ped=new THREE.Group(); ped.position.set(0,bb.y,bb.z); corps.add(ped); ud.pedalier=ped;
+  const plateau=new THREE.Mesh(new THREE.CylinderGeometry(0.11,0.11,0.02,10),mat(ACIER)); plateau.rotation.z=Math.PI/2; plateau.position.x=0.08; ped.add(plateau);
+  for(const s of [-1,1]){
+    const man=mkBoxG(0.03,0.17,0.04,ACIER,s*0.11,s*0.085,0); ped.add(man);
+    ped.add(mkBoxG(0.1,0.03,0.07,NOIR,s*0.16,s*0.17,0));
+  }
+  // éclairage : phare sur la fourche, catadioptre arrière
+  corps.add(mkBoxG(0.09,0.07,0.06,0xfff0b8,0,hY-0.08,hZ+0.07));
+  const s=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:0xffe9b0,transparent:true,depthWrite:false,opacity:0}));
+  s.scale.set(1.8,1.8,1); s.position.set(0,hY-0.08,hZ+0.4); corps.add(s); ud.phG.push(s);
+  corps.add(mkBoxG(0.08,0.05,0.03,0xd83a3a,0,sY-0.14,sZ-0.08));
+  // roues : pneu creux (cylindre ouvert, double face) + deux rayons croisés + moyeu
+  const mPneu=MAT_PNEU_VELO||(MAT_PNEU_VELO=new THREE.MeshLambertMaterial({color:0x15171c,side:THREE.DoubleSide})); // partagé
+  for(const z of [wz,-wz]){
+    const r=new THREE.Mesh(new THREE.CylinderGeometry(R,R,0.06,16,1,true),mPneu);
+    r.rotation.z=Math.PI/2; r.position.set(0,R,z); g.add(r); ud.roues.push(r);
+    const rayons=[]; for(let k=0;k<3;k++){ const gr=new THREE.BoxGeometry(R*1.9,0.012,0.012); gr.rotateY(k*Math.PI/3); rayons.push(gr); }
+    r.add(new THREE.Mesh(mergeGeoManuel(rayons),mat(0xc8ccd2)));
+    const moy=new THREE.Mesh(new THREE.CylinderGeometry(0.035,0.035,0.08,6),mat(ACIER)); r.add(moy);
+  }
+  // cadre fusionné par matériau : ~20 tubes → 5 maillages (12 vélos garés en
+  // ville). La peinture du garage suit : le maillage garde mat(coul).
+  const parMat=new Map();
+  for(const c of corps.children.slice()) if(c.isMesh){
+    c.updateMatrix(); const gg=c.geometry.clone().applyMatrix4(c.matrix); c.geometry.dispose(); corps.remove(c);
+    if(!parMat.has(c.material)) parMat.set(c.material,[]); parMat.get(c.material).push(gg);
+  }
+  for(const [m,gs] of parMat) corps.add(new THREE.Mesh(mergeGeoManuel(gs),m));
+  g.add(spriteBlob(L*0.9));
   g.userData=ud;
   return g;
 }
@@ -8416,8 +8500,8 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
           }
           burst(v.x,0.4,v.z,5,0xb8bec8,5);
           if(v.conduit==='joueur'){
-            secousse(Math.min(8,-v.vy*0.5)); vibre(40);
-            if(v.airT>0.55){
+            secousse(v.hop?0.8:Math.min(8,-v.vy*0.5)); vibre(v.hop?12:40);
+            if(v.airT>0.55&&!v.hop){ // un bunny hop n'est pas une cascade (voir majConduite)
               const pts=Math.round(40*ETAT.combo);
               ETAT.score+=pts; spawnTexte(v.x,3,v.z,'SAUT ! +'+pts,'#ffd23f');
               if(v.airT>1) META.defis.saut=true;
@@ -8425,7 +8509,7 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
             }
           }
         }
-        v.vy=0;
+        v.vy=0; v.hop=false;
       }
     } else {
       const prev=v.h;
@@ -8544,6 +8628,11 @@ function entrerVehicule(v){
       P.h.jambeG.rotation.x=0; P.h.jambeD.rotation.x=0;
       P.h.brasG.rotation.x=-1.1; P.h.brasD.rotation.x=-1.1;
       P.h.brasG.rotation.z=0; P.h.brasD.rotation.z=0;
+    } else if(v.def.velo){          // en selle (BMX : plus bas, en danseuse) — les jambes pédalent (majConduite)
+      P.h.g.position.set(0,v.def.bmx?0.38:0.52,-0.2); P.h.g.rotation.set(0,0,0);
+      P.h.jambeG.rotation.x=-0.4; P.h.jambeD.rotation.x=-0.4;
+      P.h.brasG.rotation.x=-1.0; P.h.brasD.rotation.x=-1.0;
+      P.h.brasG.rotation.z=0; P.h.brasD.rotation.z=0;
     } else {
       P.h.g.position.set(0,0.35,-0.1); P.h.g.rotation.set(0,0,0);
       P.h.jambeG.rotation.x=-0.7; P.h.jambeD.rotation.x=-0.7;
@@ -8563,6 +8652,12 @@ function entrerVehicule(v){
     el('btnDodge').style.display='flex';
     el('btnDodge').innerHTML='🏍️<small>CABRER</small>';
     toast('Maintiens CABRER pour te cabrer — trop longtemps et tu bascules','or');
+  }
+  if(v.def.velo){
+    // Vélo : BUNNY HOP sur l'emplacement ESQUIVE (même réemploi que CABRER)
+    el('btnDodge').style.display='flex';
+    el('btnDodge').innerHTML='🚲<small>BUNNY HOP</small>';
+    toast(v.def.bmx?'BUNNY HOP : le BMX saute par-dessus les bancs et les bordures':'BUNNY HOP pour sauter — le BMX saute encore plus haut','or');
   }
   if(v.def.pelle){
     // Bulldozer : bouton ESQUIVE (inutilisé — pas d'arme), bascule la
@@ -9558,6 +9653,21 @@ function majConduite(dt){
     }
     const roueAv=v.mesh.userData.roues[0];
     if(roueAv) roueAv.position.y=0.4+Math.sin(v.wheelieA)*0.5;
+  }
+  if(v.def.velo){
+    // BUNNY HOP : front montant d'ESQUIVE, roues au sol → envol par la
+    // physique de saut partagée (v.enAir/v.vy, majVehiculePhys) ; par-dessus
+    // un obstacle bas tant que la hauteur le permet (sFront.h, idem).
+    // v.hop : ce saut-là ne compte pas comme un SAUT de cascade (pas de
+    // points à la chaîne en sautillant sur place).
+    const veut=!!(INPUT.btn.esquive||INPUT.btn.esquiveK);
+    if(veut&&!v.hopTenu&&!v.enAir){ v.enAir=true; v.hop=true; v.vy=v.def.hop; v.airT=0; v.h=v.h||0; bruit(0.05,0.25,900); vibre(15); }
+    v.hopTenu=veut;
+    // pédalage : jambes et pédalier suivent la vitesse ; roue libre en l'air
+    if(!v.enAir) v.pedalPh=(v.pedalPh||0)+v.v*dt*2.2;
+    const ph=v.pedalPh||0, ud=v.mesh.userData;
+    if(ud.pedalier) ud.pedalier.rotation.x=-ph;
+    if(P.surMoto&&P.veh===v){ P.h.jambeG.rotation.x=-0.45+Math.sin(ph)*0.4; P.h.jambeD.rotation.x=-0.45-Math.sin(ph)*0.4; }
   }
   if(v.def.pelle){
     // Bouton ESQUIVE (libre — le bulldozer n'a pas d'arme) : bascule la
@@ -18257,6 +18367,17 @@ const P_={ // fabricants partagés entre familles (paramétrés)
     }
     return g; }; },
 };
+// vélos : porte-bagages au-dessus de la roue arrière, garde-boue calés sur
+// les roues RÉELLES (ctx.roues), fanion sur mât derrière la selle
+P_.porteBagages=(g,a)=>{ pBox(g,0.3,0.03,0.46,MAT_CHROME,0,a.arriere.y,a.arriere.z+0.06);
+  for(const sx of [-1,1]) pBox(g,0.025,0.03,0.42,MAT_CHROME,sx*0.12,a.arriere.y-0.2,a.arriere.z-0.04,-1.28); }; // jambes vers l'axe
+P_.gardeBoue=(m)=>(a,d,mc,ctx)=>{ const g=new THREE.Group();
+  for(const r of ctx.roues||[]) for(let k=-2;k<=2;k++){ const t=k*0.38, l=r.R*0.42;
+    pBox(g,0.1,0.025,l,m,0,r.y+(r.R+0.05)*Math.cos(t),r.z+(r.R+0.05)*Math.sin(t),t); }
+  return g; };
+P_.fanion=(g,a,c)=>{ const z=a.arriere.z+0.02, y0=a.arriere.y;
+  pBox(g,0.02,1.1,0.02,MAT_SOMBRE,0.1,y0+0.55,z);
+  pBox(g,0.015,0.2,0.3,mat(c),0.1,y0+1.0,z-0.16); };
 const ORIGINE={nom:'D’origine'};
 const PIECES_FAMILLES={
   compacte:{
@@ -18338,6 +18459,24 @@ const PIECES_FAMILLES={
     echappement:{nom:'ÉCHAPPEMENT',variantes:[ORIGINE,
       {nom:'Silencieux',f:(a)=>{ const g=new THREE.Group(); pCyl(g,0.07,0.5,MAT_CHROME,0.2,a.basCaisse.y,a.arriere.z+0.45); return g; }},
       {nom:'Double canon',f:(a)=>{ const g=new THREE.Group(); for(const sy of [0,0.14]) pCyl(g,0.06,0.55,MAT_CHROME,0.2,a.basCaisse.y+sy,a.arriere.z+0.42); return g; }}]},
+  },
+  velo:{ // vélo de ville et BMX : style seulement (clés de catégorie fixes, libellés propres) ; jupes.surRoues : garde-boue AU-DESSUS des roues (testé à part)
+    aileron:{nom:'PORTE-BAGAGES',variantes:[ORIGINE,
+      {nom:'Porte-bagages',f:(a)=>{ const g=new THREE.Group(); P_.porteBagages(g,a); return g; }},
+      {nom:'Caisse de livreur',f:(a,d,m)=>{ const g=new THREE.Group(); P_.porteBagages(g,a);
+        pBox(g,0.4,0.32,0.36,m,0,a.arriere.y+0.18,a.arriere.z-0.02); pBox(g,0.42,0.04,0.38,MAT_SOMBRE,0,a.arriere.y+0.35,a.arriere.z-0.02); return g; }}]},
+    jupes:{nom:'GARDE-BOUE',surRoues:true,variantes:[ORIGINE,{nom:'Garde-boue',f:P_.gardeBoue(MAT_SOMBRE)},{nom:'Garde-boue chromés',f:P_.gardeBoue(MAT_CHROME)}]},
+    capot:{nom:'AVANT',variantes:[ORIGINE,
+      {nom:'Panier en osier',f:(a)=>{ const g=new THREE.Group();
+        pBox(g,0.38,0.24,0.3,mat(0xb08850),0,a.avant.y-0.2,a.avant.z+0.14); pBox(g,0.4,0.04,0.32,mat(0x8a6638),0,a.avant.y-0.07,a.avant.z+0.14); return g; }},
+      {nom:'Plaque de course',f:(a)=>{ const g=new THREE.Group();
+        pBox(g,0.3,0.24,0.03,mat(0xf2f4f8),0,a.toit.y-0.16,a.avant.z+0.02); pBox(g,0.08,0.14,0.035,MAT_SOMBRE,0,a.toit.y-0.16,a.avant.z+0.025); return g; }}]},
+    jantes:{nom:'JANTES',variantes:[ORIGINE,{nom:'Bâtons',f:P_.jante('rayons')},{nom:'Chrome',f:P_.jante('chrome')}]},
+    echappement:{nom:'FANION',variantes:[ORIGINE,
+      {nom:'Fanion',f:(a)=>{ const g=new THREE.Group(); P_.fanion(g,a,0xff8c1a); return g; }},
+      {nom:'Fanion + rubans',f:(a,d)=>{ const g=new THREE.Group(); P_.fanion(g,a,0x35e0ff);
+        for(const sx of [-1,1]) for(const [c,dz] of [[0xff5ad0,0],[0xffd23f,0.04]]) pBox(g,0.02,0.26,0.02,mat(c),sx*d.larg*0.47,a.toit.y-0.14,a.toit.z-0.06+dz);
+        return g; }}]},
   },
 };
 // ---- NITRO (toutes les durées sur dtJeu) ----
@@ -18429,8 +18568,12 @@ function migrerGaragesVersVehPerso(){
 migrerGaragesVersVehPerso();
 // Éligibilité DÉCLARÉE dans VEHDEFS (jamais une liste ici) : tuningMeca =
 // tout ce qui roule et se conduit (char compris) ; tuningCarro = voitures et
-// motos civiles, avec famille + ancrages. Tout le reste est refusé à la porte.
-function vehiculeGarable(v){ return !!(v&&v.def&&v.def.tuningMeca); }
+// motos civiles, avec famille + ancrages — et les vélos, qui n'ont QUE
+// tuningCarro (style seulement : peinture, néons, pièces). Tout le reste
+// est refusé à la porte.
+function vehiculeGarable(v){ return !!(v&&v.def&&(v.def.tuningMeca||v.def.tuningCarro)); }
+// moteur, vitesse, tenue, blindage, nitro : réservés aux véhicules tuningMeca
+function ficheMeca(slot){ return !!(slot&&VEHDEFS[slot.cle]&&VEHDEFS[slot.cle].tuningMeca); }
 function messageNonGarable(v){
   const d=v.def;
   if(d.eau||d.surf) return 'Les bateaux, c’est au port — pas au garage';
@@ -18621,6 +18764,8 @@ function appliquerCarrosserie(groupe,key,pieces){
     if(r.position.z>0) zAv=Math.min(zAv,r.position.z-R); else zAr=Math.max(zAr,r.position.z+R);
   }
   const ctx=(isFinite(zAv)&&isFinite(zAr))?{jupeZ0:zAr+0.1,jupeZ1:zAv-0.1}:{jupeZ0:-d.long*0.28,jupeZ1:d.long*0.28};
+  // roues réelles (centre, rayon) : garde-boue des vélos
+  ctx.roues=[]; for(const r of ud.roues||[]) ctx.roues.push({y:r.position.y,z:r.position.z,R:r.geometry.parameters.radiusTop||0.4});
   const grp=new THREE.Group(); let n=0;
   for(const cat of PIECES_CATS){
     if(cat==='jantes'||!fam[cat]) continue;
@@ -18888,13 +19033,13 @@ function couleurNeons(s,coul){ // gratuit une fois le kit posé
 }
 function acheterNitro(s){
   let slot=ficheAchat(s);
-  if(!slot||slot.nitro) return false; // déjà équipée
+  if(!slot||slot.nitro||!ficheMeca(slot)) return false; // déjà équipée, ou un vélo
   slot=garageAcheter(s,TUNING_PRIX.nitro); if(!slot) return false;
   slot.nitro=true; sauveMeta(); return true;
 }
 function acheterPalier(s,cat){
   let slot=ficheAchat(s);
-  if(!slot||!TUNING_EFFETS[cat]) return false;
+  if(!slot||!TUNING_EFFETS[cat]||!ficheMeca(slot)) return false; // un vélo : style seulement
   const n=slot[cat];
   if(!(n>=0&&n<TUNING_PALIERS_MAX)) return false; // palier max atteint
   slot=garageAcheter(s,TUNING_PRIX[cat][n]); if(!slot) return false;
@@ -18937,7 +19082,10 @@ function renderGarageMenu(s){
   h+='</div><div class="gmSec">'+ico('ico-garage-neon')+'NÉONS'+(slot.neon<0?' — kit '+TUNING_PRIX.neons+' $ · touche une couleur pour essayer':' — couleur gratuite')+'</div><div class="gmLigne">';
   TUNING_NEONS.forEach((c,i)=>{ h+='<div class="gmTeinte neon'+(slot.neon===c?' actuelle':'')+(s.apercuNeon===c?' apercu':'')+'" data-a="neonc" data-i="'+i+'" style="background:'+hexCss(c)+';box-shadow:0 0 10px '+hexCss(c)+'"></div>'; });
   if(slot.neon<0) h+='<div class="gmBtn'+(s.apercuNeon>=0?' achat':'')+'" data-a="neons">'+(s.apercuNeon>=0?'POSER CE KIT — ':'ESSAYER LE KIT — ')+TUNING_PRIX.neons+' $</div>';
-  h+='</div><div class="gmSec">'+ico('ico-spec-nitro')+'NITRO</div><div class="gmLigne">';
+  h+='</div>';
+  // mécanique (nitro, paliers) : pas pour un vélo — style seulement
+  if(ficheMeca(slot)){
+  h+='<div class="gmSec">'+ico('ico-spec-nitro')+'NITRO</div><div class="gmLigne">';
   h+=slot.nitro?'<div class="gmBtn ok">✔ ÉQUIPÉE (bouton NITRO au volant)</div>'
                :'<div class="gmBtn" data-a="nitro">INSTALLER — '+TUNING_PRIX.nitro+' $</div>';
   h+='</div>';
@@ -18947,6 +19095,7 @@ function renderGarageMenu(s){
     h+=n>=TUNING_PALIERS_MAX?'<div class="gmBtn ok">✔ AU MAXIMUM</div>'
       :'<div class="gmBtn" data-a="palier" data-c="'+cat+'">PALIER '+(n+1)+' — '+TUNING_PRIX[cat][n]+' $</div>';
     h+='</div>';
+  }
   }
   // carrosserie (voitures et motos civiles) : 1er appui = aperçu sur le
   // plateau, 2e appui = achat ; une variante possédée se repose gratuitement
@@ -20428,6 +20577,7 @@ function startRun(){
     if(!libre) continue;
     creerVehicule(pick(['citadine','citadine','muscle','pickup','van','moto','taxi']),x,z,vert?0:Math.PI/2);
   }
+  garerVelos();
   if(POIS.secret){creerPickup('cash',POIS.secret.x,POIS.secret.z,60);
     creerPickup('cash',POIS.secret.x+1.5,POIS.secret.z+1,45);creerPickup('med',POIS.secret.x-1.5,POIS.secret.z+1);}
   ecran(null);

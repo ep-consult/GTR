@@ -6826,10 +6826,11 @@ async function main() {
       for (const k of Object.keys(VEHDEFS)) {
         const d = VEHDEFS[k];
         const refus = garageRefusVehicule({ key: k, def: d }, GARAGES_TUNING[0]);
-        if (!!d.tuningMeca === (refus !== null)) out.incoherences.push(k + ' (tuningMeca=' + !!d.tuningMeca + ', refus=' + refus + ')');
+        // garable = tuningMeca OU tuningCarro (les vélos n'ont que tuningCarro :
+        // style seulement, vérifié par le test « Vélos »)
+        if (!!(d.tuningMeca || d.tuningCarro) === (refus !== null)) out.incoherences.push(k + ' (tuningMeca=' + !!d.tuningMeca + ', tuningCarro=' + !!d.tuningCarro + ', refus=' + refus + ')');
         if (d.tuningCarro) {
           const tc = d.tuningCarro;
-          if (!d.tuningMeca) out.incoherences.push(k + ' : tuningCarro sans tuningMeca');
           if (!PIECES_FAMILLES[tc.famille]) out.incoherences.push(k + ' : famille inconnue ' + tc.famille);
           for (const an of ['avant', 'arriere', 'toit', 'basCaisse']) {
             const p = tc.ancrages && tc.ancrages[an];
@@ -6842,6 +6843,7 @@ async function main() {
       out.nbMeca = Object.keys(VEHDEFS).filter((k) => VEHDEFS[k].tuningMeca).length;
       out.nbCarro = Object.keys(VEHDEFS).filter((k) => VEHDEFS[k].tuningCarro).length;
       out.nbTotal = Object.keys(VEHDEFS).length;
+      out.nbStyle = Object.keys(VEHDEFS).filter((k) => VEHDEFS[k].tuningCarro && !VEHDEFS[k].tuningMeca).length;
       // le vrai chemin de la porte, au volant : aéronefs, bateaux, OVNI refusés ; le char entre
       const porte = G.porte(0);
       for (const cle of ['helico', 'bateau', 'ovni', 'avion']) {
@@ -6857,7 +6859,7 @@ async function main() {
       return out;
     });
     if (garElig.incoherences.length) for (const e of garElig.incoherences) fail('Garages : éligibilité incohérente — ' + e);
-    else ok('Garages : éligibilité lue dans VEHDEFS pour les ' + garElig.nbTotal + ' véhicules (' + garElig.nbMeca + ' tuningMeca, dont ' + garElig.nbCarro + ' tuningCarro, ancrages et châssis valides)');
+    else ok('Garages : éligibilité lue dans VEHDEFS pour les ' + garElig.nbTotal + ' véhicules (' + garElig.nbMeca + ' tuningMeca, ' + garElig.nbCarro + ' tuningCarro dont ' + garElig.nbStyle + ' style seulement, ancrages et châssis valides)');
     if (garElig.refusKo.length) fail('Garages : véhicule non éligible mal refusé — ' + garElig.refusKo.join(', '));
     else ok('Garages : refusés à la porte avec un message clair : ' + garElig.refusOk.join(', '));
     if (!garElig.charEntre) fail('Garages : le char devrait entrer (tuningMeca) — label « ' + garElig.labelChar + ' »');
@@ -6974,6 +6976,16 @@ async function main() {
           appliquerCarrosserie(m, k, pieces);
           m.updateMatrixWorld(true);
           const boites = []; m.userData.carro.traverse((o) => { if (o.isMesh) boites.push(new THREE.Box3().setFromObject(o)); });
+          if (fam.jupes.surRoues) {
+            // garde-boue (vélos) : AU-DESSUS de chaque roue par construction —
+            // aucun morceau ne doit entrer dans le cercle de la roue
+            const centres = []; m.userData.carro.traverse((o) => { if (o.isMesh) centres.push(new THREE.Box3().setFromObject(o).getCenter(new THREE.Vector3())); });
+            for (const r of m.userData.roues) {
+              const c = new THREE.Vector3(); r.getWorldPosition(c); const R = r.geometry.parameters.radiusTop;
+              if (centres.some((p) => Math.abs(p.z - c.z) < R && Math.hypot(p.y - c.y, p.z - c.z) < R)) { chevauchements.push(k + ' › ' + fam.jupes.variantes[i].nom); break; }
+            }
+            testes++; continue;
+          }
           for (const r of m.userData.roues) {
             const br = new THREE.Box3().setFromObject(r);
             if (boites.some((b) => b.intersectsBox(br))) { chevauchements.push(k + ' › ' + fam.jupes.variantes[i].nom); break; }
@@ -7634,6 +7646,88 @@ async function main() {
         if (lac.voitureDansEau) ko.push('une voiture entre dans le lac');
         if (ko.length) fail('Lac du parc : ' + ko.join(' | '));
         else ok('Lac du parc : on y nage, la passerelle est praticable (h ' + lac.hPasserelle.toFixed(2) + '), une voiture s\'arrête au bord');
+      }
+    }
+
+    // -------------------------------------------------------------------
+    // Vélos (DECOR_V2) : garés aux arceaux en début de partie, sans moteur,
+    // BUNNY HOP sur ESQUIVE (un saut par appui, jamais de points de cascade),
+    // garage : style seulement (ni nitro ni paliers, gardes d'achat
+    // comprises), la fiche survit à la sauvegarde, on ressort en selle.
+    // -------------------------------------------------------------------
+    console.log('\n--- Vélos : arceaux, BUNNY HOP, garage (style seulement), sauvegarde ---');
+    {
+      const vr = await page.evaluate(() => {
+        if (typeof DECOR_V2 === 'undefined' || !DECOR_V2) return { off: true };
+        const o = {};
+        startRun(); ETAT.timeScale = 1; P.hp = P.hpMax = 1e6;
+        o.nbGares = vehicules.filter((v) => v.def.velo).length;
+        o.garesSurArceaux = vehicules.filter((v) => v.def.velo).every((v) => MOB.arceaux.some((a) => Math.abs(a.x - v.x) < 0.01 && Math.abs(a.z - v.z) < 0.01));
+        // scène maîtrisée : plus aucun véhicule, un carrefour dégagé
+        for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0;
+        const X = -HALF + 6 * CELL, Z = -HALF + 6 * CELL;
+        o.hops = {};
+        for (const k of ['velo', 'bmx']) {
+          if (P.veh) sortirVehicule(true);
+          const v = creerVehicule(k, X, Z, 0, null); P.x = X; P.z = Z; entrerVehicule(v);
+          const b = document.getElementById('btnDodge');
+          const r = { label: /BUNNY HOP/.test(b.innerHTML) && b.style.display === 'flex', moteur: profilMoteur(v.def) };
+          const score0 = ETAT.score, sauts0 = META.stats.sauts;
+          let hMax = 0, envols = 0, avant = false;
+          INPUT.btn.esquive = true; // maintenu 3 s : UN seul saut
+          for (let i = 0; i < 180; i++) { majConduite(1 / 60); hMax = Math.max(hMax, v.h || 0); if (v.enAir && !avant) envols++; avant = !!v.enAir; }
+          INPUT.btn.esquive = false;
+          for (let i = 0; i < 30; i++) majConduite(1 / 60);
+          Object.assign(r, { hMax: +hMax.toFixed(2), envols, auSol: !v.enAir, points: ETAT.score - score0, sauts: META.stats.sauts - sauts0 });
+          o.hops[k] = r;
+        }
+        if (P.veh) sortirVehicule(true);
+        // garage : un vélo de la collection
+        for (const id in META.vehPerso) Object.assign(META.vehPerso[id], slotGarageDefaut());
+        Object.assign(META.vehPerso.v0, slotGarageDefaut(), { cle: 'velo' });
+        const vb = creerVehicule('bmx', X, Z, 0, null);
+        o.garable = vehiculeGarable(vb); o.refusSurf = vehiculeGarable(creerVehicule('surf', X + 9, Z, 0, null));
+        META.argent = 5000;
+        const pt = PORTES.find((x) => x.id === 'tuning' && x.garageId !== undefined);
+        P.x = pt.x; P.z = pt.z + 3; entrerInterieur('tuning', pt);
+        const s = INT.actif; garageChoisirVehicule(s, 'v0'); renderGarageMenu(s);
+        const txt = document.getElementById('gmCorps').innerText;
+        o.menuMeca = /NITRO|MOTEUR|BLINDAGE/.test(txt); o.menuStyle = /PEINTURE/.test(txt) && /PORTE-BAGAGES/.test(txt) && /FANION/.test(txt);
+        const a0 = META.argent;
+        o.nitro = acheterNitro(s); o.palier = acheterPalier(s, 'moteur'); o.debitMeca = a0 - META.argent;
+        o.piece = choisirPiece(s, 'aileron', 1); o.debitPiece = a0 - META.argent; o.prixPiece = TUNING_PRIX.pieces.aileron[1];
+        sauveMeta();
+        let lu = null; try { lu = JSON.parse(localStorage.getItem('asphalte_save_v1')).vehPerso.v0; } catch (e) {}
+        o.sauve = !!lu && lu.cle === 'velo' && lu.pieces.aileron === 1 && !lu.nitro && lu.moteur === 0;
+        s.sortirEnVoiture = true; sortirInterieur(); // comme le bouton SORTIR au volant
+        o.sortie = !!(P.veh && P.veh.key === 'velo' && P.veh.persoId === 'v0' && P.veh.mesh.userData.carro && P.veh.mesh.userData.carro.children.length > 0);
+        o.sortieLabel = /BUNNY HOP/.test(document.getElementById('btnDodge').innerHTML);
+        if (P.veh) sortirVehicule(true);
+        for (const id in META.vehPerso) Object.assign(META.vehPerso[id], slotGarageDefaut());
+        sauveMeta(); startRun();
+        return o;
+      });
+      if (vr.off) saute('Vélos : DECOR_V2 désactivé');
+      else {
+        const ko = [];
+        if (!(vr.nbGares >= 6) || !vr.garesSurArceaux) ko.push('vélos garés : ' + vr.nbGares + ', sur les arceaux : ' + vr.garesSurArceaux);
+        for (const k in vr.hops) {
+          const r = vr.hops[k];
+          if (!r.label) ko.push(k + ' : bouton BUNNY HOP absent');
+          if (r.moteur !== null) ko.push(k + ' : a un son de moteur');
+          if (r.envols !== 1) ko.push(k + ' : ' + r.envols + ' saut(s) pour un appui maintenu (attendu 1)');
+          if (!(r.hMax > 0.6) || !r.auSol) ko.push(k + ' : saut ' + JSON.stringify(r));
+          if (r.points || r.sauts) ko.push(k + ' : le bunny hop rapporte des points de cascade');
+        }
+        if (vr.hops.bmx && vr.hops.velo && !(vr.hops.bmx.hMax > vr.hops.velo.hMax)) ko.push('le BMX ne saute pas plus haut que le vélo');
+        if (!vr.garable || vr.refusSurf) ko.push('éligibilité garage (vélo ' + vr.garable + ', surf ' + vr.refusSurf + ')');
+        if (vr.menuMeca || !vr.menuStyle) ko.push('menu du garage (méca affichée : ' + vr.menuMeca + ', style : ' + vr.menuStyle + ')');
+        if (vr.nitro || vr.palier || vr.debitMeca) ko.push('nitro/palier achetés sur un vélo (débit ' + vr.debitMeca + ')');
+        if (!vr.piece || vr.debitPiece !== vr.prixPiece) ko.push('pièce : ' + vr.piece + ', débit ' + vr.debitPiece + ' / ' + vr.prixPiece);
+        if (!vr.sauve) ko.push('fiche vélo perdue à la sauvegarde');
+        if (!vr.sortie || !vr.sortieLabel) ko.push('sortie du garage en selle (' + vr.sortie + ', ' + vr.sortieLabel + ')');
+        if (ko.length) fail('Vélos : ' + ko.join(' | '));
+        else ok('Vélos : ' + vr.nbGares + ' garés aux arceaux, sans moteur, un saut par appui (vélo ' + vr.hops.velo.hMax + ' / BMX ' + vr.hops.bmx.hMax + '), garage style seulement, sauvegardé, sortie en selle');
       }
     }
 
