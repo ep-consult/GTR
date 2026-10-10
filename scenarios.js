@@ -7884,6 +7884,30 @@ async function main() {
       else ok('Skatepark : le BMX décolle du tremplin (h ' + sk.hMax + '), franchit le vide et retombe ' + sk.traverse + ' u plus loin');
     }
 
+    // -------------------------------------------------------------------
+    // Port vivant (DECOR_V2) : les portiques roulent, l'îlot du phare est
+    // praticable (pas de l'eau), le faisceau tourne et s'allume la nuit.
+    // -------------------------------------------------------------------
+    console.log('\n--- Port vivant : portiques en mouvement, îlot du phare praticable, faisceau la nuit ---');
+    {
+      const po = await page.evaluate(() => {
+        if (typeof PORT === 'undefined' || !PORT.faisceau) return { off: true };
+        const o = { parcs: PORT.portiques.length }, j0 = ETAT.jour;
+        const z0 = PORT.portiques.map((p) => p.g.position.z), r0 = PORT.faisceau.rotation.y;
+        for (let i = 0; i < 120; i++) majPortVivant(1 / 60);
+        o.bougent = PORT.portiques.every((p, i) => Math.abs(p.g.position.z - z0[i]) > 0.05);
+        o.tourne = PORT.faisceau.rotation.y > r0;
+        o.ilot = !estEau(POIS.phare.x + 4, POIS.phare.z) && solY(POIS.phare.x + 4, POIS.phare.z) > 0.5;
+        ETAT.jour = 20; jourNuit(0); majPortVivant(0.016); o.jour = PORT.matFaisceau.opacity;
+        ETAT.jour = 130; jourNuit(0); majPortVivant(0.016); o.nuit = PORT.matFaisceau.opacity;
+        ETAT.jour = j0; jourNuit(0);
+        return o;
+      });
+      if (po.off) saute('Port vivant : DECOR_V2 désactivé');
+      else if (!(po.parcs >= 1) || !po.bougent || !po.tourne || !po.ilot || !(po.nuit > 0.3) || !(po.jour < 0.1)) fail('Port vivant : ' + JSON.stringify(po));
+      else ok('Port vivant : ' + po.parcs + ' parcs à conteneurs aux portiques en mouvement, îlot du phare praticable, faisceau éteint le jour et allumé la nuit (' + po.nuit.toFixed(2) + ')');
+    }
+
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');
     {
       const srcIdx = fs.readFileSync(INDEX_HTML, 'utf8');

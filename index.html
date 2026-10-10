@@ -3565,7 +3565,7 @@ function construireVille(){
     if(qq!=='plage'&&qq!=='parc'&&bx%3===1&&bz%3===1) mkFeu(cx+INNER/2+1.4,cz-INNER/2-1.4);
   }
   placerPortes();
-  if(DECOR_V2){ sansAleaVille(()=>{ mkJeteeForaine(-205); mkSkatepark(4,1); }); mkMobilierUrbain(); mkTransitionsSols(); } // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
+  if(DECOR_V2){ sansAleaVille(()=>{ mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); }); mkMobilierUrbain(); mkTransitionsSols(); } // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
   finaliserMerge();
   construireMinimapStatique();
 }
@@ -4376,6 +4376,113 @@ function texBetonSkate(){
     g.strokeStyle='rgba(80,80,80,0.5)'; g.lineWidth=2; for(let k=0;k<=s;k+=s/2){ g.beginPath(); g.moveTo(k,0); g.lineTo(k,s); g.stroke(); g.beginPath(); g.moveTo(0,k); g.lineTo(s,k); g.stroke(); }
     g.strokeStyle='rgba(40,40,40,0.18)'; g.lineWidth=3; for(let i=0;i<6;i++){ g.beginPath(); g.moveTo(aD(0,s),aD(0,s)); g.quadraticCurveTo(aD(0,s),aD(0,s),aD(0,s),aD(0,s)); g.stroke(); }
   },4,4);
+}
+/* ---------- PORT VIVANT (DECOR_V2) ----------
+   Le quartier « port » est fait d'entrepôts dans les terres : on garde son
+   âme (hangars, conteneurs) et on l'anime.
+   - Parcs à conteneurs dans les pâtés du port SANS entrepôt (détectés par
+     les solides, jamais une liste) : piles colorées, portique qui va et
+     vient en portant un conteneur, mâts d'éclairage.
+   - Phare sur un îlot rocheux au bout de la plage : tour rayée, lanterne,
+     faisceau qui balaie la mer la nuit ; l'îlot est praticable (ILES/PLATS).
+   - Porte-conteneurs au mouillage au large, qui tangue doucement.
+   Tirages sur le générateur du décor (appelé dans sansAleaVille). */
+const PORT={portiques:[],phare:null,faisceau:null,cargo:null,feux:[]};
+const COUL_CONTENEURS=[0xc0392b,0x2a6ad8,0xe6a41f,0x2f8a4a,0xd8dce4,0x8a4de0,0xe07020,0x1f6a8a];
+function piecesConteneur(x,y,z,coul,ry){ // conteneur 6 × 2,6 × 2,4 avec nervures sombres
+  const p=[['box',6,2.6,2.4,x,y+1.3,z,coul,ry||0]];
+  for(let k=-2;k<=2;k++) p.push(['box',0.12,2.5,2.46,x+k*1.2*Math.cos(ry||0),y+1.3,z-k*1.2*Math.sin(ry||0),0x2a2d34,ry||0]);
+  return p;
+}
+function meshPieces(pieces){
+  const c={pos:[],nor:[],col:[]}; mobPieces(pieces,0,0,0,c,0);
+  const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(c.pos,3)); g.setAttribute('normal',new THREE.Float32BufferAttribute(c.nor,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(c.col,3));
+  g.computeBoundingSphere(); return new THREE.Mesh(g,MOB_MAT);
+}
+function mkPortVivant(){
+  // 1) parcs à conteneurs : pâtés du port sans entrepôt au centre
+  const parcs=[];
+  for(let bx=0;bx<NB;bx++) for(let bz=0;bz<NB;bz++){
+    if(quartier(bx,bz)!=='port') continue;
+    const cx=-HALF+bx*CELL+CELL/2, cz=-HALF+bz*CELL+CELL/2;
+    if(solidAt(cx,cz-4,4)||solidAt(cx-6,cz-4,2)||solidAt(cx+6,cz-4,2)) continue; // un entrepôt occupe déjà le pâté
+    if(PORTES.some((p)=>Math.abs(p.x-cx)<CELL/2&&Math.abs(p.z-cz)<CELL/2)) continue;  // jamais devant une porte
+    if(Object.values(POIS).some((p)=>p&&typeof p.x==='number'&&Math.abs(p.x-cx)<CELL/2&&Math.abs(p.z-cz)<CELL/2)) continue; // ni sur un lieu (dock des Calaveras...)
+    parcs.push({cx,cz});
+  }
+  for(const {cx,cz} of parcs.slice(0,3)){
+    const pieces=[];
+    for(let r=0;r<3;r++) for(let c=0;c<2;c++){
+      const x=cx-7+c*7, z=cz-8+r*5.5;
+      if(solidAt(x,z,3.2)) continue;
+      const n=1+Math.floor(aleaDecor()*2); // 2 de haut au plus : le conteneur porté passe au-dessus
+      for(let k=0;k<n;k++) pieces.push(...piecesConteneur(x,0.22+k*2.62,z,choixD(COUL_CONTENEURS)));
+      addSolid({x,z,hw:3.1,hd:1.3,h:0.22+n*2.62});
+    }
+    pieces.push(['box',0.2,0.02,26,cx-11.5,0.24,cz,0xffd23f],['box',0.2,0.02,26,cx+11.5,0.24,cz,0xffd23f]); // rails du portique
+    scene.add(meshPieces(pieces));
+    // portique : deux pieds en A sur rails, poutre, chariot, câbles, conteneur suspendu
+    const g=new THREE.Group(); g.position.set(cx,0,cz); scene.add(g);
+    const jaune=0xe6a41f;
+    for(const s of [-1,1]){ g.add(mkBoxG(0.6,14.5,0.6,jaune,s*11.5,7.45,-1.6)); g.add(mkBoxG(0.6,14.5,0.6,jaune,s*11.5,7.45,1.6)); g.add(mkBoxG(0.8,0.8,4,0x2a2d34,s*11.5,0.6,0)); g.add(mkBoxG(0.5,0.5,3.2,jaune,s*11.5,14.1,0)); }
+    g.add(mkBoxG(24,1.1,1.4,jaune,0,14.8,0)); g.add(mkBoxG(2,1.2,2,0x2a2d34,10.6,15.8,0)); // poutre + cabine de machinerie
+    const chariot=new THREE.Group(); chariot.position.y=14.2; g.add(chariot);
+    chariot.add(mkBoxG(2.2,0.8,2.2,0xd83a3a,0,0,0));
+    const cable=mkBoxG(0.06,1,0.06,0x1c1e22,0,0,0); chariot.add(cable);
+    const charge=meshPieces(piecesConteneur(0,0,0,choixD(COUL_CONTENEURS))); chariot.add(charge);
+    const feu=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:0xff3b3b,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending}));
+    feu.scale.set(2,2,1); feu.position.set(0,15.7,0); g.add(feu); PORT.feux.push(feu);
+    for(const s of [-1,1]) addSolid({x:cx+s*11.5,z:cz,hw:0.5,hd:2,h:14.5}); // pieds (fixes : le portique avance au-dessus des piles)
+    PORT.portiques.push({g,chariot,cable,charge,cz,ph:aD(0,6.3)});
+    // mâts d'éclairage
+    for(const [sx,sz] of [[-1,-1],[1,1]]){ const x=cx+sx*13.5, z=cz+sz*13.5; mkBox(0.25,9,0.25,mat(0x2a2d34),x,4.5,z); mkBox(1.4,0.4,0.6,mat(0x1c1e22),x,9,z);
+      const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:0xfff0c0,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending}));
+      sp.scale.set(8,8,1); sp.position.set(x,8.8,z); scene.add(sp); lampes.push(sp); }
+  }
+  PORT.nbParcs=Math.min(3,parcs.length);
+  // 2) phare sur son îlot, au bout de la plage
+  const PX=HALF+4, PZ=MER+18;
+  ILES.push({x:PX,z:PZ,r:7}); PLATS.push({x:PX,z:PZ,r:7,h:0.8});
+  const roc=[]; for(let i=0;i<26;i++){ const a=i/26*6.283+aD(-0.1,0.1), r=aD(5.5,7.6), t=aD(1.2,2.4);
+    const d=new THREE.DodecahedronGeometry(t,0); d.translate(PX+Math.cos(a)*r,aD(0.1,0.8),PZ+Math.sin(a)*r); roc.push(d); }
+  const socle=new THREE.CylinderGeometry(6.4,7.2,1.2,14); socle.translate(PX,0.2,PZ); roc.push(socle);
+  scene.add(new THREE.Mesh(mergeGeoManuel(roc),mat(0x6e6a62)));
+  const bandes=cTex(64,(g,s)=>{ for(let k=0;k<4;k++){ g.fillStyle=k%2?'#c0392b':'#f2f2ec'; g.fillRect(0,k*s/4,s,s/4+1); } });
+  const tour=new THREE.Mesh(new THREE.CylinderGeometry(1.5,2.3,16,14),new THREE.MeshLambertMaterial({map:bandes})); tour.position.set(PX,8.8,PZ); scene.add(tour);
+  const galerie=new THREE.Mesh(new THREE.CylinderGeometry(2.4,2.4,0.3,14),mat(0x2a2d34)); galerie.position.set(PX,16.9,PZ); scene.add(galerie);
+  for(let k=0;k<14;k++){ const a=k/14*6.283; mkBox(0.08,0.9,0.08,mat(0x2a2d34),PX+Math.cos(a)*2.3,17.4,PZ+Math.sin(a)*2.3); }
+  const lanterne=new THREE.Mesh(new THREE.CylinderGeometry(1.2,1.2,1.8,10),new THREE.MeshBasicMaterial({color:0xfff0b0})); lanterne.position.set(PX,18,PZ); scene.add(lanterne); PORT.lanterne=lanterne;
+  const dome=new THREE.Mesh(new THREE.ConeGeometry(1.5,1.3,10),mat(0xc0392b)); dome.position.set(PX,19.5,PZ); scene.add(dome);
+  mkBox(3.2,2.4,3,mat(0xf2f2ec),PX+4.2,2,PZ-2.6); mkBox(3.6,0.4,3.4,mat(0xc0392b),PX+4.2,3.4,PZ-2.6); // maison du gardien
+  addSolid({x:PX,z:PZ,hw:2.2,hd:2.2,h:17}); addSolid({x:PX+4.2,z:PZ-2.6,hw:1.6,hd:1.5,h:3.4});
+  // faisceau : deux longs pinceaux additifs qui tournent, visibles la nuit
+  const fx=new THREE.Group(); fx.position.set(PX,18,PZ); scene.add(fx); PORT.faisceau=fx;
+  const mFx=new THREE.MeshBasicMaterial({map:texGlow,color:0xfff2c0,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide});
+  PORT.matFaisceau=mFx;
+  for(const s of [1,-1]){ const p=new THREE.Mesh(new THREE.PlaneGeometry(70,9),mFx); p.position.x=s*35; p.rotation.x=-Math.PI/2; fx.add(p); }
+  const halo=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:0xfff0b0,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending}));
+  halo.scale.set(9,9,1); halo.position.set(PX,18,PZ); scene.add(halo); lampes.push(halo);
+  POIS.phare={x:PX,z:PZ};
+  // 3) porte-conteneurs au mouillage
+  const CX=200, CZ=MER+95, cg=new THREE.Group(); cg.position.set(CX,0,CZ); scene.add(cg); PORT.cargo=cg;
+  const pc=[['box',62,3.2,11,0,0.6,0,0x1c1e22],['box',62,3.6,11.2,0,3.4,0,0x8a1f1c],['box',62.4,0.3,11.4,0,5.3,0,0xe8e8e2],
+    ['box',8,8,10,-25,9.4,0,0xf2f2ec],['box',8.4,0.4,10.4,-25,13.6,0,0x2a2d34],['box',2.2,4,2.2,-28,15.8,0,0xc0392b],['box',2.4,0.6,2.4,-28,18,0,0x1c1e22]];
+  for(let i=0;i<8;i++) for(let j=0;j<3;j++){ const n=2+Math.floor(aleaDecor()*3); for(let k=0;k<n;k++) pc.push(...piecesConteneur(-14+i*6.4,5.45+k*2.62,-3+j*2.9,choixD(COUL_CONTENEURS))); }
+  cg.add(meshPieces(pc));
+  addSolid({x:CX,z:CZ,hw:31,hd:5.6,h:14});
+}
+function majPortVivant(dt){
+  const t=ETAT.runT||0, f=ETAT.nuitF||0;
+  for(const p of PORT.portiques){
+    p.ph+=dt*0.25;
+    p.g.position.z=p.cz+Math.sin(p.ph)*7;                 // le portique roule sur ses rails
+    p.chariot.position.x=Math.sin(p.ph*1.7+1)*9;           // le chariot traverse la poutre
+    const descente=2.5+2*(0.5+0.5*Math.sin(p.ph*2.3));      // le conteneur monte et descend, toujours au-dessus des piles
+    p.charge.position.y=-descente-2.6; p.cable.scale.y=descente+1; p.cable.position.y=-(descente+1)/2;
+  }
+  for(const s of PORT.feux) s.material.opacity=(Math.sin(t*3)>0?0.9:0.15)*(0.3+0.7*f);
+  if(PORT.faisceau){ PORT.faisceau.rotation.y+=dt*0.6; PORT.matFaisceau.opacity=0.55*f; PORT.lanterne.material.color.setScalar(0.75+0.25*f); }
+  if(PORT.cargo){ PORT.cargo.position.y=Math.sin(t*0.5)*0.25; PORT.cargo.rotation.z=Math.sin(t*0.35)*0.012; }
 }
 // Un véhicule lancé (joueur ou autre) renverse les petits objets sur son passage.
 function majMobilier(){
@@ -22966,7 +23073,7 @@ function boucle(t){
       majMeteo(dt);
       majMer(dt);
       majMerV2(dt);
-      if(DECOR_V2){ majHorsLesMurs(dt); majMobilier(); majLac(dt); majLumieres(dt); majJetee(dt); }
+      if(DECOR_V2){ majHorsLesMurs(dt); majMobilier(); majLac(dt); majLumieres(dt); majJetee(dt); majPortVivant(dt); }
       majEpaveCanon(dt);
     }
     majHUD();
