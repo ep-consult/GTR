@@ -7536,7 +7536,7 @@ async function main() {
         for (let i = 0; i < 160; i++) majVehiculePhys(v, 1 / 30, 1, 0, false);
         out.vehX = v.x; v.mort = true;
         // piéton plein nord
-        P.x = 3; P.z = -HALF + 3; P.y = 0; INPUT.jx = 0; INPUT.jy = -1; await dors(2500); INPUT.jy = 0;
+        P.x = 3; P.z = -HALF - 4; P.y = 0; INPUT.jx = 0; INPUT.jy = -1; await dors(2500); INPUT.jy = 0; // 8 u du mur : marge large même sur machine lente
         out.pietonZ = P.z;
         // nageur plein ouest au large : jamais au-delà de la ligne du mur
         P.x = -HALF + 6; P.z = MER + 20; INPUT.jx = -1; await dors(2500); INPUT.jx = 0;
