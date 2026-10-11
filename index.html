@@ -10958,6 +10958,9 @@ function resoudreCollisionsVehicule(v,dt){
 function majVehiculePhys(v,dt,throttle,steer,frein){
   if(v.noye) return; // noyé : il coule (majNoyade), plus aucune conduite
   const d=v.def, eau=surEauVeh(v); // surEauVeh : dynamique pour l'amphibie, statique pour les bateaux
+  const echoue=!!d.eau&&!v.horsVille&&!estEau(v.x,v.z); // bateau posé sur le sable (échouage)
+  if(echoue){ throttle*=0.25; steer*=0.3; if(!v.echoueT){ v.echoueT=1; if(v.conduit==='joueur'){ secousse(Math.min(3,Math.abs(v.v)*0.12)); vibre(25); } burst(v.x+Math.sin(v.ang)*d.long*0.4,0.3,v.z+Math.cos(v.ang)*d.long*0.4,8,0xe0c890,5); } }
+  else if(v.echoueT){ v.echoueT=0; v.echoueSorti=false; } // de retour à l'eau
   const fac0=clamp(Math.abs(v.v)/d.vmax,0,1);
   const lourd=!eau&&(d.milit||d.blinde||d.hp>=260);
   if(Math.abs(throttle)>0.05){
@@ -10981,6 +10984,10 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
   const retombeNitro=v.nitro&&!v.nitroActif&&v.v>d.vmax; // nitro tout juste coupée
   if(retombeNitro) v.v=Math.max(d.vmax,v.v-14*dt);
   v.v=clamp(v.v,-d.vmax*0.42,retombeNitro?v.v:vmaxEff);
+  if(echoue){ // la coque glisse sur le sable : freinage fort et progressif, puis on peut repartir au pas vers l'eau
+    if(Math.abs(v.v)>2.2) v.v-=Math.sign(v.v)*Math.min(Math.abs(v.v)-2.2,(5+Math.abs(v.v)*1.0)*dt); else v.v=clamp(v.v,-2.2,2.2);
+    if(Math.abs(v.v)<0.6&&!v.echoueSorti&&v.conduit==='joueur'){ v.echoueSorti=true; v.echoueArret=true; } // posé : on descend (une fois par échouage)
+  }
   const fac=clamp(Math.abs(v.v)/d.vmax,0,1);
   // direction sensible à la vitesse : les lourds sous-virent à haute vitesse, les sportives restent vives
   const steerEff=steer*(lourd?(1-fac*0.35):(d.sport||d.type==='moto'?1:(1-fac*0.12)));
@@ -11036,7 +11043,9 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
   }
   // paroi : le sol devant monte plus raide que PENTE_MAX_VEH → on la heurte, on ne la gravit plus d'un coup
   const paroi=DECOR_V2&&!eau&&!d.air&&!v.enAir&&dansReliefLibre(fx,fz)&&!(MONT.presDuSentier&&(MONT.presDuSentier(fx,fz,7)||MONT.surCouloir(fx,fz,4)))&&(solY(fx,fz)-(v.h||0))/(d.long/2+Math.abs(v.v)*dt+0.01)>PENTE_MAX_VEH*(d.franchissement?1.5:1); // sur le sentier : on manœuvre dans les épingles
-  const heurte=eau?!estEau(nx,nz):(!!sFront||paroi||((v.h||0)<0.7&&estEau(fx,fz)&&!VEH_IA_NOYABLES&&!!v.conduit&&v.conduit!=='joueur')); // VEH_IA_NOYABLES : police, trafic et autres IA entrent aussi dans l'eau et s'y noient
+  const versPlage=eau&&!!d.eau&&!d.cargo&&(v.conduit==='joueur'||!v.conduit)&&!estEau(nx,nz)&&solY(nx,nz)<0.6&&!solidAt(fx,fz,0.5); // sable : le bateau s'y échoue en douceur
+  const auPasVersTerre=echoue&&Math.abs(v.v)<=2.2&&!eauDevant(v,Math.sign(v.v||1)); // échoué, au pas : seulement vers l'eau (jamais traverser la plage)
+  const heurte=eau?((!estEau(nx,nz)&&!versPlage)||auPasVersTerre):(!!sFront||paroi||((v.h||0)<0.7&&estEau(fx,fz)&&!VEH_IA_NOYABLES&&!!v.conduit&&v.conduit!=='joueur')); // VEH_IA_NOYABLES : police, trafic et autres IA entrent aussi dans l'eau et s'y noient
   if(heurte&&paroi&&!sFront){ // paroi de relief : on glisse le long (composante montante retirée), sans casse — on peut toujours tourner et repartir
     let gx=solY(fx+0.6,fz)-solY(fx-0.6,fz), gz=solY(fx,fz+0.6)-solY(fx,fz-0.6); const gl=Math.hypot(gx,gz)||1; gx/=gl; gz/=gl;
     const mx=nx-v.x, mz=nz-v.z, mg=mx*gx+mz*gz, tx=mx-Math.max(0,mg)*gx, tz=mz-Math.max(0,mg)*gz;
@@ -11147,7 +11156,8 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
   if(v.hp<v.def.hp*0.42){ v.fumeT-=dt; if(v.fumeT<=0){v.fumeT=0.12;fumee(v.x,1.1,v.z, v.hp<v.def.hp*0.2?0x22242a:0x555a63);} }
   v.mesh.position.set(v.x,eau?0.15:(v.h||0),v.z);
   v.mesh.rotation.y=v.ang;
-  if(eau&&MER_V2) assietteHoule(v.mesh,v.x,v.z,v.ang,0.15,d.long); // houle partagée (voir MER_V2)
+  if(echoue) poseEchoue(v,dt);
+  else if(eau&&MER_V2) assietteHoule(v.mesh,v.x,v.z,v.ang,0.15,d.long); // houle partagée (voir MER_V2)
   else if(eau) v.mesh.rotation.x=Math.sin(ETAT.runT*2.2)*0.03;
   for(const r of v.mesh.userData.roues) r.rotation.x+=v.v*dt*1.6;
   // Monster Truck : suspension molle — le châssis (userData.corps, roues
@@ -11175,9 +11185,17 @@ function lancerRagdollJoueurFx(){ burst(P.x,1,P.z,8,0xff9f5a,8); secousse(8); }
 // plus utilisable, et le joueur sort ») : il coule doucement, jamais d'explosion ;
 // le conducteur en sort à la nage (majNoyade, hors de la physique qui l'appelle).
 const VEH_IA_NOYABLES=true; // demandé : « les voitures de police et autres IA se noient aussi »
+// de l'eau dans cette direction (sens +1 avant, -1 arrière), à moins de 30 u de la coque
+function eauDevant(v,sens){ const sA=Math.sin(v.ang)*sens, cA=Math.cos(v.ang)*sens; for(let k=v.def.long/2+2;k<v.def.long/2+30;k+=3) if(estEau(v.x+sA*k,v.z+cA*k)) return true; return false; }
+// Bateau échoué : posé sur le sable, gîte légère, nez un peu relevé (jamais la houle au-dessus du sable)
+function poseEchoue(v,dt){
+  const k=clamp(4*dt,0,1);
+  v.mesh.position.y=lerp(v.mesh.position.y,solY(v.x,v.z)+0.05,k);
+  v.mesh.rotation.z=lerp(v.mesh.rotation.z||0,0.12,k); v.mesh.rotation.x=lerp(v.mesh.rotation.x||0,-0.05,k);
+}
 function noyerVehicule(v){
   if(v.noye) return;
-  v.noye=true; v.noyeT=0; v.v*=0.3; v.nitroActif=false; v.enFeu=false;
+  v.noye=true; v.noyeT=0; v.v*=0.3; v.nitroActif=false; v.enFeu=false; v.enAir=false; v.vy=0; // dans l'eau : plus en vol
   if(MER_V2) eclaboussure(v.x,v.z,2.2+Math.min(1.5,v.def.long/6)); else burst(v.x,0.4,v.z,12,0x9fd8ff,7,6);
   bruit(0.3,0.5,600);
   if(v.conduit!=='joueur') v.conduit=null;
@@ -12803,6 +12821,7 @@ function majVehicules(dt){
   for(const v of vehicules){
     if(v.mort||v.epave) continue;
     if(v.noye){ majNoyade(v,dt); continue; }
+    if(v.echoueArret){ v.echoueArret=false; if(v.conduit==='joueur'&&P.veh===v){ sortirVehicule(); toast('Échoué sur la plage — on descend','warn'); } }
     // Véhicule soulevé par le rayon tracteur de l'OVNI : plus aucune
     // physique sol, entièrement pris en charge par majRayonOvni (position,
     // rotation, atterrissage) — voir la section RAYON TRACTEUR DE L'OVNI.
@@ -12851,8 +12870,9 @@ function majVehicules(dt){
       // (ou percuté par le joueur) sans jamais se dégager.
       resoudreCollisionsVehicule(v,dt);
       majKnockback(v,dt);
-      v.mesh.position.y=surEauVeh(v)?0.15:(v.def.air?(v.alt||0):solY(v.x,v.z));
-      if(MER_V2&&surEauVeh(v)&&!v.def.air) assietteHoule(v.mesh,v.x,v.z,v.ang,0.15,v.def.long);
+      if(v.def.eau&&!estEau(v.x,v.z)){ v.v*=1-5*dt; poseEchoue(v,dt); } // bateau lâché sur le sable : il s'arrête vite, posé de travers
+      else { v.mesh.position.y=surEauVeh(v)?0.15:(v.def.air?(v.alt||0):solY(v.x,v.z));
+      if(MER_V2&&surEauVeh(v)&&!v.def.air) assietteHoule(v.mesh,v.x,v.z,v.ang,0.15,v.def.long); }
       v.mesh.position.x=v.x; v.mesh.position.z=v.z;
       if(v.hp<v.def.hp*0.42){ v.fumeT-=dt; if(v.fumeT<=0){v.fumeT=0.14;fumee(v.x,1.1,v.z,0x555a63);} }
       // Avion de voltige garé : hélice qui tourne au ralenti + rotation lente

@@ -488,7 +488,16 @@ décor sur un générateur **à part** (`aleaDecor()`, `aD()`, `choixD()`, grain
   joueur sort à la nage (`sortirVehicule`, hors de la physique), le véhicule
   coule en 9 s puis disparaît (`v.mort`). Aucun dégât (avant : 80 à
   l'amerrissage, une moto explosait). Police, trafic et autres IA s'y noient
-  aussi (demandé ensuite, `VEH_IA_NOYABLES`). Un véhicule `v.noye` n'a plus ni physique, ni collision, ni MONTER.
+  aussi (demandé ensuite, `VEH_IA_NOYABLES`).
+- **Bateau échoué** (demandé : « il doit s'avancer sur le sable, on sort,
+  mais pas un impact brutal ») : le sable (`versPlage` : sol bas, sans
+  solide, hors ponton) n'est plus un mur pour le bateau du joueur ou un
+  bateau lâché. Coque sur le sable (`echoue`) : poussée ×0,25, freinage
+  progressif (5 + v u/s²), 7 à 24 u de glissade selon le bateau, aucun
+  dégât ; arrêté, le joueur descend (`echoueArret`, une fois par échouage,
+  hors de la physique). En rembarquant : au pas (2,2 u/s), seulement vers
+  l'eau (`eauDevant`), jamais à travers la plage. Pose `poseEchoue`. Les
+  bateaux de l'IA et le porte-conteneurs rebondissent comme avant. Un véhicule `v.noye` n'a plus ni physique, ni collision, ni MONTER.
 - **Zone extrême** (demandée : « 4x4 de franchissement, motos cross, montée
   de colline, stunt, base jump hyper haut ») :
   - **4x4 « Coyote »** (`VEHDEFS.jeep`, `jeepCarrosserie`, châssis haut sur

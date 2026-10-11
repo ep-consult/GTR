@@ -8221,6 +8221,43 @@ async function main() {
     }
 
     // -------------------------------------------------------------------
+    // Bateau vers le sable (demandé : « il doit s'avancer sur le sable, on sort,
+    // mais pas un impact brutal ») : chaque bateau de VEHDEFS (sauf le
+    // porte-conteneurs) glisse sur la plage sans dégâts, s'arrête, le joueur
+    // descend sur le sable ; en rembarquant on repart en marche arrière vers
+    // l'eau, jamais vers la ville.
+    // -------------------------------------------------------------------
+    console.log('\n--- Bateaux échoués sur la plage : glissade douce, on descend, on repart ---');
+    {
+      const ec = await page.evaluate(() => {
+        const o = { ko: [], vus: [] };
+        const scene0 = () => { startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6; for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0; };
+        let X = null; for (let x = -HALF + 20; x < HALF - 20 && X === null; x += 7) { let libre = estEau(x, MER + 4) && !estEau(x, MER - 16);
+          for (let z = MER - 30; z <= MER + 40 && libre; z += 1) if (solidAt(x, z, 2.5)) libre = false;
+          for (const p of PONTONS) if (Math.abs(x - p.x) < p.hw + 14 && Math.abs(MER - p.z) < p.hd + 40) libre = false;
+          for (const il of ILES) if (dist2(x, MER, il.x, il.z) < (il.r + 30) ** 2) libre = false;
+          if (libre) X = x; }
+        if (X === null) return { ko: ['aucune plage dégagée trouvée'] };
+        const conduire = (v, mz, n) => { INPUT.mx = 0; INPUT.mz = mz; for (let i = 0; i < n && P.veh === v; i++) { const c = controleDir(v, false); majVehiculePhys(v, 1 / 30, c.throttle, c.steer, false); majVehicules(1 / 30); } INPUT.mz = 0; };
+        for (const cle of Object.keys(VEHDEFS).filter((k) => VEHDEFS[k].eau && !VEHDEFS[k].cargo)) {
+          scene0(); const v = creerVehicule(cle, X, MER + 30, Math.PI, null); P.x = v.x; P.z = v.z; entrerVehicule(v); const hp0 = v.hp;
+          conduire(v, -1, 360);
+          const avance = MER - v.z, aTerre = !estEau(P.x, P.z);
+          if (v.hp < hp0 || P.veh === v || !(avance > 2 && avance < 30) || !aTerre) { o.ko.push(cle + ' : ' + JSON.stringify({ hp: v.hp, hp0, auVolant: P.veh === v, avance: +avance.toFixed(1), joueurATerre: aTerre })); continue; }
+          // rembarquer, tenter d'aller vers la ville (bloqué), puis repartir vers le large
+          P.x = v.x + 1; P.z = v.z; entrerVehicule(v); const zA = v.z; conduire(v, -1, 90);
+          if (v.z < zA - 1.5) o.ko.push(cle + ' : traverse la plage vers la ville (' + zA.toFixed(1) + ' → ' + v.z.toFixed(1) + ')');
+          conduire(v, 1, 450);
+          if (!estEau(v.x, v.z) || P.veh !== v) o.ko.push(cle + ' : ne repart pas vers l\'eau (z ' + v.z.toFixed(1) + ')');
+          o.vus.push(cle + ' ' + avance.toFixed(0) + ' u');
+        }
+        startRun(); return o;
+      });
+      if (ec.ko.length) fail('Bateaux échoués : ' + ec.ko.join(' | '));
+      else ok('Bateaux échoués : ' + ec.vus.join(', ') + ' sur le sable, sans dégâts, on descend sur la plage, on repart en marche arrière vers l\'eau (jamais vers la ville)');
+    }
+
+    // -------------------------------------------------------------------
     // Zone extrême (DECOR_V2) : 4x4 de franchissement au pied du mont, MONTÉE
     // SÈCHE, DÉFI STUNT, PIC DU VERTIGE (monte-charge, saut BASE). Tout est lu
     // dans la source (MONT.couloir, STUNT, PIC, RIDE_DEFS), jamais recopié.
