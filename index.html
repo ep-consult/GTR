@@ -2786,7 +2786,7 @@ const PLATS=[];  // {x,z,hw,hd|r,h} : plateformes marchables (pontons, pont du y
 function estEau(x,z){
   if(z<MER) return DECOR_V2&&((LAC!==null&&surLac(x,z))||dansCrique(x,z)); // le lac du parc (sauf sa passerelle) et la baie de la crique sont de l'eau
   for(const p of PONTONS) if(Math.abs(x-p.x)<p.hw&&Math.abs(z-p.z)<p.hd) return false;
-  for(const i of ILES) if(dist2(x,z,i.x,i.z)<i.r*i.r) return false;
+  for(const i of ILES) if(i.dans?i.dans(x,z):dist2(x,z,i.x,i.z)<i.r*i.r) return false; // i.dans : contour irrégulier (île aux trésors)
   return true;
 }
 // Un véhicule flotte si son def porte eau:true (bateaux, toujours) OU s'il
@@ -5673,26 +5673,125 @@ function deplacerVoltige(){
   const halo=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:0xf2c94c,transparent:true,depthWrite:false,opacity:0.55})); halo.scale.set(12,12,1); halo.position.set(x,0.3,z); scene.add(halo);
   mkEnseigne('AVION DE VOLTIGE','#f2c94c',x-9,3.6,z+2,0,7);
 }
+/* ÎLE AUX TRÉSORS, version 2 (signalé : « trop vague ; agrandir, pas toute ronde, de la végétation, une montagne
+   avec des animaux sauvages qu'on peut tuer mais qui attaquent ; creuser à plusieurs endroits »).
+   Relief (hauteurIleTresor, lu par solY ET le maillage), contour irrégulier (ileU), plage, jungle, montagne de
+   16 u. Six endroits où creuser : un seul cache le trésor (tiré à chaque vague), les autres donnent un peu
+   d'or, une bouteille… ou un indice qui pointe vers le bon. Sangliers et jaguar (FAUNE) : ils rôdent, chargent
+   un joueur proche, mordent ; on les tue au tir ou au corps à corps ; ils reviennent à chaque vague. */
+const ILE2={cx:-215,cz:402,rx:36,rz:24,pic:{x:-226,z:397,h:16,r:9},trous:[],tresorIdx:0,vague:-1};
+function ileR(phi){ return 1+0.16*Math.sin(3*phi+0.7)+0.09*Math.sin(5*phi+2)+0.05*Math.sin(9*phi); }
+function ileU(x,z){ const nx=(x-ILE2.cx)/ILE2.rx, nz=(z-ILE2.cz)/ILE2.rz, r=Math.sqrt(nx*nx+nz*nz); return r<1e-6?0:r/ileR(Math.atan2(nz,nx)); }
+function dansIleTresor(x,z){ return Math.abs(x-ILE2.cx)<ILE2.rx*1.35&&Math.abs(z-ILE2.cz)<ILE2.rz*1.35&&ileU(x,z)<1; }
+function hauteurIleTresor(x,z){
+  const u=ileU(x,z); if(u>=1) return 0;
+  let h=u>0.8?0.45*(1-u)/0.2:0.45+2.2*(0.8-u)*(1+0.25*Math.sin(x*0.3+z*0.2)); // plage puis sous-bois en pente douce
+  const P2=ILE2.pic, dm=Math.sqrt(dist2(x,z,P2.x,P2.z));
+  h+=P2.h*Math.exp(-(dm*dm)/(P2.r*P2.r))*(1+0.12*Math.sin(Math.atan2(z-P2.z,x-P2.x)*5)); // la montagne, crêtes en étoile
+  return h*lisse(Math.min(1,(1-u)/0.04)); // le bord se fond dans l'eau
+}
+function mkIleTresorV2(){
+  const C=ILE2; ILES.push({x:C.cx,z:C.cz,r:Math.max(C.rx,C.rz),dans:dansIleTresor});
+  RELIEFS.push({x0:C.cx-C.rx*1.35,x1:C.cx+C.rx*1.35,z0:C.cz-C.rz*1.35,z1:C.cz+C.rz*1.35,f:hauteurIleTresor});
+  // maillage polaire : plage, jungle, roche au sommet
+  const N=140, NR=22, pos=[], col=[], idx=[], c3=new THREE.Color(), sable=new THREE.Color(0xe8d6a0), jungle=new THREE.Color(0x3f7a34), jungle2=new THREE.Color(0x2c5e2a), roche=new THREE.Color(0x8a8478);
+  const pt=(phi,u)=>{ const R=ileR(phi)*u; return [C.cx+Math.cos(phi)*R*C.rx,C.cz+Math.sin(phi)*R*C.rz]; };
+  pos.push(C.cx,hauteurIleTresor(C.cx,C.cz)+0.03,C.cz); col.push(jungle.r,jungle.g,jungle.b);
+  for(let i=1;i<=NR;i++){ const u=Math.min(0.999,i/NR*1.0);
+    for(let k=0;k<=N;k++){ const phi=k/N*Math.PI*2, [x,z]=pt(phi,u), h=hauteurIleTresor(x,z);
+      pos.push(x,h+0.03,z);
+      c3.copy(jungle).lerp(jungle2,0.5+0.5*Math.sin(x*0.4)*Math.cos(z*0.33)).lerp(sable,clamp((u-0.72)/0.1,0,1)).lerp(roche,clamp((h-9)/4,0,0.85)).multiplyScalar(0.92+0.08*Math.sin(x*1.7+z));
+      col.push(c3.r,c3.g,c3.b); } }
+  for(let k=0;k<N;k++) idx.push(0,1+k+1,1+k);
+  for(let i=1;i<NR;i++) for(let k=0;k<N;k++){ const a=1+(i-1)*(N+1)+k, b=1+i*(N+1)+k; idx.push(a,a+1,b,b,a+1,b+1); }
+  const g=new THREE.BufferGeometry(); g.setIndex(idx); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(col,3)); g.computeVertexNormals();
+  scene.add(new THREE.Mesh(g,new THREE.MeshLambertMaterial({vertexColors:true})));
+  // palmiers sur la plage (fusionnés), jungle, rochers
+  { const n0=scene.children.length; for(let k=0;k<11;k++){ const phi=k/11*Math.PI*2+0.3, [x,z]=pt(phi,0.86); mkPalmier(x,z); } fusionnerGroupes(scene.children.slice(n0)); }
+  const pieces=[];
+  for(let i=0;i<70;i++){ const phi=aD(0,Math.PI*2), u=aD(0.15,0.74), [x,z]=pt(phi,u), h=hauteurIleTresor(x,z); if(h>11) continue;
+    const t=aD(2.2,4.2), v=choixD([0x2f6a2a,0x3d7b30,0x285a24]);
+    if(aleaDecor()<0.55) pieces.push(['box',0.35,t*0.4,0.35,x,h+t*0.2,z,0x5a3f2a],['boule',t*0.55,t*0.5,t*0.55,x,h+t*0.62,z,v]); // feuillus de jungle
+    else pieces.push(['boule',aD(0.8,1.6),aD(0.5,1),aD(0.8,1.6),x,h+0.3,z,choixD([0x3a7a30,0x4a8a38])]); } // buissons
+  for(let i=0;i<14;i++){ const a=aD(0,Math.PI*2), r=aD(2,7), x=C.pic.x+Math.cos(a)*r, z=C.pic.z+Math.sin(a)*r; pieces.push(['boule',aD(0.9,2),aD(0.7,1.4),aD(0.9,2),x,hauteurIleTresor(x,z)+0.3,z,choixD([0x7a766c,0x8a8478])]); }
+  // rocher-crâne, camp, canot échoué, pavillon
+  { const [sx,sz]=pt(2.5,0.7), sh=hauteurIleTresor(sx,sz); pieces.push(['boule',5,4.2,4.4,sx,sh+2,sz,0xb8b0a0],['boule',1.3,1.5,0.6,sx-1.4,sh+2.6,sz+2,0x14161c],['boule',1.3,1.5,0.6,sx+1.4,sh+2.6,sz+2,0x14161c],['boule',0.8,0.6,0.5,sx,sh+1.4,sz+2.1,0x14161c]); }
+  { const cx=C.cx+16, cz=C.cz+4, ch=hauteurIleTresor(cx,cz); MERV.camp={x:cx,z:cz};
+    pieces.push(['cone',2.6,2.6,2.6,cx+3,ch+1.3,cz-2,0xc8b48a],['box',0.1,3.4,0.1,cx+3,ch+1.7,cz-2,0x6a4a2c],['box',0.9,1.1,0.9,cx-1,ch+0.55,cz+2,0x8a6a44],['box',0.9,1.1,0.9,cx,ch+0.55,cz+2.6,0x7a5a3a]);
+    for(let k=0;k<6;k++){ const a=k/6*Math.PI*2; pieces.push(['boule',0.5,0.35,0.5,cx+Math.cos(a)*0.9,ch+0.2,cz+Math.sin(a)*0.9,0x6a665e]); }
+    pieces.push(['box',0.12,5,0.12,cx+6,ch+2.5,cz-5,0x5a3a20],['box',1.6,1,0.05,cx+6.85,ch+4.5,cz-5,0x14161c]);
+    MERV.feu=new THREE.PointLight(0xff8a3a,0,10); MERV.feu.position.set(cx,ch+1.2,cz); scene.add(MERV.feu); }
+  { const [bx,bz]=pt(4.4,0.93); pieces.push(['box',2.6,0.5,1,bx,0.45,bz,0x6a4a2c,0.6]); }
+  // six endroits où creuser : monticule + croix de bâtons
+  for(let k=0;k<6;k++){ const phi=k/6*Math.PI*2+0.5, u=k%2?0.55:0.4, [x,z]=pt(phi,u), h=hauteurIleTresor(x,z);
+    const m=new THREE.Group(); m.add(mkBoxG(1.4,0.35,1.4,0xc8b080,0,0.15,0)); const c1=mkBoxG(0.1,0.1,1.6,0x6a4a2c,0,0.4,0); c1.rotation.y=0.7; m.add(c1); const c2=mkBoxG(0.1,0.1,1.6,0x6a4a2c,0,0.42,0); c2.rotation.y=-0.7; m.add(c2);
+    m.position.set(x,h,z); scene.add(m);
+    const trou=new THREE.Mesh(new THREE.CircleGeometry(0.9,14),new THREE.MeshBasicMaterial({color:0x3a2a18,transparent:true,opacity:0.85,depthWrite:false})); trou.rotation.x=-Math.PI/2; trou.position.set(x,h+0.06,z); trou.visible=false; scene.add(trou);
+    C.trous.push({x,z,h,m,trou,creuse:false}); }
+  scene.add(meshPieces(pieces));
+  mkEnseigne('ÎLE AUX TRÉSORS','#ffd23f',C.cx+4,4.2,C.cz-C.rz-1,0,8);
+  MERV.tresor={x:C.trous[0].x,z:C.trous[0].z}; // (compatibilité : point d'intérêt de l'île)
+}
+// une nouvelle vague : trous rebouchés, trésor caché ailleurs
+function rebouchageIle(){ const C=ILE2; if(!C.trous.length||C.vague===WAVES.n) return; C.vague=WAVES.n; C.tresorIdx=Math.floor(Math.random()*C.trous.length);
+  for(const t of C.trous){ t.creuse=false; t.m.visible=true; t.trou.visible=false; } }
+function trouProche(){ for(const t of ILE2.trous) if(dist2(P.x,P.z,t.x,t.z)<5&&Math.abs(P.y-t.h)<2) return t; return null; }
+const FLECHES_CARDINAUX=['au sud','au sud-est','à l’est','au nord-est','au nord','au nord-ouest','à l’ouest','au sud-ouest'];
+function creuserTrou(t){
+  rebouchageIle(); if(t.creuse){ SFX.refus(); toast('Déjà creusé — il se rebouche à la vague suivante','warn'); return; }
+  t.creuse=true; t.m.visible=false; t.trou.visible=true; vibre(50); SFX.swing();
+  for(let i=0;i<3;i++) burst(t.x+rand(-0.4,0.4),t.h+0.4,t.z+rand(-0.4,0.4),8,0xd8c088,5,5); // gerbes de sable
+  const C=ILE2, k=C.trous.indexOf(t);
+  if(k===C.tresorIdx){ const m=primeMerUneFois('tresor',220); ETAT.score+=300; bigMsg('💰 TRÉSOR DES PIRATES ! '+(m?'+'+m+' $':'(déjà pris cette vague)')); SFX.niveau(); burst(t.x,t.h+0.8,t.z,16,0xffd23f,6,6); return; }
+  const r=Math.random();
+  if(r<0.35){ const vrai=C.trous[C.tresorIdx], a=Math.atan2(vrai.x-t.x,vrai.z-t.z), i8=((Math.round(a/(Math.PI/4))%8)+8)%8; toast('🗺️ Un bout de carte : la croix est '+FLECHES_CARDINAUX[i8]+', à '+Math.round(Math.sqrt(dist2(t.x,t.z,vrai.x,vrai.z)))+' m','or'); }
+  else if(r<0.6){ META.argent+=30; ETAT.cashRun+=30; toast('🪙 Quelques pièces d’or : +30 $','or'); }
+  else if(r<0.8){ META.argent+=10; ETAT.cashRun+=10; toast('🍾 Une vieille bouteille… +10 $','or'); }
+  else toast('Rien… que du sable.','warn');
+}
+/* ---- FAUNE : sangliers et jaguar de l'île ---- */
+const FAUNE=[], FAUNE_DEFS={sanglier:{hp:60,vit:8,deg:10,col:0x5a3e2a,long:1.4,cash:[10,20]},jaguar:{hp:110,vit:11.5,deg:16,col:0x2a2a2e,long:1.8,cash:[25,45]}};
+function mkAnimal(type){
+  const D=FAUNE_DEFS[type], g=new THREE.Group(), L=D.long;
+  g.add(mkBoxG(0.7,0.6,L,D.col,0,0.65,0));
+  const tete=mkBoxG(0.5,0.48,0.55,D.col,0,0.8,L/2+0.2); g.add(tete);
+  if(type==='sanglier'){ g.add(mkBoxG(0.26,0.22,0.2,0x8a6a50,0,0.7,L/2+0.55)); for(const s of [-1,1]) g.add(mkBoxG(0.05,0.18,0.05,0xf2ecd8,s*0.14,0.78,L/2+0.55)); g.add(mkBoxG(0.12,0.3,0.6,0x3a2a1e,0,1.0,0)); } // groin, défenses, crinière
+  else { g.add(mkBoxG(0.08,0.08,1.1,D.col,0,0.85,-L/2-0.5)); for(let k=0;k<8;k++) g.add(mkBoxG(0.12,0.02,0.12,0xd8a830,(k%2?0.2:-0.2),0.96,-L/2+0.3+k*0.18)); for(const s of [-1,1]) g.add(mkBoxG(0.08,0.06,0.04,0xffd23f,s*0.13,0.9,L/2+0.47)); } // queue, taches, yeux
+  const pattes=[]; for(const [sx,sz] of [[-1,1],[1,1],[-1,-1],[1,-1]]){ const p=mkBoxG(0.16,0.5,0.16,D.col,sx*0.25,0.25,sz*L*0.35); g.add(p); pattes.push(p); }
+  scene.add(g); return {g,pattes};
+}
+function placerFaune(){ // à chaque partie et chaque vague : les morts reviennent
+  if(!MERV.ok) return;
+  const vus=FAUNE.filter((a)=>!a.mort).length; if(vus>=4) return;
+  for(const a of FAUNE) if(a.mort){ scene.remove(a.g); }
+  FAUNE.length=0;
+  for(const type of ['sanglier','sanglier','sanglier','jaguar']){ const m=mkAnimal(type), D=FAUNE_DEFS[type];
+    let x=ILE2.pic.x, z=ILE2.pic.z; for(let t=0;t<20;t++){ const a=rand(0,6.28), r=rand(5,18), x2=ILE2.cx+Math.cos(a)*r, z2=ILE2.cz+Math.sin(a)*r*0.7; if(ileU(x2,z2)<0.75){ x=x2; z=z2; break; } }
+    FAUNE.push({type,D,g:m.g,pattes:m.pattes,x,z,y:hauteurIleTresor(x,z),ang:rand(0,6.28),hp:D.hp,mort:false,mordT:0,errT:0,ph:rand(0,6),corpsT:0}); }
+}
+function toucherAnimal(a,dmg){
+  if(a.mort) return; a.hp-=dmg; a.colere=true; burst(a.x,a.y+0.8,a.z,4,0xb8282a,4);
+  if(a.hp<=0){ a.mort=true; a.corpsT=5; a.g.rotation.z=Math.PI/2; SFX.mort(); ETAT.score+=a.type==='jaguar'?250:80;
+    creerPickup('cash',a.x,a.z,randi(a.D.cash[0],a.D.cash[1])); spawnTexte(a.x,2.5,a.z,a.type==='jaguar'?'JAGUAR ! +250':'SANGLIER +80','#ffd23f'); }
+}
+function majFaune(dt){
+  for(const a of FAUNE){
+    if(a.mort){ if(a.corpsT>0){ a.corpsT-=dt; if(a.corpsT<=0) a.g.visible=false; } continue; }
+    const d=Math.sqrt(dist2(a.x,a.z,P.x,P.z)), voit=!P.veh&&!P.nage&&(d<14||(a.colere&&d<30))&&Math.abs(P.y-a.y)<6;
+    let vit=0;
+    if(voit){ const cible=Math.atan2(P.x-a.x,P.z-a.z); a.ang=angLerp(a.ang,cible,4*dt); vit=d>1.4?a.D.vit:0;
+      a.mordT-=dt; if(d<1.7&&a.mordT<=0){ a.mordT=1.2; toucherJoueur(a.D.deg,a.x,a.z); if(Math.random()<0.4) toast(a.type==='jaguar'?'🐆 Le jaguar t’a lacéré !':'🐗 Coup de défense !','warn'); } }
+    else { a.errT-=dt; if(a.errT<=0){ a.errT=rand(2,5); a.ang+=rand(-1.5,1.5); a.pause=Math.random()<0.35; } vit=a.pause?0:a.D.vit*0.25; }
+    if(vit>0){ const nx=a.x+Math.sin(a.ang)*vit*dt, nz=a.z+Math.cos(a.ang)*vit*dt;
+      if(ileU(nx,nz)<0.9&&hauteurIleTresor(nx,nz)-a.y<vit*dt*2.5){ a.x=nx; a.z=nz; } else a.ang+=Math.PI*0.6; } // jamais à l'eau, jamais une paroi
+    a.y=hauteurIleTresor(a.x,a.z); a.ph+=dt*vit*1.6;
+    a.g.position.set(a.x,a.y,a.z); a.g.rotation.y=a.ang;
+    for(let k=0;k<4;k++) a.pattes[k].rotation.x=Math.sin(a.ph+(k%2?Math.PI:0))*Math.min(0.8,vit*0.08);
+  }
+}
 function mkMerVivante(){
   const pieces=[];
-  // --- Île aux trésors
-  { const I=ILE_TRESOR; ILES.push({x:I.x,z:I.z,r:I.r}); PLATS.push({x:I.x,z:I.z,r:I.r,h:0.42});
-    const ile=new THREE.Mesh(new THREE.CylinderGeometry(I.r,I.r+3.5,0.9,26),new THREE.MeshLambertMaterial({map:texSable})); ile.position.set(I.x,0.02,I.z); scene.add(ile);
-    { const n0=scene.children.length; for(const [dx,dz] of [[-9,-5],[8,-7],[-4,9],[10,6],[-12,3]]) mkPalmier(I.x+dx,I.z+dz);
-      fusionnerGroupes(scene.children.slice(n0)); } // palmiers fusionnés par matériau : 3 appels de rendu au lieu de 35
-    // rocher-crâne
-    pieces.push(['boule',5,4.2,4.4,I.x-6,2.2,I.z-8,0xb8b0a0],['boule',1.3,1.5,0.6,I.x-7.4,2.8,I.z-6.1,0x14161c],['boule',1.3,1.5,0.6,I.x-4.6,2.8,I.z-6.1,0x14161c],['boule',0.8,0.6,0.5,I.x-6,1.6,I.z-5.9,0x14161c]);
-    // camp : tente, feu, tonneaux, canot échoué, pavillon
-    pieces.push(['cone',2.6,2.6,2.6,I.x+6,1.3,I.z-2,0xc8b48a],['box',0.1,3.4,0.1,I.x+6,1.7,I.z-2,0x6a4a2c]);
-    pieces.push(['box',0.9,1.1,0.9,I.x+2,0.95,I.z+3,0x8a6a44],['box',0.9,1.1,0.9,I.x+3.1,0.95,I.z+3.4,0x7a5a3a],['box',2.6,0.5,1,I.x-10,0.65,I.z+8,0x6a4a2c,0.6]);
-    pieces.push(['box',0.12,5,0.12,I.x+9,2.9,I.z-6,0x5a3a20],['box',1.6,1,0.05,I.x+9.85,4.9,I.z-6,0x14161c]);
-    for(let k=0;k<6;k++){ const a=k/6*Math.PI*2; pieces.push(['boule',0.5,0.35,0.5,I.x+2+Math.cos(a)*0.9,0.55,I.z-4+Math.sin(a)*0.9,0x6a665e]); }
-    MERV.feu=new THREE.PointLight(0xff8a3a,0,10); MERV.feu.position.set(I.x+2,1.4,I.z-4); scene.add(MERV.feu);
-    // la croix du trésor
-    MERV.tresor={x:I.x+3,z:I.z+8};
-    for(const r of [0.7,-0.7]){ const c=mkBox(2.4,0.05,0.35,mat(0xd83a3a),MERV.tresor.x,0.46,MERV.tresor.z); c.rotation.y=r; }
-    mkEnseigne('ÎLE AUX TRÉSORS','#ffd23f',I.x,4.5,I.z-I.r+1,0,8);
-  }
+  mkIleTresorV2(); // île aux trésors v2 : relief, montagne, jungle, six endroits où creuser, animaux sauvages
   // --- Paillote sur l'île du canard
   if(POIS.canard){ const c=POIS.canard, x=c.x+7, z=c.z+2; MERV.paillote={x,z};
     pieces.push(['box',3.2,1.1,1,x,0.95,z,0x8a6a44],['box',3.4,0.12,1.2,x,1.55,z,0xc8a070]);
@@ -5703,9 +5802,9 @@ function mkMerVivante(){
     mkEnseigne('PAILLOTE DU CANARD','#35e0ff',x,4.6,z-1.2,0,6);
   }
   // --- Spots de plongée : épaves et coffres sous l'eau
-  for(const [x,z] of [[-95,398],[168,374],[322,334],[250,404],[-246,428],[40,436]]) MERV.spots.push({x,z,t:0,vague:-1});
+  for(const [x,z] of [[-95,398],[168,374],[322,334],[250,404],[-275,424],[40,436]]) MERV.spots.push({x,z,t:0,vague:-1});
   // --- Tremplins flottants : sur flotteurs, lèvre jaune et noire
-  for(const [x,z,ang] of [[40,356,Math.PI/2],[-70,330,-Math.PI/2],[200,424,Math.PI/2],[120,412,-Math.PI/2],[-160,412,Math.PI/2]]){
+  for(const [x,z,ang] of [[40,356,Math.PI/2],[-70,330,-Math.PI/2],[200,424,Math.PI/2],[120,412,-Math.PI/2],[-150,390,Math.PI/2]]){
     const r={x,z,ang,long:7,haut:1.8,larg:5}; MERV.rampes.push(r);
     const g=new THREE.Group(), L=Math.hypot(r.long,r.haut);
     const pl=new THREE.Mesh(new THREE.BoxGeometry(r.larg,0.2,L),new THREE.MeshLambertMaterial({map:texPlanche,color:0xc8a070})); pl.position.set(0,r.haut/2,r.long/2); pl.rotation.x=-Math.atan2(r.haut,r.long); g.add(pl);
@@ -5736,16 +5835,11 @@ function mkMerVivante(){
 // interactions à pied / à la nage (bouton d'action)
 function actionMer(){
   if(!MERV.ok||P.veh) return null;
-  const tr=MERV.tresor; if(tr&&dist2(P.x,P.z,tr.x,tr.z)<6&&!P.nage) return {label:'⛏️ CREUSER',fn:creuserTresor};
+  const tr=trouProche(); if(tr&&!P.nage){ rebouchageIle(); return {label:tr.creuse?'⛏️ DÉJÀ CREUSÉ':'⛏️ CREUSER',fn:()=>creuserTrou(tr)}; }
   const pa=MERV.paillote; if(pa&&dist2(P.x,P.z,pa.x,pa.z)<12&&!P.nage) return {label:'🍹 COCKTAIL (20 $)',fn:()=>{ if(P.hp>=P.maxHp){ SFX.refus(); toast('Tu es déjà en pleine forme'); return; } if(META.argent<20){ SFX.refus(); return; } META.argent-=20; soigner(60); SFX.soin(); toast('Cocktail du Canard — rafraîchissant !','or'); }};
   if(P.nage) for(const s of MERV.spots) if(dist2(P.x,P.z,s.x,s.z)<9) return s.vague===WAVES.n?{label:'🤿 ÉPAVE DÉJÀ FOUILLÉE',fn:()=>{ SFX.refus(); toast('Reviens à la prochaine vague','warn'); }}:{label:'🤿 PLONGER',fn:()=>plonger(s)};
   const k=kiosqueTow(); if(k) return k;
   return null;
-}
-function creuserTresor(){
-  const m=primeMerUneFois('tresor',220);
-  if(!m){ SFX.refus(); toast('Le coffre est vide… il se remplit à chaque vague','warn'); return; }
-  ETAT.score+=300; bigMsg('💰 TRÉSOR DES PIRATES ! +'+m+' $'); SFX.niveau(); vibre(80); burst(MERV.tresor.x,0.6,MERV.tresor.z,14,0xffd23f,6,6);
 }
 function plonger(s){
   s.vague=WAVES.n; const gain=60+Math.floor(aleaDecor()*60);
@@ -5764,19 +5858,23 @@ function majSautMer(v,dt){
   if(v.vyMer!==undefined&&v.hMer>0){ // en l'air
     v.vyMer-=26*dt; v.hMer+=v.vyMer*dt; v.airMer+=dt;
     if(v.hMer<=0){ v.hMer=0; const air=v.airMer; v.vyMer=undefined;
-      if(MER_V2) eclaboussure(v.x,v.z,1.8); else burst(v.x,0.3,v.z,10,0x9fd8ff,5,6);
-      if(v.conduit==='joueur'){ secousse(3); vibre(40); if(air>0.5){ const pts=Math.round(60+air*80); ETAT.score+=pts; spawnTexte(v.x,3,v.z,'SAUT ! +'+pts,'#35e0ff'); }
+      if(MER_V2) eclaboussure(v.x,v.z,air>0.5?1.8:1); else burst(v.x,0.3,v.z,10,0x9fd8ff,5,6);
+      if(v.conduit==='joueur'){ secousse(air>0.5?3:0.8); vibre(air>0.5?40:12); if(air>0.5){ const pts=Math.round(60+air*80); ETAT.score+=pts; spawnTexte(v.x,3,v.z,'SAUT ! +'+pts,'#35e0ff'); }
         if(RIDES.actif&&RIDE_DEFS[RIDES.actif.id].stunt) rideFigure({airT:air,def:v.def,mesh:v.mesh}); } }
     return true;
   }
   const rp=rampeMerSous(v.x,v.z);
   if(rp){ v.hMer=rp.h; v.rampeMer=rp; return true; }
+  // signalé : « on dirait un lac, pas d'effet de vagues » — au large, lancé, on décolle de crête en crête
+  if(Math.abs(v.v)>11&&v.z>MER+14&&!v.rampeMer&&!MERV.rampes.some((r)=>dist2(r.x,r.z,v.x,v.z)<900)){ v.distVague=(v.distVague===undefined?6:v.distVague)-Math.abs(v.v)*dt;
+    if(v.distVague<=0){ v.distVague=6+Math.random()*9; v.vyMer=1.6+Math.abs(v.v)*0.07; v.hMer=0.01; v.airMer=0; if(MER_V2) eclaboussure(v.x,v.z,0.8+Math.abs(v.v)*0.02); return true; } }
   if(v.rampeMer){ const r=v.rampeMer.r; v.rampeMer=null; // on quitte le tremplin
     if(Math.abs(v.v)>9&&v.hMer>r.haut*0.7){ v.vyMer=Math.min(14,Math.abs(v.v)*0.42); v.airMer=0; if(v.conduit==='joueur') SFX.swing(); return true; } }
   v.hMer=0; return false;
 }
 function majMerVivante(dt){
   if(!MERV.ok) return;
+  majFaune(dt);
   if(MERV.feu) MERV.feu.intensity=(ETAT.jour>100?1.6:0.6)*(0.8+0.2*Math.sin(ETAT.runT*13));
   // bulles des épaves
   for(const s of MERV.spots){ s.t-=dt; if(s.t<=0&&dist2(s.x,s.z,P.x,P.z)<14400&&s.vague!==WAVES.n){ s.t=0.35; spawnP(s.x+rand(-0.8,0.8),0.1,s.z+rand(-0.8,0.8),0,1.6,0,0.28,0.7,0xe8f6ff,0,2); } }
@@ -5806,7 +5904,7 @@ function majMerVivante(dt){
    hors de `vehicules`) tourne sur une boucle au large ; le joueur, tenu au
    bout de la corde, est placé APRÈS majJoueur (comme le monte-charge). */
 const TOW={actif:null,bateau:null,corde:null,planche:null,boucle:{x:20,z:404,rx:78,rz:18}};
-const TOW_DEFS={wake:{nom:'WAKEBOARD',prix:50,duree:45,objectif:4500,prime:200},para:{nom:'PARACHUTE ASCENSIONNEL',prix:60,duree:40,prime:250}};
+const TOW_DEFS={wake:{nom:'WAKEBOARD',prix:50,duree:45,objectif:9000,prime:200},para:{nom:'PARACHUTE ASCENSIONNEL',prix:60,duree:40,prime:250}}; // wakeboard : objectif impossible sans figures (sauts seuls ~6 300), large avec 360 et backflips
 function kiosqueTow(){
   if(TOW.actif||!MERV.ok) return null;
   for(const [id,k] of [['wake',TOW.kWake],['para',TOW.kPara]]) if(k&&dist2(P.x,P.z,k.x,k.z)<10&&!P.nage){ const D=TOW_DEFS[id]; return {label:(id==='wake'?'🏄 ':'🪂 ')+D.nom+' — '+D.prix+' $',fn:()=>lancerTow(id)}; }
@@ -5815,7 +5913,16 @@ function kiosqueTow(){
 function mkRemorquage(){
   TOW.bateau=makeVoiture('bateau'); scene.add(TOW.bateau); TOW.bateau.visible=false;
   TOW.corde=mkBox(0.05,0.05,1,mat(0xf2f4f8),0,0,0); TOW.corde.visible=false;
-  TOW.planche=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.08,1.5),mat(0xff5ad0)); scene.add(TOW.planche); TOW.planche.visible=false;
+  { // planche : corps, bouts arrondis, fixations, ailerons, liseré (signalé : « améliorer le style, bordure arrondie »)
+    const g=new THREE.Group(), rose=0xff5ad0, blanc=0xf2f4f8;
+    g.add(mkBoxG(0.46,0.07,1.0,rose,0,0,0));
+    for(const sz of [-1,1]){ const b=new THREE.Mesh(new THREE.CylinderGeometry(0.23,0.23,0.07,16),mat(rose)); b.position.z=sz*0.5; g.add(b); // bouts arrondis
+      g.add(mkBoxG(0.3,0.12,0.22,0x14161c,0,0.08,sz*0.28)); g.add(mkBoxG(0.04,0.1,0.18,0x2a2d34,0,-0.07,sz*0.62)); } // fixations, ailerons
+    g.add(mkBoxG(0.06,0.075,1.3,blanc,0,0.005,0));
+    scene.add(g); g.visible=false; TOW.planche=g; }
+  { // sillage : deux rubans d'écume en V derrière le bateau (vagues qu'on franchit pour décoller)
+    const mk=()=>{ const m=new THREE.Mesh(new THREE.BoxGeometry(1,0.04,1),new THREE.MeshBasicMaterial({color:0xf2fbff,transparent:true,opacity:0.55,depthWrite:false})); m.visible=false; scene.add(m); return m; }; // ruban plat orienté par lookAt (son axe z vers le bout du V)
+    TOW.sillage=[mk(),mk()]; }
   // kiosques au bout des deux pontons de la marina
   const pts=PONTONS.filter((p)=>Math.abs(p.x)<40&&p.hd>6).sort((a,b)=>a.x-b.x);
   if(pts.length>=2){ TOW.kPara={x:pts[0].x,z:pts[0].z+pts[0].hd-1.5}; TOW.kWake={x:pts[1].x,z:pts[1].z+pts[1].hd-1.5};
@@ -5826,15 +5933,17 @@ function towPoint(s){ const B=TOW.boucle; return {x:B.x+Math.cos(s)*B.rx,z:B.z+M
 function lancerTow(id){
   const D=TOW_DEFS[id]; if(META.argent<D.prix){ SFX.refus(); toast('Il te faut '+D.prix+' $','warn'); return; }
   META.argent-=D.prix; SFX.achat();
-  TOW.actif={id,s:Math.PI,t:D.duree,lat:0,vlat:0,h:0,vy:0,air:0,pts:0,spin:0,chute:0,lache:false,ret:{x:P.x,z:P.z}};
-  TOW.bateau.visible=true; TOW.corde.visible=true; TOW.planche.visible=id==='wake';
+  TOW.actif={id,s:Math.PI,t:D.duree,lat:0,vlat:0,h:0,vy:0,air:0,pts:0,spin:0,flip:0,chute:0,lache:false,ret:{x:P.x,z:P.z},req:{}};
+  TOW.bateau.visible=true; TOW.corde.visible=true; TOW.planche.visible=id==='wake'; for(const m of TOW.sillage) m.visible=id==='wake';
+  if(id==='wake'){ // boutons de figures (rendus « à pied » par boutonsAPied à la fin)
+    el('btnSprint').innerHTML=ico('ico-btn-sprint','⬆️')+'<small>OLLIE</small>'; el('btnGren').innerHTML='🔄<small>BACKFLIP</small>'; el('btnDodge').innerHTML='🌀<small>360</small>'; }
   RIDES.txt.style.display='block'; bigMsg(id==='wake'?'🏄 WAKEBOARD — saute le sillage !':'🪂 PARACHUTE ASCENSIONNEL'); vibre(40);
   if(id==='para') toast('Lâche la corde au-dessus du radeau-cible !','or');
 }
 function finTow(raison){
   const T=TOW.actif; if(!T) return; TOW.actif=null;
-  TOW.bateau.visible=false; TOW.corde.visible=false; TOW.planche.visible=false; RIDES.txt.style.display='none';
-  if(T.id==='wake'){ let msg='🏄 WAKEBOARD — '+Math.round(T.pts)+' pts';
+  TOW.bateau.visible=false; TOW.corde.visible=false; TOW.planche.visible=false; RIDES.txt.style.display='none'; for(const m of TOW.sillage) m.visible=false; P.h.g.rotation.x=0;
+  if(T.id==='wake'){ boutonsAPied(); let msg='🏄 WAKEBOARD — '+Math.round(T.pts)+' pts';
     if(T.pts>=TOW_DEFS.wake.objectif){ const m=primeMerUneFois('wake',TOW_DEFS.wake.prime); if(m) msg+=' +'+m+' $'; }
     bigMsg(msg); P.y=0.3; } // relâché dans l'eau, on nage
   else if(raison!=='lache'){ paraMesh.visible=false; P.para=false; P.chute=false; P.y=0.3; }
@@ -5850,17 +5959,30 @@ function majTow(dt){
   if(T.id==='wake'){
     const l=Math.hypot(INPUT.mx,INPUT.mz), cible=l>0.15?clamp((INPUT.mx*rx+INPUT.mz*rz)/l,-1,1)*8:0; // le joystick : où tu veux aller, à l'écran
     const vl0=T.vlat; T.vlat=clamp(lerp(T.vlat,(cible-T.lat)*2.2,clamp(3*dt,0,1)),-14,14); T.lat=clamp(T.lat+T.vlat*dt,-8.5,8.5); // la corde limite la vitesse latérale
-    if(T.h<=0&&T.chute<=0){ for(const w of [-2.2,2.2]) if((T.lat-w)*((T.lat-T.vlat*dt)-w)<0&&Math.abs(T.vlat)>7){ T.vy=3+Math.abs(T.vlat)*0.55; T.h=0.01; T.air=0; SFX.swing(); } } // franchir la vague du sillage : envol
-    if(T.h>0){ T.vy-=26*dt; T.h+=T.vy*dt; T.air+=dt; if((pressed('esquive')||edgeKey('KeyK'))&&T.spin<=0) T.spin=0.0001;
-      if(T.spin>0) T.spin+=dt/0.6;
-      if(T.h<=0){ T.h=0; if(T.spin>0&&T.spin<1){ T.chute=1.6; toast('Chute ! Figure pas finie','warn'); if(MER_V2) eclaboussure(P.x,P.z,1.6); }
-        else if(T.air>0.35){ const pts=Math.round(40+T.air*100+(T.spin>=1?120:0)); T.pts+=pts; spawnTexte(P.x,3,P.z,(T.spin>=1?'360 ! +':'SAUT ! +')+pts,'#ff5ad0'); }
-        T.spin=0; } }
+    if(T.h<=0&&T.chute<=0){
+      for(const w of [-2.2,2.2]) if((T.lat-w)*((T.lat-T.vlat*dt)-w)<0&&Math.abs(T.vlat)>7){ T.vy=3+Math.abs(T.vlat)*0.55; T.h=0.01; T.air=0; SFX.swing(); } // franchir la vague du sillage : envol
+      if(T.h<=0&&T.req.ollie){ T.vy=6.2; T.h=0.01; T.air=0; SFX.swing(); } // OLLIE : petit saut à plat, à enchaîner avant le sillage
+    }
+    T.req.ollie=false;
+    if(T.h>0){ T.vy-=26*dt; T.h+=T.vy*dt; T.air+=dt;
+      if(T.req.spin&&T.spin<=0) T.spin=0.0001; if(T.req.flip&&T.flip<=0) T.flip=0.0001; T.req.spin=T.req.flip=false; // 360 et BACKFLIP se combinent
+      if(T.spin>0&&T.spin<1) T.spin=Math.min(1,T.spin+dt/0.55); if(T.flip>0&&T.flip<1) T.flip=Math.min(1,T.flip+dt/0.7);
+      if(T.h<=0){ T.h=0;
+        if((T.spin>0&&T.spin<1)||(T.flip>0&&T.flip<1)){ T.chute=1.6; toast('Chute ! Figure pas finie','warn'); if(MER_V2) eclaboussure(P.x,P.z,1.6); else burst(P.x,0.3,P.z,10,0x9fd8ff,5,6); vibre(60); }
+        else if(T.air>0.3){ const fig=(T.spin>=1?1:0)+(T.flip>=1?1:0), nom=T.spin>=1&&T.flip>=1?'BACKFLIP 360':(T.flip>=1?'BACKFLIP':(T.spin>=1?'360':'SAUT'));
+          const pts=Math.round((40+T.air*100+(T.spin>=1?120:0)+(T.flip>=1?180:0))*(fig===2?1.5:1)); T.pts+=pts; spawnTexte(P.x,3,P.z,nom+' ! +'+pts,'#ff5ad0'); if(fig) SFX.ramasse(); }
+        T.spin=0; T.flip=0; } }
+    else { T.req.spin=T.req.flip=false; }
     if(T.chute>0){ T.chute-=dt; T.lat=lerp(T.lat,0,dt*2); }
     const L=12, d=Math.sqrt(Math.max(1,L*L-T.lat*T.lat));
     x=b.x-fx*d+rx*T.lat; z=b.z-fz*d+rz*T.lat; y=0.85+T.h; // au-dessus de la houle
-    TOW.planche.position.set(x,y-0.6,z); TOW.planche.rotation.y=ang+(T.spin>0?T.spin*Math.PI*2:0)+Math.PI/2*0.3;
-    P.h.g.rotation.y=ang+(T.spin>0?T.spin*Math.PI*2:0)+0.6;
+    const rotY=ang+(T.spin>0?T.spin*Math.PI*2:0)+0.6, rotX=T.flip>0?-T.flip*Math.PI*2:0;
+    TOW.planche.position.set(x,y-0.6,z); TOW.planche.rotation.set(rotX,rotY+Math.PI/2*0.5,T.chute>0?1.2:0);
+    P.h.g.rotation.y=rotY; P.h.g.rotation.x=rotX+(T.chute>0?-1.3:0); // à la chute, on tombe dans l'eau
+    P.h.brasG.rotation.x=-1.2; P.h.brasD.rotation.x=-1.2; P.h.jambeG.rotation.x=0.35; P.h.jambeD.rotation.x=-0.25; // accroupi, mains sur la poignée
+    for(const [k,m] of TOW.sillage.entries()){ const sg=k?1:-1, L0=4, L1=16, l0=0.6, l1=3.4; // ruban du V : de la poupe vers l'arrière, en s'écartant
+      const ax=b.x-fx*L0+rx*sg*l0, az=b.z-fz*L0+rz*sg*l0, bx2=b.x-fx*L1+rx*sg*l1, bz2=b.z-fz*L1+rz*sg*l1, mx=(ax+bx2)/2, mz=(az+bz2)/2, y=(MER_V2?houleY(mx,mz):0)+0.42;
+      m.position.set(mx,y,mz); m.scale.set(0.9+0.25*Math.sin(ETAT.runT*9+k),1,Math.hypot(bx2-ax,bz2-az)); m.lookAt(bx2,y,bz2); }
     RIDES.txt.textContent='🏄 WAKEBOARD — '+Math.round(T.pts)+' / '+D.objectif+' pts — '+Math.ceil(Math.max(0,T.t))+' s';
   } else {
     if(!T.lache){ T.h=Math.min(32,T.h+dt*5); x=b.x-fx*22; z=b.z-fz*22; y=0.8+T.h;
@@ -5878,9 +6000,11 @@ function majTow(dt){
     return; }
   if(T.t<=0){ if(T.id==='para') lacherCorde(); else finTow('fin'); } // fin du temps en l'air : la corde se lâche (jamais une chute de 32 u)
 }
+function towEntrees(){ const T=TOW.actif; if(!T||T.id!=='wake'||T.lache) return;
+  if(pressed('sprint')||edgeKey('ShiftLeft')) T.req.ollie=true; if(pressed('gren')||edgeKey('KeyG')) T.req.flip=true; if(pressed('esquive')||edgeKey('KeyK')) T.req.spin=true; }
 function lacherCorde(){ const T=TOW.actif; if(!T||T.id!=='para'||T.lache) return; T.lache=true; TOW.corde.visible=false;
   P.chute=true; P.chuteY0=P.y; P.chuteT=0; P.chuteHaut=P.y; P.para=true; P.vy=-1; P.chuteVx=0; P.chuteVz=0; toast('🪂 Corde lâchée — vise le radeau !','or'); SFX.ui(); }
-function resetMer(){ if(TOW.actif) finTow('annule'); TOW.actif=null; MERV.primes={}; for(const s of MERV.spots) s.vague=-1; }
+function resetMer(){ if(TOW.actif) finTow('annule'); TOW.actif=null; MERV.primes={}; for(const s of MERV.spots) s.vague=-1; ILE2.vague=-1; for(const a of FAUNE) a.mort=true; placerFaune(); }
 /* ---------- COURSES DU MONT ET DU CANYON (DECOR_V2) ----------
    Deux défis chronométrés (dtJeu), à faire sur deux roues ou en buggy :
    - MONTÉE DU MONT REYES : du pied au sommet par le sentier en lacets,
@@ -10392,6 +10516,8 @@ function viseAuto(portee){
       bs=s; best=e;
     }
   }
+  for(const an of FAUNE){ if(an.mort) continue; const d=Math.sqrt(dist2(an.x,an.z,P.x,P.z)); if(d>portee*1.12) continue; // animaux de l'île
+    const s2=d+Math.abs(angDiff(P.ang,Math.atan2(an.x-P.x,an.z-P.z)))*6; if(s2<bs){ bs=s2; best=an; } }
   return best;
 }
 /* ---------- attaques ---------- */
@@ -10421,6 +10547,7 @@ function attaquer(){
     for(const p of pietons){ if(p.etat==='mort') continue;
       cible(0,p.x,p.z,()=>{tuerPieton(p,true,knock);});
     }
+    for(const an of FAUNE){ if(an.mort||Math.abs(P.y-an.y)>2) continue; cible(0,an.x,an.z,()=>{toucherAnimal(an,dmg);}); }
     for(const v of vehicules){ if(v.mort) continue;
       cible(0,v.x,v.z,()=>{abimerVehicule(v,dmg*0.6,true);});
     }
@@ -10444,7 +10571,7 @@ function attaquer(){
     ang=Math.atan2(cible.x-P.x,cible.z-P.z);
     P.ang=ang; P.tirT=0.5;
     dc=Math.sqrt(dist2(cible.x,cible.z,P.x,P.z));
-    cy=cible.heli?15.4:1.2;
+    cy=cible.heli?15.4:(cible.D?cible.y+0.7:1.2); // animal : visé à sa hauteur (montagne de l'île)
   }
   const dmg=st.degats*(P.buffs.dmg>0?1.35:1);
   const vitB=a.roquette?34:(a.flamme?26:72);
@@ -10562,8 +10689,9 @@ function majJoueur(dt,dtJeu){
   let vx=0,vz=0;
   const bouge=Math.hypot(INPUT.mx,INPUT.mz)>0.12;
   const sprint=!P.nage&&(INPUT.btn.sprint||INPUT.btn.sprintK)&&bouge&&(P.stam>1||P.buffs.nitroT>0);
+  const crawl=P.nage&&(INPUT.btn.sprint||INPUT.btn.sprintK)&&bouge&&P.stam>8; // demandé : SPRINT à la nage = crawl, plus rapide
   el('btnSprint').classList.toggle('actif',!!sprint);
-  let vit=P.vitBase*(sprint?1.5:1)*(P.nage?(aCurio('perle')?0.567:0.42):1);  // La Perle Noire : +35 % à la nage
+  let vit=P.vitBase*(sprint?1.5:1)*(P.nage?(aCurio('perle')?0.567:0.42)*(crawl?1.7:1):1);  // La Perle Noire : +35 % à la nage ; crawl : ×1,7
   if(P.buffs.lourd>0) vit*=0.68;                    // digestion du Monstre
   if(P.buffs.vit>0) vit*=(PERSOS[META.perso].spec==='nitro'&&P.buffs.nitroT>0)?1.6:1.3;
   if(P.buffs.nitroT!==undefined&&P.buffs.nitroT>0) P.buffs.nitroT-=dt;
@@ -10581,7 +10709,8 @@ function majJoueur(dt,dtJeu){
   if(P.nage){
     // Sur dtJeu, pas dt : cette jauge détermine la noyade (comme P.chuteT et
     // le parachute juste en dessous), un ralenti ne doit jamais l'amortir.
-    P.stam=Math.max(0,P.stam-(aCurio('perle')?0.8:1.6)*dtJeu); P.stamDelai=0.8;   // nage longue distance possible
+    P.stam=Math.max(0,P.stam-(aCurio('perle')?0.8:1.6)*(crawl?5:1)*dtJeu); P.stamDelai=0.8;   // nage longue distance possible ; le crawl épuise vite
+    if(crawl&&Math.random()<0.5) spawnP(P.x+rand(-0.6,0.6),0.25,P.z+rand(-0.6,0.6),rand(-1,1),rand(1.2,2.4),rand(-1,1),0.35,0.45,0xe8f6ff,4); // gerbes des bras
     if(P.stam<=0){ P.hp-=0.9*dtJeu; if(P.hp<=0) mourir(); }
     if(bouge&&Math.random()<0.35) spawnP(P.x+rand(-0.5,0.5),0.15,P.z+rand(-0.5,0.5),rand(-0.6,0.6),rand(0.8,1.8),rand(-0.6,0.6),0.4,0.5,0xcfeaff,3);
   } else if(sprint&&!(P.buffs.nitroT>0)&&!(P.buffs.sprintLibre>0)){P.stam=Math.max(0,P.stam-22*dt);P.stamDelai=0.8;}
@@ -10786,7 +10915,12 @@ function majJoueur(dt,dtJeu){
     P.h.g.rotation.x=0; P.h.g.rotation.z=0; P.h.brasG.rotation.z=0; P.h.brasD.rotation.z=0;
   }
   P.h.g.rotation.y=P.ang;
-  if(P.nage){
+  if(P.nage&&crawl){ // crawl : bras en moulinet complet, battements de jambes rapides
+    P.h.phase+=dt*(5+Math.hypot(vx,vz)*0.9);
+    const s=Math.sin(P.h.phase*4);
+    P.h.jambeG.rotation.x=1.3+s*0.35; P.h.jambeD.rotation.x=1.3-s*0.35;
+    P.h.brasG.rotation.x=-(P.h.phase%(Math.PI*2)); P.h.brasD.rotation.x=-((P.h.phase+Math.PI)%(Math.PI*2));
+  } else if(P.nage){
     P.h.phase+=dt*(3+Math.hypot(vx,vz)*0.8);
     const s=Math.sin(P.h.phase*2);
     P.h.jambeG.rotation.x=1.1+s*0.3; P.h.jambeD.rotation.x=1.1-s*0.3;
@@ -13932,6 +14066,7 @@ function majEnnemis(dt){
 }
 /* ---------- collision des balles ---------- */
 function collisionBalle(b){
+  if(b.fac==='joueur') for(let i=0;i<FAUNE.length;i++){ const a=FAUNE[i]; if(!a.mort&&Math.abs(b.y-(a.y+0.7))<1.4&&dist2(b.x,b.z,a.x,a.z)<1.2){ toucherAnimal(a,b.dmg); return true; } } // animaux de l'île
   for(const e of ennemis){
     if(e.mort||e.fac===b.fac) continue;
     if(e.heli){
@@ -14675,6 +14810,7 @@ function lancerVague(){
     toast('🏡 Ta planque a rapporté '+r+' $ (à encaisser au coffre)','or');
   }
   if(WAVES.n>META.recordVague) META.recordVague=WAVES.n;
+  if(DECOR_V2&&MERV.ok) placerFaune(); // les animaux de l'île reviennent
 }
 function majVagues(dt){
   // Un métier en cours (pompier/taxi/dépanneuse/ambulance/police) gèle les
@@ -25241,7 +25377,7 @@ function boucle(t){
     ETAT.comboT-=dt;
     if(ETAT.comboT<=0) ETAT.combo=1;
     if(ETAT.slowT>0){ ETAT.slowT-=dtReel; if(ETAT.slowT<=0&&ETAT.mode==='jeu') ETAT.timeScale=1; }
-    if(ETAT.mode==='jeu'){ majNitro(dtJeu); majJoueur(dt,dtJeu); if(DECOR_V2){ majRides(dtJeu); majPic(dt); majTow(dt); } } // nitro décidée AVANT la physique du véhicule
+    if(ETAT.mode==='jeu'){ majNitro(dtJeu); if(DECOR_V2) towEntrees(); majJoueur(dt,dtJeu); if(DECOR_V2){ majRides(dtJeu); majPic(dt); majTow(dt); } } // nitro décidée AVANT la physique du véhicule
     majEnnemis(dt);
     if(!INT.actif){
       majPietons(dt);

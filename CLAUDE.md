@@ -582,6 +582,18 @@ décor sur un générateur **à part** (`aleaDecor()`, `aD()`, `choixD()`, grain
 - **Ligne des mesas variée** : départ large, crête étroite, long gap, mesa
   large, longue crête qu'on suit, très long gap final (`m.bruit` : bords
   presque droits des crêtes ; tremplin plus raide avant un grand gap).
+- **Mer, 2e passe** : wakeboard complet (sillage en V visible, `towEntrees`
+  lit OLLIE/BACKFLIP/360 AVANT `majJoueur` — sinon GRENADE lançait une
+  grenade — ; figure pas finie à la réception = chute ; objectif 9 000,
+  impossible sans figures) ; planche aux bouts arrondis ; **crawl** (SPRINT à
+  la nage : ×1,7, endurance ×5) ; petits bonds de crête en crête au large
+  (`v.distVague`, jamais près d'un tremplin flottant). **Île aux trésors v2**
+  (`ILE2`, relief `hauteurIleTresor`, contour `ileU`, `ILES[i].dans` lu par
+  `estEau`) : montagne de 16 u, jungle, 6 trous (`creuserTrou`, un seul
+  trésor tiré à chaque vague, ailleurs or, bouteille ou indice de direction),
+  **faune** (`FAUNE`, sangliers et jaguar : chargent, mordent, se tuent au tir
+  — `collisionBalle`, `viseAuto` — et au corps à corps ; reviennent à chaque
+  vague, `placerFaune`).
 - **Grand yacht** (`mkGrandYachtV2`, même famille que `makeBateauV2`) et
   **porte-conteneurs pilotable** (`VEHDEFS.cargo`, 62 u, créé par `startRun`
   au large de la plage, monter à bord jusqu'à `0,55 × long`, caméra qui

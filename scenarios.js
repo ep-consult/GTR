@@ -8381,11 +8381,20 @@ async function main() {
         if (typeof MERV === 'undefined' || !MERV.ok) return { off: true };
         const o = { ko: [], info: [] };
         const scene0 = () => { startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 300; META.argent = 1000; for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0; };
-        const pas = (n, f) => { for (let i = 0; i < n; i++) { if (f) f(i); majJoueur(1 / 30, 1 / 30); majPic(1 / 30); majTow(1 / 30); majVehicules(1 / 30); majMer(1 / 30); P.iframes = 0; } };
-        // trésor : une fois par vague
-        scene0(); P.x = MERV.tresor.x; P.z = MERV.tresor.z; P.y = solPied(P.x, P.z); pas(3);
-        let a = actionMer(); let m = META.argent; if (!a || !/CREUSER/.test(a.label)) o.ko.push('pas de bouton CREUSER : ' + (a && a.label)); else { a.fn(); const g1 = META.argent - m; m = META.argent; actionMer().fn(); const g2 = META.argent - m;
-          if (!(g1 > 0) || g2 !== 0) o.ko.push('trésor : ' + g1 + ' puis ' + g2); else o.info.push('trésor +' + g1 + ' $'); }
+        const pas = (n, f) => { for (let i = 0; i < n; i++) { if (f) f(i); towEntrees(); majJoueur(1 / 30, 1 / 30); majPic(1 / 30); majTow(1 / 30); majVehicules(1 / 30); majMer(1 / 30); P.iframes = 0; } };
+        // île aux trésors : six trous, un seul cache le trésor (220 $), chaque trou une fois par vague ; l'île n'est pas de l'eau
+        scene0(); rebouchageIle(); let a = null, m = META.argent, tresors = 0, boutons = 0;
+        for (const tr of ILE2.trous) { P.x = tr.x; P.z = tr.z; P.y = solPied(tr.x, tr.z); a = actionMer(); if (a && /CREUSER/.test(a.label)) { boutons++; const av = META.argent; a.fn(); if (META.argent - av >= 220) tresors++; } }
+        { const tr = ILE2.trous[0]; P.x = tr.x; P.z = tr.z; P.y = solPied(tr.x, tr.z); a = actionMer(); }
+        if (boutons !== ILE2.trous.length || tresors !== 1 || !/DÉJÀ/.test(a ? a.label : '') || estEau(ILE2.cx, ILE2.cz) || !(hauteurIleTresor(ILE2.pic.x, ILE2.pic.z) > 10)) o.ko.push('île : ' + JSON.stringify({ boutons, tresors, ensuite: a && a.label }));
+        else o.info.push(ILE2.trous.length + ' trous, un trésor, ' + (META.argent - m) + ' $');
+        // animaux sauvages : attaquent, se tuent
+        scene0(); placerFaune(); { const sg = FAUNE.find((x) => x.type === 'sanglier'); P.x = sg.x + 4; P.z = sg.z; P.y = solPied(P.x, P.z); P.hp = 300; pas(90); const hpA = P.hp; let coups = 0;
+          while (!sg.mort && coups < 60) { P.ang = Math.atan2(sg.x - P.x, sg.z - P.z); P.cadT = 0; attaquer(); coups++; pas(3); }
+          if (!(hpA < 300) || !sg.mort || !FAUNE.some((x) => x.type === 'jaguar')) o.ko.push('faune : ' + JSON.stringify({ hpA, mort: sg.mort, coups })); else o.info.push('sanglier : attaque, tué en ' + coups + ' coups'); }
+        // crawl : SPRINT à la nage, plus vite
+        const nage = (cr) => { scene0(); P.x = 0; P.z = MER + 30; P.y = 0; P.stam = 100; INPUT.mx = 1; INPUT.mz = 0; INPUT.btn.sprint = cr; const x0 = P.x; pas(90); INPUT.btn.sprint = false; INPUT.mx = 0; return P.x - x0; };
+        { const br = nage(false), cr = nage(true); if (!(cr > br * 1.4)) o.ko.push('crawl pas plus rapide : ' + br.toFixed(1) + ' / ' + cr.toFixed(1)); }
         // plongée : chaque épave une fois par vague
         const sp = MERV.spots[0]; scene0(); P.x = sp.x; P.z = sp.z; P.y = 0; pas(6); a = actionMer(); m = META.argent;
         if (!a || !/PLONGER/.test(a.label)) o.ko.push('pas de bouton PLONGER à la nage : ' + (a && a.label)); else { a.fn(); const g = META.argent - m, a2 = actionMer(); if (!(g > 0) || !/DÉJÀ/.test(a2 ? a2.label : '')) o.ko.push('plongée : ' + g + ' / ' + (a2 && a2.label)); }
@@ -8401,14 +8410,17 @@ async function main() {
           while (RIDES.actif && t < 60) { const p = RIDES.actif.portes[RIDES.actif.i], dx = p.x - w.x, dz = p.z - w.z, l = Math.hypot(dx, dz) || 1; INPUT.mx = dx / l; INPUT.mz = dz / l; const c = controleDir(w, false); majVehiculePhys(w, 1 / 30, c.throttle, c.steer, l < 10 && Math.abs(w.v) > 18); P.x = w.x; P.z = w.z; majRides(1 / 30); t += 1 / 30; }
           INPUT.mx = INPUT.mz = 0; if (!(META.argent - a0 > 0)) o.ko.push('rallye non fini en jet-ski (' + t.toFixed(1) + ' s)'); else o.info.push('rallye en ' + t.toFixed(1) + ' s');
           scene0(); const vc = creerVehicule('motocross', d.x, d.z - 40, 0, null); if (rideEligible(vc, 'bouees')) o.ko.push('rallye ouvert à une moto'); }
-        // wakeboard : un rythme soutenu passe l'objectif, un rythme lent non ; payant
-        const wake = (periode) => { scene0(); P.x = TOW.kWake.x; P.z = TOW.kWake.z; P.y = 0; pas(2); const a1 = actionMer(); if (!a1 || !/WAKEBOARD/.test(a1.label)) return { erreur: a1 && a1.label }; const m0 = META.argent; a1.fn(); let pts = 0, spins = 0;
-          pas(TOW_DEFS.wake.duree * 30 + 5, (i) => { const T = TOW.actif; if (!T) return; pts = T.pts; const b = towPoint(T.s), fl = Math.hypot(b.fx, b.fz), rx = b.fz / fl, rz = -b.fx / fl, cote = Math.floor(i / periode) % 2 ? 1 : -1; INPUT.mx = rx * cote; INPUT.mz = rz * cote; if (T.h > 1.2 && T.spin <= 0 && spins < 3) { T.spin = 0.0001; spins++; } });
-          INPUT.mx = INPUT.mz = 0; return { pts: Math.round(pts), solde: META.argent - m0, fini: !TOW.actif }; };
-        const wv = wake(25), wl = wake(50);
-        if (wv.erreur !== undefined || !wv.fini || !(wv.pts >= TOW_DEFS.wake.objectif) || wv.solde !== TOW_DEFS.wake.prime - TOW_DEFS.wake.prix) o.ko.push('wakeboard soutenu : ' + JSON.stringify(wv));
-        if (!(wl.pts < TOW_DEFS.wake.objectif)) o.ko.push('wakeboard lent réussi quand même : ' + JSON.stringify(wl));
-        o.info.push('wakeboard ' + wv.pts + ' pts (soutenu) / ' + wl.pts + ' (lent) pour ' + TOW_DEFS.wake.objectif);
+        // wakeboard : figures (BACKFLIP + 360 dès l'envol) → objectif ; sauts seuls → raté ; figure lancée trop tard → chute
+        const wake = (mode) => { scene0(); P.x = TOW.kWake.x; P.z = TOW.kWake.z; P.y = 0; pas(2); const a1 = actionMer(); if (!a1 || !/WAKEBOARD/.test(a1.label)) return { erreur: a1 && a1.label }; const m0 = META.argent; a1.fn(); let pts = 0, chutes = 0, prec = 0;
+          pas(TOW_DEFS.wake.duree * 30 + 5, (i) => { const T = TOW.actif; if (!T) return; pts = T.pts; if (T.chute > 0 && prec <= 0) chutes++; prec = T.chute; const b = towPoint(T.s), fl = Math.hypot(b.fx, b.fz), rx = b.fz / fl, rz = -b.fx / fl, cote = Math.floor(i / 25) % 2 ? 1 : -1; INPUT.mx = rx * cote; INPUT.mz = rz * cote;
+            if (mode === 'figures' && T.h > 0 && T.air < 0.05) { INPUT.edge.esquive = true; INPUT.edge.gren = true; }
+            if (mode === 'tard' && T.h > 0 && T.vy < -6) INPUT.edge.esquive = true; });
+          INPUT.mx = INPUT.mz = 0; return { pts: Math.round(pts), chutes, solde: META.argent - m0, fini: !TOW.actif }; };
+        const wf = wake('figures'), ws = wake('sauts'), wt = wake('tard');
+        if (wf.erreur !== undefined || !wf.fini || !(wf.pts >= TOW_DEFS.wake.objectif) || wf.solde !== TOW_DEFS.wake.prime - TOW_DEFS.wake.prix) o.ko.push('wakeboard avec figures : ' + JSON.stringify(wf));
+        if (!(ws.pts < TOW_DEFS.wake.objectif)) o.ko.push('wakeboard sans figures réussi : ' + JSON.stringify(ws));
+        if (!(wt.chutes > 3)) o.ko.push('figure lancée trop tard sans chute : ' + JSON.stringify(wt));
+        o.info.push('wakeboard ' + wf.pts + ' pts avec figures / ' + ws.pts + ' sans, pour ' + TOW_DEFS.wake.objectif + ' ; figure trop tard = chute');
         // parachute ascensionnel : monte, on lâche au-dessus du radeau, on s'y pose
         scene0(); P.x = TOW.kPara.x; P.z = TOW.kPara.z; P.y = 0; pas(2); a = actionMer(); const m4 = META.argent; let lache = false, hm = 0;
         if (!a || !/PARACHUTE/.test(a.label)) o.ko.push('pas de parachute ascensionnel : ' + (a && a.label));
