@@ -7502,9 +7502,9 @@ async function main() {
         for (const w of SILLAGES) { w.on = false; w.mesh.visible = false; }
         P.x = POIS.plage.x + 6; P.z = MER - 1.2; P.y = 0; P.nage = false;
         KEYS.KeyS = true; let t = 0; while (!P.nage && t < 40) { await dors(100); t++; }
-        KEYS.KeyS = false;
         out.nage = P.nage; out.eclabPied = actifs();
-        const yn = []; for (let i = 0; i < 16; i++) { await dors(160); yn.push(P.h.g.position.y); }
+        await dors(700); KEYS.KeyS = false; // quelques brasses de plus : tout au bord, la houle est presque nulle (mesure fragile)
+        const yn = []; for (let i = 0; i < 28; i++) { await dors(160); yn.push(P.h.g.position.y); }
         out.houleNage = Math.max(...yn) - Math.min(...yn);
         // 3) voiture qui tombe à l'eau
         for (const w of SILLAGES) { w.on = false; w.mesh.visible = false; }
@@ -8426,6 +8426,47 @@ async function main() {
       if (mv.off) saute('Mer vivante : DECOR_V2 désactivé');
       else if (mv.ko.length) fail('Mer vivante : ' + mv.ko.join(' | '));
       else ok('Mer vivante : ' + mv.info.join(' ; ') + ' ; plongée et trésor une fois par vague, paillote qui soigne, requins dangereux à la nage seulement');
+    }
+
+    // -------------------------------------------------------------------
+    // Cohérence (signalé en playtest) : ennemis jamais dans l'eau ni en pleine
+    // montagne, hors de l'écran ; à 6★ l'armée arrive vraiment (la garnison
+    // des bases ne bloque plus les renforts) ; en mer, la police vient en
+    // vedette ; boss localisable ; avion de voltige au vrai aéroport ; buggys
+    // de secours repeints proprement ; plus de cargo factice traversable.
+    // -------------------------------------------------------------------
+    console.log('\n--- Cohérence : apparitions des ennemis, armée, boss, voltige, buggys de secours, cargos ---');
+    {
+      const co = await page.evaluate(() => {
+        const o = { ko: [], info: [] };
+        startRun(); ecran(null); ETAT.mode = 'jeu';
+        const lieux = { ville: [0, 0], mer: [40, MER + 90], plage: [0, MER - 10] };
+        if (DECOR_V2) Object.assign(lieux, { sommetMont: [MONT.sommet.x, MONT.sommet.z], desert: [500, 230] });
+        for (const [nom, [x, z]] of Object.entries(lieux)) { P.x = x; P.z = z; P.y = solPied(x, z); for (let i = 0; i < 30; i++) majCamera(1 / 30);
+          let ko = 0, vus = 0, pres = 0; for (let i = 0; i < 30; i++) { const p = spawnRing(36, 52); if (!pointApparition(p.x, p.z)) ko++; if (!horsEcran(p.x, p.z)) vus++; if (Math.hypot(p.x - x, p.z - z) < 30) pres++; }
+          if (ko || vus || pres) o.ko.push(nom + ' : ' + ko + ' points invalides, ' + vus + ' à l\'écran, ' + pres + ' à moins de 30 u'); }
+        for (const [nom, x, z, nage] of [['mer', 40, MER + 90, true], ['ville', 0, 0, false]]) {
+          startRun(); ecran(null); ETAT.mode = 'jeu'; P.x = x; P.z = z; P.y = nage ? 0 : solPied(x, z); P.nage = nage; WANTED.heat = 6.2; WANTED.stars = 6;
+          for (let i = 0; i < 300; i++) majWanted(1 / 30);
+          const ag = ennemis.filter((e) => !e.mort && e.fac === 'police' && !e.garde), veh = vehicules.filter((v) => v.conduit === 'police');
+          if (ag.some((e) => estEau(e.x, e.z))) o.ko.push(nom + ' : agent apparu dans l\'eau');
+          if (ag.length + veh.length < 2) o.ko.push(nom + ' 6★ : presque aucun renfort (' + ag.length + ' agents, ' + veh.length + ' véhicules)');
+          if (nage && !veh.some((v) => v.def.eau)) o.ko.push('en mer à 6★ : pas de vedette de police');
+          o.info.push(nom + ' 6★ : ' + ag.length + ' agents + ' + veh.map((v) => v.key).join('/')); }
+        // boss : direction et distance dans la barre
+        startRun(); ecran(null); ETAT.mode = 'jeu'; P.x = 0; P.z = 0; const b = creerEnnemi(CHEFS_GANG.viperes, 40, 0, false); majHUD();
+        const txt = document.getElementById('bossName').textContent; if (!b || !/→/.test(txt) || !/\d+ m/.test(txt) || !b.colonneBoss) o.ko.push('boss non localisable : « ' + txt + ' »'); else o.info.push('boss : « ' + txt + ' »');
+        if (b) { b.mort = true; scene.remove(b.h.g); }
+        if (DECOR_V2) {
+          startRun(); const vo = vehicules.find((v) => v.key === 'voltige'); if (!vo || !(vo.x > HALF)) o.ko.push('voltige pas au vrai aéroport : ' + (vo && Math.round(vo.x)));
+          const sec = vehicules.filter((v) => v.secours); for (const v of sec) { const cols = new Set(); v.mesh.traverse((m) => { if (m.isMesh && m.material && m.material.color) cols.add(m.material.color.getHex()); }); if (cols.size < 5) o.ko.push('buggy de secours uni (' + cols.size + ' couleurs)'); }
+          const cg = vehicules.filter((v) => v.def.cargo); if (cg.length < 2) o.ko.push('porte-conteneurs : ' + cg.length);
+          o.info.push('voltige à x ' + Math.round(vo.x) + ', ' + sec.length + ' buggys de secours peints, ' + cg.length + ' porte-conteneurs pilotables');
+        }
+        startRun(); return o;
+      });
+      if (co.ko.length) fail('Cohérence : ' + co.ko.join(' | '));
+      else ok('Cohérence : apparitions valides et hors écran (ville, plage, mer, mont, désert) ; ' + co.info.join(' ; '));
     }
 
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');

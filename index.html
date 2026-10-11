@@ -3611,7 +3611,7 @@ function construireVille(){
     if(qq!=='plage'&&qq!=='parc'&&bx%3===1&&bz%3===1) mkFeu(cx+INNER/2+1.4,cz-INNER/2-1.4);
   }
   placerPortes();
-  if(DECOR_V2){ sansAleaVille(()=>{ ameliorerPortes(); mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkCiel(); mkKiosqueBanderole(); mkCrique(); mkMontReyes(); mkBordureEst(); mkCanyonsDesert(); mkPicVertige(); mkParcStunt(); mkRides(); mkMerVivante(); mkRemorquage(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkNeonVivant(); mkQuartiersFinitions(); }); } // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
+  if(DECOR_V2){ sansAleaVille(()=>{ ameliorerPortes(); mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkCiel(); mkKiosqueBanderole(); mkCrique(); mkMontReyes(); mkBordureEst(); mkCanyonsDesert(); mkPicVertige(); mkParcStunt(); mkRides(); mkMerVivante(); mkRemorquage(); deplacerVoltige(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkNeonVivant(); mkQuartiersFinitions(); }); } // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
   finaliserMerge();
   construireMinimapStatique();
 }
@@ -5662,6 +5662,13 @@ function fusionnerGroupes(groupes){
 function primeMerUneFois(cle,montant,msg){ // une prime par vague et par activité (jamais de farming)
   if(MERV.primes[cle]===WAVES.n) return 0;
   MERV.primes[cle]=WAVES.n; META.argent+=montant; ETAT.cashRun+=montant; sauveMeta(); return montant;
+}
+// Avion de voltige au VRAI aéroport (demandé : « remettre l'avion de voltige vers l'aéroport ») : seuil sud de
+// la grande piste, face au nord. POIS.aerodrome suit (badge V de la carte, réapparition, place au sol).
+function deplacerVoltige(){
+  const x=HALF+100, z=66; POIS.aerodrome={x,z};
+  const halo=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:0xf2c94c,transparent:true,depthWrite:false,opacity:0.55})); halo.scale.set(12,12,1); halo.position.set(x,0.3,z); scene.add(halo);
+  mkEnseigne('AVION DE VOLTIGE','#f2c94c',x-9,3.6,z+2,0,7);
 }
 function mkMerVivante(){
   const pieces=[];
@@ -7850,6 +7857,7 @@ function mkCargo(x,z){
   g.add(mkBoxG(7,4,6,0xd8dce4,0,4.5,-11));
   for(let i=0;i<5;i++) g.add(mkBoxG(6,2,4.5,pick([0xe6a41f,0x2a5a8a,0x8a5a1f,0x3a6a4a]),0,4,-2+i*5));
   g.position.set(x,0,z); g.rotation.y=rand(-0.3,0.3); scene.add(g);
+  if(DECOR_V2) scene.remove(g); // signalé : « deux cargos factices, on passe à travers » — construits (mêmes tirages pour la ville) puis retirés ; de vrais porte-conteneurs les remplacent (startRun)
 }
 function mkYacht(x,z){
   const g=new THREE.Group();
@@ -13224,7 +13232,7 @@ function majVehicules(dt){
       // « Jamais supprimé » (demandé explicitement) : s'il est détruit en
       // combat, il réapparaît aussitôt à sa position d'origine plutôt que
       // de rester absent jusqu'à la prochaine partie.
-      if(v.key==='voltige'&&POIS.aerodrome) creerVehicule('voltige',POIS.aerodrome.x,POIS.aerodrome.z,0);
+      if(v.key==='voltige'&&POIS.aerodrome) creerVehicule('voltige',POIS.aerodrome.x,POIS.aerodrome.z,DECOR_V2?Math.PI:0);
     }
     else if(v.epave){ vehicules.splice(i,1); enregistrerEpave(v); }
   }
@@ -13423,9 +13431,24 @@ function creerEnnemi(type,x,z,wave){
     el('bossWrap').style.display='block';
     el('bossName').textContent=def.nom;
     el('bossFill').style.width='100%';
+    // Signalé : « des boss, mais on ne sait pas où ils sont ni qui ils sont » : colonne de lumière rouge
+    // au-dessus de lui (visible de loin), direction et distance dans la barre (majBossHUD), présentation.
+    if(e.h){ const col=new THREE.Mesh(new THREE.CylinderGeometry(0.5,1.1,40,10,1,true),new THREE.MeshBasicMaterial({color:0xff3b4b,transparent:true,opacity:0.22,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending}));
+      col.position.y=22; e.h.g.add(col); e.colonneBoss=col;
+      const cour=new THREE.Mesh(new THREE.ConeGeometry(0.42,0.5,5),mat(0xffd23f)); cour.position.y=2.75; e.h.g.add(cour); }
+    bigMsg('☠ '+def.nom);
   }
   ennemis.push(e);
   return e;
+}
+// Barre du boss : nom, direction (flèche vue de dessus, nord en haut de l'écran) et distance
+const FLECHES8=['↓','↘','→','↗','↑','↖','←','↙'];
+function majBossHUD(){
+  let b=null; for(let i=0;i<ennemis.length;i++){ const e2=ennemis[i]; if(e2.boss&&!e2.mort){ b=e2; break; } }
+  if(!b) return;
+  const d=Math.sqrt(dist2(b.x,b.z,P.x,P.z)), a=Math.atan2(b.x-P.x,b.z-P.z), k=((Math.round(a/(Math.PI/4))%8)+8)%8;
+  hudT('bossName',b.def.nom+(d>12?'  '+FLECHES8[k]+' '+Math.round(d)+' m':''));
+  if(b.colonneBoss) b.colonneBoss.material.opacity=0.14+0.1*Math.sin(ETAT.runT*4);
 }
 function toucherEnnemi(e,dmg,parJoueur,knock,srcFac,sx,sz){
   if(e.mort) return;
@@ -14329,13 +14352,32 @@ function addHeat(v,tir){
   }
   WANTED.stars=s;
 }
+// Point d'apparition d'un ennemi à pied. Signalé : « ils apparaissent en plein milieu de la montagne, en
+// plein milieu de l'eau, l'armée débarque mais je ne vois personne ». L'ancien tirage était ramené de force
+// dans l'enceinte de la ville (hors de la ville : renforts au bord de la ville, loin de tout) et, à défaut,
+// posé SUR le joueur (dans l'eau, en pleine montagne). Désormais : terre ferme seulement (jamais l'eau, ni le
+// mont, une mesa, le Pic), ville ET désert, hors de l'écran de préférence ; sinon la terre ferme la plus
+// proche en allant vers la ville — jamais sur le joueur.
+function pointApparition(x,z){
+  if(x<-HALF+3||x>(DECOR_V2?LIMITE_EST-6:HALF-3)||z<-HALF+3||z>MER-3) return false;
+  if(estEau(x,z)||solidAt(x,z,0.8)) return false;
+  if(DECOR_V2&&(solY(x,z)>1.2||dansReliefLibre(x,z))) return false;
+  return true;
+}
 function spawnRing(min,max){
-  for(let t=0;t<8;t++){
-    const a=rand(0,6.28), d=rand(min,max);
-    const x=clamp(P.x+Math.sin(a)*d,-HALF+3,HALF-3), z=clamp(P.z+Math.cos(a)*d,-HALF+3,HALF-3);
-    if(!solidAt(x,z,0.8)&&!estEau(x,z)) return {x,z};
-  }
-  return {x:clamp(P.x+min,-HALF+3,HALF-3),z:P.z};
+  for(let essai=0;essai<3;essai++){ const mi=min*(1+essai*0.5), ma=max*(1+essai*0.9);
+    for(let t=0;t<12;t++){ const a=rand(0,6.28), d=rand(mi,ma), x=P.x+Math.sin(a)*d, z=P.z+Math.cos(a)*d;
+      if(pointApparition(x,z)&&(essai>0||horsEcran(x,z))) return {x,z}; } }
+  // joueur loin de la terre ferme (en mer, au sommet du mont…) : on marche vers le centre de la ville
+  const L=Math.hypot(P.x,P.z)||1, ux=-P.x/L, uz=-P.z/L;
+  for(let d=min;d<L+min;d+=4){ const x=P.x+ux*d, z=P.z+uz*d; if(pointApparition(x,z)) return {x,z}; }
+  return {x:0,z:0};
+}
+// En mer, la police vient en vedette (jamais un agent à pied dans l'eau)
+function spawnRingEau(min,max){
+  for(let t=0;t<16;t++){ const a=rand(0,6.28), d=rand(min,max), x=P.x+Math.sin(a)*d, z=P.z+Math.cos(a)*d;
+    if(estEau(x,z)&&z>MER+4&&x>LIMITE_OUEST_MER+4&&x<(DECOR_V2?LIMITE_EST_MER:HALF+60)-4&&z<MER+146) return {x,z}; }
+  return null;
 }
 function majWanted(dt){
   WANTED.tirCd-=dt; WANTED.heliCd-=dt;
@@ -14352,7 +14394,7 @@ function majWanted(dt){
   if(s===0) return;
   let nPolice=0,heliVif=false;
   for(let i=0;i<ennemis.length;i++){const e2=ennemis[i];
-    if(e2.mort||e2.fac!=='police') continue;
+    if(e2.mort||e2.fac!=='police'||e2.garde) continue; // la garnison des bases reste à son poste : elle ne compte pas dans les renforts (sinon, à 6★, « l'armée débarque » et personne ne vient)
     if(e2.heli) heliVif=true; else nPolice++;
   }
   const cap=[0,2,4,6,9,11,13][s];
@@ -14360,7 +14402,10 @@ function majWanted(dt){
   if(nPolice<cap&&WANTED.spawnT<=0){
     WANTED.spawnT=lerp(3.6,1.2,s/6);
     let nCarP=0; for(let i=0;i<vehicules.length;i++)if(vehicules[i].conduit==='police')nCarP++;
-    if(s>=2&&Math.random()<0.4&&nCarP<2){
+    const joueurEnMer=(P.nage||(P.veh&&surEauVeh(P.veh)))&&P.z>MER+6;
+    if(s>=2&&joueurEnMer&&nCarP<2){ // en mer : vedettes de police, jamais d'agents à la nage
+      const pe=spawnRingEau(45,70); if(pe){ const b=creerVehicule('bateauP',pe.x,pe.z,Math.atan2(P.x-pe.x,P.z-pe.z),'police'); if(b) b.sirene=true; }
+    } else if(s>=2&&Math.random()<0.4&&nCarP<2){
       const p=spawnRing(50,70);
       const car=creerVehicule(s>=6?'milit':'police',p.x,p.z,Math.atan2(P.x-p.x,P.z-p.z),'police');
       car.sirene=true;
@@ -14542,7 +14587,8 @@ function majVoiturePolice(v,dt){
   let steer=clamp(angDiff(v.ang,va)*1.4,-1,1);
   const sA=Math.sin(v.ang),cA=Math.cos(v.ang);
   if(solidAt(v.x+sA*5,v.z+cA*5,1.2)) steer=1;
-  const throttle=d>15?1:-0.2;
+  let throttle=d>15?1:-0.2;
+  if(!surEauVeh(v)&&estEau(v.x+sA*7,v.z+cA*7)){ throttle=Math.abs(v.v)>2?-1:0; } // l'eau devant : on s'arrête au bord (on ne s'y jette pas exprès)
   majVehiculePhys(v,dt,throttle,steer,false);
   if(v.mesh.userData.bar){
     const cl=Math.floor(ETAT.runT*6)%2;
@@ -23260,7 +23306,7 @@ function startRun(){
   // Message d'indication, une seule fois dans la vie de la sauvegarde — au
   // tout premier lancement de partie, jamais republié ensuite (même après
   // un game over), pour ne pas polluer les runs suivants.
-  if(META.parties===1) setTimeout(()=>toast('Un avion de voltige attend à l’aéro-club, au bout de la piste','or'),1200);
+  if(META.parties===1) setTimeout(()=>toast(DECOR_V2?'Un avion de voltige attend à l’aéroport, au bout de la grande piste':'Un avion de voltige attend à l’aéro-club, au bout de la piste','or'),1200);
   ETAT.mode='jeu'; ETAT.runT=0; ETAT.kills=0; ETAT.cashRun=0;
   ETAT.score=0; ETAT.combo=1; ETAT.comboT=0; ETAT.timeScale=1;
   // P.bonusMaxHp (bonus de fin de vague « Endurcissement ») remis à zéro
@@ -23454,7 +23500,7 @@ function startRun(){
   if(POIS.helipad) creerVehicule('helico',POIS.helipad.x,POIS.helipad.z,Math.PI/2);
   // Avion de voltige : garé sur sa propre piste, à l'écart (voir POIS.
   // aerodrome, remplirBloc) — jamais dans le trafic, un seul exemplaire.
-  if(POIS.aerodrome) creerVehicule('voltige',POIS.aerodrome.x,POIS.aerodrome.z,0);
+  if(POIS.aerodrome) creerVehicule('voltige',POIS.aerodrome.x,POIS.aerodrome.z,DECOR_V2?Math.PI:0); // DECOR_V2 : au seuil sud de la grande piste, face au nord
   if(POIS.yacht){
     creerVehicule('yacht',POIS.yacht.x+30,POIS.yacht.z-6,Math.PI/2);
     // mini-hélico posé sur l'hélipad du yacht amarré
@@ -23468,8 +23514,13 @@ function startRun(){
     for(let i=0;i<2;i++){
       const q=creerVehicule('buggy',POIS.plage.x+rand(-20,20),MER-rand(8,16),rand(0,6));
       if(q){ q.secours=true;
-        q.mesh.traverse(o=>{ if(o.material&&o.material.color&&!o.material.map)
-          o.material=new THREE.MeshLambertMaterial({color:0xf2c21f}); });
+        // Signalé : « buggys tout jaunes, entièrement dorés, on dirait qu'ils ne sont pas finis » — tout le
+        // modèle (cage, sièges, moteur) était repeint en jaune uni. On ne repeint que la carrosserie,
+        // et on ajoute ce qui fait « secours » : rampe orange sur la cage, fanion à croix rouge.
+        peindreMesh(q.mesh,0xf2c21f);
+        const c=q.mesh.userData.corps||q.mesh, L=q.def.long;
+        c.add(mkBoxG(1.1,0.16,0.3,0xff8c1a,0,1.55,L*0.3)); c.add(mkBoxG(0.06,1.4,0.06,0xe8ecf2,-0.7,1.6,-L*0.38));
+        c.add(mkBoxG(0.5,0.34,0.03,0xf2f4f8,-0.45,2.1,-L*0.38)); c.add(mkBoxG(0.3,0.08,0.035,0xd83a3a,-0.45,2.1,-L*0.38)); c.add(mkBoxG(0.08,0.26,0.035,0xd83a3a,-0.45,2.1,-L*0.38));
       }
     }
   }
@@ -23549,7 +23600,7 @@ function startRun(){
     if(!libre) continue;
     creerVehicule(pick(['citadine','citadine','muscle','pickup','van','moto','taxi']),x,z,vert?0:Math.PI/2);
   }
-  garerVelos(); if(DECOR_V2){ garerRides(); creerVehicule('cargo',200,MER+95,Math.PI/2); } // le porte-conteneurs au mouillage
+  garerVelos(); if(DECOR_V2){ garerRides(); creerVehicule('cargo',200,MER+95,Math.PI/2); creerVehicule('cargo',-100,MER+142,Math.PI/2); } // le porte-conteneurs au mouillage
   if(GALION.tresor){ // coffre du galion : une fois par partie, et il attend le joueur (un butin dure 26 s par défaut)
     creerPickup('cash',GALION.tresor.x,GALION.tresor.z,120); pickups[pickups.length-1].t=1e9;
     creerPickup('mun',GALION.tresor.x+1.2,GALION.tresor.z-0.6); pickups[pickups.length-1].t=1e9; }
@@ -24998,6 +25049,7 @@ rechBar.style.cssText='position:absolute;left:14%;right:14%;bottom:6px;height:3p
 rechBar.innerHTML='<div style="height:100%;width:0%;background:var(--jaune);border-radius:2px"></div>';
 el('btnFire').appendChild(rechBar); // le bouton est déjà positionné (absolute) : on n'y touche pas
 function majHUD(){
+  majBossHUD(); // boss : direction et distance
   const hpR=clamp(P.hp/P.maxHp,0,1);
   hudW('hpFill',hpR*100);
   if(HUDC.low!==(hpR<0.3)){HUDC.low=hpR<0.3;el('hpFill').classList.toggle('low',HUDC.low);}
