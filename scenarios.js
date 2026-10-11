@@ -8105,10 +8105,11 @@ async function main() {
     }
 
     // -------------------------------------------------------------------
-    // Mont Reyes et ligne des mesas (DECOR_V2) : un pilote prudent (freine
-    // avant les épingles) finit les deux courses, avec des sauts, sans
-    // dégâts, dans le temps ; prime une seule fois par vague ; le désert est
-    // ouvert jusqu'à la paroi est ; véhicules garés au pied des départs.
+    // Mont Reyes et ligne des mesas (DECOR_V2) : un pilote au joystick
+    // (controleDir, la vraie logique tactile) qui suit le sentier et freine
+    // avant les portes finit les deux courses, avec des sauts, dans le temps,
+    // sans casser son véhicule, malgré la pente qui freine à la montée ;
+    // prime une seule fois par vague ; véhicules garés au pied des départs.
     // -------------------------------------------------------------------
     console.log('\n--- Mont Reyes et ligne des mesas : courses finissables avec sauts, prime une fois par vague ---');
     {
@@ -8120,12 +8121,16 @@ async function main() {
           startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.hpMax = 1e6; for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0;
           const d = rideDepart(id), v = creerVehicule(cle, d.x, d.z, 0, null); v.h = solY(d.x, d.z); P.x = v.x; P.z = v.z; entrerVehicule(v);
           const a0 = META.argent; demarrerRide(id); let t = 0, sauts = 0, pa = false;
-          while (RIDES.actif && t < 120) { const p = RIDES.actif.portes[RIDES.actif.i], dd = Math.sqrt(dist2(p.x, p.z, v.x, v.z)), cap = Math.atan2(p.x - v.x, p.z - v.z), df = Math.abs(angDiff(v.ang, cap));
-            const fr = (dd < 16 && Math.abs(v.v) > 15) || (df > 0.8 && Math.abs(v.v) > 12);
-            majVehiculePhys(v, 1 / 30, fr ? 0 : 1, clamp(angDiff(v.ang, cap) * 2.4, -1, 1), fr); if (v.enAir && !pa) sauts++; pa = v.enAir; P.x = v.x; P.z = v.z; majRides(1 / 30); t += 1 / 30; }
-          return { id, cle, prime: META.argent - a0, t: +t.toFixed(1), sauts, degats: v.def.hp - v.hp, limite: RIDE_DEFS[id].temps };
+          while (RIDES.actif && t < 120) { const r = RIDES.actif, p = r.portes[r.i], prev = r.i ? r.portes[r.i - 1] : d;
+            // vise 7 u devant soi sur le segment porte précédente → porte suivante (on suit le sentier, on ne coupe pas les lacets)
+            const sx = p.x - prev.x, sz = p.z - prev.z, L = Math.hypot(sx, sz) || 1, u = Math.min(1, ((v.x - prev.x) * sx + (v.z - prev.z) * sz) / (L * L) + 7 / L);
+            const tx = prev.x + sx * u - v.x, tz = prev.z + sz * u - v.z, l = Math.hypot(tx, tz) || 1; INPUT.mx = tx / l; INPUT.mz = tz / l;
+            const fr = Math.sqrt(dist2(p.x, p.z, v.x, v.z)) < 12 && Math.abs(v.v) > 12, c = controleDir(v, fr);
+            majVehiculePhys(v, 1 / 30, c.throttle, c.steer, fr); if (v.enAir && !pa) sauts++; pa = v.enAir; P.x = v.x; P.z = v.z; majRides(1 / 30); t += 1 / 30; }
+          INPUT.mx = INPUT.mz = 0;
+          return { id, cle, prime: META.argent - a0, t: +t.toFixed(1), sauts, hp: +(v.hp / v.def.hp).toFixed(2), limite: RIDE_DEFS[id].temps };
         };
-        for (const [id, cle] of [['mesas', 'motocross'], ['mesas', 'buggy'], ['mont', 'motocross'], ['mont', 'bmx'], ['mont', 'quad']]) o.courses.push(course(id, cle));
+        for (const [id, cle] of [['mesas', 'motocross'], ['mesas', 'buggy'], ['mont', 'motocross'], ['mont', 'bmx'], ['mont', 'velo'], ['mont', 'quad'], ['mont', 'buggy']]) o.courses.push(course(id, cle));
         // même vague : pas de seconde prime
         const v2 = (() => { const d = rideDepart('mesas'); const a = META.argent; RIDES.primeVague.mesas = WAVES.n; const v = creerVehicule('motocross', d.x, d.z, 0, null); v.h = solY(d.x, d.z); entrerVehicule(v); demarrerRide('mesas'); RIDES.actif.i = RIDES.actif.portes.length - 1; const p = RIDES.actif.portes[RIDES.actif.i]; v.x = p.x; v.z = p.z; v.h = solY(p.x, p.z); v.enAir = false; majRides(1 / 30); return META.argent - a; })();
         o.secondePrime = v2;
@@ -8134,11 +8139,43 @@ async function main() {
       });
       if (ri.off) saute('Mont Reyes : DECOR_V2 désactivé');
       else {
-        const ko = ri.courses.filter((c) => !(c.prime > 0) || c.degats > 0 || !(c.t < c.limite) || (c.cle !== 'bmx' && c.sauts < 2)).map((c) => JSON.stringify(c));
+        const ko = ri.courses.filter((c) => !(c.prime > 0) || c.hp < 0.3 || !(c.t < c.limite) || (c.cle !== 'bmx' && c.sauts < 2)).map((c) => JSON.stringify(c));
         if (ri.gares < 4) ko.push('véhicules garés : ' + ri.gares);
         if (ri.secondePrime !== 0) ko.push('seconde prime dans la même vague : ' + ri.secondePrime);
         if (ko.length) fail('Mont Reyes / mesas : ' + ko.join(' | '));
-        else ok('Mont Reyes / mesas : ' + ri.courses.map((c) => c.id + ' en ' + c.cle + ' ' + c.t + ' s, ' + c.sauts + ' sauts').join(', ') + ' — sans dégâts, prime une fois par vague, ' + ri.gares + ' véhicules garés au pied');
+        else ok('Mont Reyes / mesas : ' + ri.courses.map((c) => c.id + ' en ' + c.cle + ' ' + c.t + ' s, ' + c.sauts + ' sauts').join(', ') + ' — véhicules intacts, prime une fois par vague, ' + ri.gares + ' véhicules garés au pied');
+      }
+    }
+
+    // -------------------------------------------------------------------
+    // Pentes (DECOR_V2) — signalé : « on monte le mont à fond, même à pied,
+    // aucune sensation de montée ; au canyon, à pied, on se rapproche et
+    // d'un coup on est en haut ». Une paroi de mesa arrête (à pied comme en
+    // véhicule, sans casse) ; la pente du mont freine nettement la montée.
+    // Points lus dans CANYON.mesas et MONT.sommet, jamais recopiés.
+    // -------------------------------------------------------------------
+    console.log('\n--- Pentes : paroi de mesa infranchissable, montée du mont freinée ---');
+    {
+      const pt = await page.evaluate(() => {
+        if (typeof CANYON === 'undefined' || !CANYON.mesas.length || !MONT.sommet) return { off: true };
+        const o = {}, m = CANYON.mesas[0], sx = m.x + m.hw + 5, sz = m.z, s = MONT.sommet;
+        const pied = (x, z, mx, mz) => { startRun(); ecran(null); ETAT.mode = 'jeu'; for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0; P.x = x; P.z = z; P.y = solPied(x, z);
+          const y0 = P.y; for (let i = 0; i < 120; i++) { INPUT.mx = mx; INPUT.mz = mz; majJoueur(1 / 30, 1 / 30); } INPUT.mx = INPUT.mz = 0; return { d: +Math.hypot(P.x - x, P.z - z).toFixed(1), dy: +(P.y - y0).toFixed(1) }; };
+        const veh = (cle, x, z, ang) => { startRun(); for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0; const v = creerVehicule(cle, x, z, ang, null); v.h = solY(x, z);
+          const y0 = v.h; for (let i = 0; i < 150; i++) majVehiculePhys(v, 1 / 30, 1, 0, false); const r = { d: +Math.hypot(v.x - x, v.z - z).toFixed(0), dy: +((v.h || 0) - y0).toFixed(1), degats: v.def.hp - v.hp, vmax5: v.def.vmax * 5 }; scene.remove(v.mesh); vehicules.length = 0; return r; };
+        o.mesaH = m.h; o.piedParoi = pied(sx, sz, -1, 0); o.piedPlat = pied(sx, sz + 60, 0, 1); o.piedMont = pied(s.x - 50, s.z, 1, 0);
+        o.vehParoi = veh('motocross', sx, sz, -Math.PI / 2); o.vehMont = veh('motocross', s.x - 68, s.z, Math.PI / 2);
+        startRun(); return o;
+      });
+      if (pt.off) saute('Pentes : DECOR_V2 désactivé');
+      else {
+        const ko = [];
+        if (!(pt.piedParoi.d < 4 && pt.piedParoi.dy < 3)) ko.push('à pied, la paroi de mesa (' + pt.mesaH + ' u) se gravit : ' + JSON.stringify(pt.piedParoi));
+        if (!(pt.vehParoi.d < 8 && pt.vehParoi.dy < 3 && pt.vehParoi.degats === 0)) ko.push('moto contre la paroi de mesa : ' + JSON.stringify(pt.vehParoi));
+        if (!(pt.piedMont.d < 0.75 * pt.piedPlat.d && pt.piedMont.dy > 3)) ko.push('à pied, pente du mont pas freinée : ' + JSON.stringify(pt.piedMont) + ' contre ' + JSON.stringify(pt.piedPlat) + ' à plat');
+        if (!(pt.vehMont.dy > 10 && pt.vehMont.d < 0.5 * pt.vehMont.vmax5 && pt.vehMont.degats === 0)) ko.push('moto plein gaz dans la pente du mont : ' + JSON.stringify(pt.vehMont));
+        if (ko.length) fail('Pentes : ' + ko.join(' | '));
+        else ok('Pentes : paroi de mesa infranchissable à pied (' + pt.piedParoi.d + ' u en 4 s) et en moto (sans casse) ; pente du mont : ' + pt.piedMont.d + ' u à pied contre ' + pt.piedPlat.d + ' à plat, moto ' + pt.vehMont.d + ' u en 5 s (+' + pt.vehMont.dy + ' u d\'altitude) au lieu de ' + pt.vehMont.vmax5);
       }
     }
 

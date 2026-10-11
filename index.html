@@ -726,7 +726,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
   <div class="hazard"></div>
   <div style="position:relative;width:min(336px,88vw);margin:10px auto 0">
     <canvas id="carteCv" width="336" height="336" style="display:block;border:1px solid var(--ligne);border-radius:12px;width:100%;height:auto;touch-action:none"></canvas>
-    <div id="carteZoom" style="position:absolute;top:8px;right:8px;display:flex;flex-direction:column;gap:6px">
+    <div id="carteZoom" style="position:absolute;bottom:8px;right:8px;display:flex;flex-direction:column;gap:6px">
       <button class="zoomBtn" id="carteZoomIn">+</button>
       <button class="zoomBtn" id="carteZoomOut">−</button>
     </div>
@@ -5165,6 +5165,7 @@ function majQuartiersFinitions(dt){
    était inatteignable) : la limite passe à LIMITE_EST, fermée par une vraie
    paroi rocheuse ; le mont occupe le coin nord-est.
    Relief = fonction de hauteur (RELIEFS) lue par solY ET par le maillage. */
+const PENTE_G=15, PENTE_MAX_VEH=1.35, PENTE_MAX_PIED=1.6; // reliefs : gravité dans la pente (u/s² par unité de pente), parois infranchissables
 const LIMITE_EST=HALF+300;               // x max à terre (avant : HALF+158)
 const LIMITE_EST_MER=HALF+300;           // x max en mer, bateaux et nage (avant : HALF+60 en bateau — on s'arrêtait avant la crique)
 const MONT={kickers:[],x:538,z:-238,rx:78,rz:82,H:72,sommet:null,sentier:[],pied:null};
@@ -5175,7 +5176,8 @@ function hauteurMontBase(x,z){
   if(d>=1) return 0;
   const u=1-d, n=1+0.13*Math.sin(x*0.071+z*0.052)+0.08*Math.sin(x*0.13-z*0.11)+0.05*Math.sin(x*0.29+z*0.23); // crêtes et ravines
   let b=Math.pow(u,1.25); if(b>0.72) b=0.72+(b-0.72)*0.4; // sommet arrondi, pas une aiguille
-  return MONT.H*b*n*lisse(u/0.12);
+  const h=MONT.H*b*n*lisse(u/0.12);
+  return h>62?62+(h-62)*0.35:h; // calotte sommitale adoucie : le dernier lacet reste gravissable (avant : pente de 1,45 sous le sommet)
 }
 // Le sentier est taillé dans la pente : sur sa largeur (±3 u, fondu jusqu'à 5),
 // la hauteur suit une rampe régulière d'un lacet à l'autre — sinon, entre deux
@@ -5189,6 +5191,7 @@ function hauteurMont(x,z){
     const u=clamp(((x-ax)*dx+(z-az)*dz)/L2,0,1), px=ax+dx*u, pz=az+dz*u, d=Math.sqrt(dist2(x,z,px,pz));
     if(d<5){ const ht=Hs[s]+(Hs[s+1]-Hs[s])*u, w=lisse((5-d)/2); h=h+(ht-h)*w; }
   }
+  if(Hs) for(let s=1;s<S.length-1;s++){ const d=Math.sqrt(dist2(x,z,S[s][0],S[s][1])); if(d<8){ h=h+(Hs[s]-h)*lisse((8-d)/3); } } // palier d'épingle (plat sur 5 u) : on y fait demi-tour même lentement
   for(const k of MONT.kickers){ // tremplins du sentier : rampe de 5 u qui monte de 2,8 u puis lèvre franche
     const ax=x-k.x, az=z-k.z, along=ax*k.tx+az*k.tz, lat=-ax*k.tz+az*k.tx;
     if(along>0&&along<5&&Math.abs(lat)<1.7) h+=3.2*along/5;
@@ -5248,7 +5251,7 @@ function mkMontReyes(){
   // forêt de conifères sur les pentes (jamais sur le sentier ni dans la neige), rochers sur les à-pics
   for(let i=0;i<900;i++){
     const x=aD(MONT.x-MONT.rx,MONT.x+MONT.rx), z=aD(MONT.z-MONT.rz,MONT.z+MONT.rz), h=hauteurMont(x,z), alt=h/MONT.H;
-    if(h<0.5||alt>0.74||presDuSentier(x,z,3.5)||x>LIMITE_EST+30) continue;
+    if(h<0.5||alt>0.74||presDuSentier(x,z,3.5)||pts.some(([px,pz])=>dist2(x,z,px,pz)<64)||x>LIMITE_EST+30) continue; // ni sur le sentier ni sur un palier
     const pente=Math.abs(hauteurMont(x+1,z)-hauteurMont(x-1,z))/2+Math.abs(hauteurMont(x,z+1)-hauteurMont(x,z-1))/2;
     if(pente>1.3){ if(aleaDecor()<0.5) pieces.push(['boule',aD(0.8,2),aD(0.6,1.4),aD(0.8,2),x,h+0.3,z,choixD([0x7a766c,0x8a8478,0x6a665e])]); continue; }
     if(aleaDecor()<0.35-alt*0.25) continue;
@@ -5392,7 +5395,7 @@ function mkCanyonsDesert(){
    Au pied de chaque départ : motos cross, BMX, vélo et buggy garés. */
 const RIDES={actif:null,marques:[],records:{},primeVague:{}};
 const RIDE_DEFS={
-  mont:{nom:'MONTÉE DU MONT REYES',temps:50,prime:250},   // robot qui coupe droit : 22 s en BMX
+  mont:{nom:'MONTÉE DU MONT REYES',temps:60,prime:250},   // la pente freine : pilote simulé 29 à 39 s (moto, quad, buggy, BMX)
   mesas:{nom:'LIGNE DES MESAS',temps:14,prime:300},        // robot : 6 s en moto cross, 8 s en buggy
 };
 function rideDepart(id){
@@ -5400,7 +5403,7 @@ function rideDepart(id){
   const m=CANYON.mesas[0]; return {x:m.x,z:m.z-m.hd+5};
 }
 function ridePortes(id){
-  if(id==='mont') return MONT.sentier.slice(1).map(([x,z])=>({x,z,r:9}));
+  if(id==='mont') return MONT.sentier.slice(1).map(([x,z],i)=>({x,z,r:9,minH:MONT.hSentier[i+1]-4})); // à hauteur du lacet : passer en dessous ne compte pas
   return CANYON.mesas.slice(1,5).map((m)=>({x:m.x,z:m.z-m.hd+6,r:13,minH:m.h-1})); // atterrir sur chaque mesa
 }
 function mkRides(){
@@ -5885,10 +5888,13 @@ function mkAeroport(){
   g2.rotation.x=-Math.PI/2; g2.position.set(AX-14,0.17,40); scene.add(g2);
   // clôture grillagée du périmètre
   const matCl=mat(0x5a5f66);
-  const clot=(x,z,w,d)=>{const m=mkBox(w,1.5,d,matCl,x,0.75,z);m.material.transparent=true;m.material.opacity=0.55;
+  const clot=(x,z,w,d,retirer)=>{const m=mkBox(w,1.5,d,matCl,x,0.75,z);m.material.transparent=true;m.material.opacity=0.55;
+    if(retirer){ scene.remove(m); return; } // construite (mêmes tirages pour la ville), jamais affichée ni solide
     addSolid({x,z,hw:w/2,hd:d/2,h:1.5});};
-  clot(AX+70,-70,0.3,364);
-  clot(AX+8,-HALF+22,186,0.3);
+  // DECOR_V2 : plus de clôture à l'est (elle séparait l'aérodrome du Mont Reyes) ;
+  // celle du nord s'arrête avant le pied de la montagne
+  clot(AX+70,-70,0.3,364,DECOR_V2);
+  if(DECOR_V2) clot(AX-16,-HALF+22,140,0.3); else clot(AX+8,-HALF+22,186,0.3);
   // Clôture sud retirée (demandé explicitement, « en bas enlever le mur ») :
   // ouvre tout le désert au sud (POIS.desert/dunes/tremplins, voir
   // construireRelief) au lieu de le couper net avant la clôture — estEau()
@@ -7716,7 +7722,8 @@ function dessinerIconePOI(ctx,txt,cx,cy,taillePx,couleur){
 }
 const mmCv=el('minimap'), mmCtx=mmCv.getContext('2d');
 const mmStatic=document.createElement('canvas'); mmStatic.width=mmStatic.height=384;
-const mmSpan=2*HALF+280, mmS=192/mmSpan, mmX=x=>(x+HALF+55)*mmS, mmZ=z=>(z+HALF+55)*mmS;
+const mmOX=DECOR_V2?HALF+30:HALF+55, mmSpan=2*HALF+(DECOR_V2?400:280), mmS=192/mmSpan, // DECOR_V2 : cadre jusqu'à la paroi est (Mont Reyes, canyons)
+  mmX=x=>(x+mmOX)*mmS, mmZ=z=>(z+mmOX)*mmS;
 // Badge rond uniforme (fond sombre + anneau coloré + pictogramme centré),
 // utilisé partout sur la mini-carte et la grande carte pour que tous les
 // marqueurs (portes, commerces, découvertes...) aient le même langage
@@ -7799,7 +7806,27 @@ function construireMinimapStatique(){
   g.fillStyle='#2b2d33'; g.fillRect(mmX(HALF+92),mmZ(-215),16*mmS,290*mmS);
   g.fillStyle='#d8dce4'; g.fillRect(mmX(HALF+99),mmZ(-200),1.4,270*mmS);
   g.strokeStyle='#565b64'; g.lineWidth=1.2;
-  g.strokeRect(mmX(-HALF-14),mmZ(-HALF-14),(2*HALF+28)*mmS,(MER+HALF+10)*mmS);
+  if(DECOR_V2) dessinerEstCarte(g);
+  else g.strokeRect(mmX(-HALF-14),mmZ(-HALF-14),(2*HALF+28)*mmS,(MER+HALF+10)*mmS);
+}
+// DECOR_V2 : désert, Mont Reyes, canyons et crique sur la carte, échantillonnés
+// sur les mêmes fonctions de hauteur que le terrain (jamais une liste de formes)
+function dessinerEstCarte(g){
+  const x0=HALF+14, x1=LIMITE_EST+4, z0=-HALF-30, z1=MER, pas=2.5; // z0 : le pied nord du mont dépasse l'enceinte de la ville
+  for(let x=x0;x<x1;x+=pas) for(let z=z0;z<z1;z+=pas){
+    const hm=hauteurMont(x,z), hc=hauteurCanyon(x,z);
+    let c=null;
+    if(dansCrique(x,z)) c='#2a7a8a';
+    else if(hm>0.4){ const a=hm/MONT.H; c=a>0.8?'#d8dce0':(a>0.6?'#7a7a6e':(a>0.3?'#3a6a30':'#4f7f38')); }
+    else if(hc>0.4) c=hc>15?'#8a3a20':(hc>8?'#a04a28':'#b8603a');
+    else if(x>HALF+14&&!(x>HALF+6&&x<HALF+150&&z>-HALF+60&&z<-HALF+390)) c=estDesert(x,z)||x>470?'#a87a4a':null;
+    if(c){ g.fillStyle=c; g.fillRect(mmX(x),mmZ(z),pas*mmS+0.3,pas*mmS+0.3); }
+  }
+  // sentier du mont, ligne des mesas
+  g.strokeStyle='#e8d8b0'; g.lineWidth=0.7; g.beginPath(); MONT.sentier.forEach(([x,z],i)=>{ i?g.lineTo(mmX(x),mmZ(z)):g.moveTo(mmX(x),mmZ(z)); }); g.stroke();
+  // enceinte : jusqu'à la paroi est
+  g.strokeStyle='#565b64'; g.lineWidth=1.2;
+  g.strokeRect(mmX(-HALF-14),mmZ(-HALF-14),(LIMITE_EST+4+HALF+14)*mmS,(MER+HALF+10)*mmS);
 }
 
 /* =====================================================================
@@ -9971,8 +9998,19 @@ function majJoueur(dt,dtJeu){
       return pen(x,z)<=pen(P.x,P.z)+1e-4; // s'éloigner ou longer le mur, jamais s'y enfoncer
     }
     if(!auSol()) return true; // en l'air (jetpack, chute) : les véhicules au sol ne bloquent pas
+    if(DECOR_V2&&dansReliefLibre(x,z)){ const dd=Math.hypot(x-P.x,z-P.z)+0.05; if((solY(x,z)-P.y)/dd>PENTE_MAX_PIED) return false; } // paroi de canyon ou de montagne
     return !vehiculeBloquant(x,z,0.45,P.veh);
   };
+  // Reliefs sculptés à pied : on ralentit en montant (un peu plus vite en descente),
+  // et une paroi trop raide ne se grimpe pas (signalé : « on s'approche d'un canyon
+  // et d'un seul coup on est en haut »)
+  if(DECOR_V2&&!P.nage&&auSol()&&(vx||vz)){
+    const sp=Math.hypot(vx,vz), ux=vx/sp, uz=vz/sp;
+    if(dansReliefLibre(P.x,P.z)||dansReliefLibre(P.x+ux,P.z+uz)){
+      const pente=(solY(P.x+ux*0.8,P.z+uz*0.8)-solY(P.x,P.z))/0.8;
+      const f=pente>0?1/(1+pente*1.8):Math.min(1.2,1-pente*0.2); vx*=f; vz*=f;
+    }
+  }
   const nx=P.x+vx*dt, nz=P.z+vz*dt;
   if(marchable(nx,P.z)) P.x=nx;
   if(marchable(P.x,nz)) P.z=nz;
@@ -10673,7 +10711,9 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
   const fac=clamp(Math.abs(v.v)/d.vmax,0,1);
   // direction sensible à la vitesse : les lourds sous-virent à haute vitesse, les sportives restent vives
   const steerEff=steer*(lourd?(1-fac*0.35):(d.sport||d.type==='moto'?1:(1-fac*0.12)));
-  v.ang+=steerEff*d.man*(frein?2.05:1)*fac*dt*(v.v<0?-1:1);
+  const reliefV=DECOR_V2&&!eau&&!d.air&&!v.enAir&&dansReliefLibre(v.x,v.z); // Mont Reyes, canyons
+  const facVir=reliefV?Math.max(fac,Math.min(0.35,Math.abs(v.v)/3)):fac; // en relief, au pas, on braque serré : demi-tour possible dans une épingle
+  v.ang+=steerEff*d.man*(frein?2.05:1)*facVir*dt*(v.v<0?-1:1);
   // adhérence par type : la trajectoire suit le cap avec retard → drift au frein à main
   if(v.dirAng===undefined) v.dirAng=v.ang;
   // Désert (voir estDesert/POIS.desert) : sol meuble, moins d'adhérence que
@@ -10705,6 +10745,10 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
   // inclinaison des motos dans les virages
   if(d.type==='moto'&&!eau) v.mesh.rotation.z=lerp(v.mesh.rotation.z||0,-steerEff*fac*0.45,clamp(8*dt,0,1));
   const sA=Math.sin(v.dirAng), cA=Math.cos(v.dirAng);
+  // Reliefs sculptés (Mont Reyes, canyons) : la pente se sent. La gravité freine
+  // à la montée et pousse à la descente (signalé : « on monte à fond, aucune
+  // sensation de montée »).
+  if(reliefV){ const pente=(solY(v.x+sA*1.5,v.z+cA*1.5)-solY(v.x-sA*1.5,v.z-cA*1.5))/3, k=MONT.presDuSentier&&MONT.presDuSentier(v.x,v.z,4)?0.45:1; v.v-=PENTE_G*k*pente*dt; } // le sentier damé tire moins que la pente brute
   const nx=v.x+sA*v.v*dt, nz=v.z+cA*v.v*dt;
   const sgn=Math.sign(v.v)||1;
   const fx=nx+Math.sin(v.ang)*d.long/2*sgn, fz=nz+Math.cos(v.ang)*d.long/2*sgn;
@@ -10717,8 +10761,15 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
     const gAv=solY(fx,fz);
     if(gAv-(v.h||0)>0.05&&gAv-(v.h||0)<(d.franchit||0.6)){ v.h=lerp(v.h||0,gAv,clamp(10*dt,0,1)); }
   }
-  const heurte=eau?!estEau(nx,nz):(!!sFront||((v.h||0)<0.7&&estEau(fx,fz)));
-  if(heurte){
+  // paroi : le sol devant monte plus raide que PENTE_MAX_VEH → on la heurte, on ne la gravit plus d'un coup
+  const paroi=DECOR_V2&&!eau&&!d.air&&!v.enAir&&dansReliefLibre(fx,fz)&&!(MONT.presDuSentier&&MONT.presDuSentier(fx,fz,7))&&(solY(fx,fz)-(v.h||0))/(d.long/2+Math.abs(v.v)*dt+0.01)>PENTE_MAX_VEH; // sur le sentier : on manœuvre dans les épingles
+  const heurte=eau?!estEau(nx,nz):(!!sFront||paroi||((v.h||0)<0.7&&estEau(fx,fz)));
+  if(heurte&&paroi&&!sFront){ // paroi de relief : on glisse le long (composante montante retirée), sans casse — on peut toujours tourner et repartir
+    let gx=solY(fx+0.6,fz)-solY(fx-0.6,fz), gz=solY(fx,fz+0.6)-solY(fx,fz-0.6); const gl=Math.hypot(gx,gz)||1; gx/=gl; gz/=gl;
+    const mx=nx-v.x, mz=nz-v.z, mg=mx*gx+mz*gz, tx=mx-Math.max(0,mg)*gx, tz=mz-Math.max(0,mg)*gz;
+    if(Math.max(0,mg)/dt>6&&v.conduit==='joueur'){ secousse(Math.max(0,mg)/dt*0.12); burst(fx,solY(fx,fz)*0.5,fz,4,0xb08860,4); }
+    v.x+=tx; v.z+=tz; v.v*=1-clamp(Math.max(0,mg)/(Math.hypot(mx,mz)+1e-6),0,1)*0.6; // plus on arrive de face, plus on perd de vitesse
+  } else if(heurte){
     const impact=Math.abs(v.v);
     if(impact>5){
       abimerVehicule(v,impact*(d.milit?0.5:d.type==='moto'?2.4:1.5)*(eau?0.6:1),false);
@@ -22292,7 +22343,7 @@ function carteVersMonde(px,py){
   const {mcx,mcz,demiVisible}=mapVue();
   const ech=336/(demiVisible*2);
   const mmXv=sx/ech+(mcx-demiVisible), mmZv=sy/ech+(mcz-demiVisible);
-  return {x:mmXv/mmS-HALF-55, z:mmZv/mmS-HALF-55};
+  return {x:mmXv/mmS-mmOX, z:mmZv/mmS-mmOX};
 }
 function poserWaypoint(px,py){
   const w=carteVersMonde(px,py);
