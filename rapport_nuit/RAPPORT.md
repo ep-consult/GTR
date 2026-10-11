@@ -809,3 +809,41 @@ Rendu seul :
 4. Grande carte : le mont et les canyons sont visibles à l'est, les boutons + / − en bas à droite.
 5. Passer de l'aérodrome au mont sans muret.
 6. Piloter le porte-conteneurs, puis naviguer jusqu'au large de la crique.
+
+
+---
+
+## 5e lot — véhicules à l'eau, 4x4, zone extrême (11 octobre)
+
+| Élément | Commit | En bref |
+|---|---|---|
+| **Véhicules à l'eau** | `fc04a41` | Au volant, on peut entrer dans la mer, le lac ou la crique. Le véhicule ne casse pas et n'explose pas, mais il est noyé : le joueur en sort à la nage, le véhicule coule puis disparaît. Avant, l'eau était un mur, et un saut dans l'eau faisait 80 de dégâts (une moto explosait). Les voitures de l'IA s'arrêtent toujours au bord. |
+| 4x4 « Coyote » | `fc04a41` | 4x4 de franchissement à châssis haut, nouveau véhicule (dessiné sans marque). La pente le freine deux fois moins et il gravit des pentes plus raides que les autres. Il reste arrêté par une vraie falaise. Deux sont garés au pied du mont, un au départ de la montée sèche. Captures : `jeep_coyote.png`, `jeeps_pied_mont.png`. |
+| Montée sèche | `fc04a41` | Défi de montée de colline : couloir de terre tout droit dans la face sud du Mont Reyes, de plus en plus raide. En 6,5 s, prime 200 $ une fois par vague. Une moto cross et un 4x4 attendent au départ. Le BMX n'y arrive pas. Capture : `montee_seche.png`. |
+| Défi stunt | `fc04a41` | Parc de 4 tables de saut au pied ouest du mont. Il faut 1 200 points de figures en 45 s : chaque saut rapporte selon le temps de vol (bonus si la réception est propre), le cabrage en moto cross aussi. Prime 250 $ une fois par vague. Deux motos cross au départ. Capture : `parc_stunt.png`. |
+| **Pic du Vertige** | `fc04a41` | Butte de 90 u à parois verticales, au sud des canyons, face tournée vers la caméra pour voir toute la chute. On monte par un monte-charge. En haut, un plongeoir et le bouton SAUT BASE : on ouvre le parachute pendant la chute et on vise la cible au pied. Prime 300 $ en plein centre, une fois par vague. Sans parachute, c'est mortel. Captures : `pic_vertige.png`, `pic_monte_charge.png`, `pic_saut_base_voile.png`. |
+| Carte | `fc04a41` | Le Pic, sa cible, la montée sèche et les tables du parc stunt apparaissent sur la carte. Capture : `carte_zone_extreme.png`. |
+
+### Réglages vérifiés par simulation
+
+- **Montée sèche.** Le pilote simulé au joystick la finit en 3,7 à 4,6 s avec la moto, la moto cross, le quad, le buggy et le 4x4. Le BMX cale à mi-pente.
+- **Défi stunt.** Un pilote qui dose sa vitesse réussit : 15 à 28 s selon le véhicule. Plein gaz, une moto cross saute trop loin, retombe sur la table suivante et rate le défi. Sans rien faire, le défi est raté.
+- **Saut BASE.** Il dure environ 27 s sous voile, assez pour viser la cible.
+- **Franchissement.** Plein gaz dans le flanc du mont pendant 5 s, le 4x4 monte de 56 u et le buggy de 32 u.
+
+### Ce qui change pour d'anciens tests
+
+- **Lac du parc.** « Une voiture s'arrête au bord » devient : l'IA s'arrête au bord, et la voiture du joueur s'y noie sans dégâts.
+- **Monster truck.** Le test le posait en pleine mer pour être « loin de tout » ; il est maintenant posé sur la terre ferme.
+
+### À tester sur iPhone
+
+1. Rouler dans la mer depuis la plage : le véhicule ne casse pas, on sort à la nage.
+2. Prendre un 4x4 au pied du mont et grimper hors du sentier.
+3. Montée sèche en moto cross, puis en 4x4.
+4. Défi stunt en moto cross : doser la vitesse avant chaque table.
+5. Pic du Vertige :
+   - monter avec le monte-charge ;
+   - faire SAUT BASE et ouvrir la voile ;
+   - viser la cible.
+6. Fluidité près du Pic (grande paroi).
