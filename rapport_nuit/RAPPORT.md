@@ -762,3 +762,50 @@ Rendu seul :
 4. Mont Reyes : prendre la moto cross garée au pied et faire la course (freiner dans les épingles).
 5. Ligne des mesas : moto cross ou buggy, enchaîner les 4 gaps.
 6. Fluidité vers l'est (montagne, canyons).
+
+
+---
+
+## 4e lot — grand yacht, porte-conteneurs, carte de l'est, pentes (11 octobre)
+
+| Élément | Commit | En bref |
+|---|---|---|
+| Grand yacht | `7874538` | Refait dans le style des bateaux restylés : coque en V, trois ponts vitrés, arche radar, jacuzzi à l'avant, hélipad et plateforme de bain à l'arrière. On marche toujours sur le pont. Captures : `grand_yacht_avant.png`, `grand_yacht_apres.png`, `grand_yacht_jeu.png`. |
+| Porte-conteneurs pilotable | `b160a38` | Le « Reyes Star » (62 u) n'est plus un décor : il mouille au large de la plage et se pilote. Il est lent et lourd (11 u/s). On monte à bord par le flanc. La caméra recule pour le voir en entier. |
+| Mer agrandie | `7874538` | Les bateaux s'arrêtaient avant la crique alors qu'on pouvait y nager. On navigue maintenant jusqu'au large de la crique. |
+| Mont et canyons sur la carte | `a852918` | La minimap et la grande carte montrent la montagne (couleurs selon l'altitude), le sentier, les canyons, la crique et le désert. Ils sont dessinés à partir du relief réel. Les boutons + / − de la grande carte passent en bas à droite, sur la mer : en haut, ils cachaient le mont. Capture : `carte_mont_canyons.png`. |
+| Clôture aérodrome / mont | `a852918` | La clôture est de l'aérodrome est supprimée : on passe librement de l'aérodrome au pied de la montagne. La clôture nord s'arrête avant le pied du mont. |
+| **Pentes réalistes** | `a852918` | Signalé : « on monte à fond, même à pied ; au canyon on se rapproche et d'un coup on est en haut ». Détail ci-dessous. |
+
+### Pentes : ce qui change
+
+- **En véhicule.** La pente freine à la montée et pousse à la descente. Plein gaz dans le flanc du mont, une moto cross fait 40 u en 5 s au lieu de 124.
+- **Contre une paroi** (falaise de mesa, crête trop raide), on bute et on glisse le long, sans casse. On ne la gravit plus d'un coup.
+- **À pied.** On ne monte plus une paroi de mesa : 1 m en 4 s contre la paroi, au lieu de se retrouver en haut. Hors sentier, la pente du mont divise la vitesse de marche par deux environ.
+- **Sentier du mont.** La pente y freine moins, car le terrain y est damé. Les épingles ont un palier plat pour faire demi-tour. Au pas, on braque plus serré.
+- **Sommet.** Le dernier lacet montait à une pente de 1,45, impossible à franchir avec la gravité : la calotte du sommet est adoucie (65 u au lieu de 72).
+- **Course du mont.**
+  - Temps limite : 60 s au lieu de 50, puisque la montée est plus lente.
+  - Il faut passer chaque porte à la hauteur de son lacet : couper par en dessous ne compte plus.
+
+### Vérifications
+
+- **Pilote simulé au joystick réel** (même logique que le tactile) : le mont est fini avec tous les véhicules garés au pied.
+  - Moto cross : 33 s.
+  - Moto : 34 s.
+  - Quad : 29 s.
+  - Buggy : 39 s.
+  - BMX : 31 s.
+  - Vélo : 40 s.
+  - Mesas : 7 à 8 s.
+- **Nouveau test « Pentes »** dans `scenarios.js` : paroi de mesa infranchissable à pied et en moto (sans casse), montée du mont nettement freinée à pied et en moto.
+- Portes de la ville inchangées : rien n'a décalé le tirage de la ville.
+
+### À tester sur iPhone
+
+1. Mont Reyes en moto cross : sentir la montée, ralentir et faire demi-tour dans les épingles, finir la course en moins de 60 s.
+2. Monter le mont à pied hors du sentier : ça doit être lent.
+3. Canyons à pied : la paroi d'une mesa ne doit plus se gravir. Tomber du haut doit toujours être une vraie chute.
+4. Grande carte : le mont et les canyons sont visibles à l'est, les boutons + / − en bas à droite.
+5. Passer de l'aérodrome au mont sans muret.
+6. Piloter le porte-conteneurs, puis naviguer jusqu'au large de la crique.
