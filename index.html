@@ -5467,6 +5467,10 @@ function mkPicVertige(){
     for(const sg of [-1,1]) mkBox(0.3,1.4,0.3,mat(0xd83a3a),tr.x+sg*(tr.demi+0.4),tr.h0+0.7,tr.z1-tr.long+1);
     mkEnseigne('SAUT DANS LE VIDE','#ff5ad0',tr.x,tr.h0+4.6,tr.z1-tr.long-2,0,6); }
   mkEnseigne('SAUT BASE — 90 m','#ffd23f',pl.x-3.5,pl.h+3.2,pl.z0-1.5,0,7);
+  { const x=pl.x-7, z=pl.z0-4, y=hauteurPic(x,z); PIC.wingsuit={x,z,y}; // portant à wingsuits
+    mkBox(0.12,2.2,0.12,mat(0x3a3e46),x-0.8,y+1.1,z); mkBox(0.12,2.2,0.12,mat(0x3a3e46),x+0.8,y+1.1,z); mkBox(1.8,0.1,0.1,mat(0x3a3e46),x,y+2.2,z);
+    const w=new THREE.Mesh(new THREE.PlaneGeometry(1.4,1.6),new THREE.MeshLambertMaterial({color:0xff5a3a,side:THREE.DoubleSide})); w.position.set(x,y+1.3,z); scene.add(w);
+    mkEnseigne('WINGSUIT','#ff5a3a',x,y+3.4,z,0,4); }
   // manche à air et fanion au bord
   mkBox(0.12,4,0.12,mat(0xd8dce4),pl.x+4,pl.h+2,pl.z0-1); PIC.manche=new THREE.Mesh(new THREE.ConeGeometry(0.42,2,10,1,true),new THREE.MeshLambertMaterial({color:0xff7a1a,side:THREE.DoubleSide}));
   PIC.manche.rotation.z=Math.PI/2; PIC.manche.position.set(pl.x+5,pl.h+3.8,pl.z0-1); scene.add(PIC.manche);
@@ -5510,6 +5514,19 @@ function ejecterEnVol(){
   P.chuteVx=clamp(vx*0.6,-CHUTE_VMAX_H,CHUTE_VMAX_H); P.chuteVz=clamp(vz*0.6,-CHUTE_VMAX_H,CHUTE_VMAX_H);
   SFX.swing(); vibre(50); toast('🪂 Ouvre la voile !','or');
 }
+// Wingsuit : prise au sommet du Pic (portant), gardée jusqu'au game over. En chute libre, bouton WINGSUIT :
+// on plane vite (24 u/s) en descendant lentement, on vire au joystick ; il faut ouvrir la voile pour se poser
+// (posé en wingsuit : très dur). P.wing : en vol plané ; P.wingsuit : on la porte.
+const WING_V=24, WING_VY=5.5;
+function prendreWingsuit(){ P.wingsuit=true; if(P.wingMesh) P.wingMesh.visible=false; bigMsg('🦅 WINGSUIT ÉQUIPÉE'); toast('En chute libre : WINGSUIT pour planer, puis ouvre la voile pour te poser','or'); SFX.niveau(); vibre(40); }
+function deployerWingsuit(){ if(!P.wingsuit||!P.chute||P.para||P.wing) return; P.wing=true; P.wingAng=P.ang; P.wingV=Math.max(14,Math.hypot(P.chuteVx||0,P.chuteVz||0)); toast('🦅 Plané !','or'); SFX.swing(); vibre(30); }
+function mkAilesWingsuit(){ // membranes entre bras et jambes, accrochées au modèle du joueur
+  const g=new THREE.Group(), mt=new THREE.MeshLambertMaterial({color:0xff5a3a,side:THREE.DoubleSide});
+  for(const sg of [-1,1]){ const sh=new THREE.Shape(); sh.moveTo(0,0); sh.lineTo(sg*1.1,0.1); sh.lineTo(sg*0.35,-1.2); sh.lineTo(0,-1.0);
+    const m=new THREE.Mesh(new THREE.ShapeGeometry(sh),mt); m.position.set(sg*0.18,1.45,0); g.add(m); }
+  const q=new THREE.Shape(); q.moveTo(-0.25,0); q.lineTo(0.25,0); q.lineTo(0,-0.6); g.add(new THREE.Mesh(new THREE.ShapeGeometry(q),mt)); g.children[2].position.set(0,0.75,0);
+  g.visible=false; return g;
+}
 function sauterBase(){
   const pl=PIC.plg;
   P.x=pl.x; P.z=pl.z1+0.3; P.y=pl.h+0.6; P.ang=0;
@@ -5521,6 +5538,7 @@ function actionPic(){
   const c=PIC.cage, arret=c.y===c.cible;
   if(arret&&dansCagePic(P.x,P.z,0.3)&&Math.abs(P.y-c.y)<1.6) return c.y<1?{label:'🛗 MONTER AU SOMMET — 90 m',fn:()=>lancerCage(c.yHaut)}:{label:'🛗 DESCENDRE',fn:()=>lancerCage(c.yBas)};
   if(arret&&dist2(P.x,P.z,c.x,c.z)<49&&Math.abs(P.y-c.y)>5){ const enHaut=P.y>PIC.H-10; if(enHaut===(c.y<1)) return {label:'🛗 APPELER LE MONTE-CHARGE',fn:()=>lancerCage(enHaut?c.yHaut:c.yBas)}; }
+  const ws=PIC.wingsuit; if(ws&&dist2(P.x,P.z,ws.x,ws.z)<9&&Math.abs(P.y-ws.y)<3) return P.wingsuit?{label:'🦅 WINGSUIT ÉQUIPÉE',fn:()=>{ SFX.refus(); toast('Tu la portes déjà — saute et appuie sur WINGSUIT en chute','or'); }}:{label:'🦅 PRENDRE LA WINGSUIT',fn:prendreWingsuit};
   const pl=PIC.plg; if(Math.abs(P.x-pl.x)<1.8&&P.z>pl.z0-3&&P.z<pl.z1+0.5&&P.y>PIC.H-6) return {label:'🪂 SAUT BASE — 90 m',fn:sauterBase};
   return null;
 }
@@ -10338,7 +10356,7 @@ function construireJoueur(){
 function recalcJoueur(){
   const c=PERSOS[META.perso];
   const mus=META.muscle||0;                       // paliers de la salle de sport
-  P.maxHp=c.hp+18*META.upg.vie+8*mus+(aCurio('ceinture')?20:0)+(P.bonusMaxHp||0);
+  P.maxHp=c.hp+18*META.upg.vie+8*mus+(aCurio('ceinture')?20:0)+(P.bonusMaxHp||0)+(palierMetier('ambulance',6)?20:0); // palier ambulance 6 : trousse d'urgence
   P.vitBase=10*c.vit*(1+0.06*META.upg.vitesse);
   P.meleeMul=c.melee*(1+0.12*META.upg.melee)*(1+0.09*mus);
   P.stamMax=100+12*mus;
@@ -10378,6 +10396,7 @@ function changerArme(){
 }
 function soigner(n){
   if(aCurio('fleur')) n*=1.35;          // L'Étoile de Los Reyes
+  if(palierMetier('ambulance',3)) n*=1.5; // palier ambulance 3 : formation de secouriste
   P.hp=Math.min(P.maxHp,P.hp+n);
   spawnTexte(P.x,2.6,P.z,'+'+Math.round(n)+' PV','#58ff7a');
 }
@@ -10731,7 +10750,11 @@ function majJoueur(dt,dtJeu){
   // juste au-dessus (vitesse de marche) ne servent plus alors qu'à réorienter
   // P.ang vers la direction visée ; la vitesse horizontale réelle vit dans
   // P.chuteVx/Vz, avec accélération + traînée — on garde son élan.
-  if(P.chute){
+  if(P.chute&&P.wing){ // wingsuit : on plane dans la direction du corps, le joystick fait virer
+    if(bouge) P.wingAng=angLerp(P.wingAng,Math.atan2(INPUT.mx,INPUT.mz),1.6*dt);
+    P.wingV=lerp(P.wingV,WING_V,1.2*dt); P.chuteVx=Math.sin(P.wingAng)*P.wingV; P.chuteVz=Math.cos(P.wingAng)*P.wingV; P.ang=P.wingAng;
+    vx=P.chuteVx; vz=P.chuteVz;
+  } else if(P.chute){
     const accH=P.para?PARA_ACC_H:CHUTE_ACC_H, dragH=P.para?PARA_DRAG_H:CHUTE_DRAG_H, maxH=P.para?PARA_VMAX_H:CHUTE_VMAX_H;
     if(bouge){ P.chuteVx+=INPUT.mx*accH*dt; P.chuteVz+=INPUT.mz*accH*dt; }
     P.chuteVx*=Math.max(0,1-dragH*dt); P.chuteVz*=Math.max(0,1-dragH*dt);
@@ -10779,7 +10802,12 @@ function majJoueur(dt,dtJeu){
   if(P.chute){
     // chute libre : le parachute ne s'ouvre QUE si le joueur appuie (base jump)
     if(!P.para&&!P.veh&&(P.chuteY0-P.y)>2.5) el('btnJump').style.display='flex';
-    if(P.para){
+    if(P.wing&&!P.para){ // wingsuit : descente lente et régulière, corps à plat, ailes ouvertes
+      P.vy=lerp(P.vy,-WING_VY,clamp(2*dtJeu,0,1)); P.y+=P.vy*dtJeu;
+      if(!P.wingMesh){ P.wingMesh=mkAilesWingsuit(); P.h.g.add(P.wingMesh); } P.wingMesh.visible=true;
+      P.h.g.rotation.x=-1.35; P.h.brasG.rotation.z=1.35; P.h.brasD.rotation.z=-1.35; P.h.brasG.rotation.x=0; P.h.brasD.rotation.x=0;
+      if(Math.random()<0.3) spawnP(P.x,P.y+0.8,P.z,0,0,0,0.12,0.4,0xf2f4f8,0,3);
+    } else if(P.para){
       P.vy=Math.max(P.vy-9*dtJeu,-3.4); // vitesse de descente limitée sous voile
       P.y+=P.vy*dtJeu;
       paraMesh.visible=true;
@@ -10811,9 +10839,11 @@ function majJoueur(dt,dtJeu){
       P.h.g.rotation.x=0;
       if(P.para){ burst(P.x,P.y+0.2,P.z,10,0xe8ecf2,5,6); SFX.ui(); }
       else if(DECOR_V2&&estEau(P.x,P.z)) plongeonJoueur(P.chuteHaut); // dans l'eau : un plongeon, jamais des dégâts
+      else if(P.wing){ toucherJoueur(70); secousse(8); toast('Posé en wingsuit sans voile… aïe','warn'); }
       else if(P.vy<-12){ toucherJoueur((-P.vy-12)*3.5); secousse(6); }
       else burst(P.x,P.y+0.2,P.z,4,0xb8bec8,4);
       P.vy=0; P.para=false; paraMesh.visible=false; paraMesh.rotation.z=0; P.chuteVx=0; P.chuteVz=0;
+      if(P.wing){ P.wing=false; if(P.wingMesh) P.wingMesh.visible=false; P.h.brasG.rotation.z=0; P.h.brasD.rotation.z=0; }
       if(!P.veh) el('btnJump').style.display='none';
     }
   } else if(P.y>gY+0.4){ P.chute=true; P.chuteY0=P.y; P.chuteT=0; P.chuteHaut=P.y-gY; P.vy=0; P.para=false; P.chuteVx=0; P.chuteVz=0; }
@@ -12052,6 +12082,7 @@ function boutonsAPied(){
 }
 function ouvrirParachute(){
   if(P.para||!P.chute){ SFX.refus(); return; }
+  if(P.wing){ P.wing=false; if(P.wingMesh) P.wingMesh.visible=false; P.h.g.rotation.x=0; P.h.brasG.rotation.z=0; P.h.brasD.rotation.z=0; } // on replie la wingsuit sous la voile
   P.para=true; P.vy=Math.max(P.vy,-4);
   paraMesh.visible=true; paraMesh.position.set(P.x,P.y+PARA_DIST,P.z);
   el('btnJump').style.display='none';
@@ -12644,12 +12675,10 @@ function majLanceEau(v,dt){
     }
     // Métier Pompier (voir majMetierPompier) : même cône visée/portée que
     // ci-dessus, contre l'incendie de la mission en cours s'il y en a une.
-    if(MET.pompier&&MET.pompier.pret){
-      const fm=MET.pompier;
-      const dxf=fm.x-v.x, dzf=fm.z-v.z, distf=Math.hypot(dxf,dzf);
-      if(distf<=LANCE_PORTEE&&Math.abs(angDiff(aimAng,Math.atan2(dxf,dzf)))<=LANCE_DEMI_ANGLE){
-        fm.vie=Math.max(0,fm.vie-40*dt);
-      }
+    if(MET.pompier&&MET.pompier.pret&&MET.pompier.feux){
+      for(const fm of MET.pompier.feux){ if(fm.vie<=0) continue; // tous les foyers du sinistre (métier v2)
+        const dxf=fm.x-v.x, dzf=fm.z-v.z, distf=Math.hypot(dxf,dzf);
+        if(distf<=LANCE_PORTEE&&Math.abs(angDiff(aimAng,Math.atan2(dxf,dzf)))<=LANCE_DEMI_ANGLE) fm.vie=Math.max(0,fm.vie-40*dt*(palierMetier('pompier',3)?1.6:1)); }
     }
   } else {
     lanceSonStop();
@@ -21262,58 +21291,138 @@ function metierReussite(job){
   else toast(NOMS_METIER[job]+' accompli ('+n+'/'+METIERS_CIBLE+')','or');
   SFX.achat(); sauveMeta();
 }
-function majMetierPompier(v,dt,dtJeu){
-  const actif=v&&v.def.pompier&&META.metiers.pompier<METIERS_CIBLE;
-  if(!actif){ if(MET.pompier) MET.pompier=null; return; }
-  let m=MET.pompier;
-  if(!m){ m=MET.pompier={t:1.5,pret:false}; toast('🚒 Repérage d’un incendie en cours...','warn'); }
-  if(!m.pret){
-    m.t-=dtJeu;
-    MET.txt='Repérage de l’incendie en cours...';
-    if(m.t<=0){
-      const p=spawnRing(24,44);
-      m.x=p.x; m.z=p.z; m.vie=100; m.pret=true;
-      toast('🔥 Incendie signalé — arrose-le avec LANCE (bouton SPRINT) !','warn');
-    }
-    return;
-  }
-  if(Math.random()<dt*10) fumee(m.x+rand(-1,1),0.4,m.z+rand(-1,1),0x3a3d44);
-  if(Math.random()<dt*16) spawnP(m.x+rand(-0.8,0.8),rand(0.3,1.8),m.z+rand(-0.8,0.8),
-    rand(-0.4,0.4),rand(2,4),rand(-0.4,0.4),0.5,rand(0.4,0.7),pick([0xff7a2e,0xffb23a,0xff4b2e]),-1);
-  metierBalise.position.set(m.x,4,m.z); metierBalise.visible=true;
-  MET.txt='Éteins l’incendie'; MET.ciblePos={x:m.x,z:m.z}; MET.jauge=m.vie/100;
-  if(m.vie<=0){
-    metierBalise.visible=false; MET.pompier=null;
-    toast('🚒 Incendie éteint !','or');
-    metierReussite('pompier');
-  }
+/* MÉTIERS v2 (signalé : « taxi, ambulance, pompiers trop mal faits ; les mini-jeux doivent être intéressants
+   et débloquer des choses »). Chaque course est PAYÉE (série de réussites = bonus), et des paliers débloquent
+   des avantages (lus sur META.metiers, aucun champ de sauvegarde nouveau) :
+   - TAXI : clients visibles qui font signe, au caractère différent (PRESSÉ : chrono serré ; FRAGILE : chaque
+     choc le fâche ; FÊTARD : il veut des sauts et des dérapages ; VIP au palier 6), destination nommée, chrono,
+     satisfaction → pourboire. Paliers : 3 = tarif majoré (+25 %), 6 = clients VIP, 10 = tenue + appel taxi.
+   - AMBULANCE : un blessé à terre, des témoins ; arrêté près de lui, PREMIERS SOINS au défibrillateur (appuyer
+     au bon moment du pouls, 3 fois) ; puis la clinique, contre la montre (le pouls baisse, les chocs coûtent).
+     Paliers : 3 = soins ×1,5 partout, 6 = +20 PV max, 10 = tenue.
+   - POMPIER : un vrai sinistre — plusieurs foyers qui S'ÉTENDENT si on traîne, des habitants coincés à sauver ;
+     chrono. Paliers : 3 = lance renforcée (×1,6), 6 = prime de risque doublée, 10 = tenue.
+   Les missions de ces trois métiers continuent après le palier 10 (pour l'argent). */
+const MET2={serie:{taxi:0,ambulance:0,pompier:0},pnj:[],parVague:{},vague:-1};
+function palierMetier(job,n){ return (META.metiers[job]||0)>=n; }
+const PALIERS_METIER={taxi:{3:'Tarif majoré : +25 % sur les courses',6:'Clients VIP : des courses en or',10:'Tenue de chauffeur et appel de taxi'},
+  ambulance:{3:'Formation de secouriste : soins ×1,5',6:'Trousse d’urgence : +20 PV max',10:'Tenue d’ambulancier'},
+  pompier:{3:'Lance renforcée : ×1,6',6:'Prime de risque doublée',10:'Tenue de pompier'}};
+const METIER_PLEIN_PAR_VAGUE=3; // paie pleine pour 3 missions par métier et par vague, puis 20 % (jamais de farming infini)
+function payerMetier(job,montant,msg){
+  if(MET2.vague!==WAVES.n){ MET2.vague=WAVES.n; MET2.parVague={}; } const nv=MET2.parVague[job]=(MET2.parVague[job]||0)+1;
+  const s=MET2.serie[job]=(MET2.serie[job]||0)+1, mult=Math.min(1.5,1+0.1*(s-1))*(nv>METIER_PLEIN_PAR_VAGUE?0.2:1), total=Math.round(montant*mult);
+  if(nv===METIER_PLEIN_PAR_VAGUE+1) toast('Fin de service pour cette vague : les missions suivantes paient peu','warn');
+  META.argent+=total; ETAT.cashRun+=total; ETAT.score+=total*2;
+  bigMsg(msg+' +'+total+' $'+(s>1?' (série ×'+mult.toFixed(1)+')':'')); SFX.achat();
+  const avant=META.metiers[job]||0; metierReussite(job); const apres=META.metiers[job]||0;
+  const pal=PALIERS_METIER[job]; if(pal&&apres!==avant&&pal[apres]) setTimeout(()=>{ bigMsg('🔓 '+NOMS_METIER[job].toUpperCase()+' '+apres+' — '+pal[apres]); SFX.niveau(); },1600);
+}
+function echecMetier(job,msg){ MET2.serie[job]=0; toast(msg,'warn'); SFX.refus(); }
+function pnjMetier(couleurs,x,z,couche){
+  const h=makeHumain(Object.assign({haut:0x4a7ac9,bas:0x2c3e50,peau:pick(civPeau),casq:0x3a3f4a,visage:'gentil'},couleurs),1);
+  h.g.position.set(x,solPied(x,z),z); if(couche){ h.g.rotation.x=-Math.PI/2; h.g.position.y+=0.3; } scene.add(h.g); MET2.pnj.push(h); return h;
+}
+function nettoyerPnjMetier(){ for(const h of MET2.pnj) scene.remove(h.g); MET2.pnj.length=0; }
+function vitesseVeh(v){ return v?Math.abs(v.v||0):0; }
+/* ---- TAXI ---- */
+const TAXI_TYPES=[{id:'presse',nom:'PRESSÉ',emo:'⏱️',coulH:0x2b4d86},{id:'fragile',nom:'FRAGILE',emo:'🤢',coulH:0x8ac96e},{id:'fetard',nom:'FÊTARD',emo:'🎉',coulH:0xff5ad0}];
+function destinationTaxi(x0,z0){
+  const c=PORTES.filter((p)=>INTDEFS[p.id]&&p.id!=='tuning'&&!p.garageId&&dist2(p.x,p.z,x0,z0)>80*80&&dist2(p.x,p.z,x0,z0)<260*260&&pointApparition(p.x+(p.nx||0)*3,p.z+(p.nz===undefined?3:p.nz*3)));
+  if(!c.length) return null; const p=pick(c); return {x:p.x+(p.nx||0)*4,z:p.z+(p.nz===undefined?4:p.nz*4),nom:INTDEFS[p.id].nom};
 }
 function majMetierTaxi(v,dt,dtJeu){
-  const actif=v&&v.def.taxi&&META.metiers.taxi<METIERS_CIBLE;
-  if(!actif){ if(MET.taxi) MET.taxi=null; return; }
+  const actif=v&&v.def.taxi;
+  if(!actif){ if(MET.taxi){ MET.taxi=null; nettoyerPnjMetier(); } return; }
   let m=MET.taxi;
-  if(!m){
-    const p=spawnRing(20,50);
-    m=MET.taxi={etat:'ramasse',x:p.x,z:p.z};
-    toast('🚕 Un client attend — va le chercher','or');
-  }
+  if(!m){ const p=spawnRing(25,55); const vip=palierMetier('taxi',6)&&Math.random()<0.3; const T=vip?{id:'vip',nom:'VIP',emo:'💎',coulH:0xd8b02a}:pick(TAXI_TYPES);
+    m=MET.taxi={etat:'ramasse',x:p.x,z:p.z,T,sat:70,pnj:pnjMetier({haut:T.coulH},p.x,p.z),hp0:v.hp,derive:0};
+    toast('🚕 Un client '+T.nom+' '+T.emo+' fait signe — va le chercher','or'); }
   if(m.etat==='ramasse'){
-    metierBalise.position.set(m.x,4,m.z); metierBalise.visible=true;
-    MET.txt='Va chercher le client'; MET.ciblePos={x:m.x,z:m.z};
-    if(dist2(P.x,P.z,m.x,m.z)<36){
-      const d=spawnRing(40,80);
-      m.etat='depose'; m.dx=d.x; m.dz=d.z;
-      toast('Client à bord — direction sa destination','or');
+    m.pnj.brasD.rotation.x=-2.6+Math.sin(ETAT.runT*8)*0.4; m.pnj.g.rotation.y=Math.atan2(P.x-m.x,P.z-m.z); // il fait signe
+    metierBalise.position.set(m.x,4,m.z); metierBalise.visible=true; MET.txt='Client '+m.T.nom+' '+m.T.emo+' : arrête-toi à côté de lui'; MET.ciblePos={x:m.x,z:m.z};
+    if(dist2(P.x,P.z,m.x,m.z)<64&&vitesseVeh(v)<3.5){
+      const d=destinationTaxi(m.x,m.z)||(()=>{ const q=spawnRing(80,160); return {x:q.x,z:q.z,nom:'Quartier'}; })();
+      const dist=Math.sqrt(dist2(m.x,m.z,d.x,d.z));
+      m.etat='depose'; m.dest=d; m.dist=dist; m.t=m.T.id==='presse'?dist/11+8:dist/8+15; m.t0=m.t; m.hp0=v.hp; nettoyerPnjMetier(); // chrono : il faut suivre les rues (~1,6 fois la distance à vol d'oiseau)
+      toast('« '+(m.T.id==='presse'?'Vite, au ':m.T.id==='fetard'?'Allez, fais-moi sauter jusqu’au ':m.T.id==='fragile'?'Doucement s’il vous plaît… au ':'Au ')+d.nom+' ! »','or'); SFX.ui();
     }
   } else {
-    metierBalise.position.set(m.dx,4,m.dz); metierBalise.visible=true;
-    MET.txt='Dépose le client à destination'; MET.ciblePos={x:m.dx,z:m.dz};
-    if(dist2(P.x,P.z,m.dx,m.dz)<36){
-      metierBalise.visible=false; MET.taxi=null;
-      toast('🚕 Client déposé !','or');
-      metierReussite('taxi');
+    m.t-=dtJeu;
+    // satisfaction selon le caractère
+    if(v.hp<m.hp0-0.5){ const choc=m.hp0-v.hp; m.sat-=(m.T.id==='fragile'?2.2:0.8)*choc; m.hp0=v.hp; }
+    if(m.T.id==='fetard'){ if(v.enAir) m.sat+=14*dtJeu; if(Math.abs(angDiff(v.ang,v.dirAng||v.ang))>0.3&&vitesseVeh(v)>8) m.sat+=6*dtJeu; else m.sat-=1.2*dtJeu; }
+    if(m.T.id==='presse'&&vitesseVeh(v)<9) m.sat-=4*dtJeu;
+    if(m.T.id==='vip'&&v.enAir) m.sat-=10*dtJeu;
+    m.sat=clamp(m.sat,0,100);
+    metierBalise.position.set(m.dest.x,4,m.dest.z); metierBalise.visible=true;
+    MET.txt=m.T.emo+' '+m.dest.nom+' — '+Math.ceil(Math.max(0,m.t))+' s — '+(m.sat>66?'😀':m.sat>33?'😐':'😠')+' '+Math.round(m.sat)+' %'; MET.ciblePos={x:m.dest.x,z:m.dest.z}; MET.jauge=clamp(m.t/m.t0,0,1);
+    if(m.t<=0||m.sat<=0){ MET.taxi=null; echecMetier('taxi',m.sat<=0?'😠 Le client descend furieux — pas un centime':'⏱️ Trop tard — le client descend sans payer'); return; }
+    if(dist2(P.x,P.z,m.dest.x,m.dest.z)<81&&vitesseVeh(v)<4){
+      const tarif=(25+m.dist*0.2)*(palierMetier('taxi',3)?1.25:1)*(m.T.id==='vip'?2.5:1), pourboire=tarif*(m.sat/100)*(m.T.id==='presse'?0.4+0.6*m.t/m.t0:0.7);
+      MET.taxi=null; payerMetier('taxi',tarif+pourboire,'🚕 COURSE '+m.T.nom+' — '+(m.sat>66?'client ravi !':m.sat>33?'client content':'client grognon'));
     }
   }
+}
+/* ---- AMBULANCE ---- */
+function cliniquePos(){ const p=PORTES.find((q)=>q.id==='pharma'); return p?{x:p.x+(p.nx||0)*4,z:p.z+(p.nz===undefined?4:p.nz*4),nom:'la clinique (pharmacie)'}:(POIS.commissariat?{x:POIS.commissariat.x,z:POIS.commissariat.z,nom:'le commissariat'}:null); }
+function majMetierAmbulance(v,dt,dtJeu){
+  const actif=v&&v.def.ambulance;
+  if(!actif){ if(MET.ambulance){ MET.ambulance=null; nettoyerPnjMetier(); } return; }
+  let m=MET.ambulance;
+  if(!m){ const p=spawnRing(25,55);
+    m=MET.ambulance={etat:'ramasse',x:p.x,z:p.z,pouls:70,chocs:0,ph:0,hp0:v.hp,pnj:pnjMetier({haut:0xd8dce4},p.x,p.z,true)};
+    pnjMetier({haut:0xd8304a},p.x+1.6,p.z+1); pnjMetier({haut:0x35c8e0},p.x-1.4,p.z+1.4);
+    toast('🚑 Un blessé à terre — fonce, son pouls baisse','warn'); }
+  m.pouls-=dtJeu*(m.etat==='soins'?0.4:1);
+  if(v.hp<m.hp0-0.5){ m.pouls-=(m.hp0-v.hp)*0.5; m.hp0=v.hp; } // chaque choc secoue le patient
+  if(m.pouls<=0){ MET.ambulance=null; nettoyerPnjMetier(); echecMetier('ambulance','💔 Le patient n’a pas survécu…'); return; }
+  if(m.etat==='ramasse'){
+    if(Math.random()<dt*6) spawnP(m.x+rand(-0.5,0.5),rand(0.3,1),m.z+rand(-0.5,0.5),0,1,0,0.4,0.4,0xff5a6a,0);
+    metierBalise.position.set(m.x,4,m.z); metierBalise.visible=true; MET.ciblePos={x:m.x,z:m.z};
+    MET.txt='Blessé — pouls '+Math.ceil(m.pouls)+' — arrête-toi à côté de lui'; MET.jauge=m.pouls/70;
+    if(dist2(P.x,P.z,m.x,m.z)<64&&vitesseVeh(v)<3){ m.etat='soins'; toast('⚡ PREMIERS SOINS : appuie sur CHOC quand le cœur est au maximum (×3)','or'); }
+  } else if(m.etat==='soins'){
+    m.ph+=dtJeu*1.6; const onde=0.5+0.5*Math.sin(m.ph*Math.PI*2); m.onde=onde;
+    MET.txt='⚡ DÉFIBRILLATEUR — '+'❤️'.repeat(m.chocs)+'🤍'.repeat(3-m.chocs)+' — appuie sur CHOC au maximum'; MET.jauge=onde; MET.ciblePos={x:m.x,z:m.z};
+    if(dist2(P.x,P.z,m.x,m.z)>100) m.etat='ramasse';
+  } else {
+    const c=m.dest; metierBalise.position.set(c.x,4,c.z); metierBalise.visible=true; MET.ciblePos={x:c.x,z:c.z};
+    MET.txt='🚑 Vers '+c.nom+' — pouls '+Math.ceil(m.pouls); MET.jauge=m.pouls/70;
+    if(dist2(P.x,P.z,c.x,c.z)<100&&vitesseVeh(v)<5){ MET.ambulance=null; payerMetier('ambulance',30+m.pouls*1.2,'🚑 PATIENT SAUVÉ'); }
+  }
+}
+function chocDefibrillateur(){
+  const m=MET.ambulance; if(!m||m.etat!=='soins') return;
+  if(m.onde>0.8){ m.chocs++; vibre(60); SFX.spec(); burst(m.x,0.6,m.z,8,0xfff2a0,5,4); spawnTexte(m.x,2,m.z,'⚡ CHOC !','#fff2a0');
+    if(m.chocs>=3){ m.etat='depose'; m.dest=cliniquePos(); m.pouls+=15; nettoyerPnjMetier(); toast('❤️ Il respire ! Fonce à '+(m.dest?m.dest.nom:'la clinique'),'or'); } }
+  else { m.pouls-=6; SFX.refus(); toast('Trop tôt ! Attends le maximum du pouls','warn'); }
+}
+/* ---- POMPIER ---- */
+function majMetierPompier(v,dt,dtJeu){
+  const actif=v&&v.def.pompier;
+  if(!actif){ if(MET.pompier){ MET.pompier=null; nettoyerPnjMetier(); } return; }
+  let m=MET.pompier;
+  if(!m){ m=MET.pompier={t:1.5,pret:false}; toast('🚒 Appel en cours : un incendie se déclare…','warn'); }
+  if(!m.pret){ m.t-=dtJeu; MET.txt='Repérage de l’incendie en cours...';
+    if(m.t<=0){ const p=spawnRing(28,50); m.x=p.x; m.z=p.z; m.pret=true; m.feux=[]; m.chrono=110; m.propag=9; m.coinces=[];
+      for(let k=0;k<3;k++) m.feux.push({x:p.x+rand(-4,4),z:p.z+rand(-4,4),vie:100});
+      for(let k=0;k<2;k++){ const f=m.feux[k]; m.coinces.push({x:f.x+1.5,z:f.z+1.5,h:pnjMetier({haut:0xffd23f},f.x+1.5,f.z+1.5),sauve:false,f}); }
+      toast('🔥 Incendie ! 3 foyers, 2 habitants coincés — arrose avec LANCE (bouton SPRINT)','warn'); }
+    return; }
+  m.chrono-=dtJeu; m.propag-=dtJeu;
+  const vifs=m.feux.filter((f)=>f.vie>0);
+  if(m.propag<=0){ m.propag=9; if(vifs.length&&m.feux.length<7){ const f=pick(vifs); m.feux.push({x:f.x+rand(-5,5),z:f.z+rand(-5,5),vie:100}); toast('🔥 Le feu s’étend !','warn'); } } // il s'étend si on traîne
+  for(const f of vifs){ if(Math.random()<dt*6) fumee(f.x+rand(-1,1),0.4,f.z+rand(-1,1),0x3a3d44);
+    if(Math.random()<dt*10) spawnP(f.x+rand(-0.8,0.8),rand(0.3,1.8),f.z+rand(-0.8,0.8),rand(-0.4,0.4),rand(2,4),rand(-0.4,0.4),0.5,rand(0.4,0.7),pick([0xff7a2e,0xffb23a,0xff4b2e]),-1); }
+  for(const c of m.coinces){ if(!c.sauve&&c.f.vie<=0){ c.sauve=true; spawnTexte(c.x,2.6,c.z,'MERCI !','#58ff7a'); c.h.g.visible=false; ETAT.score+=200; }
+    else if(!c.sauve&&Math.random()<dt*0.8) spawnTexte(c.x,2.6,c.z,'À L’AIDE !','#ff5a6a'); }
+  const c0=vifs[0]||{x:m.x,z:m.z}; metierBalise.position.set(c0.x,4,c0.z); metierBalise.visible=vifs.length>0;
+  MET.txt='🔥 '+vifs.length+' foyer'+(vifs.length>1?'s':'')+' — '+m.coinces.filter((c)=>!c.sauve).length+' coincé(s) — '+Math.ceil(Math.max(0,m.chrono))+' s'; MET.ciblePos={x:c0.x,z:c0.z};
+  MET.jauge=vifs.reduce((a,f)=>a+f.vie,0)/(100*Math.max(1,m.feux.length));
+  if(!vifs.length){ const sauves=m.coinces.filter((c)=>c.sauve).length; MET.pompier=null; nettoyerPnjMetier();
+    payerMetier('pompier',(m.feux.length*25+sauves*50+m.chrono*1.5)*(palierMetier('pompier',6)?2:1),'🚒 INCENDIE MAÎTRISÉ — '+sauves+' habitant(s) sauvé(s)'); return; }
+  if(m.chrono<=0){ MET.pompier=null; nettoyerPnjMetier(); echecMetier('pompier','🔥 L’immeuble est perdu… trop tard'); }
 }
 function majMetierDepanneuse(v,dt,dtJeu){
   const actif=v&&v.def.depanneuse&&META.metiers.depanneuse<METIERS_CIBLE;
@@ -21336,33 +21445,6 @@ function majMetierDepanneuse(v,dt,dtJeu){
     m.veh.mort=true; MET.depanneuse=null;
     toast('🔧 Véhicule ramené au garage !','or');
     metierReussite('depanneuse');
-  }
-}
-function majMetierAmbulance(v,dt,dtJeu){
-  const actif=v&&v.def.ambulance&&META.metiers.ambulance<METIERS_CIBLE;
-  if(!actif){ if(MET.ambulance) MET.ambulance=null; return; }
-  let m=MET.ambulance;
-  if(!m){
-    const p=spawnRing(20,50);
-    m=MET.ambulance={etat:'ramasse',x:p.x,z:p.z};
-    toast('🚑 Un blessé attend des secours','warn');
-  }
-  if(m.etat==='ramasse'){
-    metierBalise.position.set(m.x,4,m.z); metierBalise.visible=true;
-    MET.txt='Récupère le blessé'; MET.ciblePos={x:m.x,z:m.z};
-    if(Math.random()<dt*8) spawnP(m.x+rand(-0.5,0.5),rand(0.5,1.4),m.z+rand(-0.5,0.5),0,1,0,0.4,0.4,0xff5a6a,0);
-    if(dist2(P.x,P.z,m.x,m.z)<36){
-      m.etat='depose';
-      toast('Blessé à bord — fonce au commissariat','or');
-    }
-  } else if(POIS.commissariat){
-    metierBalise.position.set(POIS.commissariat.x,4,POIS.commissariat.z); metierBalise.visible=true;
-    MET.txt='Fonce au commissariat'; MET.ciblePos=POIS.commissariat;
-    if(dist2(P.x,P.z,POIS.commissariat.x,POIS.commissariat.z)<49){
-      metierBalise.visible=false; MET.ambulance=null;
-      toast('🚑 Blessé pris en charge !','or');
-      metierReussite('ambulance');
-    }
   }
 }
 function majMetierPolice(v,dt,dtJeu){
@@ -23488,7 +23570,7 @@ function startRun(){
   P.hp=P.maxHp; P.stam=P.stamMax; P.bouclier=0; P.veh=null;
   P.buffs={dmg:0,vit:0,butin:0,lourd:0,sprintLibre:0,vol:0,cadence:0}; P.iframes=0; P.dodgeT=0; P.rechT=0; P.specCd=0; P.ecraseT=0;
   P.grenades=3; boutonsAPied(); // jamais el('grenN') seul : voir boutonsAPied (mort au volant)
-  if(DECOR_V2){ reparerMobilier(); poserTexteBanderole(META.banderole); if(RIDES.porte){ RIDES.actif=null; RIDES.porte.visible=false; RIDES.txt.style.display='none'; RIDES.records={}; RIDES.primeVague={}; } resetPic(); resetMer(); } // course en cours : jamais survivante d'une partie à l'autre // mobilier renversé réparé ; message acheté sur la banderole
+  if(DECOR_V2){ reparerMobilier(); poserTexteBanderole(META.banderole); if(RIDES.porte){ RIDES.actif=null; RIDES.porte.visible=false; RIDES.txt.style.display='none'; RIDES.records={}; RIDES.primeVague={}; } resetPic(); resetMer(); } P.wingsuit=false; P.wing=false; if(P.wingMesh) P.wingMesh.visible=false; nettoyerPnjMetier(); MET2.serie={taxi:0,ambulance:0,pompier:0}; // course en cours : jamais survivante d'une partie à l'autre // mobilier renversé réparé ; message acheté sur la banderole
   // Jetpack : perdu au game over, comme les armes (voir CLAUDE.md) — il
   // faut remonter le chercher. Le lieu, lui (META.jetpackTrouve), reste acquis.
   P.jetpack=false; P.jetpackVol=false; P.jetFuel=100; P.jetVx=0; P.jetVz=0; P.jetWarnT=0; P.jetAvertVu=false;
@@ -24806,12 +24888,16 @@ function majAction(){
   let pgar=null; // garage tuning à portée du véhicule
   if(P.veh&&P.veh.def&&!(P.veh.def.air&&P.veh.vol)) pgar=porteGarageProche(P.x,P.z);
   const rideId=DECOR_V2?rideProche():null;
-  if(DECOR_V2&&TOW.actif&&!P.veh){ // remorqué : seul le parachute ascensionnel a une action
+  if(DECOR_V2&&!P.veh&&P.chute&&!P.para&&P.wingsuit&&P.chuteY0-P.y>3){ // en chute libre avec la wingsuit
+    if(!P.wing){ label='🦅 WINGSUIT'; fn=deployerWingsuit; } else { label='🪂 VOILE'; fn=ouvrirParachute; }
+  } else if(DECOR_V2&&TOW.actif&&!P.veh){ // remorqué : seul le parachute ascensionnel a une action
     const T=TOW.actif;
     if(T.id==='para'&&!T.lache&&T.h>8){ label='🪂 LÂCHER LA CORDE'; fn=lacherCorde; }
     else if(T.id==='wake'){ label='🏄 LÂCHER (fin)'; fn=()=>finTow('lache'); }
   } else if(P.veh&&P.veh.def){
-    if(P.veh.enAir&&!P.veh.def.air&&(P.veh.h||0)-solY(P.veh.x,P.veh.z)>10){
+    if(MET.ambulance&&MET.ambulance.etat==='soins'){
+      label='⚡ CHOC'; fn=chocDefibrillateur;
+    } else if(P.veh.enAir&&!P.veh.def.air&&(P.veh.h||0)-solY(P.veh.x,P.veh.z)>10){
       label='🪂 SAUTER DU VÉHICULE'; fn=ejecterEnVol;
     } else if(rideId){
       label='🏁 DÉPART — '+RIDE_DEFS[rideId].nom; fn=()=>demarrerRide(rideId);

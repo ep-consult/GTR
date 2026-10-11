@@ -594,6 +594,27 @@ décor sur un générateur **à part** (`aleaDecor()`, `aD()`, `choixD()`, grain
   **faune** (`FAUNE`, sangliers et jaguar : chargent, mordent, se tuent au tir
   — `collisionBalle`, `viseAuto` — et au corps à corps ; reviennent à chaque
   vague, `placerFaune`).
+- **Wingsuit** (`PIC.wingsuit`, portant au sommet du Pic ; `P.wingsuit` gardée
+  jusqu'au game over) : en chute libre, bouton WINGSUIT (`deployerWingsuit`,
+  `P.wing`) : plané à 24 u/s, descente 5,5 u/s, le joystick fait virer ;
+  VOILE pour se poser (posé en wingsuit sans voile : 70 de dégâts).
+- **Métiers v2** (taxi, ambulance, pompiers ; signalé : « trop mal faits, ils
+  doivent être intéressants et débloquer des choses ») : PNJ visibles
+  (`pnjMetier`, `nettoyerPnjMetier`), paie à chaque mission (`payerMetier` :
+  série ×1,5 au plus ; pleine pour `METIER_PLEIN_PAR_VAGUE` = 3 missions par
+  métier et par vague, puis 20 %), paliers (`PALIERS_METIER`, lus sur
+  `META.metiers`, aucun champ de sauvegarde nouveau). Taxi : caractère du
+  client (pressé, fragile, fêtard, VIP), destination nommée, chrono,
+  satisfaction → pourboire. Ambulance : défibrillateur (`chocDefibrillateur`,
+  bouton CHOC au volant : au maximum du pouls ×3, trop tôt = pénalité), puis
+  clinique (porte de la pharmacie) contre le pouls. Pompiers : plusieurs
+  foyers qui S'ÉTENDENT, habitants coincés, chrono ; la lance agit sur tous
+  les foyers. Ces trois métiers continuent après le palier 10.
+- **Cohérence des ennemis** : `spawnRing` / `pointApparition` (terre ferme,
+  hors écran, ville et désert, jamais l'eau ni un relief ; à défaut, vers la
+  ville), `spawnRingEau` (vedettes de police en mer). La garnison des bases
+  (`e.garde`) ne compte pas dans les renforts. Boss : colonne de lumière,
+  couronne, direction et distance dans la barre (`majBossHUD`).
 - **Grand yacht** (`mkGrandYachtV2`, même famille que `makeBateauV2`) et
   **porte-conteneurs pilotable** (`VEHDEFS.cargo`, 62 u, créé par `startRun`
   au large de la plage, monter à bord jusqu'à `0,55 × long`, caméra qui

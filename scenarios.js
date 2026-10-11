@@ -8481,6 +8481,58 @@ async function main() {
       else ok('Cohérence : apparitions valides et hors écran (ville, plage, mer, mont, désert) ; ' + co.info.join(' ; '));
     }
 
+    // -------------------------------------------------------------------
+    // Métiers v2 (signalé : « taxi, ambulance, pompiers trop mal faits ; ils
+    // doivent être intéressants et débloquer des choses ») et wingsuit. Le
+    // trajet en ville n'est pas testé ici (pilote en ligne droite) : on amène
+    // le véhicule aux cibles et on vérifie la logique — arrêt, chrono,
+    // satisfaction, défibrillateur, foyers qui s'étendent, paie, paliers.
+    // -------------------------------------------------------------------
+    console.log('\n--- Métiers v2 (taxi, ambulance, pompiers) et wingsuit ---');
+    {
+      const mt = await page.evaluate(() => {
+        const o = { ko: [], info: [] };
+        const scene0 = (cle) => { startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6; META.argent = 0; for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0; for (const e of ennemis) e.mort = true;
+          const v = creerVehicule(cle, POIS.place.x, POIS.place.z + 12, 0, null); P.x = v.x; P.z = v.z; entrerVehicule(v); majMetiers(1 / 30, 1 / 30); return v; };
+        const amener = (v, x, z) => { v.x = x + 2; v.z = z; v.v = 0; P.x = v.x; P.z = v.z; };
+        const taxi = (casse, attendre) => { const v = scene0('taxi'), m = MET.taxi; if (!m || !MET2.pnj.length) return { erreur: 'pas de client visible' };
+          amener(v, m.x, m.z); majMetiers(1 / 30, 1 / 30); if (MET.taxi.etat !== 'depose') return { erreur: 'client pas monté' };
+          const d = MET.taxi.dest; if (casse) { v.hp -= 40; majMetiers(1 / 30, 1 / 30); } for (let i = 0; i < attendre * 30; i++) majMetiers(1 / 30, 1 / 30);
+          if (MET.taxi) { amener(v, d.x, d.z); majMetiers(1 / 30, 1 / 30); } return { gain: META.argent, fini: !MET.taxi, type: m.T.id, nom: d.nom }; };
+        const t1 = taxi(false, 1), t2 = taxi(false, 200);
+        if (t1.erreur || !(t1.gain > 0) || !t1.fini) o.ko.push('taxi : ' + JSON.stringify(t1)); else o.info.push('taxi ' + t1.type + ' vers ' + t1.nom + ' : +' + t1.gain + ' $');
+        if (t2.gain !== 0) o.ko.push('taxi en retard payé : ' + JSON.stringify(t2));
+        // fragile : un gros choc le fâche (moins de pourboire)
+        let f = null; for (let k = 0; k < 12 && !f; k++) { const v = scene0('taxi'); if (MET.taxi.T.id === 'fragile') f = v; }
+        if (f) { const m = MET.taxi; amener(f, m.x, m.z); majMetiers(1 / 30, 1 / 30); const s0 = MET.taxi.sat; f.hp -= 20; majMetiers(1 / 30, 1 / 30); if (!(MET.taxi.sat < s0 - 20)) o.ko.push('client fragile insensible aux chocs (' + s0 + ' → ' + MET.taxi.sat + ')'); }
+        // ambulance : défibrillateur (trop tôt = pénalité, au maximum = choc), puis clinique
+        { const v = scene0('ambulance'), m = MET.ambulance; if (!m || MET2.pnj.length < 3) o.ko.push('ambulance : blessé ou témoins absents');
+          else { amener(v, m.x, m.z); majMetiers(1 / 30, 1 / 30); if (m.etat !== 'soins') o.ko.push('ambulance : pas de premiers soins à l\'arrêt');
+            majAction(); const lab = document.getElementById('btnAction').textContent; if (!/CHOC/.test(lab)) o.ko.push('bouton CHOC absent : ' + lab);
+            m.onde = 0.2; const p0 = m.pouls; chocDefibrillateur(); if (!(m.pouls < p0) || m.chocs !== 0) o.ko.push('choc trop tôt accepté');
+            for (let k = 0; k < 3; k++) { m.onde = 0.95; chocDefibrillateur(); }
+            if (m.etat !== 'depose' || !m.dest) o.ko.push('ambulance : pas de départ vers la clinique'); else { amener(v, m.dest.x, m.dest.z); majMetiers(1 / 30, 1 / 30); if (MET.ambulance || !(META.argent > 0)) o.ko.push('ambulance : patient pas livré / pas payé'); else o.info.push('ambulance : 3 chocs, ' + m.dest.nom + ', +' + META.argent + ' $'); } } }
+        // pompiers : plusieurs foyers, qui s'étendent si on traîne ; tout éteindre paie et sauve les habitants
+        { scene0('pompiers'); for (let i = 0; i < 60; i++) majMetiers(1 / 30, 1 / 30); const m = MET.pompier;
+          if (!m || !m.pret || m.feux.length < 3 || m.coinces.length < 1) o.ko.push('pompiers : sinistre incomplet');
+          else { const n0 = m.feux.length; for (let i = 0; i < 30 * 12; i++) majMetiers(1 / 30, 1 / 30); if (!(m.feux.length > n0)) o.ko.push('le feu ne s\'étend pas');
+            for (const fe of m.feux) fe.vie = 0; majMetiers(1 / 30, 1 / 30); if (MET.pompier || !(META.argent > 0)) o.ko.push('pompiers : pas payé'); else o.info.push('pompiers : ' + m.feux.length + ' foyers, ' + m.coinces.length + ' habitants, +' + META.argent + ' $'); } }
+        // paliers : le 3e taxi débloque le tarif majoré
+        { META.metiers.taxi = 2; const t = taxi(false, 1); if (!(META.metiers.taxi >= 3) || !palierMetier('taxi', 3)) o.ko.push('palier taxi 3 non atteint'); }
+        // wingsuit : la prendre au sommet du Pic, planer, voile, posé sain et sauf ; on la garde
+        { startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 300; const ws = PIC.wingsuit; P.x = ws.x; P.z = ws.z; P.y = solPied(P.x, P.z); const a = actionPic(); a && a.fn();
+          const pl = PIC.plg; P.x = pl.x; P.z = pl.z0 - 1; P.y = solPied(P.x, P.z); sauterBase(); let t = 0, dep = false, voile = false; const x0 = P.x, z0 = P.z;
+          while (t < 60 && (P.chute || t < 0.2)) { if (!dep && P.chuteY0 - P.y > 5) { majAction(); if (/WINGSUIT/.test(document.getElementById('btnAction').textContent)) { deployerWingsuit(); dep = true; } }
+            if (dep && !voile && P.y < 25) { ouvrirParachute(); voile = true; } INPUT.mx = 0; INPUT.mz = 1; majJoueur(1 / 30, 1 / 30); majPic(1 / 30); P.iframes = 0; t += 1 / 30; }
+          INPUT.mz = 0; const dist = Math.hypot(P.x - x0, P.z - z0);
+          if (!P.wingsuit || !dep || !(dist > 150) || ETAT.mode !== 'jeu' || P.hp < 300) o.ko.push('wingsuit : ' + JSON.stringify({ porte: P.wingsuit, dep, dist: Math.round(dist), mode: ETAT.mode, hp: P.hp })); else o.info.push('wingsuit : ' + Math.round(dist) + ' u de vol plané'); }
+        startRun(); if (P.wingsuit) o.ko.push('wingsuit gardée après une nouvelle partie');
+        return o;
+      });
+      if (mt.ko.length) fail('Métiers v2 / wingsuit : ' + mt.ko.join(' | '));
+      else ok('Métiers v2 / wingsuit : ' + mt.info.join(' ; ') + ' ; taxi en retard non payé, client fragile fâché par les chocs, choc trop tôt pénalisé, le feu s\'étend, palier 3 du taxi');
+    }
+
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');
     {
       const srcIdx = fs.readFileSync(INDEX_HTML, 'utf8');
