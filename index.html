@@ -3611,7 +3611,7 @@ function construireVille(){
     if(qq!=='plage'&&qq!=='parc'&&bx%3===1&&bz%3===1) mkFeu(cx+INNER/2+1.4,cz-INNER/2-1.4);
   }
   placerPortes();
-  if(DECOR_V2){ sansAleaVille(()=>{ ameliorerPortes(); mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkCiel(); mkKiosqueBanderole(); mkCrique(); mkMontReyes(); mkBordureEst(); mkCanyonsDesert(); mkPicVertige(); mkParcStunt(); mkRides(); mkMerVivante(); mkRemorquage(); deplacerVoltige(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkNeonVivant(); mkQuartiersFinitions(); }); } // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
+  if(DECOR_V2){ sansAleaVille(()=>{ ameliorerPortes(); mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkCiel(); mkKiosqueBanderole(); mkCrique(); mkMontReyes(); mkBordureEst(); mkCanyonsDesert(); mkPicVertige(); mkParcStunt(); mkRides(); mkMerVivante(); mkRemorquage(); deplacerVoltige(); mkTracesSable(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkNeonVivant(); mkQuartiersFinitions(); }); } // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
   finaliserMerge();
   construireMinimapStatique();
 }
@@ -5166,7 +5166,7 @@ function majQuartiersFinitions(dt){
    était inatteignable) : la limite passe à LIMITE_EST, fermée par une vraie
    paroi rocheuse ; le mont occupe le coin nord-est.
    Relief = fonction de hauteur (RELIEFS) lue par solY ET par le maillage. */
-const PENTE_G=15, PENTE_MAX_VEH=1.35, PENTE_MAX_PIED=1.6; // reliefs : gravité dans la pente (u/s² par unité de pente), parois infranchissables
+const PENTE_G=15, PENTE_MAX_VEH=1.35, PENTE_MAX_PIED=1.6, PENTE_G_VRAIE=26; // PENTE_G_VRAIE : gravité le long de la pente (26 × sinus), la même que celle des sauts // reliefs : gravité dans la pente (u/s² par unité de pente), parois infranchissables
 const LIMITE_EST=HALF+300;               // x max à terre (avant : HALF+158)
 const LIMITE_EST_MER=HALF+300;           // x max en mer, bateaux et nage (avant : HALF+60 en bateau — on s'arrêtait avant la crique)
 const MONT={kickers:[],x:538,z:-238,rx:78,rz:82,H:72,sommet:null,sentier:[],pied:null};
@@ -5301,7 +5301,7 @@ function mkBordureEst(){
 const CANYON={mesas:[],tremplins:[],ligneX:535};
 function plateau(x,z,m){ // mesa à bords raides : 0 dehors, m.h sur le dessus
   // bords latéraux irréguliers (érosion) ; le bord sud des mesas de la ligne reste droit (tremplin)
-  const nx=1.4*Math.sin(z*0.41+m.x)+0.7*Math.sin(z*1.13+m.h), nz=m.droitZ?0:1.2*Math.sin(x*0.37+m.z)+0.6*Math.sin(x*0.97);
+  const b=m.bruit===undefined?1:m.bruit, nx=(1.4*Math.sin(z*0.41+m.x)+0.7*Math.sin(z*1.13+m.h))*b, nz=m.droitZ?0:1.2*Math.sin(x*0.37+m.z)+0.6*Math.sin(x*0.97); // crêtes : bords presque droits (b petit)
   const ix=m.hw+nx-Math.abs(x-m.x), iz=m.hd+nz-Math.abs(z-m.z), e=m.e||2.4;
   if(ix<=-e||iz<=-e) return 0;
   return m.h*lisse((Math.min(ix,iz)+e)/e);
@@ -5361,9 +5361,12 @@ function mkCanyonsDesert(){
     const k=RAMPES.findIndex((r)=>Math.abs(r.x-rx)<0.5&&Math.abs(r.z-rz)<0.5); if(k>=0) RAMPES.splice(k,1);
     for(let i=scene.children.length-1;i>=0;i--){ const o=scene.children[i]; if(o.isMesh&&dist2(o.position.x,o.position.z,rx,rz+(rz<pd.z?4.5:-4.5))<30&&o.position.y<3){ scene.remove(o); o.geometry.dispose(); } } }
   // 2) la ligne Rampage : mesas en escalier vers le sud, tremplins au bord sud
-  const X=CANYON.ligneX, hw=15, L=30, gap=10, z0=-150;
-  [22,18,14,10,6].forEach((h,k)=>{ const zc=z0+L/2+k*(L+gap); CANYON.mesas.push({x:X,z:zc,hw,hd:L/2,h,e:2.2,droitZ:true});
-    if(k<4) CANYON.tremplins.push({x:X,hw:3.2,z0:zc+L/2-7,z1:zc+L/2-0.6,h0:h,k:1.8}); });
+  // Signalé : « intéressants mais toujours les mêmes, alterner : fines crêtes, plus longs, de la variété ».
+  // Départ large, CRÊTE étroite, long gap vers une mesa large, LONGUE CRÊTE qu'on suit, très long gap final.
+  const X=CANYON.ligneX, hw=15, L=30, z0=-150, gap=10; // L, gap : emprise totale inchangée (z -150 → 54) pour les bornes du relief
+  { let z=z0; for(const [hwk,hdk,h,gap,bruit] of [[15,15,22,0,1],[3.6,8,19,10,0.25],[12,14,16,16,1],[3,14,12,12,0.2],[15,21,6,18,1]]){
+      z+=gap; const zc=z+hdk; CANYON.mesas.push({x:X,z:zc,hw:hwk,hd:hdk,h,e:hwk<5?1.4:2.2,droitZ:true,bruit}); z=zc+hdk; } }
+  CANYON.mesas.forEach((m,k)=>{ if(k<4) CANYON.tremplins.push({x:X,hw:Math.min(3.2,m.hw-0.4),z0:m.z+m.hd-7,z1:m.z+m.hd-0.6,h0:m.h,k:m.hd>14?2.4:1.8}); }); // plus grand gap derrière : tremplin plus raide
   CANYON.acces={x0:478,x1:X-hw+0.5,z0:z0+5,z1:z0+L-5,h:22};
   // 3) buttes érodées à la place des dunes (hors cratère de l'OVNI et collines de la crique)
   for(const [bx,bz,h,r] of [[pd.x+32,pd.z-36,12,16],[pd.x-58,pd.z-24,13,13],[pd.x+38,pd.z+38,9,12]]) CANYON.mesas.push({x:bx,z:bz,hw:r,hd:r*0.75,h,e:3.5});
@@ -5942,6 +5945,29 @@ function garerRides(){
   [['motocross',dc.x-7,dc.z+3,Math.PI],['jeep',dc.x+8,dc.z+4,Math.PI],['motocross',ds.x+8,ds.z+2,0],['motocross',ds.x+8,ds.z+7,0]].forEach(([k,x,z,a2])=>{
     if(!solidAt(x,z,1.5)&&!vehicules.some((o)=>dist2(o.x,o.z,x,z)<9)) creerVehicule(k,x,z,a2);
   });
+}
+// Sable (plage, désert) : traces de pneus qui s'estompent (réserve fixe, jamais d'allocation en jeu)
+function estSable(x,z){ return (z>MER-30&&z<MER&&!surChaussee(x,z)&&solY(x,z)<0.3&&!estEau(x,z))||(x>HALF+150&&z>-150&&z<MER&&!dansReliefLibre(x,z)&&!(STUNT.ok&&dansParcStunt(x,z))); }
+const TRACES_SABLE={liste:[],i:0,mat:null};
+function mkTracesSable(){
+  TRACES_SABLE.mat=new THREE.MeshBasicMaterial({color:0x6a5034,transparent:true,opacity:0.32,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2});
+  const geo=new THREE.PlaneGeometry(0.34,1.1);
+  for(let k=0;k<220;k++){ const m=new THREE.Mesh(geo,TRACES_SABLE.mat.clone()); m.rotation.x=-Math.PI/2; m.visible=false; scene.add(m); TRACES_SABLE.liste.push({m,t:0}); }
+}
+function traceSable(v,d){
+  if(!TRACES_SABLE.liste.length) return;
+  const dx=v.x-(v.trX||-1e9), dz=v.z-(v.trZ||-1e9); if(dx*dx+dz*dz<0.8) return; v.trX=v.x; v.trZ=v.z;
+  const sA=Math.sin(v.dirAng), cA=Math.cos(v.dirAng), ecart=d.type==='moto'?[0]:[-d.larg*0.38,d.larg*0.38];
+  for(const e of ecart){ const T=TRACES_SABLE.liste[TRACES_SABLE.i++%TRACES_SABLE.liste.length];
+    T.t=14; T.m.visible=true; T.m.material.opacity=0.32; T.m.position.set(v.x+cA*e-sA*d.long*0.35,0.14,v.z-sA*e-cA*d.long*0.35); T.m.rotation.z=-v.dirAng; } // y 0,14 : au-dessus du sable de la plage (posé plus haut que le sol)
+}
+function majTracesSable(dt){ for(const T of TRACES_SABLE.liste){ if(T.t<=0) continue; T.t-=dt; if(T.t<=0) T.m.visible=false; else if(T.t<4) T.m.material.opacity=0.32*T.t/4; } }
+// Adhérence sur les reliefs (poussée du moteur) : montée sèche = terre meuble ; flancs hors sentier = herbe et
+// caillou ; le sentier damé et le reste du monde : pleine adhérence. Les pneus de route patinent deux fois plus.
+function adherenceRelief(v,d){
+  if(MONT.surCouloir&&MONT.surCouloir(v.x,v.z,4)) return toutTerrain(d)?0.68:0.4;
+  if(!dansReliefLibre(v.x,v.z)||(MONT.presDuSentier&&MONT.presDuSentier(v.x,v.z,8))||(STUNT.ok&&dansParcStunt(v.x,v.z))) return 1; // abords du sentier (8 u) : on peut toujours y remonter après un écart
+  return d.jeep||d.franchissement?0.9:(toutTerrain(d)&&!d.velo?0.72:(d.velo?0.45:0.55));
 }
 // pneus à crampons / 4x4 : tiennent sur la terre meuble de la montée sèche (les motos et voitures de route y patinent)
 function toutTerrain(d){ return !!(d.cross||d.buggy||d.quad||d.jeep||d.franchissement||d.bmx||d.ecrase); }
@@ -7435,7 +7461,7 @@ function majSurf(dt){
 }
 const DAUPHIN={t:14,mesh:null,ph:0,x:0,z:0,dir:1};
 function majMer(dt){
-  if(DECOR_V2) majMerVivante(dt);
+  if(DECOR_V2){ majMerVivante(dt); majTracesSable(dt); }
   for(const b of BOUEES){ b.ph+=dt*1.6;
     if(MER_V2) assietteHoule(b.m,b.m.position.x,b.m.position.z,b.ph*0.2,Math.sin(b.ph)*0.06,1.2);
     else { b.m.position.y=Math.sin(b.ph)*0.16; b.m.rotation.z=Math.sin(b.ph*0.7)*0.08; } }
@@ -11293,7 +11319,7 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
   if(Math.abs(throttle)>0.05){
     // courbe d'accélération : pleine poussée en bas, essoufflement vers la vitesse max → sensation de montée en régime
     const pousse=throttle>0?(1-fac0*fac0*0.55):1;
-    const accEff=d.acc*(v.conduit==='joueur'&&aCurio('volant')?1.15:1)*(DECOR_V2&&MONT.surCouloir&&MONT.surCouloir(v.x,v.z,4)?(toutTerrain(d)?0.68:0.4):1); // Le Volant du Dépôt ; montée sèche : tout le monde patine sur la terre meuble, les pneus de route deux fois plus
+    const accEff=d.acc*(v.conduit==='joueur'&&aCurio('volant')?1.15:1)*(DECOR_V2?adherenceRelief(v,d):1); // Le Volant du Dépôt ; reliefs : on patine sur la terre et l'herbe des flancs (voir adherenceRelief)
     v.v+=accEff*throttle*pousse*dt;
     v.v*=(1-(eau?0.10:0.06)*dt);
   } else v.v*=(1-(eau?0.8:(lourd?1.1:1.6))*dt); // les lourds gardent leur élan
@@ -11328,14 +11354,15 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
   // le désert »), même principe que l'eau (grip très bas) ou la pluie
   // (grip réduit par METEO.inten), juste une zone au sol plutôt qu'un état
   // global.
-  const surfDesert=!eau&&estDesert(v.x,v.z);
+  const surfDesert=!eau&&(estDesert(v.x,v.z)||(DECOR_V2&&estSable(v.x,v.z)));
+  if(DECOR_V2&&surfDesert&&!v.enAir&&Math.abs(v.v)>2&&(v.h||0)<0.5) traceSable(v,d); // traces dans le sable
   // Flaque d'huile (voiture d'espion, def.bond) : même principe que le sable
   // du désert, mais un grip encore plus bas qu'une simple perte d'adhérence
   // — une vraie perte de contrôle, y compris pour un poursuivant IA (police,
   // gang), pas juste un ralentissement.
   const surHuileV=!eau&&surHuile(v.x,v.z);
   const gripSec=d.sport?11:(d.type==='moto'?12:(lourd?6.5:8.5));
-  const grip=eau?2.6:(frein?1.15:(surHuileV?1.4:(surfDesert?gripSec*0.4:gripSec))*(1-METEO.inten*0.4));
+  const grip=eau?2.6:(frein?1.15:(surHuileV?1.4:(surfDesert?gripSec*(DECOR_V2&&!toutTerrain(d)?0.26:0.4):gripSec))*(1-METEO.inten*0.4)); // sable : les véhicules non adaptés glissent nettement plus
   v.dirAng=angLerp(v.dirAng,v.ang,clamp(grip*dt,0,1));
   const derive=Math.abs(angDiff(v.ang,v.dirAng));
   if(!eau&&!v.enAir&&derive>0.18&&Math.abs(v.v)>8){
@@ -11351,13 +11378,18 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
   }
   // inclinaison des motos dans les virages
   if(d.type==='moto'&&!eau) v.mesh.rotation.z=lerp(v.mesh.rotation.z||0,-steerEff*fac*0.45,clamp(8*dt,0,1));
+  if(reliefV&&!d.cross){ // en relief, la caisse suit la pente (tangage) au lieu de monter à plat
+    const sA2=Math.sin(v.ang), cA2=Math.cos(v.ang), L2=Math.max(1.2,d.long*0.45), tang=Math.atan2(solY(v.x+sA2*L2,v.z+cA2*L2)-solY(v.x-sA2*L2,v.z-cA2*L2),2*L2);
+    v.mesh.rotation.x=lerp(v.mesh.rotation.x||0,-tang,clamp(6*dt,0,1)); v.tangageRelief=true;
+  } else if(v.tangageRelief&&!v.enAir){ v.mesh.rotation.x=lerp(v.mesh.rotation.x||0,0,clamp(6*dt,0,1)); if(Math.abs(v.mesh.rotation.x)<0.01){ v.mesh.rotation.x=0; v.tangageRelief=false; } }
   const sA=Math.sin(v.dirAng), cA=Math.cos(v.dirAng);
   // Reliefs sculptés (Mont Reyes, canyons) : la pente se sent. La gravité freine
   // à la montée et pousse à la descente (signalé : « on monte à fond, aucune
   // sensation de montée »).
-  if(reliefV){ const pente=(solY(v.x+sA*1.5,v.z+cA*1.5)-solY(v.x-sA*1.5,v.z-cA*1.5))/3, k=(MONT.presDuSentier&&MONT.presDuSentier(v.x,v.z,4)?0.45:1)*(d.franchissement?0.5:1);
-    if(MONT.surCouloir&&MONT.surCouloir(v.x,v.z,4)) v.v-=26*(pente/Math.sqrt(1+pente*pente))*(d.franchissement?0.5:1)*dt; // montée sèche : vraie gravité (celle des sauts), l'élan ne suffit plus
-    else v.v-=PENTE_G*k*pente*dt; } // 4x4 de franchissement : la pente le freine deux fois moins // le sentier damé tire moins que la pente brute
+  if(reliefV){ const pente=(solY(v.x+sA*1.5,v.z+cA*1.5)-solY(v.x-sA*1.5,v.z-cA*1.5))/3, sin=pente/Math.sqrt(1+pente*pente);
+    const surSentier=MONT.presDuSentier&&MONT.presDuSentier(v.x,v.z,4)&&!(MONT.surCouloir&&MONT.surCouloir(v.x,v.z,4)), abords=!surSentier&&MONT.presDuSentier&&MONT.presDuSentier(v.x,v.z,8);
+    v.v-=PENTE_G_VRAIE*sin*(surSentier?0.45:(abords?0.7:1))*(d.franchissement?0.7:1)*dt;
+    if(d.franchissement&&!surSentier&&pente>0.45&&v.v>0){ const cap=Math.max(3,7-(pente-0.45)*6); if(v.v>cap) v.v=lerp(v.v,cap,clamp(4*dt,0,1)); } } // 4x4 : vitesse réduite dans le raide, il grimpe au pas sans caler // vraie gravité (celle des sauts) : signalé « trop simple à gravir, même en vélo et en jeep » ; le sentier damé tire moins
   const nx=v.x+sA*v.v*dt, nz=v.z+cA*v.v*dt;
   const sgn=Math.sign(v.v)||1;
   const fx=nx+Math.sin(v.ang)*d.long/2*sgn, fz=nz+Math.cos(v.ang)*d.long/2*sgn;
@@ -11371,7 +11403,7 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
     if(gAv-(v.h||0)>0.05&&gAv-(v.h||0)<(d.franchit||0.6)){ v.h=lerp(v.h||0,gAv,clamp(10*dt,0,1)); }
   }
   // paroi : le sol devant monte plus raide que PENTE_MAX_VEH → on la heurte, on ne la gravit plus d'un coup
-  const paroi=DECOR_V2&&!eau&&!d.air&&!v.enAir&&dansReliefLibre(fx,fz)&&!(MONT.presDuSentier&&(MONT.presDuSentier(fx,fz,7)||MONT.surCouloir(fx,fz,4)))&&(solY(fx,fz)-(v.h||0))/(d.long/2+Math.abs(v.v)*dt+0.01)>PENTE_MAX_VEH*(d.franchissement?1.5:1); // sur le sentier : on manœuvre dans les épingles
+  const paroi=DECOR_V2&&!eau&&!d.air&&!v.enAir&&dansReliefLibre(fx,fz)&&!(MONT.presDuSentier&&(MONT.presDuSentier(fx,fz,7)||MONT.surCouloir(fx,fz,4)))&&(solY(fx,fz)-(v.h||0))/(d.long/2+Math.abs(v.v)*dt+0.01)>PENTE_MAX_VEH*(d.franchissement?1.35:(d.velo?0.55:1)); // vélos : jamais sur les flancs (demandé), 4x4 : un peu plus raide que les autres // sur le sentier : on manœuvre dans les épingles
   const versPlage=eau&&!!d.eau&&!d.cargo&&(v.conduit==='joueur'||!v.conduit)&&!estEau(nx,nz)&&solY(nx,nz)<0.6&&!solidAt(fx,fz,0.5); // sable : le bateau s'y échoue en douceur
   const auPasVersTerre=echoue&&Math.abs(v.v)<=2.2&&!eauDevant(v,Math.sign(v.v||1)); // échoué, au pas : seulement vers l'eau (jamais traverser la plage)
   const heurte=eau?((!estEau(nx,nz)&&!versPlage)||auPasVersTerre):(!!sFront||paroi||((v.h||0)<0.7&&estEau(fx,fz)&&!VEH_IA_NOYABLES&&!!v.conduit&&v.conduit!=='joueur')); // VEH_IA_NOYABLES : police, trafic et autres IA entrent aussi dans l'eau et s'y noient

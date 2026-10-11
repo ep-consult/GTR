@@ -8179,9 +8179,9 @@ async function main() {
         if (!(pt.piedParoi.d < 4 && pt.piedParoi.dy < 3)) ko.push('à pied, la paroi de mesa (' + pt.mesaH + ' u) se gravit : ' + JSON.stringify(pt.piedParoi));
         if (!(pt.vehParoi.d < 8 && pt.vehParoi.dy < 3 && pt.vehParoi.degats === 0)) ko.push('moto contre la paroi de mesa : ' + JSON.stringify(pt.vehParoi));
         if (!(pt.piedMont.d < 0.75 * pt.piedPlat.d && pt.piedMont.dy > 3)) ko.push('à pied, pente du mont pas freinée : ' + JSON.stringify(pt.piedMont) + ' contre ' + JSON.stringify(pt.piedPlat) + ' à plat');
-        if (!(pt.vehMont.dy > 10 && pt.vehMont.d < 0.5 * pt.vehMont.vmax5 && pt.vehMont.degats === 0)) ko.push('moto plein gaz dans la pente du mont : ' + JSON.stringify(pt.vehMont));
+        if (!(pt.vehMont.dy < 25 && pt.vehMont.degats === 0)) ko.push('moto plein gaz dans le flanc du mont (hors sentier) : elle grimpe encore (' + JSON.stringify(pt.vehMont) + ')'); // demandé : flancs infranchissables hors 4x4
         if (ko.length) fail('Pentes : ' + ko.join(' | '));
-        else ok('Pentes : paroi de mesa infranchissable à pied (' + pt.piedParoi.d + ' u en 4 s) et en moto (sans casse) ; pente du mont : ' + pt.piedMont.d + ' u à pied contre ' + pt.piedPlat.d + ' à plat, moto ' + pt.vehMont.d + ' u en 5 s (+' + pt.vehMont.dy + ' u d\'altitude) au lieu de ' + pt.vehMont.vmax5);
+        else ok('Pentes : paroi de mesa infranchissable à pied (' + pt.piedParoi.d + ' u en 4 s) et en moto (sans casse) ; pente du mont : ' + pt.piedMont.d + ' u à pied contre ' + pt.piedPlat.d + ' à plat, moto bloquée dans le flanc hors sentier (+' + pt.vehMont.dy + ' u en 5 s)');
       }
     }
 
@@ -8286,7 +8286,7 @@ async function main() {
             majVehiculePhys(v, 1 / 30, thr, c.steer, Math.abs(v.v) > lim + 6); P.x = v.x; P.z = v.z; majRides(1 / 30); t += 1 / 30; }
           INPUT.mx = INPUT.mz = 0;
           return { id, cle, prime: META.argent - a0, t: +t.toFixed(1), hp: +(v.hp / v.def.hp).toFixed(2) }; };
-        for (const [id, cle, attendu] of [['colline', 'motocross', true], ['colline', 'quad', true], ['colline', 'jeep', true], ['colline', 'moto', false], ['colline', 'buggy', false], ['colline', 'bmx', false], ['stunt', 'motocross', true], ['stunt', 'quad', true], ['stunt', 'bmx', false]]) {
+        for (const [id, cle, attendu] of [['colline', 'motocross', true], ['colline', 'quad', true], ['colline', 'jeep', false], ['colline', 'moto', false], ['colline', 'buggy', false], ['colline', 'bmx', false], ['stunt', 'motocross', true], ['stunt', 'quad', true], ['stunt', 'bmx', false]]) {
           const r = course(id, cle); o.info.push(id + ' en ' + cle + ' : ' + (r.prime > 0 ? r.t + ' s' : 'raté'));
           if ((r.prime > 0) !== attendu || r.hp < 0.5) o.ko.push(JSON.stringify(r) + ' (attendu ' + (attendu ? 'réussi' : 'raté') + ')'); }
         { const r = course('stunt', 'motocross', { immobile: true }); if (r.prime > 0) o.ko.push('stunt réussi sans rien faire'); }

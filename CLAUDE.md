@@ -568,6 +568,20 @@ décor sur un générateur **à part** (`aleaDecor()`, `aD()`, `choixD()`, grain
     (bouées jaunes, panneau) : ils mordent un nageur, jamais un bateau.
   - Une prime par vague et par activité (`primeMerUneFois`, `MERV.primes`,
     remis à zéro par `resetMer` dans `startRun`).
+- **Reliefs, 2e passe** (signalé : « encore trop simple à gravir, même en vélo et
+  en jeep, l'effet est bizarre ») : vraie gravité partout en relief
+  (`PENTE_G_VRAIE` = 26 × sinus, ×0,45 sur le sentier, ×0,7 sur ses abords à
+  8 u pour qu'on puisse toujours y remonter) ; adhérence des flancs
+  (`adherenceRelief` : route 0,55, tout-terrain 0,72, vélo 0,45) ; parois :
+  vélos bloqués sur les flancs (×0,55), 4x4 ×1,35. Le 4x4 a une **vitesse
+  réduite** dans le raide (il grimpe au pas, sans caler) : seul véhicule à
+  monter le flanc (9 s au lieu de 3,7). La caisse suit la pente (tangage).
+- **Sable** (`estSable`, `traceSable`, `TRACES_SABLE`) : traces de pneus qui
+  s'estompent (plage, désert), et les véhicules non tout-terrain y glissent
+  nettement plus (grip ×0,26 au lieu de ×0,4).
+- **Ligne des mesas variée** : départ large, crête étroite, long gap, mesa
+  large, longue crête qu'on suit, très long gap final (`m.bruit` : bords
+  presque droits des crêtes ; tremplin plus raide avant un grand gap).
 - **Grand yacht** (`mkGrandYachtV2`, même famille que `makeBateauV2`) et
   **porte-conteneurs pilotable** (`VEHDEFS.cargo`, 62 u, créé par `startRun`
   au large de la plage, monter à bord jusqu'à `0,55 × long`, caméra qui
