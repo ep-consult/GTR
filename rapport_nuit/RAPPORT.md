@@ -725,3 +725,40 @@ Le temps de rendu mesuré augmente de **5 à 10 %**. La machine de mesure rendai
 4. Skatepark en BMX : prendre le tremplin et franchir le vide.
 5. Enseignes : se promener dans le quartier néon et le commerce, et entrer dans deux ou trois salles. Tout doit se lire.
 6. Pharmacie, concession, laverie, karaoké, arcade : entrer puis ressortir. On doit ressortir devant la porte, jamais dans un mur.
+
+---
+
+## 3e lot — blocage crique, avion, véhicules, Mont Reyes, canyons (11 octobre)
+
+| Élément | Commit | En bref |
+|---|---|---|
+| **Bug : bloqué au pied d'une falaise** | `2f59567` | Signalé : après un saut du plongeoir de gauche, coincé sans pouvoir bouger. En tombant d'un bord, on atterrit dans la marge de collision de la falaise et chaque pas était refusé. On peut maintenant toujours s'éloigner d'un mur ou le longer. Le test échoue sur l'ancienne version. |
+| Avion à banderole | `83e1d0c` | Avion de tourisme détaillé, plus rapide (19 u/s au lieu de 12 au plus), banderole qui ondule et reste lisible dans les deux sens. **Kiosque « TON MESSAGE DANS LE CIEL »** près de la jetée : on écrit son message (30 caractères), on paie 250 $, il est sauvegardé. |
+| Bateaux, buggys, bulldozer | `5aae1fc` | Bateaux : vraies coques en V et accastillage (vedette, police, pêche, offshore, jet-ski, yacht). **Trouvé en route : tous les bateaux naviguaient à reculons** (étrave du mauvais côté). Buggys : baquet, ailes, capot numéroté, cage contrastée, moteur à nu. Bulldozer : chenilles, cabine vitrée, lame incurvée, vérins, ripper. |
+| Mont Reyes | `a71d338`, `a3b54f6` | Montagne de 72 u au nord-est de l'aérodrome : prairies, forêt, rochers, sommet enneigé. Sentier en lacets taillé dans la pente, avec 6 tremplins. La limite invisible de l'est (x 452) est repoussée jusqu'à une vraie paroi rocheuse : tout le désert est accessible, y compris le saut géant de la falaise, qui était hors d'atteinte. |
+| Canyons « Rampage » | `a3b54f6` | Ligne des mesas : 5 plateaux en escalier séparés par des canyons de 10 u, tremplins en bois. Parois en strates de grès, bords érodés. Les dunes sont remplacées par des buttes en strates, plus des cheminées de fée. L'OVNI, la crique et le galion sont intacts. |
+| Courses | `a3b54f6` | **Montée du Mont Reyes** (50 s) et **ligne des mesas** (14 s), au volant d'une moto, d'un vélo ou d'un buggy. Départ au cercle de départ, portes à franchir, prime une fois par vague. Motos cross, BMX, vélo et buggy garés au pied des départs. |
+
+### Réglages et décisions
+
+- **Terrains de saut** : sur la montagne et dans les canyons, dévaler une pente ne fait plus décoller. Seuls un vrai bord, un tremplin ou un gap lancent le véhicule. Une réception ratée n'abîme qu'au-delà d'environ 20 u de chute.
+- **Courses vérifiées par un pilote simulé.**
+  - Un pilote prudent, qui freine avant les épingles, finit les deux courses avec chaque véhicule, sans dégâts, avec 4 à 5 sauts : 25 à 34 s pour le mont, 6 à 8 s pour les mesas.
+  - À fond, sans freiner, on sort des lacets et on s'abîme : la course peut se perdre.
+- **Clavier** (pour info, ça ne touche pas le tactile) : en véhicule, S sert à la fois à descendre et à freiner. C'était déjà le cas avant.
+- **Piège trouvé deux fois** : rien de Three.js ne doit être créé au chargement du script. Un tirage aléatoire de plus avant la ville déplace toutes les portes. C'est maintenant noté dans `CLAUDE.md`.
+
+### Performance
+
+Rendu seul :
+- Montagne et canyons : +3 à 8 % sur les vues de l'est (aéroport, pied du mont, désert), sous le seuil de 10 %. Jusqu'à 56 000 triangles au pied du mont.
+- `solY` (hauteur du sol) : 28 → 24 µs par appel.
+
+### À tester sur iPhone
+
+1. Plonger du plongeoir de gauche de la crique, puis nager contre la falaise : on doit pouvoir repartir.
+2. Kiosque près de la jetée : écrire un message, payer, puis regarder l'avion passer.
+3. Prendre la vedette et le bateau de pêche : ils avancent la proue devant.
+4. Mont Reyes : prendre la moto cross garée au pied et faire la course (freiner dans les épingles).
+5. Ligne des mesas : moto cross ou buggy, enchaîner les 4 gaps.
+6. Fluidité vers l'est (montagne, canyons).
