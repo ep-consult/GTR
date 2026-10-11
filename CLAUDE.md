@@ -505,12 +505,23 @@ décor sur un générateur **à part** (`aleaDecor()`, `aD()`, `choixD()`, grain
     sa limite de paroi est ×1,5. Garés au pied du mont et à la montée sèche
     (`garerRides`), motos cross au départ de chaque défi.
   - **MONTÉE SÈCHE** (`MONT.couloir`, taillé dans `hauteurMont`, piste de
-    terre, jalons, arche) : couloir droit de la face sud, pente 0,45 → 1,2,
-    palier au sommet. Course `RIDE_DEFS.colline` (6,5 s, portes à hauteur).
-    Le BMX cale : perdable.
-  - **DÉFI STUNT** (`STUNT`, relief `hauteurStunt`, 4 tables au pied ouest du
-    mont) : score de figures (`rideFigure` à chaque réception : temps de vol,
-    réception propre ; cabrage) à atteindre en 45 s. Au bord d'une table, le
+    terre, jalons, arche) : couloir droit de la face sud qui finit en mur
+    (profil `0,3u + 0,7u³`, pente 0,25 → 2), palier au sommet, **départ
+    arrêté au pied** (avec 34 u d'élan, tout montait d'un trait : signalé
+    « avec une moto de ville j'ai tout monté d'un seul coup »). Sur le
+    couloir : vraie gravité (26 × sinus de la pente, celle des sauts) et
+    terre meuble (poussée ×0,68 en tout-terrain, ×0,4 en pneus de route,
+    `toutTerrain`). Course `RIDE_DEFS.colline` (6,5 s) : moto cross, quad,
+    4x4 passent (4,2 à 4,8 s) ; motos de route, buggy, BMX calent.
+  - **SUPERCROSS** (`STUNT`, relief `hauteurStunt`, au pied ouest du mont,
+    demandé « pas dans l'herbe, en terre, mode supercross ») : boucle de terre
+    (`coordPiste`/`pointPiste` : abscisse et écart latéral), droite est = 4
+    grosses tables, virages relevés avec blocs de corde, droite ouest =
+    whoops, double, step-up, rollers. Ruban maillé sur la même fonction,
+    posé 0,14 au-dessus du sol (la pelouse de l'aérodrome le cachait).
+    Défi `RIDE_DEFS.stunt` « DÉFI SUPERCROSS » : 2 600 points de figures
+    (`rideFigure` à chaque réception : temps de vol, réception propre ;
+    cabrage) en 45 s. Au bord d'une table, le
     décollage prend la vitesse de montée de la rampe (`pvLevre`,
     `presTremplinStunt`) : ailleurs, l'image du bord donnait vy = 2 (sauts
     plats) — non modifié hors du parc. Le parc entier (`dansParcStunt`) est

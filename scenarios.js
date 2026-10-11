@@ -8273,19 +8273,19 @@ async function main() {
         const flanc = (cle) => { scene0(); const s = MONT.sommet, v = creerVehicule(cle, s.x - 68, s.z, Math.PI / 2, null); v.h = solY(v.x, v.z); for (let i = 0; i < 150; i++) majVehiculePhys(v, 1 / 30, 1, 0, false); return v.h || 0; };
         const hJ = flanc('jeep'), hB = flanc('buggy'); if (!(hJ > hB + 3)) o.ko.push('franchissement : 4x4 ' + hJ.toFixed(1) + ' u contre buggy ' + hB.toFixed(1));
         o.info.push('flanc du mont en 5 s : 4x4 +' + hJ.toFixed(0) + ' u, buggy +' + hB.toFixed(0) + ' u');
-        // courses : vise la porte (montée sèche) / va-et-vient en dosant la vitesse (stunt)
+        // courses : vise la porte (montée sèche) / suit la boucle du supercross en dosant la vitesse (pointPiste, lu dans le jeu)
         const course = (id, cle, opts = {}) => { scene0(); const d = rideDepart(id), v = creerVehicule(cle, d.x, d.z, id === 'stunt' ? 0 : Math.PI, null); v.h = solY(d.x, d.z); P.x = v.x; P.z = v.z; entrerVehicule(v);
           const a0 = META.argent; demarrerRide(id); let t = 0, sens = 1;
-          while (RIDES.actif && t < 60) { const r = RIDES.actif; let tx, tz;
+          while (RIDES.actif && t < 60) { const r = RIDES.actif; let tx, tz, lim = 99;
             if (opts.immobile) { INPUT.mx = INPUT.mz = 0; }
-            else { if (id === 'stunt') { const zf = sens > 0 ? STUNT.tables[3] + 40 : STUNT.tables[0] - 25; if ((sens > 0 && v.z > zf - 3) || (sens < 0 && v.z < zf + 3)) sens = -sens; tx = STUNT.x; tz = sens > 0 ? zf + 5 : zf - 5; }
+            else { if (id === 'stunt') { const cp = coordPiste(v.x, v.z), q = pointPiste(cp.s + 10); tx = q.x; tz = q.z; lim = (cp.seg === 'S' || cp.seg === 'N') ? 15 : 26; }
               else { const p = r.portes[r.i]; tx = p.x; tz = p.z; }
               const dx = tx - v.x, dz = tz - v.z, l = Math.hypot(dx, dz) || 1; INPUT.mx = dx / l; INPUT.mz = dz / l; }
-            const c = controleDir(v, false), thr = id === 'stunt' && Math.abs(v.v) > 27 ? 0 : c.throttle;
-            majVehiculePhys(v, 1 / 30, thr, c.steer, false); P.x = v.x; P.z = v.z; majRides(1 / 30); t += 1 / 30; }
+            const c = controleDir(v, false), thr = Math.abs(v.v) > lim ? 0 : c.throttle;
+            majVehiculePhys(v, 1 / 30, thr, c.steer, Math.abs(v.v) > lim + 6); P.x = v.x; P.z = v.z; majRides(1 / 30); t += 1 / 30; }
           INPUT.mx = INPUT.mz = 0;
           return { id, cle, prime: META.argent - a0, t: +t.toFixed(1), hp: +(v.hp / v.def.hp).toFixed(2) }; };
-        for (const [id, cle, attendu] of [['colline', 'motocross', true], ['colline', 'jeep', true], ['colline', 'buggy', true], ['colline', 'bmx', false], ['stunt', 'motocross', true], ['stunt', 'jeep', true]]) {
+        for (const [id, cle, attendu] of [['colline', 'motocross', true], ['colline', 'quad', true], ['colline', 'jeep', true], ['colline', 'moto', false], ['colline', 'buggy', false], ['colline', 'bmx', false], ['stunt', 'motocross', true], ['stunt', 'quad', true], ['stunt', 'bmx', false]]) {
           const r = course(id, cle); o.info.push(id + ' en ' + cle + ' : ' + (r.prime > 0 ? r.t + ' s' : 'raté'));
           if ((r.prime > 0) !== attendu || r.hp < 0.5) o.ko.push(JSON.stringify(r) + ' (attendu ' + (attendu ? 'réussi' : 'raté') + ')'); }
         { const r = course('stunt', 'motocross', { immobile: true }); if (r.prime > 0) o.ko.push('stunt réussi sans rien faire'); }
@@ -8318,7 +8318,7 @@ async function main() {
       });
       if (zx.off) saute('Zone extrême : DECOR_V2 désactivé');
       else if (zx.ko.length) fail('Zone extrême : ' + zx.ko.join(' | '));
-      else ok('Zone extrême : ' + zx.info.join(' ; ') + ' ; BMX calé dans la montée sèche, stunt raté sans rien faire, saut sans voile mortel, une prime par vague, monte-charge jamais pris par en dessous');
+      else ok('Zone extrême : ' + zx.info.join(' ; ') + ' ; montée sèche : moto de route, buggy et BMX calent ; supercross raté en BMX ou sans rien faire, saut sans voile mortel, une prime par vague, monte-charge jamais pris par en dessous');
     }
 
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');

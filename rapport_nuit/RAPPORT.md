@@ -847,3 +847,22 @@ Rendu seul :
    - faire SAUT BASE et ouvrir la voile ;
    - viser la cible.
 6. Fluidité près du Pic (grande paroi).
+
+### Retours de playtest (même soir)
+
+- **Montée sèche trop facile.** Signalé : « avec une moto de ville, j'ai tout monté d'un seul coup ». Ce qui change :
+  - départ arrêté au pied du couloir (avant, 34 u d'élan suffisaient) ;
+  - le couloir finit en mur (pente jusqu'à 2) ;
+  - vraie gravité dans la pente ;
+  - terre meuble : tout le monde patine, les pneus de route deux fois plus.
+
+  Résultat : la moto cross passe de justesse, comme le quad et le 4x4. Les motos de route, le buggy et le BMX calent. Un message conseille un véhicule tout-terrain si on part avec des pneus de route.
+- **Piste stunt en terre, façon supercross.** Une boucle complète en terre battue remplace les 4 tables posées sur l'herbe :
+  - les 4 grosses tables ;
+  - deux virages relevés avec blocs de corde rouges et blancs ;
+  - des whoops, un double, un step-up et des rollers ;
+  - une arche de départ et des pylônes d'éclairage.
+
+  Le défi devient le « DÉFI SUPERCROSS » : 2 600 points en 45 s. Un pilote simulé en marque 3 100 en moto cross, en quad et en buggy, mais pas assez en 4x4 ou en BMX. Captures : `supercross.png`, `supercross_virage.png`, `supercross_dessus.png`.
+- **Bateau qui fonce vers la plage.** Il glisse sur le sable en freinant progressivement (7 à 24 u selon le bateau), sans dégâts. Le joueur descend sur la plage. En rembarquant, on repart au pas vers l'eau, jamais à travers la plage. Capture : `bateau_echoue.png`.
+- **Police et IA à l'eau.** Elles s'y noient aussi.
