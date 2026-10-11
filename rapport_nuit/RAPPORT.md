@@ -908,3 +908,55 @@ Captures : `mer_ile_tresor.png`, `mer_mer_large.png`, `mer_jeu_wake.png`, `mer_j
 5. Parachute ascensionnel : lâcher la corde au-dessus du radeau.
 6. Île aux trésors, plongée, paillote, rallye des bouées.
 7. Nager vers les bouées jaunes à l'est : les requins.
+
+---
+
+## 7e lot — retours de playtest (12 octobre)
+
+| Retour | Ce qui a été fait | Commit |
+|---|---|---|
+| Buggys « tout dorés, pas finis » | C'étaient les deux buggys des secouristes de la plage : tout le modèle (cage, sièges, pneus) était repeint en jaune uni. Seule la carrosserie est jaune maintenant, avec une rampe orange et un fanion à croix rouge. | `0f37354` |
+| Deux cargos qu'on traverse | Anciens décors en boîtes sans collision : retirés. Un second vrai porte-conteneurs, solide et pilotable, les remplace. | `0f37354` |
+| Ennemis en pleine montagne ou dans l'eau | Ils apparaissent maintenant sur la terre ferme (jamais l'eau, le mont, une mesa ou le Pic), hors de l'écran, en ville comme dans le désert. En mer, la police vient en vedette. Les voitures de police s'arrêtent au bord de l'eau. | `0f37354` |
+| « L'armée débarque » mais personne | La garnison des bases (14 soldats) remplissait le plafond de renforts : à 6★, plus rien ne partait. Corrigé : soldats et camions militaires arrivent vraiment. | `0f37354` |
+| Boss introuvables | Colonne de lumière rouge au-dessus du boss, couronne, nom avec direction et distance dans la barre (« KAA → 40 m »), présentation à l'écran. | `0f37354` |
+| Avion de voltige | Remis au vrai aéroport, au seuil sud de la grande piste, face au nord. | `0f37354` |
+| Montagne trop simple, même en vélo et en jeep | Vraie gravité en pente, adhérence réduite sur les flancs, vélos bloqués hors sentier. Le 4x4 grimpe au pas en vitesse réduite : seul véhicule à monter le flanc, en 9 s au lieu de 3,7. La caisse suit la pente. | `9f2147a` |
+| Sauts du désert toujours pareils | Ligne des mesas variée : crête étroite, long gap, mesa large, longue crête qu'on suit, très long gap final. | `9f2147a` |
+| Traces dans le sable, glisse | Traces de pneus qui s'estompent sur la plage et dans le désert. Les véhicules non tout-terrain y glissent nettement plus. | `9f2147a` |
+| Wakeboard | Sillage en V visible. Boutons OLLIE, BACKFLIP et 360. Une figure pas finie à la réception, c'est la chute. Planche aux bouts arrondis avec fixations. Objectif 9 000 : impossible sans figures. | `0ee3f92` |
+| Crawl | SPRINT à la nage : crawl, 1,7 fois plus vite, l'endurance fond vite. | `0ee3f92` |
+| Vagues | Au large, un petit bateau lancé rebondit de crête en crête. | `0ee3f92` |
+| Île aux trésors | Plus grande, contour irrégulier, montagne de 16 u, jungle. Six endroits où creuser : un seul cache le trésor (il change à chaque vague), les autres donnent de l'or, une bouteille ou un indice de direction. Sangliers et jaguar : ils chargent et mordent, on les tue au tir ou au corps à corps, ils reviennent à chaque vague. | `0ee3f92` |
+| Wingsuit | Portant au sommet du Pic. On la garde jusqu'au game over. En chute libre, bouton WINGSUIT : plané rapide, puis VOILE pour se poser (298 u de vol depuis le Pic). | `e18ff77` |
+| Mini-jeux taxi, ambulance, pompiers | Refaits, payés, avec des paliers à débloquer. Détail ci-dessous. | `e18ff77` |
+
+### Métiers
+
+- **Taxi.**
+  - Le client fait signe sur le trottoir ; il a un caractère : pressé, fragile, fêtard, ou VIP à partir du palier 6.
+  - Destination nommée, chrono et satisfaction, d'où le pourboire.
+  - Paliers : 3 = tarif majoré, 6 = clients VIP, 10 = tenue et appel de taxi.
+- **Ambulance.**
+  - Un blessé à terre, entouré de témoins. Défibrillateur : appuyer sur CHOC au maximum du pouls, trois fois.
+  - Ensuite, foncer à la clinique avant que le pouls tombe ; les chocs du véhicule le font baisser.
+  - Paliers : 3 = soins ×1,5, 6 = +20 PV max, 10 = tenue.
+- **Pompiers.**
+  - Plusieurs foyers qui s'étendent si on traîne, des habitants coincés à sauver, un chrono.
+  - Paliers : 3 = lance renforcée, 6 = prime doublée, 10 = tenue.
+- Chaque mission paie, avec un bonus de série. Pour éviter le farming, la paie est pleine pour 3 missions par métier et par vague, puis 20 %.
+
+Captures : `buggy_secours.png`, `mesas_variees.png`, `traces_sable.png`, `jeep_flanc.png`, `ile_tresor_v2.png`, `ile_jaguar.png`, `wakeboard_sillage.png`, `metier_taxi.png`, `metier_ambulance.png`, `metier_pompier.png`, `wingsuit_vol.png`.
+
+### Non fait
+
+- **Montagne plus haute** : la difficulté est venue de la physique, la montagne garde sa hauteur. À revoir après ton test.
+
+### À tester sur iPhone
+
+1. Le 4x4 dans le flanc du mont ; un vélo et une moto hors sentier (ils doivent bloquer).
+2. Wakeboard : OLLIE, BACKFLIP, 360, et la chute si on rate.
+3. Île aux trésors : creuser les six trous, puis affronter le jaguar.
+4. Wingsuit depuis le Pic, puis VOILE.
+5. Une course de taxi, une ambulance (CHOC au bon moment), un incendie.
+6. 6 étoiles hors de la ville : l'armée doit arriver.
