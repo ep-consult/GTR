@@ -5110,8 +5110,8 @@ async function main() {
     console.log('\n--- Monster Truck : roues énormes, châssis surélevé (jamais collé aux roues), suspension molle en conduite ---');
     const gabarit = await page.evaluate(() => {
       startRun();
-      const mt = creerVehicule('monstertruck', 500, 500, 0, null);
-      const citadine = creerVehicule('citadine', 520, 500, 0, null);
+      const mt = creerVehicule('monstertruck', LIMITE_EST - 6, MER - 140, 0, null);     // sur la terre ferme : en mer, un véhicule terrestre se noie
+      const citadine = creerVehicule('citadine', LIMITE_EST - 16, MER - 140, 0, null);
       const roueMT = mt.mesh.userData.roues[0], roueC = citadine.mesh.userData.roues[0];
       const corps = mt.mesh.userData.corps;
       const bodyBox = (v) => v.mesh.userData.corps.children
@@ -7620,7 +7620,7 @@ async function main() {
     // Lac du parc (DECOR_V2) : de la vraie eau (on y nage), sauf sur la
     // passerelle praticable ; une voiture s'arrête au bord.
     // -------------------------------------------------------------------
-    console.log('\n--- Lac du parc : nage, passerelle, voiture arrêtée au bord ---');
+    console.log('\n--- Lac du parc : nage, passerelle, l\'IA s\'arrête au bord, le joueur y noie sa voiture ---');
     {
       const lac = await page.evaluate(async () => {
         if (typeof LAC === 'undefined' || !LAC) return { off: true };
@@ -7631,10 +7631,14 @@ async function main() {
         o.hPasserelle = solY(LAC.x, LAC.z);
         startRun(); ETAT.timeScale = 1; P.hp = P.hpMax = 1e6;
         P.x = LAC.x + 4; P.z = LAC.z + 5; P.y = 0; await dors(400); o.nage = P.nage;
-        // voiture lancée vers le lac depuis le sud
-        const v = creerVehicule('citadine', LAC.x + 4, LAC.z + LAC.r + 6, Math.PI, null);
+        // voiture de l'IA lancée vers le lac depuis le sud : elle s'arrête au bord
+        const v = creerVehicule('citadine', LAC.x + 4, LAC.z + LAC.r + 6, Math.PI, null); v.conduit = 'trafic';
         for (let i = 0; i < 120; i++) majVehiculePhys(v, 1 / 30, 1, 0, false);
-        o.voitureDansEau = estEau(v.x, v.z); o.voitureZ = +(v.z - LAC.z).toFixed(1); v.mort = true;
+        o.voitureDansEau = estEau(v.x, v.z) || !!v.noye; o.voitureZ = +(v.z - LAC.z).toFixed(1); v.mort = true;
+        // au volant du joueur : elle y entre et s'y noie, sans dégâts, le joueur sort
+        const vj = creerVehicule('citadine', LAC.x + 4, LAC.z + LAC.r + 6, Math.PI, null); P.x = vj.x; P.z = vj.z; entrerVehicule(vj); const hp0 = vj.hp;
+        for (let i = 0; i < 120 && P.veh === vj; i++) { majVehiculePhys(vj, 1 / 30, 1, 0, false); majVehicules(1 / 30); }
+        o.joueurNoye = !!vj.noye && vj.hp === hp0 && P.veh !== vj;
         startRun();
         return o;
       });
@@ -7644,9 +7648,10 @@ async function main() {
         if (!lac.eauDedans || lac.horsLac) ko.push('estEau ne reconnaît pas le lac (' + JSON.stringify(lac) + ')');
         if (lac.eauPasserelle || !(lac.hPasserelle > 0.5)) ko.push('passerelle non praticable (' + JSON.stringify(lac) + ')');
         if (!lac.nage) ko.push('on ne nage pas dans le lac');
-        if (lac.voitureDansEau) ko.push('une voiture entre dans le lac');
+        if (lac.voitureDansEau) ko.push('une voiture de l\'IA entre dans le lac');
+        if (!lac.joueurNoye) ko.push('la voiture du joueur ne se noie pas dans le lac (ou s\'abîme)');
         if (ko.length) fail('Lac du parc : ' + ko.join(' | '));
-        else ok('Lac du parc : on y nage, la passerelle est praticable (h ' + lac.hPasserelle.toFixed(2) + '), une voiture s\'arrête au bord');
+        else ok('Lac du parc : on y nage, la passerelle est praticable (h ' + lac.hPasserelle.toFixed(2) + '), l\'IA s\'arrête au bord, la voiture du joueur s\'y noie sans dégâts');
       }
     }
 
@@ -8177,6 +8182,103 @@ async function main() {
         if (ko.length) fail('Pentes : ' + ko.join(' | '));
         else ok('Pentes : paroi de mesa infranchissable à pied (' + pt.piedParoi.d + ' u en 4 s) et en moto (sans casse) ; pente du mont : ' + pt.piedMont.d + ' u à pied contre ' + pt.piedPlat.d + ' à plat, moto ' + pt.vehMont.d + ' u en 5 s (+' + pt.vehMont.dy + ' u d\'altitude) au lieu de ' + pt.vehMont.vmax5);
       }
+    }
+
+    // -------------------------------------------------------------------
+    // Véhicule terrestre à l'eau (demandé : « rentrer dans l'eau sans exploser,
+    // mais plus utilisable, et le joueur sort ») : noyé, aucun dégât, le joueur
+    // en sort à la nage, le véhicule coule puis disparaît ; l'IA s'arrête au bord.
+    // -------------------------------------------------------------------
+    console.log('\n--- Véhicules à l\'eau : noyés sans exploser, le joueur sort ---');
+    {
+      const ea = await page.evaluate(() => {
+        const o = { ko: [] };
+        const scene0 = () => { startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6; for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0; };
+        // une plage dégagée, loin des pontons et des îles (sinon on sort SUR le ponton, voulu), lue dans la ville
+        let X = null; for (let x = -HALF + 20; x < HALF - 20 && X === null; x += 7) { let libre = estEau(x, MER + 4) && !estEau(x, MER - 16);
+          for (let z = MER - 18; z <= MER + 6 && libre; z += 1) if (solidAt(x, z, 2.2)) libre = false;
+          for (const p of PONTONS) if (Math.abs(x - p.x) < p.hw + 14 && Math.abs(MER - p.z) < p.hd + 30) libre = false;
+          for (const il of ILES) if (dist2(x, MER, il.x, il.z) < (il.r + 30) ** 2) libre = false;
+          if (libre) X = x; }
+        if (X === null) return { ko: ['aucune plage dégagée trouvée'] };
+        for (const [cle, saut] of [['berline', false], ['moto', false], ['motocross', true], ['char', false]]) {
+          scene0(); const v = creerVehicule(cle, X, MER - (saut ? -3 : 15), 0, null); v.h = solY(v.x, v.z); P.x = v.x; P.z = v.z; entrerVehicule(v);
+          if (saut) { v.enAir = true; v.vy = 2; v.h = 6; v.v = 20; }
+          const hp0 = v.hp; let t = 0, sorti = -1; INPUT.mx = 0; INPUT.mz = 1;
+          while (t < 18) { if (P.veh === v) { const c = controleDir(v, false); majVehiculePhys(v, 1 / 30, c.throttle, c.steer, false); } majVehicules(1 / 30); if (sorti < 0 && P.veh !== v) sorti = t; t += 1 / 30; }
+          INPUT.mx = INPUT.mz = 0;
+          if (!v.noye || v.hp < hp0 || v.explose || sorti < 0 || P.veh || !estEau(P.x, P.z) || vehicules.includes(v)) o.ko.push(cle + (saut ? ' (saut)' : '') + ' : ' + JSON.stringify({ noye: !!v.noye, hp: v.hp, hp0, sorti, auVolant: !!P.veh, aLEau: estEau(P.x, P.z), resteEnListe: vehicules.includes(v) }));
+        }
+        // l'IA (police) s'arrête toujours au bord
+        scene0(); { const v = creerVehicule('berline', X, MER - 12, 0, null); v.h = 0; v.conduit = 'police'; for (let i = 0; i < 120; i++) majVehiculePhys(v, 1 / 30, 1, 0, false); if (v.noye || estEau(v.x, v.z)) o.ko.push('IA entrée dans l\'eau'); }
+        startRun(); return o;
+      });
+      if (ea.ko.length) fail('Véhicules à l\'eau : ' + ea.ko.join(' | '));
+      else ok('Véhicules à l\'eau : berline, moto, char et saut en moto cross noyés sans aucun dégât, le joueur en sort à la nage, le véhicule coule puis disparaît ; l\'IA s\'arrête au bord');
+    }
+
+    // -------------------------------------------------------------------
+    // Zone extrême (DECOR_V2) : 4x4 de franchissement au pied du mont, MONTÉE
+    // SÈCHE, DÉFI STUNT, PIC DU VERTIGE (monte-charge, saut BASE). Tout est lu
+    // dans la source (MONT.couloir, STUNT, PIC, RIDE_DEFS), jamais recopié.
+    // -------------------------------------------------------------------
+    console.log('\n--- Zone extrême : 4x4, montée sèche, défi stunt, saut BASE du Pic du Vertige ---');
+    {
+      const zx = await page.evaluate(() => {
+        if (typeof PIC === 'undefined' || !PIC.ok || !STUNT.ok || !MONT.couloir) return { off: true };
+        const o = { ko: [], info: [] };
+        const scene0 = () => { startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6; for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0; };
+        startRun(); const pm = MONT.pied, jeeps = vehicules.filter((v) => v.key === 'jeep' && dist2(v.x, v.z, pm.x, pm.z) < 900).length; if (jeeps < 2) o.ko.push('4x4 garés au pied du mont : ' + jeeps);
+        // franchissement : plein gaz dans le flanc du mont, le 4x4 monte plus haut que le buggy
+        const flanc = (cle) => { scene0(); const s = MONT.sommet, v = creerVehicule(cle, s.x - 68, s.z, Math.PI / 2, null); v.h = solY(v.x, v.z); for (let i = 0; i < 150; i++) majVehiculePhys(v, 1 / 30, 1, 0, false); return v.h || 0; };
+        const hJ = flanc('jeep'), hB = flanc('buggy'); if (!(hJ > hB + 3)) o.ko.push('franchissement : 4x4 ' + hJ.toFixed(1) + ' u contre buggy ' + hB.toFixed(1));
+        o.info.push('flanc du mont en 5 s : 4x4 +' + hJ.toFixed(0) + ' u, buggy +' + hB.toFixed(0) + ' u');
+        // courses : vise la porte (montée sèche) / va-et-vient en dosant la vitesse (stunt)
+        const course = (id, cle, opts = {}) => { scene0(); const d = rideDepart(id), v = creerVehicule(cle, d.x, d.z, id === 'stunt' ? 0 : Math.PI, null); v.h = solY(d.x, d.z); P.x = v.x; P.z = v.z; entrerVehicule(v);
+          const a0 = META.argent; demarrerRide(id); let t = 0, sens = 1;
+          while (RIDES.actif && t < 60) { const r = RIDES.actif; let tx, tz;
+            if (opts.immobile) { INPUT.mx = INPUT.mz = 0; }
+            else { if (id === 'stunt') { const zf = sens > 0 ? STUNT.tables[3] + 40 : STUNT.tables[0] - 25; if ((sens > 0 && v.z > zf - 3) || (sens < 0 && v.z < zf + 3)) sens = -sens; tx = STUNT.x; tz = sens > 0 ? zf + 5 : zf - 5; }
+              else { const p = r.portes[r.i]; tx = p.x; tz = p.z; }
+              const dx = tx - v.x, dz = tz - v.z, l = Math.hypot(dx, dz) || 1; INPUT.mx = dx / l; INPUT.mz = dz / l; }
+            const c = controleDir(v, false), thr = id === 'stunt' && Math.abs(v.v) > 27 ? 0 : c.throttle;
+            majVehiculePhys(v, 1 / 30, thr, c.steer, false); P.x = v.x; P.z = v.z; majRides(1 / 30); t += 1 / 30; }
+          INPUT.mx = INPUT.mz = 0;
+          return { id, cle, prime: META.argent - a0, t: +t.toFixed(1), hp: +(v.hp / v.def.hp).toFixed(2) }; };
+        for (const [id, cle, attendu] of [['colline', 'motocross', true], ['colline', 'jeep', true], ['colline', 'buggy', true], ['colline', 'bmx', false], ['stunt', 'motocross', true], ['stunt', 'jeep', true]]) {
+          const r = course(id, cle); o.info.push(id + ' en ' + cle + ' : ' + (r.prime > 0 ? r.t + ' s' : 'raté'));
+          if ((r.prime > 0) !== attendu || r.hp < 0.5) o.ko.push(JSON.stringify(r) + ' (attendu ' + (attendu ? 'réussi' : 'raté') + ')'); }
+        { const r = course('stunt', 'motocross', { immobile: true }); if (r.prime > 0) o.ko.push('stunt réussi sans rien faire'); }
+        // Pic : monte-charge, saut BASE sous voile (prime une fois par vague), sans voile (mortel)
+        scene0(); const c = PIC.cage, pl = PIC.plg;
+        // cabine en haut : un joueur au sol ne doit jamais être téléporté dessus en marchant dessous
+        c.y = c.cible = c.yHaut; c.mesh.position.y = c.y; P.x = c.x; P.z = c.z + c.hd + 2; P.y = solPied(P.x, P.z); INPUT.mx = 0; INPUT.mz = -1; for (let i = 0; i < 60; i++) { majJoueur(1 / 30, 1 / 30); majPic(1 / 30); } INPUT.mz = 0;
+        if (P.y > 5) o.ko.push('joueur au sol hissé sur la cabine restée en haut (y ' + P.y.toFixed(1) + ')');
+        const act0 = actionPic(); if (!act0 || !/APPELER/.test(act0.label)) o.ko.push('appel du monte-charge absent : ' + (act0 && act0.label)); else { act0.fn(); for (let i = 0; i < 400 && c.y !== c.cible; i++) majPic(1 / 30); }
+        P.x = c.x; P.z = c.z + c.hd - 0.6; P.y = solPied(P.x, P.z);
+        const act = actionPic(); if (!act || !/MONTER/.test(act.label)) o.ko.push('bouton MONTER absent en bas : ' + (act && act.label));
+        else { act.fn(); for (let i = 0; i < 450; i++) { majJoueur(1 / 30, 1 / 30); majPic(1 / 30); }
+          if (!(P.y > PIC.H - 3) || P.chute) o.ko.push('arrivée en haut : y ' + P.y.toFixed(1) + ' chute ' + P.chute);
+          INPUT.mz = -1; for (let i = 0; i < 30; i++) { majJoueur(1 / 30, 1 / 30); majPic(1 / 30); } INPUT.mz = 0;
+          if (!(P.y > PIC.H - 3) || P.chute || dansCagePic(P.x, P.z)) o.ko.push('sortie sur le plateau : ' + P.x.toFixed(1) + ',' + P.z.toFixed(1) + ' y ' + P.y.toFixed(1)); }
+        const saut = (para) => { const m0 = META.argent; P.x = pl.x; P.z = pl.z0 - 1; P.y = solPied(P.x, P.z); P.chute = false; P.hp = P.maxHp = 300; ETAT.mode = 'jeu';
+          const a = actionPic(); if (!a || !/SAUT BASE/.test(a.label)) return { erreur: 'bouton SAUT BASE absent : ' + (a && a.label) };
+          a.fn(); let t = 0, ouvert = false;
+          while (t < 60 && (P.chute || t < 0.1)) { if (para && !ouvert && t > 1.5) { ouvrirParachute(); ouvert = true; }
+            if (P.para) { const dx = PIC.cible.x - P.x, dz = PIC.cible.z - P.z, l = Math.hypot(dx, dz); INPUT.mx = l > 0.5 ? dx / l : 0; INPUT.mz = l > 0.5 ? dz / l : 0; }
+            majJoueur(1 / 30, 1 / 30); majPic(1 / 30); P.iframes = 0; t += 1 / 30; }
+          INPUT.mx = INPUT.mz = 0;
+          return { t: +t.toFixed(1), d: +Math.hypot(P.x - PIC.cible.x, P.z - PIC.cible.z).toFixed(1), mort: ETAT.mode === 'mort', prime: META.argent - m0 }; };
+        const s1 = saut(true), s2 = saut(true), s3 = saut(false);
+        if (s1.erreur || s1.mort || !(s1.d < 3) || s1.prime <= 0) o.ko.push('saut sous voile : ' + JSON.stringify(s1));
+        if (s2.mort || s2.prime !== 0) o.ko.push('second saut, même vague : ' + JSON.stringify(s2));
+        if (!s3.mort) o.ko.push('saut sans voile non mortel : ' + JSON.stringify(s3));
+        o.info.push('saut BASE : ' + s1.t + ' s sous voile, posé à ' + s1.d + ' m de la cible, +' + s1.prime + ' $');
+        ETAT.mode = 'jeu'; startRun(); return o;
+      });
+      if (zx.off) saute('Zone extrême : DECOR_V2 désactivé');
+      else if (zx.ko.length) fail('Zone extrême : ' + zx.ko.join(' | '));
+      else ok('Zone extrême : ' + zx.info.join(' ; ') + ' ; BMX calé dans la montée sèche, stunt raté sans rien faire, saut sans voile mortel, une prime par vague, monte-charge jamais pris par en dessous');
     }
 
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');

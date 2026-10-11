@@ -2375,6 +2375,7 @@ const VEHDEFS={
   // n'importe quel autre véhicule au contact, sans exception.
   busville:{nom:'Bus de ville',tuningMeca:true,vmax:16,acc:6,man:0.9,hp:480,long:10.5,larg:2.5,type:'car',cols:[0xe8ecf2],bus:true},
   pompiers:{nom:'Camion de pompiers',tuningMeca:true,vmax:20,acc:8,man:1.5,hp:480,long:7.5,larg:2.4,type:'car',cols:[0xd0342e],pompier:true},
+  jeep:{nom:'4x4 "Coyote"',tuningMeca:true,vmax:27,acc:18,man:3.0,hp:160,long:3.8,larg:1.9,type:'car',jeep:true,franchissement:true,franchit:0.9,cols:[0x5a6a3a,0xc8a060,0xb83a2a,0xe8e4d8]}, // 4x4 de franchissement : la pente le freine deux fois moins, gravit des pentes bien plus raides
   monstertruck:{nom:'Monster Truck',tuningMeca:true,tuningCarro:{famille:'toutterrain',ancrages:{avant:{x:0,y:3.19,z:2.53},arriere:{x:0,y:2.98,z:-2.52},toit:{x:0,y:3.84,z:0.78},basCaisse:{x:1.35,y:2.55,z:0}}},vmax:29,acc:8,man:2.2,hp:650,long:5.2,larg:2.7,type:'car',cols:[0xff3b1a],ecrase:true,franchit:1.5},
   // Dépôt de bus : loués au stand, jamais au concessionnaire (absents de
   // CATALOGUE — suffisant, pas besoin de cache:true qui déclencherait une
@@ -3610,7 +3611,7 @@ function construireVille(){
     if(qq!=='plage'&&qq!=='parc'&&bx%3===1&&bz%3===1) mkFeu(cx+INNER/2+1.4,cz-INNER/2-1.4);
   }
   placerPortes();
-  if(DECOR_V2){ sansAleaVille(()=>{ ameliorerPortes(); mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkCiel(); mkKiosqueBanderole(); mkCrique(); mkMontReyes(); mkBordureEst(); mkCanyonsDesert(); mkRides(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkNeonVivant(); mkQuartiersFinitions(); }); } // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
+  if(DECOR_V2){ sansAleaVille(()=>{ ameliorerPortes(); mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkCiel(); mkKiosqueBanderole(); mkCrique(); mkMontReyes(); mkBordureEst(); mkCanyonsDesert(); mkPicVertige(); mkParcStunt(); mkRides(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkNeonVivant(); mkQuartiersFinitions(); }); } // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
   finaliserMerge();
   construireMinimapStatique();
 }
@@ -5191,6 +5192,12 @@ function hauteurMont(x,z){
     const u=clamp(((x-ax)*dx+(z-az)*dz)/L2,0,1), px=ax+dx*u, pz=az+dz*u, d=Math.sqrt(dist2(x,z,px,pz));
     if(d<5){ const ht=Hs[s]+(Hs[s+1]-Hs[s])*u, w=lisse((5-d)/2); h=h+(ht-h)*w; }
   }
+  const C=MONT.couloir; // MONTÉE SÈCHE : rampe rectiligne de plus en plus raide (0,45 → 1,2), palier au sommet
+  if(C&&Math.abs(x-C.x)<6.5&&z<C.z0+3&&z>C.z1-12){
+    const u=(C.z0-z)/(C.z0-C.z1), uu=clamp(u,0,1), ht=C.H*(0.55*uu+0.45*uu*uu), w=lisse((6.5-Math.abs(x-C.x))/3)*(u<0?lisse((u*(C.z0-C.z1)+3)/3):1);
+    h=h+(ht-h)*w;
+    const dp=Math.sqrt(dist2(x,z,C.x,C.z1-4)); if(dp<9) h=h+(C.H-h)*lisse((9-dp)/3);
+  }
   if(Hs) for(let s=1;s<S.length-1;s++){ const d=Math.sqrt(dist2(x,z,S[s][0],S[s][1])); if(d<8){ h=h+(Hs[s]-h)*lisse((8-d)/3); } } // palier d'épingle (plat sur 5 u) : on y fait demi-tour même lentement
   for(const k of MONT.kickers){ // tremplins du sentier : rampe de 5 u qui monte de 2,8 u puis lèvre franche
     const ax=x-k.x, az=z-k.z, along=ax*k.tx+az*k.tz, lat=-ax*k.tz+az*k.tx;
@@ -5210,6 +5217,8 @@ function mkMontReyes(){
   for(let k=0;k<=N;k++){ const t=Math.pow(k/N,0.85), cx=lerp(pied.x,best.x,t), cz=lerp(pied.z,best.z,t), amp=(1-t)*24+6, cote=(k%2?1:-1); // lacets jusqu'en haut
     const nxv=-(best.z-pied.z), nzv=best.x-pied.x, ln=Math.hypot(nxv,nzv); pts.push([cx+cote*amp*nxv/ln*(k&&k<N?1:0),cz+cote*amp*nzv/ln*(k&&k<N?1:0)]); }
   MONT.sentier=pts; MONT.hSentier=pts.map(([x,z])=>hauteurMontBase(x,z));
+  MONT.couloir={x:556,z0:-160,z1:-228,H:hauteurMontBase(556,-228)}; // MONTÉE SÈCHE : face sud, à l'est du sentier (ne le croise jamais)
+  MONT.surCouloir=(x,z,r)=>Math.abs(x-MONT.couloir.x)<r&&z<MONT.couloir.z0+r&&z>MONT.couloir.z1-12-r;
   // tremplins sur un lacet sur deux, au milieu du segment, dans le sens de la montée (posés AVANT le maillage du sentier)
   for(let s=1;s<pts.length-2;s+=2){ const [ax,az]=pts[s], [bx,bz]=pts[s+1], L=Math.hypot(bx-ax,bz-az);
     MONT.kickers.push({x:(ax+bx)/2-(bx-ax)/L*2.5,z:(az+bz)/2-(bz-az)/L*2.5,tx:(bx-ax)/L,tz:(bz-az)/L}); }
@@ -5224,6 +5233,7 @@ function mkMontReyes(){
     const alt=h/MONT.H, bruit=0.9+0.16*Math.sin(x*0.9)*Math.cos(z*0.7);
     c3.copy(herbeB).lerp(herbeH,clamp(alt*1.6,0,1)).lerp(terre,clamp(Math.sin(x*0.17+z*0.21)*0.4,0,0.35));
     c3.lerp(roche,clamp((pente-0.7)/0.6,0,1)).lerp(roche,clamp((alt-0.62)/0.15,0,0.8)).lerp(neige,clamp((alt-0.8)/0.08,0,1)).multiplyScalar(bruit);
+    if(MONT.surCouloir(x,z,3.4)) c3.lerp(terre,0.8); // montée sèche : piste de terre battue
     pos.push(x,h+0.03,z); col.push(c3.r,c3.g,c3.b);
   }
   const id=(i,j)=>i*(nz+1)+j;
@@ -5246,12 +5256,14 @@ function mkMontReyes(){
   for(const k of MONT.kickers){ const y0=hauteurMont(k.x-k.tx*0.01,k.z-k.tz*0.01), y1=hauteurMont(k.x+k.tx*4.99,k.z+k.tz*4.99);
     const p=new THREE.Mesh(new THREE.BoxGeometry(3.4,0.2,Math.hypot(5,y1-y0)),bois); p.position.set(k.x+k.tx*2.5,(y0+y1)/2+0.1,k.z+k.tz*2.5);
     p.rotation.order='YXZ'; p.rotation.y=Math.atan2(k.tx,k.tz); p.rotation.x=-Math.atan2(y1-y0,5); scene.add(p); }
+  { const C=MONT.couloir; for(let z=C.z0;z>C.z1;z-=4) for(const sg of [-1,1]){ const X=C.x+sg*3.6; pieces.push(['box',0.16,0.9,0.16,X,hauteurMont(X,z)+0.45,z,(z/4)%2?0xd83a3a:0xf2f4f8]); } // jalons rouges et blancs de la montée sèche
+    const yH=C.H; pieces.push(['box',0.3,5,0.3,C.x-4.2,yH+2.5,C.z1-1,0x2a2d34],['box',0.3,5,0.3,C.x+4.2,yH+2.5,C.z1-1,0x2a2d34],['box',8.7,0.9,0.2,C.x,yH+4.6,C.z1-1,0xffd23f]); } // arche d'arrivée
   const presDuSentier=(x,z,r)=>{ for(let s=0;s<pts.length-1;s++){ const [ax,az]=pts[s],[bx,bz]=pts[s+1], t=clamp(((x-ax)*(bx-ax)+(z-az)*(bz-az))/((bx-ax)**2+(bz-az)**2),0,1); if(dist2(x,z,ax+(bx-ax)*t,az+(bz-az)*t)<r*r) return true; } return false; };
   MONT.presDuSentier=presDuSentier;
   // forêt de conifères sur les pentes (jamais sur le sentier ni dans la neige), rochers sur les à-pics
   for(let i=0;i<900;i++){
     const x=aD(MONT.x-MONT.rx,MONT.x+MONT.rx), z=aD(MONT.z-MONT.rz,MONT.z+MONT.rz), h=hauteurMont(x,z), alt=h/MONT.H;
-    if(h<0.5||alt>0.74||presDuSentier(x,z,3.5)||pts.some(([px,pz])=>dist2(x,z,px,pz)<64)||x>LIMITE_EST+30) continue; // ni sur le sentier ni sur un palier
+    if(h<0.5||alt>0.74||presDuSentier(x,z,3.5)||MONT.surCouloir(x,z,8)||pts.some(([px,pz])=>dist2(x,z,px,pz)<64)||x>LIMITE_EST+30) continue; // ni sur le sentier ni sur un palier
     const pente=Math.abs(hauteurMont(x+1,z)-hauteurMont(x-1,z))/2+Math.abs(hauteurMont(x,z+1)-hauteurMont(x,z-1))/2;
     if(pente>1.3){ if(aleaDecor()<0.5) pieces.push(['boule',aD(0.8,2),aD(0.6,1.4),aD(0.8,2),x,h+0.3,z,choixD([0x7a766c,0x8a8478,0x6a665e])]); continue; }
     if(aleaDecor()<0.35-alt*0.25) continue;
@@ -5384,6 +5396,171 @@ function mkCanyonsDesert(){
   mkEnseigne('RAMPAGE — LIGNE DES MESAS','#ff8c1a',CANYON.acces.x0+2,4,CANYON.acces.z0-1.9,0,7);
   POIS.rampage={x:X,z:z0+L/2};
 }
+/* ---------- ZONE EXTRÊME (DECOR_V2) ----------
+   Demandé : « des 4x4 de franchissement et des motos cross en bas de la
+   montagne, un défi montée de colline, un stunt, et un point de base jump
+   hyper haut avec une falaise abrupte ».
+   - PIC DU VERTIGE (PIC) : butte de 90 u à parois verticales au sud des
+     canyons. Face sud tournée vers la caméra (on voit toute la chute). On y
+     monte par le MONTE-CHARGE de la face sud ; au bord, le plongeoir. Le
+     parachute du jeu s'ouvre à la demande en chute libre : c'est le saut
+     BASE. Cible d'atterrissage au pied (prime une fois par vague). Sans
+     voile, une chute de 90 u ne pardonne pas.
+   - MONTÉE SÈCHE : couloir rectiligne taillé dans la face sud du Mont Reyes
+     (MONT.couloir), de plus en plus raide (pente 0,45 → 1,2).
+   - PARC STUNT (STUNT) : tables de saut au pied ouest du mont ; défi : un
+     score de figures dans le temps. */
+const PIC={x:540,z:105,hw:40,hd:30,H:90,ok:false,plg:null,cage:null,cible:{x:566,z:192},saut:null,primeVague:-1};
+function picR(phi){ const c=Math.abs(Math.cos(phi)), s=Math.abs(Math.sin(phi)); return Math.pow(c*c*c*c+s*s*s*s,-0.25)*(1+0.035*Math.sin(7*phi)+0.02*Math.sin(13*phi+1)); } // contour : rectangle arrondi, bord irrégulier
+function picU(x,z){ const nx=(x-PIC.x)/PIC.hw, nz=(z-PIC.z)/PIC.hd, r=Math.sqrt(nx*nx+nz*nz); return r<1e-6?0:r/picR(Math.atan2(nz,nx)); }
+function hauteurPic(x,z){
+  const u=picU(x,z);
+  let h=u<1?PIC.H*Math.min(1,(1-u)/0.04)*(1-0.012*u*u):0; // paroi : 90 u sur ~1,2 u, falaise abrupte
+  const pl=PIC.plg; if(pl&&Math.abs(x-pl.x)<0.85&&z>pl.z0-1.5&&z<pl.z1&&pl.h>h) h=pl.h; // plongeoir (au-dessus du vide : la règle des pentes interdit d'y accéder par en dessous)
+  const c=PIC.cage; if(c&&Math.abs(x-c.x)<c.hw&&Math.abs(z-c.z)<c.hd&&c.y>h) h=c.y; // plancher du monte-charge
+  return h;
+}
+function zBordPic(x){ let z=PIC.z; while(z<PIC.z+PIC.hd*1.4&&picU(x,z)<0.96) z+=0.05; return z; } // crête de la face sud
+function dansCagePic(x,z,m){ const c=PIC.cage; return !!c&&Math.abs(x-c.x)<c.hw+(m||0)&&Math.abs(z-c.z)<c.hd+(m||0); }
+function mkPicVertige(){
+  RELIEFS.push({x0:PIC.x-PIC.hw*1.2,x1:PIC.x+PIC.hw*1.2,z0:PIC.z-PIC.hd*1.2,z1:PIC.z+PIC.hd*1.2,f:hauteurPic});
+  // plongeoir et monte-charge : posés sur la crête sud, calculée sur le contour réel
+  { const x=PIC.x+14, z0=zBordPic(x); PIC.plg={x,z0,z1:z0+3.4,h:hauteurPic(x,z0-0.3)+0.05}; }
+  { const x=PIC.x-14, zt=zBordPic(x); let zb=zt; while(picU(x,zb)<1) zb+=0.05; // la cabine va de la crête au sol dégagé au pied de la paroi
+    PIC.cage={x,z:(zt-0.1+zb+2.2)/2,hw:1.4,hd:(zb+2.3-zt)/2,y:0.12,cible:0.12,yBas:0.12,yHaut:hauteurPic(x,zt-0.4),avecJoueur:false}; }
+  const N=200, NV=30, NR=12, pos=[], col=[], idx=[], c3=new THREE.Color();
+  const strates=[0x9a4a2a,0xb8603a,0xc8794a,0xa85638,0xd89a68,0x8a3e22,0xc06a40,0xb05a34];
+  const pt=(phi,u)=>{ const R=picR(phi)*u; return [PIC.x+Math.cos(phi)*R*PIC.hw,PIC.z+Math.sin(phi)*R*PIC.hd]; };
+  // parois : NV niveaux du pied (u=1) à la crête (u=0,96), corniches et retraits par strates
+  for(let k=0;k<=N;k++){ const phi=k/N*Math.PI*2;
+    for(let j=0;j<=NV;j++){ const t=j/NV, y=PIC.H*t*(1-0.012*0.96*0.96), jit=(j>0&&j<NV&&k<N&&k>0)?0.006*Math.sin(j*1.9+k*0.37)+0.004*Math.sin(j*0.7-k*1.3):0;
+      const [x,z]=pt(phi,1-0.04*t+jit); pos.push(x,y,z);
+      const band=Math.floor(y/4.5+0.8*Math.sin(phi*5)); c3.setHex(strates[((band%8)+8)%8]).multiplyScalar(0.86+0.14*Math.sin(phi*31+y*0.9)); col.push(c3.r,c3.g,c3.b); } }
+  for(let k=0;k<N;k++) for(let j=0;j<NV;j++){ const a=k*(NV+1)+j, b=(k+1)*(NV+1)+j; idx.push(a,a+1,b,b,a+1,b+1); }
+  // plateau : anneaux polaires jusqu'à la crête (raccord exact avec le haut des parois)
+  const base=pos.length/3; pos.push(PIC.x,PIC.H,PIC.z); c3.setHex(0xc8a070); col.push(c3.r,c3.g,c3.b);
+  for(let i=1;i<=NR;i++){ const u=0.96*i/NR;
+    for(let k=0;k<=N;k++){ const phi=k/N*Math.PI*2, [x,z]=pt(phi,u), y=PIC.H*(1-0.012*u*u);
+      pos.push(x,y,z); c3.setHex(0xc8a070).lerp(new THREE.Color(0x8a8a50),clamp(0.5+0.5*Math.sin(x*0.21)*Math.cos(z*0.17),0,0.45)).multiplyScalar(0.92+0.08*Math.sin(x*1.3+z)); col.push(c3.r,c3.g,c3.b); } }
+  for(let k=0;k<N;k++) idx.push(base,base+1+k+1,base+1+k);
+  for(let i=1;i<NR;i++) for(let k=0;k<N;k++){ const a=base+1+(i-1)*(N+1)+k, b=base+1+i*(N+1)+k; idx.push(a,a+1,b,b,a+1,b+1); }
+  const g=new THREE.BufferGeometry(); g.setIndex(idx); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(col,3)); g.computeVertexNormals();
+  scene.add(new THREE.Mesh(g,new THREE.MeshLambertMaterial({vertexColors:true,side:THREE.DoubleSide})));
+  // éboulis au pied, buissons et rochers sur le plateau (décor, jamais solides)
+  const pieces=[];
+  for(let i=0;i<70;i++){ const phi=aD(0,Math.PI*2), [x,z]=pt(phi,aD(1.01,1.09)); pieces.push(['boule',aD(1,2.6),aD(0.7,1.8),aD(1,2.4),x,0.4,z,choixD([0x9a4a2a,0xb8603a,0x8a3e22])]); }
+  for(let i=0;i<40;i++){ const phi=aD(0,Math.PI*2), [x,z]=pt(phi,aD(0.1,0.85)); if(dist2(x,z,PIC.plg.x,PIC.plg.z0)<64||dist2(x,z,PIC.cage.x,PIC.cage.z)<64) continue;
+    pieces.push(aleaDecor()<0.5?['boule',aD(0.6,1.4),aD(0.5,1),aD(0.6,1.4),x,PIC.H-0.2,z,0x8a7a58]:['boule',aD(0.7,1.2),aD(0.5,0.8),aD(0.7,1.2),x,PIC.H,z,0x6a7a3a]); }
+  // plongeoir : planche, poutres de soutien, garde-corps latéraux, panneau
+  const pl=PIC.plg, bois=0x8a6a44;
+  mkBox(1.5,0.24,pl.z1-pl.z0+1.2,mat(bois),pl.x,pl.h-0.12,(pl.z0+pl.z1)/2-0.6);
+  for(const s of [-1,1]){ mkBox(0.12,1.1,pl.z1-pl.z0,mat(0xd83a3a),pl.x+s*0.8,pl.h+0.55,(pl.z0+pl.z1)/2-0.4); mkBox(0.2,2.2,0.2,mat(bois),pl.x+s*0.65,pl.h-1.2,pl.z0+0.6); }
+  const b=new THREE.Mesh(new THREE.BoxGeometry(0.2,0.2,3.2),mat(bois)); b.position.set(pl.x,pl.h-1.5,pl.z0+1); b.rotation.x=-0.6; scene.add(b);
+  mkEnseigne('SAUT BASE — 90 m','#ffd23f',pl.x-3.5,pl.h+3.2,pl.z0-1.5,0,7);
+  // manche à air et fanion au bord
+  mkBox(0.12,4,0.12,mat(0xd8dce4),pl.x+4,pl.h+2,pl.z0-1); PIC.manche=new THREE.Mesh(new THREE.ConeGeometry(0.42,2,10,1,true),new THREE.MeshLambertMaterial({color:0xff7a1a,side:THREE.DoubleSide}));
+  PIC.manche.rotation.z=Math.PI/2; PIC.manche.position.set(pl.x+5,pl.h+3.8,pl.z0-1); scene.add(PIC.manche);
+  // monte-charge : deux poutrelles à treillis, tête avec poulie, cabine grillagée à bandes jaunes et noires
+  const c=PIC.cage, acier=0x4a4e56, zT=c.z+c.hd+0.4, hT=PIC.H+6;
+  for(const s of [-1,1]) pieces.push(['box',0.36,hT,0.36,c.x+s*(c.hw+0.35),hT/2,zT,acier]);
+  const croix=new THREE.Group(); for(let y=0;y<hT-6;y+=6) barreG(croix,[c.x-(c.hw+0.35),y,zT],[c.x+(c.hw+0.35),y+6,zT],0.1,acier); // croisillons dans le plan de la tour
+  fusionnerFixes(croix.children.slice(),scene); // un seul appel de rendu
+  for(let y=6;y<hT;y+=6) pieces.push(['box',c.hw*2+0.9,0.2,0.2,c.x,y,zT,acier]);
+  mkBox(c.hw*2+1.4,0.5,c.hd*2+1.4,mat(0x2a2d34),c.x,hT+0.25,c.z);
+  const poulie=new THREE.Mesh(new THREE.CylinderGeometry(0.7,0.7,0.3,14),mat(0xd8b02a)); poulie.rotation.z=Math.PI/2; poulie.position.set(c.x,hT+0.9,c.z); scene.add(poulie);
+  const cab=new THREE.Group(), jaune=0xffd23f, pc=[]; // pièces de la cabine, fusionnées par matériau
+  pc.push(mkBoxG(c.hw*2,0.2,c.hd*2,0x3a3e46,0,-0.1,0));
+  for(const [sx,sz] of [[-1,-1],[1,-1],[-1,1],[1,1]]) pc.push(mkBoxG(0.12,2.6,0.12,jaune,sx*(c.hw-0.06),1.3,sz*(c.hd-0.06)));
+  pc.push(mkBoxG(c.hw*2,0.16,c.hd*2,0x2a2d34,0,2.65,0));
+  for(let k=0;k<6;k++) pc.push(mkBoxG(c.hw*2/6,0.14,0.08,k%2?0x14161c:jaune,-c.hw+c.hw*2/6*(k+0.5),0.6,c.hd-0.04)); // bandes de sécurité, face caméra
+  for(const s of [-1,1]) pc.push(mkBoxG(0.04,2.4,c.hd*2,0x9aa0a8,s*(c.hw-0.02),1.3,0)); // grillage latéral
+  fusionnerFixes(pc,cab);
+  cab.position.set(c.x,c.y,c.z); scene.add(cab); c.mesh=cab;
+  c.cable=mkBox(0.06,1,0.06,mat(0x14161c),c.x,0,c.z);
+  // en bas : guérite, barrière, panneau ; cible d'atterrissage
+  mkEnseigne('PIC DU VERTIGE — MONTE-CHARGE','#35e0ff',c.x-6,5.2,c.z+4,0,10);
+  mkBox(2.4,2.6,2,mat(0x5a6470),c.x-5.5,1.3,c.z+3.2); mkBox(2.6,0.2,2.2,mat(0x2a2d34),c.x-5.5,2.7,c.z+3.2);
+  const ci=PIC.cible, tc=cTex(256,(g2,s2)=>{ const cs=['#d83a3a','#f2f4f8','#d83a3a','#f2f4f8','#d83a3a','#ffd23f']; for(let i=0;i<6;i++){ g2.fillStyle=cs[i]; g2.beginPath(); g2.arc(s2/2,s2/2,s2/2*(1-i/6.4),0,7); g2.fill(); } });
+  const disque=new THREE.Mesh(new THREE.CircleGeometry(12,40),new THREE.MeshBasicMaterial({map:tc,transparent:true,depthWrite:false}));
+  disque.rotation.x=-Math.PI/2; disque.position.set(ci.x,0.06,ci.z); scene.add(disque);
+  scene.add(meshPieces(pieces));
+  PIC.ok=true;
+}
+function lancerCage(cible){
+  const c=PIC.cage; c.cible=cible;
+  c.avecJoueur=!P.veh&&dansCagePic(P.x,P.z,0.2)&&Math.abs(P.y-c.y)<1.6;
+  SFX.ui(); vibre(30); if(c.avecJoueur) toast(cible>1?'🛗 Montée — 90 m':'🛗 Descente','or');
+}
+function sauterBase(){
+  const pl=PIC.plg;
+  P.x=pl.x; P.z=pl.z1+0.3; P.y=pl.h+0.6; P.ang=0;
+  P.chute=true; P.chuteY0=P.y; P.chuteT=0; P.chuteHaut=P.y-solPied(P.x,P.z); P.vy=1.5; P.para=false; P.chuteVx=0; P.chuteVz=6;
+  SFX.swing(); vibre(50); toast('🪂 Ouvre la voile à temps !','or');
+}
+function actionPic(){
+  if(!PIC.ok||P.veh) return null;
+  const c=PIC.cage, arret=c.y===c.cible;
+  if(arret&&dansCagePic(P.x,P.z,0.3)&&Math.abs(P.y-c.y)<1.6) return c.y<1?{label:'🛗 MONTER AU SOMMET — 90 m',fn:()=>lancerCage(c.yHaut)}:{label:'🛗 DESCENDRE',fn:()=>lancerCage(c.yBas)};
+  if(arret&&dist2(P.x,P.z,c.x,c.z)<49&&Math.abs(P.y-c.y)>5){ const enHaut=P.y>PIC.H-10; if(enHaut===(c.y<1)) return {label:'🛗 APPELER LE MONTE-CHARGE',fn:()=>lancerCage(enHaut?c.yHaut:c.yBas)}; }
+  const pl=PIC.plg; if(Math.abs(P.x-pl.x)<1.8&&P.z>pl.z0-3&&P.z<pl.z1+0.5&&P.y>PIC.H-6) return {label:'🪂 SAUT BASE — 90 m',fn:sauterBase};
+  return null;
+}
+function majPic(dt){
+  if(!PIC.ok) return;
+  const c=PIC.cage;
+  if(c.y!==c.cible){
+    const dy=c.cible-c.y; c.y+=Math.sign(dy)*Math.min(Math.abs(dy),9*dt);
+    if(c.avecJoueur&&!P.veh){ P.x=clamp(P.x,c.x-c.hw+0.4,c.x+c.hw-0.4); P.z=clamp(P.z,c.z-c.hd+0.4,c.z+c.hd-0.4); P.y=c.y; P.chute=false; P.vy=0; P.para=false; } // porte fermée pendant le trajet
+    if(c.y===c.cible) c.avecJoueur=false;
+  }
+  c.mesh.position.y=c.y; const hT=PIC.H+6; c.cable.scale.y=Math.max(0.1,hT-c.y-2.7); c.cable.position.y=c.y+2.7+(hT-c.y-2.7)/2;
+  if(PIC.manche) PIC.manche.rotation.y=0.3*Math.sin(ETAT.runT*0.7);
+  // saut BASE : depuis le plateau ; à l'atterrissage, sous voile → cible ; sans voile, 90 u ne pardonnent pas
+  if(P.veh){ PIC.saut=null; return; }
+  if(!PIC.saut&&P.chute&&P.chuteHaut>30&&P.chuteY0>PIC.H-12&&picU(P.x,P.z)<1.4) PIC.saut={y0:P.chuteY0,para:false};
+  const s=PIC.saut; if(!s) return;
+  if(P.chute){ if(P.para) s.para=true; return; }
+  PIC.saut=null;
+  if(s.y0-P.y<30) return;
+  if(!s.para){ P.iframes=0; P.dodgeT=0; bigMsg('💀 SANS PARACHUTE…'); toucherJoueur(P.hp+(P.bouclier||0)+1); return; }
+  const d=Math.sqrt(dist2(P.x,P.z,PIC.cible.x,PIC.cible.z));
+  const [pts,prime,msg]=d<3?[1500,300,'🎯 EN PLEIN CENTRE !']:d<8?[700,150,'🎯 DANS LA CIBLE !']:d<14?[300,0,'🪂 SUR LA CIBLE']:[100,0,'🪂 SAUT BASE RÉUSSI'];
+  ETAT.score+=pts; spawnTexte(P.x,3,P.z,'+'+pts,'#ffd23f');
+  let txt=msg+' — '+d.toFixed(1)+' m';
+  if(prime&&PIC.primeVague!==WAVES.n){ PIC.primeVague=WAVES.n; META.argent+=prime; ETAT.cashRun+=prime; txt+=' +'+prime+' $'; sauveMeta(); } // une prime par vague
+  bigMsg(txt); SFX.niveau(); vibre(60);
+}
+function resetPic(){ if(!PIC.ok) return; const c=PIC.cage; c.y=c.cible=c.yBas; c.avecJoueur=false; PIC.saut=null; PIC.primeVague=-1; c.mesh.position.y=c.y; }
+
+/* PARC STUNT : 4 tables (tremplin 7 u, trou 8 u, réception 13 u) alignées nord → sud */
+const STUNT={x:457,larg:3,tables:[-122,-72,-22,28],x0:446,x1:468,z0:-152,z1:100,ok:false}; // z1 : zone de réception après la dernière table
+function hauteurStunt(x,z){
+  const lat=Math.abs(x-STUNT.x); if(lat>STUNT.larg+1.5) return 0;
+  const w=lisse((STUNT.larg+1.5-lat)/1.5);
+  for(const z0 of STUNT.tables){ const a=z-z0;
+    if(a>0&&a<7) return 3.6*Math.pow(a/7,1.6)*w;             // tremplin, lèvre franche
+    if(a>=15&&a<28) return 3.6*lisse((28-a)/13)*w; }         // réception en pente douce
+  return 0;
+}
+function presTremplinStunt(x,z){ if(!STUNT.ok||Math.abs(x-STUNT.x)>STUNT.larg+1) return false; for(const z0 of STUNT.tables){ const a=z-z0; if(a>4&&a<9) return true; } return false; }
+function dansParcStunt(x,z){ return STUNT.ok&&x>STUNT.x0&&x<STUNT.x1&&z>STUNT.z0&&z<STUNT.z1; }
+function mkParcStunt(){
+  RELIEFS.push({x0:STUNT.x0,x1:STUNT.x1,z0:STUNT.z0,z1:STUNT.z1,f:hauteurStunt});
+  const pos=[], col=[], idx=[], c3=new THREE.Color(), pas=0.5, nx=Math.round((STUNT.larg+1.6)*2/pas), pieces=[];
+  for(const z0 of STUNT.tables){
+    const nz=Math.round(30/pas), b=pos.length/3;
+    for(let i=0;i<=nx;i++) for(let j=0;j<=nz;j++){ const x=STUNT.x-(STUNT.larg+1.6)+i*pas, z=z0-1+j*pas, h=hauteurStunt(x,z);
+      pos.push(x,h+0.02,z); c3.setHex(0x9a6a42).lerp(new THREE.Color(0x6a4a2c),clamp(h/4,0,1)*0.5).multiplyScalar(0.9+0.1*Math.sin(x*3+z*2.3)); col.push(c3.r,c3.g,c3.b); }
+    for(let i=0;i<nx;i++) for(let j=0;j<nz;j++){ const a=b+i*(nz+1)+j, c=b+(i+1)*(nz+1)+j; idx.push(a,a+1,c,c,a+1,c+1); }
+    pieces.push(['box',STUNT.larg*2,0.12,0.5,STUNT.x,3.65,z0+6.8,0xd8b02a]);             // lèvre en bois peinte
+    for(const s of [-1,1]) pieces.push(['box',0.3,1.2,0.3,STUNT.x+s*(STUNT.larg+2.2),0.6,z0+6.8,0xd83a3a]); // balises
+  }
+  const g=new THREE.BufferGeometry(); g.setIndex(idx); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(col,3)); g.computeVertexNormals();
+  scene.add(new THREE.Mesh(g,new THREE.MeshLambertMaterial({vertexColors:true,side:THREE.DoubleSide})));
+  for(let k=0;k<6;k++) pieces.push(['box',0.5,0.9,1.2,STUNT.x+(k%2?1:-1)*(STUNT.larg+5),0.45,STUNT.tables[0]-6+k*28,k%2?0xf2f4f8:0xd83a3a]); // bottes de paille
+  scene.add(meshPieces(pieces));
+  STUNT.ok=true;
+}
 /* ---------- COURSES DU MONT ET DU CANYON (DECOR_V2) ----------
    Deux défis chronométrés (dtJeu), à faire sur deux roues ou en buggy :
    - MONTÉE DU MONT REYES : du pied au sommet par le sentier en lacets,
@@ -5397,12 +5574,18 @@ const RIDES={actif:null,marques:[],records:{},primeVague:{}};
 const RIDE_DEFS={
   mont:{nom:'MONTÉE DU MONT REYES',temps:60,prime:250},   // la pente freine : pilote simulé 29 à 39 s (moto, quad, buggy, BMX)
   mesas:{nom:'LIGNE DES MESAS',temps:14,prime:300},        // robot : 6 s en moto cross, 8 s en buggy
+  colline:{nom:'MONTÉE SÈCHE',temps:6.5,prime:200},         // hill climb, droit dans la pente : robot 3,7 à 4,6 s (motos, quad, buggy, 4x4), le BMX cale
+  stunt:{nom:'DÉFI STUNT',temps:45,prime:250,stunt:true,objectif:1200}, // parc de tables : un score de figures dans le temps (robot qui dose sa vitesse : 1 290 pts en moto, 22 à 39 s ailleurs ; plein gaz en moto : 1 025, raté)
 };
 function rideDepart(id){
   if(id==='mont') return {x:MONT.pied.x,z:MONT.pied.z};
+  if(id==='colline') return {x:MONT.couloir.x,z:MONT.couloir.z0+34};
+  if(id==='stunt') return {x:STUNT.x,z:STUNT.tables[0]-24};
   const m=CANYON.mesas[0]; return {x:m.x,z:m.z-m.hd+5};
 }
 function ridePortes(id){
+  if(id==='stunt') return [];
+  if(id==='colline'){ const C=MONT.couloir; return [0.35,0.7,1].map((u)=>({x:C.x,z:C.z0-(C.z0-C.z1)*u-(u===1?4:0),r:u===1?7:6,minH:C.H*(0.55*u+0.45*u*u)-3})); }
   if(id==='mont') return MONT.sentier.slice(1).map(([x,z],i)=>({x,z,r:9,minH:MONT.hSentier[i+1]-4})); // à hauteur du lacet : passer en dessous ne compte pas
   return CANYON.mesas.slice(1,5).map((m)=>({x:m.x,z:m.z-m.hd+6,r:13,minH:m.h-1})); // atterrir sur chaque mesa
 }
@@ -5429,18 +5612,29 @@ function garerRides(){
   if(!MONT.pied) return;
   const pm=MONT.pied, a=CANYON.acces;
   [['motocross',pm.x-8,pm.z+6],['motocross',pm.x-11,pm.z+6],['bmx',pm.x-14,pm.z+5],['velo',pm.x-16,pm.z+5],
-   ['motocross',a.x0-8,a.z0+4],['buggy',a.x0-8,a.z0+11],['bmx',a.x0-12,a.z0+6]].forEach(([k,x,z])=>{
+   ['motocross',a.x0-8,a.z0+4],['buggy',a.x0-8,a.z0+11],['bmx',a.x0-12,a.z0+6],
+   ['jeep',pm.x-8,pm.z+14],['jeep',pm.x-14,pm.z+14]].forEach(([k,x,z])=>{ // 4x4 de franchissement au pied du mont
     if(!solidAt(x,z,1.5)&&!vehicules.some((o)=>dist2(o.x,o.z,x,z)<9)) creerVehicule(k,x,z,Math.PI/2);
   });
+  const dc=rideDepart('colline'), ds=rideDepart('stunt'); // montée sèche et parc stunt : face à la pente / aux tables
+  [['motocross',dc.x-7,dc.z+3,Math.PI],['jeep',dc.x+8,dc.z+4,Math.PI],['motocross',ds.x-6,ds.z-3,0],['motocross',ds.x+6,ds.z-3,0]].forEach(([k,x,z,a2])=>{
+    if(!solidAt(x,z,1.5)&&!vehicules.some((o)=>dist2(o.x,o.z,x,z)<9)) creerVehicule(k,x,z,a2);
+  });
 }
-function rideEligible(v){ return !!v&&(v.def.type==='moto'||v.def.buggy||v.def.quad); }
+function rideEligible(v){ return !!v&&(v.def.type==='moto'||v.def.buggy||v.def.quad||v.def.jeep); }
+// DÉFI STUNT : chaque réception compte (temps de vol, réception propre), plus le cabrage en moto cross (majRides)
+function rideFigure(v){
+  const r=RIDES.actif; if(!r||v.airT<0.45||v.hop) return;
+  const propre=v.def.type==='moto'||Math.abs(v.mesh.rotation.z)<0.22, pts=Math.round((50+v.airT*100)*(propre?1.5:1));
+  r.pts+=pts; spawnTexte(v.x,3.5,v.z,(propre?'FIGURE ! +':'+')+pts,'#ff5ad0');
+}
 function rideProche(){
   if(RIDES.actif||!P.veh||!rideEligible(P.veh)) return null;
   for(const id of Object.keys(RIDE_DEFS)){ const d=rideDepart(id); if(dist2(P.x,P.z,d.x,d.z)<36) return id; }
   return null;
 }
 function demarrerRide(id){
-  RIDES.actif={id,portes:ridePortes(id),i:0,t:RIDE_DEFS[id].temps,t0:0};
+  RIDES.actif={id,portes:ridePortes(id),i:0,t:RIDE_DEFS[id].temps,t0:0,pts:0};
   RIDES.txt.style.display='block'; bigMsg('🏁 '+RIDE_DEFS[id].nom); SFX.niveau(); vibre(40);
 }
 function finirRide(reussi){
@@ -5448,7 +5642,7 @@ function finirRide(reussi){
   RIDES.actif=null; RIDES.porte.visible=false; RIDES.txt.style.display='none';
   if(!reussi){ toast('Course ratée — le cercle de départ t’attend','warn'); SFX.refus(); return; }
   const D=RIDE_DEFS[r.id], temps=r.t0, rec=RIDES.records[r.id];
-  let msg='🏁 '+D.nom+' — '+temps.toFixed(1)+' s';
+  let msg='🏁 '+D.nom+' — '+(D.stunt?Math.round(r.pts)+' pts en ':'')+temps.toFixed(1)+' s';
   if(!rec||temps<rec){ RIDES.records[r.id]=temps; msg+=' — RECORD !'; }
   if(RIDES.primeVague[r.id]!==WAVES.n){ RIDES.primeVague[r.id]=WAVES.n; META.argent+=D.prime; ETAT.cashRun+=D.prime; msg+=' +'+D.prime+' $'; sauveMeta(); } // une prime par vague
   bigMsg(msg); SFX.niveau(); vibre(80);
@@ -5457,6 +5651,15 @@ function majRides(dtJeu){
   const r=RIDES.actif; if(!r) return;
   if(!P.veh||!rideEligible(P.veh)||ETAT.mode!=='jeu'){ finirRide(false); return; }
   r.t-=dtJeu; r.t0+=dtJeu;
+  const D=RIDE_DEFS[r.id];
+  if(D.stunt){
+    const v=P.veh; if(v.wheelieA>0.3&&!v.enAir) r.pts+=40*dtJeu; // cabrage de la moto cross
+    RIDES.porte.visible=false;
+    RIDES.txt.textContent='🤘 '+D.nom+' — '+Math.round(r.pts)+' / '+D.objectif+' pts — '+Math.ceil(Math.max(0,r.t))+' s';
+    if(r.pts>=D.objectif){ finirRide(true); return; }
+    if(r.t<=0) finirRide(false);
+    return;
+  }
   const p=r.portes[r.i];
   RIDES.porte.visible=true; RIDES.porte.position.set(p.x,solY(p.x,p.z)+0.2,p.z);
   RIDES.txt.textContent='🏁 '+RIDE_DEFS[r.id].nom+' — porte '+(r.i+1)+'/'+r.portes.length+' — '+Math.ceil(Math.max(0,r.t))+' s';
@@ -7820,9 +8023,10 @@ function construireMinimapStatique(){
 function dessinerEstCarte(g){
   const x0=HALF+14, x1=LIMITE_EST+4, z0=-HALF-30, z1=MER, pas=2.5; // z0 : le pied nord du mont dépasse l'enceinte de la ville
   for(let x=x0;x<x1;x+=pas) for(let z=z0;z<z1;z+=pas){
-    const hm=hauteurMont(x,z), hc=hauteurCanyon(x,z);
+    const hm=hauteurMont(x,z), hc=hauteurCanyon(x,z), hp=PIC.ok?hauteurPic(x,z):0;
     let c=null;
     if(dansCrique(x,z)) c='#2a7a8a';
+    else if(hp>1) c=hp>60?'#c8a070':'#7a3a20';
     else if(hm>0.4){ const a=hm/MONT.H; c=a>0.8?'#d8dce0':(a>0.6?'#7a7a6e':(a>0.3?'#3a6a30':'#4f7f38')); }
     else if(hc>0.4) c=hc>15?'#8a3a20':(hc>8?'#a04a28':'#b8603a');
     else if(x>HALF+14&&!(x>HALF+6&&x<HALF+150&&z>-HALF+60&&z<-HALF+390)) c=estDesert(x,z)||x>470?'#a87a4a':null;
@@ -7830,6 +8034,9 @@ function dessinerEstCarte(g){
   }
   // sentier du mont, ligne des mesas
   g.strokeStyle='#e8d8b0'; g.lineWidth=0.7; g.beginPath(); MONT.sentier.forEach(([x,z],i)=>{ i?g.lineTo(mmX(x),mmZ(z)):g.moveTo(mmX(x),mmZ(z)); }); g.stroke();
+  if(PIC.ok){ g.fillStyle='#d83a3a'; g.beginPath(); g.arc(mmX(PIC.cible.x),mmZ(PIC.cible.z),12*mmS,0,7); g.fill(); g.fillStyle='#f2f4f8'; g.beginPath(); g.arc(mmX(PIC.cible.x),mmZ(PIC.cible.z),5*mmS,0,7); g.fill(); } // cible du saut BASE
+  { const C=MONT.couloir; g.strokeStyle='#ffd23f'; g.lineWidth=0.9; g.beginPath(); g.moveTo(mmX(C.x),mmZ(C.z0)); g.lineTo(mmX(C.x),mmZ(C.z1)); g.stroke(); } // montée sèche
+  if(STUNT.ok){ g.fillStyle='#9a6a42'; for(const z0 of STUNT.tables) g.fillRect(mmX(STUNT.x-3),mmZ(z0),6*mmS,28*mmS); } // tables du parc stunt
   // enceinte : jusqu'à la paroi est
   g.strokeStyle='#565b64'; g.lineWidth=1.2;
   g.strokeRect(mmX(-HALF-14),mmZ(-HALF-14),(LIMITE_EST+4+HALF+14)*mmS,(MER+HALF+10)*mmS);
@@ -8219,6 +8426,64 @@ function bulldozerV2(corps,g,ud,coul,L,W,bodyY,wheelR,stanceX){
 // construit donc l'ancien modèle (mêmes tirages, puis abandonné) et le
 // nouveau sur le générateur du décor.
 var _VEH_V2=false;
+// ---- 4x4 DE FRANCHISSEMENT « Coyote » (DECOR_V2, demandé : « des 4x4 de
+// franchissement bien hauts, comme une jeep, en bas de la montagne ») : caisse
+// carrée à ciel ouvert, capot plat, calandre à fentes, phares ronds, ailes
+// débordantes noires, gros pneus, arceau avec rampe de phares, snorkel,
+// treuil, roue de secours à l'arrière. Châssis haut (bodyY 1,3) sur amortisseurs.
+function jeepCarrosserie(corps,coul,L,W,bodyY){
+  const noir=0x1d2026, acier=0x3a3e46, chrome=0xc8ccd4, vitre=0x16233a;
+  const zTub0=-L*0.48, zTub1=L*0.1, zCap1=L*0.47;
+  corps.add(mkBoxG(W*0.92,0.62,zTub1-zTub0,coul,0,bodyY,(zTub0+zTub1)/2));                 // baquet de caisse
+  corps.add(mkBoxG(W*0.8,0.5,zCap1-zTub1,coul,0,bodyY+0.04,(zTub1+zCap1)/2));            // capot plat
+  for(const s of [-1,1]) corps.add(mkBoxG(0.06,0.04,zCap1-zTub1-0.2,noir,s*W*0.22,bodyY+0.3,(zTub1+zCap1)/2)); // charnières / arêtes du capot
+  corps.add(mkBoxG(W*0.78,0.46,0.08,noir,0,bodyY+0.02,zCap1+0.02));                     // calandre
+  for(let k=0;k<7;k++) corps.add(mkBoxG(0.06,0.34,0.04,chrome,(k-3)*W*0.075,bodyY+0.04,zCap1+0.07)); // 7 fentes
+  for(const s of [-1,1]){ // phares ronds
+    const ph=new THREE.Mesh(new THREE.CylinderGeometry(0.15,0.15,0.08,12),new THREE.MeshBasicMaterial({color:0xfff2c0}));
+    ph.rotation.x=Math.PI/2; ph.position.set(s*W*0.3,bodyY+0.08,zCap1+0.08); corps.add(ph);
+    const cer=new THREE.Mesh(new THREE.TorusGeometry(0.16,0.03,4,12),mat(chrome)); cer.position.set(s*W*0.3,bodyY+0.08,zCap1+0.09); corps.add(cer);
+  }
+  // ailes débordantes noires au-dessus des roues (avant et arrière), en trois pans
+  for(const s of [-1,1]) for(const z of [L*0.32,-L*0.32]){
+    corps.add(mkBoxG(0.42,0.08,1.0,noir,s*(W/2+0.12),bodyY-0.08,z));
+    const av=mkBoxG(0.42,0.08,0.4,noir,s*(W/2+0.12),bodyY-0.22,z+0.64); av.rotation.x=0.7; corps.add(av);
+    const ar=mkBoxG(0.42,0.08,0.4,noir,s*(W/2+0.12),bodyY-0.22,z-0.64); ar.rotation.x=-0.7; corps.add(ar);
+  }
+  for(const s of [-1,1]) corps.add(mkBoxG(0.14,0.12,L*0.36,acier,s*(W/2+0.02),bodyY-0.36,-L*0.02)); // protections de bas de caisse
+  // pare-brise rabattable, encadré
+  const zPb=zTub1+0.05, hPb=0.62, yPb=bodyY+0.31;
+  corps.add(mkBoxG(W*0.86,0.07,0.07,noir,0,yPb+hPb,zPb)); corps.add(mkBoxG(W*0.86,0.07,0.07,noir,0,yPb,zPb));
+  for(const s of [-1,1]) corps.add(mkBoxG(0.07,hPb,0.07,noir,s*W*0.43,yPb+hPb/2,zPb));
+  corps.add(mkBoxG(W*0.8,hPb-0.08,0.03,vitre,0,yPb+hPb/2,zPb));
+  // habitacle ouvert : sièges, tableau de bord, volant
+  for(const s of [-1,1]){ corps.add(mkBoxG(0.46,0.14,0.46,0x14161c,s*W*0.24,bodyY+0.3,-L*0.08));
+    const d=mkBoxG(0.46,0.62,0.12,0x14161c,s*W*0.24,bodyY+0.6,-L*0.16); d.rotation.x=-0.15; corps.add(d); }
+  corps.add(mkBoxG(0.46,0.14,0.42,0x14161c,0,bodyY+0.3,-L*0.36));
+  const vol=new THREE.Mesh(new THREE.TorusGeometry(0.17,0.035,4,10),mat(0x14161c)); vol.position.set(-W*0.24,bodyY+0.62,zTub1-0.25); vol.rotation.x=-1.0; corps.add(vol);
+  // arceau de sécurité + rampe de phares
+  const yA=bodyY+0.31, hA=0.95, zA=-L*0.24;
+  for(const s of [-1,1]){ barreG(corps,[s*W*0.42,yA,zA],[s*W*0.4,yA+hA,zA],0.09,noir);
+    barreG(corps,[s*W*0.4,yA+hA,zA],[s*W*0.42,yA+hA-0.05,zPb-0.05],0.07,noir);       // vers le pare-brise
+    barreG(corps,[s*W*0.4,yA+hA,zA],[s*W*0.42,yA,zTub0+0.1],0.08,noir); }           // jambe de force arrière
+  barreG(corps,[-W*0.4,yA+hA,zA],[W*0.4,yA+hA,zA],0.09,noir);
+  corps.add(mkBoxG(W*0.7,0.12,0.14,noir,0,yA+hA+0.12,zPb-0.02));
+  for(let k=0;k<4;k++) corps.add(mkBoxG(0.16,0.12,0.06,0xfff2c0,(k-1.5)*W*0.17,yA+hA+0.12,zPb+0.06));
+  // snorkel (prise d'air surélevée) le long du montant droit
+  corps.add(mkBoxG(0.12,0.12,0.5,noir,W/2+0.06,bodyY+0.1,zCap1-0.35));
+  corps.add(mkBoxG(0.12,hPb+0.4,0.12,noir,W/2+0.06,bodyY+0.38+hPb/2,zPb+0.06));
+  corps.add(mkBoxG(0.2,0.14,0.26,noir,W/2+0.06,bodyY+0.6+hPb,zPb+0.14));
+  // pare-chocs acier, treuil avec crochet, anneaux
+  corps.add(mkBoxG(W*1.02,0.22,0.24,acier,0,bodyY-0.3,zCap1+0.14));
+  const tam=new THREE.Mesh(new THREE.CylinderGeometry(0.11,0.11,0.5,10),mat(noir)); tam.rotation.z=Math.PI/2; tam.position.set(0,bodyY-0.14,zCap1+0.2); corps.add(tam);
+  corps.add(mkBoxG(0.08,0.14,0.08,0xd83a3a,0,bodyY-0.28,zCap1+0.3));
+  for(const s of [-1,1]) corps.add(mkBoxG(0.06,0.12,0.12,0xd83a3a,s*W*0.36,bodyY-0.3,zCap1+0.28));
+  corps.add(mkBoxG(W*0.96,0.2,0.22,acier,0,bodyY-0.3,zTub0-0.06));
+  // roue de secours sur le hayon, jerrican
+  const sec=new THREE.Mesh(new THREE.CylinderGeometry(0.46,0.46,0.3,14),mat(0x15171c)); sec.rotation.x=Math.PI/2; sec.position.set(0,bodyY+0.12,zTub0-0.2); corps.add(sec);
+  const jan=new THREE.Mesh(new THREE.CylinderGeometry(0.24,0.24,0.32,8),mat(acier)); jan.rotation.x=Math.PI/2; jan.position.copy(sec.position); corps.add(jan);
+  corps.add(mkBoxG(0.3,0.42,0.16,0x3a5a2a,-W*0.36,bodyY+0.12,zTub0-0.1));
+}
 function vehiculeRestyle(def){ return DECOR_V2&&((def.type==='bateau'&&!def.surf)||def.buggy||def.pelle); }
 function makeVoiture(key){
   if(!vehiculeRestyle(VEHDEFS[key])) return makeVoitureBase(key);
@@ -8544,7 +8809,7 @@ function makeVoitureBase(key){
   // bodyY+décalage plutôt qu'en position absolue, pour que ces véhicules
   // puissent surélever/abaisser tout leur mobilier — feux compris — sans
   // dupliquer ce bloc.
-  const bodyY=key==='monstertruck'?2.85:(key==='pickup'?1.5:(def.sport?0.4:0.52));
+  const bodyY=key==='monstertruck'?2.85:(key==='pickup'?1.5:(def.jeep?1.3:(def.sport?0.4:0.52)));
   // regroupe la caisse et tout ce qui est monté dessus (habitacle, feux,
   // gyrophares...) — SAUF les roues, qui restent au sol — pour que le
   // Monster Truck (et désormais le Pickup, le Buggy) puisse faire tanguer
@@ -8585,7 +8850,7 @@ function makeVoitureBase(key){
     // vide visible entre le bas de caisse et le sommet des pneus,
     // amortisseurs apparents qui comblent cet écart (voir CLAUDE.md). Le
     // Buggy des dunes a ses propres roues larges et sa propre suspension.
-    const wheelR=key==='monstertruck'?1.12:(key==='pickup'?0.58:(def.buggy?0.5:(def.quad?0.36:((def.pelle||def.grue)?0.5:0.38))));
+    const wheelR=key==='monstertruck'?1.12:(key==='pickup'?0.58:def.jeep?0.6:(def.buggy?0.5:(def.quad?0.36:((def.pelle||def.grue)?0.5:0.38))));
     const busH=key==='busville'?2.0:0.6; // bus : bien plus haut, boîte quasi constante sur toute la longueur
     if(key==='pickup'){
       // Pick-up japonais classique : cabine courte + benne ouverte, deux
@@ -8620,6 +8885,7 @@ function makeVoitureBase(key){
       corps.add(mkBoxG(W*0.94,0.2,0.16,0x9aa0a8,0,bodyY-0.22,L/2*0.98));             // pare-chocs avant, chromé et marqué
       corps.add(mkBoxG(W*0.94,0.2,0.16,0x9aa0a8,0,bodyY-0.22,-L/2*0.98));            // pare-chocs arrière, chromé
       corps.add(mkBoxG(W*0.68,0.08,0.1,0xe8ecf2,0,bodyY+0.72,L*0.5-cabL*0.55));      // barre de toit à leds
+    } else if(def.jeep){ jeepCarrosserie(corps,coul,L,W,bodyY);
     } else if(def.buggy&&_VEH_V2){ buggyV2(corps,g,coul,L,W,bodyY,key);
     } else if(def.buggy){
       // buggy des dunes à ciel ouvert : châssis nu, cage tubulaire visible,
@@ -9039,7 +9305,7 @@ function makeVoitureBase(key){
     // Raptor) : sans ça, un châssis flottant loin au-dessus de roues nues
     // aurait l'air cassé, pas suspendu (CLAUDE.md). Le Buggy a les siens
     // propres, déjà posés plus haut avec sa cage.
-    if(key==='monstertruck'||key==='pickup'){
+    if(key==='monstertruck'||key==='pickup'||def.jeep){
       const stanceXS=key==='monstertruck'?W/2+0.22:W/2+0.14;
       const bodyBotY=key==='monstertruck'?bodyY-busH/2:bodyY-0.4;
       const wheelTopY=wheelR*1.85, gapH=Math.max(0.35,bodyBotY-wheelTopY);
@@ -9052,8 +9318,8 @@ function makeVoitureBase(key){
     // Monster Truck / Pickup / Buggy : roues plus larges que la caisse (les
     // pneus débordent nettement du châssis, allure typique tout-terrain) —
     // jamais posées à fleur de carrosserie comme une berline normale.
-    const stanceX=key==='monstertruck'?W/2+0.22:(key==='pickup'?W/2+0.14:(def.buggy?W/2+0.16:(def.quad?W/2+0.05:((def.pelle||def.grue)?W/2+0.1:W/2))));
-    const tireW=key==='monstertruck'?0.64:(key==='pickup'?0.42:(def.buggy?0.44:(def.quad?0.32:((def.pelle||def.grue)?0.5:0.26))));
+    const stanceX=key==='monstertruck'?W/2+0.22:(key==='pickup'||def.jeep?W/2+0.14:(def.buggy?W/2+0.16:(def.quad?W/2+0.05:((def.pelle||def.grue)?W/2+0.1:W/2))));
+    const tireW=key==='monstertruck'?0.64:(key==='pickup'?0.42:def.jeep?0.5:(def.buggy?0.44:(def.quad?0.32:((def.pelle||def.grue)?0.5:0.26))));
     [[stanceX,wheelR,L*0.32],[-stanceX,wheelR,L*0.32],[stanceX,wheelR,-L*0.32],[-stanceX,wheelR,-L*0.32]].forEach(p=>{
       const r=new THREE.Mesh(new THREE.CylinderGeometry(wheelR,wheelR,tireW,10),mat(0x15171c));
       r.rotation.z=Math.PI/2; r.position.set(p[0],p[1],p[2]); g.add(r); ud.roues.push(r);
@@ -10601,7 +10867,7 @@ function resoudreCollisionsVehicule(v,dt){
   const d=v.def;
   const hV=hauteurReelleVehicule(v);
   for(const o of vehicules){
-    if(o===v||o.mort||o.epave) continue;
+    if(o===v||o.mort||o.epave||o.noye) continue;
     if(Math.abs(hV-hauteurReelleVehicule(o))>1.6) continue;
     const dxw=o.x-v.x, dzw=o.z-v.z;
     const angV=v.ang, sV=Math.sin(angV), cV=Math.cos(angV);
@@ -10690,6 +10956,7 @@ function resoudreCollisionsVehicule(v,dt){
   }
 }
 function majVehiculePhys(v,dt,throttle,steer,frein){
+  if(v.noye) return; // noyé : il coule (majNoyade), plus aucune conduite
   const d=v.def, eau=surEauVeh(v); // surEauVeh : dynamique pour l'amphibie, statique pour les bateaux
   const fac0=clamp(Math.abs(v.v)/d.vmax,0,1);
   const lourd=!eau&&(d.milit||d.blinde||d.hp>=260);
@@ -10754,7 +11021,7 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
   // Reliefs sculptés (Mont Reyes, canyons) : la pente se sent. La gravité freine
   // à la montée et pousse à la descente (signalé : « on monte à fond, aucune
   // sensation de montée »).
-  if(reliefV){ const pente=(solY(v.x+sA*1.5,v.z+cA*1.5)-solY(v.x-sA*1.5,v.z-cA*1.5))/3, k=MONT.presDuSentier&&MONT.presDuSentier(v.x,v.z,4)?0.45:1; v.v-=PENTE_G*k*pente*dt; } // le sentier damé tire moins que la pente brute
+  if(reliefV){ const pente=(solY(v.x+sA*1.5,v.z+cA*1.5)-solY(v.x-sA*1.5,v.z-cA*1.5))/3, k=(MONT.presDuSentier&&MONT.presDuSentier(v.x,v.z,4)?0.45:1)*(d.franchissement?0.5:1); v.v-=PENTE_G*k*pente*dt; } // 4x4 de franchissement : la pente le freine deux fois moins // le sentier damé tire moins que la pente brute
   const nx=v.x+sA*v.v*dt, nz=v.z+cA*v.v*dt;
   const sgn=Math.sign(v.v)||1;
   const fx=nx+Math.sin(v.ang)*d.long/2*sgn, fz=nz+Math.cos(v.ang)*d.long/2*sgn;
@@ -10768,8 +11035,8 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
     if(gAv-(v.h||0)>0.05&&gAv-(v.h||0)<(d.franchit||0.6)){ v.h=lerp(v.h||0,gAv,clamp(10*dt,0,1)); }
   }
   // paroi : le sol devant monte plus raide que PENTE_MAX_VEH → on la heurte, on ne la gravit plus d'un coup
-  const paroi=DECOR_V2&&!eau&&!d.air&&!v.enAir&&dansReliefLibre(fx,fz)&&!(MONT.presDuSentier&&MONT.presDuSentier(fx,fz,7))&&(solY(fx,fz)-(v.h||0))/(d.long/2+Math.abs(v.v)*dt+0.01)>PENTE_MAX_VEH; // sur le sentier : on manœuvre dans les épingles
-  const heurte=eau?!estEau(nx,nz):(!!sFront||paroi||((v.h||0)<0.7&&estEau(fx,fz)));
+  const paroi=DECOR_V2&&!eau&&!d.air&&!v.enAir&&dansReliefLibre(fx,fz)&&!(MONT.presDuSentier&&(MONT.presDuSentier(fx,fz,7)||MONT.surCouloir(fx,fz,4)))&&(solY(fx,fz)-(v.h||0))/(d.long/2+Math.abs(v.v)*dt+0.01)>PENTE_MAX_VEH*(d.franchissement?1.5:1); // sur le sentier : on manœuvre dans les épingles
+  const heurte=eau?!estEau(nx,nz):(!!sFront||paroi||((v.h||0)<0.7&&estEau(fx,fz)&&!!v.conduit&&v.conduit!=='joueur')); // le joueur peut entrer dans l'eau (il s'y noie), l'IA s'arrête au bord
   if(heurte&&paroi&&!sFront){ // paroi de relief : on glisse le long (composante montante retirée), sans casse — on peut toujours tourner et repartir
     let gx=solY(fx+0.6,fz)-solY(fx-0.6,fz), gz=solY(fx,fz+0.6)-solY(fx,fz-0.6); const gl=Math.hypot(gx,gz)||1; gx/=gl; gz/=gl;
     const mx=nx-v.x, mz=nz-v.z, mg=mx*gx+mz*gz, tx=mx-Math.max(0,mg)*gx, tz=mz-Math.max(0,mg)*gz;
@@ -10797,6 +11064,7 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
     // En mer, jamais à l'ouest de la ligne du mur (jetée).
     v.x=clamp(v.x,eau?LIMITE_OUEST_MER:-HALF-12,eau?(DECOR_V2?LIMITE_EST_MER:HALF+60):(DECOR_V2?LIMITE_EST:HALF+158)); v.z=clamp(v.z,-HALF-12,zMax); // DECOR_V2 : tout le désert jusqu'à la paroi est, et la mer jusqu'au large de la crique
   }
+  if(!eau&&!d.air&&!v.horsVille&&(v.h||0)<0.7&&estEau(v.x,v.z)){ noyerVehicule(v); return; } // véhicule terrestre à l'eau
   // === RELIEF : montées, descentes et sauts ===
   if(!eau&&!d.air){
     const gY=solY(v.x,v.z);
@@ -10810,16 +11078,14 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
       if(d.type!=='moto') v.mesh.rotation.z=clamp((v.mesh.rotation.z||0)+steer*dt*2.6,-0.7,0.7);
       if(v.h<=gY){
         v.h=gY; v.enAir=false;
-        if(estEau(v.x,v.z)){ // amerrissage forcé
-          if(MER_V2) eclaboussure(v.x,v.z,2.4+Math.min(1,v.def.long/8)); else burst(v.x,0.4,v.z,12,0x9fd8ff,7,6);
-          bruit(0.3,0.5,600);
-          abimerVehicule(v,80,false);
-        } else {
+        if(estEau(v.x,v.z)){ noyerVehicule(v); return; } // amerrissage : noyé, jamais d'explosion (avant : 80 de dégâts, une moto sautait)
+        else {
           // ligne Rampage (DECOR_V2) : réceptions prévues pour sauter de mesa en mesa — seule une
           // chute bien plus haute qu'un gap fait des dégâts (sinon 5 sauts = véhicule détruit)
           // canyons et Mont Reyes : terrains de saut. Une réception ratée n'y abîme qu'au-delà
           // d'une chute de ~20 u, et moins fort (la course se perd au chrono, pas en explosant)
-          const relief=DECOR_V2&&dansReliefLibre(v.x,v.z), seuilChoc=relief?-32:-9;
+          const relief=DECOR_V2&&(dansReliefLibre(v.x,v.z)||dansParcStunt(v.x,v.z)), seuilChoc=relief?-32:-9; // parc stunt : terrain de saut, même au sol plat
+          if(v.conduit==='joueur'&&RIDES.actif&&RIDE_DEFS[RIDES.actif.id].stunt) rideFigure(v); // DÉFI STUNT : chaque saut compte
           if(v.vy<seuilChoc){ abimerVehicule(v,-v.vy*(relief?0.9:1.6),false); }
           // atterrissage sur les roues (roulis proche de zéro) : vitesse
           // conservée, et un saut long réussi rapporte un petit bonus ; à
@@ -10846,12 +11112,13 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
       const prev=v.h;
       v.h=gY;
       const monte=(gY-prev)/Math.max(dt,0.001);
+      const pvLevre=v.penteVy||0; // vitesse de montée sur la rampe, AVANT le bord (à l'image du bord, le sol tombe)
       v.penteVy=clamp(monte,-20,16);
       // sur les reliefs sculptés (Mont Reyes, canyons), une pente qu'on dévale ne fait pas décoller :
       // seuls un vrai bord (falaise, tremplin, gap de mesa) ou une bosse franche lancent le véhicule
       const seuilEnvol=DECOR_V2&&dansReliefLibre(v.x,v.z)&&!MONT.kickers.some((k)=>dist2(k.x,k.z,v.x,v.z)<64)?2.4:0.9; // au tremplin du sentier : on décolle
       if(prev-gY>seuilEnvol&&Math.abs(v.v)>9){ // vraie crête : envol (pas une bordure de trottoir)
-        v.enAir=true; v.h=prev; v.vy=Math.max(2,v.penteVy*0.85); v.airT=0;
+        v.enAir=true; v.h=prev; v.vy=Math.max(2,(DECOR_V2&&presTremplinStunt(v.x,v.z)?pvLevre:v.penteVy)*0.85); v.airT=0; // tables du parc stunt : vrai envol dans l'axe de la rampe
         if(seuilEnvol<1&&DECOR_V2&&dansReliefLibre(v.x,v.z)) v.vy=Math.min(v.vy,6.5); // tremplin du sentier : un saut, jamais un envol hors du lacet
         if(v.conduit==='joueur') SFX.swing();
       }
@@ -10904,6 +11171,26 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
 }
 function lancerRagdollJoueurFx(){ burst(P.x,1,P.z,8,0xff9f5a,8); secousse(8); }
 /* ---------- conduite joueur ---------- */
+// Véhicule terrestre à l'eau (demandé : « rentrer dans l'eau sans exploser, mais
+// plus utilisable, et le joueur sort ») : il coule doucement, jamais d'explosion ;
+// le conducteur en sort à la nage (majNoyade, hors de la physique qui l'appelle).
+function noyerVehicule(v){
+  if(v.noye) return;
+  v.noye=true; v.noyeT=0; v.v*=0.3; v.nitroActif=false; v.enFeu=false;
+  if(MER_V2) eclaboussure(v.x,v.z,2.2+Math.min(1.5,v.def.long/6)); else burst(v.x,0.4,v.z,12,0x9fd8ff,7,6);
+  bruit(0.3,0.5,600);
+  if(v.conduit!=='joueur') v.conduit=null;
+}
+function majNoyade(v,dt){
+  if(v.conduit==='joueur'&&P.veh===v){ sortirVehicule(); toast('Véhicule noyé — inutilisable, à la nage !','warn'); vibre(60); }
+  v.noyeT+=dt; v.v*=1-1.5*dt;
+  v.x+=Math.sin(v.ang)*v.v*dt; v.z+=Math.cos(v.ang)*v.v*dt;
+  const fond=-(1.6+(v.def.larg||2)*0.9), t=Math.min(1,v.noyeT/9);
+  v.h=fond*t*t*(3-2*t);
+  v.mesh.position.set(v.x,v.h,v.z); v.mesh.rotation.x=lerp(v.mesh.rotation.x||0,0.22,dt); // nez vers le fond
+  if(Math.random()<dt*6) spawnP(v.x+rand(-1,1),0.1,v.z+rand(-1,1),0,1.2,0,0.25,0.6,0xcfeaff,0,2); // bulles
+  if(v.noyeT>14) v.mort=true; // disparu au fond
+}
 function entrerVehicule(v){
   if(v.conduit==='trafic'){
     creerPietonFuite(v.x+2,v.z);
@@ -12514,6 +12801,7 @@ function majVehicules(dt){
   if(nT<q().trafic&&Math.random()<dt*2.2) creerTrafic();
   for(const v of vehicules){
     if(v.mort||v.epave) continue;
+    if(v.noye){ majNoyade(v,dt); continue; }
     // Véhicule soulevé par le rayon tracteur de l'OVNI : plus aucune
     // physique sol, entièrement pris en charge par majRayonOvni (position,
     // rotation, atterrissage) — voir la section RAYON TRACTEUR DE L'OVNI.
@@ -12554,6 +12842,7 @@ function majVehicules(dt){
     else if(v.conduit===null){
       v.v*=(1-1.2*dt);
       if(Math.abs(v.v)>0.3){ v.x+=Math.sin(v.ang)*v.v*dt; v.z+=Math.cos(v.ang)*v.v*dt; }
+      if(!surEauVeh(v)&&!v.def.air&&!v.horsVille&&(v.h||0)<0.7&&estEau(v.x,v.z)){ noyerVehicule(v); continue; } // lâché en roulant vers l'eau
       // Séparation/impulsion de choc, partagée avec le joueur/la police/le
       // trafic (voir resoudreCollisionsVehicule) — les véhicules garés
       // (décor, voir startRun) n'appelaient jamais cette résolution et
@@ -22639,7 +22928,7 @@ function startRun(){
   P.hp=P.maxHp; P.stam=P.stamMax; P.bouclier=0; P.veh=null;
   P.buffs={dmg:0,vit:0,butin:0,lourd:0,sprintLibre:0,vol:0,cadence:0}; P.iframes=0; P.dodgeT=0; P.rechT=0; P.specCd=0; P.ecraseT=0;
   P.grenades=3; boutonsAPied(); // jamais el('grenN') seul : voir boutonsAPied (mort au volant)
-  if(DECOR_V2){ reparerMobilier(); poserTexteBanderole(META.banderole); if(RIDES.porte){ RIDES.actif=null; RIDES.porte.visible=false; RIDES.txt.style.display='none'; RIDES.records={}; RIDES.primeVague={}; } } // course en cours : jamais survivante d'une partie à l'autre // mobilier renversé réparé ; message acheté sur la banderole
+  if(DECOR_V2){ reparerMobilier(); poserTexteBanderole(META.banderole); if(RIDES.porte){ RIDES.actif=null; RIDES.porte.visible=false; RIDES.txt.style.display='none'; RIDES.records={}; RIDES.primeVague={}; } resetPic(); } // course en cours : jamais survivante d'une partie à l'autre // mobilier renversé réparé ; message acheté sur la banderole
   // Jetpack : perdu au game over, comme les armes (voir CLAUDE.md) — il
   // faut remonter le chercher. Le lieu, lui (META.jetpackTrouve), reste acquis.
   P.jetpack=false; P.jetpackVol=false; P.jetFuel=100; P.jetVx=0; P.jetVz=0; P.jetWarnT=0; P.jetAvertVu=false;
@@ -23968,7 +24257,7 @@ function majAction(){
   } else if(auSol()) {
     let vp=null,vd=1e9;
     for(const v of vehicules){
-      if(v.mort||v.conduit==='joueur') continue;
+      if(v.mort||v.noye||v.conduit==='joueur') continue;
       // tout est volable : trafic, police, poursuivants, coureurs, contrebandiers
       const d=dist2(v.x,v.z,P.x,P.z);
       const portee=surEauVeh(v)?Math.max(64,(v.def.long*0.55)**2):14;   // les bateaux (et l'amphibie, si posé sur l'eau) sont abordés de plus loin
@@ -23981,6 +24270,7 @@ function majAction(){
                   (POIS.armurerie2&&dist2(P.x,P.z,POIS.armurerie2.x,POIS.armurerie2.z)<10);
     let ff=null;
     if(POIS.fastfoods) for(const f of POIS.fastfoods) if(dist2(P.x,P.z,f.x,f.z)<10){ff=f;break;}
+    const picAct=DECOR_V2?actionPic():null; // Pic du Vertige : monte-charge, saut BASE
     if(POIS.toitH&&POIS.toitH.jetpack&&dist2(P.x,P.z,POIS.toitH.jetpack.x,POIS.toitH.jetpack.z)<9&&Math.abs(P.y-POIS.toitH.jetpack.h)<4){
       if(P.jetpack){ label='✅ JETPACK ÉQUIPÉ'; fn=()=>{SFX.refus();}; }
       else {
@@ -23994,6 +24284,8 @@ function majAction(){
           if(!META.defis.jetpack){ META.defis.jetpack=true; checkDefis(); sauveMeta(); }
         };
       }
+    } else if(picAct){
+      label=picAct.label; fn=picAct.fn;
     } else if(POIS.marchand&&dist2(P.x,P.z,POIS.marchand.x,POIS.marchand.z)<12){
       label='MARCHAND (-25 %)';
       fn=()=>{ETAT.promo=true;ETAT.mode='shopIn';ouvrirDepuis('shop','jeu');};
@@ -24512,7 +24804,7 @@ function boucle(t){
     ETAT.comboT-=dt;
     if(ETAT.comboT<=0) ETAT.combo=1;
     if(ETAT.slowT>0){ ETAT.slowT-=dtReel; if(ETAT.slowT<=0&&ETAT.mode==='jeu') ETAT.timeScale=1; }
-    if(ETAT.mode==='jeu'){ majNitro(dtJeu); majJoueur(dt,dtJeu); if(DECOR_V2) majRides(dtJeu); } // nitro décidée AVANT la physique du véhicule
+    if(ETAT.mode==='jeu'){ majNitro(dtJeu); majJoueur(dt,dtJeu); if(DECOR_V2){ majRides(dtJeu); majPic(dt); } } // nitro décidée AVANT la physique du véhicule
     majEnnemis(dt);
     if(!INT.actif){
       majPietons(dt);
