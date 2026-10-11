@@ -5652,6 +5652,13 @@ function mkParcStunt(){
      large, requins dans les eaux profondes de l'est (zone signalée). */
 const MERV={ok:false,tresor:null,paillote:null,spots:[],rampes:[],requins:[],dauphins:[],baleine:null,radeau:null,primes:{}};
 const ILE_TRESOR={x:-215,z:402,r:16};
+// fusionne des groupes déjà posés dans la scène (palmiers…) en un maillage par matériau, en coordonnées monde
+function fusionnerGroupes(groupes){
+  const parMat=new Map();
+  for(const g of groupes){ g.updateMatrixWorld(true); g.traverse((o)=>{ if(!o.isMesh) return; const gg=o.geometry.clone().applyMatrix4(o.matrixWorld);
+      if(!parMat.has(o.material)) parMat.set(o.material,[]); parMat.get(o.material).push(gg); }); scene.remove(g); }
+  for(const [m,gs] of parMat) scene.add(new THREE.Mesh(mergeGeoManuel(gs),m));
+}
 function primeMerUneFois(cle,montant,msg){ // une prime par vague et par activité (jamais de farming)
   if(MERV.primes[cle]===WAVES.n) return 0;
   MERV.primes[cle]=WAVES.n; META.argent+=montant; ETAT.cashRun+=montant; sauveMeta(); return montant;
@@ -5661,7 +5668,8 @@ function mkMerVivante(){
   // --- Île aux trésors
   { const I=ILE_TRESOR; ILES.push({x:I.x,z:I.z,r:I.r}); PLATS.push({x:I.x,z:I.z,r:I.r,h:0.42});
     const ile=new THREE.Mesh(new THREE.CylinderGeometry(I.r,I.r+3.5,0.9,26),new THREE.MeshLambertMaterial({map:texSable})); ile.position.set(I.x,0.02,I.z); scene.add(ile);
-    for(const [dx,dz] of [[-9,-5],[8,-7],[-4,9],[10,6],[-12,3]]) mkPalmier(I.x+dx,I.z+dz);
+    { const n0=scene.children.length; for(const [dx,dz] of [[-9,-5],[8,-7],[-4,9],[10,6],[-12,3]]) mkPalmier(I.x+dx,I.z+dz);
+      fusionnerGroupes(scene.children.slice(n0)); } // palmiers fusionnés par matériau : 3 appels de rendu au lieu de 35
     // rocher-crâne
     pieces.push(['boule',5,4.2,4.4,I.x-6,2.2,I.z-8,0xb8b0a0],['boule',1.3,1.5,0.6,I.x-7.4,2.8,I.z-6.1,0x14161c],['boule',1.3,1.5,0.6,I.x-4.6,2.8,I.z-6.1,0x14161c],['boule',0.8,0.6,0.5,I.x-6,1.6,I.z-5.9,0x14161c]);
     // camp : tente, feu, tonneaux, canot échoué, pavillon
