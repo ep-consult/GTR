@@ -11036,7 +11036,7 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
   }
   // paroi : le sol devant monte plus raide que PENTE_MAX_VEH → on la heurte, on ne la gravit plus d'un coup
   const paroi=DECOR_V2&&!eau&&!d.air&&!v.enAir&&dansReliefLibre(fx,fz)&&!(MONT.presDuSentier&&(MONT.presDuSentier(fx,fz,7)||MONT.surCouloir(fx,fz,4)))&&(solY(fx,fz)-(v.h||0))/(d.long/2+Math.abs(v.v)*dt+0.01)>PENTE_MAX_VEH*(d.franchissement?1.5:1); // sur le sentier : on manœuvre dans les épingles
-  const heurte=eau?!estEau(nx,nz):(!!sFront||paroi||((v.h||0)<0.7&&estEau(fx,fz)&&!!v.conduit&&v.conduit!=='joueur')); // le joueur peut entrer dans l'eau (il s'y noie), l'IA s'arrête au bord
+  const heurte=eau?!estEau(nx,nz):(!!sFront||paroi||((v.h||0)<0.7&&estEau(fx,fz)&&!VEH_IA_NOYABLES&&!!v.conduit&&v.conduit!=='joueur')); // VEH_IA_NOYABLES : police, trafic et autres IA entrent aussi dans l'eau et s'y noient
   if(heurte&&paroi&&!sFront){ // paroi de relief : on glisse le long (composante montante retirée), sans casse — on peut toujours tourner et repartir
     let gx=solY(fx+0.6,fz)-solY(fx-0.6,fz), gz=solY(fx,fz+0.6)-solY(fx,fz-0.6); const gl=Math.hypot(gx,gz)||1; gx/=gl; gz/=gl;
     const mx=nx-v.x, mz=nz-v.z, mg=mx*gx+mz*gz, tx=mx-Math.max(0,mg)*gx, tz=mz-Math.max(0,mg)*gz;
@@ -11174,6 +11174,7 @@ function lancerRagdollJoueurFx(){ burst(P.x,1,P.z,8,0xff9f5a,8); secousse(8); }
 // Véhicule terrestre à l'eau (demandé : « rentrer dans l'eau sans exploser, mais
 // plus utilisable, et le joueur sort ») : il coule doucement, jamais d'explosion ;
 // le conducteur en sort à la nage (majNoyade, hors de la physique qui l'appelle).
+const VEH_IA_NOYABLES=true; // demandé : « les voitures de police et autres IA se noient aussi »
 function noyerVehicule(v){
   if(v.noye) return;
   v.noye=true; v.noyeT=0; v.v*=0.3; v.nitroActif=false; v.enFeu=false;

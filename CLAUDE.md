@@ -487,8 +487,8 @@ décor sur un générateur **à part** (`aleaDecor()`, `aD()`, `choixD()`, grain
   amerrissage d'un saut, véhicule lâché qui roule) puis `majNoyade` : le
   joueur sort à la nage (`sortirVehicule`, hors de la physique), le véhicule
   coule en 9 s puis disparaît (`v.mort`). Aucun dégât (avant : 80 à
-  l'amerrissage, une moto explosait). L'IA (trafic, police) s'arrête toujours
-  au bord. Un véhicule `v.noye` n'a plus ni physique, ni collision, ni MONTER.
+  l'amerrissage, une moto explosait). Police, trafic et autres IA s'y noient
+  aussi (demandé ensuite, `VEH_IA_NOYABLES`). Un véhicule `v.noye` n'a plus ni physique, ni collision, ni MONTER.
 - **Zone extrême** (demandée : « 4x4 de franchissement, motos cross, montée
   de colline, stunt, base jump hyper haut ») :
   - **4x4 « Coyote »** (`VEHDEFS.jeep`, `jeepCarrosserie`, châssis haut sur
@@ -529,7 +529,7 @@ décor sur un générateur **à part** (`aleaDecor()`, `aD()`, `choixD()`, grain
   en haut, ils cachaient le mont). Plus de clôture entre l'aérodrome et le
   mont (`clot(..., retirer)` : construite puis retirée, mêmes tirages).
 - **Lac du parc** (`mkLacParc`, case bx=5, bz=0) : vraie eau pour `estEau`
-  (on y nage ; l'IA s'arrête au bord, le joueur peut y noyer son véhicule), passerelle praticable
+  (on y nage ; tout véhicule terrestre qui y entre s'y noie), passerelle praticable
   (5 `PLATS` en dos d'âne), barques et canards = décor.
 - **Lumières de quartier** (`mkLumieresQuartiers`) : écrans animés et néons
   qui clignotent (néon → « Times Square »), portiques et lanternes

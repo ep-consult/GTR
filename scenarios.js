@@ -7620,7 +7620,7 @@ async function main() {
     // Lac du parc (DECOR_V2) : de la vraie eau (on y nage), sauf sur la
     // passerelle praticable ; une voiture s'arrête au bord.
     // -------------------------------------------------------------------
-    console.log('\n--- Lac du parc : nage, passerelle, l\'IA s\'arrête au bord, le joueur y noie sa voiture ---');
+    console.log('\n--- Lac du parc : nage, passerelle, une voiture (IA ou joueur) s\'y noie ---');
     {
       const lac = await page.evaluate(async () => {
         if (typeof LAC === 'undefined' || !LAC) return { off: true };
@@ -7631,10 +7631,10 @@ async function main() {
         o.hPasserelle = solY(LAC.x, LAC.z);
         startRun(); ETAT.timeScale = 1; P.hp = P.hpMax = 1e6;
         P.x = LAC.x + 4; P.z = LAC.z + 5; P.y = 0; await dors(400); o.nage = P.nage;
-        // voiture de l'IA lancée vers le lac depuis le sud : elle s'arrête au bord
-        const v = creerVehicule('citadine', LAC.x + 4, LAC.z + LAC.r + 6, Math.PI, null); v.conduit = 'trafic';
-        for (let i = 0; i < 120; i++) majVehiculePhys(v, 1 / 30, 1, 0, false);
-        o.voitureDansEau = estEau(v.x, v.z) || !!v.noye; o.voitureZ = +(v.z - LAC.z).toFixed(1); v.mort = true;
+        // voiture de l'IA lancée vers le lac depuis le sud : elle s'y noie aussi (demandé), sans dégâts
+        const v = creerVehicule('citadine', LAC.x + 4, LAC.z + LAC.r + 6, Math.PI, null); v.conduit = 'trafic'; const hpIA = v.hp;
+        for (let i = 0; i < 120 && !v.noye; i++) majVehiculePhys(v, 1 / 30, 1, 0, false);
+        o.iaNoyee = !!v.noye && v.hp === hpIA; v.mort = true;
         // au volant du joueur : elle y entre et s'y noie, sans dégâts, le joueur sort
         const vj = creerVehicule('citadine', LAC.x + 4, LAC.z + LAC.r + 6, Math.PI, null); P.x = vj.x; P.z = vj.z; entrerVehicule(vj); const hp0 = vj.hp;
         for (let i = 0; i < 120 && P.veh === vj; i++) { majVehiculePhys(vj, 1 / 30, 1, 0, false); majVehicules(1 / 30); }
@@ -7648,10 +7648,10 @@ async function main() {
         if (!lac.eauDedans || lac.horsLac) ko.push('estEau ne reconnaît pas le lac (' + JSON.stringify(lac) + ')');
         if (lac.eauPasserelle || !(lac.hPasserelle > 0.5)) ko.push('passerelle non praticable (' + JSON.stringify(lac) + ')');
         if (!lac.nage) ko.push('on ne nage pas dans le lac');
-        if (lac.voitureDansEau) ko.push('une voiture de l\'IA entre dans le lac');
+        if (!lac.iaNoyee) ko.push('une voiture de l\'IA ne se noie pas dans le lac (ou s\'abîme)');
         if (!lac.joueurNoye) ko.push('la voiture du joueur ne se noie pas dans le lac (ou s\'abîme)');
         if (ko.length) fail('Lac du parc : ' + ko.join(' | '));
-        else ok('Lac du parc : on y nage, la passerelle est praticable (h ' + lac.hPasserelle.toFixed(2) + '), l\'IA s\'arrête au bord, la voiture du joueur s\'y noie sans dégâts');
+        else ok('Lac du parc : on y nage, la passerelle est praticable (h ' + lac.hPasserelle.toFixed(2) + '), une voiture de l\'IA comme celle du joueur s\'y noie sans dégâts');
       }
     }
 
@@ -8209,12 +8209,15 @@ async function main() {
           INPUT.mx = INPUT.mz = 0;
           if (!v.noye || v.hp < hp0 || v.explose || sorti < 0 || P.veh || !estEau(P.x, P.z) || vehicules.includes(v)) o.ko.push(cle + (saut ? ' (saut)' : '') + ' : ' + JSON.stringify({ noye: !!v.noye, hp: v.hp, hp0, sorti, auVolant: !!P.veh, aLEau: estEau(P.x, P.z), resteEnListe: vehicules.includes(v) }));
         }
-        // l'IA (police) s'arrête toujours au bord
-        scene0(); { const v = creerVehicule('berline', X, MER - 12, 0, null); v.h = 0; v.conduit = 'police'; for (let i = 0; i < 120; i++) majVehiculePhys(v, 1 / 30, 1, 0, false); if (v.noye || estEau(v.x, v.z)) o.ko.push('IA entrée dans l\'eau'); }
+        // l'IA (police, trafic) se noie aussi (demandé), sans exploser
+        for (const cd of ['police', 'trafic']) { scene0(); const v = creerVehicule('berline', X, MER - 12, 0, null); v.h = 0; v.conduit = cd; const hp0 = v.hp;
+          for (let i = 0; i < 120 && !v.noye; i++) majVehiculePhys(v, 1 / 30, 1, 0, false);
+          for (let i = 0; i < 480; i++) majVehicules(1 / 30);
+          if (!v.noye || v.hp < hp0 || vehicules.includes(v)) o.ko.push(cd + ' : ' + JSON.stringify({ noye: !!v.noye, hp: v.hp, hp0, resteEnListe: vehicules.includes(v) })); }
         startRun(); return o;
       });
       if (ea.ko.length) fail('Véhicules à l\'eau : ' + ea.ko.join(' | '));
-      else ok('Véhicules à l\'eau : berline, moto, char et saut en moto cross noyés sans aucun dégât, le joueur en sort à la nage, le véhicule coule puis disparaît ; l\'IA s\'arrête au bord');
+      else ok('Véhicules à l\'eau : berline, moto, char et saut en moto cross noyés sans aucun dégât, le joueur en sort à la nage, le véhicule coule puis disparaît ; police et trafic s\'y noient aussi');
     }
 
     // -------------------------------------------------------------------
