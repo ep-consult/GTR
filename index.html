@@ -5416,6 +5416,7 @@ function picU(x,z){ const nx=(x-PIC.x)/PIC.hw, nz=(z-PIC.z)/PIC.hd, r=Math.sqrt(
 function hauteurPic(x,z){
   const u=picU(x,z);
   let h=u<1?PIC.H*Math.min(1,(1-u)/0.04)*(1-0.012*u*u):0; // paroi : 90 u sur ~1,2 u, falaise abrupte
+  const tr=PIC.tremplin; if(tr&&Math.abs(x-tr.x)<tr.demi&&z>tr.z1-tr.long&&z<tr.z1+0.4){ const ht=tr.h0+tr.haut*Math.pow(clamp((z-(tr.z1-tr.long))/tr.long,0,1),1.5); if(ht>h) h=ht; } // tremplin du sommet : on s'envole au-dessus du vide
   const pl=PIC.plg; if(pl&&Math.abs(x-pl.x)<0.85&&z>pl.z0-1.5&&z<pl.z1&&pl.h>h) h=pl.h; // plongeoir (au-dessus du vide : la règle des pentes interdit d'y accéder par en dessous)
   const c=PIC.cage; if(c&&Math.abs(x-c.x)<c.hw&&Math.abs(z-c.z)<c.hd&&c.y>h) h=c.y; // plancher du monte-charge
   return h;
@@ -5426,6 +5427,7 @@ function mkPicVertige(){
   RELIEFS.push({x0:PIC.x-PIC.hw*1.2,x1:PIC.x+PIC.hw*1.2,z0:PIC.z-PIC.hd*1.2,z1:PIC.z+PIC.hd*1.2,f:hauteurPic});
   // plongeoir et monte-charge : posés sur la crête sud, calculée sur le contour réel
   { const x=PIC.x+14, z0=zBordPic(x); PIC.plg={x,z0,z1:z0+3.4,h:hauteurPic(x,z0-0.3)+0.05}; }
+  { const x=PIC.x+1, z1=zBordPic(x)-0.1; PIC.tremplin={x,z1,long:10,haut:2.8,demi:2.4,h0:hauteurPic(x,z1-10.5)}; } // motos et vélo : élan sur le plateau, envol au-dessus du vide
   { const x=PIC.x-14, zt=zBordPic(x); let zb=zt; while(picU(x,zb)<1) zb+=0.05; // la cabine va de la crête au sol dégagé au pied de la paroi
     PIC.cage={x,z:(zt-0.1+zb+2.2)/2,hw:1.4,hd:(zb+2.3-zt)/2,y:0.12,cible:0.12,yBas:0.12,yHaut:hauteurPic(x,zt-0.4),avecJoueur:false}; }
   const N=200, NV=30, NR=12, pos=[], col=[], idx=[], c3=new THREE.Color();
@@ -5456,6 +5458,11 @@ function mkPicVertige(){
   mkBox(1.5,0.24,pl.z1-pl.z0+1.2,mat(bois),pl.x,pl.h-0.12,(pl.z0+pl.z1)/2-0.6);
   for(const s of [-1,1]){ mkBox(0.12,1.1,pl.z1-pl.z0,mat(0xd83a3a),pl.x+s*0.8,pl.h+0.55,(pl.z0+pl.z1)/2-0.4); mkBox(0.2,2.2,0.2,mat(bois),pl.x+s*0.65,pl.h-1.2,pl.z0+0.6); }
   const b=new THREE.Mesh(new THREE.BoxGeometry(0.2,0.2,3.2),mat(bois)); b.position.set(pl.x,pl.h-1.5,pl.z0+1); b.rotation.x=-0.6; scene.add(b);
+  { const tr=PIC.tremplin, L=Math.hypot(tr.long,tr.haut), rp=new THREE.Mesh(new THREE.BoxGeometry(tr.demi*2,0.25,L),new THREE.MeshLambertMaterial({map:texPlanche,color:0xc8a070})); // tremplin en planches, lèvre jaune, balises
+    rp.position.set(tr.x,tr.h0+tr.haut/2+0.05,tr.z1-tr.long/2); rp.rotation.x=-Math.atan2(tr.haut,tr.long)*0.8; scene.add(rp);
+    mkBox(tr.demi*2,0.14,0.5,mat(0xffd23f),tr.x,tr.h0+tr.haut+0.08,tr.z1-0.2);
+    for(const sg of [-1,1]) mkBox(0.3,1.4,0.3,mat(0xd83a3a),tr.x+sg*(tr.demi+0.4),tr.h0+0.7,tr.z1-tr.long+1);
+    mkEnseigne('SAUT DANS LE VIDE','#ff5ad0',tr.x,tr.h0+4.6,tr.z1-tr.long-2,0,6); }
   mkEnseigne('SAUT BASE — 90 m','#ffd23f',pl.x-3.5,pl.h+3.2,pl.z0-1.5,0,7);
   // manche à air et fanion au bord
   mkBox(0.12,4,0.12,mat(0xd8dce4),pl.x+4,pl.h+2,pl.z0-1); PIC.manche=new THREE.Mesh(new THREE.ConeGeometry(0.42,2,10,1,true),new THREE.MeshLambertMaterial({color:0xff7a1a,side:THREE.DoubleSide}));
@@ -5491,6 +5498,15 @@ function lancerCage(cible){
   c.avecJoueur=!P.veh&&dansCagePic(P.x,P.z,0.2)&&Math.abs(P.y-c.y)<1.6;
   SFX.ui(); vibre(30); if(c.avecJoueur) toast(cible>1?'🛗 Montée — 90 m':'🛗 Descente','or');
 }
+// En plein vol (tremplin du Pic, falaise, gap) : on lâche le véhicule et on tombe avec son élan, voile disponible
+function ejecterEnVol(){
+  const v=P.veh; if(!v||!v.enAir||v.def.air) { SFX.refus(); return; }
+  const y=(v.h||0)+1.4, vx=Math.sin(v.ang)*v.v, vz=Math.cos(v.ang)*v.v, vy=v.vy||0;
+  sortirVehicule();
+  P.x=v.x; P.z=v.z; P.y=y; P.chute=true; P.chuteY0=y; P.chuteT=0.8; P.chuteHaut=y-solPied(P.x,P.z); P.vy=Math.max(vy,0)+2; P.para=false;
+  P.chuteVx=clamp(vx*0.6,-CHUTE_VMAX_H,CHUTE_VMAX_H); P.chuteVz=clamp(vz*0.6,-CHUTE_VMAX_H,CHUTE_VMAX_H);
+  SFX.swing(); vibre(50); toast('🪂 Ouvre la voile !','or');
+}
 function sauterBase(){
   const pl=PIC.plg;
   P.x=pl.x; P.z=pl.z1+0.3; P.y=pl.h+0.6; P.ang=0;
@@ -5517,7 +5533,7 @@ function majPic(dt){
   if(PIC.manche) PIC.manche.rotation.y=0.3*Math.sin(ETAT.runT*0.7);
   // saut BASE : depuis le plateau ; à l'atterrissage, sous voile → cible ; sans voile, 90 u ne pardonnent pas
   if(P.veh){ PIC.saut=null; return; }
-  if(!PIC.saut&&P.chute&&P.chuteHaut>30&&P.chuteY0>PIC.H-12&&picU(P.x,P.z)<1.4) PIC.saut={y0:P.chuteY0,para:false};
+  if(!PIC.saut&&P.chute&&P.chuteHaut>30&&P.chuteY0>PIC.H-40&&picU(P.x,P.z)<2.4) PIC.saut={y0:P.chuteY0,para:false};
   const s=PIC.saut; if(!s) return;
   if(P.chute){ if(P.para) s.para=true; return; }
   PIC.saut=null;
@@ -5581,6 +5597,7 @@ function hauteurStunt(x,z){
   if(a>155&&a<200) return 1.3*sin2(Math.PI*(a-155)/15)*w;                     // rollers
   return 0;
 }
+function presTremplinPic(x,z){ const tr=PIC.tremplin; return !!tr&&Math.abs(x-tr.x)<tr.demi+0.5&&z>tr.z1-3&&z<tr.z1+2; }
 function presTremplinStunt(x,z){
   if(!STUNT.ok||x<STUNT.x0||x>STUNT.x1||z<STUNT.z0||z>STUNT.z1) return false;
   const c=coordPiste(x,z); if(Math.abs(c.lat)>STUNT.demi+1) return false;
@@ -5672,6 +5689,7 @@ function garerRides(){
    ['jeep',pm.x-8,pm.z+14],['jeep',pm.x-14,pm.z+14]].forEach(([k,x,z])=>{ // 4x4 de franchissement au pied du mont
     if(!solidAt(x,z,1.5)&&!vehicules.some((o)=>dist2(o.x,o.z,x,z)<9)) creerVehicule(k,x,z,Math.PI/2);
   });
+  if(PIC.ok){ const tr=PIC.tremplin; [['motocross',-6],['motocross',-9],['bmx',7],['velo',10]].forEach(([k,dx])=>{ const x=tr.x+dx, z=tr.z1-tr.long-6; const v=creerVehicule(k,x,z,0); v.h=solY(x,z); }); } // en haut du Pic : motos et vélo, face au tremplin
   const dc=rideDepart('colline'), ds=rideDepart('stunt'); // montée sèche et parc stunt : face à la pente / aux tables
   [['motocross',dc.x-7,dc.z+3,Math.PI],['jeep',dc.x+8,dc.z+4,Math.PI],['motocross',ds.x+8,ds.z+2,0],['motocross',ds.x+8,ds.z+7,0]].forEach(([k,x,z,a2])=>{
     if(!solidAt(x,z,1.5)&&!vehicules.some((o)=>dist2(o.x,o.z,x,z)<9)) creerVehicule(k,x,z,a2);
@@ -10580,7 +10598,7 @@ function majJetpackVol(dt,dtJeu){
   P.jetVz=lerp(P.jetVz,tz,clamp(JET_ACCEL_H*dtJeu,0,1));
   P.x+=P.jetVx*dtJeu; P.z+=P.jetVz*dtJeu;
   // limites du ciel : ramené comme les autres véhicules aériens (voir majVol)
-  P.x=clamp(P.x,-HALF-30,HALF+170); P.z=clamp(P.z,-HALF-30,MER+140);
+  P.x=clamp(P.x,DECOR_V2?LIMITE_OUEST_MER-20:-HALF-30,DECOR_V2?LIMITE_EST+20:HALF+170); P.z=clamp(P.z,-HALF-40,MER+150);
   P.y+=P.vy*dtJeu;
   el('jetFill').style.width=clamp(P.jetFuel,0,100)+'%';
   // tir en vol : possible, précision réduite (voir attaquer(), st.disp)
@@ -10810,7 +10828,7 @@ function exploserVehicule(v){
   const duJoueur=(v===P.veh);
   explosionFx(v.x,v.z);
   if(duJoueur){ sortirVehicule(true); toucherJoueur(35); }
-  else if(dist2(v.x,v.z,P.x,P.z)<36) toucherJoueur(45);
+  else if(dist2(v.x,v.z,P.x,P.z)<36&&Math.abs((P.y||0)-(v.h||0))<5) toucherJoueur(45); // jamais le joueur loin au-dessus (sous voile après avoir sauté du véhicule)
   for(const e of ennemis){ if(!e.mort&&!e.heli&&!e.captureOvni&&dist2(e.x,e.z,v.x,v.z)<40) toucherEnnemi(e,95,v.tapeJoueur,10); }
   for(const p of pietons){ if(p.etat!=='mort'&&!p.captureOvni&&dist2(p.x,p.z,v.x,v.z)<30) tuerPieton(p,v.tapeJoueur,8); }
   if(v.tapeJoueur){ addHeat(1.0); META.defis.detruits++; META.stats.vehDetruits++; }
@@ -11156,6 +11174,7 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
           // d'une chute de ~20 u, et moins fort (la course se perd au chrono, pas en explosant)
           const relief=DECOR_V2&&(dansReliefLibre(v.x,v.z)||dansParcStunt(v.x,v.z)), seuilChoc=relief?-32:-9; // parc stunt : terrain de saut, même au sol plat
           if(v.conduit==='joueur'&&RIDES.actif&&RIDE_DEFS[RIDES.actif.id].stunt) rideFigure(v); // DÉFI STUNT : chaque saut compte
+          if(v.vy<-40&&v.conduit==='joueur'&&P.veh===v){ P.iframes=0; P.dodgeT=0; bigMsg('💀 IL FALLAIT SAUTER…'); toucherJoueur(P.hp+(P.bouclier||0)+1); } // chute de ~30 u et plus au volant (falaise du Pic) : mortel
           if(v.vy<seuilChoc){ abimerVehicule(v,-v.vy*(relief?0.9:1.6),false); }
           // atterrissage sur les roues (roulis proche de zéro) : vitesse
           // conservée, et un saut long réussi rapporte un petit bonus ; à
@@ -11188,7 +11207,7 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
       // seuls un vrai bord (falaise, tremplin, gap de mesa) ou une bosse franche lancent le véhicule
       const seuilEnvol=DECOR_V2&&dansReliefLibre(v.x,v.z)&&!MONT.kickers.some((k)=>dist2(k.x,k.z,v.x,v.z)<64)?2.4:0.9; // au tremplin du sentier : on décolle
       if(prev-gY>seuilEnvol&&Math.abs(v.v)>9){ // vraie crête : envol (pas une bordure de trottoir)
-        v.enAir=true; v.h=prev; v.vy=Math.max(2,(DECOR_V2&&presTremplinStunt(v.x,v.z)?pvLevre:v.penteVy)*0.85); v.airT=0; // tables du parc stunt : vrai envol dans l'axe de la rampe
+        v.enAir=true; v.h=prev; v.vy=Math.max(2,(DECOR_V2&&(presTremplinStunt(v.x,v.z)||presTremplinPic(v.x,v.z))?pvLevre:v.penteVy)*0.85); v.airT=0; // tables du parc stunt : vrai envol dans l'axe de la rampe
         if(seuilEnvol<1&&DECOR_V2&&dansReliefLibre(v.x,v.z)) v.vy=Math.min(v.vy,6.5); // tremplin du sentier : un saut, jamais un envol hors du lacet
         if(v.conduit==='joueur') SFX.swing();
       }
@@ -11879,7 +11898,7 @@ function majVol(v,dt){
       } else v.v=lerp(v.v,0,1.6*dt);
       const nx=v.x+Math.sin(v.ang)*v.v*dt, nz=v.z+Math.cos(v.ang)*v.v*dt;
       const s=v.decolT>0?null:solidAt(nx,nz,2);
-      if(s&&s.h>v.alt){
+      if((s&&s.h>v.alt)||(DECOR_V2&&v.decolT<=0&&solY(nx,nz)>v.alt+0.3)){ // immeuble ou relief (montagne, Pic, mesas)
         if(Math.abs(v.v)>6){ crashAerien(v); return; }
         v.v=0;
       } else { v.x=nx; v.z=nz; }
@@ -11940,7 +11959,7 @@ function majVol(v,dt){
       v.alt=clamp(v.alt+v.va*dt,0,180);  // très haut au-dessus de la ville
       const nx=v.x+Math.sin(v.ang)*v.v*dt, nz=v.z+Math.cos(v.ang)*v.v*dt;
       const s=v.decolT>0?null:solidAt(nx,nz,2.5);
-      if(s&&s.h>v.alt){ crashAerien(v); return; }
+      if((s&&s.h>v.alt)||(DECOR_V2&&v.decolT<=0&&solY(nx,nz)>v.alt+0.3)){ crashAerien(v); return; } // immeuble ou relief
       v.x=nx; v.z=nz;
       const surfA=poseY(v.x,v.z);
       if(v.alt<=surfA+0.15&&v.va<=0){
@@ -12015,7 +12034,7 @@ function majVol(v,dt){
     }
   }
   // limites du ciel : au-delà de la ville et de la mer, demi-tour
-  v.x=clamp(v.x,-HALF-30,HALF+170); v.z=clamp(v.z,-HALF-30,MER+140);
+  v.x=clamp(v.x,DECOR_V2?LIMITE_OUEST_MER-20:-HALF-30,DECOR_V2?LIMITE_EST+20:HALF+170); v.z=clamp(v.z,-HALF-40,MER+150); // DECOR_V2 : tout le ciel, montagne et large compris
   const ud=v.mesh.userData;
   if(ud.rotor) ud.rotor.rotation.y+=((v.vol||air==='avion'&&v.v>4)?30:4)*dt;
   if(ud.rotorQ) ud.rotorQ.rotation.x+=34*dt;
@@ -12920,6 +12939,7 @@ function majVehicules(dt){
         spawnP(v.x-Math.sin(v.ang)*2.2,0.2,v.z-Math.cos(v.ang)*2.2,rand(-1,1),rand(0.5,1.5),rand(-1,1),0.5,0.7,0xcfeaff,2);
       if(Math.abs(v.x)>HALF+48) v.mort=true;
     }
+    else if(v.conduit===null&&v.enAir&&!v.def.air&&!v.def.eau){ majVehiculePhys(v,dt,0,0,false); } // lâché en plein vol : il retombe (et s'écrase)
     else if(v.conduit===null){
       v.v*=(1-1.2*dt);
       if(Math.abs(v.v)>0.3){ v.x+=Math.sin(v.ang)*v.v*dt; v.z+=Math.cos(v.ang)*v.v*dt; }
@@ -24324,7 +24344,9 @@ function majAction(){
   if(P.veh&&P.veh.def&&!(P.veh.def.air&&P.veh.vol)) pgar=porteGarageProche(P.x,P.z);
   const rideId=DECOR_V2?rideProche():null;
   if(P.veh&&P.veh.def){
-    if(rideId){
+    if(P.veh.enAir&&!P.veh.def.air&&(P.veh.h||0)-solY(P.veh.x,P.veh.z)>10){
+      label='🪂 SAUTER DU VÉHICULE'; fn=ejecterEnVol;
+    } else if(rideId){
       label='🏁 DÉPART — '+RIDE_DEFS[rideId].nom; fn=()=>demarrerRide(rideId);
     } else if(P.veh.def.air&&P.veh.vol){
       label='EN VOL'; fn=()=>{SFX.refus();};
@@ -24702,7 +24724,8 @@ function majCamera(dt){
   // En chute libre, le sursaut de vitesse (chuteF) renforce maintenant le
   // recul (distance) plutôt que la hauteur — sinon il re-plongeait la vue
   // vers le vertical pile quand on va le plus vite, à l'inverse du but.
-  const hSol=P.veh?(P.veh.def.air?(P.veh.alt||0):(P.veh.h||0)):P.y;
+  const hSol0=P.veh?(P.veh.def.air?(P.veh.alt||0):(P.veh.h||0)):P.y;
+  const hSol=P.veh&&P.veh.def.air?hSol0:hSol0+Math.max(0,hSol0-20)/3; // au-dessus de 20 u (sommets), la caméra suit vraiment la hauteur : plus de vue collée au joueur
   camera.position.set(P.x+sx,camH+hSol*0.75+chuteF*6,P.z+camD+sz+chuteF*14);
   camera.lookAt(P.x+sx,hSol*0.75+chuteAngF*6,P.z-2+sz);
   camera.fov=lerp(camera.fov,58+chuteF*14,0.12); camera.updateProjectionMatrix();

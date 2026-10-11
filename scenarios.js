@@ -5922,7 +5922,8 @@ async function main() {
       P.x = HALF + 5000; P.z = 0; P.jetVx = 500; P.jetVz = 0;
       INPUT.mx = 0; INPUT.mz = 0; INPUT.btn.jetpack = true;
       majJoueur(0.05, 0.05);
-      return { xBorne: P.x <= HALF + 171, xFini: Number.isFinite(P.x) };
+      const xMax = DECOR_V2 ? LIMITE_EST + 20 : HALF + 170; // limite du ciel lue dans le jeu (DECOR_V2 : tout le ciel jusqu'à la paroi est)
+      return { xBorne: P.x <= xMax + 1, xFini: Number.isFinite(P.x), x: P.x };
     });
     if (!limites.xFini || !limites.xBorne) fail('Jetpack : le joueur n\'est pas ramené aux limites de la zone jouable en vol (x=' + limites.x + ')');
     else ok('Jetpack : le joueur est bien ramené aux limites de la zone jouable en vol, comme les autres véhicules aériens');
@@ -8319,6 +8320,52 @@ async function main() {
       if (zx.off) saute('Zone extrême : DECOR_V2 désactivé');
       else if (zx.ko.length) fail('Zone extrême : ' + zx.ko.join(' | '));
       else ok('Zone extrême : ' + zx.info.join(' ; ') + ' ; montée sèche : moto de route, buggy et BMX calent ; supercross raté en BMX ou sans rien faire, saut sans voile mortel, une prime par vague, monte-charge jamais pris par en dessous');
+    }
+
+    // -------------------------------------------------------------------
+    // Sommet du Pic (demandé) : caméra plus collée au joueur, motos et vélos
+    // au sommet, tremplin dans le vide, saut du véhicule en plein vol → voile ;
+    // rester dessus est mortel. Ciel : les aéronefs vont partout (montagne,
+    // large) et le relief est solide. Lu dans PIC, VEHDEFS, LIMITE_EST.
+    // -------------------------------------------------------------------
+    console.log('\n--- Sommet du Pic : caméra, tremplin, saut en plein vol ; ciel ouvert aux aéronefs ---');
+    {
+      const pk = await page.evaluate(() => {
+        if (typeof PIC === 'undefined' || !PIC.ok || !PIC.tremplin) return { off: true };
+        const o = { ko: [], info: [] }, tr = PIC.tremplin;
+        const scene0 = () => { startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 300; for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0; };
+        startRun(); const haut = vehicules.filter((v) => (v.h || 0) > PIC.H - 5 && (v.def.type === 'moto')).length; if (haut < 3) o.ko.push('deux-roues au sommet : ' + haut);
+        // caméra : au sommet, au moins 30 u au-dessus du joueur (avant : ~20, vue collée)
+        scene0(); P.x = tr.x; P.z = tr.z1 - tr.long - 8; P.y = solPied(P.x, P.z); for (let i = 0; i < 90; i++) majCamera(1 / 30);
+        const ecart = camera.position.y - P.y; if (!(ecart > 30)) o.ko.push('caméra au sommet à ' + ecart.toFixed(1) + ' u au-dessus du joueur'); o.info.push('caméra au sommet : ' + ecart.toFixed(0) + ' u au-dessus');
+        const essai = (cle, sauter) => { scene0(); const v = creerVehicule(cle, tr.x, tr.z1 - tr.long - 25, 0, null); v.h = solY(v.x, v.z); P.x = v.x; P.z = v.z; entrerVehicule(v); INPUT.mx = 0; INPUT.mz = 1;
+          let t = 0, saute = false, bouton = false;
+          while (t < 45 && ETAT.mode === 'jeu') {
+            if (P.veh === v) { const c = controleDir(v, false); majVehiculePhys(v, 1 / 30, c.throttle, c.steer, false); P.x = v.x; P.z = v.z;
+              if (v.enAir && (v.h - solY(v.x, v.z)) > 30) { majAction(); const b = document.getElementById('btnAction'); bouton = bouton || /SAUTER DU VÉHICULE/.test(b ? b.textContent : ''); if (sauter && !saute) { saute = true; ejecterEnVol(); INPUT.mz = 0; } } }
+            else { if (P.chute && !P.para && P.chuteY0 - P.y > 6) ouvrirParachute(); majJoueur(1 / 30, 1 / 30); majPic(1 / 30); }
+            majVehicules(1 / 30); P.iframes = 0; t += 1 / 30; if (saute && !P.chute && !P.veh) break; }
+          INPUT.mx = INPUT.mz = 0;
+          return { cle, sauter, mort: ETAT.mode === 'mort', bouton, vehDetruit: !!v.mort, y: +P.y.toFixed(1) }; };
+        for (const r of [essai('motocross', true), essai('bmx', true), essai('motocross', false)]) {
+          if (r.sauter && (r.mort || !r.bouton || r.y > 2)) o.ko.push('saut en plein vol : ' + JSON.stringify(r));
+          if (!r.sauter && !r.mort) o.ko.push('resté sur la moto jusqu\'en bas sans mourir : ' + JSON.stringify(r)); }
+        ETAT.mode = 'jeu';
+        // ciel : un aéronef va jusqu'au-dessus de la montagne et au large ; trop bas, il percute le relief
+        const vol = (alt, x0, z0, ang) => { scene0(); P.hp = P.maxHp = 1e6; const cle = Object.keys(VEHDEFS).find((k) => VEHDEFS[k].air === 'avion' && !VEHDEFS[k].ovni);
+          const v = creerVehicule(cle, x0, z0, ang, null); P.x = v.x; P.z = v.z; entrerVehicule(v); v.vol = true; v.alt = alt; v.v = v.def.vmax; v.decolT = 0; INPUT.mx = Math.sin(ang); INPUT.mz = Math.cos(ang);
+          let t = 0, xm = -1e9, zm = -1e9, crash = false; while (t < 14) { if (P.veh !== v || v.mort) { crash = true; break; } majVol(v, 1 / 30); xm = Math.max(xm, v.x); zm = Math.max(zm, v.z); t += 1 / 30; }
+          INPUT.mx = INPUT.mz = 0; return { xm, zm, crash }; };
+        const haut2 = vol(120, HALF + 80, MONT.z, Math.PI / 2), large = vol(80, 0, MER, 0), bas = vol(MONT.H * 0.4, HALF + 80, MONT.z, Math.PI / 2);
+        if (haut2.crash || !(haut2.xm > LIMITE_EST - 5)) o.ko.push('avion bloqué avant la montagne : ' + JSON.stringify(haut2));
+        if (large.crash || !(large.zm > MER + 140)) o.ko.push('avion bloqué avant le large : ' + JSON.stringify(large));
+        if (!bas.crash) o.ko.push('avion trop bas traversant la montagne : ' + JSON.stringify(bas));
+        o.info.push('avion jusqu\'à x ' + haut2.xm.toFixed(0) + ' et z ' + large.zm.toFixed(0) + ', trop bas il percute le mont');
+        startRun(); return o;
+      });
+      if (pk.off) saute('Sommet du Pic : DECOR_V2 désactivé');
+      else if (pk.ko.length) fail('Sommet du Pic / ciel : ' + pk.ko.join(' | '));
+      else ok('Sommet du Pic / ciel : ' + pk.info.join(' ; ') + ' ; deux-roues au sommet, tremplin, bouton SAUTER DU VÉHICULE en plein vol puis voile (moto cross, BMX), rester dessus est mortel');
     }
 
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');
