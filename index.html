@@ -3604,7 +3604,7 @@ function construireVille(){
     if(qq!=='plage'&&qq!=='parc'&&bx%3===1&&bz%3===1) mkFeu(cx+INNER/2+1.4,cz-INNER/2-1.4);
   }
   placerPortes();
-  if(DECOR_V2){ sansAleaVille(()=>{ ameliorerPortes(); mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkCiel(); mkKiosqueBanderole(); mkCrique(); mkMontReyes(); mkBordureEst(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkNeonVivant(); mkQuartiersFinitions(); }); } // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
+  if(DECOR_V2){ sansAleaVille(()=>{ ameliorerPortes(); mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkCiel(); mkKiosqueBanderole(); mkCrique(); mkMontReyes(); mkBordureEst(); mkCanyonsDesert(); mkRides(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkNeonVivant(); mkQuartiersFinitions(); }); } // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
   finaliserMerge();
   construireMinimapStatique();
 }
@@ -5167,18 +5167,51 @@ function majQuartiersFinitions(dt){
    paroi rocheuse ; le mont occupe le coin nord-est.
    Relief = fonction de hauteur (RELIEFS) lue par solY ET par le maillage. */
 const LIMITE_EST=HALF+300;               // x max à terre (avant : HALF+158)
-const MONT={x:538,z:-238,rx:78,rz:82,H:72,sommet:null,sentier:[],pied:null};
-function hauteurMont(x,z){
+const MONT={kickers:[],x:538,z:-238,rx:78,rz:82,H:72,sommet:null,sentier:[],pied:null};
+// dans l'emprise d'un relief sculpté (RELIEFS) — terrains de saut, réceptions plus tolérantes
+function dansReliefLibre(x,z){ for(const r of RELIEFS) if(x>r.x0&&x<r.x1&&z>r.z0&&z<r.z1&&r.f(x,z)>0.3) return true; return false; }
+function hauteurMontBase(x,z){
   const dx=(x-MONT.x)/MONT.rx, dz=(z-MONT.z)/MONT.rz, d=Math.sqrt(dx*dx+dz*dz);
   if(d>=1) return 0;
   const u=1-d, n=1+0.13*Math.sin(x*0.071+z*0.052)+0.08*Math.sin(x*0.13-z*0.11)+0.05*Math.sin(x*0.29+z*0.23); // crêtes et ravines
   let b=Math.pow(u,1.25); if(b>0.72) b=0.72+(b-0.72)*0.4; // sommet arrondi, pas une aiguille
   return MONT.H*b*n*lisse(u/0.12);
 }
+// Le sentier est taillé dans la pente : sur sa largeur (±3 u, fondu jusqu'à 5),
+// la hauteur suit une rampe régulière d'un lacet à l'autre — sinon, entre deux
+// virages, on traversait les ravines et on s'envolait d'une crête (vu en test).
+function hauteurMont(x,z){
+  let h=hauteurMontBase(x,z);
+  if(!h) return 0;
+  const S=MONT.sentier, Hs=MONT.hSentier;
+  if(Hs) for(let s=0;s<S.length-1;s++){
+    const ax=S[s][0], az=S[s][1], bx=S[s+1][0], bz=S[s+1][1], dx=bx-ax, dz=bz-az, L2=dx*dx+dz*dz;
+    const u=clamp(((x-ax)*dx+(z-az)*dz)/L2,0,1), px=ax+dx*u, pz=az+dz*u, d=Math.sqrt(dist2(x,z,px,pz));
+    if(d<5){ const ht=Hs[s]+(Hs[s+1]-Hs[s])*u, w=lisse((5-d)/2); h=h+(ht-h)*w; }
+  }
+  for(const k of MONT.kickers){ // tremplins du sentier : rampe de 5 u qui monte de 2,8 u puis lèvre franche
+    const ax=x-k.x, az=z-k.z, along=ax*k.tx+az*k.tz, lat=-ax*k.tz+az*k.tx;
+    if(along>0&&along<5&&Math.abs(lat)<1.7) h+=3.2*along/5;
+  }
+  return h;
+}
 function mkMontReyes(){
   RELIEFS.push({x0:MONT.x-MONT.rx,x1:MONT.x+MONT.rx,z0:MONT.z-MONT.rz,z1:MONT.z+MONT.rz,f:hauteurMont});
-  // maillage : grille de 2 u, sommets partagés, couleur selon altitude et pente
-  const pas=2, x0=MONT.x-MONT.rx, z0=MONT.z-MONT.rz, nx=Math.ceil(2*MONT.rx/pas), nz=Math.ceil(2*MONT.rz/pas);
+  // sommet : le point le plus haut de la forme de base (le sentier se taille ensuite dedans)
+  let best={h:-1}; for(let x=MONT.x-MONT.rx;x<=MONT.x+MONT.rx;x+=2) for(let z=MONT.z-MONT.rz;z<=MONT.z+MONT.rz;z+=2){ const h=hauteurMontBase(x,z); if(h>best.h) best={h,x,z}; }
+  MONT.sommet=best;
+  // sentier en lacets : du pied (côté aéroport, au sud-ouest) jusqu'au sommet ; les lacets
+  // élargissent au pied et se resserrent en montant
+  const pied={x:MONT.x-MONT.rx*0.78,z:MONT.z+MONT.rz*0.72}; MONT.pied=pied;
+  const pts=[]; const N=13;
+  for(let k=0;k<=N;k++){ const t=Math.pow(k/N,0.85), cx=lerp(pied.x,best.x,t), cz=lerp(pied.z,best.z,t), amp=(1-t)*24+6, cote=(k%2?1:-1); // lacets jusqu'en haut
+    const nxv=-(best.z-pied.z), nzv=best.x-pied.x, ln=Math.hypot(nxv,nzv); pts.push([cx+cote*amp*nxv/ln*(k&&k<N?1:0),cz+cote*amp*nzv/ln*(k&&k<N?1:0)]); }
+  MONT.sentier=pts; MONT.hSentier=pts.map(([x,z])=>hauteurMontBase(x,z));
+  // tremplins sur un lacet sur deux, au milieu du segment, dans le sens de la montée (posés AVANT le maillage du sentier)
+  for(let s=1;s<pts.length-2;s+=2){ const [ax,az]=pts[s], [bx,bz]=pts[s+1], L=Math.hypot(bx-ax,bz-az);
+    MONT.kickers.push({x:(ax+bx)/2-(bx-ax)/L*2.5,z:(az+bz)/2-(bz-az)/L*2.5,tx:(bx-ax)/L,tz:(bz-az)/L}); }
+  // maillage (APRÈS le sentier : il y est taillé) : grille de 1,5 u, sommets partagés, couleur selon altitude et pente
+  const pas=1.5, x0=MONT.x-MONT.rx, z0=MONT.z-MONT.rz, nx=Math.ceil(2*MONT.rx/pas), nz=Math.ceil(2*MONT.rz/pas);
   const pos=[], col=[], idx=[], c3=new THREE.Color();
   const herbeB=new THREE.Color(0x6a9a40), herbeH=new THREE.Color(0x3a6a2c), roche=new THREE.Color(0x8a8478), neige=new THREE.Color(0xf2f4f8), terre=new THREE.Color(0x8a7a54);
   const H=(i,j)=>hauteurMont(x0+i*pas,z0+j*pas);
@@ -5194,16 +5227,6 @@ function mkMontReyes(){
   for(let i=0;i<nx;i++) for(let j=0;j<nz;j++){ if(Math.max(H(i,j),H(i+1,j),H(i,j+1),H(i+1,j+1))<0.01) continue; idx.push(id(i,j),id(i,j+1),id(i+1,j+1),id(i,j),id(i+1,j+1),id(i+1,j)); }
   const g=new THREE.BufferGeometry(); g.setIndex(idx); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(col,3)); g.computeVertexNormals();
   scene.add(new THREE.Mesh(g,new THREE.MeshLambertMaterial({vertexColors:true})));
-  // sommet : le point le plus haut de la grille
-  let best={h:-1}; for(let i=0;i<=nx;i++) for(let j=0;j<=nz;j++){ const h=H(i,j); if(h>best.h) best={h,x:x0+i*pas,z:z0+j*pas}; }
-  MONT.sommet=best;
-  // sentier en lacets : du pied (côté aéroport, au sud-ouest) jusqu'au sommet ; les lacets
-  // élargissent au pied et se resserrent en montant
-  const pied={x:MONT.x-MONT.rx*0.78,z:MONT.z+MONT.rz*0.72}; MONT.pied=pied;
-  const pts=[]; const N=13;
-  for(let k=0;k<=N;k++){ const t=Math.pow(k/N,0.85), cx=lerp(pied.x,best.x,t), cz=lerp(pied.z,best.z,t), amp=(1-t)*24+6, cote=(k%2?1:-1); // lacets jusqu'en haut
-    const nxv=-(best.z-pied.z), nzv=best.x-pied.x, ln=Math.hypot(nxv,nzv); pts.push([cx+cote*amp*nxv/ln*(k&&k<N?1:0),cz+cote*amp*nzv/ln*(k&&k<N?1:0)]); }
-  MONT.sentier=pts;
   const ruban={pos:[]}, pieces=[];
   for(let s=0;s<pts.length-1;s++){
     const [ax,az]=pts[s], [bx,bz]=pts[s+1], L=Math.hypot(bx-ax,bz-az), n=Math.ceil(L/1.5), tx=(bx-ax)/L, tz=(bz-az)/L;
@@ -5216,6 +5239,10 @@ function mkMontReyes(){
   }
   const gr=new THREE.BufferGeometry(); gr.setAttribute('position',new THREE.Float32BufferAttribute(ruban.pos,3)); gr.computeVertexNormals();
   scene.add(new THREE.Mesh(gr,new THREE.MeshLambertMaterial({color:0xb09a70,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-2})));
+  const bois=new THREE.MeshLambertMaterial({map:texPlanche,color:0xc8a070});
+  for(const k of MONT.kickers){ const y0=hauteurMont(k.x-k.tx*0.01,k.z-k.tz*0.01), y1=hauteurMont(k.x+k.tx*4.99,k.z+k.tz*4.99);
+    const p=new THREE.Mesh(new THREE.BoxGeometry(3.4,0.2,Math.hypot(5,y1-y0)),bois); p.position.set(k.x+k.tx*2.5,(y0+y1)/2+0.1,k.z+k.tz*2.5);
+    p.rotation.order='YXZ'; p.rotation.y=Math.atan2(k.tx,k.tz); p.rotation.x=-Math.atan2(y1-y0,5); scene.add(p); }
   const presDuSentier=(x,z,r)=>{ for(let s=0;s<pts.length-1;s++){ const [ax,az]=pts[s],[bx,bz]=pts[s+1], t=clamp(((x-ax)*(bx-ax)+(z-az)*(bz-az))/((bx-ax)**2+(bz-az)**2),0,1); if(dist2(x,z,ax+(bx-ax)*t,az+(bz-az)*t)<r*r) return true; } return false; };
   MONT.presDuSentier=presDuSentier;
   // forêt de conifères sur les pentes (jamais sur le sentier ni dans la neige), rochers sur les à-pics
@@ -5242,6 +5269,200 @@ function mkBordureEst(){
     const r=new THREE.DodecahedronGeometry(1,0); r.scale(aD(4,6.5),h,aD(3,4.5)); r.translate(X+aD(1,4),h*0.45,z+aD(-1,1)); rocs.push(r);
     if(aleaDecor()<0.5){ const r2=new THREE.DodecahedronGeometry(1,0); r2.scale(aD(6,12),aD(20,40),aD(6,10)); r2.translate(X+aD(10,30),aD(5,12),z); rocs.push(r2); } }
   const m=new THREE.Mesh(mergeGeoManuel(rocs),new THREE.MeshLambertMaterial({map:texGres()})); scene.add(m);
+}
+/* ---------- CANYONS DU DÉSERT, LIGNE « RAMPAGE » (DECOR_V2) ----------
+   Demandé : restyler le désert dans le style des collines de la crique, avec
+   des canyons et des « gaps » façon Red Bull Rampage, en remplaçant les dunes
+   et en gardant l'OVNI et tout l'existant.
+   - Ligne Rampage (bande est, ouverte avec la bordure) : cinq mesas en
+     escalier (22 → 6 u), séparées par des canyons de 10 u, un tremplin en
+     bois au bord sud de chacune : on saute de mesa en mesa. On y monte par
+     une longue rampe naturelle ; on sort d'un canyon par ses côtés.
+   - Les dunes deviennent des buttes érodées (strates rouges) avec un
+     tremplin, et des cheminées de fée parsèment le désert.
+   Hauteurs = fonctions (RELIEFS) lues par solY ET par le maillage. Les dunes
+   d'origine sont construites comme avant (aucun tirage de la ville décalé)
+   puis retirées. */
+const CANYON={mesas:[],tremplins:[],ligneX:535};
+function plateau(x,z,m){ // mesa à bords raides : 0 dehors, m.h sur le dessus
+  // bords latéraux irréguliers (érosion) ; le bord sud des mesas de la ligne reste droit (tremplin)
+  const nx=1.4*Math.sin(z*0.41+m.x)+0.7*Math.sin(z*1.13+m.h), nz=m.droitZ?0:1.2*Math.sin(x*0.37+m.z)+0.6*Math.sin(x*0.97);
+  const ix=m.hw+nx-Math.abs(x-m.x), iz=m.hd+nz-Math.abs(z-m.z), e=m.e||2.4;
+  if(ix<=-e||iz<=-e) return 0;
+  return m.h*lisse((Math.min(ix,iz)+e)/e);
+}
+function hauteurCanyon(x,z){
+  let h=0;
+  for(const m of CANYON.mesas){ const v=plateau(x,z,m); if(v>h) h=v; }
+  // tremplins : sur le dessus d'une mesa, la hauteur monte de k sur sa longueur
+  for(const t of CANYON.tremplins){ if(Math.abs(x-t.x)<t.hw&&z>t.z0&&z<t.z1){ const v=t.h0+t.k*(z-t.z0)/(t.z1-t.z0); if(v>h) h=v; } }
+  // rampe d'accès à la mesa de départ : de x0 (sol) à x1 (dessus), en largeur z0..z1
+  const a=CANYON.acces; if(a&&x>a.x0&&x<a.x1&&z>a.z0&&z<a.z1){ const lat=lisse(Math.min(z-a.z0,a.z1-z)/2.5), v=a.h*lisse((x-a.x0)/(a.x1-a.x0))*lat; if(v>h) h=v; }
+  return h;
+}
+function strate(h,pente,c3){ // couleurs du grès : bandes selon l'altitude, plus sombre sur les à-pics
+  const bandes=[0xb8572e,0xc9703a,0xd88c4a,0xa84a28,0xe0a060,0xc0623a];
+  c3.setHex(bandes[Math.floor(h/1.6)%bandes.length]);
+  if(pente<0.35&&h>0.5) c3.lerp(new THREE.Color(0xd8a870),0.75);   // dessus plat : sable
+  c3.multiplyScalar(1-clamp((pente-1)/2,0,0.25));
+}
+function maillageRelief(f,x0,x1,z0,z1,pas,colorer){
+  const nx=Math.ceil((x1-x0)/pas), nz=Math.ceil((z1-z0)/pas), pos=[], col=[], idx=[], c3=new THREE.Color();
+  const H=(i,j)=>f(x0+i*pas,z0+j*pas);
+  for(let i=0;i<=nx;i++) for(let j=0;j<=nz;j++){ const h=H(i,j), pente=Math.max(Math.abs(H(i+1,j)-H(i-1,j)),Math.abs(H(i,j+1)-H(i,j-1)))/(2*pas);
+    colorer(h,pente,c3,x0+i*pas,z0+j*pas); pos.push(x0+i*pas,h+0.03,z0+j*pas); col.push(c3.r,c3.g,c3.b); }
+  const id=(i,j)=>i*(nz+1)+j;
+  for(let i=0;i<nx;i++) for(let j=0;j<nz;j++){ if(Math.max(H(i,j),H(i+1,j),H(i,j+1),H(i+1,j+1))<0.02) continue; idx.push(id(i,j),id(i,j+1),id(i+1,j+1),id(i,j),id(i+1,j+1),id(i+1,j)); }
+  const g=new THREE.BufferGeometry(); g.setIndex(idx); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(col,3)); g.computeVertexNormals();
+  const m=new THREE.Mesh(g,matStrates()); scene.add(m); return m;
+}
+// Parois en strates de grès (style Rampage) : sur les pentes raides, la couleur
+// suit l'altitude du pixel (bandes rouges, ocres, crème, fins liserés sombres) ;
+// les dessus gardent la couleur des sommets (sable).
+var _matStrates=null;
+function matStrates(){
+  if(_matStrates) return _matStrates;
+  const m=new THREE.MeshLambertMaterial({vertexColors:true});
+  m.onBeforeCompile=(sh)=>{
+    sh.vertexShader='varying vec3 vStPos; varying float vStNy;\n'+sh.vertexShader.replace('#include <worldpos_vertex>','#include <worldpos_vertex>\n  vStPos=(modelMatrix*vec4(transformed,1.0)).xyz; vStNy=normalize(objectNormal).y;');
+    sh.fragmentShader='varying vec3 vStPos; varying float vStNy;\n'+sh.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>
+  { float y=vStPos.y+0.35*sin(vStPos.x*0.21+vStPos.z*0.17);           // strates légèrement ondulées
+    float k=mod(floor(y/1.3),5.0);
+    vec3 c=k<1.0?vec3(0.62,0.27,0.15):(k<2.0?vec3(0.78,0.42,0.22):(k<3.0?vec3(0.86,0.6,0.36):(k<4.0?vec3(0.58,0.24,0.14):vec3(0.74,0.36,0.2))));
+    float liser=1.0-smoothstep(0.0,0.09,fract(y/1.3));                // fin liseré sombre entre deux strates
+    c*=1.0-0.35*liser; c*=0.92+0.08*sin(vStPos.x*2.3)*sin(vStPos.z*1.9);
+    float raide=1.0-smoothstep(0.5,0.8,vStNy);
+    diffuseColor.rgb=mix(diffuseColor.rgb,c,raide); }`);
+  };
+  m.customProgramCacheKey=()=>'strates';
+  return _matStrates=m;
+}
+function mkCanyonsDesert(){
+  // 1) retirer les dunes d'origine (construites avant, pour ne décaler aucun tirage)
+  const pd=POIS.desert, dunes=COLLINES.filter((c)=>estDesert(c.x,c.z));
+  for(const c of dunes){ COLLINES.splice(COLLINES.indexOf(c),1);
+    for(let i=scene.children.length-1;i>=0;i--){ const o=scene.children[i]; if(o.isMesh&&o.geometry&&o.geometry.type==='LatheGeometry'&&Math.abs(o.position.x-c.x)<0.5&&Math.abs(o.position.z-c.z)<0.5){ scene.remove(o); o.geometry.dispose(); } } }
+  for(const [rx,rz] of [[pd.x+15,pd.z-55],[pd.x-15,pd.z+60]]){ // leurs deux tremplins
+    const k=RAMPES.findIndex((r)=>Math.abs(r.x-rx)<0.5&&Math.abs(r.z-rz)<0.5); if(k>=0) RAMPES.splice(k,1);
+    for(let i=scene.children.length-1;i>=0;i--){ const o=scene.children[i]; if(o.isMesh&&dist2(o.position.x,o.position.z,rx,rz+(rz<pd.z?4.5:-4.5))<30&&o.position.y<3){ scene.remove(o); o.geometry.dispose(); } } }
+  // 2) la ligne Rampage : mesas en escalier vers le sud, tremplins au bord sud
+  const X=CANYON.ligneX, hw=15, L=30, gap=10, z0=-150;
+  [22,18,14,10,6].forEach((h,k)=>{ const zc=z0+L/2+k*(L+gap); CANYON.mesas.push({x:X,z:zc,hw,hd:L/2,h,e:2.2,droitZ:true});
+    if(k<4) CANYON.tremplins.push({x:X,hw:3.2,z0:zc+L/2-7,z1:zc+L/2-0.6,h0:h,k:1.8}); });
+  CANYON.acces={x0:478,x1:X-hw+0.5,z0:z0+5,z1:z0+L-5,h:22};
+  // 3) buttes érodées à la place des dunes (hors cratère de l'OVNI et collines de la crique)
+  for(const [bx,bz,h,r] of [[pd.x+32,pd.z-36,12,16],[pd.x-58,pd.z-24,13,13],[pd.x+38,pd.z+38,9,12]]) CANYON.mesas.push({x:bx,z:bz,hw:r,hd:r*0.75,h,e:3.5});
+  CANYON.tremplins.push({x:pd.x+32,hw:2.6,z0:pd.z-36+12-6,z1:pd.z-36+12-0.6,h0:12,k:1.6});
+  RELIEFS.push({x0:470,x1:LIMITE_EST,z0:z0-4,z1:z0+5*(L+gap)+4,f:hauteurCanyon});
+  RELIEFS.push({x0:pd.x-80,x1:pd.x+60,z0:pd.z-60,z1:pd.z+60,f:hauteurCanyon});
+  const col=(h,pente,c3)=>strate(h,pente,c3);
+  maillageRelief(hauteurCanyon,470,LIMITE_EST,z0-4,z0+5*(L+gap)+4,2,col);
+  maillageRelief(hauteurCanyon,pd.x-80,pd.x+60,pd.z-60,pd.z+60,2,col);
+  // tremplins en bois posés sur la pente de la fonction
+  const bois=new THREE.MeshLambertMaterial({map:texPlanche,color:0xc8a070});
+  for(const t of CANYON.tremplins){ const l=t.z1-t.z0, a=Math.atan2(t.k,l);
+    const p=new THREE.Mesh(new THREE.BoxGeometry(t.hw*2,0.2,Math.hypot(l,t.k)),bois); p.rotation.x=-a; p.position.set(t.x,t.h0+t.k/2+0.05,(t.z0+t.z1)/2); scene.add(p);
+    for(const s of [-1,1]) mkBox(0.2,t.k+0.3,0.2,mat(0x5a3a22),t.x+s*(t.hw-0.2),t.h0+(t.k+0.3)/2,t.z1-0.3); }
+  // 4) cheminées de fée et blocs dans le désert (solides), jamais sur une ligne, un cratère ou un tremplin
+  const pieces=[];
+  for(let i=0;i<70;i++){
+    const x=aD(285,LIMITE_EST-6), z=aD(-150,250);
+    if(hauteurCanyon(x,z)>0.2||!estDesert(x,z)&&x<470||dist2(x,z,POIS.crash.x,POIS.crash.z)<900||solidAt(x,z,3)) continue;
+    if(x>287&&x<477&&z>-260&&z<120) continue;              // jamais sur l'aérodrome
+    if(Math.abs(x-X)<hw+4) continue;                        // ni dans les canyons de la ligne
+    if(x>320&&x<425&&z>190) continue;                       // ni dans la crique
+    const h=aD(3,9), r=aD(0.8,1.6);
+    pieces.push(['cyl',r,h,r,x,h/2,z,choixD([0xb8572e,0xc9703a,0xa84a28])],['cyl',r*0.7,0.6,r*0.7,x,h*0.33,z,0xd88c4a],['boule',r*1.4,r*0.9,r*1.4,x,h+0.3,z,0x7a5032]);
+    addSolid({x,z,hw:r*0.9,hd:r*0.9,h:h+0.6});
+  }
+  scene.add(meshPieces(pieces));
+  // panneau de départ
+  mkBox(0.2,3.5,0.2,mat(0x5a3a22),CANYON.acces.x0+2,1.75,CANYON.acces.z0-2);
+  mkEnseigne('RAMPAGE — LIGNE DES MESAS','#ff8c1a',CANYON.acces.x0+2,4,CANYON.acces.z0-1.9,0,7);
+  POIS.rampage={x:X,z:z0+L/2};
+}
+/* ---------- COURSES DU MONT ET DU CANYON (DECOR_V2) ----------
+   Deux défis chronométrés (dtJeu), à faire sur deux roues ou en buggy :
+   - MONTÉE DU MONT REYES : du pied au sommet par le sentier en lacets,
+     portes à franchir dans l'ordre ;
+   - LIGNE DES MESAS : depuis la mesa de 22 u, enchaîner les 4 gaps et
+     atterrir sur la dernière mesa.
+   On démarre au volant, sur le cercle de départ (bouton d'action). Prime une
+   fois par vague et par course (jamais de farming), record gardé en partie.
+   Au pied de chaque départ : motos cross, BMX, vélo et buggy garés. */
+const RIDES={actif:null,marques:[],records:{},primeVague:{}};
+const RIDE_DEFS={
+  mont:{nom:'MONTÉE DU MONT REYES',temps:50,prime:250},   // robot qui coupe droit : 22 s en BMX
+  mesas:{nom:'LIGNE DES MESAS',temps:14,prime:300},        // robot : 6 s en moto cross, 8 s en buggy
+};
+function rideDepart(id){
+  if(id==='mont') return {x:MONT.pied.x,z:MONT.pied.z};
+  const m=CANYON.mesas[0]; return {x:m.x,z:m.z-m.hd+5};
+}
+function ridePortes(id){
+  if(id==='mont') return MONT.sentier.slice(1).map(([x,z])=>({x,z,r:9}));
+  return CANYON.mesas.slice(1,5).map((m)=>({x:m.x,z:m.z-m.hd+6,r:13,minH:m.h-1})); // atterrir sur chaque mesa
+}
+function mkRides(){
+  const mAnneau=new THREE.MeshBasicMaterial({color:0xffd23f,transparent:true,opacity:0.55,depthWrite:false,side:THREE.DoubleSide});
+  for(const id of Object.keys(RIDE_DEFS)){
+    const d=rideDepart(id), y=solY(d.x,d.z);
+    const a=new THREE.Mesh(new THREE.RingGeometry(3.2,4,32),mAnneau); a.rotation.x=-Math.PI/2; a.position.set(d.x,y+0.12,d.z); scene.add(a);
+    mkBox(0.2,4,0.2,mat(0x2a2d34),d.x-4.5,y+2,d.z); mkBox(0.2,4,0.2,mat(0x2a2d34),d.x+4.5,y+2,d.z);
+    const t=new THREE.CanvasTexture((()=>{ const c=document.createElement('canvas'); c.width=256; c.height=32; const g=c.getContext('2d');
+      for(let i=0;i<16;i++){ g.fillStyle=i%2?'#14161c':'#f2f4f8'; g.fillRect(i*16,0,16,16); g.fillStyle=i%2?'#f2f4f8':'#14161c'; g.fillRect(i*16,16,16,16); } return c; })());
+    const banner=new THREE.Mesh(new THREE.PlaneGeometry(9,0.8),new THREE.MeshBasicMaterial({map:t,side:THREE.DoubleSide})); banner.position.set(d.x,y+3.8,d.z); scene.add(banner);
+    mkEnseigne(RIDE_DEFS[id].nom,'#ffd23f',d.x,y+5,d.z,0,8);
+  }
+  // porte suivante : grand anneau lumineux posé au sol
+  const p=new THREE.Mesh(new THREE.RingGeometry(6,7.2,40),new THREE.MeshBasicMaterial({color:0x35e0ff,transparent:true,opacity:0.7,depthWrite:false,side:THREE.DoubleSide}));
+  p.rotation.x=-Math.PI/2; p.visible=false; scene.add(p); RIDES.porte=p;
+  const txt=document.createElement('div'); txt.id='rideTxt';
+  txt.style.cssText='position:absolute;top:calc(env(safe-area-inset-top,0px) + 100px);left:50%;transform:translateX(-50%);z-index:30;display:none;padding:6px 14px;border-radius:10px;background:rgba(10,12,18,0.82);border:2px solid #ffd23f;color:#ffd23f;font-weight:900;font-size:15px;white-space:nowrap;pointer-events:none';
+  el('hud').appendChild(txt); RIDES.txt=txt;
+}
+// véhicules garés au pied des départs (startRun)
+function garerRides(){
+  if(!MONT.pied) return;
+  const pm=MONT.pied, a=CANYON.acces;
+  [['motocross',pm.x-8,pm.z+6],['motocross',pm.x-11,pm.z+6],['bmx',pm.x-14,pm.z+5],['velo',pm.x-16,pm.z+5],
+   ['motocross',a.x0-8,a.z0+4],['buggy',a.x0-8,a.z0+11],['bmx',a.x0-12,a.z0+6]].forEach(([k,x,z])=>{
+    if(!solidAt(x,z,1.5)&&!vehicules.some((o)=>dist2(o.x,o.z,x,z)<9)) creerVehicule(k,x,z,Math.PI/2);
+  });
+}
+function rideEligible(v){ return !!v&&(v.def.type==='moto'||v.def.buggy||v.def.quad); }
+function rideProche(){
+  if(RIDES.actif||!P.veh||!rideEligible(P.veh)) return null;
+  for(const id of Object.keys(RIDE_DEFS)){ const d=rideDepart(id); if(dist2(P.x,P.z,d.x,d.z)<36) return id; }
+  return null;
+}
+function demarrerRide(id){
+  RIDES.actif={id,portes:ridePortes(id),i:0,t:RIDE_DEFS[id].temps,t0:0};
+  RIDES.txt.style.display='block'; bigMsg('🏁 '+RIDE_DEFS[id].nom); SFX.niveau(); vibre(40);
+}
+function finirRide(reussi){
+  const r=RIDES.actif; if(!r) return;
+  RIDES.actif=null; RIDES.porte.visible=false; RIDES.txt.style.display='none';
+  if(!reussi){ toast('Course ratée — le cercle de départ t’attend','warn'); SFX.refus(); return; }
+  const D=RIDE_DEFS[r.id], temps=r.t0, rec=RIDES.records[r.id];
+  let msg='🏁 '+D.nom+' — '+temps.toFixed(1)+' s';
+  if(!rec||temps<rec){ RIDES.records[r.id]=temps; msg+=' — RECORD !'; }
+  if(RIDES.primeVague[r.id]!==WAVES.n){ RIDES.primeVague[r.id]=WAVES.n; META.argent+=D.prime; ETAT.cashRun+=D.prime; msg+=' +'+D.prime+' $'; sauveMeta(); } // une prime par vague
+  bigMsg(msg); SFX.niveau(); vibre(80);
+}
+function majRides(dtJeu){
+  const r=RIDES.actif; if(!r) return;
+  if(!P.veh||!rideEligible(P.veh)||ETAT.mode!=='jeu'){ finirRide(false); return; }
+  r.t-=dtJeu; r.t0+=dtJeu;
+  const p=r.portes[r.i];
+  RIDES.porte.visible=true; RIDES.porte.position.set(p.x,solY(p.x,p.z)+0.2,p.z);
+  RIDES.txt.textContent='🏁 '+RIDE_DEFS[r.id].nom+' — porte '+(r.i+1)+'/'+r.portes.length+' — '+Math.ceil(Math.max(0,r.t))+' s';
+  if(r.t<=0){ finirRide(false); return; }
+  const v=P.veh;
+  if(dist2(v.x,v.z,p.x,p.z)<p.r*p.r&&(p.minH===undefined||(!v.enAir&&(v.h||0)>=p.minH))){
+    r.i++; SFX.ramasse(); vibre(20);
+    if(r.i>=r.portes.length) finirRide(true);
+  }
 }
 // Un véhicule lancé (joueur ou autre) renverse les petits objets sur son passage.
 function majMobilier(){
@@ -10475,7 +10696,12 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
           bruit(0.3,0.5,600);
           abimerVehicule(v,80,false);
         } else {
-          if(v.vy<-9){ abimerVehicule(v,-v.vy*1.6,false); }
+          // ligne Rampage (DECOR_V2) : réceptions prévues pour sauter de mesa en mesa — seule une
+          // chute bien plus haute qu'un gap fait des dégâts (sinon 5 sauts = véhicule détruit)
+          // canyons et Mont Reyes : terrains de saut. Une réception ratée n'y abîme qu'au-delà
+          // d'une chute de ~20 u, et moins fort (la course se perd au chrono, pas en explosant)
+          const relief=DECOR_V2&&dansReliefLibre(v.x,v.z), seuilChoc=relief?-32:-9;
+          if(v.vy<seuilChoc){ abimerVehicule(v,-v.vy*(relief?0.9:1.6),false); }
           // atterrissage sur les roues (roulis proche de zéro) : vitesse
           // conservée, et un saut long réussi rapporte un petit bonus ; à
           // plat ou de travers, perte nette de vitesse — voir CLAUDE.md
@@ -10502,8 +10728,12 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
       v.h=gY;
       const monte=(gY-prev)/Math.max(dt,0.001);
       v.penteVy=clamp(monte,-20,16);
-      if(prev-gY>0.9&&Math.abs(v.v)>9){ // vraie crête : envol (pas une bordure de trottoir)
+      // sur les reliefs sculptés (Mont Reyes, canyons), une pente qu'on dévale ne fait pas décoller :
+      // seuls un vrai bord (falaise, tremplin, gap de mesa) ou une bosse franche lancent le véhicule
+      const seuilEnvol=DECOR_V2&&dansReliefLibre(v.x,v.z)&&!MONT.kickers.some((k)=>dist2(k.x,k.z,v.x,v.z)<64)?2.4:0.9; // au tremplin du sentier : on décolle
+      if(prev-gY>seuilEnvol&&Math.abs(v.v)>9){ // vraie crête : envol (pas une bordure de trottoir)
         v.enAir=true; v.h=prev; v.vy=Math.max(2,v.penteVy*0.85); v.airT=0;
+        if(seuilEnvol<1&&DECOR_V2&&dansReliefLibre(v.x,v.z)) v.vy=Math.min(v.vy,6.5); // tremplin du sentier : un saut, jamais un envol hors du lacet
         if(v.conduit==='joueur') SFX.swing();
       }
       if(d.type!=='moto') v.mesh.rotation.z=lerp(v.mesh.rotation.z||0,0,clamp(6*dt,0,1));
@@ -22288,7 +22518,7 @@ function startRun(){
   P.hp=P.maxHp; P.stam=P.stamMax; P.bouclier=0; P.veh=null;
   P.buffs={dmg:0,vit:0,butin:0,lourd:0,sprintLibre:0,vol:0,cadence:0}; P.iframes=0; P.dodgeT=0; P.rechT=0; P.specCd=0; P.ecraseT=0;
   P.grenades=3; boutonsAPied(); // jamais el('grenN') seul : voir boutonsAPied (mort au volant)
-  if(DECOR_V2){ reparerMobilier(); poserTexteBanderole(META.banderole); } // mobilier renversé réparé ; message acheté sur la banderole
+  if(DECOR_V2){ reparerMobilier(); poserTexteBanderole(META.banderole); if(RIDES.porte){ RIDES.actif=null; RIDES.porte.visible=false; RIDES.txt.style.display='none'; RIDES.records={}; RIDES.primeVague={}; } } // course en cours : jamais survivante d'une partie à l'autre // mobilier renversé réparé ; message acheté sur la banderole
   // Jetpack : perdu au game over, comme les armes (voir CLAUDE.md) — il
   // faut remonter le chercher. Le lieu, lui (META.jetpackTrouve), reste acquis.
   P.jetpack=false; P.jetpackVol=false; P.jetFuel=100; P.jetVx=0; P.jetVz=0; P.jetWarnT=0; P.jetAvertVu=false;
@@ -22563,7 +22793,7 @@ function startRun(){
     if(!libre) continue;
     creerVehicule(pick(['citadine','citadine','muscle','pickup','van','moto','taxi']),x,z,vert?0:Math.PI/2);
   }
-  garerVelos();
+  garerVelos(); if(DECOR_V2) garerRides();
   if(GALION.tresor){ // coffre du galion : une fois par partie, et il attend le joueur (un butin dure 26 s par défaut)
     creerPickup('cash',GALION.tresor.x,GALION.tresor.z,120); pickups[pickups.length-1].t=1e9;
     creerPickup('mun',GALION.tresor.x+1.2,GALION.tresor.z-0.6); pickups[pickups.length-1].t=1e9; }
@@ -22575,6 +22805,7 @@ function startRun(){
 }
 function mourir(){
   if(ETAT.mode==='mort') return;
+  if(DECOR_V2&&RIDES.actif){ RIDES.actif=null; RIDES.porte.visible=false; RIDES.txt.style.display='none'; } // course abandonnée à la mort
   ETAT.mode='mort'; ETAT.timeScale=0.28; document.body.style.boxShadow='none';
   annulerFouille(true); cacherJauges();
   SFX.mort(); vibre(120);
@@ -23599,8 +23830,11 @@ function majAction(){
   if(!P.veh&&auSol()) for(const p of PORTES){ if(dist2(P.x,P.z,p.x,p.z)<11){ porteP=p; break; } }
   let pgar=null; // garage tuning à portée du véhicule
   if(P.veh&&P.veh.def&&!(P.veh.def.air&&P.veh.vol)) pgar=porteGarageProche(P.x,P.z);
+  const rideId=DECOR_V2?rideProche():null;
   if(P.veh&&P.veh.def){
-    if(P.veh.def.air&&P.veh.vol){
+    if(rideId){
+      label='🏁 DÉPART — '+RIDE_DEFS[rideId].nom; fn=()=>demarrerRide(rideId);
+    } else if(P.veh.def.air&&P.veh.vol){
       label='EN VOL'; fn=()=>{SFX.refus();};
     } else if(pgar){
       const gt=GARAGE_PAR_ID[pgar.garageId], refus=garageRefusVehicule(P.veh,gt);
@@ -24156,7 +24390,7 @@ function boucle(t){
     ETAT.comboT-=dt;
     if(ETAT.comboT<=0) ETAT.combo=1;
     if(ETAT.slowT>0){ ETAT.slowT-=dtReel; if(ETAT.slowT<=0&&ETAT.mode==='jeu') ETAT.timeScale=1; }
-    if(ETAT.mode==='jeu'){ majNitro(dtJeu); majJoueur(dt,dtJeu); } // nitro décidée AVANT la physique du véhicule
+    if(ETAT.mode==='jeu'){ majNitro(dtJeu); majJoueur(dt,dtJeu); if(DECOR_V2) majRides(dtJeu); } // nitro décidée AVANT la physique du véhicule
     majEnnemis(dt);
     if(!INT.actif){
       majPietons(dt);

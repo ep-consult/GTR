@@ -7662,8 +7662,9 @@ async function main() {
         if (typeof DECOR_V2 === 'undefined' || !DECOR_V2) return { off: true };
         const o = {};
         startRun(); ETAT.timeScale = 1; P.hp = P.hpMax = 1e6;
-        o.nbGares = vehicules.filter((v) => v.def.velo).length;
-        o.garesSurArceaux = vehicules.filter((v) => v.def.velo).every((v) => MOB.arceaux.some((a) => Math.abs(a.x - v.x) < 0.01 && Math.abs(a.z - v.z) < 0.01));
+        const enVille = (v) => v.def.velo && Math.abs(v.x) < HALF && Math.abs(v.z) < HALF; // hors des vélos du Mont Reyes (garés au pied, pas aux arceaux)
+        o.nbGares = vehicules.filter(enVille).length;
+        o.garesSurArceaux = vehicules.filter(enVille).every((v) => MOB.arceaux.some((a) => Math.abs(a.x - v.x) < 0.01 && Math.abs(a.z - v.z) < 0.01));
         // scène maîtrisée : plus aucun véhicule, un carrefour dégagé
         for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0;
         const X = -HALF + 6 * CELL, Z = -HALF + 6 * CELL;
@@ -8101,6 +8102,44 @@ async function main() {
       if (bt.off) saute('Bateaux : DECOR_V2 désactivé');
       else if (bt.ko.length || bt.vus.length < 5) fail('Bateaux : étrave à l\'arrière — ' + bt.ko.join(', '));
       else ok('Bateaux : ' + bt.vus.length + ' bateaux, étrave devant dans le sens de la marche (' + bt.vus.join(', ') + ')');
+    }
+
+    // -------------------------------------------------------------------
+    // Mont Reyes et ligne des mesas (DECOR_V2) : un pilote prudent (freine
+    // avant les épingles) finit les deux courses, avec des sauts, sans
+    // dégâts, dans le temps ; prime une seule fois par vague ; le désert est
+    // ouvert jusqu'à la paroi est ; véhicules garés au pied des départs.
+    // -------------------------------------------------------------------
+    console.log('\n--- Mont Reyes et ligne des mesas : courses finissables avec sauts, prime une fois par vague ---');
+    {
+      const ri = await page.evaluate(() => {
+        if (typeof RIDES === 'undefined' || !RIDES.porte) return { off: true };
+        const o = { courses: [] };
+        startRun(); o.gares = vehicules.filter((v) => v.x > 440 && (v.def.type === 'moto' || v.def.buggy)).length;
+        const course = (id, cle) => {
+          startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.hpMax = 1e6; for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0;
+          const d = rideDepart(id), v = creerVehicule(cle, d.x, d.z, 0, null); v.h = solY(d.x, d.z); P.x = v.x; P.z = v.z; entrerVehicule(v);
+          const a0 = META.argent; demarrerRide(id); let t = 0, sauts = 0, pa = false;
+          while (RIDES.actif && t < 120) { const p = RIDES.actif.portes[RIDES.actif.i], dd = Math.sqrt(dist2(p.x, p.z, v.x, v.z)), cap = Math.atan2(p.x - v.x, p.z - v.z), df = Math.abs(angDiff(v.ang, cap));
+            const fr = (dd < 16 && Math.abs(v.v) > 15) || (df > 0.8 && Math.abs(v.v) > 12);
+            majVehiculePhys(v, 1 / 30, fr ? 0 : 1, clamp(angDiff(v.ang, cap) * 2.4, -1, 1), fr); if (v.enAir && !pa) sauts++; pa = v.enAir; P.x = v.x; P.z = v.z; majRides(1 / 30); t += 1 / 30; }
+          return { id, cle, prime: META.argent - a0, t: +t.toFixed(1), sauts, degats: v.def.hp - v.hp, limite: RIDE_DEFS[id].temps };
+        };
+        for (const [id, cle] of [['mesas', 'motocross'], ['mesas', 'buggy'], ['mont', 'motocross'], ['mont', 'bmx'], ['mont', 'quad']]) o.courses.push(course(id, cle));
+        // même vague : pas de seconde prime
+        const v2 = (() => { const d = rideDepart('mesas'); const a = META.argent; RIDES.primeVague.mesas = WAVES.n; const v = creerVehicule('motocross', d.x, d.z, 0, null); v.h = solY(d.x, d.z); entrerVehicule(v); demarrerRide('mesas'); RIDES.actif.i = RIDES.actif.portes.length - 1; const p = RIDES.actif.portes[RIDES.actif.i]; v.x = p.x; v.z = p.z; v.h = solY(p.x, p.z); v.enAir = false; majRides(1 / 30); return META.argent - a; })();
+        o.secondePrime = v2;
+        o.limiteEst = (() => { P.x = 590; P.z = 100; majJoueur && 0; return LIMITE_EST; })();
+        startRun(); return o;
+      });
+      if (ri.off) saute('Mont Reyes : DECOR_V2 désactivé');
+      else {
+        const ko = ri.courses.filter((c) => !(c.prime > 0) || c.degats > 0 || !(c.t < c.limite) || (c.cle !== 'bmx' && c.sauts < 2)).map((c) => JSON.stringify(c));
+        if (ri.gares < 4) ko.push('véhicules garés : ' + ri.gares);
+        if (ri.secondePrime !== 0) ko.push('seconde prime dans la même vague : ' + ri.secondePrime);
+        if (ko.length) fail('Mont Reyes / mesas : ' + ko.join(' | '));
+        else ok('Mont Reyes / mesas : ' + ri.courses.map((c) => c.id + ' en ' + c.cle + ' ' + c.t + ' s, ' + c.sauts + ' sauts').join(', ') + ' — sans dégâts, prime une fois par vague, ' + ri.gares + ' véhicules garés au pied');
+      }
     }
 
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');
