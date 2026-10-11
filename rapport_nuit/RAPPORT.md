@@ -866,3 +866,45 @@ Rendu seul :
   Le défi devient le « DÉFI SUPERCROSS » : 2 600 points en 45 s. Un pilote simulé en marque 3 100 en moto cross, en quad et en buggy, mais pas assez en 4x4 ou en BMX. Captures : `supercross.png`, `supercross_virage.png`, `supercross_dessus.png`.
 - **Bateau qui fonce vers la plage.** Il glisse sur le sable en freinant progressivement (7 à 24 u selon le bateau), sans dégâts. Le joueur descend sur la plage. En rembarquant, on repart au pas vers l'eau, jamais à travers la plage. Capture : `bateau_echoue.png`.
 - **Police et IA à l'eau.** Elles s'y noient aussi.
+
+---
+
+## 6e lot — sommet du Pic, ciel ouvert, mer vivante (11 octobre)
+
+| Élément | En bref |
+|---|---|
+| Vue au sommet | Signalé : « en haut, la vue est très zoomée sur le joueur ». Au-dessus de 20 u, la caméra suit maintenant la hauteur : au sommet du Pic, elle est à 37 u au-dessus du joueur au lieu de 20. Capture : `pic_sommet_vue.png`. |
+| Motos, vélo, tremplin au sommet | Deux motos cross, un BMX et un vélo sont garés au sommet du Pic, face à un tremplin en planches au bord du vide. En plein vol, le bouton **SAUTER DU VÉHICULE** apparaît : on lâche le véhicule, on tombe avec son élan, puis on ouvre la voile (saut BASE). Le véhicule s'écrase en bas. Rester dessus jusqu'en bas est mortel. |
+| Ciel ouvert | Les avions, l'hélico et le jetpack vont partout : au-dessus de la montagne, du désert et jusqu'au large. Avant, ils étaient bloqués à la limite de l'aéroport. Le relief est solide : un avion trop bas s'écrase sur le mont. |
+| **Mer vivante** | Signalé : « la mer est trop calme, il faut donner envie de découvrir ». Détail ci-dessous. |
+
+### Mer vivante
+
+- **Île aux trésors** (nouvelle) : camp de pirates, rocher en forme de crâne, palmiers, tonneaux, canot échoué. Une croix rouge cache un coffre : CREUSER rapporte 220 $, une fois par vague.
+- **Paillote** sur l'île du canard : un cocktail à 20 $ qui soigne.
+- **Plongée** : six épaves trahies par des bulles. À la nage, PLONGER remonte un coffre (60 à 120 $), une fois par vague et par épave.
+- **Tremplins flottants** : cinq rampes sur flotteurs. Jet-skis et vedettes s'envolent (environ 5 u de haut), avec des points de saut.
+- **Rallye des bouées** : course de portes autour des îles, en jet-ski ou en vedette, départ au large de la marina. 32 s ; le pilote simulé met 17 à 26 s.
+- **Wakeboard** (kiosque au bout du ponton est de la marina, 50 $) : un bateau te tire au large.
+  - Le joystick choisit où tu vas à l'écran.
+  - Traverser vite la vague du sillage fait décoller ; ESQUIVE en l'air lance un 360.
+  - Si le 360 n'est pas fini à la réception, c'est la chute.
+  - Objectif : 4 500 points en 45 s. Un rythme soutenu passe (6 200), un rythme lent non (3 200).
+- **Parachute ascensionnel** (kiosque au bout du ponton ouest, 60 $) : on monte à 32 u derrière le bateau, LÂCHER LA CORDE, puis on vise le radeau-cible.
+- **Faune** :
+  - un banc de dauphins accompagne un bateau rapide au large ;
+  - une baleine refait surface et souffle au loin ;
+  - des **requins** rôdent dans les eaux profondes de l'est, signalées par des bouées jaunes et un panneau. Ils mordent un nageur, jamais un bateau.
+- **Une prime par vague et par activité** : pas de farming.
+
+Captures : `mer_ile_tresor.png`, `mer_mer_large.png`, `mer_jeu_wake.png`, `mer_jeu_parachute.png`, `mer_jeu_tremplin_saut.png`, `mer_jeu_paillote.png`, `mer_jeu_plongee.png`.
+
+### À tester sur iPhone
+
+1. Pic du Vertige : prendre une moto en haut, sauter le tremplin, appuyer sur SAUTER DU VÉHICULE, ouvrir la voile.
+2. Vue au sommet : elle ne doit plus être collée au joueur.
+3. Avion ou hélico au-dessus de la montagne et au large.
+4. Wakeboard : le joystick latéral est-il naturel ? Le saut du sillage est-il lisible ?
+5. Parachute ascensionnel : lâcher la corde au-dessus du radeau.
+6. Île aux trésors, plongée, paillote, rallye des bouées.
+7. Nager vers les bouées jaunes à l'est : les requins.

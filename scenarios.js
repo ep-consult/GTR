@@ -7901,7 +7901,7 @@ async function main() {
         if (typeof PORT === 'undefined' || !PORT.faisceau) return { off: true };
         const o = { parcs: PORT.portiques.length }, j0 = ETAT.jour;
         const z0 = PORT.portiques.map((p) => p.g.position.z), r0 = PORT.faisceau.rotation.y;
-        for (let i = 0; i < 120; i++) majPortVivant(1 / 60);
+        for (let i = 0; i < 600; i++) majPortVivant(1 / 60); // 10 s : sur 2 s, un portique au bout de sa course (sommet du sinus) ne bougeait presque pas (test fragile)
         o.bougent = PORT.portiques.every((p, i) => Math.abs(p.g.position.z - z0[i]) > 0.05);
         o.tourne = PORT.faisceau.rotation.y > r0;
         o.ilot = !estEau(POIS.phare.x + 4, POIS.phare.z) && solY(POIS.phare.x + 4, POIS.phare.z) > 0.5;
@@ -8366,6 +8366,66 @@ async function main() {
       if (pk.off) saute('Sommet du Pic : DECOR_V2 désactivé');
       else if (pk.ko.length) fail('Sommet du Pic / ciel : ' + pk.ko.join(' | '));
       else ok('Sommet du Pic / ciel : ' + pk.info.join(' ; ') + ' ; deux-roues au sommet, tremplin, bouton SAUTER DU VÉHICULE en plein vol puis voile (moto cross, BMX), rester dessus est mortel');
+    }
+
+    // -------------------------------------------------------------------
+    // Mer vivante (demandé : « des choses à faire sur les îles, du wakeboard,
+    // dynamiser la mer, donner envie de découvrir ») : trésor, paillote,
+    // plongée, tremplins flottants, rallye des bouées, wakeboard, parachute
+    // ascensionnel, requins. Une prime par vague et par activité (pas de
+    // farming). Tout est lu dans MERV, TOW, RIDE_DEFS.
+    // -------------------------------------------------------------------
+    console.log('\n--- Mer vivante : île aux trésors, plongée, tremplins, rallye, wakeboard, parachute ascensionnel, requins ---');
+    {
+      const mv = await page.evaluate(() => {
+        if (typeof MERV === 'undefined' || !MERV.ok) return { off: true };
+        const o = { ko: [], info: [] };
+        const scene0 = () => { startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 300; META.argent = 1000; for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0; };
+        const pas = (n, f) => { for (let i = 0; i < n; i++) { if (f) f(i); majJoueur(1 / 30, 1 / 30); majPic(1 / 30); majTow(1 / 30); majVehicules(1 / 30); majMer(1 / 30); P.iframes = 0; } };
+        // trésor : une fois par vague
+        scene0(); P.x = MERV.tresor.x; P.z = MERV.tresor.z; P.y = solPied(P.x, P.z); pas(3);
+        let a = actionMer(); let m = META.argent; if (!a || !/CREUSER/.test(a.label)) o.ko.push('pas de bouton CREUSER : ' + (a && a.label)); else { a.fn(); const g1 = META.argent - m; m = META.argent; actionMer().fn(); const g2 = META.argent - m;
+          if (!(g1 > 0) || g2 !== 0) o.ko.push('trésor : ' + g1 + ' puis ' + g2); else o.info.push('trésor +' + g1 + ' $'); }
+        // plongée : chaque épave une fois par vague
+        const sp = MERV.spots[0]; scene0(); P.x = sp.x; P.z = sp.z; P.y = 0; pas(6); a = actionMer(); m = META.argent;
+        if (!a || !/PLONGER/.test(a.label)) o.ko.push('pas de bouton PLONGER à la nage : ' + (a && a.label)); else { a.fn(); const g = META.argent - m, a2 = actionMer(); if (!(g > 0) || !/DÉJÀ/.test(a2 ? a2.label : '')) o.ko.push('plongée : ' + g + ' / ' + (a2 && a2.label)); }
+        // paillote : soigne
+        scene0(); P.x = MERV.paillote.x; P.z = MERV.paillote.z - 2; P.y = solPied(P.x, P.z); P.hp = 100; pas(2); a = actionMer(); a && a.fn(); if (!(P.hp > 100)) o.ko.push('paillote : ' + (a && a.label) + ' hp ' + P.hp);
+        // tremplin flottant en jet-ski : envol, sans dégâts
+        scene0(); { const r = MERV.rampes[0], sa = Math.sin(r.ang), ca = Math.cos(r.ang), v = creerVehicule('jetski', r.x - sa * 40, r.z - ca * 40, r.ang, null); P.x = v.x; P.z = v.z; entrerVehicule(v); INPUT.mx = sa; INPUT.mz = ca;
+          let hmax = 0; for (let i = 0; i < 150; i++) { const c = controleDir(v, false); majVehiculePhys(v, 1 / 30, c.throttle, c.steer, false); hmax = Math.max(hmax, v.hMer || 0); } INPUT.mx = INPUT.mz = 0;
+          if (!(hmax > 3) || v.hp < v.def.hp) o.ko.push('tremplin flottant : hauteur ' + hmax.toFixed(1) + ' hp ' + v.hp); else o.info.push('jet-ski envolé à ' + hmax.toFixed(1) + ' u'); }
+        // rallye des bouées en jet-ski
+        scene0(); { const d = rideDepart('bouees'), w = creerVehicule('jetski', d.x, d.z, 0, null); P.x = w.x; P.z = w.z; entrerVehicule(w); if (rideProche() !== 'bouees') o.ko.push('départ du rallye non proposé en jet-ski');
+          const a0 = META.argent; demarrerRide('bouees'); let t = 0;
+          while (RIDES.actif && t < 60) { const p = RIDES.actif.portes[RIDES.actif.i], dx = p.x - w.x, dz = p.z - w.z, l = Math.hypot(dx, dz) || 1; INPUT.mx = dx / l; INPUT.mz = dz / l; const c = controleDir(w, false); majVehiculePhys(w, 1 / 30, c.throttle, c.steer, l < 10 && Math.abs(w.v) > 18); P.x = w.x; P.z = w.z; majRides(1 / 30); t += 1 / 30; }
+          INPUT.mx = INPUT.mz = 0; if (!(META.argent - a0 > 0)) o.ko.push('rallye non fini en jet-ski (' + t.toFixed(1) + ' s)'); else o.info.push('rallye en ' + t.toFixed(1) + ' s');
+          scene0(); const vc = creerVehicule('motocross', d.x, d.z - 40, 0, null); if (rideEligible(vc, 'bouees')) o.ko.push('rallye ouvert à une moto'); }
+        // wakeboard : un rythme soutenu passe l'objectif, un rythme lent non ; payant
+        const wake = (periode) => { scene0(); P.x = TOW.kWake.x; P.z = TOW.kWake.z; P.y = 0; pas(2); const a1 = actionMer(); if (!a1 || !/WAKEBOARD/.test(a1.label)) return { erreur: a1 && a1.label }; const m0 = META.argent; a1.fn(); let pts = 0, spins = 0;
+          pas(TOW_DEFS.wake.duree * 30 + 5, (i) => { const T = TOW.actif; if (!T) return; pts = T.pts; const b = towPoint(T.s), fl = Math.hypot(b.fx, b.fz), rx = b.fz / fl, rz = -b.fx / fl, cote = Math.floor(i / periode) % 2 ? 1 : -1; INPUT.mx = rx * cote; INPUT.mz = rz * cote; if (T.h > 1.2 && T.spin <= 0 && spins < 3) { T.spin = 0.0001; spins++; } });
+          INPUT.mx = INPUT.mz = 0; return { pts: Math.round(pts), solde: META.argent - m0, fini: !TOW.actif }; };
+        const wv = wake(25), wl = wake(50);
+        if (wv.erreur !== undefined || !wv.fini || !(wv.pts >= TOW_DEFS.wake.objectif) || wv.solde !== TOW_DEFS.wake.prime - TOW_DEFS.wake.prix) o.ko.push('wakeboard soutenu : ' + JSON.stringify(wv));
+        if (!(wl.pts < TOW_DEFS.wake.objectif)) o.ko.push('wakeboard lent réussi quand même : ' + JSON.stringify(wl));
+        o.info.push('wakeboard ' + wv.pts + ' pts (soutenu) / ' + wl.pts + ' (lent) pour ' + TOW_DEFS.wake.objectif);
+        // parachute ascensionnel : monte, on lâche au-dessus du radeau, on s'y pose
+        scene0(); P.x = TOW.kPara.x; P.z = TOW.kPara.z; P.y = 0; pas(2); a = actionMer(); const m4 = META.argent; let lache = false, hm = 0;
+        if (!a || !/PARACHUTE/.test(a.label)) o.ko.push('pas de parachute ascensionnel : ' + (a && a.label));
+        else { a.fn(); pas(60 * 30, () => { const T = TOW.actif; if (!T) return; hm = Math.max(hm, P.y);
+            if (!T.lache && T.h > 25 && Math.hypot(P.x - MERV.radeau.x, P.z - MERV.radeau.z) < 26) { lacherCorde(); lache = true; }
+            if (T.lache && P.para) { const R = MERV.radeau, dx = R.x - P.x, dz = R.z - P.z, l = Math.hypot(dx, dz); INPUT.mx = l > 0.5 ? dx / l : 0; INPUT.mz = l > 0.5 ? dz / l : 0; } });
+          INPUT.mx = INPUT.mz = 0; const d = Math.hypot(P.x - MERV.radeau.x, P.z - MERV.radeau.z);
+          if (!lache || !(hm > 25) || !(d < MERV.radeau.r) || !(META.argent - m4 > 0) || P.hp < 300) o.ko.push('parachute ascensionnel : ' + JSON.stringify({ lache, hm, d, gain: META.argent - m4, hp: P.hp }));
+          else o.info.push('parachute monté à ' + hm.toFixed(0) + ' u, posé sur le radeau'); }
+        // requins : mordent un nageur proche, jamais un bateau
+        scene0(); const q = MERV.requins[0]; pas(30); P.x = q.x + 6; P.z = q.z; P.y = 0; P.hp = 300; pas(120); if (!(P.hp < 300)) o.ko.push('le requin ne mord pas un nageur');
+        scene0(); pas(30); { const v = creerVehicule('bateau', q.x + 3, q.z, 0, null); P.x = v.x; P.z = v.z; entrerVehicule(v); P.hp = 300; for (let i = 0; i < 120; i++) { majMer(1 / 30); P.iframes = 0; } if (P.hp < 300) o.ko.push('le requin mord en bateau'); }
+        startRun(); return o;
+      });
+      if (mv.off) saute('Mer vivante : DECOR_V2 désactivé');
+      else if (mv.ko.length) fail('Mer vivante : ' + mv.ko.join(' | '));
+      else ok('Mer vivante : ' + mv.info.join(' ; ') + ' ; plongée et trésor une fois par vague, paillote qui soigne, requins dangereux à la nage seulement');
     }
 
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');

@@ -3611,7 +3611,7 @@ function construireVille(){
     if(qq!=='plage'&&qq!=='parc'&&bx%3===1&&bz%3===1) mkFeu(cx+INNER/2+1.4,cz-INNER/2-1.4);
   }
   placerPortes();
-  if(DECOR_V2){ sansAleaVille(()=>{ ameliorerPortes(); mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkCiel(); mkKiosqueBanderole(); mkCrique(); mkMontReyes(); mkBordureEst(); mkCanyonsDesert(); mkPicVertige(); mkParcStunt(); mkRides(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkNeonVivant(); mkQuartiersFinitions(); }); } // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
+  if(DECOR_V2){ sansAleaVille(()=>{ ameliorerPortes(); mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkCiel(); mkKiosqueBanderole(); mkCrique(); mkMontReyes(); mkBordureEst(); mkCanyonsDesert(); mkPicVertige(); mkParcStunt(); mkRides(); mkMerVivante(); mkRemorquage(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkNeonVivant(); mkQuartiersFinitions(); }); } // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
   finaliserMerge();
   construireMinimapStatique();
 }
@@ -5634,6 +5634,235 @@ function mkParcStunt(){
   mkEnseigne('SUPERCROSS DE LOS REYES','#ff5ad0',S.xC,6.5,(S.zN+S.zS)/2,0,11);
   STUNT.ok=true;
 }
+/* ---------- MER VIVANTE (DECOR_V2) ----------
+   Demandé : « retravailler les îles avec des choses à faire dessus, du
+   wakeboard derrière un bateau, d'autres activités pour dynamiser la mer —
+   donner envie de découvrir aux joueurs, c'est le plus important ».
+   - ÎLE AUX TRÉSORS (ILE_TRESOR) : camp de pirates, rocher-crâne, coffre
+     enterré sous la croix (CREUSER, une fois par vague).
+   - PAILLOTE sur l'île du canard : cocktail qui soigne.
+   - PLONGÉE (SPOTS_PLONGEE) : bulles qui trahissent une épave ; à la nage,
+     PLONGER remonte un coffre (une fois par vague et par spot).
+   - TREMPLINS FLOTTANTS (RAMPES_MER) : jet-skis et vedettes s'envolent
+     (v.hMer, v.vyMer : saut sur l'eau, jamais la physique des roues).
+   - RALLYE DES BOUÉES : course de portes sur l'eau (RIDE_DEFS.bouees).
+   - REMORQUAGE (TOW) : wakeboard (sauts sur le sillage, figures) et
+     parachute ascensionnel (on lâche la corde → voile, cible flottante).
+   - FAUNE : banc de dauphins qui accompagne les bateaux rapides, baleine au
+     large, requins dans les eaux profondes de l'est (zone signalée). */
+const MERV={ok:false,tresor:null,paillote:null,spots:[],rampes:[],requins:[],dauphins:[],baleine:null,radeau:null,primes:{}};
+const ILE_TRESOR={x:-215,z:402,r:16};
+function primeMerUneFois(cle,montant,msg){ // une prime par vague et par activité (jamais de farming)
+  if(MERV.primes[cle]===WAVES.n) return 0;
+  MERV.primes[cle]=WAVES.n; META.argent+=montant; ETAT.cashRun+=montant; sauveMeta(); return montant;
+}
+function mkMerVivante(){
+  const pieces=[];
+  // --- Île aux trésors
+  { const I=ILE_TRESOR; ILES.push({x:I.x,z:I.z,r:I.r}); PLATS.push({x:I.x,z:I.z,r:I.r,h:0.42});
+    const ile=new THREE.Mesh(new THREE.CylinderGeometry(I.r,I.r+3.5,0.9,26),new THREE.MeshLambertMaterial({map:texSable})); ile.position.set(I.x,0.02,I.z); scene.add(ile);
+    for(const [dx,dz] of [[-9,-5],[8,-7],[-4,9],[10,6],[-12,3]]) mkPalmier(I.x+dx,I.z+dz);
+    // rocher-crâne
+    pieces.push(['boule',5,4.2,4.4,I.x-6,2.2,I.z-8,0xb8b0a0],['boule',1.3,1.5,0.6,I.x-7.4,2.8,I.z-6.1,0x14161c],['boule',1.3,1.5,0.6,I.x-4.6,2.8,I.z-6.1,0x14161c],['boule',0.8,0.6,0.5,I.x-6,1.6,I.z-5.9,0x14161c]);
+    // camp : tente, feu, tonneaux, canot échoué, pavillon
+    pieces.push(['cone',2.6,2.6,2.6,I.x+6,1.3,I.z-2,0xc8b48a],['box',0.1,3.4,0.1,I.x+6,1.7,I.z-2,0x6a4a2c]);
+    pieces.push(['box',0.9,1.1,0.9,I.x+2,0.95,I.z+3,0x8a6a44],['box',0.9,1.1,0.9,I.x+3.1,0.95,I.z+3.4,0x7a5a3a],['box',2.6,0.5,1,I.x-10,0.65,I.z+8,0x6a4a2c,0.6]);
+    pieces.push(['box',0.12,5,0.12,I.x+9,2.9,I.z-6,0x5a3a20],['box',1.6,1,0.05,I.x+9.85,4.9,I.z-6,0x14161c]);
+    for(let k=0;k<6;k++){ const a=k/6*Math.PI*2; pieces.push(['boule',0.5,0.35,0.5,I.x+2+Math.cos(a)*0.9,0.55,I.z-4+Math.sin(a)*0.9,0x6a665e]); }
+    MERV.feu=new THREE.PointLight(0xff8a3a,0,10); MERV.feu.position.set(I.x+2,1.4,I.z-4); scene.add(MERV.feu);
+    // la croix du trésor
+    MERV.tresor={x:I.x+3,z:I.z+8};
+    for(const r of [0.7,-0.7]){ const c=mkBox(2.4,0.05,0.35,mat(0xd83a3a),MERV.tresor.x,0.46,MERV.tresor.z); c.rotation.y=r; }
+    mkEnseigne('ÎLE AUX TRÉSORS','#ffd23f',I.x,4.5,I.z-I.r+1,0,8);
+  }
+  // --- Paillote sur l'île du canard
+  if(POIS.canard){ const c=POIS.canard, x=c.x+7, z=c.z+2; MERV.paillote={x,z};
+    pieces.push(['box',3.2,1.1,1,x,0.95,z,0x8a6a44],['box',3.4,0.12,1.2,x,1.55,z,0xc8a070]);
+    for(const [dx,dz] of [[-1.6,-1.2],[1.6,-1.2],[-1.6,1.2],[1.6,1.2]]) pieces.push(['box',0.14,2.6,0.14,x+dx,1.7,z+dz,0x6a4a2c]);
+    pieces.push(['cone',3.4,1.4,3.4,x,3.6,z,0xd8b860]);
+    for(const dx of [-1,0,1]) pieces.push(['box',0.4,0.7,0.4,x+dx,0.75,z-1.3,0x5a3a20]);
+    for(const [dx,dz] of [[-3,-2],[3,-2]]){ pieces.push(['box',0.1,1.8,0.1,x+dx,1.3,z+dz,0x5a3a20]); MERV['torche'+dx]=1; }
+    mkEnseigne('PAILLOTE DU CANARD','#35e0ff',x,4.6,z-1.2,0,6);
+  }
+  // --- Spots de plongée : épaves et coffres sous l'eau
+  for(const [x,z] of [[-95,398],[168,374],[322,334],[250,404],[-246,428],[40,436]]) MERV.spots.push({x,z,t:0,vague:-1});
+  // --- Tremplins flottants : sur flotteurs, lèvre jaune et noire
+  for(const [x,z,ang] of [[40,356,Math.PI/2],[-70,330,-Math.PI/2],[200,424,Math.PI/2],[120,412,-Math.PI/2],[-160,412,Math.PI/2]]){
+    const r={x,z,ang,long:7,haut:1.8,larg:5}; MERV.rampes.push(r);
+    const g=new THREE.Group(), L=Math.hypot(r.long,r.haut);
+    const pl=new THREE.Mesh(new THREE.BoxGeometry(r.larg,0.2,L),new THREE.MeshLambertMaterial({map:texPlanche,color:0xc8a070})); pl.position.set(0,r.haut/2,r.long/2); pl.rotation.x=-Math.atan2(r.haut,r.long); g.add(pl);
+    g.add(mkBoxG(r.larg,0.16,0.4,0xffd23f,0,r.haut+0.05,r.long-0.2));
+    for(const sx of [-1,1]) g.add(mkBoxG(0.6,0.6,r.long+1,0xd83a3a,sx*(r.larg/2-0.2),0.1,r.long/2));
+    g.position.set(x,0,z); g.rotation.y=ang; scene.add(g); r.g=g;
+  }
+  // --- Radeau-cible du parachute ascensionnel
+  { const x=20, z=372; MERV.radeau={x,z,r:4};
+    const t=cTex(256,(g2,s2)=>{ const cs=['#d83a3a','#f2f4f8','#d83a3a','#f2f4f8','#ffd23f']; for(let i=0;i<5;i++){ g2.fillStyle=cs[i]; g2.beginPath(); g2.arc(s2/2,s2/2,s2/2*(1-i/5.3),0,7); g2.fill(); } });
+    const d=new THREE.Mesh(new THREE.CylinderGeometry(4,4,0.5,24),[new THREE.MeshLambertMaterial({color:0x8a6a44}),new THREE.MeshLambertMaterial({map:t}),new THREE.MeshLambertMaterial({color:0x8a6a44})]);
+    d.position.set(x,0.3,z); scene.add(d); MERV.radeau.m=d; PLATS.push({x,z,r:4,h:0.55}); }
+  // --- Bouées du rallye (paires rouge/blanc à chaque porte)
+  for(const p of ridePortes('bouees')) for(const sg of [-1,1]){ const b=new THREE.Group(); b.add(mkBoxG(0.9,0.9,0.9,sg<0?0xd83a3a:0xf2f4f8,0,0.3,0)); b.add(mkBoxG(0.1,1.4,0.1,0x23262e,0,1.2,0));
+    b.position.set(p.x+sg*(p.r-1),0,p.z); scene.add(b); BOUEES.push({m:b,ph:aD(0,6)}); }
+  // --- Zone des requins : bouées d'avertissement
+  for(const [x,z] of [[350,380],[420,360],[500,395]]){ const b=new THREE.Group(); b.add(mkBoxG(1,1.1,1,0xffd23f,0,0.4,0)); b.add(mkBoxG(0.1,2,0.1,0x23262e,0,1.5,0)); b.position.set(x,0,z); scene.add(b); BOUEES.push({m:b,ph:aD(0,6)}); }
+  mkEnseigne('DANGER — REQUINS','#ff5a3a',420,3.2,352,0,6);
+  scene.add(meshPieces(pieces));
+  // --- Faune : requins (aileron), banc de dauphins, baleine
+  const aileron=()=>{ const g=new THREE.Group(); const a=new THREE.Mesh(new THREE.ConeGeometry(0.45,1.4,4),mat(0x5a6470)); a.scale.z=0.35; a.position.y=0.5; g.add(a); scene.add(g); return g; };
+  for(let i=0;i<2;i++) MERV.requins.push({g:aileron(),cx:400+i*90,cz:400,a:aD(0,6),r:aD(18,30),x:0,z:0,mord:0,charge:false});
+  const dauphin=()=>{ const g=new THREE.Group(); const c=new THREE.Mesh(new THREE.SphereGeometry(0.5,8,6),mat(0x7a8a9a)); c.scale.set(0.7,0.6,2.2); g.add(c); const n=mkBoxG(0.1,0.5,0.4,0x6a7a8a,0,0.4,0); g.add(n); g.visible=false; scene.add(g); return g; };
+  for(let i=0;i<4;i++) MERV.dauphins.push({g:dauphin(),ph:i*0.7,dx:(i%2?1:-1)*(3+i)});
+  { const g=new THREE.Group(); const c=new THREE.Mesh(new THREE.SphereGeometry(1,10,8),mat(0x3a4a5a)); c.scale.set(3,1.2,9); g.add(c); g.visible=false; scene.add(g); MERV.baleine={g,t:6,ph:0,x:-50,z:MER+140}; }
+  MERV.ok=true;
+}
+// interactions à pied / à la nage (bouton d'action)
+function actionMer(){
+  if(!MERV.ok||P.veh) return null;
+  const tr=MERV.tresor; if(tr&&dist2(P.x,P.z,tr.x,tr.z)<6&&!P.nage) return {label:'⛏️ CREUSER',fn:creuserTresor};
+  const pa=MERV.paillote; if(pa&&dist2(P.x,P.z,pa.x,pa.z)<12&&!P.nage) return {label:'🍹 COCKTAIL (20 $)',fn:()=>{ if(P.hp>=P.maxHp){ SFX.refus(); toast('Tu es déjà en pleine forme'); return; } if(META.argent<20){ SFX.refus(); return; } META.argent-=20; soigner(60); SFX.soin(); toast('Cocktail du Canard — rafraîchissant !','or'); }};
+  if(P.nage) for(const s of MERV.spots) if(dist2(P.x,P.z,s.x,s.z)<9) return s.vague===WAVES.n?{label:'🤿 ÉPAVE DÉJÀ FOUILLÉE',fn:()=>{ SFX.refus(); toast('Reviens à la prochaine vague','warn'); }}:{label:'🤿 PLONGER',fn:()=>plonger(s)};
+  const k=kiosqueTow(); if(k) return k;
+  return null;
+}
+function creuserTresor(){
+  const m=primeMerUneFois('tresor',220);
+  if(!m){ SFX.refus(); toast('Le coffre est vide… il se remplit à chaque vague','warn'); return; }
+  ETAT.score+=300; bigMsg('💰 TRÉSOR DES PIRATES ! +'+m+' $'); SFX.niveau(); vibre(80); burst(MERV.tresor.x,0.6,MERV.tresor.z,14,0xffd23f,6,6);
+}
+function plonger(s){
+  s.vague=WAVES.n; const gain=60+Math.floor(aleaDecor()*60);
+  META.argent+=gain; ETAT.cashRun+=gain; ETAT.score+=150; sauveMeta();
+  bigMsg('🤿 COFFRE DE L’ÉPAVE ! +'+gain+' $'); SFX.ramasse(); vibre(50);
+  if(MER_V2) eclaboussure(P.x,P.z,1.6); else burst(P.x,0.3,P.z,10,0x9fd8ff,5,6);
+}
+// saut d'un bateau sur un tremplin flottant (appelé par majVehiculePhys pour les bateaux)
+function rampeMerSous(x,z){
+  for(const r of MERV.rampes){ const dx=x-r.x, dz=z-r.z, ca=Math.cos(r.ang), sa=Math.sin(r.ang), lz=dx*sa+dz*ca, lx=dx*ca-dz*sa;
+    if(Math.abs(lx)<r.larg/2&&lz>0&&lz<r.long) return {r,h:r.haut*lz/r.long}; }
+  return null;
+}
+function majSautMer(v,dt){
+  if(!MERV.ok||v.def.cargo||v.def.long>9) return false; // petits bateaux seulement
+  if(v.vyMer!==undefined&&v.hMer>0){ // en l'air
+    v.vyMer-=26*dt; v.hMer+=v.vyMer*dt; v.airMer+=dt;
+    if(v.hMer<=0){ v.hMer=0; const air=v.airMer; v.vyMer=undefined;
+      if(MER_V2) eclaboussure(v.x,v.z,1.8); else burst(v.x,0.3,v.z,10,0x9fd8ff,5,6);
+      if(v.conduit==='joueur'){ secousse(3); vibre(40); if(air>0.5){ const pts=Math.round(60+air*80); ETAT.score+=pts; spawnTexte(v.x,3,v.z,'SAUT ! +'+pts,'#35e0ff'); }
+        if(RIDES.actif&&RIDE_DEFS[RIDES.actif.id].stunt) rideFigure({airT:air,def:v.def,mesh:v.mesh}); } }
+    return true;
+  }
+  const rp=rampeMerSous(v.x,v.z);
+  if(rp){ v.hMer=rp.h; v.rampeMer=rp; return true; }
+  if(v.rampeMer){ const r=v.rampeMer.r; v.rampeMer=null; // on quitte le tremplin
+    if(Math.abs(v.v)>9&&v.hMer>r.haut*0.7){ v.vyMer=Math.min(14,Math.abs(v.v)*0.42); v.airMer=0; if(v.conduit==='joueur') SFX.swing(); return true; } }
+  v.hMer=0; return false;
+}
+function majMerVivante(dt){
+  if(!MERV.ok) return;
+  if(MERV.feu) MERV.feu.intensity=(ETAT.jour>100?1.6:0.6)*(0.8+0.2*Math.sin(ETAT.runT*13));
+  // bulles des épaves
+  for(const s of MERV.spots){ s.t-=dt; if(s.t<=0&&dist2(s.x,s.z,P.x,P.z)<14400&&s.vague!==WAVES.n){ s.t=0.35; spawnP(s.x+rand(-0.8,0.8),0.1,s.z+rand(-0.8,0.8),0,1.6,0,0.28,0.7,0xe8f6ff,0,2); } }
+  // requins : patrouille en cercle, charge un nageur proche, mord
+  for(const q of MERV.requins){
+    const nage=P.nage&&!P.veh&&dist2(P.x,P.z,q.x,q.z)<196;
+    if(nage){ const a=Math.atan2(P.x-q.x,P.z-q.z); q.x+=Math.sin(a)*7*dt; q.z+=Math.cos(a)*7*dt; q.g.rotation.y=a; q.mord-=dt;
+      if(dist2(P.x,P.z,q.x,q.z)<2.6&&q.mord<=0){ q.mord=1.5; toucherJoueur(18,q.x,q.z); toast('🦈 Requin ! Sors de l’eau !','warn'); if(MER_V2) eclaboussure(q.x,q.z,1.4); } }
+    else { q.a+=dt*0.25; const tx=q.cx+Math.sin(q.a)*q.r, tz=q.cz+Math.cos(q.a)*q.r; q.x=lerp(q.x||tx,tx,clamp(dt*0.8,0,1)); q.z=lerp(q.z||tz,tz,clamp(dt*0.8,0,1)); q.g.rotation.y=q.a+Math.PI/2; }
+    q.g.position.set(q.x,MER_V2?houleY(q.x,q.z):0,q.z);
+  }
+  // banc de dauphins : accompagne un bateau rapide au large
+  const v=P.veh, rapide=v&&v.def.eau&&Math.abs(v.v)>12&&v.z>MER+25;
+  for(const d of MERV.dauphins){ d.g.visible=!!rapide; if(!rapide) continue;
+    d.ph+=dt*2.2; const sA=Math.sin(v.ang), cA=Math.cos(v.ang), av=4+Math.sin(d.ph*0.3)*2;
+    const x=v.x+sA*av+cA*d.dx, z=v.z+cA*av-sA*d.dx, s=Math.sin(d.ph);
+    d.g.position.set(x,s*1.6-0.4,z); d.g.rotation.y=v.ang; d.g.rotation.x=-Math.cos(d.ph)*0.7;
+    if(s>-0.05&&s<0.05&&Math.random()<0.3) burst(x,0.2,z,3,0xcfeaff,3,4); }
+  // baleine : refait surface au large de temps en temps, souffle
+  const b=MERV.baleine; if(b){ b.t-=dt;
+    if(b.t<=0&&!b.g.visible){ b.g.visible=true; b.ph=0; b.x=clamp(P.x+rand(-60,60),-250,520); b.z=MER+130; }
+    if(b.g.visible){ b.ph+=dt/7; b.g.position.set(b.x+b.ph*20,Math.sin(b.ph*Math.PI)*1.2-1.1,b.z); b.g.rotation.y=Math.PI/2;
+      if(b.ph>0.3&&b.ph<0.36&&Math.random()<0.5) spawnP(b.x+b.ph*20,2,b.z,rand(-0.5,0.5),9,rand(-0.5,0.5),0.5,1.2,0xe8f6ff,26,2);
+      if(b.ph>=1){ b.g.visible=false; b.t=rand(25,45); } } }
+}
+/* REMORQUAGE : wakeboard et parachute ascensionnel. Un bateau-tracteur (décor,
+   hors de `vehicules`) tourne sur une boucle au large ; le joueur, tenu au
+   bout de la corde, est placé APRÈS majJoueur (comme le monte-charge). */
+const TOW={actif:null,bateau:null,corde:null,planche:null,boucle:{x:20,z:404,rx:78,rz:18}};
+const TOW_DEFS={wake:{nom:'WAKEBOARD',prix:50,duree:45,objectif:4500,prime:200},para:{nom:'PARACHUTE ASCENSIONNEL',prix:60,duree:40,prime:250}};
+function kiosqueTow(){
+  if(TOW.actif||!MERV.ok) return null;
+  for(const [id,k] of [['wake',TOW.kWake],['para',TOW.kPara]]) if(k&&dist2(P.x,P.z,k.x,k.z)<10&&!P.nage){ const D=TOW_DEFS[id]; return {label:(id==='wake'?'🏄 ':'🪂 ')+D.nom+' — '+D.prix+' $',fn:()=>lancerTow(id)}; }
+  return null;
+}
+function mkRemorquage(){
+  TOW.bateau=makeVoiture('bateau'); scene.add(TOW.bateau); TOW.bateau.visible=false;
+  TOW.corde=mkBox(0.05,0.05,1,mat(0xf2f4f8),0,0,0); TOW.corde.visible=false;
+  TOW.planche=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.08,1.5),mat(0xff5ad0)); scene.add(TOW.planche); TOW.planche.visible=false;
+  // kiosques au bout des deux pontons de la marina
+  const pts=PONTONS.filter((p)=>Math.abs(p.x)<40&&p.hd>6).sort((a,b)=>a.x-b.x);
+  if(pts.length>=2){ TOW.kPara={x:pts[0].x,z:pts[0].z+pts[0].hd-1.5}; TOW.kWake={x:pts[1].x,z:pts[1].z+pts[1].hd-1.5};
+    mkEnseigne('PARACHUTE ASCENSIONNEL','#35e0ff',TOW.kPara.x,3.4,TOW.kPara.z+0.6,0,6);
+    mkEnseigne('WAKEBOARD','#ff5ad0',TOW.kWake.x,3.4,TOW.kWake.z+0.6,0,6); }
+}
+function towPoint(s){ const B=TOW.boucle; return {x:B.x+Math.cos(s)*B.rx,z:B.z+Math.sin(s)*B.rz,fx:-Math.sin(s)*B.rx,fz:Math.cos(s)*B.rz}; }
+function lancerTow(id){
+  const D=TOW_DEFS[id]; if(META.argent<D.prix){ SFX.refus(); toast('Il te faut '+D.prix+' $','warn'); return; }
+  META.argent-=D.prix; SFX.achat();
+  TOW.actif={id,s:Math.PI,t:D.duree,lat:0,vlat:0,h:0,vy:0,air:0,pts:0,spin:0,chute:0,lache:false,ret:{x:P.x,z:P.z}};
+  TOW.bateau.visible=true; TOW.corde.visible=true; TOW.planche.visible=id==='wake';
+  RIDES.txt.style.display='block'; bigMsg(id==='wake'?'🏄 WAKEBOARD — saute le sillage !':'🪂 PARACHUTE ASCENSIONNEL'); vibre(40);
+  if(id==='para') toast('Lâche la corde au-dessus du radeau-cible !','or');
+}
+function finTow(raison){
+  const T=TOW.actif; if(!T) return; TOW.actif=null;
+  TOW.bateau.visible=false; TOW.corde.visible=false; TOW.planche.visible=false; RIDES.txt.style.display='none';
+  if(T.id==='wake'){ let msg='🏄 WAKEBOARD — '+Math.round(T.pts)+' pts';
+    if(T.pts>=TOW_DEFS.wake.objectif){ const m=primeMerUneFois('wake',TOW_DEFS.wake.prime); if(m) msg+=' +'+m+' $'; }
+    bigMsg(msg); P.y=0.3; } // relâché dans l'eau, on nage
+  else if(raison!=='lache'){ paraMesh.visible=false; P.para=false; P.chute=false; P.y=0.3; }
+}
+function majTow(dt){
+  const T=TOW.actif; if(!T) return;
+  if(P.veh||ETAT.mode!=='jeu'){ finTow('annule'); return; }
+  const D=TOW_DEFS[T.id]; T.t-=dt; T.s+=dt*16/Math.hypot(TOW.boucle.rx,TOW.boucle.rz);
+  const b=towPoint(T.s), fl=Math.hypot(b.fx,b.fz), fx=b.fx/fl, fz=b.fz/fl, rx=fz, rz=-fx, ang=Math.atan2(fx,fz);
+  TOW.bateau.position.set(b.x,MER_V2?houleY(b.x,b.z)+0.15:0.15,b.z); TOW.bateau.rotation.y=ang;
+  if(Math.random()<0.6) spawnP(b.x-fx*3+rand(-0.5,0.5),0.2,b.z-fz*3+rand(-0.5,0.5),0,0.4,0,0.35,0.8,0xe8f6ff,0,2);
+  let x,y,z;
+  if(T.id==='wake'){
+    const l=Math.hypot(INPUT.mx,INPUT.mz), cible=l>0.15?clamp((INPUT.mx*rx+INPUT.mz*rz)/l,-1,1)*8:0; // le joystick : où tu veux aller, à l'écran
+    const vl0=T.vlat; T.vlat=clamp(lerp(T.vlat,(cible-T.lat)*2.2,clamp(3*dt,0,1)),-14,14); T.lat=clamp(T.lat+T.vlat*dt,-8.5,8.5); // la corde limite la vitesse latérale
+    if(T.h<=0&&T.chute<=0){ for(const w of [-2.2,2.2]) if((T.lat-w)*((T.lat-T.vlat*dt)-w)<0&&Math.abs(T.vlat)>7){ T.vy=3+Math.abs(T.vlat)*0.55; T.h=0.01; T.air=0; SFX.swing(); } } // franchir la vague du sillage : envol
+    if(T.h>0){ T.vy-=26*dt; T.h+=T.vy*dt; T.air+=dt; if((pressed('esquive')||edgeKey('KeyK'))&&T.spin<=0) T.spin=0.0001;
+      if(T.spin>0) T.spin+=dt/0.6;
+      if(T.h<=0){ T.h=0; if(T.spin>0&&T.spin<1){ T.chute=1.6; toast('Chute ! Figure pas finie','warn'); if(MER_V2) eclaboussure(P.x,P.z,1.6); }
+        else if(T.air>0.35){ const pts=Math.round(40+T.air*100+(T.spin>=1?120:0)); T.pts+=pts; spawnTexte(P.x,3,P.z,(T.spin>=1?'360 ! +':'SAUT ! +')+pts,'#ff5ad0'); }
+        T.spin=0; } }
+    if(T.chute>0){ T.chute-=dt; T.lat=lerp(T.lat,0,dt*2); }
+    const L=12, d=Math.sqrt(Math.max(1,L*L-T.lat*T.lat));
+    x=b.x-fx*d+rx*T.lat; z=b.z-fz*d+rz*T.lat; y=0.85+T.h; // au-dessus de la houle
+    TOW.planche.position.set(x,y-0.6,z); TOW.planche.rotation.y=ang+(T.spin>0?T.spin*Math.PI*2:0)+Math.PI/2*0.3;
+    P.h.g.rotation.y=ang+(T.spin>0?T.spin*Math.PI*2:0)+0.6;
+    RIDES.txt.textContent='🏄 WAKEBOARD — '+Math.round(T.pts)+' / '+D.objectif+' pts — '+Math.ceil(Math.max(0,T.t))+' s';
+  } else {
+    if(!T.lache){ T.h=Math.min(32,T.h+dt*5); x=b.x-fx*22; z=b.z-fz*22; y=0.8+T.h;
+      paraMesh.visible=true; paraMesh.position.set(x,y+PARA_DIST,z);
+      RIDES.txt.textContent='🪂 PARACHUTE ASCENSIONNEL — '+Math.round(T.h)+' m — '+Math.ceil(Math.max(0,T.t))+' s'+(T.h>20?' — LÂCHE AU-DESSUS DU RADEAU':'');
+    } else { x=P.x; z=P.z; y=P.y; }
+  }
+  if(!T.lache){ P.x=x; P.z=z; P.y=y; P.chute=false; P.vy=0; P.para=false; P.nage=false; P.h.g.position.set(x,y,z);
+    const ax=T.id==='wake'?b.x-fx*3:b.x-fx*3, az=T.id==='wake'?b.z-fz*3:b.z-fz*3, ay=T.id==='wake'?0.9:1.4;
+    const dx=x-ax, dy=(y+(T.id==='para'?PARA_DIST*0.6:0.9))-ay, dz=z-az, dl=Math.hypot(dx,dy,dz);
+    TOW.corde.scale.z=dl; TOW.corde.position.set((ax+x)/2,(ay+y+(T.id==='para'?PARA_DIST*0.6:0.9))/2,(az+z)/2); TOW.corde.lookAt(x,y+(T.id==='para'?PARA_DIST*0.6:0.9),z); }
+  if(T.lache){ // parachute lâché : on attend l'atterrissage
+    if(!P.chute){ const d=Math.sqrt(dist2(P.x,P.z,MERV.radeau.x,MERV.radeau.z)); TOW.actif=null; TOW.bateau.visible=false; RIDES.txt.style.display='none';
+      if(d<MERV.radeau.r){ const m=primeMerUneFois('para',TOW_DEFS.para.prime); ETAT.score+=800; bigMsg('🎯 SUR LE RADEAU ! '+(m?'+'+m+' $':'')); SFX.niveau(); } else bigMsg('🪂 Posé à '+d.toFixed(0)+' m du radeau'); }
+    return; }
+  if(T.t<=0){ if(T.id==='para') lacherCorde(); else finTow('fin'); } // fin du temps en l'air : la corde se lâche (jamais une chute de 32 u)
+}
+function lacherCorde(){ const T=TOW.actif; if(!T||T.id!=='para'||T.lache) return; T.lache=true; TOW.corde.visible=false;
+  P.chute=true; P.chuteY0=P.y; P.chuteT=0; P.chuteHaut=P.y; P.para=true; P.vy=-1; P.chuteVx=0; P.chuteVz=0; toast('🪂 Corde lâchée — vise le radeau !','or'); SFX.ui(); }
+function resetMer(){ if(TOW.actif) finTow('annule'); TOW.actif=null; MERV.primes={}; for(const s of MERV.spots) s.vague=-1; }
 /* ---------- COURSES DU MONT ET DU CANYON (DECOR_V2) ----------
    Deux défis chronométrés (dtJeu), à faire sur deux roues ou en buggy :
    - MONTÉE DU MONT REYES : du pied au sommet par le sentier en lacets,
@@ -5644,20 +5873,24 @@ function mkParcStunt(){
    fois par vague et par course (jamais de farming), record gardé en partie.
    Au pied de chaque départ : motos cross, BMX, vélo et buggy garés. */
 const RIDES={actif:null,marques:[],records:{},primeVague:{}};
+const RALLYE_TEMPS=32; // pilote simulé : 17 s en Espadon, 18 en jet-ski, 26 en vedette
 const RIDE_DEFS={
   mont:{nom:'MONTÉE DU MONT REYES',temps:60,prime:250},   // la pente freine : pilote simulé 29 à 39 s (moto, quad, buggy, BMX)
   mesas:{nom:'LIGNE DES MESAS',temps:14,prime:300},        // robot : 6 s en moto cross, 8 s en buggy
   colline:{nom:'MONTÉE SÈCHE',temps:6.5,prime:200},         // hill climb, départ arrêté, terre meuble : robot 4,2 à 4,8 s en moto cross, quad, 4x4 ; motos de route, buggy et BMX calent
+  bouees:{nom:'RALLYE DES BOUÉES',temps:RALLYE_TEMPS,prime:250,eau:true}, // portes sur l'eau autour des îles, jet-ski et vedettes
   stunt:{nom:'DÉFI SUPERCROSS',temps:45,prime:250,stunt:true,objectif:2600}, // score de figures en 45 s ; pilote simulé : 3 100 à 3 300 pts en moto cross ou quad, 2 540 en 4x4 ou buggy (raté), 1 990 en BMX
 };
 function rideDepart(id){
   if(id==='mont') return {x:MONT.pied.x,z:MONT.pied.z};
   if(id==='colline') return {x:MONT.couloir.x,z:MONT.couloir.z0+6}; // départ arrêté au pied : l'élan ne fait plus la montée à ta place
   if(id==='stunt') return {x:STUNT.x,z:STUNT.zN+2}; // grille de départ du supercross
+  if(id==='bouees') return {x:40,z:318}; // au large de la marina
   const m=CANYON.mesas[0]; return {x:m.x,z:m.z-m.hd+5};
 }
 function ridePortes(id){
   if(id==='stunt') return [];
+  if(id==='bouees') return [[40,372],[140,420],[260,425],[305,350],[200,320],[60,316]].map(([x,z])=>({x,z,r:7}));
   if(id==='colline'){ const C=MONT.couloir; return [0.35,0.7,1].map((u)=>({x:C.x,z:C.z0-(C.z0-C.z1)*u-(u===1?4:0),r:u===1?7:6,minH:C.H*(0.3*u+0.7*u*u*u)-3})); }
   if(id==='mont') return MONT.sentier.slice(1).map(([x,z],i)=>({x,z,r:9,minH:MONT.hSentier[i+1]-4})); // à hauteur du lacet : passer en dessous ne compte pas
   return CANYON.mesas.slice(1,5).map((m)=>({x:m.x,z:m.z-m.hd+6,r:13,minH:m.h-1})); // atterrir sur chaque mesa
@@ -5665,7 +5898,7 @@ function ridePortes(id){
 function mkRides(){
   const mAnneau=new THREE.MeshBasicMaterial({color:0xffd23f,transparent:true,opacity:0.55,depthWrite:false,side:THREE.DoubleSide});
   for(const id of Object.keys(RIDE_DEFS)){
-    const d=rideDepart(id), y=solY(d.x,d.z);
+    const d=rideDepart(id), y=estEau(d.x,d.z)?0.3:solY(d.x,d.z);
     const a=new THREE.Mesh(new THREE.RingGeometry(3.2,4,32),mAnneau); a.rotation.x=-Math.PI/2; a.position.set(d.x,y+0.12,d.z); scene.add(a);
     mkBox(0.2,4,0.2,mat(0x2a2d34),d.x-4.5,y+2,d.z); mkBox(0.2,4,0.2,mat(0x2a2d34),d.x+4.5,y+2,d.z);
     const t=new THREE.CanvasTexture((()=>{ const c=document.createElement('canvas'); c.width=256; c.height=32; const g=c.getContext('2d');
@@ -5697,7 +5930,7 @@ function garerRides(){
 }
 // pneus à crampons / 4x4 : tiennent sur la terre meuble de la montée sèche (les motos et voitures de route y patinent)
 function toutTerrain(d){ return !!(d.cross||d.buggy||d.quad||d.jeep||d.franchissement||d.bmx||d.ecrase); }
-function rideEligible(v){ return !!v&&(v.def.type==='moto'||v.def.buggy||v.def.quad||v.def.jeep); }
+function rideEligible(v,id){ if(!v) return false; if(id&&RIDE_DEFS[id]&&RIDE_DEFS[id].eau) return !!v.def.eau&&!v.def.cargo; return v.def.type==='moto'||!!v.def.buggy||!!v.def.quad||!!v.def.jeep; }
 // DÉFI STUNT : chaque réception compte (temps de vol, réception propre), plus le cabrage en moto cross (majRides)
 function rideFigure(v){
   const r=RIDES.actif; if(!r||v.airT<0.45||v.hop) return;
@@ -5705,8 +5938,8 @@ function rideFigure(v){
   r.pts+=pts; spawnTexte(v.x,3.5,v.z,(propre?'FIGURE ! +':'+')+pts,'#ff5ad0');
 }
 function rideProche(){
-  if(RIDES.actif||!P.veh||!rideEligible(P.veh)) return null;
-  for(const id of Object.keys(RIDE_DEFS)){ const d=rideDepart(id); if(dist2(P.x,P.z,d.x,d.z)<36) return id; }
+  if(RIDES.actif||!P.veh) return null;
+  for(const id of Object.keys(RIDE_DEFS)){ if(!rideEligible(P.veh,id)) continue; const d=rideDepart(id); if(dist2(P.x,P.z,d.x,d.z)<(RIDE_DEFS[id].eau?64:36)) return id; }
   return null;
 }
 function demarrerRide(id){
@@ -5726,7 +5959,7 @@ function finirRide(reussi){
 }
 function majRides(dtJeu){
   const r=RIDES.actif; if(!r) return;
-  if(!P.veh||!rideEligible(P.veh)||ETAT.mode!=='jeu'){ finirRide(false); return; }
+  if(!P.veh||!rideEligible(P.veh,r.id)||ETAT.mode!=='jeu'){ finirRide(false); return; }
   r.t-=dtJeu; r.t0+=dtJeu;
   const D=RIDE_DEFS[r.id];
   if(D.stunt){
@@ -5738,7 +5971,7 @@ function majRides(dtJeu){
     return;
   }
   const p=r.portes[r.i];
-  RIDES.porte.visible=true; RIDES.porte.position.set(p.x,solY(p.x,p.z)+0.2,p.z);
+  RIDES.porte.visible=true; RIDES.porte.position.set(p.x,estEau(p.x,p.z)?0.45:solY(p.x,p.z)+0.2,p.z); // sur l'eau : au-dessus de la houle
   RIDES.txt.textContent='🏁 '+RIDE_DEFS[r.id].nom+' — porte '+(r.i+1)+'/'+r.portes.length+' — '+Math.ceil(Math.max(0,r.t))+' s';
   if(r.t<=0){ finirRide(false); return; }
   const v=P.veh;
@@ -7187,6 +7420,7 @@ function majSurf(dt){
 }
 const DAUPHIN={t:14,mesh:null,ph:0,x:0,z:0,dir:1};
 function majMer(dt){
+  if(DECOR_V2) majMerVivante(dt);
   for(const b of BOUEES){ b.ph+=dt*1.6;
     if(MER_V2) assietteHoule(b.m,b.m.position.x,b.m.position.z,b.ph*0.2,Math.sin(b.ph)*0.06,1.2);
     else { b.m.position.y=Math.sin(b.ph)*0.16; b.m.rotation.z=Math.sin(b.ph*0.7)*0.08; } }
@@ -11236,7 +11470,9 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
   if(v.hp<v.def.hp*0.42){ v.fumeT-=dt; if(v.fumeT<=0){v.fumeT=0.12;fumee(v.x,1.1,v.z, v.hp<v.def.hp*0.2?0x22242a:0x555a63);} }
   v.mesh.position.set(v.x,eau?0.15:(v.h||0),v.z);
   v.mesh.rotation.y=v.ang;
-  if(echoue) poseEchoue(v,dt);
+  const sautMer=DECOR_V2&&eau&&!!d.eau&&!echoue&&majSautMer(v,dt); // tremplins flottants
+  if(sautMer){ v.mesh.position.y=0.15+(v.hMer||0); v.mesh.rotation.x=clamp(-(v.vyMer||0)*0.04-(v.rampeMer?0.25:0),-0.45,0.45); }
+  else if(echoue) poseEchoue(v,dt);
   else if(eau&&MER_V2) assietteHoule(v.mesh,v.x,v.z,v.ang,0.15,d.long); // houle partagée (voir MER_V2)
   else if(eau) v.mesh.rotation.x=Math.sin(ETAT.runT*2.2)*0.03;
   for(const r of v.mesh.userData.roues) r.rotation.x+=v.v*dt*1.6;
@@ -23030,7 +23266,7 @@ function startRun(){
   P.hp=P.maxHp; P.stam=P.stamMax; P.bouclier=0; P.veh=null;
   P.buffs={dmg:0,vit:0,butin:0,lourd:0,sprintLibre:0,vol:0,cadence:0}; P.iframes=0; P.dodgeT=0; P.rechT=0; P.specCd=0; P.ecraseT=0;
   P.grenades=3; boutonsAPied(); // jamais el('grenN') seul : voir boutonsAPied (mort au volant)
-  if(DECOR_V2){ reparerMobilier(); poserTexteBanderole(META.banderole); if(RIDES.porte){ RIDES.actif=null; RIDES.porte.visible=false; RIDES.txt.style.display='none'; RIDES.records={}; RIDES.primeVague={}; } resetPic(); } // course en cours : jamais survivante d'une partie à l'autre // mobilier renversé réparé ; message acheté sur la banderole
+  if(DECOR_V2){ reparerMobilier(); poserTexteBanderole(META.banderole); if(RIDES.porte){ RIDES.actif=null; RIDES.porte.visible=false; RIDES.txt.style.display='none'; RIDES.records={}; RIDES.primeVague={}; } resetPic(); resetMer(); } // course en cours : jamais survivante d'une partie à l'autre // mobilier renversé réparé ; message acheté sur la banderole
   // Jetpack : perdu au game over, comme les armes (voir CLAUDE.md) — il
   // faut remonter le chercher. Le lieu, lui (META.jetpackTrouve), reste acquis.
   P.jetpack=false; P.jetpackVol=false; P.jetFuel=100; P.jetVx=0; P.jetVz=0; P.jetWarnT=0; P.jetAvertVu=false;
@@ -24343,7 +24579,11 @@ function majAction(){
   let pgar=null; // garage tuning à portée du véhicule
   if(P.veh&&P.veh.def&&!(P.veh.def.air&&P.veh.vol)) pgar=porteGarageProche(P.x,P.z);
   const rideId=DECOR_V2?rideProche():null;
-  if(P.veh&&P.veh.def){
+  if(DECOR_V2&&TOW.actif&&!P.veh){ // remorqué : seul le parachute ascensionnel a une action
+    const T=TOW.actif;
+    if(T.id==='para'&&!T.lache&&T.h>8){ label='🪂 LÂCHER LA CORDE'; fn=lacherCorde; }
+    else if(T.id==='wake'){ label='🏄 LÂCHER (fin)'; fn=()=>finTow('lache'); }
+  } else if(P.veh&&P.veh.def){
     if(P.veh.enAir&&!P.veh.def.air&&(P.veh.h||0)-solY(P.veh.x,P.veh.z)>10){
       label='🪂 SAUTER DU VÉHICULE'; fn=ejecterEnVol;
     } else if(rideId){
@@ -24374,7 +24614,7 @@ function majAction(){
                   (POIS.armurerie2&&dist2(P.x,P.z,POIS.armurerie2.x,POIS.armurerie2.z)<10);
     let ff=null;
     if(POIS.fastfoods) for(const f of POIS.fastfoods) if(dist2(P.x,P.z,f.x,f.z)<10){ff=f;break;}
-    const picAct=DECOR_V2?actionPic():null; // Pic du Vertige : monte-charge, saut BASE
+    const picAct=DECOR_V2?(actionPic()||actionMer()):null; // Pic du Vertige (monte-charge, saut BASE) ; mer (trésor, paillote, plongée, remorquage)
     if(POIS.toitH&&POIS.toitH.jetpack&&dist2(P.x,P.z,POIS.toitH.jetpack.x,POIS.toitH.jetpack.z)<9&&Math.abs(P.y-POIS.toitH.jetpack.h)<4){
       if(P.jetpack){ label='✅ JETPACK ÉQUIPÉ'; fn=()=>{SFX.refus();}; }
       else {
@@ -24909,7 +25149,7 @@ function boucle(t){
     ETAT.comboT-=dt;
     if(ETAT.comboT<=0) ETAT.combo=1;
     if(ETAT.slowT>0){ ETAT.slowT-=dtReel; if(ETAT.slowT<=0&&ETAT.mode==='jeu') ETAT.timeScale=1; }
-    if(ETAT.mode==='jeu'){ majNitro(dtJeu); majJoueur(dt,dtJeu); if(DECOR_V2){ majRides(dtJeu); majPic(dt); } } // nitro décidée AVANT la physique du véhicule
+    if(ETAT.mode==='jeu'){ majNitro(dtJeu); majJoueur(dt,dtJeu); if(DECOR_V2){ majRides(dtJeu); majPic(dt); majTow(dt); } } // nitro décidée AVANT la physique du véhicule
     majEnnemis(dt);
     if(!INT.actif){
       majPietons(dt);
