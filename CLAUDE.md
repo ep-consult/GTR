@@ -445,6 +445,9 @@ décor sur un générateur **à part** (`aleaDecor()`, `aD()`, `choixD()`, grain
   atterrit dans sa marge de 0,5 u en tombant d'un toit ou d'une falaise), on
   peut toujours s'en éloigner ou le longer. Bug signalé : coincé au pied d'une
   falaise de la crique, partie à quitter.
+- **Portes, cas limites** (trouvés avec `SEED=random`) : une porte toujours
+  collée à la bordure tente aussi les bouts des flancs ; la sortie de salle se
+  pose à `profondeurDevant − 0,6` (entre 1,4 et 3 u), jamais sur la chaussée.
 - **Avion à banderole** (`AVION`, `trajetAvion`) et kiosque « TON MESSAGE DANS
   LE CIEL » (`acheterBanderole`, 250 $, `META.banderole`, saisie jeu en pause
   `ETAT.mode='banderole'`). Trajet jamais dans la grande roue.

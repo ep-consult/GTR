@@ -7005,6 +7005,12 @@ function ameliorerPortes(){
         const pr=profondeurDevant(c.x,c.z,c.nx,c.nz);
         if(pr>prof+1){ meilleur=c; prof=pr; }
       }
+      if(prof<2.5) for(const c of [cote(1,0,-0.5),cote(1,0,0.5),cote(-1,0,-0.5),cote(-1,0,0.5)]){ // toujours collée à la bordure : on tente aussi les bouts des flancs (vu sur une graine : serre à 2 u)
+        if(!dansBloc(c.x,c.z,1)||solidAt(c.x,c.z,0.9)||estEau(c.x,c.z)) continue;
+        if(autres(p).some((o)=>dist2(o.x,o.z,c.x,c.z)<400)) continue;
+        const pr=profondeurDevant(c.x,c.z,c.nx,c.nz);
+        if(pr>prof+0.5){ meilleur=c; prof=pr; }
+      }
       if(meilleur!==ici){ p.x=meilleur.x; p.z=meilleur.z; p.deplacee=true; }
     }
     orienterPorte(p,meilleur.nx,meilleur.nz);
@@ -18322,7 +18328,8 @@ function entrerInterieur(id,porte){
   // gelée jusqu'à la sortie de la salle sans ce nettoyage immédiat.
   rayonNettoyerTout();
   const s=construireSalle(id);
-  INT.actif=s; INT.rx=porte.x+(porte.nx||0)*3; INT.rz=porte.z+(porte.nz===undefined?1:porte.nz)*3; // devant la porte, dans le sens où elle regarde
+  { const nx=porte.nx||0, nz=porte.nz===undefined?1:porte.nz, d=DECOR_V2&&porte.z<=MER-30?clamp(profondeurDevant(porte.x,porte.z,nx,nz)-0.6,1.4,3):3; // devant la porte, dans le sens où elle regarde, jamais sur la chaussée
+    INT.actif=s; INT.rx=porte.x+nx*d; INT.rz=porte.z+nz*d; }
   // Tableau de la ville (planque) : marque ce lieu comme visité au moins
   // une fois, quelle que soit l'issue de la visite — jamais réinitialisé,
   // survit au game over (voir META.lieuxVus). Mur de trophées : chaque
