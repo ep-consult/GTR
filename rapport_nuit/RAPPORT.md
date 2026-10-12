@@ -1,4 +1,4 @@
-﻿# Rapport de nuit â€” 9 octobre 2026
+# Rapport de nuit â€” 9 octobre 2026
 
 > Mis Ã  jour en continu. Si ce fichier semble s'arrÃªter en plein milieu, c'est
 > que la session a Ã©tÃ© interrompue : tout ce qui est Ã©crit ici est Ã  jour au
@@ -1156,7 +1156,7 @@ Captures (`captures/lot10/`) :
 - **Captures** : `skx_aerien.png`, `skx_bowl.png`, `skx_quarter.png`, `skx_nuit.png`, `skx_air_bmx.png`, `skx_air_quarter.png`, `skx_jeu.png`.
 
 | Pendant un dÃ©fi, Â« se calmer avec les vagues Â», idem pour les autres jeux | Pendant une course ou un dÃ©fi (mont, mesas, montÃ©e sÃ¨che, supercross, bouÃ©es, REYES BOWL JAM), le wakeboard, le parachute ascensionnel ou un mÃ©tier : **les vagues sont en pause** (Â« VAGUES EN PAUSE â€” dÃ©fi en cours Â»), les Ã©vÃ©nements alÃ©atoires aussi (guerres de gangsâ€¦), et **les gangs dÃ©jÃ  prÃ©sents ne s'occupent plus de toi** : ils patrouillent, les motards s'arrÃªtent. Tout reprend Ã  la fin de l'activitÃ©. **Choix :** la police continue si tu es recherchÃ©. | `3176449` |
-| Le vÃ©lo explose | Le vÃ©lo et le BMX ne prennent plus aucun dÃ©gÃ¢t et n'explosent jamais (grenade, roquette, explosion voisine), comme la planche de surf. Ils peuvent toujours se noyer. | idem |
+| Le vÃ©lo explose | Le vÃ©lo et le BMX ne prennent plus aucun dÃ©gÃ¢t et n'explosent jamais (grenade, roquette, explosion voisine), comme la planche de surf. Ils peuvent toujours se noyer. | `3176449` |
 
 ### Piste ouverte
 
