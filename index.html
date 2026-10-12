@@ -2290,6 +2290,7 @@ const VEHDEFS={
   // de niche (abattre l'hélico de police), pas un char de rechange.
   dca:{nom:'Camion DCA "Foudre"',tuningMeca:true,vmax:18,acc:8,man:1.2,hp:220,long:6.4,larg:2.3,type:'car',milit:true,dca:true,cache:true,cols:[0x47502e]},
   // Porte-conteneurs (DECOR_V2) : au mouillage au large du port, pilotable (lent, très lourd)
+  grandyacht:{nom:'Méga-yacht "Reyes Royale"',vmax:16,acc:3.6,man:0.5,hp:5000,long:26,larg:8.4,type:'bateau',eau:true,navire:true,cols:[0xf2f4f8]},
   cargo:{nom:'Porte-conteneurs "Reyes Star"',vmax:11,acc:2.2,man:0.32,hp:6000,long:62,larg:11,type:'bateau',eau:true,cargo:true,cols:[0x8a1f1c]},
   espadon:{nom:'Vedette "Espadon"',vmax:42,acc:15,man:2.4,hp:150,long:6.2,larg:2.2,type:'bateau',eau:true,cols:[0x14161c],cache:true},
   mirage:{nom:'Supercar "Mirage"',tuningMeca:true,tuningCarro:{famille:'sportive',ancrages:{avant:{x:0,y:0.94,z:2.14},arriere:{x:0,y:1.12,z:-2.25},toit:{x:0,y:1.23,z:-0.26},basCaisse:{x:1,y:0.1,z:0}}},vmax:52,acc:27,man:3.1,hp:100,long:4.4,larg:2.0,type:'car',cols:[0xd8b02a],sport:true,cache:true},
@@ -2782,10 +2783,22 @@ const CELL=42, ROADW=13, NB=14, HALF=NB*CELL/2, INNER=CELL-ROADW;
 const MER=HALF-8; // la mer commence derrière la plage
 const PONTONS=[];
 const ILES=[];   // {x,z,r} : terres émergées au large
-const PLATS=[];  // {x,z,hw,hd|r,h} : plateformes marchables (pontons, pont du yacht, îles)
+const PLATS=[];  // {x,z,hw,hd|r,h} : plateformes marchables (pontons, pont du yacht, îles) ; ang facultatif : rectangle orienté (pont du grand yacht, qui navigue)
+// Grand yacht navigable (8e lot, demandé : « il ne se conduit pas ») : le
+// décor amarré est devenu un véhicule (VEHDEFS.grandyacht). Son pont et son
+// ponton suivent la coque (majGrandYacht) et ne sont praticables que sans
+// personne à la barre ; l'hélico posé sur l'héliport est emporté avec lui.
+const GYACHT={v:null,plat:null,ponton:null,pass:null,passPlat:null,heli:null};
+function grosNavire(d){ return !!(d&&(d.cargo||d.navire)); } // porte-conteneurs, grand yacht
+// emprise d'une plateforme {x,z,hw,hd,ang?} (ang : même convention que les véhicules)
+function dansRectPlat(p,x,z){
+  if(p.ang===undefined) return Math.abs(x-p.x)<p.hw&&Math.abs(z-p.z)<p.hd;
+  const dx=x-p.x, dz=z-p.z, sa=Math.sin(p.ang), ca=Math.cos(p.ang);
+  return Math.abs(dx*ca-dz*sa)<p.hw&&Math.abs(dx*sa+dz*ca)<p.hd;
+}
 function estEau(x,z){
   if(z<MER) return DECOR_V2&&((LAC!==null&&surLac(x,z))||dansCrique(x,z)); // le lac du parc (sauf sa passerelle) et la baie de la crique sont de l'eau
-  for(const p of PONTONS) if(Math.abs(x-p.x)<p.hw&&Math.abs(z-p.z)<p.hd) return false;
+  for(const p of PONTONS) if(dansRectPlat(p,x,z)) return false;
   for(const i of ILES) if(i.dans?i.dans(x,z):dist2(x,z,i.x,i.z)<i.r*i.r) return false; // i.dans : contour irrégulier (île aux trésors)
   return true;
 }
@@ -2999,7 +3012,7 @@ function solY(x,z){
   }
   for(const p of PLATS){
     if(p.r){ if(dist2(x,z,p.x,p.z)<p.r*p.r&&p.h>y) y=p.h; }
-    else if(Math.abs(x-p.x)<p.hw&&Math.abs(z-p.z)<p.hd&&p.h>y) y=p.h;
+    else if(p.h>y&&dansRectPlat(p,x,z)) y=p.h;
   }
   for(const c of COLLINES){
     const d2=dist2(x,z,c.x,c.z);
@@ -5872,7 +5885,7 @@ function rampeMerSous(x,z){
   return null;
 }
 function majSautMer(v,dt){
-  if(!MERV.ok||v.def.cargo||v.def.long>9) return false; // petits bateaux seulement
+  if(!MERV.ok||grosNavire(v.def)||v.def.long>9) return false; // petits bateaux seulement
   if(v.vyMer!==undefined&&v.hMer>0){ // en l'air
     v.vyMer-=26*dt; v.hMer+=v.vyMer*dt; v.airMer+=dt;
     if(v.hMer<=0){ v.hMer=0; const air=v.airMer; v.vyMer=undefined;
@@ -6113,7 +6126,7 @@ function adherenceRelief(v,d){
 }
 // pneus à crampons / 4x4 : tiennent sur la terre meuble de la montée sèche (les motos et voitures de route y patinent)
 function toutTerrain(d){ return !!(d.cross||d.buggy||d.quad||d.jeep||d.franchissement||d.bmx||d.ecrase); }
-function rideEligible(v,id){ if(!v) return false; if(id&&RIDE_DEFS[id]&&RIDE_DEFS[id].eau) return !!v.def.eau&&!v.def.cargo; return v.def.type==='moto'||!!v.def.buggy||!!v.def.quad||!!v.def.jeep; }
+function rideEligible(v,id){ if(!v) return false; if(id&&RIDE_DEFS[id]&&RIDE_DEFS[id].eau) return !!v.def.eau&&!grosNavire(v.def); return v.def.type==='moto'||!!v.def.buggy||!!v.def.quad||!!v.def.jeep; }
 // DÉFI STUNT : chaque réception compte (temps de vol, réception propre), plus le cabrage en moto cross (majRides)
 function rideFigure(v){
   const r=RIDES.actif; if(!r||v.airT<0.45||v.hop) return;
@@ -6766,14 +6779,14 @@ function mkGrandYacht(x,z){
   g.add(spriteBlob(13));
   g.position.set(x,0,z);
   // DECOR_V2 : l'ancien modèle est construit (mêmes tirages pour la ville) mais pas affiché
-  if(DECOR_V2) sansAleaVille(()=>scene.add(mkGrandYachtV2(x,z))); else scene.add(g);
-  PONTONS.push({x,z,hw:4.2,hd:12});
-  PLATS.push({x,z,hw:3.7,hd:10.6,h:1.31});   // tout le pont, y compris les côtés
+  if(DECOR_V2) sansAleaVille(()=>mkGrandYachtV2(x,z)); else scene.add(g); // DECOR_V2 : construit (mêmes tirages) mais remplacé par le véhicule grandyacht (startRun)
+  PONTONS.push({x,z,hw:4.2,hd:12}); GYACHT.ponton=PONTONS[PONTONS.length-1];
+  PLATS.push({x,z,hw:3.7,hd:10.6,h:1.31}); GYACHT.plat=PLATS[PLATS.length-1];   // tout le pont, y compris les côtés
   // passerelle flottante côté plage pour remonter à bord facilement
   const pas=new THREE.Mesh(new THREE.BoxGeometry(1.6,0.2,7),new THREE.MeshLambertMaterial({map:texPlanche}));
   pas.position.set(x,0.35,z-11); scene.add(pas);
-  PONTONS.push({x,z:z-11,hw:0.9,hd:3.6});
-  PLATS.push({x,z:z-11,hw:0.9,hd:3.6,h:0.42});
+  PONTONS.push({x,z:z-11,hw:0.9,hd:3.6}); GYACHT.pass=PONTONS[PONTONS.length-1];
+  PLATS.push({x,z:z-11,hw:0.9,hd:3.6,h:0.42}); GYACHT.passPlat=PLATS[PLATS.length-1];
   POIS.yacht={x,z};
 }
 const texTole=cTex(128,(g,s)=>{
@@ -8714,6 +8727,10 @@ function moteurHorsBord(g,x,zArr,yPont,coul){
 }
 // Construit tous les bateaux sauf le surf (géré à part). def, key, coul, L, W : comme makeVoiture.
 function makeBateauV2(def,key,coul,L,W,g,ud){
+  if(key==='grandyacht'){ // le modèle de l'ancien décor amarré (étrave vers -z), tourné : étrave vers l'avant
+    const m=mkGrandYachtV2(0,0); m.rotation.y=Math.PI; g.add(m);
+    ud.siege={y:4.4,z:3.0}; g.userData=ud; return g;           // debout sur le fly, derrière le poste de pilotage
+  }
   const blanc=0xf2f4f8, noir=0x1c1e24, rougeAF=0x7a2420, vitre=0x1a2a3e;
   if(def.pont){ // ---- YACHT ----
     const c=coqueBateau(L,W,1.15,blanc,0x1b2430,0x23303e,0xd8c4a0,{tonture:0.22}); g.add(c.g);
@@ -11144,6 +11161,7 @@ function vehiculeBloquant(x,z,marge,ignore){
   for(const o of vehicules){
     if(o===ignore||o.mort||o.epave||o.def.surf||o.captureOvni) continue;
     if(o.def.air&&(o.alt||0)>3) continue;
+    if(o===GYACHT.v&&o.conduit!=='joueur') continue; // grand yacht au mouillage : on marche sur son pont
     const dx=x-o.x, dz=z-o.z, sA=Math.sin(o.ang), cA=Math.cos(o.ang);
     const fwd=dx*sA+dz*cA, right=dx*cA-dz*sA;
     if(Math.abs(fwd)<o.def.long*0.5+marge&&Math.abs(right)<o.def.larg*0.5+marge) return o;
@@ -11385,6 +11403,7 @@ function resoudreCollisionsVehicule(v,dt){
   const hV=hauteurReelleVehicule(v);
   for(const o of vehicules){
     if(o===v||o.mort||o.epave||o.noye) continue;
+    if(o.porteur===v||v.porteur===o||(o.def.air&&v.def.navire)||(v.def.air&&o.def.navire)) continue; // aéronef et grand yacht : le pont est une plateforme (hélico posé, qui décolle ou s'y repose)
     if(Math.abs(hV-hauteurReelleVehicule(o))>1.6) continue;
     const dxw=o.x-v.x, dzw=o.z-v.z;
     const angV=v.ang, sV=Math.sin(angV), cV=Math.cos(angV);
@@ -11568,7 +11587,7 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
   }
   // paroi : le sol devant monte plus raide que PENTE_MAX_VEH → on la heurte, on ne la gravit plus d'un coup
   const paroi=DECOR_V2&&!eau&&!d.air&&!v.enAir&&dansReliefLibre(fx,fz)&&!(MONT.presDuSentier&&(MONT.presDuSentier(fx,fz,7)||MONT.surCouloir(fx,fz,4)))&&(solY(fx,fz)-(v.h||0))/(d.long/2+Math.abs(v.v)*dt+0.01)>PENTE_MAX_VEH*(d.franchissement?1.35:(d.velo?0.55:1)); // vélos : jamais sur les flancs (demandé), 4x4 : un peu plus raide que les autres // sur le sentier : on manœuvre dans les épingles
-  const versPlage=eau&&!!d.eau&&!d.cargo&&(v.conduit==='joueur'||!v.conduit)&&!estEau(nx,nz)&&solY(nx,nz)<0.6&&!solidAt(fx,fz,0.5); // sable : le bateau s'y échoue en douceur
+  const versPlage=eau&&!!d.eau&&!grosNavire(d)&&(v.conduit==='joueur'||!v.conduit)&&!estEau(nx,nz)&&solY(nx,nz)<0.6&&!solidAt(fx,fz,0.5); // sable : le bateau s'y échoue en douceur
   const auPasVersTerre=echoue&&Math.abs(v.v)<=2.2&&!eauDevant(v,Math.sign(v.v||1)); // échoué, au pas : seulement vers l'eau (jamais traverser la plage)
   const heurte=eau?((!estEau(nx,nz)&&!versPlage)||auPasVersTerre):(!!sFront||paroi||((v.h||0)<0.7&&estEau(fx,fz)&&!VEH_IA_NOYABLES&&!!v.conduit&&v.conduit!=='joueur')); // VEH_IA_NOYABLES : police, trafic et autres IA entrent aussi dans l'eau et s'y noient
   if(heurte&&paroi&&!sFront){ // paroi de relief : on glisse le long (composante montante retirée), sans casse — on peut toujours tourner et repartir
@@ -11750,7 +11769,7 @@ function entrerVehicule(v){
     v.iaEau=false; v.crVit=0; v.contreb=false;
   }
   if(!v.volFait&&WANTED.heat>=1){WANTED.heat=Math.max(0,WANTED.heat-0.5);v.volFait=true;}
-  P.veh=v; v.conduit='joueur';
+  P.veh=v; v.conduit='joueur'; if(v===GYACHT.v) majGrandYacht(); // pont du grand yacht retiré : la coque navigue
   META.defis.vols++;
   if(v.conduit==='trafic'||v._traf) META.stats.vehVoles++;
   if(v.def.cache&&!META.decouverts[v.key]){
@@ -12024,6 +12043,7 @@ function sortirVehicule(force){
   if(v.sirene){ v.sirene=false; sireneStop(); }
   lanceSonStop();
   v.conduit=null; P.veh=null;
+  if(v===GYACHT.v) majGrandYacht(); // pont praticable avant de poser le joueur dessus
   let sx=v.x+Math.cos(v.ang)*2.2, sz=v.z-Math.sin(v.ang)*2.2;
   if(v.def.air&&(v.alt||0)>3){
     // posé sur un toit : on descend juste à côté de l'appareil, sur le toit
@@ -22098,6 +22118,37 @@ function choisirPiece(s,cat,i){
   }
   slot.pieces[cat]=i; sauveMeta(); return true;
 }
+// Grand yacht : pont et ponton collés à la coque (rectangles orientés),
+// praticables seulement sans personne à la barre (sinon la coque buterait
+// sur son propre ponton) ; au mouillage dès qu'on lâche la barre. L'hélico
+// posé sur l'héliport (arrière, 6,4 u) suit le yacht.
+function majGrandYacht(){
+  const v=GYACHT.v, pl=GYACHT.plat, po=GYACHT.ponton; if(!pl||!po) return;
+  if(!v||v.mort||v.noye||vehicules.indexOf(v)<0){
+    if(DECOR_V2){ pl.hw=pl.hd=po.hw=po.hd=0; }
+    if(GYACHT.pass){ GYACHT.pass.hw=0.9; GYACHT.passPlat.hw=0.9; }
+    return;
+  }
+  const libre=v.conduit!=='joueur';
+  if(libre) v.v=0;
+  pl.x=po.x=v.x; pl.z=po.z=v.z; pl.ang=po.ang=v.ang+Math.PI; // rectangles orientés comme la coque
+  pl.hw=libre?3.7:0; pl.hd=libre?10.6:0; po.hw=libre?4.2:0; po.hd=libre?12:0;
+  // passerelle flottante d'amarrage : désactivée quand la coque la traverse en manœuvre
+  if(GYACHT.pass){
+    const pa=GYACHT.pass, dx=pa.x-v.x, dz=pa.z-v.z, sa=Math.sin(v.ang), ca=Math.cos(v.ang);
+    const dessous=Math.abs(dx*sa+dz*ca)<13+3.6&&Math.abs(dx*ca-dz*sa)<4.2+0.9;
+    pa.hw=GYACHT.passPlat.hw=(!libre&&dessous)?0:0.9;
+  }
+  const h=GYACHT.heli;
+  if(h&&!h.mort&&vehicules.indexOf(h)>=0){
+    const hx=v.x-Math.sin(v.ang)*6.4, hz=v.z-Math.cos(v.ang)*6.4;
+    if(!h.vol&&h.conduit!=='joueur'&&dist2(h.x,h.z,hx,hz)<9){
+      if(h.porteur!==v){ h.porteur=v; h.angRel=h.ang-v.ang; }
+      h.x=hx; h.z=hz; h.ang=v.ang+h.angRel; h.alt=1.35; h.v=0;
+      if(h.mesh){ h.mesh.position.set(hx,1.35,hz); h.mesh.rotation.y=h.ang; }
+    } else h.porteur=null;
+  }
+}
 // ce que porte une fiche, en clair (toast de sortie du garage) ; '' si d'origine
 function recapTuning(f){
   if(!f) return '';
@@ -23791,6 +23842,8 @@ function startRun(){
     // mini-hélico posé sur l'hélipad du yacht amarré
     const hy=creerVehicule('helico',POIS.yacht.x,POIS.yacht.z+6.4,0);
     if(hy){ hy.alt=1.35; hy.mesh.position.y=1.35; hy.mesh.scale.setScalar(0.8); }
+    GYACHT.v=DECOR_V2?creerVehicule('grandyacht',POIS.yacht.x,POIS.yacht.z,Math.PI):null; // au mouillage, comme l'ancien décor
+    GYACHT.heli=hy||null; majGrandYacht();
   }
   if(POIS.plage){
     for(let i=0;i<3;i++)
@@ -25504,6 +25557,7 @@ function boucle(t){
       majPietons(dt);
       majFauneRue(dt);
       majVehicules(dt);
+      majGrandYacht();
       majRayonOvni(dt);
     }
     majPools(dt);

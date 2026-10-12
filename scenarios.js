@@ -8240,7 +8240,7 @@ async function main() {
           if (libre) X = x; }
         if (X === null) return { ko: ['aucune plage dégagée trouvée'] };
         const conduire = (v, mz, n) => { INPUT.mx = 0; INPUT.mz = mz; for (let i = 0; i < n && P.veh === v; i++) { const c = controleDir(v, false); majVehiculePhys(v, 1 / 30, c.throttle, c.steer, false); majVehicules(1 / 30); } INPUT.mz = 0; };
-        for (const cle of Object.keys(VEHDEFS).filter((k) => VEHDEFS[k].eau && !VEHDEFS[k].cargo)) {
+        for (const cle of Object.keys(VEHDEFS).filter((k) => VEHDEFS[k].eau && !grosNavire(VEHDEFS[k]))) {
           scene0(); const v = creerVehicule(cle, X, MER + 30, Math.PI, null); P.x = v.x; P.z = v.z; entrerVehicule(v); const hp0 = v.hp;
           conduire(v, -1, 360);
           const avance = MER - v.z, aTerre = !estEau(P.x, P.z);
@@ -8589,7 +8589,7 @@ async function main() {
         startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
         const hy = vehicules.find((v) => v.key === 'helico' && dist2(v.x, v.z, POIS.yacht.x, POIS.yacht.z) < 100);
         if (!hy) return { ko: ['pas d\'hélico sur le yacht'] };
-        const pas = (n) => { for (let i = 0; i < n && !hy.mort; i++) { majJoueur(1 / 30, 1 / 30); majVehicules(1 / 30); } };
+        const pas = (n) => { for (let i = 0; i < n && !hy.mort; i++) { majJoueur(1 / 30, 1 / 30); majVehicules(1 / 30); majGrandYacht(); } }; // comme la boucle
         const pad = { x: hy.x, z: hy.z };
         P.x = hy.x + 1.5; P.z = hy.z; P.y = solPied(P.x, P.z); entrerVehicule(hy);
         pas(30); if (hy.mort) ko.push('explose posé sur le pont');
@@ -8616,6 +8616,62 @@ async function main() {
       });
       if (r.ko.length) fail('Hélico du yacht : ' + r.ko.join(' | '));
       else ok('Hélico du yacht : décolle, se pose DESCENDRE tenu sur le pont et en ville, reste au ras de l\'eau sans exploser (' + r.info.join(', ') + ')');
+    }
+
+    // -------------------------------------------------------------------
+    // 8e lot, n° 3 (demandé : « gros yacht : il ne se conduit pas, le rendre
+    // navigable »). On monte à bord depuis son pont, on navigue au joystick
+    // réel (controleDir), l'hélico de l'héliport suit ; arrêté, son pont se
+    // parcourt à pied ; l'hélico redécolle et se repose dessus.
+    // -------------------------------------------------------------------
+    console.log('\n--- Grand yacht navigable : barre, hélico porté, pont praticable au mouillage ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (!DECOR_V2) return { off: true };
+        if (P.veh) sortirVehicule(true);
+        startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
+        const y = GYACHT.v, hy = GYACHT.heli;
+        if (!y || y.key !== 'grandyacht' || !hy) return { ko: ['grand yacht ou hélico absent'] };
+        for (const v of [...vehicules]) if (v !== y && v !== hy) { scene.remove(v.mesh); vehicules.splice(vehicules.indexOf(v), 1); }
+        // au mouillage : on marche sur le pont, à hauteur du pont
+        P.x = y.x + 1; P.z = y.z - 2; P.y = solPied(P.x, P.z);
+        if (!(Math.abs(P.y - 1.31) < 0.05) || estEau(P.x, P.z)) ko.push('pont pas praticable au mouillage (y ' + P.y.toFixed(2) + ')');
+        for (let i = 0; i < 20; i++) majJoueur(1 / 30, 1 / 30);
+        if (estEau(P.x, P.z) || P.nage) ko.push('joueur à l\'eau sur le pont');
+        // à la barre
+        majAction(); const lab = document.getElementById('btnAction').textContent; const b = document.getElementById('btnAction'); if (b._fn) b._fn();
+        if (P.veh !== y) { // l'hélico est peut-être plus proche : on vise la barre
+          if (P.veh) sortirVehicule(true); P.x = y.x; P.z = y.z - 3; entrerVehicule(y);
+        }
+        if (P.veh !== y) return { ko: ko.concat('impossible de prendre la barre (' + lab + ')') };
+        const x0 = y.x, z0 = y.z;
+        const nav = (mx, mz, n) => { for (let i = 0; i < n && P.veh === y; i++) { INPUT.mx = mx; INPUT.mz = mz; const c = controleDir(y, false); majVehiculePhys(y, 1 / 30, c.throttle, c.steer, false); majVehicules(1 / 30); majGrandYacht(); } INPUT.mx = 0; INPUT.mz = 0; };
+        nav(0, 1, 30 * 25);   // vers le large
+        nav(1, 0, 30 * 15);   // vers l'est
+        const d = Math.hypot(y.x - x0, y.z - z0); 
+        if (!(d > 80)) ko.push('le yacht n\'avance pas (' + d.toFixed(0) + ' u)');
+        else info.push(d.toFixed(0) + ' u en 40 s, vmax ' + y.def.vmax);
+        if (y.mort || y.hp < y.def.hp * 0.9) ko.push('yacht abîmé en naviguant (hp ' + y.hp + ')');
+        const hx = y.x - Math.sin(y.ang) * 6.4, hz = y.z - Math.cos(y.ang) * 6.4;
+        if (hy.mort || Math.hypot(hy.x - hx, hy.z - hz) > 0.5) ko.push('hélico pas emporté (à ' + Math.hypot(hy.x - hx, hy.z - hz).toFixed(1) + ' u de l\'héliport, mort=' + !!hy.mort + ')');
+        // on lâche la barre : au mouillage, pont praticable
+        sortirVehicule();
+        for (let i = 0; i < 10; i++) { majJoueur(1 / 30, 1 / 30); majVehicules(1 / 30); majGrandYacht(); }
+        if (!(Math.abs(P.y - 1.31) < 0.3) || P.nage || estEau(P.x, P.z)) ko.push('pas sur le pont en lâchant la barre (y ' + P.y.toFixed(2) + ', nage ' + !!P.nage + ')');
+        if (Math.abs(y.v) > 0.01) ko.push('le yacht dérive sans pilote');
+        // l'hélico redécolle du yacht déplacé et s'y repose
+        P.x = hy.x + 1.5; P.z = hy.z; entrerVehicule(hy);
+        const pas = (n) => { for (let i = 0; i < n && !hy.mort; i++) { majJoueur(1 / 30, 1 / 30); majVehicules(1 / 30); majGrandYacht(); } };
+        INPUT.btn.sprint = true; pas(30); INPUT.btn.sprint = false;
+        INPUT.btn.frein = true; pas(240); INPUT.btn.frein = false;
+        if (hy.mort || hy.vol || Math.abs(hy.alt - 1.31) > 0.1) ko.push('hélico pas reposé sur le yacht (alt ' + (hy.alt || 0).toFixed(2) + ', mort ' + !!hy.mort + ')');
+        sortirVehicule(true);
+        return { ko, info };
+      });
+      if (r.off) saute('Grand yacht : DECOR_V2 désactivé');
+      else if (r.ko.length) fail('Grand yacht : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
+      else ok('Grand yacht : navigable (' + r.info.join(', ') + '), hélico emporté, pont praticable au mouillage, hélico qui s\'y repose');
     }
 
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');
