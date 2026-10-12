@@ -1528,7 +1528,7 @@ Note : dans une des suites complètes, le pilote glouton a eu deux nuits à 3 et
 
 **Reste à améliorer** : un vrai jingle de radio synthétisé au début et à la fin, et répondre aux auditeurs (deux réponses au choix pendant la pause).
 
-### Refonte 6 — Ciné-Palace (commit `CINE_HASH`)
+### Refonte 6 — Ciné-Palace (commit `3fbaf43`)
 
 **Concept retravaillé.**
 - **Promesse** : être le projectionniste de « GTRoyal I » le soir de la première, et ne jamais laisser la salle huer.
