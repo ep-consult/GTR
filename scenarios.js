@@ -9061,6 +9061,32 @@ async function main() {
       else ok('Vie des salles : ' + r.info.join(', ') + ' ; ils flânent sans traverser un meuble et se mettent à couvert quand on frappe');
     }
 
+    // -------------------------------------------------------------------
+    // 10e lot, n° 1 (signalé : « l'endroit où on écrit sur la pancarte de
+    // l'avion est au-dessous d'une maison »). Aucun autre solide — maisons
+    // sur pilotis comprises (yRef) — dans l'emprise du kiosque ; on y accède.
+    // -------------------------------------------------------------------
+    console.log('\n--- Kiosque de la banderole : dégagé (aucune maison dessus), accessible ---');
+    {
+      const r = await page.evaluate(() => {
+        if (!DECOR_V2 || !POIS.banderole) return { off: true };
+        const ko = [];
+        if (P.veh) sortirVehicule(true);
+        startRun(); ecran(null); ETAT.mode = 'jeu';
+        const k = POIS.banderole, x = k.x, z = k.z - 3.2, vus = new Set();
+        for (const arr of sGrid.values()) for (const s of arr) { if (vus.has(s)) continue; vus.add(s);
+          if (Math.abs(s.x - x) < 0.01 && Math.abs(s.z - z) < 0.01) continue; // le kiosque lui-même
+          if (Math.abs(s.x - x) < s.hw + 2.5 && Math.abs(s.z - z) < s.hd + 2) ko.push('solide sur le kiosque : ' + JSON.stringify({ x: s.x, z: s.z, hw: s.hw, hd: s.hd, base: s.base })); }
+        P.x = k.x; P.z = k.z; P.y = solPied(P.x, P.z); majAction();
+        const lab = document.getElementById('btnAction').textContent;
+        if (!/MESSAGE DANS LE CIEL/.test(lab)) ko.push('bouton du kiosque absent : ' + lab);
+        return { ko, pos: [x, z] };
+      });
+      if (r.off) saute('Kiosque de la banderole : DECOR_V2 désactivé');
+      else if (r.ko.length) fail('Kiosque de la banderole : ' + r.ko.join(' | '));
+      else ok('Kiosque de la banderole : dégagé en ' + r.pos.join(', ') + ', bouton accessible');
+    }
+
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');
     {
       const srcIdx = fs.readFileSync(INDEX_HTML, 'utf8');
