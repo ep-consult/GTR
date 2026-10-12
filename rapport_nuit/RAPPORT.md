@@ -1235,3 +1235,82 @@ Demande : chaque salle et chaque mini-jeu doit être épique, compris en quelque
 Viendraient ensuite : bowling, banque (mini-jeu du coffre), commissariat, puis les boutiques (supérette, pharmacie, concessionnaire, avec un vrai menu).
 
 **Choix** : les boutiques (supérette, pharmacie, armurerie, concessionnaire, tour) passent après les mini-jeux. Elles ont le score le plus bas, mais la demande vise d'abord les mini-jeux, et leur refonte serait surtout un menu.
+
+### Refonte 1 — Chalutier « Sainte-Odile » (commit `CHAL_HASH`)
+
+**Concept retravaillé.**
+- **Promesse** : prendre la mer trois minutes, traquer les bancs qu'on voit à l'eau, ramener la cale avant la tempête — et peut-être le Vieux Roi.
+- **Mécanique centrale** : piloter réellement le bateau, s'arrêter sur un banc, gagner le combat à la canne en lâchant quand le poisson tire.
+- **Moment fort** : le Vieux Roi, espadon légendaire de la Fosse, saute deux fois hors de l'eau au ralenti pendant un combat de 30 s.
+
+**Avant / après** : `chalutier_avant.png` (un rectangle à damier sur une eau plate, des panneaux BARRE / CANNE / TREUIL) contre `chalutier_planche.png`.
+
+**Ce qui a changé** :
+- **Un vrai bateau** :
+  - coque rouge à étrave arrondie, pont en lames de bois, pavois blancs et lisse en bois ;
+  - timonerie avec vitres, radar qui tourne, cheminée qui fume, feux de navigation rouge et vert ;
+  - mât et étais, cale bâchée, treuil du chalut, panneaux de chalut, pare-battages, bouées couronnes ;
+  - « SAINTE-ODILE · LOS REYES » peint sur le tableau arrière.
+  
+  Les murs gris de la salle ont disparu ; ils restent invisibles et retiennent le joueur à bord.
+- **On voit enfin qu'on navigue** :
+  - la mer est un vrai plan d'eau animé (vagues, écume, reflets, plus sombre au large et dans la tempête) ;
+  - elle tourne et glisse autour du bateau, proue toujours en haut de l'écran, avec un sillage et l'écume de proue ;
+  - au départ, le port, la jetée, le phare et la côte de Los Reyes s'éloignent derrière ;
+  - au large, on croise les bouées des zones (jaunes, puis rouges pour la Fosse) et des récifs à contourner.
+- **Le radar remplace la minimap** pendant la sortie :
+  - les bancs : 🐟 à la canne, ✨ sardines au filet, 👑 le Vieux Roi ;
+  - le port ⚓, les récifs, les cercles des zones, le nom de la zone ;
+  - un bord rouge qui clignote dans la tempête.
+- **Des bancs visibles à l'eau** : une ombre qui ondule, des poissons qui tournent et sautent, des mouettes qui piquent ; pour le Roi, un aileron et un reflet doré.
+- **Une seule action à la fois** : le joueur est d'office à la barre et le joystick pilote (◀ ▶ virer, ▲ gaz, ▼ freiner). Le bouton d'action propose toujours la bonne chose : « Fonce vers un banc du radar », « Ralentis pour pêcher », 🎣 PÊCHER ICI, 🕸️ JETER / REMONTER LE FILET. Les boutons de combat (poing, grenade, esquive…) sont masqués en mer.
+- **La pêche illustrée**, dans un panneau en bas d'écran qui se tient au doigt :
+  - on voit le bouchon flotter, puis plonger : « FERRE ! », il suffit de toucher ;
+  - au combat, on voit le poisson se débattre et remonter, avec une jauge MOU / zone verte / CASSE ;
+  - maintenir = mouliner (cliquetis), lâcher = laisser filer.
+  - **Nouveauté** : le poisson donne des **coups de tête** (« ⚠ IL TIRE — LÂCHE ! », il se débat dans le panneau). Mouliner à ce moment-là tend la ligne et le fait reculer. Cela donne un rythme à lire au lieu d'une simple jauge.
+  - **Retours** : la ligne et le bouchon sont visibles à l'eau, avec des éclaboussures. La prise saute sur le pont et gigote, puis s'affiche en grand avec son prix et son poids. Les caisses s'empilent sur le pont au fil de la cale.
+- **Le filet** se jette près d'un banc de sardines et ne se remplit qu'en le traversant au moteur : c'est un petit jeu de pilotage. Une jauge dans le panneau d'infos vire au rouge quand le filet risque de se déchirer.
+- **La tempête se voit et se sent** :
+  - ciel noir, éclairs, pluie, paquets de mer sur le pont ;
+  - roulis de la caméra, cap qui dérive ;
+  - une lame qui balaie le pont et emporte la moitié de la cale au bout de 30 s.
+- **Entrée en scène** : corne de brume, « LARGUEZ LES AMARRES », carte à icônes de 4 s (« ◀ ▶ virer · ▲ gaz · ▼ freiner », « fonce vers un banc du radar », « rentre au ⚓ avant la tempête », « le Vieux Roi rôde dans la Fosse… »). Elle s'efface dès qu'on pêche.
+- **Fin célébrée** : « VENTE À LA CRIÉE », prises regroupées (« Bar ×3 … 270 $ »), total qui défile, plus belle prise. Une sortie ratée (remorqué) montre une cale vide.
+- **Panneau d'infos compact** : chrono en grand (rouge sous 30 s), ciel (jauge vert / jaune / rouge), cale (poids, valeur), bouton ⚓ ABANDONNER plus grand qu'avant.
+
+**Choix faits** :
+- **Supprimés** : le billot (découpe au doigt) et le bouton « rejeter la dernière prise ». Ils ajoutaient deux systèmes à lire pour un gain faible ; quand la cale est pleine, le bouton dit simplement de rentrer.
+- **Curiosité** : la Boussole du Capitaine s'obtient désormais en **ramenant le Vieux Roi au port**. L'ancienne condition (« cale pleine depuis la Fosse, sans rien rejeter ») était invisible pour le joueur. Le texte d'indice est mis à jour.
+- **Valeur du Vieux Roi** : 800 $, pour éviter une rente : 2 sorties par vague, comme avant.
+- **Coffre du capitaine** : la cabine (devenue timonerie) a laissé place à une malle sur le gaillard avant. La fouille reste la même.
+
+**Vérifications** :
+- `valider.js` est vert et les portes sont inchangées.
+- 60 vérifications chalutier dans `scenarios.js`. Les anciens tests utiles sont gardés (chrono, météo, cale, 2 sorties par vague, zone de SORTIE inerte, abandon, remises à zéro, fouilles, horloges) ; les nouveaux couvrent :
+  - le pilotage et la mer qui tourne ;
+  - les bancs dans leur zone et hors des récifs ;
+  - le bouton contextuel ;
+  - le doigt sur le panneau ;
+  - les coups de tête ;
+  - les sauts du Roi et le Roi arrimé contre la tempête ;
+  - le filet dans le banc ;
+  - le bilan ;
+  - les boutons de combat masqués puis rendus.
+- **Pilote simulé**, au joystick et au bouton d'action seulement (réaction 0,35 s, lâche pendant les rushs) : 4 sorties sur 4 ramènent le Vieux Roi et 4 à 7 autres prises en 144-153 s (1 290 à 1 550 $). Une sortie sans rien faire finit remorquée à 180 s avec 0 $.
+- **Perdable** : tenir le moulinet en continu casse la ligne, relâcher libère le poisson, et le pilote a raté un Roi au premier essai.
+- **Rendus réels** : `chalutier_quai`, `largage`, `en_mer`, `sur_banc`, `attente`, `morsure`, `combat`, `rush`, `prise`, `saut_roi`, `filet`, `tempete`, `bilan` (captures `lot11/`).
+
+**À tester sur iPhone** :
+1. **Pilotage** : la barre au joystick se prend-elle en main en quelques secondes ? Trouver un banc au radar et s'y arrêter.
+2. **Pêche** : toucher le panneau pour ferrer, maintenir pour mouliner, lâcher pendant « IL TIRE ». Le panneau est-il assez grand ? Le doigt glisse-t-il hors du panneau sans couper le moulinet ?
+3. **Le Vieux Roi** : ses deux sauts sont-ils bien visibles (au flanc droit du bateau) ?
+4. **Lisibilité** : radar, panneau d'infos et bouton ⚓ ABANDONNER sur un vrai écran, encoche comprise.
+5. **Performance** : le shader de la mer, la pluie et le sillage sur iPhone (le shader ajoute quelques sinus par pixel d'eau).
+
+**Reste à améliorer** :
+- une vraie corne de brume synthétisée (aujourd'hui un bip grave) ;
+- des cris de mouettes ;
+- une musique de criée au bilan ;
+- un 2e poisson légendaire ;
+- d'autres bateaux de pêche au large.

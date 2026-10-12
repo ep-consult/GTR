@@ -2137,7 +2137,7 @@ const CURIOS=[
   {id:'plans',ico:'📐',nom:'Les Plans du Rhinocéros',lieu:'Bunker militaire',actif:false},
   {id:'boussole',ico:'🧭',nom:'La Boussole du Capitaine',lieu:'Le chalutier Sainte-Odile',
    eff:'Sens de l’orientation : la carte affiche en permanence la direction du prochain objectif de mission',
-   ind:'Rentrer de la Fosse avec la cale pleine. Sans rien rejeter à la mer.',actif:true},
+   ind:'Ramener au port le Vieux Roi, l’espadon légendaire de la Fosse.',actif:true},
   {id:'volant',ico:'🏎️',nom:'Le Volant du Dépôt',lieu:'Le dépôt de bus',
    eff:'Pilote confirmé : les véhicules que tu conduis accélèrent 15 % plus vite',
    ind:'Gagner sur les toits. En bus.',actif:true}
@@ -15936,51 +15936,51 @@ el('hud').appendChild(radioWrap);
 const radioLblEl=radioWrap.querySelector('#radioLbl'), radioZoneBarEl=radioWrap.querySelector('#radioZoneBar'),
       radioAiguilleEl=radioWrap.querySelector('#radioAiguille'), radioFreqTxtEl=radioWrap.querySelector('#radioFreqTxt'),
       radioTriangEl=radioWrap.querySelector('#radioTriang');
-/* Chalutier « Sainte-Odile » : chrono + zone, météo, cale (poids/valeur +
-   rejet de la dernière prise), boussole de retour, et une sous-jauge de
-   tension affichée seulement pendant un combat à la canne. */
+/* Chalutier « Sainte-Odile » V2 (11e lot) : quatre éléments d'interface,
+   tous cachés hors sortie (chalutierArreterSortie, cacherJauges) :
+   - chalutierWrap : panneau compact en haut à gauche — chrono, ciel (jauge
+     de météo : vert, jaune, rouge), cale (poids, valeur) et ⚓ ABANDONNER ;
+   - chalPecheWrap : le panneau de pêche illustré (canvas) qui SE TIENT AU
+     DOIGT : toucher = ferrer, maintenir = mouliner (le bouton d'action, ou E
+     au clavier, fait pareil) ;
+   - chalIntroWrap : la carte d'entrée en scène au largage des amarres ;
+   - chalBilanWrap : le bilan de la vente au retour au port.
+   Le radar se dessine à la place de la minimap (dessinerRadarChalutier). */
 const chalutierWrap=document.createElement('div');
-chalutierWrap.style.cssText='position:absolute;left:50%;transform:translateX(-50%);'+
-  'bottom:calc(env(safe-area-inset-bottom,0px) + 380px);width:min(280px,78vw);display:none;'+
-  'text-align:center;pointer-events:none;z-index:6';
-chalutierWrap.innerHTML='<div style="display:flex;align-items:center;justify-content:center;gap:8px">'+
-  '<div id="chalLbl" style="font:900 11px Arial;letter-spacing:.05em;color:#2a9ac0;'+
-  'text-shadow:0 2px 6px #000">⚓ 180 s · HAUTS-FONDS</div>'+
-  '<div id="chalBoussoleWrap" style="width:20px;height:20px;border:1.5px solid #ffffff55;border-radius:50%;'+
-  'display:flex;align-items:center;justify-content:center;flex-shrink:0">'+
-  '<span id="chalBoussole" style="display:inline-block;color:#ffd23f;font-size:13px;'+
-  'transform:rotate(0deg)">⬆</span></div></div>'+
-  '<div id="chalMeteo" style="font:800 9px Arial;color:#7dff7a;margin-top:2px">☀ CALME</div>'+
-  '<div style="position:relative;margin-top:4px;height:9px;background:#12141bee;'+
-  'border:1.5px solid #ffffff33;border-radius:4px;overflow:hidden">'+
-  '<i id="chalCale" style="display:block;height:100%;width:0%;background:linear-gradient(90deg,#2a9ac0,#35e0ff)"></i></div>'+
-  '<div id="chalCaleTxt" style="font:800 8px Arial;color:#8a8f9a;margin-top:2px">0/400 kg · 0 $</div>'+
-  '<button id="chalRejeter" style="pointer-events:auto;margin-top:5px;padding:4px 10px;border-radius:8px;'+
-  'border:1px solid #ff3b5c66;background:#1a0f12e6;color:#ffb0bc;font:800 8.5px Arial;letter-spacing:.03em">'+
-  '🌊 REJETER LA DERNIÈRE PRISE</button>'+
-  '<button id="chalAbandonner" style="display:block;pointer-events:auto;margin:5px auto 0;padding:4px 10px;'+
-  'border-radius:8px;border:1px solid #ffffff33;background:#1a1a1ee6;color:#c8ccd4;font:800 8.5px Arial;'+
-  'letter-spacing:.03em">⚓ ABANDONNER LA SORTIE</button>'+
-  '<div id="chalTensionWrap" style="display:none;position:relative;margin-top:6px;height:14px;'+
-  'background:#12141bee;border:1.5px solid #ffffff33;border-radius:4px;overflow:hidden">'+
-  '<i id="chalProgres" style="position:absolute;inset:0;width:0%;background:#7dff7a33"></i>'+
-  '<i id="chalTension" style="position:absolute;top:0;bottom:0;width:2px;background:#ffd23f;'+
-  'left:50%;box-shadow:0 0 6px #ffd23f"></i></div>';
+chalutierWrap.style.cssText='position:absolute;left:10px;top:calc(env(safe-area-inset-top,0px) + 76px);'+
+  'width:138px;display:none;pointer-events:none;z-index:6;padding:7px 8px;border-radius:12px;box-sizing:border-box;'+
+  'background:linear-gradient(180deg,#0b2233e6,#07141ee6);border:1.5px solid #2a9ac066;box-shadow:0 4px 14px #000a';
+chalutierWrap.innerHTML=
+  '<div style="display:flex;align-items:center;justify-content:space-between">'+
+  '<span id="chalLbl" style="font:900 19px Arial;color:#fff;text-shadow:0 2px 4px #000">3:00</span>'+
+  '<span id="chalMeteo" style="font-size:19px">☀️</span></div>'+
+  '<div style="position:relative;margin-top:4px;height:7px;border-radius:4px;'+
+  'background:linear-gradient(90deg,#3fbf6a 0%,#3fbf6a 40%,#ffd23f 40%,#ffd23f 75%,#ff3b5c 75%)">'+
+  '<i id="chalCiel" style="position:absolute;top:-3px;bottom:-3px;width:4px;margin-left:-2px;left:0%;border-radius:2px;background:#fff;box-shadow:0 0 6px #fff"></i></div>'+
+  '<div style="display:flex;align-items:center;gap:5px;margin-top:7px">'+
+  '<span style="font-size:15px">🐟</span>'+
+  '<div style="flex:1;height:10px;background:#12141bee;border:1px solid #ffffff33;border-radius:5px;overflow:hidden">'+
+  '<i id="chalCale" style="display:block;height:100%;width:0%;background:linear-gradient(90deg,#2a9ac0,#35e0ff)"></i></div></div>'+
+  '<div id="chalCaleTxt" style="font:800 10px Arial;color:#cfe6f2;margin-top:2px;text-align:right">0 kg · 0 $</div>'+
+  '<div id="chalFiletRow" style="display:none;align-items:center;gap:5px;margin-top:5px">'+
+  '<span style="font-size:15px">🕸️</span>'+
+  '<div style="position:relative;flex:1;height:10px;background:#12141bee;border:1px solid #ffffff33;border-radius:5px;overflow:hidden">'+
+  '<i style="position:absolute;left:70%;top:0;bottom:0;right:0;background:#ff3b5c55"></i>'+
+  '<i id="chalFilet" style="position:absolute;left:0;top:0;bottom:0;width:0%;background:#7dff7a"></i></div></div>'+
+  '<button id="chalAbandonner" style="display:block;pointer-events:auto;margin:6px auto 0;padding:7px 12px;'+
+  'border-radius:10px;border:1px solid #ffffff33;background:#1a1a1ee6;color:#c8ccd4;font:800 10px Arial;'+
+  'letter-spacing:.03em">⚓ ABANDONNER</button>';
 el('hud').appendChild(chalutierWrap);
 const chalLblEl=chalutierWrap.querySelector('#chalLbl'), chalMeteoEl=chalutierWrap.querySelector('#chalMeteo'),
+      chalCielEl=chalutierWrap.querySelector('#chalCiel'),
       chalCaleEl=chalutierWrap.querySelector('#chalCale'), chalCaleTxtEl=chalutierWrap.querySelector('#chalCaleTxt'),
-      chalBoussoleEl=chalutierWrap.querySelector('#chalBoussole'),
-      chalTensionWrap=chalutierWrap.querySelector('#chalTensionWrap'),
-      chalTensionEl=chalutierWrap.querySelector('#chalTension'), chalProgresEl=chalutierWrap.querySelector('#chalProgres');
-chalutierWrap.querySelector('#chalRejeter').addEventListener('pointerdown',e=>{
-  e.preventDefault(); if(INT.actif&&INT.actif.sortieEnCours) chalutierRejeterDerniere(INT.actif);
-});
+      chalFiletRowEl=chalutierWrap.querySelector('#chalFiletRow'), chalFiletEl=chalutierWrap.querySelector('#chalFilet');
 // Bug déjà rencontré : la seule façon d'écourter une sortie était de marcher
 // jusqu'à la zone de SORTIE, ce qui faisait aussi quitter la salle en pleine
 // mer (aucun sens : on ne descend pas du bateau au large). La zone de SORTIE
-// est désormais désactivée tant que sortieEnCours est vrai (voir majAction) ;
-// l'abandon passe uniquement par ce bouton dédié, explicite, qui consomme la
-// sortie (chalutierArreterSortie) sans faire quitter la salle.
+// est désactivée tant que sortieEnCours est vrai (voir majAction) ; l'abandon
+// passe uniquement par ce bouton dédié, qui consomme la sortie
+// (chalutierArreterSortie) sans faire quitter la salle.
 chalutierWrap.querySelector('#chalAbandonner').addEventListener('pointerdown',e=>{
   e.preventDefault();
   if(INT.actif&&INT.actif.sortieEnCours){
@@ -15988,49 +15988,48 @@ chalutierWrap.querySelector('#chalAbandonner').addEventListener('pointerdown',e=
     toast('Sortie abandonnée. Retour au ponton.','warn'); SFX.refus();
   }
 });
-/* Chalutier « Sainte-Odile » : le billot — suivre au doigt la ligne de
-   découpe d'un poisson. Zone tactile dédiée avec son propre canvas (comme
-   viseeZone pour le stand de canards) : toute position y est immédiatement
-   convertie en fraction (0..1) du rectangle réel du canvas, jamais gardée en
-   pixels — voir billotDeplace/dessinerBillot. */
-const billotWrap=document.createElement('div');
-billotWrap.style.cssText='position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);'+
-  'width:min(320px,84vw);display:none;text-align:center;z-index:7;pointer-events:none';
-billotWrap.innerHTML='<div id="billotLbl" style="font:900 11px Arial;letter-spacing:.05em;color:#2a9ac0;'+
-  'text-shadow:0 2px 6px #000;margin-bottom:4px">🔪 SUIS LA DÉCOUPE, DU BOUT À L’AUTRE</div>'+
-  '<canvas id="billotCv" width="600" height="260" style="width:100%;aspect-ratio:600/260;'+
-  'display:block;border-radius:10px;border:1.5px solid #ffffff33;background:#0e1218;'+
-  'touch-action:none;pointer-events:auto"></canvas>';
-el('hud').appendChild(billotWrap);
-const billotLblEl=billotWrap.querySelector('#billotLbl');
-const billotCv=billotWrap.querySelector('#billotCv'), billotCx=billotCv.getContext('2d');
-let billotPointerId=null;
-function billotDeplace(clientX,clientY){
-  const s=INT.actif; if(!s||!s.billotActif) return;
-  const r=billotCv.getBoundingClientRect();
-  if(r.width<=0||r.height<=0) return;
-  const t=clamp((clientX-r.left)/r.width,0,1), y=clamp((clientY-r.top)/r.height,0,1);
-  chalutierBillotAvancer(s,t,y);
-}
-billotCv.addEventListener('pointerdown',e=>{
+const chalPecheWrap=document.createElement('div');
+// en bas de l'écran (les boutons de combat sont masqués en mer, cacherBoutonsCombat) :
+// le milieu reste libre pour voir le joueur, la prise qui gigote, le saut du Vieux Roi
+chalPecheWrap.style.cssText='position:absolute;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 14px);transform:translateX(-50%);'+
+  'width:min(340px,90vw);display:none;z-index:7;pointer-events:auto;touch-action:none;user-select:none;-webkit-user-select:none';
+chalPecheWrap.innerHTML='<canvas id="chalPecheCv" width="680" height="330" style="width:100%;aspect-ratio:680/330;display:block;'+
+  'border-radius:16px;border:2px solid #35e0ff66;box-shadow:0 6px 22px #000c"></canvas>';
+el('hud').appendChild(chalPecheWrap);
+const chalPecheCv=chalPecheWrap.querySelector('#chalPecheCv'), chalPecheCx=chalPecheCv.getContext('2d');
+let chalDoigt=null;
+chalPecheWrap.addEventListener('pointerdown',e=>{
   e.preventDefault();
-  const s=INT.actif; if(!s||!s.billotActif||s.billotActif.termine) return;
-  const r=billotCv.getBoundingClientRect();
-  if(r.width<=0) return;
-  const t=(e.clientX-r.left)/r.width;
-  if(t>0.15) return; // doit démarrer près du bout du poisson, pas n'importe où sur la ligne
-  billotPointerId=e.pointerId; billotCv.setPointerCapture(e.pointerId);
-  s.billotActif.avance=0; s.billotActif.erreurPond=0; s.billotActif.trace=[];
-  billotDeplace(e.clientX,e.clientY);
+  const s=INT.actif; if(!s||!s.sortieEnCours) return;
+  if(s.canneEtat==='morsure'){ chalutierFerrer(s); return; }
+  if(s.canneEtat==='combat'){ chalDoigt=e.pointerId; s.moulinetDoigt=true; try{ chalPecheWrap.setPointerCapture(e.pointerId); }catch(_){} }
 });
-billotCv.addEventListener('pointermove',e=>{ if(e.pointerId===billotPointerId) billotDeplace(e.clientX,e.clientY); });
-const billotFin=e=>{
-  if(e.pointerId!==billotPointerId) return;
-  billotPointerId=null;
-  const s=INT.actif; if(s&&s.billotActif) chalutierBillotRelacher(s);
-};
-billotCv.addEventListener('pointerup',billotFin);
-billotCv.addEventListener('pointercancel',billotFin);
+const chalDoigtFin=e=>{ if(e.pointerId!==chalDoigt) return; chalDoigt=null; if(INT.actif) INT.actif.moulinetDoigt=false; };
+chalPecheWrap.addEventListener('pointerup',chalDoigtFin);
+chalPecheWrap.addEventListener('pointercancel',chalDoigtFin);
+const chalCarte=(css)=>{ const d=document.createElement('div');
+  d.style.cssText='position:absolute;left:50%;transform:translate(-50%,-50%);width:min(330px,88vw);display:none;z-index:8;'+
+    'pointer-events:none;text-align:center;padding:14px 12px;border-radius:18px;box-sizing:border-box;'+
+    'background:linear-gradient(180deg,#0d3550f2,#061824f2);border:2px solid #ffd23f88;box-shadow:0 8px 30px #000d;'+css;
+  el('hud').appendChild(d); return d; };
+const chalLigneIntro=(ico,txt)=>'<div style="display:flex;align-items:center;gap:10px;margin:6px 4px;text-align:left">'+
+  '<span style="font-size:24px;width:32px;text-align:center;flex-shrink:0">'+ico+'</span>'+
+  '<span style="font:800 13px Arial;color:#fff;line-height:1.25">'+txt+'</span></div>';
+const chalIntroWrap=chalCarte('top:33%;transition:opacity .4s');
+chalIntroWrap.innerHTML='<div style="font:900 21px Arial;color:#ffd23f;letter-spacing:.04em;text-shadow:0 2px 0 #000">⚓ LA SAINTE-ODILE</div>'+
+  '<div style="font:800 11px Arial;color:#9fd8ee;margin:2px 0 8px;letter-spacing:.08em">3 MINUTES EN MER</div>'+
+  chalLigneIntro('🧭','◀ ▶ virer · ▲ gaz · ▼ freiner')+
+  chalLigneIntro('🐟','fonce vers un banc du radar, arrête-toi, 🎣')+
+  chalLigneIntro('🕸️','✨ sardines : filet à l’eau, traverse le banc')+
+  chalLigneIntro('⛈️','rentre au ⚓ avant la tempête')+
+  chalLigneIntro('👑','le Vieux Roi rôde dans la Fosse…');
+const chalBilanWrap=chalCarte('top:36%');
+chalBilanWrap.innerHTML='<div style="font:900 20px Arial;color:#ffd23f;text-shadow:0 2px 0 #000">⚓ VENTE À LA CRIÉE</div>'+
+  '<div id="chalBilanLignes" style="margin:8px 0 6px"></div>'+
+  '<div id="chalBilanTotal" style="font:900 34px Arial;color:#7dff7a;text-shadow:0 3px 0 #000">+0 $</div>'+
+  '<div id="chalBilanBest" style="font:800 11px Arial;color:#9fd8ee;margin-top:4px"></div>';
+const chalBilanLignesEl=chalBilanWrap.querySelector('#chalBilanLignes'), chalBilanTotalEl=chalBilanWrap.querySelector('#chalBilanTotal'),
+      chalBilanBestEl=chalBilanWrap.querySelector('#chalBilanBest');
 /* Dépôt de bus : jauge de course — chrono (dtJeu), tour/position, et le
    bouton d'abandon dédié (même raison que chalAbandonner : marcher jusqu'à
    la zone de SORTIE en pleine course, très loin sur le circuit, n'aurait
@@ -16058,7 +16057,7 @@ depotWrap.querySelector('#depotAbandonner').addEventListener('pointerdown',e=>{
     toast('Course abandonnée. Retour au stand.','warn'); SFX.refus();
   }
 });
-const JAUGES=[fouilleWrap,karaWrap,bwWrap,spWrap,swWrap,musWrap,arcadeWrap,cineWrap,metroWrap,radioWrap,chalutierWrap,billotWrap,depotWrap];
+const JAUGES=[fouilleWrap,karaWrap,bwWrap,spWrap,swWrap,musWrap,arcadeWrap,cineWrap,metroWrap,radioWrap,chalutierWrap,chalPecheWrap,chalIntroWrap,chalBilanWrap,depotWrap];
 function cacherJauges(){ for(const j of JAUGES) if(j.style.display!=='none') j.style.display='none'; }
 
 /* =====================================================================
@@ -19110,133 +19109,219 @@ function construireSalle(id){
     inter.segmentsReussis=0; inter.emissionsVague=0; inter.radioVagueRef=-1;
     inter.emissionParfaite=true; inter.appelsUtilises=[];
   }
-  /* ---- lieu spécial (lot 8) : LE CHALUTIER « SAINTE-ODILE » — la seule
-     salle qui sort de la ville. Le pont est un petit espace FIXE (le joueur
-     y marche normalement, murs génériques = bastingage) ; c'est la mer tout
-     autour et la ville qui semblent bouger : s.bateau est une position
-     virtuelle (jamais appliquée à un mesh), qui pilote seulement le défilement
-     de la texture d'eau et le fondu de la ville au loin. Voir majInterieur. */
+  /* ---- lieu spécial (lot 8, refait au 11e lot) : LE CHALUTIER « SAINTE-ODILE »
+     — la seule salle qui sort de la ville. Voir la section LE CHALUTIER. */
   else if(id==='chalutier'){
-    // pont : planches de bois usées
-    for(let i=-4;i<4;i++) for(let j=-11;j<11;j++){
-      const t=new THREE.Mesh(new THREE.PlaneGeometry(2.2,2.2),mat((i+j)%2?0x5a4530:0x4e3c28));
-      t.rotation.x=-Math.PI/2; t.position.set(ox+i*2.25+1.1,0.11,oz+j*2.25+1.1); g.add(t);
+    /* V2 (11e lot) : un vrai chalutier, proue au nord (en haut de l'écran),
+       et une mer qui vit autour (voir la section LE CHALUTIER). L'enveloppe
+       générique (murs gris, corniches, plinthes, sol) est masquée — ses
+       SOLIDES restent : ce sont eux qui retiennent le joueur à bord, complétés
+       à la proue (qui s'affine) par des solides le long de l'étrave. */
+    for(const o of g.children){
+      if(!o.isMesh||o===dehors) continue;
+      if(o===sol||o.position.y===2.2||o.position.y===4.5||o.position.y===0.28) o.visible=false;
+      else if(o.position.y===0.12) o.position.y=0.24; // tapis de SORTIE : au-dessus du pont
     }
-    // mer tout autour — remplace le voile sombre générique de la salle
-    // (inter.dehors, masqué juste après), texture d'eau CLONÉE (jamais celle,
-    // partagée, de la mer extérieure) : son offset défile indépendamment, au
-    // rythme du bateau virtuel. Bug déjà rencontré : merMesh était posé à la
-    // même hauteur (y=-0.15) que la face du dessus d'inter.dehors — deux plans
-    // quasi coïncidents provoquent un scintillement (z-fighting) au moindre
-    // mouvement de caméra, confirmé par un rendu Puppeteer réel (des tests
-    // purement logiques ne voient pas ce genre de défaut). dehors est
-    // maintenant masqué, et merMesh posé nettement plus bas par précaution.
-    const texMerSalle=cTex(256,(cvs,s)=>{
-      cvs.fillStyle='#1c5f86'; cvs.fillRect(0,0,s,s);
-      cvs.strokeStyle='rgba(180,230,255,0.25)'; cvs.lineWidth=2;
-      for(let i=0;i<26;i++){ const y=Math.random()*s; cvs.beginPath();
-        cvs.moveTo(Math.random()*s,y); cvs.lineTo(Math.random()*s,y+rand(-6,6)); cvs.stroke(); }
-    },26,26);
-    const merMat=new THREE.MeshBasicMaterial({map:texMerSalle});
-    const merMesh=new THREE.Mesh(new THREE.PlaneGeometry(420,420),merMat);
-    merMesh.rotation.x=-Math.PI/2; merMesh.position.set(ox,-0.4,oz); g.add(merMesh);
-    if(inter.dehors) inter.dehors.visible=false;
-    inter.merMat=merMat;
-    // silhouette de Los Reyes qui s'éloigne, côté sortie (le ponton est resté là-bas)
-    // — matériaux DÉDIÉS (jamais mat(), partagé) : leur opacité est mutée
-    // chaque frame selon la distance au ponton, un matériau en cache serait
-    // altéré pour tout le reste de la scène.
-    const villeGrp=new THREE.Group();
-    for(let k=0;k<9;k++){
-      const h=rand(3,9);
-      const bMat=new THREE.MeshLambertMaterial({color:pick([0x2a3040,0x323850,0x262c3c]),transparent:true,opacity:1});
-      const b=new THREE.Mesh(new THREE.BoxGeometry(rand(2,4),h,rand(2,4)),bMat);
-      b.position.set(-16+k*4,h/2,0); villeGrp.add(b);
-    }
-    villeGrp.position.set(ox,0,oz+70); g.add(villeGrp);
-    inter.villeMesh=villeGrp;
-    // mouettes décoratives, tournent au-dessus du pont
-    inter.mouettes=[];
-    for(let k=0;k<3;k++){
-      const mo=new THREE.Group();
-      mo.add(mkBoxG(0.5,0.14,0.9,0xe8ecf2,0,0,0));
-      const aG=mkBoxG(0.7,0.05,0.3,0xd8dce4,-0.55,0.05,0); mo.add(aG);
-      const aD=mkBoxG(0.7,0.05,0.3,0xd8dce4,0.55,0.05,0); mo.add(aD);
-      mo.position.set(ox+rand(-6,6),6+rand(0,2),oz+rand(-8,8)); g.add(mo);
-      inter.mouettes.push({m:mo,aG,aD,a:rand(0,6.28),r:rand(6,11),cx:ox,cz:oz+rand(-4,4),ph:rand(0,6)});
-    }
-    // mât + bôme
-    box(0.35,7,0.35,0x3a2a1c,3,3.5,-4);
-    box(0.12,0.12,4,0x1c1416,3,5.5,-2,false);
-    // ---- treuil du filet (poste) ----
-    box(1.8,1.2,1.8,0x2a2e36,0,0.6,10);
-    const tambour=new THREE.Mesh(new THREE.CylinderGeometry(0.55,0.55,1.6,12),mat(0x4a4038));
-    tambour.rotation.z=Math.PI/2; tambour.position.set(ox,1.3,oz+10); g.add(tambour);
-    inter.tambour=tambour;
-    const filetMesh=new THREE.Mesh(new THREE.SphereGeometry(0.9,8,6),
-      new THREE.MeshBasicMaterial({color:0x8a9aa0,transparent:true,opacity:0.35,wireframe:true}));
-    filetMesh.position.set(ox,0.6,oz+11.6); filetMesh.visible=false; g.add(filetMesh);
-    inter.filetMesh=filetMesh;
-    mkEnseigne('TREUIL','#2a9ac0',ox,2.3,oz+11.3,0,6);
-    inter.treuil={x:ox,z:oz+10};
-    // ---- canne à pêche (poste) ----
-    box(0.4,1.4,0.4,0x2a2e36,-6,0.7,-1,false);
-    const canneTige=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.06,2.6,6),mat(0x6a5a3a));
-    canneTige.rotation.z=-0.5; canneTige.position.set(ox-6,1.8,oz-1); g.add(canneTige);
-    mkEnseigne('CANNE','#2a9ac0',ox-6,2.6,oz-2.3,0,6);
-    inter.canne={x:ox-6,z:oz-1};
-    // ---- coffre du pont (fouille) ----
-    const coffrePont=box(1.6,0.9,1,0x3a2a1c,6,0.45,2);
-    fouillable(6,3.4,'Coffre du pont','chalutierPont',coffrePont,2.8);
-    mkEnseigne('COFFRE','#ffd23f',ox+6,1.6,oz+3.7,0,7);
-    // ---- cabine + barre (poste) ----
-    box(4.4,3,7,0x2a3f4a,0,1.5,-14);
-    box(3.6,1.6,5.6,0x14202a,0,3.3,-14,false); // toit
-    const vitreCabine=new THREE.Mesh(new THREE.BoxGeometry(4,1.1,0.1),
-      new THREE.MeshBasicMaterial({color:0xbfe4ff,transparent:true,opacity:0.2,depthWrite:false}));
-    vitreCabine.position.set(ox,2.4,oz-10.55); g.add(vitreCabine);
-    const roue=new THREE.Mesh(new THREE.TorusGeometry(0.6,0.09,8,16),mat(0x2a2018));
-    roue.position.set(ox,1.3,oz-9); g.add(roue);
-    for(let k=0;k<6;k++){
-      const a=k/6*Math.PI*2;
-      box(0.08,0.5,0.08,0x2a2018,Math.sin(a)*0.6,1.3+Math.cos(a)*0.6,-9,false);
-    }
-    mkEnseigne('BARRE','#2a9ac0',ox,2.4,oz-7.7,0,6);
-    inter.barre={x:ox,z:oz-9};
+    dehors.visible=false;
+    const HW=8.6, ZE=-11, ZP=-27, ZA=22.6; // demi-largeur, début de l'étrave, pointe de la proue, tableau arrière
+    const demiLarg=z=>{ if(z>=ZE) return HW; const t=clamp((ZE-z)/(ZE-ZP),0,1); return HW*Math.sqrt(Math.max(0,1-t*t)); };
+    const contour=[[-HW,ZA],[HW,ZA]];
+    for(let i=0;i<=16;i++){ const z=ZE+(ZP-ZE)*i/16; contour.push([demiLarg(z),z]); }
+    for(let i=15;i>=0;i--){ const z=ZE+(ZP-ZE)*i/16; contour.push([-demiLarg(z),z]); }
+    const forme=new THREE.Shape();
+    contour.forEach(([x,z],i)=>{ if(i) forme.lineTo(x,-z); else forme.moveTo(x,-z); });
+    // coque : de sous la flottaison jusqu'au pont
+    const coque=new THREE.Mesh(new THREE.ExtrudeGeometry(forme,{depth:2.62,bevelEnabled:false}),new THREE.MeshLambertMaterial({color:0xa32428}));
+    coque.rotation.x=-Math.PI/2; coque.position.set(ox,-2.42,oz); g.add(coque);
+    // pont : lames de bois dans le sens de la marche, joints, clous, sel
+    const texPont=cTex(256,(c,s)=>{
+      c.fillStyle='#7a5a3a'; c.fillRect(0,0,s,s);
+      const n=8, lw=s/n, tons=['#8a6642','#7d5c3c','#93704a','#6f5034'];
+      for(let i=0;i<n;i++) for(let j=0;j<3;j++){ const y0=(j*s/3+i*37)%s; c.fillStyle=tons[(i*3+j)%4]; c.fillRect(i*lw+1,y0,lw-2,s/3); if(y0+s/3>s) c.fillRect(i*lw+1,0,lw-2,y0+s/3-s); }
+      c.strokeStyle='rgba(30,18,8,0.8)'; c.lineWidth=2;
+      for(let i=0;i<=n;i++){ c.beginPath(); c.moveTo(i*lw,0); c.lineTo(i*lw,s); c.stroke(); }
+      for(let i=0;i<n;i++) for(let j=0;j<3;j++){ const y0=(j*s/3+i*37)%s; c.beginPath(); c.moveTo(i*lw,y0); c.lineTo(i*lw+lw,y0); c.stroke();
+        c.fillStyle='rgba(20,12,6,0.85)'; c.fillRect(i*lw+4,y0+3,2,2); c.fillRect(i*lw+lw-6,y0+3,2,2); }
+      for(let k=0;k<180;k++){ c.fillStyle='rgba(255,255,255,'+(Math.random()*0.07).toFixed(3)+')'; c.fillRect(Math.random()*s,Math.random()*s,2+Math.random()*9,1+Math.random()*2); }
+    },1);
+    texPont.repeat.set(0.25,0.25);
+    const pont=new THREE.Mesh(new THREE.ShapeGeometry(forme),new THREE.MeshLambertMaterial({map:texPont}));
+    pont.rotation.x=-Math.PI/2; pont.position.set(ox,0.215,oz); g.add(pont);
+    // pavois (bastingage plein) et lisse en bois, ouvert à la coupée (SORTIE)
+    const matPavois=new THREE.MeshLambertMaterial({color:0xe8ecf2}), matLisse=mat(0x6a4a2e);
+    const pavois=(x1,z1,x2,z2)=>{ const L=Math.hypot(x2-x1,z2-z1); if(L<0.05) return; const a=Math.atan2(x2-x1,z2-z1);
+      const m=new THREE.Mesh(new THREE.BoxGeometry(0.3,1.05,L+0.22),matPavois); m.position.set(ox+(x1+x2)/2,0.74,oz+(z1+z2)/2); m.rotation.y=a; g.add(m);
+      const l=new THREE.Mesh(new THREE.BoxGeometry(0.42,0.12,L+0.3),matLisse); l.position.set(ox+(x1+x2)/2,1.3,oz+(z1+z2)/2); l.rotation.y=a; g.add(l); };
+    pavois(-HW,ZA,-2.4,ZA); pavois(2.4,ZA,HW,ZA);
+    for(let i=1;i<contour.length;i++){ const p=contour[i], q=contour[(i+1)%contour.length]; pavois(p[0],p[1],q[0],q[1]); }
+    // l'étrave s'affine : solides entre la coque et les murs de la salle
+    for(let z=ZE-0.4;z>-P2/2+0.2;z-=0.8){ const hw=demiLarg(z)-0.15, larg=W/2-hw; if(larg<0.1) continue;
+      for(const sg of [-1,1]) addSolid({x:ox+sg*(hw+larg/2),z:oz+z,hw:larg/2,hd:0.45,h:1.4}); }
+    // nom peint sur le tableau arrière (face à la caméra)
+    const panneauNom=(txt,x)=>{ const cv=document.createElement('canvas'); cv.width=512; cv.height=80; const c=cv.getContext('2d');
+      if(c){ c.fillStyle='#e8ecf2'; c.fillRect(0,0,512,80); c.fillStyle='#1f4f7a'; c.font='900 54px Arial'; c.textAlign='center'; c.textBaseline='middle'; c.fillText(txt,256,42); }
+      const m=new THREE.Mesh(new THREE.PlaneGeometry(5.6,0.88),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv)})); m.position.set(ox+x,0.74,oz+ZA+0.17); g.add(m); };
+    panneauNom('SAINTE-ODILE',-5.5); panneauNom('LOS REYES',5.5);
+    // ---- timonerie (à l'avant) ----
+    const mur=new THREE.Mesh(new THREE.BoxGeometry(6.8,2.7,6.4),new THREE.MeshLambertMaterial({color:0xeef1f4})); mur.position.set(ox,1.55,oz-13.4); g.add(mur);
+    addSolid({x:ox,z:oz-13.4,hw:3.4,hd:3.2,h:3.2});
+    const vitres=new THREE.Mesh(new THREE.BoxGeometry(6.9,0.75,6.5),new THREE.MeshLambertMaterial({color:0x123447,emissive:0x0a2a3a})); vitres.position.set(ox,2.35,oz-13.4); g.add(vitres);
+    for(const dx of [-2.3,-0.8,0.8,2.3]) box(0.18,0.8,6.56,0xeef1f4,dx,2.35,-13.4,false);
+    box(7.6,0.35,7.2,0x1f4f7a,0,3.05,-13.4,false);
+    box(1.1,2,0.12,0x2a3440,1.8,1.2,-10.15,false); // porte arrière
+    box(0.5,0.6,0.5,0x2a2e36,0,3.5,-14.2,false);  // pied du radar
+    const radarBarre=new THREE.Mesh(new THREE.BoxGeometry(2.6,0.14,0.32),mat(0xe8ecf2)); radarBarre.position.set(ox,3.95,oz-14.2); g.add(radarBarre); inter.radarBarre=radarBarre;
+    const mat1=new THREE.Mesh(new THREE.CylinderGeometry(0.09,0.12,3.2,6),mat(0xd8dce4)); mat1.position.set(ox+2.4,4.8,oz-15.6); g.add(mat1);
+    box(1.4,0.08,0.08,0xd8dce4,2.4,5.9,-15.6,false);
+    const chem=new THREE.Mesh(new THREE.CylinderGeometry(0.45,0.5,1.8,10),mat(0xa32428)); chem.position.set(ox-2.2,4.1,oz-11.3); g.add(chem);
+    const chemN=new THREE.Mesh(new THREE.CylinderGeometry(0.47,0.47,0.4,10),mat(0x16181c)); chemN.position.set(ox-2.2,4.95,oz-11.3); g.add(chemN);
+    const halo=(x,y,z,coul,t)=>{ const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:coul,transparent:true,opacity:0.9,depthWrite:false,blending:THREE.AdditiveBlending}));
+      sp.scale.set(t,t,1); sp.position.set(ox+x,y,oz+z); g.add(sp); return sp; };
+    halo(-3.55,2.9,-13.4,0xff2a2a,1.4); halo(3.55,2.9,-13.4,0x2aff6a,1.4); halo(2.4,6.5,-15.6,0xfff4d0,1.8); // feux de navigation
+    halo(-2.6,3.25,-9.95,0xffe9b0,2.4); halo(2.6,3.25,-9.95,0xffe9b0,2.4); // projecteurs de pont
+    // ---- la barre (poste de pilotage, à l'arrière de la timonerie) ----
+    box(0.7,1.05,0.5,0x2a2e36,0,0.74,-9.75);
+    const roue=new THREE.Mesh(new THREE.TorusGeometry(0.6,0.08,8,18),mat(0x5a3a1c)); roue.position.set(ox,1.6,oz-9.4); g.add(roue);
+    for(let k=0;k<6;k++){ const a=k/6*Math.PI*2, r2=new THREE.Mesh(new THREE.BoxGeometry(0.07,0.8,0.07),mat(0x5a3a1c));
+      r2.position.set(Math.sin(a)*0.35,Math.cos(a)*0.35,0); r2.rotation.z=-a; roue.add(r2); }
+    inter.roue=roue;
+    inter.barre={x:ox,z:oz-8.2};
     // boussole du capitaine : décor pur, s'illumine à l'obtention (voir chalutierVendre)
     const soclBoussole=new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.18,0.06,10),mat(0x2a2018));
-    soclBoussole.position.set(ox-1.4,2,oz-12.4); g.add(soclBoussole);
+    soclBoussole.position.set(ox+0.32,1.3,oz-9.75); g.add(soclBoussole);
     const cadranBoussole=new THREE.Mesh(new THREE.CircleGeometry(0.16,14),new THREE.MeshLambertMaterial({color:0x6a5a3a}));
-    cadranBoussole.rotation.x=-Math.PI/2; cadranBoussole.position.set(ox-1.4,2.04,oz-12.4); g.add(cadranBoussole);
+    cadranBoussole.rotation.x=-Math.PI/2; cadranBoussole.position.set(ox+0.32,1.34,oz-9.75); g.add(cadranBoussole);
     if(aCurio('boussole')){ cadranBoussole.material.color.setHex(0xffd23f);
       cadranBoussole.material.emissive=new THREE.Color(0xffd23f).multiplyScalar(0.6); }
     inter.boussoleMesh=cadranBoussole;
-    mkEnseigne('LA BOUSSOLE DU CAPITAINE','#ffd23f',ox-1.4,2.5,oz-13.1,0,15);
-    // cabine du capitaine (fouille) : petit bureau au fond de la cabine
-    const bureauCabine=box(1.6,0.9,1,0x3a2a1c,0,0.45,-19);
-    fouillable(0,-17.6,'Cabine du capitaine','chalutierCabine',bureauCabine,2.8);
-    mkEnseigne('CABINE DU CAPITAINE','#ffd23f',ox,1.6,oz-16.9,0,13);
-    lampe(0,-14,0xfff2c0,6); // seule lumière artificielle : à l'intérieur de la cabine
-    // ---- billot de préparation (poste) ----
-    // à 8 u ou plus de la barre (0,-9), de la canne (-6,-1), du treuil (0,10),
-    // du centre de la SORTIE (0,21) — ET des deux contenants fouillables,
-    // coffre du pont (6,3.4) et cabine du capitaine (0,-17.6) : le test
-    // d'espacements du chalutier les traite comme des zones interactives au
-    // même titre que les postes. (7,-13) reste à l'écart de tout le monde.
-    box(1.8,0.9,1.1,0x6a4a2e,7,0.45,-13);              // planche de bois
-    box(1.3,0.06,0.7,0xc9a06a,7,0.94,-13,false);        // dessus clair, entaillé
-    box(0.5,0.06,0.08,0xc7ccd2,6.6,1.0,-12.65,false);   // lame de couteau posée
-    mkEnseigne('BILLOT','#2a9ac0',ox+7,1.9,oz-14.3,0,6);
-    inter.billot={x:ox+7,z:oz-13};
-    inter.billotActif=null;
-
-    inter.sortieEnCours=false; inter.sortiesVague=0; inter.chalutierVagueRef=-1;
-    inter.chrono=0; inter.meteoJauge=0; inter.meteoEtat='calme'; inter.tempeteT=0; inter.tempetePerteFaite=false;
-    inter.bateau={x:0,z:0,ang:0,v:0};
-    inter.zoneMax=1; inter.cale=[]; inter.calePoids=0; inter.caleValeur=0; inter.aRejete=false;
-    inter.canneEtat=null; inter.canneDelai=0; inter.canneFerrageT=0; inter.canneEspece=null;
-    inter.canneTension=50; inter.canneProgres=0;
-    inter.filetEtat=null; inter.filetCharge=0;
+    // ---- gaillard avant : mât, étais, malle du capitaine (fouille) ----
+    const mat2=new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.2,7,8),mat(0xd8dce4)); mat2.position.set(ox,3.7,oz-21.8); g.add(mat2);
+    addSolid({x:ox,z:oz-21.8,hw:0.3,hd:0.3,h:7});
+    box(3.2,0.12,0.12,0xd8dce4,0,6.2,-21.8,false); halo(0,7.3,-21.8,0xfff4d0,2);
+    const etai=(x,z)=>{ const gm=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(ox,7,oz-21.8),new THREE.Vector3(ox+x,1.3,oz+z)]);
+      g.add(new THREE.Line(gm,new THREE.LineBasicMaterial({color:0x2a2e36}))); };
+    etai(-demiLarg(-18)+0.2,-18); etai(demiLarg(-18)-0.2,-18); etai(0,-16.6);
+    const malle=box(1.6,0.9,1,0x3a2a1c,0,0.66,-20.2);
+    box(1.7,0.12,1.1,0xb08a3a,0,1.12,-20.2,false);
+    fouillable(0,-18.6,'Malle du capitaine','chalutierCabine',malle,2.8);
+    // ---- pont de travail : cale et ses caisses, coffre (fouille), canne ----
+    box(3.8,0.36,3.8,0x4a3420,0,0.4,1.2);           // hiloire de la cale
+    box(3.3,0.1,3.3,0x245a7a,0,0.62,1.2,false);      // bâche
+    inter.caisses=[];
+    const matCaisse=mat(0x2a6ad0), matGlace=mat(0xdff2ff);
+    const posC=[[-4.6,-3],[-6.4,-3],[-4.6,-1.6],[-6.4,-1.6],[-4.6,-0.2],[-6.4,-0.2],[-4.6,1.2],[-6.4,1.2],[-5.5,-2.3],[-5.5,-0.9],[-5.5,0.5],[-5.5,1.9]];
+    posC.forEach(([x,z],i)=>{ const c=new THREE.Group(), haut=i>=8?0.6:0;
+      const b1=new THREE.Mesh(new THREE.BoxGeometry(1.5,0.55,1.15),matCaisse); b1.position.y=0.5+haut; c.add(b1);
+      const b2=new THREE.Mesh(new THREE.BoxGeometry(1.3,0.06,0.95),matGlace); b2.position.y=0.79+haut; c.add(b2);
+      c.position.set(ox+x,0,oz+z); c.visible=false; g.add(c); inter.caisses.push(c); });
+    const coffrePont=box(1.6,0.9,1,0x3a2a1c,6,0.66,2);
+    box(1.7,0.12,1.1,0x8a6a3a,6,1.12,2,false);
+    fouillable(6,3.4,'Coffre du pont','chalutierPont',coffrePont,2.8);
+    // canne sur son support, au bastingage tribord ; ligne et bouchon (chalutierMajDecor)
+    box(0.3,0.5,0.3,0x2a2e36,8.25,1.2,-2.5,false);
+    const tige=new THREE.Mesh(new THREE.CylinderGeometry(0.035,0.07,3.6,6),mat(0x2a2a30));
+    tige.position.set(ox+9.55,2.4,oz-2.5); tige.rotation.z=-Math.atan2(2.5,2.4); g.add(tige);
+    const moulinet=new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.16,0.18,10),mat(0xc7ccd2)); moulinet.rotation.z=Math.PI/2; moulinet.position.set(ox+8.6,1.55,oz-2.5); g.add(moulinet);
+    inter.canne={x:ox+7.2,z:oz-2.5};
+    inter.bout={x:ox+10.8,y:3.6,z:oz-2.5};
+    inter.bouchonPos={x:ox+14.5,z:oz-2.5};
+    const ligneGeo=new THREE.BufferGeometry(); ligneGeo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(6),3));
+    inter.ligne=new THREE.Line(ligneGeo,new THREE.LineBasicMaterial({color:0xf0f8ff,transparent:true,opacity:0.9})); inter.ligne.frustumCulled=false; inter.ligne.visible=false; g.add(inter.ligne);
+    const bouchon=new THREE.Group();
+    const bH=new THREE.Mesh(new THREE.SphereGeometry(0.24,10,6,0,Math.PI*2,0,Math.PI/2),mat(0xff3b3b)); bouchon.add(bH);
+    const bB=new THREE.Mesh(new THREE.SphereGeometry(0.24,10,6,0,Math.PI*2,Math.PI/2,Math.PI/2),mat(0xf2f4f8)); bouchon.add(bB);
+    bouchon.visible=false; g.add(bouchon); inter.bouchon=bouchon;
+    // ---- arrière : treuil du chalut, filet, panneaux de chalut, fûts ----
+    box(0.5,1.4,0.6,0x2a2e36,-2,0.9,14,false); box(0.5,1.4,0.6,0x2a2e36,2,0.9,14,false);
+    addSolid({x:ox,z:oz+14,hw:2.3,hd:0.6,h:1.6});
+    const tambour=new THREE.Mesh(new THREE.CylinderGeometry(0.75,0.75,3.4,14),mat(0x2f6a3a)); tambour.rotation.z=Math.PI/2; tambour.position.set(ox,1.4,oz+14); g.add(tambour);
+    inter.tambour=tambour;
+    for(const [x,z,r] of [[5,17,1.1],[5.8,16.2,0.8],[4.3,16.1,0.7]]){ const t=new THREE.Mesh(new THREE.SphereGeometry(r,8,6),mat(0x2f6a3a)); t.scale.y=0.45; t.position.set(ox+x,0.45,oz+z); g.add(t); }
+    addSolid({x:ox+5,z:oz+16.6,hw:1.3,hd:1.1,h:0.9});
+    for(const sg of [-1,1]) box(0.22,1.7,2.6,0x5a2a1a,sg*9.0,0.45,18.4,false); // panneaux de chalut
+    for(const z of [15.6,17.0]){ const f=new THREE.Mesh(new THREE.CylinderGeometry(0.45,0.45,1,10),mat(0x2a6ad0)); f.position.set(ox-7.1,0.72,oz+z); g.add(f); }
+    addSolid({x:ox-7.1,z:oz+16.3,hw:0.5,hd:1.2,h:1.2});
+    // pare-battages, bouées couronnes, glènes de cordage
+    for(const sg of [-1,1]) for(const z of [-7,3,12]){ const pb=new THREE.Mesh(new THREE.SphereGeometry(0.42,8,6),mat(0xff8c1a)); pb.scale.y=1.4; pb.position.set(ox+sg*9.05,-0.05,oz+z); g.add(pb); }
+    for(const sg of [-1,1]){ const bc=new THREE.Mesh(new THREE.TorusGeometry(0.5,0.13,8,16),mat(0xff3b3b)); bc.position.set(ox+sg*8.95,0.95,oz-5); bc.rotation.y=Math.PI/2; g.add(bc); }
+    for(const [x,z] of [[-6.4,9.5],[6.6,-7.8],[-6.8,-8.5]]){ const gl=new THREE.Mesh(new THREE.TorusGeometry(0.55,0.16,6,14),mat(0xc9a06a)); gl.rotation.x=Math.PI/2; gl.position.set(ox+x,0.33,oz+z); g.add(gl); }
+    // filet traîné derrière la poupe (visible quand il est à l'eau) : flotteurs et nappe
+    const filetMesh=new THREE.Group(); filetMesh.visible=false; g.add(filetMesh);
+    const texFilet=cTex(64,(c,s)=>{ c.clearRect(0,0,s,s); c.strokeStyle='rgba(120,220,140,0.95)'; c.lineWidth=3; for(let i=0;i<=s;i+=16){ c.beginPath(); c.moveTo(i,0); c.lineTo(i,s); c.stroke(); c.beginPath(); c.moveTo(0,i); c.lineTo(s,i); c.stroke(); } },6,3);
+    const nappe=new THREE.Mesh(new THREE.PlaneGeometry(11,13),new THREE.MeshBasicMaterial({map:texFilet,transparent:true,opacity:0.8,depthWrite:false}));
+    nappe.rotation.x=-Math.PI/2; nappe.position.set(ox,-0.28,oz+32); filetMesh.add(nappe);
+    for(let i=0;i<9;i++){ const a=(i/8-0.5)*2.2, fl=new THREE.Mesh(new THREE.SphereGeometry(0.3,8,6),mat(0xff8c1a)); fl.position.set(ox+Math.sin(a)*5.5,-0.2,oz+26+Math.cos(a)*-1.5+Math.abs(a)*1.2); filetMesh.add(fl); }
+    for(const sg of [-1,1]){ const gm=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(ox+sg*6,1.2,oz+ZA),new THREE.Vector3(ox+sg*5.5,-0.2,oz+27)]);
+      filetMesh.add(new THREE.Line(gm,new THREE.LineBasicMaterial({color:0x2a2e36}))); }
+    inter.filetMesh=filetMesh;
+    // mouettes décoratives, tournent au-dessus du pont
+    inter.mouettes=[];
+    const mouette=()=>{ const mo=new THREE.Group();
+      mo.add(mkBoxG(0.5,0.14,0.9,0xe8ecf2,0,0,0));
+      const aG=mkBoxG(0.7,0.05,0.3,0xd8dce4,-0.55,0.05,0); mo.add(aG);
+      const aD=mkBoxG(0.7,0.05,0.3,0xd8dce4,0.55,0.05,0); mo.add(aD);
+      return {g:mo,aG,aD}; };
+    for(let k=0;k<3;k++){ const mo=mouette(); g.add(mo.g);
+      inter.mouettes.push({m:mo.g,aG:mo.aG,aD:mo.aD,a:rand(0,6.28),r:rand(7,12),cx:ox,cz:oz+rand(-4,4),ph:rand(0,6)}); }
+    // ---- la mer et tout ce qui flotte : repère mer (port en 0,0, le large vers z<0) ----
+    const merMonde=new THREE.Group(); merMonde.position.set(ox,0,oz); g.add(merMonde);
+    const merDedans=new THREE.Group(); merMonde.add(merDedans);
+    inter.merMonde=merMonde; inter.merDedans=merDedans;
+    const merU={uT:{value:0},uBoat:{value:new THREE.Vector2()},uTempete:{value:0},uCiel:{value:new THREE.Color(0xffdca0)}};
+    const merMesh=new THREE.Mesh(new THREE.PlaneGeometry(300,300,1,1),new THREE.ShaderMaterial({uniforms:merU,vertexShader:CHAL_MER_VS,fragmentShader:CHAL_MER_FS}));
+    merMesh.rotation.x=-Math.PI/2; merMesh.position.y=-0.35; merMesh.frustumCulled=false; merMonde.add(merMesh);
+    inter.merU=merU;
+    // la côte de Los Reyes, le port et son phare
+    const yc=CHALUTIER_COTE_Z+26;
+    const plage=new THREE.Mesh(new THREE.BoxGeometry(520,0.8,10),mat(0xd8c48a)); plage.position.set(0,-0.1,yc+5); merDedans.add(plage);
+    const terre=new THREE.Mesh(new THREE.BoxGeometry(520,1.2,70),mat(0x4a5a3a)); terre.position.set(0,0,yc+45); merDedans.add(terre);
+    const coulsImm=[0xd8b48a,0xc8ccd4,0xa8b4c0,0xe0c8a0,0x8a9aa8,0xf2e2c8,0xb07a5a];
+    for(let i=0;i<34;i++){ const w=rand(8,16), h=rand(5,20), x=-220+i*13+rand(-3,3), z=yc+rand(16,48);
+      const b=new THREE.Mesh(new THREE.BoxGeometry(w,h,rand(8,14)),mat(pick(coulsImm))); b.position.set(x,h/2,z); merDedans.add(b);
+      const t=new THREE.Mesh(new THREE.BoxGeometry(w+0.6,0.6,1),mat(0x2a2e36)); t.position.set(x,h+0.3,z-4); merDedans.add(t); }
+    const ponton=new THREE.Mesh(new THREE.BoxGeometry(4.6,0.4,10),mat(0x7a5a3a)); ponton.position.set(0,0.3,ZA+5.4); merDedans.add(ponton);
+    for(const x of [-2,2]) for(const z of [ZA+1.5,ZA+5.4,ZA+9.3]){ const pi=new THREE.Mesh(new THREE.CylinderGeometry(0.22,0.22,1.6,6),mat(0x4a3420)); pi.position.set(x,0,z); merDedans.add(pi); }
+    const phare=new THREE.Group(); phare.position.set(-26,0,yc+2); merDedans.add(phare);
+    for(let k=0;k<5;k++){ const t=new THREE.Mesh(new THREE.CylinderGeometry(1.1-k*0.08,1.2-k*0.08,2,12),mat(k%2?0xd8342a:0xf2f4f8)); t.position.y=1+k*2; phare.add(t); }
+    const lanterne=new THREE.Mesh(new THREE.CylinderGeometry(0.75,0.75,1,10),new THREE.MeshBasicMaterial({color:0xfff2b0})); lanterne.position.y=10.5; phare.add(lanterne);
+    const faisceau=new THREE.Group(); faisceau.position.y=10.5; phare.add(faisceau);
+    const fb=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.5,40),new THREE.MeshBasicMaterial({color:0xfff2b0,transparent:true,opacity:0.16,depthWrite:false,blending:THREE.AdditiveBlending})); fb.position.z=20; faisceau.add(fb);
+    inter.phare=faisceau;
+    // bouées de zone : jaunes au Banc du Large, rouges à la Fosse
+    inter.bouees=[];
+    for(const [r,coul] of [[CHALUTIER_ZONE1_MAX,0xffd23f],[CHALUTIER_ZONE2_MAX,0xff3b3b]]){
+      for(let a=-1.35;a<=1.36;a+=0.27){ const bo=new THREE.Group();
+        const c1=new THREE.Mesh(new THREE.CylinderGeometry(0.45,0.55,1.3,10),mat(coul)); c1.position.y=0.4; bo.add(c1);
+        const c2=new THREE.Mesh(new THREE.ConeGeometry(0.35,0.7,8),mat(0x2a2e36)); c2.position.y=1.4; bo.add(c2);
+        bo.position.set(Math.sin(a)*r,-0.25,-Math.cos(a)*r); merDedans.add(bo); inter.bouees.push({m:bo,ph:rand(0,6)}); } }
+    // récifs : obstacles (on rebondit dessus), jamais sur un banc (chalutierPreparerBancs)
+    inter.recifs=[];
+    for(let i=0;i<6;i++){ const a=rand(-1.25,1.25), d=rand(80,185), r=rand(3,6), x=Math.sin(a)*d, z=-Math.cos(a)*d;
+      const roc=new THREE.Mesh(new THREE.DodecahedronGeometry(r,0),mat(0x6a6a66)); roc.scale.y=0.55; roc.position.set(x,0,z); roc.rotation.y=rand(0,6); merDedans.add(roc);
+      const ec=new THREE.Mesh(new THREE.RingGeometry(r*0.95,r+1.4,20),new THREE.MeshBasicMaterial({color:0xeaf6ff,transparent:true,opacity:0.5,depthWrite:false}));
+      ec.rotation.x=-Math.PI/2; ec.position.set(x,-0.3,z); merDedans.add(ec);
+      inter.recifs.push({x,z,r}); }
+    // bancs : un habillage par entrée de CHALUTIER_BANCS_PLAN, réutilisé à chaque sortie (aucune allocation en mer)
+    inter.bancsVis=[];
+    for(let i=0;i<CHALUTIER_BANCS_PLAN.length;i++){
+      const gB=new THREE.Group(); gB.visible=false; merDedans.add(gB);
+      const ombre=new THREE.Mesh(new THREE.CircleGeometry(1,28),new THREE.MeshBasicMaterial({color:0x0b2f44,transparent:true,opacity:0.42,depthWrite:false}));
+      ombre.rotation.x=-Math.PI/2; ombre.position.y=-0.31; gB.add(ombre);
+      const matPoisson=new THREE.MeshBasicMaterial({color:0x9fc4dc,transparent:true,opacity:0.85});
+      const poissons=[];
+      for(let k=0;k<12;k++){ const f=new THREE.Mesh(new THREE.BoxGeometry(0.24,0.08,0.75),matPoisson); gB.add(f);
+        poissons.push({m:f,a:rand(0,6.28),r:rand(0.2,0.95),rr:1,v:rand(0.5,1.3)*(Math.random()<0.5?-1:1),h:rand(0,6)}); }
+      const mouettes=[]; for(let k=0;k<2;k++){ const mo=mouette(); gB.add(mo.g); mouettes.push({g:mo.g,aG:mo.aG,aD:mo.aD,a:rand(0,6.28)}); }
+      const aileron=new THREE.Mesh(new THREE.ConeGeometry(0.7,1.8,3),mat(0x14202c)); aileron.scale.z=0.25; gB.add(aileron);
+      const eclat=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:0xffd23f,transparent:true,opacity:0.5,depthWrite:false,blending:THREE.AdditiveBlending}));
+      eclat.scale.set(10,10,1); eclat.position.y=0.4; gB.add(eclat);
+      inter.bancsVis.push({g:gB,ombre,matPoisson,poissons,mouettes,aileron,eclat});
+    }
+    // le Vieux Roi qui saute au flanc du bateau (chalutierSautRoi)
+    inter.roiMesh=chalutierModelePoisson(inter,'roi'); inter.roiMesh.scale.setScalar(1.5); inter.poissonsMesh={};
+    inter.sortieEnCours=false; inter.sortiesVague=0; inter.chalutierVagueRef=-1; inter.introT=0; inter.bilanT=0;
+    chalutierEtatInitial(inter);
+    chalutierPlacerMonde(inter);
   }
   /* ---- lieu spécial (lot 9) : LE SITE 51 — trois niveaux séparés par des
      sas (voir SITE51_OBJETS_DEF, SITE51_SAS, SITE51_PORTES). Salle de
@@ -20249,42 +20334,71 @@ function radioDemarrerEmission(s){
   SFX.ui();
 }
 /* =====================================================================
-   LE CHALUTIER « SAINTE-ODILE » — sortie en mer : pilotage à la barre,
-   pêche à la canne (précision) et au filet (volume), cale/poids, météo.
-   Chrono, météo, charge du filet, tension du combat ET déplacement du
-   bateau tournent tous sur dtJeu, jamais dt : la distance parcourue est
-   ce qui se joue contre le chrono (lui-même sur dtJeu), donc elle partage
-   son horloge — un déplacement en course contre un chrono n'est pas un
-   simple habillage de spectacle, même s'il n'a pas de mesh propre (voir
-   CLAUDE.md). Seuls le défilement cosmétique de la texture d'eau et
-   l'animation des mouettes restent sur dt (pur habillage visuel, sans
-   effet sur l'issue de la sortie).
+   LE CHALUTIER « SAINTE-ODILE » — V2 (11e lot, refonte complète)
+   Promesse : prendre la mer, traquer les bancs qu'on VOIT à l'eau, ramener
+   la cale avant la tempête — et peut-être le Vieux Roi.
+   - Le pont est la salle (fixe, on y marche à quai). La mer, la côte, les
+     bouées, les récifs et les bancs vivent dans un repère « mer » (port en
+     0,0, le large vers z<0) qui tourne et glisse autour du bateau
+     (s.merMonde / s.merDedans, chalutierPlacerMonde) : proue toujours vers le
+     haut de l'écran, on voit vraiment le bateau virer et avancer.
+   - En mer, le joueur est à la barre : le joystick pilote comme une barre
+     (◀ ▶ virer, ▲ gaz, ▼ ralentir puis marche arrière lente). Le radar
+     remplace la minimap (dessinerRadarChalutier).
+   - Arrêté sur un banc : PÊCHER. La pêche se joue dans un panneau illustré
+     (chalPecheWrap) qui se tient au doigt ; le poisson donne des coups de tête
+     (rush) pendant lesquels il ne faut PAS mouliner.
+   - Banc de sardines : JETER LE FILET puis le traverser au moteur.
+   - Le Vieux Roi (espadon, un par sortie, dans la Fosse) : long combat, il
+     saute hors de l'eau ; le ramener au port donne la Boussole du Capitaine.
+   Horloges : chrono, météo, filet, combat ET déplacement du bateau sur dtJeu
+   (un déplacement qui court contre un chrono partage son horloge, voir
+   CLAUDE.md) ; l'eau, l'écume, les mouettes, les poissons du décor et les
+   animations de prise restent sur dt (pur habillage).
 ===================================================================== */
 const CHALUTIER_DUREE=180, CHALUTIER_SORTIES_MAX=2;
 const CHALUTIER_ZONE1_MAX=60, CHALUTIER_ZONE2_MAX=140, CHALUTIER_DIST_MAX=200;
-const CHALUTIER_VIT_BASE=9, CHALUTIER_ACCEL=0.6, CHALUTIER_DECEL=0.9, CHALUTIER_VIRAGE=1.1;
+const CHALUTIER_VIT_BASE=11, CHALUTIER_ACCEL=0.7, CHALUTIER_DECEL=0.9, CHALUTIER_VIRAGE=0.95;
+const CHALUTIER_COTE_Z=4;       // le bateau ne s'approche pas plus de la côte (z>0 : vers la terre)
 const CHALUTIER_CALE_MAX=400;
 // vitesse de dégradation de la météo, en unités de jauge/seconde, par zone
 const CHALUTIER_METEO_VIT={1:0.28,2:0.42,3:0.62};
 const CHALUTIER_METEO_HOULE=40, CHALUTIER_METEO_TEMPETE=75, CHALUTIER_TEMPETE_DELAI=30;
-// canne : délai de morsure variable, fenêtre de ferrage courte, tension entre
-// deux limites dures (0 = le poisson se libère, 100 = la ligne casse)
-const CHALUTIER_MORSURE_DELAI=[4,11], CHALUTIER_FERRAGE_FENETRE=1.3;
+// canne : délai de touche (court : on pêche sur un banc), fenêtre de ferrage,
+// tension entre deux limites dures (0 = le poisson se libère, 100 = la ligne casse)
+const CHALUTIER_MORSURE_DELAI=[1.4,3.8], CHALUTIER_FERRAGE_FENETRE=1.3;
 const CHALUTIER_TENSION_RATE=24, CHALUTIER_TENSION_BONNE=[35,65], CHALUTIER_COMBAT_VIT=26;
+// coups de tête : pause (s) puis rush (s) ; mouliner pendant un rush fait
+// monter la tension en plus ET recule la prise — on lâche, on attend, on reprend
+const CHALUTIER_RUSH={pause:[1.6,3.4],duree:0.75,tension:30,recul:14};
+const CHALUTIER_PECHE_VMAX=2.5;  // u/s : plus vite, la ligne ne descend pas
 const CHALUTIER_ESPECES_CANNE={
   1:[{id:'maquereau',p:60},{id:'bar',p:30},{id:'congre',p:10}],
   2:[{id:'maquereau',p:35},{id:'bar',p:35},{id:'congre',p:30}],
   3:[{id:'maquereau',p:20},{id:'bar',p:25},{id:'congre',p:30},{id:'thon',p:25}],
 };
 const CHALUTIER_POISSONS={
-  maquereau:{nom:'Maquereau',valeur:40,poids:4,combatDur:1},
-  bar:{nom:'Bar',valeur:90,poids:7,combatDur:1.3},
-  congre:{nom:'Congre',valeur:160,poids:11,combatDur:1.8,tensionEtroite:true},
-  thon:{nom:'Thon de Los Reyes',valeur:350,poids:22,combatDur:2.4,tensionEtroite:true},
+  maquereau:{nom:'Maquereau',valeur:40,poids:4,combatDur:1,coul:0x4a86b8,ventre:0xdfe8ee,taille:0.75},
+  bar:{nom:'Bar',valeur:90,poids:7,combatDur:1.3,coul:0x8e9ca6,ventre:0xf0f2f4,taille:0.95},
+  congre:{nom:'Congre',valeur:160,poids:11,combatDur:1.8,tensionEtroite:true,coul:0x4a4436,ventre:0x8a8270,taille:1.35,long:true},
+  thon:{nom:'Thon de Los Reyes',valeur:350,poids:22,combatDur:2.4,tensionEtroite:true,coul:0x1f3f72,ventre:0xc8d2dc,taille:1.6},
+  roi:{nom:'Le Vieux Roi',valeur:800,poids:60,combatDur:3,tensionEtroite:true,legende:true,rush:1.5,coul:0x1a2c58,ventre:0xb8c4d8,taille:2.6},
 };
-// filet : charge continue pendant que le filet traîne, risque de déchirure
-// au-delà de la zone rouge (tout est reparti à l'eau)
-const CHALUTIER_FILET_VIT=9, CHALUTIER_FILET_ZONE_ROUGE=70, CHALUTIER_FILET_RISQUE=0.12;
+// bancs tirés à chaque sortie (chalutierPreparerBancs) : type 'canne'
+// (poissons à la ligne, espèce selon la zone), 'filet' (sardines, à traverser
+// filet à l'eau), 'roi' (le Vieux Roi, un seul, dans la Fosse)
+const CHALUTIER_BANCS_PLAN=[
+  {type:'canne',zone:1},{type:'canne',zone:1},{type:'filet',zone:1},
+  {type:'canne',zone:2},{type:'canne',zone:2},{type:'filet',zone:2},
+  {type:'canne',zone:3},{type:'filet',zone:3},{type:'roi',zone:3},
+];
+const CHALUTIER_BANC_DIST={1:[24,54],2:[72,132],3:[150,190]};
+const CHALUTIER_BANC_R={canne:9,filet:14,roi:11};
+const CHALUTIER_BANC_STOCK={canne:3,filet:100,roi:1};
+// filet : charge tant qu'il traîne DANS un banc de sardines (un filet de fond
+// hors banc ne ramasse presque rien) ; risque de déchirure au-delà de la zone
+// rouge (tout est reparti à l'eau)
+const CHALUTIER_FILET_VIT=9, CHALUTIER_FILET_ZONE_ROUGE=70, CHALUTIER_FILET_RISQUE=0.12, CHALUTIER_FILET_HORS_BANC=0.15;
 const CHALUTIER_VOLUME={
   toutvenant:{nom:'Tout-venant',valeur:15,poids:2,p:55},
   sardines:{nom:'Sardines',valeur:25,poids:1.5,p:30},
@@ -20299,6 +20413,26 @@ const CHALUTIER_OBJETS=[
   {nom:'Caisse scellée',valeur:200,poids:10,texte:'Ne pas ouvrir avant le 3 mars. On est en juin.'},
   {nom:'Poisson à trois yeux',valeur:120,poids:3,texte:'L’usine en amont dit que tout va bien.'},
 ];
+// la mer du chalutier : un seul plan, motif calculé dans le repère mer (il
+// glisse et tourne avec le bateau), plus sombre au large et à la tempête,
+// fondu dans la couleur du ciel au bord (le bord du plan ne se voit jamais)
+const CHAL_MER_VS='uniform vec2 uBoat; varying vec2 vSea; varying vec2 vRel;'+
+  'void main(){ vRel=vec2(position.x,-position.y); vSea=vRel+uBoat;'+
+  ' gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }';
+const CHAL_MER_FS='uniform float uT; uniform float uTempete; uniform vec3 uCiel; varying vec2 vSea; varying vec2 vRel;'+
+  'void main(){ vec2 p=vSea;'+
+  ' float w=sin(p.x*0.21+uT*1.1)*0.5+sin(p.y*0.17-uT*0.9)*0.5+sin((p.x+p.y)*0.11+uT*0.6)*0.6+sin((p.x*0.7-p.y)*0.33-uT*1.7)*0.25;'+
+  ' float h=clamp(w*0.27+0.5,0.0,1.0);'+
+  ' vec3 calme=mix(vec3(0.04,0.27,0.44),vec3(0.10,0.50,0.68),h);'+
+  ' vec3 orage=mix(vec3(0.04,0.09,0.12),vec3(0.17,0.24,0.26),h);'+
+  ' vec3 c=mix(calme,orage,uTempete);'+
+  ' float cote=smoothstep(-26.0,10.0,p.y); c=mix(c,vec3(0.16,0.62,0.66),cote*0.55*(1.0-uTempete));'+
+  ' float crete=smoothstep(0.80-0.22*uTempete,1.0,h+0.13*sin(p.x*1.3+p.y*0.9+uT*2.3));'+
+  ' c+=vec3(0.78,0.88,0.92)*crete*(0.22+0.5*uTempete);'+
+  ' float reflet=pow(max(0.0,sin(p.x*2.1+uT*1.9)*sin(p.y*1.7-uT*1.3)),12.0); c+=vec3(1.0,0.95,0.8)*reflet*0.35*(1.0-uTempete);'+
+  ' c*=1.0-0.3*clamp(length(p)/200.0,0.0,1.0);'+
+  ' c=mix(c,uCiel,smoothstep(105.0,146.0,length(vRel)));'+
+  ' gl_FragColor=vec4(c,1.0); }';
 function chalutierZoneDe(dist){
   if(dist<CHALUTIER_ZONE1_MAX) return 1;
   if(dist<CHALUTIER_ZONE2_MAX) return 2;
@@ -20317,94 +20451,16 @@ function chalutierTirerEspeceCanne(zone){
   for(const e of tab){ r-=e.p; if(r<=0) return e.id; }
   return tab[0].id;
 }
-/* ---- billot de préparation : suivre au doigt la ligne de découpe d'un
-   poisson, du bout à l'autre. Tout est exprimé en fraction (0..1) du billot,
-   jamais en pixels, pour se comporter à l'identique quelle que soit la
-   résolution — voir billotDeplace/dessinerBillot. Une prise préparée avec
-   précision vaut 40 % de plus ; une découpe approximative, un bonus partiel ;
-   une découpe ratée (ligne pas suivie, ou lâchée avant la fin) abîme la
-   prise (-20 %). Le chrono de la sortie et la météo continuent de tourner
-   pendant la préparation : c'est un pari délibéré (pêcher plus, ou valoriser
-   ce qu'on a), pas une pause. */
-const CHALUTIER_BILLOT_SEUIL_PRECIS=0.035, CHALUTIER_BILLOT_SEUIL_APPROX=0.09, CHALUTIER_BILLOT_DERAPAGE=0.4;
-const CHALUTIER_BILLOT_BONUS_PRECIS=0.4, CHALUTIER_BILLOT_BONUS_APPROX=0.15, CHALUTIER_BILLOT_MALUS_RATE=0.2;
-const CHALUTIER_BILLOT_POIDS_MIN=1.5, CHALUTIER_BILLOT_POIDS_MAX=22; // plus léger (sardine) → plus lourd (thon)
-function chalutierBillotParams(item){
-  const taille=clamp((item.poids-CHALUTIER_BILLOT_POIDS_MIN)/(CHALUTIER_BILLOT_POIDS_MAX-CHALUTIER_BILLOT_POIDS_MIN),0,1);
-  // gros poisson = ligne plus longue et plus sinueuse (plus d'oscillations, amplitude plus grande)
-  return {amp:lerp(0.08,0.22,taille),freq:lerp(1.1,3.2,taille),phase:rand(0,Math.PI*2),taille};
+// repère mer → salle : la proue (cap s.bateau.ang) pointe vers le haut de l'écran
+function chalutierVersSalle(s,mx,mz,out){
+  const th=Math.PI-s.bateau.ang, dx=mx-s.bateau.x, dz=mz-s.bateau.z, c=Math.cos(th), sn=Math.sin(th);
+  out.x=s.ox+dx*c+dz*sn; out.z=s.oz-dx*sn+dz*c; return out;
 }
-function chalutierBillotCourbe(params,t){
-  return 0.5+Math.sin(t*params.freq*Math.PI*2+params.phase)*params.amp;
-}
-function chalutierProchainAPreparer(s){
-  return s.cale.find(it=>!it.texte&&!it.preparee);
-}
-function chalutierDemarrerBillot(s,item){
-  s.billotActif={item,params:chalutierBillotParams(item),avance:0,erreurPond:0,trace:[],termine:false};
-  billotWrap.style.display='block';
-  dessinerBillot(s);
-  SFX.ui();
-}
-function chalutierBillotAvancer(s,t,y){
-  const b=s.billotActif; if(!b||b.termine) return;
-  if(t<b.avance-0.03) return; // pas de retour en arrière significatif : on ne recompte pas ce qui est déjà tracé
-  const erreur=Math.abs(y-chalutierBillotCourbe(b.params,t));
-  if(t>b.avance){ b.erreurPond+=erreur*(t-b.avance); b.avance=t; }
-  b.trace.push({t,y});
-  dessinerBillot(s);
-  if(erreur>=CHALUTIER_BILLOT_DERAPAGE){ chalutierFinirBillot(s,'ratee'); return; } // la lame a complètement dérapé
-  if(b.avance>=0.97) chalutierResoudreBillot(s);
-}
-function chalutierBillotRelacher(s){
-  const b=s.billotActif; if(!b||b.termine) return;
-  if(b.avance<0.05) return; // simple effleurement : pas une vraie tentative, on laisse réessayer
-  if(b.avance>=0.97) chalutierResoudreBillot(s);
-  else chalutierFinirBillot(s,'ratee'); // lâché avant la fin de la ligne
-}
-function chalutierResoudreBillot(s){
-  const b=s.billotActif; if(!b||b.termine) return;
-  const erreurMoy=b.avance>0?b.erreurPond/b.avance:1;
-  const resultat=erreurMoy<=CHALUTIER_BILLOT_SEUIL_PRECIS?'precise':(erreurMoy<=CHALUTIER_BILLOT_SEUIL_APPROX?'approx':'ratee');
-  chalutierFinirBillot(s,resultat);
-}
-function chalutierFinirBillot(s,resultat){
-  const b=s.billotActif; if(!b||b.termine) return;
-  b.termine=true;
-  const it=b.item;
-  const mult=resultat==='precise'?1+CHALUTIER_BILLOT_BONUS_PRECIS:(resultat==='approx'?1+CHALUTIER_BILLOT_BONUS_APPROX:1-CHALUTIER_BILLOT_MALUS_RATE);
-  const nouvelleValeur=Math.round(it.valeur*mult);
-  s.caleValeur+=(nouvelleValeur-it.valeur);
-  it.valeur=nouvelleValeur; it.preparee=true; it.qualitePrep=resultat;
-  const msgs={precise:'découpe précise : +40 %',approx:'découpe approximative : bonus partiel',ratee:'découpe ratée : -20 %'};
-  toast(it.nom+' — '+msgs[resultat]+' ('+nouvelleValeur+' $)',resultat==='ratee'?'warn':'or');
-  if(resultat==='precise'){ SFX.niveau(); vibre(30); } else if(resultat==='ratee') SFX.refus(); else SFX.ui();
-  s.billotActif=null;
-  billotWrap.style.display='none';
-}
-function dessinerBillot(s){
-  const b=s&&s.billotActif; if(!b||!billotCx) return;
-  const W=billotCv.width,H=billotCv.height,cx=billotCx;
-  cx.clearRect(0,0,W,H);
-  cx.fillStyle='#1c2027'; cx.fillRect(0,0,W,H);
-  cx.save();
-  cx.translate(W*0.5,H*0.5); cx.scale(1,0.5+0.3*b.params.taille);
-  cx.fillStyle='#2a4a58';
-  cx.beginPath(); cx.ellipse(0,0,W*0.46,H*0.34,0,0,Math.PI*2); cx.fill();
-  cx.restore();
-  cx.strokeStyle='rgba(255,255,255,0.55)'; cx.setLineDash([6,6]); cx.lineWidth=2;
-  cx.beginPath();
-  for(let i=0;i<=60;i++){ const t=i/60,y=chalutierBillotCourbe(b.params,t)*H;
-    if(i===0) cx.moveTo(t*W,y); else cx.lineTo(t*W,y); }
-  cx.stroke(); cx.setLineDash([]);
-  if(b.trace.length>1){
-    cx.strokeStyle=b.termine?'#ff3b5c':'#ffd23f'; cx.lineWidth=4; cx.lineCap='round'; cx.lineJoin='round';
-    cx.beginPath();
-    for(let i=0;i<b.trace.length;i++){ const p=b.trace[i];
-      if(i===0) cx.moveTo(p.t*W,p.y*H); else cx.lineTo(p.t*W,p.y*H); }
-    cx.stroke();
-  }
-  if(billotLblEl) billotLblEl.textContent='🔪 '+Math.round(b.avance*100)+' %';
+function chalutierPlacerMonde(s){
+  if(!s.merMonde) return;
+  s.merMonde.rotation.y=Math.PI-s.bateau.ang;
+  s.merDedans.position.set(-s.bateau.x,0,-s.bateau.z);
+  if(s.merU) s.merU.uBoat.value.set(s.bateau.x,s.bateau.z);
 }
 // point de reset paresseux, comme les autres salles spéciales (metroVerifierVague...)
 function chalutierVerifierVague(s){
@@ -20413,81 +20469,197 @@ function chalutierVerifierVague(s){
     if(s.sortieEnCours) chalutierArreterSortie(s);
   }
 }
-function chalutierDemarrerSortie(s){
-  s.sortieEnCours=true; s.sortiesVague++; s.auxCommandes=false;
-  s.chrono=0; s.meteoJauge=0; s.meteoEtat='calme'; s.tempeteT=0; s.tempetePerteFaite=false;
-  s.bateau={x:0,z:0,ang:0,v:0}; s.aQuitteLePort=false;
-  s.zoneMax=1; s.cale=[]; s.calePoids=0; s.caleValeur=0; s.aRejete=false;
+// tout l'état d'une sortie, remis à zéro au départ ET à l'arrêt (jamais deux listes)
+function chalutierEtatInitial(s){
+  s.auxCommandes=false; s.chrono=0; s.meteoJauge=0; s.meteoEtat='calme'; s.tempeteT=0; s.tempetePerteFaite=false;
+  s.bateau={x:0,z:0,ang:Math.PI,v:0}; s.aQuitteLePort=false;
+  s.zoneMax=1; s.cale=[]; s.calePoids=0; s.caleValeur=0;
   s.canneEtat=null; s.canneDelai=0; s.canneFerrageT=0; s.canneEspece=null; s.canneTension=50; s.canneProgres=0;
-  s.filetEtat=null; s.filetCharge=0; if(s.filetMesh) s.filetMesh.visible=false;
-  s.billotActif=null; if(billotWrap.style.display!=='none') billotWrap.style.display='none';
+  s.canneBanc=null; s.rush=false; s.rushT=0; s.moulinetDoigt=false; s.roiSauts=0; s.retourBarreT=0; s.pecheFinT=0; s.pecheFin=null;
+  s.filetEtat=null; s.filetCharge=0; s.recifCd=0;
+  if(s.filetMesh) s.filetMesh.visible=false;
+  if(s.ligne) s.ligne.visible=false;
+  if(s.bouchon) s.bouchon.visible=false;
+  if(s.roiMesh) s.roiMesh.visible=false;
+  s.sautRoi=null;
+  if(s.poissonPont){ s.poissonPont.m.visible=false; s.poissonPont=null; }
+  if(s.bancsVis) for(const bv of s.bancsVis) bv.g.visible=false;
+  s.bancs=[];
+}
+// les bancs de la sortie : positions tirées dans leur zone, côté large
+// (jamais vers la côte), espacés entre eux et des récifs
+function chalutierPreparerBancs(s){
+  s.bancs=[];
+  for(let i=0;i<CHALUTIER_BANCS_PLAN.length;i++){
+    const pl=CHALUTIER_BANCS_PLAN[i], dd=CHALUTIER_BANC_DIST[pl.zone], r=CHALUTIER_BANC_R[pl.type];
+    let x=0,z=-dd[0];
+    for(let essai=0;essai<40;essai++){
+      const a=rand(-1.25,1.25), d=rand(dd[0],dd[1]);
+      x=Math.sin(a)*d; z=-Math.cos(a)*d;
+      let ok=true;
+      for(const b of s.bancs) if(Math.hypot(b.x-x,b.z-z)<b.r+r+12){ ok=false; break; }
+      if(ok&&s.recifs) for(const rc of s.recifs) if(Math.hypot(rc.x-x,rc.z-z)<rc.r+r+8){ ok=false; break; }
+      if(ok) break;
+    }
+    const b={type:pl.type,zone:pl.zone,x,z,r,stock:CHALUTIER_BANC_STOCK[pl.type],stock0:CHALUTIER_BANC_STOCK[pl.type],vis:s.bancsVis?s.bancsVis[i]:null,dist:1e9};
+    s.bancs.push(b);
+    if(b.vis) chalutierHabillerBanc(b);
+  }
+}
+function chalutierHabillerBanc(b){
+  const v=b.vis; v.g.visible=true; v.g.position.set(b.x,0,b.z);
+  v.ombre.scale.set(b.r,b.r,1);
+  v.ombre.material.color.setHex(b.type==='filet'?0x2a6a86:(b.type==='roi'?0x061018:0x0b2f44));
+  v.ombre.material.opacity=b.type==='roi'?0.6:0.42;
+  v.matPoisson.color.setHex(b.type==='filet'?0xeaf6ff:0x9fc4dc);
+  for(const p of v.poissons){ p.m.visible=b.type!=='roi'; p.rr=p.r*b.r*0.85; }
+  for(const m of v.mouettes) m.g.visible=b.type==='canne';
+  v.aileron.visible=b.type==='roi';
+  v.eclat.visible=b.type==='roi';
+}
+// le banc le plus proche du bateau (encore garni) — sans allocation par image
+function chalutierBancProche(s){
+  let best=null;
+  for(const b of s.bancs){
+    if(b.stock<=0) continue;
+    b.dist=Math.hypot(b.x-s.bateau.x,b.z-s.bateau.z);
+    if(!best||b.dist-b.r<best.dist-best.r) best=b;
+  }
+  return best;
+}
+function chalutierDemarrerSortie(s){
+  chalutierEtatInitial(s);
+  s.sortieEnCours=true; s.sortiesVague++; s.auxCommandes=true;
+  chalutierPreparerBancs(s);
+  s.bilanT=0; if(chalBilanWrap.style.display!=='none') chalBilanWrap.style.display='none';
+  s.introT=4; chalIntroWrap.style.opacity='1'; chalIntroWrap.style.display='block';
+  cacherBoutonsCombat(); // en mer, seuls comptent le joystick (la barre) et le bouton d'action
   chalutierAmbianceStart();
   chalutierWrap.style.display='block';
-  bigMsg('⚓ EN MER'); toast('180 secondes. Reviens au ponton avant que ça tourne.','or');
-  SFX.ui();
+  bigMsg('⚓ LARGUEZ LES AMARRES');
+  if(AUDIO.pret){ beep(98,1.1,'sawtooth',0.13,92); setTimeout(()=>beep(98,0.7,'sawtooth',0.11,90),1250); } // corne de brume
+  vibre(60);
 }
 // point de reset commun : sortie annulée, cale perdue, météo réinitialisée,
-// bateau replacé au ponton, sons coupés — utilisé par le retour naturel (via
-// chalutierVendre), l'abandon, la mort et le game over. Le compteur de
-// sorties de la vague n'est PAS remis à zéro ici (sauf par chalutierVerifierVague
-// et le game over) : un abandon doit consommer la sortie, comme au bowling.
+// bateau replacé au ponton, sons coupés, panneaux cachés — utilisé par le
+// retour naturel (via chalutierVendre), l'abandon, la mort et le game over.
+// Le compteur de sorties de la vague n'est PAS remis à zéro ici (sauf par
+// chalutierVerifierVague et le game over) : un abandon consomme la sortie.
 function chalutierArreterSortie(s){
-  s.sortieEnCours=false; s.auxCommandes=false;
-  s.cale=[]; s.calePoids=0; s.caleValeur=0; s.aRejete=false;
-  s.canneEtat=null; s.filetEtat=null; s.filetCharge=0;
-  if(s.filetMesh) s.filetMesh.visible=false;
-  s.billotActif=null; if(billotWrap.style.display!=='none') billotWrap.style.display='none';
-  s.meteoJauge=0; s.meteoEtat='calme'; s.tempeteT=0; s.tempetePerteFaite=false;
-  s.bateau={x:0,z:0,ang:0,v:0}; s.chrono=0;
+  s.sortieEnCours=false;
+  chalutierEtatInitial(s);
+  s.introT=0;
   chalutierAmbianceStop();
-  if(chalutierWrap.style.display!=='none') chalutierWrap.style.display='none';
+  for(const w of [chalutierWrap,chalPecheWrap,chalIntroWrap]) if(w.style.display!=='none') w.style.display='none';
+  afficherBoutonsCombat();
+  chalutierPlacerMonde(s);
 }
 function chalutierPerdreMoitieCale(s){
+  // le Vieux Roi est arrimé à part : la tempête n'emporte que le reste
   const cibleP=s.calePoids/2;
-  while(s.cale.length&&s.calePoids>cibleP){
-    const it=s.cale.pop(); s.calePoids-=it.poids; s.caleValeur-=it.valeur;
-    // voir chalutierRejeterDerniere : même garde contre le double comptage
-    // si la prise perdue était celle en cours de préparation sur le billot.
-    if(s.billotActif&&!s.billotActif.termine&&s.billotActif.item===it){
-      s.billotActif=null; billotWrap.style.display='none';
-    }
+  for(let i=s.cale.length-1;i>=0&&s.calePoids>cibleP;i--){
+    const it=s.cale[i]; if(it.legende) continue;
+    s.cale.splice(i,1); s.calePoids-=it.poids; s.caleValeur-=it.valeur;
   }
 }
 function chalutierAjouterCale(s,item){
-  if(s.calePoids+item.poids>CHALUTIER_CALE_MAX){ toast('La cale est pleine !','warn'); return false; }
+  if(s.calePoids+item.poids>CHALUTIER_CALE_MAX){ toast('🐟 La cale est pleine ! Rentre vendre au ⚓','warn'); return false; }
   s.cale.push(item); s.calePoids+=item.poids; s.caleValeur+=item.valeur;
   return true;
 }
-function chalutierRejeterDerniere(s){
-  if(!s.cale.length){ SFX.refus(); return; }
-  const it=s.cale.pop();
-  s.calePoids-=it.poids; s.caleValeur-=it.valeur;
-  s.aRejete=true;
-  // Bug déjà rencontré (classe) : si la prise rejetée est celle en cours de
-  // préparation sur le billot, la terminer plus tard réappliquerait un delta
-  // de valeur à un objet qui n'est plus dans la cale (double comptage). On
-  // annule la découpe en cours dans ce cas, sans pénalité supplémentaire.
-  if(s.billotActif&&!s.billotActif.termine&&s.billotActif.item===it){
-    s.billotActif=null; billotWrap.style.display='none';
-  }
-  toast(it.nom+' rejeté à la mer (-'+it.valeur+' $)','warn'); SFX.refus();
+// PÊCHER ICI : le joueur passe de la barre à la canne, la ligne part
+function chalutierLancerLigne(s,banc){
+  if(!s.sortieEnCours||s.canneEtat!==null) return;
+  s.auxCommandes=false; s.canneBanc=banc;
+  s.canneEtat='attente'; s.canneDelai=rand(CHALUTIER_MORSURE_DELAI[0],CHALUTIER_MORSURE_DELAI[1])*(banc&&banc.type==='roi'?1.4:1);
+  s.pecheFinT=0; s.pecheFin=null; s.moulinetDoigt=false; s.introT=Math.min(s.introT||0,0.01); // l'intro s'efface dès qu'on pêche
+  if(s.canne){ P.x=s.canne.x; P.z=s.canne.z; }
+  SFX.swing(); vibre(15);
+  const bp=s.bouchonPos; if(bp) for(let i=0;i<6;i++) spawnP(bp.x,0,bp.z,rand(-1,1),rand(1,2.5),rand(-1,1),0.5,0.35,0xe8f6ff,6);
+}
+function chalutierFerrer(s){
+  if(s.canneEtat!=='morsure') return;
+  s.canneEtat='combat'; s.canneTension=50; s.canneProgres=0; s.roiSauts=0;
+  s.rush=false; s.rushT=rand(CHALUTIER_RUSH.pause[0],CHALUTIER_RUSH.pause[1]);
+  s.canneEspece=s.canneBanc&&s.canneBanc.type==='roi'?'roi':chalutierTirerEspeceCanne(chalutierZoneDe(Math.hypot(s.bateau.x,s.bateau.z)));
+  const po=CHALUTIER_POISSONS[s.canneEspece];
+  if(po.legende){ bigMsg('👑 LE VIEUX ROI A MORDU !'); secousse(6); vibre(160); }
+  else { spawnTexte(P.x,2.8,P.z,'FERRÉ !','#ffd23f'); vibre(40); }
+  SFX.etoile();
 }
 function chalutierEchecCombat(s,raison){
-  s.canneEtat=null; s.canneProgres=0; s.canneTension=50;
-  if(raison==='casse'){ toast('La ligne casse !','warn'); } else { toast('Le poisson se libère...','warn'); }
-  SFX.refus(); secousse(2);
+  s.canneEtat=null; s.canneProgres=0; s.canneTension=50; s.rush=false; s.moulinetDoigt=false;
+  s.pecheFin=raison==='casse'?'casse':'libere'; s.pecheFinT=1.2; s.retourBarreT=1.2;
+  if(raison==='casse'){ toast('💥 La ligne casse ! Tu moulinais trop fort.','warn'); secousse(3); }
+  else toast('〰️ Le poisson se libère… garde un peu de tension.','warn');
+  SFX.refus();
 }
 function chalutierPrise(s,poisson){
-  const ok=chalutierAjouterCale(s,{nom:poisson.nom,valeur:poisson.valeur,poids:poisson.poids});
-  s.canneEtat=null; s.canneProgres=0; s.canneTension=50;
+  const ok=chalutierAjouterCale(s,{nom:poisson.nom,valeur:poisson.valeur,poids:poisson.poids,legende:!!poisson.legende,espece:s.canneEspece});
+  s.canneEtat=null; s.canneProgres=0; s.canneTension=50; s.rush=false; s.moulinetDoigt=false;
+  s.pecheFin=ok?'prise':'pleine'; s.pecheFinT=1.4; s.retourBarreT=1.6;
+  if(s.canneBanc){ s.canneBanc.stock--; if(s.canneBanc.stock<=0) toast('Le banc se disperse — cherche-en un autre sur le radar','or'); }
   if(ok){
-    bigMsg(poisson.nom.toUpperCase()+' !'); toast(poisson.nom+' à bord : +'+poisson.valeur+' $ (cale)','or');
-    SFX.niveau(); vibre(40);
+    bigMsg((poisson.legende?'👑 ':'🐟 ')+poisson.nom.toUpperCase()+' !');
+    spawnTexte(P.x,3,P.z,'+'+poisson.valeur+' $ · '+poisson.poids+' kg','#7dff7a');
+    SFX.niveau(); vibre(poisson.legende?220:40);
+    if(poisson.legende){ secousse(8); ETAT.timeScale=0.4; ETAT.slowT=1.0; for(let i=0;i<40;i++) spawnP(P.x+rand(-2,2),rand(1,4),P.z+rand(-2,2),rand(-2,2),rand(2,5),rand(-2,2),1.4,0.5,pick([0xffd23f,0x35e0ff,0xffffff]),3); }
+    chalutierPoissonSurLePont(s,s.canneEspece);
     // mur de trophées (planque) : la plus grosse prise à la canne — au
     // poids, jamais le vrac du filet (pas un poisson nommé, rien à empailler).
     if(poisson.poids>META.stats.plusGrossePrise.poids)
       META.stats.plusGrossePrise={nom:poisson.nom,poids:poisson.poids,valeur:poisson.valeur};
   }
+}
+function chalutierMajCanne(s,dtJeu){
+  if(s.canneEtat==='attente'){
+    s.canneDelai-=dtJeu;
+    if(s.canneDelai<=0){ s.canneEtat='morsure'; s.canneFerrageT=CHALUTIER_FERRAGE_FENETRE;
+      beep(700,0.12,'square',0.2); vibre(60); secousse(1); }
+  } else if(s.canneEtat==='morsure'){
+    s.canneFerrageT-=dtJeu;
+    if(s.canneFerrageT<=0){ s.canneEtat=null; s.pecheFin='file'; s.pecheFinT=1.1; s.retourBarreT=1.1; toast('Trop tard. Le poisson a filé.','warn'); }
+  } else if(s.canneEtat==='combat'){
+    const poisson=CHALUTIER_POISSONS[s.canneEspece];
+    const tenant=!!(INPUT.btn.action||s.moulinetDoigt);
+    const force=poisson.rush||1;
+    s.rushT-=dtJeu;
+    if(s.rushT<=0){
+      if(s.rush){ s.rush=false; s.rushT=rand(CHALUTIER_RUSH.pause[0],CHALUTIER_RUSH.pause[1])/force; }
+      else { s.rush=true; s.rushT=CHALUTIER_RUSH.duree; vibre(35); beep(180,0.18,'sawtooth',0.12,120); }
+    }
+    let dT=tenant?CHALUTIER_TENSION_RATE:-CHALUTIER_TENSION_RATE;
+    if(s.rush&&tenant) dT+=CHALUTIER_RUSH.tension*force;
+    s.canneTension=clamp(s.canneTension+dT*dtJeu,0,100);
+    // houle/tempête : plage utile plus étroite (canne plus difficile)
+    const houleMalus=s.meteoEtat==='calme'?1:(s.meteoEtat==='houle'?0.72:0.55);
+    const centre=(CHALUTIER_TENSION_BONNE[0]+CHALUTIER_TENSION_BONNE[1])/2;
+    const demiLarg=(poisson.tensionEtroite?16:30)/2*houleMalus;
+    if(s.canneTension<=0) chalutierEchecCombat(s,'libere');
+    else if(s.canneTension>=100) chalutierEchecCombat(s,'casse');
+    else {
+      if(s.rush){ if(tenant) s.canneProgres=Math.max(0,s.canneProgres-CHALUTIER_RUSH.recul*force*dtJeu); }
+      else if(Math.abs(s.canneTension-centre)<demiLarg){
+        s.canneProgres+=CHALUTIER_COMBAT_VIT/poisson.combatDur*dtJeu;
+        if(tenant&&Math.random()<dtJeu*6) beep(1400,0.025,'square',0.05); // cliquetis du moulinet
+      }
+      // le Vieux Roi saute hors de l'eau à 35 % et à 70 % : LE moment fort
+      if(poisson.legende&&s.roiSauts<2&&s.canneProgres>=(s.roiSauts===0?35:70)){ s.roiSauts++; chalutierSautRoi(s); }
+      if(s.canneProgres>=100) chalutierPrise(s,poisson);
+    }
+  }
+}
+function chalutierSautRoi(s){
+  s.sautRoi={t:0};
+  if(s.roiMesh) s.roiMesh.visible=true;
+  bigMsg('👑 IL SAUTE !'); secousse(5); vibre(120); SFX.explo();
+  ETAT.timeScale=0.45; ETAT.slowT=0.9;
+}
+function chalutierJeterFilet(s){
+  if(!s.sortieEnCours||s.filetEtat!==null) return;
+  s.filetEtat='traine'; s.filetCharge=0;
+  if(s.filetMesh) s.filetMesh.visible=true;
+  toast('🕸️ Filet à l’eau : traverse le banc de sardines au moteur !','or'); SFX.ui(); vibre(25);
 }
 function chalutierRemonterFilet(s){
   const nb=Math.round(s.filetCharge/10);
@@ -20503,24 +20675,380 @@ function chalutierRemonterFilet(s){
   }
   s.filetEtat=null; s.filetCharge=0;
   if(s.filetMesh) s.filetMesh.visible=false;
-  toast(Math.max(0,nb-refuses)+' prises remontées au filet','or'); SFX.ramasse(); vibre(30);
+  const pris=Math.max(0,nb-refuses);
+  if(pris>0){ bigMsg('🕸️ '+pris+' CAISSE'+(pris>1?'S':'')+' !'); SFX.ramasse(); vibre(50); secousse(2);
+    if(INT.actif===s) for(let i=0;i<Math.min(30,pris*3);i++) spawnP(s.ox+rand(-2,2),rand(1,2.5),s.oz+rand(14,19),rand(-2,2),rand(2,5),rand(-3,0),0.9,0.3,pick([0xeaf6ff,0xcfe8f5,0xffffff]),9); }
+  else { toast('Le filet remonte presque vide — traverse un banc de sardines.','warn'); SFX.refus(); }
 }
-// retour au ponton : vente automatique de la cale, condition de la curiosité
-// vérifiée AVANT le reset (chalutierArreterSortie efface zoneMax/calePoids/...)
+// retour au ponton : vente de la cale, bilan détaillé, curiosité vérifiée
+// AVANT le reset (chalutierArreterSortie efface la cale)
 function chalutierVendre(s){
   if(!s.sortieEnCours) return; // garde d'entrée propre (voir CLAUDE.md) : chalutierArreterSortie la referme
   const total=s.caleValeur, nb=s.cale.length;
   if(total>0){ META.argent+=total; ETAT.cashRun+=total; META.stats.cashTotal+=total; }
-  const meritee=s.zoneMax>=3&&s.calePoids>=CHALUTIER_CALE_MAX&&!s.aRejete&&s.meteoEtat!=='tempete';
-  bigMsg('⚓ RETOUR AU PORT');
-  toast('Vente : +'+total+' $ ('+nb+' prise'+(nb>1?'s':'')+')','or'); SFX.achat();
+  const roi=s.cale.some(it=>it.legende);
+  chalutierPreparerBilan(s,total);
+  bigMsg(roi?'👑 LE VIEUX ROI À QUAI !':'⚓ RETOUR AU PORT');
+  SFX.achat(); if(total>0) setTimeout(()=>SFX.niveau(),500);
   chalutierArreterSortie(s);
-  if(meritee&&!aCurio('boussole')){
+  if(roi&&!aCurio('boussole')){
     donnerCurio('boussole');
     if(s.boussoleMesh){ s.boussoleMesh.material.color.setHex(0xffd23f);
       s.boussoleMesh.material.emissive=new THREE.Color(0xffd23f).multiplyScalar(0.6); }
   }
   checkDefis(); sauveMeta();
+}
+// bilan de la vente : lignes regroupées par prise, total qui défile
+function chalutierPreparerBilan(s,total){
+  const groupes={}; let best=null;
+  for(const it of s.cale){
+    const g=groupes[it.nom]||(groupes[it.nom]={nom:it.nom,n:0,v:0,legende:it.legende});
+    g.n++; g.v+=it.valeur;
+    if(!it.texte&&(!best||it.poids>best.poids)) best=it;
+  }
+  const lignes=Object.values(groupes).sort((a,b)=>b.v-a.v).slice(0,6);
+  chalBilanLignesEl.innerHTML=lignes.length?lignes.map(g=>'<div style="display:flex;justify-content:space-between;font:800 12px Arial;color:'+(g.legende?'#ffd23f':'#e8f4fa')+';margin:3px 6px">'+
+    '<span>'+(g.legende?'👑 ':'🐟 ')+g.nom+(g.n>1?' ×'+g.n:'')+'</span><span>'+g.v+' $</span></div>').join(''):
+    '<div style="font:800 12px Arial;color:#9fb4c0">La cale est vide. La mer garde tout, aujourd’hui.</div>';
+  chalBilanBestEl.textContent=best?('Plus belle prise : '+best.nom+' — '+best.poids+' kg'):'';
+  s.bilanTotal=total; s.bilanT=4.5;
+  chalBilanTotalEl.textContent='+0 $';
+  chalBilanWrap.style.display='block';
+}
+// poisson qui gigote sur le pont après la prise (modèle par espèce, en cache)
+function chalutierModelePoisson(s,esp){
+  s.poissonsMesh=s.poissonsMesh||{};
+  if(s.poissonsMesh[esp]) return s.poissonsMesh[esp];
+  const po=CHALUTIER_POISSONS[esp], t=po.taille, g2=new THREE.Group();
+  const corps=new THREE.Mesh(new THREE.SphereGeometry(0.5,12,8),new THREE.MeshLambertMaterial({color:po.coul}));
+  corps.scale.set(0.42*t,0.36*t,(po.long?2.6:1.6)*t); g2.add(corps);
+  const ventre=new THREE.Mesh(new THREE.SphereGeometry(0.5,10,6),new THREE.MeshLambertMaterial({color:po.ventre}));
+  ventre.scale.set(0.36*t,0.22*t,(po.long?2.3:1.4)*t); ventre.position.y=-0.08*t; g2.add(ventre);
+  const queue=new THREE.Mesh(new THREE.ConeGeometry(0.32*t,0.5*t,3),new THREE.MeshLambertMaterial({color:po.coul}));
+  queue.rotation.x=Math.PI/2; queue.scale.set(1,0.3,1); queue.position.z=-(po.long?1.4:0.95)*t; g2.add(queue);
+  const oeil=new THREE.Mesh(new THREE.SphereGeometry(0.06*t,6,4),mat(0x111111)); oeil.position.set(0.16*t,0.06*t,0.55*t*(po.long?1.5:1)); g2.add(oeil);
+  if(po.legende){ // rostre et grande voile dorsale de l'espadon
+    const rostre=new THREE.Mesh(new THREE.ConeGeometry(0.07*t,1.4*t,5),mat(0x2a3448)); rostre.rotation.x=Math.PI/2; rostre.position.z=1.35*t; g2.add(rostre);
+    const voile=new THREE.Mesh(new THREE.ConeGeometry(0.5*t,0.9*t,3),new THREE.MeshLambertMaterial({color:0x2a4a9a})); voile.scale.set(0.12,1,1.4); voile.position.set(0,0.42*t,0.15*t); g2.add(voile);
+  }
+  g2.visible=false; s.g.add(g2); s.poissonsMesh[esp]=g2;
+  return g2;
+}
+function chalutierPoissonSurLePont(s,esp){
+  if(s.poissonPont) s.poissonPont.m.visible=false;
+  const m=chalutierModelePoisson(s,esp); m.visible=true;
+  s.poissonPont={m,t:0};
+}
+// action contextuelle en mer : un seul bouton, toujours le bon
+function chalutierAction(s){
+  if(s.retourBarreT>0&&s.canneEtat===null) return {label:s.pecheFin==='prise'?'🐟 À la cale !':'🎣 On remballe…',fn:()=>{}};
+  if(s.canneEtat==='attente') return {label:'🎣 Le bouchon flotte… attends la touche',fn:()=>{ SFX.refus(); }};
+  if(s.canneEtat==='morsure') return {label:'🎣 FERRE !',fn:()=>chalutierFerrer(s)};
+  if(s.canneEtat==='combat') return {label:'🎣 MOULINE (maintiens) — lâche quand il tire',fn:()=>{}};
+  if(s.filetEtat==='traine') return {label:'🕸️ REMONTER LE FILET ('+Math.round(s.filetCharge)+' %)',fn:()=>chalutierRemonterFilet(s)};
+  const b=chalutierBancProche(s);
+  if(b&&b.type!=='filet'&&b.dist<b.r){
+    if(s.calePoids>=CHALUTIER_CALE_MAX) return {label:'🐟 Cale pleine — rentre vendre au ⚓',fn:()=>{ SFX.refus(); }};
+    if(Math.abs(s.bateau.v)>CHALUTIER_PECHE_VMAX) return {label:'🎣 Ralentis pour pêcher (▼)',fn:()=>{ SFX.refus(); toast('Tire le joystick vers le bas pour ralentir','warn'); }};
+    return {label:b.type==='roi'?'👑 PÊCHER LE VIEUX ROI':'🎣 PÊCHER ICI',fn:()=>chalutierLancerLigne(s,b)};
+  }
+  if(b&&b.type==='filet'&&b.dist<b.r+16) return {label:'🕸️ JETER LE FILET',fn:()=>chalutierJeterFilet(s)};
+  if(s.calePoids>=CHALUTIER_CALE_MAX) return {label:'🐟 Cale pleine — rentre vendre au ⚓',fn:()=>{ SFX.refus(); }};
+  return {label:'🧭 Fonce vers un banc du radar',fn:()=>{ SFX.refus(); toast('Les points du radar (en haut à droite) sont des bancs : 🐟 à la canne, ✨ au filet, 👑 le Vieux Roi','or'); }};
+}
+// ---- mise à jour, chaque image où la salle est active ----
+const _chalP={x:0,z:0};
+function chalutierMaj(s,dt,dtJeu){
+  chalutierVerifierVague(s);
+  if(s.recifCd>0) s.recifCd-=dtJeu;
+  if(s.sortieEnCours){
+    // chrono : 180 s maximum, au-delà le joueur rentre remorqué
+    s.chrono+=dtJeu;
+    if(s.chrono>=CHALUTIER_DUREE){
+      chalutierPerdreMoitieCale(s);
+      toast('⏱ Remorqué au port : la moitié de la cale est perdue.','warn'); SFX.refus();
+      s.bateau.x=0; s.bateau.z=0;
+      chalutierVendre(s);
+    } else {
+      const distPort=Math.hypot(s.bateau.x,s.bateau.z);
+      // météo : se dégrade en continu, plus vite au large
+      const zoneActuelle=chalutierZoneDe(distPort);
+      s.meteoJauge=Math.min(100,s.meteoJauge+CHALUTIER_METEO_VIT[zoneActuelle]*dtJeu);
+      const meteoAvant=s.meteoEtat;
+      s.meteoEtat=s.meteoJauge>=CHALUTIER_METEO_TEMPETE?'tempete':(s.meteoJauge>=CHALUTIER_METEO_HOULE?'houle':'calme');
+      if(s.meteoEtat!==meteoAvant){
+        if(s.meteoEtat==='houle') toast('🌊 La houle se lève.','warn');
+        else if(s.meteoEtat==='tempete'){ bigMsg('⛈ TEMPÊTE !'); toast('30 secondes pour rentrer au ⚓, ou la cale trinque.','warn'); secousse(4); vibre(120); }
+      }
+      if(s.meteoEtat==='tempete'){
+        s.tempeteT+=dtJeu;
+        if(s.tempeteT>=CHALUTIER_TEMPETE_DELAI&&!s.tempetePerteFaite){
+          s.tempetePerteFaite=true;
+          chalutierPerdreMoitieCale(s);
+          bigMsg('🌊 UNE LAME BALAIE LE PONT'); toast('La tempête arrache la moitié de la cale !','warn'); SFX.refus(); secousse(8); vibre(150);
+        }
+      }
+      // pilotage à la barre (dtJeu) : ◀ ▶ virer, ▲ gaz, ▼ ralentir / marche
+      // arrière lente. Virer demande de l'erre (un bateau à l'arrêt tourne mal).
+      const chargeFrac=clamp(s.calePoids/CHALUTIER_CALE_MAX,0,1);
+      const meteoMalus=s.meteoEtat==='tempete'?0.55:(s.meteoEtat==='houle'?0.85:1);
+      const vitesseMax=CHALUTIER_VIT_BASE*(1-0.4*chargeFrac)*meteoMalus;
+      if(s.auxCommandes){
+        P.x=s.barre.x; P.z=s.barre.z; P.ang=Math.PI;
+        const gaz=clamp(-INPUT.mz,-1,1), barreIn=clamp(INPUT.mx,-1,1);
+        const cible=gaz>0.15?vitesseMax*Math.min(1,gaz):(gaz<-0.15?-vitesseMax*0.3*Math.min(1,-gaz):0);
+        s.bateau.v=lerp(s.bateau.v,cible,clamp((gaz>0.15?CHALUTIER_ACCEL:CHALUTIER_DECEL)*dtJeu,0,1));
+        const erre=0.35+0.65*clamp(Math.abs(s.bateau.v)/4,0,1);
+        if(Math.abs(barreIn)>0.12) s.bateau.ang-=barreIn*CHALUTIER_VIRAGE*erre*dtJeu*(s.bateau.v<-0.2?-1:1);
+      } else {
+        s.bateau.v=lerp(s.bateau.v,0,clamp(CHALUTIER_DECEL*1.6*dtJeu,0,1)); // à la canne : le bateau s'arrête
+        if(s.canneEtat!==null||s.retourBarreT>0){ P.x=s.canne.x; P.z=s.canne.z; P.ang=Math.PI/2; }
+      }
+      // tempête : la houle fait dériver le cap
+      if(s.meteoEtat==='tempete') s.bateau.ang+=Math.sin(s.chrono*0.7)*0.12*dtJeu;
+      s.bateau.x+=Math.sin(s.bateau.ang)*s.bateau.v*dtJeu;
+      s.bateau.z+=Math.cos(s.bateau.ang)*s.bateau.v*dtJeu;
+      if(s.bateau.z>CHALUTIER_COTE_Z) s.bateau.z=CHALUTIER_COTE_Z;
+      const distApres=Math.hypot(s.bateau.x,s.bateau.z);
+      if(distApres>CHALUTIER_DIST_MAX){ const k=CHALUTIER_DIST_MAX/distApres; s.bateau.x*=k; s.bateau.z*=k; }
+      // récifs : on rebondit, sans casse, mais l'élan est perdu
+      if(s.recifs) for(const rc of s.recifs){
+        const dx=s.bateau.x-rc.x, dz=s.bateau.z-rc.z, d=Math.hypot(dx,dz), lim=rc.r+6;
+        if(d<lim&&d>0.01){ s.bateau.x=rc.x+dx/d*lim; s.bateau.z=rc.z+dz/d*lim; s.bateau.v*=-0.25;
+          if(s.recifCd<=0){ s.recifCd=1.5; toast('💥 Récif ! Contourne les rochers.','warn'); secousse(5); vibre(90); SFX.degat(); } }
+      }
+      const distBateau=Math.hypot(s.bateau.x,s.bateau.z);
+      s.zoneMax=Math.max(s.zoneMax,chalutierZoneDe(distBateau));
+      if(!s.aQuitteLePort&&distBateau>15) s.aQuitteLePort=true;
+      if(s.aQuitteLePort&&distBateau<8) chalutierVendre(s);
+      else {
+        chalutierMajCanne(s,dtJeu);
+        // filet : charge tant qu'il traîne dans un banc de sardines, au moteur
+        if(s.filetEtat==='traine'){
+          const vitMult=s.meteoEtat==='houle'?1.5:(s.meteoEtat==='tempete'?2:1);
+          let dansBanc=null;
+          for(const b of s.bancs) if(b.type==='filet'&&b.stock>0&&Math.hypot(b.x-s.bateau.x,b.z-s.bateau.z)<b.r){ dansBanc=b; break; }
+          if(Math.abs(s.bateau.v)>1.5){
+            const gain=CHALUTIER_FILET_VIT*vitMult*dtJeu*(dansBanc?1:CHALUTIER_FILET_HORS_BANC);
+            s.filetCharge=Math.min(100,s.filetCharge+gain);
+            if(dansBanc){ dansBanc.stock-=gain; if(dansBanc.stock<=0) toast('Le banc de sardines est vidé','or'); }
+          }
+          if(s.filetCharge>=CHALUTIER_FILET_ZONE_ROUGE&&Math.random()<CHALUTIER_FILET_RISQUE*dtJeu){
+            s.filetEtat=null; s.filetCharge=0; if(s.filetMesh) s.filetMesh.visible=false;
+            bigMsg('🕸️ FILET DÉCHIRÉ'); toast('Trop chargé ! Remonte-le avant la zone rouge.','warn'); SFX.refus(); secousse(4);
+          }
+        }
+        if(s.retourBarreT>0){ s.retourBarreT-=dtJeu; if(s.retourBarreT<=0&&s.canneEtat===null&&s.sortieEnCours){ s.auxCommandes=true; P.x=s.barre.x; P.z=s.barre.z; } }
+      }
+    }
+  }
+  if(s.pecheFinT>0) s.pecheFinT-=dt;
+  if(s.introT>0){ s.introT-=dt; if(s.introT<0.5) chalIntroWrap.style.opacity=String(Math.max(0,s.introT/0.5)); }
+  if(s.introT<=0&&chalIntroWrap.style.display!=='none') chalIntroWrap.style.display='none';
+  if(s.bilanT>0){ s.bilanT-=dt;
+    const k=clamp((4.5-s.bilanT)/1.6,0,1); chalBilanTotalEl.textContent='+'+Math.round((s.bilanTotal||0)*k)+' $';
+    if(s.bilanT<=0||ETAT.mode!=='jeu'){ s.bilanT=0; chalBilanWrap.style.display='none'; } }
+  chalutierPlacerMonde(s);
+  chalutierMajDecor(s,dt);
+  if(ETAT.mode!=='mort') chalutierAmbianceUpdate(s); // idem métro : jamais relancée sur l'écran de mort
+  chalutierMajHUD(s);
+}
+// habillage animé (dt, spectacle) : mer, bancs, bouées, phare, sillage, pluie,
+// ligne et bouchon, poisson sur le pont, saut du Vieux Roi, caisses de la cale
+function chalutierMajDecor(s,dt){
+  const T=ETAT.runT, tempete=s.meteoEtat==='tempete'?1:(s.meteoEtat==='houle'?0.4:0);
+  if(s.merU){ s.merU.uT.value+=dt; s.merU.uTempete.value=lerp(s.merU.uTempete.value,tempete,clamp(dt*0.8,0,1));
+    if(scene.background&&scene.background.isColor) s.merU.uCiel.value.copy(scene.background); }
+  for(const mo of s.mouettes){
+    mo.a+=dt*0.35; mo.ph+=dt*7;
+    mo.m.position.set(mo.cx+Math.sin(mo.a)*mo.r,7+Math.sin(mo.ph*0.2)*0.4,mo.cz+Math.cos(mo.a)*mo.r);
+    mo.m.rotation.y=mo.a+Math.PI/2;
+    mo.aG.rotation.z=Math.sin(mo.ph)*0.5; mo.aD.rotation.z=-Math.sin(mo.ph)*0.5;
+  }
+  if(s.radarBarre) s.radarBarre.rotation.y+=dt*2.6;
+  if(s.phare) s.phare.rotation.y+=dt*1.2;
+  if(s.tambour) s.tambour.rotation.x+=dt*(s.filetEtat==='traine'?2.4:0);
+  for(const bo of s.bouees) bo.m.position.y=-0.25+Math.sin(T*1.6+bo.ph)*0.12*(1+tempete*2);
+  // bancs proches : poissons qui tournent, mouettes qui piquent, aileron du Roi
+  for(const b of s.bancs){
+    const v=b.vis; if(!v) continue;
+    const proche=b.stock>0&&Math.hypot(b.x-s.bateau.x,b.z-s.bateau.z)<b.r+110;
+    if(v.g.visible!==proche) v.g.visible=proche;
+    if(!proche) continue;
+    v.ombre.material.opacity=(b.type==='roi'?0.55:0.36)+Math.sin(T*2+b.x)*0.06;
+    if(b.type!=='roi') for(const p of v.poissons){ p.a+=dt*p.v*(b.type==='filet'?1.6:1); p.m.position.set(Math.sin(p.a)*p.rr,-0.26+(Math.sin(T*3+p.h)>0.97?0.5:0),Math.cos(p.a)*p.rr); p.m.rotation.y=p.a+Math.PI/2; }
+    if(b.type==='canne') for(const m of v.mouettes){ m.a+=dt*0.9; m.g.position.set(Math.sin(m.a)*b.r*0.6,3+Math.sin(m.a*2.3)*2.2,Math.cos(m.a)*b.r*0.6); m.g.rotation.y=m.a+Math.PI/2; m.aG.rotation.z=Math.sin(T*9)*0.5; m.aD.rotation.z=-Math.sin(T*9)*0.5; }
+    if(b.type==='roi'){ const a=T*0.5; v.aileron.position.set(Math.sin(a)*b.r*0.55,0.15,Math.cos(a)*b.r*0.55); v.aileron.rotation.y=a+Math.PI/2; v.eclat.material.opacity=0.35+Math.sin(T*4)*0.25; }
+  }
+  // caisses de la cale, empilées sur le pont
+  if(s.caisses){ const n=Math.round(clamp(s.calePoids/CHALUTIER_CALE_MAX,0,1)*s.caisses.length);
+    if(s._caissesN!==n){ s._caissesN=n; for(let i=0;i<s.caisses.length;i++) s.caisses[i].visible=i<n; } }
+  // ligne et bouchon (la canne est sur le bastingage tribord)
+  const peche=s.canneEtat!==null;
+  if(s.ligne){ s.ligne.visible=peche; s.bouchon.visible=s.canneEtat==='attente'||s.canneEtat==='morsure';
+    if(peche){
+      const bp=s.bouchonPos; let fx=bp.x, fy=-0.25+Math.sin(T*3)*0.08, fz=bp.z;
+      if(s.canneEtat==='morsure'){ fy=-0.55+Math.sin(T*30)*0.08; if(Math.random()<dt*14) spawnP(bp.x,0,bp.z,rand(-1,1),rand(1,3),rand(-1,1),0.4,0.3,0xffffff,8); }
+      if(s.canneEtat==='combat'){ const k=1-s.canneProgres/100; fx=bp.x+2+k*7+Math.sin(T*(s.rush?9:2.5))*(s.rush?1.6:0.7); fz=bp.z+Math.sin(T*1.7)*3; fy=-0.3;
+        if(Math.random()<dt*(s.rush?16:5)) spawnP(fx,0,fz,rand(-1.5,1.5),rand(1.5,4),rand(-1.5,1.5),0.5,s.rush?0.55:0.35,0xffffff,8); }
+      s.bouchon.position.set(fx,fy,fz);
+      const pos=s.ligne.geometry.attributes.position; pos.setXYZ(0,s.bout.x,s.bout.y,s.bout.z); pos.setXYZ(1,fx,fy+0.1,fz); pos.needsUpdate=true;
+    }
+  }
+  // poisson qui gigote sur le pont, puis file à la cale
+  if(s.poissonPont){ const pp=s.poissonPont; pp.t+=dt;
+    pp.m.position.set(s.canne.x-1.6,0.45+Math.abs(Math.sin(pp.t*9))*0.35*Math.max(0,1-pp.t/1.6),s.canne.z+0.4);
+    pp.m.rotation.set(0,Math.PI/2+Math.sin(pp.t*14)*0.3,Math.sin(pp.t*18)*0.7*Math.max(0,1-pp.t/1.6));
+    if(pp.t>1.9){ pp.m.visible=false; s.poissonPont=null; } }
+  // saut du Vieux Roi, au flanc du bateau
+  if(s.sautRoi&&s.roiMesh){ const sr=s.sautRoi; sr.t+=dt/1.3; const k=Math.min(1,sr.t);
+    s.roiMesh.position.set(s.ox+12.5,-1+Math.sin(k*Math.PI)*7,s.oz-11+k*14); s.roiMesh.rotation.set(-Math.cos(k*Math.PI)*0.9,0,0);
+    if(sr.t<0.05||Math.abs(sr.t-1)<0.04) for(let i=0;i<8;i++) spawnP(s.ox+12.5+rand(-1,1),0,s.oz-11+k*14,rand(-2,2),rand(3,7),rand(-2,2),0.8,0.6,0xffffff,9);
+    if(sr.t>=1){ s.roiMesh.visible=false; s.sautRoi=null; } }
+  // sillage, écume de proue, fumée de la cheminée, pluie
+  if(INT.actif===s&&s.sortieEnCours){
+    const v=Math.abs(s.bateau.v);
+    if(v>1&&Math.random()<dt*14) for(const cote of [-1,1]) spawnP(s.ox+cote*rand(5,7.5),-0.15,s.oz+23,cote*rand(0.5,1.5),0.1,v*0.9,1.3,rand(0.5,0.9),0xeaf6ff,0,0.8);
+    if(v>3&&Math.random()<dt*10) spawnP(s.ox+rand(-1.5,1.5),0.1,s.oz-26.5,rand(-3,3),rand(1,2.5),v*0.4,0.6,0.5,0xffffff,6);
+    if(Math.random()<dt*7) fumee(s.ox-2.2,5,s.oz-11.3,0x3a3d44);
+    if(tempete>=1&&Math.random()<dt*40) spawnP(P.x+rand(-14,14),rand(9,13),P.z+rand(-18,10),-2,-26,1,0.5,0.12,0xa8c8e0,0);
+    if(tempete>=1&&Math.random()<dt*1.5) for(let i=0;i<10;i++) spawnP(s.ox+(Math.random()<0.5?-8:8),1,s.oz+rand(-10,10),rand(-2,2),rand(3,6),rand(-1,1),0.7,0.6,0xeaf6ff,9); // paquets de mer sur le pont
+  }
+}
+// interface : panneau d'infos (caché hors sortie), panneau de pêche dessiné
+function chalutierMajHUD(s){
+  const enJeu=ETAT.mode==='jeu'&&INT.actif===s;
+  const actif=s.sortieEnCours&&enJeu;
+  if(actif!==(chalutierWrap.style.display!=='none')) chalutierWrap.style.display=actif?'block':'none';
+  if(actif){
+    const rest=Math.max(0,Math.ceil(CHALUTIER_DUREE-s.chrono));
+    const txt=Math.floor(rest/60)+':'+String(rest%60).padStart(2,'0');
+    if(s._hudT!==txt){ s._hudT=txt; chalLblEl.textContent=txt; chalLblEl.style.color=rest<=30?'#ff5a6a':'#ffffff'; }
+    if(s._hudM!==s.meteoEtat){ s._hudM=s.meteoEtat; chalMeteoEl.textContent={calme:'☀️',houle:'🌊',tempete:'⛈️'}[s.meteoEtat]; }
+    const mj=Math.round(s.meteoJauge); if(s._hudJ!==mj){ s._hudJ=mj; chalCielEl.style.left=mj+'%'; }
+    const ck=Math.round(s.calePoids)+'|'+Math.round(s.caleValeur);
+    if(s._hudC!==ck){ s._hudC=ck; chalCaleEl.style.width=Math.round(s.calePoids/CHALUTIER_CALE_MAX*100)+'%';
+      chalCaleTxtEl.textContent=Math.round(s.calePoids)+' kg · '+Math.round(s.caleValeur)+' $'; }
+    const fk=s.filetEtat==='traine'?Math.round(s.filetCharge):-1; // le filet traîne hors du cadre : sa jauge est ici
+    if(s._hudF!==fk){ s._hudF=fk; chalFiletRowEl.style.display=fk<0?'none':'flex';
+      if(fk>=0){ chalFiletEl.style.width=fk+'%'; chalFiletEl.style.background=fk>=CHALUTIER_FILET_ZONE_ROUGE?'#ff3b5c':'#7dff7a'; } }
+  }
+  const peche=actif&&(s.canneEtat!==null||s.pecheFinT>0);
+  if(peche!==(chalPecheWrap.style.display!=='none')) chalPecheWrap.style.display=peche?'block':'none';
+  if(peche) dessinerPecheChalutier(s);
+}
+// le panneau de pêche : vue sous l'eau, bouchon, poisson, jauge de tension
+function dessinerPecheChalutier(s){
+  const cx=chalPecheCx, W=680, H=330, T=ETAT.runT; if(!cx) return;
+  const tempete=s.meteoEtat==='tempete', houle=s.meteoEtat==='houle';
+  // ciel et eau
+  let gr=cx.createLinearGradient(0,0,0,70); gr.addColorStop(0,tempete?'#1a1f28':(houle?'#56606c':'#ffcf8a')); gr.addColorStop(1,tempete?'#2c333c':(houle?'#7d8792':'#ffe6bf'));
+  cx.fillStyle=gr; cx.fillRect(0,0,W,72);
+  gr=cx.createLinearGradient(0,70,0,H); gr.addColorStop(0,tempete?'#123038':'#1d6f94'); gr.addColorStop(1,'#03111b');
+  cx.fillStyle=gr; cx.fillRect(0,70,W,H-70);
+  // rayons de lumière sous l'eau
+  if(!tempete){ cx.fillStyle='rgba(255,255,255,0.05)'; for(let i=0;i<5;i++){ const x0=(i*160+T*14)%(W+200)-100; cx.beginPath(); cx.moveTo(x0,72); cx.lineTo(x0+50,72); cx.lineTo(x0+130,H); cx.lineTo(x0+40,H); cx.fill(); } }
+  // surface ondulée
+  cx.strokeStyle='rgba(220,245,255,0.8)'; cx.lineWidth=3; cx.beginPath();
+  for(let x=0;x<=W;x+=10){ const y=72+Math.sin(x*0.03+T*(tempete?5:2.2))*(tempete?7:3); if(x===0) cx.moveTo(x,y); else cx.lineTo(x,y); } cx.stroke();
+  // coque et canne (en haut à gauche)
+  cx.fillStyle='#a8262a'; cx.beginPath(); cx.moveTo(0,40); cx.lineTo(150,40); cx.lineTo(128,92); cx.lineTo(0,92); cx.fill();
+  cx.fillStyle='#e8ecf2'; cx.fillRect(0,30,150,10);
+  const tipX=250, tipY=14;
+  cx.strokeStyle='#5a4630'; cx.lineWidth=5; cx.beginPath(); cx.moveTo(110,36); cx.lineTo(tipX,tipY); cx.stroke();
+  // poisson / bouchon
+  const po=s.canneEspece?CHALUTIER_POISSONS[s.canneEspece]:null;
+  let fx=440, fy=72;
+  if(s.canneEtat==='attente') fy=70+Math.sin(T*3)*3;
+  else if(s.canneEtat==='morsure') fy=96+Math.sin(T*28)*4;
+  else if(s.canneEtat==='combat'){ const k=s.canneProgres/100; fx=330+Math.sin(T*(s.rush?9:2.2))*(s.rush?150:90)*(1-k*0.5); fy=270-k*170+(s.rush?Math.sin(T*23)*10:0); }
+  // ligne
+  const tendue=s.canneEtat==='combat'&&s.canneTension>CHALUTIER_TENSION_BONNE[0];
+  cx.strokeStyle=s.canneEtat==='combat'&&s.canneTension>85?'#ff5a6a':'rgba(240,250,255,0.9)'; cx.lineWidth=2; cx.beginPath(); cx.moveTo(tipX,tipY);
+  if(tendue) cx.lineTo(fx,fy); else cx.quadraticCurveTo((tipX+fx)/2,Math.max(tipY,fy)+40,fx,fy);
+  cx.stroke();
+  // poissons du banc qui passent (attente)
+  if(s.canneEtat==='attente'||s.canneEtat==='morsure'){
+    cx.fillStyle='rgba(10,30,45,0.55)';
+    for(let i=0;i<5;i++){ const x=(i*170+T*(40+i*9))%(W+120)-60, y=140+i*32+Math.sin(T+i)*8; poissonCanvas(cx,x,y,22+i*3,1,'rgba(10,30,45,0.55)'); }
+  }
+  if(s.canneEtat==='attente'||s.canneEtat==='morsure'){
+    cx.fillStyle='#ffffff'; cx.beginPath(); cx.arc(fx,fy+6,9,0,Math.PI*2); cx.fill();
+    cx.fillStyle='#ff3b3b'; cx.beginPath(); cx.arc(fx,fy-2,9,Math.PI,0); cx.fill(); cx.fillRect(fx-2,fy-20,4,14);
+  }
+  if(s.canneEtat==='combat'&&po){
+    const taille=po.legende?110:(36+po.taille*26);
+    poissonCanvas(cx,fx,fy,taille,Math.cos(T*(s.rush?9:2.2))>0?1:-1,po.legende?'#22407a':'#'+po.coul.toString(16).padStart(6,'0'));
+  }
+  // textes et jauge
+  cx.textAlign='center'; cx.textBaseline='middle';
+  const gros=(txt,y,coul,taille)=>{ cx.font='900 '+(taille||44)+'px Arial'; cx.lineWidth=7; cx.strokeStyle='#000'; cx.strokeText(txt,W/2,y); cx.fillStyle=coul; cx.fillText(txt,W/2,y); };
+  if(s.canneEtat==='attente'){ gros('PATIENCE…',150,'#e8f6ff',38); gros('👆 tape dès que le bouchon plonge',215,'#9fd8ee',24); }
+  else if(s.canneEtat==='morsure'){ const sc=1+0.12*Math.sin(T*20); gros('FERRE !',165,'#ffd23f',Math.round(64*sc)); gros('👆 TAPE !',235,'#ffffff',30);
+    cx.strokeStyle='#ffd23f'; cx.lineWidth=10; cx.strokeRect(5,5,W-10,H-10); }
+  else if(s.canneEtat==='combat'&&po){
+    cx.font='900 20px Arial'; cx.fillStyle=po.legende?'#ffd23f':'#e8f6ff'; cx.textAlign='right'; cx.fillText((po.legende?'👑 ':'')+po.nom,W-16,92);
+    cx.textAlign='center';
+    if(s.rush){ gros('⚠ IL TIRE — LÂCHE !',125,'#ff5a6a',34); }
+    else gros((INPUT.btn.action||s.moulinetDoigt)?'🌀 MOULINE…':'👆 MAINTIENS POUR MOULINER',125,'#e8f6ff',26);
+    // progression : distance du poisson
+    cx.fillStyle='rgba(0,0,0,0.45)'; cx.fillRect(W-30,110,14,170); cx.fillStyle='#7dff7a'; const ph=170*s.canneProgres/100; cx.fillRect(W-30,280-ph,14,ph);
+    // tension : MOU | bonne zone | CASSE
+    const gx=40, gw=W-110, gy=292, gh=26;
+    cx.fillStyle='rgba(0,0,0,0.55)'; cx.fillRect(gx,gy,gw,gh);
+    const houleMalus=s.meteoEtat==='calme'?1:(s.meteoEtat==='houle'?0.72:0.55);
+    const centre=(CHALUTIER_TENSION_BONNE[0]+CHALUTIER_TENSION_BONNE[1])/2, dl=(po.tensionEtroite?16:30)/2*houleMalus;
+    cx.fillStyle='rgba(125,255,122,0.55)'; cx.fillRect(gx+gw*(centre-dl)/100,gy,gw*dl*2/100,gh);
+    cx.fillStyle='rgba(255,59,92,0.6)'; cx.fillRect(gx+gw*0.88,gy,gw*0.12,gh);
+    const nx=gx+gw*s.canneTension/100; cx.fillStyle='#ffd23f'; cx.fillRect(nx-4,gy-6,8,gh+12);
+    cx.font='900 13px Arial'; cx.fillStyle='#cfe6f2'; cx.textAlign='left'; cx.fillText('MOU',gx+4,gy-10); cx.textAlign='right'; cx.fillText('CASSE',gx+gw-2,gy-10);
+  } else if(s.pecheFinT>0&&s.pecheFin){
+    const m={prise:['PRISE !','#7dff7a'],pleine:['CALE PLEINE','#ffd23f'],casse:['CASSÉ !','#ff5a6a'],libere:['IL S’EST LIBÉRÉ','#ffb08a'],file:['TROP TARD','#ffb08a']}[s.pecheFin];
+    gros(m[0],180,m[1],56);
+  }
+}
+function poissonCanvas(cx,x,y,L,dir,coul){
+  cx.save(); cx.translate(x,y); cx.scale(dir,1); cx.fillStyle=coul;
+  cx.beginPath(); cx.ellipse(0,0,L*0.5,L*0.2,0,0,Math.PI*2); cx.fill();
+  cx.beginPath(); cx.moveTo(-L*0.45,0); cx.lineTo(-L*0.75,-L*0.18); cx.lineTo(-L*0.75,L*0.18); cx.fill();
+  cx.fillStyle='#fff'; cx.beginPath(); cx.arc(L*0.3,-L*0.04,Math.max(2,L*0.04),0,Math.PI*2); cx.fill();
+  cx.restore();
+}
+// le radar, dessiné à la place de la minimap pendant une sortie (192×192)
+function dessinerRadarChalutier(s,cx){
+  const C=96, ech=88/120, th=Math.PI-s.bateau.ang, co=Math.cos(th), sn=Math.sin(th), T=ETAT.runT;
+  const proj=(mx,mz,o)=>{ const dx=mx-s.bateau.x, dz=mz-s.bateau.z; o.x=C+(dx*co+dz*sn)*ech; o.z=C+(-dx*sn+dz*co)*ech; return o; };
+  cx.fillStyle=s.meteoEtat==='tempete'?'#080d12':'#04182a'; cx.fillRect(0,0,192,192);
+  // côte (terre ferme au sud du port)
+  proj(-400,CHALUTIER_COTE_Z+26,_chalP); const ax=_chalP.x, az=_chalP.z; proj(400,CHALUTIER_COTE_Z+26,_chalP); const bx=_chalP.x, bz=_chalP.z;
+  proj(400,600,_chalP); const cx2=_chalP.x, cz2=_chalP.z; proj(-400,600,_chalP);
+  cx.fillStyle='#3a4a32'; cx.beginPath(); cx.moveTo(ax,az); cx.lineTo(bx,bz); cx.lineTo(cx2,cz2); cx.lineTo(_chalP.x,_chalP.z); cx.fill();
+  // limites des zones, centrées sur le port
+  proj(0,0,_chalP); const px=_chalP.x, pz=_chalP.z;
+  cx.lineWidth=1.5; cx.setLineDash([4,4]);
+  cx.strokeStyle='rgba(255,210,63,0.45)'; cx.beginPath(); cx.arc(px,pz,CHALUTIER_ZONE1_MAX*ech,0,Math.PI*2); cx.stroke();
+  cx.strokeStyle='rgba(255,90,106,0.45)'; cx.beginPath(); cx.arc(px,pz,CHALUTIER_ZONE2_MAX*ech,0,Math.PI*2); cx.stroke();
+  cx.setLineDash([]);
+  // balayage
+  const ba=T*2.2; cx.fillStyle='rgba(53,224,255,0.10)'; cx.beginPath(); cx.moveTo(C,C); cx.arc(C,C,92,ba,ba+0.5); cx.fill();
+  // récifs
+  cx.fillStyle='#8a8f9a'; if(s.recifs) for(const rc of s.recifs){ proj(rc.x,rc.z,_chalP); cx.beginPath(); cx.arc(_chalP.x,_chalP.z,Math.max(2.5,rc.r*ech),0,Math.PI*2); cx.fill(); }
+  // bancs (au bord du cadran s'ils sont hors de portée)
+  for(const b of s.bancs){ if(b.stock<=0) continue; proj(b.x,b.z,_chalP);
+    let x=_chalP.x, z=_chalP.z; const dx=x-C, dz=z-C, d=Math.hypot(dx,dz), bord=d>86; if(bord){ x=C+dx/d*86; z=C+dz/d*86; }
+    const coul=b.type==='roi'?'#ffd23f':(b.type==='filet'?'#e8f6ff':'#7dff7a');
+    const r=bord?4:Math.max(4,b.r*ech)*(1+0.12*Math.sin(T*4+b.x));
+    cx.fillStyle=coul; cx.globalAlpha=bord?0.9:0.45; cx.beginPath(); cx.arc(x,z,r,0,Math.PI*2); cx.fill(); cx.globalAlpha=1;
+    cx.font='bold 11px Arial'; cx.textAlign='center'; cx.textBaseline='middle'; cx.fillText(b.type==='roi'?'👑':(b.type==='filet'?'✨':'🐟'),x,z);
+  }
+  // port
+  const ppx=clamp(px,8,184), ppz=clamp(pz,8,184); cx.font='bold 16px Arial'; cx.textAlign='center'; cx.textBaseline='middle'; cx.fillText('⚓',ppx,ppz);
+  // le bateau : proue vers le haut
+  cx.fillStyle='#ffffff'; cx.beginPath(); cx.moveTo(C,C-8); cx.lineTo(C+5,C+6); cx.lineTo(C-5,C+6); cx.fill();
+  // nom de la zone
+  const zn={1:'HAUTS-FONDS',2:'BANC DU LARGE',3:'LA FOSSE'}[chalutierZoneDe(Math.hypot(s.bateau.x,s.bateau.z))];
+  cx.font='900 13px Arial'; cx.fillStyle='rgba(0,0,0,0.6)'; cx.fillRect(0,172,192,20); cx.fillStyle='#9fe4ff'; cx.fillText(zn,C,182);
+  if(s.meteoEtat==='tempete'){ cx.strokeStyle='rgba(255,59,92,'+(0.5+0.4*Math.sin(T*6))+')'; cx.lineWidth=6; cx.strokeRect(3,3,186,186); }
 }
 /* =====================================================================
    SITE 51 — confinement (sas), tourelles, créature (dtJeu partout : tous
@@ -21629,135 +22157,8 @@ function majInterieur(dt,dtJeu){
       }
     }
   }
-  // ---- Chalutier « Sainte-Odile » : sortie en mer ----
-  if(s.barre){
-    chalutierVerifierVague(s);
-    // décor animé : mouettes, défilement de l'eau, ville qui s'estompe au loin (spectacle, dt)
-    for(const mo of s.mouettes){
-      mo.a+=dt*0.35; mo.ph+=dt*7;
-      mo.m.position.set(mo.cx+Math.sin(mo.a)*mo.r,6+Math.sin(mo.ph*0.2)*0.4,mo.cz+Math.cos(mo.a)*mo.r);
-      mo.m.rotation.y=mo.a+Math.PI/2;
-      mo.aG.rotation.z=Math.sin(mo.ph)*0.5; mo.aD.rotation.z=-Math.sin(mo.ph)*0.5;
-    }
-    const distPort=Math.hypot(s.bateau.x,s.bateau.z);
-    if(s.merMat&&s.merMat.map){
-      s.merMat.map.offset.x+=Math.sin(s.bateau.ang)*s.bateau.v*dt*0.01;
-      s.merMat.map.offset.y+=Math.cos(s.bateau.ang)*s.bateau.v*dt*0.01;
-    }
-    if(s.villeMesh){
-      const proche=clamp(1-distPort/CHALUTIER_DIST_MAX,0,1);
-      s.villeMesh.scale.setScalar(0.4+0.6*proche);
-      for(const c of s.villeMesh.children) c.material.opacity=proche;
-    }
-    if(s.sortieEnCours){
-      // chrono : 180 s maximum, au-delà le joueur rentre remorqué
-      s.chrono+=dtJeu;
-      if(s.chrono>=CHALUTIER_DUREE){
-        chalutierPerdreMoitieCale(s);
-        toast('Remorqué au port : la moitié de la cale est perdue.','warn'); SFX.refus();
-        s.bateau.x=0; s.bateau.z=0;
-        chalutierVendre(s);
-      } else {
-        // météo : se dégrade en continu, plus vite au large
-        const zoneActuelle=chalutierZoneDe(distPort);
-        s.meteoJauge=Math.min(100,s.meteoJauge+CHALUTIER_METEO_VIT[zoneActuelle]*dtJeu);
-        const meteoAvant=s.meteoEtat;
-        s.meteoEtat=s.meteoJauge>=CHALUTIER_METEO_TEMPETE?'tempete':(s.meteoJauge>=CHALUTIER_METEO_HOULE?'houle':'calme');
-        if(s.meteoEtat!==meteoAvant){
-          if(s.meteoEtat==='houle') toast('🌊 La houle se lève.','warn');
-          else if(s.meteoEtat==='tempete'){ bigMsg('⛈ TEMPÊTE'); toast('30 secondes pour rentrer ou la cale trinque.','warn'); secousse(3); }
-        }
-        if(s.meteoEtat==='tempete'){
-          s.tempeteT+=dtJeu;
-          if(s.tempeteT>=CHALUTIER_TEMPETE_DELAI&&!s.tempetePerteFaite){
-            s.tempetePerteFaite=true;
-            chalutierPerdreMoitieCale(s);
-            toast('La tempête arrache la moitié de la cale !','warn'); SFX.refus(); secousse(6); vibre(100);
-          }
-        }
-        // pilotage à la barre : joystick = cap direct, avec inertie — sur dtJeu,
-        // jamais dt. La distance parcourue est ce qui se joue contre le chrono
-        // (lui-même sur dtJeu) : un ralenti ne doit ni voler de terrain au
-        // retour ni en offrir à l'aller. Règle générale (voir CLAUDE.md) : un
-        // déplacement en course contre un chrono partage l'horloge du chrono,
-        // qu'il soit ou non un « compteur subi » au sens strict.
-        if(s.auxCommandes){
-          P.x=s.barre.x; P.z=s.barre.z;
-          const l=Math.hypot(INPUT.mx,INPUT.mz);
-          const chargeFrac=clamp(s.calePoids/CHALUTIER_CALE_MAX,0,1);
-          const meteoMalus=s.meteoEtat==='tempete'?0.55:(s.meteoEtat==='houle'?0.85:1);
-          const vitesseMax=CHALUTIER_VIT_BASE*(1-0.4*chargeFrac)*meteoMalus;
-          if(l>=0.15){
-            const cap=Math.atan2(INPUT.mx,INPUT.mz);
-            s.bateau.ang=angLerp(s.bateau.ang,cap,clamp(CHALUTIER_VIRAGE*dtJeu,0,1));
-            s.bateau.v=lerp(s.bateau.v,vitesseMax*Math.min(l,1),clamp(CHALUTIER_ACCEL*dtJeu,0,1));
-          } else s.bateau.v=lerp(s.bateau.v,0,clamp(CHALUTIER_DECEL*dtJeu,0,1));
-        } else s.bateau.v=lerp(s.bateau.v,0,clamp(CHALUTIER_DECEL*0.5*dtJeu,0,1));
-        s.bateau.x+=Math.sin(s.bateau.ang)*s.bateau.v*dtJeu;
-        s.bateau.z+=Math.cos(s.bateau.ang)*s.bateau.v*dtJeu;
-        const distApres=Math.hypot(s.bateau.x,s.bateau.z);
-        if(distApres>CHALUTIER_DIST_MAX){ const k=CHALUTIER_DIST_MAX/distApres; s.bateau.x*=k; s.bateau.z*=k; }
-        const zoneMaintenant=chalutierZoneDe(Math.hypot(s.bateau.x,s.bateau.z));
-        s.zoneMax=Math.max(s.zoneMax,zoneMaintenant);
-        if(!s.aQuitteLePort&&Math.hypot(s.bateau.x,s.bateau.z)>15) s.aQuitteLePort=true;
-        if(s.aQuitteLePort&&Math.hypot(s.bateau.x,s.bateau.z)<8){ chalutierVendre(s); }
-        else {
-          // canne à pêche : délai de morsure -> fenêtre de ferrage -> combat de tension
-          if(s.canneEtat==='attente'){
-            s.canneDelai-=dtJeu;
-            if(s.canneDelai<=0){ s.canneEtat='morsure'; s.canneFerrageT=CHALUTIER_FERRAGE_FENETRE;
-              beep(700,0.12,'square',0.2); vibre(50); secousse(1); }
-          } else if(s.canneEtat==='morsure'){
-            s.canneFerrageT-=dtJeu;
-            if(s.canneFerrageT<=0){ s.canneEtat=null; toast('Trop tard. Le poisson a filé.','warn'); }
-          } else if(s.canneEtat==='combat'){
-            const tenant=INPUT.btn.action;
-            s.canneTension=clamp(s.canneTension+(tenant?CHALUTIER_TENSION_RATE:-CHALUTIER_TENSION_RATE)*dtJeu,0,100);
-            const poisson=CHALUTIER_POISSONS[s.canneEspece];
-            // houle/tempête : plage utile plus étroite (canne plus difficile)
-            const houleMalus=s.meteoEtat==='calme'?1:(s.meteoEtat==='houle'?0.72:0.55);
-            const centre=(CHALUTIER_TENSION_BONNE[0]+CHALUTIER_TENSION_BONNE[1])/2;
-            const demiLarg=(poisson.tensionEtroite?16:30)/2*houleMalus;
-            if(s.canneTension<=0) chalutierEchecCombat(s,'libere');
-            else if(s.canneTension>=100) chalutierEchecCombat(s,'casse');
-            else {
-              if(Math.abs(s.canneTension-centre)<demiLarg) s.canneProgres+=CHALUTIER_COMBAT_VIT/poisson.combatDur*dtJeu;
-              if(s.canneProgres>=100) chalutierPrise(s,poisson);
-            }
-          }
-          // filet : charge tant qu'il traîne, risque de déchirure en zone rouge
-          if(s.filetEtat==='traine'){
-            const vitMult=s.meteoEtat==='houle'?1.5:(s.meteoEtat==='tempete'?2:1);
-            s.filetCharge=Math.min(100,s.filetCharge+CHALUTIER_FILET_VIT*vitMult*dtJeu);
-            if(s.filetCharge>=CHALUTIER_FILET_ZONE_ROUGE&&Math.random()<CHALUTIER_FILET_RISQUE*dtJeu){
-              s.filetEtat=null; s.filetCharge=0; if(s.filetMesh) s.filetMesh.visible=false;
-              toast('Le filet se déchire ! Tout est reparti à l’eau.','warn'); SFX.refus(); secousse(4);
-            }
-          }
-        }
-        if(s.tambour) s.tambour.rotation.x+=dt*(s.filetEtat==='traine'?2:0.3);
-        if(s.filetMesh&&s.filetMesh.visible) s.filetMesh.position.y=0.5+Math.sin(ETAT.runT*2)*0.1;
-      }
-    }
-    if(ETAT.mode!=='mort') chalutierAmbianceUpdate(s); // idem métro : jamais relancée sur l'écran de mort
-    if(s.sortieEnCours){
-      chalutierWrap.style.display='block';
-      const nomZone={1:'HAUTS-FONDS',2:'BANC DU LARGE',3:'LA FOSSE'}[chalutierZoneDe(distPort)];
-      const nomMeteo={calme:'☀ CALME',houle:'🌊 HOULE',tempete:'⛈ TEMPÊTE'}[s.meteoEtat];
-      chalLblEl.textContent='⚓ '+Math.max(0,Math.ceil(CHALUTIER_DUREE-s.chrono))+' s · '+nomZone;
-      chalMeteoEl.textContent=nomMeteo;
-      chalMeteoEl.style.color=s.meteoEtat==='tempete'?'#ff3b5c':(s.meteoEtat==='houle'?'#ffd23f':'#7dff7a');
-      chalCaleEl.style.width=Math.round(s.calePoids/CHALUTIER_CALE_MAX*100)+'%';
-      chalCaleTxtEl.textContent=Math.round(s.calePoids)+'/'+CHALUTIER_CALE_MAX+' kg · '+Math.round(s.caleValeur)+' $';
-      const cap=Math.atan2(-s.bateau.x,-s.bateau.z)-s.bateau.ang;
-      chalBoussoleEl.style.transform='rotate('+(cap*180/Math.PI)+'deg)';
-      if(s.canneEtat==='combat'){
-        chalTensionWrap.style.display='block';
-        chalTensionEl.style.left=Math.round(s.canneTension)+'%';
-        chalProgresEl.style.width=Math.round(s.canneProgres)+'%';
-      } else chalTensionWrap.style.display='none';
-    } else if(chalutierWrap.style.display!=='none') chalutierWrap.style.display='none';
-  }
+  // ---- Chalutier « Sainte-Odile » : sortie en mer (tout est dans chalutierMaj) ----
+  if(s.barre) chalutierMaj(s,dt,dtJeu);
   if(s.site51){
     site51VerifierVague(s);
     if(s.visiteEnCours){
@@ -24451,6 +24852,7 @@ function startRun(){
     if(sa.barre){
       if(sa.sortieEnCours) chalutierArreterSortie(sa);
       sa.sortiesVague=0; sa.chalutierVagueRef=-1;
+      sa.bilanT=0; sa.introT=0; chalBilanWrap.style.display='none'; chalIntroWrap.style.display='none';
     }
     // Site 51 : visite en cours annulée (butin perdu, sas rouverts), compteur
     // de vague à zéro. Ce qui survit : les objets déjà rapportés
@@ -24723,7 +25125,8 @@ function marquerZone(obj,r2){ if(obj) obj.r=Math.sqrt(r2); return r2; }
 // via le bouton d'action) et toitPasserelle (passerelle qui s'effondre toute
 // seule au 2e tour, autonome comme turrets/creature) rejoignent la même
 // exemption — voir majInterieur, pas majAction.
-const CHAMPS_DECOR_SALLE=new Set(['pnj','culturiste','plaque','gardiens','cameras','piles','dangers','bateau','turrets','creature','boucleHuile','toitPasserelle','danse','bagarreur','figurants']); // Club Néon : danse en cours (position figée du danseur) et fêtard bagarreur (un ennemi) ne sont pas des zones
+const CHAMPS_DECOR_SALLE=new Set(['pnj','culturiste','plaque','gardiens','cameras','piles','dangers','bateau','turrets','creature','boucleHuile','toitPasserelle','danse','bagarreur','figurants',
+  'canne','bout','bouchonPos','recifs','bancs']); // Chalutier V2 : poste de pêche (le joueur y est placé), pointe de la canne, bouchon, et récifs/bancs en coordonnées de MER (pas de la salle) // Club Néon : danse en cours (position figée du danseur) et fêtard bagarreur (un ennemi) ne sont pas des zones
 // Rejoue majAction() avec le joueur hors de portée de tout, pour que la
 // chaîne if/else-if s'évalue en entier (aucune branche ne « gagne » et
 // n'interrompt les suivantes) et que chaque marquerZone() de la salle
@@ -25497,75 +25900,18 @@ function majAction(){
         label='📻 LANCER L’ÉMISSION';
         fn=()=>{ radioDemarrerEmission(s); };
       }
-    /* ---------- CHALUTIER : la barre (largue les amarres / pilotage) ---------- */
+    /* ---------- CHALUTIER : en mer, un seul bouton contextuel (chalutierAction) ---------- */
+    } else if(s.barre&&s.sortieEnCours){
+      const ac=chalutierAction(s); label=ac.label; fn=ac.fn;
+    /* ---------- CHALUTIER : à quai, la barre largue les amarres ---------- */
     } else if(s.barre&&dist2(P.x,P.z,s.barre.x,s.barre.z)<marquerZone(s.barre,10)){
       chalutierVerifierVague(s);
-      if(!s.sortieEnCours){
-        if(s.sortiesVague>=CHALUTIER_SORTIES_MAX){
-          label='⚓ Deux sorties déjà faites cette vague';
-          fn=()=>{ SFX.refus(); toast('Le Sainte-Odile repart à la prochaine vague.'); };
-        } else {
-          label='⚓ LARGUER LES AMARRES';
-          fn=()=>{ chalutierDemarrerSortie(s); };
-        }
-      } else if(s.auxCommandes){
-        label='⚓ LÂCHER LA BARRE';
-        fn=()=>{ s.auxCommandes=false; };
+      if(s.sortiesVague>=CHALUTIER_SORTIES_MAX){
+        label='⚓ Deux sorties déjà faites cette vague';
+        fn=()=>{ SFX.refus(); toast('Le Sainte-Odile repart à la prochaine vague.'); };
       } else {
-        label='🧭 PRENDRE LA BARRE';
-        fn=()=>{ s.auxCommandes=true; P.x=s.barre.x; P.z=s.barre.z; };
-      }
-    /* ---------- CHALUTIER : la canne (précision) ---------- */
-    } else if(s.canne&&dist2(P.x,P.z,s.canne.x,s.canne.z)<marquerZone(s.canne,9)){
-      if(!s.sortieEnCours){
-        label='🎣 La canne attend le grand large';
-        fn=()=>{ SFX.refus(); };
-      } else if(s.canneEtat===null){
-        label='🎣 JETER LA LIGNE';
-        fn=()=>{ s.canneEtat='attente'; s.canneDelai=rand(CHALUTIER_MORSURE_DELAI[0],CHALUTIER_MORSURE_DELAI[1]); SFX.ui(); };
-      } else if(s.canneEtat==='attente'){
-        label='🎣 La ligne est à l’eau...';
-        fn=()=>{ SFX.refus(); };
-      } else if(s.canneEtat==='morsure'){
-        label='🎣 FERRE !';
-        fn=()=>{
-          s.canneEtat='combat'; s.canneTension=50; s.canneProgres=0;
-          s.canneEspece=chalutierTirerEspeceCanne(chalutierZoneDe(Math.hypot(s.bateau.x,s.bateau.z)));
-          SFX.etoile(); vibre(40);
-        };
-      } else {
-        label='🎣 TIENS BON — maintiens / relâche';
-        fn=()=>{};
-      }
-    /* ---------- CHALUTIER : le treuil du filet (volume) ---------- */
-    } else if(s.treuil&&dist2(P.x,P.z,s.treuil.x,s.treuil.z)<marquerZone(s.treuil,9)){
-      if(!s.sortieEnCours){
-        label='🕸️ Le treuil attend le grand large';
-        fn=()=>{ SFX.refus(); };
-      } else if(s.filetEtat===null){
-        label='🕸️ JETER LE FILET';
-        fn=()=>{ s.filetEtat='traine'; s.filetCharge=0; if(s.filetMesh) s.filetMesh.visible=true; SFX.ui(); };
-      } else {
-        label='🕸️ REMONTER LE FILET ('+Math.round(s.filetCharge)+' %)';
-        fn=()=>{ chalutierRemonterFilet(s); };
-      }
-    /* ---------- CHALUTIER : le billot (préparation, +40 % si précis) ---------- */
-    } else if(s.billot&&dist2(P.x,P.z,s.billot.x,s.billot.z)<marquerZone(s.billot,9)){
-      if(!s.sortieEnCours){
-        label='🔪 Le billot attend le grand large';
-        fn=()=>{ SFX.refus(); };
-      } else if(s.billotActif&&!s.billotActif.termine){
-        label='🔪 Découpe en cours...';
-        fn=()=>{};
-      } else {
-        const prochain=chalutierProchainAPreparer(s);
-        if(!prochain){
-          label='🔪 Rien à préparer pour l’instant';
-          fn=()=>{ SFX.refus(); };
-        } else {
-          label='🔪 PRÉPARER — '+prochain.nom;
-          fn=()=>{ chalutierDemarrerBillot(s,prochain); };
-        }
+        label='⚓ LARGUER LES AMARRES';
+        fn=()=>{ chalutierDemarrerSortie(s); };
       }
     /* ---------- SITE 51 : objets de valeur (banqués seulement à la sortie réussie) ---------- */
     } else if(s.objets51&&s.objets51.some(o=>!o.pris&&!META.site51Objets[o.id]&&dist2(P.x,P.z,o.x,o.z)<marquerZone(o,9))){
@@ -26060,7 +26406,8 @@ function majCamera(dt){
   const enChuteLibre=P.chute&&!P.para;
   const chuteAngF=enChuteLibre?clamp(P.chuteT/1.2,0,1):0;
   const grand=P.veh&&P.veh.def.long>20?clamp((P.veh.def.long-20)/40,0,1):0; // très grand navire (porte-conteneurs) : on prend du recul
-  const cibleH=(P.veh?52:42)+grand*55+enVol*0.75-tangageF*8-chuteAngF*24, cibleD=(P.veh?23:19)+grand*24+enVol*0.2+tangageF*6+chuteAngF*18;
+  const enMer=!!(INT.actif&&INT.actif.barre&&INT.actif.sortieEnCours); // chalutier : un peu plus de recul pour voir la mer devant la proue
+  const cibleH=(P.veh?52:42)+grand*55+enVol*0.75-tangageF*8-chuteAngF*24+(enMer?8:0), cibleD=(P.veh?23:19)+grand*24+enVol*0.2+tangageF*6+chuteAngF*18+(enMer?3:0);
   camH=lerp(camH,cibleH,2*dt); camD=lerp(camD,cibleD,2*dt);
   ETAT.shake=Math.max(0,ETAT.shake-30*dt);
   const sx=(Math.random()-0.5)*ETAT.shake*0.12, sz=(Math.random()-0.5)*ETAT.shake*0.12;
@@ -26078,7 +26425,8 @@ function majCamera(dt){
   const hSol0=P.veh?(P.veh.def.air?(P.veh.alt||0):(P.veh.h||0)):P.y;
   const hSol=P.veh&&P.veh.def.air?hSol0:hSol0+Math.max(0,hSol0-20)/3; // au-dessus de 20 u (sommets), la caméra suit vraiment la hauteur : plus de vue collée au joueur
   camera.position.set(P.x+sx,camH+hSol*0.75+chuteF*6,P.z+camD+sz+chuteF*14);
-  camera.lookAt(P.x+sx,hSol*0.75+chuteAngF*6,P.z-2+sz);
+  camera.lookAt(P.x+sx,hSol*0.75+chuteAngF*6,P.z-2+sz-(enMer?5:0));
+  if(INT.actif&&INT.actif.barre){ const m=INT.actif.meteoEtat; camera.rotation.z+=Math.sin(ETAT.runT*0.9)*(m==='tempete'?0.05:(m==='houle'?0.025:0.008)); } // chalutier : roulis selon la mer
   if((P.ivresse||0)>IVRESSE.pompette) camera.rotation.z+=Math.sin(ETAT.runT*1.1)*0.06*Math.min(1,(P.ivresse-IVRESSE.pompette)/50); // ivresse : l'image tangue
   camera.fov=lerp(camera.fov,58+chuteF*14,0.12); camera.updateProjectionMatrix();
 }
@@ -26172,6 +26520,7 @@ function posCarte(){
   return {x:P.x,z:P.z,dedans:false};
 }
 function majMinimap(){
+  if(INT.actif&&INT.actif.barre&&INT.actif.sortieEnCours){ dessinerRadarChalutier(INT.actif,mmCtx); return; } // chalutier en mer : le radar
   // Zoom au pincement (MINI.zoom, 1 = toute la ville) : fenêtre centrée sur
   // le joueur, bornée aux bords de la carte — même principe que mapVue().
   // Les points et badges gardent leur taille : seul le fond grossit.
