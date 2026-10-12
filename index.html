@@ -20152,6 +20152,7 @@ const AQUA_GRACE=0.22;                             // s de réaction accordées 
 const AQUA_VIT_MAX=0.9;                            // u/s : au-delà, il te voit bouger
 const AQUA_TOUCHE=1.9;                             // u : distance pour l'attraper
 const AQUA_FUITE=0.9;                              // s : saut d'un bassin à l'autre
+const AQUA_REGARD_ARRIVEE=1.0, AQUA_GRACE_ARRIVEE=0.4; // à l'atterrissage, il se retourne : 0,4 s pour s'arrêter
 // ---- interface : indicateur du regard, encre, carte d'intro ----
 function carteSalle(css){ const d=document.createElement('div');
   d.style.cssText='position:absolute;left:50%;transform:translate(-50%,-50%);width:min(330px,88vw);display:none;z-index:8;'+
@@ -20298,7 +20299,8 @@ function aquariumMaj(s,dt,dtJeu){
     s.aqGraceT-=dtJeu;
     if(s.aqGraceT<=0&&vit>AQUA_VIT_MAX){ aquaRepere(s); if(!s.aqActif) return; }
     else if(s.aqT<=0) aquaEtat(s,'dos');
-  } else if(s.aqEtat==='fuite'&&s.aqT<=0){ s.aqSaut=null; aquaPoserGaston(s,s.aqCuve); aquaEtat(s,'dos'); }
+  } else if(s.aqEtat==='fuite'&&s.aqT<=0){ // il atterrit et se retourne aussitôt : qui court encore prend l'encre
+    s.aqSaut=null; aquaPoserGaston(s,s.aqCuve); aquaEtat(s,'regarde'); s.aqT=AQUA_REGARD_ARRIVEE; s.aqGraceT=AQUA_GRACE_ARRIVEE; }
   // ---- l'attraper : au contact, jamais quand il regarde ----
   if(s.aqEtat==='dos'||s.aqEtat==='alerte'){
     const p=s.perchoirs[s.aqCuve];
@@ -20861,7 +20863,7 @@ function chalutierPreparerBancs(s){
     const pl=CHALUTIER_BANCS_PLAN[i], dd=CHALUTIER_BANC_DIST[pl.zone], r=CHALUTIER_BANC_R[pl.type];
     let x=0,z=-dd[0];
     for(let essai=0;essai<40;essai++){
-      const a=rand(-1.25,1.25), d=rand(dd[0],dd[1]);
+      const a=rand(-1.1,1.1), d=rand(dd[0],dd[1]); // ±1,1 rad : toujours à 10 u au moins côté large, jamais contre la côte
       x=Math.sin(a)*d; z=-Math.cos(a)*d;
       let ok=true;
       for(const b of s.bancs) if(Math.hypot(b.x-x,b.z-z)<b.r+r+12){ ok=false; break; }

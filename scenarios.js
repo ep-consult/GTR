@@ -9158,13 +9158,13 @@ async function main() {
           sortirInterieur(); return res;
         };
         const malins = []; for (let i = 0; i < 4; i++) malins.push(partie(true));
-        const naif = partie(false);
+        const naifs = [partie(false), partie(false), partie(false)];
         if (malins.some((m) => m.bloque)) ko.push('un perchoir de Gaston est inatteignable à pied');
         const gagnes = malins.filter((m) => m.gagne).length;
         if (gagnes < 3) ko.push('le pilote qui s’arrête quand Gaston regarde ne gagne que ' + gagnes + '/4 (' + JSON.stringify(malins) + ')');
         else info.push('pilote malin : ' + gagnes + '/4 (' + malins.map((m) => m.t + ' s, ' + m.taches + ' encre').join(' ; ') + ')');
-        if (naif.gagne) ko.push('un joueur qui ne s’arrête jamais gagne quand même');
-        else info.push('pilote qui fonce sans s’arrêter : perdu');
+        if (naifs.some((n) => n.gagne)) ko.push('un joueur qui ne s’arrête jamais gagne quand même (' + JSON.stringify(naifs) + ')');
+        else info.push('pilote qui fonce sans s’arrêter : perdu 3/3');
         // 8) récompense une fois par vague, Perle Noire la première fois ; remises à zéro
         s = entrer(); s.gastonTrouve = true; s.gastonVague = WAVES.n; P.x = s.gardien.x; P.z = s.gardien.z;
         if (!/sieste/.test(appuyer()) || s.aqActif) ko.push('une 2e chasse réussie est possible dans la même vague');

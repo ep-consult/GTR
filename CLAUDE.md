@@ -716,7 +716,10 @@ puis refonte en profondeur de la pire à la meilleure, une salle par commit.
   jet d'encre (`aquaEncreEl`), il saute sur un autre bassin. Le toucher
   (`AQUA_TOUCHE`, jamais quand il regarde) `AQUA_MANCHES` = 5 fois,
   fenêtres de plus en plus courtes, fausses alertes (`AQUA_FEINTE`). Échec :
-  3 encres ou 75 s. Tout sur dtJeu.
+  3 encres ou 75 s. Tout sur dtJeu. **À chaque atterrissage, il se retourne
+  aussitôt** (`AQUA_REGARD_ARRIVEE`, grâce `AQUA_GRACE_ARRIVEE`) : sans ça, un
+  joueur qui fonçait sans jamais s'arrêter gagnait quand les perchoirs tirés
+  étaient proches (trouvé par `scenarios.js`, tirage libre).
 - Lancée auprès du **gardien** (`s.gardien`, seule zone d'action). Pendant la
   partie, le bouton d'action s'efface et les boutons de combat sont masqués :
   tout se joue au joystick. Indicateur du regard `aquaWrap` (en haut, écrit au

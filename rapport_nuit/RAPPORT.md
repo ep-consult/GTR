@@ -1361,6 +1361,8 @@ Viendraient ensuite : bowling, banque (mini-jeu du coffre), commissariat, puis l
 2. Le joystick qui « dérape » au lâcher (une petite vitesse résiduelle) ne doit pas déclencher d'encre ; le seuil est à 0,9 u/s.
 3. L'indicateur en haut ne gêne-t-il pas le score ou les messages ?
 
+**Correctif après coup** (trouvé par la suite en tirage libre) : un joueur qui fonçait sans jamais s'arrêter pouvait gagner quand les bassins tirés étaient proches. Désormais Gaston **se retourne dès qu'il atterrit** sur un nouveau bassin, comme au vrai « 1, 2, 3, soleil » : on a 0,4 s pour s'arrêter, et celui qui court prend l'encre à chaque manche. Le test lance trois de ces joueurs, qui perdent tous. Dans le même commit, les bancs du chalutier sont tirés un peu plus au large (jamais contre la côte).
+
 **Reste à améliorer** : Gaston qui change de bassin en douce quand on approche par le côté (une variante pour la 5e manche) ; des visiteurs qui crient « là ! » quand il saute.
 
 ### Refonte 3 — Laverie « Bulle Bleue » (commit `LAV_HASH`)
