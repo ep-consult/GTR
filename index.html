@@ -12968,6 +12968,7 @@ const TRAFIC_ABANDON=3;        // s de blocage en plein dépassement avant d'y r
 const TRAFIC_DEMI_CHAUSSEE=ROADW*0.5-0.3;
 const TRAFIC_CROISE=15;         // portée de la priorité au carrefour (côté de l'autre)
 const TRAFIC_PATIENCE=8;       // s d'arrêt avant recyclage d'un véhicule hors écran
+const TRAFIC_ESSAIS=6;         // essais d'apparition par seconde (×2 sous la moitié du plafond)
 let TRAFIC_UID=0;              // ordre d'apparition : départage les égalités au carrefour
 // Point hors de l'écran (projection par la vraie caméra, avec une marge
 // pour la carrosserie qui dépasse du point projeté).
@@ -13395,7 +13396,12 @@ function majGyroAmbre(v,dt){
 }
 function majVehicules(dt){
   let nT=0; for(let i=0;i<vehicules.length;i++){const v2=vehicules[i];if(v2.conduit==='trafic'&&!v2.mort)nT++;}
-  if(nT<q().trafic&&Math.random()<dt*2.2) creerTrafic();
+  // 8e lot (signalé : « presque plus de voitures dans les rues ») : mesuré, à
+  // 2,2 essais/s (dont beaucoup rejetés : façade, voisin trop proche, sable)
+  // la ville plafonnait à ~19 voitures pour 36 permises, ~8 à moins de 60 u,
+  // et repartait de zéro à chaque partie. Essais plus fréquents, et deux fois
+  // plus tant que la ville est à moitié vide (début de partie).
+  if(nT<q().trafic&&Math.random()<dt*(nT<q().trafic*0.5?TRAFIC_ESSAIS*2:TRAFIC_ESSAIS)) creerTrafic();
   for(const v of vehicules){
     if(v.mort||v.epave) continue;
     if(v.noye){ majNoyade(v,dt); continue; }

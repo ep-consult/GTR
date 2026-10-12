@@ -8719,6 +8719,34 @@ async function main() {
       else ok('Sauter d\'un bateau : ' + r.vus.length + ' bateaux (' + r.vus.join(', ') + '), lancés ou en plein saut : nageur hors de la coque, bateau arrêté, on s\'éloigne à la nage');
     }
 
+    // -------------------------------------------------------------------
+    // 8e lot, n° 5 (signalé : « presque plus de voitures dans les rues ») :
+    // à 2,2 essais/s, la ville plafonnait à ~19 voitures pour 36 permises.
+    // 60 s simulées au centre (majVehicules réel, caméra réelle) : la ville
+    // approche son plafond (q().trafic, lu dans le jeu), sans aucun choc.
+    // -------------------------------------------------------------------
+    console.log('\n--- Circulation : densité du trafic au centre-ville, sans chocs ---');
+    {
+      const r = await page.evaluate(() => {
+        if (P.veh) sortirVehicule(true);
+        startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6; WANTED.heat = 0; WANTED.stars = 0;
+        for (const e of ennemis) e.mort = true;
+        P.x = POIS.place.x; P.z = POIS.place.z + 8; P.y = solPied(P.x, P.z);
+        let chocs = 0; const ab = abimerVehicule; abimerVehicule = function (v, ...a) { if (v && v.conduit === 'trafic') chocs++; return ab.call(this, v, ...a); };
+        const n = [], pres = [];
+        try {
+          for (let i = 0; i < 30 * 60; i++) {
+            majVehicules(1 / 30); for (let j = 0; j < 4; j++) majCamera(1 / 120);
+            if (i > 30 * 20 && i % 30 === 0) { let a = 0, b = 0; for (const v of vehicules) if (v.conduit === 'trafic' && !v.mort) { a++; if (Math.hypot(v.x - P.x, v.z - P.z) < 60) b++; } n.push(a); pres.push(b); }
+          }
+        } finally { abimerVehicule = ab; }
+        const moy = (t) => t.reduce((s, x) => s + x, 0) / t.length;
+        return { cap: q().trafic, moy: +moy(n).toFixed(1), pres: +moy(pres).toFixed(1), chocs };
+      });
+      if (!(r.moy >= r.cap * 0.75) || !(r.pres >= 10) || r.chocs) fail('Circulation : ' + JSON.stringify(r));
+      else ok('Circulation : ' + r.moy + ' voitures en ville en moyenne (plafond ' + r.cap + '), ' + r.pres + ' à moins de 60 u du joueur, 0 choc');
+    }
+
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');
     {
       const srcIdx = fs.readFileSync(INDEX_HTML, 'utf8');
