@@ -1099,3 +1099,36 @@ Captures (`captures/lot9/`) :
 2. Sauter en parachute ou en wingsuit de la ville vers l'aéroport, par-dessus le mur.
 3. Club : boire jusqu'à être ivre (marche, caméra), danser (le rythme est-il tenable au doigt ?), attendre une bagarre, sortir le pistolet.
 4. Visiter banque, aquarium, arcade : les figurants doivent rester crédibles et ne pas gêner les activités.
+
+---
+
+## 10e lot — kiosque de la banderole, figures sur deux roues (12 octobre)
+
+| Retour | Ce qui a été fait | Commit |
+|---|---|---|
+| Le kiosque où l'on écrit la banderole est sous une maison | Sa place fixe (près de la jetée) tombait dans une maison de plage **sur pilotis**. La vérification d'obstacle, faite à hauteur du sol, passait sous le plancher de la maison et ne la voyait pas. Le kiosque prend maintenant la place libre la plus proche sur le sable, jamais dans l'axe de la jetée. Un test vérifie qu'aucune construction n'est dans son emprise et que son bouton est accessible ; il échoue sur l'ancienne version. | `2a053f4` |
+| 360 et backflip en moto cross et à vélo, comme au wakeboard | En l'air, **ESQUIVE devient 360** et **GRENADE devient BACKFLIP**. Le bouton change d'étiquette dès qu'on décolle, et les deux figures se combinent (BACKFLIP 360). Le véhicule tourne en entier avec son pilote. Comme au wakeboard, **une figure pas finie à la réception, c'est la chute** : on est éjecté, avec quelques dégâts. Une figure réussie rapporte des points (360 : 150, backflip : 250, combo ×1,5, multiplié par le combo en cours), qui **comptent aussi au défi supercross**. Valable pour la moto cross, la moto militaire (une cross), le vélo et le BMX. Il faut un vrai saut : un bunny hop est trop court pour un 360. | `4cf44d9` |
+
+**Réglages :**
+- 360 : 0,62 s en moto, 0,5 s à vélo ;
+- backflip : 0,78 s en moto, 0,62 s à vélo ;
+- un grand saut de tremplin (environ 1,4 s en l'air) permet le combo.
+
+Captures (`captures/lot10/`) :
+- `kiosque_avant.png`, `kiosque_apres.png`
+- `moto_backflip.png`, `bmx_360.png`, `moto_combo.png`
+
+### Vérifications
+
+- `node scenarios.js` : **691 vérifications, toutes au vert, aucune sautée**, avec la graine par défaut et avec la graine aléatoire 2823685321.
+- `node valider.js` : vert. Portes de la ville inchangées.
+- Deux tests ajoutés :
+  - **Kiosque de la banderole** : il échoue sur l'ancienne version (maison sur pilotis dans l'emprise).
+  - **Figures deux roues** : grand saut réussi, petit saut qui fait chuter et aucune figure au sol, sur les quatre véhicules, plus les points comptés au défi supercross.
+- En route, un commentaire placé au milieu d'une ligne avait désactivé la boucle de recherche de place du kiosque, sans erreur visible. Trouvé, corrigé, et le motif de détection a été ajouté à la vérification du diff.
+
+### À tester sur iPhone
+
+1. Le kiosque près de la jetée : bien dégagé, bouton accessible.
+2. Sur les tables du supercross en moto cross : 360, backflip, puis les deux ; vérifier qu'une figure lancée trop tard fait chuter.
+3. En BMX au skatepark (tremplins face à face) : un 360 doit passer, pas sur un simple bunny hop.
