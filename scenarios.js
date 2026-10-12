@@ -8901,6 +8901,43 @@ async function main() {
       else ok('Défis : ' + r.info.join(', ') + ' ; à récupérer (jamais payé seul), pastille, récupération unique, palier suivant débloqué, ×2 seulement avec une pub, survit au rechargement');
     }
 
+    // -------------------------------------------------------------------
+    // 9e lot, n° 1 (signalé : « le 4x4 amphibie se noie en arrivant dans la
+    // mer, comme les autres véhicules »). De la plage vers le large au
+    // joystick réel (controleDir), puis retour sur le sable ; saut dans l'eau.
+    // -------------------------------------------------------------------
+    console.log('\n--- 4x4 amphibie : il entre dans la mer, y navigue et en ressort ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (P.veh) sortirVehicule(true);
+        startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
+        for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0;
+        // un bout de plage dégagé (ni ponton ni île devant)
+        let X = null; for (let x = -200; x < 250 && X === null; x += 10) { let libre = true; for (const p of PONTONS) if (Math.abs(x - p.x) < p.hw + 14 && Math.abs(MER - p.z) < p.hd + 40) libre = false; for (const il of ILES) if (dist2(x, MER, il.x, il.z) < (il.r + 30) ** 2) libre = false; if (libre && estEau(x, MER + 6) && !estEau(x, MER - 12) && !solidAt(x, MER - 12, 3)) X = x; }
+        if (X === null) return { ko: ['aucune plage dégagée'] };
+        const v = creerVehicule('amphibie', X, MER - 12, 0, null); v.h = solY(v.x, v.z); P.x = v.x; P.z = v.z; entrerVehicule(v);
+        const conduire = (mz, n) => { for (let i = 0; i < n && P.veh === v; i++) { INPUT.mx = 0; INPUT.mz = mz; const c = controleDir(v, false); majVehiculePhys(v, 1 / 30, c.throttle, c.steer, false); majVehicules(1 / 30); } INPUT.mz = 0; };
+        conduire(1, 30 * 6);
+        if (v.noye || P.veh !== v) ko.push('noyé en entrant dans la mer (z ' + v.z.toFixed(1) + ')');
+        else if (!estEau(v.x, v.z) || !(v.z > MER + 15)) ko.push('pas au large : z ' + v.z.toFixed(1));
+        else info.push('au large à ' + (v.z - MER).toFixed(0) + ' u du rivage');
+        conduire(-1, 30 * 10);
+        if (v.noye || P.veh !== v || estEau(v.x, v.z)) ko.push('ne ressort pas sur le sable (z ' + v.z.toFixed(1) + ', noyé ' + !!v.noye + ')');
+        else info.push('ressorti sur la plage');
+        // saut qui finit dans l'eau : il flotte
+        if (!v.noye) { v.x = X; v.z = MER + 20; v.h = 4; v.enAir = true; v.vy = -2; v.v = 10; for (let i = 0; i < 60; i++) majVehiculePhys(v, 1 / 30, 0, 0, false); if (v.noye) ko.push('noyé à l\'amerrissage d\'un saut'); }
+        // un 4x4 ordinaire se noie toujours
+        const j = creerVehicule('jeep', X + 6, MER - 12, 0, null); j.h = solY(j.x, j.z); sortirVehicule(true); P.x = j.x; P.z = j.z; entrerVehicule(j);
+        for (let i = 0; i < 30 * 6 && !j.noye; i++) { INPUT.mz = 1; const c = controleDir(j, false); majVehiculePhys(j, 1 / 30, c.throttle, c.steer, false); } INPUT.mz = 0;
+        if (!j.noye) ko.push('le 4x4 ordinaire ne se noie plus');
+        if (P.veh) sortirVehicule(true);
+        return { ko, info };
+      });
+      if (r.ko.length) fail('4x4 amphibie : ' + r.ko.join(' | '));
+      else ok('4x4 amphibie : ' + r.info.join(', ') + ', flotte après un saut ; le 4x4 ordinaire se noie toujours');
+    }
+
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');
     {
       const srcIdx = fs.readFileSync(INDEX_HTML, 'utf8');

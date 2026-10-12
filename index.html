@@ -11700,7 +11700,7 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
   const paroi=DECOR_V2&&!eau&&!d.air&&!v.enAir&&dansReliefLibre(fx,fz)&&!(MONT.presDuSentier&&MONT.presDuSentier(fx,fz,7))&&paroiDevant(v,d,fx,fz,dt,dansParcStunt(fx,fz)?PENTE_PARC_STUNT:penteMaxVeh(d)); // pente maximale du véhicule (penteMaxVeh), montée sèche comprise ; tables du parc stunt : rampes aménagées // sur le sentier : on manœuvre dans les épingles
   const versPlage=eau&&!!d.eau&&!grosNavire(d)&&(v.conduit==='joueur'||!v.conduit)&&!estEau(nx,nz)&&solY(nx,nz)<0.6&&!solidAt(fx,fz,0.5); // sable : le bateau s'y échoue en douceur
   const auPasVersTerre=echoue&&Math.abs(v.v)<=2.2&&!eauDevant(v,Math.sign(v.v||1)); // échoué, au pas : seulement vers l'eau (jamais traverser la plage)
-  const heurte=eau?((!estEau(nx,nz)&&!versPlage)||auPasVersTerre):(!!sFront||paroi||((v.h||0)<0.7&&estEau(fx,fz)&&!VEH_IA_NOYABLES&&!!v.conduit&&v.conduit!=='joueur')); // VEH_IA_NOYABLES : police, trafic et autres IA entrent aussi dans l'eau et s'y noient
+  const heurte=eau?((!estEau(nx,nz)&&!versPlage&&!(d.amphibie&&!solidAt(fx,fz,d.larg*0.35)))||auPasVersTerre):(!!sFront||paroi||((v.h||0)<0.7&&estEau(fx,fz)&&!VEH_IA_NOYABLES&&!!v.conduit&&v.conduit!=='joueur')); // VEH_IA_NOYABLES : police, trafic et autres IA entrent aussi dans l'eau et s'y noient
   if(heurte&&paroi&&!sFront){ // paroi de relief : on glisse le long (composante montante retirée), sans casse — on peut toujours tourner et repartir
     let gx=solY(fx+0.6,fz)-solY(fx-0.6,fz), gz=solY(fx,fz+0.6)-solY(fx,fz-0.6); const gl=Math.hypot(gx,gz)||1; gx/=gl; gz/=gl;
     const mx=nx-v.x, mz=nz-v.z, mg=mx*gx+mz*gz, tx=mx-Math.max(0,mg)*gx, tz=mz-Math.max(0,mg)*gz;
@@ -11728,7 +11728,7 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
     // En mer, jamais à l'ouest de la ligne du mur (jetée).
     v.x=clamp(v.x,eau?LIMITE_OUEST_MER:-HALF-12,eau?(DECOR_V2?LIMITE_EST_MER:HALF+60):(DECOR_V2?LIMITE_EST:HALF+158)); v.z=clamp(v.z,-HALF-12,zMax); // DECOR_V2 : tout le désert jusqu'à la paroi est, et la mer jusqu'au large de la crique
   }
-  if(!eau&&!d.air&&!v.horsVille&&(v.h||0)<0.7&&estEau(v.x,v.z)){ noyerVehicule(v); return; } // véhicule terrestre à l'eau
+  if(!eau&&!d.air&&!d.amphibie&&!v.horsVille&&(v.h||0)<0.7&&estEau(v.x,v.z)){ noyerVehicule(v); return; } // véhicule terrestre à l'eau (9e lot : jamais l'amphibie — « eau » est calculé AVANT le déplacement, il se noyait en entrant dans la mer)
   // === RELIEF : montées, descentes et sauts ===
   if(!eau&&!d.air){
     const gY=solY(v.x,v.z);
@@ -11742,7 +11742,7 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
       if(d.type!=='moto') v.mesh.rotation.z=clamp((v.mesh.rotation.z||0)+steer*dt*2.6,-0.7,0.7);
       if(v.h<=gY){
         v.h=gY; v.enAir=false;
-        if(estEau(v.x,v.z)){ noyerVehicule(v); return; } // amerrissage : noyé, jamais d'explosion (avant : 80 de dégâts, une moto sautait)
+        if(estEau(v.x,v.z)){ if(!d.amphibie){ noyerVehicule(v); return; } if(MER_V2) eclaboussure(v.x,v.z,1.8); } // amerrissage : noyé, jamais d'explosion (avant : 80 de dégâts, une moto sautait) ; l'amphibie flotte
         else {
           // ligne Rampage (DECOR_V2) : réceptions prévues pour sauter de mesa en mesa — seule une
           // chute bien plus haute qu'un gap fait des dégâts (sinon 5 sauts = véhicule détruit)
