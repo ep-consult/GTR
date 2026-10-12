@@ -1045,3 +1045,57 @@ Captures (`captures/lot8/`) :
 7. Montée sèche en moto cross (passe), en quad (bloqué au mur) ; longer une paroi de mesa de biais ; monter la rampe d'accès des mesas en moto de route.
 8. Course du mont : 90 s suffisent-elles à un humain ?
 9. Défis : la pastille sur pause, l'écran Défis, RÉCUPÉRER, puis le palier suivant.
+
+---
+
+## 9e lot — amphibie, mur de l'aéroport, salles vivantes (12 octobre)
+
+| Retour | Ce qui a été fait | Commit |
+|---|---|---|
+| 4x4 amphibie qui se noie en arrivant dans la mer | Le jeu testait « est-il sur l'eau ? » **avant** de le déplacer : à l'image où il entrait dans la mer, il était encore « à terre », donc noyé. L'amphibie est exempté, à l'entrée dans l'eau comme à l'amerrissage d'un saut. Une fois à l'eau, il ne pouvait plus en ressortir : la plage comptait comme un mur, comme pour un bateau. Il ressort maintenant sur ses roues. Les autres véhicules se noient toujours. | `0d9754c` |
+| Mur ville / aéroport infranchissable en chute libre ou sous voile | **Choix : le mur est gardé.** Il guide les véhicules vers le portail et délimite l'aéroport. En revanche, tout ce qui est **en l'air au-dessus** d'un mur ou d'un obstacle passe désormais : chute libre, voile, wingsuit, jetpack. Avant, n'importe quel obstacle arrêtait un parachutiste, même à 30 m. À pied au sol, il bloque toujours. L'entrée est maintenant matérialisée : deux pylônes balisés jaune et noir, une grande enseigne AÉROPORT, un marquage peint sur le tarmac. Une arche au-dessus de la route a été essayée puis retirée : trop proche de la caméra, elle cachait le joueur. | `0e21136` |
+| Disco plus attrayante : bagarre, alcool, danse | **Club Néon refait.** Détail ci-dessous. | `e3dccb2` |
+| Rendre chaque endroit plus vivant | **63 figurants dans 19 lieux.** Supérette, banque, commissariat, tour, pharmacie, armurerie, concession, laverie, voyante, karaoké, aquarium, bowling, salle de sport, serre, sandwicherie, musée, arcade, cinéma, garage. Ils flânent d'un point à un autre sans jamais traverser un meuble, et lâchent de temps en temps une réplique du lieu (« STRIKE ! », « Mon prêt, refusé ?! », « Regarde, un requin ! »). Ils s'écartent quand tu les frôles et se mettent à couvert, accroupis, si tu te bats ou tu tires. | `a24248f` |
+
+### Club Néon
+
+- **Cocktails (25 $)**, au bar. Ils soignent un peu et font monter une **jauge d'ivresse** (🍸 dans le HUD), qui redescend seule en environ 1 min 20. Les effets sont à court terme :
+  - **pompette** (dès 30 %) : coups +20 % (« courage liquide »), l'image tangue ;
+  - **ivre** (dès 60 %) : la marche dérive, le tir s'égare, on perd le rythme sur la piste ;
+  - **le verre de trop** (100 %) : trou noir. On se réveille dehors, -25 % de vie, jusqu'à 60 $ en moins.
+  - Tout est remis à zéro à chaque partie.
+- **Piste de danse** : DANSER, puis frapper chaque temps au rythme : 16 temps, 118 BPM, un anneau qui pulse.
+  - Un temps raté, un appui en trop ou à contretemps compte comme une faute.
+  - 12 temps nets ou plus : le public paie un pourboire (jusqu'à 160 $), **une fois par vague**.
+  - Taper au hasard échoue (vérifié).
+- **Bagarres** : de temps en temps, un fêtard éméché cherche la bagarre (« Hé ! Tu m'as renversé mon verre ! »), plus souvent si tu as bu. Ça se règle à mains nues. Une fois ton adversaire KO, le videur l'évacue et le patron t'offre un verre.
+- **Videur** : sortir une arme à feu dans le club, c'est être jeté dehors (et un peu d'attention de la police).
+- **Ambiance** : salle pleine (12 danseurs, clients au bar et sur les banquettes), DJ qui mixe, boule à facettes, lasers.
+
+Captures (`captures/lot9/`) :
+- `amphibie_mer.png`
+- `portail_aeroport.png`
+- `club_salle.png`, `club_danse.png`
+- `vie_banque.png`, `vie_aquarium.png`, `vie_arcade.png`
+
+### Vérifications
+
+- `node scenarios.js` : **689 vérifications, toutes au vert, aucune sautée**, avec la graine par défaut et avec la graine aléatoire 2909113354.
+- `node valider.js` : vert. Portes de la ville inchangées.
+- Quatre tests ajoutés :
+  - **4x4 amphibie** : de la plage au large et retour, saut dans l'eau ; un 4x4 ordinaire se noie toujours.
+  - **Mur de l'aéroport** : franchi sous voile et en chute libre, bloquant à pied. Le test échoue sur l'ancien code, comme il se doit.
+  - **Club Néon** : ivresse et malaise, danse parfaite payée une seule fois par vague, rafales d'appuis ratées, bagarre, videur, remise à zéro.
+  - **Vie des salles** : les 19 lieux, jamais dans un meuble, panique.
+
+### Non fait / à décider
+
+- **Les autres salles « anciennes »** n'ont pour l'instant que la couche de figurants vivants, pas de nouvelles activités. Le club sert de modèle (boisson, mini-jeu perdable payé une fois par vague, incident). Dis-moi lesquelles traiter en priorité : karaoké, bowling, casino, arcade… et je leur applique le même traitement.
+- **Pas de musique propre au club** : l'audio reste celui du jeu.
+
+### À tester sur iPhone
+
+1. Amphibie : du port (rampe de mise à l'eau) vers le large, puis retour sur la plage.
+2. Sauter en parachute ou en wingsuit de la ville vers l'aéroport, par-dessus le mur.
+3. Club : boire jusqu'à être ivre (marche, caméra), danser (le rythme est-il tenable au doigt ?), attendre une bagarre, sortir le pistolet.
+4. Visiter banque, aquarium, arcade : les figurants doivent rester crédibles et ne pas gêner les activités.
