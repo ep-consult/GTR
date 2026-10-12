@@ -960,3 +960,88 @@ Captures : `buggy_secours.png`, `mesas_variees.png`, `traces_sable.png`, `jeep_f
 4. Wingsuit depuis le Pic, puis VOILE.
 5. Une course de taxi, une ambulance (CHOC au bon moment), un incendie.
 6. 6 étoiles hors de la ville : l'armée doit arriver.
+
+---
+
+## 8e lot — retours de playtest (12 octobre)
+
+Les 12 points sont traités, chacun dans son commit, sauf les points 9 à 12 (défis) : ils forment un seul mécanisme et partagent donc un commit. Le correctif de l'hélico a demandé un second commit.
+
+### Bugs
+
+| Retour | Ce qui a été fait | Commit |
+|---|---|---|
+| 1. Garage / Monster Truck : améliorations payées, véhicule identique | En simulation et au vrai bouton, les achats s'appliquaient bien : moteur, vitesse, nitro, peinture, néons et pièces. Le rendu le confirme (`garage_monstertruck_ameliore.png` contre `..._origine.png`). Le vrai problème : un palier ne changeait presque rien (+6 % de vitesse au 1er). Paliers renforcés : moteur +22 / 45 / 70 %, vitesse +10 / 20 / 32 %, tenue +15 / 30 / 45 %. Le menu affiche le gain de chaque palier. À la sortie, un récapitulatif (« Monster Truck : moteur 1 · vitesse 1 · nitro · 1 pièce ») confirme ce qui est posé. | `dc8ef02` |
+| 2. Hélicoptère du yacht qui explose toujours | **Deux causes.** (a) L'hélico est créé déjà posé, sans vitesse verticale : le régime moteur valait NaN, le son levait une exception, et le jeu faisait sauter le joueur en parachute en **détruisant l'hélico**. Invisible dans les tests sans le son ; c'était l'explosion « toujours ». (b) Tenir DESCENDRE pour se poser arrivait à -13 u/s au contact, au-delà du seuil de crash : tout posé explosait. Désormais : effet de sol, DESCENDRE tenu pose en douceur ; au-dessus de l'eau, l'hélico reste au ras des vagues (avant, raté le pont = explosion). | `c8cc0cb`, `a16a1ad` |
+| 3. Gros yacht qui ne se conduit pas | Le yacht amarré (décor) devient le **Méga-yacht « Reyes Royale »**, même modèle. On monte à la barre depuis son pont. Il navigue lentement (16 u/s) et emporte son hélico sur l'héliport. Dès qu'on lâche la barre, il s'arrête et son pont se parcourt à pied, où qu'il soit ; l'hélico peut redécoller et s'y reposer. | `3d317bb` |
+| 4. Joueur collé au bateau après un saut | Le nageur était posé à 2,4 u du centre, donc *dans* la coque des grands bateaux, et le bateau lâché filait encore ~20 u sur sa lancée. Désormais on plonge franchement hors de la coque, du côté libre (sinon l'autre, sinon l'arrière). Un bateau lâché en plein saut retombe à l'eau et s'arrête vite. Testé sur les 8 bateaux, lancés ou en l'air. | `39088a7` |
+| 5. Presque plus de voitures | Mesuré : la ville plafonnait à ~19 voitures pour 36 permises, ~8 autour du joueur, et partait de zéro à chaque partie. Pas une régression : les essais d'apparition étaient trop rares (2,2/s, beaucoup refusés). Passés à 6/s, doublés tant que la ville est à moitié vide : ~33 voitures, ~16 autour du joueur, **0 choc et 0 véhicule figé** en simulation. | `a83d1c2` |
+
+### Équilibrage
+
+| Retour | Ce qui a été fait | Commit |
+|---|---|---|
+| 6. Police trop présente, étoiles trop rapides | Chaque délit chauffe 40 % de moins : un piéton tué ne donne plus une étoile, il en faut deux. Hors de vue de la police, la chaleur retombe 60 % plus vite (2★ effacées en 15 s). Agents simultanés : 1-2-4-6-8-10 au lieu de 2-4-6-9-11-13. Renforts espacés (6 s à 1★ au lieu de 3,6). Hélico de police toutes les 35 s au lieu de 22. **Choix :** les étoiles « scénarisées » des salles (descente de police à la radio, alarme du musée, banque) et la zone militaire ne changent pas. | `1d77aca` |
+| 7. Colline trop facile ; impossible dans la réalité = impossible dans le jeu, parois des canyons comprises | **Choix des limites**, d'après l'adhérence réelle des pneus. Au-delà, le sol est une paroi, élan ou pas : on glisse le long. Avant, rien ne bloquait sous 53°, et la montée sèche en était exemptée. Voir le tableau ci-dessous. | `d558186` |
+| 8. Montagne plus grande | Mont Reyes : sommet de 65 à **89 u**, élargi vers l'ouest. Au sud c'est le canyon, au nord et à l'est les limites du monde : il ne pouvait grandir que vers le haut et vers l'ouest. Sentier à 18 lacets au lieu de 13, même déclivité. Course du mont : 90 s au lieu de 60 (pilote simulé : 52 à 69 s). Rien d'enfoui. | `cfcb5a7` |
+
+**Point 7 : limites de pente retenues**
+
+| Véhicule | Pente maximale |
+|---|---|
+| Vélo, BMX | 24° (0,45) |
+| Pneus de route | 35° (0,7) |
+| Quad, buggy, monster truck | 40° (0,85) |
+| Moto cross, 4x4 | 45° (1,0), le plafond absolu |
+| À pied | 51° (1,25), pour garder les sentiers escarpés de la crique |
+
+Ce qui change avec ces limites :
+- **De biais** : le jeu mesure désormais la vraie pente du terrain, et non la pente dans le sens de la marche. Avant, on gravissait en diagonale une paroi infranchissable de face.
+- **Montée sèche refaite** : elle montait jusqu'à 63° puis 76° au palier, impossible en vrai. Désormais la pente croît régulièrement jusqu'à un mur final de 43°, sur 43 u de dénivelé. Seule la moto cross passe (4,7 s pour 6,5 s autorisées). Quad, 4x4 (qui grimpe au pas), motos de route, buggy et BMX échouent.
+- **Rampe d'accès des mesas** : passée de 44° à 32° (pente régulière), pour rester montable en moto de route.
+- **Parois des mesas** : infranchissables de face comme de biais, pour tous les véhicules (vérifié).
+
+### Défis
+
+| Retour | Ce qui a été fait | Commit |
+|---|---|---|
+| 9. Plus de défis | **77 défis au lieu de 33.** Les défis chiffrés deviennent 19 thèmes à paliers : ennemis (5 paliers jusqu'à 2 500), véhicules, distance, démolition, chefs, vagues, véhicules cachés, fouilles, broyeur. Nouveaux thèmes : taxi, ambulance, pompiers, dépanneuse, police, courses (mont, mesas, montée sèche, supercross, bouées), saut BASE dans la cible, trésor de l'île, achats au garage, wakeboard ou parachute ascensionnel. | `06380f7` |
+| 10. Récompense à récupérer, avec notification | Plus rien n'est versé automatiquement. Un défi accompli affiche « 🎁 Défi accompli : … — récompense à récupérer dans DÉFIS ». Une pastille rouge clignotante donne le nombre de récompenses en attente : sur le bouton pause (un toucher ouvre directement les défis), sur le bouton Défis du menu, et sur un **nouveau bouton Défis dans le menu pause**. Les récompenses apparaissent tout en haut de l'écran Défis, avec RÉCUPÉRER +X $. | `06380f7` |
+| 11. Défis à paliers | Récupérer un palier débloque le suivant, même thème, quantité plus élevée (« palier 2/5 »). Si le palier suivant est déjà atteint, il est aussitôt à récupérer. Chaque thème est fini : aucune récompense infinie. | `06380f7` |
+| 12. Futur bouton « ×2 avec une pub » | Structure en place : `PUB_X2.disponible()` (faux pour l'instant, donc le bouton est masqué) et `PUB_X2.montrer(fin)`, à brancher sur une régie. Le bouton « ×2 🎬 » s'affiche à côté de RÉCUPÉRER dès que `disponible()` est vrai ; la récompense n'est doublée que si la pub a été vue. Testé avec une fausse pub. | `06380f7` |
+
+**Sauvegardes :** les anciens défis payés restent récupérés, et leurs ids sont les premiers paliers des thèmes : rien n'est perdu. « À récupérer » survit au rechargement.
+
+Captures (`captures/lot8/`) :
+- `garage_monstertruck_ameliore.png`, `garage_monstertruck_origine.png`
+- `grand_yacht_barre.png`, `grand_yacht_cote.png`
+- `mont_avant.png`, `mont_apres.png`, `montee_seche_couloir.png`
+- `defis_a_recuperer.png`, `defis_pastille_hud.png`
+
+### Vérifications
+
+- `node scenarios.js` : **685 vérifications, toutes au vert, aucune sautée**, avec la graine par défaut (20260731) et avec la graine aléatoire 973139445.
+- `node valider.js` : vert. Les portes de la ville n'ont pas bougé.
+- Huit tests ajoutés : garage / Monster Truck (au vrai bouton), hélico du yacht (avec le son, qui révélait le bug), grand yacht, sauter d'un bateau (8 bateaux), circulation, police, pentes réalistes, défis.
+- Tests adaptés :
+  - montée sèche : le quad échoue désormais ;
+  - un défi « accompli » est à récupérer ou récupéré ;
+  - course du mont sans la curiosité « Volant » : un test maîtrise sa scène.
+
+### Non fait / limites
+
+- **Montée sèche** : le flanc du mont (0,85 de pente moyenne) est trop raide pour qu'une piste plafonnée à 43° rejoigne la surface. L'arrivée est donc une **encoche taillée dans le flanc**, à 43 u, et non plus au sommet du mont. Dans la course du mont, un buggy lancé trop vite (curiosité « Volant ») a sauté du dernier lacet et fini dans cette encoche. On en ressort en redescendant le couloir. À surveiller.
+- **Minimap** : le rectangle blanc du yacht reste au mouillage quand on part avec.
+- **Petits objets du pont du yacht** (gilet, billets) : ils restent au mouillage.
+
+### À tester sur iPhone
+
+1. Garage : acheter 1 palier de moteur et de vitesse sur le Monster Truck, sortir. On doit lire le récapitulatif et sentir la différence.
+2. Hélico du yacht : monter, décoller, se reposer sur le pont DESCENDRE tenu, puis survoler la mer en descendant (il doit rester au ras de l'eau).
+3. Gros yacht : prendre la barre (au fly), partir au large, lâcher la barre, marcher sur le pont, reprendre l'hélico.
+4. Sauter d'un bateau lancé (vedette, jet-ski, yacht) : on doit nager librement tout de suite.
+5. Circulation en ville, en qualité moyenne et basse.
+6. Police : tuer un passant (aucune étoile), deux (1★) ; à 3★, compter les agents.
+7. Montée sèche en moto cross (passe), en quad (bloqué au mur) ; longer une paroi de mesa de biais ; monter la rampe d'accès des mesas en moto de route.
+8. Course du mont : 90 s suffisent-elles à un humain ?
+9. Défis : la pastille sur pause, l'écran Défis, RÉCUPÉRER, puis le palier suivant.
