@@ -6050,7 +6050,7 @@ async function main() {
     console.log('\n--- Nouveaux défis : Dépôt de bus (victoires par circuit), Jetpack (équipement + sauvetage), Monster Truck, Broyeur ---');
     const nouveauxDefis = await page.evaluate(() => {
       const out = {};
-      const faitId = (id) => !!META.defis.faits[id];
+      const faitId = (id) => !!(META.defis.faits[id] || META.defis.aReclamer[id]); // accompli : à récupérer ou récupéré (8e lot)
 
       // ces défis peuvent déjà avoir été déclenchés par des tests
       // PRÉCÉDENTS de cette même suite (le Dépôt/le Toit sont testés
@@ -6060,7 +6060,7 @@ async function main() {
       META.defis.jetpack = false; META.defis.jetpackSauvetage = false; META.defis.monstertruck = false;
       META.stats.vehEcrases = 0;
       ['depotPremiere', 'depotBalayage', 'volantDefi', 'jetpackDefi', 'jetpackSauvetage', 'monstertruckDefi', 'broyeur']
-        .forEach((id) => { delete META.defis.faits[id]; });
+        .forEach((id) => { delete META.defis.faits[id]; delete META.defis.aReclamer[id]; });
 
       // --- Dépôt de bus : une victoire sur La Boucle pose le bon flag et
       // débloque le défi correspondant, jamais celui d'un autre circuit ---
@@ -6126,7 +6126,7 @@ async function main() {
         // ramène la vitesse de chute sous contrôle jusqu'à un atterrissage
         // propre — imite le geste qu'un joueur ferait après l'alerte.
         startRun();
-        META.defis.jetpackSauvetage = false; delete META.defis.faits.jetpackSauvetage;
+        META.defis.jetpackSauvetage = false; delete META.defis.faits.jetpackSauvetage; delete META.defis.aReclamer.jetpackSauvetage;
         P.jetpack = true; P.jetFuel = 100; P.jetpackVol = true; P.jetAvertVu = false;
         P.x = POIS.place.x; P.z = POIS.place.z; P.y = 15; P.vy = -(JET_VY_AVERT + 2); P.jetVx = 0; P.jetVz = 0;
         INPUT.mx = 0; INPUT.mz = 0; INPUT.btn.jetpack = false;
@@ -6144,7 +6144,7 @@ async function main() {
         // faible altitude" (offset +1.5, vy=-2) : un atterrissage qui reste
         // franchement sous JET_VY_AVERT tout du long, jamais une chute libre. ---
         startRun();
-        META.defis.jetpackSauvetage = false; delete META.defis.faits.jetpackSauvetage;
+        META.defis.jetpackSauvetage = false; delete META.defis.faits.jetpackSauvetage; delete META.defis.aReclamer.jetpackSauvetage;
         P.jetpack = true; P.jetFuel = 100; P.jetpackVol = true; P.jetAvertVu = false;
         P.x = POIS.place.x; P.z = POIS.place.z; P.y = poseY(POIS.place.x, POIS.place.z) + 1.5; P.vy = -2; P.jetVx = 0; P.jetVz = 0;
         INPUT.mx = 0; INPUT.mz = 0; INPUT.btn.jetpack = false;
@@ -8748,7 +8748,7 @@ async function main() {
         const moy = (t) => t.reduce((s, x) => s + x, 0) / t.length;
         return { cap: q().trafic, moy: +moy(n).toFixed(1), pres: +moy(pres).toFixed(1), chocs };
       });
-      if (!(r.moy >= r.cap * 0.75) || !(r.pres >= 10) || r.chocs) fail('Circulation : ' + JSON.stringify(r));
+      if (!(r.moy >= r.cap * 0.75) || !(r.pres >= r.cap * 0.3) || r.chocs) fail('Circulation : ' + JSON.stringify(r)); // seuils relatifs au plafond de la qualité choisie (q().trafic)
       else ok('Circulation : ' + r.moy + ' voitures en ville en moyenne (plafond ' + r.cap + '), ' + r.pres + ' à moins de 60 u du joueur, 0 choc');
     }
 
@@ -8832,6 +8832,73 @@ async function main() {
       if (r.off) saute('Pentes réalistes : DECOR_V2 désactivé');
       else if (r.ko.length) fail('Pentes réalistes : ' + r.ko.join(' | '));
       else ok('Pentes réalistes : ' + r.info.join(', '));
+    }
+
+    // -------------------------------------------------------------------
+    // 8e lot, n° 9 à 12 (demandé : plus de défis ; récompense à récupérer dans
+    // le menu des défis, avec une notification ; défis à paliers ; structure
+    // d'un futur bouton « ×2 avec une pub »). Thèmes et paliers lus dans
+    // DEFIS / DEFIS_THEMES, jamais recopiés.
+    // -------------------------------------------------------------------
+    console.log('\n--- Défis : récompense à récupérer, paliers, pastille, emplacement ×2 ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (P.veh) sortirVehicule(true);
+        startRun(); ecran(null); ETAT.mode = 'jeu';
+        const sauf = { faits: Object.assign({}, META.defis.faits), aRec: Object.assign({}, META.defis.aReclamer), kills: META.killsTotal, argent: META.argent };
+        // état maîtrisé : tout récupéré, sauf le thème des ennemis neutralisés
+        for (const d of DEFIS) META.defis.faits[d.id] = true;
+        for (const k in META.defis.aReclamer) delete META.defis.aReclamer[k];
+        const th = DEFIS.filter((d) => d.theme === 'tueur').sort((a, b) => a.palier - b.palier);
+        if (th.length < 3) ko.push('thème des ennemis : ' + th.length + ' paliers');
+        for (const d of th) delete META.defis.faits[d.id];
+        // paliers croissants partout (quantité et récompense), thèmes finis
+        for (const t of DEFIS_THEMES) for (let k = 1; k < t.paliers.length; k++) if (!(t.paliers[k] > t.paliers[k - 1]) || !(t.recs[k] > t.recs[k - 1])) ko.push('thème ' + t.theme + ' : paliers non croissants');
+        info.push(DEFIS.length + ' défis (' + DEFIS_THEMES.length + ' thèmes à paliers)');
+        // 1er palier atteint : à récupérer, jamais payé automatiquement
+        const seuil1 = th[0].prog(META)[1], seuil2 = th[1].prog(META)[1];
+        META.killsTotal = seuil1 + 1; META.argent = 1000;
+        checkDefis();
+        if (!META.defis.aReclamer[th[0].id] || META.defis.faits[th[0].id]) ko.push('palier 1 pas « à récupérer »');
+        if (META.argent !== 1000) ko.push('payé automatiquement (' + META.argent + ')');
+        if (META.defis.aReclamer[th[1].id]) ko.push('palier 2 proposé avant la récupération du 1');
+        const pa = document.getElementById('pastilleDefis'); if (!pa || pa.style.display === 'none' || pa.textContent !== '1') ko.push('pastille HUD : ' + (pa && pa.style.display + ' ' + pa.textContent));
+        // écran des défis : bouton RÉCUPÉRER réel, pas de bouton ×2 sans pub
+        renderDefis(); ecran('defis');
+        const b = document.querySelector('#defisList [data-recup="' + th[0].id + '"]');
+        if (!b) ko.push('bouton RÉCUPÉRER absent');
+        if (document.querySelector('#defisList [data-recupx2]')) ko.push('bouton ×2 affiché sans pub disponible');
+        if (b) b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+        if (META.argent !== 1000 + th[0].rec || !META.defis.faits[th[0].id]) ko.push('récupération : argent ' + META.argent);
+        if (recupererDefi(th[0].id, 1) || META.argent !== 1000 + th[0].rec) ko.push('récupéré deux fois');
+        if (pa.style.display !== 'none') ko.push('pastille encore affichée');
+        // palier suivant proposé, avec une quantité plus élevée
+        if (!defiPropose(th[1]) || !(seuil2 > seuil1)) ko.push('palier 2 pas débloqué');
+        META.killsTotal = seuil2; checkDefis();
+        if (!META.defis.aReclamer[th[1].id]) ko.push('palier 2 atteint mais pas à récupérer');
+        // structure ×2 : une pub vue double la récompense ; jamais ×3
+        const d0 = PUB_X2.disponible, m0 = PUB_X2.montrer;
+        PUB_X2.disponible = () => true; PUB_X2.montrer = (fin) => fin(true);
+        try {
+          renderDefis();
+          const bx = document.querySelector('#defisList [data-recupx2="' + th[1].id + '"]'); if (!bx) ko.push('emplacement ×2 absent quand une pub est disponible');
+          const a1 = META.argent; if (bx) bx.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+          if (META.argent - a1 !== th[1].rec * 2) ko.push('×2 : ' + (META.argent - a1) + ' (attendu ' + th[1].rec * 2 + ')');
+        } finally { PUB_X2.disponible = d0; PUB_X2.montrer = m0; }
+        // sauvegarde : « à récupérer » survit au rechargement (dictionnaire ouvert)
+        META.defis.aReclamer.essai_x = true; const copie = JSON.parse(JSON.stringify(META)); delete META.defis.aReclamer.essai_x;
+        const cible = { defis: { aReclamer: {}, faits: {} } }; fusionMeta(cible, copie); if (!cible.defis.aReclamer.essai_x) ko.push('aReclamer perdu au rechargement');
+        // remise en état
+        ecran(null); META.killsTotal = sauf.kills; META.argent = sauf.argent;
+        for (const k in META.defis.faits) delete META.defis.faits[k]; Object.assign(META.defis.faits, sauf.faits);
+        for (const k in META.defis.aReclamer) delete META.defis.aReclamer[k]; Object.assign(META.defis.aReclamer, sauf.aRec);
+        for (const d of DEFIS) META.defis.faits[d.id] = true; // isolation des tests suivants (voir plus haut)
+        majPastilleDefis();
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Défis : ' + r.ko.join(' | '));
+      else ok('Défis : ' + r.info.join(', ') + ' ; à récupérer (jamais payé seul), pastille, récupération unique, palier suivant débloqué, ×2 seulement avec une pub, survit au rechargement');
     }
 
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');

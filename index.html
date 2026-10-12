@@ -293,6 +293,13 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
   background:linear-gradient(180deg,#1d212c,#151820);color:var(--blanc);font-size:16px;font-weight:900;
   letter-spacing:.05em;text-transform:uppercase;display:flex;justify-content:space-between;align-items:center;box-shadow:0 6px 16px #0009}
 .mbtn:active{transform:scale(.98)}
+/* pastille « récompense à récupérer » (défis) */
+.pastille{display:none;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 5px;border-radius:10px;
+  background:#ff3b3b;color:#fff;font-size:12px;font-weight:900;box-shadow:0 0 10px #ff3b3baa;margin-left:auto;margin-right:8px}
+#pastilleDefis{position:absolute;top:calc(env(safe-area-inset-top,0px) + 136px);right:2px;pointer-events:auto;z-index:3;animation:pastillePulse 1.4s ease-in-out infinite}
+@keyframes pastillePulse{0%,100%{transform:scale(1)}50%{transform:scale(1.18)}}
+.btnRecup{border:1px solid #7dff7a;background:#123a1c;color:#7dff7a;border-radius:9px;padding:8px 9px;font-weight:900;font-size:12px;white-space:nowrap}
+.btnRecup.x2{border-color:#ffd23f;background:#3a300f;color:#ffd23f;margin-left:5px}
 .mbtn.play{background:linear-gradient(180deg,#0d3f52,#0a2836);border-color:var(--cyan);box-shadow:0 0 22px #35e0ff33,0 6px 16px #0009}
 .mbtn .fl{color:var(--gris);font-size:13px}
 .panneau{width:min(400px,92vw);margin-top:12px;background:var(--carte);border:1px solid var(--ligne);border-radius:14px;overflow:hidden}
@@ -572,6 +579,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
     <div id="stars"></div>
   </div>
   <div id="btnPause">Ⅱ</div>
+  <div id="pastilleDefis" class="pastille" title="Récompenses à récupérer"></div>
   <div id="bossWrap"><div id="bossName">CHEF</div><div class="barre" id="bossBar"><i id="bossFill"></i></div></div>
   <div id="vehWrap"><div class="lbl">VÉHICULE</div><div class="barre" id="vehBar"><i id="vehFill"></i></div></div>
   <div id="jetWrap"><div class="lbl">CARBURANT</div><div class="barre" id="jetBar"><i id="jetFill"></i></div></div>
@@ -621,7 +629,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
   <button class="mbtn" id="mChars">Personnages <span class="fl">›</span></button>
   <button class="mbtn" id="mShop">Armurerie <span class="fl">›</span></button>
   <button class="mbtn" id="mUpg">Améliorations <span class="fl">›</span></button>
-  <button class="mbtn" id="mDefis">Défis <span class="fl">›</span></button>
+  <button class="mbtn" id="mDefis">Défis <span class="pastille" id="pastilleMDefis"></span><span class="fl">›</span></button>
   <button class="mbtn" id="mStatsBtn">Statistiques <span class="fl">›</span></button>
   <button class="mbtn" id="mHelp">Commandes <span class="fl">›</span></button>
   <button class="mbtn" id="mSettings">Paramètres <span class="fl">›</span></button>
@@ -663,7 +671,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
 <!-- ================= DÉFIS ================= -->
 <div class="screen" id="defis">
   <div class="stitre">Défis</div>
-  <div class="ssous">récompenses automatiques</div>
+  <div class="ssous">défi accompli : touche RÉCUPÉRER pour encaisser</div>
+  <div class="argentTag" id="defisMoney"></div>
   <div class="hazard"></div>
   <div id="defisList"></div>
   <button class="retour" id="defisClose">Retour</button>
@@ -810,6 +819,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
   <div class="stitre" style="margin-top:14vh">Pause</div>
   <div class="hazard"></div>
   <button class="mbtn play" id="pResume">Reprendre</button>
+  <button class="mbtn" id="pDefis">Défis <span class="pastille" id="pastillePDefis"></span></button>
   <button class="mbtn" id="pHelp">Commandes</button>
   <button class="mbtn" id="pQuit">Abandonner la partie</button>
 </div>
@@ -1855,7 +1865,9 @@ const META={
     // requis par aucun déblocage puisque c'est le dernier circuit).
     jetpack:false,jetpackSauvetage:false,monstertruck:false,depotBoucle:false,depotQuais:false,depotToit:false,
     voltigePilote:false,
-    faits:{}},
+    // 8e lot : compteurs des nouveaux défis à paliers
+    courses:0,baseCible:0,tresors:0,tuning:0,mer:0,
+    faits:{}, aReclamer:{}},
   decouverts:{},
   // --- lieux spéciaux : curiosités collectées + progression propre à chaque lieu ---
   curios:{}, zohra:0, karaoke:0, gaston:0, lessives:0, fouilles:0,
@@ -1916,16 +1928,9 @@ const META={
   garages:garagesMetaDefaut(),
   vehPerso:vehPersoMetaDefaut() // « Mes véhicules » : les fiches des véhicules personnels
 };
-const DEFIS=[
-  {id:'sang',nom:'Premier sang',det:'Neutralise 25 ennemis',rec:250,prog:m=>[m.killsTotal,25],cond:m=>m.killsTotal>=25},
-  {id:'net',nom:'Nettoyeur',det:'Neutralise 150 ennemis',rec:800,prog:m=>[m.killsTotal,150],cond:m=>m.killsTotal>=150},
-  {id:'chauffard',nom:'Chauffard',det:'Monte à bord de 8 véhicules',rec:350,prog:m=>[m.defis.vols,8],cond:m=>m.defis.vols>=8},
-  {id:'pilote',nom:'Pilote urbain',det:'Parcours 3 km en véhicule',rec:400,prog:m=>[m.defis.dist.toFixed(1),3],cond:m=>m.defis.dist>=3},
-  {id:'demo',nom:'Démolisseur',det:'Détruis 12 véhicules',rec:500,prog:m=>[m.defis.detruits,12],cond:m=>m.defis.detruits>=12},
-  {id:'chef',nom:'Tueur de chefs',det:'Élimine 2 chefs de gang',rec:600,prog:m=>[m.defis.chefs,2],cond:m=>m.defis.chefs>=2},
+const DEFIS_SIMPLES=[
   {id:'public',nom:'Ennemi public',det:'Atteins le niveau de recherche ★6',rec:700,prog:m=>[m.defis.etoile6?1:0,1],cond:m=>m.defis.etoile6},
   {id:'marin',nom:'Marin d\u2019eau douce',det:'Pilote un bateau ou un jet-ski',rec:300,prog:m=>[m.defis.bateau?1:0,1],cond:m=>m.defis.bateau},
-  {id:'surv',nom:'Survivant',det:'Atteins la vague 8',rec:900,prog:m=>[m.recordVague,8],cond:m=>m.recordVague>=8},
   {id:'jackpot',nom:'Coup de chance',det:'Décroche un gros gain au casino (jackpot ou quinte flush)',rec:500,prog:m=>[m.defis.jackpot?1:0,1],cond:m=>m.defis.jackpot},
   {id:'proprio',nom:'Propriétaire',det:'Achète la villa planque du quartier résidentiel',rec:600,prog:m=>[m.planque?1:0,1],cond:m=>m.planque},
   {id:'sommet',nom:'Tout en haut',det:'Monte au toit panoramique par l\u2019ascenseur de la Tour Los Reyes',rec:400,prog:m=>[m.defis.sommet?1:0,1],cond:m=>m.defis.sommet},
@@ -1937,12 +1942,9 @@ const DEFIS=[
   {id:'libellule',nom:'Libellule',det:'Fais décoller l\u2019hélicoptère',rec:400,prog:m=>[m.defis.heli?1:0,1],cond:m=>m.defis.heli},
   {id:'assurance',nom:'Assurance tous risques',det:'Survis à un crash aérien',rec:350,prog:m=>[m.defis.crash?1:0,1],cond:m=>m.defis.crash},
   {id:'canard',nom:'Coin-coin',det:'Découvre l\u2019île mystérieuse au large',rec:300,prog:m=>[m.defis.ile?1:0,1],cond:m=>m.defis.ile},
-  {id:'collec',nom:'Collectionneur',det:'Découvre 3 véhicules cachés',rec:400,prog:m=>[Object.keys(m.decouverts).length,3],cond:m=>Object.keys(m.decouverts).length>=3},
-  {id:'explor',nom:'Grand explorateur',det:'Découvre les 7 véhicules cachés',rec:1000,prog:m=>[Object.keys(m.decouverts).length,7],cond:m=>Object.keys(m.decouverts).length>=7},
   {id:'guerre',nom:'Épervier',det:'Vole le chasseur militaire de l\u2019aéroport',rec:600,prog:m=>[m.decouverts.chasseur?1:0,1],cond:m=>!!m.decouverts.chasseur},
   {id:'curieux',nom:'Curieux',det:'Trouve ta première curiosité dans un lieu spécial',rec:300,prog:m=>[nbCurios(),1],cond:m=>nbCurios()>=1},
   {id:'cabinet',nom:'Cabinet complet',det:'Réunis les 4 curiosités des lieux spéciaux',rec:1500,prog:m=>[nbCurios(),CURIOS_ACTIVES.length],cond:m=>nbCurios()>=CURIOS_ACTIVES.length},
-  {id:'fouineur',nom:'Fouineur',det:'Fouille 40 caches dans les lieux visitables',rec:450,prog:m=>[m.fouilles,40],cond:m=>m.fouilles>=40},
   // --- lot 11/12 : Dépôt de bus, Jetpack, Monster Truck — des lieux/mécaniques
   // entièrement optionnels, invisibles tant qu'on ne les a pas trouvés : ces
   // défis existent pour donner une bonne raison d'aller les chercher.
@@ -1957,16 +1959,91 @@ const DEFIS=[
   {id:'jetpackSauvetage',nom:'Sauvetage in extremis',det:'Évite un crash mortel en relançant les réacteurs juste à temps',rec:600,
     prog:m=>[m.defis.jetpackSauvetage?1:0,1],cond:m=>m.defis.jetpackSauvetage},
   {id:'monstertruckDefi',nom:'Terrain vague',det:'Trouve le Monster Truck et prends le volant',rec:500,prog:m=>[m.defis.monstertruck?1:0,1],cond:m=>m.defis.monstertruck},
-  {id:'broyeur',nom:'Broyeur',det:'Écrase 8 véhicules (char ou Monster Truck)',rec:700,prog:m=>[m.stats.vehEcrases,8],cond:m=>m.stats.vehEcrases>=8}
 ];
+
+// Défis à paliers (8e lot, demandé : « après récupération, débloquer un nouveau défi du même thème avec une
+// quantité plus élevée ») : un thème est une suite de paliers ; seul le premier palier non récupéré est
+// proposé (defiPropose), le suivant apparaît dès que la récompense du précédent est récupérée. Les premiers
+// paliers gardent les ids des anciens défis (sang, net, chauffard...) : une sauvegarde ne perd rien.
+// Chaque thème est fini : aucune récompense infinie (règle « pas de farming »).
+const ROMAIN=['I','II','III','IV','V','VI'];
+function themeDefi(o){
+  return o.paliers.map((n,k)=>({id:(o.ids&&o.ids[k])||o.theme+'_'+(k+1),theme:o.theme,palier:k,nbPaliers:o.paliers.length,
+    nom:(o.noms&&o.noms[k])||(o.nom+' '+ROMAIN[k]),det:o.det(n),rec:o.recs[k],
+    prog:m=>[o.fmt?o.fmt(o.val(m)):o.val(m),n],cond:m=>o.val(m)>=n}));
+}
+const DEFIS_THEMES=[
+  {theme:'tueur',ids:['sang','net'],noms:['Premier sang','Nettoyeur','Exterminateur','Fléau de Los Reyes','Légende urbaine'],det:n=>'Neutralise '+n+' ennemis',val:m=>m.killsTotal,paliers:[25,150,400,1000,2500],recs:[250,800,1500,3000,6000]},
+  {theme:'vols',ids:['chauffard'],noms:['Chauffard','Voleur de voitures','As du démarreur','Roi de la fourrière'],det:n=>'Monte à bord de '+n+' véhicules',val:m=>m.defis.vols,paliers:[8,25,60,150],recs:[350,700,1400,3000]},
+  {theme:'route',ids:['pilote'],noms:['Pilote urbain','Routier','Globe-trotter','Compteur explosé'],det:n=>'Parcours '+n+' km en véhicule',val:m=>m.defis.dist,fmt:x=>x.toFixed(1),paliers:[3,15,50,150],recs:[400,900,2000,4500]},
+  {theme:'demo',ids:['demo'],noms:['Démolisseur','Ferrailleur','Casseur en série','Apocalypse mécanique'],det:n=>'Détruis '+n+' véhicules',val:m=>m.defis.detruits,paliers:[12,40,100,250],recs:[500,1100,2200,5000]},
+  {theme:'chefs',ids:['chef'],noms:['Tueur de chefs','Décapiteur de gangs','Terreur des quartiers','Parrain de Los Reyes'],det:n=>'Élimine '+n+' chefs de gang',val:m=>m.defis.chefs,paliers:[2,6,15,30],recs:[600,1500,3500,7000]},
+  {theme:'vagues',ids:['surv'],noms:['Survivant','Increvable','Immortel','Dernier debout'],det:n=>'Atteins la vague '+n,val:m=>m.recordVague,paliers:[8,12,16,20],recs:[900,1800,3500,7000]},
+  {theme:'caches',ids:['collec','explor'],noms:['Collectionneur','Grand explorateur'],det:n=>'Découvre '+n+' véhicules cachés',val:m=>Object.keys(m.decouverts).length,paliers:[3,7],recs:[400,1000]},
+  {theme:'fouilles',ids:['fouineur'],noms:['Fouineur','Pilleur de tiroirs','Archéologue urbain'],det:n=>'Fouille '+n+' caches dans les lieux visitables',val:m=>m.fouilles,paliers:[40,120,300],recs:[450,1000,2200]},
+  {theme:'broyeur',ids:['broyeur'],noms:['Broyeur','Rouleau compresseur','Concasseur'],det:n=>'Écrase '+n+' véhicules (char ou Monster Truck)',val:m=>m.stats.vehEcrases,paliers:[8,30,80],recs:[700,1500,3200]},
+  // --- 8e lot (demandé : « augmenter le nombre de défis ») ---
+  {theme:'taxi',noms:['Chauffeur de taxi','Taxi légendaire'],det:n=>'Réussis '+n+' courses de taxi',val:m=>m.metiers.taxi,paliers:[3,10],recs:[400,1200]},
+  {theme:'ambulance',noms:['Secouriste','Ange gardien'],det:n=>'Sauve '+n+' patients en ambulance',val:m=>m.metiers.ambulance,paliers:[3,10],recs:[400,1200]},
+  {theme:'pompier',noms:['Soldat du feu','Héros du feu'],det:n=>'Éteins '+n+' incendies en camion de pompiers',val:m=>m.metiers.pompier,paliers:[3,10],recs:[400,1200]},
+  {theme:'depanneuse',noms:['Dépanneur','Roi du remorquage'],det:n=>'Réussis '+n+' remorquages',val:m=>m.metiers.depanneuse,paliers:[3,10],recs:[400,1200]},
+  {theme:'police',noms:['Shérif adjoint','Shérif'],det:n=>'Réussis '+n+' interpellations en voiture de police',val:m=>m.metiers.police,paliers:[3,10],recs:[400,1200]},
+  {theme:'courses',noms:['Pilote du dimanche','Pilote tout-terrain','Champion des reliefs'],det:n=>'Termine '+n+(n>1?' courses':' course')+' (mont, mesas, montée sèche, supercross, rallye des bouées)',val:m=>m.defis.courses,paliers:[1,10,30],recs:[300,1200,3000]},
+  {theme:'base',noms:['Saut de l’ange','Homme-oiseau'],det:n=>'Pose-toi '+n+' fois dans la cible au pied du Pic du Vertige',val:m=>m.defis.baseCible,paliers:[1,5],recs:[500,1500]},
+  {theme:'tresor',noms:['Chasseur de trésor','Pirate de Los Reyes'],det:n=>'Déterre '+n+(n>1?' trésors':' trésor')+' sur l’île aux trésors',val:m=>m.defis.tresors,paliers:[1,5],recs:[400,1500]},
+  {theme:'garage',noms:['Bricoleur','Garagiste','Roi du tuning'],det:n=>'Achète '+n+(n>1?' améliorations':' amélioration')+' dans un garage',val:m=>m.defis.tuning,paliers:[1,10,30],recs:[200,900,2500]},
+  {theme:'mer',noms:['Loup de mer','Seigneur des vagues'],det:n=>'Réussis '+n+' fois le wakeboard ou le parachute ascensionnel',val:m=>m.defis.mer,paliers:[1,5],recs:[350,1200]}
+];
+const DEFIS=DEFIS_SIMPLES.concat(...DEFIS_THEMES.map(themeDefi));
+const DEFI_PAR_ID={}; for(const d of DEFIS) DEFI_PAR_ID[d.id]=d;
+// un défi est proposé s'il n'est pas d'un thème, ou si tous les paliers précédents de son thème sont récupérés
+function defiPropose(d){
+  if(!d.theme) return true;
+  for(let k=0;k<d.palier;k++){ const prec=DEFIS.find((x)=>x.theme===d.theme&&x.palier===k); if(prec&&!META.defis.faits[prec.id]) return false; }
+  return true;
+}
+// Récompense à récupérer (8e lot, demandé : « l'argent n'est pas versé automatiquement, le joueur va le
+// récupérer dans le menu des défis ; notification pour l'y inciter ») : un défi accompli passe dans
+// META.defis.aReclamer ; META.defis.faits = récompense RÉCUPÉRÉE (les anciennes sauvegardes, payées
+// automatiquement, restent donc cohérentes).
+function nbDefisAReclamer(){ let n=0; for(const id in META.defis.aReclamer) if(META.defis.aReclamer[id]&&!META.defis.faits[id]&&DEFI_PAR_ID[id]) n++; return n; }
+// Emplacement du futur bouton « ×2 avec une pub » (8e lot : la structure seulement, aucune pub intégrée).
+// Brancher une régie ici : disponible() vrai quand une pub récompensée est prête ; montrer(fin) appelle
+// fin(true) si la pub a été vue jusqu'au bout, fin(false) sinon. Tant que disponible() est faux, le
+// bouton n'est pas affiché ; recupererDefi n'accepte que ×1 ou ×2.
+const PUB_X2={
+  disponible(){ return false; },
+  montrer(fin){ fin(false); }
+};
+// Récupération — garde d'entrée PROPRE : seulement un défi accompli et pas encore récupéré.
+function recupererDefi(id,mult){
+  const d=DEFI_PAR_ID[id];
+  if(!d||!META.defis.aReclamer[id]||META.defis.faits[id]) return false;
+  mult=mult===2?2:1;
+  delete META.defis.aReclamer[id]; META.defis.faits[id]=true;
+  const gain=d.rec*mult; META.argent+=gain;
+  toast('🏆 '+d.nom+' : +'+gain+' $'+(mult>1?' (×2)':''),'or'); SFX.achat();
+  checkDefis(); // le palier suivant est peut-être déjà atteint
+  sauveMeta(); majPastilleDefis(); return true;
+}
+function recupererDefiX2(id){
+  if(!PUB_X2.disponible()||!META.defis.aReclamer[id]) return;
+  PUB_X2.montrer((vue)=>{ if(vue) recupererDefi(id,2); if(el('defis').classList.contains('on')) renderDefis(); });
+}
+// pastilles « récompense à récupérer » : HUD (près de la pause), menu principal, menu pause
+function majPastilleDefis(){
+  const n=nbDefisAReclamer();
+  for(const id of ['pastilleDefis','pastilleMDefis','pastillePDefis']){ const e=document.getElementById(id); if(!e) continue; e.textContent=n>9?'9+':String(n); e.style.display=n>0?'flex':'none'; }
+}
 function checkDefis(){
+  let nouveau=false;
   for(const d of DEFIS){
-    if(META.defis.faits[d.id]||!d.cond(META)) continue;
-    META.defis.faits[d.id]=true;
-    META.argent+=d.rec;
-    toast('Défi accompli : '+d.nom+' (+'+d.rec+' $)','or');
-    SFX.niveau(); sauveMeta();
+    if(META.defis.faits[d.id]||META.defis.aReclamer[d.id]||!defiPropose(d)||!d.cond(META)) continue;
+    META.defis.aReclamer[d.id]=true; nouveau=true; // payé à la récupération (recupererDefi), plus jamais automatiquement
+    toast('🎁 Défi accompli : '+d.nom+' — récompense à récupérer dans DÉFIS','or');
+    SFX.niveau();
   }
+  if(nouveau){ sauveMeta(); majPastilleDefis(); }
 }
 /* ---------- SAUVEGARDE (localStorage) ----------
    On fusionne prudemment : seules les clés déjà connues de META sont reprises,
@@ -1979,7 +2056,7 @@ function checkDefis(){
    Une sauvegarde d'une ancienne version ne casse donc jamais le jeu : les
    nouveautés gardent leur valeur par défaut. */
 const SAVE_KEY='asphalte_save_v1';
-const DICOS_OUVERTS=new Set(['faits','decouverts','curios','site51Objets','lieuxVus','tenuesPoss','arcadePersoBest']);
+const DICOS_OUVERTS=new Set(['faits','aReclamer','decouverts','curios','site51Objets','lieuxVus','tenuesPoss','arcadePersoBest']);
 function fusionMeta(cible,src){
   for(const k in src){
     if(DICOS_OUVERTS.has(k)){ if(src[k]&&typeof src[k]==='object'&&!Array.isArray(src[k])) cible[k]=Object.assign({},cible[k],src[k]); continue; }
@@ -5587,6 +5664,7 @@ function majPic(dt){
   const d=Math.sqrt(dist2(P.x,P.z,PIC.cible.x,PIC.cible.z));
   const [pts,prime,msg]=d<3?[1500,300,'🎯 EN PLEIN CENTRE !']:d<8?[700,150,'🎯 DANS LA CIBLE !']:d<14?[300,0,'🪂 SUR LA CIBLE']:[100,0,'🪂 SAUT BASE RÉUSSI'];
   ETAT.score+=pts; spawnTexte(P.x,3,P.z,'+'+pts,'#ffd23f');
+  if(d<8) META.defis.baseCible++; // défi « Saut de l'ange » : dans la cible
   let txt=msg+' — '+d.toFixed(1)+' m';
   if(prime&&PIC.primeVague!==WAVES.n){ PIC.primeVague=WAVES.n; META.argent+=prime; ETAT.cashRun+=prime; txt+=' +'+prime+' $'; sauveMeta(); } // une prime par vague
   bigMsg(txt); SFX.niveau(); vibre(60);
@@ -5784,7 +5862,7 @@ function creuserTrou(t){
   t.creuse=true; t.m.visible=false; t.trou.visible=true; vibre(50); SFX.swing();
   for(let i=0;i<3;i++) burst(t.x+rand(-0.4,0.4),t.h+0.4,t.z+rand(-0.4,0.4),8,0xd8c088,5,5); // gerbes de sable
   const C=ILE2, k=C.trous.indexOf(t);
-  if(k===C.tresorIdx){ const m=primeMerUneFois('tresor',220); ETAT.score+=300; bigMsg('💰 TRÉSOR DES PIRATES ! '+(m?'+'+m+' $':'(déjà pris cette vague)')); SFX.niveau(); burst(t.x,t.h+0.8,t.z,16,0xffd23f,6,6); return; }
+  if(k===C.tresorIdx){ META.defis.tresors++; const m=primeMerUneFois('tresor',220); ETAT.score+=300; bigMsg('💰 TRÉSOR DES PIRATES ! '+(m?'+'+m+' $':'(déjà pris cette vague)')); SFX.niveau(); burst(t.x,t.h+0.8,t.z,16,0xffd23f,6,6); return; }
   const r=Math.random();
   if(r<0.35){ const vrai=C.trous[C.tresorIdx], a=Math.atan2(vrai.x-t.x,vrai.z-t.z), i8=((Math.round(a/(Math.PI/4))%8)+8)%8; toast('🗺️ Un bout de carte : la croix est '+FLECHES_CARDINAUX[i8]+', à '+Math.round(Math.sqrt(dist2(t.x,t.z,vrai.x,vrai.z)))+' m','or'); }
   else if(r<0.6){ META.argent+=30; ETAT.cashRun+=30; toast('🪙 Quelques pièces d’or : +30 $','or'); }
@@ -5986,7 +6064,7 @@ function finTow(raison){
   const T=TOW.actif; if(!T) return; TOW.actif=null;
   TOW.bateau.visible=false; TOW.corde.visible=false; TOW.planche.visible=false; RIDES.txt.style.display='none'; for(const m of TOW.sillage) m.visible=false; P.h.g.rotation.x=0;
   if(T.id==='wake'){ boutonsAPied(); let msg='🏄 WAKEBOARD — '+Math.round(T.pts)+' pts';
-    if(T.pts>=TOW_DEFS.wake.objectif){ const m=primeMerUneFois('wake',TOW_DEFS.wake.prime); if(m) msg+=' +'+m+' $'; }
+    if(T.pts>=TOW_DEFS.wake.objectif){ META.defis.mer++; const m=primeMerUneFois('wake',TOW_DEFS.wake.prime); if(m) msg+=' +'+m+' $'; }
     bigMsg(msg); P.y=0.3; } // relâché dans l'eau, on nage
   else if(raison!=='lache'){ paraMesh.visible=false; P.para=false; P.chute=false; P.y=0.3; }
 }
@@ -6038,7 +6116,7 @@ function majTow(dt){
     TOW.corde.scale.z=dl; TOW.corde.position.set((ax+x)/2,(ay+y+(T.id==='para'?PARA_DIST*0.6:0.9))/2,(az+z)/2); TOW.corde.lookAt(x,y+(T.id==='para'?PARA_DIST*0.6:0.9),z); }
   if(T.lache){ // parachute lâché : on attend l'atterrissage
     if(!P.chute){ const d=Math.sqrt(dist2(P.x,P.z,MERV.radeau.x,MERV.radeau.z)); TOW.actif=null; TOW.bateau.visible=false; RIDES.txt.style.display='none';
-      if(d<MERV.radeau.r){ const m=primeMerUneFois('para',TOW_DEFS.para.prime); ETAT.score+=800; bigMsg('🎯 SUR LE RADEAU ! '+(m?'+'+m+' $':'')); SFX.niveau(); } else bigMsg('🪂 Posé à '+d.toFixed(0)+' m du radeau'); }
+      if(d<MERV.radeau.r){ META.defis.mer++; const m=primeMerUneFois('para',TOW_DEFS.para.prime); ETAT.score+=800; bigMsg('🎯 SUR LE RADEAU ! '+(m?'+'+m+' $':'')); SFX.niveau(); } else bigMsg('🪂 Posé à '+d.toFixed(0)+' m du radeau'); }
     return; }
   if(T.t<=0){ if(T.id==='para') lacherCorde(); else finTow('fin'); } // fin du temps en l'air : la corde se lâche (jamais une chute de 32 u)
 }
@@ -6182,6 +6260,7 @@ function finirRide(reussi){
   const D=RIDE_DEFS[r.id], temps=r.t0, rec=RIDES.records[r.id];
   let msg='🏁 '+D.nom+' — '+(D.stunt?Math.round(r.pts)+' pts en ':'')+temps.toFixed(1)+' s';
   if(!rec||temps<rec){ RIDES.records[r.id]=temps; msg+=' — RECORD !'; }
+  META.defis.courses++; // défis « courses » (chaque course terminée compte, les primes restent une par vague)
   if(RIDES.primeVague[r.id]!==WAVES.n){ RIDES.primeVague[r.id]=WAVES.n; META.argent+=D.prime; ETAT.cashRun+=D.prime; msg+=' +'+D.prime+' $'; sauveMeta(); } // une prime par vague
   bigMsg(msg); SFX.niveau(); vibre(80);
 }
@@ -22027,6 +22106,7 @@ function garageAcheter(s,prix){
   if(!garagePayer(prix)) return null;
   if(!s.courant&&!garageEnregistrer(s)) return null;
   const f=fichePerso(s.courant); f.investi+=prix;
+  META.defis.tuning++; // défis « garage »
   return f;
 }
 // Choisit le véhicule exposé (celui avec lequel on sortira) parmi la
@@ -22649,6 +22729,7 @@ function ecran(id){
   if(id) el(id).classList.add('on');
 }
 function majMenuStats(){
+  majPastilleDefis(); // « récompense à récupérer » sur le bouton Défis du menu
   el('mStats').innerHTML='Record : <b>'+META.record+'</b> · Meilleure vague : <b>'+META.recordVague+'</b><br>'+
     'Niveau <b>'+META.niveau+'</b> · Argent : <b style="color:var(--vert)">'+fmt$(META.argent)+'</b> · '+ETAT.persoNom();
 }
@@ -23148,16 +23229,33 @@ function renderDefis(){
   h+='<div class="panneau"><h3>Exploration</h3><div class="ligneItem"><div class="ico">🗺️</div><div class="inf">'+
     '<div class="nom">Véhicules cachés découverts</div><div class="det">Ils scintillent discrètement quand tu approches — fouille les recoins, la mer et le ciel</div></div>'+
     '<span class="pill equip">'+Object.keys(META.decouverts).length+' / 7</span></div></div>'+
-    '<div class="panneau"><h3>Défis de Los Reyes</h3>';
+    '';
+  // récompenses à récupérer, TOUT EN HAUT de l'écran (bouton ×2 : seulement si une pub récompensée est disponible, voir PUB_X2)
+  const aRec=DEFIS.filter((d)=>META.defis.aReclamer[d.id]&&!META.defis.faits[d.id]);
+  let hRec='';
+  if(aRec.length){
+    hRec+='<div class="panneau" style="border-color:#7dff7a88"><h3>🎁 Récompenses à récupérer — '+aRec.length+'</h3>';
+    for(const d of aRec) hRec+='<div class="ligneItem"><div class="ico">🎁</div><div class="inf"><div class="nom">'+d.nom+'</div><div class="det">'+d.det+'</div></div>'+
+      '<button class="btnRecup" data-recup="'+d.id+'">RÉCUPÉRER +'+d.rec+' $</button>'+(PUB_X2.disponible()?'<button class="btnRecup x2" data-recupx2="'+d.id+'">×2 🎬</button>':'')+'</div>';
+    hRec+='</div>';
+  }
+  h+='<div class="panneau"><h3>Défis de Los Reyes</h3>';
   for(const d of DEFIS){
+    if(META.defis.aReclamer[d.id]&&!META.defis.faits[d.id]) continue; // déjà listé en tête
     const fait=!!META.defis.faits[d.id];
+    if(d.theme){ // un thème : seul le palier en cours, ou le dernier s'ils sont tous récupérés
+      if(fait&&d.palier<d.nbPaliers-1) continue;
+      if(!fait&&!defiPropose(d)) continue;
+    }
     const [v,mx]=d.prog(META);
+    const pal=d.theme?' <span style="opacity:.6">— palier '+(d.palier+1)+'/'+d.nbPaliers+'</span>':'';
     h+='<div class="ligneItem"><div class="ico">'+(fait?'🏆':'🎯')+'</div><div class="inf">'+
-       '<div class="nom">'+d.nom+'</div><div class="det">'+d.det+' — '+(fait?'terminé':v+' / '+mx)+'</div></div>'+
+       '<div class="nom">'+d.nom+pal+'</div><div class="det">'+d.det+' — '+(fait?'terminé':v+' / '+mx)+'</div></div>'+
        '<span class="pill '+(fait?'equip':'lock')+'">'+d.rec+' $</span></div>';
   }
   h+='</div>';
-  el('defisList').innerHTML=h;
+  el('defisList').innerHTML=hRec+h;
+  el('defisMoney').textContent=fmt$(META.argent);
 }
 // ---------- Mur de trophées (planque) : lecture seule, tout vient de META ----------
 function renderTrophees(){
@@ -23602,7 +23700,15 @@ function renderStats(){
 }
 el('mStatsBtn').addEventListener('pointerdown',()=>{ETAT.retour='menu';renderStats();ecran('statsScr');});
 el('statsClose').addEventListener('pointerdown',()=>fermerVers());
-el('defisClose').addEventListener('pointerdown',()=>fermerVers());
+el('defisClose').addEventListener('pointerdown',()=>{ if(ETAT.retour==='pause') ecran('pauseM'); else fermerVers(); });
+el('defisList').addEventListener('pointerdown',(e)=>{
+  const b=e.target.closest('[data-recup],[data-recupx2]'); if(!b) return;
+  e.preventDefault();
+  if(b.dataset.recup) recupererDefi(b.dataset.recup,1); else recupererDefiX2(b.dataset.recupx2);
+  renderDefis();
+});
+el('pDefis').addEventListener('pointerdown',()=>{ ETAT.retour='pause'; renderDefis(); ecran('defis'); });
+el('pastilleDefis').addEventListener('pointerdown',(e)=>{ e.stopPropagation(); if(ETAT.mode!=='jeu') return; ETAT.mode='pause'; ETAT.retour='pause'; renderDefis(); ecran('defis'); });
 el('mPlay').addEventListener('pointerdown',()=>{audioInit();startRun();});
 el('mShop').addEventListener('pointerdown',()=>{audioInit();ouvrirDepuis('shop','menu');});
 el('mUpg').addEventListener('pointerdown',()=>{audioInit();ouvrirDepuis('upg','menu');});
@@ -24012,6 +24118,7 @@ function startRun(){
   ecran(null);
   el('hud').classList.add('on');
   bigMsg('SURVIS, ENCAISSE, RECOMMENCE');
+  majPastilleDefis();
 }
 function mourir(){
   if(ETAT.mode==='mort') return;
