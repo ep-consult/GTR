@@ -7679,14 +7679,17 @@ async function main() {
           if (P.veh) sortirVehicule(true);
           const v = creerVehicule(k, X, Z, 0, null); P.x = X; P.z = Z; entrerVehicule(v);
           const b = document.getElementById('btnDodge');
-          const r = { label: /BUNNY HOP/.test(b.innerHTML) && b.style.display === 'flex', moteur: profilMoteur(v.def) };
+          const r = { label: /HOP/.test(b.innerHTML) && b.style.display === 'flex', moteur: profilMoteur(v.def) };
           const score0 = ETAT.score, sauts0 = META.stats.sauts;
           let hMax = 0, envols = 0, avant = false;
-          INPUT.btn.esquive = true; // maintenu 3 s : UN seul saut
-          for (let i = 0; i < 180; i++) { majConduite(1 / 60); hMax = Math.max(hMax, v.h || 0); if (v.enAir && !avant) envols++; avant = !!v.enAir; }
-          INPUT.btn.esquive = false;
-          for (let i = 0; i < 30; i++) majConduite(1 / 60);
-          Object.assign(r, { hMax: +hMax.toFixed(2), envols, auSol: !v.enAir, points: ETAT.score - score0, sauts: META.stats.sauts - sauts0 });
+          // appui BREF (au relâcher) : UN bunny hop (10e lot : maintenu = cabré, voir plus bas)
+          INPUT.btn.esquive = true; majConduite(1 / 60); majConduite(1 / 60); INPUT.btn.esquive = false;
+          for (let i = 0; i < 120; i++) { majConduite(1 / 60); hMax = Math.max(hMax, v.h || 0); if (v.enAir && !avant) envols++; avant = !!v.enAir; }
+          // maintenu 2 s en roulant : cabré (roue avant levée), AUCUN saut
+          v.v = 6; let cabreMax = 0, envolsTenu = 0; avant = !!v.enAir;
+          INPUT.btn.esquive = true; for (let i = 0; i < 120; i++) { v.v = Math.max(v.v, 6); majConduite(1 / 60); cabreMax = Math.max(cabreMax, v.wheelieA || 0); if (v.enAir && !avant) envolsTenu++; avant = !!v.enAir; }
+          INPUT.btn.esquive = false; for (let i = 0; i < 60; i++) majConduite(1 / 60);
+          Object.assign(r, { hMax: +hMax.toFixed(2), envols, envolsTenu, cabreMax: +cabreMax.toFixed(2), cabreFin: +(v.wheelieA || 0).toFixed(2), auSol: !v.enAir, points: ETAT.score - score0, sauts: META.stats.sauts - sauts0 });
           o.hops[k] = r;
         }
         if (P.veh) sortirVehicule(true);
@@ -7709,7 +7712,7 @@ async function main() {
         o.sauve = !!lu && lu.cle === 'velo' && lu.pieces.aileron === 1 && !lu.nitro && lu.moteur === 0;
         s.sortirEnVoiture = true; sortirInterieur(); // comme le bouton SORTIR au volant
         o.sortie = !!(P.veh && P.veh.key === 'velo' && P.veh.persoId === 'v0' && P.veh.mesh.userData.carro && P.veh.mesh.userData.carro.children.length > 0);
-        o.sortieLabel = /BUNNY HOP/.test(document.getElementById('btnDodge').innerHTML);
+        o.sortieLabel = /HOP/.test(document.getElementById('btnDodge').innerHTML);
         if (P.veh) sortirVehicule(true);
         for (const id in META.vehPerso) Object.assign(META.vehPerso[id], slotGarageDefaut());
         sauveMeta(); startRun();
@@ -7721,9 +7724,10 @@ async function main() {
         if (!(vr.nbGares >= 6) || !vr.garesSurArceaux) ko.push('vélos garés : ' + vr.nbGares + ', sur les arceaux : ' + vr.garesSurArceaux);
         for (const k in vr.hops) {
           const r = vr.hops[k];
-          if (!r.label) ko.push(k + ' : bouton BUNNY HOP absent');
+          if (!r.label) ko.push(k + ' : bouton HOP / CABRER absent');
+          if (r.envolsTenu !== 0 || !(r.cabreMax > 0.3) || r.cabreFin > 0.01) ko.push(k + ' : maintenu, pas de cabré propre ' + JSON.stringify(r));
           if (r.moteur !== null) ko.push(k + ' : a un son de moteur');
-          if (r.envols !== 1) ko.push(k + ' : ' + r.envols + ' saut(s) pour un appui maintenu (attendu 1)');
+          if (r.envols !== 1) ko.push(k + ' : ' + r.envols + ' saut(s) pour un appui bref (attendu 1)');
           if (!(r.hMax > 0.6) || !r.auSol) ko.push(k + ' : saut ' + JSON.stringify(r));
           if (r.points || r.sauts) ko.push(k + ' : le bunny hop rapporte des points de cascade');
         }
@@ -7735,7 +7739,7 @@ async function main() {
         if (!vr.sauve) ko.push('fiche vélo perdue à la sauvegarde');
         if (!vr.sortie || !vr.sortieLabel) ko.push('sortie du garage en selle (' + vr.sortie + ', ' + vr.sortieLabel + ')');
         if (ko.length) fail('Vélos : ' + ko.join(' | '));
-        else ok('Vélos : ' + vr.nbGares + ' garés aux arceaux, sans moteur, un saut par appui (vélo ' + vr.hops.velo.hMax + ' / BMX ' + vr.hops.bmx.hMax + '), garage style seulement, sauvegardé, sortie en selle');
+        else ok('Vélos : ' + vr.nbGares + ' garés aux arceaux, sans moteur, un saut par appui bref, cabré quand on maintient (vélo ' + vr.hops.velo.hMax + ' / BMX ' + vr.hops.bmx.hMax + '), garage style seulement, sauvegardé, sortie en selle');
       }
     }
 

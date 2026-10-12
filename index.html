@@ -11984,8 +11984,8 @@ function entrerVehicule(v){
   if(v.def.velo){
     // Vélo : BUNNY HOP sur l'emplacement ESQUIVE (même réemploi que CABRER)
     el('btnDodge').style.display='flex';
-    el('btnDodge').innerHTML='🚲<small>BUNNY HOP</small>';
-    toast(v.def.bmx?'BUNNY HOP : le BMX saute par-dessus les bancs et les bordures':'BUNNY HOP pour sauter — le BMX saute encore plus haut','or');
+    el('btnDodge').innerHTML='🚲<small>HOP / CABRER</small>';
+    toast('Tape HOP / CABRER pour un bunny hop, maintiens-le pour cabrer'+(v.def.bmx?' — le BMX saute par-dessus les bancs':''),'or');
   }
   if(v.def.cross||v.def.velo){ // figures en l'air (majFiguresDeuxRoues) : boutons à part — SPRINT = 360, GRENADE = BACKFLIP (ESQUIVE reste CABRER / BUNNY HOP)
     el('btnSprint').innerHTML='🌀<small>360</small>'; el('btnGren').style.display='flex'; el('btnGren').innerHTML='🔄<small>BACKFLIP</small>'; v.figSpin=0; v.figFlip=0; v.figEnVol=false; v.mesh.rotation.x=0;
@@ -12940,6 +12940,7 @@ function majGrueBoulet(v,dt){
 // pilote est éjecté, comme au wakeboard) ; finie = points, et elle compte au DÉFI SUPERCROSS. À vélo, une figure
 // demandée juste après un BUNNY HOP (FIG2R.fenetreHop) fait pousser plus fort : le saut dure juste assez pour la
 // finir (demandé) ; trop tard, c'est la chute. Renvoie true si le pilote vient de chuter.
+const VELO_TAP=0.25, VELO_CABRE_VIT=2.2, VELO_CABRE_MAX=0.55; // vélo : appui bref = bunny hop, maintenu = cabré (angle max ~32°)
 const FIG2R={spin:{cross:0.62,velo:0.5},flip:{cross:0.78,velo:0.62},pts360:150,ptsFlip:250,fenetreHop:0.3}; // fenetreHop : à vélo, une figure demandée dans les 0,3 s d'un bunny hop allonge le saut juste assez pour la finir
 function majFiguresDeuxRoues(v,dt){
   const d=v.def, cle=d.cross?'cross':'velo', air=!!v.enAir;
@@ -13061,14 +13062,22 @@ function majConduite(dt){
     if(roueAv) roueAv.position.y=0.4+Math.sin(v.wheelieA)*0.5;
   }
   if(v.def.velo){
-    // BUNNY HOP : front montant d'ESQUIVE, roues au sol → envol par la
+    // BUNNY HOP : appui bref d'ESQUIVE (au relâcher), roues au sol → envol par la
     // physique de saut partagée (v.enAir/v.vy, majVehiculePhys) ; par-dessus
     // un obstacle bas tant que la hauteur le permet (sFront.h, idem).
     // v.hop : ce saut-là ne compte pas comme un SAUT de cascade (pas de
     // points à la chaîne en sautillant sur place).
+    // 10e lot (demandé : « il peut cabrer ? ») : comme un vrai BMX, sans bouton de plus — un appui BREF
+    // (< VELO_TAP) = BUNNY HOP au relâcher ; ESQUIVE MAINTENU = cabré (manual), roue avant levée.
     const veut=!!(INPUT.btn.esquive||INPUT.btn.esquiveK);
-    if(veut&&!v.hopTenu&&!v.enAir){ v.enAir=true; v.hop=true; v.vy=v.def.hop; v.airT=0; v.h=v.h||0; bruit(0.05,0.25,900); vibre(15); }
+    if(veut) v.manuT=v.hopTenu?(v.manuT||0)+dt:0;
+    if(!veut&&v.hopTenu&&!v.enAir&&(v.manuT||0)<VELO_TAP){ v.enAir=true; v.hop=true; v.vy=v.def.hop; v.airT=0; v.h=v.h||0; bruit(0.05,0.25,900); vibre(15); }
     v.hopTenu=veut;
+    const cabre=veut&&(v.manuT||0)>=VELO_TAP&&!v.enAir&&Math.abs(v.v)>1.5;
+    v.wheelieA=clamp((v.wheelieA||0)+(cabre?VELO_CABRE_VIT:-VELO_CABRE_VIT*1.6)*dt,0,VELO_CABRE_MAX);
+    if(v.wheelieA>0.001&&!v.enAir){ v.mesh.rotation.order='YXZ'; v.mesh.rotation.x=-v.wheelieA; v.mesh.position.y+=v.def.long*0.45*Math.sin(v.wheelieA); } // pivot sur la roue arrière
+    else if(v.wheelieA<=0.001&&v.cabreAff){ v.mesh.rotation.x=0; }
+    v.cabreAff=v.wheelieA>0.001;
     // pédalage : jambes et pédalier suivent la vitesse ; roue libre en l'air
     if(!v.enAir) v.pedalPh=(v.pedalPh||0)+v.v*dt*2.2;
     const ph=v.pedalPh||0, ud=v.mesh.userData;
