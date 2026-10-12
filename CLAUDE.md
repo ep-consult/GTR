@@ -661,9 +661,11 @@ décor sur un générateur **à part** (`aleaDecor()`, `aD()`, `choixD()`, grain
   **Piège à retenir** : pour savoir si un objet tient sous un solide en
   surplomb, passer un `yRef` à la hauteur de l'objet.
 - **Figures sur deux roues** (`majFiguresDeuxRoues`, `FIG2R`, appelée en fin
-  de `majConduite` pour `def.cross` et `def.velo`) : en l'air, ESQUIVE = 360,
-  GRENADE = BACKFLIP (étiquettes changées seulement au passage sol/air,
-  `v.figLabelAir`), combinables ; le véhicule entier tourne (ordre `YXZ`,
+  de `majConduite` pour `def.cross` et `def.velo`) : boutons À PART (demandé :
+  « le 360 ne doit pas être collé avec le bunny hop ») — SPRINT = 360 (inutilisé
+  au volant d'un véhicule terrestre), GRENADE = BACKFLIP, ESQUIVE reste
+  BUNNY HOP / CABRER ; appuis lus à chaque image (un appui au sol ne part
+  jamais au décollage) ; combinables ; le véhicule entier tourne (ordre `YXZ`,
   salto autour du centre : `position.y` compensée). Réception : figure pas
   finie = chute (`sortirVehicule(true)` + 15 de dégâts), finie = points ×combo,
   ajoutés au DÉFI SUPERCROSS (`RIDES.actif.pts`). Un bunny hop est trop court

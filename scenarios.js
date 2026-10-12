@@ -9092,7 +9092,7 @@ async function main() {
     // comme sur le wakeboard »). Véhicules lus dans VEHDEFS (cross, velo),
     // durées et points dans FIG2R. Vrais appuis : INPUT.edge (pressed).
     // -------------------------------------------------------------------
-    console.log('\n--- Figures sur deux roues : 360 et backflip en moto cross, vélo et BMX ---');
+    console.log('\n--- Figures sur deux roues : 360 (bouton à part) et backflip en moto cross, vélo et BMX ---');
     {
       const r = await page.evaluate(() => {
         const ko = [], info = [];
@@ -9108,17 +9108,26 @@ async function main() {
         for (const cle of cles) {
           // grand saut : 360 + backflip réussis
           let v = scene0(cle); const s0 = ETAT.score;
-          const a = saut(v, 9, 11, ['esquive', 'gren']);
+          const a = saut(v, 9, 11, ['sprint', 'gren']);
           if (!a.enSelle) ko.push(cle + ' : chute sur un grand saut (' + a.t.toFixed(2) + ' s en l\'air)');
           else if (!(ETAT.score - s0 >= FIG2R.pts360 + FIG2R.ptsFlip)) ko.push(cle + ' : 360 + backflip non comptés (' + (ETAT.score - s0) + ')');
           if (Math.abs(v.mesh.rotation.x) > 1e-6) ko.push(cle + ' : pas remis à plat à la réception');
           // petit saut : backflip pas fini → chute
           v = scene0(cle); const b = saut(v, 0.4, 3, ['gren']);
           if (b.enSelle) ko.push(cle + ' : backflip pas fini sans chute (' + b.t.toFixed(2) + ' s en l\'air)');
-          // au sol : aucune figure ne démarre
-          v = scene0(cle); INPUT.edge.gren = true; for (let i = 0; i < 10; i++) majConduite(1 / 30);
-          if (v.figFlip > 0 || P.veh !== v) ko.push(cle + ' : figure déclenchée au sol');
-          INPUT.edge.gren = false; INPUT.edge.esquive = false;
+          // au sol : aucune figure ne démarre, et l'appui ne reste pas en attente jusqu'au décollage
+          v = scene0(cle); INPUT.edge.gren = true; INPUT.edge.sprint = true; for (let i = 0; i < 10; i++) majConduite(1 / 30);
+          if (v.figFlip > 0 || v.figSpin > 0 || P.veh !== v) ko.push(cle + ' : figure déclenchée au sol');
+          const c = saut(v, 9, 11, []); if (!c.enSelle || v.figFlip > 0) ko.push(cle + ' : appui fait au sol déclenché au décollage');
+          // boutons à part (demandé : « le 360 doit être un bouton en plus, pas collé avec le bunny hop ») :
+          // 360 sur SPRINT ; ESQUIVE reste BUNNY HOP / CABRER, même en l'air, et ne lance jamais de 360
+          v = scene0(cle);
+          if (!/360/.test(document.getElementById('btnSprint').textContent)) ko.push(cle + ' : pas de bouton 360 (' + document.getElementById('btnSprint').textContent + ')');
+          const esq0 = document.getElementById('btnDodge').textContent;
+          v.enAir = true; v.h += 6; v.vy = 8; v.airT = 0; v.v = 8; INPUT.edge.esquive = true; majConduite(1 / 30);
+          if (v.figSpin > 0) ko.push(cle + ' : ESQUIVE lance un 360');
+          if (document.getElementById('btnDodge').textContent !== esq0 || /360/.test(esq0)) ko.push(cle + ' : ESQUIVE change d\'étiquette (' + esq0 + ')');
+          INPUT.edge.gren = false; INPUT.edge.esquive = false; INPUT.edge.sprint = false;
           info.push(cle + ' : grand saut ' + a.t.toFixed(2) + ' s réussi, petit saut ' + b.t.toFixed(2) + ' s = chute');
         }
         // les figures comptent au DÉFI SUPERCROSS

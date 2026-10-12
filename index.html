@@ -11987,9 +11987,9 @@ function entrerVehicule(v){
     el('btnDodge').innerHTML='🚲<small>BUNNY HOP</small>';
     toast(v.def.bmx?'BUNNY HOP : le BMX saute par-dessus les bancs et les bordures':'BUNNY HOP pour sauter — le BMX saute encore plus haut','or');
   }
-  if(v.def.cross||v.def.velo){ // figures en l'air (majFiguresDeuxRoues) : GRENADE = BACKFLIP, ESQUIVE = 360 en l'air
-    el('btnGren').style.display='flex'; el('btnGren').innerHTML='🔄<small>BACKFLIP</small>'; v.figLabelAir=undefined; v.figSpin=0; v.figFlip=0; v.figEnVol=false; v.mesh.rotation.x=0;
-    setTimeout(()=>{ if(P.veh===v) toast('En l’air : 360 (ESQUIVE) et BACKFLIP — finis la figure avant de toucher le sol !','or'); },2600);
+  if(v.def.cross||v.def.velo){ // figures en l'air (majFiguresDeuxRoues) : boutons à part — SPRINT = 360, GRENADE = BACKFLIP (ESQUIVE reste CABRER / BUNNY HOP)
+    el('btnSprint').innerHTML='🌀<small>360</small>'; el('btnGren').style.display='flex'; el('btnGren').innerHTML='🔄<small>BACKFLIP</small>'; v.figSpin=0; v.figFlip=0; v.figEnVol=false; v.mesh.rotation.x=0;
+    setTimeout(()=>{ if(P.veh===v) toast('En l’air : 360 et BACKFLIP — finis la figure avant de toucher le sol !','or'); },2600);
   }
   if(v.def.pelle){
     // Bulldozer : bouton ESQUIVE (inutilisé — pas d'arme), bascule la
@@ -12934,18 +12934,19 @@ function majGrueBoulet(v,dt){
   }
 }
 // Figures en l'air sur deux roues (10e lot, demandé : « intègre la logique de 360 et de backflip sur la moto
-// cross et le vélo, comme sur le wakeboard »). En l'air : ESQUIVE = 360, GRENADE = BACKFLIP, combinables ; la
+// cross et le vélo, comme sur le wakeboard »). En l'air : SPRINT = 360 (bouton à part, demandé : « pas collé avec
+// le bunny hop » — ESQUIVE reste BUNNY HOP / CABRER), GRENADE = BACKFLIP, combinables ; la
 // figure tourne le véhicule entier (le pilote y est attaché). À la réception, une figure pas finie = chute (le
 // pilote est éjecté, comme au wakeboard) ; finie = points, et elle compte au DÉFI SUPERCROSS. Durées : il faut
 // un vrai saut (un bunny hop est trop court pour un 360). Renvoie true si le pilote vient de chuter.
 const FIG2R={spin:{cross:0.62,velo:0.5},flip:{cross:0.78,velo:0.62},pts360:150,ptsFlip:250};
 function majFiguresDeuxRoues(v,dt){
   const d=v.def, cle=d.cross?'cross':'velo', air=!!v.enAir;
-  if(air!==v.figLabelAir){ v.figLabelAir=air; el('btnDodge').innerHTML=air?'🌀<small>360</small>':(d.cross?'🏍️<small>CABRER</small>':'🚲<small>BUNNY HOP</small>'); }
+  const veut360=pressed('sprint')||edgeKey('ShiftLeft'), veutFlip=pressed('gren')||edgeKey('KeyG'); // lus à chaque image : un appui au sol ne reste jamais en attente jusqu'au décollage
   const ud=v.mesh.userData;
   if(air){
-    if((pressed('esquive')||edgeKey('KeyK'))&&!(v.figSpin>0)) v.figSpin=0.0001;
-    if((pressed('gren')||edgeKey('KeyG'))&&!(v.figFlip>0)) v.figFlip=0.0001;
+    if(veut360&&!(v.figSpin>0)) v.figSpin=0.0001;
+    if(veutFlip&&!(v.figFlip>0)) v.figFlip=0.0001;
     if(v.figSpin>0&&v.figSpin<1) v.figSpin=Math.min(1,v.figSpin+dt/FIG2R.spin[cle]);
     if(v.figFlip>0&&v.figFlip<1) v.figFlip=Math.min(1,v.figFlip+dt/FIG2R.flip[cle]);
     v.figEnVol=true;
