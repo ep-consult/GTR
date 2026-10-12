@@ -8575,6 +8575,49 @@ async function main() {
       else ok('Garage / Monster Truck : moteur, vitesse, nitro, peinture et pièce présents en sortant (' + r.info + ')');
     }
 
+    // -------------------------------------------------------------------
+    // 8e lot, n° 2 (signalé : « l'hélicoptère du yacht explose toujours ») :
+    // DESCENDRE tenu arrivait au contact à -13 u/s, au-delà du seuil de crash.
+    // Effet de sol (HELI_SOL) : posé en douceur, sur le pont du yacht comme
+    // en ville ; au-dessus de l'eau, il reste au ras des vagues.
+    // -------------------------------------------------------------------
+    console.log('\n--- Hélico du yacht : décollage, posé DESCENDRE tenu, pas de posé sur l\'eau ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (P.veh) sortirVehicule(true);
+        startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
+        const hy = vehicules.find((v) => v.key === 'helico' && dist2(v.x, v.z, POIS.yacht.x, POIS.yacht.z) < 100);
+        if (!hy) return { ko: ['pas d\'hélico sur le yacht'] };
+        const pas = (n) => { for (let i = 0; i < n && !hy.mort; i++) { majJoueur(1 / 30, 1 / 30); majVehicules(1 / 30); } };
+        const pad = { x: hy.x, z: hy.z };
+        P.x = hy.x + 1.5; P.z = hy.z; P.y = solPied(P.x, P.z); entrerVehicule(hy);
+        pas(30); if (hy.mort) ko.push('explose posé sur le pont');
+        INPUT.btn.sprint = true; pas(30); INPUT.btn.sprint = false;
+        if (!hy.vol || !(hy.alt > 8)) ko.push('ne décolle pas du yacht (alt ' + (hy.alt || 0).toFixed(1) + ')');
+        // posé DESCENDRE tenu sur le pont du yacht
+        INPUT.btn.frein = true; pas(240); INPUT.btn.frein = false;
+        if (hy.mort) ko.push('explose en se posant sur le yacht');
+        else if (hy.vol || Math.abs(hy.alt - poseY(pad.x, pad.z)) > 0.05) ko.push('pas posé sur le pont (alt ' + hy.alt.toFixed(2) + ')');
+        else info.push('posé sur le pont à ' + hy.alt.toFixed(2));
+        // au-dessus de la mer : jamais posé, jamais d'explosion
+        INPUT.btn.sprint = true; pas(20); INPUT.btn.sprint = false;
+        hy.x = POIS.yacht.x - 40; hy.z = POIS.yacht.z + 20; hy.v = 0;
+        if (!estEau(hy.x, hy.z)) ko.push('point d\'essai pas sur l\'eau');
+        INPUT.btn.frein = true; pas(240); INPUT.btn.frein = false;
+        if (hy.mort) ko.push('explose au-dessus de l\'eau en descendant');
+        else if (!hy.vol || !(hy.alt >= HELI_EAU_ALT - 1e-6)) ko.push('posé sur l\'eau (alt ' + hy.alt.toFixed(2) + ')');
+        // en ville aussi
+        hy.x = POIS.place.x; hy.z = POIS.place.z + 10; hy.alt = 20;
+        INPUT.btn.frein = true; pas(240); INPUT.btn.frein = false;
+        if (hy.mort || hy.vol) ko.push('posé en ville raté (mort=' + !!hy.mort + ')');
+        sortirVehicule(true);
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Hélico du yacht : ' + r.ko.join(' | '));
+      else ok('Hélico du yacht : décolle, se pose DESCENDRE tenu sur le pont et en ville, reste au ras de l\'eau sans exploser (' + r.info.join(', ') + ')');
+    }
+
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');
     {
       const srcIdx = fs.readFileSync(INDEX_HTML, 'utf8');

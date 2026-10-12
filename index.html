@@ -12144,6 +12144,9 @@ function poseY(x,z){ // surface d'atterrissage : toit d'immeuble ou relief
 }
 // Fenêtre pendant laquelle un avion/hélico qui vient de décoller (posé→en
 // vol) ignore les collisions avec son environnement immédiat — voir majVol.
+// effet de sol de l'hélico : sous HELI_SOL u, descente plafonnée (posé à HELI_POSE_V u/s, sous le seuil de crash de 5,5)
+const HELI_SOL=6, HELI_POSE_V=2.5;
+const HELI_EAU_ALT=0.9; // altitude plancher au-dessus de l'eau
 const DECOL_GRACE=0.5;
 // Lissage de l'assiette (tangage) — bug remonté par un joueur : l'ancien
 // facteur de lerp (0.45 avion / 0.35 hélico) était appliqué TEL QUEL chaque
@@ -12339,6 +12342,12 @@ function majVol(v,dt){
     }
     if(v.vol){
       v.va=(monter?16:0)+(desc?-13:0)+((!monter&&!desc)?-0.5:0);
+      // effet de sol (8e lot, signalé : « l'hélico du yacht explose toujours ») :
+      // DESCENDRE tenu arrivait au contact à -13 u/s, au-delà du seuil de crash
+      // (-5,5) : tout atterrissage normal explosait, sur le pont du yacht comme
+      // ailleurs. Sous HELI_SOL u, la descente est amortie jusqu'au posé.
+      const hSol=v.alt-poseY(v.x,v.z);
+      if(v.va<0&&hSol<HELI_SOL) v.va=Math.max(v.va,-HELI_POSE_V-(Math.max(0,hSol)/HELI_SOL)*(13-HELI_POSE_V));
       v.alt=clamp(v.alt+v.va*dt,0,v.def.altMax||150);  // très haut au-dessus de la ville (OVNI : encore plus, voir VEHDEFS)
       const l=Math.hypot(INPUT.mx,INPUT.mz);
       if(l>0.15){
@@ -12352,6 +12361,13 @@ function majVol(v,dt){
         v.v=0;
       } else { v.x=nx; v.z=nz; }
       const surf=poseY(v.x,v.z);
+      // pas de posé sur l'eau : l'hélico reste au ras des vagues (il explosait
+      // en ratant le pont du yacht) ; seul un vrai piqué s'y écrase
+      if(surf<0.5&&estEau(v.x,v.z)&&v.va>=-5.5&&v.alt<HELI_EAU_ALT){
+        v.alt=HELI_EAU_ALT; v.va=0;
+        if(!(v.eauAvisT>0)){ v.eauAvisT=3; toast('Impossible de se poser sur l’eau','warn'); }
+      }
+      if(v.eauAvisT>0) v.eauAvisT-=dt;
       if(v.alt<=surf+0.12&&v.va<=0){
         if(v.decolT<=0&&((surf<0.5&&estEau(v.x,v.z))||v.va<-5.5)){ crashAerien(v); return; }
         v.vol=false; v.alt=surf; SFX.ui();
