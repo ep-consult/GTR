@@ -9087,6 +9087,52 @@ async function main() {
       else ok('Kiosque de la banderole : dégagé en ' + r.pos.join(', ') + ', bouton accessible');
     }
 
+    // -------------------------------------------------------------------
+    // 10e lot, n° 2 (demandé : « 360 et backflip sur la moto cross et le vélo,
+    // comme sur le wakeboard »). Véhicules lus dans VEHDEFS (cross, velo),
+    // durées et points dans FIG2R. Vrais appuis : INPUT.edge (pressed).
+    // -------------------------------------------------------------------
+    console.log('\n--- Figures sur deux roues : 360 et backflip en moto cross, vélo et BMX ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        const cles = Object.keys(VEHDEFS).filter((k) => VEHDEFS[k].cross || VEHDEFS[k].velo);
+        if (cles.length < 2) return { ko: ['véhicules à figures introuvables : ' + cles] };
+        const scene0 = (cle) => { if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
+          for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0; for (const e of ennemis) e.mort = true;
+          const v = creerVehicule(cle, POIS.place.x, POIS.place.z + 14, 0, null); v.h = solY(v.x, v.z); P.x = v.x; P.z = v.z; entrerVehicule(v); return v; };
+        const saut = (v, h, vy, appuis) => { v.enAir = true; v.h = (v.h || 0) + h; v.vy = vy; v.airT = 0; v.hop = false; v.v = 8;
+          for (const a of appuis) INPUT.edge[a] = true;
+          let t = 0; while (t < 4 && (v.enAir || t < 0.05) && P.veh === v) { majConduite(1 / 30); t += 1 / 30; }
+          return { enSelle: P.veh === v, t }; };
+        for (const cle of cles) {
+          // grand saut : 360 + backflip réussis
+          let v = scene0(cle); const s0 = ETAT.score;
+          const a = saut(v, 9, 11, ['esquive', 'gren']);
+          if (!a.enSelle) ko.push(cle + ' : chute sur un grand saut (' + a.t.toFixed(2) + ' s en l\'air)');
+          else if (!(ETAT.score - s0 >= FIG2R.pts360 + FIG2R.ptsFlip)) ko.push(cle + ' : 360 + backflip non comptés (' + (ETAT.score - s0) + ')');
+          if (Math.abs(v.mesh.rotation.x) > 1e-6) ko.push(cle + ' : pas remis à plat à la réception');
+          // petit saut : backflip pas fini → chute
+          v = scene0(cle); const b = saut(v, 0.4, 3, ['gren']);
+          if (b.enSelle) ko.push(cle + ' : backflip pas fini sans chute (' + b.t.toFixed(2) + ' s en l\'air)');
+          // au sol : aucune figure ne démarre
+          v = scene0(cle); INPUT.edge.gren = true; for (let i = 0; i < 10; i++) majConduite(1 / 30);
+          if (v.figFlip > 0 || P.veh !== v) ko.push(cle + ' : figure déclenchée au sol');
+          INPUT.edge.gren = false; INPUT.edge.esquive = false;
+          info.push(cle + ' : grand saut ' + a.t.toFixed(2) + ' s réussi, petit saut ' + b.t.toFixed(2) + ' s = chute');
+        }
+        // les figures comptent au DÉFI SUPERCROSS
+        if (STUNT && STUNT.ok) { const v = scene0(cles.find((k) => VEHDEFS[k].cross)); const d = rideDepart('stunt'); v.x = d.x; v.z = d.z; v.h = solY(d.x, d.z); P.x = v.x; P.z = v.z; demarrerRide('stunt');
+          const p0 = RIDES.actif ? RIDES.actif.pts : -1; saut(v, 9, 11, ['gren']); const p1 = RIDES.actif ? RIDES.actif.pts : -1;
+          if (!(p1 - p0 >= FIG2R.ptsFlip)) ko.push('backflip non compté au défi supercross (' + p0 + ' → ' + p1 + ')'); else info.push('défi supercross : +' + Math.round(p1 - p0) + ' pts sur un backflip');
+          if (RIDES.actif) { RIDES.actif = null; RIDES.porte.visible = false; RIDES.txt.style.display = 'none'; } }
+        if (P.veh) sortirVehicule(true);
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Figures deux roues : ' + r.ko.join(' | ') + ' [' + (r.info || []).join(', ') + ']');
+      else ok('Figures deux roues : ' + r.info.join(' ; '));
+    }
+
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');
     {
       const srcIdx = fs.readFileSync(INDEX_HTML, 'utf8');

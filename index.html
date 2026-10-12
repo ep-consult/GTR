@@ -11987,6 +11987,10 @@ function entrerVehicule(v){
     el('btnDodge').innerHTML='🚲<small>BUNNY HOP</small>';
     toast(v.def.bmx?'BUNNY HOP : le BMX saute par-dessus les bancs et les bordures':'BUNNY HOP pour sauter — le BMX saute encore plus haut','or');
   }
+  if(v.def.cross||v.def.velo){ // figures en l'air (majFiguresDeuxRoues) : GRENADE = BACKFLIP, ESQUIVE = 360 en l'air
+    el('btnGren').style.display='flex'; el('btnGren').innerHTML='🔄<small>BACKFLIP</small>'; v.figLabelAir=undefined; v.figSpin=0; v.figFlip=0; v.figEnVol=false; v.mesh.rotation.x=0;
+    setTimeout(()=>{ if(P.veh===v) toast('En l’air : 360 (ESQUIVE) et BACKFLIP — finis la figure avant de toucher le sol !','or'); },2600);
+  }
   if(v.def.pelle){
     // Bulldozer : bouton ESQUIVE (inutilisé — pas d'arme), bascule la
     // pelle — voir majConduite/resoudreCollisionsVehicule.
@@ -12929,6 +12933,41 @@ function majGrueBoulet(v,dt){
     for(const c of cassables){ if(c.hp>0&&dist2(wx,wz,c.x,c.z)<3) casserCaisse(c); }
   }
 }
+// Figures en l'air sur deux roues (10e lot, demandé : « intègre la logique de 360 et de backflip sur la moto
+// cross et le vélo, comme sur le wakeboard »). En l'air : ESQUIVE = 360, GRENADE = BACKFLIP, combinables ; la
+// figure tourne le véhicule entier (le pilote y est attaché). À la réception, une figure pas finie = chute (le
+// pilote est éjecté, comme au wakeboard) ; finie = points, et elle compte au DÉFI SUPERCROSS. Durées : il faut
+// un vrai saut (un bunny hop est trop court pour un 360). Renvoie true si le pilote vient de chuter.
+const FIG2R={spin:{cross:0.62,velo:0.5},flip:{cross:0.78,velo:0.62},pts360:150,ptsFlip:250};
+function majFiguresDeuxRoues(v,dt){
+  const d=v.def, cle=d.cross?'cross':'velo', air=!!v.enAir;
+  if(air!==v.figLabelAir){ v.figLabelAir=air; el('btnDodge').innerHTML=air?'🌀<small>360</small>':(d.cross?'🏍️<small>CABRER</small>':'🚲<small>BUNNY HOP</small>'); }
+  const ud=v.mesh.userData;
+  if(air){
+    if((pressed('esquive')||edgeKey('KeyK'))&&!(v.figSpin>0)) v.figSpin=0.0001;
+    if((pressed('gren')||edgeKey('KeyG'))&&!(v.figFlip>0)) v.figFlip=0.0001;
+    if(v.figSpin>0&&v.figSpin<1) v.figSpin=Math.min(1,v.figSpin+dt/FIG2R.spin[cle]);
+    if(v.figFlip>0&&v.figFlip<1) v.figFlip=Math.min(1,v.figFlip+dt/FIG2R.flip[cle]);
+    v.figEnVol=true;
+  } else if(v.figEnVol){ // réception
+    v.figEnVol=false;
+    const s=v.figSpin||0, f=v.figFlip||0; v.figSpin=0; v.figFlip=0;
+    v.mesh.rotation.x=0; if(ud.corps&&!d.cross) ud.corps.rotation.x=0;
+    if((s>0&&s<1)||(f>0&&f<1)){ // pas finie : chute
+      v.v*=0.2; toast('Chute ! Figure pas finie','warn'); vibre(80); secousse(6);
+      sortirVehicule(true); toucherJoueur(15); lancerRagdollJoueurFx(); return true;
+    }
+    if(s>=1||f>=1){
+      const deux=s>=1&&f>=1, pts=Math.round(((s>=1?FIG2R.pts360:0)+(f>=1?FIG2R.ptsFlip:0))*(deux?1.5:1)*ETAT.combo), nom=deux?'BACKFLIP 360':(f>=1?'BACKFLIP':'360');
+      ETAT.score+=pts; spawnTexte(v.x,3.6,v.z,nom+' ! +'+pts,'#ff5ad0'); SFX.ramasse(); vibre(30);
+      if(RIDES.actif&&RIDE_DEFS[RIDES.actif.id].stunt) RIDES.actif.pts+=pts; // la figure compte au DÉFI SUPERCROSS
+    }
+  }
+  // rendu : le véhicule entier tourne (le pilote y est attaché)
+  if(v.figSpin>0||v.figFlip>0){ v.mesh.rotation.order='YXZ'; v.mesh.rotation.y=v.ang+(v.figSpin||0)*Math.PI*2; v.mesh.rotation.x=-(v.figFlip||0)*Math.PI*2;
+    if(v.figFlip>0) v.mesh.position.y+=(d.cross?0.9:0.7)*(1-Math.cos((v.figFlip||0)*Math.PI*2)); } // salto autour du centre du véhicule, pas du point au sol
+  return false;
+}
 function majConduite(dt){
   const v=P.veh;
   if(!v||!v.def){ P.veh=null; return; }
@@ -13030,6 +13069,7 @@ function majConduite(dt){
     if(ud.pedalier) ud.pedalier.rotation.x=-ph;
     if(P.surMoto&&P.veh===v){ P.h.jambeG.rotation.x=-0.45+Math.sin(ph)*0.4; P.h.jambeD.rotation.x=-0.45-Math.sin(ph)*0.4; }
   }
+  if((v.def.cross||v.def.velo)&&majFiguresDeuxRoues(v,dt)) return; // chute sur une figure pas finie : le joueur est éjecté
   if(v.def.pelle){
     // Bouton ESQUIVE (libre — le bulldozer n'a pas d'arme) : bascule la
     // pelle, baissée ou relevée — un front montant, pas un maintien (la
