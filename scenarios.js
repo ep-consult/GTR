@@ -8938,6 +8938,39 @@ async function main() {
       else ok('4x4 amphibie : ' + r.info.join(', ') + ', flotte après un saut ; le 4x4 ordinaire se noie toujours');
     }
 
+    // -------------------------------------------------------------------
+    // 9e lot, n° 2 (signalé : « le mur entre l'aéroport / le désert et la
+    // ville se franchit en avion, mais pas en base jump, chute libre ou
+    // parachute »). Choix : le mur reste (il guide les véhicules vers le
+    // portail de l'aéroport), mais tout ce qui vole AU-DESSUS passe. À pied
+    // au sol, il bloque toujours. Le mur est lu dans les solides du jeu.
+    // -------------------------------------------------------------------
+    console.log('\n--- Mur de l\'aéroport : franchi en chute libre, sous voile et au jetpack ; bloquant à pied ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (P.veh) sortirVehicule(true);
+        startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
+        for (const e of ennemis) e.mort = true;
+        // un tronçon du mur est, loin du portail
+        const z = -200, mur = solidAt(HALF + 14, z, 0); if (!mur) return { ko: ['mur est introuvable en z ' + z] };
+        const xa = HALF + 6, xb = HALF + 22;
+        const essai = (nom, prep) => {
+          P.x = xa; P.z = z; P.chute = false; P.para = false; P.wing = false; P.jetpackVol = false; P.vy = 0; P.y = solPied(P.x, P.z);
+          prep(); let t = 0;
+          while (t < 6 && P.x < xb) { INPUT.mx = 1; INPUT.mz = 0; majJoueur(1 / 30, 1 / 30); P.iframes = 99; t += 1 / 30; if (nom === 'jetpack') { P.y = Math.max(P.y, 9); P.vy = 0; } }
+          INPUT.mx = 0; const passe = P.x > HALF + 14 + mur.hw; info.push(nom + (passe ? ' passe' : ' bloqué')); return passe;
+        };
+        if (!essai('voile', () => { P.y = 25; P.chute = true; P.chuteY0 = 30; P.chuteT = 1; P.chuteHaut = 25; P.chuteVx = 0; P.chuteVz = 0; ouvrirParachute(); })) ko.push('sous voile : bloqué par le mur');
+        if (!essai('chute libre', () => { P.y = 40; P.chute = true; P.chuteY0 = 45; P.chuteT = 1; P.chuteHaut = 40; P.chuteVx = 8; P.chuteVz = 0; P.vy = 0; })) ko.push('en chute libre : bloqué par le mur');
+        if (essai('à pied', () => {})) ko.push('à pied : le mur ne bloque plus');
+        P.chute = false; P.para = false; paraMesh.visible = false; P.y = solPied(P.x, P.z);
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Mur de l\'aéroport : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
+      else ok('Mur de l\'aéroport : ' + r.info.join(', '));
+    }
+
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');
     {
       const srcIdx = fs.readFileSync(INDEX_HTML, 'utf8');

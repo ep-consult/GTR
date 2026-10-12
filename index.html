@@ -6594,6 +6594,20 @@ function mkEnceinte(){
   mkEnseigne('AÉROPORT →','#ffd23f',HALF-2,4.2,-42,Math.PI/2,10);
   mkBox(2.2,5,2.2,mat(0x3a3d44),HALF+14,2.5,pG-1);
   mkBox(2.2,5,2.2,mat(0x3a3d44),HALF+14,2.5,pD+1);
+  // 9e lot (demandé : « matérialiser l'entrée de l'aéroport ») : pylônes balisés de part et d'autre du portail,
+  // grande enseigne au pied du pylône nord (hors de la route : rien ne passe entre la caméra et le joueur) et
+  // marquage AÉROPORT peint sur la chaussée. Générateur du décor : la ville ne bouge pas.
+  if(DECOR_V2) sansAleaVille(()=>{
+    const g=new THREE.Group();
+    for(const z of [pG-1,pD+1]){ g.add(mkBoxG(2.6,7.2,2.6,0x2a2d34,HALF+14,3.6,z)); g.add(mkBoxG(2.8,0.7,2.8,0xffd23f,HALF+14,7.4,z));
+      for(let k=0;k<3;k++) g.add(mkBoxG(2.66,0.45,2.66,0xffd23f,HALF+14,1.2+k*2,z)); } // bandes jaunes
+    scene.add(g);
+    mkEnseigne('AÉROPORT','#ffd23f',HALF+21.5,5.2,pG-1,0,11);
+    const tx=cTex(512,(c,S)=>{ c.clearRect(0,0,S,S); c.fillStyle='rgba(255,210,63,0.82)'; c.font='900 92px Arial'; c.textAlign='center'; c.textBaseline='middle';
+      c.fillText('AÉROPORT',S/2,S/2-60); c.font='900 120px Arial'; c.fillText('→',S/2,S/2+70); });
+    const sol=new THREE.Mesh(new THREE.PlaneGeometry(13,13),new THREE.MeshBasicMaterial({map:tx,transparent:true,depthWrite:false}));
+    sol.rotation.x=-Math.PI/2; sol.position.set(HALF+24,0.25,-42); scene.add(sol); // sur le tarmac, juste après le portail
+  });
 }
 const texTarmac=cTex(256,(g,s)=>{
   g.fillStyle='#464951';g.fillRect(0,0,s,s);
@@ -10894,6 +10908,7 @@ function majJoueur(dt,dtJeu){
   const marchable=(x,z)=>{
     const s=solidAt(x,z,0.5,undefined,P.y);
     if(s){
+      if(!auSol()&&P.y>s.h+0.2) return true; // en l'air AU-DESSUS du solide (chute libre, voile, wingsuit, jetpack) : on passe par-dessus — 9e lot : le mur de l'aéroport arrêtait un parachutiste à 30 u
       if(s.toit&&Math.abs(s.h-P.y)<1.4) return true; // on circule sur le même toit
       // Déjà collé à ce solide (tombé du bord d'un toit ou d'une falaise : on
       // atterrit dans la marge de 0,5 u) : on peut toujours s'en ÉLOIGNER.
