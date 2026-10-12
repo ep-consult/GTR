@@ -3603,7 +3603,7 @@ async function main() {
           INPUT.btn.action = false;
           if (s.canneEtat === 'morsure') { if (Math.random() < dt / 0.35) __chal.appuyer(); tick(); continue; }
           if (s.canneEtat === 'attente' || s.retourBarreT > 0) { INPUT.mx = INPUT.mz = 0; tick(); continue; }
-          retour = retour || s.calePoids > CHALUTIER_CALE_MAX - 25 || s.meteoEtat === 'tempete' || t > 140;
+          retour = retour || s.calePoids > CHALUTIER_CALE_MAX - 25 || s.meteoEtat === 'tempete' || t > 120; // prudent : une tempête au retour coûte cher (×0,55)
           if (retour) { vers(0, 0, false); tick(); continue; }
           const garnis = s.bancs.filter((b) => b.stock > 0 && b.type !== 'filet');
           const cible = garnis.find((b) => b.type === 'roi') || garnis.sort((a, b) => Math.hypot(a.x - s.bateau.x, a.z - s.bateau.z) - Math.hypot(b.x - s.bateau.x, b.z - s.bateau.z))[0];
@@ -9240,6 +9240,101 @@ async function main() {
       });
       if (r.ko.length) fail('Laverie : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
       else ok('Laverie : ' + r.info.join(' ; ') + ' ; 2 lavages par vague, remises à zéro (sortie, mort, game over)');
+    }
+
+    // -------------------------------------------------------------------
+    // Serre (refaite au 11e lot) : la nuit de la floraison. Réglages lus dans
+    // SERRE_* (jamais recopiés). Pilote simulé glouton au joystick réel
+    // (chemin BFS sur les vrais solides) ; un joueur passif perd la serre.
+    // -------------------------------------------------------------------
+    console.log('\n--- Serre : la nuit de la floraison (besoins, outils, contagion, fin, Étoile, pilote simulé) ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        const entrer = () => { if (INT.actif) sortirInterieur(); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
+          entrerInterieur('serre', PORTES.find((x) => x.id === 'serre')); ETAT.intT = 0; return INT.actif; };
+        const appuyer = () => { majAction(); const b = document.getElementById('btnAction'); const l = b.style.display === 'none' ? '' : b.textContent; if (b._fn && l) b._fn(); return l; };
+        const vu = (e) => getComputedStyle(e).display !== 'none';
+        // 1) lancement au tableau
+        let s = entrer(); P.x = s.panneau.x; P.z = s.panneau.z;
+        const label = appuyer();
+        if (!/FLORAISON/.test(label) || !s.srNuit || !vu(serreWrap) || !vu(serreIntroWrap) || vu(document.getElementById('btnFire'))) ko.push('lancement de la nuit (' + label + ')');
+        // 2) un besoin d'eau : arrosoir plein = arroser, une dose de moins
+        const p0 = s.pots[0]; serreNouveauBesoin(s, 'eau', p0); P.x = p0.x; P.z = p0.z;
+        if (!p0.icone.visible) ko.push('icône du besoin invisible');
+        const l1 = appuyer(); if (!/ARROSER/.test(l1) || p0.besoin || s.srEau !== SERRE_DOSES - 1 || s.srSoins !== 1) ko.push('arroser (' + l1 + ')');
+        // 3) pucerons : il faut le pulvérisateur (table), puis l'arrosoir se reprend au bassin
+        const p1 = s.pots[1]; serreNouveauBesoin(s, 'puceron', p1); P.x = p1.x; P.z = p1.z;
+        if (!/pulvérisateur/i.test(appuyer()) || !p1.besoin) ko.push('pucerons traités sans le pulvérisateur');
+        P.x = s.tableOutils.tx; P.z = s.tableOutils.tz; if (!/PULVÉRISATEUR/.test(appuyer()) || s.srOutil !== 'pulve') ko.push('prendre le pulvérisateur');
+        P.x = p1.x; P.z = p1.z; if (!/PULVÉRISER/.test(appuyer()) || p1.besoin) ko.push('pulvériser');
+        P.x = s.bassinPos.bx + 3.4; P.z = s.bassinPos.bz; if (!/ARROSOIR/.test(appuyer()) || s.srOutil !== 'arrosoir' || s.srEau !== SERRE_DOSES) ko.push('reprendre l’arrosoir au bassin');
+        // 4) contagion : des pucerons oubliés gagnent un voisin
+        const p2 = s.pots[5]; serreNouveauBesoin(s, 'puceron', p2); p2.besoin.t = p2.besoin.tMax * SERRE_CONTAGION - 0.01; s.srProchain = 99;
+        majInterieur(0.05, 0.05);
+        if (s.pots.filter((p) => p.besoin && p.besoin.type === 'puceron').length < 2) ko.push('les pucerons ne gagnent pas de voisin');
+        // 5) un besoin oublié : la plante fane
+        p2.besoin.t = p2.besoin.tMax; majInterieur(0.01, 0.01);
+        if (!p2.fanee || s.srFanees !== 1) ko.push('une plante oubliée ne fane pas');
+        info.push('arrosoir, pulvérisateur, contagion, fanaison');
+        // 6) fin de nuit sans perte : l'Étoile, une fois par vague
+        s = entrer(); P.x = s.panneau.x; P.z = s.panneau.z; appuyer(); s.srSoins = 7; s.srT = SERRE_DUREE - 0.01; const a0 = META.argent;
+        majInterieur(0.05, 0.05);
+        if (s.srNuit || s.srFin !== 'parfait' || META.argent !== a0 + 7 * SERRE_GAIN_SOIN + SERRE_BONUS_PARFAIT || !s.etoile.visible) ko.push('fin parfaite (' + s.srFin + ', ' + (META.argent - a0) + ' $)');
+        P.x = s.panneau.x; P.z = s.panneau.z; if (!/repose/.test(appuyer()) || s.srNuit) ko.push('2e nuit dans la même vague');
+        // 7) pilote simulé glouton ; joueur passif
+        const chemin = (s, x1, z1) => { const pas = 0.5, W = s.D.w / 2 - 0.6, D = s.D.d / 2 - 0.6;
+          const nx = Math.floor(2 * W / pas) + 1, nz = Math.floor(2 * D / pas) + 1, idx = (i, j) => i * nz + j, cX = (i) => s.ox - W + i * pas, cZ = (j) => s.oz - D + j * pas;
+          const libre = (i, j) => i >= 0 && j >= 0 && i < nx && j < nz && !solidAt(cX(i), cZ(j), 0.65);
+          const si = Math.round((P.x - s.ox + W) / pas), sj = Math.round((P.z - s.oz + D) / pas); let ti = clamp(Math.round((x1 - s.ox + W) / pas), 0, nx - 1), tj = clamp(Math.round((z1 - s.oz + D) / pas), 0, nz - 1);
+          if (!libre(ti, tj)) { let best = null, bd = 1e9; for (let di = -5; di <= 5; di++) for (let dj = -5; dj <= 5; dj++) if (libre(ti + di, tj + dj) && di * di + dj * dj < bd) { bd = di * di + dj * dj; best = [ti + di, tj + dj]; } if (best) { ti = best[0]; tj = best[1]; } } // un joueur s'arrête n'importe où dans le rayon de la zone
+          const prev = new Int32Array(nx * nz).fill(-2), file = [idx(si, sj)]; prev[idx(si, sj)] = -1;
+          while (file.length) { const k = file.shift(), i = Math.floor(k / nz), j = k % nz; if (i === ti && j === tj) break;
+            for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) { const a = i + di, b = j + dj; if (!libre(a, b) || prev[idx(a, b)] !== -2) continue; prev[idx(a, b)] = k; file.push(idx(a, b)); } }
+          const pts = []; let k = idx(ti, tj); if (prev[k] === -2) return null; while (k !== -1) { pts.push({ x: cX(Math.floor(k / nz)), z: cZ(k % nz) }); k = prev[k]; } return pts.reverse(); };
+        const nuit = (actif) => {
+          const s = entrer(); P.x = s.panneau.x; P.z = s.panneau.z; appuyer();
+          const dt = 1 / 30; let t = 0, route = null, cle = '', bloque = 0, actionCd = 0;
+          while (s.srNuit && t < SERRE_DUREE + 2) {
+            INPUT.mx = INPUT.mz = 0;
+            if (actif) {
+              let pot = null; for (const p of s.pots) if (p.besoin && (!pot || p.besoin.tMax - p.besoin.t < pot.besoin.tMax - pot.besoin.t)) pot = p;
+              let cible = null;
+              if (pot) {
+                if (pot.besoin.type === 'eau' && !(s.srOutil === 'arrosoir' && s.srEau > 0)) cible = { x: s.bassinPos.bx + 3.4, z: s.bassinPos.bz, nom: 'bassin' };
+                else if (pot.besoin.type === 'puceron' && s.srOutil !== 'pulve') cible = { x: s.tableOutils.tx, z: s.tableOutils.tz, nom: 'table' };
+                else cible = { x: pot.x, z: pot.z, nom: 'pot' + pot.idx };
+              }
+              if (cible) {
+                if (cle !== cible.nom) { route = chemin(s, cible.x, cible.z); cle = cible.nom; if (!route) bloque++; }
+                if (Math.hypot(cible.x - P.x, cible.z - P.z) < 2.4 || (route && route.length <= 1)) { actionCd -= dt; if (actionCd <= 0) { appuyer(); actionCd = 0.15; cle = ''; } }
+                else if (route) { while (route.length > 1 && Math.hypot(route[0].x - P.x, route[0].z - P.z) < 0.6) route.shift();
+                  const c = route[0], dx = c.x - P.x, dz = c.z - P.z, L = Math.hypot(dx, dz) || 1; INPUT.mx = dx / L; INPUT.mz = dz / L; }
+              }
+            }
+            majJoueur(dt, dt); majInterieur(dt, dt); t += dt;
+          }
+          INPUT.mx = INPUT.mz = 0;
+          const res = { fin: s.srFin, fanees: s.srFanees, soins: s.srSoins, gain: s.srGain, bloque };
+          sortirInterieur(); return res;
+        };
+        const glouton = [], passif = nuit(false); for (let i = 0; i < 6; i++) glouton.push(nuit(true)); // ~7 nuits tenues sur 8 mesurées : on en exige 3 sur 6
+        if (glouton.some((g) => g.bloque)) ko.push('un pot, le bassin ou la table est inatteignable');
+        const tenues = glouton.filter((g) => g.fin === 'fin' || g.fin === 'parfait').length;
+        if (tenues < 3) ko.push('le pilote glouton perd la serre trop souvent (' + JSON.stringify(glouton) + ')');
+        else info.push('pilote glouton : ' + tenues + '/6 nuits tenues (' + glouton.map((g) => g.soins + ' soins, ' + g.fanees + ' fanée(s), ' + g.gain + ' $').join(' ; ') + ')');
+        if (passif.fin !== 'perdu') ko.push('un joueur passif tient la serre (' + JSON.stringify(passif) + ')');
+        else info.push('passif : serre perdue');
+        // 8) remises à zéro
+        s = entrer(); P.x = s.panneau.x; P.z = s.panneau.z; appuyer(); sortirInterieur();
+        if (s.srNuit || vu(serreWrap) || s.pots.some((p) => p.icone.visible)) ko.push('sortir en pleine nuit ne l’arrête pas');
+        s = entrer(); P.x = s.panneau.x; P.z = s.panneau.z; appuyer(); P.hp = 1; toucherJoueur(9999);
+        if (s.srNuit || vu(serreWrap)) ko.push('mourir en pleine nuit ne l’arrête pas');
+        startRun(); if (INT.salles.serre.srNuit || INT.salles.serre.srFini) ko.push('le game over ne remet pas la serre à zéro');
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Serre : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
+      else ok('Serre : ' + r.info.join(' ; ') + ' ; une nuit par vague, remises à zéro (sortie, mort, game over)');
     }
 
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');

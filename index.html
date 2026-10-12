@@ -16015,7 +16015,7 @@ const chalCarte=(css)=>{ const d=document.createElement('div');
 const chalLigneIntro=(ico,txt)=>'<div style="display:flex;align-items:center;gap:10px;margin:6px 4px;text-align:left">'+
   '<span style="font-size:24px;width:32px;text-align:center;flex-shrink:0">'+ico+'</span>'+
   '<span style="font:800 13px Arial;color:#fff;line-height:1.25">'+txt+'</span></div>';
-const chalIntroWrap=chalCarte('top:33%;transition:opacity .4s');
+const chalIntroWrap=chalCarte('top:42%;transition:opacity .4s');
 chalIntroWrap.innerHTML='<div style="font:900 21px Arial;color:#ffd23f;letter-spacing:.04em;text-shadow:0 2px 0 #000">⚓ LA SAINTE-ODILE</div>'+
   '<div style="font:800 11px Arial;color:#9fd8ee;margin:2px 0 8px;letter-spacing:.08em">3 MINUTES EN MER</div>'+
   chalLigneIntro('🧭','◀ ▶ virer · ▲ gaz · ▼ freiner')+
@@ -18452,10 +18452,10 @@ function construireSalle(id){
     lampe(-7,-3,0xdfe8f0,9); lampe(0,-3,0xdfe8f0,9); lampe(7,-3,0xdfe8f0,9);
     lampe(0,5,0xffd8c0,8);
   }
-  /* ================= SERRE DU JARDIN BOTANIQUE =================
-     But : cueillir les trois bonnes plantes. L'énigme change à chaque vague
-     et se lit dans la salle : à l'ombre, près du bassin, ou en hauteur.
-     Trois bonnes du premier coup = l'Étoile de Los Reyes. */
+  /* ================= SERRE DU JARDIN BOTANIQUE (refaite au 11e lot) =================
+     Mini-jeu « La nuit de la floraison » : voir la section SERRE TROPICALE.
+     On la lance au tableau du jardinier ; sans une perte, l'Étoile de Los
+     Reyes éclot au-dessus du bassin (curiosité). */
   else if(id==='serre'){
     // dallage de terre battue
     for(let i=-4;i<4;i++) for(let j=-3;j<3;j++){
@@ -18467,9 +18467,9 @@ function construireSalle(id){
     for(let k=0;k<6;k++){
       const arc=new THREE.Mesh(new THREE.TorusGeometry(11,0.16,6,18,Math.PI),
         new THREE.MeshLambertMaterial({color:0xbfe4d0,transparent:true,opacity:0.22}));
-      arc.rotation.y=Math.PI/2; arc.position.set(ox,0.2,oz-7.5+k*3); g.add(arc);
+      arc.position.set(ox,0.2,oz-7.5+k*3); g.add(arc); // arches est-ouest (tournées de 90°, vues par la tranche, elles barraient l'écran d'un trait blanc)
     }
-    // bassin central
+    // bassin central : l'arrosoir s'y remplit
     const bass=new THREE.Mesh(new THREE.CylinderGeometry(2.6,2.6,0.4,18),mat(0x3a5a4a));
     bass.position.set(ox,0.2,oz+0.5); g.add(bass);
     const eauB=new THREE.Mesh(new THREE.CylinderGeometry(2.4,2.4,0.12,18),
@@ -18480,56 +18480,54 @@ function construireSalle(id){
       const nen=new THREE.Mesh(new THREE.CircleGeometry(0.45,10),mat(0x2fae4f));
       nen.rotation.x=-Math.PI/2; nen.position.set(ox+rand(-1.6,1.6),0.47,oz+0.5+rand(-1.6,1.6)); g.add(nen);
     }
-    // === LES 12 POTS ===
-    // 3 critères possibles : ombre (loin des lampes), eau (près du bassin), hauteur (sur l'étagère)
+    // l'arrosoir posé sur la margelle (décor : on le « prend » en s'approchant du bassin)
+    const arro=new THREE.Group(); arro.position.set(ox+2.2,0.55,oz+2.6); g.add(arro);
+    const cuve=new THREE.Mesh(new THREE.CylinderGeometry(0.3,0.34,0.5,10),mat(0x2f8a4a)); arro.add(cuve);
+    const bec=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.06,0.6,6),mat(0x2f8a4a)); bec.rotation.z=-1; bec.position.set(0.38,0.12,0); arro.add(bec);
+    inter.bassinPos={bx:ox,bz:oz+0.5};
+    // === LES 12 POTS (mêmes places qu'avant) ===
     inter.pots=[];
     const defsPots=[
-      // x, z, surEtagere
       [-8.5,-6.5,0],[-4.5,-6.5,0],[0,-6.5,0],[4.5,-6.5,0],[8.5,-6.5,0],
       [-8.5,-2.5,0],[8.5,-2.5,0],
       [-4,2.5,0],[4,2.5,0],
       [-8.5,5.5,1],[0,5.5,1],[8.5,5.5,1]
     ];
-    // étagère du fond
-    box(22,0.4,1.2,0x6a4a2e,0,1.5,5.5,false);
-    mkEnseigne('EN HAUTEUR','#8a6a44',ox,2.6,oz+4.7,0,9);
+    box(22,0.4,1.2,0x6a4a2e,0,1.5,5.5,false); // étagère du fond
     defsPots.forEach((d,k)=>{
       const py=d[2]?1.85:0.3;
       const pot=new THREE.Mesh(new THREE.CylinderGeometry(0.42,0.34,0.6,10),mat(0xb86a4a));
       pot.position.set(ox+d[0],py,oz+d[1]); g.add(pot);
       const tige=new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.08,0.7,6),mat(0x2fae4f));
       tige.position.set(ox+d[0],py+0.62,oz+d[1]); g.add(tige);
-      const fl=new THREE.Mesh(new THREE.SphereGeometry(0.28,8,7),
-        mat(pick([0xff5ad0,0xffd23f,0xff8a5a,0xe8ecf2,0x8a4de0])));
+      for(const sx of [-1,1]){ const f=new THREE.Mesh(new THREE.BoxGeometry(0.34,0.04,0.16),mat(0x3ac85a)); f.position.set(ox+d[0]+sx*0.18,py+0.55,oz+d[1]); f.rotation.z=sx*0.5; g.add(f); }
+      const coul=pick([0xff5ad0,0xffd23f,0xff8a5a,0xe8ecf2,0x8a4de0]);
+      const fl=new THREE.Mesh(new THREE.SphereGeometry(0.3,8,7),new THREE.MeshLambertMaterial({color:coul})); // matériau propre : elle fane seule
       fl.scale.y=0.7; fl.position.set(ox+d[0],py+1,oz+d[1]); g.add(fl);
-      // étiquette
-      const et=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.3,0.04),mat(0xe8e0c8));
-      et.position.set(ox+d[0]+0.3,py+0.3,oz+d[1]+0.4); et.rotation.x=-0.4; g.add(et);
-      inter.pots.push({x:ox+d[0],z:oz+d[1]+1.4,cx:ox+d[0],cz:oz+d[1],
-        haut:!!d[2], fl, pris:false, idx:k,
-        eau:dist2(ox+d[0],oz+d[1],ox,oz+0.5)<42});   // à moins de ~6,5 u du bassin
+      const icone=new THREE.Sprite(new THREE.SpriteMaterial({map:texBesoin('eau'),transparent:true,depthTest:false}));
+      icone.renderOrder=20; icone.scale.set(1.6,1.6,1); icone.position.set(ox+d[0],py+2.25,oz+d[1]); icone.visible=false; g.add(icone);
+      const pucerons=[];
+      for(let q=0;q<5;q++){ const pu=new THREE.Mesh(new THREE.BoxGeometry(0.09,0.06,0.09),mat(0x2a4a12));
+        pu.position.set(ox+d[0]+rand(-0.3,0.3),py+rand(0.7,1.15),oz+d[1]+rand(-0.25,0.25)); pu.userData.ph=rand(0,6); pu.visible=false; g.add(pu); pucerons.push(pu); }
+      // zone d'action devant le pot ; pour l'étagère du fond, côté salle (sinon le pot du milieu tombait dans la SORTIE)
+      inter.pots.push({x:ox+d[0],z:oz+d[1]+(d[2]?-1.4:1.4),cx:ox+d[0],cz:oz+d[1],y:py,haut:!!d[2],fl,coul,icone,pucerons,besoin:null,fanee:false,pousse:0,idx:k});
     });
-    // les lampes de croissance : elles définissent l'ombre
-    const lampesPos=[[-4.5,-6.5],[4.5,-6.5],[-4,2.5],[4,2.5],[0,-6.5]];
-    for(const lp of lampesPos){
+    // les lampes de croissance (décor)
+    for(const lp of [[-4.5,-6.5],[4.5,-6.5],[-4,2.5],[4,2.5],[0,-6.5]]){
       box(1.4,0.2,0.5,0xff8a5a,lp[0],3.6,lp[1],false);
       const fai=new THREE.Mesh(new THREE.ConeGeometry(1.5,3.2,10,1,true),
-        new THREE.MeshBasicMaterial({color:0xffc46a,transparent:true,opacity:0.13,
-          side:THREE.DoubleSide,depthWrite:false}));
+        new THREE.MeshBasicMaterial({color:0xffc46a,transparent:true,opacity:0.13,side:THREE.DoubleSide,depthWrite:false}));
       fai.position.set(ox+lp[0],2,oz+lp[1]); g.add(fai);
       const flaq=new THREE.Mesh(new THREE.CircleGeometry(1.9,14),
         new THREE.MeshBasicMaterial({color:0xffc46a,transparent:true,opacity:0.16,depthWrite:false}));
       flaq.rotation.x=-Math.PI/2; flaq.position.set(ox+lp[0],0.13,oz+lp[1]); g.add(flaq);
     }
-    // marquer les pots éclairés (donc PAS à l'ombre)
-    for(const po of inter.pots)
-      po.ombre=!lampesPos.some(lp=>dist2(ox+lp[0],oz+lp[1],po.cx,po.cz)<8);
-    // panneau de l'énigme
+    // le tableau du jardinier : on y lance la nuit
     inter.panneau={x:ox-10.6,z:oz+8.2};
-    mkEnseigne('CONSIGNE DU JOUR','#7dff7a',ox-10.6,2.4,oz+7.4,0,10);
+    mkEnseigne('LA NUIT DE LA FLORAISON','#7dff7a',ox-10.6,2.4,oz+7.4,0,12);
     box(2.4,2,0.3,0x3a5a2e,-11.2,1,8.9,false);
-    inter.srCritere=null; inter.srVague=-1; inter.srPris=0; inter.srErreurs=0;
-    // plante carnivore (elle mord)
+    inter.srVague=-1; inter.srFini=false; inter.srNuit=false; inter.srFinT=0;
+    // plante carnivore (décor qui respire)
     const carn=new THREE.Group();
     const potC=new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.4,0.7,10),mat(0x8a4a2a));
     potC.position.y=0.35; carn.add(potC);
@@ -18539,18 +18537,28 @@ function construireSalle(id){
     }
     carn.position.set(ox+10.4,0,oz-0.5); g.add(carn);
     inter.carnivore=carn;
-    // table de rempotage + cabane du jardinier
+    // table de rempotage : le pulvérisateur y attend (champs tx/tz : la zone est marquée par serreAction)
     box(5,0.9,1.6,0x6a4a2e,-6,0.45,-2.5);
     for(let k=0;k<4;k++) box(0.4,0.4,0.4,0xb86a4a,-7.6+k*1.1,1.1,-2.5,false);
+    const pulve=new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.18,0.6,10),mat(0xe8f0ea)); pulve.position.set(ox-4.4,1.2,oz-2.4); g.add(pulve);
+    const buse=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.08,0.08),mat(0xd8342a)); buse.position.set(ox-4.25,1.5,oz-2.4); g.add(buse);
+    inter.tableOutils={tx:ox-6,tz:oz-1.0};
     fouillable(-6,-1.2,'Table de rempotage','standard',null,2.9);
     const cab=box(3.4,2.6,2.4,0x5a4a30,7,1.3,7.4);
     mkEnseigne('JARDINIER','#8a6a44',ox+7,3.1,oz+6.1,0,8);
     fouillable(7,5.8,'Cabane du jardinier','riche',cab,3);
     const comp=box(2.4,1,2,0x3a2f20,-9.5,0.5,-6.5,false);
     fouillable(-9.5,-5,'Bac à compost','louche',comp,2.8);
-    // jardinier + visiteurs
-    pnj(6.4,5.4,{haut:0x4e5e3a,bas:0x3a3a28,peau:0xc98d5e,casq:0x6a5a3a,visage:'gentil'},'caisse');
-    pnj(-2,-4,{haut:pick(civHaut),bas:pick(civBas),peau:pick(civPeau),casq:0xd8c8a8,visage:'neutre'});
+    // l'Étoile de Los Reyes : n'éclot qu'à la fin d'une nuit sans perte
+    const etoile=new THREE.Group(); etoile.position.set(ox,2.2,oz+0.5); etoile.visible=false; g.add(etoile);
+    for(let k=0;k<6;k++){ const a=k/6*Math.PI*2, pe=new THREE.Mesh(new THREE.SphereGeometry(0.42,8,6),mat(k%2?0xffd23f:0xff5ad0));
+      pe.scale.set(0.5,0.18,1.2); pe.position.set(Math.sin(a)*0.55,0,Math.cos(a)*0.55); pe.rotation.y=a; etoile.add(pe); }
+    const coeur=new THREE.Mesh(new THREE.SphereGeometry(0.28,10,8),new THREE.MeshBasicMaterial({color:0xfff2b0})); etoile.add(coeur);
+    const haloE=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:0xffd23f,transparent:true,opacity:0.8,depthWrite:false,blending:THREE.AdditiveBlending}));
+    haloE.scale.set(5,5,1); etoile.add(haloE);
+    inter.etoile=etoile;
+    // le jardinier, près de son tableau
+    pnj(-9.2,7.2,{haut:0x4e5e3a,bas:0x3a3a28,peau:0xc98d5e,casq:0x6a5a3a,visage:'gentil'},'caisse');
     lampe(0,-4,0xbfe4a0,9); lampe(0,4,0xbfe4a0,9);
   }
   /* ================= LE ROI DES SANDWICHS =================
@@ -19918,6 +19926,7 @@ function sortirInterieur(){
   if(sc.piles){ sc.butin=0; sc.beteProx=0; sc.niveauPrecBlackout=undefined; metroAmbianceStop(); }
   if(sc.emissionOn){ radioArreterEmission(sc); toast('Tu quittes en pleine émission. Le signal s’éteint.'); }
   if(sc.aqActif){ aquariumArreter(sc); toast('Tu abandonnes la chasse. Gaston en profite.'); }
+  if(sc.pots&&sc.srNuit){ serreArreter(sc); toast('Tu quittes la serre en pleine nuit. Le jardinier se débrouillera.'); }
   if(sc.machine7&&sc.cycleOn){ laverieArreter(sc); toast('Tu lâches la machine 7 en plein cycle. Le linge reste aux Vipers.'); }
   if(sc.sortieEnCours){ chalutierArreterSortie(sc); toast('Tu abandonnes la sortie en pleine mer. Retour au ponton.'); }
   // Le Dépôt de bus : filet de sécurité générique — l'abandon normal (bouton
@@ -20092,21 +20101,6 @@ function finSoulevé(s,gagne){
     if(s.culturiste&&s.culturiste.h) s.culturiste.h.g.rotation.y+=0.6;
   }
 }
-/* ---------- serre : consigne du jour ---------- */
-const CRITERES_SERRE=[
-  {id:'ombre',txt:'« Cueille les trois qui poussent à l\u2019ombre »',test:p=>p.ombre&&!p.haut},
-  {id:'eau',txt:'« Cueille les trois qui boivent au bassin »',test:p=>p.eau},
-  {id:'haut',txt:'« Cueille les trois qui prennent de la hauteur »',test:p=>p.haut}
-];
-function critereSerre(s){
-  if(s.srVague!==WAVES.n){
-    s.srVague=WAVES.n;
-    s.srCritere=CRITERES_SERRE[(WAVES.n+ (META.plantes||0))%CRITERES_SERRE.length];
-    s.srPris=0; s.srErreurs=0; s.srFini=false;
-    for(const p of s.pots){ p.pris=false; p.fl.visible=true; }
-  }
-  return s.srCritere;
-}
 /* ---------- sandwich : fin du défi ---------- */
 function finMonstre(s,gagne){
   s.swEtat=null; swWrap.style.display='none';
@@ -20162,7 +20156,7 @@ function carteSalle(css){ const d=document.createElement('div');
 const ligneCarte=(ico,txt)=>'<div style="display:flex;align-items:center;gap:10px;margin:6px 4px;text-align:left">'+
   '<span style="font-size:24px;width:32px;text-align:center;flex-shrink:0">'+ico+'</span>'+
   '<span style="font:800 13px Arial;color:#fff;line-height:1.25">'+txt+'</span></div>';
-const aquaIntroWrap=carteSalle('top:36%;border-color:#b07dff99');
+const aquaIntroWrap=carteSalle('top:42%;border-color:#b07dff99');
 aquaIntroWrap.innerHTML='<div style="font:900 21px Arial;color:#d8b8ff;letter-spacing:.03em;text-shadow:0 2px 0 #000">🐙 1, 2, 3… GASTON !</div>'+
   '<div style="font:800 11px Arial;color:#9fd8ee;margin:2px 0 8px;letter-spacing:.08em">LE POULPE S’EST ÉVADÉ</div>'+
   ligneCarte('😌','dos tourné : <b>avance</b>')+ligneCarte('❗','il frissonne : <b>arrête-toi</b>')+
@@ -20350,7 +20344,7 @@ const LAV_DERIVE=[0.9,2.3], LAV_DERIVE_ESSORAGE=3.1; // force des poussées (aig
 const LAV_CONTRE=4.6, LAV_AMORTI=1.6;         // force du joystick ; amortissement (1/s)
 const LAV_COUPS_MAX=3;
 const LAV_GAIN=[250,750], LAV_BONUS_PARFAIT=150;
-const lavIntroWrap=carteSalle('top:34%;border-color:#35e0ff99');
+const lavIntroWrap=carteSalle('top:42%;border-color:#35e0ff99');
 lavIntroWrap.innerHTML='<div style="font:900 21px Arial;color:#8ad2ff;letter-spacing:.03em;text-shadow:0 2px 0 #000">🧺 L’ESSORAGE</div>'+
   '<div style="font:800 11px Arial;color:#9fd8ee;margin:2px 0 8px;letter-spacing:.08em">LA MACHINE 7 LAVE L’ARGENT DES VIPERS</div>'+
   ligneCarte('◀▶','garde l’aiguille <b>dans le vert</b>')+ligneCarte('💥','dans le rouge, la machine cogne')+
@@ -20468,6 +20462,163 @@ function dessinerLaverie(s){
   const r=Math.max(0,Math.ceil(s.cycleT)); txt(r+' s',jx,jy-40,r<=LAV_ESSORAGE?'#ff8c1a':'#ffffff',38);
   const visage=['😴','😪','😠','😡'][Math.min(3,s.lavCoups)];
   txt(visage+' '+'●'.repeat(s.lavCoups)+'○'.repeat(LAV_COUPS_MAX-s.lavCoups),jx,jy+50,'#ffb0bc',30);
+}
+/* =====================================================================
+   SERRE TROPICALE — LA NUIT DE LA FLORAISON (11e lot, refonte)
+   Promesse : une nuit pour tenir la serre en vie, et voir fleurir
+   l'Étoile de Los Reyes.
+   Mécanique : les plantes réclament de l'eau (💧) ou un traitement contre les
+   pucerons (🐛), chacune avec son compte à rebours. Un seul outil en main :
+   l'arrosoir (3 doses, rempli au bassin) ou le pulvérisateur (sur la table de
+   rempotage). Choisir son trajet ; les pucerons non traités gagnent le pot
+   voisin. Une plante oubliée fane ; 4 fanées et la nuit est perdue.
+   Moment fort : la fin de la nuit, sans une perte, l'Étoile éclot au-dessus
+   du bassin. Tout sur dtJeu (l'habillage sur dt).
+===================================================================== */
+const SERRE_DUREE=60, SERRE_FANEES_MAX=4, SERRE_DOSES=4;
+const SERRE_INTERVALLE=[4.2,2.2];    // s entre deux besoins, début → fin de nuit (~19 besoins en 60 s)
+const SERRE_DELAI=[12,8];            // s pour répondre à un besoin, début → fin
+const SERRE_PUCERON=0.35;            // part des besoins qui sont des pucerons
+const SERRE_CONTAGION=0.6;           // fraction du délai écoulée avant que les pucerons gagnent un voisin
+const SERRE_GAIN_SOIN=25, SERRE_BONUS_PARFAIT=200;
+const serreIntroWrap=carteSalle('top:42%;border-color:#7dff7a99');
+serreIntroWrap.innerHTML='<div style="font:900 21px Arial;color:#9dffa0;letter-spacing:.03em;text-shadow:0 2px 0 #000">🌺 LA NUIT DE LA FLORAISON</div>'+
+  '<div style="font:800 11px Arial;color:#9fd8ee;margin:2px 0 8px;letter-spacing:.08em">60 SECONDES POUR TENIR LA SERRE</div>'+
+  ligneCarte('💧','arrose — l’arrosoir se remplit <b>au bassin</b>')+ligneCarte('🐛','pulvérise — le pulvérisateur est <b>sur la table</b>')+
+  ligneCarte('⏱','une plante oubliée fane ; les pucerons s’étendent')+ligneCarte('🌺','aucune perte : <b>l’Étoile fleurit</b>');
+const serreWrap=document.createElement('div');
+serreWrap.style.cssText='position:absolute;left:50%;top:calc(env(safe-area-inset-top,0px) + 78px);transform:translateX(-50%);'+
+  'display:none;pointer-events:none;z-index:6;text-align:center';
+serreWrap.innerHTML='<div style="display:inline-flex;gap:12px;align-items:center;padding:6px 14px;border-radius:14px;background:#0f2a18ee;border:2px solid #7dff7a88;box-shadow:0 4px 14px #000a">'+
+  '<span id="serreOutil" style="font:900 20px Arial;color:#fff;white-space:nowrap">💧💧💧</span>'+
+  '<span id="serreVivantes" style="font:900 15px Arial;color:#9dffa0;white-space:nowrap">🌱 12/12</span>'+
+  '<span id="serreChrono" style="font:900 18px Arial;color:#fff">1:00</span></div>';
+el('hud').appendChild(serreWrap);
+const serreOutilEl=serreWrap.querySelector('#serreOutil'), serreVivantesEl=serreWrap.querySelector('#serreVivantes'), serreChronoEl=serreWrap.querySelector('#serreChrono');
+// deux textures d'icône, partagées par tous les pots (la couleur du sprite dit l'urgence)
+let _texBesoins=null;
+function texBesoin(type){
+  if(!_texBesoins){ _texBesoins={};
+    for(const [k,ico] of [['eau','💧'],['puceron','🐛']]){ const cv=document.createElement('canvas'); cv.width=cv.height=128; const c=cv.getContext('2d');
+      if(c){ c.fillStyle='#ffffff'; c.beginPath(); c.arc(64,64,58,0,Math.PI*2); c.fill(); c.fillStyle='#0f2a18'; c.beginPath(); c.arc(64,64,50,0,Math.PI*2); c.fill();
+        c.font='64px Arial'; c.textAlign='center'; c.textBaseline='middle'; c.fillText(ico,64,70); }
+      _texBesoins[k]=new THREE.CanvasTexture(cv); } }
+  return _texBesoins[type];
+}
+function serreVivantes(s){ let n=0; for(const p of s.pots) if(!p.fanee) n++; return n; }
+function serreDemarrer(s){
+  s.srNuit=true; s.srT=0; s.srProchain=1.2; s.srFanees=0; s.srSoins=0; s.srOutil='arrosoir'; s.srEau=SERRE_DOSES; s.srFin=null; s.srFinT=0;
+  for(const p of s.pots){ p.besoin=null; p.fanee=false; p.fl.material.color.setHex(p.coul); p.fl.scale.set(1,0.7,1); p.icone.visible=false; for(const pu of p.pucerons) pu.visible=false; }
+  s.srIntroT=3.6; serreIntroWrap.style.opacity='1'; serreIntroWrap.style.display='block';
+  serreWrap.style.display='block'; cacherBoutonsCombat();
+  bigMsg('🌺 LA NUIT TOMBE SUR LA SERRE'); SFX.ui(); vibre(30);
+}
+// point de reset commun : fin de nuit, sortie, mort, game over
+function serreArreter(s){
+  s.srNuit=false; s.srIntroT=0;
+  for(const w of [serreWrap,serreIntroWrap]) if(w.style.display!=='none') w.style.display='none';
+  if(s.pots) for(const p of s.pots){ p.besoin=null; if(p.icone) p.icone.visible=false; if(p.pucerons) for(const pu of p.pucerons) pu.visible=false; }
+  afficherBoutonsCombat();
+}
+function serreNouveauBesoin(s,type,pot){
+  const libres=pot?[pot]:s.pots.filter(p=>!p.fanee&&!p.besoin);
+  if(!libres.length) return;
+  const p=pot||pick(libres), k=clamp(s.srT/SERRE_DUREE,0,1);
+  p.besoin={type:type||(Math.random()<SERRE_PUCERON?'puceron':'eau'),t:0,tMax:lerp(SERRE_DELAI[0],SERRE_DELAI[1],k),contagion:false};
+  p.icone.material.map=texBesoin(p.besoin.type); p.icone.material.needsUpdate=true; p.icone.visible=true;
+  for(const pu of p.pucerons) pu.visible=p.besoin.type==='puceron';
+}
+function serreSoigner(s,p){
+  if(!p.besoin) return;
+  const type=p.besoin.type;
+  if(type==='eau'){ if(s.srOutil!=='arrosoir'||s.srEau<=0) return; s.srEau--;
+    for(let i=0;i<14;i++) spawnP(p.cx+rand(-0.4,0.4),p.y+1.6,p.cz+rand(-0.4,0.4),rand(-0.6,0.6),rand(-1,0.5),rand(-0.6,0.6),0.6,0.22,0x6ac8ff,6); }
+  else { if(s.srOutil!=='pulve') return;
+    for(let i=0;i<14;i++) spawnP(p.cx+rand(-0.5,0.5),p.y+1.3,p.cz+rand(-0.5,0.5),rand(-1,1),rand(0.2,1),rand(-1,1),0.7,0.4,0xe8f6ea,-0.2); }
+  p.besoin=null; p.icone.visible=false; for(const pu of p.pucerons) pu.visible=false;
+  p.pousse=0.35; s.srSoins++;
+  spawnTexte(p.cx,p.y+2.4,p.cz,type==='eau'?'💧 +1':'🐛 traité','#9dffa0'); SFX.ramasse(); vibre(20);
+}
+function serreFaner(s,p){
+  p.besoin=null; p.fanee=true; p.icone.visible=false; for(const pu of p.pucerons) pu.visible=false;
+  p.fl.material.color.setHex(0x5a4a2a); p.fl.scale.set(0.8,0.4,0.8);
+  s.srFanees++; SFX.refus(); vibre(60); secousse(1);
+  spawnTexte(p.cx,p.y+2.4,p.cz,'FANÉE','#ff8a5a');
+  if(s.srFanees>=SERRE_FANEES_MAX) serreFin(s,false);
+  else bigMsg('🥀 UNE PLANTE FANE ('+s.srFanees+'/'+SERRE_FANEES_MAX+')');
+}
+function serreFin(s,auBout){
+  const parfait=auBout&&s.srFanees===0;
+  s.srFini=true; s.srVague=WAVES.n; META.plantes++;
+  const gain=auBout?s.srSoins*SERRE_GAIN_SOIN+(parfait?SERRE_BONUS_PARFAIT:0):0;
+  serreArreter(s);
+  if(gain>0){ META.argent+=gain; ETAT.cashRun+=gain; META.stats.cashTotal+=gain; }
+  s.srFin=parfait?'parfait':(auBout?'fin':'perdu'); s.srFinT=parfait?5:2.5; s.srGain=gain;
+  if(parfait){
+    bigMsg('🌺 L’ÉTOILE DE LOS REYES FLEURIT !'); SFX.niveau(); vibre(160);
+    if(s.etoile){ s.etoile.visible=true; s.etoile.scale.setScalar(0.01); }
+    toast('Aucune perte de la nuit. +'+gain+' $','or');
+    if(!aCurio('fleur')) donnerCurio('fleur');
+    gainXp(55);
+  } else if(auBout){ bigMsg('🌿 LE JOUR SE LÈVE'); toast(s.srSoins+' soins, '+s.srFanees+' fanée'+(s.srFanees>1?'s':'')+' : +'+gain+' $. Sans une perte, l’Étoile aurait fleuri…','or'); SFX.achat(); gainXp(20); }
+  else { bigMsg('🥀 LA SERRE EST PERDUE'); toast('Trop de plantes fanées. Le jardinier replantera à la prochaine vague.','warn'); SFX.refus(); }
+  checkDefis(); sauveMeta();
+}
+function serreMaj(s,dt,dtJeu){
+  const T=ETAT.runT;
+  if(s.carnivore) s.carnivore.rotation.y+=dt*0.4;
+  for(const p of s.pots){ if(p.pousse>0){ p.pousse-=dt; const k=1+Math.sin(p.pousse/0.35*Math.PI)*0.35; p.fl.scale.set(k,0.7*k,k); } }
+  if(s.srIntroT>0){ s.srIntroT-=dt; if(s.srIntroT<0.5) serreIntroWrap.style.opacity=String(Math.max(0,s.srIntroT/0.5)); if(s.srIntroT<=0) serreIntroWrap.style.display='none'; }
+  // l'Étoile qui éclot au-dessus du bassin (fin parfaite)
+  if(s.etoile&&s.etoile.visible){ if(s.srFinT>0){ s.srFinT-=dt; } const k=clamp((5-s.srFinT)/2,0,1);
+    s.etoile.scale.setScalar(0.01+k*1.6); s.etoile.rotation.y+=dt*1.2; s.etoile.position.y=2.2+Math.sin(T*2)*0.15;
+    if(Math.random()<dt*20) spawnP(s.etoile.position.x+rand(-1,1),s.etoile.position.y+rand(-0.5,1),s.etoile.position.z+rand(-1,1),rand(-1,1),rand(0.5,2),rand(-1,1),1.2,0.35,pick([0xffd23f,0xff5ad0,0xffffff]),-0.5);
+    if(s.srFinT<=0&&!s.srNuit) s.etoile.visible=false; }
+  else if(s.srFinT>0) s.srFinT-=dt;
+  if(!s.srNuit) return;
+  // ---- la nuit (dtJeu) ----
+  s.srT+=dtJeu;
+  if(s.srT>=SERRE_DUREE){ serreFin(s,true); return; }
+  const k=clamp(s.srT/SERRE_DUREE,0,1);
+  s.srProchain-=dtJeu;
+  if(s.srProchain<=0){ s.srProchain=lerp(SERRE_INTERVALLE[0],SERRE_INTERVALLE[1],k)*rand(0.8,1.2); serreNouveauBesoin(s); }
+  for(const p of s.pots){
+    const b=p.besoin; if(!b) continue;
+    b.t+=dtJeu;
+    if(b.t>=b.tMax){ serreFaner(s,p); if(!s.srNuit) return; continue; }
+    // les pucerons gagnent le pot voisin à mi-délai
+    if(b.type==='puceron'&&!b.contagion&&b.t>=b.tMax*SERRE_CONTAGION){ b.contagion=true;
+      let v=null,vd=1e9; for(const q of s.pots){ if(q===p||q.fanee||q.besoin) continue; const d=dist2(q.cx,q.cz,p.cx,p.cz); if(d<vd){ vd=d; v=q; } }
+      if(v&&vd<49){ serreNouveauBesoin(s,'puceron',v); spawnTexte(v.cx,v.y+2.4,v.cz,'🐛 contagion !','#ff8a5a'); } }
+    // icône : blanche, jaune, puis rouge qui bat quand il reste peu de temps
+    const reste=b.tMax-b.t, urgent=reste<3;
+    p.icone.material.color.setHex(reste<3?0xff5a6a:(reste<b.tMax*0.6?0xffd23f:0xffffff));
+    const sc=(urgent?1.25+Math.sin(T*14)*0.15:1)*1.6; p.icone.scale.set(sc,sc,1);
+    if(b.type==='puceron') for(const pu of p.pucerons){ pu.position.x=p.cx+Math.sin(T*3+pu.userData.ph)*0.3; }
+  }
+  // l'outil en main : l'arrosoir se remplit au bassin
+  if(s.srOutil==='arrosoir'&&s.srEau<SERRE_DOSES&&dist2(P.x,P.z,s.bassinPos.bx,s.bassinPos.bz)<4.4*4.4){ s.srEau=SERRE_DOSES; spawnTexte(P.x,2.6,P.z,'💧 plein !','#6ac8ff'); SFX.ui(); }
+  const ok2=(s.srOutil==='arrosoir'?'💧'.repeat(s.srEau)+'◌'.repeat(SERRE_DOSES-s.srEau):'🧴 PULVÉ')+'|'+serreVivantes(s)+'|'+Math.ceil(SERRE_DUREE-s.srT);
+  if(s._srHud!==ok2){ s._srHud=ok2; const [o,v,r]=ok2.split('|'); serreOutilEl.textContent=o; serreVivantesEl.textContent='🌱 '+v+'/'+s.pots.length;
+    serreChronoEl.textContent='0:'+String(r).padStart(2,'0'); serreChronoEl.style.color=+r<=10?'#ff5a6a':'#fff'; }
+}
+// bouton d'action pendant la nuit : toujours la bonne chose à faire ici
+function serreAction(s){
+  let pot=null,pd=1e9;
+  for(const p of s.pots){ if(p.fanee||!p.besoin) continue; const d=dist2(P.x,P.z,p.x,p.z); if(d<marquerZone(p,9)&&d<pd){ pd=d; pot=p; } }
+  if(pot){
+    if(pot.besoin.type==='eau'){
+      if(s.srOutil==='arrosoir'&&s.srEau>0) return {label:'💧 ARROSER',fn:()=>serreSoigner(s,pot)};
+      return {label:s.srOutil==='arrosoir'?'💧 Arrosoir vide — remplis-le au bassin':'💧 Il faut l’arrosoir (au bassin)',fn:()=>{ SFX.refus(); }};
+    }
+    if(s.srOutil==='pulve') return {label:'🐛 PULVÉRISER',fn:()=>serreSoigner(s,pot)};
+    return {label:'🐛 Il faut le pulvérisateur (sur la table)',fn:()=>{ SFX.refus(); }};
+  }
+  if(dist2(P.x,P.z,s.tableOutils.tx,s.tableOutils.tz)<9&&s.srOutil!=='pulve')
+    return {label:'🧴 PRENDRE LE PULVÉRISATEUR',fn:()=>{ s.srOutil='pulve'; SFX.ui(); spawnTexte(P.x,2.6,P.z,'🧴','#e8f6ea'); }};
+  if(dist2(P.x,P.z,s.bassinPos.bx,s.bassinPos.bz)<4.4*4.4&&s.srOutil!=='arrosoir')
+    return {label:'💧 PRENDRE L’ARROSOIR',fn:()=>{ s.srOutil='arrosoir'; s.srEau=SERRE_DOSES; SFX.ui(); spawnTexte(P.x,2.6,P.z,'💧💧💧','#6ac8ff'); }};
+  return {label:'',fn:null};
 }
 /* =====================================================================
    CINÉ-PALACE — salle de surcharge : quatre appareils qui se dérèglent en
@@ -22203,13 +22354,8 @@ function majInterieur(dt,dtJeu){
     if(s.swNausee>=100){ toast('Trop vite. Beaucoup trop vite.','warn'); finMonstre(s,false); }
     else if(s.swT<=0){ finMonstre(s,false); }
   } else if(swWrap.style.display!=='none') swWrap.style.display='none';
-  // ---- serre : consigne annoncée d'office, carnivore qui respire ----
-  if(s.pots){
-    const avant=s.srVague;
-    const cr=critereSerre(s);
-    if(avant!==s.srVague){ toast('🌿 Consigne du jour : '+cr.txt,'or'); }
-    if(s.carnivore) s.carnivore.rotation.y+=dt*0.4;
-  }
+  // ---- serre : la nuit de la floraison (serreMaj) ----
+  if(s.pots) serreMaj(s,dt,dtJeu);
   // ---- voyance : la boule pulse, le chat surveille ----
   if(s.bouleMesh){
     const k=0.55+Math.sin(ETAT.runT*1.6)*0.06;
@@ -25149,7 +25295,8 @@ function startRun(){
       if(sa.barres) for(const b2 of sa.barres) b2.grp.position.y=b2.y0; }
     if(sa.swEtat!==undefined){ sa.swEtat=null; sa.swVague=-1;
       if(sa.monstre){ sa.monstre.scale.set(1,1,1); sa.monstre.visible=true; } }
-    if(sa.srVague!==undefined){ sa.srVague=-1; sa.srFini=false; }
+    if(sa.srVague!==undefined){ serreArreter(sa); sa.srVague=-1; sa.srFini=false; sa.srFinT=0; if(sa.etoile) sa.etoile.visible=false;
+      for(const p of sa.pots){ p.fanee=false; p.fl.material.color.setHex(p.coul); p.fl.scale.set(1,0.7,1); } }
     if(sa.club){ sa.danse=null; sa.dansePrimeVague=-1; sa.bagarreT=rand(20,32); sa.bagarreur=null; } // Club Néon : rien ne survit au game over
     // musée : un casse en cours est annulé (game over / mort pendant le casse),
     // le plafond de la vague est levé, la ronde repartira propre à la prochaine
@@ -25432,6 +25579,7 @@ function mourir(){
   if(INT.actif&&INT.actif.console&&INT.actif.emissionOn) radioArreterEmission(INT.actif); // coupe le son tout de suite
   if(INT.actif&&INT.actif.aqActif) aquariumArreter(INT.actif); // Aquarium : la chasse s'arrête, boutons rendus
   if(INT.actif&&INT.actif.machine7&&INT.actif.cycleOn) laverieArreter(INT.actif); // Laverie : l'essorage s'arrête
+  if(INT.actif&&INT.actif.pots&&INT.actif.srNuit) serreArreter(INT.actif); // Serre : la nuit s'arrête
   if(INT.actif&&INT.actif.barre&&INT.actif.sortieEnCours) chalutierArreterSortie(INT.actif); // coupe le son tout de suite, cale perdue
   chalutierAmbianceStop(); // l'ambiance du port tourne dès qu'on est dans la salle, sortie en mer ou non (audit de nuit)
   if(INT.actif&&INT.actif.site51&&INT.actif.visiteEnCours) site51ConclureVisite(INT.actif,false); // butin perdu, sas rouverts, mystère avance quand même
@@ -25930,64 +26078,20 @@ function majAction(){
         if(Math.random()<0.14) toast(pick(['Pas mal.','Le sac tient bon.',
           'Tu sens tes phalanges.','Le culturiste ne regarde même pas.']));
       };
-    /* ---------- SERRE ---------- */
-    } else if(s.panneau&&dist2(P.x,P.z,s.panneau.x,s.panneau.z)<marquerZone(s.panneau,6)){
-      const cr=critereSerre(s);
-      label='📋 CONSIGNE : '+cr.txt;
-      fn=()=>{
-        toast(cr.txt+' — '+s.srPris+'/3 cueillies','or');
-        SFX.ui();
-      };
-    } else if(s.pots&&s.pots.some(p=>!p.pris&&dist2(P.x,P.z,p.x,p.z)<marquerZone(p,9))){
-      const cr=critereSerre(s);
-      const po=s.pots.find(p=>!p.pris&&dist2(P.x,P.z,p.x,p.z)<9);
-      if(s.srFini){
-        label='🌿 Cueillette terminée — reviens à la prochaine vague';
+    /* ---------- SERRE : la nuit de la floraison (serreAction) ---------- */
+    } else if(s.pots&&s.srNuit){
+      const ac=serreAction(s); label=ac.label; fn=ac.fn;
+    } else if(s.panneau&&s.pots&&dist2(P.x,P.z,s.panneau.x,s.panneau.z)<marquerZone(s.panneau,6)){
+      if(s.srVague===WAVES.n&&s.srFini){
+        label='🌿 La serre se repose — reviens à la prochaine vague';
         fn=()=>{ SFX.refus(); toast('Le jardinier replante. Laisse la terre respirer.'); };
       } else {
-      label='🌿 CUEILLIR CETTE PLANTE ('+s.srPris+'/3)';
-      fn=()=>{
-        po.pris=true; po.fl.visible=false;
-        if(cr.test(po)){
-          s.srPris++;
-          spawnTexte(po.cx,2.2,po.cz,'BONNE PLANTE','#7dff7a');
-          SFX.ramasse(); vibre(30);
-          for(let i=0;i<8;i++) spawnP(po.cx,1.4,po.cz,rand(-1,1),rand(1,2),rand(-1,1),
-            0.6,0.35,0x7dff7a,1);
-          if(s.srPris>=3){
-            s.srFini=true;
-            META.plantes++;
-            const parfait=s.srErreurs===0;
-            const gain=parfait?randi(340,520):randi(140,240);
-            META.argent+=gain; ETAT.cashRun+=gain; META.stats.cashTotal+=gain;
-            creerPickup('med',P.x+1.4,P.z); creerPickup('med',P.x-1.4,P.z);
-            gainXp(parfait?55:20);
-            if(parfait){
-              bigMsg('🌺 CUEILLETTE PARFAITE');
-              toast('Trois bonnes, aucune erreur. Le jardinier te confie sa fleur. +'+gain+' $','or');
-              if(!aCurio('fleur')) donnerCurio('fleur');
-              SFX.niveau();
-            } else {
-              bigMsg('🌿 CUEILLETTE FINIE');
-              toast('+'+gain+' $ — mais '+s.srErreurs+' erreur'+(s.srErreurs>1?'s':'')+
-                '. Le jardinier garde sa fleur.','or');
-              SFX.achat();
-            }
-            checkDefis(); sauveMeta();
-          }
-        } else {
-          s.srErreurs++;
-          spawnTexte(po.cx,2.2,po.cz,'MAUVAISE','#ff5a6a');
-          SFX.refus();
-          if(Math.random()<0.4&&s.carnivore){
-            toast('Une carnivore t\u2019attendait dans ce pot !','warn');
-            toucherJoueur(4); vibre(70);
-          } else toast(pick(['Celle-là n\u2019a rien à voir.',
-            'Le jardinier soupire au fond de la serre.',
-            'Tu viens d\u2019arracher une mauvaise herbe hors de prix.']),'warn');
-        }
-      };
+        label='🌺 LA NUIT DE LA FLORAISON — COMMENCER';
+        fn=()=>serreDemarrer(s);
       }
+    } else if(s.pots&&s.pots.some(p=>dist2(P.x,P.z,p.x,p.z)<marquerZone(p,9))){
+      label='🌿 Les plantes dorment — la nuit se lance au tableau du jardinier';
+      fn=()=>{ SFX.refus(); };
     /* ---------- LE ROI DES SANDWICHS ---------- */
     } else if(s.sodaPos&&s.swEtat==='defi'&&dist2(P.x,P.z,s.sodaPos.x,s.sodaPos.z)<marquerZone(s.sodaPos,7)){
       label='🥤 BOIRE (nausée '+Math.round(s.swNausee)+')';

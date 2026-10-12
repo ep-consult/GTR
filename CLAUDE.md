@@ -55,7 +55,7 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
   echo "$ln | $(sed -n "$((ln+1))p" index.html | sed 's/^[ \t]*//')"; done
 ```
 
-**Relevé au 11e lot : chalutier, aquarium, laverie — 27 035 lignes.**
+**Relevé au 11e lot : chalutier, aquarium, laverie, serre — 27 141 lignes.**
 
 | Ligne | Section |
 |---|---|
@@ -83,19 +83,19 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
 | 15413 | BÂTIMENTS VISITABLES — intérieurs |
 | 15483 | FOUILLE — mécanique générique |
 | 16063 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
-| 20134 | CINÉ-PALACE |
-| 20335 | MÉTRO ABANDONNÉ |
-| 20470 | RADIO PIRATE REYES FM |
-| 20532 | LE CHALUTIER « SAINTE-ODILE » |
-| 20598 | SITE 51 |
-| 20703 | LE DÉPÔT DE BUS — courses clandestines |
-| 21420 | **MÉTIERS** — missions liées à un véhicule |
-| 21650 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
-| 22724 | ÉCRANS / MENUS / BOUTIQUES |
-| 23014 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
-| 24009 | DÉBUT / FIN DE PARTIE |
-| 24277 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
-| 25074 | BOUCLE PRINCIPALE |
+| 20128 | CINÉ-PALACE |
+| 20331 | MÉTRO ABANDONNÉ |
+| 20466 | RADIO PIRATE REYES FM |
+| 20623 | LE CHALUTIER « SAINTE-ODILE » |
+| 20685 | SITE 51 |
+| 20751 | LE DÉPÔT DE BUS — courses clandestines |
+| 20856 | **MÉTIERS** — missions liées à un véhicule |
+| 21573 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
+| 21803 | ÉCRANS / MENUS / BOUTIQUES |
+| 22872 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
+| 23162 | DÉBUT / FIN DE PARTIE |
+| 24157 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
+| 24425 | BOUCLE PRINCIPALE |
 
 ### Ancres fines (hors bandeaux)
 
@@ -149,14 +149,14 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
 | 17140 | `INTDEFS` — définitions des **27 salles** |
 | 17320 | `construireSalle(id)` |
 | 20390 | `CHALUTIER_BANCS_PLAN` — chalutier V2 ; `chalutierMaj` (20761), `dessinerRadarChalutier` (21018) |
-| 22733 | `METIERS_CIBLE` |
-| 23032 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
-| 23120 | `PIECES_FAMILLES` — catalogues de pièces par famille |
-| 23421 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
-| 23475 | `libererObjet()` — libère les géométries d'un objet retiré |
-| 23491 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
-| 23613 | `construireGarageTuning()` — la salle partagée |
-| 23983 | `majNitro()` |
+| 22881 | `METIERS_CIBLE` |
+| 23180 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
+| 23268 | `PIECES_FAMILLES` — catalogues de pièces par famille |
+| 23569 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
+| 23623 | `libererObjet()` — libère les géométries d'un objet retiré |
+| 23639 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
+| 23761 | `construireGarageTuning()` — la salle partagée |
+| 24131 | `majNitro()` |
 
 ---
 
@@ -754,6 +754,31 @@ puis refonte en profondeur de la pire à la meilleure, une salle par commit.
 - Mesuré (`sim`) : contrôle proportionnel 0,2 s → 95-99 % ; « pouce » tout ou
   rien 0,25 s → 75-80 % sans coup ; 0,35 s → 50 %, 1-2 coups, parfois raté ;
   rien → toujours raté.
+
+### Serre V2 — la nuit de la floraison (bandeau `SERRE TROPICALE — LA NUIT DE LA FLORAISON`)
+
+- 60 s (`SERRE_DUREE`, dtJeu) : des besoins apparaissent sur les 12 pots
+  (`serreNouveauBesoin`, `p.besoin = {type 'eau'|'puceron', t, tMax}`, rythme
+  `SERRE_INTERVALLE`, délai `SERRE_DELAI`) ; icône sprite au-dessus du pot
+  (deux textures partagées `texBesoin`, couleur = urgence). Un seul outil en
+  main (`s.srOutil`) : arrosoir (`SERRE_DOSES`, rempli au bassin,
+  `s.bassinPos.bx/bz`) ou pulvérisateur (table, `s.tableOutils.tx/tz` —
+  champs non `x/z` exprès). Pucerons non traités à `SERRE_CONTAGION` de leur
+  délai : gagnent le pot voisin. Besoin expiré : la plante fane (matériau de
+  fleur PROPRE à chaque pot). `SERRE_FANEES_MAX` = 4 : nuit perdue.
+- Fin : `SERRE_GAIN_SOIN` par soin + `SERRE_BONUS_PARFAIT` sans perte ;
+  sans perte, l'Étoile éclot au-dessus du bassin (`s.etoile`, curiosité
+  `fleur`). Une nuit par vague (`srFini`/`srVague`). Lancée au tableau du
+  jardinier (`s.panneau`) ; bouton d'action contextuel (`serreAction`) ;
+  boutons de combat masqués. Reset `serreArreter`. Ancienne consigne du jour
+  (`CRITERES_SERRE`, `critereSerre`) supprimée.
+- Zone des pots de l'étagère du fond côté salle (`z−1,4`) : le pot du milieu
+  tombait à 0,6 u de la SORTIE (on quittait la salle en voulant l'arroser).
+  Arches de la verrière est-ouest (tournées de 90°, vues par la tranche, elles
+  traçaient un trait blanc à l'écran).
+- Pilote glouton (le plus urgent d'abord, bon outil, chemin BFS à la marge
+  réelle du joueur 0,65) : ~7 nuits tenues sur 8, parfois parfaites ; passif :
+  perdue.
 
 ## 10e lot (12 octobre 2026) — kiosque de la banderole, figures sur deux roues
 

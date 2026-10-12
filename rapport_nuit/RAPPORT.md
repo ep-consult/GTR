@@ -1365,7 +1365,7 @@ Viendraient ensuite : bowling, banque (mini-jeu du coffre), commissariat, puis l
 
 **Reste à améliorer** : Gaston qui change de bassin en douce quand on approche par le côté (une variante pour la 5e manche) ; des visiteurs qui crient « là ! » quand il saute.
 
-### Refonte 3 — Laverie « Bulle Bleue » (commit `LAV_HASH`)
+### Refonte 3 — Laverie « Bulle Bleue » (commit `5439ffc`)
 
 **Concept retravaillé.**
 - **Promesse** : la machine 7 lave l'argent des Vipers. Bourrée de billets, elle se déséquilibre : tiens-la, sans réveiller leur guetteur.
@@ -1423,3 +1423,67 @@ Viendraient ensuite : bowling, banque (mini-jeu du coffre), commissariat, puis l
 - le guetteur qui se lève et vient voir ;
 - un son de tambour plus riche ;
 - la machine qui se déplace vraiment de quelques centimètres sur le carrelage à chaque coup.
+
+### Refonte 4 — Serre tropicale (commit `SERRE_HASH`)
+
+**Concept retravaillé.**
+- **Promesse** : une nuit pour tenir la serre en vie, et voir fleurir l'Étoile de Los Reyes.
+- **Mécanique centrale** : courir d'un pot à l'autre avec le bon outil. Les plantes réclament de l'eau (💧) ou un traitement contre les pucerons (🐛), chacune avec son compte à rebours. On ne porte qu'un outil à la fois : l'arrosoir de 4 doses, qui se remplit au bassin, ou le pulvérisateur, posé sur la table. Il faut donc choisir son trajet.
+- **Moment fort** : la fin de la nuit sans une perte, quand l'Étoile éclot au-dessus du bassin.
+
+**Avant** (`serre_avant.png`) : cueillir 3 plantes « à l'ombre », « près du bassin » ou « en hauteur » selon une consigne dont les critères ne se voyaient pas. Un trait blanc barrait l'écran.
+
+**Ce qui a changé** :
+- **60 secondes de nuit** lancées au tableau du jardinier :
+  - les besoins arrivent de plus en plus vite, environ 19 sur la nuit ;
+  - les pucerons oubliés gagnent le pot voisin (« 🐛 contagion ! ») ;
+  - une plante oubliée **fane** (fleur brune, « FANÉE »), et 4 fanées font perdre la nuit.
+- **Une seule action à la fois** : le bouton dit toujours quoi faire ici (« 💧 ARROSER », « 🐛 PULVÉRISER », « 💧 Arrosoir vide — remplis-le au bassin », « 🐛 Il faut le pulvérisateur (sur la table) », « 🧴 PRENDRE LE PULVÉRISATEUR », « 💧 PRENDRE L'ARROSOIR »). L'arrosoir se remplit tout seul au bord du bassin. Les boutons de combat sont masqués.
+- **Lisible** :
+  - au-dessus de chaque pot en demande, une grande icône (💧 ou 🐛) blanche, puis jaune, puis rouge et battante quand il reste moins de 3 s ;
+  - des pucerons visibles sur la fleur ;
+  - en haut, l'outil en main (💧💧💧◌ ou 🧴 PULVÉ), les plantes vivantes (🌱 11/12) et le chrono ;
+  - une carte d'intro à quatre lignes.
+- **Retours** : gouttes ou brume selon l'outil, la fleur qui gonfle quand on la soigne, « 💧 +1 », « 🐛 traité ».
+- **Fin** :
+  - sans perte : « 🌺 L'ÉTOILE DE LOS REYES FLEURIT ! », une grande fleur dorée qui s'ouvre et tourne au-dessus du bassin dans une pluie de lumière, la curiosité la première fois, 25 $ par soin et 200 $ de bonus ;
+  - avec des pertes : « 🌿 LE JOUR SE LÈVE », 25 $ par soin, et un rappel que sans perte l'Étoile aurait fleuri ;
+  - nuit perdue : rien.
+  
+  Une nuit par vague.
+- **Décor** :
+  - l'arrosoir posé sur la margelle et le pulvérisateur sur la table ;
+  - le jardinier près de son tableau « LA NUIT DE LA FLORAISON » ;
+  - deux feuilles à chaque tige.
+
+**Choix faits** :
+- La consigne du jour (ombre, bassin, hauteur) est supprimée.
+- La curiosité s'obtient désormais par une nuit **sans perte**. Avant, c'était « trois bonnes plantes sans erreur ».
+- **Deux bugs corrigés en route** :
+  - le pot du milieu de l'étagère avait sa zone à 0,6 u de la SORTIE : on quittait la salle en voulant l'arroser. Sa zone est maintenant devant l'étagère, côté salle ;
+  - le trait blanc vertical venait des arches de la verrière, tournées de 90° et vues par la tranche.
+
+**Équilibrage mesuré** : un pilote « glouton » (le besoin le plus urgent d'abord, il va chercher le bon outil, chemin calculé sur les vrais obstacles) tient environ 7 nuits sur 8, dont des nuits parfaites, pour 325 à 675 $. Un joueur passif perd la serre.
+
+**Vérifications** :
+- `valider.js` est vert et les portes sont inchangées.
+- **Test « Serre »**, qui couvre :
+  - le lancement ;
+  - arroser avec l'arrosoir, la dose consommée ;
+  - les pucerons, impossibles sans le pulvérisateur, puis le pulvérisateur pris à la table et l'arrosoir repris au bassin ;
+  - la contagion et la fanaison ;
+  - la fin parfaite (gain exact, Étoile visible) ;
+  - une nuit par vague ;
+  - le pilote glouton (au moins 3 nuits sur 6) et le joueur passif ;
+  - les remises à zéro (sortie, mort, game over).
+- **Rendus réels** : `serre_salle`, `intro`, `besoins`, `etoile`.
+
+**À tester sur iPhone** :
+1. Les icônes de besoin se voient-elles bien de loin, et l'icône rouge urgente attire-t-elle l'œil ?
+2. Le rythme : 60 s semblent-elles trop courtes, ou trop chargées ?
+3. Prendre et changer d'outil se fait-il naturellement ?
+
+**Reste à améliorer** :
+- les arroseurs automatiques qu'on pourrait débloquer ;
+- une musique de nuit ;
+- des lucioles.
