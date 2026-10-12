@@ -1315,7 +1315,7 @@ Viendraient ensuite : bowling, banque (mini-jeu du coffre), commissariat, puis l
 - un 2e poisson légendaire ;
 - d'autres bateaux de pêche au large.
 
-### Refonte 2 — Aquarium « Bleu Profond » (commit `AQUA_HASH`)
+### Refonte 2 — Aquarium « Bleu Profond » (commit `ced6efe`)
 
 **Concept retravaillé.**
 - **Promesse** : rattraper Gaston, le poulpe évadé, sans jamais qu'il te voie bouger.
@@ -1362,3 +1362,62 @@ Viendraient ensuite : bowling, banque (mini-jeu du coffre), commissariat, puis l
 3. L'indicateur en haut ne gêne-t-il pas le score ou les messages ?
 
 **Reste à améliorer** : Gaston qui change de bassin en douce quand on approche par le côté (une variante pour la 5e manche) ; des visiteurs qui crient « là ! » quand il saute.
+
+### Refonte 3 — Laverie « Bulle Bleue » (commit `LAV_HASH`)
+
+**Concept retravaillé.**
+- **Promesse** : la machine 7 lave l'argent des Vipers. Bourrée de billets, elle se déséquilibre : tiens-la, sans réveiller leur guetteur.
+- **Mécanique centrale** : une aiguille d'équilibre qui dérive, de plus en plus fort ; on la ramène au centre avec le joystick (◀ ▶).
+- **Moment fort** : l'essorage des 10 dernières secondes, où tout s'emballe (le tambour tourne à fond, les poussées sont plus fortes et plus fréquentes).
+
+**Avant** (`laverie_avant.png`) : payer 50 $, attendre 42 s sans rien faire, encaisser 420 à 760 $.
+
+**Ce qui a changé** :
+- **Un vrai mini-jeu de 36 s** :
+  - le joueur est tenu devant la machine et la retient au joystick ;
+  - dans le rouge, la machine **cogne** (« 💥 BOUM ! 1/3 ») ;
+  - le guetteur des Vipers, affalé sur sa chaise au fond (💤), s'agite à chaque coup (« …hein ? », « Qu'est-ce que… ») ;
+  - au 3e coup, il se réveille (« HÉ ! ») : alarme des Vipers, cycle perdu, 50 $ perdus.
+- **Le gain dépend de la stabilité** : de 250 à 750 $ selon le temps passé dans le vert, plus 150 $ pour une **lessive parfaite** (aucun coup, au moins 85 % de vert).
+  Le sac affiche sa valeur : « 💰 RÉCUPÉRER LE SAC — 667 $ ». Toujours 2 lavages par vague, et la Chaussette Solitaire reste dans le filtre après la première lessive.
+- **Lisible** :
+  - carte d'intro (« ◀▶ garde l'aiguille dans le vert », « dans le rouge, la machine cogne », « 3 coups et le guetteur se réveille », « plus c'est stable, plus ça paie ») ;
+  - panneau en bas d'écran : le hublot où l'on voit les billets et la mousse tourner, la jauge en demi-cercle (rouge / vert / rouge), le temps restant, et le visage du guetteur (😴 → 😪 → 😠) avec ses 3 pastilles ;
+  - boutons de combat masqués.
+- **Retours** :
+  - la machine tremble, penche du côté de l'aiguille et saute à chaque coup (secousse, vibration, bang grave) ;
+  - mousse, battement du tambour qui accélère à l'essorage, « 🌀 ESSORAGE ! » ;
+  - fin : « ✨ LESSIVE PARFAITE » ou « 🧺 CYCLE TERMINÉ » avec la stabilité en % et la valeur du sac, gerbe de billets.
+- **Abandon** : quitter la salle en plein cycle l'abandonne (le linge reste aux Vipers). Avant, on pouvait sortir et revenir.
+
+**Équilibrage mesuré** (pilote simulé, 5 cycles par profil) :
+
+| Profil de joueur | Résultat |
+|---|---|
+| Contrôle fin au joystick (réaction 0,2 s) | 95-99 % de vert, aucun coup, environ 880 $ (parfait) |
+| « Pouce » tout ou rien (réaction 0,25 s) | 75-80 %, aucun coup, environ 640 $ |
+| « Pouce » lent (réaction 0,35 s) | environ 50 %, 1 ou 2 coups, environ 500 $ ; une fois raté |
+| Ne rien faire | toujours raté (3 coups) |
+
+**Vérifications** :
+- `valider.js` est vert et les portes sont inchangées.
+- **Test « Laverie »**, qui couvre :
+  - le lancement, le joueur tenu à la machine ;
+  - le joystick qui pousse l'aiguille ;
+  - le coup dans le rouge ;
+  - 3 coups = guetteur réveillé, alarme, rien gagné, boutons rendus ;
+  - le pilote simulé, qui encaisse la valeur affichée ;
+  - le joueur passif, qui perd ;
+  - le plafond de 2 lavages par vague ;
+  - les remises à zéro (sortie, mort, game over).
+- Le test existant des plafonds par vague passe désormais par la vraie remise à zéro de la machine.
+
+**À tester sur iPhone** :
+1. La jauge se lit-elle d'un coup d'œil sous le pouce gauche ?
+2. Le joystick analogique permet-il de doser, et pas seulement de taper à gauche ou à droite ?
+3. Le gain moyen (500 à 750 $) semble-t-il juste ?
+
+**Reste à améliorer** :
+- le guetteur qui se lève et vient voir ;
+- un son de tambour plus riche ;
+- la machine qui se déplace vraiment de quelques centimètres sur le carrelage à chaque coup.

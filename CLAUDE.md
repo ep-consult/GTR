@@ -55,7 +55,7 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
   echo "$ln | $(sed -n "$((ln+1))p" index.html | sed 's/^[ \t]*//')"; done
 ```
 
-**Relevé au 11e lot : chalutier V2, aquarium V2 — 26 897 lignes.**
+**Relevé au 11e lot : chalutier, aquarium, laverie — 27 035 lignes.**
 
 | Ligne | Section |
 |---|---|
@@ -83,19 +83,19 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
 | 15413 | BÂTIMENTS VISITABLES — intérieurs |
 | 15483 | FOUILLE — mécanique générique |
 | 16063 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
-| 20120 | CINÉ-PALACE |
-| 20321 | MÉTRO ABANDONNÉ |
-| 20383 | RADIO PIRATE REYES FM |
-| 20449 | LE CHALUTIER « SAINTE-ODILE » |
-| 20554 | SITE 51 |
-| 21271 | LE DÉPÔT DE BUS — courses clandestines |
-| 21501 | **MÉTIERS** — missions liées à un véhicule |
-| 22585 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
-| 22875 | ÉCRANS / MENUS / BOUTIQUES |
-| 23870 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
-| 24138 | DÉBUT / FIN DE PARTIE |
-| 24935 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
-| 26371 | BOUCLE PRINCIPALE |
+| 20134 | CINÉ-PALACE |
+| 20335 | MÉTRO ABANDONNÉ |
+| 20470 | RADIO PIRATE REYES FM |
+| 20532 | LE CHALUTIER « SAINTE-ODILE » |
+| 20598 | SITE 51 |
+| 20703 | LE DÉPÔT DE BUS — courses clandestines |
+| 21420 | **MÉTIERS** — missions liées à un véhicule |
+| 21650 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
+| 22724 | ÉCRANS / MENUS / BOUTIQUES |
+| 23014 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
+| 24009 | DÉBUT / FIN DE PARTIE |
+| 24277 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
+| 25074 | BOUCLE PRINCIPALE |
 
 ### Ancres fines (hors bandeaux)
 
@@ -149,14 +149,14 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
 | 17140 | `INTDEFS` — définitions des **27 salles** |
 | 17320 | `construireSalle(id)` |
 | 20390 | `CHALUTIER_BANCS_PLAN` — chalutier V2 ; `chalutierMaj` (20761), `dessinerRadarChalutier` (21018) |
-| 22594 | `METIERS_CIBLE` |
-| 22893 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
-| 22981 | `PIECES_FAMILLES` — catalogues de pièces par famille |
-| 23282 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
-| 23336 | `libererObjet()` — libère les géométries d'un objet retiré |
-| 23352 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
-| 23474 | `construireGarageTuning()` — la salle partagée |
-| 23844 | `majNitro()` |
+| 22733 | `METIERS_CIBLE` |
+| 23032 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
+| 23120 | `PIECES_FAMILLES` — catalogues de pièces par famille |
+| 23421 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
+| 23475 | `libererObjet()` — libère les géométries d'un objet retiré |
+| 23491 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
+| 23613 | `construireGarageTuning()` — la salle partagée |
+| 23983 | `majNitro()` |
 
 ---
 
@@ -729,6 +729,28 @@ puis refonte en profondeur de la pire à la meilleure, une salle par commit.
   tunnel supprimés.
 - Pilote simulé (`scenarios.js`, chemin BFS sur les vrais solides, réaction
   0,3 s) : 4/4 en 27-33 s ; qui fonce sans s'arrêter perd.
+
+### Laverie V2 — l'essorage (bandeau `LAVERIE « BULLE BLEUE » — L'ESSORAGE`)
+
+- La machine 7 lave l'argent des Vipers. Pendant le cycle (`LAV_DUREE` = 36 s,
+  `s.cycleOn` = la partie, `s.cycleT` = temps restant), une aiguille
+  d'équilibre (`s.lavAig` ∈ [-1,1], vitesse `s.lavVit` — **jamais `s.lavN`, qui
+  est le compteur de lavages par vague**) dérive sous des poussées
+  aléatoires croissantes (`LAV_DERIVE`, `LAV_DERIVE_ESSORAGE` les 10 dernières
+  secondes) ; ◀ ▶ au joystick la ramène (`LAV_CONTRE`). Au-delà de `LAV_ROUGE`,
+  la machine cogne (`laverieCoup`) ; `LAV_COUPS_MAX` = 3 coups réveillent le
+  guetteur (`s.guetteur`, PNJ affalé) : alarme des Vipers, rien gagné.
+- Gain selon le temps passé dans le vert (`LAV_GAIN`, + `LAV_BONUS_PARFAIT`
+  sans coup et ≥ 85 %), stocké dans `s.lavGain`, encaissé au sac (garde
+  d'entrée propre). 2 lavages par vague (inchangé).
+- Le joueur est tenu devant la machine ; panneau `lavPanWrap` (canvas :
+  hublot qui tourne, jauge en demi-cercle, visage du guetteur), intro
+  `lavIntroWrap`, boutons de combat masqués. Machine 7 = groupe `s.mach7`
+  (tremble, penche, saute ; son solide reste fixe), tambour `s.tambour7`.
+  Reset : `laverieArreter` (fin, sortie, mort, game over).
+- Mesuré (`sim`) : contrôle proportionnel 0,2 s → 95-99 % ; « pouce » tout ou
+  rien 0,25 s → 75-80 % sans coup ; 0,35 s → 50 %, 1-2 coups, parfois raté ;
+  rien → toujours raté.
 
 ## 10e lot (12 octobre 2026) — kiosque de la banderole, figures sur deux roues
 

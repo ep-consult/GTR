@@ -18001,14 +18001,23 @@ function construireSalle(id){
       inter.machinesFond.push({x:ox+mx,z:oz-5.4,mesh:m,pris:false});
     }
     mkEnseigne('RÉSERVÉ — NE PAS TOUCHER','#2fae4f',ox,3.6,oz-5.5,0,12);
-    // === LA MACHINE 7 : grosse machine industrielle isolée ===
-    const m7=box(2.8,2.6,2.4,0xf0f6f8,5.4,1.3,2.2);
-    box(2.2,0.4,0.7,0x35e0ff,5.4,2.75,2.2,false);
-    const hub7=hublot(5.4,1.35,3.45,0,0x9fe4ff);
-    inter.hublot7=hub7;
+    // === LA MACHINE 7 : grosse machine industrielle isolée — un groupe, pour
+    // qu'elle tremble, penche et saute à l'essorage (laverieMaj) ; son solide reste fixe ===
+    const mach7=new THREE.Group(); mach7.position.set(ox+5.4,0,oz+2.2); g.add(mach7);
+    const m7=new THREE.Mesh(new THREE.BoxGeometry(2.8,2.6,2.4),mat(0xf0f6f8)); m7.position.y=1.3; mach7.add(m7);
+    addSolid({x:ox+5.4,z:oz+2.2,hw:1.4,hd:1.2,h:2.6});
+    const haut7=new THREE.Mesh(new THREE.BoxGeometry(2.2,0.4,0.7),mat(0x35e0ff)); haut7.position.y=2.75; mach7.add(haut7);
+    const hub7=new THREE.Mesh(new THREE.CylinderGeometry(0.62,0.62,0.12,18),
+      new THREE.MeshLambertMaterial({color:0x9fe4ff,emissive:new THREE.Color(0x9fe4ff).multiplyScalar(0.35),transparent:true,opacity:0.65}));
+    hub7.rotation.x=Math.PI/2; hub7.position.set(0,1.35,1.26); mach7.add(hub7);
+    // le tambour derrière la vitre : des billets verts qui tournent
+    const texTamb=cTex(128,(c,t)=>{ c.fillStyle='#0b2a3a'; c.fillRect(0,0,t,t);
+      for(let i=0;i<10;i++){ c.save(); c.translate(t/2,t/2); c.rotate(i*0.63); c.fillStyle=i%2?'#5aa86a':'#7dcf7a'; c.fillRect(10,-8,44,16); c.restore(); } });
+    const tamb=new THREE.Mesh(new THREE.CircleGeometry(0.58,18),new THREE.MeshBasicMaterial({map:texTamb})); tamb.position.set(0,1.35,1.205); mach7.add(tamb);
+    inter.hublot7=hub7; inter.tambour7=tamb; inter.mach7=mach7; inter.mach7X=ox+5.4; inter.mach7Z=oz+2.2;
     mkEnseigne('MACHINE 7','#35e0ff',ox+5.4,3.5,oz+1,0,7);
     inter.machine7={x:ox+5.4,z:oz+4.2,mesh:m7};
-    inter.cycleT=0; inter.cycleOn=false; inter.sacPret=false;
+    inter.cycleT=0; inter.cycleOn=false; inter.sacPret=false; inter.lavGain=0;
     // filtre à peluches (n'a d'intérêt qu'après un cycle)
     const filt=box(1,0.8,0.9,0x8a949a,9.3,0.4,6.2,false);
     mkEnseigne('FILTRES','#8a949a',ox+9.3,1.5,oz+5.5,0,5);
@@ -18036,7 +18045,11 @@ function construireSalle(id){
     // clientèle : une dame qui plie, un type qui attend depuis longtemps
     pnj(-2.2,1.6,{haut:0xd8a0c8,bas:0x3a3f4a,peau:pick(civPeau),casq:0xd8c8a8,visage:'gentil'},'caisse');
     pnj(-1,3.4,{haut:pick(civHaut),bas:pick(civBas),peau:pick(civPeau),casq:0x2a2018,visage:'neutre'});
-    pnj(7.4,-6,{haut:0x2fae4f,bas:0x1c2030,peau:pick(civPeau),casq:0x175c2b,visage:'mechant'});
+    // le guetteur des Vipers, affalé sur sa chaise, endormi (laverieCoup le réveille)
+    box(0.9,0.5,0.9,0x5a6a74,7.4,0.25,-4.1,false);
+    const guetteur=pnj(7.4,-4.4,{haut:0x2fae4f,bas:0x1c2030,peau:pick(civPeau),casq:0x175c2b,visage:'mechant'});
+    guetteur.g.rotation.set(0.35,Math.PI*0.85,0); guetteur.g.position.y=-0.25;
+    inter.guetteur=guetteur;
     lampe(-5,-3,0xdff2ff,9); lampe(5,-3,0xdff2ff,9); lampe(0,4,0xdff2ff,8);
   }
   /* ================= CHEZ MADAME ZOHRA =================
@@ -19905,6 +19918,7 @@ function sortirInterieur(){
   if(sc.piles){ sc.butin=0; sc.beteProx=0; sc.niveauPrecBlackout=undefined; metroAmbianceStop(); }
   if(sc.emissionOn){ radioArreterEmission(sc); toast('Tu quittes en pleine émission. Le signal s’éteint.'); }
   if(sc.aqActif){ aquariumArreter(sc); toast('Tu abandonnes la chasse. Gaston en profite.'); }
+  if(sc.machine7&&sc.cycleOn){ laverieArreter(sc); toast('Tu lâches la machine 7 en plein cycle. Le linge reste aux Vipers.'); }
   if(sc.sortieEnCours){ chalutierArreterSortie(sc); toast('Tu abandonnes la sortie en pleine mer. Retour au ponton.'); }
   // Le Dépôt de bus : filet de sécurité générique — l'abandon normal (bouton
   // dédié, voir depotWrap) a déjà nettoyé la course ; ceci couvre tout autre
@@ -20317,6 +20331,141 @@ function aquariumMaj(s,dt,dtJeu){
   if(s._aqHk!==hk){ s._aqHk=hk; aquaTouchesEl.textContent='🐙 '+s.aqManche+'/'+AQUA_MANCHES;
     aquaTachesEl.textContent='🖤'.repeat(s.aqTaches)+'🤍'.repeat(AQUA_TACHES_MAX-s.aqTaches);
     const r=Math.max(0,Math.ceil(AQUA_DUREE-s.aqChrono)); aquaChronoEl.textContent=Math.floor(r/60)+':'+String(r%60).padStart(2,'0'); aquaChronoEl.style.color=r<=15?'#ff5a6a':'#fff'; }
+}
+/* =====================================================================
+   LAVERIE « BULLE BLEUE » — L'ESSORAGE (11e lot, refonte)
+   Promesse : la machine 7 lave l'argent des Vipers. Bourrée de billets,
+   elle se déséquilibre : tiens-la, sans réveiller leur guetteur.
+   Mécanique : une aiguille d'équilibre qui dérive (poussées aléatoires de
+   plus en plus fortes) ; ◀ ▶ au joystick la ramène. Trop loin, la machine
+   cogne : 3 coups et le guetteur se réveille (alarme, cycle perdu).
+   Moment fort : l'essorage des 10 dernières secondes, où tout s'emballe.
+   Gain selon la stabilité (temps passé dans le vert). Tout sur dtJeu.
+===================================================================== */
+const LAV_DUREE=36, LAV_ESSORAGE=10;
+const LAV_VERT=0.32, LAV_ROUGE=0.86;          // demi-largeur du vert ; au-delà du rouge, la machine cogne
+const LAV_DERIVE=[0.9,2.3], LAV_DERIVE_ESSORAGE=3.1; // force des poussées (aiguille/s²), début → fin, puis essorage
+const LAV_CONTRE=4.6, LAV_AMORTI=1.6;         // force du joystick ; amortissement (1/s)
+const LAV_COUPS_MAX=3;
+const LAV_GAIN=[250,750], LAV_BONUS_PARFAIT=150;
+const lavIntroWrap=carteSalle('top:34%;border-color:#35e0ff99');
+lavIntroWrap.innerHTML='<div style="font:900 21px Arial;color:#8ad2ff;letter-spacing:.03em;text-shadow:0 2px 0 #000">🧺 L’ESSORAGE</div>'+
+  '<div style="font:800 11px Arial;color:#9fd8ee;margin:2px 0 8px;letter-spacing:.08em">LA MACHINE 7 LAVE L’ARGENT DES VIPERS</div>'+
+  ligneCarte('◀▶','garde l’aiguille <b>dans le vert</b>')+ligneCarte('💥','dans le rouge, la machine cogne')+
+  ligneCarte('😴','<b>3 coups</b> et le guetteur se réveille')+ligneCarte('💰','plus c’est stable, plus ça paie');
+const lavPanWrap=document.createElement('div');
+lavPanWrap.style.cssText='position:absolute;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 14px);transform:translateX(-50%);'+
+  'width:min(340px,90vw);display:none;z-index:7;pointer-events:none';
+lavPanWrap.innerHTML='<canvas id="lavCv" width="680" height="300" style="width:100%;aspect-ratio:680/300;display:block;'+
+  'border-radius:16px;border:2px solid #35e0ff66;box-shadow:0 6px 22px #000c"></canvas>';
+el('hud').appendChild(lavPanWrap);
+const lavCx=lavPanWrap.querySelector('#lavCv').getContext('2d');
+function laverieDemarrer(s){
+  s.cycleOn=true; s.cycleT=LAV_DUREE; s.lavT=0; s.lavAig=0; s.lavVit=0; s.lavPousse=0; s.lavPousseT=0.6; s.lavCoups=0; s.lavCoupCd=0; s.lavVert=0;
+  s.lavIntroT=3.4; lavIntroWrap.style.opacity='1'; lavIntroWrap.style.display='block';
+  lavPanWrap.style.display='block'; cacherBoutonsCombat();
+  bigMsg('🧺 MACHINE 7 EN ROUTE'); SFX.achat(); vibre(30);
+}
+// point de reset commun : fin réussie, réveil du guetteur, sortie, mort, game over
+function laverieArreter(s){
+  s.cycleOn=false; s.cycleT=0; s.lavIntroT=0;
+  for(const w of [lavPanWrap,lavIntroWrap]) if(w.style.display!=='none') w.style.display='none';
+  if(s.mach7){ s.mach7.position.set(s.mach7X,0,s.mach7Z); s.mach7.rotation.set(0,0,0); }
+  if(s.guetteur){ s.guetteur.g.rotation.x=0.35; s.guetteur.g.position.y=-0.25; }
+  afficherBoutonsCombat();
+}
+function laverieCoup(s){
+  s.lavCoups++; s.lavCoupCd=0.6;
+  s.lavAig=Math.sign(s.lavAig)*0.62; s.lavVit=-s.lavVit*0.4;
+  s.mach7Saut=0.25; SFX.degat(); beep(70,0.18,'square',0.2,45); secousse(4); vibre(110);
+  const g=s.guetteur;
+  if(g) spawnTexte(g.g.position.x,2.4,g.g.position.z,s.lavCoups>=LAV_COUPS_MAX?'HÉ !':(s.lavCoups===1?'…hein ?':'Qu’est-ce que…'),s.lavCoups>=LAV_COUPS_MAX?'#ff5a6a':'#ffd23f');
+  if(s.lavCoups>=LAV_COUPS_MAX){
+    laverieArreter(s);
+    if(g){ g.g.rotation.x=0; g.g.position.y=0; }
+    bigMsg('😠 LE GUETTEUR SE RÉVEILLE'); toast('Trop de bruit : les Vipers récupèrent leur lessive.','warn');
+    HOSTILITE.viperes=Math.min(6,HOSTILITE.viperes+1);
+    s.alarmePool=['vip_batte','vip_pistol'];
+    declencherAlarme(s,'Le guetteur des Vipers a tout entendu !');
+  } else bigMsg('💥 BOUM ! '+s.lavCoups+'/'+LAV_COUPS_MAX);
+}
+function laverieFin(s){
+  const frac=clamp(s.lavVert/LAV_DUREE,0,1), parfait=s.lavCoups===0&&frac>=0.85;
+  s.lavGain=Math.round(LAV_GAIN[0]+(LAV_GAIN[1]-LAV_GAIN[0])*frac)+(parfait?LAV_BONUS_PARFAIT:0);
+  s.lavQualite=Math.round(frac*100);
+  laverieArreter(s);
+  s.sacPret=true; s.hublot7.material.color.setHex(0x7dff7a);
+  bigMsg(parfait?'✨ LESSIVE PARFAITE':'🧺 CYCLE TERMINÉ');
+  toast((parfait?'Pas un bruit. ':'')+'Stabilité '+s.lavQualite+' % — le sac vaut '+s.lavGain+' $','or');
+  SFX.niveau(); vibre(80);
+  for(let i=0;i<26;i++) spawnP(s.mach7X+rand(-1,1),rand(1.5,3),s.mach7Z+rand(-1,1),rand(-2,2),rand(2,4),rand(-2,2),1.2,0.5,pick([0x7dff7a,0xdff2ff]),5);
+}
+function laverieMaj(s,dt,dtJeu){
+  const T=ETAT.runT;
+  // guetteur endormi : 💤 de temps en temps (dt)
+  if(s.guetteur&&!s.cycleOn&&!s.alarme&&Math.random()<dt*0.4) spawnTexte(s.guetteur.g.position.x,2.2,s.guetteur.g.position.z,'💤','#9fb4c0');
+  if(s.tambour7) s.tambour7.rotation.z-=dt*(s.cycleOn?(s.cycleT<LAV_ESSORAGE?22:9):0);
+  if(s.lavIntroT>0){ s.lavIntroT-=dt; if(s.lavIntroT<0.5) lavIntroWrap.style.opacity=String(Math.max(0,s.lavIntroT/0.5)); if(s.lavIntroT<=0) lavIntroWrap.style.display='none'; }
+  if(!s.cycleOn) return;
+  // le joueur tient la machine (dtJeu)
+  P.x=s.machine7.x; P.z=s.machine7.z-0.6; P.ang=Math.PI;
+  s.lavT+=dtJeu; s.cycleT-=dtJeu;
+  const essorage=s.cycleT<LAV_ESSORAGE;
+  s.lavPousseT-=dtJeu;
+  if(s.lavPousseT<=0){
+    const A=essorage?LAV_DERIVE_ESSORAGE:lerp(LAV_DERIVE[0],LAV_DERIVE[1],clamp(s.lavT/(LAV_DUREE-LAV_ESSORAGE),0,1));
+    s.lavPousse=(Math.random()<0.5?-1:1)*A*rand(0.55,1);
+    s.lavPousseT=essorage?rand(0.3,0.7):rand(0.5,1.2);
+  }
+  s.lavVit+=(s.lavPousse+clamp(INPUT.mx,-1,1)*LAV_CONTRE)*dtJeu;
+  s.lavVit*=Math.exp(-LAV_AMORTI*dtJeu);
+  s.lavAig=clamp(s.lavAig+s.lavVit*dtJeu,-1,1);
+  if(Math.abs(s.lavAig)<LAV_VERT) s.lavVert+=dtJeu;
+  if(s.lavCoupCd>0) s.lavCoupCd-=dtJeu;
+  else if(Math.abs(s.lavAig)>LAV_ROUGE){ laverieCoup(s); if(!s.cycleOn) return; }
+  if(s.cycleT<=0){ laverieFin(s); return; }
+  if(essorage&&!s.lavEssorageAnnonce){ s.lavEssorageAnnonce=true; bigMsg('🌀 ESSORAGE !'); beep(300,0.4,'sawtooth',0.1,900); vibre(60); }
+  if(!essorage) s.lavEssorageAnnonce=false;
+  // la machine tremble, penche, saute (dt)
+  if(s.mach7){ if(s.mach7Saut>0) s.mach7Saut-=dt;
+    const tr=(essorage?0.07:0.03)+Math.abs(s.lavVit)*0.01;
+    s.mach7.position.set(s.mach7X+s.lavAig*0.22+rand(-tr,tr),Math.max(0,s.mach7Saut)*1.6,s.mach7Z+rand(-tr,tr));
+    s.mach7.rotation.z=-s.lavAig*0.13; }
+  s.hublot7.material.color.setHex(Math.floor(T*(essorage?14:6))%2?0x9fe4ff:0x5ab8e8);
+  if(Math.random()<dt*(essorage?16:7)) spawnP(s.mach7X+rand(-1.2,1.2),rand(2.6,3.2),s.mach7Z+rand(-1,1),rand(-0.4,0.4),rand(0.6,1.4),rand(-0.4,0.4),1,rand(0.25,0.5),0xdff2ff,-0.3,0.8);
+  if(Math.random()<dt*(essorage?9:4)) beep(essorage?90:62,0.05,'sine',0.08); // le tambour
+  // le guetteur s'agite à chaque coup
+  if(s.guetteur){ s.guetteur.g.rotation.x=0.35-s.lavCoups*0.1+Math.sin(T*(1+s.lavCoups*3))*0.04*s.lavCoups; }
+  dessinerLaverie(s);
+}
+function dessinerLaverie(s){
+  const cx=lavCx, W=680, H=300, T=ETAT.runT; if(!cx) return;
+  const essorage=s.cycleT<LAV_ESSORAGE;
+  const gr=cx.createLinearGradient(0,0,0,H); gr.addColorStop(0,'#0e2a3a'); gr.addColorStop(1,'#06121c'); cx.fillStyle=gr; cx.fillRect(0,0,W,H);
+  // le hublot : tambour qui tourne, billets et mousse
+  const hx=150, hy=150, R=112;
+  cx.fillStyle='#c8d4dc'; cx.beginPath(); cx.arc(hx,hy,R+16,0,Math.PI*2); cx.fill();
+  cx.fillStyle='#0b2a3a'; cx.beginPath(); cx.arc(hx,hy,R,0,Math.PI*2); cx.fill();
+  cx.save(); cx.beginPath(); cx.arc(hx,hy,R-4,0,Math.PI*2); cx.clip();
+  const rot=-T*(essorage?14:6);
+  for(let i=0;i<14;i++){ const a=rot+i*0.45, r=40+(i*29)%60; cx.save(); cx.translate(hx+Math.cos(a)*r,hy+Math.sin(a)*r); cx.rotate(a*2);
+    cx.fillStyle=i%3?'#5aa86a':'#7dcf7a'; cx.fillRect(-18,-9,36,18); cx.fillStyle='#2a5a32'; cx.fillRect(-6,-5,12,10); cx.restore(); }
+  cx.fillStyle='rgba(230,245,255,0.55)'; for(let i=0;i<9;i++){ const a=-rot*0.5+i*0.7; cx.beginPath(); cx.arc(hx+Math.cos(a)*(R-20),hy+Math.sin(a)*(R-24)+20,14+(i%3)*6,0,Math.PI*2); cx.fill(); }
+  cx.restore();
+  cx.strokeStyle='rgba(255,255,255,0.5)'; cx.lineWidth=5; cx.beginPath(); cx.arc(hx-30,hy-30,R*0.7,Math.PI*1.1,Math.PI*1.45); cx.stroke();
+  // la jauge d'équilibre (demi-cercle) : rouge | vert | rouge, aiguille
+  const jx=480, jy=196, JR=150, a0=Math.PI, a1=Math.PI*2, ang=(n)=>a0+(n+1)/2*(a1-a0);
+  const arc=(n0,n1,coul)=>{ cx.strokeStyle=coul; cx.lineWidth=30; cx.beginPath(); cx.arc(jx,jy,JR,ang(n0),ang(n1)); cx.stroke(); };
+  arc(-1,-LAV_ROUGE,'#ff3b5c'); arc(-LAV_ROUGE,-LAV_VERT,'#ffd23f55'); arc(-LAV_VERT,LAV_VERT,'#3fbf6a'); arc(LAV_VERT,LAV_ROUGE,'#ffd23f55'); arc(LAV_ROUGE,1,'#ff3b5c');
+  const an=ang(s.lavAig); cx.strokeStyle='#ffffff'; cx.lineWidth=8; cx.lineCap='round'; cx.beginPath(); cx.moveTo(jx,jy); cx.lineTo(jx+Math.cos(an)*(JR+8),jy+Math.sin(an)*(JR+8)); cx.stroke();
+  cx.fillStyle='#ffffff'; cx.beginPath(); cx.arc(jx,jy,13,0,Math.PI*2); cx.fill();
+  // consigne, bruit, chrono
+  cx.textAlign='center'; cx.textBaseline='middle';
+  const txt=(t,x,y,c,taille)=>{ cx.font='900 '+taille+'px Arial'; cx.lineWidth=6; cx.strokeStyle='#000'; cx.strokeText(t,x,y); cx.fillStyle=c; cx.fillText(t,x,y); };
+  if(essorage) txt('🌀 ESSORAGE !',jx,34,'#ff8c1a',34+Math.sin(T*16)*3); else txt('◀ ▶  GARDE LE VERT',jx,34,'#e8f6ff',28);
+  const r=Math.max(0,Math.ceil(s.cycleT)); txt(r+' s',jx,jy-40,r<=LAV_ESSORAGE?'#ff8c1a':'#ffffff',38);
+  const visage=['😴','😪','😠','😡'][Math.min(3,s.lavCoups)];
+  txt(visage+' '+'●'.repeat(s.lavCoups)+'○'.repeat(LAV_COUPS_MAX-s.lavCoups),jx,jy+50,'#ffb0bc',30);
 }
 /* =====================================================================
    CINÉ-PALACE — salle de surcharge : quatre appareils qui se dérèglent en
@@ -21974,18 +22123,8 @@ function majInterieur(dt,dtJeu){
     fouilleWrap.style.display='block';
     fouilleFill.style.width=Math.round((1-FOUILLE.t/FOUILLE.tot)*100)+'%';
   } else if(fouilleWrap.style.display!=='none') fouilleWrap.style.display='none';
-  // ---- laverie : cycle de la machine 7 ----
-  if(s.cycleOn){
-    s.cycleT-=dt;
-    s.hublot7.material.color.setHex(Math.floor(ETAT.runT*6)%2?0x9fe4ff:0x5ab8e8);
-    if(Math.random()<0.5) spawnP(s.machine7.x+rand(-1.2,1.2),rand(2.4,3.2),s.machine7.z+rand(-1.2,0.4),
-      rand(-0.4,0.4),rand(0.6,1.4),rand(-0.4,0.4),1,rand(0.25,0.5),0xdff2ff,-0.3,0.8);
-    if(s.cycleT<=0){
-      s.cycleOn=false; s.sacPret=true;
-      s.hublot7.material.color.setHex(0x7dff7a);
-      SFX.etoile(); toast('🧺 Le cycle est terminé — quelque chose brille dedans','or');
-    }
-  }
+  // ---- laverie : l'essorage de la machine 7 (laverieMaj) ----
+  if(s.machine7) laverieMaj(s,dt,dtJeu);
   // ---- concessionnaire : les véhicules exposés tournent doucement ----
   if(s.podiums) for(const pod of s.podiums) if(pod.mesh) pod.mesh.rotation.y+=dt*0.35;
   // ---- karaoké : balayage du curseur ----
@@ -24995,7 +25134,7 @@ function startRun(){
     const sa=INT.salles[k];
     for(const f of sa.fouilles) f.prisVague=-1;
     sa.alarme=false; sa.vagueT=undefined; sa.roueN=0; sa.roueVague=-1;
-    if(sa.cycleOn!==undefined){ sa.cycleOn=false; sa.cycleT=0; sa.sacPret=false;
+    if(sa.cycleOn!==undefined){ laverieArreter(sa); sa.cycleOn=false; sa.cycleT=0; sa.sacPret=false; sa.lavGain=0;
       if(sa.hublot7) sa.hublot7.material.color.setHex(0x9fe4ff); }
     if(sa.machinesFond) for(const m of sa.machinesFond) m.pris=false;
     if(sa.karaOn!==undefined){ sa.karaOn=false; if(sa.karaBarre) sa.karaBarre.visible=false; sa.karaVague=-1; sa.karaN=0; }
@@ -25290,6 +25429,7 @@ function mourir(){
   }
   if(INT.actif&&INT.actif.console&&INT.actif.emissionOn) radioArreterEmission(INT.actif); // coupe le son tout de suite
   if(INT.actif&&INT.actif.aqActif) aquariumArreter(INT.actif); // Aquarium : la chasse s'arrête, boutons rendus
+  if(INT.actif&&INT.actif.machine7&&INT.actif.cycleOn) laverieArreter(INT.actif); // Laverie : l'essorage s'arrête
   if(INT.actif&&INT.actif.barre&&INT.actif.sortieEnCours) chalutierArreterSortie(INT.actif); // coupe le son tout de suite, cale perdue
   chalutierAmbianceStop(); // l'ambiance du port tourne dès qu'on est dans la salle, sortie en mer ou non (audit de nuit)
   if(INT.actif&&INT.actif.site51&&INT.actif.visiteEnCours) site51ConclureVisite(INT.actif,false); // butin perdu, sas rouverts, mystère avance quand même
@@ -25569,25 +25709,25 @@ function majAction(){
         secousse(9);
         declencherAlarme(s,'Le coffre a été forcé !');
       };
-    /* ---------- LAVERIE ---------- */
+    /* ---------- LAVERIE : l'essorage de la machine 7 (laverieMaj) — pendant le cycle, tout se joue au joystick ---------- */
+    } else if(s.machine7&&s.cycleOn){
+      label=''; fn=null;
     } else if(s.machine7&&dist2(P.x,P.z,s.machine7.x,s.machine7.z)<marquerZone(s.machine7,11)){
       if(s.sacPret){
-        label='💰 RÉCUPÉRER LE SAC DE BILLETS';
+        label='💰 RÉCUPÉRER LE SAC — '+(s.lavGain||0)+' $';
         fn=()=>{
+          if(!s.sacPret) return; // garde d'entrée propre (CLAUDE.md)
           s.sacPret=false; s.hublot7.material.color.setHex(0x9fe4ff);
-          const g2=randi(420,760);
+          const g2=s.lavGain||0; s.lavGain=0;
           META.argent+=g2; ETAT.cashRun+=g2; META.stats.cashTotal+=g2;
           META.lessives++;
-          bigMsg('🧺 LESSIVE TERMINÉE'); toast('Sac récupéré : +'+g2+' $','or');
+          bigMsg('💰 +'+g2+' $'); toast('Sac récupéré : de l’argent bien propre','or');
           SFX.achat(); addHeat(0.4); vibre(60);
           for(let i=0;i<18;i++) spawnP(s.machine7.x+rand(-1,1),rand(1,2.6),s.machine7.z+rand(-1,1),
             rand(-1,1),rand(1,3),rand(-1,1),1,0.5,0x7dff7a,0);
           if(META.lessives===1) toast('Un truc est resté coincé dans le filtre à peluches...','warn');
           checkDefis(); sauveMeta();
         };
-      } else if(s.cycleOn){
-        label='🌀 CYCLE EN COURS — '+Math.ceil(s.cycleT)+' s';
-        fn=()=>{ SFX.refus(); toast('Le linge ne se lave pas plus vite parce que tu insistes'); };
       } else {
         // plafond par vague (règle « pas de farming infini ») : un lavage
         // compte dès qu'il est lancé — remise à zéro dans startRun()
@@ -25596,14 +25736,12 @@ function majAction(){
           label='🧺 Machine 7 en maintenance — reviens à la prochaine vague';
           fn=()=>{ SFX.refus(); toast('Deux lessives par vague. Le gérant commence à se poser des questions.'); };
         } else {
-        label='🧺 LANCER LA MACHINE 7 — 50 $';
-        fn=()=>{
-          if(META.argent<50){SFX.refus();toast('Il te faut 50 $ de jetons');return;}
-          s.lavN=(s.lavN||0)+1;
-          META.argent-=50; s.cycleOn=true; s.cycleT=42;
-          SFX.achat(); toast('Cycle lancé. Reste dans le coin — ou pas.','or');
-          bigMsg('MACHINE 7 EN ROUTE');
-        };
+          label='🧺 LANCER L’ESSORAGE — 50 $';
+          fn=()=>{
+            if(META.argent<50){SFX.refus();toast('Il te faut 50 $ de jetons');return;}
+            s.lavN=(s.lavN||0)+1;
+            META.argent-=50; laverieDemarrer(s);
+          };
         }
       }
     } else if(s.filtre&&META.lessives>0&&dist2(P.x,P.z,s.filtre.x,s.filtre.z)<marquerZone(s.filtre,12)){

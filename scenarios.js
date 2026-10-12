@@ -662,7 +662,7 @@ async function main() {
         const MAX = window[cas.max] !== undefined ? window[cas.max] : eval(cas.max);
         const terminer = () => {
           if (cas.salle === 'karaoke') { if (s.karaOn) { s.karaPos = 1; evaluerKaraoke(s); } }
-          else { s.cycleOn = false; s.sacPret = false; }
+          else { laverieArreter(s); s.sacPret = false; } // le point de reset du jeu (panneau, boutons)
         };
         const lancer = () => {
           META.argent = Math.max(META.argent, 1000);
@@ -9177,6 +9177,69 @@ async function main() {
       });
       if (r.ko.length) fail('Aquarium : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
       else ok('Aquarium : ' + r.info.join(' ; ') + ' ; une chasse réussie par vague, remises à zéro (sortie, mort, game over)' + (r.perle ? ' ; Perle Noire obtenue' : ''));
+    }
+
+    // -------------------------------------------------------------------
+    // Laverie « Bulle Bleue » (refaite au 11e lot) : l'essorage de la
+    // machine 7. Réglages lus dans LAV_* (jamais recopiés). Pilote simulé au
+    // joystick (réaction 0,2 s) : il doit tenir l'aiguille ; sans rien faire,
+    // la machine cogne et réveille le guetteur.
+    // -------------------------------------------------------------------
+    console.log('\n--- Laverie : l’essorage de la machine 7 (aiguille, coups, guetteur, gain selon la stabilité, pilote simulé) ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        const entrer = () => { if (INT.actif) sortirInterieur(); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6; META.argent = Math.max(META.argent, 2000);
+          entrerInterieur('laverie', PORTES.find((x) => x.id === 'laverie')); ETAT.intT = 0; return INT.actif; };
+        const appuyer = () => { majAction(); const b = document.getElementById('btnAction'); const l = b.style.display === 'none' ? '' : b.textContent; if (b._fn && l) b._fn(); return l; };
+        const vu = (e) => getComputedStyle(e).display !== 'none';
+        // 1) lancement : 50 $, intro, panneau, boutons masqués, joueur tenu à la machine
+        let s = entrer(); P.x = s.machine7.x; P.z = s.machine7.z; const a0 = META.argent;
+        const label = appuyer();
+        if (!/ESSORAGE/.test(label) || !s.cycleOn || META.argent !== a0 - 50) ko.push('lancement de la machine 7 (' + label + ')');
+        if (!vu(lavPanWrap) || !vu(lavIntroWrap) || vu(document.getElementById('btnFire'))) ko.push('panneau / intro / boutons de combat');
+        INPUT.mx = -1; for (let i = 0; i < 10; i++) majInterieur(0.05, 0.05); INPUT.mx = 0;
+        if (Math.hypot(P.x - s.machine7.x, P.z - s.machine7.z) > 1) ko.push('le joueur n’est pas tenu à la machine');
+        // 2) le joystick pousse l'aiguille ; le rouge fait cogner ; 3 coups = guetteur réveillé, rien gagné
+        s.lavAig = 0; s.lavVit = 0; s.lavPousse = 0; s.lavPousseT = 99; INPUT.mx = 1; for (let i = 0; i < 6; i++) majInterieur(0.05, 0.05); INPUT.mx = 0;
+        if (!(s.lavAig > 0.05)) ko.push('le joystick ne pousse pas l’aiguille (' + s.lavAig + ')');
+        s.lavAig = LAV_ROUGE + 0.05; s.lavVit = 0; s.lavCoupCd = 0; majInterieur(0.02, 0.02);
+        if (s.lavCoups !== 1 || !(Math.abs(s.lavAig) < LAV_ROUGE)) ko.push('le rouge ne fait pas cogner une fois');
+        s.lavCoups = LAV_COUPS_MAX - 1; s.lavAig = -1; s.lavCoupCd = 0; const a1 = META.argent; majInterieur(0.02, 0.02);
+        if (s.cycleOn || s.sacPret || !s.alarme || META.argent !== a1 || vu(lavPanWrap) || !vu(document.getElementById('btnFire'))) ko.push('3 coups ne réveillent pas proprement le guetteur (' + JSON.stringify({ c: s.cycleOn, a: s.alarme }) + ')');
+        else info.push('3 coups : guetteur réveillé, alarme, rien gagné');
+        // 3) pilote simulé : contrôle proportionnel avec 0,2 s de retard ; et un joueur qui ne fait rien
+        const cycle = (malin) => {
+          const s = entrer(); P.x = s.machine7.x; P.z = s.machine7.z; appuyer();
+          const dt = 1 / 30, file = []; let t = 0;
+          while (s.cycleOn && t < LAV_DUREE + 2) {
+            file.push(clamp(-(s.lavAig * 2.4 + s.lavVit * 0.9), -1, 1));
+            INPUT.mx = malin && file.length > 6 ? file.shift() : 0; // ~0,2 s de réaction
+            majInterieur(dt, dt); t += dt;
+          }
+          INPUT.mx = 0;
+          const res = { sac: s.sacPret, gain: s.lavGain, coups: s.lavCoups, qualite: s.lavQualite };
+          if (s.sacPret) { P.x = s.machine7.x; P.z = s.machine7.z; const a = META.argent; const l = appuyer(); res.paye = META.argent - a; res.label = l; }
+          sortirInterieur(); return res;
+        };
+        const malins = [cycle(true), cycle(true), cycle(true)], passif = cycle(false);
+        const reussis = malins.filter((m) => m.sac && m.paye === m.gain && m.gain >= LAV_GAIN[0] && m.gain <= LAV_GAIN[1] + LAV_BONUS_PARFAIT).length;
+        if (reussis < 3) ko.push('le pilote qui tient l’aiguille rate (' + JSON.stringify(malins) + ')');
+        else info.push('pilote : ' + malins.map((m) => m.gain + ' $ (' + m.qualite + ' %, ' + m.coups + ' coup)').join(' ; '));
+        if (passif.sac) ko.push('sans toucher au joystick, le cycle réussit quand même');
+        else info.push('sans rien faire : guetteur réveillé');
+        // 4) plafond 2 par vague, remises à zéro
+        s = entrer(); s.lavVague = WAVES.n; s.lavN = LAVERIE_LAVAGES_MAX; P.x = s.machine7.x; P.z = s.machine7.z;
+        if (!/maintenance/.test(appuyer()) || s.cycleOn) ko.push('3e lavage de la vague accepté');
+        s.lavN = 0; appuyer(); sortirInterieur();
+        if (s.cycleOn || vu(lavPanWrap)) ko.push('sortir en plein cycle ne l’arrête pas');
+        s = entrer(); P.x = s.machine7.x; P.z = s.machine7.z; appuyer(); P.hp = 1; toucherJoueur(9999);
+        if (s.cycleOn || vu(lavPanWrap)) ko.push('mourir en plein cycle ne l’arrête pas');
+        startRun(); if (INT.salles.laverie.cycleOn || INT.salles.laverie.sacPret) ko.push('le game over ne remet pas la machine à zéro');
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Laverie : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
+      else ok('Laverie : ' + r.info.join(' ; ') + ' ; 2 lavages par vague, remises à zéro (sortie, mort, game over)');
     }
 
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');
