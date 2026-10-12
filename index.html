@@ -3707,7 +3707,7 @@ function construireVille(){
     if(qq!=='plage'&&qq!=='parc'&&bx%3===1&&bz%3===1) mkFeu(cx+INNER/2+1.4,cz-INNER/2-1.4);
   }
   placerPortes();
-  if(DECOR_V2){ sansAleaVille(()=>{ ameliorerPortes(); mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkCiel(); mkKiosqueBanderole(); mkCrique(); mkMontReyes(); mkBordureEst(); mkCanyonsDesert(); mkPicVertige(); mkParcStunt(); mkRides(); mkMerVivante(); mkRemorquage(); deplacerVoltige(); mkTracesSable(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkNeonVivant(); mkQuartiersFinitions(); }); } // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
+  if(DECOR_V2){ sansAleaVille(()=>{ ameliorerPortes(); mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkCiel(); mkKiosqueBanderole(); mkCrique(); mkMontReyes(); mkBordureEst(); mkCanyonsDesert(); mkPicVertige(); mkParcStunt(); mkSkateXXL(); mkRides(); mkMerVivante(); mkRemorquage(); deplacerVoltige(); mkTracesSable(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkNeonVivant(); mkQuartiersFinitions(); }); } // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
   finaliserMerge();
   construireMinimapStatique();
 }
@@ -4522,6 +4522,146 @@ function texBetonSkate(){
     g.strokeStyle='rgba(80,80,80,0.5)'; g.lineWidth=2; for(let k=0;k<=s;k+=s/2){ g.beginPath(); g.moveTo(k,0); g.lineTo(k,s); g.stroke(); g.beginPath(); g.moveTo(0,k); g.lineTo(s,k); g.stroke(); }
     g.strokeStyle='rgba(40,40,40,0.18)'; g.lineWidth=3; for(let i=0;i<6;i++){ g.beginPath(); g.moveTo(aD(0,s),aD(0,s)); g.quadraticCurveTo(aD(0,s),aD(0,s),aD(0,s),aD(0,s)); g.stroke(); }
   },4,4);
+}
+/* ---------- REYES SKATEPARK XXL (DECOR_V2, 10e lot) ----------
+   Demandé : « améliore considérablement le skatepark et agrandis-le, avec un gros bowl performant, tout :
+   il faut que ce soit épique ». Le skatepark du parc tient dans un pâté de 26 u entouré de routes : le
+   grand skatepark est construit dans le désert, au sud du Pic du Vertige (x 452–504, z 170–240 ; à l'est,
+   la falaise de 17 u de la crique). Le petit reste en ville comme spot de rue.
+   Tout est UNE fonction de hauteur (hauteurSkateXXL, dans RELIEFS : ce qu'on voit est ce sur quoi on
+   roule) : une plate-forme de béton à SKX.D au-dessus du sable, montée par des rampes douces sur tout le
+   pourtour, et taillée de transitions en quart de cercle (rayon SKX.R, verticales au coping) :
+   - grand BOWL double (partie profonde + poche), carrelage de piscine sous le coping, couloir de sortie
+     praticable à pied ;
+   - HALF-PIPE de 26 u au nord (sorties en pente douce aux deux bouts), PYRAMIDE à côté ;
+   - QUARTER GÉANT de 6 u au-dessus de la plate-forme, à l'est, pour les très gros airs ;
+   - ESCALIER de 8 marches au sud, avec rampes ; ledges ; gradins et public au nord, néon, projecteurs.
+   Dans les zones de transition (zoneVertSkate), aucune paroi ne bloque ; en haut d'un mur, on décolle à
+   la VERTICALE et on retombe dans la courbe (air de bowl, majSkateXXL) : 360 et backflip compris.
+   Défi REYES BOWL JAM (RIDE_DEFS.bowl) : score de figures en temps limité. */
+const SKX={ok:false,x0:452,x1:504,z0:170,z1:240,D:3,R:3,B:6,g:0.55, // g : facteur de gravité sur les pentes du skatepark
+  bowls:[{u:16,w:44,rx:10,rz:10},{u:26,w:38,rx:6.5,rz:6.5}], sortie:{u:16,w0:50,w1:62,l:1.7}, // couloir : de la fin du fond plat (avant le mur) à la plate-forme, pente 0,25 — commencé plus tôt, le chemin suivait le mur raide
+  hp:{u0:8,u1:34,wc:14,demi:5}, pyr:{u:40,w:14,c:4,h:1.2}, qg:{u0:40,u1:46,w0:26,w1:60,R:6},
+  esc:{u0:36,u1:44,w0:64,w1:70,n:8}};
+// quart de cercle : hauteur au-dessus du fond à la distance s du coping (verticale au coping, plate à s ≥ R)
+function quartSkate(s,R){ if(s>=R) return 0; s=Math.max(0.12,s); return R-Math.sqrt(Math.max(0,R*R-(R-s)*(R-s))); }
+function hauteurSkateXXL(x,z){
+  const S=SKX, u=x-S.x0, w=z-S.z0, L=S.x1-S.x0, Lz=S.z1-S.z0;
+  if(u<0||w<0||u>L||w>Lz) return 0;
+  // escalier au sud : marches de S.D à 0
+  const E=S.esc; if(u>E.u0&&u<E.u1&&w>E.w0){ const k=Math.min(E.n,Math.floor((w-E.w0)/((E.w1-E.w0)/E.n))); return S.D*(1-k/E.n); }
+  // dessus du quarter géant : plat jusqu'au bord (son dos en béton) — sinon, passé le coping, la rampe du pourtour redescendait et l'on s'envolait hors du skatepark
+  const Q0=S.qg; if(w>Q0.w0&&w<Q0.w1&&u>=Q0.u1) return S.D+Q0.R;
+  // pourtour : rampes douces du sable jusqu'à la plate-forme
+  const bord=Math.min(u,w,L-u,Lz-w); let h=bord<S.B?S.D*rampeReguliere(bord/S.B):S.D;
+  if(bord<S.B) return h;
+  // bowl : union des cuvettes (la plus basse gagne), couloir de sortie
+  for(const b of S.bowls){ const ru=(u-b.u)/b.rx, rw=(w-b.w)/b.rz, rho=Math.sqrt(ru*ru+rw*rw);
+    if(rho<1){ const hb=quartSkate((1-rho)*Math.min(b.rx,b.rz),S.R); if(hb<h) h=hb; } }
+  const So=S.sortie; if(Math.abs(u-So.u)<So.l&&w>So.w0&&w<So.w1){ const hs=S.D*clamp((w-So.w0)/(So.w1-So.w0),0,1); if(hs<h) h=hs; }
+  // half-pipe (axe est-ouest), fond qui remonte en pente douce aux deux bouts
+  const H=S.hp, dw=Math.abs(w-H.wc);
+  if(u>H.u0&&u<H.u1&&dw<H.demi){ let hh=quartSkate(H.demi-dw,S.R); hh=Math.max(hh,S.D*clamp((H.u0+4-u)/4,0,1),S.D*clamp((u-(H.u1-4))/4,0,1)); if(hh<h) h=hh; }
+  // pyramide (au-dessus de la plate-forme)
+  const Y=S.pyr, dp=Math.max(Math.abs(u-Y.u),Math.abs(w-Y.w)); if(dp<Y.c) h=Math.max(h,S.D+Y.h*Math.min(1,(Y.c-dp)/(Y.c*0.6)));
+  // quarter géant, mur vers l'ouest
+  const Q=S.qg; if(w>Q.w0&&w<Q.w1&&u>Q.u0) h=Math.max(h,S.D+(u>=Q.u1?Q.R:quartSkate(Q.u1-u,Q.R)));
+  return h;
+}
+// zones de transition : on y roule sur des murs (aucune paroi), et on y décolle à la verticale
+function zoneVertSkate(x,z){
+  const S=SKX; if(!S.ok) return false; const u=x-S.x0, w=z-S.z0;
+  if(u<S.B-0.5||w<S.B-0.5||u>S.x1-S.x0-S.B+0.5||w>S.z1-S.z0) return false;
+  for(const b of S.bowls){ const ru=(u-b.u)/b.rx, rw=(w-b.w)/b.rz; if(ru*ru+rw*rw<1.04) return true; }
+  const H=S.hp; if(u>H.u0&&u<H.u1&&Math.abs(w-H.wc)<H.demi+0.2) return true;
+  const Q=S.qg; if(w>Q.w0&&w<Q.w1&&u>Q.u0-0.2&&u<Q.u1+0.3) return true;
+  return false;
+}
+function dansSkateXXL(x,z){ return SKX.ok&&x>SKX.x0&&x<SKX.x1&&z>SKX.z0&&z<SKX.z1; }
+function mkSkateXXL(){
+  const S=SKX, L=S.x1-S.x0, Lz=S.z1-S.z0;
+  // le sable de la parcelle est vidé (rochers et cactus du désert : solides désactivés, maillages retirés)
+  for(const arr of sGrid.values()) for(const s of arr) if(s.x>S.x0-1&&s.x<S.x1+1&&s.z>S.z0-1&&s.z<S.z1+1&&s.hw<2.5&&s.hd<2.5) s.actif=false;
+  for(let i=scene.children.length-1;i>=0;i--){ const o=scene.children[i]; if(o.position.x>S.x0&&o.position.x<S.x1&&o.position.z>S.z0&&o.position.z<S.z1&&o.position.y<3&&!(o.geometry&&o.geometry.parameters&&o.geometry.parameters.width>30)){ scene.remove(o); } }
+  // décor du désert FUSIONNÉ (cactus, rochers : un seul maillage à l'origine) : ses sommets au-dessus du sable
+  // dans la parcelle sont repliés sous le sol (même principe que le mobilier renversé) ; le sol, à y = 0, n'est pas touché
+  for(const o of scene.children){ if(!o.isMesh||!o.geometry||!o.geometry.attributes.position||o.material===_matStrates||o.position.lengthSq()>1e-6||o.rotation.x||o.rotation.y||o.rotation.z) continue;
+    const pa=o.geometry.attributes.position; if(pa.count>30000) continue; let n=0;
+    for(let k=0;k<pa.count;k++){ const x=pa.getX(k), y=pa.getY(k), z=pa.getZ(k); if(y>0.05&&x>S.x0-1.5&&x<S.x1+1.5&&z>S.z0-1.5&&z<S.z1+1.5){ pa.setY(k,-20); n++; } }
+    if(n){ pa.needsUpdate=true; o.geometry.computeBoundingSphere(); } }
+  RELIEFS.push({x0:S.x0,x1:S.x1,z0:S.z0,z1:S.z1,f:hauteurSkateXXL});
+  // maillage : béton, joints, murs plus sombres, carrelage de piscine sous le coping du bowl
+  const pas=0.5, nx=Math.round(L/pas), nz=Math.round(Lz/pas), pos=[], col=[], idx=[], c3=new THREE.Color();
+  const H=(i,j)=>hauteurSkateXXL(S.x0+i*pas,S.z0+j*pas);
+  for(let i=0;i<=nx;i++) for(let j=0;j<=nz;j++){
+    const x=S.x0+i*pas, z=S.z0+j*pas, h=H(i,j), pente=Math.max(Math.abs(H(i+1,j)-H(i-1,j)),Math.abs(H(i,j+1)-H(i,j-1)))/(2*pas);
+    const joint=(Math.abs(((x-S.x0)%4+4)%4)<0.26||Math.abs(((z-S.z0)%4+4)%4)<0.26)&&pente<0.2;
+    c3.setHex(0x9a9a94).multiplyScalar(0.92+0.08*Math.sin(x*1.7)*Math.cos(z*1.3)); // béton (assez sombre : au soleil, plus clair était blanc pur)
+    if(pente>0.3) c3.multiplyScalar(1-clamp((pente-0.3)/3,0,0.3));
+    if(joint) c3.multiplyScalar(0.8);
+    if(h<0.05&&pente<0.1) c3.multiplyScalar(0.96); // fond du bowl et du half-pipe
+    pos.push(x,h+0.04,z); col.push(c3.r,c3.g,c3.b);
+  }
+  const id=(i,j)=>i*(nz+1)+j;
+  for(let i=0;i<nx;i++) for(let j=0;j<nz;j++) idx.push(id(i,j),id(i,j+1),id(i+1,j+1),id(i,j),id(i+1,j+1),id(i+1,j));
+  const geo=new THREE.BufferGeometry(); geo.setIndex(idx); geo.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); geo.setAttribute('color',new THREE.Float32BufferAttribute(col,3)); geo.computeVertexNormals();
+  scene.add(new THREE.Mesh(geo,new THREE.MeshLambertMaterial({vertexColors:true})));
+  // copings : tubes métalliques sur les arêtes des transitions
+  const matCop=new THREE.MeshLambertMaterial({color:0xd8dce4,emissive:0x202428});
+  const tube=(pts,r,m)=>{ if(pts.length<2) return; scene.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),Math.max(8,pts.length*2),r||0.1,6,false),m||matCop)); };
+  // bowl : coping + frise de carrelage de piscine juste dessous (un vrai bandeau : la couleur par sommet faisait des dents)
+  const matCarreau=new THREE.MeshLambertMaterial({color:0x3a8ae8,emissive:0x0a2040});
+  for(const b of S.bowls){ let arc=[], frise=[];
+    for(let k=0;k<=96;k++){ const a=k/96*Math.PI*2, u=b.u+Math.cos(a)*b.rx, w=b.w+Math.sin(a)*b.rz;
+      const dedansAutre=S.bowls.some((o)=>o!==b&&((u-o.u)/o.rx)**2+((w-o.w)/o.rz)**2<1), surSortie=Math.abs(u-S.sortie.u)<S.sortie.l+0.3&&w>S.sortie.w0;
+      if(dedansAutre||surSortie){ tube(arc); tube(frise,0.24,matCarreau); arc=[]; frise=[]; }
+      else { arc.push(new THREE.Vector3(S.x0+u,S.D+0.06,S.z0+w)); frise.push(new THREE.Vector3(S.x0+b.u+Math.cos(a)*(b.rx-0.12),S.D-0.34,S.z0+b.w+Math.sin(a)*(b.rz-0.12))); } }
+    tube(arc); tube(frise,0.24,matCarreau); }
+  for(const sg of [-1,1]) tube([new THREE.Vector3(S.x0+S.hp.u0+4,S.D+0.06,S.z0+S.hp.wc+sg*S.hp.demi),new THREE.Vector3(S.x0+S.hp.u1-4,S.D+0.06,S.z0+S.hp.wc+sg*S.hp.demi)]);
+  tube([new THREE.Vector3(S.x0+S.qg.u1,S.D+S.qg.R+0.06,S.z0+S.qg.w0+0.5),new THREE.Vector3(S.x0+S.qg.u1,S.D+S.qg.R+0.06,S.z0+S.qg.w1-0.5)]);
+  // dos du quarter géant (béton tagué) et sa passerelle
+  const graf=new THREE.MeshLambertMaterial({map:texMurSkate()});
+  const dos=new THREE.Mesh(new THREE.BoxGeometry(L-S.qg.u1,S.D+S.qg.R,S.qg.w1-S.qg.w0),graf); dos.position.set(S.x0+(S.qg.u1+L)/2,(S.D+S.qg.R)/2,S.z0+(S.qg.w0+S.qg.w1)/2); scene.add(dos);
+  // aucun solide pour ce dos : la fonction de hauteur le rend plat à D+R jusqu'au bord, et de l'extérieur, ce mur
+  // de 9 u est une paroi (règle des pentes) — un solide y faisait heurter le coping à pleine vitesse
+  // escalier : rampes (handrails) de part et d'autre
+  for(const uu of [S.esc.u0+0.3,S.esc.u1-0.3]){ const r=new THREE.Mesh(new THREE.BoxGeometry(0.12,0.12,Math.hypot(S.esc.w1-S.esc.w0,S.D)),matCop); r.position.set(S.x0+uu,S.D/2+0.9,S.z0+(S.esc.w0+S.esc.w1)/2); r.rotation.x=Math.atan2(S.D,S.esc.w1-S.esc.w0); scene.add(r);
+    for(const t of [0.1,0.5,0.9]) mkBox(0.08,0.9,0.08,mat(0x8a8f96),S.x0+uu,S.D*(1-t)+0.45,S.z0+S.esc.w0+t*(S.esc.w1-S.esc.w0)); }
+  // ledges (blocs de granit) sur la plate-forme, entre le half-pipe et le bowl
+  for(const [u0,u1] of [[10,18],[22,30]]){ const m=mkBox(u1-u0,0.5,0.9,mat(0x8a8a96),S.x0+(u0+u1)/2,S.D+0.25,S.z0+24.5); addSolid({x:m.position.x,z:m.position.z,hw:(u1-u0)/2,hd:0.45,h:S.D+0.5,toit:true}); }
+  // gradins et public au nord, néon, projecteurs, palmiers
+  S.public=[];
+  for(let r=0;r<4;r++){ mkBox(30,0.5,1.2,mat(r%2?0x3a3f48:0x4a505a),S.x0+26,0.25+r*0.55,S.z0-2-r*1.2); addSolid({x:S.x0+26,z:S.z0-2-r*1.2,hw:15,hd:0.6,h:0.5+r*0.55,toit:true});
+    for(let k=0;k<7;k++){ const hm=makeHumain({haut:choixD([0xff5ad0,0x35e0ff,0xffd23f,0x7dff7a,0xe8ecf2,0xff8c1a]),bas:choixD([0x1c2030,0x2a2e3a,0x3a2f24]),peau:choixD(civPeau),casq:choixD([0x14161c,0x4a3520,0xd8b02a]),visage:'cool'},1);
+      hm.g.position.set(S.x0+13+k*4+aD(-0.8,0.8),0.5+r*0.55,S.z0-2-r*1.2); hm.g.rotation.y=0; scene.add(hm.g); S.public.push({h:hm,ph:aD(0,6),y0:hm.g.position.y}); } }
+  const cadre=mkBox(26,0.4,0.4,mat(0x2a2d34),S.x0+26,9.6,S.z0-8); mkBox(0.4,9.6,0.4,mat(0x2a2d34),S.x0+13.5,4.8,S.z0-8); mkBox(0.4,9.6,0.4,mat(0x2a2d34),S.x0+38.5,4.8,S.z0-8);
+  mkEnseigne('REYES SKATEPARK','#ff3bd0',S.x0+26,7.6,S.z0-7.6,0,22);
+  for(const [u,w] of [[-2,-2],[L+2,-2],[-2,Lz+2],[L+2,Lz+2]]){
+    const x=S.x0+u, z=S.z0+w; mkBox(0.3,11,0.3,mat(0x2a2d34),x,5.5,z); mkBox(1.8,0.6,0.6,mat(0x1c1e22),x,11,z);
+    const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:0xe8f4ff,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending})); sp.scale.set(10,10,1); sp.position.set(x,10.8,z); scene.add(sp); lampes.push(sp);
+    addSolid({x,z,hw:0.25,hd:0.25,h:11}); }
+  for(const [u,w] of [[-4,20],[-4,40],[-4,60],[L+0.5,66],[10,Lz+4],[50,-6]]) mkPalmier(S.x0+u,S.z0+w);
+  POIS.skateXXL={x:S.x0+L/2,z:S.z0+Lz/2};
+  ZONES_SANS_MOBILIER.push({x0:S.x0-6,x1:S.x1+2,z0:S.z0-12,z1:S.z1+4});
+  S.ok=true;
+}
+// air de bowl : en haut d'un mur (pente > 1,7) avec de l'élan, on décolle À LA VERTICALE et on retombe
+// dans la courbe (demi-tour automatique) ; le public des gradins réagit aux gros airs
+function majSkateXXL(v,dt){
+  if(!SKX.ok) return;
+  if(v&&!v.enAir&&!v.def.air&&!v.def.eau&&v.v>2&&(zoneVertSkate(v.x,v.z)||zoneVertSkate(v.x-Math.sin(v.ang),v.z-Math.cos(v.ang)))){ // au coping, le centre est déjà sur la plate-forme : on regarde aussi 1 u derrière
+    const sA=Math.sin(v.ang), cA=Math.cos(v.ang), h0=v.h||0, devant=solY(v.x+sA*0.6,v.z+cA*0.6)-h0, pente=(solY(v.x+sA*0.6,v.z+cA*0.6)-solY(v.x-sA*0.6,v.z-cA*0.6))/1.2;
+    v.skMonte=Math.max(pente,(v.skMonte||0)-dt*8); // raideur de la montée sur les dernières images (d'une image à l'autre, on passe du mur au plat)
+    if(h0>1.5&&v.skMonte>1.2&&devant<0.25){ v.skMonte=0; // au coping : on vient d'un mur raide et devant, c'est plat — sinon on redescend en fakie
+      v.enAir=true; v.hop=false; v.airT=0; v.vy=Math.min(17,v.v*0.95); v.ang+=Math.PI; v.dirAng=v.ang; v.v=Math.min(1.2,v.v*0.08); v.vertAir=true;
+      if(v.conduit==='joueur'){ SFX.swing(); SKX.ovation=1.5; }
+    }
+  }
+  if(v&&v.vertAir&&v.enAir) v.v=Math.min(v.v,1.5); // en plein air de bowl, on monte et on redescend sur le même mur (le moteur ne pousse pas en vol)
+  if(v&&v.vertAir&&!v.enAir){ v.vertAir=false; v.v=Math.max(v.v,3); }
+  if(SKX.ovation>0) SKX.ovation-=dt;
+  const ov=SKX.ovation>0;
+  for(const p of SKX.public){ p.ph+=dt*(ov?9:2); p.h.g.position.y=p.y0+(ov?Math.abs(Math.sin(p.ph))*0.35:0); p.h.brasG.rotation.z=ov?2.6+Math.sin(p.ph)*0.3:0.2; p.h.brasD.rotation.z=ov?-2.6-Math.sin(p.ph)*0.3:-0.2; }
 }
 /* ---------- PORT VIVANT (DECOR_V2) ----------
    Le quartier « port » est fait d'entrepôts dans les terres : on garde son
@@ -6152,17 +6292,19 @@ const RIDE_DEFS={
   mesas:{nom:'LIGNE DES MESAS',temps:14,prime:300},        // robot : 6 s en moto cross, 8 s en buggy
   colline:{nom:'MONTÉE SÈCHE',temps:6.5,prime:200},         // hill climb, départ arrêté, terre meuble, mur final à 43° (8e lot) : seule la moto cross passe (robot 4,7 s) ; quad (limite 40°), 4x4 (au pas), motos de route, buggy, BMX échouent
   bouees:{nom:'RALLYE DES BOUÉES',temps:RALLYE_TEMPS,prime:250,eau:true}, // portes sur l'eau autour des îles, jet-ski et vedettes
-  stunt:{nom:'DÉFI SUPERCROSS',temps:45,prime:250,stunt:true,objectif:2600}, // score de figures en 45 s ; pilote simulé : 3 100 à 3 300 pts en moto cross ou quad, 2 540 en 4x4 ou buggy (raté), 1 990 en BMX
+  stunt:{nom:'DÉFI SUPERCROSS',temps:45,prime:250,stunt:true,objectif:2600},
+  bowl:{nom:'REYES BOWL JAM',temps:60,prime:350,stunt:true,objectif:10000}, // skatepark XXL : pilote simulé parfait en 60 s : 6 200 à 8 000 pts sans figure (raté), 13 400 à 15 200 avec un backflip par air, 23 500 à 25 400 en combos — il faut des figures // score de figures en 45 s ; pilote simulé : 3 100 à 3 300 pts en moto cross ou quad, 2 540 en 4x4 ou buggy (raté), 1 990 en BMX
 };
 function rideDepart(id){
   if(id==='mont') return {x:MONT.pied.x,z:MONT.pied.z};
   if(id==='colline') return {x:MONT.couloir.x,z:MONT.couloir.z0+6}; // départ arrêté au pied : l'élan ne fait plus la montée à ta place
   if(id==='stunt') return {x:STUNT.x,z:STUNT.zN+2}; // grille de départ du supercross
   if(id==='bouees') return {x:40,z:318}; // au large de la marina
+  if(id==='bowl') return {x:SKX.x0+36,z:SKX.z0+24}; // skatepark XXL, sur la plate-forme entre le half-pipe et le bowl
   const m=CANYON.mesas[0]; return {x:m.x,z:m.z-m.hd+5};
 }
 function ridePortes(id){
-  if(id==='stunt') return [];
+  if(id==='stunt'||id==='bowl') return [];
   if(id==='bouees') return [[40,372],[140,420],[260,425],[305,350],[200,320],[60,316]].map(([x,z])=>({x,z,r:7}));
   if(id==='colline'){ const C=MONT.couloir; return [0.35,0.7,1].map((u)=>({x:C.x,z:C.z0-(C.z0-C.z1)*u-(u===1?4:0),r:u===1?7:6,minH:C.H*couloirH(u)-3})); }
   if(id==='mont') return MONT.sentier.slice(1).map(([x,z],i)=>({x,z,r:9,minH:MONT.hSentier[i+1]-4})); // à hauteur du lacet : passer en dessous ne compte pas
@@ -6196,6 +6338,8 @@ function garerRides(){
     if(!solidAt(x,z,1.5)&&!vehicules.some((o)=>dist2(o.x,o.z,x,z)<9)) creerVehicule(k,x,z,Math.PI/2);
   });
   if(PIC.ok){ const tr=PIC.tremplin; [['motocross',-6],['motocross',-9],['bmx',7],['velo',10]].forEach(([k,dx])=>{ const x=tr.x+dx, z=tr.z1-tr.long-6; const v=creerVehicule(k,x,z,0); v.h=solY(x,z); }); } // en haut du Pic : motos et vélo, face au tremplin
+  if(SKX.ok) [['bmx',SKX.x0+30,SKX.z0+24],['bmx',SKX.x0+32,SKX.z0+24],['velo',SKX.x0+42,SKX.z0+66.5],['motocross',SKX.x0+46,SKX.z0-6]].forEach(([k,x,z])=>{ // skatepark XXL : BMX sur la plate-forme, vélo et moto cross à l'entrée
+    if(!vehicules.some((o)=>dist2(o.x,o.z,x,z)<9)){ const v=creerVehicule(k,x,z,Math.PI/2); if(v) v.h=solY(x,z); } });
   const dc=rideDepart('colline'), ds=rideDepart('stunt'); // montée sèche et parc stunt : face à la pente / aux tables
   [['motocross',dc.x-7,dc.z+3,Math.PI],['jeep',dc.x+8,dc.z+4,Math.PI],['motocross',ds.x+8,ds.z+2,0],['motocross',ds.x+8,ds.z+7,0]].forEach(([k,x,z,a2])=>{
     if(!solidAt(x,z,1.5)&&!vehicules.some((o)=>dist2(o.x,o.z,x,z)<9)) creerVehicule(k,x,z,a2);
@@ -6221,7 +6365,7 @@ function majTracesSable(dt){ for(const T of TRACES_SABLE.liste){ if(T.t<=0) cont
 // caillou ; le sentier damé et le reste du monde : pleine adhérence. Les pneus de route patinent deux fois plus.
 function adherenceRelief(v,d){
   if(MONT.surCouloir&&MONT.surCouloir(v.x,v.z,4)) return toutTerrain(d)?0.68:0.4;
-  if(!dansReliefLibre(v.x,v.z)||(MONT.presDuSentier&&MONT.presDuSentier(v.x,v.z,8))||(STUNT.ok&&dansParcStunt(v.x,v.z))) return 1; // abords du sentier (8 u) : on peut toujours y remonter après un écart
+  if(!dansReliefLibre(v.x,v.z)||(MONT.presDuSentier&&MONT.presDuSentier(v.x,v.z,8))||(STUNT.ok&&dansParcStunt(v.x,v.z))||dansSkateXXL(v.x,v.z)) return 1; // abords du sentier (8 u) : on peut toujours y remonter après un écart
   return d.jeep||d.franchissement?0.9:(toutTerrain(d)&&!d.velo?0.72:(d.velo?0.45:0.55));
 }
 // pneus à crampons / 4x4 : tiennent sur la terre meuble de la montée sèche (les motos et voitures de route y patinent)
@@ -11711,7 +11855,7 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
   // sensation de montée »).
   if(reliefV){ const pente=(solY(v.x+sA*1.5,v.z+cA*1.5)-solY(v.x-sA*1.5,v.z-cA*1.5))/3, sin=pente/Math.sqrt(1+pente*pente);
     const surSentier=MONT.presDuSentier&&MONT.presDuSentier(v.x,v.z,4)&&!(MONT.surCouloir&&MONT.surCouloir(v.x,v.z,4)), abords=!surSentier&&MONT.presDuSentier&&MONT.presDuSentier(v.x,v.z,8);
-    v.v-=PENTE_G_VRAIE*sin*(surSentier?0.45:(abords?0.7:1))*(d.franchissement?0.7:1)*dt;
+    v.v-=PENTE_G_VRAIE*sin*(surSentier?0.45:(abords?0.7:1))*(d.franchissement?0.7:1)*(dansSkateXXL(v.x,v.z)?SKX.g:1)*dt; // skatepark XXL : transitions « qui pompent » (à 26 u/s², il fallait 12,5 u/s pour monter 3 u)
     if(d.franchissement&&!surSentier&&pente>0.45&&v.v>0){ const cap=Math.max(3,7-(pente-0.45)*6); if(v.v>cap) v.v=lerp(v.v,cap,clamp(4*dt,0,1)); } } // 4x4 : vitesse réduite dans le raide, il grimpe au pas sans caler // vraie gravité (celle des sauts) : signalé « trop simple à gravir, même en vélo et en jeep » ; le sentier damé tire moins
   const nx=v.x+sA*v.v*dt, nz=v.z+cA*v.v*dt;
   const sgn=Math.sign(v.v)||1;
@@ -11726,7 +11870,7 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
     if(gAv-(v.h||0)>0.05&&gAv-(v.h||0)<(d.franchit||0.6)){ v.h=lerp(v.h||0,gAv,clamp(10*dt,0,1)); }
   }
   // paroi : le sol devant monte plus raide que PENTE_MAX_VEH → on la heurte, on ne la gravit plus d'un coup
-  const paroi=DECOR_V2&&!eau&&!d.air&&!v.enAir&&dansReliefLibre(fx,fz)&&!(MONT.presDuSentier&&MONT.presDuSentier(fx,fz,7))&&paroiDevant(v,d,fx,fz,dt,dansParcStunt(fx,fz)?PENTE_PARC_STUNT:penteMaxVeh(d)); // pente maximale du véhicule (penteMaxVeh), montée sèche comprise ; tables du parc stunt : rampes aménagées // sur le sentier : on manœuvre dans les épingles
+  const paroi=DECOR_V2&&!eau&&!d.air&&!v.enAir&&dansReliefLibre(fx,fz)&&!(MONT.presDuSentier&&MONT.presDuSentier(fx,fz,7))&&!zoneVertSkate(fx,fz)&&!zoneVertSkate(v.x,v.z)&&paroiDevant(v,d,fx,fz,dt,dansParcStunt(fx,fz)?PENTE_PARC_STUNT:penteMaxVeh(d)); // skatepark XXL : on roule sur les murs des transitions // pente maximale du véhicule (penteMaxVeh), montée sèche comprise ; tables du parc stunt : rampes aménagées // sur le sentier : on manœuvre dans les épingles
   const versPlage=eau&&!!d.eau&&!grosNavire(d)&&(v.conduit==='joueur'||!v.conduit)&&!estEau(nx,nz)&&solY(nx,nz)<0.6&&!solidAt(fx,fz,0.5); // sable : le bateau s'y échoue en douceur
   const auPasVersTerre=echoue&&Math.abs(v.v)<=2.2&&!eauDevant(v,Math.sign(v.v||1)); // échoué, au pas : seulement vers l'eau (jamais traverser la plage)
   const heurte=eau?((!estEau(nx,nz)&&!versPlage&&!(d.amphibie&&!solidAt(fx,fz,d.larg*0.35)))||auPasVersTerre):(!!sFront||paroi||((v.h||0)<0.7&&estEau(fx,fz)&&!VEH_IA_NOYABLES&&!!v.conduit&&v.conduit!=='joueur')); // VEH_IA_NOYABLES : police, trafic et autres IA entrent aussi dans l'eau et s'y noient
@@ -11777,7 +11921,7 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
           // chute bien plus haute qu'un gap fait des dégâts (sinon 5 sauts = véhicule détruit)
           // canyons et Mont Reyes : terrains de saut. Une réception ratée n'y abîme qu'au-delà
           // d'une chute de ~20 u, et moins fort (la course se perd au chrono, pas en explosant)
-          const relief=DECOR_V2&&(dansReliefLibre(v.x,v.z)||dansParcStunt(v.x,v.z)), seuilChoc=relief?-32:-9; // parc stunt : terrain de saut, même au sol plat
+          const relief=DECOR_V2&&(dansReliefLibre(v.x,v.z)||dansParcStunt(v.x,v.z)||dansSkateXXL(v.x,v.z)), seuilChoc=relief?-32:-9; // parc stunt : terrain de saut, même au sol plat
           if(v.conduit==='joueur'&&RIDES.actif&&RIDE_DEFS[RIDES.actif.id].stunt) rideFigure(v); // DÉFI STUNT : chaque saut compte
           if(v.vy<-40&&v.conduit==='joueur'&&P.veh===v){ P.iframes=0; P.dodgeT=0; bigMsg('💀 IL FALLAIT SAUTER…'); toucherJoueur(P.hp+(P.bouclier||0)+1); } // chute de ~30 u et plus au volant (falaise du Pic) : mortel
           if(v.vy<seuilChoc){ abimerVehicule(v,-v.vy*(relief?0.9:1.6),false); }
@@ -13040,6 +13184,7 @@ function majConduite(dt){
   const frein=INPUT.btn.frein||INPUT.btn.freinK;
   const c=controleDir(v,frein);
   majVehiculePhys(v,dt,c.throttle,c.steer,frein);
+  if(dansSkateXXL(v.x,v.z)) majSkateXXL(v,dt); // skatepark XXL : airs de bowl
   if(v.def.cross){
     const cabre=(INPUT.btn.esquive||INPUT.btn.esquiveK)&&Math.abs(v.v)>3&&!v.enAir;
     v.wheelieA=clamp((v.wheelieA||0)+(cabre?CROSS_CABRAGE_RATE:-CROSS_CABRAGE_RELACHE)*dt,0,CROSS_CABRAGE_MAX);
@@ -25961,6 +26106,7 @@ function majMinimap(){
   for(const e of ennemis) if(!e.mort) dot(e.x,e.z,e.fac==='police'?'#4a9aff':(e.fac==='frelons'?'#e6a41f':'#ff5a5a'),e.boss?4.5:2.4);
   for(const p of pickups) dot(p.x,p.z,'#58ff7a',1.8);
   if(META.monstertruckTrouve&&POIS.friche) dessinerBadge(mmCtx,PX(POIS.friche.x),PZ(POIS.friche.z),3.6,'#ff3b1a','🚛',6);
+  if(POIS.skateXXL) dessinerBadge(mmCtx,PX(POIS.skateXXL.x),PZ(POIS.skateXXL.z),3.6,'#ff3bd0','🛹',6); // Reyes Skatepark (désert)
   if(META.jetpackTrouve&&POIS.toitH&&POIS.toitH.jetpack) dessinerBadge(mmCtx,PX(POIS.toitH.jetpack.x),PZ(POIS.toitH.jetpack.z),3.6,'#35c8ff','🚀',6);
   // Le Micro Vintage : Reyes FM émet en continu, les caches non fouillées
   // de la salle où l'on se trouve apparaissent dans un rayon de 40 m —

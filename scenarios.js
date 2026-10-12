@@ -9162,6 +9162,63 @@ async function main() {
       else ok('Figures deux roues : ' + r.info.join(' ; '));
     }
 
+    // -------------------------------------------------------------------
+    // 10e lot, n° 3 (demandé : « améliore considérablement le skatepark et
+    // agrandis-le, avec un gros bowl performant, il faut que ce soit épique »).
+    // Skatepark XXL : géométrie et réglages lus dans SKX / RIDE_DEFS.bowl ;
+    // pilote simulé au joystick réel (dans le sens de la marche).
+    // -------------------------------------------------------------------
+    console.log('\n--- Skatepark XXL : bowl, half-pipe, quarter géant, airs verticaux, REYES BOWL JAM ---');
+    {
+      const r = await page.evaluate(() => {
+        if (!DECOR_V2 || !SKX.ok) return { off: true };
+        const ko = [], info = [];
+        if (!RELIEFS.some((x) => x.f === hauteurSkateXXL)) ko.push('relief du skatepark absent');
+        // la parcelle est dégagée : plus aucun décor du désert au-dessus du sol (solides actifs, sommets fusionnés)
+        const vus = new Set(); let solides = 0;
+        for (const arr of sGrid.values()) for (const s of arr) { if (vus.has(s)) continue; vus.add(s); if (s.actif !== false && s.x > SKX.x0 && s.x < SKX.x1 && s.z > SKX.z0 && s.z < SKX.z1 && s.hw < 2.5) solides++; }
+        if (solides) ko.push(solides + ' petit(s) solide(s) du désert restés dans le skatepark');
+        const scene0 = () => { if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6; for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0; for (const e of ennemis) e.mort = true; };
+        // à pied : on ressort du fond du bowl par le couloir de sortie
+        scene0(); const b = SKX.bowls[0]; P.x = SKX.x0 + SKX.sortie.u; P.z = SKX.z0 + b.w; P.y = solPied(P.x, P.z);
+        let yMax = 0; for (let i = 0; i < 30 * 8; i++) { INPUT.mx = 0; INPUT.mz = 1; majJoueur(1 / 30, 1 / 30); yMax = Math.max(yMax, P.y); } INPUT.mz = 0;
+        if (!(yMax > SKX.D - 0.3)) ko.push('à pied, coincé au fond du bowl (y max ' + yMax.toFixed(2) + ')'); else info.push('à pied : sortie du bowl par le couloir');
+        // à vélo, en BMX, en moto cross : allers-retours dans le half-pipe
+        const session = (cle, u, w, ang, duree, figures) => { scene0(); const v = creerVehicule(cle, SKX.x0 + u, SKX.z0 + w, ang, null); v.h = solY(v.x, v.z); P.x = v.x; P.z = v.z; entrerVehicule(v);
+          let airs = 0, hMax = 0, avant = false, t = 0; const hp0 = v.hp;
+          while (t < duree && P.veh === v) { INPUT.mx = Math.sin(v.ang); INPUT.mz = Math.cos(v.ang);
+            if (figures && v.enAir && v.vertAir && !avant) INPUT.edge.gren = true;
+            majConduite(1 / 30); if (RIDES.actif) { majRides(1 / 30); } t += 1 / 30;
+            if (v.enAir && v.vertAir && !avant) airs++; avant = !!(v.enAir && v.vertAir); if (v.vertAir) hMax = Math.max(hMax, (v.h || 0) - SKX.D); }
+          INPUT.mx = INPUT.mz = 0; INPUT.edge.gren = false;
+          return { airs, hMax: +hMax.toFixed(1), enSelle: P.veh === v, degats: +(hp0 - v.hp).toFixed(1), v }; };
+        for (const cle of ['bmx', 'velo', 'motocross']) {
+          const s = session(cle, 20, SKX.hp.wc, 0, 20, false);
+          if (!s.enSelle || s.degats > 0 || s.airs < 6 || !(s.hMax > 1)) ko.push('half-pipe en ' + cle + ' : ' + JSON.stringify({ airs: s.airs, hMax: s.hMax, enSelle: s.enSelle, degats: s.degats }));
+          else info.push(cle + ' : ' + s.airs + ' airs en 20 s, ' + s.hMax + ' u au-dessus du coping');
+        }
+        // quarter géant : à pleine vitesse vers l'est, gros air sans chute
+        { const s = session('motocross', 30, 43, Math.PI / 2, 12, false); if (!s.enSelle || s.degats > 0 || s.airs < 1) ko.push('quarter géant : ' + JSON.stringify({ airs: s.airs, hMax: s.hMax, enSelle: s.enSelle, degats: s.degats })); else info.push('quarter géant : ' + s.hMax + ' u au-dessus du coping'); }
+        // REYES BOWL JAM : raté sans figure, réussi avec des backflips, une prime par vague
+        const jam = (figures, nouvellePartie) => { if (nouvellePartie) scene0(); else { if (P.veh) sortirVehicule(true); for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0; } const v = creerVehicule('bmx', SKX.x0 + 20, SKX.z0 + SKX.hp.wc, 0, null); v.h = solY(v.x, v.z); P.x = v.x; P.z = v.z; entrerVehicule(v);
+          const a0 = META.argent; demarrerRide('bowl'); let t = 0, avant = false;
+          while (RIDES.actif && t < RIDE_DEFS.bowl.temps + 1 && P.veh === v) { INPUT.mx = Math.sin(v.ang); INPUT.mz = Math.cos(v.ang);
+            if (figures && v.enAir && v.vertAir && !avant) INPUT.edge.gren = true; avant = !!(v.enAir && v.vertAir);
+            majConduite(1 / 30); majRides(1 / 30); t += 1 / 30; }
+          INPUT.mx = INPUT.mz = 0; INPUT.edge.gren = false; if (RIDES.actif) finirRide(false);
+          return { prime: META.argent - a0, t: +t.toFixed(1) }; };
+        const j0 = jam(false, true), j1 = jam(true, true), j2 = jam(true, false); // j2 : même partie, même vague que j1
+        if (j0.prime > 0) ko.push('jam réussi sans aucune figure');
+        if (!(j1.prime > 0)) ko.push('jam raté avec un backflip par air (' + JSON.stringify(j1) + ')'); else info.push('jam réussi en ' + j1.t + ' s avec des backflips');
+        if (j2.prime !== 0) ko.push('seconde prime du jam dans la même vague');
+        if (P.veh) sortirVehicule(true);
+        return { ko, info };
+      });
+      if (r.off) saute('Skatepark XXL : DECOR_V2 désactivé');
+      else if (r.ko.length) fail('Skatepark XXL : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
+      else ok('Skatepark XXL : ' + r.info.join(' ; ') + ' ; jam raté sans figure, une prime par vague');
+    }
+
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');
     {
       const srcIdx = fs.readFileSync(INDEX_HTML, 'utf8');
