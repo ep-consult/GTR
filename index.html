@@ -5179,9 +5179,11 @@ function majQuartiersFinitions(dt){
    était inatteignable) : la limite passe à LIMITE_EST, fermée par une vraie
    paroi rocheuse ; le mont occupe le coin nord-est.
    Relief = fonction de hauteur (RELIEFS) lue par solY ET par le maillage. */
-const PENTE_G=15, PENTE_MAX_VEH=1.35, PENTE_MAX_PIED=1.6, PENTE_G_VRAIE=26; // PENTE_G_VRAIE : gravité le long de la pente (26 × sinus), la même que celle des sauts // reliefs : gravité dans la pente (u/s² par unité de pente), parois infranchissables
+const PENTE_G=15, PENTE_MAX_VEH=1.0, PENTE_MAX_PIED=1.25, PENTE_G_VRAIE=26, PENTE_PARC_STUNT=1.35; // 8e lot : PENTE_MAX_VEH 1,35 → 1,0 (45°, plafond absolu), à pied 1,6 → 1,25 (51°, on escalade encore les sentiers de la crique) // PENTE_G_VRAIE : gravité le long de la pente (26 × sinus), la même que celle des sauts // reliefs : gravité dans la pente (u/s² par unité de pente), parois infranchissables
 const LIMITE_EST=HALF+300;               // x max à terre (avant : HALF+158)
 const LIMITE_EST_MER=HALF+300;           // x max en mer, bateaux et nage (avant : HALF+60 en bateau — on s'arrêtait avant la crique)
+const COULOIR_PENTE_MAX=0.95; // montée sèche : pente du mur final (43°), sous la limite des motos cross et 4x4 (penteMaxVeh)
+function couloirH(u){ return 0.5*u+0.5*u*u; } // profil de la montée sèche, de 0 à 1 (pente relative 0,5 → 1,5)
 const MONT={kickers:[],x:538,z:-238,rx:78,rz:82,H:72,sommet:null,sentier:[],pied:null};
 // dans l'emprise d'un relief sculpté (RELIEFS) — terrains de saut, réceptions plus tolérantes
 function dansReliefLibre(x,z){ for(const r of RELIEFS) if(x>r.x0&&x<r.x1&&z>r.z0&&z<r.z1&&r.f(x,z)>0.3) return true; return false; }
@@ -5205,11 +5207,11 @@ function hauteurMont(x,z){
     const u=clamp(((x-ax)*dx+(z-az)*dz)/L2,0,1), px=ax+dx*u, pz=az+dz*u, d=Math.sqrt(dist2(x,z,px,pz));
     if(d<5){ const ht=Hs[s]+(Hs[s+1]-Hs[s])*u, w=lisse((5-d)/2); h=h+(ht-h)*w; }
   }
-  const C=MONT.couloir; // MONTÉE SÈCHE : rampe rectiligne qui finit en mur (pente 0,25 → 2), palier au sommet
+  const C=MONT.couloir; // MONTÉE SÈCHE : rampe rectiligne de plus en plus raide (jusqu'à COULOIR_PENTE_MAX), palier au sommet
   if(C&&Math.abs(x-C.x)<6.5&&z<C.z0+3&&z>C.z1-12){
-    const u=(C.z0-z)/(C.z0-C.z1), uu=clamp(u,0,1), ht=C.H*(0.3*uu+0.7*uu*uu*uu), w=lisse((6.5-Math.abs(x-C.x))/3)*(u<0?lisse((u*(C.z0-C.z1)+3)/3):1);
+    const u=(C.z0-z)/(C.z0-C.z1), uu=clamp(u,0,1), ht=C.H*couloirH(uu), w=lisse((6.5-Math.abs(x-C.x))/3)*(u<0?lisse((u*(C.z0-C.z1)+3)/3):1);
     h=h+(ht-h)*w;
-    const dp=Math.sqrt(dist2(x,z,C.x,C.z1-4)); if(dp<9) h=h+(C.H-h)*lisse((9-dp)/3);
+    const dp=Math.sqrt(dist2(x,z,C.x,C.z1-6)); if(dp<6) h=h+(C.H-h)*lisse((6-dp)/3); // palier d'arrivée, commence au haut du couloir (avant : 5 u plus bas, marche de 2,2 de pente)
   }
   if(Hs) for(let s=1;s<S.length-1;s++){ const d=Math.sqrt(dist2(x,z,S[s][0],S[s][1])); if(d<8){ h=h+(Hs[s]-h)*lisse((8-d)/3); } } // palier d'épingle (plat sur 5 u) : on y fait demi-tour même lentement
   for(const k of MONT.kickers){ // tremplins du sentier : rampe de 5 u qui monte de 2,8 u puis lèvre franche
@@ -5230,7 +5232,12 @@ function mkMontReyes(){
   for(let k=0;k<=N;k++){ const t=Math.pow(k/N,0.85), cx=lerp(pied.x,best.x,t), cz=lerp(pied.z,best.z,t), amp=(1-t)*24+6, cote=(k%2?1:-1); // lacets jusqu'en haut
     const nxv=-(best.z-pied.z), nzv=best.x-pied.x, ln=Math.hypot(nxv,nzv); pts.push([cx+cote*amp*nxv/ln*(k&&k<N?1:0),cz+cote*amp*nzv/ln*(k&&k<N?1:0)]); }
   MONT.sentier=pts; MONT.hSentier=pts.map(([x,z])=>hauteurMontBase(x,z));
-  MONT.couloir={x:556,z0:-160,z1:-228,H:hauteurMontBase(556,-228)}; // MONTÉE SÈCHE : face sud, à l'est du sentier (ne le croise jamais)
+  // MONTÉE SÈCHE : face sud, à l'est du sentier (ne le croise jamais). 8e lot : l'ancien profil (0,3u + 0,7u³)
+  // montait à 2 (63°) puis 4 au palier, exempté des parois — physiquement impossible. Profil couloirH : pente
+  // de plus en plus raide jusqu'à COULOIR_PENTE_MAX en haut, jamais au-delà ; le palier d'arrivée est taillé
+  // en encoche dans le flanc (le flanc moyen, 0,85, est trop raide pour qu'un tel profil le rejoigne).
+  { const cx=MONT.x+MONT.rx*0.23, z0=MONT.z+MONT.rz*0.95, z1=MONT.z+MONT.rz*0.12;
+    MONT.couloir={x:cx,z0,z1,H:Math.min(hauteurMontBase(cx,z1),COULOIR_PENTE_MAX*(z0-z1)/1.5)}; }
   MONT.surCouloir=(x,z,r)=>Math.abs(x-MONT.couloir.x)<r&&z<MONT.couloir.z0+r&&z>MONT.couloir.z1-12-r;
   // tremplins sur un lacet sur deux, au milieu du segment, dans le sens de la montée (posés AVANT le maillage du sentier)
   for(let s=1;s<pts.length-2;s+=2){ const [ax,az]=pts[s], [bx,bz]=pts[s+1], L=Math.hypot(bx-ax,bz-az);
@@ -5319,13 +5326,15 @@ function plateau(x,z,m){ // mesa à bords raides : 0 dehors, m.h sur le dessus
   if(ix<=-e||iz<=-e) return 0;
   return m.h*lisse((Math.min(ix,iz)+e)/e);
 }
+// rampe de 0 à 1 à pente constante (1,11), raccords arrondis sur 10 % à chaque bout
+function rampeReguliere(t){ t=clamp(t,0,1); const k=1/0.9; return t<0.1?k*5*t*t:(t>0.9?1-k*5*(1-t)*(1-t):k*(t-0.05)); }
 function hauteurCanyon(x,z){
   let h=0;
   for(const m of CANYON.mesas){ const v=plateau(x,z,m); if(v>h) h=v; }
   // tremplins : sur le dessus d'une mesa, la hauteur monte de k sur sa longueur
   for(const t of CANYON.tremplins){ if(Math.abs(x-t.x)<t.hw&&z>t.z0&&z<t.z1){ const v=t.h0+t.k*(z-t.z0)/(t.z1-t.z0); if(v>h) h=v; } }
   // rampe d'accès à la mesa de départ : de x0 (sol) à x1 (dessus), en largeur z0..z1
-  const a=CANYON.acces; if(a&&x>a.x0&&x<a.x1&&z>a.z0&&z<a.z1){ const lat=lisse(Math.min(z-a.z0,a.z1-z)/2.5), v=a.h*lisse((x-a.x0)/(a.x1-a.x0))*lat; if(v>h) h=v; }
+  const a=CANYON.acces; if(a&&x>a.x0&&x<a.x1+4&&z>a.z0&&z<a.z1){ const lat=lisse(Math.min(z-a.z0,a.z1-z)/2.5), v=a.h*rampeReguliere((x-a.x0)/(a.x1-a.x0))*lat; if(v>h) h=v; } // pente régulière : 0,58 (le fondu montait à 0,97, infranchissable en pneus de route)
   return h;
 }
 function strate(h,pente,c3){ // couleurs du grès : bandes selon l'altitude, plus sombre sur les à-pics
@@ -5380,7 +5389,7 @@ function mkCanyonsDesert(){
   { let z=z0; for(const [hwk,hdk,h,gap,bruit] of [[15,15,22,0,1],[3.6,8,19,10,0.25],[12,14,16,16,1],[3,14,12,12,0.2],[15,21,6,18,1]]){
       z+=gap; const zc=z+hdk; CANYON.mesas.push({x:X,z:zc,hw:hwk,hd:hdk,h,e:hwk<5?1.4:2.2,droitZ:true,bruit}); z=zc+hdk; } }
   CANYON.mesas.forEach((m,k)=>{ if(k<4) CANYON.tremplins.push({x:X,hw:Math.min(3.2,m.hw-0.4),z0:m.z+m.hd-7,z1:m.z+m.hd-0.6,h0:m.h,k:m.hd>14?2.4:1.8}); }); // plus grand gap derrière : tremplin plus raide
-  CANYON.acces={x0:478,x1:X-hw+0.5,z0:z0+5,z1:z0+L-5,h:22};
+  CANYON.acces={x0:478,x1:X-hw-2.5,z0:z0+5,z1:z0+L-5,h:22}; // au sommet AVANT le bord arrondi de la mesa (e 2,2) : raccord sans marche, pente 0,62
   // 3) buttes érodées à la place des dunes (hors cratère de l'OVNI et collines de la crique)
   for(const [bx,bz,h,r] of [[pd.x+32,pd.z-36,12,16],[pd.x-58,pd.z-24,13,13],[pd.x+38,pd.z+38,9,12]]) CANYON.mesas.push({x:bx,z:bz,hw:r,hd:r*0.75,h,e:3.5});
   CANYON.tremplins.push({x:pd.x+32,hw:2.6,z0:pd.z-36+12-6,z1:pd.z-36+12-0.6,h0:12,k:1.6});
@@ -6050,7 +6059,7 @@ const RALLYE_TEMPS=32; // pilote simulé : 17 s en Espadon, 18 en jet-ski, 26 en
 const RIDE_DEFS={
   mont:{nom:'MONTÉE DU MONT REYES',temps:60,prime:250},   // la pente freine : pilote simulé 29 à 39 s (moto, quad, buggy, BMX)
   mesas:{nom:'LIGNE DES MESAS',temps:14,prime:300},        // robot : 6 s en moto cross, 8 s en buggy
-  colline:{nom:'MONTÉE SÈCHE',temps:6.5,prime:200},         // hill climb, départ arrêté, terre meuble : robot 4,2 à 4,8 s en moto cross, quad, 4x4 ; motos de route, buggy et BMX calent
+  colline:{nom:'MONTÉE SÈCHE',temps:6.5,prime:200},         // hill climb, départ arrêté, terre meuble, mur final à 43° (8e lot) : seule la moto cross passe (robot 4,7 s) ; quad (limite 40°), 4x4 (au pas), motos de route, buggy, BMX échouent
   bouees:{nom:'RALLYE DES BOUÉES',temps:RALLYE_TEMPS,prime:250,eau:true}, // portes sur l'eau autour des îles, jet-ski et vedettes
   stunt:{nom:'DÉFI SUPERCROSS',temps:45,prime:250,stunt:true,objectif:2600}, // score de figures en 45 s ; pilote simulé : 3 100 à 3 300 pts en moto cross ou quad, 2 540 en 4x4 ou buggy (raté), 1 990 en BMX
 };
@@ -6064,7 +6073,7 @@ function rideDepart(id){
 function ridePortes(id){
   if(id==='stunt') return [];
   if(id==='bouees') return [[40,372],[140,420],[260,425],[305,350],[200,320],[60,316]].map(([x,z])=>({x,z,r:7}));
-  if(id==='colline'){ const C=MONT.couloir; return [0.35,0.7,1].map((u)=>({x:C.x,z:C.z0-(C.z0-C.z1)*u-(u===1?4:0),r:u===1?7:6,minH:C.H*(0.3*u+0.7*u*u*u)-3})); }
+  if(id==='colline'){ const C=MONT.couloir; return [0.35,0.7,1].map((u)=>({x:C.x,z:C.z0-(C.z0-C.z1)*u-(u===1?4:0),r:u===1?7:6,minH:C.H*couloirH(u)-3})); }
   if(id==='mont') return MONT.sentier.slice(1).map(([x,z],i)=>({x,z,r:9,minH:MONT.hSentier[i+1]-4})); // à hauteur du lacet : passer en dessous ne compte pas
   return CANYON.mesas.slice(1,5).map((m)=>({x:m.x,z:m.z-m.hd+6,r:13,minH:m.h-1})); // atterrir sur chaque mesa
 }
@@ -6126,6 +6135,27 @@ function adherenceRelief(v,d){
 }
 // pneus à crampons / 4x4 : tiennent sur la terre meuble de la montée sèche (les motos et voitures de route y patinent)
 function toutTerrain(d){ return !!(d.cross||d.buggy||d.quad||d.jeep||d.franchissement||d.bmx||d.ecrase); }
+// Pente maximale gravissable (8e lot, demandé : « si c'est physiquement
+// impossible dans la réalité, ça doit l'être dans le jeu ; même règle pour les
+// parois des canyons ») : au-delà de l'adhérence réelle des pneus, on ne monte
+// plus, élan ou pas — le sol devant est une paroi (on glisse le long). 45° au
+// plus pour la meilleure moto cross ou le meilleur 4x4 ; 35° en pneus de route.
+// Paroi devant le véhicule : pente dans le sens de la marche au-delà de la limite, OU — dès qu'on monte — la
+// vraie pente du terrain (gradient) au-delà de la limite : de biais, la pente apparente baisse, et l'on gravissait
+// en diagonale une paroi de canyon infranchissable de face (8e lot).
+function paroiDevant(v,d,fx,fz,dt,lim){
+  const dh=solY(fx,fz)-(v.h||0);
+  if(dh/(d.long/2+Math.abs(v.v)*dt+0.01)>lim) return true;
+  if(dh<0.05) return false;
+  const gx=(solY(fx+0.6,fz)-solY(fx-0.6,fz))/1.2, gz=(solY(fx,fz+0.6)-solY(fx,fz-0.6))/1.2;
+  return gx*gx+gz*gz>lim*lim*1.1;
+}
+function penteMaxVeh(d){
+  if(d.velo) return 0.45;                                   // 24° : vélo, BMX
+  if(d.cross||d.jeep||d.franchissement) return PENTE_MAX_VEH; // 45° : moto cross, 4x4
+  if(toutTerrain(d)) return 0.85;                           // 40° : quad, buggy, monster truck
+  return 0.7;                                               // 35° : pneus de route
+}
 function rideEligible(v,id){ if(!v) return false; if(id&&RIDE_DEFS[id]&&RIDE_DEFS[id].eau) return !!v.def.eau&&!grosNavire(v.def); return v.def.type==='moto'||!!v.def.buggy||!!v.def.quad||!!v.def.jeep; }
 // DÉFI STUNT : chaque réception compte (temps de vol, réception propre), plus le cabrage en moto cross (majRides)
 function rideFigure(v){
@@ -11586,7 +11616,7 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
     if(gAv-(v.h||0)>0.05&&gAv-(v.h||0)<(d.franchit||0.6)){ v.h=lerp(v.h||0,gAv,clamp(10*dt,0,1)); }
   }
   // paroi : le sol devant monte plus raide que PENTE_MAX_VEH → on la heurte, on ne la gravit plus d'un coup
-  const paroi=DECOR_V2&&!eau&&!d.air&&!v.enAir&&dansReliefLibre(fx,fz)&&!(MONT.presDuSentier&&(MONT.presDuSentier(fx,fz,7)||MONT.surCouloir(fx,fz,4)))&&(solY(fx,fz)-(v.h||0))/(d.long/2+Math.abs(v.v)*dt+0.01)>PENTE_MAX_VEH*(d.franchissement?1.35:(d.velo?0.55:1)); // vélos : jamais sur les flancs (demandé), 4x4 : un peu plus raide que les autres // sur le sentier : on manœuvre dans les épingles
+  const paroi=DECOR_V2&&!eau&&!d.air&&!v.enAir&&dansReliefLibre(fx,fz)&&!(MONT.presDuSentier&&MONT.presDuSentier(fx,fz,7))&&paroiDevant(v,d,fx,fz,dt,dansParcStunt(fx,fz)?PENTE_PARC_STUNT:penteMaxVeh(d)); // pente maximale du véhicule (penteMaxVeh), montée sèche comprise ; tables du parc stunt : rampes aménagées // sur le sentier : on manœuvre dans les épingles
   const versPlage=eau&&!!d.eau&&!grosNavire(d)&&(v.conduit==='joueur'||!v.conduit)&&!estEau(nx,nz)&&solY(nx,nz)<0.6&&!solidAt(fx,fz,0.5); // sable : le bateau s'y échoue en douceur
   const auPasVersTerre=echoue&&Math.abs(v.v)<=2.2&&!eauDevant(v,Math.sign(v.v||1)); // échoué, au pas : seulement vers l'eau (jamais traverser la plage)
   const heurte=eau?((!estEau(nx,nz)&&!versPlage)||auPasVersTerre):(!!sFront||paroi||((v.h||0)<0.7&&estEau(fx,fz)&&!VEH_IA_NOYABLES&&!!v.conduit&&v.conduit!=='joueur')); // VEH_IA_NOYABLES : police, trafic et autres IA entrent aussi dans l'eau et s'y noient

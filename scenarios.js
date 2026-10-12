@@ -8286,7 +8286,7 @@ async function main() {
             majVehiculePhys(v, 1 / 30, thr, c.steer, Math.abs(v.v) > lim + 6); P.x = v.x; P.z = v.z; majRides(1 / 30); t += 1 / 30; }
           INPUT.mx = INPUT.mz = 0;
           return { id, cle, prime: META.argent - a0, t: +t.toFixed(1), hp: +(v.hp / v.def.hp).toFixed(2) }; };
-        for (const [id, cle, attendu] of [['colline', 'motocross', true], ['colline', 'quad', true], ['colline', 'jeep', false], ['colline', 'moto', false], ['colline', 'buggy', false], ['colline', 'bmx', false], ['stunt', 'motocross', true], ['stunt', 'quad', true], ['stunt', 'bmx', false]]) {
+        for (const [id, cle, attendu] of [['colline', 'motocross', true], ['colline', 'quad', false], ['colline', 'jeep', false], ['colline', 'moto', false], ['colline', 'buggy', false], ['colline', 'bmx', false], ['stunt', 'motocross', true], ['stunt', 'quad', true], ['stunt', 'bmx', false]]) {
           const r = course(id, cle); o.info.push(id + ' en ' + cle + ' : ' + (r.prime > 0 ? r.t + ' s' : 'raté'));
           if ((r.prime > 0) !== attendu || r.hp < 0.5) o.ko.push(JSON.stringify(r) + ' (attendu ' + (attendu ? 'réussi' : 'raté') + ')'); }
         { const r = course('stunt', 'motocross', { immobile: true }); if (r.prime > 0) o.ko.push('stunt réussi sans rien faire'); }
@@ -8319,7 +8319,7 @@ async function main() {
       });
       if (zx.off) saute('Zone extrême : DECOR_V2 désactivé');
       else if (zx.ko.length) fail('Zone extrême : ' + zx.ko.join(' | '));
-      else ok('Zone extrême : ' + zx.info.join(' ; ') + ' ; montée sèche : moto de route, buggy et BMX calent ; supercross raté en BMX ou sans rien faire, saut sans voile mortel, une prime par vague, monte-charge jamais pris par en dessous');
+      else ok('Zone extrême : ' + zx.info.join(' ; ') + ' ; montée sèche : seule la moto cross passe le mur de 43° ; supercross raté en BMX ou sans rien faire, saut sans voile mortel, une prime par vague, monte-charge jamais pris par en dessous');
     }
 
     // -------------------------------------------------------------------
@@ -8785,6 +8785,48 @@ async function main() {
       });
       if (r.ko.length) fail('Police : ' + r.ko.join(' | '));
       else ok('Police : ' + r.info.join(', '));
+    }
+
+    // -------------------------------------------------------------------
+    // 8e lot, n° 7 (demandé : « colline toujours trop facile ; si c'est
+    // physiquement impossible dans la réalité, ça doit l'être dans le jeu ;
+    // même règle pour les parois des canyons »). Lu dans le jeu : VEHDEFS,
+    // penteMaxVeh, CANYON, MONT.couloir, COULOIR_PENTE_MAX.
+    // -------------------------------------------------------------------
+    console.log('\n--- Pentes réalistes : parois de canyon infranchissables même lancé, montée sèche ≤ 45° ---');
+    {
+      const r = await page.evaluate(() => {
+        if (!DECOR_V2 || !MONT.couloir || !CANYON.mesas.length) return { off: true };
+        const ko = [], info = [];
+        const scene0 = () => { if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6; for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0; };
+        // aucune pente gravissable au-delà de 45°
+        for (const k of Object.keys(VEHDEFS)) { const d = VEHDEFS[k]; if (d.air || d.eau) continue; if (!(penteMaxVeh(d) <= 1.0001)) ko.push(k + ' : pente max ' + penteMaxVeh(d)); }
+        // paroi de la 1re mesa (22 u) : lancé à pleine vitesse, aucun véhicule terrestre ne la gravit
+        // de face et de biais (30° et 55° d'incidence) : de biais, la pente apparente baisse (faille corrigée)
+        const m = CANYON.mesas[0]; let pire = 0, pireK = '';
+        for (const k of Object.keys(VEHDEFS)) { const d = VEHDEFS[k]; if (d.air || d.eau || d.surf || d.canon || d.ovni) continue;
+          for (const inc of [0, 0.52, -0.96]) {
+            scene0(); const x0 = m.x + m.hw + 18, z0 = m.z - Math.tan(inc) * 18, v = creerVehicule(k, x0, z0, -Math.PI / 2 + inc, null); if (!v) continue; v.h = solY(v.x, v.z); v.v = d.vmax;
+            let hm = 0; for (let i = 0; i < 150; i++) { majVehiculePhys(v, 1 / 30, 1, 0, false); hm = Math.max(hm, (v.h || 0) - solY(x0, z0)); }
+            if (hm > pire) { pire = hm; pireK = k + ' (incidence ' + inc + ')'; } } }
+        if (pire > 4) ko.push('paroi de mesa gravie : ' + pireK + ' +' + pire.toFixed(1) + ' u');
+        info.push('paroi de mesa : ' + pire.toFixed(1) + ' u au plus (' + (pireK || '—') + ')');
+        // montée sèche : jamais plus raide que COULOIR_PENTE_MAX sur son axe
+        const C = MONT.couloir; let pm = 0;
+        for (let z = C.z0; z > C.z1; z -= 0.25) pm = Math.max(pm, solY(C.x, z - 0.5) - solY(C.x, z + 0.5));
+        if (pm > COULOIR_PENTE_MAX + 0.05) ko.push('montée sèche : pente ' + pm.toFixed(2));
+        info.push('montée sèche ' + C.H.toFixed(0) + ' u, pente max ' + pm.toFixed(2));
+        // rampe d'accès des mesas : une moto de route y monte jusqu'en haut
+        { scene0(); const a = CANYON.acces, zc = (a.z0 + a.z1) / 2, v = creerVehicule('moto', a.x0 - 6, zc, Math.PI / 2, null); v.h = solY(v.x, v.z);
+          for (let i = 0; i < 30 * 8 && v.x < a.x1 + 2; i++) majVehiculePhys(v, 1 / 30, 1, 0, false);
+          if (!((v.h || 0) > a.h - 1)) ko.push('rampe d\'accès des mesas : moto de route à ' + (v.h || 0).toFixed(1) + ' u sur ' + a.h);
+          else info.push('rampe d\'accès montée en moto de route'); }
+        if (P.veh) sortirVehicule(true); startRun();
+        return { ko, info };
+      });
+      if (r.off) saute('Pentes réalistes : DECOR_V2 désactivé');
+      else if (r.ko.length) fail('Pentes réalistes : ' + r.ko.join(' | '));
+      else ok('Pentes réalistes : ' + r.info.join(', '));
     }
 
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');
