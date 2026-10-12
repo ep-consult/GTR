@@ -1127,6 +1127,34 @@ Captures (`captures/lot10/`) :
   - **Figures deux roues** : grand saut réussi, petit saut qui fait chuter et aucune figure au sol, sur les quatre véhicules, plus les points comptés au défi supercross.
 - En route, un commentaire placé au milieu d'une ligne avait désactivé la boucle de recherche de place du kiosque, sans erreur visible. Trouvé, corrigé, et le motif de détection a été ajouté à la vérification du diff.
 
+### Suites du même jour
+
+| Retour | Ce qui a été fait | Commit |
+|---|---|---|
+| « Il peut cabrer ? » (le vélo) | Oui, sans bouton de plus, comme un vrai BMX. Un **appui bref** sur HOP / CABRER fait le bunny hop (au relâcher) ; **le maintenir** fait cabrer, roue avant levée, tant qu'on tient (`bmx_cabre.png`). | `38db7ec` |
+| Skatepark : l'améliorer considérablement, l'agrandir, un gros bowl, « épique » | **Choix du lieu** : le skatepark du parc tient dans un pâté de 26 u entouré de routes, impossible à agrandir. J'ai donc construit le **Reyes Skatepark** dans le désert, au sud du Pic du Vertige, sur 52 × 70 u. Le petit reste en ville comme spot de rue. Contenu et réglages ci-dessous. | `fffc54f` |
+
+**Le Reyes Skatepark** (repère 🛹 sur la carte)
+- **Le site** : une grande plate-forme de béton de 3 u de haut, avec des rampes douces sur tout le tour.
+- **Les modules** :
+  - un **grand bowl double** (partie profonde et poche), avec carrelage de piscine et copings, et un couloir pour en ressortir à pied ;
+  - un **half-pipe** ;
+  - un **quarter géant** de 6 u au-dessus de la plate-forme ;
+  - une pyramide, un escalier de 8 marches avec rampes, des ledges.
+- **L'ambiance** : des gradins avec un public qui se lève sur les gros airs, une grande enseigne néon REYES SKATEPARK, des projecteurs et des palmiers.
+- **La physique** : au coping, on décolle **à la verticale** et on retombe dans la courbe, comme un vrai air de bowl. Les 360 et backflips se font pendant ces airs.
+- **Mesures du pilote simulé** :
+
+  | Module | Véhicule | Airs en 20 s | Hauteur au-dessus du coping |
+  |---|---|---|---|
+  | Half-pipe | Vélo | 10 | 1,8 u |
+  | Half-pipe | BMX | 10 | 2,3 u |
+  | Half-pipe | Moto cross | 10 | 4,7 u |
+  | Quarter géant | Moto cross | — | 11 u |
+
+- **Défi REYES BOWL JAM** : 10 000 points en 60 s, une prime de 350 $ par vague. Sans figures, c'est raté : le pilote simulé parfait fait 6 200 à 8 000 points. Avec un backflip par air, il fait 13 400 à 15 200 points.
+- **Captures** : `skx_aerien.png`, `skx_bowl.png`, `skx_quarter.png`, `skx_nuit.png`, `skx_air_bmx.png`, `skx_air_quarter.png`, `skx_jeu.png`.
+
 ### Piste ouverte
 
 - **Trafic** : un choc rare d'un bus de ville contre un pickup arrêté (2 parties de 60 s sur environ 90). Il n'a pas pu être reproduit sous instrumentation en 85 essais. Le test de circulation tolère donc au plus 2 chocs par minute au lieu d'exiger zéro, pour ne pas être aléatoire. À reprendre si tu le vois en jeu, en notant l'endroit.
@@ -1136,3 +1164,5 @@ Captures (`captures/lot10/`) :
 1. Le kiosque près de la jetée : bien dégagé, bouton accessible.
 2. Sur les tables du supercross en moto cross : 360, backflip, puis les deux ; vérifier qu'une figure lancée trop tard fait chuter.
 3. En BMX au skatepark (tremplins face à face) : un 360 doit passer, pas sur un simple bunny hop.
+4. Vélo : appui bref = bunny hop, maintenu = cabré.
+5. Reyes Skatepark (🛹 sur la carte) : allers-retours dans le half-pipe et le bowl, gros air sur le quarter géant en moto cross, REYES BOWL JAM avec des backflips. Ressortir du bowl à pied par le couloir.

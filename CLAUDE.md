@@ -55,7 +55,7 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
   echo "$ln | $(sed -n "$((ln+1))p" index.html | sed 's/^[ \t]*//')"; done
 ```
 
-**Relevé au 12 octobre 2026 (10e lot : kiosque de la banderole, figures sur deux roues) — 26 111 lignes.**
+**Relevé au 12 octobre 2026 (10e lot : figures, cabré du vélo, Reyes Skatepark XXL) — 26 272 lignes.**
 
 | Ligne | Section |
 |---|---|
@@ -70,32 +70,32 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
 | 1804 | MÉTA-PROGRESSION — `META`, défis, sauvegarde |
 | 2552 | THREE.JS — rendu, scène, lumières |
 | 2862 | VILLE DE LOS REYES — génération procédurale par quartiers |
-| 8689 | MODÈLES — humains, armes, véhicules, hélico, ramassables |
-| 10109 | POOLS — balles, particules, textes flottants, traces de pneus |
-| 10469 | ÉTAT GLOBAL + JOUEUR (`P`) |
-| 11235 | VÉHICULES — physique arcade, trafic, dégâts |
-| 13674 | PIÉTONS |
-| 13826 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
-| 14378 | **RAYON TRACTEUR DE L'OVNI** |
-| 14774 | NIVEAU DE RECHERCHE (étoiles) |
-| 15052 | VAGUES + bonus de fin de vague |
-| 15172 | MISSIONS COURTES |
-| 15175 | BÂTIMENTS VISITABLES — intérieurs |
-| 15245 | FOUILLE — mécanique générique |
-| 15826 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
-| 19780 | CINÉ-PALACE |
-| 19842 | MÉTRO ABANDONNÉ |
-| 19908 | RADIO PIRATE REYES FM |
-| 20013 | LE CHALUTIER « SAINTE-ODILE » |
-| 20287 | SITE 51 |
-| 20517 | LE DÉPÔT DE BUS — courses clandestines |
-| 21731 | **MÉTIERS** — missions liées à un véhicule |
-| 22015 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
-| 23010 | ÉCRANS / MENUS / BOUTIQUES |
-| 23278 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
-| 24075 | DÉBUT / FIN DE PARTIE |
-| 25590 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
-| 25989 | BOUCLE PRINCIPALE |
+| 8833 | MODÈLES — humains, armes, véhicules, hélico, ramassables |
+| 10253 | POOLS — balles, particules, textes flottants, traces de pneus |
+| 10613 | ÉTAT GLOBAL + JOUEUR (`P`) |
+| 11379 | VÉHICULES — physique arcade, trafic, dégâts |
+| 13834 | PIÉTONS |
+| 13986 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
+| 14538 | **RAYON TRACTEUR DE L'OVNI** |
+| 14934 | NIVEAU DE RECHERCHE (étoiles) |
+| 15212 | VAGUES + bonus de fin de vague |
+| 15332 | MISSIONS COURTES |
+| 15335 | BÂTIMENTS VISITABLES — intérieurs |
+| 15405 | FOUILLE — mécanique générique |
+| 15986 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
+| 19940 | CINÉ-PALACE |
+| 20002 | MÉTRO ABANDONNÉ |
+| 20068 | RADIO PIRATE REYES FM |
+| 20173 | LE CHALUTIER « SAINTE-ODILE » |
+| 20447 | SITE 51 |
+| 20677 | LE DÉPÔT DE BUS — courses clandestines |
+| 21891 | **MÉTIERS** — missions liées à un véhicule |
+| 22175 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
+| 23170 | ÉCRANS / MENUS / BOUTIQUES |
+| 23438 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
+| 24235 | DÉBUT / FIN DE PARTIE |
+| 25750 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
+| 26150 | BOUCLE PRINCIPALE |
 
 ### Ancres fines (hors bandeaux)
 
@@ -118,43 +118,44 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
 | 3919 | `MOB_CAT` — catalogue du mobilier urbain, puis `mkMobilierUrbain()`, `majMobilier()`, `garerVelos()` |
 | 4329 | `JETEE` — jetée de fête foraine : `ZONES_SANS_MOBILIER`, `mkJeteeForaine()`, `majJetee()` |
 | 4460 | `SKATE` — skatepark : `mkSkatepark()`, `texMurSkate()` |
-| 4536 | `PORT` — port vivant : `mkPortVivant()`, `majPortVivant()` |
-| 4635 | `BROOK` — Brooklyn : `texFresque()`, `mkBrooklyn()`, `majBrooklyn()` |
-| 4756 | `CIEL` — dirigeable, avion à banderole, mouettes, feux d'artifice : `mkCiel()`, `majCiel()` |
-| 4956 | `CRIQUE` — crique des plongeurs : `dansCrique()`, `mkCrique()`, `plongeonJoueur()` |
-| 5132 | `NEON` — quartier néon : `BATIMENTS`, `reserverNeon()`, `mkNeonVivant()` |
-| 5200 | `VILLA_PISC` — finitions de quartier : `mkQuartiersFinitions()` |
-| 5277 | `MONT` — Mont Reyes, puis `CANYON` (canyons) et `RIDES` (courses) |
+| 4542 | `SKX` — Reyes Skatepark XXL : `hauteurSkateXXL()`, `zoneVertSkate()`, `mkSkateXXL()`, `majSkateXXL()` |
+| 4676 | `PORT` — port vivant : `mkPortVivant()`, `majPortVivant()` |
+| 4775 | `BROOK` — Brooklyn : `texFresque()`, `mkBrooklyn()`, `majBrooklyn()` |
+| 4896 | `CIEL` — dirigeable, avion à banderole, mouettes, feux d'artifice : `mkCiel()`, `majCiel()` |
+| 5096 | `CRIQUE` — crique des plongeurs : `dansCrique()`, `mkCrique()`, `plongeonJoueur()` |
+| 5272 | `NEON` — quartier néon : `BATIMENTS`, `reserverNeon()`, `mkNeonVivant()` |
+| 5340 | `VILLA_PISC` — finitions de quartier : `mkQuartiersFinitions()` |
+| 5417 | `MONT` — Mont Reyes, puis `CANYON` (canyons) et `RIDES` (courses) |
 | 4082 | `SOLS` — dalles de sol enregistrées, puis `mkTransitionsSols()` (jonctions entre sols) |
-| 6359 | `mkLacParc()` — lac du parc, passerelle, barques |
-| 6488 | `mkLumieresQuartiers()` — Times Square, quartier chinois, Brooklyn |
-| 6574 | `mkEnceinte()` — murs, enseigne, jetées de rochers |
-| 7079 | `GALION` — galion échoué : `sansAleaVille()`, `coqueGalion()`, `mkGalion()`, `majGalion()` |
-| 7890 | `mkPorteGarage()` — porte roulante des garages |
-| 7960 | `placeLibrePorte()` |
-| 8019 | helper `poser()` — placement des lieux |
-| 8045 | `caseCentre(bx,bz)` |
-| 8138 | `REPLIS` — filet de sécurité en spirale |
-| 10000 | `makeVelo()` — vélo de ville et BMX |
-| 7807 | `ENSEIGNES` — portes mieux placées : `ameliorerPortes()`, `profondeurDevant()`, `orienterPorte()` |
-| 10477 | `const P` — état du joueur |
-| 10515 | `P.stamMax = 100 + 12*mus` |
-| 11541 | `resoudreCollisionsVehicule()` — collisions entre véhicules (SAT sur les 4 axes) |
-| 12125 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
-| 12249 | `boutonsAPied()` — boutons du HUD remis « à pied » (sortie de véhicule ET début de partie) |
-| 13144 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
-| 13258 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
-| 15181 | `IOFF = -9000` |
-| 16903 | `INTDEFS` — définitions des **27 salles** |
-| 17083 | `construireSalle(id)` |
-| 21740 | `METIERS_CIBLE` |
-| 22033 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
-| 22121 | `PIECES_FAMILLES` — catalogues de pièces par famille |
-| 22422 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
-| 22476 | `libererObjet()` — libère les géométries d'un objet retiré |
-| 22492 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
-| 22614 | `construireGarageTuning()` — la salle partagée |
-| 22984 | `majNitro()` |
+| 6503 | `mkLacParc()` — lac du parc, passerelle, barques |
+| 6632 | `mkLumieresQuartiers()` — Times Square, quartier chinois, Brooklyn |
+| 6718 | `mkEnceinte()` — murs, enseigne, jetées de rochers |
+| 7223 | `GALION` — galion échoué : `sansAleaVille()`, `coqueGalion()`, `mkGalion()`, `majGalion()` |
+| 8034 | `mkPorteGarage()` — porte roulante des garages |
+| 8104 | `placeLibrePorte()` |
+| 8163 | helper `poser()` — placement des lieux |
+| 8189 | `caseCentre(bx,bz)` |
+| 8282 | `REPLIS` — filet de sécurité en spirale |
+| 10144 | `makeVelo()` — vélo de ville et BMX |
+| 7951 | `ENSEIGNES` — portes mieux placées : `ameliorerPortes()`, `profondeurDevant()`, `orienterPorte()` |
+| 10621 | `const P` — état du joueur |
+| 10659 | `P.stamMax = 100 + 12*mus` |
+| 11685 | `resoudreCollisionsVehicule()` — collisions entre véhicules (SAT sur les 4 axes) |
+| 12269 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
+| 12393 | `boutonsAPied()` — boutons du HUD remis « à pied » (sortie de véhicule ET début de partie) |
+| 13304 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
+| 13418 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
+| 15341 | `IOFF = -9000` |
+| 17063 | `INTDEFS` — définitions des **27 salles** |
+| 17243 | `construireSalle(id)` |
+| 21900 | `METIERS_CIBLE` |
+| 22193 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
+| 22281 | `PIECES_FAMILLES` — catalogues de pièces par famille |
+| 22582 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
+| 22636 | `libererObjet()` — libère les géométries d'un objet retiré |
+| 22652 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
+| 22774 | `construireGarageTuning()` — la salle partagée |
+| 23144 | `majNitro()` |
 
 ---
 
@@ -672,7 +673,30 @@ décor sur un générateur **à part** (`aleaDecor()`, `aD()`, `choixD()`, grain
   dans les `FIG2R.fenetreHop` (0,3 s) d'un BUNNY HOP relève `v.vy` juste assez
   pour la finir (demandé : « un bunny hop doit permettre un 360 ou un backflip
   en appuyant juste après ») ; plus tard, c'est la chute.
-- Tests : « Kiosque de la banderole », « Figures deux roues ».
+- **Vélo qui cabre** (demandé : « il peut cabrer ? ») : sans bouton de plus,
+  comme un vrai BMX — appui BREF d'ESQUIVE (< `VELO_TAP`) = bunny hop au
+  RELÂCHER ; maintenu = cabré (`v.wheelieA`, pivot sur la roue arrière,
+  `VELO_CABRE_MAX`). Bouton « HOP / CABRER ».
+- **Reyes Skatepark XXL** (bloc `REYES SKATEPARK XXL`, `SKX`, `mkSkateXXL`,
+  appelée avant `mkRides`) : demandé « agrandis-le, un gros bowl, épique » ; le
+  pâté du parc (26 u) ne pouvait pas grandir, il est construit dans le désert
+  au sud du Pic (x 452–504, z 170–240 ; à l'est, la falaise de 17 u de la
+  crique). UNE fonction de hauteur (`hauteurSkateXXL`, dans `RELIEFS`) :
+  plate-forme à `SKX.D` avec rampes de pourtour, bowl double, half-pipe,
+  quarter géant (`qg`, dessus plat jusqu'au bord — sinon on s'envolait hors du
+  parc), pyramide, escalier ; transitions en quart de cercle `quartSkate`.
+  Physique : `zoneVertSkate` exempte des parois (testé aussi sur la position du
+  véhicule, au coping le point avant voit déjà la plate-forme), gravité ×`SKX.g`
+  sur les pentes du parc, réceptions tolérantes ; **air vertical**
+  (`majSkateXXL`, appelée après la physique dans `majConduite`) : au coping
+  (raideur récente `v.skMonte` + plat devant), envol à la verticale,
+  demi-tour, vitesse horizontale bridée en l'air (`v.vertAir`). **Pièges** : un
+  solide au dos du quarter était heurté au coping à pleine vitesse (retiré) ; le
+  décor du désert est un maillage FUSIONNÉ — ses sommets dans la parcelle sont
+  repliés sous le sol. Défi `RIDE_DEFS.bowl` (REYES BOWL JAM, 10 000 pts en
+  60 s : impossible sans figures). Badge 🛹 sur la carte.
+- Tests : « Kiosque de la banderole », « Figures deux roues », « Vélos »
+  (appui bref / maintenu), « Skatepark XXL ».
 
 ## 9e lot (12 octobre 2026) — amphibie, mur de l'aéroport, salles vivantes
 
