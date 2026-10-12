@@ -8674,6 +8674,51 @@ async function main() {
       else ok('Grand yacht : navigable (' + r.info.join(', ') + '), hélico emporté, pont praticable au mouillage, hélico qui s\'y repose');
     }
 
+    // -------------------------------------------------------------------
+    // 8e lot, n° 4 (signalé : « saut depuis un bateau : le joueur reste collé
+    // au bateau et ne peut plus jouer »). Pour chaque bateau (lu dans
+    // VEHDEFS), lancé à pleine vitesse au large ou en plein saut : on saute à
+    // l'eau ; le nageur est hors de la coque, le bateau lâché ne lui passe pas
+    // dessus, et il s'éloigne à la nage dans toutes les directions libres.
+    // -------------------------------------------------------------------
+    console.log('\n--- Sauter d\'un bateau au large : le nageur se détache de la coque ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], vus = [];
+        if (P.veh) sortirVehicule(true);
+        startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
+        for (const v of [...vehicules]) { scene.remove(v.mesh); } vehicules.length = 0;
+        for (const e of ennemis) e.mort = true;
+        const X = 0, Z = MER + 120;
+        for (const cle of Object.keys(VEHDEFS).filter((k) => VEHDEFS[k].eau && !VEHDEFS[k].surf)) {
+          for (const enVol of [false, true]) {
+            const v = creerVehicule(cle, X, Z, 0.7, null); if (!v) { ko.push(cle + ' non créé'); break; }
+            P.x = v.x; P.z = v.z; entrerVehicule(v); v.v = v.def.vmax;
+            if (enVol) { v.hMer = 3; v.vyMer = 4; v.airMer = 0.3; }
+            sortirVehicule();
+            const dedans = vehiculeBloquant(P.x, P.z, 0, null) === v;
+            for (let i = 0; i < 60; i++) { majJoueur(1 / 30, 1 / 30); majVehicules(1 / 30); }
+            const dedans2 = vehiculeBloquant(P.x, P.z, 0, null) === v;
+            const bilan = { dansLaCoque: dedans, dansLaCoque2s: dedans2, nage: !!P.nage, bateauV: +v.v.toFixed(1), bateauH: v.hMer || 0, bloque: [] };
+            // directions qui ne vont pas vers la coque
+            for (const d of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+              if ((v.x - P.x) * d[0] + (v.z - P.z) * d[1] > 0) continue;
+              const x0 = P.x, z0 = P.z;
+              for (let i = 0; i < 45; i++) { INPUT.mx = d[0]; INPUT.mz = d[1]; majJoueur(1 / 30, 1 / 30); majVehicules(1 / 30); }
+              INPUT.mx = 0; INPUT.mz = 0;
+              if (Math.hypot(P.x - x0, P.z - z0) < 2 && vehiculeBloquant(P.x + d[0] * 0.9, P.z + d[1] * 0.9, 0.3, null) !== v) bilan.bloque.push(d.join(',')); // la coque juste devant (bateau long en biais) : bloqué à juste titre
+            }
+            if (dedans || dedans2 || !bilan.nage || bilan.bloque.length || Math.abs(v.v) > 1 || bilan.bateauH > 0) ko.push(cle + (enVol ? ' (en vol)' : '') + ' : ' + JSON.stringify(bilan));
+            scene.remove(v.mesh); vehicules.splice(vehicules.indexOf(v), 1);
+          }
+          vus.push(cle);
+        }
+        return { ko, vus };
+      });
+      if (r.ko.length) fail('Sauter d\'un bateau : ' + r.ko.join(' | '));
+      else ok('Sauter d\'un bateau : ' + r.vus.length + ' bateaux (' + r.vus.join(', ') + '), lancés ou en plein saut : nageur hors de la coque, bateau arrêté, on s\'éloigne à la nage');
+    }
+
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');
     {
       const srcIdx = fs.readFileSync(INDEX_HTML, 'utf8');

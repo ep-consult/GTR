@@ -12020,6 +12020,21 @@ function majRemorquage(v,dt,appui){
     }
   }
 }
+// Sauter d'un bateau (8e lot, signalé : « le joueur reste collé au bateau et
+// ne peut plus jouer ») : on posait le nageur à 2,4 u du centre, DANS la coque
+// des grands bateaux, et le bateau lâché filait encore 20 u sur sa lancée. On
+// plonge désormais franchement hors de la coque (demi-largeur + PLONGEON_MARGE),
+// du côté libre (eau, aucun solide ni véhicule), sinon de l'autre, sinon par
+// l'arrière ; le bateau lâché retombe à l'eau et s'arrête vite (majVehicules).
+const PLONGEON_MARGE=1.8;
+function plongeonHorsBateau(v){
+  const ca=Math.cos(v.ang), sa=Math.sin(v.ang), d=v.def.larg/2+PLONGEON_MARGE, ar=v.def.long/2+PLONGEON_MARGE;
+  const essais=[[ca*d,-sa*d],[-ca*d,sa*d],[-sa*ar,-ca*ar],[sa*ar,ca*ar]];
+  for(const [dx,dz] of essais){ const x=v.x+dx, z=v.z+dz;
+    if(estEau(x,z)&&!solidAt(x,z,0.6)&&!vehiculeBloquant(x,z,0.4,null)) { v.hMer=0; v.vyMer=undefined; v.rampeMer=null; if(MER_V2) eclaboussure(x,z,1.2); return {x,z}; } }
+  v.hMer=0; v.vyMer=undefined; v.rampeMer=null;
+  return {x:v.x+essais[0][0],z:v.z+essais[0][1]};
+}
 function sortirVehicule(force){
   const v=P.veh; if(!v) return;
   // Rayon tracteur de l'OVNI : couper la sortie du véhicule coupe le rayon —
@@ -12060,8 +12075,8 @@ function sortirVehicule(force){
     if(!ok) for(const il of ILES){ if(dist2(v.x,v.z,il.x,il.z)<(il.r+9)*(il.r+9)){
       const a=Math.atan2(v.x-il.x,v.z-il.z);
       sx=il.x+Math.sin(a)*(il.r-1.5); sz=il.z+Math.cos(a)*(il.r-1.5); ok=true; break; } }
-    // sinon on reste à l'eau à côté du bateau : on nage (plus de téléportation à la plage)
-    if(!ok){ sx=v.x+Math.cos(v.ang)*2.4; sz=v.z-Math.sin(v.ang)*2.4; }
+    // sinon on plonge à côté du bateau et on nage (plus de téléportation à la plage)
+    if(!ok){ const pl=plongeonHorsBateau(v); sx=pl.x; sz=pl.z; }
   }
   P.x=sx; P.z=sz;
   if(P.surMoto){ // détacher le pilote de la moto
@@ -13424,7 +13439,7 @@ function majVehicules(dt){
     }
     else if(v.conduit===null&&v.enAir&&!v.def.air&&!v.def.eau){ majVehiculePhys(v,dt,0,0,false); } // lâché en plein vol : il retombe (et s'écrase)
     else if(v.conduit===null){
-      v.v*=(1-1.2*dt);
+      v.v*=(1-(v.def.eau?3:1.2)*dt); // bateau lâché : il s'arrête vite (ne fonce plus sur le nageur qui vient d'en sauter)
       if(Math.abs(v.v)>0.3){ v.x+=Math.sin(v.ang)*v.v*dt; v.z+=Math.cos(v.ang)*v.v*dt; }
       if(!surEauVeh(v)&&!v.def.air&&!v.horsVille&&(v.h||0)<0.7&&estEau(v.x,v.z)){ noyerVehicule(v); continue; } // lâché en roulant vers l'eau
       // Séparation/impulsion de choc, partagée avec le joueur/la police/le
