@@ -231,6 +231,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
 #btnBrake{right:122px;bottom:calc(env(safe-area-inset-bottom,0px) + 42px);width:66px;height:66px;font-size:22px;display:none;border-color:#ff9f2e66}
 #btnBrake.gros{right:16px;bottom:calc(env(safe-area-inset-bottom,0px) + 62px);width:92px;height:92px;font-size:32px}
 #btnBrake.volA{right:20px;bottom:calc(env(safe-area-inset-bottom,0px) + 172px);width:58px;height:58px;font-size:20px}
+/* Tir par la vitre (voiture, moto) : place du jetpack, libre au volant — FREIN garde la sienne */
+#btnFire.volTir{right:124px;bottom:calc(env(safe-area-inset-bottom,0px) + 248px);width:64px;height:64px;font-size:24px}
 #btnAction{position:absolute;right:14px;bottom:calc(env(safe-area-inset-bottom,0px) + 238px);
   pointer-events:auto;display:none;padding:9px 15px;border-radius:16px;background:#101625ee;border:1.5px solid var(--cyan);
   color:var(--cyan);font-weight:900;font-size:11.5px;letter-spacing:.05em;box-shadow:0 0 14px #35e0ff44,0 3px 10px #000a;
@@ -10917,6 +10919,64 @@ function attaquer(){
   else addHeat(0.012,true);
   if(P.mags[P.armeCur]<=0) rechargerArme();
 }
+/* ---------- tir par la vitre (voiture, moto) ----------
+   Demandé : « tirer de la voiture ou de la moto avec pistolet ou mitraillette
+   légère ». Seulement les armes tenues à une main (ARMES_VOLANT, la meilleure
+   d'abord) : l'arme en main si elle en fait partie, sinon la meilleure
+   possédée qui a des munitions. Mêmes chargeurs, recharge, chaleur que le
+   tir à pied ; visée automatique tout autour du véhicule, plus dispersée
+   (on conduit), d'autant plus qu'on va vite et à moto. */
+const ARMES_VOLANT=['uzi','pm','silence','pistolet'];
+let astuceTirVolant=false; // l'astuce ne s'affiche qu'une fois par session
+const TIR_VOLANT={disp:1.5, dispVit:0.15, dispVitMax:6, dispMoto:2};
+function vehiculeTireur(v){
+  const d=v&&v.def;
+  return !!(d&&(d.type==='car'||d.type==='moto')&&!d.air&&!d.velo&&!d.canon&&!d.mitrailleuse&&!d.dca&&!d.grue&&!d.pompier);
+}
+function armeVolant(){
+  const poss=(id)=>!!(META.armes[id]&&META.armes[id].poss);
+  const charge=(id)=>((P.mags[id]||0)+(P.mun[id]||0))>0;
+  if(ARMES_VOLANT.includes(P.armeCur)&&poss(P.armeCur)&&charge(P.armeCur)) return P.armeCur;
+  for(const id of ARMES_VOLANT) if(poss(id)&&charge(id)) return id;
+  if(ARMES_VOLANT.includes(P.armeCur)&&poss(P.armeCur)) return P.armeCur;
+  for(const id of ARMES_VOLANT) if(poss(id)) return id;
+  return null;
+}
+function rechargerVolant(id){
+  if((P.mun[id]||0)<=0){ SFX.vide(); return; }
+  if(P.rechT>0) return;
+  const st=armeStats(id); P.rechT=st.rech; P.rechTot=st.rech; P.rechArme=id; SFX.recharge();
+}
+function tirAuVolant(v){
+  const id=v.armeVolant; if(!id||INT.actif) return;
+  if(!(INPUT.btn.tir||INPUT.btn.tirK)||P.cadT>0) return;
+  if(P.rechT>0) return;
+  if((P.mags[id]||0)<=0){ rechargerVolant(id); P.cadT=0.35; return; }
+  const a=ARMES[id], st=armeStats(id);
+  const cible=viseAuto(st.portee);
+  let ang=v.ang, cy, dc;
+  if(cible){
+    ang=Math.atan2(cible.x-v.x,cible.z-v.z);
+    dc=Math.sqrt(dist2(cible.x,cible.z,v.x,v.z));
+    cy=cible.heli?15.4:(cible.D?cible.y+0.7:1.2);
+  }
+  const moto=v.def.type==='moto';
+  const disp=st.disp*TIR_VOLANT.disp+Math.min(TIR_VOLANT.dispVitMax,Math.abs(v.v)*TIR_VOLANT.dispVit)+(moto?TIR_VOLANT.dispMoto:0)
+    +((P.ivresse||0)>IVRESSE.ivre?9:0);
+  // la balle part hors de la caisse, du côté visé (sortie du rectangle du véhicule)
+  const da=angDiff(v.ang,ang), cx=Math.abs(Math.cos(da)), sx=Math.abs(Math.sin(da));
+  const r=Math.min(cx>0.01?v.def.long*0.5/cx:99, sx>0.01?v.def.larg*0.5/sx:99)+0.4;
+  const ox=v.x+Math.sin(ang)*r, oz=v.z+Math.cos(ang)*r, oy=moto?1.45:1.3;
+  const dmg=st.degats*(P.buffs.dmg>0?1.35:1);
+  for(let i=0;i<st.pellets;i++) tirer(ox,oy,oz,ang,disp,72,dmg,'joueur',a.tr,cy,dc,null);
+  P.mags[id]--; P.cadT=st.cad; META.stats.tirs++;
+  SFX[a.son](); vibre(10);
+  spawnP(ox,oy,oz,0,0,0,0.06,0.8,a.discret?0x6a7a6a:0xffe9a0,0,3.5);
+  if(moto&&P.surMoto){ P.h.brasD.rotation.x=-1.55; v.tirBrasT=0.25; }
+  if(!a.discret){ DANGER.x=v.x; DANGER.z=v.z; DANGER.t=Math.max(DANGER.t,2); addHeat(0.055,true); }
+  else addHeat(0.012,true);
+  if(P.mags[id]<=0) rechargerVolant(id);
+}
 function tirSniper(){
   if(P.rechT>0) return;
   if((P.mags.sniper||0)<=0){ rechargerArme(); return; }
@@ -12189,6 +12249,16 @@ function entrerVehicule(v){
     el('btnGren').innerHTML='🛢️<small>HUILE</small>';
     toast('🔫 TIR mitraille (vise en glissant) · 🚀 ESQUIVE tire un missile · 🛢️ GRENADE largue une flaque d’huile qui fait déraper les poursuivants','or');
   }
+  v.armeVolant=null; // tir par la vitre (tirAuVolant) : pistolet ou mitraillette légère
+  if(vehiculeTireur(v)){
+    const id=armeVolant();
+    if(id){
+      v.armeVolant=id;
+      el('btnFire').style.display='flex'; el('btnFire').classList.add('volTir');
+      el('fireIco').innerHTML=icoArme(id);
+      if(!astuceTirVolant){ astuceTirVolant=true; setTimeout(()=>{ if(P.veh===v) toast('🔫 TIR : tu tires par la vitre ('+ARMES[id].nom.split('"')[0].trim()+') — visée automatique','or'); },1300); }
+    }
+  }
   moteurStart(v.def); SFX.ui();
   if(v.def.pompier){
     el('btnSwitch').innerHTML=(v.sirene?'🚨':'🔕')+'<small>SIRÈNE</small>';
@@ -12393,7 +12463,7 @@ function sortirVehicule(force){
 // compteur <small id="grenN"> compris), startRun() plantait net sur
 // el('grenN').textContent : impossible de relancer une partie.
 function boutonsAPied(){
-  el('btnFire').style.display='flex'; el('btnDodge').style.display='flex';
+  el('btnFire').style.display='flex'; el('btnDodge').style.display='flex'; el('btnFire').classList.remove('volTir');
   el('btnSwitch').style.display='flex';
   el('btnSwitch').innerHTML=ico('ico-btn-switch','🔁')+'<small>ARME</small>';
   el('btnBrake').style.display='none'; el('btnBrake').classList.remove('gros'); el('btnBrake').classList.remove('volA');
@@ -13183,6 +13253,8 @@ function majConduite(dt){
     }
   }
   if(v.def.pompier) majLanceEau(v,dt);
+  if(v.armeVolant) tirAuVolant(v);
+  if(v.tirBrasT>0){ v.tirBrasT-=dt; if(v.tirBrasT<=0&&P.surMoto) P.h.brasD.rotation.x=-1.1; } // bras qui tirait : retour au guidon
   const frein=INPUT.btn.frein||INPUT.btn.freinK;
   const c=controleDir(v,frein);
   majVehiculePhys(v,dt,c.throttle,c.steer,frein);
@@ -26069,6 +26141,7 @@ function majHUD(){
     const txt='LANCE '+Math.round(P.veh.eau)+'%';
     if(HUDC.lance!==txt){ HUDC.lance=txt; const sm=el('btnSprint').querySelector('small'); if(sm) sm.textContent=txt; }
   } else if(P.veh&&P.veh.def.armes) hudT('fireAmmo','∞');
+  else if(P.veh&&P.veh.armeVolant){ const iv=P.veh.armeVolant; hudT('fireAmmo',P.rechT>0?'⟳':(P.mags[iv]||0)+'/'+(P.mun[iv]||0)); }
   else hudT('fireAmmo',a.type==='melee'?'':
     (P.rechT>0?'⟳':(P.mags[P.armeCur]||0)+'/'+(P.mun[P.armeCur]||0)));
   // Altitude chiffrée sur DESCENDRE : signalé par un joueur — vue de dessus,

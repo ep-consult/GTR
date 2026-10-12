@@ -703,8 +703,19 @@ décor sur un générateur **à part** (`aleaDecor()`, `aD()`, `choixD()`, grain
   les motards de gang s'arrêtent. La police continue si l'on est recherché.
 - **Vélo indestructible** : `abimerVehicule` et `exploserVehicule` ignorent
   `def.velo` (comme la planche de surf). Il peut toujours se noyer.
+- **Tir par la vitre** (`tirAuVolant`, demandé : « tirer de la voiture ou de
+  la moto avec pistolet ou mitraillette légère ») : `vehiculeTireur(v)` =
+  voiture ou moto terrestre sans arme propre (jamais vélo, aéronef, bateau,
+  char, jeep, DCA, grue, pompiers) ; `armeVolant()` prend l'arme en main si
+  elle est dans `ARMES_VOLANT` (uzi, pm, silence, pistolet), sinon la
+  meilleure chargée. L'arme est notée sur le véhicule (`v.armeVolant`). Mêmes
+  chargeurs, recharge (`rechargerVolant`, `P.rechArme`) et chaleur qu'à pied,
+  visée auto tout autour, dispersion `TIR_VOLANT` (vitesse, moto). Bouton
+  `#btnFire.volTir` à la place du jetpack (libre au volant ; FREIN garde la
+  sienne), retiré par `boutonsAPied`. Jamais dans une salle.
 - Tests : « Kiosque de la banderole », « Figures deux roues », « Vélos »
-  (appui bref / maintenu), « Skatepark XXL », « Trêve / vélo ».
+  (appui bref / maintenu), « Skatepark XXL », « Trêve / vélo », « Tir par la
+  vitre » (à 60 i/s : à 1/30 s une balle saute par-dessus une cible).
 
 ## 9e lot (12 octobre 2026) — amphibie, mur de l'aéroport, salles vivantes
 

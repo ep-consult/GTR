@@ -9261,6 +9261,72 @@ async function main() {
       else ok('Trêve / vélo : ' + r.info.join(', '));
     }
 
+    // -------------------------------------------------------------------
+    // 10e lot, n° 5 (demandé : « ajoute la possibilité de tirer de la voiture
+    // ou moto ou d'un véhicule de ce type avec pistolet ou mitraillette
+    // légère »). Éligibilité lue dans VEHDEFS (vehiculeTireur), armes lues
+    // dans ARMES_VOLANT ; bouton TIR jamais sous un autre bouton visible.
+    // -------------------------------------------------------------------
+    console.log('\n--- Tir par la vitre : voiture et moto, pistolet ou mitraillette légère ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        const scene0 = () => { if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
+          for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0; for (const e of ennemis) e.mort = true; for (const b of balles) { b.on = false; } };
+        // éligibilité : jamais un vélo, un aéronef, un bateau ni un véhicule qui a déjà son arme
+        for (const k of Object.keys(VEHDEFS)) { const d = VEHDEFS[k];
+          const attendu = (d.type === 'car' || d.type === 'moto') && !d.air && !d.velo && !d.canon && !d.mitrailleuse && !d.dca && !d.grue && !d.pompier;
+          if (vehiculeTireur({ def: d }) !== attendu) ko.push('éligibilité ' + k); }
+        // sans arme légère : pas de bouton TIR
+        scene0(); for (const id of ARMES_VOLANT) META.armes[id].poss = false;
+        let v = creerVehicule('citadine', P.x + 3, P.z, 0, null); P.x = v.x; P.z = v.z; entrerVehicule(v);
+        if (v.armeVolant || getComputedStyle(el('btnFire')).display !== 'none') ko.push('bouton TIR sans arme légère');
+        sortirVehicule(true);
+        // la meilleure arme légère possédée, chargée
+        const sauve = {}; for (const id of ARMES_VOLANT) sauve[id] = META.armes[id].poss;
+        const essai = (cle, armes, enMain) => {
+          scene0(); for (const id of ARMES_VOLANT) META.armes[id].poss = armes.includes(id);
+          for (const id of armes) { P.mags[id] = armeStats(id).mag; P.mun[id] = 60; }
+          if (enMain) majArmeJoueur(enMain); else majArmeJoueur('poings');
+          const v = creerVehicule(cle, P.x, P.z, 0, null); P.x = v.x; P.z = v.z; entrerVehicule(v);
+          const btn = el('btnFire'), rb = btn.getBoundingClientRect();
+          // aucun autre bouton visible ne recouvre TIR (SORTIR compris)
+          majAction && majAction();
+          for (const b of document.querySelectorAll('#hud .btn, #btnAction')) { if (b === btn || getComputedStyle(b).display === 'none') continue; const o = b.getBoundingClientRect();
+            if (o.width && rb.left < o.right - 2 && o.left < rb.right - 2 && rb.top < o.bottom - 2 && o.top < rb.bottom - 2) ko.push(cle + ' : TIR recouvert par #' + b.id); }
+          // un gangster sur le côté, à 9 u
+          const g = creerEnnemi('vip_pistol', v.x + 9, v.z + 1, true); g.passif = true; const hp0 = g.hp, mag0 = P.mags[v.armeVolant], ch0 = WANTED.heat;
+          INPUT.btn.tir = true; let t = 0;
+          while (t < 2.5 && !g.mort) { majJoueur(1 / 60, 1 / 60); majPools(1 / 60); t += 1 / 60; } // 60 i/s : à 1/30, une balle (2,4 u par image) peut sauter par-dessus la cible
+          INPUT.btn.tir = false;
+          const res = { arme: v.armeVolant, touche: g.mort || g.hp < hp0, tirs: mag0 - (P.mags[v.armeVolant] || 0), chaleur: WANTED.heat > ch0, heat: [ch0, WANTED.heat], vehHp: v.hp === v.def.hp, classe: btn.classList.contains('volTir') };
+          g.mort = true; sortirVehicule(true);
+          res.apres = !btn.classList.contains('volTir');
+          return res;
+        };
+        const e1 = essai('citadine', ['pistolet'], null);
+        if (e1.arme !== 'pistolet' || !e1.touche || !e1.classe || !e1.chaleur || !e1.vehHp || !e1.apres) ko.push('voiture au pistolet : ' + JSON.stringify(e1)); else info.push('voiture : pistolet, cible touchée');
+        const e2 = essai('moto', ['pistolet', 'uzi'], null);
+        if (e2.arme !== 'uzi' || !e2.touche) ko.push('moto, meilleure arme : ' + JSON.stringify(e2)); else info.push('moto : Uzi (la meilleure), cible touchée');
+        const e3 = essai('berline', ['pistolet', 'pm'], 'pistolet');
+        if (e3.arme !== 'pistolet') ko.push('arme en main ignorée : ' + JSON.stringify(e3)); else info.push('arme légère en main gardée');
+        // chargeur vide : recharge automatique, puis le tir reprend
+        { scene0(); for (const id of ARMES_VOLANT) META.armes[id].poss = id === 'pm'; P.mags.pm = 1; P.mun.pm = 30; majArmeJoueur('poings');
+          const v = creerVehicule('citadine', P.x, P.z, 0, null); P.x = v.x; P.z = v.z; entrerVehicule(v);
+          INPUT.btn.tir = true; let vu = false; for (let i = 0; i < 90; i++) { majJoueur(1 / 30, 1 / 30); if (P.rechT > 0) vu = true; } INPUT.btn.tir = false;
+          if (!vu || !(P.mun.pm < 30)) ko.push('pas de recharge au volant (mags ' + P.mags.pm + ', mun ' + P.mun.pm + ')'); else info.push('recharge automatique');
+          sortirVehicule(true); }
+        // vélo : jamais de tir (les boutons y font des figures)
+        { scene0(); META.armes.pistolet.poss = true; P.mags.pistolet = 12; const v = creerVehicule('velo', P.x, P.z, 0, null); P.x = v.x; P.z = v.z; entrerVehicule(v);
+          if (v.armeVolant || el('btnFire').classList.contains('volTir')) ko.push('tir à vélo'); sortirVehicule(true); }
+        for (const id of ARMES_VOLANT) META.armes[id].poss = sauve[id];
+        if (P.veh) sortirVehicule(true);
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Tir par la vitre : ' + r.ko.join(' | '));
+      else ok('Tir par la vitre : ' + r.info.join(', ') + ' ; aucun bouton ne recouvre TIR');
+    }
+
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');
     {
       const srcIdx = fs.readFileSync(INDEX_HTML, 'utf8');
