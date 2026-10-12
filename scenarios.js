@@ -8122,6 +8122,9 @@ async function main() {
       const ri = await page.evaluate(() => {
         if (typeof RIDES === 'undefined' || !RIDES.porte) return { off: true };
         const o = { courses: [] };
+        // le test maîtrise sa scène : la curiosité « Volant du Dépôt » (+15 % d'accélération), gagnée par un test
+        // précédent, change la trajectoire du pilote simulé (le buggy sautait du dernier lacet)
+        const volant0 = META.curios.volant; delete META.curios.volant;
         startRun(); o.gares = vehicules.filter((v) => v.x > 440 && (v.def.type === 'moto' || v.def.buggy)).length;
         const course = (id, cle) => {
           startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.hpMax = 1e6; for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0;
@@ -8141,6 +8144,7 @@ async function main() {
         const v2 = (() => { const d = rideDepart('mesas'); const a = META.argent; RIDES.primeVague.mesas = WAVES.n; const v = creerVehicule('motocross', d.x, d.z, 0, null); v.h = solY(d.x, d.z); entrerVehicule(v); demarrerRide('mesas'); RIDES.actif.i = RIDES.actif.portes.length - 1; const p = RIDES.actif.portes[RIDES.actif.i]; v.x = p.x; v.z = p.z; v.h = solY(p.x, p.z); v.enAir = false; majRides(1 / 30); return META.argent - a; })();
         o.secondePrime = v2;
         o.limiteEst = (() => { P.x = 590; P.z = 100; majJoueur && 0; return LIMITE_EST; })();
+        if (volant0) META.curios.volant = volant0;
         startRun(); return o;
       });
       if (ri.off) saute('Mont Reyes : DECOR_V2 désactivé');
@@ -8586,6 +8590,7 @@ async function main() {
       const r = await page.evaluate(() => {
         const ko = [], info = [];
         if (P.veh) sortirVehicule(true);
+        audioInit(); // avec l'audio : c'est lui qui levait l'exception (régime moteur NaN) qui détruisait l'hélico
         startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
         const hy = vehicules.find((v) => v.key === 'helico' && dist2(v.x, v.z, POIS.yacht.x, POIS.yacht.z) < 100);
         if (!hy) return { ko: ['pas d\'hélico sur le yacht'] };

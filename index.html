@@ -1152,6 +1152,8 @@ function moteurStart(def){
 function moteurUpdate(ratio){
   if(!AUDIO.engOsc||!AUDIO.engPr) return;
   const pr=AUDIO.engPr;
+  if(!isFinite(ratio)) ratio=0;                       // jamais de NaN dans l'audio : il restait collé dans engRatio et chaque appel suivant levait une exception
+  if(!isFinite(AUDIO.engRatio)) AUDIO.engRatio=0;
   ratio=clamp(ratio,0,1);
   // lissage : le régime ne saute pas d'un coup
   AUDIO.engRatio=lerp(AUDIO.engRatio,ratio,0.12);
@@ -12372,6 +12374,8 @@ function majVrille(v,dt){
 function majVol(v,dt){
   const air=v.def.air;
   if(v.alt===undefined){v.alt=0;v.vol=false;v.va=0;}
+  if(!isFinite(v.va)) v.va=0; // 8e lot — LA cause de « l'hélico du yacht explose toujours » : créé avec alt déjà réglé, il n'avait pas de va ; régime moteur NaN → exception audio → « problème de pilotage », parachute, hélico détruit
+  if(!isFinite(v.v)) v.v=0;
   majLumieresOvni(v,dt);
   const monter=INPUT.btn.sprint||INPUT.btn.sprintK;
   const desc=INPUT.btn.frein||INPUT.btn.freinK;
@@ -23902,7 +23906,7 @@ function startRun(){
     creerVehicule('yacht',POIS.yacht.x+30,POIS.yacht.z-6,Math.PI/2);
     // mini-hélico posé sur l'hélipad du yacht amarré
     const hy=creerVehicule('helico',POIS.yacht.x,POIS.yacht.z+6.4,0);
-    if(hy){ hy.alt=1.35; hy.mesh.position.y=1.35; hy.mesh.scale.setScalar(0.8); }
+    if(hy){ hy.alt=1.35; hy.vol=false; hy.va=0; hy.mesh.position.y=1.35; hy.mesh.scale.setScalar(0.8); }
     GYACHT.v=DECOR_V2?creerVehicule('grandyacht',POIS.yacht.x,POIS.yacht.z,Math.PI):null; // au mouillage, comme l'ancien décor
     GYACHT.heli=hy||null; majGrandYacht();
   }
