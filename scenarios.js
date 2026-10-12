@@ -8747,6 +8747,46 @@ async function main() {
       else ok('Circulation : ' + r.moy + ' voitures en ville en moyenne (plafond ' + r.cap + '), ' + r.pres + ' à moins de 60 u du joueur, 0 choc');
     }
 
+    // -------------------------------------------------------------------
+    // 8e lot, n° 6 (signalé : « police : trop d'agents, les étoiles montent
+    // trop vite »). Réglages lus dans le jeu (WANTED_*). Un piéton tué ne
+    // donne plus une étoile à lui seul ; à 3★, jamais plus d'agents que le
+    // plafond ; sans policier à portée, 2★ retombent en moins de 15 s.
+    // -------------------------------------------------------------------
+    console.log('\n--- Police : prise d\'étoiles ralentie, moins d\'agents ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (P.veh) sortirVehicule(true);
+        startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
+        for (const e of ennemis) e.mort = true;
+        WANTED.heat = 0; WANTED.stars = 0;
+        // deux vrais piétons tués (tuerPieton) : la chaleur réellement ajoutée
+        creerPieton(P.x + 3, P.z); creerPieton(P.x - 3, P.z); const vivants = pietons.slice(-2);
+        const h0 = WANTED.heat; tuerPieton(vivants[0], true); const unMeurtre = WANTED.heat - h0;
+        if (WANTED.stars !== 0) ko.push('1 piéton tué = déjà ' + WANTED.stars + '★');
+        tuerPieton(vivants[1], true); if (WANTED.stars !== 1) ko.push('2 piétons tués = ' + WANTED.stars + '★ (attendu 1)');
+        info.push('piéton tué : +' + unMeurtre.toFixed(2) + ' de chaleur');
+        // la zone militaire et les salles gardent leurs étoiles franches
+        WANTED.heat = 0; WANTED.stars = 0; addHeat(1, false, true); if (WANTED.stars !== 1) ko.push('événement de salle : pas +1★');
+        // à 3★, au plus WANTED_CAP_AGENTS[3] agents à pied
+        WANTED.heat = 3.5; WANTED.stars = 3; let maxA = 0;
+        for (let i = 0; i < 30 * 40; i++) { WANTED.heat = 3.5; majWanted(1 / 30); let n = 0; for (const e of ennemis) if (!e.mort && e.fac === 'police' && !e.garde && !e.heli) n++; if (n > maxA) maxA = n; }
+        if (maxA > WANTED_CAP_AGENTS[3]) ko.push('3★ : ' + maxA + ' agents (plafond ' + WANTED_CAP_AGENTS[3] + ')');
+        info.push('3★ : ' + maxA + ' agents au plus');
+        // 2★ qui retombent sans policier à portée
+        for (const e of ennemis) e.mort = true;
+        WANTED.heat = 2.4; WANTED.stars = 2; let t = 0;
+        while (WANTED.heat > 0 && t < 30) { for (const e of ennemis) if (e.fac === 'police') e.mort = true; majWanted(1 / 30); t += 1 / 30; }
+        if (!(t < 16)) ko.push('2★ retombent en ' + t.toFixed(1) + ' s');
+        info.push('2★ effacées en ' + t.toFixed(1) + ' s');
+        WANTED.heat = 0; WANTED.stars = 0; for (const e of ennemis) e.mort = true;
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Police : ' + r.ko.join(' | '));
+      else ok('Police : ' + r.info.join(', '));
+    }
+
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');
     {
       const srcIdx = fs.readFileSync(INDEX_HTML, 'utf8');

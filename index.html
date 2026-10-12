@@ -14593,9 +14593,19 @@ function ovniFlashFx(v){
    NIVEAU DE RECHERCHE — police, unités spéciales, armée
 ===================================================================== */
 const WANTED={heat:0,stars:0,tirCd:0,spawnT:3,heliCd:0};
-function addHeat(v,tir){
+// Pression policière (8e lot, signalé : « trop d'agents, les étoiles montent
+// trop vite ») : chaque délit chauffe ×WANTED_GAIN (un piéton tué ne donne
+// plus une étoile à lui seul, il en faut deux) ; la chaleur retombe plus vite
+// hors de vue de la police ; moins d'agents et des renforts plus espacés.
+const WANTED_GAIN=0.6;
+const WANTED_DECROISSANCE=0.16;                 // chaleur perdue par seconde, sans policier à portée (avant : 0,10)
+const WANTED_CAP_AGENTS=[0,1,2,4,6,8,10];       // agents à pied simultanés par nombre d'étoiles (avant : 0,2,4,6,9,11,13)
+const WANTED_RENFORT=[6,2.6];                   // s entre deux renforts, de 1★ à 6★ (avant : 3,6 → 1,2)
+const WANTED_HELI_CD=35;                        // s entre deux hélicos de police (avant : 22)
+function addHeat(v,tir,brut){                   // brut : sans le coefficient (alarme de la zone militaire)
   if(ETAT.mode!=='jeu') return;
   if(tir){ if(WANTED.tirCd>0) return; WANTED.tirCd=1.1; }
+  if(!brut) v*=WANTED_GAIN;
   WANTED.heat=Math.min(6.4,WANTED.heat+v);
   const s=Math.min(6,Math.floor(WANTED.heat));
   if(s>WANTED.stars){
@@ -14636,11 +14646,11 @@ function majWanted(dt){
   WANTED.tirCd-=dt; WANTED.heliCd-=dt;
   let copProche=false;
   for(const e of ennemis){ if(!e.mort&&e.fac==='police'&&dist2(e.x,e.z,P.x,P.z)<2100){copProche=true;break;} }
-  if(!copProche) WANTED.heat=Math.max(0,WANTED.heat-0.10*dt*(WANTED.stars>=4?0.6:1)*(aCurio('canard_or')?1.25:1));
+  if(!copProche) WANTED.heat=Math.max(0,WANTED.heat-WANTED_DECROISSANCE*dt*(WANTED.stars>=4?0.6:1)*(aCurio('canard_or')?1.25:1));
   WANTED.stars=Math.min(6,Math.floor(WANTED.heat));
   // zone militaire = alarme immédiate
   if(POIS.base&&Math.abs(P.x-POIS.base.x)<POIS.base.hw&&Math.abs(P.z-POIS.base.z)<POIS.base.hd){
-    if(WANTED.heat<3){ addHeat(3-WANTED.heat); toast('Intrusion en zone militaire !','warn'); }
+    if(WANTED.heat<3){ addHeat(3-WANTED.heat,false,true); toast('Intrusion en zone militaire !','warn'); }
   }
   sirenUpdate(dt,WANTED.stars>=2?WANTED.stars/6:0);
   const s=WANTED.stars;
@@ -14650,10 +14660,10 @@ function majWanted(dt){
     if(e2.mort||e2.fac!=='police'||e2.garde) continue; // la garnison des bases reste à son poste : elle ne compte pas dans les renforts (sinon, à 6★, « l'armée débarque » et personne ne vient)
     if(e2.heli) heliVif=true; else nPolice++;
   }
-  const cap=[0,2,4,6,9,11,13][s];
+  const cap=WANTED_CAP_AGENTS[s];
   WANTED.spawnT-=dt;
   if(nPolice<cap&&WANTED.spawnT<=0){
-    WANTED.spawnT=lerp(3.6,1.2,s/6);
+    WANTED.spawnT=lerp(WANTED_RENFORT[0],WANTED_RENFORT[1],s/6);
     let nCarP=0; for(let i=0;i<vehicules.length;i++)if(vehicules[i].conduit==='police')nCarP++;
     const joueurEnMer=(P.nage||(P.veh&&surEauVeh(P.veh)))&&P.z>MER+6;
     if(s>=2&&joueurEnMer&&nCarP<2){ // en mer : vedettes de police, jamais d'agents à la nage
@@ -14669,7 +14679,7 @@ function majWanted(dt){
     }
   }
   if(s>=5&&WANTED.heliCd<=0&&!heliVif){
-    WANTED.heliCd=22;
+    WANTED.heliCd=WANTED_HELI_CD;
     const p=spawnRing(55,70);
     creerEnnemi('heli',p.x,p.z,false);
     toast('Hélico "Rapace" en approche','warn');
@@ -19370,7 +19380,7 @@ function sortirInterieur(){
     const e=ennemis[i];
     if(e.interieur===sc.id&&!e.garde){ scene.remove(e.h?e.h.g:e.mesh); ennemis.splice(i,1); }
   }
-  if(sc.alarme){ addHeat(1.2); sc.alarme=false; sc.vagueT=undefined;
+  if(sc.alarme){ addHeat(1.2,false,true); sc.alarme=false; sc.vagueT=undefined;
     for(const e of ennemis) if(e.interieur===sc.id) e.calme=true; }
   scene.fog.near=60;
   P.x=INT.rx; P.z=INT.rz; P.y=solPied(P.x,P.z); P.vy=0; P.chute=false;
@@ -19394,7 +19404,7 @@ function declencherAlarme(s,raison){
   if(s.alarme) return;
   s.alarme=true;
   bigMsg('🚨 ALARME !'); toast(raison,'warn'); SFX.etoile(); secousse(8); vibre(120);
-  addHeat(s.alarmePool?0.3:1.4);   // un règlement de comptes de gang n'appelle pas la police
+  addHeat(s.alarmePool?0.3:1.4,false,true);   // un règlement de comptes de gang n'appelle pas la police
   for(const e of ennemis) if(e.interieur===s.id&&!e.mort){ e.calme=false; e.passif=false; }
   // renforts qui arrivent par la sortie
   const pool=s.alarmePool||['cop2','cop2','swat'];
@@ -19770,7 +19780,7 @@ function radioFinSegment(s){
 function radioDescentePolice(s){
   radioArreterEmission(s);
   bigMsg('🚨 DESCENTE DE POLICE'); toast('Ils ont localisé le signal !','warn');
-  addHeat(1); SFX.etoile(); secousse(8); vibre(150);
+  addHeat(1,false,true); SFX.etoile(); secousse(8); vibre(150);
   sortirInterieur();
 }
 function radioTerminerEmission(s){
@@ -24096,7 +24106,7 @@ function finirCasseMusee(s,succes){
   } else {
     if(s.canardEnMain){ s.canardEnMain=false; if(s.canard.mesh) s.canard.mesh.visible=true; }
     bigMsg('🚨 ALARME !'); toast('ALARME ! Tout le quartier est au courant.','warn');
-    addHeat(2); SFX.etoile(); secousse(8); vibre(120);
+    addHeat(2,false,true); SFX.etoile(); secousse(8); vibre(120);
   }
 }
 function majAction(){
@@ -24250,7 +24260,7 @@ function majAction(){
         s.caisse.pris=true;
         const g=randi(s.gain[0],s.gain[1]);
         META.argent+=g; ETAT.cashRun+=g; META.stats.cashTotal+=g;
-        addHeat(s.heat); spawnTexte(P.x,2,P.z,'+'+g+' $','#7dff7a');
+        addHeat(s.heat,false,true); spawnTexte(P.x,2,P.z,'+'+g+' $','#7dff7a');
         toast('Caisse braquée : +'+g+' $','warn'); SFX.achat(); bigMsg('BRAQUAGE !');
         s.caisse.mesh.material=mat(0x2a2e36);
       };
@@ -24260,7 +24270,7 @@ function majAction(){
         s.coffre.pris=true;
         const g=randi(s.gain[0],s.gain[1]);
         META.argent+=g; ETAT.cashRun+=g; META.stats.cashTotal+=g;
-        addHeat(s.heat); META.defis.banque=true;
+        addHeat(s.heat,false,true); META.defis.banque=true;
         for(let i=0;i<5;i++) creerPickup('cash',P.x+rand(-2,2),P.z+rand(-2,2),randi(40,90));
         toast('COFFRE FORCÉ : +'+g+' $ — fuis !','warn'); SFX.achat(); bigMsg('★ CASSE DU SIÈCLE ★');
         secousse(9);
