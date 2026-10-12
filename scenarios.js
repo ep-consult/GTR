@@ -8971,6 +8971,63 @@ async function main() {
       else ok('Mur de l\'aéroport : ' + r.info.join(', '));
     }
 
+    // -------------------------------------------------------------------
+    // 9e lot, n° 3 (demandé : « rendre les salles type disco beaucoup plus
+    // attrayantes : bagarre, alcool avec effets à court terme, danse »).
+    // Club Néon V2 : réglages lus dans IVRESSE / DANSE, jamais recopiés.
+    // -------------------------------------------------------------------
+    console.log('\n--- Club Néon : cocktails et ivresse, danse au rythme, bagarre, videur ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (P.veh) sortirVehicule(true);
+        startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 300; META.argent = 5000;
+        for (const e of ennemis) e.mort = true;
+        const porte = PORTES.find((p) => p.id === 'club'); if (!porte) return { ko: ['porte du club introuvable'] };
+        const ap = () => { majAction(); const b = document.getElementById('btnAction'); const l = b.textContent; if (b._fn) b._fn(); return l; };
+        entrerInterieur('club', porte); const s = INT.actif;
+        if (!s || !s.club) return { ko: ['salle du club non V2'] };
+        // --- cocktails : ivresse, effets, malaise ---
+        P.x = s.bar.x; P.z = s.bar.z; const lab = ap();
+        if (!/COCKTAIL/.test(lab) || !(P.ivresse > 0)) ko.push('cocktail : ' + lab + ' ivresse ' + P.ivresse);
+        while (P.ivresse < IVRESSE.ivre + 15) boireCocktail();
+        let derive = 0; for (let i = 0; i < 60; i++) { ETAT.runT += 0.1; derive = Math.max(derive, Math.abs(deriveIvresse())); }
+        if (!(derive > 0.1)) ko.push('ivre mais la marche ne dérive pas');
+        const iv0 = P.ivresse; for (let i = 0; i < 30; i++) majIvresse(1 / 30); if (!(P.ivresse < iv0)) ko.push('l\'ivresse ne redescend pas');
+        const argent0 = META.argent; while (INT.actif && P.ivresse < IVRESSE.max) boireCocktail();
+        if (INT.actif || !(P.hp < 300) || !(META.argent < argent0)) ko.push('malaise : ' + JSON.stringify({ dedans: !!INT.actif, hp: P.hp }));
+        else info.push('malaise à ' + IVRESSE.max + ' % : réveil dehors');
+        P.ivresse = 0; P.hp = 300;
+        // --- danse : parfaite = prime (une fois par vague) ; au hasard = ratée ---
+        entrerInterieur('club', porte);
+        const per = 60 / DANSE.bpm;
+        const danser = (mode) => { P.x = s.piste.x; P.z = s.piste.z; s.danse = null; const lab = ap(); if (!/DANSER/.test(lab)) return { erreur: lab };
+          const a0 = META.argent; let t = 0, k = 1;
+          while (s.danse && t < 30) {
+            if (mode === 'parfait' && s.danse.t >= k * per) { danseTape(s); k++; }
+            if (mode === 'spam' && Math.floor(t * 30) % 3 === 0) danseTape(s);
+            majInterieur(1 / 30, 1 / 30); t += 1 / 30; }
+          return { prime: META.argent - a0, fini: !s.danse }; };
+        const d1 = danser('parfait'), d2 = danser('parfait'), d3 = (s.dansePrimeVague = -1, danser('spam'));
+        if (d1.erreur || !(d1.prime > 0)) ko.push('danse parfaite non payée : ' + JSON.stringify(d1)); else info.push('danse parfaite : +' + d1.prime + ' $');
+        if (d2.prime !== 0) ko.push('seconde prime dans la même vague');
+        if (d3.prime !== 0) ko.push('danse au hasard (appuis en rafale) payée');
+        // --- bagarre : un fêtard finit par chercher la bagarre ; KO à mains nues ---
+        s.bagarreT = 0.01; majInterieur(1 / 30, 1 / 30);
+        const b = s.bagarreur;
+        if (!b || b.type !== 'fetard' || b.interieur !== 'club') ko.push('aucun fêtard bagarreur');
+        else { b.hp = 1; tuerEnnemi(b, true); majInterieur(1 / 30, 1 / 30); if (s.bagarreur) ko.push('bagarreur KO non évacué'); else info.push('bagarre : fêtard mis KO'); }
+        // --- videur : une arme à feu sortie = dehors ---
+        META.armes.pistolet.poss = true; P.armeCur = 'pistolet'; P.mags.pistolet = 12; P.rechT = 0; P.cadT = 0; attaquer();
+        if (INT.actif) ko.push('arme à feu dans le club : pas expulsé'); else info.push('arme sortie : expulsé par le videur');
+        // --- rien ne survit à une nouvelle partie ---
+        P.ivresse = 50; startRun(); if (P.ivresse !== 0 || s.danse || s.dansePrimeVague !== -1) ko.push('état du club conservé après startRun');
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Club Néon : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
+      else ok('Club Néon : ' + r.info.join(', ') + ' ; ivre = marche qui dérive, ivresse qui retombe, une prime de danse par vague, rafales d\'appuis ratées, rien ne survit au game over');
+    }
+
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');
     {
       const srcIdx = fs.readFileSync(INDEX_HTML, 'utf8');

@@ -561,6 +561,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
     <div class="buffChip" id="buffSprintLibre">💨<span id="buffSprintLibreT"></span></div>
     <div class="buffChip" id="buffVol">🧛<span id="buffVolT"></span></div>
     <div class="buffChip" id="buffCadence">⚡<span id="buffCadenceT"></span></div>
+    <div class="buffChip" id="buffIvresse" style="border-color:#ff5ad0">🍸<span id="buffIvresseT"></span></div>
   </div>
   <div id="scoreBox">
     <div id="scoreVal">0</div>
@@ -815,6 +816,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
 </div>
 
 <!-- ================= PAUSE ================= -->
+<div id="fonduNoir" style="position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;z-index:30"></div>
 <div class="screen" id="pauseM">
   <div class="stitre" style="margin-top:14vh">Pause</div>
   <div class="hazard"></div>
@@ -2470,6 +2472,8 @@ const VEHDEFS={
 
 /* ---------- Types d'ennemis ---------- */
 const ETYPES={
+  fetard:{nom:'Fêtard éméché',fac:'fetards',hp:38,vit:7.2,degats:6,arme:'melee',portee:1.8,cad:1.1,score:40,cash:[4,12],xp:4,cout:0, // bagarre au Club Néon (9e lot) : poings nus, aucune faction
+    couleurs:{haut:0xff5ad0,bas:0x1a1420,peau:0xd9a066,casq:0x4a3520}},
   vip_batte:{nom:'Viper',fac:'viperes',hp:32,vit:8.6,degats:9,arme:'melee',portee:1.9,cad:1.0,score:60,cash:[6,14],xp:8,cout:10,armeM:'batte',
     couleurs:{haut:0x2fae4f,bas:0x1c2030,peau:0xc98d5e,casq:0x175c2b}},
   vip_pistol:{nom:'Viper armé',fac:'viperes',hp:28,vit:7.6,degats:7,arme:'pistolet',portee:25,cad:0.55,burst:3,acc:9,score:85,cash:[8,16],xp:10,cout:14,
@@ -10693,7 +10697,7 @@ function attaquer(){
     P.cadT=st.cad; P.frappeT=0.2; P.h._frappe=0.2;
     P.h.brasD.rotation.x=-1.6;
     let touche=false;
-    const dmg=st.degats*P.meleeMul*(P.buffs.dmg>0?1.35:1);
+    const dmg=st.degats*P.meleeMul*(P.buffs.dmg>0?1.35:1)*((P.ivresse||0)>IVRESSE.pompette?1.2:1); // pompette : « courage liquide » au corps à corps
     const knock=st.knock*(aCurio('haltere')?1.6:1);   // L'Haltère « Enclume »
     const cible=(f,ex,ez,cb)=>{ // teste un point
       const d=Math.sqrt(dist2(ex,ez,P.x,P.z));
@@ -10724,6 +10728,7 @@ function attaquer(){
   // jamais rechargerArme, voir pasRecharge et tirDesintegrateur)
   if(a.desint){ tirDesintegrateur(); return; }
   // arme à feu
+  if(INT.actif&&INT.actif.club){ videurExpulse(INT.actif); return; } // Club Néon : une arme à feu sortie, le videur te jette dehors
   if(P.rechT>0) return;
   if((P.mags[P.armeCur]||0)<=0){ rechargerArme(); return; }
   const cible=viseAuto(st.portee);
@@ -10734,6 +10739,7 @@ function attaquer(){
     dc=Math.sqrt(dist2(cible.x,cible.z,P.x,P.z));
     cy=cible.heli?15.4:(cible.D?cible.y+0.7:1.2); // animal : visé à sa hauteur (montagne de l'île)
   }
+  if((P.ivresse||0)>IVRESSE.ivre) ang+=rand(-1,1)*0.16*Math.min(1,(P.ivresse-IVRESSE.ivre)/40); // ivre : tir imprécis
   const dmg=st.degats*(P.buffs.dmg>0?1.35:1);
   const vitB=a.roquette?34:(a.flamme?26:72);
   const typ=a.roquette?'roquette':(a.flamme?'flamme':null);
@@ -10883,6 +10889,7 @@ function majJoueur(dt,dtJeu){
     if(Math.random()<0.5) spawnP(P.x,0.5,P.z,0,1,0,0.25,0.5,0x9fd8ff,0);
   } else if(bouge){
     vx=INPUT.mx*vit; vz=INPUT.mz*vit;
+    const dv=deriveIvresse(); if(dv){ const c=Math.cos(dv), sn=Math.sin(dv), mx=vx, mz=vz; vx=mx*c-mz*sn; vz=mx*sn+mz*c; } // ivre : on ne marche plus droit
     if(P.tirT<=0) P.ang=angLerp(P.ang,Math.atan2(INPUT.mx,INPUT.mz),0.35);
   }
   // En l'air (chute libre / parachute) : vrai pilotage à inertie plutôt
@@ -17141,6 +17148,22 @@ function construireSalle(id){
     for(let d=0;d<5;d++)
       pnj(rand(-6,6),rand(-6,2),{haut:pick([0xff5ad0,0x35e0ff,0xf2d21f,0xe8ecf2,0x8a4de0]),
         bas:0x1a1420,peau:pick(civPeau),casq:pick([0x14161c,0x4a3520]),visage:'cool'},'danse');
+    // 9e lot (demandé : « beaucoup plus attrayante et engageante ») : CLUB NÉON V2, voir majClub — salle pleine
+    // (danseurs, clients au bar et sur les banquettes), DJ qui mixe, barman, boule à facettes et lasers
+    sansAleaVille(()=>{
+      for(let d=0;d<7;d++) pnj(aD(-7,7),aD(-8,3),{haut:choixD([0xff5ad0,0x35e0ff,0xf2d21f,0xe8ecf2,0x8a4de0,0x7dff7a]),
+        bas:choixD([0x1a1420,0x2a2e3a,0x3a2f52]),peau:choixD(civPeau),casq:choixD([0x14161c,0x4a3520,0xd8b02a]),visage:'cool'},'danse');
+      for(const [x,z] of [[-3,-P2/2+5.2],[3,-P2/2+5.2],[-W/2+3,P2/2-5],[W/2-3,P2/2-5],[-W/2+5,P2/2-5]]) pnj(x,z,{haut:choixD([0x8a4de0,0x35e0ff,0xe05252]),bas:0x1c2030,peau:choixD(civPeau),casq:0x14161c,visage:'cool'},'client');
+      pnj(0,-P2/2+7.3,{haut:0x14161c,bas:0x14161c,peau:choixD(civPeau),casq:0xd8b02a,visage:'cool'},'dj');
+      const boule=new THREE.Mesh(new THREE.SphereGeometry(0.8,10,8),new THREE.MeshLambertMaterial({color:0xd8dce4,emissive:0x55606a}));
+      boule.position.set(ox,3.6,oz-2); g.add(boule); inter.bouleDisco=boule;
+      inter.lasers=[];
+      for(const [lx,coul] of [[-W/2+1.2,0x35e0ff],[W/2-1.2,0xff5ad0]]){ const pv=new THREE.Group(); pv.position.set(ox+lx,3.4,oz-P2/2+4); g.add(pv);
+        for(let k=0;k<3;k++){ const f=new THREE.Mesh(new THREE.PlaneGeometry(0.12,16),new THREE.MeshBasicMaterial({color:coul,transparent:true,opacity:0.45,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide}));
+          f.rotation.x=Math.PI/2; f.position.z=8; const bras=new THREE.Group(); bras.rotation.y=(k-1)*0.35; bras.add(f); pv.add(bras); }
+        inter.lasers.push(pv); }
+    });
+    inter.club=true; inter.piste={x:ox+3,z:oz-1}; inter.danse=null; inter.dansePrimeVague=-1; inter.bagarreT=rand(20,32); inter.bagarreur=null;
     pnj(-2,-P2/2+4.4,{haut:0x14161c,bas:0x1c2030,peau:pick(civPeau),casq:0x14161c,visage:'cool'});
     lampe(-6,-4,0xff5ad0,9); lampe(6,-4,0x35e0ff,9); lampe(0,3,0xb48bff,9);
     inter.bar={x:ox,z:oz-P2/2+4.6};
@@ -19481,6 +19504,7 @@ function entrerInterieur(id,porte){
   el('minimap').style.opacity='1';
 }
 function sortirInterieur(){
+  if(INT.actif&&INT.actif.club&&INT.actif.danse) danseFin(INT.actif,false); // Club Néon : danse abandonnée
   if(!INT.actif) return;
   const sc=INT.actif;
   annulerFouille(true); cacherJauges(); cacherControlesBorne();
@@ -20706,6 +20730,117 @@ function depotMajCourse(s,dtJeu){
   if(je.fini&&!c0.termine){ c0.termine=true; depotTerminerCourse(s,je.place); return; }
   depotMajHUD(s);
 }
+/* ===== CLUB NÉON V2 : cocktails et ivresse, piste de danse, bagarres ===== */
+// 9e lot (demandé : « rendre les salles type disco beaucoup plus attrayantes et engageantes : bagarre dedans,
+// alcoolisé si trop de consommation avec effet sur le personnage à court terme, danse possible »).
+// - Ivresse (P.ivresse, 0 → 100) : chaque cocktail +verre, redescend seule (baisse/s, dtJeu). Pompette :
+//   +20 % au corps à corps, l'image tangue. Ivre : la marche dérive, le tir s'égare. 100 : trou noir, on se
+//   réveille dehors, plus léger. Effets à COURT terme : remise à zéro à chaque partie.
+// - Danse : DANSE.temps temps à frapper au rythme ; un temps raté, un appui en trop ou à contretemps
+//   compte comme une faute. Pourboire du public une fois par vague (pas de farming), perdable.
+// - Bagarre : un fêtard éméché cherche la bagarre de temps en temps (plus souvent si tu as bu) ; à mains
+//   nues. Une arme à feu sortie dans le club : le videur te jette dehors.
+const IVRESSE={baisse:1.2,verre:22,prix:25,soin:30,pompette:30,ivre:60,max:100};
+const DANSE={bpm:118,temps:16,fenetre:0.15,reussite:12,primeParTemps:10};
+function deriveIvresse(){
+  const iv=P.ivresse||0; if(iv<=IVRESSE.ivre) return 0;
+  const k=Math.min(1,(iv-IVRESSE.ivre)/40);
+  return (Math.sin(ETAT.runT*1.3)*0.5+Math.sin(ETAT.runT*3.7)*0.2)*k;
+}
+function boireCocktail(){
+  if(META.argent<IVRESSE.prix){ SFX.refus(); toast('Il te faut '+IVRESSE.prix+' $'); return false; }
+  META.argent-=IVRESSE.prix; SFX.soin();
+  if(P.hp<P.maxHp) soigner(IVRESSE.soin);
+  P.ivresse=Math.min(IVRESSE.max,(P.ivresse||0)+IVRESSE.verre);
+  const iv=P.ivresse;
+  toast(iv>=IVRESSE.max?'🥴 Le verre de trop…':(iv>IVRESSE.ivre?'🍸 Tout tourne un peu…':(iv>IVRESSE.pompette?'🍸 Pompette : tu frappes plus fort':'🍸 À la tienne !')),iv>IVRESSE.ivre?'warn':'or');
+  if(iv>=IVRESSE.max) malaiseEthylique();
+  return true;
+}
+function malaiseEthylique(){
+  const s=INT.actif;
+  if(s&&s.club) danseFin(s,false);
+  if(s) sortirInterieur();
+  const perte=Math.min(META.argent,60); META.argent-=perte;
+  P.hp=Math.max(1,P.hp-P.maxHp*0.25); P.ivresse=55;
+  bigMsg('🥴 TROU NOIR…'); toast('Tu te réveilles sur le trottoir'+(perte?', '+perte+' $ en moins':'')+'. Le videur ne t’a pas raté.','warn');
+  const f=document.getElementById('fonduNoir'); if(f){ f.style.transition='none'; f.style.opacity='1'; requestAnimationFrame(()=>{ f.style.transition='opacity 2.2s'; f.style.opacity='0'; }); }
+  vibre(120);
+}
+function majIvresse(dtJeu){
+  if(P.ivresse>0) P.ivresse=Math.max(0,P.ivresse-IVRESSE.baisse*dtJeu);
+  const iv=P.ivresse||0;
+  hudD('buffIvresse',iv>0.5?'flex':'none');
+  if(iv>0.5) hudT('buffIvresseT',Math.ceil(iv)+'%');
+}
+function videurExpulse(s){
+  danseFin(s,false); bigMsg('🚪 DEHORS !'); toast('Le videur t’attrape le bras : pas d’arme dans le club.','warn');
+  sortirInterieur(); addHeat(0.5); SFX.refus(); vibre(80);
+}
+// ---- danse ----
+const DANSE_UI=(()=>{ const d=document.createElement('div'); d.id='danseUI';
+  d.style.cssText='position:absolute;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 300px);transform:translateX(-50%);display:none;pointer-events:none;z-index:4;text-align:center;font-weight:900;color:#fff;text-shadow:0 0 8px #ff5ad0';
+  d.innerHTML='<div id="danseAnneau" style="width:64px;height:64px;margin:0 auto 6px;border-radius:50%;border:4px solid #ff5ad0;box-shadow:0 0 18px #ff5ad0"></div><div id="danseTxt" style="font-size:15px"></div>';
+  document.body.appendChild(d); return d; })();
+function danseDebut(s){
+  if(s.danse) return;
+  s.danse={t:-0.9,n:0,ok:0,fautes:0,tape:-1,x:P.x,z:P.z};
+  DANSE_UI.style.display='block'; toast('💃 Tape au rythme, sur chaque temps ! '+DANSE.reussite+'/'+DANSE.temps+' pour faire réagir le public','or'); SFX.ui();
+}
+function danseTape(s){
+  const d=s.danse; if(!d||d.t<0) return;
+  const per=60/DANSE.bpm, k=Math.round(d.t/per), ecart=Math.abs(d.t-k*per);
+  const fen=DANSE.fenetre*((P.ivresse||0)>IVRESSE.ivre?0.7:1); // ivre : on perd le rythme
+  if(k<1||k>DANSE.temps||d.tape===k||ecart>fen){ d.fautes++; spawnTexte(P.x,2.6,P.z,'✖','#ff5a5a'); return; } // contretemps ou appui en trop
+  d.tape=k; d.ok++; spawnTexte(P.x,2.6,P.z,'♪','#ff5ad0'); beep(660,0.05,'square',0.06,880);
+}
+function danseFin(s,complete){
+  const d=s&&s.danse; if(!d) return;
+  s.danse=null; DANSE_UI.style.display='none'; P.h.g.position.y=0;
+  if(!complete) return;
+  const note=d.ok-d.fautes;
+  if(note>=DANSE.reussite){
+    const p=DANSE.primeParTemps*d.ok;
+    if(s.dansePrimeVague!==WAVES.n){ s.dansePrimeVague=WAVES.n; META.argent+=p; ETAT.cashRun+=p; bigMsg('💃 LE PUBLIC EST EN FEU ! +'+p+' $'); sauveMeta(); }
+    else bigMsg('💃 Superbe ! (le public a déjà payé cette vague)');
+    ETAT.score+=200+note*20; SFX.niveau();
+  } else toast('Le public n’a pas accroché ('+d.ok+' temps, '+d.fautes+' fautes) — '+DANSE.reussite+' nets requis','warn');
+}
+function majClub(s,dt,dtJeu){
+  // ambiance
+  if(s.bouleDisco) s.bouleDisco.rotation.y+=dt*0.8;
+  if(s.lasers) for(let i=0;i<s.lasers.length;i++){ const l=s.lasers[i]; l.rotation.y=Math.sin(ETAT.runT*0.7+i*2)*0.7; l.rotation.x=0.25+Math.sin(ETAT.runT*1.3+i)*0.15; }
+  // danse (dtJeu : le rythme se joue contre l'horloge réelle)
+  const d=s.danse;
+  if(d){
+    const per=60/DANSE.bpm; d.t+=dtJeu; P.x=d.x; P.z=d.z;
+    const k=Math.floor(d.t/per);
+    if(k>d.n) d.n=k;
+    // temps passés sans appui : fautes (une fois la fenêtre refermée)
+    const kp=Math.floor((d.t-DANSE.fenetre)/per); if(kp>=1&&kp<=DANSE.temps&&d.tape<kp&&d.vu!==kp){ d.vu=kp; d.fautes++; }
+    const ph=(d.t/per)-Math.floor(d.t/per), an=el('danseAnneau');
+    if(an) an.style.transform='scale('+(1+(1-ph)*0.9).toFixed(3)+')';
+    hudT('danseTxt',d.t<0?'PRÊT…':('♪ '+Math.min(DANSE.temps,Math.max(0,k))+'/'+DANSE.temps+' · '+d.ok+' ✔ · '+d.fautes+' ✖'));
+    P.h.g.position.y=Math.abs(Math.sin(d.t*Math.PI/per))*0.25; P.h.brasG.rotation.z=1.3+Math.sin(d.t*Math.PI*2/per)*0.5; P.h.brasD.rotation.z=-1.3-Math.sin(d.t*Math.PI*2/per)*0.5;
+    if(d.t>(DANSE.temps+0.6)*per) danseFin(s,true);
+  }
+  // bagarres (jamais pendant une danse ni à la mort)
+  if(ETAT.mode!=='jeu'||d) return;
+  const b=s.bagarreur;
+  if(b&&(b.mort||ennemis.indexOf(b)<0)){
+    s.bagarreur=null; s.bagarreT=rand(35,60);
+    if(b.mort){ toast('Le videur évacue ton adversaire. Le patron t’offre un verre !','or'); P.ivresse=Math.min(IVRESSE.max-1,(P.ivresse||0)+8); }
+    return;
+  }
+  if(b) return;
+  s.bagarreT-=dtJeu*(1+(P.ivresse||0)/50);
+  if(s.bagarreT>0) return;
+  s.bagarreT=rand(35,60);
+  const a=Math.random()*Math.PI*2, e=creerEnnemi('fetard',s.piste.x+Math.sin(a)*4,s.piste.z+Math.cos(a)*4,false);
+  if(!e) return;
+  e.interieur=s.id; s.bagarreur=e;
+  toast(pick(['« Hé ! Tu m’as renversé mon verre ! »','« C’est MA piste, ici ! »','« Tu regardes qui, toi ? »','« Dehors, on règle ça… non, ici ! »']),'warn');
+}
 function majInterieur(dt,dtJeu){
   const s=INT.actif; if(!s) return;
   if(s.tuning) garageMajInterieur(s,dt,dtJeu); // porte roulante, étoiles, plateau
@@ -20869,6 +21004,7 @@ function majInterieur(dt,dtJeu){
   if(s.id==='club') for(let i=0;i<s.objets.length;i++){
     s.objets[i].material.opacity=0.25+0.45*Math.abs(Math.sin(ETAT.runT*3+i*0.7));
   }
+  if(s.club) majClub(s,dt,dtJeu);
   // PNJ : danseurs qui bougent, employés qui s'agitent
   for(const p of s.pnj){
     p.ph+=dt*(p.pose==='danse'?7:2.2);
@@ -20879,6 +21015,10 @@ function majInterieur(dt,dtJeu){
       p.h.brasD.rotation.z=-1.2-Math.sin(p.ph)*0.6;
     } else if(p.pose==='caisse'){
       p.h.brasD.rotation.x=-1.1+Math.sin(p.ph)*0.25;
+    } else if(p.pose==='dj'){ // le DJ mixe : une main sur la platine, l'autre en l'air au rythme
+      p.h.brasG.rotation.x=-1.2+Math.sin(p.ph*2)*0.15; p.h.brasD.rotation.z=-2.4-Math.sin(p.ph*1.6)*0.4; p.h.g.position.y=Math.abs(Math.sin(p.ph*1.6))*0.12;
+    } else if(p.pose==='client'){ // client : il boit, il discute
+      p.h.brasD.rotation.x=-0.4-Math.max(0,Math.sin(p.ph*0.7))*1.4; p.h.g.rotation.y+=Math.sin(p.ph*0.3)*dt*0.4;
     } else {
       p.h.g.rotation.y+=dt*0.25;
     }
@@ -23840,7 +23980,7 @@ function startRun(){
   recalcJoueur(); construireJoueur();
   P.x=POIS.place.x; P.z=POIS.place.z+8; P.ang=0; P.y=0; P.vy=0; P.chute=false; P.para=false; P.chuteVx=0; P.chuteVz=0; paraMesh.visible=false;
   P.hp=P.maxHp; P.stam=P.stamMax; P.bouclier=0; P.veh=null;
-  P.buffs={dmg:0,vit:0,butin:0,lourd:0,sprintLibre:0,vol:0,cadence:0}; P.iframes=0; P.dodgeT=0; P.rechT=0; P.specCd=0; P.ecraseT=0;
+  P.buffs={dmg:0,vit:0,butin:0,lourd:0,sprintLibre:0,vol:0,cadence:0}; P.ivresse=0; P.iframes=0; P.dodgeT=0; P.rechT=0; P.specCd=0; P.ecraseT=0;
   P.grenades=3; boutonsAPied(); // jamais el('grenN') seul : voir boutonsAPied (mort au volant)
   if(DECOR_V2){ reparerMobilier(); poserTexteBanderole(META.banderole); if(RIDES.porte){ RIDES.actif=null; RIDES.porte.visible=false; RIDES.txt.style.display='none'; RIDES.records={}; RIDES.primeVague={}; } resetPic(); resetMer(); } P.wingsuit=false; P.wing=false; if(P.wingMesh) P.wingMesh.visible=false; nettoyerPnjMetier(); MET2.serie={taxi:0,ambulance:0,pompier:0}; // course en cours : jamais survivante d'une partie à l'autre // mobilier renversé réparé ; message acheté sur la banderole
   // Jetpack : perdu au game over, comme les armes (voir CLAUDE.md) — il
@@ -23877,6 +24017,7 @@ function startRun(){
     if(sa.swEtat!==undefined){ sa.swEtat=null; sa.swVague=-1;
       if(sa.monstre){ sa.monstre.scale.set(1,1,1); sa.monstre.visible=true; } }
     if(sa.srVague!==undefined){ sa.srVague=-1; sa.srFini=false; }
+    if(sa.club){ sa.danse=null; sa.dansePrimeVague=-1; sa.bagarreT=rand(20,32); sa.bagarreur=null; } // Club Néon : rien ne survit au game over
     // musée : un casse en cours est annulé (game over / mort pendant le casse),
     // le plafond de la vague est levé, la ronde repartira propre à la prochaine
     // entrée (voir entrerInterieur). Les pièces déjà volées restent volées :
@@ -24147,6 +24288,7 @@ function mourir(){
   lanceSonStop(); // pompiers : la lance ouverte au moment de la mort sifflait jusqu'à la partie suivante (audit de nuit)
   if(P.jetpackVol) atterrirJetpack(); // mort en vol (ennemis au sol compris) : coupe tout de suite le son/les flammes
   fermerGarageMenu(INT.actif); // garage tuning : le menu ne reste jamais affiché sur l'écran de mort
+  if(INT.actif&&INT.actif.club) danseFin(INT.actif,false); // Club Néon : la danse s'arrête
   if(INT.actif&&INT.actif.seanceOn) cineArreterSeance(INT.actif); // coupe le son tout de suite, le reste des jauges au retry
   if(INT.actif&&INT.actif.piles){ // Métro : butin perdu et Bête réinitialisée tout de suite, batterie conservée
     INT.actif.butin=0; INT.actif.beteProx=0; INT.actif.niveauPrecBlackout=undefined;
@@ -24206,7 +24348,7 @@ function marquerZone(obj,r2){ if(obj) obj.r=Math.sqrt(r2); return r2; }
 // via le bouton d'action) et toitPasserelle (passerelle qui s'effondre toute
 // seule au 2e tour, autonome comme turrets/creature) rejoignent la même
 // exemption — voir majInterieur, pas majAction.
-const CHAMPS_DECOR_SALLE=new Set(['pnj','culturiste','plaque','gardiens','cameras','piles','dangers','bateau','turrets','creature','boucleHuile','toitPasserelle']);
+const CHAMPS_DECOR_SALLE=new Set(['pnj','culturiste','plaque','gardiens','cameras','piles','dangers','bateau','turrets','creature','boucleHuile','toitPasserelle','danse','bagarreur']); // Club Néon : danse en cours (position figée du danseur) et fêtard bagarreur (un ennemi) ne sont pas des zones
 // Rejoue majAction() avec le joueur hors de portée de tout, pour que la
 // chaîne if/else-if s'évalue en entier (aucune branche ne « gagne » et
 // n'interrompt les suivantes) et que chaque marquerZone() de la salle
@@ -25145,6 +25287,12 @@ function majAction(){
         if(vide){ SFX.refus(); toast('Tu as déjà fait les poches de celui-là'); return; }
         lancerFouille(f);
       };
+    } else if(s.club&&s.danse){
+      label='🎵 EN RYTHME ! '+Math.min(s.danse.n,DANSE.temps)+'/'+DANSE.temps; fn=()=>danseTape(s);
+    } else if(s.club&&dist2(P.x,P.z,s.piste.x,s.piste.z)<marquerZone(s.piste,9)){
+      label=s.dansePrimeVague===WAVES.n?'💃 DANSER (pour le plaisir)':'💃 DANSER — le public paie les bons danseurs'; fn=()=>danseDebut(s);
+    } else if(s.club&&s.bar&&dist2(P.x,P.z,s.bar.x,s.bar.z)<marquerZone(s.bar,12)){
+      label='🍸 COCKTAIL ('+IVRESSE.prix+' $)'+((P.ivresse||0)>IVRESSE.ivre?' — tu as assez bu…':''); fn=()=>boireCocktail();
     } else if(s.bar&&dist2(P.x,P.z,s.bar.x,s.bar.z)<marquerZone(s.bar,12)){
       label='BOIRE UN VERRE (40 $)';
       fn=()=>{
@@ -25556,6 +25704,7 @@ function majCamera(dt){
   const hSol=P.veh&&P.veh.def.air?hSol0:hSol0+Math.max(0,hSol0-20)/3; // au-dessus de 20 u (sommets), la caméra suit vraiment la hauteur : plus de vue collée au joueur
   camera.position.set(P.x+sx,camH+hSol*0.75+chuteF*6,P.z+camD+sz+chuteF*14);
   camera.lookAt(P.x+sx,hSol*0.75+chuteAngF*6,P.z-2+sz);
+  if((P.ivresse||0)>IVRESSE.pompette) camera.rotation.z+=Math.sin(ETAT.runT*1.1)*0.06*Math.min(1,(P.ivresse-IVRESSE.pompette)/50); // ivresse : l'image tangue
   camera.fov=lerp(camera.fov,58+chuteF*14,0.12); camera.updateProjectionMatrix();
 }
 /* cache HUD : le DOM n'est réécrit que si la valeur a changé (gros gain sur mobile) */
@@ -25738,7 +25887,7 @@ function boucle(t){
     ETAT.comboT-=dt;
     if(ETAT.comboT<=0) ETAT.combo=1;
     if(ETAT.slowT>0){ ETAT.slowT-=dtReel; if(ETAT.slowT<=0&&ETAT.mode==='jeu') ETAT.timeScale=1; }
-    if(ETAT.mode==='jeu'){ majNitro(dtJeu); if(DECOR_V2) towEntrees(); majJoueur(dt,dtJeu); if(DECOR_V2){ majRides(dtJeu); majPic(dt); majTow(dt); } } // nitro décidée AVANT la physique du véhicule
+    if(ETAT.mode==='jeu'){ majNitro(dtJeu); if(DECOR_V2) towEntrees(); majJoueur(dt,dtJeu); majIvresse(dtJeu); if(DECOR_V2){ majRides(dtJeu); majPic(dt); majTow(dt); } } // nitro décidée AVANT la physique du véhicule
     majEnnemis(dt);
     if(!INT.actif){
       majPietons(dt);
