@@ -695,8 +695,16 @@ décor sur un générateur **à part** (`aleaDecor()`, `aD()`, `choixD()`, grain
   décor du désert est un maillage FUSIONNÉ — ses sommets dans la parcelle sont
   repliés sous le sol. Défi `RIDE_DEFS.bowl` (REYES BOWL JAM, 10 000 pts en
   60 s : impossible sans figures). Badge 🛹 sur la carte.
+- **Trêve pendant une activité** (`treveActivite()` : `RIDES.actif`,
+  `TOW.actif`, `metierEnCours()` ; demandé : « quand le défi est lancé, il faut se
+  calmer avec les vagues, idem sur d'autres jeux ») : `majVagues` et
+  `majEvenements` gelés (libellé « VAGUES EN PAUSE », écrit une fois,
+  `WAVES.enTreve`), les ennemis non policiers deviennent passifs (patrouille),
+  les motards de gang s'arrêtent. La police continue si l'on est recherché.
+- **Vélo indestructible** : `abimerVehicule` et `exploserVehicule` ignorent
+  `def.velo` (comme la planche de surf). Il peut toujours se noyer.
 - Tests : « Kiosque de la banderole », « Figures deux roues », « Vélos »
-  (appui bref / maintenu), « Skatepark XXL ».
+  (appui bref / maintenu), « Skatepark XXL », « Trêve / vélo ».
 
 ## 9e lot (12 octobre 2026) — amphibie, mur de l'aéroport, salles vivantes
 

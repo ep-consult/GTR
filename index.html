@@ -11409,6 +11409,7 @@ function abimerVehicule(v,d,parJoueur){
     if(d>25) wipeout(v);
     return;
   }
+  if(v.def.velo) return;          // vélo, BMX : ni dégâts, ni feu, ni explosion (demandé : « ce n'est pas une voiture, là il explose »)
   if(v.def.blinde) d*=0.12;       // char : blindage très épais
   if(v.blindage) d*=v.blindage;   // blindage acheté au garage tuning (propre au véhicule)
   v.hp-=d;
@@ -11552,6 +11553,7 @@ function wipeout(v){
 }
 function exploserVehicule(v){
   if(v.def.surf){ wipeout(v); return; }
+  if(v.def.velo){ v.hp=v.def.hp; v.enFeu=false; return; } // un vélo n'explose jamais (grenade, roquette, souffle d'une explosion voisine...)
   // si le joueur était attaché au véhicule (moto, bateau, planche), on le détache
   if(P.surMoto&&P.veh===v){
     try{ v.mesh.remove(P.h.g); scene.add(P.h.g); }catch(e){}
@@ -14206,6 +14208,7 @@ function majEnnemis(dt){
       if(!bt&&patrouille) e.passif=true;
       // la police hors vague ne s'occupe du joueur qu'en cas de recherche
       if(e.fac==='police'&&!e.wave&&WANTED.stars===0&&!bt) e.passif=true;
+      if(e.fac!=='police'&&!bt&&treveActivite()) e.passif=true; // trêve pendant une activité : les gangs (vagues comprises) ne s'occupent plus du joueur
       if(e.garde){ e.passif=e.calme?true:(dJ>560&&!bt); }
     }
     if(e.cible&&e.cible.mort) e.cible=null;
@@ -14261,6 +14264,7 @@ function majEnnemis(dt){
       continue;
     }
     /* --- motard --- */
+    if(e.moto&&e.fac!=='police'&&treveActivite()&&!e.cible){ e.v=lerp(e.v||0,0,2*dt); if(e.mesh){ e.mesh.position.set(e.x,0,e.z); e.mesh.rotation.y=e.ang; } continue; } // trêve : le motard de gang s'arrête, sans tirer
     if(e.moto){
       // sécurité : une moto qui se retrouve dans l'eau regagne la terre ferme
       if(estEau(e.x,e.z)){
@@ -15030,7 +15034,7 @@ function majWanted(dt){
 /* ---------- événements aléatoires ---------- */
 const EVT={cible:null,t:30,marchandT:0};
 function majEvenements(dt){
-  if(INT.actif) return;
+  if(INT.actif||treveActivite()) return; // trêve pendant une activité
   EVT.t-=dt; EVT.marchandT-=dt;
   if(POIS.marchand&&EVT.marchandT<=0){
     scene.remove(POIS.marchand.mesh); POIS.marchand=null; ETAT.promo=false;
@@ -15256,7 +15260,9 @@ function majVagues(dt){
   // que le joueur se concentre sur l'objectif — demandé explicitement, les
   // vagues rendaient ces missions illisibles. Les ennemis déjà en vie
   // restent une menace, ils continuent d'être mis à jour ailleurs.
-  if(INT.actif||metierEnCours()) return;
+  if(INT.actif) return;
+  if(treveActivite()){ if(!WAVES.enTreve){ WAVES.enTreve=true; el('waveLabel').textContent='VAGUES EN PAUSE — '+(RIDES.actif?'défi':(metierEnCours()?'mission':'activité'))+' en cours'; } return; } // écrit une fois (le reste de majVagues écrit ce libellé directement)
+  WAVES.enTreve=false;
   if(WAVES.etat==='repos'){
     WAVES.t-=dt;
     el('waveLabel').textContent='VAGUE '+(WAVES.n+1)+' DANS '+Math.ceil(Math.max(0,WAVES.t))+' s';
@@ -21905,6 +21911,12 @@ const MET={pompier:null,taxi:null,depanneuse:null,ambulance:null,police:null,
   // par majMetiers(), repeuplés par la fonction du métier actif s'il y en a un.
   ciblePos:null,txt:'',jauge:null};
 function metierEnCours(){ return !!(MET.pompier||MET.taxi||MET.depanneuse||MET.ambulance||MET.police); }
+// Trêve pendant une activité (10e lot, demandé : « quand le défi est lancé, il faut se calmer avec les vagues ;
+// idem sur les autres jeux, c'est impossible à jouer sinon ») : course ou défi (mont, mesas, montée sèche,
+// supercross, bouées, REYES BOWL JAM), wakeboard ou parachute ascensionnel, métier en cours. Les vagues et les
+// événements (guerres de gangs...) sont gelés, et les gangs déjà là patrouillent sans s'occuper du joueur. La
+// police, elle, continue si l'on est recherché.
+function treveActivite(){ return !!(RIDES.actif||(DECOR_V2&&TOW.actif)||metierEnCours()); }
 // Balise dédiée, jamais la même que `balise` (déjà prise par MISSION.cur) —
 // les deux peuvent être actives en même temps sans se marcher dessus.
 const metierBalise=new THREE.Mesh(new THREE.CylinderGeometry(1.4,1.4,9,12,1,true),

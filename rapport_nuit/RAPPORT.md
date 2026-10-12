@@ -1155,6 +1155,9 @@ Captures (`captures/lot10/`) :
 - **Défi REYES BOWL JAM** : 10 000 points en 60 s, une prime de 350 $ par vague. Sans figures, c'est raté : le pilote simulé parfait fait 6 200 à 8 000 points. Avec un backflip par air, il fait 13 400 à 15 200 points.
 - **Captures** : `skx_aerien.png`, `skx_bowl.png`, `skx_quarter.png`, `skx_nuit.png`, `skx_air_bmx.png`, `skx_air_quarter.png`, `skx_jeu.png`.
 
+| Pendant un défi, « se calmer avec les vagues », idem pour les autres jeux | Pendant une course ou un défi (mont, mesas, montée sèche, supercross, bouées, REYES BOWL JAM), le wakeboard, le parachute ascensionnel ou un métier : **les vagues sont en pause** (« VAGUES EN PAUSE — défi en cours »), les événements aléatoires aussi (guerres de gangs…), et **les gangs déjà présents ne s'occupent plus de toi** : ils patrouillent, les motards s'arrêtent. Tout reprend à la fin de l'activité. **Choix :** la police continue si tu es recherché. | voir le dernier commit |
+| Le vélo explose | Le vélo et le BMX ne prennent plus aucun dégât et n'explosent jamais (grenade, roquette, explosion voisine), comme la planche de surf. Ils peuvent toujours se noyer. | idem |
+
 ### Piste ouverte
 
 - **Trafic** : un choc rare d'un bus de ville contre un pickup arrêté (2 parties de 60 s sur environ 90). Il n'a pas pu être reproduit sous instrumentation en 85 essais. Le test de circulation tolère donc au plus 2 chocs par minute au lieu d'exiger zéro, pour ne pas être aléatoire. À reprendre si tu le vois en jeu, en notant l'endroit.

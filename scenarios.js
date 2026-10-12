@@ -9219,6 +9219,48 @@ async function main() {
       else ok('Skatepark XXL : ' + r.info.join(' ; ') + ' ; jam raté sans figure, une prime par vague');
     }
 
+    // -------------------------------------------------------------------
+    // 10e lot, n° 4 (demandé : « quand le défi est lancé, il faut se calmer
+    // avec les vagues, idem sur d'autres jeux » ; « le vélo ne doit pas se
+    // casser, ce n'est pas une voiture, là il explose »).
+    // -------------------------------------------------------------------
+    console.log('\n--- Trêve pendant un défi ou une activité ; vélo indestructible ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (P.veh) sortirVehicule(true);
+        startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
+        for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0;
+        // défi lancé : le compte à rebours des vagues ne bouge plus, aucune vague ne part
+        const v = creerVehicule('motocross', P.x + 3, P.z, 0, null); P.x = v.x; P.z = v.z; entrerVehicule(v);
+        RIDES.actif = { id: 'stunt', portes: [], i: 0, t: 999, t0: 0, pts: 0 };
+        WAVES.etat = 'repos'; WAVES.t = 0.5; const n0 = WAVES.n;
+        for (let i = 0; i < 60; i++) majVagues(1 / 30);
+        if (WAVES.n !== n0 || WAVES.t !== 0.5) ko.push('une vague part pendant un défi');
+        if (!/PAUSE/.test(document.getElementById('waveLabel').textContent)) ko.push('libellé des vagues : ' + document.getElementById('waveLabel').textContent);
+        // un gang déjà là ne s'occupe plus du joueur
+        const g = creerEnnemi('vip_pistol', P.x + 8, P.z, true); g.cibleT = 0;
+        const hp0 = P.hp; for (let i = 0; i < 90; i++) majEnnemis(1 / 30);
+        if (!g.passif) ko.push('le gang attaque pendant le défi'); else info.push('défi : vagues en pause, gangs passifs');
+        // défi fini : tout reprend
+        RIDES.actif = null; g.cibleT = 0; for (let i = 0; i < 30; i++) majEnnemis(1 / 30); for (let i = 0; i < 30; i++) majVagues(1 / 30);
+        if (g.passif && !g.mort) ko.push('le gang reste passif après le défi');
+        if (WAVES.n === n0) ko.push('les vagues ne reprennent pas après le défi'); else info.push('défi fini : les vagues reprennent');
+        g.mort = true;
+        // vélo et BMX : ni dégâts, ni explosion
+        for (const cle of Object.keys(VEHDEFS).filter((k) => VEHDEFS[k].velo)) {
+          const b = creerVehicule(cle, P.x + 6, P.z + 6, 0, null); const h0 = b.hp;
+          abimerVehicule(b, 500, true); exploserVehicule(b);
+          if (b.mort || b.hp < h0 || b.enFeu) ko.push(cle + ' : abîmé ou détruit (hp ' + b.hp + ', mort ' + !!b.mort + ')');
+        }
+        info.push('vélo et BMX indestructibles');
+        if (P.veh) sortirVehicule(true);
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Trêve / vélo : ' + r.ko.join(' | '));
+      else ok('Trêve / vélo : ' + r.info.join(', '));
+    }
+
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');
     {
       const srcIdx = fs.readFileSync(INDEX_HTML, 'utf8');
