@@ -18185,10 +18185,10 @@ function construireSalle(id){
     pnj(0,6.2,{haut:0x14161c,bas:0x1c2030,peau:pick(civPeau),casq:0x14161c,visage:'cool'},'caisse');
     lampe(0,-5,0xff5ad0,10); lampe(-6,2,0x35e0ff,8); lampe(6,2,0xffd23f,8);
   }
-  /* ================= AQUARIUM « BLEU PROFOND » =================
-     But : retrouver Gaston, le poulpe évadé. Il change de bassin à chaque
-     vague. Fouiller un bassin voisin fait remonter des bulles : c'est
-     l'indice. Curiosité : la Perle Noire, qu'il rendra la première fois. */
+  /* ================= AQUARIUM « BLEU PROFOND » (refait au 11e lot) =================
+     Mini-jeu « 1, 2, 3… GASTON ! » : voir la section AQUARIUM. Les six
+     bassins sont des perchoirs pour Gaston ; on lance la partie auprès du
+     gardien. Curiosité : la Perle Noire, qu'il rend la première fois. */
   else if(id==='aquarium'){
     // sol humide sombre
     for(let i=-4;i<4;i++) for(let j=-3;j<3;j++){
@@ -18196,48 +18196,69 @@ function construireSalle(id){
       const t=new THREE.Mesh(new THREE.PlaneGeometry(3.4,3.4),mat(0x18404f));
       t.rotation.x=-Math.PI/2; t.position.set(ox+i*3.5+1.75,0.11,oz+j*3.5+1.75); g.add(t);
     }
-    const matEau2=new THREE.MeshLambertMaterial({map:texEau,emissive:new THREE.Color(0x0e2c3a)});
-    inter.bassins=[];
+    // eau des bassins : texture propre (elle ondule sans toucher la mer de la ville), translucide (on voit les poissons)
+    const texEauAq=texEau.clone(); texEauAq.needsUpdate=true; texEauAq.repeat.set(1,1); inter.texEauAq=texEauAq;
+    const matEau2=new THREE.MeshLambertMaterial({map:texEauAq,emissive:new THREE.Color(0x0e2c3a),transparent:true,opacity:0.55,depthWrite:false});
+    inter.cuves=[]; inter.perchoirs=[];
     // 6 bassins circulaires en deux rangées
     const posB=[[-8.5,-6.5],[0,-6.5],[8.5,-6.5],[-8.5,-0.5],[0,-0.5],[8.5,-0.5]];
+    const coulsPoissons=[0xffd23f,0xff8a5a,0x35e0ff,0xff5ad0,0x7dff7a,0xffffff];
     posB.forEach((p,k)=>{
+      const fond=new THREE.Mesh(new THREE.CylinderGeometry(2.42,2.42,0.1,20),mat(0x0d3a4a)); fond.position.set(ox+p[0],0.2,oz+p[1]); g.add(fond);
       const paroi=new THREE.Mesh(new THREE.CylinderGeometry(2.5,2.5,1.5,20,1,true),
-        new THREE.MeshLambertMaterial({color:0x2a6a80,transparent:true,opacity:0.55,side:THREE.DoubleSide}));
+        new THREE.MeshLambertMaterial({color:0x2a6a80,transparent:true,opacity:0.4,side:THREE.DoubleSide,depthWrite:false}));
       paroi.position.set(ox+p[0],0.75,oz+p[1]); g.add(paroi);
-      const eau=new THREE.Mesh(new THREE.CylinderGeometry(2.42,2.42,0.12,20),matEau2);
+      const eau=new THREE.Mesh(new THREE.CylinderGeometry(2.42,2.42,0.08,20),matEau2);
       eau.position.set(ox+p[0],1.38,oz+p[1]); g.add(eau);
       const rebord=new THREE.Mesh(new THREE.TorusGeometry(2.5,0.14,6,20),mat(0xd8dce4));
       rebord.rotation.x=Math.PI/2; rebord.position.set(ox+p[0],1.5,oz+p[1]); g.add(rebord);
       addSolid({x:ox+p[0],z:oz+p[1],hw:2.5,hd:2.5,h:1.5});
-      // décor immergé
-      for(let q=0;q<3;q++){
-        const cor=new THREE.Mesh(new THREE.ConeGeometry(0.22,rand(0.5,0.9),6),
-          mat(pick([0xff8a5a,0xff5ad0,0x7dff7a])));
-        cor.position.set(ox+p[0]+rand(-1.4,1.4),1.2,oz+p[1]+rand(-1.4,1.4)); g.add(cor);
+      for(let q=0;q<4;q++){
+        const cor=new THREE.Mesh(new THREE.ConeGeometry(0.22,rand(0.5,0.9),6),mat(pick([0xff8a5a,0xff5ad0,0x7dff7a])));
+        cor.position.set(ox+p[0]+rand(-1.5,1.5),0.55,oz+p[1]+rand(-1.5,1.5)); g.add(cor);
       }
-      mkEnseigne('BASSIN '+(k+1),'#35e0ff',ox+p[0],2.2,oz+p[1]+2.6,0,6);
-      inter.bassins.push({x:ox+p[0],z:oz+p[1]+3.2,idx:k,eau,cx:ox+p[0],cz:oz+p[1]});
+      const poissons=[];
+      for(let q=0;q<4;q++){ const f=new THREE.Group(), c=pick(coulsPoissons);
+        const corps=new THREE.Mesh(new THREE.BoxGeometry(0.24,0.2,0.55),mat(c)); f.add(corps);
+        const queue=new THREE.Mesh(new THREE.BoxGeometry(0.05,0.24,0.2),mat(c)); queue.position.z=-0.36; f.add(queue);
+        g.add(f); poissons.push({m:f,a:rand(0,6.28),r:rand(0.7,1.8),v:rand(0.5,1.1)*(Math.random()<0.5?-1:1),y:rand(0.6,1.15)}); }
+      inter.cuves.push({cx:ox+p[0],cz:oz+p[1],poissons});
+      // perchoir de Gaston : le bord tourné vers l'allée la plus large ;
+      // (ax,az) = d'où on l'attrape — champs gx/ax (jamais x/z : ce ne sont pas des zones d'action)
+      const sx=p[0]===0?(k<3?1:-1):Math.sign(p[0]);
+      inter.perchoirs.push({gx:ox+p[0]+sx*2.25,gz:oz+p[1],ax:ox+p[0]+sx*3.6,az:oz+p[1],cx:ox+p[0],cz:oz+p[1]});
     });
-    // Gaston : petite masse violette, cachée, révélée quand on le trouve
+    // Gaston : gros poulpe violet aux yeux qui s'ouvrent quand il regarde
     const gast=new THREE.Group();
-    const tete=new THREE.Mesh(new THREE.SphereGeometry(0.55,10,8),mat(0x8a4de0));
-    tete.scale.y=1.15; gast.add(tete);
-    for(let k=0;k<6;k++){
-      const br=new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.05,0.9,6),mat(0x9a5de8));
-      const a=k/6*Math.PI*2;
-      br.position.set(Math.sin(a)*0.45,-0.4,Math.cos(a)*0.45);
-      br.rotation.x=Math.cos(a)*0.7; br.rotation.z=-Math.sin(a)*0.7; gast.add(br);
-    }
-    const oG=new THREE.Mesh(new THREE.SphereGeometry(0.1,7,6),mat(0xffffff));
-    oG.position.set(0.2,0.16,0.44); gast.add(oG);
-    const oG2=oG.clone(); oG2.position.x=-0.2; gast.add(oG2);
-    gast.visible=false; g.add(gast);
-    inter.gastonMesh=gast; inter.gastonIdx=randi(0,5); inter.gastonVague=-1; inter.gastonTrouve=false;
-    // tunnel de verre décoratif
-    const tun=new THREE.Mesh(new THREE.CylinderGeometry(1.8,1.8,9,14,1,true),
-      new THREE.MeshLambertMaterial({color:0x2a7a96,transparent:true,opacity:0.3,side:THREE.DoubleSide}));
-    tun.rotation.z=Math.PI/2; tun.position.set(ox,2.6,oz+4.4); g.add(tun);
-    mkEnseigne('TUNNEL DE VERRE','#35e0ff',ox,4.9,oz+4.4,0,10);
+    const corpsG=new THREE.Mesh(new THREE.SphereGeometry(0.62,12,10),new THREE.MeshLambertMaterial({color:0x8a4de0,emissive:0x000000}));
+    corpsG.scale.y=1.2; corpsG.position.y=0.25; gast.add(corpsG);
+    for(let k=0;k<8;k++){ const a=k/8*Math.PI*2, br=new THREE.Mesh(new THREE.CylinderGeometry(0.11,0.04,1.0,6),mat(0x9a5de8));
+      br.position.set(Math.sin(a)*0.48,-0.32,Math.cos(a)*0.48); br.rotation.x=Math.cos(a)*0.8; br.rotation.z=-Math.sin(a)*0.8; gast.add(br); }
+    const yeux=[];
+    for(const sx of [-0.24,0.24]){ const o=new THREE.Group(); o.position.set(sx,0.42,0.5);
+      const blanc=new THREE.Mesh(new THREE.SphereGeometry(0.17,8,6),mat(0xffffff)); o.add(blanc);
+      const pup=new THREE.Mesh(new THREE.SphereGeometry(0.08,6,5),mat(0x111111)); pup.position.z=0.12; o.add(pup);
+      o.scale.y=0.35; gast.add(o); yeux.push(o); }
+    // halo au sol : on le repère d'un coup d'œil (violet ; rouge quand il regarde)
+    const haloG=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:0xb07dff,transparent:true,opacity:0.75,depthWrite:false,blending:THREE.AdditiveBlending}));
+    haloG.scale.set(3.4,3.4,1); haloG.position.y=-0.55; gast.add(haloG);
+    gast.scale.setScalar(1.5); gast.visible=false; g.add(gast);
+    inter.gastonMesh=gast; inter.gastonYeux=yeux; inter.gastonCorps=corpsG; inter.gastonHalo=haloG;
+    inter.gastonVague=-1; inter.gastonTrouve=false; inter.aqActif=false; inter.aqCuve=-1; inter.aqFinT=0; inter.aqIntroT=0;
+    // grand bassin mural au nord : poissons et un requin qui passent
+    const vitre=new THREE.Mesh(new THREE.BoxGeometry(24,2.8,0.7),new THREE.MeshLambertMaterial({color:0x14627a,emissive:0x0a3446,transparent:true,opacity:0.75}));
+    vitre.position.set(ox,1.5,oz-9.9); g.add(vitre);
+    inter.grandBassin=[];
+    for(let q=0;q<7;q++){ const requin=q===0, f=new THREE.Group(), c=requin?0x6a7a86:pick(coulsPoissons);
+      const corps=new THREE.Mesh(new THREE.BoxGeometry(requin?0.55:0.25,requin?0.45:0.22,requin?2.2:0.6),mat(c)); f.add(corps);
+      if(requin){ const aileron=new THREE.Mesh(new THREE.ConeGeometry(0.25,0.6,3),mat(c)); aileron.position.y=0.45; f.add(aileron); }
+      f.position.set(ox,1,oz-9.9); g.add(f); inter.grandBassin.push({m:f,x:rand(-11,11),y:rand(0.6,2.4),v:(requin?2:rand(1,2.4))*(Math.random()<0.5?-1:1),ph:rand(0,6)}); }
+    // le gardien, à l'est : c'est lui qui lance la chasse
+    const gardienH=pnj(12.4,-3,{haut:0x1f6a7a,bas:0x14202a,peau:pick(civPeau),casq:0x0e3a46,visage:'neutre'});
+    gardienH.g.rotation.y=-Math.PI/2; inter.gardienH=gardienH;
+    inter.gardien={x:ox+11.2,z:oz-3};
+    box(1.2,1,0.8,0x1e5468,13,0.5,-1.4,false); // seau et épuisette du gardien
+    const epuis=new THREE.Mesh(new THREE.TorusGeometry(0.35,0.04,6,14),mat(0xd8dce4)); epuis.position.set(ox+13,1.6,oz-1.4); g.add(epuis);
     // guichet + caisse
     box(4,1.1,1.4,0x1e5468,-10,0.55,7.4);
     box(1.2,0.5,0.9,0xd8b02a,-10,1.35,7.4,false);
@@ -18247,19 +18268,14 @@ function construireSalle(id){
     // casier des gardiens + seaux d'appâts + caisse à outils
     const cas=box(2.6,2.2,1,0x3a4a52,10.4,1.1,7);
     for(let k=0;k<3;k++) box(0.1,2,0.05,0x1a2a32,9.5+k*0.9,1.1,7.55,false);
-    mkEnseigne('PERSONNEL','#8ad2ff',ox+10.4,2.7,oz+6.4,0,8);
     fouillable(10.4,5.8,'Casier des gardiens','louche',cas,3);
     for(let k=0;k<3;k++){
       const sb=new THREE.Mesh(new THREE.CylinderGeometry(0.42,0.34,0.7,10),mat(0x6a7f8a));
       sb.position.set(ox+5.2+k*1.1,0.35,oz+8);g.add(sb);
     }
-    fouillable(6.3,7.2,'Seaux d\u2019appâts','pauvre',null,3);
+    fouillable(6.3,7.2,'Seaux d’appâts','pauvre',null,3);
     const bo=box(1.4,0.7,0.9,0xd8304a,3,0.35,6.4,false);
     fouillable(3,5.8,'Caisse à outils','standard',bo,2.7);
-    // visiteurs qui contemplent
-    pnj(-6.2,1.6,{haut:pick(civHaut),bas:pick(civBas),peau:pick(civPeau),casq:0x4a3520,visage:'gentil'});
-    pnj(2.4,1.8,{haut:pick(civHaut),bas:pick(civBas),peau:pick(civPeau),casq:0xd8c8a8,visage:'neutre'});
-    pnj(7.2,2.2,{haut:pick(civHaut),bas:pick(civBas),peau:pick(civPeau),casq:0x2a2018,visage:'cool'});
     lampe(-8,-3.5,0x35e0ff,9); lampe(0,-3.5,0x35e0ff,9); lampe(8,-3.5,0x35e0ff,9);
     lampe(0,6,0x8ad2ff,9);
   }
@@ -19888,6 +19904,7 @@ function sortirInterieur(){
   // chemin de sortie qui n'est pas passé par là. Batterie non touchée.
   if(sc.piles){ sc.butin=0; sc.beteProx=0; sc.niveauPrecBlackout=undefined; metroAmbianceStop(); }
   if(sc.emissionOn){ radioArreterEmission(sc); toast('Tu quittes en pleine émission. Le signal s’éteint.'); }
+  if(sc.aqActif){ aquariumArreter(sc); toast('Tu abandonnes la chasse. Gaston en profite.'); }
   if(sc.sortieEnCours){ chalutierArreterSortie(sc); toast('Tu abandonnes la sortie en pleine mer. Retour au ponton.'); }
   // Le Dépôt de bus : filet de sécurité générique — l'abandon normal (bouton
   // dédié, voir depotWrap) a déjà nettoyé la course ; ceci couvre tout autre
@@ -20099,6 +20116,207 @@ function finMonstre(s,gagne){
     for(let i=0;i<10;i++) spawnP(P.x+rand(-0.6,0.6),rand(0.6,1.6),P.z+rand(0,1.4),
       rand(-1,1),rand(0.5,1.5),rand(0,2),0.8,0.5,0x7a8a3a,3);
   }
+}
+/* =====================================================================
+   AQUARIUM « BLEU PROFOND » — « 1, 2, 3… GASTON ! » (11e lot, refonte)
+   Promesse : rattraper Gaston, le poulpe évadé, perché sur le bord d'un
+   bassin — sans jamais qu'il te voie bouger.
+   Mécanique : « un, deux, trois, soleil ». Dos tourné (😌), on avance ; il
+   frissonne (❗), c'est le signal ; il se retourne (👀) : qui bouge prend un
+   jet d'encre, et Gaston file sur un autre bassin. Le toucher cinq fois,
+   de plus en plus vite, avant 75 s et avant trois jets d'encre.
+   Moment fort : les dernières manches, courtes, pleines de fausses alertes.
+   Tout se joue contre le chrono et le regard de Gaston : dtJeu partout
+   (les animations, poissons et bulles restent sur dt).
+===================================================================== */
+const AQUA_DUREE=75, AQUA_MANCHES=5, AQUA_TACHES_MAX=3;
+const AQUA_DOS=[[2.6,3.6],[2.2,3.0],[1.8,2.6],[1.4,2.2],[1.1,1.8]];   // dos tourné, par manche (s)
+const AQUA_ALERTE=[0.75,0.65,0.56,0.48,0.42];                         // il frissonne : le signal pour s'arrêter
+const AQUA_REGARDE=[[1.4,2.0],[1.6,2.3],[1.8,2.6],[2.0,2.8],[2.2,3.0]];
+const AQUA_FEINTE=[0,0.15,0.25,0.33,0.4];                             // fausse alerte (il frissonne puis se rendort)
+const AQUA_GRACE=0.22;                             // s de réaction accordées au début du regard
+const AQUA_VIT_MAX=0.9;                            // u/s : au-delà, il te voit bouger
+const AQUA_TOUCHE=1.9;                             // u : distance pour l'attraper
+const AQUA_FUITE=0.9;                              // s : saut d'un bassin à l'autre
+// ---- interface : indicateur du regard, encre, carte d'intro ----
+function carteSalle(css){ const d=document.createElement('div');
+  d.style.cssText='position:absolute;left:50%;transform:translate(-50%,-50%);width:min(330px,88vw);display:none;z-index:8;'+
+    'pointer-events:none;text-align:center;padding:14px 12px;border-radius:18px;box-sizing:border-box;'+
+    'background:linear-gradient(180deg,#0d3550f2,#061824f2);border:2px solid #ffd23f88;box-shadow:0 8px 30px #000d;transition:opacity .4s;'+css;
+  el('hud').appendChild(d); return d; }
+const ligneCarte=(ico,txt)=>'<div style="display:flex;align-items:center;gap:10px;margin:6px 4px;text-align:left">'+
+  '<span style="font-size:24px;width:32px;text-align:center;flex-shrink:0">'+ico+'</span>'+
+  '<span style="font:800 13px Arial;color:#fff;line-height:1.25">'+txt+'</span></div>';
+const aquaIntroWrap=carteSalle('top:36%;border-color:#b07dff99');
+aquaIntroWrap.innerHTML='<div style="font:900 21px Arial;color:#d8b8ff;letter-spacing:.03em;text-shadow:0 2px 0 #000">🐙 1, 2, 3… GASTON !</div>'+
+  '<div style="font:800 11px Arial;color:#9fd8ee;margin:2px 0 8px;letter-spacing:.08em">LE POULPE S’EST ÉVADÉ</div>'+
+  ligneCarte('😌','dos tourné : <b>avance</b>')+ligneCarte('❗','il frissonne : <b>arrête-toi</b>')+
+  ligneCarte('👀','il regarde : <b>NE BOUGE PLUS</b>')+ligneCarte('✋','touche-le <b>'+AQUA_MANCHES+' fois</b>, il accélère')+ligneCarte('💦',AQUA_TACHES_MAX+' jets d’encre et il file');
+const aquaWrap=document.createElement('div');
+aquaWrap.style.cssText='position:absolute;left:50%;top:calc(env(safe-area-inset-top,0px) + 78px);transform:translateX(-50%);'+
+  'display:none;pointer-events:none;z-index:6;text-align:center';
+aquaWrap.innerHTML='<div id="aquaOeil" style="width:76px;height:76px;margin:0 auto;border-radius:50%;display:flex;align-items:center;justify-content:center;'+
+  'font-size:40px;background:#0b2233ee;border:4px solid #3fbf6a;box-shadow:0 0 18px #3fbf6a88;transition:border-color .12s,box-shadow .12s">😌</div>'+
+  '<div id="aquaOrdre" style="font:900 20px Arial;color:#3fbf6a;text-shadow:0 2px 0 #000,0 0 8px #000;margin-top:3px;letter-spacing:.05em">BOUGE !</div>'+
+  '<div style="display:inline-flex;gap:10px;align-items:center;margin-top:3px;padding:3px 10px;border-radius:10px;background:#0b2233cc">'+
+  '<span id="aquaTouches" style="font:900 13px Arial;color:#d8b8ff">🐙 0/3</span>'+
+  '<span id="aquaTaches" style="font-size:13px;letter-spacing:1px">🤍🤍🤍</span>'+
+  '<span id="aquaChrono" style="font:900 13px Arial;color:#fff">1:15</span></div>';
+el('hud').appendChild(aquaWrap);
+const aquaOeilEl=aquaWrap.querySelector('#aquaOeil'), aquaOrdreEl=aquaWrap.querySelector('#aquaOrdre'),
+      aquaTouchesEl=aquaWrap.querySelector('#aquaTouches'), aquaTachesEl=aquaWrap.querySelector('#aquaTaches'), aquaChronoEl=aquaWrap.querySelector('#aquaChrono');
+const aquaEncreEl=document.createElement('div');
+aquaEncreEl.style.cssText='position:fixed;inset:0;pointer-events:none;z-index:7;opacity:0;'+
+  'background:radial-gradient(circle at 30% 40%,#05030ae6 0 12%,transparent 13%),radial-gradient(circle at 62% 55%,#05030ae0 0 16%,transparent 17%),'+
+  'radial-gradient(circle at 48% 30%,#0a0614d8 0 9%,transparent 10%),radial-gradient(circle at 70% 25%,#05030ad0 0 7%,transparent 8%),'+
+  'radial-gradient(circle at 25% 68%,#0a0614d8 0 10%,transparent 11%),radial-gradient(ellipse at 50% 50%,#1a0a3a66 0 60%,transparent 61%)';
+document.body.appendChild(aquaEncreEl);
+let aquaEncreT=0;
+function aquaPerchoir(s,i){ return s.perchoirs[i]; }
+// Gaston choisit un bassin loin du joueur (jamais le même)
+function aquaChoisirPerchoir(s){
+  let best=-1,bd=-1;
+  for(let i=0;i<s.perchoirs.length;i++){ if(i===s.aqCuve) continue; const p=s.perchoirs[i];
+    const d=Math.hypot(p.ax-P.x,p.az-P.z)+rand(0,6); if(d>bd){ bd=d; best=i; } }
+  return best;
+}
+function aquaPoserGaston(s,i){
+  s.aqCuve=i; const p=s.perchoirs[i];
+  s.gastonMesh.visible=true; s.gastonMesh.position.set(p.gx,1.55,p.gz);
+}
+function aquaEtat(s,etat){
+  const m=Math.min(s.aqManche,AQUA_MANCHES-1);
+  s.aqEtat=etat;
+  if(etat==='dos') s.aqT=rand(AQUA_DOS[m][0],AQUA_DOS[m][1]);
+  else if(etat==='alerte'){ s.aqT=AQUA_ALERTE[m]; s.aqFeinte=Math.random()<AQUA_FEINTE[m]; beep(520,0.09,'triangle',0.12); beep(780,0.09,'triangle',0.1); }
+  else if(etat==='regarde'){ s.aqT=rand(AQUA_REGARDE[m][0],AQUA_REGARDE[m][1]); s.aqGraceT=AQUA_GRACE; beep(240,0.25,'sawtooth',0.12,180); vibre(30); }
+  else if(etat==='fuite') s.aqT=AQUA_FUITE;
+}
+function aquariumDemarrer(s){
+  if(s.aqActif) return;
+  s.aqActif=true; s.aqManche=0; s.aqTaches=0; s.aqChrono=0; s.aqPX=P.x; s.aqPZ=P.z; s.aqCuve=-1; s.aqFin=null; s.aqFinT=0;
+  aquaPoserGaston(s,aquaChoisirPerchoir(s)); aquaEtat(s,'dos');
+  s.aqIntroT=3.6; aquaIntroWrap.style.opacity='1'; aquaIntroWrap.style.display='block';
+  aquaWrap.style.display='block'; cacherBoutonsCombat();
+  bigMsg('🐙 1, 2, 3… GASTON !'); SFX.ui(); vibre(30);
+}
+// fin de partie, gagnée ou non — point de reset commun (sortie, mort, game over)
+function aquariumArreter(s){
+  s.aqActif=false; s.aqEtat=null; s.aqIntroT=0; s.aqSaut=null;
+  if(aquaWrap.style.display!=='none') aquaWrap.style.display='none';
+  if(aquaIntroWrap.style.display!=='none') aquaIntroWrap.style.display='none';
+  aquaEncreT=0; aquaEncreEl.style.opacity='0';
+  afficherBoutonsCombat();
+}
+function aquaTouche(s){
+  if(!s.aqActif) return;
+  s.aqManche++;
+  const g=s.gastonMesh.position;
+  for(let i=0;i<22;i++) spawnP(g.x,g.y+0.4,g.z,rand(-3,3),rand(2,5),rand(-3,3),0.9,0.45,pick([0xb07dff,0xff5ad0,0xffffff]),8);
+  SFX.etoile(); vibre(70); secousse(2);
+  if(s.aqManche>=AQUA_MANCHES){ aquaVictoire(s); return; }
+  bigMsg('✋ TOUCHÉ ! '+s.aqManche+'/'+AQUA_MANCHES);
+  spawnTexte(g.x,3,g.z,pick(['Hé !','Pas juste !','Raté… presque !']),'#d8b8ff');
+  aquaFuir(s);
+}
+function aquaFuir(s){
+  const p0=s.perchoirs[s.aqCuve], i=aquaChoisirPerchoir(s), p1=s.perchoirs[i];
+  s.aqSaut={x0:p0.gx,z0:p0.gz,x1:p1.gx,z1:p1.gz,t:0}; s.aqCuve=i;
+  aquaEtat(s,'fuite');
+}
+function aquaRepere(s){
+  s.aqTaches++;
+  const g=s.gastonMesh.position, dx=P.x-g.x, dz=P.z-g.z, d=Math.hypot(dx,dz)||1;
+  for(let i=0;i<26;i++){ const k=rand(0.3,1); spawnP(g.x,g.y+0.3,g.z,dx/d*rand(6,12)*k,rand(1,3),dz/d*rand(6,12)*k,0.9,rand(0.4,0.8),0x0a0614,4); }
+  aquaEncreT=1.5; aquaEncreEl.style.opacity='1';
+  SFX.degat(); beep(120,0.3,'sawtooth',0.15,60); vibre(120); secousse(3);
+  if(s.aqTaches>=AQUA_TACHES_MAX){ aquaEchec(s,'encre'); return; }
+  bigMsg('💦 REPÉRÉ ! '+s.aqTaches+'/'+AQUA_TACHES_MAX);
+  aquaFuir(s);
+}
+function aquaVictoire(s){
+  const premier=!aCurio('perle');
+  s.gastonTrouve=true; s.gastonVague=WAVES.n; META.gaston++;
+  s.aqFin='gagne'; s.aqFinT=3;
+  aquariumArreter(s);
+  s.gastonMesh.visible=true;
+  bigMsg('🐙 GASTON EST ATTRAPÉ !');
+  for(let i=0;i<50;i++) spawnP(P.x+rand(-2.5,2.5),rand(1,4),P.z+rand(-2.5,2.5),rand(-2,2),rand(2,5),rand(-2,2),1.5,0.5,pick([0xb07dff,0xffd23f,0x35e0ff,0xff5ad0]),3);
+  SFX.niveau(); vibre(150);
+  if(premier){ toast('Il te tend quelque chose de rond et de noir…','or'); donnerCurio('perle'); }
+  else { const g2=randi(180,380); META.argent+=g2; ETAT.cashRun+=g2; META.stats.cashTotal+=g2;
+    spawnTexte(P.x,3,P.z,'+'+g2+' $','#7dff7a'); toast('Le gardien te remercie : +'+g2+' $','or'); SFX.achat(); }
+  checkDefis(); sauveMeta();
+}
+function aquaEchec(s,raison){
+  s.aqFin='perdu'; s.aqFinT=2.5;
+  aquariumArreter(s);
+  bigMsg(raison==='temps'?'⏱ GASTON S’EST CACHÉ':'💦 GASTON S’EST ENFUI');
+  toast('Le gardien soupire. Retente ta chance : parle-lui à nouveau.','warn'); SFX.refus();
+  s.gastonMesh.visible=false;
+}
+function aquariumMaj(s,dt,dtJeu){
+  const T=ETAT.runT;
+  // ---- décor (dt) : eau qui ondule, poissons des bassins, bulles, grand bassin ----
+  if(s.texEauAq){ s.texEauAq.offset.x+=dt*0.03; s.texEauAq.offset.y+=dt*0.02; }
+  for(const c of s.cuves){ for(const f of c.poissons){ f.a+=dt*f.v; f.m.position.set(c.cx+Math.sin(f.a)*f.r,f.y+Math.sin(T*2+f.a)*0.05,c.cz+Math.cos(f.a)*f.r); f.m.rotation.y=f.a+(f.v>0?Math.PI/2:-Math.PI/2); }
+    if(Math.random()<dt*1.4) spawnP(c.cx+rand(-1.6,1.6),0.5,c.cz+rand(-1.6,1.6),0,rand(0.8,1.4),0,0.9,0.18,0xdff6ff,-0.3); }
+  if(s.grandBassin) for(const f of s.grandBassin){ f.x+=f.v*dt; if(f.x>11) f.x=-11; if(f.x<-11) f.x=11; f.m.position.x=s.ox+f.x; f.m.position.y=f.y+Math.sin(T+f.ph)*0.2; f.m.rotation.y=f.v>0?Math.PI/2:-Math.PI/2; }
+  if(s.gardienH){ s.gardienH.brasD.rotation.x=s.aqActif?-1.6+Math.sin(T*6)*0.3:-0.2; }
+  if(aquaEncreT>0){ aquaEncreT-=dt; aquaEncreEl.style.opacity=String(clamp(aquaEncreT/0.8,0,1)); }
+  const gm=s.gastonMesh;
+  // ---- après la partie : Gaston dans les bras du joueur, ou rien ----
+  if(!s.aqActif){
+    if(s.aqFinT>0){ s.aqFinT-=dt; if(s.aqFin==='gagne'){ gm.position.set(P.x,2.6+Math.sin(T*5)*0.15,P.z); gm.rotation.y+=dt*3; if(s.aqFinT<=0) gm.visible=false; } }
+    else if(gm.visible&&!s.aqSaut) gm.visible=false;
+    if(s.aqIntroT>0){ s.aqIntroT=0; aquaIntroWrap.style.display='none'; }
+    return;
+  }
+  if(s.aqIntroT>0){ s.aqIntroT-=dt; if(s.aqIntroT<0.5) aquaIntroWrap.style.opacity=String(Math.max(0,s.aqIntroT/0.5)); if(s.aqIntroT<=0) aquaIntroWrap.style.display='none'; }
+  // ---- la partie (dtJeu) ----
+  s.aqChrono+=dtJeu;
+  const vit=Math.hypot(P.x-s.aqPX,P.z-s.aqPZ)/Math.max(dtJeu,1e-4); s.aqPX=P.x; s.aqPZ=P.z;
+  if(s.aqChrono>=AQUA_DUREE){ aquaEchec(s,'temps'); return; }
+  s.aqT-=dtJeu;
+  if(s.aqEtat==='dos'){ if(s.aqT<=0) aquaEtat(s,'alerte'); }
+  else if(s.aqEtat==='alerte'){ if(s.aqT<=0) aquaEtat(s,s.aqFeinte?'dos':'regarde'); }
+  else if(s.aqEtat==='regarde'){
+    s.aqGraceT-=dtJeu;
+    if(s.aqGraceT<=0&&vit>AQUA_VIT_MAX){ aquaRepere(s); if(!s.aqActif) return; }
+    else if(s.aqT<=0) aquaEtat(s,'dos');
+  } else if(s.aqEtat==='fuite'&&s.aqT<=0){ s.aqSaut=null; aquaPoserGaston(s,s.aqCuve); aquaEtat(s,'dos'); }
+  // ---- l'attraper : au contact, jamais quand il regarde ----
+  if(s.aqEtat==='dos'||s.aqEtat==='alerte'){
+    const p=s.perchoirs[s.aqCuve];
+    if(Math.hypot(P.x-p.gx,P.z-p.gz)<AQUA_TOUCHE){ aquaTouche(s); if(!s.aqActif) return; }
+  }
+  // ---- Gaston (dt) : dos tourné qui chantonne, frisson, regard, saut ----
+  const p=s.perchoirs[s.aqCuve], yeux=s.gastonYeux;
+  if(s.aqEtat==='fuite'&&s.aqSaut){ const sa=s.aqSaut; sa.t=Math.min(1,sa.t+dt/AQUA_FUITE);
+    gm.position.set(lerp(sa.x0,sa.x1,sa.t),1.55+Math.sin(sa.t*Math.PI)*4,lerp(sa.z0,sa.z1,sa.t)); gm.rotation.y+=dt*10;
+    if(Math.random()<dt*20) spawnP(gm.position.x,gm.position.y,gm.position.z,0,-1,0,0.6,0.35,0x1a0a3a,0); }
+  else {
+    const versJoueur=Math.atan2(P.x-p.gx,P.z-p.gz), dos=Math.atan2(p.gx-p.cx,p.gz-p.cz)+Math.PI; // dos : face au bassin
+    const cible=s.aqEtat==='regarde'?versJoueur:dos;
+    gm.rotation.y=angLerp(gm.rotation.y,cible,clamp(dt*(s.aqEtat==='regarde'?14:5),0,1));
+    const frisson=s.aqEtat==='alerte'?Math.sin(T*60)*0.08:0;
+    gm.position.set(p.gx+frisson,1.55+Math.sin(T*(s.aqEtat==='dos'?3:6))*0.08+(s.aqEtat==='regarde'?0.25:0),p.gz);
+    if(s.aqEtat==='dos'&&Math.random()<dt*0.9) spawnTexte(p.gx,2.9,p.gz,pick(['♪','♫','♪ ♫']),'#d8b8ff');
+    if(s.aqEtat==='alerte'&&Math.random()<dt*6) spawnTexte(p.gx,3,p.gz,'❗','#ffd23f');
+  }
+  if(yeux){ const k=s.aqEtat==='regarde'?1.6:(s.aqEtat==='alerte'?1.1:0.35); for(const o of yeux) o.scale.y=lerp(o.scale.y,k,clamp(dt*14,0,1));
+    s.gastonCorps.material.emissive.setHex(s.aqEtat==='regarde'?0x3a0a2a:0x000000); }
+  if(s.gastonHalo){ s.gastonHalo.material.color.setHex(s.aqEtat==='regarde'?0xff3b5c:(s.aqEtat==='alerte'?0xffd23f:0xb07dff)); s.gastonHalo.material.opacity=0.55+Math.sin(T*6)*0.2; }
+  // ---- l'indicateur (écrit seulement au changement) ----
+  const etatHUD=s.aqEtat==='fuite'?'dos':s.aqEtat;
+  if(s._aqHud!==etatHUD){ s._aqHud=etatHUD;
+    const st={dos:['😌','BOUGE !','#3fbf6a'],alerte:['❗','ATTENTION…','#ffd23f'],regarde:['👀','STOP !','#ff3b5c']}[etatHUD];
+    aquaOeilEl.textContent=st[0]; aquaOrdreEl.textContent=st[1]; aquaOrdreEl.style.color=st[2];
+    aquaOeilEl.style.borderColor=st[2]; aquaOeilEl.style.boxShadow='0 0 22px '+st[2]+'aa'; }
+  const hk=s.aqManche+'|'+s.aqTaches+'|'+Math.ceil(AQUA_DUREE-s.aqChrono);
+  if(s._aqHk!==hk){ s._aqHk=hk; aquaTouchesEl.textContent='🐙 '+s.aqManche+'/'+AQUA_MANCHES;
+    aquaTachesEl.textContent='🖤'.repeat(s.aqTaches)+'🤍'.repeat(AQUA_TACHES_MAX-s.aqTaches);
+    const r=Math.max(0,Math.ceil(AQUA_DUREE-s.aqChrono)); aquaChronoEl.textContent=Math.floor(r/60)+':'+String(r%60).padStart(2,'0'); aquaChronoEl.style.color=r<=15?'#ff5a6a':'#fff'; }
 }
 /* =====================================================================
    CINÉ-PALACE — salle de surcharge : quatre appareils qui se dérèglent en
@@ -21785,11 +22003,8 @@ function majInterieur(dt,dtJeu){
     if(karaWrap.style.display!=='none') karaWrap.style.display='none';
     if(s.disco) s.disco.rotation.y+=dt*0.5;
   }
-  // ---- aquarium : Gaston flotte doucement quand il est repéré ----
-  if(s.gastonMesh&&s.gastonMesh.visible){
-    s.gastonMesh.position.y=1.7+Math.sin(ETAT.runT*2.2)*0.14;
-    s.gastonMesh.rotation.y+=dt*0.8;
-  }
+  // ---- aquarium : « 1, 2, 3… GASTON ! » (aquariumMaj) ----
+  if(s.perchoirs) aquariumMaj(s,dt,dtJeu);
   // ---- bowling : curseur de ligne / de force, puis boule qui roule ----
   if(s.bwEtat){
     s.bwCur+=s.bwDir*s.bwVit*dt;
@@ -24786,6 +25001,7 @@ function startRun(){
     if(sa.karaOn!==undefined){ sa.karaOn=false; if(sa.karaBarre) sa.karaBarre.visible=false; sa.karaVague=-1; sa.karaN=0; }
     if(sa.machine7){ sa.lavVague=-1; sa.lavN=0; } // laverie : plafond de la machine 7 levé
     if(sa.gastonMesh){ sa.gastonMesh.visible=false; sa.gastonVague=-1; sa.gastonTrouve=false; }
+    if(sa.perchoirs){ aquariumArreter(sa); sa.aqFinT=0; sa.aqFin=null; sa.aqSaut=null; sa.aqCuve=-1; }
     if(sa.bwEtat!==undefined){ sa.bwEtat=null; sa.bwAnim=0; if(sa.boule) sa.boule.visible=false;
       sa.bwParties=0; sa.bwVague=-1; }
     if(sa.spEtat!==undefined){ sa.spEtat=null;
@@ -25073,6 +25289,7 @@ function mourir(){
     metroAmbianceStop();
   }
   if(INT.actif&&INT.actif.console&&INT.actif.emissionOn) radioArreterEmission(INT.actif); // coupe le son tout de suite
+  if(INT.actif&&INT.actif.aqActif) aquariumArreter(INT.actif); // Aquarium : la chasse s'arrête, boutons rendus
   if(INT.actif&&INT.actif.barre&&INT.actif.sortieEnCours) chalutierArreterSortie(INT.actif); // coupe le son tout de suite, cale perdue
   chalutierAmbianceStop(); // l'ambiance du port tourne dès qu'on est dans la salle, sortie en mer ou non (audit de nuit)
   if(INT.actif&&INT.actif.site51&&INT.actif.visiteEnCours) site51ConclureVisite(INT.actif,false); // butin perdu, sas rouverts, mystère avance quand même
@@ -25478,43 +25695,17 @@ function majAction(){
         };
         }
       }
-    /* ---------- AQUARIUM : la chasse à Gaston ---------- */
-    } else if(s.bassins&&s.bassins.some(b=>dist2(P.x,P.z,b.x,b.z)<marquerZone(b,13))){
-      const b=s.bassins.find(b=>dist2(P.x,P.z,b.x,b.z)<13);
-      const dejaVu=s.gastonVague===WAVES.n&&s.gastonTrouve;
-      label=dejaVu?'🐙 Gaston est déjà retrouvé':'🔎 SONDER LE BASSIN '+(b.idx+1);
-      fn=()=>{
-        if(dejaVu){ SFX.refus(); toast('Laisse-le tranquille, il a eu sa dose'); return; }
-        // Gaston change de bassin à chaque vague
-        if(s.gastonVague!==WAVES.n){ s.gastonVague=WAVES.n; s.gastonIdx=randi(0,5); s.gastonTrouve=false; s.sondes=0; }
-        s.sondes=(s.sondes||0)+1;
-        for(let i=0;i<10;i++) spawnP(b.cx+rand(-1.6,1.6),1.5,b.cz+rand(-1.6,1.6),
-          rand(-0.4,0.4),rand(1,2.2),rand(-0.4,0.4),0.7,0.35,0xcfeaff,-0.5);
-        if(b.idx===s.gastonIdx){
-          s.gastonTrouve=true;
-          s.gastonMesh.visible=true;
-          s.gastonMesh.position.set(b.cx,1.7,b.cz);
-          SFX.etoile(); vibre(80); secousse(3);
-          META.gaston++;
-          if(!aCurio('perle')){
-            bigMsg('🐙 GASTON !');
-            toast('Il te tend quelque chose de rond et de noir.','or');
-            donnerCurio('perle');
-          } else {
-            const g2=randi(180,380);
-            META.argent+=g2; ETAT.cashRun+=g2; META.stats.cashTotal+=g2;
-            bigMsg('🐙 GASTON RETROUVÉ');
-            toast('Le gardien te remercie : +'+g2+' $ (trouvé en '+s.sondes+' bassins)','or');
-            SFX.achat();
-          }
-          checkDefis(); sauveMeta();
-        } else {
-          const ecart=Math.abs(b.idx-s.gastonIdx);
-          if(ecart===1||ecart===3) toast('L\u2019eau est encore trouble ici. Il n\u2019est pas loin.','warn');
-          else toast('Rien. Juste un poisson qui te juge.');
-          SFX.ui();
-        }
-      };
+    /* ---------- AQUARIUM : « 1, 2, 3… GASTON ! » — pendant la partie, l'indicateur du regard suffit ---------- */
+    } else if(s.perchoirs&&s.aqActif){
+      label=''; fn=null; // le bouton d'action s'efface : tout se joue au joystick
+    } else if(s.gardien&&dist2(P.x,P.z,s.gardien.x,s.gardien.z)<marquerZone(s.gardien,9)){
+      if(s.gastonVague===WAVES.n&&s.gastonTrouve){
+        label='🐙 Gaston fait la sieste — reviens à la prochaine vague';
+        fn=()=>{ SFX.refus(); toast('Il a eu sa dose d’émotions pour cette vague.'); };
+      } else {
+        label='🐙 GASTON S’EST ÉVADÉ ! — L’ATTRAPER';
+        fn=()=>aquariumDemarrer(s);
+      }
     /* ---------- CABINET DE CURIOSITÉS (planque) ---------- */
     } else if(s.vitrine&&dist2(P.x,P.z,s.vitrine.x,s.vitrine.z)<marquerZone(s.vitrine,15)){
       label='🗄️ CABINET DE CURIOSITÉS — '+nbCurios()+'/'+CURIOS_ACTIVES.length;

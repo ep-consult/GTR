@@ -1236,7 +1236,7 @@ Viendraient ensuite : bowling, banque (mini-jeu du coffre), commissariat, puis l
 
 **Choix** : les boutiques (supérette, pharmacie, armurerie, concessionnaire, tour) passent après les mini-jeux. Elles ont le score le plus bas, mais la demande vise d'abord les mini-jeux, et leur refonte serait surtout un menu.
 
-### Refonte 1 — Chalutier « Sainte-Odile » (commit `CHAL_HASH`)
+### Refonte 1 — Chalutier « Sainte-Odile » (commit `42ae176`)
 
 **Concept retravaillé.**
 - **Promesse** : prendre la mer trois minutes, traquer les bancs qu'on voit à l'eau, ramener la cale avant la tempête — et peut-être le Vieux Roi.
@@ -1314,3 +1314,51 @@ Viendraient ensuite : bowling, banque (mini-jeu du coffre), commissariat, puis l
 - une musique de criée au bilan ;
 - un 2e poisson légendaire ;
 - d'autres bateaux de pêche au large.
+
+### Refonte 2 — Aquarium « Bleu Profond » (commit `AQUA_HASH`)
+
+**Concept retravaillé.**
+- **Promesse** : rattraper Gaston, le poulpe évadé, sans jamais qu'il te voie bouger.
+- **Mécanique centrale** : « un, deux, trois, soleil ». Il a le dos tourné, tu avances ; il frissonne, tu t'arrêtes ; il regarde, tu ne bouges plus.
+- **Moment fort** : les dernières manches, très courtes, pleines de fausses alertes, avec un jet d'encre en plein écran à la moindre erreur.
+
+**Avant** (`aquarium_avant.png`) : sonder six bassins au hasard, avec un indice obscur (« pas loin » à un écart de 1 ou 3). Aucune adresse, aucune tension.
+
+**Ce qui a changé** :
+- **Le jeu** :
+  - le gardien, à l'est, lance la partie : « 🐙 GASTON S'EST ÉVADÉ ! — L'ATTRAPER » ;
+  - Gaston est perché sur le bord d'un bassin. Quand il a le dos tourné, il chantonne (♪), et on s'approche au joystick ;
+  - il frissonne (❗), c'est le signal ; il se retourne (👀) : qui bouge prend un jet d'encre (écran taché), et Gaston saute sur un autre bassin ;
+  - il faut le toucher **5 fois**. Chaque manche raccourcit ses siestes et ajoute des fausses alertes (il frissonne puis se rendort) ;
+  - **échec** : 3 jets d'encre ou 75 s, et Gaston s'enfuit. On peut retenter tout de suite auprès du gardien : seule la victoire paie.
+- **Lisible en un coup d'œil** : un grand indicateur en haut de l'écran (😌 BOUGE ! en vert, ❗ ATTENTION… en jaune, 👀 STOP ! en rouge), avec les manches (🐙 2/5), les encres (🖤🤍🤍) et le chrono. Gaston, agrandi, porte un halo au sol de la même couleur. Pendant la partie, le bouton d'action et les boutons de combat disparaissent : tout se joue au joystick.
+- **Retours** :
+  - au regard : un grondement ; à l'alerte : deux notes ;
+  - à l'erreur : jet d'encre (particules noires vers le joueur, taches à l'écran, vibration) ;
+  - à chaque touche : gerbe violette, « ✋ TOUCHÉ ! 3/5 », Gaston qui proteste (« Hé ! ») et saute en tournoyant vers un autre bassin.
+- **Victoire** : « 🐙 GASTON EST ATTRAPÉ ! », Gaston dans les bras du joueur au-dessus de sa tête, confettis. La Perle Noire la première fois, sinon 180 à 380 $ du gardien, **une fois par vague**.
+- **Décor** :
+  - eau des bassins translucide qui ondule, avec des poissons de couleur qui tournent dedans et des bulles ;
+  - un grand bassin mural au nord où passent des poissons et un requin ;
+  - le gardien avec son seau et son épuisette ;
+  - les panneaux « BASSIN n » et « TUNNEL DE VERRE » sont supprimés.
+
+**Vérifications** :
+- `valider.js` est vert et les portes sont inchangées. La zone `bassins#5` sort de la « dette des 8 u » (elle n'existe plus).
+- **Test « Aquarium »** dans `scenarios.js`, qui couvre :
+  - le gardien qui lance la partie, l'indicateur, les boutons masqués ;
+  - le cycle du regard ;
+  - aucune encre si l'on reste immobile, encre et fuite si l'on bouge ;
+  - aucune prise quand il regarde, une manche de dos ;
+  - l'échec à 3 encres (rien gagné, on peut retenter) et le chrono ;
+  - une seule victoire par vague ;
+  - les remises à zéro (sortie, mort, game over).
+- **Pilote simulé** : chemin calculé sur les vrais solides de la salle, joystick réel, réaction 0,3 s. Il gagne 4 parties sur 4 en 27-33 s. Un joueur qui fonce sans s'arrêter perd.
+- **Rendus réels** : `aquarium_salle`, `intro`, `dos`, `alerte`, `regarde`, `encre`, `victoire`.
+
+**À tester sur iPhone** :
+1. Le signal ❗ laisse-t-il assez de temps pour lâcher le joystick ? La tolérance est de 0,22 s après le regard, plus la durée du frisson (0,75 s, puis 0,42 s à la 5e manche).
+2. Le joystick qui « dérape » au lâcher (une petite vitesse résiduelle) ne doit pas déclencher d'encre ; le seuil est à 0,9 u/s.
+3. L'indicateur en haut ne gêne-t-il pas le score ou les messages ?
+
+**Reste à améliorer** : Gaston qui change de bassin en douce quand on approche par le côté (une variante pour la 5e manche) ; des visiteurs qui crient « là ! » quand il saute.

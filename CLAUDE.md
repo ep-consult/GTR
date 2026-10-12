@@ -55,7 +55,7 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
   echo "$ln | $(sed -n "$((ln+1))p" index.html | sed 's/^[ \t]*//')"; done
 ```
 
-**Relevé au 11e lot : chalutier V2 — 26 706 lignes.**
+**Relevé au 11e lot : chalutier V2, aquarium V2 — 26 897 lignes.**
 
 | Ligne | Section |
 |---|---|
@@ -83,19 +83,19 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
 | 15413 | BÂTIMENTS VISITABLES — intérieurs |
 | 15483 | FOUILLE — mécanique générique |
 | 16063 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
-| 20103 | CINÉ-PALACE |
-| 20165 | MÉTRO ABANDONNÉ |
-| 20231 | RADIO PIRATE REYES FM |
-| 20336 | LE CHALUTIER « SAINTE-ODILE » |
-| 21053 | SITE 51 |
-| 21283 | LE DÉPÔT DE BUS — courses clandestines |
-| 22370 | **MÉTIERS** — missions liées à un véhicule |
-| 22660 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
-| 23655 | ÉCRANS / MENUS / BOUTIQUES |
-| 23923 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
-| 24720 | DÉBUT / FIN DE PARTIE |
-| 26180 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
-| 26584 | BOUCLE PRINCIPALE |
+| 20120 | CINÉ-PALACE |
+| 20321 | MÉTRO ABANDONNÉ |
+| 20383 | RADIO PIRATE REYES FM |
+| 20449 | LE CHALUTIER « SAINTE-ODILE » |
+| 20554 | SITE 51 |
+| 21271 | LE DÉPÔT DE BUS — courses clandestines |
+| 21501 | **MÉTIERS** — missions liées à un véhicule |
+| 22585 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
+| 22875 | ÉCRANS / MENUS / BOUTIQUES |
+| 23870 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
+| 24138 | DÉBUT / FIN DE PARTIE |
+| 24935 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
+| 26371 | BOUCLE PRINCIPALE |
 
 ### Ancres fines (hors bandeaux)
 
@@ -149,14 +149,14 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
 | 17140 | `INTDEFS` — définitions des **27 salles** |
 | 17320 | `construireSalle(id)` |
 | 20390 | `CHALUTIER_BANCS_PLAN` — chalutier V2 ; `chalutierMaj` (20761), `dessinerRadarChalutier` (21018) |
-| 22379 | `METIERS_CIBLE` |
-| 22678 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
-| 22766 | `PIECES_FAMILLES` — catalogues de pièces par famille |
-| 23067 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
-| 23121 | `libererObjet()` — libère les géométries d'un objet retiré |
-| 23137 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
-| 23259 | `construireGarageTuning()` — la salle partagée |
-| 23629 | `majNitro()` |
+| 22594 | `METIERS_CIBLE` |
+| 22893 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
+| 22981 | `PIECES_FAMILLES` — catalogues de pièces par famille |
+| 23282 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
+| 23336 | `libererObjet()` — libère les géométries d'un objet retiré |
+| 23352 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
+| 23474 | `construireGarageTuning()` — la salle partagée |
+| 23844 | `majNitro()` |
 
 ---
 
@@ -706,6 +706,29 @@ puis refonte en profondeur de la pire à la meilleure, une salle par commit.
   joystick et bouton d'action réels, réaction 0,35 s, lâche pendant les rushs :
   4/4 sorties ramènent le Vieux Roi + 4 à 7 prises en 140-160 s
   (1 300-1 800 $) ; sans rien faire : remorqué, 0 $.
+
+### Aquarium V2 — « 1, 2, 3… GASTON ! » (bandeau `AQUARIUM « BLEU PROFOND »`)
+
+- **« Un, deux, trois, soleil »** avec Gaston perché au bord d'un bassin
+  (`s.perchoirs`, champs `gx/gz` et `ax/az` : jamais `x/z`, ce ne sont pas des
+  zones) : 😌 dos tourné → ❗ frisson (le signal, `AQUA_ALERTE`) → 👀 regard.
+  Bouger plus vite que `AQUA_VIT_MAX` sous son regard (après `AQUA_GRACE`) =
+  jet d'encre (`aquaEncreEl`), il saute sur un autre bassin. Le toucher
+  (`AQUA_TOUCHE`, jamais quand il regarde) `AQUA_MANCHES` = 5 fois,
+  fenêtres de plus en plus courtes, fausses alertes (`AQUA_FEINTE`). Échec :
+  3 encres ou 75 s. Tout sur dtJeu.
+- Lancée auprès du **gardien** (`s.gardien`, seule zone d'action). Pendant la
+  partie, le bouton d'action s'efface et les boutons de combat sont masqués :
+  tout se joue au joystick. Indicateur du regard `aquaWrap` (en haut, écrit au
+  changement), carte d'intro `aquaIntroWrap` (helper `carteSalle`).
+- Une chasse réussie par vague ; Perle Noire la première fois, sinon 180-380 $.
+  Reset : `aquariumArreter` (sortie, mort, game over).
+- Décor : eau translucide à texture propre (`texEauAq`), poissons qui tournent
+  dans les bassins, bulles, grand bassin mural (requin), Gaston agrandi avec
+  halo au sol (violet / jaune / rouge selon l'état). Panneaux BASSIN n et
+  tunnel supprimés.
+- Pilote simulé (`scenarios.js`, chemin BFS sur les vrais solides, réaction
+  0,3 s) : 4/4 en 27-33 s ; qui fonce sans s'arrêter perd.
 
 ## 10e lot (12 octobre 2026) — kiosque de la banderole, figures sur deux roues
 

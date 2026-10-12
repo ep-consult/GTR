@@ -77,7 +77,7 @@ const DETTE_REGLE_8U = {
   laverie: { 'fouilles#9': [7.33, 'sous-marge'], 'fouilles#10': [6.51, 'sous-marge'], 'machine7#1': [5.69, 'chevauche'] },
   voyance: { 'fouilles#3': [4.61, 'chevauche'], 'zohraPos#1': [4.5, 'chevauche'] },
   karaoke: { 'fouilles#5': [3.64, 'chevauche'], 'bar#1': [1.9, 'chevauche'] },
-  aquarium: { 'fouilles#3': [6.43, 'sous-marge'], 'fouilles#4': [4.04, 'chevauche'], 'bassins#5': [5.8, 'chevauche'] },
+  aquarium: { 'fouilles#3': [6.43, 'sous-marge'], 'fouilles#4': [4.04, 'chevauche'] }, // bassins#5 réglé au 11e lot (plus de bassins à sonder)
   bowling: { 'fouilles#2': [7.28, 'sous-marge'], 'jeu#1': [7.81, 'sous-marge'] },
   sport: { 'fouilles#1': [7.88, 'sous-marge'] },
   serre: { 'fouilles#2': [7.2, 'sous-marge'], 'pots#8': [5.38, 'chevauche'], 'pots#9': [5.38, 'chevauche'], 'pots#11': [0.6, 'chevauche'] },
@@ -9083,6 +9083,100 @@ async function main() {
       });
       if (r.ko.length) fail('Tir par la vitre : ' + r.ko.join(' | '));
       else ok('Tir par la vitre : ' + r.info.join(', ') + ' ; aucun bouton ne recouvre TIR');
+    }
+
+    // -------------------------------------------------------------------
+    // Aquarium « Bleu Profond » (refait au 11e lot) : « 1, 2, 3… GASTON ! ».
+    // Réglages lus dans AQUA_* (jamais recopiés). Pilote simulé au joystick
+    // réel (majJoueur), chemin calculé sur les vrais solides de la salle.
+    // -------------------------------------------------------------------
+    console.log('\n--- Aquarium : 1, 2, 3… GASTON ! (gardien, regard, encre, manches, récompense, pilote simulé) ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        const entrer = () => { if (INT.actif) sortirInterieur(); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
+          entrerInterieur('aquarium', PORTES.find((x) => x.id === 'aquarium')); ETAT.intT = 0; return INT.actif; };
+        const appuyer = () => { majAction(); const b = document.getElementById('btnAction'); const l = b.style.display === 'none' ? '' : b.textContent; if (b._fn && l) b._fn(); return l; };
+        const vu = (e) => getComputedStyle(e).display !== 'none';
+        // 1) le gardien lance la partie
+        let s = entrer();
+        P.x = s.gardien.x; P.z = s.gardien.z;
+        const label = appuyer();
+        if (!/ÉVADÉ/.test(label) || !s.aqActif) ko.push('le gardien ne lance pas la chasse (' + label + ')');
+        if (!vu(aquaWrap) || !vu(aquaIntroWrap)) ko.push('indicateur du regard ou carte d’intro absents');
+        if (vu(document.getElementById('btnFire'))) ko.push('boutons de combat affichés pendant la chasse');
+        if (!s.gastonMesh.visible) ko.push('Gaston invisible');
+        // 2) cycle du regard : dos → alerte → regarde → dos
+        const etats = []; s.aqT = 0.01; for (let i = 0; i < 400 && etats.length < 4; i++) { const e0 = s.aqEtat; majInterieur(0.02, 0.02); if (s.aqEtat !== e0) etats.push(s.aqEtat); }
+        if (!/alerte,(regarde|dos)/.test(etats.join(','))) ko.push('cycle du regard inattendu : ' + etats.join(','));
+        // 3) immobile sous son regard : rien ; bouger : jet d'encre, il change de bassin
+        s.aqEtat = 'regarde'; s.aqT = 3; s.aqGraceT = 0; s.aqPX = P.x; s.aqPZ = P.z; const cuve0 = s.aqCuve;
+        for (let i = 0; i < 20; i++) majInterieur(0.02, 0.02);
+        if (s.aqTaches !== 0) ko.push('repéré alors qu’il ne bougeait pas');
+        s.aqEtat = 'regarde'; s.aqT = 3; s.aqGraceT = 0; P.x += 0.5; majInterieur(0.02, 0.02);
+        if (s.aqTaches !== 1 || s.aqCuve === cuve0 || s.aqEtat !== 'fuite' || aquaEncreEl.style.opacity !== '1') ko.push('bouger sous son regard ne donne pas un jet d’encre + fuite (' + JSON.stringify({ t: s.aqTaches, e: s.aqEtat }) + ')');
+        // 4) l'attraper : seulement de dos ; sous le regard, le contact ne compte pas
+        for (let i = 0; i < 60; i++) majInterieur(0.02, 0.02); // fin de la fuite
+        const p = s.perchoirs[s.aqCuve];
+        s.aqEtat = 'regarde'; s.aqT = 3; s.aqGraceT = 9; P.x = p.gx; P.z = p.gz; s.aqPX = P.x; s.aqPZ = P.z; majInterieur(0.02, 0.02);
+        if (s.aqManche !== 0) ko.push('attrapé alors qu’il regardait');
+        s.aqEtat = 'dos'; s.aqT = 3; majInterieur(0.02, 0.02);
+        if (s.aqManche !== 1 || s.aqEtat !== 'fuite') ko.push('le toucher de dos ne compte pas une manche');
+        // 5) trois jets d'encre : il s'enfuit, rien gagné, boutons rendus, on peut rejouer
+        const a0 = META.argent; s.aqTaches = 2; s.aqEtat = 'regarde'; s.aqT = 3; s.aqGraceT = 0; for (let i = 0; i < 60; i++) majInterieur(0.02, 0.02); s.aqEtat = 'regarde'; s.aqT = 3; s.aqGraceT = 0; P.x += 0.6; majInterieur(0.02, 0.02);
+        if (s.aqActif || META.argent !== a0 || !vu(document.getElementById('btnFire'))) ko.push('trois jets d’encre ne finissent pas la partie proprement');
+        P.x = s.gardien.x; P.z = s.gardien.z; if (!/ÉVADÉ/.test(appuyer())) ko.push('impossible de retenter après un échec');
+        // 6) chrono : au bout de AQUA_DUREE, raté
+        s.aqChrono = AQUA_DUREE - 0.01; majInterieur(0.05, 0.05); if (s.aqActif) ko.push('le chrono n’arrête pas la partie');
+        info.push('regard, encre, manches, chrono');
+        // 7) pilote simulé : chemin sur les vrais solides, réaction 0,3 s
+        const chemin = (s, x1, z1) => { const pas = 0.5, W = s.D.w / 2 - 0.6, D = s.D.d / 2 - 0.6;
+          const nx = Math.floor(2 * W / pas) + 1, nz = Math.floor(2 * D / pas) + 1, idx = (i, j) => i * nz + j;
+          const cX = (i) => s.ox - W + i * pas, cZ = (j) => s.oz - D + j * pas;
+          const libre = (i, j) => i >= 0 && j >= 0 && i < nx && j < nz && !solidAt(cX(i), cZ(j), 0.5);
+          const si = Math.round((P.x - s.ox + W) / pas), sj = Math.round((P.z - s.oz + D) / pas), ti = Math.round((x1 - s.ox + W) / pas), tj = Math.round((z1 - s.oz + D) / pas);
+          const prev = new Int32Array(nx * nz).fill(-2), file = [idx(si, sj)]; prev[idx(si, sj)] = -1;
+          while (file.length) { const k = file.shift(), i = Math.floor(k / nz), j = k % nz; if (i === ti && j === tj) break;
+            for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) { const a = i + di, b = j + dj; if (!libre(a, b) || prev[idx(a, b)] !== -2) continue; prev[idx(a, b)] = k; file.push(idx(a, b)); } }
+          const pts = []; let k = idx(ti, tj); if (prev[k] === -2) return null; while (k !== -1) { pts.push({ x: cX(Math.floor(k / nz)), z: cZ(k % nz) }); k = prev[k]; } return pts.reverse(); };
+        const partie = (malin) => {
+          const s = entrer(); P.x = s.gardien.x; P.z = s.gardien.z; appuyer();
+          let t = 0, reaction = 0, route = null, cuveRoute = -1; const dt = 1 / 30;
+          while (s.aqActif && t < AQUA_DUREE + 2) {
+            if (s.aqCuve !== cuveRoute && s.aqEtat !== 'fuite') { const pc = s.perchoirs[s.aqCuve]; route = chemin(s, pc.ax, pc.az); cuveRoute = s.aqCuve; if (!route) return { bloque: true }; }
+            const danger = s.aqEtat === 'alerte' || s.aqEtat === 'regarde';
+            reaction = danger ? reaction + dt : 0;
+            let bouge = !malin || reaction < 0.3;
+            if (s.aqEtat === 'fuite') bouge = false;
+            if (bouge && route) { while (route.length > 1 && Math.hypot(route[0].x - P.x, route[0].z - P.z) < 0.6) route.shift();
+              const pc = s.perchoirs[s.aqCuve], cible = route.length > 1 ? route[0] : { x: pc.gx, z: pc.gz }; const dx = cible.x - P.x, dz = cible.z - P.z, L = Math.hypot(dx, dz) || 1;
+              INPUT.mx = dx / L; INPUT.mz = dz / L; } else { INPUT.mx = 0; INPUT.mz = 0; }
+            majJoueur(dt, dt); majInterieur(dt, dt); t += dt;
+          }
+          INPUT.mx = INPUT.mz = 0;
+          const res = { gagne: s.gastonTrouve && s.gastonVague === WAVES.n, t: Math.round(t), taches: s.aqTaches };
+          sortirInterieur(); return res;
+        };
+        const malins = []; for (let i = 0; i < 4; i++) malins.push(partie(true));
+        const naif = partie(false);
+        if (malins.some((m) => m.bloque)) ko.push('un perchoir de Gaston est inatteignable à pied');
+        const gagnes = malins.filter((m) => m.gagne).length;
+        if (gagnes < 3) ko.push('le pilote qui s’arrête quand Gaston regarde ne gagne que ' + gagnes + '/4 (' + JSON.stringify(malins) + ')');
+        else info.push('pilote malin : ' + gagnes + '/4 (' + malins.map((m) => m.t + ' s, ' + m.taches + ' encre').join(' ; ') + ')');
+        if (naif.gagne) ko.push('un joueur qui ne s’arrête jamais gagne quand même');
+        else info.push('pilote qui fonce sans s’arrêter : perdu');
+        // 8) récompense une fois par vague, Perle Noire la première fois ; remises à zéro
+        s = entrer(); s.gastonTrouve = true; s.gastonVague = WAVES.n; P.x = s.gardien.x; P.z = s.gardien.z;
+        if (!/sieste/.test(appuyer()) || s.aqActif) ko.push('une 2e chasse réussie est possible dans la même vague');
+        s.gastonVague = -1; appuyer(); sortirInterieur();
+        if (s.aqActif || vu(aquaWrap)) ko.push('sortir en pleine chasse ne l’arrête pas');
+        s = entrer(); P.x = s.gardien.x; P.z = s.gardien.z; appuyer(); P.hp = 1; toucherJoueur(9999);
+        if (s.aqActif || vu(aquaWrap)) ko.push('mourir en pleine chasse ne l’arrête pas');
+        startRun(); if (INT.salles.aquarium.aqActif) ko.push('le game over ne remet pas la chasse à zéro');
+        return { ko, info, perle: aCurio('perle') };
+      });
+      if (r.ko.length) fail('Aquarium : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
+      else ok('Aquarium : ' + r.info.join(' ; ') + ' ; une chasse réussie par vague, remises à zéro (sortie, mort, game over)' + (r.perle ? ' ; Perle Noire obtenue' : ''));
     }
 
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');
