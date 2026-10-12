@@ -8533,6 +8533,48 @@ async function main() {
       else ok('Métiers v2 / wingsuit : ' + mt.info.join(' ; ') + ' ; taxi en retard non payé, client fragile fâché par les chocs, choc trop tôt pénalisé, le feu s\'étend, palier 3 du taxi');
     }
 
+    // -------------------------------------------------------------------
+    // 8e lot, n° 1 (signalé : « Monster Truck : acheté des améliorations,
+    // l'argent a été débité, en sortant le véhicule était identique »). On
+    // passe par le vrai bouton d'action (entrée au volant, sortie au volant).
+    // -------------------------------------------------------------------
+    console.log('\n--- Garage : les achats s\'appliquent au véhicule qui ressort (Monster Truck) ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [];
+        if (P.veh) sortirVehicule(true);
+        startRun(); ecran(null); ETAT.mode = 'jeu';
+        for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0;
+        for (const e of ennemis) e.mort = true;
+        for (const id in META.vehPerso) Object.assign(META.vehPerso[id], slotGarageDefaut());
+        WANTED.heat = 0; WANTED.stars = 0; META.argent = 1e6;
+        const cle = 'monstertruck', base = VEHDEFS[cle];
+        const porte = PORTES.find((p) => p.id === 'tuning');
+        const v = creerVehicule(cle, porte.x, porte.z + 4, 0, null); entrerVehicule(v); P.x = v.x; P.z = v.z;
+        const ap = () => { majAction(); const b = document.getElementById('btnAction'); const l = b.textContent; if (b._fn) b._fn(); return l; };
+        ap(); const s = INT.actif; if (!s || !s.tuning) return { ko: ['pas entré au garage'] };
+        const a0 = META.argent;
+        acheterPalier(s, 'moteur'); acheterPalier(s, 'vitesse'); acheterNitro(s);
+        const teinte = TUNING_TEINTES.find((c) => c !== base.cols[0]); peindreGarage(s, teinte);
+        const fam = PIECES_FAMILLES[base.tuningCarro.famille]; const cat = PIECES_CATS.find((c) => c !== 'jantes' && fam[c]); choisirPiece(s, cat, 1);
+        if (!(META.argent < a0)) ko.push('rien débité');
+        P.x = s.sortie.x; P.z = s.sortie.z; ETAT.intT = 0; ap();
+        const nv = P.veh;
+        if (INT.actif || !nv || nv.key !== cle) return { ko: ko.concat('pas ressorti au volant du ' + cle) };
+        if (!(nv.def.acc >= base.acc * TUNING_EFFETS.moteur[1] - 1e-6)) ko.push('moteur non appliqué (' + nv.def.acc + ')');
+        if (!(nv.def.vmax >= base.vmax * TUNING_EFFETS.vitesse[1] - 1e-6)) ko.push('vitesse non appliquée');
+        if (!(TUNING_EFFETS.vitesse[1] >= 1.08)) ko.push('1er palier de vitesse imperceptible (×' + TUNING_EFFETS.vitesse[1] + ')');
+        if (!nv.nitro) ko.push('nitro absente');
+        const mp = nv.mesh.userData.matPeinture; if (!mp || mp.color.getHex() !== teinte) ko.push('peinture absente');
+        if (!(nv.mesh.userData.carro && nv.mesh.userData.carro.children.length)) ko.push('pièce absente');
+        if (!recapTuning(fichePerso(nv.persoId))) ko.push('pas de récapitulatif');
+        sortirVehicule(true);
+        return { ko, info: recapTuning(fichePerso(nv.persoId)) };
+      });
+      if (r.ko.length) fail('Garage / Monster Truck : ' + r.ko.join(' | '));
+      else ok('Garage / Monster Truck : moteur, vitesse, nitro, peinture et pièce présents en sortant (' + r.info + ')');
+    }
+
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');
     {
       const srcIdx = fs.readFileSync(INDEX_HTML, 'utf8');

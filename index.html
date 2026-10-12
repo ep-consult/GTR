@@ -21583,7 +21583,13 @@ const TUNING_CASSE_TAUX=0.25;
 // moteur/vitesse/tenue : multiplicateurs de acc/vmax/man ;
 // blindage : multiplicateur des dégâts REÇUS (v.blindage, voir abimerVehicule)
 // — propre au véhicule, jamais le drapeau def.blinde du char (×0,12, masse ×2,2).
-const TUNING_EFFETS={moteur:[1,1.12,1.25,1.4],vitesse:[1,1.06,1.12,1.2],tenue:[1,1.1,1.2,1.3],blindage:[1,0.75,0.55,0.4]};
+// 8e lot (signalé : « acheté des améliorations, en sortant le véhicule était
+// identique ») : les achats s'appliquaient, mais +6 % de vitesse au 1er palier
+// ne se sentait pas. Effets renforcés, gain affiché au menu, récapitulatif à la sortie.
+const TUNING_EFFETS={moteur:[1,1.22,1.45,1.7],vitesse:[1,1.1,1.2,1.32],tenue:[1,1.15,1.3,1.45],blindage:[1,0.75,0.55,0.4]};
+// libellé du gain d'un palier (menu d'atelier et récapitulatif de sortie)
+const TUNING_GAIN={moteur:'accélération',vitesse:'vitesse max',tenue:'adhérence',blindage:'dégâts reçus'};
+function gainPalier(cat,n){ const k=TUNING_EFFETS[cat][n]; return (k>=1?'+':'')+Math.round((k-1)*100)+' % '+TUNING_GAIN[cat]; }
 const TUNING_PALIERS_MAX=3;
 // icône de chaque palier dans le menu (pas d'icône dédiée au blindage)
 const TUNING_ICONES={moteur:'ico-garage-moteur',vitesse:'ico-garage-vitesse',tenue:'ico-garage-tenue'};
@@ -22076,6 +22082,17 @@ function choisirPiece(s,cat,i){
   }
   slot.pieces[cat]=i; sauveMeta(); return true;
 }
+// ce que porte une fiche, en clair (toast de sortie du garage) ; '' si d'origine
+function recapTuning(f){
+  if(!f) return '';
+  const t=[];
+  for(const cat of Object.keys(TUNING_EFFETS)) if(f[cat]>0) t.push(TUNING_NOMS[cat].toLowerCase()+' '+f[cat]);
+  if(f.nitro) t.push('nitro');
+  if(f.neon>=0) t.push('néons');
+  let np=0; for(const cat of PIECES_CATS) if(f.pieces&&(f.pieces[cat]|0)>0) np++;
+  if(np) t.push(np+' pièce'+(np>1?'s':''));
+  return t.join(' · ');
+}
 // applique les améliorations d'un véhicule personnel (fiche id) à un
 // véhicule de la ville. v.def devient une copie PROPRE à ce véhicule
 // (jamais VEHDEFS modifié).
@@ -22258,6 +22275,8 @@ function garageApresSortie(sc){
   if(id){
     appliquerTuning(nv,id);
     if(GARAGE_HP[id]!==undefined) nv.hp=Math.min(nv.def.hp,GARAGE_HP[id]);
+    const rec=recapTuning(fichePerso(id));
+    if(rec) toast('🔧 '+VEHDEFS[slot.cle].nom+' : '+rec,'or');
   } else nv.hp=Math.min(nv.def.hp,hpVisiteur||nv.def.hp);
   nv.perso=true;
   entrerVehicule(nv);
@@ -22359,9 +22378,9 @@ function renderGarageMenu(s){
   h+='</div>';
   for(const cat of Object.keys(TUNING_EFFETS)){ // moteur, vitesse, tenue, blindage
     const n=slot[cat];
-    h+='<div class="gmSec">'+(TUNING_ICONES[cat]?ico(TUNING_ICONES[cat]):'')+TUNING_NOMS[cat]+' — palier '+n+'/'+TUNING_PALIERS_MAX+'</div><div class="gmLigne">';
+    h+='<div class="gmSec">'+(TUNING_ICONES[cat]?ico(TUNING_ICONES[cat]):'')+TUNING_NOMS[cat]+' — palier '+n+'/'+TUNING_PALIERS_MAX+(n?' ('+gainPalier(cat,n)+')':'')+'</div><div class="gmLigne">';
     h+=n>=TUNING_PALIERS_MAX?'<div class="gmBtn ok">✔ AU MAXIMUM</div>'
-      :'<div class="gmBtn" data-a="palier" data-c="'+cat+'">PALIER '+(n+1)+' — '+TUNING_PRIX[cat][n]+' $</div>';
+      :'<div class="gmBtn" data-a="palier" data-c="'+cat+'">PALIER '+(n+1)+' ('+gainPalier(cat,n+1)+') — '+TUNING_PRIX[cat][n]+' $</div>';
     h+='</div>';
   }
   }
