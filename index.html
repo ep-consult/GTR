@@ -19413,6 +19413,7 @@ function construireSalle(id){
   } else if(id==='tuning'){
     construireGarageTuning(inter,box,lampe);
   }
+  peuplerSalle(inter,id,g); // 9e lot : figurants qui vivent (VIE_SALLES)
   scene.add(g);
   INT.salles[id]=inter;
   return inter;
@@ -20730,6 +20731,88 @@ function depotMajCourse(s,dtJeu){
   if(je.fini&&!c0.termine){ c0.termine=true; depotTerminerCourse(s,je.place); return; }
   depotMajHUD(s);
 }
+/* ===== VIE DES SALLES : figurants qui flânent, parlent, s'écartent, paniquent ===== */
+// 9e lot (demandé : « il faut rendre plus vivant chaque endroit ») : la plupart des salles n'avaient qu'un à
+// trois PNJ figés. Chaque salle listée ici reçoit des figurants qui marchent d'un point libre à un autre
+// (jamais à travers un meuble : segment vérifié avec solidAt), s'arrêtent, lâchent une réplique du lieu de
+// temps en temps, s'écartent quand le joueur les frôle et se mettent à couvert s'il se bat ou tire. Purement
+// cosmétique (aucune collision, horloge dt) ; ni dans le dépôt, ni au Site 51, ni dans la planque.
+const VIE_SALLES={
+  superette:{n:4,repliques:['Ils n’ont plus de lait.','C’est pas donné, ici…','Tu as vu le prix des chips ?']},
+  banque:{n:5,repliques:['Encore la queue…','Mon prêt, refusé ?!','Je viens retirer mes économies.']},
+  poste:{n:4,repliques:['On m’a volé mon vélo !','Je veux porter plainte.','Ils ne rappellent jamais…']},
+  tour:{n:3,repliques:['Réunion au 40e…','L’ascenseur est encore en panne ?']},
+  pharma:{n:3,repliques:['Une boîte d’aspirine, s’il vous plaît.','J’ai une ordonnance.']},
+  armurerie:{n:2,repliques:['C’est pour la chasse, hein.','Celui-là, il est en promo ?']},
+  conces:{n:3,repliques:['Elle est belle, celle-là.','Il me faudrait un crédit…','Ça monte à combien ?']},
+  laverie:{n:2,repliques:['Encore une chaussette perdue.','Le séchoir 3 est en panne.']},
+  voyance:{n:1,repliques:['Elle a vu mon avenir…']},
+  karaoke:{n:4,repliques:['Une autre !','Faux, mais avec le cœur !','Bravo !']},
+  aquarium:{n:6,repliques:['Regarde, un requin !','Il est où, le poulpe ?','Ils sont énormes !']},
+  bowling:{n:4,repliques:['STRIKE !','Encore une gouttière…','Qui paie la tournée ?']},
+  sport:{n:3,repliques:['Encore une série !','Tu forces, là ?','Jour des jambes.']},
+  serre:{n:3,repliques:['Ça sent bon, ici.','Elle est rare, celle-là.']},
+  sandwich:{n:3,repliques:['Le Monstre ? Jamais de la vie.','Double fromage !']},
+  musee:{n:3,repliques:['C’est un vrai ?','Chut, on est dans un musée.']},
+  arcade:{n:5,repliques:['Record battu !','Encore un jeton…','Game over !']},
+  cine:{n:3,repliques:['Il paraît que la fin est nulle.','Pop-corn ?']},
+  radio:{n:1,repliques:['Dix secondes avant l’antenne !']},
+  tuning:{n:2,repliques:['Belle bête !','On lui met des néons ?'],tenue:{haut:0x3a5a8a,bas:0x2a3a5a,casq:0x14161c}}
+};
+const VIE_HAUTS=[0xe05252,0x35c8e0,0xf2c21f,0x7dff7a,0x8a4de0,0xe8ecf2,0xff8c1a,0x3a5a8a];
+// un point libre de la salle, atteignable en ligne droite depuis (x0,z0) sans traverser de meuble
+function pointLibreSalle(s,x0,z0){
+  const W=s.D.w/2-2, D=s.D.d/2-2;
+  for(let essai=0;essai<12;essai++){
+    const x=s.ox+rand(-W,W), z=s.oz+rand(-D,D);
+    if(solidAt(x,z,0.6)) continue;
+    if(x0!==undefined){ const L=Math.hypot(x-x0,z-z0), n=Math.ceil(L/0.6); let ok=true;
+      for(let k=1;k<n&&ok;k++){ const u=k/n; if(solidAt(x0+(x-x0)*u,z0+(z-z0)*u,0.45)) ok=false; } if(!ok) continue; }
+    return {x,z};
+  }
+  return null;
+}
+function peuplerSalle(inter,id,g){
+  const cfg=VIE_SALLES[id]; if(!cfg||!inter.D) return;
+  inter.figurants=[]; inter.vieRepliqueT=rand(4,9); inter.paniqueT=0;
+  for(let i=0;i<cfg.n;i++){
+    const pt=pointLibreSalle(inter); if(!pt) continue;
+    const h=makeHumain(Object.assign({haut:pick(VIE_HAUTS),bas:pick([0x1c2030,0x2a2e3a,0x4a4f5a,0x3a2f24]),peau:pick(civPeau),casq:pick([0x14161c,0x4a3520,0xd8b02a,0x6a3a20]),visage:'cool'},cfg.tenue||{}),1);
+    h.g.position.set(pt.x,0,pt.z); h.g.rotation.y=rand(0,6); g.add(h.g);
+    inter.figurants.push({h,x:pt.x,z:pt.z,cx:pt.x,cz:pt.z,pause:rand(0,3),ph:rand(0,6),ang:h.g.rotation.y,peur:0});
+  }
+}
+function majVieSalle(s,dt){
+  const cfg=VIE_SALLES[s.id]; if(!cfg) return;
+  // le joueur se bat ou tire : tout le monde se met à couvert un moment
+  if((P.frappeT>0||P.tirT>0.4)&&s.paniqueT<=0){ s.paniqueT=6; const f=s.figurants[Math.floor(Math.random()*s.figurants.length)]; if(f) spawnTexte(f.x,2.4,f.z,pick(['Au secours !','Il est fou !','Pas ici !']),'#ff8080'); }
+  if(s.paniqueT>0) s.paniqueT-=dt;
+  // une réplique du lieu de temps en temps
+  s.vieRepliqueT-=dt;
+  if(s.vieRepliqueT<=0&&s.figurants.length&&s.paniqueT<=0){ s.vieRepliqueT=rand(7,14); const f=pick(s.figurants); spawnTexte(f.x,2.4,f.z,pick(cfg.repliques),'#e8ecf2'); }
+  for(const f of s.figurants){
+    const h=f.h;
+    if(s.paniqueT>0){ // accroupi, tête rentrée
+      h.g.scale.y=lerp(h.g.scale.y,0.72,clamp(6*dt,0,1)); h.brasG.rotation.x=h.brasD.rotation.x=-2.6; h.jambeG.rotation.x=h.jambeD.rotation.x=0; continue;
+    }
+    if(h.g.scale.y<0.99){ h.g.scale.y=lerp(h.g.scale.y,1,clamp(4*dt,0,1)); h.brasG.rotation.x=h.brasD.rotation.x=0; }
+    const dj=Math.hypot(P.x-f.x,P.z-f.z);
+    if(dj<1.5){ // frôlé : il fait un pas de côté, sans traverser un meuble
+      const ux=(f.x-P.x)/(dj||1), uz=(f.z-P.z)/(dj||1), nx=f.x+ux*2.2*dt, nz=f.z+uz*2.2*dt;
+      if(!solidAt(nx,nz,0.4)){ f.x=nx; f.z=nz; }
+      f.ang=angLerp(f.ang,Math.atan2(P.x-f.x,P.z-f.z),clamp(5*dt,0,1)); f.pause=Math.max(f.pause,1);
+    } else if(f.pause>0){
+      f.pause-=dt; h.jambeG.rotation.x=lerp(h.jambeG.rotation.x,0,0.2); h.jambeD.rotation.x=lerp(h.jambeD.rotation.x,0,0.2);
+      if(f.pause<=0){ const pt=pointLibreSalle(s,f.x,f.z); if(pt){ f.cx=pt.x; f.cz=pt.z; } else f.pause=rand(1,3); }
+    } else {
+      const dx=f.cx-f.x, dz=f.cz-f.z, d=Math.hypot(dx,dz);
+      if(d<0.3){ f.pause=rand(2,6); }
+      else { const v=1.25; f.x+=dx/d*v*dt; f.z+=dz/d*v*dt; f.ang=angLerp(f.ang,Math.atan2(dx,dz),clamp(6*dt,0,1));
+        f.ph+=dt*7; h.jambeG.rotation.x=Math.sin(f.ph)*0.55; h.jambeD.rotation.x=-Math.sin(f.ph)*0.55; h.brasG.rotation.x=-Math.sin(f.ph)*0.4; h.brasD.rotation.x=Math.sin(f.ph)*0.4; }
+    }
+    h.g.position.set(f.x,0,f.z); h.g.rotation.y=f.ang;
+  }
+}
 /* ===== CLUB NÉON V2 : cocktails et ivresse, piste de danse, bagarres ===== */
 // 9e lot (demandé : « rendre les salles type disco beaucoup plus attrayantes et engageantes : bagarre dedans,
 // alcoolisé si trop de consommation avec effet sur le personnage à court terme, danse possible »).
@@ -21005,6 +21088,7 @@ function majInterieur(dt,dtJeu){
     s.objets[i].material.opacity=0.25+0.45*Math.abs(Math.sin(ETAT.runT*3+i*0.7));
   }
   if(s.club) majClub(s,dt,dtJeu);
+  if(s.figurants) majVieSalle(s,dt);
   // PNJ : danseurs qui bougent, employés qui s'agitent
   for(const p of s.pnj){
     p.ph+=dt*(p.pose==='danse'?7:2.2);
@@ -24348,7 +24432,7 @@ function marquerZone(obj,r2){ if(obj) obj.r=Math.sqrt(r2); return r2; }
 // via le bouton d'action) et toitPasserelle (passerelle qui s'effondre toute
 // seule au 2e tour, autonome comme turrets/creature) rejoignent la même
 // exemption — voir majInterieur, pas majAction.
-const CHAMPS_DECOR_SALLE=new Set(['pnj','culturiste','plaque','gardiens','cameras','piles','dangers','bateau','turrets','creature','boucleHuile','toitPasserelle','danse','bagarreur']); // Club Néon : danse en cours (position figée du danseur) et fêtard bagarreur (un ennemi) ne sont pas des zones
+const CHAMPS_DECOR_SALLE=new Set(['pnj','culturiste','plaque','gardiens','cameras','piles','dangers','bateau','turrets','creature','boucleHuile','toitPasserelle','danse','bagarreur','figurants']); // Club Néon : danse en cours (position figée du danseur) et fêtard bagarreur (un ennemi) ne sont pas des zones
 // Rejoue majAction() avec le joueur hors de portée de tout, pour que la
 // chaîne if/else-if s'évalue en entier (aucune branche ne « gagne » et
 // n'interrompt les suivantes) et que chaque marquerZone() de la salle

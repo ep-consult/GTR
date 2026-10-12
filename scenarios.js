@@ -9028,6 +9028,39 @@ async function main() {
       else ok('Club Néon : ' + r.info.join(', ') + ' ; ivre = marche qui dérive, ivresse qui retombe, une prime de danse par vague, rafales d\'appuis ratées, rien ne survit au game over');
     }
 
+    // -------------------------------------------------------------------
+    // 9e lot, n° 3 bis (demandé : « rendre plus vivant chaque endroit ») :
+    // figurants des salles listées dans VIE_SALLES (lu dans le jeu) — ils
+    // marchent, jamais dans un meuble, et se mettent à couvert si on frappe.
+    // -------------------------------------------------------------------
+    console.log('\n--- Vie des salles : figurants qui flânent, jamais dans un meuble, qui paniquent ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (P.veh) sortirVehicule(true);
+        startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
+        let total = 0, salles = 0;
+        for (const id of Object.keys(VIE_SALLES)) {
+          const porte = PORTES.find((p) => p.id === id); if (!porte || !INTDEFS[id]) continue;
+          entrerInterieur(id, porte); const s = INT.actif; if (!s) { ko.push(id + ' : pas entré'); continue; }
+          const F = s.figurants || []; if (F.length < Math.min(1, VIE_SALLES[id].n)) ko.push(id + ' : aucun figurant');
+          total += F.length; salles++;
+          const x0 = F.map((f) => f.x + ',' + f.z).join(';');
+          P.x = s.sortie.x; P.z = s.sortie.z; // le joueur loin des figurants
+          for (let i = 0; i < 30 * 12; i++) majVieSalle(s, 1 / 30);
+          if (F.length && F.map((f) => f.x + ',' + f.z).join(';') === x0) ko.push(id + ' : personne ne bouge');
+          for (const f of F) if (solidAt(f.x, f.z, 0.2)) { ko.push(id + ' : figurant dans un meuble'); break; }
+          P.frappeT = 0.2; majVieSalle(s, 1 / 30); P.frappeT = 0;
+          if (F.length && !(s.paniqueT > 0)) ko.push(id + ' : pas de panique quand on frappe');
+          s.paniqueT = 0; sortirInterieur();
+        }
+        info.push(total + ' figurants dans ' + salles + ' salles');
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Vie des salles : ' + r.ko.join(' | '));
+      else ok('Vie des salles : ' + r.info.join(', ') + ' ; ils flânent sans traverser un meuble et se mettent à couvert quand on frappe');
+    }
+
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');
     {
       const srcIdx = fs.readFileSync(INDEX_HTML, 'utf8');
