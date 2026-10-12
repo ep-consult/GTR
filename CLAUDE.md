@@ -55,7 +55,9 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
   echo "$ln | $(sed -n "$((ln+1))p" index.html | sed 's/^[ \t]*//')"; done
 ```
 
-**Relevé au 11e lot : chalutier, aquarium, laverie, serre — 27 141 lignes.**
+**Relevé au 13 octobre 2026 (11e lot : chalutier, aquarium, laverie, serre, radio) — 27 160 lignes.**
+Attention : `maj_carte` recale les numéros dans l'ordre des lignes de la table ;
+un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la main.
 
 | Ligne | Section |
 |---|---|
@@ -82,20 +84,23 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
 | 15410 | MISSIONS COURTES |
 | 15413 | BÂTIMENTS VISITABLES — intérieurs |
 | 15483 | FOUILLE — mécanique générique |
-| 16063 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
-| 20128 | CINÉ-PALACE |
-| 20331 | MÉTRO ABANDONNÉ |
-| 20466 | RADIO PIRATE REYES FM |
-| 20623 | LE CHALUTIER « SAINTE-ODILE » |
-| 20685 | SITE 51 |
-| 20751 | LE DÉPÔT DE BUS — courses clandestines |
-| 20856 | **MÉTIERS** — missions liées à un véhicule |
-| 21573 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
-| 21803 | ÉCRANS / MENUS / BOUTIQUES |
-| 22872 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
-| 23162 | DÉBUT / FIN DE PARTIE |
-| 24157 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
-| 24425 | BOUCLE PRINCIPALE |
+| 16047 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
+| 20122 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
+| 20325 | **LAVERIE** V2 — l'essorage de la machine 7 |
+| 20460 | **SERRE** V2 — la nuit de la floraison |
+| 20617 | CINÉ-PALACE |
+| 20679 | MÉTRO ABANDONNÉ |
+| 20745 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
+| 20985 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
+| 21702 | SITE 51 |
+| 21932 | LE DÉPÔT DE BUS — courses clandestines |
+| 22956 | **MÉTIERS** — missions liées à un véhicule |
+| 23246 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
+| 24241 | ÉCRANS / MENUS / BOUTIQUES |
+| 24509 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
+| 25306 | DÉBUT / FIN DE PARTIE |
+| 26698 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
+| 27102 | BOUCLE PRINCIPALE |
 
 ### Ancres fines (hors bandeaux)
 
@@ -779,6 +784,26 @@ puis refonte en profondeur de la pire à la meilleure, une salle par commit.
 - Pilote glouton (le plus urgent d'abord, bon outil, chemin BFS à la marge
   réelle du joueur 0,65) : ~7 nuits tenues sur 8, parfois parfaites ; passif :
   perdue.
+
+### Radio pirate V2 — le tuner et le brouilleur (bandeau `RADIO PIRATE REYES FM — L'ÉMISSION`)
+
+- Même cœur qu'avant (aiguille au doigt dans `#radioZone`, porteuse qui dérive,
+  3 segments de `RADIO_SEG_DUREE`, 70 % pour réussir, triangulation, gains et
+  curiosité inchangés : les anciens tests passent tels quels). Nouveau :
+  segments nommés (`RADIO_SEGMENTS[i].nom`) ; **brouilleur** de la police
+  (`brouilleur:true`, `RADIO_BROUILLEUR`, `s.brouCentre`) : s'y poser
+  triangule à `RADIO_BROUILLEUR.triang` %/s ; **auditeurs** (`s.auditeurs`,
+  `s.auditeursMax`, `RADIO_AUDITEURS`), annoncés à la fin.
+- Interface : tuner dessiné (`radioWrap` = canvas, `dessinerTuner`) au-dessus de
+  la zone du doigt, appel d'auditeur affiché dans le tuner pendant la pause
+  (`s.appelTexte`), carte d'intro `radioIntroWrap`, piste « ◀ GLISSE LE DOIGT ▶ »
+  dans `#radioZone`, bouton d'action masqué pendant l'émission, boutons de
+  combat masqués (rendus par `radioArreterEmission` si une émission tournait).
+- Décor qui vit avec le signal (`radioMaj`) : diodes de la console
+  (`s.leds`), enceintes (`s.hautParleurs`), gyrophares aux fenêtres au-delà de
+  70 % de triangulation (`s.gyros`).
+- Test « Radio V2 » : auditeurs, brouilleur (×1,7 sur la triangulation), pilote
+  au doigt avec 0,25 s de retard (3 segments), passif localisé.
 
 ## 10e lot (12 octobre 2026) — kiosque de la banderole, figures sur deux roues
 

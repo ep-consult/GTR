@@ -1424,7 +1424,7 @@ Viendraient ensuite : bowling, banque (mini-jeu du coffre), commissariat, puis l
 - un son de tambour plus riche ;
 - la machine qui se déplace vraiment de quelques centimètres sur le carrelage à chaque coup.
 
-### Refonte 4 — Serre tropicale (commit `SERRE_HASH`)
+### Refonte 4 — Serre tropicale (commit `b311259`)
 
 **Concept retravaillé.**
 - **Promesse** : une nuit pour tenir la serre en vie, et voir fleurir l'Étoile de Los Reyes.
@@ -1487,3 +1487,43 @@ Viendraient ensuite : bowling, banque (mini-jeu du coffre), commissariat, puis l
 - les arroseurs automatiques qu'on pourrait débloquer ;
 - une musique de nuit ;
 - des lucioles.
+
+Note : dans une des suites complètes, le pilote glouton a eu deux nuits à 3 et 6 soins seulement (4 nuits tenues sur 6), ce qui ressemble plus à un pilote coincé dans un coin qu'à de la difficulté. Le test exige 3 nuits sur 6 et reste vert ; à regarder si un joueur se coince en vrai entre l'étagère et la cabane.
+
+### Refonte 5 — Radio pirate Reyes FM (commit `RADIO_HASH`)
+
+**Concept retravaillé.**
+- **Promesse** : tenir l'antenne pirate de Los Reyes pendant que la police triangule le signal.
+- **Mécanique centrale** : le doigt pilote l'aiguille d'un vrai tuner ; rester sur la bosse verte du signal fait monter les auditeurs et baisser la triangulation. À partir du 2e segment, un **brouilleur rouge** de la police rôde sur la bande, et s'y poser fait localiser le studio presque deux fois plus vite.
+- **Moment fort** : « LE DIRECT », un signal étroit qui saute à mi-parcours, avec le brouilleur et les gyrophares de police qui clignotent derrière les vitres.
+
+**Avant** (`radio_avant.png`) : une barre de 14 px avec une zone verte, un texte de 8 px et une jauge de triangulation. Aucune identité, et une victoire réduite à un toast.
+
+**Ce qui a changé** :
+- **Un tuner illustré** au-dessus de la zone du doigt :
+  - coffret en bois, cadran crème gradué de 87 à 108, bosse verte du signal, bosse rouge du brouilleur qui clignote, aiguille rouge avec sa fréquence ;
+  - le compteur d'**auditeurs** (👂 12 840) ;
+  - une petite **carte de goniométrie** où trois lignes de police se resserrent sur le studio quand la triangulation monte (bleues, puis rouges au-delà de 70 %).
+- **Trois segments nommés** : « LA MATINALE », « LE BROUILLEUR », « LE DIRECT », annoncés en grand. Le saut du signal est annoncé : « ⚡ LE SIGNAL SAUTE ! ».
+- **Les appels d'auditeurs** s'affichent en grand dans le tuner pendant la pause (« 📞 ALLÔ, REYES FM ? »), au lieu d'un toast.
+- **Lisible** : une carte d'intro, une piste « ◀ GLISSE LE DOIGT ▶ » en bas de l'écran (on ne savait pas où glisser), le bouton d'action et les boutons de combat masqués pendant l'émission.
+- **Le studio vit** : les diodes de la console dansent avec le signal, les enceintes pulsent, et des gyrophares rouge et bleu clignotent aux fenêtres quand la police approche.
+- **Fin** : « 📻 FIN D'ÉMISSION — 29 873 AUDITEURS », confettis. Les gains sont **inchangés** (120 $ par segment tenu, +150 $ les trois), tout comme le Micro Vintage (émission parfaite).
+
+**Vérifications** :
+- `valider.js` est vert et les portes sont inchangées.
+- Les **37 anciens tests de la radio passent tels quels** : verrouillage, espacements, gains, appels, curiosité, plafond par vague, police, remises à zéro, horloges.
+- **Nouveau test « Radio V2 »**, qui couvre :
+  - les auditeurs ;
+  - le brouilleur (triangulation ×1,7) ;
+  - l'interface, et les boutons masqués puis rendus ;
+  - le pilote au doigt avec 0,25 s de retard (3 segments tenus, environ 30 000 auditeurs) ;
+  - le joueur passif, localisé par la police.
+- **Rendus réels** : `radio_studio`, `intro`, `matinale`, `direct_brouilleur`, `appel`.
+
+**À tester sur iPhone** :
+1. Le doigt glissé dans la moitié basse pilote-t-il l'aiguille avec précision ? La piste est-elle assez visible ?
+2. Le brouilleur se distingue-t-il bien du signal (rouge contre vert) ?
+3. Le tuner reste-t-il lisible en plein écran ?
+
+**Reste à améliorer** : un vrai jingle de radio synthétisé au début et à la fin, et répondre aux auditeurs (deux réponses au choix pendant la pause).

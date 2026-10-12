@@ -9337,6 +9337,57 @@ async function main() {
       else ok('Serre : ' + r.info.join(' ; ') + ' ; une nuit par vague, remises à zéro (sortie, mort, game over)');
     }
 
+    // -------------------------------------------------------------------
+    // Radio pirate V2 (11e lot) : le tuner, les auditeurs, le brouilleur de la
+    // police (segments marqués `brouilleur` dans RADIO_SEGMENTS), pilote au
+    // doigt avec un temps de réaction humain.
+    // -------------------------------------------------------------------
+    console.log('\n--- Radio pirate V2 : tuner, auditeurs, brouilleur de la police, pilote au doigt ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        const vu = (e) => getComputedStyle(e).display !== 'none';
+        const entrer = () => { if (INT.actif) sortirInterieur(); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
+          entrerInterieur('radio', PORTES.find((x) => x.id === 'radio') || { x: P.x, z: P.z, nx: 0, nz: 1 }); ETAT.intT = 0; return INT.actif; };
+        const lancer = (s) => { P.x = s.console.x; P.z = s.console.z; majAction(); const b = document.getElementById('btnAction'); if (b._fn) b._fn(); };
+        let s = entrer(); lancer(s);
+        if (!s.emissionOn || !vu(radioWrap) || !vu(radioIntroWrap) || vu(document.getElementById('btnFire'))) ko.push('lancement : tuner, intro ou boutons');
+        majAction(); if (document.getElementById('btnAction').style.display !== 'none') ko.push('bouton d’action affiché pendant l’émission');
+        // auditeurs : montent sur le signal, baissent à côté
+        s.aiguille = s.zoneCentre; for (let i = 0; i < 10; i++) { s.aiguille = s.zoneCentre; majInterieur(0.1, 0.1); }
+        const a1 = s.auditeurs; s.aiguille = s.zoneCentre > 97 ? 88 : 107; majInterieur(0.5, 0.5);
+        if (!(a1 > 500) || !(s.auditeurs < a1)) ko.push('auditeurs (' + a1 + ' puis ' + s.auditeurs + ')');
+        // le brouilleur (segment marqué) accélère la triangulation
+        const iB = RADIO_SEGMENTS.findIndex((z) => z.brouilleur);
+        s.segmentIdx = iB; s.segmentPause = 0; s.segmentT = 0; s.zoneCentre = 90; s.brouCentre = 104; s.brouDir = 1; s.triangulation = 0;
+        s.aiguille = 104; majInterieur(0.1, 0.1); const surBrouilleur = s.triangulation;
+        s.triangulation = 0; s.aiguille = 98; s.brouCentre = 104; majInterieur(0.1, 0.1); const ailleurs = s.triangulation;
+        if (!(surBrouilleur > ailleurs * 1.4)) ko.push('le brouilleur n’accélère pas la triangulation (' + surBrouilleur + ' / ' + ailleurs + ')');
+        else info.push('brouilleur : triangulation ×' + (surBrouilleur / ailleurs).toFixed(1));
+        sortirInterieur();
+        if (vu(radioWrap) || vu(document.getElementById('btnFire')) === false) ko.push('sortie : tuner affiché ou boutons non rendus');
+        // pilote au doigt : suit le signal avec 0,25 s de retard ; joueur passif
+        const emission = (actif) => {
+          const s = entrer(); lancer(s); const dt = 1 / 30, file = []; let t = 0;
+          while (s.emissionOn && t < 60) {
+            file.push(s.zoneCentre); const vise = file.length > 8 ? file.shift() : s.aiguille;
+            if (actif) s.aiguille += clamp(vise - s.aiguille, -30 * dt, 30 * dt); // le doigt glisse vite mais pas instantanément
+            majInterieur(dt, dt); t += dt;
+          }
+          const res = { reussis: s.segmentsReussis, audi: Math.round(s.auditeursMax || 0), police: !INT.actif };
+          if (INT.actif) sortirInterieur(); return res;
+        };
+        const p1 = emission(true), p2 = emission(true), passif = emission(false);
+        if (p1.reussis < 2 || p2.reussis < 2) ko.push('le pilote au doigt ne tient pas les segments (' + JSON.stringify([p1, p2]) + ')');
+        else info.push('pilote au doigt : ' + p1.reussis + ' et ' + p2.reussis + ' segments, ' + p1.audi + ' / ' + p2.audi + ' auditeurs');
+        if (!passif.police) ko.push('un joueur passif n’est pas localisé par la police');
+        else info.push('passif : descente de police');
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Radio V2 : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
+      else ok('Radio V2 : ' + r.info.join(' ; ') + ' ; tuner, intro, boutons masqués puis rendus');
+    }
+
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');
     {
       const srcIdx = fs.readFileSync(INDEX_HTML, 'utf8');

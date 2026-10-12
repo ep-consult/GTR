@@ -15911,31 +15911,15 @@ metroWrap.innerHTML='<div id="metroLbl" style="font:900 11px Arial;letter-spacin
 el('hud').appendChild(metroWrap);
 const metroLblEl=metroWrap.querySelector('#metroLbl'), metroBattEl=metroWrap.querySelector('#metroBatt'),
       metroBeteWrap=metroWrap.querySelector('#metroBeteWrap'), metroBeteEl=metroWrap.querySelector('#metroBete');
-/* Radio pirate : segment/pause en cours, barre de fréquence (aiguille +
-   porteuse en surbrillance) et jauge de triangulation — la barre doit
-   rester lisible sans le son (voir CLAUDE.md / la demande d'origine). */
+/* Radio pirate V2 (11e lot) : un tuner illustré (canvas, dessinerTuner,
+   section RADIO PIRATE) — cadran, bosse du signal, brouilleur, aiguille,
+   auditeurs, carte de triangulation. Lisible sans le son. Au-dessus de la
+   zone du doigt (#radioZone, moitié basse de l'écran). */
 const radioWrap=document.createElement('div');
-radioWrap.style.cssText='position:absolute;left:50%;transform:translateX(-50%);'+
-  'bottom:calc(env(safe-area-inset-bottom,0px) + 380px);width:min(280px,76vw);display:none;'+
-  'text-align:center;pointer-events:none;z-index:6';
-radioWrap.innerHTML='<div id="radioLbl" style="font:900 11px Arial;letter-spacing:.06em;color:#b48bff;'+
-  'text-shadow:0 2px 6px #000">📻 SEGMENT 1/3 · 8 s</div>'+
-  '<div style="position:relative;margin-top:5px;height:14px;background:#12141bee;'+
-  'border:1.5px solid #ffffff33;border-radius:4px;overflow:hidden">'+
-  '<i id="radioZoneBar" style="position:absolute;top:0;bottom:0;background:#7dff7a55;'+
-  'border-left:1px solid #7dff7a;border-right:1px solid #7dff7a;width:18%;left:40%"></i>'+
-  '<i id="radioAiguille" style="position:absolute;top:0;bottom:0;width:2px;background:#ffd23f;'+
-  'left:50%;box-shadow:0 0 6px #ffd23f"></i></div>'+
-  '<div id="radioFreqTxt" style="font:800 8px Arial;color:#8a8f9a;margin-top:2px">97.5 FM</div>'+
-  '<div style="position:relative;margin-top:5px;height:8px;background:#12141bee;'+
-  'border:1.5px solid #ffffff33;border-radius:4px;overflow:hidden">'+
-  '<i id="radioTriang" style="display:block;height:100%;width:0%;'+
-  'background:linear-gradient(90deg,#ffd23f,#ff3b5c)"></i></div>'+
-  '<div style="font:800 8px Arial;color:#8a8f9a;margin-top:2px">triangulation</div>';
+radioWrap.style.cssText='position:absolute;left:50%;top:calc(env(safe-area-inset-top,0px) + 205px);transform:translateX(-50%);'+
+  'width:min(350px,92vw);display:none;pointer-events:none;z-index:6';
+radioWrap.innerHTML='<canvas id="radioCv" width="700" height="420" style="width:100%;aspect-ratio:700/420;display:block;border-radius:18px;box-shadow:0 8px 26px #000c"></canvas>';
 el('hud').appendChild(radioWrap);
-const radioLblEl=radioWrap.querySelector('#radioLbl'), radioZoneBarEl=radioWrap.querySelector('#radioZoneBar'),
-      radioAiguilleEl=radioWrap.querySelector('#radioAiguille'), radioFreqTxtEl=radioWrap.querySelector('#radioFreqTxt'),
-      radioTriangEl=radioWrap.querySelector('#radioTriang');
 /* Chalutier « Sainte-Odile » V2 (11e lot) : quatre éléments d'interface,
    tous cachés hors sortie (chalutierArreterSortie, cacherJauges) :
    - chalutierWrap : panneau compact en haut à gauche — chrono, ciel (jauge
@@ -19094,7 +19078,17 @@ function construireSalle(id){
     // ---- console de mixage ----
     box(3.6,1.1,1.6,0x1c1a22,0,0.55,2);
     box(3,0.15,1.2,0x2a2740,0,1.15,2,false);
-    for(let k=0;k<6;k++) box(0.18,0.3,0.18,pick([0xff3b5c,0xffd23f,0x35e0ff,0x7dff7a]),-1.3+k*0.5,1.28,1.7,false);
+    // diodes de la console : elles dansent avec le signal (radioMaj)
+    inter.leds=[];
+    for(let k=0;k<6;k++){ const led=new THREE.Mesh(new THREE.BoxGeometry(0.18,0.6,0.18),mat(pick([0xff3b5c,0xffd23f,0x35e0ff,0x7dff7a])));
+      led.geometry.translate(0,0.3,0); led.position.set(ox-1.3+k*0.5,1.22,oz+1.7); g.add(led); inter.leds.push(led); }
+    // deux enceintes qui pulsent, deux gyrophares derrière les vitres quand la police approche
+    inter.hautParleurs=[];
+    for(const sx of [-3.4,3.4]){ box(1.2,2,1,0x14121a,sx,1,1.4,false);
+      const memb=new THREE.Mesh(new THREE.CircleGeometry(0.42,16),mat(0x2a2638)); memb.position.set(ox+sx,1.1,oz+1.92); g.add(memb); inter.hautParleurs.push(memb); }
+    inter.gyros=[];
+    for(const sx of [-6,6]){ const gy=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:0xff1f3f,transparent:true,opacity:0.9,depthWrite:false,blending:THREE.AdditiveBlending}));
+      gy.scale.set(5,5,1); gy.position.set(ox+sx,3,oz+11.5); gy.visible=false; g.add(gy); inter.gyros.push(gy); }
     mkEnseigne('CONSOLE','#b48bff',ox,2,oz+3.3,0,7);
     inter.console={x:ox,z:oz+2};
 
@@ -20749,20 +20743,29 @@ function metroDangerToucher(s,d){
   SFX.degat(); secousse(5); vibre(70);
 }
 /* =====================================================================
-   RADIO PIRATE REYES FM — minijeu L'ÉMISSION : garder l'aiguille dans la
-   porteuse qui dérive, sur 3 segments de plus en plus difficiles. La
-   triangulation et la dérive de la zone sont des compteurs subis par le
-   joueur : tout passe par dtJeu, jamais par dt (voir boucle()).
+   RADIO PIRATE REYES FM — L'ÉMISSION (refaite au 11e lot)
+   Promesse : tenir l'antenne pirate de Los Reyes pendant que la police
+   triangule le signal.
+   Mécanique : le doigt (moitié basse de l'écran) pilote l'aiguille d'un vrai
+   tuner ; rester sur la bosse verte du signal qui dérive fait monter les
+   auditeurs et baisser la triangulation ; trois segments nommés, de plus en
+   plus durs ; à partir du 2e, un BROUILLEUR rouge de la police rôde sur la
+   bande : s'y poser accélère la triangulation.
+   Moment fort : « LE DIRECT », signal étroit qui saute, brouilleur, sirènes.
+   Gains inchangés (120 $ par segment tenu à 70 %, +150 $ les trois).
+   Triangulation, dérives et chronos sur dtJeu, jamais sur dt.
 ===================================================================== */
 const RADIO_BAND_MIN=87, RADIO_BAND_MAX=108;   // 87.0–108.0 FM
 const RADIO_SEG_DUREE=8, RADIO_PAUSE_DUREE=2, RADIO_EMISSIONS_MAX=2;
 // largeur en fraction de la largeur de bande, vitesse en fraction de bande/s
 // (jamais en MHz/frame) — segment 3 avec un saut de fréquence à mi-parcours
 const RADIO_SEGMENTS=[
-  {largeur:0.18,vitesse:0.025},
-  {largeur:0.12,vitesse:0.05},
-  {largeur:0.08,vitesse:0.09,saut:true},
+  {nom:'LA MATINALE',largeur:0.18,vitesse:0.025},
+  {nom:'LE BROUILLEUR',largeur:0.12,vitesse:0.05,brouilleur:true},
+  {nom:'LE DIRECT',largeur:0.08,vitesse:0.09,saut:true,brouilleur:true},
 ];
+const RADIO_BROUILLEUR={largeur:0.08,vitesse:0.06,triang:100/3.5}; // sur le brouilleur : triangulation à cette vitesse (%/s)
+const RADIO_AUDITEURS={gain:900,perte:500,brouille:1400};          // auditeurs par seconde
 const RADIO_APPELS=[
   'Allô ? C’est pour signaler que mon voisin a garé un char devant chez moi.',
   'Vous pouvez passer une dédicace à Gaston ? Il s’est encore échappé.',
@@ -20775,6 +20778,15 @@ const RADIO_APPELS=[
   'Je voulais commander un sandwich. Ah, c’est pas le bon numéro ? Bon.',
   'Franchement, la musique était mieux avant. Avant quoi ? Avant.',
 ];
+const radioIntroWrap=carteSalle('top:42%;border-color:#b48bff99');
+radioIntroWrap.innerHTML='<div style="font:900 21px Arial;color:#d8b8ff;letter-spacing:.03em;text-shadow:0 2px 0 #000">📻 REYES FM — ON AIR</div>'+
+  '<div style="font:800 11px Arial;color:#9fd8ee;margin:2px 0 8px;letter-spacing:.08em">TIENS L’ANTENNE PIRATE</div>'+
+  ligneCarte('👆','glisse le doigt en bas : <b>l’aiguille suit</b>')+ligneCarte('📶','reste sur la <b>bosse verte</b> du signal')+
+  ligneCarte('🚨','hors du signal, la police te <b>localise</b>')+ligneCarte('🟥','évite le <b>brouilleur rouge</b> de la police');
+// la zone du doigt (moitié basse) : une piste discrète dit où glisser
+el('radioZone').innerHTML='<div style="position:absolute;left:7%;right:7%;bottom:calc(env(safe-area-inset-bottom,0px) + 90px);height:46px;'+
+  'border-radius:23px;border:2px dashed #b48bff66;background:#b48bff14;display:flex;align-items:center;justify-content:center;'+
+  'font:900 15px Arial;color:#d8b8ffcc;letter-spacing:.08em;pointer-events:none">◀ GLISSE LE DOIGT ▶</div>';
 // point de reset paresseux, comme metroVerifierVague/cineVerifierVague —
 // une vague qui tourne éteint aussi une émission en cours (voir spec) et
 // remet triangulation/ON AIR à zéro ; seul le compteur de vague est propre
@@ -20784,13 +20796,16 @@ function radioVerifierVague(s){
   if(s.radioVagueRef!==WAVES.n){ s.radioVagueRef=WAVES.n; s.emissionsVague=0; radioArreterEmission(s); }
 }
 // point de reset commun : émission en cours annulée, triangulation à zéro,
-// ON AIR éteint, sons coupés — utilisé par la fin naturelle (police), la
-// sortie en pleine émission, la mort, le game over et le changement de vague
+// ON AIR éteint, sons coupés, panneaux cachés, boutons rendus — fin
+// naturelle (police ou fin), sortie, mort, game over, changement de vague
 function radioArreterEmission(s){
-  s.emissionOn=false; s.segmentPause=0; s.triangulation=0;
+  const enCours=s.emissionOn;
+  s.emissionOn=false; s.segmentPause=0; s.triangulation=0; s.radioIntroT=0;
   radioAmbianceStop();
   cacherRadioZone();
   if(radioWrap.style.display!=='none') radioWrap.style.display='none';
+  if(radioIntroWrap.style.display!=='none') radioIntroWrap.style.display='none';
+  if(enCours) afficherBoutonsCombat();
 }
 function radioDemarrerSegment(s){
   const zdef=RADIO_SEGMENTS[s.segmentIdx];
@@ -20799,12 +20814,16 @@ function radioDemarrerSegment(s){
   s.zoneCentre=rand(RADIO_BAND_MIN+marge,RADIO_BAND_MAX-marge);
   s.zoneDir=Math.random()<0.5?1:-1;
   s.segmentT=0; s.segTempsZone=0; s.sautFait=false;
+  // le brouilleur part loin du signal et dérive en sens contraire
+  s.brouCentre=s.zoneCentre>(RADIO_BAND_MIN+RADIO_BAND_MAX)/2?RADIO_BAND_MIN+3:RADIO_BAND_MAX-3; s.brouDir=-s.zoneDir;
+  s.appelTexte=null;
+  bigMsg('📻 '+(s.segmentIdx+1)+'/3 — '+zdef.nom);
 }
 function radioAppelAuditeur(s){
   let idx=randi(0,RADIO_APPELS.length-1);
   while(s.appelsUtilises.includes(idx)) idx=randi(0,RADIO_APPELS.length-1);
   s.appelsUtilises.push(idx);
-  toast('📞 '+RADIO_APPELS[idx],'warn');
+  s.appelTexte=RADIO_APPELS[idx];
 }
 function radioFinSegment(s){
   const frac=s.segTempsZone/RADIO_SEG_DUREE;
@@ -20812,8 +20831,8 @@ function radioFinSegment(s){
   if(reussi){
     s.segmentsReussis++;
     META.argent+=120; ETAT.cashRun+=120; META.stats.cashTotal+=120;
-    toast('Segment '+(s.segmentIdx+1)+' réussi : +120 $','or'); SFX.achat();
-  } else toast('Segment '+(s.segmentIdx+1)+' raté — trop de friture','warn');
+    toast('Segment '+(s.segmentIdx+1)+' tenu : +120 $','or'); SFX.achat(); vibre(30);
+  } else { toast('Segment '+(s.segmentIdx+1)+' raté — trop de friture','warn'); SFX.refus(); }
   if(frac<0.95) s.emissionParfaite=false;
   s.segmentIdx++;
   if(s.segmentIdx>=RADIO_SEGMENTS.length) radioTerminerEmission(s);
@@ -20828,11 +20847,13 @@ function radioDescentePolice(s){
 }
 function radioTerminerEmission(s){
   const parfaite=s.emissionParfaite&&s.segmentsReussis>=3;
+  const audi=Math.round(s.auditeursMax||0);
   radioArreterEmission(s);
   if(s.segmentsReussis>=3){
     META.argent+=150; ETAT.cashRun+=150; META.stats.cashTotal+=150;
-    bigMsg('📻 ÉMISSION RÉUSSIE'); toast('Les 3 segments tenus : +150 $ de bonus','or'); SFX.niveau();
-  } else { bigMsg('📻 ÉMISSION TERMINÉE'); toast(s.segmentsReussis+'/3 segments réussis','or'); SFX.achat(); }
+    bigMsg('📻 FIN D’ÉMISSION — '+audi.toLocaleString('fr-FR')+' AUDITEURS'); toast('Les 3 segments tenus : +150 $ de bonus','or'); SFX.niveau(); vibre(80);
+    for(let i=0;i<30;i++) spawnP(P.x+rand(-2,2),rand(1,3.5),P.z+rand(-2,2),rand(-1.5,1.5),rand(1.5,3.5),rand(-1.5,1.5),1.3,0.45,pick([0xb48bff,0xff5ad0,0xffd23f]),3);
+  } else { bigMsg('📻 ÉMISSION TERMINÉE — '+audi.toLocaleString('fr-FR')+' AUDITEURS'); toast(s.segmentsReussis+'/3 segments tenus','or'); SFX.achat(); }
   if(parfaite&&!aCurio('micro')){
     donnerCurio('micro');
     if(s.microCloche) s.microCloche.visible=false;
@@ -20845,13 +20866,121 @@ function radioDemarrerEmission(s){
   s.emissionOn=true; s.emissionsVague++; s.segmentIdx=0; s.segmentsReussis=0;
   s.triangulation=0; s.emissionParfaite=true; s.segmentPause=0;
   s.aiguille=rand(RADIO_BAND_MIN+2,RADIO_BAND_MAX-2);
-  s.appelsUtilises=[];
+  s.appelsUtilises=[]; s.auditeurs=0; s.auditeursMax=0;
   radioDemarrerSegment(s);
   radioAmbianceStart();
-  configurerRadioZone();
+  configurerRadioZone(); cacherBoutonsCombat();
   radioWrap.style.display='block';
-  bigMsg('📻 ON AIR'); toast('Garde l’aiguille dans la porteuse. Trois segments.','or');
-  SFX.ui();
+  s.radioIntroT=3.4; radioIntroWrap.style.opacity='1'; radioIntroWrap.style.display='block';
+  bigMsg('📻 ON AIR'); SFX.ui();
+}
+// mise à jour (majInterieur) : décor qui vit au rythme du signal, puis L'ÉMISSION
+function radioMaj(s,dt,dtJeu){
+  radioVerifierVague(s);
+  const T=ETAT.runT;
+  if(s.onAirMesh) s.onAirMesh.material.opacity=s.emissionOn?(0.6+0.4*Math.sin(T*6)):0.2;
+  if(s.radioIntroT>0){ s.radioIntroT-=dt; if(s.radioIntroT<0.5) radioIntroWrap.style.opacity=String(Math.max(0,s.radioIntroT/0.5)); if(s.radioIntroT<=0) radioIntroWrap.style.display='none'; }
+  const signal=s.emissionOn&&s.segmentPause<=0?clamp(1-Math.abs(s.aiguille-s.zoneCentre)/4,0,1):0;
+  if(s.leds) for(let i=0;i<s.leds.length;i++) s.leds[i].scale.y=0.3+(s.emissionOn?signal*(0.6+0.6*Math.abs(Math.sin(T*(8+i*1.7)+i))):0.1);
+  if(s.hautParleurs) for(const hp of s.hautParleurs){ const k=1+(s.emissionOn?0.08*signal*Math.abs(Math.sin(T*12)):0); hp.scale.set(k,k,1); }
+  if(s.gyros){ const alerte=s.emissionOn&&s.triangulation>70; for(let i=0;i<s.gyros.length;i++){ s.gyros[i].visible=alerte; if(alerte) s.gyros[i].material.color.setHex(Math.floor(T*6+i)%2?0xff1f3f:0x3a6aff); } }
+  if(!s.emissionOn) return;
+  if(s.segmentPause>0){
+    s.segmentPause=Math.max(0,s.segmentPause-dtJeu);
+    if(s.segmentPause<=0) radioDemarrerSegment(s);
+    dessinerTuner(s); return;
+  }
+  s.segmentT+=dtJeu;
+  const zdef=RADIO_SEGMENTS[s.segmentIdx];
+  const largeurMHz=zdef.largeur*(RADIO_BAND_MAX-RADIO_BAND_MIN);
+  const marge=largeurMHz/2+0.5;
+  // dérive en fraction de bande PAR SECONDE (jamais par frame), rebondit
+  // dans les bornes de la bande, avec un saut de fréquence au milieu du
+  // segment 3 — tout sur dtJeu, un ralenti ne doit ni faciliter ni durcir
+  s.zoneCentre+=s.zoneDir*zdef.vitesse*(RADIO_BAND_MAX-RADIO_BAND_MIN)*dtJeu;
+  if(s.zoneCentre>=RADIO_BAND_MAX-marge){ s.zoneCentre=RADIO_BAND_MAX-marge; s.zoneDir=-1; }
+  if(s.zoneCentre<=RADIO_BAND_MIN+marge){ s.zoneCentre=RADIO_BAND_MIN+marge; s.zoneDir=1; }
+  if(zdef.saut&&!s.sautFait&&s.segmentT>=RADIO_SEG_DUREE/2){
+    s.sautFait=true;
+    s.zoneCentre=rand(RADIO_BAND_MIN+marge,RADIO_BAND_MAX-marge);
+    bigMsg('⚡ LE SIGNAL SAUTE !'); vibre(40);
+  }
+  // le brouilleur de la police (segments 2 et 3)
+  const brMHz=RADIO_BROUILLEUR.largeur*(RADIO_BAND_MAX-RADIO_BAND_MIN);
+  if(zdef.brouilleur){
+    s.brouCentre+=s.brouDir*RADIO_BROUILLEUR.vitesse*(RADIO_BAND_MAX-RADIO_BAND_MIN)*dtJeu;
+    if(s.brouCentre>=RADIO_BAND_MAX-brMHz/2){ s.brouCentre=RADIO_BAND_MAX-brMHz/2; s.brouDir=-1; }
+    if(s.brouCentre<=RADIO_BAND_MIN+brMHz/2){ s.brouCentre=RADIO_BAND_MIN+brMHz/2; s.brouDir=1; }
+  }
+  const ecartMHz=Math.abs(s.aiguille-s.zoneCentre);
+  const dansZone=ecartMHz<=largeurMHz/2;
+  const brouille=!dansZone&&zdef.brouilleur&&Math.abs(s.aiguille-s.brouCentre)<=brMHz/2;
+  const m=1+s.segmentIdx*0.5;
+  if(dansZone){
+    s.segTempsZone+=dtJeu;
+    s.triangulation=Math.max(0,s.triangulation-(100/12)*dtJeu);
+    s.auditeurs+=RADIO_AUDITEURS.gain*m*dtJeu;
+  } else {
+    s.triangulation=Math.min(100,s.triangulation+(brouille?RADIO_BROUILLEUR.triang:100/6)*dtJeu);
+    s.auditeurs=Math.max(0,s.auditeurs-(brouille?RADIO_AUDITEURS.brouille:RADIO_AUDITEURS.perte)*dtJeu);
+  }
+  s.auditeursMax=Math.max(s.auditeursMax||0,s.auditeurs);
+  if(s.triangulation>50) s.emissionParfaite=false;
+  radioAmbianceUpdate(clamp((ecartMHz-largeurMHz/2)/5,0,1));
+  if(s.triangulation>=100){ radioDescentePolice(s); return; }
+  if(s.segmentT>=RADIO_SEG_DUREE){ radioFinSegment(s); if(!s.emissionOn) return; }
+  dessinerTuner(s);
+}
+// le tuner : cadran, bosse du signal, brouilleur, aiguille, auditeurs, triangulation
+const radioCx=radioWrap.querySelector('#radioCv').getContext('2d');
+function dessinerTuner(s){
+  const cx=radioCx, W=700, H=420, T=ETAT.runT; if(!cx) return;
+  // coffret en bois, façade sombre
+  let gr=cx.createLinearGradient(0,0,0,H); gr.addColorStop(0,'#5a3a22'); gr.addColorStop(1,'#3a2414'); cx.fillStyle=gr; cx.fillRect(0,0,W,H);
+  cx.fillStyle='#120e18'; cx.fillRect(18,18,W-36,H-36);
+  const zdef=RADIO_SEGMENTS[Math.min(s.segmentIdx,RADIO_SEGMENTS.length-1)];
+  cx.textAlign='center'; cx.textBaseline='middle';
+  const txt=(t,x,y,c,taille,poids)=>{ cx.font=(poids||900)+' '+taille+'px Arial'; cx.fillStyle=c; cx.fillText(t,x,y); };
+  // en-tête : segment et chrono
+  if(s.segmentPause>0){
+    txt('📞 ALLÔ, REYES FM ?',W/2,52,'#ffd23f',30);
+    cx.font='800 25px Arial'; cx.fillStyle='#e8e0ff'; const mots=(s.appelTexte||'…').split(' '); let l='', y=112;
+    for(const mo of mots){ if(cx.measureText(l+mo).width>W-110){ cx.fillText(l.trim(),W/2,y); l=''; y+=34; } l+=mo+' '; } cx.fillText(l.trim(),W/2,y);
+  } else {
+    txt('📻 '+(s.segmentIdx+1)+'/3 · '+zdef.nom,W/2-60,52,'#d8b8ff',26);
+    txt(Math.max(0,Math.ceil(RADIO_SEG_DUREE-s.segmentT))+' s',W-80,52,'#ffffff',30);
+  }
+  // le cadran : graduations 87 → 108
+  const cy0=158, cx0=50, cw=W-100, fx=(f)=>cx0+(f-RADIO_BAND_MIN)/(RADIO_BAND_MAX-RADIO_BAND_MIN)*cw;
+  if(s.segmentPause<=0){ cx.fillStyle='#e8d8a0'; cx.fillRect(cx0-10,cy0-38,cw+20,92); } // pendant un appel, le cadran laisse la place au texte
+  cx.strokeStyle='#3a2414'; cx.lineWidth=2;
+  if(s.segmentPause<=0) for(let f=88;f<=108;f+=1){ const x=fx(f); cx.beginPath(); cx.moveTo(x,cy0+44); cx.lineTo(x,cy0+(f%4===0?22:34)); cx.stroke(); if(f%4===0) txt(String(f),x,cy0+12,'#3a2414',17,800); }
+  if(s.segmentPause<=0){
+    const largeurMHz=zdef.largeur*(RADIO_BAND_MAX-RADIO_BAND_MIN);
+    // la bosse du signal (verte) et le brouilleur (rouge)
+    const bosse=(centre,demi,coul)=>{ cx.fillStyle=coul; cx.beginPath(); cx.moveTo(fx(centre-demi*1.6),cy0+44);
+      for(let k=0;k<=24;k++){ const f=centre-demi*1.6+k/24*demi*3.2, e=(f-centre)/demi, h=Math.exp(-e*e*1.6)*70; cx.lineTo(fx(f),cy0+44-h); }
+      cx.lineTo(fx(centre+demi*1.6),cy0+44); cx.fill(); };
+    bosse(s.zoneCentre,largeurMHz/2,'rgba(80,220,120,0.75)');
+    if(zdef.brouilleur) bosse(s.brouCentre,RADIO_BROUILLEUR.largeur*(RADIO_BAND_MAX-RADIO_BAND_MIN)/2,'rgba(255,50,70,'+(0.55+0.25*Math.sin(T*12))+')');
+    // l'aiguille
+    const ax=fx(s.aiguille); cx.strokeStyle='#ff2a2a'; cx.lineWidth=5; cx.beginPath(); cx.moveTo(ax,cy0-46); cx.lineTo(ax,cy0+52); cx.stroke();
+    txt(s.aiguille.toFixed(1)+' FM',ax,cy0-58,'#ffd8d8',18,800);
+  }
+  // auditeurs et triangulation
+  const audi=Math.round(s.auditeurs||0);
+  txt('👂 '+audi.toLocaleString('fr-FR'),190,290,'#9dffa0',34);
+  txt('auditeurs',190,326,'#9fb4c0',18,800);
+  // la carte de triangulation : trois lignes de goniométrie qui se resserrent sur le studio
+  const mx=530, my=298, R=68, tr=(s.triangulation||0)/100;
+  cx.fillStyle='#0b2a3a'; cx.beginPath(); cx.arc(mx,my,R,0,Math.PI*2); cx.fill();
+  cx.strokeStyle='rgba(120,200,255,0.25)'; cx.lineWidth=1; cx.beginPath(); cx.arc(mx,my,R*0.5,0,Math.PI*2); cx.stroke();
+  for(let i=0;i<3;i++){ const a0=i*2.1+0.4, px=mx+Math.cos(a0)*R, py=my+Math.sin(a0)*R, dev=(1-tr)*0.9*Math.sin(T*1.3+i*2);
+    const a=Math.atan2(my-py,mx-px)+dev; cx.strokeStyle=tr>0.7?'#ff3b5c':'#4a9aff'; cx.lineWidth=3; cx.beginPath(); cx.moveTo(px,py); cx.lineTo(px+Math.cos(a)*R*2,py+Math.sin(a)*R*2); cx.stroke();
+    cx.fillStyle='#4a9aff'; cx.beginPath(); cx.arc(px,py,7,0,Math.PI*2); cx.fill(); }
+  cx.fillStyle='#d8b8ff'; cx.beginPath(); cx.arc(mx,my,8,0,Math.PI*2); cx.fill();
+  txt('🚨 '+Math.round(s.triangulation||0)+' %',mx,my+R+16,tr>0.7?'#ff5a6a':'#e8e0ff',22);
+  cx.textAlign='left';
 }
 /* =====================================================================
    LE CHALUTIER « SAINTE-ODILE » — V2 (11e lot, refonte complète)
@@ -22612,53 +22741,8 @@ function majInterieur(dt,dtJeu){
     if(s.niveauActuel===3){ metroBeteWrap.style.display='block'; metroBeteEl.style.width=Math.round(s.beteProx*100)+'%'; }
     else metroBeteWrap.style.display='none';
   }
-  // ---- Radio pirate : L'ÉMISSION (segments, pause, triangulation) ----
-  if(s.console){
-    radioVerifierVague(s);
-    if(s.onAirMesh) s.onAirMesh.material.opacity=s.emissionOn?(0.6+0.4*Math.sin(ETAT.runT*6)):0.2;
-    if(s.emissionOn){
-      if(s.segmentPause>0){
-        s.segmentPause=Math.max(0,s.segmentPause-dtJeu);
-        radioWrap.style.display='block';
-        radioLblEl.textContent='📞 PAUSE · '+Math.ceil(s.segmentPause)+' s';
-        if(s.segmentPause<=0) radioDemarrerSegment(s);
-      } else {
-        s.segmentT+=dtJeu;
-        const zdef=RADIO_SEGMENTS[s.segmentIdx];
-        const largeurMHz=zdef.largeur*(RADIO_BAND_MAX-RADIO_BAND_MIN);
-        const marge=largeurMHz/2+0.5;
-        // dérive en fraction de bande PAR SECONDE (jamais par frame), rebondit
-        // dans les bornes de la bande, avec un saut de fréquence au milieu du
-        // segment 3 — tout sur dtJeu, un ralenti ne doit ni faciliter ni durcir
-        s.zoneCentre+=s.zoneDir*zdef.vitesse*(RADIO_BAND_MAX-RADIO_BAND_MIN)*dtJeu;
-        if(s.zoneCentre>=RADIO_BAND_MAX-marge){ s.zoneCentre=RADIO_BAND_MAX-marge; s.zoneDir=-1; }
-        if(s.zoneCentre<=RADIO_BAND_MIN+marge){ s.zoneCentre=RADIO_BAND_MIN+marge; s.zoneDir=1; }
-        if(zdef.saut&&!s.sautFait&&s.segmentT>=RADIO_SEG_DUREE/2){
-          s.sautFait=true;
-          s.zoneCentre=rand(RADIO_BAND_MIN+marge,RADIO_BAND_MAX-marge);
-        }
-        const ecartMHz=Math.abs(s.aiguille-s.zoneCentre);
-        const dansZone=ecartMHz<=largeurMHz/2;
-        if(dansZone){
-          s.segTempsZone+=dtJeu;
-          s.triangulation=Math.max(0,s.triangulation-(100/12)*dtJeu);
-        } else {
-          s.triangulation=Math.min(100,s.triangulation+(100/6)*dtJeu);
-        }
-        if(s.triangulation>50) s.emissionParfaite=false;
-        radioAmbianceUpdate(clamp((ecartMHz-largeurMHz/2)/5,0,1));
-        radioWrap.style.display='block';
-        radioLblEl.textContent='📻 SEGMENT '+(s.segmentIdx+1)+'/3 · '+Math.max(0,Math.ceil(RADIO_SEG_DUREE-s.segmentT))+' s';
-        radioZoneBarEl.style.width=(zdef.largeur*100)+'%';
-        radioZoneBarEl.style.left=((s.zoneCentre-largeurMHz/2-RADIO_BAND_MIN)/(RADIO_BAND_MAX-RADIO_BAND_MIN)*100)+'%';
-        radioAiguilleEl.style.left=((s.aiguille-RADIO_BAND_MIN)/(RADIO_BAND_MAX-RADIO_BAND_MIN)*100)+'%';
-        radioFreqTxtEl.textContent=s.aiguille.toFixed(1)+' FM';
-        radioTriangEl.style.width=Math.round(s.triangulation)+'%';
-        if(s.triangulation>=100) radioDescentePolice(s);
-        else if(s.segmentT>=RADIO_SEG_DUREE) radioFinSegment(s);
-      }
-    }
-  }
+  // ---- Radio pirate : L'ÉMISSION (radioMaj) ----
+  if(s.console) radioMaj(s,dt,dtJeu);
   // ---- Chalutier « Sainte-Odile » : sortie en mer (tout est dans chalutierMaj) ----
   if(s.barre) chalutierMaj(s,dt,dtJeu);
   if(s.site51){
@@ -26326,8 +26410,7 @@ function majAction(){
     } else if(s.console&&dist2(P.x,P.z,s.console.x,s.console.z)<marquerZone(s.console,16)){
       radioVerifierVague(s);
       if(s.emissionOn){
-        label='📻 Émission en cours...';
-        fn=()=>{ SFX.refus(); };
+        label=''; fn=null; // pendant l'émission, tout se joue au doigt (#radioZone)
       } else if(s.emissionsVague>=RADIO_EMISSIONS_MAX){
         label='📻 Deux émissions déjà données cette vague';
         fn=()=>{ SFX.refus(); toast('L’antenne rouvrira à la prochaine vague.'); };
