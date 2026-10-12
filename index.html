@@ -15868,29 +15868,13 @@ window.addEventListener('resize',()=>{ if(arcadeWrap.style.display!=='none') red
 /* Ciné-Palace : chrono de séance, satisfaction, et les 4 jauges de panne —
    affichées ensemble, jamais plus de 2 postes surveillables en même temps
    dans la cabine, mais les 4 jauges restent visibles au joueur en permanence. */
-const cineWrap=document.createElement('div');
-cineWrap.style.cssText='position:absolute;left:50%;transform:translateX(-50%);'+
-  'bottom:calc(env(safe-area-inset-bottom,0px) + 380px);width:min(280px,76vw);display:none;'+
-  'text-align:center;pointer-events:none;z-index:6';
-cineWrap.innerHTML='<div id="cineLbl" style="font:900 11px Arial;letter-spacing:.06em;color:#ffd23f;'+
-  'text-shadow:0 2px 6px #000">🎬 100 s</div>'+
-  '<div style="position:relative;margin-top:4px;height:10px;background:#12141bee;'+
-  'border:1.5px solid #ffffff33;border-radius:4px;overflow:hidden">'+
-  '<i id="cineSat" style="display:block;height:100%;width:100%;'+
-  'background:linear-gradient(90deg,#ff3b5c,#ffd23f,#7dff7a)"></i></div>'+
-  '<div style="font:800 8px Arial;color:#8a8f9a;margin-top:2px">satisfaction</div>'+
-  '<div style="display:flex;gap:4px;margin-top:5px">'+
-  ['bobine','point','son','lampe'].map((id,i)=>
-    '<div style="flex:1"><div style="height:6px;background:#12141bee;border:1px solid #ffffff33;'+
-    'border-radius:3px;overflow:hidden"><i id="cine_'+id+'" style="display:block;height:100%;width:0%;'+
-    'background:'+['#35c8e0','#b48bff','#ff9f2e','#ffd23f'][i]+'"></i></div>'+
-    '<div style="font:700 7px Arial;color:#8a8f9a;margin-top:1px">'+
-    ['BOBINE','POINT','SON','LAMPE'][i]+'</div></div>').join('')+
-  '</div>';
+const cineWrap=document.createElement('div'); // Ciné-Palace V2 : l'écran de la salle en incrustation (dessinerEcranCine)
+// tout en haut (sur le score, inutile en salle) : au milieu, il cachait les postes du fond de la cabine
+cineWrap.style.cssText='position:absolute;left:50%;top:calc(env(safe-area-inset-top,0px) + 44px);transform:translateX(-50%);'+
+  'width:min(270px,70vw);display:none;pointer-events:none;z-index:6';
+cineWrap.innerHTML='<canvas id="cineCv" width="680" height="400" style="width:100%;aspect-ratio:680/400;display:block;border-radius:14px;border:3px solid #3a1418;box-shadow:0 8px 24px #000c"></canvas>';
 el('hud').appendChild(cineWrap);
-const cineLblEl=cineWrap.querySelector('#cineLbl'), cineSatEl=cineWrap.querySelector('#cineSat');
-const CINE_JAUGES_EL={bobine:cineWrap.querySelector('#cine_bobine'),point:cineWrap.querySelector('#cine_point'),
-  son:cineWrap.querySelector('#cine_son'),lampe:cineWrap.querySelector('#cine_lampe')};
+const cineCx=cineWrap.querySelector('#cineCv').getContext('2d');
 /* Métro abandonné : niveau + batterie affichés en permanence pendant la
    visite, plus une jauge de « souffle » de la Bête qui n'apparaît qu'au
    niveau 3 — jamais de chiffre exact sur elle, juste la barre, pour rester
@@ -20619,7 +20603,79 @@ function serreAction(s){
    permanence, chacun corrigé par une interaction courte et distincte.
    Aucune tâche n'est difficile en soi, c'est leur simultanéité qui l'est.
 ===================================================================== */
+/* ---------- Ciné-Palace V2 (11e lot) : l'écran de la salle, en incrustation ----------
+   Le film « GTRoyal I » passe pendant la séance, et chaque panne le dégrade de
+   façon reconnaissable : BOBINE = image figée qui saute, MISE AU POINT = image
+   floue (dédoublée), SON = sous-titres décalés, LAMPE = image qui s'assombrit
+   et clignote. Le public réagit en bas de l'écran. Tout est cosmétique (dt). */
+const cineIntroWrap=carteSalle('top:42%;border-color:#e8503f99');
+cineIntroWrap.innerHTML='<div style="font:900 21px Arial;color:#ffb0a0;letter-spacing:.03em;text-shadow:0 2px 0 #000">🎬 LA SÉANCE DU SIÈCLE</div>'+
+  '<div style="font:800 11px Arial;color:#9fd8ee;margin:2px 0 8px;letter-spacing:.08em">100 SECONDES DE « GTRoyal I »</div>'+
+  ligneCarte('👀','l’écran te montre <b>ce qui lâche</b>')+ligneCarte('🎞️','image figée : <b>bobine</b> · 🔍 floue : <b>mise au point</b>')+
+  ligneCarte('🔊','sous-titres décalés : <b>son</b> · 💡 sombre : <b>lampe</b>')+ligneCarte('🏃','cours au poste et répare — le public compte');
+const CINE_ICONES={bobine:'🎞️',point:'🔍',son:'🔊',lampe:'💡'};
+const CINE_REPLIQUES=['— Tu crois qu’on les a semés ?','— Jamais vu une ville pareille.','— Accroche-toi, ça va secouer !','— Le canard. Il faut sauver le canard.','— Los Reyes ne dort jamais.','— C’était pas le plan, ça.'];
+let _cineFige=null;
+function dessinerEcranCine(s){
+  const cx=cineCx, W=680, H=400, T=ETAT.runT; if(!cx) return;
+  const P2=s.postes||{}, pr=(id)=>P2[id]?P2[id].probleme/100:0, al=(id)=>!!(P2[id]&&P2[id].enAlerte);
+  cx.fillStyle='#120608'; cx.fillRect(0,0,W,H);
+  // rideaux rouges
+  cx.fillStyle='#7a1018'; cx.fillRect(0,0,40,H); cx.fillRect(W-40,0,40,H);
+  const ex=50, ey=14, ew=W-100, eh=250;
+  // le film : la bobine figée garde la même image (temps arrêté), sinon le temps avance
+  const tf=al('bobine')?(_cineFige===null?(_cineFige=T):_cineFige):(_cineFige=null,T);
+  const saut=al('bobine')?Math.sin(T*40)*6:(pr('bobine')>0.6?Math.sin(T*25)*2*pr('bobine'):0);
+  const flou=pr('point')*(al('point')?14:8);
+  const dessinerScene=(dx,alpha)=>{
+    cx.save(); cx.globalAlpha=alpha; cx.beginPath(); cx.rect(ex,ey,ew,eh); cx.clip(); cx.translate(dx,saut);
+    let gr=cx.createLinearGradient(0,ey,0,ey+eh); gr.addColorStop(0,'#1a1440'); gr.addColorStop(1,'#4a2a5a'); cx.fillStyle=gr; cx.fillRect(ex,ey,ew,eh);
+    cx.fillStyle='#fff2c0'; cx.beginPath(); cx.arc(ex+ew*0.82,ey+48,24,0,Math.PI*2); cx.fill();
+    for(let i=0;i<9;i++){ const bx=ex+((i*90-tf*40)%(ew+90)+ew+90)%(ew+90)-60, bh=60+(i*37)%90; cx.fillStyle=i%2?'#241a3a':'#2e2048'; cx.fillRect(bx,ey+eh-70-bh,70,bh);
+      cx.fillStyle='#ffd27a'; for(let k=0;k<3;k++) cx.fillRect(bx+12+k*18,ey+eh-70-bh+16,7,9); }
+    cx.fillStyle='#22222a'; cx.fillRect(ex,ey+eh-70,ew,70);
+    cx.fillStyle='#e8e0a0'; for(let i=0;i<8;i++){ const lx=ex+((i*100-tf*260)%(ew+100)+ew+100)%(ew+100)-50; cx.fillRect(lx,ey+eh-38,46,6); }
+    const cy=ey+eh-58+Math.sin(tf*18)*2; // la voiture du héros, poursuivie
+    cx.fillStyle='#e05252'; cx.fillRect(ex+ew*0.38,cy,110,30); cx.fillRect(ex+ew*0.38+22,cy-18,60,20);
+    cx.fillStyle='#111'; cx.beginPath(); cx.arc(ex+ew*0.38+22,cy+32,11,0,7); cx.arc(ex+ew*0.38+88,cy+32,11,0,7); cx.fill();
+    cx.fillStyle='#232833'; const px=ex+ew*0.08+Math.sin(tf*0.7)*30; cx.fillRect(px,cy+4,90,26);
+    cx.fillStyle=Math.floor(tf*6)%2?'#ff2a2a':'#3a6aff'; cx.fillRect(px+30,cy-6,26,10);
+    cx.restore();
+  };
+  if(flou>0.5){ dessinerScene(-flou,0.5); dessinerScene(flou,0.5); } else dessinerScene(0,1);
+  // lampe : l'image s'assombrit, puis clignote
+  const sombre=pr('lampe')*0.55+(al('lampe')&&Math.sin(T*30)>0?0.4:0);
+  if(sombre>0.02){ cx.fillStyle='rgba(0,0,0,'+Math.min(0.92,sombre)+')'; cx.fillRect(ex,ey,ew,eh); }
+  // sous-titres (décalés par le son)
+  const rep=CINE_REPLIQUES[Math.floor(T/3.2)%CINE_REPLIQUES.length], dec=pr('son')*(al('son')?60:24);
+  cx.font='800 22px Arial'; cx.textAlign='center'; cx.textBaseline='middle'; cx.lineWidth=5; cx.strokeStyle='#000';
+  const sx=W/2+dec*Math.sin(T*2.2), sy=ey+eh-18+(al('son')?Math.sin(T*9)*6:0);
+  cx.strokeText(al('son')?CINE_REPLIQUES[(Math.floor(T/3.2)+3)%CINE_REPLIQUES.length]:rep,sx,sy); cx.fillStyle=al('son')?'#ffb0a0':'#ffffff'; cx.fillText(al('son')?CINE_REPLIQUES[(Math.floor(T/3.2)+3)%CINE_REPLIQUES.length]:rep,sx,sy);
+  // pannes en alerte : bandeau rouge sur l'écran
+  const alertes=CINE_POSTES.filter(al);
+  if(alertes.length){ cx.fillStyle='rgba(200,20,30,'+(0.55+0.25*Math.sin(T*10))+')'; cx.fillRect(ex,ey,ew,40);
+    cx.font='900 24px Arial'; cx.fillStyle='#fff'; cx.fillText(alertes.map((id)=>CINE_ICONES[id]+' '+({bobine:'FILM ARRÊTÉ',point:'FLOU',son:'SON DÉCALÉ',lampe:'LAMPE'}[id])).join('  ·  '),W/2,ey+21); }
+  // le public : têtes, huées, pop-corn, applaudissements
+  const colere=alertes.length>0, finOk=s.cineFin==='succes', finKo=s.cineFin==='fiasco';
+  for(let i=0;i<16;i++){ const hx=60+i*38, saute=(colere||finOk||finKo)?Math.abs(Math.sin(T*(finOk?9:7)+i))*12:Math.sin(T+i)*1.5;
+    cx.fillStyle=['#2a1e2e','#33242e','#2a2236'][i%3]; cx.beginPath(); cx.arc(hx,H-62-saute,15,0,7); cx.fill(); cx.fillRect(hx-18,H-50-saute,36,40); }
+  if(colere||finKo){ cx.font='900 22px Arial'; cx.fillStyle='#ffd23f'; for(let i=0;i<3;i++){ const bx=120+i*210+Math.sin(T*3+i)*20; cx.fillText(i%2?'BOUH !':'REMBOURSEZ !',bx,H-108-Math.abs(Math.sin(T*4+i))*10); }
+    cx.fillStyle='#fff6c0'; for(let i=0;i<12;i++){ const k=(T*1.3+i*0.37)%1; cx.beginPath(); cx.arc(70+i*48+Math.sin(i)*20,H-70-k*230,5,0,7); cx.fill(); } }
+  else if(finOk){ cx.font='900 30px Arial'; cx.fillStyle='#7dff7a'; cx.fillText('👏 BRAVO ! 👏',W/2,H-112);
+    for(let i=0;i<20;i++){ const k=(T*0.8+i*0.21)%1; cx.fillStyle=['#ffd23f','#ff5ad0','#35e0ff'][i%3]; cx.fillRect(60+i*29,ey+k*eh,7,7); } }
+  // tableau de bord : chrono, satisfaction, les 4 postes
+  if(s.seanceOn){
+    cx.font='900 26px Arial'; cx.textAlign='left'; cx.fillStyle='#ffffff'; cx.fillText('🎬 '+Math.max(0,Math.ceil(CINE_DUREE-s.seanceT))+' s',58,H-16);
+    const sat=s.satisfaction/100; cx.fillStyle='rgba(0,0,0,0.6)'; cx.fillRect(200,H-28,180,20); cx.fillStyle=sat>0.6?'#7dff7a':(sat>0.3?'#ffd23f':'#ff3b5c'); cx.fillRect(200,H-28,180*sat,20);
+    cx.font='22px Arial'; cx.fillText(sat>0.6?'😀':(sat>0.3?'😐':'😡'),386,H-16);
+    CINE_POSTES.forEach((id,i)=>{ const x=440+i*54, v=pr(id), a=al(id); cx.fillStyle='rgba(0,0,0,0.6)'; cx.fillRect(x,H-40,44,34);
+      cx.fillStyle=a?(Math.sin(T*12)>0?'#ff3b5c':'#7a1018'):(v>0.6?'#ffd23f':'#3a5a3a'); cx.fillRect(x,H-6-34*Math.max(0.08,v),44,34*Math.max(0.08,v));
+      cx.font='22px Arial'; cx.textAlign='center'; cx.fillText(CINE_ICONES[id],x+22,H-23); cx.textAlign='left'; });
+  }
+  cx.textAlign='left';
+}
 const CINE_DUREE=100, CINE_PENALITE=15, CINE_SEANCES_MAX=2;
+const CINE_FUITE=2.5; // %/s de satisfaction perdue par poste resté en panne : la salle se vide (sans ça, ne rien faire « réussissait » à 40 %)
 const CINE_POSTES=['bobine','point','son','lampe'];
 // dérive en UNITÉS PAR SECONDE (jamais par frame), légèrement différente par
 // poste pour la texture ; le multiplicateur ci-dessous fait le reste
@@ -20652,9 +20708,10 @@ function cineDemarrerSeance(s){
   s.seancesVague++;
   for(const id of CINE_POSTES) s.postes[id]={probleme:0,enAlerte:false};
   cineAmbianceStart();
-  cineWrap.style.display='block';
-  bigMsg('🎬 SÉANCE'); toast('Tiens la salle 100 secondes. Surveille les 4 postes.','or');
-  SFX.ui();
+  s.cineFin=null; s.cineFinT=0;
+  cineWrap.style.display='block'; cacherBoutonsCombat();
+  s.cineIntroT=3.6; cineIntroWrap.style.opacity='1'; cineIntroWrap.style.display='block';
+  bigMsg('🎬 LES LUMIÈRES S’ÉTEIGNENT'); SFX.ui();
 }
 // point de reset commun : séance en cours annulée, sons coupés — utilisé par
 // la fin naturelle (succès/fiasco), la sortie en pleine séance, la mort et
@@ -20664,6 +20721,9 @@ function cineArreterSeance(s){
   for(const id of CINE_POSTES) s.postes[id]={probleme:0,enAlerte:false};
   cineAmbianceStop();
   if(cineWrap.style.display!=='none') cineWrap.style.display='none';
+  if(cineIntroWrap.style.display!=='none') cineIntroWrap.style.display='none';
+  s.cineFin=null; s.cineFinT=0; s.cineIntroT=0;
+  afficherBoutonsCombat();
 }
 function cineTerminerSeance(s,succes){
   if(!s.seanceOn) return; // garde d'entrée propre (voir CLAUDE.md) : cineArreterSeance la referme
@@ -20675,6 +20735,8 @@ function cineTerminerSeance(s,succes){
   SFX.niveau();
   checkDefis(); sauveMeta();
   cineArreterSeance(s);
+  // l'écran reste 3 s : ovation ou pop-corn qui vole (cineMaj)
+  s.cineFin=succes?'succes':'fiasco'; s.cineFinT=3; cineWrap.style.display='block';
 }
 /* =====================================================================
    MÉTRO ABANDONNÉ — salle à ressource unique : la batterie de la lampe est
@@ -22670,7 +22732,7 @@ function majInterieur(dt,dtJeu){
     const mult=cineMultVitesse(s.seanceT);
     for(const id of CINE_POSTES){
       const p=s.postes[id];
-      if(p.enAlerte) continue; // pinnée à 100, attend la réparation du poste
+      if(p.enAlerte){ s.satisfaction=Math.max(0,s.satisfaction-CINE_FUITE*dtJeu); continue; } // pinnée à 100, attend la réparation : en attendant, des spectateurs partent
       p.probleme=Math.min(100,p.probleme+CINE_VIT_BASE[id]*mult*dtJeu);
       if(p.probleme>=100){
         p.enAlerte=true;
@@ -22679,11 +22741,14 @@ function majInterieur(dt,dtJeu){
         cineProteste(id);
       }
     }
-    cineLblEl.textContent='🎬 '+Math.max(0,Math.ceil(CINE_DUREE-s.seanceT))+' s';
-    cineSatEl.style.width=Math.round(s.satisfaction)+'%';
-    for(const id of CINE_POSTES) CINE_JAUGES_EL[id].style.width=Math.round(s.postes[id].probleme)+'%';
+    if(s.faisceau) s.faisceau.material.opacity=0.06*(1-s.postes.lampe.probleme/100*0.8)*(s.postes.lampe.enAlerte&&Math.sin(ETAT.runT*30)>0?0.2:1);
     if(s.satisfaction<=0) cineTerminerSeance(s,false);
     else if(s.seanceT>=CINE_DUREE) cineTerminerSeance(s,true);
+    else dessinerEcranCine(s);
+  }
+  if(s.postesPos){
+    if(s.cineIntroT>0){ s.cineIntroT-=dt; if(s.cineIntroT<0.5) cineIntroWrap.style.opacity=String(Math.max(0,s.cineIntroT/0.5)); if(s.cineIntroT<=0) cineIntroWrap.style.display='none'; }
+    if(!s.seanceOn&&s.cineFinT>0){ s.cineFinT-=dt; if(s.cineFinT>0&&ETAT.mode==='jeu') dessinerEcranCine(s); else { s.cineFinT=0; s.cineFin=null; cineWrap.style.display='none'; } }
   }
   // ---- Métro abandonné : batterie, niveau, dangers, piles, la Bête ----
   if(s.piles){
@@ -26373,7 +26438,7 @@ function majAction(){
         s.artIdx=((s.artIdx||0)+1)%ARTICLES_SUPERETTE.length;   // l'étal propose autre chose
       };
     /* ---------- CINÉ-PALACE : projecteur (démarre la séance) ---------- */
-    } else if(s.projecteur&&dist2(P.x,P.z,s.projecteur.x,s.projecteur.z)<marquerZone(s.projecteur,16)){
+    } else if(s.projecteur&&!s.seanceOn&&dist2(P.x,P.z,s.projecteur.x,s.projecteur.z)<marquerZone(s.projecteur,16)){ // en séance, la zone du projecteur (4 u) masquait les postes voisins
       cineVerifierVague(s);
       if(s.seanceOn){
         label='🎬 Séance en cours — surveille les postes';

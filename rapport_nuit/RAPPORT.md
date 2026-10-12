@@ -1490,7 +1490,7 @@ Viendraient ensuite : bowling, banque (mini-jeu du coffre), commissariat, puis l
 
 Note : dans une des suites complètes, le pilote glouton a eu deux nuits à 3 et 6 soins seulement (4 nuits tenues sur 6), ce qui ressemble plus à un pilote coincé dans un coin qu'à de la difficulté. Le test exige 3 nuits sur 6 et reste vert ; à regarder si un joueur se coince en vrai entre l'étagère et la cabane.
 
-### Refonte 5 — Radio pirate Reyes FM (commit `RADIO_HASH`)
+### Refonte 5 — Radio pirate Reyes FM (commit `7c52338`)
 
 **Concept retravaillé.**
 - **Promesse** : tenir l'antenne pirate de Los Reyes pendant que la police triangule le signal.
@@ -1527,3 +1527,91 @@ Note : dans une des suites complètes, le pilote glouton a eu deux nuits à 3 et
 3. Le tuner reste-t-il lisible en plein écran ?
 
 **Reste à améliorer** : un vrai jingle de radio synthétisé au début et à la fin, et répondre aux auditeurs (deux réponses au choix pendant la pause).
+
+### Refonte 6 — Ciné-Palace (commit `CINE_HASH`)
+
+**Concept retravaillé.**
+- **Promesse** : être le projectionniste de « GTRoyal I » le soir de la première, et ne jamais laisser la salle huer.
+- **Mécanique centrale** : la même course entre les quatre postes (bobine, mise au point, son, lampe), mais **on voit enfin le film**. Chaque panne le dégrade d'une façon reconnaissable, et le public réagit.
+- **Moment fort** : les 30 dernières secondes, quand les pannes s'enchaînent et que la salle commence à se vider.
+
+**Avant** (`cine_avant.png`) : quatre petites jauges abstraites, des postes signalés par des panneaux, une réparation d'un appui. On ne voyait jamais le film. Et surtout, **ne rien faire « réussissait »** : 4 pannes × 15 % laissaient 40 % de satisfaction et 200 $.
+
+**Ce qui a changé** :
+- **L'écran de la salle**, en incrustation tout en haut :
+  - le film (une poursuite de nuit dans Los Reyes, sous-titrée) ;
+  - **bobine** en panne : l'image se fige et saute ;
+  - **mise au point** : l'image se dédouble ;
+  - **son** : les sous-titres se décalent et ne correspondent plus ;
+  - **lampe** : l'image s'assombrit puis clignote ;
+  - un bandeau rouge nomme les pannes en cours (« 🎞️ FILM ARRÊTÉ · 🔍 FLOU »).
+- **Le public**, en bas de l'écran : il chahute, crie « BOUH ! » et « REMBOURSEZ ! », lance du pop-corn ; à la fin d'une bonne séance, il se lève : « 👏 BRAVO ! » et confettis.
+- **Tableau de bord** sur l'écran : chrono, satisfaction (😀 😐 😡) et les quatre postes avec leur jauge (rouge clignotant en panne).
+- **Perdable** : tant qu'un poste reste en panne, des spectateurs partent (−2,5 % de satisfaction par seconde et par poste). Un projectionniste passif fait désormais un **fiasco**.
+- **Bug corrigé** : en séance, la zone du projecteur (4 u) masquait le poste « mise au point » voisin. Le bouton y disait « séance en cours » au lieu de RÉPARER, ce que le pilote simulé a mis au jour. Elle s'efface pendant la séance.
+- **Entrée et sortie** : « 🎬 LES LUMIÈRES S'ÉTEIGNENT », carte d'intro (« l'écran te montre ce qui lâche », la légende des 4 pannes). L'écran reste 3 s à la fin, sur l'ovation ou le pop-corn. Le faisceau du projecteur baisse avec la lampe, et les boutons de combat sont masqués.
+
+**Vérifications** :
+- `valider.js` est vert et les portes sont inchangées.
+- Les **31 anciens tests** du ciné passent tels quels.
+- **Nouveau test « Ciné V2 »**, qui couvre :
+  - l'écran, l'intro, l'ovation de 3 s et les boutons rendus ;
+  - un pilote projectionniste (va réparer le poste le plus abîmé, chemin calculé), qui tient la séance ;
+  - le joueur passif, qui fait un fiasco.
+- **Rendus réels** : `cine_film`, `bobine`, `flou`, `son`, `lampe`, `ovation`.
+
+**À tester sur iPhone** :
+1. L'écran en haut est-il assez grand pour reconnaître les quatre pannes d'un coup d'œil ?
+2. Le flou (image dédoublée) se voit-il bien à cette taille ?
+3. Courir entre les postes reste-t-il lisible malgré l'écran ?
+
+**Reste à améliorer** :
+- de vraies réparations gestuelles par poste (rembobiner en maintenant, mise au point par un curseur à arrêter) ;
+- une bande-son du film qui se décale vraiment avec le son.
+
+### Où en est le chantier
+
+**Six salles refaites en profondeur**, chacune dans son commit :
+
+| # | Salle | Note avant | Ce qui la porte désormais |
+|---|---|---|---|
+| 1 | Chalutier | 11 | piloter un vrai bateau, pêche illustrée, le Vieux Roi |
+| 2 | Aquarium | 17 | « 1, 2, 3, soleil » avec Gaston |
+| 3 | Laverie | 16 | l'essorage : une aiguille à tenir au joystick |
+| 4 | Serre | 17 | la nuit de la floraison : soins, outils, contagion |
+| 5 | Radio | 18 | un vrai tuner, le brouilleur, les auditeurs |
+| 6 | Ciné-Palace | 19 | voir le film se dégrader, le public qui réagit |
+
+**Ce qui a été appliqué partout** (règle notée dans `CLAUDE.md`, « Grille de refonte ») :
+- une carte d'intro à icônes ;
+- une seule action contextuelle à la fois ;
+- des boutons de combat masqués quand ils n'ont pas de sens ;
+- un retour à chaque action ;
+- une fin célébrée ;
+- un décor où l'objet remplace le panneau-étiquette ;
+- et surtout un **pilote simulé** pour chaque salle, qui prouve qu'elle se gagne avec un temps de réaction humain et qu'elle se perd en jouant mal ou en ne faisant rien.
+
+Ces pilotes ont trouvé des défauts réels :
+- un pot de la serre posé dans la SORTIE ;
+- le projecteur du ciné qui masquait un poste ;
+- un ciné qu'on « réussissait » sans rien faire ;
+- un Gaston qu'on attrapait en fonçant sans jamais s'arrêter.
+
+**Ordre des salles restantes** (de la plus faible à la meilleure, en ne gardant que les vrais mini-jeux), avec la piste envisagée pour chacune :
+1. **Voyance (Madame Zohra)** : en faire un vrai jeu de cartes (tirer et retourner des cartes de tarot avec un enjeu, prédiction vérifiable dans la vague).
+2. **Karaoké** : une vraie chanson avec des notes qui défilent (rythme), le public qui chante, une jauge d'ambiance.
+3. **Bowling** : une boule qu'on lance au doigt (glisser pour l'effet), des quilles physiques qui tombent vraiment.
+4. **Banque** : un mini-jeu de perçage du coffre (cadran à tourner) pendant que les vigiles approchent.
+5. **Commissariat** : une infiltration courte vers la salle des preuves.
+6. **Boutiques** (supérette, pharmacie, concessionnaire) : de vrais menus à choisir au lieu d'articles qui défilent un appui à la fois.
+7. **Ensuite**, des retouches plutôt que des refontes :
+   - musée (lisibilité des cônes de vue) ;
+   - métro (la Bête visible, panneaux lisibles dans le noir) ;
+   - Site 51 (expliquer les sas) ;
+   - dépôt (choix du véhicule et du circuit en un seul écran) ;
+   - arcade (des lots plus désirables).
+
+**Points d'attention pour le playtest sur iPhone** : rassemblés dans les rubriques « À tester sur iPhone » de chaque refonte ci-dessus. En priorité :
+- le dosage du joystick à la laverie ;
+- le doigt sur le panneau de pêche du chalutier et sur la piste de la radio ;
+- la lisibilité de l'écran du ciné en haut de l'écran.

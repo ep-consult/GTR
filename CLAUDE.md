@@ -55,7 +55,7 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
   echo "$ln | $(sed -n "$((ln+1))p" index.html | sed 's/^[ \t]*//')"; done
 ```
 
-**Relevé au 13 octobre 2026 (11e lot : chalutier, aquarium, laverie, serre, radio) — 27 160 lignes.**
+**Relevé au 11e lot : chalutier, aquarium, laverie, serre, radio, ciné — 27 289 lignes.**
 Attention : `maj_carte` recale les numéros dans l'ordre des lignes de la table ;
 un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la main.
 
@@ -84,23 +84,23 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 15410 | MISSIONS COURTES |
 | 15413 | BÂTIMENTS VISITABLES — intérieurs |
 | 15483 | FOUILLE — mécanique générique |
-| 16047 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
-| 20122 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
-| 20325 | **LAVERIE** V2 — l'essorage de la machine 7 |
-| 20460 | **SERRE** V2 — la nuit de la floraison |
-| 20617 | CINÉ-PALACE |
-| 20679 | MÉTRO ABANDONNÉ |
-| 20745 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
-| 20985 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
-| 21702 | SITE 51 |
-| 21932 | LE DÉPÔT DE BUS — courses clandestines |
-| 22956 | **MÉTIERS** — missions liées à un véhicule |
-| 23246 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
-| 24241 | ÉCRANS / MENUS / BOUTIQUES |
-| 24509 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
-| 25306 | DÉBUT / FIN DE PARTIE |
-| 26698 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
-| 27102 | BOUCLE PRINCIPALE |
+| 16031 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
+| 20106 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
+| 20309 | **LAVERIE** V2 — l'essorage de la machine 7 |
+| 20444 | **SERRE** V2 — la nuit de la floraison |
+| 20601 | CINÉ-PALACE |
+| 20741 | MÉTRO ABANDONNÉ |
+| 20807 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
+| 21047 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
+| 21764 | SITE 51 |
+| 21994 | LE DÉPÔT DE BUS — courses clandestines |
+| 23021 | **MÉTIERS** — missions liées à un véhicule |
+| 23311 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
+| 24306 | ÉCRANS / MENUS / BOUTIQUES |
+| 24574 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
+| 25371 | DÉBUT / FIN DE PARTIE |
+| 26763 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
+| 27167 | BOUCLE PRINCIPALE |
 
 ### Ancres fines (hors bandeaux)
 
@@ -151,17 +151,17 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 13378 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
 | 13492 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
 | 15419 | `IOFF = -9000` |
-| 17140 | `INTDEFS` — définitions des **27 salles** |
-| 17320 | `construireSalle(id)` |
+| 17108 | `INTDEFS` — définitions des **27 salles** |
+| 17288 | `construireSalle(id)` |
 | 20390 | `CHALUTIER_BANCS_PLAN` — chalutier V2 ; `chalutierMaj` (20761), `dessinerRadarChalutier` (21018) |
-| 22881 | `METIERS_CIBLE` |
-| 23180 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
-| 23268 | `PIECES_FAMILLES` — catalogues de pièces par famille |
-| 23569 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
-| 23623 | `libererObjet()` — libère les géométries d'un objet retiré |
-| 23639 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
-| 23761 | `construireGarageTuning()` — la salle partagée |
-| 24131 | `majNitro()` |
+| 23030 | `METIERS_CIBLE` |
+| 23329 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
+| 23417 | `PIECES_FAMILLES` — catalogues de pièces par famille |
+| 23718 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
+| 23772 | `libererObjet()` — libère les géométries d'un objet retiré |
+| 23788 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
+| 23910 | `construireGarageTuning()` — la salle partagée |
+| 24280 | `majNitro()` |
 
 ---
 
@@ -804,6 +804,24 @@ puis refonte en profondeur de la pire à la meilleure, une salle par commit.
   70 % de triangulation (`s.gyros`).
 - Test « Radio V2 » : auditeurs, brouilleur (×1,7 sur la triangulation), pilote
   au doigt avec 0,25 s de retard (3 segments), passif localisé.
+
+### Ciné-Palace V2 — la séance du siècle (section `CINÉ-PALACE`, bloc `Ciné-Palace V2 … l'écran`)
+
+- Même course entre les 4 postes (`CINE_POSTES`, réparation d'un appui), mais
+  **on voit le film** : `dessinerEcranCine` (canvas `cineWrap`, tout en haut de
+  l'écran — au milieu il cachait les postes du fond) dessine « GTRoyal I » et
+  le dégrade selon les pannes : BOBINE = image figée qui saute, MISE AU POINT
+  = image dédoublée, SON = sous-titres décalés, LAMPE = image sombre qui
+  clignote ; bandeau rouge des pannes, public qui hue / jette du pop-corn /
+  applaudit, tableau de bord (chrono, satisfaction, 4 postes). Fin : l'écran
+  reste 3 s (`s.cineFin`, `s.cineFinT`). Intro `cineIntroWrap`, boutons de
+  combat masqués. Faisceau du projecteur qui baisse avec la lampe.
+- **Perdable** : `CINE_FUITE` (%/s par poste resté en panne) — avant, ne rien
+  faire finissait « réussi » à 40 % (4 pannes × 15). **Bug corrigé** : en
+  séance, la zone du projecteur (4 u) masquait le poste MISE AU POINT voisin
+  (le bouton disait « séance en cours ») ; elle s'efface pendant la séance.
+- Test « Ciné V2 » : écran, intro, ovation, pilote projectionniste (tient la
+  séance), passif = fiasco ; les 31 anciens tests passent.
 
 ## 10e lot (12 octobre 2026) — kiosque de la banderole, figures sur deux roues
 

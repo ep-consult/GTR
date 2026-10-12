@@ -9388,6 +9388,67 @@ async function main() {
       else ok('Radio V2 : ' + r.info.join(' ; ') + ' ; tuner, intro, boutons masqués puis rendus');
     }
 
+    // -------------------------------------------------------------------
+    // Ciné-Palace V2 (11e lot) : l'écran incrusté, l'intro, les boutons, la
+    // fin célébrée ; pilote projectionniste au joystick réel (va réparer le
+    // poste le plus abîmé, chemin BFS à la marge réelle du joueur).
+    // -------------------------------------------------------------------
+    console.log('\n--- Ciné-Palace V2 : écran du film, intro, fin célébrée, pilote projectionniste ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        const vu = (e) => getComputedStyle(e).display !== 'none';
+        const entrer = () => { if (INT.actif) sortirInterieur(); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
+          entrerInterieur('cine', PORTES.find((x) => x.id === 'cine')); ETAT.intT = 0; return INT.actif; };
+        const appuyer = () => { majAction(); const b = document.getElementById('btnAction'); const l = b.style.display === 'none' ? '' : b.textContent; if (b._fn && l) b._fn(); return l; };
+        let s = entrer(); P.x = s.projecteur.x; P.z = s.projecteur.z + 2.8; appuyer();
+        if (!s.seanceOn || !vu(cineWrap) || !vu(cineIntroWrap) || vu(document.getElementById('btnFire'))) ko.push('démarrage : écran, intro ou boutons');
+        s.postes.son.probleme = 100; s.postes.son.enAlerte = true; try { dessinerEcranCine(s); } catch (e) { ko.push('écran : ' + e); }
+        s.seanceT = CINE_DUREE - 0.01; majInterieur(0.05, 0.05);
+        if (s.seanceOn || s.cineFin !== 'succes' || !vu(cineWrap)) ko.push('fin : écran de l’ovation absent');
+        for (let i = 0; i < 80; i++) majInterieur(0.05, 0.05);
+        if (vu(cineWrap) || !vu(document.getElementById('btnFire'))) ko.push('après la fin : écran encore affiché ou boutons non rendus');
+        info.push('écran, intro, ovation 3 s');
+        // pilote projectionniste
+        const chemin = (s, x1, z1) => { const pas = 0.5, W = s.D.w / 2 - 0.6, D = s.D.d / 2 - 0.6;
+          const nx = Math.floor(2 * W / pas) + 1, nz = Math.floor(2 * D / pas) + 1, idx = (i, j) => i * nz + j, cX = (i) => s.ox - W + i * pas, cZ = (j) => s.oz - D + j * pas;
+          const libre = (i, j) => i >= 0 && j >= 0 && i < nx && j < nz && !solidAt(cX(i), cZ(j), 0.65);
+          const si = Math.round((P.x - s.ox + W) / pas), sj = Math.round((P.z - s.oz + D) / pas); let ti = clamp(Math.round((x1 - s.ox + W) / pas), 0, nx - 1), tj = clamp(Math.round((z1 - s.oz + D) / pas), 0, nz - 1);
+          if (!libre(ti, tj)) { let best = null, bd = 1e9; for (let di = -5; di <= 5; di++) for (let dj = -5; dj <= 5; dj++) if (libre(ti + di, tj + dj) && di * di + dj * dj < bd) { bd = di * di + dj * dj; best = [ti + di, tj + dj]; } if (best) { ti = best[0]; tj = best[1]; } }
+          const prev = new Int32Array(nx * nz).fill(-2), file = [idx(si, sj)]; prev[idx(si, sj)] = -1;
+          while (file.length) { const k = file.shift(), i = Math.floor(k / nz), j = k % nz; if (i === ti && j === tj) break;
+            for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) { const a = i + di, b = j + dj; if (!libre(a, b) || prev[idx(a, b)] !== -2) continue; prev[idx(a, b)] = k; file.push(idx(a, b)); } }
+          const pts = []; let k = idx(ti, tj); if (prev[k] === -2) return null; while (k !== -1) { pts.push({ x: cX(Math.floor(k / nz)), z: cZ(k % nz) }); k = prev[k]; } return pts.reverse(); };
+        const seance = (actif) => {
+          const s = entrer(); P.x = s.projecteur.x; P.z = s.projecteur.z + 2.8; appuyer();
+          const dt = 1 / 30; let t = 0, route = null, cle = '', cd = 0;
+          while (s.seanceOn && t < CINE_DUREE + 2) {
+            INPUT.mx = INPUT.mz = 0;
+            if (actif) {
+              let pid = null; for (const id of CINE_POSTES) if (s.postes[id].probleme > 35 && (!pid || s.postes[id].probleme > s.postes[pid].probleme)) pid = id;
+              if (pid) { const c = s.postesPos[pid];
+                if (cle !== pid) { route = chemin(s, c.x, c.z); cle = pid; }
+                if (Math.hypot(c.x - P.x, c.z - P.z) < 2.6 || (route && route.length <= 1)) { cd -= dt; if (cd <= 0) { appuyer(); cd = 0.2; cle = ''; } }
+                else if (route) { while (route.length > 1 && Math.hypot(route[0].x - P.x, route[0].z - P.z) < 0.6) route.shift();
+                  const p0 = route[0], dx = p0.x - P.x, dz = p0.z - P.z, L = Math.hypot(dx, dz) || 1; INPUT.mx = dx / L; INPUT.mz = dz / L; } }
+            }
+            majJoueur(dt, dt); majInterieur(dt, dt); t += dt;
+          }
+          INPUT.mx = INPUT.mz = 0;
+          const res = { fin: s.cineFin, satisf: Math.round(s.satisfaction) };
+          sortirInterieur(); return res;
+        };
+        const pilotes = [seance(true), seance(true)], passif = seance(false);
+        if (pilotes.some((p) => p.fin !== 'succes')) ko.push('le pilote projectionniste ne tient pas la séance (' + JSON.stringify(pilotes) + ')');
+        else info.push('pilote : séances tenues');
+        if (passif.fin !== 'fiasco') ko.push('un projectionniste passif ne fait pas un fiasco (' + JSON.stringify(passif) + ')');
+        else info.push('passif : fiasco');
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Ciné V2 : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
+      else ok('Ciné V2 : ' + r.info.join(' ; '));
+    }
+
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');
     {
       const srcIdx = fs.readFileSync(INDEX_HTML, 'utf8');
