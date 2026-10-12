@@ -9129,6 +9129,21 @@ async function main() {
           if (v.figSpin > 0) ko.push(cle + ' : ESQUIVE lance un 360');
           if (document.getElementById('btnDodge').textContent !== esq0 || /360/.test(esq0)) ko.push(cle + ' : ESQUIVE change d\'étiquette (' + esq0 + ')');
           INPUT.edge.gren = false; INPUT.edge.esquive = false; INPUT.edge.sprint = false;
+          // à vélo : BUNNY HOP puis figure juste après (demandé) — le saut s'allonge juste assez ; trop tard = chute
+          if (VEHDEFS[cle].velo) {
+            const hopFig = (attente, appuis) => { const v = scene0(cle); v.v = 6; INPUT.btn.esquive = true; majConduite(1 / 30); INPUT.btn.esquive = false; majConduite(1 / 30);
+              if (!v.enAir || !v.hop) return { erreur: 'pas de bunny hop' };
+              let t = 0; while (t < attente && v.enAir) { majConduite(1 / 30); t += 1 / 30; }
+              const s0 = ETAT.score; for (const k of appuis) INPUT.edge[k] = true;
+              let n = 0; while ((v.enAir || n < 2) && P.veh === v && n < 120) { majConduite(1 / 30); n++; }
+              for (const k of appuis) INPUT.edge[k] = false;
+              return { enSelle: P.veh === v, pts: ETAT.score - s0 }; };
+            const h1 = hopFig(0.05, ['gren']), h2 = hopFig(0.05, ['sprint', 'gren']), h3 = hopFig(0.3, ['gren']);
+            if (h1.erreur || !h1.enSelle || !(h1.pts >= FIG2R.ptsFlip)) ko.push(cle + ' : bunny hop + backflip raté ' + JSON.stringify(h1));
+            if (!h2.enSelle || !(h2.pts >= FIG2R.ptsFlip + FIG2R.pts360)) ko.push(cle + ' : bunny hop + 360 + backflip raté ' + JSON.stringify(h2));
+            if (h3.enSelle) ko.push(cle + ' : figure demandée trop tard après un bunny hop, sans chute');
+            info.push(cle + ' : bunny hop + figure réussi, trop tard = chute');
+          }
           info.push(cle + ' : grand saut ' + a.t.toFixed(2) + ' s réussi, petit saut ' + b.t.toFixed(2) + ' s = chute');
         }
         // les figures comptent au DÉFI SUPERCROSS

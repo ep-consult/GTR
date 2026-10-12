@@ -12937,9 +12937,10 @@ function majGrueBoulet(v,dt){
 // cross et le vélo, comme sur le wakeboard »). En l'air : SPRINT = 360 (bouton à part, demandé : « pas collé avec
 // le bunny hop » — ESQUIVE reste BUNNY HOP / CABRER), GRENADE = BACKFLIP, combinables ; la
 // figure tourne le véhicule entier (le pilote y est attaché). À la réception, une figure pas finie = chute (le
-// pilote est éjecté, comme au wakeboard) ; finie = points, et elle compte au DÉFI SUPERCROSS. Durées : il faut
-// un vrai saut (un bunny hop est trop court pour un 360). Renvoie true si le pilote vient de chuter.
-const FIG2R={spin:{cross:0.62,velo:0.5},flip:{cross:0.78,velo:0.62},pts360:150,ptsFlip:250};
+// pilote est éjecté, comme au wakeboard) ; finie = points, et elle compte au DÉFI SUPERCROSS. À vélo, une figure
+// demandée juste après un BUNNY HOP (FIG2R.fenetreHop) fait pousser plus fort : le saut dure juste assez pour la
+// finir (demandé) ; trop tard, c'est la chute. Renvoie true si le pilote vient de chuter.
+const FIG2R={spin:{cross:0.62,velo:0.5},flip:{cross:0.78,velo:0.62},pts360:150,ptsFlip:250,fenetreHop:0.3}; // fenetreHop : à vélo, une figure demandée dans les 0,3 s d'un bunny hop allonge le saut juste assez pour la finir
 function majFiguresDeuxRoues(v,dt){
   const d=v.def, cle=d.cross?'cross':'velo', air=!!v.enAir;
   const veut360=pressed('sprint')||edgeKey('ShiftLeft'), veutFlip=pressed('gren')||edgeKey('KeyG'); // lus à chaque image : un appui au sol ne reste jamais en attente jusqu'au décollage
@@ -12947,6 +12948,10 @@ function majFiguresDeuxRoues(v,dt){
   if(air){
     if(veut360&&!(v.figSpin>0)) v.figSpin=0.0001;
     if(veutFlip&&!(v.figFlip>0)) v.figFlip=0.0001;
+    if(d.velo&&v.hop&&v.airT<FIG2R.fenetreHop&&(veut360||veutFlip)){ // bunny hop + figure juste après (demandé) : on pousse plus fort, le saut dure juste assez pour la finir
+      const T=Math.max(v.figSpin>0?FIG2R.spin.velo*(1-v.figSpin):0,v.figFlip>0?FIG2R.flip.velo*(1-v.figFlip):0)+0.1, h0=Math.max(0,(v.h||0)-solY(v.x,v.z)), vy=(13*T*T-h0)/T; // gravité des sauts : 26 u/s²
+      if(vy>v.vy) v.vy=vy;
+    }
     if(v.figSpin>0&&v.figSpin<1) v.figSpin=Math.min(1,v.figSpin+dt/FIG2R.spin[cle]);
     if(v.figFlip>0&&v.figFlip<1) v.figFlip=Math.min(1,v.figFlip+dt/FIG2R.flip[cle]);
     v.figEnVol=true;

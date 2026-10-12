@@ -668,8 +668,10 @@ décor sur un générateur **à part** (`aleaDecor()`, `aD()`, `choixD()`, grain
   jamais au décollage) ; combinables ; le véhicule entier tourne (ordre `YXZ`,
   salto autour du centre : `position.y` compensée). Réception : figure pas
   finie = chute (`sortirVehicule(true)` + 15 de dégâts), finie = points ×combo,
-  ajoutés au DÉFI SUPERCROSS (`RIDES.actif.pts`). Un bunny hop est trop court
-  pour un 360 (voulu).
+  ajoutés au DÉFI SUPERCROSS (`RIDES.actif.pts`). À vélo, une figure demandée
+  dans les `FIG2R.fenetreHop` (0,3 s) d'un BUNNY HOP relève `v.vy` juste assez
+  pour la finir (demandé : « un bunny hop doit permettre un 360 ou un backflip
+  en appuyant juste après ») ; plus tard, c'est la chute.
 - Tests : « Kiosque de la banderole », « Figures deux roues ».
 
 ## 9e lot (12 octobre 2026) — amphibie, mur de l'aéroport, salles vivantes
