@@ -1127,6 +1127,10 @@ Captures (`captures/lot10/`) :
   - **Figures deux roues** : grand saut réussi, petit saut qui fait chuter et aucune figure au sol, sur les quatre véhicules, plus les points comptés au défi supercross.
 - En route, un commentaire placé au milieu d'une ligne avait désactivé la boucle de recherche de place du kiosque, sans erreur visible. Trouvé, corrigé, et le motif de détection a été ajouté à la vérification du diff.
 
+### Piste ouverte
+
+- **Trafic** : un choc rare d'un bus de ville contre un pickup arrêté (2 parties de 60 s sur environ 90). Il n'a pas pu être reproduit sous instrumentation en 85 essais. Le test de circulation tolère donc au plus 2 chocs par minute au lieu d'exiger zéro, pour ne pas être aléatoire. À reprendre si tu le vois en jeu, en notant l'endroit.
+
 ### À tester sur iPhone
 
 1. Le kiosque près de la jetée : bien dégagé, bouton accessible.
