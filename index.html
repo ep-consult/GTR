@@ -5184,7 +5184,7 @@ const LIMITE_EST=HALF+300;               // x max à terre (avant : HALF+158)
 const LIMITE_EST_MER=HALF+300;           // x max en mer, bateaux et nage (avant : HALF+60 en bateau — on s'arrêtait avant la crique)
 const COULOIR_PENTE_MAX=0.95; // montée sèche : pente du mur final (43°), sous la limite des motos cross et 4x4 (penteMaxVeh)
 function couloirH(u){ return 0.5*u+0.5*u*u; } // profil de la montée sèche, de 0 à 1 (pente relative 0,5 → 1,5)
-const MONT={kickers:[],x:538,z:-238,rx:78,rz:82,H:72,sommet:null,sentier:[],pied:null};
+const MONT={kickers:[],x:538,z:-238,rx:100,rz:82,H:98,sommet:null,sentier:[],pied:null}; // 8e lot (demandé : « augmenter sa taille ») : 72 → 98 u de haut, élargi vers l'ouest (rx 78 → 100) ; rz borné par le canyon au sud, le nord et l'est sont hors limites
 // dans l'emprise d'un relief sculpté (RELIEFS) — terrains de saut, réceptions plus tolérantes
 function dansReliefLibre(x,z){ for(const r of RELIEFS) if(x>r.x0&&x<r.x1&&z>r.z0&&z<r.z1&&r.f(x,z)>0.3) return true; return false; }
 function hauteurMontBase(x,z){
@@ -5193,7 +5193,7 @@ function hauteurMontBase(x,z){
   const u=1-d, n=1+0.13*Math.sin(x*0.071+z*0.052)+0.08*Math.sin(x*0.13-z*0.11)+0.05*Math.sin(x*0.29+z*0.23); // crêtes et ravines
   let b=Math.pow(u,1.25); if(b>0.72) b=0.72+(b-0.72)*0.4; // sommet arrondi, pas une aiguille
   const h=MONT.H*b*n*lisse(u/0.12);
-  return h>62?62+(h-62)*0.35:h; // calotte sommitale adoucie : le dernier lacet reste gravissable (avant : pente de 1,45 sous le sommet)
+  const cal=MONT.H*0.86; return h>cal?cal+(h-cal)*0.35:h; // calotte sommitale adoucie (86 % de la hauteur) : le dernier lacet reste gravissable (avant : pente de 1,45 sous le sommet)
 }
 // Le sentier est taillé dans la pente : sur sa largeur (±3 u, fondu jusqu'à 5),
 // la hauteur suit une rampe régulière d'un lacet à l'autre — sinon, entre deux
@@ -5228,8 +5228,8 @@ function mkMontReyes(){
   // sentier en lacets : du pied (côté aéroport, au sud-ouest) jusqu'au sommet ; les lacets
   // élargissent au pied et se resserrent en montant
   const pied={x:MONT.x-MONT.rx*0.78,z:MONT.z+MONT.rz*0.72}; MONT.pied=pied;
-  const pts=[]; const N=13;
-  for(let k=0;k<=N;k++){ const t=Math.pow(k/N,0.85), cx=lerp(pied.x,best.x,t), cz=lerp(pied.z,best.z,t), amp=(1-t)*24+6, cote=(k%2?1:-1); // lacets jusqu'en haut
+  const pts=[]; const N=Math.round(13*MONT.H/72), ka=MONT.rx/78; // plus haut : plus de lacets, même déclivité
+  for(let k=0;k<=N;k++){ const t=Math.pow(k/N,0.85), cx=lerp(pied.x,best.x,t), cz=lerp(pied.z,best.z,t), amp=((1-t)*24+6)*ka, cote=(k%2?1:-1); // lacets jusqu'en haut
     const nxv=-(best.z-pied.z), nzv=best.x-pied.x, ln=Math.hypot(nxv,nzv); pts.push([cx+cote*amp*nxv/ln*(k&&k<N?1:0),cz+cote*amp*nzv/ln*(k&&k<N?1:0)]); }
   MONT.sentier=pts; MONT.hSentier=pts.map(([x,z])=>hauteurMontBase(x,z));
   // MONTÉE SÈCHE : face sud, à l'est du sentier (ne le croise jamais). 8e lot : l'ancien profil (0,3u + 0,7u³)
@@ -6057,7 +6057,7 @@ function resetMer(){ if(TOW.actif) finTow('annule'); TOW.actif=null; MERV.primes
 const RIDES={actif:null,marques:[],records:{},primeVague:{}};
 const RALLYE_TEMPS=32; // pilote simulé : 17 s en Espadon, 18 en jet-ski, 26 en vedette
 const RIDE_DEFS={
-  mont:{nom:'MONTÉE DU MONT REYES',temps:60,prime:250},   // la pente freine : pilote simulé 29 à 39 s (moto, quad, buggy, BMX)
+  mont:{nom:'MONTÉE DU MONT REYES',temps:90,prime:250},   // la pente freine : pilote simulé 52 à 69 s (moto, quad, buggy, BMX, vélo) depuis l'agrandissement du mont (8e lot ; avant 29 à 39 s pour 60 s)
   mesas:{nom:'LIGNE DES MESAS',temps:14,prime:300},        // robot : 6 s en moto cross, 8 s en buggy
   colline:{nom:'MONTÉE SÈCHE',temps:6.5,prime:200},         // hill climb, départ arrêté, terre meuble, mur final à 43° (8e lot) : seule la moto cross passe (robot 4,7 s) ; quad (limite 40°), 4x4 (au pas), motos de route, buggy, BMX échouent
   bouees:{nom:'RALLYE DES BOUÉES',temps:RALLYE_TEMPS,prime:250,eau:true}, // portes sur l'eau autour des îles, jet-ski et vedettes
