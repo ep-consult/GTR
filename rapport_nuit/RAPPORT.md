@@ -1615,3 +1615,26 @@ Ces pilotes ont trouvé des défauts réels :
 - le dosage du joystick à la laverie ;
 - le doigt sur le panneau de pêche du chalutier et sur la piste de la radio ;
 - la lisibilité de l'écran du ciné en haut de l'écran.
+
+---
+
+## Chalutier V3 — la refonte visuelle (13 octobre, retour de playtest)
+
+**Retour** : « on dirait le jeu d'avant, pas de nouveau style visuel, mal fait et peu immersif ; je ne vois rien qui défile, pas d'espadon ».
+**Constat (capture en navigation réelle)** : il avait raison. La V2 avait changé la logique, pas le regard : caméra de dessus, le pont en bois remplissait 80 % de l'écran, la mer n'était qu'un fond bleu pointillé immobile à l'œil, le récif un caillou gris, l'espadon un ovoïde.
+
+**Ce qui change** (logique et équilibrage inchangés) :
+- caméra de poursuite derrière la poupe, tournée vers l'horizon — à quai comme en mer ; à la pêche, elle pivote vers la ligne ;
+- ciel en dôme (dégradé, soleil qui tourne avec le cap, nuages qui dérivent, tempête sombre avec éclairs), côte de Los Reyes à l'horizon dans la direction du port ;
+- mer en houle qui reflète le ciel et le soleil, écume, **sillage en V et vague d'étrave dessinés dans l'eau** selon la vitesse ;
+- coque visible au-dessus de l'eau (bandes de flottaison), portique arrière, tangons, pavillon ; roulis et tangage ;
+- **vrai espadon** (rostre, voile dorsale, queue en croissant) qui jaillit au bout de la ligne, gerbes et ronds dans l'eau ; sa voile fend l'eau dans la Fosse ;
+- récifs en amas de rochers avec ressac, mouettes qui piquent sur les bancs, eau qui bout.
+
+Captures : `captures/lot11/chalutier_v3_*.png` (`_avant` = la V2 telle que vue en jeu).
+
+**Tests** : `valider.js` et `scenarios.js` verts (graine 20260731). En tirage libre (graine 1385855054), un échec « Portes : arcade 1.5 » — **déjà présent avant ce changement** (rejoué sur le commit précédent : même échec), à traiter à part.
+
+**À tester sur iPhone** : fluidité (la mer fait une dizaine de sinus et deux bruits par pixel, le ciel un fbm à 4 octaves) ; lisibilité du joueur à la barre (plus petit à l'écran) ; la vue à quai pour marcher sur le pont.
+
+**Les autres salles refaites** (aquarium, laverie, serre, radio, ciné) ont le même défaut de fond : nouvelle logique, même regard. Elles méritent la même passe visuelle, une par une.

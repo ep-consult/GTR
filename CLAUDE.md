@@ -707,6 +707,34 @@ puis refonte en profondeur de la pire à la meilleure, une salle par commit.
 - **Reset** : `chalutierEtatInitial` est LA liste de l'état d'une sortie
   (départ ET arrêt). Panneaux : `chalutierWrap`, `chalPecheWrap`,
   `chalIntroWrap`, `chalBilanWrap` (dans `JAUGES`).
+- **V3 visuelle (13 octobre, playtest : « on dirait le jeu d'avant, peu
+  immersif »)** — la logique n'a pas changé, tout est dans le rendu :
+  - **Caméra de poursuite** (`chalutierCamera`, appelée par `majCamera` APRÈS
+    la vue normale, fondue par `s.camMerK`) : derrière la poupe, tournée vers
+    l'horizon, à quai (suit le joueur, `s.camQuaiK`) comme en mer ; à la pêche
+    elle pivote vers tribord (`s.camPecheK` : ligne, bouchon, saut du Roi).
+    À l'entrée (fondu `ETAT.intT`), directement la bonne vue.
+  - **Ciel en dôme** (`CHAL_CIEL_FS`, rayon 190, enfant de `s.merMonde` : le
+    soleil tourne avec le cap ; il cache aussi les salles voisines) ; couleurs
+    `chalutierCouleursCiel` lissées sur `uTempete`, éclairs `s.eclair`.
+    Côte à l'horizon dans la direction du port (`s.coteLoin`).
+  - **Mer** (`CHAL_MER_VS/FS`, plan 96×96) : houle nulle sous la coque, reflet
+    du ciel (Fresnel, `uCam` = caméra dans le repère mer), chemin de soleil,
+    écume ; **sillage de Kelvin et vague d'étrave calculés DANS l'eau**
+    (repère du bateau `uCap`, intensité `uVit`) — pas de particules à la
+    poupe (elles filaient vers la caméra en gros carrés blancs).
+  - **Franc-bord** : la mer est descendue de `CHAL_DY` (niveau `CHAL_NIVEAU`) ;
+    tout ce qui touche l'eau en coordonnées de salle (bouchon, gerbes, filet)
+    se pose sur `CHAL_NIVEAU`. Roulis/tangage = la mer bouge (`merMonde`,
+    ordre `XZY`). Coque à bandes, portique arrière, tangons, pavillon.
+  - **Espadon** (`chalutierModeleEspadon`) : tour, couleurs de sommets,
+    rostre, voile, queue en croissant ; saute AU BOUT DE LA LIGNE
+    (`s.ligneFinX/Z`), ronds dans l'eau (`s.ronds`, pool), gerbes.
+  - Récifs en amas de rochers (bruit sur la POSITION des sommets : géométrie
+    non indexée, sinon fentes), ressac qui respire ; bancs : mouettes qui
+    piquent, eau qui bout ; voile du Roi qui fend l'eau.
+  - Tapis et enseigne SORTIE masqués en mer (`tapisSortie`, `enseigneSortie`
+    notés par la salle générique).
 - **Équilibrage vérifié par pilote simulé** (`scenarios.js`, « pilote simulé ») :
   joystick et bouton d'action réels, réaction 0,35 s, lâche pendant les rushs :
   4/4 sorties ramènent le Vieux Roi + 4 à 7 prises en 140-160 s
