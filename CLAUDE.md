@@ -100,7 +100,8 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 25490 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
 | 26289 | DÉBUT / FIN DE PARTIE |
 | 27683 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
-| 27919 | BOUCLE PRINCIPALE |
+| 27919 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
+| 28238 | BOUCLE PRINCIPALE |
 
 ### Ancres fines (hors bandeaux)
 
