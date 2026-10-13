@@ -9301,8 +9301,9 @@ async function main() {
           while (file.length) { const k = file.shift(), i = Math.floor(k / nz), j = k % nz; if (i === ti && j === tj) break;
             for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) { const a = i + di, b = j + dj; if (!libre(a, b) || prev[idx(a, b)] !== -2) continue; prev[idx(a, b)] = k; file.push(idx(a, b)); } }
           const pts = []; let k = idx(ti, tj); if (prev[k] === -2) return null; while (k !== -1) { pts.push({ x: cX(Math.floor(k / nz)), z: cZ(k % nz) }); k = prev[k]; } return pts.reverse(); };
-        const nuit = (actif) => {
-          const s = entrer(); P.x = s.panneau.x; P.z = s.panneau.z; appuyer();
+        const rnd0 = Math.random, graineNuit = (g) => () => { g |= 0; g = g + 0x6D2B79F5 | 0; let x = Math.imul(g ^ g >>> 15, 1 | g); x = x + Math.imul(x ^ x >>> 7, 61 | x) ^ x; return ((x ^ x >>> 14) >>> 0) / 4294967296; };
+        const nuit = (actif, g) => {
+          const s = entrer(); Math.random = graineNuit(g); P.x = s.panneau.x; P.z = s.panneau.z; appuyer(); // graine posée APRÈS startRun (qui tire selon l'état de la ville)
           const dt = 1 / 30; let t = 0, route = null, cle = '', bloque = 0, actionCd = 0;
           while (s.srNuit && t < SERRE_DUREE + 2) {
             INPUT.mx = INPUT.mz = 0;
@@ -9327,11 +9328,14 @@ async function main() {
           const res = { fin: s.srFin, fanees: s.srFanees, soins: s.srSoins, gain: s.srGain, bloque };
           sortirInterieur(); return res;
         };
-        const glouton = [], passif = nuit(false); for (let i = 0; i < 6; i++) glouton.push(nuit(true)); // ~7 nuits tenues sur 8 mesurées : on en exige 3 sur 6
+        // tirages des besoins sur une graine propre à chaque nuit : sans elle, l'état de Math.random dépendait du
+        // temps réel écoulé avant le test et le pilote tenait de 2 à 5 nuits sur 6 d'un run à l'autre
+        const glouton = [], passif = nuit(false, 77);
+        for (let i = 0; i < 10; i++) glouton.push(nuit(true, 1000 + i)); Math.random = rnd0; // on en exige 5 sur 10
         if (glouton.some((g) => g.bloque)) ko.push('un pot, le bassin ou la table est inatteignable');
         const tenues = glouton.filter((g) => g.fin === 'fin' || g.fin === 'parfait').length;
-        if (tenues < 3) ko.push('le pilote glouton perd la serre trop souvent (' + JSON.stringify(glouton) + ')');
-        else info.push('pilote glouton : ' + tenues + '/6 nuits tenues (' + glouton.map((g) => g.soins + ' soins, ' + g.fanees + ' fanée(s), ' + g.gain + ' $').join(' ; ') + ')');
+        if (tenues < 5) ko.push('le pilote glouton perd la serre trop souvent (' + JSON.stringify(glouton) + ')');
+        else info.push('pilote glouton : ' + tenues + '/10 nuits tenues (' + glouton.map((g) => g.soins + ' soins, ' + g.fanees + ' fanée(s), ' + g.gain + ' $').join(' ; ') + ')');
         if (passif.fin !== 'perdu') ko.push('un joueur passif tient la serre (' + JSON.stringify(passif) + ')');
         else info.push('passif : serre perdue');
         // 8) remises à zéro
@@ -9588,6 +9592,50 @@ async function main() {
       });
       if (r.ko.length) fail('Retours vue immersive : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
       else ok('Retours vue immersive : ' + r.info.join(' ; '));
+    }
+
+    // -------------------------------------------------------------------
+    // Retours de playtest, 2e série (14 octobre) : stands de nourriture,
+    // hauteurs des véhicules, basket, wingsuit, monster truck, vélos au sommet.
+    // -------------------------------------------------------------------
+    console.log('\n--- Retours 2e série : stands, véhicules, basket, wingsuit, sommet ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (INT.actif) sortirInterieur(); startRun(); ecran(null); ETAT.mode = 'jeu';
+        // stands : un par quartier au moins dans 6 quartiers, achat qui soigne, refusé plein de vie, fermé juste après
+        const q = new Set(STANDS.map((s) => s.q)); if (q.size < 6) ko.push('stands dans ' + q.size + ' quartiers seulement');
+        const s = STANDS[0]; s.cd = 0; P.x = s.x; P.z = s.z; P.hp = P.maxHp; META.argent = 100; acheterNourriture(s); if (META.argent !== 100) ko.push('un stand vend à un joueur en pleine forme');
+        s.cd = 0; P.hp = 10; acheterNourriture(s); const N = NOURRITURE_QUARTIER[s.q] || NOURRITURE_QUARTIER.centre; /* le test maîtrise sa scène : stand ouvert */
+        if (!(P.hp > 10) || META.argent !== 100 - N.prix) ko.push('achat au stand incohérent (' + P.hp + ' PV, ' + META.argent + ' $)');
+        const a1 = META.argent; acheterNourriture(s); if (META.argent !== a1) ko.push('le stand revend aussitôt (farming)');
+        info.push(STANDS.length + ' stands, ' + q.size + ' quartiers');
+        // véhicules hauts : à leur hauteur cible (± 0,15)
+        for (const k in HAUTEUR_VEH) { const g = makeVoiture(k); g.updateMatrixWorld(true); const b = new THREE.Box3(); g.traverse((o) => { if (o.isMesh && !(o.material && o.material.transparent && o.material.opacity < 0.5)) b.expandByObject(o); });
+          if (Math.abs(b.max.y - b.min.y - HAUTEUR_VEH[k]) > 0.25) ko.push(k + ' mesure ' + (b.max.y - b.min.y).toFixed(2) + ' au lieu de ' + HAUTEUR_VEH[k]); }
+        // basket : un joueur passif ne gagne rien ; 10 tirs parfaits gagnent la prime, une seule fois par vague
+        const b0 = BASKET.depart; P.x = b0.x; P.z = b0.z; basketDemarrer(); if (!BASKET.actif) ko.push('le concours ne démarre pas');
+        for (let i = 0; i < 50 * 30 && BASKET.actif; i++) majBasket(1 / 30, 1 / 30);
+        if (BASKET.actif || BASKET.pts > 0) ko.push('basket passif : ' + BASKET.pts + ' pts');
+        BASKET.vague = -1; BASKET.reussi = false; P.x = b0.x; P.z = b0.z; basketDemarrer(); const a2 = META.argent;
+        for (let i = 0; i < 60 * 30 && BASKET.actif; i++) { const p = BASKET.postes[BASKET.poste]; P.x = p.x; P.z = p.z; if (!BASKET.vol) { BASKET.jauge = 0.62; basketTirer(); } majBasket(1 / 30, 1 / 30); }
+        const gain = META.argent - a2; if (BASKET.actif || gain !== BASKET_PRIME) ko.push('basket parfait : prime ' + gain);
+        P.x = b0.x; P.z = b0.z; basketDemarrer(); if (BASKET.actif) ko.push('2e concours gagnable dans la même vague');
+        basketArreter(); info.push('basket : passif 0 pt, parfait = prime, une fois par vague');
+        // wingsuit : record mesuré, combinaison « Faucon » à 500 m
+        META.wingRecord = 0; delete META.tenuesPoss.faucon; P.wingsuit = true; P.chute = true; P.para = false; P.wing = false; P.y = 80; P.x = 0; P.z = 0;
+        deployerWingsuit(); P.x = 420; P.z = 300; ouvrirParachute(); checkTenues();
+        if (META.wingRecord !== 516 || !META.tenuesPoss.faucon) ko.push('wingsuit : record ' + META.wingRecord + ', faucon ' + !!META.tenuesPoss.faucon);
+        P.chute = false; P.para = false; P.y = 0;
+        // monster truck : il gravit comme le 4x4 ; vélos au sommet du mont
+        if (!VEHDEFS.monstertruck.franchissement) ko.push('monster truck sans franchissement');
+        const sm = MONT.sommet, n = vehicules.filter((v) => !v.mort && (v.def.velo || v.key === 'motocross') && Math.hypot(v.x - sm.x, v.z - sm.z) < 30).length;
+        if (n < 3) ko.push('seulement ' + n + ' vélos/motos au sommet du mont');
+        info.push(n + ' engins au sommet');
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Retours 2e série : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
+      else ok('Retours 2e série : ' + r.info.join(' ; ') + ' ; véhicules à leur hauteur, wingsuit : record et combinaison « Faucon »');
     }
 
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');

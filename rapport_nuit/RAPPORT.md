@@ -1693,3 +1693,18 @@ Captures : `captures/lot11/echelle_*.png`.
 - **Bouton de vue** : pastille « 🎥 3D / 2D » bien visible à côté de la pause.
 - **Le large** : on va presque trois fois plus loin en mer (430 u au lieu de 150) ; on y croise des récifs (solides : il faut les éviter), des voiliers au mouillage, des bancs de poissons qui sautent et que les mouettes piquent (ils jaillissent quand on les traverse en bateau), des tortues.
 - **Balises** : chaque salle et chaque activité (courses, wakeboard, parachute, wingsuit, saut BASE, banderole, paillote, île au trésor, skatepark, jetpack) a une icône flottante visible de loin dans les deux vues, même derrière un immeuble ; les enseignes se lisent aussi de dos.
+
+## Retours de playtest, 2e série (14 octobre)
+
+- **Stands de nourriture** : chaque kiosque, food truck et chariot vend la spécialité de son quartier (hot-dog, tacos, beignets de crevettes…), qui rend des PV ; seulement blessé, payant, stand fermé un moment après une vente (pas de farming).
+- **Armes** : un vrai modèle par arme (pistolet, silencieux, Uzi, PM, pompe, fusil d'assaut, sniper à lunette, lance-flammes, bazooka, désintégrateur, battes, couteau, sabre), en main du joueur et des ennemis.
+- **Hauteur des véhicules** : bus, pompiers, ambulance, fourgon, camions et char à leur hauteur réelle ; les roues ne s'enfoncent plus et suivent la pente (assiette mesurée sur les 4 roues) ; le monster truck gravit la colline comme le 4x4.
+- **Piscines** : plus de verdure posée dessus ni de scintillement. **Maisons et villas** à l'échelle du joueur.
+- **Crique** : falaises abruptes et irrégulières (strates, bosses, corniches rocheuses) au lieu de grands blocs carrés.
+- **Sommet du mont** : vélos, BMX et moto cross garés pour la descente.
+- **Basket** jouable au court de Brooklyn : concours de tirs (jauge de puissance, 5 postes), prime une fois par vague.
+- **Wakeboard** : sillage en écume (plus de traits), vue immersive derrière la planche.
+- **Wingsuit** : nouvelle voilure, record de distance, combinaison « Faucon » à 500 m (plané plus long).
+- **Apparitions en vue immersive** : véhicules et ennemis apparaissent loin et hors de vue.
+
+Captures : `captures/lot11/wakeboard_ecume.png`, `basket_tir.png`, `sommet_velos.png`, `crique_falaises.png`, `vehicules_hauteurs.png`, `villa_proportions.png`.

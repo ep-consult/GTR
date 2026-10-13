@@ -1857,6 +1857,7 @@ const META={
   // consommable. tenue = tenue actuellement portée, tenuesPoss = tenues
   // débloquées (id:true). La tenue de départ est toujours débloquée.
   tenue:'depart', tenuesPoss:{depart:true},
+  wingRecord:0, // record de distance en wingsuit (m)
   banderole:'', // message acheté au kiosque de la plage, tiré par l'avion (DECOR_V2)
   // Tableau de la ville (planque) : lieux spéciaux déjà visités au moins
   // une fois (id de salle -> true), lu pour savoir quoi afficher en
@@ -2318,6 +2319,8 @@ const TENUES=[
    cond:()=>(META.stats.casses||0)>=1,haut:0x2a3f6a,bas:0x1c2436,casq:0x2a3f6a},
   {id:'dore',nom:'Tenue dorée',ico:'✨',condTxt:'Curiosité : Le Jeton Doré (arcade)',
    cond:()=>aCurio('jeton_dore'),haut:0xffd700,bas:0xd8b02a,casq:0xffd700},
+  {id:'faucon',nom:'Combinaison « Faucon »',ico:'🦅',condTxt:'Wingsuit : un vol de 500 m (plané 20 % plus long)',
+   cond:()=>(META.wingRecord||0)>=500,haut:0x1a2a4a,bas:0x101620,casq:0xffd23f},
 ];
 // Débloque à la volée dès qu'une condition est remplie (bouclé chaque frame
 // depuis majJoueur, coût négligeable : ~10 comparaisons booléennes, aucune
@@ -3761,7 +3764,7 @@ function construireVille(){
     if(qq!=='plage'&&qq!=='parc'&&bx%3===1&&bz%3===1) mkFeu(cx+INNER/2+1.4,cz-INNER/2-1.4);
   }
   placerPortes();
-  if(DECOR_V2){ sansAleaVille(()=>{ ameliorerPortes(); mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkCiel(); mkKiosqueBanderole(); mkCrique(); mkMontReyes(); mkBordureEst(); mkCanyonsDesert(); mkPicVertige(); mkParcStunt(); mkSkateXXL(); mkRides(); mkMerVivante(); mkRemorquage(); mkLarge(); deplacerVoltige(); mkTracesSable(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkNeonVivant(); mkQuartiersFinitions(); mkBalises(); }); } // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
+  if(DECOR_V2){ sansAleaVille(()=>{ ameliorerPortes(); mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkBasket(); mkCiel(); mkKiosqueBanderole(); mkCrique(); mkMontReyes(); mkBordureEst(); mkCanyonsDesert(); mkPicVertige(); mkParcStunt(); mkSkateXXL(); mkRides(); mkMerVivante(); mkRemorquage(); mkLarge(); deplacerVoltige(); mkTracesSable(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkNeonVivant(); mkQuartiersFinitions(); mkBalises(); }); } // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
   finaliserMerge();
   construireMinimapStatique();
 }
@@ -5049,6 +5052,101 @@ function mkBrooklyn(){
   BROOK.ballon={m:ballon,x:cx+6.6,z:cz-9.2,t:0};
   BROOK.ok=true;
 }
+/* ---- BASKET : « CONCOURS DE TIRS » (14 octobre, demandé : « terrain de basket jouable »).
+   Sur le terrain est des courts de Brooklyn. 10 tirs en BASKET_DUREE s depuis 5 postes en arc
+   autour du panier nord (cercles au sol, le poste suivant s'allume). Au poste : une jauge de
+   force va et vient (de plus en plus vite) ; TIRER quand le curseur est dans la zone verte
+   (plus étroite au poste à 3 points). Le ballon part en cloche : panier (swish), ou rebond sur
+   l'anneau. 16 points = prime (une fois par vague, primeMerUneFois) ; un joueur passif ne
+   marque rien (perdable). Les vagues font la trêve (treveActivite). Reset : startRun, mourir.
+   Tout sur dtJeu (la jauge se joue contre le chrono) ; le vol du ballon sur dt. */
+const BASKET_DUREE=45, BASKET_TIRS=10, BASKET_OBJECTIF=16, BASKET_PRIME=180;
+const BASKET={actif:false,t:0,tirs:0,pts:0,poste:0,jauge:0,sens:1,vol:null,ok:false,hoop:null,postes:[],marques:[],ballon:null,ui:null,fin:0};
+function mkBasket(){
+  if(!POIS.courts) return;
+  const x=POIS.courts.x+6.6, zc=POIS.courts.z, zH=zc-(24/2-1.2)+0.35; // anneau du panier nord (mkBrooklyn)
+  BASKET.hoop={x,y:3.05,z:zH};
+  // 5 postes en arc face au panier : 2 à 2 points, 1 au lancer franc, 2 à 3 points
+  for(const [a,r,v] of [[-0.9,3.6,2],[0.9,3.6,2],[0,4.6,2],[-0.5,6.7,3],[0.5,6.7,3]])
+    BASKET.postes.push({x:x+Math.sin(a)*r,z:zH+Math.cos(a)*r,v});
+  const matM=new THREE.MeshBasicMaterial({color:0xffd23f,transparent:true,opacity:0.0,depthWrite:false});
+  for(const p of BASKET.postes){ const m=new THREE.Mesh(new THREE.RingGeometry(0.7,0.95,24),matM.clone()); m.rotation.x=-Math.PI/2; m.position.set(p.x,0.2,p.z); scene.add(m); BASKET.marques.push(m); }
+  const b=new THREE.Mesh(new THREE.IcosahedronGeometry(0.26,1),mat(0xe0662a)); b.visible=false; scene.add(b); BASKET.ballon=b;
+  // panneau du concours : jauge de force, score, tirs restants, chrono
+  const d=document.createElement('div');
+  d.style.cssText='position:absolute;left:50%;top:calc(env(safe-area-inset-top,0px) + 74px);transform:translateX(-50%);width:min(300px,80vw);display:none;pointer-events:none;z-index:6;'+
+    'background:#0b1622e6;border:2px solid #ff8a2a;border-radius:14px;padding:8px 10px;box-sizing:border-box;text-align:center;font:900 13px Arial;color:#fff';
+  d.innerHTML='<div style="display:flex;justify-content:space-between"><span id="bkPts">🏀 0 pt</span><span id="bkTirs">10 tirs</span><span id="bkT">45 s</span></div>'+
+    '<div style="position:relative;height:18px;margin-top:6px;border-radius:9px;background:#22303c;overflow:hidden"><div id="bkVert" style="position:absolute;top:0;bottom:0;background:#3fbf6a"></div>'+
+    '<div id="bkCurseur" style="position:absolute;top:-2px;bottom:-2px;width:6px;margin-left:-3px;background:#ffd23f;box-shadow:0 0 6px #ffd23f"></div></div>'+
+    '<div id="bkMsg" style="margin-top:5px;font:900 12px Arial;color:#9fd8ee">Va au cercle jaune</div>';
+  el('hud').appendChild(d);
+  BASKET.ui={d,pts:d.querySelector('#bkPts'),tirs:d.querySelector('#bkTirs'),t:d.querySelector('#bkT'),vert:d.querySelector('#bkVert'),cur:d.querySelector('#bkCurseur'),msg:d.querySelector('#bkMsg')};
+  BASKET.depart={x,z:zc}; // le lancement se fait au rond central
+  BASKET.ok=true;
+}
+function basketFenetre(){ const p=BASKET.postes[BASKET.poste]; return p&&p.v===3?0.11:0.17; } // demi-largeur de la zone verte
+function basketDemarrer(){
+  if(BASKET.actif) return;
+  if(BASKET.vague===WAVES.n&&BASKET.reussi){ SFX.refus(); toast('Tu as déjà gagné le concours cette vague. Reviens à la prochaine !','warn'); return; }
+  Object.assign(BASKET,{actif:true,t:BASKET_DUREE,tirs:BASKET_TIRS,pts:0,poste:0,jauge:0,sens:1,vol:null,fin:0});
+  BASKET.ui.d.style.display='block'; cacherBoutonsCombat();
+  bigMsg('🏀 CONCOURS DE TIRS'); toast('10 tirs, 45 s : vise la zone verte. '+BASKET_OBJECTIF+' points pour la prime.','or'); SFX.ui(); vibre(30);
+}
+function basketArreter(){
+  if(!BASKET.ok) return;
+  if(BASKET.actif) afficherBoutonsCombat();
+  BASKET.actif=false; BASKET.vol=null; BASKET.ballon.visible=false; BASKET.ui.d.style.display='none';
+  for(const m of BASKET.marques) m.material.opacity=0;
+}
+function basketTirer(){
+  if(!BASKET.actif||BASKET.vol||BASKET.tirs<=0) return;
+  const p=BASKET.postes[BASKET.poste], h=BASKET.hoop, ecart=Math.abs(BASKET.jauge-0.62), f=basketFenetre();
+  const res=ecart<=f*0.45?'swish':(ecart<=f?'anneau':(BASKET.jauge>0.62?'long':'court'));
+  BASKET.tirs--; BASKET.vol={t:0,x0:P.x,z0:P.z,res,v:p.v};
+  BASKET.ballon.visible=true; SFX.swing(); vibre(15);
+}
+function basketFinTir(res,v){
+  const h=BASKET.hoop;
+  if(res==='swish'||res==='anneau'){ BASKET.pts+=v; spawnTexte(h.x,4,h.z,'+'+v+(res==='swish'?' SWISH !':''),'#7dff7a'); SFX.etoile(); vibre(40);
+    for(let i=0;i<12;i++) spawnP(h.x,3,h.z,rand(-1,1),rand(-0.5,1.5),rand(-1,1),0.6,0.3,pick([0xffd23f,0xffffff,0xff8a2a]),6); }
+  else { spawnTexte(h.x,4,h.z,res==='long'?'Trop long':'Trop court','#ffb08a'); SFX.refus(); }
+  BASKET.poste=(BASKET.poste+1)%BASKET.postes.length;
+  if(BASKET.tirs<=0) basketConclure();
+}
+function basketConclure(){
+  if(!BASKET.actif) return; // garde d'entrée propre
+  const pts=BASKET.pts, gagne=pts>=BASKET_OBJECTIF;
+  BASKET.vague=WAVES.n; if(gagne) BASKET.reussi=true;
+  basketArreter();
+  if(gagne){ const m=primeMerUneFois('basket',BASKET_PRIME); bigMsg('🏀 '+pts+' POINTS !'); toast(m?'Prime du concours : +'+m+' $':'Concours gagné (prime déjà touchée cette vague)','or'); SFX.niveau(); }
+  else { bigMsg('🏀 '+pts+' / '+BASKET_OBJECTIF+' POINTS'); toast('Presque ! Retente ta chance au rond central.','warn'); }
+}
+function majBasket(dt,dtJeu){
+  if(!BASKET.ok) return;
+  if(!BASKET.actif) return;
+  if(ETAT.mode!=='jeu'||P.veh||INT.actif||dist2(P.x,P.z,BASKET.depart.x,BASKET.depart.z)>16*16){ basketArreter(); return; } // quitté le terrain
+  BASKET.t-=dtJeu; if(BASKET.t<=0){ BASKET.t=0; basketConclure(); return; }
+  // jauge : va et vient, de plus en plus vite
+  const vit=1.1+(BASKET_TIRS-BASKET.tirs)*0.09; BASKET.jauge+=BASKET.sens*vit*dtJeu;
+  if(BASKET.jauge>1){ BASKET.jauge=1; BASKET.sens=-1; } if(BASKET.jauge<0){ BASKET.jauge=0; BASKET.sens=1; }
+  // vol du ballon (cloche vers l'anneau ; rebond à côté si raté)
+  const h=BASKET.hoop, vo=BASKET.vol;
+  if(vo){ vo.t+=dt/0.9; const k=Math.min(1,vo.t), dev=vo.res==='long'?0.9:(vo.res==='court'?-0.8:(vo.res==='anneau'?0.18:0));
+    const tx=h.x, tz=h.z-dev*0.9, ty=h.y+(vo.res==='court'?-0.6:0);
+    BASKET.ballon.position.set(lerp(vo.x0,tx,k),lerp(1.9,ty,k)+Math.sin(k*Math.PI)*3.2,lerp(vo.z0,tz,k));
+    if(k>=1){ BASKET.vol=null; BASKET.ballon.visible=false; basketFinTir(vo.res,vo.v); if(!BASKET.actif) return; } }
+  // poste actif : cercle qui pulse
+  for(let i=0;i<BASKET.marques.length;i++) BASKET.marques[i].material.opacity=i===BASKET.poste?0.55+0.35*Math.sin(ETAT.runT*6):0.12;
+  // interface (écrite au changement)
+  const u=BASKET.ui, f=basketFenetre(), aupost=basketAuPoste();
+  u.cur.style.left=(BASKET.jauge*100).toFixed(1)+'%';
+  const k=Math.round(BASKET.pts)+'|'+BASKET.tirs+'|'+Math.ceil(BASKET.t)+'|'+f+'|'+aupost;
+  if(BASKET._k!==k){ BASKET._k=k; u.pts.textContent='🏀 '+BASKET.pts+' / '+BASKET_OBJECTIF; u.tirs.textContent=BASKET.tirs+' tirs'; u.t.textContent=Math.ceil(BASKET.t)+' s';
+    u.vert.style.left=((0.62-f)*100)+'%'; u.vert.style.width=(2*f*100)+'%';
+    u.msg.textContent=aupost?(BASKET.postes[BASKET.poste].v===3?'⭐ Tir à 3 points — TIRE dans le vert':'TIRE quand le curseur est dans le vert'):'Va au cercle jaune'; }
+}
+function basketAuPoste(){ const p=BASKET.postes[BASKET.poste]; return !!p&&dist2(P.x,P.z,p.x,p.z)<1.3*1.3; }
 function majBrooklyn(dt){
   if(!BROOK.ok) return;
   const b=BROOK.ballon; b.t+=dt;
@@ -5366,7 +5464,7 @@ function mkCrique(){
   const falaise=(x0,x1,z0,z1,h)=>{
     const cx=(x0+x1)/2, cz=(z0+z1)/2, w=x1-x0, d=z1-z0;
     const t=texGres(); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(w/8,h/8);
-    const b=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshLambertMaterial({map:t})); b.position.set(cx,h/2-0.4,cz); scene.add(b);
+    const b=new THREE.Mesh(geoFalaise(w,h,d),new THREE.MeshLambertMaterial({map:t,vertexColors:true})); b.position.set(cx,h/2-0.4,cz); scene.add(b);
     const dessus=new THREE.Mesh(new THREE.BoxGeometry(w-0.4,0.12,d-0.4),new THREE.MeshLambertMaterial({map:texDesert,color:0xd8a870})); dessus.position.set(cx,h-0.34,cz); scene.add(dessus);
     addSolid({x:cx,z:cz,hw:w/2,hd:d/2,h:h-0.4,toit:true}); PLATS.push({x:cx,z:cz,hw:w/2,hd:d/2,h:h-0.4});
     // éboulis au pied, quelques arbustes secs sur le dessus
@@ -5401,11 +5499,16 @@ function mkCrique(){
   // rampes d'accès : depuis le désert (nord), la plage ouest, la plage est
   // faces de la baie moins droites : avancées de roche incrustées et éboulis (une seule fusion)
   const rocs=[];
-  const roc=(x,y,z,r)=>{ const g=new THREE.DodecahedronGeometry(r,0); g.rotateY(aD(0,6)); g.rotateX(aD(0,6)); g.translate(x,y,z); rocs.push(g); };
+  // avancées de roche : blocs aplatis et bosselés, collés à la paroi en corniches (avant : des dodécaèdres
+  // à grosses facettes plantés à toutes les hauteurs — signalé « trop carré, de gros blocs »)
+  const roc=(x,y,z,r)=>{ const g=new THREE.IcosahedronGeometry(r,1), pa=g.attributes.position, gr=aD(0,99);
+    for(let k=0;k<pa.count;k++){ const px=pa.getX(k), py=pa.getY(k), pz=pa.getZ(k), hs=Math.sin(Math.round(px*100)*0.1291+Math.round(py*100)*0.7823+Math.round(pz*100)*0.3772+gr)*43758.5453, f=0.75+0.4*(hs-Math.floor(hs));
+      pa.setXYZ(k,px*f*1.5,py*f*0.45,pz*f*0.9); }
+    g.rotateY(aD(-0.3,0.3)); g.computeVertexNormals(); g.translate(x,y,z); rocs.push(g); };
   for(let i=0;i<26;i++){ const x=aD(X0+1,X1-1); roc(x,aD(1,15.5),Z0+aD(0.1,0.7),aD(1.2,2.6)); }      // face sud de la falaise nord
   for(let i=0;i<14;i++){ const z=aD(Z0+1,MER+4); roc(X0+aD(0.1,0.6),aD(1,9),z,aD(1,2.2)); roc(X1-aD(0.1,0.6),aD(0.5,4.5),z,aD(0.9,1.8)); } // bras ouest et est
   for(let i=0;i<10;i++) roc(aD(X0+1,X1-1),aD(15.5,17.6),aD(248,Z0-0.5),aD(0.8,1.6)); // crête irrégulière en haut
-  scene.add(new THREE.Mesh(mergeGeoManuel(rocs),new THREE.MeshLambertMaterial({map:texGres()})));
+  scene.add(new THREE.Mesh(mergeGeoManuel(rocs),new THREE.MeshLambertMaterial({map:texGres(),flatShading:true,color:0xe8d8c4})));
   // eau de la baie : turquoise, plus sombre au milieu, reflets (même esprit que le lac)
   const mEau=new THREE.MeshLambertMaterial({map:texEau,color:0x7fd8d0});
   mEau.onBeforeCompile=(sh)=>{ sh.uniforms.uTemps=MER_U.uTemps; sh.uniforms.uSoleil=MER_U.uSoleil;
@@ -5422,6 +5525,41 @@ function mkCrique(){
   mkEnseigne('CRIQUE DES PLONGEURS','#35e0ff',X0-3,3.8,Z0-23.9,0,6).rotation.x=-0.45;
   reliefCrique(); // collines escarpées, sentier en lacets, marches taillées
   POIS.crique={x:(X0+X1)/2,z:(Z0+MER)/2};
+}
+// Paroi de falaise (14 octobre, signalé : « trop carré, de gros blocs : il faut ressentir la
+// falaise abrupte et irrégulière ») : boîte subdivisée dont les flancs sont repoussés en
+// strates (corniches horizontales), en bosses et en dièdres ; les creux sont assombris
+// (couleurs de sommets). Déplacement VERS L'EXTÉRIEUR seulement, sauf de légers creux
+// (≤ 0,3 u), et le long de la direction centre → sommet dans le plan xz : deux faces qui se
+// rejoignent sur une arête déplacent le même sommet de la même façon (aucune fente). Le dessus
+// reste plat (on y marche : PLATS et solide inchangés).
+function geoFalaise(w,h,d){
+  const pas=1.4, g=new THREE.BoxGeometry(w,h,d,Math.max(2,Math.round(w/pas)),Math.max(2,Math.round(h/pas)),Math.max(2,Math.round(d/pas)));
+  const pa=g.attributes.position, cols=new Float32Array(pa.count*3), hh=h/2;
+  const bruit=(x,y,z)=>{ const s=Math.sin(x*1.37+y*0.71+z*2.03)*43758.5453; return s-Math.floor(s); };
+  const lisse=(x,y,z)=>{ // bruit de valeur grossier, continu (interpolé sur une grille de 2,5 u)
+    const q=2.5, ix=Math.floor(x/q), iy=Math.floor(y/q), iz=Math.floor(z/q), fx=x/q-ix, fy=y/q-iy, fz=z/q-iz, S=k=>k*k*(3-2*k);
+    const v=(a,b,c)=>bruit(ix+a,iy+b,iz+c); const ux=S(fx), uy=S(fy), uz=S(fz);
+    const a=v(0,0,0)+(v(1,0,0)-v(0,0,0))*ux, b=v(0,1,0)+(v(1,1,0)-v(0,1,0))*ux, c=v(0,0,1)+(v(1,0,1)-v(0,0,1))*ux, e=v(0,1,1)+(v(1,1,1)-v(0,1,1))*ux;
+    return (a+(b-a)*uy)+((c+(e-c)*uy)-(a+(b-a)*uy))*uz; };
+  for(let i=0;i<pa.count;i++){
+    const x=pa.getX(i), y=pa.getY(i), z=pa.getZ(i);
+    let ombre=1;
+    if(y<hh-0.01){ // flancs (le dessus reste plat)
+      const haut=(y+hh)/h, strate=Math.max(0,Math.sin(y*1.9+lisse(x,0,z)*4))*0.55, bosse=lisse(x*0.8,y*0.9,z*0.8)*1.5-0.3, fin=bruit(x,y,z)*0.25;
+      let dep=clamp(strate+bosse+fin,-0.3,1.2)*(0.35+0.65*Math.min(1,haut*4))*(1-0.5*Math.max(0,haut-0.9)*10); // pied plus large, arête du haut nette
+      if(y<-hh+0.01) dep*=0.6;
+      const L=Math.hypot(x,z)||1; // direction horizontale centre → sommet, normalisée sur la face dominante
+      const kx=Math.abs(x)>=w/2-0.01?Math.sign(x):0, kz=Math.abs(z)>=d/2-0.01?Math.sign(z):0;
+      const dx=kx||kz?kx:x/L, dz=kx||kz?kz:z/L, n=Math.hypot(dx,dz)||1;
+      pa.setX(i,x+dx/n*dep); pa.setZ(i,z+dz/n*dep);
+      ombre=0.62+0.38*clamp(dep/1.1+0.3,0,1)-(strate>0.4?0:0.08); // creux et dessous des corniches plus sombres
+    }
+    cols[i*3]=ombre; cols[i*3+1]=ombre*0.97; cols[i*3+2]=ombre*0.93;
+  }
+  g.setAttribute('color',new THREE.BufferAttribute(cols,3));
+  g.computeVertexNormals();
+  return g;
 }
 // Atterrissage du joueur : dans l'eau, jamais de dégâts — c'est un plongeon.
 // Bonus de score selon la hauteur (6 s entre deux bonus : pas de score à la chaîne).
@@ -5948,12 +6086,32 @@ function ejecterEnVol(){
 // (posé en wingsuit : très dur). P.wing : en vol plané ; P.wingsuit : on la porte.
 const WING_V=24, WING_VY=5.5;
 function prendreWingsuit(){ P.wingsuit=true; if(P.wingMesh) P.wingMesh.visible=false; bigMsg('🦅 WINGSUIT ÉQUIPÉE'); toast('En chute libre : WINGSUIT pour planer, puis ouvre la voile pour te poser','or'); SFX.niveau(); vibre(40); }
-function deployerWingsuit(){ if(!P.wingsuit||!P.chute||P.para||P.wing) return; P.wing=true; P.wingAng=P.ang; P.wingV=Math.max(14,Math.hypot(P.chuteVx||0,P.chuteVz||0)); toast('🦅 Plané !','or'); SFX.swing(); vibre(30); }
+// record de distance (14 octobre, demandé) : mesuré du déploiement jusqu'à la voile ou au sol ;
+// WING_RECORD_FAUCON m débloque la combinaison « Faucon » (tenue : plané plus long)
+const WING_RECORD_FAUCON=500;
+function finVolWingsuit(){
+  if(!P.wing||P.wingX0===undefined) return;
+  const d=Math.round(Math.hypot(P.x-P.wingX0,P.z-P.wingZ0)); P.wingX0=undefined;
+  if(d<20) return;
+  if(d>(META.wingRecord||0)){ META.wingRecord=d; bigMsg('🦅 RECORD : '+d+' m'); SFX.niveau(); sauveMeta();
+    if(d>=WING_RECORD_FAUCON&&!META.tenuesPoss.faucon) toast('Combinaison « Faucon » débloquée (penderie de la planque) : plané plus long','or'); }
+  else toast('🦅 Vol de '+d+' m (record '+META.wingRecord+' m)','or');
+}
+function deployerWingsuit(){ if(!P.wingsuit||!P.chute||P.para||P.wing) return; P.wingX0=P.x; P.wingZ0=P.z; P.wing=true; P.wingAng=P.ang; P.wingV=Math.max(14,Math.hypot(P.chuteVx||0,P.chuteVz||0)); toast('🦅 Plané !','or'); SFX.swing(); vibre(30); }
 function mkAilesWingsuit(){ // membranes entre bras et jambes, accrochées au modèle du joueur
-  const g=new THREE.Group(), mt=new THREE.MeshLambertMaterial({color:0xff5a3a,side:THREE.DoubleSide});
-  for(const sg of [-1,1]){ const sh=new THREE.Shape(); sh.moveTo(0,0); sh.lineTo(sg*1.1,0.1); sh.lineTo(sg*0.35,-1.2); sh.lineTo(0,-1.0);
-    const m=new THREE.Mesh(new THREE.ShapeGeometry(sh),mt); m.position.set(sg*0.18,1.45,0); g.add(m); }
-  const q=new THREE.Shape(); q.moveTo(-0.25,0); q.lineTo(0.25,0); q.lineTo(0,-0.6); g.add(new THREE.Mesh(new THREE.ShapeGeometry(q),mt)); g.children[2].position.set(0,0.75,0);
+  // (14 octobre, demandé : « améliorer le style ») : voilure à bandes, nervures, bord d'attaque
+  // contrasté, membrane entre les jambes, feux de bout d'aile ; la combinaison « Faucon » a sa livrée
+  const faucon=META.tenue==='faucon';
+  const texAile=cTex(128,(c,s)=>{ c.fillStyle=faucon?'#1a2a4a':'#ff5a3a'; c.fillRect(0,0,s,s); c.fillStyle=faucon?'#ffd23f':'#1c1e22';
+    for(let k=0;k<4;k++) c.fillRect(0,k*s/4+s/10,s,s/24); c.fillStyle='rgba(255,255,255,0.18)'; for(let k=0;k<6;k++) c.fillRect(k*s/6,0,2,s); },1);
+  const g=new THREE.Group(), mt=new THREE.MeshLambertMaterial({map:texAile,side:THREE.DoubleSide});
+  const bord=mat(faucon?0xffd23f:0x1c1e22);
+  for(const sg of [-1,1]){ const sh=new THREE.Shape(); sh.moveTo(0,0.05); sh.quadraticCurveTo(sg*0.7,0.25,sg*1.25,0.12); sh.lineTo(sg*1.05,-0.25); sh.quadraticCurveTo(sg*0.6,-0.9,sg*0.32,-1.25); sh.lineTo(0,-1.0); sh.lineTo(0,0.05);
+    const m=new THREE.Mesh(new THREE.ShapeGeometry(sh),mt); m.position.set(sg*0.18,1.45,0); g.add(m);
+    const ba=new THREE.Mesh(new THREE.BoxGeometry(1.15,0.06,0.06),bord); ba.position.set(sg*0.78,1.6,0); ba.rotation.z=-sg*0.1; g.add(ba);
+    const feu=new THREE.Mesh(new THREE.SphereGeometry(0.06,6,4),new THREE.MeshBasicMaterial({color:sg<0?0xff3030:0x30ff60})); feu.position.set(sg*1.43,1.57,0); g.add(feu); }
+  const q=new THREE.Shape(); q.moveTo(-0.28,0); q.lineTo(0.28,0); q.quadraticCurveTo(0.1,-0.5,0,-0.72); q.quadraticCurveTo(-0.1,-0.5,-0.28,0);
+  const queue=new THREE.Mesh(new THREE.ShapeGeometry(q),mt); queue.position.set(0,0.75,0); g.add(queue);
   g.visible=false; return g;
 }
 function sauterBase(){
@@ -6469,6 +6627,7 @@ function mkBalises(){
   if(MERV.paillote) add(MERV.paillote.x,MERV.paillote.z,'🍹','#1a8a6a',1);
   if(MERV.tresor) add(MERV.tresor.x,MERV.tresor.z,'⛏️','#8a6a2a');
   if(POIS.skateXXL) add(POIS.skateXXL.x,POIS.skateXXL.z,'🛹','#c83a9a');
+  if(BASKET.ok) add(BASKET.depart.x,BASKET.depart.z,'🏀','#c8601a');
   if(POIS.toitH&&POIS.toitH.jetpack) add(POIS.toitH.jetpack.x,POIS.toitH.jetpack.z,'🚀','#1a8ac8',POIS.toitH.h);
 }
 function majBalises(dt){
@@ -6532,7 +6691,12 @@ function mkRemorquage(){
     g.add(mkBoxG(0.06,0.075,1.3,blanc,0,0.005,0));
     scene.add(g); g.visible=false; TOW.planche=g; }
   { // sillage : deux rubans d'écume en V derrière le bateau (vagues qu'on franchit pour décoller)
-    const mk=()=>{ const m=new THREE.Mesh(new THREE.BoxGeometry(1,0.04,1),new THREE.MeshBasicMaterial({color:0xf2fbff,transparent:true,opacity:0.55,depthWrite:false})); m.visible=false; scene.add(m); return m; }; // ruban plat orienté par lookAt (son axe z vers le bout du V)
+    // vagues du sillage (signalé : « on voit des traits pour les vagues de côté ») : une bande d'écume
+  // texturée qui se fond dans l'eau (bords transparents, bouillonnement), couchée sur la mer
+  const texEcume=cTex(128,(c,s)=>{ c.clearRect(0,0,s,s); for(let i=0;i<260;i++){ const x=Math.random()*s, y=Math.random()*s, k=1-Math.abs(x/s-0.5)*2;
+      c.fillStyle='rgba(255,255,255,'+(k*k*(0.25+Math.random()*0.5)).toFixed(2)+')'; c.beginPath(); c.ellipse(x,y,2+Math.random()*6*k,4+Math.random()*10,0,0,6.3); c.fill(); } },1);
+  const geoEcume=new THREE.PlaneGeometry(1,1); geoEcume.rotateX(-Math.PI/2);
+  const mk=()=>{ const m=new THREE.Mesh(geoEcume,new THREE.MeshBasicMaterial({map:texEcume,transparent:true,opacity:0.85,depthWrite:false})); m.visible=false; scene.add(m); return m; }; // ruban plat orienté par lookAt (son axe z vers le bout du V)
     TOW.sillage=[mk(),mk()]; }
   // kiosques au bout des deux pontons de la marina
   const pts=PONTONS.filter((p)=>Math.abs(p.x)<40&&p.hd>6).sort((a,b)=>a.x-b.x);
@@ -6593,7 +6757,9 @@ function majTow(dt){
     P.h.brasG.rotation.x=-1.2; P.h.brasD.rotation.x=-1.2; P.h.jambeG.rotation.x=0.35; P.h.jambeD.rotation.x=-0.25; // accroupi, mains sur la poignée
     for(const [k,m] of TOW.sillage.entries()){ const sg=k?1:-1, L0=4, L1=16, l0=0.6, l1=3.4; // ruban du V : de la poupe vers l'arrière, en s'écartant
       const ax=b.x-fx*L0+rx*sg*l0, az=b.z-fz*L0+rz*sg*l0, bx2=b.x-fx*L1+rx*sg*l1, bz2=b.z-fz*L1+rz*sg*l1, mx=(ax+bx2)/2, mz=(az+bz2)/2, y=(MER_V2?houleY(mx,mz):0)+0.42;
-      m.position.set(mx,y,mz); m.scale.set(0.9+0.25*Math.sin(ETAT.runT*9+k),1,Math.hypot(bx2-ax,bz2-az)); m.lookAt(bx2,y,bz2); }
+      m.position.set(mx,y-0.18,mz); m.scale.set(1.6+0.3*Math.sin(ETAT.runT*9+k),1,Math.hypot(bx2-ax,bz2-az)); m.lookAt(bx2,y-0.18,bz2); }
+    TOW.cap=ang; // vue immersive : la caméra se met derrière la planche (vueCamera)
+    if(MER_V2){ TOW.faux=TOW.faux||{x:0,z:0,ang:0,v:16,def:{long:7,larg:2.6}}; Object.assign(TOW.faux,{x:b.x,z:b.z,ang}); sillageBateau(TOW.faux,dt); } // vraie écume derrière le bateau
     RIDES.txt.textContent='🏄 WAKEBOARD — '+Math.round(T.pts)+' / '+D.objectif+' pts — '+Math.ceil(Math.max(0,T.t))+' s';
   } else {
     if(!T.lache){ T.h=Math.min(32,T.h+dt*5); x=b.x-fx*22; z=b.z-fz*22; y=0.8+T.h;
@@ -6677,6 +6843,13 @@ function garerRides(){
    ['jeep',pm.x-8,pm.z+14],['jeep',pm.x-14,pm.z+14]].forEach(([k,x,z])=>{ // 4x4 de franchissement au pied du mont
     if(!solidAt(x,z,1.5)&&!vehicules.some((o)=>dist2(o.x,o.z,x,z)<9)) creerVehicule(k,x,z,Math.PI/2);
   });
+  // au sommet du Mont Reyes (14 octobre, demandé : « des vélos en haut de la montagne pour la
+  // dévaler ») : sur un replat près du sommet (pente < 0,15 sur 2 u), le guidon vers la descente
+  if(MONT.sommet){ const s=MONT.sommet, poses=[];
+    for(let r=4;r<26&&poses.length<4;r+=1.5) for(let a=0;a<6.28&&poses.length<4;a+=0.35){ const x=s.x+Math.sin(a)*r, z=s.z+Math.cos(a)*r, y=solY(x,z);
+      if(Math.abs(solY(x+2,z)-solY(x-2,z))>0.6||Math.abs(solY(x,z+2)-solY(x,z-2))>0.6||solidAt(x,z,1.2)) continue;
+      if(poses.some(p=>dist2(p[0],p[1],x,z)<9)) continue; poses.push([x,z,y,a]); }
+    ['velo','bmx','bmx','motocross'].forEach((k,i)=>{ const p=poses[i]; if(!p) return; const v=creerVehicule(k,p[0],p[1],p[3]); if(v) v.h=p[2]; }); }
   if(PIC.ok){ const tr=PIC.tremplin; [['motocross',-6],['motocross',-9],['bmx',7],['velo',10]].forEach(([k,dx])=>{ const x=tr.x+dx, z=tr.z1-tr.long-6; const v=creerVehicule(k,x,z,0); v.h=solY(x,z); }); } // en haut du Pic : motos et vélo, face au tremplin
   if(SKX.ok) [['bmx',SKX.x0+30,SKX.z0+24],['bmx',SKX.x0+32,SKX.z0+24],['velo',SKX.x0+42,SKX.z0+66.5],['motocross',SKX.x0+46,SKX.z0-6]].forEach(([k,x,z])=>{ // skatepark XXL : BMX sur la plate-forme, vélo et moto cross à l'entrée
     if(!vehicules.some((o)=>dist2(o.x,o.z,x,z)<9)){ const v=creerVehicule(k,x,z,Math.PI/2); if(v) v.h=solY(x,z); } });
@@ -11631,7 +11804,8 @@ function majJoueur(dt,dtJeu){
     // chute libre : le parachute ne s'ouvre QUE si le joueur appuie (base jump)
     if(!P.para&&!P.veh&&(P.chuteY0-P.y)>2.5) el('btnJump').style.display='flex';
     if(P.wing&&!P.para){ // wingsuit : descente lente et régulière, corps à plat, ailes ouvertes
-      P.vy=lerp(P.vy,-WING_VY,clamp(2*dtJeu,0,1)); P.y+=P.vy*dtJeu;
+      P.vy=lerp(P.vy,-WING_VY*(META.tenue==='faucon'?0.8:1),clamp(2*dtJeu,0,1)); P.y+=P.vy*dtJeu; // combinaison « Faucon » : descend 20 % moins vite
+      if(Math.random()<0.5){ const ca=Math.cos(P.wingAng||0), sa=Math.sin(P.wingAng||0); for(const sg of [-1,1]) spawnP(P.x+ca*sg*1.4,P.y+0.9,P.z-sa*sg*1.4,0,0,0,0.5,0.25,0xffffff,0,0.5); } // traînées de bout d'aile
       if(!P.wingMesh){ P.wingMesh=mkAilesWingsuit(); P.h.g.add(P.wingMesh); } P.wingMesh.visible=true;
       P.h.g.rotation.x=-1.35; P.h.brasG.rotation.z=1.35; P.h.brasD.rotation.z=-1.35; P.h.brasG.rotation.x=0; P.h.brasD.rotation.x=0;
       if(Math.random()<0.3) spawnP(P.x,P.y+0.8,P.z,0,0,0,0.12,0.4,0xf2f4f8,0,3);
@@ -11667,7 +11841,7 @@ function majJoueur(dt,dtJeu){
       P.h.g.rotation.x=0;
       if(P.para){ burst(P.x,P.y+0.2,P.z,10,0xe8ecf2,5,6); SFX.ui(); }
       else if(DECOR_V2&&estEau(P.x,P.z)) plongeonJoueur(P.chuteHaut); // dans l'eau : un plongeon, jamais des dégâts
-      else if(P.wing){ toucherJoueur(70); secousse(8); toast('Posé en wingsuit sans voile… aïe','warn'); }
+      else if(P.wing){ finVolWingsuit(); toucherJoueur(70); secousse(8); toast('Posé en wingsuit sans voile… aïe','warn'); }
       else if(P.vy<-12){ toucherJoueur((-P.vy-12)*3.5); secousse(6); }
       else burst(P.x,P.y+0.2,P.z,4,0xb8bec8,4);
       P.vy=0; P.para=false; paraMesh.visible=false; paraMesh.rotation.z=0; P.chuteVx=0; P.chuteVz=0;
@@ -12972,7 +13146,7 @@ function boutonsAPied(){
 }
 function ouvrirParachute(){
   if(P.para||!P.chute){ SFX.refus(); return; }
-  if(P.wing){ P.wing=false; if(P.wingMesh) P.wingMesh.visible=false; P.h.g.rotation.x=0; P.h.brasG.rotation.z=0; P.h.brasD.rotation.z=0; } // on replie la wingsuit sous la voile
+  if(P.wing){ finVolWingsuit(); P.wing=false; if(P.wingMesh) P.wingMesh.visible=false; P.h.g.rotation.x=0; P.h.brasG.rotation.z=0; P.h.brasD.rotation.z=0; } // on replie la wingsuit sous la voile
   P.para=true; P.vy=Math.max(P.vy,-4);
   paraMesh.visible=true; paraMesh.position.set(P.x,P.y+PARA_DIST,P.z);
   el('btnJump').style.display='none';
@@ -24453,7 +24627,7 @@ function metierEnCours(){ return !!(MET.pompier||MET.taxi||MET.depanneuse||MET.a
 // supercross, bouées, REYES BOWL JAM), wakeboard ou parachute ascensionnel, métier en cours. Les vagues et les
 // événements (guerres de gangs...) sont gelés, et les gangs déjà là patrouillent sans s'occuper du joueur. La
 // police, elle, continue si l'on est recherché.
-function treveActivite(){ return !!(RIDES.actif||(DECOR_V2&&TOW.actif)||metierEnCours()); }
+function treveActivite(){ return !!(RIDES.actif||(DECOR_V2&&TOW.actif)||BASKET.actif||metierEnCours()); }
 // Balise dédiée, jamais la même que `balise` (déjà prise par MISSION.cur) —
 // les deux peuvent être actives en même temps sans se marcher dessus.
 const metierBalise=new THREE.Mesh(new THREE.CylinderGeometry(1.4,1.4,9,12,1,true),
@@ -26824,7 +26998,7 @@ function startRun(){
   P.hp=P.maxHp; P.stam=P.stamMax; P.bouclier=0; P.veh=null;
   P.buffs={dmg:0,vit:0,butin:0,lourd:0,sprintLibre:0,vol:0,cadence:0}; P.ivresse=0; P.iframes=0; P.dodgeT=0; P.rechT=0; P.specCd=0; P.ecraseT=0;
   P.grenades=3; boutonsAPied(); // jamais el('grenN') seul : voir boutonsAPied (mort au volant)
-  if(DECOR_V2){ reparerMobilier(); poserTexteBanderole(META.banderole); if(RIDES.porte){ RIDES.actif=null; RIDES.porte.visible=false; RIDES.txt.style.display='none'; RIDES.records={}; RIDES.primeVague={}; } resetPic(); resetMer(); } P.wingsuit=false; P.wing=false; if(P.wingMesh) P.wingMesh.visible=false; nettoyerPnjMetier(); MET2.serie={taxi:0,ambulance:0,pompier:0}; // course en cours : jamais survivante d'une partie à l'autre // mobilier renversé réparé ; message acheté sur la banderole
+  if(DECOR_V2){ reparerMobilier(); poserTexteBanderole(META.banderole); if(RIDES.porte){ RIDES.actif=null; RIDES.porte.visible=false; RIDES.txt.style.display='none'; RIDES.records={}; RIDES.primeVague={}; } resetPic(); resetMer(); basketArreter(); BASKET.reussi=false; BASKET.vague=-1; } P.wingsuit=false; P.wing=false; if(P.wingMesh) P.wingMesh.visible=false; nettoyerPnjMetier(); MET2.serie={taxi:0,ambulance:0,pompier:0}; // course en cours : jamais survivante d'une partie à l'autre // mobilier renversé réparé ; message acheté sur la banderole
   // Jetpack : perdu au game over, comme les armes (voir CLAUDE.md) — il
   // faut remonter le chercher. Le lieu, lui (META.jetpackTrouve), reste acquis.
   P.jetpack=false; P.jetpackVol=false; P.jetFuel=100; P.jetVx=0; P.jetVz=0; P.jetWarnT=0; P.jetAvertVu=false;
@@ -27124,6 +27298,7 @@ function startRun(){
 function mourir(){
   if(ETAT.mode==='mort') return;
   if(DECOR_V2&&RIDES.actif){ RIDES.actif=null; RIDES.porte.visible=false; RIDES.txt.style.display='none'; } // course abandonnée à la mort
+  if(DECOR_V2) basketArreter(); // concours de tirs abandonné
   ETAT.mode='mort'; ETAT.timeScale=0.28; document.body.style.boxShadow='none';
   annulerFouille(true); cacherJauges();
   SFX.mort(); vibre(120);
@@ -28090,6 +28265,11 @@ function majAction(){
     } else if(POIS.marchand&&dist2(P.x,P.z,POIS.marchand.x,POIS.marchand.z)<12){
       label='MARCHAND (-25 %)';
       fn=()=>{ETAT.promo=true;ETAT.mode='shopIn';ouvrirDepuis('shop','jeu');};
+    } else if(!P.veh&&BASKET.ok&&BASKET.actif){
+      // concours de tirs : au poste, TIRER ; ailleurs, rien (le panneau dit d'aller au cercle)
+      if(basketAuPoste()&&!BASKET.vol){ label='🏀 TIRER'; fn=basketTirer; }
+    } else if(!P.veh&&BASKET.ok&&dist2(P.x,P.z,BASKET.depart.x,BASKET.depart.z)<9){
+      label='🏀 CONCOURS DE TIRS — 10 tirs, 45 s'; fn=basketDemarrer;
     } else if(!P.veh&&STANDS.length&&standProche()){
       const s=standProche(), N=NOURRITURE_QUARTIER[s.q]||NOURRITURE_QUARTIER.centre;
       label=N.ico+' '+N.nom+' — '+N.prix+' $ (+'+N.pv+' PV)';
@@ -28465,9 +28645,10 @@ function vueCamera(dt,sx,sz){
   const cible=vueImmersive()&&!INT.actif?1:0;
   VUE.k=lerp(VUE.k,cible,clamp(dt*2.4,0,1));
   if(VUE.k<0.002){ VUE.k=0; VUE.yawRendu=0; if(VUE.ciel&&VUE.ciel.visible) VUE.ciel.visible=false; return 0; }
-  const v=P.veh, air=!!(v&&v.def.air);
-  VUE.kVeh=lerp(VUE.kVeh,v?1:0,clamp(dt*2,0,1));
+  const v=P.veh, air=!!(v&&v.def.air), glisse=typeof TOW!=='undefined'&&TOW.actif&&TOW.actif.id==='wake'&&TOW.cap!==undefined;
+  VUE.kVeh=lerp(VUE.kVeh,v||glisse?1:0,clamp(dt*2,0,1));
   if(v){ VUE.yaw=angLerp(VUE.yaw,(v.ang||0)+Math.PI,clamp(dt*(air?1.5:2.4),0,1)); VUE.yawUser=VUE.yaw; }
+  else if(glisse){ VUE.yaw=angLerp(VUE.yaw,TOW.cap+Math.PI,clamp(dt*2,0,1)); VUE.yawUser=VUE.yaw; } // wakeboard : derrière la planche, le bateau devant
   else VUE.yaw=angLerp(VUE.yaw,VUE.yawUser,clamp(dt*12,0,1));
   const kv=VUE.kVeh, vit=v?Math.abs(v.v||0):0, lg=v?(v.def.long||4):0;
   const H=lerp(VUE.PIED.H,VUE.VEH.H+lg*0.55+(air?4:0),kv), D=lerp(VUE.PIED.D,VUE.VEH.D+lg*1.1+Math.min(vit,40)*0.22,kv), devant=lerp(VUE.PIED.devant,VUE.VEH.devant+Math.min(vit,40)*0.3,kv);
@@ -28769,7 +28950,7 @@ function boucle(t){
     ETAT.comboT-=dt;
     if(ETAT.comboT<=0) ETAT.combo=1;
     if(ETAT.slowT>0){ ETAT.slowT-=dtReel; if(ETAT.slowT<=0&&ETAT.mode==='jeu') ETAT.timeScale=1; }
-    if(ETAT.mode==='jeu'){ majNitro(dtJeu); if(DECOR_V2) towEntrees(); majJoueur(dt,dtJeu); majIvresse(dtJeu); if(DECOR_V2){ majRides(dtJeu); majPic(dt); majTow(dt); } } // nitro décidée AVANT la physique du véhicule
+    if(ETAT.mode==='jeu'){ majNitro(dtJeu); if(DECOR_V2) towEntrees(); majJoueur(dt,dtJeu); majIvresse(dtJeu); if(DECOR_V2){ majRides(dtJeu); majPic(dt); majTow(dt); majBasket(dt,dtJeu); } } // nitro décidée AVANT la physique du véhicule
     majEnnemis(dt);
     if(!INT.actif){
       majPietons(dt);
