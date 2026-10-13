@@ -9477,6 +9477,8 @@ async function main() {
         const sauv = JSON.parse(localStorage.getItem(SAVE_KEY) || '{}');
         if (sauv.vue !== 'immersive') ko.push('le choix de vue n’est pas sauvegardé');
         // 2) à pied : caméra derrière et au-dessus du joueur, regard vers l'horizon ; orientable
+        // le test maîtrise sa scène : un point d'où l'on peut marcher 6 u vers l'ouest sans rien heurter (et sans arbre ni immeuble qui relève la caméra)
+        { let ok = false; for (let r = 0; r < 80 && !ok; r += 2) for (const [dx, dz] of [[r, 0], [-r, 0], [0, r], [0, -r]]) { const x = P.x + dx, z = P.z + dz; let libre = true; for (let k = -24; k <= 7; k++) if (solidAt(x - k, z, k < 0 ? 2.5 : 0.9)) libre = false; /* à l'est : la caméra */ if (libre) { P.x = x; P.z = z; ok = true; break; } } }
         VUE.yawUser = Math.PI / 2; frames(60);
         if (Math.abs(angDiff(VUE.yawRendu, Math.PI / 2)) > 0.05) ko.push('la caméra ne prend pas l’angle demandé (' + VUE.yawRendu.toFixed(2) + ')');
         const cd = new THREE.Vector3(); camera.getWorldDirection(cd);
@@ -9488,8 +9490,6 @@ async function main() {
         if (!(h.x < -0.95 && Math.abs(h.z) < 0.08)) ko.push('« haut » ne va pas vers l’avant de la caméra (' + h.x.toFixed(2) + ',' + h.z.toFixed(2) + ')');
         if (!(d.z < -0.95 && Math.abs(d.x) < 0.08)) ko.push('« droite » ne va pas vers la droite de l’écran (' + d.x.toFixed(2) + ',' + d.z.toFixed(2) + ')');
         // le joueur marche vraiment vers l'avant de la caméra
-        // le test maîtrise sa scène : un point d'où l'on peut marcher 6 u vers l'ouest sans rien heurter
-        { let ok = false; for (let r = 0; r < 80 && !ok; r += 2) for (const [dx, dz] of [[r, 0], [-r, 0], [0, r], [0, -r]]) { const x = P.x + dx, z = P.z + dz; let libre = true; for (let k = 0; k <= 7; k++) if (solidAt(x - k, z, 0.9)) libre = false; if (libre) { P.x = x; P.z = z; ok = true; break; } } }
         const x0 = P.x, z0 = P.z; KEYS.KeyW = true; for (let i = 0; i < 10; i++) { litEntrees(); majJoueur(0.05, 0.05); } KEYS.KeyW = false; litEntrees();
         if (!(P.x < x0 - 0.5) || Math.abs(P.z - z0) > 0.5) ko.push('le joueur ne marche pas vers l’avant de la caméra (' + (P.x - x0).toFixed(2) + ',' + (P.z - z0).toFixed(2) + ')');
         // 4) un immeuble entre la caméra et le joueur : la caméra se relève
@@ -9547,6 +9547,47 @@ async function main() {
       });
       if (r.ko.length) fail('Échelle et places : ' + r.ko.join(' | '));
       else ok('Échelle et places : ' + r.info.join(' ; ') + ' ; hélipad au sommet ; aucune porte murée');
+    }
+
+    // -------------------------------------------------------------------
+    // Retours de la vue immersive (14 octobre) : tremplins absurdes retirés,
+    // le large plus loin et vivant, balises des lieux et activités.
+    // -------------------------------------------------------------------
+    console.log('\n--- Vue immersive, retours : tremplins, le large, vie marine, balises ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        // tremplins : aucun ne lance sur un bâtiment
+        for (const rp of RAMPES) { if (!rp.meshes || rp.x < -4000) continue; const sx = Math.sin(rp.ang), sz = Math.cos(rp.ang), ex = rp.x + sx * rp.long, ez = rp.z + sz * rp.long;
+          for (let d = 1; d <= 30; d += 1.5) { const s = solidAt(ex + sx * d, ez + sz * d, rp.larg / 2); if (s && s.toit && s.h > 1.6 && !s.base) { ko.push('tremplin face à un bâtiment en ' + Math.round(rp.x) + ',' + Math.round(rp.z)); break; } } }
+        info.push(RAMPES_RETIREES.length + ' tremplins retirés');
+        // le large : on nage et on navigue jusqu'à LIMITE_SUD_MER, et pas plus
+        if (!(LIMITE_SUD_MER > MER + 300)) ko.push('le large est trop court (' + (LIMITE_SUD_MER - MER) + ' u)');
+        if (INT.actif) sortirInterieur(); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
+        const v = creerVehicule('bateau', 40, LIMITE_SUD_MER - 30, 0); entrerVehicule(v); v.v = 20;
+        for (let i = 0; i < 60; i++) { KEYS.KeyW = true; litEntrees(); majJoueur(0.05, 0.05); } KEYS.KeyW = false; litEntrees();
+        if (v.z > LIMITE_SUD_MER + 0.5) ko.push('le bateau dépasse le large (' + v.z.toFixed(0) + ')');
+        if (v.z < LIMITE_SUD_MER - 40) ko.push('le bateau n’atteint pas le large (' + v.z.toFixed(0) + ' / ' + LIMITE_SUD_MER + ')');
+        sortirVehicule(); v.mort = true;
+        // la vie marine : récifs SOLIDES, jamais sur un parcours
+        if (VIE_MER.recifs.length < 8 || VIE_MER.bancs.length < 5) ko.push('trop peu de vie au large (' + VIE_MER.recifs.length + ' récifs, ' + VIE_MER.bancs.length + ' bancs)');
+        for (const rc of VIE_MER.recifs) { if (!solidAt(rc.x, rc.z, 0)) ko.push('un récif n’est pas solide'); for (const pt of ridePortes('bouees') || []) if (dist2(rc.x, rc.z, pt.x, pt.z) < 400) ko.push('un récif sur le rallye des bouées'); }
+        info.push(VIE_MER.recifs.length + ' récifs, ' + VIE_MER.bancs.length + ' bancs, ' + VIE_MER.tortues.length + ' tortues, ' + VIE_MER.voiliers.length + ' voiliers');
+        // balises : chaque salle de la ville et chaque course a la sienne (sources lues, jamais recopiées)
+        let manque = []; for (const p of PORTES) if (INTDEFS[p.id] && !BALISES.some((b) => Math.abs(b.x - p.x) < 0.01 && Math.abs(b.z - p.z) < 0.01)) manque.push(p.id);
+        for (const id in RIDE_DEFS) { const d = rideDepart(id); if (d && !BALISES.some((b) => Math.abs(b.x - d.x) < 0.01 && Math.abs(b.z - d.z) < 0.01)) manque.push('course ' + id); }
+        if (TOW.kWake && !BALISES.some((b) => b.x === TOW.kWake.x)) manque.push('wakeboard');
+        if (PIC.wingsuit && !BALISES.some((b) => b.x === PIC.wingsuit.x)) manque.push('wingsuit');
+        if (manque.length) ko.push('sans balise : ' + manque.join(', '));
+        // visibles en ville, masquées dans les salles
+        majBalises(0.05); const vis = BALISES.filter((b) => b.sp.visible).length;
+        const porte = PORTES.find((p) => INTDEFS[p.id] && p.id !== 'tuning'); entrerInterieur(porte.id, porte); majBalises(0.05);
+        if (BALISES.some((b) => b.sp.visible)) ko.push('des balises restent visibles dans une salle'); sortirInterieur();
+        info.push(BALISES.length + ' balises (' + vis + ' visibles au départ)');
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Retours vue immersive : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
+      else ok('Retours vue immersive : ' + r.info.join(' ; '));
     }
 
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');

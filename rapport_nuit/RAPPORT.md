@@ -1685,3 +1685,11 @@ Les salles gardent leur propre caméra. Captures : `captures/lot11/vue_*.png`.
 - 329 ensembles posés au cœur des pâtés, selon le quartier : places à fontaine ou à statue, squares, kiosques, marchés, terrasses, aires de jeux, food trucks, pique-niques, stocks au port et dans la zone industrielle ; rien devant une porte, un garage ou un objectif.
 **Non fait, volontairement** : la vitesse de marche (elle règle l'équilibre de tout le jeu) — à revoir après un essai sur iPhone si l'impression d'une ville trop petite persiste.
 Captures : `captures/lot11/echelle_*.png`.
+
+## Retours de la vue immersive (14 octobre)
+
+- **Tremplins absurdes** : 4 tremplins retirés (les planches posées au milieu des rues, face aux immeubles) ; un garde-fou retire tout tremplin de la ville qui lance contre un bâtiment.
+- **Boutons sur le joueur** : la caméra immersive cadre le joueur plus haut, au milieu de l'écran, au-dessus des boutons.
+- **Bouton de vue** : pastille « 🎥 3D / 2D » bien visible à côté de la pause.
+- **Le large** : on va presque trois fois plus loin en mer (430 u au lieu de 150) ; on y croise des récifs (solides : il faut les éviter), des voiliers au mouillage, des bancs de poissons qui sautent et que les mouettes piquent (ils jaillissent quand on les traverse en bateau), des tortues.
+- **Balises** : chaque salle et chaque activité (courses, wakeboard, parachute, wingsuit, saut BASE, banderole, paillote, île au trésor, skatepark, jetpack) a une icône flottante visible de loin dans les deux vues, même derrière un immeuble ; les enseignes se lisent aussi de dos.

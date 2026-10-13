@@ -398,10 +398,12 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
 .btn>.icoSvg{width:1.05em;height:1.05em}
 #btnPause .icoSvg{width:18px;height:18px}
 /* bouton de vue (VUE) : à gauche de la pause, même gabarit ; allumé en vue immersive */
+/* signalé : « on ne voit pas trop la caméra de changement de vue » : pastille contrastée, mode affiché (3D / 2D) */
 #btnVue{position:absolute;top:calc(env(safe-area-inset-top,0px) + 112px);right:52px;pointer-events:auto;
-  width:36px;height:36px;border-radius:10px;background:#0009;border:1px solid #ffffff2e;
-  font-size:17px;display:flex;align-items:center;justify-content:center;opacity:.65}
-#btnVue.on{opacity:1;border-color:#35e0ffaa;box-shadow:0 0 10px #35e0ff55}
+  height:36px;padding:0 10px;border-radius:18px;background:#0b2233ee;border:2px solid #35e0ff;color:#eaf8ff;
+  font:900 14px Arial;letter-spacing:.04em;display:flex;align-items:center;gap:5px;box-shadow:0 0 12px #35e0ff66,0 2px 6px #000a}
+#btnVue span{font-size:17px}
+#btnVue:not(.on){border-color:#ffd23f;box-shadow:0 0 12px #ffd23f55,0 2px 6px #000a}
 .chipF .icoSvg{margin-right:4px}
 .gmSec .icoSvg{width:13px;height:13px;margin-right:5px;vertical-align:-2px;color:#ff8c1a}
 #gmTitre .icoSvg{margin-right:6px}
@@ -587,7 +589,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
     <div id="stars"></div>
   </div>
   <div id="btnPause">Ⅱ</div>
-<div id="btnVue" title="Changer de vue">🎥</div>
+<div id="btnVue" title="Changer de vue"><span>🎥</span><b id="btnVueTxt">3D</b></div>
   <div id="pastilleDefis" class="pastille" title="Récompenses à récupérer"></div>
   <div id="bossWrap"><div id="bossName">CHEF</div><div class="barre" id="bossBar"><i id="bossFill"></i></div></div>
   <div id="vehWrap"><div class="lbl">VÉHICULE</div><div class="barre" id="vehBar"><i id="vehFill"></i></div></div>
@@ -3571,6 +3573,10 @@ function mkEnseigne(txt,coul,x,y,z,ry,larg){
   if(DECOR_V2&&x>-4000){ // en ville seulement (salles : x vers IOFF=-9000, caméra plus rasante — penchée, l'enseigne cachait l'action) : penchée vers le ciel et décollée d'autant du mur
     const t=0.32, hh=(larg||6)/2.4/2; p.rotation.order='YXZ'; p.rotation.x=-t;
     p.position.x+=Math.sin(ry)*hh*Math.sin(t); p.position.z+=Math.cos(ry)*hh*Math.sin(t); }
+  // un dos lisible, en ville (vue immersive : on arrive aussi par derrière) — enfant du
+  // panneau (il le suit si ameliorerPortes le déplace ou le retire) ; construit sur le
+  // générateur du décor : aucun tirage de la ville consommé
+  if(x>-4000) sansAleaVille(()=>{ const dos=new THREE.Mesh(p.geometry,p.material); dos.rotation.y=Math.PI; dos.position.z=-0.04; p.add(dos); });
   ENSEIGNES.push({p,lieu:false});
   return p;
 }
@@ -3644,8 +3650,8 @@ function construireVille(){
   sol.rotation.x=-Math.PI/2; sol.position.x=85; scene.add(sol);
   const matMer=new THREE.MeshLambertMaterial({map:texEau});
   if(MER_V2) merV2Materiau(matMer);
-  const eau=new THREE.Mesh(new THREE.PlaneGeometry(2*HALF+520,260),matMer);
-  eau.rotation.x=-Math.PI/2; eau.position.set(85,0.12,MER+130); scene.add(eau);
+  const eau=new THREE.Mesh(new THREE.PlaneGeometry(2*HALF+520,580),matMer); // jusqu'au-delà de LIMITE_SUD_MER (vue immersive : on voit loin)
+  eau.rotation.x=-Math.PI/2; eau.position.set(85,0.12,MER+290); scene.add(eau);
   // bande de sable mouillé puis ligne d'écume
   const texMouille=cTex(64,(g2,s2)=>{
     const gr2=g2.createLinearGradient(0,0,0,s2);
@@ -3743,7 +3749,7 @@ function construireVille(){
     if(qq!=='plage'&&qq!=='parc'&&bx%3===1&&bz%3===1) mkFeu(cx+INNER/2+1.4,cz-INNER/2-1.4);
   }
   placerPortes();
-  if(DECOR_V2){ sansAleaVille(()=>{ ameliorerPortes(); mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkCiel(); mkKiosqueBanderole(); mkCrique(); mkMontReyes(); mkBordureEst(); mkCanyonsDesert(); mkPicVertige(); mkParcStunt(); mkSkateXXL(); mkRides(); mkMerVivante(); mkRemorquage(); deplacerVoltige(); mkTracesSable(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkNeonVivant(); mkQuartiersFinitions(); }); } // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
+  if(DECOR_V2){ sansAleaVille(()=>{ ameliorerPortes(); mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkCiel(); mkKiosqueBanderole(); mkCrique(); mkMontReyes(); mkBordureEst(); mkCanyonsDesert(); mkPicVertige(); mkParcStunt(); mkSkateXXL(); mkRides(); mkMerVivante(); mkRemorquage(); mkLarge(); deplacerVoltige(); mkTracesSable(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkNeonVivant(); mkQuartiersFinitions(); mkBalises(); }); } // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
   finaliserMerge();
   construireMinimapStatique();
 }
@@ -5526,7 +5532,10 @@ function majQuartiersFinitions(dt){
    Relief = fonction de hauteur (RELIEFS) lue par solY ET par le maillage. */
 const PENTE_G=15, PENTE_MAX_VEH=1.0, PENTE_MAX_PIED=1.25, PENTE_G_VRAIE=26, PENTE_PARC_STUNT=1.35; // 8e lot : PENTE_MAX_VEH 1,35 → 1,0 (45°, plafond absolu), à pied 1,6 → 1,25 (51°, on escalade encore les sentiers de la crique) // PENTE_G_VRAIE : gravité le long de la pente (26 × sinus), la même que celle des sauts // reliefs : gravité dans la pente (u/s² par unité de pente), parois infranchissables
 const LIMITE_EST=HALF+300;               // x max à terre (avant : HALF+158)
-const LIMITE_EST_MER=HALF+300;           // x max en mer, bateaux et nage (avant : HALF+60 en bateau — on s'arrêtait avant la crique)
+const LIMITE_EST_MER=HALF+300;
+// le large : bateaux, nage et appareils jusqu'ici (avant : MER+150 — en vue immersive on
+// voyait l'horizon et on butait sur un mur invisible : signalé « on peut aller moins loin »)
+const LIMITE_SUD_MER=MER+430;           // x max en mer, bateaux et nage (avant : HALF+60 en bateau — on s'arrêtait avant la crique)
 const COULOIR_PENTE_MAX=0.95; // montée sèche : pente du mur final (43°), sous la limite des motos cross et 4x4 (penteMaxVeh)
 function couloirH(u){ return 0.5*u+0.5*u*u; } // profil de la montée sèche, de 0 à 1 (pente relative 0,5 → 1,5)
 const MONT={kickers:[],x:538,z:-238,rx:100,rz:82,H:98,sommet:null,sentier:[],pied:null}; // 8e lot (demandé : « augmenter sa taille ») : 72 → 98 u de haut, élargi vers l'ouest (rx 78 → 100) ; rz borné par le canyon au sud, le nord et l'est sont hors limites
@@ -6257,6 +6266,169 @@ function majSautMer(v,dt){
   if(v.rampeMer){ const r=v.rampeMer.r; v.rampeMer=null; // on quitte le tremplin
     if(Math.abs(v.v)>9&&v.hMer>r.haut*0.7){ v.vyMer=Math.min(14,Math.abs(v.v)*0.42); v.airMer=0; if(v.conduit==='joueur') SFX.swing(); return true; } }
   v.hMer=0; return false;
+}
+/* ---- VIE MARINE (14 octobre, playtest en vue immersive : « aller plus loin
+   en mer ; ajouter des bancs de poissons, des rochers et de la vie, qu'on
+   puisse les éviter, du fun »). La mer va désormais jusqu'à LIMITE_SUD_MER.
+   Construite sur le générateur du décor (sansAleaVille) : la ville ne bouge pas.
+   - Récifs : amas de rochers SOLIDES (on les évite en bateau), écume qui
+     respire, cormorans ; jamais sur un parcours (rallye, remorquage), une
+     île, une épave, un tremplin flottant, un cargo.
+   - Bancs de poissons : dérivent au large ; poissons qui sautent, mouettes
+     qui piquent ; les traverser en bateau les fait jaillir en gerbe.
+   - Tortues de mer, voiliers au mouillage (solides, ils se balancent).
+   Tout cosmétique sauf les solides ; animation sur dt (majVieMarine). */
+const VIE_MER={recifs:[],bancs:[],tortues:[],voiliers:[]};
+function mkLarge(){
+  const evite=[];
+  for(const [x,z] of [[40,372],[140,420],[260,425],[305,350],[200,320],[60,316]]) evite.push({x,z,r:26});
+  for(let a=0;a<6.28;a+=0.4) evite.push({x:TOW.boucle.x+Math.sin(a)*TOW.boucle.rx,z:TOW.boucle.z+Math.cos(a)*TOW.boucle.rz,r:22});
+  for(const s of MERV.spots) evite.push({x:s.x,z:s.z,r:20});
+  for(const r of MERV.rampes) evite.push({x:r.x,z:r.z,r:22});
+  for(const i of ILES) evite.push({x:i.x,z:i.z,r:(i.r||10)+24});
+  for(const [x,z] of [[-HALF*0.5,MER+105],[HALF*0.6,MER+125],[90,MER+55],[-30,MER+40],[-160,MER+34],[200,MER+95],[-100,MER+142]]) evite.push({x,z,r:45}); // cargos (décor et pilotables de startRun), yachts
+  const libre=(x,z,r)=>{ if(!estEau(x,z)) return false; for(const e of evite) if(dist2(x,z,e.x,e.z)<(e.r+r)*(e.r+r)) return false; return true; };
+  const xMin=LIMITE_OUEST_MER+30, xMax=LIMITE_EST_MER-40;
+  // --- récifs
+  const matR=[new THREE.MeshLambertMaterial({color:0x4a4640,flatShading:true}),new THREE.MeshLambertMaterial({color:0x5e584e,flatShading:true})];
+  const matAlg=mat(0x2c3a22), matOis=mat(0x1c1e22);
+  const rocher=(rr,m)=>{ const gm=new THREE.IcosahedronGeometry(rr,1), pa=gm.attributes.position, gr=aD(0,99);
+    for(let k=0;k<pa.count;k++){ const x=pa.getX(k), y=pa.getY(k), z=pa.getZ(k), h=Math.sin(Math.round(x*100)*0.1291+Math.round(y*100)*0.7823+Math.round(z*100)*0.3772+gr)*43758.5453, f=0.78+0.42*(h-Math.floor(h)); pa.setXYZ(k,x*f,y*f,z*f); }
+    gm.computeVertexNormals(); return new THREE.Mesh(gm,m); };
+  for(let essai=0;essai<200&&VIE_MER.recifs.length<16;essai++){
+    const x=aD(xMin,xMax), z=aD(MER+150,LIMITE_SUD_MER-25), r=aD(3,6.5);
+    if(!libre(x,z,r)) continue;
+    const g=new THREE.Group(); g.position.set(x,0,z); scene.add(g);
+    const n=3+Math.floor(aleaDecor()*3);
+    for(let k=0;k<n;k++){ const rr=r*(k?aD(0.35,0.6):0.8), aa=aD(0,6.28), dd=k?r*aD(0.3,0.7):0;
+      const ro=rocher(rr,matR[k%2]); ro.position.set(Math.sin(aa)*dd,rr*(k?0.05:0.3),Math.cos(aa)*dd); ro.scale.y=k?0.7:1.2; ro.rotation.set(aD(0,1),aD(0,6),aD(0,1)); g.add(ro); }
+    const al=new THREE.Mesh(new THREE.CylinderGeometry(r*1.02,r*1.1,0.4,12),matAlg); al.position.y=-0.1; g.add(al);
+    const ec=new THREE.Mesh(new THREE.RingGeometry(r*0.95,r+2,24),new THREE.MeshBasicMaterial({color:0xeef8ff,transparent:true,opacity:0.5,depthWrite:false}));
+    ec.rotation.x=-Math.PI/2; ec.position.y=0.2; g.add(ec);
+    for(let k=0;k<2;k++){ const o=new THREE.Group(); o.add(mkBoxG(0.3,0.5,0.25,0x1c1e22,0,0.25,0)); o.add(mkBoxG(0.12,0.12,0.3,0xd8a030,0,0.55,0.18));
+      o.position.set(aD(-r*0.3,r*0.3),r*1.15,aD(-r*0.3,r*0.3)); o.rotation.y=aD(0,6); g.add(o); }
+    addSolid({x,z,hw:r*0.85,hd:r*0.85,h:4});
+    evite.push({x,z,r:r+10}); VIE_MER.recifs.push({g,ec,ph:aD(0,6),x,z,r});
+  }
+  // --- voiliers au mouillage (obstacles qui se balancent)
+  for(let essai=0;essai<120&&VIE_MER.voiliers.length<5;essai++){
+    const x=aD(xMin,xMax), z=aD(MER+120,LIMITE_SUD_MER-40);
+    if(!libre(x,z,6)) continue;
+    const g=new THREE.Group(); g.position.set(x,0,z); g.rotation.y=aD(0,6.28); scene.add(g);
+    const coque=new THREE.Mesh(new THREE.SphereGeometry(1,10,6,0,Math.PI*2,Math.PI/2,Math.PI/2),mat(pick([0xf2f4f6,0x1f4f7a,0xd8342a])));
+    coque.scale.set(1.5,1.1,4.5); coque.rotation.x=Math.PI; coque.position.y=0.6; g.add(coque);
+    g.add(mkBoxG(2.6,0.15,7.6,0xc8a070,0,0.62,0));
+    const mat1=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.09,9,6),mat(0xd8dce4)); mat1.position.set(0,5.1,0.6); g.add(mat1);
+    const sh=new THREE.Shape(); sh.moveTo(0,0); sh.lineTo(0,8); sh.lineTo(3.4,0.4); sh.lineTo(0,0);
+    const voile=new THREE.Mesh(new THREE.ShapeGeometry(sh),new THREE.MeshLambertMaterial({color:0xf8f6ee,side:THREE.DoubleSide})); voile.rotation.y=-Math.PI/2; voile.position.set(0,1,0.7); g.add(voile);
+    addSolid({x,z,hw:2.4,hd:2.4,h:3});
+    evite.push({x,z,r:16}); VIE_MER.voiliers.push({g,ph:aD(0,6),x,z});
+  }
+  // --- bancs de poissons
+  const geoF=new THREE.SphereGeometry(0.2,6,4); geoF.scale(0.6,0.7,2);
+  const matF=new THREE.MeshLambertMaterial({color:0xc8d8e4,emissive:0x202830});
+  const texBanc=cTex(64,(c,t)=>{ c.clearRect(0,0,t,t); for(let i=0;i<70;i++){ const a=Math.random()*6.28, d=Math.random()*t*0.42; c.fillStyle='rgba(8,30,44,'+(0.18+Math.random()*0.3)+')'; c.beginPath(); c.ellipse(t/2+Math.cos(a)*d,t/2+Math.sin(a)*d,3,1.6,a,0,6.3); c.fill(); } });
+  for(let k=0;k<10;k++){
+    const x=aD(xMin,xMax), z=aD(MER+40,LIMITE_SUD_MER-30);
+    if(!estEau(x,z)) continue;
+    const g=new THREE.Group(); g.position.set(x,0,z); scene.add(g);
+    const ombre=new THREE.Mesh(new THREE.PlaneGeometry(14,14),new THREE.MeshBasicMaterial({map:texBanc,transparent:true,depthWrite:false})); ombre.rotation.x=-Math.PI/2; ombre.position.y=0.18; g.add(ombre);
+    const poissons=[]; for(let i=0;i<10;i++){ const f=new THREE.Mesh(geoF,matF); f.visible=false; g.add(f); poissons.push({m:f,t:aD(0,3),dx:aD(-5,5),dz:aD(-5,5),a:aD(0,6.28)}); }
+    const mouettes=[]; for(let i=0;i<3;i++){ const m=new THREE.Group(); m.add(mkBoxG(0.4,0.12,0.75,0xeef0f2,0,0,0)); const aG=mkBoxG(0.6,0.05,0.25,0xd8dce4,-0.45,0.05,0), aD2=mkBoxG(0.6,0.05,0.25,0xd8dce4,0.45,0.05,0); m.add(aG); m.add(aD2); m.scale.setScalar(1.6); g.add(m); mouettes.push({m,aG,aD:aD2,a:aD(0,6.28),pique:aD(0,6)}); }
+    VIE_MER.bancs.push({g,ombre,poissons,mouettes,x,z,vx:aD(-1,1),vz:aD(-1,1),gerbeT:0});
+  }
+  // --- tortues de mer
+  for(let k=0;k<6;k++){
+    const x=aD(xMin,xMax), z=aD(MER+30,LIMITE_SUD_MER-30); if(!estEau(x,z)) continue;
+    const g=new THREE.Group(); g.position.set(x,-0.1,z); scene.add(g);
+    const carap=new THREE.Mesh(new THREE.SphereGeometry(0.9,10,6,0,Math.PI*2,0,Math.PI/2),mat(0x4a6a3a)); carap.scale.set(1,0.55,1.25); g.add(carap);
+    const tete=new THREE.Mesh(new THREE.SphereGeometry(0.28,6,4),mat(0x7a8a5a)); tete.position.set(0,0.05,1.3); g.add(tete);
+    const nag=[]; for(const [sx,sz] of [[-1,0.5],[1,0.5],[-1,-0.7],[1,-0.7]]){ const n=mkBoxG(0.8,0.06,0.3,0x6a7a4a,sx*0.8,0,sz); g.add(n); nag.push({m:n,sx}); }
+    VIE_MER.tortues.push({g,nag,x,z,a:aD(0,6.28),ph:aD(0,6)});
+  }
+}
+function majLarge(dt){
+  const T=ETAT.runT, hy=(x,z)=>MER_V2?houleY(x,z):0;
+  for(const r of VIE_MER.recifs){ const k=0.5+0.5*Math.sin(T*1.2+r.ph); r.ec.scale.setScalar(1+k*0.15); r.ec.material.opacity=0.25+0.4*(1-k); }
+  for(const v of VIE_MER.voiliers){ v.g.position.y=hy(v.x,v.z); v.g.rotation.z=Math.sin(T*0.8+v.ph)*0.08; v.g.rotation.x=Math.sin(T*0.6+v.ph)*0.04; }
+  const veh=P.veh, bateauVite=veh&&veh.def.eau&&Math.abs(veh.v)>6;
+  for(const b of VIE_MER.bancs){
+    if(dist2(b.x,b.z,P.x,P.z)>200*200){ continue; }
+    // dérive lente, reste en mer
+    b.x+=b.vx*dt*1.2; b.z+=b.vz*dt*1.2;
+    if(!estEau(b.x+b.vx*12,b.z+b.vz*12)||b.z>LIMITE_SUD_MER-20||b.x<LIMITE_OUEST_MER+20||b.x>LIMITE_EST_MER-30){ b.vx=-b.vx; b.vz=-b.vz; }
+    b.g.position.set(b.x,0,b.z); b.ombre.rotation.z+=dt*0.15;
+    for(const f of b.poissons){ f.t-=dt; if(f.t<=0){ f.t=aD(0.6,2.6); f.saut=0; f.dx=aD(-5,5); f.dz=aD(-5,5); f.a=aD(0,6.28); }
+      if(f.saut!==undefined&&f.saut<1){ f.saut+=dt*2.2; const s=f.saut; f.m.visible=s<1; f.m.position.set(f.dx+Math.sin(f.a)*s*1.5,hy(b.x,b.z)+Math.sin(s*Math.PI)*1.1,f.dz+Math.cos(f.a)*s*1.5); f.m.rotation.set(-Math.cos(s*Math.PI)*0.9,f.a,0); } else f.m.visible=false; }
+    for(const m of b.mouettes){ m.a+=dt*0.7; m.pique+=dt*0.8; const pq=Math.pow(Math.max(0,Math.sin(m.pique)),6);
+      m.m.position.set(Math.sin(m.a)*6,8-pq*7.5,Math.cos(m.a)*6); m.m.rotation.set(pq*0.9,m.a+Math.PI/2,0); const ba=Math.sin(T*9)*0.5*(1-pq); m.aG.rotation.z=ba; m.aD.rotation.z=-ba; }
+    // un bateau qui traverse le banc : gerbe de poissons, le banc file
+    b.gerbeT-=dt;
+    if(bateauVite&&b.gerbeT<=0&&dist2(veh.x,veh.z,b.x,b.z)<64){ b.gerbeT=2.5;
+      for(let i=0;i<26;i++){ const a=aD(0,6.28); spawnP(b.x+Math.sin(a)*3,0.5,b.z+Math.cos(a)*3,Math.sin(a)*aD(2,6),aD(3,7),Math.cos(a)*aD(2,6),0.9,aD(0.3,0.6),pick([0xc8d8e4,0xffffff,0xeaf6ff]),12); }
+      const a=Math.atan2(b.x-veh.x,b.z-veh.z); b.vx=Math.sin(a)*2.5; b.vz=Math.cos(a)*2.5; vibre(20); }
+    else if(Math.abs(b.vx)>1.2){ b.vx*=0.995; b.vz*=0.995; }
+  }
+  for(const t of VIE_MER.tortues){ if(dist2(t.x,t.z,P.x,P.z)>160*160) continue;
+    t.a+=dt*0.12; t.x+=Math.sin(t.a)*dt*1.1; t.z+=Math.cos(t.a)*dt*1.1; if(!estEau(t.x+Math.sin(t.a)*4,t.z+Math.cos(t.a)*4)) t.a+=Math.PI;
+    t.g.position.set(t.x,hy(t.x,t.z)-0.15,t.z); t.g.rotation.y=t.a; for(const n of t.nag) n.m.rotation.y=n.sx*Math.sin(T*2+t.ph)*0.5; }
+}
+/* ---- BALISES (14 octobre, playtest en vue immersive : « certains panneaux
+   ne se voient que de dessus — wakeboard, wingsuit, course en mer, portes des
+   salles : on arrive par derrière, on ne sait même pas que ça existe »).
+   Une icône flottante (sprite : face toujours la caméra, dans les deux vues)
+   au-dessus de chaque lieu et de chaque activité ; elle se fond au loin et
+   s'efface quand on est dessus (elle ne cache jamais l'action). Les sources
+   sont LUES dans le jeu (PORTES + INTDEFS, rideDepart pour chaque course de
+   RIDE_DEFS, kiosques du remorquage, Pic, banderole, paillote, île, jetpack,
+   skatepark) — jamais une liste recopiée. Construites sur le générateur du
+   décor (sansAleaVille). Les enseignes ont aussi un dos lisible (mkEnseigne). */
+const BALISES=[], BALISE_PORTEE=140;
+const _texBalises={};
+function texBalise(ico,coul){
+  const k=ico+'|'+coul; if(_texBalises[k]) return _texBalises[k];
+  const cv=document.createElement('canvas'); cv.width=cv.height=128; const c=cv.getContext('2d');
+  if(c){ c.fillStyle='rgba(0,0,0,0.35)'; c.beginPath(); c.arc(64,68,56,0,6.3); c.fill();
+    c.fillStyle=coul; c.beginPath(); c.arc(64,62,54,0,6.3); c.fill();
+    c.lineWidth=7; c.strokeStyle='#ffffff'; c.stroke();
+    c.font='64px Arial'; c.textAlign='center'; c.textBaseline='middle'; c.fillText(ico,64,66); }
+  return (_texBalises[k]=new THREE.CanvasTexture(cv));
+}
+function mkBalises(){
+  const add=(x,z,ico,coul,y)=>{ if(!isFinite(x)||!isFinite(z)) return;
+    const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:texBalise(ico,coul),transparent:true,depthWrite:false,depthTest:false,fog:false})); // jamais cachée par un immeuble
+    // 7 u au-dessus du sol : dans le champ de la vue immersive (au-dessus du toit, elle sortait de l'écran) ;
+    // depthTest coupé, elle se voit à travers l'immeuble
+    const base=y!==undefined?y:(typeof solY==='function'?Math.max(0,solY(x,z)||0):0);
+    const y0=base+7;
+    sp.scale.set(2.6,2.6,1); sp.position.set(x,y0,z); sp.renderOrder=5; scene.add(sp);
+    BALISES.push({sp,x,z,y0,ph:aD(0,6.28)}); };
+  // les lieux (portes des salles) : l'icône de la salle
+  for(const p of PORTES){ const D=INTDEFS[p.id]; if(!D) continue; add(p.x,p.z,D.ico||'🚪','#1d3a5a',0); }
+  // les activités
+  for(const id in RIDE_DEFS){ const d=rideDepart(id); if(d) add(d.x,d.z,RIDE_DEFS[id].eau?'🚤':'🏁','#c8901a'); }
+  if(TOW.kWake) add(TOW.kWake.x,TOW.kWake.z,'🏄','#1a8ac8',1);
+  if(TOW.kPara) add(TOW.kPara.x,TOW.kPara.z,'🪂','#1a8ac8',1);
+  if(PIC.wingsuit) add(PIC.wingsuit.x,PIC.wingsuit.z,'🦅','#7a3ac8',PIC.wingsuit.y);
+  if(PIC.plg) add(PIC.plg.x,PIC.plg.z0,'🪂','#7a3ac8',PIC.H);
+  if(PIC.cage) add(PIC.cage.x,PIC.cage.z,'🛗','#5a6a7a',PIC.cage.yBas||0);
+  if(POIS.banderole) add(POIS.banderole.x,POIS.banderole.z,'✈️','#c8901a',0);
+  if(MERV.paillote) add(MERV.paillote.x,MERV.paillote.z,'🍹','#1a8a6a',1);
+  if(MERV.tresor) add(MERV.tresor.x,MERV.tresor.z,'⛏️','#8a6a2a');
+  if(POIS.skateXXL) add(POIS.skateXXL.x,POIS.skateXXL.z,'🛹','#c83a9a');
+  if(POIS.toitH&&POIS.toitH.jetpack) add(POIS.toitH.jetpack.x,POIS.toitH.jetpack.z,'🚀','#1a8ac8',POIS.toitH.h);
+}
+function majBalises(dt){
+  const dedans=!!INT.actif, T=ETAT.runT;
+  for(const b of BALISES){
+    if(dedans){ if(b.sp.visible) b.sp.visible=false; continue; }
+    const d=Math.sqrt(dist2(b.x,b.z,P.x,P.z));
+    const o=clamp((BALISE_PORTEE-d)/40,0,1)*clamp((d-3)/5,0.15,1); // au loin : s'efface ; dessus : presque transparente
+    if(o<0.02){ if(b.sp.visible) b.sp.visible=false; continue; }
+    b.sp.visible=true; b.sp.material.opacity=o;
+    b.sp.position.y=b.y0+Math.sin(T*1.6+b.ph)*0.35;
+    const s=3.2+clamp(d/50,0,1)*4; b.sp.scale.set(s,s,1); // plus grande au loin : lisible à 100 u
+  }
 }
 function majMerVivante(dt){
   if(!MERV.ok) return;
@@ -7242,19 +7414,37 @@ function mkColline(x,z,r,h,matSol){
   m.position.set(x,0,z); scene.add(m);
 }
 function mkRampe(x,z,ang,long,haut,larg,matR){
-  RAMPES.push({x,z,ang,long,haut,larg});
+  const r={x,z,ang,long,haut,larg,meshes:[]}; RAMPES.push(r);
   const L=Math.sqrt(long*long+haut*haut);
   const p=new THREE.Mesh(new THREE.BoxGeometry(larg,0.3,L),matR);
   p.rotation.y=ang; p.rotation.x=-Math.atan2(haut,long);
   p.position.set(x+Math.sin(ang)*long/2,haut/2,z+Math.cos(ang)*long/2);
-  scene.add(p);
+  scene.add(p); r.meshes.push(p);
   // flancs
   [[-larg/2],[larg/2]].forEach(px=>{
     const f=new THREE.Mesh(new THREE.BoxGeometry(0.22,0.5,L),mat(0xe07020));
     f.rotation.y=ang; f.rotation.x=-Math.atan2(haut,long);
     f.position.set(x+Math.sin(ang)*long/2+Math.cos(ang)*px[0],haut/2+0.2,z+Math.cos(ang)*long/2-Math.sin(ang)*px[0]);
-    scene.add(f);
+    scene.add(f); r.meshes.push(f);
   });
+  return r;
+}
+// Tremplins absurdes (signalé en vue immersive : « dirigés vers des immeubles,
+// ça n'a aucun sens ») : un tremplin de la ville dont la réception (20 u
+// devant la lèvre, sur sa largeur) tombe sur un bâtiment est retiré. Il est
+// construit PUIS retiré (chaque objet Three.js tire Math.random : ne pas le
+// construire décalerait la ville). Les salles (x < -4000) ne sont pas touchées.
+const RAMPES_RETIREES=[];
+function retirerRampesAbsurdes(){
+  for(let i=RAMPES.length-1;i>=0;i--){ const r=RAMPES[i]; if(!r.meshes||r.x<-4000) continue;
+    const sx=Math.sin(r.ang), sz=Math.cos(r.ang), ex=r.x+sx*r.long, ez=r.z+sz*r.long;
+    let bloque=false;
+    if(r.retirer) bloque=true;
+    for(let d=1;d<=30&&!bloque;d+=1.5){ const s=solidAt(ex+sx*d,ez+sz*d,r.larg/2); if(s&&s.h>1.6&&!s.base) bloque=true; }
+    if(!bloque) continue;
+    for(const m of r.meshes){ scene.remove(m); if(m.geometry) m.geometry.dispose(); }
+    RAMPES.splice(i,1); RAMPES_RETIREES.push({x:r.x,z:r.z,ang:r.ang});
+  }
 }
 // Épave de pirate échouée : coque inclinée sur le flanc, mât brisé, voile
 // déchirée, canon monté à la proue — demandé explicitement, avec un canon
@@ -7693,8 +7883,11 @@ function construireRelief(){
   // rampes urbaines improvisées (planches sur cales) le long de quelques rues
   const rues=[[-HALF+3*CELL+21,-HALF+6*CELL],[-HALF+8*CELL+21,-HALF+4*CELL],
               [-HALF+5*CELL,-HALF+10*CELL+21],[-HALF+10*CELL,-HALF+7*CELL+21]];
+  // retirées (construites puis retirées, pour les tirages) : posées au milieu de la chaussée, face aux immeubles,
+  // elles bloquaient le trafic et n'avaient aucun sens en vue immersive
   rues.forEach((r,i)=>{ if(!estEau(r[0],r[1])&&!solidAt(r[0],r[1],3))
-    mkRampe(r[0],r[1],i%2?0:Math.PI/2,6,1.7,4,mBois); });
+    mkRampe(r[0],r[1],i%2?0:Math.PI/2,6,1.7,4,mBois).retirer=true; });
+  retirerRampesAbsurdes();
 }
 const BOUEES=[], MOUETTES=[];
 function mkVieMarine(){
@@ -8011,7 +8204,7 @@ function majSurf(dt){
 }
 const DAUPHIN={t:14,mesh:null,ph:0,x:0,z:0,dir:1};
 function majMer(dt){
-  if(DECOR_V2){ majMerVivante(dt); majTracesSable(dt); }
+  if(DECOR_V2){ majMerVivante(dt); majLarge(dt); majBalises(dt); majTracesSable(dt); }
   for(const b of BOUEES){ b.ph+=dt*1.6;
     if(MER_V2) assietteHoule(b.m,b.m.position.x,b.m.position.z,b.ph*0.2,Math.sin(b.ph)*0.06,1.2);
     else { b.m.position.y=Math.sin(b.ph)*0.16; b.m.rotation.z=Math.sin(b.ph*0.7)*0.08; } }
@@ -11331,7 +11524,7 @@ function majJoueur(dt,dtJeu){
     // un piéton s'arrêtait 6 u avant le mur nord sans jamais le toucher. À la
     // nage, jamais à l'ouest de la ligne du mur (sinon on contournerait sa
     // jetée pour remonter sur la terre hors les murs).
-    P.x=clamp(P.x,P.z>MER?LIMITE_OUEST_MER:-HALF-30,DECOR_V2?(P.z<=MER?LIMITE_EST:LIMITE_EST_MER):HALF+158); P.z=clamp(P.z,-HALF-12.6,MER+150); // la mer est nageable jusqu'au large
+    P.x=clamp(P.x,P.z>MER?LIMITE_OUEST_MER:-HALF-30,DECOR_V2?(P.z<=MER?LIMITE_EST:LIMITE_EST_MER):HALF+158); P.z=clamp(P.z,-HALF-12.6,LIMITE_SUD_MER); // la mer est nageable jusqu'au large
   }
 
   // sniper : viser en maintenant, tirer au relâchement
@@ -11512,7 +11705,7 @@ function majJetpackVol(dt,dtJeu){
   P.jetVz=lerp(P.jetVz,tz,clamp(JET_ACCEL_H*dtJeu,0,1));
   P.x+=P.jetVx*dtJeu; P.z+=P.jetVz*dtJeu;
   // limites du ciel : ramené comme les autres véhicules aériens (voir majVol)
-  P.x=clamp(P.x,DECOR_V2?LIMITE_OUEST_MER-20:-HALF-30,DECOR_V2?LIMITE_EST+20:HALF+170); P.z=clamp(P.z,-HALF-40,MER+150);
+  P.x=clamp(P.x,DECOR_V2?LIMITE_OUEST_MER-20:-HALF-30,DECOR_V2?LIMITE_EST+20:HALF+170); P.z=clamp(P.z,-HALF-40,LIMITE_SUD_MER);
   P.y+=P.vy*dtJeu;
   el('jetFill').style.width=clamp(P.jetFuel,0,100)+'%';
   // tir en vol : possible, précision réduite (voir attaquer(), st.disp)
@@ -12070,7 +12263,7 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
   // voir IOFF) — jamais bornés aux limites de la ville, sinon ils seraient
   // instantanément ramenés en centre-ville dès le premier appel.
   if(!v.horsVille){
-    const zMax=eau?MER+150:HALF+8;
+    const zMax=eau?LIMITE_SUD_MER:HALF+8;
     // Audit des bordures : un véhicule s'arrêtait 8 u avant les murs ouest et
     // nord (limite invisible) ; il va désormais jusqu'au mur, qui l'arrête.
     // En mer, jamais à l'ouest de la ligne du mur (jetée).
@@ -13009,7 +13202,7 @@ function majVol(v,dt){
     }
   }
   // limites du ciel : au-delà de la ville et de la mer, demi-tour
-  v.x=clamp(v.x,DECOR_V2?LIMITE_OUEST_MER-20:-HALF-30,DECOR_V2?LIMITE_EST+20:HALF+170); v.z=clamp(v.z,-HALF-40,MER+150); // DECOR_V2 : tout le ciel, montagne et large compris
+  v.x=clamp(v.x,DECOR_V2?LIMITE_OUEST_MER-20:-HALF-30,DECOR_V2?LIMITE_EST+20:HALF+170); v.z=clamp(v.z,-HALF-40,LIMITE_SUD_MER); // DECOR_V2 : tout le ciel, montagne et large compris
   const ud=v.mesh.userData;
   if(ud.rotor) ud.rotor.rotation.y+=((v.vol||air==='avion'&&v.v>4)?30:4)*dt;
   if(ud.rotorQ) ud.rotorQ.rotation.x+=34*dt;
@@ -15170,7 +15363,7 @@ function spawnRing(min,max){
 // En mer, la police vient en vedette (jamais un agent à pied dans l'eau)
 function spawnRingEau(min,max){
   for(let t=0;t<16;t++){ const a=rand(0,6.28), d=rand(min,max), x=P.x+Math.sin(a)*d, z=P.z+Math.cos(a)*d;
-    if(estEau(x,z)&&z>MER+4&&x>LIMITE_OUEST_MER+4&&x<(DECOR_V2?LIMITE_EST_MER:HALF+60)-4&&z<MER+146) return {x,z}; }
+    if(estEau(x,z)&&z>MER+4&&x>LIMITE_OUEST_MER+4&&x<(DECOR_V2?LIMITE_EST_MER:HALF+60)-4&&z<LIMITE_SUD_MER-4) return {x,z}; }
   return null;
 }
 function majWanted(dt){
@@ -28035,7 +28228,8 @@ let camH=42,camD=19;
    Choix gardé dans la sauvegarde (META.vue), bouton #btnVue.
 ===================================================================== */
 const VUE={k:0,kVeh:0,yaw:0,yawUser:0,yawRendu:0,hBonus:0,drag:null,tapT:0,ciel:null,cielU:null,
-  PIED:{H:13,D:17,devant:10}, VEH:{H:10,D:17,devant:14}};
+  // cadrage : le joueur vers le milieu de l'écran (~54 %), au-dessus des boutons (signalé : « les boutons sont sur le joueur »)
+  PIED:{H:9,D:19,devant:2.5}, VEH:{H:9,D:17,devant:4}};
 const VUE_SENS_DOIGT=0.0085;   // rad par pixel de glissement
 function vueImmersive(){ return META.vue==='immersive'; }
 // l'angle de l'écran pour le joystick : celui de la caméra AFFICHÉE
@@ -28100,7 +28294,7 @@ function basculerVue(){
   sauveMeta(); majBoutonVue(); SFX.ui(); vibre(20);
   toast(vueImmersive()?'🎥 Vue immersive — glisse le doigt pour tourner, double-tap : derrière toi':'🎥 Vue classique (de dessus)','or');
 }
-function majBoutonVue(){ const b=el('btnVue'); if(b) b.classList.toggle('on',vueImmersive()); }
+function majBoutonVue(){ const b=el('btnVue'); if(!b) return; b.classList.toggle('on',vueImmersive()); const t=el('btnVueTxt'); if(t) t.textContent=vueImmersive()?'3D':'2D'; }
 // au doigt : glisser sur une zone libre fait tourner la vue (à pied), double-tap = derrière le joueur
 renderer.domElement.addEventListener('pointerdown',e=>{
   if(INT.actif||!vueImmersive()||ETAT.mode!=='jeu') return;
