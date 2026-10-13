@@ -55,7 +55,7 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
   echo "$ln | $(sed -n "$((ln+1))p" index.html | sed 's/^[ \t]*//')"; done
 ```
 
-**Relevé au radio V3 — 28 139 lignes.**
+**Relevé au ciné V3 — 28 239 lignes.**
 Attention : `maj_carte` recale les numéros dans l'ordre des lignes de la table ;
 un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la main.
 
@@ -85,22 +85,22 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 15413 | BÂTIMENTS VISITABLES — intérieurs |
 | 15483 | FOUILLE — mécanique générique |
 | 16031 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
-| 20151 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
-| 20559 | **LAVERIE** V2 — l'essorage de la machine 7 |
-| 20824 | **SERRE** V2 — la nuit de la floraison |
-| 21107 | CINÉ-PALACE |
-| 21247 | MÉTRO ABANDONNÉ |
-| 21313 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
-| 21664 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
-| 22566 | SITE 51 |
-| 22796 | LE DÉPÔT DE BUS — courses clandestines |
-| 23823 | **MÉTIERS** — missions liées à un véhicule |
-| 24113 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
-| 25108 | ÉCRANS / MENUS / BOUTIQUES |
-| 25376 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
-| 26173 | DÉBUT / FIN DE PARTIE |
-| 27565 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
-| 28017 | BOUCLE PRINCIPALE |
+| 20146 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
+| 20554 | **LAVERIE** V2 — l'essorage de la machine 7 |
+| 20819 | **SERRE** V2 — la nuit de la floraison |
+| 21102 | CINÉ-PALACE |
+| 21346 | MÉTRO ABANDONNÉ |
+| 21412 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
+| 21763 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
+| 22665 | SITE 51 |
+| 22895 | LE DÉPÔT DE BUS — courses clandestines |
+| 23923 | **MÉTIERS** — missions liées à un véhicule |
+| 24213 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
+| 25208 | ÉCRANS / MENUS / BOUTIQUES |
+| 25476 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
+| 26273 | DÉBUT / FIN DE PARTIE |
+| 27665 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
+| 28117 | BOUCLE PRINCIPALE |
 
 ### Ancres fines (hors bandeaux)
 
@@ -154,14 +154,14 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 17108 | `INTDEFS` — définitions des **27 salles** |
 | 17288 | `construireSalle(id)` |
 | 20390 | `CHALUTIER_BANCS_PLAN` — chalutier V2 ; `chalutierMaj` (20761), `dessinerRadarChalutier` (21018) |
-| 23832 | `METIERS_CIBLE` |
-| 24131 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
-| 24219 | `PIECES_FAMILLES` — catalogues de pièces par famille |
-| 24520 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
-| 24574 | `libererObjet()` — libère les géométries d'un objet retiré |
-| 24590 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
-| 24712 | `construireGarageTuning()` — la salle partagée |
-| 25082 | `majNitro()` |
+| 23932 | `METIERS_CIBLE` |
+| 24231 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
+| 24319 | `PIECES_FAMILLES` — catalogues de pièces par famille |
+| 24620 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
+| 24674 | `libererObjet()` — libère les géométries d'un objet retiré |
+| 24690 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
+| 24812 | `construireGarageTuning()` — la salle partagée |
+| 25182 | `majNitro()` |
 
 ---
 
@@ -883,6 +883,14 @@ puis refonte en profondeur de la pire à la meilleure, une salle par commit.
   (le bouton disait « séance en cours ») ; elle s'efface pendant la séance.
 - Test « Ciné V2 » : écran, intro, ovation, pilote projectionniste (tient la
   séance), passif = fiasco ; les 31 anciens tests passent.
+- **V3 visuelle** (`cineDecorV3`) : la cabine donne sur la SALLE (mur nord
+  masqué, solide gardé, vitre) — gradins, public (`cineTetes` : bouge, se
+  lève à l'ovation, s'agite en panne), rideaux, grand écran dont la texture
+  est le canvas du panneau (`cineTexFilm`, mise à jour à 15 i/s, cadrée sur
+  l'image), faisceau jusqu'à l'écran (`faisceauV3`). Postes reconnaissables à
+  leur objet (bobines, banc d'optique, ampli à vu-mètres, lanterne) ;
+  affiches éclairées à la place des cartels flottants (`cineAffiche`) ;
+  moquette art déco, machine à pop-corn, marquise à ampoules dehors.
 
 ## 10e lot (12 octobre 2026) — kiosque de la banderole, figures sur deux roues
 

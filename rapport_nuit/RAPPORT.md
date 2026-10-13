@@ -1654,3 +1654,9 @@ La boîte verte dans le noir devient une serre victorienne la nuit, au milieu du
 ## Radio V3 — la passe visuelle (13 octobre)
 
 Le studio devient une station pirate sur un toit, la nuit : antenne aux feux rouges, parabole, grande enseigne néon « REYES FM 107.7 », toits voisins et, en contrebas, la ville éclairée où roulent les voitures. Plus la police triangule, plus elle se montre : un hélicoptère tourne au-dessus du toit, son projecteur se rapproche de la console. Dedans : mousse acoustique, tapis, platine qui tourne, ON AIR en néon ; la caméra se rapproche de la console pendant l'émission. Étiquettes (CONSOLE, RACK, MICRO VINTAGE) retirées. Captures : `captures/lot11/radio_v3_*.png`.
+
+## Ciné-Palace V3 — la passe visuelle (13 octobre)
+
+La cabine de projection donne enfin sur la salle : derrière la vitre, des gradins de fauteuils rouges, le public qui bouge, se lève à l'ovation et s'agite à chaque panne, des rideaux et le grand écran qui passe le même film que le panneau (avec les mêmes pannes). Le faisceau du projecteur traverse la salle jusqu'à l'écran. Chaque poste se reconnaît à son objet (bobines qui tournent, banc d'optique, ampli à vu-mètres, lanterne qui clignote en panne) ; le hall a une moquette art déco, des affiches éclairées et une machine à pop-corn ; dehors, la marquise « CINÉ-PALACE » et ses ampoules. Étiquettes retirées. Captures : `captures/lot11/cine_v3_*.png`.
+
+**Bilan de la passe visuelle** : les six salles refaites (chalutier, aquarium, laverie, serre, radio, ciné) ont maintenant un décor qui raconte le lieu, sans étiquettes, et chacune sort enfin du « vide noir » autour de la salle. Suites `valider.js` et `scenarios.js` vertes après chaque salle (graine 20260731). À tester sur iPhone : la fluidité (shaders de mer, de sol et de ciel), surtout au chalutier et à l'aquarium.

@@ -18811,7 +18811,9 @@ function construireSalle(id){
      la CABINE de projection (au nord), séparés par un mur à passage étroit
      comme au musée (voir ~L8500). */
   else if(id==='cine'){
-    // moquette rouge élimée du hall
+    // V3 : la cabine donne sur la salle, l'écran passe le film (voir cineDecorV3)
+    cineDecorV3(inter,g,ox,oz,W,P2,sol,dehors);
+    // moquette rouge élimée du hall (sous la moquette art déco de la V3)
     for(let i=-6;i<7;i++) for(let j=2;j<9;j++){
       const t=new THREE.Mesh(new THREE.PlaneGeometry(2.1,2.1),mat((i+j)%2===0?0x5a1218:0x4e0f14));
       t.rotation.x=-Math.PI/2; t.position.set(ox+i*2.15+1.05,0.11,oz+j*2.15+1.05); g.add(t);
@@ -18831,13 +18833,12 @@ function construireSalle(id){
     const compt=box(3.4,1.1,1.5,0x6a2a2a,-7,0.55,9);
     box(1.2,0.5,1,0xffd23f,-7,1.35,9,false);
     fouillable(-7,10.3,'Comptoir à confiserie','confiserie',compt,2.8);
-    mkEnseigne('CONFISERIE','#ffd23f',ox-7,2.1,oz+9.3,0,9);
     pnj(-7,7.6,{haut:pick(civHaut),bas:0x1c2030,peau:pick(civPeau),casq:0x2a2018,visage:'gentil'},'caisse');
     box(3,0.85,1.3,0x5a1f2a,7,0.42,9);
     fouillable(7,10.3,'Sous les fauteuils','fauteuils',null,2.8);
     inter.cartels=[];
     const cartel=(x,z,titre,texte,coul)=>{
-      mkEnseigne(titre,coul||'#e8c8a0',ox+x,1.9,oz+z-0.9,0,Math.max(6,titre.length*0.4));
+      inter.cineAffiche(titre,x+(x<0?0.12:-0.12),z,x<0?Math.PI/2:-Math.PI/2);
       inter.cartels.push({x:ox+x,z:oz+z,titre,texte});
     };
     box(0.15,2.2,1.6,0x1c0c10,-11.5,1.3,13.5,false);
@@ -18864,9 +18865,8 @@ function construireSalle(id){
     const faisceau=new THREE.Mesh(new THREE.ConeGeometry(1.6,9,10,1,true),
       new THREE.MeshBasicMaterial({color:0xfff2c0,transparent:true,opacity:0.06,depthWrite:false,side:THREE.DoubleSide}));
     faisceau.rotation.x=Math.PI/2; faisceau.position.set(ox,1.1,oz-14); g.add(faisceau);
-    inter.faisceau=faisceau;
+    inter.faisceau=faisceau; faisceau.visible=false; // remplacé par le faisceau jusqu'à l'écran (V3)
     inter.projecteur={x:ox,z:oz-8};
-    mkEnseigne('PROJECTEUR','#e8503f',ox,2.6,oz-6.6,0,10);
     const posteVisuel=(x,z,coul)=>{
       box(1,1.3,0.9,coul,x,0.65,z);
       const voy=new THREE.Mesh(new THREE.SphereGeometry(0.1,8,6),new THREE.MeshBasicMaterial({color:0x7dff7a}));
@@ -18875,24 +18875,19 @@ function construireSalle(id){
     };
     inter.posteVoyants={};
     inter.posteVoyants.bobine=posteVisuel(-4,-12,0x35c8e0);
-    mkEnseigne('BOBINE','#35e0ff',ox-4,2,oz-12.9,0,6);
     inter.posteVoyants.point=posteVisuel(4,-12,0x8a5adf);
-    mkEnseigne('MISE AU POINT','#b48bff',ox+4,2,oz-12.9,0,10);
     inter.posteVoyants.son=posteVisuel(-4,-4,0xff9f2e);
-    mkEnseigne('SON','#ff9f2e',ox-4,2,oz-4.9,0,5);
     inter.posteVoyants.lampe=posteVisuel(4,-4,0xffd23f);
-    mkEnseigne('LAMPE','#ffd23f',ox+4,2,oz-4.9,0,6);
     inter.postesPos={bobine:{x:ox-4,z:oz-12},point:{x:ox+4,z:oz-12},son:{x:ox-4,z:oz-4},lampe:{x:ox+4,z:oz-4}};
     inter.postes={bobine:{probleme:0,enAlerte:false},point:{probleme:0,enAlerte:false},
       son:{probleme:0,enAlerte:false},lampe:{probleme:0,enAlerte:false}};
 
     const bureau=box(2.6,1,1.4,0x3a2418,-9,0.5,-16);
     fouillable(-9,-16,'Bureau du projectionniste','bureauProjo',bureau,2.8);
-    mkEnseigne('BUREAU','#e8c8a0',ox-9,1.8,oz-14.7,0,7);
     const hublot=new THREE.Mesh(new THREE.CircleGeometry(1,16),
       new THREE.MeshBasicMaterial({color:0xbfe4ff,transparent:true,opacity:0.5}));
     hublot.position.set(ox,2,oz-16.7); g.add(hublot);
-    inter.hublot=hublot;
+    inter.hublot=hublot; hublot.visible=false; // la vitre de la cabine le remplace (V3)
     lampe(0,-4,0xffe0a0,6); lampe(-6,-14,0xff8a70,6); lampe(6,-14,0xff8a70,6);
 
     inter.seanceOn=false; inter.seanceT=0; inter.satisfaction=100; inter.parfaite=true;
@@ -21122,6 +21117,110 @@ cineIntroWrap.innerHTML='<div style="font:900 21px Arial;color:#ffb0a0;letter-sp
 const CINE_ICONES={bobine:'🎞️',point:'🔍',son:'🔊',lampe:'💡'};
 const CINE_REPLIQUES=['— Tu crois qu’on les a semés ?','— Jamais vu une ville pareille.','— Accroche-toi, ça va secouer !','— Le canard. Il faut sauver le canard.','— Los Reyes ne dort jamais.','— C’était pas le plan, ça.'];
 let _cineFige=null;
+/* ---- Ciné-Palace V3 (13 octobre, retour de playtest : « on dirait le jeu
+   d'avant, peu immersif ») : la cabine de projection donne enfin sur la
+   SALLE. Au nord, derrière la vitre de la cabine : gradins de fauteuils
+   rouges, le public (têtes qui bougent, se lèvent à l'ovation), rideaux, et
+   le grand écran qui passe LE MÊME FILM que le panneau (texture = le canvas
+   de dessinerEcranCine, cadré sur l'image) ; le faisceau du projecteur
+   traverse la salle jusqu'à l'écran. Chaque poste se reconnaît à son objet
+   (bobines qui tournent, banc d'optique, ampli à vu-mètres, lanterne) ;
+   hall art déco (moquette à motifs, affiches éclairées, machine à pop-corn),
+   marquise à ampoules dehors. Étiquettes retirées. Cosmétique (dt). */
+function cineDecorV3(inter,g,ox,oz,W,P2,sol,dehors){
+  // le mur nord de la cabine (et sa corniche) laisse place à une vitre : on voit la salle ; son SOLIDE reste
+  for(const o of g.children){ if(!o.isMesh) continue;
+    if(o===dehors) o.visible=false;
+    else if((o.position.y===2.2||o.position.y===4.5)&&Math.abs(o.position.z-(oz-P2/2))<0.01) o.visible=false; }
+  // hall : moquette rouge à motif doré art déco
+  const texMoq=cTex(128,(c,t)=>{ c.fillStyle='#460c12'; c.fillRect(0,0,t,t); c.strokeStyle='#7a5a24'; c.lineWidth=2;
+    for(let k=0;k<2;k++) for(let j=0;j<2;j++){ const x=k*t/2+t/4, y=j*t/2+t/4; c.beginPath(); c.moveTo(x,y-26); c.lineTo(x+26,y); c.lineTo(x,y+26); c.lineTo(x-26,y); c.closePath(); c.stroke();
+      c.beginPath(); c.arc(x,y,8,0,6.3); c.stroke(); } },5,3);
+  const moq=new THREE.Mesh(new THREE.PlaneGeometry(W,P2/2-4),new THREE.MeshLambertMaterial({map:texMoq})); moq.rotation.x=-Math.PI/2; moq.position.set(ox,0.112,oz+(P2/2+4)/2); g.add(moq);
+  // la SALLE, au nord de la cabine : gradins qui descendent vers l'écran
+  const zS=oz-P2/2; // mur nord de la cabine (la vitre)
+  const vitre=new THREE.Mesh(new THREE.BoxGeometry(W-1,2.4,0.1),new THREE.MeshBasicMaterial({color:0x9fd8ff,transparent:true,opacity:0.1,depthWrite:false}));
+  vitre.position.set(ox,3.2,zS); g.add(vitre);
+  const fond=new THREE.Mesh(new THREE.BoxGeometry(W+16,0.4,34),new THREE.MeshLambertMaterial({color:0x12060a})); fond.position.set(ox,-5,zS-18); g.add(fond);
+  const matFauteuil=new THREE.MeshLambertMaterial({color:0x8a1420}), matDos=new THREE.MeshLambertMaterial({color:0x6a0e18});
+  const tetes=[]; inter.cineTetes=tetes;
+  const matsTete=[0x2a1c14,0x4a3020,0x1a1410,0xc89060,0x6a4a30].map(c=>new THREE.MeshLambertMaterial({color:c}));
+  const geoTete=new THREE.SphereGeometry(0.32,8,6);
+  for(let r=0;r<7;r++){ const z=zS-3.5-r*2.7, y=-0.6-r*0.62;
+    const marche=new THREE.Mesh(new THREE.BoxGeometry(W+8,0.6,3.2),mat(0x1c0a10)); marche.position.set(ox,y-0.3,z); g.add(marche);
+    const rang=new THREE.Mesh(new THREE.BoxGeometry(W+2,0.6,0.9),matFauteuil); rang.position.set(ox,y+0.3,z); g.add(rang);
+    const dos=new THREE.Mesh(new THREE.BoxGeometry(W+2,1.1,0.25),matDos); dos.position.set(ox,y+0.75,z+0.45); g.add(dos);
+    for(let k=0;k<16;k++){ if(Math.random()<0.25) continue; const x=-W/2+0.6+k*(W-1.2)/15+rand(-0.15,0.15);
+      const te=new THREE.Mesh(geoTete,pick(matsTete)); te.position.set(ox+x,y+1.25,z+0.2); g.add(te); tetes.push({m:te,y0:y+1.25,ph:rand(0,6)}); } }
+  // l'écran, ses rideaux, son cadre doré ; il passe le film du panneau
+  const zE=zS-25, yE=2.5;
+  const texFilm=new THREE.CanvasTexture(cineCx.canvas); texFilm.repeat.set(0.94,0.66); texFilm.offset.set(0.03,0.3);
+  const ecran=new THREE.Mesh(new THREE.PlaneGeometry(26,13),new THREE.MeshBasicMaterial({map:texFilm,color:0x222222}));
+  ecran.position.set(ox,yE,zE); ecran.rotation.x=-0.75; g.add(ecran); inter.cineEcran=ecran; inter.cineTexFilm=texFilm;
+  const cadre=new THREE.Mesh(new THREE.BoxGeometry(28,14.6,0.3),mat(0x8a6a2a)); cadre.position.set(ox,yE,zE-0.2); cadre.rotation.x=-0.75; g.add(cadre);
+  for(const sg of [-1,1]){ const ri=new THREE.Mesh(new THREE.BoxGeometry(4,15,0.6),new THREE.MeshLambertMaterial({color:0x9a1020})); ri.position.set(ox+sg*15.5,yE,zE+0.3); ri.rotation.x=-0.75; g.add(ri); }
+  const lambrequin=new THREE.Mesh(new THREE.BoxGeometry(34,2.4,0.6),new THREE.MeshLambertMaterial({color:0x9a1020})); lambrequin.position.set(ox,yE+5.3,zE+4.6); lambrequin.rotation.x=-0.75; g.add(lambrequin);
+  // le faisceau du projecteur, de la lentille à l'écran (poussières qui y dansent)
+  const lent=new THREE.Vector3(ox,1.1,oz-9.6), cible=new THREE.Vector3(ox,yE,zE), L=lent.distanceTo(cible);
+  const geoF=new THREE.ConeGeometry(9,1,16,1,true); geoF.translate(0,-0.5,0); geoF.rotateX(-Math.PI/2);
+  const faisceau=new THREE.Mesh(geoF,new THREE.MeshBasicMaterial({color:0xfff2c0,transparent:true,opacity:0.06,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending}));
+  faisceau.position.copy(lent); faisceau.lookAt(cible); faisceau.scale.z=L; g.add(faisceau);
+  inter.faisceauV3=faisceau; inter.cineLentille={lx:lent.x,ly:lent.y,lz:lent.z,cx:cible.x,cy:cible.y,cz:cible.z};
+  // les postes se reconnaissent à leur objet
+  const bob=(x,z)=>{ const gB=new THREE.Group(); gB.position.set(ox+x,0,oz+z); g.add(gB); const rs=[];
+    for(const [dy,dz] of [[2.2,-0.25],[2.2,0.25]]){ const r=new THREE.Mesh(new THREE.CylinderGeometry(0.7,0.7,0.08,20),new THREE.MeshLambertMaterial({map:cTex(64,(c,t)=>{ c.fillStyle='#202024'; c.fillRect(0,0,t,t); c.fillStyle='#8a8e96'; for(let k=0;k<3;k++){ c.beginPath(); c.moveTo(t/2,t/2); c.arc(t/2,t/2,t/2,k*2.1,k*2.1+1.2); c.fill(); } c.fillStyle='#202024'; c.beginPath(); c.arc(t/2,t/2,6,0,6.3); c.fill(); },1)}));
+      r.rotation.x=Math.PI/2; r.position.set(0,dy,dz); gB.add(r); rs.push(r); }
+    return rs; };
+  inter.cineBobines=bob(-4,-12.9);
+  const banc=new THREE.Group(); banc.position.set(ox+4,1.5,oz-12.6); g.add(banc);
+  for(let k=0;k<3;k++){ const len=new THREE.Mesh(new THREE.CylinderGeometry(0.35-k*0.06,0.35-k*0.06,0.12,16),new THREE.MeshPhongMaterial({color:0x9fd8ff,transparent:true,opacity:0.55,shininess:120})); len.rotation.x=Math.PI/2; len.position.set(-0.5+k*0.5,0.3,0); banc.add(len); }
+  const rail=new THREE.Mesh(new THREE.BoxGeometry(1.8,0.08,0.2),mat(0x8a8e96)); rail.position.y=-0.05; banc.add(rail);
+  const ampli=new THREE.Group(); ampli.position.set(ox-4,0.75,oz-4); g.add(ampli); inter.cineVu=[];
+  for(let k=0;k<2;k++){ const vu=new THREE.Mesh(new THREE.PlaneGeometry(0.35,0.25),new THREE.MeshBasicMaterial({color:0xffd23f})); vu.position.set(-0.22+k*0.44,0.2,0.47); ampli.add(vu);
+    const ai=new THREE.Mesh(new THREE.BoxGeometry(0.02,0.2,0.02),mat(0x111111)); ai.geometry.translate(0,0.1,0); ai.position.set(-0.22+k*0.44,0.1,0.49); ampli.add(ai); inter.cineVu.push(ai); }
+  const lant=new THREE.Group(); lant.position.set(ox+4,1.3,oz-4); g.add(lant);
+  const cheminee=new THREE.Mesh(new THREE.CylinderGeometry(0.18,0.22,1.2,10),mat(0x3a3a40)); cheminee.position.y=0.7; lant.add(cheminee);
+  const lueur=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:0xfff2c0,transparent:true,opacity:0.8,depthWrite:false,blending:THREE.AdditiveBlending})); lueur.scale.set(2,2,1); lueur.position.set(0,0.2,0.5); lant.add(lueur); inter.cineLueur=lueur;
+  // hall : affiches éclairées (le cartel du lieu), machine à pop-corn
+  const affiche=(titre,x,z,ry)=>{ const cv=document.createElement('canvas'); cv.width=180; cv.height=260; const c=cv.getContext('2d');
+    if(c){ const gr=c.createLinearGradient(0,0,0,260); gr.addColorStop(0,pick(['#1a2a5a','#5a1a2a','#1a4a3a','#4a2a5a'])); gr.addColorStop(1,'#0a0a10'); c.fillStyle=gr; c.fillRect(0,0,180,260);
+      c.fillStyle='rgba(255,220,150,0.25)'; c.beginPath(); c.arc(90,100,50,0,6.3); c.fill(); c.strokeStyle='#d8b060'; c.lineWidth=6; c.strokeRect(4,4,172,252);
+      c.fillStyle='#fff2d0'; c.font='900 17px Arial'; c.textAlign='center'; const mots=titre.replace(/[«»]/g,'').trim().split(' '); let l='', y=190;
+      const lignes=[]; for(const m of mots){ if((l+' '+m).length>13){ lignes.push(l); l=m; } else l=(l?l+' ':'')+m; } lignes.push(l);
+      lignes.slice(0,3).forEach((li,i)=>c.fillText(li.toUpperCase(),90,y+i*20)); }
+    const m=new THREE.Mesh(new THREE.PlaneGeometry(1.3,1.9),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv)})); m.position.set(ox+x,1.5,oz+z); m.rotation.y=ry; m.rotation.order='YXZ'; m.rotation.x=-0.3; g.add(m); };
+  inter.cineAffiche=affiche;
+  const pop=new THREE.Group(); pop.position.set(ox-9.8,0,oz+9); g.add(pop);
+  const pied=new THREE.Mesh(new THREE.BoxGeometry(1.1,1,1),mat(0x9a1020)); pied.position.y=0.5; pop.add(pied);
+  const vitreP=new THREE.Mesh(new THREE.BoxGeometry(1,1,0.9),new THREE.MeshLambertMaterial({color:0xfff2c0,transparent:true,opacity:0.45,emissive:0x5a4010})); vitreP.position.y=1.5; pop.add(vitreP);
+  for(let k=0;k<14;k++){ const p=new THREE.Mesh(new THREE.SphereGeometry(0.08,5,4),mat(0xfff6d8)); p.position.set(rand(-0.4,0.4),1.1+rand(0,0.3),rand(-0.35,0.35)); pop.add(p); }
+  // dehors, au sud : trottoir et marquise à ampoules (chenillard)
+  const trott=new THREE.Mesh(new THREE.BoxGeometry(W+20,0.2,14),mat(0x2a2a30)); trott.position.set(ox,-0.05,oz+P2/2+7); g.add(trott);
+  const marquise=new THREE.Mesh(new THREE.BoxGeometry(12,0.6,3),mat(0x2a0a10)); marquise.position.set(ox,4.2,oz+P2/2+1.6); g.add(marquise);
+  const nomM=new THREE.Mesh(new THREE.PlaneGeometry(11,2.2),new THREE.MeshBasicMaterial({map:texNeon('CINÉ-PALACE','#ffd23f',1024,210),transparent:true,depthWrite:false,blending:THREE.AdditiveBlending}));
+  nomM.rotation.x=-1.0; nomM.position.set(ox,4.8,oz+P2/2+2.4); g.add(nomM);
+  inter.cineAmpoules=[];
+  for(let k=0;k<24;k++){ const a=new THREE.Mesh(new THREE.SphereGeometry(0.12,6,4),new THREE.MeshBasicMaterial({color:0xffe08a})); const tt=k/24;
+    const x=tt<0.5?-6+tt*24:6-(tt-0.5)*24, z=tt<0.5?P2/2+3.1:P2/2+0.1; a.position.set(ox+x,4.55,oz+z); g.add(a); inter.cineAmpoules.push(a); }
+}
+function cineMajDecorV3(s,dt){
+  const T=ETAT.runT;
+  if(s.cineAmpoules) for(let i=0;i<s.cineAmpoules.length;i++) s.cineAmpoules[i].material.color.setHex((Math.floor(T*6)+i)%4===0?0xffffff:0x8a6a2a);
+  // le film à l'écran : la texture suit le canvas du panneau (15 i/s), écran éteint hors séance
+  const film=s.seanceOn||s.cineFinT>0;
+  if(s.cineEcran){ s.cineEcran.material.color.setHex(film?0xffffff:0x222222);
+    if(film){ s._cineTexT=(s._cineTexT||0)+dt; if(s._cineTexT>1/15){ s._cineTexT=0; s.cineTexFilm.needsUpdate=true; } } }
+  const lampe=s.postes?s.postes.lampe:null;
+  if(s.faisceauV3) s.faisceauV3.material.opacity=film?0.07*(1-(lampe?lampe.probleme/100*0.8:0))*(lampe&&lampe.enAlerte&&Math.sin(T*30)>0?0.2:1):0.015;
+  if(s.cineLueur) s.cineLueur.material.opacity=lampe&&lampe.enAlerte?(Math.sin(T*30)>0?0.9:0.1):0.75;
+  if(s.cineBobines) for(const r of s.cineBobines) r.rotation.y+=dt*(film&&!(s.postes&&s.postes.bobine.enAlerte)?4:0);
+  if(s.cineVu) for(let i=0;i<s.cineVu.length;i++) s.cineVu[i].rotation.z=film&&!(s.postes&&s.postes.son.enAlerte)?Math.sin(T*(9+i*3))*0.6:0.9;
+  // le public : têtes qui bougent ; se lève à l'ovation, s'agite en cas de panne
+  if(s.cineTetes){ let panne=false; if(s.postes) for(const id of CINE_POSTES) if(s.postes[id].enAlerte) panne=true;
+    const ovation=s.cineFin==='succes', fiasco=s.cineFin==='fiasco';
+    for(const t of s.cineTetes){ const k=ovation?0.5+Math.abs(Math.sin(T*8+t.ph))*0.5:(panne||fiasco?Math.abs(Math.sin(T*5+t.ph))*0.25:Math.sin(T*0.8+t.ph)*0.04);
+      t.m.position.y=t.y0+k; } }
+}
 function dessinerEcranCine(s){
   const cx=cineCx, W=680, H=400, T=ETAT.runT; if(!cx) return;
   const P2=s.postes||{}, pr=(id)=>P2[id]?P2[id].probleme/100:0, al=(id)=>!!(P2[id]&&P2[id].enAlerte);
@@ -23549,6 +23648,7 @@ function majInterieur(dt,dtJeu){
     else dessinerEcranCine(s);
   }
   if(s.postesPos){
+    cineMajDecorV3(s,dt);
     if(s.cineIntroT>0){ s.cineIntroT-=dt; if(s.cineIntroT<0.5) cineIntroWrap.style.opacity=String(Math.max(0,s.cineIntroT/0.5)); if(s.cineIntroT<=0) cineIntroWrap.style.display='none'; }
     if(!s.seanceOn&&s.cineFinT>0){ s.cineFinT-=dt; if(s.cineFinT>0&&ETAT.mode==='jeu') dessinerEcranCine(s); else { s.cineFinT=0; s.cineFin=null; cineWrap.style.display='none'; } }
   }
