@@ -1708,3 +1708,13 @@ Captures : `captures/lot11/echelle_*.png`.
 - **Apparitions en vue immersive** : véhicules et ennemis apparaissent loin et hors de vue.
 
 Captures : `captures/lot11/wakeboard_ecume.png`, `basket_tir.png`, `sommet_velos.png`, `crique_falaises.png`, `vehicules_hauteurs.png`, `villa_proportions.png`.
+
+## Vue immersive partout (14 octobre, 3e série)
+
+- **Toutes les salles** passent en vue immersive (sauf le chalutier, qui a déjà sa caméra de poursuite vers le large) : caméra plus proche, qui reste entre les murs ; luminaires et enseignes qui passeraient entre la caméra et le joueur s'effacent. Le bouton 3D/2D reste disponible en salle.
+- **Sensation de vitesse** en véhicule : caméra plus basse, champ qui s'ouvre avec la vitesse, traits de vitesse.
+- **Avion à banderole** : plus lent, plus haut, banderole verticale lisible en vue immersive.
+- **Sniper** : vraie lunette avec zoom (le laser reste en vue normale) — on maintient TIR, le joystick vise et règle la distance, on relâche pour tirer.
+- **Bug corrigé (serre)** : soigner le pot du milieu en pleine nuit pouvait faire quitter la serre (sa zone touchait la SORTIE).
+
+Captures : `captures/lot11/salles_immersives_1.png`, `salles_immersives_2.png`, `vitesse_vehicule.png`, `banderole_immersive.png`, `lunette_sniper.png`.

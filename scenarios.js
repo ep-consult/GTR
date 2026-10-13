@@ -9304,7 +9304,7 @@ async function main() {
         const rnd0 = Math.random, graineNuit = (g) => () => { g |= 0; g = g + 0x6D2B79F5 | 0; let x = Math.imul(g ^ g >>> 15, 1 | g); x = x + Math.imul(x ^ x >>> 7, 61 | x) ^ x; return ((x ^ x >>> 14) >>> 0) / 4294967296; };
         const nuit = (actif, g) => {
           const s = entrer(); Math.random = graineNuit(g); P.x = s.panneau.x; P.z = s.panneau.z; appuyer(); // graine posée APRÈS startRun (qui tire selon l'état de la ville)
-          const dt = 1 / 30; let t = 0, route = null, cle = '', bloque = 0, actionCd = 0;
+          const dt = 1 / 30; let t = 0, route = null, cle = '', bloque = 0, actionCd = 0, sortiesEvitees = 0;
           while (s.srNuit && t < SERRE_DUREE + 2) {
             INPUT.mx = INPUT.mz = 0;
             if (actif) {
@@ -9317,7 +9317,7 @@ async function main() {
               }
               if (cible) {
                 if (cle !== cible.nom) { route = chemin(s, cible.x, cible.z); cle = cible.nom; if (!route) bloque++; }
-                if (Math.hypot(cible.x - P.x, cible.z - P.z) < 2.4 || (route && route.length <= 1)) { actionCd -= dt; if (actionCd <= 0) { appuyer(); actionCd = 0.15; cle = ''; } }
+                if (Math.hypot(cible.x - P.x, cible.z - P.z) < 2.4 || (route && route.length <= 1)) { actionCd -= dt; if (actionCd <= 0) { majAction(); const bt = document.getElementById('btnAction'); if (/SORTIR/.test(bt.textContent)) sortiesEvitees++; else appuyer(); actionCd = 0.15; cle = ''; } } // comme un joueur : on lit le bouton avant d'appuyer
                 else if (route) { while (route.length > 1 && Math.hypot(route[0].x - P.x, route[0].z - P.z) < 0.6) route.shift();
                   const c = route[0], dx = c.x - P.x, dz = c.z - P.z, L = Math.hypot(dx, dz) || 1; INPUT.mx = dx / L; INPUT.mz = dz / L; }
               }
@@ -9325,7 +9325,7 @@ async function main() {
             majJoueur(dt, dt); majInterieur(dt, dt); t += dt;
           }
           INPUT.mx = INPUT.mz = 0;
-          const res = { fin: s.srFin, fanees: s.srFanees, soins: s.srSoins, gain: s.srGain, bloque };
+          const res = { fin: s.srFin, fanees: s.srFanees, soins: s.srSoins, gain: s.srGain, bloque, sortiesEvitees };
           sortirInterieur(); return res;
         };
         // tirages des besoins sur une graine propre à chaque nuit : sans elle, l'état de Math.random dépendait du
@@ -9333,6 +9333,8 @@ async function main() {
         const glouton = [], passif = nuit(false, 77);
         for (let i = 0; i < 10; i++) glouton.push(nuit(true, 1000 + i)); Math.random = rnd0; // on en exige 5 sur 10
         if (glouton.some((g) => g.bloque)) ko.push('un pot, le bassin ou la table est inatteignable');
+        if (glouton.some((g) => g.sortiesEvitees > 3)) ko.push('soigner un pot affiche SORTIR (' + glouton.map((g) => g.sortiesEvitees).join(',') + ')');
+        if (glouton.some((g) => !g.fin)) ko.push('une nuit s’interrompt sans fin');
         const tenues = glouton.filter((g) => g.fin === 'fin' || g.fin === 'parfait').length;
         if (tenues < 5) ko.push('le pilote glouton perd la serre trop souvent (' + JSON.stringify(glouton) + ')');
         else info.push('pilote glouton : ' + tenues + '/10 nuits tenues (' + glouton.map((g) => g.soins + ' soins, ' + g.fanees + ' fanée(s), ' + g.gain + ' $').join(' ; ') + ')');
@@ -9465,7 +9467,8 @@ async function main() {
     // -------------------------------------------------------------------
     // Vue immersive (13 octobre) : caméra inclinée vers l'horizon en ville,
     // orientable au doigt à pied, poursuite en véhicule ; le joystick suit
-    // l'écran ; les salles gardent leur caméra ; bouton à côté de la pause.
+    // l'écran ; bouton à côté de la pause. Depuis le 14 octobre, aussi dans
+    // les salles (sauf le chalutier) : voir « Vue immersive dans les salles ».
     // -------------------------------------------------------------------
     console.log('\n--- Vue immersive : caméra, joystick relatif à l’écran, poursuite en véhicule, salles intactes, bouton ---');
     {
@@ -9508,13 +9511,18 @@ async function main() {
         if (hv.x * fwd.x + hv.z * fwd.z < 0.95) ko.push('en véhicule, « haut » ne va pas tout droit');
         else info.push('poursuite : « haut » = tout droit');
         sortirVehicule(); v.mort = true;
-        // 6) les salles gardent leur caméra : joystick inchangé, bouton masqué
-        const porte = PORTES.find((p) => INTDEFS[p.id] && p.id !== 'tuning');
-        entrerInterieur(porte.id, porte); ETAT.intT = 0; frames(4); majAction();
+        // 6) en salle : vue immersive aussi, depuis l'entrée (« haut » = vers le fond), bouton affiché ;
+        // le chalutier garde sa caméra (bouton masqué, joystick jamais tourné)
+        const porte = PORTES.find((p) => INTDEFS[p.id] && p.id !== 'tuning' && p.id !== 'chalutier');
+        entrerInterieur(porte.id, porte); ETAT.intT = 0; frames(60); majAction();
         const hs = joy('KeyW');
-        if (Math.abs(hs.x) > 1e-6 || Math.abs(hs.z + 1) > 1e-6) ko.push('dans une salle, le joystick est tourné (' + porte.id + ')');
-        if (getComputedStyle(el('btnVue')).display !== 'none') ko.push('le bouton de vue reste affiché dans une salle');
+        if (VUE.k < 0.9 || Math.abs(hs.x) > 0.05 || Math.abs(hs.z + 1) > 0.05) ko.push('dans une salle, pas de vue immersive depuis l’entrée (' + porte.id + ', k ' + VUE.k.toFixed(2) + ')');
+        if (getComputedStyle(el('btnVue')).display === 'none') ko.push('le bouton de vue est masqué dans une salle');
         sortirInterieur();
+        const pch = PORTES.find((p) => p.id === 'chalutier');
+        if (pch) { entrerInterieur('chalutier', pch); ETAT.intT = 0; frames(4); majAction(); const hc2 = joy('KeyW');
+          if (VUE.k !== 0 || Math.abs(hc2.x) > 1e-6 || Math.abs(hc2.z + 1) > 1e-6 || getComputedStyle(el('btnVue')).display !== 'none') ko.push('le chalutier ne garde pas sa caméra (k ' + VUE.k + ', joystick ' + hc2.x.toFixed(2) + ',' + hc2.z.toFixed(2) + ', bouton ' + getComputedStyle(el('btnVue')).display + ')');
+          sortirInterieur(); }
         // 7) retour à la vue classique : rien n'est tourné
         basculerVue(); frames(80);
         const hc = joy('KeyW');
@@ -9524,7 +9532,7 @@ async function main() {
         return { ko, info };
       });
       if (r.ko.length) fail('Vue immersive : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
-      else ok('Vue immersive : ' + r.info.join(' ; ') + ' ; bouton sauvegardé, joystick relatif à l’écran, salles et vue classique intactes');
+      else ok('Vue immersive : ' + r.info.join(' ; ') + ' ; bouton sauvegardé, joystick relatif à l’écran, salles en vue immersive, chalutier et vue classique intacts');
     }
 
     // -------------------------------------------------------------------
@@ -9636,6 +9644,76 @@ async function main() {
       });
       if (r.ko.length) fail('Retours 2e série : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
       else ok('Retours 2e série : ' + r.info.join(' ; ') + ' ; véhicules à leur hauteur, wingsuit : record et combinaison « Faucon »');
+    }
+
+    // -------------------------------------------------------------------
+    // Vue immersive dans les salles (14 octobre) : chaque salle de INTDEFS
+    // (lue, jamais recopiée), en trois points et quatre orientations : la
+    // caméra reste entre les murs, le joueur est à l'écran ; ce qui pend
+    // entre elle et le joueur est masqué (calques), puis rendu à la sortie.
+    // -------------------------------------------------------------------
+    console.log('\n--- Vue immersive dans les salles : caméra entre les murs, joueur à l’écran, plafond masqué puis rendu ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = []; const vueAvant = META.vue; let n = 0, masques = 0, propres = 0;
+        const frames = (k) => { for (let i = 0; i < k; i++) majCamera(0.05); };
+        const pv = new THREE.Vector3();
+        for (const id of Object.keys(INTDEFS)) {
+          if (INT.actif) sortirInterieur(); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6; META.vue = 'immersive';
+          const porte = PORTES.find((p) => p.id === id) || { x: P.x, z: P.z, nx: 0, nz: 1 }; // la radio n'a pas de porte (on y monte autrement)
+          entrerInterieur(id, porte); const s = INT.actif; if (!s) { ko.push(id + ' : on n’entre pas'); continue; }
+          if (s.tuning) s.menuOuvert = false; ETAT.intT = 0; frames(60);
+          if (!salleImmersive(s)) { if (VUE.k !== 0) ko.push(id + ' garde sa caméra, mais VUE.k = ' + VUE.k.toFixed(2)); continue; }
+          n++; let mal = '';
+          for (const [fx, fz] of [[0, 0.3], [0.3, -0.3], [-0.3, 0]]) for (const yaw of [0, Math.PI / 2, Math.PI, -Math.PI / 2]) {
+            P.x = s.ox + s.D.w * fx; P.z = s.oz + s.D.d * fz; P.y = 0; VUE.yawUser = yaw; frames(40);
+            const c = camera.position; pv.set(P.x, P.y + 1, P.z).project(camera);
+            if (VUE.k < 0.95) mal = 'k ' + VUE.k.toFixed(2);
+            else if (Math.abs(c.x - s.ox) > s.D.w / 2 || Math.abs(c.z - s.oz) > s.D.d / 2) mal = 'caméra hors des murs';
+            else if (Math.abs(pv.x) > 1 || Math.abs(pv.y) > 1 || pv.z > 1) mal = 'joueur hors de l’écran';
+            masques = Math.max(masques, VUE.cache.length);
+            if (mal) break;
+          }
+          if (mal) ko.push(id + ' : ' + mal);
+          sortirInterieur(); frames(2);
+          if (VUE.cache.length || (s.vueHaut || []).some((e) => !e.o.layers.test(camera.layers))) ko.push(id + ' : des objets restent masqués après la sortie');
+          else propres++;
+        }
+        META.vue = 'classique'; frames(60);
+        if (VUE.k !== 0) ko.push('la vue classique n’est pas rétablie après les salles');
+        META.vue = vueAvant;
+        info.push(n + ' salles en vue immersive (le chalutier garde sa caméra)', 'jusqu’à ' + masques + ' objets masqués à la fois', propres + ' salles rendues intactes');
+        if (!masques) ko.push('rien n’est jamais masqué entre la caméra et le joueur');
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Vue immersive dans les salles : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
+      else ok('Vue immersive dans les salles : ' + r.info.join(' ; '));
+    }
+
+    // Lunette du sniper (14 octobre) : maintenir TIR passe dans la lunette (on ne marche plus, le
+    // joystick vise et règle la distance), le laser s'efface, relâcher tire et rend la vue.
+    console.log('\n--- Lunette du sniper : visée immobile, distance réglée, tir au relâcher ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [];
+        if (INT.actif) sortirInterieur(); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6; for (const e of ennemis) e.mort = true;
+        META.armes.sniper.poss = true; P.armeCur = 'sniper'; P.mags.sniper = 5; P.mun.sniper = 20; P.ang = 0; P_SNIPE.dist = 60;
+        const x0 = P.x, z0 = P.z; INPUT.btn.tir = true;
+        for (let i = 0; i < 20; i++) majJoueur(1 / 30, 1 / 30);
+        if (!lunetteSniper()) ko.push('pas de lunette après 0,6 s de visée');
+        INPUT.jx = 0; INPUT.jy = -1; INPUT.mx = 0; INPUT.mz = -1; const a0 = P.ang;
+        for (let i = 0; i < 30; i++) { majJoueur(1 / 30, 1 / 30); majCamera(1 / 30); }
+        if (Math.hypot(P.x - x0, P.z - z0) > 0.05) ko.push('le joueur marche dans la lunette');
+        if (!(P_SNIPE.dist > 70)) ko.push('▲ ne règle pas la distance (' + P_SNIPE.dist.toFixed(0) + ')');
+        INPUT.jx = 1; INPUT.jy = 0; for (let i = 0; i < 15; i++) majJoueur(1 / 30, 1 / 30);
+        if (!(P.ang < a0 - 0.3)) ko.push('▶ ne fait pas pivoter la visée');
+        if (LUNETTE.style.display === 'none' || camera.fov > 30) ko.push('la vue ne passe pas dans la lunette (fov ' + camera.fov.toFixed(0) + ')');
+        INPUT.jx = INPUT.jy = INPUT.mx = INPUT.mz = 0; const m0 = P.mags.sniper; INPUT.btn.tir = false; majJoueur(1 / 30, 1 / 30); majCamera(1 / 30);
+        if (lunetteSniper() || P.mags.sniper !== m0 - 1 || LUNETTE.style.display !== 'none') ko.push('relâcher ne tire pas ou la lunette reste');
+        return { ko };
+      });
+      if (r.ko.length) fail('Lunette du sniper : ' + r.ko.join(' | '));
+      else ok('Lunette du sniper : visée immobile, distance et pivot au joystick, tir au relâcher, vue rendue');
     }
 
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');

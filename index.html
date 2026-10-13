@@ -5180,7 +5180,7 @@ function texBanderole(txt,fond,coul){
    écrire son propre message : il est gardé dans la sauvegarde (META.banderole)
    et repris à chaque partie. */
 const BANDEROLE_PRIX=250, BANDEROLE_MAX=30, BANDEROLE_DEFAUT='PLAGE DE LOS REYES ★ JETÉE OUVERTE';
-const AVION={v:19,s:0,L:0,x0:-160,x1:285,zA:MER-16,zB:MER+14,y:10}; // jamais à l'ouest de -160 : la grande roue de la jetée (x -205) monte à 23 u
+const AVION={v:12.5,s:0,L:0,x0:-160,x1:285,zA:MER-16,zB:MER+14,y:10}; // jamais à l'ouest de -160 : la grande roue de la jetée (x -205) monte à 23 u
 function nettoyerBanderole(txt){
   return String(txt||'').toUpperCase().replace(/[^A-Z0-9ÀÂÄÇÉÈÊËÎÏÔÖÙÛÜŸ ★!?'.,\-&♥]/g,'').replace(/\s+/g,' ').trim().slice(0,BANDEROLE_MAX);
 }
@@ -5237,9 +5237,11 @@ function trajetAvion(s){
   s-=demi; if(s<l) return {x:A.x1-s,z:A.zB,cap:-Math.PI};
   s-=l; const t=s/R; return {x:A.x0-Math.sin(t)*R,z:A.zB-R+Math.cos(t)*R,cap:-Math.PI-t};
 }
+const _vBan=new THREE.Vector3(), _vBan2=new THREE.Vector3(), _vBan3=new THREE.Vector3();
 function majAvionBanderole(dt){
   const a=CIEL.avion; if(!a||!AVION.L) return;
   AVION.s+=AVION.v*dt;
+  if(typeof VUE!=='undefined'&&VUE.k>0.5) AVION.y=lerp(AVION.y,15,dt); else AVION.y=lerp(AVION.y,10,dt); // vue immersive : un peu plus haut, dans le ciel
   const p=trajetAvion(AVION.s), t=(CIEL.av.t+=dt);
   a.position.set(p.x,AVION.y+Math.sin(t*0.7)*0.4,p.z);
   a.rotation.order='YXZ'; a.rotation.y=p.cap;
@@ -5247,7 +5249,14 @@ function majAvionBanderole(dt){
   a.rotation.x=vire?-0.45:Math.sin(t*0.9)*0.05;
   CIEL.helice.rotation.x+=dt*45;
   // vers l'ouest, l'avion est retourné : la banderole tourne dans son plan pour rester lisible
-  const versOuest=Math.cos(p.cap)<0; CIEL.ban.rotation.z=versOuest?Math.PI:0;
+  const versOuest=Math.cos(p.cap)<0;
+  // vue immersive (signalé : « on ne voit pas la banderole ») : la banderole pend VERTICALE comme une vraie,
+  // côté imprimé tourné vers la caméra ; l'avion à l'échelle réelle. Vue de dessus : à plat, comme avant.
+  const kV=typeof VUE!=='undefined'?VUE.k:0;
+  if(kV>0.5){ a.scale.setScalar(1); CIEL.ban.rotation.order='YXZ'; CIEL.ban.rotation.x=0; CIEL.ban.rotation.z=0;
+    a.updateMatrixWorld(true); CIEL.ban.getWorldDirection(_vBan); _vBan2.subVectors(camera.position,CIEL.ban.getWorldPosition(_vBan3));
+    CIEL.ban.rotation.y=_vBan.dot(_vBan2)<0?Math.PI:0; }
+  else { a.scale.setScalar(0.72); CIEL.ban.rotation.order='XYZ'; CIEL.ban.rotation.y=0; CIEL.ban.rotation.x=-Math.PI/2; CIEL.ban.rotation.z=versOuest?Math.PI:0; }
 }
 // ---- le kiosque ----
 function mkKiosqueBanderole(){
@@ -11459,7 +11468,21 @@ const laser=new THREE.Mesh(new THREE.BoxGeometry(0.05,0.05,1),new THREE.MeshBasi
 laser.visible=false; scene.add(laser);
 const viseur=new THREE.Mesh(new THREE.RingGeometry(0.5,0.7,16),new THREE.MeshBasicMaterial({color:0xff5a6a,side:THREE.DoubleSide,transparent:true,opacity:0.85,depthWrite:false}));
 viseur.rotation.x=-Math.PI/2; viseur.visible=false; scene.add(viseur);
-const P_SNIPE={vise:false,dist:60};
+const P_SNIPE={vise:false,dist:60,lunetteT:0};
+function lunetteSniper(){ return P_SNIPE.vise&&(P_SNIPE.lunetteT||0)>0.35&&!P.veh&&ETAT.mode==='jeu'; }
+// l'œil de la lunette : vignette ronde, réticule gradué, distance (DOM, écrit au changement)
+const LUNETTE=document.createElement('div');
+LUNETTE.style.cssText='position:fixed;inset:0;pointer-events:none;z-index:4;display:none;'+
+  'background:radial-gradient(circle at 50% 46%,transparent 0,transparent 36vmin,#000c 37vmin,#000 60vmin)';
+LUNETTE.innerHTML='<div style="position:absolute;left:50%;top:46%;width:72vmin;height:72vmin;transform:translate(-50%,-50%);border-radius:50%;box-shadow:inset 0 0 18px #000">'+
+  '<div style="position:absolute;left:0;right:0;top:50%;height:1px;background:#111"></div><div style="position:absolute;top:0;bottom:0;left:50%;width:1px;background:#111"></div>'+
+  '<div style="position:absolute;left:50%;top:50%;width:10px;height:10px;margin:-5px;border-radius:50%;background:#ff3b4b;box-shadow:0 0 8px #ff3b4b"></div>'+
+  '<div id="lunDist" style="position:absolute;left:50%;top:58%;transform:translateX(-50%);font:900 13px Arial;color:#ff5a6a;text-shadow:0 0 3px #000">60 m</div></div>'+
+  '<div style="position:absolute;left:50%;top:calc(46% + 38vmin);transform:translateX(-50%);white-space:nowrap;font:800 12px Arial;color:#cfe;text-shadow:0 1px 2px #000">◀ ▶ viser · ▲ ▼ distance · relâche pour tirer</div>';
+document.body.appendChild(LUNETTE);
+const LUN_DIST=LUNETTE.querySelector('#lunDist');
+function majLunetteUI(on){ if((LUNETTE.style.display!=='none')!==on) LUNETTE.style.display=on?'block':'none';
+  if(on){ const d=Math.round(P_SNIPE.dist)+' m'; if(LUN_DIST.textContent!==d) LUN_DIST.textContent=d; } }
 function viseAuto(portee){
   let best=null,bs=1e9;
   for(const e of ennemis){
@@ -11738,7 +11761,7 @@ function majJoueur(dt,dtJeu){
     P.dodgeT-=dt;
     vx=P.dodgeVx*(P.dodgeT/0.32); vz=P.dodgeVz*(P.dodgeT/0.32);
     if(Math.random()<0.5) spawnP(P.x,0.5,P.z,0,1,0,0.25,0.5,0x9fd8ff,0);
-  } else if(bouge){
+  } else if(bouge&&!lunetteSniper()){ // dans la lunette, le joystick vise : on ne marche pas
     vx=INPUT.mx*vit; vz=INPUT.mz*vit;
     const dv=deriveIvresse(); if(dv){ const c=Math.cos(dv), sn=Math.sin(dv), mx=vx, mz=vz; vx=mx*c-mz*sn; vz=mx*sn+mz*c; } // ivre : on ne marche plus droit
     if(P.tirT<=0) P.ang=angLerp(P.ang,Math.atan2(INPUT.mx,INPUT.mz),0.35);
@@ -11867,11 +11890,17 @@ function majJoueur(dt,dtJeu){
   const appuie=INPUT.btn.tir||INPUT.btn.tirK;
   if(armeM&&!P.veh){
     if(appuie){
-      P_SNIPE.vise=true;
-      if(Math.hypot(INPUT.mx,INPUT.mz)>0.2) P.ang=angLerp(P.ang,Math.atan2(INPUT.mx,INPUT.mz),0.18);
-      P_SNIPE.dist=clamp(P_SNIPE.dist+(-INPUT.mz)*30*dt,10,armeStats('sniper').portee);
+      if(!P_SNIPE.vise){ P_SNIPE.vise=true; P_SNIPE.lunetteT=0; }
+      P_SNIPE.lunetteT=(P_SNIPE.lunetteT||0)+dt;
+      // lunette (14 octobre, demandé) : après un court instant, la vue passe dans la lunette — ◀ ▶ font
+      // pivoter la visée (relatif à la lunette), ▲ ▼ règlent la distance ; avant, la visée au joystick d'origine
+      if(P_SNIPE.lunetteT>0.35){ const sx=INPUT.jx+((KEYS.KeyD||KEYS.ArrowRight)?1:0)-((KEYS.KeyA||KEYS.KeyQ||KEYS.ArrowLeft)?1:0), sz=INPUT.jy+((KEYS.KeyS||KEYS.ArrowDown)?1:0)-((KEYS.KeyW||KEYS.KeyZ||KEYS.ArrowUp)?1:0);
+        P.ang-=clamp(sx,-1,1)*0.9*dt; P_SNIPE.dist=clamp(P_SNIPE.dist-clamp(sz,-1,1)*28*dt,10,armeStats('sniper').portee); }
+      else { if(Math.hypot(INPUT.mx,INPUT.mz)>0.2) P.ang=angLerp(P.ang,Math.atan2(INPUT.mx,INPUT.mz),0.18);
+        P_SNIPE.dist=clamp(P_SNIPE.dist+(-INPUT.mz)*30*dt,10,armeStats('sniper').portee); }
       P.tirT=0.3;
     } else if(P_SNIPE.vise){
+      if(lunetteSniper()&&vueImmersive()){ VUE.yawUser=P.ang+Math.PI; VUE.yaw=VUE.yawUser; } // sortie de lunette : la vue garde l'axe du tir
       P_SNIPE.vise=false;
       tirSniper();
     }
@@ -11970,7 +11999,7 @@ function majJoueur(dt,dtJeu){
   // viseur manuel du sniper
   if(P_SNIPE.vise){
     const tx=P.x+Math.sin(P.ang)*P_SNIPE.dist, tz=P.z+Math.cos(P.ang)*P_SNIPE.dist;
-    laser.visible=true;
+    laser.visible=!lunetteSniper(); // dans la lunette, le réticule remplace le laser
     laser.position.set((P.x+tx)/2,1.4,(P.z+tz)/2);
     laser.scale.z=P_SNIPE.dist; laser.rotation.y=P.ang;
     viseur.visible=true; viseur.position.set(tx,0.3,tz);
@@ -20536,7 +20565,8 @@ function entrerInterieur(id,porte){
   rayonNettoyerTout();
   const s=construireSalle(id);
   { const nx=porte.nx||0, nz=porte.nz===undefined?1:porte.nz, d=DECOR_V2&&porte.z<=MER-30?clamp(profondeurDevant(porte.x,porte.z,nx,nz)-0.6,1.4,3):3; // devant la porte, dans le sens où elle regarde, jamais sur la chaussée
-    INT.actif=s; INT.rx=porte.x+nx*d; INT.rz=porte.z+nz*d; }
+    INT.actif=s; INT.rx=porte.x+nx*d; INT.rz=porte.z+nz*d; INT.rYaw=Math.atan2(-nx,-nz); }
+  VUE.yawUser=VUE.yaw=0; // vue immersive : depuis l'entrée (au sud), on regarde la salle
   // Tableau de la ville (planque) : marque ce lieu comme visité au moins
   // une fois, quelle que soit l'issue de la visite — jamais réinitialisé,
   // survit au game over (voir META.lieuxVus). Mur de trophées : chaque
@@ -20650,6 +20680,7 @@ function sortirInterieur(){
     for(const e of ennemis) if(e.interieur===sc.id) e.calme=true; }
   scene.fog.near=60;
   P.x=INT.rx; P.z=INT.rz; P.y=solPied(P.x,P.z); P.vy=0; P.chute=false;
+  VUE.yawUser=VUE.yaw=INT.rYaw||0; // vue immersive : dos à la porte, on regarde la rue
   // véhicule acheté / sorti du garage : il apparaît devant la porte
   if(sc.livrer){
     const cle=sc.livrer; sc.livrer=null;
@@ -21542,6 +21573,15 @@ function texBesoin(type){
         c.font='64px Arial'; c.textAlign='center'; c.textBaseline='middle'; c.fillText(ico,64,70); }
       _texBesoins[k]=new THREE.CanvasTexture(cv); } }
   return _texBesoins[type];
+}
+// Serre, en pleine nuit : le pot du milieu de l'étagère est à 3,4 u de la SORTIE et les cercles se
+// chevauchent ; la SORTIE gagnant toutes les chaînes, soigner ce pot pouvait faire quitter la serre
+// (trouvé par le pilote simulé). Un pot en besoin plus proche que la sortie passe donc avant elle.
+function serrePotAvantSortie(s){
+  if(!s.pots||!s.srNuit) return false;
+  const ds=dist2(P.x,P.z,s.sortie.x,s.sortie.z);
+  for(const p of s.pots){ if(p.fanee||!p.besoin) continue; const d=dist2(P.x,P.z,p.x,p.z); if(d<9&&d<ds) return true; }
+  return false;
 }
 function serreVivantes(s){ let n=0; for(const p of s.pots) if(!p.fanee) n++; return n; }
 function serreDemarrer(s){
@@ -27439,7 +27479,7 @@ function majAction(){
   // seulement aux points d'entrée/sortie de la session) pour rester correct
   // quelle que soit la façon dont la session se termine.
   // bouton de vue : seulement en ville (les salles gardent leur caméra ; la pause s'y élargit en QUITTER)
-  const vueVisible=!INT.actif; if(BTN_VUE._vis!==vueVisible){ BTN_VUE._vis=vueVisible; BTN_VUE.style.display=vueVisible?'flex':'none'; majBoutonVue(); }
+  const vueVisible=salleImmersive(INT.actif); if(BTN_VUE._vis!==vueVisible){ BTN_VUE._vis=vueVisible; BTN_VUE.style.display=vueVisible?'flex':'none'; majBoutonVue(); }
   const bp=el('btnPause');
   const etatPause=ARCADE.jeu?'quitter':'pause';
   if(bp._etat!==etatPause){
@@ -27472,7 +27512,7 @@ function majAction(){
       const auVolant=!!s.voiture&&!s.laisser;
       label=auVolant?('🚗 SORTIR EN '+VEHDEFS[s.voitureCle].nom.toUpperCase()):'SORTIR À PIED';
       fn=()=>{ s.sortirEnVoiture=auVolant; sortirInterieur(); };
-    } else if(dist2(P.x,P.z,s.sortie.x,s.sortie.z)<marquerZone(s.sortie,9)&&(ETAT.intT||0)<=0){
+    } else if(dist2(P.x,P.z,s.sortie.x,s.sortie.z)<marquerZone(s.sortie,9)&&(ETAT.intT||0)<=0&&!serrePotAvantSortie(s)){
       label='SORTIR';
       fn=()=>{ if(s.casseEtat==='actif') finirCasseMusee(s,true); if(s.piles) metroEncaisser(s);
         if(s.site51) site51ConclureVisite(s,true); sortirInterieur(); };
@@ -28443,7 +28483,7 @@ function jourNuit(dt){
     hemi.intensity=salle==='C'?0.22:(salle==='B'?0.42:0.65);
     scene.background.copy(CINT);
     scene.fog.color.copy(CINT);
-    scene.fog.near=120; scene.fog.far=900;
+    scene.fog.near=lerp(120,45,VUE.k); scene.fog.far=lerp(900,170,VUE.k); // vue immersive : le couloir se perd dans le noir
     lampeNuit.intensity=salle==='C'?1.6:0.7;
     lampeNuit.distance=salle==='C'?26:42;
     lampeNuit.position.set(P.x,7,P.z);
@@ -28521,7 +28561,7 @@ function jourNuit(dt){
     soleil.intensity=0.75; hemi.intensity=0.95;
     scene.background.copy(CINT);
     scene.fog.color.copy(CINT);
-    scene.fog.near=120; scene.fog.far=900;
+    scene.fog.near=lerp(120,40,VUE.k); scene.fog.far=lerp(900,150,VUE.k); // vue immersive : jamais les autres salles (400 u plus loin)
     lampeNuit.intensity=0.55; lampeNuit.distance=42; lampeNuit.position.set(P.x,7,P.z);
     return;
   }
@@ -28600,15 +28640,20 @@ let camH=42,camD=19;
 /* =====================================================================
    VUE IMMERSIVE (13 octobre, demandée : « jouer avec la vue du chalutier,
    et pouvoir permuter vers la vue actuelle à côté du bouton pause »).
-   En ville seulement (les salles gardent leur caméra) :
+   En ville ET dans les salles (14 octobre, demandé : « la vue immersive dans
+   l'intégralité des salles ») ; seuls le chalutier (sa caméra de poursuite
+   vers le large) et le menu du garage gardent leur caméra (salleImmersive).
    - À PIED : caméra inclinée vers l'horizon, derrière et au-dessus du
      joueur ; elle NE tourne PAS toute seule (combat lisible) ; on l'oriente
      en glissant le doigt sur une zone libre de l'écran, un double-tap la
      replace derrière le joueur.
    - EN VÉHICULE : poursuite automatique (la caméra suit le cap du véhicule).
    - Le joystick suit l'ÉCRAN : litEntrees tourne le vecteur selon l'angle
-     de la caméra réellement affichée (VUE.yawRendu ; 0 dans les salles et
-     en vue classique : rien ne change pour elles).
+     de la caméra réellement affichée (VUE.yawRendu ; 0 en vue classique).
+   - En salle (VUE.SALLE) : plus près, plus plongeant, la caméra reste DANS
+     la salle (bornée à ses murs, elle monte d'autant) : les murs de 4,4 u
+     ne la cachent jamais ; brouillard resserré (on ne voit pas les autres
+     salles, 400 u plus loin) ; pas de dôme de ciel.
    - Un immeuble entre la caméra et le joueur : la caméra se relève
      (vueDegagement, sur les vrais solides) — les bâtiments sont fusionnés,
      on ne peut pas les rendre transparents un par un.
@@ -28616,13 +28661,17 @@ let camH=42,camD=19;
      lointain (on voit la mer, la montagne, l'aéroport).
    Choix gardé dans la sauvegarde (META.vue), bouton #btnVue.
 ===================================================================== */
-const VUE={k:0,kVeh:0,yaw:0,yawUser:0,yawRendu:0,hBonus:0,drag:null,tapT:0,ciel:null,cielU:null,
+const VUE={cache:[],cacheSalle:null,k:0,kVeh:0,yaw:0,yawUser:0,yawRendu:0,hBonus:0,drag:null,tapT:0,ciel:null,cielU:null,
   // cadrage : le joueur vers le milieu de l'écran (~54 %), au-dessus des boutons (signalé : « les boutons sont sur le joueur »)
-  PIED:{H:9,D:19,devant:2.5}, VEH:{H:9,D:17,devant:4}};
+  // en véhicule (signalé : « on dirait que les véhicules n'avancent pas vite ») : caméra plus
+  // basse et plus proche (le sol défile), champ qui s'ouvre fort avec la vitesse, traits de vitesse
+  PIED:{H:9,D:19,devant:2.5}, VEH:{H:5.2,D:10.5,devant:6}, SALLE:{H:8,D:10,devant:1.5}};
 const VUE_SENS_DOIGT=0.0085;   // rad par pixel de glissement
 function vueImmersive(){ return META.vue==='immersive'; }
+// les salles qui gardent leur propre caméra : le chalutier (poursuite vers le large), le menu du garage
+function salleImmersive(s){ return !s||(!s.barre&&!(s.tuning&&s.menuOuvert)); }
 // l'angle de l'écran pour le joystick : celui de la caméra AFFICHÉE
-function vueAngleEcran(){ return INT.actif?0:VUE.yawRendu; }
+function vueAngleEcran(){ return VUE.yawRendu; }
 // hauteur de caméra nécessaire pour voir le joueur par-dessus les solides
 function vueDegagement(px,py,pz,cx,cy,cz){
   let req=cy;
@@ -28640,9 +28689,33 @@ function vueCiel(){
   m.renderOrder=-2; m.frustumCulled=false; scene.add(m);
   VUE.ciel=m; VUE.cielU=U; return m;
 }
+// En salle, ce qui pend au-dessus des têtes (luminaires, poutres : bas du mesh à plus de VUE_HAUT_Y)
+// et les enseignes de la salle (ajoutées à la scène, dans ENSEIGNES), quand ils sont dans le couloir
+// entre la caméra et le joueur, se masquent : sous la caméra basse, ils le cachaient (« TUNNEL »,
+// « QUAI », luminaires). Masqués par le calque de rendu (layers), jamais par .visible, que le jeu pilote.
+const VUE_HAUT_Y=2.8, _vueBox=new THREE.Box3(), _vueC=new THREE.Vector3();
+function vueSalleHaut(sal){
+  if(sal.vueHaut) return sal.vueHaut;
+  const l=[], note=(o,devant)=>{ _vueBox.setFromObject(o); _vueBox.getCenter(_vueC); l.push({o,x:_vueC.x,z:_vueC.z,devant,r:Math.max(_vueBox.max.x-_vueBox.min.x,_vueBox.max.z-_vueBox.min.z)/2}); };
+  sal.g.updateMatrixWorld(true);
+  sal.g.traverse(o=>{ if(!(o.isMesh||o.isSprite)) return; _vueBox.setFromObject(o); if(_vueBox.isEmpty()||_vueBox.min.y<VUE_HAUT_Y) return; note(o,2.5); });
+  const mW=sal.D.w/2+2, mP=sal.D.d/2+2;
+  for(const e of ENSEIGNES){ const p=e.p; if(p&&p.parent&&Math.abs(p.position.x-sal.ox)<mW&&Math.abs(p.position.z-sal.oz)<mP) note(p,12); } // une enseigne de salle (« TUNNEL ») bouche la vue de près : visible au loin seulement
+  return (sal.vueHaut=l);
+}
+function vueRendreHaut(){ for(const e of VUE.cache) e.o.layers.enable(0); VUE.cache.length=0; VUE.cacheSalle=null; }
+function vueMasquerHaut(sal,fx,fz){
+  if(VUE.cacheSalle!==sal) vueRendreHaut();
+  VUE.cacheSalle=sal;
+  for(const e of vueSalleHaut(sal)){ const dx=e.x-P.x, dz=e.z-P.z, cache=dx*fx+dz*fz<e.devant&&Math.abs(dx*fz-dz*fx)<e.r+2.2; // dans le couloir caméra → joueur
+    if(cache===!!e.cache) continue; e.cache=cache;
+    if(cache){ e.o.layers.disable(0); VUE.cache.push(e); } else { e.o.layers.enable(0); const i=VUE.cache.indexOf(e); if(i>=0) VUE.cache.splice(i,1); } }
+}
 // appelée par majCamera APRÈS la vue classique (fondu par VUE.k) ; renvoie le bonus de champ
 function vueCamera(dt,sx,sz){
-  const cible=vueImmersive()&&!INT.actif?1:0;
+  if(VUE.cacheSalle&&(VUE.cacheSalle!==INT.actif||VUE.k<0.3||!vueImmersive())){ for(const e of VUE.cache) e.cache=false; vueRendreHaut(); }
+  const sal=INT.actif, cible=vueImmersive()&&salleImmersive(sal)?1:0;
+  if(sal&&!cible) VUE.k=0; // chalutier, menu du garage : leur caméra, tout de suite
   VUE.k=lerp(VUE.k,cible,clamp(dt*2.4,0,1));
   if(VUE.k<0.002){ VUE.k=0; VUE.yawRendu=0; if(VUE.ciel&&VUE.ciel.visible) VUE.ciel.visible=false; return 0; }
   const v=P.veh, air=!!(v&&v.def.air), glisse=typeof TOW!=='undefined'&&TOW.actif&&TOW.actif.id==='wake'&&TOW.cap!==undefined;
@@ -28650,12 +28723,16 @@ function vueCamera(dt,sx,sz){
   if(v){ VUE.yaw=angLerp(VUE.yaw,(v.ang||0)+Math.PI,clamp(dt*(air?1.5:2.4),0,1)); VUE.yawUser=VUE.yaw; }
   else if(glisse){ VUE.yaw=angLerp(VUE.yaw,TOW.cap+Math.PI,clamp(dt*2,0,1)); VUE.yawUser=VUE.yaw; } // wakeboard : derrière la planche, le bateau devant
   else VUE.yaw=angLerp(VUE.yaw,VUE.yawUser,clamp(dt*12,0,1));
-  const kv=VUE.kVeh, vit=v?Math.abs(v.v||0):0, lg=v?(v.def.long||4):0;
-  const H=lerp(VUE.PIED.H,VUE.VEH.H+lg*0.55+(air?4:0),kv), D=lerp(VUE.PIED.D,VUE.VEH.D+lg*1.1+Math.min(vit,40)*0.22,kv), devant=lerp(VUE.PIED.devant,VUE.VEH.devant+Math.min(vit,40)*0.3,kv);
+  const kv=VUE.kVeh, vit=v?Math.abs(v.v||0):0, lg=v?(v.def.long||4):0, ks=sal&&!sal.depot?1:0; // en salle (le Dépôt, hangar immense, garde la vue de ville)
+  const H=lerp(lerp(VUE.PIED.H,VUE.SALLE.H,ks),VUE.VEH.H+lg*0.42+(air?4:0)+(v&&v.def.eau?1.5:0),kv), D=lerp(lerp(VUE.PIED.D,VUE.SALLE.D,ks),VUE.VEH.D+lg*0.95+Math.min(vit,40)*0.1,kv), devant=lerp(lerp(VUE.PIED.devant,VUE.SALLE.devant,ks),VUE.VEH.devant+Math.min(vit,40)*0.25,kv);
   const hSol=v?(air?(v.alt||0):(v.h||0)):P.y;
   const fx=-Math.sin(VUE.yaw), fz=-Math.cos(VUE.yaw);
-  const cx=P.x-fx*D+sx, cz=P.z-fz*D+sz;
+  let cx=P.x-fx*D+sx, cz=P.z-fz*D+sz;
   let cy=hSol+H;
+  if(sal){ // en salle : la caméra reste entre les murs, et monte de ce qu'elle perd en recul
+    const mW=sal.D.w/2-0.9, mP=sal.D.d/2-0.9, bx=clamp(cx,sal.ox-mW,sal.ox+mW), bz=clamp(cz,sal.oz-mP,sal.oz+mP);
+    cy+=Math.hypot(cx-bx,cz-bz)*0.6; cx=bx; cz=bz;
+    if(VUE.k>0.3) vueMasquerHaut(sal,fx,fz); }
   // un immeuble entre la caméra et le joueur : la caméra se relève (vite), puis redescend (doucement)
   const req=vueDegagement(P.x,hSol+1.5,P.z,cx,cy,cz)-cy;
   VUE.hBonus=lerp(VUE.hBonus,Math.min(Math.max(0,req),45),clamp(dt*(req>VUE.hBonus?7:1.4),0,1));
@@ -28670,11 +28747,15 @@ function vueCamera(dt,sx,sz){
   // l'angle réellement affiché (pour le joystick)
   camera.getWorldDirection(cd); VUE.yawRendu=Math.hypot(cd.x,cd.z)>1e-3?Math.atan2(-cd.x,-cd.z):0;
   // le ciel : suit la caméra, couleurs du jour (horizon = fond de scène)
-  const ciel=vueCiel(); ciel.visible=true; ciel.position.copy(camera.position);
+  const ciel=vueCiel(); ciel.visible=!sal; ciel.position.copy(camera.position); // en salle : pas de ciel
   const U=VUE.cielU; U.uT.value+=dt;
   if(scene.background&&scene.background.isColor){ U.uCiel.value.copy(scene.background); U.uZenith.value.copy(scene.background).multiplyScalar(0.55).lerp(VUE_ZENITH,0.35); }
   U.uSoleil.value.copy(soleil.position).normalize(); U.uTempete.value=typeof METEO!=='undefined'?clamp(METEO.inten||0,0,1)*0.8:0;
-  return k*(2+(v?Math.min(vit,40)*0.12:0));
+  // traits de vitesse : particules filantes autour de la caméra au-delà de 18 u/s (au sol)
+  if(v&&!air&&!v.def.eau&&vit>18&&Math.random()<(vit-18)*0.08){ const a=rand(0,6.28), r=rand(2.5,5);
+    spawnP(camera.position.x+Math.sin(VUE.yaw+Math.PI)*-8+Math.cos(a)*r,camera.position.y-1.5+Math.sin(a)*r*0.5,camera.position.z+Math.cos(VUE.yaw+Math.PI)*-8,
+      Math.sin(VUE.yaw)*vit*1.6,0,Math.cos(VUE.yaw)*vit*1.6,0.18,0.14,0xffffff,0,0); }
+  return k*(2+(v?Math.min(vit,45)*0.32:0)); // champ qui s'ouvre avec la vitesse (jusqu'à +16°)
 }
 const VUE_ZENITH=new THREE.Color(0x2a5ab0);
 // bascule de vue (bouton #btnVue, à côté de la pause)
@@ -28687,7 +28768,7 @@ function basculerVue(){
 function majBoutonVue(){ const b=el('btnVue'); if(!b) return; b.classList.toggle('on',vueImmersive()); const t=el('btnVueTxt'); if(t) t.textContent=vueImmersive()?'3D':'2D'; }
 // au doigt : glisser sur une zone libre fait tourner la vue (à pied), double-tap = derrière le joueur
 renderer.domElement.addEventListener('pointerdown',e=>{
-  if(INT.actif||!vueImmersive()||ETAT.mode!=='jeu') return;
+  if(!salleImmersive(INT.actif)||!vueImmersive()||ETAT.mode!=='jeu') return;
   const t=performance.now();
   if(t-VUE.tapT<300&&!P.veh){ VUE.yawUser=(P.ang||0)+Math.PI; VUE.tapT=0; return; }
   VUE.tapT=t; if(P.veh) return;
@@ -28695,7 +28776,7 @@ renderer.domElement.addEventListener('pointerdown',e=>{
 });
 window.addEventListener('pointermove',e=>{
   if(!VUE.drag||e.pointerId!==VUE.drag.id) return;
-  if(INT.actif||P.veh){ VUE.drag=null; return; }
+  if(!salleImmersive(INT.actif)||P.veh){ VUE.drag=null; return; }
   const dx=e.clientX-VUE.drag.x; VUE.drag.x=e.clientX;
   VUE.yawUser-=dx*VUE_SENS_DOIGT; if(Math.abs(dx)>4) VUE.tapT=0;
 });
@@ -28758,8 +28839,12 @@ function majCamera(dt){
   const hSol=P.veh&&P.veh.def.air?hSol0:hSol0+Math.max(0,hSol0-20)/3; // au-dessus de 20 u (sommets), la caméra suit vraiment la hauteur : plus de vue collée au joueur
   camera.position.set(P.x+sx,camH+hSol*0.75+chuteF*6,P.z+camD+sz+chuteF*14);
   camera.lookAt(P.x+sx,hSol*0.75+chuteAngF*6,P.z-2+sz-(enMer?5:0));
-  let fovPlus=INT.actif?0:vueCamera(dt,sx,sz); // vue immersive en ville (VUE)
-  if(INT.actif) VUE.yawRendu=0;
+  let fovPlus=vueCamera(dt,sx,sz); // vue immersive en ville et dans les salles (VUE)
+  // lunette du sniper : la caméra passe derrière l'épaule et vise le point du laser, champ très serré
+  if(lunetteSniper()){ const a=P.ang, tx=P.x+Math.sin(a)*P_SNIPE.dist, tz=P.z+Math.cos(a)*P_SNIPE.dist;
+    camera.position.set(P.x-Math.sin(a)*1.2+Math.cos(a)*0.5,P.y+2.6,P.z-Math.cos(a)*1.2-Math.sin(a)*0.5); camera.lookAt(tx,1.2,tz);
+    camera.fov=lerp(camera.fov,clamp(900/P_SNIPE.dist,9,28),0.25); camera.updateProjectionMatrix(); majLunetteUI(true); return; }
+  majLunetteUI(false);
   if(INT.actif&&INT.actif.leds&&INT.actif.console) cadrageSalle(INT.actif,dt,!!INT.actif.emissionOn,INT.actif.console.x,0.5,INT.actif.console.z-3.5,16,12); // radio V3 : on se penche sur la console
   if(INT.actif&&INT.actif.mach7) cadrageSalle(INT.actif,dt,!!INT.actif.cycleOn,INT.actif.mach7X,1.2,INT.actif.mach7Z-1.8,13,10.5); // laverie V3 : on se penche sur la machine 7
   if(INT.actif&&INT.actif.barre){ fovPlus=chalutierCamera(INT.actif,dt,sx,sz); // chalutier en mer : caméra de poursuite (V3)

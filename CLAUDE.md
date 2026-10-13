@@ -55,7 +55,7 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
   echo "$ln | $(sed -n "$((ln+1))p" index.html | sed 's/^[ \t]*//')"; done
 ```
 
-**Relevé au relevé — 29 043 lignes.**
+**Relevé au relevé — 29 128 lignes.**
 Attention : `maj_carte` recale les numéros dans l'ordre des lignes de la table ;
 un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la main.
 
@@ -72,36 +72,36 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 1818 | MÉTA-PROGRESSION — `META`, défis, sauvegarde |
 | 2573 | THREE.JS — rendu, scène, lumières |
 | 2884 | VILLE DE LOS REYES — génération procédurale par quartiers |
-| 9367 | MODÈLES — humains, armes, véhicules, hélico, ramassables |
-| 10897 | POOLS — balles, particules, textes flottants, traces de pneus |
-| 11257 | ÉTAT GLOBAL + JOUEUR (`P`) |
-| 12080 | VÉHICULES — physique arcade, trafic, dégâts |
-| 14592 | PIÉTONS |
-| 14744 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
-| 15298 | **RAYON TRACTEUR DE L'OVNI** |
-| 15694 | NIVEAU DE RECHERCHE (étoiles) |
-| 15973 | VAGUES + bonus de fin de vague |
-| 16095 | MISSIONS COURTES |
-| 16098 | BÂTIMENTS VISITABLES — intérieurs |
-| 16168 | FOUILLE — mécanique générique |
-| 16716 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
-| 20831 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
-| 21239 | **LAVERIE** V2 — l'essorage de la machine 7 |
-| 21504 | **SERRE** V2 — la nuit de la floraison |
-| 21787 | CINÉ-PALACE |
-| 22031 | MÉTRO ABANDONNÉ |
-| 22097 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
-| 22448 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
-| 23350 | SITE 51 |
-| 23580 | LE DÉPÔT DE BUS — courses clandestines |
-| 24608 | **MÉTIERS** — missions liées à un véhicule |
-| 24898 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
-| 25893 | ÉCRANS / MENUS / BOUTIQUES |
-| 26161 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
-| 26960 | DÉBUT / FIN DE PARTIE |
-| 28364 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
-| 28600 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
-| 28921 | BOUCLE PRINCIPALE |
+| 9376 | MODÈLES — humains, armes, véhicules, hélico, ramassables |
+| 10906 | POOLS — balles, particules, textes flottants, traces de pneus |
+| 11266 | ÉTAT GLOBAL + JOUEUR (`P`) |
+| 12109 | VÉHICULES — physique arcade, trafic, dégâts |
+| 14621 | PIÉTONS |
+| 14773 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
+| 15327 | **RAYON TRACTEUR DE L'OVNI** |
+| 15723 | NIVEAU DE RECHERCHE (étoiles) |
+| 16002 | VAGUES + bonus de fin de vague |
+| 16124 | MISSIONS COURTES |
+| 16127 | BÂTIMENTS VISITABLES — intérieurs |
+| 16197 | FOUILLE — mécanique générique |
+| 16745 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
+| 20862 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
+| 21270 | **LAVERIE** V2 — l'essorage de la machine 7 |
+| 21535 | **SERRE** V2 — la nuit de la floraison |
+| 21827 | CINÉ-PALACE |
+| 22071 | MÉTRO ABANDONNÉ |
+| 22137 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
+| 22488 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
+| 23390 | SITE 51 |
+| 23620 | LE DÉPÔT DE BUS — courses clandestines |
+| 24648 | **MÉTIERS** — missions liées à un véhicule |
+| 24938 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
+| 25933 | ÉCRANS / MENUS / BOUTIQUES |
+| 26201 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
+| 27000 | DÉBUT / FIN DE PARTIE |
+| 28404 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
+| 28640 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
+| 29006 | BOUCLE PRINCIPALE |
 
 ### Ancres fines (hors bandeaux)
 
@@ -128,41 +128,41 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 4853 | `PORT` — port vivant : `mkPortVivant()`, `majPortVivant()` |
 | 4952 | `BROOK` — Brooklyn : `texFresque()`, `mkBrooklyn()`, `majBrooklyn()` |
 | 5168 | `CIEL` — dirigeable, avion à banderole, mouettes, feux d'artifice : `mkCiel()`, `majCiel()` |
-| 5368 | `CRIQUE` — crique des plongeurs : `dansCrique()`, `mkCrique()`, `plongeonJoueur()` |
-| 5584 | `NEON` — quartier néon : `BATIMENTS`, `reserverNeon()`, `mkNeonVivant()` |
-| 5652 | `VILLA_PISC` — finitions de quartier : `mkQuartiersFinitions()` |
-| 5732 | `MONT` — Mont Reyes, puis `CANYON` (canyons) et `RIDES` (courses) |
+| 5377 | `CRIQUE` — crique des plongeurs : `dansCrique()`, `mkCrique()`, `plongeonJoueur()` |
+| 5593 | `NEON` — quartier néon : `BATIMENTS`, `reserverNeon()`, `mkNeonVivant()` |
+| 5661 | `VILLA_PISC` — finitions de quartier : `mkQuartiersFinitions()` |
+| 5741 | `MONT` — Mont Reyes, puis `CANYON` (canyons) et `RIDES` (courses) |
 | 4259 | `SOLS` — dalles de sol enregistrées, puis `mkTransitionsSols()` (jonctions entre sols) |
-| 7016 | `mkLacParc()` — lac du parc, passerelle, barques |
-| 7145 | `mkLumieresQuartiers()` — Times Square, quartier chinois, Brooklyn |
-| 7231 | `mkEnceinte()` — murs, enseigne, jetées de rochers |
-| 7754 | `GALION` — galion échoué : `sansAleaVille()`, `coqueGalion()`, `mkGalion()`, `majGalion()` |
-| 8568 | `mkPorteGarage()` — porte roulante des garages |
-| 8638 | `placeLibrePorte()` |
-| 8697 | helper `poser()` — placement des lieux |
-| 8723 | `caseCentre(bx,bz)` |
-| 8816 | `REPLIS` — filet de sécurité en spirale |
-| 10788 | `makeVelo()` — vélo de ville et BMX |
-| 8485 | `ENSEIGNES` — portes mieux placées : `ameliorerPortes()`, `profondeurDevant()`, `orienterPorte()` |
-| 11265 | `const P` — état du joueur |
-| 11303 | `P.stamMax = 100 + 12*mus` |
-| 12392 | `resoudreCollisionsVehicule()` — collisions entre véhicules (SAT sur les 4 axes) |
-| 13010 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
-| 13134 | `boutonsAPied()` — boutons du HUD remis « à pied » (sortie de véhicule ET début de partie) |
-| 14047 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
-| 14176 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
-| 16104 | `IOFF = -9000` |
-| 17793 | `INTDEFS` — définitions des **27 salles** |
-| 17973 | `construireSalle(id)` |
+| 7025 | `mkLacParc()` — lac du parc, passerelle, barques |
+| 7154 | `mkLumieresQuartiers()` — Times Square, quartier chinois, Brooklyn |
+| 7240 | `mkEnceinte()` — murs, enseigne, jetées de rochers |
+| 7763 | `GALION` — galion échoué : `sansAleaVille()`, `coqueGalion()`, `mkGalion()`, `majGalion()` |
+| 8577 | `mkPorteGarage()` — porte roulante des garages |
+| 8647 | `placeLibrePorte()` |
+| 8706 | helper `poser()` — placement des lieux |
+| 8732 | `caseCentre(bx,bz)` |
+| 8825 | `REPLIS` — filet de sécurité en spirale |
+| 10797 | `makeVelo()` — vélo de ville et BMX |
+| 8494 | `ENSEIGNES` — portes mieux placées : `ameliorerPortes()`, `profondeurDevant()`, `orienterPorte()` |
+| 11274 | `const P` — état du joueur |
+| 11312 | `P.stamMax = 100 + 12*mus` |
+| 12421 | `resoudreCollisionsVehicule()` — collisions entre véhicules (SAT sur les 4 axes) |
+| 13039 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
+| 13163 | `boutonsAPied()` — boutons du HUD remis « à pied » (sortie de véhicule ET début de partie) |
+| 14076 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
+| 14205 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
+| 16133 | `IOFF = -9000` |
+| 17822 | `INTDEFS` — définitions des **27 salles** |
+| 18002 | `construireSalle(id)` |
 | 20390 | `CHALUTIER_BANCS_PLAN` — chalutier V2 ; `chalutierMaj` (20761), `dessinerRadarChalutier` (21018) |
-| 24617 | `METIERS_CIBLE` |
-| 24916 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
-| 25004 | `PIECES_FAMILLES` — catalogues de pièces par famille |
-| 25305 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
-| 25359 | `libererObjet()` — libère les géométries d'un objet retiré |
-| 25375 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
-| 25497 | `construireGarageTuning()` — la salle partagée |
-| 25867 | `majNitro()` |
+| 24657 | `METIERS_CIBLE` |
+| 24956 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
+| 25044 | `PIECES_FAMILLES` — catalogues de pièces par famille |
+| 25345 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
+| 25399 | `libererObjet()` — libère les géométries d'un objet retiré |
+| 25415 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
+| 25537 | `construireGarageTuning()` — la salle partagée |
+| 25907 | `majNitro()` |
 
 ---
 
@@ -741,6 +741,37 @@ leur caméra, le bouton y est masqué) :
 - **Test de la serre rendu déterministe** : le pilote simulé tenait 2 à 5
   nuits sur 6 selon l'état de `Math.random` laissé par le temps réel ; les
   nuits sont tirées sur une graine propre posée APRÈS `startRun`.
+
+## Vue immersive partout (14 octobre 2026, 3e série)
+
+- **Dans les salles** (`salleImmersive`, `VUE.SALLE`) : toutes les salles
+  sauf le chalutier (sa caméra de poursuite) et le menu du garage. Caméra
+  plus proche et plus plongeante, **bornée aux murs** de la salle (elle monte
+  de ce qu'elle perd en recul) ; brouillard resserré (jamais les autres
+  salles, 400 u plus loin) ; pas de dôme de ciel. Entrée : on regarde le
+  fond de la salle ; sortie : dos à la porte (`INT.rYaw`). Le bouton 3D/2D
+  reste affiché en salle. `vueAngleEcran()` renvoie toujours `VUE.yawRendu`
+  (0 en vue classique).
+- **Plafond masqué** (`vueSalleHaut`, `vueMasquerHaut`, `vueRendreHaut`) :
+  ce qui pend au-dessus des têtes (bas du mesh > `VUE_HAUT_Y`) et les
+  enseignes de la salle (dans `ENSEIGNES`, ajoutées à la scène), quand ils
+  sont dans le couloir caméra → joueur, sont masqués **par calque**
+  (`layers.disable(0)`), jamais par `.visible` que le jeu pilote ; tout est
+  rendu à la sortie de la salle ou de la vue immersive.
+- **Véhicules** : caméra plus basse et plus proche (`VUE.VEH`), champ qui
+  s'ouvre avec la vitesse (+16°), traits de vitesse au-delà de 18 u/s.
+- **Avion à banderole** : plus lent (`AVION.v` 12,5), plus haut en vue
+  immersive, banderole qui pend verticale face à la caméra.
+- **Lunette du sniper** (`lunetteSniper`, `LUNETTE`, `majLunetteUI`) : après
+  0,35 s de visée, la caméra passe derrière l'épaule, champ serré selon la
+  distance ; ◀ ▶ pivotent la visée, ▲ ▼ règlent la distance, on ne marche
+  plus ; le laser s'efface ; au relâcher, tir et la vue garde l'axe du tir.
+- **Serre** (`serrePotAvantSortie`) : le pot du milieu de l'étagère est à
+  3,4 u de la SORTIE ; en pleine nuit, un pot en besoin plus proche que la
+  sortie passe avant elle (sinon soigner ce pot faisait quitter la serre —
+  trouvé par le pilote simulé). Le pilote lit le bouton avant d'appuyer.
+- Tests : « Vue immersive dans les salles » (toutes les salles de
+  `INTDEFS`, 3 points × 4 orientations), « Lunette du sniper ».
 
 ## Retours de la vue immersive (14 octobre 2026)
 
