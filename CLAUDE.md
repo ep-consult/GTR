@@ -55,7 +55,7 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
   echo "$ln | $(sed -n "$((ln+1))p" index.html | sed 's/^[ \t]*//')"; done
 ```
 
-**Relevé au serre V3 — 28 026 lignes.**
+**Relevé au radio V3 — 28 139 lignes.**
 Attention : `maj_carte` recale les numéros dans l'ordre des lignes de la table ;
 un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la main.
 
@@ -85,22 +85,22 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 15413 | BÂTIMENTS VISITABLES — intérieurs |
 | 15483 | FOUILLE — mécanique générique |
 | 16031 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
-| 20159 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
-| 20567 | **LAVERIE** V2 — l'essorage de la machine 7 |
-| 20832 | **SERRE** V2 — la nuit de la floraison |
-| 21115 | CINÉ-PALACE |
-| 21255 | MÉTRO ABANDONNÉ |
-| 21321 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
-| 21561 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
-| 22463 | SITE 51 |
-| 22693 | LE DÉPÔT DE BUS — courses clandestines |
-| 23720 | **MÉTIERS** — missions liées à un véhicule |
-| 24010 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
-| 25005 | ÉCRANS / MENUS / BOUTIQUES |
-| 25273 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
-| 26070 | DÉBUT / FIN DE PARTIE |
-| 27462 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
-| 27904 | BOUCLE PRINCIPALE |
+| 20151 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
+| 20559 | **LAVERIE** V2 — l'essorage de la machine 7 |
+| 20824 | **SERRE** V2 — la nuit de la floraison |
+| 21107 | CINÉ-PALACE |
+| 21247 | MÉTRO ABANDONNÉ |
+| 21313 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
+| 21664 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
+| 22566 | SITE 51 |
+| 22796 | LE DÉPÔT DE BUS — courses clandestines |
+| 23823 | **MÉTIERS** — missions liées à un véhicule |
+| 24113 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
+| 25108 | ÉCRANS / MENUS / BOUTIQUES |
+| 25376 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
+| 26173 | DÉBUT / FIN DE PARTIE |
+| 27565 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
+| 28017 | BOUCLE PRINCIPALE |
 
 ### Ancres fines (hors bandeaux)
 
@@ -154,14 +154,14 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 17108 | `INTDEFS` — définitions des **27 salles** |
 | 17288 | `construireSalle(id)` |
 | 20390 | `CHALUTIER_BANCS_PLAN` — chalutier V2 ; `chalutierMaj` (20761), `dessinerRadarChalutier` (21018) |
-| 23729 | `METIERS_CIBLE` |
-| 24028 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
-| 24116 | `PIECES_FAMILLES` — catalogues de pièces par famille |
-| 24417 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
-| 24471 | `libererObjet()` — libère les géométries d'un objet retiré |
-| 24487 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
-| 24609 | `construireGarageTuning()` — la salle partagée |
-| 24979 | `majNitro()` |
+| 23832 | `METIERS_CIBLE` |
+| 24131 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
+| 24219 | `PIECES_FAMILLES` — catalogues de pièces par famille |
+| 24520 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
+| 24574 | `libererObjet()` — libère les géométries d'un objet retiré |
+| 24590 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
+| 24712 | `construireGarageTuning()` — la salle partagée |
+| 25082 | `majNitro()` |
 
 ---
 
@@ -857,6 +857,14 @@ puis refonte en profondeur de la pire à la meilleure, une salle par commit.
   70 % de triangulation (`s.gyros`).
 - Test « Radio V2 » : auditeurs, brouilleur (×1,7 sur la triangulation), pilote
   au doigt avec 0,25 s de retard (3 segments), passif localisé.
+- **V3 visuelle** (`radioDecorV3`) : studio pirate sur un toit, la nuit —
+  toit goudronné et flaques (`RAD_TOIT_FS`), parapet, antenne à feux rouges,
+  parabole, enseigne néon « REYES FM 107.7 », toits voisins, la ville en
+  contrebas (`RAD_VILLE_FS` : rues, fenêtres, voitures). La police se montre
+  avec la triangulation : hélicoptère au projecteur orienté (`radHeli`,
+  > 45 %), gyrophares (> 70 %). Studio : mousse acoustique, tapis, platine
+  qui tourne, ON AIR en néon (`texNeon`). Étiquettes retirées ; pendant
+  l'émission, `cadrageSalle` sur la console.
 
 ### Ciné-Palace V2 — la séance du siècle (section `CINÉ-PALACE`, bloc `Ciné-Palace V2 … l'écran`)
 

@@ -19026,11 +19026,8 @@ function construireSalle(id){
      planté devant la console, aiguille pilotée au doigt (radioZone), pas
      de déplacement dans la salle contrairement au Ciné-Palace. */
   else if(id==='radio'){
-    // sol béton, dalles ternes
-    for(let i=-5;i<5;i++) for(let j=-6;j<6;j++){
-      const t=new THREE.Mesh(new THREE.PlaneGeometry(2.3,2.3),mat((i+j)%2?0x2e2836:0x282230));
-      t.rotation.x=-Math.PI/2; t.position.set(ox+i*2.4+1.2,0.11,oz+j*2.4+1.2); g.add(t);
-    }
+    // V3 : studio pirate sur un toit, la nuit, au-dessus de la ville (voir radioDecorV3)
+    radioDecorV3(inter,g,ox,oz,W,P2,sol,dehors);
     // néons rouges muraux
     for(const [nx,nz] of [[-10,-11],[10,-11],[-10,9],[10,9]]) box(0.3,0.5,2.4,0xff1f3f,nx,3,nz,false);
     lampe(-6,-6,0xff3b5c,7); lampe(6,-6,0xff3b5c,7); lampe(0,-1,0xb48bff,8); lampe(0,7,0xb48bff,7);
@@ -19049,7 +19046,6 @@ function construireSalle(id){
     inter.gyros=[];
     for(const sx of [-6,6]){ const gy=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:0xff1f3f,transparent:true,opacity:0.9,depthWrite:false,blending:THREE.AdditiveBlending}));
       gy.scale.set(5,5,1); gy.position.set(ox+sx,3,oz+11.5); gy.visible=false; g.add(gy); inter.gyros.push(gy); }
-    mkEnseigne('CONSOLE','#b48bff',ox,2,oz+3.3,0,7);
     inter.console={x:ox,z:oz+2};
 
     // ---- cabine vitrée + Micro Vintage sous cloche ----
@@ -19070,12 +19066,11 @@ function construireSalle(id){
     if(aCurio('micro')){ clocheMicro.visible=false; micGrille.material.color.setHex(0xffd23f);
       micGrille.material.emissive=new THREE.Color(0xffd23f).multiplyScalar(0.6); }
     inter.microCloche=clocheMicro; inter.micGrille=micGrille;
-    mkEnseigne('LE MICRO VINTAGE','#ffd23f',ox-8,2.7,oz+1.7,0,13);
 
     // ---- panneau ON AIR ----
     box(1.6,0.6,0.15,0x1c1a22,8,3,3,false);
-    const onAir=new THREE.Mesh(new THREE.PlaneGeometry(1.3,0.4),
-      new THREE.MeshBasicMaterial({color:0xff1f3f,transparent:true,opacity:0.2}));
+    const onAir=new THREE.Mesh(new THREE.PlaneGeometry(1.5,0.5),
+      new THREE.MeshBasicMaterial({map:texNeon('ON AIR','#ff1f3f',512,170),transparent:true,opacity:0.2,depthWrite:false,blending:THREE.AdditiveBlending}));
     onAir.position.set(ox+8,3,oz+3.09); g.add(onAir);
     inter.onAirMesh=onAir;
 
@@ -19086,13 +19081,10 @@ function construireSalle(id){
     // ---- 3 racks fouillables ----
     const rack1=box(1.6,2.2,1,0x1c1a22,-8,1.1,-5);
     fouillable(-8,-6.4,'Rack audio','radio',rack1,2.8);
-    mkEnseigne('RACK','#ffd23f',ox-8,2.5,oz-6.7,0,5);
     const rack2=box(1.6,2.2,1,0x1c1a22,0,1.1,-8);
     fouillable(0,-9.4,'Rack audio','radio',rack2,2.8);
-    mkEnseigne('RACK','#ffd23f',ox,2.5,oz-9.7,0,5);
     const rack3=box(1.6,2.2,1,0x1c1a22,8,1.1,-5);
     fouillable(8,-6.4,'Rack audio','radio',rack3,2.8);
-    mkEnseigne('RACK','#ffd23f',ox+8,2.5,oz-6.7,0,5);
 
     inter.emissionOn=false; inter.segmentIdx=0; inter.segmentT=0; inter.segmentPause=0;
     inter.segTempsZone=0; inter.sautFait=false; inter.triangulation=0;
@@ -21451,8 +21443,119 @@ function radioDemarrerEmission(s){
   bigMsg('📻 ON AIR'); SFX.ui();
 }
 // mise à jour (majInterieur) : décor qui vit au rythme du signal, puis L'ÉMISSION
+/* ---- Radio V3 (13 octobre, retour de playtest : « on dirait le jeu
+   d'avant, peu immersif ») : le studio pirate est sur un TOIT, la nuit.
+   L'enveloppe générique est masquée — ses SOLIDES restent ; autour : le toit
+   goudronné (flaques où se reflètent les feux de l'antenne), un parapet, la
+   grande antenne aux feux rouges, une parabole, des toits voisins (châteaux
+   d'eau, climatiseurs) et, en contrebas, la ville la nuit (rues lumineuses,
+   voitures qui roulent). Plus la police triangule, plus elle se montre :
+   hélicoptère dont le projecteur balaie le toit (> 45 %), gyrophares dans la
+   rue (> 70 %). Studio : mousse acoustique, tapis, platine vinyle qui
+   tourne, enseigne ON AIR. Plus d'étiquettes. Pendant l'émission, la caméra
+   se rapproche de la console (cadrageSalle). Cosmétique (dt). */
+const RAD_TOIT_FS='uniform float uT; uniform vec2 uC; uniform float uRouge; varying vec3 vW;'+CHAL_GLSL_BRUIT+
+  'void main(){ vec2 p=vW.xz-uC; float n=bruitC(p*1.7)*0.5+bruitC(p*6.0)*0.5;'+
+  ' vec3 c=vec3(0.10,0.10,0.11)+n*0.05;'+
+  ' float flaque=smoothstep(0.62,0.68,bruitC(p*0.18+4.0));'+
+  ' vec2 d=p-vec2(13.0,-15.0); c=mix(c,vec3(0.03,0.04,0.06)+vec3(1.0,0.1,0.15)*uRouge*exp(-dot(d,d)/220.0),flaque);'+
+  ' gl_FragColor=vec4(c,1.0); }';
+// la ville en contrebas : îlots sombres, rues éclairées, fenêtres, voitures (phares / feux)
+const RAD_VILLE_FS='uniform float uT; uniform vec2 uC; varying vec3 vW;'+CHAL_GLSL_BRUIT+
+  'void main(){ vec2 p=(vW.xz-uC)/7.0; vec2 c2=fract(p), b=floor(p);'+
+  ' float rue=1.0-step(0.14,min(min(c2.x,1.0-c2.x),min(c2.y,1.0-c2.y)));'+
+  ' vec3 c=vec3(0.03,0.03,0.05);'+
+  ' float fen=step(0.8,hashC(floor(p*26.0)))*(1.0-rue)*step(0.18,min(min(c2.x,1.0-c2.x),min(c2.y,1.0-c2.y))); c+=vec3(1.0,0.82,0.5)*fen*0.45*(0.4+0.6*hashC(b));'+
+  ' c=mix(c,vec3(0.16,0.12,0.08),rue);'+
+  ' float auto1=step(0.97,fract(p.x*0.5+uT*0.18+hashC(vec2(b.y,3.0))))*step(abs(c2.y-0.04),0.035);'+
+  ' float auto2=step(0.97,fract(p.y*0.5-uT*0.15+hashC(vec2(b.x,7.0))))*step(abs(c2.x-0.96),0.035);'+
+  ' c+=vec3(1.0,0.95,0.8)*auto1*1.6+vec3(1.0,0.2,0.15)*auto2*1.3;'+
+  ' c*=1.0-0.6*smoothstep(4.0,9.0,length(p));'+
+  ' gl_FragColor=vec4(c,1.0); }';
+function radioDecorV3(inter,g,ox,oz,W,P2,sol,dehors){
+  for(const o of g.children){ if(!o.isMesh) continue;
+    if(o===sol||o===dehors||o.position.y===2.2||o.position.y===4.5||o.position.y===0.28) o.visible=false; }
+  const U={uT:{value:0},uC:{value:new THREE.Vector2(ox,oz)},uRouge:{value:0}}; inter.radU=U;
+  // dedans : moquette sombre, tapis rond, mousse acoustique sur des murs bas
+  const texMoq=cTex(64,(c,t)=>{ c.fillStyle='#3a2838'; c.fillRect(0,0,t,t); for(let i=0;i<400;i++){ c.fillStyle='rgba(255,255,255,'+(Math.random()*0.04)+')'; c.fillRect(Math.random()*t,Math.random()*t,1,1); } },8,9);
+  const moq=new THREE.Mesh(new THREE.PlaneGeometry(W,P2),new THREE.MeshLambertMaterial({map:texMoq})); moq.rotation.x=-Math.PI/2; moq.position.set(ox,0.105,oz); g.add(moq);
+  const tapis=new THREE.Mesh(new THREE.CircleGeometry(4.2,28),new THREE.MeshLambertMaterial({map:cTex(128,(c,t)=>{ for(let k=6;k>0;k--){ c.fillStyle=['#5a1a3a','#c8a040','#2a1a40','#8a2a4a','#d8b860','#3a1a4a'][k-1]; c.beginPath(); c.arc(t/2,t/2,k*t/12,0,6.3); c.fill(); } },1)}));
+  tapis.rotation.x=-Math.PI/2; tapis.position.set(ox,0.115,oz+3.4); g.add(tapis);
+  const texMousse=cTex(64,(c,t)=>{ for(let i=0;i<4;i++) for(let j=0;j<4;j++){ const x=i*t/4, y=j*t/4, s=t/4; const gr=c.createLinearGradient(x,y,x+s,y+s); gr.addColorStop(0,'#3a3046'); gr.addColorStop(1,'#141018'); c.fillStyle=gr; c.beginPath(); c.moveTo(x,y); c.lineTo(x+s,y); c.lineTo(x+s/2,y+s/2); c.fill();
+    c.fillStyle='#2a2234'; c.beginPath(); c.moveTo(x,y); c.lineTo(x,y+s); c.lineTo(x+s/2,y+s/2); c.fill(); } },6,1);
+  const matMousse=new THREE.MeshLambertMaterial({map:texMousse}), matParapet=new THREE.MeshLambertMaterial({color:0x4a4650});
+  const murBas=(x,z,lx,lz)=>{ const m=new THREE.Mesh(new THREE.BoxGeometry(lx,2.6,lz),matMousse); m.position.set(ox+x,1.3,oz+z); g.add(m);
+    const c=new THREE.Mesh(new THREE.BoxGeometry(lx+0.2,0.16,lz+0.2),matParapet); c.position.set(ox+x,2.68,oz+z); g.add(c); };
+  murBas(0,-P2/2,W+0.6,0.6); murBas(-W/2,0,0.6,P2); murBas(W/2,0,0.6,P2);
+  murBas(-W/4-1.4,P2/2,W/2-2.8,0.6); murBas(W/4+1.4,P2/2,W/2-2.8,0.6);
+  // dehors : le toit, le parapet, l'antenne, la parabole, les toits voisins, la ville en bas
+  const toit=new THREE.Mesh(new THREE.PlaneGeometry(W+14,P2+14),new THREE.ShaderMaterial({uniforms:U,vertexShader:AQ_SOL_VS,fragmentShader:RAD_TOIT_FS}));
+  toit.rotation.x=-Math.PI/2; toit.position.set(ox,0.0,oz); g.add(toit);
+  const bords=[[0,-(P2+14)/2,W+14,0.8],[0,(P2+14)/2,W+14,0.8],[-(W+14)/2,0,0.8,P2+14],[(W+14)/2,0,0.8,P2+14]];
+  for(const [x,z,lx,lz] of bords){ const pa=new THREE.Mesh(new THREE.BoxGeometry(lx,1.1,lz),matParapet); pa.position.set(ox+x,0.55,oz+z); g.add(pa);
+    const fa=new THREE.Mesh(new THREE.BoxGeometry(lx||0.8,40,lz||0.8),new THREE.MeshLambertMaterial({color:0x1c1a22})); fa.position.set(ox+x,-20,oz+z); g.add(fa); }
+  const ville=new THREE.Mesh(new THREE.PlaneGeometry(240,240),new THREE.ShaderMaterial({uniforms:U,vertexShader:AQ_SOL_VS,fragmentShader:RAD_VILLE_FS}));
+  ville.rotation.x=-Math.PI/2; ville.position.set(ox,-38,oz); g.add(ville);
+  const matImm=[0x1e1c24,0x24222a,0x1a1c22].map(c=>new THREE.MeshLambertMaterial({color:c}));
+  for(const [x,z,w,d,h] of [[-34,-14,14,16,-12],[34,-8,12,18,-9],[0,-36,22,10,-16],[-30,30,12,12,-20],[30,34,14,12,-17]]){
+    const b=new THREE.Mesh(new THREE.BoxGeometry(w,40,d),pick(matImm)); b.position.set(ox+x,h-20,oz+z); g.add(b);
+    const tr=new THREE.Mesh(new THREE.CylinderGeometry(1.4,1.4,2.4,10),mat(0x4a3a2a)); tr.position.set(ox+x+rand(-w/4,w/4),h+2,oz+z+rand(-d/4,d/4)); g.add(tr); // château d'eau
+    for(let k=0;k<3;k++){ const cl=new THREE.Mesh(new THREE.BoxGeometry(1.4,0.9,1.2),mat(0x5a5e66)); cl.position.set(ox+x+rand(-w/3,w/3),h+0.45,oz+z+rand(-d/3,d/3)); g.add(cl); }
+    for(let k=0;k<6;k++){ const f=new THREE.Mesh(new THREE.PlaneGeometry(0.8,0.5),new THREE.MeshBasicMaterial({color:Math.random()<0.5?0xffd890:0x8ac8ff})); f.rotation.x=-Math.PI/2; f.position.set(ox+x+rand(-w/2.4,w/2.4),h+0.02,oz+z+rand(-d/2.4,d/2.4)); g.add(f); } }
+  // l'antenne : pylône en treillis, feux rouges qui clignotent
+  const matPyl=new THREE.MeshLambertMaterial({color:0x8a8e96});
+  const ax=ox+13, az=oz-17; inter.radFeux=[];
+  for(let k=0;k<4;k++){ const a=k/4*Math.PI*2+0.78, m=new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.12,16,5),matPyl); m.position.set(ax+Math.sin(a)*0.9,8,az+Math.cos(a)*0.9); m.rotation.set(Math.cos(a)*0.05,0,-Math.sin(a)*0.05); g.add(m); }
+  for(let y=1;y<16;y+=1.6){ const r=new THREE.Mesh(new THREE.TorusGeometry(0.95-y*0.03,0.04,4,4),matPyl); r.rotation.x=Math.PI/2; r.rotation.z=0.78; r.position.set(ax,y,az); g.add(r); }
+  for(const y of [6,11,16.2]){ const f=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:0xff1a1a,transparent:true,opacity:1,depthWrite:false,blending:THREE.AdditiveBlending})); f.scale.set(2.2,2.2,1); f.position.set(ax,y,az); g.add(f); inter.radFeux.push(f); }
+  const para=new THREE.Mesh(new THREE.SphereGeometry(2,14,8,0,Math.PI*2,0,1.1),new THREE.MeshLambertMaterial({color:0xd8dce4,side:THREE.DoubleSide}));
+  para.rotation.x=-0.9; para.position.set(ox-15,2.4,oz-17); g.add(para);
+  // l'enseigne de la station sur le toit, penchée vers le ciel (on la voit de dessus)
+  const logo=new THREE.Mesh(new THREE.PlaneGeometry(16,4),new THREE.MeshBasicMaterial({map:texNeon('REYES FM 107.7','#ff3a8a',1024,256),transparent:true,depthWrite:false,blending:THREE.AdditiveBlending}));
+  logo.rotation.x=-0.85; logo.position.set(ox,3.6,oz-P2/2-4.5); g.add(logo); inter.radLogo=logo;
+  for(const sx of [-6,6]){ const pm=new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.1,3,6),matPyl); pm.position.set(ox+sx,1.5,oz-P2/2-4.5); g.add(pm); }
+  const pied=new THREE.Mesh(new THREE.CylinderGeometry(0.15,0.2,2.2,6),matPyl); pied.position.set(ox-15,1.1,oz-17); g.add(pied);
+  // câbles de l'antenne au studio
+  const cab=new THREE.LineBasicMaterial({color:0x101014});
+  for(const dx of [-0.3,0.3]) g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(ax,10,az),new THREE.Vector3(ox+W/2-1+dx,2.7,oz-P2/2+1)]),cab));
+  // platine vinyle sur la console, bacs de disques
+  const plat=new THREE.Mesh(new THREE.CylinderGeometry(0.42,0.42,0.05,20),new THREE.MeshLambertMaterial({map:cTex(64,(c,t)=>{ c.fillStyle='#0a0a0c'; c.fillRect(0,0,t,t); c.strokeStyle='#26262c'; for(let r=4;r<t/2;r+=3){ c.beginPath(); c.arc(t/2,t/2,r,0,6.3); c.stroke(); } c.fillStyle='#d8304a'; c.beginPath(); c.arc(t/2,t/2,8,0,6.3); c.fill(); },1)}));
+  plat.position.set(ox+1.25,1.26,oz+2.1); g.add(plat); inter.radVinyle=plat;
+  for(const [x,z] of [[-4.6,4.4],[4.6,4.4]]){ const bac=new THREE.Mesh(new THREE.BoxGeometry(1.2,0.6,0.9),mat(0x3a2a1c)); bac.position.set(ox+x,0.3,oz+z); g.add(bac);
+    for(let k=0;k<6;k++){ const d=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.62,0.7),mat(pick([0xd8304a,0xffd23f,0x35a0e0,0xf2f4f6,0x8a4de0]))); d.position.set(ox+x-0.45+k*0.17,0.5,oz+z); d.rotation.z=0.15; g.add(d); } }
+  // l'hélicoptère de la police et son projecteur (visible quand la triangulation monte)
+  const heli=new THREE.Group(); heli.visible=false; g.add(heli);
+  const caisse=new THREE.Mesh(new THREE.SphereGeometry(1.2,10,8),mat(0x1a2a4a)); caisse.scale.set(1,0.8,1.6); heli.add(caisse);
+  const poutreQ=new THREE.Mesh(new THREE.BoxGeometry(0.25,0.25,3),mat(0x1a2a4a)); poutreQ.position.z=-2.6; heli.add(poutreQ);
+  const rotor=new THREE.Mesh(new THREE.BoxGeometry(6,0.05,0.25),mat(0x0a0a0c)); rotor.position.y=1.05; heli.add(rotor);
+  // faisceau : cône dont la pointe est à l'hélico, orienté vers la tache (pivot.lookAt, +z vers la cible)
+  const geoC=new THREE.ConeGeometry(4.5,1,18,1,true); geoC.translate(0,-0.5,0); geoC.rotateX(-Math.PI/2);
+  const pivot=new THREE.Group(); pivot.visible=false; g.add(pivot);
+  const cone=new THREE.Mesh(geoC,new THREE.MeshBasicMaterial({color:0xdff0ff,transparent:true,opacity:0.1,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending})); pivot.add(cone);
+  const tache=new THREE.Mesh(new THREE.CircleGeometry(4.5,24),new THREE.MeshBasicMaterial({map:texGlow,color:0xdff0ff,transparent:true,opacity:0.5,depthWrite:false,blending:THREE.AdditiveBlending}));
+  tache.rotation.x=-Math.PI/2; g.add(tache); tache.visible=false;
+  inter.radHeli={g:heli,rotor,tache,pivot,cone};
+}
+function radioMajDecorV3(s,dt){
+  const T=ETAT.runT; if(s.radU) s.radU.uT.value+=dt;
+  const clign=Math.floor(T*1.2)%2===0;
+  if(s.radFeux) for(const f of s.radFeux) f.material.opacity=clign?1:0.15;
+  if(s.radU) s.radU.uRouge.value=clign?1:0.15;
+  if(s.radVinyle) s.radVinyle.rotation.y-=dt*(s.emissionOn?3.5:0.4);
+  if(s.radLogo) s.radLogo.material.opacity=s.emissionOn?(Math.floor(T*2)%7===0?0.4:1):0.55;
+  const h=s.radHeli; if(!h) return;
+  const tri=s.emissionOn?s.triangulation:0, vis=tri>45;
+  h.g.visible=vis; h.tache.visible=vis; h.pivot.visible=vis;
+  if(vis){ const a=T*0.35, r=lerp(26,9,clamp((tri-45)/55,0,1));
+    h.g.position.set(s.ox+Math.sin(a)*r,24,s.oz+Math.cos(a)*r*0.8); h.g.rotation.y=a+Math.PI/2; h.rotor.rotation.y+=dt*30;
+    // le projecteur balaie, et se rapproche de la console à mesure que la police triangule
+    const k=clamp((tri-45)/55,0,1), tx=lerp(h.g.position.x,s.console.x,k)+Math.sin(T*1.3)*4*(1-k), tz=lerp(h.g.position.z,s.console.z,k)+Math.cos(T*1.1)*4*(1-k);
+    h.tache.position.set(tx,0.13,tz); h.tache.material.opacity=0.35+0.2*k;
+    h.pivot.position.copy(h.g.position); h.pivot.lookAt(h.tache.position); h.cone.scale.z=h.pivot.position.distanceTo(h.tache.position); }
+}
 function radioMaj(s,dt,dtJeu){
   radioVerifierVague(s);
+  radioMajDecorV3(s,dt);
   const T=ETAT.runT;
   if(s.onAirMesh) s.onAirMesh.material.opacity=s.emissionOn?(0.6+0.4*Math.sin(T*6)):0.2;
   if(s.radioIntroT>0){ s.radioIntroT-=dt; if(s.radioIntroT<0.5) radioIntroWrap.style.opacity=String(Math.max(0,s.radioIntroT/0.5)); if(s.radioIntroT<=0) radioIntroWrap.style.display='none'; }
@@ -27466,7 +27569,8 @@ const CJourCiel=new THREE.Color(0x9fc2dd), CNuitCiel=new THREE.Color(0x0c1122);
 const CINT=new THREE.Color(0x0a0c12);
 const AQ_BLEU=new THREE.Color(0x03203a); // ambiance de l'aquarium (V3)
 const LAV_NUIT=new THREE.Color(0x070a12); // la nuit autour de la laverie (V3)
-const SER_NUIT=new THREE.Color(0x050c12); // la nuit sur le jardin botanique (V3)   // ambiance intérieure : sombre, pas de ciel
+const SER_NUIT=new THREE.Color(0x050c12); // la nuit sur le jardin botanique (V3)
+const RAD_NUIT=new THREE.Color(0x06060c); // la nuit sur les toits (radio V3)   // ambiance intérieure : sombre, pas de ciel
 function jourNuit(dt){
   ETAT.jour=(ETAT.jour+dt)%170;
   // Site 51 est la seule salle à teinter lampeNuit (vert, au tir du
@@ -27549,6 +27653,14 @@ function jourNuit(dt){
       lampeNuit.color.setHex(0x39ff6a);
       lampeNuit.intensity=Math.max(lampeNuit.intensity,3*(s.tirFlashT/0.15));
     }
+    return;
+  }
+  if(INT.actif&&INT.actif.radU){
+    // Radio V3 : nuit sur les toits ; la ville est 38 u plus bas, le brouillard la laisse voir
+    soleil.intensity=0.4; hemi.intensity=0.65;
+    scene.background.copy(RAD_NUIT); scene.fog.color.copy(RAD_NUIT);
+    scene.fog.near=70; scene.fog.far=210;
+    lampeNuit.intensity=0.6; lampeNuit.distance=30; lampeNuit.position.set(P.x,6,P.z);
     return;
   }
   if(INT.actif&&INT.actif.pots&&INT.actif.serU){
@@ -27744,6 +27856,7 @@ function majCamera(dt){
   camera.position.set(P.x+sx,camH+hSol*0.75+chuteF*6,P.z+camD+sz+chuteF*14);
   camera.lookAt(P.x+sx,hSol*0.75+chuteAngF*6,P.z-2+sz-(enMer?5:0));
   let fovPlus=0;
+  if(INT.actif&&INT.actif.leds&&INT.actif.console) cadrageSalle(INT.actif,dt,!!INT.actif.emissionOn,INT.actif.console.x,0.5,INT.actif.console.z-3.5,16,12); // radio V3 : on se penche sur la console
   if(INT.actif&&INT.actif.mach7) cadrageSalle(INT.actif,dt,!!INT.actif.cycleOn,INT.actif.mach7X,1.2,INT.actif.mach7Z-1.8,13,10.5); // laverie V3 : on se penche sur la machine 7
   if(INT.actif&&INT.actif.barre){ fovPlus=chalutierCamera(INT.actif,dt,sx,sz); // chalutier en mer : caméra de poursuite (V3)
     const m=INT.actif.meteoEtat; camera.rotation.z+=Math.sin(ETAT.runT*0.9)*(m==='tempete'?0.05:(m==='houle'?0.025:0.008)); } // chalutier : roulis selon la mer

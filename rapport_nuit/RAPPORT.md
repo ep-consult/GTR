@@ -1650,3 +1650,7 @@ Captures : `captures/lot11/chalutier_v3_*.png` (`_avant` = la V2 telle que vue e
 ## Serre V3 — la passe visuelle (13 octobre)
 
 La boîte verte dans le noir devient une serre victorienne la nuit, au milieu du jardin botanique éclairé par la lune : pelouse, allées de gravier, haies, arbres, lanternes, lucioles ; dedans, des tomettes moussues où passent les ombres des feuilles, de grandes feuilles tropicales qui ondulent, un bassin avec des carpes koï et des nénuphars en fleur. Les étiquettes (LA NUIT DE LA FLORAISON, JARDINIER) sont retirées : le tableau est un chevalet. Captures : `captures/lot11/serre_v3_*.png`.
+
+## Radio V3 — la passe visuelle (13 octobre)
+
+Le studio devient une station pirate sur un toit, la nuit : antenne aux feux rouges, parabole, grande enseigne néon « REYES FM 107.7 », toits voisins et, en contrebas, la ville éclairée où roulent les voitures. Plus la police triangule, plus elle se montre : un hélicoptère tourne au-dessus du toit, son projecteur se rapproche de la console. Dedans : mousse acoustique, tapis, platine qui tourne, ON AIR en néon ; la caméra se rapproche de la console pendant l'émission. Étiquettes (CONSOLE, RACK, MICRO VINTAGE) retirées. Captures : `captures/lot11/radio_v3_*.png`.
