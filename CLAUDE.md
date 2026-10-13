@@ -55,7 +55,7 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
   echo "$ln | $(sed -n "$((ln+1))p" index.html | sed 's/^[ \t]*//')"; done
 ```
 
-**Relevé au aquarium et laverie V3 — 27 901 lignes.**
+**Relevé au serre V3 — 28 026 lignes.**
 Attention : `maj_carte` recale les numéros dans l'ordre des lignes de la table ;
 un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la main.
 
@@ -85,22 +85,22 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 15413 | BÂTIMENTS VISITABLES — intérieurs |
 | 15483 | FOUILLE — mécanique générique |
 | 16031 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
-| 20170 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
-| 20574 | **LAVERIE** V2 — l'essorage de la machine 7 |
-| 20839 | **SERRE** V2 — la nuit de la floraison |
-| 20996 | CINÉ-PALACE |
-| 21136 | MÉTRO ABANDONNÉ |
-| 21202 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
-| 21442 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
-| 22347 | SITE 51 |
-| 22577 | LE DÉPÔT DE BUS — courses clandestines |
-| 23604 | **MÉTIERS** — missions liées à un véhicule |
-| 23894 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
-| 24889 | ÉCRANS / MENUS / BOUTIQUES |
-| 25157 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
-| 25954 | DÉBUT / FIN DE PARTIE |
-| 27346 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
-| 27779 | BOUCLE PRINCIPALE |
+| 20159 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
+| 20567 | **LAVERIE** V2 — l'essorage de la machine 7 |
+| 20832 | **SERRE** V2 — la nuit de la floraison |
+| 21115 | CINÉ-PALACE |
+| 21255 | MÉTRO ABANDONNÉ |
+| 21321 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
+| 21561 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
+| 22463 | SITE 51 |
+| 22693 | LE DÉPÔT DE BUS — courses clandestines |
+| 23720 | **MÉTIERS** — missions liées à un véhicule |
+| 24010 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
+| 25005 | ÉCRANS / MENUS / BOUTIQUES |
+| 25273 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
+| 26070 | DÉBUT / FIN DE PARTIE |
+| 27462 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
+| 27904 | BOUCLE PRINCIPALE |
 
 ### Ancres fines (hors bandeaux)
 
@@ -154,14 +154,14 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 17108 | `INTDEFS` — définitions des **27 salles** |
 | 17288 | `construireSalle(id)` |
 | 20390 | `CHALUTIER_BANCS_PLAN` — chalutier V2 ; `chalutierMaj` (20761), `dessinerRadarChalutier` (21018) |
-| 23613 | `METIERS_CIBLE` |
-| 23912 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
-| 24000 | `PIECES_FAMILLES` — catalogues de pièces par famille |
-| 24301 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
-| 24355 | `libererObjet()` — libère les géométries d'un objet retiré |
-| 24371 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
-| 24493 | `construireGarageTuning()` — la salle partagée |
-| 24863 | `majNitro()` |
+| 23729 | `METIERS_CIBLE` |
+| 24028 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
+| 24116 | `PIECES_FAMILLES` — catalogues de pièces par famille |
+| 24417 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
+| 24471 | `libererObjet()` — libère les géométries d'un objet retiré |
+| 24487 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
+| 24609 | `construireGarageTuning()` — la salle partagée |
+| 24979 | `majNitro()` |
 
 ---
 
@@ -829,6 +829,14 @@ puis refonte en profondeur de la pire à la meilleure, une salle par commit.
 - Pilote glouton (le plus urgent d'abord, bon outil, chemin BFS à la marge
   réelle du joueur 0,65) : ~7 nuits tenues sur 8, parfois parfaites ; passif :
   perdue.
+- **V3 visuelle** (`serreDecorV3`) : serre victorienne de nuit dans le jardin
+  botanique — pelouse et allées (`SER_JARDIN_FS`), haies, arbres, lanternes,
+  lucioles ; tomettes moussues où passent les ombres des feuilles
+  (`SER_SOL_FS`), grandes feuilles tropicales en rosette (`texFeuilleSerre`),
+  bassin vivant (`SER_EAU_FS`, carpes koï, nénuphars), vitres à montants de
+  fer forgé, chevalet du jardinier (étiquettes retirées). **Ordre des const**
+  : le bruit GLSL partagé `CHAL_GLSL_BRUIT` est déclaré dans la section
+  AQUARIUM, AVANT la serre et le chalutier (sinon plantage au chargement).
 
 ### Radio pirate V2 — le tuner et le brouilleur (bandeau `RADIO PIRATE REYES FM — L'ÉMISSION`)
 

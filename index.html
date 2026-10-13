@@ -18412,18 +18412,9 @@ function construireSalle(id){
      On la lance au tableau du jardinier ; sans une perte, l'Étoile de Los
      Reyes éclot au-dessus du bassin (curiosité). */
   else if(id==='serre'){
-    // dallage de terre battue
-    for(let i=-4;i<4;i++) for(let j=-3;j<3;j++){
-      if((i+j)%2) continue;
-      const t=new THREE.Mesh(new THREE.PlaneGeometry(3,3),mat(0x44562e));
-      t.rotation.x=-Math.PI/2; t.position.set(ox+i*3.1+1.55,0.11,oz+j*3.1+1.55); g.add(t);
-    }
-    // verrière : arceaux translucides
-    for(let k=0;k<6;k++){
-      const arc=new THREE.Mesh(new THREE.TorusGeometry(11,0.16,6,18,Math.PI),
-        new THREE.MeshLambertMaterial({color:0xbfe4d0,transparent:true,opacity:0.22}));
-      arc.position.set(ox,0.2,oz-7.5+k*3); g.add(arc); // arches est-ouest (tournées de 90°, vues par la tranche, elles barraient l'écran d'un trait blanc)
-    }
+    // V3 : serre victorienne de nuit dans le jardin botanique (voir serreDecorV3) ;
+    // les anciens arceaux translucides sont retirés (de dessus, ils barraient l'écran de courbes blanches)
+    serreDecorV3(inter,g,ox,oz,W,P2,sol,dehors);
     // bassin central : l'arrosoir s'y remplit
     const bass=new THREE.Mesh(new THREE.CylinderGeometry(2.6,2.6,0.4,18),mat(0x3a5a4a));
     bass.position.set(ox,0.2,oz+0.5); g.add(bass);
@@ -18479,7 +18470,6 @@ function construireSalle(id){
     }
     // le tableau du jardinier : on y lance la nuit
     inter.panneau={x:ox-10.6,z:oz+8.2};
-    mkEnseigne('LA NUIT DE LA FLORAISON','#7dff7a',ox-10.6,2.4,oz+7.4,0,12);
     box(2.4,2,0.3,0x3a5a2e,-11.2,1,8.9,false);
     inter.srVague=-1; inter.srFini=false; inter.srNuit=false; inter.srFinT=0;
     // plante carnivore (décor qui respire)
@@ -18500,7 +18490,6 @@ function construireSalle(id){
     inter.tableOutils={tx:ox-6,tz:oz-1.0};
     fouillable(-6,-1.2,'Table de rempotage','standard',null,2.9);
     const cab=box(3.4,2.6,2.4,0x5a4a30,7,1.3,7.4);
-    mkEnseigne('JARDINIER','#8a6a44',ox+7,3.1,oz+6.1,0,8);
     fouillable(7,5.8,'Cabane du jardinier','riche',cab,3);
     const comp=box(2.4,1,2,0x3a2f20,-9.5,0.5,-6.5,false);
     fouillable(-9.5,-5,'Bac à compost','louche',comp,2.8);
@@ -20233,6 +20222,10 @@ let aquaEncreT=0;
    huit bras articulés qui change de couleur avec son humeur (chromatophores :
    violet au repos, jaune au frisson, rouge quand il regarde). Tout cosmétique
    (dt) : la mécanique « 1, 2, 3… GASTON ! » ne change pas. */
+// bruit de valeur GLSL, partagé (aquarium, serre, chalutier) : déclaré ici, AVANT ses utilisateurs (ordre des const)
+const CHAL_GLSL_BRUIT='float hashC(vec2 p){ p=fract(p*vec2(0.1031,0.1030)); p+=dot(p,p.yx+33.33); return fract((p.x+p.y)*p.x); }'+
+  'float bruitC(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);'+
+  ' return mix(mix(hashC(i),hashC(i+vec2(1.0,0.0)),f.x),mix(hashC(i+vec2(0.0,1.0)),hashC(i+vec2(1.0,1.0)),f.x),f.y); }';
 const AQ_FOND_Y=-4.2;   // le fond marin, sous la galerie
 const AQ_GLSL_CAUST='float caustA(vec2 p,float t){ vec2 q=mod(p,6.2831853)-250.0; vec2 i=q; float c=1.0, inten=0.005;'+
   ' for(int n=0;n<4;n++){ float tt=t*(1.0-(3.5/float(n+1))); i=q+vec2(cos(tt-i.x)+sin(tt+i.y),sin(tt-i.y)+cos(tt+i.x));'+
@@ -20937,7 +20930,133 @@ function serreFin(s,auBout){
   else { bigMsg('🥀 LA SERRE EST PERDUE'); toast('Trop de plantes fanées. Le jardinier replantera à la prochaine vague.','warn'); SFX.refus(); }
   checkDefis(); sauveMeta();
 }
+/* ---- Serre V3 (13 octobre, retour de playtest : « on dirait le jeu
+   d'avant, peu immersif ») : une serre victorienne LA NUIT, au milieu du
+   jardin botanique éclairé par la lune. L'enveloppe générique (boîte dans le
+   noir) est masquée — ses SOLIDES restent ; autour : pelouse, allées de
+   gravier, haies, arbres, lanternes, lucioles. Dedans : tomettes moussues où
+   passent les ombres des feuilles (SER_SOL_FS), grandes feuilles tropicales
+   en rosette qui ondulent, bassin aux carpes koï et nénuphars, vitres à
+   montants de fer forgé. Le tableau du jardinier est un chevalet (plus
+   d'étiquette). Cosmétique (dt) : la mécanique ne change pas. */
+const SER_SOL_FS='uniform float uT; uniform vec2 uC; uniform vec3 uL[5]; varying vec3 vW;'+CHAL_GLSL_BRUIT+
+  'void main(){ vec2 p=vW.xz-uC; vec2 q=p/1.2; vec2 f=abs(fract(q)-0.5); float joint=smoothstep(0.44,0.5,max(f.x,f.y));'+
+  ' float h=hashC(floor(q)); vec3 c=mix(vec3(0.42,0.20,0.12),vec3(0.52,0.27,0.16),h);'+
+  ' c=mix(c,vec3(0.12,0.24,0.10),joint*0.85);'+
+  ' float mousse=smoothstep(0.55,0.8,bruitC(p*0.35+3.0)); c=mix(c,vec3(0.16,0.30,0.12),mousse*0.55);'+
+  ' float ombre=smoothstep(0.35,0.75,bruitC(p*0.45+vec2(uT*0.12,uT*0.07))*0.7+bruitC(p*1.1-uT*0.1)*0.3);'+
+  ' c*=0.55+0.45*ombre;'+
+  ' for(int i=0;i<5;i++){ vec2 d=vW.xz-uL[i].xy; c+=vec3(1.0,0.66,0.32)*exp(-dot(d,d)/uL[i].z)*0.35; }'+
+  ' gl_FragColor=vec4(c,1.0); }';
+// la pelouse de nuit : herbe, allées de gravier en croix, lune
+const SER_JARDIN_FS='uniform float uT; uniform vec2 uC; varying vec3 vW;'+CHAL_GLSL_BRUIT+
+  'void main(){ vec2 p=vW.xz-uC; float n=bruitC(p*0.5)*0.6+bruitC(p*2.3)*0.4;'+
+  ' vec3 c=mix(vec3(0.06,0.13,0.07),vec3(0.10,0.20,0.10),n);'+
+  ' float allee=max(1.0-smoothstep(1.6,2.0,abs(p.x)),1.0-smoothstep(1.6,2.0,abs(p.y-17.0)));'+
+  ' allee=max(allee,1.0-smoothstep(1.6,2.0,abs(length(p*vec2(0.85,1.0))-24.0)));'+
+  ' c=mix(c,vec3(0.28,0.27,0.24)*(0.85+0.3*bruitC(p*2.5)),allee);'+
+  ' c*=1.0-0.55*smoothstep(26.0,55.0,length(p));'+
+  ' gl_FragColor=vec4(c,1.0); }';
+// l'eau du bassin : ondes, reflet de lune, profondeur
+const SER_EAU_FS='uniform float uT; uniform vec2 uC; varying vec3 vW;'+AQ_GLSL_CAUST+
+  'void main(){ vec2 p=vW.xz-uC; float k=caustA(p*0.9,uT*0.6);'+
+  ' vec3 c=mix(vec3(0.03,0.12,0.13),vec3(0.06,0.24,0.24),k)+vec3(0.6,0.75,0.8)*pow(k,3.0)*0.35;'+
+  ' gl_FragColor=vec4(c,1.0); }';
+// texture de feuille tropicale (canvas, alpha) : limbe, nervures
+function texFeuilleSerre(coul){
+  return cTex(128,(c,t)=>{ c.clearRect(0,0,t,t);
+    c.fillStyle=coul; c.beginPath(); c.moveTo(t/2,2); c.bezierCurveTo(t*0.98,t*0.25,t*0.9,t*0.8,t/2,t-2); c.bezierCurveTo(t*0.1,t*0.8,t*0.02,t*0.25,t/2,2); c.fill();
+    c.strokeStyle='rgba(220,255,200,0.45)'; c.lineWidth=2.5; c.beginPath(); c.moveTo(t/2,4); c.lineTo(t/2,t-4); c.stroke();
+    c.lineWidth=1.2; for(let k=1;k<9;k++){ const y=k*t/10; c.beginPath(); c.moveTo(t/2,y); c.lineTo(t*0.12,y+t*0.1); c.moveTo(t/2,y); c.lineTo(t*0.88,y+t*0.1); c.stroke(); }
+    // déchirures du bananier
+    c.globalCompositeOperation='destination-out'; for(let k=0;k<5;k++){ const y=t*(0.2+k*0.14); c.fillRect(Math.random()<0.5?0:t*0.75,y,t*0.25,1.5); } c.globalCompositeOperation='source-over'; });
+}
+function serreDecorV3(inter,g,ox,oz,W,P2,sol,dehors){
+  for(const o of g.children){ if(!o.isMesh) continue;
+    if(o===sol||o===dehors||o.position.y===2.2||o.position.y===4.5||o.position.y===0.28) o.visible=false; }
+  const L=[[-4.5,-6.5],[4.5,-6.5],[-4,2.5],[4,2.5],[0,-6.5]].map(q=>new THREE.Vector3(ox+q[0],oz+q[1],4));
+  const U={uT:{value:0},uC:{value:new THREE.Vector2(ox,oz)},uL:{value:L}}; inter.serU=U;
+  const solV=new THREE.Mesh(new THREE.PlaneGeometry(W,P2),new THREE.ShaderMaterial({uniforms:U,vertexShader:AQ_SOL_VS,fragmentShader:SER_SOL_FS}));
+  solV.rotation.x=-Math.PI/2; solV.position.set(ox,0.105,oz); g.add(solV);
+  const jardin=new THREE.Mesh(new THREE.PlaneGeometry(140,120),new THREE.ShaderMaterial({uniforms:U,vertexShader:AQ_SOL_VS,fragmentShader:SER_JARDIN_FS}));
+  jardin.rotation.x=-Math.PI/2; jardin.position.set(ox,-0.05,oz); g.add(jardin);
+  // la verrière : soubassement de brique, vitres, montants de fer forgé vert, faîtage
+  const matBrique=new THREE.MeshLambertMaterial({color:0x6a3a2a}), matFer=new THREE.MeshLambertMaterial({color:0x1f3a2a}),
+        matVitre=new THREE.MeshLambertMaterial({color:0xcfeee0,transparent:true,opacity:0.12,depthWrite:false,emissive:0x0a2a1a});
+  const paroi=(x,z,lx,lz)=>{ const L2=Math.max(lx,lz);
+    const b=new THREE.Mesh(new THREE.BoxGeometry(lx||0.5,0.7,lz||0.5),matBrique); b.position.set(ox+x,0.35,oz+z); g.add(b);
+    const v=new THREE.Mesh(new THREE.BoxGeometry(lx||0.08,3.2,lz||0.08),matVitre); v.position.set(ox+x,2.3,oz+z); g.add(v);
+    const h=new THREE.Mesh(new THREE.BoxGeometry(lx||0.22,0.18,lz||0.22),matFer); h.position.set(ox+x,3.95,oz+z); g.add(h);
+    const n=Math.round(L2/2); for(let k=0;k<=n;k++){ const t=-L2/2+k*L2/n, m=new THREE.Mesh(new THREE.BoxGeometry(0.12,3.3,0.12),matFer); m.position.set(ox+x+(lx?t:0),2.3,oz+z+(lz?t:0)); g.add(m);
+      const fl=new THREE.Mesh(new THREE.SphereGeometry(0.14,6,4),matFer); fl.position.set(ox+x+(lx?t:0),4.1,oz+z+(lz?t:0)); g.add(fl); } };
+  paroi(0,-P2/2,W,0); paroi(-W/2,0,0,P2); paroi(W/2,0,0,P2);
+  paroi(-W/4-1.25,P2/2,W/2-2.5,0); paroi(W/4+1.25,P2/2,W/2-2.5,0);
+  for(const sx of [-2.5,2.5]){ const pi=new THREE.Mesh(new THREE.BoxGeometry(0.3,4.2,0.3),matFer); pi.position.set(ox+sx,2.1,oz+P2/2); g.add(pi); }
+  const fronton=new THREE.Mesh(new THREE.TorusGeometry(2.5,0.12,6,16,Math.PI),matFer); fronton.position.set(ox,4.1,oz+P2/2); g.add(fronton);
+  // dehors : haies, arbres, lanternes, statue
+  const matHaie=new THREE.MeshLambertMaterial({color:0x163a1c});
+  const haie=(x,z,lx,lz)=>{ const h=new THREE.Mesh(new THREE.BoxGeometry(lx,1.4,lz),matHaie); h.position.set(ox+x,0.7,oz+z); g.add(h); };
+  haie(-9,P2/2+4.5,12,1.2); haie(9,P2/2+4.5,12,1.2); haie(-W/2-4,0,1.2,P2+4); haie(W/2+4,0,1.2,P2+4); haie(0,-P2/2-4,W+9,1.2);
+  const matTronc=mat(0x3a2a1c), matsCime=[0x1a3a20,0x22482a,0x183020].map(c=>new THREE.MeshLambertMaterial({color:c,flatShading:true}));
+  const dehorsOk=(x,z)=>Math.abs(x)>W/2+6||Math.abs(z)>P2/2+6;
+  for(let i=0;i<22;i++){ let x=0,z=0; for(let e=0;e<20;e++){ const a=rand(0,6.28), r=rand(19,42); x=Math.sin(a)*r*1.2; z=Math.cos(a)*r; if(dehorsOk(x,z)&&Math.abs(x)>2.5) break; }
+    const tr=new THREE.Mesh(new THREE.CylinderGeometry(0.3,0.4,3,6),matTronc); tr.position.set(ox+x,1.5,oz+z); g.add(tr);
+    const ci=new THREE.Mesh(new THREE.IcosahedronGeometry(rand(2.2,3.4),0),pick(matsCime)); ci.position.set(ox+x,3.8,oz+z); ci.scale.y=0.8; g.add(ci); }
+  inter.serLanternes=[];
+  for(const [x,z] of [[-2.6,P2/2+3],[2.6,P2/2+3],[-2.6,P2/2+10],[2.6,P2/2+10],[-W/2-2,P2/2+2],[W/2+2,P2/2+2]]){
+    const pt=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.09,2.4,6),matFer); pt.position.set(ox+x,1.2,oz+z); g.add(pt);
+    const la=new THREE.Mesh(new THREE.BoxGeometry(0.4,0.5,0.4),new THREE.MeshBasicMaterial({color:0xffd890})); la.position.set(ox+x,2.6,oz+z); g.add(la);
+    const ha=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:0xffb860,transparent:true,opacity:0.7,depthWrite:false,blending:THREE.AdditiveBlending})); ha.scale.set(3.2,3.2,1); ha.position.set(ox+x,2.6,oz+z); g.add(ha);
+    const fl=new THREE.Mesh(new THREE.CircleGeometry(2.4,14),new THREE.MeshBasicMaterial({map:texGlow,color:0xffb860,transparent:true,opacity:0.35,depthWrite:false,blending:THREE.AdditiveBlending})); fl.rotation.x=-Math.PI/2; fl.position.set(ox+x,0.02,oz+z); g.add(fl);
+    inter.serLanternes.push(ha); }
+  // dedans : grandes feuilles tropicales en rosette (bananiers, palmiers), fougères
+  const texF=[texFeuilleSerre('#2f8a3a'),texFeuilleSerre('#3aa04a'),texFeuilleSerre('#246e30')];
+  const matsF=texF.map(t=>new THREE.MeshLambertMaterial({map:t,alphaTest:0.5,side:THREE.DoubleSide}));
+  inter.serPlantes=[];
+  const rosette=(x,z,n,lg,haut,inclin)=>{ const r=new THREE.Group(); r.position.set(ox+x,haut,oz+z); g.add(r);
+    if(haut>0.6){ const tr=new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.24,haut,7),mat(0x5a4a2a)); tr.position.y=-haut/2; r.add(tr); }
+    for(let k=0;k<n;k++){ const a=k/n*Math.PI*2+rand(-0.2,0.2), piv=new THREE.Group(); piv.rotation.y=a; r.add(piv);
+      const f=new THREE.Mesh(new THREE.PlaneGeometry(lg*0.42,lg),pick(matsF)); f.geometry.translate(0,lg/2,0); f.rotation.x=-(Math.PI/2-inclin)-rand(0,0.25); piv.add(f); }
+    inter.serPlantes.push({g:r,ph:rand(0,6)}); };
+  for(const [x,z,n,lg,h] of [[-11.2,-8.6,8,3.2,2.6],[11.2,-8.6,8,3.4,3],[-11.3,2.4,7,2.4,1.6],[11.2,3.8,7,2.6,0.4],[-2.2,-8.9,6,1.8,0.3],[2.3,-8.9,6,1.8,0.3],[-11.2,8.8,6,2,0.3]]) rosette(x,z,n,lg,h,0.45);
+  for(const [x,z] of [[-6.5,7.8],[-2.6,8.3],[2.8,8.2]]) rosette(x,z,9,1.3,0.2,0.25); // fougères au pied de l'étagère
+  // le bassin : eau vivante, carpes koï, nénuphars en fleur
+  const eau=new THREE.Mesh(new THREE.CircleGeometry(2.4,24),new THREE.ShaderMaterial({uniforms:U,vertexShader:AQ_SOL_VS,fragmentShader:SER_EAU_FS}));
+  eau.rotation.x=-Math.PI/2; eau.position.set(ox,0.47,oz+0.5); g.add(eau);
+  const margelle=new THREE.Mesh(new THREE.TorusGeometry(2.55,0.2,6,24),mat(0x8a8478)); margelle.rotation.x=Math.PI/2; margelle.position.set(ox,0.45,oz+0.5); g.add(margelle);
+  inter.serKoi=[];
+  const geoK=new THREE.SphereGeometry(0.16,8,6); geoK.scale(0.8,0.6,2.4);
+  for(let k=0;k<4;k++){ const f=new THREE.Group(), c=[0xff7a2a,0xf2f4f6,0xff9a3a,0xe84a2a][k];
+    f.add(new THREE.Mesh(geoK,mat(c))); const ta=new THREE.Mesh(new THREE.SphereGeometry(0.1,6,4),mat(k%2?0xff5a1a:0xffffff)); ta.position.set(0,0.06,0.1); f.add(ta);
+    const q=new THREE.Mesh(new THREE.ConeGeometry(0.14,0.3,4),mat(c)); q.rotation.x=-Math.PI/2; q.scale.set(1,0.3,1); q.position.z=-0.48; f.add(q);
+    f.position.y=0.43; g.add(f); inter.serKoi.push({m:f,q,a:rand(0,6.28),r:rand(0.8,1.8),v:rand(0.4,0.8)*(k%2?1:-1)}); }
+  for(let k=0;k<5;k++){ const a=rand(0,6.28), r=rand(0.6,1.9);
+    const n=new THREE.Mesh(new THREE.CircleGeometry(rand(0.3,0.45),12,0.3,Math.PI*1.85),mat(0x2f8a3a)); n.rotation.x=-Math.PI/2; n.position.set(ox+Math.sin(a)*r,0.5,oz+0.5+Math.cos(a)*r); g.add(n);
+    if(k%2===0){ const fl=new THREE.Mesh(new THREE.ConeGeometry(0.16,0.2,6,1,true),new THREE.MeshLambertMaterial({color:0xffb0d8,side:THREE.DoubleSide,emissive:0x3a1028})); fl.rotation.x=Math.PI; fl.position.set(n.position.x,0.62,n.position.z); g.add(fl); } }
+  // lucioles, dedans comme dehors
+  inter.serLucioles=[];
+  for(let k=0;k<26;k++){ const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:0xd8ff6a,transparent:true,opacity:0.8,depthWrite:false,blending:THREE.AdditiveBlending}));
+    sp.scale.set(0.5,0.5,1); g.add(sp); const dedans=k<14;
+    inter.serLucioles.push({sp,cx:ox+(dedans?rand(-10,10):rand(-30,30)),cz:oz+(dedans?rand(-7,7):rand(-24,26)),cy:dedans?rand(1,3.4):rand(0.8,3),ph:rand(0,6),r:rand(0.6,2)}); }
+  // chevalet du jardinier (le tableau) : on le reconnaît, plus besoin d'étiquette
+  const texTab=cTex(128,(c,t)=>{ c.fillStyle='#1e2a22'; c.fillRect(0,0,t,t); c.strokeStyle='#e8ecd8'; c.lineWidth=3;
+    for(let k=0;k<6;k++){ const a=k/6*6.28; c.beginPath(); c.ellipse(t/2+Math.sin(a)*22,t*0.42+Math.cos(a)*22,10,22,-a,0,6.3); c.stroke(); }
+    c.fillStyle='#ffd23f'; c.beginPath(); c.arc(t/2,t*0.42,10,0,6.3); c.fill(); c.fillStyle='#e8ecd8'; c.font='bold 18px Arial'; c.textAlign='center'; c.fillText('🌙 22:00',t/2,t*0.9); },1);
+  const tab=new THREE.Mesh(new THREE.PlaneGeometry(2,2),new THREE.MeshLambertMaterial({map:texTab,emissive:0x1a2a1a}));
+  tab.position.set(ox-11.2,2.1,oz+8.72); tab.rotation.x=-0.35; g.add(tab);
+}
+function serreMajDecorV3(s,dt){
+  const T=ETAT.runT; if(s.serU) s.serU.uT.value+=dt;
+  if(s.serPlantes) for(const p of s.serPlantes){ p.g.rotation.y=Math.sin(T*0.5+p.ph)*0.06; p.g.rotation.z=Math.sin(T*0.7+p.ph)*0.03; }
+  if(s.serKoi) for(const k of s.serKoi){ k.a+=dt*k.v; k.m.position.x=s.bassinPos.bx+Math.sin(k.a)*k.r; k.m.position.z=s.bassinPos.bz+Math.cos(k.a)*k.r;
+    k.m.rotation.y=k.a+(k.v>0?Math.PI/2:-Math.PI/2); k.q.rotation.y=Math.sin(T*6+k.a)*0.5; }
+  if(s.serLucioles) for(const l of s.serLucioles){ l.ph+=dt*0.6;
+    l.sp.position.set(l.cx+Math.sin(l.ph*1.3)*l.r,l.cy+Math.sin(l.ph*2.1)*0.4,l.cz+Math.cos(l.ph)*l.r);
+    l.sp.material.opacity=0.25+0.65*Math.max(0,Math.sin(T*2.2+l.ph*3)); }
+  if(s.serLanternes) for(const h of s.serLanternes) h.material.opacity=0.6+Math.sin(T*9+h.position.x)*0.06;
+}
 function serreMaj(s,dt,dtJeu){
+  serreMajDecorV3(s,dt);
   const T=ETAT.runT;
   if(s.carnivore) s.carnivore.rotation.y+=dt*0.4;
   for(const p of s.pots){ if(p.pousse>0){ p.pousse-=dt; const k=1+Math.sin(p.pousse/0.35*Math.PI)*0.35; p.fl.scale.set(k,0.7*k,k); } }
@@ -21533,9 +21652,6 @@ const CHAL_SOLEIL=[-0.33,0.24,-0.91]; // direction du soleil, repère mer (bas s
 // normale analytique + vaguelettes, reflet du ciel (Fresnel), chemin de
 // soleil, écume des crêtes, sillage de Kelvin et vague d'étrave dans le
 // repère du bateau (uCap), fondu dans l'horizon au bord du plan
-const CHAL_GLSL_BRUIT='float hashC(vec2 p){ p=fract(p*vec2(0.1031,0.1030)); p+=dot(p,p.yx+33.33); return fract((p.x+p.y)*p.x); }'+
-  'float bruitC(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);'+
-  ' return mix(mix(hashC(i),hashC(i+vec2(1.0,0.0)),f.x),mix(hashC(i+vec2(0.0,1.0)),hashC(i+vec2(1.0,1.0)),f.x),f.y); }';
 const CHAL_MER_VS='uniform vec2 uBoat; uniform float uT; uniform float uTempete;'+
   'varying vec2 vSea; varying vec2 vRel; varying vec3 vLoc; varying float vAmp;'+
   'void main(){ vRel=vec2(position.x,-position.y); vSea=vRel+uBoat;'+
@@ -27349,7 +27465,8 @@ function majAction(){
 const CJourCiel=new THREE.Color(0x9fc2dd), CNuitCiel=new THREE.Color(0x0c1122);
 const CINT=new THREE.Color(0x0a0c12);
 const AQ_BLEU=new THREE.Color(0x03203a); // ambiance de l'aquarium (V3)
-const LAV_NUIT=new THREE.Color(0x070a12); // la nuit autour de la laverie (V3)   // ambiance intérieure : sombre, pas de ciel
+const LAV_NUIT=new THREE.Color(0x070a12); // la nuit autour de la laverie (V3)
+const SER_NUIT=new THREE.Color(0x050c12); // la nuit sur le jardin botanique (V3)   // ambiance intérieure : sombre, pas de ciel
 function jourNuit(dt){
   ETAT.jour=(ETAT.jour+dt)%170;
   // Site 51 est la seule salle à teinter lampeNuit (vert, au tir du
@@ -27432,6 +27549,14 @@ function jourNuit(dt){
       lampeNuit.color.setHex(0x39ff6a);
       lampeNuit.intensity=Math.max(lampeNuit.intensity,3*(s.tirFlashT/0.15));
     }
+    return;
+  }
+  if(INT.actif&&INT.actif.pots&&INT.actif.serU){
+    // Serre V3 : nuit de pleine lune sur le jardin botanique
+    soleil.intensity=0.5; hemi.intensity=0.75;
+    scene.background.copy(SER_NUIT); scene.fog.color.copy(SER_NUIT);
+    scene.fog.near=55; scene.fog.far=115;
+    lampeNuit.intensity=0.5; lampeNuit.distance=30; lampeNuit.position.set(P.x,6,P.z);
     return;
   }
   if(INT.actif&&INT.actif.mach7){

@@ -1646,3 +1646,7 @@ Captures : `captures/lot11/chalutier_v3_*.png` (`_avant` = la V2 telle que vue e
 **Laverie** : laverie de nuit sous la pluie — rue mouillée où l'enseigne néon se reflète, carrelage noir et blanc lustré, hublots chromés où le linge tourne, voiture des Vipers devant la vitrine ; les étiquettes (LAVAGE, MACHINE 7...) sont retirées. Pendant l'essorage, la caméra se rapproche de la machine 7 (gyrophare, afficheur « 7 »). **Bug trouvé en rendu réel** : la machine 7 disparaissait pendant tout le cycle (hauteur NaN avant le premier coup) — corrigé et testé. Captures : `captures/lot11/laverie_v3_*.png`.
 
 **Fiabilité des tests** : le test du chalutier pouvait échouer quand un banc de sardines était tiré trop près d'un banc à la canne (le jeu gardait la dernière position tirée après 40 essais : il garde maintenant la plus dégagée, et le test isole son banc). Le pilote de la serre perd parfois plus de 3 nuits sur 6 selon le tirage (vu une fois sur trois passages) : à surveiller.
+
+## Serre V3 — la passe visuelle (13 octobre)
+
+La boîte verte dans le noir devient une serre victorienne la nuit, au milieu du jardin botanique éclairé par la lune : pelouse, allées de gravier, haies, arbres, lanternes, lucioles ; dedans, des tomettes moussues où passent les ombres des feuilles, de grandes feuilles tropicales qui ondulent, un bassin avec des carpes koï et des nénuphars en fleur. Les étiquettes (LA NUIT DE LA FLORAISON, JARDINIER) sont retirées : le tableau est un chevalet. Captures : `captures/lot11/serre_v3_*.png`.
