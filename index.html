@@ -2476,7 +2476,7 @@ const VEHDEFS={
   busville:{nom:'Bus de ville',tuningMeca:true,vmax:16,acc:6,man:0.9,hp:480,long:10.5,larg:2.5,type:'car',cols:[0xe8ecf2],bus:true},
   pompiers:{nom:'Camion de pompiers',tuningMeca:true,vmax:20,acc:8,man:1.5,hp:480,long:7.5,larg:2.4,type:'car',cols:[0xd0342e],pompier:true},
   jeep:{nom:'4x4 "Coyote"',tuningMeca:true,vmax:27,acc:18,man:3.0,hp:160,long:3.8,larg:1.9,type:'car',jeep:true,franchissement:true,franchit:0.9,cols:[0x5a6a3a,0xc8a060,0xb83a2a,0xe8e4d8]}, // 4x4 de franchissement : la pente le freine deux fois moins, gravit des pentes bien plus raides
-  monstertruck:{nom:'Monster Truck',tuningMeca:true,tuningCarro:{famille:'toutterrain',ancrages:{avant:{x:0,y:3.19,z:2.53},arriere:{x:0,y:2.98,z:-2.52},toit:{x:0,y:3.84,z:0.78},basCaisse:{x:1.35,y:2.55,z:0}}},vmax:29,acc:8,man:2.2,hp:650,long:5.2,larg:2.7,type:'car',cols:[0xff3b1a],ecrase:true,franchit:1.5},
+  monstertruck:{nom:'Monster Truck',tuningMeca:true,tuningCarro:{famille:'toutterrain',ancrages:{avant:{x:0,y:3.19,z:2.53},arriere:{x:0,y:2.98,z:-2.52},toit:{x:0,y:3.84,z:0.78},basCaisse:{x:1.35,y:2.55,z:0}}},vmax:29,acc:12,man:2.2,hp:650,long:5.2,larg:2.7,type:'car',cols:[0xff3b1a],ecrase:true,franchissement:true /* grosses roues : il gravit comme le 4x4 (signalé : « il ne monte pas la colline ») */,franchit:1.5},
   // Dépôt de bus : loués au stand, jamais au concessionnaire (absents de
   // CATALOGUE — suffisant, pas besoin de cache:true qui déclencherait une
   // notification de « découverte » à chaque création). Quatre profils
@@ -9240,6 +9240,77 @@ const geoTorse=new THREE.BoxGeometry(0.62,0.75,0.38);
 const geoTete=new THREE.BoxGeometry(0.42,0.4,0.42);
 const geoCasq=new THREE.BoxGeometry(0.46,0.18,0.46);
 
+/* ---- MODÈLES D'ARMES (14 octobre, demandé : « un bâton pour la batte, un
+   bâton pour le pistolet, le même pour le pompe : chaque arme doit avoir son
+   style, se voir dans sa globalité et en imposer ; un pistolet doit
+   ressembler à un pistolet »). Un modèle par arme, tenu dans la main droite.
+   Repère : origine dans la main (bout du bras, y = -0,56) ; le CANON
+   prolonge le bras (vers -y : il pointe vers la cible quand on vise) ; le
+   DESSUS de l'arme est vers +z (il passe en haut quand le bras se lève pour
+   viser), la crosse et la poignée vers -z / +y. Un peu plus grandes que
+   nature (×1,3) pour se lire de loin, dans les deux vues. */
+function mkArmeModele(id){
+  const g=new THREE.Group(); g.position.set(0,-0.56,0.02);
+  // b(largeur x, longueur le long du canon, hauteur, couleur, avance, élévation, décalage x)
+  const b=(w,l,h,c,av,el,dx)=>{ const m=new THREE.Mesh(new THREE.BoxGeometry(w,l,h),mat(c)); m.position.set(dx||0,-av,el); g.add(m); return m; };
+  const tube=(r,l,c,av,el,dx,r2)=>{ const m=new THREE.Mesh(new THREE.CylinderGeometry(r2===undefined?r:r2,r,l,10),mat(c)); m.position.set(dx||0,-av,el); g.add(m); return m; };
+  const NOIR=0x1c1e22, ACIER=0x5a606a, CHROME=0xc8ccd4, BOIS=0x7a4a26, BOIS2=0x9a6234, OLIVE=0x4a5232;
+  switch(id){
+    case 'pistolet': // culasse, canon, poignée inclinée, pontet, guidon
+      b(0.1,0.36,0.11,NOIR,0.1,0.08); b(0.09,0.08,0.06,ACIER,0.3,0.06); b(0.09,0.12,0.24,0x2a2420,-0.02,-0.06).rotation.x=0.25;
+      b(0.03,0.1,0.02,NOIR,0.07,-0.04); b(0.02,0.03,0.03,CHROME,0.26,0.15); break;
+    case 'silence': // pistolet + long silencieux mat
+      b(0.1,0.34,0.11,ACIER,0.1,0.08); b(0.09,0.12,0.24,NOIR,-0.02,-0.06).rotation.x=0.25;
+      tube(0.045,0.32,NOIR,0.42,0.06); b(0.03,0.1,0.02,NOIR,0.07,-0.04); break;
+    case 'uzi': // carcasse carrée, chargeur dans la poignée, canon court, crosse repliée
+      b(0.11,0.34,0.14,NOIR,0.08,0.08); tube(0.025,0.12,ACIER,0.31,0.08); b(0.08,0.09,0.36,NOIR,0.02,-0.14);
+      b(0.02,0.26,0.03,ACIER,-0.12,0.1,0.05); b(0.02,0.26,0.03,ACIER,-0.12,0.1,-0.05); break;
+    case 'pm': // pistolet-mitrailleur : corps long, chargeur courbe en avant, crosse fine
+      b(0.11,0.5,0.14,0x2a2e36,0.12,0.08); tube(0.028,0.16,ACIER,0.44,0.08); b(0.08,0.08,0.3,0x2a2e36,0.18,-0.1).rotation.x=-0.25;
+      b(0.08,0.1,0.2,NOIR,0,-0.06).rotation.x=0.25; b(0.05,0.3,0.05,NOIR,-0.24,0.06); b(0.06,0.06,0.14,NOIR,-0.38,0.02); b(0.03,0.06,0.04,CHROME,0.3,0.17); break;
+    case 'pompe': // fusil à pompe : long canon, magasin tubulaire, pompe en bois, crosse en bois
+      tube(0.04,0.8,ACIER,0.5,0.1); tube(0.035,0.62,NOIR,0.44,0.03); b(0.11,0.24,0.1,BOIS2,0.46,0.02);
+      b(0.1,0.24,0.13,NOIR,0.04,0.07); b(0.08,0.1,0.2,BOIS,-0.04,-0.06).rotation.x=0.3; b(0.09,0.42,0.14,BOIS,-0.32,0.02).rotation.x=0.18; break;
+    case 'fusil': // fusil d'assaut : boîtier, garde-main, chargeur courbe, crosse, poignée de transport et viseur
+      b(0.11,0.34,0.15,0x2e3236,0.1,0.08); b(0.1,0.3,0.12,OLIVE,0.42,0.07); tube(0.025,0.24,NOIR,0.66,0.09);
+      b(0.08,0.11,0.3,NOIR,0.18,-0.1).rotation.x=-0.3; b(0.08,0.1,0.2,NOIR,-0.02,-0.05).rotation.x=0.3;
+      b(0.09,0.36,0.15,OLIVE,-0.28,0.05); b(0.05,0.2,0.06,NOIR,0.12,0.19); b(0.04,0.04,0.08,CHROME,0.56,0.17); break;
+    case 'sniper': // long canon fin, lunette, bipied, crosse à joue
+      tube(0.03,1.0,NOIR,0.62,0.1); b(0.11,0.4,0.14,0x3a3e2a,0.1,0.08); tube(0.05,0.38,NOIR,0.12,0.23); tube(0.062,0.06,ACIER,-0.06,0.23); tube(0.062,0.06,ACIER,0.3,0.23);
+      b(0.08,0.1,0.2,NOIR,-0.02,-0.06).rotation.x=0.3; b(0.1,0.46,0.18,0x3a3e2a,-0.34,0.04); b(0.02,0.02,0.24,NOIR,0.62,-0.06,0.05).rotation.y=0.3; b(0.02,0.02,0.24,NOIR,0.62,-0.06,-0.05).rotation.y=-0.3; break;
+    case 'flamme': // lance-flammes : réservoir rouge, lance, veilleuse
+      tube(0.1,0.42,0xb02818,0.08,-0.02); b(0.1,0.22,0.12,NOIR,0.12,0.12); tube(0.04,0.56,ACIER,0.48,0.12); tube(0.07,0.1,NOIR,0.78,0.12,0,0.05);
+      { const f=new THREE.Mesh(new THREE.SphereGeometry(0.05,6,4),new THREE.MeshBasicMaterial({color:0x4ab8ff})); f.position.set(0,-0.86,0.12); g.add(f); } break;
+    case 'roquette': // bazooka : gros tube vert, poignées, viseur, roquette visible
+      tube(0.11,1.3,OLIVE,0.25,0.1); tube(0.13,0.12,NOIR,0.88,0.1); tube(0.13,0.12,NOIR,-0.38,0.1);
+      { const ogive=new THREE.Mesh(new THREE.ConeGeometry(0.09,0.22,8),mat(0xd83a2a)); ogive.position.set(0,-1.0,0.1); ogive.rotation.x=Math.PI; g.add(ogive); }
+      b(0.08,0.1,0.18,NOIR,0.02,-0.06); b(0.08,0.1,0.18,NOIR,0.42,-0.06); b(0.05,0.12,0.1,NOIR,0.32,0.26); break;
+    case 'desintegrateur': // arme de science-fiction : anneaux lumineux, cœur cyan
+      b(0.12,0.38,0.16,0xe8ecf2,0.08,0.08); b(0.08,0.12,0.22,0x2a2e36,-0.02,-0.06).rotation.x=0.25;
+      { const lum=new THREE.MeshBasicMaterial({color:0x35e0ff});
+        for(let k=0;k<3;k++){ const a=new THREE.Mesh(new THREE.TorusGeometry(0.075,0.022,6,14),lum); a.rotation.x=Math.PI/2; a.position.set(0,-(0.32+k*0.1),0.08); g.add(a); }
+        const c=new THREE.Mesh(new THREE.SphereGeometry(0.05,8,6),lum); c.position.set(0,-0.62,0.08); g.add(c); } break;
+    case 'batte': case 'batte2': { // batte en bois effilée, pommeau, ruban, clous (« cloutée ») ou vertèbres
+      g.position.set(0,-0.5,0.06);
+      const corps=new THREE.Mesh(new THREE.CylinderGeometry(0.075,0.035,1.15,10),mat(id==='batte2'?0xe8dcc0:0xb07a3e)); corps.position.y=-0.5; g.add(corps);
+      const pommeau=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.05,0.04,10),mat(0x3a2a1c)); pommeau.position.y=0.09; g.add(pommeau);
+      const ruban=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.038,0.28,10),mat(0x1c1e22)); ruban.position.y=-0.06; g.add(ruban);
+      for(let k=0;k<8;k++){ const a=k*0.8, y=-0.68-(k%4)*0.1;
+        const cl=new THREE.Mesh(new THREE.ConeGeometry(0.018,0.1,4),mat(id==='batte2'?0xd8c8a0:CHROME));
+        cl.position.set(Math.cos(a)*0.075,y,Math.sin(a)*0.075); cl.rotation.z=-Math.cos(a)*Math.PI/2; cl.rotation.x=Math.sin(a)*Math.PI/2; g.add(cl); }
+      break; }
+    case 'couteau': // lame large, dos cranté, garde, manche
+      b(0.05,0.14,0.07,0x2a1c14,0.02,0); b(0.07,0.03,0.14,ACIER,0.1,0);
+      { const sh=new THREE.Shape(); sh.moveTo(-0.045,0); sh.lineTo(0.045,0); sh.lineTo(0.03,0.34); sh.lineTo(-0.045,0.26); sh.lineTo(-0.045,0);
+        const l=new THREE.Mesh(new THREE.ExtrudeGeometry(sh,{depth:0.012,bevelEnabled:false}),mat(0xdfe4ea)); l.rotation.set(Math.PI,0,0); l.rotation.order='XYZ';
+        l.rotation.y=Math.PI/2; l.position.set(-0.006,-0.11,0); g.add(l); } break;
+    case 'sabre': // sabre : longue lame courbe, garde dorée, poignée tressée
+      b(0.05,0.24,0.07,0x2a1c14,0.06,0); b(0.12,0.03,0.2,0xc8a040,0.19,0);
+      for(let k=0;k<6;k++){ const s=b(0.025,0.17,0.07,0xe8eef4,0.27+k*0.155,0.012*k*k); s.rotation.x=-0.03*k; } break;
+    default: return null; // poings, gadget, boule : rien en main (ou leur propre modèle)
+  }
+  g.visible=false; return g;
+}
 function mkBatteMesh(){
   const m=new THREE.Mesh(new THREE.BoxGeometry(0.11,1.05,0.11),mat(0x9a6a34));
   m.position.set(0,-0.5,0.07); return m;
@@ -11044,8 +11115,8 @@ function construireJoueur(){
   const c=PERSOS[META.perso];
   P.h=makeHumain(coifCouleurs(),1); // couleurs du perso, recouvertes par la tenue équipée (penderie) — voir coifCouleurs
   scene.add(P.h.g);
-  P.armeMeshes={batte:mkBatteMesh(),gun:mkGunMesh(),lame:mkLameMesh()};
-  P.h.brasD.add(P.armeMeshes.batte); P.h.brasD.add(P.armeMeshes.gun); P.h.brasD.add(P.armeMeshes.lame);
+  // un modèle par arme (mkArmeModele) ; seul celui de l'arme en main est visible
+  P.armeMeshes={}; for(const id in ARMES){ const m=mkArmeModele(id); if(m){ P.armeMeshes[id]=m; P.h.brasD.add(m); } }
   P.jetMesh=mkJetpackMesh(); P.h.g.add(P.jetMesh.g);
   appliqueMuscle();
   majArmeJoueur();
@@ -11075,10 +11146,8 @@ function appliqueMuscle(h){
 function majArmeJoueur(id){
   if(id&&META.armes[id].poss) P.armeCur=id;
   const a=ARMES[P.armeCur];
-  P.armeMeshes.batte.visible=(P.armeCur==='batte'||P.armeCur==='batte2');
-  P.armeMeshes.lame.visible=(P.armeCur==='couteau'||P.armeCur==='sabre');
-  if(P.armeMeshes.lame.visible){ P.armeMeshes.lame.scale.setScalar(P.armeCur==='sabre'?1.4:0.8); }
-  P.armeMeshes.gun.visible=(a.type==='gun');
+  const sb=P.h.brasD.scale; // le bras gonfle avec le muscle : l'arme, elle, garde sa taille
+  for(const id in P.armeMeshes){ const m=P.armeMeshes[id]; m.visible=id===P.armeCur; m.scale.set(1/sb.x,1/sb.y,1/sb.z); }
   el('fireIco').innerHTML=icoArme(P.armeCur);
 }
 function changerArme(){
@@ -11853,7 +11922,11 @@ function creerVehicule(key,x,z,ang,conduit){
   // toujours autour de l'axe vertical monde) — convention standard pour ce
   // cas (identique à celle utilisée pour les caméras FPS). N'affecte pas
   // les véhicules au sol (seul rotation.y y est jamais utilisé).
-  if(def.air) mesh.rotation.order='YXZ';
+  // Véhicules au sol aussi (14 octobre, signalé : « les roues s'enfoncent dans la colline, pas
+  // droites par rapport à la montée ») : même bug que les aéronefs — en 'XYZ', le tangage
+  // tournait autour de l'axe X du MONDE : de côté, la pente faisait rouler la caisse au lieu
+  // de la cabrer. Toutes les autres rotations (figures, cabrage) posaient déjà 'YXZ'.
+  mesh.rotation.order='YXZ';
   const v={key,def,mesh,x,z,ang:ang||0,dirAng:ang||0,v:0,hp:def.hp,conduit:conduit||null,mort:false,
     fumeT:0,volFait:false,tapeJoueur:false,lane:0,axe:'z',dirT:1,klaxT:0,
     eau:def.pompier?100:0,enFeu:false,feuT:0,feuFx:0};
@@ -12235,6 +12308,7 @@ function resoudreCollisionsVehicule(v,dt){
     }
   }
 }
+const _vRoue=new THREE.Vector3();
 function majVehiculePhys(v,dt,throttle,steer,frein){
   if(v.noye) return; // noyé : il coule (majNoyade), plus aucune conduite
   const d=v.def, eau=surEauVeh(v); // surEauVeh : dynamique pour l'amphibie, statique pour les bateaux
@@ -12427,9 +12501,32 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
   if(!eau&&!d.air){
     if(v.enAir) v.mesh.rotation.x=lerp(v.mesh.rotation.x,-v.vy*0.05,0.15);
     else {
-      const hA=solY(v.x+sA*1.6,v.z+cA*1.6), hB=solY(v.x-sA*1.6,v.z-cA*1.6);
-      const dip=(frein&&Math.abs(v.v)>6&&d.type!=='moto')?0.045:0; // le nez plonge au freinage
-      v.mesh.rotation.x=lerp(v.mesh.rotation.x,-Math.atan2(hA-hB,3.2)*Math.sign(v.v||1)+dip,0.25);
+      // assiette sur les QUATRE points de contact (roues avant/arrière, gauche/droite), à
+      // l'empattement et à la voie du véhicule (avant : 3,2 u fixes, sans dévers, et un signe
+      // qui s'inversait en marche arrière) : tangage, dévers, et la caisse remonte du creux
+      // pour qu'aucune roue ne s'enfonce dans le terrain.
+      const aV=v.ang, cY=Math.cos(aV), sY=Math.sin(aV), dip=(frein&&Math.abs(v.v)>6&&d.type!=='moto')?0.045:0; // le nez plonge au freinage
+      const roues=v.mesh.userData.roues||[];
+      // positions RÉELLES des roues (repère du véhicule) : avant/arrière, gauche/droite
+      let zAv=0,zAr=0,nAv=0,nAr=0,hAv=0,hAr=0,xD=0,xG=0,nD=0,nG=0,hD=0,hG=0;
+      for(const r of roues){ const lx=r.position.x, lz=r.position.z, wx=v.x+lx*cY+lz*sY, wz=v.z-lx*sY+lz*cY, h=solY(wx,wz);
+        if(lz>=0){ zAv+=lz; hAv+=h; nAv++; } else { zAr+=lz; hAr+=h; nAr++; }
+        if(lx>=0){ xD+=lx; hD+=h; nD++; } else { xG+=lx; hG+=h; nG++; } }
+      if(!nAv||!nAr){ const L=Math.max(0.9,d.long*0.38); zAv=L; zAr=-L; hAv=solY(v.x+sY*L,v.z+cY*L); hAr=solY(v.x-sY*L,v.z-cY*L); nAv=nAr=1; }
+      const pitch=-Math.atan2(hAv/nAv-hAr/nAr,Math.max(0.6,zAv/nAv-zAr/nAr))+dip;
+      v.mesh.rotation.x=lerp(v.mesh.rotation.x,pitch,0.3);
+      if(d.type!=='moto'&&!d.velo&&nD&&nG) v.mesh.rotation.z=lerp(v.mesh.rotation.z||0,Math.atan2(hD/nD-hG/nG,Math.max(0.4,xD/nD-xG/nG)),0.3); // dévers (les deux-roues gardent leur inclinaison de virage)
+      v.assietteDy=0;
+      // pente ou dévers réels : relevage EXACT sur le point le plus bas de chaque roue dans la pose
+      // courante — aucune roue sous le terrain (signalé : « les roues s'enfoncent dans la colline »)
+      if(roues.length&&(Math.abs(hAv/nAv-hAr/nAr)>0.06||(nD&&nG&&Math.abs(hD/nD-hG/nG)>0.06))){
+        v.mesh.position.set(v.x,(v.h||0),v.z); v.mesh.rotation.y=v.ang; v.mesh.updateMatrixWorld(true);
+        let lever=0;
+        for(const r of roues){ const pa=r.geometry.attributes.position; let bas=Infinity,bx=0,bz=0;
+          for(let i=0;i<pa.count;i+=2){ _vRoue.fromBufferAttribute(pa,i).applyMatrix4(r.matrixWorld); if(_vRoue.y<bas){ bas=_vRoue.y; bx=_vRoue.x; bz=_vRoue.z; } }
+          lever=Math.max(lever,solY(bx,bz)-bas); }
+        v.assietteDy=clamp(lever,0,3);
+      }
     }
   }
   // sillage des bateaux
@@ -12443,7 +12540,7 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
   majDeformation(v,dt);
   // fumée si abîmé
   if(v.hp<v.def.hp*0.42){ v.fumeT-=dt; if(v.fumeT<=0){v.fumeT=0.12;fumee(v.x,1.1,v.z, v.hp<v.def.hp*0.2?0x22242a:0x555a63);} }
-  v.mesh.position.set(v.x,eau?0.15:(v.h||0),v.z);
+  v.mesh.position.set(v.x,eau?0.15:(v.h||0)+(v.enAir?0:(v.assietteDy||0)),v.z);
   v.mesh.rotation.y=v.ang;
   const sautMer=DECOR_V2&&eau&&!!d.eau&&!echoue&&majSautMer(v,dt); // tremplins flottants
   if(sautMer){ v.mesh.position.y=0.15+(v.hMer||0); v.mesh.rotation.x=clamp(-(v.vyMer||0)*0.04-(v.rampeMer?0.25:0),-0.45,0.45); }
@@ -14496,8 +14593,8 @@ function creerEnnemi(type,x,z,wave){
   } else {
     e.h=makeHumain(Object.assign({visage:GANGS.includes(def.fac)?'mechant':'neutre'},def.couleurs),def.taille||1);
     e.h.g.scale.x*=rand(0.92,1.1); e.h.g.scale.z*=rand(0.92,1.1);
-    if(def.armeM==='batte') e.h.brasD.add(mkBatteMesh());
-    if(def.arme!=='melee'&&!def.armeM) e.h.brasD.add(mkGunMesh());
+    if(def.armeM==='batte'){ const m=mkArmeModele('batte'); m.visible=true; e.h.brasD.add(m); }
+    if(def.arme!=='melee'&&!def.armeM){ const m=mkArmeModele(def.arme)||mkArmeModele('pistolet'); /* def.arme : pistolet, pompe, pm, fusil (mêmes ids que ARMES) */ m.visible=true; e.h.brasD.add(m); } // l'arme qu'il lâchera
     e.h.g.position.set(x,0,z); scene.add(e.h.g);
     // mini-barre de vie
     const bg=mkBoxG(1.1,0.12,0.02,0x14161c,0,2.3,0);
