@@ -17930,16 +17930,21 @@ function construireSalle(id){
      Curiosité : la Chaussette Solitaire, dans le filtre à peluches, qui
      n'existe qu'une fois un cycle terminé. */
   else if(id==='laverie'){
-    // carrelage bleuté
-    for(let i=-4;i<4;i++) for(let j=-3;j<3;j++){
-      if((i+j)%2) continue;
-      const t=new THREE.Mesh(new THREE.PlaneGeometry(2.7,2.7),mat(0x9fadb6));
-      t.rotation.x=-Math.PI/2; t.position.set(ox+i*2.8+1.4,0.11,oz+j*2.8+1.4); g.add(t);
-    }
+    // V3 : laverie de nuit sous la pluie (voir laverieDecorV3)
+    laverieDecorV3(inter,g,ox,oz,W,P2,sol,dehors);
+    // hublot chromé, linge qui tourne derrière la vitre, reflet au sol
+    const texLinge=cTex(64,(c,t)=>{ c.fillStyle='#16222c'; c.fillRect(0,0,t,t);
+      for(let i=0;i<14;i++){ c.fillStyle=pick(['#e05252','#35c8e0','#f2c21f','#f2f4f6','#8a5ad0','#2fae4f']); c.beginPath(); c.arc(rand(8,56),rand(8,56),rand(5,11),0,6.3); c.fill(); } },1);
     const hublot=(x,y,z,ry,coul)=>{
       const h=new THREE.Mesh(new THREE.CylinderGeometry(0.52,0.52,0.16,14),
-        new THREE.MeshLambertMaterial({color:coul,emissive:new THREE.Color(coul).multiplyScalar(0.35)}));
+        new THREE.MeshLambertMaterial({color:coul,emissive:new THREE.Color(coul).multiplyScalar(0.35),transparent:true,opacity:0.45}));
       h.rotation.x=Math.PI/2; h.rotation.y=ry; h.position.set(ox+x,y,oz+z); g.add(h);
+      const anneau=new THREE.Mesh(new THREE.TorusGeometry(0.56,0.08,6,18),new THREE.MeshPhongMaterial({color:0xdfe6ec,shininess:90,specular:0xffffff}));
+      anneau.rotation.y=ry; anneau.position.copy(h.position); g.add(anneau);
+      const tb=new THREE.Mesh(new THREE.CircleGeometry(0.5,16),new THREE.MeshBasicMaterial({map:texLinge}));
+      tb.rotation.y=ry; tb.position.copy(h.position); tb.position.x-=Math.sin(ry)*0.05; tb.position.z-=Math.cos(ry)*0.05; tb.userData.v=rand(2,6); g.add(tb); inter.lavTambours.push(tb);
+      const re=new THREE.Mesh(new THREE.PlaneGeometry(1.4,1.4),new THREE.MeshBasicMaterial({map:texGlow,color:coul,transparent:true,opacity:0.35,depthWrite:false,blending:THREE.AdditiveBlending}));
+      re.rotation.x=-Math.PI/2; re.position.set(ox+x+Math.sin(ry)*0.9,0.13,oz+z+Math.cos(ry)*0.9); g.add(re);
       return h;
     };
     // rangée de lave-linge (mur gauche)
@@ -17950,7 +17955,6 @@ function construireSalle(id){
       hublot(-8.42,1.0,mz,Math.PI/2,0x7fd8ff);
       fouillable(-8.2,mz,'Lave-linge n°'+(k+1),'pauvre',null,2.6);
     }
-    mkEnseigne('LAVAGE','#8ad2ff',ox-9.4,3.2,oz-7.2,0,7);
     // sécheuses (mur droit)
     for(let k=0;k<3;k++){
       const mz=-6+k*2.2;
@@ -17958,7 +17962,6 @@ function construireSalle(id){
       hublot(8.42,1.0,mz,Math.PI/2,0xffc46a);
       fouillable(8.2,mz,'Sécheuse n°'+(k+1),'pauvre',null,2.6);
     }
-    mkEnseigne('SÉCHAGE','#ffc46a',ox+9.4,3.2,oz-7.2,0,7);
     // === machines du fond : celles des Vipers (étiquette verte) ===
     inter.machinesFond=[];
     for(let k=0;k<3;k++){
@@ -17968,7 +17971,6 @@ function construireSalle(id){
       hublot(mx,1.15,-5.72,0,0x2fae4f);
       inter.machinesFond.push({x:ox+mx,z:oz-5.4,mesh:m,pris:false});
     }
-    mkEnseigne('RÉSERVÉ — NE PAS TOUCHER','#2fae4f',ox,3.6,oz-5.5,0,12);
     // === LA MACHINE 7 : grosse machine industrielle isolée — un groupe, pour
     // qu'elle tremble, penche et saute à l'essorage (laverieMaj) ; son solide reste fixe ===
     const mach7=new THREE.Group(); mach7.position.set(ox+5.4,0,oz+2.2); g.add(mach7);
@@ -17983,12 +17985,19 @@ function construireSalle(id){
       for(let i=0;i<10;i++){ c.save(); c.translate(t/2,t/2); c.rotate(i*0.63); c.fillStyle=i%2?'#5aa86a':'#7dcf7a'; c.fillRect(10,-8,44,16); c.restore(); } });
     const tamb=new THREE.Mesh(new THREE.CircleGeometry(0.58,18),new THREE.MeshBasicMaterial({map:texTamb})); tamb.position.set(0,1.35,1.205); mach7.add(tamb);
     inter.hublot7=hub7; inter.tambour7=tamb; inter.mach7=mach7; inter.mach7X=ox+5.4; inter.mach7Z=oz+2.2;
-    mkEnseigne('MACHINE 7','#35e0ff',ox+5.4,3.5,oz+1,0,7);
+    // V3 : la machine 7 se reconnaît à elle-même — gros hublot chromé, afficheur « 7 », gyrophare pendant le cycle
+    const anneau7=new THREE.Mesh(new THREE.TorusGeometry(0.68,0.11,8,22),new THREE.MeshPhongMaterial({color:0xe8eef2,shininess:100,specular:0xffffff})); anneau7.position.set(0,1.35,1.27); mach7.add(anneau7);
+    const texSept=cTex(64,(c,t)=>{ c.fillStyle='#04121a'; c.fillRect(0,0,t,t); c.fillStyle='#ffffff'; c.font='900 46px Arial'; c.textAlign='center'; c.textBaseline='middle'; c.fillText('7',t/2,t/2+2); },1);
+    const aff=new THREE.Mesh(new THREE.PlaneGeometry(0.7,0.5),new THREE.MeshBasicMaterial({map:texSept,color:0x1a4a5a})); aff.position.set(0.85,2.3,1.21); mach7.add(aff); inter.afficheur7=aff;
+    const gyro=new THREE.Group(); gyro.position.set(-0.8,2.95,0.2); mach7.add(gyro);
+    gyro.add(new THREE.Mesh(new THREE.CylinderGeometry(0.18,0.22,0.3,10),new THREE.MeshBasicMaterial({color:0xff2a2a})));
+    const gb=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.08,0.08),new THREE.MeshBasicMaterial({color:0xffe0e0})); gb.position.y=0.05; gyro.add(gb);
+    const gh=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:0xff2a2a,transparent:true,opacity:0.8,depthWrite:false,blending:THREE.AdditiveBlending})); gh.scale.set(3,3,1); gh.position.set(-0.8,3.05,0.2); mach7.add(gh);
+    gyro.visible=false; gh.visible=false; inter.gyro7=gyro; inter.gyroHalo=gh;
     inter.machine7={x:ox+5.4,z:oz+4.2,mesh:m7};
     inter.cycleT=0; inter.cycleOn=false; inter.sacPret=false; inter.lavGain=0;
     // filtre à peluches (n'a d'intérêt qu'après un cycle)
     const filt=box(1,0.8,0.9,0x8a949a,9.3,0.4,6.2,false);
-    mkEnseigne('FILTRES','#8a949a',ox+9.3,1.5,oz+5.5,0,5);
     inter.filtre={x:ox+9.3,z:oz+6.2,mesh:filt};
     // table de pliage, chaises, plante, distributeur
     box(5.4,0.9,1.6,0xd8cdb8,-0.6,0.45,0.4);
@@ -18004,7 +18013,6 @@ function construireSalle(id){
     const pan=box(1.6,0.9,1.6,0x8a5a3a,2,0.45,-1.6);
     for(let k=0;k<5;k++) box(0.4,0.25,0.4,pick([0xe05252,0x35c8e0,0xf2c21f,0xffffff,0x2fae4f]),
       1.4+rand(0,1.2),1,-2.2+rand(0,1.2),false);
-    mkEnseigne('OBJETS PERDUS','#ffd23f',ox+2,2,oz-0.4,0,8);
     fouillable(2,-0.2,'Panier des objets perdus','riche',pan,3.2);
     // affiches et plante
     box(0.8,0.2,0.8,0x7a5a38,-0.6,0.1,-3.4,false);
@@ -18171,12 +18179,8 @@ function construireSalle(id){
      bassins sont des perchoirs pour Gaston ; on lance la partie auprès du
      gardien. Curiosité : la Perle Noire, qu'il rend la première fois. */
   else if(id==='aquarium'){
-    // sol humide sombre
-    for(let i=-4;i<4;i++) for(let j=-3;j<3;j++){
-      if((i+j)%2) continue;
-      const t=new THREE.Mesh(new THREE.PlaneGeometry(3.4,3.4),mat(0x18404f));
-      t.rotation.x=-Math.PI/2; t.position.set(ox+i*3.5+1.75,0.11,oz+j*3.5+1.75); g.add(t);
-    }
+    // V3 : galerie d'observation au fond de la mer (voir aquariumDecorV3)
+    aquariumDecorV3(inter,g,ox,oz,W,P2,sol,dehors);
     // eau des bassins : texture propre (elle ondule sans toucher la mer de la ville), translucide (on voit les poissons)
     const texEauAq=texEau.clone(); texEauAq.needsUpdate=true; texEauAq.repeat.set(1,1); inter.texEauAq=texEauAq;
     const matEau2=new THREE.MeshLambertMaterial({map:texEauAq,emissive:new THREE.Color(0x0e2c3a),transparent:true,opacity:0.55,depthWrite:false});
@@ -18191,7 +18195,7 @@ function construireSalle(id){
       paroi.position.set(ox+p[0],0.75,oz+p[1]); g.add(paroi);
       const eau=new THREE.Mesh(new THREE.CylinderGeometry(2.42,2.42,0.08,20),matEau2);
       eau.position.set(ox+p[0],1.38,oz+p[1]); g.add(eau);
-      const rebord=new THREE.Mesh(new THREE.TorusGeometry(2.5,0.14,6,20),mat(0xd8dce4));
+      const rebord=new THREE.Mesh(new THREE.TorusGeometry(2.5,0.14,6,24),new THREE.MeshBasicMaterial({color:0x6fe8ff}));
       rebord.rotation.x=Math.PI/2; rebord.position.set(ox+p[0],1.5,oz+p[1]); g.add(rebord);
       addSolid({x:ox+p[0],z:oz+p[1],hw:2.5,hd:2.5,h:1.5});
       for(let q=0;q<4;q++){
@@ -18209,31 +18213,14 @@ function construireSalle(id){
       const sx=p[0]===0?(k<3?1:-1):Math.sign(p[0]);
       inter.perchoirs.push({gx:ox+p[0]+sx*2.25,gz:oz+p[1],ax:ox+p[0]+sx*3.6,az:oz+p[1],cx:ox+p[0],cz:oz+p[1]});
     });
-    // Gaston : gros poulpe violet aux yeux qui s'ouvrent quand il regarde
-    const gast=new THREE.Group();
-    const corpsG=new THREE.Mesh(new THREE.SphereGeometry(0.62,12,10),new THREE.MeshLambertMaterial({color:0x8a4de0,emissive:0x000000}));
-    corpsG.scale.y=1.2; corpsG.position.y=0.25; gast.add(corpsG);
-    for(let k=0;k<8;k++){ const a=k/8*Math.PI*2, br=new THREE.Mesh(new THREE.CylinderGeometry(0.11,0.04,1.0,6),mat(0x9a5de8));
-      br.position.set(Math.sin(a)*0.48,-0.32,Math.cos(a)*0.48); br.rotation.x=Math.cos(a)*0.8; br.rotation.z=-Math.sin(a)*0.8; gast.add(br); }
-    const yeux=[];
-    for(const sx of [-0.24,0.24]){ const o=new THREE.Group(); o.position.set(sx,0.42,0.5);
-      const blanc=new THREE.Mesh(new THREE.SphereGeometry(0.17,8,6),mat(0xffffff)); o.add(blanc);
-      const pup=new THREE.Mesh(new THREE.SphereGeometry(0.08,6,5),mat(0x111111)); pup.position.z=0.12; o.add(pup);
-      o.scale.y=0.35; gast.add(o); yeux.push(o); }
+    // Gaston V3 : vrai poulpe à huit bras articulés, qui change de couleur (aquaModeleGaston)
+    const gast=aquaModeleGaston(), yeux=gast.userData.yeux, corpsG=gast.userData.manteau;
     // halo au sol : on le repère d'un coup d'œil (violet ; rouge quand il regarde)
     const haloG=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:0xb07dff,transparent:true,opacity:0.75,depthWrite:false,blending:THREE.AdditiveBlending}));
-    haloG.scale.set(3.4,3.4,1); haloG.position.y=-0.55; gast.add(haloG);
-    gast.scale.setScalar(1.5); gast.visible=false; g.add(gast);
+    haloG.scale.set(3.4,3.4,1); haloG.position.y=-0.4; gast.add(haloG);
+    gast.scale.setScalar(1.35); gast.visible=false; g.add(gast);
     inter.gastonMesh=gast; inter.gastonYeux=yeux; inter.gastonCorps=corpsG; inter.gastonHalo=haloG;
     inter.gastonVague=-1; inter.gastonTrouve=false; inter.aqActif=false; inter.aqCuve=-1; inter.aqFinT=0; inter.aqIntroT=0;
-    // grand bassin mural au nord : poissons et un requin qui passent
-    const vitre=new THREE.Mesh(new THREE.BoxGeometry(24,2.8,0.7),new THREE.MeshLambertMaterial({color:0x14627a,emissive:0x0a3446,transparent:true,opacity:0.75}));
-    vitre.position.set(ox,1.5,oz-9.9); g.add(vitre);
-    inter.grandBassin=[];
-    for(let q=0;q<7;q++){ const requin=q===0, f=new THREE.Group(), c=requin?0x6a7a86:pick(coulsPoissons);
-      const corps=new THREE.Mesh(new THREE.BoxGeometry(requin?0.55:0.25,requin?0.45:0.22,requin?2.2:0.6),mat(c)); f.add(corps);
-      if(requin){ const aileron=new THREE.Mesh(new THREE.ConeGeometry(0.25,0.6,3),mat(c)); aileron.position.y=0.45; f.add(aileron); }
-      f.position.set(ox,1,oz-9.9); g.add(f); inter.grandBassin.push({m:f,x:rand(-11,11),y:rand(0.6,2.4),v:(requin?2:rand(1,2.4))*(Math.random()<0.5?-1:1),ph:rand(0,6)}); }
     // le gardien, à l'est : c'est lui qui lance la chasse
     const gardienH=pnj(12.4,-3,{haut:0x1f6a7a,bas:0x14202a,peau:pick(civPeau),casq:0x0e3a46,visage:'neutre'});
     gardienH.g.rotation.y=-Math.PI/2; inter.gardienH=gardienH;
@@ -20236,6 +20223,207 @@ aquaEncreEl.style.cssText='position:fixed;inset:0;pointer-events:none;z-index:7;
   'radial-gradient(circle at 25% 68%,#0a0614d8 0 10%,transparent 11%),radial-gradient(ellipse at 50% 50%,#1a0a3a66 0 60%,transparent 61%)';
 document.body.appendChild(aquaEncreEl);
 let aquaEncreT=0;
+/* ---- Aquarium V3 (13 octobre, retour de playtest : « on dirait le jeu
+   d'avant, peu immersif ») : la salle devient une galerie d'observation posée
+   AU FOND DE LA MER. L'enveloppe générique (murs gris, sol, dehors noir) est
+   masquée — ses SOLIDES restent ; tout autour, derrière des vitres basses, le
+   fond marin vu de dessus (sable, rochers, coraux, algues qui ondulent), des
+   bancs de poissons, un requin et une raie manta qui tournent autour ; la
+   lumière ondule partout (caustiques, AQ_CAUST). Gaston est un vrai poulpe à
+   huit bras articulés qui change de couleur avec son humeur (chromatophores :
+   violet au repos, jaune au frisson, rouge quand il regarde). Tout cosmétique
+   (dt) : la mécanique « 1, 2, 3… GASTON ! » ne change pas. */
+const AQ_FOND_Y=-4.2;   // le fond marin, sous la galerie
+const AQ_GLSL_CAUST='float caustA(vec2 p,float t){ vec2 q=mod(p,6.2831853)-250.0; vec2 i=q; float c=1.0, inten=0.005;'+
+  ' for(int n=0;n<4;n++){ float tt=t*(1.0-(3.5/float(n+1))); i=q+vec2(cos(tt-i.x)+sin(tt+i.y),sin(tt-i.y)+cos(tt+i.x));'+
+  '  c+=1.0/length(vec2(q.x/(sin(i.x+tt)/inten),q.y/(cos(i.y+tt)/inten))); }'+
+  ' c/=4.0; c=1.17-pow(c,1.4); return clamp(pow(abs(c),8.0),0.0,1.5); }';
+const AQ_SOL_VS='varying vec3 vW; void main(){ vec4 w=modelMatrix*vec4(position,1.0); vW=w.xyz; gl_Position=projectionMatrix*viewMatrix*w; }';
+// sol de la galerie : dalles sombres et lustrées, la lumière de l'eau danse dessus
+const AQ_SOL_FS='uniform float uT; uniform vec2 uC; varying vec3 vW;'+AQ_GLSL_CAUST+
+  'void main(){ vec2 p=vW.xz-uC; vec2 g=abs(fract(p/3.5)-0.5);'+
+  ' float joint=smoothstep(0.47,0.5,max(g.x,g.y));'+
+  ' vec3 c=mix(vec3(0.05,0.15,0.19),vec3(0.03,0.09,0.12),joint);'+
+  ' float k=caustA(p*0.22,uT*0.55);'+
+  ' c+=vec3(0.3,0.7,0.8)*k*0.75;'+
+  ' c*=1.0-0.35*smoothstep(8.0,17.0,length(p*vec2(0.8,1.05)));'+
+  ' gl_FragColor=vec4(c,1.0); }';
+// fond marin : sable ridé, caustiques, se perd dans le bleu au loin
+const AQ_FOND_FS='uniform float uT; uniform vec2 uC; varying vec3 vW;'+AQ_GLSL_CAUST+
+  'void main(){ vec2 p=vW.xz-uC; float r=length(p);'+
+  ' float ride=sin(p.x*1.3+sin(p.y*0.35)*2.0)*0.5+0.5;'+
+  ' vec3 sable=mix(vec3(0.42,0.40,0.30),vec3(0.52,0.49,0.36),ride);'+
+  ' float k=caustA(p*0.16,uT*0.5);'+
+  ' vec3 c=sable*0.8+vec3(0.4,0.85,0.9)*k*0.75;'+
+  ' c=mix(c,vec3(0.02,0.16,0.24),0.22+0.65*smoothstep(28.0,62.0,r));'+
+  ' gl_FragColor=vec4(c,1.0); }';
+// algues : rubans qui ondulent (houle de fond), plus clairs vers la pointe
+const AQ_ALGUE_VS='uniform float uT; varying float vH; void main(){ vec3 p=position; vH=uv.y;'+
+  ' vec4 w=modelMatrix*vec4(p,1.0); float k=pow(uv.y,1.4);'+
+  ' w.x+=sin(uT*1.2+w.x*0.25+w.z*0.3)*0.9*k; w.z+=cos(uT*0.9+w.x*0.2)*0.5*k;'+
+  ' gl_Position=projectionMatrix*viewMatrix*w; }';
+const AQ_ALGUE_FS='uniform vec3 uCoul; varying float vH; void main(){ vec3 c=mix(uCoul*0.45,uCoul*1.15,vH); gl_FragColor=vec4(c,1.0); }';
+// rayons de lumière qui tombent de la surface
+const AQ_RAYON_FS='uniform float uT; uniform float uPh; varying vec2 vUv; void main(){'+
+  ' float a=(1.0-vUv.y)*smoothstep(0.0,0.35,vUv.x)*smoothstep(1.0,0.65,vUv.x)*(0.5+0.5*sin(uT*0.7+uPh));'+
+  ' gl_FragColor=vec4(vec3(0.55,0.85,0.95)*a*0.22,1.0); }';
+const AQ_UV_VS='varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }';
+// un poisson stylisé : corps fuselé, queue, nageoire dorsale (géométries partagées par la salle)
+function aquaModelePoisson(geo,coul,ventre,taille){
+  const f=new THREE.Group(), m=new THREE.MeshLambertMaterial({color:coul,emissive:new THREE.Color(coul).multiplyScalar(0.18)});
+  const c=new THREE.Mesh(geo.corps,m); f.add(c);
+  if(ventre!==undefined){ const v=new THREE.Mesh(geo.corps,new THREE.MeshLambertMaterial({color:ventre})); v.scale.set(0.8,0.6,0.9); v.position.y=-0.06; f.add(v); }
+  const q=new THREE.Mesh(geo.queue,m); q.position.z=-0.5; f.add(q);
+  const d=new THREE.Mesh(geo.dorsale,m); d.position.set(0,0.16,0.02); f.add(d);
+  f.scale.setScalar(taille); f.userData.queue=q; return f;
+}
+// le requin : fuselage en tour (dos gris, ventre blanc), dorsale, pectorales, queue haute
+function aquaModeleRequin(){
+  const g2=new THREE.Group();
+  const prof=[[0.02,-3.4],[0.16,-3.0],[0.38,-2.0],[0.62,-0.6],[0.7,0.5],[0.6,1.6],[0.4,2.4],[0.15,2.9],[0.03,3.0]].map(q=>new THREE.Vector2(q[0],q[1]));
+  const geo=new THREE.LatheGeometry(prof,16); geo.rotateX(Math.PI/2); geo.scale(0.85,0.8,1);
+  const pa=geo.attributes.position, cols=new Float32Array(pa.count*3), dos=new THREE.Color(0x56646e), ventre=new THREE.Color(0xe4e8ea), tmp=new THREE.Color();
+  for(let k=0;k<pa.count;k++){ const u=clamp(pa.getY(k)/0.5,-1,1); tmp.copy(ventre).lerp(dos,clamp((u+0.25)/0.6,0,1)); cols[k*3]=tmp.r; cols[k*3+1]=tmp.g; cols[k*3+2]=tmp.b; }
+  geo.setAttribute('color',new THREE.BufferAttribute(cols,3));
+  g2.add(new THREE.Mesh(geo,new THREE.MeshLambertMaterial({vertexColors:true})));
+  const matA=new THREE.MeshLambertMaterial({color:0x4e5c66,side:THREE.DoubleSide});
+  const plan=(pts,x,y,z,rx,ry,rz)=>{ const sh=new THREE.Shape(); pts.forEach((q,i)=>i?sh.lineTo(q[0],q[1]):sh.moveTo(q[0],q[1]));
+    const m=new THREE.Mesh(new THREE.ShapeGeometry(sh),matA); m.position.set(x,y,z); m.rotation.set(rx,ry,rz); g2.add(m); return m; };
+  plan([[0.7,0],[-0.3,1.2],[-0.7,0]],0,0.45,0.2,0,-Math.PI/2,0);                        // dorsale
+  for(const sg of [-1,1]) plan([[0,0],[sg*1.5,-0.9],[sg*0.3,-0.6]],sg*0.5,-0.25,0.9,-Math.PI/2+0.3,0,0); // pectorales
+  const queue=new THREE.Group(); queue.position.z=-3.3; g2.add(queue);
+  const sh=new THREE.Shape(); sh.moveTo(0.2,0); sh.lineTo(-0.8,1.5); sh.lineTo(-0.3,0.1); sh.lineTo(-0.6,-0.8); sh.lineTo(0.2,0);
+  const qm=new THREE.Mesh(new THREE.ShapeGeometry(sh),matA); qm.rotation.y=-Math.PI/2; queue.add(qm);
+  for(const sg of [-1,1]){ const o=new THREE.Mesh(new THREE.SphereGeometry(0.07,6,4),mat(0x0a0a0a)); o.position.set(sg*0.42,0.15,2.1); g2.add(o); }
+  g2.userData.queue=queue; return g2;
+}
+// la raie manta : grande aile souple (deux demi-ailes qui battent), cornes, queue fine
+function aquaModeleManta(){
+  const g2=new THREE.Group(), matM=new THREE.MeshLambertMaterial({color:0x1d2630,side:THREE.DoubleSide}), matV=new THREE.MeshLambertMaterial({color:0xd8dee4,side:THREE.DoubleSide});
+  const ailes=[];
+  for(const sg of [-1,1]){ const a=new THREE.Group(); g2.add(a);
+    const sh=new THREE.Shape(); sh.moveTo(0,1.1); sh.quadraticCurveTo(sg*1.6,0.9,sg*3.2,-0.2); sh.quadraticCurveTo(sg*1.4,-0.4,0,-1.1); sh.lineTo(0,1.1);
+    const dessus=new THREE.Mesh(new THREE.ShapeGeometry(sh),matM); dessus.rotation.x=-Math.PI/2; dessus.position.y=0.02; a.add(dessus);
+    const dessous=new THREE.Mesh(new THREE.ShapeGeometry(sh),matV); dessous.rotation.x=-Math.PI/2; dessous.position.y=-0.02; a.add(dessous);
+    ailes.push({g:a,sg}); }
+  const corps=new THREE.Mesh(new THREE.SphereGeometry(0.6,10,6),matM); corps.scale.set(1,0.35,1.6); g2.add(corps);
+  for(const sg of [-1,1]){ const co=new THREE.Mesh(new THREE.BoxGeometry(0.16,0.1,0.7),matM); co.position.set(sg*0.45,0,1.25); g2.add(co); }
+  const qu=new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.05,2.6,5),matM); qu.rotation.x=Math.PI/2; qu.position.z=-2.2; g2.add(qu);
+  g2.userData.ailes=ailes; return g2;
+}
+// Gaston V3 : manteau en tour, grands yeux à pupille fendue, huit bras de cinq
+// segments imbriqués (ils s'enroulent), un seul matériau (il change de couleur)
+function aquaModeleGaston(){
+  const g2=new THREE.Group();
+  const matG=new THREE.MeshPhongMaterial({color:0x8a4de0,shininess:55,specular:0x553366,emissive:0x000000});
+  const prof=[[0.0,1.45],[0.3,1.4],[0.52,1.18],[0.6,0.85],[0.55,0.55],[0.42,0.32],[0.38,0.16],[0.44,0.04],[0.2,-0.02]].map(q=>new THREE.Vector2(q[0],q[1]));
+  const manteau=new THREE.Mesh(new THREE.LatheGeometry(prof,16),matG); manteau.scale.set(1,1,1.1); manteau.rotation.x=-0.25; g2.add(manteau);
+  const taches=new THREE.MeshPhongMaterial({color:0xd8b0ff,shininess:30});
+  for(let k=0;k<6;k++){ const t=new THREE.Mesh(new THREE.SphereGeometry(0.06,6,4),taches); const a=k*1.1; t.position.set(Math.sin(a)*0.5,0.7+Math.sin(k*2.3)*0.25,-Math.abs(Math.cos(a))*0.35); g2.add(t); }
+  const yeux=[];
+  for(const sx of [-0.27,0.27]){ const o=new THREE.Group(); o.position.set(sx,0.42,0.36);
+    const blanc=new THREE.Mesh(new THREE.SphereGeometry(0.17,10,8),mat(0xfff6dc)); o.add(blanc);
+    const pup=new THREE.Mesh(new THREE.BoxGeometry(0.19,0.06,0.04),mat(0x111111)); pup.position.z=0.155; o.add(pup);
+    o.scale.y=0.35; g2.add(o); yeux.push(o); }
+  const bras=[], segG=[];
+  for(let j=0;j<5;j++){ const r1=0.12-j*0.019, r2=0.12-(j+1)*0.019; const gg=new THREE.CylinderGeometry(r2,r1,0.3,6); gg.rotateX(Math.PI/2); gg.translate(0,0,0.15); segG.push(gg); }
+  for(let k=0;k<8;k++){ const a=(k+0.5)/8*Math.PI*2, racine=new THREE.Group();
+    racine.position.set(Math.sin(a)*0.3,0.06,Math.cos(a)*0.3); racine.rotation.y=a; g2.add(racine);
+    const jts=[]; let parent=racine;
+    for(let j=0;j<5;j++){ const jt=new THREE.Group(); if(j) jt.position.z=0.3; parent.add(jt); jt.add(new THREE.Mesh(segG[j],matG)); jts.push(jt); parent=jt; }
+    bras.push({jts,ph:k*0.8}); }
+  g2.userData={matG,yeux,bras,manteau};
+  return g2;
+}
+// construit tout le décor V3 dans la salle (appelée par construireSalle)
+function aquariumDecorV3(inter,g,ox,oz,W,P2,sol,dehors){
+  // l'enveloppe générique : masquée (ses solides restent)
+  for(const o of g.children){ if(!o.isMesh) continue;
+    if(o===sol||o===dehors||o.position.y===2.2||o.position.y===4.5||o.position.y===0.28) o.visible=false; }
+  const U={uT:{value:0},uC:{value:new THREE.Vector2(ox,oz)}}; inter.aqU=U;
+  // sol de la galerie et son socle (on voit son épaisseur au-dessus du fond)
+  const solV=new THREE.Mesh(new THREE.PlaneGeometry(W,P2),new THREE.ShaderMaterial({uniforms:U,vertexShader:AQ_SOL_VS,fragmentShader:AQ_SOL_FS}));
+  solV.rotation.x=-Math.PI/2; solV.position.set(ox,0.105,oz); g.add(solV);
+  const socle=new THREE.Mesh(new THREE.BoxGeometry(W+1.2,-AQ_FOND_Y,P2+1.2),new THREE.MeshLambertMaterial({color:0x14262e}));
+  socle.position.set(ox,AQ_FOND_Y/2,oz); g.add(socle);
+  const fond=new THREE.Mesh(new THREE.PlaneGeometry(150,150),new THREE.ShaderMaterial({uniforms:U,vertexShader:AQ_SOL_VS,fragmentShader:AQ_FOND_FS}));
+  fond.rotation.x=-Math.PI/2; fond.position.set(ox,AQ_FOND_Y,oz); g.add(fond);
+  // parois vitrées : allège d'acier, vitre bleutée, montants, main courante lumineuse
+  const matAcier=new THREE.MeshLambertMaterial({color:0x2a3c46}), matVitre=new THREE.MeshLambertMaterial({color:0x8fe4ff,transparent:true,opacity:0.16,depthWrite:false,emissive:0x0a3446});
+  const matLiseret=new THREE.MeshBasicMaterial({color:0x35e0ff});
+  const paroi=(x,z,lx,lz)=>{ const L=Math.max(lx,lz);
+    const al=new THREE.Mesh(new THREE.BoxGeometry(lx||0.5,0.6,lz||0.5),matAcier); al.position.set(ox+x,0.3,oz+z); g.add(al);
+    const vi=new THREE.Mesh(new THREE.BoxGeometry(lx||0.12,2.8,lz||0.12),matVitre); vi.position.set(ox+x,2.0,oz+z); g.add(vi);
+    const ma=new THREE.Mesh(new THREE.BoxGeometry(lx||0.4,0.16,lz||0.4),matAcier); ma.position.set(ox+x,3.45,oz+z); g.add(ma);
+    const li=new THREE.Mesh(new THREE.BoxGeometry(lx||0.08,0.05,lz||0.08),matLiseret); li.position.set(ox+x,3.56,oz+z); g.add(li);
+    for(let k=0;k<=Math.round(L/3.5);k++){ const t=-L/2+k*L/Math.round(L/3.5); const mo=new THREE.Mesh(new THREE.BoxGeometry(0.22,3,0.22),matAcier);
+      mo.position.set(ox+x+(lx?t:0),1.9,oz+z+(lz?t:0)); g.add(mo); } };
+  paroi(0,-P2/2,W,0); paroi(-W/2,0,0,P2); paroi(W/2,0,0,P2);
+  paroi(-W/4-1.25,P2/2,W/2-2.5,0); paroi(W/4+1.25,P2/2,W/2-2.5,0); // le sud, ouvert sur le sas de SORTIE
+  for(const sx of [-2.6,2.6]){ const pi=new THREE.Mesh(new THREE.BoxGeometry(0.5,4,0.6),matAcier); pi.position.set(ox+sx,2,oz+P2/2); g.add(pi); }
+  const lin=new THREE.Mesh(new THREE.BoxGeometry(5.7,0.5,0.6),matAcier); lin.position.set(ox,4,oz+P2/2); g.add(lin);
+  const linL=new THREE.Mesh(new THREE.BoxGeometry(5,0.08,0.66),matLiseret); linL.position.set(ox,3.8,oz+P2/2); g.add(linL);
+  // dehors : le fond marin, tout autour (jamais sous la galerie)
+  const dehorsOk=(x,z,m)=>Math.abs(x)>W/2+m||Math.abs(z)>P2/2+m;
+  const placeDehors=(rMin,rMax,m)=>{ for(let e=0;e<30;e++){ const a=rand(0,6.28), r=rand(rMin,rMax), x=Math.sin(a)*r*1.15, z=Math.cos(a)*r; if(dehorsOk(x,z,m)) return [x,z]; } return [W/2+m+3,0]; };
+  // rochers (bruit sur la position des sommets : géométrie non indexée)
+  const matRocA=new THREE.MeshLambertMaterial({color:0x3e4a4c,flatShading:true}), matRocB=new THREE.MeshLambertMaterial({color:0x56605a,flatShading:true});
+  const rocher=(rr,m)=>{ const gm=new THREE.IcosahedronGeometry(rr,1), pa=gm.attributes.position, gr=rand(0,99);
+    for(let k=0;k<pa.count;k++){ const x=pa.getX(k), y=pa.getY(k), z=pa.getZ(k), h=Math.sin(Math.round(x*100)*0.1291+Math.round(y*100)*0.7823+Math.round(z*100)*0.3772+gr)*43758.5453, f=0.75+0.45*(h-Math.floor(h)); pa.setXYZ(k,x*f,y*f*0.7,z*f); }
+    gm.computeVertexNormals(); return new THREE.Mesh(gm,m); };
+  for(let i=0;i<16;i++){ const [x,z]=placeDehors(17,42,2.5), rr=rand(1,2.8); const ro=rocher(rr,i%2?matRocA:matRocB); ro.position.set(ox+x,AQ_FOND_Y+rr*0.3,oz+z); ro.rotation.y=rand(0,6); g.add(ro); }
+  // coraux : cerveaux, branches, éventails, anémones — en bouquets de couleurs vives
+  const coulsCor=[0xd85a68,0xd8823a,0xd8b040,0x9068d0,0x3ab8d0,0xc85aa8,0x6ac868];
+  for(let i=0;i<26;i++){ const [x,z]=placeDehors(16,36,1.5), bq=new THREE.Group(); bq.position.set(ox+x,AQ_FOND_Y,oz+z); bq.scale.setScalar(0.75); g.add(bq);
+    for(let k=0;k<4;k++){ const c=pick(coulsCor), m=new THREE.MeshLambertMaterial({color:c,emissive:new THREE.Color(c).multiplyScalar(0.08)}), dx=rand(-1.4,1.4), dz=rand(-1.4,1.4), ty=k%4;
+      if(ty===0){ const b=new THREE.Mesh(new THREE.SphereGeometry(rand(0.5,0.9),10,7),m); b.scale.y=0.6; b.position.set(dx,0.2,dz); bq.add(b); }
+      else if(ty===1){ for(let n=0;n<5;n++){ const h=rand(0.8,1.8), br=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.12,h,5),m); br.position.set(dx+rand(-0.3,0.3),h/2,dz+rand(-0.3,0.3)); br.rotation.set(rand(-0.5,0.5),0,rand(-0.5,0.5)); bq.add(br); } }
+      else if(ty===2){ const ev=new THREE.Mesh(new THREE.CircleGeometry(rand(0.8,1.3),12,0,Math.PI),new THREE.MeshLambertMaterial({color:c,side:THREE.DoubleSide,emissive:new THREE.Color(c).multiplyScalar(0.25)})); ev.position.set(dx,0.1,dz); ev.rotation.y=rand(0,6); bq.add(ev); }
+      else { for(let n=0;n<7;n++){ const t=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.06,0.6,4),m); const a=n/7*6.28; t.position.set(dx+Math.sin(a)*0.25,0.3,dz+Math.cos(a)*0.25); t.rotation.set(Math.cos(a)*0.5,0,-Math.sin(a)*0.5); bq.add(t); } } } }
+  // algues : rubans croisés qui ondulent
+  inter.aqAlgues=[];
+  const matsAlgue=[0x3a7a2a,0x5a8a2a,0x2a6a4a].map(c=>new THREE.ShaderMaterial({uniforms:{uT:U.uT,uCoul:{value:new THREE.Color(c)}},vertexShader:AQ_ALGUE_VS,fragmentShader:AQ_ALGUE_FS,side:THREE.DoubleSide}));
+  for(let i=0;i<34;i++){ const [x,z]=placeDehors(16,40,1.2), h=rand(4,8.5), gm=new THREE.PlaneGeometry(0.55,h,1,8); gm.translate(0,h/2,0);
+    const m=pick(matsAlgue); for(const ry of [0,Math.PI/2]){ const a=new THREE.Mesh(gm,m); a.position.set(ox+x,AQ_FOND_Y,oz+z); a.rotation.y=ry+rand(-0.3,0.3); a.frustumCulled=false; g.add(a); } }
+  // rayons de lumière depuis la surface
+  for(let i=0;i<6;i++){ const [x,z]=placeDehors(17,34,2), ra=new THREE.Mesh(new THREE.PlaneGeometry(rand(2.5,4.5),20),new THREE.ShaderMaterial({uniforms:{uT:U.uT,uPh:{value:rand(0,6)}},vertexShader:AQ_UV_VS,fragmentShader:AQ_RAYON_FS,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide}));
+    ra.position.set(ox+x,AQ_FOND_Y+10,oz+z); ra.rotation.set(0,rand(0,3),0.35); g.add(ra); }
+  // bancs de poissons qui font le tour de la galerie
+  const geoP={corps:new THREE.SphereGeometry(0.22,8,6),queue:new THREE.ConeGeometry(0.16,0.3,4),dorsale:new THREE.ConeGeometry(0.06,0.2,3)};
+  geoP.corps.scale(0.7,1,2); geoP.queue.rotateX(-Math.PI/2); geoP.queue.scale(0.3,1,1);
+  inter.aqBancs=[];
+  for(const [coul,ventre,n,r,y,v,taille] of [[0xffd23f,0xfff2a0,12,20,-1.2,0.22,1.1],[0x2a7ad8,0xdfeefa,14,24,0.4,-0.17,1],[0xc8d4dc,0xffffff,18,27,-2.4,0.14,0.8],[0xff7a3a,0xffffff,8,18.5,-0.2,-0.28,1.2]]){
+    const pois=[]; for(let k=0;k<n;k++){ const f=aquaModelePoisson(geoP,coul,ventre,taille); g.add(f); pois.push({m:f,dx:rand(-2.2,2.2),dy:rand(-0.9,0.9),dz:rand(-1.5,1.5),ph:rand(0,6)}); }
+    inter.aqBancs.push({pois,r,y,v,a:rand(0,6.28)}); }
+  inter.aqRequin=aquaModeleRequin(); g.add(inter.aqRequin); inter.aqRequinA=rand(0,6.28);
+  inter.aqManta=aquaModeleManta(); inter.aqManta.scale.setScalar(1.2); g.add(inter.aqManta); inter.aqMantaA=rand(0,6.28);
+  // bouches de bulles sur le fond
+  inter.aqBulles=[]; for(let i=0;i<5;i++){ const [x,z]=placeDehors(16,30,1.5); inter.aqBulles.push({bx:ox+x,bz:oz+z}); }
+}
+// animation du décor V3 (dt, pur habillage)
+function aquariumMajDecorV3(s,dt){
+  const T=ETAT.runT;
+  if(s.aqU) s.aqU.uT.value+=dt;
+  if(s.aqBancs) for(const b of s.aqBancs){ b.a+=dt*b.v;
+    for(const p of b.pois){ const a=b.a+p.dx*0.035, rr=b.r+p.dz+Math.sin(T*0.7+p.ph)*0.6;
+      p.m.position.set(s.ox+Math.sin(a)*rr*1.15,AQ_FOND_Y+4.2+b.y+p.dy+Math.sin(T*1.3+p.ph)*0.25,s.oz+Math.cos(a)*rr);
+      p.m.rotation.y=a+(b.v>0?Math.PI/2:-Math.PI/2); p.m.userData.queue.rotation.y=Math.sin(T*9+p.ph)*0.5; } }
+  if(s.aqRequin){ s.aqRequinA+=dt*0.12; const a=s.aqRequinA, r=30;
+    s.aqRequin.position.set(s.ox+Math.sin(a)*r*1.1,AQ_FOND_Y+2.6+Math.sin(T*0.4)*0.6,s.oz+Math.cos(a)*r); s.aqRequin.rotation.y=a+Math.PI/2+Math.sin(T*1.6)*0.06;
+    s.aqRequin.userData.queue.rotation.y=Math.sin(T*1.6)*0.4; }
+  if(s.aqManta){ s.aqMantaA-=dt*0.09; const a=s.aqMantaA, r=22.5;
+    s.aqManta.position.set(s.ox+Math.sin(a)*r*1.2,AQ_FOND_Y+5.5+Math.sin(T*0.5)*0.8,s.oz+Math.cos(a)*r); s.aqManta.rotation.y=a-Math.PI/2;
+    for(const w of s.aqManta.userData.ailes) w.g.rotation.z=w.sg*Math.sin(T*1.4)*0.35; }
+  if(s.aqBulles&&INT.actif===s) for(const b of s.aqBulles) if(Math.random()<dt*3) spawnP(b.bx+rand(-0.3,0.3),AQ_FOND_Y+0.3,b.bz+rand(-0.3,0.3),rand(-0.2,0.2),rand(1.5,2.5),rand(-0.2,0.2),2.6,rand(0.15,0.3),0xdff6ff,-0.2);
+  // Gaston : bras qui ondulent (fouettent quand il file), couleur selon l'humeur
+  const gm=s.gastonMesh; if(!gm||!gm.userData.bras) return;
+  const ud=gm.userData, vite=s.aqEtat==='fuite'?2.6:(s.aqEtat==='regarde'?0.6:1), amp=s.aqEtat==='regarde'?0.12:0.35;
+  for(const b of ud.bras) for(let j=0;j<b.jts.length;j++) b.jts[j].rotation.x=(j?0.32:0.55)+Math.sin(T*2.2*vite+b.ph+j*0.7)*amp*(j?1:0.5);
+  if(!s._gCible) s._gCible=new THREE.Color();
+  s._gCible.setHex(s.aqEtat==='regarde'?0xd8303a:(s.aqEtat==='alerte'?0xf0b020:0x8a4de0));
+  ud.matG.color.lerp(s._gCible,clamp(dt*7,0,1));
+  ud.manteau.scale.y=1+Math.sin(T*(s.aqEtat==='regarde'?5:2))*0.05; // il respire
+}
 function aquaPerchoir(s,i){ return s.perchoirs[i]; }
 // Gaston choisit un bassin loin du joueur (jamais le même)
 function aquaChoisirPerchoir(s){
@@ -20325,7 +20513,7 @@ function aquariumMaj(s,dt,dtJeu){
   if(s.texEauAq){ s.texEauAq.offset.x+=dt*0.03; s.texEauAq.offset.y+=dt*0.02; }
   for(const c of s.cuves){ for(const f of c.poissons){ f.a+=dt*f.v; f.m.position.set(c.cx+Math.sin(f.a)*f.r,f.y+Math.sin(T*2+f.a)*0.05,c.cz+Math.cos(f.a)*f.r); f.m.rotation.y=f.a+(f.v>0?Math.PI/2:-Math.PI/2); }
     if(Math.random()<dt*1.4) spawnP(c.cx+rand(-1.6,1.6),0.5,c.cz+rand(-1.6,1.6),0,rand(0.8,1.4),0,0.9,0.18,0xdff6ff,-0.3); }
-  if(s.grandBassin) for(const f of s.grandBassin){ f.x+=f.v*dt; if(f.x>11) f.x=-11; if(f.x<-11) f.x=11; f.m.position.x=s.ox+f.x; f.m.position.y=f.y+Math.sin(T+f.ph)*0.2; f.m.rotation.y=f.v>0?Math.PI/2:-Math.PI/2; }
+  aquariumMajDecorV3(s,dt);
   if(s.gardienH){ s.gardienH.brasD.rotation.x=s.aqActif?-1.6+Math.sin(T*6)*0.3:-0.2; }
   if(aquaEncreT>0){ aquaEncreT-=dt; aquaEncreEl.style.opacity=String(clamp(aquaEncreT/0.8,0,1)); }
   const gm=s.gastonMesh;
@@ -20451,15 +20639,144 @@ function laverieFin(s){
   SFX.niveau(); vibre(80);
   for(let i=0;i<26;i++) spawnP(s.mach7X+rand(-1,1),rand(1.5,3),s.mach7Z+rand(-1,1),rand(-2,2),rand(2,4),rand(-2,2),1.2,0.5,pick([0x7dff7a,0xdff2ff]),5);
 }
+/* ---- Laverie V3 (13 octobre, retour de playtest : « on dirait le jeu
+   d'avant, peu immersif ») : une laverie de quartier LA NUIT, sous la pluie.
+   L'enveloppe générique (boîte blanche dans le noir) est masquée — ses
+   SOLIDES restent ; autour : trottoir, rue mouillée où les néons se
+   reflètent, immeubles sombres, réverbères, la voiture des Vipers garée
+   devant ; vitrine et enseigne néon « BULLE BLEUE ». Dedans : carrelage
+   noir et blanc lustré, hublots chromés où le linge tourne, tubes
+   fluorescents (dont un qui grésille). Plus d'étiquettes : un poste se
+   reconnaît à son objet. Pendant le cycle, la caméra se rapproche de la
+   machine 7 (cadrageSalle) : gyrophare, afficheur, mousse. Cosmétique (dt). */
+const LAV_SOL_FS='uniform float uT; uniform vec2 uC; uniform vec3 uL[5]; uniform vec3 uLC[5]; varying vec3 vW;'+
+  'void main(){ vec2 p=vW.xz-uC; vec2 q=floor(p/1.4); float dam=mod(q.x+q.y,2.0);'+
+  ' vec3 c=mix(vec3(0.66,0.68,0.70),vec3(0.07,0.08,0.10),dam);'+
+  ' vec2 f=abs(fract(p/1.4)-0.5); c*=1.0-0.25*smoothstep(0.46,0.5,max(f.x,f.y));'+
+  ' for(int i=0;i<5;i++){ vec2 d=vW.xz-uL[i].xy; d.y*=0.45; c+=uLC[i]*exp(-dot(d,d)/(uL[i].z))*0.55; }'+
+  ' gl_FragColor=vec4(c,1.0); }';
+// la rue mouillée : asphalte sombre, marquage, reflets étirés des néons, ronds de pluie
+const LAV_RUE_FS='uniform float uT; uniform vec2 uC; uniform vec3 uL[5]; uniform vec3 uLC[5]; varying vec3 vW;'+
+  'float h2(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }'+
+  'void main(){ vec2 p=vW.xz-uC; vec3 c=vec3(0.035,0.04,0.05)+h2(floor(p*6.0))*0.012;'+
+  ' float lig=step(abs(p.y-15.0),0.12)*step(0.5,fract(p.x/4.0)); c=mix(c,vec3(0.5,0.48,0.38),lig*0.7);'+
+  ' for(int i=0;i<5;i++){ vec2 d=vW.xz-uL[i].xy; d.y*=0.22; d.x*=1.6; c+=uLC[i]*exp(-dot(d,d)/(uL[i].z*1.6))*0.7; }'+
+  ' vec2 cel=floor(p*0.9); vec2 lo=fract(p*0.9)-0.5; float ph=h2(cel); float t=fract(uT*0.9+ph);'+
+  ' float rond=smoothstep(0.05,0.0,abs(length(lo)-t*0.45))*(1.0-t)*step(0.55,h2(cel+7.0));'+
+  ' c+=vec3(0.5,0.6,0.7)*rond*0.35;'+
+  ' gl_FragColor=vec4(c,1.0); }';
+// une enseigne néon : lettres lumineuses sur fond transparent (canvas), halo
+function texNeon(txt,coul,larg,haut){
+  const cv=document.createElement('canvas'); cv.width=larg; cv.height=haut; const c=cv.getContext('2d');
+  if(c){ c.clearRect(0,0,larg,haut); c.font='900 '+Math.round(haut*0.62)+'px Arial'; c.textAlign='center'; c.textBaseline='middle';
+    c.shadowColor=coul; c.shadowBlur=haut*0.22; c.strokeStyle=coul; c.lineWidth=haut*0.07;
+    for(let k=0;k<3;k++) c.strokeText(txt,larg/2,haut/2);
+    c.shadowBlur=0; c.lineWidth=haut*0.025; c.strokeStyle='#ffffff'; c.strokeText(txt,larg/2,haut/2); }
+  return new THREE.CanvasTexture(cv);
+}
+function laverieDecorV3(inter,g,ox,oz,W,P2,sol,dehors){
+  for(const o of g.children){ if(!o.isMesh) continue;
+    if(o===sol||o===dehors||o.position.y===2.2||o.position.y===4.5||o.position.y===0.28) o.visible=false; }
+  // lumières qui se reflètent : enseigne (rose), machine 7 (cyan), tubes, réverbères
+  const L=[new THREE.Vector3(ox,oz+P2/2+1.5,9),new THREE.Vector3(ox+5.4,oz+3.6,4),new THREE.Vector3(ox-9.4,oz-1.6,6),new THREE.Vector3(ox-12,oz+P2/2+5,10),new THREE.Vector3(ox+13,oz+P2/2+5,10)];
+  const LC=[new THREE.Color(0xff3aa8),new THREE.Color(0x35e0ff),new THREE.Color(0x7fd8ff),new THREE.Color(0xffc46a),new THREE.Color(0xffc46a)];
+  const U={uT:{value:0},uC:{value:new THREE.Vector2(ox,oz)},uL:{value:L},uLC:{value:LC}}; inter.lavU=U;
+  const solV=new THREE.Mesh(new THREE.PlaneGeometry(W,P2),new THREE.ShaderMaterial({uniforms:U,vertexShader:AQ_SOL_VS,fragmentShader:LAV_SOL_FS}));
+  solV.rotation.x=-Math.PI/2; solV.position.set(ox,0.105,oz); g.add(solV);
+  // murs : brique sombre dehors, faïence dedans, chaperon clair (on les voit de dessus)
+  const matBrique=new THREE.MeshLambertMaterial({color:0x4a2a26}), matChap=new THREE.MeshLambertMaterial({color:0x8a8e96});
+  const mur=(x,z,lx,lz,h)=>{ const m=new THREE.Mesh(new THREE.BoxGeometry(lx,h,lz),matBrique); m.position.set(ox+x,h/2,oz+z); g.add(m);
+    const c=new THREE.Mesh(new THREE.BoxGeometry(lx+0.2,0.18,lz+0.2),matChap); c.position.set(ox+x,h+0.09,oz+z); g.add(c); };
+  mur(0,-P2/2,W+0.6,0.6,4); mur(-W/2,0,0.6,P2,4); mur(W/2,0,0.6,P2,4);
+  // vitrine au sud, ouverte sur la porte (SORTIE) ; néons au-dessus
+  const matVitre=new THREE.MeshLambertMaterial({color:0x9fd8ff,transparent:true,opacity:0.14,depthWrite:false,emissive:0x0a2030});
+  for(const sg of [-1,1]){ const lx=W/2-2.6;
+    const al=new THREE.Mesh(new THREE.BoxGeometry(lx,0.6,0.5),matChap); al.position.set(ox+sg*(2.6+lx/2),0.3,oz+P2/2); g.add(al);
+    const vi=new THREE.Mesh(new THREE.BoxGeometry(lx,3,0.1),matVitre); vi.position.set(ox+sg*(2.6+lx/2),2.1,oz+P2/2); g.add(vi);
+    const ha=new THREE.Mesh(new THREE.BoxGeometry(lx,0.4,0.5),matBrique); ha.position.set(ox+sg*(2.6+lx/2),3.8,oz+P2/2); g.add(ha); }
+  for(const sx of [-2.6,2.6]){ const pi=new THREE.Mesh(new THREE.BoxGeometry(0.45,4,0.55),matBrique); pi.position.set(ox+sx,2,oz+P2/2); g.add(pi); }
+  const linteau=new THREE.Mesh(new THREE.BoxGeometry(5.6,0.5,0.55),matBrique); linteau.position.set(ox,3.75,oz+P2/2); g.add(linteau);
+  // store banne rayé au-dessus de la porte
+  const texStore=cTex(64,(c,t)=>{ for(let i=0;i<8;i++){ c.fillStyle=i%2?'#f2f4f6':'#2a8ac8'; c.fillRect(i*t/8,0,t/8,t); } },1);
+  const store=new THREE.Mesh(new THREE.PlaneGeometry(6.4,1.6),new THREE.MeshLambertMaterial({map:texStore,side:THREE.DoubleSide}));
+  store.rotation.x=-Math.PI/2+0.45; store.position.set(ox,3.5,oz+P2/2+0.85); g.add(store);
+  // enseigne néon « BULLE BLEUE », penchée vers le ciel (on la lit de dessus)
+  const neon=new THREE.Mesh(new THREE.PlaneGeometry(9,2.2),new THREE.MeshBasicMaterial({map:texNeon('BULLE BLEUE','#ff3aa8',1024,250),transparent:true,depthWrite:false,blending:THREE.AdditiveBlending}));
+  neon.rotation.x=-0.95; neon.position.set(ox+5.6,4.6,oz+P2/2+0.4); g.add(neon); inter.lavNeon=neon;
+  const bulle=new THREE.Mesh(new THREE.PlaneGeometry(2.2,2.2),new THREE.MeshBasicMaterial({map:texNeon('◯','#35e0ff',256,256),transparent:true,depthWrite:false,blending:THREE.AdditiveBlending}));
+  bulle.rotation.x=-0.95; bulle.position.set(ox-5.2,4.6,oz+P2/2+0.4); g.add(bulle);
+  const n24=new THREE.Mesh(new THREE.PlaneGeometry(3.2,1.1),new THREE.MeshBasicMaterial({map:texNeon('24H','#ffd23f',512,180),transparent:true,depthWrite:false,blending:THREE.AdditiveBlending}));
+  n24.rotation.x=-0.95; n24.position.set(ox-8.2,4.4,oz+P2/2+0.4); g.add(n24); inter.lavNeon24=n24;
+  // dehors : trottoir, rue mouillée, immeubles, réverbères, voiture des Vipers
+  const texTrott=cTex(128,(c,t)=>{ c.fillStyle='#2c3036'; c.fillRect(0,0,t,t); c.strokeStyle='#1a1d22'; c.lineWidth=3;
+    for(let i=0;i<=t;i+=32){ c.beginPath(); c.moveTo(i,0); c.lineTo(i,t); c.stroke(); c.beginPath(); c.moveTo(0,i); c.lineTo(t,i); c.stroke(); }
+    for(let k=0;k<6;k++){ c.fillStyle='rgba(120,150,190,0.18)'; c.beginPath(); c.ellipse(Math.random()*t,Math.random()*t,8+Math.random()*16,4+Math.random()*8,0,0,6.3); c.fill(); } },9,6);
+  const matTrott=new THREE.MeshLambertMaterial({map:texTrott});
+  const trott=new THREE.Mesh(new THREE.BoxGeometry(W+14,0.18,P2+11),matTrott); trott.position.set(ox,-0.02,oz+1.5); g.add(trott);
+  const rue=new THREE.Mesh(new THREE.PlaneGeometry(140,26),new THREE.ShaderMaterial({uniforms:U,vertexShader:AQ_SOL_VS,fragmentShader:LAV_RUE_FS}));
+  rue.rotation.x=-Math.PI/2; rue.position.set(ox,0.0,oz+P2/2+20); g.add(rue);
+  const fondNoir=new THREE.Mesh(new THREE.PlaneGeometry(160,120),mat(0x0b0d12)); fondNoir.rotation.x=-Math.PI/2; fondNoir.position.set(ox,-0.15,oz-20); g.add(fondNoir);
+  const coulsImm=[0x2a2a34,0x30282a,0x26303a,0x34302a];
+  const immeuble=(x,z,w,d,h)=>{ const b=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat(pick(coulsImm))); b.position.set(ox+x,h/2,oz+z); g.add(b);
+    const t=new THREE.Mesh(new THREE.BoxGeometry(w+0.3,0.3,d+0.3),mat(0x3c3e44)); t.position.set(ox+x,h+0.15,oz+z); g.add(t);
+    for(let k=0;k<2;k++){ const cl=new THREE.Mesh(new THREE.BoxGeometry(1.2,0.8,1),mat(0x6a6e76)); cl.position.set(ox+x+rand(-w/3,w/3),h+0.7,oz+z+rand(-d/3,d/3)); g.add(cl); } };
+  immeuble(0,-P2/2-6,W+10,10,7); immeuble(-W/2-7.5,-1,9,P2+4,6); immeuble(W/2+7.5,-1,9,P2+4,5.5);
+  immeuble(-W/2-7.5,P2/2+36,14,12,7); immeuble(W/2+6,P2/2+36,16,12,6);
+  for(const sx of [-12,13]){ const mt=new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.12,5,6),mat(0x2a2e36)); mt.position.set(ox+sx,2.5,oz+P2/2+4.2); g.add(mt);
+    const lp=new THREE.Mesh(new THREE.BoxGeometry(0.9,0.2,0.4),new THREE.MeshBasicMaterial({color:0xffe2a8})); lp.position.set(ox+sx,5,oz+P2/2+4.6); g.add(lp);
+    const halo=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:0xffc46a,transparent:true,opacity:0.55,depthWrite:false,blending:THREE.AdditiveBlending})); halo.scale.set(4,4,1); halo.position.set(ox+sx,5,oz+P2/2+4.6); g.add(halo); }
+  // la voiture des Vipers, garée devant, moteur qui tourne (fumée)
+  const voit=new THREE.Group(); voit.position.set(ox+7.5,0,oz+P2/2+8); g.add(voit);
+  const caisse=new THREE.Mesh(new THREE.BoxGeometry(4.6,0.8,2),new THREE.MeshLambertMaterial({color:0x1f8a3a})); caisse.position.y=0.65; voit.add(caisse);
+  const habit=new THREE.Mesh(new THREE.BoxGeometry(2.4,0.7,1.8),new THREE.MeshLambertMaterial({color:0x10141a})); habit.position.set(-0.2,1.35,0); voit.add(habit);
+  for(const [x,z] of [[1.5,1],[1.5,-1],[-1.5,1],[-1.5,-1]]){ const r=new THREE.Mesh(new THREE.CylinderGeometry(0.4,0.4,0.3,10),mat(0x111111)); r.rotation.x=Math.PI/2; r.position.set(x,0.4,z); voit.add(r); }
+  for(const z of [-0.6,0.6]){ const f=new THREE.Mesh(new THREE.BoxGeometry(0.1,0.2,0.4),new THREE.MeshBasicMaterial({color:0xff2a2a})); f.position.set(-2.32,0.7,z); voit.add(f); }
+  inter.lavVoiture={vx:ox+7.5-2.5,vz:oz+P2/2+8};
+  // tubes fluorescents au plafond, un qui grésille
+  inter.lavTubes=[];
+  for(const [x,z] of [[-5,-3],[5,-5],[-5,3],[1,5],[0,-0.5]]){ const tu=new THREE.Mesh(new THREE.BoxGeometry(2.6,0.12,0.18),new THREE.MeshBasicMaterial({color:0xeaf6ff})); tu.position.set(ox+x,3.7,oz+z); g.add(tu);
+    const ha=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:0xbfe8ff,transparent:true,opacity:0.35,depthWrite:false,blending:THREE.AdditiveBlending})); ha.scale.set(5,2.4,1); ha.position.set(ox+x,3.6,oz+z); g.add(ha);
+    inter.lavTubes.push({tu,ha}); }
+  inter.lavTambours=[];
+}
+// la caméra se rapproche d'un poste pendant un mini-jeu (générique : fondu
+// par s.camCadK, jamais de saut ; t* = le point regardé, H/D = hauteur/recul)
+function cadrageSalle(s,dt,actif,tx,ty,tz,H,D){
+  s.camCadK=lerp(s.camCadK||0,actif?1:0,clamp(dt*2,0,1));
+  if(s.camCadK<0.002){ s.camCadK=0; return; }
+  const k=s.camCadK*s.camCadK*(3-2*s.camCadK);
+  if(!_chalCam.l){ _chalCam.l=new THREE.Vector3(); _chalCam.d=new THREE.Vector3(); }
+  const cl=_chalCam.l, cd=_chalCam.d; camera.getWorldDirection(cd);
+  const nx=camera.position.x, ny=camera.position.y, nz=camera.position.z;
+  camera.position.set(lerp(nx,tx,k),lerp(ny,ty+H,k),lerp(nz,tz+D,k));
+  cl.set(lerp(nx+cd.x*40,tx,k),lerp(ny+cd.y*40,ty,k),lerp(nz+cd.z*40,tz,k)); camera.lookAt(cl);
+}
+// habillage animé (dt) : pluie, néons, tubes, tambours, gyrophare de la machine 7
+function laverieMajDecorV3(s,dt){
+  const T=ETAT.runT; if(s.lavU) s.lavU.uT.value+=dt;
+  for(const tb of s.lavTambours) tb.rotation.z-=dt*tb.userData.v;
+  if(s.lavTubes){ const t=s.lavTubes[4], on=Math.sin(T*23)*Math.sin(T*7.3)>-0.55||Math.floor(T*3)%5!==0; t.tu.material.color.setHex(on?0xeaf6ff:0x3a4048); t.ha.material.opacity=on?0.35:0.05; }
+  if(s.lavNeon) s.lavNeon.material.opacity=Math.floor(T*1.7)%11===0&&Math.sin(T*40)>0?0.35:1;
+  if(s.lavNeon24) s.lavNeon24.material.opacity=0.75+Math.sin(T*3)*0.25;
+  if(s.gyro7){ s.gyro7.visible=!!s.cycleOn; s.gyro7.rotation.y+=dt*8; s.gyroHalo.visible=!!s.cycleOn; s.gyroHalo.material.opacity=0.5+0.5*Math.sin(T*16); }
+  if(s.afficheur7){ s.afficheur7.material.color.setHex(s.cycleOn?(Math.floor(T*4)%2?0x35e0ff:0x1a7a9a):0x1a4a5a); }
+  if(INT.actif!==s) return;
+  // pluie dehors (jamais dans la laverie), fumée du pot d'échappement
+  for(let i=0;i<3;i++) if(Math.random()<dt*20){ const x=s.ox+rand(-26,26), z=s.oz+rand(-12,30);
+    if(Math.abs(x-s.ox)<11.5&&Math.abs(z-s.oz)<8.5) continue;
+    spawnP(x,rand(8,12),z,-1.5,-26,1,0.45,0.12,0x9fb8d8,0); }
+  if(s.lavVoiture&&Math.random()<dt*4) fumee(s.lavVoiture.vx,0.4,s.lavVoiture.vz,0x5a5f68);
+}
 function laverieMaj(s,dt,dtJeu){
   const T=ETAT.runT;
+  laverieMajDecorV3(s,dt);
   // guetteur endormi : 💤 de temps en temps (dt)
   if(s.guetteur&&!s.cycleOn&&!s.alarme&&Math.random()<dt*0.4) spawnTexte(s.guetteur.g.position.x,2.2,s.guetteur.g.position.z,'💤','#9fb4c0');
   if(s.tambour7) s.tambour7.rotation.z-=dt*(s.cycleOn?(s.cycleT<LAV_ESSORAGE?22:9):0);
   if(s.lavIntroT>0){ s.lavIntroT-=dt; if(s.lavIntroT<0.5) lavIntroWrap.style.opacity=String(Math.max(0,s.lavIntroT/0.5)); if(s.lavIntroT<=0) lavIntroWrap.style.display='none'; }
   if(!s.cycleOn) return;
   // le joueur tient la machine (dtJeu)
-  P.x=s.machine7.x; P.z=s.machine7.z-0.6; P.ang=Math.PI;
+  P.x=s.mach7X+1.95; P.z=s.mach7Z+0.9; P.ang=-Math.PI/2; // sur le flanc, les mains sur la machine : le hublot reste visible (V3)
   s.lavT+=dtJeu; s.cycleT-=dtJeu;
   const essorage=s.cycleT<LAV_ESSORAGE;
   s.lavPousseT-=dtJeu;
@@ -20480,7 +20797,8 @@ function laverieMaj(s,dt,dtJeu){
   // la machine tremble, penche, saute (dt)
   if(s.mach7){ if(s.mach7Saut>0) s.mach7Saut-=dt;
     const tr=(essorage?0.07:0.03)+Math.abs(s.lavVit)*0.01;
-    s.mach7.position.set(s.mach7X+s.lavAig*0.22+rand(-tr,tr),Math.max(0,s.mach7Saut)*1.6,s.mach7Z+rand(-tr,tr));
+    // bug V2 : mach7Saut indéfini avant le 1er coup → y = NaN → la machine 7 disparaissait pendant tout le cycle
+    s.mach7.position.set(s.mach7X+s.lavAig*0.22+rand(-tr,tr),Math.max(0,s.mach7Saut||0)*1.6,s.mach7Z+rand(-tr,tr));
     s.mach7.rotation.z=-s.lavAig*0.13; }
   s.hublot7.material.color.setHex(Math.floor(T*(essorage?14:6))%2?0x9fe4ff:0x5ab8e8);
   if(Math.random()<dt*(essorage?16:7)) spawnP(s.mach7X+rand(-1.2,1.2),rand(2.6,3.2),s.mach7Z+rand(-1,1),rand(-0.4,0.4),rand(0.6,1.4),rand(-0.4,0.4),1,rand(0.25,0.5),0xdff2ff,-0.3,0.8);
@@ -21378,14 +21696,17 @@ function chalutierPreparerBancs(s){
   s.bancs=[];
   for(let i=0;i<CHALUTIER_BANCS_PLAN.length;i++){
     const pl=CHALUTIER_BANCS_PLAN[i], dd=CHALUTIER_BANC_DIST[pl.zone], r=CHALUTIER_BANC_R[pl.type];
-    let x=0,z=-dd[0];
+    // 40 essais ; à défaut, la position la plus dégagée trouvée (avant : la
+    // dernière tirée, qui pouvait chevaucher un autre banc)
+    let x=0,z=-dd[0],meilleure=-Infinity;
     for(let essai=0;essai<40;essai++){
       const a=rand(-1.1,1.1), d=rand(dd[0],dd[1]); // ±1,1 rad : toujours à 10 u au moins côté large, jamais contre la côte
-      x=Math.sin(a)*d; z=-Math.cos(a)*d;
-      let ok=true;
-      for(const b of s.bancs) if(Math.hypot(b.x-x,b.z-z)<b.r+r+12){ ok=false; break; }
-      if(ok&&s.recifs) for(const rc of s.recifs) if(Math.hypot(rc.x-x,rc.z-z)<rc.r+r+8){ ok=false; break; }
-      if(ok) break;
+      const cx=Math.sin(a)*d, cz=-Math.cos(a)*d;
+      let marge=Infinity;
+      for(const b of s.bancs) marge=Math.min(marge,Math.hypot(b.x-cx,b.z-cz)-(b.r+r+12));
+      if(s.recifs) for(const rc of s.recifs) marge=Math.min(marge,Math.hypot(rc.x-cx,rc.z-cz)-(rc.r+r+8));
+      if(marge>meilleure){ meilleure=marge; x=cx; z=cz; }
+      if(marge>=0) break;
     }
     const b={type:pl.type,zone:pl.zone,x,z,r,stock:CHALUTIER_BANC_STOCK[pl.type],stock0:CHALUTIER_BANC_STOCK[pl.type],vis:s.bancsVis?s.bancsVis[i]:null,dist:1e9};
     s.bancs.push(b);
@@ -27026,7 +27347,9 @@ function majAction(){
    JOUR / NUIT, CAMÉRA, HUD, MINIMAP
 ===================================================================== */
 const CJourCiel=new THREE.Color(0x9fc2dd), CNuitCiel=new THREE.Color(0x0c1122);
-const CINT=new THREE.Color(0x0a0c12);   // ambiance intérieure : sombre, pas de ciel
+const CINT=new THREE.Color(0x0a0c12);
+const AQ_BLEU=new THREE.Color(0x03203a); // ambiance de l'aquarium (V3)
+const LAV_NUIT=new THREE.Color(0x070a12); // la nuit autour de la laverie (V3)   // ambiance intérieure : sombre, pas de ciel
 function jourNuit(dt){
   ETAT.jour=(ETAT.jour+dt)%170;
   // Site 51 est la seule salle à teinter lampeNuit (vert, au tir du
@@ -27109,6 +27432,25 @@ function jourNuit(dt){
       lampeNuit.color.setHex(0x39ff6a);
       lampeNuit.intensity=Math.max(lampeNuit.intensity,3*(s.tirFlashT/0.15));
     }
+    return;
+  }
+  if(INT.actif&&INT.actif.mach7){
+    // Laverie V3 : la nuit dehors, tubes fluorescents dedans ; le brouillard
+    // commence au-delà de la caméra (~46 u)
+    soleil.intensity=0.45; hemi.intensity=0.7;
+    scene.background.copy(LAV_NUIT); scene.fog.color.copy(LAV_NUIT);
+    scene.fog.near=55; scene.fog.far=120;
+    lampeNuit.intensity=0.6; lampeNuit.distance=30; lampeNuit.position.set(P.x,6,P.z);
+    return;
+  }
+  if(INT.actif&&INT.actif.perchoirs){
+    // Aquarium V3 : sous la mer — fond et brouillard bleu profond (le fond
+    // marin se perd au loin), lumière froide ; le brouillard commence au-delà
+    // de la caméra (~46 u), jamais sur la galerie elle-même
+    soleil.intensity=0.6; hemi.intensity=0.85;
+    scene.background.copy(AQ_BLEU); scene.fog.color.copy(AQ_BLEU);
+    scene.fog.near=50; scene.fog.far=105;
+    lampeNuit.intensity=0.5; lampeNuit.distance=42; lampeNuit.position.set(P.x,7,P.z);
     return;
   }
   if(INT.actif&&INT.actif.depot){
@@ -27277,6 +27619,7 @@ function majCamera(dt){
   camera.position.set(P.x+sx,camH+hSol*0.75+chuteF*6,P.z+camD+sz+chuteF*14);
   camera.lookAt(P.x+sx,hSol*0.75+chuteAngF*6,P.z-2+sz-(enMer?5:0));
   let fovPlus=0;
+  if(INT.actif&&INT.actif.mach7) cadrageSalle(INT.actif,dt,!!INT.actif.cycleOn,INT.actif.mach7X,1.2,INT.actif.mach7Z-1.8,13,10.5); // laverie V3 : on se penche sur la machine 7
   if(INT.actif&&INT.actif.barre){ fovPlus=chalutierCamera(INT.actif,dt,sx,sz); // chalutier en mer : caméra de poursuite (V3)
     const m=INT.actif.meteoEtat; camera.rotation.z+=Math.sin(ETAT.runT*0.9)*(m==='tempete'?0.05:(m==='houle'?0.025:0.008)); } // chalutier : roulis selon la mer
   if((P.ivresse||0)>IVRESSE.pompette) camera.rotation.z+=Math.sin(ETAT.runT*1.1)*0.06*Math.min(1,(P.ivresse-IVRESSE.pompette)/50); // ivresse : l'image tangue

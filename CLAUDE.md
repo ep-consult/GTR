@@ -55,7 +55,7 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
   echo "$ln | $(sed -n "$((ln+1))p" index.html | sed 's/^[ \t]*//')"; done
 ```
 
-**Relevé au chalutier V3 visuel — 27 558 lignes.**
+**Relevé au aquarium et laverie V3 — 27 901 lignes.**
 Attention : `maj_carte` recale les numéros dans l'ordre des lignes de la table ;
 un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la main.
 
@@ -85,22 +85,22 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 15413 | BÂTIMENTS VISITABLES — intérieurs |
 | 15483 | FOUILLE — mécanique générique |
 | 16031 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
-| 20183 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
-| 20386 | **LAVERIE** V2 — l'essorage de la machine 7 |
-| 20521 | **SERRE** V2 — la nuit de la floraison |
-| 20678 | CINÉ-PALACE |
-| 20818 | MÉTRO ABANDONNÉ |
-| 20884 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
-| 21124 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
-| 22026 | SITE 51 |
-| 22256 | LE DÉPÔT DE BUS — courses clandestines |
-| 23283 | **MÉTIERS** — missions liées à un véhicule |
-| 23573 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
-| 24568 | ÉCRANS / MENUS / BOUTIQUES |
-| 24836 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
-| 25633 | DÉBUT / FIN DE PARTIE |
-| 27025 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
-| 27436 | BOUCLE PRINCIPALE |
+| 20170 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
+| 20574 | **LAVERIE** V2 — l'essorage de la machine 7 |
+| 20839 | **SERRE** V2 — la nuit de la floraison |
+| 20996 | CINÉ-PALACE |
+| 21136 | MÉTRO ABANDONNÉ |
+| 21202 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
+| 21442 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
+| 22347 | SITE 51 |
+| 22577 | LE DÉPÔT DE BUS — courses clandestines |
+| 23604 | **MÉTIERS** — missions liées à un véhicule |
+| 23894 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
+| 24889 | ÉCRANS / MENUS / BOUTIQUES |
+| 25157 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
+| 25954 | DÉBUT / FIN DE PARTIE |
+| 27346 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
+| 27779 | BOUCLE PRINCIPALE |
 
 ### Ancres fines (hors bandeaux)
 
@@ -154,14 +154,14 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 17108 | `INTDEFS` — définitions des **27 salles** |
 | 17288 | `construireSalle(id)` |
 | 20390 | `CHALUTIER_BANCS_PLAN` — chalutier V2 ; `chalutierMaj` (20761), `dessinerRadarChalutier` (21018) |
-| 23292 | `METIERS_CIBLE` |
-| 23591 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
-| 23679 | `PIECES_FAMILLES` — catalogues de pièces par famille |
-| 23980 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
-| 24034 | `libererObjet()` — libère les géométries d'un objet retiré |
-| 24050 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
-| 24172 | `construireGarageTuning()` — la salle partagée |
-| 24542 | `majNitro()` |
+| 23613 | `METIERS_CIBLE` |
+| 23912 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
+| 24000 | `PIECES_FAMILLES` — catalogues de pièces par famille |
+| 24301 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
+| 24355 | `libererObjet()` — libère les géométries d'un objet retiré |
+| 24371 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
+| 24493 | `construireGarageTuning()` — la salle partagée |
+| 24863 | `majNitro()` |
 
 ---
 
@@ -765,6 +765,14 @@ puis refonte en profondeur de la pire à la meilleure, une salle par commit.
   tunnel supprimés.
 - Pilote simulé (`scenarios.js`, chemin BFS sur les vrais solides, réaction
   0,3 s) : 4/4 en 27-33 s ; qui fonce sans s'arrêter perd.
+- **V3 visuelle (13 octobre, playtest : « peu immersif »)** : galerie
+  d'observation posée AU FOND DE LA MER (`aquariumDecorV3`) — enveloppe
+  générique masquée (solides gardés), vitres basses, fond marin à
+  `AQ_FOND_Y` (sable, caustiques `AQ_GLSL_CAUST`, rochers, coraux, algues qui
+  ondulent `AQ_ALGUE_VS`, rayons), bancs de poissons, requin et raie manta
+  qui tournent autour (`aquariumMajDecorV3`). Gaston V3 (`aquaModeleGaston`) :
+  huit bras articulés qui ondulent, couleur selon l'humeur (violet / jaune /
+  rouge). Éclairage `AQ_BLEU`, brouillard au-delà de la caméra.
 
 ### Laverie V2 — l'essorage (bandeau `LAVERIE « BULLE BLEUE » — L'ESSORAGE`)
 
@@ -787,6 +795,15 @@ puis refonte en profondeur de la pire à la meilleure, une salle par commit.
 - Mesuré (`sim`) : contrôle proportionnel 0,2 s → 95-99 % ; « pouce » tout ou
   rien 0,25 s → 75-80 % sans coup ; 0,35 s → 50 %, 1-2 coups, parfois raté ;
   rien → toujours raté.
+- **V3 visuelle** (`laverieDecorV3`) : laverie de nuit sous la pluie — rue
+  mouillée où les néons se reflètent (`LAV_RUE_FS`), carrelage lustré
+  (`LAV_SOL_FS`), vitrine, enseigne néon « BULLE BLEUE » (`texNeon`),
+  immeubles, voiture des Vipers, tubes fluorescents ; hublots chromés où le
+  linge tourne ; plus d'étiquettes (un poste se reconnaît à son objet).
+  Pendant le cycle, **`cadrageSalle`** (générique, réutilisable) rapproche la
+  caméra de la machine 7 ; le joueur la tient par le flanc (le hublot reste
+  visible). **Bug V2 corrigé** : `mach7Saut` indéfini avant le 1er coup →
+  y = NaN → la machine 7 disparaissait pendant tout le cycle (testé).
 
 ### Serre V2 — la nuit de la floraison (bandeau `SERRE TROPICALE — LA NUIT DE LA FLORAISON`)
 

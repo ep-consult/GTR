@@ -3208,7 +3208,9 @@ async function main() {
           entrerInterieur('chalutier', PORTES.find((x) => x.id === 'chalutier')); ETAT.intT = 0; return INT.actif; },
         appuyer() { majAction(); const b = document.getElementById('btnAction'); const l = b.textContent; if (b._fn) b._fn(); return l; },
         larguer(s) { P.x = s.barre.x; P.z = s.barre.z; return this.appuyer(); },
-        surBanc(s, type) { const b = s.bancs.find((x) => x.type === type && x.stock > 0); s.bateau.x = b.x + 1; s.bateau.z = b.z + 1; s.bateau.v = 0; s.aQuitteLePort = true; return b; },
+        // le test maîtrise sa scène : les autres bancs sont écartés (un banc voisin tiré trop près changeait le bouton)
+        surBanc(s, type) { const b = s.bancs.find((x) => x.type === type && x.stock > 0); for (const o of s.bancs) if (o !== b && Math.hypot(o.x - b.x, o.z - b.z) < 60) o.x += 5000;
+          s.bateau.x = b.x + 1; s.bateau.z = b.z + 1; s.bateau.v = 0; s.aQuitteLePort = true; return b; },
       };
     });
 
@@ -9199,7 +9201,10 @@ async function main() {
         if (!/ESSORAGE/.test(label) || !s.cycleOn || META.argent !== a0 - 50) ko.push('lancement de la machine 7 (' + label + ')');
         if (!vu(lavPanWrap) || !vu(lavIntroWrap) || vu(document.getElementById('btnFire'))) ko.push('panneau / intro / boutons de combat');
         INPUT.mx = -1; for (let i = 0; i < 10; i++) majInterieur(0.05, 0.05); INPUT.mx = 0;
-        if (Math.hypot(P.x - s.machine7.x, P.z - s.machine7.z) > 1) ko.push('le joueur n’est pas tenu à la machine');
+        if (Math.hypot(P.x - s.mach7X, P.z - s.mach7Z) > 2.5) ko.push('le joueur n’est pas tenu à la machine');
+        // bug V2 (trouvé en rendu réel au V3) : y = NaN avant le 1er coup, la machine 7 disparaissait pendant tout le cycle
+        { const p7 = s.mach7.position; if (!Number.isFinite(p7.x) || !Number.isFinite(p7.y) || !Number.isFinite(p7.z) || Math.abs(p7.x - s.mach7X) > 1) ko.push('la machine 7 n’est pas à sa place pendant le cycle (' + [p7.x, p7.y, p7.z].join(',') + ')');
+          else info.push('machine 7 visible pendant le cycle'); }
         // 2) le joystick pousse l'aiguille ; le rouge fait cogner ; 3 coups = guetteur réveillé, rien gagné
         s.lavAig = 0; s.lavVit = 0; s.lavPousse = 0; s.lavPousseT = 99; INPUT.mx = 1; for (let i = 0; i < 6; i++) majInterieur(0.05, 0.05); INPUT.mx = 0;
         if (!(s.lavAig > 0.05)) ko.push('le joystick ne pousse pas l’aiguille (' + s.lavAig + ')');

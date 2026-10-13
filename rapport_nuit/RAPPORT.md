@@ -1638,3 +1638,11 @@ Captures : `captures/lot11/chalutier_v3_*.png` (`_avant` = la V2 telle que vue e
 **À tester sur iPhone** : fluidité (la mer fait une dizaine de sinus et deux bruits par pixel, le ciel un fbm à 4 octaves) ; lisibilité du joueur à la barre (plus petit à l'écran) ; la vue à quai pour marcher sur le pont.
 
 **Les autres salles refaites** (aquarium, laverie, serre, radio, ciné) ont le même défaut de fond : nouvelle logique, même regard. Elles méritent la même passe visuelle, une par une.
+
+## Aquarium V3 et Laverie V3 — la même passe visuelle (13 octobre)
+
+**Aquarium** : la boîte grise dans le noir devient une galerie d'observation au fond de la mer — fond de sable traversé de reflets de lumière, rochers, coraux, algues qui ondulent, bancs de poissons, requin et raie manta autour de la galerie ; Gaston est un vrai poulpe à huit bras qui change de couleur (violet au repos, jaune au frisson, rouge quand il regarde). Captures : `captures/lot11/aquarium_v3_*.png`.
+
+**Laverie** : laverie de nuit sous la pluie — rue mouillée où l'enseigne néon se reflète, carrelage noir et blanc lustré, hublots chromés où le linge tourne, voiture des Vipers devant la vitrine ; les étiquettes (LAVAGE, MACHINE 7...) sont retirées. Pendant l'essorage, la caméra se rapproche de la machine 7 (gyrophare, afficheur « 7 »). **Bug trouvé en rendu réel** : la machine 7 disparaissait pendant tout le cycle (hauteur NaN avant le premier coup) — corrigé et testé. Captures : `captures/lot11/laverie_v3_*.png`.
+
+**Fiabilité des tests** : le test du chalutier pouvait échouer quand un banc de sardines était tiré trop près d'un banc à la canne (le jeu gardait la dernière position tirée après 40 essais : il garde maintenant la plus dégagée, et le test isole son banc). Le pilote de la serre perd parfois plus de 3 nuits sur 6 selon le tirage (vu une fois sur trois passages) : à surveiller.
