@@ -188,6 +188,10 @@ async function main() {
   const page = await browser.newPage();
   await page.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true, deviceScaleFactor: 3 });
   await page.evaluateOnNewDocument('Math.random = (' + mulberry32.toString() + ')(' + SEED + ');');
+  // Les scénarios d'avant la vue immersive (pilotes au joystick, courses, conduite...) sont
+  // écrits pour la vue de dessus : la page démarre en vue classique, à chaque chargement.
+  // La vue immersive a son propre bloc (« Vue immersive »), qui la règle lui-même.
+  await page.evaluateOnNewDocument(() => { window.addEventListener('load', () => { try { META.vue = 'classique'; } catch (e) {} }); });
 
   const erreursPage = [];
   page.on('pageerror', (e) => erreursPage.push('pageerror: ' + (e && e.message || e)));
@@ -9452,6 +9456,69 @@ async function main() {
       });
       if (r.ko.length) fail('Ciné V2 : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
       else ok('Ciné V2 : ' + r.info.join(' ; '));
+    }
+
+    // -------------------------------------------------------------------
+    // Vue immersive (13 octobre) : caméra inclinée vers l'horizon en ville,
+    // orientable au doigt à pied, poursuite en véhicule ; le joystick suit
+    // l'écran ; les salles gardent leur caméra ; bouton à côté de la pause.
+    // -------------------------------------------------------------------
+    console.log('\n--- Vue immersive : caméra, joystick relatif à l’écran, poursuite en véhicule, salles intactes, bouton ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (INT.actif) sortirInterieur(); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
+        const vueAvant = META.vue;
+        const frames = (n, dt) => { for (let i = 0; i < n; i++) majCamera(dt || 0.05); };
+        const joy = (cle) => { for (const k of ['KeyW', 'KeyS', 'KeyA', 'KeyD']) KEYS[k] = false; KEYS[cle] = true; litEntrees(); KEYS[cle] = false; const v = { x: INPUT.mx, z: INPUT.mz }; litEntrees(); return v; };
+        // 1) bouton : bascule, allumé, sauvegardé
+        META.vue = 'classique'; basculerVue();
+        if (META.vue !== 'immersive' || !el('btnVue').classList.contains('on')) ko.push('le bouton ne passe pas en vue immersive');
+        const sauv = JSON.parse(localStorage.getItem(SAVE_KEY) || '{}');
+        if (sauv.vue !== 'immersive') ko.push('le choix de vue n’est pas sauvegardé');
+        // 2) à pied : caméra derrière et au-dessus du joueur, regard vers l'horizon ; orientable
+        VUE.yawUser = Math.PI / 2; frames(60);
+        if (Math.abs(angDiff(VUE.yawRendu, Math.PI / 2)) > 0.05) ko.push('la caméra ne prend pas l’angle demandé (' + VUE.yawRendu.toFixed(2) + ')');
+        const cd = new THREE.Vector3(); camera.getWorldDirection(cd);
+        const tangage = Math.asin(-cd.y);
+        if (!(tangage > 0.15 && tangage < 0.6)) ko.push('la caméra ne regarde pas vers l’horizon (tangage ' + tangage.toFixed(2) + ')');
+        else info.push('à pied : tangage ' + (tangage * 57.3).toFixed(0) + '°');
+        // 3) le joystick suit l'écran : « haut » = là où regarde la caméra (ouest ici), « droite » = sa droite (nord)
+        const h = joy('KeyW'), d = joy('KeyD');
+        if (!(h.x < -0.95 && Math.abs(h.z) < 0.08)) ko.push('« haut » ne va pas vers l’avant de la caméra (' + h.x.toFixed(2) + ',' + h.z.toFixed(2) + ')');
+        if (!(d.z < -0.95 && Math.abs(d.x) < 0.08)) ko.push('« droite » ne va pas vers la droite de l’écran (' + d.x.toFixed(2) + ',' + d.z.toFixed(2) + ')');
+        // le joueur marche vraiment vers l'avant de la caméra
+        const x0 = P.x, z0 = P.z; KEYS.KeyW = true; for (let i = 0; i < 10; i++) { litEntrees(); majJoueur(0.05, 0.05); } KEYS.KeyW = false; litEntrees();
+        if (!(P.x < x0 - 0.5) || Math.abs(P.z - z0) > 0.5) ko.push('le joueur ne marche pas vers l’avant de la caméra (' + (P.x - x0).toFixed(2) + ',' + (P.z - z0).toFixed(2) + ')');
+        // 4) un immeuble entre la caméra et le joueur : la caméra se relève
+        let s = null; for (const arr of sGrid.values()) { for (const so of arr) if (so.h > 9 && !so.base && so.hw > 3 && so.hd > 3 && Math.abs(so.x) < 400 && Math.abs(so.z) < 400) { s = so; break; } if (s) break; }
+        if (!s) ko.push('aucun immeuble trouvé pour le test de dégagement');
+        else { const py = 1.5, pz = s.z - s.hd - 2.5, cyBas = 3; const req = vueDegagement(s.x, py, pz, s.x, cyBas, s.z + s.hd + 6);
+          if (!(req > s.h)) ko.push('la caméra ne se relève pas derrière un immeuble (' + req.toFixed(1) + ' pour ' + s.h + ')'); else info.push('dégagement derrière un immeuble de ' + s.h.toFixed(0) + ' u'); }
+        // 5) en véhicule : la caméra se place derrière, suit le cap
+        const v = creerVehicule('berline', P.x, P.z, 1.2); entrerVehicule(v); VUE.yaw = 0; frames(80);
+        if (Math.abs(angDiff(VUE.yaw, v.ang + Math.PI)) > 0.1) ko.push('en véhicule, la caméra ne se place pas derrière (' + VUE.yaw.toFixed(2) + ' / ' + (v.ang + Math.PI).toFixed(2) + ')');
+        const hv = joy('KeyW'); const fwd = { x: Math.sin(v.ang), z: Math.cos(v.ang) };
+        if (hv.x * fwd.x + hv.z * fwd.z < 0.95) ko.push('en véhicule, « haut » ne va pas tout droit');
+        else info.push('poursuite : « haut » = tout droit');
+        sortirVehicule(); v.mort = true;
+        // 6) les salles gardent leur caméra : joystick inchangé, bouton masqué
+        const porte = PORTES.find((p) => INTDEFS[p.id] && p.id !== 'tuning');
+        entrerInterieur(porte.id, porte); ETAT.intT = 0; frames(4); majAction();
+        const hs = joy('KeyW');
+        if (Math.abs(hs.x) > 1e-6 || Math.abs(hs.z + 1) > 1e-6) ko.push('dans une salle, le joystick est tourné (' + porte.id + ')');
+        if (getComputedStyle(el('btnVue')).display !== 'none') ko.push('le bouton de vue reste affiché dans une salle');
+        sortirInterieur();
+        // 7) retour à la vue classique : rien n'est tourné
+        basculerVue(); frames(80);
+        const hc = joy('KeyW');
+        if (META.vue !== 'classique' || Math.abs(hc.x) > 1e-3 || Math.abs(hc.z + 1) > 1e-3) ko.push('la vue classique n’est pas rétablie (' + META.vue + ')');
+        if (VUE.ciel && VUE.ciel.visible) ko.push('le ciel de la vue immersive reste affiché en vue classique');
+        META.vue = vueAvant;
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Vue immersive : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
+      else ok('Vue immersive : ' + r.info.join(' ; ') + ' ; bouton sauvegardé, joystick relatif à l’écran, salles et vue classique intactes');
     }
 
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');

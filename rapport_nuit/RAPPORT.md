@@ -1660,3 +1660,18 @@ Le studio devient une station pirate sur un toit, la nuit : antenne aux feux rou
 La cabine de projection donne enfin sur la salle : derrière la vitre, des gradins de fauteuils rouges, le public qui bouge, se lève à l'ovation et s'agite à chaque panne, des rideaux et le grand écran qui passe le même film que le panneau (avec les mêmes pannes). Le faisceau du projecteur traverse la salle jusqu'à l'écran. Chaque poste se reconnaît à son objet (bobines qui tournent, banc d'optique, ampli à vu-mètres, lanterne qui clignote en panne) ; le hall a une moquette art déco, des affiches éclairées et une machine à pop-corn ; dehors, la marquise « CINÉ-PALACE » et ses ampoules. Étiquettes retirées. Captures : `captures/lot11/cine_v3_*.png`.
 
 **Bilan de la passe visuelle** : les six salles refaites (chalutier, aquarium, laverie, serre, radio, ciné) ont maintenant un décor qui raconte le lieu, sans étiquettes, et chacune sort enfin du « vide noir » autour de la salle. Suites `valider.js` et `scenarios.js` vertes après chaque salle (graine 20260731). À tester sur iPhone : la fluidité (shaders de mer, de sol et de ciel), surtout au chalutier et à l'aquarium.
+
+## Vue immersive et bascule de vue (13 octobre)
+
+**Demande** : jouer en ville avec la vue du chalutier, et pouvoir revenir à la vue d'origine depuis un bouton à côté de la pause.
+
+**Choix (validés avec le joueur avant de commencer)** :
+- à pied, caméra inclinée vers l'horizon, qu'on oriente au doigt (glisser sur une zone libre, double-tap pour la remettre derrière soi) — elle ne tourne jamais seule, pour garder un combat lisible ;
+- en véhicule, poursuite automatique derrière le véhicule ;
+- bouton 🎥 à gauche de la pause : vue immersive ↔ vue classique (choix sauvegardé) ;
+- le joystick suit l'écran (haut = là où regarde la caméra) ; en poursuite, ça donne « haut = tout droit, droite = tourner », sans zigzag (mesuré sur berline et moto) ;
+- un immeuble qui cacherait le joueur fait relever la caméra ; ciel en dôme en ville ; on voit beaucoup plus loin.
+
+Les salles gardent leur propre caméra. Captures : `captures/lot11/vue_*.png`.
+
+**À tester sur iPhone** : la fluidité en ville (beaucoup plus de décor à l'écran), le geste de rotation au doigt, la sensation de conduite en poursuite. Défaut connu : la colonne jaune d'un objectif devient énorme quand on se tient dedans.
