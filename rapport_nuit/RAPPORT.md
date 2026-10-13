@@ -1675,3 +1675,13 @@ La cabine de projection donne enfin sur la salle : derrière la vitre, des gradi
 Les salles gardent leur propre caméra. Captures : `captures/lot11/vue_*.png`.
 
 **À tester sur iPhone** : la fluidité en ville (beaucoup plus de décor à l'écran), le geste de rotation au doigt, la sensation de conduite en poursuite. Défaut connu : la colonne jaune d'un objectif devient énorme quand on se tient dedans.
+
+## Échelle de la ville et places garnies (13 octobre)
+
+**Retour** : en vue immersive, le personnage paraît énorme à côté des bâtiments, et les grandes dalles vides rendent le monde vide et petit.
+**Diagnostic** : personnage (1,8 u), voitures et rues étaient à la bonne échelle ; les immeubles étaient trop bas pour les façades qu'ils dessinaient (7 étages de ~1,4 u chacun).
+**Fait** :
+- étages de 3 u sur tous les immeubles (la texture se répète au lieu de s'étirer) et immeubles ×1,8 en hauteur, plafonnés à 38 u (les gratte-ciel existants restent tels quels) — la ville ne bouge pas, les portes sont identiques ;
+- 329 ensembles posés au cœur des pâtés, selon le quartier : places à fontaine ou à statue, squares, kiosques, marchés, terrasses, aires de jeux, food trucks, pique-niques, stocks au port et dans la zone industrielle ; rien devant une porte, un garage ou un objectif.
+**Non fait, volontairement** : la vitesse de marche (elle règle l'équilibre de tout le jeu) — à revoir après un essai sur iPhone si l'impression d'une ville trop petite persiste.
+Captures : `captures/lot11/echelle_*.png`.

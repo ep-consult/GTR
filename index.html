@@ -2713,6 +2713,7 @@ function matFacade(base,type){
     g.fillStyle='#ffd98a';
     fen.forEach(f=>{if(f.on)g.fillRect(f.x,f.y,f.w,f.h);});
   });
+  diff.wrapS=diff.wrapT=emis.wrapS=emis.wrapT=THREE.RepeatWrapping; // uvFacade : étages et travées de 3 u
   const m=new THREE.MeshLambertMaterial({map:diff,emissive:new THREE.Color(0xffffff),emissiveMap:emis,emissiveIntensity:0});
   matsBatiments.push(m);
   return m;
@@ -3323,25 +3324,44 @@ const matsToitsPlats=[
   })
 ].map(t=>new THREE.MeshLambertMaterial({map:t}));
 const matsToits=[mat(0x8a4030),mat(0x6a4a3a),mat(0x4a5a6a),mat(0x74584a)];
+// Échelle des immeubles (13 octobre, playtest en vue immersive : « le
+// personnage paraît énorme à côté des bâtiments ») : les façades dessinaient
+// 7 étages quelle que soit la hauteur (≈ 1,4 u par étage pour 1,8 u de
+// personnage). Désormais la hauteur réelle est hauteurBatiment(h) (×1,8,
+// plafonnée : la vue classique, ~44 u au-dessus du joueur, ne traverse
+// jamais une tour) et la texture se RÉPÈTE (uvFacade) : un étage = 3 u, une
+// travée = 3 u, sur tous les immeubles. Les tirages restent calés sur h
+// d'origine (seuils h>14, h>7, h>34) : la ville ne bouge pas.
+const ECHELLE_BAT=1.8, BAT_H_MAX=38, ETAGE_U=3;
+function hauteurBatiment(h){ return Math.min(h*ECHELLE_BAT,h+8,Math.max(h,BAT_H_MAX)); }
+function uvFacade(geo,w,H,d){
+  // BoxGeometry : faces ±x (largeur d), ±y (toit, caché), ±z (largeur w) — 4 sommets chacune
+  const uv=geo.attributes.uv, rows=7, cols=5;
+  for(let f=0;f<6;f++){ const larg=f<2?d:(f<4?w:w), su=f>=2&&f<4?1:larg/(cols*ETAGE_U), sv=f>=2&&f<4?1:H/(rows*ETAGE_U);
+    for(let k=0;k<4;k++){ const i=f*4+k; uv.setXY(i,uv.getX(i)*su,uv.getY(i)*sv); } }
+  return geo;
+}
 function mkBatiment(x,z,w,d,h,m,solide){
-  if(DECOR_V2) BATIMENTS.push({x,z,w,d,h}); // panneaux de toit du quartier néon (mkNeonVivant)
-  // corps : façade fusionnée + toit texturé séparé (petit, gardé en mesh simple pour le tri de matériau)
-  mergeBox(w,h,d,m,x,h/2,z);
+  const H=hauteurBatiment(h);
+  if(DECOR_V2) BATIMENTS.push({x,z,w,d,h:H}); // panneaux de toit du quartier néon (mkNeonVivant)
+  // corps : façade fusionnée (texture répétée : étages de 3 u) + toit texturé séparé
+  pushMerge(uvFacade(new THREE.BoxGeometry(w,H,d),w,H,d),m,x,H/2,z);
   const toitTop=new THREE.Mesh(new THREE.PlaneGeometry(w,d),pick(matsToitsPlats));
-  toitTop.rotation.x=-Math.PI/2; toitTop.position.set(x,h+0.001,z); scene.add(toitTop);
+  toitTop.rotation.x=-Math.PI/2; toitTop.position.set(x,H+0.001,z); scene.add(toitTop);
   // corniche + toit habillé
-  mergeBox(w+0.5,0.5,d+0.5,mat(0x2a2d34),x,h+0.2,z);
+  mergeBox(w+0.5,0.5,d+0.5,mat(0x2a2d34),x,H+0.2,z);
   if(h>14){
-    mergeBox(rand(2,3.4),rand(1.2,2),rand(2,3.4),mat(0x3a3e46),x+rand(-w/4,w/4),h+1.2,z+rand(-d/4,d/4));
-    if(Math.random()<0.5) mergeBox(1.6,2.4,1.6,mat(0x5a4a38),x-w/5,h+1.6,z-d/5);
-    if(Math.random()<0.5) mergeBox(0.16,rand(2,3.4),0.16,mat(0x1a1d24),x+rand(-w/4,w/4),h+1.6,z+rand(-d/4,d/4));
+    mergeBox(rand(2,3.4),rand(1.2,2),rand(2,3.4),mat(0x3a3e46),x+rand(-w/4,w/4),H+1.2,z+rand(-d/4,d/4));
+    if(Math.random()<0.5) mergeBox(1.6,2.4,1.6,mat(0x5a4a38),x-w/5,H+1.6,z-d/5);
+    if(Math.random()<0.5) mergeBox(0.16,rand(2,3.4),0.16,mat(0x1a1d24),x+rand(-w/4,w/4),H+1.6,z+rand(-d/4,d/4));
   } else if(h>7){
-    if(Math.random()<0.6) mergeBox(1.4,0.9,1.4,mat(0x3a3e46),x+rand(-w/4,w/4),h+0.85,z+rand(-d/4,d/4));
-    if(Math.random()<0.45) mergeBox(rand(1,1.7),0.4,rand(1,1.7),mat(0x27394a),x+rand(-w/4,w/4),h+0.4,z+rand(-d/4,d/4));
-    if(Math.random()<0.35) mergeBox(0.3,1.3,0.3,mat(0x5c6068),x+rand(-w/4,w/4),h+0.85,z+rand(-d/4,d/4));
+    if(Math.random()<0.6) mergeBox(1.4,0.9,1.4,mat(0x3a3e46),x+rand(-w/4,w/4),H+0.85,z+rand(-d/4,d/4));
+    if(Math.random()<0.45) mergeBox(rand(1,1.7),0.4,rand(1,1.7),mat(0x27394a),x+rand(-w/4,w/4),H+0.4,z+rand(-d/4,d/4));
+    if(Math.random()<0.35) mergeBox(0.3,1.3,0.3,mat(0x5c6068),x+rand(-w/4,w/4),H+0.85,z+rand(-d/4,d/4));
   }
   // hélipad panoramique au sommet de la plus grande tour du centre
   if(h>34&&!POIS.toitH){
+    h=H; // tout ce qui suit (hélipad, jetpack, ascenseur) est au vrai sommet
     POIS.toitH={x,z,h};
     const hpx=cTex(128,(g2,s2)=>{g2.strokeStyle='#ffd23f';g2.lineWidth=8;g2.beginPath();g2.arc(s2/2,s2/2,50,0,7);g2.stroke();
       g2.fillStyle='#ffd23f';g2.font='900 70px Arial';g2.textAlign='center';g2.textBaseline='middle';g2.fillText('H',s2/2,s2/2+2);});
@@ -3367,7 +3387,7 @@ function mkBatiment(x,z,w,d,h,m,solide){
     jp.g.scale.setScalar(1.15); scene.add(jp.g);
     POIS.toitH.jetpack.mesh=jp.g;
   }
-  if(solide!==false) addSolid({x,z,hw:w/2,hd:d/2,h,toit:true});
+  if(solide!==false) addSolid({x,z,hw:w/2,hd:d/2,h:H,toit:true});
 }
 /* maison résidentielle avec toit en pente */
 function mkMaison(x,z,w,d,h,m){
@@ -3974,6 +3994,83 @@ const MOB_CAT={
   palmierRue:{pieces:[['cyl',0.16,4.2,0.16,0,2.1,0,0x8a6a44],['box',3,0.08,0.6,0,4.2,0,0x3f8a3a],['box',0.6,0.08,3,0,4.25,0,0x4a9a44],['oct',0.3,0.3,0.3,0,4.1,0,0x6a4a2a]],casse:false,solide:{hw:0.22,hd:0.22,h:4}},
 };
 // ce qui pousse dans chaque quartier : [objet, poids]
+// --- places garnies (13 octobre, playtest en vue immersive : « il faut remplir
+// ces carrés vides, le monde paraît vide ») : de nouveaux objets, assemblés en
+// ENSEMBLES cohérents par quartier au cœur des pâtés (mkPlacesGarnies)
+const BRONZE=0x4f6e5e, PIERRE=0xa8a49a, PIERRE2=0x8e8a82, EAU_F=0x5ab4e0;
+Object.assign(MOB_CAT,{
+  fontaine:{pieces:[['cyl',1.9,0.55,1.9,0,0.28,0,PIERRE2],['cyl',1.7,0.06,1.7,0,0.55,0,EAU_F],['cyl',0.32,1.2,0.32,0,0.9,0,PIERRE],
+    ['cyl',0.85,0.14,0.85,0,1.48,0,PIERRE2],['cyl',0.75,0.05,0.75,0,1.56,0,EAU_F],['cone',0.22,0.55,0.22,0,1.85,0,0xb8e6f8],
+    ['boule',0.18,0.1,0.18,0.9,0.62,0.3,0xffffff],['boule',0.16,0.08,0.16,-0.7,0.62,-0.6,0xffffff]],casse:false,solide:{hw:1.8,hd:1.8,h:1.4},r:2},
+  statue:{pieces:[['box',1.5,1.4,1.5,0,0.7,0,PIERRE],['box',1.75,0.2,1.75,0,1.48,0,PIERRE2],['box',1.75,0.2,1.75,0,0.08,0,PIERRE2],
+    ['box',0.24,0.85,0.26,-0.13,2.0,0,BRONZE],['box',0.24,0.85,0.26,0.13,2.0,0,BRONZE],['box',0.62,0.8,0.36,0,2.82,0,BRONZE],
+    ['boule',0.23,0.25,0.23,0,3.42,0,BRONZE],['box',0.14,0.85,0.14,0.42,3.5,0,BRONZE],['box',0.14,0.6,0.14,-0.38,2.75,0.05,BRONZE],
+    ['box',0.08,0.5,0.4,0.42,4.05,0,0xd8b04a]],casse:false,solide:{hw:0.8,hd:0.8,h:3.8},r:1.1},
+  toboggan:{pieces:[['box',0.08,1.7,0.08,-0.4,0.85,-1.1,0xe05252],['box',0.08,1.7,0.08,0.4,0.85,-1.1,0xe05252],['box',0.08,1.7,0.08,-0.4,0.85,-0.3,0xe05252],['box',0.08,1.7,0.08,0.4,0.85,-0.3,0xe05252],
+    ['box',0.9,0.1,0.9,0,1.7,-0.7,0x3a6ad8],['box',0.7,0.08,0.7,0,1.35,0.25,0xf0c020],['box',0.7,0.08,0.7,0,0.95,0.85,0xf0c020],['box',0.7,0.08,0.7,0,0.55,1.45,0xf0c020],['box',0.7,0.08,0.6,0,0.2,2.0,0xf0c020],
+    ['box',0.06,0.3,2.6,-0.36,1.1,0.9,0xf0c020],['box',0.06,0.3,2.6,0.36,1.1,0.9,0xf0c020]],casse:false,solide:{hw:0.55,hd:0.6,h:1.8},r:1.6},
+  balancoire:{pieces:[['box',0.09,2.2,0.09,-1.3,1.1,-0.55,0xe05252],['box',0.09,2.2,0.09,-1.3,1.1,0.55,0xe05252],['box',0.09,2.2,0.09,1.3,1.1,-0.55,0xe05252],['box',0.09,2.2,0.09,1.3,1.1,0.55,0xe05252],
+    ['box',2.7,0.09,0.09,0,2.2,0,0xe05252],['box',0.03,1.5,0.03,-0.75,1.45,-0.1,METAL],['box',0.03,1.5,0.03,-0.25,1.45,-0.1,METAL],['box',0.03,1.5,0.03,0.25,1.45,0.1,METAL],['box',0.03,1.5,0.03,0.75,1.45,0.1,METAL],
+    ['box',0.6,0.06,0.28,-0.5,0.68,-0.1,0x3a6ad8],['box',0.6,0.06,0.28,0.5,0.68,0.1,0xf0c020]],casse:false,solide:{hw:1.35,hd:0.6,h:2.2},r:1.6},
+  bacSable:{pieces:[['box',2.6,0.28,2.6,0,0.14,0,BOIS],['box',2.3,0.22,2.3,0,0.16,0,0xe2cc92],['cone',0.32,0.35,0.32,0.5,0.4,0.3,0xd8c080],['box',0.3,0.2,0.2,-0.6,0.36,-0.5,0xe05252]],casse:false,r:1.4},
+  pelouse9:{pieces:[['box',9,0.06,9,0,0.03,0,0x4a8a3a],['box',9.3,0.1,0.3,0,0.05,4.6,0x8a8d93],['box',9.3,0.1,0.3,0,0.05,-4.6,0x8a8d93],['box',0.3,0.1,9.3,4.6,0.05,0,0x8a8d93],['box',0.3,0.1,9.3,-4.6,0.05,0,0x8a8d93]],casse:false,r:0.1},
+  pelouse6:{pieces:[['box',6,0.06,6,0,0.03,0,0x4f9040],['box',6.3,0.1,0.3,0,0.05,3.1,0x8a8d93],['box',6.3,0.1,0.3,0,0.05,-3.1,0x8a8d93],['box',0.3,0.1,6.3,3.1,0.05,0,0x8a8d93],['box',0.3,0.1,6.3,-3.1,0.05,0,0x8a8d93]],casse:false,r:0.1},
+  foodTruck:{pieces:[['box',2.2,2.1,4.4,0,1.45,0,0xf2f2ee],['box',2.24,0.5,4.44,0,0.85,0,0xe05252],['box',2.24,0.16,4.44,0,2.5,0,0xe05252],
+    ['box',0.08,0.95,2.2,1.12,1.75,0,0x2a3a4a],['box',1.0,0.06,2.5,1.6,2.35,0,0xf0c020],['box',0.4,0.1,2.3,1.35,1.2,0,0xc8ccd2],
+    ['box',2.0,0.8,0.06,0,1.85,-2.22,0x1a2a3a],['box',0.3,0.6,0.6,1.05,0.3,1.4,0x111111],['box',0.3,0.6,0.6,-1.05,0.3,1.4,0x111111],['box',0.3,0.6,0.6,1.05,0.3,-1.4,0x111111],['box',0.3,0.6,0.6,-1.05,0.3,-1.4,0x111111]],
+    casse:false,solide:{hw:1.15,hd:2.25,h:2.6},r:2.6,lum:[['box',0.06,0.35,2,1.14,2.15,0,0xffe08a]]},
+  caissesPile:{pieces:[['box',1,1,1,0,0.5,0,0x9a7a4a],['box',1,1,1,1.05,0.5,0.1,0x8a6a3a],['box',1,1,1,0.5,1.5,0.05,0xa8844e],['box',1.2,0.12,1,-1.2,0.06,0,0x9a7a4a]],casse:false,solide:{hw:1.1,hd:0.6,h:2},r:1.3},
+  tablePique:{pieces:[['box',1.8,0.08,0.8,0,0.75,0,BOIS],['box',1.8,0.06,0.3,0,0.45,0.62,BOIS],['box',1.8,0.06,0.3,0,0.45,-0.62,BOIS],['box',0.1,0.75,0.7,-0.7,0.38,0,BOIS],['box',0.1,0.75,0.7,0.7,0.38,0,BOIS]],casse:true,r:1.1},
+});
+// ensembles : [type, x, z, ry relatif] autour d'un centre ; R = rayon d'emprise
+const PLACES_ENSEMBLES={
+  fontaine:{R:7,o:[['fontaine',0,0,0],['banc',0,-4.4,Math.PI],['banc',0,4.4,0],['banc',-4.4,0,-Math.PI/2],['banc',4.4,0,Math.PI/2],
+    ['platane',-5,-5,0],['platane',5,-5,0],['platane',-5,5,0],['platane',5,5,0],['poubelle',2.6,-4.6,0],['lampadaire',-2.6,4.8,0]]},
+  statue:{R:5.5,o:[['statue',0,0,0],['jardiniere',0,-3.1,0],['jardiniere',0,3.1,0],['jardiniere',-3.1,0,Math.PI/2],['jardiniere',3.1,0,Math.PI/2],['banc',-3.8,-3.8,Math.PI*0.75],['banc',3.8,3.8,-Math.PI/4]]},
+  square:{R:6,o:[['pelouse9',0,0,0],['tilleul',-2.5,-2.2,0],['platane',2.4,1.8,0],['tilleul',-1.8,2.6,0],['massif',2.2,-2.6,0],['banc',0,0.2,0],['tablePique',2.6,-0.6,Math.PI/2],['lampadaire',-3.6,0,0]]},
+  kiosqueSquare:{R:6,o:[['pelouse6',0,0,0],['kiosque',0,0,0],['banc',-3.9,0,-Math.PI/2],['banc',3.9,0,Math.PI/2],['banc',0,3.9,0],['platane',-4.4,-4.2,0],['tilleul',4.3,-4.3,0]]},
+  marche:{R:6.5,o:[['etal',-3.2,-1.2,0],['etal',0,-1.2,0],['etal',3.2,-1.2,0],['cagettes',-1.6,0.6,0],['cagettes',1.7,0.5,0.4],['terrasse',-3,3,0],['terrasse',2.4,3.2,0],['poubelle',4.8,1.2,0]]},
+  terrasses:{R:5.5,o:[['terrasse',-1.7,-1.7,0],['terrasse',1.7,-1.7,0],['terrasse',-1.7,1.7,0],['terrasse',1.7,1.7,0],['jardiniere',0,-3.8,0],['jardiniere',0,3.8,0],['lampadaire',3.8,0,0]]},
+  jeux:{R:6.5,o:[['pelouse9',0,0,0],['toboggan',-2.2,-1.4,0],['balancoire',2,-2.4,0],['bacSable',2,1.9,0],['banc',-2.8,3.2,0],['banc',-4.2,0,-Math.PI/2],['tilleul',-3.6,-3.6,0],['poubelle',3.9,3.9,0]]},
+  foodTrucks:{R:6.5,o:[['foodTruck',-3,0,0],['foodTruck',3.2,0.4,Math.PI],['terrasse',0,-3.6,0],['terrasse',0,3.4,0],['poubelle',0,0,0],['tablePique',-0.2,5,0]]},
+  stock:{R:5.5,o:[['palette',-2.5,-2,0],['palette',-1.2,-2.2,0.2],['caissesPile',1.6,-1.8,0],['fut',-2.6,0.6,0],['fut',-1.9,1.2,0],['futOrange',-2.7,1.6,0],['fut',-1.6,0.1,0],['caissesPile',1.8,1.6,Math.PI/2],['cone',0.2,3.2,0],['cone',1.2,3.4,0],['cagettes',-0.2,0.2,0.3]]},
+  pique:{R:5.5,o:[['pelouse6',0,0,0],['tablePique',-1.2,-0.8,0],['tablePique',1.4,1.2,0.5],['platane',-1.6,2,0],['tilleul',2,-1.8,0],['poubelle',2.6,2.6,0]]},
+};
+const PLACES_QUARTIERS={
+  centre:[['fontaine',3],['statue',2],['square',3],['kiosqueSquare',2],['terrasses',2]],
+  place:[['fontaine',3],['statue',2],['square',2]],
+  commerce:[['marche',3],['terrasses',3],['foodTrucks',2],['fontaine',1],['square',2]],
+  residentiel:[['jeux',3],['square',3],['pique',2],['terrasses',1]],
+  villas:[['square',3],['pique',2],['jeux',1],['fontaine',1]],
+  neon:[['foodTrucks',3],['terrasses',2],['statue',1]],
+  industriel:[['stock',5]],
+  port:[['stock',5]],
+};
+// remplit le cœur des pâtés : jusqu'à 2 ensembles par pâté, là où le sol est
+// libre (aucun solide dans l'emprise, rien devant une porte ni un objectif —
+// la règle « libre » du mobilier) ; tirages sur aleaDecor (la ville ne bouge pas)
+const PLACES_STATS={poses:0,refusSolide:0,refusLibre:0}; // relevé (tests, réglages)
+function mkPlacesGarnies(poser,libre){
+  for(let bx=0;bx<NB;bx++) for(let bz=0;bz<NB;bz++){
+    const q=quartier(bx,bz), liste=PLACES_QUARTIERS[q]; if(!liste) continue;
+    const cx=-HALF+bx*CELL+CELL/2, cz=-HALF+bz*CELL+CELL/2, lim=INNER/2;
+    const poses=[];
+    for(let essai=0;essai<44&&poses.length<3;essai++){
+      const nom=mobChoix(liste), E=PLACES_ENSEMBLES[nom], R=E.R, m=lim-3;
+      const x=cx+aD(-m,m), z=cz+aD(-m,m);
+      let ok=true;
+      for(const p of poses) if(dist2(x,z,p[0],p[1])<(R+p[2]-1)*(R+p[2]-1)) ok=false;
+      if(!ok) continue;
+      // chaque objet vérifié sur les vrais solides et la règle « libre » (porte, objectif,
+      // garage) : l'ensemble est retenu si l'objet principal et ≥ 70 % des autres tiennent
+      const rot=Math.floor(aleaDecor()*4)*Math.PI/2, c=Math.cos(rot), s=Math.sin(rot), places=[];
+      for(const [type,ox,oz,ry] of E.o){ const X=x+ox*c+oz*s, Z=z-ox*s+oz*c, D=MOB_CAT[type];
+        if(Math.abs(X-cx)<lim-0.6&&Math.abs(Z-cz)<lim-0.6&&libre(X,Z,D.r||0.5)) places.push([type,X,Z,ry+rot]); else if(type===E.o[0][0]&&ox===E.o[0][1]&&oz===E.o[0][2]) ok=false; }
+      if(!ok||places.length<E.o.length*0.7){ PLACES_STATS.refusSolide++; continue; }
+      for(const [type,X,Z,ry] of places) poser(type,X,Z,ry);
+      poses.push([x,z,R]); PLACES_STATS.poses++;    }
+  }
+}
 const MOB_QUARTIERS={
   centre:[['platane',4],['banc',2],['poubelle',2],['borne',1],['jardiniere',2],['kiosque',0.5],['lampadaire',2],['arceaux',1]],
   commerce:[['tilleul',3],['terrasse',2],['jardiniere',2],['poubelle',2],['borne',1],['arceaux',1],['lampadaire',2],['banc',1],['etal',1.6],['cagettes',1.4]],
@@ -4035,6 +4132,8 @@ function mkMobilierUrbain(){
       }
     }
   }
+  // le cœur des pâtés : places, squares, marchés, aires de jeux, stocks (mkPlacesGarnies)
+  mkPlacesGarnies(poser,libre);
   // Plage : semis sur le sable (dessus des cases de plage à 0,1), jamais dans
   // l'eau ni trop près du bord (les vagues montent jusqu'à ~3 u), jamais
   // devant une porte ou un point d'intérêt.
@@ -27945,7 +28044,7 @@ function vueAngleEcran(){ return INT.actif?0:VUE.yawRendu; }
 function vueDegagement(px,py,pz,cx,cy,cz){
   let req=cy;
   for(let i=1;i<=8;i++){ const t=i/9, x=lerp(px,cx,t), z=lerp(pz,cz,t);
-    const s=solidAt(x,z,0.4); if(!s||!s.h) continue;
+    const s=solidAt(x,z,1.2); if(!s||!s.h) continue; // 1,2 : la couronne d'un arbre déborde de son tronc
     const haut=(s.base!==undefined?0:0)+s.h+1.4; // dessus du solide, avec une marge
     const yLigne=lerp(py,cy,t);
     if(haut>yLigne) req=Math.max(req,py+(haut-py)/t); }

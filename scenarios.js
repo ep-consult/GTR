@@ -9488,6 +9488,8 @@ async function main() {
         if (!(h.x < -0.95 && Math.abs(h.z) < 0.08)) ko.push('« haut » ne va pas vers l’avant de la caméra (' + h.x.toFixed(2) + ',' + h.z.toFixed(2) + ')');
         if (!(d.z < -0.95 && Math.abs(d.x) < 0.08)) ko.push('« droite » ne va pas vers la droite de l’écran (' + d.x.toFixed(2) + ',' + d.z.toFixed(2) + ')');
         // le joueur marche vraiment vers l'avant de la caméra
+        // le test maîtrise sa scène : un point d'où l'on peut marcher 6 u vers l'ouest sans rien heurter
+        { let ok = false; for (let r = 0; r < 80 && !ok; r += 2) for (const [dx, dz] of [[r, 0], [-r, 0], [0, r], [0, -r]]) { const x = P.x + dx, z = P.z + dz; let libre = true; for (let k = 0; k <= 7; k++) if (solidAt(x - k, z, 0.9)) libre = false; if (libre) { P.x = x; P.z = z; ok = true; break; } } }
         const x0 = P.x, z0 = P.z; KEYS.KeyW = true; for (let i = 0; i < 10; i++) { litEntrees(); majJoueur(0.05, 0.05); } KEYS.KeyW = false; litEntrees();
         if (!(P.x < x0 - 0.5) || Math.abs(P.z - z0) > 0.5) ko.push('le joueur ne marche pas vers l’avant de la caméra (' + (P.x - x0).toFixed(2) + ',' + (P.z - z0).toFixed(2) + ')');
         // 4) un immeuble entre la caméra et le joueur : la caméra se relève
@@ -9519,6 +9521,32 @@ async function main() {
       });
       if (r.ko.length) fail('Vue immersive : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
       else ok('Vue immersive : ' + r.info.join(' ; ') + ' ; bouton sauvegardé, joystick relatif à l’écran, salles et vue classique intactes');
+    }
+
+    // -------------------------------------------------------------------
+    // Échelle de la ville et places garnies (13 octobre, playtest en vue
+    // immersive) : étages de 3 u, hauteurs plafonnées (la vue classique ne
+    // traverse jamais une tour), hélipad au vrai sommet, cœur des pâtés garni.
+    // -------------------------------------------------------------------
+    console.log('\n--- Échelle des immeubles et places garnies ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (!(PLACES_STATS.poses >= 150)) ko.push('trop peu d’ensembles posés au cœur des pâtés (' + PLACES_STATS.poses + ')');
+        else info.push(PLACES_STATS.poses + ' ensembles (places, squares, marchés, jeux, stocks)');
+        let hMax = 0; for (const b of BATIMENTS) hMax = Math.max(hMax, b.h); // les immeubles de mkBatiment (d'autres structures, plus hautes, existaient avant)
+        // l'agrandissement ne fait jamais dépasser BAT_H_MAX (les gratte-ciel déjà plus hauts restent tels quels)
+        for (let h = 3; h <= 70; h += 0.5) if (hauteurBatiment(h) > Math.max(h, BAT_H_MAX) + 1e-9 || hauteurBatiment(h) < h) { ko.push('hauteurBatiment(' + h + ') = ' + hauteurBatiment(h)); break; }
+        info.push('plus haute tour : ' + hMax.toFixed(0) + ' u'); 
+        if (!(hauteurBatiment(6) >= 10 && hauteurBatiment(34) <= BAT_H_MAX)) ko.push('hauteurBatiment hors des bornes');
+        if (POIS.toitH) { const s = solidAt(POIS.toitH.x, POIS.toitH.z, 0); if (!s || Math.abs(s.h - POIS.toitH.h) > 0.01) ko.push('l’hélipad n’est pas au sommet de sa tour (' + (s && s.h) + ' / ' + POIS.toitH.h + ')'); }
+        // aucune entrée de lieu murée par un objet des places (une porte doit rester atteignable)
+        let murees = 0; for (const p of PORTES) { if (!INTDEFS[p.id]) continue; const s = solidAt(p.x, p.z, 0.2); if (s && !s.toit) murees++; }
+        if (murees) ko.push(murees + ' porte(s) sous un objet solide');
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Échelle et places : ' + r.ko.join(' | '));
+      else ok('Échelle et places : ' + r.info.join(' ; ') + ' ; hélipad au sommet ; aucune porte murée');
     }
 
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');
