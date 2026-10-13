@@ -3392,13 +3392,21 @@ function mkBatiment(x,z,w,d,h,m,solide){
   if(solide!==false) addSolid({x,z,hw:w/2,hd:d/2,h:H,toit:true});
 }
 /* maison résidentielle avec toit en pente */
+// Maisons et villas (14 octobre, playtest en vue immersive : « pas encore
+// proportionnelles au joueur ») : la façade de 7 rangées de fenêtres était
+// étirée sur 4 à 5 u (une maison de poupée), la porte faisait 1,5 u. Maison
+// à étage (≥ 5,6 u), façade répétée (uvFacade : étages de 3 u), porte de
+// 2,2 u. Aucun tirage en plus : la ville ne bouge pas.
+function hauteurMaison(h){ return clamp(h*1.3,5.6,8.5); }
+function mergeFacade(w,h,d,m,x,y,z){ pushMerge(uvFacade(new THREE.BoxGeometry(w,h,d),w,h,d),m,x,y,z); }
 function mkMaison(x,z,w,d,h,m){
-  mergeBox(w,h,d,m,x,h/2,z);
+  h=hauteurMaison(h);
+  mergeFacade(w,h,d,m,x,h/2,z);
   const toit=new THREE.Mesh(new THREE.ConeGeometry(0.72,h*0.62,4),pick(matsToits));
   toit.rotation.y=Math.PI/4;
   toit.scale.set(w*1.06,1,d*1.06);
   toit.position.set(x,h+h*0.31,z); scene.add(toit);
-  mergeBox(0.9,1.5,0.1,mat(0x3a2c1e),x,0.75,z+d/2+0.02);
+  mergeBox(1.1,2.2,0.1,mat(0x3a2c1e),x,1.1,z+d/2+0.02);
   addSolid({x,z,hw:w/2,hd:d/2,h,toit:true});
 }
 // Villa moderne, toit plat + terrasse en porte-à-faux : contraste
@@ -3406,7 +3414,8 @@ function mkMaison(x,z,w,d,h,m){
 // de bâtiments se ressemblent ». Même signature que mkMaison (x,z,w,d,h,m)
 // pour pouvoir choisir l'une ou l'autre au hasard sans code séparé.
 function mkVillaModerne(x,z,w,d,h,m){
-  mergeBox(w,h,d,m,x,h/2,z);
+  h=hauteurMaison(h);
+  mergeFacade(w,h,d,m,x,h/2,z);
   mergeBox(w+0.3,0.25,d+0.3,mat(0xd8d4c8),x,h+0.12,z);              // acrotère de toit plat
   mergeBox(w*0.7,h*0.55,0.08,mat(0x1a2430),x,h*0.5,z+d/2+0.03);     // grande baie vitrée
   mergeBox(w*0.55,0.2,2.4,mat(0xc8c2b0),x,h*0.62,z+d/2+1.3);        // terrasse en porte-à-faux
@@ -3418,9 +3427,9 @@ function mkVillaModerne(x,z,w,d,h,m){
 // pointu que mkMaison, qui doit rester la silhouette « maison de ville »),
 // véranda ouverte côté mer — jamais un mur, une vraie terrasse.
 function mkMaisonPlage(x,z,w,d,h,m){
-  const pil=1.3;
+  const pil=2.4; h=Math.max(h,3.4); // pilotis à hauteur d'homme (on passe dessous), un vrai niveau
   [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(p=>mergeBox(0.3,pil,0.3,mat(0x5a4028),x+p[0]*w*0.4,pil/2,z+p[1]*d*0.4));
-  mergeBox(w,h,d,m,x,pil+h/2,z);
+  mergeFacade(w,h,d,m,x,pil+h/2,z);
   const toit=new THREE.Mesh(new THREE.ConeGeometry(0.72,h*0.4,4),pick(matsToits));
   toit.rotation.y=Math.PI/4;
   toit.scale.set(w*1.15,1,d*1.15);
@@ -3433,8 +3442,9 @@ function mkMaisonPlage(x,z,w,d,h,m){
 // différente de mkBatiment (toit habillé au hasard mais corps identique),
 // pour les tours ordinaires du centre-ville. Même signature (x,z,w,d,h,m).
 function mkTourVerre(x,z,w,d,h,m){
-  mergeBox(w,h,d,m,x,h/2,z);
-  const nb=Math.max(2,Math.round(h/4));
+  const h0=h; h=hauteurBatiment(h); // h0 : les NOMBRES de pièces restent calés sur la hauteur d'origine (chaque géométrie tire Math.random : sinon la ville se décale)
+  mergeFacade(w,h,d,m,x,h/2,z);
+  const nb=Math.max(2,Math.round(h0/4));
   for(let i=1;i<nb;i++) mergeBox(w+0.06,0.14,d+0.06,mat(0x0d1620),x,i*(h/nb),z);
   mergeBox(w*0.6,1.6,d*0.6,mat(0x1a2733),x,h+0.8,z);
   mergeBox(w*0.6+0.2,0.15,d*0.6+0.2,mat(0x0d1620),x,h+1.6,z);
@@ -3445,10 +3455,11 @@ function mkTourVerre(x,z,w,d,h,m){
 // pilastres cuivrés aux angles, flèche au sommet — look années 30, contraste
 // avec les tours de verre/mkBatiment. Même signature (x,z,w,d,h,m).
 function mkTourArtDeco(x,z,w,d,h,m){
+  h=hauteurBatiment(h);
   const h1=h*0.55,h2=h*0.28,h3=h*0.17;
-  mergeBox(w,h1,d,m,x,h1/2,z);
-  mergeBox(w*0.72,h2,d*0.72,m,x,h1+h2/2,z);
-  mergeBox(w*0.46,h3,d*0.46,m,x,h1+h2+h3/2,z);
+  mergeFacade(w,h1,d,m,x,h1/2,z);
+  mergeFacade(w*0.72,h2,d*0.72,m,x,h1+h2/2,z);
+  mergeFacade(w*0.46,h3,d*0.46,m,x,h1+h2+h3/2,z);
   mergeBox(0.18,h*0.14,0.18,mat(0xc7a24a),x,h1+h2+h3+h*0.07,z);
   [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(p=>
     mergeBox(0.5,h1*0.94,0.5,mat(0xb5793a),x+p[0]*(w/2-0.25),h1*0.47,z+p[1]*(d/2-0.25)));
@@ -3459,10 +3470,11 @@ function mkTourArtDeco(x,z,w,d,h,m){
 // commerce. Même signature (x,z,w,d,h,m).
 const BRIQUES=[], MAISONS=[]; // DECOR_V2 : immeubles en brique (fresques) et maisons du résidentiel (cordes à linge)
 function mkImmeubleBriques(x,z,w,d,h,m){
+  const h0=h; h=hauteurBatiment(h); // h0 : nombres de pièces calés sur la hauteur d'origine (tirages de la ville)
   if(DECOR_V2) BRIQUES.push({x,z,w,d,h});
-  mergeBox(w,h,d,m,x,h/2,z);
+  mergeFacade(w,h,d,m,x,h/2,z);
   mergeBox(w+0.25,0.3,d+0.25,mat(0x3a2c22),x,h+0.15,z);
-  const rangs=Math.max(2,Math.round(h/2.6));
+  const rangs=Math.max(2,Math.round(h0/2.6));
   for(let r=1;r<rangs;r++) mergeBox(w+0.1,0.16,d+0.1,mat(0xd8cdb8),x,r*(h/rangs),z);
   const cx2=x-w*0.28,cz2=z-d*0.28;
   const cit=new THREE.Mesh(new THREE.CylinderGeometry(0.9,0.9,1.3,10),mat(0x6a5236));
@@ -3472,7 +3484,7 @@ function mkImmeubleBriques(x,z,w,d,h,m){
   for(let i=0;i<4;i++) mergeBox(0.1,1.3,0.1,mat(0x3a2c22),cx2+Math.sin(i*1.6)*0.55,h+0.65,cz2+Math.cos(i*1.6)*0.55);
   // « Brooklyn » (DECOR_V2) : escalier de secours noir sur la façade sud, à
   // chaque étage — aucun tirage aléatoire (la ville n'est pas décalée)
-  if(DECOR_V2&&h>6){
+  if(DECOR_V2&&h0>6){
     const fx=x+w*0.18, fz=z+d/2+0.5, fe=mat(0x1a1c20), lw=Math.min(3.2,w*0.4);
     for(let r=1;r<rangs;r++){ const y=r*(h/rangs);
       mergeBox(lw,0.08,0.9,fe,fx,y,fz); mergeBox(lw,0.06,0.04,fe,fx,y+0.75,fz+0.43);
@@ -3485,7 +3497,7 @@ function mkImmeubleBriques(x,z,w,d,h,m){
 // pour le quartier industriel. Même signature (x,z,w,d,h,m).
 function mkEntrepot(x,z,w,d,h,m){
   if(DECOR_V2) ENTREPOTS.push({x,z,w,d,h}); // cheminées et gyrophares (mkQuartiersFinitions)
-  mergeBox(w,h,d,m,x,h/2,z);
+  mergeFacade(w,h,d,m,x,h/2,z);
   const nb=Math.max(2,Math.round(d/5));
   for(let i=0;i<nb;i++){
     const dent=new THREE.Mesh(new THREE.BoxGeometry(w,0.14,d/nb*0.92),mat(0x2a2d34));
@@ -4040,23 +4052,62 @@ const PLACES_ENSEMBLES={
   jeux:{R:6.5,o:[['pelouse9',0,0,0],['toboggan',-2.2,-1.4,0],['balancoire',2,-2.4,0],['bacSable',2,1.9,0],['banc',-2.8,3.2,0],['banc',-4.2,0,-Math.PI/2],['tilleul',-3.6,-3.6,0],['poubelle',3.9,3.9,0]]},
   foodTrucks:{R:6.5,o:[['foodTruck',-3,0,0],['foodTruck',3.2,0.4,Math.PI],['terrasse',0,-3.6,0],['terrasse',0,3.4,0],['poubelle',0,0,0],['tablePique',-0.2,5,0]]},
   stock:{R:5.5,o:[['palette',-2.5,-2,0],['palette',-1.2,-2.2,0.2],['caissesPile',1.6,-1.8,0],['fut',-2.6,0.6,0],['fut',-1.9,1.2,0],['futOrange',-2.7,1.6,0],['fut',-1.6,0.1,0],['caissesPile',1.8,1.6,Math.PI/2],['cone',0.2,3.2,0],['cone',1.2,3.4,0],['cagettes',-0.2,0.2,0.3]]},
+  stand:{R:5,o:[['kiosque',0,0,0],['tablePique',-2.6,2.6,0],['tablePique',2.6,2.6,0],['poubelle',3.4,-0.4,0],['lampadaire',-3.4,-0.4,0]]}, // un stand de nourriture par quartier
   pique:{R:5.5,o:[['pelouse6',0,0,0],['tablePique',-1.2,-0.8,0],['tablePique',1.4,1.2,0.5],['platane',-1.6,2,0],['tilleul',2,-1.8,0],['poubelle',2.6,2.6,0]]},
 };
 const PLACES_QUARTIERS={
   centre:[['fontaine',3],['statue',2],['square',3],['kiosqueSquare',2],['terrasses',2]],
-  place:[['fontaine',3],['statue',2],['square',2]],
+  place:[['fontaine',3],['statue',2],['square',2],['stand',2]],
   commerce:[['marche',3],['terrasses',3],['foodTrucks',2],['fontaine',1],['square',2]],
-  residentiel:[['jeux',3],['square',3],['pique',2],['terrasses',1]],
-  villas:[['square',3],['pique',2],['jeux',1],['fontaine',1]],
+  residentiel:[['jeux',3],['square',3],['pique',2],['terrasses',1],['stand',2]],
+  villas:[['square',3],['pique',2],['jeux',1],['fontaine',1],['stand',2]],
   neon:[['foodTrucks',3],['terrasses',2],['statue',1]],
-  industriel:[['stock',5]],
-  port:[['stock',5]],
+  industriel:[['stock',5],['stand',2]],
+  port:[['stock',5],['stand',2]],
 };
 // remplit le cœur des pâtés : jusqu'à 2 ensembles par pâté, là où le sol est
 // libre (aucun solide dans l'emprise, rien devant une porte ni un objectif —
 // la règle « libre » du mobilier) ; tirages sur aleaDecor (la ville ne bouge pas)
 const PLACES_STATS={poses:0,refusSolide:0,refusLibre:0}; // relevé (tests, réglages)
-function mkPlacesGarnies(poser,libre){
+/* ---- STANDS DE NOURRITURE (14 octobre, demandé : « les kiosques doivent
+   permettre d'acheter des hot-dogs ou de la nourriture selon le quartier,
+   une par quartier, qui remonte des PV ») : chaque kiosque et food truck
+   posé est noté (STANDS) ; près de lui, le bouton d'action vend la
+   spécialité du quartier (NOURRITURE_QUARTIER). Pas de farming : coûte de
+   l'argent, ne soigne que si l'on est blessé, et le stand ferme un moment
+   (STAND_ATTENTE) après chaque vente. */
+const STANDS=[], STAND_ATTENTE=25;
+const NOURRITURE_QUARTIER={
+  centre:{nom:'HOT-DOG',ico:'🌭',prix:15,pv:30},
+  place:{nom:'CHURROS',ico:'🥖',prix:12,pv:25},
+  commerce:{nom:'CRÊPE AU SUCRE',ico:'🥞',prix:12,pv:25},
+  neon:{nom:'TACOS',ico:'🌮',prix:20,pv:40},
+  residentiel:{nom:'PART DE PIZZA',ico:'🍕',prix:15,pv:32},
+  villas:{nom:'SMOOTHIE',ico:'🥤',prix:25,pv:45},
+  industriel:{nom:'SANDWICH DU CHANTIER',ico:'🥪',prix:14,pv:30},
+  port:{nom:'BEIGNETS DE CREVETTES',ico:'🍤',prix:18,pv:36},
+  parc:{nom:'GLACE',ico:'🍦',prix:10,pv:20},
+  plage:{nom:'GLACE',ico:'🍦',prix:10,pv:20},
+};
+function standProche(){
+  let best=null, bd=9;
+  for(const s of STANDS){ const d=dist2(P.x,P.z,s.x,s.z); if(d<bd){ bd=d; best=s; } }
+  return best;
+}
+function acheterNourriture(s){
+  const N=NOURRITURE_QUARTIER[s.q]||NOURRITURE_QUARTIER.centre;
+  if(s.cd>ETAT.runT&&s.cd-ETAT.runT<=STAND_ATTENTE){ SFX.refus(); /* runT repart à 0 à chaque partie : une attente d'avant ne bloque jamais */ toast('Le stand prépare la fournée suivante…','warn'); return; }
+  if(P.hp>=P.maxHp){ SFX.refus(); toast('Tu n’as pas faim : tu es en pleine forme.','warn'); return; }
+  if(META.argent<N.prix){ SFX.refus(); toast('Il te faut '+N.prix+' $','warn'); return; }
+  META.argent-=N.prix; s.cd=ETAT.runT+STAND_ATTENTE;
+  soigner(N.pv); SFX.achat(); vibre(30);
+  spawnTexte(s.x,2.8,s.z,N.ico,'#ffd23f');
+  toast(N.ico+' '+N.nom.charAt(0)+N.nom.slice(1).toLowerCase()+' : +'+N.pv+' PV','or');
+}
+function mkPlacesGarnies(poser,libre0){
+  // jamais sur une piscine de villa (signalé : verdure et piscine qui se mélangent et scintillent)
+  const surPiscine=(x,z,r)=>{ for(const p of VILLA_PISC) if(Math.abs(x-p.x)<p.w/2+1.4+r&&Math.abs(z-p.z)<p.d/2+3.6+r) return true; return false; };
+  const libre=(x,z,r)=>!surPiscine(x,z,r)&&libre0(x,z,r);
   for(let bx=0;bx<NB;bx++) for(let bz=0;bz<NB;bz++){
     const q=quartier(bx,bz), liste=PLACES_QUARTIERS[q]; if(!liste) continue;
     const cx=-HALF+bx*CELL+CELL/2, cz=-HALF+bz*CELL+CELL/2, lim=INNER/2;
@@ -4110,6 +4161,8 @@ function mkMobilierUrbain(){
       addSolid({x,z,hw:D.solide.hw*c+D.solide.hd*s,hd:D.solide.hw*s+D.solide.hd*c,h:D.solide.h}); }
     if(type==='lampadaire') FLAQUES_LUM.push([x+0.8*Math.cos(ry),z-0.8*Math.sin(ry)]);
     if(type==='arceaux') MOB.arceaux.push({x,z,ry});
+    if(type==='chariotGlace') STANDS.push({x,z,q:'plage',cd:0});
+    if(type==='kiosque'||type==='foodTruck') STANDS.push({x:x+Math.sin(ry)*(type==='kiosque'?1.6:0)+Math.cos(ry)*(type==='foodTruck'?1.9:0),z:z+Math.cos(ry)*(type==='kiosque'?1.6:0)-Math.sin(ry)*(type==='foodTruck'?1.9:0),q:quartier(Math.floor((x+HALF)/CELL),Math.floor((z+HALF)/CELL)),cd:0});
     if(D.casse){
       const k=Math.floor(x/8)+','+Math.floor(z/8);
       if(!MOB.cassables.has(k)) MOB.cassables.set(k,[]);
@@ -8982,7 +9035,7 @@ function remplirBloc(qq,bx,bz,cx,cz){
     if(Math.random()<0.55){
       const pw=rand(5,7), pdp=rand(3,5); // même ordre de tirages qu'avant
       const pisc=new THREE.Mesh(new THREE.BoxGeometry(pw,0.2,pdp),new THREE.MeshLambertMaterial({map:texEau}));
-      pisc.position.set(cx+7,0.18,cz+7); scene.add(pisc);
+      pisc.position.set(cx+7,0.21,cz+7); scene.add(pisc); // eau à 0,31 : jamais au même niveau qu'une pelouse (0,28) — scintillement
       if(DECOR_V2) VILLA_PISC.push({x:cx+7,z:cz+7,w:pw,d:pdp}); // margelle, plongeoir, transats (mkQuartiersFinitions)
     } else pick([mkMaison,mkVillaModerne])(cx+7,cz+7,rand(7,9),rand(6,8),rand(4,5),pick(paletteFacades.villas));
     mkPalmier(cx+rand(-M+2,M-2),cz-rand(2,M-2));
@@ -9585,10 +9638,49 @@ function jeepCarrosserie(corps,coul,L,W,bodyY){
   corps.add(mkBoxG(0.3,0.42,0.16,0x3a5a2a,-W*0.36,bodyY+0.12,zTub0-0.1));
 }
 function vehiculeRestyle(def){ return DECOR_V2&&((def.type==='bateau'&&!def.surf)||def.buggy||def.pelle); }
+/* Hauteurs réalistes (14 octobre, playtest en vue immersive : « bus,
+   pompiers, ambulance paraissent ratatinés, de la hauteur d'une voiture »).
+   Mesuré (personnage 1,8 u ≈ 1,8 m) : bus 2,0, pompiers 1,6, ambulance 1,6,
+   fourgon 1,33 (plus bas qu'une citadine). Cible = hauteur hors tout réelle.
+   rehausserModele étire en hauteur la seule CAISSE (tout ce qui est au-dessus
+   du haut des roues), géométries clonées puis cuites dans le repère du
+   modèle : roues rondes, hiérarchie et animations (tourelle, gyrophares,
+   corps suspendu) intactes. Cosmétique : la physique ne lit pas la hauteur. */
+const HAUTEUR_VEH={van:2.3,busville:3.2,pompiers:3.1,ambulance:2.7,milit:3.0,blinde:2.5,dca:3.1,char:2.4,depotBus:3.0,depanneuse:2.8};
+const REHAUSSE={}; // clé → {yB,k} (relevé au 1er modèle : sert aux ancrages des pièces de tuning)
+const _mRh=new THREE.Matrix4(), _mRhI=new THREE.Matrix4(), _mRhS=new THREE.Matrix4(), _bRh=new THREE.Box3();
+function rehausserModele(g,key){
+  const cible=HAUTEUR_VEH[key]; if(!cible) return;
+  const ud=g.userData||{}, roues=new Set();
+  for(const r of ud.roues||[]) r.traverse(o=>roues.add(o));
+  g.updateMatrixWorld(true); const gInv=_mRhI.copy(g.matrixWorld).invert();
+  // haut des roues = bas de la caisse ; sommet actuel (sans les sprites ni les voiles transparents)
+  let yB=0.6, top=0;
+  for(const r of ud.roues||[]){ _bRh.setFromObject(r); yB=Math.max(yB,_bRh.max.y-g.position.y); }
+  const meshes=[]; g.traverse(o=>{ if(!o.isMesh||roues.has(o)||!o.geometry) return; if(o.material&&o.material.transparent&&o.material.opacity<0.5) return; meshes.push(o); });
+  for(const m of meshes){ _bRh.setFromObject(m); top=Math.max(top,_bRh.max.y-g.position.y); }
+  if(top<=yB+0.2||top>=cible) return;
+  const k=(cible-yB)/(top-yB); REHAUSSE[key]={yB,k};
+  // au-dessus de yB seulement (y' = yB + (y-yB)·k) : une pièce à cheval sur le haut des roues n'est
+  // jamais étirée vers le bas ; sommet par sommet, dans le repère du modèle, cuit dans une copie
+  for(const m of meshes){
+    _mRh.copy(gInv).multiply(m.matrixWorld);           // maillage → modèle
+    const geo=m.geometry.clone(); geo.applyMatrix4(_mRh);
+    const pa=geo.attributes.position; for(let i=0;i<pa.count;i++){ const y=pa.getY(i); if(y>yB) pa.setY(i,yB+(y-yB)*k); }
+    geo.applyMatrix4(_mRhS.copy(_mRh).invert()); geo.computeVertexNormals(); geo.computeBoundingSphere(); geo.computeBoundingBox();
+    m.geometry=geo;
+  }
+  if(typeof window!=='undefined') (window.__rehausse=window.__rehausse||{})[key]={yB:+yB.toFixed(2),top:+top.toFixed(2),k:+k.toFixed(2)};
+}// ancrages des pièces de tuning d'un modèle rehaussé (mêmes règles que la caisse)
+function ancragesReels(key,anc){
+  const r=REHAUSSE[key]; if(!r) return anc;
+  const o={}; for(const n in anc){ const a=anc[n]; o[n]={x:a.x,z:a.z,y:a.y>r.yB?r.yB+(a.y-r.yB)*r.k:a.y}; }
+  return o;
+}
 function makeVoiture(key){
-  if(!vehiculeRestyle(VEHDEFS[key])) return makeVoitureBase(key);
+  if(!vehiculeRestyle(VEHDEFS[key])){ const g=makeVoitureBase(key); rehausserModele(g,key); return g; }
   makeVoitureBase(key);
-  _VEH_V2=true; try{ return sansAleaVille(()=>makeVoitureBase(key)); } finally{ _VEH_V2=false; }
+  _VEH_V2=true; try{ const g=sansAleaVille(()=>makeVoitureBase(key)); rehausserModele(g,key); return g; } finally{ _VEH_V2=false; }
 }
 function makeVoitureBase(key){
   // ud.coul : teinte de carrosserie tirée ici — retrouvée par peindreMesh()
@@ -12680,7 +12772,7 @@ function majRemorquage(v,dt,appui){
       ud.cable.visible=!!v.remorque;
       if(v.remorque){ // du pare-chocs arrière à l'avant du véhicule tracté (repère du véhicule)
         const z0=-v.def.long*0.5, z1=-(v.def.long*0.5+1.1);
-        const tc=v.def.tuningCarro, yc=tc?tc.ancrages.basCaisse.y+0.1:0.7; // hauteur du pare-chocs
+        const tc=v.def.tuningCarro, yc=tc?ancragesReels(v.key||'',tc.ancrages).basCaisse.y+0.1:0.7; // hauteur du pare-chocs
         ud.cable.scale.z=z0-z1; ud.cable.position.set(0,yc,(z0+z1)/2);
       }
     }
@@ -13699,6 +13791,20 @@ function horsEcran(x,z){
   _vHorsEcran.set(x,1,z).project(camera);
   return _vHorsEcran.z>1||Math.abs(_vHorsEcran.x)>1.25||Math.abs(_vHorsEcran.y)>1.25;
 }
+// Vue immersive (signalé : « les véhicules apparaissent à vue, pas assez
+// loin ») : un point où l'on peut faire apparaître quelque chose sans que le
+// joueur le voie — hors de l'écran, OU caché derrière un bâtiment (un solide
+// plus haut que la ligne de visée caméra → point), OU noyé dans le brouillard.
+function apparitionCachee(x,z){
+  if(horsEcran(x,z)) return true;
+  const cx=camera.position.x, cy=camera.position.y, cz=camera.position.z, d=Math.hypot(x-cx,z-cz);
+  if(scene.fog&&d>scene.fog.far*0.92) return true;
+  for(let i=1;i<14;i++){ const k=i/14, sx=lerp(cx,x,k), sz=lerp(cz,z,k), s=solidAt(sx,sz,0);
+    if(s&&s.h&&!s.base&&s.h>lerp(cy,1.4,k)) return true; }
+  return false;
+}
+// facteur de distance d'apparition : ×1 en vue de dessus, jusqu'à ×2,6 en vue immersive
+function facteurApparition(){ return typeof VUE==='undefined'?1:1+1.6*VUE.k; }
 // Obstacle immobile hors trafic (garé, abandonné, épave) qui occupe la voie
 // de v, de son arrière jusqu'à TRAFIC_CONTOURNE devant lui (le plus proche),
 // ou null si la voie est libre (fin d'un dépassement).
@@ -13755,20 +13861,21 @@ function creerTrafic(){
   // marge PROPORTIONNELLE à la vitesse réelle du joueur (à pied ou en
   // véhicule) — assez d'avance temporelle pour rester hors-champ le temps
   // qu'il faudrait de toute façon pour la parcourir.
-  const vBonus=(P.veh?Math.abs(P.veh.v):(P.vitesseReelle||0))*1.4;
+  const vBonus=(P.veh?Math.abs(P.veh.v):(P.vitesseReelle||0))*1.4, fA=facteurApparition();
   if(vert){
     const kJoueur=Math.floor((P.x+HALF)/CELL);
     const k=clamp(kJoueur+(Math.random()<0.7?0:pick([-1,1])),0,NB-1);
     lane=-HALF+k*CELL+3.2*dir; x=lane; ang=dir>0?0:Math.PI;
     // dir>0 : le véhicule avance vers +z, donc il vient de l'arrière (bord -40) ; dir<0 : symétrique côté +20.
-    z=clamp(dir>0?P.z-rand(44,52)-vBonus:P.z+rand(24,32)+vBonus,-HALF+5,HALF-5);
+    z=clamp(dir>0?P.z-rand(44,52)*fA-vBonus:P.z+rand(24,32)*fA+vBonus,-HALF+5,HALF-5);
   } else {
     const kJoueur=Math.floor((P.z+HALF)/CELL);
     const k=clamp(kJoueur+randi(-1,1),0,NB-1);
     lane=-HALF+k*CELL-3.2*dir; z=lane; ang=dir>0?Math.PI/2:-Math.PI/2;
-    x=clamp(dir>0?P.x-rand(13,20)-vBonus:P.x+rand(13,20)+vBonus,-HALF+5,HALF-5);
+    x=clamp(dir>0?P.x-rand(13,20)*fA*1.6-vBonus:P.x+rand(13,20)*fA*1.6+vBonus,-HALF+5,HALF-5);
   }
   if(solidAt(x,z,2)) return;
+  if(fA>1.05&&!apparitionCachee(x,z)) return; // vue immersive : jamais sous les yeux du joueur (nouvel essai à l'image suivante)
   if(z>MER-CELL*1.2) return;         // pas de trafic sur le sable
   // jamais superposé à un véhicule déjà là (trafic, joueur, police...) —
   // un véhicule `mort` est déjà retiré de la scène (voir exploserVehicule),
@@ -15352,9 +15459,10 @@ function pointApparition(x,z){
   return true;
 }
 function spawnRing(min,max){
-  for(let essai=0;essai<3;essai++){ const mi=min*(1+essai*0.5), ma=max*(1+essai*0.9);
+  const fA=facteurApparition(); // vue immersive : plus loin, et caché (derrière un immeuble, hors champ, dans le brouillard)
+  for(let essai=0;essai<3;essai++){ const mi=min*fA*(1+essai*0.5), ma=max*fA*(1+essai*0.9);
     for(let t=0;t<12;t++){ const a=rand(0,6.28), d=rand(mi,ma), x=P.x+Math.sin(a)*d, z=P.z+Math.cos(a)*d;
-      if(pointApparition(x,z)&&(essai>0||horsEcran(x,z))) return {x,z}; } }
+      if(pointApparition(x,z)&&(essai>(fA>1.05?1:0)||(fA>1.05?apparitionCachee(x,z):horsEcran(x,z)))) return {x,z}; } }
   // joueur loin de la terre ferme (en mer, au sommet du mont…) : on marche vers le centre de la ville
   const L=Math.hypot(P.x,P.z)||1, ux=-P.x/L, uz=-P.z/L;
   for(let d=min;d<L+min;d+=4){ const x=P.x+ux*d, z=P.z+uz*d; if(pointApparition(x,z)) return {x,z}; }
@@ -25015,7 +25123,7 @@ function appliquerCarrosserie(groupe,key,pieces){
   for(const cat of PIECES_CATS){
     if(cat==='jantes'||!fam[cat]) continue;
     const v=fam[cat].variantes[pieces[cat]|0];
-    if(v&&v.f&&varianteDispo(v,key)){ grp.add(v.f(tc.ancrages,d,mc,ctx)); n++; }
+    if(v&&v.f&&varianteDispo(v,key)){ grp.add(v.f(ancragesReels(key,tc.ancrages),d,mc,ctx)); n++; } // modèle rehaussé : ancrages recalés
   }
   (ud.corps||groupe).add(grp); ud.carro=grp;
   if(fam.jantes){
@@ -27885,6 +27993,10 @@ function majAction(){
     } else if(POIS.marchand&&dist2(P.x,P.z,POIS.marchand.x,POIS.marchand.z)<12){
       label='MARCHAND (-25 %)';
       fn=()=>{ETAT.promo=true;ETAT.mode='shopIn';ouvrirDepuis('shop','jeu');};
+    } else if(!P.veh&&STANDS.length&&standProche()){
+      const s=standProche(), N=NOURRITURE_QUARTIER[s.q]||NOURRITURE_QUARTIER.centre;
+      label=N.ico+' '+N.nom+' — '+N.prix+' $ (+'+N.pv+' PV)';
+      fn=()=>acheterNourriture(s);
     } else if(POIS.banderole&&dist2(P.x,P.z,POIS.banderole.x,POIS.banderole.z)<10){
       label='✈️ TON MESSAGE DANS LE CIEL — '+BANDEROLE_PRIX+' $';
       fn=ouvrirBanderole;

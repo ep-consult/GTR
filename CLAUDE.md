@@ -55,7 +55,7 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
   echo "$ln | $(sed -n "$((ln+1))p" index.html | sed 's/^[ \t]*//')"; done
 ```
 
-**Relevé au retours vue immersive — 28 653 lignes.**
+**Relevé au retours 2e série — 28 765 lignes.**
 Attention : `maj_carte` recale les numéros dans l'ordre des lignes de la table ;
 un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la main.
 
@@ -72,36 +72,36 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 1818 | MÉTA-PROGRESSION — `META`, défis, sauvegarde |
 | 2570 | THREE.JS — rendu, scène, lumières |
 | 2881 | VILLE DE LOS REYES — génération procédurale par quartiers |
-| 9141 | MODÈLES — humains, armes, véhicules, hélico, ramassables |
-| 10561 | POOLS — balles, particules, textes flottants, traces de pneus |
-| 10921 | ÉTAT GLOBAL + JOUEUR (`P`) |
-| 11745 | VÉHICULES — physique arcade, trafic, dégâts |
-| 14214 | PIÉTONS |
-| 14366 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
-| 14920 | **RAYON TRACTEUR DE L'OVNI** |
-| 15316 | NIVEAU DE RECHERCHE (étoiles) |
-| 15594 | VAGUES + bonus de fin de vague |
-| 15716 | MISSIONS COURTES |
-| 15719 | BÂTIMENTS VISITABLES — intérieurs |
-| 15789 | FOUILLE — mécanique générique |
-| 16337 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
-| 20452 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
-| 20860 | **LAVERIE** V2 — l'essorage de la machine 7 |
-| 21125 | **SERRE** V2 — la nuit de la floraison |
-| 21408 | CINÉ-PALACE |
-| 21652 | MÉTRO ABANDONNÉ |
-| 21718 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
-| 22069 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
-| 22971 | SITE 51 |
-| 23201 | LE DÉPÔT DE BUS — courses clandestines |
-| 24229 | **MÉTIERS** — missions liées à un véhicule |
-| 24519 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
-| 25514 | ÉCRANS / MENUS / BOUTIQUES |
-| 25782 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
-| 26581 | DÉBUT / FIN DE PARTIE |
-| 27975 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
-| 28211 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
-| 28531 | BOUCLE PRINCIPALE |
+| 9194 | MODÈLES — humains, armes, véhicules, hélico, ramassables |
+| 10653 | POOLS — balles, particules, textes flottants, traces de pneus |
+| 11013 | ÉTAT GLOBAL + JOUEUR (`P`) |
+| 11837 | VÉHICULES — physique arcade, trafic, dégâts |
+| 14321 | PIÉTONS |
+| 14473 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
+| 15027 | **RAYON TRACTEUR DE L'OVNI** |
+| 15423 | NIVEAU DE RECHERCHE (étoiles) |
+| 15702 | VAGUES + bonus de fin de vague |
+| 15824 | MISSIONS COURTES |
+| 15827 | BÂTIMENTS VISITABLES — intérieurs |
+| 15897 | FOUILLE — mécanique générique |
+| 16445 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
+| 20560 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
+| 20968 | **LAVERIE** V2 — l'essorage de la machine 7 |
+| 21233 | **SERRE** V2 — la nuit de la floraison |
+| 21516 | CINÉ-PALACE |
+| 21760 | MÉTRO ABANDONNÉ |
+| 21826 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
+| 22177 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
+| 23079 | SITE 51 |
+| 23309 | LE DÉPÔT DE BUS — courses clandestines |
+| 24337 | **MÉTIERS** — missions liées à un véhicule |
+| 24627 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
+| 25622 | ÉCRANS / MENUS / BOUTIQUES |
+| 25890 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
+| 26689 | DÉBUT / FIN DE PARTIE |
+| 28087 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
+| 28323 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
+| 28643 | BOUCLE PRINCIPALE |
 
 ### Ancres fines (hors bandeaux)
 
@@ -119,50 +119,50 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 2344 | `VEHDEFS` — véhicules, éligibilité garage (`tuningMeca`, `tuningCarro`) |
 | 2913 | mer V2 : `houle()`/`houleY()`, shader (`merV2Materiau`), sillage, éclaboussures, `assietteHoule()` |
 | 3221 | `finaliserMerge()` |
-| 3790 | `mkLittoral()` — fondus sable/mer/désert, vagues sur le sable |
-| 3845 | `mkHorsLesMurs()` — décor factice hors de l'enceinte |
-| 3961 | `MOB_CAT` — catalogue du mobilier urbain, puis `mkMobilierUrbain()`, `majMobilier()`, `garerVelos()` |
-| 4450 | `JETEE` — jetée de fête foraine : `ZONES_SANS_MOBILIER`, `mkJeteeForaine()`, `majJetee()` |
-| 4581 | `SKATE` — skatepark : `mkSkatepark()`, `texMurSkate()` |
+| 3802 | `mkLittoral()` — fondus sable/mer/désert, vagues sur le sable |
+| 3857 | `mkHorsLesMurs()` — décor factice hors de l'enceinte |
+| 3973 | `MOB_CAT` — catalogue du mobilier urbain, puis `mkMobilierUrbain()`, `majMobilier()`, `garerVelos()` |
+| 4503 | `JETEE` — jetée de fête foraine : `ZONES_SANS_MOBILIER`, `mkJeteeForaine()`, `majJetee()` |
+| 4634 | `SKATE` — skatepark : `mkSkatepark()`, `texMurSkate()` |
 | 4542 | `SKX` — Reyes Skatepark XXL : `hauteurSkateXXL()`, `zoneVertSkate()`, `mkSkateXXL()`, `majSkateXXL()` |
-| 4797 | `PORT` — port vivant : `mkPortVivant()`, `majPortVivant()` |
-| 4896 | `BROOK` — Brooklyn : `texFresque()`, `mkBrooklyn()`, `majBrooklyn()` |
-| 5017 | `CIEL` — dirigeable, avion à banderole, mouettes, feux d'artifice : `mkCiel()`, `majCiel()` |
-| 5217 | `CRIQUE` — crique des plongeurs : `dansCrique()`, `mkCrique()`, `plongeonJoueur()` |
-| 5393 | `NEON` — quartier néon : `BATIMENTS`, `reserverNeon()`, `mkNeonVivant()` |
-| 5461 | `VILLA_PISC` — finitions de quartier : `mkQuartiersFinitions()` |
-| 5541 | `MONT` — Mont Reyes, puis `CANYON` (canyons) et `RIDES` (courses) |
-| 4203 | `SOLS` — dalles de sol enregistrées, puis `mkTransitionsSols()` (jonctions entre sols) |
-| 6790 | `mkLacParc()` — lac du parc, passerelle, barques |
-| 6919 | `mkLumieresQuartiers()` — Times Square, quartier chinois, Brooklyn |
-| 7005 | `mkEnceinte()` — murs, enseigne, jetées de rochers |
-| 7528 | `GALION` — galion échoué : `sansAleaVille()`, `coqueGalion()`, `mkGalion()`, `majGalion()` |
-| 8342 | `mkPorteGarage()` — porte roulante des garages |
-| 8412 | `placeLibrePorte()` |
-| 8471 | helper `poser()` — placement des lieux |
-| 8497 | `caseCentre(bx,bz)` |
-| 8590 | `REPLIS` — filet de sécurité en spirale |
-| 10452 | `makeVelo()` — vélo de ville et BMX |
-| 8259 | `ENSEIGNES` — portes mieux placées : `ameliorerPortes()`, `profondeurDevant()`, `orienterPorte()` |
-| 10929 | `const P` — état du joueur |
-| 10967 | `P.stamMax = 100 + 12*mus` |
-| 12053 | `resoudreCollisionsVehicule()` — collisions entre véhicules (SAT sur les 4 axes) |
-| 12647 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
-| 12771 | `boutonsAPied()` — boutons du HUD remis « à pied » (sortie de véhicule ET début de partie) |
-| 13684 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
-| 13798 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
-| 15725 | `IOFF = -9000` |
-| 17414 | `INTDEFS` — définitions des **27 salles** |
-| 17594 | `construireSalle(id)` |
+| 4850 | `PORT` — port vivant : `mkPortVivant()`, `majPortVivant()` |
+| 4949 | `BROOK` — Brooklyn : `texFresque()`, `mkBrooklyn()`, `majBrooklyn()` |
+| 5070 | `CIEL` — dirigeable, avion à banderole, mouettes, feux d'artifice : `mkCiel()`, `majCiel()` |
+| 5270 | `CRIQUE` — crique des plongeurs : `dansCrique()`, `mkCrique()`, `plongeonJoueur()` |
+| 5446 | `NEON` — quartier néon : `BATIMENTS`, `reserverNeon()`, `mkNeonVivant()` |
+| 5514 | `VILLA_PISC` — finitions de quartier : `mkQuartiersFinitions()` |
+| 5594 | `MONT` — Mont Reyes, puis `CANYON` (canyons) et `RIDES` (courses) |
+| 4256 | `SOLS` — dalles de sol enregistrées, puis `mkTransitionsSols()` (jonctions entre sols) |
+| 6843 | `mkLacParc()` — lac du parc, passerelle, barques |
+| 6972 | `mkLumieresQuartiers()` — Times Square, quartier chinois, Brooklyn |
+| 7058 | `mkEnceinte()` — murs, enseigne, jetées de rochers |
+| 7581 | `GALION` — galion échoué : `sansAleaVille()`, `coqueGalion()`, `mkGalion()`, `majGalion()` |
+| 8395 | `mkPorteGarage()` — porte roulante des garages |
+| 8465 | `placeLibrePorte()` |
+| 8524 | helper `poser()` — placement des lieux |
+| 8550 | `caseCentre(bx,bz)` |
+| 8643 | `REPLIS` — filet de sécurité en spirale |
+| 10544 | `makeVelo()` — vélo de ville et BMX |
+| 8312 | `ENSEIGNES` — portes mieux placées : `ameliorerPortes()`, `profondeurDevant()`, `orienterPorte()` |
+| 11021 | `const P` — état du joueur |
+| 11059 | `P.stamMax = 100 + 12*mus` |
+| 12145 | `resoudreCollisionsVehicule()` — collisions entre véhicules (SAT sur les 4 axes) |
+| 12739 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
+| 12863 | `boutonsAPied()` — boutons du HUD remis « à pied » (sortie de véhicule ET début de partie) |
+| 13776 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
+| 13905 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
+| 15833 | `IOFF = -9000` |
+| 17522 | `INTDEFS` — définitions des **27 salles** |
+| 17702 | `construireSalle(id)` |
 | 20390 | `CHALUTIER_BANCS_PLAN` — chalutier V2 ; `chalutierMaj` (20761), `dessinerRadarChalutier` (21018) |
-| 24238 | `METIERS_CIBLE` |
-| 24537 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
-| 24625 | `PIECES_FAMILLES` — catalogues de pièces par famille |
-| 24926 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
-| 24980 | `libererObjet()` — libère les géométries d'un objet retiré |
-| 24996 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
-| 25118 | `construireGarageTuning()` — la salle partagée |
-| 25488 | `majNitro()` |
+| 24346 | `METIERS_CIBLE` |
+| 24645 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
+| 24733 | `PIECES_FAMILLES` — catalogues de pièces par famille |
+| 25034 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
+| 25088 | `libererObjet()` — libère les géométries d'un objet retiré |
+| 25104 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
+| 25226 | `construireGarageTuning()` — la salle partagée |
+| 25596 | `majNitro()` |
 
 ---
 
@@ -689,6 +689,33 @@ leur caméra, le bouton y est masqué) :
   dessus ; le bloc « Vue immersive » règle la vue lui-même.
 - À surveiller sur iPhone : la fluidité (on voit beaucoup plus de ville) ;
   la colonne jaune d'un objectif est énorme quand on se tient dedans.
+
+## Retours de playtest, 2e série (14 octobre 2026)
+
+- **Apparitions** (`apparitionCachee`, `facteurApparition`) : en vue
+  immersive, trafic et ennemis apparaissent ×2,6 plus loin et seulement
+  hors champ, derrière un bâtiment (solide plus haut que la ligne de visée)
+  ou dans le brouillard. Mesuré sur 30 s : 66 apparitions, 0 visible,
+  densité du trafic inchangée. Vue classique : inchangé.
+- **Hauteur des véhicules** (`HAUTEUR_VEH`, `rehausserModele`, appelée par
+  `makeVoiture`) : la caisse (au-dessus du haut des roues) est étirée
+  sommet par sommet jusqu'à la hauteur réelle (bus 3,2, pompiers 3,1,
+  ambulance 2,7, fourgon 2,3...) ; roues rondes, hiérarchie intacte. Les
+  ancrages de tuning suivent (`ancragesReels`). Cosmétique.
+- **Maisons et villas** (`hauteurMaison`, `mergeFacade`) : maison à étage
+  (≥ 5,6 u), façade répétée (`uvFacade`), porte de 2,2 u. Tours de verre,
+  Art déco, briques : `hauteurBatiment`. **Piège retrouvé** : le NOMBRE de
+  pièces (bandeaux, escaliers de secours, lignes de tour de verre) doit
+  rester calé sur la hauteur d'ORIGINE (`h0`) — chaque géométrie tire
+  `Math.random` (uuid) et la ville se décalait (portes déplacées).
+- **Piscines** : jamais d'ensemble des places garnies dessus
+  (`surPiscine`), eau à 0,31 (une pelouse est à 0,28 : scintillement).
+- **Stands de nourriture** (`STANDS`, `NOURRITURE_QUARTIER`,
+  `acheterNourriture`) : chaque kiosque, food truck et chariot de glace
+  vend la spécialité du quartier (hot-dog au centre, tacos au néon, beignets
+  de crevettes au port...) qui rend des PV ; ensemble `stand` dans les
+  quartiers qui n'en avaient pas. Ne soigne que blessé, coûte de l'argent,
+  stand fermé `STAND_ATTENTE` s après une vente.
 
 ## Retours de la vue immersive (14 octobre 2026)
 
