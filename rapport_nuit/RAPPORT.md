@@ -1753,3 +1753,19 @@ Captures : `captures/lot11/armurerie_*.png`, `course_mer_rivales.png`, `helicos_
 - **Mémoire** : la faune de l'île laissait 47 géométries et ~1,5 Mo à chaque partie (et des animaux figés dans la scène) ; les entités retirées libèrent maintenant leurs géométries. La suite de tests complète va de nouveau au bout.
 
 Captures : `captures/lot11/boutique_*.png`, `grand_huit_*.png`, `toit_*.png`, `aeroport_vehicules_piste.png`, `tour_de_controle.png`, `kayaks.png`.
+
+## 3e série — lot 4 (14 octobre)
+
+- **Motos réalistes** : routière, sportive carénée, cross à crampons, chopper « Fantôme » ; le pilote est assis sur la selle de chaque modèle ; au garage, l'échappement posé remplace celui d'origine, et toutes les pièces ont été recalées sur les nouveaux modèles.
+- **Vie du Mont Reyes** : bouquetins qui broutent et détalent (les percuter ou les abattre coûte du karma), un ours qui charge et mord, aigles qui tournent au-dessus du sommet, marmottes qui plongent dans leur terrier.
+
+Captures : `captures/lot11/motos.png`, `motos_pilote.png`, `motos_tuning.png`, `mont_faune.png`.
+
+## 3e série — lot 5 (14 octobre)
+
+- **Badlands** : deux chaînes de mesas en zigzag, de 7 à 20 u de haut, de part et d'autre de la ligne des mesas, reliées par des tremplins latéraux ; nouvelle course « BADLANDS — LIGNE EST » (finie par le pilote simulé en 7,6 s en moto cross, 12,3 s en buggy, pour 20 s).
+- **Tenues des mini-jeux, avec capacités** : maillot « Ballers » (basket : grenades 35 % plus loin), gilet d'aiguilleur (tour de contrôle : avions et hélicos 15 % plus rapides), « Pro Rider » (supercross : figures +30 %), skateur (Bowl Jam : bunny hop plus haut), combinaison de wakeboard (nage +30 %), tenue « Badlands » (dégâts de chute ÷2).
+- **Neuf nouveaux thèmes de défis** sur les nouveautés : coffres des toits, avions posés, manèges, boutiques, planques, fauves, aimant du Titan, tenues de mini-jeux, modifications d'armes.
+- **Façades variées** : murs-rideaux et Art déco au centre, balcons et jardinières en résidentiel, stores et climatiseurs au commerce, échelles et conduites en zone industrielle.
+
+Captures : `captures/lot11/badlands.png`, `facades.png` (avant : `facades_avant.png`).

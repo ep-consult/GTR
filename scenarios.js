@@ -10348,6 +10348,156 @@ async function main() {
       else ok('Vie du mont : ' + r.info.join(' ; ') + ' ; percuté par la moto, de retour à la vague suivante ; aigles et marmottes');
     }
 
+    // -------------------------------------------------------------------
+    // Badlands (14 octobre, demandé : « des canyons de hauteurs variées, des
+    // sauts de canyon en canyon, la zone est trop droite ») : la course de la
+    // chaîne est se finit au joystick réel (controleDir) en moto cross et en
+    // buggy, véhicule intact, en sautant chaque gap ; la chaîne ouest se
+    // descend de mesa en mesa. Mesas et portes lues à la source.
+    // -------------------------------------------------------------------
+    console.log('\n--- Badlands : sauts de mesa en mesa en zigzag, course finissable ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (!DECOR_V2 || !CANYON.est || !CANYON.est.length) return { ko, info: ['décor V2 coupé'] };
+        const hs = CANYON.est.concat(CANYON.ouest).map((m) => m.h); if (new Set(hs).size < 6) ko.push('hauteurs peu variées : ' + hs.join(','));
+        const xs = CANYON.est.map((m) => m.x); if (Math.max(...xs) - Math.min(...xs) < 6) ko.push('chaîne est en ligne droite');
+        const volant0 = META.curios.volant; delete META.curios.volant;
+        const course = (cle) => {
+          startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6; for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0; for (const e of ennemis) e.mort = true;
+          const d = rideDepart('badlands'), v = creerVehicule(cle, d.x, d.z, Math.PI / 2, null); v.h = solY(d.x, d.z); P.x = v.x; P.z = v.z; entrerVehicule(v);
+          const a0 = META.argent; demarrerRide('badlands'); let t = 0, sauts = 0, pa = false, iMax = 0;
+          while (RIDES.actif && t < 60) { const rr = RIDES.actif, p = rr.portes[rr.i], prev = rr.i ? rr.portes[rr.i - 1] : d; iMax = rr.i;
+            const sx = p.x - prev.x, sz = p.z - prev.z, L = Math.hypot(sx, sz) || 1, u = Math.min(1, ((v.x - prev.x) * sx + (v.z - prev.z) * sz) / (L * L) + 7 / L);
+            const tx = prev.x + sx * u - v.x, tz = prev.z + sz * u - v.z, l = Math.hypot(tx, tz) || 1; INPUT.mx = tx / l; INPUT.mz = tz / l;
+            const c = controleDir(v, false); majVehiculePhys(v, 1 / 30, c.throttle, c.steer, false); if (v.enAir && !pa) sauts++; pa = v.enAir; P.x = v.x; P.z = v.z; majRides(1 / 30); t += 1 / 30;
+            if (v.mort) break; }
+          INPUT.mx = INPUT.mz = 0;
+          return { cle, fini: META.argent > a0, t: +t.toFixed(1), sauts, porte: iMax, hp: +(Math.max(0, v.hp) / v.def.hp).toFixed(2), pos: v.x.toFixed(0) + ',' + v.z.toFixed(0) + ',' + (v.h || 0).toFixed(1) };
+        };
+        for (const cle of ['motocross', 'buggy']) { const c = course(cle);
+          if (!c.fini || c.hp < 0.5 || c.sauts < CANYON.est.length) ko.push(cle + ' : ' + JSON.stringify(c)); else info.push(cle + ' en ' + c.t + ' s (' + c.sauts + ' sauts)'); }
+        // chaîne ouest : depuis la 3e mesa de la ligne, on descend de mesa en mesa
+        { startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6; for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0;
+          const m2 = CANYON.mesas[2], v = creerVehicule('motocross', m2.x + 4, m2.z, -Math.PI / 2, null); v.h = solY(v.x, v.z); P.x = v.x; P.z = v.z; entrerVehicule(v);
+          const cibles = CANYON.ouest.map((m) => ({ x: m.x, z: m.z - m.hd + 4 })).concat([{ x: CANYON.ouest[2].x, z: CANYON.ouest[2].z + 30 }]); let k = 0, t = 0, posee = [];
+          while (k < cibles.length && t < 40) { const c0 = cibles[k], dx = c0.x - v.x, dz = c0.z - v.z, l = Math.hypot(dx, dz) || 1; INPUT.mx = dx / l; INPUT.mz = dz / l;
+            const c = controleDir(v, false); majVehiculePhys(v, 1 / 30, c.throttle, c.steer, false); P.x = v.x; P.z = v.z; t += 1 / 30;
+            if (l < 6 && !v.enAir) { if (k < CANYON.ouest.length) posee.push(Math.abs((v.h || 0) - CANYON.ouest[k].h) < 1.5); k++; } if (v.mort) break; }
+          INPUT.mx = INPUT.mz = 0;
+          if (posee.length < CANYON.ouest.length || posee.some((x) => !x) || v.mort) ko.push('chaîne ouest : ' + JSON.stringify({ posee, t: t.toFixed(1), mort: !!v.mort, pos: v.x.toFixed(0) + ',' + v.z.toFixed(0) + ',' + (v.h || 0).toFixed(1) }));
+          else info.push('chaîne ouest descendue en ' + t.toFixed(1) + ' s'); }
+        if (volant0) META.curios.volant = volant0;
+        startRun(); P.hp = P.maxHp = 1e6;
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Badlands : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
+      else ok('Badlands : ' + r.info.join(' ; ') + ' ; hauteurs variées, zigzag, véhicule intact');
+    }
+
+    // -------------------------------------------------------------------
+    // Tenues des mini-jeux (14 octobre, demandé : « des skins débloqués par
+    // les mini-jeux, avec des capacités ») : chaque exploit, passé par la
+    // vraie fin du mini-jeu, débloque sa tenue (TENUE_EXPLOIT, lu à la
+    // source) ; la capacité n'agit que tenue portée ; sauvegardé.
+    // -------------------------------------------------------------------
+    console.log('\n--- Tenues des mini-jeux : déblocage par l’exploit, capacités ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
+        for (const e of ennemis) e.mort = true;
+        const t0 = META.tenue; for (const k of Object.keys(META.exploits)) { META.exploits[k] = false; delete META.tenuesPoss[TENUE_EXPLOIT[k]]; }
+        for (const id of Object.values(TENUE_EXPLOIT)) if (!TENUES.find((x) => x.id === id)) ko.push('tenue ' + id + ' absente');
+        // les vraies fins de mini-jeux
+        if (typeof BASKET !== 'undefined' && BASKET.ok) { BASKET.actif = true; BASKET.pts = BASKET_OBJECTIF; basketConclure(); }
+        lancerTour(); tourFinir(true); fermerTour();
+        for (const [id, cle] of [['stunt', 'motocross'], ['bowl', 'bmx'], ['badlands', 'motocross']]) { if (P.veh) sortirVehicule(true); const d = rideDepart(id), v = creerVehicule(cle, d.x, d.z, 0, null); v.h = solY(d.x, d.z); P.x = v.x; P.z = v.z; entrerVehicule(v); demarrerRide(id); if (RIDES.actif) finirRide(true); else ko.push('course ' + id + ' ne démarre pas'); sortirVehicule(true); }
+        if (typeof TOW !== 'undefined') { TOW.actif = { id: 'wake', pts: TOW_DEFS.wake.objectif, t: 1, s: 0 }; finTow('temps'); }
+        checkTenues();
+        for (const [k, id] of Object.entries(TENUE_EXPLOIT)) if (!META.exploits[k] || !META.tenuesPoss[id]) ko.push(k + ' → ' + id + ' pas débloquée');
+        if (!ko.length) info.push(Object.keys(TENUE_EXPLOIT).length + ' tenues débloquées par leur mini-jeu');
+        // grenade : 35 % plus loin avec le maillot
+        const lance = (tn) => { META.tenue = tn; P.grenades = 3; INPUT.mx = 0; INPUT.mz = 0; lancerGrenade(); const g = grenades.filter((x) => x.on).pop(); const v = Math.hypot(g.vx, g.vz); g.on = false; g.mesh.visible = false; return v; };
+        const g1 = lance('depart'), g2 = lance('ballers'); if (Math.abs(g2 / g1 - 1.35) > 0.01) ko.push('grenade ×' + (g2 / g1).toFixed(2));
+        // nage : 30 % plus vite en combinaison de wakeboard
+        const nage = (tn) => { META.tenue = tn; P.x = 40; P.z = 330; P.y = 0; P.nage = true; P.chute = false; P.stam = P.stamMax; INPUT.mx = 0; INPUT.mz = 1; const z0 = P.z; for (let i = 0; i < 30; i++) majJoueur(1 / 30, 1 / 30); INPUT.mz = 0; return Math.abs(P.z - z0); };
+        const n1 = nage('depart'), n2 = nage('wakeur'); if (!(n2 / n1 > 1.2)) ko.push('nage ×' + (n2 / n1).toFixed(2)); else info.push('nage ×' + (n2 / n1).toFixed(2));
+        // chute : dégâts divisés par deux en tenue « Badlands »
+        const chute = (tn) => { META.tenue = tn; P.nage = false; P.x = POIS.place.x; P.z = POIS.place.z + 8; const g0 = solPied(P.x, P.z); P.y = g0 + 25; P.vy = 0; P.chute = false; P.hp = P.maxHp = 1e6; P.iframes = 0; P.bouclier = 0;
+          for (let i = 0; i < 30 * 8 && (P.chute || P.y > g0 + 0.01 || i < 2); i++) { majJoueur(1 / 30, 1 / 30); P.iframes = 0; } return 1e6 - P.hp; };
+        const c1 = chute('depart'), c2 = chute('badlands'); if (!(c1 > 0) || Math.abs(c2 / c1 - 0.5) > 0.05) ko.push('chute : ' + c1.toFixed(0) + ' → ' + c2.toFixed(0)); else info.push('chute : ' + c1.toFixed(0) + ' → ' + c2.toFixed(0) + ' de dégâts');
+        // vol : 15 % plus rapide en gilet d'aiguilleur
+        const vol = (tn) => { META.tenue = tn; if (P.veh) sortirVehicule(true); const v = creerVehicule('helico', POIS.place.x, POIS.place.z + 20, 0); v.alt = 40; v.vol = true; v.va = 0; P.x = v.x; P.z = v.z; entrerVehicule(v); v.alt = 40; v.vol = true;
+          INPUT.mx = 0; INPUT.mz = 1; for (let i = 0; i < 30 * 6; i++) majVol(v, 1 / 30); INPUT.mz = 0; const s = v.v; sortirVehicule(true); v.mort = true; return s; };
+        const v1 = vol('depart'), v2 = vol('aiguilleur'); if (Math.abs(v2 / v1 - 1.15) > 0.03) ko.push('vol ×' + (v2 / v1).toFixed(2)); else info.push('vol ×' + (v2 / v1).toFixed(2));
+        // sauvegardé
+        sauveMeta(); const sv = JSON.parse(localStorage.getItem('asphalte_save_v1')); if (!sv.exploits || !sv.exploits.tour) ko.push('exploits pas sauvegardés');
+        META.tenue = t0; INPUT.mx = INPUT.mz = 0; startRun(); P.hp = P.maxHp = 1e6;
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Tenues des mini-jeux : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
+      else ok('Tenues des mini-jeux : ' + r.info.join(' ; ') + ' ; grenade ×1,35 ; sauvegardé');
+    }
+
+    // -------------------------------------------------------------------
+    // Défis de la 3e série (14 octobre) : chaque compteur avance par la vraie
+    // action (coffre de toit, avion posé, tour de manège, achat en boutique,
+    // fauve abattu — jamais un bouquetin), et le premier palier du thème
+    // devient « à réclamer ». Thèmes retrouvés par leur compteur, pas recopiés.
+    // -------------------------------------------------------------------
+    console.log('\n--- Défis de la 3e série : compteurs par la vraie action, paliers ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
+        for (const e of ennemis) e.mort = true;
+        const D = META.defis, avant = JSON.parse(JSON.stringify(D));
+        const themeDe = (cle) => DEFIS.find((d) => d.palier === 0 && (() => { const v0 = D[cle]; D[cle] = 1e6; const ok = d.cond(META); D[cle] = v0; return ok && !d.cond(Object.assign({}, META, { defis: Object.assign({}, D, { [cle]: 0 }) })); })());
+        // coffre de toit
+        const c = TOITS.coffres[0]; c.vague = -1; fouillerCoffreToit(c);
+        // un avion posé
+        P.x = AERO.tour.x; P.z = AERO.tour.z; lancerTour(); for (let i = 0; i < 30 * 30 && TOUR.poses < 1; i++) { majTour(1 / 30); if (!TOUR.piste && TOUR.avions.length) tourAutoriser(TOUR.avions[0]); } fermerTour();
+        // un tour de grande roue
+        META.argent += 100; P.x = JETEE.roue.position.x; P.z = JETEE.roue.position.z + 3.2; P.y = solPied(P.x, P.z); lancerManege('roue'); for (let i = 0; i < 30 * 60 && MANEGES.actif; i++) { majManeges(1 / 30); majJetee(1 / 30); }
+        // une pièce achetée en boutique (la moins chère, pas encore possédée)
+        const b = BOUTIQUES[0]; P.x = b.x; P.z = b.z; ouvrirBoutique(b); const v = VETEMENTS.filter((x) => !vetementPossede(x.id)).sort((a, b2) => a.prix - b2.prix)[0];
+        META.argent += 1000; if (v) actionBoutique('acheter', v.id); fermerBoutique();
+        // un sanglier abattu compte, un bouquetin jamais
+        const sg = FAUNE.find((a) => a.type === 'sanglier' && !a.mort), bq = FAUNE.find((a) => a.type === 'bouquetin' && !a.mort);
+        const f0 = D.fauves; if (bq) toucherAnimal(bq, 999); if (D.fauves !== f0) ko.push('un bouquetin compte comme fauve'); if (sg) toucherAnimal(sg, 999);
+        const attendu = { coffresToits: 1, avionsPoses: 1, manege: 1, styleAchats: v ? 1 : 0, fauves: sg ? 1 : 0 };
+        for (const [k, n] of Object.entries(attendu)) if (D[k] - avant[k] !== n) ko.push(k + ' +' + (D[k] - avant[k]) + ' (attendu +' + n + ')');
+        checkDefis();
+        for (const k of Object.keys(attendu)) { if (!attendu[k]) continue; const d = themeDe(k); if (!d) { ko.push('aucun défi sur ' + k); continue; }
+          if (!(D.faits[d.id] || D.aReclamer[d.id]) && D[k] >= 1 && d.cond(META)) ko.push(d.nom + ' accompli mais pas à réclamer'); }
+        info.push(Object.keys(attendu).filter((k) => attendu[k]).length + ' compteurs vérifiés');
+        startRun(); P.hp = P.maxHp = 1e6;
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Défis 3e série : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
+      else ok('Défis 3e série : ' + r.info.join(' ; ') + ' (coffre de toit, avion posé, manège, boutique, fauve — pas le bouquetin) ; premiers paliers à réclamer');
+    }
+
+    // -------------------------------------------------------------------
+    // Façades variées (14 octobre) : la plupart des immeubles hors néon ont
+    // un style de façade ; budget de sommets tenu (mobile) ; les portes de
+    // la ville n'ont pas bougé (passe de décor sur son propre générateur).
+    // -------------------------------------------------------------------
+    console.log('\n--- Façades : styles par quartier, budget de sommets ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [];
+        if (!DECOR_V2) return { ko, n: 0 };
+        const candidats = BATIMENTS.filter((b) => quartierAt(b.x, b.z) !== 'neon' && b.h >= 7 && b.w >= 6).length;
+        if (!(FACADES_N >= candidats * 0.5)) ko.push(FACADES_N + ' façades sur ' + candidats + ' immeubles');
+        if (!(FACADES_V < 120000)) ko.push(FACADES_V + ' sommets');
+        return { ko, n: FACADES_N, c: candidats, v: FACADES_V };
+      });
+      if (r.ko.length) fail('Façades : ' + r.ko.join(' | '));
+      else ok('Façades : ' + r.n + ' immeubles sur ' + r.c + ' habillés, ' + r.v + ' sommets');
+    }
+
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');
     {
       const srcIdx = fs.readFileSync(INDEX_HTML, 'utf8');

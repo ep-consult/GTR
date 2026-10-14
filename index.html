@@ -1859,6 +1859,7 @@ function garagesMetaDefaut(){ const o={}; for(const g of GARAGES_TUNING) o[g.id]
 const VEHPERSO_MAX=6;
 function vehPersoMetaDefaut(){ const o={}; for(let i=0;i<VEHPERSO_MAX;i++) o['v'+i]=slotGarageDefaut(); return o; }
 const META={
+  exploits:{basket:false,tour:false,supercross:false,bowl:false,wake:false,badlands:false}, // mini-jeux réussis (tenues)
   argent:150, xp:0, niveau:1,
   record:0, recordVague:0, killsTotal:0, parties:0,
   perso:'jax', persosPoss:['jax'], radio:0, planque:false, garage:null, revenus:0,
@@ -1896,7 +1897,8 @@ const META={
   armes:{poings:{poss:true,lv:0},batte:{poss:false,lv:0},pistolet:{poss:false,lv:0},aa12:{poss:false,lv:0},revolver:{poss:false,lv:0},arbalete:{poss:false,lv:0},minigun:{poss:false,lv:0},
          gadget:{poss:false,lv:0},couteau:{poss:false,lv:0},batte2:{poss:false,lv:0},bouleC:{poss:false,lv:0},sabre:{poss:false,lv:0},pompe:{poss:false,lv:0},uzi:{poss:false,lv:0},silence:{poss:false,lv:0},pm:{poss:false,lv:0},fusil:{poss:false,lv:0},sniper:{poss:false,lv:0},flamme:{poss:false,lv:0},roquette:{poss:false,lv:0},desintegrateur:{poss:false,lv:0}},
   upg:{vitesse:0,vie:0,regen:0,melee:0,recharge:0,butin:0},
-  defis:{vols:0,dist:0,detruits:0,chefs:0,etoile6:false,bateau:false,ile:false,avion:false,heli:false,crash:false,saut:false,toit:false,banque:false,sommet:false,villa:false,jackpot:false,
+  defis:{coffresToits:0,avionsPoses:0,manege:0,styleAchats:0,fauves:0,aimant:0, // 3e série (14 octobre)
+    vols:0,dist:0,detruits:0,chefs:0,etoile6:false,bateau:false,ile:false,avion:false,heli:false,crash:false,saut:false,toit:false,banque:false,sommet:false,villa:false,jackpot:false,
     // lot 11/12 (Dépôt de bus, Jetpack, Monster Truck) : chaque victoire de
     // circuit est marquée séparément (jamais déduite de META.depotCircuits,
     // qui ne dit que « débloqué », pas « gagné » — gagner Le Toit n'est
@@ -2026,11 +2028,21 @@ const DEFIS_THEMES=[
   {theme:'pompier',noms:['Soldat du feu','Héros du feu'],det:n=>'Éteins '+n+' incendies en camion de pompiers',val:m=>m.metiers.pompier,paliers:[3,10],recs:[400,1200]},
   {theme:'depanneuse',noms:['Dépanneur','Roi du remorquage'],det:n=>'Réussis '+n+' remorquages',val:m=>m.metiers.depanneuse,paliers:[3,10],recs:[400,1200]},
   {theme:'police',noms:['Shérif adjoint','Shérif'],det:n=>'Réussis '+n+' interpellations en voiture de police',val:m=>m.metiers.police,paliers:[3,10],recs:[400,1200]},
-  {theme:'courses',noms:['Pilote du dimanche','Pilote tout-terrain','Champion des reliefs'],det:n=>'Termine '+n+(n>1?' courses':' course')+' (mont, mesas, montée sèche, supercross, rallye des bouées)',val:m=>m.defis.courses,paliers:[1,10,30],recs:[300,1200,3000]},
+  {theme:'courses',noms:['Pilote du dimanche','Pilote tout-terrain','Champion des reliefs'],det:n=>'Termine '+n+(n>1?' courses':' course')+' (mont, mesas, Badlands, montée sèche, supercross, rallye des bouées)',val:m=>m.defis.courses,paliers:[1,10,30],recs:[300,1200,3000]},
   {theme:'base',noms:['Saut de l’ange','Homme-oiseau'],det:n=>'Pose-toi '+n+' fois dans la cible au pied du Pic du Vertige',val:m=>m.defis.baseCible,paliers:[1,5],recs:[500,1500]},
   {theme:'tresor',noms:['Chasseur de trésor','Pirate de Los Reyes'],det:n=>'Déterre '+n+(n>1?' trésors':' trésor')+' sur l’île aux trésors',val:m=>m.defis.tresors,paliers:[1,5],recs:[400,1500]},
   {theme:'garage',noms:['Bricoleur','Garagiste','Roi du tuning'],det:n=>'Achète '+n+(n>1?' améliorations':' amélioration')+' dans un garage',val:m=>m.defis.tuning,paliers:[1,10,30],recs:[200,900,2500]},
-  {theme:'mer',noms:['Loup de mer','Seigneur des vagues'],det:n=>'Réussis '+n+' fois le wakeboard ou le parachute ascensionnel',val:m=>m.defis.mer,paliers:[1,5],recs:[350,1200]}
+  {theme:'mer',noms:['Loup de mer','Seigneur des vagues'],det:n=>'Réussis '+n+' fois le wakeboard ou le parachute ascensionnel',val:m=>m.defis.mer,paliers:[1,5],recs:[350,1200]},
+  // --- 3e série (14 octobre, demandé : « plus de défis qui utilisent toutes les nouveautés ») ---
+  {theme:'toits',noms:['Monte-en-l’air','Pilleur de toits'],det:n=>'Fouille '+n+(n>1?' coffres':' coffre')+' sur les toits de la ville',val:m=>m.defis.coffresToits,paliers:[1,10],recs:[300,1200]},
+  {theme:'tour',noms:['Aiguilleur','Contrôleur aérien','Maître du ciel'],det:n=>'Pose '+n+' avions depuis la tour de contrôle de l’aéroport',val:m=>m.defis.avionsPoses,paliers:[10,40,100],recs:[400,1200,2500]},
+  {theme:'manege',noms:['Ticket de manège','Accro aux sensations'],det:n=>'Fais '+n+(n>1?' tours':' tour')+' de grand huit ou de grande roue',val:m=>m.defis.manege,paliers:[1,10],recs:[150,700]},
+  {theme:'style',noms:['Coquet','Fashion victim'],det:n=>'Achète '+n+(n>1?' pièces':' pièce')+' dans les boutiques, chez le barbier ou le tatoueur',val:m=>m.defis.styleAchats,paliers:[1,8],recs:[200,900]},
+  {theme:'planques',noms:['Propriétaire','Agent immobilier','Baron de l’immobilier'],det:n=>'Achète '+n+(n>1?' planques':' planque'),val:m=>Object.values(m.planques||{}).filter((x)=>x===true||(x&&x.achetee)).length,paliers:[1,3,6],recs:[400,1500,4000]},
+  {theme:'fauves',noms:['Chasseur','Dompteur de fauves'],det:n=>'Viens à bout de '+n+' bêtes sauvages (sangliers, jaguar, ours)',val:m=>m.defis.fauves,paliers:[3,12],recs:[400,1300]},
+  {theme:'aimant',noms:['Grutier volant','As de l’aimant'],det:n=>'Accroche '+n+(n>1?' véhicules':' véhicule')+' avec l’aimant de l’hélico-grue « Titan »',val:m=>m.defis.aimant,paliers:[1,8],recs:[350,1200]},
+  {theme:'exploits',noms:['Touche-à-tout','Champion des mini-jeux','Légende des mini-jeux'],det:n=>'Débloque '+n+(n>1?' tenues':' tenue')+' de mini-jeu (basket, tour de contrôle, supercross, bowl, wakeboard, Badlands)',val:m=>Object.values(m.exploits||{}).filter(Boolean).length,paliers:[1,3,6],recs:[300,1000,3000]},
+  {theme:'armurier',noms:['Bricoleur d’armes','Armurier'],det:n=>'Pose '+n+(n>1?' modifications':' modification')+' sur tes armes à l’établi de l’armurerie',val:m=>Object.values(m.modsArmes||{}).reduce((s,v)=>s+(v?String(v).split(',').filter(Boolean).length:0),0),paliers:[1,6],recs:[250,1000]}
 ];
 const DEFIS=DEFIS_SIMPLES.concat(...DEFIS_THEMES.map(themeDefi));
 const DEFI_PAR_ID={}; for(const d of DEFIS) DEFI_PAR_ID[d.id]=d;
@@ -2450,7 +2462,32 @@ const TENUES=[
   {id:'ferrailleur',nom:'Bleu de ferrailleur',ico:'🔧',condTxt:'Planque : le taudis de la zone',cond:()=>!!(META.planques&&META.planques.taudis),haut:0x3a4a6a,bas:0x3a3a3a,casq:0xd88a1a},
   {id:'faucon',nom:'Combinaison « Faucon »',ico:'🦅',condTxt:'Wingsuit : un vol de 500 m (plané 20 % plus long)',
    cond:()=>(META.wingRecord||0)>=500,haut:0x1a2a4a,bas:0x101620,casq:0xffd23f},
+  // Tenues des mini-jeux (14 octobre, demandé : « des skins spéciaux débloqués par les mini-jeux, avec des
+  // capacités spéciales ») : un exploit (META.exploits, clés fixes) débloque la tenue ; la capacité n'agit que
+  // tenue PORTÉE (tenueK). Capacité écrite dans condTxt, affichée à la penderie.
+  {id:'ballers',nom:'Maillot « Reyes Ballers »',ico:'🏀',condTxt:'Gagner le concours de tirs de Brooklyn — grenades lancées 35 % plus loin',
+   cond:()=>!!META.exploits.basket,haut:0xff8a2a,bas:0x1a2a4a,casq:0xf2f4f8},
+  {id:'aiguilleur',nom:'Gilet d’aiguilleur du ciel',ico:'📡',condTxt:'Tour de contrôle : poser tous les avions — avions et hélicos 15 % plus rapides',
+   cond:()=>!!META.exploits.tour,haut:0xd8ff3a,bas:0x2a2e36,casq:0x14161c},
+  {id:'prorider',nom:'Tenue « Pro Rider »',ico:'🏍️',condTxt:'Réussir le défi Supercross — figures en deux-roues +30 % de points',
+   cond:()=>!!META.exploits.supercross,haut:0xd83a3a,bas:0x14161c,casq:0xf2f4f8},
+  {id:'skateur',nom:'Tenue de skateur',ico:'🛹',condTxt:'Réussir le Reyes Bowl Jam — bunny hop 30 % plus haut (BMX, vélo)',
+   cond:()=>!!META.exploits.bowl,haut:0x8a4de0,bas:0x3a4a5a,casq:0x2a2018},
+  {id:'wakeur',nom:'Combinaison de wakeboard',ico:'🏄',condTxt:'Wakeboard : atteindre l’objectif — nage 30 % plus rapide',
+   cond:()=>!!META.exploits.wake,haut:0x101a20,bas:0x35e0ff,casq:0x101a20},
+  {id:'badlands',nom:'Tenue « Badlands »',ico:'🏜️',condTxt:'Finir la course des Badlands — dégâts des chutes divisés par deux',
+   cond:()=>!!META.exploits.badlands,haut:0xc9703a,bas:0x5a3a22,casq:0xe0a060},
 ];
+// capacité d'une tenue : k si elle est portée, 1 sinon
+function tenueK(id,k){ return META.tenue===id?k:1; }
+// un exploit de mini-jeu : la 1re fois, la tenue est annoncée avec sa capacité
+const TENUE_EXPLOIT={basket:'ballers',tour:'aiguilleur',supercross:'prorider',bowl:'skateur',wake:'wakeur',badlands:'badlands'};
+function exploitMiniJeu(cle){
+  if(!META.exploits||META.exploits[cle]) return; META.exploits[cle]=true; checkTenues();
+  const tn=TENUES.find((x)=>x.id===TENUE_EXPLOIT[cle]);
+  if(tn){ toast(tn.ico+' Tenue débloquée : '+tn.nom+' (penderie de la planque)','or'); setTimeout(()=>toast(tn.condTxt.split(' — ')[1]||'','or'),1600); }
+  sauveMeta();
+}
 // Débloque à la volée dès qu'une condition est remplie (bouclé chaque frame
 // depuis majJoueur, coût négligeable : ~10 comparaisons booléennes, aucune
 // allocation) — irréversible une fois posé dans META.tenuesPoss, même si la
@@ -3915,7 +3952,7 @@ function construireVille(){
     if(qq!=='plage'&&qq!=='parc'&&bx%3===1&&bz%3===1) mkFeu(cx+INNER/2+1.4,cz-INNER/2-1.4);
   }
   placerPortes();
-  if(DECOR_V2){ sansAleaVille(()=>{ ameliorerPortes(); mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkBasket(); mkCiel(); mkKiosqueBanderole(); mkCrique(); mkMontReyes(); mkVieMont(); mkBordureEst(); mkCanyonsDesert(); mkPicVertige(); mkParcStunt(); mkSkateXXL(); mkRides(); mkMerVivante(); mkRemorquage(); mkLarge(); deplacerVoltige(); mkAeroportVivant(); mkHeliGrue(); mkPlanques(); mkBoutiques(); mkGrandHuit(); mkToitsVivants(); mkTracesSable(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkNeonVivant(); mkQuartiersFinitions(); mkBalises(); }); } // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
+  if(DECOR_V2){ sansAleaVille(()=>{ ameliorerPortes(); mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkBasket(); mkCiel(); mkKiosqueBanderole(); mkCrique(); mkMontReyes(); mkVieMont(); mkBordureEst(); mkCanyonsDesert(); mkPicVertige(); mkParcStunt(); mkSkateXXL(); mkRides(); mkMerVivante(); mkRemorquage(); mkLarge(); deplacerVoltige(); mkAeroportVivant(); mkHeliGrue(); mkPlanques(); mkBoutiques(); mkGrandHuit(); mkToitsVivants(); mkTracesSable(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkNeonVivant(); mkQuartiersFinitions(); mkBalises(); mkFacadesVariees(); }); } // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
   finaliserMerge();
   construireMinimapStatique();
 }
@@ -5269,7 +5306,7 @@ function basketFinTir(res,v){
 function basketConclure(){
   if(!BASKET.actif) return; // garde d'entrée propre
   const pts=BASKET.pts, gagne=pts>=BASKET_OBJECTIF;
-  BASKET.vague=WAVES.n; if(gagne) BASKET.reussi=true;
+  BASKET.vague=WAVES.n; if(gagne){ BASKET.reussi=true; exploitMiniJeu('basket'); }
   basketArreter();
   if(gagne){ const m=primeMerUneFois('basket',BASKET_PRIME); bigMsg('🏀 '+pts+' POINTS !'); toast(m?'Prime du concours : +'+m+' $':'Concours gagné (prime déjà touchée cette vague)','or'); SFX.niveau(); }
   else { bigMsg('🏀 '+pts+' / '+BASKET_OBJECTIF+' POINTS'); toast('Presque ! Retente ta chance au rond central.','warn'); }
@@ -6038,7 +6075,9 @@ function hauteurCanyon(x,z){
   let h=0;
   for(const m of CANYON.mesas){ const v=plateau(x,z,m); if(v>h) h=v; }
   // tremplins : sur le dessus d'une mesa, la hauteur monte de k sur sa longueur
-  for(const t of CANYON.tremplins){ if(Math.abs(x-t.x)<t.hw&&z>t.z0&&z<t.z1){ const v=t.h0+t.k*(z-t.z0)/(t.z1-t.z0); if(v>h) h=v; } }
+  for(const t of CANYON.tremplins){
+    if(t.axe==='x'){ if(Math.abs(z-t.z)<t.hw&&x>Math.min(t.xa,t.xb)&&x<Math.max(t.xa,t.xb)){ const v=t.h0+t.k*(x-t.xa)/(t.xb-t.xa); if(v>h) h=v; } continue; } // monte de xa vers xb
+    if(Math.abs(x-t.x)<t.hw&&z>t.z0&&z<t.z1){ const v=t.h0+t.k*(z-t.z0)/(t.z1-t.z0); if(v>h) h=v; } }
   // rampe d'accès à la mesa de départ : de x0 (sol) à x1 (dessus), en largeur z0..z1
   const a=CANYON.acces; if(a&&x>a.x0&&x<a.x1+4&&z>a.z0&&z<a.z1){ const lat=lisse(Math.min(z-a.z0,a.z1-z)/2.5), v=a.h*rampeReguliere((x-a.x0)/(a.x1-a.x0))*lat; if(v>h) h=v; } // pente régulière : 0,58 (le fondu montait à 0,97, infranchissable en pneus de route)
   return h;
@@ -6096,6 +6135,24 @@ function mkCanyonsDesert(){
       z+=gap; const zc=z+hdk; CANYON.mesas.push({x:X,z:zc,hw:hwk,hd:hdk,h,e:hwk<5?1.4:2.2,droitZ:true,bruit}); z=zc+hdk; } }
   CANYON.mesas.forEach((m,k)=>{ if(k<4) CANYON.tremplins.push({x:X,hw:Math.min(3.2,m.hw-0.4),z0:m.z+m.hd-7,z1:m.z+m.hd-0.6,h0:m.h,k:m.hd>14?2.4:1.8}); }); // plus grand gap derrière : tremplin plus raide
   CANYON.acces={x0:478,x1:X-hw-2.5,z0:z0+5,z1:z0+L-5,h:22}; // au sommet AVANT le bord arrondi de la mesa (e 2,2) : raccord sans marche, pente 0,62
+  // Badlands (14 octobre, demandé : « des canyons de hauteurs variées, des sauts de canyon en canyon, la zone
+  // actuelle est trop droite ») : deux chaînes en zigzag de part et d'autre de la ligne, de hauteurs variées
+  // (crêtes étroites et mesas larges), reliées à elle par des tremplins LATÉRAUX (axe x). Est : depuis la mesa de
+  // départ, six mesas de 20 à 9 u, puis retour sur la dernière mesa de la ligne (course « BADLANDS »). Ouest :
+  // depuis la 3e mesa de la ligne, trois mesas de 13 à 7 u, puis le sol. Gaps de 12 à 16 u, chutes de 3 à 6 u.
+  const M=CANYON.mesas, bord=(m,z,s)=>{ let x=m.x; while(Math.abs(x-m.x)<m.hw+4&&plateau(x+s*0.5,z,m)>=m.h-0.01) x+=s*0.25; return x; }; // bord réel (érosion comprise)
+  const lat=(m,z,s,hw,k)=>{ const xb=bord(m,z,s); CANYON.tremplins.push({axe:'x',z,hw,xa:xb-s*8,xb,h0:m.h,k:k||2.4}); };   // tremplin latéral jusqu'au bord
+  const sud=(m,k)=>CANYON.tremplins.push({x:m.x,hw:Math.min(3.2,m.hw-0.4),z0:m.z+m.hd-7,z1:m.z+m.hd-0.6,h0:m.h,k:k||2.0});
+  CANYON.est=[]; CANYON.ouest=[];
+  for(const [x,z,hwk,hdk,h,bruit] of [[570,-126,8,10,20,1],[578,-95,4,7,18,0.25],[568,-66,8,8,15,1],[578,-36,3.6,8,13,0.25],[568,-6,8,8,11,1],[576,26,7,10,9,1]]){
+    const m={x,z,hw:hwk,hd:hdk,h,e:hwk<5?1.4:2.2,droitZ:true,bruit}; M.push(m); CANYON.est.push(m); }
+  for(const [x,z,hwk,hdk,h,bruit] of [[500,-64,8,10,13,1],[492,-32,6,8,10,0.4],[501,0,8,8,7,1]]){
+    const m={x,z,hw:hwk,hd:hdk,h,e:2.2,droitZ:true,bruit}; M.push(m); CANYON.ouest.push(m); }
+  lat(M[0],-126,1,4.5);                                        // ligne → Badlands est
+  CANYON.est.forEach((m,k)=>{ if(k<CANYON.est.length-1) sud(m); });
+  lat(CANYON.est[5],26,-1,4,2.2);                              // dernière mesa est → dernière mesa de la ligne
+  lat(M[2],-64,-1,4);                                          // 3e mesa de la ligne → Badlands ouest
+  CANYON.ouest.forEach((m)=>sud(m,1.8));
   // 3) buttes érodées à la place des dunes (hors cratère de l'OVNI et collines de la crique)
   for(const [bx,bz,h,r] of [[pd.x+32,pd.z-36,12,16],[pd.x-58,pd.z-24,13,13],[pd.x+38,pd.z+38,9,12]]) CANYON.mesas.push({x:bx,z:bz,hw:r,hd:r*0.75,h,e:3.5});
   CANYON.tremplins.push({x:pd.x+32,hw:2.6,z0:pd.z-36+12-6,z1:pd.z-36+12-0.6,h0:12,k:1.6});
@@ -6106,7 +6163,11 @@ function mkCanyonsDesert(){
   maillageRelief(hauteurCanyon,pd.x-80,pd.x+60,pd.z-60,pd.z+60,2,col);
   // tremplins en bois posés sur la pente de la fonction
   const bois=new THREE.MeshLambertMaterial({map:texPlanche,color:0xc8a070});
-  for(const t of CANYON.tremplins){ const l=t.z1-t.z0, a=Math.atan2(t.k,l);
+  for(const t of CANYON.tremplins){
+    if(t.axe==='x'){ const l=Math.abs(t.xb-t.xa), s=Math.sign(t.xb-t.xa), a=Math.atan2(t.k,l);
+      const p=new THREE.Mesh(new THREE.BoxGeometry(Math.hypot(l,t.k),0.2,t.hw*2),bois); p.rotation.z=s*a; p.position.set((t.xa+t.xb)/2,t.h0+t.k/2+0.05,t.z); scene.add(p);
+      for(const sz of [-1,1]) mkBox(0.2,t.k+0.3,0.2,mat(0x5a3a22),t.xb-s*0.3,t.h0+(t.k+0.3)/2,t.z+sz*(t.hw-0.2)); continue; }
+    const l=t.z1-t.z0, a=Math.atan2(t.k,l);
     const p=new THREE.Mesh(new THREE.BoxGeometry(t.hw*2,0.2,Math.hypot(l,t.k)),bois); p.rotation.x=-a; p.position.set(t.x,t.h0+t.k/2+0.05,(t.z0+t.z1)/2); scene.add(p);
     for(const s of [-1,1]) mkBox(0.2,t.k+0.3,0.2,mat(0x5a3a22),t.x+s*(t.hw-0.2),t.h0+(t.k+0.3)/2,t.z1-0.3); }
   // 4) cheminées de fée et blocs dans le désert (solides), jamais sur une ligne, un cratère ou un tremplin
@@ -6116,6 +6177,7 @@ function mkCanyonsDesert(){
     if(hauteurCanyon(x,z)>0.2||!estDesert(x,z)&&x<470||dist2(x,z,POIS.crash.x,POIS.crash.z)<900||solidAt(x,z,3)) continue;
     if(x>287&&x<477&&z>-260&&z<120) continue;              // jamais sur l'aérodrome
     if(Math.abs(x-X)<hw+4) continue;                        // ni dans les canyons de la ligne
+    if(x>480&&z>-154&&z<54) continue;                       // ni dans les Badlands (gaps, réceptions)
     if(x>320&&x<425&&z>190) continue;                       // ni dans la crique
     const h=aD(3,9), r=aD(0.8,1.6);
     pieces.push(['cyl',r,h,r,x,h/2,z,choixD([0xb8572e,0xc9703a,0xa84a28])],['cyl',r*0.7,0.6,r*0.7,x,h*0.33,z,0xd88c4a],['boule',r*1.4,r*0.9,r*1.4,x,h+0.3,z,0x7a5032]);
@@ -6126,6 +6188,7 @@ function mkCanyonsDesert(){
   mkBox(0.2,3.5,0.2,mat(0x5a3a22),CANYON.acces.x0+2,1.75,CANYON.acces.z0-2);
   mkEnseigne('RAMPAGE — LIGNE DES MESAS','#ff8c1a',CANYON.acces.x0+2,4,CANYON.acces.z0-1.9,0,7);
   POIS.rampage={x:X,z:z0+L/2};
+  mkEnseigne('BADLANDS','#ff8c1a',M[0].x+M[0].hw-1,M[0].h+3.2,-131,0,4.5); // au tremplin latéral de la mesa de départ
 }
 /* ---------- ZONE EXTRÊME (DECOR_V2) ----------
    Demandé : « des 4x4 de franchissement et des motos cross en bas de la
@@ -6992,7 +7055,7 @@ function actionBoutique(act,id){
   const v=VETEMENTS.find((q)=>q.id===id); if(!v||!BOUT.ouvert) return;
   if(act==='essayer'){ mettreVetement(BOUT.essai,v); SFX.ui(); }
   else if(act==='acheter'){ if(vetementPossede(id)) return; if(META.argent<v.prix){ SFX.refus(); toast('Il te faut '+v.prix+' $','warn'); return; }
-    META.argent-=v.prix; META.garde[id]=true; mettreVetement(META.style,v); mettreVetement(BOUT.essai,v); SFX.achat(); toast('🛍️ '+v.nom+' — porté','or'); sauveMeta(); }
+    META.argent-=v.prix; META.garde[id]=true; META.defis.styleAchats++; mettreVetement(META.style,v); mettreVetement(BOUT.essai,v); SFX.achat(); toast('🛍️ '+v.nom+' — porté','or'); sauveMeta(); }
   else if(act==='porter'){ if(!vetementPossede(id)) return; mettreVetement(META.style,v); mettreVetement(BOUT.essai,v); SFX.ui(); sauveMeta(); }
   else if(act==='retirer'){ mettreVetement(META.style,v,true); mettreVetement(BOUT.essai,v,true); SFX.ui(); sauveMeta(); }
   // ce qu'on essaie sans l'acheter n'est jamais gardé : à la fermeture, on reconstruit avec META.style
@@ -7065,7 +7128,7 @@ function finManege(complet){
   const M=MANEGES.actif; if(!M) return; MANEGES.actif=null;
   P.x=M.ret.x; P.z=M.ret.z; P.y=solPied(P.x,P.z); P.h.g.quaternion.set(0,0,0,1); P.h.g.rotation.set(0,0,0);
   for(const j of [P.h.jambeG,P.h.jambeD,P.h.brasG,P.h.brasD]) j.rotation.set(0,0,0);
-  if(complet){ const b=M.type==='huit'?Math.round(150+M.sens*40):120; ETAT.score+=b; bigMsg((M.type==='huit'?'🎢 SENSATIONS ! +':'🎡 QUELLE VUE ! +')+b+' pts'); SFX.niveau(); }
+  if(complet){ META.defis.manege++; const b=M.type==='huit'?Math.round(150+M.sens*40):120; ETAT.score+=b; bigMsg((M.type==='huit'?'🎢 SENSATIONS ! +':'🎡 QUELLE VUE ! +')+b+' pts'); SFX.niveau(); }
 }
 function manegeProche(){ if(P.veh||MANEGES.actif) return null;
   if(MANEGES.huit&&dist2(P.x,P.z,MANEGES.huit.gare.x,MANEGES.huit.gare.z)<9) return 'huit';
@@ -7080,6 +7143,53 @@ function manegeProche(){ if(P.veh||MANEGES.actif) return null;
    fois par vague). Les plus hautes tours gagnent un couronnement (flèche, pyramide). Décor fusionné par matériau.
 ===================================================================== */
 const TOITS={coffres:[],helis:[],n:0};
+/* Façades variées (14 octobre, demandé : « varier les styles d'immeubles », « de la diversité ») : passe de
+   décor APRÈS la ville (aucun tirage de la ville touché), sur la face sud des immeubles (celle que voit la
+   caméra), selon le quartier et le rang de l'immeuble : murs-rideaux vitrés à meneaux et pilastres Art déco
+   (centre), balcons à garde-corps et jardinières (résidentiel, plage), stores de boutiques et climatiseurs
+   (commerce), échelles, conduites et bouches d'aération (industriel, port). Purement visuel (aucun solide),
+   jamais sous 5 u devant une porte ; géométrie à couleurs de sommets fusionnée par cellule de 120 u. */
+var FACADES_N=0, FACADES_V=0; // immeubles décorés, sommets ajoutés (budget mobile, testé)
+function mkFacadesVariees(){
+  const cell=new Map(), push=(x,z,p)=>{ const k=Math.floor(x/120)+'_'+Math.floor(z/120); if(!cell.has(k)) cell.set(k,[]); cell.get(k).push(p); };
+  const cache=(b,x,z)=>BATIMENTS.some((o)=>o!==b&&Math.abs(o.x-x)<o.w/2+0.5&&z>o.z-o.d/2-0.5&&z<o.z+o.d/2+2.5); // une autre façade colle devant
+  const porteDevant=(x0,x1,zf)=>PORTES.some((p)=>p.x>x0-5&&p.x<x1+5&&Math.abs(p.z-zf)<6);
+  let n=0;
+  BATIMENTS.forEach((b,k)=>{
+    const q=quartierAt(b.x,b.z), zf=b.z+b.d/2, H=b.h, w=b.w; if(H<7||w<6||q==='neon') return;
+    if(cache(b,b.x,zf+1.2)) return;
+    const P=(type,a,bb,d,x,y,z,c)=>push(b.x,b.z,[type,a,bb,d,x,y,z,c]);
+    const style=q==='centre'?(k%3===0?'verre':(k%3===1?'deco':'balcons')):(q==='residentiel'||q==='plage'||q==='villas'?(k%4===3?null:'balcons'):(q==='commerce'?'boutiques':((q==='industriel'||q==='port')?'usine':null)));
+    if(!style) return; n++;
+    if(style==='verre'){ // mur-rideau : panneaux vitrés teintés, meneaux d'acier, bandeaux d'étage
+      const y0=4.5, hh=H-y0-0.6, tint=choixD([0x2a4a6a,0x1f3a4a,0x34505e,0x2a3a5a]);
+      P('box',w*0.86,hh,0.16,b.x,y0+hh/2,zf+0.08,tint);
+      for(let i=0;i<=Math.round(w*0.86/2.2);i++) P('box',0.14,hh,0.24,b.x-w*0.43+i*(w*0.86/Math.round(w*0.86/2.2)),y0+hh/2,zf+0.12,0xc8ccd4);
+      for(let y=y0;y<y0+hh;y+=3) P('box',w*0.88,0.18,0.28,b.x,y,zf+0.14,0xb8bec8);
+    } else if(style==='deco'){ // pilastres Art déco, bandeau doré, attique en gradins sur la face
+      const nP=Math.max(3,Math.round(w/3.2)); for(let i=0;i<nP;i++) P('box',0.45,H-1.5,0.35,b.x-w/2+0.6+i*((w-1.2)/(nP-1)),(H-1.5)/2+0.75,zf+0.17,0xd8cfb8);
+      P('box',w*1.0,0.5,0.4,b.x,4.2,zf+0.2,0xc8a84a); P('box',w*0.6,1.6,0.5,b.x,H-0.8,zf+0.25,0xd8cfb8); P('box',w*0.3,0.9,0.55,b.x,H+0.2,zf+0.25,0xc8a84a);
+    } else if(style==='balcons'){ // balcons, garde-corps, jardinières et linge selon le rang
+      const nb=w>14?2:1, bw=Math.min(4.2,w*0.36), gc=choixD([0xe8ecf2,0x23262e,0x8a6a44]);
+      for(let y=6;y<H-1.5;y+=3) for(let i=0;i<nb;i++){ const x=b.x+(nb===1?0:(i?w*0.24:-w*0.24));
+        P('box',bw,0.18,0.9,x,y,zf+0.45,0xb8b2a6); P('box',bw,0.75,0.06,x,y+0.45,zf+0.88,gc);
+        if(((k+Math.round(y))%3)===0) P('box',bw*0.7,0.25,0.25,x,y+0.9,zf+0.8,0x3a8a3a); // jardinière
+        if(((k+Math.round(y))%5)===1) P('box',0.06,0.8,0.5,x-bw*0.3,y+0.5,zf+0.5,choixD([0xd83a3a,0x35c8e0,0xffd23f])); } // parasol / linge
+    } else if(style==='boutiques'){ // stores en toile au rez-de-chaussée, climatiseurs aux étages
+      if(!porteDevant(b.x-w/2,b.x+w/2,zf)){ const ns=w>12?2:1, sw=w/ns-1.2, cs=choixD([0xd83a3a,0x2fae4f,0x2a5a8a,0xff8c1a,0x8a4de0]);
+        for(let i=0;i<ns;i++){ const x=b.x-w/2+(i+0.5)*(w/ns); P('box',sw,0.12,1.5,x,3.0,zf+0.75,cs); P('box',sw,0.35,0.06,x,2.8,zf+1.5,0xf2f4f8); } }
+      for(let y=5.5;y<H-1;y+=3) if(((k*7+Math.round(y))%3)!==0) P('box',0.8,0.55,0.5,b.x+((k+Math.round(y))%2?w*0.28:-w*0.22),y,zf+0.25,0xd8dce4);
+    } else { // usine : échelle à crinoline, conduites, bouches d'aération
+      const xe=b.x+w*0.36; for(const s of [-1,1]) P('box',0.08,H-1,0.08,xe+s*0.3,(H-1)/2+0.5,zf+0.35,0x5a626c);
+      for(let y=2.5;y<H-0.5;y+=1.6) P('box',0.6,0.06,0.06,xe,y,zf+0.35,0x5a626c);
+      for(let y=4;y<H-1;y+=3) P('box',0.9,0.06,0.06,xe,y,zf+0.62,0x5a626c);
+      P('cyl',0.22,H,0.22,b.x-w*0.3,H/2,zf+0.3,0x8a929c); P('cyl',0.16,H*0.7,0.16,b.x-w*0.24,H*0.35,zf+0.3,0x6a7078);
+      for(let i=0;i<2;i++) P('box',1.2,0.8,0.3,b.x+(i?-w*0.05:w*0.12),H*0.5+i*2,zf+0.18,0x3a3e46);
+    }
+  });
+  FACADES_V=0; for(const pieces of cell.values()){ const m=meshPieces(pieces); FACADES_V+=m.geometry.attributes.position.count; scene.add(m); }
+  FACADES_N=n; return n;
+}
 function mkToitsVivants(){
   const vus=new Set(), cands=[];
   for(const arr of sGrid.values()) for(const s of arr){ if(vus.has(s)) continue; vus.add(s);
@@ -7129,7 +7239,7 @@ function mkToitsVivants(){
 function coffreToitProche(){ if(P.veh) return null; for(const c of TOITS.coffres) if(Math.abs(P.y-c.y)<2.2&&dist2(P.x,P.z,c.x,c.z)<7) return c; return null; }
 function fouillerCoffreToit(c){
   if(c.vague===WAVES.n){ SFX.refus(); toast('Déjà fouillé cette vague','warn'); return; }
-  c.vague=WAVES.n; let r=Math.random(); /* jamais un coffre vide : sans arme à feu ou grenades au plein, ce sera de l'argent */
+  c.vague=WAVES.n; META.defis.coffresToits++; let r=Math.random(); /* jamais un coffre vide : sans arme à feu ou grenades au plein, ce sera de l'argent */
   const armesFeu=ORDRE_ARMES.filter((w)=>META.armes[w]&&META.armes[w].poss&&ARMES[w].type==='gun');
   if((r>=0.5&&r<0.8&&!armesFeu.length)||(r>=0.8&&P.grenades>=5)) r=0;
   if(r<0.5){ const g=randi(80,260); META.argent+=g; ETAT.cashRun+=g; toast('📦 '+g+' $ planqués sur le toit !','or'); }
@@ -7207,7 +7317,7 @@ function tourAutoriser(a){
 function tourToucher(nx,ny){ let best=null, bd=0.2*0.2; for(const a of TOUR.avions){ const d=(a.x-nx)**2+(a.y-ny)**2; if(d<bd){ bd=d; best=a; } } if(best) tourAutoriser(best); }
 function tourFinir(gagne){
   if(TOUR.fin) return; TOUR.fin=gagne?'gagne':'perdu'; TOUR.finT=2.2;
-  if(gagne){ ETAT.score+=1500; let txt='🛬 '+TOUR_OBJ+' AVIONS POSÉS';
+  if(gagne){ ETAT.score+=1500; exploitMiniJeu('tour'); let txt='🛬 '+TOUR_OBJ+' AVIONS POSÉS';
     if(TOUR.vague!==WAVES.n){ TOUR.vague=WAVES.n; META.argent+=TOUR_PRIME; ETAT.cashRun+=TOUR_PRIME; txt+=' +'+TOUR_PRIME+' $'; sauveMeta(); } else toast('Prime déjà touchée cette vague','warn');
     bigMsg(txt); SFX.achat(); }
   else { bigMsg(TOUR.t>=TOUR_DUREE?'⏱️ TROP LENT':'💥 CRASH — À SEC'); SFX.refus(); vibre(80); }
@@ -7224,7 +7334,7 @@ function majTour(dt){
       if(a.etat==='final'){ a.ft+=dt; const t1=1.8;
         if(a.ft<t1){ const u=a.ft/t1; a.x=lerp(a.x0,TOUR_SEUIL.x,u); a.y=lerp(a.y0,TOUR_SEUIL.y,u); a.cap=Math.atan2(TOUR_SEUIL.y-a.y0,TOUR_SEUIL.x-a.x0); }
         else { const u=Math.min(1,(a.ft-t1)/(TOUR_ATTERR-t1)); a.x=TOUR_SEUIL.x; a.y=lerp(TOUR_SEUIL.y,TOUR_FIN.y,u); a.cap=-Math.PI/2; }
-        if(a.ft>=TOUR_ATTERR){ TOUR.avions.splice(i,1); TOUR.piste=null; TOUR.poses++; ETAT.score+=100; if(TOUR.poses>=TOUR_OBJ) tourFinir(true); }
+        if(a.ft>=TOUR_ATTERR){ TOUR.avions.splice(i,1); TOUR.piste=null; TOUR.poses++; META.defis.avionsPoses++; ETAT.score+=100; if(TOUR.poses>=TOUR_OBJ) tourFinir(true); }
         continue; }
       a.carbu-=dt; if(a.carbu<=0){ a.etat='crash'; tourFinir(false); break; }
       const r=Math.hypot(a.x,a.y);
@@ -7433,7 +7543,7 @@ function toucherAnimal(a,dmg){
   if(a.mort) return; a.hp-=dmg; a.colere=true; burst(a.x,a.y+0.8,a.z,4,0xb8282a,4);
   if(a.hp<=0){ a.mort=true; a.corpsT=5; a.g.rotation.z=Math.PI/2; SFX.mort();
     if(a.D.paisible){ ETAT.score=Math.max(0,ETAT.score-50); const m=pick(MSG_BOUQUETIN); spawnTexte(a.x,a.y+2.2,a.z,m,'#ff5a6a'); toast('🐐 '+m,'warn'); return; } // un animal paisible : du karma en moins, rien à gagner
-    const pts=a.type==='jaguar'?250:(a.type==='ours'?320:80); ETAT.score+=pts;
+    const pts=a.type==='jaguar'?250:(a.type==='ours'?320:80); ETAT.score+=pts; META.defis.fauves++;
     creerPickup('cash',a.x,a.z,randi(a.D.cash[0],a.D.cash[1])); spawnTexte(a.x,a.y+2.5,a.z,(a.type==='jaguar'?'JAGUAR !':(a.type==='ours'?'OURS !':'SANGLIER'))+' +'+pts,'#ffd23f'); }
 }
 function majFaune(dt){
@@ -7827,7 +7937,7 @@ function finTow(raison){
   if(TOW.planche.parent===P.h.g){ P.h.g.remove(TOW.planche); scene.add(TOW.planche); }
   for(const j of [P.h.jambeG,P.h.jambeD,P.h.brasG,P.h.brasD]) j.rotation.set(0,0,0);
   if(T.id==='wake'){ boutonsAPied(); let msg='🏄 WAKEBOARD — '+Math.round(T.pts)+' pts';
-    if(T.pts>=TOW_DEFS.wake.objectif){ META.defis.mer++; const m=primeMerUneFois('wake',TOW_DEFS.wake.prime); if(m) msg+=' +'+m+' $'; }
+    if(T.pts>=TOW_DEFS.wake.objectif){ META.defis.mer++; exploitMiniJeu('wake'); const m=primeMerUneFois('wake',TOW_DEFS.wake.prime); if(m) msg+=' +'+m+' $'; }
     bigMsg(msg); P.y=0.3; } // relâché dans l'eau, on nage
   else if(raison!=='lache'){ paraMesh.visible=false; P.para=false; P.chute=false; P.y=0.3; }
 }
@@ -7914,6 +8024,7 @@ const RALLYE_TEMPS=32; // pilote simulé : 17 s en Espadon, 18 en jet-ski, 26 en
 const RIDE_DEFS={
   mont:{nom:'MONTÉE DU MONT REYES',temps:90,prime:250},   // la pente freine : pilote simulé 52 à 69 s (moto, quad, buggy, BMX, vélo) depuis l'agrandissement du mont (8e lot ; avant 29 à 39 s pour 60 s)
   mesas:{nom:'LIGNE DES MESAS',temps:14,prime:300},        // robot : 6 s en moto cross, 8 s en buggy
+  badlands:{nom:'BADLANDS — LIGNE EST',temps:20,prime:350}, // six mesas en zigzag puis retour sur la ligne (14 octobre) ; robot : 7 s en moto cross, 14 s en buggy
   colline:{nom:'MONTÉE SÈCHE',temps:6.5,prime:200},         // hill climb, départ arrêté, terre meuble, mur final à 43° (8e lot) : seule la moto cross passe (robot 4,7 s) ; quad (limite 40°), 4x4 (au pas), motos de route, buggy, BMX échouent
   bouees:{nom:'RALLYE DES BOUÉES',temps:RALLYE_TEMPS,prime:250,eau:true}, // portes sur l'eau autour des îles, jet-ski et vedettes
   stunt:{nom:'DÉFI SUPERCROSS',temps:45,prime:250,stunt:true,objectif:2600},
@@ -7925,6 +8036,7 @@ function rideDepart(id){
   if(id==='stunt') return {x:STUNT.x,z:STUNT.zN+2}; // grille de départ du supercross
   if(id==='bouees') return {x:40,z:318}; // au large de la marina
   if(id==='bowl') return {x:SKX.x0+36,z:SKX.z0+24}; // skatepark XXL, sur la plate-forme entre le half-pipe et le bowl
+  if(id==='badlands'){ const m=CANYON.mesas[0]; return {x:m.x-4,z:-128}; } // sur la mesa de départ, en face du tremplin latéral (à 17 u de l'arche des mesas)
   const m=CANYON.mesas[0]; return {x:m.x,z:m.z-m.hd+5};
 }
 function ridePortes(id){
@@ -7932,6 +8044,8 @@ function ridePortes(id){
   if(id==='bouees') return [[40,372],[140,420],[260,425],[305,350],[200,320],[60,316]].map(([x,z])=>({x,z,r:7}));
   if(id==='colline'){ const C=MONT.couloir; return [0.35,0.7,1].map((u)=>({x:C.x,z:C.z0-(C.z0-C.z1)*u-(u===1?4:0),r:u===1?7:6,minH:C.H*couloirH(u)-3})); }
   if(id==='mont') return MONT.sentier.slice(1).map(([x,z],i)=>({x,z,r:9,minH:MONT.hSentier[i+1]-4})); // à hauteur du lacet : passer en dessous ne compte pas
+  if(id==='badlands'){ const E=CANYON.est, m4=CANYON.mesas[4]; // atterrir sur chaque mesa est (la 1re par le côté), puis sur la dernière de la ligne
+    return E.map((m,k)=>({x:k?m.x:m.x-2,z:k?m.z-m.hd+5:m.z,r:10,minH:m.h-1})).concat([{x:m4.x+7,z:26,r:12,minH:m4.h-1}]); }
   return CANYON.mesas.slice(1,5).map((m)=>({x:m.x,z:m.z-m.hd+6,r:13,minH:m.h-1})); // atterrir sur chaque mesa
 }
 function mkRides(){
@@ -8026,7 +8140,7 @@ function rideEligible(v,id){ if(!v) return false; if(id&&RIDE_DEFS[id]&&RIDE_DEF
 // DÉFI STUNT : chaque réception compte (temps de vol, réception propre), plus le cabrage en moto cross (majRides)
 function rideFigure(v){
   const r=RIDES.actif; if(!r||v.airT<0.45||v.hop) return;
-  const propre=v.def.type==='moto'||Math.abs(v.mesh.rotation.z)<0.22, pts=Math.round((50+v.airT*100)*(propre?1.5:1));
+  const propre=v.def.type==='moto'||Math.abs(v.mesh.rotation.z)<0.22, pts=Math.round((50+v.airT*100)*(propre?1.5:1)*(v.def.type==='moto'?tenueK('prorider',1.3):1));
   r.pts+=pts; spawnTexte(v.x,3.5,v.z,(propre?'FIGURE ! +':'+')+pts,'#ff5ad0');
 }
 function rideProche(){
@@ -8084,6 +8198,7 @@ function finirRide(reussi){
   let msg='🏁 '+D.nom+' — '+(D.stunt?Math.round(r.pts)+' pts en ':'')+temps.toFixed(1)+' s';
   if(!rec||temps<rec){ RIDES.records[r.id]=temps; msg+=' — RECORD !'; }
   META.defis.courses++; // défis « courses » (chaque course terminée compte, les primes restent une par vague)
+  if(r.id==='stunt') exploitMiniJeu('supercross'); else if(r.id==='bowl') exploitMiniJeu('bowl'); else if(r.id==='badlands') exploitMiniJeu('badlands');
   if(RIDES.primeVague[r.id]!==WAVES.n){ const pr=Math.round(D.prime*(premier?1.5:1)); RIDES.primeVague[r.id]=WAVES.n; META.argent+=pr; ETAT.cashRun+=pr; msg+=(premier?' — 1er !':'')+' +'+pr+' $'; sauveMeta(); } // une prime par vague (majorée si tu bats les rivales)
   bigMsg(msg); SFX.niveau(); vibre(80);
 }
@@ -12811,7 +12926,7 @@ function lancerGrenade(){
   const a=(Math.hypot(INPUT.mx,INPUT.mz)>0.2)?Math.atan2(INPUT.mx,INPUT.mz):P.ang;
   g.on=true; g.mesh.visible=true;
   g.x=P.x+Math.sin(a)*1; g.y=1.4; g.z=P.z+Math.cos(a)*1;
-  g.vx=Math.sin(a)*13; g.vz=Math.cos(a)*13; g.vy=7; g.t=1.4;
+  const kG=tenueK('ballers',1.35); g.vx=Math.sin(a)*13*kG; g.vz=Math.cos(a)*13*kG; g.vy=7; g.t=1.4; // maillot « Ballers » : plus loin
   g.mesh.position.set(g.x,g.y,g.z);
   SFX.swing();
   el('grenN').textContent=P.grenades;
@@ -13386,7 +13501,7 @@ function majJoueur(dt,dtJeu){
   const sprint=!P.nage&&(INPUT.btn.sprint||INPUT.btn.sprintK)&&bouge&&(P.stam>1||P.buffs.nitroT>0);
   const crawl=P.nage&&(INPUT.btn.sprint||INPUT.btn.sprintK)&&bouge&&P.stam>8; // demandé : SPRINT à la nage = crawl, plus rapide
   el('btnSprint').classList.toggle('actif',!!sprint);
-  let vit=P.vitBase*(sprint?1.5:1)*(P.nage?(aCurio('perle')?0.567:0.42)*(crawl?1.7:1):1);  // La Perle Noire : +35 % à la nage ; crawl : ×1,7
+  let vit=P.vitBase*(sprint?1.5:1)*(P.nage?(aCurio('perle')?0.567:0.42)*(crawl?1.7:1)*tenueK('wakeur',1.3):1);  // La Perle Noire : +35 % à la nage ; crawl : ×1,7 ; combinaison de wakeboard : ×1,3
   if(P.buffs.lourd>0) vit*=0.68;                    // digestion du Monstre
   if(P.buffs.vit>0) vit*=(PERSOS[META.perso].spec==='nitro'&&P.buffs.nitroT>0)?1.6:1.3;
   if(P.buffs.nitroT!==undefined&&P.buffs.nitroT>0) P.buffs.nitroT-=dt;
@@ -13519,7 +13634,7 @@ function majJoueur(dt,dtJeu){
       if(P.para){ burst(P.x,P.y+0.2,P.z,10,0xe8ecf2,5,6); SFX.ui(); }
       else if(DECOR_V2&&estEau(P.x,P.z)) plongeonJoueur(P.chuteHaut); // dans l'eau : un plongeon, jamais des dégâts
       else if(P.wing){ finVolWingsuit(); toucherJoueur(70); secousse(8); toast('Posé en wingsuit sans voile… aïe','warn'); }
-      else if(P.vy<-12){ toucherJoueur((-P.vy-12)*3.5); secousse(6); }
+      else if(P.vy<-12){ toucherJoueur((-P.vy-12)*3.5*tenueK('badlands',0.5)); secousse(6); } // tenue « Badlands » : chutes deux fois moins rudes
       else burst(P.x,P.y+0.2,P.z,4,0xb8bec8,4);
       P.vy=0; P.para=false; paraMesh.visible=false; paraMesh.rotation.z=0; P.chuteVx=0; P.chuteVz=0;
       if(P.wing){ P.wing=false; if(P.wingMesh) P.wingMesh.visible=false; P.h.brasG.rotation.z=0; P.h.brasD.rotation.z=0; }
@@ -15173,7 +15288,7 @@ function majVol(v,dt){
       const l=Math.hypot(INPUT.mx,INPUT.mz);
       if(l>0.15){
         v.ang=angLerp(v.ang,Math.atan2(INPUT.mx,INPUT.mz),2.6*dt);
-        v.v=lerp(v.v,l*v.def.vmax,1.3*dt);
+        v.v=lerp(v.v,l*v.def.vmax*tenueK('aiguilleur',1.15),1.3*dt);
       } else v.v=lerp(v.v,0,1.6*dt);
       const nx=v.x+Math.sin(v.ang)*v.v*dt, nz=v.z+Math.cos(v.ang)*v.v*dt;
       const s=v.decolT>0?null:solidAt(nx,nz,2);
@@ -15233,7 +15348,7 @@ function majVol(v,dt){
     } else if(v.vrilleEnCours){
       majVrille(v,dt);
     } else {
-      v.v=lerp(v.v,desc?19:v.def.vmax,0.5*dt);
+      v.v=lerp(v.v,desc?19:v.def.vmax*tenueK('aiguilleur',1.15),0.5*dt);
       const l=Math.hypot(INPUT.mx,INPUT.mz);
       // taux de virage en vol : fixe pour l'avion de ligne et le chasseur
       // (comportement existant, inchangé) ; def.turnVol permet à un
@@ -15607,7 +15722,7 @@ function majFiguresDeuxRoues(v,dt){
       sortirVehicule(true); toucherJoueur(15); lancerRagdollJoueurFx(); return true;
     }
     if(s>=1||f>=1){
-      const deux=s>=1&&f>=1, pts=Math.round(((s>=1?FIG2R.pts360:0)+(f>=1?FIG2R.ptsFlip:0))*(deux?1.5:1)*ETAT.combo), nom=deux?'BACKFLIP 360':(f>=1?'BACKFLIP':'360');
+      const deux=s>=1&&f>=1, pts=Math.round(((s>=1?FIG2R.pts360:0)+(f>=1?FIG2R.ptsFlip:0))*(deux?1.5:1)*ETAT.combo*tenueK('prorider',1.3)), nom=deux?'BACKFLIP 360':(f>=1?'BACKFLIP':'360');
       ETAT.score+=pts; spawnTexte(v.x,3.6,v.z,nom+' ! +'+pts,'#ff5ad0'); SFX.ramasse(); vibre(30);
       if(RIDES.actif&&RIDE_DEFS[RIDES.actif.id].stunt) RIDES.actif.pts+=pts; // la figure compte au DÉFI SUPERCROSS
     }
@@ -15717,7 +15832,7 @@ function majConduite(dt){
     // (< VELO_TAP) = BUNNY HOP au relâcher ; ESQUIVE MAINTENU = cabré (manual), roue avant levée.
     const veut=!!(INPUT.btn.esquive||INPUT.btn.esquiveK);
     if(veut) v.manuT=v.hopTenu?(v.manuT||0)+dt:0;
-    if(!veut&&v.hopTenu&&!v.enAir&&(v.manuT||0)<VELO_TAP){ v.enAir=true; v.hop=true; v.vy=v.def.hop; v.airT=0; v.h=v.h||0; bruit(0.05,0.25,900); vibre(15); }
+    if(!veut&&v.hopTenu&&!v.enAir&&(v.manuT||0)<VELO_TAP){ v.enAir=true; v.hop=true; v.vy=v.def.hop*tenueK('skateur',1.14); v.airT=0; v.h=v.h||0; bruit(0.05,0.25,900); vibre(15); }
     v.hopTenu=veut;
     const cabre=veut&&(v.manuT||0)>=VELO_TAP&&!v.enAir&&Math.abs(v.v)>1.5;
     v.wheelieA=clamp((v.wheelieA||0)+(cabre?VELO_CABRE_VIT:-VELO_CABRE_VIT*1.6)*dt,0,VELO_CABRE_MAX);
@@ -17519,7 +17634,7 @@ function majAimant(dt){
     if(pilote&&pressed('gren')){
       if(rec){ rayonDebuterChute(v,rec); rec=null; SFX.ui(); toast('🧲 Lâché !','or'); }
       else if(v.vol&&v.alt-sol>=AIMANT_ALT_MIN){ const o=aimantCandidat(v);
-        if(o){ rayonCapturer(v,o,'veh',1); const r=v.cibles[v.cibles.length-1]; r.relX=0; r.relZ=0; r.ang=o.ang||0; r.aimant=true; rec=r; SFX.spec(); vibre(40); toast('🧲 '+(o.def.nom||'Véhicule')+' accroché — GRENADE pour lâcher','or'); }
+        if(o){ rayonCapturer(v,o,'veh',1); const r=v.cibles[v.cibles.length-1]; r.relX=0; r.relZ=0; r.ang=o.ang||0; r.aimant=true; rec=r; META.defis.aimant++; SFX.spec(); vibre(40); toast('🧲 '+(o.def.nom||'Véhicule')+' accroché — GRENADE pour lâcher','or'); }
         else toast(aimantCandidat(v,true)?'🧲 Monte un peu : l’aimant pend '+AIMANT_GAP+' u sous la poutre':'🧲 Rien sous l’aimant : descends au-dessus d’un véhicule','warn'); }
       else toast('🧲 Monte un peu : l’aimant pend sous la poutre','warn');
     }
@@ -28480,7 +28595,7 @@ function renderPenderie(){
       continue;
     }
     h+='<div class="ligneItem"><div class="ico">'+t.ico+'</div><div class="inf">'+
-      '<div class="nom">'+t.nom+'</div><div class="det">'+(equipe?'Portée actuellement':t.condTxt)+'</div></div>'+
+      '<div class="nom">'+t.nom+'</div><div class="det">'+(equipe?'Portée actuellement'+(t.condTxt.indexOf(' — ')>0?' — '+t.condTxt.split(' — ')[1]:''):t.condTxt)+'</div></div>'+ // portée : sa capacité reste écrite
       (equipe?'<span class="pill equip">portée</span>':
         '<button class="pill" data-tenue="'+t.id+'" style="border-color:var(--cyan);color:var(--cyan)">PORTER</button>')+
       '</div>';
