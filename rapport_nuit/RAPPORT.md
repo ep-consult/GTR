@@ -1741,3 +1741,15 @@ Captures : `captures/lot11/aeroport_*.png`, `helico_*.png`, `planques.png`, `fou
 - 4 nouveaux pictogrammes d'armes.
 
 Captures : `captures/lot11/armurerie_*.png`, `course_mer_rivales.png`, `helicos_police_armee.png`, `degradations.png`, `icones_armes.png`.
+
+## 3e série — lot 3 (14 octobre)
+
+- **Boutiques de style** : chic (centre), surf shop (plage), street wear (néon), barbier (Brooklyn), tatoueur ; essayage gratuit en cabine, achat pièce par pièce, tenues dépareillées par-dessus la tenue de la penderie.
+- **Manèges** : grand huit à l'ouest de la marina (vue subjective au premier rang, montée à la chaîne, chute), tour de grande roue sur la jetée.
+- **Toits vivants** : 94 toits aménagés (piscines, bars en terrasse, terrains grillagés, jardins, hélipads avec 4 vrais hélicos, châteaux d'eau, panneaux solaires, flèches et pyramides sur les plus hautes tours) et 10 coffres à fouiller une fois par vague (jamais vides). Sur un toit, le bouton ne propose plus la porte de la rue en dessous.
+- **Aéroport, suite** : 3e hangar (fret) avec un cargo bimoteur pilotable ; 4 véhicules de piste pilotables (tracteur de repoussage, camion-citerne qui explose en grand, passerelle à escalier, tracteur à bagages) ; **jeu de la tour de contrôle** (radar plein écran : autoriser les atterrissages un par un, carburant, urgences ; prime une fois par vague).
+- **Kayaks** : vraie coque effilée et pagaie double animée (fini la boîte).
+- **Performance** : la résolution des collisions entre véhicules coûtait 88 ms par image avec ~120 véhicules (garés compris) ; 11 ms désormais.
+- **Mémoire** : la faune de l'île laissait 47 géométries et ~1,5 Mo à chaque partie (et des animaux figés dans la scène) ; les entités retirées libèrent maintenant leurs géométries. La suite de tests complète va de nouveau au bout.
+
+Captures : `captures/lot11/boutique_*.png`, `grand_huit_*.png`, `toit_*.png`, `aeroport_vehicules_piste.png`, `tour_de_controle.png`, `kayaks.png`.

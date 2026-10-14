@@ -9805,7 +9805,7 @@ async function main() {
         const ko = [], info = [];
         if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
         for (const e of ennemis) e.mort = true;
-        const ec = vehicules.find((v) => v.key === 'ecureuil' && !v.mort), ti = vehicules.find((v) => v.key === 'titan' && !v.mort);
+        const ec = POIS.toitH && vehicules.find((v) => v.key === 'ecureuil' && !v.mort && dist2(v.x, v.z, POIS.toitH.x, POIS.toitH.z) < 9), ti = vehicules.find((v) => v.key === 'titan' && !v.mort); // d'autres Écureuils sont garés sur les toits (TOITS.helis)
         if (!ec || !POIS.toitH || dist2(ec.x, ec.z, POIS.toitH.x, POIS.toitH.z) > 9 || !(ec.alt > 20)) ko.push('pas d’Écureuil sur le toit de la tour');
         if (!ti || !POIS.heliGrue || dist2(ti.x, ti.z, POIS.heliGrue.x, POIS.heliGrue.z) > 1) ko.push('pas d’hélico-grue au chantier');
         if (!ti) return { ko, info };
@@ -10102,6 +10102,166 @@ async function main() {
         v.mort = true; return { ko };
       });
       if (r.ko.length) fail('Dégradations : ' + r.ko.join(' | ')); else ok('Dégradations : pare-brise fendu, tôles enfoncées, capot soulevé, effacés à la réparation');
+    }
+
+    // -------------------------------------------------------------------
+    // Boutiques de style (14 octobre) : une vitrine par boutique de
+    // BOUTIQUES_DEF (lue), essayer ne coûte rien et ne reste pas, acheter
+    // porte la pièce, pièces dépareillées par-dessus la tenue, coiffure et
+    // tatouage visibles, sauvegarde.
+    // -------------------------------------------------------------------
+    console.log('\n--- Boutiques de style : vitrines, essayage, achat, pièces dépareillées, coiffeur, tatoueur ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu';
+        const sav = JSON.stringify({ s: META.style, g: META.garde }), arg0 = META.argent;
+        for (const k in BOUTIQUES_DEF) if (!BOUTIQUES.some((b) => b.id === k)) ko.push('boutique ' + k + ' absente');
+        for (const b of BOUTIQUES) for (const q of PORTES) if (dist2(b.x, b.z, q.x, q.z) < 36) ko.push(b.id + ' sur une porte');
+        const b = BOUTIQUES.find((q) => q.id === 'surf'); P.x = b.x; P.z = b.z; majAction();
+        if (!/ESSAYER/.test(el('btnAction').textContent)) ko.push('pas d’entrée en boutique'); el('btnAction')._fn();
+        if (!BOUT.ouvert) ko.push('la cabine ne s’ouvre pas');
+        META.argent = 1000; const hautAvant = META.style.haut;
+        actionBoutique('essayer', 'debard'); if (META.argent !== 1000 || META.style.haut !== hautAvant || P.h.torse.material.color.getHex() !== 0xffd23f) ko.push('essayer : payé, gardé ou pas visible');
+        fermerBoutique(); if (P.h.torse.material.color.getHex() === 0xffd23f && hautAvant !== 0xffd23f) ko.push('l’essai reste après la fermeture');
+        ouvrirBoutique(b); actionBoutique('acheter', 'shortT'); fermerBoutique();
+        if (META.argent !== 930 || !META.garde.shortT || META.style.bas !== 0x35c8e0 || P.h.jambeG.material.color.getHex() !== 0x35c8e0) ko.push('achat : ' + META.argent);
+        // dépareillé : un haut d'une boutique, un bas d'une autre, par-dessus la tenue
+        const c = BOUTIQUES.find((q) => q.id === 'chic'); P.x = c.x; P.z = c.z; ouvrirBoutique(c); META.argent = 2000; actionBoutique('acheter', 'costBleu'); fermerBoutique();
+        if (META.style.haut !== 0x1c2a4a || META.style.bas !== 0x35c8e0) ko.push('pièces dépareillées non gardées');
+        // barbier et tatoueur : la tête change
+        const n0 = P.h.g.children.length; const br = BOUTIQUES.find((q) => q.id === 'barbier'); P.x = br.x; P.z = br.z; ouvrirBoutique(br); actionBoutique('acheter', 'afro'); fermerBoutique();
+        if (META.style.coiffure !== 'afro' || !(P.h.g.children.length > n0)) ko.push('coiffure non visible');
+        info.push(BOUTIQUES.length + ' boutiques, essai gratuit, achat porté, dépareillé, coiffure');
+        sauveMeta(); const sv = JSON.parse(localStorage.getItem(SAVE_KEY) || '{}'); if (!sv.garde || !sv.garde.afro || !sv.style || sv.style.coiffure !== 'afro') ko.push('style non sauvegardé');
+        const o = JSON.parse(sav); META.style = o.s; META.garde = o.g; META.argent = arg0; sauveMeta(); construireJoueur();
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Boutiques de style : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
+      else ok('Boutiques de style : ' + r.info.join(' ; ') + ' ; sauvegardé');
+    }
+
+    // -------------------------------------------------------------------
+    // Manèges (14 octobre) : un tour de grand huit (gare, montée, chute,
+    // retour, sensations) et un tour de grande roue ; payants, vagues en
+    // trêve, le joueur revient à la gare.
+    // -------------------------------------------------------------------
+    console.log('\n--- Manèges : grand huit de la marina, grande roue ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
+        const H = MANEGES.huit; if (!H) return { ko: ['pas de grand huit'], info };
+        P.x = H.gare.x; P.z = H.gare.z; META.argent = 5; majAction(); el('btnAction')._fn(); if (MANEGES.actif) ko.push('tour sans l’argent');
+        META.argent = 100; majAction(); if (!/GRAND HUIT/.test(el('btnAction').textContent)) ko.push('pas de bouton à la gare'); el('btnAction')._fn();
+        if (!MANEGES.actif || META.argent !== 100 - MANEGES.prixTour || !treveActivite()) ko.push('le tour ne démarre pas');
+        let t = 0, yMax = 0, vMax = 0; const s0 = ETAT.score;
+        while (MANEGES.actif && t < 120) { majManeges(1 / 30); yMax = Math.max(yMax, P.y); vMax = Math.max(vMax, H.v); t += 1 / 30; }
+        if (MANEGES.actif) ko.push('le tour ne finit pas'); if (!(yMax > 18) || !(vMax > 15)) ko.push('ni montée ni chute (' + yMax.toFixed(0) + ' u, ' + vMax.toFixed(0) + ' u/s)');
+        if (Math.hypot(P.x - H.gare.x, P.z - H.gare.z) > 2 || !(ETAT.score > s0)) ko.push('retour à la gare / bonus');
+        info.push('grand huit : ' + t.toFixed(0) + ' s, ' + yMax.toFixed(0) + ' u de haut, ' + vMax.toFixed(0) + ' u/s');
+        // grande roue
+        P.x = JETEE.roue.position.x; P.z = JETEE.roue.position.z + 3.2; P.y = solPied(P.x, P.z); majAction(); if (!/GRANDE ROUE/.test(el('btnAction').textContent)) ko.push('pas de grande roue (' + el('btnAction').textContent + ')');
+        else { el('btnAction')._fn(); t = 0; yMax = 0; while (MANEGES.actif && t < 60) { majManeges(1 / 30); majJetee(1 / 30); yMax = Math.max(yMax, P.y); t += 1 / 30; } if (MANEGES.actif || !(yMax > 15)) ko.push('grande roue : ' + t.toFixed(0) + ' s, ' + yMax.toFixed(0) + ' u'); else info.push('grande roue : ' + t.toFixed(0) + ' s, ' + yMax.toFixed(0) + ' u de haut'); }
+        startRun(); P.hp = P.maxHp = 1e6;
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Manèges : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
+      else ok('Manèges : ' + r.info.join(' ; ') + ' ; payants, trêve des vagues, retour à la gare');
+    }
+
+    // -------------------------------------------------------------------
+    // Toits vivants (14 octobre) : piscines, bars, terrains, hélipads... Les
+    // coffres se fouillent une fois par vague ; les hélicos garés sur les
+    // hélipads tiennent sur le toit et redécollent. Listes lues à la source.
+    // -------------------------------------------------------------------
+    console.log('\n--- Toits vivants : coffres une fois par vague, hélicos posés sur les toits ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
+        if (!TOITS.coffres.length) ko.push('aucun coffre'); if (!TOITS.helis.length) ko.push('aucun hélipad occupé');
+        info.push(TOITS.n + ' toits aménagés, ' + TOITS.coffres.length + ' coffres, ' + TOITS.helis.length + ' hélicos');
+        // chaque coffre : bouton, butin, refus la même vague, de nouveau à la vague suivante
+        let nBon = 0;
+        for (const c of TOITS.coffres) {
+          P.x = c.x; P.z = c.z + 1.5; P.y = c.y; majAction(); const lab = el('btnAction').textContent;
+          if (!/FOUILLER LE COFFRE/.test(lab)) { ko.push('coffre (' + c.x.toFixed(0) + ',' + c.z.toFixed(0) + ') sans bouton : ' + lab); continue; }
+          const a0 = META.argent, g0 = P.grenades, m0 = JSON.stringify(P.mun); el('btnAction')._fn();
+          if (META.argent === a0 && P.grenades === g0 && JSON.stringify(P.mun) === m0) ko.push('coffre vide');
+          const a1 = META.argent; majAction(); if (!/déjà fouillé/.test(el('btnAction').textContent)) ko.push('pas de « déjà fouillé »');
+          fouillerCoffreToit(c); if (META.argent !== a1) ko.push('fouillé deux fois la même vague');
+          WAVES.n++; majAction(); if (!/FOUILLER LE COFFRE/.test(el('btnAction').textContent)) ko.push('pas de nouveau coffre à la vague suivante'); WAVES.n--;
+          nBon++;
+        }
+        // au sol, sous le toit : jamais de bouton
+        const c0 = TOITS.coffres[0]; if (c0) { P.y = 0; P.x = c0.x; P.z = c0.z; if (coffreToitProche()) ko.push('coffre fouillable depuis la rue'); }
+        // hélicos des toits : présents, posés à la hauteur du toit, ils y restent puis redécollent
+        const hs = TOITS.helis.map((hp) => ({ hp, v: vehicules.find((v) => v.def.air === 'helico' && Math.hypot(v.x - hp.x, v.z - hp.z) < 1) }));
+        for (const { hp, v } of hs) if (!v) ko.push('hélico absent du toit ' + hp.x.toFixed(0) + ',' + hp.z.toFixed(0));
+        for (let i = 0; i < 60; i++) majVehicules(1 / 30);
+        for (const { hp, v } of hs) if (v && (v.mort || Math.abs(v.alt - hp.h) > 0.6)) ko.push(v.key + ' ne tient pas sur le toit (alt ' + (v.alt || 0).toFixed(1) + ' / ' + hp.h.toFixed(1) + ')');
+        const h1 = hs.find((o) => o.v); if (h1) { const v = h1.v; P.x = v.x + 1.5; P.z = v.z; P.y = h1.hp.h; entrerVehicule(v);
+          INPUT.btn.sprint = true; for (let i = 0; i < 40; i++) { majJoueur(1 / 30, 1 / 30); majVehicules(1 / 30); } INPUT.btn.sprint = false;
+          if (v.mort || !v.vol || !(v.alt > h1.hp.h + 4)) ko.push('hélico du toit ne redécolle pas (alt ' + (v.alt || 0).toFixed(1) + ')'); else info.push(v.key + ' redécolle du toit à ' + v.alt.toFixed(0) + ' u');
+          sortirVehicule(true); }
+        startRun(); P.hp = P.maxHp = 1e6;
+        return { ko, info: info.concat(nBon + ' coffres vérifiés') };
+      });
+      if (r.ko.length) fail('Toits vivants : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
+      else ok('Toits vivants : ' + r.info.join(' ; '));
+    }
+
+    // -------------------------------------------------------------------
+    // Aéroport, suite (14 octobre) : véhicules de piste garés et pilotables,
+    // cargo au hangar du fret, citerne qui souffle les voisins, et le jeu de
+    // la tour de contrôle — gagnable en jouant bien, perdu en ne faisant
+    // rien ou en traînant ; prime une fois par vague. Listes lues à la source.
+    // -------------------------------------------------------------------
+    console.log('\n--- Aéroport : véhicules de piste, hangar du fret, tour de contrôle ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (!DECOR_V2) return { ko, info: ['décor V2 coupé'] };
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
+        for (const e of ennemis) e.mort = true;
+        // garés à chaque partie, à leur place
+        for (const q of AERO.piste4.concat(AERO.hangars)) { const v = vehicules.find((o) => o.key === q.cle && Math.hypot(o.x - q.x, o.z - q.z) < 1.5); if (!v) ko.push(q.cle + ' absent'); }
+        // chaque véhicule de piste se conduit
+        for (const q of AERO.piste4) { const v = vehicules.find((o) => o.key === q.cle && Math.hypot(o.x - q.x, o.z - q.z) < 1.5); if (!v) continue;
+          P.x = v.x + 2; P.z = v.z; P.y = 0; entrerVehicule(v); if (P.veh !== v) { ko.push(q.cle + ' : on ne monte pas'); continue; }
+          const x0 = v.x, z0 = v.z; INPUT.mz = -1; for (let i = 0; i < 60; i++) { majJoueur(1 / 30, 1 / 30); majVehicules(1 / 30); } INPUT.mz = 0;
+          const d = Math.hypot(v.x - x0, v.z - z0); if (!(d > 3) || v.mort) ko.push(q.cle + ' n’avance pas (' + d.toFixed(1) + ' u)'); sortirVehicule(true); }
+        // citerne : souffle à 12 u
+        const cit = vehicules.find((o) => o.key === 'citerne'); if (cit) { const vo = creerVehicule('citadine', cit.x + 7, cit.z, 0); const h0 = vo.hp; exploserVehicule(cit); if (!(vo.hp < h0 || vo.mort)) ko.push('la citerne ne souffle pas sa voisine'); }
+        // tour de contrôle : le bouton, la trêve
+        P.x = AERO.tour.x; P.z = AERO.tour.z; P.y = solPied(P.x, P.z); majAction(); if (!/TOUR DE CONTRÔLE/.test(el('btnAction').textContent)) ko.push('pas de bouton à la tour (' + el('btnAction').textContent + ')');
+        const joue = (strat) => { el('btnAction')._fn(); if (!TOUR.actif || !treveActivite()) ko.push('la partie ne démarre pas'); let t = 0, prochain = 0;
+          while (TOUR.actif && t < TOUR_DUREE + 5) { majTour(1 / 30); t += 1 / 30;
+            if (strat && !TOUR.piste && !TOUR.fin && t >= prochain) { let b = null; for (const a of TOUR.avions) if (a.etat !== 'final' && (!b || a.carbu < b.carbu)) b = a; if (b && tourAutoriser(b)) prochain = t + strat; } }
+          return { t, poses: TOUR.poses, fin: TOUR.fin, actif: TOUR.actif }; };
+        let a0 = META.argent; const bon = joue(0.2);
+        if (bon.fin !== 'gagne' || META.argent - a0 !== TOUR_PRIME) ko.push('bien joué : ' + JSON.stringify(bon) + ', prime ' + (META.argent - a0));
+        info.push('bien joué : ' + TOUR_OBJ + ' posés en ' + bon.t.toFixed(0) + ' s sur ' + TOUR_DUREE);
+        a0 = META.argent; const bis = joue(0.2); if (bis.fin !== 'gagne' || META.argent !== a0) ko.push('deuxième prime la même vague');
+        const rien = joue(null); if (rien.fin !== 'perdu' || rien.poses) ko.push('sans rien faire : ' + JSON.stringify(rien));
+        info.push('sans rien faire : crash à ' + rien.t.toFixed(0) + ' s');
+        const lent = joue(9); if (lent.fin !== 'perdu') ko.push('en traînant (9 s entre deux autorisations) : ' + JSON.stringify(lent)); else info.push('en traînant : perdu à ' + lent.t.toFixed(0) + ' s (' + lent.poses + ' posés)');
+        if (TOUR.actif) ko.push('le radar reste ouvert');
+        // pas de piste double : autoriser un deuxième avion pendant un atterrissage est refusé
+        el('btnAction')._fn(); for (let i = 0; i < 30 * 8; i++) majTour(1 / 30); const av = TOUR.avions.filter((a) => a.etat !== 'final');
+        if (av.length >= 2) { tourAutoriser(av[0]); if (tourAutoriser(av[1]) || TOUR.avions.filter((a) => a.etat === 'final').length !== 1) ko.push('deux avions sur la piste'); }
+        startRun(); if (TOUR.actif || TOUR.vague !== -1) ko.push('startRun ne remet pas la tour à zéro');
+        // aucune géométrie perdue d'une partie à l'autre (faune, véhicules, ennemis libérés)
+        const partie = () => { startRun(); ecran(null); ETAT.mode = 'jeu'; for (let i = 0; i < 30; i++) majCamera(1 / 30); renderer.render(scene, camera); }; // même point de vue à chaque fois
+        partie(); partie(); const g0 = renderer.info.memory.geometries;
+        for (let k = 0; k < 3; k++) partie();
+        const g1 = renderer.info.memory.geometries; if (g1 > g0 + 5) ko.push('géométries perdues : ' + g0 + ' → ' + g1 + ' en 3 parties'); else info.push('géométries stables (' + g0 + ' → ' + g1 + ')');
+        startRun(); P.hp = P.maxHp = 1e6;
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Aéroport, suite : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
+      else ok('Aéroport, suite : véhicules de piste et cargo garés et pilotables, citerne explosive ; ' + r.info.join(' ; '));
     }
 
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');
