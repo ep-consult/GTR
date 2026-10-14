@@ -10698,7 +10698,10 @@ async function main() {
         for (const e of ennemis) e.mort = true;
         const vs = HILLS.pads.filter((p) => p.villa);
         if (vs.length < 10) ko.push(vs.length + ' villas');
-        if (new Set(vs.map((p) => p.type)).size < 3 || new Set(vs.map((p) => p.style)).size < 4) ko.push('peu de variété');
+        if (new Set(vs.map((p) => p.type)).size < 3 || vs.filter((p) => p.type === 'grande').length < 2) ko.push('tailles : ' + vs.map((p) => p.type).join(','));
+        /* jamais deux villas pareilles (style + variante de couleurs), au moins dix styles, chacun avec sa maison */
+        if (new Set(vs.map((p) => p.style + p.var)).size < vs.length || new Set(vs.map((p) => p.style)).size < Math.min(10, VILLA_STYLES.length)) ko.push('villas en double : ' + vs.map((p) => p.style).join(','));
+        for (const s of VILLA_STYLES) if (typeof VILLA_MAISON[s] !== 'function' || !VILLA_DEF[s]) ko.push('style sans maison : ' + s);
         const hauts = BASSINS.filter((b) => b.y > 1); if (hauts.length < vs.length) ko.push(hauts.length + ' piscines en hauteur');
         info.push(vs.length + ' villas (' + [...new Set(vs.map((p) => p.style))].join(', ') + '), ' + hauts.length + ' piscines en hauteur');
         // on nage dans la piscine la plus haute ; on y plonge depuis 10 u sans se blesser
@@ -10714,7 +10717,7 @@ async function main() {
         /* une voiture qui roule dans la piscine d'une villa (posée sur la parcelle, côté jardin) s'y noie */
         const pv = vs.find((p) => BASSINS.some((q) => q.y > 1 && Math.abs(q.x - p.x) < p.hw && Math.abs(q.z - p.z) < p.hd)), bv = pv && BASSINS.find((q) => q.y > 1 && Math.abs(q.x - pv.x) < pv.hw && Math.abs(q.z - pv.z) < pv.hd);
         if (!bv) ko.push('pas de piscine dans une parcelle de villa');
-        else { const sg = bv.x > pv.x ? -1 : 1, v = creerVehicule('citadine', bv.x + sg * (bv.hw + 3.5), bv.z, sg > 0 ? -Math.PI / 2 : Math.PI / 2, null); v.h = solY(v.x, v.z); P.x = v.x; P.z = v.z; entrerVehicule(v);
+        else { const sg = bv.x > pv.x ? -1 : 1, v = creerVehicule('citadine', bv.x + sg * ((bv.hw || bv.r) + 3.5), bv.z, sg > 0 ? -Math.PI / 2 : Math.PI / 2, null); v.h = solY(v.x, v.z); P.x = v.x; P.z = v.z; entrerVehicule(v);
           for (let i = 0; i < 30 * 4 && !v.noye; i++) majVehiculePhys(v, 1 / 30, 1, 0, false);
           if (!v.noye) ko.push('la voiture ne tombe pas dans la piscine (' + v.x.toFixed(1) + ',' + v.z.toFixed(1) + ' h' + (v.h || 0).toFixed(1) + ', piscine ' + bv.x.toFixed(1) + ',' + bv.z.toFixed(1) + ')');
           else { for (let i = 0; i < 30 * 3; i++) majVehicules(1 / 30); if (!(v.h < bv.y && v.h > bv.y - 2)) ko.push('voiture noyée à ' + (v.h || 0).toFixed(1) + ' (eau à ' + bv.y.toFixed(1) + ')'); } }

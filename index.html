@@ -7227,25 +7227,26 @@ function calculerHills(){
 // Parcelles des villas : le long des lacets de Reyes Hills Drive (jamais dans une épingle), côté amont (au nord :
 // la façade regarde la route et la caméra), tailles et styles qui alternent ; une parcelle ne touche jamais une
 // route ni une autre parcelle. Déterministe (aucun tirage).
-const VILLA_TAILLES={petite:[9,6.5],moyenne:[12,7.5],grande:[15,8.5]}, VILLA_STYLES=['moderne','medit','contemporain','hacienda'];
+const VILLA_TAILLES={petite:[9,6.5],moyenne:[11.5,6.8],grande:[17,7.2]} /* demi-largeur, demi-profondeur : entre deux lacets (32 u), une grande propriété s'étire en largeur */, VILLA_STYLES=['californienne','toscane','hamptons','pueblo','provencal','regency','japonaise','tudor','colonial','brutaliste','hacienda','craftsman','moderne','balinaise','contemporain']; // tirés de 4 en 4 : quinze villas de suite toutes différentes
 function definirParcellesHills(){
-  const H=HILLS, D=H.routes.find((r)=>r.id==='drive'), types=[['grande','moyenne','petite'],['petite','moyenne'],['moyenne','petite']], W2=H.larg/2+H.trot;
-  /* une parcelle laisse la chaussée et son trottoir libres, et ne se pose jamais au pied d'un lacet bien plus haut ou plus bas (talus trop raide) */
-  const pente=(p,ph)=>{ for(const R of H.routes) for(let k=0;k<R.pts.length;k++){ const [x,z]=R.pts[k], dx=Math.max(0,Math.abs(x-p.x)-p.hw), dz=Math.max(0,Math.abs(z-p.z)-p.hd), d=Math.hypot(dx,dz);
-      if(d<W2+1) return false; if(d<W2+10&&Math.abs(R.h[k]-ph)>0.6+2.2*(d-W2)) return false; } return true; };
+  const H=HILLS, D=H.routes.find((r)=>r.id==='drive'), types=[['grande','moyenne','petite'],['petite'],['moyenne','petite'],['grande','moyenne','petite']], W2=H.larg/2+H.trot;
+  /* une parcelle laisse la chaussée et son trottoir libres ; taillée dans la pente (ou en terrasse), elle a un mur de
+     soutènement (murSoutenement) : jamais au ras d'un trottoir plus haut ou plus bas, jamais un mur démesuré */
+  const pente=(p,ph)=>{ for(const R of H.routes) for(let k=0;k<R.pts.length;k++){ const [x,z]=R.pts[k], dx=Math.max(0,Math.abs(x-p.x)-p.hw), dz=Math.max(0,Math.abs(z-p.z)-p.hd), d=Math.hypot(dx,dz), dh=Math.abs(R.h[k]-ph);
+      if(d<W2+1) return false; if(d<W2+2.5&&dh>0.8) return false; if(d<W2+10&&dh>0.8+3*(d-W2-1)) return false; } return true; };
   const libre=(p,ph)=>p.x-p.hw>H.x0+3&&p.x+p.hw<H.x1-3&&p.z-p.hd>H.z0+3&&p.z+p.hd<H.z1-3&&pente(p,ph)&&
-    !H.pads.some((q)=>Math.abs(q.x-p.x)<q.hw+p.hw+4&&Math.abs(q.z-p.z)<q.hd+p.hd+4);
+    !H.pads.some((q)=>Math.abs(q.x-p.x)<q.hw+p.hw+3&&Math.abs(q.z-p.z)<q.hd+p.hd+3);
   /* deux rangs : côté amont (f=1, au nord, la maison au fond regarde la route) et côté aval (f=-1, au sud, en
      surplomb du lacet du dessous : le jardin et la piscine donnent sur la vue) */
   let k=0; const dernier={'1':-1e9,'-1':-1e9};
   const essai=(i,f,type)=>{ if(i>=D.pts.length-8) return null; const [x,z]=D.pts[i], [xb,zb]=D.pts[i+1], dx=xb-x, dz=zb-z, l=Math.hypot(dx,dz)||1;
     if(Math.abs(dx/l)<0.93) return null; /* le long d'un lacet, jamais dans une épingle */ const [hw,hd]=VILLA_TAILLES[type];
-    const p={id:'villa'+k,x,z:z-f*(W2+1.6+hd),hw,hd,ax:x,az:z,dh:0.5,talus:6,type,style:VILLA_STYLES[(k*3+1)%4],villa:true,f};
+    const p={id:'villa'+k,x,z:z-f*(W2+1.6+hd),hw,hd,ax:x,az:z,dh:0.5,talus:2,type,style:VILLA_STYLES[(k*4)%VILLA_STYLES.length],var:Math.floor(k/VILLA_STYLES.length)%2,villa:true,f};
     return libre(p,D.h[i]+p.dh)?p:null; };
   for(let i=8;i<D.pts.length-8;i++) for(const f of [1,-1]){
-    if(i*D.ds-dernier[f]<26) continue;
-    const liste=types[k%3]; /* une villa sur trois est grande : si elle tient un peu plus loin, on l'y attend */
-    if(liste[0]==='grande'&&!essai(i,f,'grande')){ let plus=false; for(let j=i+1;j<=i+14&&!plus;j++) plus=!!essai(j,f,'grande'); if(plus) continue; }
+    if(i*D.ds-dernier[f]<18) continue;
+    const liste=types[k%4]; /* une villa sur deux tente d'être grande : si elle tient un peu plus loin, on l'y attend */
+    if(liste.length>1&&!essai(i,f,liste[0])){ let plus=false; for(let j=i+1;j<=i+14&&!plus;j++) plus=!!essai(j,f,liste[0]); if(plus) continue; } /* la taille voulue tient un peu plus loin : on l'y attend */
     for(const type of liste){ const p=essai(i,f,type); if(p){ H.pads.push(p); k++; dernier[f]=i*D.ds; break; } }
   }
 }
@@ -7369,55 +7370,241 @@ function majVieHills(dt){
   V.arroseT-=dt; if(V.arroseT<=0){ V.arroseT=0.12; for(const p of HILLS.pads){ if(!p.villa||dist2(P.x,P.z,p.x,p.z)>55*55) continue; const a=CASC_U.uT.value*2+p.x;
       spawnP(p.x-p.hw*0.6,p.h+0.4,p.z+(p.f||1)*p.hd*0.5,Math.cos(a)*3,aD(3,4.5),Math.sin(a)*3,0.8,0.12,0xd8f0ff,9); } }
 }
-// Une villa sur sa parcelle (façade au sud, vers la route et la caméra) : maison selon le style et la taille,
-// piscine où l'on nage (BASSINS, niveau propre), plage de dallage, transats, parasol, allée et portail, haies,
-// palmiers. Solides : les volumes de la maison seulement (on traverse un jardin).
+// Une villa sur sa parcelle (façade vers la route) : maison selon le STYLE (quinze styles, jamais deux pareils à
+// la suite : provençale, californienne des années 50, toscane, Hamptons, pueblo, Hollywood Regency, japonaise,
+// Tudor, néo-classique, brutaliste, hacienda, craftsman, moderne, balinaise, contemporaine) et la taille ; jardin,
+// piscine (rectangle, ronde ou couloir de nage), dallage et clôture assortis au style ; murs de soutènement en
+// pierre là où la parcelle est taillée dans la pente. Solides : les volumes de la maison seulement.
 function piscineHills(x,z,hw,hd,y){
   const eau=new THREE.Mesh(new THREE.BoxGeometry(hw*2,0.1,hd*2),new THREE.MeshLambertMaterial({color:0x3ab8d8,emissive:0x0a3a48,transparent:true,opacity:0.9})); eau.position.set(x,y-0.02,z); scene.add(eau); VIE_HILLS.eaux.push(eau.material); // au-dessus du dallage (sinon cachée dessous)
   mkBox(hw*2+0.8,0.14,0.4,mat(0xf2ede2),x,y+0.05,z-hd-0.2); mkBox(hw*2+0.8,0.14,0.4,mat(0xf2ede2),x,y+0.05,z+hd+0.2);
   mkBox(0.4,0.14,hd*2,mat(0xf2ede2),x-hw-0.2,y+0.05,z); mkBox(0.4,0.14,hd*2,mat(0xf2ede2),x+hw+0.2,y+0.05,z);
   BASSINS.push({x,z,hw,hd,y:y-0.07});
 }
+function piscineRonde(x,z,r,y){ // ronde : BASSINS {r}, margelle en anneau
+  const eau=new THREE.Mesh(new THREE.CylinderGeometry(r,r,0.1,28),new THREE.MeshLambertMaterial({color:0x3ab8d8,emissive:0x0a3a48,transparent:true,opacity:0.9})); eau.position.set(x,y-0.02,z); scene.add(eau); VIE_HILLS.eaux.push(eau.material);
+  const an=new THREE.Mesh(new THREE.RingGeometry(r,r+0.45,28),mat(0xf2ede2)); an.rotation.x=-Math.PI/2; an.position.set(x,y+0.08,z); scene.add(an);
+  BASSINS.push({x,z,r,y:y-0.07});
+}
+// toit sans base : 'croupe' (quatre pans, faîtage sur le grand côté), 'pignon' (faîtage le long de x), 'pignonZ'
+// (faîtage le long de z : le pignon regarde la rue). Géométrie non indexée, uv nuls (fusionnerDecor les exige).
+function geoToit(w,d,h,type){
+  const tourne=type==='pignonZ'||(type==='croupe'&&d>w), W=tourne?d:w, D=tourne?w:d, r=type==='croupe'?Math.max(0,(W-D)/2):W/2;
+  const c1=[-W/2,0,-D/2], c2=[W/2,0,-D/2], c3=[W/2,0,D/2], c4=[-W/2,0,D/2], A=[-r,h,0], Bf=[r,h,0];
+  const tris=[c4,c3,Bf, c4,Bf,A, c2,c1,A, c2,A,Bf, c3,c2,Bf, c1,c4,A], pos=[];
+  for(const v of tris) pos.push(v[0],v[1],v[2]);
+  const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setAttribute('uv',new THREE.Float32BufferAttribute(new Array(tris.length*2).fill(0),2));
+  g.computeVertexNormals(); if(tourne) g.rotateY(Math.PI/2); return g;
+}
+// les styles : couleurs (deux variantes), piscine, clôture, dallage, jardin (côtés, puis massif devant)
+const VILLA_DEF={
+  californienne:{murs:[0xe8e0d0,0xf0ead8],acc:[0x9a6a44,0x7a5434],toit:[0x4a4e54,0x5a5048],piscine:'rond',cloture:'muret',dalle:0xd8d0c0,jardin:['agave','palmier','graminees']},
+  provencal:{murs:[0xe6d2a8,0xdcc49c],acc:[0x8aa0d0,0x8aa878],toit:[0xc87a4a,0xb86a3e],piscine:'rect',cloture:'pierre',dalle:0xc8845a,jardin:['olivier','cypres','lavande']},
+  toscane:{murs:[0xe8c48a,0xf0d8a8],acc:[0x6a4a34,0x5a6a4a],toit:[0xc4643a,0xb45a34],piscine:'rect',cloture:'pierre',dalle:0xc8845a,jardin:['cypres','cypres','pots']},
+  hamptons:{murs:[0x8a9aa8,0xa8a090],acc:[0xf6f6f2,0xf6f6f2],toit:[0x5a5e66,0x4a4e56],piscine:'couloir',cloture:'piquets',dalle:0xb8b0a8,jardin:['hortensia','arbre','hortensia']},
+  pueblo:{murs:[0xc8865a,0xd89a6a],acc:[0x3ab8b0,0x2a8ab8],toit:[0xb8764e,0xc88a5e],piscine:'rond',cloture:'adobe',dalle:0xc8845a,jardin:['cactus','agave','desert']},
+  regency:{murs:[0xf2c4c8,0xbfe6d6],acc:[0xd8b04a,0xd8b04a],toit:[0xf6f6f2,0xf6f6f2],piscine:'rond',cloture:'grille',dalle:0xf2f0ea,jardin:['topiaire','palmier','fontaine']},
+  japonaise:{murs:[0x4a3424,0x5a3a28],acc:[0xf0ece0,0xe8e2d4],toit:[0x3a3e44,0x2e3238],piscine:'rect',cloture:'bambou',dalle:0x8a6a44,jardin:['erable','lanterne','zen']},
+  tudor:{murs:[0xf0e8d4,0xece0c8],acc:[0x3a2a1e,0x4a3424],toit:[0x3a3a40,0x6a4a3a],piscine:'rect',cloture:'pierre',dalle:0xb8b0a0,jardin:['rosier','arbre','haieBasse']},
+  colonial:{murs:[0xf6f4ee,0xf2e6c0],acc:[0x1c2026,0x2a3a2a],toit:[0x4a4e58,0x3e424a],piscine:'rect',cloture:'grille',dalle:0xe8e4dc,jardin:['cone','cone','fontaine']},
+  brutaliste:{murs:[0xa8a8a0,0x989890],acc:[0x6a6a64,0x5a5a56],toit:[0x8a8a84,0x7a7a74],piscine:'couloir',cloture:'beton',dalle:0xb0b0aa,jardin:['arbre','graminees','zen']},
+  hacienda:{murs:[0xf2ebe0,0xf0e0c8],acc:[0x9a6a44,0x8a5a3a],toit:[0xc4643a,0xb85a34],piscine:'rond',cloture:'muret',dalle:0xc8845a,jardin:['cactus','bougainvillier','fontaine']},
+  craftsman:{murs:[0x8a9a7a,0x9a7a5a],acc:[0xf2ece0,0xe8dcc4],toit:[0x5a3a2a,0x4a4038],piscine:'rect',cloture:'piquets',dalle:0xa88a64,jardin:['arbre','hortensia','fleurs']},
+  moderne:{murs:[0xf4f2ec,0xe8e4dc],acc:[0x8a6a44,0x6a6a6a],toit:[0xe8e6e0,0xdcdad4],piscine:'couloir',cloture:'muret',dalle:0xe8e4dc,jardin:['palmier','graminees','zen']},
+  balinaise:{murs:[0xf0e6d0,0xe8dcc0],acc:[0x8a5a34,0x7a4a2a],toit:[0xc8a860,0xb89850],piscine:'rect',cloture:'bambou',dalle:0x9a6a40,jardin:['bananier','palmier','tropical']},
+  contemporain:{murs:[0x3a3e46,0x5a4a3e],acc:[0xf4f2ec,0xd8d4cc],toit:[0x2a2d34,0x3a3a3a],piscine:'rect',cloture:'beton',dalle:0xd8d4cc,jardin:['graminees','palmier','zen']},
+};
+// la maison, par style. c : B (boîte), Cy, Co, Sp, Toit, S (solide), dimensions (repère de la parcelle, +z = la rue)
+const VILLA_MAISON={
+  californienne(c){ const {B,Cy,M,A,R,V,hw,hd,hz,H1,fz}=c, h=H1*0.95; // années 50 : de plain-pied, toit papillon, bardage, baies
+    B(hw*2,h,hd*2,M,0,h/2,hz); B(hw*0.7,h,0.08,A,-hw*0.55,h/2,fz+0.04); B(hw*1.1,h*0.85,0.06,V,hw*0.35,h*0.45,fz+0.03);
+    for(const s of [-1,1]){ const t=B(hw+0.6,0.18,hd*2+1.6,R,s*(hw/2+0.3),h+0.32,hz); t.rotation.z=-s*0.12; }
+    B(1,h+1.8,1,c.mat(0x8a8478),-hw*0.8,(h+1.8)/2,hz-hd*0.3); c.S(0,hz,hw*1.05,hd*1.1,h+0.6);
+    if(c.grand||c.moyen){ const ax=Math.min(hw+2.2,c.p.hw-2.4); B(4.2,0.15,5,R,ax,h-0.1,hz+hd*0.2); for(const dz of [-2.2,2.2]) Cy(0.1,h-0.1,c.mat(0x2a2d34),ax+1.9,(h-0.1)/2,hz+hd*0.2+dz,6); } },
+  provencal(c){ const {B,Cy,Sp,M,A,R,V,hw,hd,hz,H1,et,fz}=c; // mas : pierre, toit à quatre pans bas, volets colorés, pergola et treille
+    B(hw*2,H1*et,hd*2,M,0,H1*et/2,hz); c.Toit(hw*2+0.9,hd*2+0.9,1.5,R,0,H1*et,hz,'croupe');
+    for(let e=0;e<et;e++) for(const k of [-0.6,0,0.6]){ B(1,1.4,0.06,V,k*hw,1.5+e*H1,fz+0.03); for(const s of [-1,1]) B(0.5,1.4,0.08,A,k*hw+s*0.78,1.5+e*H1,fz+0.05); }
+    const gx=-Math.sign(c.xa)*hw*0.35; for(const dx of [-1.8,1.8]) for(const dz of [0.3,2.4]) Cy(0.1,2.6,c.mat(0x6a5a44),gx+dx,1.3,fz+dz,6);
+    for(let k=0;k<6;k++) B(0.12,0.12,2.6,c.mat(0x6a5a44),gx-1.8+k*0.72,2.65,fz+1.35); for(const dx of [-1.2,0,1.2]) Sp(0.75,c.mat(0x5a8a3a),gx+dx,2.8,fz+1.4,0.45);
+    c.S(0,hz,hw*1.05,hd*1.1,H1*et+1.5); },
+  toscane(c){ const {B,M,A,R,V,hw,hd,hz,H1,et,fz}=c; // villa toscane : enduit ocre, tuiles, loggia, tour
+    B(hw*2,H1*et,hd*2,M,0,H1*et/2,hz); c.Toit(hw*2+0.8,hd*2+0.8,1.4,R,0,H1*et,hz,'croupe');
+    for(let e=0;e<et;e++) for(const k of [-0.65,-0.22,0.22,0.65]) B(0.9,1.9,0.06,V,k*hw,1.4+e*H1,fz+0.03);
+    for(const k of [-0.45,-0.15,0.15,0.45]) B(0.35,H1-0.4,0.35,A,k*hw*2,(H1-0.4)/2,fz+1.2); B(hw*1.3,0.3,1.6,M,0,H1-0.25,fz+0.8);
+    if(c.grand||c.moyen){ const tx=hw*0.62, th=H1*(et+1); B(hw*0.55,th,hd*0.9,M,tx,th/2,hz-hd*0.1); c.Toit(hw*0.55+0.6,hd*0.9+0.6,1.3,R,tx,th,hz-hd*0.1,'croupe'); B(0.8,1.4,0.06,V,tx,th-1.4,hz+hd*0.35+0.03); c.S(tx,hz-hd*0.1,hw*0.3,hd*0.5,th+1.3); }
+    c.S(0,hz,hw*1.05,hd*1.1,H1*et+1.4); },
+  hamptons(c){ const {B,M,A,R,V,hw,hd,hz,H1,et,fz}=c; // Hamptons : bardeaux gris, boiseries blanches, lucarnes, galerie
+    B(hw*2,H1*et,hd*2,M,0,H1*et/2,hz); c.Toit(hw*2+0.6,hd*2+0.8,2.4,R,0,H1*et,hz,'pignon');
+    for(const s of [-1,1]) B(0.25,H1*et,0.25,A,s*hw,H1*et/2,fz); B(hw*2+0.2,0.25,0.12,A,0,H1*et,fz+0.05);
+    for(let e=0;e<et;e++) for(const k of [-0.6,0,0.6]){ B(1.1,1.4,0.06,V,k*hw,1.5+e*H1,fz+0.03); B(1.35,1.65,0.04,A,k*hw,1.5+e*H1,fz+0.015); }
+    for(const k of [-0.5,0.5]){ B(1.4,1.1,1.4,A,k*hw,H1*et+0.75,hz+hd*0.45); c.Toit(1.7,1.7,0.8,R,k*hw,H1*et+1.3,hz+hd*0.45,'pignonZ'); B(0.8,0.7,0.06,V,k*hw,H1*et+0.8,hz+hd*0.45+0.73); }
+    B(hw*1.6,0.25,2,c.mat(0xb8b0a8),0,0.12,fz+1); for(const k of [-0.75,-0.25,0.25,0.75]) B(0.18,H1-0.3,0.18,A,k*hw*1.6,(H1-0.3)/2,fz+1.85); B(hw*1.7,0.2,2.2,A,0,H1-0.2,fz+1);
+    c.S(0,hz,hw*1.05,hd*1.1,H1*et+2.4); },
+  pueblo(c){ const {B,Cy,M,A,V,hw,hd,hz,H1,et,fz}=c; // pueblo : adobe à gradins, toits plats, vigas qui dépassent, menuiseries turquoise
+    B(hw*2,H1,hd*2,M,0,H1/2,hz); B(hw*2+0.15,0.35,hd*2+0.15,M,0,H1+0.1,hz);
+    for(let k=0;k<7;k++){ const v=Cy(0.11,1.2,c.mat(0x6a4a2a),-hw*0.85+k*hw*0.28,H1-0.45,fz+0.4,6); v.rotation.x=Math.PI/2; }
+    for(const k of [-0.55,0.55]){ B(1.1,1.3,0.06,V,k*hw,1.4,fz+0.03); B(1.35,1.55,0.04,A,k*hw,1.4,fz+0.015); } B(1.1,2.2,0.08,A,0,1.1,fz+0.04);
+    if(et>1){ B(hw*1.1,H1,hd*1.1,M,-hw*0.35,H1*1.5,hz-hd*0.3); B(hw*1.1+0.15,0.35,hd*1.1+0.15,M,-hw*0.35,H1*2+0.1,hz-hd*0.3); B(1,1.2,0.06,V,-hw*0.35,H1*1.5,hz-hd*0.3+hd*0.55+0.03);
+      for(let k=0;k<6;k++) B(0.08,0.08,1.6,c.mat(0x6a4a2a),hw*0.25+(k%2)*0.4,H1+0.3+k*0.45,hz-hd*0.85); }
+    c.S(0,hz,hw*1.05,hd*1.1,H1*et+0.3); },
+  regency(c){ const {B,Cy,M,A,R,V,hw,hd,hz,H1,et,fz}=c, bl=c.mat(0xf6f6f2), h=H1*et; // Hollywood Regency : pastel, angles arrondis, corniche blanche, or
+    B(hw*2-1.8,h,hd*2,M,0,h/2,hz); B(hw*2,h,hd*2-1.8,M,0,h/2,hz); for(const sx of [-1,1]) for(const sz of [-1,1]) Cy(0.9,h,M,sx*(hw-0.9),h/2,hz+sz*(hd-0.9),16);
+    B(hw*2+0.5,0.4,hd*2+0.5,R,0,h+0.15,hz); for(let e=0;e<et;e++) B(hw*2+0.1,0.15,hd*2+0.1,bl,0,(e+1)*H1-0.2,hz);
+    for(let e=0;e<et;e++) for(const k of [-0.55,0.55]){ B(1.3,1.9,0.06,V,k*hw,1.5+e*H1,fz+0.03); B(1.6,0.08,0.9,A,k*hw,2.6+e*H1,fz+0.45); }
+    B(1.4,2.5,0.08,c.mat(0x1c2026),0,1.25,fz+0.04); B(1.8,2.9,0.06,A,0,1.45,fz+0.02);
+    c.S(0,hz,hw*1.05,hd*1.1,h+0.4); },
+  japonaise(c){ const {B,M,A,R,V,hw,hd,hz,H1,et,fz}=c, h=H1*0.9; // maison japonaise : ossature sombre, panneaux clairs, grands avant-toits, engawa
+    B(hw*2,h,hd*2,A,0,h/2,hz); for(let k=0;k<=Math.round(hw);k++){ const kx=-hw+k*(hw*2/Math.round(hw)); B(0.22,h,0.22,M,kx,h/2,fz+0.02); } B(hw*2,0.22,0.22,M,0,h-0.1,fz+0.02);
+    B(hw*1.2,h*0.75,0.05,V,0,h*0.42,fz+0.04);
+    c.Toit(hw*2+2.6,hd*2+2.6,1.3,R,0,h,hz,'croupe'); B(hw*2,0.3,1.4,c.mat(0x8a6a44),0,0.15,fz+0.7);
+    if(et>1){ B(hw*1.1,h,hd*1.2,A,-hw*0.2,h*1.5+0.6,hz-hd*0.2); c.Toit(hw*1.1+1.8,hd*1.2+1.8,1.1,R,-hw*0.2,h*2+0.6,hz-hd*0.2,'croupe'); }
+    c.S(0,hz,hw*1.05,hd*1.1,h*et+1.3); },
+  tudor(c){ const {B,M,A,R,V,hw,hd,hz,H1,et,fz}=c, h=H1*et; // Tudor : colombages sombres, pignons raides, cheminée de brique
+    B(hw*2,h,hd*2,M,0,h/2,hz); c.Toit(hw*2+0.6,hd*2+0.6,3.2,R,0,h,hz,'pignon');
+    for(let k=0;k<=6;k++) B(0.2,h,0.06,A,-hw+k*hw/3,h/2,fz+0.04); for(let e=0;e<=et;e++) B(hw*2,0.2,0.06,A,0,Math.min(h-0.1,e*H1+0.1),fz+0.04);
+    for(let e=0;e<et;e++) for(const k of [-0.5,0.5]) B(1.2,1.2,0.07,V,k*hw,1.5+e*H1,fz+0.05);
+    c.Toit(hw*0.9,hd*1.2,3.2,R,hw*0.45,h,hz+hd*0.4,'pignonZ'); B(0.9,h+3.8,0.9,c.mat(0x9a4a3a),-hw*0.7,(h+3.8)/2,hz-hd*0.2);
+    c.S(0,hz,hw*1.05,hd*1.1,h+3.2); },
+  colonial(c){ const {B,Cy,M,A,R,V,hw,hd,hz,H1,et,fz}=c, bl=c.mat(0xf6f6f2), h=H1*et; // néo-classique : symétrie, portique à colonnes, fronton, toit d'ardoise
+    B(hw*2,h,hd*2,M,0,h/2,hz); c.Toit(hw*2+0.6,hd*2+0.6,2,R,0,h,hz,'croupe');
+    for(let e=0;e<et;e++) for(const k of [-0.7,-0.35,0.35,0.7]){ B(0.9,1.5,0.06,V,k*hw,1.5+e*H1,fz+0.03); for(const s of [-1,1]) B(0.4,1.5,0.07,A,k*hw+s*0.68,1.5+e*H1,fz+0.04); }
+    for(const k of [-1.8,-0.6,0.6,1.8]) Cy(0.24,h,bl,k,h/2,fz+1.6,10); B(4.8,0.35,2.2,bl,0,h+0.15,fz+1.0); c.Toit(4.8,2.2,1.2,bl,0,h+0.32,fz+1.0,'pignonZ'); B(4.6,0.2,2.2,bl,0,0.1,fz+1.0);
+    c.S(0,hz,hw*1.05,hd*1.1,h+2); },
+  brutaliste(c){ const {B,M,A,V,hw,hd,hz,H1,et,fz}=c; // brutaliste : dalles de béton en porte-à-faux, longues fentes vitrées
+    B(hw*2,H1,hd*1.8,M,0,H1/2,hz-hd*0.1); B(hw*1.9,H1*0.6,0.05,V,0,H1*0.5,hz+hd*0.8+0.03);
+    if(et>1){ B(hw*1.7,H1*0.95,hd*2.2,M,hw*0.3,H1*1.48,hz+hd*0.1); B(hw*1.6,0.5,0.05,V,hw*0.3,H1*1.5,hz+hd*1.2+0.03); B(hw*1.7+0.3,0.3,hd*2.2+0.3,A,hw*0.3,H1*1.95+0.15,hz+hd*0.1); }
+    else B(hw*2+0.3,0.3,hd*1.8+0.3,A,0,H1+0.15,hz-hd*0.1);
+    B(1.4,H1*et+0.8,1.4,A,-hw*0.85,(H1*et+0.8)/2,hz-hd*0.4); c.S(0,hz,hw*1.05,hd*1.1,H1*et+0.3); },
+  hacienda(c){ const {B,M,A,R,V,hw,hd,hz,H1,fz}=c; // hacienda : de plain-pied, en L, tuiles basses, poutres, arcades
+    B(hw*2,H1,hd*2,M,0,H1/2,hz); c.Toit(hw*2+0.8,hd*2+0.8,1.3,R,0,H1,hz,'croupe');
+    const ax=Math.sign(c.xa)*hw*0.7; B(hw*0.8,H1,hd*1.8,M,ax,H1/2,hz+hd*0.7); c.Toit(hw*0.8+0.7,hd*1.8+0.7,1.1,R,ax,H1,hz+hd*0.7,'croupe');
+    for(let k=0;k<5;k++) B(0.2,0.2,1.8,A,-hw*0.8+k*hw*0.4,H1-0.3,fz+0.9); for(const k of [-0.5,0.5]) B(1.4,1.6,0.08,V,k*hw,1.4,fz+0.04);
+    for(const k of [-0.7,-0.1]) B(0.4,H1-0.3,0.4,M,k*hw*Math.sign(-c.xa||1),(H1-0.3)/2,fz+1.7);
+    c.S(0,hz,hw*1.05,hd*1.1,H1+1.3); c.S(ax,hz+hd*0.7,hw*0.42,hd*0.9,H1+1.1); },
+  craftsman(c){ const {B,Cy,M,A,R,V,hw,hd,hz,H1,et,fz}=c, h=H1*et; // craftsman : grand porche, colonnes sur socles de pierre, avant-toits
+    B(hw*2,h,hd*2,M,0,h/2,hz); c.Toit(hw*2+1.4,hd*2+1.4,1.8,R,0,h,hz,'pignon');
+    for(let e=0;e<et;e++) for(const k of [-0.6,0.6]){ B(1.3,1.3,0.06,V,k*hw,1.5+e*H1,fz+0.03); B(1.5,1.5,0.04,A,k*hw,1.5+e*H1,fz+0.015); }
+    const pw=hw*1.2; B(pw,0.35,2.4,c.mat(0x8a8478),0,0.17,fz+1.2);
+    for(const s of [-1,1]){ B(0.7,1,0.7,c.mat(0x8a8478),s*(pw/2-0.4),0.85,fz+2.1); const col=c.ajout(new THREE.CylinderGeometry(0.16,0.28,H1-1.4,6),A,s*(pw/2-0.4),1.35+(H1-1.4)/2,fz+2.1); }
+    c.Toit(pw+0.6,2.8,0.9,R,0,H1-0.05,fz+1.2,'pignonZ');
+    c.S(0,hz,hw*1.05,hd*1.1,h+1.8); },
+  moderne(c){ const {B,M,A,R,V,hw,hd,hz,H1,et,fz}=c; // moderne : cubes blancs, toits-terrasses, bardage bois, porte-à-faux
+    B(hw*2,H1,hd*2,M,0,H1/2,hz); B(hw*2+0.6,0.25,hd*2+0.6,R,0,H1+0.12,hz); B(hw*1.6,0.9,0.06,V,0,H1*0.55,fz+0.03); B(0.4,H1,hd*2,A,hw-0.2,H1/2,hz);
+    if(et>1){ B(hw*1.3,H1,hd*1.6,M,-hw*0.25,H1*1.5,hz+hd*0.35); B(hw*1.3+0.6,0.25,hd*1.6+0.6,R,-hw*0.25,H1*2+0.12,hz+hd*0.35); B(hw*1.1,1.6,0.06,V,-hw*0.25,H1*1.5,hz+hd*1.15+0.03); }
+    c.S(0,hz,hw*1.05,hd*1.1,H1*et+0.3); },
+  balinaise(c){ const {B,Cy,M,A,R,V,hw,hd,hz,H1,fz}=c; // balinaise : poteaux de teck, grand toit de chaume, pavillon (bale) au bord de la piscine
+    B(hw*1.8,H1,hd*1.8,M,0,H1/2,hz); for(const sx of [-1,1]) for(const sz of [-1,1]) Cy(0.18,H1,A,sx*hw,H1/2,hz+sz*hd,6);
+    B(hw*1.4,H1*0.8,0.05,V,0,H1*0.45,hz+hd*0.9+0.03); c.Toit(hw*2+1.8,hd*2+1.8,3.2,R,0,H1,hz,'croupe');
+    const bx=c.px-(Math.sign(c.xa)||1)*(c.pw+1.6), bz=c.pz; /* pavillon (bale) du côté extérieur de la piscine */ if(Math.abs(bx)+1.2<c.p.hw){ for(const sx of [-1,1]) for(const sz of [-1,1]) Cy(0.1,2.4,A,bx+sx*1,1.2,bz+sz*1,6); B(2.1,0.3,2.1,A,bx,0.15,bz); c.Toit(3,3,1.6,R,bx,2.4,bz,'croupe'); }
+    c.S(0,hz,hw*1.05,hd*1.1,H1+3.2); },
+  contemporain(c){ const {B,M,A,R,V,hw,hd,hz,H1,et,fz}=c; // contemporain : volumes sombres, grandes baies, garde-corps de verre
+    B(hw*2,H1,hd*2,M,0,H1/2,hz); B(hw*1.9,2.2,0.06,V,0,H1*0.5,fz+0.03); B(hw*2+0.2,0.2,hd*2+0.2,R,0,H1+0.1,hz);
+    if(et>1){ B(hw*1.4,H1,hd*2.2,A,hw*0.3,H1*1.5,hz+hd*0.1); B(hw*1.2,2.2,0.06,V,hw*0.3,H1*1.5,hz+hd*1.2+0.03); for(let k=0;k<6;k++) B(0.06,0.9,0.06,c.mat(0xd8dce4),-hw*0.9+k*0.5,H1+0.45,fz); }
+    if(c.grand) B(hw*0.9,H1*0.8,hd*1.4,V,-hw*1.3,H1*0.4,hz+hd*0.2);
+    c.S(0,hz,hw*(c.grand?1.6:1.05),hd*1.1,H1*et+0.3); },
+};
+// éléments de jardin, posés au sol de la parcelle
+const VILLA_JARDIN={
+  palmier(c,bx,bz){ const n0=scene.children.length; mkPalmier(c.x+bx,c.z+c.f*bz); for(let k=n0;k<scene.children.length;k++) scene.children[k].position.y=c.y; },
+  cypres(c,bx,bz){ c.Cy(0.12,0.8,c.mat(0x5a4028),bx,0.4,bz,5); c.Co(0.55,4.6,c.mat(0x2a4a2a),bx,3,bz,7); },
+  olivier(c,bx,bz){ c.Cy(0.16,1.3,c.mat(0x6a5a44),bx,0.65,bz,6); c.Sp(1.4,c.mat(0x8a9a6a),bx,2,bz,0.65); c.Sp(0.9,c.mat(0x7a8a5e),bx+0.6,2.4,bz-0.3,0.7); },
+  lavande(c,bx,bz,l){ for(let k=0;k<4;k++) c.B(0.5,0.45,l,c.mat(k%2?0x8a6ac8:0x7a5ab8),bx-1.2+k*0.8,0.22,bz); },
+  agave(c,bx,bz){ for(let k=0;k<5;k++){ const a=k*1.26, o=c.Co(0.1,1,c.mat(0x7aa08a),bx+Math.sin(a)*0.25,0.4,bz+Math.cos(a)*0.25,4); o.rotation.z=Math.sin(a)*0.5; o.rotation.x=Math.cos(a)*0.5*c.f; } },
+  graminees(c,bx,bz){ for(let k=0;k<6;k++) c.Co(0.22,0.9+(k%3)*0.2,c.mat(k%2?0xb8c47a:0x9aac5e),bx+(k%3-1)*0.6,0.45,bz+(k<3?-0.4:0.4),5); },
+  cactus(c,bx,bz){ const m=c.mat(0x4a8a4a); c.Cy(0.26,2.4,m,bx,1.2,bz,8); c.Cy(0.16,0.9,m,bx+0.5,1.6,bz,6); c.B(0.5,0.18,0.18,m,bx+0.28,1.15,bz); c.Cy(0.14,0.7,m,bx-0.45,1.3,bz,6); c.B(0.4,0.16,0.16,m,bx-0.25,1.0,bz); },
+  topiaire(c,bx,bz){ c.Cy(0.35,0.5,c.mat(0xf2f0ea),bx,0.25,bz,8); c.Sp(0.65,c.mat(0x2f6a2a),bx,1.15,bz); },
+  cone(c,bx,bz){ c.Cy(0.35,0.5,c.mat(0xf2f0ea),bx,0.25,bz,8); c.Co(0.6,2.2,c.mat(0x2a5a2a),bx,1.6,bz,8); },
+  erable(c,bx,bz){ c.Cy(0.14,1.4,c.mat(0x4a3424),bx,0.7,bz,6); c.Sp(1.3,c.mat(0xc0402a),bx,2.1,bz,0.6); c.Sp(0.8,c.mat(0xd85a34),bx-0.6,2.4,bz+0.3,0.6); },
+  lanterne(c,bx,bz){ const m=c.mat(0x9a968a); c.B(0.5,0.9,0.5,m,bx,0.45,bz); c.B(0.8,0.5,0.8,m,bx,1.1,bz); c.Co(0.65,0.45,m,bx,1.55,bz,4); },
+  zen(c,bx,bz,l){ c.B(Math.min(3.2,l+1),0.05,l,c.mat(0xe0dcd0),bx,0.04,bz); for(const [dx,dz,r] of [[-0.6,-0.3,0.35],[0.5,0.4,0.25],[0.2,-0.6,0.18]]) c.Sp(r,c.mat(0x6a6a64),bx+dx,0.1,bz+dz,0.6); },
+  pots(c,bx,bz,l){ for(let k=0;k<3;k++){ c.Cy(0.32,0.6,c.mat(0xc8845a),bx-1+k,0.3,bz,8); c.Sp(0.4,c.mat(0x4a8a3a),bx-1+k,0.8,bz); } },
+  hortensia(c,bx,bz){ for(let k=0;k<3;k++) c.Sp(0.5,c.mat(k===1?0xd890c8:0x7a9ae0),bx+(k-1)*0.8,0.45,bz,0.8); },
+  arbre(c,bx,bz){ c.Cy(0.16,1.6,c.mat(0x5a4028),bx,0.8,bz,6); c.Sp(1.5,c.mat(0x3d7a34),bx,2.6,bz,0.85); },
+  rosier(c,bx,bz){ c.Sp(0.55,c.mat(0x3a6a2a),bx,0.5,bz); for(let k=0;k<3;k++) c.Sp(0.16,c.mat(0xc83a4a),bx+(k-1)*0.3,0.9,bz+0.2); },
+  haieBasse(c,bx,bz,l){ c.B(3,0.6,0.8,c.mat(0x2f6a2a),bx,0.3,bz-l*0.25); c.B(3,0.6,0.8,c.mat(0x2f6a2a),bx,0.3,bz+l*0.25); },
+  fontaine(c,bx,bz){ c.Cy(1.1,0.5,c.mat(0xe8e4dc),bx,0.25,bz,16); c.Cy(0.95,0.06,c.mat(0x5ab8d8),bx,0.5,bz,16); c.Cy(0.18,1.2,c.mat(0xe8e4dc),bx,0.9,bz,8); c.Cy(0.45,0.15,c.mat(0xe8e4dc),bx,1.5,bz,10); },
+  bougainvillier(c,bx,bz){ c.Sp(0.9,c.mat(0x3a6a2a),bx,1.2,bz,1.2); for(let k=0;k<4;k++) c.Sp(0.32,c.mat(0xd83a9a),bx+Math.sin(k*1.6)*0.6,1.2+(k%2)*0.6,bz+Math.cos(k*1.6)*0.5); },
+  desert(c,bx,bz,l){ c.B(3,0.04,l,c.mat(0xd8b888),bx,0.04,bz); for(const dx of [-0.8,0.7]) c.Sp(0.3,c.mat(0x9a7a5a),bx+dx,0.1,bz+dx*0.3,0.6); VILLA_JARDIN.agave(c,bx,bz); },
+  bananier(c,bx,bz){ c.Cy(0.18,2.2,c.mat(0x7a8a4a),bx,1.1,bz,6); for(let k=0;k<5;k++){ const f=c.B(0.5,0.05,2,c.mat(0x4aa03a),bx+Math.sin(k*1.25)*0.8,2.3,bz+Math.cos(k*1.25)*0.8); f.rotation.y=k*1.25; f.rotation.x=0.5; } },
+  tropical(c,bx,bz){ VILLA_JARDIN.bananier(c,bx-0.8,bz); for(let k=0;k<3;k++) c.Sp(0.45,c.mat(k===1?0xff7a3a:0x3a9a3a),bx+0.7+k*0.4,0.4,bz+(k-1)*0.5,0.7); },
+  fleurs(c,bx,bz,l){ c.B(3,0.25,l,c.mat(0x5a4028),bx,0.12,bz); for(let k=0;k<8;k++) c.Sp(0.22,c.mat([0xff5a6a,0xffd23f,0xf2f4f8,0xb87ae0][k%4]),bx-1.2+(k%4)*0.8,0.35,bz+(k<4?-l*0.2:l*0.2)); },
+};
 function mkVillaHills(p){
-  const y=p.h, x=p.x, z=p.z, f=p.f||1, st=p.style, T=VILLA_TAILLES[p.type], grand=p.type==='grande', moyen=p.type==='moyenne'; // f : -1 = parcelle en aval (tout en miroir)
-  const murs={moderne:0xf4f2ec,medit:0xf0dcb8,contemporain:0x3a3e46,hacienda:0xf2ebe0}[st], acc={moderne:0x8a6a44,medit:0xc4643a,contemporain:0xf4f2ec,hacienda:0x9a6a44}[st];
-  const mM=mat(murs), mA=mat(acc), vitre=mat(0x1a2a3a), dalle=mat(0xd8d0c0), haie=mat(0x2f6a2a), tuile=mat(0xc4643a);
+  const y=p.h, x=p.x, z=p.z, f=p.f||1, st=p.style, D=VILLA_DEF[st], v=p.var||0, T=VILLA_TAILLES[p.type], grand=p.type==='grande', moyen=p.type==='moyenne'; // f : -1 = parcelle en aval (tout en miroir)
+  const mM=mat(D.murs[v]), mA=mat(D.acc[v]), mR=mat(D.toit[v]), vitre=mat(0x1a2a3a), dalle=mat(D.dalle), haie=mat(0x2f6a2a);
   const B=(w,h,d,m,bx,by,bz)=>mkBox(w,h,d,m,x+bx,y+by,z+f*bz);
-  /* toit en pyramide calé sur les murs (la rotation est cuite dans la géométrie : tournée APRÈS l'échelle, elle
-     donnait un losange de travers) ; demi-largeurs a et b */
-  const toit=(a,b,h,bx,by,bz)=>{ const g=new THREE.ConeGeometry(1,h,4); g.rotateY(Math.PI/4); const m=new THREE.Mesh(g,tuile); m.scale.set(a*1.414,1,b*1.414); m.position.set(x+bx,y+by,z+f*bz); scene.add(m); return m; };
-  // dallage de la parcelle (pelouse autour) et haies sur trois côtés, muret et portail devant
-  B(p.hw*2-1,0.06,p.hd*2-1,mat(0x6aa046),0,0.03,0);
-  for(const s of [-1,1]) B(0.8,1.1,p.hd*2,haie,s*(p.hw-0.4),0.55,0); B(p.hw*2,1.1,0.8,haie,0,0.55,-p.hd+0.4);
+  const ajout=(g,m,bx,by,bz)=>{ const o=new THREE.Mesh(g,m); o.position.set(x+bx,y+by,z+f*bz); scene.add(o); return o; };
   const xa=p.hw*0.55*(p.id.charCodeAt(5)%2?1:-1); // allée : à gauche ou à droite
-  B(3.6,0.08,p.hd+2,dalle,xa,0.05,p.hd*0.5);
-  for(const s of [-1,1]) B(0.6,1.6,0.6,mat(0xe8e0d0),xa+s*2.3,0.8,p.hd-0.2);
-  B(p.hw*2-1,0.7,0.35,mat(0xe8e0d0),0,0.35,p.hd-0.2).visible=true;
-  // la maison (au fond de la parcelle)
-  const hw=T[0]*0.72, hd=T[1]*0.42, hz=-p.hd+hd+0.8, et=moyen||grand?2:1, H1=3.4; // au fond : la piscine tient devant, jamais dessous
-  if(st==='moderne'){ B(hw*2,H1,hd*2,mM,0,H1/2,hz); B(hw*2+0.6,0.25,hd*2+0.6,mat(0xe8e6e0),0,H1+0.12,hz); B(hw*1.6,0.9,0.06,vitre,0,H1*0.55,hz+hd+0.03); B(0.4,H1,hd*2,mA,hw-0.2,H1/2,hz);
-    if(et>1){ B(hw*1.3,H1,hd*1.6,mM,-hw*0.25,H1*1.5,hz+hd*0.35); B(hw*1.3+0.6,0.25,hd*1.6+0.6,mat(0xe8e6e0),-hw*0.25,H1*2+0.12,hz+hd*0.35); B(hw*1.1,1.6,0.06,vitre,-hw*0.25,H1*1.5,hz+hd*1.15+0.03); }
-    if(grand) B(hw*0.8,H1,hd*1.2,mM,hw*1.2,H1/2,hz+hd*0.4); }
-  else if(st==='contemporain'){ B(hw*2,H1,hd*2,mM,0,H1/2,hz); B(hw*1.9,2.2,0.06,vitre,0,H1*0.5,hz+hd+0.03);
-    if(et>1){ B(hw*1.4,H1,hd*2.2,mA,hw*0.3,H1*1.5,hz+hd*0.1); B(hw*1.2,2.2,0.06,vitre,hw*0.3,H1*1.5,hz+hd*1.2+0.03); for(let k=0;k<6;k++) B(0.06,0.9,0.06,mat(0xd8dce4),-hw*0.9+k*0.5,H1+0.45,hz+hd); }
-    if(grand) B(hw*0.9,H1*0.8,hd*1.4,vitre,-hw*1.3,H1*0.4,hz+hd*0.2); }
-  else if(st==='medit'){ B(hw*2,H1*et,hd*2,mM,0,H1*et/2,hz); for(const k of [-0.6,0,0.6]) for(let e=0;e<et;e++) B(1.2,1.8,0.08,vitre,k*hw,1.2+e*H1,hz+hd+0.04);
-    toit(hw*1.08,hd*1.08,2.2,0,H1*et+1.1,hz);
-    if(et>1){ B(hw*1.2,0.15,1.4,mM,0,H1+0.05,hz+hd+0.7); for(let k=0;k<5;k++) B(0.08,0.9,0.08,mat(0x2a2d34),-hw*0.6+k*hw*0.3,H1+0.5,hz+hd+1.35); }
-    if(grand){ B(hw*0.9,H1,hd*1.6,mM,hw*1.35,H1/2,hz+hd*0.3); toit(hw*0.5,hd*0.86,1.6,hw*1.35,H1+0.8,hz+hd*0.3); } }
-  else { // hacienda : de plain-pied, en L, tuiles basses, poutres de bois, patio
-    B(hw*2,H1,hd*2,mM,0,H1/2,hz); B(hw*0.8,H1,hd*1.8,mM,Math.sign(xa)*hw*0.7,H1/2,hz+hd*0.7); /* l'aile, côté allée : la piscine est de l'autre */
-    toit(hw*1.08,hd*1.08,1.4,0,H1+0.7,hz);
-    for(let k=0;k<5;k++) B(0.2,0.2,1.8,mA,-hw*0.8+k*hw*0.4,H1-0.3,hz+hd+0.9); for(const k of [-0.5,0.5]) B(1.4,1.6,0.08,vitre,k*hw,1.4,hz+hd+0.04); }
-  B(hw*1.3,1.3,0.06,vitre,0,1.7,hz-hd-0.03); /* baies côté jardin de derrière (vues de la vallée sur les parcelles en aval) */
-  addSolid({x,z:z+f*hz,hw:hw*(grand?1.6:1.05),hd:hd*1.1,h:y+H1*et,toit:true});
-  // la piscine (devant la maison, côté opposé à l'allée), dallage, transats, parasol
+  const hw=T[0]*0.72*(st==='californienne'?1.08:1), hd=T[1]*(grand?0.46:0.42), hz=-p.hd+hd+0.8, et=(moyen||grand)&&st!=='californienne'&&st!=='hacienda'&&st!=='balinaise'?2:1, H1=3.4; // au fond : la piscine tient devant, jamais dessous
   const pw=grand?4.2:(moyen?3.4:2.6), pd=grand?2.4:2, px=-xa*0.7, pz=p.hd-pd-1.4;
-  B(pw*2+3,0.07,pd*2+2,dalle,px,0.05,pz); piscineHills(x+px,z+f*pz,pw,pd,y+0.12);
-  for(const s of [-1,1]){ const tr=B(0.7,0.25,1.8,mat(st==='medit'?0xff8a5a:0xf2f4f6),px+s*(pw+1.2),0.3,pz); tr.rotation.x=0.12*f; }
-  { const pa=new THREE.Mesh(new THREE.ConeGeometry(1.4,0.6,8),mat([0xffd23f,0xe05252,0x35c8e0,0xf2f4f6][p.id.charCodeAt(5)%4])); pa.position.set(x+px+pw+1.2,y+2.3,z+f*(pz-pd-1)); scene.add(pa); B(0.08,2.2,0.08,mat(0xd8dce4),px+pw+1.2,1.1,pz-pd-1); }
-  // palmiers
-  for(const s of [-1,1]){ const n0=scene.children.length; mkPalmier(x+s*(p.hw-1.6),z+f*(p.hd-1.6)); for(let k=n0;k<scene.children.length;k++) scene.children[k].position.y=y; }
+  const c={p,x,y,z,f,B,ajout,mat,M:mM,A:mA,R:mR,V:vitre,hw,hd,hz,H1,et,fz:hz+hd,grand,moyen,xa,px,pz,pw,pd,
+    Cy:(r,h,m,bx,by,bz,n)=>ajout(new THREE.CylinderGeometry(r,r,h,n||10),m,bx,by,bz),
+    Co:(r,h,m,bx,by,bz,n)=>ajout(new THREE.ConeGeometry(r,h,n||8),m,bx,by,bz),
+    Sp:(r,m,bx,by,bz,sy)=>{ const o=ajout(new THREE.SphereGeometry(r,8,6),m,bx,by,bz); if(sy) o.scale.y=sy; return o; },
+    Toit:(w,d,h,m,bx,by,bz,type)=>ajout(geoToit(w,d,h,type),m,bx,by,bz),
+    S:(bx,bz,shw,shd,h)=>addSolid({x:x+bx,z:z+f*bz,hw:shw,hd:shd,h:y+h,toit:true})};
+  // pelouse, haies sur les côtés et au fond, clôture et portail devant (selon le style), allée
+  B(p.hw*2-1,0.06,p.hd*2-1,mat(st==='pueblo'?0xc8a878:0x6aa046),0,0.03,0);
+  for(const s of [-1,1]) B(0.8,1.1,p.hd*2,haie,s*(p.hw-0.4),0.55,0); B(p.hw*2,1.1,0.8,haie,0,0.55,-p.hd+0.4);
+  B(3.6,0.08,p.hd+2,dalle,xa,0.05,p.hd*0.5);
+  { const cl=D.cloture, zf=p.hd-0.2, L=p.hw*2, troncons=[[-p.hw,xa-2.6],[xa+2.6,p.hw]];
+    const murC={muret:0xe8e0d0,pierre:0xb8a888,adobe:D.murs[v],beton:0x9a9a94,grille:0xf2f0ea,bambou:0x4a3a24,piquets:0xf6f6f2}[cl], mC=mat(murC);
+    for(const [a,b] of troncons){ const l=b-a; if(l<0.5) continue; const m=(a+b)/2;
+      if(cl==='piquets'){ B(l,0.12,0.12,mC,m,0.7,zf); B(l,0.12,0.12,mC,m,0.35,zf); for(let k=0;k<Math.floor(l/0.5);k++) B(0.12,1,0.06,mC,a+0.25+k*0.5,0.5,zf); }
+      else if(cl==='grille'){ B(l,0.5,0.4,mC,m,0.25,zf); for(let k=0;k<Math.floor(l/0.35);k++) B(0.05,1.1,0.05,mat(0x1c2026),a+0.17+k*0.35,1.05,zf); B(l,0.06,0.06,mat(0x1c2026),m,1.55,zf); }
+      else if(cl==='bambou'){ for(let k=0;k<Math.floor(l/0.3);k++) B(0.12,1.3,0.12,mC,a+0.15+k*0.3,0.65,zf); }
+      else B(l,cl==='pierre'||cl==='adobe'?0.9:0.7,0.4,mC,m,cl==='pierre'||cl==='adobe'?0.45:0.35,zf); }
+    for(const s of [-1,1]) B(0.6,1.6,0.6,mat(cl==='bambou'?0x4a3a24:(cl==='pierre'?0xb8a888:0xe8e0d0)),xa+s*2.3,0.8,p.hd-0.2); }
+  // la maison
+  c.px=px; c.pw=pw; VILLA_MAISON[st](c);
+  B(hw*1.3,1.3,0.06,vitre,0,1.7,hz-hd-0.03); /* baies côté jardin de derrière (vues de la vallée sur les parcelles en aval) */
+  // la piscine (devant la maison, côté opposé à l'allée), dallage, transats, parasol
+  let qx=px, qw=pw, qd=pd; // la piscine réelle (centre, demi-largeur, demi-profondeur) : transats, parasol et massif s'y calent
+  if(D.piscine==='rond'){ qw=qd=Math.min(pd+0.5,pw); B(qw*2+2.6,0.07,qw*2+2,dalle,qx,0.05,pz); piscineRonde(x+qx,z+f*pz,qw,y+0.12); }
+  else if(D.piscine==='couloir'){ qx=px*0.6; qw=Math.min(pw*1.5,p.hw*0.7); qd=Math.min(pd,1.4); B(qw*2+2.4,0.07,qd*2+2,dalle,qx,0.05,pz); piscineHills(x+qx,z+f*pz,qw,qd,y+0.12); }
+  else { B(pw*2+3,0.07,pd*2+2,dalle,px,0.05,pz); piscineHills(x+px,z+f*pz,pw,pd,y+0.12); }
+  c.px=qx; c.pw=qw;
+  const sg=Math.sign(xa)||1, transat=mat(['provencal','toscane','pueblo','hacienda'].includes(st)?0xff8a5a:(st==='japonaise'||st==='balinaise'?0xc8a878:0xf2f4f6));
+  for(const s of [-1,1]){ const tx=qx+s*(qw+1.2); if(Math.abs(tx)>p.hw-1||(s===sg&&Math.abs(tx-xa)<2.6)) continue; const tr=B(0.7,0.25,1.8,transat,tx,0.3,pz); tr.rotation.x=0.12*f; }
+  if(st!=='balinaise'&&st!=='japonaise'){ const ox=qx-sg*(qw+1.2); if(Math.abs(ox)<p.hw-1){ ajout(new THREE.ConeGeometry(1.4,0.6,8),mat([0xffd23f,0xe05252,0x35c8e0,0xf2f4f6][p.id.charCodeAt(5)%4]),ox,2.3,pz-qd-0.6); B(0.08,2.2,0.08,mat(0xd8dce4),ox,1.1,pz-qd-0.6); } }
+  // le jardin : sur les deux côtés de la maison, puis un massif devant, entre la piscine et l'allée
+  const J=D.jardin, cote=Math.max(1.2,(p.hw-hw)/2), bordP=qx+sg*(qw+1.4), mx=(bordP+(xa-sg*1.8))/2, lz=Math.max(1,p.hd-1-(hz+hd+0.8));
+  for(const s of [-1,1]){ const bx=s*(hw+cote); if(Math.abs(bx)>p.hw-1) continue; VILLA_JARDIN[J[s<0?0:1]](c,bx,hz-hd*0.4,2); if(hd>2.6) VILLA_JARDIN[J[s<0?1:0]](c,bx,hz+hd*0.6,2); }
+  if(sg*((xa-sg*1.8)-bordP)>3) VILLA_JARDIN[J[2]](c,mx,(hz+hd+p.hd)/2,lz);
+  murSoutenement(p);
+}
+// murs de soutènement : là où la parcelle est taillée dans la pente (ou posée en terrasse au-dessus), un mur de pierre
+// couvre le talus de la parcelle (2 u) et SUIT le terrain (ruban échantillonné tous les 1 u, jamais de marches en
+// boîtes) ; au-delà de 4 u de dénivelé, deux gradins, le plus bas planté. Visuel : le relief fait la physique.
+var _matMurPierre=null, _matMurPlante=null;
+function matMurPierre(){ if(!_matMurPierre){ const tx=cTex(128,(g,s)=>{ g.fillStyle='#8a806c'; g.fillRect(0,0,s,s);
+      for(let r=0;r<6;r++){ const hh=s/6, dec=(r%2)*s/8; for(let k=-1;k<5;k++){ const x0=k*s/4+dec, l=s/4-3; g.fillStyle=['#b8ae98','#a89e88','#c4b8a0','#9e9480'][(r*3+k*7+8)%4]; g.fillRect(x0+1.5,r*hh+1.5,l,hh-3); } } },1,1);
+      tx.wrapS=tx.wrapT=THREE.RepeatWrapping; _matMurPierre=new THREE.MeshLambertMaterial({map:tx,side:THREE.DoubleSide}); } return _matMurPierre; }
+function matMurPlante(){ if(!_matMurPlante) _matMurPlante=new THREE.MeshLambertMaterial({color:0x4a8a3a,side:THREE.DoubleSide}); return _matMurPlante; }
+function rubanMur(pts,mt){ // pts : [{ax,az,bx,bz,haut,bas}] le long du mur (a = côté parcelle, b = côté talus)
+  const pos=[], uv=[]; let L=0;
+  const quad=(p1,p2,p3,p4,u1,u2,v1,v2)=>{ pos.push(...p1,...p2,...p3,...p1,...p3,...p4); uv.push(u1,v1,u2,v1,u2,v2,u1,v1,u2,v2,u1,v2); };
+  for(let k=0;k<pts.length-1;k++){ const a=pts[k], b=pts[k+1], l=Math.hypot(b.ax-a.ax,b.az-a.az), u1=L/2, u2=(L+l)/2; L+=l;
+    quad([a.ax,a.bas,a.az],[b.ax,b.bas,b.az],[b.ax,b.haut,b.az],[a.ax,a.haut,a.az],u1,u2,a.bas/2,a.haut/2); // face côté parcelle
+    quad([a.bx,a.bas,a.bz],[b.bx,b.bas,b.bz],[b.bx,b.haut,b.bz],[a.bx,a.haut,a.bz],u1,u2,a.bas/2,a.haut/2); // face côté talus
+    quad([a.ax,a.haut,a.az],[b.ax,b.haut,b.az],[b.bx,b.haut,b.bz],[a.bx,a.haut,a.bz],u1,u2,0,0.5); } // dessus
+  if(!pos.length) return; const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2)); g.computeVertexNormals(); scene.add(new THREE.Mesh(g,mt));
+}
+function murSoutenement(p){
+  const t=p.talus||2, cotes=[[1,0],[-1,0],[0,1],[0,-1]];
+  for(const [nx,nz] of cotes){ if(nz===(p.f||1)) continue; /* jamais côté rue : le talus y est le trottoir */ const L=nx?p.hd+t:p.hw+t, n=Math.max(2,Math.round(L*2)); let run=[], run2=[];
+    const fin=()=>{ if(run.length>1){ rubanMur(run,matMurPierre()); if(run2.length>1) rubanMur(run2,matMurPierre()); } run=[]; run2=[]; };
+    for(let k=0;k<=n;k++){ const u=-L+k*(L*2/n), ex=nx?p.x+nx*p.hw:p.x+u, ez=nz?p.z+nz*p.hd:p.z+u;
+      const ho=hauteurHills(ex+nx*(t+0.4),ez+nz*(t+0.4)), dh=ho-p.h, dans=nx?Math.abs(u)<=p.hd+t:Math.abs(u)<=p.hw+t;
+      if(Math.abs(dh)<0.6||!dans){ fin(); continue; }
+      const bas=Math.min(ho,p.h)-0.3;
+      if(Math.abs(dh)<=4) run.push({ax:ex,az:ez,bx:ex+nx*t,bz:ez+nz*t,haut:Math.max(ho,p.h)+0.05,bas});
+      else { const mid=p.h+dh/2, h1=dh>0?mid:p.h+0.05, h2=dh>0?ho+0.05:mid; // deux gradins : le plus haut côté pente
+        run.push({ax:ex,az:ez,bx:ex+nx*t*0.5,bz:ez+nz*t*0.5,haut:h1,bas}); run2.push({ax:ex+nx*t*0.5,az:ez+nz*t*0.5,bx:ex+nx*t,bz:ez+nz*t,haut:h2,bas}); } }
+    fin(); }
+  // le gradin bas est planté (haie de lierre sur son dessus), au-dessus d'un dénivelé de 4 u
+  for(const [nx,nz] of cotes){ const L=nx?p.hd:p.hw, ex=nx?p.x+nx*(p.hw+t*0.25):p.x, ez=nz?p.z+nz*(p.hd+t*0.25):p.z, ho=hauteurHills(ex+nx*(t*0.75+0.4),ez+nz*(t*0.75+0.4)), dh=ho-p.h;
+    if(Math.abs(dh)>4){ const hb=dh>0?p.h+dh/2:p.h; mkBox(nx?t*0.4:L*2,0.6,nx?L*2:t*0.4,matMurPlante(),ex,hb+0.3,ez); } }
 }
 // manoir de la planque : deux étages blancs, grandes baies, toit-terrasse, colonnade d'entrée
 function mkManoirPlanque(){
