@@ -4582,7 +4582,7 @@ async function main() {
           for (const ent of c0.entrants) { if (!ent.fini && Math.floor(ent.prog / N) >= c0.c.laps) { ent.fini = true; ent.place = ++c0.placesDonnees; } }
           if (je.fini) gagne = je.place === 1;
         }
-        resultats[vehKey] = { gagne, tick };
+        { const je = c0.entrants[0]; resultats[vehKey] = { gagne, tick, ...(gagne === null ? { x: +(je.v.x - s.ox).toFixed(1), z: +(je.v.z - s.oz).toFixed(1), prog: je.prog, v: +(je.v.v || 0).toFixed(2), ang: +je.v.ang.toFixed(2), dmg: je.v.hp } : {}) }; } // blocage : où et comment
         if (s.courseEnCours) depotAnnulerCourse(s);
         if (INT.actif) sortirInterieur();
       }
@@ -4592,7 +4592,7 @@ async function main() {
     info('Dépôt : résultat (informatif, un pilote robotique basique n\'est pas un joueur humain) : ' + JSON.stringify(garantie));
     ok('Dépôt : ' + nbGagnants + '/4 véhicules gagnent avec ce pilote basique (la garantie mathématique est verif_depot.js + le test de plafond ci-dessus)');
     for (const vehKey of Object.keys(garantie)) {
-      if (garantie[vehKey].gagne === null) fail('Dépôt : la course avec ' + vehKey + ' ne se termine jamais (deadlock ou progression bloquée) — régression possible du bug de mur solide');
+      if (garantie[vehKey].gagne === null) fail('Dépôt : la course avec ' + vehKey + ' ne se termine jamais (deadlock ou progression bloquée) — régression possible du bug de mur solide ' + JSON.stringify(garantie[vehKey]));
     }
 
     // -------------------------------------------------------------------
@@ -4763,7 +4763,7 @@ async function main() {
         // le Dépôt de bus a ses propres véhicules loués (jamais dans le trafic
         // de la ville, voir CLAUDE.md) : exclus de la comparaison, qui porte
         // sur les véhicules réellement présents dans Los Reyes.
-        plusLongsQueTout: VEHDEFS.busville.long > Math.max(...Object.entries(VEHDEFS).filter(([k, d]) => d.type === 'car' && !k.startsWith('depot') && k !== 'busville').map(([, d]) => d.long)),
+        plusLongsQueTout: VEHDEFS.busville.long > Math.max(...Object.entries(VEHDEFS).filter(([k, d]) => d.type === 'car' && !d.air && !k.startsWith('depot') && k !== 'busville').map(([, d]) => d.long)),
         monstertruckEcrase: VEHDEFS.monstertruck.ecrase === true,
         charEcrase: VEHDEFS.char.ecrase === true,
         monstertruckFranchit: VEHDEFS.monstertruck.franchit > 0.6,
@@ -7863,7 +7863,7 @@ async function main() {
         if (!DECOR_V2) return { off: true };
         const ko = [], vus = [];
         for (const k of Object.keys(VEHDEFS)) {
-          const d = VEHDEFS[k]; if (d.type !== 'bateau' || d.surf) continue;
+          const d = VEHDEFS[k]; if (d.type !== 'bateau' || d.surf || d.pagaie) continue;
           const m = makeVoiture(k); m.updateMatrixWorld(true);
           const L = d.long, pts = [];
           m.traverse((o) => { if (o.isMesh && o.geometry && o.geometry.attributes.position && o.material && o.material.vertexColors) { const a = o.geometry.attributes.position.array; for (let i = 0; i < a.length; i += 3) pts.push([a[i], a[i + 2]]); } });
@@ -8020,7 +8020,7 @@ async function main() {
           // rembarquer, tenter d'aller vers la ville (bloqué), puis repartir vers le large
           P.x = v.x + 1; P.z = v.z; entrerVehicule(v); const zA = v.z; conduire(v, -1, 90);
           if (v.z < zA - 1.5) o.ko.push(cle + ' : traverse la plage vers la ville (' + zA.toFixed(1) + ' → ' + v.z.toFixed(1) + ')');
-          conduire(v, 1, 450);
+          for (let k = 0; k < 45 && !(estEau(v.x, v.z) && v.z > MER + 2) && P.veh === v; k++) conduire(v, 1, 10); /* jusqu'à regagner l'eau (15 s au plus) : jamais jusqu'aux récifs du large */
           if (!estEau(v.x, v.z) || P.veh !== v) o.ko.push(cle + ' : ne repart pas vers l\'eau (z ' + v.z.toFixed(1) + ')');
           o.vus.push(cle + ' ' + avance.toFixed(0) + ' u');
         }
@@ -8161,7 +8161,7 @@ async function main() {
         if (boutons !== ILE2.trous.length || tresors !== 1 || !/DÉJÀ/.test(a ? a.label : '') || estEau(ILE2.cx, ILE2.cz) || !(hauteurIleTresor(ILE2.pic.x, ILE2.pic.z) > 10)) o.ko.push('île : ' + JSON.stringify({ boutons, tresors, ensuite: a && a.label }));
         else o.info.push(ILE2.trous.length + ' trous, un trésor, ' + (META.argent - m) + ' $');
         // animaux sauvages : attaquent, se tuent
-        scene0(); placerFaune(); { const sg = FAUNE.find((x) => x.type === 'sanglier'); P.x = sg.x + 4; P.z = sg.z; P.y = solPied(P.x, P.z); P.hp = 300; pas(90); const hpA = P.hp; let coups = 0;
+        scene0(); placerFaune(); { const sg = FAUNE.find((x) => x.type === 'sanglier'); P.x = sg.x + 4; P.z = sg.z; P.y = solPied(P.x, P.z); P.hp = 300; P.armeCur = 'poings'; pas(90); const hpA = P.hp; let coups = 0; /* le test maîtrise sa scène : une arme à feu laissée équipée ne frappe pas */
           while (!sg.mort && coups < 60) { P.ang = Math.atan2(sg.x - P.x, sg.z - P.z); P.cadT = 0; attaquer(); coups++; pas(3); }
           if (!(hpA < 300) || !sg.mort || !FAUNE.some((x) => x.type === 'jaguar')) o.ko.push('faune : ' + JSON.stringify({ hpA, mort: sg.mort, coups })); else o.info.push('sanglier : attaque, tué en ' + coups + ' coups'); }
         // crawl : SPRINT à la nage, plus vite
@@ -8360,7 +8360,7 @@ async function main() {
         if (P.veh) sortirVehicule(true);
         audioInit(); // avec l'audio : c'est lui qui levait l'exception (régime moteur NaN) qui détruisait l'hélico
         startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
-        const hy = vehicules.find((v) => v.key === 'helico' && dist2(v.x, v.z, POIS.yacht.x, POIS.yacht.z) < 100);
+        const hy = GYACHT.heli && vehicules.includes(GYACHT.heli) ? GYACHT.heli : vehicules.find((v) => v.def.air === 'helico' && dist2(v.x, v.z, POIS.yacht.x, POIS.yacht.z) < 100); // lu à la source
         if (!hy) return { ko: ['pas d\'hélico sur le yacht'] };
         const pas = (n) => { for (let i = 0; i < n && !hy.mort; i++) { majJoueur(1 / 30, 1 / 30); majVehicules(1 / 30); majGrandYacht(); } }; // comme la boucle
         const pad = { x: hy.x, z: hy.z };
@@ -9330,8 +9330,9 @@ async function main() {
         };
         // tirages des besoins sur une graine propre à chaque nuit : sans elle, l'état de Math.random dépendait du
         // temps réel écoulé avant le test et le pilote tenait de 2 à 5 nuits sur 6 d'un run à l'autre
+        const etat0 = { perso: META.perso, muscle: META.muscle, tenue: META.tenue }; META.perso = 'jax'; META.muscle = 0; META.tenue = 'depart'; // le test maîtrise sa scène : vitesse et endurance de base
         const glouton = [], passif = nuit(false, 77);
-        for (let i = 0; i < 10; i++) glouton.push(nuit(true, 1000 + i)); Math.random = rnd0; // on en exige 5 sur 10
+        for (let i = 0; i < 10; i++) glouton.push(nuit(true, 1000 + i)); Math.random = rnd0; Object.assign(META, etat0); // on en exige 5 sur 10
         if (glouton.some((g) => g.bloque)) ko.push('un pot, le bassin ou la table est inatteignable');
         if (glouton.some((g) => g.sortiesEvitees > 3)) ko.push('soigner un pot affiche SORTIR (' + glouton.map((g) => g.sortiesEvitees).join(',') + ')');
         if (glouton.some((g) => !g.fin)) ko.push('une nuit s’interrompt sans fin');
@@ -9714,6 +9715,275 @@ async function main() {
       });
       if (r.ko.length) fail('Lunette du sniper : ' + r.ko.join(' | '));
       else ok('Lunette du sniper : visée immobile, distance et pivot au joystick, tir au relâcher, vue rendue');
+    }
+
+    // -------------------------------------------------------------------
+    // Aéroport vivant (14 octobre) : aérogare accessible (entrées, porte
+    // côté pistes), long-courrier à la porte A1, avions des hangars, voltige
+    // immobile dans son hangar ; un vol atterrit et se gare (vrai véhicule),
+    // un autre repart ; un avion pris par le joueur ne repart jamais ; un avion
+    // qui roule bouscule le joueur ; les trois nouveaux avions décollent.
+    // -------------------------------------------------------------------
+    console.log('\n--- Aéroport vivant : aérogare, portes, atterrissage, départ, hangars, nouveaux avions ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (!DECOR_V2) return { ko, info: ['DECOR_V2 coupé'] };
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
+        if (!AERO.pret) return { ko: ['aéroport non construit'], info };
+        const T = AERO.T, C = AERO.C;
+        const passe = (x0, z0, x1, z1) => { for (let k = 0; k <= 20; k++) { const x = x0 + (x1 - x0) * k / 20, z = z0 + (z1 - z0) * k / 20; if (solidAt(x, z, 0.45)) return false; } return true; };
+        // 1) on entre par la dépose-minute (chaque ouverture de la façade ouest) et on sort côté pistes
+        let entrees = 0; for (const z of [-22, 0, 22]) if (passe(T.x0 - 4.5, C.z + z, T.x0 + 3, C.z + z)) entrees++;
+        if (entrees < 3) ko.push('seulement ' + entrees + '/3 entrées praticables');
+        if (!AERO.portes.every((p) => passe(T.x1 - 3, p.z, T.x1 + 4, p.z))) ko.push('pas de sortie vers les pistes par les portes d’embarquement');
+        if (solidAt(T.x0 - 4.5, C.z, 0.6)) ko.push('la dépose-minute est encombrée');
+        const st = STANDS.find((s) => s.q === 'aeroport'); if (!st || !NOURRITURE_QUARTIER.aeroport) ko.push('pas de café à l’aérogare');
+        info.push('3 entrées, porte côté pistes, café');
+        // 2) au départ de la partie : long-courrier en A1, avions des hangars, voltige au hangar
+        const A1 = AERO.portes[0], A2 = AERO.portes[1];
+        if (!A1.v || A1.v.key !== 'ligne' || A2.v) ko.push('porte A1 sans long-courrier ou A2 occupée');
+        for (const h of AERO.hangars) if (!vehicules.some((v) => v.key === h.cle && !v.mort && dist2(v.x, v.z, h.x, h.z) < 4)) ko.push(h.cle + ' absent de son hangar');
+        const vol = vehicules.find((v) => v.key === 'voltige' && !v.mort);
+        if (!vol || dist2(vol.x, vol.z, POIS.aerodrome.x, POIS.aerodrome.z) > 1) ko.push('voltige absent de son hangar');
+        else { const a0 = vol.mesh.rotation.y; for (let i = 0; i < 60; i++) majVehicules(1 / 30); if (Math.abs(vol.mesh.rotation.y - a0) > 1e-6) ko.push('le voltige tourne encore sur lui-même'); }
+        // 3) un vol arrive : approche, atterrissage, roulage, il se gare en A2 et devient un vrai véhicule
+        AERO.prochainT = 0; P.x = C.x; P.z = C.z; let t = 0, vu = new Set();
+        while (t < 120 && !A2.v) { majAeroportVivant(1 / 20); for (const d of AERO.dec) vu.add(d.etat); t += 1 / 20; }
+        if (!A2.v || A2.v.key !== 'ligne' || Math.abs(A2.v.ang + Math.PI / 2) > 0.01) ko.push('aucun long-courrier garé en A2 (' + [...vu].join(',') + ')');
+        else info.push('atterrissage → A2 en ' + t.toFixed(0) + ' s (' + ['approche', 'roule', 'vire', 'taxi'].filter((e) => vu.has(e)).join(' → ') + ')');
+        if (AERO.piste) ko.push('la piste reste réservée après l’arrivée');
+        // 4) un avion pris par le joueur ne repart jamais ; garé ailleurs, il libère sa porte
+        const pris = A2.v; P.x = pris.x; P.z = pris.z; entrerVehicule(pris); A2.attente = AERO_ESCALE + 10;
+        for (let i = 0; i < 40; i++) majAeroportVivant(1 / 20);
+        if (!vehicules.includes(pris) || pris.mort) ko.push('l’avion du joueur est reparti sans lui');
+        sortirVehicule(true); pris.x += 60; for (let i = 0; i < 4; i++) majAeroportVivant(1 / 20);
+        if (A2.v) ko.push('la porte A2 reste occupée après le départ de l’avion');
+        // 5) un départ : A1 repoussé, roule, décolle vers le sud, disparaît ; un seul mouvement à la fois
+        A1.attente = AERO_ESCALE + 1; P.x = C.x; P.z = C.z; const nL = vehicules.filter((v) => v.key === 'ligne' && !v.mort).length; t = 0; vu = new Set(); let altMax = 0, deux = false;
+        majAeroportVivant(1 / 20);
+        if (vehicules.filter((v) => v.key === 'ligne' && !v.mort).length !== nL - 1) ko.push('le long-courrier de A1 n’est pas parti');
+        while (t < 120 && AERO.dec.some((d) => d.etat !== 'libre' && !d.arrivee)) { majAeroportVivant(1 / 20); for (const d of AERO.dec) { vu.add(d.etat); if (!d.arrivee) altMax = Math.max(altMax, d.alt); } if (AERO.dec.filter((d) => d.etat === 'approche' || d.etat === 'roule' || d.etat === 'decolle').length > 1) deux = true; t += 1 / 20; }
+        if (!vu.has('decolle') || altMax < 40) ko.push('le départ ne décolle pas (' + [...vu].join(',') + ', ' + altMax.toFixed(0) + ' u)');
+        else info.push('départ : repoussé, décollage, ' + altMax.toFixed(0) + ' u');
+        if (deux) ko.push('deux avions sur la piste en même temps');
+        // 6) un avion qui roule bouscule le joueur à pied (une fois, sans le tuer)
+        const d = AERO.dec[0]; Object.assign(d, { etat: 'roule', arrivee: true, porte: A1, x: AERO.RX, z: 0, alt: 0, ang: Math.PI, v: 10, decel: 0 }); d.mesh.visible = true; AERO.piste = d;
+        P.x = AERO.RX; P.z = -8; P.y = 0; P.hp = P.maxHp = 500; AERO.heurtT = 0; majAeroportVivant(1 / 20);
+        if (!(P.hp < 500) || Math.abs(P.x - AERO.RX) < 2) ko.push('l’avion qui roule traverse le joueur sans le bousculer');
+        d.etat = 'libre'; d.mesh.visible = false; AERO.piste = null; P.hp = P.maxHp = 1e6;
+        // 7) les trois nouveaux avions : modèle à roues, décollage, montée sans crash au-dessus de la mer
+        for (const k of ['tourisme', 'jetprive', 'ligne']) {
+          const m = makeVoiture(k); if (!m.userData.roues || m.userData.roues.length < 3) ko.push(k + ' : modèle sans train');
+          for (const q of vehicules) if (q.key === 'ligne' || Math.abs(q.x - AERO.RX) < 16) q.mort = true; // le test maîtrise sa scène : la piste est libre
+          const v = creerVehicule(k, AERO.RX, 60, Math.PI, null); P.x = v.x; P.z = v.z; entrerVehicule(v); INPUT.mx = 0; INPUT.mz = -1; let tt = 0;
+          while (!v.vol && tt < 14 && !v.mort) { majVol(v, 1 / 30); tt += 1 / 30; }
+          if (!v.vol) { ko.push(k + ' ne décolle pas sur la piste (' + (v.v || 0).toFixed(1) + ' u/s après ' + tt.toFixed(0) + ' s)'); INPUT.mz = 0; sortirVehicule(true); v.mort = true; continue; }
+          info.push(k + ' décolle en ' + tt.toFixed(1) + ' s');
+          INPUT.btn.sprint = true; for (let i = 0; i < 90 && !v.mort; i++) majVol(v, 1 / 30); INPUT.btn.sprint = false; INPUT.mz = 0;
+          if (v.mort || !(v.alt > 10)) ko.push(k + ' ne monte pas (' + (v.alt || 0).toFixed(1) + ' u)');
+          sortirVehicule(true); v.mort = true;
+        }
+        info.push('Pélican, Albatros et long-courrier décollent et montent');
+        startRun(); P.hp = P.maxHp = 1e6;
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Aéroport vivant : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
+      else ok('Aéroport vivant : ' + r.info.join(' ; ') + ' ; avion du joueur jamais repris, un mouvement à la fois, le joueur bousculé');
+    }
+
+    // -------------------------------------------------------------------
+    // Hélicoptères (14 octobre) : l'Écureuil sur le toit de la Tour Los
+    // Reyes, l'hélico-grue « Titan » au chantier ; son aimant accroche un
+    // véhicule au sol (drapeau captureOvni, physique coupée), le transporte,
+    // le lâche (chute et dégâts du rayon de l'OVNI) ; rien sous l'aimant ou
+    // trop bas : rien n'est accroché ; quitter l'hélico lâche la charge.
+    // -------------------------------------------------------------------
+    console.log('\n--- Hélicoptères : Écureuil, hélico-grue « Titan » et son aimant ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
+        for (const e of ennemis) e.mort = true;
+        const ec = vehicules.find((v) => v.key === 'ecureuil' && !v.mort), ti = vehicules.find((v) => v.key === 'titan' && !v.mort);
+        if (!ec || !POIS.toitH || dist2(ec.x, ec.z, POIS.toitH.x, POIS.toitH.z) > 9 || !(ec.alt > 20)) ko.push('pas d’Écureuil sur le toit de la tour');
+        if (!ti || !POIS.heliGrue || dist2(ti.x, ti.z, POIS.heliGrue.x, POIS.heliGrue.z) > 1) ko.push('pas d’hélico-grue au chantier');
+        if (!ti) return { ko, info };
+        for (const k of ['ecureuil', 'titan']) { const m = makeVoiture(k); if (!m.userData.rotor || !m.userData.rotorQ) ko.push(k + ' : rotors manquants'); }
+        // une berline sur un sol dégagé, le Titan en vol au-dessus
+        let q = null; for (let rr = 8; rr < 50 && !q; rr += 2) for (let a = 0; a < 12 && !q; a++) { const x = ti.x + Math.cos(a / 2) * rr, z = ti.z + Math.sin(a / 2) * rr; if (!solidAt(x, z, 3.5) && poseY(x, z) < 0.5 && !estEau(x, z)) q = { x, z }; }
+        for (const v of vehicules) if (v !== ti && dist2(v.x, v.z, q.x, q.z) < 400) v.mort = true; // le test maîtrise sa scène
+        const c = creerVehicule('berline', q.x, q.z, 0); P.x = ti.x; P.z = ti.z; entrerVehicule(ti);
+        const step = (n) => { for (let i = 0; i < n; i++) { majAimant(1 / 30); for (const v of vehicules) if (v.captureOvni) v.mesh.position.y = v.mesh.position.y; } };
+        if (el('btnGren').textContent.indexOf('AIMANT') < 0) ko.push('pas de bouton AIMANT');
+        // trop bas : rien n'est accroché
+        ti.vol = true; ti.alt = poseY(q.x, q.z) + 4; ti.x = q.x; ti.z = q.z; INPUT.edge.gren = true; step(1);
+        if (c.captureOvni) ko.push('accroché alors que l’hélico est trop bas');
+        // à bonne hauteur : accroché, hissé, il suit l'hélico
+        ti.alt = 16; INPUT.edge.gren = true; step(1);
+        if (!c.captureOvni) ko.push('l’aimant n’accroche pas la berline');
+        step(60); const rec = ti.cibles[0];
+        if (!rec || rec.phase !== 'suspendue' || !(rec.y > 5)) ko.push('la berline n’est pas hissée (' + (rec ? rec.phase + ' ' + rec.y.toFixed(1) : 'aucune') + ')');
+        ti.x += 30; step(60);
+        if (Math.hypot(c.x - ti.x, c.z - ti.z) > 4) ko.push('la berline ne suit pas l’hélico');
+        info.push('accrochée à ' + (rec ? rec.y.toFixed(1) : '?') + ' u, transportée sur 30 u');
+        // lâchée de haut : elle tombe et s'abîme
+        const hp0 = c.hp; ti.alt = 24; step(30); INPUT.edge.gren = true; step(1);
+        let t = 0; while (c.captureOvni && t < 6) { step(1); t += 1 / 30; }
+        if (c.captureOvni || !(c.mort || c.hp < hp0)) ko.push('lâchée, la berline ne retombe pas ou sans dégâts');
+        else info.push('lâchée de ' + (24 - AIMANT_GAP).toFixed(0) + ' u : ' + (c.mort ? 'détruite' : (hp0 - c.hp).toFixed(0) + ' de dégâts'));
+        // quitter l'hélico avec une charge : elle est lâchée, jamais suspendue sans pilote
+        const c2 = creerVehicule('citadine', ti.x, ti.z, 0); ti.alt = poseY(ti.x, ti.z) + 16; INPUT.edge.gren = true; step(20);
+        if (!c2.captureOvni) ko.push('2e accroche impossible');
+        sortirVehicule(true); step(1);
+        if (ti.cibles.some((rr) => rr.phase !== 'chute')) ko.push('charge restée suspendue après la sortie');
+        t = 0; while (c2.captureOvni && t < 6) { majAimant(1 / 30); t += 1 / 30; }
+        if (c2.captureOvni) ko.push('la charge ne retombe jamais');
+        startRun(); P.hp = P.maxHp = 1e6;
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Hélicoptères : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
+      else ok('Hélicoptères : Écureuil sur la tour, Titan au chantier ; ' + r.info.join(' ; ') + ' ; trop bas : rien, sortie : charge lâchée');
+    }
+
+    // -------------------------------------------------------------------
+    // Planques en plein air (14 octobre) : chacune de PLANQUES_DEF (lue,
+    // jamais recopiée) existe, s'achète sur place (refusée sans l'argent),
+    // débloque sa tenue, se sauvegarde ; repos une fois par vague ; coffre ;
+    // chaque spécificité marche une fois par vague (sauf le plongeoir).
+    // -------------------------------------------------------------------
+    console.log('\n--- Planques : achat, repos, coffre, spécificités, tenues, sauvegarde ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (!DECOR_V2) return { ko, info: ['DECOR_V2 coupé'] };
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 500;
+        const sav = JSON.stringify(META.planques); for (const k in META.planques) META.planques[k] = false;
+        const ici = (zn, q) => { P.x = zn.x; P.z = zn.z; P.y = zn.y !== undefined ? zn.y : q.y; };
+        const appui = () => { majAction(); const b = el('btnAction'); const l = b.style.display === 'none' ? '' : b.textContent; if (b._fn && l) b._fn(); return l; };
+        for (const d of PLANQUES_DEF) {
+          const q = PLANQUES.liste.find((x) => x.def.id === d.id); if (!q) { ko.push(d.id + ' absente'); continue; }
+          ici(q.achat, q); META.argent = d.prix - 1; const l0 = appui();
+          if (!/ACHETER/.test(l0) || planquePossedee(d.id)) ko.push(d.id + ' : achat sans l’argent (' + l0 + ')');
+          META.argent = d.prix + 100; appui(); if (!planquePossedee(d.id) || META.argent !== 100) ko.push(d.id + ' : achat raté');
+          checkTenues(); const tn = TENUES.find((t) => t.condTxt && t.condTxt.indexOf('Planque') >= 0 && t.cond() && t.condTxt.toLowerCase().indexOf(d.nom.split(' ')[0].toLowerCase().slice(0, 5)) >= 0);
+          if (!tn) ko.push(d.id + ' : pas de tenue débloquée');
+          // repos : une fois par vague
+          ici(q.lit, q); P.hp = 100; appui(); if (P.hp !== P.maxHp) ko.push(d.id + ' : le repos ne soigne pas');
+          P.hp = 100; appui(); if (P.hp !== 100) ko.push(d.id + ' : repos deux fois dans la vague');
+          // coffre
+          META.revenus = 77; const a0 = META.argent; ici(q.coffre, q); appui(); if (META.argent !== a0 + 77 || META.revenus !== 0) ko.push(d.id + ' : coffre');
+          // spécificité : on prépare ce qu'il faut, une fois par vague
+          P.hp = 300; ici(q.spec, q);
+          if (d.spec === 'atelier') { const v = creerVehicule('berline', q.x - 3, q.z + 6, 0); v.hp = 10; appui(); if (v.hp !== v.def.hp) ko.push('atelier : véhicule non réparé'); v.hp = 10; ici(q.spec, q); appui(); if (v.hp !== 10) ko.push('atelier : deux fois'); v.mort = true; }
+          else if (d.spec === 'base') { appui(); if (!P.chute || !(P.y > q.y - 1)) ko.push('plongeoir : pas de saut'); P.chute = false; P.y = 0; }
+          else if (d.spec === 'punch') { P.buffs.vit = 0; appui(); if (!(P.buffs.vit > 30) || !(P.hp > 300)) ko.push('punch (' + P.hp + ' PV, ' + P.buffs.vit + ')'); }
+          else if (d.spec === 'armurerie') { const ga = Object.keys(ARMES).find((k) => ARMES[k].type === 'gun' && META.armes[k]); META.armes[ga].poss = true; P.grenades = 0; P.mun[ga] = 0; appui(); if (P.grenades !== 5 || !(P.mun[ga] > 0)) ko.push('armurerie'); P.grenades = 0; ici(q.spec, q); appui(); if (P.grenades !== 0) ko.push('armurerie deux fois'); }
+          else if (d.spec === 'disparaitre') { WANTED.heat = 3.5; WANTED.stars = 3; appui(); if (WANTED.stars !== 0) ko.push('voilier : la police ne perd pas ta trace'); }
+          else if (d.spec === 'grenades') { P.grenades = 1; appui(); if (P.grenades !== 4) ko.push('établi : grenades'); }
+        }
+        info.push(PLANQUES_DEF.length + ' planques achetées, reposées, coffre, spécificités');
+        // revenus à la vague suivante, sauvegarde
+        const r0 = META.revenus = 0; lancerVague(); if (!(META.revenus > 0)) ko.push('aucun revenu à la vague');
+        sauveMeta(); const s = JSON.parse(localStorage.getItem(SAVE_KEY) || '{}'); if (!s.planques || !PLANQUES_DEF.every((d) => s.planques[d.id] === true)) ko.push('planques non sauvegardées');
+        META.planques = JSON.parse(sav); sauveMeta(); startRun();
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Planques : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
+      else ok('Planques : ' + r.info.join(' ; ') + ' ; tenues débloquées, revenus à chaque vague, sauvegardées');
+    }
+
+    // -------------------------------------------------------------------
+    // Retours de playtest, 3e série (14 octobre) — correctifs : un véhicule
+    // est un mur pour les ennemis ; les petits bateaux virent (demi-tour en
+    // avançant) ; un bateau piloté percute nageurs, surfeurs et kayaks ; un
+    // nageur ne tire pas ; un corps projeté ne passe jamais sous le sol ;
+    // les piétons apparaissent loin et hors de vue.
+    // -------------------------------------------------------------------
+    console.log('\n--- Retours 3e série : véhicule = mur, bateaux, nageurs, chutes, apparitions ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
+        for (const e of ennemis) e.mort = true; majEnnemis(1 / 30);
+        // 1) un ennemi qui charge le joueur réfugié derrière un char ne traverse jamais le char
+        let q = null; for (let rr = 0; rr < 120 && !q; rr += 3) for (let a = 0; a < 12 && !q; a++) { const x = POIS.place.x + Math.cos(a / 2) * rr, z = POIS.place.z + 30 + Math.sin(a / 2) * rr; if (!solidAt(x, z, 8) && !estEau(x, z)) q = { x, z }; }
+        for (const v of vehicules) if (dist2(v.x, v.z, q.x, q.z) < 400) v.mort = true;
+        const tank = creerVehicule('char', q.x, q.z, Math.PI / 2, null); P.x = q.x; P.z = q.z + tank.def.larg / 2 + 1.2;
+        const e = creerEnnemi('vip_batte', q.x, q.z - tank.def.larg / 2 - 2, true); let dedans = 0;
+        if (e) { for (let i = 0; i < 150; i++) { majEnnemis(1 / 30); if (vehiculeBloquant(e.x, e.z, -0.2, null) === tank) dedans++; } }
+        if (!e) ko.push('ennemi non créé'); else if (dedans) ko.push('un ennemi est entré ' + dedans + ' fois dans le char');
+        else info.push('char : un mur pour les ennemis');
+        tank.mort = true; if (e) e.mort = true;
+        // 2) petits bateaux : demi-tour en avançant, braquage même lent
+        for (const k of ['bateau', 'jetski', 'bateauP', 'espadon']) {
+          const v = creerVehicule(k, 0, MER + 110, 0, null); P.x = v.x; P.z = v.z; entrerVehicule(v); v.v = 5;
+          for (let i = 0; i < 90; i++) { INPUT.mx = 0; INPUT.mz = -1; const c = controleDir(v, false); majVehiculePhys(v, 1 / 30, c.throttle, c.steer, false); }
+          INPUT.mz = 0; if (!(v.v > 0) || Math.abs(angDiff(v.ang, Math.PI)) > 1.2) ko.push(k + ' ne fait pas demi-tour en avançant (v ' + v.v.toFixed(1) + ', cap ' + v.ang.toFixed(2) + ')');
+          sortirVehicule(true); v.mort = true;
+        }
+        info.push('vedettes : demi-tour en avançant');
+        // 3) en bateau : nageur ennemi percuté, surfeur fauché, kayak chaviré
+        const b = creerVehicule('bateau', 30, MER + 90, 0, null); P.x = b.x; P.z = b.z; entrerVehicule(b);
+        const n = creerEnnemi('mur_nageur', b.x, b.z + 5, true); if (n) { n.passif = true; n.dansEau = true; }
+        mkSurfeur(b.x + 0.5, b.z + 6); mkKayak(b.x - 0.5, b.z + 6.5); const sf = SURFEURS[SURFEURS.length - 1], ky = KAYAKS[KAYAKS.length - 1];
+        const hp0 = n ? n.hp : 0; b.v = 14;
+        for (let i = 0; i < 20; i++) { INPUT.mx = 0; INPUT.mz = 1; const c = controleDir(b, false); majVehiculePhys(b, 1 / 30, c.throttle, c.steer, false); }
+        INPUT.mz = 0;
+        if (!n || !(n.hp < hp0 || n.mort)) ko.push('le bateau ne percute pas le nageur');
+        if (!sf.tombe) ko.push('le surfeur n’est pas fauché'); if (!(ky.chav > 0)) ko.push('le kayak ne chavire pas');
+        info.push('en bateau : nageur percuté, surfeur fauché, kayak chaviré');
+        sortirVehicule(true); b.mort = true;
+        // 4) un nageur ne tire jamais
+        if (n && !n.mort) { n.passif = false; n.cad = 0; P.x = n.x + 6; P.z = n.z; P.nage = true; for (let i = 0; i < 60; i++) { n.cad = 0; majEnnemis(1 / 30); } if (balles.filter((x) => x.on && x.fac === n.fac).length > 0) ko.push('un nageur tire'); P.nage = false; }
+        // 5) un corps projeté (toutes poses) ne passe jamais sous le sol
+        for (const q2 of pietons) scene.remove(q2.h.g); pietons.length = 0; let minY = 9;
+        for (let i = 0; i < 16; i++) { creerPieton(POIS.place.x + i, POIS.place.z + 14); }
+        pietons.forEach((p, i) => tuerPieton(p, true, 5 + i * 1.2, p.x + 1, p.z + 2));
+        for (let f = 0; f < 90; f++) { majPietons(1 / 30); for (const p of pietons) if (p.etat === 'mort') { p.h.g.updateMatrixWorld(true); p.h.g.traverse((o) => { if (o.isMesh) minY = Math.min(minY, new THREE.Box3().setFromObject(o).min.y); }); } } // maillages seuls : l'ombre est un sprite
+        if (minY < -0.35) ko.push('un corps passe sous le sol (' + minY.toFixed(2) + ')'); else info.push('16 chutes, corps toujours au-dessus du sol');
+        startRun(); P.hp = P.maxHp = 1e6;
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Retours 3e série : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
+      else ok('Retours 3e série : ' + r.info.join(' ; '));
+    }
+
+    // -------------------------------------------------------------------
+    // Véhicules retravaillés (14 octobre) : fourgon (un seul volume haut),
+    // char massif, bulldozer qui pousse pour de vrai, hélico VIP qui reste
+    // posé sur le méga-yacht quand il navigue.
+    // -------------------------------------------------------------------
+    console.log('\n--- Véhicules retravaillés : fourgon, char, bulldozer, hélico du yacht ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
+        const haut = (k) => { const m = makeVoiture(k); m.updateMatrixWorld(true); let y = 0; m.traverse((o) => { if (o.isMesh) y = Math.max(y, new THREE.Box3().setFromObject(o).max.y); }); return y; };
+        const hv = haut('van'), hc = haut('char');
+        if (!(hv > 2.05 && hv < 2.6)) ko.push('fourgon : hauteur ' + hv.toFixed(2)); if (!(hc > 2.6)) ko.push('char trop bas : ' + hc.toFixed(2));
+        info.push('fourgon ' + hv.toFixed(1) + ' u, char ' + hc.toFixed(1) + ' u');
+        // bulldozer : lame baissée, il pousse une citadine sur plus de 6 u
+        let q = null; for (let rr = 0; rr < 160 && !q; rr += 3) for (let a = 0; a < 12 && !q; a++) { const x = POIS.place.x + Math.cos(a / 2) * rr, z = POIS.place.z + Math.sin(a / 2) * rr; let ok = true; for (let k = -4; k <= 26 && ok; k += 2) if (solidAt(x + k, z, 3) || estEau(x + k, z)) ok = false; if (ok) q = { x, z }; }
+        for (const v of vehicules) if (dist2(v.x, v.z, q.x + 10, q.z) < 900) v.mort = true;
+        const bz = creerVehicule('bulldozer', q.x, q.z, Math.PI / 2, null); const ci = creerVehicule('citadine', q.x + bz.def.long / 2 + 2.6, q.z, Math.PI / 2, null); const x0 = ci.x;
+        P.x = bz.x; P.z = bz.z; entrerVehicule(bz); majConduite && majConduite(1 / 30);
+        for (let i = 0; i < 120; i++) { INPUT.mx = 1; INPUT.mz = 0; const c = controleDir(bz, false); majVehiculePhys(bz, 1 / 30, c.throttle, c.steer, false); }
+        INPUT.mx = 0; if (!(ci.x - x0 > 6)) ko.push('le bulldozer ne pousse pas (' + (ci.x - x0).toFixed(1) + ' u)'); else info.push('bulldozer : citadine poussée sur ' + (ci.x - x0).toFixed(0) + ' u');
+        sortirVehicule(true); bz.mort = true; ci.mort = true;
+        // hélico VIP : reste sur l'hélipad du yacht qui navigue
+        const y = GYACHT.v, h = GYACHT.heli;
+        if (!y || !h) ko.push('pas de yacht ou d’hélico'); else {
+          if (h.key !== 'vip') ko.push('l’hélico du yacht n’est pas le VIP (' + h.key + ')');
+          majGrandYacht(); y.conduit = 'joueur'; for (let i = 0; i < 40; i++) { y.x += 0.9; y.ang += 0.01; majGrandYacht(); }
+          const hx = y.x - Math.sin(y.ang) * 6.4, hz = y.z - Math.cos(y.ang) * 6.4;
+          if (dist2(h.x, h.z, hx, hz) > 0.25) ko.push('l’hélico ne suit pas le yacht (' + Math.sqrt(dist2(h.x, h.z, hx, hz)).toFixed(1) + ' u)'); else info.push('hélico VIP posé sur le yacht en mouvement');
+          y.conduit = null; }
+        startRun(); P.hp = P.maxHp = 1e6;
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Véhicules retravaillés : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
+      else ok('Véhicules retravaillés : ' + r.info.join(' ; '));
     }
 
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');

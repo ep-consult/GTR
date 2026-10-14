@@ -1718,3 +1718,16 @@ Captures : `captures/lot11/wakeboard_ecume.png`, `basket_tir.png`, `sommet_velos
 - **Bug corrigé (serre)** : soigner le pot du milieu en pleine nuit pouvait faire quitter la serre (sa zone touchait la SORTIE).
 
 Captures : `captures/lot11/salles_immersives_1.png`, `salles_immersives_2.png`, `vitesse_vehicule.png`, `banderole_immersive.png`, `lunette_sniper.png`.
+
+## 3e série de demandes (14 octobre) — premier lot
+
+**Fait :**
+- **Aéroport vivant** : aérogare de verre derrière l'enceinte (dépose-minute avec taxi et bus, comptoirs, sûreté, salle d'embarquement, café, tapis à bagages, tableaux des départs/arrivées), foule ; des long-courriers atterrissent depuis la mer, se garent aux passerelles et deviennent pilotables (on peut voler le gros avion), puis repartent ; hangars de l'aéroclub (« Pélican ») et de l'aviation d'affaires (jet « Albatros ») ; le voltige dans un petit hangar, immobile.
+- **Hélicoptères** : « Écureuil » sur le toit de la Tour Los Reyes ; **hélico-grue « Titan »** au chantier avec un **aimant** qui accroche, transporte et lâche les véhicules ; **hélico VIP** du méga-yacht, qui reste posé quand le yacht navigue.
+- **Six planques** à acheter, chacune avec sa spécificité et sa tenue : caravane du désert (atelier), penthouse de la tour (plongeoir BASE), cabanon de plage (punch), chalet retranché du mont (armurerie), voilier amarré (la police perd ta trace), taudis industriel (grenades).
+- **Correctifs** : les ennemis ne rentrent plus dans les véhicules (le char est un mur) ; les vedettes virent (demi-tour en avançant) ; en bateau on percute surfeurs, kayaks (qu'on peut emprunter), nageurs ; un nageur ne tire plus ; les PNJ tombent de façons variées sans traverser le sol, projetés plus fort par les véhicules ; piétons qui apparaissent loin ; cyclistes sur de vrais vélos, renversables ; chiens percutables avec un message drôle ; dauphins modélisés qui arrivent et repartent.
+- **Véhicules** : vrai fourgon, char massif, bulldozer qui pousse vraiment, méga-yacht majestueux.
+- **Wakeboard** : posture de profil, pieds sur la planche, saut selon l'élan, OLLIE avant la vague = gros saut.
+- **Vue immersive en salles**, sensation de vitesse, banderole, lunette du sniper (lot précédent).
+
+Captures : `captures/lot11/aeroport_*.png`, `helico_*.png`, `planques.png`, `fourgon_char.png`, `megayacht_vip.png`, `cycliste_dauphin.png`, `wakeboard_saut.png`.
