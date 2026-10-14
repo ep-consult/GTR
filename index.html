@@ -2483,8 +2483,8 @@ const VEHDEFS={
   police:{nom:'Interceptor',tuningMeca:true,vmax:31,acc:15,man:2.5,hp:180,long:4.6,larg:2.05,type:'car',cols:[0x232833],police:true},
   gangcar:{nom:'Berline Viper',tuningMeca:true,tuningCarro:{famille:'compacte',ancrages:{avant:{x:0,y:0.86,z:2.29},arriere:{x:0,y:0.65,z:-2.28},toit:{x:0,y:1.35,z:-0.28},basCaisse:{x:1.02,y:0.22,z:0}}},vmax:29,acc:14,man:2.4,hp:160,long:4.7,larg:2.05,type:'car',cols:[0x1f7a3a]},
   milit:{nom:'Camion "Aigle"',tuningMeca:true,vmax:23,acc:10,man:1.7,hp:520,long:6.2,larg:2.6,type:'car',cols:[0x4a5238],milit:true},
-  moto:{nom:'Moto',tuningMeca:true,tuningCarro:{famille:'deuxroues',ancrages:{avant:{x:0,y:1.06,z:1.18},arriere:{x:0,y:0.65,z:-1.18},toit:{x:0,y:1.06,z:0.62},basCaisse:{x:0.37,y:0.45,z:0}}},vmax:34,acc:21,man:3.4,hp:70,long:2.4,larg:0.9,type:'moto',cols:[0xd05038,0x3a70c0,0x24272e]},
-  motoR:{nom:'Moto "Frelon"',tuningMeca:true,tuningCarro:{famille:'deuxroues',ancrages:{avant:{x:0,y:1.06,z:1.18},arriere:{x:0,y:0.65,z:-1.18},toit:{x:0,y:1.06,z:0.62},basCaisse:{x:0.37,y:0.45,z:0}}},vmax:41,acc:24,man:3.6,hp:60,long:2.4,larg:0.9,type:'moto',cols:[0xe6a41f]},
+  moto:{nom:'Moto',tuningMeca:true,tuningCarro:{famille:'deuxroues',ancrages:{avant:{x:0,y:0.9,z:0.7},arriere:{x:0,y:0.95,z:-1.18},toit:{x:0,y:1.1,z:0.47},basCaisse:{x:0.2,y:0.42,z:0}}},vmax:34,acc:21,man:3.4,hp:70,long:2.4,larg:0.9,type:'moto',cols:[0xd05038,0x3a70c0,0x24272e]},
+  motoR:{nom:'Moto "Frelon"',tuningMeca:true,tuningCarro:{famille:'deuxroues',ancrages:{avant:{x:0,y:0.9,z:0.7},arriere:{x:0,y:0.95,z:-1.18},toit:{x:0,y:1.1,z:0.47},basCaisse:{x:0.2,y:0.42,z:0}}},vmax:41,acc:24,man:3.6,hp:60,long:2.4,larg:0.9,type:'moto',cols:[0xe6a41f]},
   // Moto cross : seule moto capable de cabrer (bouton CABRER, voir
   // majConduite/entrerVehicule) — un vrai risque de chute si l'angle est
   // tenu trop longtemps, jamais un simple effet cosmétique (CLAUDE.md,
@@ -2496,7 +2496,7 @@ const VEHDEFS={
   // peinture, néons, pièces — jamais moteur, nitro ni blindage).
   velo:{nom:'Vélo de ville',tuningCarro:{famille:'velo',ancrages:{avant:{x:0,y:1.08,z:0.48},arriere:{x:0,y:0.74,z:-0.56},toit:{x:0,y:1.08,z:0.4},basCaisse:{x:0.08,y:0.36,z:0}}},vmax:15,acc:9,man:3.6,hp:60,long:1.8,larg:0.6,type:'moto',velo:true,roue:0.34,hop:7,cols:[0x2a6ad8,0x2f8a4a,0xe8ecf2,0xd83a3a]},
   bmx:{nom:'BMX',tuningCarro:{famille:'velo',ancrages:{avant:{x:0,y:0.94,z:0.42},arriere:{x:0,y:0.62,z:-0.56},toit:{x:0,y:0.94,z:0.34},basCaisse:{x:0.08,y:0.3,z:0}}},vmax:17,acc:12,man:4.2,hp:50,long:1.6,larg:0.6,type:'moto',velo:true,bmx:true,roue:0.28,hop:9.5,cols:[0xff8c1a,0x35e0ff,0xff5ad0,0x1c1e24]},
-  motocross:{nom:'Moto cross',tuningMeca:true,tuningCarro:{famille:'deuxroues',ancrages:{avant:{x:0,y:1.19,z:1.13},arriere:{x:0,y:0.65,z:-1.13},toit:{x:0,y:1.19,z:0.58},basCaisse:{x:0.45,y:0.49,z:0}}},vmax:37,acc:23,man:3.5,hp:65,long:2.3,larg:0.85,type:'moto',cols:[0xff8c1a,0x35c8e0,0x7dff7a],cross:true},
+  motocross:{nom:'Moto cross',tuningMeca:true,tuningCarro:{famille:'deuxroues',ancrages:{avant:{x:0,y:1.0,z:0.6},arriere:{x:0,y:1.0,z:-1.13},toit:{x:0,y:1.28,z:0.36},basCaisse:{x:0.2,y:0.85,z:0}}},vmax:37,acc:23,man:3.5,hp:65,long:2.3,larg:0.85,type:'moto',cols:[0xff8c1a,0x35c8e0,0x7dff7a],cross:true},
   sport:{nom:'Supercar "Éclipse"',tuningMeca:true,tuningCarro:{famille:'sportive',ancrages:{avant:{x:0,y:0.94,z:2.14},arriere:{x:0,y:1.12,z:-2.25},toit:{x:0,y:1.23,z:-0.26},basCaisse:{x:1,y:0.1,z:0}}},vmax:45,acc:24,man:3.0,hp:110,long:4.4,larg:2.0,type:'car',cols:[0xff4b2e,0x35e0ff,0xb8ff3a,0xf2f4f8],sport:true},
   taxi:{nom:'Taxi',tuningMeca:true,tuningCarro:{famille:'compacte',ancrages:{avant:{x:0,y:0.86,z:2.09},arriere:{x:0,y:0.65,z:-2.09},toit:{x:0,y:1.57,z:-0.26},basCaisse:{x:1,y:0.22,z:0}}},vmax:25,acc:15,man:2.6,hp:130,long:4.3,larg:2.0,type:'car',cols:[0xf2c21f],taxi:true},
   pickup:{nom:'Pickup',tuningMeca:true,tuningCarro:{famille:'utilitaire',ancrages:{avant:{x:0,y:2.36,z:2.53},arriere:{x:0,y:1.92,z:-2.53},toit:{x:0,y:2.49,z:0.34},basCaisse:{x:1.13,y:1.18,z:0}}},vmax:26,acc:12,man:2.2,hp:210,long:5.0,larg:2.2,type:'car',cols:[0x8a3a2a,0x3a5a7a,0x4a5a3a]},
@@ -2509,10 +2509,10 @@ const VEHDEFS={
   kayak:{nom:'Kayak',vmax:9,acc:5,man:2.6,hp:40,long:3.2,larg:0.8,type:'bateau',eau:true,pagaie:true,cols:[0xf2c21f,0xff5a3a,0x35e0ff]}, // pris à un pagayeur (14 octobre)
   jetski:{nom:'Jet-ski',vmax:37,acc:20,man:3.2,hp:60,long:2.6,larg:1.1,type:'bateau',eau:true,cols:[0xffd23f,0x35e0ff]},
   berline:{nom:'Berline',tuningMeca:true,tuningCarro:{famille:'compacte',ancrages:{avant:{x:0,y:0.54,z:2.35},arriere:{x:0,y:0.86,z:-2.28},toit:{x:0,y:1.35,z:-0.28},basCaisse:{x:1.04,y:0.22,z:0}}},vmax:28,acc:14,man:2.4,hp:170,long:4.7,larg:2.05,type:'car',cols:[0x3a3f4a,0x5a3a3a,0x2c3e50,0x6a6a72]},
-  motoS:{nom:'Moto sportive',tuningMeca:true,tuningCarro:{famille:'deuxroues',ancrages:{avant:{x:0,y:1.06,z:1.18},arriere:{x:0,y:0.65,z:-1.18},toit:{x:0,y:1.06,z:0.62},basCaisse:{x:0.37,y:0.45,z:0}}},vmax:42,acc:26,man:3.7,hp:60,long:2.4,larg:0.9,type:'moto',cols:[0x35e0ff,0xff4b2e,0xd8dce4]},
+  motoS:{nom:'Moto sportive',tuningMeca:true,tuningCarro:{famille:'deuxroues',ancrages:{avant:{x:0,y:0.87,z:0.86},arriere:{x:0,y:1.05,z:-1.15},toit:{x:0,y:1.08,z:0.52},basCaisse:{x:0.2,y:0.52,z:0}}},vmax:42,acc:26,man:3.7,hp:60,long:2.4,larg:0.9,type:'moto',cols:[0x35e0ff,0xff4b2e,0xd8dce4]},
   bateauP:{nom:'Vedette de police',vmax:33,acc:12,man:2.0,hp:260,long:6.8,larg:2.5,type:'bateau',eau:true,cols:[0x232833],police:true},
   peche:{nom:'Bateau de pêche',vmax:17,acc:6,man:1.3,hp:300,long:7.2,larg:2.8,type:'bateau',eau:true,cols:[0x6a7f8a,0x8a6a44]},
-  fantome:{nom:'Moto "Fantôme"',tuningMeca:true,tuningCarro:{famille:'deuxroues',ancrages:{avant:{x:0,y:1.06,z:1.18},arriere:{x:0,y:0.65,z:-1.18},toit:{x:0,y:1.06,z:0.62},basCaisse:{x:0.37,y:0.45,z:0}}},vmax:49,acc:28,man:3.8,hp:70,long:2.4,larg:0.9,type:'moto',cols:[0x0e1014],cache:true},
+  fantome:{nom:'Moto "Fantôme"',tuningMeca:true,tuningCarro:{famille:'deuxroues',ancrages:{avant:{x:0,y:0.92,z:0.62},arriere:{x:0,y:0.83,z:-1.2},toit:{x:0,y:1.14,z:0.44},basCaisse:{x:0.22,y:0.34,z:0}}},vmax:49,acc:28,man:3.8,hp:70,long:2.4,larg:0.9,type:'moto',cols:[0x0e1014],cache:true},
   blinde:{nom:'Blindé "Bastion"',tuningMeca:true,vmax:21,acc:9,man:1.6,hp:900,long:5.8,larg:2.6,type:'car',cols:[0x2e3328],milit:true,cache:true},
   // Jeep militaire : le contrepoint du char — légère, rapide, agile,
   // mitrailleuse montée sur affût pivotant (visée au joystick superposé
@@ -3915,7 +3915,7 @@ function construireVille(){
     if(qq!=='plage'&&qq!=='parc'&&bx%3===1&&bz%3===1) mkFeu(cx+INNER/2+1.4,cz-INNER/2-1.4);
   }
   placerPortes();
-  if(DECOR_V2){ sansAleaVille(()=>{ ameliorerPortes(); mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkBasket(); mkCiel(); mkKiosqueBanderole(); mkCrique(); mkMontReyes(); mkBordureEst(); mkCanyonsDesert(); mkPicVertige(); mkParcStunt(); mkSkateXXL(); mkRides(); mkMerVivante(); mkRemorquage(); mkLarge(); deplacerVoltige(); mkAeroportVivant(); mkHeliGrue(); mkPlanques(); mkBoutiques(); mkGrandHuit(); mkToitsVivants(); mkTracesSable(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkNeonVivant(); mkQuartiersFinitions(); mkBalises(); }); } // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
+  if(DECOR_V2){ sansAleaVille(()=>{ ameliorerPortes(); mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkBasket(); mkCiel(); mkKiosqueBanderole(); mkCrique(); mkMontReyes(); mkVieMont(); mkBordureEst(); mkCanyonsDesert(); mkPicVertige(); mkParcStunt(); mkSkateXXL(); mkRides(); mkMerVivante(); mkRemorquage(); mkLarge(); deplacerVoltige(); mkAeroportVivant(); mkHeliGrue(); mkPlanques(); mkBoutiques(); mkGrandHuit(); mkToitsVivants(); mkTracesSable(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkNeonVivant(); mkQuartiersFinitions(); mkBalises(); }); } // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
   finaliserMerge();
   construireMinimapStatique();
 }
@@ -7385,41 +7385,77 @@ function creuserTrou(t){
   else toast('Rien… que du sable.','warn');
 }
 /* ---- FAUNE : sangliers et jaguar de l'île ---- */
-const FAUNE=[], FAUNE_DEFS={sanglier:{hp:60,vit:8,deg:10,col:0x5a3e2a,long:1.4,cash:[10,20]},jaguar:{hp:110,vit:11.5,deg:16,col:0x2a2a2e,long:1.8,cash:[25,45]}};
+// Vie du Mont Reyes (14 octobre, demandé : « de la vie sur la montagne, des animaux ») : la même FAUNE, zone 'mont'
+// (a.zone) : bouquetins paisibles qui broutent et fuient (D.paisible : les tuer coûte du karma), un ours qui
+// charge comme le jaguar. Décor à part (VIE_MONT) : aigles qui tournent au-dessus du sommet, marmottes qui
+// plongent dans leur terrier quand on approche.
+const FAUNE=[], FAUNE_DEFS={sanglier:{hp:60,vit:8,deg:10,col:0x5a3e2a,long:1.4,cash:[10,20]},jaguar:{hp:110,vit:11.5,deg:16,col:0x2a2a2e,long:1.8,cash:[25,45]},
+  bouquetin:{hp:40,vit:9,deg:0,col:0x8a7458,long:1.3,cash:[0,0],paisible:true},ours:{hp:240,vit:9.5,deg:24,col:0x3a2a1e,long:2.1,cash:[45,80]}};
+const MSG_BOUQUETIN=['BAD KARMA 🐐','IL NE T’AVAIT RIEN FAIT…','−50 KARMA','LES GARDES FORESTIERS ONT TA PLAQUE','PAUVRE BIQUETTE'];
 function mkAnimal(type){
   const D=FAUNE_DEFS[type], g=new THREE.Group(), L=D.long;
   g.add(mkBoxG(0.7,0.6,L,D.col,0,0.65,0));
   const tete=mkBoxG(0.5,0.48,0.55,D.col,0,0.8,L/2+0.2); g.add(tete);
   if(type==='sanglier'){ g.add(mkBoxG(0.26,0.22,0.2,0x8a6a50,0,0.7,L/2+0.55)); for(const s of [-1,1]) g.add(mkBoxG(0.05,0.18,0.05,0xf2ecd8,s*0.14,0.78,L/2+0.55)); g.add(mkBoxG(0.12,0.3,0.6,0x3a2a1e,0,1.0,0)); } // groin, défenses, crinière
+  else if(type==='bouquetin'){ g.children[0].scale.set(0.75,0.85,1); tete.scale.set(0.7,0.8,0.9); g.add(mkBoxG(0.42,0.12,L*0.8,0xe8dcc4,0,0.42,0)); // ventre clair
+    for(const s of [-1,1]){ for(let k=0;k<5;k++){ const an=0.3+k*0.42, c=mkBoxG(0.11-k*0.012,0.11-k*0.012,0.2,0x4a3a28,s*(0.1+k*0.012),1.1+Math.sin(an)*0.34,L/2+0.2-(1-Math.cos(an))*0.34); c.rotation.x=an+0.4; g.add(c); } } // grandes cornes en arc vers l'arrière
+    g.add(mkBoxG(0.1,0.18,0.08,0x5a4a34,0,0.52,L/2+0.42)); } // barbiche
+  else if(type==='ours'){ g.children[0].scale.set(1.5,1.45,1); tete.scale.set(1.25,1.2,1.1); tete.position.y=1.05; g.add(mkBoxG(0.32,0.26,0.32,0x6a5a48,0,0.98,L/2+0.55)); // museau
+    for(const s of [-1,1]) g.add(mkBoxG(0.16,0.16,0.1,D.col,s*0.25,1.42,L/2+0.15)); g.add(mkBoxG(0.12,0.08,0.06,0x15171c,0,1.06,L/2+0.72)); g.add(mkBoxG(0.9,0.5,0.8,D.col,0,1.2,L*0.2)); } // oreilles, truffe, bosse
   else { g.add(mkBoxG(0.08,0.08,1.1,D.col,0,0.85,-L/2-0.5)); for(let k=0;k<8;k++) g.add(mkBoxG(0.12,0.02,0.12,0xd8a830,(k%2?0.2:-0.2),0.96,-L/2+0.3+k*0.18)); for(const s of [-1,1]) g.add(mkBoxG(0.08,0.06,0.04,0xffd23f,s*0.13,0.9,L/2+0.47)); } // queue, taches, yeux
-  const pattes=[]; for(const [sx,sz] of [[-1,1],[1,1],[-1,-1],[1,-1]]){ const p=mkBoxG(0.16,0.5,0.16,D.col,sx*0.25,0.25,sz*L*0.35); g.add(p); pattes.push(p); }
+  const ep=type==='ours'?0.3:(type==='bouquetin'?0.11:0.16), lp=type==='bouquetin'?0.62:0.5, ex=type==='ours'?0.4:(type==='bouquetin'?0.18:0.25);
+  const pattes=[]; for(const [sx,sz] of [[-1,1],[1,1],[-1,-1],[1,-1]]){ const p=mkBoxG(ep,lp,ep,D.col,sx*ex,lp/2,sz*L*0.35); g.add(p); pattes.push(p); }
+  if(type==='bouquetin'){ g.children[0].position.y=0.78; tete.position.y=0.98; }
   scene.add(g); return {g,pattes};
+}
+function retirerFaune(zone){ for(let i=FAUNE.length-1;i>=0;i--){ const a=FAUNE[i]; if((a.zone||'ile')!==zone) continue; scene.remove(a.g); libererEntite(a.g); FAUNE.splice(i,1); } }
+function montU(x,z){ return Math.hypot((x-MONT.x)/MONT.rx,(z-MONT.z)/MONT.rz); }
+function placerFauneMont(){ // à chaque partie et chaque vague, comme l'île
+  if(!DECOR_V2||!MONT.sommet) return;
+  if(FAUNE.filter((a)=>a.zone==='mont'&&!a.mort).length>=6) return;
+  retirerFaune('mont');
+  for(const type of ['bouquetin','bouquetin','bouquetin','bouquetin','bouquetin','ours']){ const m=mkAnimal(type), D=FAUNE_DEFS[type];
+    let x=MONT.sommet.x, z=MONT.sommet.z;
+    for(let t=0;t<40;t++){ const a=rand(0,6.28), r=type==='ours'?rand(0.45,0.7):rand(0.2,0.75), x2=MONT.x+Math.cos(a)*MONT.rx*r, z2=MONT.z+Math.sin(a)*MONT.rz*r;
+      if(x2>LIMITE_EST-2||(MONT.presDuSentier&&MONT.presDuSentier(x2,z2,6))) continue;
+      const h=hauteurMont(x2,z2); if(h<3||Math.abs(hauteurMont(x2+1.5,z2)-h)>2.2||Math.abs(hauteurMont(x2,z2+1.5)-h)>2.2) continue; x=x2; z=z2; break; }
+    FAUNE.push({type,D,zone:'mont',g:m.g,pattes:m.pattes,x,z,y:hauteurMont(x,z),ang:rand(0,6.28),hp:D.hp,mort:false,mordT:0,errT:0,ph:rand(0,6),corpsT:0}); }
 }
 function placerFaune(){ // à chaque partie et chaque vague : les morts reviennent
   if(!MERV.ok) return;
-  const vus=FAUNE.filter((a)=>!a.mort).length; if(vus>=4) return;
-  for(const a of FAUNE){ scene.remove(a.g); libererEntite(a.g); } // tous : un vivant laissé dans la scène restait figé, hors de FAUNE
-  FAUNE.length=0;
+  const vus=FAUNE.filter((a)=>!a.zone&&!a.mort).length; if(vus>=4) return;
+  retirerFaune('ile'); // tous ceux de l'île : un vivant laissé dans la scène restait figé, hors de FAUNE
   for(const type of ['sanglier','sanglier','sanglier','jaguar']){ const m=mkAnimal(type), D=FAUNE_DEFS[type];
     let x=ILE2.pic.x, z=ILE2.pic.z; for(let t=0;t<20;t++){ const a=rand(0,6.28), r=rand(5,18), x2=ILE2.cx+Math.cos(a)*r, z2=ILE2.cz+Math.sin(a)*r*0.7; if(ileU(x2,z2)<0.75){ x=x2; z=z2; break; } }
     FAUNE.push({type,D,g:m.g,pattes:m.pattes,x,z,y:hauteurIleTresor(x,z),ang:rand(0,6.28),hp:D.hp,mort:false,mordT:0,errT:0,ph:rand(0,6),corpsT:0}); }
 }
 function toucherAnimal(a,dmg){
   if(a.mort) return; a.hp-=dmg; a.colere=true; burst(a.x,a.y+0.8,a.z,4,0xb8282a,4);
-  if(a.hp<=0){ a.mort=true; a.corpsT=5; a.g.rotation.z=Math.PI/2; SFX.mort(); ETAT.score+=a.type==='jaguar'?250:80;
-    creerPickup('cash',a.x,a.z,randi(a.D.cash[0],a.D.cash[1])); spawnTexte(a.x,2.5,a.z,a.type==='jaguar'?'JAGUAR ! +250':'SANGLIER +80','#ffd23f'); }
+  if(a.hp<=0){ a.mort=true; a.corpsT=5; a.g.rotation.z=Math.PI/2; SFX.mort();
+    if(a.D.paisible){ ETAT.score=Math.max(0,ETAT.score-50); const m=pick(MSG_BOUQUETIN); spawnTexte(a.x,a.y+2.2,a.z,m,'#ff5a6a'); toast('🐐 '+m,'warn'); return; } // un animal paisible : du karma en moins, rien à gagner
+    const pts=a.type==='jaguar'?250:(a.type==='ours'?320:80); ETAT.score+=pts;
+    creerPickup('cash',a.x,a.z,randi(a.D.cash[0],a.D.cash[1])); spawnTexte(a.x,a.y+2.5,a.z,(a.type==='jaguar'?'JAGUAR !':(a.type==='ours'?'OURS !':'SANGLIER'))+' +'+pts,'#ffd23f'); }
 }
 function majFaune(dt){
   for(const a of FAUNE){
     if(a.mort){ if(a.corpsT>0){ a.corpsT-=dt; if(a.corpsT<=0) a.g.visible=false; } continue; }
-    const d=Math.sqrt(dist2(a.x,a.z,P.x,P.z)), voit=!P.veh&&!P.nage&&(d<14||(a.colere&&d<30))&&Math.abs(P.y-a.y)<6;
+    const mont=a.zone==='mont', H=mont?hauteurMont:hauteurIleTresor;
+    const d=Math.sqrt(dist2(a.x,a.z,P.x,P.z));
+    if(mont&&d>160){ continue; } // loin du joueur : figé (LOD)
+    // percuté par le véhicule du joueur (au sol, lancé)
+    const pv=P.veh; if(pv&&!pv.def.air&&Math.abs(pv.v||0)>5&&Math.sqrt(dist2(a.x,a.z,pv.x,pv.z))<a.D.long*0.6+pv.def.long*0.45&&Math.abs((pv.enAir?(pv.h||0):solY(pv.x,pv.z))-a.y)<2.5){
+      a.x+=Math.sin(pv.ang)*2; a.z+=Math.cos(pv.ang)*2; burst(a.x,a.y+0.6,a.z,8,0xc8a878,5,6); SFX.choc(0.5); toucherAnimal(a,999);
+      if(!a.D.paisible&&mont) toast('🐻 L’ours a pris le pare-chocs…','warn'); continue; }
+    const voit=!a.D.paisible&&!P.veh&&!P.nage&&(d<14||(a.colere&&d<30))&&Math.abs(P.y-a.y)<6;
     let vit=0;
-    if(voit){ const cible=Math.atan2(P.x-a.x,P.z-a.z); a.ang=angLerp(a.ang,cible,4*dt); vit=d>1.4?a.D.vit:0;
+    if(a.D.paisible&&d<11&&Math.abs(P.y-a.y)<8){ const fuite=Math.atan2(a.x-P.x,a.z-P.z); a.ang=angLerp(a.ang,fuite,5*dt); vit=a.D.vit; a.pause=false; } // il détale
+    else if(voit){ const cible=Math.atan2(P.x-a.x,P.z-a.z); a.ang=angLerp(a.ang,cible,4*dt); vit=d>1.4?a.D.vit:0;
       a.mordT-=dt; if(d<1.7&&a.mordT<=0){ a.mordT=1.2; toucherJoueur(a.D.deg,a.x,a.z); if(Math.random()<0.4) toast(a.type==='jaguar'?'🐆 Le jaguar t’a lacéré !':'🐗 Coup de défense !','warn'); } }
     else { a.errT-=dt; if(a.errT<=0){ a.errT=rand(2,5); a.ang+=rand(-1.5,1.5); a.pause=Math.random()<0.35; } vit=a.pause?0:a.D.vit*0.25; }
-    if(vit>0){ const nx=a.x+Math.sin(a.ang)*vit*dt, nz=a.z+Math.cos(a.ang)*vit*dt;
-      if(ileU(nx,nz)<0.9&&hauteurIleTresor(nx,nz)-a.y<vit*dt*2.5){ a.x=nx; a.z=nz; } else a.ang+=Math.PI*0.6; } // jamais à l'eau, jamais une paroi
-    a.y=hauteurIleTresor(a.x,a.z); a.ph+=dt*vit*1.6;
+    if(vit>0){ const nx=a.x+Math.sin(a.ang)*vit*dt, nz=a.z+Math.cos(a.ang)*vit*dt, pente=a.D.paisible?4:2.5; // le bouquetin grimpe partout
+      const dedans=mont?(montU(nx,nz)<0.85&&nx<LIMITE_EST-2&&H(nx,nz)>1):ileU(nx,nz)<0.9;
+      if(dedans&&H(nx,nz)-a.y<vit*dt*pente){ a.x=nx; a.z=nz; } else a.ang+=Math.PI*0.6; } // jamais à l'eau ni hors de sa zone, jamais une paroi
+    a.y=H(a.x,a.z); a.ph+=dt*vit*1.6;
     a.g.position.set(a.x,a.y,a.z); a.g.rotation.y=a.ang;
     for(let k=0;k<4;k++) a.pattes[k].rotation.x=Math.sin(a.ph+(k%2?Math.PI:0))*Math.min(0.8,vit*0.08);
   }
@@ -7673,8 +7709,38 @@ function majBalises(dt){
     const s=3.2+clamp(d/50,0,1)*4; b.sp.scale.set(s,s,1); // plus grande au loin : lisible à 100 u
   }
 }
+// Décor vivant du mont : aigles en cercle au-dessus du sommet, marmottes à l'affût près du sentier (spectacle, dt)
+const VIE_MONT={aigles:[],marmottes:[],ok:false};
+function mkVieMont(){
+  if(!MONT.sommet) return; const S=MONT.sommet;
+  for(let i=0;i<3;i++){ const g=new THREE.Group(), brun=mat(0x4a3424);
+    const c=new THREE.Mesh(new THREE.SphereGeometry(0.4,10,8),brun); c.scale.set(0.8,0.7,2); g.add(c);
+    const t=new THREE.Mesh(new THREE.SphereGeometry(0.26,8,6),mat(0xf2ecd8)); t.position.set(0,0.12,0.8); g.add(t); g.add(mkBoxG(0.1,0.08,0.2,0xffc83a,0,0.08,1.08));
+    g.add(mkBoxG(0.7,0.05,0.5,0x3a2818,0,0,-0.95)); const ailes=[];
+    for(const s of [-1,1]){ const piv=new THREE.Group(); piv.position.set(s*0.25,0.1,0); const a=mkBoxG(2.0,0.05,0.75,0x3a2818,s*1.0,0,0); piv.add(a); const b=mkBoxG(0.6,0.04,0.5,0x241810,s*2.2,0,-0.1); piv.add(b); g.add(piv); ailes.push(piv); }
+    g.scale.setScalar(1.3); scene.add(g);
+    VIE_MONT.aigles.push({g,ailes,a:aD(0,6.28),r:aD(22,48),h:S.h+aD(10,26),v:aD(0.18,0.3)*(i%2?1:-1),ph:aD(0,6)}); }
+  for(let i=0;i<4;i++){ let x=0,z=0,h=0; for(let k=0;k<30;k++){ const a=aD(0,6.28), r=aD(0.25,0.7); x=MONT.x+Math.cos(a)*MONT.rx*r; z=MONT.z+Math.sin(a)*MONT.rz*r; h=hauteurMont(x,z);
+      if(x<LIMITE_EST-4&&h>4&&Math.abs(hauteurMont(x+1,z)-h)<1.2&&Math.abs(hauteurMont(x,z+1)-h)<1.2) break; }
+    const g=new THREE.Group(); const trou=new THREE.Mesh(new THREE.CircleGeometry(0.42,10),mat(0x241810)); trou.rotation.x=-Math.PI/2; trou.position.y=0.05; g.add(trou);
+    const m=new THREE.Group(); m.add(mkBoxG(0.32,0.5,0.26,0x9a7a52,0,0.25,0)); m.add(mkBoxG(0.26,0.22,0.24,0x9a7a52,0,0.6,0.02)); m.add(mkBoxG(0.12,0.08,0.06,0x3a2818,0,0.58,0.15));
+    for(const s of [-1,1]) m.add(mkBoxG(0.08,0.14,0.08,0x7a5a3a,s*0.12,0.35,0.13)); g.add(m);
+    g.position.set(x,h,z); g.rotation.y=aD(-0.6,0.6); scene.add(g); VIE_MONT.marmottes.push({g,m,x,z,y:0,cache:0}); }
+  VIE_MONT.ok=true;
+}
+function majVieMont(dt){
+  if(!VIE_MONT.ok) return; const S=MONT.sommet;
+  if(dist2(P.x,P.z,MONT.x,MONT.z)>260*260) return; // loin du mont : rien ne bouge
+  for(const e of VIE_MONT.aigles){ e.a+=e.v*dt; e.ph+=dt*(Math.sin(e.a*3)>0.6?7:1.5); // quelques battements, puis il plane
+    const x=S.x+Math.cos(e.a)*e.r, z=S.z+Math.sin(e.a)*e.r*0.8; e.g.position.set(x,e.h+Math.sin(e.a*2)*2,z);
+    e.g.rotation.set(0,Math.atan2(-Math.sin(e.a)*e.v,Math.cos(e.a)*e.v*0.8)+(e.v>0?0:0),e.v>0?-0.25:0.25);
+    const b=Math.sin(e.ph)*(Math.sin(e.a*3)>0.6?0.6:0.08); e.ailes[0].rotation.z=b; e.ailes[1].rotation.z=-b; }
+  for(const m of VIE_MONT.marmottes){ const d=dist2(P.x,P.z,m.g.position.x,m.g.position.z); if(d<100) m.cache=3; else if(m.cache>0) m.cache-=dt;
+    const cible=m.cache>0?-0.75:0; m.y+=(cible-m.y)*Math.min(1,dt*(cible<m.y?14:2)); m.m.position.y=m.y; m.m.rotation.y=Math.sin(ETAT.runT*0.7+m.x)*0.6; }
+}
 function majMerVivante(dt){
-  if(!MERV.ok) return;
+  majVieMont(dt);
+  if(!MERV.ok){ majFaune(dt); return; }
   majFaune(dt);
   if(MERV.feu) MERV.feu.intensity=(ETAT.jour>100?1.6:0.6)*(0.8+0.2*Math.sin(ETAT.runT*13));
   // bulles des épaves
@@ -7833,7 +7899,7 @@ function towEntrees(){ const T=TOW.actif; if(!T||T.id!=='wake'||T.lache) return;
   if(pressed('sprint')||edgeKey('ShiftLeft')) T.req.ollie=true; if(pressed('gren')||edgeKey('KeyG')) T.req.flip=true; if(pressed('esquive')||edgeKey('KeyK')) T.req.spin=true; }
 function lacherCorde(){ const T=TOW.actif; if(!T||T.id!=='para'||T.lache) return; T.lache=true; TOW.corde.visible=false;
   P.chute=true; P.chuteY0=P.y; P.chuteT=0; P.chuteHaut=P.y; P.para=true; P.vy=-1; P.chuteVx=0; P.chuteVz=0; toast('🪂 Corde lâchée — vise le radeau !','or'); SFX.ui(); }
-function resetMer(){ if(TOW.actif) finTow('annule'); TOW.actif=null; MERV.primes={}; for(const s of MERV.spots) s.vague=-1; ILE2.vague=-1; for(const a of FAUNE) a.mort=true; placerFaune(); }
+function resetMer(){ if(TOW.actif) finTow('annule'); TOW.actif=null; MERV.primes={}; for(const s of MERV.spots) s.vague=-1; ILE2.vague=-1; for(const a of FAUNE) a.mort=true; placerFaune(); placerFauneMont(); }
 /* ---------- COURSES DU MONT ET DU CANYON (DECOR_V2) ----------
    Deux défis chronométrés (dtJeu), à faire sur deux roues ou en buggy :
    - MONTÉE DU MONT REYES : du pied au sommet par le sentier en lacets,
@@ -11203,7 +11269,7 @@ function jeepCarrosserie(corps,coul,L,W,bodyY){
   const jan=new THREE.Mesh(new THREE.CylinderGeometry(0.24,0.24,0.32,8),mat(acier)); jan.rotation.x=Math.PI/2; jan.position.copy(sec.position); corps.add(jan);
   corps.add(mkBoxG(0.3,0.42,0.16,0x3a5a2a,-W*0.36,bodyY+0.12,zTub0-0.1));
 }
-function vehiculeRestyle(def){ return DECOR_V2&&((def.type==='bateau'&&!def.surf)||def.buggy||def.pelle); }
+function vehiculeRestyle(def){ return DECOR_V2&&((def.type==='bateau'&&!def.surf)||def.buggy||def.pelle||(def.type==='moto'&&!def.velo)); } // motos : makeMotoV2
 /* Hauteurs réalistes (14 octobre, playtest en vue immersive : « bus,
    pompiers, ambulance paraissent ratatinés, de la hauteur d'une voiture »).
    Mesuré (personnage 1,8 u ≈ 1,8 m) : bus 2,0, pompiers 1,6, ambulance 1,6,
@@ -11679,6 +11745,7 @@ function makeVoitureBase(key){
   // les autres véhicules : zéro différence visuelle pour eux.
   const corps=new THREE.Group(); g.add(corps); ud.corps=corps;
   if(def.velo) return makeVelo(def,coul,g,ud,corps);
+  if(def.type==='moto'&&_VEH_V2) return makeMotoV2(def,coul,g,ud,corps,key);
   if(key==='van') return mkFourgon(def,coul,g,ud,corps);
   if(def.modeleAero) return mkVehPiste(def,coul,g,ud,corps);
   if(def.type==='moto'){
@@ -12212,6 +12279,137 @@ function makeVoitureBase(key){
 // animé dans majConduite). Le vélo de ville a un cadre col-de-cygne et un
 // guidon relevé ; le BMX, petites roues, cadre bas et guidon à barre.
 var MAT_PNEU_VELO=null; // var : jamais en zone morte, même si un vélo était créé pendant la génération
+// Motos (14 octobre, demandé : « des motos et motos cross réalistes ») : vrai cadre, réservoir galbé, selle,
+// moteur, échappement, fourche, guidon, phare rond, garde-boue, bras oscillant, roues à jante (pneu = cylindre
+// d'axe y local, comme toutes les roues : les jantes du garage s'y greffent), crampons sur la cross. Quatre
+// styles : routière (moto, Frelon), sportive carénée (motoS), cross (motocross, militaire), chopper (Fantôme).
+// Empattement et hauteurs proches de l'ancien modèle : les ancrages de carrosserie restent valables. Pièces
+// fusionnées par matériau (la peinture du garage suit mat(coul)). ud.siege : assise du pilote (entrerVehicule).
+var _GEO_CRAMPONS={}, _GEO_BRANCHES={};
+function makeMotoV2(def,coul,g,ud,corps,key){
+  const st=key==='motoS'?'sport':(def.cross?'cross':(key==='fantome'?'chopper':'route'));
+  const NOIR=0x15171c, SOMBRE=0x2a2e36, ALU=0xb8bec8, CHROME=0xd8dce4, MOT=0x3a3e46;
+  const tube=(x0,y0,z0,x1,y1,z1,ep,c)=>{ const dy=y1-y0, dz=z1-z0, l=Math.hypot(dy,dz);
+    const b=mkBoxG(ep,ep,l,c,(x0+x1)/2,(y0+y1)/2,(z0+z1)/2); b.rotation.x=Math.atan2(-dy,dz); corps.add(b); return b; };
+  const ech=(...a)=>{ const m=cyl(...a); m.userData.ech=true; return m; }; // échappement d'origine (ud.echapOrigine)
+  const cyl=(x0,y0,z0,x1,y1,z1,r,c,seg)=>{ const a=new THREE.Vector3(x0,y0,z0), b=new THREE.Vector3(x1,y1,z1), d=b.clone().sub(a), l=d.length();
+    const m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,l,seg||10),mat(c)); m.position.copy(a).add(b).multiplyScalar(0.5);
+    m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize()); corps.add(m); return m; };
+  const boule=(x,y,z,sx,sy,sz,c,rx)=>{ const m=new THREE.Mesh(new THREE.SphereGeometry(1,14,10),mat(c)); m.scale.set(sx,sy,sz); m.position.set(x,y,z); if(rx) m.rotation.x=rx; corps.add(m); return m; };
+  const boite=(w,h,d,c,x,y,z,rx)=>{ const b=mkBoxG(w,h,d,c,x,y,z); if(rx) b.rotation.x=rx; corps.add(b); return b; };
+  // roue : pneu (dans ud.roues), jante en étoile ou à rayons, disque de frein ; crampons en option
+  const roue=(z,R,ep,jante,crampons,disque)=>{
+    const r=new THREE.Mesh(new THREE.CylinderGeometry(R,R,ep,20),mat(NOIR)); r.rotation.z=Math.PI/2; r.position.set(0,R,z); g.add(r); ud.roues.push(r);
+    const flanc=new THREE.Mesh(new THREE.CylinderGeometry(R*0.74,R*0.74,ep+0.006,18),mat(SOMBRE)); r.add(flanc);
+    const cle=jante+'_'+R.toFixed(2)+'_'+ep.toFixed(2);
+    if(!_GEO_BRANCHES[cle]){ const gs=[];
+      if(jante==='rayons') for(let k=0;k<8;k++){ const b=new THREE.BoxGeometry(R*1.42,0.012,0.012); b.rotateY(k*Math.PI/8); b.translate(0,0,0); gs.push(b); }
+      else for(let k=0;k<5;k++){ const b=new THREE.BoxGeometry(R*0.62,0.03,0.05); b.translate(R*0.33,0,0); b.rotateY(k*Math.PI*2/5); gs.push(b); }
+      const gg=[]; for(const s of [-1,1]) for(const b of gs){ const c2=b.clone(); c2.translate(0,s*(ep/2+0.008),0); gg.push(c2); }
+      const anneau=new THREE.CylinderGeometry(R*0.74,R*0.74,ep+0.01,18,1,true); gg.push(anneau);
+      _GEO_BRANCHES[cle]=mergeGeoManuel(gg); _GEO_BRANCHES[cle].userData.partagee=true; }
+    r.add(new THREE.Mesh(_GEO_BRANCHES[cle],mat(jante==='rayons'?ALU:(st==='chopper'?CHROME:0x8a929c))));
+    const moy=new THREE.Mesh(new THREE.CylinderGeometry(R*0.16,R*0.16,ep+0.05,8),mat(ALU)); r.add(moy);
+    if(disque){ const dq=new THREE.Mesh(new THREE.CylinderGeometry(R*0.5,R*0.5,0.012,16),mat(0x9aa0a8)); dq.position.y=-(ep/2+0.02); r.add(dq);
+      const etr=mkBoxG(0.06,0.04,0.12,0xd83a3a,0,-(ep/2+0.04),0); etr.position.set(R*0.36,-(ep/2+0.04),R*0.2); r.add(etr); }
+    if(crampons){ const ck=R.toFixed(2)+'_'+ep.toFixed(2);
+      if(!_GEO_CRAMPONS[ck]){ const gs=[]; const n=22; for(let k=0;k<n;k++){ const a=k/n*Math.PI*2, b=new THREE.BoxGeometry(0.07,ep*1.06,0.06); b.translate(0,0,0); b.rotateY(0); const m=new THREE.Matrix4().makeRotationY(a); b.translate(R+0.012,0,0); b.applyMatrix4(m); if(k%2) b.translate(0,ep*0.08,0); gs.push(b); }
+        _GEO_CRAMPONS[ck]=mergeGeoManuel(gs); _GEO_CRAMPONS[ck].userData.partagee=true; }
+      r.add(new THREE.Mesh(_GEO_CRAMPONS[ck],mat(NOIR))); }
+    return r; };
+  const phare=(x,y,z,rr)=>{ const p=new THREE.Mesh(new THREE.CylinderGeometry(rr,rr*0.9,0.1,14),mat(SOMBRE)); p.rotation.x=Math.PI/2; p.position.set(x,y,z); corps.add(p);
+    const v=new THREE.Mesh(new THREE.CircleGeometry(rr*0.85,14),mat(0xfff0b8)); v.position.set(x,y,z+0.052); corps.add(v);
+    const s=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:0xffe9b0,transparent:true,depthWrite:false,opacity:0})); s.scale.set(2.2,2.2,1); s.position.set(x,y,z+0.4); corps.add(s); ud.phG.push(s); };
+  let seat;
+  if(st==='route'){
+    const R=0.34, zf=0.75, zr=-0.75, H={y:1.0,z:0.47};
+    roue(zf,R,0.13,'etoile',false,true); roue(zr,R,0.16,'etoile',false,false);
+    for(const sx of [-0.1,0.1]){ tube(sx,H.y,H.z,sx,R+0.02,zf,0.07,CHROME); tube(sx,H.y-0.25,H.z+0.065,sx,R+0.02,zf,0.075,SOMBRE); } // fourche (fourreaux sombres)
+    boite(0.3,0.06,0.12,ALU,0,H.y,H.z);                                   // té de fourche
+    tube(0,H.y-0.05,H.z,0,0.5,0.2,0.08,SOMBRE); tube(0,H.y-0.04,H.z-0.05,0,0.88,-0.42,0.07,SOMBRE); // cadre
+    for(const sx of [-0.13,0.13]) tube(sx,0.46,-0.18,sx,R,zr,0.06,SOMBRE);   // bras oscillant
+    cyl(0.09,0.47,-0.32,0.07,0.86,-0.36,0.03,0xd83a3a,6);                   // amortisseur
+    boite(0.36,0.36,0.46,MOT,0,0.5,0.03); for(let k=0;k<4;k++) boite(0.42,0.025,0.26,0x5a626c,0,0.7+k*0.045,0.1); // moteur à ailettes
+    const carter=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.12,0.05,14),mat(ALU)); carter.rotation.z=Math.PI/2; carter.position.set(-0.2,0.46,-0.02); corps.add(carter);
+    for(const sx of [0.06,0.12]) cyl(sx,0.62,0.26,sx+0.04,0.26,0.12,0.03,CHROME,8);  // collecteurs
+    ech(0.18,0.27,0.08,0.21,0.4,-0.58,0.07,CHROME,12);                      // silencieux
+    boule(0,0.95,0.2,0.2,0.13,0.3,coul,-0.08); boite(0.06,0.012,0.34,0xe8ecf2,0,1.075,0.2,-0.08);   // réservoir et sa bande
+    boite(0.27,0.08,0.58,NOIR,0,0.98,-0.26,0.04);                            // selle
+    boite(0.25,0.16,0.4,coul,0,0.88,-0.55,-0.18); boite(0.13,0.06,0.04,0xd83a3a,0,0.95,-0.77);   // coque arrière, feu
+    boite(0.17,0.03,0.42,coul,0,0.73,0.77,-0.12); boite(0.16,0.03,0.3,NOIR,0,0.72,-0.64,0.25);  // garde-boue
+    boite(0.7,0.035,0.035,SOMBRE,0,1.1,0.4); for(const s of [-1,1]){ boite(0.06,0.06,0.13,NOIR,s*0.34,1.1,0.39); tube(s*0.24,1.1,0.42,s*0.27,1.28,0.45,0.02,SOMBRE); boite(0.1,0.06,0.02,0x9aa0a8,s*0.28,1.3,0.46); } // guidon, rétros
+    phare(0,0.9,0.63,0.11); boite(0.1,0.07,0.08,NOIR,0,1.06,0.5);           // phare, compteur
+    seat={y:1.02-0.6,z:-0.18};
+  } else if(st==='sport'){
+    const R=0.33, zf=0.76, zr=-0.73, H={y:0.98,z:0.5};
+    roue(zf,R,0.12,'etoile',false,true); roue(zr,R,0.18,'etoile',false,false);
+    for(const sx of [-0.09,0.09]){ tube(sx,H.y,H.z,sx,R+0.02,zf,0.065,0xd8a83a); tube(sx,H.y-0.3,H.z+0.075,sx,R+0.02,zf,0.075,SOMBRE); }
+    tube(0,0.82,0.38,0,0.55,-0.15,0.12,ALU);                                 // cadre périmétrique
+    for(const sx of [-0.13,0.13]) tube(sx,0.5,-0.15,sx,R,zr,0.08,ALU);
+    boite(0.34,0.32,0.42,MOT,0,0.5,0.05);
+    boite(0.46,0.36,0.62,coul,0,0.62,0.32,0.08);                             // carénage latéral
+    boite(0.36,0.3,0.36,coul,0,0.86,0.66,-0.55);                             // tête de fourche
+    boite(0.3,0.2,0.03,0x2a3a4a,0,1.07,0.72,-0.95);                          // bulle fumée
+    boite(0.36,0.14,0.44,NOIR,0,0.36,0.22);                                  // sabot
+    boule(0,0.98,0.18,0.18,0.12,0.24,coul,-0.15);                            // réservoir
+    boite(0.25,0.07,0.32,NOIR,0,1.0,-0.2,0.08); boite(0.24,0.16,0.34,coul,0,0.96,-0.46,-0.22); boite(0.16,0.08,0.2,coul,0,1.04,-0.66,-0.35); // selle, coque arrière effilée
+    boite(0.14,0.04,0.04,0xd83a3a,0,1.12,-0.74);
+    ech(0.14,0.5,-0.25,0.18,0.72,-0.66,0.065,0x2a2e36,12); ech(0.18,0.72,-0.66,0.19,0.74,-0.72,0.068,ALU,12); // échappement relevé
+    for(const s of [-1,1]){ boite(0.2,0.03,0.03,SOMBRE,s*0.17,0.98,0.5); boite(0.05,0.05,0.1,NOIR,s*0.27,0.98,0.48); boite(0.1,0.05,0.02,coul,s*0.2,1.06,0.68); } // demi-guidons, rétros
+    for(const s of [-1,1]) phare(s*0.08,0.87,0.86,0.06);
+    boite(0.16,0.03,0.3,coul,0,0.71,0.78,-0.1);
+    seat={y:1.04-0.6,z:-0.16};
+  } else if(st==='cross'){
+    const R=0.4, zf=0.72, zr=-0.7, H={y:1.12,z:0.42};
+    roue(zf,R,0.1,'rayons',true,true); roue(zr,R,0.13,'rayons',true,false);
+    for(const sx of [-0.09,0.09]){ tube(sx,H.y,H.z,sx,R+0.02,zf,0.06,0xd8a83a); tube(sx,H.y-0.38,H.z+0.1,sx,R+0.02,zf,0.075,SOMBRE); } // fourche longue
+    boite(0.28,0.06,0.12,ALU,0,H.y,H.z);
+    tube(0,H.y-0.05,H.z,0,0.44,0.14,0.06,SOMBRE); tube(0,H.y-0.05,H.z-0.03,0,1.0,-0.3,0.055,SOMBRE);
+    for(const sx of [-0.11,0.11]) tube(sx,0.6,-0.1,sx,R,zr,0.06,ALU);
+    cyl(0,0.62,-0.2,0,1.0,-0.26,0.035,0xffd23f,6);                           // mono-amortisseur
+    boite(0.24,0.3,0.32,MOT,0,0.6,0.06); boite(0.2,0.2,0.16,0x5a626c,0,0.82,0.12,-0.3); // monocylindre
+    cyl(0.1,0.78,0.2,0.14,0.6,0.32,0.03,ALU,8); cyl(0.14,0.6,0.32,0.16,0.88,-0.32,0.035,ALU,8); ech(0.16,0.9,-0.32,0.17,1.0,-0.78,0.06,ALU,12); // échappement haut
+    boule(0,1.06,0.18,0.15,0.11,0.24,coul,-0.1);                             // réservoir étroit
+    for(const s of [-1,1]) boite(0.03,0.24,0.34,coul,s*0.17,0.92,0.22,-0.25); // ouïes de radiateur
+    boite(0.21,0.07,0.86,NOIR,0,1.08,-0.24,0.04);                             // selle longue
+    for(const s of [-1,1]) boite(0.03,0.2,0.3,0xf2f4f6,s*0.14,0.93,-0.52,-0.2); // plaques latérales
+    boite(0.19,0.03,0.5,coul,0,1.0,-0.82,0.24);                              // garde-boue arrière relevé
+    boite(0.18,0.03,0.44,coul,0,0.96,0.74,-0.18);                             // garde-boue avant « bec »
+    boite(0.3,0.26,0.03,0xf2f4f6,0,1.02,0.58,-0.3);                           // plaque numéro
+    boite(0.84,0.035,0.035,SOMBRE,0,1.28,0.36); boite(0.16,0.06,0.06,coul,0,1.3,0.36); // guidon large et mousse
+    for(const s of [-1,1]){ boite(0.06,0.06,0.12,NOIR,s*0.4,1.28,0.35); boite(0.1,0.12,0.04,coul,s*0.36,1.26,0.43); } // poignées, protège-mains
+    seat={y:1.12-0.6,z:-0.12};
+  } else { // chopper « Fantôme » : fourche très inclinée, selle basse, guidon haut, bicylindre en V, chromes
+    const R=0.34, zf=0.86, zr=-0.74, H={y:1.02,z:0.42};
+    roue(zf,0.32,0.1,'rayons',false,true); roue(zr,R,0.22,'etoile',false,false);
+    for(const sx of [-0.1,0.1]) tube(sx,H.y,H.z,sx,0.34,zf,0.06,CHROME);
+    tube(0,H.y-0.05,H.z,0,0.42,0.18,0.08,coul); tube(0,H.y-0.02,H.z-0.04,0,0.74,-0.5,0.07,coul);
+    for(const sx of [-0.15,0.15]) tube(sx,0.42,-0.15,sx,R,zr,0.06,coul);
+    for(const s of [-1,1]){ const cy=boite(0.2,0.36,0.2,0x9aa0a8,0,0.66,0.05+s*0.1,s*0.5); for(let k=0;k<3;k++){ const a=boite(0.26,0.025,0.26,ALU,0,0.6+k*0.07,0.05+s*0.1+s*(0.04+k*0.035),s*0.5); } }
+    boite(0.3,0.26,0.34,MOT,0,0.42,0.0);
+    const filtre=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.12,0.06,14),mat(CHROME)); filtre.rotation.z=Math.PI/2; filtre.position.set(0.2,0.66,0.08); corps.add(filtre);
+    for(const s of [-1,1]) ech(s*0.17,0.3,0.15,s*0.2,0.34,-0.95,0.055,CHROME,12); // deux échappements « queue de poisson »
+    boule(0,0.88,0.12,0.18,0.12,0.26,coul,-0.12); boite(0.03,0.08,0.36,CHROME,0,0.98,0.12,-0.12);
+    boite(0.3,0.08,0.42,0x2a1a14,0,0.78,-0.32,0.05); boite(0.24,0.18,0.06,0x2a1a14,0,0.86,-0.55); // selle basse cuir, dosseret
+    boite(0.24,0.03,0.42,coul,0,0.72,-0.66,0.32); boite(0.1,0.05,0.04,0xd83a3a,0,0.83,-0.86);
+    for(const s of [-1,1]) tube(s*0.18,1.02,0.38,s*0.24,1.38,0.32,0.03,CHROME);  // guidon haut (« ape hanger »)
+    boite(0.56,0.03,0.03,CHROME,0,1.38,0.32); for(const s of [-1,1]) boite(0.05,0.05,0.12,NOIR,s*0.28,1.38,0.3);
+    phare(0,0.92,0.58,0.12);
+    const lueur=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:0x7dffd8,transparent:true,depthWrite:false,opacity:0.18,blending:THREE.AdditiveBlending})); lueur.scale.set(2.6,1.2,1); lueur.position.set(0,0.3,0); g.add(lueur); // lueur fantôme
+    seat={y:0.82-0.6,z:-0.28,jambes:-1.25};
+  }
+  // pièces fusionnées par matériau (les sprites restent à part ; l'échappement d'origine aussi)
+  const parMat=new Map(), echG=new THREE.Group();
+  for(const c of corps.children.slice()) if(c.isMesh&&c.userData.ech){ corps.remove(c); echG.add(c); }
+  corps.add(echG); ud.echapOrigine=echG;
+  for(const c of corps.children.slice()) if(c.isMesh){
+    c.updateMatrix(); const gg=c.geometry.clone().applyMatrix4(c.matrix); c.geometry.dispose(); corps.remove(c);
+    if(!parMat.has(c.material)) parMat.set(c.material,[]); parMat.get(c.material).push(gg);
+  }
+  for(const [m,gs] of parMat) corps.add(new THREE.Mesh(mergeGeoManuel(gs),m));
+  ud.siege=seat;
+  g.add(spriteBlob(def.long*0.9)); g.userData=ud; return g;
+}
 function makeVelo(def,coul,g,ud,corps){
   const R=def.roue, L=def.long, wz=L*0.31, bmx=!!def.bmx, NOIR=0x1c1e24, ACIER=0x9aa0a8;
   const tube=(x0,y0,z0,x1,y1,z1,ep,c)=>{ // tube droit d'un point à un autre (plan x constant)
@@ -14391,9 +14589,9 @@ function entrerVehicule(v){
       P.h.jambeG.rotation.x=-0.4; P.h.jambeD.rotation.x=-0.4;
       P.h.brasG.rotation.x=-1.0; P.h.brasD.rotation.x=-1.0;
       P.h.brasG.rotation.z=0; P.h.brasD.rotation.z=0;
-    } else {
-      P.h.g.position.set(0,0.35,-0.1); P.h.g.rotation.set(0,0,0);
-      P.h.jambeG.rotation.x=-0.7; P.h.jambeD.rotation.x=-0.7;
+    } else { // moto : assise lue sur le modèle (ud.siege), sinon l'ancienne
+      const sg=v.mesh.userData.siege; P.h.g.position.set(0,sg?sg.y:0.35,sg?sg.z:-0.1); P.h.g.rotation.set(0,0,0);
+      const jb=sg&&sg.jambes||-0.7; P.h.jambeG.rotation.x=jb; P.h.jambeD.rotation.x=jb;
       P.h.brasG.rotation.x=-1.1; P.h.brasD.rotation.x=-1.1;
     }
   } else { P.h.g.visible=false; P.surMoto=false; }
@@ -17684,6 +17882,7 @@ function lancerVague(){
     if(r>0){ META.revenus=(META.revenus||0)+r; toast((n0&&r===n0?'🏡 Ta planque a rapporté ':'🏠 Tes planques ont rapporté ')+r+' $ (à encaisser au coffre)','or'); } }
   if(WAVES.n>META.recordVague) META.recordVague=WAVES.n;
   if(DECOR_V2&&MERV.ok) placerFaune(); // les animaux de l'île reviennent
+  if(DECOR_V2) placerFauneMont(); // et ceux du mont
 }
 function majVagues(dt){
   // Un métier en cours (pompier/taxi/dépanneuse/ambulance/police) gèle les
@@ -27082,6 +27281,7 @@ function appliquerCarrosserie(groupe,key,pieces){
   const ud=groupe.userData;
   if(ud.carro){ ud.carro.parent&&ud.carro.parent.remove(ud.carro); libererObjet(ud.carro); ud.carro=null; }
   if(ud.carroJantes){ for(const j of ud.carroJantes){ j.parent&&j.parent.remove(j); libererObjet(j); } ud.carroJantes=null; }
+  if(ud.echapOrigine) ud.echapOrigine.visible=true;
   const tc=VEHDEFS[key]&&VEHDEFS[key].tuningCarro;
   if(!tc||!pieces) return 0;
   const fam=PIECES_FAMILLES[tc.famille]; if(!fam) return 0;
@@ -27103,6 +27303,7 @@ function appliquerCarrosserie(groupe,key,pieces){
     if(v&&v.f&&varianteDispo(v,key)){ grp.add(v.f(ancragesReels(key,tc.ancrages),d,mc,ctx)); n++; } // modèle rehaussé : ancrages recalés
   }
   (ud.corps||groupe).add(grp); ud.carro=grp;
+  if(ud.echapOrigine) ud.echapOrigine.visible=!(fam.echappement&&(pieces.echappement|0)>0); // moto : l'échappement posé remplace celui d'origine
   if(fam.jantes){
     const v=fam.jantes.variantes[pieces.jantes|0];
     if(v&&v.f&&ud.roues){ ud.carroJantes=[]; for(const r of ud.roues){ const j=v.f(r,d); r.add(j); ud.carroJantes.push(j); } n++; }

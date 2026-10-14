@@ -10264,6 +10264,90 @@ async function main() {
       else ok('Aéroport, suite : véhicules de piste et cargo garés et pilotables, citerne explosive ; ' + r.info.join(' ; '));
     }
 
+    // -------------------------------------------------------------------
+    // Motos (14 octobre, demandé : « des motos réalistes ») : chaque moto de
+    // VEHDEFS (lue à la source) a deux roues rondes (cylindres, les jantes du
+    // garage s'y greffent), une assise (ud.siege) où le pilote est posé,
+    // un échappement d'origine masqué quand le garage en pose un autre, et
+    // reste sobre en maillages (pièces fusionnées par matériau).
+    // -------------------------------------------------------------------
+    console.log('\n--- Motos : modèles, assise du pilote, échappement du garage ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu';
+        const cles = Object.keys(VEHDEFS).filter((k) => VEHDEFS[k].type === 'moto' && !VEHDEFS[k].velo);
+        let maxM = 0;
+        for (const k of cles) {
+          const v = creerVehicule(k, POIS.place.x + 6, POIS.place.z, 0), ud = v.mesh.userData;
+          if (!ud.roues || ud.roues.length !== 2 || ud.roues.some((w) => !(w.geometry.parameters.radiusTop > 0.25))) ko.push(k + ' : roues');
+          if (!ud.siege) { ko.push(k + ' : pas d’assise'); continue; }
+          let n = 0; v.mesh.traverse((o) => { if (o.isMesh) n++; }); maxM = Math.max(maxM, n); if (n > 45) ko.push(k + ' : ' + n + ' maillages');
+          P.x = v.x + 1; P.z = v.z; entrerVehicule(v);
+          if (P.veh !== v || P.h.g.parent !== v.mesh || Math.abs(P.h.g.position.y - ud.siege.y) > 1e-6) ko.push(k + ' : pilote mal assis');
+          sortirVehicule(true);
+          const tc = VEHDEFS[k].tuningCarro;
+          if (tc && PIECES_FAMILLES[tc.famille].echappement) {
+            if (!ud.echapOrigine) ko.push(k + ' : échappement d’origine introuvable');
+            else { appliquerCarrosserie(v.mesh, k, { jupes: 0, capot: 0, jantes: 0, echappement: 1 }); const cache = !ud.echapOrigine.visible;
+              appliquerCarrosserie(v.mesh, k, { jupes: 0, capot: 0, jantes: 0, echappement: 0 }); if (!cache || !ud.echapOrigine.visible) ko.push(k + ' : échappement d’origine pas remplacé'); }
+          }
+          v.mort = true;
+        }
+        majVehicules(1 / 30);
+        info.push(cles.length + ' motos, ' + maxM + ' maillages au plus');
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Motos : ' + r.ko.join(' | '));
+      else ok('Motos : ' + r.info.join(', ') + ' ; deux roues, pilote en selle, échappement du garage à la place de celui d’origine');
+    }
+
+    // -------------------------------------------------------------------
+    // Vie du Mont Reyes (14 octobre) : bouquetins qui fuient (les tuer coûte
+    // du karma), ours qui charge et mord, percutés par un véhicule lancé,
+    // de retour à la vague suivante ; aigles et marmottes (décor).
+    // -------------------------------------------------------------------
+    console.log('\n--- Vie du mont : bouquetins, ours, aigles, marmottes ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (!DECOR_V2) return { ko, info: ['décor V2 coupé'] };
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
+        for (const e of ennemis) e.mort = true;
+        const mont = () => FAUNE.filter((a) => a.zone === 'mont');
+        const L = mont(); const nb = L.filter((a) => a.type === 'bouquetin').length, ours = L.find((a) => a.type === 'ours');
+        if (nb < 3 || !ours) ko.push('faune absente (' + L.map((a) => a.type).join(',') + ')');
+        for (const a of L) if (montU(a.x, a.z) > 0.86 || Math.abs(a.y - hauteurMont(a.x, a.z)) > 0.01) ko.push(a.type + ' hors du mont');
+        info.push(nb + ' bouquetins, ' + (ours ? 1 : 0) + ' ours');
+        // un bouquetin détale
+        const b = L.find((a) => a.type === 'bouquetin'); if (ours) { ours.x = MONT.x; ours.z = MONT.z; ours.y = hauteurMont(ours.x, ours.z); } // l'ours à l'écart
+        P.x = b.x + 5; P.z = b.z; P.y = b.y; const d0 = Math.hypot(P.x - b.x, P.z - b.z);
+        for (let i = 0; i < 60; i++) majFaune(1 / 30); const d1 = Math.hypot(P.x - b.x, P.z - b.z);
+        if (!(d1 > d0 + 3)) ko.push('le bouquetin ne fuit pas (' + d0.toFixed(1) + ' → ' + d1.toFixed(1) + ' u)'); else info.push('le bouquetin fuit (' + d0.toFixed(0) + ' → ' + d1.toFixed(0) + ' u)');
+        // le tuer : du karma en moins, rien à ramasser
+        ETAT.score = 500; const nPick = pickups.length; toucherAnimal(b, 999); if (!b.mort || ETAT.score !== 450 || pickups.length !== nPick) ko.push('bouquetin tué : score ' + ETAT.score + ', butin ' + (pickups.length - nPick));
+        // l'ours charge et mord
+        if (ours) { P.x = ours.x + 9; P.z = ours.z; P.y = ours.y; const hp0 = P.hp; P.iframes = 0;
+          for (let i = 0; i < 30 * 6 && P.hp === hp0; i++) { majFaune(1 / 30); P.iframes = 0; }
+          if (!(P.hp < hp0)) ko.push('l’ours ne mord pas'); else info.push('l’ours charge et mord (−' + (hp0 - P.hp) + ')');
+          // percuté par une moto cross lancée
+          const v = creerVehicule('motocross', ours.x, ours.z - 1.6, 0); P.x = v.x; P.z = v.z - 1; entrerVehicule(v); v.v = 14; v.ang = Math.atan2(ours.x - v.x, ours.z - v.z);
+          majFaune(1 / 30); if (!ours.mort) ko.push('l’ours n’est pas percuté par la moto'); sortirVehicule(true); }
+        // ils reviennent à la vague suivante
+        for (const a of mont()) a.mort = true; placerFauneMont(); if (mont().filter((a) => !a.mort).length < 6) ko.push('pas de retour à la vague suivante');
+        // décor : aigles qui tournent, marmotte qui se cache
+        const ai = VIE_MONT.aigles[0], m = VIE_MONT.marmottes[0];
+        if (!ai || !m) ko.push('ni aigles ni marmottes');
+        else { P.x = m.g.position.x + 30; P.z = m.g.position.z; for (let i = 0; i < 30; i++) majVieMont(1 / 30); const p0 = ai.g.position.clone(), y0 = m.m.position.y;
+          P.x = m.g.position.x + 3; for (let i = 0; i < 30; i++) majVieMont(1 / 30);
+          if (ai.g.position.distanceTo(p0) < 1 || !(ai.g.position.y > MONT.sommet.h)) ko.push('aigle immobile ou trop bas'); if (!(m.m.position.y < y0 - 0.5)) ko.push('la marmotte ne se cache pas'); }
+        startRun(); P.hp = P.maxHp = 1e6;
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Vie du mont : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
+      else ok('Vie du mont : ' + r.info.join(' ; ') + ' ; percuté par la moto, de retour à la vague suivante ; aigles et marmottes');
+    }
+
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');
     {
       const srcIdx = fs.readFileSync(INDEX_HTML, 'utf8');
