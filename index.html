@@ -2685,18 +2685,18 @@ const VEHDEFS={
    position des essieux (±) ; R, ep : roues ; garde : bas de caisse. Modèle : voitureV2. Aucun objet Three.js ici
    (chargé avant la ville). Les ancrages des pièces du garage en découlent (ancragesProfil). */
 const PROFILS_VOITURE={
-  citadine:{L:4.2,W:2.0,R:0.34,ep:0.24,garde:0.2,axe:0.31,nez:0.64,capot:0.92,caisse:0.98,malle:1.0,cul:0.96,toit:1.52,zPb:0.17,zAv:0,zAr:-0.36,zLu:-0.47,jante:'etoile',portes:2},
-  berline:{L:4.7,W:2.05,R:0.36,ep:0.25,garde:0.2,axe:0.3,nez:0.62,capot:0.9,caisse:0.96,malle:0.92,cul:0.88,toit:1.44,zPb:0.2,zAv:0.03,zAr:-0.2,zLu:-0.31,jante:'multi',portes:4},
-  taxi:{L:4.3,W:2.0,R:0.35,ep:0.24,garde:0.2,axe:0.3,nez:0.62,capot:0.9,caisse:0.96,malle:0.92,cul:0.88,toit:1.46,zPb:0.19,zAv:0.03,zAr:-0.22,zLu:-0.32,jante:'etoile',portes:4,taxi:true},
-  police:{L:4.6,W:2.05,R:0.36,ep:0.26,garde:0.21,axe:0.3,nez:0.64,capot:0.92,caisse:0.98,malle:0.94,cul:0.9,toit:1.46,zPb:0.2,zAv:0.03,zAr:-0.21,zLu:-0.32,jante:'acier',portes:4,police:true},
-  gangcar:{L:4.7,W:2.05,R:0.36,ep:0.25,garde:0.13,axe:0.3,nez:0.56,capot:0.84,caisse:0.9,malle:0.86,cul:0.82,toit:1.36,zPb:0.2,zAv:0.03,zAr:-0.21,zLu:-0.32,jante:'chrome',portes:4},
-  muscle:{L:4.8,W:2.1,R:0.37,ep:0.3,garde:0.19,axe:0.3,nez:0.72,capot:0.98,caisse:1.0,malle:0.95,cul:0.92,toit:1.36,zPb:0.08,zAv:-0.06,zAr:-0.27,zLu:-0.42,jante:'etoile',portes:2,bandes:true,ecope:true},
+  citadine:{carre:true,L:4.2,W:2.0,R:0.34,ep:0.24,garde:0.2,axe:0.31,nez:0.8,capot:0.92,caisse:0.98,malle:1.0,cul:0.96,toit:1.52,zPb:0.17,zAv:0,zAr:-0.36,zLu:-0.47,jante:'etoile',portes:2},
+  berline:{carre:true,L:4.7,W:2.05,R:0.36,ep:0.25,garde:0.2,axe:0.3,nez:0.78,capot:0.9,caisse:0.96,malle:0.92,cul:0.88,toit:1.44,zPb:0.2,zAv:0.03,zAr:-0.2,zLu:-0.31,jante:'multi',portes:4},
+  gangcar:{carre:true,L:4.7,W:2.05,R:0.36,ep:0.25,garde:0.13,axe:0.3,nez:0.72,capot:0.84,caisse:0.9,malle:0.86,cul:0.82,toit:1.36,zPb:0.2,zAv:0.03,zAr:-0.21,zLu:-0.32,jante:'chrome',portes:4},
   sport:{L:4.4,W:2.0,R:0.33,ep:0.3,garde:0.13,axe:0.32,nez:0.4,capot:0.72,caisse:0.82,malle:0.9,cul:0.9,toit:1.16,zPb:0.19,zAv:0,zAr:-0.15,zLu:-0.36,jante:'etoile',portes:2,prises:true,becquet:true},
   mirage:{L:4.4,W:2.0,R:0.33,ep:0.3,garde:0.14,axe:0.32,nez:0.46,capot:0.74,caisse:0.84,malle:0.86,cul:0.84,toit:1.18,zPb:0.19,zAv:-0.02,zAr:-0.2,zLu:-0.38,jante:'multi',portes:2,prises:true},
   baronne:{L:5.4,W:2.1,R:0.38,ep:0.26,garde:0.26,axe:0.31,nez:0.82,capot:1.02,caisse:1.05,malle:1.0,cul:0.95,toit:1.62,zPb:0.1,zAv:-0.02,zAr:-0.2,zLu:-0.29,jante:'blanc',portes:4,chromes:true},
-  // nouveaux modèles
-  limousine:{L:7.2,W:2.1,R:0.37,ep:0.26,garde:0.2,axe:0.37,nez:0.66,capot:0.94,caisse:1.0,malle:0.96,cul:0.92,toit:1.48,zPb:0.25,zAv:0.16,zAr:-0.3,zLu:-0.37,jante:'chrome',portes:6,chromes:true},
-  suvLuxe:{L:5.1,W:2.15,R:0.46,ep:0.32,garde:0.36,axe:0.31,nez:1.0,capot:1.24,caisse:1.3,malle:1.32,cul:1.26,toit:1.96,zPb:0.2,zAv:0.1,zAr:-0.42,zLu:-0.47,jante:'multi',portes:4,barres:true,chromes:true},
+  // nouveaux modèles ; carre : capot plat et nez peu arrondi (signalé : « le taxi et la police étaient mieux avant » — ils
+  // gardent leur ancien modèle, comme la Rafale) ; benne : pick-up (plateau ouvert derrière la cabine) ; ailes : élargisseurs noirs
+  charger:{carre:true,L:5.0,W:2.1,R:0.38,ep:0.3,garde:0.18,axe:0.3,nez:0.84,capot:0.98,caisse:1.0,malle:0.96,cul:0.95,toit:1.4,zPb:0.13,zAv:-0.01,zAr:-0.24,zLu:-0.36,jante:'etoile',portes:2,ecope:true},
+  pickup:{carre:true,benne:true,ailes:true,raptor:true,L:5.0,W:2.2,R:0.5,ep:0.4,garde:0.5,axe:0.31,nez:1.3,capot:1.58,caisse:1.64,malle:1.6,cul:1.62,toit:2.22,zPb:0.2,zAv:0.12,zAr:-0.11,zLu:-0.15,jante:'multi',portes:4},
+  limousine:{carre:true,L:7.2,W:2.1,R:0.37,ep:0.26,garde:0.2,axe:0.37,nez:0.8,capot:0.94,caisse:1.0,malle:0.96,cul:0.92,toit:1.48,zPb:0.25,zAv:0.16,zAr:-0.3,zLu:-0.37,jante:'chrome',portes:6,chromes:true},
+  suvLuxe:{carre:true,ailes:true,L:5.1,W:2.15,R:0.46,ep:0.32,garde:0.36,axe:0.31,nez:1.12,capot:1.24,caisse:1.3,malle:1.32,cul:1.26,toit:1.96,zPb:0.2,zAv:0.1,zAr:-0.42,zLu:-0.47,jante:'multi',portes:4,barres:true,chromes:true},
   cabriolet:{L:4.6,W:2.02,R:0.36,ep:0.27,garde:0.18,axe:0.3,nez:0.56,capot:0.86,caisse:0.94,malle:0.92,cul:0.88,toit:1.24,zPb:0.15,zAv:0.03,zAr:-0.16,zLu:-0.26,jante:'multi',portes:2,ouvert:true},
   hyper:{L:4.6,W:2.1,R:0.34,ep:0.32,garde:0.11,axe:0.32,nez:0.32,capot:0.64,caisse:0.78,malle:0.94,cul:0.96,toit:1.1,zPb:0.2,zAv:0.05,zAr:-0.1,zLu:-0.38,jante:'etoile',portes:2,prises:true,aileron:true},
 };
@@ -2708,6 +2708,7 @@ Object.assign(VEHDEFS,{
   limousine:{nom:'Limousine "Majesté"',tuningMeca:true,tuningCarro:{famille:'compacte'},vmax:26,acc:10,man:1.7,hp:240,long:7.2,larg:2.1,type:'car',cols:[0x14161c,0xf2f2ee]},
   suvLuxe:{nom:'SUV de luxe "Sierra"',tuningMeca:true,tuningCarro:{famille:'utilitaire'},vmax:31,acc:14,man:2.2,hp:230,long:5.1,larg:2.15,type:'car',cols:[0x14161c,0xf2f2ee,0x3a3e46,0x2a3a2a]},
   cabriolet:{nom:'Cabriolet "Azur"',tuningMeca:true,tuningCarro:{famille:'sportive'},vmax:37,acc:18,man:2.8,hp:130,long:4.6,larg:2.02,type:'car',cols:[0xf2f2ee,0xd83a3a,0x35a8e0,0xe8c84a]},
+  charger:{nom:'Muscle "Taureau"',tuningMeca:true,tuningCarro:{famille:'sportive'},vmax:35,acc:15,man:2.2,hp:165,long:5.0,larg:2.1,type:'car',cols:[0x14161c,0xd83a3a,0xe8c84a,0x2a4a2a,0xf2f2ee]},
   hyper:{nom:'Hypercar "Zénith"',tuningMeca:true,tuningCarro:{famille:'sportive'},vmax:55,acc:28,man:3.2,hp:110,long:4.6,larg:2.1,type:'car',cols:[0xf2f4f8,0x14161c,0xff7a1a,0x7a3ad8],sport:true},
 });
 for(const k in PROFILS_VOITURE){ const d=VEHDEFS[k]; if(!d) continue; d.profil=k; if(d.tuningCarro) d.tuningCarro.ancrages=ancragesProfil(k); }
@@ -7207,7 +7208,7 @@ function hillsBase(x,z){ const H=HILLS, u=(H.x1-x)/(H.x1-H.x0), v=(H.z1-z)/(H.z1
   return 30*sv*(0.6+0.4*su)*e+1.6*Math.sin(x*0.09+1)*Math.sin(z*0.07)*sv*e; } // monte surtout vers le nord : les lacets suivent à peu près les courbes de niveau
 const ROUTES_HILLS=[
   {id:'drive',nom:'REYES HILLS DRIVE',pts:[[-150,121],[-150,106],[-168,97],[-235,95],[-258,92],[-270,80],[-262,68],[-240,63],[-200,63],[-142,62],[-120,58],[-112,46],[-122,34],[-145,31],[-180,30],[-240,28],[-262,24],[-272,11],[-262,-2],[-240,-6],[-200,-7],[-160,-9],[-138,-12],[-131,-20.5],[-140,-28.5],[-162,-29.5],[-200,-28.5],[-226,-26.5]]}, // épingles larges (rayon ~13 u) : on les passe sans couper dans le talus ; le lacet du sommet reste à 6 u du bord nord (au-delà, la rue de la ville, 30 u plus bas)
-  {id:'crest',nom:'SUNSET CREST',pts:[[-89,40],[-100,41],[-110,44]],rejoint:'drive'},
+  // (16 octobre) Sunset Crest retirée : 12 u à gravir sur 25 u depuis le bord est (48 %, signalé « une route très raide, impossible à monter »)
 ];
 function pousserHorsHills(v){ const H=HILLS, pg=v.x-(H.x0-2.5), pd=(H.x1+2.5)-v.x, ph=v.z-(H.z0-2.5), pb=(H.z1+2.5)-v.z, m=Math.min(pg,pd,ph,pb);
   if(m===pg) v.x=H.x0-2.5; else if(m===pd) v.x=H.x1+2.5; else if(m===ph) v.z=H.z0-2.5; else v.z=H.z1+2.5; }
@@ -7373,13 +7374,15 @@ function boucleRoute(pts,dec){ // aller par la voie de droite, retour par l'autr
   const cum=[0]; let L=0; for(let i=1;i<all.length;i++){ L+=Math.hypot(all[i][0]-all[i-1][0],all[i][1]-all[i-1][1]); cum.push(L); } return {pts:all,cum,L};
 }
 // voitures de luxe de la colline : celles qui montent et descendent les lacets, celles garées dans les allées
-const HILLS_LUXE_ROULE=['hyper','cabriolet','suvLuxe','limousine','sport'], HILLS_LUXE_GARE=['suvLuxe','cabriolet','hyper','baronne','limousine','sport','mirage','berline'];
+// (16 octobre, demandé : « véhicules de luxe et rares plus rares à trouver, mais trouvables ») : une seule hypercar, garée
+const HILLS_LUXE_ROULE=['cabriolet','suvLuxe','berline'], HILLS_LUXE_GARE=['suvLuxe','berline','cabriolet','baronne','limousine','citadine','hyper','berline'];
+function zGareVilla(p,cle){ const L=(VEHDEFS[cle]&&VEHDEFS[cle].long)||4.5; return p.hd-Math.max(3,L/2+0.7); } // dans l'allée, près du portail : jamais dans la maison
 function hillsStartRun(){
   if(!HILLS.ok) return; const H=HILLS, V=VIE_HILLS, D=H.routes.find((r)=>r.id==='drive');
   if(!V.boucle){ V.boucle=boucleRoute(D.pts,2.3); V.trottoir=boucleRoute(D.pts,H.larg/2+0.7); }
   HILLS_LUXE_ROULE.forEach((k,i,l)=>{ const u=i/l.length; const s=V.boucle.L*u, p=pointBoucle(V.boucle,s), v=creerVehicule(k,p.x,p.z,p.ang); if(!v) return; v.conduit='piste'; v.piste={b:V.boucle,s,vit:9,vCur:0}; v.h=solY(v.x,v.z); });
   const luxe=HILLS_LUXE_GARE;
-  H.pads.filter((p)=>p.villa).forEach((p,k)=>{ if(k%3===2) return; const xa=p.hw*0.55*(p.id.charCodeAt(5)%2?1:-1), v=creerVehicule(luxe[k%luxe.length],p.x+xa,p.z+(p.f||1)*p.hd*0.35,0); if(v) v.h=solY(v.x,v.z); });
+  H.pads.filter((p)=>p.villa).forEach((p,k)=>{ if(k%3===2) return; const xa=p.hw*0.55*(p.id.charCodeAt(5)%2?1:-1), cle=luxe[k%luxe.length], v=creerVehicule(cle,p.x+xa,p.z+(p.f||1)*zGareVilla(p,cle),(p.f||1)>0?0:Math.PI); if(v) v.h=solY(v.x,v.z); });
   // sécurité privée de la Krasnaya Brigada devant la plus grande villa
   const rang={grande:3,moyenne:2,petite:1}, g=H.pads.filter((p)=>p.villa).sort((a,b)=>rang[b.type]-rang[a.type]||b.hw-a.hw)[0]; // la plus grande villa
   if(g) for(const dx of [-2.6,2.6]){ const s=creerEnnemi('chr_fusil',g.x+g.hw*0.55*(g.id.charCodeAt(5)%2?1:-1)+dx,g.z+(g.f||1)*(g.hd+0.5),false); if(s){ s.garde=true; s.posteX=s.x; s.posteZ=s.z; } }
@@ -7472,7 +7475,7 @@ function mkHabitantsHills(){
       const [gx,gz]=W(mx,L.hz+L.hd+1.3), y=p.h; mkBox(0.9,0.12,0.6,mat(0x2a2d34),gx,y+0.95,gz); mkBox(0.95,0.5,0.65,mat(0x15171c),gx,y+0.65,gz); for(const s of [-1,1]) mkBox(0.06,0.6,0.06,mat(0x2a2d34),gx+s*0.4,y+0.3,gz);
       const amis=[]; for(let q=0;q<3;q++){ const a=q*1.3-1.3+(f>0?0:Math.PI), h=humain(); h.g.position.set(gx+Math.sin(a)*1.05,y,gz+Math.cos(a)*1.05); h.g.rotation.y=Math.atan2(gx-h.g.position.x,gz-h.g.position.z); amis.push(h); }
       V.bbq.push({x:gx,y:y+1.1,z:gz,amis,t:0}); }
-    if(k%4===3&&k%3!==2){ /* une voiture est garée dans l'allée (hillsStartRun : deux villas sur trois) */ const [x,z]=W(L.xa+sg*2.4,p.hd*0.35), h=humain({...civ(),haut:0xf2f4f8}); h.g.position.set(x,p.h,z); h.g.rotation.y=-sg*Math.PI/2; V.laveurs.push({h,x:x-sg*1.4,y:p.h+0.9,z,t:0}); }
+    if(k%4===3&&k%3!==2){ /* une voiture est garée dans l'allée (hillsStartRun : deux villas sur trois) */ const [x,z]=W(L.xa+sg*2.4,zGareVilla(p,HILLS_LUXE_GARE[k%HILLS_LUXE_GARE.length])), h=humain({...civ(),haut:0xf2f4f8}); h.g.position.set(x,p.h,z); h.g.rotation.y=-sg*Math.PI/2; V.laveurs.push({h,x:x-sg*1.4,y:p.h+0.9,z,t:0}); }
   });
 }
 function chienDeco(){ const g=new THREE.Group(), c=choixD([0x6a5038,0x2a2a2e,0xc8a878,0xe8e4d2,0xf2f2ee]), pattes=[];
@@ -8997,7 +9000,9 @@ function traceSable(v,d){
 function majTracesSable(dt){ for(const T of TRACES_SABLE.liste){ if(T.t<=0) continue; T.t-=dt; if(T.t<=0) T.m.visible=false; else if(T.t<4) T.m.material.opacity=0.32*T.t/4; } }
 // Adhérence sur les reliefs (poussée du moteur) : montée sèche = terre meuble ; flancs hors sentier = herbe et
 // caillou ; le sentier damé et le reste du monde : pleine adhérence. Les pneus de route patinent deux fois plus.
+function surRouteHills(x,z){ return HILLS.ok&&dansHills(x,z)&&surChaussee(x,z); } // chaussée de Los Reyes Hills : bitume, on y roule comme en ville
 function adherenceRelief(v,d){
+  if(surRouteHills(v.x,v.z)) return 1;
   if(MONT.surCouloir&&MONT.surCouloir(v.x,v.z,4)) return toutTerrain(d)?0.68:0.4;
   if(!dansReliefLibre(v.x,v.z)||(MONT.presDuSentier&&MONT.presDuSentier(v.x,v.z,8))||(STUNT.ok&&dansParcStunt(v.x,v.z))||dansSkateXXL(v.x,v.z)) return 1; // abords du sentier (8 u) : on peut toujours y remonter après un écart
   return d.jeep||d.franchissement?0.9:(toutTerrain(d)&&!d.velo?0.72:(d.velo?0.45:0.55));
@@ -11934,6 +11939,7 @@ function mkJetpackMesh(){
   g.visible=false;
   return {g,flammes};
 }
+const ECH_HUMAIN=0.9; // tous les personnages (joueur compris) : à côté d'une voiture de 1,4 u de haut, 1,8 u paraissaient massifs
 function makeHumain(coul,taille){
   const g=new THREE.Group();
   const mh=mat(coul.haut), mb=mat(coul.bas), mp=mat(coul.peau);
@@ -11956,7 +11962,7 @@ function makeHumain(coul,taille){
   const jambeG=new THREE.Mesh(geoJambe,mb); jambeG.position.set(-0.16,0.66,0); g.add(jambeG);
   const jambeD=new THREE.Mesh(geoJambe,mb); jambeD.position.set(0.16,0.66,0); g.add(jambeD);
   g.add(spriteBlob(1.8));
-  if(taille&&taille!==1) g.scale.set(taille,taille,taille);
+  { const tl=(taille||1)*ECH_HUMAIN; g.scale.set(tl,tl,tl); } // (16 octobre, signalé : « PNJ très gros à côté de certains véhicules »)
   return {g,torse,tete,brasG,brasD,jambeG,jambeD,phase:rand(0,6)};
 }
 function animeHumain(h,dt,vitesse,vise){
@@ -13474,11 +13480,11 @@ function makeMotoV2(def,coul,g,ud,corps,key){
 // Géométries construites UNE fois par modèle (_GEO_VOIT, userData.partagee : jamais libérées) ; peinture = mat(coul)
 // (peindreMesh la retrouve) ; pneus dans ud.roues (axe y local : les jantes du garage s'y greffent) ; ud.phG,
 // ud.bar (police) comme l'ancien modèle. Construit sur le générateur du décor (vehiculeRestyle).
-var _GEO_VOIT={}, _GEO_JANTE={}, _MAT_VITRE=null, _MAT_CHROME=null, _MAT_PHARE=null, _MAT_FEU=null, _MAT_TAXI=null;
+var _GEO_VOIT={}, _GEO_JANTE={}, _MAT_ORANGE=null, _MAT_VITRE=null, _MAT_CHROME=null, _MAT_PHARE=null, _MAT_FEU=null, _MAT_TAXI=null;
 function matsVoiture(){ if(_MAT_VITRE) return;
   _MAT_VITRE=new THREE.MeshPhongMaterial({color:0x16202a,specular:0x8aa4c0,shininess:90});
   _MAT_CHROME=new THREE.MeshPhongMaterial({color:0xb4bac4,specular:0xffffff,shininess:110});
-  _MAT_PHARE=new THREE.MeshBasicMaterial({color:0xfff4d8}); _MAT_FEU=new THREE.MeshBasicMaterial({color:0xc8202a});
+  _MAT_PHARE=new THREE.MeshBasicMaterial({color:0xfff4d8}); _MAT_FEU=new THREE.MeshBasicMaterial({color:0xc8202a}); _MAT_ORANGE=new THREE.MeshBasicMaterial({color:0xff9a1a});
   const tx=cTex(128,(c,s)=>{ c.fillStyle='#ffd23f'; c.fillRect(0,0,s,s); c.fillStyle='#14161c'; c.font='bold '+Math.round(s*0.42)+'px Arial, sans-serif'; c.textAlign='center'; c.textBaseline='middle'; c.fillText('TAXI',s/2,s/2); });
   _MAT_TAXI=new THREE.MeshBasicMaterial({map:tx}); }
 function geoVoiture(k){
@@ -13492,22 +13498,27 @@ function geoVoiture(k){
     geo.translate(0,0,-(larg-2*biseau)/2); geo.rotateY(-Math.PI/2); (listes[n]=listes[n]||[]).push(geo); };
   // la ligne du dessus : capot bombé, ailes au-dessus des roues, malle
   const aile=(z)=>{ let y=0; for(const zc of [zf,zr]){ const d=z-zc, r=Ra+0.05; if(Math.abs(d)<r) y=Math.max(y,P.R+Math.sqrt(r*r-d*d)); } return y; };
-  const capotY=(z)=>{ const t=clamp((z-zPb)/((av-0.2)-zPb),0,1); return Math.max(P.capot+(P.nez+0.02-P.capot)*Math.pow(t,1.6),aile(z)); };
+  const rn=P.carre?0.1:0.2, bv=P.carre?0.04:0.07, ex=P.carre?3.4:1.6; // nez arrondi, biseau, courbure du capot
+  const capotY=(z)=>{ const t=clamp((z-zPb)/((av-rn)-zPb),0,1); return Math.max(P.capot+(P.nez+0.02-P.capot)*Math.pow(t,ex),aile(z)); };
   const malleY=(z)=>{ const t=clamp(((zLu-0.05)-z)/((zLu-0.05)-(ar+0.08)),0,1); return Math.max(P.malle+(P.cul-P.malle)*Math.pow(t,1.6),aile(z)); };
-  const cockAv=zPb-0.12, cockAr=Math.max(zLu+0.12,zr+Ra+0.2), plancher=g0+0.5;
+  const cockAv=zPb-0.12, cockAr=Math.max(zLu+0.12,zr+Ra+0.2), plancher=g0+0.5, planBenne=Math.max(g0+0.55,P.R+Ra+0.12);
   // 1. caisse (peinture)
   { const s=new THREE.Shape(); s.moveTo(av-0.12,g0+0.02); s.quadraticCurveTo(av+0.02,g0+0.06,av,g0+0.3); s.lineTo(av,P.nez-0.12);
-    s.quadraticCurveTo(av,P.nez,av-0.2,capotY(av-0.2));
-    for(let z=av-0.3;z>zPb;z-=0.12) s.lineTo(z,capotY(z));
+    s.quadraticCurveTo(av,P.nez,av-rn,capotY(av-rn));
+    for(let z=av-rn-0.1;z>zPb;z-=0.12) s.lineTo(z,capotY(z));
     s.lineTo(zPb,P.capot);
     if(P.ouvert){ s.lineTo(zPb-0.04,P.caisse); s.lineTo(cockAv,P.caisse); s.lineTo(cockAv-0.04,plancher); s.lineTo(cockAr+0.04,plancher); s.lineTo(cockAr,P.caisse); s.lineTo(zLu,P.caisse); }
     else { s.lineTo(zPb-0.03,P.caisse); for(let z=zPb-0.15;z>zLu;z-=0.12) s.lineTo(z,Math.max(P.caisse,aile(z))); s.lineTo(zLu,Math.max(P.caisse,aile(zLu))); } /* la ceinture passe au-dessus de l'aile arrière */
-    s.lineTo(zLu-0.05,malleY(zLu-0.05));
-    for(let z=zLu-0.17;z>ar+0.08;z-=0.12) s.lineTo(z,malleY(z));
-    s.lineTo(ar+0.08,P.cul); s.quadraticCurveTo(ar-0.01,P.cul-0.04,ar,P.cul-0.22); s.lineTo(ar,g0+0.3); s.quadraticCurveTo(ar+0.02,g0+0.06,ar+0.12,g0+0.02);
+    if(P.benne){ s.lineTo(zLu-0.06,planBenne); s.lineTo(ar+0.14,planBenne); s.lineTo(ar+0.14,P.cul); s.lineTo(ar+0.06,P.cul); } /* benne : plateau ouvert, hayon */
+    else { s.lineTo(zLu-0.05,malleY(zLu-0.05));
+      for(let z=zLu-0.17;z>ar+0.08;z-=0.12) s.lineTo(z,malleY(z));
+      s.lineTo(ar+0.08,P.cul); }
+    s.quadraticCurveTo(ar-0.01,P.cul-0.04,ar,P.cul-0.22); s.lineTo(ar,g0+0.3); s.quadraticCurveTo(ar+0.02,g0+0.06,ar+0.12,g0+0.02);
     for(const zc of [zr,zf]){ s.lineTo(zc-Ra,g0); s.lineTo(zc-Ra,P.R); s.absarc(zc,P.R,Ra,Math.PI,0,true); s.lineTo(zc+Ra,g0); }
     s.lineTo(av-0.12,g0+0.02);
-    extru('peinture',s,W*0.94,0.07); }
+    extru('peinture',s,W*0.94,bv); }
+  if(P.benne){ for(const sx of [-1,1]) bx('peinture',0.12,P.caisse-planBenne,zLu-(ar+0.14),sx*(hb-0.06),(P.caisse+planBenne)/2,(zLu+ar+0.14)/2); bx('sombre',W*0.84,0.04,zLu-(ar+0.14),0,planBenne+0.02,(zLu+ar+0.14)/2); }
+  if(P.ailes) for(const zc of [zf,zr]) for(const sx of [-1,1]){ const f=new THREE.TorusGeometry(Ra+0.03,0.09,4,12,Math.PI); f.rotateY(Math.PI/2); ajout('sombre',f,sx*(hb+0.03),P.R,zc); }
   // 2. habitacle : vitrage, pavillon, montants (ou pare-brise seul pour le cabriolet)
   if(!P.ouvert){
     const v=new THREE.Shape(); v.moveTo(zPb-0.02,P.caisse-0.04); v.lineTo(zAv,P.toit-0.04); v.lineTo(zAr,P.toit-0.04); v.lineTo(zLu+0.02,P.caisse-0.04); v.lineTo(zPb-0.02,P.caisse-0.04);
@@ -13528,7 +13539,7 @@ function geoVoiture(k){
   }
   // 3. face avant : optiques, calandre, bouclier, plaque ; face arrière : feux, diffuseur, plaque, échappements
   /* la carrosserie déborde de 0,07 (arrondi) : tout ce qui se pose sur les faces avant et arrière sort de av+0,07 / ar-0,07 */
-  const fa=av+0.07, fr=ar-0.07;
+  const fa=av+bv, fr=ar-bv;
   for(const sx of [-1,1]){ bx('phare',W*0.25,0.13,0.1,sx*W*0.3,P.nez-0.17,fa,0.25); bx('sombre',W*0.27,0.15,0.08,sx*W*0.3,P.nez-0.17,fa-0.03,0.25);
     bx('feu',W*0.28,0.13,0.06,sx*W*0.31,P.cul-0.16,fr); bx('feu',W*0.12,0.06,0.05,sx*W*0.46,P.cul-0.16,fr+0.02); }
   if(P.chromes){ bx('chrome',W*0.42,0.3,0.05,0,P.nez-0.32,fa); bx('sombre',W*0.36,0.24,0.05,0,P.nez-0.32,fa+0.015); bx('chrome',W*0.98,0.14,0.16,0,g0+0.22,av+0.04); bx('chrome',W*0.98,0.14,0.16,0,g0+0.22,ar-0.04);
@@ -13556,6 +13567,8 @@ function geoVoiture(k){
   if(P.becquet) bx('peinture',W*0.8,0.06,0.22,0,P.cul+0.05,ar+0.14,-0.25);
   if(P.aileron){ bx('sombre',W*0.94,0.05,0.42,0,P.cul+0.4,ar+0.3,-0.08); for(const sx of [-0.45,0.45]) bx('sombre',0.06,0.38,0.12,sx,P.cul+0.2,ar+0.32); }
   if(P.taxi){ bx('sombre',0.9,0.08,0.36,0,P.toit+0.05,(zAv+zAr)/2); bx('taxi',0.8,0.24,0.3,0,P.toit+0.2,(zAv+zAr)/2); }
+  if(P.raptor){ bx('sombre',W*0.8,0.5,0.06,0,P.nez-0.32,fa+0.01); for(const dx of [-0.3,0,0.3]){ bx('orange',0.14,0.05,0.04,dx,P.nez-0.2,fa+0.04); bx('orange',0.12,0.05,0.08,dx,P.toit+0.04,zAv-0.02); }
+    bx('sombre',W*0.9,0.26,0.24,0,g0+0.12,fa); bx('chrome',W*0.5,0.06,0.3,0,g0-0.02,fa-0.15); }
   if(P.police){ bx('sombre',1.3,0.08,0.3,0,P.toit+0.05,(zAv+zAr)/2+0.1); bx('sombre',W*0.7,0.3,0.1,0,g0+0.38,av+0.12); for(const sx of [-0.5,0.5]) bx('sombre',0.08,0.42,0.08,sx,g0+0.38,av+0.07); }
   const out={}; for(const n in listes){ out[n]=mergeGeoManuel(listes[n]); out[n].userData.partagee=true; for(const gg of listes[n]) gg.dispose(); }
   return (_GEO_VOIT[k]=out);
@@ -13573,7 +13586,7 @@ function janteVoiture(P){ // jante (enfant du pneu, axe y local), partagée par 
 }
 function voitureV2(def,coul,g,ud,corps,key){
   const k=def.profil, P=PROFILS_VOITURE[k], L=P.L, W=P.W; matsVoiture(); const G=geoVoiture(k);
-  const M={peinture:mat(coul),vitre:_MAT_VITRE,sombre:mat(0x15171c),chrome:_MAT_CHROME,phare:_MAT_PHARE,feu:_MAT_FEU,blanc:mat(0xf2f4f6),cuir:mat(0xc8a07a),taxi:_MAT_TAXI};
+  const M={peinture:mat(coul),vitre:_MAT_VITRE,sombre:mat(0x15171c),chrome:_MAT_CHROME,phare:_MAT_PHARE,feu:_MAT_FEU,blanc:mat(0xf2f4f6),cuir:mat(0xc8a07a),taxi:_MAT_TAXI,orange:_MAT_ORANGE};
   for(const n in G) corps.add(new THREE.Mesh(G[n],M[n]));
   // roues : pneu (ud.roues) + jante et flanc en enfants (ils tournent avec lui)
   const cleP=P.R+'_'+P.ep; if(!_GEO_JANTE['pneu'+cleP]){ const t=new THREE.CylinderGeometry(P.R,P.R,P.ep,22); t.userData.partagee=true; _GEO_JANTE['pneu'+cleP]=t; }
@@ -13585,6 +13598,7 @@ function voitureV2(def,coul,g,ud,corps,key){
   for(const sx of [-1,1]){ const s=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:0xffe9b0,transparent:true,depthWrite:false,opacity:0})); s.scale.set(3.2,3.2,1); s.position.set(sx*W*0.3,P.nez,L/2+0.5); corps.add(s); ud.phG.push(s); }
   if(P.police){ const zb=L*(P.zAv+P.zAr)/2+0.1, br=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.12,0.24),new THREE.MeshBasicMaterial({color:0xff3b4b})), bb=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.12,0.24),new THREE.MeshBasicMaterial({color:0x3a7bff}));
     br.position.set(-0.32,P.toit+0.15,zb); bb.position.set(0.32,P.toit+0.15,zb); corps.add(br); corps.add(bb); ud.bar=[br,bb]; }
+  if(P.ouvert){ const zPb=L*P.zPb; ud.siege={assis:true,x:-0.42,y:P.garde+0.5+0.18-0.6,z:zPb-0.12-0.7}; } // le conducteur du cabriolet se voit, assis au volant
   g.add(spriteBlob(L*1.05)); g.userData=ud; return g;
 }
 function makeVelo(def,coul,g,ud,corps){
@@ -14148,7 +14162,7 @@ function appliqueMuscle(h){
   cible.jambeG.scale.set(1+0.12*m,1,1+0.12*m);
   cible.jambeD.scale.set(1+0.12*m,1,1+0.12*m);
   cible.tete.scale.set(1-0.025*m,1,1-0.025*m);    // effet « cou qui disparaît »
-  cible.g.scale.setScalar(1+0.038*m);
+  cible.g.scale.setScalar((1+0.038*m)*ECH_HUMAIN);
 }
 function majArmeJoueur(id){
   if(id&&META.armes[id].poss) P.armeCur=id;
@@ -15498,7 +15512,7 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
   // à la montée et pousse à la descente (signalé : « on monte à fond, aucune
   // sensation de montée »).
   if(reliefV){ const pente=(solY(v.x+sA*1.5,v.z+cA*1.5)-solY(v.x-sA*1.5,v.z-cA*1.5))/3, sin=pente/Math.sqrt(1+pente*pente);
-    const surSentier=MONT.presDuSentier&&MONT.presDuSentier(v.x,v.z,4)&&!(MONT.surCouloir&&MONT.surCouloir(v.x,v.z,4)), abords=!surSentier&&MONT.presDuSentier&&MONT.presDuSentier(v.x,v.z,8);
+    const surSentier=(MONT.presDuSentier&&MONT.presDuSentier(v.x,v.z,4)&&!(MONT.surCouloir&&MONT.surCouloir(v.x,v.z,4)))||surRouteHills(v.x,v.z), abords=!surSentier&&MONT.presDuSentier&&MONT.presDuSentier(v.x,v.z,8);
     v.v-=PENTE_G_VRAIE*sin*(surSentier?0.45:(abords?0.7:1))*(d.franchissement?0.7:1)*(dansSkateXXL(v.x,v.z)?SKX.g:1)*dt; // skatepark XXL : transitions « qui pompent » (à 26 u/s², il fallait 12,5 u/s pour monter 3 u)
     if(d.franchissement&&!surSentier&&pente>0.45&&v.v>0){ const cap=Math.max(3,7-(pente-0.45)*6); if(v.v>cap) v.v=lerp(v.v,cap,clamp(4*dt,0,1)); } } // 4x4 : vitesse réduite dans le raide, il grimpe au pas sans caler // vraie gravité (celle des sauts) : signalé « trop simple à gravir, même en vélo et en jeep » ; le sentier damé tire moins
   const nx=v.x+sA*v.v*dt, nz=v.z+cA*v.v*dt;
@@ -15514,7 +15528,7 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
     if(gAv-(v.h||0)>0.05&&gAv-(v.h||0)<(d.franchit||0.6)){ v.h=lerp(v.h||0,gAv,clamp(10*dt,0,1)); }
   }
   // paroi : le sol devant monte plus raide que PENTE_MAX_VEH → on la heurte, on ne la gravit plus d'un coup
-  const paroi=DECOR_V2&&!eau&&!d.air&&!v.enAir&&dansReliefLibre(fx,fz)&&!(MONT.presDuSentier&&MONT.presDuSentier(fx,fz,7))&&!zoneVertSkate(fx,fz)&&!zoneVertSkate(v.x,v.z)&&paroiDevant(v,d,fx,fz,dt,dansParcStunt(fx,fz)?PENTE_PARC_STUNT:penteMaxVeh(d)); // skatepark XXL : on roule sur les murs des transitions // pente maximale du véhicule (penteMaxVeh), montée sèche comprise ; tables du parc stunt : rampes aménagées // sur le sentier : on manœuvre dans les épingles
+  const paroi=DECOR_V2&&!eau&&!d.air&&!v.enAir&&dansReliefLibre(fx,fz)&&!(MONT.presDuSentier&&MONT.presDuSentier(fx,fz,7))&&!zoneVertSkate(fx,fz)&&!zoneVertSkate(v.x,v.z)&&!dansSkateXXL(fx,fz)&&!surRouteHills(fx,fz)&&paroiDevant(v,d,fx,fz,dt,dansParcStunt(fx,fz)?PENTE_PARC_STUNT:penteMaxVeh(d)); // skatepark XXL : on roule sur les murs des transitions // pente maximale du véhicule (penteMaxVeh), montée sèche comprise ; tables du parc stunt : rampes aménagées // sur le sentier : on manœuvre dans les épingles
   const versPlage=eau&&!!d.eau&&!grosNavire(d)&&(v.conduit==='joueur'||!v.conduit)&&!estEau(nx,nz)&&solY(nx,nz)<0.6&&!solidAt(fx,fz,0.5); // sable : le bateau s'y échoue en douceur
   const auPasVersTerre=echoue&&Math.abs(v.v)<=2.2&&!eauDevant(v,Math.sign(v.v||1)); // échoué, au pas : seulement vers l'eau (jamais traverser la plage)
   const heurte=eau?((!estEau(nx,nz)&&!versPlage&&!(d.amphibie&&!solidAt(fx,fz,d.larg*0.35)))||auPasVersTerre):(!!sFront||paroi||((v.h||0)<0.7&&estEau(fx,fz)&&!VEH_IA_NOYABLES&&!!v.conduit&&v.conduit!=='joueur')); // VEH_IA_NOYABLES : police, trafic et autres IA entrent aussi dans l'eau et s'y noient
@@ -15748,7 +15762,8 @@ function entrerVehicule(v){
   if(v.def.eau&&!META.defis.bateau){META.defis.bateau=true;toast('Bienvenue en mer, capitaine','or');}
   if(v.key==='monstertruck'&&!META.defis.monstertruck){META.defis.monstertruck=true;toast('Terrain vague : le Monster Truck est à toi','or');}
   // sur une moto/jet-ski, le pilote reste visible et est attaché au véhicule
-  if(v.def.type==='moto'||v.def.surf||v.key==='jetski'||v.def.eau){
+  const sgA=v.mesh.userData&&v.mesh.userData.siege;
+  if(v.def.type==='moto'||v.def.surf||v.key==='jetski'||v.def.eau||(sgA&&sgA.assis)){
     P.h.g.visible=true; P.surMoto=true;
     v.mesh.add(P.h.g);
     if(v.def.surf){ // debout sur la planche, bras écartés pour l'équilibre
@@ -15771,6 +15786,10 @@ function entrerVehicule(v){
       P.h.jambeG.rotation.x=0; P.h.jambeD.rotation.x=0;
       P.h.brasG.rotation.x=-1.1; P.h.brasD.rotation.x=-1.1;
       P.h.brasG.rotation.z=0; P.h.brasD.rotation.z=0;
+    } else if(sgA&&sgA.assis){      // cabriolet : assis au volant, on le voit
+      P.h.g.position.set(sgA.x,sgA.y,sgA.z); P.h.g.rotation.set(0,0,0);
+      P.h.jambeG.rotation.x=-1.45; P.h.jambeD.rotation.x=-1.45;
+      P.h.brasG.rotation.x=-1.15; P.h.brasD.rotation.x=-1.15; P.h.brasG.rotation.z=0; P.h.brasD.rotation.z=0;
     } else if(v.def.velo){          // en selle (BMX : plus bas, en danseuse) — les jambes pédalent (majConduite)
       P.h.g.position.set(0,v.def.bmx?0.38:0.52,-0.2); P.h.g.rotation.set(0,0,0);
       P.h.jambeG.rotation.x=-0.4; P.h.jambeD.rotation.x=-0.4;
@@ -16399,7 +16418,7 @@ function majVol(v,dt){
   } else { // avion
     if(!v.vol){
       const c=controleDir(v,false);
-      majVehiculePhys(v,dt,c.throttle,c.steer,desc&&c.l<0.2);
+      majVehiculePhys(v,dt,c.throttle,c.steer,(desc||(v.v>0.5&&v.v<27))&&c.l<0.2); // au sol, joystick lâché : il freine (il ne s'arrêtait jamais)
       if(v.mort) return;
       if(v.v>=27){
         v.vol=true; v.decolT=DECOL_GRACE;
@@ -16429,6 +16448,7 @@ function majVol(v,dt){
       if(l>0.15) v.ang=angLerp(v.ang,Math.atan2(INPUT.mx,INPUT.mz),(v.def.turnVol||1.15)*dt);
       v.va=(monter?15:0)+(desc?-11:0);
       if(v.v<19){ v.va-=9; if(Math.random()<0.1) toast('DÉCROCHAGE — accélère !','warn'); }
+      { const hS=v.alt-poseY(v.x,v.z); if(v.va<0&&hS<10&&!estEau(v.x,v.z)) v.va=Math.max(v.va,-2.2-hS*0.9); } // arrondi : près du sol, la descente se ralentit d'elle-même (signalé : « impossible d'atterrir » — FREIN arrivait au sol à -11 u/s, crash au-delà de -4,5)
       v.alt=clamp(v.alt+v.va*dt,0,180);  // très haut au-dessus de la ville
       const nx=v.x+Math.sin(v.ang)*v.v*dt, nz=v.z+Math.cos(v.ang)*v.v*dt;
       const s=v.decolT>0?null:solidAt(nx,nz,2.5);
@@ -16437,7 +16457,7 @@ function majVol(v,dt){
       const surfA=poseY(v.x,v.z);
       if(v.alt<=surfA+0.15&&v.va<=0){
         if(v.decolT<=0&&((surfA<0.5&&estEau(v.x,v.z))||v.va<-4.5||v.v>32)){ crashAerien(v); return; }
-        v.vol=false; v.alt=surfA; toast(surfA>4?'Posé sur le toit !':'Posé.','or');
+        v.vol=false; v.alt=surfA; v.v=Math.min(v.v,20); toast(surfA>4?'Posé sur le toit !':'Posé — lâche le joystick pour freiner','or');
         if(surfA>4&&!META.defis.toit){ META.defis.toit=true; bigMsg('POSÉ SUR LE TOIT'); }
       }
       v.mesh.rotation.z=lerp(v.mesh.rotation.z,-clamp(angDiff(v.ang,Math.atan2(INPUT.mx||Math.sin(v.ang),INPUT.mz||Math.cos(v.ang))),-1,1)*0.5,0.15);
@@ -17110,6 +17130,7 @@ function creerTrafic(){
   if(HILLS.ok&&dansHills(x,z,3)) return; // Los Reyes Hills : routes en lacets, pas de trafic de la grille
   let poolT;
   if(Math.random()<0.05) poolT=['sport'];
+  else if(Math.random()<0.04) poolT=['suvLuxe','cabriolet','charger','jeep','limousine']; // rares, mais on en croise
   else if((qz==='centre'||qz==='commerce')&&Math.random()<0.1) poolT=['busville','pompiers'];
   else poolT=['citadine','citadine','berline','berline','taxi','taxi','muscle','van','pickup','suvLuxe','cabriolet'];
   const v=creerVehicule(pick(poolT),x,z,ang,'trafic'); v._traf=true;
@@ -21044,7 +21065,8 @@ const CATALOGUE=[
   {key:'citadine',prix:900},{key:'berline',prix:1400},{key:'taxi',prix:1100},
   {key:'moto',prix:1800},{key:'motocross',prix:2400},{key:'pickup',prix:2000},{key:'buggy',prix:2600},
   {key:'muscle',prix:3800},{key:'motoS',prix:4200},{key:'sport',prix:7500},
-  {key:'cabriolet',prix:6200},{key:'suvLuxe',prix:6800},{key:'limousine',prix:9500},{key:'hyper',prix:16000} // voitures de luxe (15 octobre)
+  {key:'cabriolet',prix:6200},{key:'suvLuxe',prix:6800},{key:'limousine',prix:9500},{key:'hyper',prix:16000}, // voitures de luxe (15 octobre)
+  {key:'charger',prix:4600},{key:'jeep',prix:3200}
 ];
 function construireSalle(id){
   if(INT.salles[id]) return INT.salles[id];
@@ -27002,9 +27024,9 @@ function majVieSalle(s,dt){
   for(const f of s.figurants){
     const h=f.h;
     if(s.paniqueT>0){ // accroupi, tête rentrée
-      h.g.scale.y=lerp(h.g.scale.y,0.72,clamp(6*dt,0,1)); h.brasG.rotation.x=h.brasD.rotation.x=-2.6; h.jambeG.rotation.x=h.jambeD.rotation.x=0; continue;
+      h.g.scale.y=lerp(h.g.scale.y,0.72*ECH_HUMAIN,clamp(6*dt,0,1)); h.brasG.rotation.x=h.brasD.rotation.x=-2.6; h.jambeG.rotation.x=h.jambeD.rotation.x=0; continue;
     }
-    if(h.g.scale.y<0.99){ h.g.scale.y=lerp(h.g.scale.y,1,clamp(4*dt,0,1)); h.brasG.rotation.x=h.brasD.rotation.x=0; }
+    if(h.g.scale.y<0.99*ECH_HUMAIN){ h.g.scale.y=lerp(h.g.scale.y,ECH_HUMAIN,clamp(4*dt,0,1)); h.brasG.rotation.x=h.brasD.rotation.x=0; }
     const dj=Math.hypot(P.x-f.x,P.z-f.z);
     if(dj<1.5){ // frôlé : il fait un pas de côté, sans traverser un meuble
       const ux=(f.x-P.x)/(dj||1), uz=(f.z-P.z)/(dj||1), nx=f.x+ux*2.2*dt, nz=f.z+uz*2.2*dt;
@@ -30412,7 +30434,7 @@ function startRun(){
     let libre=true;
     for(const o of vehicules) if(dist2(o.x,o.z,x,z)<60){libre=false;break;}
     if(!libre) continue;
-    creerVehicule(pick(['citadine','citadine','muscle','pickup','van','moto','taxi']),x,z,vert?0:Math.PI/2);
+    creerVehicule(Math.random()<0.12?pick(['jeep','charger','jeep','suvLuxe']):pick(['citadine','citadine','muscle','pickup','van','moto','taxi']),x,z,vert?0:Math.PI/2); // un 4x4 ou une rareté de temps en temps
   }
   garerVelos(); if(DECOR_V2){ garerRides(); creerVehicule('cargo',200,MER+95,Math.PI/2); creerVehicule('cargo',-100,MER+142,Math.PI/2); } // le porte-conteneurs au mouillage
   if(GALION.tresor){ // coffre du galion : une fois par partie, et il attend le joueur (un butin dure 26 s par défaut)
@@ -31785,7 +31807,7 @@ function vueImmersive(){ return META.vue==='immersive'; }
 // les salles qui gardent leur propre caméra : le chalutier (poursuite vers le large), le menu du garage
 function salleImmersive(s){ return !s||(!s.barre&&!(s.tuning&&s.menuOuvert)); }
 // l'angle de l'écran pour le joystick : celui de la caméra AFFICHÉE
-function vueAngleEcran(){ return VUE.yawRendu; }
+function vueAngleEcran(){ return VUE.yawRendu-(P.veh?(VUE.offVehRendu||0):0); } // en véhicule, regarder autour (au doigt) ne change pas la conduite
 // hauteur de caméra nécessaire pour voir le joueur par-dessus les solides
 function vueDegagement(px,py,pz,cx,cy,cz){
   let req=cy;
@@ -31834,7 +31856,12 @@ function vueCamera(dt,sx,sz){
   if(VUE.k<0.002){ VUE.k=0; VUE.yawRendu=0; if(VUE.ciel&&VUE.ciel.visible) VUE.ciel.visible=false; return 0; }
   const v=P.veh, air=!!(v&&v.def.air), glisse=typeof TOW!=='undefined'&&TOW.actif&&TOW.actif.id==='wake'&&TOW.cap!==undefined;
   VUE.kVeh=lerp(VUE.kVeh,v||glisse?1:0,clamp(dt*2,0,1));
-  if(v){ VUE.yaw=angLerp(VUE.yaw,(v.ang||0)+Math.PI,clamp(dt*(air?1.5:2.4),0,1)); VUE.yawUser=VUE.yaw; }
+  if(v){ // poursuite (16 octobre, demandé) : on tourne la caméra avec un second doigt, elle revient derrière dès qu'on lâche ;
+    // au sol, elle suit le MOUVEMENT plutôt que le nez : dans un drift, on voit la voiture glisser de travers
+    if(!VUE.drag) VUE.offVeh=lerp(VUE.offVeh||0,0,clamp(dt*2.2,0,1));
+    const dirMvt=!air&&!v.def.eau&&(v.v||0)>5&&v.dirAng!==undefined?angLerp(v.ang||0,v.dirAng,0.75):(v.ang||0);
+    VUE.yaw=angLerp(VUE.yaw,dirMvt+Math.PI+(VUE.offVeh||0),clamp(dt*(VUE.drag?10:(air?1.5:2.4)),0,1)); VUE.yawUser=VUE.yaw;
+    VUE.offVehRendu=(VUE.offVeh||0)+angDiff(v.ang||0,dirMvt); } /* le joystick reste calé sur le nez du véhicule (comme avant) : ni le doigt ni le drift ne le font tourner */
   else if(glisse){ VUE.yaw=angLerp(VUE.yaw,TOW.cap+Math.PI,clamp(dt*2,0,1)); VUE.yawUser=VUE.yaw; } // wakeboard : derrière la planche, le bateau devant
   else VUE.yaw=angLerp(VUE.yaw,VUE.yawUser,clamp(dt*12,0,1));
   const kv=VUE.kVeh, vit=v?Math.abs(v.v||0):0, lg=v?(v.def.long||4):0, ks=sal&&!sal.depot?1:0; // en salle (le Dépôt, hangar immense, garde la vue de ville)
@@ -31892,14 +31919,14 @@ renderer.domElement.addEventListener('pointerdown',e=>{
   if(!salleImmersive(INT.actif)||!vueImmersive()||ETAT.mode!=='jeu') return;
   const t=performance.now();
   if(t-VUE.tapT<300&&!P.veh){ VUE.yawUser=(P.ang||0)+Math.PI; VUE.tapT=0; return; }
-  VUE.tapT=t; if(P.veh) return;
+  VUE.tapT=t; if(P.veh&&INT.actif) return;
   VUE.drag={id:e.pointerId,x:e.clientX};
 });
 window.addEventListener('pointermove',e=>{
   if(!VUE.drag||e.pointerId!==VUE.drag.id) return;
-  if(!salleImmersive(INT.actif)||P.veh){ VUE.drag=null; return; }
+  if(!salleImmersive(INT.actif)||(P.veh&&INT.actif)){ VUE.drag=null; return; }
   const dx=e.clientX-VUE.drag.x; VUE.drag.x=e.clientX;
-  VUE.yawUser-=dx*VUE_SENS_DOIGT; if(Math.abs(dx)>4) VUE.tapT=0;
+  if(P.veh) VUE.offVeh=clamp((VUE.offVeh||0)-dx*VUE_SENS_DOIGT,-Math.PI,Math.PI); else VUE.yawUser-=dx*VUE_SENS_DOIGT; if(Math.abs(dx)>4) VUE.tapT=0;
 });
 const vueFinDrag=e=>{ if(VUE.drag&&e.pointerId===VUE.drag.id) VUE.drag=null; };
 window.addEventListener('pointerup',vueFinDrag); window.addEventListener('pointercancel',vueFinDrag);

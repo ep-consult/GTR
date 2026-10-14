@@ -10839,6 +10839,53 @@ async function main() {
       else ok('Voitures réalistes : ' + r.info.join(' ; ') + ' ; gabarits, roues au sol, géométries partagées, peinture du garage, gyrophares, modèles de luxe qui roulent');
     }
 
+    // -------------------------------------------------------------------
+    // Retours de playtest du 16 octobre, conduite : l'avion se pose en tenant
+    // FREIN (arrondi automatique) et s'arrête joystick lâché ; le vélo monte
+    // les rampes de pourtour du skatepark ; en vue immersive, la caméra se
+    // tourne au doigt en véhicule et revient derrière dès qu'on lâche, sans
+    // changer la conduite.
+    // -------------------------------------------------------------------
+    console.log('\n--- Retours du 16 octobre : atterrissage, skatepark à vélo, caméra de poursuite ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
+        for (const e of ennemis) e.mort = true;
+        // 1. atterrissage : en vol au-dessus de la piste, FREIN tenu, joystick lâché
+        for (const v of [...vehicules]) if (Math.abs(v.x - AERO.RX) < 30 && v.z < 200 && v.z > -150) { scene.remove(v.mesh); vehicules.splice(vehicules.indexOf(v), 1); }
+        const av = creerVehicule('avion', AERO.RX, 140, Math.PI, null); P.x = av.x; P.z = av.z; entrerVehicule(av);
+        av.vol = true; av.alt = poseY(av.x, av.z) + 22; av.v = 36; av.va = 0; av.decolT = 0; INPUT.mx = INPUT.mz = 0; INPUT.btn.frein = true;
+        let t = 0; while (av.vol && !av.mort && t < 20) { majVol(av, 1 / 30); P.x = av.x; P.z = av.z; t += 1 / 30; }
+        INPUT.btn.frein = false;
+        if (av.mort || av.vol) ko.push('atterrissage : ' + (av.mort ? 'crash' : 'toujours en vol') + ' (' + t.toFixed(1) + ' s)');
+        else { let t2 = 0; while (Math.abs(av.v) > 1 && t2 < 10) { majVol(av, 1 / 30); t2 += 1 / 30; }
+          if (Math.abs(av.v) > 1) ko.push('l’avion ne s’arrête pas au sol (' + av.v.toFixed(1) + ' u/s)'); else info.push('avion posé en ' + t.toFixed(1) + ' s, arrêté en ' + t2.toFixed(1) + ' s'); }
+        if (P.veh) sortirVehicule(true);
+        // 2. vélo : de l'extérieur du skatepark XXL jusque sur la plate-forme, par une rampe de pourtour
+        if (SKX.ok) { const zc = (SKX.z0 + SKX.z1) / 2, x0 = SKX.x0 - 4;
+          for (const v of [...vehicules]) if (dist2(v.x, v.z, x0, zc) < 400) { scene.remove(v.mesh); vehicules.splice(vehicules.indexOf(v), 1); }
+          const b = creerVehicule('velo', x0, zc, Math.PI / 2, null); b.h = solY(b.x, b.z); P.x = b.x; P.z = b.z; entrerVehicule(b); let hm = 0;
+          for (let i = 0; i < 30 * 6; i++) { INPUT.mx = 1; INPUT.mz = 0; const c = controleDir(b, false); majVehiculePhys(b, 1 / 30, c.throttle, c.steer, false); hm = Math.max(hm, b.h || 0); if (b.x > SKX.x0 + SKX.B + 2) break; }
+          INPUT.mx = 0; if (!(b.x > SKX.x0 + SKX.B) || hm < SKX.D - 0.6) ko.push('vélo bloqué au pied du skatepark (x ' + (b.x - SKX.x0).toFixed(1) + ', h ' + hm.toFixed(1) + ')'); else info.push('vélo monté sur le skatepark (' + hm.toFixed(1) + ' u)');
+          if (P.veh) sortirVehicule(true); }
+        // 3. caméra immersive en véhicule : tournée au doigt, elle revient ; la conduite ne bouge pas
+        META.vue = 'immersive'; const vc = creerVehicule('citadine', 0, 0, 0, null); P.x = vc.x; P.z = vc.z; entrerVehicule(vc);
+        for (let i = 0; i < 60; i++) vueCamera(1 / 30, 0, 0);
+        VUE.drag = { id: 99, x: 0 }; VUE.offVeh = 1.4; for (let i = 0; i < 30; i++) vueCamera(1 / 30, 0, 0);
+        const base = angDiff((vc.ang || 0) + Math.PI, vueAngleEcran()), tourne = Math.abs(angDiff((vc.ang || 0) + Math.PI, VUE.yawRendu));
+        VUE.drag = null; for (let i = 0; i < 90; i++) vueCamera(1 / 30, 0, 0);
+        const retour = Math.abs(angDiff((vc.ang || 0) + Math.PI, VUE.yawRendu));
+        if (!(tourne > 0.9) || retour > 0.15 || Math.abs(base) > 0.2) ko.push('caméra au doigt : tournée ' + tourne.toFixed(2) + ', retour ' + retour.toFixed(2) + ', conduite ' + base.toFixed(2));
+        else info.push('caméra tournée de ' + tourne.toFixed(2) + ' rad puis revenue (' + retour.toFixed(2) + ')');
+        if (P.veh) sortirVehicule(true); META.vue = 'classique';
+        startRun(); P.hp = P.maxHp = 1e6;
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Retours du 16 octobre : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
+      else ok('Retours du 16 octobre : ' + r.info.join(' ; '));
+    }
+
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');
     {
       const srcIdx = fs.readFileSync(INDEX_HTML, 'utf8');
