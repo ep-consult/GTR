@@ -8161,7 +8161,7 @@ async function main() {
         if (boutons !== ILE2.trous.length || tresors !== 1 || !/DÉJÀ/.test(a ? a.label : '') || estEau(ILE2.cx, ILE2.cz) || !(hauteurIleTresor(ILE2.pic.x, ILE2.pic.z) > 10)) o.ko.push('île : ' + JSON.stringify({ boutons, tresors, ensuite: a && a.label }));
         else o.info.push(ILE2.trous.length + ' trous, un trésor, ' + (META.argent - m) + ' $');
         // animaux sauvages : attaquent, se tuent
-        scene0(); placerFaune(); { const sg = FAUNE.find((x) => x.type === 'sanglier'); P.x = sg.x + 4; P.z = sg.z; P.y = solPied(P.x, P.z); P.hp = 300; P.armeCur = 'poings'; pas(90); const hpA = P.hp; let coups = 0; /* le test maîtrise sa scène : une arme à feu laissée équipée ne frappe pas */
+        scene0(); placerFaune(); { const sg = FAUNE.find((x) => x.type === 'sanglier'); const cote = [[4, 0], [-4, 0], [0, 4], [0, -4], [3, 3], [-3, -3]].find(([dx, dz]) => { for (let u = 0; u <= 1; u += 0.1) { const x = sg.x + dx * u, z = sg.z + dz * u; if (dansLave(x, z) || lavePres(x, z, 1) || estEau(x, z)) return false; } return true; }) || [4, 0]; /* le sanglier contourne la lave : le test se place du côté sans coulée */ P.x = sg.x + cote[0]; P.z = sg.z + cote[1]; P.y = solPied(P.x, P.z); P.hp = 300; P.armeCur = 'poings'; pas(90); const hpA = P.hp; let coups = 0; /* le test maîtrise sa scène : une arme à feu laissée équipée ne frappe pas */
           while (!sg.mort && coups < 60) { P.ang = Math.atan2(sg.x - P.x, sg.z - P.z); P.cadT = 0; attaquer(); coups++; pas(3); }
           if (!(hpA < 300) || !sg.mort || !FAUNE.some((x) => x.type === 'jaguar')) o.ko.push('faune : ' + JSON.stringify({ hpA, mort: sg.mort, coups })); else o.info.push('sanglier : attaque, tué en ' + coups + ' coups'); }
         // crawl : SPRINT à la nage, plus vite
@@ -9303,7 +9303,7 @@ async function main() {
           const pts = []; let k = idx(ti, tj); if (prev[k] === -2) return null; while (k !== -1) { pts.push({ x: cX(Math.floor(k / nz)), z: cZ(k % nz) }); k = prev[k]; } return pts.reverse(); };
         const rnd0 = Math.random, graineNuit = (g) => () => { g |= 0; g = g + 0x6D2B79F5 | 0; let x = Math.imul(g ^ g >>> 15, 1 | g); x = x + Math.imul(x ^ x >>> 7, 61 | x) ^ x; return ((x ^ x >>> 14) >>> 0) / 4294967296; };
         const nuit = (actif, g) => {
-          const s = entrer(); Math.random = graineNuit(g); P.x = s.panneau.x; P.z = s.panneau.z; appuyer(); // graine posée APRÈS startRun (qui tire selon l'état de la ville)
+          const s = entrer(); P.armeCur = 'poings'; P.ivresse = 0; P.buffs.vit = 0; P.buffs.lourd = 0; P.giletLourd = false; Math.random = graineNuit(g); P.x = s.panneau.x; P.z = s.panneau.z; appuyer(); /* arme lourde, ivresse, gilet laissés par d'autres tests : ils ralentissaient le pilote */ // graine posée APRÈS startRun (qui tire selon l'état de la ville)
           const dt = 1 / 30; let t = 0, route = null, cle = '', bloque = 0, actionCd = 0, sortiesEvitees = 0;
           while (s.srNuit && t < SERRE_DUREE + 2) {
             INPUT.mx = INPUT.mz = 0;
@@ -9330,9 +9330,9 @@ async function main() {
         };
         // tirages des besoins sur une graine propre à chaque nuit : sans elle, l'état de Math.random dépendait du
         // temps réel écoulé avant le test et le pilote tenait de 2 à 5 nuits sur 6 d'un run à l'autre
-        const etat0 = { perso: META.perso, muscle: META.muscle, tenue: META.tenue }; META.perso = 'jax'; META.muscle = 0; META.tenue = 'depart'; // le test maîtrise sa scène : vitesse et endurance de base
+        const etat0 = { perso: META.perso, muscle: META.muscle, tenue: META.tenue, vitesse: META.upg.vitesse }; META.perso = 'jax'; META.muscle = 0; META.tenue = 'depart'; META.upg.vitesse = 0; // le test maîtrise sa scène : vitesse et endurance de base
         const glouton = [], passif = nuit(false, 77);
-        for (let i = 0; i < 10; i++) glouton.push(nuit(true, 1000 + i)); Math.random = rnd0; Object.assign(META, etat0); // on en exige 5 sur 10
+        for (let i = 0; i < 10; i++) glouton.push(nuit(true, 1000 + i)); Math.random = rnd0; META.upg.vitesse = etat0.vitesse; delete etat0.vitesse; Object.assign(META, etat0); // on en exige 5 sur 10
         if (glouton.some((g) => g.bloque)) ko.push('un pot, le bassin ou la table est inatteignable');
         if (glouton.some((g) => g.sortiesEvitees > 3)) ko.push('soigner un pot affiche SORTIR (' + glouton.map((g) => g.sortiesEvitees).join(',') + ')');
         if (glouton.some((g) => !g.fin)) ko.push('une nuit s’interrompt sans fin');
@@ -10327,7 +10327,7 @@ async function main() {
         // le tuer : du karma en moins, rien à ramasser
         ETAT.score = 500; const nPick = pickups.length; toucherAnimal(b, 999); if (!b.mort || ETAT.score !== 450 || pickups.length !== nPick) ko.push('bouquetin tué : score ' + ETAT.score + ', butin ' + (pickups.length - nPick));
         // l'ours charge et mord
-        if (ours) { P.x = ours.x + 9; P.z = ours.z; P.y = ours.y; const hp0 = P.hp; P.iframes = 0;
+        if (ours) { P.nage = false; P.chute = false; P.para = false; P.x = ours.x + 9; P.z = ours.z; P.y = hauteurMont(P.x, P.z); const hp0 = P.hp; P.iframes = 0; ours.mordT = 0;
           for (let i = 0; i < 30 * 6 && P.hp === hp0; i++) { majFaune(1 / 30); P.iframes = 0; }
           if (!(P.hp < hp0)) ko.push('l’ours ne mord pas'); else info.push('l’ours charge et mord (−' + (hp0 - P.hp) + ')');
           // percuté par une moto cross lancée
@@ -10496,6 +10496,56 @@ async function main() {
       });
       if (r.ko.length) fail('Façades : ' + r.ko.join(' | '));
       else ok('Façades : ' + r.n + ' immeubles sur ' + r.c + ' habillés, ' + r.v + ' sommets');
+    }
+
+    // -------------------------------------------------------------------
+    // Cascades et volcan (15 octobre, demandé : « de la cascade à des endroits
+    // avec de la déco, et de la lave sur l'île au pirate avec de la fumée ») :
+    // bassin de la grande cascade = vraie eau (on y nage, on y plonge sans se
+    // blesser) ; la coulée descend jusqu'à la mer, loin des trous à creuser ;
+    // la lave brûle à pied, rien en dehors ; les animaux n'y entrent jamais.
+    // -------------------------------------------------------------------
+    console.log('\n--- Cascades et volcan : bassin où l’on nage, lave qui brûle, fumée ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (!DECOR_V2) return { ko, info: ['décor V2 coupé'] };
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
+        for (const e of ennemis) e.mort = true;
+        if (CASC.length < 2) ko.push(CASC.length + ' cascade(s)');
+        const B = BASSINS[0]; if (!B) ko.push('pas de bassin');
+        else {
+          if (!estEau(B.x, B.z) || estEau(B.x + B.r + 1, B.z + B.r + 1)) ko.push('bassin : eau mal délimitée');
+          // plongeon depuis 20 u dans le bassin : aucun dégât, on nage
+          P.x = B.x; P.z = B.z + 1; P.y = 20; P.vy = 0; P.chute = false; P.nage = false; P.iframes = 0; P.bouclier = 0; const hp0 = P.hp;
+          for (let i = 0; i < 30 * 5; i++) { majJoueur(1 / 30, 1 / 30); P.iframes = 0; }
+          if (P.hp !== hp0 || !P.nage) ko.push('plongeon dans le bassin : ' + (hp0 - P.hp) + ' de dégâts, nage ' + P.nage);
+          else info.push('plongeon de 20 u dans le bassin sans dégât');
+        }
+        // le volcan
+        if (!VOLCAN.ok) return { ko: ko.concat('pas de volcan'), info };
+        const c = VOLCAN.coulee, fin = c[c.length - 1];
+        if (!estEau(fin[0], fin[1])) ko.push('la coulée n’atteint pas la mer');
+        let dTrou = 1e9; for (const t of ILE2.trous) for (const [x, z] of c) dTrou = Math.min(dTrou, Math.hypot(x - t.x, z - t.z));
+        if (dTrou < VOLCAN.larg / 2 + 2.5) ko.push('trou à creuser à ' + dTrou.toFixed(1) + ' u de la lave');
+        info.push('coulée de ' + c.length * 1.5 + ' u jusqu’à la mer, trous à ' + dTrou.toFixed(0) + ' u au moins');
+        // à pied dans la lave : ça brûle ; à côté : rien
+        const m = c[Math.floor(c.length / 2)]; const brule = (x, z) => { P.nage = false; P.x = x; P.z = z; P.y = hauteurIleTresor(x, z); P.chute = false; P.hp = P.maxHp = 1000; P.iframes = 0; P.bouclier = 0; for (let i = 0; i < 30 * 2; i++) { majVolcan(1 / 30); P.iframes = 0; } return 1000 - P.hp; };
+        const dans = brule(m[0], m[1]), aCote = brule(m[0] + 8, m[1] - 3);
+        if (!(dans > 20) || aCote > 0) ko.push('lave : ' + dans + ' de dégâts dedans, ' + aCote + ' à côté'); else info.push('la lave brûle (' + dans + ' en 2 s)');
+        // les animaux n'y entrent jamais
+        P.x = ILE2.cx + 60; P.z = ILE2.cz + 60; let dedans = 0;
+        for (const a of FAUNE) if (!a.zone && dansLave(a.x, a.z)) dedans++;
+        for (let i = 0; i < 30 * 20; i++) { majFaune(1 / 30); for (const a of FAUNE) if (!a.zone && !a.mort && dansLave(a.x, a.z)) dedans++; }
+        if (dedans) ko.push('animaux dans la lave (' + dedans + ')');
+        // fumée : le panache vit près de l'île
+        P.x = ILE2.cx; P.z = ILE2.cz + 30; for (let i = 0; i < 30 * 4; i++) majCascades(1 / 30);
+        const vis = VOLCAN.panaches[0].sp.filter((q) => q.s.visible).length; if (vis < 5) ko.push('panache : ' + vis + ' bouffées'); else info.push(vis + ' bouffées de fumée');
+        startRun(); P.hp = P.maxHp = 1e6;
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Cascades et volcan : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
+      else ok('Cascades et volcan : ' + r.info.join(' ; '));
     }
 
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');

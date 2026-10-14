@@ -1769,3 +1769,11 @@ Captures : `captures/lot11/motos.png`, `motos_pilote.png`, `motos_tuning.png`, `
 - **Façades variées** : murs-rideaux et Art déco au centre, balcons et jardinières en résidentiel, stores et climatiseurs au commerce, échelles et conduites en zone industrielle.
 
 Captures : `captures/lot11/badlands.png`, `facades.png` (avant : `facades_avant.png`).
+
+## Cascades et volcan (15 octobre)
+
+- **Grande cascade du Pic du Vertige** : ruisseau sur le plateau, chute de 89 u qui s'arque en tombant, écume, brume, arc-en-ciel le jour, rochers et fougères ; au pied, un **bassin où l'on nage et où l'on peut plonger** sans se blesser.
+- **Cascade de la crique** : de la falaise de 17 u dans la baie.
+- **Volcan de l'île aux trésors** : cratère et lac de lave, coulée jusqu'à la mer (vapeur à l'arrivée), panache de fumée, braises. La lave brûle à pied et abîme les véhicules ; les animaux l'évitent ; elle passe loin des trous à creuser et du camp.
+
+Captures : `captures/lot11/cascades.png`, `volcan.png`.

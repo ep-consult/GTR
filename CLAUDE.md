@@ -55,7 +55,7 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
   echo "$ln | $(sed -n "$((ln+1))p" index.html | sed 's/^[ \t]*//')"; done
 ```
 
-**Relevé au 14 octobre 2026 (3e série, lot 5 : Badlands, tenues des mini-jeux, défis, façades) — 31 167 lignes.**
+**Relevé au 15 octobre 2026 (cascades et volcan) — 31 334 lignes.**
 Attention : `maj_carte` recale les numéros dans l'ordre des lignes de la table ;
 un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la main.
 
@@ -77,36 +77,36 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 6930 | **BOUTIQUES DE STYLE** (`BOUTIQUES_DEF`, `VETEMENTS`, `BOUT`) |
 | 7066 | **MANÈGES** — grand huit, grande roue (`MANEGES`) |
 | 7137 | **TOITS VIVANTS** (`TOITS`, `mkToitsVivants`) |
-| 10855 | MODÈLES — humains, armes, véhicules, hélico, ramassables |
-| 12660 | POOLS — balles, particules, textes flottants, traces de pneus |
-| 13024 | ÉTAT GLOBAL + JOUEUR (`P`) |
-| 13878 | VÉHICULES — physique arcade, trafic, dégâts |
-| 16475 | PIÉTONS |
-| 16651 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
-| 17218 | **RAYON TRACTEUR DE L'OVNI** |
-| 17683 | NIVEAU DE RECHERCHE (étoiles) |
-| 17962 | VAGUES + bonus de fin de vague |
-| 18083 | MISSIONS COURTES |
-| 18086 | BÂTIMENTS VISITABLES — intérieurs |
-| 18156 | FOUILLE — mécanique générique |
-| 18704 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
-| 22833 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
-| 23241 | **LAVERIE** V2 — l'essorage de la machine 7 |
-| 23506 | **SERRE** V2 — la nuit de la floraison |
-| 23798 | CINÉ-PALACE |
-| 24042 | MÉTRO ABANDONNÉ |
-| 24108 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
-| 24459 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
-| 25361 | SITE 51 |
-| 25591 | LE DÉPÔT DE BUS — courses clandestines |
-| 26619 | **MÉTIERS** — missions liées à un véhicule |
-| 26909 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
-| 27915 | ÉCRANS / MENUS / BOUTIQUES |
-| 28190 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
-| 28989 | DÉBUT / FIN DE PARTIE |
-| 30429 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
-| 30665 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
-| 31045 | BOUCLE PRINCIPALE |
+| 11022 | MODÈLES — humains, armes, véhicules, hélico, ramassables |
+| 12827 | POOLS — balles, particules, textes flottants, traces de pneus |
+| 13191 | ÉTAT GLOBAL + JOUEUR (`P`) |
+| 14045 | VÉHICULES — physique arcade, trafic, dégâts |
+| 16642 | PIÉTONS |
+| 16818 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
+| 17385 | **RAYON TRACTEUR DE L'OVNI** |
+| 17850 | NIVEAU DE RECHERCHE (étoiles) |
+| 18129 | VAGUES + bonus de fin de vague |
+| 18250 | MISSIONS COURTES |
+| 18253 | BÂTIMENTS VISITABLES — intérieurs |
+| 18323 | FOUILLE — mécanique générique |
+| 18871 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
+| 23000 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
+| 23408 | **LAVERIE** V2 — l'essorage de la machine 7 |
+| 23673 | **SERRE** V2 — la nuit de la floraison |
+| 23965 | CINÉ-PALACE |
+| 24209 | MÉTRO ABANDONNÉ |
+| 24275 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
+| 24626 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
+| 25528 | SITE 51 |
+| 25758 | LE DÉPÔT DE BUS — courses clandestines |
+| 26786 | **MÉTIERS** — missions liées à un véhicule |
+| 27076 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
+| 28082 | ÉCRANS / MENUS / BOUTIQUES |
+| 28357 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
+| 29156 | DÉBUT / FIN DE PARTIE |
+| 30596 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
+| 30832 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
+| 31212 | BOUCLE PRINCIPALE |
 
 ### Ancres fines (hors bandeaux)
 
@@ -138,36 +138,36 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 5850 | `VILLA_PISC` — finitions de quartier : `mkQuartiersFinitions()` |
 | 5930 | `MONT` — Mont Reyes, puis `CANYON` (canyons) et `RIDES` (courses) |
 | 4448 | `SOLS` — dalles de sol enregistrées, puis `mkTransitionsSols()` (jonctions entre sols) |
-| 8289 | `mkLacParc()` — lac du parc, passerelle, barques |
-| 8418 | `mkLumieresQuartiers()` — Times Square, quartier chinois, Brooklyn |
-| 8504 | `mkEnceinte()` — murs, enseigne, jetées de rochers |
-| 9036 | `GALION` — galion échoué : `sansAleaVille()`, `coqueGalion()`, `mkGalion()`, `majGalion()` |
-| 10055 | `mkPorteGarage()` — porte roulante des garages |
-| 10125 | `placeLibrePorte()` |
-| 10184 | helper `poser()` — placement des lieux |
-| 10210 | `caseCentre(bx,bz)` |
-| 10303 | `REPLIS` — filet de sécurité en spirale |
-| 12528 | `makeVelo()` — vélo de ville et BMX |
-| 9972 | `ENSEIGNES` — portes mieux placées : `ameliorerPortes()`, `profondeurDevant()`, `orienterPorte()` |
-| 13032 | `const P` — état du joueur |
-| 13075 | `P.stamMax = 100 + 12*mus` |
-| 14244 | `resoudreCollisionsVehicule()` — collisions entre véhicules (SAT sur les 4 axes) |
-| 14880 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
-| 15004 | `boutonsAPied()` — boutons du HUD remis « à pied » (sortie de véhicule ET début de partie) |
-| 15921 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
-| 16050 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
-| 18092 | `IOFF = -9000` |
-| 19781 | `INTDEFS` — définitions des **27 salles** |
-| 19961 | `construireSalle(id)` |
+| 8456 | `mkLacParc()` — lac du parc, passerelle, barques |
+| 8585 | `mkLumieresQuartiers()` — Times Square, quartier chinois, Brooklyn |
+| 8671 | `mkEnceinte()` — murs, enseigne, jetées de rochers |
+| 9203 | `GALION` — galion échoué : `sansAleaVille()`, `coqueGalion()`, `mkGalion()`, `majGalion()` |
+| 10222 | `mkPorteGarage()` — porte roulante des garages |
+| 10292 | `placeLibrePorte()` |
+| 10351 | helper `poser()` — placement des lieux |
+| 10377 | `caseCentre(bx,bz)` |
+| 10470 | `REPLIS` — filet de sécurité en spirale |
+| 12695 | `makeVelo()` — vélo de ville et BMX |
+| 10139 | `ENSEIGNES` — portes mieux placées : `ameliorerPortes()`, `profondeurDevant()`, `orienterPorte()` |
+| 13199 | `const P` — état du joueur |
+| 13242 | `P.stamMax = 100 + 12*mus` |
+| 14411 | `resoudreCollisionsVehicule()` — collisions entre véhicules (SAT sur les 4 axes) |
+| 15047 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
+| 15171 | `boutonsAPied()` — boutons du HUD remis « à pied » (sortie de véhicule ET début de partie) |
+| 16088 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
+| 16217 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
+| 18259 | `IOFF = -9000` |
+| 19948 | `INTDEFS` — définitions des **27 salles** |
+| 20128 | `construireSalle(id)` |
 | 20390 | `CHALUTIER_BANCS_PLAN` — chalutier V2 ; `chalutierMaj` (20761), `dessinerRadarChalutier` (21018) |
-| 26628 | `METIERS_CIBLE` |
-| 26927 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
-| 27015 | `PIECES_FAMILLES` — catalogues de pièces par famille |
-| 27316 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
-| 27379 | `libererObjet()` — libère les géométries d'un objet retiré |
-| 27395 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
-| 27519 | `construireGarageTuning()` — la salle partagée |
-| 27889 | `majNitro()` |
+| 26795 | `METIERS_CIBLE` |
+| 27094 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
+| 27182 | `PIECES_FAMILLES` — catalogues de pièces par famille |
+| 27483 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
+| 27546 | `libererObjet()` — libère les géométries d'un objet retiré |
+| 27562 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
+| 27686 | `construireGarageTuning()` — la salle partagée |
+| 28056 | `majNitro()` |
 
 ---
 
@@ -856,6 +856,33 @@ de fuselages et d'ailes ; jamais le joueur ni les sprites) : appelée par
 et par `placerFaune`. Vérifié par « Aéroport, suite » (géométries stables
 sur 3 parties). **Toute entité recréée à chaque partie passe par
 `libererEntite` à son retrait.**
+
+## Cascades et volcan (15 octobre 2026)
+
+Demandé : « de la cascade à des endroits, avec de la déco, et de la lave sur
+l'île au pirate avec de la fumée ». Bloc `CASCADES ET VOLCAN` (avant
+`mkFacadesVariees`), décor sur le générateur du décor, animé sur `dt`
+(horloge `CASC_U`, `majCascades` dans la boucle).
+
+- **Cascades** (`mkCascade`, `mkCascades`) : grande cascade de la face sud du
+  Pic du Vertige (côté ouest : le tremplin, le plongeoir et le monte-charge
+  sont à l'est), cascade de la falaise nord de la crique dans la baie.
+  Ruisseau sur le dessus (`ruban`), rideau qui s'arque en tombant
+  (`matChute`), écume, brume (`mkPanache` : réserve fixe de sprites, jamais
+  d'allocation en jeu), rochers mouillés, mousses, fougères, fleurs,
+  arc-en-ciel le jour. Au pied du Pic, un **bassin = vraie eau**
+  (`BASSINS`, `dansBassin` dans `estEau`) : on y nage, on y plonge sans se
+  blesser ; un véhicule terrestre s'y noie comme au lac.
+- **Volcan de l'île aux trésors** (`ILE2.lave`, `calculerCoulee`,
+  `mkVolcanIle`, `majVolcan`) : cratère taillé dans `hauteurIleTresor`, lac de
+  lave, coulée jusqu'à la mer (direction tirée parmi les orientations vers
+  la caméra, la plus loin des trous, du camp et du crâne ; rien de la jungle
+  n'y pousse), berges de basalte, vapeur à l'arrivée en mer, panache de
+  fumée, braises, lueur (sprite : aucune `PointLight` de plus). Lave
+  (`matLave`, `polygonOffset` : le relief est maillé plus grossièrement) :
+  elle brûle à pied (`dansLave`) et abîme un véhicule terrestre ; les
+  animaux ne s'y placent ni n'y entrent.
+- Test : « Cascades et volcan ».
 
 ## Armes et armurerie (14 octobre 2026, 3e série)
 

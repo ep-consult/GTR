@@ -3090,7 +3090,7 @@ function dansRectPlat(p,x,z){
   return Math.abs(dx*ca-dz*sa)<p.hw&&Math.abs(dx*sa+dz*ca)<p.hd;
 }
 function estEau(x,z){
-  if(z<MER) return DECOR_V2&&((LAC!==null&&surLac(x,z))||dansCrique(x,z)); // le lac du parc (sauf sa passerelle) et la baie de la crique sont de l'eau
+  if(z<MER) return DECOR_V2&&((LAC!==null&&surLac(x,z))||dansCrique(x,z)||(BASSINS.length>0&&dansBassin(x,z))); // le lac du parc (sauf sa passerelle), la baie de la crique et les bassins des cascades sont de l'eau
   for(const p of PONTONS) if(dansRectPlat(p,x,z)) return false;
   for(const i of ILES) if(i.dans?i.dans(x,z):dist2(x,z,i.x,i.z)<i.r*i.r) return false; // i.dans : contour irrégulier (île aux trésors)
   return true;
@@ -3952,7 +3952,7 @@ function construireVille(){
     if(qq!=='plage'&&qq!=='parc'&&bx%3===1&&bz%3===1) mkFeu(cx+INNER/2+1.4,cz-INNER/2-1.4);
   }
   placerPortes();
-  if(DECOR_V2){ sansAleaVille(()=>{ ameliorerPortes(); mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkBasket(); mkCiel(); mkKiosqueBanderole(); mkCrique(); mkMontReyes(); mkVieMont(); mkBordureEst(); mkCanyonsDesert(); mkPicVertige(); mkParcStunt(); mkSkateXXL(); mkRides(); mkMerVivante(); mkRemorquage(); mkLarge(); deplacerVoltige(); mkAeroportVivant(); mkHeliGrue(); mkPlanques(); mkBoutiques(); mkGrandHuit(); mkToitsVivants(); mkTracesSable(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkNeonVivant(); mkQuartiersFinitions(); mkBalises(); mkFacadesVariees(); }); } // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
+  if(DECOR_V2){ sansAleaVille(()=>{ ameliorerPortes(); mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkBasket(); mkCiel(); mkKiosqueBanderole(); mkCrique(); mkMontReyes(); mkVieMont(); mkBordureEst(); mkCanyonsDesert(); mkPicVertige(); mkParcStunt(); mkSkateXXL(); mkRides(); mkMerVivante(); mkRemorquage(); mkLarge(); deplacerVoltige(); mkAeroportVivant(); mkHeliGrue(); mkPlanques(); mkBoutiques(); mkGrandHuit(); mkToitsVivants(); mkTracesSable(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkNeonVivant(); mkQuartiersFinitions(); mkBalises(); mkFacadesVariees(); mkCascades(); if(MERV.ok) mkVolcanIle(); }); } // cascades et volcan EN DERNIER : leurs tirages du décor ne décalent rien de ce qui précède (mobilier...) // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
   finaliserMerge();
   construireMinimapStatique();
 }
@@ -7149,6 +7149,169 @@ const TOITS={coffres:[],helis:[],n:0};
    (centre), balcons à garde-corps et jardinières (résidentiel, plage), stores de boutiques et climatiseurs
    (commerce), échelles, conduites et bouches d'aération (industriel, port). Purement visuel (aucun solide),
    jamais sous 5 u devant une porte ; géométrie à couleurs de sommets fusionnée par cellule de 120 u. */
+/* CASCADES ET VOLCAN (15 octobre, demandé : « de la cascade à des endroits, avec de la déco, et de la lave sur
+   l'île au pirate avec de la fumée ») — décor, générateur du décor (sansAleaVille), animé sur dt :
+   - GRANDE CASCADE de la face sud du Pic du Vertige (90 u) : ruisseau sur le plateau, rideau d'eau qui s'arque
+     en tombant, écume, brume, arc-en-ciel le jour, bassin (vraie eau : BASSINS) bordé de rochers et de fougères ;
+     loin du tremplin, du plongeoir et du monte-charge.
+   - CASCADE DE LA CRIQUE, de la falaise de 17 u dans la baie.
+   - VOLCAN de l'île aux trésors (mkVolcanIle, dans mkIleTresorV2) : cratère taillé dans hauteurIleTresor, lac de
+     lave, coulée qui descend jusqu'à la mer (vapeur à l'arrivée), panache de fumée, braises. La lave brûle
+     (joueur, véhicule) ; les animaux ne s'y aventurent pas ; jamais sur un trou à creuser, le camp ou le crâne.
+   Shaders injectés dans des MeshBasicMaterial (brouillard conservé), horloge CASC_U, géométries jamais
+   recréées en jeu (fumée et brume : réserves fixes de sprites). */
+const CASC_U={uT:{value:0}};
+const CASC=[], FUMEES=[];
+var _matChute=null, _matLave=null, _matRuisseau=null, _texFumee=null;
+const GLSL_BRUIT_C='varying vec2 vUvC; uniform float uT;\nfloat hC(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }\n'+
+  'float nC(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f); return mix(mix(hC(i),hC(i+vec2(1.0,0.0)),f.x),mix(hC(i+vec2(0.0,1.0)),hC(i+vec2(1.0,1.0)),f.x),f.y); }\n';
+function matAnime(cle,corps,opts){ // MeshBasicMaterial + motif animé (uv, temps), brouillard gardé
+  const m=new THREE.MeshBasicMaterial(Object.assign({color:0xffffff},opts||{}));
+  m.onBeforeCompile=(sh)=>{ sh.uniforms.uT=CASC_U.uT;
+    sh.vertexShader='varying vec2 vUvC;\n'+sh.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\n  vUvC=uv;');
+    sh.fragmentShader=GLSL_BRUIT_C+sh.fragmentShader.replace('#include <color_fragment>','#include <color_fragment>\n'+corps); };
+  m.customProgramCacheKey=()=>cle; return m;
+}
+function matChute(){ return _matChute||(_matChute=matAnime('chuteEau',`{ vec2 u=vUvC; float v=u.y*uRep+uT*1.9;
+    float s=nC(vec2(u.x*16.0,v*0.7))*0.6+nC(vec2(u.x*44.0,v*1.8))*0.4;
+    float bord=smoothstep(0.0,0.14,u.x)*smoothstep(1.0,0.86,u.x);
+    vec3 c=mix(vec3(0.52,0.74,0.88),vec3(1.0),smoothstep(0.42,0.78,s)); c=mix(c,vec3(1.0),smoothstep(0.12,0.0,u.y)*0.8); // écume en bas
+    diffuseColor.rgb=c; diffuseColor.a*=(0.5+0.5*s)*bord; }`.replace('uRep','14.0'),{transparent:true,depthWrite:false,side:THREE.DoubleSide})); }
+function matRuisseau(){ return _matRuisseau||(_matRuisseau=matAnime('ruisseau',`{ vec2 u=vUvC; float v=u.y*0.35-uT*1.2;
+    float s=nC(vec2(u.x*5.0,v*2.0))*0.6+nC(vec2(u.x*14.0,v*5.0))*0.4;
+    float bord=smoothstep(0.0,0.2,u.x)*smoothstep(1.0,0.8,u.x);
+    diffuseColor.rgb=mix(vec3(0.22,0.52,0.66),vec3(0.9,0.97,1.0),smoothstep(0.55,0.85,s)); diffuseColor.a*=0.85*bord; }`,{transparent:true,depthWrite:false,side:THREE.DoubleSide})); }
+function matLave(){ return _matLave||(_matLave=matAnime('lave',`{ vec2 u=vUvC; float v=u.y*0.3-uT*0.22;
+    float n=nC(vec2(u.x*5.0,v*3.0))*0.6+nC(vec2(u.x*13.0,v*7.0+uT*0.35))*0.4;
+    float croute=smoothstep(0.5,0.62,n);
+    vec3 chaud=mix(vec3(1.0,0.32,0.04),vec3(1.0,0.86,0.32),clamp(pow(1.0-n,2.5)+0.08*sin(uT*2.6+u.y*3.0),0.0,1.0));
+    vec3 c=mix(chaud,vec3(0.16,0.06,0.04),croute*0.88);
+    float bord=smoothstep(0.0,0.16,u.x)*smoothstep(1.0,0.84,u.x); c=mix(vec3(0.12,0.05,0.03),c,bord);
+    diffuseColor.rgb=c; }`,{polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-8,side:THREE.DoubleSide})); } // posée sur un relief maillé plus grossièrement : elle passe devant
+function texFumee(){ return _texFumee||(_texFumee=cTex(64,(c,s)=>{ const g=c.createRadialGradient(s/2,s/2,0,s/2,s/2,s/2); g.addColorStop(0,'rgba(255,255,255,0.9)'); g.addColorStop(0.45,'rgba(255,255,255,0.45)'); g.addColorStop(1,'rgba(255,255,255,0)'); c.fillStyle=g; c.fillRect(0,0,s,s); })); }
+// ruban posé sur une ligne de points [x,z] : uv.x en travers (0..1), uv.y = abscisse curviligne
+function ruban(pts,larg,hauteur,m){
+  const pos=[], uv=[], idx=[]; let s=0;
+  for(let i=0;i<pts.length;i++){ const [x,z]=pts[i], [xa,za]=pts[Math.max(0,i-1)], [xb,zb]=pts[Math.min(pts.length-1,i+1)];
+    const dx=xb-xa, dz=zb-za, l=Math.hypot(dx,dz)||1, nx=-dz/l, nz=dx/l; if(i) s+=Math.hypot(x-pts[i-1][0],z-pts[i-1][1]);
+    for(const k of [0,1]){ const px=x+nx*larg*(k-0.5), pz=z+nz*larg*(k-0.5); pos.push(px,hauteur(px,pz),pz); uv.push(k,s); } }
+  for(let i=0;i<pts.length-1;i++){ const a=i*2; idx.push(a,a+2,a+1,a+1,a+2,a+3); }
+  const g=new THREE.BufferGeometry(); g.setIndex(idx); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2)); g.computeBoundingSphere();
+  const me=new THREE.Mesh(g,m); scene.add(me); return me;
+}
+// réserve de sprites qui montent, grossissent et s'effacent (fumée, brume, vapeur) : jamais d'allocation en jeu
+function mkPanache(n,coul,o){ const p={sp:[],o,t:0}; for(let i=0;i<n;i++){ const s=new THREE.Sprite(new THREE.SpriteMaterial({map:texFumee(),color:coul,transparent:true,opacity:0,depthWrite:false}));
+    s.visible=false; scene.add(s); p.sp.push({s,vie:-1}); } FUMEES.push(p); return p; }
+function majPanache(p,dt){ const o=p.o; p.t-=dt;
+  if(p.t<=0){ p.t=o.cadence; for(const q of p.sp) if(q.vie<0){ q.vie=0; q.x=o.x+aD(-o.r,o.r); q.z=o.z+aD(-o.r,o.r); q.y=o.y; q.vy=o.vy*aD(0.8,1.2); q.dx=o.vent*aD(0.6,1.3); q.s.visible=true; break; } }
+  for(const q of p.sp){ if(q.vie<0) continue; q.vie+=dt; const u=q.vie/o.vie; if(u>=1){ q.vie=-1; q.s.visible=false; continue; }
+    q.y+=q.vy*dt; q.x+=q.dx*dt; const t=o.t0+(o.t1-o.t0)*u; q.s.scale.set(t,t,1); q.s.position.set(q.x,q.y,q.z);
+    q.s.material.opacity=o.op*Math.min(1,u*5)*(1-u); } }
+// une cascade : ruisseau sur le dessus, rideau qui s'arque, écume, brume, rochers, fougères
+function mkCascade(o){ // o : {x, zFace, yHaut, yBas, larg, ruisseau (longueur sur le dessus), bassin:{x,z,r}|null, arc (bool)}
+  const c={o}; CASC.push(c);
+  const L=o.yHaut-o.yBas, N=Math.max(8,Math.round(L/2)), g=new THREE.PlaneGeometry(o.larg,L,1,N), pa=g.attributes.position;
+  for(let i=0;i<pa.count;i++){ const y=pa.getY(i), u=(L/2-y)/L; pa.setZ(i,0.6+u*u*o.avance); pa.setY(i,y); } // s'arque vers l'avant en tombant
+  g.computeBoundingSphere(); const rid=new THREE.Mesh(g,matChute()); rid.position.set(o.x,o.yBas+L/2,o.zFace); scene.add(rid); c.rideau=rid;
+  const fond=new THREE.Mesh(new THREE.PlaneGeometry(o.larg*1.25,L),new THREE.MeshBasicMaterial({color:0x1e2a2e,transparent:true,opacity:0.35,depthWrite:false})); fond.position.set(o.x,o.yBas+L/2,o.zFace+0.3); scene.add(fond); // roche mouillée derrière l'eau
+  if(o.ruisseau){ const pts=[]; for(let k=0;k<=12;k++){ const u=k/12; pts.push([o.x+Math.sin(u*5)*1.2*(1-u),o.zFace-o.ruisseau*(1-u)]); }
+    ruban(pts,o.larg*0.7,(x,z)=>o.yHaut+0.08,matRuisseau()); }
+  const zB=o.zFace+0.6+o.avance; // pied de la chute
+  const ec=new THREE.Mesh(new THREE.CircleGeometry(o.larg*0.85,20),matAnime('ecume',`{ float r=length(vUvC-0.5)*2.0; float s=nC(vUvC*9.0+vec2(uT*0.7,-uT*0.5));
+      diffuseColor.rgb=vec3(1.0); diffuseColor.a*=smoothstep(1.0,0.5,r)*(0.45+0.55*s); }`,{transparent:true,depthWrite:false}));
+  ec.rotation.x=-Math.PI/2; ec.position.set(o.x,o.yBas+0.06,zB); scene.add(ec);
+  c.brume=mkPanache(10,0xf2f8ff,{x:o.x,z:zB,y:o.yBas+0.5,r:o.larg*0.45,vy:1.4,vent:0.3,vie:2.6,t0:2,t1:o.larg*1.6,op:0.32,cadence:0.25});
+  // déco : rochers mouillés au pied et sur la lèvre, fougères, mousses sur la paroi
+  const pieces=[];
+  for(let k=0;k<9;k++){ const a=aD(-0.4,Math.PI+0.4), r=o.larg*aD(0.7,1.4); pieces.push(['boule',aD(0.6,1.4),aD(0.4,0.9),aD(0.6,1.3),o.x+Math.cos(a)*r,o.yBas+0.25,zB+Math.sin(a)*r*0.6,choixD([0x4a4a46,0x5a554c,0x3e3a36])]); }
+  for(let k=0;k<4;k++) pieces.push(['boule',aD(0.6,1.1),aD(0.4,0.7),aD(0.6,1.1),o.x+(k%2?1:-1)*(o.larg*0.55+aD(0,0.8)),o.yHaut+0.2,o.zFace-aD(0,1.5),choixD([0x4a4a46,0x5a554c])]);
+  for(let k=0;k<12;k++){ const s=k%2?1:-1, y=o.yBas+aD(1,Math.min(L-1,14)); pieces.push(['boule',aD(0.5,1.2),aD(0.4,0.9),0.35,o.x+s*(o.larg*0.6+aD(0,1.4)),y,o.zFace+0.4,choixD([0x3f7a34,0x2f6a2a,0x5a8a3a])]); } // mousses et lianes
+  if(o.bassin){ const B=o.bassin;
+    for(let k=0;k<22;k++){ const a=k/22*Math.PI*2, r=B.r+aD(0.2,1.2); if(Math.sin(a)<-0.5&&Math.abs(Math.cos(a))<0.6) continue; // côté paroi : la chute
+      pieces.push(['boule',aD(0.7,1.5),aD(0.4,0.9),aD(0.7,1.4),B.x+Math.cos(a)*r,0.25,B.z+Math.sin(a)*r,choixD([0x6a665e,0x7a766c,0x5a554c])]); }
+    for(let k=0;k<16;k++){ const a=aD(0,Math.PI*2), r=B.r+aD(1.6,4); const x=B.x+Math.cos(a)*r, z=B.z+Math.sin(a)*r;
+      pieces.push(['cone',aD(0.5,0.9),aD(0.8,1.4),aD(0.5,0.9),x,0.6,z,choixD([0x2f7a34,0x3d8a3a,0x4a9a44])]); // fougères
+      if(k%3===0) pieces.push(['boule',0.18,0.18,0.18,x+0.4,1.0,z,choixD([0xff5ad0,0xffd23f,0xf2f4f8])]); } // fleurs
+    const eau=new THREE.Mesh(new THREE.CircleGeometry(B.r+0.4,28),new THREE.MeshLambertMaterial({color:0x1f6a84,transparent:true,opacity:0.86}));
+    eau.rotation.x=-Math.PI/2; eau.position.set(B.x,0.04,B.z); scene.add(eau);
+    const fondB=new THREE.Mesh(new THREE.CircleGeometry(B.r+0.4,28),mat(0x1a4a5a)); fondB.rotation.x=-Math.PI/2; fondB.position.set(B.x,0.02,B.z); scene.add(fondB);
+    BASSINS.push({x:B.x,z:B.z,r:B.r});
+    if(o.arc){ const t=cTex(128,(cx,s)=>{ cx.clearRect(0,0,s,s); const cs=['#ff3b3b','#ff9a2a','#ffe23f','#4be04b','#3bb0ff','#6a5aff','#c05aff']; cx.lineWidth=s*0.035;
+        cs.forEach((col,i)=>{ cx.strokeStyle=col; cx.globalAlpha=0.7; cx.beginPath(); cx.arc(s/2,s,s*0.46-i*s*0.035,Math.PI,0); cx.stroke(); }); });
+      const arc=new THREE.Mesh(new THREE.PlaneGeometry(o.larg*3,o.larg*1.5),new THREE.MeshBasicMaterial({map:t,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide}));
+      arc.position.set(o.x,o.yBas+o.larg*0.8,zB+2); scene.add(arc); c.arc=arc; } }
+  scene.add(meshPieces(pieces));
+  return c;
+}
+function mkCascades(){
+  if(!DECOR_V2) return;
+  // Pic du Vertige : face sud, côté ouest (le tremplin, le plongeoir et le monte-charge sont plus à l'est)
+  if(PIC.ok){ const x=PIC.x-28; let zf=PIC.z; for(let z=PIC.z+PIC.hd*1.4;z>PIC.z;z-=0.25) if(hauteurPic(x,z)>PIC.H*0.6){ zf=z; break; }
+    const yH=hauteurPic(x,zf-2); let zc=zf+2;
+    for(;zc<zf+30;zc+=0.5){ let ok=true; for(let a=0;a<6.28&&ok;a+=0.4) for(const rr of [3,6.5]) if(hauteurPic(x+Math.cos(a)*rr,zc+Math.sin(a)*rr)>0.05||solidAt(x+Math.cos(a)*rr,zc+Math.sin(a)*rr,0.5)) ok=false; if(ok) break; }
+    mkCascade({x,zFace:zf+0.4,yHaut:yH,yBas:0,larg:6,avance:3.2,ruisseau:14,bassin:{x,z:zc,r:6.5},arc:true}); }
+  // crique : de la falaise nord (17 u) dans la baie, loin du plongeoir olympique
+  if(CRIQUE){ mkCascade({x:CRIQUE.x0+4.5,zFace:CRIQUE.z0+0.5,yHaut:17,yBas:0,larg:4,avance:2.2,ruisseau:10,bassin:null}); }
+}
+function majCascades(dt){
+  CASC_U.uT.value+=dt;
+  for(const c of CASC){ const o=c.o, d=dist2(P.x,P.z,o.x,o.zFace); if(d>250*250) continue;
+    majPanache(c.brume,dt);
+    if(c.arc) c.arc.material.opacity=clamp((soleil.intensity-0.6)*0.5,0,0.22); // arc-en-ciel le jour seulement
+    if(d<60*60&&Math.random()<dt*8) spawnP(o.x+aD(-o.larg*0.4,o.larg*0.4),o.yBas+0.3,o.zFace+0.6+o.avance,aD(-1.5,1.5),aD(2,4.5),aD(0.2,2),0.7,0.22,0xffffff,8); }
+  for(const f of VOLCAN.panaches) if(dist2(P.x,P.z,ILE2.cx,ILE2.cz)<320*320) majPanache(f,dt);
+  majVolcan(dt);
+}
+// ---------- le volcan de l'île aux trésors ----------
+const VOLCAN={ok:false,coulee:[],larg:2.6,panaches:[],lueur:null,braiseT:0,brulT:0};
+function dansLave(x,z){
+  if(!VOLCAN.ok) return false; const L=ILE2.lave;
+  if(dist2(x,z,L.x,L.z)<L.r*L.r) return true;
+  const c=VOLCAN.coulee, h2=(VOLCAN.larg/2)*(VOLCAN.larg/2);
+  for(let i=0;i<c.length-1;i++){ const ax=c[i][0], az=c[i][1], bx=c[i+1][0], bz=c[i+1][1], dx=bx-ax, dz=bz-az, l2=dx*dx+dz*dz||1;
+    const u=clamp(((x-ax)*dx+(z-az)*dz)/l2,0,1), px=ax+dx*u-x, pz=az+dz*u-z; if(px*px+pz*pz<h2) return true; }
+  return false;
+}
+function lavePres(x,z,m){ const c=VOLCAN.coulee, h=VOLCAN.larg/2+m; for(let i=0;i<c.length;i++) if(dist2(x,z,c[i][0],c[i][1])<h*h) return true; return false; }
+function calculerCoulee(){
+  const C=ILE2, L=C.lave, evite=C.trous.map((t)=>[t.x,t.z]).concat([[MERV.camp.x,MERV.camp.z]]);
+  // coulée : la direction (vers la caméra, au sud) la plus éloignée des trous, du camp et du crâne
+  let best=null;
+  for(let a=0.15;a<Math.PI-0.15;a+=0.05){ const pts=[]; let x=L.x+Math.cos(a)*L.r*0.8, z=L.z+Math.sin(a)*L.r*0.8, s=0;
+    while(ileU(x,z)<1.04&&s<60){ pts.push([x,z]); s+=1.5; const m=Math.sin(s*0.32)*0.5; x+=Math.cos(a+m*0.4)*1.5; z+=Math.sin(a+m*0.4)*1.5; } pts.push([x,z]);
+    let dmin=1e9; for(const [px,pz] of pts) for(const [ex,ez] of evite.concat(C.crane?[C.crane]:[])) dmin=Math.min(dmin,Math.hypot(px-ex,pz-ez));
+    if(!best||dmin>best.d) best={d:dmin,pts}; }
+  VOLCAN.coulee=best.pts; VOLCAN.ok=true; VOLCAN.dTrous=best.d;
+}
+function mkVolcanIle(){
+  const C=ILE2, L=C.lave; if(!VOLCAN.ok) calculerCoulee();
+  ruban(VOLCAN.coulee,VOLCAN.larg,(x,z)=>Math.max(0.06,hauteurIleTresor(x,z)+0.25),matLave());
+  // berges de lave refroidie (basalte) le long de la coulée
+  const pieces=[];
+  for(let i=0;i<VOLCAN.coulee.length;i+=2){ const [x,z]=VOLCAN.coulee[i]; for(const s of [-1,1]){ const [xb,zb]=VOLCAN.coulee[Math.min(VOLCAN.coulee.length-1,i+1)], dx=xb-x, dz=zb-z, l=Math.hypot(dx,dz)||1, nx=-dz/l, nz=dx/l;
+      const px=x+nx*s*(VOLCAN.larg/2+0.5), pz=z+nz*s*(VOLCAN.larg/2+0.5); pieces.push(['boule',aD(0.5,0.9),aD(0.3,0.5),aD(0.5,0.9),px,hauteurIleTresor(px,pz)+0.15,pz,choixD([0x2a2624,0x3a3430,0x1e1a18])]); } }
+  for(let k=0;k<16;k++){ const a=k/16*Math.PI*2, r=L.r+aD(0.3,1.2), px=L.x+Math.cos(a)*r, pz=L.z+Math.sin(a)*r; pieces.push(['boule',aD(0.7,1.3),aD(0.5,0.9),aD(0.7,1.3),px,hauteurIleTresor(px,pz)+0.2,pz,choixD([0x2a2624,0x3a3430,0x4a3a30])]); }
+  scene.add(meshPieces(pieces));
+  const lac=new THREE.Mesh(new THREE.CircleGeometry(L.r,24),matLave()); lac.rotation.x=-Math.PI/2; lac.position.set(L.x,L.y,L.z); scene.add(lac);
+  // lueur (fausse lumière : aucune PointLight de plus) et panaches
+  const lu=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:0xff6a2a,transparent:true,opacity:0.5,depthWrite:false,blending:THREE.AdditiveBlending})); lu.scale.set(14,14,1); lu.position.set(L.x,L.y+2,L.z); scene.add(lu); VOLCAN.lueur=lu;
+  VOLCAN.panaches.push(mkPanache(22,0x3a3634,{x:L.x,z:L.z,y:L.y+1,r:1.4,vy:3.2,vent:1.6,vie:7,t0:3,t1:14,op:0.55,cadence:0.32}));
+  const fin=VOLCAN.coulee[VOLCAN.coulee.length-1];
+  VOLCAN.panaches.push(mkPanache(12,0xf2f4f6,{x:fin[0],z:fin[1],y:0.4,r:1.2,vy:2.2,vent:0.8,vie:3.5,t0:1.5,t1:7,op:0.5,cadence:0.28})); // vapeur à l'arrivée en mer
+  VOLCAN.fin={x:fin[0],z:fin[1]};
+}
+function majVolcan(dt){
+  if(!VOLCAN.ok) return; const L=ILE2.lave;
+  const d2=dist2(P.x,P.z,ILE2.cx,ILE2.cz); if(d2>320*320) return;
+  VOLCAN.lueur.material.opacity=0.38+0.14*Math.sin(CASC_U.uT.value*3.1)+0.06*Math.sin(CASC_U.uT.value*7.3)+(ETAT.nuitF||0)*0.25;
+  VOLCAN.braiseT-=dt; if(VOLCAN.braiseT<=0&&d2<120*120){ VOLCAN.braiseT=aD(0.15,0.5); spawnP(L.x+aD(-1.5,1.5),L.y+0.4,L.z+aD(-1.5,1.5),aD(-1.5,1.5),aD(5,9),aD(-1.5,1.5),1.4,0.18,choixD([0xff8a2a,0xffd23f,0xff5a1a]),14); }
+  // la lave brûle : à pied (posé sur le sol), en véhicule terrestre
+  if(INT.actif||ETAT.mode!=='jeu') return;
+  if(!P.veh&&!P.chute&&!P.nage&&P.y<hauteurIleTresor(P.x,P.z)+0.8&&dansLave(P.x,P.z)){
+    VOLCAN.brulT-=dt; if(VOLCAN.brulT<=0){ VOLCAN.brulT=0.3; toucherJoueur(9); burst(P.x,P.y+0.4,P.z,5,0xff7a2a,4,4); if(!VOLCAN.averti){ VOLCAN.averti=true; toast('🌋 La lave brûle ! Sors de là !','warn'); } } }
+  else { VOLCAN.brulT=0; VOLCAN.averti=false; }
+  const v=P.veh; if(v&&!v.def.air&&!surEauVeh(v)&&dansLave(v.x,v.z)){ abimerVehicule(v,40*dt,false); if(Math.random()<dt*6) burst(v.x,1,v.z,3,0xff7a2a,4,4); }
+}
 var FACADES_N=0, FACADES_V=0; // immeubles décorés, sommets ajoutés (budget mobile, testé)
 function mkFacadesVariees(){
   const cell=new Map(), push=(x,z,p)=>{ const k=Math.floor(x/120)+'_'+Math.floor(z/120); if(!cell.has(k)) cell.set(k,[]); cell.get(k).push(p); };
@@ -7424,7 +7587,7 @@ function majAeroportVivant(dt){
    16 u. Six endroits où creuser : un seul cache le trésor (tiré à chaque vague), les autres donnent un peu
    d'or, une bouteille… ou un indice qui pointe vers le bon. Sangliers et jaguar (FAUNE) : ils rôdent, chargent
    un joueur proche, mordent ; on les tue au tir ou au corps à corps ; ils reviennent à chaque vague. */
-const ILE2={cx:-215,cz:402,rx:36,rz:24,pic:{x:-226,z:397,h:16,r:9},trous:[],tresorIdx:0,vague:-1};
+const ILE2={cx:-215,cz:402,rx:36,rz:24,pic:{x:-226,z:397,h:16,r:9},lave:{x:-226,z:397,y:12,r:3},trous:[],tresorIdx:0,vague:-1}; // lave : lac du cratère (15 octobre)
 function ileR(phi){ return 1+0.16*Math.sin(3*phi+0.7)+0.09*Math.sin(5*phi+2)+0.05*Math.sin(9*phi); }
 function ileU(x,z){ const nx=(x-ILE2.cx)/ILE2.rx, nz=(z-ILE2.cz)/ILE2.rz, r=Math.sqrt(nx*nx+nz*nz); return r<1e-6?0:r/ileR(Math.atan2(nz,nx)); }
 function dansIleTresor(x,z){ return Math.abs(x-ILE2.cx)<ILE2.rx*1.35&&Math.abs(z-ILE2.cz)<ILE2.rz*1.35&&ileU(x,z)<1; }
@@ -7433,6 +7596,7 @@ function hauteurIleTresor(x,z){
   let h=u>0.8?0.45*(1-u)/0.2:0.45+2.2*(0.8-u)*(1+0.25*Math.sin(x*0.3+z*0.2)); // plage puis sous-bois en pente douce
   const P2=ILE2.pic, dm=Math.sqrt(dist2(x,z,P2.x,P2.z));
   h+=P2.h*Math.exp(-(dm*dm)/(P2.r*P2.r))*(1+0.12*Math.sin(Math.atan2(z-P2.z,x-P2.x)*5)); // la montagne, crêtes en étoile
+  if(dm<4.2){ const fond=ILE2.lave.y-0.45, k=lisse(clamp((dm-2.8)/1.4,0,1)); h=Math.min(h,fond+(h-fond)*k); } // le cratère du volcan
   return h*lisse(Math.min(1,(1-u)/0.04)); // le bord se fond dans l'eau
 }
 function mkIleTresorV2(){
@@ -7460,7 +7624,7 @@ function mkIleTresorV2(){
     else pieces.push(['boule',aD(0.8,1.6),aD(0.5,1),aD(0.8,1.6),x,h+0.3,z,choixD([0x3a7a30,0x4a8a38])]); } // buissons
   for(let i=0;i<14;i++){ const a=aD(0,Math.PI*2), r=aD(2,7), x=C.pic.x+Math.cos(a)*r, z=C.pic.z+Math.sin(a)*r; pieces.push(['boule',aD(0.9,2),aD(0.7,1.4),aD(0.9,2),x,hauteurIleTresor(x,z)+0.3,z,choixD([0x7a766c,0x8a8478])]); }
   // rocher-crâne, camp, canot échoué, pavillon
-  { const [sx,sz]=pt(2.5,0.7), sh=hauteurIleTresor(sx,sz); pieces.push(['boule',5,4.2,4.4,sx,sh+2,sz,0xb8b0a0],['boule',1.3,1.5,0.6,sx-1.4,sh+2.6,sz+2,0x14161c],['boule',1.3,1.5,0.6,sx+1.4,sh+2.6,sz+2,0x14161c],['boule',0.8,0.6,0.5,sx,sh+1.4,sz+2.1,0x14161c]); }
+  { const [sx,sz]=pt(2.5,0.7), sh=hauteurIleTresor(sx,sz); C.crane=[sx,sz]; pieces.push(['boule',5,4.2,4.4,sx,sh+2,sz,0xb8b0a0],['boule',1.3,1.5,0.6,sx-1.4,sh+2.6,sz+2,0x14161c],['boule',1.3,1.5,0.6,sx+1.4,sh+2.6,sz+2,0x14161c],['boule',0.8,0.6,0.5,sx,sh+1.4,sz+2.1,0x14161c]); }
   { const cx=C.cx+16, cz=C.cz+4, ch=hauteurIleTresor(cx,cz); MERV.camp={x:cx,z:cz};
     pieces.push(['cone',2.6,2.6,2.6,cx+3,ch+1.3,cz-2,0xc8b48a],['box',0.1,3.4,0.1,cx+3,ch+1.7,cz-2,0x6a4a2c],['box',0.9,1.1,0.9,cx-1,ch+0.55,cz+2,0x8a6a44],['box',0.9,1.1,0.9,cx,ch+0.55,cz+2.6,0x7a5a3a]);
     for(let k=0;k<6;k++){ const a=k/6*Math.PI*2; pieces.push(['boule',0.5,0.35,0.5,cx+Math.cos(a)*0.9,ch+0.2,cz+Math.sin(a)*0.9,0x6a665e]); }
@@ -7473,7 +7637,8 @@ function mkIleTresorV2(){
     m.position.set(x,h,z); scene.add(m);
     const trou=new THREE.Mesh(new THREE.CircleGeometry(0.9,14),new THREE.MeshBasicMaterial({color:0x3a2a18,transparent:true,opacity:0.85,depthWrite:false})); trou.rotation.x=-Math.PI/2; trou.position.set(x,h+0.06,z); trou.visible=false; scene.add(trou);
     C.trous.push({x,z,h,m,trou,creuse:false}); }
-  scene.add(meshPieces(pieces));
+  calculerCoulee(); // la coulée d'abord : rien de la jungle ni des rochers ne pousse dans la lave
+  scene.add(meshPieces(pieces.filter((p)=>!(dansLave(p[4],p[6])||dist2(p[4],p[6],C.lave.x,C.lave.z)<(C.lave.r+1.2)*(C.lave.r+1.2)||lavePres(p[4],p[6],1.6)))));
   mkEnseigne('ÎLE AUX TRÉSORS','#ffd23f',C.cx+4,4.2,C.cz-C.rz-1,0,8);
   MERV.tresor={x:C.trous[0].x,z:C.trous[0].z}; // (compatibilité : point d'intérêt de l'île)
 }
@@ -7536,7 +7701,7 @@ function placerFaune(){ // à chaque partie et chaque vague : les morts revienne
   const vus=FAUNE.filter((a)=>!a.zone&&!a.mort).length; if(vus>=4) return;
   retirerFaune('ile'); // tous ceux de l'île : un vivant laissé dans la scène restait figé, hors de FAUNE
   for(const type of ['sanglier','sanglier','sanglier','jaguar']){ const m=mkAnimal(type), D=FAUNE_DEFS[type];
-    let x=ILE2.pic.x, z=ILE2.pic.z; for(let t=0;t<20;t++){ const a=rand(0,6.28), r=rand(5,18), x2=ILE2.cx+Math.cos(a)*r, z2=ILE2.cz+Math.sin(a)*r*0.7; if(ileU(x2,z2)<0.75){ x=x2; z=z2; break; } }
+    let x=MERV.camp?MERV.camp.x-4:ILE2.cx+10, z=MERV.camp?MERV.camp.z-4:ILE2.cz; for(let t=0;t<30;t++){ const a=rand(0,6.28), r=rand(5,18), x2=ILE2.cx+Math.cos(a)*r, z2=ILE2.cz+Math.sin(a)*r*0.7; if(ileU(x2,z2)<0.75&&!dansLave(x2,z2)&&!lavePres(x2,z2,1.5)){ x=x2; z=z2; break; } } // jamais dans la lave (ni au cratère : à défaut, près du camp)
     FAUNE.push({type,D,g:m.g,pattes:m.pattes,x,z,y:hauteurIleTresor(x,z),ang:rand(0,6.28),hp:D.hp,mort:false,mordT:0,errT:0,ph:rand(0,6),corpsT:0}); }
 }
 function toucherAnimal(a,dmg){
@@ -7563,7 +7728,7 @@ function majFaune(dt){
       a.mordT-=dt; if(d<1.7&&a.mordT<=0){ a.mordT=1.2; toucherJoueur(a.D.deg,a.x,a.z); if(Math.random()<0.4) toast(a.type==='jaguar'?'🐆 Le jaguar t’a lacéré !':'🐗 Coup de défense !','warn'); } }
     else { a.errT-=dt; if(a.errT<=0){ a.errT=rand(2,5); a.ang+=rand(-1.5,1.5); a.pause=Math.random()<0.35; } vit=a.pause?0:a.D.vit*0.25; }
     if(vit>0){ const nx=a.x+Math.sin(a.ang)*vit*dt, nz=a.z+Math.cos(a.ang)*vit*dt, pente=a.D.paisible?4:2.5; // le bouquetin grimpe partout
-      const dedans=mont?(montU(nx,nz)<0.85&&nx<LIMITE_EST-2&&H(nx,nz)>1):ileU(nx,nz)<0.9;
+      const dedans=mont?(montU(nx,nz)<0.85&&nx<LIMITE_EST-2&&H(nx,nz)>1):(ileU(nx,nz)<0.9&&!dansLave(nx,nz)); // jamais dans la lave
       if(dedans&&H(nx,nz)-a.y<vit*dt*pente){ a.x=nx; a.z=nz; } else a.ang+=Math.PI*0.6; } // jamais à l'eau ni hors de sa zone, jamais une paroi
     a.y=H(a.x,a.z); a.ph+=dt*vit*1.6;
     a.g.position.set(a.x,a.y,a.z); a.g.rotation.y=a.ang;
@@ -8280,6 +8445,8 @@ function reparerMobilier(){
    pour le jeu : estEau() le reconnaît (on y nage, les voitures s'arrêtent
    au bord), sauf sur la passerelle. Barques : décor (choix prudent). */
 let LAC=null; // {x,z,r,r2,pont:{x,z,hw,hd}}
+const BASSINS=[]; // bassins au pied des cascades : {x,z,r} — vraie eau pour estEau (on y nage, on y plonge sans se blesser)
+function dansBassin(x,z){ for(let i=0;i<BASSINS.length;i++){ const b=BASSINS[i]; if(dist2(x,z,b.x,b.z)<b.r*b.r) return true; } return false; }
 const LAC_BARQUES=[], LAC_CANARDS=[];
 function surLac(x,z){
   if(!LAC) return false;
@@ -31105,7 +31272,7 @@ function boucle(t){
       majMeteo(dt);
       majMer(dt);
       majMerV2(dt);
-      if(DECOR_V2){ majHorsLesMurs(dt); majMobilier(); majLac(dt); majLumieres(dt); majJetee(dt); majPortVivant(dt); majAeroportVivant(dt); majPlanques(dt); majAtelierArme(dt); majBoutique(dt); majTour(dtJeu); majManeges(dt); majBrooklyn(dt); majCiel(dt); majNeonVivant(dt); majQuartiersFinitions(dt); }
+      if(DECOR_V2){ majHorsLesMurs(dt); majMobilier(); majLac(dt); majLumieres(dt); majJetee(dt); majPortVivant(dt); majAeroportVivant(dt); majPlanques(dt); majAtelierArme(dt); majBoutique(dt); majTour(dtJeu); majCascades(dt); majManeges(dt); majBrooklyn(dt); majCiel(dt); majNeonVivant(dt); majQuartiersFinitions(dt); }
       majEpaveCanon(dt);
     }
     majHUD();
