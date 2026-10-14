@@ -1811,3 +1811,12 @@ Captures : `captures/lot11/hills_vue_ensemble.png`, `hills_villas.png`.
 - **Corrigés en route** : le lacet du sommet débordait au-dessus de la rue de la ville ; les véhicules de la descente et des voitures garées au hasard bloquaient la route de la colline.
 
 Captures : `captures/lot11/villas_styles.png`, `hills_vie.png`, `voitures_avant.png`, `voitures_arriere.png`, `voitures_en_ville.png`.
+
+## Retours de playtest du 16 octobre
+
+- **Véhicules** : taxi, police et Rafale rendus à leur ancien modèle ; berlines au capot plat ; nouvelle Charger « Taureau » ; pick-up façon Raptor (benne, élargisseurs, feux orange) ; 4x4 et voitures de luxe rares mais trouvables ; conducteur visible en cabriolet ; personnages un peu plus petits ; voitures garées près du portail des villas.
+- **Conduite** : l'avion se pose en tenant FREIN (arrondi automatique) et s'arrête joystick lâché ; le vélo monte les rampes du skatepark ; routes de la colline sans paroi (Sunset Crest, trop raide, retirée) ; caméra de poursuite orientable au second doigt, qui revient derrière et laisse voir le drift.
+- **Monde** : chantier rebâti — immeuble « Los Reyes Tower » en construction, praticable à pied par des rampes jusqu'au 6e niveau, échafaudage, grue, aire dédiée à l'hélico-grue Titan (restylé façon Skycrane, aimant enfin utilisable) ; caravane Airstream en plein désert ; chalet d'altitude dans les sapins au sommet du Mont Reyes ; bords de la colline en vrai mur de soutènement.
+- **PNJ** : les figurants de l'aéroport, de la colline et du chantier se renversent, se tirent, et la panique se propage ; dans les salles, un figurant touché tombe puis se relève.
+
+Captures : `captures/lot11/voitures_16oct.png`, `chantier_planques.png`.

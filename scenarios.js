@@ -9819,15 +9819,17 @@ async function main() {
         const c = creerVehicule('berline', q.x, q.z, 0); P.x = ti.x; P.z = ti.z; entrerVehicule(ti);
         const step = (n) => { for (let i = 0; i < n; i++) { majAimant(1 / 30); for (const v of vehicules) if (v.captureOvni) v.mesh.position.y = v.mesh.position.y; } };
         if (el('btnGren').textContent.indexOf('AIMANT') < 0) ko.push('pas de bouton AIMANT');
-        // trop bas : rien n'est accroché
-        ti.vol = true; ti.alt = poseY(q.x, q.z) + 4; ti.x = q.x; ti.z = q.z; INPUT.edge.gren = true; step(1);
-        if (c.captureOvni) ko.push('accroché alors que l’hélico est trop bas');
-        // à bonne hauteur : accroché, hissé, il suit l'hélico
-        ti.alt = 16; INPUT.edge.gren = true; step(1);
-        if (!c.captureOvni) ko.push('l’aimant n’accroche pas la berline');
+        // (16 octobre, « l'aimant ne fonctionne pas ») : accroché même bas, la berline reste posée tant qu'on ne monte pas
+        ti.vol = true; ti.alt = poseY(q.x, q.z) + 4; ti.x = q.x + 3; ti.z = q.z; INPUT.edge.gren = true; step(1);
+        if (!c.captureOvni) ko.push('l’aimant n’accroche pas la berline (hélico à 4 u, 3 u à côté)');
+        step(30); if (ti.cibles[0] && ti.cibles[0].phase === 'suspendue') ko.push('hissée sans que l’hélico monte');
+        ti.x = q.x;
+        // on monte : hissée, elle suit l'hélico
+        ti.alt = 16;
         step(60); const rec = ti.cibles[0];
         if (!rec || rec.phase !== 'suspendue' || !(rec.y > 5)) ko.push('la berline n’est pas hissée (' + (rec ? rec.phase + ' ' + rec.y.toFixed(1) : 'aucune') + ')');
-        ti.x += 30; step(60);
+        { let dir = [1, 0]; for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { let ok2 = true; for (let k = 3; k <= 33; k += 3) if (poseY(ti.x + dx * k, ti.z + dz * k) > 1) ok2 = false; if (ok2) { dir = [dx, dz]; break; } } /* un trajet dégagé : sous un toit, la charge s'y pose */
+          ti.x += dir[0] * 30; ti.z += dir[1] * 30; } step(60);
         if (Math.hypot(c.x - ti.x, c.z - ti.z) > 4) ko.push('la berline ne suit pas l’hélico');
         info.push('accrochée à ' + (rec ? rec.y.toFixed(1) : '?') + ' u, transportée sur 30 u');
         // lâchée de haut : elle tombe et s'abîme
@@ -9846,7 +9848,7 @@ async function main() {
         return { ko, info };
       });
       if (r.ko.length) fail('Hélicoptères : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
-      else ok('Hélicoptères : Écureuil sur la tour, Titan au chantier ; ' + r.info.join(' ; ') + ' ; trop bas : rien, sortie : charge lâchée');
+      else ok('Hélicoptères : Écureuil sur la tour, Titan au chantier ; ' + r.info.join(' ; ') + ' ; accrochée bas, hissée en montant, sortie : charge lâchée');
     }
 
     // -------------------------------------------------------------------
@@ -10884,6 +10886,104 @@ async function main() {
       });
       if (r.ko.length) fail('Retours du 16 octobre : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
       else ok('Retours du 16 octobre : ' + r.info.join(' ; '));
+    }
+
+    // -------------------------------------------------------------------
+    // Retours du 16 octobre, monde : l'immeuble en construction se monte à
+    // pied par ses rampes (planchers superposés ETAGES : on passe sous l'étage
+    // du dessus, on tombe au bord), l'aire du Titan est au chantier mais pas
+    // sous la grue, la caravane est en plein désert dégagé, le chalet en
+    // altitude sur sa terrasse.
+    // -------------------------------------------------------------------
+    console.log('\n--- Retours du 16 octobre : immeuble en construction, Titan, caravane, chalet ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (!DECOR_V2 || !CHANTIER.ok) return { ko, info: ['décor V2 coupé'] };
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
+        for (const e of ennemis) e.mort = true;
+        const B = CHANTIER.bat, rampes = ETAGES.filter((e) => e.rampe), r0 = rampes[0];
+        if (rampes.length < 5) ko.push(rampes.length + ' rampes');
+        // monter la première rampe à pied (au joystick)
+        P.x = r0.x; P.z = Math.max(r0.zA, r0.zB) - 0.3; P.y = solPied(P.x, P.z); P.chute = false; P.vy = 0;
+        const sens = r0.zA < r0.zB ? -1 : 1, hHaut = Math.max(r0.hA, r0.hB);
+        for (let i = 0; i < 32; i++) { INPUT.mx = 0; INPUT.mz = sens; majJoueur(1 / 30, 1 / 30); } /* ~10 u : la longueur de la rampe (au-delà, le palier puis le bord nord) */
+        INPUT.mz = 0;
+        if (Math.abs(P.y - hHaut) > 0.4) ko.push('rampe : arrivé à ' + P.y.toFixed(2) + ' (palier à ' + hHaut.toFixed(2) + ')');
+        // sur le palier : marcher sous l'étage du dessus (on n'y est jamais téléporté)
+        const hEtage = P.y; P.x = (B.x0 + B.x1) / 2 + 2; P.z = (B.z0 + B.z1) / 2; P.y = hEtage; P.chute = false;
+        for (let i = 0; i < 30; i++){ INPUT.mx = 1; majJoueur(1 / 30, 1 / 30); } INPUT.mx = 0;
+        if (Math.abs(P.y - hEtage) > 0.3) ko.push('étage : ' + P.y.toFixed(2) + ' au lieu de ' + hEtage.toFixed(2));
+        // l'étage du dessus s'efface quand on est dessous
+        majChantierV2(0); const dessus = CHANTIER.niveaux.find((n) => n.h > hEtage + 2.4); if (dessus && dessus.grp.visible) ko.push('l’étage du dessus cache le joueur');
+        // au bord de la dalle : on tombe
+        P.x = B.x1 - 0.5; P.z = B.z1 - 3; P.y = hEtage; P.chute = false; for (let i = 0; i < 20; i++){ INPUT.mx = 1; majJoueur(1 / 30, 1 / 30); } INPUT.mx = 0;
+        if (!(P.chute || P.y < hEtage - 0.5)) ko.push('on ne tombe pas au bord de la dalle');
+        P.chute = false; P.x = 0; P.z = 0; P.y = 0; majChantierV2(0);
+        info.push(rampes.length + ' rampes, ' + CHANTIER.niveaux.length + ' niveaux, montée à ' + hHaut.toFixed(1) + ' u');
+        // Titan : sur son aire, au chantier, pas sous la grue
+        const ti = vehicules.find((v) => v.key === 'titan'), c = POIS.chantier;
+        if (!ti || Math.abs(ti.x - c.x) > INNER / 2 || Math.abs(ti.z - c.z) > INNER / 2) ko.push('Titan hors du chantier');
+        else if (ti.x > B.x0 - 2 && ti.x < B.x1 + 6 && ti.z > B.z0 - 2 && ti.z < B.z1 + 2) ko.push('Titan sous l’immeuble ou la grue');
+        // caravane : rien dans son emprise (hors ses propres objets) ; chalet : en altitude, terrasse praticable
+        const ca = PLANQUES.liste.find((q) => q.def.id === 'caravane'), ch = PLANQUES.liste.find((q) => q.def.id === 'chalet');
+        if (ca) { for (let a = 0; a < 16; a++) { const x = ca.x + Math.cos(a / 16 * 6.283) * 13, z = ca.z + Math.sin(a / 16 * 6.283) * 13; if (dansReliefLibre(x, z) || Math.abs(solY(x, z)) > 0.3) { ko.push('caravane au pied d’un relief'); break; } } }
+        else ko.push('pas de caravane');
+        if (!ch || !(ch.y > 40) || Math.abs(solY(ch.lit.x, ch.lit.z) - ch.y) > 0.2) ko.push('chalet : ' + (ch ? 'à ' + (ch.y || 0).toFixed(1) + ' u, sol de la terrasse ' + solY(ch.lit.x, ch.lit.z).toFixed(1) : 'absent'));
+        else info.push('chalet à ' + ch.y.toFixed(0) + ' u');
+        startRun(); P.hp = P.maxHp = 1e6;
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Retours du 16 octobre, monde : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
+      else ok('Retours du 16 octobre, monde : ' + r.info.join(' ; ') + ' ; Titan sur son aire, caravane en plein désert');
+    }
+
+    // -------------------------------------------------------------------
+    // Figurants interactifs (16 octobre, demandé : « les PNJ de l'aéroport et
+    // du résidentiel : je dois pouvoir les tamponner ou leur tirer dessus, ce
+    // qui créera de la panique ; idem dans les salles ») : une balle couche un
+    // promeneur de la colline (vrai piéton, ragdoll posé sur la colline, pas
+    // dessous), ses voisins fuient ; un véhicule lancé renverse un voyageur de
+    // l'aéroport ; dans une salle, un figurant touché tombe puis se relève.
+    // -------------------------------------------------------------------
+    console.log('\n--- Figurants interactifs : balle, véhicule, panique, salles ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
+        if (!FIGURANTS.length) return { ko: ['aucun figurant déclaré'], info };
+        // 1. une balle sur un promeneur de la colline
+        P.x = -180; P.z = 60; for (let i = 0; i < 20; i++) majVieHills(1 / 30);
+        const w = VIE_HILLS.pietons.find((q) => q.genre === 'couple' && q.h.g.visible);
+        if (!w) ko.push('pas de couple de promeneurs');
+        else { const g = w.h.g, x = g.position.x, z = g.position.z, y = g.position.y; P.x = x + 6; P.z = z;
+          const touche = toucherFigurant({ fac: 'joueur', x, y: y + 1.2, z, vx: -60, vy: 0, vz: 0 });
+          const p = pietons.find((q) => q.h === w.h);
+          if (!touche || !p || p.etat !== 'mort') ko.push('balle : ' + touche + ' / ' + (p ? p.etat : 'pas de piéton'));
+          else { for (let i = 0; i < 45; i++) majPietons(1 / 30); if (g.position.y < y - 0.3) ko.push('le corps passe sous la colline (' + g.position.y.toFixed(2) + ' / ' + y.toFixed(2) + ')'); }
+          const p2 = pietons.find((q) => q.h === w.h2); if (!p2 || p2.etat !== 'fuite') ko.push('le conjoint ne fuit pas');
+          majFigurants(1 / 30); const fuient = FIGURANTS.filter((f) => f.h.g.userData.converti).length; if (fuient < 3) ko.push(fuient + ' figurants en panique');
+          const avant = g.position.clone(); for (let i = 0; i < 10; i++) majVieHills(1 / 30); if (g.position.distanceTo(avant) > 0.01) ko.push('le décor reprend le corps'); /* le corps n'appartient plus au décor */
+          info.push('balle : couché, ' + fuient + ' figurants en fuite'); }
+        // 2. un véhicule lancé renverse un voyageur de l'aéroport
+        DANGER.t = 0; const vg = FIGURANTS.find((f) => !f.h.g.userData.converti && AERO.humains.includes(f.h.g));
+        if (!vg) ko.push('aucun figurant à l’aéroport');
+        else { const g = vg.h.g; g.visible = true; P.x = g.position.x - 3; P.z = g.position.z; const v = creerVehicule('citadine', g.position.x, g.position.z, Math.PI / 2, null); v.h = 0; entrerVehicule(v); v.v = 12;
+          majFigurants(1 / 30); const p = pietons.find((q) => q.h === vg.h); if (!p || p.etat !== 'mort') ko.push('le voyageur n’est pas renversé'); else info.push('voyageur renversé');
+          sortirVehicule(true); }
+        // 3. dans une salle : touché, il tombe, puis se relève
+        const id = Object.keys(VIE_SALLES).find((k) => PORTES.some((p) => p.id === k) && INTDEFS[k]);
+        if (id) { entrerInterieur(id, PORTES.find((p) => p.id === id)); const sa = INT.actif, n0 = sa.figurants.length, f = sa.figurants[0];
+          if (f) { const tch = toucherFigurant({ fac: 'joueur', x: f.x, y: 1.2, z: f.z, vx: 30, vy: 0, vz: 0 });
+            if (!tch || sa.figurants.length !== n0 - 1 || !(sa.paniqueT > 0)) ko.push(id + ' : figurant touché ' + tch + ', ' + sa.figurants.length + '/' + n0);
+            for (let i = 0; i < 30 * 8; i++) majVieSalle(sa, 1 / 30);
+            if (sa.figurants.length !== n0 || f.h.g.rotation.x || f.h.g.rotation.z) ko.push(id + ' : il ne se relève pas'); else info.push(id + ' : touché, sonné, relevé'); }
+          sortirInterieur(); }
+        startRun(); P.hp = P.maxHp = 1e6;
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Figurants interactifs : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
+      else ok('Figurants interactifs : ' + r.info.join(' ; '));
     }
 
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');

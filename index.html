@@ -3366,6 +3366,7 @@ const GS=42, sGrid=new Map();
 const cassables=[], lampes=[], feux=[], POIS={};
 function gk(ix,iz){return ix+'_'+iz;}
 function addSolid(s){
+  if(_SOL_TRACE) _SOL_TRACE.push(s);
   const m=4;
   const x0=Math.floor((s.x-s.hw-m+300)/GS), x1=Math.floor((s.x+s.hw+m+300)/GS);
   const z0=Math.floor((s.z-s.hd-m+300)/GS), z1=Math.floor((s.z+s.hd+m+300)/GS);
@@ -3987,7 +3988,7 @@ function construireVille(){
     if(qq!=='plage'&&qq!=='parc'&&bx%3===1&&bz%3===1) mkFeu(cx+INNER/2+1.4,cz-INNER/2-1.4);
   }
   placerPortes();
-  if(DECOR_V2){ sansAleaVille(()=>{ reserverHills(); ameliorerPortes(); mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkBasket(); mkCiel(); mkKiosqueBanderole(); mkCrique(); mkMontReyes(); mkVieMont(); mkBordureEst(); mkCanyonsDesert(); mkPicVertige(); mkParcStunt(); mkSkateXXL(); mkRides(); mkMerVivante(); mkRemorquage(); mkLarge(); deplacerVoltige(); mkAeroportVivant(); mkHeliGrue(); mkPlanques(); mkBoutiques(); mkGrandHuit(); mkToitsVivants(); mkTracesSable(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkNeonVivant(); mkQuartiersFinitions(); mkBalises(); mkFacadesVariees(); mkCascades(); if(MERV.ok) mkVolcanIle(); mkAeroVie(); mkLosReyesHills(); }); } // cascades et volcan EN DERNIER : leurs tirages du décor ne décalent rien de ce qui précède (mobilier...) // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
+  if(DECOR_V2){ sansAleaVille(()=>{ reserverHills(); reserverChantier(); ameliorerPortes(); mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkBasket(); mkCiel(); mkKiosqueBanderole(); mkCrique(); mkMontReyes(); mkVieMont(); mkBordureEst(); mkCanyonsDesert(); mkPicVertige(); mkParcStunt(); mkSkateXXL(); mkRides(); mkMerVivante(); mkRemorquage(); mkLarge(); deplacerVoltige(); mkAeroportVivant(); mkHeliGrue(); mkPlanques(); mkBoutiques(); mkGrandHuit(); mkToitsVivants(); mkTracesSable(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkNeonVivant(); mkQuartiersFinitions(); mkBalises(); mkFacadesVariees(); mkCascades(); if(MERV.ok) mkVolcanIle(); mkAeroVie(); mkLosReyesHills(); mkBordsHills(); mkChantierV2(); mkPlanquesV2(); }); } // cascades et volcan EN DERNIER : leurs tirages du décor ne décalent rien de ce qui précède (mobilier...) // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
   finaliserMerge();
   construireMinimapStatique();
 }
@@ -6687,7 +6688,7 @@ function mkAeroportVivant(){
     AERO.portes.push({id:'A'+(i+1),x:x1+14.2,z:gz,v:null,attente:0,vol:'RY '+(100+i*137),ville:AERO_VILLES[i*4]}); }
   // --- foule : figurants qui enregistrent, passent la sûreté, embarquent, débarquent ---
   const coulF=()=>({haut:choixD([0xd83a3a,0x2a5a8a,0x2fae4f,0xffd23f,0xe8ecf2,0x8a4de0,0xff8c1a,0x35c8e0,0x6a4a2e]),bas:choixD([0x1c2030,0x2a2e3a,0x4a4f5a,0x3a2f24,0x8a8f9a]),peau:choixD(civPeau),casq:choixD([0x14161c,0x4a3520,0x6a5a3a,0xd8c8a8,0x2a2018]),visage:choixD(['gentil','neutre','cool'])});
-  const humain=(cfg,x,z,ry)=>{ const h=makeHumain(cfg,1); h.g.position.set(x,0.16,z); h.g.rotation.y=ry; scene.add(h.g); AERO.humains.push(h.g); return h; };
+  const humain=(cfg,x,z,ry)=>{ const h=makeHumain(cfg,1); h.g.position.set(x,0.16,z); h.g.rotation.y=ry; scene.add(h.g); AERO.humains.push(h.g); return figurant(h); };
   // personnel : enregistrement (derrière les comptoirs), sûreté, café
   for(const z of [-17,12]) humain({haut:0x1a4fa0,bas:0x1c2030,peau:choixD(civPeau),casq:0x2a2018,visage:'gentil'},cx-0.6,cz+z,-Math.PI/2);
   for(const z of [-10,10]) humain({haut:0x2a2e3a,bas:0x1c2030,peau:choixD(civPeau),casq:0x14161c,visage:'neutre'},cx+4.8,cz+z,-Math.PI/2);
@@ -6771,7 +6772,8 @@ function mkPlanques(){
   { let p=null; for(let rr=0;rr<90&&!p;rr+=4) for(let a=0;a<16&&!p;a++){ const x=405+Math.cos(a/16*6.283)*rr, z=140+Math.sin(a/16*6.283)*rr;
       const loinSkate=x<SKX.x0-30||x>SKX.x1+30||z<SKX.z0-30||z>SKX.z1+30, loinCrash=!POIS.crash||dist2(x,z,POIS.crash.x,POIS.crash.z)>30*30; // jamais au bout d'une piste de skate ni sur le cratère
       if(loinSkate&&loinCrash&&!solidAt(x,z,9)&&!estEau(x,z)&&Math.abs(solY(x,z))<0.3&&!dansReliefLibre(x,z)) p={x,z}; }
-    if(p){ const {x,z}=p, pq=pqNouvelle('caravane',x,z,0);
+    const n0=scene.children.length; _SOL_TRACE=[];
+    if(p){ const {x,z}=p, pq=pqNouvelle('caravane',x,z,0); pq.vieux={n0};
       const alu=new THREE.MeshPhongMaterial({color:0xd0d6de,shininess:80,specular:0x8a9098});
       const corps=new THREE.Mesh(new THREE.CylinderGeometry(1.35,1.35,6.4,18,1),alu); corps.rotation.z=Math.PI/2; corps.scale.set(1,1,1.12); corps.position.set(x,1.75,z); scene.add(corps);
       for(const s of [-1,1]){ const bout=new THREE.Mesh(new THREE.SphereGeometry(1.35,18,12),alu); bout.scale.set(0.55,1.12,1); bout.position.set(x+s*3.2,1.75,z); scene.add(bout); }
@@ -6792,7 +6794,8 @@ function mkPlanques(){
       mkBox(2.2,0.9,0.9,mat(0x6a4a2e),x-5.4,0.45,z+2.4); mkBox(0.5,0.4,0.4,mat(0xd83a3a),x-5.8,1.1,z+2.4); mkBox(0.7,0.25,0.3,mat(0x9aa2ad),x-5,1.0,z+2.4); addSolid({x:x-5.4,z:z+2.4,hw:1.1,hd:0.45,h:0.9});
       mkBox(1,0.6,0.7,mat(0x3a5a2a),x+4.6,0.3,z+2.6); addSolid({x:x+4.6,z:z+2.6,hw:0.5,hd:0.35,h:0.6});
       pq.lit={x:x+1.8,z:z+2.7}; pq.coffre={x:x+4.6,z:z+3.8}; pq.spec={x:x-5.4,z:z+3.6}; pq.achat=pq.lit; pq.vehPos={x:x-7,z:z+7,ang:Math.PI/2};
-      pq.enseigne=mkEnseigne('CARAVANE À VENDRE','#ffd23f',x,4.6,z-1.4,0,7); } }
+      pq.enseigne=mkEnseigne('CARAVANE À VENDRE','#ffd23f',x,4.6,z-1.4,0,7); pq.vieux={objs:scene.children.slice(n0),sol:_SOL_TRACE}; }
+    _SOL_TRACE=null; }
   // --- 2) penthouse sur le toit de la Tour Los Reyes : verrière, bar, transats, plantes, garde-corps, plongeoir ---
   if(POIS.toitH){ const T=POIS.toitH, so=solidAt(T.x,T.z,0.1,undefined,999), hw=so?so.hw:8, hd=so?so.hd:9, h=T.h, x0=T.x, z0=T.z;
     const pq=pqNouvelle('penthouse',x0,z0,h);
@@ -6843,6 +6846,7 @@ function mkPlanques(){
       for(const [dx,dz] of [[-4,-3],[4,-3],[-4,4],[4,4],[0,0]]){ const y=solY(x+dx,z+dz); mn=Math.min(mn,y); mx=Math.max(mx,y); }
       if(MONT.presDuSentier&&MONT.presDuSentier(x,z,12)) continue; // jamais sur le sentier (la course du mont y passe)
       const d=mx-mn; if(d<bv&&!solidAt(x,z,5)){ bv=d; best={x,z,mn,mx}; } }
+    const n0=scene.children.length; _SOL_TRACE=[];
     if(best){ const {x,z}=best, y=best.mx+0.05, pq=pqNouvelle('chalet',x,z,solY(x,z+4.4));
       const rond=cTex(64,(c,s)=>{ c.fillStyle='#6a4a2e'; c.fillRect(0,0,s,s); c.fillStyle='#4a3020'; for(let i=0;i<6;i++) c.fillRect(0,i*s/6,s,3); },2,2);
       mkBox(7,y-best.mn+1,6,mat(0x6a6460),x,(y+best.mn-1)/2,z); // socle de pierre
@@ -6858,7 +6862,8 @@ function mkPlanques(){
       const zy=solY(x,z+4.4);
       pq.lit={x,z:z+3.6,y}; pq.coffre={x:x-2.6,z:z+3.4,y}; pq.spec={x:x+2.6,z:z+3.4,y}; pq.achat=pq.lit; pq.vehPos={x:x-6,z:z+6,ang:0};
       mkBox(0.7,0.5,0.5,mat(0x3a5a2a),x-2.6,y+0.25,z+3.1); mkBox(1.4,0.9,0.6,mat(0x5a626c),x+2.6,y+0.45,z+3.1); // coffre, râtelier
-      pq.enseigne=mkEnseigne('CHALET À VENDRE','#ffd23f',x,y+5.2,z+2.9,0,6); } }
+      pq.enseigne=mkEnseigne('CHALET À VENDRE','#ffd23f',x,y+5.2,z+2.9,0,6); pq.vieux={objs:scene.children.slice(n0),sol:_SOL_TRACE}; }
+    _SOL_TRACE=null; }
   // --- 5) voilier amarré au bout d'un ponton neuf (plage est) : coque, cabine, mât, voile ferlée ---
   { const px=190; PONTONS.push({x:px,z:MER+9.5,hw:1.5,hd:10.5});
     const pl=new THREE.Mesh(new THREE.BoxGeometry(3,0.3,21),new THREE.MeshLambertMaterial({map:texPlanche})); pl.position.set(px,0.3,MER+9.5); scene.add(pl);
@@ -7378,6 +7383,7 @@ function boucleRoute(pts,dec){ // aller par la voie de droite, retour par l'autr
 const HILLS_LUXE_ROULE=['cabriolet','suvLuxe','berline'], HILLS_LUXE_GARE=['suvLuxe','berline','cabriolet','baronne','limousine','citadine','hyper','berline'];
 function zGareVilla(p,cle){ const L=(VEHDEFS[cle]&&VEHDEFS[cle].long)||4.5; return p.hd-Math.max(3,L/2+0.7); } // dans l'allée, près du portail : jamais dans la maison
 function hillsStartRun(){
+  restaurerFigurants(); // aéroport, colline, chantier : les figurants touchés la partie d'avant reviennent
   if(!HILLS.ok) return; const H=HILLS, V=VIE_HILLS, D=H.routes.find((r)=>r.id==='drive');
   if(!V.boucle){ V.boucle=boucleRoute(D.pts,2.3); V.trottoir=boucleRoute(D.pts,H.larg/2+0.7); }
   HILLS_LUXE_ROULE.forEach((k,i,l)=>{ const u=i/l.length; const s=V.boucle.L*u, p=pointBoucle(V.boucle,s), v=creerVehicule(k,p.x,p.z,p.ang); if(!v) return; v.conduit='piste'; v.piste={b:V.boucle,s,vit:9,vCur:0}; v.h=solY(v.x,v.z); });
@@ -7389,7 +7395,7 @@ function hillsStartRun(){
 }
 function mkVieHills(){
   if(!HILLS.ok) return; const H=HILLS, V=VIE_HILLS;
-  const humain=(cfg)=>{ const h=makeHumain(cfg,1); scene.add(h.g); return h; };
+  const humain=(cfg)=>{ const h=makeHumain(cfg,1); scene.add(h.g); return figurant(h); };
   for(let k=0;k<5;k++){ const h=humain({haut:choixD([0xff5ad0,0x35c8e0,0xffd23f,0xf2f4f8,0x7dff7a]),bas:choixD([0x1c2030,0xf2f4f8,0x3a3e46]),peau:choixD(civPeau),casq:choixD([0x14161c,0xd8c8a8,0x8a5a2a]),visage:'gentil'});
     V.pietons.push({h,s:aD(0,1),v:(k%2?1:-1)*aD(2.2,3.6)}); }
   H.pads.filter((p)=>p.villa).forEach((p,k)=>{ if(k%4!==1) return; const h=humain({haut:0x3a7a34,bas:0x5a4a34,peau:choixD(civPeau),casq:0xd8c8a8,visage:'neutre'});
@@ -7399,11 +7405,11 @@ function mkVieHills(){
 function majVieHills(dt){
   if(!HILLS.ok) return; const V=VIE_HILLS, pres=dansHills(P.x,P.z,80), nuit=(ETAT.nuitF||0);
   for(const m of V.eaux) m.emissive.setRGB(0.04+0.18*nuit,0.22+0.4*nuit,0.28+0.45*nuit); // piscines éclairées la nuit
-  for(const w of V.pietons) w.h.g.visible=pres; for(const j of V.jardiniers) j.h.g.visible=pres;
+  for(const w of V.pietons) if(!figConverti(w.h)) w.h.g.visible=pres; for(const j of V.jardiniers) if(!figConverti(j.h)) j.h.g.visible=pres;
   if(!pres||!V.trottoir) return;
-  for(const w of V.pietons){ w.s=(w.s+w.v*dt/V.trottoir.L+1)%1; const p=pointBoucle(V.trottoir,w.s*V.trottoir.L), a=w.v>0?p.ang:p.ang+Math.PI;
+  for(const w of V.pietons){ if(figConverti(w.h)) continue; w.s=(w.s+w.v*dt/V.trottoir.L+1)%1; const p=pointBoucle(V.trottoir,w.s*V.trottoir.L), a=w.v>0?p.ang:p.ang+Math.PI;
     w.h.g.position.set(p.x,hauteurHills(p.x,p.z)+0.1,p.z); w.h.g.rotation.y=a; animeHumain(w.h,dt,Math.abs(w.v)*3,false); }
-  for(const j of V.jardiniers){ j.u+=dt*0.35; const p=j.p, L=p.lay, sx=L?-(Math.sign(L.xa)||1)*(L.hw+L.cote):p.hw*0.6, x=p.x+sx+Math.cos(j.u*2)*0.5, z=p.z+(p.f||1)*((L?L.hz:0)+Math.sin(j.u)*(L?L.hd:p.hd*0.5)); // il tond la pelouse le long de la maison
+  for(const j of V.jardiniers){ if(figConverti(j.h)) continue; j.u+=dt*0.35; const p=j.p, L=p.lay, sx=L?-(Math.sign(L.xa)||1)*(L.hw+L.cote):p.hw*0.6, x=p.x+sx+Math.cos(j.u*2)*0.5, z=p.z+(p.f||1)*((L?L.hz:0)+Math.sin(j.u)*(L?L.hd:p.hd*0.5)); // il tond la pelouse le long de la maison
     j.h.g.position.set(x,p.h+0.05,z); j.h.g.rotation.y=Math.cos(j.u)*(p.f||1)>0?0:Math.PI; animeHumain(j.h,dt,3,false);
     if(Math.random()<dt*5) spawnP(x,p.h+0.3,z,aD(-1,1),aD(0.5,1.5),aD(-1,1),0.5,0.12,0x5fa83e,6); }
   // arroseurs automatiques : quelques jets sur les pelouses proches
@@ -7441,7 +7447,7 @@ function mkResidenceHills(){
   const gx=-140.4, gz=112.6, y=hauteurHills(gx,gz);
   mkBox(3,2.6,3,mat(0xf2ede2),gx,y+1.3,gz); mkBox(3.6,0.25,3.6,mat(0x3a3e44),gx,y+2.75,gz); mkBox(3.02,0.9,2.2,mat(0x1a2a3a),gx,y+1.75,gz);
   addSolid({x:gx,z:gz,hw:1.5,hd:1.5,h:y+2.9,toit:true}); mkEnseigne('RÉSIDENCE PRIVÉE','#ffd23f',gx,y+3.6,gz+1.6,0,4);
-  { const h=makeHumain({haut:0x1c2030,bas:0x1c2030,peau:choixD(civPeau),casq:0x14161c,visage:'neutre'},1); h.g.position.set(gx-0.3,y,gz+0.4); h.g.rotation.y=-Math.PI/2; scene.add(h.g); VIE_HILLS.statiques.push(h.g); }
+  { const h=makeHumain({haut:0x1c2030,bas:0x1c2030,peau:choixD(civPeau),casq:0x14161c,visage:'neutre'},1); h.g.position.set(gx-0.3,y,gz+0.4); h.g.rotation.y=-Math.PI/2; scene.add(h.g); VIE_HILLS.statiques.push(h.g); figurant(h); }
   mkBox(0.4,1.1,0.4,mat(0xd83a3a),gx-2.1,y+0.55,gz+3.2);
   { const bar=new THREE.Group(); for(let k=0;k<6;k++) bar.add(mkBoxG(0.16,1.05,0.16,k%2?0xd83a3a:0xf6f6f2,0,0.52+k*1.05,0)); bar.position.set(gx-2.1,y+1.1,gz+3.2); bar.rotation.z=0.22; scene.add(bar); VIE_HILLS.barriere=bar; }
   // massifs au cœur des épingles : là où la route fait demi-tour, entre ses deux branches
@@ -7456,11 +7462,11 @@ function mkResidenceHills(){
 }
 function mkHabitantsHills(){
   const H=HILLS, V=VIE_HILLS, civ=()=>({haut:choixD([0xf2f4f8,0xff8aa8,0x8ad2ff,0xffd23f,0x2a3a5a,0xc8a878,0x7a3a5a]),bas:choixD([0x1c2030,0xf2f4f8,0xc8b898,0x3a3e46,0x2a4a7a]),peau:choixD(civPeau),casq:choixD([0x14161c,0xd8c8a8,0x8a5a2a,0xe8d8a0]),visage:'gentil'});
-  const humain=(cfg)=>{ const h=makeHumain(cfg||civ(),1); scene.add(h.g); return h; };
+  const humain=(cfg)=>{ const h=makeHumain(cfg||civ(),1); scene.add(h.g); return figurant(h); };
   // promeneurs : sur le trottoir, au pas, dans les deux sens ; quelques-uns accompagnés
   const genres=['chien','couple','poussette','courses','seul','chien','couple','seul','poussette','courses','couple','chien'];
   genres.forEach((genre,k)=>{ const w={h:humain(),s:aD(0,1),v:(k%2?1:-1)*aD(1.2,1.7),lat:aD(-0.3,0.3),genre};
-    if(genre==='couple') w.h2=humain();
+    if(genre==='couple'){ w.h2=humain(); FIGURANTS[FIGURANTS.length-1].lies=[w.h]; FIGURANTS.find((q)=>q.h===w.h).lies=[w.h2]; } // le couple fuit ensemble
     if(genre==='chien') w.chien=chienDeco();
     if(genre==='poussette'){ const g=new THREE.Group(); g.add(mkBoxG(0.55,0.45,0.85,choixD([0x2a3a5a,0x8a2a3a,0xe8e4dc]),0,0.62,0)); g.add(mkBoxG(0.55,0.35,0.3,0x1c2026,0,0.95,-0.25));
       for(const sx of [-0.25,0.25]) for(const sz of [-0.3,0.3]){ const r=new THREE.Mesh(new THREE.CylinderGeometry(0.13,0.13,0.06,10),mat(0x15171c)); r.rotation.z=Math.PI/2; r.position.set(sx,0.13,sz); g.add(r); }
@@ -7485,23 +7491,23 @@ function chienDeco(){ const g=new THREE.Group(), c=choixD([0x6a5038,0x2a2a2e,0xc
 function majHabitantsHills(dt){
   const V=VIE_HILLS, pres=dansHills(P.x,P.z,80), nuit=(ETAT.nuitF||0);
   for(const m of V.lettres) m.emissive.setRGB(0.55*nuit,0.55*nuit,0.5*nuit); // le panneau s'éclaire la nuit
-  for(const w of V.pietons){ if(w.h2) w.h2.g.visible=pres; if(w.chien) w.chien.g.visible=pres; if(w.objet) w.objet.visible=pres; }
-  for(const g of V.statiques) g.visible=pres; for(const n of V.nageurs) n.h.g.visible=pres; for(const b of V.bbq) for(const h of b.amis) h.g.visible=pres; for(const l of V.laveurs) l.h.g.visible=pres;
+  for(const w of V.pietons){ const seul=figConverti(w.h); if(w.h2&&!figConverti(w.h2)) w.h2.g.visible=pres; if(w.chien) w.chien.g.visible=pres&&!seul; if(w.objet) w.objet.visible=pres&&!seul; } // promeneur parti en courant : le chien et la poussette restent… cachés
+  for(const g of V.statiques) if(!g.userData.converti) g.visible=pres; for(const n of V.nageurs) if(!figConverti(n.h)) n.h.g.visible=pres; for(const b of V.bbq) for(const h of b.amis) if(!figConverti(h)) h.g.visible=pres; for(const l of V.laveurs) if(!figConverti(l.h)) l.h.g.visible=pres;
   if(!pres||!V.trottoir) return;
   // accompagnants des promeneurs (le promeneur lui-même avance dans majVieHills)
-  for(const w of V.pietons){ if(!w.genre) continue; const g=w.h.g, a=g.rotation.y, cx=Math.cos(a), sx=Math.sin(a);
+  for(const w of V.pietons){ if(!w.genre||figConverti(w.h)) continue; const g=w.h.g, a=g.rotation.y, cx=Math.cos(a), sx=Math.sin(a);
     if(w.lat){ g.position.x+=cx*w.lat; g.position.z-=sx*w.lat; }
     const cote=surChaussee(g.position.x+cx*0.9,g.position.z-sx*0.9)?-1:1; // les accompagnants restent côté trottoir, jamais sur la chaussée
-    if(w.h2){ w.h2.g.position.set(g.position.x+cx*0.75*cote,g.position.y,g.position.z-sx*0.75*cote); w.h2.g.rotation.y=a; animeHumain(w.h2,dt,Math.abs(w.v)*3,false); }
+    if(w.h2&&!figConverti(w.h2)){ w.h2.g.position.set(g.position.x+cx*0.75*cote,g.position.y,g.position.z-sx*0.75*cote); w.h2.g.rotation.y=a; animeHumain(w.h2,dt,Math.abs(w.v)*3,false); }
     if(w.chien){ const ch=w.chien, t=CASC_U.uT.value; ch.g.position.set(g.position.x+sx*1.3+cx*0.6*cote,g.position.y,g.position.z+cx*1.3-sx*0.6*cote); ch.g.rotation.y=a; for(let k=0;k<4;k++) ch.pattes[k].rotation.x=Math.sin(t*12+(k%2?Math.PI:0))*0.6; }
     if(w.objet){ w.objet.position.set(g.position.x+sx*w.objetAv,g.position.y,g.position.z+cx*w.objetAv); w.objet.rotation.y=a; w.h.brasG.rotation.x=w.h.brasD.rotation.x=-1.1; } }
   // baigneurs : brasse tranquille d'un bord à l'autre, la tête hors de l'eau
-  for(const n of V.nageurs){ n.u+=dt*n.v; const g=n.h.g; g.position.set(n.x0+Math.sin(n.u)*n.amp,n.y-1.05,n.z0); g.rotation.y=Math.cos(n.u)>0?Math.PI/2:-Math.PI/2;
+  for(const n of V.nageurs){ if(figConverti(n.h)) continue; n.u+=dt*n.v; const g=n.h.g; g.position.set(n.x0+Math.sin(n.u)*n.amp,n.y-1.05,n.z0); g.rotation.y=Math.cos(n.u)>0?Math.PI/2:-Math.PI/2;
     n.h.brasG.rotation.x=-1.6+Math.sin(n.u*8)*0.5; n.h.brasD.rotation.x=-1.6-Math.sin(n.u*8)*0.5; }
   // barbecues : fumée, les amis qui discutent ; lavage : mousse
   for(const b of V.bbq){ b.t+=dt; if(Math.random()<dt*7) spawnP(b.x+aD(-0.3,0.3),b.y,b.z+aD(-0.2,0.2),aD(-0.2,0.2),aD(1,1.8),aD(-0.2,0.2),1.6,0.35,0xc8c4c0,0);
-    for(let q=0;q<b.amis.length;q++){ const h=b.amis[q]; h.brasD.rotation.x=-0.4+Math.sin(b.t*2.3+q*1.7)*0.35; h.g.rotation.z=Math.sin(b.t*0.9+q)*0.03; } }
-  for(const l of V.laveurs){ l.t+=dt; l.h.brasD.rotation.x=-1.2+Math.sin(l.t*5)*0.4; if(Math.random()<dt*10) spawnP(l.x+aD(-0.6,0.6),l.y+aD(-0.2,0.4),l.z+aD(-1.2,1.2),aD(-0.3,0.3),aD(0,0.5),aD(-0.3,0.3),0.9,0.16,0xf6f8ff,4); }
+    for(let q=0;q<b.amis.length;q++){ const h=b.amis[q]; if(figConverti(h)) continue; h.brasD.rotation.x=-0.4+Math.sin(b.t*2.3+q*1.7)*0.35; h.g.rotation.z=Math.sin(b.t*0.9+q)*0.03; } }
+  for(const l of V.laveurs){ if(figConverti(l.h)) continue; l.t+=dt; l.h.brasD.rotation.x=-1.2+Math.sin(l.t*5)*0.4; if(Math.random()<dt*10) spawnP(l.x+aD(-0.6,0.6),l.y+aD(-0.2,0.4),l.z+aD(-1.2,1.2),aD(-0.3,0.3),aD(0,0.5),aD(-0.3,0.3),0.9,0.16,0xf6f8ff,4); }
 }
 // Une villa sur sa parcelle (façade vers la route) : maison selon le STYLE (quinze styles, jamais deux pareils à
 // la suite : provençale, californienne des années 50, toscane, Hamptons, pueblo, Hollywood Regency, japonaise,
@@ -7756,6 +7762,203 @@ function mkManoirPlanque(){
   mkBox(9,3.2,6,blanc,x-14.5,y+1.6,z); for(let k=0;k<3;k++) mkBox(2.2,2.4,0.08,mat(0x5a626c),x-17.5+k*3,y+1.2,z+3.05);
   addSolid({x:x-14.5,z,hw:4.5,hd:3,h:y+3.2,toit:true});
   for(const dx of [-22,20,22]){ const n0=scene.children.length; mkPalmier(x+dx,z+5); for(let k=n0;k<scene.children.length;k++) scene.children[k].position.y=y; }
+}
+/* =====================================================================
+   CHANTIER ET PLANQUES V2 (16 octobre, retours de playtest) :
+   « un grand immeuble en construction avec échafaudage, accessible : on peut marcher dedans vers le haut » ;
+   « l'hélico-grue doit se récupérer non loin du chantier, pas sous la grue, dans un espace de chantier dédié » ;
+   « la caravane est dans un mur : directement sur le désert » ; « le chalet en haut de la colline, chalet
+   d'altitude, maison dans les bois » ; « le mur au bord de la colline, pas naturel ».
+   - ETAGES : planchers superposés RÉSERVÉS AU JOUEUR (dalles et rampes) : il marche sur le plus haut qu'il peut
+     atteindre d'un pas (0,7 u) et passe dessous les autres. Les véhicules et les PNJ ne les voient pas.
+   - Le pâté du chantier (11,2) est vidé au début du décor (reserverChantier : construit puis retiré, aucun tirage
+     de la ville ne bouge), puis rebâti à la toute fin (mkChantierV2) : immeuble de 6 niveaux praticable par des
+     rampes en ciseaux, échafaudage et filets, grue à tour, aire de l'hélico-grue au sud-est, base de vie.
+     Les étages au-dessus du joueur s'effacent quand il est dedans (majChantier).
+   - Caravane et chalet : l'ancien modèle est construit comme avant puis retiré (mêmes tirages), le nouveau posé
+     à la fin du décor (mkPlanquesV2), zones et balise recalées.
+===================================================================== */
+const ETAGES=[]; // {x,z,hw,hd,h} dalle ; {rampe:true,x,z,hw,hd,zA,zB,hA,hB} rampe le long de z
+function etageSous(x,z,yMax){ let best=-1e9;
+  for(let i=0;i<ETAGES.length;i++){ const e=ETAGES[i]; if(Math.abs(x-e.x)>e.hw||Math.abs(z-e.z)>e.hd) continue;
+    const h=e.rampe?e.hA+(e.hB-e.hA)*clamp((z-e.zA)/(e.zB-e.zA),0,1):e.h; if(h<=yMax&&h>best) best=h; }
+  return best; }
+var _SOL_TRACE=null; // pendant la construction d'un ancien modèle : les solides posés (pour pouvoir les retirer)
+function retirerSolide(s){ for(const arr of sGrid.values()){ const i=arr.indexOf(s); if(i>=0) arr.splice(i,1); } }
+function viderZone(x0,x1,z0,z1){ // retire tout ce qui tient ENTIÈREMENT dans le rectangle (sauf les portes)
+  const dans=(b)=>b.min.x>=x0&&b.max.x<=x1&&b.min.z>=z0&&b.max.z<=z1, pt=(x,z)=>x>=x0&&x<=x1&&z>=z0&&z<=z1;
+  const garder=new Set(); for(const p of PORTES){ for(const o of [p.g,p.ens,p.halo]) if(o) garder.add(o); }
+  const bb=new THREE.Box3();
+  for(let i=scene.children.length-1;i>=0;i--){ const o=scene.children[i]; if(garder.has(o)||!pt(o.position.x,o.position.z)) continue; bb.setFromObject(o); if(bb.isEmpty()||dans(bb)) scene.remove(o); }
+  for(const k in MERGE){ const g=MERGE[k]; g.geos=g.geos.filter((geo)=>{ geo.computeBoundingBox(); if(dans(geo.boundingBox)){ geo.dispose(); return false; } return true; }); }
+  for(const arr of sGrid.values()) for(let i=arr.length-1;i>=0;i--){ const s=arr[i]; if(s.x-s.hw>=x0&&s.x+s.hw<=x1&&s.z-s.hd>=z0&&s.z+s.hd<=z1) arr.splice(i,1); }
+  const hors=(L,f)=>{ for(let i=L.length-1;i>=0;i--) if(f(L[i])) L.splice(i,1); };
+  hors(PLATS,(p)=>pt(p.x,p.z)&&!p.ang); hors(RAMPES,(r)=>pt(r.x,r.z)); hors(cassables,(c)=>!dansScene(c.mesh)); hors(lampes,(l)=>!dansScene(l));
+  hors(BATIMENTS,(b)=>pt(b.x,b.z)); hors(ENSEIGNES,(e)=>e.p&&!dansScene(e.p)); hors(STANDS,(s)=>pt(s.x,s.z));
+  ZONES_SANS_MOBILIER.push({x0,x1,z0,z1});
+}
+const CHANTIER={ok:false,niveaux:[],heli:null,bat:null,fumees:[]};
+function reserverChantier(){
+  const c=POIS.chantier; if(!DECOR_V2||!c) return; const m=INNER/2+0.4;
+  viderZone(c.x-m,c.x+m,c.z-m,c.z+m);
+  CHANTIER.bat={x0:c.x-14,x1:c.x-2,z0:c.z-14,z1:c.z+1}; CHANTIER.heli={x:c.x+7.5,z:c.z+7.5}; CHANTIER.ok=true;
+}
+function mkChantierV2(){
+  if(!CHANTIER.ok) return; const c=POIS.chantier, B=CHANTIER.bat, i0=scene.children.length;
+  const beton=mat(0x9a9a94), betonF=mat(0x7a7a74), ferraille=mat(0x8a4a2a), tube=mat(0xd8d8d0), jaune=mat(0xffc81a), bois=mat(0xb8905a);
+  mkBox(INNER,0.16,INNER,mat(0x6a5c46),c.x,0.08,c.z); // terre battue du chantier
+  // --- l'immeuble : 6 niveaux de 3,6 u, rampes en ciseaux dans la travée ouest, poteaux, murs commencés
+  const N=6, HN=3.6, h0=0.17, sx0=B.x0, sx1=B.x0+2.8, zA=B.z0+2.5, zB=B.z1-2.5, larg=B.x1-B.x0, prof=B.z1-B.z0;
+  const dalle=(x0,x1,z0,z1,h,grp)=>{ const mm=new THREE.Mesh(new THREE.BoxGeometry(x1-x0,0.3,z1-z0),beton); mm.position.set((x0+x1)/2,h-0.15,(z0+z1)/2); grp.add(mm); ETAGES.push({x:(x0+x1)/2,z:(z0+z1)/2,hw:(x1-x0)/2,hd:(z1-z0)/2,h}); };
+  for(let k=0;k<=N;k++){ const h=h0+k*HN, grp=new THREE.Group(); scene.add(grp); CHANTIER.niveaux.push({h,grp});
+    if(k===0) dalle(B.x0,B.x1,B.z0,B.z1,h,grp);
+    else { dalle(sx1,B.x1,B.z0,B.z1,h,grp); dalle(sx0,sx1,B.z0,zA,h,grp); dalle(sx0,sx1,zB,B.z1,h,grp);
+      // garde-corps provisoires au bord de la trémie, bastaings rouge et blanc
+      grp.add(mkBoxG(0.08,1,zB-zA,0xd83a3a,0,0,0)); grp.children[grp.children.length-1].position.set(sx1+0.05,h+0.5,(zA+zB)/2); }
+    if(k<N){ const pair=k%2===0, hA=pair?h+HN:h, hB=pair?h:h+HN, L=zB-zA, ang=Math.atan2(hA-hB,L);
+      const r=new THREE.Mesh(new THREE.BoxGeometry(sx1-sx0-0.3,0.25,Math.hypot(L,HN)),betonF); r.position.set((sx0+sx1)/2,(hA+hB)/2-0.12,(zA+zB)/2); r.rotation.x=ang; grp.add(r);
+      ETAGES.push({rampe:true,x:(sx0+sx1)/2,z:(zA+zB)/2,hw:(sx1-sx0)/2,hd:L/2+0.05,zA,zB,hA,hB}); }
+    // murs de parpaings commencés (nord, ouest) sur les niveaux bas, coffrages en haut
+    if(k>0&&k<4){ const mw=new THREE.Mesh(new THREE.BoxGeometry(larg*0.7,1.6+(3-k)*0.5,0.3),mat(0xb8b0a0)); mw.position.set(B.x0+larg*0.55,h+0.8,B.z0+0.2); grp.add(mw); }
+    if(k===N-1){ for(let q=0;q<5;q++){ const fp=new THREE.Mesh(new THREE.BoxGeometry(2.4,1.2,0.06),bois); fp.position.set(sx1+1.5+q*1.9,h+0.6,B.z1-0.2); grp.add(fp); } }
+    if(k===N){ for(let q=0;q<14;q++){ const fx=sx1+0.6+(q%7)*1.3, fz=B.z0+1+Math.floor(q/7)*12; const f=new THREE.Mesh(new THREE.BoxGeometry(0.05,1.4,0.05),ferraille); f.position.set(fx,h+0.7,fz); grp.add(f); } }
+  }
+  // poteaux (solides : on bute dessus) de la dalle basse au toit
+  const Ht=h0+N*HN;
+  for(const px of [sx1+0.3,(sx1+B.x1)/2,B.x1-0.3]) for(const pz of [B.z0+0.3,(B.z0+B.z1)/2,B.z1-0.3]){ mkBox(0.5,Ht,0.5,beton,px,Ht/2,pz); addSolid({x:px,z:pz,hw:0.25,hd:0.25,h:Ht}); }
+  // échafaudage sur les faces sud et est : tubes, planchers par niveau, filet vert
+  for(let k=0;k<=N;k++){ const h=h0+k*HN;
+    mkBox(larg+1.6,0.08,0.9,bois,(B.x0+B.x1)/2,h+0.05,B.z1+0.9); mkBox(0.9,0.08,prof+1.6,bois,B.x1+0.9,h+0.05,(B.z0+B.z1)/2);
+    mkBox(larg+1.6,0.06,0.06,tube,(B.x0+B.x1)/2,h+1.1,B.z1+1.35); mkBox(0.06,0.06,prof+1.6,tube,B.x1+1.35,h+1.1,(B.z0+B.z1)/2); }
+  for(let q=0;q<=6;q++){ const x=B.x0-0.4+q*(larg+0.8)/6; for(const dz of [0.45,1.35]) mkBox(0.08,Ht+1.2,0.08,tube,x,(Ht+1.2)/2,B.z1+dz); }
+  for(let q=0;q<=7;q++){ const z=B.z0-0.4+q*(prof+0.8)/7; for(const dx of [0.45,1.35]) mkBox(0.08,Ht+1.2,0.08,tube,B.x1+dx,(Ht+1.2)/2,z); }
+  { const filet=new THREE.MeshLambertMaterial({color:0x3a8a3a,transparent:true,opacity:0.35,depthWrite:false,side:THREE.DoubleSide});
+    const fn=new THREE.Mesh(new THREE.PlaneGeometry(prof+0.8,Ht*0.55),filet); fn.rotation.y=Math.PI/2; fn.position.set(B.x1+1.5,Ht*0.72,(B.z0+B.z1)/2); scene.add(fn); }
+  mkEnseigne('LOS REYES TOWER — CHANTIER','#ffd23f',(B.x0+B.x1)/2,4.2,B.z1+1.7,0,9);
+  // grue à tour : mât en treillis, flèche au-dessus de l'immeuble, contre-flèche et lest, cabine, crochet
+  { const gx=B.x1+1.6, gz=B.z0-0.8, Hm=Ht+12;
+    for(const [dx,dz] of [[-0.6,-0.6],[0.6,-0.6],[-0.6,0.6],[0.6,0.6]]) mkBox(0.14,Hm,0.14,jaune,gx+dx,Hm/2,gz+dz);
+    for(let y=1.5;y<Hm;y+=1.6){ const d1=mkBox(1.4,0.08,0.08,jaune,gx,y,gz-0.6); d1.rotation.z=0.85; const d2=mkBox(0.08,0.08,1.4,jaune,gx+0.6,y,gz); d2.rotation.x=0.85; }
+    mkBox(1.8,1.4,1.8,mat(0x3a3e46),gx,Hm+0.7,gz); mkBox(1.2,1,1.2,mat(0x1a2a3a),gx+0.9,Hm+0.9,gz+0.6);
+    mkBox(26,0.7,0.9,jaune,gx-11,Hm+1.7,gz); mkBox(9,0.7,0.9,jaune,gx+5.5,Hm+1.7,gz); mkBox(2.4,2,1.4,betonF,gx+9,Hm+0.9,gz);
+    mkBox(0.3,3,0.3,jaune,gx,Hm+3.3,gz); const cb=mkBox(0.04,10,0.04,mat(0x23262e),gx-16,Hm-3.3,gz); mkBox(0.6,0.5,0.4,jaune,gx-16,Hm-8.5,gz);
+    addSolid({x:gx,z:gz,hw:0.8,hd:0.8,h:Hm}); }
+  // aire de l'hélico-grue (le pad est posé par mkHeliGrue) : marquage, cônes, manche à air, projecteurs, poutrelles
+  { const H=CHANTIER.heli; mkBox(9,0.03,9,mat(0x3a3e46),H.x,0.18,H.z);
+    for(const [dx,dz] of [[-4.6,-4.6],[4.6,-4.6],[-4.6,4.6],[4.6,4.6]]){ const co=new THREE.Mesh(new THREE.ConeGeometry(0.25,0.6,8),mat(0xff7a1a)); co.position.set(H.x+dx,0.45,H.z+dz); scene.add(co); }
+    const mx=H.x+6.2, mz=H.z-5.5; mkBox(0.1,5,0.1,mat(0x9aa2ad),mx,2.5,mz); const ma=new THREE.Mesh(new THREE.ConeGeometry(0.3,1.6,8,1,true),mat(0xff7a1a)); ma.rotation.z=Math.PI/2; ma.position.set(mx+0.8,4.8,mz); scene.add(ma);
+    for(const dz of [-5.5,5.5]){ mkBox(0.15,6,0.15,mat(0x3a3e46),H.x-6,3,H.z+dz); mkBox(1,0.5,0.4,mat(0x23262e),H.x-6,6,H.z+dz); }
+    for(let q=0;q<4;q++) mkBox(6,0.35,0.3,mat(0x8a5a3a),H.x+0.5,0.35+q*0.36,H.z-7.3+(q%2)*0.4); }
+  // base de vie (nord-est) : bungalows empilés, escalier, conteneurs, toilettes, palettes ; matériaux (sud-ouest)
+  { const ax=c.x+8, az=c.z-11;
+    for(let e=0;e<2;e++){ mkBox(7,2.6,2.6,mat(e?0xf2f2ee:0x1a5a9a),ax,1.3+e*2.65,az); mkBox(6,0.7,0.06,mat(0x1a2a3a),ax,1.6+e*2.65,az+1.32); }
+    addSolid({x:ax,z:az,hw:3.5,hd:1.3,h:5.3,toit:true}); for(let q=0;q<6;q++) mkBox(1,0.12,0.5,mat(0x5a626c),ax+4.2,0.4+q*0.44,az+1.1-q*0.38);
+    mkBox(2.4,2.6,6,mat(0xc8402a),c.x+2.4,1.3,c.z-9); addSolid({x:c.x+2.4,z:c.z-9,hw:1.2,hd:3,h:2.6}); mkBox(1.2,2.2,1.2,mat(0x2a8ad8),c.x+13,1.1,c.z-3);
+    for(let q=0;q<3;q++){ mkBox(1.2,0.15,1.2,bois,c.x-11+q*1.6,0.25,c.z+11); mkBox(1.1,0.8,1.1,mat(0xb85a3a),c.x-11+q*1.6,0.75,c.z+11); }
+    const tas=new THREE.Mesh(new THREE.ConeGeometry(2.2,1.8,10),mat(0xd8c08a)); tas.position.set(c.x-6,0.9,c.z+10); scene.add(tas);
+    const silo=new THREE.Mesh(new THREE.CylinderGeometry(1.1,1.1,5,12),mat(0xd8d8d0)); silo.position.set(c.x-1.5,4,c.z+12); scene.add(silo); for(const [dx,dz] of [[-0.8,-0.8],[0.8,-0.8],[-0.8,0.8],[0.8,0.8]]) mkBox(0.12,1.6,0.12,mat(0x5a626c),c.x-1.5+dx,0.8,c.z+12+dz);
+    addSolid({x:c.x-1.5,z:c.z+12,hw:1.1,hd:1.1,h:6.5});
+    for(let k=0;k<3;k++){ const h=makeHumain({haut:0xff7a1a,bas:0x2a3a5a,peau:choixD(civPeau),casq:0xffd23f,visage:'neutre'},1); h.g.position.set(c.x-8+k*2.5,0,c.z+5+(k%2)); h.g.rotation.y=k*1.7; scene.add(h.g); h.brasD.rotation.x=-0.8-k*0.2; figurant(h); } }
+  // palissade de chantier (bâches CHANTIER) sur le pourtour, passages au sud et à l'est
+  { const bache=cTex(128,(g2,s)=>{ g2.fillStyle='#e8e4dc'; g2.fillRect(0,0,s,s); g2.fillStyle='#1a5a9a'; g2.fillRect(0,s*0.62,s,s*0.38); g2.fillStyle='#1a5a9a'; g2.font='bold '+Math.round(s*0.2)+'px Arial'; g2.textAlign='center'; g2.fillText('CHANTIER',s/2,s*0.42); },4,1);
+    const mb=new THREE.MeshLambertMaterial({map:bache}), m=INNER/2-0.2;
+    const pal=(x0,z0,x1,z1)=>{ const l=Math.hypot(x1-x0,z1-z0), p=new THREE.Mesh(new THREE.BoxGeometry(l,2,0.06),mb); p.position.set((x0+x1)/2,1,(z0+z1)/2); p.rotation.y=-Math.atan2(z1-z0,x1-x0); scene.add(p); };
+    pal(c.x-m,c.z-m,c.x+m,c.z-m); pal(c.x-m,c.z-m,c.x-m,c.z+m); pal(c.x-m,c.z+m,c.x-2,c.z+m); pal(c.x+m,c.z-m,c.x+m,c.z-1); }
+  fusionnerDecor(i0);
+}
+function majChantierV2(dt){
+  if(!CHANTIER.ok) return; const B=CHANTIER.bat;
+  const dedans=!P.veh&&P.x>B.x0-1.5&&P.x<B.x1+1.5&&P.z>B.z0-1.5&&P.z<B.z1+1.5&&!INT.actif;
+  for(const n of CHANTIER.niveaux){ const v=!(dedans&&n.h>P.y+2.4); if(n.grp.visible!==v) n.grp.visible=v; } // l'étage au-dessus du joueur s'efface
+  for(const f of CHANTIER.fumees) if(Math.random()<dt*f.d) spawnP(f.x+rand(-0.15,0.15),f.y,f.z+rand(-0.15,0.15),rand(-0.2,0.2),rand(0.6,1.2),rand(-0.2,0.2),2.2,0.4,0xc8c4c0,0);
+}
+// --- Planques V2 : caravane Airstream en plein désert dégagé, chalet d'altitude dans les sapins au Mont Reyes ---
+function deplacerPlanque(pq,x,z,y){ const ox=pq.x, oz=pq.z;
+  if(pq.vieux){ for(const o of pq.vieux.objs) scene.remove(o); for(const s of pq.vieux.sol) retirerSolide(s); }
+  if(pq.enseigne&&pq.enseigne.parent) pq.enseigne.parent.remove(pq.enseigne);
+  pq.x=x; pq.z=z; pq.y=y||0;
+  for(const b of BALISES) if(Math.abs(b.x-ox)<0.01&&Math.abs(b.z-oz)<0.01){ b.x=x; b.z=z; b.y0=(y||0)+7; b.sp.position.set(x,b.y0,z); }
+}
+function mkPlanquesV2(){
+  const ca=PLANQUES.liste.find((q)=>q.def.id==='caravane'), ch=PLANQUES.liste.find((q)=>q.def.id==='chalet');
+  // 1) caravane : place dégagée sur TOUTE son emprise (14 u : avant, seul le centre était testé — elle finissait dans une mesa)
+  if(ca){ let p=null; const libre=(x,z)=>{ if(solidAt(x,z,15)) return false; /* cheminées de fée, cactus : rien dans l'emprise */ for(let r=0;r<=14;r+=3.5) for(let a=0;a<16;a++){ const px=x+Math.cos(a/16*6.283)*r, pz=z+Math.sin(a/16*6.283)*r;
+        if(dansReliefLibre(px,pz)||Math.abs(solY(px,pz))>0.3||solidAt(px,pz,0.5)||estEau(px,pz)||(SKX.ok&&px>SKX.x0-25&&px<SKX.x1+25&&pz>SKX.z0-25&&pz<SKX.z1+25)) return false; } return !(POIS.crash&&dist2(x,z,POIS.crash.x,POIS.crash.z)<35*35); };
+    for(let rr=0;rr<160&&!p;rr+=6) for(let a=0;a<24&&!p;a++){ const x=ca.x+Math.cos(a/24*6.283)*rr, z=ca.z+Math.sin(a/24*6.283)*rr; if(x>HALF+10&&libre(x,z)) p={x,z}; }
+    if(p){ deplacerPlanque(ca,p.x,p.z,0); const {x,z}=p;
+      const alu=new THREE.MeshPhongMaterial({color:0xd4dae2,shininess:95,specular:0xb0b8c4}), sombre=mat(0x23262e);
+      { const s=new THREE.Shape(), r=1.05, x0=-3.6, x1=3.6, y0=0.75, y1=3.15; s.moveTo(x0+0.4,y0); s.lineTo(x1-0.4,y0); s.quadraticCurveTo(x1,y0,x1,y0+0.4); s.lineTo(x1,y1-r); s.quadraticCurveTo(x1,y1,x1-r*1.6,y1);
+        s.lineTo(x0+r*1.6,y1); s.quadraticCurveTo(x0,y1,x0,y1-r); s.lineTo(x0,y0+0.4); s.quadraticCurveTo(x0,y0,x0+0.4,y0);
+        const geo=new THREE.ExtrudeGeometry(s,{depth:2.1,bevelEnabled:true,bevelThickness:0.22,bevelSize:0.22,bevelSegments:4,curveSegments:12}); geo.translate(0,0,-1.05);
+        const m=new THREE.Mesh(geo,alu); m.position.set(x,0,z); scene.add(m); }
+      for(let q=-3;q<=3;q++) mkBox(0.03,2.1,2.56,mat(0xa8b0ba),x+q*1.05,2.0,z);                       // joints de tôle
+      mkBox(5.6,0.62,0.04,mat(0x1a2a3a),x-0.4,2.3,z+1.29); mkBox(0.04,0.7,1.6,mat(0x1a2a3a),x+3.83,2.25,z); // fenêtres, pare-brise avant
+      mkBox(0.9,1.85,0.05,mat(0xe8ecf2),x+1.9,1.7,z+1.3); mkBox(0.06,0.06,0.3,mat(0x23262e),x+1.6,1.7,z+1.36);
+      mkBox(7,0.18,2.2,sombre,x,0.62,z); for(const s of [-1,1]){ const r=new THREE.Mesh(new THREE.CylinderGeometry(0.42,0.42,0.28,14),mat(0x15171c)); r.rotation.x=Math.PI/2; r.position.set(x+0.4,0.42,z+s*1.12); scene.add(r); mkBox(1.3,0.35,0.06,alu,x+0.4,0.86,z+s*1.36); }
+      mkBox(1.6,0.12,0.12,sombre,x+4.4,0.6,z); for(const s of [-0.35,0.35]){ const gb=new THREE.Mesh(new THREE.CylinderGeometry(0.25,0.25,0.7,10),mat(0xf2f2ee)); gb.position.set(x+4.0,1.1,z+s); scene.add(gb); }
+      mkBox(1.5,0.05,1,mat(0x1a3a6a),x-1.6,3.4,z); mkBox(1.5,0.05,1,mat(0x1a3a6a),x+0.2,3.4,z);
+      const raye=cTex(64,(cc,s)=>{ for(let i=0;i<8;i++){ cc.fillStyle=i%2?'#f2ece0':'#1a8a8a'; cc.fillRect(i*s/8,0,s/8,s); } },1,1);
+      const auv=new THREE.Mesh(new THREE.BoxGeometry(5,0.06,2.8),new THREE.MeshLambertMaterial({map:raye})); auv.position.set(x-0.3,2.85,z+2.7); auv.rotation.x=0.14; scene.add(auv);
+      for(const dx of [-2.6,2.1]) mkBox(0.07,2.55,0.07,mat(0x9aa2ad),x+dx,1.28,z+4);
+      mkBox(4,0.03,2.6,mat(0xc84a3a),x-0.3,0.03,z+3); // tapis
+      for(let k=0;k<9;k++){ const a=k/8; const b=new THREE.Mesh(new THREE.SphereGeometry(0.08,6,4),new THREE.MeshBasicMaterial({color:[0xffd23f,0xff5a6a,0x7dff7a,0x35c8e0][k%4]})); b.position.set(x-2.6+a*4.7,2.75-Math.sin(a*Math.PI)*0.35,z+4.05); scene.add(b); }
+      for(let k=0;k<9;k++){ const a=k/9*6.283; mkBox(0.4,0.28,0.4,mat(0x6a6460),x-1.5+Math.cos(a)*0.9,0.14,z+7.6+Math.sin(a)*0.9); }
+      pqFeu(x-1.5,0.9,z+7.6,1.6); CHANTIER.fumees.push({x:x-1.5,y:1.4,z:z+7.6,d:4});
+      for(const [dx,dz,ry] of [[-3.4,7,0.8],[0.5,7.4,-0.8]]){ const g=new THREE.Group(); g.position.set(x+dx,0,z+dz); g.rotation.y=ry; g.add(mkBoxG(0.7,0.08,0.6,0x1a8a8a,0,0.5,0)); g.add(mkBoxG(0.7,0.7,0.06,0x1a8a8a,0,0.85,-0.3)); scene.add(g); }
+      mkBox(1.8,0.08,0.9,mat(0x8a6a44),x+2.6,0.75,z+6.6); for(const s of [-1,1]) mkBox(1.8,0.06,0.3,mat(0x8a6a44),x+2.6,0.45,z+6.6+s*0.65); // table de pique-nique
+      for(const [dx,dz,hc] of [[6,-3,2.6],[-6.5,-2,1.9],[8,5,2.2],[-8,6,2.8]]){ const cc=new THREE.Mesh(new THREE.CylinderGeometry(0.3,0.35,hc,8),mat(0x3a7a3a)); cc.position.set(x+dx,hc/2,z+dz); scene.add(cc);
+        const br=new THREE.Mesh(new THREE.CylinderGeometry(0.2,0.22,0.9,8),mat(0x3a7a3a)); br.rotation.z=Math.PI/2; br.position.set(x+dx+0.5,hc*0.6,z+dz); scene.add(br); addSolid({x:x+dx,z:z+dz,hw:0.35,hd:0.35,h:hc}); }
+      mkBox(2.2,0.9,0.9,mat(0x6a4a2e),x-5.4,0.45,z+2.4); mkBox(0.5,0.4,0.4,mat(0xd83a3a),x-5.8,1.1,z+2.4); addSolid({x:x-5.4,z:z+2.4,hw:1.1,hd:0.45,h:0.9});
+      mkBox(1,0.6,0.7,mat(0x3a5a2a),x+4.9,0.3,z+2.8); addSolid({x:x+4.9,z:z+2.8,hw:0.5,hd:0.35,h:0.6});
+      addSolid({x,z,hw:3.9,hd:1.4,h:3.4,toit:true});
+      ca.lit={x:x+1.9,z:z+2.6}; ca.coffre={x:x+4.9,z:z+4}; ca.spec={x:x-5.4,z:z+3.6}; ca.achat=ca.lit; ca.vehPos={x:x-8,z:z+9,ang:Math.PI/2};
+      ca.enseigne=mkEnseigne('CARAVANE À VENDRE','#ffd23f',x,4.8,z-1.4,0,7); } }
+  // 2) chalet d'altitude : sur un replat près du sommet du Mont Reyes, sur une terrasse à pilotis, dans les sapins
+  if(ch&&MONT.sommet){ const S=MONT.sommet; let best=null, bs=-1e9;
+    for(let rr=10;rr<=46;rr+=3) for(let a=0;a<32;a++){ const x=S.x+Math.cos(a/32*6.283)*rr, z=S.z+Math.sin(a/32*6.283)*rr; let mn=1e9, mx=-1e9;
+      for(const [dx,dz] of [[-5,-4],[5,-4],[-5,4],[5,4],[0,0],[0,6]]){ const y=solY(x+dx,z+dz); mn=Math.min(mn,y); mx=Math.max(mx,y); }
+      if(MONT.presDuSentier&&MONT.presDuSentier(x,z,9)) continue; if(solidAt(x,z,6)) continue; if(montU&&montU(x,z)>0.8) continue;
+      const sc=mx-(mx-mn)*5; if(sc>bs){ bs=sc; best={x,z,mn,mx}; } }
+    if(best){ const {x,z}=best, y=best.mx+0.3; deplacerPlanque(ch,x,z,y);
+      PLATS.push({x,z:z+0.6,hw:5.6,hd:5,h:y}); // terrasse à pilotis (praticable)
+      const planches=new THREE.MeshLambertMaterial({map:texPlanche,color:0xb8865a}), rond=cTex(64,(cc,s)=>{ for(let i=0;i<6;i++){ const g2=cc.createLinearGradient(0,i*s/6,0,(i+1)*s/6); g2.addColorStop(0,'#8a5e38'); g2.addColorStop(0.5,'#6a4426'); g2.addColorStop(1,'#3e2814'); cc.fillStyle=g2; cc.fillRect(0,i*s/6,s,s/6); } },2,2);
+      const mRond=new THREE.MeshLambertMaterial({map:rond});
+      mkBox(11.2,0.25,10,planches,x,y-0.12,z+0.6); for(const [dx,dz] of [[-5,-4],[5,-4],[-5,5],[5,5],[0,-4],[0,5]]){ const yb=solY(x+dx,z+dz); if(y-yb>0.2) mkBox(0.35,y-yb,0.35,mat(0x5a3e24),x+dx,(y+yb)/2,z+dz); }
+      mkBox(7,3.2,5.4,mRond,x,y+1.6,z-1); addSolid({x,z:z-1,hw:3.5,hd:2.7,h:y+5.4,base:y-0.5,toit:true});
+      { const tg=new THREE.Mesh(geoToit(8.4,7,2.3,'pignon'),mat(0x3a2a20)); tg.position.set(x,y+3.2,z-1); scene.add(tg); const ne=new THREE.Mesh(geoToit(8.5,7.1,2.32,'pignon'),mat(0xf2f4f8)); ne.position.set(x,y+3.32,z-1); ne.scale.set(0.98,0.5,0.6); scene.add(ne); }
+      mkBox(1.2,2,0.12,mat(0x3a2414),x,y+1,z+1.75); for(const dx of [-2.3,2.3]){ mkBox(1.1,0.9,0.1,mat(0x2a3a4a),x+dx,y+1.8,z+1.76); mkBox(1.3,0.1,0.12,mat(0xf2f2ee),x+dx,y+1.3,z+1.8); }
+      const fen=new THREE.MeshBasicMaterial({color:0xffc870}); mkBox(0.9,0.6,0.02,fen,x-2.3,y+1.85,z+1.79); // lumière chaude à la fenêtre
+      mkBox(1.1,6.5,1.1,mat(0x7a7468),x+2.8,y+3.1,z-2.4); CHANTIER.fumees.push({x:x+2.8,y:y+6.6,z:z-2.4,d:6}); // cheminée de pierre qui fume
+      for(const dx of [-5.4,5.4]) mkBox(0.08,0.9,9.4,mat(0x5a3e24),x+dx,y+0.45,z+0.6); mkBox(10.8,0.9,0.08,mat(0x5a3e24),x,y+0.45,z+5.05); mkBox(10.8,0.08,0.12,mat(0x6a4a2e),x,y+0.95,z+5.05); // rambarde
+      for(let k=0;k<5;k++) mkBox(2,0.3,0.3,mat(0x6a4a2e),x-4.4,y+0.15+k*0.3,z-3.6+((k%2)?0.15:0)); // bûches
+      for(const dx of [-3.6,3.6]){ mkBox(0.12,1.4,0.12,mat(0x23262e),x+dx,y+0.7,z+4.6); const l=new THREE.Mesh(new THREE.SphereGeometry(0.16,8,6),new THREE.MeshBasicMaterial({color:0xffd27a})); l.position.set(x+dx,y+1.5,z+4.6); scene.add(l); }
+      mkBox(0.7,0.5,0.5,mat(0x3a5a2a),x-3.6,y+0.25,z+2.4); mkBox(1.4,0.9,0.6,mat(0x5a626c),x+3.4,y+0.45,z+2.4); // coffre, râtelier
+      // la forêt : sapins tout autour, au sol du mont, jamais sur le sentier
+      for(let k=0;k<26;k++){ const a=k*2.399, r=9+(k%7)*3.2, tx=x+Math.cos(a)*r, tz=z+Math.sin(a)*r; if(MONT.presDuSentier&&MONT.presDuSentier(tx,tz,4)) continue; if(Math.abs(tx-x)<6.5&&Math.abs(tz-z-0.6)<6) continue;
+        const ty=solY(tx,tz), hs=3+(k%4)*0.9; mkBox(0.3,1,0.3,mat(0x4a3020),tx,ty+0.5,tz); for(let q=0;q<3;q++){ const co=new THREE.Mesh(new THREE.ConeGeometry(1.4-q*0.35,hs*0.45,7),mat(q===2?0xf2f4f8:0x1f4a2a)); co.position.set(tx,ty+1+q*hs*0.25+hs*0.2,tz); scene.add(co); } addSolid({x:tx,z:tz,hw:0.3,hd:0.3,h:ty+hs}); }
+      ch.lit={x,z:z+3.2,y}; ch.coffre={x:x-3.6,z:z+3.4,y}; ch.spec={x:x+3.4,z:z+3.4,y}; ch.achat=ch.lit; ch.vehPos={x:x-8,z:z+7,ang:0};
+      ch.enseigne=mkEnseigne('CHALET À VENDRE','#ffd23f',x,y+6,z+1.9,0,6); } }
+}
+// --- Bords de Los Reyes Hills : un vrai mur de soutènement (signalé : « un mur au bord, pas naturel ») — pierre
+// appareillée, contreforts, chaperon, garde-corps en haut, lierre qui retombe, arbustes au pied
+function mkBordsHills(){
+  const H=HILLS; if(!H.ok) return; const i0=scene.children.length, pierre=matMurPierre(), cap=mat(0xd8d0c0), lierre=mat(0x3f7a34), fer=mat(0x23262e);
+  const bords=[[H.x0,H.z0,H.x1,H.z0,0,-1],[H.x0,H.z1,H.x1,H.z1,0,1],[H.x0,H.z0,H.x0,H.z1,-1,0],[H.x1,H.z0,H.x1,H.z1,1,0]];
+  for(const [xa,za,xb,zb,nx,nz] of bords){ const L=Math.hypot(xb-xa,zb-za), n=Math.round(L); let run=[];
+    const fin=()=>{ if(run.length>1) rubanMur(run,pierre); run=[]; };
+    for(let k=0;k<=n;k++){ const u=k/n, x=lerp(xa,xb,u), z=lerp(za,zb,u), h=hauteurHills(x-nx*0.3,z-nz*0.3);
+      if(h<0.7){ fin(); continue; }
+      run.push({ax:x+nx*0.05,az:z+nz*0.05,bx:x-nx*0.5,bz:z-nz*0.5,haut:h+0.15,bas:-0.1});
+      if(k%9===4&&h>2.5){ mkBox(nx?0.7:1.3,h-0.2,nz?0.7:1.3,pierre,x+nx*0.38,(h-0.2)/2,z+nz*0.38); mkBox(nx?0.85:1.5,0.2,nz?0.85:1.5,cap,x+nx*0.38,h-0.1,z+nz*0.38); } // contrefort
+      if(k%2===0) mkBox(nx?0.7:1.05,0.14,nz?0.7:1.05,cap,x-nx*0.2,h+0.25,z-nz*0.2);              // chaperon
+      if(h>3&&k%3===0){ mkBox(0.06,1,0.06,fer,x-nx*0.3,h+0.8,z-nz*0.3); }                       // garde-corps
+      if(h>3&&((k*7)%11)<4){ const lh=Math.min(h-0.5,2+((k*13)%7)); mkBox(nx?0.06:1.1,lh,nz?0.06:1.1,lierre,x+nx*0.09,h-lh/2,z+nz*0.09); } // lierre
+      if(((k*5)%13)===0){ const ar=new THREE.Mesh(new THREE.SphereGeometry(0.55,7,5),mat(0x3a6a2a)); ar.position.set(x+nx*0.7,0.45,z+nz*0.7); ar.scale.y=0.8; scene.add(ar); } } // arbustes au pied
+    fin();
+    if(true){ let r2=[]; for(let k=0;k<=n;k++){ const u=k/n, x=lerp(xa,xb,u), z=lerp(za,zb,u), h=hauteurHills(x-nx*0.3,z-nz*0.3); if(h<=3){ if(r2.length>1) rubanMur(r2,fer); r2=[]; continue; }
+      r2.push({ax:x-nx*0.27,az:z-nz*0.27,bx:x-nx*0.33,bz:z-nz*0.33,haut:h+1.3,bas:h+1.22}); } if(r2.length>1) rubanMur(r2,fer); } // main courante
+  }
+  fusionnerDecor(i0);
 }
 /* CASCADES ET VOLCAN (15 octobre, demandé : « de la cascade à des endroits, avec de la déco, et de la lave sur
    l'île au pirate avec de la fumée ») — décor, générateur du décor (sansAleaVille), animé sur dt :
@@ -8022,7 +8225,7 @@ function fouillerCoffreToit(c){
 // (recherche déterministe, aucun tirage) ; tout près, quelques épaves à soulever pour s'entraîner.
 function mkHeliGrue(){
   const c=POIS.chantier; if(!c) return;
-  let p=null; for(let r=0;r<=14&&!p;r+=1) for(let a=0;a<16&&!p;a++){ const x=c.x+Math.cos(a/16*Math.PI*2)*r, z=c.z+Math.sin(a/16*Math.PI*2)*r; if(!solidAt(x,z,5)&&!estEau(x,z)) p={x,z}; }
+  let p=CHANTIER.ok?{x:CHANTIER.heli.x,z:CHANTIER.heli.z}:null; /* chantier V2 : son aire dédiée, plus sous la grue */ for(let r=0;r<=14&&!p;r+=1) for(let a=0;a<16&&!p;a++){ const x=c.x+Math.cos(a/16*Math.PI*2)*r, z=c.z+Math.sin(a/16*Math.PI*2)*r; if(!solidAt(x,z,5)&&!estEau(x,z)) p={x,z}; }
   if(!p) return;
   const hpx=cTex(128,(g2,s2)=>{ g2.clearRect(0,0,s2,s2); g2.strokeStyle='#ff8c1a'; g2.lineWidth=8; g2.beginPath(); g2.arc(s2/2,s2/2,52,0,7); g2.stroke(); g2.fillStyle='#ff8c1a'; g2.font='900 70px Arial'; g2.textAlign='center'; g2.textBaseline='middle'; g2.fillText('H',s2/2,s2/2+2); });
   const pad=new THREE.Mesh(new THREE.PlaneGeometry(8,8),new THREE.MeshBasicMaterial({map:hpx,transparent:true,depthWrite:false})); pad.rotation.x=-Math.PI/2; pad.position.set(p.x,0.2,p.z); scene.add(pad);
@@ -8164,7 +8367,7 @@ function mkAeroVie(){
   if(!AERO.pret) return; const T=AERO.T, C=AERO.C, i0=scene.children.length, V=AERO_VIE;
   const A=boucleRect(352,370,-145,-40,6), B=boucleRect(374,382,-145,10,3.5); V.boucleA=A; V.boucleB=B;
   V.flotte=[{cle:'bagagiste',b:A,s0:0,vit:6},{cle:'citerne',b:A,s0:A.L*0.36,vit:5.5},{cle:'busville',b:A,s0:A.L*0.7,vit:6},{cle:'citadine',b:B,s0:0,vit:8,peint:0xffd23f,followme:true}];
-  const humain=(cfg,x,z,ry)=>{ const h=makeHumain(cfg,1); h.g.position.set(x,0.16,z); h.g.rotation.y=ry; scene.add(h.g); AERO.humains.push(h.g); return h; };
+  const humain=(cfg,x,z,ry)=>{ const h=makeHumain(cfg,1); h.g.position.set(x,0.16,z); h.g.rotation.y=ry; scene.add(h.g); AERO.humains.push(h.g); return figurant(h); };
   const gilet={haut:0xff8c1a,bas:0x1c2030,peau:choixD(civPeau),casq:0xffd23f,visage:'neutre'};
   // placeurs : devant le nez de chaque poste, deux bâtons orange
   for(const p of AERO.portes){ const h=humain(Object.assign({},gilet,{peau:choixD(civPeau)}),p.x-11,p.z+5.5,Math.PI/2); // à côté du nez, face à l'avion qui arrive de l'est
@@ -8235,14 +8438,14 @@ function majAeroVie(dt){
     H.m.position.set(x,34+Math.sin(H.a*3)*3,z); H.m.rotation.y=H.a+Math.PI; H.m.rotation.z=0.12; const ud=H.m.userData; if(ud.rotor) ud.rotor.rotation.y+=dt*24; if(ud.rotorQ) ud.rotorQ.rotation.x+=dt*30; }
   if(!pres) return;
   // placeurs : ils guident l'avion qui arrive à leur porte
-  for(const pl of V.placeurs){ const vient=AERO.dec.some((d)=>d.porte===pl.porte&&(d.etat==='taxi'||d.etat==='vire')), h=pl.h;
+  for(const pl of V.placeurs){ if(figConverti(pl.h)) continue; const vient=AERO.dec.some((d)=>d.porte===pl.porte&&(d.etat==='taxi'||d.etat==='vire')), h=pl.h;
     if(vient){ const a=Math.sin(V.t*5); h.brasG.rotation.z=2.6+a*0.4; h.brasD.rotation.z=-2.6-a*0.4; h.brasG.rotation.x=0; h.brasD.rotation.x=0; }
     else { h.brasG.rotation.z=0.15; h.brasD.rotation.z=-0.15; h.brasG.rotation.x=Math.sin(V.t*0.7)*0.1; } }
   // bagagistes : ils chargent (bras qui montent et descendent, la valise suit)
-  for(const e of V.equipe){ const a=Math.sin(V.t*2.4+e.ph); e.h.brasD.rotation.x=-1.2-a*0.9; e.h.brasG.rotation.x=-0.8-a*0.6; e.h.g.rotation.y=Math.PI+a*0.6; }
-  for(const m of V.meca){ m.h.brasD.rotation.x=-1.4+Math.sin(V.t*6+m.ph)*0.35; m.h.brasG.rotation.x=-1.0; }
+  for(const e of V.equipe){ if(figConverti(e.h)) continue; const a=Math.sin(V.t*2.4+e.ph); e.h.brasD.rotation.x=-1.2-a*0.9; e.h.brasG.rotation.x=-0.8-a*0.6; e.h.g.rotation.y=Math.PI+a*0.6; }
+  for(const m of V.meca){ if(figConverti(m.h)) continue; m.h.brasD.rotation.x=-1.4+Math.sin(V.t*6+m.ph)*0.35; m.h.brasG.rotation.x=-1.0; }
   // voyageurs : va-et-vient sur le trottoir de la dépose-minute, petites pauses
-  for(const w of V.voyageurs){ const g=w.h.g;
+  for(const w of V.voyageurs){ const g=w.h.g; if(g.userData.converti) continue;
     if(w.pause>0){ w.pause-=dt; animeHumain(w.h,dt,0,false); continue; }
     g.position.z+=w.v*dt; g.rotation.y=w.v>0?0:Math.PI; animeHumain(w.h,dt,Math.abs(w.v)*3,false);
     if(g.position.z>w.z1||g.position.z<w.z0){ w.v=-w.v; g.position.z=clamp(g.position.z,w.z0,w.z1); w.pause=aD(1,4); } }
@@ -8255,12 +8458,13 @@ function majAeroportVivant(dt){
   if(!AERO.pret||INT.actif) return;
   if(AERO.radar) AERO.radar.rotation.y+=dt*1.6;
   const C=AERO.C, pres=dist2(P.x,P.z,C.x,C.z)<AERO_LOD*AERO_LOD;
-  if(pres!==AERO.vus){ AERO.vus=pres; for(const g of AERO.humains) g.visible=pres; } // au loin, la foule disparaît (mobile : une centaine de maillages en moins)
+  if(pres!==AERO.vus){ AERO.vus=pres; for(const g of AERO.humains) if(!g.userData.converti) g.visible=pres; } // au loin, la foule disparaît (mobile : une centaine de maillages en moins)
   // tableaux et tapis à bagages
   AERO.tabT-=dt; if(AERO.tabT<=0&&pres){ AERO.tabT=2; aeroTableaux(); }
   if(pres) for(const g of AERO.tapis) for(const v of g.children){ v.userData.a+=dt*0.45; v.position.set(Math.cos(v.userData.a)*2.25,-0.15,Math.sin(v.userData.a)*3.5); v.rotation.y=-v.userData.a; }
   // la foule (figée au loin)
   if(pres) for(const w of AERO.foule){
+    if(w.h.g.userData.converti) continue;
     if(w.pause>0){ w.pause-=dt; animeHumain(w.h,dt,0,false); continue; }
     const c=w.route[w.i+1]; if(!c){ w.arr=!w.arr; AERO.nouvelleRoute(w); continue; }
     const g=w.h.g, dx=c.x-g.position.x, dz=c.z-g.position.z, l=Math.hypot(dx,dz);
@@ -10453,24 +10657,36 @@ function mkHelicoV2(def,coul,g,ud){
       for(const z of [-0.5,1.0]) g.add(mkBoxG(0.06,0.6,0.06,0x2a2e36,s*0.62,0.4,z)); }
     ud.rotor=rotor(2.42,3,4.4);
     const om=spriteBlob(5.6); g.add(om); ud.ombre=om;
-  } else { // titan : hélico-grue
-    const raye=cTex(64,(c,s)=>{ c.fillStyle='#ffd23f'; c.fillRect(0,0,s,s); c.fillStyle='#1c1e22'; for(let i=-2;i<4;i++){ c.beginPath(); c.moveTo(i*s/2,0); c.lineTo(i*s/2+s/4,0); c.lineTo(i*s/2+s/4+s/2,s); c.lineTo(i*s/2+s/2,s); c.fill(); } },2,1);
-    g.add(mkBoxG(1.1,1.2,6.4,coul,0,3.0,-0.6)); // poutre
-    const bande=new THREE.Mesh(new THREE.BoxGeometry(1.14,0.3,6.2),new THREE.MeshLambertMaterial({map:raye})); bande.position.set(0,2.48,-0.6); g.add(bande);
-    const cock=new THREE.Mesh(new THREE.SphereGeometry(1.05,14,10),mat(coul)); cock.scale.set(0.95,0.9,1.15); cock.position.set(0,2.9,3.1); g.add(cock);
-    const bul=new THREE.Mesh(new THREE.SphereGeometry(0.9,14,10,0,Math.PI*2,0,Math.PI*0.6),new THREE.MeshLambertMaterial({color:0x141b26,transparent:true,opacity:0.85}));
-    bul.rotation.x=Math.PI/2.3; bul.position.set(0,3.0,3.75); g.add(bul);
-    g.add(mkBoxG(1.6,0.9,2.2,0x3a3e46,0,3.95,-0.4)); // turbines
-    for(const s of [-1,1]){ const tu=new THREE.Mesh(new THREE.CylinderGeometry(0.3,0.3,1.6,10),mat(0x5a626c)); tu.rotation.x=Math.PI/2; tu.position.set(s*0.75,3.95,-0.2); g.add(tu); }
-    const pou=new THREE.Mesh(new THREE.CylinderGeometry(0.22,0.45,4.4,10),mat(coul)); pou.rotation.x=Math.PI/2; pou.position.set(0,3.3,-5.8); g.add(pou);
-    g.add(mkBoxG(0.12,2.0,1.2,coul,0,4.1,-7.7)); g.add(mkBoxG(2.6,0.08,0.7,coul,0,3.4,-7.4));
-    const q=new THREE.Group(); q.position.set(0.25,3.9,-7.9); g.add(q);
-    for(let k=0;k<4;k++){ const p=mkBoxG(0.05,0.85,0.14,0x23262e,0,0.42,0); const br=new THREE.Group(); br.rotation.x=k/4*Math.PI*2; br.add(p); q.add(br); }
+  } else { // titan : hélico-grue façon « Skycrane » (16 octobre, signalé : « pas beau du tout, à restyliser ») — poutre
+    // élancée ouverte dessous (la charge s'accroche entre les jambes), cockpit en bulbe avec le poste de l'opérateur
+    // tourné vers l'arrière, deux turbines sur le dos, longue queue, train haut sur jambes, treuil jaune
+    const peint=mat(coul), blanc=mat(0xf2f2ee), noir=mat(0x23262e), gris=mat(0x5a626c), vitre=new THREE.MeshPhongMaterial({color:0x16202a,specular:0x8aa4c0,shininess:90});
+    const cyl=(r0,r1,l,m,x,y,z,rx,ry,rz)=>{ const c=new THREE.Mesh(new THREE.CylinderGeometry(r0,r1,l,12),m); c.position.set(x,y,z); c.rotation.set(rx||0,ry||0,rz||0); g.add(c); return c; };
+    cyl(0.72,0.62,6.6,peint,0,3.35,-0.2,Math.PI/2);                      // poutre principale
+    g.add(mkBoxG(1.3,0.5,5.6,coul,0,3.05,-0.2)); g.add(mkBoxG(1.34,0.12,5.4,0xf2f2ee,0,3.32,-0.2)); // carénage du dessous, liseré blanc
+    const nez=new THREE.Mesh(new THREE.SphereGeometry(1,16,12),peint); nez.scale.set(1.05,1.0,1.35); nez.position.set(0,3.0,3.6); g.add(nez);
+    const bul=new THREE.Mesh(new THREE.SphereGeometry(0.95,16,10,0,Math.PI*2,0,Math.PI*0.62),vitre); bul.rotation.x=Math.PI/2.15; bul.scale.set(1,1.1,0.9); bul.position.set(0,3.05,4.25); g.add(bul);
+    g.add(mkBoxG(0.9,0.12,0.6,0x23262e,0,3.95,4.0));                       // pare-soleil noir
+    g.add(mkBoxG(1.2,0.75,0.08,0x16202a,0,2.55,2.35));                     // poste de l'opérateur, vitre vers l'arrière
+    for(const s of [-1,1]){ cyl(0.42,0.36,2.6,blanc,s*0.78,4.05,0.2,Math.PI/2);  // turbines
+      g.add(mkBoxG(0.5,0.5,0.1,0x15171c,s*0.78,4.05,1.52)); cyl(0.22,0.26,0.4,noir,s*0.78,4.05,-1.25,Math.PI/2); }
+    cyl(0.3,0.36,0.9,gris,0,4.3,0);                                        // mât du rotor
+    cyl(0.2,0.5,6.4,peint,0,3.55,-6.4,Math.PI/2-0.05);                     // poutre de queue
+    const derive=mkBoxG(0.14,2.6,1.3,coul,0,4.6,-9.4); derive.rotation.x=-0.35; g.add(derive);
+    g.add(mkBoxG(2.6,0.08,0.7,coul,0,5.6,-9.9)); g.add(mkBoxG(0.16,0.5,1.0,0xf2f2ee,0,4.2,-9.2));
+    const q=new THREE.Group(); q.position.set(0.3,4.9,-9.6); g.add(q);
+    for(let k=0;k<4;k++){ const p=mkBoxG(0.05,1.0,0.16,0x23262e,0,0.5,0); const br=new THREE.Group(); br.rotation.x=k/4*Math.PI*2; br.add(p); q.add(br); }
     ud.rotorQ=q;
-    for(const [sx,sz] of [[-1,1.8],[1,1.8],[-1,-2.6],[1,-2.6]]){ const j=new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.1,2.6,8),mat(0x2a2e36)); j.position.set(sx*1.25,1.3,sz); j.rotation.z=-sx*0.28; g.add(j);
-      const roue=new THREE.Mesh(new THREE.CylinderGeometry(0.32,0.32,0.24,12),mat(0x15171c)); roue.rotation.z=Math.PI/2; roue.position.set(sx*1.6,0.32,sz); g.add(roue); ud.roues.push(roue); }
-    g.add(mkBoxG(0.5,0.3,0.5,0x23262e,0,2.25,-0.4)); // treuil de l'aimant
-    ud.rotor=rotor(4.55,6,5.2);
+    // train haut : deux grandes jambes qui enjambent la charge, et une roulette sous le nez
+    for(const s of [-1,1]){ const xb=s*2.3;
+      const j1=mkBoxG(0.16,3.1,0.16,0x2a2e36,s*1.55,1.75,-0.8); j1.rotation.z=s*0.48; g.add(j1);
+      const j2=mkBoxG(0.12,0.12,2.4,0x2a2e36,s*0.9,2.6,-0.8); g.add(j2);
+      const r=new THREE.Mesh(new THREE.CylinderGeometry(0.42,0.42,0.3,14),mat(0x15171c)); r.rotation.z=Math.PI/2; r.position.set(xb,0.42,-0.8); g.add(r); ud.roues.push(r); }
+    cyl(0.07,0.07,2.4,mat(0x2a2e36),0,1.75,3.6);
+    { const r=new THREE.Mesh(new THREE.CylinderGeometry(0.3,0.3,0.22,12),mat(0x15171c)); r.rotation.z=Math.PI/2; r.position.set(0,0.3,3.6); g.add(r); ud.roues.push(r); }
+    g.add(mkBoxG(0.7,0.45,0.7,0xffd23f,0,2.45,-0.4)); g.add(mkBoxG(0.5,0.1,0.5,0x23262e,0,2.17,-0.4)); // treuil
+    for(const s of [-1,1]) g.add(mkBoxG(0.1,0.1,0.1,s>0?0x35e05a:0xe03a3a,s*0.7,3.4,3.0));   // feux de position
+    ud.rotor=rotor(4.75,6,5.3);
     const om=spriteBlob(9); g.add(om); ud.ombre=om;
   }
   g.userData=ud; return g;
@@ -14667,7 +14883,7 @@ function majJoueur(dt,dtJeu){
     if(deg){ P.x=deg.x; P.z=deg.z; }
   }
   // verticalité : suivre le sol, tomber des bords
-  const gY=solPied(P.x,P.z);
+  const gY=ETAGES.length?Math.max(solPied(P.x,P.z),etageSous(P.x,P.z,P.y+0.7)):solPied(P.x,P.z); // ETAGES : l'immeuble en construction (planchers superposés)
   if(P.chute){
     // chute libre : le parachute ne s'ouvre QUE si le joueur appuie (base jump)
     if(!P.para&&!P.veh&&(P.chuteY0-P.y)>2.5) el('btnJump').style.display='flex';
@@ -17603,7 +17819,7 @@ function lancerRagdoll(ent,dx,dz,force){
   const g=ent.h.g; g.rotation.order='YXZ'; g.rotation.x=0; g.rotation.z=0;
   if(ent.h.jambeG){ ent.h.jambeG.rotation.x=0; ent.h.jambeD.rotation.x=0; } // jambes jointes : une jambe en pleine foulée traversait le sol une fois couché
   g.rotation.y=Math.atan2(dx,dz)+Math.PI; // face au choc : « sur le dos » = repoussé
-  ent.rag={vx:dx/l*force,vz:dz/l*force,vy:force*(fort?0.72:0.5),y:0,t:fort?1.7:1.15,pose,
+  ent.rag={vx:dx/l*force,vz:dz/l*force,vy:force*(fort?0.72:0.5),y:ent.solRag||0,t:fort?1.7:1.15,pose,
     ax:(pose==='dos'||pose==='ventre')?'x':'z',cible:pose==='dos'?-Math.PI/2:(pose==='ventre'?Math.PI/2:sens*Math.PI/2),ang:0,
     vang:(fort?rand(4,7):rand(2.5,4)),spin:pose==='vrille'?rand(7,12)*sens:0};
 }
@@ -17612,7 +17828,8 @@ function majRagdoll(ent,dt){
   const r=ent.rag;
   ent.x+=r.vx*dt; ent.z+=r.vz*dt;
   r.y+=r.vy*dt; r.vy-=22*dt;
-  if(r.y<0){ r.y=0; if(r.vy<-7&&!r.rebond){ r.vy=-r.vy*0.28; r.rebond=true; burst(ent.x,0.2,ent.z,4,0xb8a888,3,4); } else r.vy=0; r.vx*=0.7; r.vz*=0.7; } // un petit rebond à l'impact
+  const f0=ent.solRag||0; // sol du corps : 0 en ville, la colline ou l'aérogare pour un figurant
+  if(r.y<f0){ r.y=f0; if(r.vy<-7&&!r.rebond){ r.vy=-r.vy*0.28; r.rebond=true; burst(ent.x,0.2,ent.z,4,0xb8a888,3,4); } else r.vy=0; r.vx*=0.7; r.vz*=0.7; } // un petit rebond à l'impact
   r.t-=dt;
   // Un ragdoll (mort, projeté par un choc) glissait tout droit à travers un
   // véhicule — sa trajectoire n'est jamais vérifiée à l'avance, contrairement
@@ -17637,7 +17854,7 @@ function majRagdoll(ent,dt){
     // frame suivante et ne touche jamais rotation.z elle-même. Un ragdoll
     // mortel garde sa pose au sol jusqu'au retrait du corps, inchangé.
     const meurt=ent.etat==='mort'||ent.mort===true;
-    if(meurt){ g.position.y=ragdollLevage(r.cible,r.ax); ent.poseMort={ax:r.ax,a:r.cible}; } // il reste dans SA pose, posé au sol
+    if(meurt){ g.position.y=(ent.solRag||0)+ragdollLevage(r.cible,r.ax); ent.poseMort={ax:r.ax,a:r.cible}; } // il reste dans SA pose, posé au sol
     else { g.rotation.z=0; g.rotation.x=0; if(ent.h&&ent.h.brasG){ ent.h.brasG.rotation.x=0; ent.h.brasD.rotation.x=0; } }
     ent.rag=null;
   }
@@ -18282,6 +18499,7 @@ function impactSpecial(b,e){
   else if(b.mod==='feu'&&e&&!e.mort){ e.feuT=Math.max(e.feuT||0,3); }
 }
 function collisionBalle(b){
+  if(b.fac==='joueur'&&toucherFigurant(b)) return true; // figurants de décor et des salles (16 octobre)
   if(b.fac==='joueur') for(let i=0;i<FAUNE.length;i++){ const a=FAUNE[i]; if(!a.mort&&Math.abs(b.y-(a.y+0.7))<1.4&&dist2(b.x,b.z,a.x,a.z)<1.2){ toucherAnimal(a,b.dmg); return true; } } // animaux de l'île
   for(const e of ennemis){
     if(e.mort||e.fac===b.fac) continue;
@@ -18714,12 +18932,12 @@ function majRayonOvni(dt){
    rayon de l'OVNI : drapeau captureOvni (respecté partout), v.cibles, chute et dégâts au sol
    (rayonMajCible, phase « chute » : au-delà de RAYON_EXPLOSION_ALT, il explose). Posé tout près du sol :
    il est déposé en douceur. Câble et aimant dessinés à chaque image (v.aimFx). */
-const AIMANT_R=7, AIMANT_ALT_MIN=4, AIMANT_GAP=6.5, AIMANT_MONTEE=9;
+const AIMANT_R=9, AIMANT_ALT_MIN=2.5, AIMANT_GAP=6.5, AIMANT_MONTEE=9; // (16 octobre, signalé : « l'aimant ne fonctionne pas ») : il fallait viser à 7 u ET planer entre 7 et 8 u au-dessus
 // le véhicule au sol le plus proche sous la poutre ; trop haut (l'aimant pend AIMANT_GAP u plus bas) : bas=false
 function aimantCandidat(v,touteHauteur){
   let best=null, bd=AIMANT_R*AIMANT_R;
   for(const o of vehicules){ if(o===v||o.mort||o.epave||o.captureOvni||o.def.air||o.noye||o.def.long>16) continue;
-    const d=dist2(o.x,o.z,v.x,v.z); if(d<bd&&(touteHauteur||poseY(o.x,o.z)<v.alt-AIMANT_GAP-0.6)){ bd=d; best=o; } }
+    const d=dist2(o.x,o.z,v.x,v.z); if(d<bd&&(touteHauteur||poseY(o.x,o.z)<v.alt-1.5)){ bd=d; best=o; } } /* l'aimant descend jusqu'à la charge : plus de hauteur exacte à tenir */
   return best;
 }
 function aimantFx(v){
@@ -18757,7 +18975,7 @@ function majAimant(dt){
       if(r.phase==='chute'){ if(rayonMajCible(v,r,dt,dt)) v.cibles.splice(i,1); continue; }
       const e=r.ent, L=AIMANT_GAP, yS=Math.max(r.y0+0.2,yH-L-1.6);
       e.x=lerp(e.x,v.x-ox*L,clamp(6*dt,0,1)); e.z=lerp(e.z,v.z-oz*L,clamp(6*dt,0,1));
-      r.y=Math.min(yS,r.y+AIMANT_MONTEE*dt); if(r.y>=yS-0.05) r.phase='suspendue';
+      r.y=Math.min(yS,r.y+AIMANT_MONTEE*dt); if(r.y>=yS-0.05&&yS>r.y0+1.5) r.phase='suspendue'; /* accroché bas : la charge reste posée tant qu'on ne monte pas */
       // trop près du sol (on redescend) : déposé en douceur
       if(r.y-poseY(e.x,e.z)<0.4&&r.phase==='suspendue'){ rayonDebuterChute(v,r); continue; }
       r.ang=angLerp(r.ang,v.ang,clamp(1.5*dt,0,1));
@@ -27013,8 +27231,62 @@ function peuplerSalle(inter,id,g){
     inter.figurants.push({h,x:pt.x,z:pt.z,cx:pt.x,cz:pt.z,pause:rand(0,3),ph:rand(0,6),ang:h.g.rotation.y,peur:0});
   }
 }
+/* ---- Figurants interactifs (16 octobre, demandé : « des PNJ se baladent à l'aéroport ou au résidentiel mais je ne
+   peux ni les tamponner ni leur tirer dessus : il faut que je puisse, ce qui créera de la panique autour ; idem dans les
+   salles ») ---- Les figurants de décor (FIGURANTS : aéroport, Los Reyes Hills, chantier) deviennent de VRAIS piétons
+   (pietons, même corps, même tenue) dès qu'on les touche — balle (collisionBalle), véhicule lancé, coup : ils tombent —
+   ou qu'un danger éclate près d'eux (DANGER : coup de feu, explosion, un des leurs touché) : ils fuient. Leur système de
+   décor les ignore ensuite (h.g.userData.converti). Dans les salles, les figurants (VIE_SALLES) tombent sous les balles
+   et les coups, restent sonnés, puis se relèvent ; les autres se mettent à couvert. */
+const FIGURANTS=[];
+function figurant(h,lies){ FIGURANTS.push({h,lies:lies||null,parent:null,pos:null,rot:null}); return h; }
+// à chaque partie, les figurants devenus piétons reviennent au décor, à leur place d'origine
+function restaurerFigurants(){
+  for(const f of FIGURANTS){ const g=f.h.g; if(!f.pos){ f.pos=g.position.clone(); f.rot=g.rotation.clone(); f.parent=g.parent; } // relevé à la 1re partie (le décor est posé)
+    if(!g.userData.converti) continue; g.userData.converti=false;
+    for(let i=pietons.length-1;i>=0;i--) if(pietons[i].h===f.h) pietons.splice(i,1);
+    if(f.parent&&g.parent!==f.parent) f.parent.add(g); g.position.copy(f.pos); g.rotation.copy(f.rot); g.scale.y=g.scale.x;
+    const h=f.h; h.jambeG.rotation.x=h.jambeD.rotation.x=0; h.brasG.rotation.x=h.brasD.rotation.x=0; h.brasG.rotation.z=h.brasD.rotation.z=0; finNage(h); } }
+function figConverti(h){ return !!(h&&h.g&&h.g.userData.converti); }
+function convertirFigurant(f,fuite){
+  const h=f.h, g=h.g; if(g.userData.converti) return null; g.userData.converti=true; g.visible=true;
+  if(g.parent!==scene){ const wp=new THREE.Vector3(); g.getWorldPosition(wp); scene.add(g); g.position.copy(wp); }
+  g.rotation.set(0,g.rotation.y,0); g.rotation.order='XYZ'; h.jambeG.rotation.x=h.jambeD.rotation.x=0; h.brasG.rotation.x=h.brasD.rotation.x=0; g.scale.y=g.scale.x;
+  const sol=solY(g.position.x,g.position.z); g.position.y=sol;
+  const p={h,x:g.position.x,z:g.position.z,dir:g.rotation.y,vit:rand(5,6.5),etat:fuite?'fuite':'balade',t:rand(3,5),rag:null,pv:20,solRag:sol};
+  pietons.push(p);
+  if(f.lies) for(const o of f.lies){ const f2=FIGURANTS.find((q)=>q.h===o); if(f2) convertirFigurant(f2,true); }
+  return p;
+}
+function tuerFigurant(f,sx,sz,k){ const g=f.h.g, p=convertirFigurant(f,true); if(!p) return; tuerPieton(p,true,k,sx,sz); DANGER.x=g.position.x; DANGER.z=g.position.z; DANGER.t=Math.max(DANGER.t,3); }
+// une balle du joueur sur un figurant (ville ou salle) : appelée par collisionBalle
+function toucherFigurant(b){
+  if(INT.actif){ const s=INT.actif; if(!s.figurants) return false;
+    for(let i=0;i<s.figurants.length;i++){ const f=s.figurants[i]; if(b.y<2.2&&dist2(b.x,b.z,f.x,f.z)<0.5){ salleFigurantTombe(s,i,b.x-b.vx*0.05,b.z-b.vz*0.05); return true; } } return false; }
+  for(const f of FIGURANTS){ const g=f.h.g; if(g.userData.converti||!g.visible) continue; const y=g.position.y;
+    if(b.y>y-0.2&&b.y<y+2.1&&dist2(b.x,b.z,g.position.x,g.position.z)<0.5){ tuerFigurant(f,b.x-b.vx*0.05,b.z-b.vz*0.05,6); return true; } }
+  return false;
+}
+function majFigurants(dt){
+  if(INT.actif||!FIGURANTS.length) return;
+  const v=P.veh, vv=v&&!v.def.air?Math.abs(v.v||0):0;
+  for(const f of FIGURANTS){ const g=f.h.g; if(g.userData.converti||!g.visible) continue;
+    const x=g.position.x, z=g.position.z, y=g.position.y, d2=dist2(x,z,P.x,P.z); if(d2>70*70) continue;
+    if(vv>5&&dist2(v.x,v.z,x,z)<Math.pow(v.def.larg*0.5+0.7,2)&&Math.abs((v.h||0)-y)<2){ tuerFigurant(f,v.x,v.z,Math.min(16,6+vv*0.4)); continue; } // percuté
+    if(!v&&P.frappeT>0&&d2<1.8*1.8&&Math.abs(P.y-y)<1.5){ tuerFigurant(f,P.x,P.z,7); continue; }                                         // un coup
+    if(DANGER.t>0&&dist2(x,z,DANGER.x,DANGER.z)<26*26) convertirFigurant(f,true);                                                      // la panique gagne
+  }
+}
+// dans une salle : le figurant touché tombe, reste sonné, puis se relève ; tout le monde se met à couvert
+function salleFigurantTombe(s,i,sx,sz){ const f=s.figurants[i]; s.figurants.splice(i,1); s.mortsFig=s.mortsFig||[];
+  f.h.g.scale.y=f.h.g.scale.x; const e={h:f.h,x:f.x,z:f.z,etat:'mort',t:7,f}; lancerRagdoll(e,f.x-sx,f.z-sz,7); s.mortsFig.push(e);
+  s.paniqueT=Math.max(s.paniqueT||0,6); SFX.coup(); burst(f.x,1,f.z,5,0xff5a6a,5,9); spawnTexte(f.x,2.4,f.z,pick(['Aïe !','Au secours !','Il est fou !']),'#ff8080'); }
 function majVieSalle(s,dt){
   const cfg=VIE_SALLES[s.id]; if(!cfg) return;
+  // touchés au corps à corps ; sonnés, puis ils se relèvent
+  if(P.frappeT>0) for(let i=s.figurants.length-1;i>=0;i--){ const f=s.figurants[i]; if(dist2(P.x,P.z,f.x,f.z)<1.8*1.8){ salleFigurantTombe(s,i,P.x,P.z); break; } }
+  if(s.mortsFig) for(let i=s.mortsFig.length-1;i>=0;i--){ const e=s.mortsFig[i]; if(e.rag) majRagdoll(e,dt); e.t-=dt;
+    if(e.t<=0){ const h=e.h; h.g.rotation.set(0,0,0); h.g.rotation.order='XYZ'; h.brasG.rotation.x=h.brasD.rotation.x=0; h.jambeG.rotation.x=h.jambeD.rotation.x=0; e.f.x=e.x; e.f.z=e.z; e.f.pause=3; s.figurants.push(e.f); s.mortsFig.splice(i,1); } }
   // le joueur se bat ou tire : tout le monde se met à couvert un moment
   if((P.frappeT>0||P.tirT>0.4)&&s.paniqueT<=0){ s.paniqueT=6; const f=s.figurants[Math.floor(Math.random()*s.figurants.length)]; if(f) spawnTexte(f.x,2.4,f.z,pick(['Au secours !','Il est fou !','Pas ici !']),'#ff8080'); }
   if(s.paniqueT>0) s.paniqueT-=dt;
@@ -32194,6 +32466,7 @@ function boucle(t){
     majEnnemis(dt);
     if(!INT.actif){
       majPietons(dt);
+      majFigurants(dt);
       majFauneRue(dt);
       majVehicules(dt);
       majGrandYacht();
@@ -32221,7 +32494,7 @@ function boucle(t){
       majMeteo(dt);
       majMer(dt);
       majMerV2(dt);
-      if(DECOR_V2){ majHorsLesMurs(dt); majMobilier(); majLac(dt); majLumieres(dt); majJetee(dt); majPortVivant(dt); majAeroportVivant(dt); majAeroVie(dt); majVieHills(dt); majPlanques(dt); majAtelierArme(dt); majBoutique(dt); majTour(dtJeu); majCascades(dt); majManeges(dt); majBrooklyn(dt); majCiel(dt); majNeonVivant(dt); majQuartiersFinitions(dt); }
+      if(DECOR_V2){ majHorsLesMurs(dt); majMobilier(); majLac(dt); majLumieres(dt); majJetee(dt); majPortVivant(dt); majAeroportVivant(dt); majAeroVie(dt); majVieHills(dt); majChantierV2(dt); majPlanques(dt); majAtelierArme(dt); majBoutique(dt); majTour(dtJeu); majCascades(dt); majManeges(dt); majBrooklyn(dt); majCiel(dt); majNeonVivant(dt); majQuartiersFinitions(dt); }
       majEpaveCanon(dt);
     }
     majHUD();
