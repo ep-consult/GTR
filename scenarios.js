@@ -4884,7 +4884,9 @@ async function main() {
           - (a.geometry.parameters.width * a.geometry.parameters.height * a.geometry.parameters.depth))[0];
       const boxMT = bodyBox(mt), boxC = bodyBox(citadine);
       const gapMT = (boxMT.position.y - boxMT.geometry.parameters.height / 2) - (roueMT.position.y + roueMT.geometry.parameters.radiusTop);
-      const gapC = (boxC.position.y - boxC.geometry.parameters.height / 2) - (roueC.position.y + roueC.geometry.parameters.radiusTop);
+      /* la citadine n'est plus faite de boîtes (voitures réalistes, profil extrudé) : bas de sa caisse mesuré sur ses meshes */
+      const basC = boxC ? boxC.position.y - boxC.geometry.parameters.height / 2 : (() => { let m = 1e9; citadine.mesh.userData.corps.traverse((o) => { if (o.isMesh && o.geometry) { o.geometry.computeBoundingBox(); m = Math.min(m, o.geometry.boundingBox.min.y + o.position.y); } }); return m; })();
+      const gapC = basC - (roueC.position.y + roueC.geometry.parameters.radiusTop);
       const stanceMT = Math.abs(roueMT.position.x), demiCaisseMT = VEHDEFS.monstertruck.larg / 2;
 
       // conduit un moment pour vérifier que le châssis (userData.corps)
@@ -10792,6 +10794,49 @@ async function main() {
       });
       if (r.ko.length) fail('Los Reyes Hills, vie : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
       else ok('Los Reyes Hills, vie : ' + r.info.join(' ; ') + ' ; piscines éclairées la nuit');
+    }
+
+    // -------------------------------------------------------------------
+    // Voitures réalistes (15 octobre, demandé : « créer d'autres types de
+    // voitures et affiner les existantes avec un rendu plus réaliste ») :
+    // chaque modèle de PROFILS_VOITURE (lu à la source) a les dimensions de
+    // VEHDEFS, ses quatre roues au sol, une géométrie partagée entre deux
+    // exemplaires, une peinture que le garage sait refaire ; la police garde
+    // ses gyrophares ; les modèles de luxe sont en vente et roulent.
+    // -------------------------------------------------------------------
+    console.log('\n--- Voitures réalistes : profils, roues, peinture, modèles de luxe ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (!DECOR_V2) return { ko, info: ['décor V2 coupé'] };
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
+        const cles = Object.keys(PROFILS_VOITURE);
+        for (const k of cles) { const d = VEHDEFS[k], Pf = PROFILS_VOITURE[k]; if (!d) { ko.push(k + ' absent de VEHDEFS'); continue; }
+          if (Math.abs(d.long - Pf.L) > 0.01 || Math.abs(d.larg - Pf.W) > 0.01) ko.push(k + ' : profil ' + Pf.L + '×' + Pf.W + ' ≠ VEHDEFS ' + d.long + '×' + d.larg);
+          const a = makeVoiture(k), b = makeVoiture(k), ud = a.userData;
+          if (!ud.corps || !ud.roues || ud.roues.length !== 4) { ko.push(k + ' : corps / 4 roues'); continue; }
+          a.updateMatrixWorld(true); const bb = new THREE.Box3(); a.traverse((o) => { if (o.isMesh) bb.expandByObject(o); });
+          const lx = bb.max.x - bb.min.x, lz = bb.max.z - bb.min.z, hy = bb.max.y;
+          if (Math.abs(lz - d.long) > d.long * 0.12 || Math.abs(lx - d.larg) > d.larg * 0.2 || hy < 1 || hy > 2.3) ko.push(k + ' : gabarit ' + lx.toFixed(2) + '×' + lz.toFixed(2) + '×' + hy.toFixed(2));
+          for (const rw of ud.roues) { const rb = new THREE.Box3().setFromObject(rw); if (Math.abs(rb.min.y) > 0.03) { ko.push(k + ' : roue en l’air ou enfoncée (' + rb.min.y.toFixed(2) + ')'); break; } }
+          const ga = [], gb = []; ud.corps.traverse((o) => { if (o.isMesh) ga.push(o.geometry); }); b.userData.corps.traverse((o) => { if (o.isMesh) gb.push(o.geometry); });
+          if (!ga.some((g) => gb.includes(g) && g.userData.partagee)) ko.push(k + ' : géométrie non partagée');
+          a.userData.coul = a.userData.coul; peindreMesh(a, 0x00ff00); let vert = false; a.traverse((o) => { if (o.isMesh && o.material && o.material.color && o.material.color.getHex() === 0x00ff00) vert = true; });
+          if (!vert) ko.push(k + ' : le garage ne repeint pas la carrosserie');
+          if (d.police && !(ud.bar && ud.bar.length === 2)) ko.push(k + ' : pas de gyrophares');
+        }
+        info.push(cles.length + ' modèles réalistes');
+        // les modèles de luxe : en vente, dans la colline, et ils roulent
+        const vente = CATALOGUE.filter((c) => VEHDEFS[c.key] && VEHDEFS[c.key].profil).length; if (vente < 8) ko.push(vente + ' voitures réalistes en vente');
+        for (const k of HILLS_LUXE_ROULE.concat(HILLS_LUXE_GARE)) if (!VEHDEFS[k]) ko.push(k + ' inconnu');
+        for (const k of HILLS_LUXE_ROULE) { const v = creerVehicule(k, LIMITE_EST - 20, MER - 140, 0, null); P.x = v.x; P.z = v.z; entrerVehicule(v); const x0 = v.x, z0 = v.z;
+          for (let i = 0; i < 60; i++) majVehiculePhys(v, 1 / 30, 1, 0, false); const d = Math.hypot(v.x - x0, v.z - z0); sortirVehicule(true); if (!(d > 4)) ko.push(k + ' n’avance pas (' + d.toFixed(1) + ' u)'); }
+        info.push(vente + ' en vente chez REYES MOTORS');
+        startRun(); P.hp = P.maxHp = 1e6;
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Voitures réalistes : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
+      else ok('Voitures réalistes : ' + r.info.join(' ; ') + ' ; gabarits, roues au sol, géométries partagées, peinture du garage, gyrophares, modèles de luxe qui roulent');
     }
 
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');

@@ -1801,3 +1801,13 @@ Le quartier des villas, tout droit sur la grille, est remplacé par une colline 
 - Le trafic de la ville n'entre pas dans la colline (demi-tour au bord) ; le reste de la ville ne bouge pas (portes vérifiées identiques).
 
 Captures : `captures/lot11/hills_vue_ensemble.png`, `hills_villas.png`.
+
+## Los Reyes Hills, suite : villas différentes, vie du quartier, voitures réalistes (15 octobre)
+
+- **Quinze styles de villas, jamais deux pareilles** : californienne des années 50 (toit papillon, bardage, piscine ronde), provençale (pierre, volets colorés, pergola, oliviers, cyprès, lavande), toscane (tour), Hamptons (bardeaux, lucarnes, clôture blanche), pueblo, Hollywood Regency, japonaise, Tudor, néo-classique (colonnes, fronton), brutaliste, hacienda, craftsman, moderne, balinaise, contemporaine. Piscines rectangulaires, rondes ou couloirs de nage. Trois grandes villas, trois moyennes, six petites.
+- **Terrasses** : murs de soutènement en pierre qui suivent la pente, en gradins plantés quand ils sont hauts.
+- **La vie** : panneau « LOS REYES » façon Hollywood au sommet (éclairé la nuit), guérite et barrière de résidence, massifs fleuris dans les épingles ; promeneurs (couples, chiens, poussettes, retour des courses), bronzeurs, baigneurs, barbecues entre amis, lavage de voiture ; cinq voitures de luxe dans les lacets.
+- **Voitures réalistes** : silhouettes profilées (capot, pare-brise, pavillon, malle, passages de roue), vitrage teinté, optiques, calandres, jantes, rétroviseurs, plaques, échappements — citadine, berline, taxi, police, berline Viper, Rafale, Éclipse, Mirage, Baronne. **Quatre nouveaux modèles** : limousine « Majesté », SUV « Sierra », cabriolet « Azur », hypercar « Zénith », en vente chez REYES MOTORS.
+- **Corrigés en route** : le lacet du sommet débordait au-dessus de la rue de la ville ; les véhicules de la descente et des voitures garées au hasard bloquaient la route de la colline.
+
+Captures : `captures/lot11/villas_styles.png`, `hills_vie.png`, `voitures_avant.png`, `voitures_arriere.png`, `voitures_en_ville.png`.
