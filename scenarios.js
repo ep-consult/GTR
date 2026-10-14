@@ -10420,6 +10420,7 @@ async function main() {
         lancerTour(); tourFinir(true); fermerTour();
         for (const [id, cle] of [['stunt', 'motocross'], ['bowl', 'bmx'], ['badlands', 'motocross']]) { if (P.veh) sortirVehicule(true); const d = rideDepart(id), v = creerVehicule(cle, d.x, d.z, 0, null); v.h = solY(d.x, d.z); P.x = v.x; P.z = v.z; entrerVehicule(v); demarrerRide(id); if (RIDES.actif) finirRide(true); else ko.push('course ' + id + ' ne démarre pas'); sortirVehicule(true); }
         if (typeof TOW !== 'undefined') { TOW.actif = { id: 'wake', pts: TOW_DEFS.wake.objectif, t: 1, s: 0 }; finTow('temps'); }
+        if (typeof BASE !== 'undefined' && BASE.ok) { lancerDefiBase(); finDefiBase(true); } // parcours du combattant de Fort Reyes
         checkTenues();
         for (const [k, id] of Object.entries(TENUE_EXPLOIT)) if (!META.exploits[k] || !META.tenuesPoss[id]) ko.push(k + ' → ' + id + ' pas débloquée');
         if (!ko.length) info.push(Object.keys(TENUE_EXPLOIT).length + ' tenues débloquées par leur mini-jeu');
@@ -10984,6 +10985,50 @@ async function main() {
       });
       if (r.ko.length) fail('Figurants interactifs : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
       else ok('Figurants interactifs : ' + r.info.join(' ; '));
+    }
+
+    // -------------------------------------------------------------------
+    // Retours du 17 octobre (1) : sur la colline et la montagne, le joueur
+    // touche un ennemi et l'ennemi le touche (hauteurs de tir comptées depuis
+    // le sol de chacun) ; aucun animal laissé au centre-ville ; conducteurs
+    // visibles (PNJ au volant d'un véhicule ouvert ou fermé, joueur dans le
+    // 4x4) ; jeep militaire à l'échelle.
+    // -------------------------------------------------------------------
+    console.log('\n--- Retours du 17 octobre : tir en relief, faune, conducteurs, jeep militaire ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
+        for (const e of ennemis) e.mort = true;
+        // 1. tir sur la colline : une parcelle de villa en hauteur, un gangster à 7 u
+        const pad = HILLS.ok && HILLS.pads.filter((p) => p.villa).sort((a, b) => b.h - a.h)[0];
+        if (pad) {
+          const x = pad.x - pad.hw + 3, z = pad.z + (pad.f || 1) * (pad.hd - 2); P.x = x; P.z = z; P.y = solPied(x, z); P.chute = false;
+          const e = creerEnnemi('chr_fusil', x + 7, z, false); e.passif = false;
+          for (let i = 0; i < 4; i++) majEnnemis(1 / 30);
+          const hp0 = e.hp; P.ang = Math.atan2(e.x - P.x, e.z - P.z);
+          const yS = solY(e.x, e.z); tirer(P.x, P.y + 1.45, P.z, P.ang, 0, 60, 30, 'joueur', 0xffe08a, yS + 1.2, Math.hypot(e.x - P.x, e.z - P.z), null);
+          for (let i = 0; i < 20; i++) majPools(1 / 30);
+          if (!(e.hp < hp0 || e.mort)) ko.push('le joueur ne touche pas l’ennemi sur la colline (sol ' + yS.toFixed(1) + ')');
+          const pv0 = P.hp; e.mort = false; tirer(e.x, solY(e.x, e.z) + 1.3, e.z, Math.atan2(P.x - e.x, P.z - e.z), 0, 55, 10, 'viperes', 0xffc46a, hCibleJoueur(), 7);
+          P.iframes = 0; for (let i = 0; i < 20; i++) majPools(1 / 30);
+          if (!(P.hp < pv0)) ko.push('l’ennemi ne touche pas le joueur sur la colline');
+          else info.push('tirs croisés sur la colline à ' + yS.toFixed(0) + ' u');
+          e.mort = true; P.hp = P.maxHp; }
+        // 2. faune : aucun animal à l'origine (ils restaient au centre-ville tant qu'on ne s'approchait pas)
+        P.x = 0; P.z = 0; P.y = 0; if (typeof placerFauneMont === 'function') { for (const a of FAUNE) if (a.zone === 'mont') a.mort = true; placerFauneMont(); }
+        for (const a of FAUNE) if (!a.mort && Math.hypot(a.g.position.x, a.g.position.z) < 5) { ko.push(a.type + ' au centre-ville'); break; }
+        // 3. conducteurs : PNJ au volant d'un cabriolet, d'une berline ; joueur dans le 4x4
+        for (const k of ['cabriolet', 'berline']) { const v = creerVehicule(k, 40, 40, 0, 'trafic'); v.conduit = 'trafic'; majChauffeur(v); const ch = v.mesh.userData.chauffeur; if (!ch || !ch.visible) ko.push(k + ' : pas de conducteur visible'); v.conduit = null; majChauffeur(v); if (ch && ch.visible) ko.push(k + ' : conducteur resté sans personne au volant'); }
+        { const j = creerVehicule('jeep', 60, 40, 0, null); P.x = j.x; P.z = j.z; entrerVehicule(j); if (!P.h.g.visible || P.h.g.parent !== j.mesh) ko.push('joueur invisible dans le 4x4'); sortirVehicule(true); }
+        // 4. jeep militaire à l'échelle
+        { const m = makeVoiture('jeepMil'), bb = new THREE.Box3(); m.updateMatrixWorld(true); m.traverse((o) => { if (o.isMesh) bb.expandByObject(o); }); const hh = bb.max.y, ll = bb.max.z - bb.min.z;
+          if (hh < 2 || ll < 4) ko.push('jeep militaire : ' + ll.toFixed(1) + ' × ' + hh.toFixed(1) + ' u'); else info.push('jeep militaire ' + ll.toFixed(1) + ' × ' + hh.toFixed(1) + ' u'); }
+        startRun(); P.hp = P.maxHp = 1e6;
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Retours du 17 octobre (1) : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
+      else ok('Retours du 17 octobre (1) : ' + r.info.join(' ; ') + ' ; faune hors de la ville, conducteurs visibles');
     }
 
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');

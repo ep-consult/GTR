@@ -1859,7 +1859,7 @@ function garagesMetaDefaut(){ const o={}; for(const g of GARAGES_TUNING) o[g.id]
 const VEHPERSO_MAX=6;
 function vehPersoMetaDefaut(){ const o={}; for(let i=0;i<VEHPERSO_MAX;i++) o['v'+i]=slotGarageDefaut(); return o; }
 const META={
-  exploits:{basket:false,tour:false,supercross:false,bowl:false,wake:false,badlands:false}, // mini-jeux réussis (tenues)
+  exploits:{basket:false,tour:false,supercross:false,bowl:false,wake:false,badlands:false,base:false}, // mini-jeux réussis (tenues)
   argent:150, xp:0, niveau:1,
   record:0, recordVague:0, killsTotal:0, parties:0,
   perso:'jax', persosPoss:['jax'], radio:0, planque:false, garage:null, revenus:0,
@@ -2477,11 +2477,13 @@ const TENUES=[
    cond:()=>!!META.exploits.wake,haut:0x101a20,bas:0x35e0ff,casq:0x101a20},
   {id:'badlands',nom:'Tenue « Badlands »',ico:'🏜️',condTxt:'Finir la course des Badlands — dégâts des chutes divisés par deux',
    cond:()=>!!META.exploits.badlands,haut:0xc9703a,bas:0x5a3a22,casq:0xe0a060},
+  {id:'militaire',nom:'Treillis de Fort Reyes',ico:'🎖️',condTxt:'Réussir le parcours du combattant de la base — Fort Reyes ne sonne plus l’alarme',
+   cond:()=>!!(META.exploits&&META.exploits.base),haut:0x4a5238,bas:0x3a4228,casq:0x3a4228},
 ];
 // capacité d'une tenue : k si elle est portée, 1 sinon
 function tenueK(id,k){ return META.tenue===id?k:1; }
 // un exploit de mini-jeu : la 1re fois, la tenue est annoncée avec sa capacité
-const TENUE_EXPLOIT={basket:'ballers',tour:'aiguilleur',supercross:'prorider',bowl:'skateur',wake:'wakeur',badlands:'badlands'};
+const TENUE_EXPLOIT={basket:'ballers',tour:'aiguilleur',supercross:'prorider',bowl:'skateur',wake:'wakeur',badlands:'badlands',base:'militaire'};
 function exploitMiniJeu(cle){
   if(!META.exploits||META.exploits[cle]) return; META.exploits[cle]=true; checkTenues();
   const tn=TENUES.find((x)=>x.id===TENUE_EXPLOIT[cle]);
@@ -2555,7 +2557,7 @@ const VEHDEFS={
   // mitrailleuse montée sur affût pivotant (visée au joystick superposé
   // sur TIR, voir bindViseeJoystick/majConduite — même mécanique que la
   // tourelle du char, juste plus vive et bien moins blindée).
-  jeepMil:{nom:'Jeep militaire "Guépard"',tuningMeca:true,vmax:37,acc:24,man:3.2,hp:85,long:3.6,larg:1.7,type:'car',mitrailleuse:true,cache:true,cols:[0x5a6244]},
+  jeepMil:{nom:'Jeep militaire "Guépard"',tuningMeca:true,vmax:37,acc:24,man:3.2,hp:110,long:4.4,larg:2.1,type:'car',mitrailleuse:true,jeep:true,cache:true,cols:[0x5a6244]}, // (16 octobre, « ratatinée ») : carrosserie du 4x4, à l'échelle d'un vrai véhicule tactique, affût sur le toit
   // Camion DCA : canon anti-aérien qui grimpe assez vite pour toucher un
   // hélicoptère (voir collisionBalle, seuil b.y>11) — vise au même
   // joystick, sur TIR. Lent et lourd, l'inverse de la Jeep : c'est un outil
@@ -3988,7 +3990,7 @@ function construireVille(){
     if(qq!=='plage'&&qq!=='parc'&&bx%3===1&&bz%3===1) mkFeu(cx+INNER/2+1.4,cz-INNER/2-1.4);
   }
   placerPortes();
-  if(DECOR_V2){ sansAleaVille(()=>{ reserverHills(); reserverChantier(); ameliorerPortes(); mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkBasket(); mkCiel(); mkKiosqueBanderole(); mkCrique(); mkMontReyes(); mkVieMont(); mkBordureEst(); mkCanyonsDesert(); mkPicVertige(); mkParcStunt(); mkSkateXXL(); mkRides(); mkMerVivante(); mkRemorquage(); mkLarge(); deplacerVoltige(); mkAeroportVivant(); mkHeliGrue(); mkPlanques(); mkBoutiques(); mkGrandHuit(); mkToitsVivants(); mkTracesSable(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkNeonVivant(); mkQuartiersFinitions(); mkBalises(); mkFacadesVariees(); mkCascades(); if(MERV.ok) mkVolcanIle(); mkAeroVie(); mkLosReyesHills(); mkBordsHills(); mkChantierV2(); mkPlanquesV2(); }); } // cascades et volcan EN DERNIER : leurs tirages du décor ne décalent rien de ce qui précède (mobilier...) // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
+  if(DECOR_V2){ sansAleaVille(()=>{ reserverHills(); reserverChantier(); reserverBase(); ameliorerPortes(); mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkBasket(); mkCiel(); mkKiosqueBanderole(); mkCrique(); mkMontReyes(); mkVieMont(); mkBordureEst(); mkCanyonsDesert(); mkPicVertige(); mkParcStunt(); mkSkateXXL(); mkRides(); mkMerVivante(); mkRemorquage(); mkLarge(); deplacerVoltige(); mkAeroportVivant(); mkHeliGrue(); mkPlanques(); mkBoutiques(); mkGrandHuit(); mkToitsVivants(); mkTracesSable(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkNeonVivant(); mkQuartiersFinitions(); mkBalises(); mkFacadesVariees(); mkCascades(); if(MERV.ok) mkVolcanIle(); mkAeroVie(); mkLosReyesHills(); mkBordsHills(); mkChantierV2(); mkPlanquesV2(); mkBaseV2(); }); } // cascades et volcan EN DERNIER : leurs tirages du décor ne décalent rien de ce qui précède (mobilier...) // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
   finaliserMerge();
   construireMinimapStatique();
 }
@@ -6734,7 +6736,7 @@ function mkAeroportVivant(){
 function fusionnerDecor(i0){
   const par=new Map(), retires=[];
   for(let i=i0;i<scene.children.length;i++){ const m=scene.children[i];
-    if(!m.isMesh||m.children.length||!m.geometry||!m.geometry.attributes||!m.geometry.attributes.normal||!m.geometry.attributes.uv||Array.isArray(m.material)) continue;
+    if(!m.isMesh||m.children.length||m.userData.garder||!m.geometry||!m.geometry.attributes||!m.geometry.attributes.normal||!m.geometry.attributes.uv||Array.isArray(m.material)) continue;
     m.updateMatrix(); const g=m.geometry.clone(); g.applyMatrix4(m.matrix);
     if(!par.has(m.material)) par.set(m.material,[]); par.get(m.material).push(g); retires.push(m); }
   for(const m of retires) scene.remove(m);
@@ -7858,7 +7860,7 @@ function mkChantierV2(){
     const tas=new THREE.Mesh(new THREE.ConeGeometry(2.2,1.8,10),mat(0xd8c08a)); tas.position.set(c.x-6,0.9,c.z+10); scene.add(tas);
     const silo=new THREE.Mesh(new THREE.CylinderGeometry(1.1,1.1,5,12),mat(0xd8d8d0)); silo.position.set(c.x-1.5,4,c.z+12); scene.add(silo); for(const [dx,dz] of [[-0.8,-0.8],[0.8,-0.8],[-0.8,0.8],[0.8,0.8]]) mkBox(0.12,1.6,0.12,mat(0x5a626c),c.x-1.5+dx,0.8,c.z+12+dz);
     addSolid({x:c.x-1.5,z:c.z+12,hw:1.1,hd:1.1,h:6.5});
-    for(let k=0;k<3;k++){ const h=makeHumain({haut:0xff7a1a,bas:0x2a3a5a,peau:choixD(civPeau),casq:0xffd23f,visage:'neutre'},1); h.g.position.set(c.x-8+k*2.5,0,c.z+5+(k%2)); h.g.rotation.y=k*1.7; scene.add(h.g); h.brasD.rotation.x=-0.8-k*0.2; figurant(h); } }
+    for(let k=0;k<3;k++){ const h=makeHumain({haut:0xff7a1a,bas:0x2a3a5a,peau:choixD(civPeau),casq:0xffd23f,visage:'neutre'},1); h.g.position.set(c.x-13+k*1.6,0,c.z+3.2+(k%2)*0.6); h.g.rotation.y=k*1.7; scene.add(h.g); h.brasD.rotation.x=-0.8-k*0.2; figurant(h); } }
   // palissade de chantier (bâches CHANTIER) sur le pourtour, passages au sud et à l'est
   { const bache=cTex(128,(g2,s)=>{ g2.fillStyle='#e8e4dc'; g2.fillRect(0,0,s,s); g2.fillStyle='#1a5a9a'; g2.fillRect(0,s*0.62,s,s*0.38); g2.fillStyle='#1a5a9a'; g2.font='bold '+Math.round(s*0.2)+'px Arial'; g2.textAlign='center'; g2.fillText('CHANTIER',s/2,s*0.42); },4,1);
     const mb=new THREE.MeshLambertMaterial({map:bache}), m=INNER/2-0.2;
@@ -7960,6 +7962,150 @@ function mkBordsHills(){
   }
   fusionnerDecor(i0);
 }
+/* =====================================================================
+   FORT REYES — LA BASE MILITAIRE V2 (17 octobre, demandé : « matérialiser un héliport avec l'hélicoptère dessus — il
+   est à cheval sur une voiture —, placer les véhicules à des endroits précis, une entrée plus majestueuse, plus de vie
+   dans la base, et un défi qui débloque une tenue militaire »).
+   Quatre pâtés de la base sont vidés au début du décor (reserverBase → viderZone : la ville ne bouge pas) et rebâtis à
+   la fin (mkBaseV2) :
+   - PLACE D'ARMES (12,1) : drapeaux qui flottent, char-monument sur son socle, section qui défile au pas ;
+   - PARC DES VÉHICULES (11,1) : une place marquée par engin (BASE.places, lues par startRun), filet de camouflage ;
+   - HÉLIPORT (13,0) : « H », balisage, manche à air, citerne, cabine, radar ; le Vautour posé dessus ;
+   - PARCOURS DU COMBATTANT (13,1) : le défi (8 portes et 4 cibles en 45 s, dtJeu), qui donne le treillis.
+   Entrée monumentale au sud (piliers, fronton FORT REYES, drapeaux, guérite, barrière, sentinelles). « S'ENGAGER »
+   à la guérite : visite libre pour la partie (BASE.laissez) ; le treillis porté fait de même ; tirer ou frapper dans la
+   base révoque l'accès (alarme). Les soldats du décor (figurants « ennemi ») deviennent de vrais soldats à l'alarme.
+===================================================================== */
+const BASE={ok:false,cases:{},places:{},heli:null,porte:null,depart:null,portes:[],cibles:[],defi:null,laissez:false,revoque:false,drapeaux:[],section:[],pompes:[],balisage:[],t:0};
+const BASE_DEFI_T=25; /* secondes du parcours du combattant (pilote simulé : 10,8 s) */
+function caseBase(bx,bz){ return {x:-HALF+bx*CELL+CELL/2,z:-HALF+bz*CELL+CELL/2}; }
+function dansBase(x,z){ const b=POIS.base; return !!b&&Math.abs(x-b.x)<b.hw&&Math.abs(z-b.z)<b.hd; }
+function baseAutorisee(){ return BASE.ok&&!BASE.revoque&&(BASE.laissez||META.tenue==='militaire'); }
+function reserverBase(){
+  if(!DECOR_V2||!POIS.base) return; const m=INNER/2+0.4;
+  BASE.cases={place:caseBase(12,1),parc:caseBase(11,1),heli:caseBase(13,0),parcours:caseBase(13,1)};
+  for(const k in BASE.cases){ const c=BASE.cases[k]; viderZone(c.x-m,c.x+m,c.z-m,c.z+m); }
+  const P0=BASE.cases.parc, H=BASE.cases.heli, C=BASE.cases.parcours, b=POIS.base;
+  // places du parc (face au sud, vers l'allée centrale de la base)
+  BASE.places={char:{x:P0.x-10,z:P0.z-3.5,a:0},blinde:{x:P0.x-3.6,z:P0.z-3.5,a:0},milit:{x:P0.x+2.2,z:P0.z-3.5,a:0},dca:{x:P0.x+7.6,z:P0.z-3.5,a:0},jeepMil:{x:P0.x+12.2,z:P0.z-3.5,a:0}};
+  BASE.heli={x:H.x,z:H.z+1}; BASE.porte={x:b.x,z:b.z+b.hd};
+  BASE.depart={x:C.x-10,z:C.z+10};
+  const L=[[-10,10],[6,9],[10,0],[8,-6],[0,-10],[-10,-8],[-4.5,2],[-10,10]]; /* la 7e porte : derrière le muret du pas de tir */ BASE.portes=L.map(([u,w])=>({x:C.x+u,z:C.z+w}));
+  BASE.ok=true;
+}
+function mkBaseV2(){
+  if(!BASE.ok) return; const i0=scene.children.length, b=POIS.base, PA=BASE.cases.place, P0=BASE.cases.parc, H=BASE.cases.heli, C=BASE.cases.parcours;
+  const beton=mat(0x9e9a8e), kaki=mat(0x4a5238), kakiF=mat(0x3a4228), blanc=mat(0xf2f2ee), jaune=mat(0xffd23f), or=mat(0xd8b02a), pierre=mat(0x9a968a), noir=mat(0x23262e);
+  const soldat=(x,z,ry,casq)=>{ const h=makeHumain({haut:0x4a5238,bas:0x3a4228,peau:choixD(civPeau),casq:casq||0x3a4228,visage:'neutre'},1); h.g.position.set(x,0.25,z); h.g.rotation.y=ry||0; scene.add(h.g); figurant(h,null,'soldat'); return h; };
+  // --- place d'armes : dalle, liserés, trois mâts, socle et char-monument, section au pas
+  mkBox(INNER,0.06,INNER,beton,PA.x,0.22,PA.z); for(const s of [-1,1]){ mkBox(INNER-2,0.02,0.25,blanc,PA.x,0.26,PA.z+s*(INNER/2-1)); mkBox(0.25,0.02,INNER-2,blanc,PA.x+s*(INNER/2-1),0.26,PA.z); }
+  const coulD=[[0x1a4fa0,0xf2f2ee],[0x4a5238,0xd8b02a],[0xd83a3a,0xf2f2ee]];
+  for(let k=0;k<3;k++){ const x=PA.x-6+k*6, z=PA.z-11; mkBox(0.16,10,0.16,blanc,x,5,z); const sp=new THREE.Mesh(new THREE.SphereGeometry(0.2,8,6),or); sp.position.set(x,10.1,z); scene.add(sp);
+    const tx=cTex(64,(c,s)=>{ c.fillStyle='#'+coulD[k][0].toString(16).padStart(6,'0'); c.fillRect(0,0,s,s); c.fillStyle='#'+coulD[k][1].toString(16).padStart(6,'0'); c.fillRect(0,s*0.4,s,s*0.2); c.beginPath(); c.arc(s*0.3,s*0.3,s*0.12,0,7); c.fill(); });
+    const dr=new THREE.Mesh(new THREE.PlaneGeometry(2.6,1.6,6,1),new THREE.MeshLambertMaterial({map:tx,side:THREE.DoubleSide})); dr.position.set(x+1.35,9.1,z); dr.userData.garder=true; scene.add(dr); BASE.drapeaux.push({m:dr,ph:k*1.3}); }
+  mkBox(5.2,1.6,8.4,pierre,PA.x,0.8,PA.z+1); mkBox(5.6,0.2,8.8,mat(0xb8b4a8),PA.x,1.7,PA.z+1); addSolid({x:PA.x,z:PA.z+1,hw:2.6,hd:4.2,h:1.7,toit:true});
+  mkEnseigne('FORT REYES — 1952','#d8b02a',PA.x,1.0,PA.z+5.25,0,3.2);
+  { const ch=makeVoiture('char'); ch.position.set(PA.x,1.8,PA.z+1); ch.rotation.y=0.5; scene.add(ch); }
+  for(let k=0;k<6;k++){ const h=soldat(PA.x-9,PA.z,0,0x2a3220); BASE.section.push({h,k}); }
+  for(let k=0;k<4;k++){ const h=soldat(PA.x+8+(k%2)*1.6,PA.z+8+Math.floor(k/2)*2,Math.PI); h.g.rotation.x=-1.25; h.g.position.y=0.48; BASE.pompes.push({h,ph:k}); } // pompes
+  // --- parc des véhicules : bitume, places marquées, filet de camouflage, pompe, établis
+  mkBox(INNER,0.06,INNER,mat(0x3a3c42),P0.x,0.22,P0.z);
+  for(const k in BASE.places){ const p=BASE.places[k], w=k==='char'?5.6:4.2, l=k==='char'?9.4:7.6; for(const s of [-1,1]) mkBox(0.2,0.02,l,jaune,p.x+s*w/2,0.26,p.z); mkBox(w,0.02,0.2,jaune,p.x,0.26,p.z-l/2);
+    mkEnseigne(VEHDEFS[k]?VEHDEFS[k].nom.split('"')[1]||k.toUpperCase():k,'#ffd23f',p.x,0.5,p.z-l/2-0.3,0,2.4); }
+  { const filet=new THREE.MeshLambertMaterial({color:0x4a5a2a,transparent:true,opacity:0.42,depthWrite:false,side:THREE.DoubleSide});
+    const fn=new THREE.Mesh(new THREE.PlaneGeometry(INNER-2,11,8,3),filet); fn.rotation.x=-Math.PI/2; fn.position.set(P0.x,4.6,P0.z-3.5); scene.add(fn);
+    for(const sx of [-1,1]) for(const sz of [-1,1]) mkBox(0.2,4.6,0.2,kakiF,P0.x+sx*(INNER/2-1.2),2.3,P0.z-3.5+sz*5.2); }
+  mkBox(1.2,2,1,mat(0xc83a2a),P0.x-11,1,P0.z+9); mkBox(3,1,1,mat(0x6a5a44),P0.x-5,0.5,P0.z+10); for(let k=0;k<6;k++) mkBox(0.4,0.55,0.3,kaki,P0.x+3+k*0.5,0.28,P0.z+10);
+  // --- héliport : dalle, « H », balisage, manche à air, citerne, cabine, radar
+  mkBox(INNER,0.06,INNER,mat(0x4a4c52),H.x,0.22,H.z);
+  { const hx=cTex(128,(g2,s)=>{ g2.clearRect(0,0,s,s); g2.strokeStyle='#f2f2ee'; g2.lineWidth=7; g2.beginPath(); g2.arc(s/2,s/2,54,0,7); g2.stroke(); g2.fillStyle='#ffd23f'; g2.font='900 76px Arial'; g2.textAlign='center'; g2.textBaseline='middle'; g2.fillText('H',s/2,s/2+3); });
+    const pad=new THREE.Mesh(new THREE.PlaneGeometry(17,17),new THREE.MeshBasicMaterial({map:hx,transparent:true,depthWrite:false})); pad.rotation.x=-Math.PI/2; pad.position.set(BASE.heli.x,0.27,BASE.heli.z); scene.add(pad); }
+  for(let k=0;k<16;k++){ const a=k/16*Math.PI*2, l=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.15,0.3),new THREE.MeshBasicMaterial({color:k%2?0x35e05a:0xffd23f})); l.position.set(BASE.heli.x+Math.cos(a)*9.2,0.32,BASE.heli.z+Math.sin(a)*9.2); l.userData.garder=true; scene.add(l); BASE.balisage.push(l); }
+  { const mx=H.x+12, mz=H.z-11; mkBox(0.1,5,0.1,mat(0x9aa2ad),mx,2.5,mz); const ma=new THREE.Mesh(new THREE.ConeGeometry(0.3,1.6,8,1,true),mat(0xff7a1a)); ma.rotation.z=Math.PI/2; ma.position.set(mx+0.8,4.8,mz); scene.add(ma); }
+  { const ci=new THREE.Mesh(new THREE.CylinderGeometry(1.1,1.1,4.2,12),kaki); ci.rotation.z=Math.PI/2; ci.position.set(H.x-10,1.6,H.z-11); scene.add(ci); mkBox(4.6,0.4,2.4,noir,H.x-10,0.4,H.z-11); addSolid({x:H.x-10,z:H.z-11,hw:2.3,hd:1.2,h:2.8}); }
+  mkBox(4,3,3,mat(0xb8b4a8),H.x+11,1.5,H.z+11); mkBox(4.05,1,3.05,mat(0x1a2a3a),H.x+11,2.2,H.z+11); mkBox(4.4,0.2,3.4,noir,H.x+11,3.1,H.z+11); addSolid({x:H.x+11,z:H.z+11,hw:2,hd:1.5,h:3.2,toit:true});
+  { const rad=new THREE.Group(); rad.add(mkBoxG(0.8,5,0.8,0x3a4030,0,2.5,0)); const dish=new THREE.Mesh(new THREE.CylinderGeometry(2.2,2.2,0.3,16,1,true,0,Math.PI),mat(0xc8ccd0)); dish.rotation.x=Math.PI/2.4; dish.position.y=5.2; rad.add(dish);
+    rad.position.set(H.x-11,0,H.z+10); scene.add(rad); POIS.radar=rad; addSolid({x:H.x-11,z:H.z+10,hw:0.5,hd:0.5,h:5}); }
+  for(let k=0;k<3;k++) soldat(H.x+6+k*1.4,H.z+8,Math.PI*0.8,0x1a1d24); // mécaniciens
+  // --- parcours du combattant : arche de départ, slalom, pneus, mur à escalader, filet, pas de tir et cibles
+  mkBox(INNER,0.06,INNER,mat(0x8a7a5a),C.x,0.22,C.z);
+  { const d=BASE.depart; for(const s of [-1,1]) mkBox(0.3,3.2,0.3,kaki,d.x+s*1.8,1.6,d.z); mkBox(4,0.6,0.3,kaki,d.x,3.3,d.z); mkEnseigne('PARCOURS DU COMBATTANT','#ffd23f',d.x,4.1,d.z+0.2,0,4.5); }
+  for(const [u,w] of [[-6,10],[-3,9],[0,10],[3,9]]){ mkBox(0.22,1.6,0.22,mat(0xff7a1a),C.x+u,0.8,C.z+w); addSolid({x:C.x+u,z:C.z+w,hw:0.12,hd:0.12,h:1.6}); }
+  for(let k=0;k<10;k++){ const p=new THREE.Mesh(new THREE.TorusGeometry(0.42,0.16,6,10),mat(0x15171c)); p.rotation.x=Math.PI/2; p.position.set(C.x+8+(k%2),0.3,C.z+2+k*0.55); scene.add(p); }
+  mkBox(5,1.8,4.2,mat(0x6a5038),C.x+8,0.9,C.z-6); mkBox(5.2,0.12,4.4,mat(0x8a6a44),C.x+8,1.84,C.z-6); PLATS.push({x:C.x+8,z:C.z-6,hw:2.5,hd:2.1,h:1.8}); // mur à escalader
+  for(let k=0;k<5;k++) mkBox(0.12,0.12,5,mat(0x8a6a44),C.x+5.4,0.3+k*0.32,C.z-6); // l'échelle de cordes
+  { const net=new THREE.MeshLambertMaterial({color:0x4a5a2a,transparent:true,opacity:0.6,side:THREE.DoubleSide}); const n=new THREE.Mesh(new THREE.PlaneGeometry(6,2.4),net); n.rotation.x=-Math.PI/2; n.position.set(C.x-5,0.7,C.z-10); scene.add(n);
+    for(const u of [-8,-2]) for(const s of [-1,1]) mkBox(0.1,0.7,0.1,kakiF,C.x+u,0.35,C.z-10+s*1.2); }
+  mkBox(0.3,1,6,mat(0x8a6a44),C.x-6.5,0.5,C.z+2); // pas de tir (muret)
+  BASE.cibles=[]; for(let k=0;k<4;k++){ const z=C.z-3+k*2.6, x=C.x-12.6; mkBox(0.1,1.2,0.1,noir,x,0.6,z);
+    const tx=cTex(64,(c,s)=>{ c.fillStyle='#f2f2ee'; c.fillRect(0,0,s,s); for(const [r,co] of [[0.45,'#d83a3a'],[0.32,'#f2f2ee'],[0.18,'#d83a3a']]){ c.fillStyle=co; c.beginPath(); c.arc(s/2,s/2,s*r,0,7); c.fill(); } });
+    const ci=new THREE.Mesh(new THREE.BoxGeometry(0.08,1,0.9),[mat(0xf2f2ee),new THREE.MeshLambertMaterial({map:tx}),mat(0xf2f2ee),mat(0xf2f2ee),mat(0xf2f2ee),mat(0xf2f2ee)]); ci.position.set(x,1.7,z); scene.add(ci); BASE.cibles.push({m:ci,x,z,y:1.7,touche:false}); }
+  BASE.portesFx=BASE.portes.slice(1).map((p)=>{ const r=new THREE.Mesh(new THREE.RingGeometry(1.2,1.6,20),new THREE.MeshBasicMaterial({color:0xffd23f,transparent:true,opacity:0.8,side:THREE.DoubleSide,depthWrite:false})); r.rotation.x=-Math.PI/2; r.position.set(p.x,(dist2(p.x,p.z,C.x+8,C.z-6)<9?1.9:0.3),p.z); r.visible=false; r.userData.garder=true; scene.add(r); return r; });
+  // --- entrée monumentale : piliers à étoile d'or, fronton, mâts, guérite, barrière, sacs de sable, sentinelles
+  { const g=BASE.porte, z=g.z;
+    for(const e of ENSEIGNES) if(e.p&&Math.abs(e.p.position.x-g.x)<1&&Math.abs(e.p.position.z-(z+0.4))<1&&e.p.parent) e.p.parent.remove(e.p); // l'ancienne enseigne ZONE MILITAIRE
+    for(const s of [-1,1]){ const x=g.x+s*7.4; mkBox(2.6,8,2.6,mat(0x7a7a6a),x,4,z); mkBox(3,0.4,3,mat(0x9a9a8a),x,8.2,z); addSolid({x,z,hw:1.3,hd:1.3,h:8});
+      const et=new THREE.Mesh(new THREE.CircleGeometry(0.9,5),or); et.position.set(x,5.4,z+1.32); et.rotation.z=Math.PI/2; scene.add(et);
+      const pr=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.4,0.5),new THREE.MeshBasicMaterial({color:0xfff4c8})); pr.position.set(x,8.6,z+0.8); scene.add(pr);
+      for(let k=0;k<3;k++){ const xm=g.x+s*(11+k*3.4), zm=z-2.6; mkBox(0.12,7,0.12,blanc,xm,3.5,zm); const tx=cTex(32,(c,s2)=>{ c.fillStyle=k===1?'#4a5238':'#1a4fa0'; c.fillRect(0,0,s2,s2); c.fillStyle='#d8b02a'; c.fillRect(0,s2*0.45,s2,s2*0.1); });
+        const dr=new THREE.Mesh(new THREE.PlaneGeometry(1.8,1.1,5,1),new THREE.MeshLambertMaterial({map:tx,side:THREE.DoubleSide})); dr.position.set(xm+s*0.95,6.4,zm); dr.userData.garder=true; scene.add(dr); BASE.drapeaux.push({m:dr,ph:k+s}); } }
+    mkBox(17.4,1.8,1.8,mat(0x6a6a5a),g.x,9.1,z); mkEnseigne('FORT REYES — BASE MILITAIRE','#d8b02a',g.x,9.1,z+0.95,0,11);
+    mkBox(2.4,2.6,2.4,mat(0x6a7258),g.x+4.2,1.3,z-4.4); mkBox(2.8,0.2,2.8,kakiF,g.x+4.2,2.7,z-4.4); mkBox(2.42,0.8,1.6,mat(0x1a2a3a),g.x+4.2,1.8,z-4.4); addSolid({x:g.x+4.2,z:z-4.4,hw:1.2,hd:1.2,h:2.8,toit:true});
+    { const bar=new THREE.Group(); for(let k=0;k<6;k++) bar.add(mkBoxG(0.16,1.0,0.16,k%2?0xd83a3a:0xf6f6f2,0,0.5+k*1.0,0)); bar.position.set(g.x+2.8,1.1,z-2.2); bar.rotation.z=0.25; scene.add(bar); }
+    for(const s of [-1,1]) for(let k=0;k<5;k++) mkBox(1,0.45,0.6,mat(0xb8a878),g.x+s*(5.2-k*0.2),0.23+(k%2)*0.45*0,z-3.4-k*0.62);
+    for(const s of [-1,1]) soldat(g.x+s*4.8,z-1.6,Math.PI,0x2a3220); }
+  fusionnerDecor(i0);
+}
+// la vie : section au pas, pompes, drapeaux qui flottent, balisage de l'héliport ; défi du parcours
+function majBaseV2(dt,dtJeu){
+  if(!BASE.ok) return; BASE.t+=dt; const t=BASE.t, PA=BASE.cases.place, pres=dist2(P.x,P.z,POIS.base.x,POIS.base.z)<140*140;
+  if(pres){
+    for(const d of BASE.drapeaux){ const p=d.m.geometry.attributes.position; for(let i=0;i<p.count;i++){ const x=p.getX(i); p.setZ(i,Math.sin(t*4+d.ph+x*2)*0.18*(x+1.3)); } p.needsUpdate=true; }
+    // la section au pas : un rectangle autour du socle, en colonne par deux
+    const coins=[[-8,-6],[8,-6],[8,8],[-8,8]], lg=[16,14,16,14], per=60;
+    for(const s of BASE.section){ if(figConverti(s.h)) continue;
+      let d=((t*1.5-Math.floor(s.k/2)*1.3)%per+per)%per, seg=0; while(d>lg[seg]){ d-=lg[seg]; seg++; }
+      const [ax,az]=coins[seg], [bx,bz]=coins[(seg+1)%4], f=d/lg[seg], dx=Math.sign(bx-ax), dz=Math.sign(bz-az), cote=s.k%2?0.55:-0.55;
+      const g=s.h.g; g.position.set(PA.x+ax+(bx-ax)*f+dz*cote,0.25,PA.z+az+(bz-az)*f-dx*cote); g.rotation.y=Math.atan2(dx,dz); animeHumain(s.h,dt,4.5,false); s.h.brasD.rotation.x=-0.25; }
+    for(const p of BASE.pompes){ if(figConverti(p.h)) continue; const a=Math.sin(t*4+p.ph); p.h.g.position.y=0.43+a*0.12; p.h.brasG.rotation.x=p.h.brasD.rotation.x=-1.4+a*0.25; }
+    const nuit=(ETAT.nuitF||0)>0.3; for(let k=0;k<BASE.balisage.length;k++) BASE.balisage[k].visible=!nuit||((Math.floor(t*3)+k)%4!==0);
+  }
+  // accès libre révoqué si l'on tire ou frappe dans la base
+  if(BASE.laissez&&!BASE.revoque&&dansBase(P.x,P.z)&&(P.tirT>0.3||P.frappeT>0)){ BASE.revoque=true; toast('🚨 Tu as ouvert le feu dans la base : alerte générale !','warn'); addHeat(3,false,true); }
+  majDefiBase(dtJeu);
+}
+function baseAction(){
+  if(!BASE.ok||P.veh) return null; const g=BASE.porte, d=BASE.depart;
+  if(dist2(P.x,P.z,g.x,g.z-2.5)<16&&!baseAutorisee()&&!BASE.revoque) return {label:'🎖️ S’ENGAGER — VISITER FORT REYES',fn:()=>{ BASE.laissez=true; SFX.achat(); bigMsg('🎖️ BIENVENUE À FORT REYES'); toast('Visite libre : ne tire pas dans la base. Le parcours du combattant t’attend au sud-est.','or'); }};
+  if(!BASE.defi&&dist2(P.x,P.z,d.x,d.z)<9) return {label:'🎖️ PARCOURS DU COMBATTANT — 7 PORTES, 4 CIBLES, 25 s',fn:lancerDefiBase};
+  return null;
+}
+function lancerDefiBase(){
+  if(BASE.defi) return; BASE.defi={t:BASE_DEFI_T,i:1}; for(const c of BASE.cibles){ c.touche=false; c.m.rotation.z=0; c.m.position.y=c.y; }
+  BASE.portesFx.forEach((r,k)=>r.visible=k===0); RIDES.txt.style.display='block'; bigMsg('🎖️ GO ! GO ! GO !'); SFX.vague(); vibre(40);
+}
+function finDefiBase(ok){
+  const D=BASE.defi; if(!D) return; BASE.defi=null; for(const r of BASE.portesFx) r.visible=false; RIDES.txt.style.display='none';
+  if(ok){ const g=primeMerUneFois('base',350); bigMsg('🎖️ PARCOURS RÉUSSI'+(g?' — +'+g+' $':'')); exploitMiniJeu('base'); BASE.laissez=true; SFX.achat(); }
+  else { bigMsg('⏱️ TROP LENT, SOLDAT !'); SFX.refus(); }
+}
+function majDefiBase(dtJeu){
+  const D=BASE.defi; if(!D) return; D.t-=dtJeu;
+  const p=BASE.portes[D.i]; if(p&&dist2(P.x,P.z,p.x,p.z)<2.2*2.2&&Math.abs(P.y-solPied(p.x,p.z))<1.2){ D.i++; SFX.ui(); vibre(15); spawnTexte(p.x,2.5,p.z,'PORTE '+(D.i-1)+'/7','#ffd23f');
+    BASE.portesFx.forEach((r,k)=>r.visible=k===D.i-1); }
+  const nc=BASE.cibles.filter((c)=>c.touche).length;
+  if(RIDES.txt) RIDES.txt.textContent='🎖️ PARCOURS — porte '+Math.min(D.i,7)+'/7 — cibles '+nc+'/4 — '+Math.ceil(Math.max(0,D.t))+' s';
+  if(D.i>=BASE.portes.length&&nc>=BASE.cibles.length) finDefiBase(true);
+  else if(D.t<=0) finDefiBase(false);
+}
+// une balle du joueur sur une cible du pas de tir (appelée par collisionBalle)
+function distSegment2(px,pz,ax,az,bx,bz){ const dx=bx-ax, dz=bz-az, l2=dx*dx+dz*dz; const t=l2>0?Math.max(0,Math.min(1,((px-ax)*dx+(pz-az)*dz)/l2)):0; const ex=ax+dx*t-px, ez=az+dz*t-pz; return ex*ex+ez*ez; }
+function toucherCibleBase(b){
+  if(!BASE.ok||!BASE.cibles.length) return false;
+  for(const c of BASE.cibles){ if(c.touche) continue; if(Math.abs(b.y-c.y)<0.7&&distSegment2(c.x,c.z,b.x-(b.vx||0)/30,b.z-(b.vz||0)/30,b.x,b.z)<0.36){ /* le trajet du dernier 1/30 s : à 60 u/s une balle saute 2 u d'une image à l'autre */ c.touche=true; c.m.rotation.z=1.4; c.m.position.y=c.y-0.5; SFX.coup(); burst(c.x,c.y,c.z,6,0xd83a3a,4,6); spawnTexte(c.x,c.y+1,c.z,'TOUCHÉ !','#7dff7a'); return true; } }
+  return false;
+}
+function resetBase(){ BASE.defi=null; BASE.laissez=false; BASE.revoque=false; if(BASE.portesFx) for(const r of BASE.portesFx) r.visible=false; for(const c of BASE.cibles){ c.touche=false; c.m.rotation.z=0; c.m.position.y=c.y; } }
 /* CASCADES ET VOLCAN (15 octobre, demandé : « de la cascade à des endroits, avec de la déco, et de la lave sur
    l'île au pirate avec de la fumée ») — décor, générateur du décor (sansAleaVille), animé sur dt :
    - GRANDE CASCADE de la face sud du Pic du Vertige (90 u) : ruisseau sur le plateau, rideau d'eau qui s'arque
@@ -8620,6 +8766,7 @@ function placerFauneMont(){ // à chaque partie et chaque vague, comme l'île
     for(let t=0;t<40;t++){ const a=rand(0,6.28), r=type==='ours'?rand(0.45,0.7):rand(0.2,0.75), x2=MONT.x+Math.cos(a)*MONT.rx*r, z2=MONT.z+Math.sin(a)*MONT.rz*r;
       if(x2>LIMITE_EST-2||(MONT.presDuSentier&&MONT.presDuSentier(x2,z2,6))) continue;
       const h=hauteurMont(x2,z2); if(h<3||Math.abs(hauteurMont(x2+1.5,z2)-h)>2.2||Math.abs(hauteurMont(x2,z2+1.5)-h)>2.2) continue; x=x2; z=z2; break; }
+    m.g.position.set(x,hauteurMont(x,z),z); // posé dès sa création : au loin il est figé (LOD) et restait à (0,0), en plein centre-ville (« un ours au milieu de la ville »)
     FAUNE.push({type,D,zone:'mont',g:m.g,pattes:m.pattes,x,z,y:hauteurMont(x,z),ang:rand(0,6.28),hp:D.hp,mort:false,mordT:0,errT:0,ph:rand(0,6),corpsT:0}); }
 }
 function placerFaune(){ // à chaque partie et chaque vague : les morts reviennent
@@ -8628,6 +8775,7 @@ function placerFaune(){ // à chaque partie et chaque vague : les morts revienne
   retirerFaune('ile'); // tous ceux de l'île : un vivant laissé dans la scène restait figé, hors de FAUNE
   for(const type of ['sanglier','sanglier','sanglier','jaguar']){ const m=mkAnimal(type), D=FAUNE_DEFS[type];
     let x=MERV.camp?MERV.camp.x-4:ILE2.cx+10, z=MERV.camp?MERV.camp.z-4:ILE2.cz; for(let t=0;t<30;t++){ const a=rand(0,6.28), r=rand(5,18), x2=ILE2.cx+Math.cos(a)*r, z2=ILE2.cz+Math.sin(a)*r*0.7; if(ileU(x2,z2)<0.75&&!dansLave(x2,z2)&&!lavePres(x2,z2,1.5)){ x=x2; z=z2; break; } } // jamais dans la lave (ni au cratère : à défaut, près du camp)
+    m.g.position.set(x,hauteurIleTresor(x,z),z);
     FAUNE.push({type,D,g:m.g,pattes:m.pattes,x,z,y:hauteurIleTresor(x,z),ang:rand(0,6.28),hp:D.hp,mort:false,mordT:0,errT:0,ph:rand(0,6),corpsT:0}); }
 }
 function toucherAnimal(a,dmg){
@@ -13094,7 +13242,13 @@ function makeVoitureBase(key){
       corps.add(mkBoxG(W*0.94,0.2,0.16,0x9aa0a8,0,bodyY-0.22,L/2*0.98));             // pare-chocs avant, chromé et marqué
       corps.add(mkBoxG(W*0.94,0.2,0.16,0x9aa0a8,0,bodyY-0.22,-L/2*0.98));            // pare-chocs arrière, chromé
       corps.add(mkBoxG(W*0.68,0.08,0.1,0xe8ecf2,0,bodyY+0.72,L*0.5-cabL*0.55));      // barre de toit à leds
-    } else if(def.jeep){ jeepCarrosserie(corps,coul,L,W,bodyY);
+    } else if(def.jeep){ jeepCarrosserie(corps,coul,L,W,bodyY); ud.siege={assis:true,x:-W*0.22,y:bodyY-0.5,z:-L*0.06}; // à ciel ouvert : le conducteur se voit
+      if(def.mitrailleuse){ // jeep militaire : arceau, caisses de munitions, affût de mitrailleuse qui pivote (ud.tourelle)
+        for(const s of [-1,1]) corps.add(mkBoxG(0.5,0.3,0.6,0x3a4228,s*W*0.3,bodyY+0.46,-L*0.36));
+        const tj=new THREE.Group(); tj.position.set(0,bodyY+1.0,-L*0.18);
+        tj.add(mkBoxG(0.7,0.12,0.7,0x2a2d20,0,0,0)); tj.add(mkBoxG(0.6,0.4,0.08,0x3a4228,0,0.24,0.3)); // tourelleau, bouclier
+        tj.add(mkBoxG(0.12,0.12,1.1,0x1a1d24,0,0.32,0.55)); tj.add(mkBoxG(0.2,0.18,0.3,0x1a1d24,0,0.3,-0.05)); // canon, culasse
+        corps.add(tj); ud.tourelle=tj; }
     } else if(def.buggy&&_VEH_V2){ buggyV2(corps,g,coul,L,W,bodyY,key);
     } else if(def.buggy){
       // buggy des dunes à ciel ouvert : châssis nu, cage tubulaire visible,
@@ -13698,7 +13852,7 @@ function makeMotoV2(def,coul,g,ud,corps,key){
 // ud.bar (police) comme l'ancien modèle. Construit sur le générateur du décor (vehiculeRestyle).
 var _GEO_VOIT={}, _GEO_JANTE={}, _MAT_ORANGE=null, _MAT_VITRE=null, _MAT_CHROME=null, _MAT_PHARE=null, _MAT_FEU=null, _MAT_TAXI=null;
 function matsVoiture(){ if(_MAT_VITRE) return;
-  _MAT_VITRE=new THREE.MeshPhongMaterial({color:0x16202a,specular:0x8aa4c0,shininess:90});
+  _MAT_VITRE=new THREE.MeshPhongMaterial({color:0x16202a,specular:0x8aa4c0,shininess:90,transparent:true,opacity:0.78}); // teinté : on devine le conducteur
   _MAT_CHROME=new THREE.MeshPhongMaterial({color:0xb4bac4,specular:0xffffff,shininess:110});
   _MAT_PHARE=new THREE.MeshBasicMaterial({color:0xfff4d8}); _MAT_FEU=new THREE.MeshBasicMaterial({color:0xc8202a}); _MAT_ORANGE=new THREE.MeshBasicMaterial({color:0xff9a1a});
   const tx=cTex(128,(c,s)=>{ c.fillStyle='#ffd23f'; c.fillRect(0,0,s,s); c.fillStyle='#14161c'; c.font='bold '+Math.round(s*0.42)+'px Arial, sans-serif'; c.textAlign='center'; c.textBaseline='middle'; c.fillText('TAXI',s/2,s/2); });
@@ -13959,6 +14113,10 @@ for(let i=0;i<90;i++){
   balles.push({on:false,mesh:m,x:0,y:0,z:0,vx:0,vy:0,vz:0,t:0,dmg:0,fac:'joueur'});
 }
 let TIR_MOD=null; // munition spéciale de la salve en cours (balles explosives / incendiaires, flamme)
+// (16 octobre, signalé : « sur les collines et la montagne, ni moi ni les ennemis ne pouvons tirer ») : toutes les
+// hauteurs de tir et de touche se comptent depuis le SOL de chacun (solY), plus depuis y = 0
+function hCibleJoueur(){ return P.veh?(P.veh.def.air?Math.max(1,P.veh.alt||0):(P.veh.h||0)+1):P.y+1.2; }
+function hCible(c){ return c.heli?15.4:(c.D?c.y+0.7:solY(c.x,c.z)+1.2); }
 function tirer(x,y,z,ang,disp,vitesse,dmg,fac,coul,cibleY,distCible,typ){
   const b=balles.find(b=>!b.on); if(!b) return;
   const a=ang+rand(-disp,disp)*Math.PI/180;
@@ -13984,7 +14142,7 @@ function explosionArme(x,z,duJoueur){
   for(const p of pietons){ if(p.etat!=='mort'&&dist2(p.x,p.z,x,z)<26) tuerPieton(p,duJoueur,9); }
   for(const v of vehicules){ if(v.mort||(v.def.air&&(v.alt||0)>6)) continue; if(dist2(v.x,v.z,x,z)<34) abimerVehicule(v,95,duJoueur); }
   for(const c of cassables){ if(c.hp>0&&dist2(c.x,c.z,x,z)<30) casserCaisse(c); }
-  if(!P.veh&&P.y<3&&dist2(P.x,P.z,x,z)<18) toucherJoueur(28);
+  if(!P.veh&&P.y-solY(P.x,P.z)<3&&dist2(P.x,P.z,x,z)<18) toucherJoueur(28);
   if(duJoueur) addHeat(0.8);
 }
 const parts=[];
@@ -14147,7 +14305,8 @@ function majPools(dt){
       if(age>0.18&&Math.random()<0.5) spawnP(b.x,b.y+0.2,b.z,rand(-0.6,0.6),rand(1.5,3),rand(-0.6,0.6),rand(0.4,0.7),0.6+age*2,0xff4b2e,-0.8,2.2);
       if(age>0.35&&Math.random()<0.25) fumee(b.x,b.y+0.4,b.z,0x3a3632);
     }
-    if(b.t<=0||b.y<0.05||b.y>40){
+    const solB=b.typ==='dca'?0:solY(b.x,b.z);
+    if(b.t<=0||b.y<solB+0.05||b.y>solB+40){ // le sol est le relief (avant y = 0 : sur le mont, les balles du joueur mouraient au départ)
       if(b.typ==='boulet') impactBoulet(b); else if(b.typ==='roquette'||b.typ==='bombe') explosionArme(b.x,b.z,b.fac==='joueur');
       b.on=false;b.mesh.visible=false;b.mesh.scale.set(1,1,1);continue;
     }
@@ -14609,7 +14768,7 @@ function attaquer(){
     ang=Math.atan2(cible.x-P.x,cible.z-P.z);
     P.ang=ang; P.tirT=0.5;
     dc=Math.sqrt(dist2(cible.x,cible.z,P.x,P.z));
-    cy=cible.heli?15.4:(cible.D?cible.y+0.7:1.2); // animal : visé à sa hauteur (montagne de l'île)
+    cy=hCible(cible); // animal : visé à sa hauteur (montagne de l'île) ; au sol : à sa hauteur sur le relief
   }
   if((P.ivresse||0)>IVRESSE.ivre) ang+=rand(-1,1)*0.16*Math.min(1,(P.ivresse-IVRESSE.ivre)/40); // ivre : tir imprécis
   const dmg=st.degats*(P.buffs.dmg>0?1.35:1);
@@ -14682,7 +14841,7 @@ function tirAuVolant(v){
   if(cible){
     ang=Math.atan2(cible.x-v.x,cible.z-v.z);
     dc=Math.sqrt(dist2(cible.x,cible.z,v.x,v.z));
-    cy=cible.heli?15.4:(cible.D?cible.y+0.7:1.2);
+    cy=hCible(cible);
   }
   const moto=v.def.type==='moto';
   const disp=st.disp*TIR_VOLANT.disp+Math.min(TIR_VOLANT.dispVitMax,Math.abs(v.v)*TIR_VOLANT.dispVit)+(moto?TIR_VOLANT.dispMoto:0)
@@ -14690,7 +14849,7 @@ function tirAuVolant(v){
   // la balle part hors de la caisse, du côté visé (sortie du rectangle du véhicule)
   const da=angDiff(v.ang,ang), cx=Math.abs(Math.cos(da)), sx=Math.abs(Math.sin(da));
   const r=Math.min(cx>0.01?v.def.long*0.5/cx:99, sx>0.01?v.def.larg*0.5/sx:99)+0.4;
-  const ox=v.x+Math.sin(ang)*r, oz=v.z+Math.cos(ang)*r, oy=moto?1.45:1.3;
+  const ox=v.x+Math.sin(ang)*r, oz=v.z+Math.cos(ang)*r, oy=(v.h||0)+(moto?1.45:1.3);
   const dmg=st.degats*(P.buffs.dmg>0?1.35:1);
   for(let i=0;i<st.pellets;i++) tirer(ox,oy,oz,ang,disp,72,dmg,'joueur',a.tr,cy,dc,null);
   P.mags[id]--; P.cadT=st.cad; META.stats.tirs++;
@@ -17687,7 +17846,24 @@ function solYGare(v){
   if(v._sgX===v.x&&v._sgZ===v.z&&!(DECOR_V2&&dansCagePic(v.x,v.z,2))) return v._sgY;
   v._sgX=v.x; v._sgZ=v.z; return v._sgY=solY(v.x,v.z);
 }
+// Conducteurs visibles (16 octobre, signalé : « dans la jeep ou le cabriolet on ne voit pas le joueur, ni les PNJ qui
+// conduisent ») : véhicule ouvert (ud.siege.assis) conduit par un PNJ = un passager assis ; voiture fermée (voitureV2) =
+// une silhouette derrière le vitrage teinté. Créés à la première conduite, cachés quand personne (ou le joueur) ne conduit.
+var _GEO_BUSTE=null;
+function majChauffeur(v){
+  const ud=v.mesh&&v.mesh.userData; if(!ud) return; const ia=!!v.conduit&&v.conduit!=='joueur'&&!v.mort&&!v.def.air;
+  if(!ia&&!ud.chauffeur) return;
+  if(!ud.chauffeur){ const sg=ud.siege;
+    if(sg&&sg.assis){ const h=makeHumain({haut:pick(civHaut),bas:pick(civBas),peau:pick(civPeau),casq:pick([0x2a2018,0x4a3520,0x111318]),visage:'neutre'},1);
+      h.g.position.set(sg.x,sg.y,sg.z); h.jambeG.rotation.x=h.jambeD.rotation.x=-1.45; h.brasG.rotation.x=h.brasD.rotation.x=-1.15; v.mesh.add(h.g); ud.chauffeur=h.g; }
+    else if(v.def.profil&&PROFILS_VOITURE[v.def.profil]&&!PROFILS_VOITURE[v.def.profil].ouvert){ const Pf=PROFILS_VOITURE[v.def.profil];
+      if(!_GEO_BUSTE){ const tor=new THREE.BoxGeometry(0.44,0.42,0.3); tor.translate(0,0.21,0); const tete=new THREE.SphereGeometry(0.15,8,6); tete.translate(0,0.6,0.02); _GEO_BUSTE=mergeGeoManuel([tor,tete]); _GEO_BUSTE.userData.partagee=true; }
+      const b=new THREE.Mesh(_GEO_BUSTE,mat(pick([0x2a3a5a,0xc8a878,0x3a3e46,0xf2f4f8,0x7a3a3a]))); b.position.set(-Pf.W*0.2,Pf.caisse-0.18,Pf.L*Pf.zAv-0.35); (ud.corps||v.mesh).add(b); ud.chauffeur=b; }
+    else return; }
+  if(ud.chauffeur.visible!==ia) ud.chauffeur.visible=ia;
+}
 function majVehicules(dt){
+  for(let i=0;i<vehicules.length;i++) majChauffeur(vehicules[i]);
   let nT=0; for(let i=0;i<vehicules.length;i++){const v2=vehicules[i];if(v2.conduit==='trafic'&&!v2.mort)nT++;}
   // 8e lot (signalé : « presque plus de voitures dans les rues ») : mesuré, à
   // 2,2 essais/s (dont beaucoup rejetés : façade, voisin trop proche, sable)
@@ -18194,7 +18370,7 @@ function majEnnemis(dt){
       // la police hors vague ne s'occupe du joueur qu'en cas de recherche
       if(e.fac==='police'&&!e.wave&&WANTED.stars===0&&!bt) e.passif=true;
       if(e.fac!=='police'&&!bt&&treveActivite()) e.passif=true; // trêve pendant une activité : les gangs (vagues comprises) ne s'occupent plus du joueur
-      if(e.garde){ e.passif=e.calme?true:(dJ>560&&!bt); }
+      if(e.garde){ e.passif=e.calme?true:((dJ>560&&!bt)||(baseAutorisee()&&WANTED.stars===0&&!bt)); }
     }
     if(e.cible&&e.cible.mort) e.cible=null;
     // fuite des blessés isolés (gangs à pied uniquement, hors vagues et boss)
@@ -18241,7 +18417,7 @@ function majEnnemis(dt){
       e.mesh.userData.rotQ.rotation.x+=30*dt;
       if(e.mesh.userData.cone){ const cn=e.mesh.userData.cone; cn.visible=(ETAT.nuitF||0)>0.25; cn.rotation.z=Math.sin(ETAT.runT*0.9)*0.35; } // projecteur la nuit
       if(e.cad<=0&&d<45&&ETAT.mode==='jeu'){
-        const cy=(P.veh&&P.veh.def.air)?Math.max(1,(P.veh.alt||0)):(P.veh?1:P.y+1.2);
+        const cy=hCibleJoueur();
         tirer(e.x,e.y-1,e.z,Math.atan2(P.x-e.x,P.z-e.z),e.def.acc||6,58,e.def.degats,'police',0x8ad2ff,cy,Math.max(4,d));
         e.shotsLeft--;
         if(e.shotsLeft>0) e.cad=0.1;
@@ -18283,7 +18459,7 @@ function majEnnemis(dt){
       // percute le joueur
       if(!P.veh&&P.y<2&&d<1.7&&e.v>8&&e.stun<=0){ toucherJoueur(12); e.v*=0.4; e.stun=0.5; }
       if(e.cad<=0&&d<24&&d>3&&ligneLibre(e.x,e.z,P.x,P.z)){
-        tirer(e.x,1.3,e.z,versT,e.def.acc,55,e.def.degats,e.fac,0xffc46a,P.veh?1:1.2,d);
+        tirer(e.x,solY(e.x,e.z)+1.3,e.z,versT,e.def.acc,55,e.def.degats,e.fac,0xffc46a,hCibleJoueur(),d);
         e.shotsLeft--;
         if(e.shotsLeft>0) e.cad=0.16; else {e.shotsLeft=e.def.burst;e.cad=rand(0.9,1.5);}
       }
@@ -18324,7 +18500,7 @@ function majEnnemis(dt){
             const N=7, spread=0.65; // ~37° de part et d'autre du cap visé
             for(let k=0;k<N;k++){
               const a=versT+(k/(N-1)-0.5)*spread*2;
-              tirer(e.x+Math.sin(a)*0.6,1.3,e.z+Math.cos(a)*0.6,a,1,50,7,e.fac,0xffc46a,1.3,d);
+              tirer(e.x+Math.sin(a)*0.6,solY(e.x,e.z)+1.3,e.z+Math.cos(a)*0.6,a,1,50,7,e.fac,0xffc46a,hCibleJoueur(),d);
             }
             SFX.pm(); vibre(30);
           }
@@ -18337,7 +18513,7 @@ function majEnnemis(dt){
           if(Math.random()<0.7) spawnP(e.x+Math.sin(versT)*1.2,1.3,e.z+Math.cos(versT)*1.2,0,0.4,0,0.5,0.28,0xff3b3b,0);
           if(e.chargeT<=0){
             e.chargeEtat=null; e.chargeT=rand(5,7.5);
-            tirer(e.x,1.3,e.z,versT,0.3,70,32,e.fac,0xff3b3b,1.3,d);
+            tirer(e.x,solY(e.x,e.z)+1.3,e.z,versT,0.3,70,32,e.fac,0xff3b3b,hCibleJoueur(),d);
             SFX.sniper(); secousse(4); vibre(35);
           }
         } else if(e.chargeEtat===null&&e.chargeT<=0&&d<40&&ligneLibre(e.x,e.z,tx,tz)){ e.chargeEtat='tele'; e.chargeT=1.2; }
@@ -18434,9 +18610,9 @@ function majEnnemis(dt){
         }
         if(e.cad<=0&&d<e.def.portee&&!e.dansEau&&(P.y>2&&!e.cible?true:ligneLibre(e.x,e.z,tx,tz))){
           const pel=e.def.pellets||1;
-          const cy=e.cible?1.2:(P.veh?1:P.y+1.2);
+          const cy=e.cible?solY(e.cible.x,e.cible.z)+1.2:hCibleJoueur(), yE=solY(e.x,e.z);
           for(let k=0;k<pel;k++)
-            tirer(e.x+Math.sin(versT)*0.7,1.35,e.z+Math.cos(versT)*0.7,versT,e.def.acc,55,e.def.degats,e.fac,e.fac==='police'?0x8ad2ff:0xffc46a,cy,d);
+            tirer(e.x+Math.sin(versT)*0.7,yE+1.35,e.z+Math.cos(versT)*0.7,versT,e.def.acc,55,e.def.degats,e.fac,e.fac==='police'?0x8ad2ff:0xffc46a,cy,d);
           SFX[e.def.arme]&&SFX[e.def.arme]();
           e.shotsLeft--;
           if(e.shotsLeft>0) e.cad=Math.max(0.1,e.def.cad);
@@ -18499,7 +18675,7 @@ function impactSpecial(b,e){
   else if(b.mod==='feu'&&e&&!e.mort){ e.feuT=Math.max(e.feuT||0,3); }
 }
 function collisionBalle(b){
-  if(b.fac==='joueur'&&toucherFigurant(b)) return true; // figurants de décor et des salles (16 octobre)
+  if(b.fac==='joueur'&&(toucherFigurant(b)||toucherCibleBase(b))) return true; // figurants de décor et des salles (16 octobre)
   if(b.fac==='joueur') for(let i=0;i<FAUNE.length;i++){ const a=FAUNE[i]; if(!a.mort&&Math.abs(b.y-(a.y+0.7))<1.4&&dist2(b.x,b.z,a.x,a.z)<1.2){ toucherAnimal(a,b.dmg); return true; } } // animaux de l'île
   for(const e of ennemis){
     if(e.mort||e.fac===b.fac) continue;
@@ -18514,11 +18690,11 @@ function collisionBalle(b){
     // réelle) tout en la déclarant à tort « au sol ». Hors de portée des
     // tirs le temps du levage, cohérent avec l'IA déjà coupée.
     if(e.captureOvni) continue;
-    if(b.y<2.6&&dist2(b.x,b.z,e.x,e.z)<(e.boss?2.2:0.8)){ toucherEnnemi(e,b.dmg,b.fac==='joueur',2,b.fac,b.x-b.vx*0.1,b.z-b.vz*0.1); impactSpecial(b,e); return true; }
+    if(dist2(b.x,b.z,e.x,e.z)<(e.boss?2.2:0.8)&&b.y-solY(e.x,e.z)<2.6&&b.y-solY(e.x,e.z)>-0.3){ toucherEnnemi(e,b.dmg,b.fac==='joueur',2,b.fac,b.x-b.vx*0.1,b.z-b.vz*0.1); impactSpecial(b,e); return true; }
   }
   if(b.fac!=='joueur'){
     if(P.veh){
-      const yOK=P.veh.def.air?Math.abs(b.y-(P.veh.alt||0))<2.6:b.y<2.4;
+      const yOK=P.veh.def.air?Math.abs(b.y-(P.veh.alt||0))<2.6:b.y-(P.veh.h||0)<2.4;
       if(yOK&&dist2(b.x,b.z,P.veh.x,P.veh.z)<P.veh.def.long*P.veh.def.long*0.16){
         abimerVehicule(P.veh,b.dmg,false); return true; }
     } else if(Math.abs(b.y-(P.y+1.2))<1.3&&dist2(b.x,b.z,P.x,P.z)<0.7&&ETAT.mode==='jeu'){
@@ -18527,16 +18703,16 @@ function collisionBalle(b){
   }
   for(const p of pietons){
     if(p.etat==='mort'||p.captureOvni) continue;
-    if(b.y<2.2&&dist2(b.x,b.z,p.x,p.z)<0.55){ if(b.mod==='feu'&&!p.feuT){ p.feuT=2.5; p.etat='fuite'; p.t=2.5; } else tuerPieton(p,b.fac==='joueur',5); impactSpecial(b,null); return true; }
+    if(dist2(b.x,b.z,p.x,p.z)<0.55&&b.y-(p.h.g.position.y||0)<2.2&&b.y-(p.h.g.position.y||0)>-0.3){ if(b.mod==='feu'&&!p.feuT){ p.feuT=2.5; p.etat='fuite'; p.t=2.5; } else tuerPieton(p,b.fac==='joueur',5); impactSpecial(b,null); return true; }
   }
   for(const v of vehicules){
     if(v.mort||v===P.veh||v.captureOvni) continue;
-    if(b.y<2.2&&dist2(b.x,b.z,v.x,v.z)<v.def.long*v.def.long*0.14){
+    if(dist2(b.x,b.z,v.x,v.z)<v.def.long*v.def.long*0.14&&b.y-(v.def.air?(v.alt||0):(v.h||0))<2.2&&b.y-(v.def.air?(v.alt||0):(v.h||0))>-0.6){
       abimerVehicule(v,b.dmg*0.6,b.fac==='joueur'); return true; }
   }
   for(const c of cassables){
     if(c.hp<=0) continue;
-    if(b.y<1.6&&dist2(b.x,b.z,c.x,c.z)<1.2){ c.hp-=b.dmg; if(c.hp<=0)casserCaisse(c); return true; }
+    if(dist2(b.x,b.z,c.x,c.z)<1.2&&b.y-solY(c.x,c.z)<1.6){ c.hp-=b.dmg; if(c.hp<=0)casserCaisse(c); return true; }
   }
   return false;
 }
@@ -19068,7 +19244,7 @@ function majWanted(dt){
   WANTED.stars=Math.min(6,Math.floor(WANTED.heat));
   // zone militaire = alarme immédiate
   if(POIS.base&&Math.abs(P.x-POIS.base.x)<POIS.base.hw&&Math.abs(P.z-POIS.base.z)<POIS.base.hd){
-    if(WANTED.heat<3){ addHeat(3-WANTED.heat,false,true); toast('Intrusion en zone militaire !','warn'); }
+    if(WANTED.heat<3&&!baseAutorisee()){ addHeat(3-WANTED.heat,false,true); toast('Intrusion en zone militaire !','warn'); } // engagé, ou en treillis de Fort Reyes : pas d'alarme
   }
   sirenUpdate(dt,WANTED.stars>=2?WANTED.stars/6:0);
   const s=WANTED.stars;
@@ -19219,7 +19395,7 @@ function majChasseursEau(dt){
       if(v.cad<=0&&d<32){
         v.cad=v.iaFac==='police'?1.4:1.1;
         for(let k=0;k<2;k++)
-          tirer(v.x,1.6,v.z,va,13,55,7,v.iaFac==='police'?'police':'murenes',v.iaFac==='police'?0x8ad2ff:0x7ae0d0,P.veh?1:0.6,d);
+          tirer(v.x,(v.h||0)+1.6,v.z,va,13,55,7,v.iaFac==='police'?'police':'murenes',v.iaFac==='police'?0x8ad2ff:0x7ae0d0,hCibleJoueur(),d);
       }
       if(v.mesh.userData.bar){
         const cl=Math.floor(ETAT.runT*6)%2;
@@ -27239,11 +27415,14 @@ function peuplerSalle(inter,id,g){
    décor les ignore ensuite (h.g.userData.converti). Dans les salles, les figurants (VIE_SALLES) tombent sous les balles
    et les coups, restent sonnés, puis se relèvent ; les autres se mettent à couvert. */
 const FIGURANTS=[];
-function figurant(h,lies){ FIGURANTS.push({h,lies:lies||null,parent:null,pos:null,rot:null}); return h; }
+function figurant(h,lies,ennemi){ FIGURANTS.push({h,lies:lies||null,ennemi:ennemi||null,parent:null,pos:null,rot:null}); return h; }
+// un soldat du décor de Fort Reyes devient un vrai soldat (alarme, coup de feu, touché)
+function convertirSoldat(f){ const g=f.h.g; if(g.userData.converti) return null; g.userData.converti=true; g.visible=false;
+  const e=creerEnnemi(f.ennemi,g.position.x,g.position.z,false); if(e){ e.garde=true; e.posteX=e.x; e.posteZ=e.z; } return e; }
 // à chaque partie, les figurants devenus piétons reviennent au décor, à leur place d'origine
 function restaurerFigurants(){
   for(const f of FIGURANTS){ const g=f.h.g; if(!f.pos){ f.pos=g.position.clone(); f.rot=g.rotation.clone(); f.parent=g.parent; } // relevé à la 1re partie (le décor est posé)
-    if(!g.userData.converti) continue; g.userData.converti=false;
+    if(!g.userData.converti) continue; g.userData.converti=false; g.visible=true;
     for(let i=pietons.length-1;i>=0;i--) if(pietons[i].h===f.h) pietons.splice(i,1);
     if(f.parent&&g.parent!==f.parent) f.parent.add(g); g.position.copy(f.pos); g.rotation.copy(f.rot); g.scale.y=g.scale.x;
     const h=f.h; h.jambeG.rotation.x=h.jambeD.rotation.x=0; h.brasG.rotation.x=h.brasD.rotation.x=0; h.brasG.rotation.z=h.brasD.rotation.z=0; finNage(h); } }
@@ -27264,7 +27443,7 @@ function toucherFigurant(b){
   if(INT.actif){ const s=INT.actif; if(!s.figurants) return false;
     for(let i=0;i<s.figurants.length;i++){ const f=s.figurants[i]; if(b.y<2.2&&dist2(b.x,b.z,f.x,f.z)<0.5){ salleFigurantTombe(s,i,b.x-b.vx*0.05,b.z-b.vz*0.05); return true; } } return false; }
   for(const f of FIGURANTS){ const g=f.h.g; if(g.userData.converti||!g.visible) continue; const y=g.position.y;
-    if(b.y>y-0.2&&b.y<y+2.1&&dist2(b.x,b.z,g.position.x,g.position.z)<0.5){ tuerFigurant(f,b.x-b.vx*0.05,b.z-b.vz*0.05,6); return true; } }
+    if(b.y>y-0.2&&b.y<y+2.1&&dist2(b.x,b.z,g.position.x,g.position.z)<0.5){ if(f.ennemi){ const e=convertirSoldat(f); if(e) toucherEnnemi(e,b.dmg,true,2,'joueur',b.x,b.z); return true; } tuerFigurant(f,b.x-b.vx*0.05,b.z-b.vz*0.05,6); return true; } }
   return false;
 }
 function majFigurants(dt){
@@ -27272,6 +27451,7 @@ function majFigurants(dt){
   const v=P.veh, vv=v&&!v.def.air?Math.abs(v.v||0):0;
   for(const f of FIGURANTS){ const g=f.h.g; if(g.userData.converti||!g.visible) continue;
     const x=g.position.x, z=g.position.z, y=g.position.y, d2=dist2(x,z,P.x,P.z); if(d2>70*70) continue;
+    if(f.ennemi){ if((WANTED.stars>0&&!baseAutorisee()&&d2<60*60)||(DANGER.t>0&&dist2(x,z,DANGER.x,DANGER.z)<26*26&&!baseAutorisee())) convertirSoldat(f); continue; } // soldats : à l'alarme, ils prennent les armes
     if(vv>5&&dist2(v.x,v.z,x,z)<Math.pow(v.def.larg*0.5+0.7,2)&&Math.abs((v.h||0)-y)<2){ tuerFigurant(f,v.x,v.z,Math.min(16,6+vv*0.4)); continue; } // percuté
     if(!v&&P.frappeT>0&&d2<1.8*1.8&&Math.abs(P.y-y)<1.5){ tuerFigurant(f,P.x,P.z,7); continue; }                                         // un coup
     if(DANGER.t>0&&dist2(x,z,DANGER.x,DANGER.z)<26*26) convertirFigurant(f,true);                                                      // la panique gagne
@@ -28020,7 +28200,7 @@ function metierEnCours(){ return !!(MET.pompier||MET.taxi||MET.depanneuse||MET.a
 // supercross, bouées, REYES BOWL JAM), wakeboard ou parachute ascensionnel, métier en cours. Les vagues et les
 // événements (guerres de gangs...) sont gelés, et les gangs déjà là patrouillent sans s'occuper du joueur. La
 // police, elle, continue si l'on est recherché.
-function treveActivite(){ return !!(RIDES.actif||(DECOR_V2&&TOW.actif)||BASKET.actif||MANEGES.actif||TOUR.actif||metierEnCours()); }
+function treveActivite(){ return !!(RIDES.actif||(DECOR_V2&&TOW.actif)||BASKET.actif||MANEGES.actif||TOUR.actif||metierEnCours()||BASE.defi); }
 // Balise dédiée, jamais la même que `balise` (déjà prise par MISSION.cur) —
 // les deux peuvent être actives en même temps sans se marcher dessus.
 const metierBalise=new THREE.Mesh(new THREE.CylinderGeometry(1.4,1.4,9,12,1,true),
@@ -30568,14 +30748,16 @@ function startRun(){
   creerVehicule('van',POIS.garage.x+6,POIS.garage.z+3,0);
   if(POIS.qgViperes) creerVehicule('gangcar',POIS.qgViperes.x+14,POIS.qgViperes.z+10,0.4);
   if(POIS.villas) creerVehicule('sport',POIS.villas.x+8,POIS.villas.z+10,Math.PI/2);
-  if(POIS.chantier) creerVehicule('pickup',POIS.chantier.x+10,POIS.chantier.z-6,0.2);
+  if(POIS.chantier) creerVehicule('pickup',POIS.chantier.x+(CHANTIER.ok?16.4:10),POIS.chantier.z-6,CHANTIER.ok?0:0.2); // chantier V2 : garé dans la rue, le long de la palissade
   if(POIS.plage) creerVehicule('buggy',POIS.plage.x-6,POIS.plage.z+2,0.8);
   if(POIS.piste) creerVehicule('avion',POIS.piste.x,POIS.piste.z,Math.PI);
   if(POIS.base){
-    creerVehicule('char',POIS.base.x+10,POIS.base.z+6,Math.PI);
+    if(BASE.ok){ resetBase(); const pl=BASE.places; creerVehicule('char',pl.char.x,pl.char.z,pl.char.a); creerVehicule('milit',pl.milit.x,pl.milit.z,pl.milit.a); } // Fort Reyes : chaque engin à sa place
+    else creerVehicule('char',POIS.base.x+10,POIS.base.z+6,Math.PI);
     // garnison lourde : 5 soldats + 3 élites en anneau autour du char
-    [['soldat',2,13],['soldat',18,11],['soldat',10,20],['soldat',-2,4],['soldat',20,2],
-     ['elite',6,-4],['elite',16,-3],['elite',10,9]].forEach(p=>{
+    (BASE.ok?[['soldat',-42,15],['soldat',-30,15],['soldat',42,-15],['soldat',30,-30],['soldat',-6,-28],
+     ['elite',6,-28],['elite',-36,4],['elite',36,4]]:[['soldat',2,13],['soldat',18,11],['soldat',10,20],['soldat',-2,4],['soldat',20,2],
+     ['elite',6,-4],['elite',16,-3],['elite',10,9]]).forEach(p=>{ // V2 : au parc, à l'héliport, devant le poste de commandement
       const s=creerEnnemi(p[0],POIS.base.x+p[1],POIS.base.z+p[2],false);
       if(s){ s.garde=true; s.posteX=s.x; s.posteZ=s.z; s.hp*=1.4; s.hpMax=s.hp; }
     });
@@ -30600,9 +30782,10 @@ function startRun(){
   for(const c of TOITS.coffres) c.vague=-1;
   for(const hp of TOITS.helis){ const he=creerVehicule(hp.cle,hp.x,hp.z,Math.PI/2); if(he){ he.alt=hp.h; he.vol=false; he.va=0; he.mesh.position.y=hp.h; } } // hélicos posés sur les toits
   aeroStartRun(); // aéroport vivant : long-courrier à la porte A1, avions des hangars, taxi et bus à la dépose-minute
-  if(POIS.heliGrue) creerVehicule('titan',POIS.heliGrue.x,POIS.heliGrue.z,0); // hélico-grue au chantier
+  if(POIS.heliGrue) creerVehicule('titan',POIS.heliGrue.x,POIS.heliGrue.z,CHANTIER.ok?-Math.PI/2:0); /* nez à l'ouest : la queue passe au-dessus de la rue, jamais sur la base de vie */ // hélico-grue au chantier
   planquesStartRun(); // véhicules garés aux planques possédées, usages de la vague remis à zéro
-  if(POIS.base){ const B=POIS.base; let q=null; for(let rr=0;rr<40&&!q;rr+=3) for(let a=0;a<12&&!q;a++){ const x=B.x+Math.cos(a/12*6.283)*rr, z=B.z+Math.sin(a/12*6.283)*rr; if(!solidAt(x,z,5)&&!estEau(x,z)) q={x,z}; }
+  if(POIS.base&&BASE.ok) creerVehicule('vautour',BASE.heli.x,BASE.heli.z,Math.PI); // Fort Reyes : sur son héliport, jamais à cheval sur un véhicule
+  else if(POIS.base){ const B=POIS.base; let q=null; for(let rr=0;rr<40&&!q;rr+=3) for(let a=0;a<12&&!q;a++){ const x=B.x+Math.cos(a/12*6.283)*rr, z=B.z+Math.sin(a/12*6.283)*rr; if(!solidAt(x,z,5)&&!estEau(x,z)) q={x,z}; }
     if(q) creerVehicule('vautour',q.x,q.z,Math.PI); } // hélico de combat, à la base militaire
   if(POIS.toitH){ const he=creerVehicule('ecureuil',POIS.toitH.x+1,POIS.toitH.z-1,Math.PI/2); // Écureuil sur l'hélipad de la Tour Los Reyes
     if(he){ he.alt=poseY(he.x,he.z); he.vol=false; he.va=0; he.mesh.position.y=he.alt; } }
@@ -30648,9 +30831,8 @@ function startRun(){
   const cacheV=(key,x,z,a)=>{const p=posLibre(x,z,!!VEHDEFS[key].eau);creerVehicule(key,p.x,p.z,a);};
   const cacheA=(id,x,z)=>{const p=posLibre(x,z,false);creerPickup('arme',p.x,p.z,0,id);};
   cacheV('fantome',POIS.secret.x,POIS.secret.z-9,0);                  // ruelle au magot
-  if(POIS.base) cacheV('blinde',POIS.base.x,POIS.base.z+8,Math.PI);   // base militaire (dangereux)
-  if(POIS.base) cacheV('jeepMil',POIS.base.x-26,POIS.base.z-10,0.6);  // même base, à l'écart du char
-  if(POIS.base) cacheV('dca',POIS.base.x+22,POIS.base.z-16,-1.2);     // même base, dégagé côté ciel
+  if(POIS.base&&BASE.ok){ const pl=BASE.places; for(const k of ['blinde','jeepMil','dca']) creerVehicule(k,pl[k].x,pl[k].z,pl[k].a); } // Fort Reyes : au parc, chacun à sa place
+  else if(POIS.base){ cacheV('blinde',POIS.base.x,POIS.base.z+8,Math.PI); cacheV('jeepMil',POIS.base.x-26,POIS.base.z-10,0.6); cacheV('dca',POIS.base.x+22,POIS.base.z-16,-1.2); }
   cacheV('espadon',-HALF+34,MER+26,Math.PI/2);                        // crique à l'ouest
   // OVNI : posé sur son cratère, tout au sud de l'aérodrome, à l'écart de
   // tout le reste (voir POIS.crash/mkCraterOvni) — signalé par un joueur :
@@ -30667,9 +30849,12 @@ function startRun(){
   // Déplacé franchement entre le cratère et le champ de dunes.
   if(POIS.desert) cacheV('buggyCanon',385,175,0.5);
   if(POIS.villas) cacheV('mirage',POIS.villas.x+11,POIS.villas.z-11,1.1); // recoin des villas
-  if(POIS.chantier) cacheV('scarabee',POIS.chantier.x-13,POIS.chantier.z+12,2.4); // derrière la grue
-  if(POIS.chantier) cacheV('bulldozer',POIS.chantier.x+10,POIS.chantier.z-10,-0.6); // au chantier, loin de la grue fixe
-  if(POIS.chantier) cacheV('grue',POIS.chantier.x+14,POIS.chantier.z+6,1.0);        // idem, véhicule cette fois
+  // chantier V2 (16 octobre, « les éléments se chevauchent, le bulldozer est sur des pancartes ») : chaque engin à SA place,
+  // hors de l'aire du Titan, de l'immeuble, des bungalows et de la palissade
+  if(POIS.chantier){ const c=POIS.chantier, V2=CHANTIER.ok;
+    cacheV('scarabee',c.x+(V2?-12:-13),c.z+(V2?7.5:12),V2?0:2.4);
+    cacheV('bulldozer',c.x+(V2?-4:10),c.z+(V2?6.6:-10),V2?0:-0.6);   // V2 : devant le tas de sable
+    cacheV('grue',c.x+(V2?8.6:14),c.z+(V2?-5.6:6),V2?Math.PI/2:1.0); } // V2 : entre le conteneur et les bungalows
   if(POIS.port) cacheV('baronne',POIS.port.x+13,POIS.port.z-11,Math.PI/2);  // entrepôt du port
   if(POIS.commissariat) cacheV('ambulance',POIS.commissariat.x-12,POIS.commissariat.z+9,2.0); // pôle secours, à côté des véhicules de police
   if(POIS.garage) cacheV('depanneuse',POIS.garage.x-9,POIS.garage.z-8,-1.4);                  // devant le garage, sa place naturelle
@@ -30723,6 +30908,7 @@ function mourir(){
   if(ETAT.mode==='mort') return;
   if(DECOR_V2&&RIDES.actif){ RIDES.actif=null; RIDES.porte.visible=false; RIDES.txt.style.display='none'; rivalesFin(); if(RIDES.fleche) RIDES.fleche.visible=false; } // course abandonnée à la mort
   if(DECOR_V2) basketArreter(); // concours de tirs abandonné
+  if(BASE.defi) finDefiBase(false); // parcours du combattant abandonné
   ETAT.mode='mort'; ETAT.timeScale=0.28; document.body.style.boxShadow='none';
   annulerFouille(true); cacherJauges();
   SFX.mort(); vibre(120);
@@ -31712,6 +31898,8 @@ function majAction(){
       const m=manegeProche(); label=(m==='huit'?'🎢 GRAND HUIT':'🎡 GRANDE ROUE')+' — UN TOUR '+MANEGES.prixTour+' $'; fn=()=>lancerManege(m);
     } else if(!P.veh&&BOUTIQUES.length&&boutiqueProche()){
       const b=boutiqueProche(); label=b.def.ico+' '+b.def.nom.toUpperCase()+' — ESSAYER'; fn=()=>ouvrirBoutique(b);
+    } else if(!P.veh&&BASE.ok&&baseAction()){
+      const a=baseAction(); label=a.label; fn=a.fn;
     } else if(!P.veh&&PLANQUES.liste.length&&planqueProche()){
       const a=planqueAction(planqueProche()); label=a.label; fn=a.fn;
     } else if(!P.veh&&STANDS.length&&standProche()){
@@ -32146,6 +32334,7 @@ function vueCamera(dt,sx,sz){
   // hélico-grue chargé : la caméra recule et monte pour cadrer le véhicule qui pend sous l'aimant
   VUE.kCharge=lerp(VUE.kCharge||0,v&&v.def.aimant&&v.cibles&&v.cibles.some((r)=>r.phase!=='chute')?1:0,clamp(dt*1.5,0,1));
   H+=VUE.kCharge*8; D+=VUE.kCharge*7;
+  if(v&&v.def.ovni){ H+=11; D+=10; } // soucoupe (16 octobre, « on ne voit pas les véhicules qu'elle prend ») : vue de plus loin et de plus haut
   const fx=-Math.sin(VUE.yaw), fz=-Math.cos(VUE.yaw);
   let cx=P.x-fx*D+sx, cz=P.z-fz*D+sz;
   let cy=hSol+H;
@@ -32494,7 +32683,7 @@ function boucle(t){
       majMeteo(dt);
       majMer(dt);
       majMerV2(dt);
-      if(DECOR_V2){ majHorsLesMurs(dt); majMobilier(); majLac(dt); majLumieres(dt); majJetee(dt); majPortVivant(dt); majAeroportVivant(dt); majAeroVie(dt); majVieHills(dt); majChantierV2(dt); majPlanques(dt); majAtelierArme(dt); majBoutique(dt); majTour(dtJeu); majCascades(dt); majManeges(dt); majBrooklyn(dt); majCiel(dt); majNeonVivant(dt); majQuartiersFinitions(dt); }
+      if(DECOR_V2){ majHorsLesMurs(dt); majMobilier(); majLac(dt); majLumieres(dt); majJetee(dt); majPortVivant(dt); majAeroportVivant(dt); majAeroVie(dt); majVieHills(dt); majChantierV2(dt); majBaseV2(dt,dtJeu); majPlanques(dt); majAtelierArme(dt); majBoutique(dt); majTour(dtJeu); majCascades(dt); majManeges(dt); majBrooklyn(dt); majCiel(dt); majNeonVivant(dt); majQuartiersFinitions(dt); }
       majEpaveCanon(dt);
     }
     majHUD();
