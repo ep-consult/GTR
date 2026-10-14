@@ -10759,6 +10759,8 @@ async function main() {
         // la vie : voitures dans les lacets qui roulent, voitures garées dans les allées, gardes
         startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6; P.x = HILLS.x1 + 30; P.z = 100;
         const lac = vehicules.filter((v) => v.conduit === 'piste' && v.piste.b === VIE_HILLS.boucle), s0 = lac.map((v) => v.piste.s);
+        /* aucun véhicule garé sur la chaussée de la colline (les voitures des lacets s'arrêtaient derrière pour toujours) */
+        for (const v of vehicules) if (!v.conduit && dansHills(v.x, v.z) && surChaussee(v.x, v.z)) ko.push(v.key + ' garé sur la chaussée (' + v.x.toFixed(0) + ',' + v.z.toFixed(0) + ')');
         for (let i = 0; i < 30 * 8; i++) majVehicules(1 / 30);
         if (lac.length < 3 || lac.some((v, i) => ((v.piste.s - s0[i] + v.piste.b.L) % v.piste.b.L) < 30)) ko.push('voitures des lacets : ' + lac.length + ' / immobiles');
         const garees = vehicules.filter((v) => !v.conduit && HILLS.pads.some((p) => p.villa && Math.abs(v.x - p.x) < p.hw && Math.abs(v.z - p.z) < p.hd)).length; if (garees < 6) ko.push(garees + ' voitures dans les allées');
@@ -10766,6 +10768,25 @@ async function main() {
         // piscines éclairées la nuit
         ETAT.nuitF = 1; majVieHills(1 / 30); const lum = VIE_HILLS.eaux.length && VIE_HILLS.eaux[0].emissive.g > 0.5; ETAT.nuitF = 0; majVieHills(1 / 30); if (!lum) ko.push('piscines pas éclairées la nuit');
         info.push(lac.length + ' voitures dans les lacets, ' + garees + ' garées, ' + gardes + ' gardes');
+        /* la vie (demandé : « des gens qui se baladent, des décors de résidence, un panneau LOS REYES comme Hollywood ») :
+           promeneurs qui avancent avec leurs accompagnants, baigneurs, barbecues ; panneau hors des routes, éclairé la nuit */
+        const V = VIE_HILLS; P.x = -180; P.z = 60;
+        const acc = V.pietons.filter((w) => w.genre), s1 = acc.map((w) => w.s);
+        for (let i = 0; i < 30 * 4; i++) majVieHills(1 / 30);
+        if (acc.length < 8 || acc.some((w, i) => Math.abs(w.s - s1[i]) < 1e-4)) ko.push('promeneurs : ' + acc.length + ' / immobiles');
+        for (const w of acc) { const g = w.h.g.position;
+          if (w.h2 && w.h2.g.position.distanceTo(g) > 1.6) ko.push('couple séparé');
+          if (w.chien && w.chien.g.position.distanceTo(g) > 2.2) ko.push('chien perdu');
+          if (w.objet && w.objet.position.distanceTo(g) > 1.6) ko.push('poussette lâchée');
+          const D = HILLS.routes.find((q) => q.id === 'drive'), bout = [D.pts[0], D.pts[D.pts.length - 1]].some(([x, z]) => dist2(x, z, g.x, g.z) < 14 * 14); /* au bout du Drive, on traverse pour revenir */
+          if (!bout && [g, w.h2 && w.h2.g.position, w.chien && w.chien.g.position].some((q) => q && surChaussee(q.x, q.z))) { ko.push('promeneur sur la chaussée (' + w.genre + ' ' + g.x.toFixed(0) + ',' + g.z.toFixed(0) + ')'); break; } }
+        if (!V.nageurs.length || !V.bbq.length) ko.push('ni baigneurs ni barbecues');
+        if (!V.lettres.length || !V.panneau) ko.push('pas de panneau');
+        else {
+          const meshes = scene.children.filter((m) => m.isMesh && V.lettres.includes(m.material));
+          for (const m of meshes) { const bb = new THREE.Box3().setFromObject(m), c = bb.getCenter(new THREE.Vector3()); /* fusionnées : le centre de la géométrie */ if (surChaussee(c.x, c.z) || surChaussee(bb.min.x, bb.min.z) || surChaussee(bb.max.x, bb.max.z)) ko.push('lettre sur la route'); }
+          ETAT.nuitF = 1; majVieHills(1 / 30); const lum = V.lettres[0].emissive.r > 0.3; ETAT.nuitF = 0; majVieHills(1 / 30); if (!lum) ko.push('panneau éteint la nuit'); }
+        info.push(acc.length + ' promeneurs accompagnés, ' + V.nageurs.length + ' baigneurs, ' + V.bbq.length + ' barbecues, panneau LOS REYES (' + V.lettres.length + ' lettres)');
         startRun(); P.hp = P.maxHp = 1e6;
         return { ko, info };
       });

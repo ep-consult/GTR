@@ -7172,7 +7172,7 @@ const HILLS={ok:false,x0:-288,x1:-90,z0:-36,z1:120,pas:1,h:null,nx:0,nz:0,routes
 function hillsBase(x,z){ const H=HILLS, u=(H.x1-x)/(H.x1-H.x0), v=(H.z1-z)/(H.z1-H.z0), su=lisse(Math.min(1,u*1.6)), sv=lisse(Math.min(1,v*1.15)), e=lisse(Math.min(1,u/0.12));
   return 30*sv*(0.6+0.4*su)*e+1.6*Math.sin(x*0.09+1)*Math.sin(z*0.07)*sv*e; } // monte surtout vers le nord : les lacets suivent à peu près les courbes de niveau
 const ROUTES_HILLS=[
-  {id:'drive',nom:'REYES HILLS DRIVE',pts:[[-150,121],[-150,106],[-168,97],[-235,95],[-258,92],[-270,80],[-262,68],[-240,63],[-200,63],[-142,62],[-120,58],[-112,46],[-122,34],[-145,31],[-180,30],[-240,28],[-262,24],[-272,11],[-262,-3],[-240,-7],[-200,-8],[-160,-10],[-138,-13],[-131,-22],[-140,-31],[-162,-32],[-200,-31],[-226,-29]]}, // épingles larges (rayon ~13 u) : on les passe sans couper dans le talus
+  {id:'drive',nom:'REYES HILLS DRIVE',pts:[[-150,121],[-150,106],[-168,97],[-235,95],[-258,92],[-270,80],[-262,68],[-240,63],[-200,63],[-142,62],[-120,58],[-112,46],[-122,34],[-145,31],[-180,30],[-240,28],[-262,24],[-272,11],[-262,-2],[-240,-6],[-200,-7],[-160,-9],[-138,-12],[-131,-20.5],[-140,-28.5],[-162,-29.5],[-200,-28.5],[-226,-26.5]]}, // épingles larges (rayon ~13 u) : on les passe sans couper dans le talus ; le lacet du sommet reste à 6 u du bord nord (au-delà, la rue de la ville, 30 u plus bas)
   {id:'crest',nom:'SUNSET CREST',pts:[[-89,40],[-100,41],[-110,44]],rejoint:'drive'},
 ];
 function pousserHorsHills(v){ const H=HILLS, pg=v.x-(H.x0-2.5), pd=(H.x1+2.5)-v.x, ph=v.z-(H.z0-2.5), pb=(H.z1+2.5)-v.z, m=Math.min(pg,pd,ph,pb);
@@ -7332,17 +7332,19 @@ function mkLosReyesHills(){
 // Vie de Los Reyes Hills (lot 3) : voitures qui montent et descendent les lacets (conduit 'piste', voie de
 // droite), voitures de luxe dans les allées, joggeurs sur les trottoirs, jardiniers et arroseurs, sécurité privée
 // de la Krasnaya Brigada à la plus grande villa, piscines éclairées la nuit. Spectacle sur dt, LOD au loin.
-const VIE_HILLS={pietons:[],jardiniers:[],eaux:[],boucle:null,trottoir:null,arroseT:0};
+const VIE_HILLS={pietons:[],jardiniers:[],eaux:[],boucle:null,trottoir:null,arroseT:0,lettres:[],nageurs:[],bbq:[],laveurs:[],statiques:[],barriere:null,coeurs:[]};
 function boucleRoute(pts,dec){ // aller par la voie de droite, retour par l'autre : une boucle fermée pour majVehPiste
   const cote=(P2,s)=>P2.map(([x,z],i)=>{ const [xa,za]=P2[Math.max(0,i-1)], [xb,zb]=P2[Math.min(P2.length-1,i+1)], dx=xb-xa, dz=zb-za, l=Math.hypot(dx,dz)||1; return [x-dz/l*dec*s,z+dx/l*dec*s]; });
   const ret=pts.slice().reverse(), all=cote(pts,-1).concat(cote(ret,-1)); all.push(all[0]);
   const cum=[0]; let L=0; for(let i=1;i<all.length;i++){ L+=Math.hypot(all[i][0]-all[i-1][0],all[i][1]-all[i-1][1]); cum.push(L); } return {pts:all,cum,L};
 }
+// voitures de luxe de la colline : celles qui montent et descendent les lacets, celles garées dans les allées
+const HILLS_LUXE_ROULE=['sport','mirage','baronne','muscle','berline'], HILLS_LUXE_GARE=['sport','baronne','mirage','berline','muscle','pickup'];
 function hillsStartRun(){
   if(!HILLS.ok) return; const H=HILLS, V=VIE_HILLS, D=H.routes.find((r)=>r.id==='drive');
   if(!V.boucle){ V.boucle=boucleRoute(D.pts,2.3); V.trottoir=boucleRoute(D.pts,H.larg/2+0.7); }
-  [['sport',0],['muscle',0.33],['mirage',0.66]].forEach(([k,u])=>{ const s=V.boucle.L*u, p=pointBoucle(V.boucle,s), v=creerVehicule(k,p.x,p.z,p.ang); if(!v) return; v.conduit='piste'; v.piste={b:V.boucle,s,vit:9,vCur:0}; v.h=solY(v.x,v.z); });
-  const luxe=['sport','berline','pickup','muscle','mirage','baronne'];
+  HILLS_LUXE_ROULE.forEach((k,i,l)=>{ const u=i/l.length; const s=V.boucle.L*u, p=pointBoucle(V.boucle,s), v=creerVehicule(k,p.x,p.z,p.ang); if(!v) return; v.conduit='piste'; v.piste={b:V.boucle,s,vit:9,vCur:0}; v.h=solY(v.x,v.z); });
+  const luxe=HILLS_LUXE_GARE;
   H.pads.filter((p)=>p.villa).forEach((p,k)=>{ if(k%3===2) return; const xa=p.hw*0.55*(p.id.charCodeAt(5)%2?1:-1), v=creerVehicule(luxe[k%luxe.length],p.x+xa,p.z+(p.f||1)*p.hd*0.35,0); if(v) v.h=solY(v.x,v.z); });
   // sécurité privée de la Krasnaya Brigada devant la plus grande villa
   const rang={grande:3,moyenne:2,petite:1}, g=H.pads.filter((p)=>p.villa).sort((a,b)=>rang[b.type]-rang[a.type]||b.hw-a.hw)[0]; // la plus grande villa
@@ -7355,6 +7357,7 @@ function mkVieHills(){
     V.pietons.push({h,s:aD(0,1),v:(k%2?1:-1)*aD(2.2,3.6)}); }
   H.pads.filter((p)=>p.villa).forEach((p,k)=>{ if(k%4!==1) return; const h=humain({haut:0x3a7a34,bas:0x5a4a34,peau:choixD(civPeau),casq:0xd8c8a8,visage:'neutre'});
     const t=mkBoxG(0.9,0.5,0.7,0xd83a3a,0,0.25,0.9); h.g.add(t); V.jardiniers.push({h,p,u:aD(0,6)}); });
+  mkPanneauLosReyes(); mkResidenceHills(); mkHabitantsHills();
 }
 function majVieHills(dt){
   if(!HILLS.ok) return; const V=VIE_HILLS, pres=dansHills(P.x,P.z,80), nuit=(ETAT.nuitF||0);
@@ -7363,12 +7366,105 @@ function majVieHills(dt){
   if(!pres||!V.trottoir) return;
   for(const w of V.pietons){ w.s=(w.s+w.v*dt/V.trottoir.L+1)%1; const p=pointBoucle(V.trottoir,w.s*V.trottoir.L), a=w.v>0?p.ang:p.ang+Math.PI;
     w.h.g.position.set(p.x,hauteurHills(p.x,p.z)+0.1,p.z); w.h.g.rotation.y=a; animeHumain(w.h,dt,Math.abs(w.v)*3,false); }
-  for(const j of V.jardiniers){ j.u+=dt*0.35; const p=j.p, x=p.x+Math.sin(j.u)*p.hw*0.6, z=p.z+(p.f||1)*(p.hd*0.25+Math.cos(j.u*2)*0.8); // il tond la pelouse devant la maison
-    j.h.g.position.set(x,p.h+0.05,z); j.h.g.rotation.y=Math.cos(j.u)>0?Math.PI/2:-Math.PI/2; animeHumain(j.h,dt,3,false);
+  for(const j of V.jardiniers){ j.u+=dt*0.35; const p=j.p, L=p.lay, sx=L?-(Math.sign(L.xa)||1)*(L.hw+L.cote):p.hw*0.6, x=p.x+sx+Math.cos(j.u*2)*0.5, z=p.z+(p.f||1)*((L?L.hz:0)+Math.sin(j.u)*(L?L.hd:p.hd*0.5)); // il tond la pelouse le long de la maison
+    j.h.g.position.set(x,p.h+0.05,z); j.h.g.rotation.y=Math.cos(j.u)*(p.f||1)>0?0:Math.PI; animeHumain(j.h,dt,3,false);
     if(Math.random()<dt*5) spawnP(x,p.h+0.3,z,aD(-1,1),aD(0.5,1.5),aD(-1,1),0.5,0.12,0x5fa83e,6); }
   // arroseurs automatiques : quelques jets sur les pelouses proches
   V.arroseT-=dt; if(V.arroseT<=0){ V.arroseT=0.12; for(const p of HILLS.pads){ if(!p.villa||dist2(P.x,P.z,p.x,p.z)>55*55) continue; const a=CASC_U.uT.value*2+p.x;
       spawnP(p.x-p.hw*0.6,p.h+0.4,p.z+(p.f||1)*p.hd*0.5,Math.cos(a)*3,aD(3,4.5),Math.sin(a)*3,0.8,0.12,0xd8f0ff,9); } }
+  majHabitantsHills(dt);
+}
+/* ---- Los Reyes Hills, la vie (demandé : « de la vie, que ça donne envie : des gens qui se baladent, des décors de
+   résidence, un panneau LOS REYES comme Hollywood, des voitures de luxe ») ----
+   - PANNEAU « LOS REYES » : grandes lettres blanches sur échafaudage, sur le flanc entre les deux lacets du haut,
+     face à la ville, inclinées vers la caméra ; éclairées la nuit.
+   - RÉSIDENCE : guérite de gardiennage et barrière levée à l'entrée, gardien ; massifs fleuris et palmiers au cœur
+     des épingles (trouvées sur la route elle-même) ; boîtes aux lettres aux portails (mkVillaHills).
+   - HABITANTS : promeneurs sur les trottoirs (couples, promeneurs de chiens, poussettes, retour des courses),
+     bronzeurs sur les transats, baigneurs dans les piscines, barbecues entre amis (fumée), lavage de voiture.
+   Tout est décor (aucune collision), sur dt, visible seulement près de la colline. */
+function mkPanneauLosReyes(){
+  /* la bande libre entre le lacet du dessous et celui du dessus, mesurée sur les routes elles-mêmes : les lettres y
+     tiennent en entier (hauteur commune, couchées vers la caméra : lisibles de la ville comme vues d'en haut) */
+  const H=HILLS, W2=H.larg/2+H.trot, txt='LOS REYES', tilt=0.95, pasL=7.4, lw=6.2, xc=-180, x0=xc-(txt.length-1)*pasL/2, fer=mat(0x3a3e44);
+  const dRoute=(x,z)=>{ let m=1e9; for(const R of H.routes) for(const [a,b] of R.pts) m=Math.min(m,dist2(a,b,x,z)); return Math.sqrt(m); };
+  const bandes=[]; for(let i=0;i<txt.length;i++){ const x=x0+i*pasL; let z=-10; while(z>-30&&dRoute(x,z)<W2+0.8) z-=0.25; const zb=z; while(z>H.z0&&dRoute(x,z)>=W2+0.6) z-=0.25; bandes.push([zb,z]); }
+  const prof=Math.min(...bandes.map(([a,b])=>a-b))-0.3, lh=Math.min(11,prof/Math.sin(tilt));
+  for(let i=0;i<txt.length;i++){ const ch=txt[i]; if(ch===' ') continue; const x=x0+i*pasL, zb=bandes[i][0], y0=hauteurHills(x,zb)-0.15;
+    const tx=cTex(256,(g,s)=>{ g.clearRect(0,0,s,s); g.fillStyle='#f6f4ee'; g.font='bold '+Math.round(s*0.98)+'px Arial Black, Arial, sans-serif'; g.textAlign='center'; g.textBaseline='alphabetic'; g.fillText(ch,s/2,s*0.92); });
+    const m=new THREE.MeshLambertMaterial({map:tx,alphaTest:0.5,side:THREE.DoubleSide,emissive:0x000000}); VIE_HILLS.lettres.push(m);
+    const pl=new THREE.Mesh(new THREE.PlaneGeometry(lw,lh),m); pl.rotation.x=-tilt; pl.position.set(x,y0+Math.cos(tilt)*lh/2+0.5,zb-Math.sin(tilt)*lh/2); scene.add(pl);
+    for(const dx of [-lw*0.3,lw*0.3]) for(const u of [0.35,0.85]){ const zt=zb-Math.sin(tilt)*lh*u-0.15, yh=y0+Math.cos(tilt)*lh*u+0.5, yb=hauteurHills(x+dx,zt); if(yh-yb>0.3) mkBox(0.16,yh-yb,0.16,fer,x+dx,(yh+yb)/2,zt); }
+  }
+  VIE_HILLS.panneau={x0,x1:x0+(txt.length-1)*pasL,lh};
+}
+function mkResidenceHills(){
+  const H=HILLS, D=H.routes.find((r)=>r.id==='drive'), W2=H.larg/2+H.trot;
+  // guérite et barrière à l'entrée (la barrière reste levée : on entre librement), gardien
+  const gx=-140.4, gz=112.6, y=hauteurHills(gx,gz);
+  mkBox(3,2.6,3,mat(0xf2ede2),gx,y+1.3,gz); mkBox(3.6,0.25,3.6,mat(0x3a3e44),gx,y+2.75,gz); mkBox(3.02,0.9,2.2,mat(0x1a2a3a),gx,y+1.75,gz);
+  addSolid({x:gx,z:gz,hw:1.5,hd:1.5,h:y+2.9,toit:true}); mkEnseigne('RÉSIDENCE PRIVÉE','#ffd23f',gx,y+3.6,gz+1.6,0,4);
+  { const h=makeHumain({haut:0x1c2030,bas:0x1c2030,peau:choixD(civPeau),casq:0x14161c,visage:'neutre'},1); h.g.position.set(gx-0.3,y,gz+0.4); h.g.rotation.y=-Math.PI/2; scene.add(h.g); VIE_HILLS.statiques.push(h.g); }
+  mkBox(0.4,1.1,0.4,mat(0xd83a3a),gx-2.1,y+0.55,gz+3.2);
+  { const bar=new THREE.Group(); for(let k=0;k<6;k++) bar.add(mkBoxG(0.16,1.05,0.16,k%2?0xd83a3a:0xf6f6f2,0,0.52+k*1.05,0)); bar.position.set(gx-2.1,y+1.1,gz+3.2); bar.rotation.z=0.22; scene.add(bar); VIE_HILLS.barriere=bar; }
+  // massifs au cœur des épingles : là où la route fait demi-tour, entre ses deux branches
+  const dir=(i)=>Math.atan2(D.pts[i+1][0]-D.pts[i][0],D.pts[i+1][1]-D.pts[i][1]), coeurs=[];
+  for(let i=10;i<D.pts.length-12;i++){ if(Math.abs(angDiff(dir(i-9),dir(i+9)))<2.6) continue; const a=D.pts[i-11], b=D.pts[i+11], cx=(a[0]+b[0])/2, cz=(a[1]+b[1])/2;
+    if(coeurs.some(([x,z])=>dist2(x,z,cx,cz)<400)) continue; let m=1e9; for(const R of H.routes) for(const [x,z] of R.pts) m=Math.min(m,dist2(x,z,cx,cz)); if(Math.sqrt(m)<W2+2.2) continue; coeurs.push([cx,cz]); }
+  for(const [cx,cz] of coeurs){ const y=hauteurHills(cx,cz), fl=[0xff5a6a,0xffd23f,0xf2f4f8,0xb87ae0,0xff8a3a];
+    const disque=new THREE.Mesh(new THREE.CylinderGeometry(2.4,2.6,0.3,20),mat(0x5a4028)); disque.position.set(cx,y+0.12,cz); scene.add(disque);
+    for(let k=0;k<14;k++){ const a=k*0.9, r=0.6+(k%3)*0.6, s=new THREE.Mesh(new THREE.SphereGeometry(0.28,6,4),mat(fl[k%fl.length])); s.position.set(cx+Math.sin(a)*r,y+0.42,cz+Math.cos(a)*r); scene.add(s); }
+    for(let k=0;k<3;k++){ const a=k*2.1+0.4, px=cx+Math.sin(a)*3.4, pz=cz+Math.cos(a)*3.4, n0=scene.children.length; mkPalmier(px,pz); for(let q=n0;q<scene.children.length;q++) scene.children[q].position.y=hauteurHills(px,pz); } }
+  VIE_HILLS.coeurs=coeurs;
+}
+function mkHabitantsHills(){
+  const H=HILLS, V=VIE_HILLS, civ=()=>({haut:choixD([0xf2f4f8,0xff8aa8,0x8ad2ff,0xffd23f,0x2a3a5a,0xc8a878,0x7a3a5a]),bas:choixD([0x1c2030,0xf2f4f8,0xc8b898,0x3a3e46,0x2a4a7a]),peau:choixD(civPeau),casq:choixD([0x14161c,0xd8c8a8,0x8a5a2a,0xe8d8a0]),visage:'gentil'});
+  const humain=(cfg)=>{ const h=makeHumain(cfg||civ(),1); scene.add(h.g); return h; };
+  // promeneurs : sur le trottoir, au pas, dans les deux sens ; quelques-uns accompagnés
+  const genres=['chien','couple','poussette','courses','seul','chien','couple','seul','poussette','courses','couple','chien'];
+  genres.forEach((genre,k)=>{ const w={h:humain(),s:aD(0,1),v:(k%2?1:-1)*aD(1.2,1.7),lat:aD(-0.3,0.3),genre};
+    if(genre==='couple') w.h2=humain();
+    if(genre==='chien') w.chien=chienDeco();
+    if(genre==='poussette'){ const g=new THREE.Group(); g.add(mkBoxG(0.55,0.45,0.85,choixD([0x2a3a5a,0x8a2a3a,0xe8e4dc]),0,0.62,0)); g.add(mkBoxG(0.55,0.35,0.3,0x1c2026,0,0.95,-0.25));
+      for(const sx of [-0.25,0.25]) for(const sz of [-0.3,0.3]){ const r=new THREE.Mesh(new THREE.CylinderGeometry(0.13,0.13,0.06,10),mat(0x15171c)); r.rotation.z=Math.PI/2; r.position.set(sx,0.13,sz); g.add(r); }
+      g.add(mkBoxG(0.5,0.05,0.05,0x9aa0a8,0,1.05,-0.62)); scene.add(g); w.objet=g; w.objetAv=0.85; }
+    if(genre==='courses') for(const s of [-1,1]) w.h.g.add(mkBoxG(0.32,0.4,0.18,choixD([0xf2ede2,0xd83a3a,0x2a2d34]),s*0.52,0.5,0));
+    V.pietons.push(w); });
+  // résidents dans les villas : bronzeurs, baigneurs, barbecues, lavage de voiture
+  H.pads.filter((p)=>p.villa&&p.lay).forEach((p,k)=>{ const L=p.lay, f=p.f||1, W=(lx,lz)=>[p.x+lx,p.z+f*lz], sg=Math.sign(L.xa)||1;
+    if(k%2===0){ const lx=L.qx-sg*(L.qw+1.2); if(Math.abs(lx)<p.hw-1){ const [x,z]=W(lx,L.pz), h=humain({...civ(),haut:choixD([0xff5a6a,0x35c8e0,0xffd23f])}); h.g.rotation.x=-Math.PI/2; h.g.position.set(x,p.h+0.55,z+0.85*f); if(f<0) h.g.rotation.z=Math.PI; h.brasG.rotation.x=-2.6; V.statiques.push(h.g); } }
+    if(k%3!==2){ const [x,z]=W(L.qx,L.pz), h=humain({...civ(),haut:choixD([0x35c8e0,0xff5a6a,0xf2f4f8])}); V.nageurs.push({h,x0:x,z0:z,y:p.h+0.12,amp:Math.max(0.3,L.qw-0.8),u:aD(0,6),v:aD(0.25,0.45)}); }
+    if(k%4===1){ const bordP=L.qx+sg*(L.qw+1.4), mx=(bordP+(L.xa-sg*1.8))/2; if(sg*((L.xa-sg*1.8)-bordP)<2.4) return; /* sur la pelouse de devant, entre la piscine et l'allée */
+      const [gx,gz]=W(mx,L.hz+L.hd+1.3), y=p.h; mkBox(0.9,0.12,0.6,mat(0x2a2d34),gx,y+0.95,gz); mkBox(0.95,0.5,0.65,mat(0x15171c),gx,y+0.65,gz); for(const s of [-1,1]) mkBox(0.06,0.6,0.06,mat(0x2a2d34),gx+s*0.4,y+0.3,gz);
+      const amis=[]; for(let q=0;q<3;q++){ const a=q*1.3-1.3+(f>0?0:Math.PI), h=humain(); h.g.position.set(gx+Math.sin(a)*1.05,y,gz+Math.cos(a)*1.05); h.g.rotation.y=Math.atan2(gx-h.g.position.x,gz-h.g.position.z); amis.push(h); }
+      V.bbq.push({x:gx,y:y+1.1,z:gz,amis,t:0}); }
+    if(k%4===3&&k%3!==2){ /* une voiture est garée dans l'allée (hillsStartRun : deux villas sur trois) */ const [x,z]=W(L.xa+sg*2.4,p.hd*0.35), h=humain({...civ(),haut:0xf2f4f8}); h.g.position.set(x,p.h,z); h.g.rotation.y=-sg*Math.PI/2; V.laveurs.push({h,x:x-sg*1.4,y:p.h+0.9,z,t:0}); }
+  });
+}
+function chienDeco(){ const g=new THREE.Group(), c=choixD([0x6a5038,0x2a2a2e,0xc8a878,0xe8e4d2,0xf2f2ee]), pattes=[];
+  g.add(mkBoxG(0.28,0.28,0.62,c,0,0.36,0)); g.add(mkBoxG(0.24,0.24,0.26,c,0,0.52,0.38)); g.add(mkBoxG(0.08,0.24,0.08,c,0,0.5,-0.36));
+  for(const [x,z] of [[-0.1,0.22],[0.1,0.22],[-0.1,-0.2],[0.1,-0.2]]){ const p=mkBoxG(0.07,0.3,0.07,c,x,0.15,z); g.add(p); pattes.push(p); }
+  scene.add(g); return {g,pattes}; }
+function majHabitantsHills(dt){
+  const V=VIE_HILLS, pres=dansHills(P.x,P.z,80), nuit=(ETAT.nuitF||0);
+  for(const m of V.lettres) m.emissive.setRGB(0.55*nuit,0.55*nuit,0.5*nuit); // le panneau s'éclaire la nuit
+  for(const w of V.pietons){ if(w.h2) w.h2.g.visible=pres; if(w.chien) w.chien.g.visible=pres; if(w.objet) w.objet.visible=pres; }
+  for(const g of V.statiques) g.visible=pres; for(const n of V.nageurs) n.h.g.visible=pres; for(const b of V.bbq) for(const h of b.amis) h.g.visible=pres; for(const l of V.laveurs) l.h.g.visible=pres;
+  if(!pres||!V.trottoir) return;
+  // accompagnants des promeneurs (le promeneur lui-même avance dans majVieHills)
+  for(const w of V.pietons){ if(!w.genre) continue; const g=w.h.g, a=g.rotation.y, cx=Math.cos(a), sx=Math.sin(a);
+    if(w.lat){ g.position.x+=cx*w.lat; g.position.z-=sx*w.lat; }
+    const cote=surChaussee(g.position.x+cx*0.9,g.position.z-sx*0.9)?-1:1; // les accompagnants restent côté trottoir, jamais sur la chaussée
+    if(w.h2){ w.h2.g.position.set(g.position.x+cx*0.75*cote,g.position.y,g.position.z-sx*0.75*cote); w.h2.g.rotation.y=a; animeHumain(w.h2,dt,Math.abs(w.v)*3,false); }
+    if(w.chien){ const ch=w.chien, t=CASC_U.uT.value; ch.g.position.set(g.position.x+sx*1.3+cx*0.6*cote,g.position.y,g.position.z+cx*1.3-sx*0.6*cote); ch.g.rotation.y=a; for(let k=0;k<4;k++) ch.pattes[k].rotation.x=Math.sin(t*12+(k%2?Math.PI:0))*0.6; }
+    if(w.objet){ w.objet.position.set(g.position.x+sx*w.objetAv,g.position.y,g.position.z+cx*w.objetAv); w.objet.rotation.y=a; w.h.brasG.rotation.x=w.h.brasD.rotation.x=-1.1; } }
+  // baigneurs : brasse tranquille d'un bord à l'autre, la tête hors de l'eau
+  for(const n of V.nageurs){ n.u+=dt*n.v; const g=n.h.g; g.position.set(n.x0+Math.sin(n.u)*n.amp,n.y-1.05,n.z0); g.rotation.y=Math.cos(n.u)>0?Math.PI/2:-Math.PI/2;
+    n.h.brasG.rotation.x=-1.6+Math.sin(n.u*8)*0.5; n.h.brasD.rotation.x=-1.6-Math.sin(n.u*8)*0.5; }
+  // barbecues : fumée, les amis qui discutent ; lavage : mousse
+  for(const b of V.bbq){ b.t+=dt; if(Math.random()<dt*7) spawnP(b.x+aD(-0.3,0.3),b.y,b.z+aD(-0.2,0.2),aD(-0.2,0.2),aD(1,1.8),aD(-0.2,0.2),1.6,0.35,0xc8c4c0,0);
+    for(let q=0;q<b.amis.length;q++){ const h=b.amis[q]; h.brasD.rotation.x=-0.4+Math.sin(b.t*2.3+q*1.7)*0.35; h.g.rotation.z=Math.sin(b.t*0.9+q)*0.03; } }
+  for(const l of V.laveurs){ l.t+=dt; l.h.brasD.rotation.x=-1.2+Math.sin(l.t*5)*0.4; if(Math.random()<dt*10) spawnP(l.x+aD(-0.6,0.6),l.y+aD(-0.2,0.4),l.z+aD(-1.2,1.2),aD(-0.3,0.3),aD(0,0.5),aD(-0.3,0.3),0.9,0.16,0xf6f8ff,4); }
 }
 // Une villa sur sa parcelle (façade vers la route) : maison selon le STYLE (quinze styles, jamais deux pareils à
 // la suite : provençale, californienne des années 50, toscane, Hamptons, pueblo, Hollywood Regency, japonaise,
@@ -7531,7 +7627,7 @@ const VILLA_JARDIN={
 };
 function mkVillaHills(p){
   const y=p.h, x=p.x, z=p.z, f=p.f||1, st=p.style, D=VILLA_DEF[st], v=p.var||0, T=VILLA_TAILLES[p.type], grand=p.type==='grande', moyen=p.type==='moyenne'; // f : -1 = parcelle en aval (tout en miroir)
-  const mM=mat(D.murs[v]), mA=mat(D.acc[v]), mR=mat(D.toit[v]), vitre=mat(0x1a2a3a), dalle=mat(D.dalle), haie=mat(0x2f6a2a);
+  const mM=mat(D.murs[v]), mA=mat(D.acc[v]), mR=mat(D.toit[v]), vitre=mat(0x1a2a3a), dalle=mat(D.dalle), haie=mat(0x2f6a2a), mAcc=()=>mat(D.acc[v]===0xf6f6f2?0x1c2026:D.acc[v]);
   const B=(w,h,d,m,bx,by,bz)=>mkBox(w,h,d,m,x+bx,y+by,z+f*bz);
   const ajout=(g,m,bx,by,bz)=>{ const o=new THREE.Mesh(g,m); o.position.set(x+bx,y+by,z+f*bz); scene.add(o); return o; };
   const xa=p.hw*0.55*(p.id.charCodeAt(5)%2?1:-1); // allée : à gauche ou à droite
@@ -7564,6 +7660,8 @@ function mkVillaHills(p){
   else if(D.piscine==='couloir'){ qx=px*0.6; qw=Math.min(pw*1.5,p.hw*0.7); qd=Math.min(pd,1.4); B(qw*2+2.4,0.07,qd*2+2,dalle,qx,0.05,pz); piscineHills(x+qx,z+f*pz,qw,qd,y+0.12); }
   else { B(pw*2+3,0.07,pd*2+2,dalle,px,0.05,pz); piscineHills(x+px,z+f*pz,pw,pd,y+0.12); }
   c.px=qx; c.pw=qw;
+  p.lay={qx,pz,qw,qd,rond:D.piscine==='rond',xa,hw,hz,hd,cote:Math.max(1.2,(p.hw-hw)/2)}; // repère de la parcelle (z vers la rue) : lu par la vie du quartier
+  B(0.08,1.0,0.08,mat(0x2a2d34),xa+3.2,0.5,p.hd-0.7); B(0.42,0.34,0.6,mAcc(),xa+3.2,1.12,p.hd-0.7); // boîte aux lettres
   const sg=Math.sign(xa)||1, transat=mat(['provencal','toscane','pueblo','hacienda'].includes(st)?0xff8a5a:(st==='japonaise'||st==='balinaise'?0xc8a878:0xf2f4f6));
   for(const s of [-1,1]){ const tx=qx+s*(qw+1.2); if(Math.abs(tx)>p.hw-1||(s===sg&&Math.abs(tx-xa)<2.6)) continue; const tr=B(0.7,0.25,1.8,transat,tx,0.3,pz); tr.rotation.x=0.12*f; }
   if(st!=='balinaise'&&st!=='japonaise'){ const ox=qx-sg*(qw+1.2); if(Math.abs(ox)<p.hw-1){ ajout(new THREE.ConeGeometry(1.4,0.6,8),mat([0xffd23f,0xe05252,0x35c8e0,0xf2f4f6][p.id.charCodeAt(5)%4]),ox,2.3,pz-qd-0.6); B(0.08,2.2,0.08,mat(0xd8dce4),ox,1.1,pz-qd-0.6); } }
@@ -8824,7 +8922,7 @@ function mkRides(){
 }
 // véhicules garés au pied des départs (startRun)
 function garerRides(){
-  if(HILLS.ok){ const d=rideDepart('downhill'); [['sport',-6,4],['motoS',-9,4]].forEach(([k,dx,dz])=>{ const v=creerVehicule(k,d.x+dx,d.z+dz,Math.PI/2); if(v) v.h=solY(v.x,v.z); }); } // au sommet de Los Reyes Hills : de quoi faire la descente
+  if(HILLS.ok&&HILLS.manoir){ const m=HILLS.manoir; [['sport',16,6.5],['motoS',20.5,6.5]].forEach(([k,dx,dz])=>{ const v=creerVehicule(k,m.x+dx,m.z+dz,Math.PI/2); if(v) v.h=solY(v.x,v.z); }); } // au sommet de Los Reyes Hills, sur l'esplanade du manoir (jamais sur la chaussée : les voitures des lacets s'y arrêtaient pour toujours) : de quoi faire la descente
   if(!MONT.pied) return;
   const pm=MONT.pied, a=CANYON.acces;
   [['motocross',pm.x-8,pm.z+6],['motocross',pm.x-11,pm.z+6],['bmx',pm.x-14,pm.z+5],['velo',pm.x-16,pm.z+5],
@@ -30154,6 +30252,7 @@ function startRun(){
     const x=vert?r+4.6*(Math.random()<0.5?1:-1):rand(-HALF+15,HALF-15);
     const z=vert?rand(-HALF+15,HALF-CELL-10):r+4.6*(Math.random()<0.5?1:-1);
     if(solidAt(x,z,2.2)||estEau(x,z)) continue;
+    if(HILLS.ok&&dansHills(x,z,3)) continue; // les anciennes rues de la grille passent sous Los Reyes Hills
     let libre=true;
     for(const o of vehicules) if(dist2(o.x,o.z,x,z)<60){libre=false;break;}
     if(!libre) continue;
