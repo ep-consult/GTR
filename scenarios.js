@@ -9986,6 +9986,124 @@ async function main() {
       else ok('Véhicules retravaillés : ' + r.info.join(' ; '));
     }
 
+    // -------------------------------------------------------------------
+    // Armes (14 octobre) : AA-12, revolver, arbalète, minigun ; mur d'armes
+    // et établi de l'armurerie ; modifications (MODS_ARMES, lues) ; balles
+    // explosives et incendiaires ; lance-flammes qui enflamme ; gilets.
+    // -------------------------------------------------------------------
+    console.log('\n--- Armes : nouvelles armes, mur d’armes, établi, modifications, feu, gilets ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
+        const sav = JSON.stringify(META.modsArmes || {}), arg0 = META.argent;
+        for (const id of ['aa12', 'revolver', 'arbalete', 'minigun']) { if (!ARMES[id] || !ORDRE_ARMES.includes(id) || !META.armes[id]) ko.push(id + ' absente'); else if (!mkArmeModele(id)) ko.push(id + ' sans modèle'); }
+        // armurerie : une arme exposée par arme à feu en vente, achetable au mur
+        const porte = PORTES.find((p) => p.id === 'armurerie'); entrerInterieur('armurerie', porte); const s = INT.actif;
+        const enVente = ORDRE_ARMES.filter((id) => ARMES[id].type === 'gun' && !ARMES[id].cachee && mkArmeModeleDispo(id));
+        if (!s.murArmes || s.murArmes.length !== enVente.length) ko.push('mur d’armes : ' + (s.murArmes ? s.murArmes.length : 0) + ' / ' + enVente.length);
+        for (const sl of s.murArmes || []) if (dist2(sl.x, sl.z, s.sortie.x, s.sortie.z) < 64) ko.push('emplacement ' + sl.id + ' à moins de 8 u de la sortie');
+        const sl = s.murArmes.find((q) => q.id === 'revolver'); META.armes.revolver.poss = false; META.niveau = Math.max(META.niveau, 10); META.argent = 99999;
+        P.x = sl.x; P.z = sl.z; majAction(); const b = el('btnAction'); if (!/ACHETER/.test(b.textContent)) ko.push('le mur ne propose pas l’achat (' + b.textContent + ')'); b._fn && b._fn();
+        if (!META.armes.revolver.poss) ko.push('achat au mur raté');
+        // établi : modifications, effets sur les statistiques
+        META.armes.pistolet.poss = true; delete META.modsArmes.pistolet; const st0 = armeStats('pistolet');
+        META.argent = 10; if (acheterMod('pistolet', 'chargeur')) ko.push('modification achetée sans l’argent'); META.argent = 99999;
+        for (const k of ['chargeur', 'laser', 'double']) acheterMod('pistolet', k);
+        const st1 = armeStats('pistolet');
+        if (!(st1.mag >= st0.mag * 2.9 && st1.disp < st0.disp * 0.5 && st1.cad < st0.cad * 0.6)) ko.push('effets des modifications : ' + JSON.stringify({ st0, st1 }));
+        if (acheterMod('pistolet', 'electrique')) ko.push('un choc électrique sur un pistolet');
+        P.x = s.etabliArmes.x; P.z = s.etabliArmes.z; majAction(); if (!/PERSONNALISER/.test(el('btnAction').textContent)) ko.push('pas d’établi'); el('btnAction')._fn();
+        if (!ATELIER.ouvert || !ATELIER.modele) ko.push('l’établi ne s’ouvre pas'); fermerAtelierArme(); sortirInterieur();
+        info.push(s.murArmes.length + ' armes au mur, établi, chargeur/laser/akimbo');
+        // balles explosives : la voisine de la cible est touchée ; incendiaires : la cible brûle
+        for (const e of ennemis) e.mort = true; majEnnemis(1 / 30);
+        const x0 = POIS.place.x, z0 = POIS.place.z + 20; P.x = x0; P.z = z0;
+        const e1 = creerEnnemi('vip_batte', x0, z0 + 6, true), e2 = creerEnnemi('vip_batte', x0 + 1.2, z0 + 6.4, true); e1.passif = e2.passif = true; e1.hp = e2.hp = 500;
+        const h2 = e2.hp; const bE = { x: e1.x, y: 1.2, z: e1.z, vx: 0, vz: 1, dmg: 40, fac: 'joueur', mod: 'explosif' }; collisionBalle(bE);
+        if (!(e2.hp < h2)) ko.push('balle explosive : pas de dégâts autour');
+        const bF = { x: e1.x, y: 1.2, z: e1.z, vx: 0, vz: 1, dmg: 10, fac: 'joueur', mod: 'feu' }; collisionBalle(bF);
+        if (!(e1.feuT > 0)) ko.push('balle incendiaire : la cible ne brûle pas');
+        const hF = e1.hp; for (let i = 0; i < 30; i++) majEnnemis(1 / 30); if (!(e1.hp < hF)) ko.push('le feu ne fait pas de dégâts');
+        e1.mort = e2.mort = true;
+        // le lance-flammes enflamme un piéton (il court, puis tombe ou s'éteint)
+        for (const q of pietons) scene.remove(q.h.g); pietons.length = 0; creerPieton(x0, z0 + 4); const pi = pietons[0];
+        collisionBalle({ x: pi.x, y: 1, z: pi.z, vx: 0, vz: 1, dmg: 4, fac: 'joueur', mod: 'feu' });
+        if (!(pi.feuT > 0) || pi.etat === 'mort') ko.push('le lance-flammes ne met pas le feu au piéton');
+        info.push('explosion autour de la cible, feu sur 3 s, piéton enflammé');
+        // gilets : achetés au comptoir, protègent, se voient
+        P.bouclier = 0; META.argent = 99999; actionShop('gilet', 'lourd'); majHUD();
+        if (P.bouclier !== 150 || !P.giletMesh || !P.giletMesh.visible) ko.push('gilet lourd : ' + P.bouclier);
+        P.iframes = 0; P.dodgeT = 0; P.ecraseT = 0; const hp0 = P.hp; toucherJoueur(60); if (P.hp !== hp0 || P.bouclier !== 90) ko.push('le gilet n’absorbe pas (' + P.bouclier + ')');
+        info.push('gilet lourd 150, visible, absorbe');
+        // sauvegarde
+        sauveMeta(); const sv = JSON.parse(localStorage.getItem(SAVE_KEY) || '{}'); if (!sv.modsArmes || !/double/.test(sv.modsArmes.pistolet || '')) ko.push('modifications non sauvegardées');
+        META.modsArmes = JSON.parse(sav); META.argent = arg0; sauveMeta(); startRun(); P.hp = P.maxHp = 1e6;
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Armes : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
+      else ok('Armes : ' + r.info.join(' ; ') + ' ; AA-12, revolver, arbalète, minigun ; sauvegardé');
+    }
+
+    // -------------------------------------------------------------------
+    // Course en mer (14 octobre) : flèche GPS vers la porte suivante,
+    // trois rivales du même modèle qui suivent les portes, classement, tout
+    // est retiré à l'arrivée ; finir premier majore la prime.
+    // -------------------------------------------------------------------
+    console.log('\n--- Course en mer : GPS, rivales, classement ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
+        const d = rideDepart('bouees'), v = creerVehicule('jetski', d.x, d.z, 0, null); P.x = v.x; P.z = v.z; entrerVehicule(v); demarrerRide('bouees');
+        if (!RIDES.rivales || RIDES.rivales.length !== 3 || RIDES.rivales.some((o) => o.def !== v.def)) ko.push('pas trois rivales du même modèle');
+        let t = 0, flecheVue = false, rangs = new Set();
+        while (RIDES.actif && t < 60) { const rr = RIDES.actif, q = rr.portes[rr.i], a = Math.atan2(q.x - v.x, q.z - v.z); INPUT.mx = Math.sin(a); INPUT.mz = Math.cos(a);
+          const c = controleDir(v, false); majVehiculePhys(v, 1 / 30, c.throttle, c.steer, false); majRides(1 / 30); t += 1 / 30;
+          if (RIDES.fleche && RIDES.fleche.visible) flecheVue = true; const m = /(\d)e\/4/.exec(RIDES.txt.textContent); if (m) rangs.add(m[1]); }
+        INPUT.mx = INPUT.mz = 0;
+        if (!flecheVue) ko.push('pas de flèche GPS'); if (!rangs.size) ko.push('pas de classement');
+        if (RIDES.actif) ko.push('course pas finie en 60 s'); if (RIDES.rivales && RIDES.rivales.length) ko.push('rivales restées après l’arrivée');
+        if (RIDES.fleche && RIDES.fleche.visible) ko.push('flèche restée affichée');
+        info.push('fini en ' + t.toFixed(1) + ' s, classements vus : ' + [...rangs].join(','));
+        sortirVehicule(true); v.mort = true; startRun(); P.hp = P.maxHp = 1e6;
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Course en mer : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
+      else ok('Course en mer : ' + r.info.join(' ; ') + ' ; GPS, trois rivales, tout retiré à l’arrivée');
+    }
+
+    // Hélicos de combat (14 octobre) : l'armée envoie le « Vautour » à 6 étoiles ; le Vautour pilotable
+    // attend à la base militaire, armé
+    console.log('\n--- Hélicos de combat : ennemi à 6 étoiles, Vautour pilotable à la base ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [];
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu';
+        if (!ETYPES.heliArmee || !ETYPES.heliArmee.heli) ko.push('pas d’hélico de l’armée');
+        const v = vehicules.find((q) => q.key === 'vautour' && !q.mort);
+        if (!v || !POIS.base || Math.abs(v.x - POIS.base.x) > POIS.base.hw || Math.abs(v.z - POIS.base.z) > POIS.base.hd) ko.push('Vautour absent de la base');
+        if (v && (!v.def.armes || v.def.air !== 'helico')) ko.push('Vautour non armé');
+        const m = makeHeli('armee'), m2 = makeHeli(); if (!m.userData.rotor || !m2.userData.cone) ko.push('modèles incomplets');
+        return { ko };
+      });
+      if (r.ko.length) fail('Hélicos de combat : ' + r.ko.join(' | ')); else ok('Hélicos de combat : Vautour ennemi à 6 étoiles, Vautour pilotable et armé à la base, police restylée');
+    }
+
+    // Dégradations progressives (14 octobre) : pare-brise fendu, tôles enfoncées, capot soulevé, puis réparation
+    console.log('\n--- Dégradations des véhicules : trois étapes avant l’explosion, effacées à la réparation ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = []; if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu';
+        const v = creerVehicule('citadine', POIS.place.x, POIS.place.z + 30, 0, null); const vus = [];
+        for (const f of [0.7, 0.45, 0.25]) { abimerVehicule(v, v.hp - v.def.hp * f, false); vus.push(v.degSt); }
+        if (vus.join(',') !== '1,2,3' || !v.mesh.userData.degats || v.mort) ko.push('étapes : ' + vus.join(','));
+        v.hp = v.def.hp; reparerVisuels(v); if (v.degSt || v.mesh.userData.degats) ko.push('la réparation n’efface pas les dégâts');
+        v.mort = true; return { ko };
+      });
+      if (r.ko.length) fail('Dégradations : ' + r.ko.join(' | ')); else ok('Dégradations : pare-brise fendu, tôles enfoncées, capot soulevé, effacés à la réparation');
+    }
+
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');
     {
       const srcIdx = fs.readFileSync(INDEX_HTML, 'utf8');

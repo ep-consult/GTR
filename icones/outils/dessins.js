@@ -181,6 +181,35 @@ I['ico-arme-pompe'] = () => {
   ]];
 };
 
+// AA-12 (14 octobre) : le fusil à pompe, avec son tambour sous le boîtier
+I['ico-arme-aa12'] = () => [[...I['ico-arme-pompe']()[0], cercle(12.4, 14.6, 2.7), cercle(12.4, 14.6, 1.0, true)]];
+// revolver (14 octobre) : le pistolet, barillet rond sur la carcasse, trois chambres
+I['ico-arme-revolver'] = () => [[
+  epais([[11.0, 6.2], [22.6, 6.2]], 1.7),                    // long canon
+  boite(22.0, 4.9, 0.7, 0.9, 0, 0.1),                         // guidon
+  boite(9.2, 7.7, 5.6, 4.2, 0, 0.9),                          // barillet
+  ...[6.9, 8.4, 9.9, 11.4].map((x) => boite(x, 7.7, 0.55, 2.6, 0, 0.25, true)), // cannelures
+  epais([[6.5, 6.4], [5.3, 4.4]], 1.0),                       // chien
+  lisse([[5.2, 9.0], [8.8, 9.6, 1], [8.4, 11.0], [7.6, 13.6], [7.0, 16.8], [6.8, 19.2, 1], [3.4, 19.8, 1], [3.0, 17.6], [3.6, 14.2], [4.4, 11.2]]), // crosse courbe
+  epais([[8.6, 9.8], [9.6, 12.0], [11.6, 11.6], [11.8, 9.6]], 0.55), // pontet
+]];
+// arbalète (14 octobre) : fût en diagonale, arc tendu en travers, corde, carreau
+I['ico-arme-arbalete'] = () => [[
+  epais([[1.6, 20.4], [8.0, 15.6], [16.0, 9.6], [21.6, 5.4]], 2.0),
+  arcEpais(17.6, 8.6, 6.4, 7.6, 170, 330),
+  epais([[11.3, 7.4], [14.2, 14.2]], 0.45),
+  epais([[12.6, 10.8], [22.8, 3.2]], 0.7),
+  epais([[5.0, 17.2], [6.1, 20.4]], 1.1),
+]];
+// minigun (14 octobre) : faisceau de canons, moteur rond, poignée et bande de munitions
+I['ico-arme-minigun'] = () => [[
+  ...[-1.6, 0, 1.6].map((dy) => epais([[10.6, 11.0 + dy], [22.9, 6.2 + dy]], 0.95)),
+  capsule(6.6, 12.8, 12.2, 10.6, 4.2),
+  cercle(13.4, 10.2, 2.2),
+  epais([[6.0, 15.0], [5.4, 19.6]], 1.6),
+  epais([[9.2, 15.6], [10.6, 20.6], [13.4, 21.6]], 1.2),
+]];
+
 I['ico-arme-uzi'] = () => [[
   // boîtier incliné, canon court, guidon
   lisse([[1.3, 11.0, 1], [2.5, 9.4], [3.0, 7.6], [4.4, 7.1], [6.2, 7.6, 1], [8.9, 6.4, 1], [11.6, 5.2, 1], [14.2, 4.0, 1], [15.3, 3.1, 1],

@@ -1731,3 +1731,13 @@ Captures : `captures/lot11/salles_immersives_1.png`, `salles_immersives_2.png`, 
 - **Vue immersive en salles**, sensation de vitesse, banderole, lunette du sniper (lot précédent).
 
 Captures : `captures/lot11/aeroport_*.png`, `helico_*.png`, `planques.png`, `fourgon_char.png`, `megayacht_vip.png`, `cycliste_dauphin.png`, `wakeboard_saut.png`.
+
+## 3e série — lot 2 (14 octobre)
+
+- **Armes** : AA-12 (pompe automatique), revolver Magnum, arbalète, minigun ; **armurerie** avec les armes exposées en 3D au mur (on les achète en s'approchant) et un **établi** où l'arme équipée tourne en grand : balles explosives, balles incendiaires, chargeur, silencieux, visée laser, **akimbo** (double pistolet / double Uzi), choc électrique, finitions or et camo ; **gilets pare-balles** tactique et lourd, visibles sur le joueur ; le **lance-flammes** projette un vrai jet et enflamme (les gens courent en brûlant).
+- **Course en mer** : flèche GPS vers la porte suivante, trois embarcations rivales du même type, classement en direct, prime majorée si tu gagnes.
+- **Hélicoptères** : police restylée (livrée, projecteur), hélico de combat de l'armée à 6 étoiles, et sa version pilotable armée à la base militaire.
+- **Dégradations** des véhicules en trois étapes avant l'explosion (pare-brise fendu, tôles enfoncées, capot soulevé…).
+- 4 nouveaux pictogrammes d'armes.
+
+Captures : `captures/lot11/armurerie_*.png`, `course_mer_rivales.png`, `helicos_police_armee.png`, `degradations.png`, `icones_armes.png`.

@@ -41,3 +41,7 @@ planche,id,description
 04-garage.png,ico-garage-moteur,Bloc moteur avec cylindres et poulies
 04-garage.png,ico-garage-vitesse,Compteur avec graduations et aiguille
 04-garage.png,ico-garage-tenue,Pneu avec sculpture et trace courbe de trajectoire
+01-armes.png,ico-arme-aa12,Fusil à pompe automatique à tambour
+01-armes.png,ico-arme-revolver,Revolver à barillet
+01-armes.png,ico-arme-arbalete,Arbalète tendue avec carreau
+01-armes.png,ico-arme-minigun,Minigun à canons multiples
