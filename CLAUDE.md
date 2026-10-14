@@ -72,36 +72,38 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 1818 | MÉTA-PROGRESSION — `META`, défis, sauvegarde |
 | 2591 | THREE.JS — rendu, scène, lumières |
 | 2902 | VILLE DE LOS REYES — génération procédurale par quartiers |
-| 6312 | MODÈLES — humains, armes, véhicules, hélico, ramassables |
-| 6500 | POOLS — balles, particules, textes flottants, traces de pneus |
-| 10097 | ÉTAT GLOBAL + JOUEUR (`P`) |
-| 11678 | VÉHICULES — physique arcade, trafic, dégâts |
-| 12038 | PIÉTONS |
-| 12881 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
-| 15413 | **RAYON TRACTEUR DE L'OVNI** |
-| 15587 | NIVEAU DE RECHERCHE (étoiles) |
-| 16143 | VAGUES + bonus de fin de vague |
-| 16608 | MISSIONS COURTES |
-| 16887 | BÂTIMENTS VISITABLES — intérieurs |
-| 17007 | FOUILLE — mécanique générique |
-| 17010 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
-| 17080 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
-| 17628 | **LAVERIE** V2 — l'essorage de la machine 7 |
-| 21745 | **SERRE** V2 — la nuit de la floraison |
-| 22153 | CINÉ-PALACE |
-| 22418 | MÉTRO ABANDONNÉ |
-| 22710 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
-| 22954 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
-| 23020 | SITE 51 |
-| 23371 | LE DÉPÔT DE BUS — courses clandestines |
-| 24273 | **MÉTIERS** — missions liées à un véhicule |
-| 24503 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
-| 25531 | ÉCRANS / MENUS / BOUTIQUES |
-| 25821 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
-| 26816 | DÉBUT / FIN DE PARTIE |
-| 27084 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
-| 27883 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
-| 29299 | BOUCLE PRINCIPALE |
+| 6312 | **AÉROPORT VIVANT** — aérogare, trafic aérien, hangars (`AERO`) |
+| 6500 | **PLANQUES EN PLEIN AIR** (`PLANQUES_DEF`) |
+| 10097 | MODÈLES — humains, armes, véhicules, hélico, ramassables |
+| 11678 | POOLS — balles, particules, textes flottants, traces de pneus |
+| 12038 | ÉTAT GLOBAL + JOUEUR (`P`) |
+| 12881 | VÉHICULES — physique arcade, trafic, dégâts |
+| 15413 | PIÉTONS |
+| 15587 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
+| 16143 | **RAYON TRACTEUR DE L'OVNI** |
+| 16608 | NIVEAU DE RECHERCHE (étoiles) |
+| 16887 | VAGUES + bonus de fin de vague |
+| 17007 | MISSIONS COURTES |
+| 17010 | BÂTIMENTS VISITABLES — intérieurs |
+| 17080 | FOUILLE — mécanique générique |
+| 17628 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
+| 21745 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
+| 22153 | **LAVERIE** V2 — l'essorage de la machine 7 |
+| 22418 | **SERRE** V2 — la nuit de la floraison |
+| 22710 | CINÉ-PALACE |
+| 22954 | MÉTRO ABANDONNÉ |
+| 23020 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
+| 23371 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
+| 24273 | SITE 51 |
+| 24503 | LE DÉPÔT DE BUS — courses clandestines |
+| 25531 | **MÉTIERS** — missions liées à un véhicule |
+| 25821 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
+| 26816 | ÉCRANS / MENUS / BOUTIQUES |
+| 27084 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
+| 27883 | DÉBUT / FIN DE PARTIE |
+| 29299 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
+| 29535 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
+| 29908 | BOUCLE PRINCIPALE |
 
 ### Ancres fines (hors bandeaux)
 
