@@ -55,7 +55,7 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
   echo "$ln | $(sed -n "$((ln+1))p" index.html | sed 's/^[ \t]*//')"; done
 ```
 
-**Relevé au 15 octobre 2026 (cascades et volcan) — 31 334 lignes.**
+**Relevé au 15 octobre 2026 (échelle, aéroport, PNJ à l'eau) — 31 500 lignes.**
 Attention : `maj_carte` recale les numéros dans l'ordre des lignes de la table ;
 un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la main.
 
@@ -77,36 +77,36 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 6930 | **BOUTIQUES DE STYLE** (`BOUTIQUES_DEF`, `VETEMENTS`, `BOUT`) |
 | 7066 | **MANÈGES** — grand huit, grande roue (`MANEGES`) |
 | 7137 | **TOITS VIVANTS** (`TOITS`, `mkToitsVivants`) |
-| 11022 | MODÈLES — humains, armes, véhicules, hélico, ramassables |
-| 12827 | POOLS — balles, particules, textes flottants, traces de pneus |
-| 13191 | ÉTAT GLOBAL + JOUEUR (`P`) |
-| 14045 | VÉHICULES — physique arcade, trafic, dégâts |
-| 16642 | PIÉTONS |
-| 16818 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
-| 17385 | **RAYON TRACTEUR DE L'OVNI** |
-| 17850 | NIVEAU DE RECHERCHE (étoiles) |
-| 18129 | VAGUES + bonus de fin de vague |
-| 18250 | MISSIONS COURTES |
-| 18253 | BÂTIMENTS VISITABLES — intérieurs |
-| 18323 | FOUILLE — mécanique générique |
-| 18871 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
-| 23000 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
-| 23408 | **LAVERIE** V2 — l'essorage de la machine 7 |
-| 23673 | **SERRE** V2 — la nuit de la floraison |
-| 23965 | CINÉ-PALACE |
-| 24209 | MÉTRO ABANDONNÉ |
-| 24275 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
-| 24626 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
-| 25528 | SITE 51 |
-| 25758 | LE DÉPÔT DE BUS — courses clandestines |
-| 26786 | **MÉTIERS** — missions liées à un véhicule |
-| 27076 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
-| 28082 | ÉCRANS / MENUS / BOUTIQUES |
-| 28357 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
-| 29156 | DÉBUT / FIN DE PARTIE |
-| 30596 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
-| 30832 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
-| 31212 | BOUCLE PRINCIPALE |
+| 11134 | MODÈLES — humains, armes, véhicules, hélico, ramassables |
+| 12972 | POOLS — balles, particules, textes flottants, traces de pneus |
+| 13336 | ÉTAT GLOBAL + JOUEUR (`P`) |
+| 14190 | VÉHICULES — physique arcade, trafic, dégâts |
+| 16798 | PIÉTONS |
+| 16980 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
+| 17551 | **RAYON TRACTEUR DE L'OVNI** |
+| 18016 | NIVEAU DE RECHERCHE (étoiles) |
+| 18295 | VAGUES + bonus de fin de vague |
+| 18416 | MISSIONS COURTES |
+| 18419 | BÂTIMENTS VISITABLES — intérieurs |
+| 18489 | FOUILLE — mécanique générique |
+| 19037 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
+| 23166 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
+| 23574 | **LAVERIE** V2 — l'essorage de la machine 7 |
+| 23839 | **SERRE** V2 — la nuit de la floraison |
+| 24131 | CINÉ-PALACE |
+| 24375 | MÉTRO ABANDONNÉ |
+| 24441 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
+| 24792 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
+| 25694 | SITE 51 |
+| 25924 | LE DÉPÔT DE BUS — courses clandestines |
+| 26952 | **MÉTIERS** — missions liées à un véhicule |
+| 27242 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
+| 28248 | ÉCRANS / MENUS / BOUTIQUES |
+| 28523 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
+| 29322 | DÉBUT / FIN DE PARTIE |
+| 30762 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
+| 30998 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
+| 31378 | BOUCLE PRINCIPALE |
 
 ### Ancres fines (hors bandeaux)
 
@@ -138,36 +138,36 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 5850 | `VILLA_PISC` — finitions de quartier : `mkQuartiersFinitions()` |
 | 5930 | `MONT` — Mont Reyes, puis `CANYON` (canyons) et `RIDES` (courses) |
 | 4448 | `SOLS` — dalles de sol enregistrées, puis `mkTransitionsSols()` (jonctions entre sols) |
-| 8456 | `mkLacParc()` — lac du parc, passerelle, barques |
-| 8585 | `mkLumieresQuartiers()` — Times Square, quartier chinois, Brooklyn |
-| 8671 | `mkEnceinte()` — murs, enseigne, jetées de rochers |
-| 9203 | `GALION` — galion échoué : `sansAleaVille()`, `coqueGalion()`, `mkGalion()`, `majGalion()` |
-| 10222 | `mkPorteGarage()` — porte roulante des garages |
-| 10292 | `placeLibrePorte()` |
-| 10351 | helper `poser()` — placement des lieux |
-| 10377 | `caseCentre(bx,bz)` |
-| 10470 | `REPLIS` — filet de sécurité en spirale |
-| 12695 | `makeVelo()` — vélo de ville et BMX |
-| 10139 | `ENSEIGNES` — portes mieux placées : `ameliorerPortes()`, `profondeurDevant()`, `orienterPorte()` |
-| 13199 | `const P` — état du joueur |
-| 13242 | `P.stamMax = 100 + 12*mus` |
-| 14411 | `resoudreCollisionsVehicule()` — collisions entre véhicules (SAT sur les 4 axes) |
-| 15047 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
-| 15171 | `boutonsAPied()` — boutons du HUD remis « à pied » (sortie de véhicule ET début de partie) |
-| 16088 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
-| 16217 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
-| 18259 | `IOFF = -9000` |
-| 19948 | `INTDEFS` — définitions des **27 salles** |
-| 20128 | `construireSalle(id)` |
+| 8568 | `mkLacParc()` — lac du parc, passerelle, barques |
+| 8697 | `mkLumieresQuartiers()` — Times Square, quartier chinois, Brooklyn |
+| 8783 | `mkEnceinte()` — murs, enseigne, jetées de rochers |
+| 9315 | `GALION` — galion échoué : `sansAleaVille()`, `coqueGalion()`, `mkGalion()`, `majGalion()` |
+| 10334 | `mkPorteGarage()` — porte roulante des garages |
+| 10404 | `placeLibrePorte()` |
+| 10463 | helper `poser()` — placement des lieux |
+| 10489 | `caseCentre(bx,bz)` |
+| 10582 | `REPLIS` — filet de sécurité en spirale |
+| 12840 | `makeVelo()` — vélo de ville et BMX |
+| 10251 | `ENSEIGNES` — portes mieux placées : `ameliorerPortes()`, `profondeurDevant()`, `orienterPorte()` |
+| 13344 | `const P` — état du joueur |
+| 13387 | `P.stamMax = 100 + 12*mus` |
+| 14566 | `resoudreCollisionsVehicule()` — collisions entre véhicules (SAT sur les 4 axes) |
+| 15202 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
+| 15326 | `boutonsAPied()` — boutons du HUD remis « à pied » (sortie de véhicule ET début de partie) |
+| 16243 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
+| 16372 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
+| 18425 | `IOFF = -9000` |
+| 20114 | `INTDEFS` — définitions des **27 salles** |
+| 20294 | `construireSalle(id)` |
 | 20390 | `CHALUTIER_BANCS_PLAN` — chalutier V2 ; `chalutierMaj` (20761), `dessinerRadarChalutier` (21018) |
-| 26795 | `METIERS_CIBLE` |
-| 27094 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
-| 27182 | `PIECES_FAMILLES` — catalogues de pièces par famille |
-| 27483 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
-| 27546 | `libererObjet()` — libère les géométries d'un objet retiré |
-| 27562 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
-| 27686 | `construireGarageTuning()` — la salle partagée |
-| 28056 | `majNitro()` |
+| 26961 | `METIERS_CIBLE` |
+| 27260 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
+| 27348 | `PIECES_FAMILLES` — catalogues de pièces par famille |
+| 27649 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
+| 27712 | `libererObjet()` — libère les géométries d'un objet retiré |
+| 27728 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
+| 27852 | `construireGarageTuning()` — la salle partagée |
+| 28222 | `majNitro()` |
 
 ---
 
@@ -856,6 +856,42 @@ de fuselages et d'ailes ; jamais le joueur ni les sprites) : appelée par
 et par `placerFaune`. Vérifié par « Aéroport, suite » (géométries stables
 sur 3 parties). **Toute entité recréée à chaque partie passe par
 `libererEntite` à son retrait.**
+
+## Échelle des hélicos et du yacht, vie de l'aéroport (15 octobre 2026)
+
+- **Hélicoptères à l'échelle** (signalé : « ramassés ») : `agrandirHelico`
+  (appelée par `makeVoiture` pour tout `air:'helico'` sauf l'OVNI, et pour les
+  hélicos ennemis) range le modèle dans un groupe agrandi `ECH_HELI` (×1,3 à
+  ×1,6) et ramène le rotor à `ECH_ROTOR` × l'ancien diamètre (Écureuil :
+  10,7 u, comme le vrai) ; les ombres-sprites restent hors du groupe. Cabines
+  de 3,9 à 4,6 u. `ud.kHeli` : l'échelle (le treuil de l'aimant du Titan la
+  lit). Encombrements `long`/`larg` mis à jour dans `VEHDEFS`.
+- **Yacht privé** « Impérial » (signalé : « tout ratatiné ») : 22 × 6 u,
+  franc-bord de 2 u, salon au pare-brise incliné (profils extrudés), flybridge
+  à hardtop, arceau radar, bains de soleil, plage arrière ; pièces fusionnées
+  par matériau ; pilote debout sur le flybridge (`ud.siege`, lu par
+  `entrerVehicule`).
+- **Vie de l'aéroport, suite** (`AERO_VIE`, `mkAeroVie` en DERNIER dans le
+  décor, `majAeroVie`, `aeroVieStartRun`) : véhicules de piste qui circulent
+  (vrais véhicules, `conduit:'piste'`, `majVehPiste` : boucles `boucleRect`
+  / `pointBoucle`, arrêt et klaxon devant un piéton ou un véhicule, volables)
+  — train de bagages, citerne, bus de piste, voiture FOLLOW ME
+  (`habillerFollowMe`) ; placeurs qui guident aux bâtons l'avion arrivant à
+  leur porte ; bagagistes au tapis chargeur ; mécaniciens ; avion de tourisme
+  en tour de piste et Écureuil autour de la tour (décor) ; rampe d'approche en
+  chenillard la nuit ; voyageurs et file de taxis à la dépose-minute ;
+  carillon et annonce dans le hall. Personnel et voyageurs : LOD de la foule.
+- **PNJ à l'eau** (signalé : « des PNJ qui marchent dans l'eau vers le sable ») :
+  un ennemi qui ne nage pas, jeté ou projeté à l'eau, et un passant à l'eau
+  NAGENT (`poseNage` : allongés, crawl, ordre d'Euler 'YXZ' le temps de la
+  nage, `finNage` le remet à terre et avant toute chute) jusqu'à la rive la
+  plus proche (`rivePlusProche`, 16 directions ; avant : debout, toujours vers
+  le nord, même dans un bassin) ; les nageurs (`def.nage`) aussi nagent au
+  lieu de marcher. Les gardes ne repassent plus par l'eau.
+- **Test de la serre** : la serre tire sur SON générateur pendant le pilote
+  (`serreMaj` enveloppée) ; ce que `majJoueur` consomme selon l'état laissé
+  par d'autres tests changeait les besoins (2 à 8 nuits sur 10 selon la suite).
+- Tests : « Échelle des hélicos et du yacht, vie de l'aéroport », « PNJ à l'eau ».
 
 ## Cascades et volcan (15 octobre 2026)
 

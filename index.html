@@ -2538,7 +2538,7 @@ const VEHDEFS={
   taxi:{nom:'Taxi',tuningMeca:true,tuningCarro:{famille:'compacte',ancrages:{avant:{x:0,y:0.86,z:2.09},arriere:{x:0,y:0.65,z:-2.09},toit:{x:0,y:1.57,z:-0.26},basCaisse:{x:1,y:0.22,z:0}}},vmax:25,acc:15,man:2.6,hp:130,long:4.3,larg:2.0,type:'car',cols:[0xf2c21f],taxi:true},
   pickup:{nom:'Pickup',tuningMeca:true,tuningCarro:{famille:'utilitaire',ancrages:{avant:{x:0,y:2.36,z:2.53},arriere:{x:0,y:1.92,z:-2.53},toit:{x:0,y:2.49,z:0.34},basCaisse:{x:1.13,y:1.18,z:0}}},vmax:26,acc:12,man:2.2,hp:210,long:5.0,larg:2.2,type:'car',cols:[0x8a3a2a,0x3a5a7a,0x4a5a3a]},
   buggy:{nom:'Buggy des dunes',tuningMeca:true,tuningCarro:{famille:'toutterrain',ancrages:{avant:{x:0,y:1.41,z:1.67},arriere:{x:0,y:0.89,z:-1.67},toit:{x:0,y:1.41,z:1.02},basCaisse:{x:0.91,y:0.24,z:0}}},vmax:30,acc:19,man:3.1,hp:90,long:3.4,larg:1.9,type:'car',cols:[0xd8b02a,0x35c8e0],buggy:true},
-  yacht:{nom:'Yacht "Impérial"',vmax:21,acc:6,man:0.9,hp:900,long:17,larg:5.4,type:'bateau',eau:true,
+  yacht:{nom:'Yacht "Impérial"',vmax:21,acc:6,man:0.9,hp:900,long:22,larg:6,type:'bateau',eau:true,
     pont:true,cols:[0xf2f4f8]},
   bateau:{nom:'Vedette "Sirène"',vmax:27,acc:9,man:1.7,hp:220,long:6.5,larg:2.4,type:'bateau',eau:true,cols:[0xe8ecf2,0x2a5a8a,0xc0392b]},
   surf:{nom:'Planche de surf',vmax:19,acc:14,man:5.2,hp:26,long:2.4,larg:0.75,type:'bateau',eau:true,surf:true,
@@ -2652,11 +2652,11 @@ const VEHDEFS={
   voltige:{nom:'Voltige "Colibri Rouge"',vmax:44,acc:20,man:2.2,turnVol:2.3,hp:70,long:5.2,larg:1.7,type:'car',air:'avion',voltige:true,figures:true,cols:[0xd8202c]},
   // (14 octobre, demandé : « différents styles d'hélico, et un hélico avec un aimant qui prend et lâche
   // des véhicules ») : modèles dans mkHelicoV2 (def.modeleHelico) ; l'aimant : majAimant
-  vautour:{nom:'Hélico de combat "Vautour"',vmax:30,acc:15,man:2.4,hp:420,long:7,larg:2.2,type:'car',air:'helico',modeleHelico:'combat',armes:true,cols:[0x4a5232]}, // roquettes (TIR) et bombes (ESQUIVE), comme le chasseur
-  vip:{nom:'Hélico VIP "Riviera"',vmax:32,acc:15,man:2.6,hp:140,long:6.2,larg:1.9,type:'car',air:'helico',modeleHelico:'vip',cols:[0x14161c]}, // l'hélico du méga-yacht
-  ecureuil:{nom:'Hélico "Écureuil"',vmax:30,acc:15,man:2.8,hp:110,long:5.6,larg:1.8,type:'car',air:'helico',modeleHelico:'ecureuil',cols:[0xffd23f,0x1a4fa0,0xe8ecf2]},
-  titan:{nom:'Hélico-grue "Titan"',vmax:20,acc:9,man:1.8,hp:260,long:9,larg:2.4,type:'car',air:'helico',modeleHelico:'titan',aimant:true,cols:[0xff8c1a]},
-  helico:{nom:'Hélico "Libellule"',vmax:24,acc:14,man:2.6,hp:120,long:5,larg:1.8,type:'car',air:'helico',cols:[0xd83a3a]},
+  vautour:{nom:'Hélico de combat "Vautour"',vmax:30,acc:15,man:2.4,hp:420,long:10.5,larg:3,type:'car',air:'helico',modeleHelico:'combat',armes:true,cols:[0x4a5232]}, // roquettes (TIR) et bombes (ESQUIVE), comme le chasseur
+  vip:{nom:'Hélico VIP "Riviera"',vmax:32,acc:15,man:2.6,hp:140,long:9.6,larg:2.8,type:'car',air:'helico',modeleHelico:'vip',cols:[0x14161c]}, // l'hélico du méga-yacht
+  ecureuil:{nom:'Hélico "Écureuil"',vmax:30,acc:15,man:2.8,hp:110,long:9,larg:2.6,type:'car',air:'helico',modeleHelico:'ecureuil',cols:[0xffd23f,0x1a4fa0,0xe8ecf2]},
+  titan:{nom:'Hélico-grue "Titan"',vmax:20,acc:9,man:1.8,hp:260,long:11.7,larg:3.1,type:'car',air:'helico',modeleHelico:'titan',aimant:true,cols:[0xff8c1a]},
+  helico:{nom:'Hélico "Libellule"',vmax:24,acc:14,man:2.6,hp:120,long:8,larg:2.6,type:'car',air:'helico',cols:[0xd83a3a]},
   // Diversité du trafic (lot 11) : bus de ville et camion de pompiers,
   // conduisibles, restreints au centre-ville/quartier commerçant (voir
   // creerTrafic) ; monster truck cache: un seul exemplaire, jamais dans le
@@ -3952,7 +3952,7 @@ function construireVille(){
     if(qq!=='plage'&&qq!=='parc'&&bx%3===1&&bz%3===1) mkFeu(cx+INNER/2+1.4,cz-INNER/2-1.4);
   }
   placerPortes();
-  if(DECOR_V2){ sansAleaVille(()=>{ ameliorerPortes(); mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkBasket(); mkCiel(); mkKiosqueBanderole(); mkCrique(); mkMontReyes(); mkVieMont(); mkBordureEst(); mkCanyonsDesert(); mkPicVertige(); mkParcStunt(); mkSkateXXL(); mkRides(); mkMerVivante(); mkRemorquage(); mkLarge(); deplacerVoltige(); mkAeroportVivant(); mkHeliGrue(); mkPlanques(); mkBoutiques(); mkGrandHuit(); mkToitsVivants(); mkTracesSable(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkNeonVivant(); mkQuartiersFinitions(); mkBalises(); mkFacadesVariees(); mkCascades(); if(MERV.ok) mkVolcanIle(); }); } // cascades et volcan EN DERNIER : leurs tirages du décor ne décalent rien de ce qui précède (mobilier...) // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
+  if(DECOR_V2){ sansAleaVille(()=>{ ameliorerPortes(); mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkBasket(); mkCiel(); mkKiosqueBanderole(); mkCrique(); mkMontReyes(); mkVieMont(); mkBordureEst(); mkCanyonsDesert(); mkPicVertige(); mkParcStunt(); mkSkateXXL(); mkRides(); mkMerVivante(); mkRemorquage(); mkLarge(); deplacerVoltige(); mkAeroportVivant(); mkHeliGrue(); mkPlanques(); mkBoutiques(); mkGrandHuit(); mkToitsVivants(); mkTracesSable(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkNeonVivant(); mkQuartiersFinitions(); mkBalises(); mkFacadesVariees(); mkCascades(); if(MERV.ok) mkVolcanIle(); mkAeroVie(); }); } // cascades et volcan EN DERNIER : leurs tirages du décor ne décalent rien de ce qui précède (mobilier...) // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
   finaliserMerge();
   construireMinimapStatique();
 }
@@ -7441,6 +7441,7 @@ function aeroStartRun(){
   for(const q of AERO.piste4||[]) creerVehicule(q.cle,q.x,q.z,0); // véhicules de piste
   creerVehicule('taxi',AERO.T.x0-4.5,AERO.C.z-14,Math.PI); creerVehicule('busville',AERO.T.x0-4.5,AERO.C.z+12,Math.PI);
   for(const w of AERO.foule) AERO.nouvelleRoute(w);
+  aeroVieStartRun(); // véhicules de piste qui circulent, file de taxis
 }
 /* TOUR DE CONTRÔLE (14 octobre, demandé : « un jeu dans la tour de contrôle ») : écran radar plein écran.
    Les avions arrivent des bords et tournent en attente ; toucher un avion l'autorise à atterrir. Une seule
@@ -7528,6 +7529,117 @@ function dessinerTour(){
     if(a.etat!=='final'){ c.fillStyle=cl; c.fillText(a.nom,x,y-17*dpr); const f=Math.max(0,a.carbu/(a.urg?TOUR_URGENCE:TOUR_CARBU));
       c.fillStyle='rgba(255,255,255,0.2)'; c.fillRect(x-16*dpr,y+15*dpr,32*dpr,5*dpr); c.fillStyle=f<0.3?'#ff5a3a':'#7dff7a'; c.fillRect(x-16*dpr,y+15*dpr,32*dpr*f,5*dpr); } }
   if(TOUR.fin){ c.fillStyle=TOUR.fin==='gagne'?'#7dff7a':'#ff5a3a'; c.font='900 '+(22*dpr)+'px Arial'; c.fillText(TOUR.fin==='gagne'?'TOUS POSÉS !':'ÉCHEC',cx,cy-R*0.15); }
+}
+/* VIE DE L'AÉROPORT, suite (15 octobre, demandé : « rajoute encore de la vie dans l'aéroport »). Construit EN
+   DERNIER dans le décor (ses tirages ne décalent rien) :
+   - véhicules de piste qui CIRCULENT (vrais véhicules, conduit 'piste' : on peut les voler, ils s'arrêtent
+     devant un piéton ou un véhicule et klaxonnent) : train de bagages, camion-citerne, bus de piste sur la
+     boucle du tarmac ; voiture « FOLLOW ME » sur la voie de service ;
+   - personnel au sol : un placeur par porte (il guide aux bâtons l'avion qui arrive), bagagistes au tapis
+     chargeur de la porte A1, mécaniciens devant les hangars ;
+   - avion de tourisme en tour de piste et Écureuil en ronde autour de la tour (décor) ;
+   - rampe d'approche en chenillard la nuit, voyageurs et file de taxis devant l'aérogare, carillon
+     d'annonce dans le hall.
+   Personnel et voyageurs suivent le LOD de la foule (AERO.humains, figés et masqués au loin). */
+const AERO_VIE={ok:false,flotte:[],placeurs:[],equipe:[],meca:[],voyageurs:[],avion:null,helico:null,rampe:[],dingT:18,t:0};
+function boucleRect(x0,x1,z0,z1,r){
+  const pts=[], coin=(cx,cz,a0)=>{ for(let k=0;k<=4;k++){ const a=a0+k/4*Math.PI/2; pts.push([cx+Math.cos(a)*r,cz+Math.sin(a)*r]); } };
+  coin(x1-r,z0+r,-Math.PI/2); coin(x1-r,z1-r,0); coin(x0+r,z1-r,Math.PI/2); coin(x0+r,z0+r,Math.PI); pts.push(pts[0]);
+  const cum=[0]; let L=0; for(let i=1;i<pts.length;i++){ L+=Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]); cum.push(L); }
+  return {pts,cum,L};
+}
+function pointBoucle(b,s){ s=((s%b.L)+b.L)%b.L; let i=1; while(i<b.cum.length-1&&b.cum[i]<s) i++;
+  const a=b.pts[i-1], c=b.pts[i], u=(s-b.cum[i-1])/Math.max(1e-6,b.cum[i]-b.cum[i-1]);
+  return {x:a[0]+(c[0]-a[0])*u,z:a[1]+(c[1]-a[1])*u,ang:Math.atan2(c[0]-a[0],c[1]-a[1])}; }
+function mkAeroVie(){
+  if(!AERO.pret) return; const T=AERO.T, C=AERO.C, i0=scene.children.length, V=AERO_VIE;
+  const A=boucleRect(352,370,-145,-40,6), B=boucleRect(374,382,-145,10,3.5); V.boucleA=A; V.boucleB=B;
+  V.flotte=[{cle:'bagagiste',b:A,s0:0,vit:6},{cle:'citerne',b:A,s0:A.L*0.36,vit:5.5},{cle:'busville',b:A,s0:A.L*0.7,vit:6},{cle:'citadine',b:B,s0:0,vit:8,peint:0xffd23f,followme:true}];
+  const humain=(cfg,x,z,ry)=>{ const h=makeHumain(cfg,1); h.g.position.set(x,0.16,z); h.g.rotation.y=ry; scene.add(h.g); AERO.humains.push(h.g); return h; };
+  const gilet={haut:0xff8c1a,bas:0x1c2030,peau:choixD(civPeau),casq:0xffd23f,visage:'neutre'};
+  // placeurs : devant le nez de chaque poste, deux bâtons orange
+  for(const p of AERO.portes){ const h=humain(Object.assign({},gilet,{peau:choixD(civPeau)}),p.x-11,p.z+5.5,Math.PI/2); // à côté du nez, face à l'avion qui arrive de l'est
+    for(const b of [h.brasG,h.brasD]){ const bt=mkBoxG(0.09,0.55,0.09,0xff5a1a,0,-0.75,0); b.add(bt); }
+    V.placeurs.push({h,porte:p}); }
+  // tapis chargeur et bagagistes à la porte A1
+  { const p=AERO.portes[0], x=p.x-4, z=p.z+3.6;
+    const tp=mkBoxG(0.9,0.12,5.2,0x3a3e46,x,1.2,z+1.6); tp.rotation.x=0.42; scene.add(tp); mkBox(1.1,0.6,2.4,mat(0xffd23f),x,0.45,z+3.6);
+    for(let k=0;k<3;k++){ const ch=mkBox(1.6,0.12,2.2,mat(0x5a626c),x+3.4,0.5,z+5+k*2.6); for(let j=0;j<3;j++) mkBox(0.5,0.38,0.7,mat(choixD([0xd83a3a,0x2a5a8a,0x2fae4f,0xffd23f,0x23262e])),x+3.1+(j%2)*0.6,0.8,z+4.4+k*2.6+j*0.5); }
+    for(let k=0;k<2;k++){ const h=humain(Object.assign({},gilet,{haut:0xd8ff3a,peau:choixD(civPeau)}),x+1.6+k*1.2,z+4.6+k*1.4,Math.PI); const val=mkBoxG(0.42,0.5,0.24,choixD([0xd83a3a,0x2a5a8a,0x23262e]),0,-0.55,0.2); h.brasD.add(val); V.equipe.push({h,ph:k*Math.PI,val}); } }
+  // mécaniciens devant les hangars
+  for(const hg of AERO.hangars){ const h=humain({haut:0x2a4a8a,bas:0x2a4a8a,peau:choixD(civPeau),casq:0x14161c,visage:'neutre'},hg.x+9,hg.z+3,-Math.PI/2);
+    mkBox(0.6,0.5,0.4,mat(0xd83a3a),hg.x+9.6,0.4,hg.z+3.8); V.meca.push({h,ph:aD(0,6)}); }
+  // voyageurs devant l'aérogare, valise à la main
+  for(let k=0;k<8;k++){ const h=humain({haut:choixD([0xd83a3a,0x2a5a8a,0x2fae4f,0xffd23f,0xe8ecf2,0x8a4de0]),bas:choixD([0x1c2030,0x4a4f5a,0x3a2f24]),peau:choixD(civPeau),casq:choixD([0x14161c,0x4a3520,0xd8c8a8]),visage:'gentil'},T.x0-1.6,C.z+aD(-28,28),0);
+    const val=mkBoxG(0.4,0.52,0.24,choixD([0xd83a3a,0x2a5a8a,0x23262e,0x8a4de0]),0.42,0.28,-0.15); h.g.add(val);
+    V.voyageurs.push({h,z0:C.z-30,z1:C.z+30,v:aD(1.2,1.8)*(k%2?1:-1),pause:0}); }
+  // rampe d'approche : 9 feux au sud de la piste
+  for(let k=0;k<9;k++){ const s=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:0xfff4d0,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending}));
+    s.scale.set(3,3,1); s.position.set(AERO.RX,0.6,64+k*7); scene.add(s); mkBox(0.3,0.5,0.3,mat(0x3a3e46),AERO.RX,0.25,64+k*7); V.rampe.push(s); }
+  // avion de tourisme en tour de piste (à l'est de la grande piste) et Écureuil autour de la tour
+  { const m=makeVoiture('tourisme'); m.rotation.order='YXZ'; scene.add(m); V.avion={m,s:0,b:boucleRect(AERO.RX+24,AERO.RX+70,-185,45,18)};
+    const hm=makeVoiture('ecureuil'); hm.rotation.order='YXZ'; scene.add(hm); V.helico={m:hm,a:0}; }
+  fusionnerDecor(i0);
+  V.ok=true;
+}
+// panneau « FOLLOW ME » et gyrophare ambre sur la voiture de piste
+function habillerFollowMe(v){
+  const ud=v.mesh.userData, c=ud.corps||v.mesh;
+  const tx=cTex(128,(g,s)=>{ for(let i=0;i<8;i++){ g.fillStyle=i%2?'#14161c':'#ffd23f'; g.fillRect(i*s/8,0,s/8,s*0.22); g.fillRect(i*s/8+((i%2)?-s/8:s/8)*0,s*0.78,s/8,s*0.22); }
+    g.fillStyle='#ffd23f'; g.fillRect(0,s*0.22,s,s*0.56); g.fillStyle='#14161c'; g.font='900 34px Arial'; g.textAlign='center'; g.textBaseline='middle'; g.fillText('FOLLOW ME',s/2,s/2); });
+  const pan=new THREE.Mesh(new THREE.BoxGeometry(1.4,0.55,0.08),new THREE.MeshLambertMaterial({map:tx})); pan.position.set(0,2.05,-0.3); c.add(pan);
+  const gy=new THREE.Mesh(new THREE.CylinderGeometry(0.14,0.16,0.2,10),new THREE.MeshBasicMaterial({color:0xff9a1a})); gy.position.set(0,2.42,-0.3); c.add(gy); ud.gyroFm=gy;
+}
+function aeroVieStartRun(){
+  if(!AERO_VIE.ok) return;
+  for(const sp of AERO_VIE.flotte){ const p=pointBoucle(sp.b,sp.s0); const v=creerVehicule(sp.cle,p.x,p.z,p.ang); if(!v) continue;
+    v.conduit='piste'; v.piste={b:sp.b,s:sp.s0,vit:sp.vit,vCur:0}; if(sp.peint!==undefined) peindreMesh(v.mesh,sp.peint); if(sp.followme) habillerFollowMe(v); }
+  const C=AERO.C; creerVehicule('taxi',AERO.T.x0-4.5,C.z-22,Math.PI); creerVehicule('taxi',AERO.T.x0-4.5,C.z-30,Math.PI); // file de taxis
+}
+// véhicule de piste : il suit sa boucle, s'arrête devant un obstacle (piéton, véhicule), klaxonne
+function majVehPiste(v,dt){
+  const q=v.piste, s=Math.sin(v.ang), c=Math.cos(v.ang), portee=v.def.long*0.5+5;
+  const devant=(x,z,r)=>{ const dx=x-v.x, dz=z-v.z, av=dx*s+dz*c; return av>0&&av<portee&&Math.abs(dx*c-dz*s)<v.def.larg*0.5+r; };
+  let bloque=!P.veh&&!INT.actif&&devant(P.x,P.z,0.8);
+  if(!bloque) for(let i=0;i<vehicules.length;i++){ const o=vehicules[i]; if(o===v||o.mort||(o.def.air&&o.vol)) continue; if(dist2(o.x,o.z,v.x,v.z)>400) continue; if(devant(o.x,o.z,o.def.larg*0.5)){ bloque=true; break; } }
+  q.vCur+=((bloque?0:q.vit)-q.vCur)*Math.min(1,dt*(bloque?5:1.2));
+  if(bloque&&!q.klax&&dist2(P.x,P.z,v.x,v.z)<900){ q.klax=true; beep(392,0.18,'square',0.06); setTimeout(()=>beep(392,0.18,'square',0.06),240); }
+  if(!bloque) q.klax=false;
+  q.s=(q.s+q.vCur*dt)%q.b.L; const p=pointBoucle(q.b,q.s);
+  v.x=p.x; v.z=p.z; v.ang=angLerp(v.ang,p.ang,Math.min(1,dt*6)); v.v=q.vCur;
+  v.mesh.position.set(v.x,solYGare(v),v.z); v.mesh.rotation.y=v.ang;
+  const ud=v.mesh.userData; for(const r of ud.roues||[]) r.rotation.x+=q.vCur*dt*1.6;
+  if(ud.gyroFm) ud.gyroFm.material.color.setHex(Math.floor(ETAT.runT*4)%2?0xff9a1a:0x6a3a08);
+}
+function majAeroVie(dt){
+  const V=AERO_VIE; if(!V.ok||INT.actif) return;
+  V.t+=dt; const pres=AERO.vus, nuit=(ETAT.nuitF||0)>0.3;
+  // rampe d'approche : chenillard la nuit
+  for(let k=0;k<V.rampe.length;k++){ const ph=(V.t*2.2)%1.4; V.rampe[V.rampe.length-1-k].material.opacity=nuit?(Math.abs(ph-k/V.rampe.length)<0.08?1:0.12):0; }
+  // avion de tourisme : tour de piste, passage bas sur la branche ouest
+  { const A=V.avion; A.s+=dt*17; const p=pointBoucle(A.b,A.s), u=((A.s%A.b.L)+A.b.L)%A.b.L/A.b.L;
+    const alt=10+16*(0.5+0.5*Math.cos(u*Math.PI*2)); A.m.position.set(p.x,alt,p.z); A.m.rotation.y=p.ang; A.m.rotation.z=Math.abs(Math.sin(u*Math.PI*4))>0.9?-0.25:0;
+    const ud=A.m.userData; if(ud.rotor) ud.rotor.rotation.y+=dt*30; }
+  // Écureuil : ronde autour de la tour de contrôle
+  if(AERO.tour){ const H=V.helico; H.a+=dt*0.22; const x=AERO.tour.x+Math.cos(H.a)*45, z=AERO.tour.z-16+Math.sin(H.a)*45;
+    H.m.position.set(x,34+Math.sin(H.a*3)*3,z); H.m.rotation.y=H.a+Math.PI; H.m.rotation.z=0.12; const ud=H.m.userData; if(ud.rotor) ud.rotor.rotation.y+=dt*24; if(ud.rotorQ) ud.rotorQ.rotation.x+=dt*30; }
+  if(!pres) return;
+  // placeurs : ils guident l'avion qui arrive à leur porte
+  for(const pl of V.placeurs){ const vient=AERO.dec.some((d)=>d.porte===pl.porte&&(d.etat==='taxi'||d.etat==='vire')), h=pl.h;
+    if(vient){ const a=Math.sin(V.t*5); h.brasG.rotation.z=2.6+a*0.4; h.brasD.rotation.z=-2.6-a*0.4; h.brasG.rotation.x=0; h.brasD.rotation.x=0; }
+    else { h.brasG.rotation.z=0.15; h.brasD.rotation.z=-0.15; h.brasG.rotation.x=Math.sin(V.t*0.7)*0.1; } }
+  // bagagistes : ils chargent (bras qui montent et descendent, la valise suit)
+  for(const e of V.equipe){ const a=Math.sin(V.t*2.4+e.ph); e.h.brasD.rotation.x=-1.2-a*0.9; e.h.brasG.rotation.x=-0.8-a*0.6; e.h.g.rotation.y=Math.PI+a*0.6; }
+  for(const m of V.meca){ m.h.brasD.rotation.x=-1.4+Math.sin(V.t*6+m.ph)*0.35; m.h.brasG.rotation.x=-1.0; }
+  // voyageurs : va-et-vient sur le trottoir de la dépose-minute, petites pauses
+  for(const w of V.voyageurs){ const g=w.h.g;
+    if(w.pause>0){ w.pause-=dt; animeHumain(w.h,dt,0,false); continue; }
+    g.position.z+=w.v*dt; g.rotation.y=w.v>0?0:Math.PI; animeHumain(w.h,dt,Math.abs(w.v)*3,false);
+    if(g.position.z>w.z1||g.position.z<w.z0){ w.v=-w.v; g.position.z=clamp(g.position.z,w.z0,w.z1); w.pause=aD(1,4); } }
+  // carillon d'annonce dans le hall
+  const T=AERO.T; if(P.x>T.x0&&P.x<T.x1&&P.z>T.z0&&P.z<T.z1&&!P.veh){ V.dingT-=dt; if(V.dingT<=0){ V.dingT=aD(26,40);
+      beep(659,0.35,'sine',0.08); setTimeout(()=>beep(523,0.35,'sine',0.08),380); setTimeout(()=>beep(784,0.6,'sine',0.07),760);
+      const p=choixD(AERO.portes); toast('🔊 Vol '+p.vol+' à destination de '+choixD(AERO_VILLES)+' : embarquement immédiat porte '+p.id,'or'); } }
 }
 function majAeroportVivant(dt){
   if(!AERO.pret||INT.actif) return;
@@ -11287,26 +11399,46 @@ function makeBateauV2(def,key,coul,L,W,g,ud){
     ud.siege={y:4.4,z:3.0}; g.userData=ud; return g;           // debout sur le fly, derrière le poste de pilotage
   }
   const blanc=0xf2f4f8, noir=0x1c1e24, rougeAF=0x7a2420, vitre=0x1a2a3e;
-  if(def.pont){ // ---- YACHT ----
-    const c=coqueBateau(L,W,1.15,blanc,0x1b2430,0x23303e,0xd8c4a0,{tonture:0.22}); g.add(c.g);
-    // hublots en bande le long de la coque
-    for(const s of [-1,1]){ const b=mkBoxG(0.06,0.32,L*0.5,vitre,s*(c.demi(-L*0.05)+0.01),0.72,-L*0.05); g.add(b); }
-    g.add(mkBoxG(W*0.72,1.5,L*0.34,blanc,0,1.95,-L*0.10));      // superstructure
-    g.add(mkBoxG(W*0.74,0.55,L*0.30,vitre,0,2.15,-L*0.08));     // bandeau vitré
-    g.add(mkBoxG(W*0.56,1.2,L*0.22,blanc,0,3.3,-L*0.14));        // fly-bridge
-    g.add(mkBoxG(W*0.58,0.4,L*0.18,vitre,0,3.55,-L*0.12));
-    g.add(mkBoxG(W*0.62,0.08,L*0.26,0xd8dce4,0,3.95,-L*0.15));   // toit du fly
-    g.add(mkBoxG(1.6,0.5,0.9,0x2a3038,0,3.95,-L*0.04));          // poste de pilotage
-    g.add(mkBoxG(W*0.8,0.14,1.2,0xd8c4a0,0,0.55,-L/2-0.5));      // plateforme de bain
-    // hélipad sur le pont avant
-    const hpTx=cTex(128,(g2,s2)=>{ g2.clearRect(0,0,s2,s2); g2.strokeStyle='#ffd23f'; g2.lineWidth=7; g2.beginPath(); g2.arc(s2/2,s2/2,48,0,7); g2.stroke();
-      g2.fillStyle='#ffd23f'; g2.font='900 66px Arial'; g2.textAlign='center'; g2.textBaseline='middle'; g2.fillText('H',s2/2,s2/2+2); });
-    const hp2=new THREE.Mesh(new THREE.PlaneGeometry(W*0.62,W*0.62),new THREE.MeshBasicMaterial({map:hpTx,transparent:true,depthWrite:false}));
-    hp2.rotation.x=-Math.PI/2; hp2.position.set(0,c.yPont(L*0.26)+0.03,L*0.26); g.add(hp2);
-    rambarde(g,c,-L*0.46,L*0.42,0.7,0.12);
-    for(const x of [-1.3,1.3]){ const t=mkBoxG(1,0.16,2.2,x<0?0xe05252:0x35c8e0,x,c.yPont(-L*0.38)+0.18,-L*0.38); t.rotation.x=0.16; g.add(t); } // transats, pont arrière
-    g.add(mkBoxG(0.1,2.6,0.1,0xd8dce4,0,5.2,-L*0.16)); g.add(mkBoxG(1.2,0.06,0.06,0xd8dce4,0,6.2,-L*0.16));
-    const radar=mkBoxG(1.4,0.1,0.25,0x2a2d34,0,6.5,-L*0.16); g.add(radar);
+  if(def.pont){ // ---- YACHT (15 octobre, signalé : « tout ratatiné ») : à l'échelle d'un vrai yacht de 22 m —
+    // franc-bord de 2 u, salon de 2,3 u au pare-brise incliné, flybridge à hardtop sur le toit du salon (pilote
+    // debout à 4,4 u), plage arrière, bains de soleil à l'avant ; pièces fusionnées par matériau
+    const yP=2.0, c=coqueBateau(L,W,yP,blanc,0x1b2430,0x23303e,0xd8c4a0,{tonture:0.2}); g.add(c.g);
+    const sil=(pts,ep,m,x)=>{ const sh=new THREE.Shape(); sh.moveTo(pts[0][0],pts[0][1]); for(const p of pts.slice(1)) sh.lineTo(p[0],p[1]); sh.closePath();
+      const geo=new THREE.ExtrudeGeometry(sh,{depth:ep,bevelEnabled:false}); geo.rotateY(-Math.PI/2); geo.translate((x||0)+ep/2,0,0); const me=new THREE.Mesh(geo,m); g.add(me); return me; }; // profil (z,y) extrudé en largeur
+    const mB=mat(blanc), mV=mat(vitre), mT=mat(0xd8c4a0), mI=mat(0xd8dce4), mS=mat(0x2a3038);
+    const y0=c.yPont(-L*0.05), zAr=-L*0.30, zAv=L*0.16, hS=2.3, larS=W*0.8;
+    for(const s of [-1,1]) g.add(mkBoxG(0.06,0.42,L*0.56,vitre,s*(c.demi(-L*0.04)+0.01),yP*0.62,-L*0.04)); // hublots de coque
+    for(const s of [-1,1]) g.add(mkBoxG(0.05,0.12,L*0.8,0xd8b02a,s*(c.demi(0)+0.02),yP*0.9,0));            // liseré doré
+    sil([[zAr,y0],[zAr,y0+hS],[zAv-L*0.07,y0+hS],[zAv,y0+0.5],[zAv,y0]],larS,mB);                           // salon (avant incliné)
+    for(const s of [-1,1]) g.add(mkBoxG(0.05,1.1,L*0.34,vitre,s*(larS/2+0.02),y0+1.35,-L*0.09));           // grandes baies du salon
+    { const pb=mkBoxG(larS*0.9,0.05,Math.hypot(L*0.07,hS-0.5)*0.85,vitre,0,y0+hS*0.62,zAv-L*0.04); pb.rotation.x=-Math.atan2(hS-0.5,L*0.07); g.add(pb); } // pare-brise
+    const yF=y0+hS; // flybridge, sur le toit du salon
+    g.add(mkBoxG(larS+0.2,0.14,L*0.42,0xd8dce4,0,yF+0.04,-L*0.08));                                        // casquette
+    sil([[-L*0.26,yF],[-L*0.26,yF+0.95],[-L*0.02,yF+0.95],[L*0.05,yF]],larS*0.92,mB);                          // pavois du flybridge
+    g.add(mkBoxG(1.6,1.0,0.9,0x2a3038,0,yF+0.5,L*0.0));                                                   // poste de pilotage
+    g.add(mkBoxG(1.4,0.35,0.05,vitre,0,yF+1.15,L*0.02));                                                 // pare-brise du poste
+    for(const sx of [-1,1]) g.add(mkBoxG(1.1,0.5,0.9,0xe8dcc4,sx*1.1,yF+1.2,-L*0.12));                  // banquettes
+    for(const [sx,sz] of [[-1,-0.24],[1,-0.24],[-1,0.0],[1,0.0]]) g.add(mkBoxG(0.1,2.1,0.1,0xd8dce4,sx*larS*0.42,yF+2.0,L*sz)); // montants du hardtop
+    g.add(mkBoxG(larS*0.95,0.14,L*0.3,blanc,0,yF+3.05,-L*0.12));                                            // hardtop
+    for(const sx of [-1,1]){ const mo=mkBoxG(0.28,2.9,0.5,blanc,sx*larS*0.42,yF+2.2,-L*0.235); mo.rotation.x=0.22; g.add(mo); } // arceau radar : deux montants inclinés
+    g.add(mkBoxG(larS*0.9,0.3,0.6,blanc,0,yF+3.55,-L*0.25));                                               // et sa traverse
+    { const rd=new THREE.Mesh(new THREE.CylinderGeometry(0.42,0.42,0.3,14),mI); rd.position.set(0,yF+3.75,-L*0.24); g.add(rd); }
+    g.add(mkBoxG(0.06,1.8,0.06,0xd8dce4,0.6,yF+4.4,-L*0.24)); g.add(mkBoxG(0.06,1.4,0.06,0xd8dce4,-0.6,yF+4.2,-L*0.24)); // antennes
+    // pont avant : bains de soleil, rambardes, ancre
+    g.add(mkBoxG(W*0.5,0.3,L*0.12,0xf2ecd8,0,c.yPont(L*0.26)+0.15,L*0.26)); g.add(mkBoxG(W*0.52,0.08,L*0.12,0xd84a3a,0,c.yPont(L*0.26)+0.34,L*0.26));
+    rambarde(g,c,-L*0.46,L*0.44,0.85,0.12);
+    g.add(mkBoxG(0.3,0.3,0.3,0x5a626c,0,c.yPont(L*0.46)+0.1,L*0.46));
+    // pont arrière : table, sofa en U, plage de bain, échelle, pavillon
+    g.add(mkBoxG(W*0.66,0.42,0.7,0xe8dcc4,0,c.yPont(-L*0.4)+0.21,-L*0.44)); for(const s of [-1,1]) g.add(mkBoxG(0.7,0.42,1.9,0xe8dcc4,s*W*0.3,c.yPont(-L*0.38)+0.21,-L*0.37));
+    g.add(mkBoxG(1.6,0.08,1.0,0x8a6a44,0,c.yPont(-L*0.37)+0.75,-L*0.37)); g.add(mkBoxG(0.12,0.7,0.12,0x5a626c,0,c.yPont(-L*0.37)+0.38,-L*0.37));
+    g.add(mkBoxG(W*0.86,0.16,1.8,0xd8c4a0,0,0.45,-L/2-0.8)); g.add(mkBoxG(0.5,0.9,0.06,0xd8dce4,W*0.3,0.8,-L/2-1.6));
+    g.add(mkBoxG(0.05,1.6,0.05,0xd8dce4,0,c.yPont(-L/2)+0.8,-L/2+0.2)); g.add(mkBoxG(0.06,0.5,0.8,0xd83a3a,0,c.yPont(-L/2)+1.35,-L/2-0.2));
+    // fusion par matériau : la rambarde à elle seule faisait une centaine de maillages
+    const parMat=new Map();
+    for(const ch of g.children.slice()) if(ch.isMesh&&ch.geometry.attributes.uv&&!(ch.material&&ch.material.vertexColors)){ ch.updateMatrix(); const gg=ch.geometry.clone().applyMatrix4(ch.matrix); ch.geometry.dispose(); g.remove(ch);
+      if(!parMat.has(ch.material)) parMat.set(ch.material,[]); parMat.get(ch.material).push(gg); }
+    for(const [m,gs] of parMat) g.add(new THREE.Mesh(mergeGeoManuel(gs),m));
+    ud.siege={y:yF+0.05,z:-L*0.06};
     g.add(spriteBlob(L*0.9)); g.userData=ud; return g;
   }
   if(key==='jetski'){
@@ -11669,8 +11801,21 @@ function mkFourgon(def,coul,g,ud,corps){
     const j=new THREE.Mesh(new THREE.CylinderGeometry(r*0.55,r*0.55,0.32,10),mat(0x9aa2ad)); j.rotation.z=Math.PI/2; j.position.set(x+sx*0.01,r,z); g.add(j); }
   g.add(spriteBlob(L*1.05)); g.userData=ud; return g;
 }
+// Hélicoptères à l'échelle (15 octobre, signalé : « les hélicoptères sont ramassés ») : cabine et fuselage
+// agrandis (ECH_HELI), rotor ramené à un diamètre réaliste (ECH_ROTOR × l'ancien) ; le personnage (1,8 u)
+// tient debout sous le ventre de la cabine, comme dans la réalité. Tout le modèle passe dans un groupe agrandi
+// (les ombres-sprites restent dehors : celle des hélicos ennemis est à -15,8 u). ud.kHeli : l'échelle (treuil).
+const ECH_HELI={helico:1.6,ecureuil:1.6,vip:1.55,vautour:1.5,titan:1.3,heliEnnemi:1.5}, ECH_ROTOR=1.22; // Écureuil : rotor de 10,7 u, comme le vrai
+function agrandirHelico(g,K){
+  const ud=g.userData||{}, inner=new THREE.Group();
+  for(const c of g.children.slice()){ if(c.isSprite) continue; g.remove(c); inner.add(c); }
+  inner.scale.setScalar(K); g.add(inner);
+  for(const r of [ud.rotor]) if(r) r.scale.set(ECH_ROTOR/K,1,ECH_ROTOR/K); // rotor : ECH_ROTOR × l'ancien diamètre, pas K
+  if(ud.ombre) ud.ombre.scale.multiplyScalar(K);
+  ud.kHeli=K; g.userData=ud; return g;
+}
 function makeVoiture(key){
-  if(!vehiculeRestyle(VEHDEFS[key])){ const g=makeVoitureBase(key); rehausserModele(g,key); return g; }
+  if(!vehiculeRestyle(VEHDEFS[key])){ const g=makeVoitureBase(key); rehausserModele(g,key); if(VEHDEFS[key].air==='helico'&&!VEHDEFS[key].ovni) agrandirHelico(g,ECH_HELI[key]||1.55); return g; } // l'OVNI garde sa taille (rayon tracteur)
   makeVoitureBase(key);
   _VEH_V2=true; try{ const g=sansAleaVille(()=>makeVoitureBase(key)); rehausserModele(g,key); return g; } finally{ _VEH_V2=false; }
 }
@@ -14166,6 +14311,16 @@ function vehiculeBloquant(x,z,marge,ignore){
 // un personnage (ennemi) peut-il se tenir là : ni bâtiment, ni véhicule (signalé : « avec le tank ou le
 // pickup, les ennemis foncent dedans et se mélangent au véhicule ; il doit faire comme un mur »)
 function libreEntite(x,z,r){ return !solidAt(x,z,r)&&!vehiculeBloquant(x,z,r-0.1,null); }
+// Un PNJ dans l'eau NAGE (15 octobre, signalé : « des PNJ qui marchent dans l'eau vers le sable, très étrange ») :
+// allongé à la surface, crawl, jamais debout avec l'animation de marche. Ordre 'YXZ' le temps de la nage (le
+// tangage suit le cap), remis à 'XYZ' en sortant (les poses de chute l'attendent).
+function poseNage(h,dt,vit){ const g=h.g; if(g.rotation.order!=='YXZ') g.rotation.order='YXZ'; g.rotation.x=1.3; g.rotation.z=0;
+  h.phase+=dt*(3+vit*0.8); const s=Math.sin(h.phase*3);
+  h.jambeG.rotation.x=0.15+s*0.35; h.jambeD.rotation.x=0.15-s*0.35;
+  h.brasG.rotation.x=-(h.phase%(Math.PI*2)); h.brasD.rotation.x=-((h.phase+Math.PI)%(Math.PI*2)); h.brasG.rotation.z=0; h.brasD.rotation.z=0; }
+function finNage(h){ const g=h.g; if(g.rotation.order==='YXZ'){ g.rotation.x=0; g.rotation.z=0; g.rotation.order='XYZ'; } }
+// rive la plus proche (16 directions, jusqu'à 60 u), pour un PNJ tombé à l'eau qui ne sait pas nager
+function rivePlusProche(x,z){ for(let r=3;r<=60;r+=3) for(let k=0;k<16;k++){ const a=k/16*Math.PI*2, px=x+Math.sin(a)*r, pz=z+Math.cos(a)*r; if(!estEau(px,pz)&&!solidAt(px,pz,0.5)) return {x:px,z:pz}; } return null; }
 function degageDeVehicule(x,z,marge,ignore){
   const o=vehiculeBloquant(x,z,marge,ignore);
   if(!o) return null;
@@ -14856,8 +15011,8 @@ function entrerVehicule(v){
       P.h.jambeG.rotation.x=-1.2; P.h.jambeD.rotation.x=-1.2;
       P.h.brasG.rotation.x=-1.3; P.h.brasD.rotation.x=-1.3;
       P.h.brasG.rotation.z=0; P.h.brasD.rotation.z=0;
-    } else if(v.def.pont){          // yacht : debout à la barre, sur le fly-bridge
-      P.h.g.position.set(0,3.5,-v.def.long*0.04); P.h.g.rotation.set(0,0,0);
+    } else if(v.def.pont){          // yacht : debout à la barre, sur le fly-bridge (hauteur lue sur le modèle)
+      const sgY=v.mesh.userData.siege; P.h.g.position.set(0,sgY?sgY.y:3.5,sgY?sgY.z:-v.def.long*0.04); P.h.g.rotation.set(0,0,0);
       P.h.jambeG.rotation.x=0; P.h.jambeD.rotation.x=0;
       P.h.brasG.rotation.x=-1.2; P.h.brasD.rotation.x=-1.2;
       P.h.brasG.rotation.z=0; P.h.brasD.rotation.z=0;
@@ -16582,6 +16737,7 @@ function majVehicules(dt){
     if(v.conduit!=='police') majDeformation(v,dt);
     if(v.conduit==='trafic') majTrafic(v,dt);
     else if(v.conduit==='police') majVoiturePolice(v,dt);
+    else if(v.conduit==='piste') majVehPiste(v,dt); // véhicules de piste de l'aéroport (AERO_VIE)
     else if(v.conduit==='iaCourse'){
       v.v=lerp(v.v,v.crVit||20,1.2*dt);
       v.x+=Math.sin(v.ang)*v.v*dt; v.z+=Math.cos(v.ang)*v.v*dt;
@@ -16664,6 +16820,7 @@ function tuerPieton(p,parJoueur,knock,srcX,srcZ){
 // dos (repoussé), à plat ventre, ou en vrille quand on est projeté fort —, l'angle va vers la pose couchée,
 // et le corps est soulevé de ce qu'il faut pour que rien ne traverse le sol (ragdollLevage).
 function lancerRagdoll(ent,dx,dz,force){
+  if(ent&&ent.h) finNage(ent.h); // une pose de chute part toujours de l'ordre d'Euler d'origine
   if(!ent||!ent.h) return; // motos, hélicos et piétons déjà retirés n'ont pas de corps articulé
   const l=Math.hypot(dx,dz)||1, fort=force>11;
   const pose=fort?(Math.random()<0.45?'vrille':(Math.random()<0.6?'dos':'cote')):pick(['cote','dos','ventre','cote','dos']);
@@ -16780,6 +16937,11 @@ function majPietons(dt){
     }
     if(dist2(p.x,p.z,P.x,P.z)>105*105){ scene.remove(p.h.g); libererEntite(p.h.g); pietons.splice(i,1); continue; }
     if(DANGER.t>0&&dist2(p.x,p.z,DANGER.x,DANGER.z)<650&&p.etat!=='fuite'){ p.etat='fuite'; p.t=3; }
+    if(estEau(p.x,p.z)){ // projeté à l'eau : il nage jusqu'à la rive la plus proche, jamais debout
+      p.riveT=(p.riveT||0)-dt; if(p.riveT<=0||!p.rive){ p.riveT=1.5; p.rive=rivePlusProche(p.x,p.z); }
+      const ra=p.rive?Math.atan2(p.rive.x-p.x,p.rive.z-p.z):Math.PI; p.dir=angLerp(p.dir,ra,Math.min(1,dt*4));
+      p.x+=Math.sin(p.dir)*1.8*dt; p.z+=Math.cos(p.dir)*1.8*dt; p.h.g.position.set(p.x,-0.35,p.z); p.h.g.rotation.y=p.dir; poseNage(p.h,dt,1.8); continue; }
+    finNage(p.h);
     let vit=p.vit;
     if(p.etat==='fuite'){
       vit=6.4; p.t-=dt;
@@ -16827,7 +16989,7 @@ function creerEnnemi(type,x,z,wave){
     strafeDir:Math.random()<0.5?1:-1,rag:null,corpseT:0,boss:!!def.boss,heli:!!def.heli,
     moto:!!def.moto,v:0,orbA:rand(0,6.28),chargeT:rand(3,6),chargeEtat:null,cx:0,cz:0,esqT:rand(2,4)};
   if(def.heli){
-    e.mesh=makeHeli(def.modeleHeli); e.y=15.5;
+    e.mesh=agrandirHelico(makeHeli(def.modeleHeli),ECH_HELI.heliEnnemi); e.y=15.5;
     e.mesh.position.set(x,e.y,z); scene.add(e.mesh);
   } else if(def.moto){
     e.mesh=makeVoiture(def.motoKey||'motoR');
@@ -17213,8 +17375,8 @@ function majEnnemis(dt){
       if(dp>3){
         const pa=Math.atan2(e.posteX-e.x,e.posteZ-e.z);
         const nx=e.x+Math.sin(pa)*e.def.vit*0.5*dt, nz=e.z+Math.cos(pa)*e.def.vit*0.5*dt;
-        if(libreEntite(nx,e.z,0.45)) e.x=nx;
-        if(libreEntite(e.x,nz,0.45)) e.z=nz;
+        if(libreEntite(nx,e.z,0.45)&&!estEau(nx,e.z)) e.x=nx;
+        if(libreEntite(e.x,nz,0.45)&&!estEau(e.x,nz)) e.z=nz;
         e.h.g.position.set(e.x,0,e.z); e.h.g.rotation.y=pa;
         animeHumain(e.h,dt,e.def.vit*0.5,false);
       } else animeHumain(e.h,dt,0,false);
@@ -17232,17 +17394,20 @@ function majEnnemis(dt){
     let vx=0,vz=0,vise=false;
     e.dansEau=!e.moto&&!e.heli&&estEau(e.x,e.z);
     if(e.dansEau&&!e.def.nage){
-      // incapable de nager : il regagne la rive au plus vite
-      e.z-=e.def.vit*0.9*dt;
-      e.h.g.position.set(e.x,-0.4,e.z); e.h.g.rotation.y=Math.PI;
-      animeHumain(e.h,dt,e.def.vit,false);
+      // incapable de nager (jeté à l'eau, projeté) : il NAGE jusqu'à la rive la plus proche (avant : il marchait
+      // debout, toujours vers le nord, même au milieu d'un bassin)
+      e.riveT=(e.riveT||0)-dt; if(e.riveT<=0||!e.rive){ e.riveT=1.5; e.rive=rivePlusProche(e.x,e.z); }
+      const ra=e.rive?Math.atan2(e.rive.x-e.x,e.rive.z-e.z):Math.PI, vn=e.def.vit*0.55;
+      e.ang=angLerp(e.ang||0,ra,Math.min(1,dt*4)); e.x+=Math.sin(e.ang)*vn*dt; e.z+=Math.cos(e.ang)*vn*dt;
+      e.h.g.position.set(e.x,-0.35,e.z); e.h.g.rotation.y=e.ang; poseNage(e.h,dt,vn);
+      if(Math.random()<dt*4) spawnP(e.x,0.15,e.z,rand(-0.5,0.5),rand(0.6,1.4),rand(-0.5,0.5),0.35,0.4,0xcfeaff,3);
       continue;
     }
     const facEau=e.dansEau?0.45:1;
     if(e.dansEau){
-      e.h.g.position.y=-0.72;
+      e.h.g.position.y=-0.35;
       if(Math.random()<0.2) spawnP(e.x,0.15,e.z,rand(-0.5,0.5),rand(0.6,1.4),rand(-0.5,0.5),0.35,0.4,0xcfeaff,3);
-    } else e.h.g.position.y=solY(e.x,e.z);
+    } else { e.h.g.position.y=solY(e.x,e.z); finNage(e.h); }
     if(e.stun<=0){
       // approche en éventail : chacun aborde la cible sous un angle propre → encerclement
       const evtl=e.boss?0:Math.sin(e.orbA)*0.6*clamp((d-3)/14,0,1);
@@ -17328,7 +17493,8 @@ function majEnnemis(dt){
     e.h.g.position.set(e.x,e.h.g.position.y,e.z);
     e.h.g.rotation.y=e.ang;
     // loin du joueur (>60 m) : cycle de marche 1 frame sur 2 (invisible à l'écran, gros gain CPU)
-    if(sepFrame||dist2(e.x,e.z,P.x,P.z)<3600) animeHumain(e.h,dt,Math.hypot(vx,vz),vise);
+    if(e.dansEau) poseNage(e.h,dt,Math.hypot(vx,vz)); // un nageur ne marche pas
+    else if(sepFrame||dist2(e.x,e.z,P.x,P.z)<3600) animeHumain(e.h,dt,Math.hypot(vx,vz),vise);
   }
 }
 /* ---------- collision des balles ---------- */
@@ -17795,7 +17961,7 @@ function majAimant(dt){
     if(v.mort){ aimantRetirerFx(v); continue; }
     if(!v.cibles) v.cibles=[];
     const fx=aimantFx(v), pilote=ETAT.mode==='jeu'&&v.conduit==='joueur'&&P.veh===v;
-    const yH=(v.alt||0)+2.25, sol=poseY(v.x,v.z);
+    const yH=(v.alt||0)+2.25*((v.mesh&&v.mesh.userData.kHeli)||1), sol=poseY(v.x,v.z);
     let rec=v.cibles.find((r)=>r.phase!=='chute');
     // appui : accrocher / lâcher
     if(pilote&&pressed('gren')){
@@ -31272,7 +31438,7 @@ function boucle(t){
       majMeteo(dt);
       majMer(dt);
       majMerV2(dt);
-      if(DECOR_V2){ majHorsLesMurs(dt); majMobilier(); majLac(dt); majLumieres(dt); majJetee(dt); majPortVivant(dt); majAeroportVivant(dt); majPlanques(dt); majAtelierArme(dt); majBoutique(dt); majTour(dtJeu); majCascades(dt); majManeges(dt); majBrooklyn(dt); majCiel(dt); majNeonVivant(dt); majQuartiersFinitions(dt); }
+      if(DECOR_V2){ majHorsLesMurs(dt); majMobilier(); majLac(dt); majLumieres(dt); majJetee(dt); majPortVivant(dt); majAeroportVivant(dt); majAeroVie(dt); majPlanques(dt); majAtelierArme(dt); majBoutique(dt); majTour(dtJeu); majCascades(dt); majManeges(dt); majBrooklyn(dt); majCiel(dt); majNeonVivant(dt); majQuartiersFinitions(dt); }
       majEpaveCanon(dt);
     }
     majHUD();

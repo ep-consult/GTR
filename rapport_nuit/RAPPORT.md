@@ -1777,3 +1777,13 @@ Captures : `captures/lot11/badlands.png`, `facades.png` (avant : `facades_avant.
 - **Volcan de l'île aux trésors** : cratère et lac de lave, coulée jusqu'à la mer (vapeur à l'arrivée), panache de fumée, braises. La lave brûle à pied et abîme les véhicules ; les animaux l'évitent ; elle passe loin des trous à creuser et du camp.
 
 Captures : `captures/lot11/cascades.png`, `volcan.png`.
+
+## Échelle, aéroport, PNJ à l'eau (15 octobre)
+
+- **Hélicoptères à l'échelle** : cabines agrandies (3,9 à 4,6 u de haut : un personnage tient debout dessous), rotor ramené à un diamètre réaliste (Écureuil : 10,7 u) ; vaut aussi pour les hélicos de police et de l'armée.
+- **Yacht privé « Impérial »** refait : 22 m, coque haute, salon au pare-brise incliné, flybridge avec hardtop et arceau radar, bains de soleil, plage arrière ; on pilote debout sur le flybridge.
+- **Aéroport encore plus vivant** : train de bagages, camion-citerne, bus de piste et voiture FOLLOW ME qui circulent (ils s'arrêtent devant toi, klaxonnent, se volent) ; placeurs qui guident l'avion qui arrive ; bagagistes au tapis chargeur ; mécaniciens ; avion de tourisme en tour de piste ; Écureuil autour de la tour ; rampe d'approche en chenillard la nuit ; file de taxis, voyageurs avec leurs valises, annonces dans le hall.
+- **PNJ à l'eau** : un ennemi ou un passant jeté à l'eau nage maintenant (allongé, crawl) jusqu'à la rive la plus proche — avant, il marchait debout dans l'eau, toujours vers le nord.
+- **Test de la serre** fiabilisé (il dépendait de l'état laissé par les autres tests).
+
+Captures : `captures/lot11/echelle_helicos_yacht.png`, `yacht_prive.png`, `aeroport_vie.png`, `pnj_nage.png`.

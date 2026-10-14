@@ -9303,7 +9303,8 @@ async function main() {
           const pts = []; let k = idx(ti, tj); if (prev[k] === -2) return null; while (k !== -1) { pts.push({ x: cX(Math.floor(k / nz)), z: cZ(k % nz) }); k = prev[k]; } return pts.reverse(); };
         const rnd0 = Math.random, graineNuit = (g) => () => { g |= 0; g = g + 0x6D2B79F5 | 0; let x = Math.imul(g ^ g >>> 15, 1 | g); x = x + Math.imul(x ^ x >>> 7, 61 | x) ^ x; return ((x ^ x >>> 14) >>> 0) / 4294967296; };
         const nuit = (actif, g) => {
-          const s = entrer(); P.armeCur = 'poings'; P.ivresse = 0; P.buffs.vit = 0; P.buffs.lourd = 0; P.giletLourd = false; Math.random = graineNuit(g); P.x = s.panneau.x; P.z = s.panneau.z; appuyer(); /* arme lourde, ivresse, gilet laissés par d'autres tests : ils ralentissaient le pilote */ // graine posée APRÈS startRun (qui tire selon l'état de la ville)
+          const s = entrer(); P.armeCur = 'poings'; P.ivresse = 0; P.buffs.vit = 0; P.buffs.lourd = 0; P.giletLourd = false; Math.random = graineNuit(g); P.x = s.panneau.x; P.z = s.panneau.z; appuyer();
+          const rngSerre = graineNuit(g * 7 + 3), sm0 = serreMaj; serreMaj = function (...a) { const r0 = Math.random; Math.random = rngSerre; try { return sm0.apply(this, a); } finally { Math.random = r0; } }; // la serre tire sur SON générateur : ce que majJoueur consomme (selon l'état laissé par d'autres tests) ne change plus les besoins /* arme lourde, ivresse, gilet laissés par d'autres tests : ils ralentissaient le pilote */ // graine posée APRÈS startRun (qui tire selon l'état de la ville)
           const dt = 1 / 30; let t = 0, route = null, cle = '', bloque = 0, actionCd = 0, sortiesEvitees = 0;
           while (s.srNuit && t < SERRE_DUREE + 2) {
             INPUT.mx = INPUT.mz = 0;
@@ -9324,7 +9325,7 @@ async function main() {
             }
             majJoueur(dt, dt); majInterieur(dt, dt); t += dt;
           }
-          INPUT.mx = INPUT.mz = 0;
+          INPUT.mx = INPUT.mz = 0; serreMaj = sm0;
           const res = { fin: s.srFin, fanees: s.srFanees, soins: s.srSoins, gain: s.srGain, bloque, sortiesEvitees };
           sortirInterieur(); return res;
         };
@@ -10546,6 +10547,89 @@ async function main() {
       });
       if (r.ko.length) fail('Cascades et volcan : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
       else ok('Cascades et volcan : ' + r.info.join(' ; '));
+    }
+
+    // -------------------------------------------------------------------
+    // Échelle et vie de l'aéroport (15 octobre, signalé : « yacht privé tout
+    // ratatiné, hélicoptères ramassés » ; « encore de la vie à l'aéroport ») :
+    // proportions face à un personnage de 1,8 u ; véhicules de piste qui
+    // circulent, s'arrêtent devant le joueur et se volent ; placeurs qui
+    // guident l'avion qui arrive ; file de taxis ; carillon dans le hall.
+    // -------------------------------------------------------------------
+    console.log('\n--- Échelle des hélicos et du yacht, vie de l’aéroport ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
+        for (const e of ennemis) e.mort = true;
+        // proportions : hauteur de la cabine (sans rotor ni ombre) et du yacht
+        const haut = (m, sansRotor) => { m.updateMatrixWorld(true); const bb = new THREE.Box3(); const ex = new Set(); const ud = m.userData; if (sansRotor && ud.rotor) ud.rotor.traverse((o) => ex.add(o));
+          m.traverse((o) => { if (o.isMesh && !ex.has(o) && !(o.material && o.material.transparent && o.material.opacity < 0.5)) bb.expandByObject(o); }); return bb.max.y - bb.min.y; };
+        for (const k of Object.keys(VEHDEFS).filter((k) => VEHDEFS[k].air === 'helico' && !VEHDEFS[k].ovni)) { const m = makeVoiture(k); const hC = haut(m, true); if (!(hC > 2.9)) ko.push(k + ' : cabine de ' + hC.toFixed(1) + ' u'); info.push(k + ' ' + hC.toFixed(1)); }
+        { const m = makeVoiture('yacht'); const hY = haut(m, false); if (!(hY > 8)) ko.push('yacht : ' + hY.toFixed(1) + ' u de haut'); else info.push('yacht ' + hY.toFixed(1) + ' u'); if (!(m.userData.siege && m.userData.siege.y > 4)) ko.push('pilote du yacht trop bas'); }
+        if (!AERO_VIE.ok) return { ko: ko.concat('pas de vie de l’aéroport'), info };
+        // véhicules de piste : ils circulent
+        const flotte = vehicules.filter((v) => v.conduit === 'piste'); if (flotte.length < AERO_VIE.flotte.length) ko.push(flotte.length + ' véhicules de piste');
+        P.x = AERO.T.x0 - 40; P.z = AERO.C.z; const p0 = flotte.map((v) => v.piste.s);
+        for (let i = 0; i < 30 * 10; i++) majVehicules(1 / 30);
+        flotte.forEach((v, i) => { const d = (v.piste.s - p0[i] + v.piste.b.L) % v.piste.b.L; if (!(d > 25)) ko.push(v.key + ' ne circule pas (' + d.toFixed(0) + ' u)'); }); // chemin parcouru sur la boucle
+        // un piéton devant : arrêt
+        const v0 = flotte[0]; P.x = v0.x + Math.sin(v0.ang) * 4; P.z = v0.z + Math.cos(v0.ang) * 4; P.y = 0;
+        for (let i = 0; i < 30 * 2; i++) majVehicules(1 / 30); const xa = v0.x, za = v0.z; for (let i = 0; i < 30; i++) majVehicules(1 / 30);
+        if (Math.hypot(v0.x - xa, v0.z - za) > 0.3) ko.push(v0.key + ' ne s’arrête pas devant le joueur');
+        // on le vole : il ne suit plus sa boucle
+        P.x = v0.x + 2; P.z = v0.z; entrerVehicule(v0); if (P.veh !== v0 || v0.conduit !== 'joueur') ko.push('véhicule de piste pas volable'); sortirVehicule(true);
+        const fm = flotte.find((v) => v.mesh.userData.gyroFm); if (!fm) ko.push('pas de FOLLOW ME');
+        // placeurs : bâtons levés quand un avion arrive à leur porte
+        const d = AERO.dec[0], pl = AERO_VIE.placeurs[0]; P.x = AERO.C.x; P.z = AERO.C.z; majAeroportVivant(1 / 30);
+        d.etat = 'taxi'; d.porte = pl.porte; majAeroVie(1 / 30); const leve = pl.h.brasG.rotation.z > 2; d.etat = 'libre'; majAeroVie(1 / 30);
+        if (!leve || pl.h.brasG.rotation.z > 1) ko.push('le placeur ne guide pas');
+        // file de taxis et carillon du hall
+        const taxis = vehicules.filter((v) => v.key === 'taxi' && Math.abs(v.x - (AERO.T.x0 - 4.5)) < 1).length; if (taxis < 3) ko.push(taxis + ' taxi(s) à la dépose-minute');
+        AERO_VIE.dingT = 0; let toastMsg = ''; const t0 = toast; toast = (m) => { toastMsg = m; }; P.x = AERO.C.x; P.z = AERO.C.z; majAeroVie(1 / 30); toast = t0;
+        if (!/embarquement/.test(toastMsg)) ko.push('pas d’annonce dans le hall');
+        info.push(flotte.length + ' véhicules de piste qui circulent, ' + taxis + ' taxis');
+        startRun(); P.hp = P.maxHp = 1e6;
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Échelle et aéroport : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
+      else ok('Échelle et aéroport : ' + r.info.join(' ; ') + ' ; arrêt devant le joueur, volables, placeurs, annonce');
+    }
+
+    // -------------------------------------------------------------------
+    // PNJ à l'eau (15 octobre, signalé : « des PNJ qui marchent dans l'eau vers
+    // le sable ») : un ennemi qui ne nage pas et un passant jetés à l'eau
+    // nagent (allongés) jusqu'à la rive la plus proche, jamais debout dans
+    // l'eau, et se relèvent sur la terre ferme. Pareil dans le bassin de la
+    // cascade, où la rive n'est pas au nord.
+    // -------------------------------------------------------------------
+    console.log('\n--- PNJ à l’eau : ils nagent jusqu’à la rive, jamais debout dans l’eau ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
+        const type = Object.keys(ETYPES).find((k) => !ETYPES[k].nage && ETYPES[k].arme === 'melee' && !ETYPES[k].boss);
+        const essai = (nom, x, z) => {
+          for (const e of ennemis) e.mort = true; P.x = x - 60; P.z = z - 60; P.y = 0;
+          creerEnnemi(type, x, z, false); const e = ennemis[ennemis.length - 1]; e.x = x; e.z = z;
+          creerPieton(x + 2, z); const p = pietons[pietons.length - 1]; p.x = x + 2; p.z = z;
+          let debout = 0, t = 0; const fini = () => !estEau(e.x, e.z) && !estEau(p.x, p.z);
+          while (!fini() && t < 40) { majEnnemis(1 / 30); majPietons(1 / 30); t += 1 / 30;
+            if (estEau(e.x, e.z) && Math.abs(e.h.g.rotation.x) < 0.5) debout++; if (estEau(p.x, p.z) && Math.abs(p.h.g.rotation.x) < 0.5) debout++; }
+          for (let i = 0; i < 10; i++) { majEnnemis(1 / 30); majPietons(1 / 30); }
+          if (!fini()) ko.push(nom + ' : pas sur la rive en 40 s');
+          if (debout > 2) ko.push(nom + ' : debout dans l’eau (' + debout + ' images)');
+          if (Math.abs(e.h.g.rotation.x) > 0.3 || Math.abs(p.h.g.rotation.x) > 0.3 || e.h.g.rotation.order !== 'XYZ') ko.push(nom + ' : pas relevé sur la terre');
+          info.push(nom + ' : rive en ' + t.toFixed(0) + ' s');
+          e.mort = true; p.etat = 'mort';
+        };
+        essai('mer', 40, MER + 14);
+        if (BASSINS[0]) essai('bassin', BASSINS[0].x, BASSINS[0].z);
+        startRun(); P.hp = P.maxHp = 1e6;
+        return { ko, info };
+      });
+      if (r.ko.length) fail('PNJ à l’eau : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
+      else ok('PNJ à l’eau : ' + r.info.join(' ; ') + ', à la nage, relevés à terre');
     }
 
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');
