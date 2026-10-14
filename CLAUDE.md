@@ -55,7 +55,7 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
   echo "$ln | $(sed -n "$((ln+1))p" index.html | sed 's/^[ \t]*//')"; done
 ```
 
-**Relevé au 15 octobre 2026 (échelle, aéroport, PNJ à l'eau) — 31 500 lignes.**
+**Relevé au relevé — 31 814 lignes.**
 Attention : `maj_carte` recale les numéros dans l'ordre des lignes de la table ;
 un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la main.
 
@@ -77,36 +77,37 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 6930 | **BOUTIQUES DE STYLE** (`BOUTIQUES_DEF`, `VETEMENTS`, `BOUT`) |
 | 7066 | **MANÈGES** — grand huit, grande roue (`MANEGES`) |
 | 7137 | **TOITS VIVANTS** (`TOITS`, `mkToitsVivants`) |
-| 11134 | MODÈLES — humains, armes, véhicules, hélico, ramassables |
-| 12972 | POOLS — balles, particules, textes flottants, traces de pneus |
-| 13336 | ÉTAT GLOBAL + JOUEUR (`P`) |
-| 14190 | VÉHICULES — physique arcade, trafic, dégâts |
-| 16798 | PIÉTONS |
-| 16980 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
-| 17551 | **RAYON TRACTEUR DE L'OVNI** |
-| 18016 | NIVEAU DE RECHERCHE (étoiles) |
-| 18295 | VAGUES + bonus de fin de vague |
-| 18416 | MISSIONS COURTES |
-| 18419 | BÂTIMENTS VISITABLES — intérieurs |
-| 18489 | FOUILLE — mécanique générique |
-| 19037 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
-| 23166 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
-| 23574 | **LAVERIE** V2 — l'essorage de la machine 7 |
-| 23839 | **SERRE** V2 — la nuit de la floraison |
-| 24131 | CINÉ-PALACE |
-| 24375 | MÉTRO ABANDONNÉ |
-| 24441 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
-| 24792 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
-| 25694 | SITE 51 |
-| 25924 | LE DÉPÔT DE BUS — courses clandestines |
-| 26952 | **MÉTIERS** — missions liées à un véhicule |
-| 27242 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
-| 28248 | ÉCRANS / MENUS / BOUTIQUES |
-| 28523 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
-| 29322 | DÉBUT / FIN DE PARTIE |
-| 30762 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
-| 30998 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
-| 31378 | BOUCLE PRINCIPALE |
+| 7152 | **LOS REYES HILLS** — colline, lacets, villas, planque (`HILLS`, `ROUTES_HILLS`) |
+| 11444 | MODÈLES — humains, armes, véhicules, hélico, ramassables |
+| 13282 | POOLS — balles, particules, textes flottants, traces de pneus |
+| 13646 | ÉTAT GLOBAL + JOUEUR (`P`) |
+| 14500 | VÉHICULES — physique arcade, trafic, dégâts |
+| 17112 | PIÉTONS |
+| 17294 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
+| 17865 | **RAYON TRACTEUR DE L'OVNI** |
+| 18330 | NIVEAU DE RECHERCHE (étoiles) |
+| 18609 | VAGUES + bonus de fin de vague |
+| 18730 | MISSIONS COURTES |
+| 18733 | BÂTIMENTS VISITABLES — intérieurs |
+| 18803 | FOUILLE — mécanique générique |
+| 19351 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
+| 23480 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
+| 23888 | **LAVERIE** V2 — l'essorage de la machine 7 |
+| 24153 | **SERRE** V2 — la nuit de la floraison |
+| 24445 | CINÉ-PALACE |
+| 24689 | MÉTRO ABANDONNÉ |
+| 24755 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
+| 25106 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
+| 26008 | SITE 51 |
+| 26238 | LE DÉPÔT DE BUS — courses clandestines |
+| 27266 | **MÉTIERS** — missions liées à un véhicule |
+| 27556 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
+| 28562 | ÉCRANS / MENUS / BOUTIQUES |
+| 28837 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
+| 29636 | DÉBUT / FIN DE PARTIE |
+| 31076 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
+| 31312 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
+| 31692 | BOUCLE PRINCIPALE |
 
 ### Ancres fines (hors bandeaux)
 
@@ -138,36 +139,36 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 5850 | `VILLA_PISC` — finitions de quartier : `mkQuartiersFinitions()` |
 | 5930 | `MONT` — Mont Reyes, puis `CANYON` (canyons) et `RIDES` (courses) |
 | 4448 | `SOLS` — dalles de sol enregistrées, puis `mkTransitionsSols()` (jonctions entre sols) |
-| 8568 | `mkLacParc()` — lac du parc, passerelle, barques |
-| 8697 | `mkLumieresQuartiers()` — Times Square, quartier chinois, Brooklyn |
-| 8783 | `mkEnceinte()` — murs, enseigne, jetées de rochers |
-| 9315 | `GALION` — galion échoué : `sansAleaVille()`, `coqueGalion()`, `mkGalion()`, `majGalion()` |
-| 10334 | `mkPorteGarage()` — porte roulante des garages |
-| 10404 | `placeLibrePorte()` |
-| 10463 | helper `poser()` — placement des lieux |
-| 10489 | `caseCentre(bx,bz)` |
-| 10582 | `REPLIS` — filet de sécurité en spirale |
-| 12840 | `makeVelo()` — vélo de ville et BMX |
-| 10251 | `ENSEIGNES` — portes mieux placées : `ameliorerPortes()`, `profondeurDevant()`, `orienterPorte()` |
-| 13344 | `const P` — état du joueur |
-| 13387 | `P.stamMax = 100 + 12*mus` |
-| 14566 | `resoudreCollisionsVehicule()` — collisions entre véhicules (SAT sur les 4 axes) |
-| 15202 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
-| 15326 | `boutonsAPied()` — boutons du HUD remis « à pied » (sortie de véhicule ET début de partie) |
-| 16243 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
-| 16372 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
-| 18425 | `IOFF = -9000` |
-| 20114 | `INTDEFS` — définitions des **27 salles** |
-| 20294 | `construireSalle(id)` |
+| 8865 | `mkLacParc()` — lac du parc, passerelle, barques |
+| 8994 | `mkLumieresQuartiers()` — Times Square, quartier chinois, Brooklyn |
+| 9080 | `mkEnceinte()` — murs, enseigne, jetées de rochers |
+| 9612 | `GALION` — galion échoué : `sansAleaVille()`, `coqueGalion()`, `mkGalion()`, `majGalion()` |
+| 10632 | `mkPorteGarage()` — porte roulante des garages |
+| 10702 | `placeLibrePorte()` |
+| 10761 | helper `poser()` — placement des lieux |
+| 10787 | `caseCentre(bx,bz)` |
+| 10880 | `REPLIS` — filet de sécurité en spirale |
+| 13150 | `makeVelo()` — vélo de ville et BMX |
+| 10548 | `ENSEIGNES` — portes mieux placées : `ameliorerPortes()`, `profondeurDevant()`, `orienterPorte()` |
+| 13654 | `const P` — état du joueur |
+| 13697 | `P.stamMax = 100 + 12*mus` |
+| 14876 | `resoudreCollisionsVehicule()` — collisions entre véhicules (SAT sur les 4 axes) |
+| 15512 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
+| 15636 | `boutonsAPied()` — boutons du HUD remis « à pied » (sortie de véhicule ET début de partie) |
+| 16553 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
+| 16683 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
+| 18739 | `IOFF = -9000` |
+| 20428 | `INTDEFS` — définitions des **27 salles** |
+| 20608 | `construireSalle(id)` |
 | 20390 | `CHALUTIER_BANCS_PLAN` — chalutier V2 ; `chalutierMaj` (20761), `dessinerRadarChalutier` (21018) |
-| 26961 | `METIERS_CIBLE` |
-| 27260 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
-| 27348 | `PIECES_FAMILLES` — catalogues de pièces par famille |
-| 27649 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
-| 27712 | `libererObjet()` — libère les géométries d'un objet retiré |
-| 27728 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
-| 27852 | `construireGarageTuning()` — la salle partagée |
-| 28222 | `majNitro()` |
+| 27275 | `METIERS_CIBLE` |
+| 27574 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
+| 27662 | `PIECES_FAMILLES` — catalogues de pièces par famille |
+| 27963 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
+| 28026 | `libererObjet()` — libère les géométries d'un objet retiré |
+| 28042 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
+| 28166 | `construireGarageTuning()` — la salle partagée |
+| 28536 | `majNitro()` |
 
 ---
 
@@ -892,6 +893,57 @@ sur 3 parties). **Toute entité recréée à chaque partie passe par
   (`serreMaj` enveloppée) ; ce que `majJoueur` consomme selon l'état laissé
   par d'autres tests changeait les besoins (2 à 8 nuits sur 10 selon la suite).
 - Tests : « Échelle des hélicos et du yacht, vie de l'aéroport », « PNJ à l'eau ».
+
+## Los Reyes Hills (15 octobre 2026) — `HILLS`, bandeau `LOS REYES HILLS`
+
+Demandé : « un vrai quartier résidentiel, de vraies villas différentes, de
+vraies piscines utilisables, des routes qui tournent et qui montent, comme
+Beverly Hills ». Remplace l'ancien quartier des villas (cases bx 0..4,
+bz 6..9). Réponses du joueur : remplacer le quartier ; la planque devient le
+manoir du sommet (l'existante, améliorée) ; course de descente.
+
+- **Ville inchangée ailleurs** : la ville est générée comme avant (MÊMES
+  tirages), puis `reserverHills` (TOUT DÉBUT du décor, aucun tirage) retire
+  l'ancien quartier (maillages entièrement dans la zone, solides, `SOLS`,
+  trottoirs, lampadaires, feux, `VILLA_PISC`, bâtiments pas encore fusionnés,
+  enseignes, stands…), calcule la colline et déplace trois lieux
+  (`deplacerPorte`, `p.hills` : `ameliorerPortes` ne les touche plus) :
+  concession REYES MOTORS et garage à l'entrée, planque au sommet.
+  `mkLosReyesHills` est le DERNIER groupe du décor (ses tirages ne décalent
+  rien). Contrôle des portes inchangé.
+- **Relief** : grille `HILLS.h` (pas 1 u), lue par `solY` (`RELIEFS`) ET par
+  le maillage. `hillsBase` monte vers le nord-ouest (30 u). Routes
+  (`ROUTES_HILLS` : Reyes Hills Drive en lacets de l'entrée au sommet, Sunset
+  Crest depuis l'est) échantillonnées tous les 2 u (`echantillonnerRoute`),
+  hauteur MONOTONE le long du Drive, pente ≤ `HILLS.pente` (0,2). La
+  chaussée gagne toujours sur le talus d'une parcelle, puis elle est
+  **lissée** sur ses seules cases (dans une épingle, l'échantillon le plus
+  proche sautait d'une branche à l'autre : marche = paroi pour la moto).
+  `HILLS.route` (masque) : `surChaussee` dans la colline (portes, mobilier).
+- **Villas** (`definirParcellesHills`, `mkVillaHills`) : parcelles plates le
+  long des lacets des DEUX côtés (`p.f` = 1 amont, −1 aval, la villa entière
+  en miroir), jamais au pied d'un lacet bien plus haut ou plus bas (règle de
+  talus), une sur trois tente la grande taille (attend sa place si elle
+  tient un peu plus loin). Tailles `VILLA_TAILLES`, styles `VILLA_STYLES`
+  (moderne, méditerranéen à toits en pyramide — rotation CUITE dans la
+  géométrie —, contemporain, hacienda en L). Maison au fond, piscine devant.
+- **Piscines en hauteur** : `piscineHills` pousse dans `BASSINS` un niveau
+  `y` ; `niveauEau(x,z)` remplace le 0 de la mer pour la nage (joueur,
+  piétons, ennemis) et la noyade des véhicules (`v.noyeBase`, ils coulent
+  depuis le niveau de la piscine).
+- **Trafic** : `creerTrafic` n'y crée rien ; `majTrafic` fait demi-tour au
+  bord (`pousserHorsHills`, aussi après le recul de file : sinon oscillation).
+- **Vie** (`VIE_HILLS`, `hillsStartRun` dans `aeroStartRun`, `majVieHills`) :
+  3 voitures de sport sur la boucle du Drive (`conduit:'piste'`,
+  `boucleRoute`), voitures de luxe dans 2 allées sur 3, deux gardes de la
+  Brigada devant la plus grande villa, joggeurs sur le trottoir, jardiniers,
+  arroseurs, piscines éclairées la nuit. Carte : `dessinerHillsCarte`.
+- **REYES HILLS DOWNHILL** (`RIDE_DEFS.downhill`, `route:true` : tout
+  véhicule terrestre) : du sommet à l'entrée, 45 s ; voiture de sport et
+  moto garées au départ (`garerRides`). Pilote simulé : ~33 s.
+- Tests : « Los Reyes Hills », « Villas de Los Reyes Hills », « Los Reyes
+  Hills : descente chronométrée, vie du quartier ». « Finitions de
+  quartier » compte les piscines des villas de la colline.
 
 ## Cascades et volcan (15 octobre 2026)
 

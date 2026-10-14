@@ -3952,7 +3952,7 @@ function construireVille(){
     if(qq!=='plage'&&qq!=='parc'&&bx%3===1&&bz%3===1) mkFeu(cx+INNER/2+1.4,cz-INNER/2-1.4);
   }
   placerPortes();
-  if(DECOR_V2){ sansAleaVille(()=>{ ameliorerPortes(); mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkBasket(); mkCiel(); mkKiosqueBanderole(); mkCrique(); mkMontReyes(); mkVieMont(); mkBordureEst(); mkCanyonsDesert(); mkPicVertige(); mkParcStunt(); mkSkateXXL(); mkRides(); mkMerVivante(); mkRemorquage(); mkLarge(); deplacerVoltige(); mkAeroportVivant(); mkHeliGrue(); mkPlanques(); mkBoutiques(); mkGrandHuit(); mkToitsVivants(); mkTracesSable(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkNeonVivant(); mkQuartiersFinitions(); mkBalises(); mkFacadesVariees(); mkCascades(); if(MERV.ok) mkVolcanIle(); mkAeroVie(); }); } // cascades et volcan EN DERNIER : leurs tirages du décor ne décalent rien de ce qui précède (mobilier...) // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
+  if(DECOR_V2){ sansAleaVille(()=>{ reserverHills(); ameliorerPortes(); mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkBasket(); mkCiel(); mkKiosqueBanderole(); mkCrique(); mkMontReyes(); mkVieMont(); mkBordureEst(); mkCanyonsDesert(); mkPicVertige(); mkParcStunt(); mkSkateXXL(); mkRides(); mkMerVivante(); mkRemorquage(); mkLarge(); deplacerVoltige(); mkAeroportVivant(); mkHeliGrue(); mkPlanques(); mkBoutiques(); mkGrandHuit(); mkToitsVivants(); mkTracesSable(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkNeonVivant(); mkQuartiersFinitions(); mkBalises(); mkFacadesVariees(); mkCascades(); if(MERV.ok) mkVolcanIle(); mkAeroVie(); mkLosReyesHills(); }); } // cascades et volcan EN DERNIER : leurs tirages du décor ne décalent rien de ce qui précède (mobilier...) // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
   finaliserMerge();
   construireMinimapStatique();
 }
@@ -7149,6 +7149,292 @@ const TOITS={coffres:[],helis:[],n:0};
    (centre), balcons à garde-corps et jardinières (résidentiel, plage), stores de boutiques et climatiseurs
    (commerce), échelles, conduites et bouches d'aération (industriel, port). Purement visuel (aucun solide),
    jamais sous 5 u devant une porte ; géométrie à couleurs de sommets fusionnée par cellule de 120 u. */
+/* =====================================================================
+   LOS REYES HILLS (15 octobre, demandé : « mieux créer le quartier résidentiel avec de vraies villas
+   différentes, de vraies piscines utilisables, moins droit, des routes qui tournent et qui montent, des
+   résidences comme à Beverly Hills ») — remplace le quartier des villas (cases bx 0..4, bz 6..9).
+   La ville est générée comme avant (MÊMES tirages : aucune porte ne bouge ailleurs). Puis :
+   - reserverHills (début du décor, AUCUN tirage) : retire l'ancien quartier (maillages entièrement dans la
+     zone, solides, dalles, trottoirs, lampadaires, feux, piscines déco, bâtiments pas encore fusionnés),
+     calcule la colline (grille de hauteurs HILLS.h, pas 1 u, lue par solY ET par le maillage) et les routes,
+     déplace le concessionnaire et le garage à l'entrée, la planque au sommet ;
+   - mkLosReyesHills (FIN du décor : ses tirages ne décalent rien) : terrain, murs de soutènement, routes en
+     lacets (Reyes Hills Drive, de l'entrée au sommet ; Sunset Crest depuis l'est), palmiers, réverbères,
+     bâtiments de l'entrée, manoir de la planque, villas (mkVillaHills), vie du quartier (mkVieHills).
+   Le trafic de la grille n'entre jamais dans la colline (demi-tour comme devant la base).
+   Villas : parcelles plates le long des lacets, des deux côtés (definirParcellesHills, déterministe), trois
+   tailles, quatre styles, chacune sa piscine EN HAUTEUR (BASSINS.y, niveauEau). Course REYES HILLS DOWNHILL
+   (RIDE_DEFS.downhill), voitures qui montent et descendent les lacets (conduit 'piste'), voitures garées,
+   gardes de la Brigada, joggeurs, jardiniers, arroseurs, piscines éclairées la nuit.
+===================================================================== */
+const HILLS={ok:false,x0:-288,x1:-90,z0:-36,z1:120,pas:1,h:null,nx:0,nz:0,routes:[],pads:[],larg:9,trot:1.6,talus:9,pente:0.2};
+// la colline : plate au sud et à l'est (raccord avec la ville), elle monte vers le nord-ouest (30 u)
+function hillsBase(x,z){ const H=HILLS, u=(H.x1-x)/(H.x1-H.x0), v=(H.z1-z)/(H.z1-H.z0), su=lisse(Math.min(1,u*1.6)), sv=lisse(Math.min(1,v*1.15)), e=lisse(Math.min(1,u/0.12));
+  return 30*sv*(0.6+0.4*su)*e+1.6*Math.sin(x*0.09+1)*Math.sin(z*0.07)*sv*e; } // monte surtout vers le nord : les lacets suivent à peu près les courbes de niveau
+const ROUTES_HILLS=[
+  {id:'drive',nom:'REYES HILLS DRIVE',pts:[[-150,121],[-150,106],[-168,97],[-235,95],[-258,92],[-270,80],[-262,68],[-240,63],[-200,63],[-142,62],[-120,58],[-112,46],[-122,34],[-145,31],[-180,30],[-240,28],[-262,24],[-272,11],[-262,-3],[-240,-7],[-200,-8],[-160,-10],[-138,-13],[-131,-22],[-140,-31],[-162,-32],[-200,-31],[-226,-29]]}, // épingles larges (rayon ~13 u) : on les passe sans couper dans le talus
+  {id:'crest',nom:'SUNSET CREST',pts:[[-89,40],[-100,41],[-110,44]],rejoint:'drive'},
+];
+function pousserHorsHills(v){ const H=HILLS, pg=v.x-(H.x0-2.5), pd=(H.x1+2.5)-v.x, ph=v.z-(H.z0-2.5), pb=(H.z1+2.5)-v.z, m=Math.min(pg,pd,ph,pb);
+  if(m===pg) v.x=H.x0-2.5; else if(m===pd) v.x=H.x1+2.5; else if(m===ph) v.z=H.z0-2.5; else v.z=H.z1+2.5; }
+function dansHills(x,z,m){ const H=HILLS; m=m||0; return x>H.x0-m&&x<H.x1+m&&z>H.z0-m&&z<H.z1+m; }
+function hauteurHills(x,z){ const H=HILLS; if(!H.h) return 0;
+  const fx=clamp((x-H.x0)/H.pas,0,H.nx-1.001), fz=clamp((z-H.z0)/H.pas,0,H.nz-1.001), i=Math.floor(fx), j=Math.floor(fz), u=fx-i, w=fz-j, n=H.nx;
+  const a=H.h[j*n+i], b=H.h[j*n+i+1], c=H.h[(j+1)*n+i], d=H.h[(j+1)*n+i+1];
+  return (a*(1-u)+b*u)*(1-w)+(c*(1-u)+d*u)*w; }
+// échantillonne une route (Catmull-Rom tous les 2 u) et son profil en long : la colline lissée sur ±12 u,
+// pente bornée (HILLS.pente), départ au niveau de la rue
+function echantillonnerRoute(r){
+  const c=new THREE.CatmullRomCurve3(r.pts.map(([x,z])=>new THREE.Vector3(x,0,z)),false,'centripetal'), L=c.getLength(), n=Math.max(4,Math.round(L/2));
+  const pts=c.getSpacedPoints(n).map((p)=>[p.x,p.z]), ds=L/n, T=pts.map(([x,z])=>hillsBase(x,z)), h=[];
+  for(let i=0;i<pts.length;i++){ let s=0, k=0; for(let j=Math.max(0,i-6);j<=Math.min(pts.length-1,i+6);j++){ s+=T[j]; k++; } h.push(Math.max(0.1,s/k)); }
+  if(r.id==='drive') for(let i=1;i<h.length;i++) h[i]=Math.max(h[i],h[i-1]); // la route principale ne redescend jamais en montant (sinon la « descente » remontait)
+  h[0]=0.1; const g=HILLS.pente*ds;
+  for(let i=1;i<h.length;i++) h[i]=clamp(h[i],h[i-1]-g,h[i-1]+g);
+  for(let i=h.length-2;i>0;i--) h[i]=clamp(h[i],h[i+1]-g,h[i+1]+g);
+  h[0]=0.1; for(let i=1;i<h.length;i++) h[i]=clamp(h[i],h[i-1]-g,h[i-1]+g);
+  return {id:r.id,nom:r.nom,pts,h,L,ds};
+}
+function calculerHills(){
+  const H=HILLS; H.routes=[];
+  for(const r of ROUTES_HILLS) H.routes.push(echantillonnerRoute(r));
+  // jonction : Sunset Crest finit SUR la route principale, à sa hauteur (raccord sur les 25 derniers mètres)
+  for(const r of ROUTES_HILLS) if(r.rejoint){ const R=H.routes.find((q)=>q.id===r.id), M=H.routes.find((q)=>q.id===r.rejoint), fin=R.pts[R.pts.length-1];
+    let bi=0, bd=1e9; M.pts.forEach(([x,z],i)=>{ const d=dist2(x,z,fin[0],fin[1]); if(d<bd){ bd=d; bi=i; } });
+    R.pts.push([M.pts[bi][0],M.pts[bi][1]]); R.h.push(M.h[bi]); const nb=Math.min(R.h.length-1,Math.round(25/R.ds)), h0=R.h[R.h.length-1-nb];
+    for(let k=0;k<=nb;k++){ const i=R.h.length-1-nb+k; R.h[i]=lerp(h0,M.h[bi],lisse(k/nb)); } }
+  definirParcellesHills();
+  // parcelles (plates) : hauteur = celle de la route la plus proche de leur point d'accès
+  for(const p of H.pads) if(p.h===undefined){ let bd=1e9, bh=0; for(const R of H.routes) R.pts.forEach(([x,z],i)=>{ const d=dist2(x,z,p.ax,p.az); if(d<bd){ bd=d; bh=R.h[i]; } }); p.h=bh+(p.dh||0); }
+  // grille : colline, taillée par les routes (plates en travers, talus de HILLS.talus) et les parcelles
+  H.nx=Math.round((H.x1-H.x0)/H.pas)+1; H.nz=Math.round((H.z1-H.z0)/H.pas)+1; H.h=new Float32Array(H.nx*H.nz); H.route=new Uint8Array(H.nx*H.nz);
+  const B=new Map(), cle=(x,z)=>Math.floor(x/10)+'_'+Math.floor(z/10);
+  for(const R of H.routes) R.pts.forEach(([x,z],i)=>{ const k=cle(x,z); if(!B.has(k)) B.set(k,[]); B.get(k).push([x,z,R.h[i]]); });
+  const W2=H.larg/2+H.trot, portee=W2+H.talus, masque=new Uint8Array(H.nx*H.nz);
+  for(let j=0;j<H.nz;j++) for(let i=0;i<H.nx;i++){ const x=H.x0+i*H.pas, z=H.z0+j*H.pas; let h=hillsBase(x,z), bd=1e9, bh=0;
+    for(let a=-2;a<=2;a++) for(let b=-2;b<=2;b++){ const L=B.get((Math.floor(x/10)+a)+'_'+(Math.floor(z/10)+b)); if(!L) continue; for(const q of L){ const d=dist2(x,z,q[0],q[1]); if(d<bd){ bd=d; bh=q[2]; } } }
+    bd=Math.sqrt(bd); if(bd<=H.larg/2) H.route[j*H.nx+i]=1; if(bd<=W2) h=bh; else if(bd<portee) h=bh+(h-bh)*lisse((bd-W2)/H.talus);
+    for(const p of H.pads){ const dx=Math.max(0,Math.abs(x-p.x)-p.hw), dz=Math.max(0,Math.abs(z-p.z)-p.hd), dp=Math.hypot(dx,dz);
+      if(dp<=0) h=p.h; else if(dp<(p.talus||7)) h=p.h+(h-p.h)*lisse(dp/(p.talus||7)); }
+    if(bd<=W2){ h=bh; masque[j*H.nx+i]=1; } /* la chaussée gagne toujours : le talus d'une parcelle voisine ne la creuse jamais */
+    H.h[j*H.nx+i]=Math.max(0.1,h); }
+  /* chaussée lissée (moyenne sur ses seules cases, 5×5, trois passes) : dans une épingle, l'échantillon le plus proche
+     saute d'une branche à l'autre et laissait des marches que la règle des pentes prenait pour une paroi */
+  for(let passe=0;passe<3;passe++){ const src=H.h.slice();
+    for(let j=2;j<H.nz-2;j++) for(let i=2;i<H.nx-2;i++){ const c=j*H.nx+i; if(!masque[c]) continue; let s=0, n=0;
+      for(let b=-2;b<=2;b++) for(let a=-2;a<=2;a++){ const q=c+b*H.nx+a; if(masque[q]){ s+=src[q]; n++; } } H.h[c]=s/n; } }
+}
+// Parcelles des villas : le long des lacets de Reyes Hills Drive (jamais dans une épingle), côté amont (au nord :
+// la façade regarde la route et la caméra), tailles et styles qui alternent ; une parcelle ne touche jamais une
+// route ni une autre parcelle. Déterministe (aucun tirage).
+const VILLA_TAILLES={petite:[9,6.5],moyenne:[12,7.5],grande:[15,8.5]}, VILLA_STYLES=['moderne','medit','contemporain','hacienda'];
+function definirParcellesHills(){
+  const H=HILLS, D=H.routes.find((r)=>r.id==='drive'), types=[['grande','moyenne','petite'],['petite','moyenne'],['moyenne','petite']], W2=H.larg/2+H.trot;
+  /* une parcelle laisse la chaussée et son trottoir libres, et ne se pose jamais au pied d'un lacet bien plus haut ou plus bas (talus trop raide) */
+  const pente=(p,ph)=>{ for(const R of H.routes) for(let k=0;k<R.pts.length;k++){ const [x,z]=R.pts[k], dx=Math.max(0,Math.abs(x-p.x)-p.hw), dz=Math.max(0,Math.abs(z-p.z)-p.hd), d=Math.hypot(dx,dz);
+      if(d<W2+1) return false; if(d<W2+10&&Math.abs(R.h[k]-ph)>0.6+2.2*(d-W2)) return false; } return true; };
+  const libre=(p,ph)=>p.x-p.hw>H.x0+3&&p.x+p.hw<H.x1-3&&p.z-p.hd>H.z0+3&&p.z+p.hd<H.z1-3&&pente(p,ph)&&
+    !H.pads.some((q)=>Math.abs(q.x-p.x)<q.hw+p.hw+4&&Math.abs(q.z-p.z)<q.hd+p.hd+4);
+  /* deux rangs : côté amont (f=1, au nord, la maison au fond regarde la route) et côté aval (f=-1, au sud, en
+     surplomb du lacet du dessous : le jardin et la piscine donnent sur la vue) */
+  let k=0; const dernier={'1':-1e9,'-1':-1e9};
+  const essai=(i,f,type)=>{ if(i>=D.pts.length-8) return null; const [x,z]=D.pts[i], [xb,zb]=D.pts[i+1], dx=xb-x, dz=zb-z, l=Math.hypot(dx,dz)||1;
+    if(Math.abs(dx/l)<0.93) return null; /* le long d'un lacet, jamais dans une épingle */ const [hw,hd]=VILLA_TAILLES[type];
+    const p={id:'villa'+k,x,z:z-f*(W2+1.6+hd),hw,hd,ax:x,az:z,dh:0.5,talus:6,type,style:VILLA_STYLES[(k*3+1)%4],villa:true,f};
+    return libre(p,D.h[i]+p.dh)?p:null; };
+  for(let i=8;i<D.pts.length-8;i++) for(const f of [1,-1]){
+    if(i*D.ds-dernier[f]<26) continue;
+    const liste=types[k%3]; /* une villa sur trois est grande : si elle tient un peu plus loin, on l'y attend */
+    if(liste[0]==='grande'&&!essai(i,f,'grande')){ let plus=false; for(let j=i+1;j<=i+14&&!plus;j++) plus=!!essai(j,f,'grande'); if(plus) continue; }
+    for(const type of liste){ const p=essai(i,f,type); if(p){ H.pads.push(p); k++; dernier[f]=i*D.ds; break; } }
+  }
+}
+function dansScene(o){ while(o.parent) o=o.parent; return o===scene; }
+function deplacerPorte(p,x,z,y,nx,nz){ p.x=x; p.z=z; p.y=y; p.hills=true; orienterPorte(p,nx,nz); }
+// début du décor, aucun tirage : retrait de l'ancien quartier, colline, portes déplacées
+function reserverHills(){
+  if(!DECOR_V2) return; const H=HILLS;
+  const dans=(b)=>b.min.x>=H.x0-1&&b.max.x<=H.x1+1&&b.min.z>=H.z0-1&&b.max.z<=H.z1+1;
+  const garder=new Set(); for(const p of PORTES){ for(const o of [p.g,p.ens,p.halo]) if(o) garder.add(o); }
+  const bb=new THREE.Box3();
+  for(let i=scene.children.length-1;i>=0;i--){ const o=scene.children[i]; if(garder.has(o)||!dansHills(o.position.x,o.position.z)) continue;
+    bb.setFromObject(o); if(bb.isEmpty()||dans(bb)) scene.remove(o); }
+  for(const k in MERGE){ const g=MERGE[k]; g.geos=g.geos.filter((geo)=>{ geo.computeBoundingBox(); const b=geo.boundingBox; if(dans(b)){ geo.dispose(); return false; } return true; }); }
+  for(const arr of sGrid.values()) for(let i=arr.length-1;i>=0;i--){ const s=arr[i]; if(s.x-s.hw>=H.x0-1&&s.x+s.hw<=H.x1+1&&s.z-s.hd>=H.z0-1&&s.z+s.hd<=H.z1+1) arr.splice(i,1); }
+  const hors=(L,f)=>{ for(let i=L.length-1;i>=0;i--) if(f(L[i])) L.splice(i,1); };
+  hors(SOLS,(s)=>s.x0>=H.x0-1&&s.x1<=H.x1+1&&s.z0>=H.z0-1&&s.z1<=H.z1+1);
+  hors(TROTTOIRS,(s)=>dansHills(s.x,s.z)); hors(PLATS,(p)=>dansHills(p.x,p.z)&&!p.ang); hors(COLLINES,(c)=>dansHills(c.x,c.z)); hors(RAMPES,(r)=>dansHills(r.x,r.z));
+  hors(lampes,(l)=>!dansScene(l)); hors(feux,(f)=>!dansScene(f.lum[0])); hors(cassables,(c)=>!dansScene(c.mesh)); hors(FLAQUES_LUM,(f)=>dansHills(f[0],f[1]));
+  hors(VILLA_PISC,(p)=>dansHills(p.x,p.z)); hors(BATIMENTS,(b)=>dansHills(b.x,b.z)); hors(MAISONS,(m)=>dansHills(m.x,m.z)); hors(BRIQUES,(b)=>dansHills(b.x,b.z));
+  hors(ENSEIGNES,(e)=>e.p&&!dansScene(e.p)); hors(STANDS,(s)=>dansHills(s.x,s.z));
+  ZONES_SANS_MOBILIER.push({x0:H.x0-1,x1:H.x1+1,z0:H.z0-1,z1:H.z1+1});
+  // parcelles : le manoir de la planque au sommet, l'entrée (concession, garage)
+  H.pads.push({id:'manoir',x:-251,z:-27,hw:24,hd:8.5,ax:-226,az:-29,talus:8});
+  H.pads.push({id:'entree',x:-118,z:104,hw:30,hd:13,h:0.1,ax:-118,az:110,talus:6});
+  calculerHills();
+  RELIEFS.push({x0:H.x0,x1:H.x1,z0:H.z0,z1:H.z1,f:hauteurHills});
+  // portes : concession REYES MOTORS et garage à l'entrée ; la planque au sommet (le manoir)
+  const man=H.pads.find((p)=>p.id==='manoir'); H.manoir=man;
+  for(const p of PORTES){
+    if(p.id==='conces') deplacerPorte(p,-104,106.6,0.1,0,1);
+    else if(p.id==='planque') deplacerPorte(p,-251,-21.4,man.h,0,1);
+  }
+  POIS.garage={x:-133,z:110}; POIS.villas={x:-251,z:-27};
+  H.ok=true;
+}
+const _MAT_HILLS={};
+// FIN du décor : tout ce qui se voit
+function mkLosReyesHills(){
+  if(!HILLS.ok) return; const H=HILLS, i0=scene.children.length;
+  // terrain : pelouses, haies, murs de soutènement de pierre sur les pentes raides (couleurs de sommets)
+  { const pas=2, nx=Math.round((H.x1-H.x0)/pas)+1, nz=Math.round((H.z1-H.z0)/pas)+1, pos=[], col=[], idx=[], c3=new THREE.Color();
+    const gazon=new THREE.Color(0x5f9a3e), gazon2=new THREE.Color(0x4c8a34), pierre=new THREE.Color(0xb6b0a2), pierre2=new THREE.Color(0x8e887c);
+    for(let j=0;j<nz;j++) for(let i=0;i<nx;i++){ const x=H.x0+i*pas, z=H.z0+j*pas, h=hauteurHills(x,z);
+      const pe=Math.max(Math.abs(hauteurHills(x+1,z)-hauteurHills(x-1,z)),Math.abs(hauteurHills(x,z+1)-hauteurHills(x,z-1)))/2;
+      c3.copy(gazon).lerp(gazon2,0.5+0.5*Math.sin(x*0.31)*Math.cos(z*0.27));
+      if(pe>1.2) c3.copy(pierre).lerp(pierre2,0.5+0.5*Math.sin(h*2.3)); else if(pe>0.85) c3.lerp(new THREE.Color(0x3f6e2c),(pe-0.85)/0.35); // talus en pelouse sombre, la pierre (soutènement) seulement au plus raide
+      pos.push(x,h+0.03,z); col.push(c3.r,c3.g,c3.b); }
+    for(let j=0;j<nz-1;j++) for(let i=0;i<nx-1;i++){ const a=j*nx+i; idx.push(a,a+nx,a+1,a+1,a+nx,a+nx+1); }
+    // jupes : du bord du relief jusqu'à la rue (murs de soutènement), sur les quatre côtés
+    const jupe=(xa,za,xb,zb)=>{ const n=Math.max(2,Math.round(Math.hypot(xb-xa,zb-za)/pas)); const b0=pos.length/3;
+      for(let k=0;k<=n;k++){ const x=lerp(xa,xb,k/n), z=lerp(za,zb,k/n), h=hauteurHills(x,z); pos.push(x,h+0.03,z,x,0,z); c3.copy(pierre).lerp(pierre2,(k%2)*0.4); col.push(c3.r,c3.g,c3.b,c3.r*0.8,c3.g*0.8,c3.b*0.8); }
+      for(let k=0;k<n;k++){ const a=b0+k*2; idx.push(a,a+1,a+2,a+2,a+1,a+3); } };
+    jupe(H.x0,H.z0,H.x1,H.z0); jupe(H.x1,H.z1,H.x0,H.z1); jupe(H.x0,H.z1,H.x0,H.z0); jupe(H.x1,H.z0,H.x1,H.z1);
+    const g=new THREE.BufferGeometry(); g.setIndex(idx); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(col,3)); g.computeVertexNormals();
+    const m=new THREE.Mesh(g,new THREE.MeshLambertMaterial({vertexColors:true,side:THREE.DoubleSide})); scene.add(m); H.terrain=m; }
+  // routes : asphalte, ligne jaune, trottoirs et bordures (un ruban par route, texture répétée tous les 6 u)
+  const texR=cTex(128,(c,s)=>{ c.fillStyle='#3a3c44'; c.fillRect(0,0,s,s); c.fillStyle='#c8c4b8'; c.fillRect(0,0,s*0.13,s); c.fillRect(s*0.87,0,s*0.13,s);
+    c.fillStyle='#8a867c'; c.fillRect(s*0.125,0,s*0.012,s); c.fillRect(s*0.863,0,s*0.012,s); c.fillStyle='#ffd23f'; c.fillRect(s*0.49,0,s*0.02,s*0.55);
+    c.fillStyle='rgba(0,0,0,0.12)'; for(let k=0;k<40;k++) c.fillRect(Math.random()*s*0.7+s*0.15,Math.random()*s,2,2); },1,1/6);
+  const mR=new THREE.MeshLambertMaterial({map:texR,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-4});
+  const mR2=new THREE.MeshLambertMaterial({map:texR,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-3,polygonOffsetUnits:-6});
+  for(const R of H.routes) ruban(R.pts,H.larg+2*H.trot,(x,z)=>hauteurHills(x,z)+0.08,R.id==='drive'?mR:mR2);
+  // palmiers et réverbères le long des routes, à la hauteur du sol ; panneaux de rue
+  const W2=H.larg/2+H.trot;
+  for(const R of H.routes){ for(let i=4;i<R.pts.length-2;i+=9){ const [x,z]=R.pts[i], [xb,zb]=R.pts[i+1], dx=xb-x, dz=zb-z, l=Math.hypot(dx,dz)||1, s=(Math.floor(i/9)%2)?1:-1;
+      const px=x-dz/l*s*(W2+1.4), pz=z+dx/l*s*(W2+1.4); if(!dansHills(px,pz,-1)) continue; const n0=scene.children.length; mkPalmier(px,pz); for(let k=n0;k<scene.children.length;k++) scene.children[k].position.y=hauteurHills(px,pz);
+      if(i%27===4){ const qx=x+dz/l*s*(W2+0.6), qz=z-dx/l*s*(W2+0.6); const n1=scene.children.length; mkLampadaire(qx,qz); FLAQUES_LUM.pop(); for(let k=n1;k<scene.children.length;k++) scene.children[k].position.y=hauteurHills(qx,qz); } }
+    const [x0,z0]=R.pts[1]; mkEnseigne(R.nom,'#ffd23f',x0+(R.id==='drive'?-8:0),hauteurHills(x0,z0)+3.4,z0+(R.id==='drive'?0:-8),R.id==='drive'?Math.PI/2:0,6); }
+  // l'entrée : concession REYES MOTORS (vitrine) et garage ; arche « LOS REYES HILLS »
+  mkBatiment(-104,100.5,18,11,6,matFacade('#2a2f3a','verre'));
+  mkBox(16,3.4,0.15,new THREE.MeshLambertMaterial({color:0x8ad2ff,transparent:true,opacity:0.45}),-104,2,106.1); // vitrine
+  mkBatiment(-133,101.5,12,9,5.5,paletteFacades.industriel[0]); mkEnseigne('GARAGE','#ffd23f',-133,4.2,106.2,0,7);
+  { const zone=new THREE.Mesh(new THREE.CircleGeometry(2.6,20),new THREE.MeshBasicMaterial({color:0xffd23f,transparent:true,opacity:0.25,depthWrite:false})); zone.rotation.x=-Math.PI/2; zone.position.set(POIS.garage.x,0.2,POIS.garage.z); scene.add(zone); }
+  for(const s of [-1,1]){ mkBox(1.2,7,1.2,mat(0xe8dcc4),-150+s*8.2,3.5,119); addSolid({x:-150+s*8.2,z:119,hw:0.6,hd:0.6,h:7}); } mkBox(18,1.4,1.2,mat(0xe8dcc4),-150,7.2,119);
+  mkEnseigne('LOS REYES HILLS','#ffd23f',-150,8.4,119.7,0,12);
+  // les villas, puis le manoir de la planque au sommet
+  for(const p of H.pads) if(p.villa) mkVillaHills(p);
+  mkManoirPlanque();
+  mkVieHills();
+  fusionnerDecor(i0);
+}
+// Vie de Los Reyes Hills (lot 3) : voitures qui montent et descendent les lacets (conduit 'piste', voie de
+// droite), voitures de luxe dans les allées, joggeurs sur les trottoirs, jardiniers et arroseurs, sécurité privée
+// de la Krasnaya Brigada à la plus grande villa, piscines éclairées la nuit. Spectacle sur dt, LOD au loin.
+const VIE_HILLS={pietons:[],jardiniers:[],eaux:[],boucle:null,trottoir:null,arroseT:0};
+function boucleRoute(pts,dec){ // aller par la voie de droite, retour par l'autre : une boucle fermée pour majVehPiste
+  const cote=(P2,s)=>P2.map(([x,z],i)=>{ const [xa,za]=P2[Math.max(0,i-1)], [xb,zb]=P2[Math.min(P2.length-1,i+1)], dx=xb-xa, dz=zb-za, l=Math.hypot(dx,dz)||1; return [x-dz/l*dec*s,z+dx/l*dec*s]; });
+  const ret=pts.slice().reverse(), all=cote(pts,-1).concat(cote(ret,-1)); all.push(all[0]);
+  const cum=[0]; let L=0; for(let i=1;i<all.length;i++){ L+=Math.hypot(all[i][0]-all[i-1][0],all[i][1]-all[i-1][1]); cum.push(L); } return {pts:all,cum,L};
+}
+function hillsStartRun(){
+  if(!HILLS.ok) return; const H=HILLS, V=VIE_HILLS, D=H.routes.find((r)=>r.id==='drive');
+  if(!V.boucle){ V.boucle=boucleRoute(D.pts,2.3); V.trottoir=boucleRoute(D.pts,H.larg/2+0.7); }
+  [['sport',0],['muscle',0.33],['mirage',0.66]].forEach(([k,u])=>{ const s=V.boucle.L*u, p=pointBoucle(V.boucle,s), v=creerVehicule(k,p.x,p.z,p.ang); if(!v) return; v.conduit='piste'; v.piste={b:V.boucle,s,vit:9,vCur:0}; v.h=solY(v.x,v.z); });
+  const luxe=['sport','berline','pickup','muscle','mirage','baronne'];
+  H.pads.filter((p)=>p.villa).forEach((p,k)=>{ if(k%3===2) return; const xa=p.hw*0.55*(p.id.charCodeAt(5)%2?1:-1), v=creerVehicule(luxe[k%luxe.length],p.x+xa,p.z+(p.f||1)*p.hd*0.35,0); if(v) v.h=solY(v.x,v.z); });
+  // sécurité privée de la Krasnaya Brigada devant la plus grande villa
+  const rang={grande:3,moyenne:2,petite:1}, g=H.pads.filter((p)=>p.villa).sort((a,b)=>rang[b.type]-rang[a.type]||b.hw-a.hw)[0]; // la plus grande villa
+  if(g) for(const dx of [-2.6,2.6]){ const s=creerEnnemi('chr_fusil',g.x+g.hw*0.55*(g.id.charCodeAt(5)%2?1:-1)+dx,g.z+(g.f||1)*(g.hd+0.5),false); if(s){ s.garde=true; s.posteX=s.x; s.posteZ=s.z; } }
+}
+function mkVieHills(){
+  if(!HILLS.ok) return; const H=HILLS, V=VIE_HILLS;
+  const humain=(cfg)=>{ const h=makeHumain(cfg,1); scene.add(h.g); return h; };
+  for(let k=0;k<5;k++){ const h=humain({haut:choixD([0xff5ad0,0x35c8e0,0xffd23f,0xf2f4f8,0x7dff7a]),bas:choixD([0x1c2030,0xf2f4f8,0x3a3e46]),peau:choixD(civPeau),casq:choixD([0x14161c,0xd8c8a8,0x8a5a2a]),visage:'gentil'});
+    V.pietons.push({h,s:aD(0,1),v:(k%2?1:-1)*aD(2.2,3.6)}); }
+  H.pads.filter((p)=>p.villa).forEach((p,k)=>{ if(k%4!==1) return; const h=humain({haut:0x3a7a34,bas:0x5a4a34,peau:choixD(civPeau),casq:0xd8c8a8,visage:'neutre'});
+    const t=mkBoxG(0.9,0.5,0.7,0xd83a3a,0,0.25,0.9); h.g.add(t); V.jardiniers.push({h,p,u:aD(0,6)}); });
+}
+function majVieHills(dt){
+  if(!HILLS.ok) return; const V=VIE_HILLS, pres=dansHills(P.x,P.z,80), nuit=(ETAT.nuitF||0);
+  for(const m of V.eaux) m.emissive.setRGB(0.04+0.18*nuit,0.22+0.4*nuit,0.28+0.45*nuit); // piscines éclairées la nuit
+  for(const w of V.pietons) w.h.g.visible=pres; for(const j of V.jardiniers) j.h.g.visible=pres;
+  if(!pres||!V.trottoir) return;
+  for(const w of V.pietons){ w.s=(w.s+w.v*dt/V.trottoir.L+1)%1; const p=pointBoucle(V.trottoir,w.s*V.trottoir.L), a=w.v>0?p.ang:p.ang+Math.PI;
+    w.h.g.position.set(p.x,hauteurHills(p.x,p.z)+0.1,p.z); w.h.g.rotation.y=a; animeHumain(w.h,dt,Math.abs(w.v)*3,false); }
+  for(const j of V.jardiniers){ j.u+=dt*0.35; const p=j.p, x=p.x+Math.sin(j.u)*p.hw*0.6, z=p.z+(p.f||1)*(p.hd*0.25+Math.cos(j.u*2)*0.8); // il tond la pelouse devant la maison
+    j.h.g.position.set(x,p.h+0.05,z); j.h.g.rotation.y=Math.cos(j.u)>0?Math.PI/2:-Math.PI/2; animeHumain(j.h,dt,3,false);
+    if(Math.random()<dt*5) spawnP(x,p.h+0.3,z,aD(-1,1),aD(0.5,1.5),aD(-1,1),0.5,0.12,0x5fa83e,6); }
+  // arroseurs automatiques : quelques jets sur les pelouses proches
+  V.arroseT-=dt; if(V.arroseT<=0){ V.arroseT=0.12; for(const p of HILLS.pads){ if(!p.villa||dist2(P.x,P.z,p.x,p.z)>55*55) continue; const a=CASC_U.uT.value*2+p.x;
+      spawnP(p.x-p.hw*0.6,p.h+0.4,p.z+(p.f||1)*p.hd*0.5,Math.cos(a)*3,aD(3,4.5),Math.sin(a)*3,0.8,0.12,0xd8f0ff,9); } }
+}
+// Une villa sur sa parcelle (façade au sud, vers la route et la caméra) : maison selon le style et la taille,
+// piscine où l'on nage (BASSINS, niveau propre), plage de dallage, transats, parasol, allée et portail, haies,
+// palmiers. Solides : les volumes de la maison seulement (on traverse un jardin).
+function piscineHills(x,z,hw,hd,y){
+  const eau=new THREE.Mesh(new THREE.BoxGeometry(hw*2,0.1,hd*2),new THREE.MeshLambertMaterial({color:0x3ab8d8,emissive:0x0a3a48,transparent:true,opacity:0.9})); eau.position.set(x,y-0.02,z); scene.add(eau); VIE_HILLS.eaux.push(eau.material); // au-dessus du dallage (sinon cachée dessous)
+  mkBox(hw*2+0.8,0.14,0.4,mat(0xf2ede2),x,y+0.05,z-hd-0.2); mkBox(hw*2+0.8,0.14,0.4,mat(0xf2ede2),x,y+0.05,z+hd+0.2);
+  mkBox(0.4,0.14,hd*2,mat(0xf2ede2),x-hw-0.2,y+0.05,z); mkBox(0.4,0.14,hd*2,mat(0xf2ede2),x+hw+0.2,y+0.05,z);
+  BASSINS.push({x,z,hw,hd,y:y-0.07});
+}
+function mkVillaHills(p){
+  const y=p.h, x=p.x, z=p.z, f=p.f||1, st=p.style, T=VILLA_TAILLES[p.type], grand=p.type==='grande', moyen=p.type==='moyenne'; // f : -1 = parcelle en aval (tout en miroir)
+  const murs={moderne:0xf4f2ec,medit:0xf0dcb8,contemporain:0x3a3e46,hacienda:0xf2ebe0}[st], acc={moderne:0x8a6a44,medit:0xc4643a,contemporain:0xf4f2ec,hacienda:0x9a6a44}[st];
+  const mM=mat(murs), mA=mat(acc), vitre=mat(0x1a2a3a), dalle=mat(0xd8d0c0), haie=mat(0x2f6a2a), tuile=mat(0xc4643a);
+  const B=(w,h,d,m,bx,by,bz)=>mkBox(w,h,d,m,x+bx,y+by,z+f*bz);
+  /* toit en pyramide calé sur les murs (la rotation est cuite dans la géométrie : tournée APRÈS l'échelle, elle
+     donnait un losange de travers) ; demi-largeurs a et b */
+  const toit=(a,b,h,bx,by,bz)=>{ const g=new THREE.ConeGeometry(1,h,4); g.rotateY(Math.PI/4); const m=new THREE.Mesh(g,tuile); m.scale.set(a*1.414,1,b*1.414); m.position.set(x+bx,y+by,z+f*bz); scene.add(m); return m; };
+  // dallage de la parcelle (pelouse autour) et haies sur trois côtés, muret et portail devant
+  B(p.hw*2-1,0.06,p.hd*2-1,mat(0x6aa046),0,0.03,0);
+  for(const s of [-1,1]) B(0.8,1.1,p.hd*2,haie,s*(p.hw-0.4),0.55,0); B(p.hw*2,1.1,0.8,haie,0,0.55,-p.hd+0.4);
+  const xa=p.hw*0.55*(p.id.charCodeAt(5)%2?1:-1); // allée : à gauche ou à droite
+  B(3.6,0.08,p.hd+2,dalle,xa,0.05,p.hd*0.5);
+  for(const s of [-1,1]) B(0.6,1.6,0.6,mat(0xe8e0d0),xa+s*2.3,0.8,p.hd-0.2);
+  B(p.hw*2-1,0.7,0.35,mat(0xe8e0d0),0,0.35,p.hd-0.2).visible=true;
+  // la maison (au fond de la parcelle)
+  const hw=T[0]*0.72, hd=T[1]*0.42, hz=-p.hd+hd+0.8, et=moyen||grand?2:1, H1=3.4; // au fond : la piscine tient devant, jamais dessous
+  if(st==='moderne'){ B(hw*2,H1,hd*2,mM,0,H1/2,hz); B(hw*2+0.6,0.25,hd*2+0.6,mat(0xe8e6e0),0,H1+0.12,hz); B(hw*1.6,0.9,0.06,vitre,0,H1*0.55,hz+hd+0.03); B(0.4,H1,hd*2,mA,hw-0.2,H1/2,hz);
+    if(et>1){ B(hw*1.3,H1,hd*1.6,mM,-hw*0.25,H1*1.5,hz+hd*0.35); B(hw*1.3+0.6,0.25,hd*1.6+0.6,mat(0xe8e6e0),-hw*0.25,H1*2+0.12,hz+hd*0.35); B(hw*1.1,1.6,0.06,vitre,-hw*0.25,H1*1.5,hz+hd*1.15+0.03); }
+    if(grand) B(hw*0.8,H1,hd*1.2,mM,hw*1.2,H1/2,hz+hd*0.4); }
+  else if(st==='contemporain'){ B(hw*2,H1,hd*2,mM,0,H1/2,hz); B(hw*1.9,2.2,0.06,vitre,0,H1*0.5,hz+hd+0.03);
+    if(et>1){ B(hw*1.4,H1,hd*2.2,mA,hw*0.3,H1*1.5,hz+hd*0.1); B(hw*1.2,2.2,0.06,vitre,hw*0.3,H1*1.5,hz+hd*1.2+0.03); for(let k=0;k<6;k++) B(0.06,0.9,0.06,mat(0xd8dce4),-hw*0.9+k*0.5,H1+0.45,hz+hd); }
+    if(grand) B(hw*0.9,H1*0.8,hd*1.4,vitre,-hw*1.3,H1*0.4,hz+hd*0.2); }
+  else if(st==='medit'){ B(hw*2,H1*et,hd*2,mM,0,H1*et/2,hz); for(const k of [-0.6,0,0.6]) for(let e=0;e<et;e++) B(1.2,1.8,0.08,vitre,k*hw,1.2+e*H1,hz+hd+0.04);
+    toit(hw*1.08,hd*1.08,2.2,0,H1*et+1.1,hz);
+    if(et>1){ B(hw*1.2,0.15,1.4,mM,0,H1+0.05,hz+hd+0.7); for(let k=0;k<5;k++) B(0.08,0.9,0.08,mat(0x2a2d34),-hw*0.6+k*hw*0.3,H1+0.5,hz+hd+1.35); }
+    if(grand){ B(hw*0.9,H1,hd*1.6,mM,hw*1.35,H1/2,hz+hd*0.3); toit(hw*0.5,hd*0.86,1.6,hw*1.35,H1+0.8,hz+hd*0.3); } }
+  else { // hacienda : de plain-pied, en L, tuiles basses, poutres de bois, patio
+    B(hw*2,H1,hd*2,mM,0,H1/2,hz); B(hw*0.8,H1,hd*1.8,mM,Math.sign(xa)*hw*0.7,H1/2,hz+hd*0.7); /* l'aile, côté allée : la piscine est de l'autre */
+    toit(hw*1.08,hd*1.08,1.4,0,H1+0.7,hz);
+    for(let k=0;k<5;k++) B(0.2,0.2,1.8,mA,-hw*0.8+k*hw*0.4,H1-0.3,hz+hd+0.9); for(const k of [-0.5,0.5]) B(1.4,1.6,0.08,vitre,k*hw,1.4,hz+hd+0.04); }
+  B(hw*1.3,1.3,0.06,vitre,0,1.7,hz-hd-0.03); /* baies côté jardin de derrière (vues de la vallée sur les parcelles en aval) */
+  addSolid({x,z:z+f*hz,hw:hw*(grand?1.6:1.05),hd:hd*1.1,h:y+H1*et,toit:true});
+  // la piscine (devant la maison, côté opposé à l'allée), dallage, transats, parasol
+  const pw=grand?4.2:(moyen?3.4:2.6), pd=grand?2.4:2, px=-xa*0.7, pz=p.hd-pd-1.4;
+  B(pw*2+3,0.07,pd*2+2,dalle,px,0.05,pz); piscineHills(x+px,z+f*pz,pw,pd,y+0.12);
+  for(const s of [-1,1]){ const tr=B(0.7,0.25,1.8,mat(st==='medit'?0xff8a5a:0xf2f4f6),px+s*(pw+1.2),0.3,pz); tr.rotation.x=0.12*f; }
+  { const pa=new THREE.Mesh(new THREE.ConeGeometry(1.4,0.6,8),mat([0xffd23f,0xe05252,0x35c8e0,0xf2f4f6][p.id.charCodeAt(5)%4])); pa.position.set(x+px+pw+1.2,y+2.3,z+f*(pz-pd-1)); scene.add(pa); B(0.08,2.2,0.08,mat(0xd8dce4),px+pw+1.2,1.1,pz-pd-1); }
+  // palmiers
+  for(const s of [-1,1]){ const n0=scene.children.length; mkPalmier(x+s*(p.hw-1.6),z+f*(p.hd-1.6)); for(let k=n0;k<scene.children.length;k++) scene.children[k].position.y=y; }
+}
+// manoir de la planque : deux étages blancs, grandes baies, toit-terrasse, colonnade d'entrée
+function mkManoirPlanque(){
+  const m=HILLS.manoir, y=m.h, x=m.x, z=m.z-2, w=22, d=10, blanc=mat(0xf2ede2), vitre=mat(0x1a2a3a), toit=mat(0xb8b0a0);
+  const box=(bw,bh,bd,mt,bx,by,bz)=>{ const b=mkBox(bw,bh,bd,mt,bx,by,bz); return b; };
+  box(w,4,d,blanc,x,y+2,z); box(w*0.7,3.6,d*0.8,blanc,x-2,y+5.8,z-0.5); box(w+0.6,0.3,d+0.6,toit,x,y+4.1,z); box(w*0.7+0.6,0.3,d*0.8+0.6,toit,x-2,y+7.7,z-0.5);
+  for(const k of [-8,-4,4,8]) box(2.6,2.4,0.1,vitre,x+k,y+1.8,z+d/2+0.05);
+  for(const k of [-7,-2,3]) box(3.2,2.2,0.1,vitre,x-2+k*0.9,y+5.6,z+d*0.4+0.05);
+  for(const k of [-1.8,1.8]){ box(0.5,3.8,0.5,mat(0xe8e0d0),x+k,y+1.9,z+d/2+2.2); } box(4.6,0.4,2.8,blanc,x,y+3.9,z+d/2+1.4); // porche
+  addSolid({x,z,hw:w/2,hd:d/2,h:y+4.3,toit:true}); addSolid({x:x-2,z:z-0.5,hw:w*0.35,hd:d*0.4,h:y+7.9,toit:true});
+  // la planque améliorée : piscine à débordement côté vue, terrasse en teck, transats, palmiers, garage à trois portes
+  mkBox(14,0.08,6,mat(0x9a7a54),x+16.5,y+0.05,z+4); piscineHills(x+16.5,z+4,5.5,1.8,y+0.12);
+  for(let k=0;k<3;k++){ const tr=mkBox(0.7,0.25,1.8,mat(0xf2f4f6),x+8+k*2.2,y+0.3,z+0.8); tr.rotation.x=0.12; }
+  mkBox(9,3.2,6,blanc,x-14.5,y+1.6,z); for(let k=0;k<3;k++) mkBox(2.2,2.4,0.08,mat(0x5a626c),x-17.5+k*3,y+1.2,z+3.05);
+  addSolid({x:x-14.5,z,hw:4.5,hd:3,h:y+3.2,toit:true});
+  for(const dx of [-22,20,22]){ const n0=scene.children.length; mkPalmier(x+dx,z+5); for(let k=n0;k<scene.children.length;k++) scene.children[k].position.y=y; }
+}
 /* CASCADES ET VOLCAN (15 octobre, demandé : « de la cascade à des endroits, avec de la déco, et de la lave sur
    l'île au pirate avec de la fumée ») — décor, générateur du décor (sansAleaVille), animé sur dt :
    - GRANDE CASCADE de la face sud du Pic du Vertige (90 u) : ruisseau sur le plateau, rideau d'eau qui s'arque
@@ -7196,7 +7482,7 @@ function ruban(pts,larg,hauteur,m){
     const dx=xb-xa, dz=zb-za, l=Math.hypot(dx,dz)||1, nx=-dz/l, nz=dx/l; if(i) s+=Math.hypot(x-pts[i-1][0],z-pts[i-1][1]);
     for(const k of [0,1]){ const px=x+nx*larg*(k-0.5), pz=z+nz*larg*(k-0.5); pos.push(px,hauteur(px,pz),pz); uv.push(k,s); } }
   for(let i=0;i<pts.length-1;i++){ const a=i*2; idx.push(a,a+2,a+1,a+1,a+2,a+3); }
-  const g=new THREE.BufferGeometry(); g.setIndex(idx); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2)); g.computeBoundingSphere();
+  const g=new THREE.BufferGeometry(); g.setIndex(idx); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2)); g.computeVertexNormals(); g.computeBoundingSphere();
   const me=new THREE.Mesh(g,m); scene.add(me); return me;
 }
 // réserve de sprites qui montent, grossissent et s'effacent (fumée, brume, vapeur) : jamais d'allocation en jeu
@@ -7442,6 +7728,7 @@ function aeroStartRun(){
   creerVehicule('taxi',AERO.T.x0-4.5,AERO.C.z-14,Math.PI); creerVehicule('busville',AERO.T.x0-4.5,AERO.C.z+12,Math.PI);
   for(const w of AERO.foule) AERO.nouvelleRoute(w);
   aeroVieStartRun(); // véhicules de piste qui circulent, file de taxis
+  hillsStartRun(); // Los Reyes Hills : voitures dans les lacets et dans les allées, sécurité privée
 }
 /* TOUR DE CONTRÔLE (14 octobre, demandé : « un jeu dans la tour de contrôle ») : écran radar plein écran.
    Les avions arrivent des bords et tournent en attente ; toucher un avion l'autorise à atterrir. Une seule
@@ -7607,7 +7894,8 @@ function majVehPiste(v,dt){
   if(!bloque) q.klax=false;
   q.s=(q.s+q.vCur*dt)%q.b.L; const p=pointBoucle(q.b,q.s);
   v.x=p.x; v.z=p.z; v.ang=angLerp(v.ang,p.ang,Math.min(1,dt*6)); v.v=q.vCur;
-  v.mesh.position.set(v.x,solYGare(v),v.z); v.mesh.rotation.y=v.ang;
+  v.mesh.position.set(v.x,solYGare(v),v.z); v.mesh.rotation.y=v.ang; v.h=v.mesh.position.y;
+  if(dansReliefLibre(v.x,v.z)){ const s=Math.sin(v.ang), c=Math.cos(v.ang); v.mesh.rotation.x=-Math.atan2(solY(v.x+s*2,v.z+c*2)-solY(v.x-s*2,v.z-c*2),4); } // dans les lacets : le nez suit la pente
   const ud=v.mesh.userData; for(const r of ud.roues||[]) r.rotation.x+=q.vCur*dt*1.6;
   if(ud.gyroFm) ud.gyroFm.material.color.setHex(Math.floor(ETAT.runT*4)%2?0xff9a1a:0x6a3a08);
 }
@@ -8301,6 +8589,7 @@ const RALLYE_TEMPS=32; // pilote simulé : 17 s en Espadon, 18 en jet-ski, 26 en
 const RIDE_DEFS={
   mont:{nom:'MONTÉE DU MONT REYES',temps:90,prime:250},   // la pente freine : pilote simulé 52 à 69 s (moto, quad, buggy, BMX, vélo) depuis l'agrandissement du mont (8e lot ; avant 29 à 39 s pour 60 s)
   mesas:{nom:'LIGNE DES MESAS',temps:14,prime:300},        // robot : 6 s en moto cross, 8 s en buggy
+  downhill:{nom:'REYES HILLS DOWNHILL',temps:45,prime:400,route:true}, // robot : 34 s en sportive comme à moto // du sommet de Los Reyes Hills à l'entrée par les lacets (15 octobre) ; toute voiture ou moto
   badlands:{nom:'BADLANDS — LIGNE EST',temps:20,prime:350}, // six mesas en zigzag puis retour sur la ligne (14 octobre) ; robot : 7 s en moto cross, 14 s en buggy
   colline:{nom:'MONTÉE SÈCHE',temps:6.5,prime:200},         // hill climb, départ arrêté, terre meuble, mur final à 43° (8e lot) : seule la moto cross passe (robot 4,7 s) ; quad (limite 40°), 4x4 (au pas), motos de route, buggy, BMX échouent
   bouees:{nom:'RALLYE DES BOUÉES',temps:RALLYE_TEMPS,prime:250,eau:true}, // portes sur l'eau autour des îles, jet-ski et vedettes
@@ -8313,7 +8602,8 @@ function rideDepart(id){
   if(id==='stunt') return {x:STUNT.x,z:STUNT.zN+2}; // grille de départ du supercross
   if(id==='bouees') return {x:40,z:318}; // au large de la marina
   if(id==='bowl') return {x:SKX.x0+36,z:SKX.z0+24}; // skatepark XXL, sur la plate-forme entre le half-pipe et le bowl
-  if(id==='badlands'){ const m=CANYON.mesas[0]; return {x:m.x-4,z:-128}; } // sur la mesa de départ, en face du tremplin latéral (à 17 u de l'arche des mesas)
+  if(id==='badlands'){ const m=CANYON.mesas[0]; return {x:m.x-4,z:-128}; }
+  if(id==='downhill'){ const D=HILLS.routes.find((r)=>r.id==='drive'), p=D.pts[D.pts.length-6]; return {x:p[0],z:p[1]}; } // le sommet // sur la mesa de départ, en face du tremplin latéral (à 17 u de l'arche des mesas)
   const m=CANYON.mesas[0]; return {x:m.x,z:m.z-m.hd+5};
 }
 function ridePortes(id){
@@ -8321,6 +8611,8 @@ function ridePortes(id){
   if(id==='bouees') return [[40,372],[140,420],[260,425],[305,350],[200,320],[60,316]].map(([x,z])=>({x,z,r:7}));
   if(id==='colline'){ const C=MONT.couloir; return [0.35,0.7,1].map((u)=>({x:C.x,z:C.z0-(C.z0-C.z1)*u-(u===1?4:0),r:u===1?7:6,minH:C.H*couloirH(u)-3})); }
   if(id==='mont') return MONT.sentier.slice(1).map(([x,z],i)=>({x,z,r:9,minH:MONT.hSentier[i+1]-4})); // à hauteur du lacet : passer en dessous ne compte pas
+  if(id==='downhill'){ const D=HILLS.routes.find((r)=>r.id==='drive'), out=[]; // des portes le long des lacets, jusqu'à l'entrée
+    for(let i=D.pts.length-30;i>4;i-=32) out.push({x:D.pts[i][0],z:D.pts[i][1],r:10}); out.push({x:D.pts[2][0],z:D.pts[2][1],r:10}); return out; }
   if(id==='badlands'){ const E=CANYON.est, m4=CANYON.mesas[4]; // atterrir sur chaque mesa est (la 1re par le côté), puis sur la dernière de la ligne
     return E.map((m,k)=>({x:k?m.x:m.x-2,z:k?m.z-m.hd+5:m.z,r:10,minH:m.h-1})).concat([{x:m4.x+7,z:26,r:12,minH:m4.h-1}]); }
   return CANYON.mesas.slice(1,5).map((m)=>({x:m.x,z:m.z-m.hd+6,r:13,minH:m.h-1})); // atterrir sur chaque mesa
@@ -8345,6 +8637,7 @@ function mkRides(){
 }
 // véhicules garés au pied des départs (startRun)
 function garerRides(){
+  if(HILLS.ok){ const d=rideDepart('downhill'); [['sport',-6,4],['motoS',-9,4]].forEach(([k,dx,dz])=>{ const v=creerVehicule(k,d.x+dx,d.z+dz,Math.PI/2); if(v) v.h=solY(v.x,v.z); }); } // au sommet de Los Reyes Hills : de quoi faire la descente
   if(!MONT.pied) return;
   const pm=MONT.pied, a=CANYON.acces;
   [['motocross',pm.x-8,pm.z+6],['motocross',pm.x-11,pm.z+6],['bmx',pm.x-14,pm.z+5],['velo',pm.x-16,pm.z+5],
@@ -8413,7 +8706,8 @@ function penteMaxVeh(d){
   if(toutTerrain(d)) return 0.85;                           // 40° : quad, buggy, monster truck
   return 0.7;                                               // 35° : pneus de route
 }
-function rideEligible(v,id){ if(!v) return false; if(id&&RIDE_DEFS[id]&&RIDE_DEFS[id].eau) return !!v.def.eau&&!grosNavire(v.def); return v.def.type==='moto'||!!v.def.buggy||!!v.def.quad||!!v.def.jeep; }
+function rideEligible(v,id){ if(!v) return false; if(id&&RIDE_DEFS[id]&&RIDE_DEFS[id].eau) return !!v.def.eau&&!grosNavire(v.def);
+  if(id&&RIDE_DEFS[id]&&RIDE_DEFS[id].route) return !v.def.air&&!v.def.eau&&!v.def.surf&&!v.def.navire; /* course sur route : voitures, motos, vélos */ return v.def.type==='moto'||!!v.def.buggy||!!v.def.quad||!!v.def.jeep; }
 // DÉFI STUNT : chaque réception compte (temps de vol, réception propre), plus le cabrage en moto cross (majRides)
 function rideFigure(v){
   const r=RIDES.actif; if(!r||v.airT<0.45||v.hop) return;
@@ -8558,7 +8852,10 @@ function reparerMobilier(){
    au bord), sauf sur la passerelle. Barques : décor (choix prudent). */
 let LAC=null; // {x,z,r,r2,pont:{x,z,hw,hd}}
 const BASSINS=[]; // bassins au pied des cascades : {x,z,r} — vraie eau pour estEau (on y nage, on y plonge sans se blesser)
-function dansBassin(x,z){ for(let i=0;i<BASSINS.length;i++){ const b=BASSINS[i]; if(dist2(x,z,b.x,b.z)<b.r*b.r) return true; } return false; }
+function bassinEn(x,z){ for(let i=0;i<BASSINS.length;i++){ const b=BASSINS[i]; if(b.r?dist2(x,z,b.x,b.z)<b.r*b.r:(Math.abs(x-b.x)<b.hw&&Math.abs(z-b.z)<b.hd)) return b; } return null; }
+function dansBassin(x,z){ return !!bassinEn(x,z); }
+// niveau de l'eau : 0 (la mer, le lac, la crique) ou celui d'un bassin en hauteur (piscines de Los Reyes Hills)
+function niveauEau(x,z){ const b=BASSINS.length?bassinEn(x,z):null; return b&&b.y?b.y:0; }
 const LAC_BARQUES=[], LAC_CANARDS=[];
 function surLac(x,z){
   if(!LAC) return false;
@@ -10251,6 +10548,7 @@ function majMer(dt){
 var ENSEIGNES=[]; // (var : jamais en zone morte) {p, lieu} : toutes les enseignes posées par mkEnseigne
 function surChaussee(x,z){
   if(Math.abs(x)>HALF||Math.abs(z)>HALF||z>MER-30) return false;
+  if(HILLS.ok&&dansHills(x,z)){ const H=HILLS, i=Math.round((x-H.x0)/H.pas), j=Math.round((z-H.z0)/H.pas); return !!(H.route&&H.route[j*H.nx+i]); } // Los Reyes Hills : ses routes en lacets, plus la grille
   const m=(v)=>{ const k=((v+HALF)%CELL+CELL)%CELL; return Math.min(k,CELL-k); };
   return m(x)<ROADW/2||m(z)<ROADW/2;
 }
@@ -10262,17 +10560,17 @@ function profondeurDevant(x,z,nx,nz){
 function orienterPorte(p,nx,nz){
   p.nx=nx; p.nz=nz;
   const ang=Math.atan2(nx,nz);
-  if(p.g){ p.g.position.set(p.x,0,p.z); p.g.rotation.y=ang; }
+  const py=p.y||0; if(p.g){ p.g.position.set(p.x,py,p.z); p.g.rotation.y=ang; }
   if(p.ens){ const e=p.ens, t=0.32; e.rotation.order='YXZ';
     if(nz>0){ // façade sud : au-dessus de la porte, en avant du store banne (y 2,6, 1,3 u de saillie) qui la coupait
-      e.rotation.set(-t,0,0); e.position.set(p.x,4.3,p.z+0.35); }
+      e.rotation.set(-t,0,0); e.position.set(p.x,py+4.3,p.z+0.35); }
     else { // flanc est/ouest : vue par la tranche, elle se lisait à la verticale → enseigne drapeau tournée vers la caméra
-      e.scale.setScalar(0.62); e.rotation.set(-t,0,0); e.position.set(p.x-nx*1.2+nx*(0.3+(p.larg||7)*0.62/2),4.4,p.z+0.2); } }
+      e.scale.setScalar(0.62); e.rotation.set(-t,0,0); e.position.set(p.x-nx*1.2+nx*(0.3+(p.larg||7)*0.62/2),py+4.4,p.z+0.2); } }
 }
 function ameliorerPortes(){
   const autres=(q)=>PORTES.filter((o)=>o!==q);
   for(const p of PORTES){
-    if(!p.g||p.id==='tuning'||p.id==='chalutier'||p.id==='site51') continue;
+    if(!p.g||p.hills||p.id==='tuning'||p.id==='chalutier'||p.id==='site51') continue; // p.hills : déjà posée dans Los Reyes Hills
     // bâtiment adossé : le solide « toit » le plus proche à moins de 3,5 u
     let b=null, bd=1e9;
     for(let a=0;a<16;a++) for(let d=0.5;d<=3.5;d+=0.5){ const s=solidAt(p.x+Math.cos(a/16*6.283)*d,p.z+Math.sin(a/16*6.283)*d,0);
@@ -11055,6 +11353,17 @@ function listeCommerces(){
   for(const pq of PLANQUES.liste) add(pq,'H',planquePossedee(pq.def.id)?'#2fae4f':'#8a8f9a'); // planques : vertes si possédées
   return L;
 }
+// Los Reyes Hills sur la carte : la colline ombrée selon la hauteur, les routes en lacets
+function dessinerHillsCarte(g){
+  const H=HILLS;
+  for(let x=H.x0;x<H.x1;x+=4) for(let z=H.z0;z<H.z1;z+=4){ const h=hauteurHills(x+2,z+2), k=clamp(h/30,0,1);
+    g.fillStyle='rgb('+Math.round(62+40*k)+','+Math.round(84+40*k)+','+Math.round(48+20*k)+')'; g.fillRect(mmX(x),mmZ(z),4*mmS+0.3,4*mmS+0.3); }
+  g.strokeStyle='#3a3c48'; g.lineWidth=Math.max(1.2,(H.larg+2*H.trot)*mmS); g.lineJoin='round';
+  for(const R of H.routes){ g.beginPath(); R.pts.forEach(([x,z],i)=>i?g.lineTo(mmX(x),mmZ(z)):g.moveTo(mmX(x),mmZ(z))); g.stroke(); }
+  g.strokeStyle='rgba(255,210,63,0.5)'; g.lineWidth=0.5; g.setLineDash([1.4,1.6]);
+  for(const R of H.routes){ g.beginPath(); R.pts.forEach(([x,z],i)=>i?g.lineTo(mmX(x),mmZ(z)):g.moveTo(mmX(x),mmZ(z))); g.stroke(); }
+  g.setLineDash([]);
+}
 function construireMinimapStatique(){
   const g=mmStatic.getContext('2d');
   g.setTransform(2,0,0,2,0,0);
@@ -11105,7 +11414,8 @@ function construireMinimapStatique(){
   g.fillStyle='#d8dce4'; g.fillRect(mmX(HALF+99),mmZ(-200),1.4,270*mmS);
   g.strokeStyle='#565b64'; g.lineWidth=1.2;
   if(DECOR_V2) dessinerEstCarte(g);
-  else g.strokeRect(mmX(-HALF-14),mmZ(-HALF-14),(2*HALF+28)*mmS,(MER+HALF+10)*mmS);
+  if(HILLS.ok) dessinerHillsCarte(g);
+  if(!DECOR_V2) g.strokeRect(mmX(-HALF-14),mmZ(-HALF-14),(2*HALF+28)*mmS,(MER+HALF+10)*mmS);
 }
 // DECOR_V2 : désert, Mont Reyes, canyons et crique sur la carte, échantillonnés
 // sur les mêmes fonctions de hauteur que le terrain (jamais une liste de formes)
@@ -13806,7 +14116,7 @@ function majJoueur(dt,dtJeu){
 
   // déplacement à pied / à la nage
   const etaitNage=P.nage;
-  P.nage=P.y<0.5&&(estEau(P.x,P.z)||dansPiscine(P.x,P.z));
+  P.nage=P.y<niveauEau(P.x,P.z)+0.5&&(estEau(P.x,P.z)||dansPiscine(P.x,P.z)); // niveauEau : piscines en hauteur
   if(P.nage&&!etaitNage){ if(MER_V2) eclaboussure(P.x,P.z,1+Math.min(1.5,Math.max(0,-P.vy)*0.08)); else burst(P.x,0.3,P.z,8,0x9fd8ff,5,6); bruit(0.2,0.3,700); }
   let vx=0,vz=0;
   const bouge=Math.hypot(INPUT.mx,INPUT.mz)>0.12;
@@ -14016,7 +14326,7 @@ function majJoueur(dt,dtJeu){
   }
 
   // rendu
-  if(!P.surMoto) P.h.g.position.set(P.x,P.nage?-0.78+(dansPiscine(P.x,P.z)?0:houleY(P.x,P.z)):P.y,P.z);
+  if(!P.surMoto){ const ne=P.nage?niveauEau(P.x,P.z):0; P.h.g.position.set(P.x,P.nage?ne-0.78+(dansPiscine(P.x,P.z)||ne>0?0:houleY(P.x,P.z)):P.y,P.z); }
   if(P.chute&&!P.para){
     // Posture de VRAIE chute libre (demandé explicitement) : bras tendus en
     // avant façon Superman (jamais juste écartés comme un pantin), jambes
@@ -14795,7 +15105,7 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
     // En mer, jamais à l'ouest de la ligne du mur (jetée).
     v.x=clamp(v.x,eau?LIMITE_OUEST_MER:-HALF-12,eau?(DECOR_V2?LIMITE_EST_MER:HALF+60):(DECOR_V2?LIMITE_EST:HALF+158)); v.z=clamp(v.z,-HALF-12,zMax); // DECOR_V2 : tout le désert jusqu'à la paroi est, et la mer jusqu'au large de la crique
   }
-  if(!eau&&!d.air&&!d.amphibie&&!v.horsVille&&(v.h||0)<0.7&&estEau(v.x,v.z)){ noyerVehicule(v); return; } // véhicule terrestre à l'eau (9e lot : jamais l'amphibie — « eau » est calculé AVANT le déplacement, il se noyait en entrant dans la mer)
+  if(!eau&&!d.air&&!d.amphibie&&!v.horsVille&&(v.h||0)-niveauEau(v.x,v.z)<0.7&&estEau(v.x,v.z)){ noyerVehicule(v); return; } // véhicule terrestre à l'eau (9e lot : jamais l'amphibie — « eau » est calculé AVANT le déplacement, il se noyait en entrant dans la mer)
   // === RELIEF : montées, descentes et sauts ===
   if(!eau&&!d.air){
     const gY=solY(v.x,v.z);
@@ -14947,7 +15257,7 @@ function poseEchoue(v,dt){
 }
 function noyerVehicule(v){
   if(v.noye) return;
-  v.noye=true; v.noyeT=0; v.v*=0.3; v.nitroActif=false; v.enFeu=false; v.enAir=false; v.vy=0; // dans l'eau : plus en vol
+  v.noye=true; v.noyeT=0; v.noyeBase=niveauEau(v.x,v.z); v.v*=0.3; v.nitroActif=false; v.enFeu=false; v.enAir=false; v.vy=0; // dans l'eau : plus en vol
   if(MER_V2) eclaboussure(v.x,v.z,2.2+Math.min(1.5,v.def.long/6)); else burst(v.x,0.4,v.z,12,0x9fd8ff,7,6);
   bruit(0.3,0.5,600);
   if(v.conduit!=='joueur') v.conduit=null;
@@ -14956,8 +15266,8 @@ function majNoyade(v,dt){
   if(v.conduit==='joueur'&&P.veh===v){ sortirVehicule(); toast('Véhicule noyé — inutilisable, à la nage !','warn'); vibre(60); }
   v.noyeT+=dt; v.v*=1-1.5*dt;
   v.x+=Math.sin(v.ang)*v.v*dt; v.z+=Math.cos(v.ang)*v.v*dt;
-  const fond=-(1.6+(v.def.larg||2)*0.9), t=Math.min(1,v.noyeT/9);
-  v.h=fond*t*t*(3-2*t);
+  const fond=v.noyeBase>0?-1.3:-(1.6+(v.def.larg||2)*0.9), t=Math.min(1,v.noyeT/9); // une piscine est moins profonde que la mer
+  v.h=(v.noyeBase||0)+fond*t*t*(3-2*t);
   v.mesh.position.set(v.x,v.h,v.z); v.mesh.rotation.x=lerp(v.mesh.rotation.x||0,0.22,dt); // nez vers le fond
   if(Math.random()<dt*6) spawnP(v.x+rand(-1,1),0.1,v.z+rand(-1,1),0,1.2,0,0.25,0.6,0xcfeaff,0,2); // bulles
   if(v.noyeT>14) v.mort=true; // disparu au fond
@@ -16357,6 +16667,7 @@ function creerTrafic(){
   // majTrafic, qui gère les véhicules déjà en approche depuis une voie
   // voisine) — seuls des véhicules/patrouilles militaires y ont leur place.
   if(qz==='base') return;
+  if(HILLS.ok&&dansHills(x,z,3)) return; // Los Reyes Hills : routes en lacets, pas de trafic de la grille
   let poolT;
   if(Math.random()<0.05) poolT=['sport'];
   else if((qz==='centre'||qz==='commerce')&&Math.random()<0.1) poolT=['busville','pompiers'];
@@ -16585,6 +16896,8 @@ function majTrafic(v,dt){
       rebond=true;
     }
   }
+  const horsHills=HILLS.ok&&dansHills(v.x,v.z,2.5); // Los Reyes Hills : demi-tour devant la colline, comme devant la base
+  if(horsHills){ pousserHorsHills(v); rebond=true; }
   if(rebond){
     v.ang+=Math.PI; v.v*=0.5; v.contourne=null;
     // Bug remonté par un joueur : certains véhicules roulaient sur les
@@ -16637,6 +16950,7 @@ function majTrafic(v,dt){
       const recul=Math.min(dejaLa,6)*5.2; // ~une longueur de citadine par véhicule déjà là
       if(v.axe==='z') v.z-=dirNow*recul; else v.x-=dirNow*recul;
     }
+    if(horsHills&&dansHills(v.x,v.z,2.5)) pousserHorsHills(v); // la mise en file ne doit pas le renvoyer dans la colline (il oscillait)
     v.mesh.rotation.y=v.ang;
   }
   // Resserré (190 → 120) : un rayon de suppression trop large laissait le
@@ -16752,7 +17066,7 @@ function majVehicules(dt){
     else if(v.conduit===null){
       v.v*=(1-(v.def.eau?3:1.2)*dt); // bateau lâché : il s'arrête vite (ne fonce plus sur le nageur qui vient d'en sauter)
       if(Math.abs(v.v)>0.3){ v.x+=Math.sin(v.ang)*v.v*dt; v.z+=Math.cos(v.ang)*v.v*dt; }
-      if(!surEauVeh(v)&&!v.def.air&&!v.horsVille&&(v.h||0)<0.7&&estEau(v.x,v.z)){ noyerVehicule(v); continue; } // lâché en roulant vers l'eau
+      if(!surEauVeh(v)&&!v.def.air&&!v.horsVille&&(v.h||0)-niveauEau(v.x,v.z)<0.7&&estEau(v.x,v.z)){ noyerVehicule(v); continue; } // lâché en roulant vers l'eau
       // Séparation/impulsion de choc, partagée avec le joueur/la police/le
       // trafic (voir resoudreCollisionsVehicule) — les véhicules garés
       // (décor, voir startRun) n'appelaient jamais cette résolution et
@@ -16940,7 +17254,7 @@ function majPietons(dt){
     if(estEau(p.x,p.z)){ // projeté à l'eau : il nage jusqu'à la rive la plus proche, jamais debout
       p.riveT=(p.riveT||0)-dt; if(p.riveT<=0||!p.rive){ p.riveT=1.5; p.rive=rivePlusProche(p.x,p.z); }
       const ra=p.rive?Math.atan2(p.rive.x-p.x,p.rive.z-p.z):Math.PI; p.dir=angLerp(p.dir,ra,Math.min(1,dt*4));
-      p.x+=Math.sin(p.dir)*1.8*dt; p.z+=Math.cos(p.dir)*1.8*dt; p.h.g.position.set(p.x,-0.35,p.z); p.h.g.rotation.y=p.dir; poseNage(p.h,dt,1.8); continue; }
+      p.x+=Math.sin(p.dir)*1.8*dt; p.z+=Math.cos(p.dir)*1.8*dt; p.h.g.position.set(p.x,niveauEau(p.x,p.z)-0.35,p.z); p.h.g.rotation.y=p.dir; poseNage(p.h,dt,1.8); continue; }
     finNage(p.h);
     let vit=p.vit;
     if(p.etat==='fuite'){
@@ -17399,13 +17713,13 @@ function majEnnemis(dt){
       e.riveT=(e.riveT||0)-dt; if(e.riveT<=0||!e.rive){ e.riveT=1.5; e.rive=rivePlusProche(e.x,e.z); }
       const ra=e.rive?Math.atan2(e.rive.x-e.x,e.rive.z-e.z):Math.PI, vn=e.def.vit*0.55;
       e.ang=angLerp(e.ang||0,ra,Math.min(1,dt*4)); e.x+=Math.sin(e.ang)*vn*dt; e.z+=Math.cos(e.ang)*vn*dt;
-      e.h.g.position.set(e.x,-0.35,e.z); e.h.g.rotation.y=e.ang; poseNage(e.h,dt,vn);
+      e.h.g.position.set(e.x,niveauEau(e.x,e.z)-0.35,e.z); e.h.g.rotation.y=e.ang; poseNage(e.h,dt,vn);
       if(Math.random()<dt*4) spawnP(e.x,0.15,e.z,rand(-0.5,0.5),rand(0.6,1.4),rand(-0.5,0.5),0.35,0.4,0xcfeaff,3);
       continue;
     }
     const facEau=e.dansEau?0.45:1;
     if(e.dansEau){
-      e.h.g.position.y=-0.35;
+      e.h.g.position.y=niveauEau(e.x,e.z)-0.35;
       if(Math.random()<0.2) spawnP(e.x,0.15,e.z,rand(-0.5,0.5),rand(0.6,1.4),rand(-0.5,0.5),0.35,0.4,0xcfeaff,3);
     } else { e.h.g.position.y=solY(e.x,e.z); finNage(e.h); }
     if(e.stun<=0){
@@ -30586,7 +30900,7 @@ function majAction(){
     return;
   }
   let porteP=null;
-  if(!P.veh&&auSol()&&P.y<4) for(const p of PORTES){ if(dist2(P.x,P.z,p.x,p.z)<11){ porteP=p; break; } } /* sur un toit, jamais la porte de la rue en dessous */
+  if(!P.veh&&auSol()) for(const p of PORTES){ if(dist2(P.x,P.z,p.x,p.z)<11&&Math.abs(P.y-(p.y||0))<3.5){ porteP=p; break; } } /* à la hauteur de la porte : jamais celle de la rue depuis un toit, celle du manoir au sommet de la colline */ /* sur un toit, jamais la porte de la rue en dessous */
   let pgar=null; // garage tuning à portée du véhicule
   if(P.veh&&P.veh.def&&!(P.veh.def.air&&P.veh.vol)) pgar=porteGarageProche(P.x,P.z);
   const rideId=DECOR_V2?rideProche():null;
@@ -31438,7 +31752,7 @@ function boucle(t){
       majMeteo(dt);
       majMer(dt);
       majMerV2(dt);
-      if(DECOR_V2){ majHorsLesMurs(dt); majMobilier(); majLac(dt); majLumieres(dt); majJetee(dt); majPortVivant(dt); majAeroportVivant(dt); majAeroVie(dt); majPlanques(dt); majAtelierArme(dt); majBoutique(dt); majTour(dtJeu); majCascades(dt); majManeges(dt); majBrooklyn(dt); majCiel(dt); majNeonVivant(dt); majQuartiersFinitions(dt); }
+      if(DECOR_V2){ majHorsLesMurs(dt); majMobilier(); majLac(dt); majLumieres(dt); majJetee(dt); majPortVivant(dt); majAeroportVivant(dt); majAeroVie(dt); majVieHills(dt); majPlanques(dt); majAtelierArme(dt); majBoutique(dt); majTour(dtJeu); majCascades(dt); majManeges(dt); majBrooklyn(dt); majCiel(dt); majNeonVivant(dt); majQuartiersFinitions(dt); }
       majEpaveCanon(dt);
     }
     majHUD();

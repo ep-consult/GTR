@@ -7756,7 +7756,7 @@ async function main() {
     {
       const qf = await page.evaluate(() => {
         if (typeof QUART === 'undefined' || !QUART.ok) return { off: true };
-        const j0 = ETAT.jour, o = { piscines: VILLA_PISC.length, cheminees: QUART.cheminees.length, miradors: QUART.miradors.length, etals: 0, cagettes: 0 };
+        const j0 = ETAT.jour, o = { piscines: VILLA_PISC.length + ((typeof HILLS !== 'undefined' && HILLS.ok) ? BASSINS.filter((q) => q.y > 1).length : 0), /* les piscines des villas sont désormais celles de Los Reyes Hills */ cheminees: QUART.cheminees.length, miradors: QUART.miradors.length, etals: 0, cagettes: 0 };
         for (const l of MOB.cassables.values()) for (const c of l) if (c.type === 'cagettes') o.cagettes++;
         ETAT.jour = 20; jourNuit(0); majQuartiersFinitions(0.016); o.jour = QUART.matMir.opacity;
         ETAT.jour = 130; jourNuit(0); majQuartiersFinitions(0.016); o.nuit = QUART.matMir.opacity;
@@ -10328,7 +10328,8 @@ async function main() {
         // le tuer : du karma en moins, rien à ramasser
         ETAT.score = 500; const nPick = pickups.length; toucherAnimal(b, 999); if (!b.mort || ETAT.score !== 450 || pickups.length !== nPick) ko.push('bouquetin tué : score ' + ETAT.score + ', butin ' + (pickups.length - nPick));
         // l'ours charge et mord
-        if (ours) { P.nage = false; P.chute = false; P.para = false; P.x = ours.x + 9; P.z = ours.z; P.y = hauteurMont(P.x, P.z); const hp0 = P.hp; P.iframes = 0; ours.mordT = 0;
+        if (ours) { ours.x = MONT.x; ours.z = MONT.z; ours.y = hauteurMont(ours.x, ours.z); ours.pause = false; /* replacé : il a erré au hasard pendant la fuite du bouquetin (le test maîtrise sa scène) */
+          P.nage = false; P.chute = false; P.para = false; P.x = ours.x + 9; P.z = ours.z; P.y = hauteurMont(P.x, P.z); const hp0 = P.hp; P.iframes = 0; ours.mordT = 0;
           for (let i = 0; i < 30 * 6 && P.hp === hp0; i++) { majFaune(1 / 30); P.iframes = 0; }
           if (!(P.hp < hp0)) ko.push('l’ours ne mord pas'); else info.push('l’ours charge et mord (−' + (hp0 - P.hp) + ')');
           // percuté par une moto cross lancée
@@ -10630,6 +10631,143 @@ async function main() {
       });
       if (r.ko.length) fail('PNJ à l’eau : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
       else ok('PNJ à l’eau : ' + r.info.join(' ; ') + ', à la nage, relevés à terre');
+    }
+
+    // -------------------------------------------------------------------
+    // Los Reyes Hills (15 octobre, demandé : « un vrai quartier de villas,
+    // des routes qui tournent et qui montent, comme Beverly Hills ») : l'ancien
+    // quartier a disparu ; Reyes Hills Drive se monte au joystick réel
+    // (controleDir) de l'entrée au sommet, en voiture de ville et à moto ; le
+    // concessionnaire et la planque (au sommet) s'ouvrent ; le trafic de la
+    // grille n'entre jamais dans la colline. Routes lues à la source.
+    // -------------------------------------------------------------------
+    console.log('\n--- Los Reyes Hills : routes en lacets, portes déplacées, pas de trafic ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (!DECOR_V2 || !HILLS.ok) return { ko, info: ['décor V2 coupé'] };
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
+        for (const e of ennemis) e.mort = true;
+        const H = HILLS, drive = H.routes.find((q) => q.id === 'drive');
+        // le sommet est haut, la route n'y monte jamais trop raide
+        const hmax = Math.max(...drive.h); if (!(hmax > 20)) ko.push('sommet à ' + hmax.toFixed(1) + ' u');
+        let pmax = 0; for (let i = 1; i < drive.h.length; i++) pmax = Math.max(pmax, Math.abs(drive.h[i] - drive.h[i - 1]) / drive.ds);
+        if (pmax > H.pente + 0.01) ko.push('pente de ' + pmax.toFixed(2));
+        // le relief que voit la physique est celui du maillage (solY)
+        for (let k = 0; k < 30; k++) { const [x, z] = drive.pts[Math.floor(k / 30 * drive.pts.length)]; if (dansHills(x, z, -0.5) && Math.abs(solY(x, z) - hauteurHills(x, z)) > 0.01) { ko.push('solY ≠ relief'); break; } }
+        // la conduite : de l'entrée au sommet, au joystick réel
+        const monter = (cle) => { for (const v of [...vehicules]) if (dansHills(v.x, v.z, 8)) { scene.remove(v.mesh); vehicules.splice(vehicules.indexOf(v), 1); }
+          const [x0, z0] = drive.pts[0], v = creerVehicule(cle, x0, z0 - 1, Math.PI, null); v.h = solY(v.x, v.z); P.x = v.x; P.z = v.z; entrerVehicule(v);
+          let i = 2, t = 0; while (i < drive.pts.length - 2 && t < 120) { const p = drive.pts[Math.min(drive.pts.length - 1, i + 3)];
+            const dx = p[0] - v.x, dz = p[1] - v.z, l = Math.hypot(dx, dz) || 1; INPUT.mx = dx / l; INPUT.mz = dz / l;
+            const q = drive.pts[Math.min(drive.pts.length - 1, i + 10)], virage = Math.abs(angDiff(Math.atan2(dx, dz), Math.atan2(q[0] - v.x, q[1] - v.z))), vMax = virage > 0.7 ? 10 : (virage > 0.35 ? 16 : 28), fr = Math.abs(v.v) > vMax; // freine avant les épingles
+            const c = controleDir(v, fr); majVehiculePhys(v, 1 / 30, fr ? 0 : Math.min(c.throttle, 0.85), c.steer, fr); P.x = v.x; P.z = v.z; t += 1 / 30;
+            while (i < drive.pts.length - 2 && dist2(v.x, v.z, drive.pts[i][0], drive.pts[i][1]) < 64) i++; if (v.mort) break; }
+          INPUT.mx = INPUT.mz = 0; const res = { cle, t: +t.toFixed(1), i, n: drive.pts.length, h: +(v.h || solY(v.x, v.z)).toFixed(1), hp: +(v.hp / v.def.hp).toFixed(2) }; sortirVehicule(true); return res; };
+        for (const cle of ['citadine', 'moto']) { const m = monter(cle); if (m.i < m.n - 3 || m.hp < 0.6) ko.push('montée en ' + cle + ' : ' + JSON.stringify(m)); else info.push(cle + ' au sommet en ' + m.t + ' s (' + m.h + ' u)'); }
+        // les portes déplacées s'ouvrent (concession à l'entrée, planque au sommet)
+        for (const id of ['conces', 'planque']) { const p = PORTES.find((q) => q.id === id); if (!p || !dansHills(p.x, p.z, 8)) { ko.push(id + ' pas dans la colline'); continue; }
+          P.x = p.x + (p.nx || 0) * 2.5; P.z = p.z + (p.nz || 1) * 2.5; P.y = solPied(P.x, P.z); P.chute = false; majAction();
+          let lab = el('btnAction').textContent; if (/ACHETER LA VILLA/.test(lab)) { META.argent += 10000; el('btnAction')._fn(); majAction(); lab = el('btnAction').textContent; } // la villa se vend d'abord
+          if (!/ENTRER/.test(lab)) { ko.push(id + ' : ' + lab); continue; }
+          el('btnAction')._fn(); if (!INT.actif) ko.push(id + ' : on n’entre pas'); else { sortirInterieur(); if (!(Math.abs(P.y - (p.y || 0)) < 1.5)) ko.push(id + ' : ressorti à ' + P.y.toFixed(1) + ' u'); } }
+        // l'ancien quartier a disparu ; le trafic n'entre jamais dans la colline
+        P.x = H.x1 + 20; P.z = 40; P.y = 0; let dedans = 0;
+        for (let i = 0; i < 30 * 40; i++) { majVehicules(1 / 30); for (const v of vehicules) if (v.conduit === 'trafic' && dansHills(v.x, v.z)) dedans++; }
+        if (dedans) ko.push('trafic dans la colline (' + dedans + ')');
+        info.push('montée ' + hmax.toFixed(0) + ' u, pente max ' + pmax.toFixed(2));
+        startRun(); P.hp = P.maxHp = 1e6;
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Los Reyes Hills : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
+      else ok('Los Reyes Hills : ' + r.info.join(' ; ') + ' ; portes déplacées ouvertes, pas de trafic de la grille');
+    }
+
+    // -------------------------------------------------------------------
+    // Villas de Los Reyes Hills : tailles et styles variés, chacune sa
+    // piscine EN HAUTEUR où l'on nage vraiment (niveau d'eau propre), où l'on
+    // plonge depuis le toit sans se blesser, où une voiture se noie ; la
+    // planque (le manoir du sommet) a la sienne. Parcelles lues à la source.
+    // -------------------------------------------------------------------
+    console.log('\n--- Villas de Los Reyes Hills : variété, piscines en hauteur ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (!DECOR_V2 || !HILLS.ok) return { ko, info: ['décor V2 coupé'] };
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
+        for (const e of ennemis) e.mort = true;
+        const vs = HILLS.pads.filter((p) => p.villa);
+        if (vs.length < 10) ko.push(vs.length + ' villas');
+        if (new Set(vs.map((p) => p.type)).size < 3 || new Set(vs.map((p) => p.style)).size < 4) ko.push('peu de variété');
+        const hauts = BASSINS.filter((b) => b.y > 1); if (hauts.length < vs.length) ko.push(hauts.length + ' piscines en hauteur');
+        info.push(vs.length + ' villas (' + [...new Set(vs.map((p) => p.style))].join(', ') + '), ' + hauts.length + ' piscines en hauteur');
+        // on nage dans la piscine la plus haute ; on y plonge depuis 10 u sans se blesser
+        const b = hauts.reduce((a, c) => (c.y > a.y ? c : a));
+        P.x = b.x; P.z = b.z; P.y = b.y + 10; P.vy = 0; P.chute = false; P.nage = false; P.iframes = 0; P.bouclier = 0; const hp0 = P.hp;
+        for (let i = 0; i < 30 * 4; i++) { majJoueur(1 / 30, 1 / 30); P.iframes = 0; }
+        if (!P.nage || P.hp !== hp0) ko.push('plongeon dans la piscine : nage ' + P.nage + ', ' + (hp0 - P.hp) + ' de dégâts');
+        if (Math.abs(P.h.g.position.y - (b.y - 0.78)) > 0.3) ko.push('nageur à ' + P.h.g.position.y.toFixed(2) + ' (eau à ' + b.y.toFixed(2) + ')');
+        INPUT.mx = 1; for (let i = 0; i < 30 * 3; i++) majJoueur(1 / 30, 1 / 30); INPUT.mx = 0;
+        if (P.nage && !estEau(P.x, P.z)) ko.push('encore à la nage hors de la piscine');
+        info.push('plongé de 10 u dans une piscine à ' + b.y.toFixed(1) + ' u, sans dégât');
+        // une voiture qui roule dans la piscine s'y noie
+        /* une voiture qui roule dans la piscine d'une villa (posée sur la parcelle, côté jardin) s'y noie */
+        const pv = vs.find((p) => BASSINS.some((q) => q.y > 1 && Math.abs(q.x - p.x) < p.hw && Math.abs(q.z - p.z) < p.hd)), bv = pv && BASSINS.find((q) => q.y > 1 && Math.abs(q.x - pv.x) < pv.hw && Math.abs(q.z - pv.z) < pv.hd);
+        if (!bv) ko.push('pas de piscine dans une parcelle de villa');
+        else { const sg = bv.x > pv.x ? -1 : 1, v = creerVehicule('citadine', bv.x + sg * (bv.hw + 3.5), bv.z, sg > 0 ? -Math.PI / 2 : Math.PI / 2, null); v.h = solY(v.x, v.z); P.x = v.x; P.z = v.z; entrerVehicule(v);
+          for (let i = 0; i < 30 * 4 && !v.noye; i++) majVehiculePhys(v, 1 / 30, 1, 0, false);
+          if (!v.noye) ko.push('la voiture ne tombe pas dans la piscine (' + v.x.toFixed(1) + ',' + v.z.toFixed(1) + ' h' + (v.h || 0).toFixed(1) + ', piscine ' + bv.x.toFixed(1) + ',' + bv.z.toFixed(1) + ')');
+          else { for (let i = 0; i < 30 * 3; i++) majVehicules(1 / 30); if (!(v.h < bv.y && v.h > bv.y - 2)) ko.push('voiture noyée à ' + (v.h || 0).toFixed(1) + ' (eau à ' + bv.y.toFixed(1) + ')'); } }
+        if (P.veh) sortirVehicule(true);
+        // la planque : son manoir au sommet, avec sa piscine
+        const pl = PORTES.find((p) => p.id === 'planque'); if (!pl || !BASSINS.some((q) => q.y > 1 && Math.hypot(q.x - pl.x, q.z - pl.z) < 25)) ko.push('pas de piscine à la planque');
+        startRun(); P.hp = P.maxHp = 1e6;
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Villas de Los Reyes Hills : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
+      else ok('Villas de Los Reyes Hills : ' + r.info.join(' ; ') + ' ; une voiture s’y noie ; piscine à la planque');
+    }
+
+    // -------------------------------------------------------------------
+    // Los Reyes Hills, la vie et la descente : la course REYES HILLS DOWNHILL
+    // se finit au joystick réel en voiture de sport et à moto ; des voitures
+    // montent et descendent les lacets ; voitures de luxe dans les allées ;
+    // sécurité privée de la Brigada ; piscines éclairées la nuit.
+    // -------------------------------------------------------------------
+    console.log('\n--- Los Reyes Hills : descente chronométrée, vie du quartier ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (!DECOR_V2 || !HILLS.ok) return { ko, info: ['décor V2 coupé'] };
+        const volant0 = META.curios.volant; delete META.curios.volant;
+        const course = (cle) => {
+          startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6; for (const e of ennemis) e.mort = true;
+          for (const v of [...vehicules]) if (dansHills(v.x, v.z, 8)) { scene.remove(v.mesh); vehicules.splice(vehicules.indexOf(v), 1); }
+          const d = rideDepart('downhill'), D = HILLS.routes.find((q) => q.id === 'drive'), v = creerVehicule(cle, d.x, d.z, Math.PI / 2, null); v.h = solY(d.x, d.z); P.x = v.x; P.z = v.z; P.y = v.h; entrerVehicule(v);
+          const a0 = META.argent; demarrerRide('downhill'); if (!RIDES.actif) return { cle, pasLancee: true };
+          let t = 0, i = D.pts.length - 6;
+          while (RIDES.actif && t < 120) { while (i > 2 && dist2(v.x, v.z, D.pts[i][0], D.pts[i][1]) < 64) i--; const p = D.pts[Math.max(0, i - 3)];
+            const dx = p[0] - v.x, dz = p[1] - v.z, l = Math.hypot(dx, dz) || 1; INPUT.mx = dx / l; INPUT.mz = dz / l;
+            const q = D.pts[Math.max(0, i - 10)], virage = Math.abs(angDiff(Math.atan2(dx, dz), Math.atan2(q[0] - v.x, q[1] - v.z))), vMax = virage > 0.7 ? 10 : (virage > 0.35 ? 16 : 28), fr = Math.abs(v.v) > vMax; // freine avant les épingles, comme un joueur
+            const c = controleDir(v, fr); majVehiculePhys(v, 1 / 30, fr ? 0 : Math.min(c.throttle, 0.85), c.steer, fr); P.x = v.x; P.z = v.z; majRides(1 / 30); t += 1 / 30; if (v.mort) break; }
+          INPUT.mx = INPUT.mz = 0; const res = { cle, fini: META.argent > a0, t: +t.toFixed(1), limite: RIDE_DEFS.downhill.temps, hp: +(v.hp / v.def.hp).toFixed(2) }; if (P.veh) sortirVehicule(true); return res; };
+        for (const cle of ['sport', 'moto']) { const c = course(cle); if (!c.fini || c.hp < 0.4) ko.push('descente en ' + cle + ' : ' + JSON.stringify(c)); else info.push('descente en ' + cle + ' : ' + c.t + ' s / ' + c.limite); }
+        if (volant0) META.curios.volant = volant0;
+        // la vie : voitures dans les lacets qui roulent, voitures garées dans les allées, gardes
+        startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6; P.x = HILLS.x1 + 30; P.z = 100;
+        const lac = vehicules.filter((v) => v.conduit === 'piste' && v.piste.b === VIE_HILLS.boucle), s0 = lac.map((v) => v.piste.s);
+        for (let i = 0; i < 30 * 8; i++) majVehicules(1 / 30);
+        if (lac.length < 3 || lac.some((v, i) => ((v.piste.s - s0[i] + v.piste.b.L) % v.piste.b.L) < 30)) ko.push('voitures des lacets : ' + lac.length + ' / immobiles');
+        const garees = vehicules.filter((v) => !v.conduit && HILLS.pads.some((p) => p.villa && Math.abs(v.x - p.x) < p.hw && Math.abs(v.z - p.z) < p.hd)).length; if (garees < 6) ko.push(garees + ' voitures dans les allées');
+        const gardes = ennemis.filter((e) => !e.mort && e.garde && e.fac === 'chrome' && dansHills(e.x, e.z)).length; if (gardes < 2) ko.push(gardes + ' garde(s)');
+        // piscines éclairées la nuit
+        ETAT.nuitF = 1; majVieHills(1 / 30); const lum = VIE_HILLS.eaux.length && VIE_HILLS.eaux[0].emissive.g > 0.5; ETAT.nuitF = 0; majVieHills(1 / 30); if (!lum) ko.push('piscines pas éclairées la nuit');
+        info.push(lac.length + ' voitures dans les lacets, ' + garees + ' garées, ' + gardes + ' gardes');
+        startRun(); P.hp = P.maxHp = 1e6;
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Los Reyes Hills, vie : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
+      else ok('Los Reyes Hills, vie : ' + r.info.join(' ; ') + ' ; piscines éclairées la nuit');
     }
 
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');

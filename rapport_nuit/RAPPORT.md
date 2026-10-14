@@ -1787,3 +1787,17 @@ Captures : `captures/lot11/cascades.png`, `volcan.png`.
 - **Test de la serre** fiabilisé (il dépendait de l'état laissé par les autres tests).
 
 Captures : `captures/lot11/echelle_helicos_yacht.png`, `yacht_prive.png`, `aeroport_vie.png`, `pnj_nage.png`.
+
+## Los Reyes Hills (15 octobre)
+
+Le quartier des villas, tout droit sur la grille, est remplacé par une colline à la Beverly Hills.
+
+- **Reyes Hills Drive** : route en lacets qui monte de l'entrée (arche « LOS REYES HILLS », concession REYES MOTORS et garage déplacés là) jusqu'au sommet, à 30 u, en cinq épingles larges ; pente douce (20 % au plus), trottoirs, palmiers, réverbères, plaques de rue. **Sunset Crest** la rejoint depuis l'est. Elle se monte au joystick en voiture de ville (38 s) comme à moto (34 s).
+- **15 villas différentes** des deux côtés des lacets : trois tailles (petite, moyenne, grande), quatre styles (moderne à toit-terrasse, méditerranéenne à tuiles et balcon, contemporaine sombre aux grandes baies, hacienda en L), haies, allée, portail, palmiers.
+- **De vraies piscines, en hauteur** : on y nage, on y plonge depuis le toit sans se blesser, une voiture qui y roule s'y noie. Éclairées la nuit.
+- **La planque devient le manoir du sommet** (l'existante, reprise) : piscine à débordement côté vue, terrasse en teck, transats, garage à trois portes.
+- **REYES HILLS DOWNHILL** : descente chronométrée du sommet à l'entrée (45 s), voiture de sport et moto garées au départ ; ~33 s en pilotant proprement.
+- **Le quartier vit** : voitures de sport qui montent et descendent les lacets, voitures de luxe dans les allées, gardes de la Krasnaya Brigada devant la plus grande villa, joggeurs, jardiniers qui tondent, arroseurs automatiques.
+- Le trafic de la ville n'entre pas dans la colline (demi-tour au bord) ; le reste de la ville ne bouge pas (portes vérifiées identiques).
+
+Captures : `captures/lot11/hills_vue_ensemble.png`, `hills_villas.png`.
