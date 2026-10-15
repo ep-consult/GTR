@@ -10957,7 +10957,7 @@ async function main() {
         // les portes déplacées s'ouvrent (concession à l'entrée, planque au sommet)
         for (const id of ['conces', 'planque']) { const p = PORTES.find((q) => q.id === id); if (!p || !dansHills(p.x, p.z, 8)) { ko.push(id + ' pas dans la colline'); continue; }
           P.x = p.x + (p.nx || 0) * 2.5; P.z = p.z + (p.nz || 1) * 2.5; P.y = solPied(P.x, P.z); P.chute = false; majAction();
-          let lab = el('btnAction').textContent; if (/ACHETER LA VILLA/.test(lab)) { META.argent += 10000; el('btnAction')._fn(); majAction(); lab = el('btnAction').textContent; } // la villa se vend d'abord
+          let lab = el('btnAction').textContent; if (/ACHETER LA VILLA/.test(lab)) { META.argent += PRIX_VILLA; el('btnAction')._fn(); majAction(); lab = el('btnAction').textContent; } // la villa se vend d'abord
           if (!/ENTRER/.test(lab)) { ko.push(id + ' : ' + lab); continue; }
           el('btnAction')._fn(); if (!INT.actif) ko.push(id + ' : on n’entre pas'); else { sortirInterieur(); if (!(Math.abs(P.y - (p.y || 0)) < 1.5)) ko.push(id + ' : ressorti à ' + P.y.toFixed(1) + ' u'); } }
         // l'ancien quartier a disparu ; le trafic n'entre jamais dans la colline
@@ -11069,6 +11069,13 @@ async function main() {
           if (w.objet && w.objet.position.distanceTo(g) > 1.6) ko.push('poussette lâchée');
           const D = HILLS.routes.find((q) => q.id === 'drive'), bout = [D.pts[0], D.pts[D.pts.length - 1]].some(([x, z]) => dist2(x, z, g.x, g.z) < 14 * 14); /* au bout du Drive, on traverse pour revenir */
           if (!bout && [g, w.h2 && w.h2.g.position, w.chien && w.chien.g.position].some((q) => q && surChaussee(q.x, q.z))) { ko.push('promeneur sur la chaussée (' + w.genre + ' ' + g.x.toFixed(0) + ',' + g.z.toFixed(0) + ')'); break; } }
+        /* tout le tour, pas seulement l'instant présent : chaque promeneur (et son écart latéral) en 400 points de la boucle — un
+           promeneur décalé de 0,2 à 0,3 u mordait sur la chaussée dans quelques virages, et le test ne le voyait qu'au hasard du moment */
+        { const D = HILLS.routes.find((q) => q.id === 'drive'), sv = acc.map((w) => w.s); let mord = null;
+          for (let k = 0; k < 400 && !mord; k++) { for (const w of acc) w.s = k / 400; majVieHills(0);
+            for (const w of acc) { if (figConverti(w.h)) continue; const g = w.h.g.position; if ([D.pts[0], D.pts[D.pts.length - 1]].some(([x, z]) => dist2(x, z, g.x, g.z) < 14 * 14)) continue;
+              if ([g, w.h2 && w.h2.g.position, w.chien && w.chien.g.position].some((q) => q && surChaussee(q.x, q.z))) { mord = w.genre + ' ' + g.x.toFixed(0) + ',' + g.z.toFixed(0); break; } } }
+          acc.forEach((w, i) => { w.s = sv[i]; }); if (mord) ko.push('sur le tour, un promeneur mord sur la chaussée (' + mord + ')'); }
         if (!V.nageurs.length || !V.bbq.length) ko.push('ni baigneurs ni barbecues');
         if (!V.lettres.length || !V.panneau) ko.push('pas de panneau');
         else {
@@ -12247,6 +12254,96 @@ async function main() {
     });
     if (wingV2.ko.length) fail('Wingsuit V2 : ' + wingV2.ko.join(' ; ') + ' (' + wingV2.mesures.join(' | ') + ')');
     else ok('Wingsuit V2 : ' + wingV2.mesures.join(' | ') + ' ; traînées en vol, effacées au sol');
+
+    // -------------------------------------------------------------------
+    // Les ultimes (18 octobre, demandé : « ajoute une Bugatti, le Bolide, et une Ferrari Enzo, ultimes, rares,
+    // chères, et augmente le prix de la villa ») : Bellatti « Bolide » et Ferroni « Enzo » (marques de fantaisie).
+    // Lu dans le jeu : les plus rapides et les plus vives des voitures, les deux plus chères du catalogue, rares
+    // (constantes ULTIME_*, utilisées par le trafic et les voitures garées) ; à chaque partie, le Bolide dans
+    // l'allée de la plus grande villa, sous la garde de la Brigada, l'Enzo dans le hangar de l'aviation
+    // d'affaires (sortie libre, rien sur le jet) ; les deux sur les podiums du showroom ; l'aileron actif se lève
+    // à haute vitesse et se cabre au freinage. À très haute vitesse, un mur mince n'est jamais traversé (la sonde
+    // avant teste aussi le milieu du pas). La villa coûte PRIX_VILLA, plus que toute autre planque, et ne se
+    // paie qu'une fois.
+    // -------------------------------------------------------------------
+    console.log('\n--- Les ultimes : Bolide et Enzo, les plus rapides, les plus chers, rares ; prix de la villa ---');
+    {
+      const ult = await page.evaluate(() => {
+        const ko = [], info = [], U = ['bolide', 'enzo'];
+        META.vue = 'classique'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
+        // fiches : les plus rapides, les plus vives
+        const voitures = Object.keys(VEHDEFS).filter((k) => { const d = VEHDEFS[k]; return d.type === 'car' && !d.air && !d.eau && !d.derby && !d.modele; });
+        for (const k of U) { const d = VEHDEFS[k]; if (!d || !d.ultime || !d.profil || !PROFILS_VOITURE[d.profil]) { ko.push(k + ' : fiche ou profil absent'); continue; } }
+        const autres = voitures.filter((k) => !VEHDEFS[k].ultime), vMax = Math.max(...autres.map((k) => VEHDEFS[k].vmax)), aMax = Math.max(...autres.map((k) => VEHDEFS[k].acc));
+        if (!(VEHDEFS.bolide.vmax > vMax && VEHDEFS.enzo.vmax > vMax)) ko.push('pas les plus rapides (' + VEHDEFS.bolide.vmax + ', ' + VEHDEFS.enzo.vmax + ' / ' + vMax + ')');
+        if (!(VEHDEFS.bolide.acc > aMax && VEHDEFS.enzo.acc > aMax)) ko.push('pas les plus vives (' + VEHDEFS.bolide.acc + ', ' + VEHDEFS.enzo.acc + ' / ' + aMax + ')');
+        if (!(VEHDEFS.bolide.vmax > VEHDEFS.enzo.vmax && VEHDEFS.enzo.man > VEHDEFS.bolide.man)) ko.push('le Bolide doit être le plus rapide, l’Enzo le plus maniable');
+        // catalogue : les deux plus chères
+        const tri = CATALOGUE.slice().sort((a, b) => b.prix - a.prix);
+        if (!(U.includes(tri[0].key) && U.includes(tri[1].key))) ko.push('pas les deux plus chères du catalogue (' + tri[0].key + ', ' + tri[1].key + ')');
+        else info.push('catalogue ' + tri[1].key + ' ' + tri[1].prix + ' $, ' + tri[0].key + ' ' + tri[0].prix + ' $ (suivante ' + tri[2].prix + ' $)');
+        // rareté : constantes basses, réellement utilisées par le trafic et les voitures garées au hasard
+        if (!(ULTIME_TRAFIC > 0 && ULTIME_TRAFIC <= 0.005 && ULTIME_GAREE > 0 && ULTIME_GAREE <= 0.005)) ko.push('rareté mal réglée (' + ULTIME_TRAFIC + ', ' + ULTIME_GAREE + ')');
+        if (!/ULTIME_TRAFIC/.test(creerTrafic.toString())) ko.push('le trafic ignore ULTIME_TRAFIC');
+        if (!/ULTIME_GAREE/.test(startRun.toString())) ko.push('les voitures garées ignorent ULTIME_GAREE');
+        // à coup sûr : le Bolide gardé dans la colline, l'Enzo au hangar du jet
+        const b = VIE_HILLS.ultime;
+        if (!b || b.mort || b.mesh.userData.key !== ULTIME_HILLS) ko.push('pas de ' + ULTIME_HILLS + ' dans la colline');
+        else { let g = 0; for (const e of ennemis) if (e.garde && !e.mort && e.fac === 'chrome' && dist2(e.x, e.z, b.x, b.z) < 100) g++;
+          if (g < 2) ko.push(ULTIME_HILLS + ' de la colline sans ses gardes (' + g + ')'); else info.push(ULTIME_HILLS + ' de la colline gardé par ' + g + ' hommes de la Brigada'); }
+        const e = AERO.ultime, hj = AERO.hangars.find((h) => h.cle === 'jetprive');
+        if (!e || e.mort || e.mesh.userData.key !== ULTIME_HANGAR.cle) ko.push('pas de ' + ULTIME_HANGAR.cle + ' au hangar');
+        else if (!hj || Math.abs(e.x - hj.x) > 9 || Math.abs(e.z - hj.z) > 10) ko.push(ULTIME_HANGAR.cle + ' hors du hangar');
+        else {
+          for (let x = e.x + 3; x < hj.x + 14; x += 0.5) if (solidAt(x, e.z, 1.1)) { ko.push(ULTIME_HANGAR.cle + ' : sortie du hangar bloquée à x = ' + x.toFixed(1)); break; }
+          const jet = vehicules.find((v) => v.mesh.userData.key === 'jetprive' && dist2(v.x, v.z, hj.x, hj.z) < 4); if (jet) jet.mesh.updateMatrixWorld(true); e.mesh.updateMatrixWorld(true);
+          if (!jet) ko.push('jet du hangar introuvable');
+          else { const bE = new THREE.Box3().setFromObject(e.mesh), bJ = new THREE.Box3(); jet.mesh.traverse((o) => { if (o.isMesh && o.geometry) { o.geometry.computeBoundingBox(); bJ.union(o.geometry.boundingBox.clone().applyMatrix4(o.matrixWorld)); } });
+            bE.expandByScalar(0.4); if (bE.intersectsBox(bJ) && bE.max.y > bJ.min.y && Math.min(bE.max.z, bJ.max.z) - Math.max(bE.min.z, bJ.min.z) > 0) ko.push(ULTIME_HANGAR.cle + ' touche le jet (' + bJ.min.z.toFixed(1) + '..' + bJ.max.z.toFixed(1) + ' / ' + bE.min.z.toFixed(1) + '..' + bE.max.z.toFixed(1) + ')');
+            info.push(ULTIME_HANGAR.cle + ' au hangar, à ' + (Math.max(bJ.min.z - bE.max.z, bE.min.z - bJ.max.z) + 0.4).toFixed(1) + ' u du jet'); } }
+        // showroom
+        const vit = CONCESSION.tournants.map((v) => v.userData.key);
+        if (!(vit.includes('bolide') && vit.includes('enzo'))) ko.push('showroom : ' + vit.join(', '));
+        // aileron actif
+        const vb = creerVehicule('bolide', P.x + 30, P.z, 0); const w = vb.mesh.userData.volet;
+        if (!w) ko.push('Bolide sans aileron actif');
+        else { const y0 = w.userData.y0; vb.v = 40; for (let i = 0; i < 90; i++) majVolet(vb, 1 / 60); const haut = w.position.y - y0;
+          for (let i = 0; i < 30; i++) { vb.v -= 0.5; majVolet(vb, 1 / 60); } const cabre = w.rotation.x;
+          vb.v = 0; for (let i = 0; i < 180; i++) majVolet(vb, 1 / 60); const bas = w.position.y - y0;
+          if (!(haut > 0.18 && cabre > 0.4 && bas < 0.02)) ko.push('aileron actif : levé ' + haut.toFixed(2) + ', cabré ' + cabre.toFixed(2) + ', rentré ' + bas.toFixed(2));
+          else info.push('aileron levé de ' + haut.toFixed(2) + ' u à 40 u/s, cabré à ' + cabre.toFixed(2) + ' rad au freinage'); }
+        vb.mort = true; scene.remove(vb.mesh); vehicules.splice(vehicules.indexOf(vb), 1);
+        // mur mince à très haute vitesse (nitro), 12 phases de départ : jamais traversé
+        for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0;
+        let ligne = null;
+        for (let z = -HALF + 30; z < HALF - 30 && !ligne; z += 2.5) for (let x0 = -HALF + 30; x0 < HALF - 110 && !ligne; x0 += 7) {
+          let libre = true; for (let x = x0 - 4; x <= x0 + 80 && libre; x += 1) if (solidAt(x, z, 1.6) || estEau(x, z) || Math.abs(solY(x, z)) > 0.3 || (HILLS.ok && dansHills(x, z, 3))) libre = false;
+          if (libre) ligne = { x0, z }; }
+        if (!ligne) ko.push('aucune ligne droite libre pour le mur mince');
+        else { const mur = { x: ligne.x0 + 50, z: ligne.z, hw: 0.15, hd: 4, h: 3 }; addSolid(mur); let passe = 0, vMaxAtteinte = 0;
+          for (let k = 0; k < 12; k++) { const v = creerVehicule('bolide', ligne.x0 + k * 0.23, ligne.z, Math.PI / 2); v.hp = 1e6; entrerVehicule(v); v.v = 30;
+            for (let i = 0; i < 90; i++) { v.nitroActif = true; majVehiculePhys(v, 1 / 30, 1, 0, false); P.x = v.x; P.z = v.z; vMaxAtteinte = Math.max(vMaxAtteinte, v.v); if (v.x > mur.x) { passe++; break; } }
+            sortirVehicule(true); v.mort = true; scene.remove(v.mesh); vehicules.splice(vehicules.indexOf(v), 1); }
+          retirerSolide(mur);
+          if (passe) ko.push('mur mince traversé ' + passe + ' fois sur 12 (jusqu’à ' + vMaxAtteinte.toFixed(0) + ' u/s)'); else info.push('mur mince jamais traversé à ' + vMaxAtteinte.toFixed(0) + ' u/s'); }
+        // la villa : plus chère que toute planque, payée une fois
+        const pqMax = Math.max(...PLANQUES_DEF.map((d) => d.prix));
+        if (!(PRIX_VILLA > pqMax)) ko.push('villa (' + PRIX_VILLA + ' $) pas plus chère que les planques (' + pqMax + ' $)');
+        const porte = PORTES.find((q) => q.id === 'planque'), avant = { planque: META.planque, argent: META.argent };
+        if (!porte) ko.push('porte de la villa introuvable');
+        else { META.planque = false; P.x = porte.x + (porte.nx || 0) * 2.5; P.z = porte.z + (porte.nz || 1) * 2.5; P.y = solPied(P.x, P.z); P.chute = false; P.surMoto = false; P.veh = null;
+          META.argent = PRIX_VILLA - 1; majAction(); const lab = el('btnAction').textContent, fn = el('btnAction')._fn;
+          if (!/ACHETER LA VILLA/.test(lab) || lab.indexOf(String(PRIX_VILLA)) < 0) ko.push('bouton de la villa : ' + lab);
+          else { fn(); if (META.planque || META.argent !== PRIX_VILLA - 1) ko.push('villa vendue sans l’argent');
+            META.argent = PRIX_VILLA + 5; fn(); const apres1 = META.argent; fn(); if (!META.planque || apres1 !== 5 || META.argent !== 5) ko.push('villa : ' + apres1 + ' puis ' + META.argent + ' $ (attendu 5 et 5)');
+            else info.push('villa à ' + PRIX_VILLA + ' $ (planque la plus chère : ' + pqMax + ' $), payée une seule fois'); } }
+        META.planque = avant.planque; META.argent = avant.argent;
+        startRun();
+        return { ko, info };
+      });
+      if (ult.ko.length) fail('Ultimes : ' + ult.ko.join(' ; '));
+      else ok('Ultimes : ' + ult.info.join(' ; '));
+    }
 
     // -------------------------------------------------------------------
     // Habillage V2 des salles (18 octobre, demandé : « refais la cohérence, les textures, le réalisme, la

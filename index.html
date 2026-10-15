@@ -2723,6 +2723,12 @@ const PROFILS_VOITURE={
   suvLuxe:{carre:true,ailes:true,L:5.1,W:2.15,R:0.46,ep:0.32,garde:0.36,axe:0.31,nez:1.12,capot:1.24,caisse:1.3,malle:1.32,cul:1.26,toit:1.96,zPb:0.2,zAv:0.1,zAr:-0.42,zLu:-0.47,jante:'multi',portes:4,barres:true,chromes:true},
   cabriolet:{L:4.6,W:2.02,R:0.36,ep:0.27,garde:0.18,axe:0.3,nez:0.56,capot:0.86,caisse:0.94,malle:0.92,cul:0.88,toit:1.24,zPb:0.15,zAv:0.03,zAr:-0.16,zLu:-0.26,jante:'multi',portes:2,ouvert:true},
   hyper:{L:4.6,W:2.1,R:0.34,ep:0.32,garde:0.11,axe:0.32,nez:0.32,capot:0.64,caisse:0.78,malle:0.94,cul:0.96,toit:1.1,zPb:0.2,zAv:0.05,zAr:-0.1,zLu:-0.38,jante:'etoile',portes:2,prises:true,aileron:true},
+  // les « ultimes » (18 octobre, demandé : « une Bugatti, le Bolide, et une Ferrari Enzo, ultimes, rares, chères ») — marques de
+  // fantaisie. Bellatti : calandre en fer à cheval (fer), courbe en C bicolore (courbeC), arête dorsale (arete), rampe de feux
+  // (feuBarre), aileron actif (volet : majVolet). Ferroni : nez de Formule 1 entre deux entrées d'air (f1), grandes prises
+  // latérales (grandesPrises), capot moteur vitré (capotVitre), quatre feux ronds (feuxRonds)
+  bolide:{L:4.6,W:2.1,R:0.36,ep:0.34,garde:0.11,axe:0.31,nez:0.62,capot:0.74,caisse:0.84,malle:0.92,cul:0.94,toit:1.18,zPb:0.17,zAv:0,zAr:-0.16,zLu:-0.34,jante:'multi',portes:2,prises:true,fer:true,courbeC:true,arete:true,feuBarre:true,volet:true},
+  enzo:{L:4.7,W:2.06,R:0.35,ep:0.33,garde:0.1,axe:0.31,nez:0.54,capot:0.64,caisse:0.8,malle:0.96,cul:0.94,toit:1.12,zPb:0.22,zAv:0.06,zAr:-0.08,zLu:-0.26,jante:'etoile',portes:2,prises:true,f1:true,grandesPrises:true,capotVitre:true,feuxRonds:true,becquet:true},
 };
 function ancragesProfil(k){ const P=PROFILS_VOITURE[k];
   return {avant:{x:0,y:+(P.nez+0.08).toFixed(2),z:+(P.L/2-0.08).toFixed(2)},arriere:{x:0,y:+P.cul.toFixed(2),z:+(-P.L/2+0.06).toFixed(2)},
@@ -2734,6 +2740,9 @@ Object.assign(VEHDEFS,{
   cabriolet:{nom:'Cabriolet "Azur"',tuningMeca:true,tuningCarro:{famille:'sportive'},vmax:37,acc:18,man:2.8,hp:130,long:4.6,larg:2.02,type:'car',cols:[0xf2f2ee,0xd83a3a,0x35a8e0,0xe8c84a]},
   charger:{nom:'Muscle "Taureau"',tuningMeca:true,tuningCarro:{famille:'sportive'},vmax:35,acc:15,man:2.2,hp:165,long:5.0,larg:2.1,type:'car',cols:[0x14161c,0xd83a3a,0xe8c84a,0x2a4a2a,0xf2f2ee]},
   hyper:{nom:'Hypercar "Zénith"',tuningMeca:true,tuningCarro:{famille:'sportive'},vmax:55,acc:28,man:3.2,hp:110,long:4.6,larg:2.1,type:'car',cols:[0xf2f4f8,0x14161c,0xff7a1a,0x7a3ad8],sport:true},
+  // les ultimes : les plus rapides (Bolide) et les plus vifs (Enzo) des voitures ; rares (ultimeRare), chers (CATALOGUE)
+  bolide:{nom:'Bellatti "Bolide"',tuningMeca:true,tuningCarro:{famille:'sportive'},vmax:62,acc:31,man:3.0,hp:130,long:4.6,larg:2.1,type:'car',cols:[0x1c2c5e,0x14161c,0xc8ccd4,0x7a1424],sport:true,ultime:true},
+  enzo:{nom:'Ferroni "Enzo"',tuningMeca:true,tuningCarro:{famille:'sportive'},vmax:58,acc:34,man:3.9,hp:105,long:4.7,larg:2.06,type:'car',cols:[0xc8101a,0xc8101a,0xe8c41a,0x14161c],sport:true,ultime:true},
 });
 for(const k in PROFILS_VOITURE){ const d=VEHDEFS[k]; if(!d) continue; d.profil=k; if(d.tuningCarro) d.tuningCarro.ancrages=ancragesProfil(k); }
 // voitures de derby (18 octobre, ARÈNE DE DERBY) : carrosseries de voitureV2 (profil), habillées par habillerDerby ;
@@ -7757,6 +7766,10 @@ function boucleRoute(pts,dec){ // aller par la voie de droite, retour par l'autr
 }
 // voitures de luxe de la colline : celles qui montent et descendent les lacets, celles garées dans les allées
 // (16 octobre, demandé : « véhicules de luxe et rares plus rares à trouver, mais trouvables ») : une seule hypercar, garée
+// les ultimes (18 octobre) : rarissimes dans le trafic et parmi les voitures garées au hasard ; deux à coup sûr, mais il faut aller
+// les prendre — le Bolide dans l'allée de la plus grande villa de la colline, sous la garde de la Brigada ; l'Enzo dans le hangar de
+// l'aviation d'affaires, à côté du jet (ULTIME_HANGAR, aeroStartRun) ; les deux en vitrine chez REYES MOTORS (vitrineUltimes)
+const ULTIME_TRAFIC=0.003, ULTIME_GAREE=0.004, ULTIME_HILLS='bolide', ULTIME_HANGAR={cle:'enzo',dx:4.5,dz:8.6}; // contre le flanc nord du hangar : ~0,8 u du mur et du bout d'aile du jet
 const HILLS_LUXE_ROULE=['cabriolet','suvLuxe','berline'], HILLS_LUXE_GARE=['suvLuxe','berline','cabriolet','baronne','limousine','citadine','hyper','berline'];
 function zGareVilla(p,cle){ const L=(VEHDEFS[cle]&&VEHDEFS[cle].long)||4.5; return p.hd-Math.max(3,L/2+0.7); } // dans l'allée, près du portail : jamais dans la maison
 function hillsStartRun(){
@@ -7764,10 +7777,9 @@ function hillsStartRun(){
   if(!HILLS.ok) return; const H=HILLS, V=VIE_HILLS, D=H.routes.find((r)=>r.id==='drive');
   if(!V.boucle){ V.boucle=boucleRoute(D.pts,2.3); V.trottoir=boucleRoute(D.pts,H.larg/2+0.7); }
   HILLS_LUXE_ROULE.forEach((k,i,l)=>{ const u=i/l.length; const s=V.boucle.L*u, p=pointBoucle(V.boucle,s), v=creerVehicule(k,p.x,p.z,p.ang); if(!v) return; v.conduit='piste'; v.piste={b:V.boucle,s,vit:9,vCur:0}; v.h=solY(v.x,v.z); });
-  const luxe=HILLS_LUXE_GARE;
-  H.pads.filter((p)=>p.villa).forEach((p,k)=>{ if(k%3===2) return; const xa=p.hw*0.55*(p.id.charCodeAt(5)%2?1:-1), cle=luxe[k%luxe.length], v=creerVehicule(cle,p.x+xa,p.z+(p.f||1)*zGareVilla(p,cle),(p.f||1)>0?0:Math.PI); if(v) v.h=solY(v.x,v.z); });
-  // sécurité privée de la Krasnaya Brigada devant la plus grande villa
-  const rang={grande:3,moyenne:2,petite:1}, g=H.pads.filter((p)=>p.villa).sort((a,b)=>rang[b.type]-rang[a.type]||b.hw-a.hw)[0]; // la plus grande villa
+  const luxe=HILLS_LUXE_GARE, rang={grande:3,moyenne:2,petite:1}, g=H.pads.filter((p)=>p.villa).sort((a,b)=>rang[b.type]-rang[a.type]||b.hw-a.hw)[0]; // la plus grande villa
+  H.pads.filter((p)=>p.villa).forEach((p,k)=>{ const ult=p===g; if(k%3===2&&!ult) return; const xa=p.hw*0.55*(p.id.charCodeAt(5)%2?1:-1), cle=ult?ULTIME_HILLS:luxe[k%luxe.length], v=creerVehicule(cle,p.x+xa,p.z+(p.f||1)*zGareVilla(p,cle),(p.f||1)>0?0:Math.PI); if(v){ v.h=solY(v.x,v.z); if(ult) VIE_HILLS.ultime=v; } }); // la plus grande villa : le Bolide de la Brigada
+  // sécurité privée de la Krasnaya Brigada devant la plus grande villa (et devant son Bolide)
   if(g) for(const dx of [-2.6,2.6]){ const s=creerEnnemi('chr_fusil',g.x+g.hw*0.55*(g.id.charCodeAt(5)%2?1:-1)+dx,g.z+(g.f||1)*(g.hd+0.5),false); if(s){ s.garde=true; s.posteX=s.x; s.posteZ=s.z; } }
 }
 function mkVieHills(){
@@ -7874,11 +7886,14 @@ function majHabitantsHills(dt){
   if(!pres||!V.trottoir) return;
   // accompagnants des promeneurs (le promeneur lui-même avance dans majVieHills)
   for(const w of V.pietons){ if(!w.genre||figConverti(w.h)) continue; const g=w.h.g, a=g.rotation.y, cx=Math.cos(a), sx=Math.sin(a);
-    if(w.lat){ g.position.x+=cx*w.lat; g.position.z-=sx*w.lat; }
+    if(w.lat){ const lx=g.position.x+cx*w.lat, lz=g.position.z-sx*w.lat; if(!surChaussee(lx,lz)){ g.position.x=lx; g.position.z=lz; } } // l'écart latéral jamais sur la chaussée (dans les virages serrés, il y mordait)
     const cote=surChaussee(g.position.x+cx*0.9,g.position.z-sx*0.9)?-1:1; // les accompagnants restent côté trottoir, jamais sur la chaussée
-    if(w.h2&&!figConverti(w.h2)){ w.h2.g.position.set(g.position.x+cx*0.75*cote,g.position.y,g.position.z-sx*0.75*cote); w.h2.g.rotation.y=a; animeHumain(w.h2,dt,Math.abs(w.v)*3,false); }
-    if(w.chien){ const ch=w.chien, t=CASC_U.uT.value; ch.g.position.set(g.position.x+sx*1.3+cx*0.6*cote,g.position.y,g.position.z+cx*1.3-sx*0.6*cote); ch.g.rotation.y=a; for(let k=0;k<4;k++) ch.pattes[k].rotation.x=Math.sin(t*12+(k%2?Math.PI:0))*0.6; }
-    if(w.objet){ w.objet.position.set(g.position.x+sx*w.objetAv,g.position.y,g.position.z+cx*w.objetAv); w.objet.rotation.y=a; w.h.brasG.rotation.x=w.h.brasD.rotation.x=-1.1; } }
+    // place d'un accompagnant (av devant, lat à côté) : côté trottoir, sinon de l'autre côté, sinon derrière, sinon dans ses pas
+    // (dans les virages serrés, le chien 1,3 u devant ou le conjoint à côté mordaient sur la chaussée) ; le promeneur, lui, n'y est jamais
+    const X=g.position.x, Z=g.position.z, place=(av,lat,o)=>{ for(const [f,l] of [[av,lat*cote],[av,-lat*cote],[-Math.abs(av)-0.6,lat*cote*0.5],[av*0.4,0]]){ const x=X+sx*f+cx*l, z=Z+cx*f-sx*l; if(!surChaussee(x,z)){ o.set(x,g.position.y,z); return; } } o.set(X,g.position.y,Z); };
+    if(w.h2&&!figConverti(w.h2)){ place(0,0.75,w.h2.g.position); w.h2.g.rotation.y=a; animeHumain(w.h2,dt,Math.abs(w.v)*3,false); }
+    if(w.chien){ const ch=w.chien, t=CASC_U.uT.value; place(1.3,0.6,ch.g.position); ch.g.rotation.y=a; for(let k=0;k<4;k++) ch.pattes[k].rotation.x=Math.sin(t*12+(k%2?Math.PI:0))*0.6; }
+    if(w.objet){ place(w.objetAv,0,w.objet.position); w.objet.rotation.y=a; w.h.brasG.rotation.x=w.h.brasD.rotation.x=-1.1; } }
   // baigneurs : brasse tranquille d'un bord à l'autre, la tête hors de l'eau
   for(const n of V.nageurs){ if(figConverti(n.h)) continue; n.u+=dt*n.v; const g=n.h.g; g.position.set(n.x0+Math.sin(n.u)*n.amp,n.y-1.05,n.z0); g.rotation.y=Math.cos(n.u)>0?Math.PI/2:-Math.PI/2;
     n.h.brasG.rotation.x=-1.6+Math.sin(n.u*8)*0.5; n.h.brasD.rotation.x=-1.6-Math.sin(n.u*8)*0.5; }
@@ -8131,6 +8146,7 @@ function murSoutenement(p){
    d'attente ; à la console, la flotte (HELIS_MANOIR) : la Libellule vient avec la villa, les autres s'achètent une
    fois (META.helisManoir, clés fixes) ; l'hélico choisi (META.heliManoir) est posé sur la dalle à chaque partie et
    dès qu'on en change (l'ancien est rapatrié, d'où qu'il soit — jamais sous le joueur). */
+const PRIX_VILLA=20000; // la villa du sommet de la colline (6000 $ avant le 18 octobre, demandé : « augmente le prix de la villa »)
 const HELIS_MANOIR=[{cle:'helico',prix:0},{cle:'ecureuil',prix:1500},{cle:'titan',prix:2500},{cle:'vip',prix:3500},{cle:'vautour',prix:7000}];
 const HELIPORT={pad:null,console:null,v:null,ouvert:false,el:null,balisage:[],t:0};
 function heliManoirPossede(k){ return k==='helico'?!!META.planque:!!(META.planque&&META.helisManoir&&META.helisManoir[k]); }
@@ -8141,7 +8157,7 @@ function poserHeliManoir(){
   if(he){ he.alt=p.h; he.vol=false; he.va=0; he.mesh.position.y=p.h; he.heliManoir=true; H.v=he; } return he; }
 function heliportAction(){
   const H=HELIPORT; if(!H.console||P.veh||dist2(P.x,P.z,H.console.x,H.console.z)>2.6*2.6||Math.abs(P.y-H.pad.h)>2.5) return null;
-  if(!META.planque) return {label:'🚁 HÉLIPORT PRIVÉ — ACHÈTE LA VILLA',fn:()=>{ SFX.refus(); toast('L’héliport vient avec la villa (6000 $, la porte du manoir)','warn'); }};
+  if(!META.planque) return {label:'🚁 HÉLIPORT PRIVÉ — ACHÈTE LA VILLA',fn:()=>{ SFX.refus(); toast('L’héliport vient avec la villa ('+PRIX_VILLA+' $, la porte du manoir)','warn'); }};
   return {label:'🚁 HÉLIPORT — CHOISIR L’HÉLICO',fn:ouvrirHeliport};
 }
 function ouvrirHeliport(){
@@ -8265,6 +8281,10 @@ function mkConcessionHills(){
   const fan=[0xd83a3a,0xffd23f,0x2a6ad8,0xf2f2ee];
   for(const sx of [-1,1]){ const x0=x+sx*5, x1=x+sx*16.5; mkBox(0.1,4.2,0.1,alu,x1,2.1,zA+9.2); mkBox(0.1,4.2,0.1,alu,x0,2.1,zA+9.2); // fanions au bord de l'esplanade, l'allée de la porte libre
     for(let k=0;k<10;k++){ const u=(k+0.5)/10, fx=x0+(x1-x0)*u, fy=4.1-Math.sin(u*Math.PI)*0.6; const f=new THREE.Mesh(new THREE.ConeGeometry(0.22,0.5,3),mat(fan[k%4])); f.rotation.x=Math.PI; f.position.set(fx,fy-0.25,zA+9.2); scene.add(f); } }
+}
+function vitrineUltimes(){ // à la 1re partie, sur le générateur du décor (la ville ne bouge pas) : les ultimes prennent les deux podiums du showroom
+  if(CONCESSION.ultimes||CONCESSION.tournants.length<2) return; CONCESSION.ultimes=true;
+  sansAleaVille(()=>{ ['bolide','enzo'].forEach((k,i)=>{ const a=CONCESSION.tournants[i], v=makeVoiture(k); v.position.copy(a.position); v.rotation.y=a.rotation.y; scene.remove(a); scene.add(v); CONCESSION.tournants[i]=v; }); });
 }
 function majConcession(dt){ if(!CONCESSION.tournants.length||dist2(P.x,P.z,-104,100)>120*120) return; for(const v of CONCESSION.tournants) v.rotation.y+=dt*0.35; }
 // manoir de la planque : deux étages blancs, grandes baies, toit-terrasse, colonnade d'entrée
@@ -9846,6 +9866,7 @@ function aeroStartRun(){
   for(const p of AERO.portes){ p.v=null; p.attente=0; p.reservee=null; }
   const pA=AERO.portes[0]; pA.v=creerVehicule('ligne',pA.x,pA.z,-Math.PI/2); pA.attente=-60; // il repartira dans ~2 min 20
   for(const h of AERO.hangars) creerVehicule(h.cle,h.x,h.z,Math.PI/2);
+  { const hj=AERO.hangars.find((h)=>h.cle==='jetprive'); if(hj) AERO.ultime=creerVehicule(ULTIME_HANGAR.cle,hj.x+ULTIME_HANGAR.dx,hj.z+ULTIME_HANGAR.dz,Math.PI/2); } // l'Enzo du propriétaire du jet
   for(const q of AERO.piste4||[]) creerVehicule(q.cle,q.x,q.z,0); // véhicules de piste
   creerVehicule('taxi',AERO.T.x0-4.5,AERO.C.z-14,Math.PI); creerVehicule('busville',AERO.T.x0-4.5,AERO.C.z+12,Math.PI);
   for(const w of AERO.foule) AERO.nouvelleRoute(w);
@@ -15611,12 +15632,14 @@ function geoVoiture(k){
   // 3. face avant : optiques, calandre, bouclier, plaque ; face arrière : feux, diffuseur, plaque, échappements
   /* la carrosserie déborde de 0,07 (arrondi) : tout ce qui se pose sur les faces avant et arrière sort de av+0,07 / ar-0,07 */
   const fa=av+bv, fr=ar-bv;
-  for(const sx of [-1,1]){ bx('phare',W*0.25,0.13,0.1,sx*W*0.3,P.nez-0.17,fa,0.25); bx('sombre',W*0.27,0.15,0.08,sx*W*0.3,P.nez-0.17,fa-0.03,0.25);
-    bx('feu',W*0.28,0.13,0.06,sx*W*0.31,P.cul-0.16,fr); bx('feu',W*0.12,0.06,0.05,sx*W*0.46,P.cul-0.16,fr+0.02); }
+  for(const sx of [-1,1]){
+    if(P.f1){ const zp=av-0.14; bx('phare',W*0.22,0.05,0.36,sx*W*0.33,capotY(zp)+0.02,zp,0.32); bx('sombre',W*0.24,0.05,0.4,sx*W*0.33,capotY(zp)+0.005,zp,0.32); } // Ferroni : phares couchés sur les ailes
+    else { bx('phare',W*0.25,0.13,0.1,sx*W*0.3,P.nez-0.17,fa,0.25); bx('sombre',W*0.27,0.15,0.08,sx*W*0.3,P.nez-0.17,fa-0.03,0.25); }
+    if(!P.feuxRonds){ bx('feu',W*0.28,0.13,0.06,sx*W*0.31,P.cul-0.16,fr); bx('feu',W*0.12,0.06,0.05,sx*W*0.46,P.cul-0.16,fr+0.02); } }
   if(P.chromes){ bx('chrome',W*0.42,0.3,0.05,0,P.nez-0.32,fa); bx('sombre',W*0.36,0.24,0.05,0,P.nez-0.32,fa+0.015); bx('chrome',W*0.98,0.14,0.16,0,g0+0.22,av+0.04); bx('chrome',W*0.98,0.14,0.16,0,g0+0.22,ar-0.04);
     for(const sx of [-1,1]) bx('chrome',0.012,0.03,L*0.7,sx*(hb+0.004),P.caisse-0.24,0); }
-  else { bx('sombre',W*0.42,0.16,0.05,0,P.nez-0.32,fa); bx('sombre',W*0.86,0.1,0.14,0,g0+0.1,fa-0.04); }
-  bx('sombre',W*0.8,0.1,0.12,0,g0+0.1,fr+0.04); bx('blanc',0.52,0.12,0.02,0,g0+0.24,fa+0.01); bx('blanc',0.52,0.12,0.02,0,Math.max(g0+0.3,P.cul-0.42),fr-0.01);
+  else { if(!P.fer&&!P.f1) bx('sombre',W*0.42,0.16,0.05,0,P.nez-0.32,fa); bx('sombre',W*0.86,0.1,0.14,0,g0+0.1,fa-0.04); }
+  bx('sombre',W*0.8,0.1,0.12,0,g0+0.1,fr+0.04); if(!P.fer&&!P.f1) bx('blanc',0.52,0.12,0.02,0,g0+0.24,fa+0.01); // la calandre des ultimes n'a pas de plaque devant bx('blanc',0.52,0.12,0.02,0,Math.max(g0+0.3,P.cul-0.42),fr-0.01);
   for(const sx of (P.prises?[-0.12,0.12]:[-W*0.28,W*0.28])){ const e=new THREE.CylinderGeometry(0.05,0.05,0.18,10); ajout('chrome',e,sx,g0+0.12,ar-0.04,Math.PI/2); }
   // 4. flancs : bas de caisse, joints de portes, poignées, rétroviseurs, coques de passages de roue
   for(const sx of [-1,1]){ const xs=sx*(hb+0.004);
@@ -15626,7 +15649,8 @@ function geoVoiture(k){
     for(let i=0;i<joints.length-1;i++) bx('chrome',0.03,0.05,0.22,sx*(hb+0.012),P.caisse-0.16,joints[i+1]+0.3);
     bx('peinture',0.24,0.12,0.14,sx*(hb+0.1),P.caisse+0.14,zPb-0.14); bx('sombre',0.02,0.1,0.12,sx*(hb+0.005),P.caisse+0.14,zPb-0.14);
     if(P.police) bx('blanc',0.012,P.caisse-g0-0.3,(zAv-0.05)-(zAr+0.05),sx*(hb+0.006),(P.caisse+g0)/2,(zAv+zAr)/2);
-    if(P.prises) bx('sombre',0.02,0.22,0.6,sx*(hb+0.005),g0+0.38,zr+Ra+0.45); }
+    if(P.prises) bx('sombre',0.02,0.22,0.6,sx*(hb+0.005),g0+0.38,zr+Ra+0.45);
+    if(P.grandesPrises) bx('sombre',0.02,0.36,0.9,sx*(hb+0.006),g0+0.42,zr+Ra+0.5); }
   for(const zc of [zf,zr]) bx('sombre',W*0.62,Ra*0.9,Ra*1.9,0,P.R+Ra*0.4,zc);
   // 5. signatures de modèle
   if(P.ecope) bx('sombre',0.6,0.12,0.7,0,capotY(zPb+0.6)+0.05,zPb+0.6);
@@ -15637,6 +15661,32 @@ function geoVoiture(k){
     const gb=new THREE.BufferGeometry(); gb.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); gb.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2)); gb.computeVertexNormals(); (listes.blanc=listes.blanc||[]).push(gb); }
   if(P.becquet) bx('peinture',W*0.8,0.06,0.22,0,P.cul+0.05,ar+0.14,-0.25);
   if(P.aileron){ bx('sombre',W*0.94,0.05,0.42,0,P.cul+0.4,ar+0.3,-0.08); for(const sx of [-0.45,0.45]) bx('sombre',0.06,0.38,0.12,sx,P.cul+0.2,ar+0.32); }
+  if(P.fer){ // Bellatti : calandre en fer à cheval (arrondie en bas), cerclée de chrome, barreaux, macaron rouge au-dessus
+    const r=0.14, yc=P.nez-0.27, ht=0.15, f=new THREE.Shape(); f.moveTo(-r,yc+ht); f.lineTo(-r,yc); f.absarc(0,yc,r,Math.PI,2*Math.PI,false); f.lineTo(r,yc+ht); f.lineTo(-r,yc+ht);
+    ajout('sombre',new THREE.ShapeGeometry(f,12),0,0,fa+0.006);
+    const t=new THREE.TorusGeometry(r,0.022,5,16,Math.PI); t.rotateZ(Math.PI); ajout('chrome',t,0,yc,fa+0.012);
+    for(const sx of [-1,1]) bx('chrome',0.044,ht,0.04,sx*r,yc+ht/2,fa+0.012); bx('chrome',2*r+0.044,0.036,0.04,0,yc+ht,fa+0.012);
+    for(let i=1;i<4;i++) bx('chrome',0.012,ht+r*0.6,0.02,(i-2)*r*0.45,yc+(ht-r*0.6)/2,fa+0.009);
+    bx('feu',0.1,0.045,0.03,0,yc+ht+0.06,fa+0.006); }
+  if(P.courbeC){ // Bellatti : la courbe en C du flanc, en chrome, autour de l'entrée d'air d'une autre teinte (sombre)
+    const zC=L*0.02, yH=P.caisse-0.07, yB=g0+0.13, yM=(yH+yB)/2, ry=(yH-yB)/2, rz=Math.min(0.62,(zC-(zr+Ra))*0.9), pts=[[zC+0.45,yH],[zC,yH]];
+    for(let i=1;i<12;i++){ const a=Math.PI/2-i*Math.PI/12; pts.push([zC-rz*Math.cos(a),yM+ry*Math.sin(a)]); }
+    pts.push([zC,yB],[zf-Ra-0.1,yB]);
+    for(const sx of [-1,1]){ const xs=sx*(hb+0.014);
+      for(let i=0;i<pts.length-1;i++) barre('chrome',0.03,0.045,xs,pts[i][1],pts[i][0],pts[i+1][1],pts[i+1][0]);
+      const c=new THREE.Shape(); c.moveTo(-sx*zC,yH); for(let i=2;i<pts.length-1;i++) c.lineTo(-sx*pts[i][0],pts[i][1]); c.lineTo(-sx*zC,yH);
+      ajout('sombre',new THREE.ShapeGeometry(c),sx*(hb+0.008),0,0,0,sx*Math.PI/2,0); } } // (u,v) → (0,v,∓u) : face tournée vers l'extérieur des deux côtés
+  if(P.arete){ bx('peinture',0.05,0.05,zAv-zAr,0,P.toit+0.045,(zAv+zAr)/2); barre('peinture',0.05,0.05,0,P.toit+0.04,zAr,Math.max(P.caisse,P.malle)+0.02,zLu); } // l'arête dorsale
+  if(P.feuBarre){ bx('feu',W*0.86,0.045,0.04,0,P.cul-0.1,fr+0.004); bx('sombre',W*0.78,0.26,0.03,0,P.cul-0.34,fr); // la rampe de feux sur toute la largeur, la grille arrière
+    for(const x of [-0.3,0.3]) ajout('chrome',new THREE.CylinderGeometry(0.05,0.05,0.18,10),x,g0+0.12,ar-0.04,Math.PI/2); } // quatre sorties d'échappement
+  if(P.f1){ // Ferroni : nez de Formule 1 (pointe qui remonte sur le capot), deux grandes entrées d'air, lame avant
+    barre('peinture',W*0.2,0.12,0,0.36,av+0.15,capotY(av-0.55)+0.02,av-0.55);
+    for(const sx of [-1,1]) bx('sombre',W*0.2,0.18,0.08,sx*W*0.21,g0+0.22,fa-0.01);
+    bx('sombre',W*0.94,0.04,0.32,0,g0+0.03,av-0.04); }
+  if(P.capotVitre){ const z0=zLu-0.12, z1=ar+0.42; barre('vitre',W*0.4,0.03,0,malleY(z0)+0.015,z0,malleY(z1)+0.015,z1); // le moteur sous verre
+    for(const sx of [-1,1]) for(let i=0;i<5;i++){ const z=z1+(z0-z1)*(i+0.5)/5; bx('sombre',W*0.18,0.025,0.06,sx*W*0.32,malleY(z)+0.012,z); } } // ouïes
+  if(P.feuxRonds){ bx('sombre',W*0.9,0.3,0.03,0,P.cul-0.32,fr); // la face arrière sombre, quatre feux ronds
+    for(const x of [-0.36,-0.22,0.22,0.36]){ const c=new THREE.CylinderGeometry(0.085,0.085,0.05,16); ajout('feu',c,x*W,P.cul-0.32,fr-0.01,Math.PI/2); } }
   if(P.taxi){ bx('sombre',0.9,0.08,0.36,0,P.toit+0.05,(zAv+zAr)/2); bx('taxi',0.8,0.24,0.3,0,P.toit+0.2,(zAv+zAr)/2); }
   if(P.raptor){ bx('sombre',W*0.8,0.5,0.06,0,P.nez-0.32,fa+0.01); for(const dx of [-0.3,0,0.3]){ bx('orange',0.14,0.05,0.04,dx,P.nez-0.2,fa+0.04); bx('orange',0.12,0.05,0.08,dx,P.toit+0.04,zAv-0.02); }
     bx('sombre',W*0.9,0.26,0.24,0,g0+0.12,fa); bx('chrome',W*0.5,0.06,0.3,0,g0-0.02,fa-0.15); }
@@ -15670,7 +15720,18 @@ function voitureV2(def,coul,g,ud,corps,key){
   if(P.police){ const zb=L*(P.zAv+P.zAr)/2+0.1, br=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.12,0.24),new THREE.MeshBasicMaterial({color:0xff3b4b})), bb=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.12,0.24),new THREE.MeshBasicMaterial({color:0x3a7bff}));
     br.position.set(-0.32,P.toit+0.15,zb); bb.position.set(0.32,P.toit+0.15,zb); corps.add(br); corps.add(bb); ud.bar=[br,bb]; }
   if(P.ouvert){ const zPb=L*P.zPb; ud.siege={assis:true,x:-0.42,y:P.garde+0.5+0.18-0.6,z:zPb-0.12-0.7}; } // le conducteur du cabriolet se voit, assis au volant
+  if(P.volet){ // aileron actif (Bellatti) : à plat dans la malle, il se lève à haute vitesse et se cabre en aérofrein (majVolet)
+    if(!_GEO_VOIT[k+'_volet']){ const pl=new THREE.BoxGeometry(W*0.86,0.05,0.42), j=mergeGeoManuel([new THREE.BoxGeometry(0.06,0.36,0.12).translate(-0.5,-0.18,0.04),new THREE.BoxGeometry(0.06,0.36,0.12).translate(0.5,-0.18,0.04)]);
+      pl.translate(0,0.025,0); pl.userData.partagee=true; j.userData.partagee=true; _GEO_VOIT[k+'_volet']={pl,j}; }
+    const G2=_GEO_VOIT[k+'_volet'], w=new THREE.Group(); w.add(new THREE.Mesh(G2.pl,M.peinture)); w.add(new THREE.Mesh(G2.j,M.sombre));
+    w.position.set(0,P.cul+0.005,-L/2+0.4); w.userData={y0:w.position.y,k:0,a:0}; corps.add(w); ud.volet=w; }
   g.add(spriteBlob(L*1.05)); g.userData=ud; return g;
+}
+function majVolet(v,dt){ // l'aileron actif se lève au-delà de 24 u/s, se cabre au freinage appuyé (aérofrein)
+  const w=v.mesh.userData.volet, u=w.userData, frein=v.vPrecVolet!==undefined&&dt>0&&v.v>10&&(v.vPrecVolet-v.v)/dt>14; v.vPrecVolet=v.v;
+  const cible=frein?1:(Math.abs(v.v)>24?0.75:0), k=clamp(dt*3,0,1);
+  u.k+=(cible-u.k)*k; u.a+=((frein?0.8:0.12*cible)-u.a)*k;
+  w.position.y=u.y0+u.k*0.32; w.rotation.x=u.a;
 }
 function makeSkate(def,coul,g,ud,corps){
   const pl=new THREE.Group(); corps.add(pl); ud.planche=pl;
@@ -17618,6 +17679,7 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
   const sgn=Math.sign(v.v)||1;
   const fx=nx+Math.sin(v.ang)*d.long/2*sgn, fz=nz+Math.cos(v.ang)*d.long/2*sgn;
   let sFront=eau?null:solidAt(fx,fz,d.larg*0.35);
+  if(!sFront&&!eau&&Math.abs(v.v*dt)>0.9) sFront=solidAt(fx-sA*v.v*dt*0.5,fz-cA*v.v*dt*0.5,d.larg*0.35); // très haute vitesse (ultimes, nitro) : le milieu du pas aussi
   // d.franchit (Monster Truck) : franchit trottoirs et petits obstacles
   // sans ralentir — suspension très haute, voir CLAUDE.md.
   if(sFront&&sFront.h<=(v.h||0)+(d.franchit||0.5)) sFront=null; // on saute PAR-DESSUS
@@ -17777,6 +17839,7 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
   else if(eau&&MER_V2) assietteHoule(v.mesh,v.x,v.z,v.ang,0.15,d.long); // houle partagée (voir MER_V2)
   else if(eau) v.mesh.rotation.x=Math.sin(ETAT.runT*2.2)*0.03;
   for(const r of v.mesh.userData.roues) r.rotation.x+=v.v*dt*1.6;
+  if(v.mesh.userData.volet) majVolet(v,dt);
   // Monster Truck : suspension molle — le châssis (userData.corps, roues
   // exclues) tangue et rebondit indépendamment des roues, qui restent au
   // sol. Amplitude/fréquence croissent avec la vitesse, léger roulis en
@@ -19240,9 +19303,9 @@ function creerTrafic(){
   // voisine) — seuls des véhicules/patrouilles militaires y ont leur place.
   if(qz==='base') return;
   if(HILLS.ok&&dansHills(x,z,3)) return; // Los Reyes Hills : routes en lacets, pas de trafic de la grille
-  let poolT;
+  let poolT, rT;
   if(Math.random()<0.05) poolT=['sport'];
-  else if(Math.random()<0.04) poolT=['suvLuxe','cabriolet','charger','jeep','limousine']; // rares, mais on en croise
+  else if((rT=Math.random())<0.04) poolT=rT<ULTIME_TRAFIC?['bolide','enzo']:['suvLuxe','cabriolet','charger','jeep','limousine']; // rares, mais on en croise ; les ultimes, presque jamais
   else if((qz==='centre'||qz==='commerce')&&Math.random()<0.1) poolT=['busville','pompiers'];
   else poolT=['citadine','citadine','berline','berline','taxi','taxi','muscle','van','pickup','suvLuxe','cabriolet'];
   const v=creerVehicule(pick(poolT),x,z,ang,'trafic'); v._traf=true;
@@ -23317,6 +23380,7 @@ const CATALOGUE=[
   {key:'moto',prix:1800},{key:'motocross',prix:2400},{key:'pickup',prix:2000},{key:'buggy',prix:2600},
   {key:'muscle',prix:3800},{key:'motoS',prix:4200},{key:'sport',prix:7500},
   {key:'cabriolet',prix:6200},{key:'suvLuxe',prix:6800},{key:'limousine',prix:9500},{key:'hyper',prix:16000}, // voitures de luxe (15 octobre)
+  {key:'enzo',prix:42000},{key:'bolide',prix:55000}, // les ultimes (18 octobre) : les plus chères du jeu
   {key:'charger',prix:4600},{key:'jeep',prix:3200}
 ];
 /* ======== HABILLAGE V2 DES SALLES (18 octobre, demandé : « refais la cohérence des salles, les textures, le
@@ -32846,6 +32910,7 @@ function ameliorerTexturesSol(){
 function startRun(){
   clotureMatPropre(); // une fois : la clôture de l'aérodrome a son propre matériau translucide
   ameliorerTexturesSol(); // une fois : asphalte et sable redessinés, variation de teinte des sols
+  vitrineUltimes(); // une fois : le Bolide et l'Enzo sur les podiums du showroom
   // icône de la capacité spéciale du personnage (adrénaline, nitro, onde)
   el('specIco').innerHTML=ico('ico-spec-'+PERSOS[META.perso].spec,'⚡');
   nettoieMonde();
@@ -33169,7 +33234,7 @@ function startRun(){
     let libre=true;
     for(const o of vehicules) if(dist2(o.x,o.z,x,z)<60){libre=false;break;}
     if(!libre) continue;
-    creerVehicule(Math.random()<0.12?pick(['jeep','charger','jeep','suvLuxe']):pick(['citadine','citadine','muscle','pickup','van','moto','taxi']),x,z,vert?0:Math.PI/2); // un 4x4 ou une rareté de temps en temps
+    const rP=Math.random(); creerVehicule(rP<0.12?pick(rP<ULTIME_GAREE?['bolide','enzo']:['jeep','charger','jeep','suvLuxe']):pick(['citadine','citadine','muscle','pickup','van','moto','taxi']),x,z,vert?0:Math.PI/2); // un 4x4 ou une rareté de temps en temps ; une ultime, très rarement
   }
   garerVelos(); if(DECOR_V2){ garerRides(); creerVehicule('cargo',200,MER+95,Math.PI/2); creerVehicule('cargo',-100,MER+142,Math.PI/2); } // le porte-conteneurs au mouillage
   if(GALION.tresor){ // coffre du galion : une fois par partie, et il attend le joueur (un butin dure 26 s par défaut)
@@ -34182,10 +34247,11 @@ function majAction(){
       };
     } else if(porteP){
       if(porteP.id==='planque'&&!META.planque){
-        label='🏡 ACHETER LA VILLA — 6000 $';
+        label='🏡 ACHETER LA VILLA — '+PRIX_VILLA+' $';
         fn=()=>{
-          if(META.argent<6000){SFX.refus();toast('Il te faut 6000 $');return;}
-          META.argent-=6000; META.planque=true; SFX.achat();
+          if(META.planque) return; // sa propre garde d'entrée
+          if(META.argent<PRIX_VILLA){SFX.refus();toast('Il te faut '+PRIX_VILLA+' $');return;}
+          META.argent-=PRIX_VILLA; META.planque=true; SFX.achat();
           bigMsg('🏡 VILLA ACHETÉE'); toast('Ta planque : soins gratuits, garage et revenus','or');
           META.defis.villa=true;
         };
