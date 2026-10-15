@@ -11031,6 +11031,152 @@ async function main() {
       else ok('Retours du 17 octobre (1) : ' + r.info.join(' ; ') + ' ; faune hors de la ville, conducteurs visibles');
     }
 
+    // -------------------------------------------------------------------
+    // Fort Reyes (17 octobre, demandé : « un héliport avec l'hélicoptère
+    // dessus, les véhicules à des endroits précis, une entrée majestueuse,
+    // de la vie, un défi qui débloque une tenue militaire ») : chaque véhicule
+    // à sa place sans chevauchement, le Vautour seul sur l'héliport ; sans
+    // engagement, l'intrusion sonne l'alarme ; engagé à la guérite, visite
+    // libre ; un tir dans la base révoque l'accès et les soldats du décor
+    // prennent les armes ; parcours du combattant fini au joystick par un
+    // pilote simulé (chemin sur les vrais solides, tir sur les cibles) =
+    // treillis débloqué ; passif = raté.
+    // -------------------------------------------------------------------
+    console.log('\n--- Fort Reyes : places, héliport, entrée, parcours du combattant ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (!DECOR_V2 || !BASE.ok) return { ko, info, saut: 'décor V2 coupé ou base absente' };
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
+        // 1. places : le bon véhicule, aucun chevauchement (boîtes alignées sur le cap)
+        const dansB = vehicules.filter((v) => !v.mort && dansBase(v.x, v.z));
+        for (const k in BASE.places) { const p = BASE.places[k]; if (!dansB.some((v) => v.key === k && Math.hypot(v.x - p.x, v.z - p.z) < 1)) ko.push(k + ' pas à sa place'); }
+        const boite = (v) => { const s2 = Math.abs(Math.sin(v.ang || 0)), c2 = Math.abs(Math.cos(v.ang || 0)), L = v.def.long / 2, l = v.def.larg / 2; return { hx: s2 * L + c2 * l, hz: c2 * L + s2 * l }; };
+        for (let i = 0; i < dansB.length; i++) for (let j = i + 1; j < dansB.length; j++) { const a = dansB[i], b = dansB[j], A = boite(a), B = boite(b);
+          if (Math.abs(a.x - b.x) < A.hx + B.hx && Math.abs(a.z - b.z) < A.hz + B.hz) ko.push(a.key + ' chevauche ' + b.key); }
+        // 2. héliport : le Vautour posé au centre, rien d'autre sur l'aire
+        const va = vehicules.find((v) => v.key === 'vautour' && !v.mort);
+        if (!va || Math.hypot(va.x - BASE.heli.x, va.z - BASE.heli.z) > 1.5) ko.push('Vautour hors de l’héliport');
+        for (const v of vehicules) if (v !== va && !v.mort && Math.hypot(v.x - BASE.heli.x, v.z - BASE.heli.z) < 10) ko.push(v.key + ' sur l’héliport');
+        info.push(dansB.length + ' véhicules dans la base');
+        // 3. intrusion, engagement, tir dans la base
+        const PA = BASE.cases.place, dans = () => { P.x = PA.x + 10; P.z = PA.z - 6; P.y = solPied(P.x, P.z); };
+        WANTED.heat = 0; WANTED.stars = 0; DANGER.t = 0; dans(); majWanted(0);
+        if (!(WANTED.heat >= 3)) ko.push('intrusion sans alarme');
+        WANTED.heat = 0; WANTED.stars = 0; for (const e of ennemis) e.mort = true;
+        const g = BASE.porte; P.x = g.x; P.z = g.z - 2.5; let act = baseAction();
+        if (!act || !/ENGAGER/.test(act.label)) ko.push('pas de bouton S’ENGAGER à la guérite'); else act.fn();
+        dans(); for (let i = 0; i < 30; i++) majWanted(1 / 30);
+        if (WANTED.heat > 0.01) ko.push('alarme malgré l’engagement');
+        majFigurants(1 / 30); if (FIGURANTS.some((f) => f.ennemi && f.h.g.userData.converti)) ko.push('un soldat prend les armes pendant la visite');
+        P.tirT = 1; majBaseV2(1 / 30, 1 / 30); P.tirT = 0; majWanted(0);
+        if (!BASE.revoque || !(WANTED.heat >= 3)) ko.push('tir dans la base sans alerte');
+        majFigurants(1 / 30); const auxArmes = FIGURANTS.filter((f) => f.ennemi && f.h.g.userData.converti).length;
+        if (!auxArmes) ko.push('aucun soldat ne prend les armes'); else info.push('tir dans la base : alerte, ' + auxArmes + ' soldats aux armes');
+        // 4. parcours du combattant, pilote au joystick
+        startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6; WANTED.heat = 0; WANTED.stars = 0; for (const e of ennemis) e.mort = true;
+        const ex0 = META.exploits.base; META.exploits.base = false; BASE.laissez = true;
+        const C = BASE.cases.parcours, pas = 0.5, N = Math.ceil(INNER / pas) + 1, ox = C.x - INNER / 2, oz = C.z - INNER / 2;
+        const libre = (i, j) => i >= 0 && j >= 0 && i < N && j < N && !solidAt(ox + i * pas, oz + j * pas, 0.65, undefined, 1);
+        const chemin = (x0, z0, x1, z1) => { // BFS sur les vrais solides
+          const I = (x) => Math.round((x - ox) / pas), J = (z) => Math.round((z - oz) / pas), dep = [I(x0), J(z0)], arr = [I(x1), J(z1)];
+          const prev = new Map(), cle = (i, j) => i * 1000 + j, file = [dep]; prev.set(cle(dep[0], dep[1]), null);
+          while (file.length) { const [i, j] = file.shift(); if (i === arr[0] && j === arr[1]) break;
+            for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]) { const a = i + di, b = j + dj, k = cle(a, b); if (!prev.has(k) && libre(a, b)) { prev.set(k, [i, j]); file.push([a, b]); } } }
+          const pts = []; let c = arr; if (!prev.has(cle(c[0], c[1]))) return [{ x: x1, z: z1 }];
+          while (c) { pts.unshift({ x: ox + c[0] * pas, z: oz + c[1] * pas }); c = prev.get(cle(c[0], c[1])); } return pts; };
+        P.x = BASE.depart.x; P.z = BASE.depart.z; P.y = solPied(P.x, P.z); P.chute = false;
+        act = baseAction(); if (!act || !/PARCOURS/.test(act.label)) ko.push('pas de bouton PARCOURS au départ'); else act.fn();
+        let f = 0, route = null, porteVisee = -1, tirs = 0, attente = 0; const iTir = BASE.portes.length - 1;
+        for (; f < 30 * 40 && BASE.defi; f++) { const D = BASE.defi;
+          if (D.i === iTir && BASE.cibles.some((c) => !c.touche)) { INPUT.mx = INPUT.mz = 0; // au pas de tir : une balle toutes les 0,4 s
+            if (--attente <= 0) { const c = BASE.cibles.find((q) => !q.touche); P.ang = Math.atan2(c.x - P.x, c.z - P.z); tirer(P.x, P.y + 1.45, P.z, P.ang, 0, 60, 30, 'joueur', 0xffe08a, c.y, Math.hypot(c.x - P.x, c.z - P.z), null); tirs++; attente = 12; } }
+          else { if (porteVisee !== D.i) { const p = BASE.portes[D.i]; route = chemin(P.x, P.z, p.x, p.z); porteVisee = D.i; attente = 10; } // 0,33 s de réaction à chaque porte
+            while (route.length > 1 && Math.hypot(route[0].x - P.x, route[0].z - P.z) < 0.45) route.shift();
+            const w = route[0], dx = w.x - P.x, dz = w.z - P.z, l = Math.hypot(dx, dz) || 1;
+            if (attente-- > 0) { INPUT.mx = INPUT.mz = 0; } else { INPUT.mx = dx / l; INPUT.mz = dz / l; } }
+          majJoueur(1 / 30, 1 / 30); majBaseV2(1 / 30, 1 / 30); majPools(1 / 30); }
+        INPUT.mx = INPUT.mz = 0;
+        if (BASE.defi || !META.exploits.base) ko.push('parcours non fini par le pilote (porte ' + (BASE.defi ? BASE.defi.i : '-') + ', ' + BASE.cibles.filter((c) => c.touche).length + ' cibles, ' + (f / 30).toFixed(1) + ' s)');
+        else info.push('parcours fini en ' + (f / 30).toFixed(1) + ' s sur ' + BASE_DEFI_T + ' (' + tirs + ' balles), treillis débloqué');
+        // 5. passif : raté, rien de débloqué
+        META.exploits.base = false; lancerDefiBase(); for (let i = 0; i < 30 * (BASE_DEFI_T + 1); i++) majBaseV2(1 / 30, 1 / 30);
+        if (BASE.defi || META.exploits.base) ko.push('parcours passif réussi');
+        META.exploits.base = ex0; sauveMeta();
+        startRun(); P.hp = P.maxHp = 1e6;
+        return { ko, info };
+      });
+      if (r.saut) saute('Fort Reyes : ' + r.saut);
+      else if (r.ko.length) fail('Fort Reyes : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
+      else ok('Fort Reyes : ' + r.info.join(' ; ') + ' ; intrusion = alarme, engagé = visite libre, passif = raté');
+    }
+
+    // -------------------------------------------------------------------
+    // Retours du 17 octobre (2) — Los Reyes Hills : le BIG JUMP (demandé :
+    // « des sauts depuis le quartier résidentiel où il est possible de sauter
+    // jusqu'en bas ») se prend au joystick depuis le lacet du dessous, la
+    // lèvre n'est pas une paroi, la voiture décolle, se pose dans la rue
+    // 30 u plus bas sans mourir ni casser, distance et prime une fois par
+    // vague ; la chaussée du lacet du sommet n'est pas touchée ; aucune
+    // lettre LOS REYES sur la piste. Héliport du manoir : l'hélico choisi sur
+    // la dalle, achat, changement, refus sans la villa. Terrain : plus le
+    // tapis vert d'avant.
+    // -------------------------------------------------------------------
+    console.log('\n--- Retours du 17 octobre (2) : big jump, héliport du manoir, terrain de la colline ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (!DECOR_V2 || !HILLS.ok) return { ko, info, saut: 'décor V2 coupé' };
+        const M0 = { planque: META.planque, helis: JSON.stringify(META.helisManoir), heli: META.heliManoir, argent: META.argent, record: META.stats.bigJump };
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
+        for (const e of ennemis) e.mort = true; for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0; // la scène est à nous
+        const s = SAUTS_HILLS.find((q) => q.ok);
+        if (!s) return { ko: ['aucun tremplin'], info };
+        // la chaussée du lacet du sommet est intacte au croisement ; la lèvre monte au-delà du trottoir
+        const D = HILLS.routes[0]; let hR = 0, bd = 1e9; D.pts.forEach(([x, z], i) => { const d = Math.hypot(x - s.x, z - s.zHaut); if (d < bd) { bd = d; hR = D.h[i]; } });
+        for (const dz of [-4, 0, 4]) if (Math.abs(hauteurHills(s.x, s.zHaut + dz) - hR) > 0.2) ko.push('chaussée du sommet touchée à ' + dz + ' u (' + hauteurHills(s.x, s.zHaut + dz).toFixed(2) + ' / ' + hR.toFixed(2) + ')');
+        if (!(hauteurHills(s.x, HILLS.z0 + 0.2) > s.hHaut + 1.2)) ko.push('pas de lèvre au bord');
+        if (VIE_HILLS.panneau && VIE_HILLS.panneau.x0 - 3.2 < s.x + 3.5) ko.push('une lettre LOS REYES sur la piste d’élan');
+        // le saut, au joystick : départ arrêté sur le lacet du dessous, plein gaz vers le nord
+        WAVES.n = (WAVES.n || 1); delete MERV.primes.bigJump; META.stats.bigJump = 0;
+        const argent0 = META.argent, v = creerVehicule('sport', s.x, s.zBas + 1, Math.PI, null); v.h = solY(v.x, v.z); P.x = v.x; P.z = v.z; entrerVehicule(v);
+        let envol = false, pic = 0, f = 0, xPose = 0, zPose = 0;
+        for (; f < 30 * 12; f++) { INPUT.mx = 0; INPUT.mz = -1; majConduite(1 / 30); if (v.enAir && v.sautHills) { envol = true; pic = Math.max(pic, v.h); } if (envol && !v.enAir) { xPose = v.x; zPose = v.z; break; } }
+        INPUT.mz = 0;
+        if (!envol) ko.push('pas d’envol (voiture à ' + v.x.toFixed(1) + ',' + v.z.toFixed(1) + ', v ' + v.v.toFixed(1) + ')');
+        else if (P.hp <= 0 || v.mort || P.veh !== v) ko.push('réception mortelle ou véhicule détruit');
+        else if (Math.abs(xPose - s.x) > 5.5 || zPose > HILLS.z0 - 10) ko.push('posé hors de la rue (' + xPose.toFixed(1) + ',' + zPose.toFixed(1) + ')');
+        else { const m = META.stats.bigJump; if (m < 30) ko.push('distance notée ' + m); if (META.argent - argent0 !== (m >= SAUT_HILLS_PRIME ? 250 : 0)) ko.push('prime : ' + (META.argent - argent0));
+          info.push('big jump : ' + m + ' m, ' + (pic - solY(xPose, zPose)).toFixed(0) + ' u de haut, posé intact dans la rue (' + (f / 30).toFixed(1) + ' s depuis le départ arrêté)'); }
+        // un second saut dans la même vague ne paie pas
+        if (envol) { if (P.veh) sortirVehicule(true); const v2 = creerVehicule('sport', s.x, s.zBas + 1, Math.PI, null); v2.h = solY(v2.x, v2.z); P.x = v2.x; P.z = v2.z; entrerVehicule(v2); const a1 = META.argent;
+          for (let k = 0; k < 30 * 12; k++) { INPUT.mz = -1; majConduite(1 / 30); if (k > 30 && !v2.enAir && v2.z < HILLS.z0 - 10) break; } INPUT.mz = 0; if (META.argent !== a1) ko.push('prime payée deux fois dans la vague'); if (P.veh) sortirVehicule(true); }
+        // héliport : sans la villa, refus ; avec, l'hélico choisi sur la dalle, achat, changement
+        const H = HELIPORT; if (!H.pad || !H.console) ko.push('pas d’héliport');
+        else {
+          META.planque = false; startRun(); ecran(null); ETAT.mode = 'jeu'; P.x = H.console.x - 1.2; P.z = H.console.z; P.y = solPied(P.x, P.z);
+          let a = heliportAction(); if (!a || !/VILLA/.test(a.label)) ko.push('sans la villa : ' + (a && a.label)); if (H.v) ko.push('hélico posé sans la villa');
+          META.planque = true; META.helisManoir.ecureuil = false; META.heliManoir = 'helico'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.x = H.console.x - 1.2; P.z = H.console.z; P.y = solPied(P.x, P.z);
+          if (!H.v || H.v.key !== 'helico' || Math.hypot(H.v.x - H.pad.x, H.v.z - H.pad.z) > 1 || Math.abs((H.v.alt || 0) - H.pad.h) > 0.3) ko.push('Libellule pas sur la dalle');
+          a = heliportAction(); if (!a || !/CHOISIR/.test(a.label)) ko.push('console : ' + (a && a.label)); else a.fn();
+          META.argent = 1000; actionHeliport('acheter', 'ecureuil'); if (META.helisManoir.ecureuil || META.argent !== 1000) ko.push('achat sans l’argent');
+          META.argent = 10000; const vieux = H.v; actionHeliport('acheter', 'ecureuil');
+          if (!META.helisManoir.ecureuil || META.argent !== 8500 || !H.v || H.v.key !== 'ecureuil' || vehicules.includes(vieux)) ko.push('achat de l’Écureuil : ' + (H.v && H.v.key) + ', ' + META.argent);
+          actionHeliport('choisir', 'helico'); if (!H.v || H.v.key !== 'helico' || META.heliManoir !== 'helico') ko.push('retour à la Libellule');
+          fermerHeliport(); info.push('héliport : Libellule offerte, Écureuil acheté 1 500 $, changement d’hélico');
+        }
+        // terrain : collines dorées, le vert seulement autour des villas
+        { const c = HILLS.terrain.geometry.attributes.color.array; let vert = 0, n = 0; for (let i = 0; i < c.length; i += 3) { n++; if (c[i + 1] > c[i] * 1.12) vert++; }
+          if (HILLS.terrain.parent !== scene) ko.push('terrain fusionné'); if (vert / n > 0.4) ko.push('terrain vert à ' + Math.round(vert / n * 100) + ' %'); else info.push('terrain vert à ' + Math.round(vert / n * 100) + ' % (gazon des villas)'); }
+        META.planque = M0.planque; META.helisManoir = JSON.parse(M0.helis); META.heliManoir = M0.heli; META.argent = M0.argent; META.stats.bigJump = M0.record; sauveMeta();
+        startRun(); P.hp = P.maxHp = 1e6;
+        return { ko, info };
+      });
+      if (r.saut) saute('Retours du 17 octobre (2) : ' + r.saut);
+      else if (r.ko.length) fail('Retours du 17 octobre (2) : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
+      else ok('Retours du 17 octobre (2) : ' + r.info.join(' ; '));
+    }
+
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');
     {
       const srcIdx = fs.readFileSync(INDEX_HTML, 'utf8');
