@@ -7332,6 +7332,52 @@ async function main() {
     }
 
     // -------------------------------------------------------------------
+    // Minimap V2 — le radar (18 octobre, demandé : « améliore encore la minimap »). Lu sur les PIXELS du vrai
+    // canevas : la boussole « N » (anneau rouge) est en haut en vue classique, et à l'angle de la caméra en vue
+    // immersive — dont on vérifie qu'il est celui que regarde vraiment la caméra (le haut du radar = devant soi) ;
+    // une destination lointaine est rabattue sur le bord du radar, dans sa direction.
+    // -------------------------------------------------------------------
+    console.log('\n--- Minimap V2 : radar rond, nord en haut en vue classique, tourne avec la caméra, objectifs sur le bord ---');
+    {
+      const rad = await page.evaluate(async () => {
+        const dors = (ms) => new Promise((r) => setTimeout(r, ms)), ko = [], info = [];
+        const cv = el('minimap'), cx = cv.getContext('2d'), K = cv.width / 192;
+        // l'anneau rouge de la boussole : 16 points sur le cercle de rayon 7,5 autour du centre attendu
+        const rouge = (x, y) => { let n = 0; for (let k = 0; k < 16; k++) { const a = k / 16 * Math.PI * 2, d = cx.getImageData(Math.round((x + Math.cos(a) * 7.5) * K), Math.round((y + Math.sin(a) * 7.5) * K), 1, 1).data;
+          if (d[0] > 190 && d[1] < 130 && d[2] < 130) n++; } return n; };
+        const vert = (x, y) => { let n = 0; const d = cx.getImageData(Math.round((x - 8) * K), Math.round((y - 8) * K), Math.round(16 * K), Math.round(16 * K)).data;
+          for (let i = 0; i < d.length; i += 4) if (d[i + 1] > 200 && d[i] > 90 && d[i] < 160 && d[i + 2] < 160) n++; return n; };
+        const posN = (th) => ({ x: 96 + Math.sin(th) * 85, y: 96 - Math.cos(th) * 85 });
+        if (cv.width < 288) ko.push('canevas du radar en basse définition (' + cv.width + ' px)');
+        // vue classique : nord en haut
+        META.vue = 'classique'; startRun(); ecran(null); ETAT.mode = 'jeu'; MINI.zoom = 1; WAYP.actif = false; MISSION.cur = null; MET.ciblePos = null;
+        P.x = POIS.place.x; P.z = POIS.place.z + 20; await dors(600); for (const e of ennemis) e.mort = true; majMinimap();
+        const nH = rouge(96, 11), nB = rouge(96, 181);
+        if (!(nH >= 9 && nB <= 3)) ko.push('vue classique : la boussole n’est pas en haut (' + nH + ' / ' + nB + ')');
+        // destination à l'est : flèche verte sur le bord droit
+        WAYP.actif = true; WAYP.x = P.x + 600; WAYP.z = P.z; majMinimap();
+        const vD = vert(96 + 87, 96), vG = vert(96 - 87, 96);
+        if (!(vD > 6 && vG < 2)) ko.push('destination hors champ pas sur le bord, côté est (' + vD + ' / ' + vG + ')');
+        WAYP.actif = false;
+        // vue immersive : la caméra regarde ailleurs — le radar tourne, le haut est ce que regarde la caméra
+        META.vue = 'immersive'; await dors(500);
+        for (const yaw of [0.9, 2.4, -1.6]) {
+          VUE.yawUser = yaw; await dors(900); for (const e of ennemis) e.mort = true; majMinimap();
+          const th = vueAngleEcran(), f = new THREE.Vector3(); camera.getWorldDirection(f);
+          const attendu = -Math.atan2(f.x, -f.z), ecart = Math.abs(Math.atan2(Math.sin(th - attendu), Math.cos(th - attendu)));
+          if (ecart > 0.05) ko.push('yaw ' + yaw + ' : le haut du radar n’est pas ce que regarde la caméra (écart ' + ecart.toFixed(2) + ' rad)');
+          const p = posN(th), q = posN(th + Math.PI), n1 = rouge(p.x, p.y), n2 = rouge(q.x, q.y);
+          if (!(n1 >= 9 && n2 <= 3)) ko.push('yaw ' + yaw + ' : la boussole n’est pas à l’angle du nord (' + n1 + ' / ' + n2 + ')');
+          info.push('caméra ' + yaw + ' rad → nord à ' + (th * 180 / Math.PI).toFixed(0) + '°');
+        }
+        META.vue = 'classique'; startRun(); MINI.zoom = 1;
+        return { ko, info };
+      });
+      if (rad.ko.length) fail('Minimap V2 : ' + rad.ko.join(' ; '));
+      else ok('Minimap V2 : radar net (3x), nord en haut en vue classique, destination hors champ sur le bord ; en vue immersive le radar tourne avec la caméra (' + rad.info.join(', ') + ')');
+    }
+
+    // -------------------------------------------------------------------
     // Renommage GTRoyal / Los Reyes : aucun ancien nom affiché. Les textes
     // sont LUS dans le jeu vivant (tous les nœuds texte du document, hors
     // scripts, et les noms des tables du jeu), jamais recopiés ici. Seules

@@ -62,7 +62,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
 #metierFill{background:linear-gradient(90deg,#ff7a2e,#ffb23a);width:100%}
 
 #coinBox{position:absolute;top:calc(env(safe-area-inset-top,0px) + 8px);right:10px;text-align:right}
-#miniWrap{pointer-events:auto;border:1px solid #ffffff2e;border-radius:8px;overflow:hidden;box-shadow:0 3px 12px #000a;background:#0e1015}
+#miniWrap{pointer-events:auto;border:2px solid #ffffff38;border-radius:50%;overflow:hidden;box-shadow:0 3px 14px #000c,inset 0 0 10px #000a;background:#0e1015}
 #minimap{display:block;width:96px;height:96px}
 #moneyVal{font-size:15px;font-weight:900;color:var(--vert);text-shadow:0 1px 4px #000;margin-top:4px}
 #stars{margin-top:2px;font-size:15px;letter-spacing:2px;color:#ffffff2a;text-shadow:0 1px 3px #000}
@@ -13444,7 +13444,7 @@ function dessinerIconePOI(ctx,txt,cx,cy,taillePx,couleur){
     ay=cy+(m.actualBoundingBoxAscent-m.actualBoundingBoxDescent)/2;
   ctx.fillText(txt,ax,ay);
 }
-const mmCv=el('minimap'), mmCtx=mmCv.getContext('2d');
+const mmCv=el('minimap'), mmCtx=mmCv.getContext('2d'), MM_K=1.5; mmCv.width=mmCv.height=192*MM_K; // 18 octobre : 288 px pour 96 px affichés (net en 3x), dessin en coordonnées 192
 const MM_RES=5, mmStatic=document.createElement('canvas'); mmStatic.width=mmStatic.height=192*MM_RES; // 17 octobre : 960 px (avant 384) — la grande carte zoomée restait floue
 const mmOX=DECOR_V2?HALF+30:HALF+55, mmSpan=2*HALF+(DECOR_V2?400:280), mmS=192/mmSpan, // DECOR_V2 : cadre jusqu'à la paroi est (Mont Reyes, canyons)
   mmX=x=>(x+mmOX)*mmS, mmZ=z=>(z+mmOX)*mmS;
@@ -13496,27 +13496,46 @@ function dessinerHillsCarte(g){
 function construireMinimapStatique(){
   const g=mmStatic.getContext('2d');
   g.setTransform(MM_RES,0,0,MM_RES,0,0);
-  g.fillStyle='#101319'; g.fillRect(0,0,192,192); // hors zone jouable : vide
-  // Route partout dans la zone jouable, AVANT les blocs de bâtiments : avant
-  // cette passe, seul le fond très sombre apparaissait entre les blocs de
-  // couleur, illisible comme rue — demandé explicitement, « rendre la
-  // minimap réaliste comme le rendu des rues, mais en version mini ».
-  g.fillStyle='#3a3c48';
+  // 18 octobre (« améliore encore la minimap ») : une vraie carte — mer en dégradé avec rides et écume au rivage,
+  // plage de sable mouillé, trottoirs, quartiers teintés, parcs arborés, immeubles avec ombre portée et arête
+  // éclairée. Bruit par hachage (hacheCarte), jamais Math.random : la carte est dessinée en fin de génération,
+  // un tirage de plus décalerait la ville.
+  const hacheCarte=(a,b)=>{ let h=Math.imul(a|0,374761393)+Math.imul(b|0,668265263); h=Math.imul(h^(h>>>13),1274126177); return ((h^(h>>>16))>>>0)/4294967296; };
+  g.fillStyle='#0c0f14'; g.fillRect(0,0,192,192); // hors zone jouable : vide
+  g.fillStyle='#363841'; // chaussée partout dans la zone jouable, avant les pâtés
   g.fillRect(mmX(-HALF-1),mmZ(-HALF-1),(2*HALF+2)*mmS,(MER+HALF+2)*mmS);
-  g.fillStyle='#1c4a66'; g.fillRect(0,mmZ(MER),192,192-mmZ(MER));
-  const colsQ={centre:'#2a3648',commerce:'#3a3040',residentiel:'#34342a',industriel:'#37332c',port:'#263640',
-    parc:'#24402a',base:'#3c3626',place:'#3a3a30',villas:'#3e3a2c',neon:'#38283e',plage:'#6a5c3c'};
+  { const y0=mmZ(MER), gr=g.createLinearGradient(0,y0,0,192); gr.addColorStop(0,'#2b93ad'); gr.addColorStop(0.16,'#1f7096'); gr.addColorStop(0.5,'#155079'); gr.addColorStop(1,'#0d3658');
+    g.fillStyle=gr; g.fillRect(0,y0,192,192-y0);
+    g.strokeStyle='rgba(190,235,255,0.16)'; g.lineWidth=0.16;
+    for(let i=0;i<520;i++){ const x=hacheCarte(i,7)*192, y=y0+1.5+hacheCarte(i,13)*(192-y0), l=0.7+hacheCarte(i,29)*1.5; g.beginPath(); g.moveTo(x,y); g.quadraticCurveTo(x+l/2,y-0.32,x+l,y); g.stroke(); }
+    g.fillStyle='rgba(240,250,255,0.8)'; g.fillRect(0,y0-0.06,192,0.3); g.fillStyle='rgba(240,250,255,0.32)'; g.fillRect(0,y0+0.55,192,0.2); g.fillStyle='rgba(240,250,255,0.16)'; g.fillRect(0,y0+1.1,192,0.16); }
+  const colsQ={centre:'#56607a',commerce:'#6a5a6a',residentiel:'#67664f',industriel:'#645b4b',port:'#4c6270',
+    parc:'#3d7535',base:'#666146',place:'#8a8676',villas:'#77705a',neon:'#583c6a',plage:'#dcc48e'};
   for(let bx=0;bx<NB;bx++)for(let bz=0;bz<NB;bz++){
-    const cx=-HALF+bx*CELL+CELL/2, cz=-HALF+bz*CELL+CELL/2;
-    g.fillStyle=colsQ[quartier(bx,bz)];
-    g.fillRect(mmX(cx-INNER/2),mmZ(cz-INNER/2),INNER*mmS,INNER*mmS);
+    const q=quartier(bx,bz), cx=-HALF+bx*CELL+CELL/2, cz=-HALF+bz*CELL+CELL/2;
+    if(q==='plage'){ const z0=cz-(INNER+18)/2+4, gr=g.createLinearGradient(0,mmZ(z0),0,mmZ(MER)); gr.addColorStop(0,'#e6d29c'); gr.addColorStop(0.75,'#d8c08a'); gr.addColorStop(1,'#b49a6a');
+      g.fillStyle=gr; g.fillRect(mmX(cx-CELL/2-0.5),mmZ(z0),(CELL+1)*mmS,(MER-z0)*mmS); continue; }
+    g.fillStyle='#8a8c92'; g.fillRect(mmX(cx-INNER/2-1),mmZ(cz-INNER/2-1),(INNER+2)*mmS,(INNER+2)*mmS); // trottoir
+    g.fillStyle=colsQ[q]; g.fillRect(mmX(cx-INNER/2+0.8),mmZ(cz-INNER/2+0.8),(INNER-1.6)*mmS,(INNER-1.6)*mmS);
+    if(q==='parc') for(let k=0;k<18;k++){ const tx=cx-INNER/2+3+hacheCarte(bx*31+k,bz*17)*(INNER-6), tz=cz-INNER/2+3+hacheCarte(bz*29+k,bx*13+5)*(INNER-6), r=(1.3+hacheCarte(k,bx+bz)*0.9)*mmS;
+      g.fillStyle='rgba(18,52,18,0.9)'; g.beginPath(); g.arc(mmX(tx)+0.1,mmZ(tz)+0.1,r,0,7); g.fill(); g.fillStyle='#4f9a3e'; g.beginPath(); g.arc(mmX(tx),mmZ(tz),r*0.82,0,7); g.fill();
+      g.fillStyle='rgba(170,230,120,0.45)'; g.beginPath(); g.arc(mmX(tx)-r*0.25,mmZ(tz)-r*0.25,r*0.38,0,7); g.fill(); }
   }
   // 17 octobre (« améliore les détails de la carte ») : l'emprise de chaque immeuble, plus claire quand il est haut ;
-  // l'eau (lac, bassins, piscines) ; le stade et le tennis du parc ; les quatre pâtés de Fort Reyes
-  { const vus=new Set(); g.lineWidth=0.12; g.strokeStyle='rgba(0,0,0,0.45)';
+  // l'eau (lac, bassins, piscines) ; le stade et le tennis du parc ; les quatre pâtés de Fort Reyes.
+  // 18 octobre : ombre portée au sud-est (plus longue quand l'immeuble est haut), teinte du quartier, arête éclairée
+  { const vus=new Set(), L=[];
     for(const arr of sGrid.values()) for(const so of arr){ if(vus.has(so)) continue; vus.add(so);
-      if(!so.toit||so.h<3||so.hw<1.1||so.hd<1.1||Math.abs(so.x)>HALF+2||so.z>MER||so.base!==undefined) continue; const k=clamp(so.h/40,0,1);
-      g.fillStyle='rgb('+Math.round(66+110*k)+','+Math.round(70+108*k)+','+Math.round(80+104*k)+')'; g.fillRect(mmX(so.x-so.hw),mmZ(so.z-so.hd),2*so.hw*mmS,2*so.hd*mmS); g.strokeRect(mmX(so.x-so.hw),mmZ(so.z-so.hd),2*so.hw*mmS,2*so.hd*mmS); } }
+      if(!so.toit||so.h<3||so.hw<1.1||so.hd<1.1||Math.abs(so.x)>HALF+2||so.z>MER||so.base!==undefined) continue; L.push(so); }
+    g.fillStyle='rgba(0,0,0,0.38)';
+    for(const so of L){ const o=0.6+clamp(so.h/40,0,1)*1.6; g.fillRect(mmX(so.x-so.hw+o),mmZ(so.z-so.hd+o),2*so.hw*mmS,2*so.hd*mmS); }
+    const tq=new THREE.Color(), tb=new THREE.Color();
+    g.lineWidth=0.12; g.strokeStyle='rgba(0,0,0,0.5)';
+    for(const so of L){ const k=clamp(so.h/40,0,1), bxq=clamp(Math.floor((so.x+HALF)/CELL),0,NB-1), bzq=clamp(Math.floor((so.z+HALF)/CELL),0,NB-1);
+      tb.setRGB((70+110*k)/255,(74+108*k)/255,(84+104*k)/255); tq.set(colsQ[quartier(bxq,bzq)]||'#56607a'); tb.lerp(tq,0.22);
+      const x=mmX(so.x-so.hw), y=mmZ(so.z-so.hd), w=2*so.hw*mmS, h=2*so.hd*mmS;
+      g.fillStyle='#'+tb.getHexString(); g.fillRect(x,y,w,h); g.strokeRect(x,y,w,h);
+      g.fillStyle='rgba(255,255,255,0.22)'; g.fillRect(x,y,w,0.22); g.fillRect(x,y,0.22,h); } }
   g.fillStyle='#2a7a9a'; for(let x=-HALF;x<HALF;x+=2) for(let z=-HALF;z<MER-2;z+=2) if(estEau(x+1,z+1)) g.fillRect(mmX(x),mmZ(z),2*mmS+0.05,2*mmS+0.05);
   if(typeof SPORTS!=='undefined'&&SPORTS.ok){ const S=SPORTS.stade, D=FOOT_DEMI, C=SPORTS.complexe; g.fillStyle='#3f8a34'; g.fillRect(mmX(S.x-D.x-1),mmZ(S.z-D.z-1),(2*D.x+2)*mmS,(2*D.z+2)*mmS);
     g.strokeStyle='#f2f2ee'; g.lineWidth=0.15; g.strokeRect(mmX(S.x-D.x),mmZ(S.z-D.z),2*D.x*mmS,2*D.z*mmS); g.beginPath(); g.moveTo(mmX(S.x-D.x),mmZ(S.z)); g.lineTo(mmX(S.x+D.x),mmZ(S.z)); g.stroke();
@@ -32318,6 +32337,30 @@ function carteProj(x,z){
   const ech=336/(demiVisible*2);
   return {x:(mmX(x)-(mcx-demiVisible))*ech, z:(mmZ(z)-(mcz-demiVisible))*ech};
 }
+// noms des quartiers sur la grande carte (18 octobre) : un nom par groupe de pâtés voisins du même quartier
+// (lu dans quartier(), jamais une liste de positions), plus la colline, le mont et l'aéroport
+const NOMS_QUARTIERS={centre:'CENTRE-VILLE',commerce:'COMMERCES',residentiel:'RÉSIDENTIEL',industriel:'ZONE INDUSTRIELLE',port:'LE PORT',parc:'PARC',neon:'QUARTIER NÉON',base:'FORT REYES',plage:'PLAGE',villas:'VILLAS'};
+function nomsQuartiers(){
+  if(MAPUI.noms) return MAPUI.noms;
+  const L=[], vu=new Set();
+  for(let bx=0;bx<NB;bx++) for(let bz=0;bz<NB;bz++){ const k=bx+','+bz, q=quartier(bx,bz); if(vu.has(k)||!NOMS_QUARTIERS[q]||(q==='villas'&&HILLS.ok)) continue;
+    const pile=[[bx,bz]], cases=[]; vu.add(k);
+    while(pile.length){ const [x,z]=pile.pop(); cases.push([x,z]); for(const [dx,dz] of [[1,0],[-1,0],[0,1],[0,-1]]){ const nx=x+dx, nz=z+dz, nk=nx+','+nz; if(nx<0||nz<0||nx>=NB||nz>=NB||vu.has(nk)||quartier(nx,nz)!==q) continue; vu.add(nk); pile.push([nx,nz]); } }
+    if(cases.length<2&&q!=='place') continue;
+    let sx=0, sz=0; for(const [x,z] of cases){ sx+=x; sz+=z; }
+    L.push({x:-HALF+(sx/cases.length+0.5)*CELL, z:q==='plage'?MER-14:-HALF+(sz/cases.length+0.5)*CELL, nom:NOMS_QUARTIERS[q]}); }
+  if(HILLS.ok) L.push({x:(HILLS.x0+HILLS.x1)/2,z:(HILLS.z0+HILLS.z1)/2,nom:'LOS REYES HILLS'});
+  if(DECOR_V2) L.push({x:MONT.x,z:MONT.z,nom:'MONT REYES'});
+  L.push({x:HALF+80,z:-HALF+190,nom:'AÉROPORT'});
+  return MAPUI.noms=L;
+}
+function dessinerNomsQuartiers(g){
+  const z=MAPUI.zoom; if(z>2.6) return;
+  g.save(); g.font='900 '+Math.round(9+z*1.6)+'px Arial'; g.textAlign='center'; g.textBaseline='middle'; g.lineJoin='round'; g.globalAlpha=0.82;
+  for(const n of nomsQuartiers()){ const p=carteProj(n.x,n.z); if(p.x<-40||p.x>376||p.z<-10||p.z>346) continue;
+    g.lineWidth=3; g.strokeStyle='rgba(8,10,14,0.85)'; g.strokeText(n.nom,p.x,p.z); g.fillStyle='#f2efe6'; g.fillText(n.nom,p.x,p.z); }
+  g.restore();
+}
 function drawCarte(){
   const g=el('carteCv').getContext('2d');
   g.imageSmoothingEnabled=true;
@@ -32326,6 +32369,7 @@ function drawCarte(){
   const srcCote=demiVisible*2*MM_RES; // *2 (fenêtre totale) ×MM_RES (résolution de mmStatic)
   g.drawImage(mmStatic,(mcx-demiVisible)*MM_RES,(mcz-demiVisible)*MM_RES,srcCote,srcCote,0,0,336,336);
   const dot=(x,z,c,r)=>{const p=carteProj(x,z); g.fillStyle=c; g.beginPath(); g.arc(p.x,p.z,r,0,7); g.fill();};
+  dessinerNomsQuartiers(g);
   if(MAPUI.filtres.vehicules) for(const v of vehicules) if(!v.mort&&!v.def.cache&&(v.conduit===null||v.conduit==='trafic')&&dist2(v.x,v.z,P.x,P.z)<7000)
     dot(v.x,v.z,'#8b93a7',2.2);
   if(MAPUI.filtres.ennemis) for(const e of ennemis) if(!e.mort) dot(e.x,e.z,e.fac==='police'?'#4a9aff':'#ff5a5a',e.boss?6:3);
@@ -32505,13 +32549,13 @@ for(const btn of document.querySelectorAll('#carteFiltres .chipF')){
 }
 // Minimap : PINCER zoome/dézoome (demandé explicitement), un simple TOUCHER
 // ouvre la grande carte — au relâcher, pour ne jamais confondre les deux.
-const MINI_ZOOM_MAX=4;
+const MINI_ZOOM_MAX=4, MINI_ZOOM_MIN=0.35; // radar : affiché à RADAR.base × MINI.zoom (18 octobre)
 const MINI={zoom:1,doigts:new Map(),d0:1,z0:1,pince:false,bouge:false,x0:0,y0:0};
 function ouvrirCarte(){
   // Recentrée sur le joueur, au zoom de la minimap — les filtres, eux,
   // restent tels que le joueur les a laissés (préférence d'affichage).
   const pc0=posCarte();
-  MAPUI.zoom=MINI.zoom; MAPUI.panX=pc0.x; MAPUI.panZ=pc0.z;
+  MAPUI.zoom=clamp(MINI.zoom,1,4); MAPUI.panX=pc0.x; MAPUI.panZ=pc0.z;
   ETAT.mode='carte'; drawCarte(); ecran('carte'); SFX.ui();
 }
 {
@@ -32528,7 +32572,7 @@ function ouvrirCarte(){
   mw.addEventListener('pointermove',e=>{
     const d=MINI.doigts.get(e.pointerId); if(!d) return;
     d.x=e.clientX; d.y=e.clientY;
-    if(MINI.doigts.size>=2){ MINI.zoom=clamp(MINI.z0*deux()/MINI.d0,1,MINI_ZOOM_MAX); majMinimap(); }
+    if(MINI.doigts.size>=2){ MINI.zoom=clamp(MINI.z0*deux()/MINI.d0,MINI_ZOOM_MIN,MINI_ZOOM_MAX); majMinimap(); }
     else if(Math.hypot(e.clientX-MINI.x0,e.clientY-MINI.y0)>8) MINI.bouge=true;
   });
   const fin=e=>{
@@ -34677,67 +34721,68 @@ function posCarte(){
   if(INT.actif) return {x:INT.rx,z:INT.rz,dedans:true};
   return {x:P.x,z:P.z,dedans:false};
 }
+// Radar (18 octobre, demandé : « améliore encore la minimap ») : rond, centré sur le joueur, ZOOMÉ (RADAR.base × le
+// pincement MINI.zoom), qui TOURNE avec la caméra en vue immersive (le haut du radar = ce que l'on regarde ; en vue
+// classique la caméra regarde le nord : nord en haut), boussole « N » sur le pourtour, cône de vue, dézoom avec la
+// vitesse (et en vol). Les objectifs hors du radar sont rabattus sur le bord. Même convention d'angle que la flèche
+// GPS (pointerVersCible) : un point du monde est à l'angle atan2(dx,−dz)+θ sur l'écran.
+const RADAR={base:3.2,vit:1}, _radP={x:0,y:0};
 function majMinimap(){
+  mmCtx.setTransform(MM_K,0,0,MM_K,0,0);
   if(INT.actif&&INT.actif.barre&&INT.actif.sortieEnCours){ dessinerRadarChalutier(INT.actif,mmCtx); return; } // chalutier en mer : le radar
-  // Zoom au pincement (MINI.zoom, 1 = toute la ville) : fenêtre centrée sur
-  // le joueur, bornée aux bords de la carte — même principe que mapVue().
-  // Les points et badges gardent leur taille : seul le fond grossit.
-  const pc=posCarte(), dv=96/MINI.zoom;
-  const cx=clamp(mmX(pc.x),dv,192-dv), cz=clamp(mmZ(pc.z),dv,192-dv), ech=192/(2*dv);
-  const PX=x=>(mmX(x)-(cx-dv))*ech, PZ=z=>(mmZ(z)-(cz-dv))*ech;
+  const pc=posCarte(), th=pc.dedans?0:vueAngleEcran(), v=P.veh, vv=v?Math.abs(v.v||0):0;
+  const cible=v?(v.def.air?0.45:clamp(1-vv/70,0.55,1)):1; RADAR.vit+=(cible-RADAR.vit)*0.06;
+  const zm=RADAR.base*MINI.zoom*RADAR.vit, k=mmS*zm, co=Math.cos(th), si=Math.sin(th), R=94;
+  const proj=(x,z)=>{ const dx=x-pc.x, dz=z-pc.z; _radP.x=96+(dx*co-dz*si)*k; _radP.y=96+(dx*si+dz*co)*k; return _radP; };
+  const dedans=(p,m)=>{ const dx=p.x-96, dy=p.y-96; return dx*dx+dy*dy<(R-(m||0))*(R-(m||0)); };
   mmCtx.clearRect(0,0,192,192);
-  mmCtx.drawImage(mmStatic,(cx-dv)*MM_RES,(cz-dv)*MM_RES,dv*2*MM_RES,dv*2*MM_RES,0,0,192,192);
-  const dot=(x,z,c,r)=>{mmCtx.fillStyle=c;mmCtx.beginPath();mmCtx.arc(PX(x),PZ(z),r||2.4,0,7);mmCtx.fill();};
-  // Portes des bâtiments visitables : simple point, comme avant (jusqu'à 26
-  // à la fois, pas la place pour un badge complet sur 96 px d'écran) — la
-  // version soignée avec pictogramme est réservée à la grande carte.
-  for(const p of PORTES) dot(p.x,p.z,'#ffd23f',2);
-  // Commerces/POI : peu nombreux, badge complet comme sur la grande carte
-  // (demandé explicitement, « des pictogrammes soignés »).
-  for(const c of listeCommerces()) dessinerBadge(mmCtx,PX(c.x),PZ(c.z),3.6,c.c,c.txt,6);
-  for(const e of ennemis) if(!e.mort) dot(e.x,e.z,e.fac==='police'?'#4a9aff':(e.fac==='frelons'?'#e6a41f':'#ff5a5a'),e.boss?4.5:2.4);
-  for(const p of pickups) dot(p.x,p.z,'#58ff7a',1.8);
-  if(META.monstertruckTrouve&&POIS.friche) dessinerBadge(mmCtx,PX(POIS.friche.x),PZ(POIS.friche.z),3.6,'#ff3b1a','🚛',6);
-  if(POIS.skateXXL) dessinerBadge(mmCtx,PX(POIS.skateXXL.x),PZ(POIS.skateXXL.z),3.6,'#ff3bd0','🛹',6); // Reyes Skatepark (désert)
-  if(META.jetpackTrouve&&POIS.toitH&&POIS.toitH.jetpack) dessinerBadge(mmCtx,PX(POIS.toitH.jetpack.x),PZ(POIS.toitH.jetpack.z),3.6,'#35c8ff','🚀',6);
-  // Le Micro Vintage : Reyes FM émet en continu, les caches non fouillées
-  // de la salle où l'on se trouve apparaissent dans un rayon de 40 m —
-  // affichées à leur offset réel par rapport au joueur, autour de l'icône
-  // de la porte (posCarte() place déjà le joueur là quand il est dedans).
+  mmCtx.save(); mmCtx.beginPath(); mmCtx.arc(96,96,R,0,7); mmCtx.clip();
+  mmCtx.fillStyle='#0b0e13'; mmCtx.fillRect(0,0,192,192);
+  mmCtx.save(); mmCtx.translate(96,96); mmCtx.rotate(th); mmCtx.scale(zm,zm); mmCtx.translate(-mmX(pc.x),-mmZ(pc.z)); mmCtx.imageSmoothingEnabled=true; mmCtx.drawImage(mmStatic,0,0,192,192); mmCtx.restore();
+  if(VUE.k>0.5&&!pc.dedans){ const gr=mmCtx.createRadialGradient(96,96,6,96,96,78); gr.addColorStop(0,'rgba(255,255,255,0.26)'); gr.addColorStop(1,'rgba(255,255,255,0)');
+    mmCtx.fillStyle=gr; mmCtx.beginPath(); mmCtx.moveTo(96,96); mmCtx.arc(96,96,78,-Math.PI/2-0.6,-Math.PI/2+0.6); mmCtx.closePath(); mmCtx.fill(); } // cône de vue
+  // portes des bâtiments visitables : petits carrés jaunes cernés (badges complets sur la grande carte)
+  mmCtx.lineWidth=1.2; mmCtx.strokeStyle='#15161a';
+  for(const p of PORTES){ const q=proj(p.x,p.z); if(!dedans(q,3)) continue; mmCtx.fillStyle='#ffd23f'; mmCtx.fillRect(q.x-2.6,q.y-2.6,5.2,5.2); mmCtx.strokeRect(q.x-2.6,q.y-2.6,5.2,5.2); }
+  for(const c of listeCommerces()){ const q=proj(c.x,c.z); if(dedans(q,4)) dessinerBadge(mmCtx,q.x,q.y,5.2,c.c,c.txt,8); }
+  for(const p of pickups){ const q=proj(p.x,p.z); if(!dedans(q)) continue; mmCtx.fillStyle='#58ff7a'; mmCtx.beginPath(); mmCtx.arc(q.x,q.y,2,0,7); mmCtx.fill(); }
+  for(const e of ennemis){ if(e.mort) continue; const q=proj(e.x,e.z); if(!dedans(q)) continue; const r=e.boss?5:2.8;
+    mmCtx.fillStyle=e.fac==='police'?'#4a9aff':(e.fac==='frelons'?'#e6a41f':'#ff4a4a'); mmCtx.beginPath(); mmCtx.arc(q.x,q.y,r,0,7); mmCtx.fill(); mmCtx.lineWidth=1; mmCtx.strokeStyle='#0b0c10'; mmCtx.stroke(); }
+  const badge=(x,z,coul,ico)=>{ const q=proj(x,z); if(dedans(q,4)) dessinerBadge(mmCtx,q.x,q.y,5.2,coul,ico,8); };
+  if(META.monstertruckTrouve&&POIS.friche) badge(POIS.friche.x,POIS.friche.z,'#ff3b1a','🚛');
+  if(POIS.skateXXL) badge(POIS.skateXXL.x,POIS.skateXXL.z,'#ff3bd0','🛹'); // Reyes Skatepark (désert)
+  if(META.jetpackTrouve&&POIS.toitH&&POIS.toitH.jetpack) badge(POIS.toitH.jetpack.x,POIS.toitH.jetpack.z,'#35c8ff','🚀');
+  // Le Micro Vintage : les caches non fouillées de la salle (40 m), à leur offset réel autour de la porte
   if(INT.actif&&aCurio('micro')) for(const f of INT.actif.fouilles){
     if(f.prisVague===WAVES.n) continue;
-    const dx=f.x-P.x, dz=f.z-P.z;
-    if(dx*dx+dz*dz>1600) continue;
-    dot(INT.rx+dx,INT.rz+dz,'#ffd23f',2);
+    const dx=f.x-P.x, dz=f.z-P.z; if(dx*dx+dz*dz>1600) continue;
+    const q=proj(INT.rx+dx,INT.rz+dz); mmCtx.fillStyle='#ffd23f'; mmCtx.beginPath(); mmCtx.arc(q.x,q.y,2.2,0,7); mmCtx.fill();
   }
-  // Métier en cours (feu, client, remorquage...) prioritaire sur la mission
-  // courte — même code couleur que son halo 3D (metierBalise), pour qu'on
-  // associe les deux facilement.
-  if(MET.ciblePos){
-    dot(MET.ciblePos.x,MET.ciblePos.z,'#ff7a2e',4);
-  } else if(MISSION.cur&&(MISSION.cur.poi||MISSION.cur.type==='rack')){
-    const pp=MISSION.cur.poi||POIS.rack;
-    dot(pp.x,pp.z,'#ffd23f',4);
-  // La Boussole du Capitaine : la carte affiche en permanence la direction du
-  // prochain objectif de mission — étend le marqueur ci-dessus à TOUS les
-  // types de mission (course, zone, vol...), pas seulement 'rack'/POI fixe
-  } else if(aCurio('boussole')&&MISSION.cur&&MISSION.ciblePosActuel){
-    dot(MISSION.ciblePosActuel.x,MISSION.ciblePosActuel.z,'#35e0ff',3.5);
-  }
-  // joueur : triangle orienté (position du bâtiment si on est à l'intérieur)
-  mmCtx.save();
-  mmCtx.translate(PX(pc.x),PZ(pc.z));
-  if(pc.dedans){
-    mmCtx.fillStyle='#ffd23f';
-    mmCtx.beginPath();mmCtx.arc(0,0,5.5,0,7);mmCtx.fill();
-    mmCtx.fillStyle='#15161a';
-    mmCtx.beginPath();mmCtx.arc(0,0,2.4,0,7);mmCtx.fill();
-  } else {
-    mmCtx.rotate(Math.atan2(Math.sin(P.ang),-Math.cos(P.ang)));
-    mmCtx.fillStyle='#35e0ff';
-    mmCtx.beginPath();mmCtx.moveTo(0,-5);mmCtx.lineTo(3.6,4);mmCtx.lineTo(-3.6,4);mmCtx.closePath();mmCtx.fill();
-  }
+  // objectifs : losange sur la carte, ou flèche sur le bord du radar quand ils sont hors champ
+  const objectif=(x,z,coul)=>{ const q=proj(x,z), dx=q.x-96, dy=q.y-96, d=Math.hypot(dx,dy)||1;
+    if(d<R-7){ mmCtx.save(); mmCtx.translate(q.x,q.y); mmCtx.rotate(Math.PI/4); mmCtx.fillStyle=coul; mmCtx.fillRect(-4,-4,8,8); mmCtx.lineWidth=1.4; mmCtx.strokeStyle='#0b0c10'; mmCtx.strokeRect(-4,-4,8,8); mmCtx.restore(); return; }
+    const ux=dx/d, uy=dy/d, bx=96+ux*(R-7), by=96+uy*(R-7); mmCtx.save(); mmCtx.translate(bx,by); mmCtx.rotate(Math.atan2(uy,ux)+Math.PI/2);
+    mmCtx.fillStyle=coul; mmCtx.strokeStyle='#0b0c10'; mmCtx.lineWidth=1.2; mmCtx.beginPath(); mmCtx.moveTo(0,-6); mmCtx.lineTo(5,4); mmCtx.lineTo(-5,4); mmCtx.closePath(); mmCtx.fill(); mmCtx.stroke(); mmCtx.restore(); };
+  // Métier en cours (feu, client, remorquage...) prioritaire sur la mission courte — même couleur que son halo 3D
+  if(MET.ciblePos) objectif(MET.ciblePos.x,MET.ciblePos.z,'#ff7a2e');
+  else if(MISSION.cur&&(MISSION.cur.poi||MISSION.cur.type==='rack')){ const pp=MISSION.cur.poi||POIS.rack; objectif(pp.x,pp.z,'#ffd23f'); }
+  // La Boussole du Capitaine : la direction du prochain objectif, quel que soit le type de mission
+  else if(aCurio('boussole')&&MISSION.cur&&MISSION.ciblePosActuel) objectif(MISSION.ciblePosActuel.x,MISSION.ciblePosActuel.z,'#35e0ff');
+  if(WAYP.actif&&!pc.dedans) objectif(WAYP.x,WAYP.z,'#7dff7a');
+  // joueur : flèche orientée dans le repère du radar (pastille à l'intérieur d'un bâtiment)
+  mmCtx.save(); mmCtx.translate(96,96);
+  if(pc.dedans){ mmCtx.fillStyle='#ffd23f'; mmCtx.beginPath(); mmCtx.arc(0,0,6,0,7); mmCtx.fill(); mmCtx.fillStyle='#15161a'; mmCtx.beginPath(); mmCtx.arc(0,0,2.6,0,7); mmCtx.fill(); }
+  else { mmCtx.rotate(Math.atan2(Math.sin(P.ang),-Math.cos(P.ang))+th);
+    mmCtx.shadowColor='rgba(0,0,0,0.6)'; mmCtx.shadowBlur=3; mmCtx.fillStyle='#f2f4f8'; mmCtx.beginPath(); mmCtx.moveTo(0,-8); mmCtx.lineTo(6,6); mmCtx.lineTo(0,3); mmCtx.lineTo(-6,6); mmCtx.closePath(); mmCtx.fill();
+    mmCtx.shadowBlur=0; mmCtx.fillStyle='#35e0ff'; mmCtx.beginPath(); mmCtx.moveTo(0,-5.5); mmCtx.lineTo(3.8,4); mmCtx.lineTo(0,2); mmCtx.lineTo(-3.8,4); mmCtx.closePath(); mmCtx.fill(); }
   mmCtx.restore();
+  mmCtx.restore(); // fin du disque
+  // pourtour, boussole « N » à l'angle du nord
+  mmCtx.lineWidth=4; mmCtx.strokeStyle='#15171d'; mmCtx.beginPath(); mmCtx.arc(96,96,R-1.5,0,7); mmCtx.stroke();
+  mmCtx.lineWidth=1; mmCtx.strokeStyle='rgba(255,255,255,0.22)'; mmCtx.beginPath(); mmCtx.arc(96,96,R-4,0,7); mmCtx.stroke();
+  const nx=96+Math.sin(th)*(R-9), ny=96-Math.cos(th)*(R-9);
+  mmCtx.fillStyle='#15171d'; mmCtx.beginPath(); mmCtx.arc(nx,ny,7.5,0,7); mmCtx.fill(); mmCtx.lineWidth=1.2; mmCtx.strokeStyle='#ff4a4a'; mmCtx.stroke();
+  mmCtx.fillStyle='#f2f4f8'; mmCtx.font='900 9px Arial'; mmCtx.textAlign='center'; mmCtx.textBaseline='middle'; mmCtx.fillText('N',nx,ny+0.5); mmCtx.textBaseline='alphabetic';
 }
 /* =====================================================================
    BOUCLE PRINCIPALE
@@ -34842,7 +34887,7 @@ function boucle(t){
   majPreview(dtReel);
   majPreview2(dtReel);
   mmFrame++;
-  if(mmFrame%3===0&&el('hud').classList.contains('on')) majMinimap();
+  if(mmFrame%2===0&&el('hud').classList.contains('on')) majMinimap(); // le radar tourne avec la caméra : 30 i/s
   // qualité auto si ça rame
   perfAcc+=dtReel; perfN++; perfT+=dtReel;
   if(perfT>3){

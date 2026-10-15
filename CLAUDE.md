@@ -55,7 +55,7 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
   echo "$ln | $(sed -n "$((ln+1))p" index.html | sed 's/^[ \t]*//')"; done
 ```
 
-**Relevé du 18 octobre — 34 864 lignes.**
+**Relevé du 18 octobre — 34 909 lignes.**
 Attention : `maj_carte` recale les numéros dans l'ordre des lignes de la table ;
 un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la main.
 
@@ -83,36 +83,36 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 8590 | **TIR À LA PREMIÈRE PERSONNE** (`FPS`, `fpsDemarrer`, `majFPS`) et **BALL-TRAP** du ranch (`BT`, `mkBallTrap`) |
 | 8988 | **TERRAINS DE SPORT DES PARCS** (`SPORTS`, `mkSportsParcs`, `majSportsParcs`, match de foot) |
 | 9128 | **ARÈNE DE DERBY** (`DERBY`, `mkArenaDerby`, `majDerby`, `majDerbyIA`, voitures et améliorations de derby) |
-| 13587 | MODÈLES — humains, armes, véhicules, hélico, ramassables |
-| 15760 | POOLS — balles, particules, textes flottants, traces de pneus |
-| 16129 | ÉTAT GLOBAL + JOUEUR (`P`) |
-| 16987 | VÉHICULES — physique arcade, trafic, dégâts |
-| 19646 | PIÉTONS |
-| 19829 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
-| 20401 | **RAYON TRACTEUR DE L'OVNI** |
-| 20866 | NIVEAU DE RECHERCHE (étoiles) |
-| 21145 | VAGUES + bonus de fin de vague |
-| 21267 | MISSIONS COURTES |
-| 21270 | BÂTIMENTS VISITABLES — intérieurs |
-| 21340 | FOUILLE — mécanique générique |
-| 21888 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
-| 26100 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
-| 26508 | **LAVERIE** V2 — l'essorage de la machine 7 |
-| 26773 | **SERRE** V2 — la nuit de la floraison |
-| 27065 | CINÉ-PALACE |
-| 27309 | MÉTRO ABANDONNÉ |
-| 27375 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
-| 27726 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
-| 28628 | SITE 51 |
-| 28858 | LE DÉPÔT DE BUS — courses clandestines |
-| 30304 | **MÉTIERS** — missions liées à un véhicule |
-| 30594 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
-| 31601 | ÉCRANS / MENUS / BOUTIQUES |
-| 31876 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
-| 32678 | DÉBUT / FIN DE PARTIE |
-| 34112 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
-| 34349 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
-| 34742 | BOUCLE PRINCIPALE |
+| 13606 | MODÈLES — humains, armes, véhicules, hélico, ramassables |
+| 15779 | POOLS — balles, particules, textes flottants, traces de pneus |
+| 16148 | ÉTAT GLOBAL + JOUEUR (`P`) |
+| 17006 | VÉHICULES — physique arcade, trafic, dégâts |
+| 19665 | PIÉTONS |
+| 19848 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
+| 20420 | **RAYON TRACTEUR DE L'OVNI** |
+| 20885 | NIVEAU DE RECHERCHE (étoiles) |
+| 21164 | VAGUES + bonus de fin de vague |
+| 21286 | MISSIONS COURTES |
+| 21289 | BÂTIMENTS VISITABLES — intérieurs |
+| 21359 | FOUILLE — mécanique générique |
+| 21907 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
+| 26119 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
+| 26527 | **LAVERIE** V2 — l'essorage de la machine 7 |
+| 26792 | **SERRE** V2 — la nuit de la floraison |
+| 27084 | CINÉ-PALACE |
+| 27328 | MÉTRO ABANDONNÉ |
+| 27394 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
+| 27745 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
+| 28647 | SITE 51 |
+| 28877 | LE DÉPÔT DE BUS — courses clandestines |
+| 30323 | **MÉTIERS** — missions liées à un véhicule |
+| 30613 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
+| 31620 | ÉCRANS / MENUS / BOUTIQUES |
+| 31895 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
+| 32722 | DÉBUT / FIN DE PARTIE |
+| 34156 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
+| 34393 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
+| 34787 | BOUCLE PRINCIPALE |
 
 ### Ancres fines (hors bandeaux)
 
@@ -154,28 +154,28 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 12890 | helper `poser()` — placement des lieux |
 | 12916 | `caseCentre(bx,bz)` |
 | 13009 | `REPLIS` — filet de sécurité en spirale |
-| 15628 | `makeVelo()` — vélo de ville et BMX |
+| 15647 | `makeVelo()` — vélo de ville et BMX |
 | 13574 | `voitureV2()` — voiture réaliste : `geoVoiture` (géométries partagées par modèle), `janteVoiture` |
 | 12677 | `ENSEIGNES` — portes mieux placées : `ameliorerPortes()`, `profondeurDevant()`, `orienterPorte()` |
-| 16137 | `const P` — état du joueur |
-| 16180 | `P.stamMax = 100 + 12*mus` |
-| 17366 | `resoudreCollisionsVehicule()` — collisions entre véhicules (SAT sur les 4 axes) |
-| 18023 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
-| 18147 | `boutonsAPied()` — boutons du HUD remis « à pied » (sortie de véhicule ET début de partie) |
-| 19068 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
-| 19199 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
-| 21276 | `IOFF = -9000` |
-| 23080 | `INTDEFS` — définitions des **27 salles** |
-| 23464 | `construireSalle(id)` |
+| 16156 | `const P` — état du joueur |
+| 16199 | `P.stamMax = 100 + 12*mus` |
+| 17385 | `resoudreCollisionsVehicule()` — collisions entre véhicules (SAT sur les 4 axes) |
+| 18042 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
+| 18166 | `boutonsAPied()` — boutons du HUD remis « à pied » (sortie de véhicule ET début de partie) |
+| 19087 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
+| 19218 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
+| 21295 | `IOFF = -9000` |
+| 23099 | `INTDEFS` — définitions des **27 salles** |
+| 23483 | `construireSalle(id)` |
 | 20390 | `CHALUTIER_BANCS_PLAN` — chalutier V2 ; `chalutierMaj` (20761), `dessinerRadarChalutier` (21018) |
-| 30313 | `METIERS_CIBLE` |
-| 30612 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
-| 30700 | `PIECES_FAMILLES` — catalogues de pièces par famille |
-| 31002 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
-| 31065 | `libererObjet()` — libère les géométries d'un objet retiré |
-| 31081 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
-| 31205 | `construireGarageTuning()` — la salle partagée |
-| 31575 | `majNitro()` |
+| 30332 | `METIERS_CIBLE` |
+| 30631 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
+| 30719 | `PIECES_FAMILLES` — catalogues de pièces par famille |
+| 31021 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
+| 31084 | `libererObjet()` — libère les géométries d'un objet retiré |
+| 31100 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
+| 31224 | `construireGarageTuning()` — la salle partagée |
+| 31594 | `majNitro()` |
 
 ---
 
@@ -2682,6 +2682,31 @@ reste obligatoire avant publication.
 - Packaging natif iOS : nécessitera un Mac + Xcode (Capacitor / WKWebView).
   Non bloquant : Safari en écran d'accueil utilise déjà WebKit, donc le rendu et
   les perfs observés sont représentatifs.
+
+### Minimap V2 : le radar (18 octobre) — `RADAR`, `majMinimap`
+
+Demandé : « améliore encore la minimap ». La minimap est un **radar rond**
+centré sur le joueur, zoomé (`RADAR.base` 3,2 × `MINI.zoom`, que le
+pincement règle de `MINI_ZOOM_MIN` 0,35 à 4), qui **tourne avec la caméra**
+en vue immersive (le haut = ce que regarde la caméra ; même convention que la
+flèche GPS : un point est à l'angle `atan2(dx,−dz)+vueAngleEcran()`) et
+reste nord en haut en vue classique ; boussole « N » sur le pourtour, cône
+de vue, dézoom avec la vitesse (et en vol). Objectifs (métier, mission,
+Boussole, destination) : losange sur la carte, flèche sur le bord quand ils
+sont hors champ. Canevas en 3x (`MM_K`, 288 px pour 96 affichés), dessin en
+coordonnées 192 ; redessiné une image sur deux. La grande carte s'ouvre au
+zoom `clamp(MINI.zoom,1,4)`.
+- **Fond de carte** (`construireMinimapStatique`) : mer en dégradé avec rides
+  et écume au rivage, plage de sable mouillé, trottoirs, quartiers teintés,
+  parcs arborés, immeubles avec ombre portée et arête éclairée. Bruit par
+  hachage (`hacheCarte`), jamais `Math.random` : la carte est dessinée en fin
+  de génération, un tirage de plus décalerait la ville.
+- **Grande carte** : noms des quartiers (`nomsQuartiers`, un nom par groupe
+  de pâtés voisins lu dans `quartier()`), plus la colline, le mont,
+  l'aéroport.
+- Test : « Minimap V2 » (pixels du vrai canevas : boussole en haut en vue
+  classique, à l'angle de la caméra en vue immersive — dont on vérifie qu'il
+  est celui que regarde la caméra —, destination lointaine sur le bord).
 
 ### Minimap et grande carte (zoom au pincement)
 
