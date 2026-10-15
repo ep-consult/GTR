@@ -55,7 +55,7 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
   echo "$ln | $(sed -n "$((ln+1))p" index.html | sed 's/^[ \t]*//')"; done
 ```
 
-**Relevé du 18 octobre — 35 163 lignes.**
+**Relevé du 18 octobre — 35 319 lignes.**
 Attention : `maj_carte` recale les numéros dans l'ordre des lignes de la table ;
 un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la main.
 
@@ -83,36 +83,36 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 8650 | **TIR À LA PREMIÈRE PERSONNE** (`FPS`, `fpsDemarrer`, `majFPS`) et **BALL-TRAP** du ranch (`BT`, `mkBallTrap`) |
 | 9048 | **TERRAINS DE SPORT DES PARCS** (`SPORTS`, `mkSportsParcs`, `majSportsParcs`, match de foot) |
 | 9188 | **ARÈNE DE DERBY** (`DERBY`, `mkArenaDerby`, `majDerby`, `majDerbyIA`, voitures et améliorations de derby) |
-| 13713 | MODÈLES — humains, armes, véhicules, hélico, ramassables |
-| 15926 | POOLS — balles, particules, textes flottants, traces de pneus |
-| 16295 | ÉTAT GLOBAL + JOUEUR (`P`) |
-| 17153 | VÉHICULES — physique arcade, trafic, dégâts |
-| 19814 | PIÉTONS |
-| 19997 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
-| 20569 | **RAYON TRACTEUR DE L'OVNI** |
-| 21034 | NIVEAU DE RECHERCHE (étoiles) |
-| 21313 | VAGUES + bonus de fin de vague |
-| 21435 | MISSIONS COURTES |
-| 21438 | BÂTIMENTS VISITABLES — intérieurs |
-| 21508 | FOUILLE — mécanique générique |
-| 22056 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
-| 26288 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
-| 26696 | **LAVERIE** V2 — l'essorage de la machine 7 |
-| 26961 | **SERRE** V2 — la nuit de la floraison |
-| 27253 | CINÉ-PALACE |
-| 27497 | MÉTRO ABANDONNÉ |
-| 27563 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
-| 27914 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
-| 28816 | SITE 51 |
-| 29046 | LE DÉPÔT DE BUS — courses clandestines |
-| 30492 | **MÉTIERS** — missions liées à un véhicule |
-| 30782 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
-| 31797 | ÉCRANS / MENUS / BOUTIQUES |
-| 32072 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
-| 32899 | DÉBUT / FIN DE PARTIE |
-| 34410 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
-| 34647 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
-| 35041 | BOUCLE PRINCIPALE |
+| 13718 | MODÈLES — humains, armes, véhicules, hélico, ramassables |
+| 15931 | POOLS — balles, particules, textes flottants, traces de pneus |
+| 16300 | ÉTAT GLOBAL + JOUEUR (`P`) |
+| 17158 | VÉHICULES — physique arcade, trafic, dégâts |
+| 19968 | PIÉTONS |
+| 20151 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
+| 20723 | **RAYON TRACTEUR DE L'OVNI** |
+| 21188 | NIVEAU DE RECHERCHE (étoiles) |
+| 21467 | VAGUES + bonus de fin de vague |
+| 21589 | MISSIONS COURTES |
+| 21592 | BÂTIMENTS VISITABLES — intérieurs |
+| 21662 | FOUILLE — mécanique générique |
+| 22210 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
+| 26442 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
+| 26850 | **LAVERIE** V2 — l'essorage de la machine 7 |
+| 27115 | **SERRE** V2 — la nuit de la floraison |
+| 27407 | CINÉ-PALACE |
+| 27651 | MÉTRO ABANDONNÉ |
+| 27717 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
+| 28068 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
+| 28970 | SITE 51 |
+| 29200 | LE DÉPÔT DE BUS — courses clandestines |
+| 30646 | **MÉTIERS** — missions liées à un véhicule |
+| 30936 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
+| 31952 | ÉCRANS / MENUS / BOUTIQUES |
+| 32227 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
+| 33054 | DÉBUT / FIN DE PARTIE |
+| 34566 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
+| 34803 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
+| 35197 | BOUCLE PRINCIPALE |
 
 ### Ancres fines (hors bandeaux)
 
@@ -145,37 +145,37 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 6026 | `VILLA_PISC` — finitions de quartier : `mkQuartiersFinitions()` |
 | 6106 | `MONT` — Mont Reyes, puis `CANYON` (canyons) et `RIDES` (courses) |
 | 4564 | `SOLS` — dalles de sol enregistrées, puis `mkTransitionsSols()` (jonctions entre sols) |
-| 11080 | `mkLacParc()` — lac du parc, passerelle, barques |
-| 11209 | `mkLumieresQuartiers()` — Times Square, quartier chinois, Brooklyn |
-| 11295 | `mkEnceinte()` — murs, enseigne, jetées de rochers |
-| 11836 | `GALION` — galion échoué : `sansAleaVille()`, `coqueGalion()`, `mkGalion()`, `majGalion()` |
-| 12868 | `mkPorteGarage()` — porte roulante des garages |
-| 12938 | `placeLibrePorte()` |
-| 12997 | helper `poser()` — placement des lieux |
-| 13023 | `caseCentre(bx,bz)` |
-| 13116 | `REPLIS` — filet de sécurité en spirale |
-| 15794 | `makeVelo()` — vélo de ville et BMX |
+| 11085 | `mkLacParc()` — lac du parc, passerelle, barques |
+| 11214 | `mkLumieresQuartiers()` — Times Square, quartier chinois, Brooklyn |
+| 11300 | `mkEnceinte()` — murs, enseigne, jetées de rochers |
+| 11841 | `GALION` — galion échoué : `sansAleaVille()`, `coqueGalion()`, `mkGalion()`, `majGalion()` |
+| 12873 | `mkPorteGarage()` — porte roulante des garages |
+| 12943 | `placeLibrePorte()` |
+| 13002 | helper `poser()` — placement des lieux |
+| 13028 | `caseCentre(bx,bz)` |
+| 13121 | `REPLIS` — filet de sécurité en spirale |
+| 15799 | `makeVelo()` — vélo de ville et BMX |
 | 13574 | `voitureV2()` — voiture réaliste : `geoVoiture` (géométries partagées par modèle), `janteVoiture` |
-| 12784 | `ENSEIGNES` — portes mieux placées : `ameliorerPortes()`, `profondeurDevant()`, `orienterPorte()` |
-| 16303 | `const P` — état du joueur |
-| 16346 | `P.stamMax = 100 + 12*mus` |
-| 17532 | `resoudreCollisionsVehicule()` — collisions entre véhicules (SAT sur les 4 axes) |
-| 18191 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
-| 18315 | `boutonsAPied()` — boutons du HUD remis « à pied » (sortie de véhicule ET début de partie) |
-| 19236 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
-| 19367 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
-| 21444 | `IOFF = -9000` |
-| 23248 | `INTDEFS` — définitions des **27 salles** |
-| 23633 | `construireSalle(id)` |
+| 12789 | `ENSEIGNES` — portes mieux placées : `ameliorerPortes()`, `profondeurDevant()`, `orienterPorte()` |
+| 16308 | `const P` — état du joueur |
+| 16351 | `P.stamMax = 100 + 12*mus` |
+| 17678 | `resoudreCollisionsVehicule()` — collisions entre véhicules (SAT sur les 4 axes) |
+| 18342 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
+| 18466 | `boutonsAPied()` — boutons du HUD remis « à pied » (sortie de véhicule ET début de partie) |
+| 19387 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
+| 19518 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
+| 21598 | `IOFF = -9000` |
+| 23402 | `INTDEFS` — définitions des **27 salles** |
+| 23787 | `construireSalle(id)` |
 | 20390 | `CHALUTIER_BANCS_PLAN` — chalutier V2 ; `chalutierMaj` (20761), `dessinerRadarChalutier` (21018) |
-| 30501 | `METIERS_CIBLE` |
-| 30800 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
-| 30888 | `PIECES_FAMILLES` — catalogues de pièces par famille |
-| 31198 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
-| 31261 | `libererObjet()` — libère les géométries d'un objet retiré |
-| 31277 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
-| 31401 | `construireGarageTuning()` — la salle partagée |
-| 31771 | `majNitro()` |
+| 30655 | `METIERS_CIBLE` |
+| 30954 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
+| 31042 | `PIECES_FAMILLES` — catalogues de pièces par famille |
+| 31352 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
+| 31416 | `libererObjet()` — libère les géométries d'un objet retiré |
+| 31432 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
+| 31556 | `construireGarageTuning()` — la salle partagée |
+| 31926 | `majNitro()` |
 
 ---
 
@@ -1132,6 +1132,43 @@ chères, et augmente le prix de la villa ». Marques de fantaisie (univers ficti
   panneau perforé clair à hauteur des yeux, étiquette (nom, prix) dessous.
 - Test : « Retours du 18 octobre (lot 1) ».
 
+### Dégâts V2 et murs (18 octobre, lot 2) — `degatsChoc`, `bosseler`, `perdreRoue`, `degagerDesMurs`
+
+Demandé : « bosselage, ratatinage des carrosseries, des morceaux qui tombent,
+perte de roue » ; signalé : « au derby, les voitures sortent des murs ».
+- **Bosses** (`bosseler`) : au point d'impact réel (choc entre véhicules dans
+  `resoudreCollisionsVehicule`, mur dans `majVehiculePhys`), les sommets de la
+  carrosserie sont repoussés vers l'intérieur (rayon et profondeur selon la
+  violence, froissé par `hachePos` sur la POSITION : les sommets dupliqués d'une
+  géométrie non indexée bougent ensemble). Seules les pièces touchées par la
+  sphère du choc sont COPIÉES (`userData.geoPropre`, l'originale partagée dans
+  `geoOrig`) ; seuls les triangles déplacés sont recalculés
+  (`normalesTriangles`). Coût mesuré : 1 à 4 ms par choc (20 ms au tout premier,
+  le temps que le moteur JavaScript chauffe). Seulement à moins de
+  `DEGATS_PORTEE` du joueur, enfoncement cumulé plafonné (`DEGATS_BOSSE_MAX`).
+  `libererEntite` libère la copie (et une originale non partagée) ;
+  `reparerVisuels` rend la carrosserie et les roues.
+- **Débris** (`lancerDebris`, `majDebris` dans la boucle, `viderDebris` dans
+  `startRun`, réserve `DEBRIS_MAX`) : éclats de carrosserie et de vitre,
+  pare-chocs ; au derby, les vraies pièces de l'habillage se détachent
+  (`detacherPieceDerby`).
+- **Roues** (`perdreRoue`, `effetsRouesPerdues`) : sous la moitié de la vie
+  (75 % au derby), un gros choc près d'une roue peut l'arracher (deux au plus) :
+  elle roule au sol, le coin s'affaisse (assiette), frotte en étincelles, la
+  voiture tire de ce côté et sa vitesse est bridée (`vmaxEff`, −24 % par roue).
+- **Murs** : l'élan d'un choc (`majKnockback`, jusqu'à 48 u/s) ne traverse plus
+  un solide (`bloqueParSolide`) ; la séparation entre deux véhicules ne pousse
+  jamais l'un dans un mur (l'autre prend toute la séparation) ; tout véhicule au
+  sol qui a bougé est sorti d'un solide où mordrait sa caisse (`degagerDesMurs`,
+  8 points, 0,6 u par image au plus, hors des salles) ; au derby, une voiture
+  hors de l'arène est ramenée dedans (`majDerby`). Mesuré avant : une épave
+  sortie de l'arène, des caisses plantées dans les pneus ; après : aucune,
+  enfoncement ≤ 0,16 u.
+- **Derby** : `DERBY_DEGATS` 0,7 → 0,95 ; avec les roues arrachées, 3 à 5
+  épaves par match ; le pilote simulé gagne toujours 2 matchs sur 4, le passif
+  aucun.
+- Test : « Dégâts V2 et murs ».
+
 ## Retours de playtest du 16 octobre — véhicules et conduite
 
 - **Taxi, police et Rafale** gardent leur ANCIEN modèle (signalé : « le capot
@@ -1495,6 +1532,8 @@ vidés au début du décor (`reserverSports`, `ZONES_SANS_MOBILIER`) et rebâtis
   - Simulé (`DERBY_DEGATS` 0,7) : pilote au joystick réel, réaction 0,3 s,
     tactique de charge → gagne environ 2 matchs sur 5 au niveau 0 ; passif
     → toujours perdu.
+- **Test « Wingsuit V2 » rendu déterministe** (18 octobre) : il attendait en temps réel ; sous charge, la boucle
+  simulait trop peu et la traînée n'était pas encore effacée — il fait désormais avancer `majJoueur` à pas fixe.
 - **Test « Aéroport, suite »** : chaque partie mesurée rejoue le même tirage
   (le compte des géométries variait de ±50 avec le trafic et les voitures
   garées près du départ, sans aucune fuite).

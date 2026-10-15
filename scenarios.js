@@ -12229,7 +12229,7 @@ async function main() {
       for (const cap of [0, Math.PI / 2, Math.PI, -Math.PI / 2]) {
         P.wing = false; P.wingsuit = true; P.x = x0; P.z = z0; P.y = 160; P.ang = cap; P.chute = true; P.chuteY0 = P.y + 10; P.chuteT = 0; P.chuteHaut = 160; P.vy = -4; P.para = false;
         P.chuteVx = Math.sin(cap) * 14; P.chuteVz = Math.cos(cap) * 14; INPUT.mx = 0; INPUT.mz = 0; deployerWingsuit();
-        await dors(700);
+        for (let i = 0; i < 24; i++) majJoueur(1 / 30, 1 / 30); /* pas fixe : en temps réel, sous charge, la boucle simulait trop peu (test instable) */
         if (!P.wing) { ko.push('cap ' + cap.toFixed(2) + ' : le vol plané s’est arrêté'); continue; }
         P.h.g.updateMatrixWorld(true);
         const q = P.h.g.getWorldQuaternion(new THREE.Quaternion()), tete = V(0, 1, 0).applyQuaternion(q), poitrine = V(0, 0, 1).applyQuaternion(q);
@@ -12245,7 +12245,7 @@ async function main() {
         if (!WING_FX.rubans || !WING_FX.rubans[0].m.visible) ko.push('pas de traînée en vol');
       }
       // on ouvre la voile, on se pose : la traînée s'efface, la pose redevient normale
-      ouvrirParachute(); P.y = solPied(P.x, P.z) + 0.5; await dors(1200);
+      ouvrirParachute(); P.y = solPied(P.x, P.z) + 0.5; for (let i = 0; i < 45; i++) majJoueur(1 / 30, 1 / 30);
       if (P.wing) ko.push('toujours en vol plané après la voile');
       if (WING_FX.rubans && WING_FX.rubans.some((r) => r.m.visible)) ko.push('traînée encore visible après le vol');
       if (Math.abs(P.h.jambeG.rotation.z) > 1e-3 || Math.abs(P.h.jambeD.rotation.z) > 1e-3) ko.push('jambes restées écartées après le vol');
@@ -12425,6 +12425,93 @@ async function main() {
       });
       if (l1.ko.length) fail('Lot 1 : ' + l1.ko.join(' ; '));
       else ok('Lot 1 : HUD sans chevauchement ; achats rangés dans « Mes véhicules », refus si plein, choix au garage de la villa, migration ; ' + l1.info.join(' ; '));
+    }
+
+    // -------------------------------------------------------------------
+    // Dégâts V2 et murs (18 octobre, demandé : « bosselage, ratatinage, des morceaux qui tombent, perte de roue » ;
+    // signalé : « au derby, les voitures sortent des murs »). Lu dans le jeu :
+    // - une bosse déplace vraiment les sommets de la carrosserie de CE véhicule (copie propre), jamais ceux du
+    //   modèle partagé (une berline voisine reste lisse) ; rien loin du joueur ; la réparation rend la carrosserie
+    //   d'origine et les roues ; aucune géométrie ne s'accumule (dégâts puis retrait, cinq fois) ;
+    // - une roue arrachée : invisible sur la voiture, une roue qui roule au sol, la voiture plafonnée sous sa
+    //   vitesse max et qui tire du côté de la roue perdue ;
+    // - murs : l'élan d'un choc ne traverse pas un mur mince ; une voiture coincée contre un mur par une autre n'y
+    //   entre pas ; au derby, sur un match simulé (pilote qui charge), aucune voiture hors de l'arène, aucune caisse
+    //   enfoncée de plus de 0,25 u dans les pneus, et des épaves.
+    // -------------------------------------------------------------------
+    console.log('\n--- Dégâts V2 et murs : bosses, éclats, roues arrachées, réparation ; rien ne traverse les murs ---');
+    {
+      const dg = await page.evaluate(() => {
+        const ko = [], info = [], rnd0 = Math.random, graine = (g) => { Math.random = () => { g = (g * 1664525 + 1013904223) >>> 0; return g / 4294967296; }; };
+        if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6; for (const e of ennemis) e.mort = true; WANTED.heat = 0;
+        for (const v of vehicules) { scene.remove(v.mesh); libererEntite(v.mesh); } vehicules.length = 0;
+        const X = POIS.place.x, Z = POIS.place.z + 6; P.x = X; P.z = Z - 10;
+        const voit = (k, x, z, a) => { const v = creerVehicule(k, x, z, a || 0); v.h = solY(v.x, v.z); v.mesh.position.set(v.x, v.h, v.z); v.mesh.rotation.y = v.ang; v.mesh.updateMatrixWorld(true); return v; };
+        const peinture = (v) => { let m = null, n = 0; (v.mesh.userData.corps || v.mesh).traverse((o) => { if (o.isMesh && o.material && o.material.color && o.material.color.getHex() === v.mesh.userData.coul && o.geometry.attributes.position.count > n) { n = o.geometry.attributes.position.count; m = o; } }); return m; }; // la caisse : le plus grand mesh à la couleur du véhicule
+        // 1. une bosse : les sommets de CE véhicule, jamais le modèle partagé
+        const A = voit('berline', X - 4, Z), B = voit('berline', X + 4, Z), mA = peinture(A), mB = peinture(B), geo0 = mA.geometry, avant = Float32Array.from(geo0.attributes.position.array);
+        degatsChoc(A, A.x + Math.sin(A.ang) * 2.3, A.z + Math.cos(A.ang) * 2.3, 1.2);
+        let bouge = 0; const pa = mA.geometry.attributes.position.array; for (let i = 0; i < pa.length; i++) if (Math.abs(pa[i] - avant[i]) > 1e-4) bouge++;
+        let partageIntact = true; for (let i = 0; i < avant.length; i++) if (geo0.attributes.position.array[i] !== avant[i]) { partageIntact = false; break; }
+        if (!(bouge > 30) || mA.geometry === geo0 || !partageIntact || mB.geometry !== geo0) ko.push('bosse : ' + bouge + ' sommets bougés, copie ' + (mA.geometry !== geo0) + ', modèle partagé intact ' + partageIntact + ', voisine lisse ' + (mB.geometry === geo0));
+        else info.push('bosse : ' + Math.round(bouge / 3) + ' sommets enfoncés sur la voiture touchée, le modèle partagé intact');
+        const F = voit('berline', X + 400, Z + 200); const mF = peinture(F), gF = mF.geometry; degatsChoc(F, F.x, F.z + 2.3, 1.2); if (mF.geometry !== gF) ko.push('bosse loin du joueur');
+        // 2. une roue arrachée (graine propre) : la voiture ralentit et tire du côté de la roue perdue
+        graine(5); A.hp = A.def.hp * 0.3; let essais = 0; const ud = A.mesh.userData;
+        while (!A.rouesPerdues && essais < 40) { const r = ud.roues[essais % 4]; r.getWorldPosition(_bP); degatsChoc(A, _bP.x, _bP.z, 1.3); essais++; }
+        Math.random = rnd0;
+        const iR = ud.roues.findIndex((r) => !r.visible), deb = DEBRIS.some((d) => d.o.children.length && d.r === 0.3);
+        if (iR < 0 || !deb) ko.push('aucune roue arrachée en ' + essais + ' chocs, ou pas de roue au sol');
+        else { entrerVehicule(A); A.v = A.def.vmax; const a0 = A.ang; let vMax = 0; for (let i = 0; i < 60; i++) { majVehiculePhys(A, 1 / 30, 1, 0, false); vMax = Math.max(vMax, A.v); }
+          const cote = Math.sign(ud.roues[iR].position.x) || 1, tourne = Math.atan2(Math.sin(A.ang - a0), Math.cos(A.ang - a0));
+          if (!(vMax < A.def.vmax * 0.85) || Math.sign(tourne) !== cote) ko.push('roue perdue : vitesse ' + vMax.toFixed(1) + ' / ' + A.def.vmax + ', virage ' + tourne.toFixed(2) + ' (côté ' + cote + ')');
+          else info.push('roue arrachée en ' + essais + ' choc(s) : ' + vMax.toFixed(0) + ' u/s au plus (max ' + A.def.vmax + '), la voiture tire du côté de la roue');
+          sortirVehicule(true); }
+        // 3. réparation : carrosserie et roues d'origine
+        reparerVisuels(A); if (peinture(A).geometry !== geo0 || ud.roues.some((r) => !r.visible) || A.rouesPerdues) ko.push('réparation incomplète');
+        // 4. aucune accumulation de géométries : cinq voitures bosselées puis retirées
+        for (const v of [...vehicules]) { scene.remove(v.mesh); libererEntite(v.mesh); } vehicules.length = 0; viderDebris(); renderer.render(scene, camera);
+        let g0 = 0;
+        for (let k = 0; k < 6; k++) { if (k === 1) { viderDebris(); renderer.render(scene, camera); g0 = renderer.info.memory.geometries; } /* le 1er cycle amorce : les géométries partagées du modèle et des éclats, envoyées une fois */ const v = voit('suvLuxe', X, Z); degatsChoc(v, v.x + 1, v.z + 2.4, 1.2); degatsChoc(v, v.x - 1.2, v.z, 1.0); renderer.render(scene, camera); scene.remove(v.mesh); libererEntite(v.mesh); vehicules.splice(vehicules.indexOf(v), 1); }
+        viderDebris(); renderer.render(scene, camera); const g1 = renderer.info.memory.geometries;
+        if (g1 > g0 + 2) ko.push('géométries accumulées : ' + g0 + ' → ' + g1); else info.push('géométries stables (' + g0 + ' → ' + g1 + ')');
+        // 5. murs : une ligne droite libre, un mur mince
+        let ligne = null;
+        for (let z = -HALF + 30; z < HALF - 30 && !ligne; z += 2.5) for (let x0 = -HALF + 30; x0 < HALF - 60 && !ligne; x0 += 7) {
+          let libre = true; for (let x = x0 - 4; x <= x0 + 30 && libre; x += 1) if (solidAt(x, z, 2.5) || estEau(x, z) || Math.abs(solY(x, z)) > 0.3 || (HILLS.ok && dansHills(x, z, 3))) libre = false;
+          if (libre) ligne = { x0, z }; }
+        if (!ligne) ko.push('aucune ligne libre pour les murs');
+        else { const mur = { x: ligne.x0 + 20, z: ligne.z, hw: 0.4, hd: 5, h: 2 }; addSolid(mur);
+          // élan d'un choc à 45 u/s vers le mur
+          const k1 = voit('berline', mur.x - 5, mur.z, Math.PI / 2); k1.knockVx = 45; let passe = false; for (let i = 0; i < 30; i++) { majKnockback(k1, 1 / 30); if (k1.x > mur.x) passe = true; }
+          // une voiture poussée contre le mur par une autre
+          const c1 = voit('berline', mur.x - 0.4 - 1.03, mur.z, 0), c2 = voit('suvLuxe', mur.x - 3.2, mur.z, 0); c2.conduit = 'test';
+          let prof = 0; for (let i = 0; i < 60; i++) { c2.x += 0.08; resoudreCollisionsVehicule(c2, 1 / 30); majKnockback(c1, 1 / 30); majKnockback(c2, 1 / 30); degagerDesMurs(c1); degagerDesMurs(c2);
+            for (const v of [c1, c2]) { const W = v.def.larg / 2; prof = Math.max(prof, v.x + W - (mur.x - mur.hw)); } }
+          retirerSolide(mur); for (const v of [k1, c1, c2]) { scene.remove(v.mesh); vehicules.splice(vehicules.indexOf(v), 1); }
+          if (passe || prof > 0.3) ko.push('murs : élan à travers ' + passe + ', enfoncement ' + prof.toFixed(2) + ' u');
+          else info.push('l’élan d’un choc à 45 u/s s’arrête au mur ; coincée par une autre, la voiture reste à ' + Math.max(0, -prof).toFixed(2) + ' u du mur'); }
+        // 6. derby : un match simulé, pilote qui charge (graine propre)
+        const D = DERBY;
+        if (D.ok) { graine(77); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6; for (const e of ennemis) e.mort = true; WANTED.heat = 0; P.x = D.stand.x; P.z = D.stand.z; P.y = 0;
+          for (const v of vehicules) { scene.remove(v.mesh); libererEntite(v.mesh); } vehicules.length = 0;
+          META.derby.niv = { pareChocs: 0, blindage: 0, moteur: 0, pneus: 0 }; derbyLancer(); const A2 = D.actif; let t = 0, decT = 0, reculT = 0, dir = [0, 0], hors = 0, profMax = 0;
+          while (D.actif === A2 && A2.etat !== 'fin' && t < 160) { const dt = 1 / 30; t += dt;
+            if (A2.etat === 'combat') { const v = A2.vJ; decT -= dt; if (v.dentT > 0.3 && !v._vu && reculT <= 0) { v._vu = true; reculT = 0.7; } else if (!(v.dentT > 0.3)) v._vu = false;
+              if (reculT > 0) { reculT -= dt; dir = [-Math.sin(v.ang), -Math.cos(v.ang)]; } else if (decT <= 0) { decT = 0.3; let best = null, bd = 1e9; for (const o of A2.ias) { if (o.derbyKO || o.mort) continue; const d = Math.hypot(o.x - v.x, o.z - v.z); if (d < bd) { bd = d; best = o; } } if (best) { const l = Math.hypot(best.x - v.x, best.z - v.z) || 1; dir = [(best.x - v.x) / l, (best.z - v.z) / l]; } }
+              INPUT.mx = dir[0]; INPUT.mz = dir[1]; } else { INPUT.mx = 0; INPUT.mz = 0; }
+            derbyEntrees(); if (P.veh) majConduite(dt); majVehicules(dt); majDerby(dt, dt);
+            for (const v of A2.voitures) { if (v.mort) continue; if (!dansArene(v.x, v.z, -1)) hors++; const L = v.def.long / 2, W = v.def.larg / 2, s = Math.sin(v.ang), c = Math.cos(v.ang);
+              for (const [a, b] of [[L, W], [L, -W], [-L, W], [-L, -W]]) { const x = v.x + s * a + c * b, z = v.z + c * a - s * b, so = solidAt(x, z, 0); if (so && so.h > (v.h || 0) + 0.5) profMax = Math.max(profMax, Math.min(so.hw - Math.abs(x - so.x), so.hd - Math.abs(z - so.z))); } } }
+          INPUT.mx = INPUT.mz = 0; Math.random = rnd0; const kos = A2.voitures.filter((v) => v.derbyKO).length, roues = A2.voitures.reduce((n, v) => n + nbRouesPerdues(v), 0);
+          if (hors || profMax > 0.25 || kos < 2) ko.push('derby : ' + hors + ' image(s) hors de l’arène, enfoncement ' + profMax.toFixed(2) + ' u, ' + kos + ' épave(s)');
+          else info.push('derby : aucune voiture hors de l’arène, enfoncement max ' + profMax.toFixed(2) + ' u, ' + kos + ' épaves, ' + roues + ' roues arrachées en ' + Math.round(t) + ' s');
+          if (D.actif) derbyArreter(); }
+        Math.random = rnd0; startRun();
+        return { ko, info };
+      });
+      if (dg.ko.length) fail('Dégâts V2 : ' + dg.ko.join(' ; '));
+      else ok('Dégâts V2 et murs : ' + dg.info.join(' ; '));
     }
 
     // -------------------------------------------------------------------

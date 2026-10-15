@@ -9209,7 +9209,7 @@ function majSportsParcs(dt){
      (primeMerUneFois('derby')), tenue « Casse-cou » (exploitMiniJeu('derby')), défis (thème 'derby'). Trêve des
      vagues ; derbyArreter dans mourir et startRun ; descendre de sa voiture = abandon.
    ===================================================================== */
-const DERBY_DUREE=150, DERBY_PRIME=1200, DERBY_PRIME_KO=150, DERBY_NB_IA=5, DERBY_DEGATS=0.7; // DERBY_DEGATS : un match dure 1 à 2 min (simulé)
+const DERBY_DUREE=150, DERBY_PRIME=1200, DERBY_PRIME_KO=150, DERBY_NB_IA=5, DERBY_DEGATS=0.95; // DERBY_DEGATS : 0,7 → 0,95 (18 octobre, signalé : « pas assez de dégâts ») ; avec les roues arrachées, 3 à 5 épaves par match (simulé)
 const DERBY_MODELES=['derbyBreak','derbyCompacte','derbyPickup'];
 const DERBY_PRIX={voitures:{derbyBreak:0,derbyCompacte:1800,derbyPickup:2600},
   niv:{pareChocs:[400,900,1800],blindage:[500,1100,2200],moteur:[450,1000,2000],pneus:[300,700,1400]}};
@@ -9396,6 +9396,11 @@ function majDerby(dt,dtJeu){
     derbyPublic(dt); const nf=ETAT.nuitF||0; for(const l of D.lampes) l.material.opacity=nf; if(D.eclairage) D.eclairage.material.opacity=nf*0.26;
     D.tabT-=dtJeu; if(D.tabT<=0){ D.tabT=0.25; derbyTableau(); } }
   const A=D.actif; if(!A) return;
+  // 18 octobre (signalé : « les voitures sortent des murs ») : pendant le match, une voiture (ou une épave) qui aurait
+  // franchi le mur de pneus est ramenée dedans, sur la ligne qui la relie au centre
+  if(A.etat!=='fin') for(const v of A.voitures){ if(v.mort||dansArene(v.x,v.z,0.6)) continue;
+    let a=0, b=1; for(let k=0;k<12;k++){ const t=(a+b)/2; if(dansArene(D.x+(v.x-D.x)*t,D.z+(v.z-D.z)*t,1.2)) a=t; else b=t; }
+    v.x=D.x+(v.x-D.x)*a; v.z=D.z+(v.z-D.z)*a; v.knockVx=0; v.knockVz=0; v.v*=-0.3; }
   if(A.etat==='compte'){
     if(P.veh!==A.vJ){ derbyFin(false,'abandon'); return; }
     const av=Math.ceil(A.compte); A.compte-=dtJeu; const ap=Math.ceil(A.compte);
@@ -17233,7 +17238,129 @@ function degatsVisuels(v){
   v.degSt=st;
 }
 function reparerVisuels(v){ const ud=v.mesh&&v.mesh.userData; if(!ud) return; if(ud.degats){ ud.degats.parent&&ud.degats.parent.remove(ud.degats); ud.degats=null; }
-  if(v.degSt>=3&&ud.corps) ud.corps.rotation.z-=0.05; v.degSt=0; }
+  if(v.degSt>=3&&ud.corps) ud.corps.rotation.z-=0.05; v.degSt=0;
+  // dégâts V2 : la carrosserie redevient lisse (géométries d'origine), les roues reviennent
+  v.mesh.traverse((o)=>{ if(o.isMesh&&o.userData.geoPropre){ o.geometry.dispose(); o.geometry=o.userData.geoOrig; o.userData.geoPropre=false; o.userData.geoOrig=null; } });
+  for(const r of ud.roues||[]) r.visible=true; v.rouesPerdues=0; v.bosse=0; }
+/* ======== DÉGÂTS V2 (18 octobre, demandé : « améliorer le dégât des véhicules : bosselage, ratatinage des
+   carrosseries, des morceaux qui tombent, perte de roue ») ========
+   - BOSSES (bosseler) : au point d'impact RÉEL (choc entre véhicules, mur), la carrosserie s'enfonce pour de bon —
+     sommets repoussés vers l'intérieur dans un rayon qui grandit avec la violence, un peu froissés (bruit sur la
+     POSITION : les sommets dupliqués d'une géométrie non indexée bougent ensemble, aucune fente). Géométries COPIÉES
+     pour ce véhicule au premier choc (les modèles partagent les leurs) ; la copie n'est pas « partagee » :
+     libererEntite la libère, reparerVisuels rend l'originale. Seulement près du joueur (DEGATS_PORTEE),
+     enfoncement cumulé plafonné (DEGATS_BOSSE_MAX).
+   - DÉBRIS (lancerDebris, majDebris) : éclats de carrosserie et de vitre, pare-chocs, enjoliveurs ; au derby, les
+     vraies pièces de l'habillage (bélier, tôles, grilles) se détachent. Réserve bornée (DEBRIS_MAX), rebonds au
+     sol, effacés au bout de quelques secondes ; vidée à chaque partie.
+   - ROUES (perdreRoue) : sous la moitié de sa vie (toujours au derby), un gros choc près d'une roue peut l'arracher :
+     elle part en rebondissant, le coin s'affaisse et frotte (étincelles), la voiture tire de ce côté et perd de la
+     vitesse (effetsRouesPerdues) ; deux roues au plus. La seule conséquence qui ne soit pas cosmétique. */
+const DEGATS_PORTEE=90, DEGATS_BOSSE_MAX=0.9, DEBRIS_MAX=40, DEBRIS=[];
+const _bP=new THREE.Vector3(), _bQ=new THREE.Vector3(), _bS=new THREE.Vector3();
+let _geoEclat=null, _geoParechoc=null, _matVitreDebris=null;
+const hachePos=(x,y,z)=>{ const t=Math.sin(x*12.9898+y*78.233+z*37.719)*43758.5453; return t-Math.floor(t); };
+function vehiculeDeformable(v){ const d=v&&v.def; return !!(d&&v.mesh&&!v.mort&&!d.air&&!d.eau&&!d.velo&&!d.surf&&!d.canon&&!d.skate&&d.type!=='moto'); }
+function corpsDeformables(v){ // la carrosserie : jamais les roues (ni leurs jantes), le conducteur, les sprites, les voiles transparents
+  const ud=v.mesh.userData, exclus=new Set(); for(const r of ud.roues||[]) r.traverse((o)=>exclus.add(o)); if(ud.chauffeur) ud.chauffeur.traverse((o)=>exclus.add(o));
+  const L=[]; (ud.corps||v.mesh).traverse((o)=>{ if(o.isMesh&&!exclus.has(o)&&o.geometry&&o.geometry.attributes.position&&!(o.material&&o.material.transparent&&o.material.opacity<0.6)) L.push(o); });
+  return L; }
+function bosseler(v,wx,wz,force){
+  if(!vehiculeDeformable(v)||dist2(v.x,v.z,P.x,P.z)>DEGATS_PORTEE*DEGATS_PORTEE) return false;
+  force=clamp(force,0,1.5); if(force<0.18) return false;
+  const prof=Math.min(0.1+0.34*force,DEGATS_BOSSE_MAX-(v.bosse||0)); if(prof<0.02) return false;
+  v.bosse=(v.bosse||0)+prof*0.55; v.mesh.updateMatrixWorld(true);
+  const y=(v.h||0)+(v.assietteDy||0)+Math.min(1.4,(HAUTEUR_VEH[v.key]||1.4)*0.45), dx=v.x-wx, dz=v.z-wz, l=Math.hypot(dx,dz)||1, ux=dx/l, uz=dz/l, R=0.6+0.75*force;
+  for(const m of corpsDeformables(v)){
+    const g0=m.geometry; if(!g0.boundingSphere) g0.computeBoundingSphere();
+    _bP.set(wx,y,wz); m.worldToLocal(_bP); m.getWorldScale(_bS); const Rl=R/Math.max(0.2,(_bS.x+_bS.y+_bS.z)/3), R2=Rl*Rl;
+    if(_bP.distanceTo(g0.boundingSphere.center)>g0.boundingSphere.radius+Rl) continue; // pièce hors de portée du choc : ni copie, ni calcul
+    if(!m.userData.geoPropre){ m.userData.geoOrig=g0; const g=g0.clone(); g.userData={}; g.boundingSphere=g0.boundingSphere.clone(); m.geometry=g; m.userData.geoPropre=true; }
+    const geo=m.geometry, pos=geo.attributes.position, a=pos.array, tris=geo.index?null:new Uint8Array(pos.count/3|0);
+    _bQ.set(wx+ux*prof,y-prof*0.3,wz+uz*prof); m.worldToLocal(_bQ); _bQ.sub(_bP); // l'enfoncement dans le repère du mesh
+    let n=0;
+    for(let i=0;i<a.length;i+=3){ const ex=a[i]-_bP.x, ey=(a[i+1]-_bP.y)*0.75, ez=a[i+2]-_bP.z, d2=ex*ex+ey*ey+ez*ez; if(d2>=R2) continue;
+      const k=1-Math.sqrt(d2)/Rl, f=k*k*(0.7+0.6*hachePos(a[i],a[i+1],a[i+2])); a[i]+=_bQ.x*f; a[i+1]+=_bQ.y*f; a[i+2]+=_bQ.z*f; n++; if(tris) tris[(i/9)|0]=1; }
+    if(n){ pos.needsUpdate=true; if(tris) normalesTriangles(geo,tris); else geo.computeVertexNormals(); } // seuls les triangles bougés (la sphère englobante reste juste : on ne fait que rentrer)
+  }
+  return true;
+}
+// normales des seuls triangles déplacés d'une géométrie non indexée (faces plates, comme computeVertexNormals)
+function normalesTriangles(geo,tris){ const a=geo.attributes.position.array, nr=geo.attributes.normal; if(!nr) return geo.computeVertexNormals(); const b=nr.array;
+  for(let t=0;t<tris.length;t++){ if(!tris[t]) continue; const i=t*9;
+    const ux=a[i+3]-a[i], uy=a[i+4]-a[i+1], uz=a[i+5]-a[i+2], vx=a[i+6]-a[i], vy=a[i+7]-a[i+1], vz=a[i+8]-a[i+2];
+    let nx=uy*vz-uz*vy, ny=uz*vx-ux*vz, nz=ux*vy-uy*vx; const l=Math.hypot(nx,ny,nz)||1; nx/=l; ny/=l; nz/=l;
+    for(let k=0;k<3;k++){ b[i+k*3]=nx; b[i+k*3+1]=ny; b[i+k*3+2]=nz; } }
+  nr.needsUpdate=true; }
+function lancerDebris(o,x,y,z,vx,vy,vz,vie,proprio,r){
+  if(DEBRIS.length>=DEBRIS_MAX) retirerDebris(DEBRIS.shift());
+  o.position.set(x,y,z); scene.add(o);
+  DEBRIS.push({o,vx,vy,vz,wx:rand(-9,9),wy:rand(-6,6),wz:rand(-9,9),t:vie||8,proprio:!!proprio,r:r||0.06});
+}
+function retirerDebris(d){ if(!d) return; scene.remove(d.o); if(d.proprio) libererEntite(d.o); }
+function viderDebris(){ while(DEBRIS.length) retirerDebris(DEBRIS.pop()); }
+function majDebris(dt){
+  for(let i=DEBRIS.length-1;i>=0;i--){ const d=DEBRIS[i], o=d.o; d.t-=dt;
+    d.vy-=22*dt; o.position.x+=d.vx*dt; o.position.y+=d.vy*dt; o.position.z+=d.vz*dt;
+    o.rotation.x+=d.wx*dt; o.rotation.y+=d.wy*dt; o.rotation.z+=d.wz*dt;
+    const sol=solY(o.position.x,o.position.z)+d.r;
+    if(o.position.y<sol){ o.position.y=sol; if(d.vy<-2.5){ d.vy*=-0.38; d.vx*=0.65; d.vz*=0.65; d.wx*=0.6; d.wy*=0.6; d.wz*=0.6; }
+      else { d.vy=0; const f=Math.max(0,1-5*dt); d.vx*=f; d.vz*=f; d.wx*=f; d.wy*=f; d.wz*=f; } }
+    if(d.t<1) o.scale.setScalar(Math.max(0.01,d.t));
+    if(d.t<=0){ retirerDebris(d); DEBRIS.splice(i,1); } }
+}
+// éclats au point d'impact (carrosserie à la couleur du véhicule, vitre), un pare-chocs sur un gros choc
+function eclatsChoc(v,wx,wz,force){
+  if(!_geoEclat){ sansAleaVille(()=>{ _geoEclat=new THREE.BoxGeometry(0.34,0.035,0.24); _geoEclat.userData.partagee=true; _geoParechoc=new THREE.BoxGeometry(1.5,0.17,0.16); _geoParechoc.userData.partagee=true;
+    _matVitreDebris=new THREE.MeshPhongMaterial({color:0xcfe8ff,transparent:true,opacity:0.75,shininess:90}); }); }
+  const coul=mat(v.mesh.userData.coul||0x9aa2ad), dx=wx-v.x, dz=wz-v.z, l=Math.hypot(dx,dz)||1, ox=dx/l, oz=dz/l, n=Math.round(1+force*4);
+  for(let k=0;k<n;k++){ const vitre=k%3===2, m=new THREE.Mesh(_geoEclat,vitre?_matVitreDebris:coul); if(vitre) m.scale.set(0.6,1,0.6);
+    lancerDebris(m,wx+rand(-0.3,0.3),(v.h||0)+rand(0.5,1.1),wz+rand(-0.3,0.3),ox*rand(2,6)+rand(-2,2),rand(2,6),oz*rand(2,6)+rand(-2,2),rand(5,8),false,0.03); }
+  if(force>0.85&&!v.parechocTombe&&Math.random()<0.55){ v.parechocTombe=true; // le pare-chocs du côté choqué
+    const m=new THREE.Mesh(_geoParechoc,mat(0x23262e)); m.rotation.y=v.ang+Math.PI/2; lancerDebris(m,wx,(v.h||0)+0.4,wz,ox*rand(3,6),rand(2,4),oz*rand(3,6),rand(8,11),false,0.08); }
+}
+// arrache la roue i : elle part en rebondissant (une copie qui partage ses géométries), le coin s'affaisse
+function perdreRoue(v,i){
+  const ud=v.mesh.userData, r=ud.roues&&ud.roues[i]; if(!r||!r.visible) return false;
+  v.mesh.updateMatrixWorld(true); r.getWorldPosition(_bP); r.visible=false; v.rouesPerdues=(v.rouesPerdues||0)|(1<<i);
+  const c=r.clone(true); c.visible=true; c.rotation.set(0,v.ang,Math.PI/2);
+  const cote=Math.sign(r.position.x)||1, lx=Math.cos(v.ang)*cote, lz=-Math.sin(v.ang)*cote, sp=Math.abs(v.v||0);
+  lancerDebris(c,_bP.x,_bP.y+0.2,_bP.z,lx*rand(4,7)+Math.sin(v.ang)*sp*0.5,rand(4,7),lz*rand(4,7)+Math.cos(v.ang)*sp*0.5,12,false,0.3);
+  burst(_bP.x,0.4,_bP.z,14,0xffc040,8,6); SFX.choc(0.9); if(v.conduit==='joueur'){ toast('🛞 Tu as perdu une roue !','warn'); vibre(80); }
+  return true;
+}
+function nbRouesPerdues(v){ let n=0, m=v.rouesPerdues||0; while(m){ n+=m&1; m>>=1; } return n; }
+// roue perdue : la voiture ralentit, tire du côté du coin qui frotte, et le coin crache des étincelles
+function effetsRouesPerdues(v,dt){
+  const ud=v.mesh.userData, n=nbRouesPerdues(v); if(!n) return;
+  let tire=0; for(let i=0;i<(ud.roues||[]).length;i++) if(v.rouesPerdues&(1<<i)) tire+=Math.sign(ud.roues[i].position.x)||1;
+  const sp=Math.abs(v.v); v.ang+=tire*0.22*dt*Math.min(1,sp/10)*Math.sign(v.v||1);
+  if(sp>3&&Math.random()<dt*14){ for(let i=0;i<ud.roues.length;i++){ if(!(v.rouesPerdues&(1<<i))) continue; const r=ud.roues[i], c=Math.cos(v.ang), s2=Math.sin(v.ang);
+    burst(v.x+r.position.x*c+r.position.z*s2,0.15,v.z-r.position.x*s2+r.position.z*c,3,0xffc040,5,3); } if(v.conduit==='joueur'&&Math.random()<0.3) bruit(0.06,0.18,2400,'highpass'); }
+}
+// au derby, les pièces de l'habillage (bélier, tôles, grilles, cage) proches du choc se détachent pour de vrai
+function detacherPieceDerby(v,wx,wz,force){
+  const hab=v.mesh.userData.derbyHab; if(!hab||force<0.45) return; v.mesh.updateMatrixWorld(true);
+  const cand=[]; for(const o of hab.children){ if(!o.isMesh) continue; o.getWorldPosition(_bP); const d2=dist2(_bP.x,_bP.z,wx,wz); if(d2<1.8*1.8) cand.push([d2,o]); }
+  cand.sort((a,b)=>a[0]-b[0]); let n=0;
+  for(const [,o] of cand){ if(n>=2||Math.random()>0.45+force*0.2) break; o.getWorldPosition(_bP); o.getWorldQuaternion(_bQq); hab.remove(o); o.quaternion.copy(_bQq); n++;
+    const dx=_bP.x-v.x, dz=_bP.z-v.z, l=Math.hypot(dx,dz)||1; lancerDebris(o,_bP.x,_bP.y,_bP.z,dx/l*rand(3,6),rand(3,6),dz/l*rand(3,6),rand(9,12),true,0.08); }
+}
+const _bQq=new THREE.Quaternion();
+// un choc au point (wx, wz), violence force (0..1,5) : bosse, éclats, peut-être une roue, au derby des pièces
+function degatsChoc(v,wx,wz,force){
+  if(!v||v.mort||!v.mesh) return; const d=v.def; if(d.air||d.eau||d.velo||d.surf) return;
+  if(dist2(v.x,v.z,P.x,P.z)>DEGATS_PORTEE*DEGATS_PORTEE) return;
+  if(vehiculeDeformable(v)) bosseler(v,wx,wz,force);
+  if(force>0.3&&d.type!=='moto') eclatsChoc(v,wx,wz,force);
+  if(v.derby) detacherPieceDerby(v,wx,wz,force);
+  const ud=v.mesh.userData; if(!ud.roues||ud.roues.length<4||d.type==='moto'||d.canon||nbRouesPerdues(v)>=2) return;
+  const usee=v.hp/d.hp<(v.derby?0.75:0.5); if(!usee||force<(v.derby?0.6:0.8)) return;
+  v.mesh.updateMatrixWorld(true); let best=-1, bd=1.9*1.9;
+  for(let i=0;i<ud.roues.length;i++){ const r=ud.roues[i]; if(!r.visible) continue; r.getWorldPosition(_bP); const d2=dist2(_bP.x,_bP.z,wx,wz); if(d2<bd){ bd=d2; best=i; } }
+  if(best>=0&&Math.random()<(v.derby?0.5:0.3)) perdreRoue(v,best);
+}
+
 // Déformation visible de la carrosserie après un choc : bref écrasement du
 // mesh le long de l'axe d'impact (v.dentAxe), qui se résorbe sur v.dentT —
 // posé par la résolution de collision entre véhicules, voir majVehiculePhys.
@@ -17477,8 +17604,27 @@ function pousseHorsSolide(o,r){
 // véhicule, quel que soit son mode de conduite (voir majVehiculePhys,
 // majTrafic, majVehicules pour les garés).
 const KNOCK_FRICTION=3.2, KNOCK_VMAX=48;
+// un véhicule au sol peut-il se tenir en (x, z) ? (un solide plus haut que ce qu'il franchit, à la largeur de sa caisse)
+function bloqueParSolide(v,x,z){ const d=v.def; if(d.air||d.eau||v.enAir||surEauVeh(v)) return false; const so=solidAt(x,z,d.larg*0.42); return !!(so&&so.h>(v.h||0)+(d.franchit||0.5)); }
+/* Dégagement des murs (18 octobre) : un véhicule au sol dont la caisse mord dans un solide (coins, milieux des flancs,
+   bouts) en est sorti, au plus 0,6 u par image, le long de l'axe le moins enfoncé du solide. Une voiture coincée
+   contre un mur par une autre, poussée par l'élan d'un choc ou par la séparation entre véhicules, finissait DANS le
+   mur (derby : les carrosseries plantées dans les pneus, une épave sortie de l'arène). Hors des salles (le Dépôt
+   garde sa physique, mesurée). */
+const DEG_PTS=[[0.95,0.95],[0.95,-0.95],[-0.95,0.95],[-0.95,-0.95],[0,0.95],[0,-0.95],[0.95,0],[-0.95,0]];
+function degagerDesMurs(v){
+  const d=v.def, L=d.long/2, W=d.larg/2, s=Math.sin(v.ang), c=Math.cos(v.ang), hv=(v.h||0)+(d.franchit||0.5); let mx=0, mz=0;
+  for(let i=0;i<DEG_PTS.length;i++){ const a=DEG_PTS[i][0]*L, b=DEG_PTS[i][1]*W, px=v.x+s*a+c*b, pz=v.z+c*a-s*b, so=solidAt(px,pz,0); if(!so||so.h<=hv) continue;
+    const dx=px-so.x, dz=pz-so.z, ex=so.hw-Math.abs(dx), ez=so.hd-Math.abs(dz); if(ex<=0||ez<=0) continue;
+    if(ex<ez){ const p=(Math.sign(dx)||1)*(ex+0.02); if(Math.abs(p)>Math.abs(mx)) mx=p; } else { const p=(Math.sign(dz)||1)*(ez+0.02); if(Math.abs(p)>Math.abs(mz)) mz=p; } }
+  if(!mx&&!mz) return false;
+  const l=Math.hypot(mx,mz), k=Math.min(1,0.6/l); v.x+=mx*k; v.z+=mz*k; v.knockVx=0; v.knockVz=0; return true;
+}
 function majKnockback(v,dt){
   if(!v.knockVx&&!v.knockVz) return;
+  // l'élan d'un choc ne traverse jamais un mur (18 octobre, derby : « les voitures sortent des murs ») — jusqu'à 48 u/s,
+  // un pas d'image franchissait un mur de pneus sans jamais le tester
+  if(bloqueParSolide(v,v.x+(v.knockVx||0)*dt,v.z+(v.knockVz||0)*dt)){ v.knockVx=0; v.knockVz=0; return; }
   v.x+=(v.knockVx||0)*dt; v.z+=(v.knockVz||0)*dt;
   const f=Math.max(0,1-KNOCK_FRICTION*dt);
   v.knockVx=(v.knockVx||0)*f; v.knockVz=(v.knockVz||0)*f;
@@ -17590,7 +17736,9 @@ function resoudreCollisionsVehicule(v,dt){
       // tapent l'un dans l'autre et scintillent ») : un pas fixe de 0,25 u, même pour 2 cm de chevauchement, les
       // écartait trop ; le suivi de voie les ramenait, et ce va-et-vient à chaque image était le scintillement.
       // Désormais ils se séparent juste assez, d'un coup (le plus léger bouge le plus), au plus 0,6 u par image.
-      const prof=Math.min(Math.min(overFwd,overRight)+0.01,0.6), seul=o.mort||o.conduit==='joueur', partV=seul?1:1/(1+rap);
+      const prof=Math.min(Math.min(overFwd,overRight)+0.01,0.6), seul=o.mort||o.conduit==='joueur'; let partV=seul?1:1/(1+rap);
+      // jamais l'un poussé dans un mur : celui qui ne peut pas bouger reste, l'autre prend toute la séparation (18 octobre)
+      if(!seul){ const bV=bloqueParSolide(v,v.x+pushX*prof*partV,v.z+pushZ*prof*partV), bO=bloqueParSolide(o,o.x-pushX*prof*(1-partV),o.z-pushZ*prof*(1-partV)); if(bV&&!bO) partV=0; else if(bO&&!bV) partV=1; }
       v.x+=pushX*prof*partV; v.z+=pushZ*prof*partV;
       if(!seul){ o.x-=pushX*prof*(1-partV); o.z-=pushZ*prof*(1-partV); }
       if(rel>7){
@@ -17605,6 +17753,7 @@ function resoudreCollisionsVehicule(v,dt){
         const cz=v.z+Math.sign(distFwd||1)*Math.min(Math.abs(distFwd),hlV)*cV-Math.sign(distRight||1)*Math.min(Math.abs(distRight),hwV)*sV;
         burst(cx,1,cz,4+Math.round(viol*8),0xffd88a,7+viol*6);
         burst(cx,1.1,cz,Math.round(2+viol*6),0xe8f4ff,5+viol*5,3); // débris de vitres
+        degatsChoc(v,cx,cz,viol*clamp(1/rap,0.6,1.4)*(v.derby?kV:1)); degatsChoc(o,cx,cz,viol*clamp(rap,0.6,1.4)*(o.derby?kO:1)); // dégâts V2 : bosses, éclats, roues
         // Impulsion de choc réelle : 1/rap pour v (grand si v est léger),
         // rap pour o (grand si o est léger) — le plus léger des deux part
         // loin, le plus lourd à peine, plafonnée à KNOCK_VMAX pour rester
@@ -17666,10 +17815,11 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
   // plafond relevé pendant la nitro ; une fois coupée, un véhicule équipé
   // redescend en douceur vers sa vitesse max au lieu d'être ramené net.
   // Sans nitro, comportement strictement inchangé.
-  const vmaxEff=d.vmax*(v.nitroActif?NITRO_VMAX_MULT:1);
+  const vmaxEff=d.vmax*(v.nitroActif?NITRO_VMAX_MULT:1)*(v.rouesPerdues?Math.max(0.45,1-0.24*nbRouesPerdues(v)):1); // roue arrachée : vitesse bridée
   const retombeNitro=v.nitro&&!v.nitroActif&&v.v>d.vmax; // nitro tout juste coupée
   if(retombeNitro) v.v=Math.max(d.vmax,v.v-14*dt);
   v.v=clamp(v.v,-d.vmax*0.42,retombeNitro?v.v:vmaxEff);
+  if(v.rouesPerdues) effetsRouesPerdues(v,dt); // dégâts V2 : roue arrachée
   if(echoue){ // la coque glisse sur le sable : freinage fort et progressif, puis on peut repartir au pas vers l'eau
     if(Math.abs(v.v)>2.2) v.v-=Math.sign(v.v)*Math.min(Math.abs(v.v)-2.2,(5+Math.abs(v.v)*1.0)*dt); else v.v=clamp(v.v,-2.2,2.2);
     if(Math.abs(v.v)<0.6&&!v.echoueSorti&&v.conduit==='joueur'){ v.echoueSorti=true; v.echoueArret=true; } // posé : on descend (une fois par échouage)
@@ -17750,6 +17900,7 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
     const impact=Math.abs(v.v);
     if(impact>5){
       abimerVehicule(v,impact*(d.milit?0.5:d.type==='moto'?2.4:1.5)*(eau?0.6:1)*(v.derby?0.3:1),false); // derby : les murs de pneus amortissent
+      if(!eau) degatsChoc(v,v.x+(fx-v.x)*1.02,v.z+(fz-v.z)*1.02,clamp(impact/30,0,1.3)*(v.derby?0.5:1)); // dégâts V2 : le nez s'enfonce contre le mur
       burst(fx,0.8,fz,6,eau?0x9fd8ff:0xd8dce4,7);
       bruit(0.15,0.5,500);
       if(v.conduit==='joueur'){secousse(impact*0.4);vibre(50);
@@ -17844,7 +17995,7 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
       const roues=v.mesh.userData.roues||[];
       // positions RÉELLES des roues (repère du véhicule) : avant/arrière, gauche/droite
       let zAv=0,zAr=0,nAv=0,nAr=0,hAv=0,hAr=0,xD=0,xG=0,nD=0,nG=0,hD=0,hG=0;
-      for(const r of roues){ const lx=r.position.x, lz=r.position.z, wx=v.x+lx*cY+lz*sY, wz=v.z-lx*sY+lz*cY, h=solY(wx,wz);
+      for(const r of roues){ const lx=r.position.x, lz=r.position.z, wx=v.x+lx*cY+lz*sY, wz=v.z-lx*sY+lz*cY, h=solY(wx,wz)-(r.visible?0:0.3); // roue arrachée : le coin s'affaisse
         if(lz>=0){ zAv+=lz; hAv+=h; nAv++; } else { zAr+=lz; hAr+=h; nAr++; }
         if(lx>=0){ xD+=lx; hD+=h; nD++; } else { xG+=lx; hG+=h; nG++; } }
       if(!nAv||!nAr){ const L=Math.max(0.9,d.long*0.38); zAv=L; zAr=-L; hAv=solY(v.x+sY*L,v.z+cY*L); hAr=solY(v.x-sY*L,v.z-cY*L); nAv=nAr=1; }
@@ -17857,7 +18008,7 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
       if(roues.length&&(Math.abs(hAv/nAv-hAr/nAr)>0.06||(nD&&nG&&Math.abs(hD/nD-hG/nG)>0.06))){
         v.mesh.position.set(v.x,(v.h||0),v.z); v.mesh.rotation.y=v.ang; v.mesh.updateMatrixWorld(true);
         let lever=0;
-        for(const r of roues){ const pa=r.geometry.attributes.position; let bas=Infinity,bx=0,bz=0;
+        for(const r of roues){ if(!r.visible) continue; const pa=r.geometry.attributes.position; let bas=Infinity,bx=0,bz=0;
           for(let i=0;i<pa.count;i+=2){ _vRoue.fromBufferAttribute(pa,i).applyMatrix4(r.matrixWorld); if(_vRoue.y<bas){ bas=_vRoue.y; bx=_vRoue.x; bz=_vRoue.z; } }
           lever=Math.max(lever,solY(bx,bz)-bas); }
         v.assietteDy=clamp(lever,0,3);
@@ -19798,6 +19949,9 @@ function majVehicules(dt){
       majLumieresOvni(v,dt);
     }
   }
+  // dégagement des murs : tout véhicule au sol qui a bougé cette image (hors des salles)
+  for(let i=0;i<vehicules.length;i++){ const v=vehicules[i]; if(v.mort||v.noye||v.captureOvni||v.tracte||v.def.air||v.def.eau||v.enAir||v.x<-4000) continue;
+    if(v.x===v._dgx&&v.z===v._dgz) continue; if(!surEauVeh(v)) degagerDesMurs(v); v._dgx=v.x; v._dgz=v.z; }
   COLL.actif=false;
   for(let i=vehicules.length-1;i>=0;i--){
     const v=vehicules[i];
@@ -31257,6 +31411,7 @@ function libererEntite(o){
   if(!o||o===P.h.g||o.isSprite) return;
   for(let i=o.children.length-1;i>=0;i--) libererEntite(o.children[i]);
   if(o.geometry&&!o.geometry.userData.partagee) o.geometry.dispose();
+  if(o.userData&&o.userData.geoOrig&&!o.userData.geoOrig.userData.partagee) o.userData.geoOrig.dispose(); // dégâts V2 : l'originale d'une carrosserie bosselée
 }
 function libererObjet(o){
   if(!o||o===P.h.g||o.isSprite) return;
@@ -32985,6 +33140,7 @@ function ameliorerTexturesSol(){
 function startRun(){
   clotureMatPropre(); // une fois : la clôture de l'aérodrome a son propre matériau translucide
   ameliorerTexturesSol(); // une fois : asphalte et sable redessinés, variation de teinte des sols
+  viderDebris(); // dégâts V2 : éclats, roues et pièces au sol
   vitrineUltimes(); // une fois : le Bolide et l'Enzo sur les podiums du showroom
   // icône de la capacité spéciale du personnage (adrénaline, nitro, onde)
   el('specIco').innerHTML=ico('ico-spec-'+PERSOS[META.perso].spec,'⚡');
@@ -35076,7 +35232,7 @@ function boucle(t){
       majPietons(dt);
       majFigurants(dt);
       majFauneRue(dt);
-      majVehicules(dt);
+      majVehicules(dt); majDebris(dt);
       majGrandYacht();
       majRayonOvni(dt);
     }
