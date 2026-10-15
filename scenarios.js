@@ -4566,14 +4566,22 @@ async function main() {
         META.depotBusDebloque = true; // pour pouvoir tester le Bus aussi
         depotLancerCourse(s, 'boucle');
         const c0 = s.course, N = DEPOT_NB_WAYPOINTS;
-        let tick = 0, gagne = null;
+        let tick = 0, gagne = null, arretT = 0, reculT = 0, detour = null, cote = 1;
         while (tick < 4000 && gagne === null) {
           tick++;
           const je = c0.entrants[0];
-          const cible = c0.pts[je.prog % N];
+          let cible = c0.pts[je.prog % N];
+          if (detour) { if (detour.t > 0) { detour.t -= 0.05; cible = detour; } else detour = null; }
           const va = Math.atan2(cible.x - je.v.x, cible.z - je.v.z);
-          const steer = clamp(angDiff(je.v.ang, va) * 1.8, -1, 1);
-          const throttle = clamp(1 - Math.abs(steer) * 0.5, 0.45, 1);
+          let steer = clamp(angDiff(je.v.ang, va) * 1.8, -1, 1);
+          let throttle = clamp(1 - Math.abs(steer) * 0.5, 0.45, 1);
+          // arrêté contre un obstacle (le bus en travers de La Boucle, voulu : il laisse 6,7 u de passage ; le robot,
+          // qui vise le centre de la voie, poussait dessus indéfiniment selon le tirage), le pilote fait comme un
+          // joueur : il recule en braquant, puis contourne par un côté (l'autre au coup suivant). Un vrai mur en
+          // travers de toute la voie le bloquerait quand même : c'est ce que ce test surveille.
+          if (reculT > 0) { reculT -= 0.05; throttle = -1; steer = -cote;
+            if (reculT <= 0) { const a = je.v.ang + cote * Math.PI / 2; detour = { x: je.v.x + Math.sin(a) * 10 + Math.sin(je.v.ang) * 8, z: je.v.z + Math.cos(a) * 10 + Math.cos(je.v.ang) * 8, t: 2.5 }; cote = -cote; } }
+          else if (Math.abs(je.v.v) < 1) { arretT += 0.05; if (arretT > 1.5) { arretT = 0; reculT = 1; } } else arretT = 0;
           majVehiculePhys(je.v, 0.05, throttle, steer, false);
           P.x = je.v.x; P.z = je.v.z; P.ang = je.v.ang;
           depotAvancerProgress(je, c0);
@@ -7434,7 +7442,7 @@ async function main() {
         if (typeof DECOR_V2 === 'undefined' || !DECOR_V2) return { off: true };
         const o = {};
         startRun(); ETAT.timeScale = 1; P.hp = P.hpMax = 1e6;
-        const enVille = (v) => v.def.velo && Math.abs(v.x) < HALF && Math.abs(v.z) < HALF; // hors des vélos du Mont Reyes (garés au pied, pas aux arceaux)
+        const enVille = (v) => v.def.velo && !v.auSkatepark && Math.abs(v.x) < HALF && Math.abs(v.z) < HALF; // hors des vélos du Mont Reyes (garés au pied, pas aux arceaux) et des skateparks
         o.nbGares = vehicules.filter(enVille).length;
         o.garesSurArceaux = vehicules.filter(enVille).every((v) => MOB.arceaux.some((a) => Math.abs(a.x - v.x) < 0.01 && Math.abs(a.z - v.z) < 0.01));
         // scène maîtrisée : plus aucun véhicule, un carrefour dégagé
@@ -9041,7 +9049,7 @@ async function main() {
           for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0; for (const e of ennemis) e.mort = true; for (const b of balles) { b.on = false; } };
         // éligibilité : jamais un vélo, un aéronef, un bateau ni un véhicule qui a déjà son arme
         for (const k of Object.keys(VEHDEFS)) { const d = VEHDEFS[k];
-          const attendu = (d.type === 'car' || d.type === 'moto') && !d.air && !d.velo && !d.canon && !d.mitrailleuse && !d.dca && !d.grue && !d.pompier;
+          const attendu = (d.type === 'car' || d.type === 'moto') && !d.air && !d.velo && !d.canon && !d.mitrailleuse && !d.dca && !d.grue && !d.pompier && !d.derby; // derby : pas d'armes
           if (vehiculeTireur({ def: d }) !== attendu) ko.push('éligibilité ' + k); }
         // sans arme légère : pas de bouton TIR
         scene0(); for (const id of ARMES_VOLANT) META.armes[id].poss = false;
@@ -10267,7 +10275,11 @@ async function main() {
         if (av.length >= 2) { tourAutoriser(av[0]); if (tourAutoriser(av[1]) || TOUR.avions.filter((a) => a.etat === 'final').length !== 1) ko.push('deux avions sur la piste'); }
         startRun(); if (TOUR.actif || TOUR.vague !== -1) ko.push('startRun ne remet pas la tour à zéro');
         // aucune géométrie perdue d'une partie à l'autre (faune, véhicules, ennemis libérés)
-        const partie = () => { startRun(); ecran(null); ETAT.mode = 'jeu'; for (let i = 0; i < 30; i++) majCamera(1 / 30); renderer.render(scene, camera); }; // même point de vue à chaque fois
+        // même point de vue ET même tirage à chaque partie (le test maîtrise sa scène) : sans ça, le trafic et les voitures
+        // garées près du départ changent d'une partie à l'autre et le compte des géométries varie de ±50 sans aucune fuite
+        const rnd0 = Math.random;
+        const partie = () => { let g = 917; Math.random = () => { g = (g * 1664525 + 1013904223) >>> 0; return g / 4294967296; };
+          try { startRun(); ecran(null); ETAT.mode = 'jeu'; for (let i = 0; i < 30; i++) majCamera(1 / 30); renderer.render(scene, camera); } finally { Math.random = rnd0; } };
         partie(); partie(); const g0 = renderer.info.memory.geometries;
         for (let k = 0; k < 3; k++) partie();
         const g1 = renderer.info.memory.geometries; if (g1 > g0 + 5) ko.push('géométries perdues : ' + g0 + ' → ' + g1 + ' en 3 parties'); else info.push('géométries stables (' + g0 + ' → ' + g1 + ')');
@@ -10431,6 +10443,7 @@ async function main() {
         if (typeof TOW !== 'undefined') { TOW.actif = { id: 'wake', pts: TOW_DEFS.wake.objectif, t: 1, s: 0 }; finTow('temps'); }
         if (typeof BASE !== 'undefined' && BASE.ok) { lancerDefiBase(); finDefiBase(true); } // parcours du combattant de Fort Reyes
         if (typeof BT !== 'undefined' && BT.ok) { lancerBallTrap(); FPS.score = BT_OBJECTIF; fpsFinir(); } // ball-trap du ranch
+        if (typeof DERBY !== 'undefined' && DERBY.ok) { if (P.veh) sortirVehicule(true); WANTED.heat = 0; P.x = DERBY.stand.x; P.z = DERBY.stand.z; P.y = 0; derbyLancer(); derbyFin(true, 'dernier'); derbyNettoyer(); } // arène de derby
         checkTenues();
         for (const [k, id] of Object.entries(TENUE_EXPLOIT)) if (!META.exploits[k] || !META.tenuesPoss[id]) ko.push(k + ' → ' + id + ' pas débloquée');
         if (!ko.length) info.push(Object.keys(TENUE_EXPLOIT).length + ' tenues débloquées par leur mini-jeu');
@@ -11259,7 +11272,10 @@ async function main() {
         const ex0 = META.exploits.balltrap, arg0 = META.argent; META.exploits.balltrap = false; delete MERV.primes.balltrap;
         P.x = BT.poste.x; P.z = BT.poste.z; P.y = solPied(P.x, P.z); majAction();
         if (!/BALL-TRAP/.test(el('btnAction').textContent)) ko.push('pas de bouton au poste : ' + el('btnAction').textContent); else el('btnAction')._fn();
+        // 18 octobre : on choisit son arme (le fusil de Papy Earl est prêté) ; le bouton TIR montre l'arme du mini-jeu
+        if (!STAND.ouvert || !STAND.opts || STAND.opts.ids[0] !== 'pompe') ko.push('pas de choix d’arme au poste'); else STAND.opts.choisir('pompe');
         if (!FPS.actif) return { ko: ko.concat(['la partie ne démarre pas']), info };
+        if (el('fireIco').innerHTML !== icoArme('pompe')) ko.push('le bouton TIR ne montre pas le fusil du ball-trap');
         if (P.h.g.visible || el('btnFire').style.display === 'none' || el('btnDodge').style.display !== 'none') ko.push('HUD de la vue à la première personne');
         fpsCamera(); if (Math.abs(camera.position.y - (BT.poste.y + 1.65)) > 0.05) ko.push('caméra pas à hauteur d’œil');
         // le pilote
@@ -11278,6 +11294,12 @@ async function main() {
         if (!META.exploits.balltrap) ko.push('pilote sous l’objectif (' + FPS.score + ' pts, ' + FPS.touches + '/' + FPS.coups + ')');
         else info.push('pilote : ' + FPS.score + ' pts en ' + BT_DUREE + ' s (' + FPS.touches + ' touches / ' + FPS.coups + ' tirs), tenue de cow-boy, prime ' + (META.argent - arg0) + ' $');
         if (P.h && !P.h.g.visible) ko.push('joueur resté masqué'); if (el('btnDodge').style.display === 'none') ko.push('boutons de combat pas revenus'); if (camera.near !== 0.5) ko.push('plan proche de la caméra pas rendu');
+        if (el('fireIco').innerHTML !== icoArme(P.armeCur)) ko.push('le bouton TIR garde l’arme du ball-trap');
+        // une arme à soi, plus difficile : les points comptent plus
+        { const u0 = META.armes.uzi.poss; META.armes.uzi.poss = true; lancerBallTrap('uzi'); fpsCamera(); const m = mkObjetBT('plateau'); scene.add(m); const cam = camera.position;
+          FPS.cibles.push({ x: cam.x, y: cam.y + 3, z: cam.z + 12, vx: 0, vy: 0, vz: 0, r: 0.8, pts: 100, m, g: 0, vie: 3, sol: 0, k: 'plateau' }); FPS.yaw = Math.PI; FPS.pitch = Math.atan2(3, 12); FPS.st = Object.assign({}, FPS.st, { disp: 0 }); fpsCamera(); fpsTirer();
+          if (FPS.arme !== 'uzi' || FPS.score !== Math.round(100 * btMult('uzi'))) ko.push('uzi au ball-trap : ' + FPS.arme + ', ' + FPS.score); else info.push('Uzi : points ×' + btMult('uzi'));
+          fpsArreter(); META.armes.uzi.poss = u0; }
         // passif : rien
         META.exploits.balltrap = false; lancerBallTrap(); for (let i = 0; i < 30 * (BT_DUREE + 2) && FPS.actif; i++) { majFPS(1 / 30, 1 / 30); if (FPS.actif) fpsCamera(); }
         if (META.exploits.balltrap || FPS.score > 0) ko.push('passif : ' + FPS.score + ' pts'); else info.push('passif : 0 pt');
@@ -11481,6 +11503,250 @@ async function main() {
       }, noms);
       if (r.ko.length) fail('Carte et catalogue : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
       else ok('Carte et catalogue : ' + r.info.join(' ; '));
+    }
+
+    // -------------------------------------------------------------------
+    // Skate (18 octobre, demandé : « ajoute des vélos au skate park et ajoute
+    // aussi le skate, avec possibilité de faire toujours des ollies, des
+    // figures ») : le skate est un vélo sans moteur (velo:true, skate:true) ;
+    // le test commun « Figures deux roues » le couvre déjà (grand saut, chute,
+    // ollie + figure). Ici, ce qui lui est propre : SEULE LA PLANCHE TOURNE
+    // (le skateur reste debout — un modèle sans userData faisait basculer
+    // tout le véhicule), noms des figures, poussée du pied sans erreur,
+    // boutons OLLIE / KICKFLIP, vélos et skates garés aux deux skateparks.
+    // -------------------------------------------------------------------
+    console.log('\n--- Skate : ollie, kickflip, planche qui tourne seule, engins des skateparks ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        const cle = Object.keys(VEHDEFS).find((k) => VEHDEFS[k].skate);
+        if (!cle) return { ko: ['aucun skate dans VEHDEFS'] };
+        const scene0 = () => { if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
+          for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0; for (const e of ennemis) e.mort = true;
+          const v = creerVehicule(cle, POIS.place.x, POIS.place.z + 14, 0, null); v.h = solY(v.x, v.z); P.x = v.x; P.z = v.z; entrerVehicule(v); return v; };
+        let v = scene0(); const ud = v.mesh.userData;
+        if (!ud.planche || !ud.corps || !(ud.roues && ud.roues.length === 4)) ko.push('modèle incomplet (planche ' + !!ud.planche + ', roues ' + (ud.roues ? ud.roues.length : 0) + ')');
+        if (!/OLLIE/.test(document.getElementById('btnDodge').textContent)) ko.push('pas de bouton OLLIE : ' + document.getElementById('btnDodge').textContent);
+        // ollie : appui bref d'ESQUIVE = saut au relâcher
+        v.v = 6; INPUT.btn.esquive = true; majConduite(1 / 30); INPUT.btn.esquive = false; majConduite(1 / 30);
+        if (!v.enAir || !(v.vy > 0)) ko.push('pas d\'ollie sur un appui bref (enAir ' + v.enAir + ', vy ' + v.vy + ')');
+        else info.push('ollie : vy ' + v.vy.toFixed(1));
+        if (!/KICKFLIP/.test(document.getElementById('btnGren').textContent)) ko.push('pas de bouton KICKFLIP en l\'air : ' + document.getElementById('btnGren').textContent);
+        // kickflip pendant l'ollie : la planche tourne, le véhicule et le skateur restent droits
+        INPUT.edge.gren = true; let n = 0, maxPl = 0, maxMesh = 0, maxHomme = 0; const s0 = ETAT.score;
+        while ((v.enAir || n < 2) && P.veh === v && n < 120) { majConduite(1 / 30); INPUT.edge.gren = false; n++;
+          maxPl = Math.max(maxPl, Math.abs(ud.planche.rotation.z)); maxMesh = Math.max(maxMesh, Math.abs(v.mesh.rotation.x), Math.abs(v.mesh.rotation.z));
+          if (P.h && P.h.g) maxHomme = Math.max(maxHomme, Math.abs(P.h.g.rotation.x), Math.abs(P.h.g.rotation.z)); }
+        if (P.veh !== v) ko.push('chute sur un ollie + kickflip');
+        else {
+          if (!(maxPl > 2)) ko.push('la planche n\'a pas tourné (' + maxPl.toFixed(2) + ' rad)');
+          if (maxMesh > 0.5 || maxHomme > 1e-3) ko.push('le skateur a basculé avec la planche (véhicule ' + maxMesh.toFixed(2) + ', skateur ' + maxHomme.toFixed(2) + ')');
+          if (!(ETAT.score - s0 >= FIG2R.ptsFlip)) ko.push('kickflip non compté (' + (ETAT.score - s0) + ')');
+          if (Math.abs(ud.planche.rotation.z) > 1e-6 || Math.abs(ud.planche.position.y) > 1e-6) ko.push('planche pas remise à plat');
+          info.push('kickflip : planche ' + maxPl.toFixed(1) + ' rad, skateur droit, +' + (ETAT.score - s0));
+        }
+        // poussée du pied : rouler au joystick (dans le sens de la planche), sans erreur, le pied arrière bouge
+        v = scene0();
+        { let best = 0, dMax = -1; for (let k = 0; k < 16; k++) { const a = k * Math.PI / 8; let d = 0.6; while (d <= 12 && !solidAt(v.x + Math.sin(a) * d, v.z + Math.cos(a) * d, 0.3)) d += 0.3; if (d > dMax) { dMax = d; best = a; } }
+          v.ang = best; v.mesh.rotation.y = best; } // la direction la plus dégagée (un potelet devant la place arrêtait le skate)
+        INPUT.mx = Math.sin(v.ang); INPUT.mz = Math.cos(v.ang); let bouge = 0;
+        try { for (let i = 0; i < 60; i++) { majConduite(1 / 30); if (P.h && Math.abs(P.h.jambeD.rotation.x) > 0.1) bouge++; } } catch (e) { ko.push('poussée : ' + e.message); }
+        INPUT.mx = 0; INPUT.mz = 0;
+        if (!bouge) ko.push('le pied arrière ne pousse jamais (cap ' + v.ang.toFixed(2) + ', ' + v.v.toFixed(1) + ' u/s)'); else if (!(v.v > 4)) ko.push('le skate n’avance pas en poussant (' + v.v.toFixed(1) + ' u/s)'); else info.push('poussée du pied : ' + bouge + ' images sur 60, ' + v.v.toFixed(1) + ' u/s');
+        // indestructible comme le vélo
+        const hp0 = v.hp; abimerVehicule(v, 500); if (v.mort || v.hp < hp0) ko.push('le skate s\'abîme');
+        sortirVehicule(true);
+        if (Math.abs(P.h.jambeG.rotation.z) > 1e-6 || Math.abs(P.h.jambeD.rotation.z) > 1e-6) ko.push('jambes restées écartées à pied');
+        // engins garés aux deux skateparks à chaque partie
+        startRun(); ecran(null); ETAT.mode = 'jeu';
+        const gares = vehicules.filter((o) => o.auSkatepark && !o.mort);
+        const pres = (x, z, R) => gares.filter((o) => Math.hypot(o.x - x, o.z - z) < R);
+        if (typeof SKATE !== 'undefined' && SKATE.ok) { const l = pres(SKATE.x, SKATE.z, 30); if (!l.some((o) => o.def.skate) || !l.some((o) => o.def.velo && !o.def.skate)) ko.push('skatepark de la ville : ' + l.map((o) => o.key)); else info.push('skatepark : ' + l.map((o) => o.key).join(', ')); }
+        if (typeof SKX !== 'undefined' && SKX.ok) { const l = pres(SKX.x0, (SKX.z0 + SKX.z1) / 2, 50); if (!l.some((o) => o.def.skate) || !l.some((o) => o.def.bmx)) ko.push('skatepark XXL : ' + l.map((o) => o.key)); else info.push('XXL : ' + l.map((o) => o.key).join(', ')); }
+        for (const o of gares) if (solidAt(o.x, o.z, 0.3) || estEau(o.x, o.z)) ko.push(o.key + ' garé dans un solide ou à l\'eau en ' + Math.round(o.x) + ',' + Math.round(o.z));
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Skate : ' + r.ko.join(' | ') + ' [' + (r.info || []).join(', ') + ']');
+      else ok('Skate : ' + r.info.join(' ; '));
+    }
+
+    // -------------------------------------------------------------------
+    // Armureries de la carte (18 octobre, signalé : « je n'arrive toujours pas
+    // à rentrer dans les salles d'armurerie : aux armureries de la minimap,
+    // j'ouvre l'ancienne page non interactive avec toutes les armes en liste ;
+    // je ne sais pas où est l'entrée ») : chaque marqueur « A » de la carte
+    // (lu dans listeCommerces) propose ENTRER et mène à la salle V2 ; on
+    // ressort devant la même armurerie, jamais devant l'autre.
+    // -------------------------------------------------------------------
+    console.log('\n--- Armureries de la carte : chaque marqueur « A » mène à la salle V2 ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu';
+        const marques = listeCommerces().filter((c) => c.txt === 'A');
+        if (marques.length < 2) ko.push(marques.length + ' marqueur(s) « A » sur la carte');
+        for (const m of marques) {
+          P.x = m.x; P.z = m.z + 1; P.y = 0; majAction();
+          const b = document.getElementById('btnAction'), lab = b.textContent;
+          if (!/ENTRER/.test(lab) || !/ARMURERIE/i.test(lab)) { ko.push('devant le « A » ' + Math.round(m.x) + ',' + Math.round(m.z) + ' : « ' + lab + ' »'); continue; }
+          b._fn();
+          const s = INT.actif;
+          if (!s || s !== INT.salles.armurerie) { ko.push('le « A » ' + Math.round(m.x) + ',' + Math.round(m.z) + ' n’entre pas dans la salle de l’armurerie'); if (s) sortirInterieur(); continue; }
+          if (ETAT.mode === 'shopIn' || ETAT.mode === 'shop') ko.push('l’ancienne page s’ouvre encore');
+          if (!s.murArmes || !s.etabliArmes) ko.push('salle sans mur d’armes ou établi');
+          sortirInterieur();
+          const d = Math.hypot(P.x - m.x, P.z - m.z);
+          if (d > 6) ko.push('ressorti à ' + d.toFixed(1) + ' u de l’armurerie ' + Math.round(m.x) + ',' + Math.round(m.z));
+          info.push('« A » ' + Math.round(m.x) + ',' + Math.round(m.z) + ' → salle, ressorti à ' + d.toFixed(1) + ' u');
+        }
+        // le nom est le même partout : carte, bouton, salle
+        if (/port/i.test(INTDEFS.armurerie.nom)) ko.push('nom de salle « ' + INTDEFS.armurerie.nom + ' »');
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Armureries de la carte : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
+      else ok('Armureries de la carte : ' + r.info.join(' ; '));
+    }
+
+    // -------------------------------------------------------------------
+    // Arène de derby (18 octobre, demandé : « ok pour l'arène de derby, et
+    // même faire des voitures de derby avec des améliorations derby ») :
+    // arène close (portail fermé pendant le match), stand (menu, achats,
+    // sauvegarde), voitures habillées selon les améliorations, épaves au
+    // lieu d'explosions, coups de face / flancs, abandon, mort, prime une
+    // fois par vague, tenue. Jouable (pilote au joystick réel, réaction
+    // 0,3 s, tactique de charge) et perdable (passif) : chaque match tiré
+    // sur sa propre graine (le test maîtrise sa scène).
+    // -------------------------------------------------------------------
+    console.log('\n--- Arène de derby : stand, améliorations, épaves, match jouable et perdable ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [], D = DERBY;
+        if (!DECOR_V2 || !D.ok) return { off: true };
+        const rnd0 = Math.random, graine = (g) => { Math.random = () => { g = (g * 1664525 + 1013904223) >>> 0; return g / 4294967296; }; };
+        const prep = () => { if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6; for (const e of ennemis) e.mort = true; WANTED.heat = 0; P.x = D.stand.x; P.z = D.stand.z; P.y = 0; };
+        const niv0 = { pareChocs: 0, blindage: 0, moteur: 0, pneus: 0 }, sauve = JSON.parse(JSON.stringify(META.derby)), argent0 = META.argent;
+        try {
+          // le stand : bouton, menu, achats (sauvegardés, clés fixes)
+          prep(); META.derby.niv = Object.assign({}, niv0); majAction();
+          if (!/DERBY/.test(document.getElementById('btnAction').textContent)) ko.push('pas de bouton au stand : ' + document.getElementById('btnAction').textContent);
+          document.getElementById('btnAction')._fn(); if (!D.menuOuvert || !/LANCER LE DERBY/.test(D.menu.textContent)) ko.push('menu du stand absent');
+          META.argent = 1e5; derbyAcheterAmelio('pareChocs'); derbyAcheterAmelio('pareChocs'); derbyChoisirVoiture('derbyPickup');
+          if (META.derby.niv.pareChocs !== 2 || !META.derby.poss.derbyPickup || META.derby.voiture !== 'derbyPickup' || META.argent !== 1e5 - DERBY_PRIX.niv.pareChocs[0] - DERBY_PRIX.niv.pareChocs[1] - DERBY_PRIX.voitures.derbyPickup) ko.push('achats du stand ' + JSON.stringify(META.derby.niv) + ' ' + META.argent);
+          META.derby.niv.pareChocs = 3; derbyAcheterAmelio('pareChocs'); if (META.derby.niv.pareChocs !== 3) ko.push('amélioration au-delà du niveau 3');
+          sauveMeta(); const sv = JSON.parse(localStorage.getItem('asphalte_save_v1')); if (!sv.derby || sv.derby.voiture !== 'derbyPickup' || sv.derby.niv.pareChocs !== 3) ko.push('derby pas sauvegardé');
+          if (D.porte.actif) ko.push('portail fermé hors match');
+          // l'habillage suit les améliorations
+          const pieces = (niv) => { const g = makeVoiture('derbyBreak'); habillerDerby(g, 'derbyBreak', 9, niv); let n = 0; g.userData.derbyHab.traverse((o) => { if (o.isMesh) n++; }); libererObjet(g); return n; };
+          const p0 = pieces(niv0), p3 = pieces({ pareChocs: 3, blindage: 3, moteur: 3, pneus: 3 }); if (!(p3 > p0 + 15)) ko.push('habillage : ' + p0 + ' pièces au niveau 0, ' + p3 + ' au niveau 3');
+          // ni garage, ni tir par la vitre
+          if (vehiculeTireur({ def: VEHDEFS.derbyBreak })) ko.push('tir par la vitre en voiture de derby');
+          if (!messageNonGarable({ key: 'derbyBreak', def: VEHDEFS.derbyBreak }).includes('derby')) ko.push('message du garage');
+          // le match : six voitures, portail fermé, compte à rebours figé, trêve
+          META.derby.niv = Object.assign({}, niv0); META.derby.voiture = 'derbyBreak'; prep(); graine(11); derbyLancer(); Math.random = rnd0; const A = D.actif;
+          if (!A || A.voitures.length !== 1 + DERBY_NB_IA || P.veh !== A.vJ) ko.push('match pas lancé');
+          else {
+            if (!D.porte.actif || !solidAt(D.porte.x, D.porte.z, 0.2)) ko.push('portail ouvert pendant le match');
+            if (!treveActivite()) ko.push('pas de trêve pendant le match');
+            const x0 = A.vJ.x; INPUT.mx = 1; INPUT.mz = 0; for (let i = 0; i < 30; i++) { derbyEntrees(); majConduite(1 / 30); } INPUT.mx = 0;
+            if (Math.abs(A.vJ.x - x0) > 0.5) ko.push('la voiture roule pendant le compte à rebours');
+            // coups : de face le bélier frappe, sur le flanc on encaisse plus
+            const v = A.ias[0], o = A.ias[1]; v.ang = 0; o.ang = Math.PI / 2; v.derbyBelier = 1.7; const k = derbyCoeffs(v, o, 0, 3);
+            if (!(k[0] > 2) || !(k[1] < 0.7)) ko.push('coup de face sur le flanc : ' + k.map((x) => x.toFixed(2)));
+            DERBY._paire = null;
+            // une épave, jamais une explosion
+            exploserVehicule(v); abimerVehicule(o, 1e6, false);
+            if (v.mort || !v.derbyKO || o.mort || !o.derbyKO || v.conduit === 'derby') ko.push('épave : mort ' + v.mort + '/' + o.mort + ', KO ' + v.derbyKO + '/' + o.derbyKO);
+            if (!dansArene(v.x, v.z, 0)) ko.push('voiture hors de l’arène');
+            // abandon : descendre de sa voiture
+            A.etat = 'combat'; sortirVehicule(true); majDerby(1 / 30, 1 / 30); if (A.etat !== 'fin' || A.gagne) ko.push('abandon non compté');
+            for (let i = 0; i < 30 * 4 && D.actif; i++) majDerby(1 / 30, 1 / 30);
+            if (D.actif || D.porte.actif || A.voitures.some((x) => vehicules.includes(x) && !x.mort)) ko.push('arène pas nettoyée après le match');
+          }
+          // les murs tiennent : lancée à fond, aucune voiture ne sort de l'arène
+          prep(); let sorties = 0;
+          for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4, v = creerVehicule('derbyBreak', D.x, D.z, a, null); v.h = 0; v.v = VEHDEFS.derbyBreak.vmax;
+            D.porte.actif = true; for (let i = 0; i < 90; i++) majVehiculePhys(v, 1 / 30, 1, 0, false); if (!dansArene(v.x, v.z, -1.5)) sorties++; v.mort = true; }
+          D.porte.actif = false; if (sorties) ko.push(sorties + ' voiture(s) sortie(s) de l’arène par un mur');
+          // mort pendant un match : tout est nettoyé
+          prep(); derbyLancer(); mourir(); ETAT.timeScale = 1; if (D.actif || D.porte.actif) ko.push('mort pendant le match : derby pas arrêté');
+          // jouable et perdable : matches complets, chacun sur sa graine
+          // chaque match maîtrise sa scène : graine posée AVANT startRun, voitures de la ville retirées, niveau 0 des IA
+          // (sinon le trafic et l'état laissé par les autres tests changent l'issue : 2/4 seul, 1/4 dans la suite)
+          const match = (mode, g) => { graine(g); prep(); for (const v of vehicules) { scene.remove(v.mesh); libererEntite(v.mesh); } vehicules.length = 0;
+            META.derby.niv = Object.assign({}, niv0); META.derby.victoires = 0; derbyLancer(); const A = D.actif; if (!A) { Math.random = rnd0; return null; }
+            let t = 0, cible = null, decT = 0, bloqT = 0, reculT = 0, dir = [0, 0];
+            while (D.actif === A && t < 200) { const dt = 1 / 30; t += dt;
+              if (mode === 'pilote' && A.etat === 'combat') { const v = A.vJ; decT -= dt;
+                if (v.dentT > 0.3 && !v._vu && reculT <= 0) { v._vu = true; reculT = 0.7; } else if (!(v.dentT > 0.3)) v._vu = false; // après l'impact, on recule pour reprendre de l'élan
+                if (reculT > 0) { reculT -= dt; dir = [-Math.sin(v.ang), -Math.cos(v.ang)]; decT = 0; }
+                else if (decT <= 0) { decT = 0.3; // réaction humaine
+                  let best = null, bd = 1e9; for (const o of A.ias) { if (o.derbyKO || o.mort) continue; const d = Math.hypot(o.x - v.x, o.z - v.z) * (o.dbCible === v ? 1.6 : 1); if (d < bd) { bd = d; best = o; } }
+                  cible = best; if (best) { const tx = best.x + Math.sin(best.ang) * best.v * 0.35, tz = best.z + Math.cos(best.ang) * best.v * 0.35, l = Math.hypot(tx - v.x, tz - v.z) || 1; dir = [(tx - v.x) / l, (tz - v.z) / l]; } }
+                if (Math.abs(v.v) < 1 && reculT <= 0) { bloqT += dt; if (bloqT > 1) { bloqT = 0; reculT = 0.8; } } else bloqT = 0;
+                INPUT.mx = dir[0]; INPUT.mz = dir[1]; } else { INPUT.mx = 0; INPUT.mz = 0; }
+              derbyEntrees(); if (P.veh) majConduite(dt); majVehicules(dt); majDerby(dt, dt); }
+            INPUT.mx = INPUT.mz = 0; Math.random = rnd0; return { gagne: A.gagne, t: Math.round(A.t), kos: A.kos }; };
+          const pil = [], pas = [];
+          for (const g of [101, 202, 303, 404]) pil.push(match('pilote', g));
+          for (const g of [505, 606]) pas.push(match('passif', g));
+          const nG = pil.filter((x) => x && x.gagne).length;
+          if (!nG) ko.push('le pilote ne gagne jamais ' + JSON.stringify(pil));
+          if (pas.some((x) => !x || x.gagne)) ko.push('un joueur passif gagne ' + JSON.stringify(pas));
+          info.push('pilote : ' + nG + '/4 gagnés (' + pil.map((x) => x && (x.gagne ? 'G' : 'p') + x.t + 's').join(' ') + '), passif : 0/2');
+          // prime une fois par vague, tenue « Casse-cou », victoires
+          prep(); META.exploits.derby = false; const v0 = META.derby.victoires || 0; MERV.primes.derby = -1; derbyLancer(); const a1 = META.argent; derbyFin(true, 'dernier'); const g1 = META.argent - a1; derbyNettoyer();
+          P.x = D.stand.x; P.z = D.stand.z; P.y = 0; derbyLancer(); const a2 = META.argent; /* même partie, même vague */ derbyFin(true, 'dernier'); const g2 = META.argent - a2; derbyNettoyer();
+          if (!(g1 >= DERBY_PRIME) || g2 !== 0) ko.push('prime : ' + g1 + ' puis ' + g2 + ' dans la même vague');
+          if (!META.exploits.derby || META.derby.victoires !== v0 + 2) ko.push('tenue ou victoires : ' + META.exploits.derby + ', ' + META.derby.victoires);
+          if (!TENUES.find((x) => x.id === TENUE_EXPLOIT.derby)) ko.push('tenue du derby absente');
+          info.push('prime ' + g1 + ' $ puis ' + g2 + ' dans la vague, tenue débloquée, habillage ' + p0 + ' → ' + p3 + ' pièces');
+        } finally { Math.random = rnd0; INPUT.mx = INPUT.mz = 0; META.derby = Object.assign(META.derby, sauve); META.argent = argent0; derbyArreter(); }
+        return { ko, info };
+      });
+      if (r.off) saute('Arène de derby : DECOR_V2 désactivé');
+      else if (r.ko.length) fail('Arène de derby : ' + r.ko.join(' | ') + ' [' + (r.info || []).join(', ') + ']');
+      else ok('Arène de derby : ' + r.info.join(' ; '));
+    }
+
+    // -------------------------------------------------------------------
+    // Trafic sans scintillement (18 octobre, signalé : « des fois des véhicules
+    // se suivent, se tapent l'un dans l'autre et scintillent s'il y a un
+    // bouchon ») : 90 s de trafic réel en trois points (tirage fixé, le test
+    // maîtrise sa scène). Un « scintillement » = un véhicule de trafic dont le
+    // déplacement s'inverse d'une image à l'autre (plus de 3 cm chaque fois) :
+    // c'était la séparation à pas fixe de resoudreCollisionsVehicule contre le
+    // suivi de voie (avant : 300 à 970 par point ; un demi-tour normal en bord
+    // de ville en fait un). Et plus de tas immobile devant Los Reyes Hills.
+    // -------------------------------------------------------------------
+    console.log('\n--- Trafic : pas de scintillement ni de tas dans les bouchons ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [], rnd0 = Math.random; let g = 1234;
+        Math.random = () => { g = (g * 1664525 + 1013904223) >>> 0; return g / 4294967296; };
+        try {
+          const recouvre = (a, b) => { const dx = b.x - a.x, dz = b.z - a.z; if (dx * dx + dz * dz > 64) return false;
+            const ax = [[Math.sin(a.ang), Math.cos(a.ang)], [Math.cos(a.ang), -Math.sin(a.ang)], [Math.sin(b.ang), Math.cos(b.ang)], [Math.cos(b.ang), -Math.sin(b.ang)]];
+            const ext = (v, u) => v.def.long / 2 * Math.abs(Math.sin(v.ang) * u[0] + Math.cos(v.ang) * u[1]) + v.def.larg / 2 * Math.abs(Math.cos(v.ang) * u[0] - Math.sin(v.ang) * u[1]);
+            for (const u of ax) if (Math.abs(dx * u[0] + dz * u[1]) >= ext(a, u) + ext(b, u) - 0.05) return false; return true; };
+          for (const pt of [POIS.place, POIS.commissariat || { x: 100, z: -100 }, POIS.armurerie2 || { x: -21, z: 72 }]) {
+            if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true);
+            startRun(); ecran(null); ETAT.mode = 'jeu'; P.x = pt.x; P.z = pt.z; P.y = 0; P.hp = P.maxHp = 1e9; for (const e of ennemis) e.mort = true;
+            let scint = 0, recouv = 0; const dprev = new Map(), dt = 1 / 30;
+            for (let i = 0; i < 30 * 90; i++) {
+              const avant = new Map(); for (const v of vehicules) if (v.conduit === 'trafic') avant.set(v, [v.x, v.z]);
+              majVehicules(dt); WANTED.heat = 0;
+              const T = []; for (const v of vehicules) if (v.conduit === 'trafic' && !v.mort) T.push(v);
+              for (const v of T) { const a = avant.get(v); if (!a) continue; const ddx = v.x - a[0], ddz = v.z - a[1], pr = dprev.get(v);
+                if (pr && Math.hypot(ddx, ddz) > 0.03 && Math.hypot(pr[0], pr[1]) > 0.03 && ddx * pr[0] + ddz * pr[1] < 0) scint++; dprev.set(v, [ddx, ddz]); }
+              if (i % 3 === 0) { let f = false; for (let a = 0; a < T.length && !f; a++) for (let b = a + 1; b < T.length; b++) if (recouvre(T[a], T[b])) { f = true; break; } if (f) recouv++; } }
+            if (scint > 90) ko.push(Math.round(pt.x) + ',' + Math.round(pt.z) + ' : ' + scint + ' scintillements en 90 s');
+            info.push(Math.round(pt.x) + ',' + Math.round(pt.z) + ' : ' + scint + ' inversions, ' + recouv * 3 + ' images de contact');
+          }
+        } finally { Math.random = rnd0; }
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Trafic sans scintillement : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
+      else ok('Trafic sans scintillement : ' + r.info.join(' ; '));
     }
 
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');

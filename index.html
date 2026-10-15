@@ -1860,7 +1860,8 @@ function garagesMetaDefaut(){ const o={}; for(const g of GARAGES_TUNING) o[g.id]
 const VEHPERSO_MAX=6;
 function vehPersoMetaDefaut(){ const o={}; for(let i=0;i<VEHPERSO_MAX;i++) o['v'+i]=slotGarageDefaut(); return o; }
 const META={
-  exploits:{basket:false,tour:false,supercross:false,bowl:false,wake:false,badlands:false,base:false,balltrap:false}, // mini-jeux réussis (tenues)
+  exploits:{basket:false,tour:false,supercross:false,bowl:false,wake:false,badlands:false,base:false,balltrap:false,derby:false},
+  derby:{voiture:'derbyBreak',poss:{derbyBreak:true,derbyCompacte:false,derbyPickup:false},niv:{pareChocs:0,blindage:0,moteur:0,pneus:0},victoires:0,kos:0}, // arène de derby (clés fixes) // mini-jeux réussis (tenues)
   argent:150, xp:0, niveau:1,
   record:0, recordVague:0, killsTotal:0, parties:0,
   perso:'jax', persosPoss:['jax'], radio:0, planque:false, garage:null, revenus:0,
@@ -2041,6 +2042,7 @@ const DEFIS_THEMES=[
   {theme:'manege',noms:['Ticket de manège','Accro aux sensations'],det:n=>'Fais '+n+(n>1?' tours':' tour')+' de grand huit ou de grande roue',val:m=>m.defis.manege,paliers:[1,10],recs:[150,700]},
   {theme:'style',noms:['Coquet','Fashion victim'],det:n=>'Achète '+n+(n>1?' pièces':' pièce')+' dans les boutiques, chez le barbier ou le tatoueur',val:m=>m.defis.styleAchats,paliers:[1,8],recs:[200,900]},
   {theme:'planques',noms:['Propriétaire','Agent immobilier','Baron de l’immobilier'],det:n=>'Achète '+n+(n>1?' planques':' planque'),val:m=>Object.values(m.planques||{}).filter((x)=>x===true||(x&&x.achetee)).length,paliers:[1,3,6],recs:[400,1500,4000]},
+  {theme:'derby',noms:['Casse-cou','Roi de l’arène','Légende du derby'],det:n=>'Gagne '+n+(n>1?' derbys':' derby')+' dans l’arène',val:m=>(m.derby&&m.derby.victoires)||0,paliers:[1,5,15],recs:[500,1500,4000]},
   {theme:'fauves',noms:['Chasseur','Dompteur de fauves'],det:n=>'Viens à bout de '+n+' bêtes sauvages (sangliers, jaguar, ours)',val:m=>m.defis.fauves,paliers:[3,12],recs:[400,1300]},
   {theme:'aimant',noms:['Grutier volant','As de l’aimant'],det:n=>'Accroche '+n+(n>1?' véhicules':' véhicule')+' avec l’aimant de l’hélico-grue « Titan »',val:m=>m.defis.aimant,paliers:[1,8],recs:[350,1200]},
   {theme:'exploits',noms:['Touche-à-tout','Champion des mini-jeux','Légende des mini-jeux'],det:n=>'Débloque '+n+(n>1?' tenues':' tenue')+' de mini-jeu (basket, tour de contrôle, supercross, bowl, wakeboard, Badlands)',val:m=>Object.values(m.exploits||{}).filter(Boolean).length,paliers:[1,3,6],recs:[300,1000,3000]},
@@ -2373,7 +2375,7 @@ function atelierEssayer(k){ if(!ATELIER.ouvert||aMod(ATELIER.id,k)) return; cons
   if(i>=0) A.splice(i,1); else { if(FINITIONS_ARME.includes(k)) for(const f of FINITIONS_ARME){ const j=A.indexOf(f); if(j>=0) A.splice(j,1); } A.push(k); }
   atelierModele(); renderAtelier(); SFX.ui(); }
 function majAtelierArme(dt){
-  if(STAND.ouvert&&(!INT.actif||INT.actif!==STAND.salle||FPS.actif||!STAND.salle.standTir||dist2(P.x,P.z,STAND.salle.standTir.x,STAND.salle.standTir.z)>16)) fermerStandTir();
+  if(STAND.ouvert&&(FPS.actif||(STAND.salle?INT.actif!==STAND.salle:!!INT.actif)||!STAND.opts||dist2(P.x,P.z,STAND.opts.zone.x,STAND.opts.zone.z)>16)) fermerStandTir(); // le choix d'arme (stand de tir, ball-trap) se ferme si l'on s'éloigne
   if(!ATELIER.ouvert) return;
   if(INT.actif!==ATELIER.salle||ETAT.mode!=='jeu'){ fermerAtelierArme(); return; }
   if(ATELIER.pauseT>0) ATELIER.pauseT-=dt; else { ATELIER.ang+=dt*0.8; ATELIER.tilt*=Math.max(0,1-dt*1.5); }
@@ -2496,11 +2498,13 @@ const TENUES=[
    cond:()=>!!(META.exploits&&META.exploits.base),haut:0x4a5238,bas:0x3a4228,casq:0x3a4228},
   {id:'cowboy',nom:'Tenue de cow-boy du ranch',ico:'🤠',condTxt:'Réussir le ball-trap du ranch Coyote Loco — fusils à pompe 20 % plus précis',
    cond:()=>!!(META.exploits&&META.exploits.balltrap),haut:0xc84a2a,bas:0x3a5a8a,casq:0x8a6a44},
+  {id:'cassecou',nom:'Combinaison « Casse-cou »',ico:'💥',condTxt:'Gagner un derby de l’arène — dégâts reçus au volant −15 %',
+   cond:()=>!!(META.exploits&&META.exploits.derby),haut:0xe8662a,bas:0x14161c,casq:0xf2f2ee},
 ];
 // capacité d'une tenue : k si elle est portée, 1 sinon
 function tenueK(id,k){ return META.tenue===id?k:1; }
 // un exploit de mini-jeu : la 1re fois, la tenue est annoncée avec sa capacité
-const TENUE_EXPLOIT={basket:'ballers',tour:'aiguilleur',supercross:'prorider',bowl:'skateur',wake:'wakeur',badlands:'badlands',base:'militaire',balltrap:'cowboy'};
+const TENUE_EXPLOIT={basket:'ballers',tour:'aiguilleur',supercross:'prorider',bowl:'skateur',wake:'wakeur',badlands:'badlands',base:'militaire',balltrap:'cowboy',derby:'cassecou'};
 function exploitMiniJeu(cle){
   if(!META.exploits||META.exploits[cle]) return; META.exploits[cle]=true; checkTenues();
   const tn=TENUES.find((x)=>x.id===TENUE_EXPLOIT[cle]);
@@ -2552,6 +2556,7 @@ const VEHDEFS={
   // peinture, néons, pièces — jamais moteur, nitro ni blindage).
   velo:{nom:'Vélo de ville',tuningCarro:{famille:'velo',ancrages:{avant:{x:0,y:1.08,z:0.48},arriere:{x:0,y:0.74,z:-0.56},toit:{x:0,y:1.08,z:0.4},basCaisse:{x:0.08,y:0.36,z:0}}},vmax:15,acc:9,man:3.6,hp:60,long:1.8,larg:0.6,type:'moto',velo:true,roue:0.34,hop:7,cols:[0x2a6ad8,0x2f8a4a,0xe8ecf2,0xd83a3a]},
   bmx:{nom:'BMX',tuningCarro:{famille:'velo',ancrages:{avant:{x:0,y:0.94,z:0.42},arriere:{x:0,y:0.62,z:-0.56},toit:{x:0,y:0.94,z:0.34},basCaisse:{x:0.08,y:0.3,z:0}}},vmax:17,acc:12,man:4.2,hp:50,long:1.6,larg:0.6,type:'moto',velo:true,bmx:true,roue:0.28,hop:9.5,cols:[0xff8c1a,0x35e0ff,0xff5ad0,0x1c1e24]},
+  skate:{nom:'Skateboard',vmax:12.5,acc:7.5,man:4.6,hp:40,long:0.9,larg:0.3,type:'moto',velo:true,skate:true,roue:0.04,hop:8.5,cols:[0xd83a3a,0x2a6ad8,0xffd23f,0x14161c,0x7dff7a]}, // 18 octobre : sans moteur ni dégâts, comme le vélo ; OLLIE, MANUAL, KICKFLIP, 360
   motocross:{nom:'Moto cross',tuningMeca:true,tuningCarro:{famille:'deuxroues',ancrages:{avant:{x:0,y:1.0,z:0.6},arriere:{x:0,y:1.0,z:-1.13},toit:{x:0,y:1.28,z:0.36},basCaisse:{x:0.2,y:0.85,z:0}}},vmax:37,acc:23,man:3.5,hp:65,long:2.3,larg:0.85,type:'moto',cols:[0xff8c1a,0x35c8e0,0x7dff7a],cross:true},
   sport:{nom:'Supercar "Éclipse"',tuningMeca:true,tuningCarro:{famille:'sportive',ancrages:{avant:{x:0,y:0.94,z:2.14},arriere:{x:0,y:1.12,z:-2.25},toit:{x:0,y:1.23,z:-0.26},basCaisse:{x:1,y:0.1,z:0}}},vmax:45,acc:24,man:3.0,hp:110,long:4.4,larg:2.0,type:'car',cols:[0xff4b2e,0x35e0ff,0xb8ff3a,0xf2f4f8],sport:true},
   taxi:{nom:'Taxi',tuningMeca:true,tuningCarro:{famille:'compacte',ancrages:{avant:{x:0,y:0.86,z:2.09},arriere:{x:0,y:0.65,z:-2.09},toit:{x:0,y:1.57,z:-0.26},basCaisse:{x:1,y:0.22,z:0}}},vmax:25,acc:15,man:2.6,hp:130,long:4.3,larg:2.0,type:'car',cols:[0xf2c21f],taxi:true},
@@ -2731,6 +2736,13 @@ Object.assign(VEHDEFS,{
   hyper:{nom:'Hypercar "Zénith"',tuningMeca:true,tuningCarro:{famille:'sportive'},vmax:55,acc:28,man:3.2,hp:110,long:4.6,larg:2.1,type:'car',cols:[0xf2f4f8,0x14161c,0xff7a1a,0x7a3ad8],sport:true},
 });
 for(const k in PROFILS_VOITURE){ const d=VEHDEFS[k]; if(!d) continue; d.profil=k; if(d.tuningCarro) d.tuningCarro.ancrages=ancragesProfil(k); }
+// voitures de derby (18 octobre, ARÈNE DE DERBY) : carrosseries de voitureV2 (profil), habillées par habillerDerby ;
+// ni garage, ni tir par la vitre ; elles ne sortent jamais de l'arène
+Object.assign(VEHDEFS,{
+  derbyBreak:{nom:'Break « Corbillard »',derby:true,profil:'berline',vmax:24,acc:13,man:2.4,hp:300,long:4.7,larg:2.05,type:'car',cols:[0xe8662a,0xd8c83a,0x3aa8d8,0x9ad83a,0xd83a8a,0xe8e4dc]},
+  derbyCompacte:{nom:'Citadine « Savonnette »',derby:true,profil:'citadine',vmax:27,acc:16,man:2.9,hp:230,long:4.2,larg:2.0,type:'car',cols:[0xff5ad0,0x35e0ff,0xffd23f,0x7dff7a,0xe8662a]},
+  derbyPickup:{nom:'Pick-up « Bétaillère »',derby:true,profil:'pickup',vmax:22,acc:12,man:2.1,hp:380,long:5.0,larg:2.2,type:'car',cols:[0x8a4de0,0xd8261c,0x3a7a3a,0xe8c84a,0x2a6ad8]},
+});
 
 /* ---------- Types d'ennemis ---------- */
 const ETYPES={
@@ -4007,7 +4019,7 @@ function construireVille(){
     if(qq!=='plage'&&qq!=='parc'&&bx%3===1&&bz%3===1) mkFeu(cx+INNER/2+1.4,cz-INNER/2-1.4);
   }
   placerPortes();
-  if(DECOR_V2){ sansAleaVille(()=>{ reserverHills(); reserverChantier(); reserverBase(); reserverSports(); ameliorerPortes(); mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkBasket(); mkCiel(); mkKiosqueBanderole(); mkCrique(); mkMontReyes(); mkVieMont(); mkBordureEst(); mkCanyonsDesert(); mkPicVertige(); mkParcStunt(); mkSkateXXL(); mkRides(); mkMerVivante(); mkRemorquage(); mkLarge(); deplacerVoltige(); mkAeroportVivant(); mkHeliGrue(); mkPlanques(); mkBoutiques(); mkGrandHuit(); mkToitsVivants(); mkTracesSable(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkNeonVivant(); mkQuartiersFinitions(); mkFacadesVariees(); mkCascades(); if(MERV.ok) mkVolcanIle(); mkAeroVie(); mkLosReyesHills(); mkBordsHills(); mkChantierV2(); mkPlanquesV2(); mkBaseV2(); mkBallTrap(); mkSportsParcs(); mkHalosBoutiques(); mkSurprisesToits(); mkBalises(); }); } // cascades et volcan EN DERNIER : leurs tirages du décor ne décalent rien de ce qui précède (mobilier...) // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
+  if(DECOR_V2){ sansAleaVille(()=>{ reserverHills(); reserverChantier(); reserverBase(); reserverSports(); ameliorerPortes(); mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkBasket(); mkCiel(); mkKiosqueBanderole(); mkCrique(); mkMontReyes(); mkVieMont(); mkBordureEst(); mkCanyonsDesert(); mkPicVertige(); mkParcStunt(); mkSkateXXL(); mkRides(); mkMerVivante(); mkRemorquage(); mkLarge(); deplacerVoltige(); mkAeroportVivant(); mkHeliGrue(); mkPlanques(); mkBoutiques(); mkGrandHuit(); mkToitsVivants(); mkTracesSable(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkNeonVivant(); mkQuartiersFinitions(); mkFacadesVariees(); mkCascades(); if(MERV.ok) mkVolcanIle(); mkAeroVie(); mkLosReyesHills(); mkBordsHills(); mkChantierV2(); mkPlanquesV2(); mkBaseV2(); mkBallTrap(); mkSportsParcs(); mkHalosBoutiques(); mkSurprisesToits(); mkArenaDerby(); mkBalises(); }); } // cascades et volcan EN DERNIER : leurs tirages du décor ne décalent rien de ce qui précède (mobilier...) // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
   finaliserMerge();
   construireMinimapStatique();
 }
@@ -7617,8 +7629,7 @@ function mkLosReyesHills(){
       if(i%27===4&&!dansPisteSaut(x+dz/l*s*(W2+0.6),z-dx/l*s*(W2+0.6),2)){ const qx=x+dz/l*s*(W2+0.6), qz=z-dx/l*s*(W2+0.6); const n1=scene.children.length; mkLampadaire(qx,qz); FLAQUES_LUM.pop(); for(let k=n1;k<scene.children.length;k++) scene.children[k].position.y=hauteurHills(qx,qz); } }
     const [x0,z0]=R.pts[1]; mkEnseigne(R.nom,'#ffd23f',x0+(R.id==='drive'?-8:0),hauteurHills(x0,z0)+3.4,z0+(R.id==='drive'?0:-8),R.id==='drive'?Math.PI/2:0,6); }
   // l'entrée : concession REYES MOTORS (vitrine) et garage ; arche « LOS REYES HILLS »
-  mkBatiment(-104,100.5,18,11,6,matFacade('#2a2f3a','verre'));
-  mkBox(16,3.4,0.15,new THREE.MeshLambertMaterial({color:0x8ad2ff,transparent:true,opacity:0.45}),-104,2,106.1); // vitrine
+  mkConcessionHills(); // 18 octobre : un vrai showroom (avant : un immeuble à façade de bureaux, « c'est étrange »)
   mkBatiment(-133,101.5,12,9,5.5,paletteFacades.industriel[0]); mkEnseigne('GARAGE','#ffd23f',-133,4.2,106.2,0,7);
   { const zone=new THREE.Mesh(new THREE.CircleGeometry(2.6,20),new THREE.MeshBasicMaterial({color:0xffd23f,transparent:true,opacity:0.25,depthWrite:false})); zone.rotation.x=-Math.PI/2; zone.position.set(POIS.garage.x,0.2,POIS.garage.z); scene.add(zone); }
   for(const s of [-1,1]){ mkBox(1.2,7,1.2,mat(0xe8dcc4),-150+s*8.2,3.5,119); addSolid({x:-150+s*8.2,z:119,hw:0.6,hd:0.6,h:7}); } mkBox(18,1.4,1.2,mat(0xe8dcc4),-150,7.2,119);
@@ -8114,6 +8125,44 @@ function mkSautsHills(){
     for(const [r1,r2,co] of [[5.2,5.6,0xffd23f],[3.4,3.8,0xff7a1a],[1.4,1.8,0xffd23f]]){ const an=new THREE.Mesh(new THREE.RingGeometry(r1,r2,32),new THREE.MeshBasicMaterial({color:co,transparent:true,opacity:0.75,depthWrite:false})); an.rotation.x=-Math.PI/2; an.position.set(s.x,0.05,H.z0-55); scene.add(an); }
   }
 }
+/* CONCESSION REYES MOTORS (18 octobre, demandé : « restyliser le bâtiment du concessionnaire, un vrai bâtiment
+   de concessionnaire, pas un immeuble ») : showroom bas et vitré sur toute la façade (montants alu), bandeau blanc
+   à l'enseigne, auvent sur colonnes au-dessus de l'entrée, flancs en panneaux composites ; dedans, deux voitures de
+   luxe sur podiums tournants, un comptoir, des plafonniers ; dehors, l'esplanade d'exposition (voitures sur
+   podiums de part et d'autre de l'entrée, jamais devant la porte), un totem lumineux, des fanions. Même emprise
+   que l'ancien bâtiment (la porte de la salle reste où elle était). */
+const CONCESSION={tournants:[]};
+function mkConcessionHills(){
+  const x=-104, z=100.5, W=22, D=11, H=6.4, zA=z+D/2, alu=mat(0xc8ccd4), blanc=mat(0xf4f5f7), gris=mat(0x5a606a), noir=mat(0x1c1e24), comp=mat(0xd8dce2);
+  const verre=new THREE.MeshPhongMaterial({color:0x9fd4ff,transparent:true,opacity:0.32,shininess:110,specular:0xffffff,depthWrite:false,side:THREE.DoubleSide});
+  // sol du showroom et de l'esplanade (béton poli), le bâtiment
+  mkBox(W+0.4,0.08,D+0.4,mat(0xdfe2e6),x,0.17,z); mkBox(36,0.06,9,mat(0xc4c8ce),x,0.16,zA+4.6); /* au-dessus du terrain de la colline (0,13) */ // jamais au-delà du bord est de la colline (la rue de la ville)
+  mkBox(W,0.5,D,comp,x,H-0.25,z); mkBox(W+0.6,1.4,0.5,blanc,x,H-0.4,zA+0.15); // toit et bandeau blanc
+  for(const sx of [-1,1]){ mkBox(0.4,H,D,comp,x+sx*(W/2-0.2),H/2,z); } mkBox(W,H,0.4,comp,x,H/2,z-D/2+0.2); // flancs, fond
+  addSolid({x,z,hw:W/2,hd:D/2,h:H,toit:true});
+  { const g=new THREE.Mesh(new THREE.PlaneGeometry(W-0.8,H-1.4),verre); g.position.set(x,(H-1.4)/2+0.05,zA); g.renderOrder=2; scene.add(g); } // la vitrine
+  for(let k=0;k<=10;k++) mkBox(0.12,H-1.3,0.14,alu,x-W/2+0.4+k*(W-0.8)/10,(H-1.3)/2,zA+0.02); // montants
+  mkBox(W-0.8,0.12,0.16,alu,x,H-1.36,zA+0.03);
+  // l'auvent d'entrée et ses colonnes (la porte de la salle est dessous)
+  mkBox(8,0.25,3.4,blanc,x,H-1.05,zA+1.7); for(const sx of [-1,1]) mkBox(0.22,H-1.2,0.22,alu,x+sx*3.6,(H-1.2)/2,zA+3.2);
+  // dedans : deux voitures sur podiums tournants, comptoir, plafonniers
+  CONCESSION.tournants=[];
+  for(const [k,dx] of [['hyper',-5.5],['cabriolet',5.5]]){ const pod=new THREE.Mesh(new THREE.CylinderGeometry(2.7,2.8,0.24,28),mat(0x2a2e36)); pod.position.set(x+dx,0.2,z+0.6); scene.add(pod);
+    const v=makeVoiture(k); v.position.set(x+dx,0.32,z+0.6); v.rotation.y=dx<0?0.6:-0.6; scene.add(v); CONCESSION.tournants.push(v); }
+  mkBox(3,1.0,0.8,noir,x,0.5,z-3.4); mkBox(3.1,0.06,0.9,alu,x,1.03,z-3.4);
+  for(const dx of [-6,0,6]){ const l=new THREE.Mesh(new THREE.PlaneGeometry(3,0.6),new THREE.MeshBasicMaterial({color:0xfff8e8})); l.rotation.x=Math.PI/2; l.position.set(x+dx,H-0.52,z); scene.add(l); }
+  // dehors : l'esplanade d'exposition, de part et d'autre de l'entrée
+  for(const [k,dx,dz,ry] of [['suvLuxe',-14,8,0.5],['charger',14,8,-0.5],['sport',-15,1.5,0.9],['berline',15,1.5,-0.9]]){
+    const pod=new THREE.Mesh(new THREE.CylinderGeometry(2.6,2.7,0.3,24),mat(0x9aa0a8)); pod.position.set(x+dx,0.15,z+dz); scene.add(pod);
+    const v=makeVoiture(k); v.position.set(x+dx,0.3,z+dz); v.rotation.y=ry; scene.add(v); addSolid({x:x+dx,z:z+dz,hw:2.4,hd:2.4,h:1.6}); }
+  // le totem lumineux et les fanions
+  { const tx=x-18.5, tz=zA+6.5; mkBox(1.4,8,0.6,noir,tx,4,tz); mkEnseigne('REYES MOTORS','#ffd23f',tx,6.4,tz+0.35,0,2.4); addSolid({x:tx,z:tz,hw:0.7,hd:0.3,h:8});
+    const lo=new THREE.Mesh(new THREE.CircleGeometry(0.55,24),new THREE.MeshBasicMaterial({color:0xffd23f})); lo.position.set(tx,4.4,tz+0.31); scene.add(lo); }
+  const fan=[0xd83a3a,0xffd23f,0x2a6ad8,0xf2f2ee];
+  for(const sx of [-1,1]){ const x0=x+sx*5, x1=x+sx*16.5; mkBox(0.1,4.2,0.1,alu,x1,2.1,zA+9.2); mkBox(0.1,4.2,0.1,alu,x0,2.1,zA+9.2); // fanions au bord de l'esplanade, l'allée de la porte libre
+    for(let k=0;k<10;k++){ const u=(k+0.5)/10, fx=x0+(x1-x0)*u, fy=4.1-Math.sin(u*Math.PI)*0.6; const f=new THREE.Mesh(new THREE.ConeGeometry(0.22,0.5,3),mat(fan[k%4])); f.rotation.x=Math.PI; f.position.set(fx,fy-0.25,zA+9.2); scene.add(f); } }
+}
+function majConcession(dt){ if(!CONCESSION.tournants.length||dist2(P.x,P.z,-104,100)>120*120) return; for(const v of CONCESSION.tournants) v.rotation.y+=dt*0.35; }
 // manoir de la planque : deux étages blancs, grandes baies, toit-terrasse, colonnade d'entrée
 function mkManoirPlanque(){
   const m=HILLS.manoir, y=m.h, x=m.x, z=m.z-2, w=22, d=10, blanc=mat(0xf2ede2), vitre=mat(0x1a2a3a), toit=mat(0xb8b0a0);
@@ -8505,6 +8554,7 @@ function fpsDemarrer(cfg){
   const mod=mkArmeModele(cfg.arme); if(mod){ mod.visible=true; habillerArme(mod,cfg.arme); const a=new THREE.Group(), b=new THREE.Group(), c=new THREE.Group(); a.add(mod); a.rotation.x=Math.PI/2; b.add(a); b.rotation.z=Math.PI; c.add(b); b.position.set(0.34,-0.32,-0.85); b.scale.setScalar(0.62);
     c.traverse((o)=>{ if(o.isMesh){ o.renderOrder=5; } }); scene.add(c); FPS.modele=c; FPS.porteArme=b; }
   camera.near=0.05; camera.updateProjectionMatrix();
+  el('fireIco').innerHTML=icoArme(cfg.arme); // le bouton TIR montre l'arme du mini-jeu, jamais celle qu'on a en main
   if(cfg.titre) bigMsg(cfg.titre); SFX.ui(); fpsHud();
 }
 function fpsHud(){ const C=FPS.actif; if(!C||!FPS.el) return; const s=Math.max(0,Math.ceil(FPS.t));
@@ -8516,6 +8566,7 @@ function fpsArreter(){ const C=FPS.actif; if(!C) return; FPS.actif=null;
   if(FPS.modele){ scene.remove(FPS.modele); FPS.modele=null; }
   if(FPS.el) FPS.el.style.display='none'; if(FPS.mire) FPS.mire.style.display='none';
   if(P.h) P.h.g.visible=true; afficherBoutonsCombat(); camera.near=0.5; camera.updateProjectionMatrix(); INPUT.btn.tir=false; FPS.drag=null;
+  if(P.h) majArmeJoueur(); // l'icône de TIR redevient celle de l'arme en main
   return C; }
 function fpsFinir(){ const C=fpsArreter(); if(!C) return; const bilan={score:FPS.score,coups:FPS.coups,touches:FPS.touches,precision:FPS.coups?Math.round(FPS.touches/FPS.coups*100):0};
   if(C.fin) C.fin(bilan); }
@@ -8538,7 +8589,7 @@ function fpsTirer(){
 }
 function fpsToucher(c){
   const C=FPS.actif; c.mort=true; if(c.m) c.m.visible=false;
-  const pts=Math.round((c.pts||0)*(c.pts>0?FPS.combo:1)); FPS.score=Math.max(0,FPS.score+pts);
+  const pts=Math.round((c.pts||0)*(c.pts>0?FPS.combo*(C.mult||1):1)); FPS.score=Math.max(0,FPS.score+pts);
   if(c.pts>0) FPS.combo=Math.min(8,FPS.combo+1); else FPS.combo=1;
   burst(c.x,c.y,c.z,c.eclats||14,c.coul||0xff7a1a,9,6); spawnTexte(c.x,c.y+0.6,c.z,(pts>0?'+':'')+pts+(c.cri?' '+c.cri:''),pts>0?'#ffd23f':'#ff3b3b');
   if(C.toucher) C.toucher(c,pts);
@@ -8577,7 +8628,7 @@ window.addEventListener('pointerup',e=>{ if(FPS.drag&&e.pointerId===FPS.drag.id)
    On choisit n'importe quelle arme à feu (possédée ou non : on l'essaie avant de l'acheter), avec ses modifications
    posées ; 30 s de silhouettes qui surgissent entre 8 et 30 m, certaines en mouvement ; les civils (bleus) coûtent
    200 points. Score, précision ; rien à gagner (c'est un essai : jamais de farming). */
-const STAND={el:null,ouvert:false,salle:null};
+const STAND={el:null,ouvert:false,salle:null,opts:null};
 function mkSilhouette(civil){ const tx=cTex(64,(c,s2)=>{ c.fillStyle='#e8e2d0'; c.fillRect(0,0,s2,s2); c.fillStyle=civil?'#3a6ad8':'#1c1e24';
     c.beginPath(); c.arc(s2/2,s2*0.2,s2*0.13,0,7); c.fill(); c.fillRect(s2*0.27,s2*0.34,s2*0.46,s2*0.62);
     if(civil){ c.fillStyle='#fff'; c.font='bold 11px Arial'; c.textAlign='center'; c.fillText('CIVIL',s2/2,s2*0.66); }
@@ -8586,17 +8637,23 @@ function mkSilhouette(civil){ const tx=cTex(64,(c,s2)=>{ c.fillStyle='#e8e2d0'; 
   const pied=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.9,0.08),new THREE.MeshLambertMaterial({color:0x3a3c42})); pied.position.y=-1.3; g.add(pied); return g; }
 function standCible(sa){ const T=sa.standTir, civ=Math.random()<0.2, d=8+Math.random()*22, x=T.ex+(Math.random()-0.5)*14, z=T.ez-1.4-d, m=mkSilhouette(civ); scene.add(m);
   const mob=Math.random()<0.4; FPS.cibles.push({x,y:1.3,z,vx:mob?(Math.random()<0.5?-1:1)*(1.2+Math.random()*1.6):0,vy:0,vz:0,g:0,r:0.6,pts:civ?-200:Math.round(60+d*5),coul:civ?0x3a6ad8:0x1c1e24,cri:civ?'CIVIL !':'',m,vie:1.4+Math.random()*1.3,sol:-5,civil:civ}); }
-function ouvrirStandTir(sa){
-  STAND.ouvert=true; STAND.salle=sa;
+// le choix de l'arme avant un tir à la première personne (stand de tir, ball-trap) : opts = {titre, aide, couleur,
+// ids, det(id), bouton(id), choisir(id), zone:{x,z}, salle} ; se ferme si l'on s'éloigne (majAtelierArme)
+function ouvrirChoixArme(opts){
+  STAND.ouvert=true; STAND.opts=opts; STAND.salle=opts.salle||null;
   if(!STAND.el){ const d=document.createElement('div'); d.id='standTir';
     d.style.cssText='position:fixed;left:0;right:0;bottom:0;height:50%;z-index:40;background:linear-gradient(#141821ee,#0c0f15f8);border-top:2px solid #ff3b5c;color:#e8ecf2;font:600 13px Arial;display:flex;flex-direction:column;padding:10px 12px calc(env(safe-area-inset-bottom,0px) + 10px)';
-    d.innerHTML='<div style="display:flex;align-items:center;gap:8px"><div style="flex:1;font:900 16px Arial">🎯 Stand de tir — choisis une arme</div><button class="pill" id="stFerme">✕</button></div><div class="det" style="margin:4px 0">30 s de silhouettes ; jamais les civils (bleus). Gratuit : on essaie avant d’acheter.</div><div id="stListe" style="flex:1;overflow-y:auto"></div>';
+    d.innerHTML='<div style="display:flex;align-items:center;gap:8px"><div id="stTitre" style="flex:1;font:900 16px Arial"></div><button class="pill" id="stFerme">✕</button></div><div id="stAide" class="det" style="margin:4px 0"></div><div id="stListe" style="flex:1;overflow-y:auto"></div>';
     document.body.appendChild(d); STAND.el=d; d.querySelector('#stFerme').addEventListener('pointerdown',(e)=>{ e.preventDefault(); fermerStandTir(); }); }
-  const L=ORDRE_ARMES.filter((id)=>ARMES[id].type==='gun'&&!ARMES[id].cachee&&mkArmeModeleDispo(id));
-  STAND.el.querySelector('#stListe').innerHTML=L.map((id)=>{ const a=ARMES[id], pos=META.armes[id].poss, mo=modsArme(id);
-    return '<div class="ligneItem"><div class="ico">'+icoArme(id)+'</div><div class="inf"><div class="nom">'+a.nom+(pos?' <span style="color:#7dff7a">(à toi)</span>':'')+'</div><div class="det">'+(mo.length?'modifs : '+mo.map((k)=>MODS_ARMES[k]?MODS_ARMES[k].ico:'').join(' '):a.prix+' $ en vente')+'</div></div><button class="pill" data-id="'+id+'">ESSAYER</button></div>'; }).join('');
-  STAND.el.querySelectorAll('.pill[data-id]').forEach((b)=>b.addEventListener('pointerdown',(e)=>{ e.preventDefault(); lancerStandTir(STAND.salle,b.dataset.id); }));
+  STAND.el.style.borderTopColor=opts.couleur||'#ff3b5c'; STAND.el.querySelector('#stTitre').textContent=opts.titre; STAND.el.querySelector('#stAide').textContent=opts.aide||'';
+  STAND.el.querySelector('#stListe').innerHTML=opts.ids.map((id)=>'<div class="ligneItem"><div class="ico">'+icoArme(id)+'</div><div class="inf"><div class="nom">'+ARMES[id].nom+'</div><div class="det">'+(opts.det?opts.det(id):'')+'</div></div><button class="pill" data-id="'+id+'">'+(opts.bouton?opts.bouton(id):'CHOISIR')+'</button></div>').join('');
+  STAND.el.querySelectorAll('.pill[data-id]').forEach((b)=>b.addEventListener('pointerdown',(e)=>{ e.preventDefault(); const o=STAND.opts; fermerStandTir(); o.choisir(b.dataset.id); }));
   STAND.el.style.display='flex'; SFX.ui(); }
+function armesFPS(){ return ORDRE_ARMES.filter((id)=>ARMES[id].type==='gun'&&!ARMES[id].cachee&&!ARMES[id].flamme&&mkArmeModeleDispo(id)); }
+function ouvrirStandTir(sa){
+  ouvrirChoixArme({titre:'🎯 Stand de tir — choisis une arme',aide:'30 s de silhouettes ; jamais les civils (bleus). Gratuit : on essaie avant d’acheter.',couleur:'#ff3b5c',salle:sa,zone:{x:sa.standTir.x,z:sa.standTir.z},
+    ids:armesFPS(),bouton:()=>'ESSAYER',choisir:(id)=>lancerStandTir(sa,id),
+    det:(id)=>{ const mo=modsArme(id); return (META.armes[id].poss?'<span style="color:#7dff7a">à toi</span> — ':'')+(mo.length?'modifs : '+mo.map((k)=>MODS_ARMES[k]?MODS_ARMES[k].ico:'').join(' '):ARMES[id].prix+' $ en vente'); }}); }
 function fermerStandTir(){ STAND.ouvert=false; if(STAND.el) STAND.el.style.display='none'; }
 function lancerStandTir(sa,id){
   fermerStandTir(); if(FPS.actif||!sa||!sa.standTir) return; const T=sa.standTir; sa.standT=0.6;
@@ -8642,9 +8699,16 @@ function btLancer(){ // une cible part d'un des deux lanceurs, en cloche, en tra
   FPS.cibles.push({x:L.x,y:1.4,z:L.z,vx,vy,vz,r:o.r,pts:o.pts,coul:o.c,cri:o.cri,m,g:o.k==='colombe'?3:9.8,rx:o.k==='plateau'||o.k==='or'?0:3+Math.random()*4,ry:2+Math.random()*3,vie:5,sol:0.2,k:o.k});
   if(o.k==='colombe'){ const c=FPS.cibles[FPS.cibles.length-1]; c.vy=7; c.vx*=0.6; } // elle plane : on a le temps de la reconnaître
   bruit(0.12,0.4,320); }
-function lancerBallTrap(){
-  if(FPS.actif||!BT.ok) return; const p=BT.poste; BT.lanceT=1.2; BT.partie=true;
-  fpsDemarrer({nom:'🎯 BALL-TRAP',titre:'🎯 PULL !',aide:'vise au joystick ou au doigt, TIR',arme:'pompe',x:p.x,y:p.y+1.65,z:p.z,yaw:Math.PI,pitch:0.32,yawMin:Math.PI-1.1,yawMax:Math.PI+1.1,fov:80,pitchMin:-0.05,pitchMax:1.15,duree:BT_DUREE,portee:70,
+// points ×mult selon l'arme : le fusil à pompe (plombs) est la référence, une arme précise ou lente est plus dure
+function btMult(id){ const a=ARMES[id]; if(!a||(a.pellets||1)>1||a.roquette) return 1; if(a.manuel) return 2; if(a.cad<=0.09) return 1.2; return a.mag&&a.mag<=12?1.6:1.4; }
+function btArmes(){ return ['pompe'].concat(armesFPS().filter((id)=>id!=='pompe'&&META.armes[id].poss)); }
+function choisirArmeBallTrap(){
+  ouvrirChoixArme({titre:'🎯 Ball-trap — choisis ton arme',aide:'Le fusil à pompe de Papy Earl est prêté. Avec une arme plus difficile, chaque cible rapporte plus.',couleur:'#ff7a1a',zone:{x:BT.poste.x,z:BT.poste.z},
+    ids:btArmes(),choisir:(id)=>lancerBallTrap(id),bouton:(id)=>'POINTS ×'+String(btMult(id)).replace('.',','),
+    det:(id)=>id==='pompe'&&!META.armes.pompe.poss?'prêté par Papy Earl':(id==='pompe'?'à toi':'à toi — '+(ARMES[id].manuel?'coup par coup':ARMES[id].cad<=0.09?'en rafale':'précis'))}); }
+function lancerBallTrap(arme){
+  if(FPS.actif||!BT.ok) return; arme=(arme&&ARMES[arme]&&(arme==='pompe'||META.armes[arme].poss))?arme:'pompe'; const p=BT.poste, mult=btMult(arme); BT.lanceT=1.2; BT.partie=true;
+  fpsDemarrer({nom:'🎯 BALL-TRAP'+(mult>1?' ×'+String(mult).replace('.',','):''),titre:'🎯 PULL !',aide:'vise au joystick ou au doigt, TIR',arme,mult,x:p.x,y:p.y+1.65,z:p.z,yaw:Math.PI,pitch:0.32,yawMin:Math.PI-1.1,yawMax:Math.PI+1.1,fov:80,pitchMin:-0.05,pitchMax:1.15,duree:BT_DUREE,portee:70,
     maj:(dt)=>{ BT.lanceT-=dt; if(BT.lanceT<=0){ btLancer(); if(Math.random()<0.28) setTimeout(()=>{ if(FPS.actif&&BT.partie) btLancer(); },220); BT.lanceT=1.15+Math.random()*1.0; } }, // doublés de temps en temps
     toucher:(c)=>{ if(c.k==='colombe'){ toast('🕊️ Papy Earl : « PAS LA COLOMBE DE MAMIE ! »','warn'); } else if(c.k==='wc'&&Math.random()<0.5) toast('🚽 Papy Earl : « Celle-là, elle a eu une longue carrière. »'); },
     rate:(c)=>{ FPS.combo=1; if(c.k==='or') toast('Papy Earl : « Le plateau d’or… envolé. »'); }, // une cible qui retombe casse le combo
@@ -8655,7 +8719,7 @@ function finBallTrap(b){
   else bigMsg('🎯 '+b.score+' PTS — objectif '+BT_OBJECTIF);
   toast('Précision : '+b.precision+' % ('+b.touches+'/'+b.coups+')'+(ok?'':' — Papy Earl : « Encore une, gamin ? »'),ok?'or':'warn'); }
 function ballTrapAction(){ if(!BT.ok||P.veh||FPS.actif) return null; if(dist2(P.x,P.z,BT.poste.x,BT.poste.z)>2.4*2.4) return null;
-  return {label:'🎯 BALL-TRAP — '+BT_OBJECTIF+' PTS EN '+BT_DUREE+' s',fn:lancerBallTrap}; }
+  return {label:'🎯 BALL-TRAP — '+BT_OBJECTIF+' PTS EN '+BT_DUREE+' s',fn:choisirArmeBallTrap}; }
 function mkBallTrap(){
   /* la bande de sable plate entre le tarmac (z ~ 112) et les mesas (z ~ 147) : le stand regarde le SUD, les mesas
      orange servent de fond aux tirs ; on garde le premier point libre (ni relief, ni solide, ni planque) le plus
@@ -8827,6 +8891,398 @@ function majSportsParcs(dt){
     pg.balle.position.set(x0+(x1-x0)*u,Y+0.85+Math.abs(Math.sin(u*Math.PI*2))*0.35,pg.z+Math.sin(t*2+pg.ph)*0.3); for(const h of pg.j) h.brasD.rotation.x=-1.2+Math.sin(t*9+pg.ph)*0.3; }
   for(const w of SPORTS.workout){ if(figConverti(w.h)) continue; const a=Math.sin(t*3.2+(w.type==='pompes'?1:0));
     if(w.type==='traction'){ w.h.g.position.y=w.y0+0.35+a*0.35; w.h.brasG.rotation.x=w.h.brasD.rotation.x=-3.0+a*0.4; } else { w.h.g.position.y=w.y0+a*0.1; w.h.brasG.rotation.x=w.h.brasD.rotation.x=-1.4+a*0.25; } }
+}
+/* =====================================================================
+   ARÈNE DE DERBY (18 octobre, demandé : « ok pour l'arène de derby, et même faire des voitures de derby avec des
+   améliorations derby ») — dans le désert du sud-est, entre le Skatepark XXL et la bordure est, au-dessus de la
+   plage : terrain plat et libre relevé sur une carte d'occupation (sol, solides, eau, reliefs).
+   - Arène (mkArenaDerby, fin du décor) : terre battue, murs de pneus (solides ; coins coupés, solides en escalier),
+     portail à deux battants à l'ouest (un solide `actif`, fermé pendant le match), tribunes au nord (face à la
+     caméra) et leur public (InstancedMesh : il saute aux chocs et aux épaves), cabine du speaker, tableau
+     d'affichage (canvas), mâts d'éclairage (la nuit), banderoles. Stand derby au sud-ouest : garage, voitures
+     exposées (elles portent les améliorations achetées), menu (ouvrirDerbyMenu).
+   - Voitures de derby (VEHDEFS derbyBreak, derbyCompacte, derbyPickup : carrosseries de voitureV2) habillées par
+     habillerDerby : numéros sur les portes et le toit, pare-chocs bélier, tôles, grilles, cage, échappements,
+     rouille, boue, fanion — selon les améliorations. Ni garage, ni tir par la vitre.
+   - Améliorations (META.derby.niv, clés fixes ; communes à toutes les voitures de derby) : pare-chocs bélier
+     (coups portés de face), blindage (dégâts reçus, v.blindage), moteur (accélération, vitesse), pneus
+     (braquage). Copie propre de la définition (v.def) : VEHDEFS n'est jamais modifié.
+   - Match (DERBY.actif, chrono sur dtJeu, véhicules sur dt comme toute la ville) : cinq IA (conduit 'derby',
+     majDerbyIA dans majVehicules) visent la voiture la plus proche (le joueur un peu plus souvent), anticipent,
+     reculent quand elles sont coincées ou que leur cible est juste derrière (coup de cul). Chocs :
+     resoudreCollisionsVehicule (derbyCoeffs : de face, le bélier frappe plus fort et protège ; sur le flanc, on
+     encaisse ×1,3). À 0 PV : ÉPAVE (derbyKO) — ni feu ni explosion, elle fume et reste un obstacle. Le dernier
+     qui roule gagne ; au temps, celui à qui il reste le plus de PV. Prime une fois par vague
+     (primeMerUneFois('derby')), tenue « Casse-cou » (exploitMiniJeu('derby')), défis (thème 'derby'). Trêve des
+     vagues ; derbyArreter dans mourir et startRun ; descendre de sa voiture = abandon.
+   ===================================================================== */
+const DERBY_DUREE=150, DERBY_PRIME=1200, DERBY_PRIME_KO=150, DERBY_NB_IA=5, DERBY_DEGATS=0.7; // DERBY_DEGATS : un match dure 1 à 2 min (simulé)
+const DERBY_MODELES=['derbyBreak','derbyCompacte','derbyPickup'];
+const DERBY_PRIX={voitures:{derbyBreak:0,derbyCompacte:1800,derbyPickup:2600},
+  niv:{pareChocs:[400,900,1800],blindage:[500,1100,2200],moteur:[450,1000,2000],pneus:[300,700,1400]}};
+const DERBY_AMELIO=[
+  {id:'pareChocs',nom:'Pare-chocs bélier',ico:'🛡️',det:(n)=>'coups portés de face +'+(35*n)+' %'},
+  {id:'blindage',nom:'Blindage et cage',ico:'🔩',det:(n)=>'dégâts reçus −'+(13*n)+' %'},
+  {id:'moteur',nom:'Moteur gonflé',ico:'🔥',det:(n)=>'accélération +'+(14*n)+' %, vitesse +'+(6*n)+' %'},
+  {id:'pneus',nom:'Pneus à crampons',ico:'⚙️',det:(n)=>'braquage +'+(8*n)+' %'},
+];
+const DERBY={ok:false,x:551,z:253,hw:34,hd:23,c:7,porte:null,battants:[],porteK:1,stand:null,departs:[],expo:[],
+  actif:null,txt:null,menu:null,menuOuvert:false,foule:null,cheer:0,tabCtx:null,tabTex:null,tabT:0,lampes:[],eclairage:null,
+  texNum:{},matNum:{},matFanion:{},_m:null};
+// dedans l'arène (m > 0 : à m u des murs ; m < 0 : un peu au-delà)
+function dansArene(x,z,m){ const D=DERBY; if(!D.ok) return false; m=m||0; const dx=Math.abs(x-D.x), dz=Math.abs(z-D.z);
+  return dx<D.hw-m&&dz<D.hd-m&&dx+dz<D.hw+D.hd-D.c-m*1.42; }
+function derbyNiv(){ const n=META.derby.niv; return {pareChocs:n.pareChocs|0,blindage:n.blindage|0,moteur:n.moteur|0,pneus:n.pneus|0}; }
+function texNumDerby(num){ const D=DERBY; if(D.texNum[num]) return D.texNum[num];
+  const t=cTex(128,(g,s)=>{ g.clearRect(0,0,s,s); g.fillStyle='#f4f2ea'; g.beginPath(); g.arc(s/2,s/2,s*0.45,0,Math.PI*2); g.fill();
+    g.lineWidth=s*0.06; g.strokeStyle='#14161c'; g.stroke(); g.fillStyle='#14161c'; g.font='900 '+Math.round(s*(String(num).length>1?0.48:0.62))+'px Arial';
+    g.textAlign='center'; g.textBaseline='middle'; g.fillText(String(num),s/2,s/2+s*0.04); });
+  D.texNum[num]=t; return t; }
+// l'habillage de derby, greffé sur la caisse (ud.corps, il suit la suspension) ; refait à chaque changement
+// d'améliorations (les pièces suivent les niveaux). Rien de tiré au hasard : la rouille dépend du numéro.
+function habillerDerby(g,key,num,niv){
+  const ud=g.userData, d=VEHDEFS[key], Pf=d&&PROFILS_VOITURE[d.profil], corps=ud.corps||g; if(!Pf) return;
+  if(ud.derbyHab){ corps.remove(ud.derbyHab); libererObjet(ud.derbyHab); }
+  const H=new THREE.Group(); corps.add(H); ud.derbyHab=H; niv=niv||{pareChocs:0,blindage:0,moteur:0,pneus:0};
+  const L=Pf.L, W=Pf.W, zt=L*(Pf.zAv+Pf.zAr)/2, noir=0x1c1e24, acier=0x5a5e66, chrome=0xd8dce4;
+  const bx=(w,h,p,c,x,y,z,rz)=>{ const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,p),mat(c)); m.position.set(x,y,z); if(rz) m.rotation.z=rz; H.add(m); return m; };
+  const rnd=(k)=>{ const x=Math.sin(num*12.9898+k*78.233)*43758.5453; return x-Math.floor(x); };
+  // numéros : les deux portières et le toit (vu de dessus)
+  const mn=DERBY.matNum[num]||(DERBY.matNum[num]=new THREE.MeshLambertMaterial({map:texNumDerby(num),transparent:true,alphaTest:0.3}));
+  const xN=W/2+(niv.blindage>=1?0.07:0.025), yN=Pf.garde+(Pf.caisse-Pf.garde)*0.55;
+  for(const s of [-1,1]){ const p=new THREE.Mesh(new THREE.PlaneGeometry(0.8,0.8),mn); p.position.set(s*xN,yN,zt); p.rotation.y=s*Math.PI/2; H.add(p); }
+  { const p=new THREE.Mesh(new THREE.PlaneGeometry(1.05,1.05),mn); p.rotation.x=-Math.PI/2; p.position.set(0,Pf.toit+0.03,zt); H.add(p); }
+  // pare-chocs bélier (devant) : une barre d'origine, plus épaisse, doublée, puis une plaque à chevrons
+  const pc=niv.pareChocs, zAv=L/2+0.1, yB=Math.max(0.42,Pf.nez*0.5), lB=W*(0.9+0.04*pc), eB=0.18+0.05*pc;
+  bx(lB,0.2+0.05*pc,eB,noir,0,yB,zAv+eB/2);
+  for(const s of [-1,1]) bx(0.12,0.46,0.42,noir,s*W*0.3,yB+0.08,zAv-0.08);
+  if(pc>=2) bx(lB*0.92,0.16,eB,noir,0,yB+0.36,zAv+eB/2);
+  if(pc>=3){ bx(lB*0.96,0.64,0.06,0xffd23f,0,yB+0.18,zAv+eB+0.03); for(let k=-2;k<=2;k++) bx(0.13,0.7,0.065,noir,k*lB*0.19,yB+0.18,zAv+eB+0.04,0.55); }
+  bx(W*0.8,0.18,0.16,noir,0,Math.max(0.42,Pf.cul*0.5),-L/2-0.1); // barre arrière (coups de cul)
+  // blindage : tôles rivetées sur les portières, grilles aux vitres, cage sur le toit
+  const bl=niv.blindage;
+  if(bl>=1) for(const s of [-1,1]){ bx(0.05,(Pf.caisse-Pf.garde)*0.72,L*0.42,acier,s*(W/2+0.03),Pf.garde+(Pf.caisse-Pf.garde)*0.5,zt);
+    for(let k=-1;k<=1;k+=2) for(let j=-1;j<=1;j+=2) bx(0.07,0.06,0.06,chrome,s*(W/2+0.06),Pf.garde+(Pf.caisse-Pf.garde)*(0.5+j*0.3),zt+k*L*0.18); }
+  if(bl>=2) for(const s of [-1,1]) for(let k=-1;k<=1;k++) bx(0.04,(Pf.toit-Pf.caisse)*0.7,0.05,noir,s*(W/2-0.16),(Pf.caisse+Pf.toit)/2,zt+k*L*0.11);
+  if(bl>=3){ for(const s of [-1,1]) bx(0.08,0.08,L*0.42,0x9aa0a8,s*W*0.3,Pf.toit+0.16,zt); for(const k of [-1,0,1]) bx(W*0.62,0.08,0.08,0x9aa0a8,0,Pf.toit+0.16,zt+k*L*0.2); }
+  // moteur : échappements qui sortent du capot, puis un compresseur
+  const mo=niv.moteur;
+  if(mo>=1) for(const s of [-1,1]){ const t=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.08,0.8,8),mat(mo>=2?chrome:acier)); t.position.set(s*W*0.27,Pf.capot+0.32,L*0.33); t.rotation.x=-0.25; H.add(t); }
+  if(mo>=3){ bx(0.72,0.32,0.62,0x9aa0a8,0,Pf.capot+0.14,L*0.3); bx(0.62,0.2,0.34,noir,0,Pf.capot+0.4,L*0.31); }
+  // pneus à crampons : flancs blancs peints à la main
+  if(ud.derbyFlancs) for(const f of ud.derbyFlancs){ if(f.parent) f.parent.remove(f); f.geometry.dispose(); } // enfants des roues : hors du groupe retiré
+  ud.derbyFlancs=[];
+  if(niv.pneus>=1) for(const r of ud.roues||[]){ const rp=r.geometry.parameters, R=rp&&rp.radiusTop?rp.radiusTop:0.35, f=new THREE.Mesh(new THREE.TorusGeometry(R*0.78,0.035,4,16),mat(0xf2f2ee));
+    f.rotation.x=Math.PI/2; f.position.y=(r.position.x>0?-1:1)*(rp&&rp.height?rp.height/2+0.005:0.15); r.add(f); ud.derbyFlancs.push(f); } // axe y local du pneu : −y vers l'extérieur à droite
+  // rouille, boue en bas de caisse
+  for(let k=0;k<4;k++){ const s=rnd(k)<0.5?-1:1; bx(0.03,0.16+rnd(k+5)*0.24,0.3+rnd(k+9)*0.5,0x7a4a28,s*(W/2+0.018),Pf.garde+0.12+rnd(k+13)*0.3,(rnd(k+17)-0.5)*L*0.75); }
+  for(const s of [-1,1]) bx(0.025,0.16,L*0.82,0x5a4430,s*(W/2+0.014),Pf.garde+0.08,0);
+  // fanion à l'arrière gauche
+  { const cF=[0xff3b2f,0xffd23f,0x35e0ff,0x7dff7a,0xff5ad0][num%5], xF=-W*0.38, zF=-L*0.36, yF=Pf.cul;
+    const m=new THREE.Mesh(new THREE.CylinderGeometry(0.018,0.018,1.6,5),mat(0x14161c)); m.position.set(xF,yF+0.8,zF); H.add(m);
+    const mf=DERBY.matFanion[cF]||(DERBY.matFanion[cF]=new THREE.MeshLambertMaterial({color:cF,side:THREE.DoubleSide}));
+    const f=new THREE.Mesh(new THREE.PlaneGeometry(0.5,0.32),mf); f.position.set(xF,yF+1.42,zF-0.26); f.rotation.y=Math.PI/2; H.add(f); }
+}
+// une voiture de derby prête au combat : copie propre de sa définition, améliorations, habillage
+function appliquerDerby(v,niv,num){
+  const b=VEHDEFS[v.key], d=Object.assign({},b); niv=niv||derbyNiv();
+  d.vmax=b.vmax*(1+0.06*niv.moteur); d.acc=b.acc*(1+0.14*niv.moteur); d.man=b.man*(1+0.08*niv.pneus);
+  v.def=d; v.derby=true; v.derbyNum=num; v.derbyKO=false; v.dbInflige=0; v.derbyBelier=1+0.35*niv.pareChocs; v.blindage=1-0.13*niv.blindage; v.hp=d.hp;
+  habillerDerby(v.mesh,v.key,num,niv); }
+// chocs entre deux voitures de derby (resoudreCollisionsVehicule) : [coef des dégâts reçus par o, par v] ;
+// dx, dz = o − v. De face (f > 0,55) : le bélier frappe plus fort et l'avant protège ; sur le flanc : ×1,3
+const _DC=[1,1];
+function derbyCoeffs(v,o,dx,dz){
+  const d=Math.hypot(dx,dz)||1, fV=(dx*Math.sin(v.ang)+dz*Math.cos(v.ang))/d, fO=-(dx*Math.sin(o.ang)+dz*Math.cos(o.ang))/d;
+  _DC[0]=(fV>0.55?(v.derbyBelier||1):1)*(fO>0.55?0.6:(Math.abs(fO)<0.45?1.3:1));
+  _DC[1]=(fO>0.55?(o.derbyBelier||1):1)*(fV>0.55?0.6:(Math.abs(fV)<0.45?1.3:1));
+  if(DERBY.actif) DERBY.cheer=Math.max(DERBY.cheer,0.6);
+  DERBY._paire=[v,o]; // qui frappe qui : derbyDegats crédite l'autre voiture de la paire (remis à null après le choc)
+  return _DC; }
+// dégâts d'une voiture de derby (abimerVehicule) : jamais de feu, jamais d'explosion — une épave à 0 PV
+function derbyDegats(v,d,parJoueur){
+  if(v.derbyKO||(DERBY.actif&&DERBY.actif.etat==='fin')) return; d*=(v.blindage||1)*DERBY_DEGATS; // match fini : plus de dégâts (une épave qui glisse)
+  const pr=DERBY._paire, att=pr&&(pr[0]===v?pr[1]:(pr[1]===v?pr[0]:null));
+  const A0=DERBY.actif; if(A0&&v===A0.vJ&&att&&att!==A0.vJ) d*=A0.forceIA; // les IA ménagent un peu le joueur au début (niveau 0 : ×0,6), plus du tout au niveau 3
+  d=Math.min(d,v.hp); v.hp-=d; burst(v.x,1,v.z,3,0xffd88a,6); if(att) att.dbInflige=(att.dbInflige||0)+d; // les dégâts infligés : le classement au temps
+  const A=DERBY.actif, parJ=A?att===A.vJ:parJoueur; if(A&&parJ&&v!==A.vJ){ A.degats+=d; ETAT.score+=Math.round(d*1.5); }
+  if(v.hp<=0) derbyKO(v,parJ); else degatsVisuels(v); }
+function derbyKO(v,parJoueur){
+  if(v.derbyKO) return; v.derbyKO=true; v.hp=0; degatsVisuels(v); v.v*=0.3;
+  if(v.conduit==='derby') v.conduit=null; // l'épave reste dans l'arène : un obstacle qui fume (majVehicules)
+  burst(v.x,1.2,v.z,18,0xff7a2e,9,6); for(let k=0;k<6;k++) fumee(v.x+rand(-1,1),1.4,v.z+rand(-1,1),0x3a3d44);
+  spawnTexte(v.x,3.4,v.z,'💥 ÉPAVE !','#ff7a1a'); DERBY.cheer=2; SFX.choc(1.2);
+  const A=DERBY.actif; if(A&&parJoueur&&v!==A.vJ){ A.kos++; ETAT.score+=300; spawnTexte(v.x,4.6,v.z,'+300','#ffd23f'); }
+  if(A&&v===A.vJ){ secousse(6); vibre(120); } }
+// IA : la voiture la plus proche (le joueur un peu plus souvent), anticipée ; coincée = marche arrière
+function derbyChoisirCible(v){ const A=DERBY.actif; let best=null, bd=1e9, surJ=0;
+  for(const o of A.ias) if(o!==v&&!o.derbyKO&&o.dbCible===A.vJ) surJ++; // jamais toute l'arène sur le joueur à la fois
+  const maxJ=1+Math.floor((A.niveauIA+1)/2); // 1 au niveau 0, 2 aux niveaux 1-2, 3 au niveau 3
+  for(const o of A.voitures){ if(o===v||o.derbyKO||o.mort||(o===A.vJ&&surJ>=maxJ)) continue;
+    const dd=Math.hypot(o.x-v.x,o.z-v.z)*(o===A.vJ?A.biais:1)*(0.8+Math.random()*0.45); if(dd<bd){ bd=dd; best=o; } }
+  return best; }
+function majDerbyIA(v,dt){
+  const A=DERBY.actif; let th=0, st=0, fr=true;
+  if(A&&A.etat==='combat'&&!v.derbyKO){
+    fr=false; v.dbCibleT=(v.dbCibleT||0)-dt;
+    let c=v.dbCible; if(!c||c.derbyKO||c.mort||v.dbCibleT<=0){ c=derbyChoisirCible(v); v.dbCible=c; v.dbCibleT=2.5+Math.random()*2.5; }
+    // après un impact (dentT, posé par resoudreCollisionsVehicule), on recule pour reprendre de l'élan : un
+    // choc ne fait de dégâts qu'au-delà de 7 u/s cumulés, pousser au contact n'abîme personne
+    if(v.dentT>0.3&&!(v.dbRecul>0)&&!v.dbChocVu){ v.dbChocVu=true; v.dbRecul=0.55+Math.random()*0.45; } else if(!(v.dentT>0.3)) v.dbChocVu=false;
+    if(c){
+      const dist=Math.hypot(c.x-v.x,c.z-v.z), ant=Math.min(0.6,dist/30), tx=c.x+Math.sin(c.ang)*c.v*ant, tz=c.z+Math.cos(c.ang)*c.v*ant;
+      const va=Math.atan2(tx-v.x,tz-v.z), df=angDiff(v.ang,va);
+      if(v.dbRecul>0){ v.dbRecul-=dt; th=-1; st=clamp(-df*2,-1,1); } // en reculant, le nez se tourne vers la cible
+      else if(Math.abs(df)>2.4&&dist<12){ th=-0.9; st=clamp(-angDiff(v.ang+Math.PI,va)*2,-1,1); } // cible juste derrière : coup de cul
+      else { th=(1-Math.min(Math.abs(df),1.3)*0.3)*A.agress; st=clamp(df*2.2,-1,1); }
+      if(!(v.dbRecul>0)&&th>0&&Math.abs(v.v)<1.5&&dist>6){ v.dbBloque=(v.dbBloque||0)+dt; if(v.dbBloque>0.8){ v.dbBloque=0; v.dbRecul=0.7+Math.random()*0.5; } } // coincé contre un mur ou une épave
+      else if(!(v.dbRecul>0)&&th>0&&Math.abs(v.v)<2.5&&dist<6){ v.dbColle=(v.dbColle||0)+dt; if(v.dbColle>0.5){ v.dbColle=0; v.dbRecul=0.6+Math.random()*0.4; } } // collé à la cible : on reprend de l'élan
+      else { v.dbBloque=0; v.dbColle=0; }
+    } else if(v.dbRecul>0){ v.dbRecul-=dt; th=-1; }
+  }
+  majVehiculePhys(v,dt,th,st,fr);
+}
+// pendant le compte à rebours et la fin : la voiture du joueur reste où elle est (appelé avant majJoueur)
+function derbyEntrees(){ const A=DERBY.actif; if(A&&A.etat!=='combat'){ INPUT.mx=0; INPUT.mz=0; } }
+function derbyAction(){ const D=DERBY; if(!D.ok||P.veh||INT.actif||!D.stand||dist2(P.x,P.z,D.stand.x,D.stand.z)>9) return null;
+  if(D.actif) return {label:'💥 DERBY EN COURS',fn:()=>SFX.refus()};
+  return {label:'💥 STAND DERBY — TA VOITURE, LE MATCH',fn:ouvrirDerbyMenu}; }
+function derbyViderArene(){ const D=DERBY; let slot=0;
+  for(const v of vehicules){ if(v.mort||v===P.veh||!dansArene(v.x,v.z,-4)) continue;
+    if(v.persoId){ v.x=D.x-D.hw-8; v.z=D.z-16+slot*6; slot++; v.v=0; v.ang=0; v.mesh.position.set(v.x,0,v.z); v.mesh.rotation.y=0; } // un véhicule de la collection : garé dehors
+    else v.mort=true; } }
+function derbyLancer(){
+  const D=DERBY; if(!D.ok||D.actif||P.veh||INT.actif||FPS.actif) return;
+  if(treveActivite()){ toast('Termine d’abord ton activité en cours','warn'); SFX.refus(); return; }
+  if(WANTED.heat>=1){ toast('La police te cherche : sème-la avant d’entrer dans l’arène','warn'); SFX.refus(); return; }
+  fermerDerbyMenu();
+  let key=META.derby.voiture; if(DERBY_MODELES.indexOf(key)<0||!META.derby.poss[key]) key='derbyBreak';
+  derbyViderArene();
+  const niveauIA=Math.min(3,Math.floor((META.derby.victoires||0)/2));
+  const A={etat:'compte',compte:3.4,t:0,finT:0,vJ:null,ias:[],voitures:[],kos:0,degats:0,gagne:false,niveauIA,agress:0.8+0.06*niveauIA,biais:0.85,forceIA:0.6+0.134*niveauIA};
+  const dep=D.departs, nums=[1];
+  const vJ=creerVehicule(key,dep[0].x,dep[0].z,dep[0].ang,null); vJ.h=0; appliquerDerby(vJ,derbyNiv(),1);
+  P.x=vJ.x; P.z=vJ.z; P.y=0; entrerVehicule(vJ); META.defis.vols=Math.max(0,META.defis.vols-1); // prêtée par l'arène, pas volée
+  A.vJ=vJ; A.voitures.push(vJ);
+  for(let i=1;i<=DERBY_NB_IA;i++){
+    const k=DERBY_MODELES[Math.floor(Math.random()*DERBY_MODELES.length)]; let num; do{ num=2+Math.floor(Math.random()*97); }while(nums.indexOf(num)>=0); nums.push(num);
+    const n={pareChocs:0,blindage:0,moteur:0,pneus:0}; for(const c in n) n[c]=Math.floor(Math.random()*(niveauIA+1));
+    const v=creerVehicule(k,dep[i].x,dep[i].z,dep[i].ang,'derby'); v.h=0; appliquerDerby(v,n,num); A.ias.push(v); A.voitures.push(v); }
+  D.actif=A; D.porte.actif=true; D.cheer=0.8; D.tabT=0;
+  if(D.txt){ D.txt.style.display='block'; D.txt._s=''; } derbyFouleStart();
+  bigMsg('💥 DERBY — 3'); toast('Le dernier qui roule gagne ! Frappe de face, protège tes flancs','or'); SFX.ui(); }
+function derbyFin(gagne,raison){
+  const A=DERBY.actif; if(!A||A.etat==='fin') return; // garde d'entrée propre : un seul bilan par match
+  A.etat='fin'; A.finT=3.2; A.gagne=gagne;
+  if(gagne){
+    META.derby.victoires=(META.derby.victoires||0)+1; META.derby.kos=(META.derby.kos||0)+A.kos;
+    const g=primeMerUneFois('derby',DERBY_PRIME+DERBY_PRIME_KO*A.kos); exploitMiniJeu('derby'); ETAT.score+=500;
+    bigMsg('🏆 '+(raison==='temps'?'VAINQUEUR AUX POINTS':'DERNIER DEBOUT')+(g?' — +'+fmt$(g):'')); SFX.niveau(); vibre(90); DERBY.cheer=3;
+    checkDefis(); sauveMeta();
+  } else {
+    META.derby.kos=(META.derby.kos||0)+A.kos;
+    bigMsg(raison==='abandon'?'🏳️ ABANDON':(raison==='temps'?'⏱️ BATTU AUX POINTS':'💥 ÉPAVE — ÉLIMINÉ')); SFX.refus(); sauveMeta();
+  }
+  if(DERBY.txt) DERBY.txt.style.display='none'; }
+function derbyNettoyer(){
+  const D=DERBY, A=D.actif; if(!A) return;
+  const dedans=P.veh&&A.voitures.indexOf(P.veh)>=0; if(dedans) sortirVehicule(true);
+  for(const v of A.voitures){ v.mort=true; v.conduit=null; }
+  D.actif=null; D.porte.actif=false; derbyFouleStop();
+  if(D.txt) D.txt.style.display='none';
+  if(dedans||dansArene(P.x,P.z,-1)){ P.x=D.stand.x+2.5; P.z=D.stand.z-1; P.y=0; } // on ressort au stand
+}
+function derbyArreter(){ const D=DERBY; fermerDerbyMenu();
+  if(D.actif){ for(const v of D.actif.voitures) v.mort=true; D.actif=null; }
+  if(D.porte) D.porte.actif=false; if(D.txt) D.txt.style.display='none'; derbyFouleStop(); derbyMajExpo(); }
+function majDerby(dt,dtJeu){
+  const D=DERBY; if(!D.ok) return;
+  const ferme=!!D.porte.actif; if((D.porteK>0&&ferme)||(D.porteK<1&&!ferme)){ D.porteK=clamp(D.porteK+(ferme?-1:1)*dt*0.9,0,1); for(const b of D.battants) b.g.rotation.y=b.ang*D.porteK; }
+  if(D.menuOuvert&&(P.veh||INT.actif||dist2(P.x,P.z,D.stand.x,D.stand.z)>36)) fermerDerbyMenu();
+  if(dist2(P.x,P.z,D.x,D.z)<170*170){
+    derbyPublic(dt); const nf=ETAT.nuitF||0; for(const l of D.lampes) l.material.opacity=nf; if(D.eclairage) D.eclairage.material.opacity=nf*0.26;
+    D.tabT-=dtJeu; if(D.tabT<=0){ D.tabT=0.25; derbyTableau(); } }
+  const A=D.actif; if(!A) return;
+  if(A.etat==='compte'){
+    if(P.veh!==A.vJ){ derbyFin(false,'abandon'); return; }
+    const av=Math.ceil(A.compte); A.compte-=dtJeu; const ap=Math.ceil(A.compte);
+    if(ap!==av&&ap>0){ bigMsg('💥 '+ap); SFX.ui(); }
+    if(A.compte<=0){ A.etat='combat'; bigMsg('💥 DERBY !'); SFX.niveau(); D.cheer=1.5; vibre(60); }
+  } else if(A.etat==='combat'){
+    A.t+=dtJeu; let ia=0; for(const v of A.ias) if(!v.derbyKO&&!v.mort) ia++;
+    if(A.vJ.derbyKO||A.vJ.mort) derbyFin(false,'epave');
+    else if(P.veh!==A.vJ) derbyFin(false,'abandon');
+    else if(ia===0) derbyFin(true,'dernier');
+    else if(A.t>=DERBY_DUREE){ let m=0; for(const v of A.ias) if(!v.derbyKO&&!v.mort) m=Math.max(m,v.dbInflige||0); derbyFin((A.vJ.dbInflige||0)>m,'temps'); } // aux points : les dégâts infligés
+    if(D.actif&&A.etat==='combat') derbyHud();
+  } else if(A.etat==='fin'){ A.finT-=dtJeu; if(A.finT<=0) derbyNettoyer(); }
+}
+function derbyHud(){ const A=DERBY.actif, T=DERBY.txt; if(!A||!T) return;
+  let n=0; for(const v of A.voitures) if(!v.derbyKO&&!v.mort) n++;
+  const r=Math.max(0,DERBY_DUREE-A.t), s='💥 DERBY · '+n+' en lice · '+Math.floor(r/60)+':'+String(Math.floor(r%60)).padStart(2,'0')+' · ta caisse '+Math.max(0,Math.round(A.vJ.hp/A.vJ.def.hp*100))+' %';
+  if(T._s!==s){ T._s=s; T.textContent=s; } }
+function derbyPublic(dt){
+  const D=DERBY, F=D.foule; if(!F) return; D.cheer=Math.max(0,D.cheer-dt*0.5);
+  const actif=!!D.actif, k=Math.min(1,D.cheer); if(!actif&&k<=0&&F.repos) return;
+  F.t+=dt; const m=D._m;
+  for(let i=0;i<F.n;i++){ const p=F.pos[i]; let y=p.y; if(k>0) y+=Math.abs(Math.sin(F.t*9+p.ph))*0.35*k; else if(actif) y+=Math.max(0,Math.sin(F.t*2.2+p.ph))*0.06;
+    m.makeTranslation(p.x,y,p.z); F.corps.setMatrixAt(i,m); m.makeTranslation(p.x,y+0.52,p.z); F.tetes.setMatrixAt(i,m); }
+  F.corps.instanceMatrix.needsUpdate=true; F.tetes.instanceMatrix.needsUpdate=true; F.repos=!actif&&k<=0;
+  if(AUDIO.derbyFouleG) AUDIO.derbyFouleG.gain.value=0.035+0.07*k; }
+function derbyTableau(){
+  const D=DERBY, g=D.tabCtx; if(!g) return; const A=D.actif;
+  try{
+    const W=512, H=192; g.fillStyle='#0a0b0e'; g.fillRect(0,0,W,H); g.strokeStyle='#ff7a1a'; g.lineWidth=6; g.strokeRect(3,3,W-6,H-6); g.textAlign='center';
+    if(!A){ g.fillStyle='#ffd23f'; g.font='900 36px Arial'; g.fillText('DERBY DE LOS REYES',W/2,64); g.fillStyle='#f2e8dc'; g.font='700 24px Arial'; g.fillText('Le dernier qui roule gagne',W/2,108);
+      g.fillStyle='#ff7a1a'; g.fillText('Tes victoires : '+(META.derby.victoires||0),W/2,150); }
+    else { const r=A.etat==='compte'?DERBY_DUREE:Math.max(0,DERBY_DUREE-A.t); /* au temps, les dégâts infligés départagent */ g.fillStyle='#ffd23f'; g.font='900 34px Arial'; g.fillText(Math.floor(r/60)+':'+String(Math.floor(r%60)).padStart(2,'0'),W/2,44);
+      const n=A.voitures.length, w=(W-40)/n; let ep=0;
+      for(let i=0;i<n;i++){ const v=A.voitures[i], x=20+w*i+w/2, k=v.derbyKO?0:Math.max(0,v.hp/v.def.hp); if(v.derbyKO) ep++;
+        g.fillStyle=v===A.vJ?'#7dff7a':'#f2e8dc'; g.font='900 30px Arial'; g.fillText(v.derbyKO?'✖':String(v.derbyNum),x,98);
+        g.fillStyle='#2a2c32'; g.fillRect(x-w*0.4,116,w*0.8,16); g.fillStyle=k>0.5?'#7dff7a':(k>0.25?'#ffd23f':'#ff3b2f'); g.fillRect(x-w*0.4,116,w*0.8*k,16); }
+      g.fillStyle='#ffb070'; g.font='700 20px Arial'; g.fillText(A.etat==='fin'?(A.gagne?'VICTOIRE !':'PERDU'):'ÉPAVES : '+ep,W/2,170); }
+    D.tabTex.needsUpdate=true;
+  }catch(e){ D.tabCtx=null; } }
+function derbyFouleStart(){ if(!AUDIO.pret||AUDIO.derbyOn) return; const ctx=AUDIO.ctx, t=ctx.currentTime;
+  const s=ctx.createBufferSource(); s.buffer=AUDIO.noise; s.loop=true; const f=ctx.createBiquadFilter(); f.type='bandpass'; f.frequency.value=650; f.Q.value=0.7;
+  const g=ctx.createGain(); g.gain.value=0.035; s.connect(f); f.connect(g); g.connect(AUDIO.sfxG); s.start(t);
+  AUDIO.derbyOn=true; AUDIO.derbyFoule=s; AUDIO.derbyFouleG=g; }
+function derbyFouleStop(){ if(!AUDIO.derbyOn) return; try{ AUDIO.derbyFoule.stop(); }catch(e){} AUDIO.derbyOn=false; AUDIO.derbyFoule=null; AUDIO.derbyFouleG=null; }
+// ---- le stand : voiture, améliorations, LANCER ----
+function ouvrirDerbyMenu(){ const D=DERBY; if(!D.ok||D.actif) return; D.menuOuvert=true;
+  if(!D.menu){ const d=document.createElement('div'); d.id='derbyMenu';
+    d.style.cssText='position:fixed;left:0;right:0;bottom:0;max-height:64%;z-index:40;background:linear-gradient(#1c140eee,#100b07f8);border-top:2px solid #ff7a1a;color:#f2e8dc;font:600 13px Arial;display:flex;flex-direction:column;padding:10px 12px calc(env(safe-area-inset-bottom,0px) + 10px)';
+    document.body.appendChild(d); D.menu=d;
+    d.addEventListener('pointerdown',(e)=>{ const b=e.target.closest('[data-dm]'); if(!b) return; e.preventDefault(); derbyMenuAction(b.dataset.dm,b.dataset.id); }); }
+  derbyMenuRendre(); D.menu.style.display='flex'; SFX.ui(); }
+function fermerDerbyMenu(){ DERBY.menuOuvert=false; if(DERBY.menu) DERBY.menu.style.display='none'; }
+function derbyMenuRendre(){
+  const D=DERBY, M=META.derby, n=derbyNiv(), dejaPrime=MERV.primes.derby===WAVES.n; if(!D.menu) return;
+  let h='<div style="display:flex;align-items:center;gap:8px"><div style="flex:1;font:900 16px Arial">💥 Derby de Los Reyes</div><button class="pill" data-dm="fermer">✕</button></div>';
+  h+='<div class="det" style="margin:4px 0">Le dernier qui roule gagne ; au bout de '+Math.floor(DERBY_DUREE/60)+':'+String(DERBY_DUREE%60).padStart(2,'0')+', celui qui a fait le plus de dégâts. '+(dejaPrime?'Prime déjà gagnée cette vague.':'Prime : '+fmt$(DERBY_PRIME)+' + '+fmt$(DERBY_PRIME_KO)+' par épave.')+' Victoires : '+(M.victoires||0)+'</div><div style="flex:1;overflow-y:auto">';
+  h+='<div class="det" style="margin:6px 0 2px;color:#ffb070">TA VOITURE</div>';
+  for(const k of DERBY_MODELES){ const d=VEHDEFS[k], a=!!M.poss[k], ch=M.voiture===k&&a, px=DERBY_PRIX.voitures[k], m=d.long*d.larg;
+    h+='<div class="ligneItem"><div class="ico">🚗</div><div class="inf"><div class="nom">'+d.nom+'</div><div class="det">'+d.hp+' PV — vitesse '+d.vmax+' — '+(m>10.5?'lourde':(m<8.6?'légère':'équilibrée'))+'</div></div><button class="pill" data-dm="voiture" data-id="'+k+'">'+(ch?'✓ CHOISIE':(a?'CHOISIR':fmt$(px)))+'</button></div>'; }
+  h+='<div class="det" style="margin:8px 0 2px;color:#ffb070">AMÉLIORATIONS — pour toutes tes voitures de derby</div>';
+  for(const am of DERBY_AMELIO){ const lv=n[am.id];
+    h+='<div class="ligneItem"><div class="ico">'+am.ico+'</div><div class="inf"><div class="nom">'+am.nom+' '+'●'.repeat(lv)+'○'.repeat(3-lv)+'</div><div class="det">'+am.det(lv)+'</div></div><button class="pill" data-dm="amelio" data-id="'+am.id+'">'+(lv>=3?'MAX':'+ '+fmt$(DERBY_PRIX.niv[am.id][lv]))+'</button></div>'; }
+  h+='</div><button class="pill" data-dm="lancer" style="margin-top:8px;padding:12px;font:900 16px Arial;background:#ff7a1a;color:#1a0c04">💥 LANCER LE DERBY</button>';
+  D.menu.innerHTML=h; }
+function derbyMenuAction(a,id){
+  if(a==='fermer') return fermerDerbyMenu();
+  if(a==='lancer') return derbyLancer();
+  if(a==='voiture') derbyChoisirVoiture(id); else if(a==='amelio') derbyAcheterAmelio(id);
+  derbyMenuRendre(); }
+function derbyChoisirVoiture(k){ const M=META.derby; if(DERBY_MODELES.indexOf(k)<0) return;
+  if(!M.poss[k]){ const px=DERBY_PRIX.voitures[k]; if(META.argent<px){ toast('Pas assez d’argent','warn'); SFX.refus(); return; }
+    META.argent-=px; M.poss[k]=true; toast('🚗 '+VEHDEFS[k].nom+' achetée !','or'); SFX.achat(); }
+  M.voiture=k; sauveMeta(); }
+function derbyAcheterAmelio(id){ const M=META.derby; if(!(id in M.niv)) return; const lv=M.niv[id]|0; if(lv>=3) return; // garde d'entrée propre
+  const px=DERBY_PRIX.niv[id][lv]; if(META.argent<px){ toast('Pas assez d’argent','warn'); SFX.refus(); return; }
+  META.argent-=px; M.niv[id]=lv+1; const am=DERBY_AMELIO.find((x)=>x.id===id); toast(am.ico+' '+am.nom+' niveau '+(lv+1)+' — '+am.det(lv+1),'or'); SFX.achat(); sauveMeta(); derbyMajExpo(); }
+function derbyMajExpo(){ for(const e of DERBY.expo) habillerDerby(e.g,e.k,e.num,derbyNiv()); }
+// ---- l'arène (fin du décor, générateur du décor) ----
+function mkArenaDerby(){
+  const D=DERBY, X=D.x, Z=D.z, hw=D.hw, hd=D.hd, c=D.c, e=1.4, Hm=1.3, P2=6, i0=scene.children.length;
+  D._m=new THREE.Matrix4();
+  // le sable de l'emprise est vidé : petits solides du désert désactivés, décor fusionné du désert replié sous le sol
+  const zones=[[X-hw-3,X+hw+3,Z-hd-3,Z+hd+3],[X-12,X+hw+3,Z-hd-16,Z-hd],[X-31,X-19,Z-hd-11,Z-hd],[X-hw-22,X-hw-4,Z+8,Z+29]];
+  const dansZ=(x,z,m)=>zones.some((q)=>x>q[0]-m&&x<q[1]+m&&z>q[2]-m&&z<q[3]+m);
+  for(const arr of sGrid.values()) for(const s of arr) if(s.hw<2.5&&s.hd<2.5&&dansZ(s.x,s.z,1)) s.actif=false;
+  for(const o of scene.children){ if(!o.isMesh||!o.geometry||!o.geometry.attributes.position||o.position.lengthSq()>1e-6||o.rotation.x||o.rotation.y||o.rotation.z) continue;
+    const pa=o.geometry.attributes.position; if(pa.count>30000) continue; let n=0;
+    for(let k=0;k<pa.count;k++){ const y=pa.getY(k); if(y>0.05&&dansZ(pa.getX(k),pa.getZ(k),0.5)){ pa.setY(k,-20); n++; } }
+    if(n){ pa.needsUpdate=true; o.geometry.computeBoundingSphere(); } }
+  const b=(w,h,p,m,x,y,z)=>{ const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,p),m); o.position.set(x,y,z); scene.add(o); return o; };
+  // sol de terre battue (au-dessus du sable), voile de lumière la nuit
+  const texSol=cTex(256,(g,s)=>{ g.fillStyle='#7a5a3c'; g.fillRect(0,0,s,s);
+    for(let i=0;i<900;i++){ g.fillStyle=choixD(['#6e5034','#86664a','#5e4430','#8e7050']); g.fillRect(aD(0,s),aD(0,s),aD(2,7),aD(2,5)); }
+    g.strokeStyle='rgba(40,28,18,0.35)'; for(let i=0;i<14;i++){ g.lineWidth=aD(3,6); g.beginPath(); const a0=aD(0,6.28); g.arc(aD(0,s),aD(0,s),aD(30,120),a0,a0+aD(1,3)); g.stroke(); } },3,2);
+  { const sol=new THREE.Mesh(new THREE.PlaneGeometry(2*hw+1,2*hd+1),new THREE.MeshLambertMaterial({map:texSol})); sol.rotation.x=-Math.PI/2; sol.position.set(X,0.03,Z); scene.add(sol); }
+  { const v=new THREE.Mesh(new THREE.PlaneGeometry(2*hw,2*hd),new THREE.MeshBasicMaterial({color:0xffe8c0,transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false}));
+    v.rotation.x=-Math.PI/2; v.position.set(X,0.06,Z); v.userData.garder=true; scene.add(v); D.eclairage=v; }
+  // murs de pneus (peints en blanc un sur deux), coins coupés
+  const texPneus=(rep)=>cTex(128,(g,s)=>{ g.fillStyle='#101114'; g.fillRect(0,0,s,s);
+    for(let r=0;r<2;r++) for(let i=0;i<2;i++){ const x=s*(0.25+0.5*i), y=s*(0.25+0.5*r), blanc=(i+r)%2===0;
+      g.fillStyle=blanc?'#e6e4de':'#26282c'; g.beginPath(); g.arc(x,y,s*0.235,0,Math.PI*2); g.fill();
+      g.strokeStyle=blanc?'#b8b4aa':'#383a40'; g.lineWidth=3; g.beginPath(); g.arc(x,y,s*0.17,0,Math.PI*2); g.stroke();
+      g.fillStyle='#07080a'; g.beginPath(); g.arc(x,y,s*0.1,0,Math.PI*2); g.fill(); } },rep,1);
+  const mur=(x,z,lx,lz)=>{ b(lx,Hm,lz,new THREE.MeshLambertMaterial({map:texPneus(Math.max(lx,lz)/1.3)}),x,Hm/2,z); addSolid({x,z,hw:lx/2,hd:lz/2,h:Hm}); };
+  const xO=X-hw-e/2, xE=X+hw+e/2, zN=Z-hd-e/2, zS=Z+hd+e/2, lO=hd-c-P2;
+  mur(X,zN,2*(hw-c)+0.8,e); mur(X,zS,2*(hw-c)+0.8,e); mur(xE,Z,e,2*(hd-c)+0.8);
+  mur(xO,Z-P2-lO/2,e,lO); mur(xO,Z+P2+lO/2,e,lO);
+  for(const sx of [-1,1]) for(const sz of [-1,1]){ // coins à 45° : un mur tourné, des solides en escalier
+    const mx=X+sx*(hw-c/2)+sx*e/2/1.414, mz=Z+sz*(hd-c/2)+sz*e/2/1.414, L=c*1.414+0.9;
+    const m=b(L,Hm,e,new THREE.MeshLambertMaterial({map:texPneus(L/1.3)}),mx,Hm/2,mz); m.rotation.y=Math.atan2(sz,sx);
+    for(let k=0;k<=12;k++){ const u=k/12, px=X+sx*(hw-c+c*u)+sx*0.55, pz=Z+sz*(hd-c*u)+sz*0.55; addSolid({x:px,z:pz,hw:0.75,hd:0.75,h:Hm}); } }
+  // banderoles des sponsors : face intérieure du mur nord, face extérieure du mur sud (vues par la caméra)
+  const bann=(txt,coul,x,z)=>{ const p=new THREE.Mesh(new THREE.PlaneGeometry(7,1),new THREE.MeshBasicMaterial({map:texEnseigne(txt,coul,7)})); p.position.set(x,0.68,z); scene.add(p); };
+  [['REYES MOTORS','#ffd23f'],['TACOS EL GORDO','#ff7a1a'],['PNEUS LÓPEZ','#35e0ff'],['REYES FM 107.7','#ff5ad0']].forEach(([t,cl],i)=>bann(t,cl,X-19+i*12.6,zN+e/2+0.02));
+  [['DERBY DE LOS REYES','#ff7a1a'],['CASSE AUTO DU DÉSERT','#7dff7a'],['ASSURANCES EL SEGURO','#ffd23f']].forEach(([t,cl],i)=>bann(t,cl,X-15+i*15,zS+e/2+0.02));
+  // portail : deux battants rayés rouge et blanc, sur pivot, ouverts hors match ; un solide fermé pendant le match
+  const texPorte=cTex(64,(g,s)=>{ g.fillStyle='#e8e4dc'; g.fillRect(0,0,s,s); g.fillStyle='#d8261c';
+    for(let k=-2;k<4;k++){ g.beginPath(); g.moveTo(k*s/2,s); g.lineTo(k*s/2+s/4,s); g.lineTo(k*s/2+s*0.75,0); g.lineTo(k*s/2+s/2,0); g.fill(); } },3,1);
+  const mPorte=new THREE.MeshLambertMaterial({map:texPorte});
+  D.battants=[];
+  for(const s of [-1,1]){ const piv=new THREE.Group(); piv.position.set(xO,0,Z+s*P2); scene.add(piv);
+    const pan=new THREE.Mesh(new THREE.BoxGeometry(0.25,1.4,P2-0.2),mPorte); pan.position.set(0,0.95,-s*(P2/2)); piv.add(pan);
+    const cad=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.12,P2-0.2),mat(0x3a3e46)); cad.position.set(0,1.7,-s*(P2/2)); piv.add(cad);
+    const bat={g:piv,ang:s*Math.PI/2}; piv.rotation.y=bat.ang; D.battants.push(bat);
+    b(0.6,2.4,0.6,mat(0x3a3e46),xO,1.2,Z+s*(P2+0.3)); }
+  D.porte={x:xO,z:Z,hw:e/2,hd:P2,h:Hm,actif:false}; addSolid(D.porte);
+  b(0.3,3.2,0.3,mat(0x3a3e46),xO-1.2,1.6,Z-P2-4.5); mkEnseigne('ARÈNE DE DERBY','#ff7a1a',xO-1.2,4.4,Z-P2-4.2,0,8);
+  // tribunes au nord : quatre gradins, bancs de couleur, mur du fond ; le public (instancié)
+  const sx0=X-11, sx1=X+hw+1, sW=sx1-sx0, sCx=(sx0+sx1)/2, zF=zN-e/2-0.2, zB=zF-12;
+  for(let k=0;k<4;k++){ const hT=0.9+1.05*k, zc=zF-1.5-3*k; b(sW,hT,3,mat(0x9a968c),sCx,hT/2,zc); b(sW,0.14,0.45,mat([0xd8261c,0x2a6ad8,0xffd23f,0xf2f2ee][k]),sCx,hT+0.07,zc+0.6); }
+  b(sW,5.6,0.4,mat(0x6a6660),sCx,2.8,zB-0.2);
+  addSolid({x:sCx,z:zF-6.1,hw:sW/2,hd:6.1,h:5});
+  { const nb=[]; for(let k=0;k<4;k++){ const hT=0.9+1.05*k, zc=zF-1.5-3*k+0.15; for(let x=sx0+0.6;x<sx1-0.5;x+=0.82){ if(aleaDecor()<0.18) continue; nb.push({x:x+aD(-0.15,0.15),y:hT+0.42,z:zc,ph:aD(0,6.28)}); } }
+    const corps=new THREE.InstancedMesh(new THREE.BoxGeometry(0.5,0.66,0.34),new THREE.MeshLambertMaterial({color:0xffffff}),nb.length);
+    const tetes=new THREE.InstancedMesh(new THREE.BoxGeometry(0.3,0.3,0.3),new THREE.MeshLambertMaterial({color:0xffffff}),nb.length);
+    const col=new THREE.Color(), m4=D._m;
+    nb.forEach((p,i)=>{ m4.makeTranslation(p.x,p.y,p.z); corps.setMatrixAt(i,m4); m4.makeTranslation(p.x,p.y+0.52,p.z); tetes.setMatrixAt(i,m4);
+      corps.setColorAt(i,col.setHex(choixD([0xd8261c,0x2a6ad8,0xffd23f,0xf2f2ee,0x3a3e46,0x7dff7a,0xff7a1a,0x8a4de0])));
+      tetes.setColorAt(i,col.setHex(choixD([0xf0c8a0,0xc98d5e,0x8a5a3a,0xd9a066]))); });
+    for(const im of [corps,tetes]){ im.geometry.boundingSphere=new THREE.Sphere(new THREE.Vector3(sCx,3,zF-6),sW/2+4); im.userData.garder=true; scene.add(im); } // un seul centre : les instances couvrent les gradins
+    D.foule={corps,tetes,pos:nb,n:nb.length,t:0,repos:false}; }
+  // tableau d'affichage au-dessus du mur du fond
+  try{ const cv=document.createElement('canvas'); cv.width=512; cv.height=192; D.tabCtx=cv.getContext('2d'); D.tabTex=D.tabCtx?new THREE.CanvasTexture(cv):null; }catch(err){ D.tabCtx=null; D.tabTex=null; }
+  if(D.tabTex){ const p=new THREE.Mesh(new THREE.PlaneGeometry(13,4.9),new THREE.MeshBasicMaterial({map:D.tabTex})); p.position.set(sCx,8.6,zB+0.06); p.userData.garder=true; scene.add(p); }
+  b(13.6,5.5,0.3,mat(0x1c1e24),sCx,8.6,zB-0.12); for(const s of [-1,1]) b(0.4,6.2,0.4,mat(0x3a3e46),sCx+s*5,3.1,zB-0.32);
+  // cabine du speaker, sur pilotis, à l'ouest des tribunes
+  { const cx=X-24, cz=zF-3.6; for(const [dx,dz] of [[-4.5,-2.5],[4.5,-2.5],[-4.5,2.5],[4.5,2.5]]) b(0.35,4,0.35,mat(0x3a3e46),cx+dx,2,cz+dz);
+    b(10,3,6,mat(0xe8e4dc),cx,5.5,cz); b(9,1.3,0.1,mat(0x2a3a4a),cx,5.8,cz+3.02); b(10.6,0.3,6.6,mat(0xd8261c),cx,7.15,cz);
+    mkEnseigne('DERBY','#ff7a1a',cx,8.7,cz+2,0,7); addSolid({x:cx,z:cz,hw:5,hd:3,h:7}); }
+  // mâts d'éclairage aux quatre coins (lueur la nuit, aucune vraie lumière)
+  D.lampes=[];
+  for(const [sx,sz] of [[-1,-1],[1,-1],[-1,1],[1,1]]){ const mx=X+sx*(hw+3.6), mz=Z+sz*(hd+3.6);
+    const mast=new THREE.Mesh(new THREE.CylinderGeometry(0.22,0.32,16,8),mat(0x5a5e66)); mast.position.set(mx,8,mz); scene.add(mast);
+    const t=b(3.2,1.6,0.5,mat(0x2a2c32),mx,16.4,mz); t.rotation.y=Math.atan2(X-mx,Z-mz);
+    const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:0xfff2d0,transparent:true,depthWrite:false,opacity:0,blending:THREE.AdditiveBlending}));
+    sp.scale.set(7,7,1); sp.position.set(mx-sx*0.4,16.4,mz-sz*0.4); scene.add(sp); D.lampes.push(sp);
+    addSolid({x:mx,z:mz,hw:0.4,hd:0.4,h:16}); }
+  // le stand derby (au sud-ouest, dehors) : garage ouvert au sud, outils, pneus, fûts ; voitures exposées devant
+  { const sx=X-hw-14, sz=Z+13, gr=mat(0x5a6470);
+    b(10,0.12,6,mat(0x8a8a86),sx,0.06,sz); b(10,3.6,0.3,gr,sx,1.8,sz-2.85); b(0.3,3.6,6,gr,sx-4.85,1.8,sz); b(0.3,3.6,6,gr,sx+4.85,1.8,sz);
+    b(10.6,0.3,6.6,mat(0x2a2c32),sx,3.75,sz); b(9.4,0.9,0.18,mat(0xb8bcc4),sx,3.1,sz+2.95);
+    b(2.4,1,0.7,mat(0xd8261c),sx-3.3,0.5,sz-2.2); b(3,0.9,1,mat(0x6a4a30),sx+2.4,0.45,sz-2.1);
+    for(let k=0;k<4;k++){ const t=new THREE.Mesh(new THREE.CylinderGeometry(0.42,0.42,0.3,12),mat(0x15171c)); t.position.set(sx+3.8,0.15+k*0.31,sz+0.8); scene.add(t); }
+    for(const [dx,dz] of [[-6.2,1.5],[-6.2,2.9],[6.4,2.2]]){ const f=new THREE.Mesh(new THREE.CylinderGeometry(0.35,0.35,1.1,10),mat(0x3a7a3a)); f.position.set(sx+dx,0.55,sz+dz); scene.add(f); addSolid({x:sx+dx,z:sz+dz,hw:0.4,hd:0.4,h:1.1}); }
+    addSolid({x:sx,z:sz-2.85,hw:5,hd:0.2,h:3.6}); addSolid({x:sx-4.85,z:sz,hw:0.2,hd:3,h:3.6}); addSolid({x:sx+4.85,z:sz,hw:0.2,hd:3,h:3.6});
+    mkEnseigne('STAND DERBY','#ff7a1a',sx,5.2,sz+2.6,0,7);
+    D.stand={x:sx,z:sz+5.2};
+    D.expo=[]; DERBY_MODELES.forEach((k,i)=>{ const g=makeVoiture(k), x=sx-6+i*6, z=sz+11; g.position.set(x,0,z); scene.add(g); const num=[7,13,42][i];
+      habillerDerby(g,k,num,null); D.expo.push({g,k,num}); addSolid({x,z,hw:1.2,hd:VEHDEFS[k].long/2+0.1,h:1.6}); }); }
+  // les départs : le joueur à l'ouest, cinq IA en couronne, tous tournés vers le centre
+  D.departs=[{x:X-hw+6,z:Z,ang:Math.PI/2}];
+  for(const [dx,dz] of [[hw-6,0],[-14,-hd+6],[14,-hd+6],[-14,hd-6],[14,hd-6]]){ const x=X+dx, z=Z+dz; D.departs.push({x,z,ang:Math.atan2(X-x,Z-z)}); }
+  fusionnerDecor(i0);
+  // bandeau du match (comme celui des courses)
+  { const t=document.createElement('div'); t.id='derbyTxt';
+    t.style.cssText='position:absolute;top:calc(env(safe-area-inset-top,0px) + 100px);left:50%;transform:translateX(-50%);z-index:30;display:none;padding:6px 14px;border-radius:10px;background:rgba(10,12,18,0.82);border:2px solid #ff7a1a;color:#ffb070;font-weight:900;font-size:15px;white-space:nowrap;pointer-events:none';
+    el('hud').appendChild(t); D.txt=t; }
+  AERO.balises.push({x:D.stand.x,z:D.stand.z,ico:'💥',coul:'#ff7a1a'});
+  D.ok=true; derbyTableau();
 }
 /* CASCADES ET VOLCAN (15 octobre, demandé : « de la cascade à des endroits, avec de la déco, et de la lave sur
    l'île au pirate avec de la fumée ») — décor, générateur du décor (sansAleaVille), animé sur dt :
@@ -9776,6 +10232,7 @@ function mkBalises(){
     BALISES.push({sp,x,z,y0,ph:aD(0,6.28)}); };
   // les lieux (portes des salles) : l'icône de la salle
   for(const p of PORTES){ const D=INTDEFS[p.id]; if(!D) continue; add(p.x,p.z,D.ico||'🚪','#1d3a5a',0); }
+  if(POIS.armurerie2) add(POIS.armurerie2.x,POIS.armurerie2.z-1.5,INTDEFS.armurerie.ico,'#1d3a5a',0); // armurerie sud : même salle (porteArmurerieProche)
   // les activités (pointsActivites : la même liste que le filtre « Activités » de la carte)
   for(const a of pointsActivites()) add(a.x,a.z,a.ico,a.coul,a.y);
 }
@@ -10043,7 +10500,16 @@ function mkRides(){
   el('hud').appendChild(txt); RIDES.txt=txt;
 }
 // véhicules garés au pied des départs (startRun)
+// les deux skateparks (18 octobre, demandé : « des vélos au skate park, et le skate ») : BMX, vélo et skates garés
+// au bord, sur une place libre ; v.auSkatepark (les vélos de la ville, eux, sont aux arceaux)
+function garerSkateparks(){
+  const poser=(k,x,z,a)=>{ for(let r=0;r<8;r+=1.5) for(let t=0;t<6.28;t+=0.8){ const px=x+Math.cos(t)*r, pz=z+Math.sin(t)*r;
+      if(solidAt(px,pz,0.8)||estEau(px,pz)||vehicules.some((o)=>dist2(o.x,o.z,px,pz)<2.2)) continue; const v=creerVehicule(k,px,pz,a); if(v){ v.h=solY(px,pz); v.auSkatepark=true; } return; } };
+  if(SKATE.ok){ const z=SKATE.z+INNER/2-2.2; [['skate',-5],['skate',-3.6],['bmx',3.5],['velo',5.5]].forEach(([k,dx])=>poser(k,SKATE.x+dx,z,Math.PI)); }
+  if(SKX.ok){ const x=SKX.x0-3; [['skate',SKX.z0+12],['skate',SKX.z0+14],['bmx',SKX.z0+17],['bmx',SKX.z0+20]].forEach(([k,z])=>poser(k,x,z,Math.PI/2)); }
+}
 function garerRides(){
+  garerSkateparks();
   if(HILLS.ok&&HILLS.manoir){ const m=HILLS.manoir; [['sport',16,6.5],['motoS',20.5,6.5]].forEach(([k,dx,dz])=>{ const v=creerVehicule(k,m.x+dx,m.z+dz,Math.PI/2); if(v) v.h=solY(v.x,v.z); }); } // au sommet de Los Reyes Hills, sur l'esplanade du manoir (jamais sur la chaussée : les voitures des lacets s'y arrêtaient pour toujours) : de quoi faire la descente
   if(!MONT.pied) return;
   const pm=MONT.pied, a=CANYON.acces;
@@ -10068,7 +10534,7 @@ function garerRides(){
   });
 }
 // Sable (plage, désert) : traces de pneus qui s'estompent (réserve fixe, jamais d'allocation en jeu)
-function estSable(x,z){ return (z>MER-30&&z<MER&&!surChaussee(x,z)&&solY(x,z)<0.3&&!estEau(x,z))||(x>HALF+150&&z>-150&&z<MER&&!dansReliefLibre(x,z)&&!(STUNT.ok&&dansParcStunt(x,z))); }
+function estSable(x,z){ if(DERBY.ok&&dansArene(x,z,-1.5)) return false; return (z>MER-30&&z<MER&&!surChaussee(x,z)&&solY(x,z)<0.3&&!estEau(x,z))||(x>HALF+150&&z>-150&&z<MER&&!dansReliefLibre(x,z)&&!(STUNT.ok&&dansParcStunt(x,z))); }
 const TRACES_SABLE={liste:[],i:0,mat:null};
 function mkTracesSable(){
   TRACES_SABLE.mat=new THREE.MeshBasicMaterial({color:0x6a5034,transparent:true,opacity:0.32,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2});
@@ -13561,6 +14027,7 @@ function agrandirHelico(g,K){
   ud.kHeli=K; g.userData=ud; return g;
 }
 function makeVoiture(key){
+  if(VEHDEFS[key]&&VEHDEFS[key].derby){ _VEH_V2=true; try{ return makeVoitureBase(key); } finally{ _VEH_V2=false; } } // derby : carrosserie voitureV2, habillage à part (habillerDerby)
   if(!vehiculeRestyle(VEHDEFS[key])){ const g=makeVoitureBase(key); rehausserModele(g,key); if(VEHDEFS[key].air==='helico'&&!VEHDEFS[key].ovni) agrandirHelico(g,ECH_HELI[key]||1.55); return g; } // l'OVNI garde sa taille (rayon tracteur)
   makeVoitureBase(key);
   _VEH_V2=true; try{ const g=sansAleaVille(()=>makeVoitureBase(key)); rehausserModele(g,key); return g; } finally{ _VEH_V2=false; }
@@ -13917,6 +14384,7 @@ function makeVoitureBase(key){
   // majVehiculePhys). Groupe neutre (aucune transform par défaut) pour tous
   // les autres véhicules : zéro différence visuelle pour eux.
   const corps=new THREE.Group(); g.add(corps); ud.corps=corps;
+  if(def.skate) return makeSkate(def,coul,g,ud,corps);
   if(def.velo) return makeVelo(def,coul,g,ud,corps);
   if(def.type==='moto'&&_VEH_V2) return makeMotoV2(def,coul,g,ud,corps,key);
   if(def.profil&&_VEH_V2) return voitureV2(def,coul,g,ud,corps,key); // voitures réalistes (PROFILS_VOITURE)
@@ -14717,6 +15185,16 @@ function voitureV2(def,coul,g,ud,corps,key){
     br.position.set(-0.32,P.toit+0.15,zb); bb.position.set(0.32,P.toit+0.15,zb); corps.add(br); corps.add(bb); ud.bar=[br,bb]; }
   if(P.ouvert){ const zPb=L*P.zPb; ud.siege={assis:true,x:-0.42,y:P.garde+0.5+0.18-0.6,z:zPb-0.12-0.7}; } // le conducteur du cabriolet se voit, assis au volant
   g.add(spriteBlob(L*1.05)); g.userData=ud; return g;
+}
+function makeSkate(def,coul,g,ud,corps){
+  const pl=new THREE.Group(); corps.add(pl); ud.planche=pl;
+  pl.add(mkBoxG(0.22,0.03,0.6,coul,0,0.13,0)); pl.add(mkBoxG(0.215,0.006,0.58,0x14161c,0,0.148,0)); // plateau et grip
+  for(const s2 of [-1,1]){ const k=mkBoxG(0.2,0.03,0.16,coul,0,0.15,s2*0.37); k.rotation.x=-s2*0.38; pl.add(k); // kicks relevés
+    pl.add(mkBoxG(0.2,0.035,0.06,0x9aa0a8,0,0.095,s2*0.24)); // trucks
+    for(const sx of [-1,1]){ const r=new THREE.Mesh(new THREE.CylinderGeometry(0.035,0.035,0.035,10),mat(0xf2f2ee)); r.rotation.z=Math.PI/2; r.position.set(sx*0.1,0.04,s2*0.24); pl.add(r); ud.roues.push(r); } }
+  g.add(spriteBlob(0.8));
+  g.userData=ud;
+  return g;
 }
 function makeVelo(def,coul,g,ud,corps){
   const R=def.roue, L=def.long, wz=L*0.31, bmx=!!def.bmx, NOIR=0x1c1e24, ACIER=0x9aa0a8;
@@ -15561,7 +16039,7 @@ let astuceTirVolant=false; // l'astuce ne s'affiche qu'une fois par session
 const TIR_VOLANT={disp:1.5, dispVit:0.15, dispVitMax:6, dispMoto:2};
 function vehiculeTireur(v){
   const d=v&&v.def;
-  return !!(d&&(d.type==='car'||d.type==='moto')&&!d.air&&!d.velo&&!d.canon&&!d.mitrailleuse&&!d.dca&&!d.grue&&!d.pompier);
+  return !!(d&&(d.type==='car'||d.type==='moto')&&!d.air&&!d.velo&&!d.canon&&!d.mitrailleuse&&!d.dca&&!d.grue&&!d.pompier&&!d.derby); // derby : pas d'armes
 }
 function armeVolant(){
   const poss=(id)=>!!(META.armes[id]&&META.armes[id].poss);
@@ -16112,6 +16590,8 @@ function abimerVehicule(v,d,parJoueur){
     if(d>25) wipeout(v);
     return;
   }
+  if(v.conduit==='joueur') d*=tenueK('cassecou',0.85); // combinaison « Casse-cou » (gagner un derby) : dégâts reçus au volant −15 %
+  if(v.derby){ derbyDegats(v,d,parJoueur); return; } // voiture de derby : jamais de feu ni d'explosion, une épave à 0 PV
   if(v.def.velo) return;          // vélo, BMX : ni dégâts, ni feu, ni explosion (demandé : « ce n'est pas une voiture, là il explose »)
   if(v.def.blinde) d*=0.12;       // char : blindage très épais
   if(v.blindage) d*=v.blindage;   // blindage acheté au garage tuning (propre au véhicule)
@@ -16304,6 +16784,7 @@ function wipeout(v){
   v.conduit=null;
 }
 function exploserVehicule(v){
+  if(v.derby){ if(!v.derbyKO) derbyKO(v,false); return; } // voiture de derby : une épave, jamais d'explosion
   if(v.def.surf){ wipeout(v); return; }
   if(v.def.velo){ v.hp=v.def.hp; v.enFeu=false; return; } // un vélo n'explose jamais (grenade, roquette, souffle d'une explosion voisine...)
   // si le joueur était attaché au véhicule (moto, bateau, planche), on le détache
@@ -16508,12 +16989,18 @@ function resoudreCollisionsVehicule(v,dt){
       // dé-pénétration immédiate, TOUJOURS (même à l'arrêt, même choc
       // léger) : deux véhicules ne restent jamais visuellement encastrés,
       // qu'il y ait ou non une impulsion de choc plus bas.
-      v.x+=pushX*0.25/rap; v.z+=pushZ*0.25/rap;
-      if(!o.mort&&o.conduit!=='joueur'){ o.x-=pushX*0.22*rap; o.z-=pushZ*0.22*rap; }
+      // séparation PROPORTIONNELLE au chevauchement réel (18 octobre, signalé : « dans un bouchon, des véhicules se
+      // tapent l'un dans l'autre et scintillent ») : un pas fixe de 0,25 u, même pour 2 cm de chevauchement, les
+      // écartait trop ; le suivi de voie les ramenait, et ce va-et-vient à chaque image était le scintillement.
+      // Désormais ils se séparent juste assez, d'un coup (le plus léger bouge le plus), au plus 0,6 u par image.
+      const prof=Math.min(Math.min(overFwd,overRight)+0.01,0.6), seul=o.mort||o.conduit==='joueur', partV=seul?1:1/(1+rap);
+      v.x+=pushX*prof*partV; v.z+=pushZ*prof*partV;
+      if(!seul){ o.x-=pushX*prof*(1-partV); o.z-=pushZ*prof*(1-partV); }
       if(rel>7){
         const viol=clamp(rel/40,0,1.4);
-        abimerVehicule(o,rel*0.8*rap,v.conduit==='joueur');
-        abimerVehicule(v,rel*0.5/rap,false);
+        let kO=1, kV=1; if(v.derby&&o.derby){ const k=derbyCoeffs(v,o,dxw,dzw); kO=k[0]; kV=k[1]; } // derby : coups de face, flancs fragiles
+        abimerVehicule(o,rel*0.8*rap*kO,v.conduit==='joueur');
+        abimerVehicule(v,rel*0.5/rap*kV,!!v.derby&&o.conduit==='joueur'); if(v.derby&&o.derby) DERBY._paire=null;
         // point de contact réel (bord de v du côté de o), pas le milieu
         // arbitraire entre les deux centres — pour la déformation et les
         // étincelles/débris, dont l'intensité suit la violence du choc.
@@ -16664,7 +17151,7 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
   } else if(heurte){
     const impact=Math.abs(v.v);
     if(impact>5){
-      abimerVehicule(v,impact*(d.milit?0.5:d.type==='moto'?2.4:1.5)*(eau?0.6:1),false);
+      abimerVehicule(v,impact*(d.milit?0.5:d.type==='moto'?2.4:1.5)*(eau?0.6:1)*(v.derby?0.3:1),false); // derby : les murs de pneus amortissent
       burst(fx,0.8,fz,6,eau?0x9fd8ff:0xd8dce4,7);
       bruit(0.15,0.5,500);
       if(v.conduit==='joueur'){secousse(impact*0.4);vibre(50);
@@ -16916,6 +17403,10 @@ function entrerVehicule(v){
       P.h.g.position.set(sgA.x,sgA.y,sgA.z); P.h.g.rotation.set(0,0,0);
       P.h.jambeG.rotation.x=-1.45; P.h.jambeD.rotation.x=-1.45;
       P.h.brasG.rotation.x=-1.15; P.h.brasD.rotation.x=-1.15; P.h.brasG.rotation.z=0; P.h.brasD.rotation.z=0;
+    } else if(v.def.skate){         // debout, de profil, jambes écartées le long de la planche, bras ouverts
+      P.h.g.position.set(0,0.16,0); P.h.g.rotation.set(0,Math.PI/2,0);
+      P.h.jambeG.rotation.x=0; P.h.jambeD.rotation.x=0; P.h.jambeG.rotation.z=-0.2; P.h.jambeD.rotation.z=0.2;
+      P.h.brasG.rotation.x=-0.2; P.h.brasD.rotation.x=-0.2; P.h.brasG.rotation.z=0.9; P.h.brasD.rotation.z=-0.9;
     } else if(v.def.velo){          // en selle (BMX : plus bas, en danseuse) — les jambes pédalent (majConduite)
       P.h.g.position.set(0,v.def.bmx?0.38:0.52,-0.2); P.h.g.rotation.set(0,0,0);
       P.h.jambeG.rotation.x=-0.4; P.h.jambeD.rotation.x=-0.4;
@@ -16941,14 +17432,18 @@ function entrerVehicule(v){
     el('btnDodge').innerHTML='🏍️<small>CABRER</small>';
     toast('Maintiens CABRER pour te cabrer — trop longtemps et tu bascules','or');
   }
-  if(v.def.velo){
+  if(v.def.skate){ // skate : OLLIE (appui bref) / MANUAL (maintenu) sur ESQUIVE, comme le bunny hop du vélo
+    el('btnDodge').style.display='flex';
+    el('btnDodge').innerHTML='🛹<small>OLLIE / MANUAL</small>';
+    toast('Tape OLLIE pour sauter, maintiens-le pour un manual ; en l’air : KICKFLIP et 360','or');
+  } else if(v.def.velo){
     // Vélo : BUNNY HOP sur l'emplacement ESQUIVE (même réemploi que CABRER)
     el('btnDodge').style.display='flex';
     el('btnDodge').innerHTML='🚲<small>HOP / CABRER</small>';
     toast('Tape HOP / CABRER pour un bunny hop, maintiens-le pour cabrer'+(v.def.bmx?' — le BMX saute par-dessus les bancs':''),'or');
   }
   if(v.def.cross||v.def.velo){ // figures en l'air (majFiguresDeuxRoues) : boutons à part — SPRINT = 360, GRENADE = BACKFLIP (ESQUIVE reste CABRER / BUNNY HOP)
-    el('btnSprint').innerHTML='🌀<small>360</small>'; el('btnGren').style.display='flex'; el('btnGren').innerHTML='🔄<small>BACKFLIP</small>'; v.figSpin=0; v.figFlip=0; v.figEnVol=false; v.mesh.rotation.x=0;
+    el('btnSprint').innerHTML='🌀<small>360</small>'; el('btnGren').style.display='flex'; el('btnGren').innerHTML=v.def.skate?'🛹<small>KICKFLIP</small>':'🔄<small>BACKFLIP</small>'; v.figSpin=0; v.figFlip=0; v.figEnVol=false; v.mesh.rotation.x=0;
     setTimeout(()=>{ if(P.veh===v) toast('En l’air : 360 et BACKFLIP — finis la figure avant de toucher le sol !','or'); },2600);
   }
   if(v.def.pelle){
@@ -17198,7 +17693,7 @@ function sortirVehicule(force){
   if(P.surMoto){ // détacher le pilote de la moto
     if(v.mesh) v.mesh.remove(P.h.g);
     scene.add(P.h.g);
-    P.h.jambeG.rotation.x=0; P.h.jambeD.rotation.x=0;
+    P.h.jambeG.rotation.x=0; P.h.jambeD.rotation.x=0; P.h.jambeG.rotation.z=0; P.h.jambeD.rotation.z=0; // (skate : jambes écartées)
     P.h.brasG.rotation.x=0; P.h.brasD.rotation.x=0;
     P.h.brasG.rotation.z=0; P.h.brasD.rotation.z=0;
     P.surMoto=false;
@@ -17916,16 +18411,16 @@ function majGrueBoulet(v,dt){
 // demandée juste après un BUNNY HOP (FIG2R.fenetreHop) fait pousser plus fort : le saut dure juste assez pour la
 // finir (demandé) ; trop tard, c'est la chute. Renvoie true si le pilote vient de chuter.
 const VELO_TAP=0.25, VELO_CABRE_VIT=2.2, VELO_CABRE_MAX=0.55; // vélo : appui bref = bunny hop, maintenu = cabré (angle max ~32°)
-const FIG2R={spin:{cross:0.62,velo:0.5},flip:{cross:0.78,velo:0.62},pts360:150,ptsFlip:250,fenetreHop:0.3}; // fenetreHop : à vélo, une figure demandée dans les 0,3 s d'un bunny hop allonge le saut juste assez pour la finir
+const FIG2R={spin:{cross:0.62,velo:0.5,skate:0.42},flip:{cross:0.78,velo:0.62,skate:0.38},pts360:150,ptsFlip:250,fenetreHop:0.3}; // fenetreHop : à vélo, une figure demandée dans les 0,3 s d'un bunny hop allonge le saut juste assez pour la finir
 function majFiguresDeuxRoues(v,dt){
-  const d=v.def, cle=d.cross?'cross':'velo', air=!!v.enAir;
+  const d=v.def, cle=d.cross?'cross':(d.skate?'skate':'velo'), air=!!v.enAir;
   const veut360=pressed('sprint')||edgeKey('ShiftLeft'), veutFlip=pressed('gren')||edgeKey('KeyG'); // lus à chaque image : un appui au sol ne reste jamais en attente jusqu'au décollage
   const ud=v.mesh.userData;
   if(air){
     if(veut360&&!(v.figSpin>0)) v.figSpin=0.0001;
     if(veutFlip&&!(v.figFlip>0)) v.figFlip=0.0001;
     if(d.velo&&v.hop&&v.airT<FIG2R.fenetreHop&&(veut360||veutFlip)){ // bunny hop + figure juste après (demandé) : on pousse plus fort, le saut dure juste assez pour la finir
-      const T=Math.max(v.figSpin>0?FIG2R.spin.velo*(1-v.figSpin):0,v.figFlip>0?FIG2R.flip.velo*(1-v.figFlip):0)+0.1, h0=Math.max(0,(v.h||0)-solY(v.x,v.z)), vy=(13*T*T-h0)/T; // gravité des sauts : 26 u/s²
+      const T=Math.max(v.figSpin>0?FIG2R.spin[cle]*(1-v.figSpin):0,v.figFlip>0?FIG2R.flip[cle]*(1-v.figFlip):0)+0.1, h0=Math.max(0,(v.h||0)-solY(v.x,v.z)), vy=(13*T*T-h0)/T; // gravité des sauts : 26 u/s²
       if(vy>v.vy) v.vy=vy;
     }
     if(v.figSpin>0&&v.figSpin<1) v.figSpin=Math.min(1,v.figSpin+dt/FIG2R.spin[cle]);
@@ -17934,19 +18429,20 @@ function majFiguresDeuxRoues(v,dt){
   } else if(v.figEnVol){ // réception
     v.figEnVol=false;
     const s=v.figSpin||0, f=v.figFlip||0; v.figSpin=0; v.figFlip=0;
-    v.mesh.rotation.x=0; if(ud.corps&&!d.cross) ud.corps.rotation.x=0;
+    v.mesh.rotation.x=0; if(ud.corps&&!d.cross) ud.corps.rotation.x=0; if(ud.planche) ud.planche.rotation.set(0,0,0);
     if((s>0&&s<1)||(f>0&&f<1)){ // pas finie : chute
       v.v*=0.2; toast('Chute ! Figure pas finie','warn'); vibre(80); secousse(6);
       sortirVehicule(true); toucherJoueur(15); lancerRagdollJoueurFx(); return true;
     }
     if(s>=1||f>=1){
-      const deux=s>=1&&f>=1, pts=Math.round(((s>=1?FIG2R.pts360:0)+(f>=1?FIG2R.ptsFlip:0))*(deux?1.5:1)*ETAT.combo*tenueK('prorider',1.3)), nom=deux?'BACKFLIP 360':(f>=1?'BACKFLIP':'360');
+      const deux=s>=1&&f>=1, pts=Math.round(((s>=1?FIG2R.pts360:0)+(f>=1?FIG2R.ptsFlip:0))*(deux?1.5:1)*ETAT.combo*tenueK(d.skate?'skateur':'prorider',1.3)), nom=d.skate?(deux?'TRE FLIP':(f>=1?'KICKFLIP':'360 SHOVE-IT')):(deux?'BACKFLIP 360':(f>=1?'BACKFLIP':'360'));
       ETAT.score+=pts; spawnTexte(v.x,3.6,v.z,nom+' ! +'+pts,'#ff5ad0'); SFX.ramasse(); vibre(30);
       if(RIDES.actif&&RIDE_DEFS[RIDES.actif.id].stunt) RIDES.actif.pts+=pts; // la figure compte au DÉFI SUPERCROSS
     }
   }
   // rendu : le véhicule entier tourne (le pilote y est attaché)
-  if(v.figSpin>0||v.figFlip>0){ v.mesh.rotation.order='YXZ'; v.mesh.rotation.y=v.ang+(v.figSpin||0)*Math.PI*2; v.mesh.rotation.x=-(v.figFlip||0)*Math.PI*2;
+  if(d.skate&&ud.planche){ if(v.figSpin>0||v.figFlip>0){ ud.planche.rotation.order='YZX'; ud.planche.rotation.y=(v.figSpin||0)*Math.PI*2; ud.planche.rotation.z=(v.figFlip||0)*Math.PI*2; ud.planche.position.y=0.15*Math.sin((v.figFlip||0)*Math.PI); } else ud.planche.position.y=0; } // le skateur reste debout, la planche tourne sous ses pieds
+  else if(v.figSpin>0||v.figFlip>0){ v.mesh.rotation.order='YXZ'; v.mesh.rotation.y=v.ang+(v.figSpin||0)*Math.PI*2; v.mesh.rotation.x=-(v.figFlip||0)*Math.PI*2;
     if(v.figFlip>0) v.mesh.position.y+=(d.cross?0.9:0.7)*(1-Math.cos((v.figFlip||0)*Math.PI*2)); } // salto autour du centre du véhicule, pas du point au sol
   return false;
 }
@@ -18061,7 +18557,9 @@ function majConduite(dt){
     if(!v.enAir) v.pedalPh=(v.pedalPh||0)+v.v*dt*2.2;
     const ph=v.pedalPh||0, ud=v.mesh.userData;
     if(ud.pedalier) ud.pedalier.rotation.x=-ph;
-    if(P.surMoto&&P.veh===v){ P.h.jambeG.rotation.x=-0.45+Math.sin(ph)*0.4; P.h.jambeD.rotation.x=-0.45-Math.sin(ph)*0.4; }
+    if(v.def.skate){ if(P.surMoto&&P.veh===v){ const pousse=!v.enAir&&v.v<v.def.vmax*0.92&&Math.hypot(INPUT.mx||0,INPUT.mz||0)>0.3; P.h.jambeD.rotation.x=pousse?-Math.max(0,Math.sin(ph*0.7))*0.7:0; } // le pied arrière pousse
+      if(ud.planche&&!(v.figFlip>0)) ud.planche.rotation.x=v.enAir&&v.hop&&v.airT<0.3?0.35*(1-v.airT/0.3):0; } // ollie : la planche se cabre au décollage
+    else if(P.surMoto&&P.veh===v){ P.h.jambeG.rotation.x=-0.45+Math.sin(ph)*0.4; P.h.jambeD.rotation.x=-0.45-Math.sin(ph)*0.4; }
   }
   if((v.def.cross||v.def.velo)&&majFiguresDeuxRoues(v,dt)) return; // chute sur une figure pas finie : le joueur est éjecté
   if(v.def.pelle){
@@ -18534,7 +19032,7 @@ function majTrafic(v,dt){
       // extrême, jamais vu hors d'un test forcé) pousserait sinon le
       // dernier de la file à près d'une case entière en arrière, assez loin
       // pour parfois retomber près du trottoir d'un carrefour suivant.
-      const recul=Math.min(dejaLa,6)*5.2; // ~une longueur de citadine par véhicule déjà là
+      const recul=Math.min(dejaLa,6)*5.2*(horsHills?-1:1); // ~une longueur de citadine par véhicule déjà là ; devant la colline, du côté de la ville (en arrière, pousserHorsHills les ramenait tous sur la même ligne : un tas immobile qui tremblait)
       if(v.axe==='z') v.z-=dirNow*recul; else v.x-=dirNow*recul;
     }
     if(horsHills&&dansHills(v.x,v.z,2.5)) pousserHorsHills(v); // la mise en file ne doit pas le renvoyer dans la colline (il oscillait)
@@ -18652,10 +19150,11 @@ function majVehicules(dt){
     // tout véhicule qui NE passe PAS par majVehiculePhys — la police y passe
     // déjà (majVoiturePolice l'appelle), l'appeler aussi ici la ferait
     // décroître deux fois plus vite pour elle.
-    if(v.conduit!=='police') majDeformation(v,dt);
+    if(v.conduit!=='police'&&v.conduit!=='derby') majDeformation(v,dt);
     if(v.conduit==='trafic') majTrafic(v,dt);
     else if(v.conduit==='police') majVoiturePolice(v,dt);
     else if(v.conduit==='piste') majVehPiste(v,dt); // véhicules de piste de l'aéroport (AERO_VIE)
+    else if(v.conduit==='derby') majDerbyIA(v,dt); // arène de derby
     else if(v.conduit==='iaCourse'){
       v.v=lerp(v.v,v.crVit||20,1.2*dt);
       v.x+=Math.sin(v.ang)*v.v*dt; v.z+=Math.cos(v.ang)*v.v*dt;
@@ -22045,7 +22544,7 @@ const INTDEFS={
     ens:['TOUR LOS REYES','#35e0ff']},
   pharma:{nom:'Pharmacie',ico:'💊',w:20,d:16,sol:0xd8dce4,mur:0xe8ecf2,
     ens:['PHARMACIE','#7dff7a']},
-  armurerie:{nom:'Armurerie du Port',ico:'🔫',w:40,d:30,sol:0x3a3832,mur:0x5a5448, // 17 octobre : agrandie (24 × 18 → 40 × 30), stand de tir au nord
+  armurerie:{nom:'Armurerie',ico:'🔫',w:40,d:30,sol:0x3a3832,mur:0x5a5448, // 17 octobre : agrandie (24 × 18 → 40 × 30), stand de tir au nord
     ens:['ARMURERIE','#ff3b5c']},
   conces:{nom:'Concessionnaire',ico:'🚗',w:30,d:24,sol:0x9aa0aa,mur:0xc8cdd4,
     ens:['REYES MOTORS','#ffd23f']},
@@ -24856,6 +25355,18 @@ function construireSalle(id){
   INT.salles[id]=inter;
   return inter;
 }
+/* Les deux armureries de la carte (marqueurs « A », 18 octobre, signalé : « quand je vais aux armureries, je
+   tombe sur l'ancienne page non interactive avec toutes les armes en liste ; je ne sais pas où est l'entrée ») :
+   devant chacune, le bouton d'action fait ENTRER dans la salle V2 (avant : l'ancienne page, qui passait devant
+   la porte de la salle, posée à 1,5 u du marqueur central). La centrale entre par sa porte (PORTES) ; la sud
+   n'en a pas (une porte de plus en ville décalerait les tirages) : une porte calculée devant sa façade, la même
+   salle, et l'on ressort là où l'on est entré. La liste reste au comptoir de la salle (munitions, grenades). */
+let _porteArmSud=null;
+function porteArmurerieProche(){
+  if(POIS.armurerie&&dist2(P.x,P.z,POIS.armurerie.x,POIS.armurerie.z)<16) return PORTES.find((q)=>q.id==='armurerie')||{id:'armurerie',x:POIS.armurerie.x,z:POIS.armurerie.z-1.5,nx:0,nz:1};
+  if(POIS.armurerie2&&dist2(P.x,P.z,POIS.armurerie2.x,POIS.armurerie2.z)<16){
+    if(!_porteArmSud) _porteArmSud={id:'armurerie',x:POIS.armurerie2.x,z:POIS.armurerie2.z-1.5,nx:0,nz:1}; return _porteArmSud; }
+  return null; }
 function entrerInterieur(id,porte){
   if(INT.actif) return;
   // Rayon tracteur de l'OVNI : majVehicules cesse tout court tant que
@@ -29025,7 +29536,7 @@ function metierEnCours(){ return !!(MET.pompier||MET.taxi||MET.depanneuse||MET.a
 // supercross, bouées, REYES BOWL JAM), wakeboard ou parachute ascensionnel, métier en cours. Les vagues et les
 // événements (guerres de gangs...) sont gelés, et les gangs déjà là patrouillent sans s'occuper du joueur. La
 // police, elle, continue si l'on est recherché.
-function treveActivite(){ return !!(RIDES.actif||(DECOR_V2&&TOW.actif)||BASKET.actif||MANEGES.actif||TOUR.actif||metierEnCours()||BASE.defi||FPS.actif); }
+function treveActivite(){ return !!(RIDES.actif||(DECOR_V2&&TOW.actif)||BASKET.actif||MANEGES.actif||TOUR.actif||metierEnCours()||BASE.defi||FPS.actif||DERBY.actif); }
 // Balise dédiée, jamais la même que `balise` (déjà prise par MISSION.cur) —
 // les deux peuvent être actives en même temps sans se marcher dessus.
 const metierBalise=new THREE.Mesh(new THREE.CylinderGeometry(1.4,1.4,9,12,1,true),
@@ -29599,6 +30110,7 @@ function messageNonGarable(v){
   if(d.eau||d.surf) return 'Les bateaux, c’est au port — pas au garage';
   if(d.air||d.ovni) return 'Pose-le d’abord… sur un héliport, pas dans un garage';
   if(v.key.indexOf('depot')===0) return 'Ce véhicule ne quitte pas le Dépôt';
+  if(d.derby) return 'Une voiture de derby s’améliore au stand de l’arène';
   return 'Ce garage ne s’occupe pas de ce véhicule';
 }
 function porteGarageProche(x,z){
@@ -31418,7 +31930,7 @@ function startRun(){
   P.hp=P.maxHp; P.stam=P.stamMax; P.bouclier=0; P.bouclierMax=60; P.giletLourd=false; P.veh=null;
   P.buffs={dmg:0,vit:0,butin:0,lourd:0,sprintLibre:0,vol:0,cadence:0}; P.ivresse=0; P.iframes=0; P.dodgeT=0; P.rechT=0; P.specCd=0; P.ecraseT=0;
   P.grenades=3; boutonsAPied(); // jamais el('grenN') seul : voir boutonsAPied (mort au volant)
-  if(DECOR_V2){ reparerMobilier(); cielRetablir(); fpsArreter(); footDemarrer(); SURPRISES.tyro=null; poserTexteBanderole(META.banderole); if(RIDES.porte){ RIDES.actif=null; RIDES.porte.visible=false; RIDES.txt.style.display='none'; rivalesFin(); if(RIDES.fleche) RIDES.fleche.visible=false; RIDES.records={}; RIDES.primeVague={}; } resetPic(); resetMer(); basketArreter(); BASKET.reussi=false; BASKET.vague=-1; } P.wingsuit=false; P.wing=false; if(P.wingMesh) P.wingMesh.visible=false; nettoyerPnjMetier(); MET2.serie={taxi:0,ambulance:0,pompier:0}; // course en cours : jamais survivante d'une partie à l'autre // mobilier renversé réparé ; message acheté sur la banderole
+  if(DECOR_V2){ reparerMobilier(); cielRetablir(); fpsArreter(); derbyArreter(); footDemarrer(); SURPRISES.tyro=null; poserTexteBanderole(META.banderole); if(RIDES.porte){ RIDES.actif=null; RIDES.porte.visible=false; RIDES.txt.style.display='none'; rivalesFin(); if(RIDES.fleche) RIDES.fleche.visible=false; RIDES.records={}; RIDES.primeVague={}; } resetPic(); resetMer(); basketArreter(); BASKET.reussi=false; BASKET.vague=-1; } P.wingsuit=false; P.wing=false; if(P.wingMesh) P.wingMesh.visible=false; nettoyerPnjMetier(); MET2.serie={taxi:0,ambulance:0,pompier:0}; // course en cours : jamais survivante d'une partie à l'autre // mobilier renversé réparé ; message acheté sur la banderole
   // Jetpack : perdu au game over, comme les armes (voir CLAUDE.md) — il
   // faut remonter le chercher. Le lieu, lui (META.jetpackTrouve), reste acquis.
   P.jetpack=false; P.jetpackVol=false; P.jetFuel=100; P.jetVx=0; P.jetVz=0; P.jetWarnT=0; P.jetAvertVu=false;
@@ -31739,6 +32251,7 @@ function mourir(){
   if(DECOR_V2) basketArreter(); // concours de tirs abandonné
   if(BASE.defi) finDefiBase(false); // parcours du combattant abandonné
   fpsArreter(); // ball-trap, stand de tir : la partie s'arrête, rien de gagné
+  derbyArreter(); // derby : le match s'arrête, les voitures disparaissent, rien de gagné
   SURPRISES.tyro=null; // décroché de la tyrolienne
   ETAT.mode='mort'; ETAT.timeScale=0.28; document.body.style.boxShadow='none';
   annulerFouille(true); cacherJauges();
@@ -32700,8 +33213,7 @@ function majAction(){
     let surfProche=null, kayakProche=null;
     if(!vp) for(const s of SURFEURS){ if(dist2(s.x,s.z,P.x,P.z)<26){ surfProche=s; break; } }
     if(!vp&&!surfProche&&P.nage) for(const k of KAYAKS){ if(dist2(k.x,k.z,P.x,P.z)<9){ kayakProche=k; break; } }
-    const pertArm=(POIS.armurerie&&dist2(P.x,P.z,POIS.armurerie.x,POIS.armurerie.z)<10)||
-                  (POIS.armurerie2&&dist2(P.x,P.z,POIS.armurerie2.x,POIS.armurerie2.z)<10);
+    const pertArm=!P.veh&&!INT.actif?porteArmurerieProche():null; // les deux armureries de la carte : la salle V2
     let ff=null;
     if(POIS.fastfoods) for(const f of POIS.fastfoods) if(dist2(P.x,P.z,f.x,f.z)<10){ff=f;break;}
     const picAct=DECOR_V2?(actionPic()||actionMer()):null; // Pic du Vertige (monte-charge, saut BASE) ; mer (trésor, paillote, plongée, remorquage)
@@ -32740,6 +33252,8 @@ function majAction(){
       const b=boutiqueProche(), pt=PORTES.find((q)=>q.boutiqueId===b.id); label=b.def.ico+' ENTRER — '+b.def.nom.toUpperCase(); fn=()=>entrerInterieur('boutique',pt);
     } else if(!P.veh&&BT.ok&&ballTrapAction()){
       const a=ballTrapAction(); label=a.label; fn=a.fn;
+    } else if(!P.veh&&DERBY.ok&&derbyAction()){
+      const a=derbyAction(); label=a.label; fn=a.fn;
     } else if(!P.veh&&HELIPORT.console&&heliportAction()){
       const a=heliportAction(); label=a.label; fn=a.fn;
     } else if(!P.veh&&BASE.ok&&baseAction()){
@@ -32754,8 +33268,8 @@ function majAction(){
       label='✈️ TON MESSAGE DANS LE CIEL — '+BANDEROLE_PRIX+' $';
       fn=ouvrirBanderole;
     } else if(pertArm){
-      label='ARMURERIE';
-      fn=()=>{ETAT.promo=false;ETAT.mode='shopIn';ouvrirDepuis('shop','jeu');};
+      label='🔫 ENTRER — '+INTDEFS.armurerie.nom.toUpperCase();
+      fn=()=>entrerInterieur('armurerie',pertArm);
     } else if(ff){
       label='MANGER (30 $)';
       fn=()=>{
@@ -33376,7 +33890,8 @@ function majHUD(){
   if(P.veh&&P.veh.def.pompier){
     const txt='LANCE '+Math.round(P.veh.eau)+'%';
     if(HUDC.lance!==txt){ HUDC.lance=txt; const sm=el('btnSprint').querySelector('small'); if(sm) sm.textContent=txt; }
-  } else if(P.veh&&P.veh.def.armes) hudT('fireAmmo','∞');
+  } else if(FPS.actif) hudT('fireAmmo',FPS.rechT>0?'⟳':FPS.mun+'/'+(FPS.st.mag||1)); // tir à la première personne : le chargeur du mini-jeu
+  else if(P.veh&&P.veh.def.armes) hudT('fireAmmo','∞');
   else if(P.veh&&P.veh.armeVolant){ const iv=P.veh.armeVolant; hudT('fireAmmo',P.rechT>0?'⟳':(P.mags[iv]||0)+'/'+(P.mun[iv]||0)); }
   else hudT('fireAmmo',a.type==='melee'?'':
     (P.rechT>0?'⟳':(P.mags[P.armeCur]||0)+'/'+(P.mun[P.armeCur]||0)));
@@ -33501,7 +34016,7 @@ function boucle(t){
     ETAT.comboT-=dt;
     if(ETAT.comboT<=0) ETAT.combo=1;
     if(ETAT.slowT>0){ ETAT.slowT-=dtReel; if(ETAT.slowT<=0&&ETAT.mode==='jeu') ETAT.timeScale=1; }
-    if(ETAT.mode==='jeu'){ majNitro(dtJeu); if(DECOR_V2) towEntrees(); if(!MANEGES.actif&&!FPS.actif) majJoueur(dt,dtJeu); majFPS(dt,dtJeu); majIvresse(dtJeu); if(DECOR_V2){ majRides(dtJeu); majPic(dt); majTow(dt); majBasket(dt,dtJeu); majToitsSurprises(dt,dtJeu); } } // nitro décidée AVANT la physique du véhicule
+    if(ETAT.mode==='jeu'){ majNitro(dtJeu); if(DECOR_V2) towEntrees(); if(DERBY.actif) derbyEntrees(); if(!MANEGES.actif&&!FPS.actif) majJoueur(dt,dtJeu); majFPS(dt,dtJeu); majIvresse(dtJeu); if(DECOR_V2){ majRides(dtJeu); majPic(dt); majTow(dt); majBasket(dt,dtJeu); majToitsSurprises(dt,dtJeu); } } // nitro décidée AVANT la physique du véhicule
     majEnnemis(dt);
     if(!INT.actif){
       majPietons(dt);
@@ -33533,7 +34048,7 @@ function boucle(t){
       majMeteo(dt);
       majMer(dt);
       majMerV2(dt);
-      if(DECOR_V2){ majHorsLesMurs(dt); majMobilier(); majLac(dt); majLumieres(dt); majJetee(dt); majPortVivant(dt); majAeroportVivant(dt); majAeroVie(dt); majVieHills(dt); majChantierV2(dt); majBaseV2(dt,dtJeu); majSportsParcs(dt); majHeliportManoir(dt); majPlanques(dt); majAtelierArme(dt); majBoutique(dt); majTour(dtJeu); majCascades(dt); majManeges(dt); majBrooklyn(dt); majCiel(dt); majCielCibles(dt); majNeonVivant(dt); majQuartiersFinitions(dt); }
+      if(DECOR_V2){ majHorsLesMurs(dt); majMobilier(); majLac(dt); majLumieres(dt); majJetee(dt); majPortVivant(dt); majAeroportVivant(dt); majAeroVie(dt); majVieHills(dt); majChantierV2(dt); majBaseV2(dt,dtJeu); majSportsParcs(dt); majConcession(dt); majDerby(dt,dtJeu); majHeliportManoir(dt); majPlanques(dt); majAtelierArme(dt); majBoutique(dt); majTour(dtJeu); majCascades(dt); majManeges(dt); majBrooklyn(dt); majCiel(dt); majCielCibles(dt); majNeonVivant(dt); majQuartiersFinitions(dt); }
       majEpaveCanon(dt);
     }
     majHUD();

@@ -1841,3 +1841,15 @@ Captures : `captures/lot11/voitures_16oct.png`, `chantier_planques.png`.
 
 Captures : `captures/lot11/base_17oct.png`, `hills_17oct.png`, `boutiques_balltrap.png`, `fps_cabine.png`, `armurerie_v2.png`, `stand_tir.png`, `sports.png`, `carte_17oct.png`, `catalogue_*.png`, `toits_mont.png`.
 
+## Retours du 18 octobre
+
+- **Armureries** : les deux marqueurs « A » de la carte font entrer dans la vraie salle (avant : l'ancienne page en liste, qui passait devant la porte) ; l'armurerie sud mène à la même salle et l'on ressort devant elle ; un seul nom, « Armurerie ».
+- **Ball-trap** : on choisit son arme au départ (le fusil de Papy Earl est prêté ; une arme plus difficile rapporte plus de points) ; le bouton TIR montre l'arme du mini-jeu et son chargeur.
+- **Concession REYES MOTORS** : un vrai showroom vitré (voitures sur podiums tournants, esplanade d'exposition, totem, fanions) à la place de l'immeuble de bureaux.
+- **Skate** : nouveau véhicule ; ollie et manual, kickflip, 360 shove-it, tre flip — seule la planche tourne, le skateur reste debout. Skates, BMX et vélos garés aux deux skateparks à chaque partie.
+- **Arène de derby** (désert du sud-est, au-dessus de la plage) : murs de pneus, portail, tribunes et public, tableau d'affichage, éclairage de nuit, stand. Trois voitures de derby (break, citadine, pick-up) habillées selon quatre améliorations achetées au stand (bélier, blindage, moteur, pneus). Cinq IA qui chargent, reculent et rechargent ; les voitures finissent en épaves, jamais en explosion. Le dernier qui roule gagne ; au temps, le plus de dégâts infligés. Prime une fois par vague, combinaison « Casse-cou », défis. Simulé : un pilote au joystick gagne environ 2 matchs sur 5 au premier niveau, un joueur passif perd toujours.
+- **Trafic** : plus de voitures qui tremblent et s'encastrent dans les bouchons (la séparation des véhicules qui se chevauchent est maintenant proportionnelle au chevauchement ; mesuré : 968 inversions de mouvement en 90 s sur un point avant, 33 après) ; plus de tas de voitures immobiles au bord de Los Reyes Hills.
+- **Catalogue** : `ouvrir-catalogue.bat` lance le serveur local et ouvre la page (un double-clic sur `catalogue.html` ne marche pas).
+- **Corrigés en route** : le modèle du skate ne gardait pas ses données (la figure faisait basculer tout le véhicule) ; un commentaire `//` avalait le chrono du tableau d'affichage ; le test des géométries de l'aéroport dépendait du tirage (il rejoue maintenant le même tirage à chaque partie) ; le robot du test du Dépôt de bus restait coincé contre le bus en travers de La Boucle (obstacle voulu) : il recule et contourne désormais, comme un joueur.
+
+Captures : `captures/lot11/skate_18oct.png`, `derby_arene.png`, `derby_jeu_concession.png`, `derby_menu.png`.
