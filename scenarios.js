@@ -11486,11 +11486,14 @@ async function main() {
         for (const e of ennemis) e.mort = true;
         if (dansReliefLibre(BT.x, BT.z) || Math.abs(solY(BT.x, BT.z)) > 0.4 || BT.x < HALF) ko.push('stand hors du désert plat (' + BT.x + ',' + BT.z + ')');
         const ex0 = META.exploits.balltrap, arg0 = META.argent; META.exploits.balltrap = false; delete MERV.primes.balltrap;
+        // le pilote tire sur SA graine (lancers, dispersion) : avant, son score dépendait de l'état de Math.random
+        // laissé par les autres tests (de 3 480 à 9 860 points selon la suite) — un test maîtrise sa scène
+        const rndBak = Math.random; let graineBT = (window.__btGraine || 20261018) >>> 0; Math.random = () => { graineBT = (graineBT * 1664525 + 1013904223) >>> 0; return graineBT / 4294967296; };
         P.x = BT.poste.x; P.z = BT.poste.z; P.y = solPied(P.x, P.z); majAction();
         if (!/BALL-TRAP/.test(el('btnAction').textContent)) ko.push('pas de bouton au poste : ' + el('btnAction').textContent); else el('btnAction')._fn();
         // 18 octobre : on choisit son arme (le fusil de Papy Earl est prêté) ; le bouton TIR montre l'arme du mini-jeu
         if (!STAND.ouvert || !STAND.opts || STAND.opts.ids[0] !== 'pompe') ko.push('pas de choix d’arme au poste'); else STAND.opts.choisir('pompe');
-        if (!FPS.actif) return { ko: ko.concat(['la partie ne démarre pas']), info };
+        if (!FPS.actif) { Math.random = rndBak; return { ko: ko.concat(['la partie ne démarre pas']), info }; }
         if (el('fireIco').innerHTML !== icoArme('pompe')) ko.push('le bouton TIR ne montre pas le fusil du ball-trap');
         if (P.h.g.visible || el('btnFire').style.display === 'none' || el('btnDodge').style.display !== 'none') ko.push('HUD de la vue à la première personne');
         fpsCamera(); if (Math.abs(camera.position.y - (BT.poste.y + 1.65)) > 0.05) ko.push('caméra pas à hauteur d’œil');
@@ -11505,7 +11508,7 @@ async function main() {
             INPUT.mx = clamp(dY * 5, -1, 1); INPUT.mz = clamp((FPS.pitch - pT) * 6, -1, 1);
             if (Math.abs(dY) < 0.06 && Math.abs(FPS.pitch - pT) < 0.06) INPUT.btn.tir = true; }
           majFPS(1 / 30, 1 / 30); if (FPS.actif) fpsCamera(); }
-        INPUT.mx = INPUT.mz = 0; INPUT.btn.tir = false;
+        INPUT.mx = INPUT.mz = 0; INPUT.btn.tir = false; Math.random = rndBak;
         if (FPS.actif) ko.push('la partie ne finit pas');
         if (!META.exploits.balltrap) ko.push('pilote sous l’objectif (' + FPS.score + ' pts, ' + FPS.touches + '/' + FPS.coups + ')');
         else info.push('pilote : ' + FPS.score + ' pts en ' + BT_DUREE + ' s (' + FPS.touches + ' touches / ' + FPS.coups + ' tirs), tenue de cow-boy, prime ' + (META.argent - arg0) + ' $');
@@ -12120,6 +12123,49 @@ async function main() {
         ok('Règle des 8 u : ' + Object.keys(regle8.mesures).length + ' salles mesurées, aucune nouvelle violation — dette connue : ' + nbZones + ' zones dans ' + Object.keys(DETTE_REGLE_8U).length + ' salles (' + nbChev + ' chevauchent la SORTIE)');
       }
     }
+
+    // -------------------------------------------------------------------
+    // Wingsuit V2 (18 octobre, demandé : « améliore le style de la wingsuit »). L'ancienne posait le corps à
+    // −1,35 rad autour de l'axe x du MONDE (ordre XYZ) : sur le dos, les pieds en avant, et de travers dès qu'on
+    // ne volait pas vers le sud ; les bras repliés DANS le torse ; la pose de chute libre l'écrasait à chaque image.
+    // Ici, dans quatre caps : la poitrine regarde le sol, la tête pointe dans la direction du vol, les mains sont
+    // loin de l'axe du corps (bras écartés), la combinaison est portée et visible, les traînées apparaissent en
+    // vol et s'effacent après l'atterrissage.
+    // -------------------------------------------------------------------
+    console.log('\n--- Wingsuit V2 : ventre au sol, tête en avant dans tous les caps, bras écartés, traînées ---');
+    const wingV2 = await page.evaluate(async () => {
+      const dors = (ms) => new Promise((r) => setTimeout(r, ms));
+      startRun(); ETAT.mode = 'jeu'; ETAT.timeScale = 1; P.hp = P.hpMax = 1e6;
+      const ko = [], mesures = [], V = (x, y, z) => new THREE.Vector3(x, y, z);
+      const x0 = PIC.ok ? PIC.plg.x : 0, z0 = PIC.ok ? PIC.plg.z1 + 4 : 0;
+      for (const cap of [0, Math.PI / 2, Math.PI, -Math.PI / 2]) {
+        P.wing = false; P.wingsuit = true; P.x = x0; P.z = z0; P.y = 160; P.ang = cap; P.chute = true; P.chuteY0 = P.y + 10; P.chuteT = 0; P.chuteHaut = 160; P.vy = -4; P.para = false;
+        P.chuteVx = Math.sin(cap) * 14; P.chuteVz = Math.cos(cap) * 14; INPUT.mx = 0; INPUT.mz = 0; deployerWingsuit();
+        await dors(700);
+        if (!P.wing) { ko.push('cap ' + cap.toFixed(2) + ' : le vol plané s’est arrêté'); continue; }
+        P.h.g.updateMatrixWorld(true);
+        const q = P.h.g.getWorldQuaternion(new THREE.Quaternion()), tete = V(0, 1, 0).applyQuaternion(q), poitrine = V(0, 0, 1).applyQuaternion(q);
+        const dir = V(Math.sin(P.wingAng), 0, Math.cos(P.wingAng)), avant = tete.dot(dir), bas = -poitrine.y;
+        const centre = P.h.g.getWorldPosition(V(0, 0, 0)), axe = tete.clone().normalize();
+        const ecart = (bras) => { const m = bras.localToWorld(V(0, -0.55, 0)).sub(centre); return m.sub(axe.clone().multiplyScalar(m.dot(axe))).length(); };
+        const eG = ecart(P.h.brasG), eD = ecart(P.h.brasD);
+        mesures.push('cap ' + Math.round(cap * 180 / Math.PI) + '° : tête·avant ' + avant.toFixed(2) + ', poitrine·bas ' + bas.toFixed(2) + ', mains à ' + eG.toFixed(2) + '/' + eD.toFixed(2) + ' u de l’axe');
+        if (avant < 0.85) ko.push('cap ' + Math.round(cap * 180 / Math.PI) + '° : la tête ne pointe pas dans la direction du vol (' + avant.toFixed(2) + ')');
+        if (bas < 0.85) ko.push('cap ' + Math.round(cap * 180 / Math.PI) + '° : la poitrine ne regarde pas le sol (' + bas.toFixed(2) + ')');
+        if (Math.min(eG, eD) < 0.6) ko.push('cap ' + Math.round(cap * 180 / Math.PI) + '° : bras repliés (' + eG.toFixed(2) + ', ' + eD.toFixed(2) + ')');
+        if (!P.wingMesh || !P.wingMesh.visible || P.wingMesh.parent !== P.h.g) ko.push('combinaison absente ou détachée du joueur');
+        if (!WING_FX.rubans || !WING_FX.rubans[0].m.visible) ko.push('pas de traînée en vol');
+      }
+      // on ouvre la voile, on se pose : la traînée s'efface, la pose redevient normale
+      ouvrirParachute(); P.y = solPied(P.x, P.z) + 0.5; await dors(1200);
+      if (P.wing) ko.push('toujours en vol plané après la voile');
+      if (WING_FX.rubans && WING_FX.rubans.some((r) => r.m.visible)) ko.push('traînée encore visible après le vol');
+      if (Math.abs(P.h.jambeG.rotation.z) > 1e-3 || Math.abs(P.h.jambeD.rotation.z) > 1e-3) ko.push('jambes restées écartées après le vol');
+      startRun();
+      return { ko, mesures };
+    });
+    if (wingV2.ko.length) fail('Wingsuit V2 : ' + wingV2.ko.join(' ; ') + ' (' + wingV2.mesures.join(' | ') + ')');
+    else ok('Wingsuit V2 : ' + wingV2.mesures.join(' | ') + ' ; traînées en vol, effacées au sol');
 
     // -------------------------------------------------------------------
     // Habillage V2 des salles (18 octobre, demandé : « refais la cohérence, les textures, le réalisme, la

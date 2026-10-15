@@ -6453,21 +6453,87 @@ function finVolWingsuit(){
   else toast('🦅 Vol de '+d+' m (record '+META.wingRecord+' m)','or');
 }
 function deployerWingsuit(){ if(!P.wingsuit||!P.chute||P.para||P.wing) return; P.wingX0=P.x; P.wingZ0=P.z; P.wing=true; P.wingAng=P.ang; P.wingV=Math.max(14,Math.hypot(P.chuteVx||0,P.chuteVz||0)); toast('🦅 Plané !','or'); SFX.swing(); vibre(30); }
-function mkAilesWingsuit(){ // membranes entre bras et jambes, accrochées au modèle du joueur
-  // (14 octobre, demandé : « améliorer le style ») : voilure à bandes, nervures, bord d'attaque
-  // contrasté, membrane entre les jambes, feux de bout d'aile ; la combinaison « Faucon » a sa livrée
-  const faucon=META.tenue==='faucon';
-  const texAile=cTex(128,(c,s)=>{ c.fillStyle=faucon?'#1a2a4a':'#ff5a3a'; c.fillRect(0,0,s,s); c.fillStyle=faucon?'#ffd23f':'#1c1e22';
-    for(let k=0;k<4;k++) c.fillRect(0,k*s/4+s/10,s,s/24); c.fillStyle='rgba(255,255,255,0.18)'; for(let k=0;k<6;k++) c.fillRect(k*s/6,0,2,s); },1);
-  const g=new THREE.Group(), mt=new THREE.MeshLambertMaterial({map:texAile,side:THREE.DoubleSide});
-  const bord=mat(faucon?0xffd23f:0x1c1e22);
-  for(const sg of [-1,1]){ const sh=new THREE.Shape(); sh.moveTo(0,0.05); sh.quadraticCurveTo(sg*0.7,0.25,sg*1.25,0.12); sh.lineTo(sg*1.05,-0.25); sh.quadraticCurveTo(sg*0.6,-0.9,sg*0.32,-1.25); sh.lineTo(0,-1.0); sh.lineTo(0,0.05);
-    const m=new THREE.Mesh(new THREE.ShapeGeometry(sh),mt); m.position.set(sg*0.18,1.45,0); g.add(m);
-    const ba=new THREE.Mesh(new THREE.BoxGeometry(1.15,0.06,0.06),bord); ba.position.set(sg*0.78,1.6,0); ba.rotation.z=-sg*0.1; g.add(ba);
-    const feu=new THREE.Mesh(new THREE.SphereGeometry(0.06,6,4),new THREE.MeshBasicMaterial({color:sg<0?0xff3030:0x30ff60})); feu.position.set(sg*1.43,1.57,0); g.add(feu); }
-  const q=new THREE.Shape(); q.moveTo(-0.28,0); q.lineTo(0.28,0); q.quadraticCurveTo(0.1,-0.5,0,-0.72); q.quadraticCurveTo(-0.1,-0.5,-0.28,0);
-  const queue=new THREE.Mesh(new THREE.ShapeGeometry(q),mt); queue.position.set(0,0.75,0); g.add(queue);
+function mkAilesWingsuit(){ // la combinaison, accrochée au modèle du joueur (repère du corps : x latéral, y le long du corps, z la poitrine)
+  // (18 octobre, demandé : « améliore le style de la wingsuit ») : de vraies ailes de bras (du poignet à la cuisse)
+  // et une aile de jambes, CAMBRÉES (l'air les gonfle vers le dos), en caissons (bord de fuite festonné), qui
+  // frémissent au vent (shader) ; livrée à chevrons (ou « Faucon » : marine et or, plumes), bord d'attaque
+  // contrasté, casque intégral à visière, sac-harnais sur le dos, feux de bout d'aile (rouge à gauche, vert à droite)
+  const faucon=META.tenue==='faucon', base=faucon?'#14213e':'#ff5a1f', fonce=faucon?'#0a1226':'#1a1c22', acc=faucon?'#e8b830':'#f2f4f8';
+  const tex=cTex(256,(c,s)=>{ const g=c.createLinearGradient(0,0,0,s); g.addColorStop(0,base); g.addColorStop(1,fonce); c.fillStyle=g; c.fillRect(0,0,s,s);
+    if(faucon){ c.strokeStyle=acc; c.globalAlpha=0.55; c.lineWidth=3; for(let k=0;k<9;k++){ const x=k*s/8; c.beginPath(); c.moveTo(x,s*0.12); c.quadraticCurveTo(x+s*0.06,s*0.5,x-s*0.02,s*0.95); c.stroke(); } c.globalAlpha=1; }
+    else { c.fillStyle=fonce; c.beginPath(); c.moveTo(0,s*0.34); c.lineTo(s*0.5,s*0.62); c.lineTo(s,s*0.34); c.lineTo(s,s*0.5); c.lineTo(s*0.5,s*0.78); c.lineTo(0,s*0.5); c.closePath(); c.fill();
+      c.fillStyle=acc; c.beginPath(); c.moveTo(0,s*0.26); c.lineTo(s*0.5,s*0.54); c.lineTo(s,s*0.26); c.lineTo(s,s*0.32); c.lineTo(s*0.5,s*0.6); c.lineTo(0,s*0.32); c.closePath(); c.fill(); }
+    c.fillStyle=acc; c.fillRect(0,0,s,s*0.07);                                   // bord d'attaque
+    c.fillStyle='rgba(0,0,0,0.28)'; c.fillRect(0,s*0.9,s,s*0.1);                 // bord de fuite
+    c.strokeStyle='rgba(255,255,255,0.32)'; c.lineWidth=2; for(let k=1;k<5;k++){ c.beginPath(); c.moveTo(k*s/5,s*0.07); c.lineTo(k*s/5,s); c.stroke(); } // coutures des caissons
+  },1);
+  const mt=new THREE.MeshPhongMaterial({map:tex,side:THREE.DoubleSide,shininess:28,specular:0x444444});
+  mt.onBeforeCompile=(sh)=>{ sh.uniforms.uWingT=WING_FX.u.uWingT; sh.vertexShader='uniform float uWingT;\n'+sh.vertexShader.replace('#include <begin_vertex>',
+    '#include <begin_vertex>\n  transformed.z += sin(uWingT*24.0 + uv.x*9.0 + uv.y*5.0) * 0.028 * uv.y * uv.y;'); };
+  mt.customProgramCacheKey=()=>'wingsuitV2';
+  // une surface paramétrée (u le long de l'envergure, v du bord d'attaque au bord de fuite), en grille
+  const surface=(nu,nv,f)=>{ const pos=[], uv=[], idx=[];
+    for(let j=0;j<=nv;j++) for(let i=0;i<=nu;i++){ const p=f(i/nu,j/nv); pos.push(p[0],p[1],p[2]); uv.push(i/nu,j/nv); }
+    for(let j=0;j<nv;j++) for(let i=0;i<nu;i++){ const a=j*(nu+1)+i, b=a+1, c2=a+nu+1, d=c2+1; idx.push(a,c2,b, b,c2,d); }
+    const geo=new THREE.BufferGeometry(); geo.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); geo.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2)); geo.setIndex(idx); geo.computeVertexNormals(); return geo; };
+  const g=new THREE.Group(), lerp2=(a,b,t)=>[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t];
+  g.userData.bouts=[]; g.userData.faucon=faucon;
+  for(const sg of [-1,1]){ // aile de bras : de l'épaule au poignet (bord d'attaque), du flanc à la cuisse (emplanture)
+    const epaule=[sg*0.3,1.42], poignet=[sg*0.98,1.16], cuisse=[sg*0.34,0.16], fuiteBout=[sg*0.97,0.86];
+    const geo=surface(14,8,(u,v)=>{ const LE=lerp2(epaule,poignet,u), TE=lerp2(cuisse,fuiteBout,Math.pow(u,0.85));
+      const creux=Math.sin(Math.PI*u)*0.16, feston=Math.abs(Math.sin(u*Math.PI*5))*0.035; // bord de fuite concave, festonné par caisson
+      const te=[TE[0],TE[1]+creux-feston], p=lerp2(LE,te,v);
+      return [p[0],p[1],-0.13*Math.sin(Math.PI*v)*(0.45+0.55*Math.sin(Math.PI*Math.min(1,u*1.1)))]; });
+    g.add(new THREE.Mesh(geo,mt));
+    const feu=new THREE.Mesh(new THREE.SphereGeometry(0.055,8,6),new THREE.MeshBasicMaterial({color:sg<0?0xff3030:0x30ff60})); feu.position.set(sg*1.0,1.16,-0.04); g.add(feu); g.userData.bouts.push(feu); }
+  // aile de jambes : entre les jambes écartées, bord de fuite creusé au milieu
+  g.add(new THREE.Mesh(surface(10,8,(u,v)=>{ const L=0.3+0.2*v, y=0.62-0.7*v+0.14*v*(1-Math.pow(2*u-1,2)); return [(2*u-1)*L,y,-0.09*Math.sin(Math.PI*u)*Math.sin(Math.PI*v)]; }),mt)); // déborde des jambes : visible de dessus
+  // casque intégral et visière, sac-harnais sur le dos
+  const casque=new THREE.Mesh(new THREE.SphereGeometry(0.27,16,12),new THREE.MeshPhongMaterial({color:faucon?0xe8b830:0xf2f4f8,shininess:80,specular:0x888888})); casque.position.set(0,1.62,0); casque.scale.set(1,1.12,1.1); g.add(casque);
+  const visiere=new THREE.Mesh(new THREE.SphereGeometry(0.275,16,10,Math.PI*0.18,Math.PI*0.64,Math.PI*0.32,Math.PI*0.3),new THREE.MeshPhongMaterial({color:0x10141c,shininess:120,specular:0xffffff})); visiere.position.copy(casque.position); visiere.scale.copy(casque.scale); g.add(visiere);
+  const sac=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.6,0.16),new THREE.MeshLambertMaterial({color:faucon?0x0a1226:0x1a1c22})); sac.position.set(0,1.12,-0.27); g.add(sac);
+  const bande=new THREE.Mesh(new THREE.BoxGeometry(0.52,0.06,0.17),new THREE.MeshBasicMaterial({color:faucon?0xe8b830:0xff5a1f})); bande.position.set(0,1.3,-0.27); g.add(bande);
+  const poignee=new THREE.Mesh(new THREE.SphereGeometry(0.05,8,6),new THREE.MeshBasicMaterial({color:0xffd23f})); poignee.position.set(0.18,0.86,-0.3); g.add(poignee);
   g.visible=false; return g;
+}
+// les effets du vol : frémissement des ailes, traînées de vapeur aux poignets, fumée colorée aux pieds, roulis dans les virages
+const WING_FX={u:{uWingT:{value:0}},rubans:null,roulis:0,angPrec:null,opac:0};
+const _wingV=new THREE.Vector3(), _wingQa=new THREE.Quaternion(), _wingQb=new THREE.Quaternion(), _wingQc=new THREE.Quaternion(), _wingAxeY=new THREE.Vector3(0,1,0), _wingAxeX=new THREE.Vector3(1,0,0);
+function rubanTrainee(N,larg,elargir,coul,opacMax){ // ruban horizontal derrière un point, réserve fixe de N points (aucune allocation en vol)
+  const pos=new Float32Array(N*2*3), uv=new Float32Array(N*2*2), idx=[];
+  for(let i=0;i<N;i++){ uv[i*4]=i/(N-1); uv[i*4+1]=0; uv[i*4+2]=i/(N-1); uv[i*4+3]=1; if(i<N-1){ const a=i*2; idx.push(a,a+1,a+2, a+1,a+3,a+2); } }
+  const geo=new THREE.BufferGeometry(); geo.setAttribute('position',new THREE.BufferAttribute(pos,3)); geo.setAttribute('uv',new THREE.BufferAttribute(uv,2)); geo.setIndex(idx);
+  const t=cTex(64,(c,s)=>{ const g=c.createLinearGradient(0,0,s,0); g.addColorStop(0,'rgba(255,255,255,1)'); g.addColorStop(1,'rgba(255,255,255,0)'); c.fillStyle=g; c.fillRect(0,0,s,s);
+    c.globalCompositeOperation='destination-in'; const v=c.createLinearGradient(0,0,0,s); v.addColorStop(0,'rgba(0,0,0,0)'); v.addColorStop(0.5,'rgba(0,0,0,1)'); v.addColorStop(1,'rgba(0,0,0,0)'); c.fillStyle=v; c.fillRect(0,0,s,s); });
+  const m=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({map:t,color:coul,transparent:true,opacity:0,depthWrite:false,side:THREE.DoubleSide}));
+  m.frustumCulled=false; m.visible=false; scene.add(m);
+  return {m,pos,N,larg,elargir,opacMax,pts:[],n:0};
+}
+function majRuban(R,x,y,z,actif,opac){
+  const P0=R.pts; if(actif){ if(!R.n||Math.hypot(x-P0[0].x,y-P0[0].y,z-P0[0].z)>0.4){ if(R.n<R.N){ P0.unshift({x,y,z}); R.n++; } else { const q=P0.pop(); q.x=x; q.y=y; q.z=z; P0.unshift(q); } } else { P0[0].x=x; P0[0].y=y; P0[0].z=z; } }
+  R.m.visible=R.n>1&&opac>0.01; R.m.material.opacity=opac*R.opacMax; if(!R.m.visible) return;
+  const pos=R.pos;
+  for(let i=0;i<R.N;i++){ const k=Math.min(i,R.n-1), p=P0[k], a=P0[Math.max(0,k-1)], b=P0[Math.min(R.n-1,k+1)];
+    let dx=a.x-b.x, dz=a.z-b.z; const l=Math.hypot(dx,dz)||1; dx/=l; dz/=l; const w=R.larg*(1-k/R.N*0.6)+R.elargir*k/R.N;
+    pos[i*6]=p.x-dz*w; pos[i*6+1]=p.y; pos[i*6+2]=p.z+dx*w; pos[i*6+3]=p.x+dz*w; pos[i*6+4]=p.y; pos[i*6+5]=p.z-dx*w; }
+  R.m.geometry.attributes.position.needsUpdate=true;
+}
+function majWingFx(dt,vol){
+  if(!WING_FX.rubans){ if(!vol) return; const faucon=META.tenue==='faucon';
+    WING_FX.rubans=[rubanTrainee(40,0.06,0.1,0xffffff,0.7),rubanTrainee(40,0.06,0.1,0xffffff,0.7),rubanTrainee(46,0.25,2.2,faucon?0xe8b830:0xff7a3a,0.42)]; }
+  WING_FX.opac=clamp(WING_FX.opac+(vol?2.5:-1.6)*dt,0,1); WING_FX.u.uWingT.value+=dt;
+  const R=WING_FX.rubans, wm=P.wingMesh;
+  if(vol&&wm){ wm.updateMatrixWorld(true); for(let i=0;i<2;i++){ wm.userData.bouts[i].getWorldPosition(_wingV); majRuban(R[i],_wingV.x,_wingV.y,_wingV.z,true,WING_FX.opac); }
+    _wingV.set(0,0.08,-0.02); wm.localToWorld(_wingV); majRuban(R[2],_wingV.x,_wingV.y,_wingV.z,true,WING_FX.opac); }
+  else for(const r of R){ majRuban(r,0,0,0,false,WING_FX.opac); if(WING_FX.opac<=0) r.n=0; }
+}
+// le corps à plat, ventre vers le sol, la tête en avant (légèrement relevée), roulis dans les virages — appelé
+// APRÈS P.h.g.rotation.y=P.ang (quaternion : cap autour de l'axe du monde, puis tangage, puis roulis autour du corps)
+function orienterWingsuit(dt){
+  const d=WING_FX.angPrec===null?0:Math.atan2(Math.sin(P.wingAng-WING_FX.angPrec),Math.cos(P.wingAng-WING_FX.angPrec)); WING_FX.angPrec=P.wingAng;
+  WING_FX.roulis=lerp(WING_FX.roulis,clamp(-d/Math.max(dt,1e-3)*0.45,-0.75,0.75),clamp(4*dt,0,1));
+  _wingQa.setFromAxisAngle(_wingAxeY,P.ang); _wingQb.setFromAxisAngle(_wingAxeX,1.38); _wingQc.setFromAxisAngle(_wingAxeY,WING_FX.roulis);
+  P.h.g.quaternion.copy(_wingQa).multiply(_wingQb).multiply(_wingQc);
 }
 function sauterBase(){
   const pl=PIC.plg;
@@ -16636,10 +16702,9 @@ function majJoueur(dt,dtJeu){
     if(!P.para&&!P.veh&&(P.chuteY0-P.y)>2.5) el('btnJump').style.display='flex';
     if(P.wing&&!P.para){ // wingsuit : descente lente et régulière, corps à plat, ailes ouvertes
       P.vy=lerp(P.vy,-WING_VY*(META.tenue==='faucon'?0.8:1),clamp(2*dtJeu,0,1)); P.y+=P.vy*dtJeu; // combinaison « Faucon » : descend 20 % moins vite
-      if(Math.random()<0.5){ const ca=Math.cos(P.wingAng||0), sa=Math.sin(P.wingAng||0); for(const sg of [-1,1]) spawnP(P.x+ca*sg*1.4,P.y+0.9,P.z-sa*sg*1.4,0,0,0,0.5,0.25,0xffffff,0,0.5); } // traînées de bout d'aile
-      if(!P.wingMesh){ P.wingMesh=mkAilesWingsuit(); P.h.g.add(P.wingMesh); } P.wingMesh.visible=true;
-      P.h.g.rotation.x=-1.35; P.h.brasG.rotation.z=1.35; P.h.brasD.rotation.z=-1.35; P.h.brasG.rotation.x=0; P.h.brasD.rotation.x=0;
-      if(Math.random()<0.3) spawnP(P.x,P.y+0.8,P.z,0,0,0,0.12,0.4,0xf2f4f8,0,3);
+      // la combinaison suit le joueur (modèle reconstruit) et la tenue portée (livrée « Faucon ») ; pose et orientation : rendu de majJoueur
+      if(!P.wingMesh||P.wingMesh.parent!==P.h.g||P.wingMesh.userData.faucon!==(META.tenue==='faucon')){ if(P.wingMesh){ if(P.wingMesh.parent) P.wingMesh.parent.remove(P.wingMesh); libererObjet(P.wingMesh); } P.wingMesh=mkAilesWingsuit(); P.h.g.add(P.wingMesh); }
+      P.wingMesh.visible=true; majWingFx(dtJeu,true); // traînées de vapeur aux poignets, fumée aux pieds, ailes qui frémissent
     } else if(P.para){
       P.vy=Math.max(P.vy-9*dtJeu,-3.4); // vitesse de descente limitée sous voile
       P.y+=P.vy*dtJeu;
@@ -16678,7 +16743,7 @@ function majJoueur(dt,dtJeu){
       else if(P.vy<-12&&!(P.trampoT>0)){ toucherJoueur((-P.vy-12)*3.5*tenueK('badlands',0.5)); secousse(6); } // juste après un rebond de trampoline : on retombe sur ses pieds // tenue « Badlands » : chutes deux fois moins rudes
       else burst(P.x,P.y+0.2,P.z,4,0xb8bec8,4);
       P.vy=0; P.para=false; paraMesh.visible=false; paraMesh.rotation.z=0; P.chuteVx=0; P.chuteVz=0;
-      if(P.wing){ P.wing=false; if(P.wingMesh) P.wingMesh.visible=false; P.h.brasG.rotation.z=0; P.h.brasD.rotation.z=0; }
+      if(P.wing){ P.wing=false; if(P.wingMesh) P.wingMesh.visible=false; P.h.brasG.rotation.z=0; P.h.brasD.rotation.z=0; P.h.jambeG.rotation.z=0; P.h.jambeD.rotation.z=0; }
       if(!P.veh) el('btnJump').style.display='none';
     }
   } else if(P.y>gY+0.4){ P.chute=true; P.chuteY0=P.y; P.chuteT=0; P.chuteHaut=P.y-gY; P.vy=0; P.para=false; P.chuteVx=0; P.chuteVz=0; }
@@ -16746,7 +16811,9 @@ function majJoueur(dt,dtJeu){
 
   // rendu
   if(!P.surMoto){ const ne=P.nage?niveauEau(P.x,P.z):0; P.h.g.position.set(P.x,P.nage?ne-0.78+(dansPiscine(P.x,P.z)||ne>0?0:houleY(P.x,P.z)):P.y,P.z); }
-  if(P.chute&&!P.para){
+  if(P.chute&&P.wing&&!P.para){ // wingsuit (18 octobre) : bras écartés et un peu rabattus, jambes ouvertes ; l'orientation du corps (à plat, ventre au sol, tête en avant, roulis) est posée après le cap : orienterWingsuit
+    P.h.brasG.rotation.set(0,0,-1.3); P.h.brasD.rotation.set(0,0,1.3); P.h.jambeG.rotation.set(0,0,-0.2); P.h.jambeD.rotation.set(0,0,0.2);
+  } else if(P.chute&&!P.para){
     // Posture de VRAIE chute libre (demandé explicitement) : bras tendus en
     // avant façon Superman (jamais juste écartés comme un pantin), jambes
     // tendues en arrière, corps proche de l'horizontale. Le piqué (corps
@@ -16783,9 +16850,10 @@ function majJoueur(dt,dtJeu){
     P.h.g.rotation.z=lerp(P.h.g.rotation.z,virage*0.5,0.15);
     paraMesh.rotation.z=lerp(paraMesh.rotation.z||0,-virage*0.35,0.1);
   } else if(P.h.g.rotation.x!==0||P.h.g.rotation.z!==0){
-    P.h.g.rotation.x=0; P.h.g.rotation.z=0; P.h.brasG.rotation.z=0; P.h.brasD.rotation.z=0;
+    P.h.g.rotation.x=0; P.h.g.rotation.z=0; P.h.brasG.rotation.z=0; P.h.brasD.rotation.z=0; P.h.jambeG.rotation.z=0; P.h.jambeD.rotation.z=0;
   }
   P.h.g.rotation.y=P.ang;
+  if(P.chute&&P.wing&&!P.para&&P.wingMesh) orienterWingsuit(dt); else { WING_FX.angPrec=null; WING_FX.roulis=0; if(WING_FX.rubans) majWingFx(dt,false); } // la traînée s'efface après le vol
   if(P.nage&&crawl){ // crawl : bras en moulinet complet, battements de jambes rapides
     P.h.phase+=dt*(5+Math.hypot(vx,vz)*0.9);
     const s=Math.sin(P.h.phase*4);
@@ -18091,7 +18159,7 @@ function boutonsAPied(){
 }
 function ouvrirParachute(){
   if(P.para||!P.chute){ SFX.refus(); return; }
-  if(P.wing){ finVolWingsuit(); P.wing=false; if(P.wingMesh) P.wingMesh.visible=false; P.h.g.rotation.x=0; P.h.brasG.rotation.z=0; P.h.brasD.rotation.z=0; } // on replie la wingsuit sous la voile
+  if(P.wing){ finVolWingsuit(); P.wing=false; if(P.wingMesh) P.wingMesh.visible=false; P.h.g.rotation.x=0; P.h.brasG.rotation.z=0; P.h.brasD.rotation.z=0; P.h.jambeG.rotation.z=0; P.h.jambeD.rotation.z=0; } // on replie la wingsuit sous la voile
   P.para=true; P.vy=Math.max(P.vy,-4);
   paraMesh.visible=true; paraMesh.position.set(P.x,P.y+PARA_DIST,P.z);
   el('btnJump').style.display='none';
