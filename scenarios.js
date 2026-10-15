@@ -4246,23 +4246,25 @@ async function main() {
       if (el('btnAction')._fn) el('btnAction')._fn();
       out.vehiculeChoisiViaAction = s.vehiculeChoisi === st.key;
 
-      // au tableau : premier tap doit armer le circuit affiché, jamais la
+      // au tableau : le tap ouvre le panneau (Dépôt V2, 18 octobre), jamais la
       // blague du Roi des Sandwichs
       P.x = s.depotTableau.x; P.z = s.depotTableau.z;
       majAction();
       out.labelTableau1 = el('btnAction').textContent;
       out.pasLaBlagueDuSandwich = el('btnAction').textContent !== '🏆 TABLEAU DES CHAMPIONS';
       if (el('btnAction')._fn) el('btnAction')._fn();
-      out.armeApresTap1 = s.circuitArme === true;
+      out.armeApresTap1 = DEPOT_PANNEAU.ouvert === true && !!DEPOT_PANNEAU.el && DEPOT_PANNEAU.el.style.display !== 'none';
 
-      // un peu de temps réel s'écoule (comme dans une vraie partie), le
-      // joueur reste devant le tableau, tape une seconde fois : doit lancer
+      // le panneau montre le véhicule choisi au stand, et son vrai bouton LANCER lance la course
       ETAT.runT += 0.4;
-      majAction();
-      out.labelTableau2 = el('btnAction').textContent;
-      const lance = !!el('btnAction')._fn;
-      if (el('btnAction')._fn) el('btnAction')._fn();
+      const pan = DEPOT_PANNEAU.el;
+      const bVeh = pan && pan.querySelector('[data-dp="veh"][data-id="' + st.key + '"]');
+      out.labelTableau2 = bVeh ? bVeh.textContent : '(pas de bouton)';
+      out.choixVisible = !!bVeh && /CHOISI/.test(bVeh.textContent);
+      const bLancer = pan && pan.querySelector('[data-dp="lancer"][data-id="boucle"]');
+      if (bLancer) bLancer.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
       out.courseLanceeViaAction = s.courseEnCours === true && !!s.course;
+      out.panneauFerme = !DEPOT_PANNEAU.ouvert && pan.style.display === 'none';
 
       if (s.courseEnCours) depotAnnulerCourse(s);
       if (INT.actif) sortirInterieur();
@@ -4274,10 +4276,82 @@ async function main() {
     else ok('Dépôt : choisir un véhicule au stand fonctionne bien via le vrai bouton d\'action');
     if (!cheminJoueur.pasLaBlagueDuSandwich) fail('Dépôt : RÉGRESSION — taper sur le tableau des courses déclenche la blague du Roi des Sandwichs (« TABLEAU DES CHAMPIONS ») au lieu du vrai tableau');
     else ok('Dépôt : taper sur le tableau déclenche bien le vrai tableau des courses, jamais la blague du Roi des Sandwichs');
-    if (!cheminJoueur.armeApresTap1) fail('Dépôt : le premier tap sur le tableau n\'arme pas le circuit (label="' + cheminJoueur.labelTableau1 + '")');
-    else ok('Dépôt : le premier tap sur le tableau arme bien le circuit affiché');
-    if (!cheminJoueur.courseLanceeViaAction) fail('Dépôt : RÉGRESSION — le vrai chemin joueur (marcher jusqu\'au tableau, taper deux fois) ne lance jamais de course (labels: "' + cheminJoueur.labelTableau1 + '" puis "' + cheminJoueur.labelTableau2 + '")');
-    else ok('Dépôt : le vrai chemin joueur (marcher jusqu\'au tableau, taper deux fois) lance bien une course');
+    if (!cheminJoueur.armeApresTap1) fail('Dépôt : le tap sur le tableau n\'ouvre pas le panneau des courses (label="' + cheminJoueur.labelTableau1 + '")');
+    else ok('Dépôt : le tap sur le tableau ouvre bien le panneau des courses');
+    if (!cheminJoueur.choixVisible) fail('Dépôt : le panneau n\'indique pas le véhicule choisi au stand (bouton : "' + cheminJoueur.labelTableau2 + '")');
+    else ok('Dépôt : le panneau indique bien le véhicule choisi au stand');
+    if (!cheminJoueur.courseLanceeViaAction || !cheminJoueur.panneauFerme) fail('Dépôt : RÉGRESSION — le vrai chemin joueur (marcher jusqu\'au tableau, ouvrir le panneau, LANCER) ne lance pas de course ou laisse le panneau ouvert (lancée ' + cheminJoueur.courseLanceeViaAction + ', panneau fermé ' + cheminJoueur.panneauFerme + ')');
+    else ok('Dépôt : le vrai chemin joueur (marcher jusqu\'au tableau, ouvrir le panneau, LANCER) lance bien une course et referme le panneau');
+
+    // -------------------------------------------------------------------
+    // Dépôt V2 (18 octobre, signalé : « ce n'est pas clair, des terrains cohérents, aussi sur les bordures,
+    // le pick-up n'est pas un pick-up, des éléments de partout »). Ce qu'on VOIT doit être ce qui compte :
+    // un rayon tiré vers le sol, le long du polygone des tracés (celui de depotDistancePiste), trouve la piste
+    // dedans, le bas-côté de gravier dehors ; au Toit, le toit jusqu'à la limite de chute et le vide au-delà ;
+    // la passerelle couvre la brèche, puis plus rien quand elle s'effondre. Le panneau se referme quand on
+    // s'éloigne ; le bus verrouillé est refusé ; chaque véhicule est un vrai modèle (le pick-up a une benne) ;
+    // rien du Dépôt ne déborde chez les salles voisines (400 u).
+    // -------------------------------------------------------------------
+    console.log('\n--- Le Dépôt V2 : terrains et bordures cohérents avec la logique, panneau, vrais modèles ---');
+    const depotV2 = await page.evaluate(() => {
+      startRun();
+      const p = PORTES.find((x) => x.id === 'depot');
+      entrerInterieur('depot', p);
+      const s = INT.actif, ox = s.ox, oz = s.oz, ko = [];
+      s.g.updateMatrixWorld(true);
+      const rc = new THREE.Raycaster(), bas = new THREE.Vector3(0, -1, 0), maillages = [];
+      s.g.traverse((o) => { if (o.isMesh) maillages.push(o); }); // jamais les sprites (leur lancer de rayon veut une caméra)
+      const sol = (x, z) => { rc.set(new THREE.Vector3(x, 60, z), bas); rc.far = 200;
+        for (const h of rc.intersectObjects(maillages, false)) { const m = h.object.material; if (!m || m.depthWrite === false || !h.object.visible) continue; /* halos et flaques : décalques sans épaisseur */ if (h.point.y > 2) continue; return h.point.y; }
+        return -999; };
+      let n = 0;
+      for (const cid of DEPOT_ORDRE_CIRCUITS) {
+        const c = DEPOT_CIRCUITS[cid], pts = s.circuits[cid].pts, hw = c.largeur / 2, N = pts.length;
+        for (let i = 0; i < N; i++) {
+          const a = pts[i], b = pts[(i + 1) % N], l = Math.hypot(b.x - a.x, b.z - a.z), nx = -(b.z - a.z) / l, nz = (b.x - a.x) / l, mx = (a.x + b.x) / 2, mz = (a.z + b.z) / 2;
+          const en = (r) => ({ x: mx + nx * r, z: mz + nz * r });
+          const pp = s.toitPasserelle && cid === 'toit' ? s.toitPasserelle : null;
+          if (pp && Math.hypot(mx - pp.x, mz - pp.z) < 18) continue;            // la brèche, testée à part
+          if (cid === 'toit' && Math.abs(mx - (ox - 11)) < 14 && mz > oz - 250) continue; // passerelle d'accès depuis le plateau
+          for (const r of [hw - 0.6, -(hw - 0.6)]) { const q = en(r), y = sol(q.x, q.z); n++; if (Math.abs(y - (cid === 'toit' ? 0.14 : 0.15)) > 0.03) ko.push(cid + ' seg ' + i + ' : pas de piste à ' + r.toFixed(1) + ' u de l’axe (sol ' + y.toFixed(2) + ')'); }
+          if (cid === 'toit') {
+            for (const r of [hw + 6.3, -(hw + 6.3)]) { const q = en(r), y = sol(q.x, q.z); n++; if (Math.abs(y - 0.12) > 0.03) ko.push('toit seg ' + i + ' : pas de toit avant la limite de chute (r ' + r.toFixed(1) + ', sol ' + y.toFixed(2) + ')'); }
+            for (const r of [hw + 7.7, -(hw + 7.7)]) { const q = en(r), y = sol(q.x, q.z); n++; if (y > -5) ko.push('toit seg ' + i + ' : un sol au-delà de la limite de chute (r ' + r.toFixed(1) + ', sol ' + y.toFixed(2) + ') — on tomberait sur du dur'); }
+          } else {
+            for (const r of [hw + 3, -(hw + 3)]) { const q = en(r), y = sol(q.x, q.z); n++; if (y < 0.1 || y > 0.14) ko.push(cid + ' seg ' + i + ' : bas-côté absent ou plus haut que la piste à ' + r.toFixed(1) + ' u (sol ' + y.toFixed(2) + ')'); }
+          }
+        }
+      }
+      // la passerelle : couvre la brèche intacte, plus rien une fois effondrée (rayon 7 de depotVerifierChute)
+      const pp = s.toitPasserelle, ySur = sol(pp.x, pp.z);
+      pp.mesh.position.y = -4; s.g.updateMatrixWorld(true); const yEff = sol(pp.x, pp.z); pp.mesh.position.y = 0.15; s.g.updateMatrixWorld(true);
+      if (ySur < 0.2) ko.push('passerelle intacte : rien sous la piste à la brèche (sol ' + ySur.toFixed(2) + ')');
+      if (yEff > -3) ko.push('passerelle effondrée : la brèche reste praticable à l’œil (sol ' + yEff.toFixed(2) + ')');
+      // rien du Dépôt au-dessus du sol chez les salles voisines (|x| > 352 seulement au-delà du plateau, z < −150)
+      const bb = new THREE.Box3();
+      s.g.traverse((o) => { if (!o.isMesh || !o.geometry || !o.visible || (o.parent && !o.parent.visible)) return; bb.setFromObject(o); if ((bb.max.x - ox > 352 || bb.min.x - ox < -352) && bb.max.z - oz > -150) ko.push('un maillage déborde chez une salle voisine (x ' + (bb.min.x - ox).toFixed(0) + '…' + (bb.max.x - ox).toFixed(0) + ', z max ' + (bb.max.z - oz).toFixed(0) + ')'); });
+      // vrais modèles ; le bus refusé tant qu'il est verrouillé ; le panneau se referme quand on s'éloigne
+      const modeles = DEPOT_VEHICULES.map((k) => k + '→' + VEHDEFS[k].modele);
+      if (!(VEHDEFS.depotPickup.modele === 'pickup' && PROFILS_VOITURE.pickup && PROFILS_VOITURE.pickup.benne)) ko.push('le pick-up du Dépôt n’est pas le modèle à benne');
+      for (const k of DEPOT_VEHICULES) if (!VEHDEFS[k].modele || !VEHDEFS[VEHDEFS[k].modele]) ko.push(k + ' : pas de vrai modèle');
+      const busBak = META.depotBusDebloque; META.depotBusDebloque = false; s.vehiculeChoisi = null;
+      P.x = s.depotTableau.x; P.z = s.depotTableau.z + 3; ouvrirDepotPanneau(s);
+      const bBus = DEPOT_PANNEAU.el.querySelector('[data-dp="veh"][data-id="depotBus"]'); if (bBus) bBus.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
+      if (s.vehiculeChoisi === 'depotBus') ko.push('le bus verrouillé a pu être choisi au panneau');
+      const bBol = DEPOT_PANNEAU.el.querySelector('[data-dp="veh"][data-id="depotBolide"]'); if (bBol) bBol.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
+      if (s.vehiculeChoisi !== 'depotBolide') ko.push('choisir le Bolide au panneau ne fonctionne pas');
+      const spot = s.depotSpot, stB = s.standVehicules.find((q) => q.key === 'depotBolide');
+      if (!spot || !spot.visible || Math.hypot(spot.position.x - stB.x, spot.position.z - stB.z) > 0.5) ko.push('le projecteur ne suit pas le véhicule choisi');
+      P.z = s.depotTableau.z + 20; depotMajDecor(s, 1);
+      const fermeLoin = !DEPOT_PANNEAU.ouvert;
+      if (!fermeLoin) ko.push('le panneau reste ouvert quand on s’éloigne du tableau');
+      ouvrirDepotPanneau(s); sortirInterieur();
+      if (DEPOT_PANNEAU.ouvert) ko.push('le panneau reste ouvert après la sortie de la salle');
+      META.depotBusDebloque = busBak;
+      return { ko, n, modeles: modeles.join(', ') };
+    });
+    if (depotV2.ko.length) fail('Dépôt V2 : ' + depotV2.ko.length + ' incohérence(s) — ' + depotV2.ko.slice(0, 6).join(' ; '));
+    else ok('Dépôt V2 : ' + depotV2.n + ' sondages au sol conformes aux tracés (piste, bas-côtés, toit jusqu’à la limite de chute, vide au-delà), passerelle, panneau, projecteur, modèles (' + depotV2.modeles + '), rien chez les voisines');
 
     // -------------------------------------------------------------------
     // Signalé par un joueur réel : « je choisis le Bolide et rien ne se

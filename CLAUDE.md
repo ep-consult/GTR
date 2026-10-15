@@ -55,7 +55,7 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
   echo "$ln | $(sed -n "$((ln+1))p" index.html | sed 's/^[ \t]*//')"; done
 ```
 
-**Relevé du 18 octobre — 34 462 lignes.**
+**Relevé du 18 octobre — 34 459 lignes.**
 Attention : `maj_carte` recale les numéros dans l'ordre des lignes de la table ;
 un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la main.
 
@@ -84,35 +84,35 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 8922 | **TERRAINS DE SPORT DES PARCS** (`SPORTS`, `mkSportsParcs`, `majSportsParcs`, match de foot) |
 | 9062 | **ARÈNE DE DERBY** (`DERBY`, `mkArenaDerby`, `majDerby`, `majDerbyIA`, voitures et améliorations de derby) |
 | 13512 | MODÈLES — humains, armes, véhicules, hélico, ramassables |
-| 15684 | POOLS — balles, particules, textes flottants, traces de pneus |
-| 16053 | ÉTAT GLOBAL + JOUEUR (`P`) |
-| 16909 | VÉHICULES — physique arcade, trafic, dégâts |
-| 19568 | PIÉTONS |
-| 19751 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
-| 20323 | **RAYON TRACTEUR DE L'OVNI** |
-| 20788 | NIVEAU DE RECHERCHE (étoiles) |
-| 21067 | VAGUES + bonus de fin de vague |
-| 21189 | MISSIONS COURTES |
-| 21192 | BÂTIMENTS VISITABLES — intérieurs |
-| 21262 | FOUILLE — mécanique générique |
-| 21810 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
-| 26026 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
-| 26434 | **LAVERIE** V2 — l'essorage de la machine 7 |
-| 26699 | **SERRE** V2 — la nuit de la floraison |
-| 26991 | CINÉ-PALACE |
-| 27235 | MÉTRO ABANDONNÉ |
-| 27301 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
-| 27652 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
-| 28554 | SITE 51 |
-| 28784 | LE DÉPÔT DE BUS — courses clandestines |
-| 29870 | **MÉTIERS** — missions liées à un véhicule |
-| 30160 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
-| 31167 | ÉCRANS / MENUS / BOUTIQUES |
-| 31442 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
-| 32244 | DÉBUT / FIN DE PARTIE |
-| 33711 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
-| 33947 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
-| 34340 | BOUCLE PRINCIPALE |
+| 15685 | POOLS — balles, particules, textes flottants, traces de pneus |
+| 16054 | ÉTAT GLOBAL + JOUEUR (`P`) |
+| 16910 | VÉHICULES — physique arcade, trafic, dégâts |
+| 19569 | PIÉTONS |
+| 19752 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
+| 20324 | **RAYON TRACTEUR DE L'OVNI** |
+| 20789 | NIVEAU DE RECHERCHE (étoiles) |
+| 21068 | VAGUES + bonus de fin de vague |
+| 21190 | MISSIONS COURTES |
+| 21193 | BÂTIMENTS VISITABLES — intérieurs |
+| 21263 | FOUILLE — mécanique générique |
+| 21811 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
+| 25696 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
+| 26104 | **LAVERIE** V2 — l'essorage de la machine 7 |
+| 26369 | **SERRE** V2 — la nuit de la floraison |
+| 26661 | CINÉ-PALACE |
+| 26905 | MÉTRO ABANDONNÉ |
+| 26971 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
+| 27322 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
+| 28224 | SITE 51 |
+| 28454 | LE DÉPÔT DE BUS — courses clandestines |
+| 29900 | **MÉTIERS** — missions liées à un véhicule |
+| 30190 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
+| 31197 | ÉCRANS / MENUS / BOUTIQUES |
+| 31472 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
+| 32274 | DÉBUT / FIN DE PARTIE |
+| 33707 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
+| 33944 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
+| 34337 | BOUCLE PRINCIPALE |
 
 ### Ancres fines (hors bandeaux)
 
@@ -154,28 +154,28 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 12815 | helper `poser()` — placement des lieux |
 | 12841 | `caseCentre(bx,bz)` |
 | 12934 | `REPLIS` — filet de sécurité en spirale |
-| 15552 | `makeVelo()` — vélo de ville et BMX |
+| 15553 | `makeVelo()` — vélo de ville et BMX |
 | 13574 | `voitureV2()` — voiture réaliste : `geoVoiture` (géométries partagées par modèle), `janteVoiture` |
 | 12602 | `ENSEIGNES` — portes mieux placées : `ameliorerPortes()`, `profondeurDevant()`, `orienterPorte()` |
-| 16061 | `const P` — état du joueur |
-| 16104 | `P.stamMax = 100 + 12*mus` |
-| 17288 | `resoudreCollisionsVehicule()` — collisions entre véhicules (SAT sur les 4 axes) |
-| 17945 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
-| 18069 | `boutonsAPied()` — boutons du HUD remis « à pied » (sortie de véhicule ET début de partie) |
-| 18990 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
-| 19121 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
-| 21198 | `IOFF = -9000` |
-| 22887 | `INTDEFS` — définitions des **27 salles** |
-| 23072 | `construireSalle(id)` |
+| 16062 | `const P` — état du joueur |
+| 16105 | `P.stamMax = 100 + 12*mus` |
+| 17289 | `resoudreCollisionsVehicule()` — collisions entre véhicules (SAT sur les 4 axes) |
+| 17946 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
+| 18070 | `boutonsAPied()` — boutons du HUD remis « à pied » (sortie de véhicule ET début de partie) |
+| 18991 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
+| 19122 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
+| 21199 | `IOFF = -9000` |
+| 22888 | `INTDEFS` — définitions des **27 salles** |
+| 23073 | `construireSalle(id)` |
 | 20390 | `CHALUTIER_BANCS_PLAN` — chalutier V2 ; `chalutierMaj` (20761), `dessinerRadarChalutier` (21018) |
-| 29879 | `METIERS_CIBLE` |
-| 30178 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
-| 30266 | `PIECES_FAMILLES` — catalogues de pièces par famille |
-| 30568 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
-| 30631 | `libererObjet()` — libère les géométries d'un objet retiré |
-| 30647 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
-| 30771 | `construireGarageTuning()` — la salle partagée |
-| 31141 | `majNitro()` |
+| 29909 | `METIERS_CIBLE` |
+| 30208 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
+| 30296 | `PIECES_FAMILLES` — catalogues de pièces par famille |
+| 30598 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
+| 30661 | `libererObjet()` — libère les géométries d'un objet retiré |
+| 30677 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
+| 30801 | `construireGarageTuning()` — la salle partagée |
+| 31171 | `majNitro()` |
 
 ---
 
@@ -1442,6 +1442,58 @@ du visuel avec le bras qui tient les armes ».
 - Vérifié en rendu réel (galerie des armes, les douze armes en main, un tir et
   la chute de la cible, le ball-trap, la vue à la 3e personne) ; tests
   « Armes », « Tenues », « Ball-trap », « Armurerie V2 » inchangés et verts.
+
+## Le Dépôt V2 (18 octobre, 3e demande) — `construireDepotV2`
+
+Demandé : « refonte globale du dépôt de bus, ce n'est pas clair ; des terrains
+cohérents, aussi sur les bordures, et sur la sélection des véhicules ; le
+pick-up n'est pas un pick-up ; des éléments de partout sans cohérence ».
+Logique de course **inchangée** (tracés, IA, plafond, raccourci, chute,
+passerelle, places, contenants : mêmes positions) ; la branche `depot` de
+`construireSalle` n'appelle plus que `construireDepotV2` (fonctions juste
+avant `depotVerifierVague`).
+- **Un lieu qui se lit** : la cour (enrobé, muret de brique et SORTIE au sud,
+  hangar des bus à l'est avec cinq bus garés, atelier de la casse à l'ouest),
+  La Casse à l'ouest (terre, épaves empilées, murs de pneus, compacteur), Les
+  Quais à l'est (béton, bassin et chenal d'eau, conteneurs, entrepôts, cargo),
+  et au nord le plateau s'arrête (mur de soutènement, garde-corps) : Le Toit
+  est l'immeuble voisin en anneau, relié par une passerelle, la ville 45 u
+  plus bas. Routes et panneaux relient la cour aux départs (portiques).
+- **Ce qu'on voit est ce qui compte** : pistes, bacs à gravier, vibreurs,
+  murs de pneus et glissières sont maillés sur le MÊME polygone que
+  `depotDistancePiste` (`depotBande`, `depotParoi`, `depotParcourir` :
+  décalages à onglets ; une normale de segment = (−dz, dx)/l). Le toit
+  s'arrête exactement à `largeur/2 + 7` (la limite de chute), la brèche sous
+  la passerelle a le rayon 7 de `depotVerifierChute` ; les glissières des
+  Quais s'ouvrent là où passe le raccourci. Projecteurs toujours hors piste.
+- **Sélection** : places numérotées (1), fiche de chaque véhicule derrière
+  lui (canvas : vitesse, accélération, maniabilité, résistance, verrou), le
+  choisi sous un projecteur (`depotSpot`) ; le TABLEAU DES COURSES (2) est un
+  écran géant (`depotEcran`) et **un seul appui ouvre le panneau**
+  (`ouvrirDepotPanneau`, `DEPOT_PANNEAU`) : véhicule + course + LANCER
+  (`depotLancerCourse`). L'ancien cycle « voir / armer 1,5 s / relancer »
+  est supprimé (`circuitIdx`, `circuitArme` restent déclarés, inutilisés).
+  Le panneau se ferme en s'éloignant, au lancement, à la sortie, à la mort et
+  dans `startRun`. Mise à jour 2 fois par seconde, seulement si l'état change
+  (`depotMajDecor`, appelée par `majInterieur`).
+- **Vrais modèles** (`VEHDEFS.depotX.modele`, lu en tête de `makeVoiture`) :
+  citadine, pick-up à benne (profil Raptor), supercar, bus de ville, à la
+  couleur du Dépôt ; les IA sont repeintes (bleu, vert, violet) pour qu'on ne
+  les confonde pas avec le joueur. Physique inchangée (`v.def` = la fiche du
+  Dépôt).
+- **Salles voisines à 400 u** : rien au-dessus du sol au-delà de |x| = 352
+  sur le plateau (murs d'enceinte de 9 u qui cachent les voisines) ; la ville
+  en contrebas et les tours au loin sont au nord (z < −200), là où aucune
+  salle n'existe. Décor fusionné par matériau (`fusionnerDans(g, i0)` :
+  `fusionnerDecor` limité à un groupe) ; modèles statiques aplatis
+  (`aplatirModele`) pour rejoindre la fusion.
+- Éclairage : nuit bleutée (`DEPOT_CIEL`), soleil 0,52, ciel 0,7, brouillard
+  70–320.
+- Test : « Le Dépôt V2 » (206 sondages au sol par lancer de rayon le long des
+  tracés : piste dedans, gravier dehors, toit jusqu'à la limite de chute, vide
+  au-delà ; passerelle intacte puis effondrée ; panneau, projecteur, bus
+  verrouillé ; vrais modèles ; rien chez les voisines). Le chemin joueur passe
+  désormais par le panneau.
 
 ## Fort Reyes, la base militaire V2 (17 octobre) — `BASE`, bandeau `FORT REYES`
 
