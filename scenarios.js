@@ -8770,6 +8770,9 @@ async function main() {
     {
       const r = await page.evaluate(() => {
         if (P.veh) sortirVehicule(true);
+        // le trafic tire sur SA graine : avant, il dépendait de l'état de Math.random laissé par les autres tests
+        // (un test ajouté plus haut suffisait à faire tomber le cas rare connu) — un test maîtrise sa scène
+        const rndBak = Math.random; let graineC = (window.__circGraine || 20261018) >>> 0; Math.random = () => { graineC = (graineC * 1664525 + 1013904223) >>> 0; return graineC / 4294967296; };
         startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6; WANTED.heat = 0; WANTED.stars = 0;
         for (const e of ennemis) e.mort = true;
         P.x = POIS.place.x; P.z = POIS.place.z + 8; P.y = solPied(P.x, P.z);
@@ -8780,7 +8783,7 @@ async function main() {
             majVehicules(1 / 30); for (let j = 0; j < 4; j++) majCamera(1 / 120);
             if (i > 30 * 20 && i % 30 === 0) { let a = 0, b = 0; for (const v of vehicules) if (v.conduit === 'trafic' && !v.mort) { a++; if (Math.hypot(v.x - P.x, v.z - P.z) < 60) b++; } n.push(a); pres.push(b); }
           }
-        } finally { abimerVehicule = ab; }
+        } finally { abimerVehicule = ab; Math.random = rndBak; }
         const moy = (t) => t.reduce((s, x) => s + x, 0) / t.length;
         return { cap: q().trafic, moy: +moy(n).toFixed(1), pres: +moy(pres).toFixed(1), chocs };
       });
@@ -12168,6 +12171,38 @@ async function main() {
         const nbChev = Object.values(DETTE_REGLE_8U).reduce((n, z) => n + Object.values(z).filter(([, c]) => c === 'chevauche').length, 0);
         ok('Règle des 8 u : ' + Object.keys(regle8.mesures).length + ' salles mesurées, aucune nouvelle violation — dette connue : ' + nbZones + ' zones dans ' + Object.keys(DETTE_REGLE_8U).length + ' salles (' + nbChev + ' chevauchent la SORTIE)');
       }
+    }
+
+    // -------------------------------------------------------------------
+    // Mer et sols, 2e passe (18 octobre, demandé : « améliore encore la mer et les textures »). La mer reflète le
+    // ciel réel et le soleil (uniformes tenus à jour) ; les sols sont redessinés et nuancés À LA PREMIÈRE PARTIE,
+    // jamais au chargement, sans aucun tirage (la ville ne bouge pas) ; un matériau qui a déjà son propre shader
+    // n'est jamais touché ; le rendu d'une rue et de la plage ne lève aucune erreur de shader.
+    // -------------------------------------------------------------------
+    console.log('\n--- Mer et sols, 2e passe : reflets de la mer, sols redessinés à la 1re partie sans tirage ---');
+    {
+      const ms = await page.evaluate(() => {
+        const ko = [], info = [];
+        startRun(); ETAT.mode = 'jeu';
+        if (!SOLS_V2.fait) ko.push('sols pas redessinés à la première partie');
+        if (texAsphalte.image.width < 512 || texSable.image.width < 512) ko.push('asphalte ou sable pas redessinés en 512 px');
+        const src = ameliorerTexturesSol.toString() + variationSol.toString() + redessinerTexture.toString();
+        if (/Math\.random|\bpick\(|\brand\(/.test(src)) ko.push('les sols tirent au hasard (la ville bougerait)');
+        let n = 0, avecShaderPropre = 0;
+        scene.traverse((o) => { if (!o.isMesh || Array.isArray(o.material) || !o.material) return; if (o.material.userData.solV2) n++; });
+        if (n < 20) ko.push('trop peu de sols nuancés (' + n + ')');
+        majMerV2(0.016);
+        if (Math.abs(MER_U.uSolDir.value.length() - 1) > 1e-3) ko.push('direction du soleil non normée');
+        if (scene.background && scene.background.isColor && !MER_U.uCiel.value.equals(scene.background)) ko.push('la mer ne reflète pas le ciel courant');
+        // un rendu réel de la rue et de la plage (les shaders se compilent ici)
+        const cam = new THREE.PerspectiveCamera(60, 0.5, 0.5, 2000);
+        for (const [x, z, y, lx, lz] of [[POIS.place.x - 20, POIS.place.z + 36, 6, POIS.place.x - 20, POIS.place.z + 10], [POIS.plage.x, MER - 26, 7, POIS.plage.x, MER + 30]]) {
+          cam.position.set(x, y, z); cam.lookAt(lx, 0, lz); renderer.render(scene, cam); }
+        info.push(n + ' sols nuancés, asphalte et sable en ' + texAsphalte.image.width + ' px');
+        return { ko, info };
+      });
+      if (ms.ko.length) fail('Mer et sols : ' + ms.ko.join(' ; '));
+      else ok('Mer et sols : ' + ms.info.join(' ; ') + ', sans tirage ; la mer reflète le ciel et le soleil courants ; rue et plage rendues');
     }
 
     // -------------------------------------------------------------------

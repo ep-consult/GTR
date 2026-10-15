@@ -3173,7 +3173,8 @@ function surEauVeh(v){ return !!v.def.eau||(!!v.def.amphibie&&estEau(v.x,v.z)); 
    matériau modifié (aucun mesh ajouté pour l'eau elle-même), quelques sinus
    par pixel, un petit pool d'objets à durée de vie fixe. */
 const MER_U={uTemps:{value:0},uSoleil:{value:1},uMer:{value:0},
-  uPontons:{value:[]},uNbPontons:{value:0},uIles:{value:[]},uNbIles:{value:0}};
+  uPontons:{value:[]},uNbPontons:{value:0},uIles:{value:[]},uNbIles:{value:0},
+  uCiel:{value:new THREE.Color(0x9fc6e8)},uSolDir:{value:new THREE.Vector3(0.52,0.82,0.26)},uLuneDir:{value:new THREE.Vector3(-0.25,0.45,0.86).normalize()}}; // 18 octobre : reflets (ciel, soleil, lune)
 const MER_MAX_PONTONS=8, MER_MAX_ILES=4;
 for(let i=0;i<MER_MAX_PONTONS;i++) MER_U.uPontons.value.push(new THREE.Vector4(0,0,0,0));
 for(let i=0;i<MER_MAX_ILES;i++) MER_U.uIles.value.push(new THREE.Vector3(0,0,0));
@@ -3190,7 +3191,24 @@ const MER_GLSL_ENTETE=`uniform float uTemps; uniform float uSoleil; uniform floa
 uniform vec4 uPontons[${MER_MAX_PONTONS}]; uniform int uNbPontons;
 uniform vec3 uIles[${MER_MAX_ILES}]; uniform int uNbIles;
 varying vec3 vMerPos;
+uniform vec3 uCiel; uniform vec3 uSolDir; uniform vec3 uLuneDir;
 float houle(vec2 p,float t){ return sin(p.x*0.21+t*1.3)*0.5+sin(p.y*0.17-t*1.1)*0.35+sin((p.x+p.y)*0.11+t*0.7)*0.4; }
+// 18 octobre (« améliore encore la mer ») : la pente de six trains de vagues croisés qui avancent (de la houle aux
+// rides), d'où une vraie normale pour les reflets ; caustiques de l'eau peu profonde
+vec2 merPente(vec2 p,vec2 d,float k,float w,float s,float t){ return d*(s*cos(dot(d,p)*k+t*w)); }
+vec3 merNormale(vec2 p,float t,float dCam){
+  // directions jamais à angle droit, nombres d'onde incommensurables : pas de quadrillage ; les rides les plus fines
+  // s'effacent avec la distance (plus petites qu'un pixel, elles faisaient des moirés en blocs)
+  float a1=1.0-smoothstep(60.0,170.0,dCam), a2=1.0-smoothstep(22.0,80.0,dCam);
+  vec2 g=merPente(p,vec2(0.799,0.602),0.55,1.1,0.09,t)+merPente(p,vec2(-0.375,0.927),0.91,1.6,0.07,t)+(merPente(p,vec2(-0.956,-0.292),1.47,2.1,0.05,t)
+    +merPente(p,vec2(-0.122,-0.993),2.33,3.0,0.04,t))*a1+(merPente(p,vec2(0.875,-0.485),3.71,4.2,0.03,t)+merPente(p,vec2(0.515,0.857),5.93,5.0,0.025,t))*a2;
+  return normalize(vec3(-g.x,1.0,-g.y));
+}
+float merCaustique(vec2 p,float t){
+  vec2 q=p*0.9+vec2(sin(p.y*0.7+t*0.9),cos(p.x*0.6-t*0.8))*1.3;
+  float a=abs(sin(q.x)+sin(q.y*1.13+t*0.5))*0.5;
+  return pow(1.0-clamp(a,0.0,1.0),6.0);
+}
 `;
 // Couleur de l'eau : turquoise près du bord, bleu profond au large, vagues
 // qui assombrissent/éclaircissent doucement, détail de la texture d'origine.
@@ -3205,7 +3223,11 @@ const MER_GLSL_COULEUR=`#include <map_fragment>
     c=mix(c,fond,smoothstep(0.45,1.0,prof));
     float h=houle(vMerPos.xz*1.6,uTemps);
     c*=0.94+0.06*h;
-    diffuseColor.rgb=c*mix(1.0,detail,0.55);
+    // eau peu profonde : plus claire, réseau de caustiques qui ondule sur le fond
+    float bord=1.0-smoothstep(0.0,16.0,distRive);
+    c=mix(c,vec3(0.16,0.55,0.55),bord*0.55);
+    c+=vec3(0.10,0.16,0.13)*merCaustique(vMerPos.xz,uTemps)*bord;
+    diffuseColor.rgb=c*mix(1.0,detail,0.18); // la texture d'origine (traits) ne fait plus qu'un léger grain
   }`;
 // Reflets du soleil (plus doux la nuit), ressac sur la plage, écume au pied
 // des pontons et des îles proches.
@@ -3217,9 +3239,23 @@ const MER_GLSL_ECUME=`{
     float g1=houle(vMerPos.xz*7.0,uTemps*2.2), g2=houle(vMerPos.zx*5.3+vec2(31.0,17.0),uTemps*1.8);
     float reflet=smoothstep(0.9,1.25,g1*g2)*uSoleil*(0.4+0.6*prof);
     gl_FragColor.rgb+=vec3(1.0,0.97,0.88)*reflet*0.7;
+    // reflet du ciel selon l'angle de vue (Fresnel : la mer se fond dans le ciel à l'horizon), lobe du soleil,
+    // chemin de lune la nuit — sur la normale des vagues
+    float dCam=distance(cameraPosition,vMerPos);
+    vec3 nM=merNormale(vMerPos.xz,uTemps,dCam), Vv=normalize(cameraPosition-vMerPos);
+    float fres=0.03+0.97*pow(1.0-max(dot(nM,Vv),0.0),5.0);
+    gl_FragColor.rgb=mix(gl_FragColor.rgb,(uCiel*0.8+vec3(0.0,0.03,0.08))*(0.62+0.38*uSoleil),clamp(fres*(0.35+0.65*prof),0.0,0.55));
+    float spS=pow(max(dot(nM,normalize(uSolDir+Vv)),0.0),320.0)*1.3*uSoleil; // paillettes sur les facettes, jamais une nappe blanche
+    float spL=pow(max(dot(nM,normalize(uLuneDir+Vv)),0.0),70.0)*1.1*(1.0-uSoleil)*(1.0-uSoleil);
+    gl_FragColor.rgb+=vec3(1.0,0.94,0.8)*spS+vec3(0.72,0.84,1.0)*spL;
     float b=houle(vMerPos.xz*2.3,uTemps*0.6);
     float larg=1.5+0.9*sin(uTemps*0.9+vMerPos.x*0.045);
     float ecume=1.0-smoothstep(0.0,larg,distRive+b*0.35);
+    // rouleaux qui avancent vers la plage et se brisent (lignes d'écume qui naissent au large du bord)
+    float onde=fract(distRive/9.0+uTemps*0.11+b*0.04);
+    float crete=smoothstep(0.84,0.95,onde)*(1.0-smoothstep(0.95,1.0,onde));
+    float casse=smoothstep(-0.2,0.6,houle(vec2(vMerPos.x*0.9,distRive*0.3+uTemps*0.5),uTemps*0.7)); // la ligne se brise par endroits
+    ecume=max(ecume,crete*casse*(1.0-smoothstep(4.0,26.0,distRive))*smoothstep(0.0,2.0,distRive)*(0.45+0.25*sin(vMerPos.x*0.07+uTemps*0.4)));
     for(int i=0;i<${MER_MAX_PONTONS};i++){
       if(i>=uNbPontons) break;
       vec4 pt=uPontons[i];
@@ -3304,6 +3340,8 @@ function majMerV2(dt){
   MER_T+=dt;
   MER_U.uTemps.value=MER_T;
   MER_U.uSoleil.value=clamp((soleil.intensity-0.1)/0.82,0.08,1);
+  if(scene.background&&scene.background.isColor) MER_U.uCiel.value.copy(scene.background); // le ciel que la mer reflète
+  MER_U.uSolDir.value.copy(soleil.position).sub(soleil.target.position).normalize();
   merProchesT-=dt; if(merProchesT<=0){ merProchesT=0.5; merV2Proches(); } // pas besoin à chaque frame
   for(let i=0;i<SILLAGES.length;i++){
     const w=SILLAGES[i]; if(!w.on) continue;
@@ -32739,8 +32777,75 @@ function nettoieMonde(){
   for(const b of balles){b.on=false;b.mesh.visible=false;}
   for(const p of parts){p.on=false;p.sp.visible=false;}
 }
+/* Textures du sol, 2e passe (18 octobre, demandé : « améliore encore les textures ») : à la 1re partie — jamais au
+   chargement, les textures d'origine ont déjà tiré leurs nombres et la ville ne bouge pas — l'asphalte et le sable
+   sont redessinés plus fins et en raccord parfait (générateur local, aucun Math.random), et les sols reçoivent une
+   variation de teinte à grande échelle calculée dans le shader sur la position du monde (elle casse la répétition
+   visible de dessus) ; près de l'eau, le sable s'assombrit (sable mouillé). Un matériau qui a déjà son propre shader
+   (onBeforeCompile : littoral, mer…) n'est jamais touché. */
+const SOLS_V2={fait:false,n:0};
+function aleaLocal(g){ let a=g>>>0; return ()=>{ a=(a+0x6D2B79F5)|0; let t=Math.imul(a^(a>>>15),1|a); t=(t+Math.imul(t^(t>>>7),61|t))^t; return ((t^(t>>>14))>>>0)/4294967296; }; }
+function redessinerTexture(tex,taille,fn){ if(!tex) return; const cv=document.createElement('canvas'); cv.width=cv.height=taille; const c=cv.getContext('2d'); if(!c) return; fn(c,taille); tex.image=cv; tex.needsUpdate=true; }
+// dessine fn(x,y) et ses copies décalées d'une tuile quand il déborde : aucune couture entre deux répétitions
+function enRaccord(s,x,y,r,fn){ for(const dx of [-s,0,s]) for(const dy of [-s,0,s]){ const X=x+dx, Y=y+dy; if(X+r<0||X-r>s||Y+r<0||Y-r>s) continue; fn(X,Y); } }
+const SOL_GLSL_BRUIT=`varying vec3 vSolPos; uniform float uMerZ;
+float solH(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
+float solN(vec2 p){ vec2 i=floor(p), f=fract(p), u=f*f*(3.0-2.0*f); return mix(mix(solH(i),solH(i+vec2(1.0,0.0)),u.x),mix(solH(i+vec2(0.0,1.0)),solH(i+vec2(1.0,1.0)),u.x),u.y); }
+`;
+function variationSol(m,force,mouille,route){
+  if(!m||m.userData.solV2||Object.prototype.hasOwnProperty.call(m,'onBeforeCompile')) return;
+  if(!(m.isMeshLambertMaterial||m.isMeshBasicMaterial||m.isMeshPhongMaterial)) return;
+  m.userData.solV2=true; SOLS_V2.n++;
+  const f=force.toFixed(3);
+  m.onBeforeCompile=(sh)=>{ sh.uniforms.uMerZ={value:MER};
+    sh.vertexShader='varying vec3 vSolPos;\n'+sh.vertexShader.replace('#include <worldpos_vertex>','#include <worldpos_vertex>\n  vSolPos=(modelMatrix*vec4(transformed,1.0)).xyz;');
+    sh.fragmentShader=SOL_GLSL_BRUIT+sh.fragmentShader.replace('#include <map_fragment>','#include <map_fragment>\n  { float nS=solN(vSolPos.xz*0.022)*0.6+solN(vSolPos.xz*0.085)*0.4; diffuseColor.rgb*=1.0+'+f+'*(nS-0.5)*2.0;'
+      +(mouille?' float wS=smoothstep(uMerZ-10.0,uMerZ-1.5,vSolPos.z); diffuseColor.rgb*=mix(vec3(1.0),vec3(0.72,0.74,0.78),wS);':'')
+      // la chaussée : bandes de roulement usées de chaque voie et caniveau le long des trottoirs, calculés sur la
+      // grille des rues (axes à −HALF + k·CELL, largeur ROADW) ; effacés dans les carrefours et hors de la ville
+      +(route?' { vec2 uR=vSolPos.xz+'+HALF.toFixed(1)+'; vec2 dR=abs(uR-'+CELL.toFixed(1)+'*floor(uR/'+CELL.toFixed(1)+'+0.5)); float hw='+(ROADW/2).toFixed(2)+';'
+        +' float ville=step(abs(vSolPos.x),'+(HALF+ROADW/2).toFixed(1)+')*step(vSolPos.z,uMerZ-4.0)*step(-'+(HALF+ROADW/2).toFixed(1)+',vSolPos.z);'
+        +' float tX=exp(-pow((dR.x-hw*0.37)/0.42,2.0))+exp(-pow((dR.x-hw*0.63)/0.42,2.0)), tZ=exp(-pow((dR.y-hw*0.37)/0.42,2.0))+exp(-pow((dR.y-hw*0.63)/0.42,2.0));'
+        +' float cX=step(dR.x,hw)*step(hw,dR.y), cZ=step(dR.y,hw)*step(hw,dR.x);'
+        +' float usure=(tX*cX+tZ*cZ)*ville, caniveau=(smoothstep(hw-1.0,hw-0.1,dR.x)*step(dR.x,hw)*step(hw,dR.y)+smoothstep(hw-1.0,hw-0.1,dR.y)*step(dR.y,hw)*step(hw,dR.x))*ville;'
+        +' diffuseColor.rgb*=1.0-0.13*clamp(usure,0.0,1.0); diffuseColor.rgb*=mix(vec3(1.0),vec3(0.84,0.82,0.8),clamp(caniveau,0.0,1.0)); }':'')+' }');
+  };
+  m.customProgramCacheKey=()=>'solV2_'+f+(mouille?'_m':'')+(route?'_r':'');
+  m.needsUpdate=true;
+}
+function ameliorerTexturesSol(){
+  if(SOLS_V2.fait) return; SOLS_V2.fait=true;
+  // asphalte : granulat, usure et huile, rustines de goudron, fissures ramifiées — tout en raccord
+  redessinerTexture(texAsphalte,512,(g,s)=>{ const R=aleaLocal(91), r=(a,b)=>a+R()*(b-a);
+    g.fillStyle='#3b3d47'; g.fillRect(0,0,s,s);
+    for(let i=0;i<16000;i++){ const v=R(); g.fillStyle=v<0.45?'rgba(18,18,26,0.32)':(v<0.86?'rgba(88,90,102,0.32)':'rgba(150,150,162,0.3)'); const t=0.7+R()*1.5; g.fillRect(R()*s,R()*s,t,t); }
+    for(let i=0;i<12;i++){ const x=R()*s, y=R()*s, rr=r(24,70), sombre=R()<0.6;
+      enRaccord(s,x,y,rr,(X,Y)=>{ const gr=g.createRadialGradient(X,Y,2,X,Y,rr); gr.addColorStop(0,sombre?'rgba(8,8,14,0.16)':'rgba(120,122,134,0.09)'); gr.addColorStop(1,'rgba(0,0,0,0)'); g.fillStyle=gr; g.fillRect(X-rr,Y-rr,2*rr,2*rr); }); }
+    for(let i=0;i<3;i++){ const w=r(50,120), h=r(30,70), x=R()*s, y=R()*s;
+      enRaccord(s,x,y,Math.max(w,h),(X,Y)=>{ g.fillStyle='rgba(16,16,22,0.2)'; g.fillRect(X,Y,w,h); g.strokeStyle='rgba(8,8,12,0.32)'; g.lineWidth=1.4; g.strokeRect(X,Y,w,h); }); }
+    for(let i=0;i<6;i++){ const pts=[]; let x=R()*s, y=R()*s; pts.push([x,y]); for(let k=0;k<9;k++){ x+=r(-16,16); y+=r(-16,16); pts.push([x,y]); }
+      enRaccord(s,pts[0][0],pts[0][1],150,(X,Y)=>{ const ox=X-pts[0][0], oy=Y-pts[0][1]; g.strokeStyle='rgba(10,10,16,0.42)'; g.lineWidth=1.1; g.beginPath(); pts.forEach(([a,b],k)=>k?g.lineTo(a+ox,b+oy):g.moveTo(a+ox,b+oy)); g.stroke();
+        g.strokeStyle='rgba(140,140,150,0.12)'; g.beginPath(); pts.forEach(([a,b],k)=>k?g.lineTo(a+ox+1,b+oy+1):g.moveTo(a+ox+1,b+oy+1)); g.stroke(); }); }
+  });
+  // sable : grain fin, rides de vent (périodes entières : en raccord), coquillages, galets, traces douces
+  redessinerTexture(texSable,512,(g,s)=>{ const R=aleaLocal(57), r=(a,b)=>a+R()*(b-a);
+    g.fillStyle='#e2c892'; g.fillRect(0,0,s,s);
+    for(let i=0;i<18000;i++){ const v=R(); g.fillStyle=v<0.4?'rgba(190,160,110,0.35)':(v<0.85?'rgba(245,228,190,0.35)':'rgba(150,120,80,0.3)'); g.fillRect(R()*s,R()*s,1.1,1.1); }
+    for(let i=0;i<14;i++){ const y0=i*s/14+r(-6,6), n=2+Math.floor(R()*3), ph=R()*6.28, amp=r(3,7);
+      for(const [dy,c,lw] of [[0,'rgba(170,140,95,0.32)',2.2],[2.4,'rgba(255,244,215,0.4)',1.3]]){ g.strokeStyle=c; g.lineWidth=lw; g.beginPath();
+        for(let x=0;x<=s;x+=6){ const y=y0+dy+Math.sin(x/s*Math.PI*2*n+ph)*amp; x?g.lineTo(x,y):g.moveTo(x,y); } g.stroke(); } }
+    for(let i=0;i<8;i++){ const x=R()*s, y=R()*s, rr=r(30,80); enRaccord(s,x,y,rr,(X,Y)=>{ const gr=g.createRadialGradient(X,Y,2,X,Y,rr); gr.addColorStop(0,'rgba(200,170,120,0.18)'); gr.addColorStop(1,'rgba(0,0,0,0)'); g.fillStyle=gr; g.fillRect(X-rr,Y-rr,2*rr,2*rr); }); }
+    for(let i=0;i<22;i++){ const x=R()*s, y=R()*s, c=['#f4ecdc','#b8a284','#e8dcc4','#8a7a64','#f8f0e4'][i%5], rr=r(1.4,3.2);
+      enRaccord(s,x,y,rr+1,(X,Y)=>{ g.fillStyle='rgba(0,0,0,0.18)'; g.beginPath(); g.ellipse(X+0.8,Y+0.8,rr,rr*0.75,i,0,7); g.fill(); g.fillStyle=c; g.beginPath(); g.ellipse(X,Y,rr,rr*0.75,i,0,7); g.fill(); }); }
+  });
+  // variation de teinte sur tous les sols de la ville (une seule traversée de la scène)
+  const forces=new Map([[texAsphalte,[0.16,false,true]],[texSable,[0.1,true]],[texHerbe,[0.16,false]],[texDesert,[0.14,false]]]);
+  for(const k in matTrottoir) if(matTrottoir[k]&&matTrottoir[k].map) forces.set(matTrottoir[k].map,[0.07,false]);
+  scene.traverse((o)=>{ if(!o.isMesh||Array.isArray(o.material)||!o.material||!o.material.map) return; const fz=forces.get(o.material.map); if(fz) variationSol(o.material,fz[0],fz[1],fz[2]); });
+}
 function startRun(){
   clotureMatPropre(); // une fois : la clôture de l'aérodrome a son propre matériau translucide
+  ameliorerTexturesSol(); // une fois : asphalte et sable redessinés, variation de teinte des sols
   // icône de la capacité spéciale du personnage (adrénaline, nitro, onde)
   el('specIco').innerHTML=ico('ico-spec-'+PERSOS[META.perso].spec,'⚡');
   nettoieMonde();
