@@ -768,6 +768,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
     <button class="chipF on" data-f="vehicules">🚗 Véhicules</button>
     <button class="chipF on" data-f="commerces">🏪 Commerces</button>
     <button class="chipF on" data-f="batiments">🎯 Bâtiments</button>
+    <button class="chipF on" data-f="activites">🎢 Activités</button>
   </div>
   <div class="aide" style="margin-top:8px;font-size:12px;text-align:center">
     <b style="color:#ff3b5c">A</b> Armureries · <b style="color:#2b6fd8">P</b> Police · <b style="color:#c7a020">G</b> Garage ·
@@ -1818,7 +1819,7 @@ function litEntrees(){
   // l'esquive à pied en edge) : nécessaire pour le cabrage de la Moto
   // cross, qui doit monter progressivement tant que la touche est tenue.
   INPUT.btn.esquiveK=KEYS['KeyK'];
-  if(ATELIER.ouvert||BOUT.ouvert||TOUR.actif){ INPUT.mx=0; INPUT.mz=0; } // à l'établi, en cabine d'essayage : on ne marche pas
+  if(ATELIER.ouvert||BOUT.ouvert||TOUR.actif||(DECOR_V2&&SURPRISES.tyro)){ INPUT.mx=0; INPUT.mz=0; } // à l'établi, en cabine d'essayage : on ne marche pas
 }
 const EDGE_K={};
 function edgeKey(code){ // front montant clavier
@@ -1859,7 +1860,7 @@ function garagesMetaDefaut(){ const o={}; for(const g of GARAGES_TUNING) o[g.id]
 const VEHPERSO_MAX=6;
 function vehPersoMetaDefaut(){ const o={}; for(let i=0;i<VEHPERSO_MAX;i++) o['v'+i]=slotGarageDefaut(); return o; }
 const META={
-  exploits:{basket:false,tour:false,supercross:false,bowl:false,wake:false,badlands:false,base:false}, // mini-jeux réussis (tenues)
+  exploits:{basket:false,tour:false,supercross:false,bowl:false,wake:false,badlands:false,base:false,balltrap:false}, // mini-jeux réussis (tenues)
   argent:150, xp:0, niveau:1,
   record:0, recordVague:0, killsTotal:0, parties:0,
   perso:'jax', persosPoss:['jax'], radio:0, planque:false, garage:null, revenus:0,
@@ -1884,7 +1885,7 @@ const META={
   // qu'un état de session, jamais persisté.
   lieuxVus:{},
   stats:{kills:0,killsGang:0,killsPolice:0,killsArmee:0,chefs:0,vagues:0,parties:0,
-    distVeh:0,distTotal:0,sauts:0,bigJump:0,vehVoles:0,vehDetruits:0,tempsTotal:0,pietonsFuis:0,
+    distVeh:0,distTotal:0,sauts:0,bigJump:0,avionsAbattus:0,vehVoles:0,vehDetruits:0,tempsTotal:0,pietonsFuis:0,
     grenades:0,tirs:0,critiques:0,meilleurCombo:0,cashTotal:0,vehEcrases:0,loopings:0,
     // Mur de trophées (planque) : casses réussis au musée, descentes au
     // métro, séances tenues au Ciné-Palace, plus grosse prise du chalutier
@@ -2309,8 +2310,8 @@ function acheterMod(id,k){
 }
 // habillage d'un modèle d'arme selon ses modifications (canon le long de -y, dessus vers +z)
 let _MAT_OR=null, _texCamo=null; // créés à la première utilisation : rien de Three.js au chargement (tirages de la ville)
-function habillerArme(g,id){
-  if(!g) return g; const L=modsArme(id); if(!L.length) return g;
+function habillerArme(g,id,Lforce){
+  if(!g) return g; const L=Lforce||modsArme(id); if(!L.length) return g; // Lforce : l'aperçu de l'établi (pièces essayées)
   g.updateMatrixWorld(true); let yMin=0; g.traverse((o)=>{ if(o.isMesh){ o.geometry.computeBoundingBox(); const bb=o.geometry.boundingBox; yMin=Math.min(yMin,o.position.y+bb.min.y); } });
   if(L.includes('or')||L.includes('camo')){
     if(L.includes('camo')&&!_texCamo) _texCamo=cTex(64,(c,s)=>{ c.fillStyle='#4a5232'; c.fillRect(0,0,s,s); for(let i=0;i<14;i++){ c.fillStyle=['#2e3420','#6a6a3a','#3a2f24'][i%3]; c.beginPath(); c.ellipse(Math.random()*s,Math.random()*s,6+Math.random()*10,4+Math.random()*8,Math.random()*3,0,6.3); c.fill(); } });
@@ -2327,10 +2328,14 @@ function habillerArme(g,id){
 }
 // reconstruit l'arme en main (et sa jumelle main gauche en akimbo) après un achat
 // ---------- l'établi de l'armurerie : l'arme tourne en grand sur l'établi, un panneau propose ses modifications ----------
-const ATELIER={ouvert:false,salle:null,id:null,modele:null,el:null};
+const ATELIER={ouvert:false,salle:null,id:null,modele:null,el:null,apercu:[],ang:0,tilt:0,drag:null,pauseT:0};
+const FINITIONS_ARME=['or','camo'];
+// les modifications montrées : celles posées + celles à l'essai (une seule finition à la fois)
+function atelierMods(){ const pos=modsArme(ATELIER.id), ap=ATELIER.apercu; let L=pos.concat(ap.filter((k)=>pos.indexOf(k)<0));
+  if(ap.some((k)=>FINITIONS_ARME.includes(k))) L=L.filter((k)=>!FINITIONS_ARME.includes(k)||ap.includes(k)); return L; }
 function armeMurProche(s){ let best=null, bd=0.81; for(const sl of s.murArmes){ const d=dist2(P.x,P.z,sl.x,sl.z); if(d<bd){ bd=d; best=sl; } } return best; }
 function ouvrirAtelierArme(s){
-  ATELIER.ouvert=true; ATELIER.salle=s; ATELIER.id=P.armeCur;
+  ATELIER.ouvert=true; ATELIER.salle=s; ATELIER.id=P.armeCur; ATELIER.apercu=[]; ATELIER.ang=0; ATELIER.tilt=0; ATELIER.pauseT=0;
   if(!ATELIER.el){ const d=document.createElement('div'); d.id='atelierArme';
     d.style.cssText='position:fixed;left:0;right:0;bottom:0;height:52%;z-index:40;background:linear-gradient(#141821ee,#0c0f15f8);border-top:2px solid #35e0ff;color:#e8ecf2;font:600 13px Arial;display:flex;flex-direction:column;padding:10px 12px calc(env(safe-area-inset-bottom,0px) + 10px)';
     d.innerHTML='<div style="display:flex;align-items:center;gap:8px"><button class="pill" id="atPrec">◀</button><div id="atNom" style="flex:1;text-align:center;font:900 16px Arial"></div><button class="pill" id="atSuiv">▶</button><button class="pill" id="atFerme">✕</button></div><div id="atArgent" style="text-align:center;color:#7dff7a;margin:4px 0"></div><div id="atListe" style="flex:1;overflow-y:auto"></div>';
@@ -2340,13 +2345,14 @@ function ouvrirAtelierArme(s){
     d.querySelector('#atSuiv').addEventListener('pointerdown',(e)=>{ e.preventDefault(); atelierChanger(1); }); }
   ATELIER.el.style.display='flex'; atelierModele(); renderAtelier(); SFX.ui();
 }
-function fermerAtelierArme(){ ATELIER.ouvert=false; if(ATELIER.el) ATELIER.el.style.display='none'; if(ATELIER.modele&&ATELIER.modele.parent) ATELIER.modele.parent.remove(ATELIER.modele); ATELIER.modele=null; }
+function fermerAtelierArme(){ ATELIER.ouvert=false; ATELIER.apercu=[]; ATELIER.drag=null; /* ce qu'on essaie sans l'acheter n'est jamais gardé */ if(ATELIER.el) ATELIER.el.style.display='none'; if(ATELIER.modele&&ATELIER.modele.parent) ATELIER.modele.parent.remove(ATELIER.modele); ATELIER.modele=null; }
 function atelierArmesDispo(){ return ORDRE_ARMES.filter((id)=>META.armes[id].poss&&mkArmeModeleDispo(id)); }
-function atelierChanger(sens){ const L=atelierArmesDispo(); if(!L.length) return; const i=L.indexOf(ATELIER.id); ATELIER.id=L[(i+sens+L.length)%L.length]; majArmeJoueur(ATELIER.id); atelierModele(); renderAtelier(); SFX.ui(); }
+function atelierChanger(sens){ const L=atelierArmesDispo(); if(!L.length) return; const i=L.indexOf(ATELIER.id); ATELIER.id=L[(i+sens+L.length)%L.length]; ATELIER.apercu=[]; majArmeJoueur(ATELIER.id); atelierModele(); renderAtelier(); SFX.ui(); }
 function atelierModele(){
   const s=ATELIER.salle; if(ATELIER.modele&&ATELIER.modele.parent) ATELIER.modele.parent.remove(ATELIER.modele);
-  const m=habillerArme(mkArmeModele(ATELIER.id),ATELIER.id); if(!m){ ATELIER.modele=null; return; } m.visible=true;
+  const L=atelierMods(), m=habillerArme(mkArmeModele(ATELIER.id),ATELIER.id,L); if(!m){ ATELIER.modele=null; return; } m.visible=true;
   const h=new THREE.Group(); h.add(m); m.position.set(0,0.4,0); const pv=new THREE.Group(); pv.add(h); h.rotation.x=-Math.PI/2; pv.scale.setScalar(2.6);
+  if(L.includes('double')){ const m2=habillerArme(mkArmeModele(ATELIER.id),ATELIER.id,L); if(m2){ m2.visible=true; m2.position.set(0.32,0.4,0); m.position.x=-0.32; h.add(m2); } } // akimbo : la jumelle à côté
   pv.position.set(s.etabliArmes.px,1.75,s.etabliArmes.pz); scene.add(pv); ATELIER.modele=pv;
 }
 function renderAtelier(){
@@ -2354,16 +2360,24 @@ function renderAtelier(){
   ATELIER.el.querySelector('#atNom').textContent=a.ico+' '+a.nom; ATELIER.el.querySelector('#atArgent').textContent=fmt$(META.argent);
   let h=''; let n=0;
   for(const k in MODS_ARMES){ const M=MODS_ARMES[k]; if(!M.pour(a,id)) continue; n++; const pos=aMod(id,k);
-    h+='<div class="ligneItem"><div class="ico">'+M.ico+'</div><div class="inf"><div class="nom">'+M.nom+'</div><div class="det">'+M.det+'</div></div>'+
-      (pos?'<button class="pill equip">POSÉ</button>':'<button class="pill buy" data-k="'+k+'">'+M.prix+' $</button>')+'</div>'; }
+    const essai=ATELIER.apercu.includes(k);
+    h+='<div class="ligneItem"><div class="ico">'+M.ico+'</div><div class="inf"><div class="nom">'+M.nom+(essai?' <span style="color:#35e0ff">(essai)</span>':'')+'</div><div class="det">'+M.det+'</div></div>'+
+      (pos?'<button class="pill equip">POSÉ</button>':'<button class="pill" data-essai="'+k+'">'+(essai?'✓ ESSAI':'ESSAYER')+'</button> <button class="pill buy" data-k="'+k+'">'+M.prix+' $</button>')+'</div>'; }
   if(!n) h='<div class="det" style="text-align:center;margin-top:20px">Rien à modifier sur cette arme.</div>';
   const L=ATELIER.el.querySelector('#atListe'); L.innerHTML=h;
-  L.querySelectorAll('.pill[data-k]').forEach((b)=>b.addEventListener('pointerdown',(e)=>{ e.preventDefault(); if(acheterMod(id,b.dataset.k)){ atelierModele(); } renderAtelier(); }));
+  L.querySelectorAll('.pill[data-k]').forEach((b)=>b.addEventListener('pointerdown',(e)=>{ e.preventDefault(); if(acheterMod(id,b.dataset.k)){ ATELIER.apercu=ATELIER.apercu.filter((q)=>q!==b.dataset.k); atelierModele(); } renderAtelier(); }));
+  L.querySelectorAll('.pill[data-essai]').forEach((b)=>b.addEventListener('pointerdown',(e)=>{ e.preventDefault(); atelierEssayer(b.dataset.essai); }));
 }
+// essayer une pièce : elle apparaît sur l'arme, rien n'est payé (une seule finition à la fois)
+function atelierEssayer(k){ if(!ATELIER.ouvert||aMod(ATELIER.id,k)) return; const A=ATELIER.apercu, i=A.indexOf(k);
+  if(i>=0) A.splice(i,1); else { if(FINITIONS_ARME.includes(k)) for(const f of FINITIONS_ARME){ const j=A.indexOf(f); if(j>=0) A.splice(j,1); } A.push(k); }
+  atelierModele(); renderAtelier(); SFX.ui(); }
 function majAtelierArme(dt){
+  if(STAND.ouvert&&(!INT.actif||INT.actif!==STAND.salle||FPS.actif||!STAND.salle.standTir||dist2(P.x,P.z,STAND.salle.standTir.x,STAND.salle.standTir.z)>16)) fermerStandTir();
   if(!ATELIER.ouvert) return;
   if(INT.actif!==ATELIER.salle||ETAT.mode!=='jeu'){ fermerAtelierArme(); return; }
-  if(ATELIER.modele) ATELIER.modele.rotation.y+=dt*0.8;
+  if(ATELIER.pauseT>0) ATELIER.pauseT-=dt; else { ATELIER.ang+=dt*0.8; ATELIER.tilt*=Math.max(0,1-dt*1.5); }
+  if(ATELIER.modele){ ATELIER.modele.rotation.order='YXZ'; ATELIER.modele.rotation.y=ATELIER.ang; ATELIER.modele.rotation.x=ATELIER.tilt; }
 }
 function rebatirArmeJoueur(id){
   if(!P.h||!P.armeMeshes) return;
@@ -2380,7 +2394,7 @@ function armeStats(id){
     degats:a.degats*(1+0.15*lv),
     mag:mag*(mo.includes('double')?2:1),
     rech:a.rech?a.rech*(1-0.08*lv)*(1-0.09*META.upg.recharge):0,
-    cad:a.cad*(P.buffs.cadence>0?0.75:1)/(mo.includes('double')?1.8:1), portee:a.portee, disp:(a.disp||0)*(mo.includes('laser')?0.4:1), pellets:a.pellets||1, knock:a.knock||3
+    cad:a.cad*(P.buffs.cadence>0?0.75:1)/(mo.includes('double')?1.8:1), portee:a.portee, disp:(a.disp||0)*(mo.includes('laser')?0.4:1)*(a.pellets>1?tenueK('cowboy',0.8):1), pellets:a.pellets||1, knock:a.knock||3
   };
 }
 
@@ -2480,11 +2494,13 @@ const TENUES=[
    cond:()=>!!META.exploits.badlands,haut:0xc9703a,bas:0x5a3a22,casq:0xe0a060},
   {id:'militaire',nom:'Treillis de Fort Reyes',ico:'🎖️',condTxt:'Réussir le parcours du combattant de la base — Fort Reyes ne sonne plus l’alarme',
    cond:()=>!!(META.exploits&&META.exploits.base),haut:0x4a5238,bas:0x3a4228,casq:0x3a4228},
+  {id:'cowboy',nom:'Tenue de cow-boy du ranch',ico:'🤠',condTxt:'Réussir le ball-trap du ranch Coyote Loco — fusils à pompe 20 % plus précis',
+   cond:()=>!!(META.exploits&&META.exploits.balltrap),haut:0xc84a2a,bas:0x3a5a8a,casq:0x8a6a44},
 ];
 // capacité d'une tenue : k si elle est portée, 1 sinon
 function tenueK(id,k){ return META.tenue===id?k:1; }
 // un exploit de mini-jeu : la 1re fois, la tenue est annoncée avec sa capacité
-const TENUE_EXPLOIT={basket:'ballers',tour:'aiguilleur',supercross:'prorider',bowl:'skateur',wake:'wakeur',badlands:'badlands',base:'militaire'};
+const TENUE_EXPLOIT={basket:'ballers',tour:'aiguilleur',supercross:'prorider',bowl:'skateur',wake:'wakeur',badlands:'badlands',base:'militaire',balltrap:'cowboy'};
 function exploitMiniJeu(cle){
   if(!META.exploits||META.exploits[cle]) return; META.exploits[cle]=true; checkTenues();
   const tn=TENUES.find((x)=>x.id===TENUE_EXPLOIT[cle]);
@@ -3991,7 +4007,7 @@ function construireVille(){
     if(qq!=='plage'&&qq!=='parc'&&bx%3===1&&bz%3===1) mkFeu(cx+INNER/2+1.4,cz-INNER/2-1.4);
   }
   placerPortes();
-  if(DECOR_V2){ sansAleaVille(()=>{ reserverHills(); reserverChantier(); reserverBase(); ameliorerPortes(); mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkBasket(); mkCiel(); mkKiosqueBanderole(); mkCrique(); mkMontReyes(); mkVieMont(); mkBordureEst(); mkCanyonsDesert(); mkPicVertige(); mkParcStunt(); mkSkateXXL(); mkRides(); mkMerVivante(); mkRemorquage(); mkLarge(); deplacerVoltige(); mkAeroportVivant(); mkHeliGrue(); mkPlanques(); mkBoutiques(); mkGrandHuit(); mkToitsVivants(); mkTracesSable(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkNeonVivant(); mkQuartiersFinitions(); mkBalises(); mkFacadesVariees(); mkCascades(); if(MERV.ok) mkVolcanIle(); mkAeroVie(); mkLosReyesHills(); mkBordsHills(); mkChantierV2(); mkPlanquesV2(); mkBaseV2(); }); } // cascades et volcan EN DERNIER : leurs tirages du décor ne décalent rien de ce qui précède (mobilier...) // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
+  if(DECOR_V2){ sansAleaVille(()=>{ reserverHills(); reserverChantier(); reserverBase(); reserverSports(); ameliorerPortes(); mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkBasket(); mkCiel(); mkKiosqueBanderole(); mkCrique(); mkMontReyes(); mkVieMont(); mkBordureEst(); mkCanyonsDesert(); mkPicVertige(); mkParcStunt(); mkSkateXXL(); mkRides(); mkMerVivante(); mkRemorquage(); mkLarge(); deplacerVoltige(); mkAeroportVivant(); mkHeliGrue(); mkPlanques(); mkBoutiques(); mkGrandHuit(); mkToitsVivants(); mkTracesSable(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkNeonVivant(); mkQuartiersFinitions(); mkFacadesVariees(); mkCascades(); if(MERV.ok) mkVolcanIle(); mkAeroVie(); mkLosReyesHills(); mkBordsHills(); mkChantierV2(); mkPlanquesV2(); mkBaseV2(); mkBallTrap(); mkSportsParcs(); mkHalosBoutiques(); mkSurprisesToits(); mkBalises(); }); } // cascades et volcan EN DERNIER : leurs tirages du décor ne décalent rien de ce qui précède (mobilier...) // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
   finaliserMerge();
   construireMinimapStatique();
 }
@@ -5429,7 +5445,7 @@ function poserTexteBanderole(txt){
   CIEL.matBan.map=texBanderoleCiel(txt||BANDEROLE_DEFAUT); CIEL.matBan.needsUpdate=true;
 }
 function mkAvionBanderole(){
-  const a=new THREE.Group(); scene.add(a); CIEL.avion=a;
+  const a=new THREE.Group(); scene.add(a); CIEL.avion=a; CIEL.cAv=cibleCiel('avion','💥 AVION ABATTU',a,3.2,1.3,3.8,60,1);
   const jaune=0xffc928, rouge=0xd83a3a, vitre=0x1c2a44, gris=0x2a2d34, P=[];
   // fuselage effilé : nez, cabine, queue (le long de +x = vers l'avant)
   P.push(['box',1.3,0.95,0.95,0.9,0,0,jaune],['box',1.4,0.85,0.85,-0.4,0.02,0,jaune],['box',1.3,0.6,0.6,-1.7,0.12,0,jaune],['box',0.9,0.38,0.38,-2.7,0.22,0,jaune],
@@ -5467,7 +5483,7 @@ function trajetAvion(s){
 }
 const _vBan=new THREE.Vector3(), _vBan2=new THREE.Vector3(), _vBan3=new THREE.Vector3();
 function majAvionBanderole(dt){
-  const a=CIEL.avion; if(!a||!AVION.L) return;
+  const a=CIEL.avion; if(!a||!AVION.L||(CIEL.cAv&&CIEL.cAv.etat!=='vol')) return;
   AVION.s+=AVION.v*dt;
   if(typeof VUE!=='undefined'&&VUE.k>0.5) AVION.y=lerp(AVION.y,15,dt); else AVION.y=lerp(AVION.y,10,dt); // vue immersive : un peu plus haut, dans le ciel
   const p=trajetAvion(AVION.s), t=(CIEL.av.t+=dt);
@@ -5558,7 +5574,7 @@ function mkCiel(){
   const go=new THREE.Mesh(new THREE.BoxGeometry(3.4,1.1,1.4),nac); go.position.y=-4.2; d.add(go);
   for(const rx of [0,Math.PI/2]){ const e=new THREE.Mesh(new THREE.BoxGeometry(3.2,0.12,4.2),rouge); e.position.x=-11.6; e.rotation.x=rx; d.add(e); }
   CIEL.matsDir=[env.material,pub,nac,rouge];
-  CIEL.dir={t:0};
+  CIEL.dir={t:0}; CIEL.cDir=cibleCiel('dirigeable','💥 DIRIGEABLE ABATTU',d,13.5,4.8,4.2,420,0);
   mkAvionBanderole(); // avion de tourisme et sa banderole (voir AVION)
   // mouettes (même dessin que celles du galion)
   for(let k=0;k<7;k++){ const o=new THREE.Group(); o.scale.setScalar(0.6); o.add(mkBoxG(0.2,0.16,0.5,0xf0f0ec,0,0,0));
@@ -5571,7 +5587,8 @@ function majCiel(dt){
   if(!CIEL.ok) return;
   const t=(CIEL.dir.t+=dt);
   // dirigeable : aller-retour lent au large, demi-tour en douceur aux extrémités
-  const d=CIEL.dirigeable, w=t*0.012, R=190; d.position.set(Math.cos(w)*R,19,Math.sin(w)*R*0.8); d.rotation.y=-w-Math.PI/2; // grande boucle, sens anti-horaire
+  const d=CIEL.dirigeable, w=t*0.012, R=190; if(!CIEL.altDir) CIEL.altDir=profilDirigeable(R);
+  if(CIEL.cDir.etat==='vol'){ d.position.set(Math.cos(w)*R,altDirigeable(w),Math.sin(w)*R*0.8); d.rotation.y=-w-Math.PI/2; } // grande boucle, sens anti-horaire, au-dessus de tout ce qu'il survole
   const proche=dist2(d.position.x,d.position.z,P.x,P.z)<40*40, cible=proche?0.25:1;
   if(Math.abs((CIEL.opDir||1)-cible)>0.01){ CIEL.opDir=(CIEL.opDir||1)+(cible-(CIEL.opDir||1))*Math.min(1,dt*3);
     for(const m of CIEL.matsDir){ m.transparent=CIEL.opDir<0.99; m.opacity=CIEL.opDir; m.depthWrite=CIEL.opDir>=0.99; } }
@@ -5591,6 +5608,65 @@ function majCiel(dt){
     }
   }
 }
+/* LE CIEL SE PERCUTE (17 octobre, demandé : « le dirigeable passe à travers les montagnes ; on peut taper dedans
+   et se crasher, et le crasher aussi ; idem pour les avions qui volent dans le ciel ; destructibles, ils reviennent
+   à la prochaine vague ») — CIEL_CIBLES : dirigeable, avion à banderole, avion de tourisme et Écureuil de
+   l'aéroport. Chacun : son objet, un ellipsoïde dans SON repère (demi-axes rx, ry, rz : il suit cap et échelle),
+   des PV. Une balle, une roquette du joueur l'abîme (collisionBalle → toucherCiel) ; un appareil du joueur qui
+   le percute s'écrase (crashAerien) et l'abat. Abattu : il tombe en vrille en fumant (le dirigeable plane, nez
+   en bas), explose au sol (explosionArme), disparaît ; il revient au début de la vague suivante et à chaque
+   partie (cielRetablir). Le dirigeable vole au-dessus de ce qu'il survole (profilDirigeable : relief et toits
+   sur sa boucle, avec 9 u de marge) — avant, à 19 u, il traversait Los Reyes Hills et les tours. Spectacle
+   sur dt ; la chute ne tire aucun Math.random de la ville. */
+const CIEL_CIBLES=[], _vCiel=new THREE.Vector3();
+function cibleCiel(nom,msg,obj,rx,ry,rz,hp,gravite){ const c={nom,msg,obj,rx,ry,rz,hp,hpMax:hp,etat:'vol',g:gravite,vx:0,vy:0,vz:0,px:0,py:0,pz:0,fumT:0,spin:0}; CIEL_CIBLES.push(c); return c; }
+function hautMaxSous(x,z,r){ let m=0;
+  for(let k=0;k<9;k++){ const a=k/8*Math.PI*2, d=k===8?0:r; m=Math.max(m,solY(x+Math.cos(a)*d,z+Math.sin(a)*d)); }
+  const i0=Math.floor((x-r+300)/GS), i1=Math.floor((x+r+300)/GS), j0=Math.floor((z-r+300)/GS), j1=Math.floor((z+r+300)/GS);
+  for(let i=i0;i<=i1;i++) for(let j=j0;j<=j1;j++){ const L=sGrid.get(gk(i,j)); if(!L) continue; for(const s2 of L) if(Math.abs(x-s2.x)<s2.hw+r&&Math.abs(z-s2.z)<s2.hd+r&&s2.h>m) m=s2.h; }
+  return m; }
+function profilDirigeable(R){ const N=256, a0=new Float32Array(N), a1=new Float32Array(N), out=new Float32Array(N);
+  for(let i=0;i<N;i++){ const w=i/N*Math.PI*2; a0[i]=Math.max(19,hautMaxSous(Math.cos(w)*R,Math.sin(w)*R*0.8,11)+9); }
+  for(let i=0;i<N;i++){ let m=0; for(let k=-8;k<=8;k++) m=Math.max(m,a0[(i+k+N)%N]); a1[i]=m; } // il monte AVANT l'obstacle
+  for(let i=0;i<N;i++){ let s2=0; for(let k=-5;k<=5;k++) s2+=a1[(i+k+N)%N]; out[i]=Math.max(a1[i],s2/11); }
+  return out; }
+function altDirigeable(w){ const A=CIEL.altDir, N=A.length, f=((w/(Math.PI*2))%1+1)%1*N, i=Math.floor(f), u=f-i; return A[i%N]*(1-u)+A[(i+1)%N]*u; }
+// le point (x,y,z) est-il dans l'ellipsoïde de la cible (marge m, en unités du monde) ?
+function dansCibleCiel(c,x,y,z,m){ const o=c.obj; if(!o.visible) return false; const e=o.scale.x||1, rM=Math.max(c.rx,c.ry,c.rz)*e+m;
+  if((x-o.position.x)**2+(y-o.position.y)**2+(z-o.position.z)**2>rM*rM) return false;
+  o.updateMatrixWorld(true); _vCiel.set(x,y,z); o.worldToLocal(_vCiel); const ml=m/e;
+  return (_vCiel.x/(c.rx+ml))**2+(_vCiel.y/(c.ry+ml))**2+(_vCiel.z/(c.rz+ml))**2<1; }
+function toucherCiel(b){
+  if(b.y<4) return false;
+  for(const c of CIEL_CIBLES){ if(c.etat!=='vol'||!dansCibleCiel(c,b.x,b.y,b.z,0.3)) continue;
+    c.hp-=b.dmg||10; burst(b.x,b.y,b.z,5,0xffd23f,6,3); if(c.hp<=0) abattreCiel(c); return true; }
+  return false; }
+function abattreCiel(c){
+  if(c.etat!=='vol') return; c.etat='chute'; const o=c.obj; c.vx=c.vx||0; c.vz=c.vz||0; c.vy=c.g?1.5:0; c.spin=c.g?2.6:0.25; c.fumT=0;
+  explosionCielFx(o.position.x,o.position.y,o.position.z,c.g?1:1.6); bigMsg(c.msg); toast('Le ciel tombe sur Los Reyes : la police arrive','warn');
+  ETAT.score+=c.g?400:900; addHeat(c.g?1.5:2.5); META.stats.avionsAbattus++; secousse(6); vibre(80); }
+function explosionCielFx(x,y,z,k){
+  spawnP(x,y,z,0,0,0,0.4,7*k,0xfff2c0,0,44); spawnP(x,y,z,0,0,0,0.5,5*k,0xff9f2e,0,30);
+  burst(x,y,z,Math.round(18*k),0xff9f2e,13,7); burst(x,y,z,Math.round(10*k),0xff5030,10,5);
+  for(let i=0;i<8;i++) fumee(x+rand(-2,2)*k,y+rand(-1,1),z+rand(-2,2)*k,0x2a2d34);
+  if(dist2(x,z,P.x,P.z)<160*160) bruit(0.5,0.6,90,'lowpass'); }
+function majCielCibles(dt){
+  if(!CIEL_CIBLES.length) return;
+  // vitesse de chaque appareil en vol (pour la chute)
+  for(const c of CIEL_CIBLES){ const o=c.obj; if(c.etat==='vol'){ if(dt>0){ c.vx=(o.position.x-c.px)/dt; c.vz=(o.position.z-c.pz)/dt; } c.px=o.position.x; c.py=o.position.y; c.pz=o.position.z; } }
+  // un appareil du joueur qui percute une cible : crash des deux
+  const v=P.veh; if(v&&v.def&&v.def.air&&!INT.actif&&(v.alt||0)>3){
+    for(const c of CIEL_CIBLES){ if(c.etat!=='vol'||!dansCibleCiel(c,v.x,v.alt||0,v.z,Math.max(1,(v.def.larg||2)*0.6))) continue;
+      abattreCiel(c); crashAerien(v); break; } }
+  // chute : vrille, fumée, explosion au sol
+  for(const c of CIEL_CIBLES){ if(c.etat!=='chute') continue; const o=c.obj;
+    c.vy-=(c.g?16:4.5)*dt; c.vx*=1-0.4*dt; c.vz*=1-0.4*dt; o.position.x+=c.vx*dt; o.position.y+=c.vy*dt; o.position.z+=c.vz*dt;
+    if(c.g){ o.rotation.z+=c.spin*dt; o.rotation.x+=c.spin*0.4*dt; } else o.rotation.z=Math.max(-0.5,(o.rotation.z||0)-c.spin*dt); // le dirigeable pique du nez
+    c.fumT-=dt; if(c.fumT<=0){ c.fumT=0.07; fumee(o.position.x,o.position.y,o.position.z,0x2a2d34); spawnP(o.position.x,o.position.y,o.position.z,rand(-1,1),rand(0,1),rand(-1,1),0.35,1.6,0xff7a1a,0,6); }
+    const sol=hautMaxSous(o.position.x,o.position.z,1.5);
+    if(o.position.y<=sol+0.8){ explosionCielFx(o.position.x,sol+1,o.position.z,c.g?1.2:2); explosionArme(o.position.x,o.position.z,true); c.etat='detruit'; o.visible=false; } }
+}
+function cielRetablir(){ for(const c of CIEL_CIBLES){ if(c.etat==='vol') continue; c.etat='vol'; c.hp=c.hpMax; c.obj.visible=true; c.obj.rotation.x=0; c.obj.rotation.z=0; } }
 /* ---------- LA CRIQUE DES PLONGEURS (DECOR_V2) ----------
    Demandé : « une piscine avec des plongeoirs bien hauts en mode falaise, du
    diving, sur un côté de la plage en mode crique ». Là où le désert rejoint
@@ -6027,13 +6103,17 @@ function mkMontReyes(){
   // maillage (APRÈS le sentier : il y est taillé) : grille de 1,5 u, sommets partagés, couleur selon altitude et pente
   const pas=1.5, x0=MONT.x-MONT.rx, z0=MONT.z-MONT.rz, nx=Math.ceil(2*MONT.rx/pas), nz=Math.ceil(2*MONT.rz/pas);
   const pos=[], col=[], idx=[], c3=new THREE.Color();
-  const herbeB=new THREE.Color(0x6a9a40), herbeH=new THREE.Color(0x3a6a2c), roche=new THREE.Color(0x8a8478), neige=new THREE.Color(0xf2f4f8), terre=new THREE.Color(0x8a7a54);
+  const secheM=new THREE.Color(0xa8995c), maquisM=new THREE.Color(0x6c7446), pinede=new THREE.Color(0x34502e), roche=new THREE.Color(0x8a8478), neige=new THREE.Color(0xf2f4f8), terre=new THREE.Color(0x8a7a54);
   const H=(i,j)=>hauteurMont(x0+i*pas,z0+j*pas);
   for(let i=0;i<=nx;i++) for(let j=0;j<=nz;j++){
     const x=x0+i*pas, z=z0+j*pas, h=H(i,j);
     const pente=Math.max(Math.abs(H(i+1,j)-H(i-1,j)),Math.abs(H(i,j+1)-H(i,j-1)))/(2*pas);
     const alt=h/MONT.H, bruit=0.9+0.16*Math.sin(x*0.9)*Math.cos(z*0.7);
-    c3.copy(herbeB).lerp(herbeH,clamp(alt*1.6,0,1)).lerp(terre,clamp(Math.sin(x*0.17+z*0.21)*0.4,0,0.35));
+    /* 17 octobre (signalé : « la montagne est trop verte ») : herbe sèche au pied, maquis olive plus haut, pinèdes par
+       taches (bruitDecor, sans tirage), terre ; la roche et la neige au-dessus, comme avant */
+    const nF=bruitDecor(x*0.07+3,z*0.07-7), nT=bruitDecor(x*0.13-11,z*0.13+5);
+    c3.copy(secheM).lerp(maquisM,clamp(alt*1.9,0,1)); if(nF>0.52&&alt<0.62) c3.lerp(pinede,lisse((nF-0.52)/0.18)*0.85);
+    c3.lerp(terre,clamp((nT-0.6)*2,0,0.5)+clamp(Math.sin(x*0.17+z*0.21)*0.25,0,0.2));
     c3.lerp(roche,clamp((pente-0.7)/0.6,0,1)).lerp(roche,clamp((alt-0.62)/0.15,0,0.8)).lerp(neige,clamp((alt-0.8)/0.08,0,1)).multiplyScalar(bruit);
     if(MONT.surCouloir(x,z,3.4)) c3.lerp(terre,0.8); // montée sèche : piste de terre battue
     pos.push(x,h+0.03,z); col.push(c3.r,c3.g,c3.b);
@@ -7067,9 +7147,30 @@ function mkBoutiques(){
     const [ex,ez]=loc(0,-1.35); mkEnseigne(D.nom.toUpperCase(),D.coul,ex,3.4,ez,ry,4.4);
     addSolid({x,z,hw:Math.abs(ca)*2.2+Math.abs(sa)*1.4,hd:Math.abs(sa)*2.2+Math.abs(ca)*1.4,h:2.9});
     const [zx,zz]=loc(0,2.6); BOUTIQUES.push({id:k,def:D,x:zx,z:zz,cx:x,cz:z,ry});
+    { const [dx,dz]=loc(0,1.7), halo=null; /* le halo est posé en FIN de décor (mkHalosBoutiques) : un objet Three.js créé ici tire 4 nombres pour son uuid et décalerait tout le mobilier */
+      let ancre; for(const kk in POIS){ const v=POIS[kk]; if(v&&!Array.isArray(v)&&typeof v.x==='number'&&dist2(v.x,v.z,dx,dz)<400){ ancre=kk; break; } } // le surf shop est SUR la plage : voulu
+      PORTES.push({id:'boutique',x:dx,z:dz,nx,nz,boutiqueId:k,halo,sortieD:0.6,ancre}); } // 17 octobre : on essaie à l'intérieur, à l'abri
     ZONES_SANS_MOBILIER.push({x0:x-5,x1:x+5,z0:z-5,z1:z+5});
     AERO.balises.push({x,z,ico:D.ico,coul:'#8a4de0'}); }
 }
+// ---------- la boutique en salle (17 octobre) : reconfigurée à l'entrée, cabine à l'abri ----------
+const MURS_BOUTIQUE={chic:0xe8e2d6,surf:0xcde8ec,street:0x40354f,barbier:0xeadccb,tatoueur:0x2c2c33};
+function mannequinBoutique(k,i){
+  const pieces=VETEMENTS.filter((v)=>v.b===k), hv=pieces.filter((v)=>v.type==='haut'), bv=pieces.filter((v)=>v.type==='bas');
+  const m=makeHumain({haut:hv.length?hv[i%hv.length].val:0xe8ecf2,bas:bv.length?bv[i%bv.length].val:0x2a2e36,peau:0xd8d4cc,casq:k==='barbier'?[0xff5ad0,0xf2e6a8,0x3a2a1c][i%3]:0xd8d4cc,visage:'neutre'},1);
+  const S={haut:-1,bas:-1,cheveux:-1,coiffure:'',chapeau:'',chapeauCoul:-1,lunettes:'',tatouage:''};
+  const tete=pieces.filter((v)=>['coiffure','chapeau','lunettes','tatouage'].includes(v.type)); for(let j=0;j<tete.length;j++) if(j%3===i%3) mettreVetement(S,tete[j]);
+  habillerTete(m,S); return m; }
+function boutiqueSurEntree(s,porte){
+  const k=(porte&&porte.boutiqueId&&BOUTIQUES_DEF[porte.boutiqueId])?porte.boutiqueId:'chic', D=BOUTIQUES_DEF[k]; s.bid=k;
+  for(const id in s.enseignes) if(s.enseignes[id]) s.enseignes[id].visible=id===k;
+  s.accent.color.set(D.coul); const mu=MURS_BOUTIQUE[k]||0xe8e2d6; s.matMur.color.setHex(mu); s.matMur.emissive.setHex(mu).multiplyScalar(0.16);
+  const cols=VETEMENTS.filter((v)=>v.b===k&&typeof v.val==='number').map((v)=>v.val);
+  s.cintres.forEach((m,i)=>m.material.color.setHex(cols.length?cols[i%cols.length]:0xe8ecf2));
+  for(const nm in s.variantes) s.variantes[nm].visible=nm==='tables'?(k!=='barbier'&&k!=='tatoueur'):nm===k;
+  s.mannequins.forEach((m,i)=>{ if(m.h){ s.g.remove(m.h.g); libererEntite(m.h.g); } const h=mannequinBoutique(k,i); h.g.position.set(m.mx,0.3,m.mz); h.g.rotation.y=m.ry; s.g.add(h.g); m.h=h; });
+}
+function ouvrirBoutiqueSalle(s){ const c=s.cabineBoutique; P.x=c.px; P.z=c.pz; P.ang=0; ouvrirBoutique({id:s.bid,def:BOUTIQUES_DEF[s.bid],x:c.px,z:c.pz,ry:0}); }
 // ---------- la cabine d'essayage ----------
 const BOUT={ouvert:false,b:null,essai:null,el:null,ang:0};
 function boutiqueProche(){ if(P.veh) return null; for(const b of BOUTIQUES) if(dist2(P.x,P.z,b.x,b.z)<7) return b; return null; }
@@ -7104,7 +7205,7 @@ function actionBoutique(act,id){
   // ce qu'on essaie sans l'acheter n'est jamais gardé : à la fermeture, on reconstruit avec META.style
   construireJoueur(); renderBoutique();
 }
-function majBoutique(dt){ if(!BOUT.ouvert) return; if(ETAT.mode!=='jeu'||INT.actif||P.veh||!BOUT.b||dist2(P.x,P.z,BOUT.b.x,BOUT.b.z)>25){ fermerBoutique(); return; }
+function majBoutique(dt){ if(!BOUT.ouvert) return; if(ETAT.mode!=='jeu'||(INT.actif&&!INT.actif.cabineBoutique)||P.veh||!BOUT.b||dist2(P.x,P.z,BOUT.b.x,BOUT.b.z)>25){ fermerBoutique(); return; }
   BOUT.ang+=dt*0.7; P.ang=BOUT.ang; if(P.h) P.h.g.rotation.y=BOUT.ang; }
 /* =====================================================================
    MANÈGES (14 octobre, demandé : « la possibilité de faire des manèges ; un grand huit à la marina »).
@@ -7185,7 +7286,94 @@ function manegeProche(){ if(P.veh||MANEGES.actif) return null;
    un vrai hélico, garé à chaque partie), des châteaux d'eau, des panneaux solaires ou un coffre à fouiller (une
    fois par vague). Les plus hautes tours gagnent un couronnement (flèche, pyramide). Décor fusionné par matériau.
 ===================================================================== */
-const TOITS={coffres:[],helis:[],n:0};
+const TOITS={coffres:[],helis:[],n:0,nus:[]}; // nus : les toits laissés vides (types 8 et 9, sans flèche), pour les surprises
+/* SURPRISES SUR LES TOITS (17 octobre, demandé : « des surprises interactives sur les toits ») — sur les toits
+   plats restés nus (types 8 et 9 de mkToitsVivants, sans flèche), posées en FIN de décor (aucun tirage décalé) :
+   - TYROLIENNES : un câble d'un toit vers un toit voisin plus bas (14 à 45 u, jamais au travers d'un immeuble :
+     le passager passe au-dessus de tout ce qui est dessous) ; on s'y accroche, on glisse, on lâche sur l'autre toit.
+   - TRAMPOLINES : on rebondit sans fin (la chute ne fait jamais de dégâts sur la toile) ; SAUT donne de l'élan.
+   - PIGEONNIERS : on ouvre, les pigeons de Monsieur Paolo s'envolent (une fois par vague).
+   - MURS À TAGUER : un panneau vierge, un tag à la bombe (une fois par vague et par mur).
+   - FÊTE DU DJ : platines, enceintes, danseurs ; MIXER fait monter la fête (une fois par vague).
+   Les danseurs sont des figurants (bousculés ou visés, ils fuient). */
+const SURPRISES={liste:[],tyros:[],tyro:null,pigeons:[],t:0};
+const TAGS=['REYES 4EVER','KAA ÉTAIT LÀ','LOS REYES','VIPERS NUL','EL DIABLO ♥','BOOM','RAOUL','CIEL OUVERT'];
+function trampolineSous(x,z,y){ for(const s of SURPRISES.liste) if(s.type==='trampo'&&Math.abs(y-s.y)<0.6&&dist2(x,z,s.x,s.z)<1.6*1.6) return s; return null; }
+function mkSurprisesToits(){
+  const cands=TOITS.cands||[]; /* l'arrivée d'une tyrolienne : n'importe quel toit de mkToitsVivants (types notés) */
+  const nus=TOITS.nus.filter((s)=>quartierAt(s.x,s.z)!=='neon'), pris=new Set(); // jamais au quartier néon : ses toits portent les grands panneaux animés
+  const i0=scene.children.length, gris=mat(0x6a7078), noir=mat(0x23262e), M=(c)=>new THREE.MeshLambertMaterial({color:c});
+  // tyroliennes : du plus haut vers un voisin plus bas, au-dessus de tout
+  const dessus=(R,x,z)=>Math.abs(x-R.x)<R.hw+0.6&&Math.abs(z-R.z)<R.hd+0.6;
+  const ok=(A,B)=>{ const yA=A.h+4.2, yB=B.h+4.2, L=Math.hypot(B.x-A.x,B.z-A.z); if(L<14||L>60||A.h-B.h<0||A.h-B.h>16) return false;
+    for(let d=2;d<L-2;d+=1.5){ const u=d/L, x=A.x+(B.x-A.x)*u, z=A.z+(B.z-A.z)*u; if(dessus(A,x,z)||dessus(B,x,z)) continue; // au-dessus des deux toits : c'est là qu'on part et qu'on arrive
+      const yc=yA+(yB-yA)*u-1.5*4*u*(1-u); if(hautMaxSous(x,z,0.6)>yc-2.6) return false; } return true; }; // les pieds du passager à 2,3 u sous le câble, 0,3 de marge
+  // les deux bouts : un toit au décor discret (jardin, panneaux solaires, coffre, ou nu), hors quartier néon ; les nus d'abord
+  const discret=(R)=>[3,6,7,8,9].includes(R.tyToit)&&!(R.h>26&&[6,8,9].includes(R.tyToit))&&quartierAt(R.x,R.z)!=='neon', departs=nus.concat(cands.filter((R)=>discret(R)&&!nus.includes(R)));
+  for(const A of departs){ if(SURPRISES.tyros.length>=4||pris.has(A)||!discret(A)) continue; let best=null, bd=1e9;
+    cands.forEach((B)=>{ if(B===A||pris.has(B)||!discret(B)||!ok(A,B)) return; const d=dist2(A.x,A.z,B.x,B.z); if(d<bd){ bd=d; best=B; } });
+    if(!best) continue; pris.add(A); pris.add(best); const B=best, dx=B.x-A.x, dz=B.z-A.z, L=Math.hypot(dx,dz), ux=dx/L, uz=dz/L;
+    const a={x:A.x+ux*Math.min(A.hw,A.hd)*0.5,z:A.z+uz*Math.min(A.hw,A.hd)*0.5,y:A.h+4.2}, b={x:B.x-ux*Math.min(B.hw,B.hd)*0.5,z:B.z-uz*Math.min(B.hw,B.hd)*0.5,y:B.h+4.2};
+    for(const p of [a,b]){ mkBox(0.22,4.3,0.22,gris,p.x,p.y-2.15,p.z); mkBox(0.9,0.22,0.22,gris,p.x,p.y,p.z); }
+    const pts=[]; for(let k=0;k<=16;k++){ const u=k/16; pts.push(new THREE.Vector3(a.x+(b.x-a.x)*u,a.y+(b.y-a.y)*u-1.5*4*u*(1-u),a.z+(b.z-a.z)*u)); }
+    const cab=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),24,0.08,5,false),noir); scene.add(cab);
+    const T={a,b,L:Math.hypot(b.x-a.x,b.z-a.z),depart:{x:a.x-ux*1.2,z:a.z-uz*1.2,y:A.h},arrivee:B.h};
+    SURPRISES.tyros.push(T); SURPRISES.liste.push({type:'tyro',x:T.depart.x,z:T.depart.z,y:A.h,T}); mkEnseigne('TYROLIENNE','#ffd23f',a.x,A.h+5.2,a.z,0,3); }
+  // les autres toits nus : trampoline, pigeonnier, mur à taguer, fête du DJ
+  const types=['trampo','pigeons','tag','dj']; let n=0;
+  for(const s of nus){ if(pris.has(s)) continue; const ty=types[n%types.length]; n++; const x=s.x, z=s.z, h=s.h;
+    if(ty==='trampo'){ const t=new THREE.Mesh(new THREE.CylinderGeometry(1.7,1.7,0.12,20),M(0x2a6ad8)); t.position.set(x,h+0.75,z); scene.add(t);
+      const toile=new THREE.Mesh(new THREE.CylinderGeometry(1.45,1.45,0.14,20),noir); toile.position.set(x,h+0.77,z); scene.add(toile);
+      for(let k=0;k<6;k++){ const a2=k/6*Math.PI*2; mkBox(0.1,0.75,0.1,gris,x+Math.cos(a2)*1.6,h+0.37,z+Math.sin(a2)*1.6); }
+      PLATS.push({x,z,r:1.7,h:h+0.82}); SURPRISES.liste.push({type:'trampo',x,z,y:h+0.82}); }
+    else if(ty==='pigeons'){ mkBox(2.4,1.6,1.6,M(0x8a6a44),x,h+0.8,z); mkBox(2.7,0.12,1.9,M(0x5a4030),x,h+1.66,z); for(let k=0;k<3;k++) mkBox(0.5,0.4,0.05,noir,x-0.8+k*0.8,h+1.0,z+0.81);
+      addSolid({x,z,hw:1.2,hd:0.8,h:h+1.7,toit:true}); const P2=[]; for(let k=0;k<10;k++){ const g=new THREE.Group(); g.add(new THREE.Mesh(new THREE.SphereGeometry(0.14,6,5),M(k%3?0x9aa2ad:0xe8ecf2))); const ai=new THREE.Mesh(new THREE.BoxGeometry(0.55,0.03,0.16),M(0x7a828c)); g.add(ai); g.position.set(x-1.1+k*0.25,h+1.8,z+(k%2?0.4:-0.4)); g.userData.garder=true; scene.add(g); P2.push({g,ai,x0:g.position.x,y0:g.position.y,z0:g.position.z}); }
+      SURPRISES.liste.push({type:'pigeons',x,z:z+1.8,y:h,oiseaux:P2,vague:-1,volT:0}); }
+    else if(ty==='tag'){ for(const sx of [-1,1]) mkBox(0.15,2.4,0.15,gris,x+sx*1.6,h+1.2,z-1); const tx=document.createElement('canvas'); tx.width=256; tx.height=128; const c=tx.getContext('2d'); c.fillStyle='#b8b4a8'; c.fillRect(0,0,256,128);
+      const tex=new THREE.CanvasTexture(tx), pan=new THREE.Mesh(new THREE.PlaneGeometry(3.4,1.7),new THREE.MeshLambertMaterial({map:tex})); pan.position.set(x,h+1.6,z-0.93); pan.userData.garder=true; scene.add(pan); mkBox(3.5,1.8,0.12,noir,x,h+1.6,z-1.02);
+      addSolid({x,z:z-1,hw:1.8,hd:0.15,h:h+2.5}); SURPRISES.liste.push({type:'tag',x,z:z+0.6,y:h,ctx:c,tex,vague:-1}); }
+    else if(ty==='dj'){ mkBox(2.4,1.0,1.0,noir,x,h+0.5,z-1.2); for(const sx of [-1,1]){ const p=new THREE.Mesh(new THREE.CylinderGeometry(0.32,0.32,0.06,16),M(0x14161c)); p.position.set(x+sx*0.6,h+1.04,z-1.2); scene.add(p); }
+      for(const sx of [-1,1]) mkBox(0.9,1.8,0.8,noir,x+sx*2.2,h+0.9,z-1.4); addSolid({x,z:z-1.3,hw:2.7,hd:0.6,h:h+1.8});
+      const danseurs=[]; for(let k=0;k<4;k++){ const hu=makeHumain({haut:[0xff5ad0,0x35e0ff,0xffd23f,0x7dff7a][k],bas:0x23262e,peau:civPeau[k%civPeau.length],casq:[0x14161c,0x6a4a2a,0xd8b070,0x8a2a1a][k],visage:'neutre'},1);
+        hu.g.position.set(x-1.6+k*1.05,h,z+1.2+(k%2)*0.7); hu.g.rotation.y=Math.PI; scene.add(hu.g); figurant(hu); danseurs.push({h:hu,ph:k*1.3,y0:h}); }
+      const faisceaux=[]; for(const sx of [-1,1]){ const f=new THREE.Mesh(new THREE.ConeGeometry(1.2,9,10,1,true),new THREE.MeshBasicMaterial({color:sx<0?0xff5ad0:0x35e0ff,transparent:true,opacity:0.18,depthWrite:false,side:THREE.DoubleSide})); f.position.set(x+sx*2.2,h+6,z-1.4); f.userData.garder=true; scene.add(f); faisceaux.push(f); }
+      SURPRISES.liste.push({type:'dj',x,z:z-0.1,y:h,danseurs,faisceaux,vague:-1,fete:0}); }
+  }
+  fusionnerDecor(i0);
+}
+function surpriseProche(){ if(P.veh||SURPRISES.tyro) return null; for(const s of SURPRISES.liste){ if(s.type==='trampo') continue; if(Math.abs(P.y-s.y)<2.2&&dist2(P.x,P.z,s.x,s.z)<2.2*2.2) return s; } return null; }
+function surpriseAction(){
+  const s=surpriseProche(); if(!s) return null;
+  if(s.type==='tyro') return {label:'🪢 TYROLIENNE — S’ACCROCHER',fn:()=>{ SURPRISES.tyro={T:s.T,u:0,v:3}; SFX.swing(); vibre(20); }};
+  if(s.type==='pigeons') return {label:s.vague===WAVES.n?'🕊️ Le pigeonnier est vide':'🕊️ OUVRIR LE PIGEONNIER',fn:()=>{ if(s.vague===WAVES.n){ SFX.refus(); return; } s.vague=WAVES.n; s.volT=0.01; ETAT.score+=60; toast('🕊️ Les pigeons de Monsieur Paolo s’envolent… il ne va pas être content','or'); }};
+  if(s.type==='tag') return {label:s.vague===WAVES.n?'🎨 Déjà tagué':'🎨 TAGUER LE MUR',fn:()=>{ if(s.vague===WAVES.n){ SFX.refus(); return; } s.vague=WAVES.n; taguer(s); ETAT.score+=80; }};
+  if(s.type==='dj') return {label:s.vague===WAVES.n?'🎧 La fête bat son plein':'🎧 MIXER',fn:()=>{ if(s.vague===WAVES.n){ SFX.refus(); return; } s.vague=WAVES.n; s.fete=12; ETAT.score+=100; toast('🎧 Le toit s’enflamme !','or'); }};
+  return null; }
+function taguer(s){ const c=s.ctx, t=TAGS[Math.floor(Math.random()*TAGS.length)], col=['#ff3b5c','#35e0ff','#7dff7a','#ffd23f','#ff5ad0'][Math.floor(Math.random()*5)];
+  c.fillStyle='#b8b4a8'; c.fillRect(0,0,256,128); c.save(); c.translate(128,68); c.rotate((Math.random()-0.5)*0.25); c.font='900 '+(t.length>9?30:40)+'px Arial'; c.textAlign='center'; c.textBaseline='middle';
+  c.lineWidth=9; c.strokeStyle='#14161c'; c.strokeText(t,0,0); c.fillStyle=col; c.fillText(t,0,0); c.restore();
+  for(let k=0;k<30;k++){ c.fillStyle=col; c.globalAlpha=0.6; c.fillRect(20+Math.random()*216,20+Math.random()*90,2,2+Math.random()*6); } c.globalAlpha=1; s.tex.needsUpdate=true;
+  burst(s.x,s.y+1.6,s.z-1.4,14,parseInt(col.slice(1),16),3,2); bruit(0.4,0.25,2400,'highpass'); toast('🎨 « '+t+' »','or'); }
+// la tyrolienne : on glisse le long du câble (plus vite dans la pente), suspendu, puis on lâche sur l'autre toit
+function majToitsSurprises(dt,dtJeu){
+  if(!SURPRISES.liste.length) return; SURPRISES.t+=dt; const t=SURPRISES.t;
+  const R=SURPRISES.tyro; if(R){ const T=R.T; R.v=Math.min(16,R.v+dtJeu*7); R.u+=R.v*dtJeu/T.L; const u=Math.min(1,R.u);
+    P.x=T.a.x+(T.b.x-T.a.x)*u; P.z=T.a.z+(T.b.z-T.a.z)*u; P.y=T.a.y+(T.b.y-T.a.y)*u-1.5*4*u*(1-u)-2.3; P.vy=0; P.chute=false; P.para=false;
+    if(P.h){ P.h.g.position.set(P.x,P.y,P.z); P.h.g.rotation.y=Math.atan2(T.b.x-T.a.x,T.b.z-T.a.z); P.h.brasG.rotation.x=P.h.brasD.rotation.x=-3.0; }
+    if(u>=1){ SURPRISES.tyro=null; P.y=T.arrivee+0.05; P.x=T.b.x+(T.b.x-T.a.x)/T.L*1.2; P.z=T.b.z+(T.b.z-T.a.z)/T.L*1.2; if(P.h){ P.h.brasG.rotation.x=P.h.brasD.rotation.x=0; } SFX.ui(); toast('🪢 Bien reçu !'); } }
+  // trampolines : on rebondit dès qu'on monte sur la toile
+  if(P.trampoT>0) P.trampoT-=dtJeu; // en l'air, majJoueur laisse déjà se diriger : on quitte la toile au joystick
+  if(!P.veh&&!P.chute&&!SURPRISES.tyro){ const tr=trampolineSous(P.x,P.z,P.y); if(tr){ P.chute=true; P.chuteY0=P.y; P.chuteT=0; P.chuteHaut=0.5; P.vy=13; P.chuteVx=0; P.chuteVz=0; P.trampoT=2; } }
+  if(dist2(P.x,P.z,0,0)>HALF*HALF*4) return;
+  for(const s of SURPRISES.liste){
+    if(s.type==='pigeons'&&s.volT>0){ s.volT+=dt; for(const [k,o] of s.oiseaux.entries()){ const a=k/10*Math.PI*2+s.volT*1.6, r=1+s.volT*3; o.g.position.set(o.x0+Math.cos(a)*r,o.y0+s.volT*4+Math.sin(s.volT*3+k)*0.3,o.z0+Math.sin(a)*r); o.ai.rotation.z=Math.sin(t*22+k)*0.6; }
+      if(s.volT>6){ s.volT=0; for(const o of s.oiseaux) o.g.visible=false; } }
+    else if(s.type==='pigeons'&&s.vague!==WAVES.n&&!s.oiseaux[0].g.visible){ for(const o of s.oiseaux){ o.g.visible=true; o.g.position.set(o.x0,o.y0,o.z0); } } // revenus à la vague suivante
+    else if(s.type==='dj'){ s.fete=Math.max(0,s.fete-dt); const f=s.fete>0, nuit=(ETAT.nuitF||0)>0.3;
+      for(const d of s.danseurs){ if(figConverti(d.h)) continue; const k=f?2.2:1; d.h.g.position.y=d.y0+Math.abs(Math.sin(t*4*k+d.ph))*(f?0.6:0.15); d.h.brasG.rotation.x=-1.5-Math.sin(t*5*k+d.ph)*1.2; d.h.brasD.rotation.x=-1.5+Math.sin(t*5*k+d.ph)*1.2; }
+      for(const [k,fa] of s.faisceaux.entries()){ fa.visible=nuit||f; fa.rotation.z=Math.sin(t*(f?2.5:0.8)+k*2)*0.5; fa.material.opacity=f?0.28:0.16; } }
+  }
+}
 /* Façades variées (14 octobre, demandé : « varier les styles d'immeubles », « de la diversité ») : passe de
    décor APRÈS la ville (aucun tirage de la ville touché), sur la face sud des immeubles (celle que voit la
    caméra), selon le quartier et le rang de l'immeuble : murs-rideaux vitrés à meneaux et pilastres Art déco
@@ -8284,6 +8472,362 @@ function toucherCibleBase(b){
   return false;
 }
 function resetBase(){ BASE.defi=null; BASE.laissez=false; BASE.revoque=false; if(BASE.portesFx) for(const r of BASE.portesFx) r.visible=false; for(const c of BASE.cibles){ c.touche=false; c.m.rotation.z=0; c.m.position.y=c.y; } }
+/* =====================================================================
+   TIR À LA PREMIÈRE PERSONNE (17 octobre) — un moteur pour le BALL-TRAP du
+   désert et le STAND DE TIR de l'armurerie (demandés : « un shoot'em up type
+   ball-trap drôle, une arme en vue 1ère personne avec la mire, tu tires sur
+   ce qu'ils envoient » ; « dans les armureries, un stand de tir sous le même
+   principe, pour tester les armes »).
+   FPS.actif = la partie (cfg) : caméra à hauteur d'œil (majCamera rend la
+   main tout de suite), le joueur ne bouge pas (majJoueur n'est pas appelée),
+   on vise au joystick ou en glissant le doigt sur l'écran, on tire au bouton
+   TIR (les autres boutons de combat sont masqués), l'arme en main en bas à
+   droite (recul, flamme). Un tir = un rayon depuis la mire, avec la
+   dispersion, les plombs, la cadence, le chargeur et le rechargement de
+   l'arme (armeStats). Les cibles (FPS.cibles : position, vitesse, rayon,
+   points, gravité) viennent du mode (cfg.lancer, cfg.maj) ; touchée : éclats,
+   points × combo. Chrono et cibles sur dtJeu (c'est contre le chrono). Fin :
+   cfg.fin(bilan), le joueur reparaît, les boutons reviennent.
+===================================================================== */
+const FPS={actif:null,yaw:0,pitch:0,drag:null,cibles:[],arme:null,st:null,el:null,hud:null,mire:null,modele:null,cadT:0,mun:0,rechT:0,recul:0,flash:0,score:0,combo:1,t:0,coups:0,touches:0,traces:[],fin:null};
+function fpsDemarrer(cfg){
+  if(FPS.actif) return; FPS.actif=cfg; FPS.yaw=cfg.yaw||0; FPS.pitch=cfg.pitch===undefined?0.12:cfg.pitch; FPS.cibles.length=0; FPS.score=0; FPS.combo=1; FPS.t=cfg.duree; FPS.coups=0; FPS.touches=0; FPS.cadT=0; FPS.rechT=0; FPS.recul=0; FPS.fin=null;
+  FPS.arme=cfg.arme; FPS.st=armeStats(cfg.arme); FPS.mun=FPS.st.mag||1; INPUT.btn.tir=false;
+  if(P.h) P.h.g.visible=false; cacherBoutonsCombat(); const bf=el('btnFire'); if(bf) bf.style.display='';
+  if(!FPS.el){ const d=document.createElement('div'); d.id='fpsHud'; d.style.cssText='position:fixed;left:0;right:0;top:calc(env(safe-area-inset-top,0px) + 54px);z-index:34;text-align:center;pointer-events:none;color:#fff;font:900 15px Arial;text-shadow:0 2px 3px #000';
+    document.body.appendChild(d); FPS.el=d;
+    const m=document.createElement('div'); m.id='fpsMire'; m.style.cssText='position:fixed;left:50%;top:50%;width:48px;height:48px;margin:-24px 0 0 -24px;z-index:34;pointer-events:none';
+    m.innerHTML='<svg viewBox="0 0 48 48" width="48" height="48"><circle cx="24" cy="24" r="15" fill="none" stroke="#fff" stroke-width="2" opacity="0.9"/><path d="M24 2v12M24 34v12M2 24h12M34 24h12" stroke="#fff" stroke-width="2.4"/><circle cx="24" cy="24" r="2.2" fill="#ff3b3b"/></svg>';
+    document.body.appendChild(m); FPS.mire=m; }
+  FPS.el.style.display='block'; FPS.mire.style.display='block'; FPS.mire.style.transform='';
+  // l'arme en main, vue de l'œil : le canon (-y du modèle) vers l'avant, le dessus (+z) vers le haut
+  if(FPS.modele){ scene.remove(FPS.modele); FPS.modele=null; }
+  const mod=mkArmeModele(cfg.arme); if(mod){ mod.visible=true; habillerArme(mod,cfg.arme); const a=new THREE.Group(), b=new THREE.Group(), c=new THREE.Group(); a.add(mod); a.rotation.x=Math.PI/2; b.add(a); b.rotation.z=Math.PI; c.add(b); b.position.set(0.34,-0.32,-0.85); b.scale.setScalar(0.62);
+    c.traverse((o)=>{ if(o.isMesh){ o.renderOrder=5; } }); scene.add(c); FPS.modele=c; FPS.porteArme=b; }
+  camera.near=0.05; camera.updateProjectionMatrix();
+  if(cfg.titre) bigMsg(cfg.titre); SFX.ui(); fpsHud();
+}
+function fpsHud(){ const C=FPS.actif; if(!C||!FPS.el) return; const s=Math.max(0,Math.ceil(FPS.t));
+  FPS.el.innerHTML=(C.nom||'🎯')+' — <span style="color:#ffd23f">'+FPS.score+'</span> pts'+(FPS.combo>1?' <span style="color:#7dff7a">×'+FPS.combo+'</span>':'')+' — '+Math.floor(s/60)+':'+String(s%60).padStart(2,'0')+
+    '<div style="font:700 13px Arial;opacity:0.9">'+(FPS.rechT>0?'⏳ rechargement…':'🔫 '+FPS.mun+'/'+(FPS.st.mag||1))+(C.aide?' — '+C.aide:'')+'</div>'; }
+function fpsArreter(){ const C=FPS.actif; if(!C) return; FPS.actif=null;
+  for(const c of FPS.cibles) if(c.m){ scene.remove(c.m); } FPS.cibles.length=0;
+  for(const t of FPS.traces) scene.remove(t.m); FPS.traces.length=0;
+  if(FPS.modele){ scene.remove(FPS.modele); FPS.modele=null; }
+  if(FPS.el) FPS.el.style.display='none'; if(FPS.mire) FPS.mire.style.display='none';
+  if(P.h) P.h.g.visible=true; afficherBoutonsCombat(); camera.near=0.5; camera.updateProjectionMatrix(); INPUT.btn.tir=false; FPS.drag=null;
+  return C; }
+function fpsFinir(){ const C=fpsArreter(); if(!C) return; const bilan={score:FPS.score,coups:FPS.coups,touches:FPS.touches,precision:FPS.coups?Math.round(FPS.touches/FPS.coups*100):0};
+  if(C.fin) C.fin(bilan); }
+function fpsDirection(yaw,pitch,out){ const cp=Math.cos(pitch); out.set(-Math.sin(yaw)*cp,Math.sin(pitch),-Math.cos(yaw)*cp); return out; }
+const _fpsD=new THREE.Vector3(), _fpsW=new THREE.Vector3();
+function fpsTirer(){
+  const C=FPS.actif, st=FPS.st, A=ARMES[FPS.arme]; FPS.mun--; FPS.coups++; FPS.cadT=Math.max(0.05,st.cad); FPS.recul=Math.min(1,FPS.recul+(A.roquette?1:st.pellets>1?0.8:0.35)); FPS.flash=0.06;
+  try{ SFX[A.son](); }catch(e){} vibre(st.pellets>1?30:12);
+  const e=camera.position, n=Math.max(1,st.pellets||1), disp=(st.disp||0)*Math.PI/180*0.5;
+  let toucheUne=false;
+  for(let k=0;k<n;k++){ const dy=(Math.random()-0.5)*2*disp, dp=(Math.random()-0.5)*2*disp*0.7; fpsDirection(FPS.yaw+dy,FPS.pitch+dp,_fpsD);
+    let best=null, bt=1e9; for(const c of FPS.cibles){ if(c.mort) continue; _fpsW.set(c.x-e.x,c.y-e.y,c.z-e.z); const t=_fpsW.dot(_fpsD); if(t<0||t>(C.portee||st.portee*1.6)) continue;
+      const d2=_fpsW.lengthSq()-t*t, r=c.r*(A.roquette?2.2:1); if(d2<r*r&&t<bt){ bt=t; best=c; } }
+    // traceur
+    const L=best?bt:40, g=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(e.x+_fpsD.x*1.2,e.y+_fpsD.y*1.2-0.12,e.z+_fpsD.z*1.2),new THREE.Vector3(e.x+_fpsD.x*L,e.y+_fpsD.y*L,e.z+_fpsD.z*L)]);
+    const tr=new THREE.Line(g,new THREE.LineBasicMaterial({color:A.tr||0xffe08a,transparent:true,opacity:0.8})); scene.add(tr); FPS.traces.push({m:tr,t:0.07});
+    if(best){ toucheUne=true; fpsToucher(best); } }
+  if(toucheUne) FPS.touches++; else if(C.rateCombo!==false) FPS.combo=1;
+  if(FPS.mun<=0){ FPS.rechT=st.rech||1; }
+}
+function fpsToucher(c){
+  const C=FPS.actif; c.mort=true; if(c.m) c.m.visible=false;
+  const pts=Math.round((c.pts||0)*(c.pts>0?FPS.combo:1)); FPS.score=Math.max(0,FPS.score+pts);
+  if(c.pts>0) FPS.combo=Math.min(8,FPS.combo+1); else FPS.combo=1;
+  burst(c.x,c.y,c.z,c.eclats||14,c.coul||0xff7a1a,9,6); spawnTexte(c.x,c.y+0.6,c.z,(pts>0?'+':'')+pts+(c.cri?' '+c.cri:''),pts>0?'#ffd23f':'#ff3b3b');
+  if(C.toucher) C.toucher(c,pts);
+}
+function majFPS(dt,dtJeu){
+  const C=FPS.actif; if(!C) return;
+  if(ETAT.mode!=='jeu'||P.hp<=0){ fpsArreter(); return; }
+  // visée : joystick (vitesse) + doigt (FPS.drag, voir les écouteurs)
+  const sens=C.sensJoy||1.6; FPS.yaw-=(INPUT.mx||0)*sens*dtJeu; FPS.pitch-=(INPUT.mz||0)*sens*0.8*dtJeu;
+  if(C.yawMin!==undefined) FPS.yaw=clamp(FPS.yaw,C.yawMin,C.yawMax); FPS.pitch=clamp(FPS.pitch,C.pitchMin===undefined?-0.35:C.pitchMin,C.pitchMax===undefined?0.9:C.pitchMax);
+  FPS.recul=Math.max(0,FPS.recul-dtJeu*5); FPS.flash=Math.max(0,FPS.flash-dtJeu);
+  // tir et rechargement
+  FPS.cadT-=dtJeu; if(FPS.rechT>0){ FPS.rechT-=dtJeu; if(FPS.rechT<=0){ FPS.mun=FPS.st.mag||1; SFX.ui(); } }
+  else if((INPUT.btn.tir||INPUT.btn.tirK)&&FPS.cadT<=0&&FPS.mun>0){ fpsTirer(); if(ARMES[FPS.arme].manuel||(FPS.st.pellets||1)>1) INPUT.btn.tir=false; }
+  for(let i=FPS.traces.length-1;i>=0;i--){ const t=FPS.traces[i]; t.t-=dtJeu; if(t.t<=0){ scene.remove(t.m); t.m.geometry.dispose(); FPS.traces.splice(i,1); } }
+  // cibles : le mode lance, la gravité fait le reste
+  if(C.maj) C.maj(dtJeu);
+  for(let i=FPS.cibles.length-1;i>=0;i--){ const c=FPS.cibles[i];
+    if(!c.mort){ c.vy-=(c.g===undefined?9.8:c.g)*dtJeu; c.x+=c.vx*dtJeu; c.y+=c.vy*dtJeu; c.z+=c.vz*dtJeu; if(c.m){ c.m.position.set(c.x,c.y,c.z); c.m.rotation.x+=(c.rx||0)*dtJeu; c.m.rotation.y+=(c.ry||0)*dtJeu; } }
+    c.vie-=dtJeu; if(c.mort||c.vie<=0||c.y<(c.sol||0)){ if(!c.mort&&c.pts>0&&C.rate) C.rate(c); if(c.m) scene.remove(c.m); FPS.cibles.splice(i,1); } }
+  FPS.t-=dtJeu; fpsHud(); if(FPS.t<=0) fpsFinir();
+}
+// caméra à l'œil et arme en main (appelée en tête de majCamera)
+function fpsCamera(){
+  const C=FPS.actif; camera.position.set(C.x,C.y,C.z); camera.rotation.order='YXZ'; camera.rotation.set(FPS.pitch+FPS.recul*0.05,FPS.yaw,0); camera.fov=C.fov||62; camera.updateProjectionMatrix(); VUE.yawRendu=0;
+  if(FPS.modele){ FPS.modele.position.copy(camera.position); FPS.modele.quaternion.copy(camera.quaternion); FPS.porteArme.position.set(0.34,-0.32+FPS.recul*0.04,-0.85+FPS.recul*0.12); FPS.porteArme.rotation.x=FPS.recul*0.25; }
+  if(FPS.mire) FPS.mire.style.transform='scale('+(1+FPS.recul*0.35)+')';
+}
+// viser au doigt : glisser n'importe où sur l'écran (le HUD laisse passer les gestes)
+renderer.domElement.addEventListener('pointerdown',e=>{ if(FPS.actif) FPS.drag={id:e.pointerId,x:e.clientX,y:e.clientY}; });
+window.addEventListener('pointermove',e=>{ if(!FPS.actif||!FPS.drag||e.pointerId!==FPS.drag.id) return; const k=0.0062*(FPS.actif.sensDoigt||1);
+  FPS.yaw-=(e.clientX-FPS.drag.x)*k; FPS.pitch-=(e.clientY-FPS.drag.y)*k; FPS.drag.x=e.clientX; FPS.drag.y=e.clientY; });
+window.addEventListener('pointerup',e=>{ if(FPS.drag&&e.pointerId===FPS.drag.id) FPS.drag=null; });
+
+/* ---------- STAND DE TIR DE L'ARMURERIE ----------
+   On choisit n'importe quelle arme à feu (possédée ou non : on l'essaie avant de l'acheter), avec ses modifications
+   posées ; 30 s de silhouettes qui surgissent entre 8 et 30 m, certaines en mouvement ; les civils (bleus) coûtent
+   200 points. Score, précision ; rien à gagner (c'est un essai : jamais de farming). */
+const STAND={el:null,ouvert:false,salle:null};
+function mkSilhouette(civil){ const tx=cTex(64,(c,s2)=>{ c.fillStyle='#e8e2d0'; c.fillRect(0,0,s2,s2); c.fillStyle=civil?'#3a6ad8':'#1c1e24';
+    c.beginPath(); c.arc(s2/2,s2*0.2,s2*0.13,0,7); c.fill(); c.fillRect(s2*0.27,s2*0.34,s2*0.46,s2*0.62);
+    if(civil){ c.fillStyle='#fff'; c.font='bold 11px Arial'; c.textAlign='center'; c.fillText('CIVIL',s2/2,s2*0.66); }
+    else { c.strokeStyle='#e8e2d0'; c.lineWidth=2; for(const r of [0.08,0.16]){ c.beginPath(); c.arc(s2/2,s2*0.55,s2*r,0,7); c.stroke(); } } });
+  const g=new THREE.Group(); const p=new THREE.Mesh(new THREE.PlaneGeometry(0.9,1.9),new THREE.MeshBasicMaterial({map:tx})); g.add(p);
+  const pied=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.9,0.08),new THREE.MeshLambertMaterial({color:0x3a3c42})); pied.position.y=-1.3; g.add(pied); return g; }
+function standCible(sa){ const T=sa.standTir, civ=Math.random()<0.2, d=8+Math.random()*22, x=T.ex+(Math.random()-0.5)*14, z=T.ez-1.4-d, m=mkSilhouette(civ); scene.add(m);
+  const mob=Math.random()<0.4; FPS.cibles.push({x,y:1.3,z,vx:mob?(Math.random()<0.5?-1:1)*(1.2+Math.random()*1.6):0,vy:0,vz:0,g:0,r:0.6,pts:civ?-200:Math.round(60+d*5),coul:civ?0x3a6ad8:0x1c1e24,cri:civ?'CIVIL !':'',m,vie:1.4+Math.random()*1.3,sol:-5,civil:civ}); }
+function ouvrirStandTir(sa){
+  STAND.ouvert=true; STAND.salle=sa;
+  if(!STAND.el){ const d=document.createElement('div'); d.id='standTir';
+    d.style.cssText='position:fixed;left:0;right:0;bottom:0;height:50%;z-index:40;background:linear-gradient(#141821ee,#0c0f15f8);border-top:2px solid #ff3b5c;color:#e8ecf2;font:600 13px Arial;display:flex;flex-direction:column;padding:10px 12px calc(env(safe-area-inset-bottom,0px) + 10px)';
+    d.innerHTML='<div style="display:flex;align-items:center;gap:8px"><div style="flex:1;font:900 16px Arial">🎯 Stand de tir — choisis une arme</div><button class="pill" id="stFerme">✕</button></div><div class="det" style="margin:4px 0">30 s de silhouettes ; jamais les civils (bleus). Gratuit : on essaie avant d’acheter.</div><div id="stListe" style="flex:1;overflow-y:auto"></div>';
+    document.body.appendChild(d); STAND.el=d; d.querySelector('#stFerme').addEventListener('pointerdown',(e)=>{ e.preventDefault(); fermerStandTir(); }); }
+  const L=ORDRE_ARMES.filter((id)=>ARMES[id].type==='gun'&&!ARMES[id].cachee&&mkArmeModeleDispo(id));
+  STAND.el.querySelector('#stListe').innerHTML=L.map((id)=>{ const a=ARMES[id], pos=META.armes[id].poss, mo=modsArme(id);
+    return '<div class="ligneItem"><div class="ico">'+icoArme(id)+'</div><div class="inf"><div class="nom">'+a.nom+(pos?' <span style="color:#7dff7a">(à toi)</span>':'')+'</div><div class="det">'+(mo.length?'modifs : '+mo.map((k)=>MODS_ARMES[k]?MODS_ARMES[k].ico:'').join(' '):a.prix+' $ en vente')+'</div></div><button class="pill" data-id="'+id+'">ESSAYER</button></div>'; }).join('');
+  STAND.el.querySelectorAll('.pill[data-id]').forEach((b)=>b.addEventListener('pointerdown',(e)=>{ e.preventDefault(); lancerStandTir(STAND.salle,b.dataset.id); }));
+  STAND.el.style.display='flex'; SFX.ui(); }
+function fermerStandTir(){ STAND.ouvert=false; if(STAND.el) STAND.el.style.display='none'; }
+function lancerStandTir(sa,id){
+  fermerStandTir(); if(FPS.actif||!sa||!sa.standTir) return; const T=sa.standTir; sa.standT=0.6;
+  fpsDemarrer({nom:'🎯 '+ARMES[id].nom,titre:'🎯 STAND DE TIR',aide:'jamais les civils',arme:id,x:T.ex,y:1.65,z:T.ez,yaw:0,pitch:0.0,yawMin:-0.5,yawMax:0.5,pitchMin:-0.25,pitchMax:0.3,duree:30,fov:72,portee:60,
+    maj:(dt)=>{ sa.standT-=dt; if(sa.standT<=0){ standCible(sa); sa.standT=0.55+Math.random()*0.8; } },
+    toucher:(c)=>{ if(c.civil){ toast('🛑 Un civil ! −200','warn'); SFX.refus(); } },
+    fin:(b)=>{ bigMsg('🎯 '+b.score+' PTS — '+b.precision+' %'); toast(ARMES[id].nom+' : '+b.touches+' touches sur '+b.coups+' tirs'+(META.armes[id].poss?'':' — en vente au mur ('+ARMES[id].prix+' $)'),'or'); }});
+}
+/* ---------- BALL-TRAP DU RANCH « COYOTE LOCO » (désert) ----------
+   Papy Earl lance des plateaux d'argile… et tout ce qui traîne dans son ranch : poulets en caoutchouc, nains de
+   jardin, pastèques, flamants gonflables, vieilles télés, une cuvette de WC, parfois un plateau doré. Jamais la
+   colombe de Mamie (pénalité). Fusil à pompe prêté (6 plombs, 2 coups, rechargement). 60 s, combo jusqu'à ×8.
+   Prime une fois par vague au-delà de BT_OBJECTIF ; premier objectif atteint = chapeau et tenue de cow-boy
+   (exploitMiniJeu('balltrap')). Le stand se pose dans le désert, sur le premier terrain plat et dégagé trouvé
+   (aucun tirage : la ville ne bouge pas). */
+const BT={ok:false,x:0,z:0,poste:null,lanceurs:[],earl:null,lanceT:0,vague:-1,partie:false};
+const BT_OBJECTIF=3500, BT_DUREE=60; /* pilote simulé (0,35 s de réaction, joystick) : ~8 500 ; passif : 0 */
+const BT_OBJETS=[ // poids, points, nom, cri, couleur, rayon
+  {k:'plateau',w:46,pts:100,c:0xff7a1a,r:0.55,cri:''},
+  {k:'poulet',w:10,pts:150,c:0xffd23f,r:0.6,cri:'COIN !'},
+  {k:'nain',w:9,pts:120,c:0xd83a3a,r:0.6,cri:'ADIEU NAIN'},
+  {k:'pasteque',w:9,pts:130,c:0x3f8a34,r:0.65,cri:'SPLASH'},
+  {k:'flamant',w:7,pts:180,c:0xff7ab4,r:0.75,cri:'PSCHHT'},
+  {k:'tele',w:6,pts:200,c:0x2a2e36,r:0.7,cri:'ÉTEINTE'},
+  {k:'wc',w:3,pts:300,c:0xf2f2ee,r:0.7,cri:'CHASSE TIRÉE'},
+  {k:'or',w:3,pts:500,c:0xffd700,r:0.5,cri:'PLATEAU D’OR'},
+  {k:'colombe',w:7,pts:-300,c:0xffffff,r:0.55,cri:'PAS LA COLOMBE !'},
+];
+function mkObjetBT(k){ const g=new THREE.Group(), M=(c)=>new THREE.MeshLambertMaterial({color:c}), B=(w,h,d,c,x,y,z)=>{ const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),M(c)); m.position.set(x||0,y||0,z||0); g.add(m); return m; };
+  if(k==='plateau'||k==='or'){ const m=new THREE.Mesh(new THREE.CylinderGeometry(0.55,0.42,0.16,16),M(k==='or'?0xffd700:0xff7a1a)); g.add(m); }
+  else if(k==='poulet'){ B(0.5,0.45,0.8,0xffd23f,0,0,0); B(0.3,0.35,0.3,0xffd23f,0,0.35,0.4); B(0.1,0.1,0.2,0xff7a1a,0,0.35,0.6); B(0.3,0.12,0.12,0xd83a3a,0,0.58,0.4); }
+  else if(k==='nain'){ B(0.45,0.55,0.4,0x3a6ad8,0,0,0); B(0.32,0.3,0.3,0xf2c8a0,0,0.42,0); const ch=new THREE.Mesh(new THREE.ConeGeometry(0.22,0.5,8),M(0xd83a3a)); ch.position.y=0.8; g.add(ch); B(0.28,0.22,0.08,0xf2f2ee,0,0.28,0.16); }
+  else if(k==='pasteque'){ const m=new THREE.Mesh(new THREE.SphereGeometry(0.6,12,8),M(0x3f8a34)); m.scale.set(1,0.85,1.25); g.add(m); }
+  else if(k==='flamant'){ const t=new THREE.Mesh(new THREE.TorusGeometry(0.5,0.2,8,16),M(0xff7ab4)); t.rotation.x=Math.PI/2; g.add(t); B(0.14,0.7,0.14,0xff7ab4,0,0.45,0.45); B(0.25,0.14,0.3,0xff7ab4,0,0.82,0.58); }
+  else if(k==='tele'){ B(0.9,0.7,0.6,0x2a2e36,0,0,0); B(0.7,0.5,0.02,0x5a7a9a,0,0.02,0.31); B(0.04,0.4,0.04,0x9aa2ad,0.2,0.5,0); }
+  else if(k==='wc'){ B(0.5,0.4,0.6,0xf2f2ee,0,0,0); B(0.5,0.55,0.18,0xf2f2ee,0,0.35,-0.25); B(0.46,0.06,0.5,0xe8e8e0,0,0.22,0.05); }
+  else if(k==='colombe'){ B(0.25,0.22,0.5,0xffffff,0,0,0); B(0.9,0.04,0.3,0xf2f2ee,0,0.05,0); B(0.08,0.08,0.12,0xffb46a,0,0.05,0.3); }
+  return g; }
+function btPoids(){ let t=0; for(const o of BT_OBJETS) t+=o.w; let r=Math.random()*t; for(const o of BT_OBJETS){ r-=o.w; if(r<=0) return o; } return BT_OBJETS[0]; }
+function btLancer(){ // une cible part d'un des deux lanceurs, en cloche, en travers du champ
+  const o=btPoids(), L=BT.lanceurs[Math.random()<0.5?0:1], sx=L.s; const m=mkObjetBT(o.k); scene.add(m);
+  const vx=-sx*(1.2+Math.random()*3), vz=(BT.dir||1)*(4+Math.random()*6), vy=11+Math.random()*5; // de chaque côté vers l'autre, à travers le centre
+  FPS.cibles.push({x:L.x,y:1.4,z:L.z,vx,vy,vz,r:o.r,pts:o.pts,coul:o.c,cri:o.cri,m,g:o.k==='colombe'?3:9.8,rx:o.k==='plateau'||o.k==='or'?0:3+Math.random()*4,ry:2+Math.random()*3,vie:5,sol:0.2,k:o.k});
+  if(o.k==='colombe'){ const c=FPS.cibles[FPS.cibles.length-1]; c.vy=7; c.vx*=0.6; } // elle plane : on a le temps de la reconnaître
+  bruit(0.12,0.4,320); }
+function lancerBallTrap(){
+  if(FPS.actif||!BT.ok) return; const p=BT.poste; BT.lanceT=1.2; BT.partie=true;
+  fpsDemarrer({nom:'🎯 BALL-TRAP',titre:'🎯 PULL !',aide:'vise au joystick ou au doigt, TIR',arme:'pompe',x:p.x,y:p.y+1.65,z:p.z,yaw:Math.PI,pitch:0.32,yawMin:Math.PI-1.1,yawMax:Math.PI+1.1,fov:80,pitchMin:-0.05,pitchMax:1.15,duree:BT_DUREE,portee:70,
+    maj:(dt)=>{ BT.lanceT-=dt; if(BT.lanceT<=0){ btLancer(); if(Math.random()<0.28) setTimeout(()=>{ if(FPS.actif&&BT.partie) btLancer(); },220); BT.lanceT=1.15+Math.random()*1.0; } }, // doublés de temps en temps
+    toucher:(c)=>{ if(c.k==='colombe'){ toast('🕊️ Papy Earl : « PAS LA COLOMBE DE MAMIE ! »','warn'); } else if(c.k==='wc'&&Math.random()<0.5) toast('🚽 Papy Earl : « Celle-là, elle a eu une longue carrière. »'); },
+    rate:(c)=>{ FPS.combo=1; if(c.k==='or') toast('Papy Earl : « Le plateau d’or… envolé. »'); }, // une cible qui retombe casse le combo
+    fin:finBallTrap}); }
+function finBallTrap(b){
+  BT.partie=false; const ok=b.score>=BT_OBJECTIF;
+  if(ok){ const g=primeMerUneFois('balltrap',300); exploitMiniJeu('balltrap'); bigMsg('🎯 '+b.score+' PTS — '+(g?'+'+g+' $':'BIEN JOUÉ')); SFX.achat(); }
+  else bigMsg('🎯 '+b.score+' PTS — objectif '+BT_OBJECTIF);
+  toast('Précision : '+b.precision+' % ('+b.touches+'/'+b.coups+')'+(ok?'':' — Papy Earl : « Encore une, gamin ? »'),ok?'or':'warn'); }
+function ballTrapAction(){ if(!BT.ok||P.veh||FPS.actif) return null; if(dist2(P.x,P.z,BT.poste.x,BT.poste.z)>2.4*2.4) return null;
+  return {label:'🎯 BALL-TRAP — '+BT_OBJECTIF+' PTS EN '+BT_DUREE+' s',fn:lancerBallTrap}; }
+function mkBallTrap(){
+  /* la bande de sable plate entre le tarmac (z ~ 112) et les mesas (z ~ 147) : le stand regarde le SUD, les mesas
+     orange servent de fond aux tirs ; on garde le premier point libre (ni relief, ni solide, ni planque) le plus
+     proche du point voulu (le désert au sud de l'aéroport est presque tout en relief : canyons, mesas, Pic) */
+  const libre=(x,z)=>{ for(let a=0;a<12;a++) for(const r of [0,6,11]){ const px=x+Math.cos(a/12*6.283)*r, pz=z+Math.sin(a/12*6.283)*r; if(dansReliefLibre(px,pz)||estEau(px,pz)||Math.abs(solY(px,pz))>0.4) return false; }
+    for(const [dx,dz] of [[0,14],[-8,12],[8,12]]) if(dansReliefLibre(x+dx,z+dz)) return false;
+    if(solidAt(x,z,11)||solidAt(x,z+14,6)) return false; if(PLANQUES.liste.some((q)=>dist2(q.x,q.z,x,z)<40*40)) return false; return true; };
+  const cands=[]; for(let x=HALF+14;x<=430;x+=3) for(let z=112;z<=134;z+=2) cands.push([x,z,dist2(x,z,HALF+62,121)]); cands.sort((p,q)=>p[2]-q[2]); /* du plus proche au plus loin : on s'arrête au premier libre (la recherche complète coûtait 1,4 s au chargement) */
+  let best=null; for(const c of cands) if(libre(c[0],c[1])){ best=c; break; }
+  if(!best) return; const [x,zc]=best, S=1; BT.x=x; BT.z=zc; BT.ok=true; BT.dir=S; const z=zc; // S : sens du champ (+z, le sud)
+  const bois=mat(0x8a6a44), bois2=mat(0x6a5038), rouge=mat(0xd83a3a), blanc=mat(0xf2f2ee);
+  // le poste de tir : estrade, rambarde, auvent ; on tire vers le nord, le champ s'ouvre devant
+  mkBox(5,0.4,4,bois,x,0.2,z-1); PLATS.push({x,z:z-1,hw:2.5,hd:2,h:0.4}); BT.poste={x,z:z-0.6,y:0.4};
+  for(const sx of [-1,1]) mkBox(0.15,1.1,4,bois2,x+sx*2.4,0.95,z-1); mkBox(5,0.12,0.15,bois2,x,1.1,z+0.95);
+  for(const [sx,sz] of [[-2.3,-0.6],[2.3,-0.6],[-2.3,-2.9],[2.3,-2.9]]) mkBox(0.15,3.2,0.15,bois2,x+sx,1.6,z+sz); mkBox(5.4,0.15,3.2,rouge,x,3.25,z-2.3); // l'auvent derrière le tireur : jamais dans sa visée
+  // les deux lanceurs (gauche, droite) et leurs plateaux empilés
+  BT.lanceurs=[]; for(const s of [-1,1]){ const lx=x+s*5.5, lz=z+5; /* près de l'axe : en portrait, le champ horizontal est étroit */ mkBox(1.6,0.9,1.6,mat(0x3a4250),lx,0.45,lz); const bras=mkBox(0.2,0.12,1.6,mat(0x9aa2ad),lx,1.0,lz+0.6); bras.rotation.y=s*0.6; addSolid({x:lx,z:lz,hw:0.8,hd:0.8,h:1});
+    for(let k=0;k<5;k++){ const p=new THREE.Mesh(new THREE.CylinderGeometry(0.45,0.36,0.12,12),mat(0xff7a1a)); p.position.set(lx+s*1.2,0.1+k*0.13,lz-0.6); scene.add(p); }
+    BT.lanceurs.push({x:lx,z:lz,s}); }
+  // le bric-à-brac de Papy Earl : nains, poulets, pastèques, une cuvette, une télé — et le pick-up
+  const tas=['nain','pasteque','poulet','tele','wc','nain','pasteque','flamant'];
+  tas.forEach((k,i)=>{ const o=mkObjetBT(k); o.position.set(x+10.5+(i%4)*1.1,0.45,z+2-Math.floor(i/4)*1.2); o.rotation.y=i; scene.add(o); });
+  mkBox(2.6,1.8,1.2,mat(0x5a4a38),x-12,0.9,z-1); addSolid({x:x-12,z:z-1,hw:1.3,hd:0.6,h:1.8}); mkEnseigne('BRIC-À-BRAC','#ffd23f',x-12,2.4,z-0.3,0,3);
+  // Papy Earl et son chapeau
+  { const h=makeHumain({haut:0xc84a2a,bas:0x3a5a8a,peau:0xe0b088,casq:0xe8e8e8,visage:'neutre'},1); h.g.position.set(x+3.8,0.4,z-2.4); h.g.rotation.y=Math.PI*0.15; scene.add(h.g); BT.earl=h; figurant(h);
+    const ch=new THREE.Mesh(new THREE.CylinderGeometry(0.42,0.5,0.14,12),mat(0xd8b080)); ch.position.set(x+3.8,2.18,z-2.4); scene.add(ch); }
+  // le champ : piquets, clôture de ranch, cible de paille, cactus ; l'enseigne
+  for(let k=-4;k<=4;k++) if(!dansReliefLibre(x+k*6,z+22)) mkBox(0.15,1.2,0.15,bois2,x+k*6,0.6,z+22); // la clôture du ranch, au pied des mesas
+  for(const [cx,cz] of [[-14,12],[16,17],[-20,6],[22,9]]){ if(dansReliefLibre(x+cx,z+cz)) continue; const ca=new THREE.Mesh(new THREE.CylinderGeometry(0.4,0.45,3.2,8),mat(0x3f7a44)); ca.position.set(x+cx,1.6,z+cz); scene.add(ca); for(const s of [-1,1]){ const b=new THREE.Mesh(new THREE.CylinderGeometry(0.25,0.28,1.4,8),mat(0x3f7a44)); b.position.set(x+cx+s*0.6,2.1,z+cz); scene.add(b); } }
+  mkEnseigne('BALL-TRAP DU RANCH COYOTE LOCO','#ff7a1a',x,4.2,z-3.4,0,9);
+  AERO.balises.push({x,z,ico:'🎯',coul:'#ff7a1a'});
+}
+/* =====================================================================
+   TERRAINS DE SPORT DES PARCS (17 octobre, demandé : « dans les parcs, un terrain de foot et d'autres terrains de
+   sport pour faire vivre l'endroit de verdure »). Deux pâtés du parc encore libres, vidés au début du décor
+   (reserverSports, construit puis retiré : la ville ne bouge pas) et rebâtis à la fin :
+   - (6,1) STADE DU PARC : terrain de 17 × 27 tondu en bandes, lignes, cages et filets, poteaux de corner, bancs,
+     tribune avec supporters, projecteurs allumés la nuit, tableau d'affichage. Un match à cinq contre cinq : un
+     vrai ballon (gravité, rebonds, frottement, bords qui renvoient), des joueurs qui le disputent (le plus proche
+     de chaque équipe y va, les autres tiennent leur poste selon le ballon, le gardien suit sur sa ligne) et
+     tirent vers le but adverse. On joue avec eux : on frappe le ballon en courant dedans (à pied ou en voiture) ;
+     un but marqué par le joueur = prime une fois par vague. Les joueurs sont des figurants : bousculés ou visés,
+     ils deviennent de vrais passants qui fuient, le match s'arrête (repris à la partie suivante).
+   - (5,1) COMPLEXE SPORTIF : court de tennis grillagé et son échange, deux tables de ping-pong, un coin de
+     street workout (barres, tractions, pompes).
+   Tout est cosmétique sauf le ballon (sur dt) ; LOD : rien ne bouge au-delà de 150 u.
+===================================================================== */
+const SPORTS={ok:false,stade:null,complexe:null,foot:null,tennis:null,pong:[],workout:[],t:0};
+const FOOT_DEMI={x:8.5,z:13.5}, FOOT_BUT=2.6, SPORT_CHEVEUX=[0x2a1c14,0x14161c,0x6a4a2a,0xd8b070,0x8a2a1a];
+function reserverSports(){
+  if(!DECOR_V2) return; const m=INNER/2+0.4, c=(bx,bz)=>({x:-HALF+bx*CELL+CELL/2,z:-HALF+bz*CELL+CELL/2});
+  SPORTS.stade=c(6,1); SPORTS.complexe=c(5,1);
+  for(const C of [SPORTS.stade,SPORTS.complexe]){ viderZone(C.x-m,C.x+m,C.z-m,C.z+m); ZONES_SANS_MOBILIER.push({x0:C.x-m,x1:C.x+m,z0:C.z-m,z1:C.z+m}); }
+  SPORTS.ok=true; }
+function mkSportsParcs(){
+  if(!SPORTS.ok) return; const i0=scene.children.length, blanc=mat(0xf2f2ee), S=SPORTS.stade, X=S.x, Z=S.z, Y=0.24;
+  // --- le stade : pelouse en bandes, lignes
+  { const tx=cTex(256,(c,s2)=>{ for(let k=0;k<8;k++){ c.fillStyle=k%2?'#3f8a34':'#4a9a3c'; c.fillRect(0,k*s2/8,s2,s2/8); } for(let k=0;k<900;k++){ c.fillStyle='rgba(20,60,20,0.18)'; c.fillRect(Math.random()*s2,Math.random()*s2,1,3); } });
+    const pel=new THREE.Mesh(new THREE.PlaneGeometry(INNER,INNER),new THREE.MeshLambertMaterial({map:tx})); pel.rotation.x=-Math.PI/2; pel.position.set(X,Y,Z); scene.add(pel); }
+  const ligne=(w,d,x,z)=>mkBox(w,0.02,d,blanc,X+x,Y+0.02,Z+z), D=FOOT_DEMI;
+  for(const s of [-1,1]){ ligne(2*D.x,0.12,0,s*D.z); ligne(0.12,2*D.z,s*D.x,0); ligne(8,0.12,0,s*(D.z-3.6)); ligne(0.12,3.6,-4,s*(D.z-1.8)); ligne(0.12,3.6,4,s*(D.z-1.8)); }
+  ligne(2*D.x,0.12,0,0); { const r=new THREE.Mesh(new THREE.RingGeometry(2.6,2.75,40),new THREE.MeshBasicMaterial({color:0xf2f2ee})); r.rotation.x=-Math.PI/2; r.position.set(X,Y+0.03,Z); scene.add(r); }
+  // cages et filets (nord et sud), poteaux de corner
+  const filet=new THREE.MeshLambertMaterial({color:0xf2f2ee,transparent:true,opacity:0.35,side:THREE.DoubleSide,depthWrite:false});
+  for(const s of [-1,1]){ const zb=Z+s*D.z; for(const sx of [-1,1]) mkBox(0.14,2.2,0.14,blanc,X+sx*FOOT_BUT,Y+1.1,zb); mkBox(2*FOOT_BUT+0.14,0.14,0.14,blanc,X,Y+2.2,zb);
+    const fd=new THREE.Mesh(new THREE.PlaneGeometry(2*FOOT_BUT,2.2),filet); fd.position.set(X,Y+1.1,zb+s*1.2); fd.userData.garder=true; scene.add(fd);
+    const fh=new THREE.Mesh(new THREE.PlaneGeometry(2*FOOT_BUT,1.2),filet); fh.rotation.x=Math.PI/2; fh.position.set(X,Y+2.2,zb+s*0.6); fh.userData.garder=true; scene.add(fh);
+    for(const sx of [-1,1]){ const fc=new THREE.Mesh(new THREE.PlaneGeometry(1.2,2.2),filet); fc.rotation.y=Math.PI/2; fc.position.set(X+sx*FOOT_BUT,Y+1.1,zb+s*0.6); fc.userData.garder=true; scene.add(fc); }
+    for(const sx of [-1,1]){ mkBox(0.06,1.3,0.06,mat(0xffd23f),X+sx*D.x,Y+0.65,zb); const fl=new THREE.Mesh(new THREE.PlaneGeometry(0.45,0.3),new THREE.MeshBasicMaterial({color:0xff3b3b,side:THREE.DoubleSide})); fl.position.set(X+sx*D.x+0.23,Y+1.15,zb); scene.add(fl); } }
+  // bancs (est), tribune (ouest) et supporters, projecteurs, tableau d'affichage
+  for(const s of [-1,1]){ mkBox(0.6,0.5,4,mat(0x2a6ad8),X+D.x+2.6,Y+0.25,Z+s*5); mkBox(0.15,1.2,4,mat(0xcfe0ea),X+D.x+3.0,Y+0.85,Z+s*5); }
+  for(let r=0;r<3;r++){ mkBox(1.2,0.5+r*0.5,22,mat(0x9aa2ad),X-D.x-2.4-r*1.1,Y+(0.5+r*0.5)/2,Z); addSolid({x:X-D.x-2.4-r*1.1,z:Z,hw:0.6,hd:11,h:Y+0.5+r*0.5,toit:true}); }
+  SPORTS.supporters=[]; for(let k=0;k<9;k++){ const r=k%3, zz=Z-8+Math.floor(k/3)*7+(r-1)*1.3, eq=k%2; const h=makeHumain({haut:eq?0xd83a3a:0x2a6ad8,bas:0x2a2e36,peau:choixD(civPeau),casq:choixD(SPORT_CHEVEUX),visage:'neutre'},1);
+    h.g.position.set(X-D.x-2.4-r*1.1,Y+0.5+r*0.5,zz); h.g.rotation.y=Math.PI/2; scene.add(h.g); figurant(h); SPORTS.supporters.push({h,eq,ph:k}); }
+  SPORTS.lampes=[]; for(const [sx,sz] of [[-1,-1],[1,-1],[-1,1],[1,1]]){ const px=X+sx*(D.x+3.4), pz=Z+sz*(D.z+0.6); mkBox(0.3,9,0.3,mat(0x9aa2ad),px,Y+4.5,pz); mkBox(1.8,0.6,0.5,mat(0x3a3e46),px,Y+9.1,pz);
+    const l=new THREE.Mesh(new THREE.PlaneGeometry(1.6,0.45),new THREE.MeshBasicMaterial({color:0xfff6d0})); l.position.set(px,Y+9.1,pz-sz*0.26); l.rotation.y=sz>0?Math.PI:0; l.userData.garder=true; scene.add(l); SPORTS.lampes.push(l); }
+  { const tb=document.createElement('canvas'); tb.width=256; tb.height=64; SPORTS.tabCtx=tb.getContext('2d'); const t=new THREE.CanvasTexture(tb); SPORTS.tabTex=t;
+    mkBox(0.3,3.4,0.3,mat(0x3a3e46),X+D.x+3,Y+1.7,Z-D.z-2); const pan=new THREE.Mesh(new THREE.PlaneGeometry(4,1),new THREE.MeshBasicMaterial({map:t})); pan.position.set(X+D.x+3,Y+3.8,Z-D.z-1.8); pan.userData.garder=true; scene.add(pan); }
+  mkEnseigne('STADE DU PARC','#7dff7a',X,4.4,Z+D.z+3.2,0,6);
+  // --- le match : deux équipes de cinq, le ballon
+  const F={bx:X,bz:Z,by:Y+0.25,vx:0,vy:0,vz:0,joueurs:[],score:[0,0],pause:0,dernier:null,ballon:null,butT:0}; SPORTS.foot=F;
+  { const tx=cTex(64,(c,s2)=>{ c.fillStyle='#f2f2ee'; c.fillRect(0,0,s2,s2); c.fillStyle='#1c1e24'; for(const [a,b] of [[16,16],[48,16],[32,40],[12,52],[52,52]]){ c.beginPath(); c.arc(a,b,7,0,7); c.fill(); } });
+    const b=new THREE.Mesh(new THREE.SphereGeometry(0.25,14,10),new THREE.MeshLambertMaterial({map:tx})); b.userData.garder=true; scene.add(b); F.ballon=b; }
+  // postes en fractions du demi-terrain (fz < 0 : vers son propre but) ; les Bleus défendent le nord, les Rouges le sud
+  const postes=[[0,-0.92,'g'],[-0.5,-0.55],[0.5,-0.55],[-0.35,-0.18],[0.35,-0.18]];
+  for(let t=0;t<2;t++) for(const [fx,fz,role] of postes){ const camp=t?1:-1, px=fx*(t?-1:1), pz=-camp*fz, h=makeHumain({haut:t?0xd83a3a:0x2a6ad8,bas:t?0xf2f2ee:0x1c2030,peau:choixD(civPeau),casq:role?0x14161c:choixD(SPORT_CHEVEUX),visage:'neutre'},1);
+    const hx=X+px*D.x, hz=Z+pz*D.z; h.g.position.set(hx,Y,hz); scene.add(h.g); figurant(h);
+    F.joueurs.push({h,t,g:!!role,px,pz,x:hx,z:hz,cd:0,v:0}); }
+  // --- le complexe : tennis, ping-pong, street workout
+  const C=SPORTS.complexe, cx=C.x, cz=C.z;
+  { const tx=cTex(128,(c,s2)=>{ c.fillStyle='#2f6ab0'; c.fillRect(0,0,s2,s2); c.strokeStyle='#f2f2ee'; c.lineWidth=2; c.strokeRect(s2*0.12,s2*0.04,s2*0.76,s2*0.92); c.strokeRect(s2*0.2,s2*0.04,s2*0.6,s2*0.92);
+      c.beginPath(); c.moveTo(s2*0.2,s2*0.27); c.lineTo(s2*0.8,s2*0.27); c.moveTo(s2*0.2,s2*0.73); c.lineTo(s2*0.8,s2*0.73); c.moveTo(s2/2,s2*0.27); c.lineTo(s2/2,s2*0.73); c.stroke(); });
+    const t=new THREE.Mesh(new THREE.PlaneGeometry(13,26),new THREE.MeshLambertMaterial({map:tx})); t.rotation.x=-Math.PI/2; t.position.set(cx-6,Y+0.01,cz); scene.add(t);
+    mkBox(10.4,0.9,0.05,mat(0xf2f2ee),cx-6,Y+0.45,cz); for(const sx of [-1,1]) mkBox(0.1,1.05,0.1,mat(0x3a3e46),cx-6+sx*5.3,Y+0.52,cz);
+    const gr=new THREE.MeshLambertMaterial({color:0x3a5a3a,transparent:true,opacity:0.45,side:THREE.DoubleSide,depthWrite:false}); // grillage
+    for(const [w,d,x,z,ry] of [[13.6,0,cx-6,cz-13.3,0],[13.6,0,cx-6,cz+13.3,0],[26.6,0,cx-12.8,cz,Math.PI/2],[26.6,0,cx+0.8,cz,Math.PI/2]]){ const p=new THREE.Mesh(new THREE.PlaneGeometry(w,3),gr); p.position.set(x,Y+1.5,z); p.rotation.y=ry; p.userData.garder=true; scene.add(p); }
+    for(const [x0,z0,x1,z1] of [[cx-12.8,cz-13.3,cx+0.8,cz-13.3],[cx-12.8,cz+13.3,cx+0.8,cz+13.3]]) addSolid({x:(x0+x1)/2,z:z0,hw:6.8,hd:0.15,h:3});
+    addSolid({x:cx-12.8,z:cz,hw:0.15,hd:13.3,h:3}); addSolid({x:cx+0.8,z:cz-7,hw:0.15,hd:6.3,h:3}); addSolid({x:cx+0.8,z:cz+7,hw:0.15,hd:6.3,h:3}); // une entrée au milieu du grillage est
+    const T={a:null,b:null,balle:null,t:0}; SPORTS.tennis=T;
+    for(const s of [-1,1]){ const h=makeHumain({haut:s<0?0xf2f2ee:0xffd23f,bas:0xf2f2ee,peau:choixD(civPeau),casq:choixD(SPORT_CHEVEUX),visage:'neutre'},1); h.g.position.set(cx-6,Y,cz+s*11); h.g.rotation.y=s<0?0:Math.PI; scene.add(h.g); figurant(h); if(s<0) T.a=h; else T.b=h; }
+    const bl=new THREE.Mesh(new THREE.SphereGeometry(0.1,8,6),new THREE.MeshBasicMaterial({color:0xd8ff3a})); bl.userData.garder=true; scene.add(bl); T.balle=bl; }
+  for(let k=0;k<2;k++){ const tx=cx+7.5, tz=cz-8+k*6; mkBox(2.7,0.08,1.5,mat(0x1a6a3a),tx,Y+0.76,tz); mkBox(0.04,0.15,1.5,mat(0xf2f2ee),tx,Y+0.88,tz); for(const [a,b] of [[-1.1,-0.6],[1.1,-0.6],[-1.1,0.6],[1.1,0.6]]) mkBox(0.08,0.75,0.08,mat(0x3a3e46),tx+a,Y+0.37,tz+b);
+    addSolid({x:tx,z:tz,hw:1.4,hd:0.8,h:Y+0.8}); const P2=[]; for(const s of [-1,1]){ const h=makeHumain({haut:choixD([0xd83a3a,0x2a6ad8,0x7dff7a,0xff9f2e]),bas:0x2a2e36,peau:choixD(civPeau),casq:choixD(SPORT_CHEVEUX),visage:'neutre'},1); h.g.position.set(tx+s*2,Y,tz); h.g.rotation.y=s<0?Math.PI/2:-Math.PI/2; scene.add(h.g); figurant(h); P2.push(h); }
+    const bl=new THREE.Mesh(new THREE.SphereGeometry(0.05,6,4),new THREE.MeshBasicMaterial({color:0xffffff})); bl.userData.garder=true; scene.add(bl); SPORTS.pong.push({x:tx,z:tz,j:P2,balle:bl,ph:k*1.3}); }
+  { const wx=cx+7.5, wz=cz+8; for(const dx of [-1.5,1.5]) mkBox(0.12,2.6,0.12,mat(0x3a3e46),wx+dx,Y+1.3,wz); mkBox(3.1,0.08,0.08,mat(0x9aa2ad),wx,Y+2.55,wz); for(const dx of [-1,1]) { mkBox(0.08,1.0,0.08,mat(0x3a3e46),wx+dx*0.7,Y+0.5,wz+2.5); } mkBox(1.5,0.06,0.06,mat(0x9aa2ad),wx,Y+1.0,wz+2.5);
+    const h1=makeHumain({haut:0x14161c,bas:0x2a2e36,peau:choixD(civPeau),casq:0x14161c,visage:'neutre'},1); h1.g.position.set(wx,Y+0.6,wz); scene.add(h1.g); figurant(h1); SPORTS.workout.push({h:h1,type:'traction',y0:Y+0.6});
+    const h2=makeHumain({haut:0xff5ad0,bas:0x2a2e36,peau:choixD(civPeau),casq:0x3a2a1c,visage:'neutre'},1); h2.g.position.set(wx-2.6,Y+0.35,wz+2.5); h2.g.rotation.x=-1.25; scene.add(h2.g); figurant(h2); SPORTS.workout.push({h:h2,type:'pompes',y0:Y+0.35}); }
+  mkEnseigne('COMPLEXE SPORTIF DU PARC','#35e0ff',cx,4.2,cz+14.2,0,8);
+  AERO.balises.push({x:X,z:Z,ico:'⚽',coul:'#7dff7a'}); AERO.balises.push({x:cx,z:cz,ico:'🎾',coul:'#35e0ff'});
+  fusionnerDecor(i0); majTableauFoot();
+}
+// les halos des portes de boutique, posés en fin de décor (aucun tirage avant le mobilier)
+function mkHalosBoutiques(){ for(const p of PORTES){ if(!p.boutiqueId||p.halo) continue; const D=BOUTIQUES_DEF[p.boutiqueId], b=BOUTIQUES.find((q)=>q.id===p.boutiqueId);
+  const halo=new THREE.Mesh(new THREE.PlaneGeometry(3.4,1.6),new THREE.MeshBasicMaterial({color:new THREE.Color(D.coul),transparent:true,opacity:0.25,depthWrite:false}));
+  halo.rotation.x=-Math.PI/2; halo.rotation.z=b?b.ry:0; halo.position.set(p.x,0.25,p.z); scene.add(halo); p.halo=halo; } }
+function majTableauFoot(){ const c=SPORTS.tabCtx, F=SPORTS.foot; if(!c||!F) return; c.fillStyle='#14161c'; c.fillRect(0,0,256,64); c.font='900 36px Arial'; c.textAlign='center';
+  c.fillStyle='#4a8ad8'; c.fillText('BLEUS '+F.score[0],70,46); c.fillStyle='#ffd23f'; c.fillText('–',128,44); c.fillStyle='#ff6a6a'; c.fillText(F.score[1]+' ROUGES',188,46); SPORTS.tabTex.needsUpdate=true; }
+function footReset(engagement){ const F=SPORTS.foot; if(!F) return; const S=SPORTS.stade; F.bx=S.x; F.bz=S.z; F.by=0.5; F.vx=F.vy=F.vz=0; F.dernier=null; F.pause=engagement?1.2:0;
+  for(const j of F.joueurs){ j.x=S.x+j.px*FOOT_DEMI.x; j.z=S.z+j.pz*FOOT_DEMI.z*(j.g?1:0.9); } }
+function footDemarrer(){ const F=SPORTS.foot; if(!F) return; F.score=[0,0]; footReset(true); majTableauFoot(); }
+// le joueur frappe le ballon en courant dedans (à pied ou en voiture)
+function footFrappeJoueur(F){
+  const dx=F.bx-P.x, dz=F.bz-P.z, d=Math.hypot(dx,dz);
+  if(P.veh){ const v=P.veh; if(v.def.air||Math.hypot(F.bx-v.x,F.bz-v.z)>Math.max(1.6,v.def.larg*0.6)||Math.abs(v.v)<2) return; const sp=Math.abs(v.v)*1.3+4, a=v.ang; F.vx=Math.sin(a)*sp*Math.sign(v.v); F.vz=Math.cos(a)*sp*Math.sign(v.v); F.vy=sp*0.35; F.dernier='joueur'; return; }
+  if(d>0.75||Math.abs(P.y-0.22)>1.5) return; const sp=Math.max(9,Math.hypot(INPUT.mx||0,INPUT.mz||0)*16); const a=(INPUT.mx||INPUT.mz)?Math.atan2(INPUT.mx,INPUT.mz):Math.atan2(dx,dz);
+  F.vx=Math.sin(a)*sp; F.vz=Math.cos(a)*sp; F.vy=3+Math.random()*2; F.dernier='joueur'; SFX.coup&&SFX.coup(); }
+function majSportsParcs(dt){
+  if(!SPORTS.ok||!SPORTS.foot) return; SPORTS.t+=dt; const t=SPORTS.t, S=SPORTS.stade, F=SPORTS.foot, D=FOOT_DEMI, Y=0.24;
+  const nuit=(ETAT.nuitF||0)>0.3; for(const l of SPORTS.lampes) l.visible=nuit;
+  if(dist2(P.x,P.z,S.x,S.z)>150*150) return;
+  // les supporters : on se lève, on saute à chaque but
+  for(const s of SPORTS.supporters){ if(figConverti(s.h)) continue; const sauts=F.butT>0&&F.dernierBut===s.eq; s.h.g.position.y=(s.h.g.userData.y0||(s.h.g.userData.y0=s.h.g.position.y))+(sauts?Math.abs(Math.sin(t*9+s.ph))*0.5:0); s.h.brasG.rotation.x=s.h.brasD.rotation.x=sauts?-2.8:-0.2+Math.sin(t*2+s.ph)*0.1; }
+  // le match s'arrête si un joueur a pris peur (devenu un vrai passant)
+  const enJeu=F.joueurs.every((j)=>!figConverti(j.h));
+  if(enJeu){
+    F.butT=Math.max(0,F.butT-dt); if(F.pause>0) F.pause-=dt;
+    footFrappeJoueur(F);
+    // le ballon
+    F.vy-=18*dt; F.bx+=F.vx*dt; F.by+=F.vy*dt; F.bz+=F.vz*dt;
+    if(F.by<Y+0.25){ F.by=Y+0.25; if(F.vy<-1.5) F.vy=-F.vy*0.5; else F.vy=0; const fr=Math.max(0,1-1.6*dt); F.vx*=fr; F.vz*=fr; }
+    // but : la ligne franchie entre les poteaux, sous la barre
+    for(const s of [-1,1]){ if(s*(F.bz-S.z)>D.z+0.3&&Math.abs(F.bx-S.x)<FOOT_BUT&&F.by<Y+2.2){ const eq=s<0?1:0; F.score[eq]++; F.dernierBut=eq; F.butT=2.5; majTableauFoot();
+        if(F.dernier==='joueur'&&dist2(P.x,P.z,S.x,S.z)<60*60){ const g=primeMerUneFois('foot',150); bigMsg('⚽ BUT !'+(g?' — +'+g+' $':'')); SFX.achat(); ETAT.score+=250; } else if(dist2(P.x,P.z,S.x,S.z)<45*45) toast('⚽ But des '+(eq?'Rouges':'Bleus')+' — '+F.score[0]+' à '+F.score[1]);
+        footReset(true); break; } }
+    // les bords du terrain renvoient le ballon (la touche, sans arbitre)
+    if(Math.abs(F.bx-S.x)>D.x+0.6){ F.bx=S.x+Math.sign(F.bx-S.x)*(D.x+0.6); F.vx=-F.vx*0.6; }
+    if(Math.abs(F.bz-S.z)>D.z+0.6&&Math.abs(F.bx-S.x)>=FOOT_BUT){ F.bz=S.z+Math.sign(F.bz-S.z)*(D.z+0.6); F.vz=-F.vz*0.6; }
+    if(Math.abs(F.bz-S.z)>D.z+2.2){ footReset(true); }
+    F.ballon.position.set(F.bx,F.by,F.bz); F.ballon.rotation.x+=F.vz*dt*3; F.ballon.rotation.z-=F.vx*dt*3;
+    // les joueurs : le plus proche de chaque équipe va au ballon, les autres tiennent leur poste
+    const proche=[null,null], dp=[1e9,1e9]; for(const j of F.joueurs){ if(j.g) continue; const d=dist2(j.x,j.z,F.bx,F.bz); if(d<dp[j.t]){ dp[j.t]=d; proche[j.t]=j; } }
+    for(const j of F.joueurs){ let tx,tz,v=5.2;
+      const butAdv=S.z+(j.t?-1:1)*D.z; // les Bleus (t 0) attaquent le sud (+z), les Rouges le nord
+      if(j.g){ const zb=S.z-(j.t?-1:1)*(D.z-0.8); tx=S.x+clamp(F.bx-S.x,-FOOT_BUT+0.4,FOOT_BUT-0.4); tz=zb; v=4.2; if(dist2(j.x,j.z,F.bx,F.bz)<9) { tx=F.bx; tz=F.bz; v=6; } }
+      else if(j===proche[j.t]&&F.pause<=0){ tx=F.bx-Math.sin(Math.atan2(S.x-F.bx,butAdv-F.bz))*0.5; tz=F.bz-Math.cos(Math.atan2(S.x-F.bx,butAdv-F.bz))*0.5; v=6.3; }
+      else { tx=S.x+j.px*D.x*0.9+(F.bx-S.x)*0.3; tz=S.z+j.pz*D.z*0.7+(F.bz-S.z)*0.45; v=4; }
+      const dx=tx-j.x, dz=tz-j.z, d=Math.hypot(dx,dz); j.cd-=dt;
+      if(d>0.15){ const st=Math.min(d,v*dt); j.x+=dx/d*st; j.z+=dz/d*st; j.v=v; j.h.g.rotation.y=Math.atan2(dx,dz); } else j.v=0;
+      if(F.butT>0){ j.v=0; if(j.t===F.dernierBut){ j.h.brasG.rotation.x=j.h.brasD.rotation.x=-2.9; } }
+      // frappe
+      if(F.pause<=0&&j.cd<=0&&dist2(j.x,j.z,F.bx,F.bz)<0.9*0.9&&F.by<Y+1){ const ang=Math.atan2(S.x+(Math.random()-0.5)*FOOT_BUT*2-F.bx,butAdv-F.bz)+(Math.random()-0.5)*0.5, p=j.g?13:9+Math.random()*6;
+        F.vx=Math.sin(ang)*p; F.vz=Math.cos(ang)*p; F.vy=j.g?7:Math.random()<0.3?5:1.5; F.dernier=j; j.cd=0.6; }
+      j.h.g.position.set(j.x,Y,j.z); animeHumain(j.h,dt,j.v,false); }
+  }
+  // tennis : un échange qui ne s'arrête jamais (la balle en cloche d'un joueur à l'autre)
+  { const T=SPORTS.tennis; if(T&&!figConverti(T.a)&&!figConverti(T.b)){ T.t+=dt; const per=1.6, u=(T.t%per)/per, sens=Math.floor(T.t/per)%2, C=SPORTS.complexe, za=C.z-11, zb=C.z+11, z0=sens?zb:za, z1=sens?za:zb, x=C.x-6+Math.sin(T.t*0.7)*3;
+      T.balle.position.set(x,Y+1+Math.sin(u*Math.PI)*2.4,z0+(z1-z0)*u); for(const [h,zz] of [[T.a,za],[T.b,zb]]){ h.g.position.x=lerp(h.g.position.x,x,dt*3); h.g.position.z=zz; h.brasD.rotation.x=(Math.abs(T.balle.position.z-zz)<1.5)?-2.2:-0.4; animeHumain(h,dt,2,false); } } }
+  for(const pg of SPORTS.pong){ if(pg.j.some((h)=>figConverti(h))) continue; const u=((t*1.4+pg.ph)%1), sens=Math.floor(t*1.4+pg.ph)%2, x0=sens?pg.x-1.2:pg.x+1.2, x1=sens?pg.x+1.2:pg.x-1.2;
+    pg.balle.position.set(x0+(x1-x0)*u,Y+0.85+Math.abs(Math.sin(u*Math.PI*2))*0.35,pg.z+Math.sin(t*2+pg.ph)*0.3); for(const h of pg.j) h.brasD.rotation.x=-1.2+Math.sin(t*9+pg.ph)*0.3; }
+  for(const w of SPORTS.workout){ if(figConverti(w.h)) continue; const a=Math.sin(t*3.2+(w.type==='pompes'?1:0));
+    if(w.type==='traction'){ w.h.g.position.y=w.y0+0.35+a*0.35; w.h.brasG.rotation.x=w.h.brasD.rotation.x=-3.0+a*0.4; } else { w.h.g.position.y=w.y0+a*0.1; w.h.brasG.rotation.x=w.h.brasD.rotation.x=-1.4+a*0.25; } }
+}
 /* CASCADES ET VOLCAN (15 octobre, demandé : « de la cascade à des endroits, avec de la déco, et de la lave sur
    l'île au pirate avec de la fumée ») — décor, générateur du décor (sansAleaVille), animé sur dt :
    - GRANDE CASCADE de la face sud du Pic du Vertige (90 u) : ruisseau sur le plateau, rideau d'eau qui s'arque
@@ -8499,7 +9043,8 @@ function mkToitsVivants(){
   const i0=scene.children.length;
   const blanc=mat(0xe8ecf2), gris=mat(0x6a7078), bois=mat(0x8a6a44), eauM=new THREE.MeshLambertMaterial({color:0x35c8e0,emissive:0x0a3a48});
   let nHeli=0;
-  cands.forEach((s,k)=>{ const h=s.h, x=s.x, z=s.z, w=s.hw*2, d=s.hd*2, ty=(k*7+3)%10;
+  TOITS.cands=cands;
+  cands.forEach((s,k)=>{ const h=s.h, x=s.x, z=s.z, w=s.hw*2, d=s.hd*2, ty=(k*7+3)%10; s.tyToit=ty;
     const B=(bw,bh,bd,m,dx,dy,dz)=>mkBox(bw,bh,bd,m,x+dx,h+dy,z+dz);
     if(ty===0){ B(w*0.55,0.22,d*0.42,mat(0xd8d2c4),0,0.11,0); B(w*0.5,0.06,d*0.37,eauM,0,0.2,0); // piscine
       for(const sx of [-1,1]){ const tr=B(0.7,0.25,1.8,mat(0xff8a5a),sx*w*0.33,0.3,d*0.32); tr.rotation.x=0.1; }
@@ -8527,6 +9072,7 @@ function mkToitsVivants(){
     else if(ty===7){ B(1.6,1.0,1.6,gris,w*0.3,0.5,-d*0.3); B(1.4,0.8,1.4,gris,-w*0.3,0.4,-d*0.3); // coffre à fouiller, climatiseurs
       B(1.2,0.7,0.8,mat(0x6a4a2e),0,0.35,d*0.25); B(1.25,0.12,0.85,mat(0xd8b02a),0,0.74,d*0.25);
       TOITS.coffres.push({x,z:z+d*0.25,y:h,r:1.6,vague:-1}); }
+    if((ty===8||ty===9)&&h<=26) TOITS.nus.push(s); // noté ICI : recalculée plus tard, la liste des toits a d'autres solides et les types se décalent
     // couronnement des tours les plus hautes : flèche ou pyramide
     if(h>26&&[5,6,8,9].includes(ty)){ /* jamais sur un toit aménagé (hélipad, piscine, bar…) */ if(k%2){ const fl=new THREE.Mesh(new THREE.ConeGeometry(Math.min(w,d)*0.18,9,8),mat(0xc8ccd4)); fl.position.set(x,h+4.5,z); scene.add(fl); B(0.12,4,0.12,gris,0,11,0); }
       else { const py=new THREE.Mesh(new THREE.ConeGeometry(Math.min(w,d)*0.62,6,4),mat(0x3a4a5a)); py.rotation.y=Math.PI/4; py.position.set(x,h+3,z); scene.add(py); } }
@@ -8713,8 +9259,8 @@ function mkAeroVie(){
   for(let k=0;k<9;k++){ const s=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:0xfff4d0,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending}));
     s.scale.set(3,3,1); s.position.set(AERO.RX,0.6,64+k*7); scene.add(s); mkBox(0.3,0.5,0.3,mat(0x3a3e46),AERO.RX,0.25,64+k*7); V.rampe.push(s); }
   // avion de tourisme en tour de piste (à l'est de la grande piste) et Écureuil autour de la tour
-  { const m=makeVoiture('tourisme'); m.rotation.order='YXZ'; scene.add(m); V.avion={m,s:0,b:boucleRect(AERO.RX+24,AERO.RX+70,-185,45,18)};
-    const hm=makeVoiture('ecureuil'); hm.rotation.order='YXZ'; scene.add(hm); V.helico={m:hm,a:0}; }
+  { const m=makeVoiture('tourisme'); m.rotation.order='YXZ'; scene.add(m); V.avion={m,s:0,b:boucleRect(AERO.RX+24,AERO.RX+70,-185,45,18),c:cibleCiel('tourisme','💥 AVION ABATTU',m,5,1.8,4.2,80,1)};
+    const hm=makeVoiture('ecureuil'); hm.rotation.order='YXZ'; scene.add(hm); V.helico={m:hm,a:0,c:cibleCiel('ecureuil','💥 HÉLICO ABATTU',hm,5.3,2.4,5.3,90,1)}; }
   fusionnerDecor(i0);
   V.ok=true;
 }
@@ -8754,11 +9300,11 @@ function majAeroVie(dt){
   // rampe d'approche : chenillard la nuit
   for(let k=0;k<V.rampe.length;k++){ const ph=(V.t*2.2)%1.4; V.rampe[V.rampe.length-1-k].material.opacity=nuit?(Math.abs(ph-k/V.rampe.length)<0.08?1:0.12):0; }
   // avion de tourisme : tour de piste, passage bas sur la branche ouest
-  { const A=V.avion; A.s+=dt*17; const p=pointBoucle(A.b,A.s), u=((A.s%A.b.L)+A.b.L)%A.b.L/A.b.L;
+  if(V.avion.c.etat==='vol'){ const A=V.avion; A.s+=dt*17; const p=pointBoucle(A.b,A.s), u=((A.s%A.b.L)+A.b.L)%A.b.L/A.b.L;
     const alt=10+16*(0.5+0.5*Math.cos(u*Math.PI*2)); A.m.position.set(p.x,alt,p.z); A.m.rotation.y=p.ang; A.m.rotation.z=Math.abs(Math.sin(u*Math.PI*4))>0.9?-0.25:0;
     const ud=A.m.userData; if(ud.rotor) ud.rotor.rotation.y+=dt*30; }
   // Écureuil : ronde autour de la tour de contrôle
-  if(AERO.tour){ const H=V.helico; H.a+=dt*0.22; const x=AERO.tour.x+Math.cos(H.a)*45, z=AERO.tour.z-16+Math.sin(H.a)*45;
+  if(AERO.tour&&V.helico.c.etat==='vol'){ const H=V.helico; H.a+=dt*0.22; const x=AERO.tour.x+Math.cos(H.a)*45, z=AERO.tour.z-16+Math.sin(H.a)*45;
     H.m.position.set(x,34+Math.sin(H.a*3)*3,z); H.m.rotation.y=H.a+Math.PI; H.m.rotation.z=0.12; const ud=H.m.userData; if(ud.rotor) ud.rotor.rotation.y+=dt*24; if(ud.rotorQ) ud.rotorQ.rotation.x+=dt*30; }
   if(!pres) return;
   // placeurs : ils guident l'avion qui arrive à leur porte
@@ -9197,6 +9743,28 @@ function texBalise(ico,coul){
     c.font='64px Arial'; c.textAlign='center'; c.textBaseline='middle'; c.fillText(ico,64,66); }
   return (_texBalises[k]=new THREE.CanvasTexture(cv));
 }
+// tout ce qu'on peut faire hors des salles (lu aux sources, jamais recopié) : balises 3D ET filtre « Activités » de la carte
+function pointsActivites(){
+  const L=[], add=(x,z,ico,coul,y,nom)=>{ if(isFinite(x)&&isFinite(z)) L.push({x,z,ico,coul,y,nom}); };
+  for(const id in RIDE_DEFS){ const d=rideDepart(id); if(d) add(d.x,d.z,RIDE_DEFS[id].eau?'🚤':'🏁','#c8901a',undefined,RIDE_DEFS[id].nom); }
+  if(TOW.kWake) add(TOW.kWake.x,TOW.kWake.z,'🏄','#1a8ac8',1,'Wakeboard');
+  if(TOW.kPara) add(TOW.kPara.x,TOW.kPara.z,'🪂','#1a8ac8',1,'Parachute ascensionnel');
+  if(PIC.wingsuit) add(PIC.wingsuit.x,PIC.wingsuit.z,'🦅','#7a3ac8',PIC.wingsuit.y,'Wingsuit');
+  if(PIC.plg) add(PIC.plg.x,PIC.plg.z0,'🪂','#7a3ac8',PIC.H,'Saut BASE');
+  if(PIC.cage) add(PIC.cage.x,PIC.cage.z,'🛗','#5a6a7a',PIC.cage.yBas||0,'Monte-charge');
+  if(POIS.banderole) add(POIS.banderole.x,POIS.banderole.z,'✈️','#c8901a',0,'Banderole');
+  if(MERV.paillote) add(MERV.paillote.x,MERV.paillote.z,'🍹','#1a8a6a',1,'Paillote');
+  if(MERV.tresor) add(MERV.tresor.x,MERV.tresor.z,'⛏️','#8a6a2a',undefined,'Île au trésor');
+  if(POIS.skateXXL) add(POIS.skateXXL.x,POIS.skateXXL.z,'🛹','#c83a9a',undefined,'Skatepark XXL');
+  if(BASKET.ok) add(BASKET.depart.x,BASKET.depart.z,'🏀','#c8601a',undefined,'Basket');
+  if(POIS.toitH&&POIS.toitH.jetpack) add(POIS.toitH.jetpack.x,POIS.toitH.jetpack.z,'🚀','#1a8ac8',POIS.toitH.h,'Jetpack');
+  for(const b of AERO.balises) add(b.x,b.z,b.ico,b.coul,0);
+  if(typeof BASE!=='undefined'&&BASE.ok){ add(BASE.depart.x,BASE.depart.z,'🎖️','#4a5238',0,'Parcours du combattant'); }
+  if(typeof SAUTS_HILLS!=='undefined') for(const sj of SAUTS_HILLS) if(sj.ok) add(sj.x,sj.zBas-6,'🏔️','#ff7a1a',sj.hBas,sj.nom);
+  if(typeof HELIPORT!=='undefined'&&HELIPORT.console) add(HELIPORT.console.x,HELIPORT.console.z,'🚁','#d8b02a',HELIPORT.pad.h,'Héliport du manoir');
+  if(typeof SURPRISES!=='undefined') for(const sp of SURPRISES.liste) if(sp.type==='tyro'||sp.type==='dj') add(sp.x,sp.z,sp.type==='tyro'?'🪢':'🎧','#c83a9a',sp.y,sp.type==='tyro'?'Tyrolienne':'Fête sur le toit');
+  for(const pq of PLANQUES.liste) add(pq.x,pq.z,pq.def.ico,'#2a8a4a',pq.y,pq.def.nom);
+  return L; }
 function mkBalises(){
   const add=(x,z,ico,coul,y)=>{ if(!isFinite(x)||!isFinite(z)) return;
     const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:texBalise(ico,coul),transparent:true,depthWrite:false,depthTest:false,fog:false})); // jamais cachée par un immeuble
@@ -9208,21 +9776,8 @@ function mkBalises(){
     BALISES.push({sp,x,z,y0,ph:aD(0,6.28)}); };
   // les lieux (portes des salles) : l'icône de la salle
   for(const p of PORTES){ const D=INTDEFS[p.id]; if(!D) continue; add(p.x,p.z,D.ico||'🚪','#1d3a5a',0); }
-  // les activités
-  for(const id in RIDE_DEFS){ const d=rideDepart(id); if(d) add(d.x,d.z,RIDE_DEFS[id].eau?'🚤':'🏁','#c8901a'); }
-  if(TOW.kWake) add(TOW.kWake.x,TOW.kWake.z,'🏄','#1a8ac8',1);
-  if(TOW.kPara) add(TOW.kPara.x,TOW.kPara.z,'🪂','#1a8ac8',1);
-  if(PIC.wingsuit) add(PIC.wingsuit.x,PIC.wingsuit.z,'🦅','#7a3ac8',PIC.wingsuit.y);
-  if(PIC.plg) add(PIC.plg.x,PIC.plg.z0,'🪂','#7a3ac8',PIC.H);
-  if(PIC.cage) add(PIC.cage.x,PIC.cage.z,'🛗','#5a6a7a',PIC.cage.yBas||0);
-  if(POIS.banderole) add(POIS.banderole.x,POIS.banderole.z,'✈️','#c8901a',0);
-  if(MERV.paillote) add(MERV.paillote.x,MERV.paillote.z,'🍹','#1a8a6a',1);
-  if(MERV.tresor) add(MERV.tresor.x,MERV.tresor.z,'⛏️','#8a6a2a');
-  if(POIS.skateXXL) add(POIS.skateXXL.x,POIS.skateXXL.z,'🛹','#c83a9a');
-  if(BASKET.ok) add(BASKET.depart.x,BASKET.depart.z,'🏀','#c8601a');
-  if(POIS.toitH&&POIS.toitH.jetpack) add(POIS.toitH.jetpack.x,POIS.toitH.jetpack.z,'🚀','#1a8ac8',POIS.toitH.h);
-  for(const b of AERO.balises) add(b.x,b.z,b.ico,b.coul,0);
-  for(const pq of PLANQUES.liste) add(pq.x,pq.z,pq.def.ico,'#2a8a4a',pq.y);
+  // les activités (pointsActivites : la même liste que le filtre « Activités » de la carte)
+  for(const a of pointsActivites()) add(a.x,a.z,a.ico,a.coul,a.y);
 }
 function majBalises(dt){
   const dedans=!!INT.actif, T=ETAT.runT;
@@ -12182,7 +12737,7 @@ function dessinerIconePOI(ctx,txt,cx,cy,taillePx,couleur){
   ctx.fillText(txt,ax,ay);
 }
 const mmCv=el('minimap'), mmCtx=mmCv.getContext('2d');
-const mmStatic=document.createElement('canvas'); mmStatic.width=mmStatic.height=384;
+const MM_RES=5, mmStatic=document.createElement('canvas'); mmStatic.width=mmStatic.height=192*MM_RES; // 17 octobre : 960 px (avant 384) — la grande carte zoomée restait floue
 const mmOX=DECOR_V2?HALF+30:HALF+55, mmSpan=2*HALF+(DECOR_V2?400:280), mmS=192/mmSpan, // DECOR_V2 : cadre jusqu'à la paroi est (Mont Reyes, canyons)
   mmX=x=>(x+mmOX)*mmS, mmZ=z=>(z+mmOX)*mmS;
 // Badge rond uniforme (fond sombre + anneau coloré + pictogramme centré),
@@ -12232,7 +12787,7 @@ function dessinerHillsCarte(g){
 }
 function construireMinimapStatique(){
   const g=mmStatic.getContext('2d');
-  g.setTransform(2,0,0,2,0,0);
+  g.setTransform(MM_RES,0,0,MM_RES,0,0);
   g.fillStyle='#101319'; g.fillRect(0,0,192,192); // hors zone jouable : vide
   // Route partout dans la zone jouable, AVANT les blocs de bâtiments : avant
   // cette passe, seul le fond très sombre apparaissait entre les blocs de
@@ -12248,6 +12803,20 @@ function construireMinimapStatique(){
     g.fillStyle=colsQ[quartier(bx,bz)];
     g.fillRect(mmX(cx-INNER/2),mmZ(cz-INNER/2),INNER*mmS,INNER*mmS);
   }
+  // 17 octobre (« améliore les détails de la carte ») : l'emprise de chaque immeuble, plus claire quand il est haut ;
+  // l'eau (lac, bassins, piscines) ; le stade et le tennis du parc ; les quatre pâtés de Fort Reyes
+  { const vus=new Set(); g.lineWidth=0.12; g.strokeStyle='rgba(0,0,0,0.45)';
+    for(const arr of sGrid.values()) for(const so of arr){ if(vus.has(so)) continue; vus.add(so);
+      if(!so.toit||so.h<3||so.hw<1.1||so.hd<1.1||Math.abs(so.x)>HALF+2||so.z>MER||so.base!==undefined) continue; const k=clamp(so.h/40,0,1);
+      g.fillStyle='rgb('+Math.round(66+110*k)+','+Math.round(70+108*k)+','+Math.round(80+104*k)+')'; g.fillRect(mmX(so.x-so.hw),mmZ(so.z-so.hd),2*so.hw*mmS,2*so.hd*mmS); g.strokeRect(mmX(so.x-so.hw),mmZ(so.z-so.hd),2*so.hw*mmS,2*so.hd*mmS); } }
+  g.fillStyle='#2a7a9a'; for(let x=-HALF;x<HALF;x+=2) for(let z=-HALF;z<MER-2;z+=2) if(estEau(x+1,z+1)) g.fillRect(mmX(x),mmZ(z),2*mmS+0.05,2*mmS+0.05);
+  if(typeof SPORTS!=='undefined'&&SPORTS.ok){ const S=SPORTS.stade, D=FOOT_DEMI, C=SPORTS.complexe; g.fillStyle='#3f8a34'; g.fillRect(mmX(S.x-D.x-1),mmZ(S.z-D.z-1),(2*D.x+2)*mmS,(2*D.z+2)*mmS);
+    g.strokeStyle='#f2f2ee'; g.lineWidth=0.15; g.strokeRect(mmX(S.x-D.x),mmZ(S.z-D.z),2*D.x*mmS,2*D.z*mmS); g.beginPath(); g.moveTo(mmX(S.x-D.x),mmZ(S.z)); g.lineTo(mmX(S.x+D.x),mmZ(S.z)); g.stroke();
+    g.fillStyle='#2f6ab0'; g.fillRect(mmX(C.x-12.5),mmZ(C.z-13),13*mmS,26*mmS); }
+  if(typeof BASE!=='undefined'&&BASE.ok){ const c=BASE.cases; g.fillStyle='#8a8a7c'; g.fillRect(mmX(c.place.x-INNER/2),mmZ(c.place.z-INNER/2),INNER*mmS,INNER*mmS);
+    g.fillStyle='#2a2c30'; g.fillRect(mmX(c.parc.x-INNER/2),mmZ(c.parc.z-INNER/2),INNER*mmS,INNER*mmS); g.fillStyle='#34363c'; g.fillRect(mmX(c.heli.x-INNER/2),mmZ(c.heli.z-INNER/2),INNER*mmS,INNER*mmS);
+    g.fillStyle='#8a7a5a'; g.fillRect(mmX(c.parcours.x-INNER/2),mmZ(c.parcours.z-INNER/2),INNER*mmS,INNER*mmS);
+    g.fillStyle='#ffd23f'; g.beginPath(); g.arc(mmX(BASE.heli.x),mmZ(BASE.heli.z),5*mmS,0,7); g.fill(); }
   // Axe de chaque rue, en pointillés clairs — un vrai plan de rues, pas
   // seulement des blocs de couleur sur fond d'asphalte uni. Jamais sous la
   // mer (la route s'arrête à la plage).
@@ -15257,13 +15826,15 @@ function majJoueur(dt,dtJeu){
       P.vy=Math.max(P.vy-accel*dtJeu,-CHUTE_VY_MAX); P.y+=P.vy*dtJeu;
       if(DECOR_V2&&P.chuteHaut>5&&estEau(P.x,P.z)) P.h.g.rotation.x-=dtJeu*6.5; // salto au-dessus de l'eau (plongeon)
     }
-    if(P.y<=gY){
+    if(P.y<=gY&&DECOR_V2&&!P.para&&!P.wing&&trampolineSous(P.x,P.z,gY)){ // trampoline des toits : on rebondit, sans dégâts
+      P.y=gY; P.vy=clamp(-P.vy*0.9,12,19); P.chuteT=0; P.chuteHaut=0.5; P.chuteY0=P.y; P.trampoT=2; SFX.swing(); vibre(10);
+    } else if(P.y<=gY){
       P.y=gY; P.chute=false;
       P.h.g.rotation.x=0;
       if(P.para){ burst(P.x,P.y+0.2,P.z,10,0xe8ecf2,5,6); SFX.ui(); }
       else if(DECOR_V2&&estEau(P.x,P.z)) plongeonJoueur(P.chuteHaut); // dans l'eau : un plongeon, jamais des dégâts
       else if(P.wing){ finVolWingsuit(); toucherJoueur(70); secousse(8); toast('Posé en wingsuit sans voile… aïe','warn'); }
-      else if(P.vy<-12){ toucherJoueur((-P.vy-12)*3.5*tenueK('badlands',0.5)); secousse(6); } // tenue « Badlands » : chutes deux fois moins rudes
+      else if(P.vy<-12&&!(P.trampoT>0)){ toucherJoueur((-P.vy-12)*3.5*tenueK('badlands',0.5)); secousse(6); } // juste après un rebond de trampoline : on retombe sur ses pieds // tenue « Badlands » : chutes deux fois moins rudes
       else burst(P.x,P.y+0.2,P.z,4,0xb8bec8,4);
       P.vy=0; P.para=false; paraMesh.visible=false; paraMesh.rotation.z=0; P.chuteVx=0; P.chuteVz=0;
       if(P.wing){ P.wing=false; if(P.wingMesh) P.wingMesh.visible=false; P.h.brasG.rotation.z=0; P.h.brasD.rotation.z=0; }
@@ -18855,7 +19426,7 @@ function impactSpecial(b,e){
   else if(b.mod==='feu'&&e&&!e.mort){ e.feuT=Math.max(e.feuT||0,3); }
 }
 function collisionBalle(b){
-  if(b.fac==='joueur'&&(toucherFigurant(b)||toucherCibleBase(b))) return true; // figurants de décor et des salles (16 octobre)
+  if(b.fac==='joueur'&&(toucherFigurant(b)||toucherCibleBase(b)||toucherCiel(b))) return true; // figurants de décor et des salles (16 octobre)
   if(b.fac==='joueur') for(let i=0;i<FAUNE.length;i++){ const a=FAUNE[i]; if(!a.mort&&Math.abs(b.y-(a.y+0.7))<1.4&&dist2(b.x,b.z,a.x,a.z)<1.2){ toucherAnimal(a,b.dmg); return true; } } // animaux de l'île
   for(const e of ennemis){
     if(e.mort||e.fac===b.fac) continue;
@@ -19652,6 +20223,7 @@ const WAVES={n:0,etat:'repos',t:WAVES_REPOS,queue:[],spawnT:0};
 function lancerVague(){
   rayonNettoyerTout(); // rayon tracteur de l'OVNI : jamais une cible bloquée en l'air au changement de vague
   WAVES.n++; WAVES.etat='active'; WAVES.queue=[]; WAVES.spawnT=0.2;
+  cielRetablir(); // le dirigeable et les avions abattus reviennent
   SFX.vague();
   // le gang dépend du quartier où se trouve le joueur (sinon rotation)
   let gang=gangDuQuartier(quartierAt(P.x,P.z));
@@ -21473,7 +22045,7 @@ const INTDEFS={
     ens:['TOUR LOS REYES','#35e0ff']},
   pharma:{nom:'Pharmacie',ico:'💊',w:20,d:16,sol:0xd8dce4,mur:0xe8ecf2,
     ens:['PHARMACIE','#7dff7a']},
-  armurerie:{nom:'Armurerie du Port',ico:'🔫',w:24,d:18,sol:0x4a443a,mur:0x6a6252,
+  armurerie:{nom:'Armurerie du Port',ico:'🔫',w:40,d:30,sol:0x3a3832,mur:0x5a5448, // 17 octobre : agrandie (24 × 18 → 40 × 30), stand de tir au nord
     ens:['ARMURERIE','#ff3b5c']},
   conces:{nom:'Concessionnaire',ico:'🚗',w:30,d:24,sol:0x9aa0aa,mur:0xc8cdd4,
     ens:['REYES MOTORS','#ffd23f']},
@@ -21547,7 +22119,10 @@ const INTDEFS={
      porte franchie (porte.garageId), voir garageSurEntree. Seule salle où
      l'on entre EN VÉHICULE. */
   tuning:{nom:'Garage',ico:'🔧',w:36,d:34,sol:0x2c2f36,mur:0x3b404a,
-    ens:['GARAGE','#ff8c1a']}
+    ens:['GARAGE','#ff8c1a']},
+  // boutique de style (17 octobre) : UNE salle pour les cinq boutiques, reconfigurée à l'entrée (porte.boutiqueId)
+  boutique:{nom:'Boutique',ico:'🛍️',w:26,d:22,sol:0x6a5a4a,mur:0xe8e2d6,
+    ens:['BOUTIQUE','#ff5ad0']}
 };
 // SITE 51 — dix objets de valeur, position relative (dx,dz depuis ox,oz), et
 // sas fermés à la prise (définitivement, pour la visite). Graphe et fermetures
@@ -21899,43 +22474,112 @@ function construireSalle(id){
     lampe(-5,-1,0xffffff,8); lampe(5,-1,0xffffff,8);
   }
   else if(id==='armurerie'){
-    // --- ARMURERIE : râteliers muraux, vitrines, comptoir blindé ---
-    for(let i=-4;i<4;i++){
-      const t=new THREE.Mesh(new THREE.PlaneGeometry(2.6,P2-1),mat(i%2?0x554e42:0x4a443a));
-      t.rotation.x=-Math.PI/2; t.position.set(ox+i*2.7+1.35,0.11,oz); g.add(t);
-    }
-    // râteliers d'armes le long des murs : les VRAIES armes à feu exposées (14 octobre, demandé : « les armes
-    // affichées au mur, qu'on peut acheter ») — on s'approche : acheter, équiper ; l'établi personnalise
-    for(let c=-1;c<=1;c+=2) box(0.5,3,10,0x3a352c,c*(W/2-1.6),1.5,-1);
+    // --- ARMURERIE V2 (17 octobre, demandé : « se balader dans l'armurerie, choisir et acheter ses armes et ses
+    //     protections, les tester, les personnaliser entièrement — or, double pistolet ou double uzi, balles
+    //     explosives — et voir l'arme se personnaliser comme une voiture, la retourner ») : mur des armes à feu
+    //     par familles (ouest), vitrine des armes blanches, gilets sur mannequins, comptoir des munitions, établi à
+    //     plateau tournant (est : aperçu avant achat, rotation au doigt) ; au nord, derrière la vitre, le STAND DE
+    //     TIR (couloirs de 30 m) : on y essaie n'importe quelle arme à feu, à la première personne (FPS).
+    const ens=(txt,coul,x,y,z,ry,larg)=>mkEnseigne(txt,coul,ox+x,y,oz+z,ry,larg);
+    for(const o of g.children){ if(o.isMesh&&(o.position.y===2.2||o.position.y===4.5)&&Math.abs(o.position.z-(oz-P2/2))<0.01) o.visible=false; } // le mur nord devient la vitre du stand ; son SOLIDE reste
+    for(let i=-5;i<5;i++) for(let j=-4;j<4;j++){ const t=new THREE.Mesh(new THREE.PlaneGeometry(3.9,3.65),mat((i+j)%2?0x45423a:0x3d3a33)); t.rotation.x=-Math.PI/2; t.position.set(ox+i*4+2,0.11,oz+j*3.75+1.87); g.add(t); }
+    { const t=new THREE.Mesh(new THREE.PlaneGeometry(3,P2-4),mat(0x6a1c1c)); t.rotation.x=-Math.PI/2; t.position.set(ox,0.12,oz); g.add(t); } // allée centrale
+    // le mur des armes à feu (ouest) : panneau perforé, une arme par emplacement, prix, familles
+    box(0.3,3.2,26,0x2a2c30,-W/2+0.6,1.8,0,false);
     inter.murArmes=[];
-    const fusils=ORDRE_ARMES.filter((id)=>ARMES[id].type==='gun'&&!ARMES[id].cachee&&mkArmeModeleDispo(id));
-    fusils.forEach((id,k)=>{ const c=k<7?-1:1, j=k%7, x=c*(W/2-1.9), z=-4.6+j*1.25;
+    const famille=(id)=>{ const a=ARMES[id]; return a.roquette||a.flamme||id==='minigun'?['LOURDES','#ff3b5c',4]:(a.pellets||1)>1?['À POMPE','#ff9f2e',2]:a.cad<=0.09?['MITRAILLETTES','#35e0ff',1]:a.portee>=55||a.manuel?['FUSILS','#7dff7a',3]:['POING','#ffd23f',0]; };
+    const fusils=ORDRE_ARMES.filter((id)=>ARMES[id].type==='gun'&&!ARMES[id].cachee&&mkArmeModeleDispo(id)).map((id,k)=>[id,k]).sort((a,b)=>famille(a[0])[2]-famille(b[0])[2]||a[1]-b[1]).map((q)=>q[0]), pas=Math.min(2.05,24/Math.max(1,fusils.length)); // rangées par familles
+    { const fams={}; fusils.forEach((id,k)=>{ const f=famille(id); (fams[f[0]]=fams[f[0]]||{f,k0:k,n:0}).n++; }); // un panneau centré au-dessus de chaque famille
+      for(const nm in fams){ const F2=fams[nm], zc=-11.8+(F2.k0+F2.n/2)*pas; ens(nm,F2.f[1],-W/2+1.15,3.15,zc,Math.PI/2,Math.min(2.6,F2.n*pas-0.25)); } }
+    fusils.forEach((id,k)=>{ const z=-11.8+k*pas+pas/2, x=-W/2+0.9;
       const hold=new THREE.Group(); const m=habillerArme(mkArmeModele(id),id); if(m){ m.visible=true; hold.add(m); }
-      hold.rotation.x=-Math.PI/2; hold.scale.setScalar(2.2); hold.position.set(ox+x,1.55,oz+z); g.add(hold);
-      box(0.08,0.06,0.9,0x15171c,x+c*0.1,1.2,z,false); // support
-      const etq=cTex(128,(cx,s)=>{ cx.fillStyle='#14161c'; cx.fillRect(0,0,s,s*0.4); cx.fillStyle='#ffd23f'; cx.font='900 30px Arial'; cx.textAlign='center'; cx.fillText(ARMES[id].prix+' $',s/2,s*0.28); });
-      const pl=new THREE.Mesh(new THREE.PlaneGeometry(0.9,0.36),new THREE.MeshBasicMaterial({map:etq,transparent:true})); pl.position.set(ox+x-c*0.02,0.9,oz+z); pl.rotation.y=c*Math.PI/2; g.add(pl);
-      inter.murArmes.push({id,x:ox+c*(W/2-3.4),z:oz+z,r:0.9,hold,c}); });
-    // la vitrine : les armes blanches, couchées sous verre
+      hold.rotation.x=-Math.PI/2; hold.scale.setScalar(2.2); hold.position.set(ox+x,1.7,oz+z); g.add(hold);
+      box(0.08,0.06,0.9,0x15171c,x+0.1,1.25,z,false);
+      const etq=cTex(128,(cx,s2)=>{ cx.fillStyle='#14161c'; cx.fillRect(0,0,s2,s2*0.4); cx.fillStyle='#ffd23f'; cx.font='900 30px Arial'; cx.textAlign='center'; cx.fillText(ARMES[id].prix+' $',s2/2,s2*0.28); });
+      const pl=new THREE.Mesh(new THREE.PlaneGeometry(0.9,0.36),new THREE.MeshBasicMaterial({map:etq,transparent:true})); pl.position.set(ox+x+0.02,0.95,oz+z); pl.rotation.y=Math.PI/2; g.add(pl);
+      inter.murArmes.push({id,x:ox+x+1.7,z:oz+z,r:0.9,hold,c:-1}); });
+    // la vitrine des armes blanches (au centre, à l'ouest de l'allée)
+    box(5.2,1.0,1.8,0x2a2c30,-5,0.5,3); { const v=new THREE.Mesh(new THREE.BoxGeometry(5,0.7,1.6),new THREE.MeshPhongMaterial({color:0xbfe6ff,transparent:true,opacity:0.22,shininess:90})); v.position.set(ox-5,1.35,oz+3); g.add(v); }
     ['couteau','batte','sabre','batte2'].forEach((id,k)=>{ const m=mkArmeModele(id); if(!m) return; m.visible=true; const hh=new THREE.Group(); hh.add(m);
-      hh.rotation.set(-Math.PI/2,0,Math.PI/2); hh.scale.setScalar(1.6); hh.position.set(ox-2.4+k*1.6,1.72,oz-2); g.add(hh); });
-    // l'établi de personnalisation (coin nord-est) : étau, outils, lampe ; l'arme équipée y tourne en grand
-    box(3.2,1.0,1.3,0x5a4a32,W/2-2.6,0.5,-P2/2+1.6); box(3.3,0.08,1.4,0x8a7a5a,W/2-2.6,1.04,-P2/2+1.6,false);
-    box(0.3,0.3,0.4,0x3a3e46,W/2-3.8,1.25,-P2/2+1.4,false); box(2.4,1.4,0.08,0x2a2e36,W/2-2.6,2.1,-P2/2+0.7,false);
-    for(let k=0;k<6;k++) box(0.08,0.4,0.05,pick([0x9aa2ad,0xd83a3a,0xffd23f]),W/2-3.6+k*0.4,2.1,-P2/2+0.78,false);
-    inter.etabliArmes={x:ox+W/2-2.8,z:oz-P2/2+3.2,r:1.6,px:ox+W/2-2.6,pz:oz-P2/2+1.6};
-    mkEnseigne('ÉTABLI','#35e0ff',W/2-2.6,3.2,-P2/2+0.75,0,4);
-    // vitrine centrale de pistolets
-    box(7,1.1,2,0x3a352c,0,0.55,-2);
-    box(6.4,0.6,1.5,0x141b26,0,1.35,-2,false);
-    for(let k=0;k<5;k++) box(0.5,0.18,0.9,0x23262e,-2.4+k*1.2,1.45,-2,false);
-    // comptoir + caisses de munitions
-    const compA=box(9,1.2,1.6,0x4a443a,0,0.6,-P2/2+3);
-    for(let k=0;k<4;k++) box(1.1,0.8,1.1,0x5a6244,-W/2+2.5+k*1.4,0.4,P2/2-4,false);
-    mkEnseigne('MUNITIONS','#ff9f2e',-W/2+5,1.9,P2/2-4.8,0,7);
-    pnj(-2,-P2/2+4.4,{haut:0x5a6244,bas:0x2a2e22,peau:pick(civPeau),casq:0x3a4030,visage:'mechant'},'caisse');
-    inter.comptoirArmes={x:ox,z:oz-P2/2+4.4};
-    lampe(-6,-2,0xffe9b0,8); lampe(6,-2,0xffe9b0,8); lampe(0,4,0xffe9b0,8);
+      hh.rotation.set(-Math.PI/2,0,Math.PI/2); hh.scale.setScalar(1.5); hh.position.set(ox-6.8+k*1.2,1.1,oz+3); g.add(hh); });
+    ens('ARMES BLANCHES','#ffd23f',-5,2.5,3.95,0,3.6);
+    // les protections : deux mannequins en gilet (est, côté sud)
+    inter.gilets=[]; GILETS.forEach((G,k)=>{ const x=W/2-2.4, z=3.5+k*3.6; box(1.1,0.25,1.1,0x2a2c30,x,0.12,z,false); addSolid({x:ox+x,z:oz+z,hw:0.55,hd:0.55,h:2});
+      const h=makeHumain({haut:0x3a3e46,bas:0x2a2c30,peau:0x8a8f9a,casq:0x2a2c30,visage:'neutre'},1); h.g.position.set(ox+x,0.25,oz+z); h.g.rotation.y=-Math.PI/2; g.add(h.g);
+      const ve=new THREE.Mesh(new THREE.BoxGeometry(0.95,0.75,0.55),mat(G.lourd?0x2a3220:0x3a4a2a)); ve.position.set(ox+x,1.55,oz+z); g.add(ve); if(G.lourd){ for(const dy of [-0.2,0.15]) box(1.0,0.14,0.6,0x1c2016,x,1.55+dy,z,false); }
+      inter.gilets.push({id:G.id,x:ox+x-1.7,z:oz+z,r:1.0}); });
+    ens('PROTECTIONS','#7dff7a',W/2-0.5,3.0,5.3,-Math.PI/2,3.2);
+    // l'établi (est, côté nord) : plateau tournant, étau, outils, lampe — l'arme y tourne en grand
+    box(1.6,1.0,4.4,0x5a4a32,W/2-1.6,0.5,-5); box(1.7,0.08,4.5,0x8a7a5a,W/2-1.6,1.04,-5,false);
+    { const pt=new THREE.Mesh(new THREE.CylinderGeometry(0.9,0.95,0.12,24),mat(0x2a2c30)); pt.position.set(ox+W/2-1.6,1.14,oz-5); g.add(pt); }
+    box(0.08,1.4,2.6,0x2a2e36,W/2-0.55,2.1,-5,false); for(let k=0;k<6;k++) box(0.05,0.4,0.08,[0x9aa2ad,0xd83a3a,0xffd23f][k%3],W/2-0.62,2.1,-6+k*0.4,false);
+    inter.etabliArmes={x:ox+W/2-3.4,z:oz-5,r:1.6,px:ox+W/2-1.6,pz:oz-5};
+    ens('ÉTABLI','#35e0ff',W/2-0.5,3.2,-5,-Math.PI/2,3);
+    // le comptoir des munitions et des grenades (sud-est) et le vendeur
+    box(6,1.2,1.4,0x4a443a,W/2-9,0.6,10); for(let k=0;k<4;k++) box(1.0,0.7,1.0,0x5a6244,W/2-11.5+k*1.6,0.35,12.6,false);
+    pnj(W/2-9,11.2,{haut:0x5a6244,bas:0x2a2e22,peau:pick(civPeau),casq:0x3a4030,visage:'mechant'},'caisse');
+    inter.comptoirArmes={x:ox+W/2-9,z:oz+8.4};
+    ens('MUNITIONS','#ff9f2e',W/2-9,2.6,10.75,0,5);
+    // le stand de tir : cabines contre la vitre (nord), et le hall des couloirs AU-DELÀ du mur nord
+    const zV=-P2/2; box(W-1,1.0,0.6,0x2a2c30,0,0.5,zV+0.9,false); addSolid({x:ox,z:oz+zV+0.9,hw:W/2-0.5,hd:0.3,h:1.0}); // tablette des cabines
+    for(const x of [-10,-4,4,10]) box(0.15,2.2,1.6,0x3a3c42,x,1.1,zV+0.9,false);
+    { const v=new THREE.Mesh(new THREE.PlaneGeometry(W-1,3.6),new THREE.MeshBasicMaterial({color:0xbfe6ff,transparent:true,opacity:0.07,depthWrite:false})); v.position.set(ox,2.2,oz+zV); g.add(v); }
+    const LH=34; { const f=new THREE.Mesh(new THREE.PlaneGeometry(22,LH),mat(0x2e2c28)); f.rotation.x=-Math.PI/2; f.position.set(ox,0.11,oz+zV-LH/2); g.add(f);
+      for(const sx of [-1,1]){ const m2=new THREE.Mesh(new THREE.BoxGeometry(0.6,4.4,LH),mat(0x4a4640)); m2.position.set(ox+sx*11.3,2.2,oz+zV-LH/2); g.add(m2); }
+      const fond=new THREE.Mesh(new THREE.BoxGeometry(22,4.4,0.6),mat(0x6a5a40)); fond.position.set(ox,2.2,oz+zV-LH); g.add(fond);
+      for(let k=0;k<4;k++){ const b=new THREE.Mesh(new THREE.BoxGeometry(22,1.2+k*0.3,1.4),mat(0x9a8458)); b.position.set(ox,0.6+k*0.15,oz+zV-LH+1.4+k*0.6); g.add(b); } // butte de tir
+      for(let d=4;d<LH;d+=5){ const bf=new THREE.Mesh(new THREE.BoxGeometry(22,0.5,0.4),mat(0x23252a)); bf.position.set(ox,3.9,oz+zV-d); g.add(bf); } // chicanes du plafond
+      for(const x of [-6,-2,2,6]){ const l=new THREE.Mesh(new THREE.PlaneGeometry(0.08,LH-2),new THREE.MeshBasicMaterial({color:0xffd23f})); l.rotation.x=-Math.PI/2; l.position.set(ox+x,0.13,oz+zV-LH/2); g.add(l); }
+      for(const d of [10,18,26]){ const l=new THREE.Mesh(new THREE.PlaneGeometry(20,0.12),new THREE.MeshBasicMaterial({color:0xf2f2ee})); l.rotation.x=-Math.PI/2; l.position.set(ox,0.13,oz+zV-d); g.add(l); ens(d+' m','#f2f2ee',-10.6,2.6,zV-d,Math.PI/2,1.4); }
+      for(let d=6;d<LH;d+=9) lampe(0,zV-d,0xfff4d8,8);
+      const pl=new THREE.Mesh(new THREE.BoxGeometry(22.6,0.3,LH),mat(0x1c1e22)); pl.position.set(ox,4.55,oz+zV-LH/2); g.add(pl); // plafond du hall (pas de ciel au-dessus des cibles)
+      const so=new THREE.Mesh(new THREE.BoxGeometry(W-1,0.8,3.2),mat(0x23252a)); so.position.set(ox,3.4,oz+zV+1.2); g.add(so); } // faux plafond des cabines
+    inter.standTir={x:ox,z:oz+zV+3,r:1.8,ex:ox,ez:oz+zV+1.4,fond:oz+zV-LH}; inter.standT=0;
+    ens('STAND DE TIR','#ff3b5c',0,3.9,zV+0.35,0,6);
+    lampe(-8,-6,0xffe9b0,8); lampe(8,-6,0xffe9b0,8); lampe(-8,6,0xffe9b0,8); lampe(8,6,0xffe9b0,8); lampe(0,0,0xffe9b0,8);
+  } else if(id==='boutique'){
+    // --- BOUTIQUE DE STYLE (17 octobre, demandé : « le magasin de vêtements est à l'extérieur, les PNJ nous tirent
+    //     dessus : la même chose, mais dans une boutique propre ») — une salle pour les cinq boutiques, reconfigurée à
+    //     l'entrée (boutiqueSurEntree) : couleurs, portants et pliés aux couleurs des pièces, mannequins habillés,
+    //     enseigne ; fauteuils et coiffeuse du barbier, table et lampes du tatoueur, planches du surf shop.
+    //     La cabine à miroir au fond (cabineBoutique) ouvre l'essayage, de face, à l'abri.
+    inter.matSol=matSol; inter.matMur=mMur; inter.accent=new THREE.MeshLambertMaterial({color:0xff5ad0}); inter.cintres=[]; inter.mannequins=[]; inter.variantes={}; inter.enseignes={};
+    const bv=(grp,w,h,d,c,x,y,z)=>{ const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),typeof c==='number'?mat(c):c); m.position.set(ox+x,y,oz+z); grp.add(m); return m; };
+    for(let i=-6;i<6;i++){ const t=new THREE.Mesh(new THREE.PlaneGeometry(2.1,P2-1),mat(i%2?0x7a5c3e:0x6e5236)); t.rotation.x=-Math.PI/2; t.position.set(ox+i*2.15+1.07,0.11,oz); g.add(t); } // parquet
+    { const t=new THREE.Mesh(new THREE.PlaneGeometry(3,14),inter.accent); t.rotation.x=-Math.PI/2; t.position.set(ox,0.13,oz-0.5); g.add(t); } // tapis jusqu'à la cabine
+    // la cabine : estrade, grand miroir à cadre doré, rideaux
+    { const e=new THREE.Mesh(new THREE.CylinderGeometry(1.5,1.6,0.25,24),mat(0x2a2e36)); e.position.set(ox,0.14,oz-P2/2+2.6); g.add(e);
+      const mir=new THREE.Mesh(new THREE.PlaneGeometry(4.4,3.4),new THREE.MeshPhongMaterial({color:0xcfe0ea,specular:0xffffff,shininess:90,emissive:0x1c2a38})); mir.position.set(ox,2,oz-P2/2+0.36); g.add(mir);
+      box(4.8,0.25,0.2,0xd8b02a,0,3.8,-P2/2+0.4,false); box(4.8,0.25,0.2,0xd8b02a,0,0.25,-P2/2+0.4,false); for(const sx of [-1,1]) box(0.25,3.8,0.2,0xd8b02a,sx*2.4,2,-P2/2+0.4,false);
+      for(const sx of [-1,1]){ const r=new THREE.Mesh(new THREE.BoxGeometry(0.5,3.8,1.6),inter.accent); r.position.set(ox+sx*2.9,1.95,oz-P2/2+1.4); g.add(r); }
+      inter.cabineBoutique={x:ox,z:oz-P2/2+3.9,r:1.6,px:ox,pz:oz-P2/2+2.6}; }
+    // portants (ouest) : cintres aux couleurs des pièces de la boutique
+    for(const z0 of [-5.5,0.5]){ for(const dz of [-2.4,2.4]) box(0.12,1.9,0.12,0x9aa2ad,-W/2+2.4,0.95,z0+dz,false); box(0.08,0.08,5,0xc8ccd0,-W/2+2.4,1.85,z0,false);
+      addSolid({x:ox-W/2+2.4,z:oz+z0,hw:0.5,hd:2.6,h:1.9});
+      for(let k=0;k<8;k++){ const c=new THREE.Mesh(new THREE.BoxGeometry(0.75,1.0,0.1),new THREE.MeshLambertMaterial({color:0xffffff})); c.position.set(ox-W/2+2.4,1.3,oz+z0-2.1+k*0.6); g.add(c); inter.cintres.push(c); } }
+    // étagère (est) : chapeaux, boîtes
+    box(0.5,2.6,7,0x4a3a2a,W/2-1.2,1.3,-3); for(const y of [0.8,1.5,2.2]) box(0.6,0.06,7,0x6a5440,W/2-1.3,y,-3,false);
+    for(let k=0;k<9;k++){ const o=new THREE.Mesh(new THREE.CylinderGeometry(0.25,0.3,0.25,10),new THREE.MeshLambertMaterial({color:0xffffff})); o.position.set(ox+W/2-1.4,0.98+(k%3)*0.7,oz-5.8+Math.floor(k/3)*2.6); g.add(o); inter.cintres.push(o); }
+    // tables (pliés) — ou, selon la boutique, fauteuils du barbier, table du tatoueur ; mêmes emprises (solides communs)
+    const T=[[-4.5,-1],[4.5,-1],[-4.5,4.5],[4.5,4.5]]; for(const [tx,tz] of T) addSolid({x:ox+tx,z:oz+tz,hw:1.5,hd:0.8,h:1});
+    { const gt=new THREE.Group(); g.add(gt); inter.variantes.tables=gt;
+      for(const [tx,tz] of T){ bv(gt,3,0.9,1.6,0x5a4632,tx,0.45,tz); for(let k=0;k<3;k++) for(let n=0;n<3;n++){ const p=bv(gt,0.8,0.12,0.6,new THREE.MeshLambertMaterial({color:0xffffff}),tx-0.95+k*0.95,0.96+n*0.13,tz); inter.cintres.push(p); } } }
+    { const gb=new THREE.Group(); g.add(gb); inter.variantes.barbier=gb; // fauteuils de barbier, coiffeuses, enseigne tournante
+      for(const [tx,tz] of T.slice(0,2)){ bv(gb,0.9,0.5,0.9,0x8a1a1a,tx,0.75,tz); bv(gb,0.9,0.9,0.2,0x8a1a1a,tx,1.2,tz+0.45); bv(gb,0.3,0.5,0.3,0xc8ccd0,tx,0.25,tz); bv(gb,1.6,1.2,0.08,0xcfe0ea,tx,1.7,tz-0.75); bv(gb,1.8,0.1,0.5,0xe8e2d6,tx,1.0,tz-0.6); }
+      for(const sx of [-1,1]){ const po=new THREE.Mesh(new THREE.CylinderGeometry(0.15,0.15,1.6,12),new THREE.MeshLambertMaterial({map:cTex(32,(c,s2)=>{ c.fillStyle='#fff'; c.fillRect(0,0,s2,s2); c.fillStyle='#d83a3a'; for(let k=-2;k<4;k++){ c.beginPath(); c.moveTo(0,k*10); c.lineTo(s2,k*10+16); c.lineTo(s2,k*10+22); c.lineTo(0,k*10+6); c.fill(); } })})); po.position.set(ox+sx*7.5,1.6,oz+P2/2-1.2); gb.add(po); inter.poteauxBarbier=(inter.poteauxBarbier||[]).concat([po]); } }
+    { const gx=new THREE.Group(); g.add(gx); inter.variantes.tatoueur=gx; // table de tatouage, lampe, flacons, planches de motifs
+      bv(gx,0.9,0.8,2.2,0x14161c,-4.5,0.6,-1); bv(gx,0.08,1.6,0.08,0x9aa2ad,-3.6,0.8,-1.6); bv(gx,0.6,0.1,0.4,0xfff4c8,-3.8,1.6,-1.4);
+      bv(gx,2.4,0.95,1.2,0x2a2e36,4.5,0.47,-1); /* le meuble des encres */
+      for(let k=0;k<6;k++) bv(gx,0.12,0.25,0.12,[0xd83a3a,0x35c8e0,0x7dff7a,0xffd23f,0x8a4de0,0x14161c][k],4.0+k*0.2,1.05,-1);
+      for(let k=0;k<4;k++){ const p=new THREE.Mesh(new THREE.PlaneGeometry(1.4,1.8),new THREE.MeshLambertMaterial({map:cTex(64,(c,s2)=>{ c.fillStyle='#efe6d2'; c.fillRect(0,0,s2,s2); c.strokeStyle='#14161c'; c.lineWidth=3; c.beginPath(); c.arc(s2/2,s2*0.45,s2*0.22,0,7); c.moveTo(s2*0.2,s2*0.85); c.lineTo(s2*0.8,s2*0.85); c.stroke(); })})); p.position.set(ox-W/2+0.45,2.4,oz-6+k*2); p.rotation.y=Math.PI/2; gx.add(p); } }
+    { const gs=new THREE.Group(); g.add(gs); inter.variantes.surf=gs; // planches debout le long du mur sud
+      for(let k=0;k<6;k++){ const b=new THREE.Mesh(new THREE.CylinderGeometry(0.32,0.32,2.6,12),mat([0x35c8e0,0xffd23f,0xff5ad0,0xf2f2ee,0xff7a1a,0x7dff7a][k])); b.scale.z=0.18; b.position.set(ox+3.2+k*0.85,1.35,oz+P2/2-1.1); b.rotation.z=0.08; gs.add(b); } }
+    // caisse, vendeur, mannequins
+    box(3.4,1.1,1.2,0x2a2e36,W/2-4.2,0.55,4.5); box(3.5,0.06,1.3,0xd8b02a,W/2-4.2,1.12,4.5,false); box(0.5,0.35,0.4,0x14161c,W/2-4.8,1.3,4.5,false);
+    pnj(W/2-4.2,3.3,{haut:0x14161c,bas:0x2a2e36,peau:pick(civPeau),casq:0x3a2a1c,visage:'neutre'},'caisse');
+    for(const [mx,mz,ry] of [[-7,-7,0.5],[7,-7,-0.5],[-8,5.5,1.0]]){ box(1.2,0.3,1.2,0x2a2e36,mx,0.15,mz,false); addSolid({x:ox+mx,z:oz+mz,hw:0.6,hd:0.6,h:2}); inter.mannequins.push({mx:ox+mx,mz:oz+mz,ry,h:null}); }
+    for(const k in BOUTIQUES_DEF){ const D2=BOUTIQUES_DEF[k]; inter.enseignes[k]=mkEnseigne(D2.nom.toUpperCase(),D2.coul,ox,4.05,oz-P2/2+0.5,0,7.5); }
+    lampe(0,-6,0xfff0d8,7); lampe(-6,1,0xfff0d8,7); lampe(6,1,0xfff0d8,7); lampe(0,5,0xfff0d8,6);
   } else if(id==='conces'){
     // --- CONCESSIONNAIRE : showroom carrelé, podiums, baie vitrée ---
     for(let i=-5;i<5;i++) for(let j=-4;j<4;j++){
@@ -24219,7 +24863,7 @@ function entrerInterieur(id,porte){
   // gelée jusqu'à la sortie de la salle sans ce nettoyage immédiat.
   rayonNettoyerTout();
   const s=construireSalle(id);
-  { const nx=porte.nx||0, nz=porte.nz===undefined?1:porte.nz, d=DECOR_V2&&porte.z<=MER-30?clamp(profondeurDevant(porte.x,porte.z,nx,nz)-0.6,1.4,3):3; // devant la porte, dans le sens où elle regarde, jamais sur la chaussée
+  { const nx=porte.nx||0, nz=porte.nz===undefined?1:porte.nz, d=porte.sortieD!==undefined?porte.sortieD:DECOR_V2&&porte.z<=MER-30?clamp(profondeurDevant(porte.x,porte.z,nx,nz)-0.6,1.4,3):3; // sortieD : boutique, juste devant sa vitrine // devant la porte, dans le sens où elle regarde, jamais sur la chaussée
     INT.actif=s; INT.rx=porte.x+nx*d; INT.rz=porte.z+nz*d; INT.rYaw=Math.atan2(-nx,-nz); }
   VUE.yawUser=VUE.yaw=0; // vue immersive : depuis l'entrée (au sud), on regarde la salle
   // Tableau de la ville (planque) : marque ce lieu comme visité au moins
@@ -24295,6 +24939,7 @@ function entrerInterieur(id,porte){
   // Garages tuning : la salle partagée se reconfigure pour le garage
   // franchi (enseigne, véhicule garé, porte roulante, étoiles qui tombent).
   if(s.tuning) garageSurEntree(s,porte);
+  if(s.cabineBoutique) boutiqueSurEntree(s,porte); // boutique de style : celle dont on a franchi la porte
   ETAT.intT=0.5;
   toast('Tu entres : '+s.D.nom,'or'); SFX.ui();
   el('minimap').style.opacity='1';
@@ -28380,7 +29025,7 @@ function metierEnCours(){ return !!(MET.pompier||MET.taxi||MET.depanneuse||MET.a
 // supercross, bouées, REYES BOWL JAM), wakeboard ou parachute ascensionnel, métier en cours. Les vagues et les
 // événements (guerres de gangs...) sont gelés, et les gangs déjà là patrouillent sans s'occuper du joueur. La
 // police, elle, continue si l'on est recherché.
-function treveActivite(){ return !!(RIDES.actif||(DECOR_V2&&TOW.actif)||BASKET.actif||MANEGES.actif||TOUR.actif||metierEnCours()||BASE.defi); }
+function treveActivite(){ return !!(RIDES.actif||(DECOR_V2&&TOW.actif)||BASKET.actif||MANEGES.actif||TOUR.actif||metierEnCours()||BASE.defi||FPS.actif); }
 // Balise dédiée, jamais la même que `balise` (déjà prise par MISSION.cur) —
 // les deux peuvent être actives en même temps sans se marcher dessus.
 const metierBalise=new THREE.Mesh(new THREE.CylinderGeometry(1.4,1.4,9,12,1,true),
@@ -30355,7 +31000,7 @@ el('penderieList').addEventListener('pointerdown',e=>{
 // centre de vue (recentré sur le joueur à chaque ouverture, voir miniWrap),
 // filtres d'affichage — demandé explicitement (« plus de zoom, sélectionner
 // et désélectionner les éléments »).
-const MAPUI={zoom:1,panX:0,panZ:0,filtres:{ennemis:true,vehicules:true,commerces:true,batiments:true}};
+const MAPUI={zoom:1,panX:0,panZ:0,filtres:{ennemis:true,vehicules:true,commerces:true,batiments:true,activites:true}};
 // Fenêtre visible actuelle, en unités mm-logiques (0..192, voir mmX/mmZ) —
 // recalculée à chaque dessin. Le clamp garantit qu'à zoom=1 toute la ville
 // est visible quel que soit panX/panZ (ils n'ont alors aucun effet), et
@@ -30379,8 +31024,8 @@ function drawCarte(){
   g.imageSmoothingEnabled=true;
   g.clearRect(0,0,336,336);
   const {mcx,mcz,demiVisible}=mapVue();
-  const srcCote=demiVisible*4; // *2 (fenêtre totale) *2 (résolution mmStatic = 2x la logique)
-  g.drawImage(mmStatic,(mcx-demiVisible)*2,(mcz-demiVisible)*2,srcCote,srcCote,0,0,336,336);
+  const srcCote=demiVisible*2*MM_RES; // *2 (fenêtre totale) ×MM_RES (résolution de mmStatic)
+  g.drawImage(mmStatic,(mcx-demiVisible)*MM_RES,(mcz-demiVisible)*MM_RES,srcCote,srcCote,0,0,336,336);
   const dot=(x,z,c,r)=>{const p=carteProj(x,z); g.fillStyle=c; g.beginPath(); g.arc(p.x,p.z,r,0,7); g.fill();};
   if(MAPUI.filtres.vehicules) for(const v of vehicules) if(!v.mort&&!v.def.cache&&(v.conduit===null||v.conduit==='trafic')&&dist2(v.x,v.z,P.x,P.z)<7000)
     dot(v.x,v.z,'#8b93a7',2.2);
@@ -30433,6 +31078,9 @@ function drawCarte(){
       const p=carteProj(POIS.toitH.jetpack.x,POIS.toitH.jetpack.z); dessinerBadge(g,p.x,p.z,9,'#35c8ff','🚀',11);
     }
   }
+  // activités en plein air (courses, sports, sauts, ball-trap, héliport, tyrolienne…), sous les lieux
+  if(MAPUI.filtres.activites){ if(!MAPUI.activites) MAPUI.activites=pointsActivites();
+    for(const a of MAPUI.activites){ const p=carteProj(a.x,a.z); if(p.x<-10||p.x>346||p.z<-10||p.z>346) continue; dessinerBadge(g,p.x,p.z,8,a.coul||'#c8901a',a.ico,10); } }
   // point d'arrivée choisi par le joueur
   if(WAYP.actif){
     const w=carteProj(WAYP.x,WAYP.z), wx=w.x, wz=w.z;
@@ -30770,7 +31418,7 @@ function startRun(){
   P.hp=P.maxHp; P.stam=P.stamMax; P.bouclier=0; P.bouclierMax=60; P.giletLourd=false; P.veh=null;
   P.buffs={dmg:0,vit:0,butin:0,lourd:0,sprintLibre:0,vol:0,cadence:0}; P.ivresse=0; P.iframes=0; P.dodgeT=0; P.rechT=0; P.specCd=0; P.ecraseT=0;
   P.grenades=3; boutonsAPied(); // jamais el('grenN') seul : voir boutonsAPied (mort au volant)
-  if(DECOR_V2){ reparerMobilier(); poserTexteBanderole(META.banderole); if(RIDES.porte){ RIDES.actif=null; RIDES.porte.visible=false; RIDES.txt.style.display='none'; rivalesFin(); if(RIDES.fleche) RIDES.fleche.visible=false; RIDES.records={}; RIDES.primeVague={}; } resetPic(); resetMer(); basketArreter(); BASKET.reussi=false; BASKET.vague=-1; } P.wingsuit=false; P.wing=false; if(P.wingMesh) P.wingMesh.visible=false; nettoyerPnjMetier(); MET2.serie={taxi:0,ambulance:0,pompier:0}; // course en cours : jamais survivante d'une partie à l'autre // mobilier renversé réparé ; message acheté sur la banderole
+  if(DECOR_V2){ reparerMobilier(); cielRetablir(); fpsArreter(); footDemarrer(); SURPRISES.tyro=null; poserTexteBanderole(META.banderole); if(RIDES.porte){ RIDES.actif=null; RIDES.porte.visible=false; RIDES.txt.style.display='none'; rivalesFin(); if(RIDES.fleche) RIDES.fleche.visible=false; RIDES.records={}; RIDES.primeVague={}; } resetPic(); resetMer(); basketArreter(); BASKET.reussi=false; BASKET.vague=-1; } P.wingsuit=false; P.wing=false; if(P.wingMesh) P.wingMesh.visible=false; nettoyerPnjMetier(); MET2.serie={taxi:0,ambulance:0,pompier:0}; // course en cours : jamais survivante d'une partie à l'autre // mobilier renversé réparé ; message acheté sur la banderole
   // Jetpack : perdu au game over, comme les armes (voir CLAUDE.md) — il
   // faut remonter le chercher. Le lieu, lui (META.jetpackTrouve), reste acquis.
   P.jetpack=false; P.jetpackVol=false; P.jetFuel=100; P.jetVx=0; P.jetVz=0; P.jetWarnT=0; P.jetAvertVu=false;
@@ -31090,6 +31738,8 @@ function mourir(){
   if(DECOR_V2&&RIDES.actif){ RIDES.actif=null; RIDES.porte.visible=false; RIDES.txt.style.display='none'; rivalesFin(); if(RIDES.fleche) RIDES.fleche.visible=false; } // course abandonnée à la mort
   if(DECOR_V2) basketArreter(); // concours de tirs abandonné
   if(BASE.defi) finDefiBase(false); // parcours du combattant abandonné
+  fpsArreter(); // ball-trap, stand de tir : la partie s'arrête, rien de gagné
+  SURPRISES.tyro=null; // décroché de la tyrolienne
   ETAT.mode='mort'; ETAT.timeScale=0.28; document.body.style.boxShadow='none';
   annulerFouille(true); cacherJauges();
   SFX.mort(); vibre(120);
@@ -31696,6 +32346,13 @@ function majAction(){
         fn=()=>{ if(!ok){ SFX.refus(); return; } actionShop('buyW',sl.id); }; }
       else if(P.armeCur!==sl.id){ label='✋ PRENDRE '+a.nom.toUpperCase(); fn=()=>{ majArmeJoueur(sl.id); SFX.ui(); toast(a.ico+' '+a.nom+' en main','or'); }; }
       else { label='🛠 '+a.nom+' en main — à l’ÉTABLI pour la personnaliser'; fn=()=>{ SFX.ui(); }; }
+    } else if(s.standTir&&!FPS.actif&&dist2(P.x,P.z,s.standTir.x,s.standTir.z)<marquerZone(s.standTir,3.24)){
+      label='🎯 STAND DE TIR — ESSAYER UNE ARME'; fn=()=>ouvrirStandTir(s);
+    } else if(s.gilets&&s.gilets.some((q)=>dist2(P.x,P.z,q.x,q.z)<1)){
+      const q=s.gilets.find((q2)=>dist2(P.x,P.z,q2.x,q2.z)<1), G=GILETS.find((x)=>x.id===q.id); marquerZone(q,1);
+      label='🦺 '+G.nom.toUpperCase()+' — '+prixShop(G.prix)+' $ ('+G.pts+' de bouclier)'; fn=()=>actionShop('gilet',G.id);
+    } else if(s.cabineBoutique&&dist2(P.x,P.z,s.cabineBoutique.x,s.cabineBoutique.z)<marquerZone(s.cabineBoutique,2.6)){
+      const D=BOUTIQUES_DEF[s.bid]||BOUTIQUES_DEF.chic; label=D.ico+' CABINE — ESSAYER, ACHETER'; fn=()=>ouvrirBoutiqueSalle(s);
     } else if(s.etabliArmes&&dist2(P.x,P.z,s.etabliArmes.x,s.etabliArmes.z)<marquerZone(s.etabliArmes,2.6)){
       label='🛠 PERSONNALISER — '+ARMES[P.armeCur].nom.toUpperCase(); fn=()=>ouvrirAtelierArme(s);
     } else if(s.comptoirArmes&&dist2(P.x,P.z,s.comptoirArmes.x,s.comptoirArmes.z)<marquerZone(s.comptoirArmes,14)){
@@ -32071,14 +32728,18 @@ function majAction(){
       if(basketAuPoste()&&!BASKET.vol){ label='🏀 TIRER'; fn=basketTirer; }
     } else if(!P.veh&&BASKET.ok&&dist2(P.x,P.z,BASKET.depart.x,BASKET.depart.z)<9){
       label='🏀 CONCOURS DE TIRS — 10 tirs, 45 s'; fn=basketDemarrer;
+    } else if(!P.veh&&SURPRISES.liste.length&&surpriseAction()){
+      const a=surpriseAction(); label=a.label; fn=a.fn;
     } else if(!P.veh&&TOITS.coffres.length&&coffreToitProche()){
       const c=coffreToitProche(); label=c.vague===WAVES.n?'📦 Coffre déjà fouillé':'📦 FOUILLER LE COFFRE DU TOIT'; fn=()=>fouillerCoffreToit(c);
     } else if(DECOR_V2&&tourProche()){
       label='📡 TOUR DE CONTRÔLE — GUIDER LES AVIONS'; fn=lancerTour;
     } else if(!P.veh&&manegeProche()){
       const m=manegeProche(); label=(m==='huit'?'🎢 GRAND HUIT':'🎡 GRANDE ROUE')+' — UN TOUR '+MANEGES.prixTour+' $'; fn=()=>lancerManege(m);
-    } else if(!P.veh&&BOUTIQUES.length&&boutiqueProche()){
-      const b=boutiqueProche(); label=b.def.ico+' '+b.def.nom.toUpperCase()+' — ESSAYER'; fn=()=>ouvrirBoutique(b);
+    } else if(!P.veh&&!INT.actif&&BOUTIQUES.length&&boutiqueProche()&&PORTES.some((q)=>q.boutiqueId===boutiqueProche().id)){
+      const b=boutiqueProche(), pt=PORTES.find((q)=>q.boutiqueId===b.id); label=b.def.ico+' ENTRER — '+b.def.nom.toUpperCase(); fn=()=>entrerInterieur('boutique',pt);
+    } else if(!P.veh&&BT.ok&&ballTrapAction()){
+      const a=ballTrapAction(); label=a.label; fn=a.fn;
     } else if(!P.veh&&HELIPORT.console&&heliportAction()){
       const a=heliportAction(); label=a.label; fn=a.fn;
     } else if(!P.veh&&BASE.ok&&baseAction()){
@@ -32149,7 +32810,7 @@ function majAction(){
           fn=()=>entrerInterieur('tuning',porteP);
         }
       } else {
-        label='ENTRER — '+INTDEFS[porteP.id].nom;
+        label='ENTRER — '+(porteP.boutiqueId?BOUTIQUES_DEF[porteP.boutiqueId].nom:INTDEFS[porteP.id].nom);
         fn=()=>entrerInterieur(porteP.id,porteP);
       }
     } else if(kayakProche){
@@ -32560,7 +33221,7 @@ function basculerVue(){
 function majBoutonVue(){ const b=el('btnVue'); if(!b) return; b.classList.toggle('on',vueImmersive()); const t=el('btnVueTxt'); if(t) t.textContent=vueImmersive()?'3D':'2D'; }
 // au doigt : glisser sur une zone libre fait tourner la vue (à pied), double-tap = derrière le joueur
 renderer.domElement.addEventListener('pointerdown',e=>{
-  if(!salleImmersive(INT.actif)||!vueImmersive()||ETAT.mode!=='jeu') return;
+  if(!salleImmersive(INT.actif)||!vueImmersive()||ETAT.mode!=='jeu'||ATELIER.ouvert||FPS.actif) return; // l'établi et le tir à la première personne ont leurs propres gestes
   const t=performance.now();
   if(t-VUE.tapT<300&&!P.veh){ VUE.yawUser=(P.ang||0)+Math.PI; VUE.tapT=0; return; }
   VUE.tapT=t; if(P.veh&&INT.actif) return;
@@ -32572,9 +33233,15 @@ window.addEventListener('pointermove',e=>{
   const dx=e.clientX-VUE.drag.x; VUE.drag.x=e.clientX;
   if(P.veh) VUE.offVeh=clamp((VUE.offVeh||0)-dx*VUE_SENS_DOIGT,-Math.PI,Math.PI); else VUE.yawUser-=dx*VUE_SENS_DOIGT; if(Math.abs(dx)>4) VUE.tapT=0;
 });
+// retourner l'arme au doigt : glisser sur l'écran (la rotation automatique reprend 3 s après)
+renderer.domElement.addEventListener('pointerdown',e=>{ if(ATELIER.ouvert) ATELIER.drag={id:e.pointerId,x:e.clientX,y:e.clientY}; });
+window.addEventListener('pointermove',e=>{ if(!ATELIER.ouvert||!ATELIER.drag||e.pointerId!==ATELIER.drag.id) return;
+  ATELIER.ang+=(e.clientX-ATELIER.drag.x)*0.012; ATELIER.tilt=clamp(ATELIER.tilt+(e.clientY-ATELIER.drag.y)*0.01,-1.3,1.3); ATELIER.drag.x=e.clientX; ATELIER.drag.y=e.clientY; ATELIER.pauseT=3; });
+window.addEventListener('pointerup',e=>{ if(ATELIER.drag&&e.pointerId===ATELIER.drag.id) ATELIER.drag=null; });
 const vueFinDrag=e=>{ if(VUE.drag&&e.pointerId===VUE.drag.id) VUE.drag=null; };
 window.addEventListener('pointerup',vueFinDrag); window.addEventListener('pointercancel',vueFinDrag);
 function majCamera(dt){
+  if(FPS.actif){ fpsCamera(); return; } // tir à la première personne : l'œil du joueur
   // Garage tuning, menu d'atelier ouvert : vue de présentation — caméra
   // fixe face au plateau (le joueur fait tourner le véhicule au doigt, voir
   // GAR_DRAG ; sinon il tourne seul), le véhicule cadré dans la moitié
@@ -32590,7 +33257,7 @@ function majCamera(dt){
   if(MANEGES.actif&&MANEGES.actif.type==='huit'){ const H=MANEGES.huit, u=(H.s/H.L)%1, p=H.C.getPointAt(u), tg=H.C.getTangentAt(u); // grand huit : derrière le premier wagon
     camera.position.set(p.x+tg.x*0.4,p.y+2.3,p.z+tg.z*0.4); camera.lookAt(p.x+tg.x*14,p.y+tg.y*14+1.2,p.z+tg.z*14); camera.fov=lerp(camera.fov,78,0.1); /* vue subjective, premier rang */ camera.updateProjectionMatrix(); VUE.yawRendu=0; return; }
   if(MANEGES.actif&&MANEGES.actif.type==='roue'){ camera.position.set(P.x+3,P.y+3,P.z+12); camera.lookAt(P.x,P.y-2,P.z-30); camera.fov=lerp(camera.fov,60,0.1); camera.updateProjectionMatrix(); VUE.yawRendu=0; return; } // la vue sur la ville
-  if(BOUT.ouvert&&!INT.actif){ const a=(BOUT.b?BOUT.b.ry:0); // cabine d'essayage : de face, le joueur dans la moitié haute de l'écran
+  if(BOUT.ouvert&&(!INT.actif||INT.actif.cabineBoutique)){ const a=(BOUT.b?BOUT.b.ry:0); // cabine d'essayage : de face, le joueur dans la moitié haute de l'écran
     camera.position.set(P.x+Math.sin(a)*6.2,P.y+1.5,P.z+Math.cos(a)*6.2); camera.lookAt(P.x,P.y+0.1,P.z); camera.fov=lerp(camera.fov,50,0.15); camera.updateProjectionMatrix(); VUE.yawRendu=0; return; }
   const enVol=P.veh&&P.veh.def.air?(P.veh.alt||0):0;
   // Assiette d'un avion/hélico : sous la vue très inclinée normale (quasi
@@ -32749,7 +33416,7 @@ function majMinimap(){
   const cx=clamp(mmX(pc.x),dv,192-dv), cz=clamp(mmZ(pc.z),dv,192-dv), ech=192/(2*dv);
   const PX=x=>(mmX(x)-(cx-dv))*ech, PZ=z=>(mmZ(z)-(cz-dv))*ech;
   mmCtx.clearRect(0,0,192,192);
-  mmCtx.drawImage(mmStatic,(cx-dv)*2,(cz-dv)*2,dv*4,dv*4,0,0,192,192);
+  mmCtx.drawImage(mmStatic,(cx-dv)*MM_RES,(cz-dv)*MM_RES,dv*2*MM_RES,dv*2*MM_RES,0,0,192,192);
   const dot=(x,z,c,r)=>{mmCtx.fillStyle=c;mmCtx.beginPath();mmCtx.arc(PX(x),PZ(z),r||2.4,0,7);mmCtx.fill();};
   // Portes des bâtiments visitables : simple point, comme avant (jusqu'à 26
   // à la fois, pas la place pour un badge complet sur 96 px d'écran) — la
@@ -32834,7 +33501,7 @@ function boucle(t){
     ETAT.comboT-=dt;
     if(ETAT.comboT<=0) ETAT.combo=1;
     if(ETAT.slowT>0){ ETAT.slowT-=dtReel; if(ETAT.slowT<=0&&ETAT.mode==='jeu') ETAT.timeScale=1; }
-    if(ETAT.mode==='jeu'){ majNitro(dtJeu); if(DECOR_V2) towEntrees(); if(!MANEGES.actif) majJoueur(dt,dtJeu); majIvresse(dtJeu); if(DECOR_V2){ majRides(dtJeu); majPic(dt); majTow(dt); majBasket(dt,dtJeu); } } // nitro décidée AVANT la physique du véhicule
+    if(ETAT.mode==='jeu'){ majNitro(dtJeu); if(DECOR_V2) towEntrees(); if(!MANEGES.actif&&!FPS.actif) majJoueur(dt,dtJeu); majFPS(dt,dtJeu); majIvresse(dtJeu); if(DECOR_V2){ majRides(dtJeu); majPic(dt); majTow(dt); majBasket(dt,dtJeu); majToitsSurprises(dt,dtJeu); } } // nitro décidée AVANT la physique du véhicule
     majEnnemis(dt);
     if(!INT.actif){
       majPietons(dt);
@@ -32866,7 +33533,7 @@ function boucle(t){
       majMeteo(dt);
       majMer(dt);
       majMerV2(dt);
-      if(DECOR_V2){ majHorsLesMurs(dt); majMobilier(); majLac(dt); majLumieres(dt); majJetee(dt); majPortVivant(dt); majAeroportVivant(dt); majAeroVie(dt); majVieHills(dt); majChantierV2(dt); majBaseV2(dt,dtJeu); majHeliportManoir(dt); majPlanques(dt); majAtelierArme(dt); majBoutique(dt); majTour(dtJeu); majCascades(dt); majManeges(dt); majBrooklyn(dt); majCiel(dt); majNeonVivant(dt); majQuartiersFinitions(dt); }
+      if(DECOR_V2){ majHorsLesMurs(dt); majMobilier(); majLac(dt); majLumieres(dt); majJetee(dt); majPortVivant(dt); majAeroportVivant(dt); majAeroVie(dt); majVieHills(dt); majChantierV2(dt); majBaseV2(dt,dtJeu); majSportsParcs(dt); majHeliportManoir(dt); majPlanques(dt); majAtelierArme(dt); majBoutique(dt); majTour(dtJeu); majCascades(dt); majManeges(dt); majBrooklyn(dt); majCiel(dt); majCielCibles(dt); majNeonVivant(dt); majQuartiersFinitions(dt); }
       majEpaveCanon(dt);
     }
     majHUD();

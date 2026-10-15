@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GTRoyal — catalogue vivant</title>
+<style>
+:root{--fond:#0f1218;--carte:#171b24;--ligne:#2a3140;--txt:#e8ecf2;--doux:#9aa4b4;--or:#ffd23f;--cyan:#35e0ff;--rose:#ff5ad0;--vert:#7dff7a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--fond);color:var(--txt);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+header{position:sticky;top:0;z-index:5;background:#0b0e13ee;backdrop-filter:blur(6px);border-bottom:1px solid var(--ligne);padding:10px 16px}
+header h1{margin:0;font-size:20px;letter-spacing:.5px}
+header h1 b{color:var(--or)}
+#etat{color:var(--doux);font-size:12px;margin-top:2px}
+nav{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+nav a{color:var(--txt);text-decoration:none;font-size:12px;font-weight:700;border:1px solid var(--ligne);border-radius:999px;padding:4px 10px;background:#151a22}
+nav a:hover{border-color:var(--cyan);color:var(--cyan)}
+main{padding:8px 16px 60px;max-width:1500px;margin:0 auto}
+section{margin-top:26px}
+section h2{font-size:18px;margin:0 0 4px;color:var(--or)}
+section .sous{color:var(--doux);font-size:12px;margin-bottom:10px}
+.grille{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
+.grille.large{grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
+.carte{background:var(--carte);border:1px solid var(--ligne);border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
+.carte .img{aspect-ratio:11/8;background:radial-gradient(circle at 50% 40%,#2a3242,#141820);display:flex;align-items:center;justify-content:center;color:var(--doux);font-size:12px}
+.carte .img img{width:100%;height:100%;object-fit:cover;display:block}
+.carte .corps{padding:8px 10px 10px}
+.carte .nom{font-weight:800;font-size:14px}
+.carte .det{color:var(--doux);font-size:12px;margin-top:2px}
+.pastilles{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.pastille{font-size:11px;font-weight:700;border-radius:999px;padding:2px 7px;background:#222a36;color:var(--txt)}
+.pastille.or{background:#3a3010;color:var(--or)}.pastille.cyan{background:#0f3038;color:var(--cyan)}.pastille.rose{background:#3a1032;color:var(--rose)}.pastille.vert{background:#163a16;color:var(--vert)}
+table{width:100%;border-collapse:collapse;font-size:13px;background:var(--carte);border:1px solid var(--ligne);border-radius:10px;overflow:hidden}
+th,td{padding:6px 8px;border-bottom:1px solid var(--ligne);text-align:left;vertical-align:top}
+th{background:#1d2330;color:var(--doux);font-size:12px;position:sticky;top:94px}
+.liste{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--ligne);border-radius:10px;padding:5px 9px;background:#151a22;font-size:12px}
+.journal details{background:var(--carte);border:1px solid var(--ligne);border-radius:10px;margin-bottom:8px;padding:8px 12px}
+.journal summary{cursor:pointer;font-weight:800}
+.journal li{margin:3px 0;color:#d0d6e0}
+.journal code{background:#222a36;border-radius:4px;padding:0 4px;font-size:12px}
+.erreur{background:#3a1018;border:1px solid #ff3b5c;border-radius:10px;padding:12px;margin-top:20px}
+#jeu{position:absolute;left:-10000px;top:0;width:390px;height:844px;border:0}
+@media (max-width:600px){ main{padding:8px 10px 60px} .grille{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))} th{top:120px} }
+</style>
+</head>
+<body>
+<header>
+  <h1><b>GTRoyal</b> — catalogue vivant</h1>
+  <div id="etat">Chargement du jeu…</div>
+  <nav id="nav"></nav>
+</header>
+<main id="main"></main>
+<!-- le jeu lui-même, chargé en arrière-plan : tout ce qui suit est lu dans index.html, à chaque ouverture -->
+<iframe id="jeu" src="index.html" title="jeu"></iframe>
+<script>
+/* Catalogue vivant de GTRoyal. Il ne recopie AUCUNE liste : il charge index.html (même dossier, même serveur)
+   dans un cadre caché, lit les tables du jeu (VEHDEFS, ARMES, TENUES, VILLA_STYLES, INTDEFS…) et fabrique les
+   vignettes avec les fonctions du jeu (makeVoiture, mkArmeModele, makeHumain, mkAnimal, construireSalle).
+   Une modification du jeu apparaît donc ici au prochain rechargement. Le journal des améliorations est lu
+   dans CLAUDE.md. À ouvrir par le serveur local (npx live-server) : en file://, le navigateur interdit de lire
+   le cadre. */
+const $=(s)=>document.querySelector(s), main=$('#main'), etat=$('#etat');
+const pause=()=>new Promise((r)=>setTimeout(r,0));
+const esc=(t)=>String(t==null?'':t).replace(/[&<>"]/g,(c)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const hex=(n)=>'#'+(n>>>0).toString(16).padStart(6,'0').slice(-6);
+let W, G, T, studio;
+
+function section(id,titre,sous){ const s=document.createElement('section'); s.id=id; s.innerHTML='<h2>'+esc(titre)+'</h2>'+(sous?'<div class="sous">'+sous+'</div>':''); main.appendChild(s);
+  const a=document.createElement('a'); a.href='#'+id; a.textContent=titre.replace(/ —.*$/,''); $('#nav').appendChild(a); return s; }
+function carte(nom,det,pastilles,img){ const d=document.createElement('div'); d.className='carte';
+  d.innerHTML='<div class="img">'+(img===false?'':'…')+'</div><div class="corps"><div class="nom">'+nom+'</div>'+(det?'<div class="det">'+det+'</div>':'')+(pastilles&&pastilles.length?'<div class="pastilles">'+pastilles.map((p)=>'<span class="pastille '+(p[1]||'')+'">'+esc(p[0])+'</span>').join('')+'</div>':'')+'</div>';
+  if(img===false) d.querySelector('.img').remove(); return d; }
+function poserImage(c,url){ const z=c.querySelector('.img'); if(!z) return; z.innerHTML=url?'<img alt="" src="'+url+'">':'—'; }
+
+// ---------- le studio photo, dans le contexte du jeu (sa librairie Three, son moteur de rendu) ----------
+function monterStudio(){
+  const sc=new T.Scene(); sc.background=new T.Color(0x1c2230);
+  sc.add(new T.HemisphereLight(0xdfe8ff,0x3a3020,1.0)); const d=new T.DirectionalLight(0xffffff,0.9); d.position.set(5,10,7); sc.add(d);
+  const sol=new T.Mesh(new T.CircleGeometry(60,40),new T.MeshLambertMaterial({color:0x232a38})); sol.rotation.x=-Math.PI/2; sol.position.y=-0.02; sc.add(sol);
+  const cam=new T.PerspectiveCamera(32,220/160,0.05,2000); return {sc,cam,sol}; }
+function boiteMeshes(obj){ const b=new T.Box3(), t=new T.Box3(); obj.updateMatrixWorld(true); let ok=false;
+  obj.traverse((o)=>{ if(o.isMesh&&o.geometry&&o.visible!==false){ if(!o.geometry.boundingBox) o.geometry.computeBoundingBox(); t.copy(o.geometry.boundingBox).applyMatrix4(o.matrixWorld); b.union(t); ok=true; } }); return ok?b:null; }
+function photo(obj,dir,taille){ // pose l'objet au sol du studio, cadre, rend, rend la main
+  const S=studio, R=G.renderer; if(!obj) return null; S.sc.add(obj); let b=boiteMeshes(obj); if(!b){ S.sc.remove(obj); return null; }
+  obj.position.y-=b.min.y; b=boiteMeshes(obj); const c=b.getCenter(new T.Vector3()), s=b.getSize(new T.Vector3()), r=Math.max(s.x,s.y*1.2,s.z)*0.62||1;
+  const dist=r/Math.tan(S.cam.fov*Math.PI/360)*1.15, v=new T.Vector3(...(dir||[1,0.55,1.25])).normalize();
+  S.cam.position.copy(c).addScaledVector(v,dist); S.cam.near=dist/80; S.cam.far=dist*20; S.cam.lookAt(c); S.cam.updateProjectionMatrix();
+  S.sol.scale.setScalar(Math.max(1,r/10));
+  R.setSize(taille?taille[0]:440,taille?taille[1]:320,false); S.cam.aspect=11/8; S.cam.updateProjectionMatrix(); R.render(S.sc,S.cam);
+  const url=R.domElement.toDataURL('image/jpeg',0.86); S.sc.remove(obj); return url; }
+function vueScene(pos,cible,fov){ // une vue de la vraie ville (villas, salles)
+  const R=G.renderer, cam=new T.PerspectiveCamera(fov||50,11/8,0.5,3000); cam.position.set(...pos); cam.lookAt(...cible); R.setSize(440,320,false);
+  const f=G.scene.fog; if(f) G.scene.fog=null; R.render(G.scene,cam); G.scene.fog=f; return R.domElement.toDataURL('image/jpeg',0.86); }
+
+// ---------- les sections ----------
+async function vehicules(){
+  const V=G.VEHDEFS, ks=Object.keys(V), s=section('vehicules','Véhicules — '+ks.length,'Lus dans <code>VEHDEFS</code> ; vignettes faites par <code>makeVoiture</code>.'), gr=document.createElement('div'); gr.className='grille'; s.appendChild(gr);
+  const cat=(d)=>d.air==='helico'?['Hélico','cyan']:d.air?['Avion','cyan']:d.eau?['Bateau','cyan']:d.type==='moto'?['Deux-roues','or']:d.velo?['Vélo','or']:['Terrestre','or'];
+  for(const k of ks){ const d=V[k], p=[cat(d),[Math.round((d.vmax||0)*3.6)+' km/h'],[(d.hp||0)+' PV']]; if(d.tuningMeca) p.push(['Garage : méca','vert']); if(d.tuningCarro) p.push(['Carrosserie','vert']); if(d.armes||d.canon||d.mitrailleuse) p.push(['Armé','rose']); if(d.cache) p.push(['Caché','rose']);
+    const c=carte(esc(d.nom||k),esc(k)+(d.long?' — '+d.long.toFixed(1)+' × '+(d.larg||0).toFixed(1)+' u':''),p); gr.appendChild(c);
+    try{ poserImage(c,photo(G.makeVoiture(k))); }catch(e){ poserImage(c,null); } await pause(); } }
+async function armes(){
+  const A=G.ARMES, ids=G.ORDRE_ARMES.filter((id)=>A[id]), s=section('armes','Armes — '+ids.length,'Lues dans <code>ARMES</code> (ordre du jeu) ; modèles de <code>mkArmeModele</code> ; les modifications possibles d’après <code>MODS_ARMES</code>.'), gr=document.createElement('div'); gr.className='grille'; s.appendChild(gr);
+  for(const id of ids){ const a=A[id], mods=Object.keys(G.MODS_ARMES).filter((k)=>{ try{ return G.MODS_ARMES[k].pour(a,id); }catch(e){ return false; } });
+    const p=[[a.type==='gun'?'Arme à feu':'Corps à corps','or'],['Dégâts '+a.degats],['Cadence '+a.cad+' s']]; if(a.mag) p.push(['Chargeur '+a.mag]); if(a.portee) p.push(['Portée '+a.portee]); p.push([(a.prix||0)+' $','vert']); if(a.niv) p.push(['Niveau '+a.niv]);
+    const c=carte((a.ico||'')+' '+esc(a.nom),mods.length?'Modifs : '+mods.map((k)=>G.MODS_ARMES[k].ico).join(' '):'',p); gr.appendChild(c);
+    try{ let m=G.mkArmeModele(id); if(m){ m.visible=true; const h=new T.Group(); h.add(m); h.rotation.set(-Math.PI/2,0,Math.PI/2); poserImage(c,photo(h,[0.2,0.5,1])); } else poserImage(c,null); }catch(e){ poserImage(c,null); } await pause(); }
+  const s2=section('modifs','Modifications d’armes et protections','<code>MODS_ARMES</code> et <code>GILETS</code>'); const t=document.createElement('table'); s2.appendChild(t);
+  t.innerHTML='<tr><th></th><th>Modification</th><th>Effet</th><th>Prix</th></tr>'+Object.keys(G.MODS_ARMES).map((k)=>{ const M=G.MODS_ARMES[k]; return '<tr><td>'+M.ico+'</td><td>'+esc(M.nom)+'</td><td>'+esc(M.det)+'</td><td>'+M.prix+' $</td></tr>'; }).join('')+
+    G.GILETS.map((g)=>'<tr><td>🦺</td><td>'+esc(g.nom)+'</td><td>'+esc(g.det)+'</td><td>'+g.prix+' $</td></tr>').join(''); }
+async function tuning(){
+  const F=G.PIECES_FAMILLES, s=section('tuning','Garage : pièces, peinture, néons','<code>PIECES_FAMILLES</code> (familles de carrosserie) et les véhicules qui y ont droit (<code>tuningCarro.famille</code>).');
+  const t=document.createElement('table'); s.appendChild(t); let h='<tr><th>Famille</th><th>Véhicules</th><th>Pièces (variantes)</th></tr>';
+  for(const fam in F){ const veh=Object.keys(G.VEHDEFS).filter((k)=>G.VEHDEFS[k].tuningCarro&&G.VEHDEFS[k].tuningCarro.famille===fam).map((k)=>G.VEHDEFS[k].nom||k);
+    const cats=F[fam]; h+='<tr><td><b>'+esc(fam)+'</b></td><td>'+esc(veh.join(', '))+'</td><td>'+Object.keys(cats).map((c)=>{ const L=cats[c], noms=(L.variantes||L).map?(L.variantes||L).map((v)=>v.nom||v.label||v).join(' · '):''; return '<b>'+esc(L.nom||L.label||c)+'</b> : '+esc(noms); }).join('<br>')+'</td></tr>'; }
+  t.innerHTML=h; }
+async function tenues(){
+  const s=section('tenues','Tenues — '+G.TENUES.length,'<code>TENUES</code> : comment on les débloque et ce qu’elles donnent.'), gr=document.createElement('div'); gr.className='grille'; s.appendChild(gr);
+  for(const tn of G.TENUES){ const c=carte((tn.ico||'')+' '+esc(tn.nom),esc(tn.condTxt||''),[]); gr.appendChild(c);
+    try{ const h=G.makeHumain({haut:tn.haut,bas:tn.bas,peau:0xd9a066,casq:tn.casq,visage:'neutre'},1); poserImage(c,photo(h.g,[0.3,0.25,1])); }catch(e){ poserImage(c,null); } await pause(); }
+  const s2=section('boutiques','Boutiques de style','<code>BOUTIQUES_DEF</code> et <code>VETEMENTS</code>'); const gr2=document.createElement('div'); gr2.className='grille large'; s2.appendChild(gr2);
+  for(const k in G.BOUTIQUES_DEF){ const D=G.BOUTIQUES_DEF[k], L=G.VETEMENTS.filter((v)=>v.b===k);
+    const c=carte((D.ico||'')+' '+esc(D.nom),L.map((v)=>(typeof v.val==='number'?'<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:'+hex(v.val)+';margin-right:4px"></span>':'')+esc(v.nom)+' <span style="color:#7dff7a">'+v.prix+' $</span>').join('<br>'),[[D.q,'cyan']],false); gr2.appendChild(c); } }
+async function villas(){
+  const H=G.HILLS; if(!H||!H.ok) return; const pads=H.pads.filter((p)=>p.villa), s=section('villas','Villas de Los Reyes Hills — '+pads.length,'Chaque parcelle de <code>HILLS.pads</code>, photographiée dans la vraie colline (styles : <code>VILLA_STYLES</code>).'), gr=document.createElement('div'); gr.className='grille large'; s.appendChild(gr);
+  for(const p of pads){ const c=carte(esc(p.style)+' <span style="color:#9aa4b4">('+esc(p.type)+')</span>','parcelle '+Math.round(p.hw*2)+' × '+Math.round(p.hd*2)+' u, à '+Math.round(p.h)+' u d’altitude',[]); gr.appendChild(c);
+    const sens=p.f||1; try{ poserImage(c,vueScene([p.x+p.hw*0.6,p.h+p.hw*0.9+6,p.z+sens*(p.hd+p.hw*1.1+6)],[p.x,p.h+2,p.z],45)); }catch(e){ poserImage(c,null); } await pause(); } }
+async function pnj(){
+  const E=G.ETYPES, ks=Object.keys(E), s=section('pnj','PNJ et ennemis — '+ks.length,'<code>ETYPES</code> (factions : '+esc(Object.values(G.NOMS_GANG).join(', '))+') et les personnages jouables <code>PERSOS</code>.'), gr=document.createElement('div'); gr.className='grille'; s.appendChild(gr);
+  for(const k of ks){ const e=E[k], c=carte(esc(e.nom||k),esc(k)+' — '+esc(e.fac||''),[[e.hp+' PV'],[String(e.arme||'—'),'rose']]); gr.appendChild(c);
+    try{ const h=G.makeHumain(e.couleurs||{haut:0x888888,bas:0x333333,peau:0xd9a066,casq:0x222222,visage:'neutre'},1); poserImage(c,photo(h.g,[0.3,0.25,1])); }catch(e2){ poserImage(c,null); } await pause(); }
+  for(const k in G.PERSOS){ const pe=G.PERSOS[k], c=carte((pe.ico||'')+' '+esc(pe.nom),esc(pe.desc||''),[[(pe.skins||[]).length+' skins','or'],[(pe.prix||0)+' $','vert']]); gr.appendChild(c);
+    try{ const h=G.makeHumain(Object.assign({visage:'neutre'},pe.couleurs),1); poserImage(c,photo(h.g,[0.3,0.25,1])); }catch(e){ poserImage(c,null); } await pause(); }
+  const s2=section('animaux','Animaux','<code>FAUNE_DEFS</code>, modèles de <code>mkAnimal</code>'), gr2=document.createElement('div'); gr2.className='grille'; s2.appendChild(gr2);
+  for(const k in G.FAUNE_DEFS){ const d=G.FAUNE_DEFS[k], c=carte(esc(k),d.paisible?'paisible (le tuer coûte du karma)':'charge et mord ('+d.deg+' de dégâts)',[[d.hp+' PV']]); gr2.appendChild(c);
+    try{ const an=G.mkAnimal(k); poserImage(c,photo(an&&an.g?an.g:an,[1,0.5,0.8])); }catch(e){ poserImage(c,null); } await pause(); } }
+const DESCRIPTIFS={ // quelques mots par salle (le reste — nom, icône, taille, vue — est lu dans le jeu ; une salle nouvelle apparaît d'elle-même)
+  superette:'Supérette 24/7 : courses, fouilles, un braquage possible.',
+  club:'Club Néon : piste de danse au rythme (pourboire), bagarre de fêtards, ivresse qui fait tanguer la caméra.',
+  banque:'Banque de Los Reyes : le casse, les vigiles, le coffre.',
+  poste:'Commissariat : la police chez elle — on y entre à ses risques.',
+  tour:'Tour Los Reyes : hall, ascenseur vers le toit panoramique, le jetpack au sommet.',
+  pharma:'Pharmacie : soins et clinique des missions d’ambulance.',
+  armurerie:'Armurerie : mur des armes par familles, gilets sur mannequins, établi (aperçu des modifications, l’arme se retourne au doigt), stand de tir à la première personne.',
+  conces:'Concession REYES MOTORS : voitures en vente sur podiums, dont les modèles de luxe.',
+  planque:'La villa planque (le manoir) : soins, revenus, penderie, cabinet de curiosités, tableau de la ville ; héliport privé dehors.',
+  casino:'Casino : machines à sous, blackjack, vidéo-poker, roue de la fortune.',
+  laverie:'Laverie « Bulle Bleue » : l’essorage de la machine 7, tenir l’aiguille dans le vert sous la pluie.',
+  voyance:'Chez Madame Zohra : la boule de cristal et ses prédictions.',
+  karaoke:'Karaoké « Micro Cassé » : chanter juste, le Disque de Platine.',
+  aquarium:'Aquarium au fond de la mer : « 1, 2, 3… Gaston ! », toucher la pieuvre quand elle a le dos tourné.',
+  bowling:'Bowling « Le Strike Doré » : deux parties par vague, la boule « Comète ».',
+  sport:'Salle de sport « Fer & Sueur » : les barres, le muscle qui grossit le personnage.',
+  serre:'Serre du jardin botanique : la nuit de la floraison, arroser et traiter douze plantes.',
+  sandwich:'Le Roi des Sandwichs : le défi de manger sans nausée, la Ceinture de Champion.',
+  musee:'Musée Mémoire de Los Reyes : la ronde des gardiens, le Canard d’Or.',
+  arcade:'Palais de l’arcade : bornes jouables, tickets, tableau des scores, le Jeton Doré.',
+  cine:'Ciné-Palace : la séance du siècle, réparer les pannes pendant que le public regarde le film.',
+  metro:'Métro abandonné : la descente dans le noir, la Lampe de Mineur.',
+  radio:'Radio pirate Reyes FM : tenir la fréquence, fuir le brouilleur et l’hélico de la police.',
+  chalutier:'Chalutier « Sainte-Odile » : sortie en mer, pêche à la canne et au filet, le Vieux Roi, la tempête.',
+  site51:'Site 51 : dix objets à voler sans se faire voir, des sas qui se ferment.',
+  depot:'Dépôt de bus : courses clandestines en bus, le Volant du Dépôt.',
+  tuning:'Garage tuning : modèle d’exposition, pièces de carrosserie avec aperçu, peinture, néons, nitro, blindage.',
+  boutique:'Boutique de style, une salle pour les cinq enseignes : portants, mannequins, cabine à miroir ; barbier et tatoueur ont leur mobilier.' };
+async function salles(){
+  const D=G.INTDEFS, ids=Object.keys(D), s=section('salles','Salles — '+ids.length,'<code>INTDEFS</code>, chaque salle construite par <code>construireSalle</code> et vue d’en haut.'), gr=document.createElement('div'); gr.className='grille large'; s.appendChild(gr);
+  const nPortes=(id)=>G.PORTES.filter((p)=>p.id===id).length;
+  for(const id of ids){ const d=D[id], c=carte((d.ico||'')+' '+esc(d.nom),esc(DESCRIPTIFS[id]||'—'),[[d.w+' × '+d.d+' u'],[nPortes(id)+' porte'+(nPortes(id)>1?'s':''),'cyan']]); gr.appendChild(c);
+    try{ const sa=G.construireSalle(id); poserImage(c,vueScene([sa.ox+d.w*0.15,Math.max(d.w,d.d)*0.85+6,sa.oz+d.d*0.75+6],[sa.ox,0,sa.oz-d.d*0.05],50)); }catch(e){ poserImage(c,null); } await pause(); } }
+async function activites(){
+  const L=G.pointsActivites(), s=section('activites','Activités en plein air — '+L.length,'<code>pointsActivites()</code> : la même liste que les balises et le filtre « Activités » de la carte.');
+  const li=document.createElement('div'); li.className='liste'; s.appendChild(li); li.innerHTML=L.map((a)=>'<span class="chip">'+a.ico+' '+esc(a.nom||'')+' <span style="color:#9aa4b4">('+Math.round(a.x)+', '+Math.round(a.z)+')</span></span>').join('');
+  const s2=section('planques','Planques, hélicos du manoir','<code>PLANQUES_DEF</code>, <code>HELIS_MANOIR</code>'); const t=document.createElement('table'); s2.appendChild(t);
+  t.innerHTML='<tr><th></th><th>Nom</th><th>Spécificité</th><th>Prix</th></tr>'+G.PLANQUES_DEF.map((q)=>'<tr><td>'+q.ico+'</td><td>'+esc(q.nom)+'</td><td>'+esc(q.specTxt||'')+'</td><td>'+q.prix+' $</td></tr>').join('')+
+    (G.HELIS_MANOIR||[]).map((q)=>'<tr><td>🚁</td><td>'+esc((G.VEHDEFS[q.cle]||{}).nom||q.cle)+'</td><td>héliport du manoir</td><td>'+q.prix+' $</td></tr>').join('');
+  const s3=section('curiosites','Curiosités et défis','<code>CURIOS</code>, <code>DEFIS</code>'); const li3=document.createElement('div'); li3.className='liste'; s3.appendChild(li3);
+  li3.innerHTML=G.CURIOS.map((c)=>'<span class="chip" title="'+esc(c.eff||'')+'">'+(c.ico||'✦')+' '+esc(c.nom)+' <span style="color:#9aa4b4">— '+esc(c.lieu||'')+'</span>'+(c.actif?'':' <span style="color:#ff5ad0">(inactive)</span>')+'</span>').join('')+'<span class="chip">🏆 '+G.DEFIS.length+' défis</span>'; }
+async function carteVille(){
+  const s=section('carte','Carte de Los Reyes','Le fond de carte du jeu (<code>mmStatic</code>).'); const im=document.createElement('img'); im.style.cssText='width:100%;max-width:960px;border-radius:12px;border:1px solid #2a3140'; im.src=G.mmStatic.toDataURL('image/png'); s.appendChild(im); }
+async function journal(){
+  let txt=''; try{ txt=await (await fetch('CLAUDE.md',{cache:'no-store'})).text(); }catch(e){ return; }
+  const s=section('journal','Journal des améliorations','Lu dans <code>CLAUDE.md</code> : chaque section « ## », la plus récente en haut de la liste du fichier.'); const j=document.createElement('div'); j.className='journal'; s.appendChild(j);
+  const md=(t)=>esc(t).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/`([^`]+)`/g,'<code>$1</code>');
+  for(const bloc of txt.split(/\n(?=## )/).slice(1)){ const L=bloc.split('\n'), titre=L[0].replace(/^## /,''); const items=[]; let cur=null;
+    for(const l of L.slice(1)){ if(/^- /.test(l)){ cur=l.slice(2); items.push(cur); } else if(/^\s+\S/.test(l)&&items.length) items[items.length-1]+=' '+l.trim(); }
+    if(!items.length) continue; const d=document.createElement('details'); d.innerHTML='<summary>'+md(titre)+' <span style="color:#9aa4b4;font-weight:400">('+items.length+')</span></summary><ul>'+items.map((i)=>'<li>'+md(i)+'</li>').join('')+'</ul>'; j.appendChild(d); } }
+
+// ---------- le jeu chargé : on arrête sa boucle et on lit ----------
+async function lancer(){
+  const f=$('#jeu'); let w; try{ w=f.contentWindow; void w.document; }catch(e){ return erreur(); }
+  for(let i=0;i<300;i++){ try{ if(w.eval('typeof PORTES!=="undefined"&&PORTES.length>0&&typeof VEHDEFS!=="undefined"')) break; }catch(e){ return erreur(); } await new Promise((r)=>setTimeout(r,200)); }
+  W=w; W.requestAnimationFrame=()=>0; // la boucle du jeu s'arrête : on ne fait que lire
+  G=W.eval('({VEHDEFS,ARMES,ORDRE_ARMES,MODS_ARMES,GILETS,TENUES,VETEMENTS,BOUTIQUES_DEF,HILLS,ETYPES,NOMS_GANG,PERSOS,FAUNE_DEFS,INTDEFS,PORTES,PLANQUES_DEF,CURIOS,DEFIS,PIECES_FAMILLES,mmStatic,renderer,scene,'+
+    'HELIS_MANOIR:typeof HELIS_MANOIR!=="undefined"?HELIS_MANOIR:[],makeVoiture,mkArmeModele,makeHumain,mkAnimal,construireSalle,pointsActivites})');
+  T=W.THREE; studio=monterStudio();
+  const n=(o)=>Object.keys(o).length; etat.textContent='Lu en direct dans index.html — '+n(G.VEHDEFS)+' véhicules, '+G.ORDRE_ARMES.length+' armes, '+G.TENUES.length+' tenues, '+n(G.INTDEFS)+' salles, '+n(G.ETYPES)+' types de PNJ. Vignettes en cours…';
+  for(const f2 of [journal,vehicules,armes,tuning,tenues,villas,pnj,salles,activites,carteVille]){ try{ await f2(); }catch(e){ console.error(e); } }
+  etat.textContent=etat.textContent.replace('Vignettes en cours…','Tout est à jour.'); }
+function erreur(){ main.innerHTML='<div class="erreur"><b>Impossible de lire le jeu.</b><br>Ouvre ce catalogue par le serveur local, dans le dossier du jeu : <code>npx live-server --host=0.0.0.0 --port=8080</code>, puis <code>http://localhost:8080/catalogue.html</code>. En <code>file://</code>, le navigateur interdit de lire le cadre.</div>'; etat.textContent='Échec du chargement'; }
+$('#jeu').addEventListener('load',lancer);
+</script>
+</body>
+</html>

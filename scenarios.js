@@ -203,7 +203,7 @@ async function main() {
 
   try {
     console.log('\nChargement de la page...');
-    await page.goto('http://127.0.0.1:' + PORT + '/', { waitUntil: 'load', timeout: 30000 });
+    await page.goto('http://127.0.0.1:' + PORT + '/', { waitUntil: 'load', timeout: 90000 }); // la ville et son décor se construisent avant « load » : ~25 s en headless sur cette machine, 30 s ne laissait plus de marge
     await page.waitForFunction(() => typeof PORTES !== 'undefined' && PORTES.length > 0, { timeout: 20000 });
     const nbPortes = await page.evaluate(() => PORTES.length);
     ok('Jeu chargé et monde construit (' + nbPortes + ' portes)');
@@ -7781,7 +7781,7 @@ async function main() {
         if (typeof ameliorerPortes === 'undefined' || !DECOR_V2) return { off: true };
         const o = { courtes: [], sorties: [], masquees: ENSEIGNES.filter((e) => e.lieu && !e.p.visible).length, testees: 0 };
         for (const p of PORTES) {
-          if (p.id === 'tuning' || p.id === 'chalutier' || p.id === 'site51' || p.z > MER - 30) continue;
+          if (p.id === 'tuning' || p.id === 'chalutier' || p.id === 'site51' || p.boutiqueId || p.z > MER - 30) continue; // boutiques : une devanture, sans seuil (sortie vérifiée par « Boutiques de style »)
           o.testees++;
           const nx = p.nx || 0, nz = p.nz === undefined ? 1 : p.nz, pr = profondeurDevant(p.x, p.z, nx, nz);
           if (pr < 2.5) o.courtes.push(p.id + ' ' + pr); // < 2,5 u : le seuil de la porte (2,4 u de profondeur) toucherait la bordure
@@ -10122,9 +10122,15 @@ async function main() {
         if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu';
         const sav = JSON.stringify({ s: META.style, g: META.garde }), arg0 = META.argent;
         for (const k in BOUTIQUES_DEF) if (!BOUTIQUES.some((b) => b.id === k)) ko.push('boutique ' + k + ' absente');
-        for (const b of BOUTIQUES) for (const q of PORTES) if (dist2(b.x, b.z, q.x, q.z) < 36) ko.push(b.id + ' sur une porte');
+        for (const b of BOUTIQUES) for (const q of PORTES) if (q.boutiqueId !== b.id && dist2(b.x, b.z, q.x, q.z) < 36) ko.push(b.id + ' sur une porte');
+        // 17 octobre : on entre dans la boutique (à l'abri), la cabine est au fond
         const b = BOUTIQUES.find((q) => q.id === 'surf'); P.x = b.x; P.z = b.z; majAction();
-        if (!/ESSAYER/.test(el('btnAction').textContent)) ko.push('pas d’entrée en boutique'); el('btnAction')._fn();
+        if (!/ENTRER/.test(el('btnAction').textContent)) ko.push('pas d’entrée en boutique : ' + el('btnAction').textContent); el('btnAction')._fn();
+        const sb = INT.actif; if (!sb || !sb.cabineBoutique || sb.bid !== 'surf') ko.push('pas dans la boutique du surf shop');
+        else { if (!sb.variantes.surf.visible || sb.variantes.barbier.visible || !sb.enseignes.surf.visible || sb.enseignes.chic.visible) ko.push('boutique pas reconfigurée');
+          P.x = sb.cabineBoutique.x; P.z = sb.cabineBoutique.z; majAction(); if (!/CABINE/.test(el('btnAction').textContent)) ko.push('pas de cabine : ' + el('btnAction').textContent); else el('btnAction')._fn();
+          for (let i = 0; i < 10; i++) { majBoutique(1 / 30); majCamera(1 / 30); }
+          if (Math.abs(camera.position.z - (P.z + 6.2)) > 1) ko.push('caméra de cabine pas de face'); }
         if (!BOUT.ouvert) ko.push('la cabine ne s’ouvre pas');
         META.argent = 1000; const hautAvant = META.style.haut;
         actionBoutique('essayer', 'debard'); if (META.argent !== 1000 || META.style.haut !== hautAvant || P.h.torse.material.color.getHex() !== 0xffd23f) ko.push('essayer : payé, gardé ou pas visible');
@@ -10137,7 +10143,10 @@ async function main() {
         // barbier et tatoueur : la tête change
         const n0 = P.h.g.children.length; const br = BOUTIQUES.find((q) => q.id === 'barbier'); P.x = br.x; P.z = br.z; ouvrirBoutique(br); actionBoutique('acheter', 'afro'); fermerBoutique();
         if (META.style.coiffure !== 'afro' || !(P.h.g.children.length > n0)) ko.push('coiffure non visible');
-        info.push(BOUTIQUES.length + ' boutiques, essai gratuit, achat porté, dépareillé, coiffure');
+        // le barbier : fauteuils, pas de tables
+        if (INT.actif) sortirInterieur(); const pbr = PORTES.find((q) => q.boutiqueId === 'barbier'); if (pbr) { entrerInterieur('boutique', pbr); const s2 = INT.actif; if (!s2.variantes.barbier.visible || s2.variantes.tables.visible || s2.bid !== 'barbier') ko.push('barbier : salle pas reconfigurée'); sortirInterieur(); if (Math.hypot(P.x - pbr.x, P.z - pbr.z) > 2) ko.push('sortie loin de la vitrine'); }
+        for (const q of PORTES) if (q.boutiqueId) { entrerInterieur('boutique', q); sortirInterieur(); if (surChaussee(P.x, P.z) || solidAt(P.x, P.z, 0.3)) ko.push(q.boutiqueId + ' : sortie sur la chaussée ou dans un mur'); }
+        info.push(BOUTIQUES.length + ' boutiques en salle (à l’abri), essai gratuit, achat porté, dépareillé, coiffure');
         sauveMeta(); const sv = JSON.parse(localStorage.getItem(SAVE_KEY) || '{}'); if (!sv.garde || !sv.garde.afro || !sv.style || sv.style.coiffure !== 'afro') ko.push('style non sauvegardé');
         const o = JSON.parse(sav); META.style = o.s; META.garde = o.g; META.argent = arg0; sauveMeta(); construireJoueur();
         return { ko, info };
@@ -10421,6 +10430,7 @@ async function main() {
         for (const [id, cle] of [['stunt', 'motocross'], ['bowl', 'bmx'], ['badlands', 'motocross']]) { if (P.veh) sortirVehicule(true); const d = rideDepart(id), v = creerVehicule(cle, d.x, d.z, 0, null); v.h = solY(d.x, d.z); P.x = v.x; P.z = v.z; entrerVehicule(v); demarrerRide(id); if (RIDES.actif) finirRide(true); else ko.push('course ' + id + ' ne démarre pas'); sortirVehicule(true); }
         if (typeof TOW !== 'undefined') { TOW.actif = { id: 'wake', pts: TOW_DEFS.wake.objectif, t: 1, s: 0 }; finTow('temps'); }
         if (typeof BASE !== 'undefined' && BASE.ok) { lancerDefiBase(); finDefiBase(true); } // parcours du combattant de Fort Reyes
+        if (typeof BT !== 'undefined' && BT.ok) { lancerBallTrap(); FPS.score = BT_OBJECTIF; fpsFinir(); } // ball-trap du ranch
         checkTenues();
         for (const [k, id] of Object.entries(TENUE_EXPLOIT)) if (!META.exploits[k] || !META.tenuesPoss[id]) ko.push(k + ' → ' + id + ' pas débloquée');
         if (!ko.length) info.push(Object.keys(TENUE_EXPLOIT).length + ' tenues débloquées par leur mini-jeu');
@@ -10963,7 +10973,7 @@ async function main() {
           if (!touche || !p || p.etat !== 'mort') ko.push('balle : ' + touche + ' / ' + (p ? p.etat : 'pas de piéton'));
           else { for (let i = 0; i < 45; i++) majPietons(1 / 30); if (g.position.y < y - 0.3) ko.push('le corps passe sous la colline (' + g.position.y.toFixed(2) + ' / ' + y.toFixed(2) + ')'); }
           const p2 = pietons.find((q) => q.h === w.h2); if (!p2 || p2.etat !== 'fuite') ko.push('le conjoint ne fuit pas');
-          majFigurants(1 / 30); const fuient = FIGURANTS.filter((f) => f.h.g.userData.converti).length; if (fuient < 3) ko.push(fuient + ' figurants en panique');
+          majFigurants(1 / 30); const fuient = FIGURANTS.filter((f) => f.h.g.userData.converti).length; if (fuient < 2) ko.push(fuient + ' figurants en panique'); // le nombre dépend de qui se promène près du coup de feu à cet instant
           const avant = g.position.clone(); for (let i = 0; i < 10; i++) majVieHills(1 / 30); if (g.position.distanceTo(avant) > 0.01) ko.push('le décor reprend le corps'); /* le corps n'appartient plus au décor */
           info.push('balle : couché, ' + fuient + ' figurants en fuite'); }
         // 2. un véhicule lancé renverse un voyageur de l'aéroport
@@ -10977,6 +10987,7 @@ async function main() {
         if (id) { entrerInterieur(id, PORTES.find((p) => p.id === id)); const sa = INT.actif, n0 = sa.figurants.length, f = sa.figurants[0];
           if (f) { const tch = toucherFigurant({ fac: 'joueur', x: f.x, y: 1.2, z: f.z, vx: 30, vy: 0, vz: 0 });
             if (!tch || sa.figurants.length !== n0 - 1 || !(sa.paniqueT > 0)) ko.push(id + ' : figurant touché ' + tch + ', ' + sa.figurants.length + '/' + n0);
+            P.frappeT = 0; P.tirT = 0; // un coup encore « en cours » (hérité d'un autre test, majJoueur ne tourne pas ici) le referait tomber
             for (let i = 0; i < 30 * 8; i++) majVieSalle(sa, 1 / 30);
             if (sa.figurants.length !== n0 || f.h.g.rotation.x || f.h.g.rotation.z) ko.push(id + ' : il ne se relève pas'); else info.push(id + ' : touché, sonné, relevé'); }
           sortirInterieur(); }
@@ -11175,6 +11186,301 @@ async function main() {
       if (r.saut) saute('Retours du 17 octobre (2) : ' + r.saut);
       else if (r.ko.length) fail('Retours du 17 octobre (2) : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
       else ok('Retours du 17 octobre (2) : ' + r.info.join(' ; '));
+    }
+
+    // -------------------------------------------------------------------
+    // Le ciel se percute (17 octobre, demandé : « le dirigeable passe à
+    // travers les montagnes ; on peut taper dedans et se crasher, et le
+    // crasher aussi ; idem pour les avions ; destructibles, ils reviennent à
+    // la prochaine vague ») : le dirigeable survole tout ce qui est sous sa
+    // boucle (relief, toits) ; un hélico du joueur qui le percute s'écrase et
+    // l'abat ; il tombe, explose au sol, disparaît ; les balles abattent
+    // l'avion à banderole ; tout revient à la vague suivante.
+    // -------------------------------------------------------------------
+    console.log('\n--- Le ciel se percute : dirigeable au-dessus du relief, collisions, avions abattus, retour à la vague suivante ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (!DECOR_V2 || !CIEL.ok || !CIEL_CIBLES.length) return { ko, info, saut: 'décor V2 coupé' };
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
+        for (const e of ennemis) e.mort = true;
+        majCiel(1 / 30);
+        // 1. altitude du dirigeable : au-dessus de ce qu'il survole, sur toute sa boucle
+        let pire = 1e9, oW = 0; for (let i = 0; i < 360; i++) { const w = i / 360 * Math.PI * 2, x = Math.cos(w) * 190, z = Math.sin(w) * 152, m = hautMaxSous(x, z, 9), marge = altDirigeable(w) - 3.5 - m; if (marge < pire) { pire = marge; oW = w; } }
+        if (pire < 3) ko.push('le dirigeable rase ou traverse un obstacle (' + pire.toFixed(1) + ' u à ' + (oW * 57.3).toFixed(0) + '°)');
+        else info.push('dirigeable : au moins ' + pire.toFixed(1) + ' u au-dessus de tout ce qu’il survole');
+        const wH = Math.PI; if (!(altDirigeable(wH) > hauteurHills(-190, 0) + 6)) ko.push('il traverse Los Reyes Hills');
+        // 2. un hélico du joueur qui percute le dirigeable : crash des deux
+        const cD = CIEL.cDir, d = CIEL.dirigeable; const he = creerVehicule('ecureuil', d.position.x + 30, d.position.z, 0, null); P.x = he.x; P.z = he.z; entrerVehicule(he);
+        he.x = d.position.x; he.z = d.position.z; he.alt = d.position.y; he.vol = true; he.va = 0; he.decolT = 0;
+        majCielCibles(1 / 30);
+        if (cD.etat !== 'chute') ko.push('dirigeable percuté sans chute (' + cD.etat + ')');
+        if (P.veh === he && !he.mort) ko.push('l’hélico du joueur traverse le dirigeable');
+        if (P.veh) sortirVehicule(true); P.hp = P.maxHp; P.x = 0; P.z = 0; P.y = 0;
+        // chute : il disparaît après l'explosion au sol, majCiel ne le reprend pas
+        let t = 0; for (; t < 30 * 30 && cD.etat === 'chute'; t++) { majCiel(1 / 30); majCielCibles(1 / 30); }
+        if (cD.etat !== 'detruit' || d.visible) ko.push('le dirigeable ne finit pas au sol (' + cD.etat + ')'); else info.push('dirigeable percuté : crash de l’hélico, chute en ' + (t / 30).toFixed(1) + ' s, explosion au sol');
+        // 3. l'avion à banderole abattu à la mitrailleuse
+        const cA = CIEL.cAv, a = CIEL.avion; majCiel(1 / 30); a.updateMatrixWorld(true); let n = 0;
+        while (cA.etat === 'vol' && n < 40) { const b = { fac: 'joueur', x: a.position.x, y: a.position.y, z: a.position.z, dmg: 12, vx: 0, vy: 0, vz: 0 }; if (!collisionBalle(b)) break; n++; }
+        if (cA.etat !== 'chute') ko.push('avion à banderole : ' + n + ' balles, toujours ' + cA.etat); else info.push('avion à banderole abattu en ' + n + ' balles');
+        // une balle au ras du sol ne touche jamais le ciel
+        { const c0 = CIEL_CIBLES.find((c) => c.etat === 'vol'); if (c0 && toucherCiel({ fac: 'joueur', x: c0.obj.position.x, y: 1.5, z: c0.obj.position.z, dmg: 10 })) ko.push('balle au sol qui touche ' + c0.nom); }
+        // 4. vague suivante : tout revient, en vol
+        lancerVague(); for (let i = 0; i < 3; i++) { majCiel(1 / 30); majCielCibles(1 / 30); }
+        for (const c of CIEL_CIBLES) if (c.etat !== 'vol' || !c.obj.visible || c.hp !== c.hpMax) ko.push(c.nom + ' pas revenu');
+        if (!ko.length) info.push(CIEL_CIBLES.length + ' appareils revenus à la vague suivante');
+        startRun(); P.hp = P.maxHp = 1e6;
+        return { ko, info };
+      });
+      if (r.saut) saute('Le ciel se percute : ' + r.saut);
+      else if (r.ko.length) fail('Le ciel se percute : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
+      else ok('Le ciel se percute : ' + r.info.join(' ; '));
+    }
+
+    // -------------------------------------------------------------------
+    // Ball-trap du ranch (17 octobre, demandé : « dans le désert, un shoot'em
+    // up type ball-trap drôle, une arme en vue 1ère personne avec la mire,
+    // tu tires sur ce qu'ils envoient ») : le stand est sur un terrain plat
+    // et dégagé du désert ; au poste, la partie démarre en vue à la première
+    // personne (joueur masqué, seul TIR reste) ; un pilote simulé (joystick
+    // réel, 0,35 s de réaction, vitesse de visée du joystick) atteint
+    // l'objectif et débloque la tenue de cow-boy ; passif = 0 ; la colombe
+    // coûte des points ; la mort arrête tout.
+    // -------------------------------------------------------------------
+    console.log('\n--- Ball-trap du ranch : vue à la première personne, pilote simulé, passif, colombe ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (!DECOR_V2 || !BT.ok) return { ko, info, saut: !DECOR_V2 ? 'décor V2 coupé' : 'pas de terrain pour le ball-trap' };
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
+        for (const e of ennemis) e.mort = true;
+        if (dansReliefLibre(BT.x, BT.z) || Math.abs(solY(BT.x, BT.z)) > 0.4 || BT.x < HALF) ko.push('stand hors du désert plat (' + BT.x + ',' + BT.z + ')');
+        const ex0 = META.exploits.balltrap, arg0 = META.argent; META.exploits.balltrap = false; delete MERV.primes.balltrap;
+        P.x = BT.poste.x; P.z = BT.poste.z; P.y = solPied(P.x, P.z); majAction();
+        if (!/BALL-TRAP/.test(el('btnAction').textContent)) ko.push('pas de bouton au poste : ' + el('btnAction').textContent); else el('btnAction')._fn();
+        if (!FPS.actif) return { ko: ko.concat(['la partie ne démarre pas']), info };
+        if (P.h.g.visible || el('btnFire').style.display === 'none' || el('btnDodge').style.display !== 'none') ko.push('HUD de la vue à la première personne');
+        fpsCamera(); if (Math.abs(camera.position.y - (BT.poste.y + 1.65)) > 0.05) ko.push('caméra pas à hauteur d’œil');
+        // le pilote
+        const vu = new Map(); let f = 0;
+        for (; f < 30 * (BT_DUREE + 2) && FPS.actif; f++) {
+          const e = camera.position; let cible = null, best = -1e9;
+          for (const c of FPS.cibles) { if (c.mort || c.k === 'colombe' || c.y < 1.2) continue; if (!vu.has(c)) vu.set(c, f); if (f - vu.get(c) < 10.5) continue; const v = c.pts - c.vie * 3; if (v > best) { best = v; cible = c; } }
+          INPUT.mx = 0; INPUT.mz = 0; INPUT.btn.tir = false;
+          if (cible) { const dx = cible.x - e.x, dy = cible.y - e.y, dz = cible.z - e.z, yT = Math.atan2(-dx, -dz), pT = Math.atan2(dy, Math.hypot(dx, dz));
+            const dY = ((FPS.yaw - yT) % (2 * Math.PI) + 3 * Math.PI) % (2 * Math.PI) - Math.PI; // écart d'angle ramené à ]-π, π] (vers le sud, la visée est autour de ±π)
+            INPUT.mx = clamp(dY * 5, -1, 1); INPUT.mz = clamp((FPS.pitch - pT) * 6, -1, 1);
+            if (Math.abs(dY) < 0.06 && Math.abs(FPS.pitch - pT) < 0.06) INPUT.btn.tir = true; }
+          majFPS(1 / 30, 1 / 30); if (FPS.actif) fpsCamera(); }
+        INPUT.mx = INPUT.mz = 0; INPUT.btn.tir = false;
+        if (FPS.actif) ko.push('la partie ne finit pas');
+        if (!META.exploits.balltrap) ko.push('pilote sous l’objectif (' + FPS.score + ' pts, ' + FPS.touches + '/' + FPS.coups + ')');
+        else info.push('pilote : ' + FPS.score + ' pts en ' + BT_DUREE + ' s (' + FPS.touches + ' touches / ' + FPS.coups + ' tirs), tenue de cow-boy, prime ' + (META.argent - arg0) + ' $');
+        if (P.h && !P.h.g.visible) ko.push('joueur resté masqué'); if (el('btnDodge').style.display === 'none') ko.push('boutons de combat pas revenus'); if (camera.near !== 0.5) ko.push('plan proche de la caméra pas rendu');
+        // passif : rien
+        META.exploits.balltrap = false; lancerBallTrap(); for (let i = 0; i < 30 * (BT_DUREE + 2) && FPS.actif; i++) { majFPS(1 / 30, 1 / 30); if (FPS.actif) fpsCamera(); }
+        if (META.exploits.balltrap || FPS.score > 0) ko.push('passif : ' + FPS.score + ' pts'); else info.push('passif : 0 pt');
+        // la colombe coûte des points ; la mort arrête la partie
+        lancerBallTrap(); fpsCamera(); FPS.score = 500; const m = mkObjetBT('colombe'); scene.add(m); const cam = camera.position;
+        FPS.cibles.push({ x: cam.x, y: cam.y + 3, z: cam.z - 12, vx: 0, vy: 0, vz: 0, r: 0.6, pts: -300, m, g: 0, vie: 3, sol: 0, k: 'colombe' });
+        FPS.yaw = 0; FPS.pitch = Math.atan2(3, 12); FPS.st = Object.assign({}, FPS.st, { disp: 0 }); fpsCamera(); fpsTirer(); if (FPS.score !== 200) ko.push('colombe : ' + FPS.score);
+        ETAT.mode = 'mort'; majFPS(1 / 30, 1 / 30); ETAT.mode = 'jeu'; if (FPS.actif) ko.push('la mort n’arrête pas la partie');
+        META.exploits.balltrap = ex0; META.argent = arg0; sauveMeta();
+        startRun(); P.hp = P.maxHp = 1e6;
+        return { ko, info };
+      });
+      if (r.saut) saute('Ball-trap : ' + r.saut);
+      else if (r.ko.length) fail('Ball-trap : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
+      else ok('Ball-trap : ' + r.info.join(' ; ') + ' ; la colombe coûte 300, la mort arrête tout');
+    }
+
+    // -------------------------------------------------------------------
+    // Armurerie V2 (17 octobre, demandé : « se balader dans l'armurerie,
+    // choisir et acheter ses armes et protections, les tester, les
+    // personnaliser — or, double pistolet, balles explosives — et les voir se
+    // personnaliser comme une voiture, retourner l'arme ») : établi = aperçu
+    // avant achat (rien de payé, une seule finition, la jumelle en akimbo,
+    // oublié à la fermeture), l'arme se retourne au doigt ; stand de tir :
+    // n'importe quelle arme à feu à l'essai, gratuit, pilote simulé > 0,
+    // passif = 0, un civil coûte 200 ; gilet acheté sur son mannequin.
+    // -------------------------------------------------------------------
+    console.log('\n--- Armurerie V2 : établi (aperçu, jumelle, au doigt), stand de tir, gilets ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
+        const M0 = { arg: META.argent, mods: JSON.stringify(META.modsArmes), rev: META.armes.revolver.poss, pis: META.armes.pistolet.poss };
+        entrerInterieur('armurerie', PORTES.find((q) => q.id === 'armurerie')); const s = INT.actif;
+        if (!s.standTir || !s.gilets || !s.etabliArmes) return { ko: ['armurerie incomplète'], info };
+        // 1. établi : aperçu
+        META.armes.pistolet.poss = true; delete META.modsArmes.pistolet; majArmeJoueur('pistolet'); META.argent = 5000;
+        P.x = s.etabliArmes.x; P.z = s.etabliArmes.z; ouvrirAtelierArme(s);
+        const aOr = () => { let o = false; ATELIER.modele.traverse((m) => { if (m.isMesh && m.material === _MAT_OR) o = true; }); return o; };
+        const nbArmes = () => ATELIER.modele.children[0].children.length;
+        atelierEssayer('or'); if (!aOr() || META.argent !== 5000 || aMod('pistolet', 'or')) ko.push('aperçu or : payé ou invisible');
+        atelierEssayer('camo'); if (aOr() || ATELIER.apercu.includes('or')) ko.push('deux finitions à l’essai');
+        atelierEssayer('double'); if (nbArmes() !== 2) ko.push('pas de jumelle à l’essai (' + nbArmes() + ')');
+        // au doigt
+        const a0 = ATELIER.ang; renderer.domElement.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 7, clientX: 100, clientY: 300, bubbles: true }));
+        window.dispatchEvent(new PointerEvent('pointermove', { pointerId: 7, clientX: 160, clientY: 330 })); window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 7 }));
+        const a1 = ATELIER.ang; for (let i = 0; i < 30; i++) majAtelierArme(1 / 30);
+        if (Math.abs(a1 - a0 - 0.72) > 0.05 || Math.abs(ATELIER.ang - a1) > 0.01 || !(ATELIER.tilt > 0.1)) ko.push('rotation au doigt : ' + (a1 - a0).toFixed(2) + ' / ' + (ATELIER.ang - a1).toFixed(2) + ' / ' + ATELIER.tilt.toFixed(2));
+        if (Math.abs(ATELIER.modele.rotation.y - ATELIER.ang) > 1e-6) ko.push('le modèle ne suit pas le doigt');
+        fermerAtelierArme(); ouvrirAtelierArme(s); if (ATELIER.apercu.length || nbArmes() !== 1 || modsArme('pistolet').length) ko.push('l’essai reste après la fermeture');
+        if (!acheterMod('pistolet', 'double') || nbArmes() === 2) { /* l'achat reconstruit au prochain modèle */ } atelierModele(); if (nbArmes() !== 2) ko.push('akimbo acheté sans jumelle sur l’établi');
+        fermerAtelierArme(); info.push('établi : aperçu or/camo (une finition), jumelle, au doigt, oublié à la fermeture');
+        // 2. stand de tir : une arme qu'on n'a pas, gratuitement
+        META.armes.revolver.poss = false; const arg1 = META.argent; P.x = s.standTir.x; P.z = s.standTir.z; majAction();
+        if (!/STAND DE TIR/.test(el('btnAction').textContent)) ko.push('pas de stand : ' + el('btnAction').textContent); else el('btnAction')._fn();
+        if (!STAND.ouvert) ko.push('le choix d’arme ne s’ouvre pas');
+        lancerStandTir(s, 'revolver'); if (!FPS.actif || FPS.arme !== 'revolver') return { ko: ko.concat(['le tir ne démarre pas']), info };
+        const vu = new Map(); let f = 0;
+        for (; f < 30 * 32 && FPS.actif; f++) { const e = camera.position; let c = null, best = 1e9;
+          for (const q of FPS.cibles) { if (q.mort || q.civil) continue; if (!vu.has(q)) vu.set(q, f); if (f - vu.get(q) < 10.5) continue; const d = Math.hypot(q.x - e.x, q.z - e.z); if (d < best) { best = d; c = q; } }
+          INPUT.mx = INPUT.mz = 0; INPUT.btn.tir = false;
+          if (c) { const yT = Math.atan2(-(c.x - e.x), -(c.z - e.z)), pT = Math.atan2(c.y - e.y, Math.hypot(c.x - e.x, c.z - e.z)), dY = ((FPS.yaw - yT) % (2 * Math.PI) + 3 * Math.PI) % (2 * Math.PI) - Math.PI;
+            INPUT.mx = clamp(dY * 5, -1, 1); INPUT.mz = clamp((FPS.pitch - pT) * 6, -1, 1); if (Math.abs(dY) < 0.025 && Math.abs(FPS.pitch - pT) < 0.03) INPUT.btn.tir = true; }
+          majFPS(1 / 30, 1 / 30); if (FPS.actif) fpsCamera(); }
+        INPUT.mx = INPUT.mz = 0; INPUT.btn.tir = false;
+        const sc = FPS.score, tou = FPS.touches, cps = FPS.coups;
+        if (FPS.actif) ko.push('la séance ne finit pas'); if (!(sc > 300)) ko.push('pilote au stand : ' + sc + ' pts');
+        if (META.argent !== arg1 || META.armes.revolver.poss) ko.push('le stand coûte ou donne l’arme'); else info.push('stand : revolver à l’essai, pilote ' + sc + ' pts (' + tou + '/' + cps + '), gratuit');
+        // passif ; un civil coûte 200
+        lancerStandTir(s, 'pistolet'); for (let i = 0; i < 30 * 32 && FPS.actif; i++) { majFPS(1 / 30, 1 / 30); if (FPS.actif) fpsCamera(); } if (FPS.score !== 0) ko.push('passif au stand : ' + FPS.score);
+        lancerStandTir(s, 'pistolet'); fpsCamera(); FPS.score = 500; const cam = camera.position, m = mkSilhouette(true); scene.add(m);
+        FPS.cibles.push({ x: cam.x, y: cam.y, z: cam.z - 12, vx: 0, vy: 0, vz: 0, g: 0, r: 0.6, pts: -200, m, vie: 3, sol: -5, civil: true }); FPS.yaw = 0; FPS.pitch = 0; FPS.st = Object.assign({}, FPS.st, { disp: 0 }); fpsCamera(); fpsTirer();
+        if (FPS.score !== 300) ko.push('civil : ' + FPS.score); fpsArreter();
+        // 3. un gilet sur son mannequin
+        P.bouclier = 0; const gq = s.gilets[0]; P.x = gq.x; P.z = gq.z; majAction(); if (!/GILET/.test(el('btnAction').textContent)) ko.push('pas de gilet : ' + el('btnAction').textContent); else el('btnAction')._fn();
+        if (!(P.bouclier > 0)) ko.push('gilet pas enfilé'); else info.push('gilet enfilé (' + P.bouclier + ')');
+        sortirInterieur(); META.argent = M0.arg; META.modsArmes = JSON.parse(M0.mods); META.armes.revolver.poss = M0.rev; META.armes.pistolet.poss = M0.pis; sauveMeta();
+        startRun(); P.hp = P.maxHp = 1e6;
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Armurerie V2 : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
+      else ok('Armurerie V2 : ' + r.info.join(' ; ') + ' ; passif 0, un civil coûte 200');
+    }
+
+    // -------------------------------------------------------------------
+    // Terrains de sport des parcs (17 octobre, demandé : « un terrain de foot
+    // et d'autres terrains de sport pour faire vivre l'endroit de verdure ») :
+    // le match se joue tout seul (le ballon reste sur le terrain, les joueurs
+    // le disputent) ; le joueur frappe le ballon en courant dedans ; son but
+    // paie une fois par vague ; un joueur visé fuit et le match s'arrête,
+    // repris à la partie suivante ; le tennis et le ping-pong échangent.
+    // -------------------------------------------------------------------
+    console.log('\n--- Terrains de sport des parcs : match de foot, but du joueur, tennis ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (!DECOR_V2 || !SPORTS.ok || !SPORTS.foot) return { ko, info, saut: 'décor V2 coupé' };
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
+        const F = SPORTS.foot, S = SPORTS.stade, D = FOOT_DEMI;
+        if (F.joueurs.length !== 10) ko.push(F.joueurs.length + ' joueurs');
+        // 1. le match tout seul (le joueur regarde de la tribune)
+        P.x = S.x - D.x - 6; P.z = S.z; let auBallon = 0, horsTerrain = 0, buts0 = F.score[0] + F.score[1];
+        for (let i = 0; i < 30 * 40; i++) { majSportsParcs(1 / 30); if (F.joueurs.some((j) => !j.g && dist2(j.x, j.z, F.bx, F.bz) < 1.2)) auBallon++; if (Math.abs(F.bx - S.x) > D.x + 1 || Math.abs(F.bz - S.z) > D.z + 2.3) horsTerrain++; }
+        const dep = Math.hypot(F.bx - S.x, F.bz - S.z) + F.score[0] + F.score[1];
+        if (auBallon < 30) ko.push('les joueurs ne vont pas au ballon (' + auBallon + ')'); if (horsTerrain) ko.push('ballon hors du terrain ' + horsTerrain + ' images');
+        info.push('match : ' + F.score[0] + '–' + F.score[1] + ' en 40 s, joueurs au ballon ' + auBallon + ' images');
+        // 2. le joueur frappe le ballon et marque (prime une fois par vague)
+        const arg0 = META.argent; delete MERV.primes.foot;
+        const tirAuBut = () => { footReset(false); F.bx = S.x; F.bz = S.z - D.z + 4; F.by = 0.5; F.vx = F.vy = F.vz = 0; for (const j of F.joueurs) { j.x = S.x + j.px * D.x; j.z = S.z + D.z - 2; } // la défense est loin
+          P.x = F.bx; P.z = F.bz + 0.5; P.y = solPied(P.x, P.z); INPUT.mx = 0; INPUT.mz = -1; const s0 = F.score[1]; for (let i = 0; i < 60 && F.score[1] === s0; i++) majSportsParcs(1 / 30); INPUT.mz = 0; return F.score[1] > s0; };
+        if (!tirAuBut()) ko.push('le tir du joueur ne rentre pas (ballon ' + (F.bx - S.x).toFixed(1) + ',' + (F.bz - S.z).toFixed(1) + ')');
+        else if (META.argent - arg0 !== 150) ko.push('prime du but : ' + (META.argent - arg0)); else info.push('but du joueur : +150 $');
+        const arg1 = META.argent; tirAuBut(); if (META.argent !== arg1) ko.push('prime payée deux fois dans la vague');
+        // 3. un joueur visé fuit, le match s'arrête ; repris à la partie suivante
+        const j0 = F.joueurs[3]; P.x = j0.x + 5; P.z = j0.z; toucherFigurant({ fac: 'joueur', x: j0.x, y: 1.2, z: j0.z, vx: -60, vy: 0, vz: 0 });
+        if (!figConverti(j0.h)) ko.push('le joueur visé reste sur le terrain'); const bx0 = F.bx, bz0 = F.bz; F.vx = 5; for (let i = 0; i < 10; i++) majSportsParcs(1 / 30); if (F.bx !== bx0) ko.push('le match continue après la panique');
+        startRun(); P.x = S.x - D.x - 6; P.z = S.z; if (figConverti(j0.h) || F.score[0] + F.score[1] !== 0) ko.push('match pas repris à la partie suivante'); for (let i = 0; i < 90; i++) majSportsParcs(1 / 30); if (Math.hypot(F.bx - S.x, F.bz - S.z) < 0.01 && F.vx === 0) ko.push('le match ne repart pas');
+        // 4. tennis, ping-pong
+        const T = SPORTS.tennis, z0 = T.balle.position.z; for (let i = 0; i < 20; i++) majSportsParcs(1 / 30); if (Math.abs(T.balle.position.z - z0) < 1) ko.push('la balle de tennis ne bouge pas');
+        if (SPORTS.pong.length !== 2 || SPORTS.workout.length !== 2) ko.push('complexe incomplet'); else info.push('tennis, 2 tables de ping-pong, street workout');
+        META.argent = arg0; sauveMeta(); startRun(); P.hp = P.maxHp = 1e6;
+        return { ko, info };
+      });
+      if (r.saut) saute('Terrains de sport : ' + r.saut);
+      else if (r.ko.length) fail('Terrains de sport : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
+      else ok('Terrains de sport : ' + r.info.join(' ; ') + ' ; un joueur visé fuit, le match reprend à la partie suivante');
+    }
+
+    // -------------------------------------------------------------------
+    // Surprises sur les toits (17 octobre, demandé : « des surprises
+    // interactives sur les toits ») : la tyrolienne mène d'un toit à l'autre
+    // sans jamais traverser un immeuble ni blesser ; le trampoline renvoie
+    // sans dégâts et on en sort au joystick ; pigeonnier, tag et fête du DJ
+    // une fois par vague, de retour à la suivante.
+    // -------------------------------------------------------------------
+    console.log('\n--- Surprises sur les toits : tyrolienne, trampoline, pigeonnier, tag, DJ ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (!DECOR_V2 || !SURPRISES.liste.length) return { ko, info, saut: 'aucun toit nu pour les surprises' };
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6; for (const e of ennemis) e.mort = true;
+        const n = {}; for (const s of SURPRISES.liste) n[s.type] = (n[s.type] || 0) + 1; info.push(JSON.stringify(n).replace(/"/g, ''));
+        // 1. la tyrolienne
+        const ty = SURPRISES.liste.find((s) => s.type === 'tyro');
+        if (ty) { const T = ty.T; P.x = ty.x; P.z = ty.z; P.y = solPied(P.x, P.z); P.chute = false; majAction();
+          if (!/TYROLIENNE/.test(el('btnAction').textContent)) ko.push('tyrolienne : ' + el('btnAction').textContent); else el('btnAction')._fn();
+          const hp0 = P.hp; let f = 0, rase = 1e9; for (; f < 30 * 10 && SURPRISES.tyro; f++) { INPUT.mx = 1; majJoueur(1 / 30, 1 / 30); majToitsSurprises(1 / 30, 1 / 30); if (SURPRISES.tyro) rase = Math.min(rase, P.y - hautMaxSous(P.x, P.z, 0.4)); }
+          INPUT.mx = 0; for (let i = 0; i < 20; i++) majJoueur(1 / 30, 1 / 30);
+          if (SURPRISES.tyro) ko.push('la tyrolienne ne finit pas');
+          else if (Math.abs(P.y - T.arrivee) > 0.6 || P.hp < hp0) ko.push('arrivée : ' + P.y.toFixed(1) + ' / toit ' + T.arrivee.toFixed(1) + ', PV ' + (hp0 - P.hp));
+          else if (rase < 0.2) ko.push('le passager traverse un immeuble (' + rase.toFixed(2) + ')');
+          else info.push('tyrolienne : ' + T.L.toFixed(0) + ' u en ' + (f / 30).toFixed(1) + ' s, ' + rase.toFixed(1) + ' u au-dessus de tout'); }
+
+        // 2. le trampoline
+        const tr = SURPRISES.liste.find((s) => s.type === 'trampo');
+        if (tr) { P.x = tr.x + 0.3; P.z = tr.z; P.y = tr.y; P.chute = false; P.vy = 0; const hp0 = P.hp; let haut = 0, rebonds = 0, vyPrec = 0;
+          for (let i = 0; i < 30 * 5; i++) { majJoueur(1 / 30, 1 / 30); majToitsSurprises(1 / 30, 1 / 30); haut = Math.max(haut, P.y - tr.y); if (vyPrec < -1 && P.vy > 1) rebonds++; vyPrec = P.vy; }
+          if (haut < 1.5 || rebonds < 2 || P.hp < hp0) ko.push('trampoline : ' + haut.toFixed(1) + ' u, ' + rebonds + ' rebonds, PV ' + (hp0 - P.hp));
+          for (let i = 0; i < 20; i++) { INPUT.mx = 1; INPUT.mz = 0; majJoueur(1 / 30, 1 / 30); majToitsSurprises(1 / 30, 1 / 30); } // 0,67 s : hors de la toile, encore sur le toit INPUT.mx = 0; for (let i = 0; i < 60; i++) majJoueur(1 / 30, 1 / 30);
+          if (dist2(P.x, P.z, tr.x, tr.z) < 2.5 * 2.5) ko.push('on ne sort pas du trampoline'); else if (P.hp < hp0) ko.push('blessé en quittant le trampoline');
+          else info.push('trampoline : ' + rebonds + ' rebonds jusqu’à ' + haut.toFixed(1) + ' u, sans dégâts, on en sort'); }
+        // 3. pigeonnier, tag, DJ : une fois par vague
+        const une = (type, verif) => { const s = SURPRISES.liste.find((q) => q.type === type); if (!s) return; P.x = s.x; P.z = s.z; P.y = s.y; P.chute = false; majAction(); const l1 = el('btnAction').textContent; el('btnAction')._fn();
+          for (let i = 0; i < 30 * 7; i++) majToitsSurprises(1 / 30, 1 / 30); const ok1 = verif(s); majAction(); const l2 = el('btnAction').textContent;
+          if (!ok1) ko.push(type + ' : rien ne se passe (' + l1 + ')'); else if (!/vide|Déjà|bat son plein/.test(l2)) ko.push(type + ' : deux fois dans la vague (' + l2 + ')'); else info.push(type + ' ✓'); return s; };
+        const pg = une('pigeons', (s) => s.oiseaux.every((o) => !o.g.visible));
+        une('tag', (s) => { const d = s.ctx.getImageData(0, 0, 256, 128).data; let diff = 0; for (let i = 0; i < d.length; i += 4) if (Math.abs(d[i] - 0xb8) > 30) diff++; return diff > 500; });
+        une('dj', (s) => s.vague === WAVES.n);
+        if (pg) { lancerVague(); for (let i = 0; i < 3; i++) majToitsSurprises(1 / 30, 1 / 30); if (!pg.oiseaux.every((o) => o.g.visible)) ko.push('les pigeons ne reviennent pas à la vague suivante'); }
+        startRun(); P.hp = P.maxHp = 1e6;
+        return { ko, info, sansTyro: !ty };
+      });
+      if (r.saut) saute('Surprises sur les toits : ' + r.saut);
+      else if (r.ko.length) fail('Surprises sur les toits : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
+      else { if (r.sansTyro) saute('Surprises sur les toits : aucune tyrolienne posée (tirage)'); ok('Surprises sur les toits : ' + r.info.join(' ; ')); }
+    }
+
+    // -------------------------------------------------------------------
+    // Carte et catalogue (17 octobre, demandé : « mets à jour la carte avec
+    // toutes les nouvelles choses, améliore ses détails » ; « un html
+    // récapitulatif connecté, que les modifications mettent à jour ») : le fond
+    // de carte est en haute résolution, chaque nouvelle activité a sa pastille
+    // et sa balise, le filtre « Activités » s'affiche ; tout ce que
+    // catalogue.html lit dans le jeu existe (sinon il casserait en silence).
+    // -------------------------------------------------------------------
+    console.log('\n--- Carte et catalogue : fond détaillé, activités, catalogue connecté ---');
+    {
+      const noms = (() => { try { const t = require('fs').readFileSync(require('path').join(__dirname, 'catalogue.html'), 'utf8'), m = t.match(/W\.eval\('\(\{([\s\S]*?)\}\)'\)/); if (!m) return null;
+        return m[1].replace(/'\+\s*'/g, '').split(',').map((x) => x.trim().split(':')[0]).filter((x) => /^[A-Za-z_]\w*$/.test(x)); } catch (e) { return null; } })();
+      const r = await page.evaluate((noms) => {
+        const ko = [], info = [];
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu';
+        if (mmStatic.width !== 192 * MM_RES) ko.push('fond de carte ' + mmStatic.width + ' px');
+        const L = pointsActivites(), icos = new Set(L.map((a) => a.ico));
+        if (DECOR_V2) for (const [ic, nom] of [['🎖️', 'parcours de Fort Reyes'], ['🏔️', 'BIG JUMP'], ['🚁', 'héliport du manoir'], ['🎯', 'ball-trap'], ['⚽', 'stade'], ['🎾', 'complexe sportif']]) if (!icos.has(ic)) ko.push('pas de pastille : ' + nom);
+        if (BALISES.length < L.length) ko.push(BALISES.length + ' balises pour ' + L.length + ' activités');
+        if (MAPUI.filtres.activites !== true) ko.push('pas de filtre Activités'); else { try { drawCarte(); } catch (e) { ko.push('drawCarte : ' + e.message); } }
+        info.push(L.length + ' activités sur la carte et en balises, fond ' + mmStatic.width + ' px');
+        if (!noms) ko.push('catalogue.html illisible'); else { const manque = noms.filter((n) => { try { return eval('typeof ' + n) === 'undefined'; } catch (e) { return true; } }); if (manque.length) ko.push('le catalogue lit des noms absents du jeu : ' + manque.join(', ')); else info.push('catalogue : les ' + noms.length + ' noms qu’il lit existent'); }
+        return { ko, info };
+      }, noms);
+      if (r.ko.length) fail('Carte et catalogue : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
+      else ok('Carte et catalogue : ' + r.info.join(' ; '));
     }
 
     console.log('\n--- Bouton d\'action : aucun libellé rogné à 390 px ---');

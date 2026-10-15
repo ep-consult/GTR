@@ -55,124 +55,126 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
   echo "$ln | $(sed -n "$((ln+1))p" index.html | sed 's/^[ \t]*//')"; done
 ```
 
-**Relevé au relevé — 32 928 lignes.**
+**Relevé au relevé — 33 595 lignes.**
 Attention : `maj_carte` recale les numéros dans l'ordre des lignes de la table ;
 un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la main.
 
 | Ligne | Section |
 |---|---|
-| 1–899 | `<head>`, CSS, HUD, écrans (menu, game over, panneaux) |
+| 1–900 | `<head>`, CSS, HUD, écrans (menu, game over, panneaux) |
 | 414–564 | **icônes SVG** : copie des 42 `<symbol>` de `icones/icones.svg` (générée, ne pas éditer) |
-| 876–878 | **eruda** (console mobile de dev — à retirer avant diffusion) |
-| 879 | chargement Three.js r128 depuis CDN |
-| 884 | `<script id="gamejs">` + handler `window.onerror` → affichage dans `#errBox` |
-| 900 | en-tête GTRoyal, début du code du jeu |
-| 996 | AUDIO — WebAudio synthétisé, boîte de vitesses simulée |
-| 1519 | ENTRÉES — joystick virtuel, boutons tactiles, clavier ZQSD/WASD |
-| 1831 | MÉTA-PROGRESSION — `META`, défis, sauvegarde |
-| 2799 | THREE.JS — rendu, scène, lumières |
-| 3110 | VILLE DE LOS REYES — génération procédurale par quartiers |
-| 6547 | **AÉROPORT VIVANT** — aérogare, trafic aérien, hangars (`AERO`) |
-| 6746 | **PLANQUES EN PLEIN AIR** (`PLANQUES_DEF`) |
-| 6973 | **BOUTIQUES DE STYLE** (`BOUTIQUES_DEF`, `VETEMENTS`, `BOUT`) |
-| 7109 | **MANÈGES** — grand huit, grande roue (`MANEGES`) |
-| 7180 | **TOITS VIVANTS** (`TOITS`, `mkToitsVivants`) |
-| 7195 | **LOS REYES HILLS** — colline, lacets, villas, planque (`HILLS`, `ROUTES_HILLS`) |
-| 7945 | **CHANTIER ET PLANQUES V2** — `ETAGES`, `mkChantierV2`, `mkPlanquesV2`, `mkBordsHills` |
-| 8143 | **FORT REYES** — base militaire V2 (`BASE`, `reserverBase`, `mkBaseV2`, `majBaseV2`, parcours du combattant) |
-| 12310 | MODÈLES — humains, armes, véhicules, hélico, ramassables |
-| 14284 | POOLS — balles, particules, textes flottants, traces de pneus |
-| 14653 | ÉTAT GLOBAL + JOUEUR (`P`) |
-| 15507 | VÉHICULES — physique arcade, trafic, dégâts |
-| 18145 | PIÉTONS |
-| 18328 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
-| 18900 | **RAYON TRACTEUR DE L'OVNI** |
-| 19365 | NIVEAU DE RECHERCHE (étoiles) |
-| 19644 | VAGUES + bonus de fin de vague |
-| 19765 | MISSIONS COURTES |
-| 19768 | BÂTIMENTS VISITABLES — intérieurs |
-| 19838 | FOUILLE — mécanique générique |
-| 20386 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
-| 24517 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
-| 24925 | **LAVERIE** V2 — l'essorage de la machine 7 |
-| 25190 | **SERRE** V2 — la nuit de la floraison |
-| 25482 | CINÉ-PALACE |
-| 25726 | MÉTRO ABANDONNÉ |
-| 25792 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
-| 26143 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
-| 27045 | SITE 51 |
-| 27275 | LE DÉPÔT DE BUS — courses clandestines |
-| 28361 | **MÉTIERS** — missions liées à un véhicule |
-| 28651 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
-| 29657 | ÉCRANS / MENUS / BOUTIQUES |
-| 29932 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
-| 30731 | DÉBUT / FIN DE PARTIE |
-| 32183 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
-| 32419 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
-| 32805 | BOUCLE PRINCIPALE |
+| 877–879 | **eruda** (console mobile de dev — à retirer avant diffusion) |
+| 880 | chargement Three.js r128 depuis CDN |
+| 885 | `<script id="gamejs">` + handler `window.onerror` → affichage dans `#errBox` |
+| 901 | en-tête GTRoyal, début du code du jeu |
+| 997 | AUDIO — WebAudio synthétisé, boîte de vitesses simulée |
+| 1520 | ENTRÉES — joystick virtuel, boutons tactiles, clavier ZQSD/WASD |
+| 1832 | MÉTA-PROGRESSION — `META`, défis, sauvegarde |
+| 2815 | THREE.JS — rendu, scène, lumières |
+| 3126 | VILLE DE LOS REYES — génération procédurale par quartiers |
+| 6627 | **AÉROPORT VIVANT** — aérogare, trafic aérien, hangars (`AERO`) |
+| 6826 | **PLANQUES EN PLEIN AIR** (`PLANQUES_DEF`) |
+| 7053 | **BOUTIQUES DE STYLE** (`BOUTIQUES_DEF`, `VETEMENTS`, `BOUT`) |
+| 7210 | **MANÈGES** — grand huit, grande roue (`MANEGES`) |
+| 7281 | **TOITS VIVANTS** (`TOITS`, `mkToitsVivants`) |
+| 7383 | **LOS REYES HILLS** — colline, lacets, villas, planque (`HILLS`, `ROUTES_HILLS`) |
+| 8133 | **CHANTIER ET PLANQUES V2** — `ETAGES`, `mkChantierV2`, `mkPlanquesV2`, `mkBordsHills` |
+| 8331 | **FORT REYES** — base militaire V2 (`BASE`, `reserverBase`, `mkBaseV2`, `majBaseV2`, parcours du combattant) |
+| 8475 | **TIR À LA PREMIÈRE PERSONNE** (`FPS`, `fpsDemarrer`, `majFPS`) et **BALL-TRAP** du ranch (`BT`, `mkBallTrap`) |
+| 8691 | **TERRAINS DE SPORT DES PARCS** (`SPORTS`, `mkSportsParcs`, `majSportsParcs`, match de foot) |
+| 12879 | MODÈLES — humains, armes, véhicules, hélico, ramassables |
+| 14853 | POOLS — balles, particules, textes flottants, traces de pneus |
+| 15222 | ÉTAT GLOBAL + JOUEUR (`P`) |
+| 16078 | VÉHICULES — physique arcade, trafic, dégâts |
+| 18716 | PIÉTONS |
+| 18899 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
+| 19471 | **RAYON TRACTEUR DE L'OVNI** |
+| 19936 | NIVEAU DE RECHERCHE (étoiles) |
+| 20215 | VAGUES + bonus de fin de vague |
+| 20337 | MISSIONS COURTES |
+| 20340 | BÂTIMENTS VISITABLES — intérieurs |
+| 20410 | FOUILLE — mécanique générique |
+| 20958 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
+| 25162 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
+| 25570 | **LAVERIE** V2 — l'essorage de la machine 7 |
+| 25835 | **SERRE** V2 — la nuit de la floraison |
+| 26127 | CINÉ-PALACE |
+| 26371 | MÉTRO ABANDONNÉ |
+| 26437 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
+| 26788 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
+| 27690 | SITE 51 |
+| 27920 | LE DÉPÔT DE BUS — courses clandestines |
+| 29006 | **MÉTIERS** — missions liées à un véhicule |
+| 29296 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
+| 30302 | ÉCRANS / MENUS / BOUTIQUES |
+| 30577 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
+| 31379 | DÉBUT / FIN DE PARTIE |
+| 32844 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
+| 33080 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
+| 33472 | BOUCLE PRINCIPALE |
 
 ### Ancres fines (hors bandeaux)
 
 | Ligne | Repère |
 |---|---|
-| 922 | `ICONES_SVG` — interrupteur des icônes, `ico()`, `icoArme()`, `labelAction()` |
-| 928 | `MER_V2` — interrupteur de la mer améliorée (false = mer d'avant à l'identique) |
-| 935 | `DECOR_V2` — interrupteur du décor enrichi (voir « Décor V2 ») |
-| 1839 | `GARAGES_TUNING` — les garages de la ville (déclarés avant `META`) |
-| 1859 | `VEHPERSO_MAX` — taille de « Mes véhicules » (`META.vehPerso`) |
-| 2111 | `fusionMeta()` — deep-merge de la sauvegarde, `DICOS_OUVERTS` juste avant |
-| 2141 | `CURIOS` — tableau des curiosités |
-| 2192 | `CURIOS_ACTIVES` |
-| 2206 | déblocage de `batte2` (toutes curiosités actives réunies) |
-| 2519 | `VEHDEFS` — véhicules, éligibilité garage (`tuningMeca`, `tuningCarro`) |
+| 923 | `ICONES_SVG` — interrupteur des icônes, `ico()`, `icoArme()`, `labelAction()` |
+| 929 | `MER_V2` — interrupteur de la mer améliorée (false = mer d'avant à l'identique) |
+| 936 | `DECOR_V2` — interrupteur du décor enrichi (voir « Décor V2 ») |
+| 1840 | `GARAGES_TUNING` — les garages de la ville (déclarés avant `META`) |
+| 1860 | `VEHPERSO_MAX` — taille de « Mes véhicules » (`META.vehPerso`) |
+| 2112 | `fusionMeta()` — deep-merge de la sauvegarde, `DICOS_OUVERTS` juste avant |
+| 2142 | `CURIOS` — tableau des curiosités |
+| 2193 | `CURIOS_ACTIVES` |
+| 2207 | déblocage de `batte2` (toutes curiosités actives réunies) |
+| 2535 | `VEHDEFS` — véhicules, éligibilité garage (`tuningMeca`, `tuningCarro`) |
 | 2687 | `PROFILS_VOITURE` — silhouettes des voitures réalistes, `ancragesProfil`, modèles de luxe ajoutés à `VEHDEFS` |
-| 3142 | mer V2 : `houle()`/`houleY()`, shader (`merV2Materiau`), sillage, éclaboussures, `assietteHoule()` |
-| 3451 | `finaliserMerge()` |
-| 4032 | `mkLittoral()` — fondus sable/mer/désert, vagues sur le sable |
-| 4087 | `mkHorsLesMurs()` — décor factice hors de l'enceinte |
-| 4203 | `MOB_CAT` — catalogue du mobilier urbain, puis `mkMobilierUrbain()`, `majMobilier()`, `garerVelos()` |
-| 4734 | `JETEE` — jetée de fête foraine : `ZONES_SANS_MOBILIER`, `mkJeteeForaine()`, `majJetee()` |
-| 4865 | `SKATE` — skatepark : `mkSkatepark()`, `texMurSkate()` |
+| 3158 | mer V2 : `houle()`/`houleY()`, shader (`merV2Materiau`), sillage, éclaboussures, `assietteHoule()` |
+| 3467 | `finaliserMerge()` |
+| 4048 | `mkLittoral()` — fondus sable/mer/désert, vagues sur le sable |
+| 4103 | `mkHorsLesMurs()` — décor factice hors de l'enceinte |
+| 4219 | `MOB_CAT` — catalogue du mobilier urbain, puis `mkMobilierUrbain()`, `majMobilier()`, `garerVelos()` |
+| 4750 | `JETEE` — jetée de fête foraine : `ZONES_SANS_MOBILIER`, `mkJeteeForaine()`, `majJetee()` |
+| 4881 | `SKATE` — skatepark : `mkSkatepark()`, `texMurSkate()` |
 | 4542 | `SKX` — Reyes Skatepark XXL : `hauteurSkateXXL()`, `zoneVertSkate()`, `mkSkateXXL()`, `majSkateXXL()` |
-| 5081 | `PORT` — port vivant : `mkPortVivant()`, `majPortVivant()` |
-| 5180 | `BROOK` — Brooklyn : `texFresque()`, `mkBrooklyn()`, `majBrooklyn()` |
-| 5396 | `CIEL` — dirigeable, avion à banderole, mouettes, feux d'artifice : `mkCiel()`, `majCiel()` |
-| 5605 | `CRIQUE` — crique des plongeurs : `dansCrique()`, `mkCrique()`, `plongeonJoueur()` |
-| 5821 | `NEON` — quartier néon : `BATIMENTS`, `reserverNeon()`, `mkNeonVivant()` |
-| 5889 | `VILLA_PISC` — finitions de quartier : `mkQuartiersFinitions()` |
-| 5969 | `MONT` — Mont Reyes, puis `CANYON` (canyons) et `RIDES` (courses) |
-| 4487 | `SOLS` — dalles de sol enregistrées, puis `mkTransitionsSols()` (jonctions entre sols) |
-| 9719 | `mkLacParc()` — lac du parc, passerelle, barques |
-| 9848 | `mkLumieresQuartiers()` — Times Square, quartier chinois, Brooklyn |
-| 9934 | `mkEnceinte()` — murs, enseigne, jetées de rochers |
-| 10466 | `GALION` — galion échoué : `sansAleaVille()`, `coqueGalion()`, `mkGalion()`, `majGalion()` |
-| 11498 | `mkPorteGarage()` — porte roulante des garages |
-| 11568 | `placeLibrePorte()` |
-| 11627 | helper `poser()` — placement des lieux |
-| 11653 | `caseCentre(bx,bz)` |
-| 11746 | `REPLIS` — filet de sécurité en spirale |
-| 14152 | `makeVelo()` — vélo de ville et BMX |
+| 5097 | `PORT` — port vivant : `mkPortVivant()`, `majPortVivant()` |
+| 5196 | `BROOK` — Brooklyn : `texFresque()`, `mkBrooklyn()`, `majBrooklyn()` |
+| 5412 | `CIEL` — dirigeable, avion à banderole, mouettes, feux d'artifice : `mkCiel()`, `majCiel()` |
+| 5681 | `CRIQUE` — crique des plongeurs : `dansCrique()`, `mkCrique()`, `plongeonJoueur()` |
+| 5897 | `NEON` — quartier néon : `BATIMENTS`, `reserverNeon()`, `mkNeonVivant()` |
+| 5965 | `VILLA_PISC` — finitions de quartier : `mkQuartiersFinitions()` |
+| 6045 | `MONT` — Mont Reyes, puis `CANYON` (canyons) et `RIDES` (courses) |
+| 4503 | `SOLS` — dalles de sol enregistrées, puis `mkTransitionsSols()` (jonctions entre sols) |
+| 10274 | `mkLacParc()` — lac du parc, passerelle, barques |
+| 10403 | `mkLumieresQuartiers()` — Times Square, quartier chinois, Brooklyn |
+| 10489 | `mkEnceinte()` — murs, enseigne, jetées de rochers |
+| 11021 | `GALION` — galion échoué : `sansAleaVille()`, `coqueGalion()`, `mkGalion()`, `majGalion()` |
+| 12053 | `mkPorteGarage()` — porte roulante des garages |
+| 12123 | `placeLibrePorte()` |
+| 12182 | helper `poser()` — placement des lieux |
+| 12208 | `caseCentre(bx,bz)` |
+| 12301 | `REPLIS` — filet de sécurité en spirale |
+| 14721 | `makeVelo()` — vélo de ville et BMX |
 | 13574 | `voitureV2()` — voiture réaliste : `geoVoiture` (géométries partagées par modèle), `janteVoiture` |
-| 11414 | `ENSEIGNES` — portes mieux placées : `ameliorerPortes()`, `profondeurDevant()`, `orienterPorte()` |
-| 14661 | `const P` — état du joueur |
-| 14704 | `P.stamMax = 100 + 12*mus` |
-| 15883 | `resoudreCollisionsVehicule()` — collisions entre véhicules (SAT sur les 4 axes) |
-| 16526 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
-| 16650 | `boutonsAPied()` — boutons du HUD remis « à pied » (sortie de véhicule ET début de partie) |
-| 17568 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
-| 17699 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
-| 19774 | `IOFF = -9000` |
-| 21463 | `INTDEFS` — définitions des **27 salles** |
-| 21645 | `construireSalle(id)` |
+| 11969 | `ENSEIGNES` — portes mieux placées : `ameliorerPortes()`, `profondeurDevant()`, `orienterPorte()` |
+| 15230 | `const P` — état du joueur |
+| 15273 | `P.stamMax = 100 + 12*mus` |
+| 16454 | `resoudreCollisionsVehicule()` — collisions entre véhicules (SAT sur les 4 axes) |
+| 17097 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
+| 17221 | `boutonsAPied()` — boutons du HUD remis « à pied » (sortie de véhicule ET début de partie) |
+| 18139 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
+| 18270 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
+| 20346 | `IOFF = -9000` |
+| 22035 | `INTDEFS` — définitions des **27 salles** |
+| 22220 | `construireSalle(id)` |
 | 20390 | `CHALUTIER_BANCS_PLAN` — chalutier V2 ; `chalutierMaj` (20761), `dessinerRadarChalutier` (21018) |
-| 28370 | `METIERS_CIBLE` |
-| 28669 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
-| 28757 | `PIECES_FAMILLES` — catalogues de pièces par famille |
-| 29058 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
-| 29121 | `libererObjet()` — libère les géométries d'un objet retiré |
-| 29137 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
-| 29261 | `construireGarageTuning()` — la salle partagée |
-| 29631 | `majNitro()` |
+| 29015 | `METIERS_CIBLE` |
+| 29314 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
+| 29402 | `PIECES_FAMILLES` — catalogues de pièces par famille |
+| 29703 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
+| 29766 | `libererObjet()` — libère les géométries d'un objet retiré |
+| 29782 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
+| 29906 | `construireGarageTuning()` — la salle partagée |
+| 30276 | `majNitro()` |
 
 ---
 
@@ -1157,6 +1159,138 @@ salles ».
   (`META.heliManoir`) est posé à chaque partie (`poserHeliManoir`, dans
   `startRun`) et dès qu'on en change (l'ancien est retiré, d'où qu'il soit).
 - Test : « Retours du 17 octobre (2) ».
+
+## Retours du 17 octobre (3) — le ciel, les boutiques, le ball-trap
+
+- **Le ciel se percute** (`CIEL_CIBLES`, `cibleCiel`, `majCielCibles`,
+  demandé : « le dirigeable passe à travers les montagnes ; on peut taper
+  dedans et se crasher, et le crasher aussi ; idem les avions ; ils reviennent
+  à la prochaine vague ») : dirigeable, avion à banderole, avion de tourisme
+  et Écureuil de l'aéroport. Ellipsoïde dans le repère de l'objet
+  (`dansCibleCiel`, suit cap et échelle) ; balles et roquettes du joueur
+  (`toucherCiel`, jamais sous 4 u) ; un appareil du joueur qui en percute un
+  s'écrase (`crashAerien`) et l'abat ; abattu : chute en vrille (le dirigeable
+  pique du nez), explosion au sol (`explosionArme`), disparu jusqu'à la vague
+  suivante (`cielRetablir`, dans `lancerVague` et `startRun`). Les mises à
+  jour d'origine ne pilotent plus un appareil abattu. Le dirigeable suit
+  `profilDirigeable` (relief et toits sous sa boucle, +9 u, monte AVANT
+  l'obstacle) : avant, à 19 u, il traversait Los Reyes Hills et les tours.
+- **Boutiques en salle** (`INTDEFS.boutique`, demandé : « dehors, les PNJ nous
+  tirent dessus ») : UNE salle pour les cinq boutiques, comme les garages
+  (`porte.boutiqueId`, `boutiqueSurEntree`) : enseigne, murs, tapis, cintres
+  et pliés aux couleurs des pièces, mannequins habillés
+  (`mannequinBoutique`), variantes (fauteuils du barbier, table du
+  tatoueur, planches du surf shop). Porte devant chaque vitrine
+  (`sortieD` : on ressort juste devant elle, jamais sur la chaussée) ;
+  cabine à miroir au fond (`cabineBoutique`, `ouvrirBoutiqueSalle`), caméra
+  de face comme avant. **Piège** : en remplaçant le début d'une branche de
+  `construireSalle`, remettre l'en-tête de la suivante (la concession s'est
+  retrouvée dans la boutique).
+- **Tir à la première personne** (`FPS`, bandeau `TIR À LA PREMIÈRE
+  PERSONNE`) : moteur partagé (ball-trap, bientôt le stand de tir de
+  l'armurerie). `FPS.actif` = la partie ; `majCamera` → `fpsCamera` (œil,
+  arme en main en bas à droite, recul) ; `majJoueur` n'est pas appelée ;
+  visée au joystick (vitesse) ou au doigt (glisser), TIR seul visible ; un
+  tir = rayon depuis la mire avec dispersion (degrés, /2), plombs, cadence,
+  chargeur, rechargement de `armeStats`. Tout sur `dtJeu`. `fpsArreter` dans
+  `mourir` et `startRun` ; trêve des vagues. Plan proche de la caméra à
+  0,05 pendant la partie (0,5 sinon). **En portrait, le champ horizontal
+  est étroit** (~31° à fov 62) : cibles près de l'axe, `fov` 80.
+- **Ball-trap du ranch « Coyote Loco »** (`BT`, `mkBallTrap`) : dans la
+  bande plate entre le tarmac et les mesas (le reste du désert au sud est en
+  relief), tourné vers le sud (les mesas en fond). Papy Earl lance plateaux,
+  poulets, nains, pastèques, flamants, télés, WC, plateau d'or — et la
+  colombe de Mamie (−300). 60 s, combo ×8, `BT_OBJECTIF` 3 500 (pilote
+  simulé : ~7 000 ; passif : 0) : prime une fois par vague et tenue de
+  cow-boy (`exploitMiniJeu('balltrap')`, fusils à pompe −20 % de dispersion).
+- **Armurerie V2** (`INTDEFS.armurerie` 40 × 30, demandé : « se balader,
+  choisir et acheter armes et protections, les tester, les personnaliser
+  — or, double pistolet/uzi, balles explosives — les voir se personnaliser
+  comme une voiture, retourner l'arme ») : mur des armes à feu rangées par
+  familles (panneau centré sur chaque famille), vitrine des armes blanches,
+  gilets sur mannequins (`inter.gilets`, achat direct `actionShop('gilet')`),
+  comptoir, établi à plateau tournant. Le mur nord devient une vitre (son
+  solide reste) : au-delà, le hall du **stand de tir** (34 u, plafond,
+  butte, distances) ; `ouvrirStandTir` (choix de n'importe quelle arme à
+  feu, possédée ou non, gratuit) → `lancerStandTir` (moteur `FPS`,
+  silhouettes `mkSilhouette` entre 8 et 30 m, mobiles ou non, civils −200 ;
+  rien à gagner). **Établi** : `ATELIER.apercu` (ESSAYER → la pièce apparaît,
+  rien n'est payé ; une seule finition `FINITIONS_ARME` ; `double` montre la
+  jumelle ; oublié à la fermeture), `habillerArme(g,id,Lforce)` ; l'arme se
+  retourne au doigt (`ATELIER.ang`/`tilt`, rotation automatique 3 s après le
+  geste) ; le doigt ne fait alors plus tourner la vue de la salle. Les
+  enseignes ÉTABLI et MUNITIONS étaient posées en coordonnées de salle sur le
+  `mkEnseigne` global : elles flottaient en ville (`ens` local désormais).
+- **Piège : le décor aussi a ses tirages.** Un objet Three.js créé dans le
+  PREMIER groupe du décor (avant `mkMobilierUrbain`) tire 4 nombres pour son
+  uuid sur le générateur du décor : tout le mobilier et les places garnies
+  bougent (une statue est venue se poser à 9 u du départ : « Tir par la
+  vitre » ne touchait plus sa cible). Les halos des portes de boutique sont
+  donc posés en fin de décor (`mkHalosBoutiques`).
+- **Piège retrouvé** : un `//` ajouté dans une ligne qui continue avale la
+  suite (`fermerAtelierArme` ; les lanceurs du ball-trap avaient disparu
+  sans erreur). Écouteurs du canevas : APRÈS la création de `renderer`.
+- **Captures (outil)** : une page ouverte pour composer les images passe au
+  premier plan et la page du jeu ne rend plus (`bringToFront` avant de
+  reprendre) ; rendu et `toDataURL` dans la MÊME évaluation.
+- Tests : « Le ciel se percute », « Ball-trap du ranch », « Armurerie V2 »,
+  « Boutiques de style » (entrée par la porte, cabine en salle).
+
+## Terrains de sport des parcs (17 octobre) — `SPORTS`
+
+Demandé : « un terrain de foot et d'autres terrains de sport pour faire vivre
+l'endroit de verdure ». Deux pâtés du parc libres (aucun POI, porte, stand),
+vidés au début du décor (`reserverSports`, `ZONES_SANS_MOBILIER`) et rebâtis
+à la fin (`mkSportsParcs`) :
+- **Stade du parc** (6,1) : pelouse en bandes, lignes, cages à filets,
+  corners, bancs, tribune et supporters (ils sautent au but), projecteurs la
+  nuit, tableau d'affichage (canvas). **Match à cinq contre cinq**
+  (`SPORTS.foot`, `majSportsParcs`, sur `dt`, LOD 150 u) : vrai ballon
+  (gravité, rebonds, frottement, bords qui renvoient), le plus proche de
+  chaque équipe va au ballon, les autres tiennent leur poste (fractions du
+  demi-terrain), le gardien suit sur sa ligne ; frappe vers le but adverse.
+  Le joueur frappe le ballon en courant dedans (`footFrappeJoueur`, à pied ou
+  en véhicule) ; son but = prime une fois par vague (`primeMerUneFois('foot')`).
+  Joueurs et supporters sont des figurants : visé, un joueur fuit et le match
+  s'arrête ; `footDemarrer` (dans `startRun`) le relance.
+- **Complexe sportif** (5,1) : court de tennis grillagé (échange scripté),
+  deux tables de ping-pong, street workout (tractions, pompes).
+- Test : « Terrains de sport des parcs ».
+
+## Surprises sur les toits, carte, catalogue (17 octobre)
+
+- **Surprises sur les toits** (`SURPRISES`, `mkSurprisesToits` en fin de
+  décor, `majToitsSurprises` après `majJoueur`) sur les toits nus (types 8
+  et 9 de `mkToitsVivants`, sans flèche, hors quartier néon et ses grands
+  panneaux) : **tyroliennes** (entre deux toits au décor discret — jardin,
+  panneaux solaires, coffre ou nu —, le second de même hauteur ou plus bas,
+  14 à 60 u, les pieds du passager jamais à moins de 0,3 u de ce qu'il
+  survole ; tenu sur le câble comme dans le monte-charge, joystick gelé).
+  **Les toits sont notés par `mkToitsVivants`** (`TOITS.nus`, `TOITS.cands`,
+  `s.tyToit`) : recalculée en fin de décor, la liste avait d'autres solides
+  et les types se décalaient (un trampoline entre deux châteaux d'eau) ; **trampolines** (`trampolineSous` : à
+  l'atterrissage sur la toile, `majJoueur` renvoie au lieu de blesser ;
+  `P.trampoT` 2 s de grâce sur les dégâts de chute en quittant la toile ;
+  on se dirige en l'air comme en chute), **pigeonniers**, **murs à taguer**
+  (canvas, tags `TAGS`), **fête du DJ** (danseurs figurants, faisceaux) :
+  une fois par vague chacun.
+- **Carte** : fond en haute résolution (`MM_RES` = 5, 960 px ; avant 384,
+  flou au zoom), emprises des immeubles éclaircies selon la hauteur, eau
+  échantillonnée (lac, bassins), stade et tennis, pâtés de Fort Reyes.
+  **`pointsActivites()`** : la liste unique des activités en plein air (lue
+  aux sources) — balises 3D (`mkBalises`, désormais en FIN de décor : avant,
+  la colline, la base, le ball-trap, les sports n'avaient pas de balise) et
+  filtre « 🎢 Activités » de la grande carte (`MAPUI.filtres.activites`).
+- **Catalogue vivant** (`catalogue.html`, à ouvrir par le serveur local) :
+  charge `index.html` dans un cadre caché, arrête sa boucle, lit les tables
+  du jeu (par `eval` dans le cadre : les `const` ne sont pas sur `window`)
+  et photographie avec les fonctions du jeu (`makeVoiture`, `mkArmeModele`,
+  `makeHumain`, `mkAnimal`, `construireSalle`, vues de la vraie colline pour
+  les villas) ; le journal des améliorations est lu dans CLAUDE.md. Rien n'y
+  est recopié : une nouveauté du jeu y apparaît au rechargement (seuls les
+  descriptifs des salles, `DESCRIPTIFS`, sont écrits à la main).
+- Tests : « Surprises sur les toits ». « Figurants interactifs » stabilisé
+  (`P.frappeT` hérité d'un autre test refaisait tomber le figurant).
 
 ## Fort Reyes, la base militaire V2 (17 octobre) — `BASE`, bandeau `FORT REYES`
 

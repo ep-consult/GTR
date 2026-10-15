@@ -1820,3 +1820,24 @@ Captures : `captures/lot11/villas_styles.png`, `hills_vie.png`, `voitures_avant.
 - **PNJ** : les figurants de l'aéroport, de la colline et du chantier se renversent, se tirent, et la panique se propage ; dans les salles, un figurant touché tombe puis se relève.
 
 Captures : `captures/lot11/voitures_16oct.png`, `chantier_planques.png`.
+
+## Retours de playtest du 17 octobre
+
+- **Tir en relief** : sur la colline et la montagne, toutes les hauteurs de tir et de touche partent du sol de chacun — on touche et on est touché.
+- **Conducteurs visibles** (PNJ au volant, joueur dans le 4x4 et le cabriolet), jeep militaire à l'échelle avec affût, ours qui ne reste plus figé en ville, caméra plus lointaine en soucoupe, engins du chantier chacun à sa place (Titan hors de la grue, bulldozer hors des panneaux).
+- **Fort Reyes** : entrée monumentale, place d'armes vivante (drapeaux, section au pas, pompes), parc des véhicules à places marquées, héliport avec le Vautour posé dessus ; s'engager à la guérite = visite libre ; tirer dans la base = alerte et les soldats prennent les armes ; **parcours du combattant** (7 portes, 4 cibles, 25 s) qui débloque le treillis.
+- **Los Reyes Hills** : **BIG JUMP** au bord de la falaise (piste d'élan, lèvre, réception de cascade dans la rue 30 u plus bas, record et prime) ; **héliport privé du manoir** (choix et achat de l'hélico) ; collines dorées de Californie au lieu du tapis vert, accotements de gravier au bord irrégulier.
+- **Le ciel se percute** : dirigeable qui survole le relief et les tours ; dirigeable et avions de décor percutables (on s'écrase avec), abattables, de retour à la vague suivante.
+- **Boutiques de style en intérieur** : une vraie boutique par enseigne (portants, mannequins, cabine à miroir ; fauteuils du barbier, table du tatoueur), à l'abri des tirs.
+- **Tir à la première personne** : **ball-trap du ranch « Coyote Loco »** dans le désert (plateaux, poulets en caoutchouc, nains de jardin, pastèques, télés, WC… jamais la colombe de Mamie) qui débloque une tenue de cow-boy ; **stand de tir** de l'armurerie pour essayer n'importe quelle arme gratuitement.
+- **Armurerie V2** : salle agrandie où l'on se promène, armes rangées par familles, gilets sur mannequins, établi à plateau tournant — aperçu des modifications avant achat (or, camouflage, arme jumelle en akimbo…), l'arme se retourne au doigt.
+- **Parcs** : stade du parc (match à cinq contre cinq qui se joue tout seul, on peut taper dans le ballon et marquer), complexe sportif (tennis, ping-pong, street workout).
+- **Surprises sur les toits** : tyrolienne entre deux toits, trampolines, pigeonniers, murs à taguer, fêtes de DJ.
+- **Carte** : fond détaillé (immeubles, eau, stade, base) en haute résolution, filtre « Activités » avec toutes les activités en plein air (et leurs balises).
+- **Mont Reyes** moins vert (herbe sèche, maquis, pinèdes, roche, neige).
+- **Catalogue vivant** (`catalogue.html`, par le serveur local) : véhicules, armes, modifications, tuning, tenues, boutiques, villas, PNJ, animaux, salles, activités, curiosités — lu en direct dans le jeu, vignettes faites avec les fonctions du jeu, journal des améliorations tiré de CLAUDE.md.
+- **Corrigés en route** : un halo de porte créé trop tôt décalait tout le mobilier (une statue venait se poser devant une cible) ; un commentaire `//` avalait la fin d'une ligne (les lanceurs du ball-trap avaient disparu) ; la recherche du terrain du ball-trap coûtait 1,4 s au chargement.
+- **Point d'attention** : la ville et son décor mettent ~25 s à se construire en headless sur ce PC (déjà avant ce lot) ; à mesurer sur iPhone.
+
+Captures : `captures/lot11/base_17oct.png`, `hills_17oct.png`, `boutiques_balltrap.png`, `fps_cabine.png`, `armurerie_v2.png`, `stand_tir.png`, `sports.png`, `carte_17oct.png`, `catalogue_*.png`, `toits_mont.png`.
+
