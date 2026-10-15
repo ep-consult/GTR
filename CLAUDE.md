@@ -55,7 +55,7 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
   echo "$ln | $(sed -n "$((ln+1))p" index.html | sed 's/^[ \t]*//')"; done
 ```
 
-**Relevé du 18 octobre — 34 109 lignes.**
+**Relevé du 18 octobre — 34 462 lignes.**
 Attention : `maj_carte` recale les numéros dans l'ordre des lignes de la table ;
 un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la main.
 
@@ -81,38 +81,38 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 8182 | **CHANTIER ET PLANQUES V2** — `ETAGES`, `mkChantierV2`, `mkPlanquesV2`, `mkBordsHills` |
 | 8380 | **FORT REYES** — base militaire V2 (`BASE`, `reserverBase`, `mkBaseV2`, `majBaseV2`, parcours du combattant) |
 | 8524 | **TIR À LA PREMIÈRE PERSONNE** (`FPS`, `fpsDemarrer`, `majFPS`) et **BALL-TRAP** du ranch (`BT`, `mkBallTrap`) |
-| 8755 | **TERRAINS DE SPORT DES PARCS** (`SPORTS`, `mkSportsParcs`, `majSportsParcs`, match de foot) |
-| 8895 | **ARÈNE DE DERBY** (`DERBY`, `mkArenaDerby`, `majDerby`, `majDerbyIA`, voitures et améliorations de derby) |
-| 13345 | MODÈLES — humains, armes, véhicules, hélico, ramassables |
-| 15331 | POOLS — balles, particules, textes flottants, traces de pneus |
-| 15700 | ÉTAT GLOBAL + JOUEUR (`P`) |
-| 16556 | VÉHICULES — physique arcade, trafic, dégâts |
-| 19215 | PIÉTONS |
-| 19398 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
-| 19970 | **RAYON TRACTEUR DE L'OVNI** |
-| 20435 | NIVEAU DE RECHERCHE (étoiles) |
-| 20714 | VAGUES + bonus de fin de vague |
-| 20836 | MISSIONS COURTES |
-| 20839 | BÂTIMENTS VISITABLES — intérieurs |
-| 20909 | FOUILLE — mécanique générique |
-| 21457 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
-| 25673 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
-| 26081 | **LAVERIE** V2 — l'essorage de la machine 7 |
-| 26346 | **SERRE** V2 — la nuit de la floraison |
-| 26638 | CINÉ-PALACE |
-| 26882 | MÉTRO ABANDONNÉ |
-| 26948 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
-| 27299 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
-| 28201 | SITE 51 |
-| 28431 | LE DÉPÔT DE BUS — courses clandestines |
-| 29517 | **MÉTIERS** — missions liées à un véhicule |
-| 29807 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
-| 30814 | ÉCRANS / MENUS / BOUTIQUES |
-| 31089 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
-| 31891 | DÉBUT / FIN DE PARTIE |
-| 33358 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
-| 33594 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
-| 33987 | BOUCLE PRINCIPALE |
+| 8922 | **TERRAINS DE SPORT DES PARCS** (`SPORTS`, `mkSportsParcs`, `majSportsParcs`, match de foot) |
+| 9062 | **ARÈNE DE DERBY** (`DERBY`, `mkArenaDerby`, `majDerby`, `majDerbyIA`, voitures et améliorations de derby) |
+| 13512 | MODÈLES — humains, armes, véhicules, hélico, ramassables |
+| 15684 | POOLS — balles, particules, textes flottants, traces de pneus |
+| 16053 | ÉTAT GLOBAL + JOUEUR (`P`) |
+| 16909 | VÉHICULES — physique arcade, trafic, dégâts |
+| 19568 | PIÉTONS |
+| 19751 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
+| 20323 | **RAYON TRACTEUR DE L'OVNI** |
+| 20788 | NIVEAU DE RECHERCHE (étoiles) |
+| 21067 | VAGUES + bonus de fin de vague |
+| 21189 | MISSIONS COURTES |
+| 21192 | BÂTIMENTS VISITABLES — intérieurs |
+| 21262 | FOUILLE — mécanique générique |
+| 21810 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
+| 26026 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
+| 26434 | **LAVERIE** V2 — l'essorage de la machine 7 |
+| 26699 | **SERRE** V2 — la nuit de la floraison |
+| 26991 | CINÉ-PALACE |
+| 27235 | MÉTRO ABANDONNÉ |
+| 27301 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
+| 27652 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
+| 28554 | SITE 51 |
+| 28784 | LE DÉPÔT DE BUS — courses clandestines |
+| 29870 | **MÉTIERS** — missions liées à un véhicule |
+| 30160 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
+| 31167 | ÉCRANS / MENUS / BOUTIQUES |
+| 31442 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
+| 32244 | DÉBUT / FIN DE PARTIE |
+| 33711 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
+| 33947 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
+| 34340 | BOUCLE PRINCIPALE |
 
 ### Ancres fines (hors bandeaux)
 
@@ -145,37 +145,37 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 5977 | `VILLA_PISC` — finitions de quartier : `mkQuartiersFinitions()` |
 | 6057 | `MONT` — Mont Reyes, puis `CANYON` (canyons) et `RIDES` (courses) |
 | 4515 | `SOLS` — dalles de sol enregistrées, puis `mkTransitionsSols()` (jonctions entre sols) |
-| 10740 | `mkLacParc()` — lac du parc, passerelle, barques |
-| 10869 | `mkLumieresQuartiers()` — Times Square, quartier chinois, Brooklyn |
-| 10955 | `mkEnceinte()` — murs, enseigne, jetées de rochers |
-| 11487 | `GALION` — galion échoué : `sansAleaVille()`, `coqueGalion()`, `mkGalion()`, `majGalion()` |
-| 12519 | `mkPorteGarage()` — porte roulante des garages |
-| 12589 | `placeLibrePorte()` |
-| 12648 | helper `poser()` — placement des lieux |
-| 12674 | `caseCentre(bx,bz)` |
-| 12767 | `REPLIS` — filet de sécurité en spirale |
-| 15199 | `makeVelo()` — vélo de ville et BMX |
+| 10907 | `mkLacParc()` — lac du parc, passerelle, barques |
+| 11036 | `mkLumieresQuartiers()` — Times Square, quartier chinois, Brooklyn |
+| 11122 | `mkEnceinte()` — murs, enseigne, jetées de rochers |
+| 11654 | `GALION` — galion échoué : `sansAleaVille()`, `coqueGalion()`, `mkGalion()`, `majGalion()` |
+| 12686 | `mkPorteGarage()` — porte roulante des garages |
+| 12756 | `placeLibrePorte()` |
+| 12815 | helper `poser()` — placement des lieux |
+| 12841 | `caseCentre(bx,bz)` |
+| 12934 | `REPLIS` — filet de sécurité en spirale |
+| 15552 | `makeVelo()` — vélo de ville et BMX |
 | 13574 | `voitureV2()` — voiture réaliste : `geoVoiture` (géométries partagées par modèle), `janteVoiture` |
-| 12435 | `ENSEIGNES` — portes mieux placées : `ameliorerPortes()`, `profondeurDevant()`, `orienterPorte()` |
-| 15708 | `const P` — état du joueur |
-| 15751 | `P.stamMax = 100 + 12*mus` |
-| 16935 | `resoudreCollisionsVehicule()` — collisions entre véhicules (SAT sur les 4 axes) |
-| 17592 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
-| 17716 | `boutonsAPied()` — boutons du HUD remis « à pied » (sortie de véhicule ET début de partie) |
-| 18637 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
-| 18768 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
-| 20845 | `IOFF = -9000` |
-| 22534 | `INTDEFS` — définitions des **27 salles** |
-| 22719 | `construireSalle(id)` |
+| 12602 | `ENSEIGNES` — portes mieux placées : `ameliorerPortes()`, `profondeurDevant()`, `orienterPorte()` |
+| 16061 | `const P` — état du joueur |
+| 16104 | `P.stamMax = 100 + 12*mus` |
+| 17288 | `resoudreCollisionsVehicule()` — collisions entre véhicules (SAT sur les 4 axes) |
+| 17945 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
+| 18069 | `boutonsAPied()` — boutons du HUD remis « à pied » (sortie de véhicule ET début de partie) |
+| 18990 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
+| 19121 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
+| 21198 | `IOFF = -9000` |
+| 22887 | `INTDEFS` — définitions des **27 salles** |
+| 23072 | `construireSalle(id)` |
 | 20390 | `CHALUTIER_BANCS_PLAN` — chalutier V2 ; `chalutierMaj` (20761), `dessinerRadarChalutier` (21018) |
-| 29526 | `METIERS_CIBLE` |
-| 29825 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
-| 29913 | `PIECES_FAMILLES` — catalogues de pièces par famille |
-| 30215 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
-| 30278 | `libererObjet()` — libère les géométries d'un objet retiré |
-| 30294 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
-| 30418 | `construireGarageTuning()` — la salle partagée |
-| 30788 | `majNitro()` |
+| 29879 | `METIERS_CIBLE` |
+| 30178 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
+| 30266 | `PIECES_FAMILLES` — catalogues de pièces par famille |
+| 30568 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
+| 30631 | `libererObjet()` — libère les géométries d'un objet retiré |
+| 30647 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
+| 30771 | `construireGarageTuning()` — la salle partagée |
+| 31141 | `majNitro()` |
 
 ---
 
@@ -1393,6 +1393,55 @@ vidés au début du décor (`reserverSports`, `ZONES_SANS_MOBILIER`) et rebâtis
   garées près du départ, sans aucune fuite).
 - Tests : « Skate », « Armureries de la carte », « Arène de derby » ;
   « Tenues des mini-jeux » et « Tir par la vitre » suivent le derby.
+
+## Armes, mains et cibles du stand (18 octobre, 2e demande)
+
+Demandé : « retravaille les cibles au stand de tir et la qualité des armes et
+du visuel avec le bras qui tient les armes ».
+- **Armes V2** (`construireArmeV2`, `mkArmeModeleV2`, `ARMES_V2`, juste avant
+  `mkArmeModele` qui leur délègue les armes à feu) : treize armes modelées en
+  pièces — profils latéraux extrudés à arêtes adoucies (`pr` : carcasse,
+  culasse, poignée inclinée et quadrillée, crosse, chargeur courbe, pontet
+  évidé), tubes, tambours, anneaux, rails Picatinny, organes de visée,
+  lunettes, détente — fusionnées par matériau et mises en cache UNE fois par
+  arme (`_GEO_ARMES`, `userData.partagee`). Matériaux Phong partagés
+  (`matsArme` : acier, bronzé, polymère, chrome, bois veiné, olive, sable…),
+  créés à la première utilisation. **Repère inchangé** (canon vers −y, dessus
+  +z, axe du canon vers z ≈ 0,09) : `habillerArme` (silencieux, laser,
+  finitions) et les mains des personnages n'ont pas bougé. La culasse des
+  pistolets est une pièce à part (`userData.culasse`). Le couteau, la batte,
+  le sabre et le désintégrateur gardent leur ancien modèle.
+- **Piège r128** : `BufferGeometry.applyQuaternion` n'existe pas encore ;
+  passer par `applyMatrix4(makeRotationFromQuaternion(q))`.
+- **L'arme en main en vue FPS** (`fpsMontage`, `fpsBras`, `FPS_POSES`,
+  `ANCRES_ARME`) : R suit la caméra, W est la main qui tient la poignée
+  (pivot du recul), H porte le modèle tourné vers l'avant de la vue. Deux bras
+  jusqu'aux mains posées sur les ancres (poignée ; garde-main, seconde
+  poignée ou poignée de transport ; au pistolet la main gauche enveloppe la
+  droite) : gants coyote (ils ressortent sur une arme noire), poignets nus,
+  manches à la couleur du haut porté (`coifCouleurs`). Portrait : champ
+  horizontal étroit (~31°), l'arme est petite, en bas à droite, tournée vers
+  le centre (on voit son flanc). Animations (`fpsCamera`) : balancement,
+  retard sur le regard, recul pivoté à la poignée, culasse qui recule,
+  rechargement (l'arme plonge et pivote), flamme de bouche ; douilles éjectées
+  (`fpsEjecter`, réserve fixe de six, `majDouilles`). Tout est libéré à la fin
+  (`libererEntite` : jamais les géométries partagées). `FPS.modele` n'existe
+  plus : c'est `FPS.montage`.
+- **Cibles du stand V2** (`mkCibleStand`, `standCible`, `zoneCarton`,
+  `zonePlaque`, `ciblesRes`) : carton de tir à zones imprimées (tête ×2,
+  centre ×1,5, corps ×1, bord ×0,6), civil bleu « NE PAS TIRER » (−200),
+  plaque d'acier qui sonne (`fpsTing`) et bascule ; sur pieds ou sur un
+  chariot qui roule sur un rail au sol (9 et 14 m). Elles se lèvent (pivot au
+  pied), se couchent en fin de vie ; touchées, elles tombent en arrière avec
+  l'impact visible. **La touche se calcule au point d'impact sur le plan de la
+  cible** (`c.forme(u, v)`, dans `fpsTirer`), u, v depuis le centre du torse :
+  viser `c.x, c.y` touche toujours (les tests le font). Cibles agrandies
+  (`CIBLE_ECH` 1,25) et plus proches (5 à 16 m) : lisibles en portrait. Hall
+  (`standTirDecorV2`, à la 1re séance) : rails, merlons, rampes lumineuses
+  sous les chicanes du plafond.
+- Vérifié en rendu réel (galerie des armes, les douze armes en main, un tir et
+  la chute de la cible, le ball-trap, la vue à la 3e personne) ; tests
+  « Armes », « Tenues », « Ball-trap », « Armurerie V2 » inchangés et verts.
 
 ## Fort Reyes, la base militaire V2 (17 octobre) — `BASE`, bandeau `FORT REYES`
 

@@ -10997,7 +10997,11 @@ async function main() {
           sortirVehicule(true); }
         // 3. dans une salle : touché, il tombe, puis se relève
         const id = Object.keys(VIE_SALLES).find((k) => PORTES.some((p) => p.id === k) && INTDEFS[k]);
-        if (id) { entrerInterieur(id, PORTES.find((p) => p.id === id)); const sa = INT.actif, n0 = sa.figurants.length, f = sa.figurants[0];
+        if (id) { entrerInterieur(id, PORTES.find((p) => p.id === id)); const sa0 = INT.actif;
+          // la salle reste en mémoire d'un test à l'autre : un figurant tombé avant (et pas encore relevé) se relèverait
+          // pendant l'attente et fausserait le compte — le test maîtrise sa scène, il les relève d'abord
+          if (sa0.mortsFig) { for (const e of sa0.mortsFig) e.t = 0; P.frappeT = 0; P.tirT = 0; majVieSalle(sa0, 1 / 30); }
+          const sa = sa0, n0 = sa.figurants.length, f = sa.figurants[0];
           if (f) { const tch = toucherFigurant({ fac: 'joueur', x: f.x, y: 1.2, z: f.z, vx: 30, vy: 0, vz: 0 });
             if (!tch || sa.figurants.length !== n0 - 1 || !(sa.paniqueT > 0)) ko.push(id + ' : figurant touché ' + tch + ', ' + sa.figurants.length + '/' + n0);
             P.frappeT = 0; P.tirT = 0; // un coup encore « en cours » (hérité d'un autre test, majJoueur ne tourne pas ici) le referait tomber

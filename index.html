@@ -8539,6 +8539,82 @@ function resetBase(){ BASE.defi=null; BASE.laissez=false; BASE.revoque=false; if
    cfg.fin(bilan), le joueur reparaît, les boutons reviennent.
 ===================================================================== */
 const FPS={actif:null,yaw:0,pitch:0,drag:null,cibles:[],arme:null,st:null,el:null,hud:null,mire:null,modele:null,cadT:0,mun:0,rechT:0,recul:0,flash:0,score:0,combo:1,t:0,coups:0,touches:0,traces:[],fin:null};
+/* ---------- L'ARME EN MAIN, VUE À LA PREMIÈRE PERSONNE (18 octobre, demandé : « la qualité des armes et le visuel
+   avec le bras qui tient les armes ») ----------
+   Montage (fpsMontage) : R suit la caméra ; W est la main qui tient la poignée (pivot du recul) ; H porte le modèle
+   de l'arme tourné vers l'avant de la vue (canon −z, dessus +y, échelle de la posture). Les bras (fpsBras) partent
+   du bas de l'écran jusqu'aux mains posées sur les ANCRES_ARME : poignée, garde-main ou seconde poignée ; au
+   pistolet, la main gauche enveloppe la droite. Manches à la couleur du haut porté, mains à celle de la peau
+   (coifCouleurs). Animations (fpsCamera, sur la caméra de chaque image) : balancement, retard de l'arme sur le
+   regard, recul pivoté à la poignée, culasse des pistolets qui recule, rechargement (l'arme plonge et pivote),
+   flamme de bouche ; douilles éjectées (réserve fixe de six, majFPS). Tout est libéré à la fin (libererEntite :
+   jamais les géométries partagées des armes). */
+const FPS_POSES={poing:{k:0.38,pos:[0.075,-0.19,-0.46],yaw:0.2,roll:-0.06},epaule:{k:0.36,pos:[0.066,-0.175,-0.36],yaw:0.17,roll:-0.05},lourd:{k:0.3,pos:[0.085,-0.2,-0.4],yaw:0.12,roll:-0.03}}; // portrait : champ horizontal étroit, l'arme en bas à droite
+function fpsSeg(G,a,b,r1,m,r2){ const A=new THREE.Vector3(a[0],a[1],a[2]), B=new THREE.Vector3(b[0],b[1],b[2]), L=A.distanceTo(B);
+  const o=new THREE.Mesh(new THREE.CylinderGeometry(r2===undefined?r1:r2,r1,L,10),m); o.position.copy(A).add(B).multiplyScalar(0.5);
+  o.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),B.clone().sub(A).normalize()); G.add(o); return o; }
+// une main et son bras, posés en p (repère de la main qui tient la poignée) ; prise : poignee, garde, dessus, soutien
+function fpsBras(W,cote,p,prise,peau,manche,ech){
+  const s=cote==='g'?-1:1, G=new THREE.Group(); G.position.copy(p); G.scale.setScalar(ech||1); W.add(G);
+  const mP=mat(0x8b7355), mM=mat(manche), mO=mat(0x3a332a), mPeau=mat(peau); // gants tactiques coyote (ils ressortent sur une arme noire), poignets nus
+  const B=(w,h,d,x,y,z,m)=>{ const o=new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.5,1,12),m||mP); o.scale.set(w*1.15,h,d*1.08); o.position.set(x,y,z); G.add(o); return o; }; // paume arrondie (cylindre aplati)
+  const doigt=(a,b,r)=>{ fpsSeg(G,a,b,r||0.0088,mP); const o=new THREE.Mesh(new THREE.SphereGeometry((r||0.0088)*1.02,8,6),mP); o.position.set(b[0],b[1],b[2]); G.add(o); };
+  let poignet, coude;
+  if(prise==='poignee'){ // la main referme la poignée (inclinée vers l'avant) : paume du côté extérieur, index sur la détente, pouce de l'autre côté
+    G.rotation.x=-0.2; const e=s*0.03;
+    B(0.024,0.086,0.07,e,-0.008,0.006);
+    doigt([e,0.032,-0.012],[s*0.004,0.03,-0.052],0.0092); // index allongé vers la détente
+    for(let k=0;k<3;k++){ const y=0.006-k*0.022; doigt([e,y,-0.026],[-s*0.024,y-0.003,-0.031],0.0098); doigt([-s*0.024,y-0.003,-0.031],[-s*0.029,y-0.006,-0.008],0.0092); }
+    doigt([-s*0.012,0.044,0.022],[-s*0.03,0.042,-0.022],0.0108); // pouce
+    poignet=[e,-0.052,0.03]; coude=[s*0.26,-0.3,0.24];
+  } else if(prise==='garde'){ // sous le garde-main : paume dessous, doigts qui remontent d'un côté, pouce de l'autre
+    B(0.062,0.022,0.078,0.002,-0.012,0.0);
+    for(let k=0;k<4;k++){ const z=-0.03+k*0.019; doigt([0.024,-0.012,z],[0.034,0.016,z-0.002],0.009); doigt([0.034,0.016,z-0.002],[0.025,0.036,z-0.004],0.0084); }
+    doigt([-0.026,-0.012,0.022],[-0.033,0.016,-0.018],0.0105);
+    poignet=[0.0,-0.034,0.05]; coude=[-0.17,-0.3,0.3];
+  } else if(prise==='dessus'){ // sur une poignée de transport : paume dessus, doigts qui l'entourent
+    B(0.062,0.022,0.075,0.0,0.026,0.0);
+    for(let k=0;k<4;k++){ const z=-0.028+k*0.019; doigt([0.026,0.026,z],[0.032,-0.004,z],0.009); }
+    doigt([-0.026,0.026,0.02],[-0.03,0.0,-0.02],0.0105);
+    poignet=[0.0,0.03,0.05]; coude=[0.02,-0.32,0.26];
+  } else { // soutien du pistolet : la main gauche enveloppe la droite, ses doigts par-dessus ceux de la droite
+    G.rotation.x=-0.2;
+    B(0.024,0.08,0.066,-0.034,-0.014,0.008);
+    for(let k=0;k<4;k++){ const y=0.012-k*0.021; doigt([-0.034,y,-0.03],[0.022,y-0.002,-0.047],0.0095); }
+    doigt([-0.026,0.032,0.0],[-0.022,0.036,-0.046],0.0106);
+    poignet=[-0.034,-0.058,0.03]; coude=[-0.2,-0.3,0.3];
+  }
+  // poignet, avant-bras (peau puis manche), coude, bras jusqu'à l'épaule hors champ
+  const m=[poignet[0]+(coude[0]-poignet[0])*0.4,poignet[1]+(coude[1]-poignet[1])*0.4,poignet[2]+(coude[2]-poignet[2])*0.4];
+  const q=[poignet[0]+(coude[0]-poignet[0])*0.08,poignet[1]+(coude[1]-poignet[1])*0.08,poignet[2]+(coude[2]-poignet[2])*0.08];
+  fpsSeg(G,poignet,q,0.025,mO,0.026); fpsSeg(G,q,m,0.025,mPeau,0.028); fpsSeg(G,[m[0]-(coude[0]-poignet[0])*0.03,m[1]-(coude[1]-poignet[1])*0.03,m[2]-(coude[2]-poignet[2])*0.03],m,0.035,mM,0.035); // poignet du gant, avant-bras, revers de manche
+  fpsSeg(G,m,coude,0.033,mM,0.04); const ep=[coude[0]+s*0.08,coude[1]-0.2,coude[2]+0.25]; fpsSeg(G,coude,ep,0.042,mM,0.046);
+  return G; }
+function fpsMontage(id){
+  const mod=mkArmeModele(id); if(!mod) return null; mod.visible=true; habillerArme(mod,id);
+  const A=ancreArme(id), P0=FPS_POSES[A.pose]||FPS_POSES.poing, R=new THREE.Group(), W=new THREE.Group(), H=new THREE.Group(); R.add(W); W.add(H); H.add(mod);
+  H.rotation.set(Math.PI/2,0,Math.PI,'ZYX'); H.scale.setScalar(P0.k); H.updateMatrix();
+  const vue=(av,el,dx)=>new THREE.Vector3(dx||0,-av+mod.position.y,el+mod.position.z).applyMatrix4(H.matrix);
+  H.position.copy(vue(A.main[0],A.main[1])).negate(); H.updateMatrix(); // la poignée à l'origine de W : le recul pivote dans la main
+  let yMin=0; mod.traverse((o)=>{ if(o.isMesh&&o.geometry){ if(!o.geometry.boundingBox) o.geometry.computeBoundingBox(); yMin=Math.min(yMin,o.position.y+o.geometry.boundingBox.min.y); } });
+  const bouche=vue(-yMin,A.canon), ejection=vue(A.main[0]+0.13,A.canon+0.02,-0.045);
+  const c=coifCouleurs(), e=P0.k/0.5; fpsBras(W,'d',new THREE.Vector3(),'poignee',c.peau,c.haut,e);
+  if(A.appui) fpsBras(W,'g',vue(A.appui[0],A.appui[1]),A.priseG||'garde',c.peau,c.haut,e); else fpsBras(W,'g',new THREE.Vector3(),'soutien',c.peau,c.haut,e);
+  const fl=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:0xffc860,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,opacity:0}));
+  fl.position.copy(bouche); fl.scale.set(0.14,0.14,1); W.add(fl);
+  const fl2=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:0xfff2c0,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,opacity:0}));
+  fl2.position.copy(bouche); W.add(fl2);
+  const douilles=[], obus=id==='pompe'||id==='aa12', sans=['roquette','arbalete','flamme','desintegrateur'].includes(id);
+  if(!sans) for(let i=0;i<6;i++){ const d=new THREE.Mesh(new THREE.CylinderGeometry(obus?0.009:0.0055,obus?0.009:0.0055,obus?0.032:0.02,8),mat(obus?0xb02818:0xc8a040)); d.visible=false; R.add(d); douilles.push({m:d,t:0,v:new THREE.Vector3()}); }
+  R.traverse((o)=>{ o.renderOrder=5; o.frustumCulled=false; });
+  return {R,W,H,mod,A,P0,bouche,ejection,fl,fl2,douilles,iD:0,culasse:mod.userData.culasse||null,lagX:0,lagY:0};
+}
+// une douille part de la fenêtre d'éjection, vers la droite et le haut (repère de la caméra)
+const _fpsE=new THREE.Vector3();
+function fpsEjecter(M){ if(!M||!M.douilles.length) return; const d=M.douilles[M.iD]; M.iD=(M.iD+1)%M.douilles.length;
+  M.W.updateMatrix(); _fpsE.copy(M.ejection).applyMatrix4(M.W.matrix); d.m.position.copy(_fpsE); d.m.rotation.set(Math.random()*3,Math.random()*3,0);
+  d.v.set(0.7+Math.random()*0.35,0.75+Math.random()*0.35,0.18+Math.random()*0.1); d.t=0.55; d.m.visible=true; }
+function majDouilles(M,dt){ if(!M) return; for(const d of M.douilles){ if(d.t<=0) continue; d.t-=dt; d.v.y-=5.5*dt; d.m.position.addScaledVector(d.v,dt); d.m.rotation.x+=14*dt; d.m.rotation.z+=9*dt; if(d.t<=0) d.m.visible=false; } }
 function fpsDemarrer(cfg){
   if(FPS.actif) return; FPS.actif=cfg; FPS.yaw=cfg.yaw||0; FPS.pitch=cfg.pitch===undefined?0.12:cfg.pitch; FPS.cibles.length=0; FPS.score=0; FPS.combo=1; FPS.t=cfg.duree; FPS.coups=0; FPS.touches=0; FPS.cadT=0; FPS.rechT=0; FPS.recul=0; FPS.fin=null;
   FPS.arme=cfg.arme; FPS.st=armeStats(cfg.arme); FPS.mun=FPS.st.mag||1; INPUT.btn.tir=false;
@@ -8549,10 +8625,9 @@ function fpsDemarrer(cfg){
     m.innerHTML='<svg viewBox="0 0 48 48" width="48" height="48"><circle cx="24" cy="24" r="15" fill="none" stroke="#fff" stroke-width="2" opacity="0.9"/><path d="M24 2v12M24 34v12M2 24h12M34 24h12" stroke="#fff" stroke-width="2.4"/><circle cx="24" cy="24" r="2.2" fill="#ff3b3b"/></svg>';
     document.body.appendChild(m); FPS.mire=m; }
   FPS.el.style.display='block'; FPS.mire.style.display='block'; FPS.mire.style.transform='';
-  // l'arme en main, vue de l'œil : le canon (-y du modèle) vers l'avant, le dessus (+z) vers le haut
-  if(FPS.modele){ scene.remove(FPS.modele); FPS.modele=null; }
-  const mod=mkArmeModele(cfg.arme); if(mod){ mod.visible=true; habillerArme(mod,cfg.arme); const a=new THREE.Group(), b=new THREE.Group(), c=new THREE.Group(); a.add(mod); a.rotation.x=Math.PI/2; b.add(a); b.rotation.z=Math.PI; c.add(b); b.position.set(0.34,-0.32,-0.85); b.scale.setScalar(0.62);
-    c.traverse((o)=>{ if(o.isMesh){ o.renderOrder=5; } }); scene.add(c); FPS.modele=c; FPS.porteArme=b; }
+  // l'arme en main, vue de l'œil, tenue à deux mains (fpsMontage : modèle V2, bras, mains, flamme, douilles)
+  if(FPS.montage){ scene.remove(FPS.montage.R); libererEntite(FPS.montage.R); FPS.montage=null; }
+  FPS.montage=fpsMontage(cfg.arme); if(FPS.montage) scene.add(FPS.montage.R);
   camera.near=0.05; camera.updateProjectionMatrix();
   el('fireIco').innerHTML=icoArme(cfg.arme); // le bouton TIR montre l'arme du mini-jeu, jamais celle qu'on a en main
   if(cfg.titre) bigMsg(cfg.titre); SFX.ui(); fpsHud();
@@ -8561,9 +8636,9 @@ function fpsHud(){ const C=FPS.actif; if(!C||!FPS.el) return; const s=Math.max(0
   FPS.el.innerHTML=(C.nom||'🎯')+' — <span style="color:#ffd23f">'+FPS.score+'</span> pts'+(FPS.combo>1?' <span style="color:#7dff7a">×'+FPS.combo+'</span>':'')+' — '+Math.floor(s/60)+':'+String(s%60).padStart(2,'0')+
     '<div style="font:700 13px Arial;opacity:0.9">'+(FPS.rechT>0?'⏳ rechargement…':'🔫 '+FPS.mun+'/'+(FPS.st.mag||1))+(C.aide?' — '+C.aide:'')+'</div>'; }
 function fpsArreter(){ const C=FPS.actif; if(!C) return; FPS.actif=null;
-  for(const c of FPS.cibles) if(c.m){ scene.remove(c.m); } FPS.cibles.length=0;
+  for(const c of FPS.cibles) if(c.m){ scene.remove(c.m); libererEntite(c.m); } FPS.cibles.length=0;
   for(const t of FPS.traces) scene.remove(t.m); FPS.traces.length=0;
-  if(FPS.modele){ scene.remove(FPS.modele); FPS.modele=null; }
+  if(FPS.montage){ scene.remove(FPS.montage.R); libererEntite(FPS.montage.R); FPS.montage=null; }
   if(FPS.el) FPS.el.style.display='none'; if(FPS.mire) FPS.mire.style.display='none';
   if(P.h) P.h.g.visible=true; afficherBoutonsCombat(); camera.near=0.5; camera.updateProjectionMatrix(); INPUT.btn.tir=false; FPS.drag=null;
   if(P.h) majArmeJoueur(); // l'icône de TIR redevient celle de l'arme en main
@@ -8573,25 +8648,32 @@ function fpsFinir(){ const C=fpsArreter(); if(!C) return; const bilan={score:FPS
 function fpsDirection(yaw,pitch,out){ const cp=Math.cos(pitch); out.set(-Math.sin(yaw)*cp,Math.sin(pitch),-Math.cos(yaw)*cp); return out; }
 const _fpsD=new THREE.Vector3(), _fpsW=new THREE.Vector3();
 function fpsTirer(){
-  const C=FPS.actif, st=FPS.st, A=ARMES[FPS.arme]; FPS.mun--; FPS.coups++; FPS.cadT=Math.max(0.05,st.cad); FPS.recul=Math.min(1,FPS.recul+(A.roquette?1:st.pellets>1?0.8:0.35)); FPS.flash=0.06;
+  const C=FPS.actif, st=FPS.st, A=ARMES[FPS.arme]; FPS.mun--; FPS.coups++; FPS.cadT=Math.max(0.05,st.cad); FPS.recul=Math.min(1,FPS.recul+(A.roquette?1:st.pellets>1?0.8:0.35)); FPS.flash=0.06; fpsEjecter(FPS.montage);
   try{ SFX[A.son](); }catch(e){} vibre(st.pellets>1?30:12);
   const e=camera.position, n=Math.max(1,st.pellets||1), disp=(st.disp||0)*Math.PI/180*0.5;
   let toucheUne=false;
   for(let k=0;k<n;k++){ const dy=(Math.random()-0.5)*2*disp, dp=(Math.random()-0.5)*2*disp*0.7; fpsDirection(FPS.yaw+dy,FPS.pitch+dp,_fpsD);
-    let best=null, bt=1e9; for(const c of FPS.cibles){ if(c.mort) continue; _fpsW.set(c.x-e.x,c.y-e.y,c.z-e.z); const t=_fpsW.dot(_fpsD); if(t<0||t>(C.portee||st.portee*1.6)) continue;
-      const d2=_fpsW.lengthSq()-t*t, r=c.r*(A.roquette?2.2:1); if(d2<r*r&&t<bt){ bt=t; best=c; } }
+    let best=null, bt=1e9, bz=null, bu=0, bv=0; for(const c of FPS.cibles){ if(c.mort) continue; _fpsW.set(c.x-e.x,c.y-e.y,c.z-e.z); const t=_fpsW.dot(_fpsD); if(t<0||t>(C.portee||st.portee*1.6)) continue;
+      if(c.forme){ // cible plane du stand : le point d'impact sur son plan, puis sa zone (tête, centre, corps, bord…)
+        if(c.leve<0.6||Math.abs(_fpsD.z)<1e-4) continue; const tp=(c.z-e.z)/_fpsD.z; if(!(tp>0)) continue;
+        const u=e.x+_fpsD.x*tp-c.x, v=e.y+_fpsD.y*tp-c.y, z=A.roquette&&Math.hypot(u,v)<1.2?{k:1,nom:'BOUM'}:c.forme(u,v); if(z&&tp<bt){ bt=tp; best=c; bz=z; bu=u; bv=v; } continue; }
+      const d2=_fpsW.lengthSq()-t*t, r=c.r*(A.roquette?2.2:1); if(d2<r*r&&t<bt){ bt=t; best=c; bz=null; } }
     // traceur
     const L=best?bt:40, g=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(e.x+_fpsD.x*1.2,e.y+_fpsD.y*1.2-0.12,e.z+_fpsD.z*1.2),new THREE.Vector3(e.x+_fpsD.x*L,e.y+_fpsD.y*L,e.z+_fpsD.z*L)]);
     const tr=new THREE.Line(g,new THREE.LineBasicMaterial({color:A.tr||0xffe08a,transparent:true,opacity:0.8})); scene.add(tr); FPS.traces.push({m:tr,t:0.07});
-    if(best){ toucheUne=true; fpsToucher(best); } }
+    if(best){ toucheUne=true; fpsToucher(best,bz,bu,bv); } }
   if(toucheUne) FPS.touches++; else if(C.rateCombo!==false) FPS.combo=1;
   if(FPS.mun<=0){ FPS.rechT=st.rech||1; }
 }
-function fpsToucher(c){
-  const C=FPS.actif; c.mort=true; if(c.m) c.m.visible=false;
-  const pts=Math.round((c.pts||0)*(c.pts>0?FPS.combo*(C.mult||1):1)); FPS.score=Math.max(0,FPS.score+pts);
+function fpsToucher(c,zone,u,v){
+  const C=FPS.actif; c.mort=true; if(c.m&&!c.forme) c.m.visible=false;
+  const k=zone&&c.pts>0?zone.k:1, pts=Math.round((c.pts||0)*(c.pts>0?FPS.combo*(C.mult||1)*k:1)); FPS.score=Math.max(0,FPS.score+pts);
   if(c.pts>0) FPS.combo=Math.min(8,FPS.combo+1); else FPS.combo=1;
-  burst(c.x,c.y,c.z,c.eclats||14,c.coul||0xff7a1a,9,6); spawnTexte(c.x,c.y+0.6,c.z,(pts>0?'+':'')+pts+(c.cri?' '+c.cri:''),pts>0?'#ffd23f':'#ff3b3b');
+  if(c.forme){ c.chuteT=0; // la cible tombe en arrière, l'impact visible ; la plaque d'acier sonne
+    if(c.carte){ const R=ciblesRes(), t=new THREE.Mesh(R.trou,c.acier?R.mats.eclat:R.mats.trou); t.position.set((u||0)/CIBLE_ECH,(v||0)/CIBLE_ECH+CIBLE_CENTRE,0.004); if(c.acier) t.scale.setScalar(1.6); c.carte.add(t);
+      if(c.acier&&c.carte.material.color){ c.carte.material.color.setHex(0xffb060); } }
+    if(c.acier) fpsTing(); else bruit(0.05,0.22,1300); }
+  burst(c.x+(u||0),c.y+(v||0),c.z,c.eclats||14,c.coul||0xff7a1a,9,6); spawnTexte(c.x,c.y+0.6,c.z,(pts>0?'+':'')+pts+(zone&&zone.nom&&c.pts>0?' '+zone.nom:(c.cri?' '+c.cri:'')),pts>0?(k>1.4?'#7dff7a':'#ffd23f'):'#ff3b3b');
   if(C.toucher) C.toucher(c,pts);
 }
 function majFPS(dt,dtJeu){
@@ -8608,14 +8690,29 @@ function majFPS(dt,dtJeu){
   // cibles : le mode lance, la gravité fait le reste
   if(C.maj) C.maj(dtJeu);
   for(let i=FPS.cibles.length-1;i>=0;i--){ const c=FPS.cibles[i];
-    if(!c.mort){ c.vy-=(c.g===undefined?9.8:c.g)*dtJeu; c.x+=c.vx*dtJeu; c.y+=c.vy*dtJeu; c.z+=c.vz*dtJeu; if(c.m){ c.m.position.set(c.x,c.y,c.z); c.m.rotation.x+=(c.rx||0)*dtJeu; c.m.rotation.y+=(c.ry||0)*dtJeu; } }
-    c.vie-=dtJeu; if(c.mort||c.vie<=0||c.y<(c.sol||0)){ if(!c.mort&&c.pts>0&&C.rate) C.rate(c); if(c.m) scene.remove(c.m); FPS.cibles.splice(i,1); } }
+    if(!c.mort){ c.vy-=(c.g===undefined?9.8:c.g)*dtJeu; c.x+=c.vx*dtJeu; c.y+=c.vy*dtJeu; c.z+=c.vz*dtJeu; if(c.m){ c.m.position.set(c.x,c.y-(c.oy||0),c.z); c.m.rotation.x+=(c.rx||0)*dtJeu; c.m.rotation.y+=(c.ry||0)*dtJeu; } }
+    c.vie-=dtJeu;
+    if(c.forme){ // cible du stand : elle se lève (0,22 s), se couche à la fin de sa vie ; touchée, elle tombe en arrière
+      if(c.mort) c.chuteT+=dtJeu; else c.leve=Math.min(1,c.leve+dtJeu/0.22,Math.max(0,c.vie/0.3));
+      if(c.m) c.m.rotation.x=c.mort?-Math.PI/2*0.92*Math.min(1,c.chuteT/0.3):-Math.PI/2*(1-c.leve);
+      if((c.mort&&c.chuteT>0.75)||(!c.mort&&c.vie<=0)){ if(c.m){ scene.remove(c.m); libererEntite(c.m); } FPS.cibles.splice(i,1); } continue; }
+    if(c.mort||c.vie<=0||c.y<(c.sol||0)){ if(!c.mort&&c.pts>0&&C.rate) C.rate(c); if(c.m) scene.remove(c.m); FPS.cibles.splice(i,1); } }
+  majDouilles(FPS.montage,dtJeu);
   FPS.t-=dtJeu; fpsHud(); if(FPS.t<=0) fpsFinir();
 }
 // caméra à l'œil et arme en main (appelée en tête de majCamera)
 function fpsCamera(){
   const C=FPS.actif; camera.position.set(C.x,C.y,C.z); camera.rotation.order='YXZ'; camera.rotation.set(FPS.pitch+FPS.recul*0.05,FPS.yaw,0); camera.fov=C.fov||62; camera.updateProjectionMatrix(); VUE.yawRendu=0;
-  if(FPS.modele){ FPS.modele.position.copy(camera.position); FPS.modele.quaternion.copy(camera.quaternion); FPS.porteArme.position.set(0.34,-0.32+FPS.recul*0.04,-0.85+FPS.recul*0.12); FPS.porteArme.rotation.x=FPS.recul*0.25; }
+  const M=FPS.montage; if(M){ const W=M.W, P0=M.P0, t=performance.now()*0.001, r=FPS.recul;
+    M.R.position.copy(camera.position); M.R.quaternion.copy(camera.quaternion);
+    const dY=M.yawP===undefined?0:FPS.yaw-M.yawP, dP=M.pitchP===undefined?0:FPS.pitch-M.pitchP; M.yawP=FPS.yaw; M.pitchP=FPS.pitch; // l'arme traîne un peu derrière le regard
+    M.lagX+=(clamp(dY*0.7,-0.025,0.025)-M.lagX)*0.18; M.lagY+=(clamp(-dP*0.7,-0.025,0.025)-M.lagY)*0.18;
+    const rech=FPS.rechT>0&&FPS.st&&FPS.st.rech?Math.sin(Math.PI*clamp(1-FPS.rechT/FPS.st.rech,0,1)):0; // rechargement : l'arme plonge et pivote
+    W.position.set(P0.pos[0]+Math.sin(t*1.1)*0.0022+M.lagX,P0.pos[1]+Math.sin(t*2.2)*0.0016+M.lagY-rech*0.075,P0.pos[2]+r*0.045);
+    W.rotation.set(r*0.2-rech*0.3,P0.yaw+M.lagX*0.8,(P0.roll||0)+rech*0.55);
+    if(M.culasse) for(const m of M.culasse) m.position.y=Math.min(1,r*2.6)*0.055; // la culasse des pistolets recule
+    const f=FPS.flash>0; M.fl.material.opacity=f?1:0; M.fl2.material.opacity=f?0.9:0;
+    if(f){ const k=M.A.pose==='lourd'?1.6:1; M.fl.material.rotation=Math.random()*6.28; M.fl.scale.setScalar((0.11+Math.random()*0.06)*k); M.fl2.material.rotation=Math.random()*6.28; M.fl2.scale.set((0.24+Math.random()*0.1)*k,0.05*k,1); } }
   if(FPS.mire) FPS.mire.style.transform='scale('+(1+FPS.recul*0.35)+')';
 }
 // viser au doigt : glisser n'importe où sur l'écran (le HUD laisse passer les gestes)
@@ -8629,14 +8726,84 @@ window.addEventListener('pointerup',e=>{ if(FPS.drag&&e.pointerId===FPS.drag.id)
    posées ; 30 s de silhouettes qui surgissent entre 8 et 30 m, certaines en mouvement ; les civils (bleus) coûtent
    200 points. Score, précision ; rien à gagner (c'est un essai : jamais de farming). */
 const STAND={el:null,ouvert:false,salle:null,opts:null};
-function mkSilhouette(civil){ const tx=cTex(64,(c,s2)=>{ c.fillStyle='#e8e2d0'; c.fillRect(0,0,s2,s2); c.fillStyle=civil?'#3a6ad8':'#1c1e24';
-    c.beginPath(); c.arc(s2/2,s2*0.2,s2*0.13,0,7); c.fill(); c.fillRect(s2*0.27,s2*0.34,s2*0.46,s2*0.62);
-    if(civil){ c.fillStyle='#fff'; c.font='bold 11px Arial'; c.textAlign='center'; c.fillText('CIVIL',s2/2,s2*0.66); }
-    else { c.strokeStyle='#e8e2d0'; c.lineWidth=2; for(const r of [0.08,0.16]){ c.beginPath(); c.arc(s2/2,s2*0.55,s2*r,0,7); c.stroke(); } } });
-  const g=new THREE.Group(); const p=new THREE.Mesh(new THREE.PlaneGeometry(0.9,1.9),new THREE.MeshBasicMaterial({map:tx})); g.add(p);
-  const pied=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.9,0.08),new THREE.MeshLambertMaterial({color:0x3a3c42})); pied.position.y=-1.3; g.add(pied); return g; }
-function standCible(sa){ const T=sa.standTir, civ=Math.random()<0.2, d=8+Math.random()*22, x=T.ex+(Math.random()-0.5)*14, z=T.ez-1.4-d, m=mkSilhouette(civ); scene.add(m);
-  const mob=Math.random()<0.4; FPS.cibles.push({x,y:1.3,z,vx:mob?(Math.random()<0.5?-1:1)*(1.2+Math.random()*1.6):0,vy:0,vz:0,g:0,r:0.6,pts:civ?-200:Math.round(60+d*5),coul:civ?0x3a6ad8:0x1c1e24,cri:civ?'CIVIL !':'',m,vie:1.4+Math.random()*1.3,sol:-5,civil:civ}); }
+/* ---------- CIBLES DU STAND V2 (18 octobre, demandé : « retravailler les cibles au stand de tir ») ----------
+   De vraies cibles de stand, sur pieds ou sur un chariot qui roule sur un rail au sol : carton de tir à zones
+   imprimées (tête ×2, centre ×1,5, corps ×1, bord ×0,6), civil bleu « NE PAS TIRER » (−200), plaque d'acier
+   qui sonne et bascule. Elles se LÈVENT (pivot au pied), restent quelques secondes, se couchent ; touchées, elles
+   tombent en arrière avec l'impact visible. La touche se calcule au POINT D'IMPACT sur le plan de la cible
+   (c.forme(u, v) → zone), u, v depuis le centre du torse (c.x, c.y : viser le centre touche toujours). */
+const CIBLE_PIEDS=0.62, CIBLE_CENTRE=0.5, CIBLE_ECH=1.25; // bas du carton au-dessus du sol ; centre du torse au-dessus du bas du carton (avant l'échelle) ; échelle (lisibles en portrait)
+let _CIBLES_RES=null;
+function ciblesRes(){
+  if(_CIBLES_RES) return _CIBLES_RES;
+  const W=0.62, H=1.16, pts=[[-0.31,0.12],[-0.19,0],[0.19,0],[0.31,0.12],[0.31,0.66],[0.18,0.82],[0.11,0.82],[0.11,1.1],[0.07,1.16],[-0.07,1.16],[-0.11,1.1],[-0.11,0.82],[-0.18,0.82],[-0.31,0.66]];
+  const sh=new THREE.Shape(); sh.moveTo(pts[0][0],pts[0][1]); for(const p of pts.slice(1)) sh.lineTo(p[0],p[1]);
+  const carte=new THREE.ShapeGeometry(sh); const pa=carte.attributes.position, uv=carte.attributes.uv; for(let i=0;i<pa.count;i++) uv.setXY(i,(pa.getX(i)+W/2)/W,pa.getY(i)/H);
+  carte.userData.partagee=true;
+  const toile=(fn)=>{ try{ const c=document.createElement('canvas'); c.width=256; c.height=512; const g=c.getContext('2d'); if(!g) return null; fn(g,256,512); return new THREE.CanvasTexture(c); }catch(e){ return null; } };
+  const X=(x)=>(x+W/2)/W*256, Y=(y)=>512-y/H*512;
+  const zones=(g,trait)=>{ g.strokeStyle=trait; g.lineWidth=3; g.setLineDash([10,6]);
+    g.strokeRect(X(-0.2),Y(0.78),X(0.2)-X(-0.2),Y(0.15)-Y(0.78)); g.strokeRect(X(-0.1),Y(0.64),X(0.1)-X(-0.1),Y(0.32)-Y(0.64)); g.strokeRect(X(-0.07),Y(1.1),X(0.07)-X(-0.07),Y(0.94)-Y(1.1)); g.setLineDash([]); };
+  const papier=toile((g,w,h)=>{ g.fillStyle='#c9a46a'; g.fillRect(0,0,w,h); for(let i=0;i<1400;i++){ g.fillStyle=['#bf9a60','#d2ae74','#b89058'][i%3]; g.fillRect(Math.random()*w,Math.random()*h,2,2); }
+    zones(g,'#5a4028'); g.fillStyle='#5a4028'; g.font='bold 30px Arial'; g.textAlign='center'; g.fillText('A',X(0),Y(0.47)); g.fillText('C',X(-0.15),Y(0.7)); g.fillText('D',X(0.25),Y(0.3)); g.fillText('A',X(0),Y(0.99));
+    g.lineWidth=2; g.strokeStyle='#3a2a18'; g.beginPath(); g.moveTo(X(-0.03),Y(0.5)); g.lineTo(X(0.03),Y(0.5)); g.moveTo(X(0),Y(0.47)); g.lineTo(X(0),Y(0.53)); g.stroke();
+    g.font='bold 16px Arial'; g.fillText('GTR · 25 m',w/2,h-14); });
+  const civil=toile((g,w,h)=>{ g.fillStyle='#dfe9f4'; g.fillRect(0,0,w,h); g.fillStyle='#3a6ad8'; g.fillRect(X(-0.2),Y(0.8),X(0.2)-X(-0.2),Y(0.02)-Y(0.8)); g.beginPath(); g.arc(X(0),Y(0.99),48,0,7); g.fill();
+    g.fillStyle='#f2c8a0'; for(const s of [-1,1]){ g.fillRect(X(s*0.235)-11,Y(0.8),22,Y(0.6)-Y(0.8)); } // les mains levées, aux épaules
+    g.fillStyle='#d8261c'; g.font='900 34px Arial'; g.textAlign='center'; g.fillText('NE PAS',w/2,Y(0.5)); g.fillText('TIRER',w/2,Y(0.42)); g.font='bold 22px Arial'; g.fillStyle='#fff'; g.fillText('CIVIL',w/2,Y(0.3)); });
+  const mats={papier:new THREE.MeshLambertMaterial({map:papier,color:papier?0xffffff:0xc9a46a,side:THREE.DoubleSide}),civil:new THREE.MeshLambertMaterial({map:civil,color:civil?0xffffff:0x3a6ad8,side:THREE.DoubleSide}),
+    acier:new THREE.MeshPhongMaterial({color:0xf0ece2,specular:0x888888,shininess:40,side:THREE.DoubleSide}),trou:new THREE.MeshBasicMaterial({color:0x17120c}),eclat:new THREE.MeshBasicMaterial({color:0x8a8a86})};
+  // la plaque d'acier (popper) : tête ronde et corps évasé
+  const sa=new THREE.Shape(); sa.moveTo(-0.08,0); sa.lineTo(0.08,0); sa.lineTo(0.15,0.42); sa.lineTo(0.1,0.5); sa.lineTo(0.05,0.52); sa.absarc(0,0.64,0.13,-Math.PI*0.35,Math.PI*1.35,false); sa.lineTo(-0.1,0.5); sa.lineTo(-0.15,0.42); sa.lineTo(-0.08,0);
+  const plaque=new THREE.ShapeGeometry(sa,16); plaque.userData.partagee=true;
+  const trou=new THREE.CircleGeometry(0.016,10); trou.userData.partagee=true;
+  _CIBLES_RES={carte,plaque,trou,mats}; return _CIBLES_RES; }
+// zones d'une cible (u : latéral, v : vertical depuis le centre du torse) → {k, nom} ou null (raté)
+function zoneCarton(u,v){ u/=CIBLE_ECH; v/=CIBLE_ECH; const y=v+CIBLE_CENTRE, a=Math.abs(u);
+  if(a<0.11&&y>0.82&&y<1.16-(a>0.07?(a-0.07)*1.5:0)) return {k:2,nom:'TÊTE'};
+  if(y<0||y>0.82||a>0.31) return null; if(y<0.12&&a>0.19+y) return null; if(y>0.66&&a>0.31-(y-0.66)*0.8) return null;
+  if(a<0.1&&y>0.32&&y<0.64) return {k:1.5,nom:'CENTRE'}; if(a<0.2&&y>0.15&&y<0.78) return {k:1,nom:''}; return {k:0.6,nom:'BORD'}; }
+function zonePlaque(u,v){ u/=CIBLE_ECH; v/=CIBLE_ECH; const y=v+CIBLE_CENTRE, a=Math.abs(u); if(Math.hypot(u,y-0.64)<0.13) return {k:1.6,nom:'TING !'}; if(y>=0&&y<0.52&&a<0.08+y*0.16) return {k:1.2,nom:'TING'}; return null; }
+// une cible du stand : groupe au sol (pivot du pied), carton ou plaque, pieds ou chariot
+function mkCibleStand(type){
+  const R=ciblesRes(), g=new THREE.Group(), bois=mat(0x7a5a38), metal=mat(0x5a5e66);
+  let carte;
+  if(type==='acier'){ carte=new THREE.Mesh(R.plaque,R.mats.acier.clone()); carte.position.y=CIBLE_PIEDS+0.1; carte.scale.setScalar(CIBLE_ECH); g.add(carte);
+    const p=new THREE.Mesh(new THREE.BoxGeometry(0.05,CIBLE_PIEDS+0.1,0.05),metal); p.position.set(0,(CIBLE_PIEDS+0.1)/2,-0.04); g.add(p);
+    const b=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.06,0.4),metal); b.position.set(0,0.03,-0.04); g.add(b); }
+  else { carte=new THREE.Mesh(R.carte,type==='civil'?R.mats.civil:R.mats.papier); carte.position.y=CIBLE_PIEDS; carte.scale.setScalar(CIBLE_ECH); g.add(carte);
+    for(const s of [-1,1]){ const p=new THREE.Mesh(new THREE.BoxGeometry(0.05,CIBLE_PIEDS+0.6,0.025),bois); p.position.set(s*0.27,(CIBLE_PIEDS+0.6)/2,-0.02); g.add(p); }
+    const tr=new THREE.Mesh(new THREE.BoxGeometry(0.6,0.04,0.03),bois); tr.position.set(0,CIBLE_PIEDS+0.04,-0.02); g.add(tr);
+    if(type==='mobile'){ const c=new THREE.Mesh(new THREE.BoxGeometry(0.62,0.16,0.34),metal); c.position.set(0,0.08,-0.02); g.add(c);
+      for(const s of [-1,1]) for(const t of [-1,1]){ const r=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.05,0.04,10),mat(0x1c1e22)); r.rotation.z=Math.PI/2; r.position.set(s*0.25,0.05,t*0.12-0.02); g.add(r); } }
+    else { const b=new THREE.Mesh(new THREE.BoxGeometry(0.62,0.05,0.34),bois); b.position.set(0,0.025,-0.02); g.add(b); } }
+  g.rotation.x=-Math.PI/2; // couchée : elle se lève à l'apparition
+  return {g,carte}; }
+function standCible(sa){
+  const T=sa.standTir, r=Math.random(), type=r<0.6?'papier':(r<0.78?'mobile':(r<0.9?'civil':'acier'));
+  const d=type==='mobile'?(Math.random()<0.5?9:14):(type==='acier'?6+Math.random()*6:5+Math.random()*11);
+  const z=T.ez-1.4-d, xMax=1.2+d*0.3, sens=Math.random()<0.5?-1:1;
+  const x=T.ex+(type==='mobile'?-sens*Math.min(9,xMax+1.5):(Math.random()*2-1)*xMax);
+  const sol=0.12, oy=CIBLE_PIEDS+CIBLE_CENTRE*CIBLE_ECH+(type==='acier'?0.1:0), m=mkCibleStand(type); m.g.position.set(x,sol,z); scene.add(m.g);
+  const civ=type==='civil', base=Math.round(60+d*5);
+  FPS.cibles.push({x,y:sol+oy,z,oy,vx:type==='mobile'?sens*(1.5+Math.random()*1.4):0,vy:0,vz:0,g:0,r:1.0,pts:civ?-200:(type==='acier'?Math.round(base*1.3):base),
+    coul:civ?0x3a6ad8:(type==='acier'?0xffd23f:0xc9a46a),eclats:type==='acier'?16:10,cri:civ?'CIVIL !':'',m:m.g,carte:m.carte,leve:0,acier:type==='acier',
+    forme:type==='acier'?zonePlaque:zoneCarton,vie:type==='mobile'?Math.min(7,(2*Math.min(9,xMax+1.5))/1.6):1.7+Math.random()*1.4,sol:-5,civil:civ}); }
+// le hall du stand : rails des chariots au sol (et leur merlon de protection), rampes lumineuses au-dessus des cibles
+function standTirDecorV2(sa){
+  if(sa.standV2) return; sa.standV2=true; const T=sa.standTir, G=sa.g||scene, ac=mat(0x8a8e96), be=mat(0x6a665e);
+  for(const d of [9,14]){ const z=T.ez-1.4-d;
+    for(const dz of [-0.14,0.1]){ const r=new THREE.Mesh(new THREE.BoxGeometry(20,0.04,0.05),ac); r.position.set(T.ex,0.14,z+dz); G.add(r); }
+    const mer=new THREE.Mesh(new THREE.BoxGeometry(20,0.34,0.36),be); mer.position.set(T.ex,0.29,z+0.55); G.add(mer); }
+  const lum=new THREE.MeshBasicMaterial({color:0xfff2d8});
+  for(let d=6.5;d<30;d+=5) for(const x of [-6,0,6]){ const p=new THREE.Mesh(new THREE.BoxGeometry(2.4,0.08,0.3),lum); p.position.set(T.ex+x,3.58,T.ez-1.4-d); G.add(p); } // rampes sous les chicanes du plafond
+  const voile=new THREE.Mesh(new THREE.PlaneGeometry(22,4.2),new THREE.MeshBasicMaterial({color:0xffe8c0,transparent:true,opacity:0.12,blending:THREE.AdditiveBlending,depthWrite:false}));
+  voile.position.set(T.ex,2.2,T.fond+0.7); G.add(voile); }
+// bruit d'une plaque d'acier touchée
+function fpsTing(){ if(!AUDIO.pret) return; try{ const ctx=AUDIO.ctx, t=ctx.currentTime;
+  for(const [f,v] of [[1650,0.22],[2630,0.1]]){ const o=ctx.createOscillator(), g=ctx.createGain(); o.type='sine'; o.frequency.setValueAtTime(f,t); o.frequency.exponentialRampToValueAtTime(f*0.96,t+0.4);
+    g.gain.setValueAtTime(v,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.45); o.connect(g); g.connect(AUDIO.sfxG); o.start(t); o.stop(t+0.5); } }catch(e){} }
+function mkSilhouette(civil){ const c=mkCibleStand(civil?'civil':'papier'); c.g.rotation.x=0; return c.g; }
 // le choix de l'arme avant un tir à la première personne (stand de tir, ball-trap) : opts = {titre, aide, couleur,
 // ids, det(id), bouton(id), choisir(id), zone:{x,z}, salle} ; se ferme si l'on s'éloigne (majAtelierArme)
 function ouvrirChoixArme(opts){
@@ -8651,13 +8818,13 @@ function ouvrirChoixArme(opts){
   STAND.el.style.display='flex'; SFX.ui(); }
 function armesFPS(){ return ORDRE_ARMES.filter((id)=>ARMES[id].type==='gun'&&!ARMES[id].cachee&&!ARMES[id].flamme&&mkArmeModeleDispo(id)); }
 function ouvrirStandTir(sa){
-  ouvrirChoixArme({titre:'🎯 Stand de tir — choisis une arme',aide:'30 s de silhouettes ; jamais les civils (bleus). Gratuit : on essaie avant d’acheter.',couleur:'#ff3b5c',salle:sa,zone:{x:sa.standTir.x,z:sa.standTir.z},
+  ouvrirChoixArme({titre:'🎯 Stand de tir — choisis une arme',aide:'30 s de cibles : la tête et le centre valent plus ; jamais les civils (bleus). Gratuit : on essaie avant d’acheter.',couleur:'#ff3b5c',salle:sa,zone:{x:sa.standTir.x,z:sa.standTir.z},
     ids:armesFPS(),bouton:()=>'ESSAYER',choisir:(id)=>lancerStandTir(sa,id),
     det:(id)=>{ const mo=modsArme(id); return (META.armes[id].poss?'<span style="color:#7dff7a">à toi</span> — ':'')+(mo.length?'modifs : '+mo.map((k)=>MODS_ARMES[k]?MODS_ARMES[k].ico:'').join(' '):ARMES[id].prix+' $ en vente'); }}); }
 function fermerStandTir(){ STAND.ouvert=false; if(STAND.el) STAND.el.style.display='none'; }
 function lancerStandTir(sa,id){
-  fermerStandTir(); if(FPS.actif||!sa||!sa.standTir) return; const T=sa.standTir; sa.standT=0.6;
-  fpsDemarrer({nom:'🎯 '+ARMES[id].nom,titre:'🎯 STAND DE TIR',aide:'jamais les civils',arme:id,x:T.ex,y:1.65,z:T.ez,yaw:0,pitch:0.0,yawMin:-0.5,yawMax:0.5,pitchMin:-0.25,pitchMax:0.3,duree:30,fov:72,portee:60,
+  fermerStandTir(); if(FPS.actif||!sa||!sa.standTir) return; const T=sa.standTir; sa.standT=0.6; standTirDecorV2(sa);
+  fpsDemarrer({nom:'🎯 '+ARMES[id].nom,titre:'🎯 STAND DE TIR',aide:'tête ×2, centre ×1,5 — jamais les civils',arme:id,x:T.ex,y:1.65,z:T.ez,yaw:0,pitch:-0.03,yawMin:-0.5,yawMax:0.5,pitchMin:-0.25,pitchMax:0.3,duree:30,fov:64,portee:60,
     maj:(dt)=>{ sa.standT-=dt; if(sa.standT<=0){ standCible(sa); sa.standT=0.55+Math.random()*0.8; } },
     toucher:(c)=>{ if(c.civil){ toast('🛑 Un civil ! −200','warn'); SFX.refus(); } },
     fin:(b)=>{ bigMsg('🎯 '+b.score+' PTS — '+b.precision+' %'); toast(ARMES[id].nom+' : '+b.touches+' touches sur '+b.coups+' tirs'+(META.armes[id].poss?'':' — en vente au mur ('+ARMES[id].prix+' $)'),'or'); }});
@@ -13401,7 +13568,193 @@ for(const g of [geoBras,geoJambe,geoTorse,geoTete,geoCasq]) g.userData.partagee=
    DESSUS de l'arme est vers +z (il passe en haut quand le bras se lève pour
    viser), la crosse et la poignée vers -z / +y. Un peu plus grandes que
    nature (×1,3) pour se lire de loin, dans les deux vues. */
+/* ---------- ARMES V2 (18 octobre, demandé : « retravailler la qualité des armes et le visuel avec le bras qui tient
+   les armes ») ----------
+   Chaque arme à feu est modelée en pièces — profils latéraux extrudés à arêtes adoucies (carcasse, culasse, poignée,
+   crosse, chargeur courbe), tubes (canons, manchons, lunette), rails, organes de visée, pontet évidé, détente — puis
+   fusionnée par matériau et mise en cache UNE fois par arme (géométries partagées : userData.partagee, jamais
+   libérées par libererEntite). Repère inchangé : canon vers −y depuis la main, dessus vers +z, axe du canon vers
+   z ≈ 0,09 (habillerArme y pose silencieux, laser, chargeur ; les finitions or et camouflage remplacent les
+   matériaux). Matériaux Phong partagés (_MATS_ARME), créés à la première utilisation (rien de Three.js au
+   chargement). La culasse des pistolets est une pièce à part (userData.culasse) : elle recule au tir en vue FPS.
+   ANCRES_ARME : où se posent les mains (poignée, garde-main), quelle posture (poing, épaule, lourd), la hauteur du
+   canon — lues par le montage de la vue à la première personne (fpsMontage). */
+let _MATS_ARME=null; const _GEO_ARMES={};
+function matsArme(){
+  if(_MATS_ARME) return _MATS_ARME;
+  const ph=(c,s,sh)=>new THREE.MeshPhongMaterial({color:c,specular:s,shininess:sh});
+  const texBois=cTex(128,(g,s)=>{ g.fillStyle='#7a4422'; g.fillRect(0,0,s,s);
+    for(let i=0;i<46;i++){ g.strokeStyle=['#5e3218','#8a5430','#6a3a1c','#9a6438'][i%4]; g.lineWidth=1+Math.random()*2.2; g.beginPath(); const y=Math.random()*s;
+      g.moveTo(0,y); g.bezierCurveTo(s*0.3,y+Math.random()*10-5,s*0.6,y+Math.random()*10-5,s,y+Math.random()*8-4); g.stroke(); } },2,2); // profils extrudés : uv en mètres, le fil du bois se répète
+  _MATS_ARME={acier:ph(0x464a52,0xb0b8c8,70),bronze:ph(0x2a2c31,0x6a7284,48),poly:ph(0x1f2125,0x34363a,14),noir:ph(0x121315,0x3a3c40,34),
+    chrome:ph(0x9ea4ae,0xffffff,90),bois:new THREE.MeshPhongMaterial({map:texBois,color:0xffffff,specular:0x3a2414,shininess:30}),
+    olive:ph(0x4e5634,0x2a2e1c,16),sable:ph(0xa88e60,0x3a3222,16),laiton:ph(0xc8a040,0xfff0b0,90),rouge:ph(0xb02818,0x60302a,40),
+    caoutch:ph(0x17181a,0x0e0e0e,4),verre:new THREE.MeshPhongMaterial({color:0x18324e,specular:0xffffff,shininess:140,transparent:true,opacity:0.82}),
+    lum:new THREE.MeshBasicMaterial({color:0x35e0ff}),lumR:new THREE.MeshBasicMaterial({color:0xff3a30})};
+  return _MATS_ARME; }
+// av : vers l'avant le long du canon ; el : hauteur ; dx : latéral (le côté droit de l'arme, vu du tireur, est −x)
+const ANCRES_ARME={
+  pistolet:{main:[-0.045,-0.09],pose:'poing',canon:0.085},silence:{main:[-0.045,-0.09],pose:'poing',canon:0.085},
+  revolver:{main:[-0.05,-0.075],pose:'poing',canon:0.1},uzi:{main:[0.0,-0.07],appui:[0.19,0.03],pose:'poing',canon:0.09},
+  pm:{main:[-0.03,-0.06],appui:[0.27,0.035],pose:'epaule',canon:0.09},fusil:{main:[-0.055,-0.06],appui:[0.3,0.045],pose:'epaule',canon:0.09},
+  pompe:{main:[-0.13,0.03],appui:[0.48,0.025],pose:'epaule',canon:0.11},aa12:{main:[-0.07,-0.05],appui:[0.42,0.055],pose:'epaule',canon:0.1},
+  sniper:{main:[-0.12,-0.05],appui:[0.36,0.0],pose:'epaule',canon:0.1},arbalete:{main:[-0.06,-0.06],appui:[0.24,0.035],pose:'epaule',canon:0.11},
+  roquette:{main:[0.08,-0.05],appui:[0.35,-0.03],priseG:'poignee',pose:'lourd',canon:0.13},minigun:{main:[-0.15,0.0],appui:[0.22,0.32],priseG:'dessus',pose:'lourd',canon:0.1},
+  flamme:{main:[-0.02,-0.04],appui:[0.42,0.0],priseG:'poignee',pose:'epaule',canon:0.12},desintegrateur:{main:[-0.02,-0.07],pose:'poing',canon:0.08},
+};
+function ancreArme(id){ return ANCRES_ARME[id]||{main:[-0.02,-0.07],pose:'poing',canon:0.08}; }
+function construireArmeV2(id){
+  const parts={}; let partie='';
+  const add=(k,geo)=>{ const key=(partie?partie+'|':'')+k; (parts[key]=parts[key]||[]).push(geo); };
+  const MX=new THREE.Matrix4();
+  // boîte : w (x), l (le long du canon), h (z), centrée en (dx, av, el), inclinée de rx autour de l'axe latéral
+  const bx=(k,w,l,h,av,el,dx,rx)=>{ const g=new THREE.BoxGeometry(w,l,h); if(rx) g.rotateX(rx); g.translate(dx||0,-av,el); add(k,g); };
+  // tube le long du canon : rayon arrière r, avant r2
+  const tu=(k,r,l,av,el,dx,r2,seg)=>{ const g=new THREE.CylinderGeometry(r,r2===undefined?r:r2,l,seg||16); g.translate(dx||0,-av,el); add(k,g); };
+  // tambour d'axe latéral (barillet de lunette, chargeur camembert, molette)
+  const ta=(k,r,w,av,el,dx,seg)=>{ const g=new THREE.CylinderGeometry(r,r,w,seg||18); g.rotateZ(Math.PI/2); g.translate(dx||0,-av,el); add(k,g); };
+  // anneau autour du canon
+  const an=(k,r,t,av,el)=>{ const g=new THREE.TorusGeometry(r,t,6,16); g.rotateX(Math.PI/2); g.translate(0,-av,el); add(k,g); };
+  const sp=(k,r,av,el,dx)=>{ const g=new THREE.SphereGeometry(r,10,8); g.translate(dx||0,-av,el); add(k,g); };
+  const trace=(sh,pts)=>{ sh.moveTo(pts[0][0],pts[0][1]); for(let i=1;i<pts.length;i++){ const q=pts[i]; if(q.length===4) sh.quadraticCurveTo(q[0],q[1],q[2],q[3]); else sh.lineTo(q[0],q[1]); } };
+  // profil latéral (av, el) extrudé en largeur w, arêtes adoucies ; trous : contours intérieurs
+  const pr=(k,pts,w,dx,bev,trous)=>{ const sh=new THREE.Shape(); trace(sh,pts); if(trous) for(const t of trous){ const p=new THREE.Path(); trace(p,t); sh.holes.push(p); }
+    const b=bev===undefined?Math.min(0.006,w*0.18):bev, d=Math.max(0.002,w-2*b);
+    const g=new THREE.ExtrudeGeometry(sh,{depth:d,bevelEnabled:b>0,bevelThickness:b,bevelSize:b*0.7,bevelSegments:2,curveSegments:8});
+    g.applyMatrix4(MX.set(0,0,-1,d/2+(dx||0), -1,0,0,0, 0,1,0,0, 0,0,0,1)); add(k,g); };
+  // segment cylindrique entre deux points du repère de l'arme ([dx, av, el])
+  const seg=(k,a,b,r)=>{ const A=new THREE.Vector3(a[0],-a[1],a[2]), B=new THREE.Vector3(b[0],-b[1],b[2]), L=A.distanceTo(B), g=new THREE.CylinderGeometry(r,r,L,8);
+    const q=new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,1,0),B.clone().sub(A).normalize()); g.applyMatrix4(new THREE.Matrix4().makeRotationFromQuaternion(q)); g.translate((A.x+B.x)/2,(A.y+B.y)/2,(A.z+B.z)/2); add(k,g); }; // (r128 : pas de applyQuaternion sur les géométries)
+  // rail Picatinny : semelle + dents
+  const rail=(k,a0,a1,el,w)=>{ bx(k,w,a1-a0,0.012,(a0+a1)/2,el); for(let a=a0+0.006;a<a1;a+=0.014) bx(k,w*1.12,0.007,0.008,a,el+0.009); };
+  // pontet évidé et détente, communs
+  const pontet=(k,a0,a1,el0,prof,w)=>{ pr(k,[[a0,el0],[a1,el0],[a1+0.01,el0-0.02],[a1-0.01,el0-prof],[a0+0.015,el0-prof],[a0-0.01,el0-prof*0.6]],w||0.026,0,0.004,
+    [[[a0+0.008,el0-0.012],[a1-0.006,el0-0.012],[a1-0.004,el0-0.024],[a1-0.018,el0-prof+0.013],[a0+0.02,el0-prof+0.013],[a0+0.004,el0-prof*0.58]]]); };
+  const detente=(av,el)=>pr('acier',[[av-0.006,el],[av+0.006,el],[av+0.006,el-0.012],[av+0.012,el-0.03,av-0.002,el-0.042],[av-0.008,el-0.038],[av,el-0.026,av-0.006,el]],0.01,0,0.002);
+  // poignée-pistolet inclinée : haut à (a,el), bas reculé
+  const poignee=(k,a,el,h,ep,w,rake)=>{ const r=rake===undefined?0.2:rake, b=a-h*r; pr(k,[[a+0.012,el],[a-ep+0.008,el],[b-ep,el-h+0.012],[b-ep+0.012,el-h],[b+0.004,el-h],[b+0.012,el-h+0.02]],w,0,0.007);
+    for(let i=0;i<4;i++){ const t=(i+0.6)/5; bx('noir',w+0.004,0.004,ep*0.62,a-ep*0.45-h*r*t,el-h*t,0,r); } }; // quadrillage (stries)
+  const pistoletBase=(culasse,cadre)=>{
+    partie='culasse'; // culasse (recule au tir), stries, fenêtre d'éjection, organes de visée
+    pr(culasse,[[-0.085,0.047],[0.272,0.047],[0.272,0.112],[0.256,0.133],[-0.07,0.133],[-0.085,0.118]],0.084,0,0.006);
+    for(let k=0;k<6;k++) bx('noir',0.087,0.005,0.07,-0.074+k*0.011,0.092);
+    bx('noir',0.006,0.07,0.028,0.11,0.112,-0.041); bx('acier',0.004,0.06,0.02,0.11,0.112,-0.04);
+    bx('noir',0.012,0.014,0.012,0.244,0.142); bx('noir',0.016,0.014,0.018,-0.06,0.143,0.016); bx('noir',0.016,0.014,0.018,-0.06,0.143,-0.016);
+    partie='';
+    tu('acier',0.017,0.03,0.276,0.085); tu('noir',0.008,0.034,0.278,0.085);
+    pr(cadre,[[-0.072,0.0],[0.25,0.0],[0.268,0.022],[0.268,0.046],[-0.08,0.046],[-0.086,0.024]],0.078,0,0.005);
+    for(const a of [0.19,0.215,0.24]) bx('noir',0.08,0.006,0.008,a,-0.001);
+    poignee(cadre,0.03,0.012,0.215,0.105,0.076,0.2); bx('caoutch',0.082,0.07,0.13,-0.055,-0.1,0,0.2); bx(cadre,0.072,0.1,0.022,-0.07,-0.205);
+    pontet(cadre,0.035,0.125,0.005,0.075); detente(0.07,-0.008); bx('noir',0.012,0.035,0.012,0.02,0.04,0.041); };
+  switch(id){
+    case 'pistolet': pistoletBase('bronze','poly'); break;
+    case 'silence': pistoletBase('acier','poly'); tu('noir',0.043,0.3,0.44,0.085,0,0.043,20); tu('acier',0.045,0.014,0.295,0.085,0,0.045,20); tu('acier',0.045,0.014,0.585,0.085,0,0.045,20);
+      for(let k=0;k<4;k++) an('acier',0.043,0.003,0.34+k*0.07,0.085); break;
+    case 'revolver':
+      tu('chrome',0.024,0.34,0.28,0.1); bx('chrome',0.024,0.34,0.022,0.28,0.122); pr('chrome',[[0.42,0.133],[0.448,0.133],[0.448,0.155],[0.43,0.155]],0.008,0,0.002);
+      bx('chrome',0.034,0.22,0.036,0.21,0.066); tu('noir',0.012,0.02,0.45,0.1);
+      pr('acier',[[-0.07,0.03],[0.1,0.03],[0.112,0.05],[0.112,0.135],[-0.03,0.14],[-0.078,0.112]],0.046,0,0.005,[[[-0.03,0.042],[0.088,0.042],[0.088,0.128],[-0.03,0.128]]]);
+      tu('acier',0.064,0.12,0.03,0.085,0,0.064,20);
+      for(let k=0;k<6;k++){ const a=k/6*Math.PI*2; const g=new THREE.BoxGeometry(0.014,0.085,0.016); g.translate(0,0,0.062); g.rotateY(a); g.translate(0,-0.03,0.085); add('noir',g);
+        tu('noir',0.012,0.006,0.092,0.085+Math.cos(a)*0.038,Math.sin(a)*0.038); }
+      pr('acier',[[-0.07,0.118],[-0.052,0.13],[-0.074,0.162],[-0.096,0.158],[-0.088,0.14]],0.014,0,0.003);
+      pr('bois',[[-0.062,0.035],[-0.012,0.028],[0.004,-0.01],[0.012,-0.1,-0.022,-0.165],[-0.088,-0.178],[-0.128,-0.1,-0.094,0.002],[-0.078,0.03]],0.068,0,0.009);
+      ta('laiton',0.012,0.072,-0.042,-0.06); // médaillons de crosse
+      pontet('acier',0.02,0.1,0.03,0.075); detente(0.05,0.02); break;
+    case 'uzi':
+      pr('poly',[[-0.1,0.03],[0.24,0.03],[0.262,0.05],[0.262,0.15],[-0.088,0.15],[-0.1,0.13]],0.086,0,0.006);
+      for(let a=-0.06;a<0.22;a+=0.032) bx('noir',0.088,0.012,0.008,a,0.153);
+      tu('acier',0.032,0.03,0.276,0.09); tu('acier',0.016,0.08,0.326,0.09); tu('noir',0.008,0.084,0.328,0.09);
+      for(const s of [-1,1]) bx('noir',0.008,0.016,0.046,0.232,0.172,s*0.022); bx('noir',0.006,0.012,0.03,0.232,0.165);
+      bx('noir',0.044,0.02,0.026,-0.07,0.165); bx('acier',0.022,0.026,0.022,0.15,0.166);
+      poignee('poly',0.04,0.03,0.2,0.08,0.074,0.04); bx('acier',0.05,0.056,0.17,-0.008,-0.25); bx('poly',0.058,0.064,0.022,-0.008,-0.338);
+      pontet('poly',0.05,0.17,0.032,0.08,0.03); detente(0.09,0.02);
+      for(const s of [-1,1]) bx('acier',0.01,0.3,0.012,-0.02,0.122,s*0.048); bx('acier',0.1,0.012,0.012,-0.17,0.122); break;
+    case 'pm':
+      tu('noir',0.045,0.42,0.1,0.09,0,0.045,20); tu('noir',0.016,0.2,0.3,0.125); an('noir',0.03,0.006,0.4,0.15); bx('noir',0.006,0.012,0.03,0.4,0.15);
+      ta('noir',0.026,0.044,-0.06,0.15); bx('noir',0.026,0.04,0.03,-0.06,0.13);
+      pr('poly',[[0.18,0.04],[0.36,0.045],[0.38,0.065],[0.38,0.122],[0.18,0.122],[0.17,0.08]],0.072,0,0.008);
+      tu('acier',0.016,0.08,0.43,0.09); tu('acier',0.021,0.03,0.39,0.09); tu('noir',0.008,0.084,0.432,0.09);
+      pr('acier',[[0.08,0.05],[0.13,0.05],[0.16,-0.1,0.21,-0.255],[0.16,-0.27],[0.11,-0.11,0.08,0.05]],0.04,0,0.004); bx('noir',0.062,0.07,0.04,0.105,0.03);
+      poignee('poly',0.02,0.05,0.2,0.085,0.07,0.22); pontet('poly',0.03,0.13,0.045,0.07); detente(0.07,0.035);
+      for(const s of [-1,1]) bx('acier',0.012,0.28,0.012,-0.25,0.09,s*0.03); pr('caoutch',[[-0.43,0.0],[-0.385,0.0],[-0.385,0.14],[-0.43,0.14]],0.092,0,0.008); break;
+    case 'fusil':
+      pr('bronze',[[-0.12,0.02],[0.12,0.02],[0.135,0.045],[0.135,0.077],[-0.12,0.077]],0.07,0,0.005);
+      pr('bronze',[[-0.12,0.077],[0.155,0.077],[0.155,0.14],[-0.11,0.14],[-0.122,0.128]],0.076,0,0.005); rail('noir',-0.105,0.15,0.146,0.03);
+      bx('noir',0.006,0.08,0.03,0.04,0.11,-0.04); bx('acier',0.026,0.034,0.016,-0.13,0.143);
+      bx('noir',0.03,0.03,0.02,0.035,0.165); tu('noir',0.026,0.085,0.04,0.2,0,0.026,18); tu('verre',0.022,0.004,0.084,0.2); tu('verre',0.022,0.004,-0.004,0.2); bx('lumR',0.004,0.002,0.004,0.06,0.2);
+      tu('olive',0.042,0.36,0.33,0.09,0,0.042,8); for(const [dx,el] of [[0,0.135],[0,0.045]]) rail('noir',0.18,0.49,el,0.026); for(const s of [-1,1]){ bx('noir',0.012,0.3,0.026,0.34,0.09,s*0.043); }
+      tu('acier',0.012,0.2,0.6,0.09); bx('noir',0.03,0.04,0.05,0.52,0.1); tu('noir',0.019,0.06,0.72,0.09,0,0.019,12); for(let k=0;k<3;k++) bx('bronze',0.04,0.03,0.005,0.725,0.09+(k-1)*0.012);
+      pr('noir',[[0.49,0.13],[0.53,0.13],[0.514,0.205],[0.506,0.205]],0.016,0,0.002);
+      pr('poly',[[0.04,0.025],[0.11,0.025],[0.13,-0.11,0.165,-0.25],[0.095,-0.262],[0.065,-0.12,0.04,0.025]],0.046,0,0.004); bx('bronze',0.074,0.08,0.03,0.075,0.022);
+      poignee('poly',-0.02,0.03,0.15,0.055,0.062,0.32); pontet('bronze',-0.015,0.08,0.025,0.06,0.03); detente(0.03,0.012);
+      tu('noir',0.022,0.18,-0.2,0.105,0,0.022,18);
+      pr('poly',[[-0.27,0.135],[-0.42,0.145],[-0.44,0.125],[-0.44,0.0],[-0.42,-0.012],[-0.36,0.02],[-0.27,0.075]],0.07,0,0.008); bx('caoutch',0.072,0.022,0.16,-0.448,0.065); break;
+    case 'pompe':
+      pr('bronze',[[-0.09,0.02],[0.16,0.02],[0.16,0.14],[0.02,0.152],[-0.08,0.14],[-0.092,0.12]],0.07,0,0.006); bx('noir',0.006,0.1,0.034,0.06,0.105,-0.036);
+      tu('bronze',0.026,0.74,0.53,0.11,0,0.026,18); bx('bronze',0.012,0.72,0.008,0.53,0.14); for(let a=0.2;a<0.88;a+=0.04) bx('bronze',0.006,0.006,0.008,a,0.135); sp('laiton',0.006,0.89,0.148);
+      tu('noir',0.012,0.03,0.905,0.11); tu('bronze',0.022,0.6,0.46,0.055,0,0.022,16); tu('bronze',0.026,0.03,0.775,0.055); bx('bronze',0.03,0.02,0.08,0.755,0.085);
+      pr('bois',[[0.35,0.025],[0.6,0.025],[0.622,0.048],[0.622,0.087],[0.6,0.104],[0.35,0.104],[0.328,0.087],[0.328,0.048]],0.078,0,0.009);
+      for(let a=0.37;a<0.6;a+=0.03) bx('noir',0.08,0.006,0.07,a,0.064);
+      pontet('bronze',-0.04,0.07,0.022,0.07); detente(0.01,0.008); bx('noir',0.014,0.012,0.012,-0.05,0.14);
+      pr('bois',[[-0.08,0.135],[-0.62,0.115],[-0.645,0.1],[-0.645,-0.065],[-0.6,-0.075],[-0.22,-0.002],[-0.13,0.022,-0.09,0.03]],0.062,0,0.009); bx('caoutch',0.064,0.026,0.18,-0.655,0.025); break;
+    case 'aa12':
+      pr('poly',[[-0.16,0.02],[0.3,0.02],[0.32,0.05],[0.32,0.16],[-0.15,0.16],[-0.17,0.13]],0.09,0,0.008); rail('noir',-0.12,0.28,0.166,0.034);
+      pr('poly',[[-0.1,0.18],[-0.06,0.18],[-0.04,0.23],[0.18,0.23],[0.2,0.18],[0.24,0.18],[0.22,0.25],[-0.08,0.25]],0.03,0,0.004);
+      ta('noir',0.13,0.09,0.05,-0.1,0,24); ta('poly',0.136,0.06,0.05,-0.1,0,24); ta('acier',0.03,0.1,0.05,-0.1); bx('noir',0.07,0.08,0.06,0.05,0.0);
+      tu('poly',0.04,0.36,0.5,0.1,0,0.04,12); for(let a=0.37;a<0.66;a+=0.05){ bx('noir',0.084,0.022,0.012,a,0.1); } tu('acier',0.016,0.06,0.71,0.1); tu('noir',0.008,0.064,0.712,0.1);
+      poignee('poly',-0.03,0.02,0.16,0.065,0.068,0.28); pontet('poly',-0.03,0.07,0.02,0.065); detente(0.015,0.006);
+      pr('poly',[[-0.16,0.15],[-0.48,0.15],[-0.5,0.13],[-0.5,0.0],[-0.47,-0.02],[-0.3,0.04],[-0.17,0.05]],0.07,0,0.008,[[[-0.22,0.065],[-0.4,0.065],[-0.4,0.11],[-0.22,0.12]]]); bx('caoutch',0.072,0.022,0.17,-0.51,0.065); break;
+    case 'sniper':
+      tu('bronze',0.022,0.92,0.67,0.1,0,0.016,18); tu('noir',0.026,0.07,1.165,0.1,0,0.026,14); for(let k=0;k<3;k++) bx('noir',0.06,0.012,0.012,1.145+k*0.02,0.1);
+      tu('bronze',0.032,0.36,0.03,0.1,0,0.032,18); seg('acier',[-0.035,-0.06,0.1],[-0.075,-0.07,0.085],0.008); sp('noir',0.017,-0.07,0.085,-0.078);
+      tu('noir',0.026,0.4,0.05,0.215,0,0.026,20); tu('noir',0.026,0.08,0.29,0.215,0,0.044,20); tu('verre',0.04,0.004,0.332,0.215); tu('noir',0.036,0.08,-0.19,0.215,0,0.026,20); tu('verre',0.032,0.004,-0.232,0.215);
+      { const g=new THREE.CylinderGeometry(0.017,0.017,0.03,14); g.rotateX(Math.PI/2); g.translate(0,-0.06,0.256); add('noir',g); } ta('noir',0.017,0.03,0.06,0.215,-0.044,14); // tourelles (hausse, dérive)
+      bx('noir',0.03,0.02,0.03,0.06,0.236); bx('noir',0.026,0.02,0.03,0.06,0.215,-0.03);
+      for(const a of [-0.07,0.18]){ bx('noir',0.058,0.026,0.08,a,0.16); }
+      pr('sable',[[0.56,0.045],[0.56,0.085],[0.2,0.088],[0.15,0.072],[-0.12,0.072],[-0.2,0.122],[-0.6,0.132],[-0.622,0.118],[-0.622,-0.07],[-0.58,-0.082],[-0.3,-0.02],[-0.155,-0.135],[-0.085,-0.135],[-0.05,0.0],[0.2,0.0],[0.56,0.012]],0.07,0,0.009,
+        [[[-0.13,0.022],[-0.22,0.065],[-0.275,0.002],[-0.185,-0.062],[-0.125,-0.03]]]);
+      bx('caoutch',0.072,0.024,0.2,-0.63,0.03); pontet('noir',-0.05,0.04,0.0,0.06); detente(-0.01,-0.012);
+      for(const s of [-1,1]) bx('noir',0.012,0.26,0.012,0.42,-0.005,s*0.026); break;
+    case 'arbalete':
+      pr('bois',[[-0.5,0.0],[0.47,0.045],[0.5,0.065],[0.5,0.11],[-0.1,0.118],[-0.3,0.105],[-0.5,0.085]],0.07,0,0.008);
+      bx('acier',0.03,0.6,0.012,0.22,0.122); poignee('poly',-0.02,0.01,0.15,0.06,0.06,0.25); pontet('acier',-0.02,0.07,0.012,0.06); detente(0.02,0.0);
+      for(const s of [-1,1]){ const g=new THREE.BoxGeometry(0.3,0.026,0.045); g.translate(s*0.15,0,0); g.rotateZ(s*0.28); g.translate(0,-0.5,0.11); add('noir',g); }
+      for(const s of [-1,1]) seg('acier',[s*0.29,0.43,0.11],[s*0.012,0.14,0.122],0.003);
+      seg('acier',[0,0.14,0.13],[0,0.6,0.13],0.006); { const g=new THREE.ConeGeometry(0.012,0.04,8); g.rotateX(Math.PI); g.translate(0,-0.62,0.13); add('acier',g); }
+      for(const s of [-1,1]){ const g=new THREE.BoxGeometry(0.002,0.04,0.016); g.translate(s*0.008,-0.16,0.138); add('rouge',g); }
+      bx('noir',0.03,0.07,0.03,0.0,0.15); tu('noir',0.018,0.07,0.0,0.18); break;
+    case 'roquette':
+      tu('olive',0.075,1.3,0.25,0.13,0,0.075,22); tu('olive',0.076,0.06,0.93,0.13,0,0.092,22); tu('noir',0.08,0.1,-0.45,0.13,0,0.105,22);
+      for(const a of [0.0,0.5]) an('noir',0.076,0.007,a,0.13);
+      { const g=new THREE.ConeGeometry(0.07,0.2,18); g.rotateX(Math.PI); g.translate(0,-1.06,0.13); add('olive',g); } tu('rouge',0.07,0.04,0.95,0.13);
+      poignee('poly',0.12,0.06,0.16,0.06,0.06,0.15); poignee('poly',0.39,0.06,0.14,0.06,0.06,0.0); pontet('noir',0.12,0.2,0.055,0.06); detente(0.15,0.045);
+      pr('noir',[[0.2,0.2],[0.3,0.2],[0.3,0.27],[0.26,0.27],[0.24,0.22],[0.2,0.22]],0.012,-0.06,0.002); bx('caoutch',0.1,0.2,0.04,-0.15,0.06); break;
+    case 'minigun':
+      for(let k=0;k<6;k++){ const a=k/6*Math.PI*2; tu('acier',0.014,0.78,0.52,0.1+Math.sin(a)*0.058,Math.cos(a)*0.058,0.014,10); tu('noir',0.007,0.79,0.522,0.1+Math.sin(a)*0.058,Math.cos(a)*0.058,0.007,6); }
+      for(const a of [0.32,0.62,0.88]) tu('noir',0.084,0.03,a,0.1,0,0.084,20); tu('acier',0.02,0.82,0.5,0.1);
+      pr('bronze',[[-0.16,0.0],[0.16,0.0],[0.18,0.03],[0.18,0.2],[-0.14,0.2],[-0.16,0.17]],0.2,0,0.012); bx('noir',0.12,0.16,0.04,0.0,0.22);
+      pr('noir',[[0.06,0.22],[0.1,0.22],[0.12,0.3],[0.32,0.3],[0.34,0.22],[0.38,0.22],[0.35,0.34],[0.09,0.34]],0.026,0,0.004);
+      for(const s of [-1,1]) pr('poly',[[-0.12,0.08],[-0.16,0.08],[-0.22,-0.06],[-0.18,-0.07]],0.04,s*0.06,0.006); bx('noir',0.16,0.03,0.03,-0.17,-0.04);
+      for(let k=0;k<12;k++){ const t=k/11; bx('laiton',0.02,0.024,0.05,0.02-t*0.04,-0.02-t*0.18,0.11+t*0.06,0.3); } break;
+    case 'flamme':
+      tu('rouge',0.085,0.34,0.06,-0.02,0,0.085,22); sp('rouge',0.085,-0.11,-0.02); sp('rouge',0.085,0.23,-0.02); bx('acier',0.02,0.2,0.03,0.06,0.07);
+      ta('acier',0.03,0.03,0.06,0.11); tu('acier',0.026,0.6,0.52,0.12,0,0.024,16); tu('noir',0.036,0.08,0.84,0.12,0,0.028,16); for(const a of [0.3,0.6]) an('noir',0.028,0.006,a,0.12);
+      sp('lum',0.016,0.86,0.155); poignee('poly',0.0,0.05,0.15,0.06,0.06,0.2); poignee('poly',0.44,0.09,0.12,0.055,0.055,0.0); pontet('noir',0.0,0.08,0.045,0.06); detente(0.03,0.035); break;
+    default: return null;
+  }
+  const out=[];
+  for(const key in parts){ const i=key.indexOf('|'), mt=i>=0?key.slice(i+1):key, pt=i>=0?key.slice(0,i):'';
+    const g=mergeGeoManuel(parts[key]); g.computeBoundingSphere(); g.userData.partagee=true; for(const x of parts[key]) x.dispose(); out.push({geo:g,mat:mt,partie:pt}); }
+  return out; }
+const ARMES_V2=new Set(['pistolet','silence','revolver','uzi','pm','fusil','pompe','aa12','sniper','arbalete','roquette','minigun','flamme']);
+function mkArmeModeleV2(id){
+  let c=_GEO_ARMES[id]; if(!c) c=_GEO_ARMES[id]=construireArmeV2(id); if(!c) return null;
+  const M=matsArme(), g=new THREE.Group(); g.position.set(0,-0.56,0.02);
+  for(const e of c){ const m=new THREE.Mesh(e.geo,M[e.mat]||M.acier); if(e.partie){ (g.userData[e.partie]=g.userData[e.partie]||[]).push(m); } g.add(m); }
+  g.visible=false; return g; }
 function mkArmeModele(id){
+  if(ARMES_V2.has(id)) return mkArmeModeleV2(id); // armes à feu modelées (V2)
   const g=new THREE.Group(); g.position.set(0,-0.56,0.02);
   // b(largeur x, longueur le long du canon, hauteur, couleur, avance, élévation, décalage x)
   const b=(w,l,h,c,av,el,dx)=>{ const m=new THREE.Mesh(new THREE.BoxGeometry(w,l,h),mat(c)); m.position.set(dx||0,-av,el); g.add(m); return m; };

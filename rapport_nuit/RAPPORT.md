@@ -1853,3 +1853,12 @@ Captures : `captures/lot11/base_17oct.png`, `hills_17oct.png`, `boutiques_balltr
 - **Corrigés en route** : le modèle du skate ne gardait pas ses données (la figure faisait basculer tout le véhicule) ; un commentaire `//` avalait le chrono du tableau d'affichage ; le test des géométries de l'aéroport dépendait du tirage (il rejoue maintenant le même tirage à chaque partie) ; le robot du test du Dépôt de bus restait coincé contre le bus en travers de La Boucle (obstacle voulu) : il recule et contourne désormais, comme un joueur.
 
 Captures : `captures/lot11/skate_18oct.png`, `derby_arene.png`, `derby_jeu_concession.png`, `derby_menu.png`.
+
+## Armes, mains et cibles du stand (18 octobre)
+
+- **Armes** : treize armes à feu remodelées en pièces (culasse striée, pontet évidé, poignée quadrillée, rails, lunettes, chargeurs courbes, crosses en bois veiné), en métal, polymère et bois ; même repère qu'avant (les modifications de l'établi se posent toujours au bon endroit), visibles aussi en main en ville.
+- **En vue à la première personne** (stand de tir, ball-trap) : deux bras gantés tiennent l'arme (pistolet à deux mains, main gauche sous le garde-main des fusils), manches à la couleur de la tenue ; recul, culasse qui recule, flamme de bouche, douilles éjectées, l'arme qui plonge au rechargement.
+- **Cibles du stand** : vrais cartons de tir à zones (tête ×2, centre ×1,5, corps, bord), civils « NE PAS TIRER », plaques d'acier qui sonnent ; elles se lèvent, tombent quand on les touche (impact visible), certaines roulent sur un rail ; plus grandes et plus proches ; hall mieux éclairé.
+
+Captures : `captures/lot11/armes_v2_galerie.png`, `armes_v2_en_main.png`, `stand_tir_v2.png`.
+
