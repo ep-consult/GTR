@@ -9797,7 +9797,7 @@ async function main() {
           if (VUE.k !== 0 || Math.abs(hc2.x) > 1e-6 || Math.abs(hc2.z + 1) > 1e-6 || getComputedStyle(el('btnVue')).display !== 'none') ko.push('le chalutier ne garde pas sa caméra (k ' + VUE.k + ', joystick ' + hc2.x.toFixed(2) + ',' + hc2.z.toFixed(2) + ', bouton ' + getComputedStyle(el('btnVue')).display + ')');
           sortirInterieur(); }
         // 7) retour à la vue classique : rien n'est tourné
-        basculerVue(); frames(80);
+        basculerVue(); basculerVue(); frames(80); /* trois vues depuis le lot 5 : 3D → 1P → 2D */
         const hc = joy('KeyW');
         if (META.vue !== 'classique' || Math.abs(hc.x) > 1e-3 || Math.abs(hc.z + 1) > 1e-3) ko.push('la vue classique n’est pas rétablie (' + META.vue + ')');
         if (VUE.ciel && VUE.ciel.visible) ko.push('le ciel de la vue immersive reste affiché en vue classique');
@@ -10705,6 +10705,7 @@ async function main() {
         if (typeof BASE !== 'undefined' && BASE.ok) { lancerDefiBase(); finDefiBase(true); } // parcours du combattant de Fort Reyes
         if (typeof BT !== 'undefined' && BT.ok) { lancerBallTrap(); FPS.score = BT_OBJECTIF; fpsFinir(); } // ball-trap du ranch
         if (typeof DERBY !== 'undefined' && DERBY.ok) { if (P.veh) sortirVehicule(true); WANTED.heat = 0; P.x = DERBY.stand.x; P.z = DERBY.stand.z; P.y = 0; derbyLancer(); derbyFin(true, 'dernier'); derbyNettoyer(); } // arène de derby
+        if (typeof SPORTJ !== 'undefined' && SPORTS.ok) { const q = sportjPostes().find((x) => x.id === 'tennis'); P.x = q.x; P.z = q.z; P.y = solPied(P.x, P.z); sportjDemarrer('tennis'); if (SPORTJ.actif) { SPORTJ.actif.pts = [SPORTJ_DEFS.tennis.pts, 0]; sportjConclure(SPORTJ.actif, true); } else ko.push('tennis : pas lancé'); } /* match de tennis gagné (centre sportif) */
         checkTenues();
         for (const [k, id] of Object.entries(TENUE_EXPLOIT)) if (!META.exploits[k] || !META.tenuesPoss[id]) ko.push(k + ' → ' + id + ' pas débloquée');
         if (!ko.length) info.push(Object.keys(TENUE_EXPLOIT).length + ' tenues débloquées par leur mini-jeu');
@@ -12621,6 +12622,118 @@ async function main() {
       });
       if (pa.ko.length) fail('Armes personnalisables : ' + pa.ko.join(' ; '));
       else ok('Armes personnalisables : ' + pa.info.join(' ; ') + ' ; une optique et une finition à la fois ; choc électrique et lame enflammée efficaces');
+    }
+
+    // -------------------------------------------------------------------
+    // Vue à la 1re personne et visée à la mire (18 octobre, demandé : « une vue à la 1re personne comme au stand de
+    // tir, et jouer comme ça » ; « viser à la mire : un réticule plus petit, ou l'arme devant l'œil »). En ville, à
+    // pied : caméra à l'œil, corps masqué, l'arme et les bras en main ; le joystick fait avancer dans le regard, le
+    // corps suit le regard ; on tire où l'on regarde (aide étroite : une cible de côté n'est pas prise), en levant les
+    // yeux on tire plus haut ; VISER aligne la ligne de mire de l'arme (organes de visée ou optique) sur le centre de
+    // l'écran, resserre le champ (lunette : zoom et image de la lunette) ; dans une salle ou en véhicule, la vue
+    // immersive reprend et le corps revient ; au stand de tir, VISER marche aussi.
+    // -------------------------------------------------------------------
+    console.log('\n--- Vue à la 1re personne : caméra à l’œil, marche, tir, visée à la mire, sorties ---');
+    {
+      const vp = await page.evaluate(() => {
+        const ko = [], info = [], frame = (n) => { for (let i = 0; i < (n || 1); i++){ litEntrees(); majJoueur(1 / 30, 1 / 30); majCamera(1 / 30); } };
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); META.vue = 'fps'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6; for (const e of ennemis) e.mort = true; WANTED.heat = 0;
+        for (const v of vehicules) { scene.remove(v.mesh); libererEntite(v.mesh); } vehicules.length = 0;
+        META.armes.fusil.poss = true; META.argent = 1e6; const mods0 = META.modsArmes.fusil; META.modsArmes.fusil = ''; majArmeJoueur('fusil'); P.mags.fusil = 30;
+        P.x = POIS.place.x; P.z = POIS.place.z; P.y = solPied(P.x, P.z); VUE.yawUser = Math.PI; VUE.pitch1P = 0; INPUT.jx = INPUT.jy = 0; frame(3);
+        if (!VUE1P.actif || !VUE1P.montage || P.h.g.visible || Math.abs(camera.position.y - (P.y + OEIL_1P)) > 0.15 || el('btnViser').style.display === 'none') ko.push('entrée : actif ' + VUE1P.actif + ', montage ' + !!VUE1P.montage + ', corps visible ' + P.h.g.visible + ', œil ' + (camera.position.y - P.y).toFixed(2));
+        // marcher dans le regard (le corps suit)
+        const x0 = P.x, z0 = P.z; INPUT.jy = -1; frame(15); INPUT.jy = 0; frame(1);
+        const dx = P.x - x0, dz = P.z - z0, regard = VUE.yawUser + Math.PI, avance = dx * Math.sin(regard) + dz * Math.cos(regard), cote = Math.abs(dx * Math.cos(regard) - dz * Math.sin(regard));
+        if (!(avance > 3) || cote > 0.6 || Math.abs(angDiff(P.ang, regard)) > 0.05) ko.push('marche : avance ' + avance.toFixed(2) + ', écart ' + cote.toFixed(2) + ', corps ' + angDiff(P.ang, regard).toFixed(2));
+        // tirer où l'on regarde : une cible devant est touchée, une cible de côté n'est pas visée
+        const devant = creerEnnemi('vip_batte', P.x + Math.sin(regard) * 14, P.z + Math.cos(regard) * 14, false), cote40 = creerEnnemi('vip_batte', P.x + Math.sin(regard + 0.7) * 12, P.z + Math.cos(regard + 0.7) * 12, false);
+        for (const e of [devant, cote40]) { e.hp = 1e5; e.passif = true; e.vit = 0; }
+        if (viseAuto1P(armeStats('fusil').portee) !== devant) ko.push('la cible sous la mire n’est pas choisie');
+        devant.mort = true; if (viseAuto1P(armeStats('fusil').portee) === cote40) ko.push('une cible à 40° de la mire est visée'); devant.mort = false;
+        const h0 = devant.hp; for (let i = 0; i < 6; i++) { P.cadT = 0; attaquer(); for (let k = 0; k < 8; k++) majPools(1 / 60); } if (!(devant.hp < h0)) ko.push('la cible sous la mire n’est pas touchée');
+        // lever les yeux : le tir monte
+        devant.mort = true; cote40.mort = true; VUE.pitch1P = 0.35; P.cadT = 0; attaquer(); const b = balles.filter((q) => q.on && q.fac === 'joueur').pop(); if (!b || !(b.vy > 2)) ko.push('regard levé : le tir ne monte pas (' + (b ? b.vy.toFixed(2) : 'aucune balle') + ')');
+        VUE.pitch1P = 0;
+        // VISER : la ligne de mire au centre de l'écran, champ resserré ; avec une lunette, son image
+        const auCentre = () => { const M = VUE1P.montage; camera.updateMatrixWorld(true); M.R.updateMatrixWorld(true); const p = M.mire.clone().applyMatrix4(M.W.matrixWorld); p.project(camera); return Math.hypot(p.x, p.y); }; /* la caméra n'a pas été rendue entre deux images : sa matrice inverse se recalcule ici */
+        INPUT.edge.viser = true; frame(20);
+        if (!VUE1P.vise || !(VUE1P.k > 0.95) || !(camera.fov < 56) || auCentre() > 0.03) ko.push('visée (organes de visée) : k ' + VUE1P.k.toFixed(2) + ', champ ' + camera.fov.toFixed(1) + ', mire à ' + auCentre().toFixed(3));
+        else info.push('visée aux organes de visée : la mire à ' + auCentre().toFixed(3) + ' du centre, champ ' + camera.fov.toFixed(0) + '°');
+        INPUT.edge.viser = true; frame(20); if (VUE1P.vise || VUE1P.k > 0.05) ko.push('VISER ne se relâche pas');
+        META.modsArmes.fusil = 'holo'; montagePremiere(); INPUT.edge.viser = true; frame(20);
+        if (auCentre() > 0.03) ko.push('visée holographique : mire à ' + auCentre().toFixed(3)); else info.push('holographique : ' + auCentre().toFixed(3));
+        INPUT.edge.viser = true; frame(20);
+        META.modsArmes.fusil = 'lunette4'; montagePremiere(); INPUT.edge.viser = true; frame(20);
+        if (!(camera.fov < 20) || VUE1P.lunette.style.display !== 'block' || VUE1P.montage.R.visible) ko.push('lunette : champ ' + camera.fov.toFixed(1) + ', image ' + VUE1P.lunette.style.display + ', arme ' + VUE1P.montage.R.visible);
+        else info.push('lunette ×4 : champ ' + camera.fov.toFixed(0) + '°, image de la lunette');
+        INPUT.edge.viser = true; frame(20);
+        // les sorties : véhicule, salle
+        const v = creerVehicule('berline', P.x + 2, P.z, 0); entrerVehicule(v); frame(2);
+        if (VUE1P.actif || VUE1P.montage) ko.push('en véhicule : la 1re personne reste active'); sortirVehicule(true); frame(2);
+        if (!VUE1P.actif || P.h.g.visible) ko.push('à la sortie du véhicule : pas de retour à la 1re personne');
+        entrerInterieur('armurerie', PORTES.find((q) => q.id === 'armurerie')); frame(2);
+        if (VUE1P.actif || !P.h.g.visible) ko.push('en salle : la 1re personne reste active ou le corps est caché');
+        // au stand de tir, VISER aussi
+        const s = INT.actif; lancerStandTir(s, 'pistolet'); if (!FPS.actif) ko.push('stand de tir : pas lancé');
+        else { INPUT.edge.viser = true; for (let i = 0; i < 20; i++){ majFPS(1 / 30, 1 / 30); majCamera(1 / 30); } if (!(FPS.k > 0.95) || !(camera.fov < 60)) ko.push('stand de tir : VISER sans effet (' + (FPS.k || 0).toFixed(2) + ', ' + camera.fov.toFixed(1) + ')'); else info.push('au stand de tir, VISER marche aussi'); fpsArreter(); }
+        sortirInterieur(); META.modsArmes.fusil = mods0 || ''; META.vue = 'classique'; startRun();
+        return { ko, info };
+      });
+      if (vp.ko.length) fail('Vue 1re personne : ' + vp.ko.join(' ; '));
+      else ok('Vue 1re personne : caméra à l’œil, corps masqué, marche dans le regard, tir où l’on regarde (aide étroite), regard levé = tir plus haut ; ' + vp.info.join(' ; ') + ' ; sorties en véhicule et en salle');
+    }
+
+    // -------------------------------------------------------------------
+    // Le centre sportif se joue (demandé : « rends jouable le tennis, le football, le ping-pong et les autres sports »).
+    // Lu dans le jeu (SPORTJ_DEFS, sportjPostes) : chaque sport a son poste et son bouton ; un pilote simulé aux
+    // vraies commandes (joystick, bouton d'action, temps de réaction 0,25 s, graine propre) GAGNE chacun des quatre, un
+    // passif PERD chacun ; la prime tombe une fois par vague ; la tenue « Reyes Athletics » vient du tennis ; les
+    // boutons de combat sont masqués pendant le jeu et rendus après ; mourir et startRun arrêtent tout ; un PNJ du
+    // jeu touché (converti) arrête le jeu ; le match de foot reprend après les penaltys.
+    // -------------------------------------------------------------------
+    console.log('\n--- Le centre sportif se joue : tennis, ping-pong, tractions, penaltys — pilote gagnant, passif perdant ---');
+    {
+      const sj = await page.evaluate(() => {
+        const ko = [], info = [], rnd0 = Math.random, graine = (g) => { Math.random = () => { g = (g * 1664525 + 1013904223) >>> 0; return g / 4294967296; }; };
+        if (!SPORTS.ok) return { ko: ['complexe sportif absent'], info };
+        const prep = () => { if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); META.vue = 'classique'; VUE.k = 0; VUE.yawRendu = 0; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6; for (const e of ennemis) e.mort = true; WANTED.heat = 0; INPUT.mx = INPUT.mz = 0; }; /* vue classique : le joystick du pilote n'est pas tourné par la caméra d'un test précédent */
+        const postes = sportjPostes(), poste = (id) => postes.find((q) => q.id === id);
+        const lancer = (id) => { const q = poste(id); P.x = q.x; P.z = q.z; P.y = solPied(P.x, P.z); majAction(); const lab = el('btnAction').textContent; if (!lab.includes(SPORTJ_DEFS[id].nom)) { ko.push(id + ' : bouton « ' + lab + ' »'); return null; } el('btnAction')._fn(); if (!SPORTJ.actif) ko.push(id + ' : ne démarre pas'); return SPORTJ.actif; };
+        const frame = (dt) => { litEntrees(); majJoueur(dt, dt); majSportJ(dt, dt); majAction(); };
+        const jouer = (id, pilote, g) => { graine(g); prep(); const A = lancer(id); if (!A) return null; const ex0 = META.exploits.sportif, arg0 = META.argent; let t = 0, react = 0, appui = false;
+          const combat = el('btnFire').style.display === 'none';
+          while (SPORTJ.actif === A && !A.fini && t < 120) { const dt = 1 / 30; t += dt; react -= dt; appui = false; /* le pouce reste sur le joystick entre deux réactions */
+            if (pilote && react <= 0) { react = 0.25; INPUT.jx = INPUT.jy = 0;
+              if (id === 'tennis' || id === 'pong') { const b = A.balle; if (b && b.vers === 'joueur') { const p = sportjPosBalle(A);
+                  if (id === 'tennis') { const dx = b.x1 - P.x; INPUT.jx = clamp(dx * 1.5, -1, 1); const dz = b.z1 - P.z; INPUT.jy = clamp(dz, -1, 1); }
+                  const d = Math.hypot(b.x1 - P.x, b.z1 - P.z); if (p.u >= (id === "pong" ? 0.6 : 0.72) && d <= A.D.portee) { INPUT.jx = A.adv.g.position.x > P.x ? -1 : 1; if (id === 'pong') INPUT.jx = A.adv.g.position.z > P.z ? -1 : 1; appui = true; } } }
+              else if (id === 'tractions') { if (A.cur >= 0.58 && A.cur <= 0.76 && A.stop <= 0) appui = true; }
+              else if (id === 'penaltys') { if (!A.tir && Math.abs(A.cur) >= 0.66 && Math.abs(A.cur) <= 0.96) appui = true; } }
+            frame(dt); if (appui) { const f = el('btnAction')._fn; if (f && /FRAPPER|TIRER/.test(el('btnAction').textContent)) f(); } }
+          const gagne = !!(SPORTJ.gagnes && SPORTJ.gagnes[id]), r = { id, pilote, gagne, t: Math.round(t), pts: A.pts.slice(), n: A.n, buts: A.buts, prime: META.argent - arg0, combatCache: combat, combatRendu: el('btnFire').style.display !== 'none', tenue: !ex0 && !!META.exploits.sportif };
+          INPUT.jx = INPUT.jy = 0; if (SPORTJ.actif) sportjArreter(); Math.random = rnd0; return r; };
+        for (const id of ['tennis', 'pong', 'tractions', 'penaltys']) {
+          const g = jouer(id, true, 31), p = jouer(id, false, 32); if (!g || !p) continue;
+          if (!g.gagne) ko.push(id + ' : le pilote perd ' + JSON.stringify(g)); if (p.gagne) ko.push(id + ' : le passif gagne ' + JSON.stringify(p));
+          if (g.gagne && !(g.prime >= SPORTJ_DEFS[id].prime)) ko.push(id + ' : prime absente (' + g.prime + ')');
+          if (!g.combatCache || !g.combatRendu) ko.push(id + ' : boutons de combat ' + g.combatCache + '/' + g.combatRendu);
+          info.push(id + ' : pilote ' + (g.gagne ? 'gagne' : 'perd') + ' en ' + g.t + ' s (' + (id === 'tennis' || id === 'pong' ? g.pts.join('–') : id === 'tractions' ? g.n : g.buts + '/5') + '), passif ' + (p.gagne ? 'gagne' : 'perd'));
+          if (id === 'tennis' && !g.tenue && !META.exploits.sportif) ko.push('tennis gagné sans la tenue « Reyes Athletics »'); }
+        // prime une fois par vague : rejouer dans la même vague ne paie plus et le bouton refuse
+        graine(33); prep(); const argA = META.argent; SPORTJ.primes = { tractions: WAVES.n }; SPORTJ.gagnes = { tractions: true }; const q = poste('tractions'); P.x = q.x; P.z = q.z; majAction(); el('btnAction')._fn();
+        if (SPORTJ.actif) ko.push('rejouable dans la même vague après une victoire'); if (META.argent !== argA) ko.push('prime payée deux fois');
+        // mourir et startRun arrêtent ; un PNJ converti arrête
+        prep(); lancer('tennis'); mourir(); ETAT.timeScale = 1; if (SPORTJ.actif) ko.push('mourir ne ferme pas le sport');
+        prep(); lancer('pong'); startRun(); if (SPORTJ.actif) ko.push('startRun ne ferme pas le sport');
+        prep(); const A2 = lancer('tennis'); if (A2) { A2.adv.g.userData.converti = true; majSportJ(1 / 30, 1 / 30); if (SPORTJ.actif) ko.push('PNJ converti : le match continue'); A2.adv.g.userData.converti = false; }
+        // après les penaltys, le match de foot reprend
+        prep(); const A3 = lancer('penaltys'); if (A3) { sportjArreter(); const F = SPORTS.foot; if (!(F.pause < 5)) ko.push('le match de foot ne reprend pas après les penaltys (pause ' + F.pause + ')'); }
+        Math.random = rnd0; META.exploits.sportif = false; startRun();
+        return { ko, info };
+      });
+      if (sj.ko.length) fail('Centre sportif : ' + sj.ko.join(' ; '));
+      else ok('Centre sportif : ' + sj.info.join(' ; ') + ' ; prime une fois par vague, tenue du tennis, combat masqué puis rendu, mourir / startRun / PNJ converti ferment, le foot reprend');
     }
 
     // -------------------------------------------------------------------

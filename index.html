@@ -221,6 +221,9 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
   -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 6px),#000 calc(100% - 5px));
   mask:radial-gradient(farthest-side,transparent calc(100% - 6px),#000 calc(100% - 5px))}
 #btnSwitch{right:20px;bottom:calc(env(safe-area-inset-bottom,0px) + 172px);width:56px;height:56px;font-size:18px}
+#btnViser{right:20px;bottom:calc(env(safe-area-inset-bottom,0px) + 290px);width:60px;height:60px;font-size:22px;border-color:#ff3b5c99} /* vue à la 1re personne : viser à la mire (appui = on vise, nouvel appui = on relâche) */
+#btnViser.on{background:#5a1420e6;border-color:#ff3b5c;box-shadow:0 0 14px #ff3b5c88}
+#btnViser small{font-size:8px;display:block}
 #btnGren{right:170px;bottom:calc(env(safe-area-inset-bottom,0px) + 176px);width:50px;height:50px;font-size:19px}
 #btnGren small{font-size:8px}
 #btnSpec{right:108px;bottom:calc(env(safe-area-inset-bottom,0px) + 186px);width:52px;height:52px;font-size:19px;overflow:hidden}
@@ -635,6 +638,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
   <div class="btn" id="btnJump" style="display:none">🪂<small>SAUT</small></div>
   <div class="btn" id="btnJetpack" style="display:none">🚀<small>DÉCOLLER</small></div>
   <div class="btn" id="btnGren">💣<small id="grenN">3</small></div>
+  <div class="btn" id="btnViser" style="display:none">🎯<small>VISER</small></div>
   <div class="btn" id="btnBrake">🛑<small>FREIN</small></div>
   <div id="btnAction">MONTER</div>
 </div>
@@ -1791,7 +1795,7 @@ function bindHold(id,nom){
 }
 bindHold('btnFire','tir'); bindHold('btnDodge','esquive'); bindHold('btnSprint','sprint');
 bindHold('btnSwitch','arme'); bindHold('btnSpec','spec'); bindHold('btnGren','gren'); bindHold('btnBrake','frein');
-bindHold('btnAction','action'); bindHold('btnJetpack','jetpack');
+bindHold('btnAction','action'); bindHold('btnJetpack','jetpack'); bindHold('btnViser','viser');
 
 function litEntrees(){
   // pendant une session de borne d'arcade, la croix directionnelle pilote
@@ -1860,7 +1864,7 @@ function garagesMetaDefaut(){ const o={}; for(const g of GARAGES_TUNING) o[g.id]
 const VEHPERSO_MAX=6;
 function vehPersoMetaDefaut(){ const o={}; for(let i=0;i<VEHPERSO_MAX;i++) o['v'+i]=slotGarageDefaut(); return o; }
 const META={
-  exploits:{basket:false,tour:false,supercross:false,bowl:false,wake:false,badlands:false,base:false,balltrap:false,derby:false},
+  exploits:{basket:false,tour:false,supercross:false,bowl:false,wake:false,badlands:false,base:false,balltrap:false,derby:false,sportif:false},
   derby:{voiture:'derbyBreak',poss:{derbyBreak:true,derbyCompacte:false,derbyPickup:false},niv:{pareChocs:0,blindage:0,moteur:0,pneus:0},victoires:0,kos:0}, // arène de derby (clés fixes) // mini-jeux réussis (tenues)
   argent:150, xp:0, niveau:1,
   record:0, recordVague:0, killsTotal:0, parties:0,
@@ -2571,11 +2575,13 @@ const TENUES=[
    cond:()=>!!(META.exploits&&META.exploits.balltrap),haut:0xc84a2a,bas:0x3a5a8a,casq:0x8a6a44},
   {id:'cassecou',nom:'Combinaison « Casse-cou »',ico:'💥',condTxt:'Gagner un derby de l’arène — dégâts reçus au volant −15 %',
    cond:()=>!!(META.exploits&&META.exploits.derby),haut:0xe8662a,bas:0x14161c,casq:0xf2f2ee},
+  {id:'athlete',nom:'Tenue « Reyes Athletics »',ico:'🎾',condTxt:'Gagner le match de tennis du complexe sportif — le sprint fatigue 30 % moins',
+   cond:()=>!!(META.exploits&&META.exploits.sportif),haut:0xf2f4f8,bas:0x2a6ad8,casq:0x14161c},
 ];
 // capacité d'une tenue : k si elle est portée, 1 sinon
 function tenueK(id,k){ return META.tenue===id?k:1; }
 // un exploit de mini-jeu : la 1re fois, la tenue est annoncée avec sa capacité
-const TENUE_EXPLOIT={basket:'ballers',tour:'aiguilleur',supercross:'prorider',bowl:'skateur',wake:'wakeur',badlands:'badlands',base:'militaire',balltrap:'cowboy',derby:'cassecou'};
+const TENUE_EXPLOIT={basket:'ballers',tour:'aiguilleur',supercross:'prorider',bowl:'skateur',wake:'wakeur',badlands:'badlands',base:'militaire',balltrap:'cowboy',derby:'cassecou',sportif:'athlete'};
 function exploitMiniJeu(cle){
   if(!META.exploits||META.exploits[cle]) return; META.exploits[cle]=true; checkTenues();
   const tn=TENUES.find((x)=>x.id===TENUE_EXPLOIT[cle]);
@@ -8905,18 +8911,19 @@ function fpsEjecter(M){ if(!M||!M.douilles.length) return; const d=M.douilles[M.
   d.v.set(0.7+Math.random()*0.35,0.75+Math.random()*0.35,0.18+Math.random()*0.1); d.t=0.55; d.m.visible=true; }
 function majDouilles(M,dt){ if(!M) return; for(const d of M.douilles){ if(d.t<=0) continue; d.t-=dt; d.v.y-=5.5*dt; d.m.position.addScaledVector(d.v,dt); d.m.rotation.x+=14*dt; d.m.rotation.z+=9*dt; if(d.t<=0) d.m.visible=false; } }
 function fpsDemarrer(cfg){
-  if(FPS.actif) return; FPS.actif=cfg; FPS.yaw=cfg.yaw||0; FPS.pitch=cfg.pitch===undefined?0.12:cfg.pitch; FPS.cibles.length=0; FPS.score=0; FPS.combo=1; FPS.t=cfg.duree; FPS.coups=0; FPS.touches=0; FPS.cadT=0; FPS.rechT=0; FPS.recul=0; FPS.fin=null;
+  if(FPS.actif) return; if(VUE1P.actif) quitterPremiere(); /* le mini-jeu a son propre montage */ FPS.actif=cfg; FPS.yaw=cfg.yaw||0; FPS.pitch=cfg.pitch===undefined?0.12:cfg.pitch; FPS.cibles.length=0; FPS.score=0; FPS.combo=1; FPS.t=cfg.duree; FPS.coups=0; FPS.touches=0; FPS.cadT=0; FPS.rechT=0; FPS.recul=0; FPS.fin=null;
   FPS.arme=cfg.arme; FPS.st=armeStats(cfg.arme); FPS.mun=FPS.st.mag||1; INPUT.btn.tir=false;
   if(P.h) P.h.g.visible=false; cacherBoutonsCombat(); const bf=el('btnFire'); if(bf) bf.style.display='';
   if(!FPS.el){ const d=document.createElement('div'); d.id='fpsHud'; d.style.cssText='position:fixed;left:0;right:0;top:calc(env(safe-area-inset-top,0px) + 54px);z-index:34;text-align:center;pointer-events:none;color:#fff;font:900 15px Arial;text-shadow:0 2px 3px #000';
     document.body.appendChild(d); FPS.el=d;
-    const m=document.createElement('div'); m.id='fpsMire'; m.style.cssText='position:fixed;left:50%;top:50%;width:48px;height:48px;margin:-24px 0 0 -24px;z-index:34;pointer-events:none';
-    m.innerHTML='<svg viewBox="0 0 48 48" width="48" height="48"><circle cx="24" cy="24" r="15" fill="none" stroke="#fff" stroke-width="2" opacity="0.9"/><path d="M24 2v12M24 34v12M2 24h12M34 24h12" stroke="#fff" stroke-width="2.4"/><circle cx="24" cy="24" r="2.2" fill="#ff3b3b"/></svg>';
+    const m=document.createElement('div'); m.id='fpsMire'; m.style.cssText='position:fixed;left:50%;top:50%;width:30px;height:30px;margin:-15px 0 0 -15px;z-index:34;pointer-events:none'; /* 18 octobre (demandé : « le réticule, plus petit ») : 30 px au lieu de 48, traits fins */
+    m.innerHTML='<svg viewBox="0 0 30 30" width="30" height="30"><circle cx="15" cy="15" r="8.5" fill="none" stroke="#fff" stroke-width="1.1" opacity="0.8"/><path d="M15 1v7M15 22v7M1 15h7M22 15h7" stroke="#fff" stroke-width="1.6"/><circle cx="15" cy="15" r="1.3" fill="#ff3b3b"/></svg>';
     document.body.appendChild(m); FPS.mire=m; }
   FPS.el.style.display='block'; FPS.mire.style.display='block'; FPS.mire.style.transform='';
   // l'arme en main, vue de l'œil, tenue à deux mains (fpsMontage : modèle V2, bras, mains, flamme, douilles)
   if(FPS.montage){ scene.remove(FPS.montage.R); libererEntite(FPS.montage.R); FPS.montage=null; }
-  FPS.montage=fpsMontage(cfg.arme); if(FPS.montage) scene.add(FPS.montage.R);
+  FPS.montage=fpsMontage(cfg.arme); if(FPS.montage){ scene.add(FPS.montage.R); ligneDeMire(FPS.montage,cfg.arme); }
+  FPS.vise=false; FPS.k=0; { const bv=el('btnViser'); if(bv){ bv.style.display='flex'; bv.classList.remove('on'); } } /* VISER : l'arme devant l'œil, comme en ville à la 1re personne */
   camera.near=0.05; camera.updateProjectionMatrix();
   el('fireIco').innerHTML=icoArme(cfg.arme); // le bouton TIR montre l'arme du mini-jeu, jamais celle qu'on a en main
   if(cfg.titre) bigMsg(cfg.titre); SFX.ui(); fpsHud();
@@ -8930,6 +8937,7 @@ function fpsArreter(){ const C=FPS.actif; if(!C) return; FPS.actif=null;
   if(FPS.montage){ scene.remove(FPS.montage.R); libererEntite(FPS.montage.R); FPS.montage=null; }
   if(FPS.el) FPS.el.style.display='none'; if(FPS.mire) FPS.mire.style.display='none';
   if(P.h) P.h.g.visible=true; afficherBoutonsCombat(); camera.near=0.5; camera.updateProjectionMatrix(); INPUT.btn.tir=false; FPS.drag=null;
+  FPS.vise=false; FPS.k=0; { const bv=el('btnViser'); if(bv&&!VUE1P.actif) bv.style.display='none'; } if(VUE1P.lunette) VUE1P.lunette.style.display='none';
   if(P.h) majArmeJoueur(); // l'icône de TIR redevient celle de l'arme en main
   return C; }
 function fpsFinir(){ const C=fpsArreter(); if(!C) return; const bilan={score:FPS.score,coups:FPS.coups,touches:FPS.touches,precision:FPS.coups?Math.round(FPS.touches/FPS.coups*100):0};
@@ -8939,7 +8947,7 @@ const _fpsD=new THREE.Vector3(), _fpsW=new THREE.Vector3();
 function fpsTirer(){
   const C=FPS.actif, st=FPS.st, A=ARMES[FPS.arme]; FPS.mun--; FPS.coups++; FPS.cadT=Math.max(0.05,st.cad); FPS.recul=Math.min(1,FPS.recul+(A.roquette?1:st.pellets>1?0.8:0.35)); FPS.flash=0.06; fpsEjecter(FPS.montage);
   try{ SFX[A.son](); }catch(e){} vibre(st.pellets>1?30:12);
-  const e=camera.position, n=Math.max(1,st.pellets||1), disp=(st.disp||0)*Math.PI/180*0.5;
+  const e=camera.position, n=Math.max(1,st.pellets||1), disp=(st.disp||0)*Math.PI/180*0.5*(1-0.65*(FPS.k||0)); // viser à la mire resserre le tir
   let toucheUne=false;
   for(let k=0;k<n;k++){ const dy=(Math.random()-0.5)*2*disp, dp=(Math.random()-0.5)*2*disp*0.7; fpsDirection(FPS.yaw+dy,FPS.pitch+dp,_fpsD);
     let best=null, bt=1e9, bz=null, bu=0, bv=0; for(const c of FPS.cibles){ if(c.mort) continue; _fpsW.set(c.x-e.x,c.y-e.y,c.z-e.z); const t=_fpsW.dot(_fpsD); if(t<0||t>(C.portee||st.portee*1.6)) continue;
@@ -8969,7 +8977,9 @@ function majFPS(dt,dtJeu){
   const C=FPS.actif; if(!C) return;
   if(ETAT.mode!=='jeu'||P.hp<=0){ fpsArreter(); return; }
   // visée : joystick (vitesse) + doigt (FPS.drag, voir les écouteurs)
-  const sens=C.sensJoy||1.6; FPS.yaw-=(INPUT.mx||0)*sens*dtJeu; FPS.pitch-=(INPUT.mz||0)*sens*0.8*dtJeu;
+  if(pressed('viser')){ FPS.vise=!FPS.vise&&!!(FPS.montage&&FPS.montage.mire); const bv=el('btnViser'); if(bv) bv.classList.toggle('on',FPS.vise); SFX.ui(); }
+  FPS.k=lerp(FPS.k||0,FPS.vise?1:0,clamp(dtJeu*11,0,1));
+  const sens=(C.sensJoy||1.6)*(1-0.55*FPS.k); FPS.yaw-=(INPUT.mx||0)*sens*dtJeu; FPS.pitch-=(INPUT.mz||0)*sens*0.8*dtJeu;
   if(C.yawMin!==undefined) FPS.yaw=clamp(FPS.yaw,C.yawMin,C.yawMax); FPS.pitch=clamp(FPS.pitch,C.pitchMin===undefined?-0.35:C.pitchMin,C.pitchMax===undefined?0.9:C.pitchMax);
   FPS.recul=Math.max(0,FPS.recul-dtJeu*5); FPS.flash=Math.max(0,FPS.flash-dtJeu);
   // tir et rechargement
@@ -8991,22 +9001,25 @@ function majFPS(dt,dtJeu){
 }
 // caméra à l'œil et arme en main (appelée en tête de majCamera)
 function fpsCamera(){
-  const C=FPS.actif; camera.position.set(C.x,C.y,C.z); camera.rotation.order='YXZ'; camera.rotation.set(FPS.pitch+FPS.recul*0.05,FPS.yaw,0); camera.fov=C.fov||62; camera.updateProjectionMatrix(); VUE.yawRendu=0;
+  const C=FPS.actif, kV=(FPS.k||0)*(FPS.k||0)*(3-2*(FPS.k||0)), MV=FPS.montage; camera.position.set(C.x,C.y,C.z); camera.rotation.order='YXZ'; camera.rotation.set(FPS.pitch+FPS.recul*0.05,FPS.yaw,0);
+  camera.fov=lerp(C.fov||62,MV&&MV.fovVise?Math.min(C.fov||62,MV.fovVise*(C.fov||62)/72):(C.fov||62),kV); camera.updateProjectionMatrix(); VUE.yawRendu=0;
   const M=FPS.montage; if(M){ const W=M.W, P0=M.P0, t=performance.now()*0.001, r=FPS.recul;
     M.R.position.copy(camera.position); M.R.quaternion.copy(camera.quaternion);
     const dY=M.yawP===undefined?0:FPS.yaw-M.yawP, dP=M.pitchP===undefined?0:FPS.pitch-M.pitchP; M.yawP=FPS.yaw; M.pitchP=FPS.pitch; // l'arme traîne un peu derrière le regard
     M.lagX+=(clamp(dY*0.7,-0.025,0.025)-M.lagX)*0.18; M.lagY+=(clamp(-dP*0.7,-0.025,0.025)-M.lagY)*0.18;
     const rech=FPS.rechT>0&&FPS.st&&FPS.st.rech?Math.sin(Math.PI*clamp(1-FPS.rechT/FPS.st.rech,0,1)):0; // rechargement : l'arme plonge et pivote
-    W.position.set(P0.pos[0]+Math.sin(t*1.1)*0.0022+M.lagX,P0.pos[1]+Math.sin(t*2.2)*0.0016+M.lagY-rech*0.075,P0.pos[2]+r*0.045);
-    W.rotation.set(r*0.2-rech*0.3,P0.yaw+M.lagX*0.8,(P0.roll||0)+rech*0.55);
+    const hx=P0.pos[0]+Math.sin(t*1.1)*0.0022+M.lagX, hy=P0.pos[1]+Math.sin(t*2.2)*0.0016+M.lagY-rech*0.075, hz=P0.pos[2]+r*0.045, mi=M.mire;
+    W.position.set(lerp(hx,mi?-mi.x:hx,kV),lerp(hy,mi?-mi.y-rech*0.075:hy,kV),lerp(hz,mi?-0.13-mi.z+r*0.03:hz,kV)); // VISER : la ligne de mire sur l'axe de l'œil
+    W.rotation.set(lerp(r*0.2,r*0.05,kV)-rech*0.3,lerp(P0.yaw+M.lagX*0.8,0,kV),lerp(P0.roll||0,0,kV)+rech*0.55); M.R.visible=!(M.lunette&&kV>0.85);
     if(M.culasse) for(const m of M.culasse) m.position.y=Math.min(1,r*2.6)*0.055; // la culasse des pistolets recule
     const f=FPS.flash>0; M.fl.material.opacity=f?1:0; M.fl2.material.opacity=f?0.9:0;
     if(f){ const k=M.A.pose==='lourd'?1.6:1; M.fl.material.rotation=Math.random()*6.28; M.fl.scale.setScalar((0.11+Math.random()*0.06)*k); M.fl2.material.rotation=Math.random()*6.28; M.fl2.scale.set((0.24+Math.random()*0.1)*k,0.05*k,1); } }
-  if(FPS.mire) FPS.mire.style.transform='scale('+(1+FPS.recul*0.35)+')';
+  if(FPS.mire){ FPS.mire.style.transform='scale('+(1+FPS.recul*0.35)+')'; const dm=kV>0.6?'none':'block'; if(FPS.mire.style.display!==dm) FPS.mire.style.display=dm; }
+  mirePremiere(); { const dl=M&&M.lunette&&kV>0.85?'block':'none'; if(VUE1P.lunette.style.display!==dl) VUE1P.lunette.style.display=dl; } /* la lunette : son image, comme en ville */
 }
 // viser au doigt : glisser n'importe où sur l'écran (le HUD laisse passer les gestes)
 renderer.domElement.addEventListener('pointerdown',e=>{ if(FPS.actif) FPS.drag={id:e.pointerId,x:e.clientX,y:e.clientY}; });
-window.addEventListener('pointermove',e=>{ if(!FPS.actif||!FPS.drag||e.pointerId!==FPS.drag.id) return; const k=0.0062*(FPS.actif.sensDoigt||1);
+window.addEventListener('pointermove',e=>{ if(!FPS.actif||!FPS.drag||e.pointerId!==FPS.drag.id) return; const k=0.0062*(FPS.actif.sensDoigt||1)*(1-0.55*(FPS.k||0));
   FPS.yaw-=(e.clientX-FPS.drag.x)*k; FPS.pitch-=(e.clientY-FPS.drag.y)*k; FPS.drag.x=e.clientX; FPS.drag.y=e.clientY; });
 window.addEventListener('pointerup',e=>{ if(FPS.drag&&e.pointerId===FPS.drag.id) FPS.drag=null; });
 
@@ -9310,7 +9323,7 @@ function majSportsParcs(dt){
   for(const s of SPORTS.supporters){ if(figConverti(s.h)) continue; const sauts=F.butT>0&&F.dernierBut===s.eq; s.h.g.position.y=(s.h.g.userData.y0||(s.h.g.userData.y0=s.h.g.position.y))+(sauts?Math.abs(Math.sin(t*9+s.ph))*0.5:0); s.h.brasG.rotation.x=s.h.brasD.rotation.x=sauts?-2.8:-0.2+Math.sin(t*2+s.ph)*0.1; }
   // le match s'arrête si un joueur a pris peur (devenu un vrai passant)
   const enJeu=F.joueurs.every((j)=>!figConverti(j.h));
-  if(enJeu){
+  if(enJeu&&!(SPORTJ.actif&&SPORTJ.actif.id==='penaltys')){ /* séance de penaltys : le moteur des sports tient le ballon et le gardien */
     F.butT=Math.max(0,F.butT-dt); if(F.pause>0) F.pause-=dt;
     footFrappeJoueur(F);
     // le ballon
@@ -9341,12 +9354,130 @@ function majSportsParcs(dt){
       j.h.g.position.set(j.x,Y,j.z); animeHumain(j.h,dt,j.v,false); }
   }
   // tennis : un échange qui ne s'arrête jamais (la balle en cloche d'un joueur à l'autre)
-  { const T=SPORTS.tennis; if(T&&!figConverti(T.a)&&!figConverti(T.b)){ T.t+=dt; const per=1.6, u=(T.t%per)/per, sens=Math.floor(T.t/per)%2, C=SPORTS.complexe, za=C.z-11, zb=C.z+11, z0=sens?zb:za, z1=sens?za:zb, x=C.x-6+Math.sin(T.t*0.7)*3;
+  { const T=SPORTS.tennis; if(T&&!figConverti(T.a)&&!figConverti(T.b)&&!(SPORTJ.actif&&SPORTJ.actif.id==='tennis')){ T.t+=dt; const per=1.6, u=(T.t%per)/per, sens=Math.floor(T.t/per)%2, C=SPORTS.complexe, za=C.z-11, zb=C.z+11, z0=sens?zb:za, z1=sens?za:zb, x=C.x-6+Math.sin(T.t*0.7)*3;
       T.balle.position.set(x,Y+1+Math.sin(u*Math.PI)*2.4,z0+(z1-z0)*u); for(const [h,zz] of [[T.a,za],[T.b,zb]]){ h.g.position.x=lerp(h.g.position.x,x,dt*3); h.g.position.z=zz; h.brasD.rotation.x=(Math.abs(T.balle.position.z-zz)<1.5)?-2.2:-0.4; animeHumain(h,dt,2,false); } } }
-  for(const pg of SPORTS.pong){ if(pg.j.some((h)=>figConverti(h))) continue; const u=((t*1.4+pg.ph)%1), sens=Math.floor(t*1.4+pg.ph)%2, x0=sens?pg.x-1.2:pg.x+1.2, x1=sens?pg.x+1.2:pg.x-1.2;
+  for(const pg of SPORTS.pong){ if(pg.j.some((h)=>figConverti(h))||(SPORTJ.actif&&SPORTJ.actif.table===pg)) continue; const u=((t*1.4+pg.ph)%1), sens=Math.floor(t*1.4+pg.ph)%2, x0=sens?pg.x-1.2:pg.x+1.2, x1=sens?pg.x+1.2:pg.x-1.2;
     pg.balle.position.set(x0+(x1-x0)*u,Y+0.85+Math.abs(Math.sin(u*Math.PI*2))*0.35,pg.z+Math.sin(t*2+pg.ph)*0.3); for(const h of pg.j) h.brasD.rotation.x=-1.2+Math.sin(t*9+pg.ph)*0.3; }
-  for(const w of SPORTS.workout){ if(figConverti(w.h)) continue; const a=Math.sin(t*3.2+(w.type==='pompes'?1:0));
+  for(const w of SPORTS.workout){ if(figConverti(w.h)||(SPORTJ.actif&&SPORTJ.actif.id==='tractions'&&w.type==='traction')) continue; const a=Math.sin(t*3.2+(w.type==='pompes'?1:0));
     if(w.type==='traction'){ w.h.g.position.y=w.y0+0.35+a*0.35; w.h.brasG.rotation.x=w.h.brasD.rotation.x=-3.0+a*0.4; } else { w.h.g.position.y=w.y0+a*0.1; w.h.brasG.rotation.x=w.h.brasD.rotation.x=-1.4+a*0.25; } }
+}
+/* ======== LE CENTRE SPORTIF SE JOUE (15 octobre, demandé : « rends jouable le tennis, le football, le ping-pong et les
+   autres sports du centre sportif ») ========
+   Quatre mini-jeux sur un moteur commun (SPORTJ, SPORTJ_DEFS), lancés au bouton d'action sur place, boutons de combat
+   masqués, trêve des vagues, une prime par vague chacun (primeMerUneFois), perdables, tout sur dtJeu (ce qui se joue
+   contre un chrono). Les PNJ du jeu sont des figurants : l'un d'eux touché (converti), le jeu s'arrête.
+   - TENNIS (court du complexe) : match en 4 points contre le joueur du club. La balle arrive en cloche, on se place
+     (joystick, dans son fond de court), FRAPPER quand elle est à portée (trop tôt = coup dans le vide, trop tard = point
+     perdu) ; le joystick donne la direction du renvoi : une balle croisée, loin de l'adversaire, il ne la rattrape pas
+     (il court à 3,8 u/s) ; plus l'échange dure, plus il rate. Gagné : prime + tenue « Reyes Athletics ».
+   - PING-PONG (les deux tables) : même moteur, plus vif, partie en 5 points ; on ne bouge pas, seul le timing compte,
+     le joystick place la balle sur la table adverse.
+   - TRACTIONS (barre du street workout) : 20 s, une traction = TIRER quand le curseur passe dans le vert (il accélère
+     à chaque traction) ; hors du vert, on se bloque 0,5 s. Objectif 12.
+   - PENALTYS (stade) : 5 tirs face au gardien des Bleus ; le curseur balaie le but de plus en plus vite, TIRER fixe la
+     direction ; le gardien lit le tir 7 fois sur 10 : seul un coin (les 38 % extérieurs de chaque côté) passe à coup
+     sûr, le milieu est arrêté, au-delà du poteau c'est à côté. Objectif 4 sur 5. */
+const SPORTJ={actif:null,ui:null};
+const SPORTJ_DEFS={
+  tennis:{nom:'MATCH DE TENNIS',ico:'🎾',sous:'4 points gagnants',pts:4,prime:220,duree:90,portee:1.8,aide:'Place-toi sous la balle, FRAPPE quand elle arrive ; le joystick donne la direction'},
+  pong:{nom:'PARTIE DE PING-PONG',ico:'🏓',sous:'5 points gagnants',pts:5,prime:150,duree:75,portee:1.25,aide:'FRAPPE quand la balle arrive à ta raquette ; le joystick la place'},
+  tractions:{nom:'DÉFI TRACTIONS',ico:'💪',sous:'12 en 20 s',objectif:12,prime:120,duree:20,aide:'TIRE quand le curseur est dans le vert'},
+  penaltys:{nom:'SÉANCE DE PENALTYS',ico:'⚽',sous:'4 buts sur 5',tirs:5,objectif:4,prime:200,duree:60,aide:'TIRE quand le curseur est dans un coin du but'},
+};
+function sportjPostes(){ if(!SPORTS.ok) return []; const C=SPORTS.complexe, S=SPORTS.stade, L=[{id:'tennis',x:C.x-6,z:C.z+9,r:2.6}];
+  for(const pg of SPORTS.pong) L.push({id:'pong',x:pg.x+2.6,z:pg.z,r:1.6,table:pg});
+  L.push({id:'tractions',x:C.x+7.5,z:C.z+9.1,r:1.6},{id:'penaltys',x:S.x,z:S.z-FOOT_DEMI.z+7,r:2.6}); return L; }
+function sportjProche(){ if(!SPORTS.ok||P.veh||INT.actif) return null; for(const q of sportjPostes()) if(dist2(P.x,P.z,q.x,q.z)<q.r*q.r) return q; return null; }
+function sportjUi(){ if(SPORTJ.ui) return SPORTJ.ui; const d=document.createElement('div');
+  d.style.cssText='position:absolute;left:50%;top:calc(env(safe-area-inset-top,0px) + 74px);transform:translateX(-50%);width:min(300px,80vw);display:none;pointer-events:none;z-index:6;background:#0b1622e6;border:2px solid #35e0ff;border-radius:14px;padding:8px 10px;box-sizing:border-box;text-align:center;font:900 13px Arial;color:#fff';
+  d.innerHTML='<div style="display:flex;justify-content:space-between"><span id="sjA">🎾</span><span id="sjB"></span><span id="sjT"></span></div>'+
+    '<div id="sjJauge" style="position:relative;height:18px;margin-top:6px;border-radius:9px;background:#22303c;overflow:hidden;display:none"><div id="sjVert" style="position:absolute;top:0;bottom:0;background:#3fbf6a"></div><div id="sjVert2" style="position:absolute;top:0;bottom:0;background:#3fbf6a"></div>'+
+    '<div id="sjCur" style="position:absolute;top:-2px;bottom:-2px;width:6px;margin-left:-3px;background:#ffd23f;box-shadow:0 0 6px #ffd23f"></div></div><div id="sjMsg" style="margin-top:5px;font:900 12px Arial;color:#9fd8ee"></div>';
+  el('hud').appendChild(d); SPORTJ.ui={d,a:d.querySelector('#sjA'),b:d.querySelector('#sjB'),t:d.querySelector('#sjT'),jauge:d.querySelector('#sjJauge'),vert:d.querySelector('#sjVert'),vert2:d.querySelector('#sjVert2'),cur:d.querySelector('#sjCur'),msg:d.querySelector('#sjMsg')}; return SPORTJ.ui; }
+function sportjDemarrer(id,table){
+  if(SPORTJ.actif||!SPORTS.ok) return; const D=SPORTJ_DEFS[id]; if(!D) return;
+  if(SPORTJ.primes&&SPORTJ.primes[id]===WAVES.n&&SPORTJ.gagnes&&SPORTJ.gagnes[id]){ SFX.refus(); toast('Déjà gagné cette vague — reviens à la prochaine !','warn'); return; }
+  const C=SPORTS.complexe, S=SPORTS.stade, Y=0.24, A={id,D,t:D.duree,pts:[0,0],rally:0,balle:null,cd:0,msg:'',n:0,cur:0,sens:1,stop:0,tirs:0,buts:0,fini:false,table:table||null,caches:[]};
+  const cache=(h)=>{ if(h&&h.g){ h.g.visible=false; A.caches.push(h); } };
+  if(id==='tennis'){ const T=SPORTS.tennis; if(!T||figConverti(T.a)||figConverti(T.b)){ SFX.refus(); toast('Le joueur du club n’est pas là','warn'); return; } cache(T.b); A.adv=T.a; A.balleM=T.balle;
+    A.zone={x0:C.x-11.4,x1:C.x-0.6,z0:C.z+3.5,z1:C.z+12.6}; A.za=C.z-11; A.zb=C.z+9; P.x=C.x-6; P.z=C.z+9; P.ang=Math.PI; A.adv.g.position.set(C.x-6,Y,A.za); A.advX=C.x-6; sportjService(A,false); }
+  else if(id==='pong'){ const pg=table||SPORTS.pong[0]; if(!pg||pg.j.some((h)=>figConverti(h))){ SFX.refus(); toast('Personne à la table','warn'); return; } A.table=pg; cache(pg.j[1]); A.adv=pg.j[0]; A.balleM=pg.balle;
+    P.x=pg.x+2.1; P.z=pg.z; P.ang=-Math.PI/2; A.fixe={x:P.x,z:P.z}; sportjService(A,false); }
+  else if(id==='tractions'){ const w=SPORTS.workout.find((q)=>q.type==='traction'); if(w) cache(w.h); P.x=C.x+7.5; P.z=C.z+9.05; P.ang=Math.PI; A.fixe={x:P.x,z:P.z}; A.cur=0; A.sens=1; }
+  else if(id==='penaltys'){ const F=SPORTS.foot; if(!F||F.joueurs.some((j)=>figConverti(j.h))){ SFX.refus(); toast('Le match est interrompu','warn'); return; } A.F=F; A.gardien=F.joueurs.find((j)=>j.g&&j.t===0); F.pause=1e9; F.vx=F.vy=F.vz=0;
+    A.spot={x:S.x,z:S.z-FOOT_DEMI.z+7}; A.zBut=S.z-FOOT_DEMI.z; P.x=A.spot.x; P.z=A.spot.z+1.2; P.ang=Math.PI; A.fixe={x:P.x,z:P.z}; F.bx=A.spot.x; F.bz=A.spot.z; F.by=Y+0.25; F.ballon.position.set(F.bx,F.by,F.bz); A.cur=-1; A.sens=1; }
+  SPORTJ.actif=A; cacherBoutonsCombat(); const u=sportjUi(); u.d.style.display='block'; u.jauge.style.display=(id==='tractions'||id==='penaltys')?'block':'none';
+  bigMsg(D.ico+' '+D.nom); toast(D.aide,'or'); SFX.ui(); vibre(30);
+}
+function sportjArreter(){ const A=SPORTJ.actif; if(!A) return; SPORTJ.actif=null; afficherBoutonsCombat(); if(SPORTJ.ui) SPORTJ.ui.d.style.display='none';
+  for(const h of A.caches) if(h.g) h.g.visible=true;
+  if(A.id==='penaltys'&&A.F){ A.F.pause=1.2; if(A.gardien) A.gardien.h.g.rotation.z=0; footReset(true); }
+  if(A.id==='tractions'&&P.h){ P.h.brasG.rotation.x=0; P.h.brasD.rotation.x=0; } }
+// service : la balle part de l'adversaire vers le joueur (tennis : en cloche sur le fond de court ; ping-pong : sur la table)
+function sportjService(A,retour){ const C=SPORTS.complexe, Y=0.24;
+  if(A.id==='tennis'){ const ax=A.adv.g.position.x, cible=clamp(P.x+(Math.random()<0.5?-1:1)*rand(1.2,2.2+A.rally*0.5),A.zone.x0+0.4,A.zone.x1-0.4);
+    A.balle={t:0,dur:Math.max(0.95,1.35-A.rally*0.03),x0:ax,z0:A.za+0.4,x1:cible,z1:rand(A.zb-2,A.zb+2.2),h:2.3,vers:'joueur'}; }
+  else { const pg=A.table; A.balle={t:0,dur:Math.max(0.55,0.95-A.rally*0.02),x0:pg.x-1.25,z0:pg.z+rand(-0.5,0.5),x1:pg.x+1.3,z1:pg.z+rand(-0.55,0.55),h:0.3,vers:'joueur'}; } }
+function sportjPosBalle(A){ const b=A.balle, u=clamp(b.t/b.dur,0,1), Y=0.24, base=A.id==='tennis'?Y+0.35:Y+0.86; return {x:lerp(b.x0,b.x1,u),z:lerp(b.z0,b.z1,u),y:base+Math.sin(u*Math.PI)*b.h,u}; }
+function sportjFrapper(){ const A=SPORTJ.actif; if(!A||A.fini) return; const b=A.balle; if(A.cd>0) return; A.cd=0.35;
+  if(!b||b.vers!=='joueur'){ SFX.swing(); return; } const p=sportjPosBalle(A), d=Math.hypot(b.x1-P.x,b.z1-P.z), portee=A.D.portee; /* placement : là où la balle arrive */
+  if(P.h){ P.h.brasD.rotation.x=-2.4; P.frappeT=0.2; P.h._frappe=0.2; }
+  if(p.u<(A.id==='pong'?0.55:0.68)||d>portee){ SFX.swing(); A.msg=d>portee?'Trop loin — place-toi sous la balle':'Trop tôt…'; return; } /* ping-pong : fenêtre plus large (balle rapide) */
+  A.rally++; SFX.coup(); vibre(20); spawnP(p.x,p.y,p.z,0,1,0,0.3,0.12,0xd8ff3a,3);
+  if(A.id==='tennis'){ const x1=clamp(P.x+(INPUT.mx||0)*7.5+rand(-0.6,0.6),A.zone.x0+0.3,A.zone.x1-0.3); A.balle={t:0,dur:Math.max(0.9,1.25-A.rally*0.03),x0:p.x,z0:p.z,x1,z1:rand(A.za,A.za+3),h:2.0,vers:'adv'}; A.msg='Belle frappe'; }
+  else { const pg=A.table, z1=clamp(pg.z+(INPUT.mx||0)*0.65+rand(-0.1,0.1),pg.z-0.7,pg.z+0.7); A.balle={t:0,dur:Math.max(0.5,0.8-A.rally*0.02),x0:p.x,z0:p.z,x1:pg.x-1.25,z1,h:0.28,vers:'adv'}; A.msg='Renvoyée'; } }
+function sportjPoint(A,joueur,raison){ A.pts[joueur?0:1]++; A.rally=0; A.msg=raison; spawnTexte(P.x,2.6,P.z,joueur?'+1 POINT':raison,joueur?'#7dff7a':'#ff8a8a'); if(joueur){ SFX.etoile(); vibre(40); } else SFX.refus();
+  if(A.pts[0]>=A.D.pts||A.pts[1]>=A.D.pts) return sportjConclure(A,A.pts[0]>=A.D.pts);
+  A.balle=null; A.attente=1.1; }
+function sportjConclure(A,gagne){
+  if(!SPORTJ.actif||A.fini) return; A.fini=true; const D=A.D; // garde d'entrée propre
+  SPORTJ.primes=SPORTJ.primes||{}; SPORTJ.gagnes=SPORTJ.gagnes||{}; SPORTJ.primes[A.id]=WAVES.n; SPORTJ.gagnes[A.id]=!!gagne;
+  const bilan=A.id==='tennis'||A.id==='pong'?A.pts[0]+' – '+A.pts[1]:(A.id==='tractions'?A.n+' tractions':A.buts+' buts sur '+D.tirs);
+  sportjArreter();
+  if(gagne){ if(A.id==='tennis') exploitMiniJeu('sportif'); const m=primeMerUneFois(A.id,D.prime); ETAT.score+=400; bigMsg(D.ico+' GAGNÉ — '+bilan); toast(m?'Prime : +'+m+' $':'Gagné (prime déjà touchée cette vague)','or'); SFX.niveau(); }
+  else { bigMsg(D.ico+' PERDU — '+bilan); toast('Retente ta chance sur place.','warn'); }
+}
+function sportjAction(){ const A=SPORTJ.actif; if(!A||A.fini) return null;
+  if(A.id==='tennis'||A.id==='pong') return {label:A.D.ico+' FRAPPER',fn:sportjFrapper};
+  if(A.id==='tractions') return {label:'💪 TIRER',fn:sportjTraction};
+  if(A.id==='penaltys') return A.tir?null:{label:'⚽ TIRER',fn:sportjPenalty}; return null; }
+function sportjTraction(){ const A=SPORTJ.actif; if(!A||A.id!=='tractions'||A.fini||A.stop>0) return;
+  if(A.cur>=0.56&&A.cur<=0.78){ A.n++; A.msg=A.n+' !'; SFX.coup(); vibre(25); if(P.h){ P.h.brasG.rotation.x=P.h.brasD.rotation.x=-3.0; P.frappeT=0.25; } spawnTexte(P.x,2.4,P.z,'+1','#7dff7a'); }
+  else { A.stop=0.5; A.msg='Raté — attends le vert'; SFX.refus(); } }
+function sportjPenalty(){ const A=SPORTJ.actif; if(!A||A.id!=='penaltys'||A.fini||A.tir) return; const F=A.F, cote=Math.sign(A.cur)||1, ax=Math.abs(A.cur);
+  const lit=Math.random()<0.7, plonge=lit?cote:-cote, dehors=ax>1.0, coin=ax>=0.62&&!dehors, arrete=!dehors&&!coin&&plonge===cote;
+  A.tir={t:0,x1:A.spot.x+A.cur*FOOT_BUT,res:dehors?'dehors':(arrete?'arrete':'but'),plonge}; A.tirs++; F.dernier='joueur'; SFX.coup(); vibre(20); if(P.h){ P.h.jambeD.rotation.x=-1.4; P.frappeT=0.3; } }
+function majSportJ(dt,dtJeu){
+  const A=SPORTJ.actif; if(!A||A.fini) return; const D=A.D, Y=0.24, u=SPORTJ.ui;
+  if(ETAT.mode!=='jeu'||P.veh||INT.actif||A.caches.some((h)=>figConverti(h))||(A.adv&&figConverti(A.adv))||(A.gardien&&figConverti(A.gardien.h))){ sportjArreter(); return; }
+  A.t-=dtJeu; A.cd=Math.max(0,A.cd-dtJeu);
+  if(A.t<=0){ A.t=0; if(A.id==='tennis'||A.id==='pong') return sportjConclure(A,false); if(A.id==='tractions') return sportjConclure(A,A.n>=D.objectif); if(A.id==='penaltys') return sportjConclure(A,A.buts>=D.objectif); }
+  if(A.fixe){ P.x=A.fixe.x; P.z=A.fixe.z; } else if(A.zone){ P.x=clamp(P.x,A.zone.x0,A.zone.x1); P.z=clamp(P.z,A.zone.z0,A.zone.z1); }
+  if(A.id==='tennis'||A.id==='pong'){
+    if(A.attente>0){ A.attente-=dtJeu; if(A.attente<=0) sportjService(A,false); }
+    const b=A.balle;
+    if(b){ b.t+=dtJeu; const p=sportjPosBalle(A); A.balleM.position.set(p.x,p.y,p.z);
+      if(A.id==='tennis'){ const a=A.adv, cibleX=b.vers==='adv'?b.x1:A.advX; const dx=cibleX-a.g.position.x; a.g.position.x+=clamp(dx,-3.8*dtJeu,3.8*dtJeu); a.g.rotation.y=0; animeHumain(a,dtJeu,Math.abs(dx)>0.1?3:0,false); a.brasD.rotation.x=b.vers==='adv'&&p.u>0.8?-2.2:-0.4; }
+      else { const a=A.adv; a.brasD.rotation.x=b.vers==='adv'&&p.u>0.75?-1.6:-1.0; }
+      if(p.u>=1){
+        if(b.vers==='joueur') sportjPoint(A,false,'Balle passée');
+        else { const a=A.adv, ecart=A.id==='tennis'?Math.abs(a.g.position.x-b.x1):0, rate=A.id==='tennis'?(ecart>1.3||Math.random()<0.08+0.05*A.rally):(Math.random()<0.08+0.06*A.rally+Math.abs(b.z1-A.table.z)*0.3);
+          if(rate) sportjPoint(A,true,'Il la rate !'); else { A.rally++; sportjService(A,true); } } } }
+    const sc=A.pts[0]+' – '+A.pts[1]; if(u.a.textContent!==D.ico+' TOI '+sc) u.a.textContent=D.ico+' TOI '+sc; u.b.textContent='échange '+A.rally; }
+  else if(A.id==='tractions'){
+    if(A.stop>0) A.stop-=dtJeu; else { A.cur+=A.sens*(1.0+A.n*0.1)*dtJeu; if(A.cur>1){ A.cur=1; A.sens=-1; } if(A.cur<0){ A.cur=0; A.sens=1; } }
+    u.cur.style.left=(A.cur*100).toFixed(1)+'%'; u.vert.style.left='56%'; u.vert.style.width='22%'; u.vert2.style.width='0'; u.a.textContent='💪 '+A.n+' / '+D.objectif; u.b.textContent='';
+    if(P.h&&P.frappeT<=0){ P.h.brasG.rotation.x=P.h.brasD.rotation.x=-2.6; } }
+  else if(A.id==='penaltys'){ const F=A.F, g=A.gardien, zb=A.zBut;
+    if(!A.tir){ A.cur+=A.sens*(1.3+A.tirs*0.25)*dtJeu; if(A.cur>1.15){ A.cur=1.15; A.sens=-1; } if(A.cur<-1.15){ A.cur=-1.15; A.sens=1; }
+      if(g){ g.x=lerp(g.x,F.bx,dtJeu*3); g.z=zb+0.8; g.h.g.position.set(g.x,Y,g.z); g.h.g.rotation.y=Math.PI; g.h.g.rotation.z=0; } }
+    else { const T=A.tir; T.t+=dtJeu; const k=clamp(T.t/0.6,0,1); F.bx=lerp(A.spot.x,T.x1,k); F.bz=lerp(A.spot.z,zb-0.4,k); F.by=Y+0.25+Math.sin(k*Math.PI)*(T.res==='dehors'?1.6:1.0); F.ballon.position.set(F.bx,F.by,F.bz);
+      if(g){ g.x=lerp(g.x,A.spot.x+T.plonge*FOOT_BUT*0.62,clamp(dtJeu*5,0,1)); g.h.g.position.set(g.x,Y+0.2*k,zb+0.8); g.h.g.rotation.z=-T.plonge*Math.min(1.2,k*1.6); }
+      if(k>=1&&!T.fait){ T.fait=true; if(T.res==='but'){ A.buts++; A.msg='BUT !'; spawnTexte(F.bx,2.5,F.bz,'⚽ BUT !','#7dff7a'); SFX.etoile(); vibre(40); } else { A.msg=T.res==='arrete'?'Arrêté par le gardien':'À côté !'; spawnTexte(F.bx,2.5,F.bz,A.msg,'#ff8a8a'); SFX.refus(); } }
+      if(T.t>1.3){ A.tir=null; F.bx=A.spot.x; F.bz=A.spot.z; F.by=Y+0.25; F.ballon.position.set(F.bx,F.by,F.bz); if(P.h) P.h.jambeD.rotation.x=0; if(A.tirs>=D.tirs) return sportjConclure(A,A.buts>=D.objectif); } }
+    u.cur.style.left=((A.cur+1.15)/2.3*100).toFixed(1)+'%'; u.vert.style.left=((-1+1.15)/2.3*100)+'%'; u.vert.style.width=(0.38/2.3*100)+'%'; u.vert2.style.left=((0.62+1.15)/2.3*100)+'%'; u.vert2.style.width=(0.38/2.3*100)+'%';
+    u.a.textContent='⚽ '+A.buts+' / '+D.objectif; u.b.textContent=(D.tirs-A.tirs)+' tir'+(D.tirs-A.tirs>1?'s':''); }
+  const tt=Math.ceil(A.t)+' s'; if(u.t.textContent!==tt) u.t.textContent=tt; if(u.msg.textContent!==(A.msg||D.aide)) u.msg.textContent=A.msg||D.aide;
 }
 /* =====================================================================
    ARÈNE DE DERBY (18 octobre, demandé : « ok pour l'arène de derby, et même faire des voitures de derby avec des
@@ -16716,7 +16847,7 @@ function attaquer(){
     SFX.refus(); P.cadT=0.5; return;
   }
   if(a.type==='melee'){
-    P.cadT=st.cad; P.frappeT=0.2; P.h._frappe=0.2;
+    P.cadT=st.cad; P.frappeT=0.2; P.h._frappe=0.2; if(VUE1P.actif) VUE1P.frappe=0.3;
     P.h.brasD.rotation.x=-1.6;
     let touche=false;
     const dmg=st.degats*P.meleeMul*(P.buffs.dmg>0?1.35:1)*((P.ivresse||0)>IVRESSE.pompette?1.2:1); // pompette : « courage liquide » au corps à corps
@@ -16756,21 +16887,22 @@ function attaquer(){
   if(INT.actif&&INT.actif.club){ videurExpulse(INT.actif); return; } // Club Néon : une arme à feu sortie, le videur te jette dehors
   if(P.rechT>0) return;
   if((P.mags[P.armeCur]||0)<=0){ rechargerArme(); return; }
-  const cible=viseAuto(st.portee);
+  const v1p=VUE1P.actif, cible=v1p?viseAuto1P(st.portee):viseAuto(st.portee);
   let ang=P.ang, cy, dc;
   if(cible){
     ang=Math.atan2(cible.x-P.x,cible.z-P.z);
-    P.ang=ang; P.tirT=0.5;
+    if(!v1p){ P.ang=ang; P.tirT=0.5; }
     dc=Math.sqrt(dist2(cible.x,cible.z,P.x,P.z));
     cy=hCible(cible); // animal : visé à sa hauteur (montagne de l'île) ; au sol : à sa hauteur sur le relief
-  }
+  } else if(v1p){ dc=Math.min(st.portee,70); cy=P.y+OEIL_1P+Math.tan(VUE.pitch1P||0)*dc; } /* rien sous la mire : droit où l'on regarde, à la hauteur du regard */
+  if(v1p) tirPremiere(st);
   if((P.ivresse||0)>IVRESSE.ivre) ang+=rand(-1,1)*0.16*Math.min(1,(P.ivresse-IVRESSE.ivre)/40); // ivre : tir imprécis
   const dmg=st.degats*(P.buffs.dmg>0?1.35:1);
   const vitB=a.roquette?34:(a.flamme?26*(modsArme(P.armeCur).includes('napalm')?1.3:1):72); // napalm : le jet porte plus loin
   const typ=a.roquette?'roquette':(a.flamme?'flamme':null);
   // Jetpack : en vol, précision réduite (CLAUDE.md) — voler n'est pas un
   // stand de tir stable.
-  const dispVol=P.jetpackVol?st.disp*2.4+6:st.disp;
+  const dispVol=(P.jetpackVol?st.disp*2.4+6:st.disp)*(VUE1P.actif?1-0.65*VUE1P.k:1); // à la 1re personne, viser à la mire resserre le tir
   const mo=modsArme(P.armeCur); TIR_MOD=a.flamme?(mo.includes('napalm')?'napalm':'feu'):(mo.includes('explosif')?'explosif':(mo.includes('incendiaire')?'feu':null));
   const main=mo.includes('double')&&(P.akimboG=!P.akimboG)?-1:1; // akimbo : une main puis l'autre
   const ox=Math.cos(ang)*0.35*main*(mo.includes('double')?1:0), oz=-Math.sin(ang)*0.35*main*(mo.includes('double')?1:0);
@@ -16948,6 +17080,7 @@ function majJoueur(dt,dtJeu){
   el('btnSprint').classList.toggle('actif',!!sprint);
   let vit=P.vitBase*(sprint?1.5:1)*(P.nage?(aCurio('perle')?0.567:0.42)*(crawl?1.7:1)*tenueK('wakeur',1.3):1);  // La Perle Noire : +35 % à la nage ; crawl : ×1,7 ; combinaison de wakeboard : ×1,3
   if(P.buffs.lourd>0) vit*=0.68;                    // digestion du Monstre
+  if(VUE1P.actif&&VUE1P.k>0.5) vit*=0.55;           // à la 1re personne, on marche lentement en visant à la mire
   if(P.buffs.vit>0) vit*=(PERSOS[META.perso].spec==='nitro'&&P.buffs.nitroT>0)?1.6:1.3;
   if(P.buffs.nitroT!==undefined&&P.buffs.nitroT>0) P.buffs.nitroT-=dt;
   // plafonds de vitesse "à fond" du moment (améliorations + buffs compris, hors
@@ -16968,7 +17101,7 @@ function majJoueur(dt,dtJeu){
     if(crawl&&Math.random()<0.5) spawnP(P.x+rand(-0.6,0.6),0.25,P.z+rand(-0.6,0.6),rand(-1,1),rand(1.2,2.4),rand(-1,1),0.35,0.45,0xe8f6ff,4); // gerbes des bras
     if(P.stam<=0){ P.hp-=0.9*dtJeu; if(P.hp<=0) mourir(); }
     if(bouge&&Math.random()<0.35) spawnP(P.x+rand(-0.5,0.5),0.15,P.z+rand(-0.5,0.5),rand(-0.6,0.6),rand(0.8,1.8),rand(-0.6,0.6),0.4,0.5,0xcfeaff,3);
-  } else if(sprint&&!(P.buffs.nitroT>0)&&!(P.buffs.sprintLibre>0)){P.stam=Math.max(0,P.stam-22*dt);P.stamDelai=0.8;}
+  } else if(sprint&&!(P.buffs.nitroT>0)&&!(P.buffs.sprintLibre>0)){P.stam=Math.max(0,P.stam-22*dt*tenueK('athlete',0.7));P.stamDelai=0.8;} /* tenue « Reyes Athletics » : le sprint fatigue moins */
   else if(P.stamDelai<=0) P.stam=Math.min(P.stamMax,P.stam+20*dt);
 
   if(P.dodgeT>0){
@@ -16979,6 +17112,7 @@ function majJoueur(dt,dtJeu){
     vx=INPUT.mx*vit; vz=INPUT.mz*vit;
     const dv=deriveIvresse(); if(dv){ const c=Math.cos(dv), sn=Math.sin(dv), mx=vx, mz=vz; vx=mx*c-mz*sn; vz=mx*sn+mz*c; } // ivre : on ne marche plus droit
     if(P.tirT<=0) P.ang=angLerp(P.ang,Math.atan2(INPUT.mx,INPUT.mz),0.35);
+    if(VUE1P.actif) P.ang=VUE.yawUser+Math.PI; /* 1re personne : le corps suit le regard (on se déplace en crabe) */
   }
   // En l'air (chute libre / parachute) : vrai pilotage à inertie plutôt
   // qu'un déplacement instantané qui s'arrêtait NET dès qu'on relâchait le
@@ -17103,7 +17237,10 @@ function majJoueur(dt,dtJeu){
   // sniper : viser en maintenant, tirer au relâchement
   const armeM=ARMES[P.armeCur].manuel;
   const appuie=INPUT.btn.tir||INPUT.btn.tirK;
-  if(armeM&&!P.veh){
+  if(armeM&&!P.veh&&VUE1P.actif){ P_SNIPE.vise=false; laser.visible=false; viseur.visible=false;
+    if(appuie&&!VUE1P.appuiSniper&&P.cadT<=0){ const c=viseAuto1P(armeStats(P.armeCur).portee); P_SNIPE.dist=armeStats(P.armeCur).portee; const a0=P.ang; if(c) P.ang=Math.atan2(c.x-P.x,c.z-P.z); tirPremiere(armeStats(P.armeCur)); tirSniper(); P.ang=a0; }
+    VUE1P.appuiSniper=appuie; }
+  else if(armeM&&!P.veh){
     if(appuie){
       if(!P_SNIPE.vise){ P_SNIPE.vise=true; P_SNIPE.lunetteT=0; }
       P_SNIPE.lunetteT=(P_SNIPE.lunetteT||0)+dt;
@@ -20385,6 +20522,7 @@ function majBossHUD(){
   if(b.colonneBoss) b.colonneBoss.material.opacity=0.14+0.1*Math.sin(ETAT.runT*4);
 }
 function toucherEnnemi(e,dmg,parJoueur,knock,srcFac,sx,sz){
+  if(parJoueur&&VUE1P.actif) VUE1P.touche=0.16; /* 1re personne : marque de touche sur la mire */
   if(e.mort) return;
   const crit=parJoueur&&Math.random()<0.12;
   if(crit){ dmg*=2; META.stats.critiques++; }
@@ -30840,7 +30978,7 @@ function metierEnCours(){ return !!(MET.pompier||MET.taxi||MET.depanneuse||MET.a
 // supercross, bouées, REYES BOWL JAM), wakeboard ou parachute ascensionnel, métier en cours. Les vagues et les
 // événements (guerres de gangs...) sont gelés, et les gangs déjà là patrouillent sans s'occuper du joueur. La
 // police, elle, continue si l'on est recherché.
-function treveActivite(){ return !!(RIDES.actif||(DECOR_V2&&TOW.actif)||BASKET.actif||MANEGES.actif||TOUR.actif||metierEnCours()||BASE.defi||FPS.actif||DERBY.actif); }
+function treveActivite(){ return !!(RIDES.actif||(DECOR_V2&&TOW.actif)||BASKET.actif||SPORTJ.actif||MANEGES.actif||TOUR.actif||metierEnCours()||BASE.defi||FPS.actif||DERBY.actif); }
 // Balise dédiée, jamais la même que `balise` (déjà prise par MISSION.cur) —
 // les deux peuvent être actives en même temps sans se marcher dessus.
 const metierBalise=new THREE.Mesh(new THREE.CylinderGeometry(1.4,1.4,9,12,1,true),
@@ -33338,7 +33476,7 @@ function startRun(){
   P.hp=P.maxHp; P.stam=P.stamMax; P.bouclier=0; P.bouclierMax=60; P.giletLourd=false; P.veh=null;
   P.buffs={dmg:0,vit:0,butin:0,lourd:0,sprintLibre:0,vol:0,cadence:0}; P.ivresse=0; P.iframes=0; P.dodgeT=0; P.rechT=0; P.specCd=0; P.ecraseT=0;
   P.grenades=3; boutonsAPied(); // jamais el('grenN') seul : voir boutonsAPied (mort au volant)
-  if(DECOR_V2){ reparerMobilier(); cielRetablir(); fpsArreter(); derbyArreter(); footDemarrer(); SURPRISES.tyro=null; poserTexteBanderole(META.banderole); if(RIDES.porte){ RIDES.actif=null; RIDES.porte.visible=false; RIDES.txt.style.display='none'; rivalesFin(); if(RIDES.fleche) RIDES.fleche.visible=false; RIDES.records={}; RIDES.primeVague={}; } resetPic(); resetMer(); basketArreter(); BASKET.reussi=false; BASKET.vague=-1; } P.wingsuit=false; P.wing=false; if(P.wingMesh) P.wingMesh.visible=false; nettoyerPnjMetier(); MET2.serie={taxi:0,ambulance:0,pompier:0}; // course en cours : jamais survivante d'une partie à l'autre // mobilier renversé réparé ; message acheté sur la banderole
+  if(DECOR_V2){ reparerMobilier(); cielRetablir(); fpsArreter(); derbyArreter(); sportjArreter(); SPORTJ.primes=null; SPORTJ.gagnes=null; footDemarrer(); SURPRISES.tyro=null; poserTexteBanderole(META.banderole); if(RIDES.porte){ RIDES.actif=null; RIDES.porte.visible=false; RIDES.txt.style.display='none'; rivalesFin(); if(RIDES.fleche) RIDES.fleche.visible=false; RIDES.records={}; RIDES.primeVague={}; } resetPic(); resetMer(); basketArreter(); BASKET.reussi=false; BASKET.vague=-1; } P.wingsuit=false; P.wing=false; if(P.wingMesh) P.wingMesh.visible=false; nettoyerPnjMetier(); MET2.serie={taxi:0,ambulance:0,pompier:0}; // course en cours : jamais survivante d'une partie à l'autre // mobilier renversé réparé ; message acheté sur la banderole
   // Jetpack : perdu au game over, comme les armes (voir CLAUDE.md) — il
   // faut remonter le chercher. Le lieu, lui (META.jetpackTrouve), reste acquis.
   P.jetpack=false; P.jetpackVol=false; P.jetFuel=100; P.jetVx=0; P.jetVz=0; P.jetWarnT=0; P.jetAvertVu=false;
@@ -33656,7 +33794,7 @@ function startRun(){
 function mourir(){
   if(ETAT.mode==='mort') return;
   if(DECOR_V2&&RIDES.actif){ RIDES.actif=null; RIDES.porte.visible=false; RIDES.txt.style.display='none'; rivalesFin(); if(RIDES.fleche) RIDES.fleche.visible=false; } // course abandonnée à la mort
-  if(DECOR_V2) basketArreter(); // concours de tirs abandonné
+  if(DECOR_V2){ basketArreter(); sportjArreter(); } // concours de tirs, sports du complexe : abandonnés
   if(BASE.defi) finDefiBase(false); // parcours du combattant abandonné
   fpsArreter(); // ball-trap, stand de tir : la partie s'arrête, rien de gagné
   derbyArreter(); // derby : le match s'arrête, les voitures disparaissent, rien de gagné
@@ -34617,6 +34755,10 @@ function majAction(){
     } else if(POIS.marchand&&dist2(P.x,P.z,POIS.marchand.x,POIS.marchand.z)<12){
       label='MARCHAND (-25 %)';
       fn=()=>{ETAT.promo=true;ETAT.mode='shopIn';ouvrirDepuis('shop','jeu');};
+    } else if(!P.veh&&SPORTJ.actif){
+      const a=sportjAction(); if(a){ label=a.label; fn=a.fn; } // sports du complexe : FRAPPER / TIRER
+    } else if(!P.veh&&SPORTS.ok&&sportjProche()){
+      const q=sportjProche(), D=SPORTJ_DEFS[q.id]; label=D.ico+' '+D.nom+' — '+D.sous; fn=()=>sportjDemarrer(q.id,q.table);
     } else if(!P.veh&&BASKET.ok&&BASKET.actif){
       // concours de tirs : au poste, TIRER ; ailleurs, rien (le panneau dit d'aller au cercle)
       if(basketAuPoste()&&!BASKET.vol){ label='🏀 TIRER'; fn=basketTirer; }
@@ -35005,7 +35147,8 @@ const VUE={cache:[],cacheSalle:null,k:0,kVeh:0,yaw:0,yawUser:0,yawRendu:0,hBonus
   // basse et plus proche (le sol défile), champ qui s'ouvre fort avec la vitesse, traits de vitesse
   PIED:{H:9,D:19,devant:2.5}, VEH:{H:5.2,D:10.5,devant:6}, SALLE:{H:8,D:10,devant:1.5}};
 const VUE_SENS_DOIGT=0.0085;   // rad par pixel de glissement
-function vueImmersive(){ return META.vue==='immersive'; }
+function vueImmersive(){ return META.vue==='immersive'||META.vue==='fps'; } /* la 1re personne garde le ciel, le brouillard et les apparitions cachées de la vue immersive */
+function vue1P(){ return META.vue==='fps'; }
 // les salles qui gardent leur propre caméra : le chalutier (poursuite vers le large), le menu du garage
 function salleImmersive(s){ return !s||(!s.barre&&!(s.tuning&&s.menuOuvert)); }
 // l'angle de l'écran pour le joystick : celui de la caméra AFFICHÉE
@@ -35110,25 +35253,27 @@ function vueCamera(dt,sx,sz){
 }
 const VUE_ZENITH=new THREE.Color(0x2a5ab0);
 // bascule de vue (bouton #btnVue, à côté de la pause)
-function basculerVue(){
-  META.vue=vueImmersive()?'classique':'immersive';
-  if(META.vue==='immersive'){ VUE.yawUser=P.veh?(P.veh.ang||0)+Math.PI:0; VUE.yaw=VUE.yawUser; }
+function basculerVue(){ // 18 octobre (demandé) : de dessus → immersive → à la 1re personne → de dessus
+  META.vue=META.vue==='classique'?'immersive':(META.vue==='immersive'?'fps':'classique');
+  if(META.vue==='immersive'){ VUE.yawUser=P.veh?(P.veh.ang||0)+Math.PI:(P.ang||0)+Math.PI; VUE.yaw=VUE.yawUser; }
+  if(META.vue==='fps'){ VUE.yawUser=(P.ang||0)+Math.PI; VUE.yaw=VUE.yawUser; VUE.pitch1P=0; }
   sauveMeta(); majBoutonVue(); SFX.ui(); vibre(20);
-  toast(vueImmersive()?'🎥 Vue immersive — glisse le doigt pour tourner, double-tap : derrière toi':'🎥 Vue classique (de dessus)','or');
+  toast(META.vue==='fps'?'🎯 Vue à la 1re personne (à pied, en ville) — glisse le doigt pour regarder, VISER pour viser à la mire':(vueImmersive()?'🎥 Vue immersive — glisse le doigt pour tourner, double-tap : derrière toi':'🎥 Vue classique (de dessus)'),'or');
 }
-function majBoutonVue(){ const b=el('btnVue'); if(!b) return; b.classList.toggle('on',vueImmersive()); const t=el('btnVueTxt'); if(t) t.textContent=vueImmersive()?'3D':'2D'; }
+function majBoutonVue(){ const b=el('btnVue'); if(!b) return; b.classList.toggle('on',vueImmersive()); const t=el('btnVueTxt'); if(t) t.textContent=META.vue==='fps'?'1P':(vueImmersive()?'3D':'2D'); }
 // au doigt : glisser sur une zone libre fait tourner la vue (à pied), double-tap = derrière le joueur
 renderer.domElement.addEventListener('pointerdown',e=>{
   if(!salleImmersive(INT.actif)||!vueImmersive()||ETAT.mode!=='jeu'||ATELIER.ouvert||FPS.actif) return; // l'établi et le tir à la première personne ont leurs propres gestes
   const t=performance.now();
-  if(t-VUE.tapT<300&&!P.veh){ VUE.yawUser=(P.ang||0)+Math.PI; VUE.tapT=0; return; }
+  if(t-VUE.tapT<300&&!P.veh){ if(VUE1P.actif) VUE.pitch1P=0; else VUE.yawUser=(P.ang||0)+Math.PI; VUE.tapT=0; return; } /* 1re personne : double-tap = regarder droit devant */
   VUE.tapT=t; if(P.veh&&INT.actif) return;
-  VUE.drag={id:e.pointerId,x:e.clientX};
+  VUE.drag={id:e.pointerId,x:e.clientX,y:e.clientY};
 });
 window.addEventListener('pointermove',e=>{
   if(!VUE.drag||e.pointerId!==VUE.drag.id) return;
   if(!salleImmersive(INT.actif)||(P.veh&&INT.actif)){ VUE.drag=null; return; }
-  const dx=e.clientX-VUE.drag.x; VUE.drag.x=e.clientX;
+  const dx=e.clientX-VUE.drag.x, dy=e.clientY-(VUE.drag.y===undefined?e.clientY:VUE.drag.y); VUE.drag.x=e.clientX; VUE.drag.y=e.clientY;
+  if(VUE1P.actif){ const k=VUE_SENS_DOIGT*(1-0.55*VUE1P.k)*(VUE1P.zoom||1); VUE.yawUser-=dx*k; VUE.pitch1P=clamp((VUE.pitch1P||0)-dy*k*0.85,-1.1,1.15); if(Math.abs(dx)+Math.abs(dy)>4) VUE.tapT=0; return; } /* 1re personne : le doigt fait regarder (gauche-droite, haut-bas), plus finement en visant */
   if(P.veh) VUE.offVeh=clamp((VUE.offVeh||0)-dx*VUE_SENS_DOIGT,-Math.PI,Math.PI); else VUE.yawUser-=dx*VUE_SENS_DOIGT; if(Math.abs(dx)>4) VUE.tapT=0;
 });
 // retourner l'arme au doigt : glisser sur l'écran (la rotation automatique reprend 3 s après)
@@ -35138,7 +35283,95 @@ window.addEventListener('pointermove',e=>{ if(!ATELIER.ouvert||!ATELIER.drag||e.
 window.addEventListener('pointerup',e=>{ if(ATELIER.drag&&e.pointerId===ATELIER.drag.id) ATELIER.drag=null; });
 const vueFinDrag=e=>{ if(VUE.drag&&e.pointerId===VUE.drag.id) VUE.drag=null; };
 window.addEventListener('pointerup',vueFinDrag); window.addEventListener('pointercancel',vueFinDrag);
+/* ======== VUE À LA PREMIÈRE PERSONNE (18 octobre, demandé : « en plus de la 2D et de la 3D, une vue à la 1re personne
+   comme au stand de tir, et jouer comme ça » ; « viser à la mire ou à la lunette : un réticule plus petit, ou viser à
+   l'œil, l'arme vient devant l'œil et on vise avec la mire de chaque arme ») ========
+   META.vue = 'fps' : à pied, en ville (dans une salle, en véhicule, en chute, à la nage, sur un manège : la vue
+   immersive reprend, sans rien perdre). La caméra est à l'œil (OEIL_1P), le corps est masqué ; le doigt fait regarder
+   (gauche-droite, haut-bas : VUE.pitch1P), le joystick fait avancer et se déplacer en crabe, le corps suit le regard.
+   L'arme en main est le montage du stand de tir (fpsMontage : modèle, bras, gants, recul, culasse, flamme, douilles),
+   ou les deux poings. Tir : droit où l'on regarde, avec une aide légère (viseAuto1P : un cône étroit autour de la
+   mire, plus étroit en visant). VISER (bouton) : l'arme vient devant l'œil, sa ligne de mire (organes de visée, ou
+   l'optique posée à l'établi : userData.visee) exactement sur l'axe du regard ; le champ se resserre (lunette : zoom
+   ×4 et l'image de la lunette ; sniper : ×8), la dispersion −65 %, on marche à 55 %. Mire de hanche fine (quatre
+   traits qui s'écartent avec la dispersion), marque de touche. */
+const VUE1P={actif:false,montage:null,arme:null,k:0,vise:false,recul:0,flash:0,frappe:0,pas:0,touche:0,zoom:1,mire:null,lunette:null,appuiSniper:false};
+const OEIL_1P=1.52;
+function vuePremiere(){ return vue1P()&&ETAT.mode==='jeu'&&!INT.actif&&!P.veh&&!FPS.actif&&!P.chute&&!P.para&&!P.wing&&!P.jetpackVol&&!P.nage&&!MANEGES.actif&&!BOUT.ouvert
+  &&!(typeof TOW!=='undefined'&&TOW.actif)&&!(DECOR_V2&&typeof SURPRISES!=='undefined'&&SURPRISES.tyro)&&!lunetteSniper()&&P.hp>0&&!!P.h; }
+// la cible sous la mire : un cône étroit autour du regard (plus étroit en visant), élargi de près
+function viseAuto1P(portee){ const cone=VUE1P.k>0.5?0.045:0.1, oeil=P.y+OEIL_1P, pit=VUE.pitch1P||0; let best=null, bs=1e9;
+  const test=(c,x,z,h)=>{ const d=Math.sqrt(dist2(x,z,P.x,P.z)); if(d>portee*1.12||d<0.4) return; const da=Math.abs(angDiff(P.ang,Math.atan2(x-P.x,z-P.z))), dp=Math.abs(Math.atan2(h-oeil,d)-pit);
+    if(da>cone+0.7/d||dp>cone*1.6+0.9/d) return; const sc=da+dp*0.7; if(sc<bs){ if(!c.heli&&!ligneLibre(P.x,P.z,x,z)) return; bs=sc; best=c; } };
+  for(const e of ennemis) if(!e.mort) test(e,e.x,e.z,hCible(e));
+  for(const an of FAUNE) if(!an.mort) test(an,an.x,an.z,hCible(an));
+  return best; }
+function tirPremiere(st){ const V=VUE1P, A=ARMES[P.armeCur]; V.recul=Math.min(1,V.recul+(A&&A.roquette?1:(st.pellets||1)>1?0.8:0.35)); V.flash=0.06; if(V.montage&&V.montage.douilles) fpsEjecter(V.montage); }
+// la mire de hanche (fine : quatre traits qui s'écartent avec la dispersion, un point) et l'image de la lunette
+function mirePremiere(){ const V=VUE1P;
+  if(!V.mire){ const m=document.createElement('div'); m.id='mire1P'; m.style.cssText='position:fixed;left:50%;top:50%;width:0;height:0;z-index:33;pointer-events:none;display:none';
+    m.innerHTML='<div class="mt" style="position:absolute;left:-1px;width:2px;height:7px;background:#fff;box-shadow:0 0 2px #000"></div><div class="mb" style="position:absolute;left:-1px;width:2px;height:7px;background:#fff;box-shadow:0 0 2px #000"></div>'+
+      '<div class="ml" style="position:absolute;top:-1px;width:7px;height:2px;background:#fff;box-shadow:0 0 2px #000"></div><div class="mr" style="position:absolute;top:-1px;width:7px;height:2px;background:#fff;box-shadow:0 0 2px #000"></div>'+
+      '<div style="position:absolute;left:-1.5px;top:-1.5px;width:3px;height:3px;border-radius:2px;background:#ff3b3b;box-shadow:0 0 2px #000"></div>'+
+      '<div class="mx" style="position:absolute;left:-9px;top:-9px;width:18px;height:18px;opacity:0;font:900 18px/18px Arial;color:#fff;text-align:center;text-shadow:0 0 3px #f33">✕</div>';
+    document.body.appendChild(m); V.mire=m; V.mire._q={t:m.querySelector('.mt'),b:m.querySelector('.mb'),l:m.querySelector('.ml'),r:m.querySelector('.mr'),x:m.querySelector('.mx')}; }
+  if(!V.lunette){ const l=document.createElement('div'); l.id='lunette1P'; l.style.cssText='position:fixed;inset:0;z-index:33;pointer-events:none;display:none;background:radial-gradient(circle at 50% 50%,transparent 0,transparent 36vmin,#000 37vmin)';
+    l.innerHTML='<div style="position:absolute;left:50%;top:0;bottom:0;width:1.5px;margin-left:-0.75px;background:#000c"></div><div style="position:absolute;top:50%;left:0;right:0;height:1.5px;margin-top:-0.75px;background:#000c"></div><div style="position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px;border-radius:3px;background:#ff2020"></div>';
+    document.body.appendChild(l); V.lunette=l; } }
+function majMirePremiere(st){ const V=VUE1P, q=V.mire&&V.mire._q; if(!q) return;
+  const lun=V.k>0.85&&V.montage&&V.montage.lunette, montrer=V.actif&&V.k<0.6&&!lun, ec=Math.round(4+Math.min(26,((st&&st.disp)||1)*1.6+V.recul*10+Math.min(1,Math.hypot(INPUT.mx,INPUT.mz))*5));
+  if(V.mire._ec!==ec){ V.mire._ec=ec; q.t.style.top=(-ec-7)+'px'; q.b.style.top=ec+'px'; q.l.style.left=(-ec-7)+'px'; q.r.style.left=ec+'px'; }
+  const disp=montrer?'block':'none'; if(V.mire.style.display!==disp) V.mire.style.display=disp;
+  q.x.style.opacity=V.touche>0?'1':'0';
+  const dl=V.actif&&lun?'block':'none'; if(V.lunette.style.display!==dl) V.lunette.style.display=dl; }
+// l'arme en main : le montage du stand de tir ; sa ligne de mire, dans le repère de la main (W)
+function montagePremiere(){ const V=VUE1P;
+  if(V.montage){ scene.remove(V.montage.R); libererEntite(V.montage.R); V.montage=null; }
+  V.arme=P.armeCur; const id=P.armeCur, a=ARMES[id];
+  if(mkArmeModeleDispo(id)&&mkArmeModele(id)){ V.montage=fpsMontage(id); }
+  if(!V.montage){ // les poings : deux mains, sans arme
+    const R=new THREE.Group(), W=new THREE.Group(); R.add(W); const c=coifCouleurs(); fpsBras(W,'d',new THREE.Vector3(0,0,0),'poignee',c.peau,c.haut,0.76); fpsBras(W,'g',new THREE.Vector3(-0.17,0.01,0.02),'poignee',c.peau,c.haut,0.76);
+    R.traverse((o)=>{ o.renderOrder=5; o.frustumCulled=false; }); V.montage={R,W,P0:FPS_POSES.poing,poings:true,douilles:[],lagX:0,lagY:0}; }
+  const M=V.montage; scene.add(M.R); if(a&&a.type==='gun') ligneDeMire(M,id); /* une arme blanche ne se vise pas à la mire */
+}
+// la ligne de mire d'un montage : l'optique posée à l'établi (userData.visee), sinon le haut de l'arme (ses organes de
+// visée), un peu en avant de la poignée — dans le repère de la main W ; et le champ en visant (lunette : zoom)
+function ligneDeMire(M,id){ if(!M||!M.mod) return;
+  let zTop=-1e9, yMin=0; M.mod.traverse((o)=>{ if(o.isMesh&&o.geometry){ if(!o.geometry.boundingBox) o.geometry.computeBoundingBox(); const b=o.geometry.boundingBox; zTop=Math.max(zTop,o.position.z+b.max.z); yMin=Math.min(yMin,o.position.y+b.min.y); } });
+  const vis=M.mod.userData.visee, ys=vis?vis.y:yMin*0.2, zs=vis?vis.z:zTop+0.012; M.H.updateMatrix();
+  M.mire=new THREE.Vector3(0,ys+M.mod.position.y,zs+M.mod.position.z).applyMatrix4(M.H.matrix);
+  M.lunette=(vis&&vis.type==='lunette')||id==='sniper'; M.fovVise=id==='sniper'?9:(M.lunette?16:(vis&&vis.type==='holo'?46:(vis?48:52))); }
+function entrerPremiere(){ const V=VUE1P; V.actif=true; V.k=0; V.vise=false; V.recul=0; if(P.h) P.h.g.visible=false; reticule.visible=false;
+  mirePremiere(); montagePremiere(); const b=el('btnViser'); if(b){ b.style.display='flex'; b.classList.remove('on'); } }
+function quitterPremiere(){ const V=VUE1P; V.actif=false; V.vise=false; V.k=0;
+  if(V.montage){ scene.remove(V.montage.R); libererEntite(V.montage.R); V.montage=null; } V.arme=null;
+  if(P.h&&!P.veh) P.h.g.visible=true; camera.near=0.5; camera.updateProjectionMatrix();
+  const b=el('btnViser'); if(b&&!FPS.actif) b.style.display='none'; majMirePremiere(null); }
+function cameraPremiere(dt){ const V=VUE1P; if(!V.actif) entrerPremiere(); if(V.arme!==P.armeCur) montagePremiere(); if(P.h&&P.h.g.visible) P.h.g.visible=false; if(reticule.visible) reticule.visible=false;
+  const M=V.montage, st=ARMES[P.armeCur]&&ARMES[P.armeCur].type==='gun'?armeStats(P.armeCur):null;
+  if(pressed('viser')){ V.vise=!V.vise&&!!(M&&M.mire)&&!!st; const b=el('btnViser'); if(b) b.classList.toggle('on',V.vise); SFX.ui(); } if(!st&&V.vise){ V.vise=false; const b=el('btnViser'); if(b) b.classList.remove('on'); }
+  V.k=lerp(V.k,V.vise?1:0,clamp(dt*11,0,1)); V.recul=Math.max(0,V.recul-dt*5); V.flash=Math.max(0,V.flash-dt); V.frappe=Math.max(0,V.frappe-dt); V.touche=Math.max(0,V.touche-dt);
+  const mv=Math.min(1,Math.hypot(INPUT.mx,INPUT.mz)); V.pas+=dt*(mv>0.12?(INPUT.btn.sprint?13:9)*mv:0);
+  const bob=Math.sin(V.pas)*0.04*(1-V.k*0.85)*mv;
+  camera.position.set(P.x,P.y+OEIL_1P+bob,P.z); camera.rotation.order='YXZ';
+  camera.rotation.set((VUE.pitch1P||0)+V.recul*0.035,VUE.yawUser,(P.ivresse||0)>IVRESSE.pompette?Math.sin(ETAT.runT*1.1)*0.05:0);
+  const fv=M&&M.fovVise?M.fovVise:52, fov=lerp(72,fv,V.k); V.zoom=fov/72;
+  if(Math.abs(camera.fov-fov)>0.01||camera.near!==0.05){ camera.fov=fov; camera.near=0.05; camera.updateProjectionMatrix(); }
+  VUE.yawRendu=VUE.yawUser; VUE.yaw=VUE.yawUser; if(VUE.ciel) VUE.ciel.position.copy(camera.position);
+  if(M){ const W=M.W, P0=M.P0||FPS_POSES.poing, t=performance.now()*0.001, r=V.recul, k=V.k*V.k*(3-2*V.k);
+    M.R.position.copy(camera.position); M.R.quaternion.copy(camera.quaternion); M.R.visible=!(M.lunette&&V.k>0.85);
+    const hx=P0.pos[0]+Math.sin(t*1.1)*0.0022+Math.sin(V.pas*0.5)*0.006*mv, hy=P0.pos[1]+Math.sin(t*2.2)*0.0016+Math.abs(Math.cos(V.pas*0.5))*0.005*mv, hz=P0.pos[2]+r*0.045;
+    const ax=M.mire?-M.mire.x:hx, ay=M.mire?-M.mire.y:hy, az=M.mire?-0.13-M.mire.z+r*0.03:hz; // visée : la ligne de mire sur l'axe de l'œil, 0,13 u devant
+    W.position.set(lerp(hx,ax,k),lerp(hy,ay,k),lerp(hz,az,k));
+    const sw=V.frappe>0?Math.sin(Math.PI*(1-V.frappe/0.3)):0; // coup au corps à corps : l'arme (ou le poing) part en avant
+    W.rotation.set(lerp(r*0.2,r*0.05,k)-sw*0.9,lerp(P0.yaw,0,k)+sw*0.5,lerp(P0.roll||0,0,k)-sw*0.4); if(M.poings) W.position.z-=sw*0.12;
+    if(M.culasse) for(const m of M.culasse) m.position.y=Math.min(1,r*2.6)*0.055;
+    if(M.fl){ const f=V.flash>0; M.fl.material.opacity=f?1:0; M.fl2.material.opacity=f?0.9:0; if(f){ M.fl.material.rotation=Math.random()*6.28; M.fl.scale.setScalar(0.11+Math.random()*0.06); M.fl2.scale.set(0.24+Math.random()*0.1,0.05,1); } }
+    majDouilles(M,dt); }
+  majMirePremiere(st);
+}
 function majCamera(dt){
+  if(VUE1P.actif&&!vuePremiere()) quitterPremiere(); /* on quitte la 1re personne (salle, véhicule, chute, mini-jeu, manège…) : le corps revient, les bras s'en vont */
   if(FPS.actif){ fpsCamera(); return; } // tir à la première personne : l'œil du joueur
   // Garage tuning, menu d'atelier ouvert : vue de présentation — caméra
   // fixe face au plateau (le joueur fait tourner le véhicule au doigt, voir
@@ -35202,6 +35435,7 @@ function majCamera(dt){
   camera.position.set(P.x+sx,camH+hSol*0.75+chuteF*6,P.z+camD+sz+chuteF*14);
   camera.lookAt(P.x+sx,hSol*0.75+chuteAngF*6,P.z-2+sz-(enMer?5:0));
   let fovPlus=vueCamera(dt,sx,sz); // vue immersive en ville et dans les salles (VUE)
+  if(vuePremiere()){ cameraPremiere(dt); return; } /* vue à la 1re personne (à pied, en ville) */
   // lunette du sniper : la caméra passe derrière l'épaule et vise le point du laser, champ très serré
   if(lunetteSniper()){ const a=P.ang, tx=P.x+Math.sin(a)*P_SNIPE.dist, tz=P.z+Math.cos(a)*P_SNIPE.dist;
     camera.position.set(P.x-Math.sin(a)*1.2+Math.cos(a)*0.5,P.y+2.6,P.z-Math.cos(a)*1.2-Math.sin(a)*0.5); camera.lookAt(tx,1.2,tz);
@@ -35401,7 +35635,7 @@ function boucle(t){
     ETAT.comboT-=dt;
     if(ETAT.comboT<=0) ETAT.combo=1;
     if(ETAT.slowT>0){ ETAT.slowT-=dtReel; if(ETAT.slowT<=0&&ETAT.mode==='jeu') ETAT.timeScale=1; }
-    if(ETAT.mode==='jeu'){ majNitro(dtJeu); if(DECOR_V2) towEntrees(); if(DERBY.actif) derbyEntrees(); if(!MANEGES.actif&&!FPS.actif) majJoueur(dt,dtJeu); majFPS(dt,dtJeu); majIvresse(dtJeu); if(DECOR_V2){ majRides(dtJeu); majPic(dt); majTow(dt); majBasket(dt,dtJeu); majToitsSurprises(dt,dtJeu); } } // nitro décidée AVANT la physique du véhicule
+    if(ETAT.mode==='jeu'){ majNitro(dtJeu); if(DECOR_V2) towEntrees(); if(DERBY.actif) derbyEntrees(); if(!MANEGES.actif&&!FPS.actif) majJoueur(dt,dtJeu); majFPS(dt,dtJeu); majIvresse(dtJeu); if(DECOR_V2){ majRides(dtJeu); majPic(dt); majTow(dt); majBasket(dt,dtJeu); majSportJ(dt,dtJeu); majToitsSurprises(dt,dtJeu); } } // nitro décidée AVANT la physique du véhicule
     majEnnemis(dt);
     if(!INT.actif){
       majPietons(dt);
