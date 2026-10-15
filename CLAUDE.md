@@ -55,7 +55,7 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
   echo "$ln | $(sed -n "$((ln+1))p" index.html | sed 's/^[ \t]*//')"; done
 ```
 
-**Relevé du 18 octobre — 34 459 lignes.**
+**Relevé du 18 octobre — 34 563 lignes.**
 Attention : `maj_carte` recale les numéros dans l'ordre des lignes de la table ;
 un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la main.
 
@@ -96,23 +96,23 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 21193 | BÂTIMENTS VISITABLES — intérieurs |
 | 21263 | FOUILLE — mécanique générique |
 | 21811 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
-| 25696 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
-| 26104 | **LAVERIE** V2 — l'essorage de la machine 7 |
-| 26369 | **SERRE** V2 — la nuit de la floraison |
-| 26661 | CINÉ-PALACE |
-| 26905 | MÉTRO ABANDONNÉ |
-| 26971 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
-| 27322 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
-| 28224 | SITE 51 |
-| 28454 | LE DÉPÔT DE BUS — courses clandestines |
-| 29900 | **MÉTIERS** — missions liées à un véhicule |
-| 30190 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
-| 31197 | ÉCRANS / MENUS / BOUTIQUES |
-| 31472 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
-| 32274 | DÉBUT / FIN DE PARTIE |
-| 33707 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
-| 33944 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
-| 34337 | BOUCLE PRINCIPALE |
+| 25800 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
+| 26208 | **LAVERIE** V2 — l'essorage de la machine 7 |
+| 26473 | **SERRE** V2 — la nuit de la floraison |
+| 26765 | CINÉ-PALACE |
+| 27009 | MÉTRO ABANDONNÉ |
+| 27075 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
+| 27426 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
+| 28328 | SITE 51 |
+| 28558 | LE DÉPÔT DE BUS — courses clandestines |
+| 30004 | **MÉTIERS** — missions liées à un véhicule |
+| 30294 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
+| 31301 | ÉCRANS / MENUS / BOUTIQUES |
+| 31576 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
+| 32378 | DÉBUT / FIN DE PARTIE |
+| 33811 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
+| 34048 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
+| 34441 | BOUCLE PRINCIPALE |
 
 ### Ancres fines (hors bandeaux)
 
@@ -165,17 +165,17 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 18991 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
 | 19122 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
 | 21199 | `IOFF = -9000` |
-| 22888 | `INTDEFS` — définitions des **27 salles** |
-| 23073 | `construireSalle(id)` |
+| 22992 | `INTDEFS` — définitions des **27 salles** |
+| 23177 | `construireSalle(id)` |
 | 20390 | `CHALUTIER_BANCS_PLAN` — chalutier V2 ; `chalutierMaj` (20761), `dessinerRadarChalutier` (21018) |
-| 29909 | `METIERS_CIBLE` |
-| 30208 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
-| 30296 | `PIECES_FAMILLES` — catalogues de pièces par famille |
-| 30598 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
-| 30661 | `libererObjet()` — libère les géométries d'un objet retiré |
-| 30677 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
-| 30801 | `construireGarageTuning()` — la salle partagée |
-| 31171 | `majNitro()` |
+| 30013 | `METIERS_CIBLE` |
+| 30312 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
+| 30400 | `PIECES_FAMILLES` — catalogues de pièces par famille |
+| 30702 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
+| 30765 | `libererObjet()` — libère les géométries d'un objet retiré |
+| 30781 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
+| 30905 | `construireGarageTuning()` — la salle partagée |
+| 31275 | `majNitro()` |
 
 ---
 
@@ -1494,6 +1494,35 @@ avant `depotVerifierVague`).
   au-delà ; passerelle intacte puis effondrée ; panneau, projecteur, bus
   verrouillé ; vrais modèles ; rien chez les voisines). Le chemin joueur passe
   désormais par le panneau.
+
+## Bornes d'arcade V2 (18 octobre, 3e demande) — habillage et vérification interactive
+
+Demandé : « le fonctionnement et la vérification interactive des jeux, et
+l'amélioration du style des mini-jeux de la salle arcade ».
+- **Habillage** (bloc `HABILLAGE DES BORNES V2`, après `majBorneJeu`) : même
+  logique et même mise en page (cellules, marges, `scDimensionsZone` : la
+  visée touche ce qu'elle montre). Fonds et décors en cache (`arcadeCache`,
+  redessinés seulement quand la taille change), titre néon, sprites dessinés
+  (vipère à écailles et frelon, blocs biseautés et pièce fantôme du CHANTIER,
+  briques par matériau et boule de démolition, labyrinthe néon et gardiens à
+  casquette, canards sur l'eau sous un auvent), effets (`ARCFX` : points qui
+  s'envolent, éclats, éclair, « GO ! »), écran cathodique (`arcadeScanlines` :
+  lignes, vignettage, reflet). Effets sur `performance.now`, jamais `dt` /
+  `dtJeu`. Pas de `roundRect` (absent de Safari ancien et du canevas simulé).
+- **Bugs trouvés par les pilotes** : GLOUTON — à cadence régulière (60 i/s
+  stables, iPhone), une entité qui venait de quitter le centre d'une case y
+  était ramenée chaque image et restait figée (gardiens immobiles, joueur
+  bloqué) : `glDeplaceEntite` ne recale plus que si l'on s'APPROCHE du
+  centre. DÉMOLITION — lancée à la verticale sous une grue immobile, la boule
+  rebondissait au même endroit pour toujours (un joueur qui ne bouge pas ne
+  perdait jamais) : léger angle aléatoire au lancer (`demolitionLancer`).
+- **Test** « Arcade : chaque borne se joue aux vraies commandes » : le vrai
+  chemin (jeton, JOUER), un pilote par borne qui ne passe que par les
+  commandes du joueur (croix, rotation, glissement, visée, vrai bouton TIRER),
+  avec un temps de réaction humain, sur trois graines propres : la référence
+  du Jeton Doré est atteinte au moins deux fois, un joueur passif ou maladroit
+  en reste loin ; le rendu est appelé pendant la partie. Une borne active sans
+  pilote fait échouer le test.
 
 ## Fort Reyes, la base militaire V2 (17 octobre) — `BASE`, bandeau `FORT REYES`
 

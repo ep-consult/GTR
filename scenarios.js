@@ -1737,6 +1737,144 @@ async function main() {
     else ok('Arcade : CHANTIER utilise bien sa propre configuration de croix (pas de bouton haut, bouton de rotation dédié)');
 
     // -------------------------------------------------------------------
+    // Arcade, vérification interactive (18 octobre, demandé : « le fonctionnement et la vérification
+    // interactive des jeux de la salle arcade »). Chaque borne est lancée par le vrai chemin (jeton acheté au
+    // comptoir, JOUER à la borne) et jouée par un pilote simulé qui ne passe QUE par les commandes du joueur :
+    // croix (croixDown / croixUp, rotation comprise), glissement (glisseDeplace + lancer, comme le doigt),
+    // visée (viseeDeplace) et le vrai bouton TIRER — avec un temps de réaction humain. Le rendu est appelé
+    // pendant la partie (il ne doit jamais lever). Chaque borne doit être JOUABLE (le pilote atteint la
+    // référence du Jeton Doré, refScore, sur au moins 2 graines sur 3) et PERDABLE (un joueur passif ou
+    // maladroit finit loin de la référence). Graine propre à chaque partie : rien ne dépend des autres tests.
+    // -------------------------------------------------------------------
+    console.log('\n--- Arcade : chaque borne se joue aux vraies commandes (pilote simulé) et se perd (passif) ---');
+    const arcadePilotes = await page.evaluate(() => {
+      startRun();
+      const pte = PORTES.find((x) => x.id === 'arcade'); entrerInterieur('arcade', pte); const s = INT.actif;
+      const bak = { scores: JSON.parse(JSON.stringify(META.arcadeScores)), best: JSON.parse(JSON.stringify(META.stats.arcadePersoBest || {})), curios: JSON.parse(JSON.stringify(META.curios)), argent: META.argent, tickets: s.tickets, rnd: Math.random };
+      const lcg = (g) => { let a = (g * 2654435761) >>> 0; return () => { a = (a * 1664525 + 1013904223) >>> 0; return a / 4294967296; }; };
+      const DIRS = { droite: [1, 0], gauche: [-1, 0], bas: [0, 1], haut: [0, -1] };
+      const tenir = (nom) => { for (const n of ['haut', 'bas', 'gauche', 'droite']) if (n !== nom) croixUp(n); if (nom) croixDown(nom); };
+      const taper = () => { croixDown('rotate'); croixUp('rotate'); };
+      arcadeWrap.style.display = 'flex'; redimensionnerArcadeCv();
+      const jouer = (id, graine, pilote, tMax) => {
+        Math.random = lcg(graine);
+        META.argent = 1000; P.x = s.comptoirJetons.x; P.z = s.comptoirJetons.z; majAction(); el('btnAction')._fn();
+        const bo = s.bornes.find((b) => b.id === id); P.x = bo.x; P.z = bo.z; majAction(); el('btnAction')._fn();
+        const lance = ARCADE.jeu === id; let t = 0, n = 0, dessinsKo = 0; const e = {};
+        while (ARCADE.jeu === id && t < tMax) {
+          pilote(e, t); majBorneJeu(1 / 60); t += 1 / 60; n++;
+          if (n % 20 === 0 && ARCADE.jeu === id) { try { dessinerBorneJeu(); } catch (er) { dessinsKo++; } }
+        }
+        const score = ARCADE.score, fini = ARCADE.jeu !== id;
+        tenir(null); croixUp('rotate');
+        if (ARCADE.jeu) { ARCADE.score = 0; finirBorneJeu(); }
+        ARCADE.attenteInitiales = null; cacherControlesBorne(); Math.random = bak.rnd;
+        return { lance, score, fini, t: Math.round(t) };
+      };
+      // ---------- VIPÈRE : plus court chemin vers le frelon, jamais sans issue vers sa queue ----------
+      const N = 20, ix = (x, y) => y * N + x;
+      const bfs = (dep, cible, bloque) => { const prev = new Int32Array(N * N).fill(-2), q = [ix(dep.x, dep.y)]; prev[q[0]] = -1;
+        for (let qi = 0; qi < q.length; qi++) { const c = q[qi], cx = c % N, cy = (c / N) | 0;
+          if (qi > 0 && cible(cx, cy)) { const ch = []; let k = c; while (prev[k] !== -1) { ch.unshift(k); k = prev[k]; } return ch; }
+          for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = cx + dx, ny = cy + dy; if (nx < 0 || ny < 0 || nx >= N || ny >= N) continue; const ni = ix(nx, ny);
+            if (prev[ni] !== -2 || (bloque[ni] && !cible(nx, ny))) continue; prev[ni] = c; q.push(ni); } }
+        return null; };
+      const aire = (dep, bloque) => { const vu = new Uint8Array(N * N), q = [ix(dep.x, dep.y)]; vu[q[0]] = 1;
+        for (let qi = 0; qi < q.length; qi++) { const c = q[qi], cx = c % N, cy = (c / N) | 0; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = cx + dx, ny = cy + dy; if (nx < 0 || ny < 0 || nx >= N || ny >= N) continue; const ni = ix(nx, ny); if (vu[ni] || bloque[ni]) continue; vu[ni] = 1; q.push(ni); } }
+        return q.length; };
+      const versDir = (a, k) => { const x = k % N, y = (k / N) | 0; return x > a.x ? 'droite' : (x < a.x ? 'gauche' : (y > a.y ? 'bas' : 'haut')); };
+      const planVipere = (v) => {
+        const co = v.corps, bl = new Uint8Array(N * N); for (let i = 0; i < co.length; i++) bl[ix(co[i].x, co[i].y)] = 1; // la queue aussi : le jeu teste la collision avant qu'elle avance
+        const f = v.frelon, ch = f && bfs(co[0], (x, y) => x === f.x && y === f.y, bl);
+        if (ch) { const sim = co.map((c) => ({ x: c.x, y: c.y })); for (let k = 0; k < ch.length; k++) { sim.unshift({ x: ch[k] % N, y: (ch[k] / N) | 0 }); if (k < ch.length - 1) sim.pop(); }
+          const b2 = new Uint8Array(N * N); for (let i = 0; i < sim.length; i++) b2[ix(sim[i].x, sim[i].y)] = 1; const qq = sim[sim.length - 1];
+          if (bfs(sim[0], (x, y) => x === qq.x && y === qq.y, b2)) return versDir(co[0], ch[0]); }
+        let best = null, bestA = -1; const q = co[co.length - 1];
+        for (const [nom, [dx, dy]] of Object.entries(DIRS)) { const nx = co[0].x + dx, ny = co[0].y + dy; if (nx < 0 || ny < 0 || nx >= N || ny >= N || bl[ix(nx, ny)]) continue;
+          const b3 = bl.slice(); b3[ix(co[0].x, co[0].y)] = 1; const a = aire({ x: nx, y: ny }, b3) + (bfs({ x: nx, y: ny }, (x, y) => x === q.x && y === q.y, b3) ? 400 : 0);
+          if (a > bestA) { bestA = a; best = nom; } }
+        return best; };
+      const piloteVipere = (e, t) => { const v = ARCADE.v, cle = v.corps[0].x + ',' + v.corps[0].y;
+        if (e.cle !== cle) { e.cle = cle; e.quand = t + 0.05; } // il décide 0,05 s après chaque pas (la direction vaut pour le pas suivant)
+        if (e.quand !== null && t >= e.quand) { e.quand = null; const d = planVipere(v); if (d) tenir(d); } };
+      // ---------- CHANTIER : placement évalué (hauteur, trous, lignes, relief), exécuté à la croix ----------
+      const peut = (g, k, r, px, py) => { for (const [a, b] of FORMES_CHANTIER[k].rots[r]) { const x = px + a, y = py + b; if (x < 0 || x >= 10 || y >= 18) return false; if (y >= 0 && g[y * 10 + x]) return false; } return true; };
+      const noter = (g0, k, r, px) => { if (!peut(g0, k, r, px, 0)) return null; let py = 0; while (peut(g0, k, r, px, py + 1)) py++;
+        const g = g0.slice(); for (const [a, b] of FORMES_CHANTIER[k].rots[r]) { const y = py + b; if (y < 0) return null; g[y * 10 + px + a] = 1; }
+        let lignes = 0; for (let y = 17; y >= 0; y--) { let plein = true; for (let x = 0; x < 10; x++) if (!g[y * 10 + x]) { plein = false; break; }
+          if (plein) { lignes++; for (let yy = y; yy > 0; yy--) for (let x = 0; x < 10; x++) g[yy * 10 + x] = g[(yy - 1) * 10 + x]; for (let x = 0; x < 10; x++) g[x] = 0; y++; } }
+        const h = []; let trous = 0; for (let x = 0; x < 10; x++) { let y = 0; while (y < 18 && !g[y * 10 + x]) y++; h.push(18 - y); for (let yy = y + 1; yy < 18; yy++) if (!g[yy * 10 + x]) trous++; }
+        let agg = 0, bump = 0; for (let x = 0; x < 10; x++) { agg += h[x]; if (x) bump += Math.abs(h[x] - h[x - 1]); }
+        return -0.51 * agg + 0.76 * lignes - 0.36 * trous - 0.18 * bump; };
+      const piloteChantier = (e, t) => { const c = ARCADE.c;
+        if (e.py === undefined || c.py < e.py) { // nouvelle pièce : il réfléchit 0,3 s
+          let best = null, bestN = -Infinity; for (let r = 0; r < 4; r++) for (let px = -2; px < 10; px++) { const n = noter(c.grille, c.pieceIdx, r, px); if (n !== null && n > bestN) { bestN = n; best = { r, px }; } }
+          e.cible = best; e.quand = t + 0.3; e.tapT = 0; e.essais = 0; tenir(null); }
+        e.py = c.py; if (!e.cible || t < e.quand) return;
+        if (c.rot !== e.cible.r && e.essais < 6) { tenir(null); if (t >= e.tapT) { taper(); e.tapT = t + 0.15; e.essais++; } return; }
+        if (c.px < e.cible.px) tenir('droite'); else if (c.px > e.cible.px) tenir('gauche'); else tenir('bas'); };
+      // ---------- DÉMOLITION : le doigt suit le point de chute prévu de la boule (vu 0,15 s plus tôt) ----------
+      const doigt = (x) => glisseDeplace(clamp(x / GD_COLS, 0, 1) * window.innerWidth);
+      const chute = (b) => { if (b.vy <= 0) return null; let x = b.x + b.vx * ((GD_GRUE_Y - b.y) / b.vy); const L = GD_COLS - 2 * GD_BALLE_R;
+        x -= GD_BALLE_R; x = ((x % (2 * L)) + 2 * L) % (2 * L); if (x > L) x = 2 * L - x; return x + GD_BALLE_R; };
+      const piloteDemolition = (e, t) => { const d = ARCADE.d; e.hist = e.hist || [];
+        if (d.balles.some((b) => b.attente)) { if (!e.lanceT) e.lanceT = t + 0.5; if (t >= e.lanceT) { doigt(d.grueX); demolitionLancer(); e.lanceT = 0; } return; }
+        let b = null; for (const bb of d.balles) if (bb.vy > 0 && (!b || bb.y > b.y)) b = bb; if (!b) b = d.balles[0];
+        const vise = b ? (chute(b) !== null ? chute(b) : b.x) : d.grueX; e.hist.push({ t, x: vise }); while (e.hist.length > 2 && e.hist[1].t <= t - 0.15) e.hist.shift();
+        const cible = e.hist[0].x + (e.dec || 0); if (!e.decT || t > e.decT) { e.dec = (Math.random() - 0.5) * 0.6; e.decT = t + 1.5; }
+        const x = d.grueX + clamp(cible - d.grueX, -28 / 60, 28 / 60); doigt(x); };
+      const maladroitDemolition = (e, t) => { const d = ARCADE.d; if (d.balles.some((b) => b.attente)) { if (!e.lanceT) e.lanceT = t + 0.5; if (t >= e.lanceT) { demolitionLancer(); e.lanceT = 0; } } };
+      // ---------- GLOUTON : sandwich le plus proche, en contournant les gardiens ; il les chasse quand ils ont peur ----------
+      const voisins = (x, y) => { const r = []; for (const [nom, [dx, dy]] of Object.entries(DIRS)) { let nx = x + dx; const ny = y + dy; if (nx < 0) nx = GL_COLS - 1; else if (nx >= GL_COLS) nx = 0; if (ny < 0 || ny >= GL_ROWS || glMur(nx, ny)) continue; r.push([nom, nx, ny]); } return r; };
+      const planGlouton = (d) => { const j = d.joueur, jx = Math.round(j.x), jy = Math.round(j.y);
+        const danger = new Uint8Array(GL_COLS * GL_ROWS), peur = []; for (const g of d.fantomes) { if (!g.actif) continue; const gx = Math.round(g.x), gy = Math.round(g.y);
+          if (g.effraye && d.effraiT > 1.2) { peur.push(gx + ',' + gy); continue; } if (g.effraye) continue;
+          for (let ddx = -2; ddx <= 2; ddx++) for (let ddy = -2; ddy <= 2; ddy++) if (Math.abs(ddx) + Math.abs(ddy) <= 2) { const x = (gx + ddx + GL_COLS) % GL_COLS, y = gy + ddy; if (y >= 0 && y < GL_ROWS) danger[y * GL_COLS + x] = 1; } }
+        const but = (x, y) => peur.length ? peur.indexOf(x + ',' + y) >= 0 : (d.sandwichs[x + ',' + y] || d.badges.some((b) => !b.pris && b.x === x && b.y === y) || (d.bonus && Math.round(d.bonus.x) === x && Math.round(d.bonus.y) === y));
+        for (const evite of [true, false]) { const vu = new Map(), q = [[jx, jy, null]]; vu.set(jx + ',' + jy, 1);
+          for (let qi = 0; qi < q.length; qi++) { const [x, y, pr] = q[qi]; if (qi > 0 && but(x, y)) return pr;
+            for (const [nom, nx, ny] of voisins(x, y)) { const k = nx + ',' + ny; if (vu.has(k) || (evite && danger[ny * GL_COLS + nx])) continue; vu.set(k, 1); q.push([nx, ny, pr || nom]); } } }
+        let best = null, bestD = -1; for (const [nom, nx, ny] of voisins(jx, jy)) { let dm = 99; for (const g of d.fantomes) if (g.actif && !g.effraye) dm = Math.min(dm, Math.abs(g.x - nx) + Math.abs(g.y - ny)); if (dm > bestD) { bestD = dm; best = nom; } }
+        return best; };
+      const piloteGlouton = (e, t) => { if (!e.quand || t >= e.quand) { e.quand = t + 0.12; const dd = planGlouton(ARCADE.g); if (dd) tenir(dd); } };
+      // ---------- STAND DE CANARDS : viser au doigt (réaction 0,25 s, anticipation), TIRER au vrai bouton ----------
+      const tirer = () => { const b = el('btnTirerCanards'); b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true })); b.dispatchEvent(new PointerEvent('pointerup', { bubbles: true })); };
+      const piloteCanards = (e, t) => { const d = ARCADE.s, r = arcadeCv.getBoundingClientRect(), Z = scDimensionsZone(), yN = (v) => (v + 0.5) / SC_VOIES;
+        const vivant = (c) => c.toucheT <= 0 && c.x > 0.06 && c.x < 0.94;
+        if (!e.cible || !d.canards.includes(e.cible) || !vivant(e.cible) || e.cible.type === 'noir') { let best = null, bd = Infinity;
+          for (const c of d.canards) { if (!vivant(c) || c.type === 'noir') continue; const k = Math.hypot(c.x - d.viseurX, yN(c.voie) - d.viseurY) - (c.type === 'dore' ? 0.15 : 0) - (c.type === 'bonus' && d.chargeur < 4 ? 0.3 : 0); if (k < bd) { bd = k; best = c; } }
+          if (best !== e.cible) { e.cible = best; e.reagit = t + 0.25; } }
+        if (!e.cible || t < e.reagit) return;
+        const c = e.cible, tx = c.x + c.vit * 0.12, ty = yN(c.voie);
+        e.vx = e.vx === undefined ? d.viseurX : e.vx; e.vy = e.vy === undefined ? d.viseurY : e.vy;
+        e.vx += clamp(tx - e.vx, -2.4 / 60, 2.4 / 60); e.vy += clamp(ty - e.vy, -2.4 / 60, 2.4 / 60);
+        viseeDeplace(r.left + e.vx * r.width, r.top + (Z.hautH + e.vy * Z.zoneJeuH) / ARCADE_ECRAN.h * r.height);
+        if (Math.hypot(c.x - d.viseurX, ty - d.viseurY) < 0.05 && d.chargeur > 0 && t - (e.tirT || -9) > 0.22) {
+          let plusPres = null, pd = Infinity; for (const o of d.canards) { if (o.toucheT > 0) continue; const k = Math.hypot(o.x - d.viseurX, yN(o.voie) - d.viseurY); if (k < 0.12 && k < pd) { pd = k; plusPres = o; } }
+          if (plusPres === c) { tirer(); e.tirT = t; } } };
+      const rien = () => {};
+      const res = {}, refs = {}; for (const b of BORNES_ARCADE) refs[b.id] = b.refScore;
+      const pilotes = { vipere: [piloteVipere, rien, 300], chantier: [piloteChantier, rien, 400], demolition: [piloteDemolition, maladroitDemolition, 300], glouton: [piloteGlouton, rien, 300], canards: [piloteCanards, rien, 200] };
+      for (const b of BORNES_ARCADE) { if (!b.actif) continue; const pl = pilotes[b.id]; if (!pl) { res[b.id] = { sansPilote: true }; continue; }
+        res[b.id] = { pilote: [11, 22, 33].map((g) => jouer(b.id, g, pl[0], pl[2])), passif: [44, 55].map((g) => jouer(b.id, g, pl[1], pl[2])), ref: b.refScore }; }
+      arcadeWrap.style.display = 'none';
+      META.arcadeScores = bak.scores; META.stats.arcadePersoBest = bak.best; META.curios = bak.curios; META.argent = bak.argent; s.tickets = bak.tickets;
+      if (INT.actif) sortirInterieur();
+      return res;
+    });
+    for (const id of Object.keys(arcadePilotes)) {
+      const r = arcadePilotes[id];
+      if (r.sansPilote) { fail('Arcade : la borne active « ' + id + ' » n’a pas de pilote simulé — en écrire un'); continue; }
+      const resume = 'pilote ' + r.pilote.map((p) => p.score + (p.fini ? '' : '…') + ' en ' + p.t + ' s').join(', ') + ' ; passif ' + r.passif.map((p) => p.score + (p.fini ? ' (fini en ' + p.t + ' s)' : ' (non fini)')).join(', ') + ' — référence ' + r.ref;
+      const lances = r.pilote.concat(r.passif).every((p) => p.lance);
+      const gagnes = r.pilote.filter((p) => p.score >= r.ref).length, passifsPerdent = r.passif.every((p) => p.score < r.ref * 0.35);
+      if (!lances) fail('Arcade ' + id + ' : la borne ne se lance pas par le vrai chemin (jeton, JOUER)');
+      else if (gagnes < 2) fail('Arcade ' + id + ' : un pilote aux vraies commandes n’atteint pas la référence (' + resume + ')');
+      else if (!passifsPerdent) fail('Arcade ' + id + ' : un joueur passif ou maladroit s’approche de la référence — pas perdable (' + resume + ')');
+      else ok('Arcade ' + id + ' : jouable aux vraies commandes et perdable (' + resume + ')');
+    }
+
+    // -------------------------------------------------------------------
     // Ciné-Palace : porte au bon quartier, curiosité 'bobine' activée.
     // -------------------------------------------------------------------
     console.log('\n--- Ciné-Palace : porte, quartier, curiosité activée ---');
