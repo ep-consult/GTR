@@ -55,7 +55,7 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
   echo "$ln | $(sed -n "$((ln+1))p" index.html | sed 's/^[ \t]*//')"; done
 ```
 
-**Relevé du 18 octobre — 35 319 lignes.**
+**Relevé du 18 octobre — 35 422 lignes.**
 Attention : `maj_carte` recale les numéros dans l'ordre des lignes de la table ;
 un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la main.
 
@@ -78,41 +78,41 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 7337 | **MANÈGES** — grand huit, grande roue (`MANEGES`) |
 | 7408 | **TOITS VIVANTS** (`TOITS`, `mkToitsVivants`) |
 | 7510 | **LOS REYES HILLS** — colline, lacets, villas, planque (`HILLS`, `ROUTES_HILLS`) |
-| 8308 | **CHANTIER ET PLANQUES V2** — `ETAGES`, `mkChantierV2`, `mkPlanquesV2`, `mkBordsHills` |
-| 8506 | **FORT REYES** — base militaire V2 (`BASE`, `reserverBase`, `mkBaseV2`, `majBaseV2`, parcours du combattant) |
-| 8650 | **TIR À LA PREMIÈRE PERSONNE** (`FPS`, `fpsDemarrer`, `majFPS`) et **BALL-TRAP** du ranch (`BT`, `mkBallTrap`) |
-| 9048 | **TERRAINS DE SPORT DES PARCS** (`SPORTS`, `mkSportsParcs`, `majSportsParcs`, match de foot) |
-| 9188 | **ARÈNE DE DERBY** (`DERBY`, `mkArenaDerby`, `majDerby`, `majDerbyIA`, voitures et améliorations de derby) |
-| 13718 | MODÈLES — humains, armes, véhicules, hélico, ramassables |
-| 15931 | POOLS — balles, particules, textes flottants, traces de pneus |
-| 16300 | ÉTAT GLOBAL + JOUEUR (`P`) |
-| 17158 | VÉHICULES — physique arcade, trafic, dégâts |
-| 19968 | PIÉTONS |
-| 20151 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
-| 20723 | **RAYON TRACTEUR DE L'OVNI** |
-| 21188 | NIVEAU DE RECHERCHE (étoiles) |
-| 21467 | VAGUES + bonus de fin de vague |
-| 21589 | MISSIONS COURTES |
-| 21592 | BÂTIMENTS VISITABLES — intérieurs |
-| 21662 | FOUILLE — mécanique générique |
-| 22210 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
-| 26442 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
-| 26850 | **LAVERIE** V2 — l'essorage de la machine 7 |
-| 27115 | **SERRE** V2 — la nuit de la floraison |
-| 27407 | CINÉ-PALACE |
-| 27651 | MÉTRO ABANDONNÉ |
-| 27717 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
-| 28068 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
-| 28970 | SITE 51 |
-| 29200 | LE DÉPÔT DE BUS — courses clandestines |
-| 30646 | **MÉTIERS** — missions liées à un véhicule |
-| 30936 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
-| 31952 | ÉCRANS / MENUS / BOUTIQUES |
-| 32227 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
-| 33054 | DÉBUT / FIN DE PARTIE |
-| 34566 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
-| 34803 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
-| 35197 | BOUCLE PRINCIPALE |
+| 8402 | **CHANTIER ET PLANQUES V2** — `ETAGES`, `mkChantierV2`, `mkPlanquesV2`, `mkBordsHills` |
+| 8600 | **FORT REYES** — base militaire V2 (`BASE`, `reserverBase`, `mkBaseV2`, `majBaseV2`, parcours du combattant) |
+| 8744 | **TIR À LA PREMIÈRE PERSONNE** (`FPS`, `fpsDemarrer`, `majFPS`) et **BALL-TRAP** du ranch (`BT`, `mkBallTrap`) |
+| 9142 | **TERRAINS DE SPORT DES PARCS** (`SPORTS`, `mkSportsParcs`, `majSportsParcs`, match de foot) |
+| 9282 | **ARÈNE DE DERBY** (`DERBY`, `mkArenaDerby`, `majDerby`, `majDerbyIA`, voitures et améliorations de derby) |
+| 13815 | MODÈLES — humains, armes, véhicules, hélico, ramassables |
+| 16028 | POOLS — balles, particules, textes flottants, traces de pneus |
+| 16397 | ÉTAT GLOBAL + JOUEUR (`P`) |
+| 17255 | VÉHICULES — physique arcade, trafic, dégâts |
+| 20071 | PIÉTONS |
+| 20254 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
+| 20826 | **RAYON TRACTEUR DE L'OVNI** |
+| 21291 | NIVEAU DE RECHERCHE (étoiles) |
+| 21570 | VAGUES + bonus de fin de vague |
+| 21692 | MISSIONS COURTES |
+| 21695 | BÂTIMENTS VISITABLES — intérieurs |
+| 21765 | FOUILLE — mécanique générique |
+| 22313 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
+| 26545 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
+| 26953 | **LAVERIE** V2 — l'essorage de la machine 7 |
+| 27218 | **SERRE** V2 — la nuit de la floraison |
+| 27510 | CINÉ-PALACE |
+| 27754 | MÉTRO ABANDONNÉ |
+| 27820 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
+| 28171 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
+| 29073 | SITE 51 |
+| 29303 | LE DÉPÔT DE BUS — courses clandestines |
+| 30749 | **MÉTIERS** — missions liées à un véhicule |
+| 31039 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
+| 32055 | ÉCRANS / MENUS / BOUTIQUES |
+| 32330 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
+| 33157 | DÉBUT / FIN DE PARTIE |
+| 34669 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
+| 34906 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
+| 35300 | BOUCLE PRINCIPALE |
 
 ### Ancres fines (hors bandeaux)
 
@@ -145,37 +145,39 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 6026 | `VILLA_PISC` — finitions de quartier : `mkQuartiersFinitions()` |
 | 6106 | `MONT` — Mont Reyes, puis `CANYON` (canyons) et `RIDES` (courses) |
 | 4564 | `SOLS` — dalles de sol enregistrées, puis `mkTransitionsSols()` (jonctions entre sols) |
-| 11085 | `mkLacParc()` — lac du parc, passerelle, barques |
-| 11214 | `mkLumieresQuartiers()` — Times Square, quartier chinois, Brooklyn |
-| 11300 | `mkEnceinte()` — murs, enseigne, jetées de rochers |
-| 11841 | `GALION` — galion échoué : `sansAleaVille()`, `coqueGalion()`, `mkGalion()`, `majGalion()` |
-| 12873 | `mkPorteGarage()` — porte roulante des garages |
-| 12943 | `placeLibrePorte()` |
-| 13002 | helper `poser()` — placement des lieux |
-| 13028 | `caseCentre(bx,bz)` |
-| 13121 | `REPLIS` — filet de sécurité en spirale |
-| 15799 | `makeVelo()` — vélo de ville et BMX |
+| 11182 | `mkLacParc()` — lac du parc, passerelle, barques |
+| 11311 | `mkLumieresQuartiers()` — Times Square, quartier chinois, Brooklyn |
+| 11397 | `mkEnceinte()` — murs, enseigne, jetées de rochers |
+| 11938 | `GALION` — galion échoué : `sansAleaVille()`, `coqueGalion()`, `mkGalion()`, `majGalion()` |
+| 12970 | `mkPorteGarage()` — porte roulante des garages |
+| 13040 | `placeLibrePorte()` |
+| 13099 | helper `poser()` — placement des lieux |
+| 13125 | `caseCentre(bx,bz)` |
+| 13218 | `REPLIS` — filet de sécurité en spirale |
+| 15896 | `makeVelo()` — vélo de ville et BMX |
 | 13574 | `voitureV2()` — voiture réaliste : `geoVoiture` (géométries partagées par modèle), `janteVoiture` |
-| 12789 | `ENSEIGNES` — portes mieux placées : `ameliorerPortes()`, `profondeurDevant()`, `orienterPorte()` |
-| 16308 | `const P` — état du joueur |
-| 16351 | `P.stamMax = 100 + 12*mus` |
-| 17678 | `resoudreCollisionsVehicule()` — collisions entre véhicules (SAT sur les 4 axes) |
-| 18342 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
-| 18466 | `boutonsAPied()` — boutons du HUD remis « à pied » (sortie de véhicule ET début de partie) |
-| 19387 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
-| 19518 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
-| 21598 | `IOFF = -9000` |
-| 23402 | `INTDEFS` — définitions des **27 salles** |
-| 23787 | `construireSalle(id)` |
+| 12886 | `ENSEIGNES` — portes mieux placées : `ameliorerPortes()`, `profondeurDevant()`, `orienterPorte()` |
+| 16405 | `const P` — état du joueur |
+| 16448 | `P.stamMax = 100 + 12*mus` |
+| 17775 | `resoudreCollisionsVehicule()` — collisions entre véhicules (SAT sur les 4 axes) |
+| 18445 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
+| 18569 | `boutonsAPied()` — boutons du HUD remis « à pied » (sortie de véhicule ET début de partie) |
+| 19490 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
+| 19621 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
+| 21701 | `IOFF = -9000` |
+| 23505 | `INTDEFS` — définitions des **27 salles** |
+| 23890 | `construireSalle(id)` |
 | 20390 | `CHALUTIER_BANCS_PLAN` — chalutier V2 ; `chalutierMaj` (20761), `dessinerRadarChalutier` (21018) |
-| 30655 | `METIERS_CIBLE` |
-| 30954 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
-| 31042 | `PIECES_FAMILLES` — catalogues de pièces par famille |
-| 31352 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
-| 31416 | `libererObjet()` — libère les géométries d'un objet retiré |
-| 31432 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
-| 31556 | `construireGarageTuning()` — la salle partagée |
-| 31926 | `majNitro()` |
+| 30758 | `METIERS_CIBLE` |
+| 31057 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
+| 31145 | `PIECES_FAMILLES` — catalogues de pièces par famille |
+| 31455 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
+| 31519 | `libererObjet()` — libère les géométries d'un objet retiré |
+| 31535 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
+| 31659 | `construireGarageTuning()` — la salle partagée |
+| 32029 | `majNitro()` |
+| 17448 | `degatsChoc()` — dégâts V2 : `bosseler`, débris, `perdreRoue` ; murs : `degagerDesMurs` (plus haut) |
+| 7573 | `SAUTV` — Saut du Vertige : `hauteurSautVertige`, `mkSautVertige`, `mkBargeVertige`, `finSautVertige` |
 
 ---
 
@@ -1168,6 +1170,45 @@ perte de roue » ; signalé : « au derby, les voitures sortent des murs ».
   épaves par match ; le pilote simulé gagne toujours 2 matchs sur 4, le passif
   aucun.
 - Test : « Dégâts V2 et murs ».
+
+### Saut du Vertige (18 octobre, lot 3) — bandeau `SAUT DU VERTIGE`, `SAUTV`
+
+Demandé : « le gros bloc est toujours là en bas de la falaise : le supprimer, un
+énorme jump qui démarre d'en haut de la falaise ; réception sur une grande barge
+de transport dans la mer, réaliste ».
+- **L'ancien bloc** (plateau de 17 u, « falaise et énorme saut » des débuts, au
+  pied de la face sud du Pic) est construit comme avant pendant la génération
+  (ses tirages ; noté dans `POIS._vieuxSaut`) puis retiré par
+  `retirerVieuxSaut` : maillages, plateau (`PLATS`), rampe (`RAMPES`).
+- **Piste** (`hauteurSautVertige`, dans `RELIEFS` : c'est un relief libre, on la
+  dévale sans faux envol) : 6 u de large, à x = `PIC.x`−7, entre le monte-charge
+  (x ≈ 526 : posée dessus au premier essai, la cabine restée en haut hissait le
+  joueur et la moto s'y écrasait) et le tremplin du sommet ; du bord du sommet
+  (`zBordPic`, ≈ 89 u)
+  à 40° vers le sud, table courbe (`Lt` 12 u), lèvre relevée de 14° (`levre`) à
+  ≈ 33 u ; charpente (pylônes solides au sol), garde-corps solides par tronçon
+  de 4 u, portique de départ, projecteurs. Sur la piste et en vol, la vitesse
+  max est relevée (`SAUTV.vmax` 62 : la pente l'emporte), rendue doucement
+  ensuite (`v.retombeV`). Décollage : `v.vy` = vitesse × `levre` (la mesure d'une
+  image tombait encore dans le creux de la table : saut à plat).
+- **Barge** (`mkBargeVertige`) : 22 × 94 u au mouillage au large (`PLATS` +
+  `PONTONS` : un pont praticable, jamais de l'eau), coque noire et rouge rouillée,
+  pont d'acier soudé, cible et distances peintes depuis la lèvre, hiloires et
+  mur de pneus au bout (solides, `pneus:true` : dégâts ×0,3 comme au derby),
+  filet, pousseur à la poupe, chaînes d'ancre, feux de navigation la nuit,
+  jet-ski amarré pour rentrer. **Les véhicules terrestres étaient bornés à
+  `HALF+8`** (la plage) : au-dessus de la barge et en vol, la borne passe à son
+  bout (`majVehiculePhys`).
+- **Réception** (`v.sautHills.vertige`, déléguée par `finSautHills` à
+  `finSautVertige`) : jamais mortelle, sans casse ; sur la barge, distance,
+  points, record `META.stats.sautVertige`, prime `SAUTV.PRIME` une fois par
+  vague (`primeMerUneFois('vertige')`), puis les brins d'arrêt
+  (`v.arretBarge`, `SAUTV.FREIN`) : on s'arrête avant le mur ; à l'eau, raté.
+- Au départ (sommet, `garerRides`) : une voiture de sport et un buggy, en plus
+  des motos cross et du BMX du tremplin. Balise « Saut du Vertige ».
+- Simulé : moto cross, citadine, sport, buggy, Bolide, BMX décollent à 50 à
+  63 u/s et se posent entre 315 et 344 (barge 298–392).
+- Test : « Saut du Vertige ».
 
 ## Retours de playtest du 16 octobre — véhicules et conduite
 

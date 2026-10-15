@@ -1886,7 +1886,7 @@ const META={
   // qu'un état de session, jamais persisté.
   lieuxVus:{},
   stats:{kills:0,killsGang:0,killsPolice:0,killsArmee:0,chefs:0,vagues:0,parties:0,
-    distVeh:0,distTotal:0,sauts:0,bigJump:0,avionsAbattus:0,vehVoles:0,vehDetruits:0,tempsTotal:0,pietonsFuis:0,
+    distVeh:0,distTotal:0,sauts:0,bigJump:0,sautVertige:0,avionsAbattus:0,vehVoles:0,vehDetruits:0,tempsTotal:0,pietonsFuis:0,
     grenades:0,tirs:0,critiques:0,meilleurCombo:0,cashTotal:0,vehEcrases:0,loopings:0,
     // Mur de trophées (planque) : casses réussis au musée, descentes au
     // métro, séances tenues au Ciné-Palace, plus grosse prise du chalutier
@@ -4068,7 +4068,7 @@ function construireVille(){
     if(qq!=='plage'&&qq!=='parc'&&bx%3===1&&bz%3===1) mkFeu(cx+INNER/2+1.4,cz-INNER/2-1.4);
   }
   placerPortes();
-  if(DECOR_V2){ sansAleaVille(()=>{ reserverHills(); reserverChantier(); reserverBase(); reserverSports(); ameliorerPortes(); mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkBasket(); mkCiel(); mkKiosqueBanderole(); mkCrique(); mkMontReyes(); mkVieMont(); mkBordureEst(); mkCanyonsDesert(); mkPicVertige(); mkParcStunt(); mkSkateXXL(); mkRides(); mkMerVivante(); mkRemorquage(); mkLarge(); deplacerVoltige(); mkAeroportVivant(); mkHeliGrue(); mkPlanques(); mkBoutiques(); mkGrandHuit(); mkToitsVivants(); mkTracesSable(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkNeonVivant(); mkQuartiersFinitions(); mkFacadesVariees(); mkCascades(); if(MERV.ok) mkVolcanIle(); mkAeroVie(); mkLosReyesHills(); mkBordsHills(); mkChantierV2(); mkPlanquesV2(); mkBaseV2(); mkBallTrap(); mkSportsParcs(); mkHalosBoutiques(); mkSurprisesToits(); mkArenaDerby(); mkRatelierSkateXXL(); mkStationsVelo(); mkBalises(); }); } // cascades et volcan EN DERNIER : leurs tirages du décor ne décalent rien de ce qui précède (mobilier...) // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
+  if(DECOR_V2){ sansAleaVille(()=>{ reserverHills(); reserverChantier(); reserverBase(); reserverSports(); ameliorerPortes(); mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkBasket(); mkCiel(); mkKiosqueBanderole(); mkCrique(); mkMontReyes(); mkVieMont(); mkBordureEst(); mkCanyonsDesert(); mkPicVertige(); mkParcStunt(); mkSkateXXL(); mkRides(); mkMerVivante(); mkRemorquage(); mkLarge(); deplacerVoltige(); mkAeroportVivant(); mkHeliGrue(); mkPlanques(); mkBoutiques(); mkGrandHuit(); mkToitsVivants(); mkTracesSable(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkNeonVivant(); mkQuartiersFinitions(); mkFacadesVariees(); mkCascades(); if(MERV.ok) mkVolcanIle(); mkAeroVie(); mkLosReyesHills(); mkBordsHills(); mkChantierV2(); mkPlanquesV2(); mkBaseV2(); mkBallTrap(); mkSportsParcs(); mkHalosBoutiques(); mkSurprisesToits(); mkArenaDerby(); mkRatelierSkateXXL(); mkStationsVelo(); mkSautVertige(); mkBalises(); }); } // cascades et volcan EN DERNIER : leurs tirages du décor ne décalent rien de ce qui précède (mobilier...) // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
   finaliserMerge();
   construireMinimapStatique();
 }
@@ -7556,9 +7556,103 @@ function sculpterSautsHills(masque){ const H=HILLS;
       if(!masque[c]&&z>s.zHaut&&z<s.zBas){ const hp=lerp(s.hHaut,s.hBas,(z-s.zHaut)/(s.zBas-s.zHaut)); H.h[c]=dx<=3.5?hp:lerp(hp,H.h[c],lisse((dx-3.5)/4)); } // piste d'élan entre les deux lacets
       if(dx<=s.demi+0.4&&z<=s.zA){ const t=clamp((s.zA-z)/(s.zA-s.zL),0,1); H.h[c]=s.hHaut+s.lev*t*t; } } } } // la lèvre, en quart de lune
 function dansPisteSaut(x,z,m){ m=m||0; for(const s of SAUTS_HILLS) if(s.ok&&Math.abs(x-s.x)<3.5+m&&z<s.zBas+m&&z>HILLS.z0-1) return s; return null; }
+/* ======== SAUT DU VERTIGE (18 octobre, demandé : « le gros bloc est toujours là en bas de la falaise : supprimer le bloc,
+   créer un énorme jump avec démarrage d'en haut de la falaise ; réception sur une grande barge dans la mer, réaliste ») ========
+   - L'ancien plateau carré de 17 u (« falaise et énorme saut » des débuts, au pied de la face sud du Pic) est construit
+     comme avant pendant la génération (ses tirages) puis RETIRÉ ici (retirerVieuxSaut) : maillages, plateau, rampe.
+   - Piste d'élan : un relief (RELIEFS, hauteurSautVertige) de 6 u de large qui part du bord du sommet du Pic (≈ 89 u)
+     et plonge vers le sud à 40° jusqu'à une table de décollage courbe (≈ 33 u, lèvre relevée de 12°), sur une charpente
+     d'acier (pylônes, garde-corps solides). Sur la piste et en vol, la pente fait dépasser la vitesse max
+     (SAUTV.vmax) ; à la lèvre, envol à la vitesse de montée (comme le big jump de la colline) ; on survole l'arène
+     de derby et la plage.
+   - Réception sur une barge de transport au mouillage (plate-forme + ponton : ni eau ni noyade sur le pont), poussée par
+     un pousseur, pont d'acier soudé, cible et distances peintes, hiloires et mur de pneus au bout (solides), feux de
+     navigation la nuit, jet-ski amarré pour rentrer. Réception de cascade (v.sautHills.vertige) : jamais mortelle,
+     sans casse ; distance, points, record (META.stats.sautVertige), prime une fois par vague sur la barge. À l'eau :
+     raté (le véhicule coule comme ailleurs, on nage). */
+const SAUTV={ok:false,x:0,zE:0,hE:0,pente:0.84,yK:37,Lt:12,levre:0.25,zK:0,zL:0,yL:0,demi:3,vmax:62,barge:null,PRIME:500,FREIN:36};
+function hauteurSautVertige(x,z){ const S=SAUTV; if(Math.abs(x-S.x)>S.demi||z<S.zE-0.6||z>S.zL) return 0;
+  if(z<=S.zE) return S.hE; if(z<=S.zK) return S.hE-S.pente*(z-S.zE);
+  const u=z-S.zK; return S.yK-S.pente*u+(S.pente+S.levre)*u*u/(2*S.Lt); }
+function dansPisteVertige(x,z){ const S=SAUTV; return S.ok&&Math.abs(x-S.x)<S.demi+0.5&&z>S.zE-2&&z<S.zL+0.5; }
+function presTremplinVertige(x,z){ const S=SAUTV; return S.ok&&Math.abs(x-S.x)<S.demi+0.5&&z>S.zL-3&&z<S.zL+2; }
+function retirerVieuxSaut(){ const V=POIS._vieuxSaut; if(!V) return;
+  for(const m of V.meshes.concat(V.rampe?V.rampe.meshes:[])){ scene.remove(m); if(m.geometry) m.geometry.dispose(); }
+  const i=PLATS.indexOf(V.plat); if(i>=0) PLATS.splice(i,1); const j=RAMPES.indexOf(V.rampe); if(j>=0) RAMPES.splice(j,1);
+  delete POIS._vieuxSaut; }
+function mkSautVertige(){
+  if(!PIC.ok) return; retirerVieuxSaut();
+  const S=SAUTV; S.x=PIC.x-7; /* entre le monte-charge (x ≈ 526, à l'ouest) et le tremplin du sommet (x ≈ 541) : 2 u de marge de chaque côté */ S.zE=zBordPic(S.x)-0.3; S.hE=hauteurPic(S.x,S.zE-0.4);
+  S.zK=S.zE+(S.hE-S.yK)/S.pente; S.zL=S.zK+S.Lt; S.yL=hauteurSautVertige(S.x,S.zL-0.01);
+  RELIEFS.push({x0:S.x-S.demi-0.2,x1:S.x+S.demi+0.2,z0:S.zE-0.7,z1:S.zL+0.05,f:hauteurSautVertige});
+  S.ok=true; const X=S.x, i0=scene.children.length;
+  const acier=mat(0x8a929c), sombre=mat(0x2a2e36), jaune=mat(0xffd23f), rouge=mat(0xd8261c);
+  const texPiste=cTex(128,(g,s2)=>{ g.fillStyle='#3a3d44'; g.fillRect(0,0,s2,s2); for(let i=0;i<900;i++){ g.fillStyle=Math.random()<0.5?'rgba(255,255,255,0.05)':'rgba(0,0,0,0.12)'; g.fillRect(Math.random()*s2,Math.random()*s2,2,2); }
+    g.fillStyle='#ffd23f'; g.fillRect(0,0,s2*0.06,s2); g.fillRect(s2*0.94,0,s2*0.06,s2); g.fillStyle='rgba(255,255,255,0.5)'; g.fillRect(s2*0.49,0,s2*0.02,s2*0.5); },1,1);
+  const matPiste=new THREE.MeshLambertMaterial({map:texPiste});
+  // le tablier : un segment par mètre, posé sur la pente
+  for(let z=S.zE-0.6;z<S.zL-0.01;z+=1){ const z2=Math.min(S.zL,z+1), y1=hauteurSautVertige(X,Math.max(z,S.zE-0.5)), y2=hauteurSautVertige(X,z2-0.001), L=Math.hypot(z2-z,y2-y1);
+    const t=new THREE.Mesh(new THREE.BoxGeometry(S.demi*2,0.35,L+0.05),matPiste); t.position.set(X,(y1+y2)/2-0.18,(z+z2)/2); t.rotation.x=-Math.atan2(y2-y1,z2-z); scene.add(t);
+    for(const sx of [-1,1]){ const r=new THREE.Mesh(new THREE.BoxGeometry(0.16,1.0,L+0.05),z2>S.zL-1.2?jaune:rouge); r.position.set(X+sx*(S.demi+0.08),(y1+y2)/2+0.45,(z+z2)/2); r.rotation.x=t.rotation.x; scene.add(r); } }
+  // lèvre : chevrons jaunes et noirs
+  for(let k=0;k<6;k++){ const c=new THREE.Mesh(new THREE.BoxGeometry(1.0,0.06,0.5),k%2?sombre:jaune); c.position.set(X-S.demi+0.5+k*1.0,S.yL+0.03,S.zL-0.4); c.rotation.x=-0.2; scene.add(c); }
+  // charpente : pylônes tous les 8 u (quatre montants, traverses en croix), solides au sol
+  for(let z=S.zE+6;z<S.zL-1;z+=8){ const h=hauteurSautVertige(X,z)-0.4; if(h<2) continue;
+    for(const sx of [-1,1]){ mkBox(0.45,h,0.45,acier,X+sx*2.6,h/2,z); addSolid({x:X+sx*2.6,z,hw:0.35,hd:0.35,h}); }
+    for(let y=4;y<h-1;y+=6){ mkBox(5.2,0.2,0.2,acier,X,y,z); const d=new THREE.Mesh(new THREE.BoxGeometry(0.15,Math.hypot(5.2,6),0.15),acier); d.position.set(X,y+3,z); d.rotation.z=Math.atan2(5.2,6); scene.add(d); } }
+  // garde-corps : solides par tronçon de 4 u (on ne tombe pas du tablier ; à pied, on ne passe pas dessous à travers)
+  for(let z=S.zE;z<S.zL;z+=4){ const z2=Math.min(S.zL,z+4); let hm=0; for(let q=z;q<=z2;q+=0.5) hm=Math.max(hm,hauteurSautVertige(X,Math.min(q,S.zL-0.01)));
+    for(const sx of [-1,1]) addSolid({x:X+sx*(S.demi+0.25),z:(z+z2)/2,hw:0.25,hd:(z2-z)/2,h:hm+1.1}); }
+  // portique de départ au sommet, enseigne, feux de départ
+  { const zp=S.zE-3, y=S.hE; for(const sx of [-1,1]) mkBox(0.5,6,0.5,sombre,X+sx*(S.demi+0.9),y+3,zp); mkBox(S.demi*2+2.3,0.8,0.6,sombre,X,y+6,zp);
+    mkEnseigne('SAUT DU VERTIGE','#ff7a1a',X,y+7.3,zp,0,6.5);
+    for(const dx of [-1.2,0,1.2]){ const f=new THREE.Mesh(new THREE.SphereGeometry(0.22,10,8),new THREE.MeshBasicMaterial({color:0x35ff6a})); f.position.set(X+dx,y+5.3,zp+0.35); scene.add(f); } }
+  // projecteurs le long de la piste (la nuit)
+  for(let z=S.zE+10;z<S.zL;z+=18){ const y=hauteurSautVertige(X,z); const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:0xfff0c0,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending})); sp.scale.set(7,7,1); sp.position.set(X+S.demi+0.6,y+3,z); scene.add(sp); lampes.push(sp); mkBox(0.15,3,0.15,sombre,X+S.demi+0.6,y+1.5,z); }
+  mkBargeVertige(); fusionnerDecor(i0);
+}
+// la barge de transport au mouillage, poussée par un pousseur : la piste de réception
+function mkBargeVertige(){
+  const S=SAUTV, X=S.x, z0=MER+12, z1=MER+106, hw=11, H=2.6, zc=(z0+z1)/2, hd=(z1-z0)/2; S.barge={x:X,z0,z1,hw,h:H};
+  PLATS.push({x:X,z:zc,hw,hd,h:H}); PONTONS.push({x:X,z:zc,hw,hd}); S.barge.plat=PLATS[PLATS.length-1];
+  const texCoque=cTex(256,(g,s2)=>{ g.fillStyle='#1c1e22'; g.fillRect(0,0,s2,s2); g.fillStyle='#7a2a1c'; g.fillRect(0,s2*0.62,s2,s2*0.38); // œuvres mortes noires, carène rouge
+    for(let i=0;i<40;i++){ g.fillStyle='rgba(150,70,30,0.25)'; const x=Math.random()*s2; g.fillRect(x,s2*0.1+Math.random()*s2*0.3,2+Math.random()*3,20+Math.random()*60); } // coulures de rouille
+    g.fillStyle='#e8e4dc'; g.font='700 22px Arial'; g.fillText('REYES MARINE · BARGE 07',14,s2*0.3); for(let k=0;k<4;k++) g.fillRect(s2-30,s2*0.4+k*16,14,3); },6,1);
+  const texPont=cTex(256,(g,s2)=>{ g.fillStyle='#6e7378'; g.fillRect(0,0,s2,s2); g.strokeStyle='rgba(40,42,46,0.6)'; g.lineWidth=2; for(let k=0;k<=4;k++){ g.beginPath(); g.moveTo(0,k*s2/4); g.lineTo(s2,k*s2/4); g.stroke(); g.beginPath(); g.moveTo(k*s2/4+(k%2)*20,0); g.lineTo(k*s2/4+(k%2)*20,s2); g.stroke(); } // tôles soudées
+    for(let i=0;i<600;i++){ g.fillStyle=Math.random()<0.5?'rgba(255,255,255,0.05)':'rgba(120,70,40,0.12)'; g.fillRect(Math.random()*s2,Math.random()*s2,3,3); } },hw/4,hd/4);
+  const coque=new THREE.Mesh(new THREE.BoxGeometry(hw*2,H+1.2,hd*2),new THREE.MeshLambertMaterial({map:texCoque})); coque.position.set(X,H/2-0.6,zc); scene.add(coque);
+  const pont=new THREE.Mesh(new THREE.PlaneGeometry(hw*2-0.4,hd*2-0.4),new THREE.MeshLambertMaterial({map:texPont})); pont.rotation.x=-Math.PI/2; pont.position.set(X,H+0.02,zc); scene.add(pont);
+  // cible et distances peintes (depuis la lèvre du tremplin)
+  const zCible=Math.min(z1-14,S.zL+125); for(const [r,c] of [[6,0xffd23f],[4.2,0xf2f2ee],[2.4,0xd8261c]]){ const d=new THREE.Mesh(new THREE.CircleGeometry(r,32),mat(c)); d.rotation.x=-Math.PI/2; d.position.set(X,H+0.04+(6-r)*0.002,zCible); scene.add(d); }
+  for(let m=Math.ceil((z0+2-S.zL)/10)*10;S.zL+m<z1-4;m+=10){ const z=S.zL+m; mkBox(hw*2-1.4,0.03,0.25,mat(0xf2f2ee),X,H+0.05,z);
+    mkEnseigne(m+' m','#f2f2ee',X-hw+2.4,H+0.6,z+0.8,0,2.2); }
+  // hiloires sur les flancs, mur de pneus au bout (solides), bittes d'amarrage, défenses
+  for(const sx of [-1,1]){ mkBox(0.4,0.8,hd*2,mat(0x3a3e46),X+sx*(hw-0.2),H+0.4,zc); addSolid({x:X+sx*(hw-0.2),z:zc,hw:0.3,hd,h:H+0.8});
+    for(let k=0;k<6;k++){ const z=z0+6+k*(hd*2-12)/5; const b=new THREE.Mesh(new THREE.CylinderGeometry(0.28,0.32,0.7,10),mat(0x1c1e22)); b.position.set(X+sx*(hw-1.2),H+0.35,z); scene.add(b);
+      const t=new THREE.Mesh(new THREE.TorusGeometry(0.55,0.22,6,12),mat(0x15171c)); t.rotation.y=Math.PI/2; t.position.set(X+sx*(hw+0.15),H-0.5,z); scene.add(t); } }
+  for(let k=0;k<11;k++) for(let r=0;r<3;r++){ const t=new THREE.Mesh(new THREE.TorusGeometry(0.62,0.3,6,12),mat(0x15171c)); t.rotation.x=Math.PI/2; t.position.set(X-hw+1.3+k*(hw*2-2.6)/10,H+0.3+r*0.6,z1-1.4); scene.add(t); }
+  addSolid({x:X,z:z1-1.4,hw:hw,hd:1,h:H+2,pneus:true}); mkBox(hw*2,2.4,0.08,new THREE.MeshLambertMaterial({color:0xff7a1a,transparent:true,opacity:0.55}),X,H+1.8,z1-0.4); // filet de sécurité
+  // le pousseur, à la poupe : coque, timonerie, cheminée
+  { const zp=z1+8, cq=new THREE.Mesh(new THREE.BoxGeometry(9,3,14),new THREE.MeshLambertMaterial({map:texCoque})); cq.position.set(X,0.9,zp); scene.add(cq);
+    mkBox(8.4,0.2,13.4,mat(0x5a5f66),X,2.5,zp); mkBox(5,3,5,mat(0xf2f0e8),X,4.1,zp+2); mkBox(5.2,1.1,5.2,mat(0x1a2a3a),X,5.4,zp+2); mkBox(5.6,0.3,5.6,mat(0xd8261c),X,6.1,zp+2);
+    mkBox(1,3,1,mat(0x15171c),X+1.6,7.5,zp+4); mkBox(2,0.8,2,mat(0x15171c),X,1.6,zp-7.2); addSolid({x:X,z:zp,hw:4.5,hd:7,h:6}); }
+  // chaînes d'ancre aux quatre coins, feux de navigation (la nuit)
+  for(const [sx,sz] of [[-1,-1],[1,-1],[-1,1],[1,1]]){ const c=new THREE.Mesh(new THREE.CylinderGeometry(0.09,0.09,9,6),mat(0x2a2e36)); c.position.set(X+sx*(hw+1.6),-1.5,zc+sz*(hd-2)); c.rotation.z=sx*0.5; scene.add(c);
+    const f=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:sx<0?0xff3b3b:0x35ff6a,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending})); f.scale.set(2.4,2.4,1); f.position.set(X+sx*(hw-0.3),H+1.4,zc+sz*(hd-0.6)); scene.add(f); lampes.push(f); }
+  mkEnseigne('SAUT DU VERTIGE — ARRIVÉE','#ffd23f',X,H+3.2,z1-1.6,0,8);
+}
+// réception d'un Saut du Vertige (finSautHills la délègue) : sur la barge, distance, points, record, prime ; à l'eau, raté
+function finSautVertige(v,s){
+  if(v.conduit!=='joueur'||P.veh!==v) return; const B=SAUTV.barge, m=Math.round(Math.hypot(v.x-s.x,v.z-s.z));
+  if(!B||!dansRectPlat(B.plat,v.x,v.z)){ bigMsg('🌊 À L’EAU — '+m+' m, la barge t’attend plus loin'); return; }
+  v.arretBarge=4; // les brins d'arrêt du pont : on s'arrête avant le mur de pneus
+  const pts=Math.round(m*15*(ETAT.combo||1)); ETAT.score+=pts; spawnTexte(v.x,5,v.z,'SAUT DU VERTIGE '+m+' m  +'+pts,'#ffd23f');
+  const rec=m>(META.stats.sautVertige||0); if(rec) META.stats.sautVertige=m;
+  const g=primeMerUneFois('vertige',SAUTV.PRIME); if(g) SFX.achat();
+  bigMsg('🎯 SUR LA BARGE — '+m+' m'+(rec?' — RECORD !':'')+(g?' — +'+g+' $':'')); vibre(80); sauveMeta(); }
 function presTremplinHills(x,z){ if(!HILLS.ok) return null; for(const s of SAUTS_HILLS) if(s.ok&&Math.abs(x-s.x)<s.demi+0.6&&z<s.zA+0.5&&z>s.zL-3) return s; return null; }
 // réception d'un saut de la colline (appelée à l'atterrissage, véhicule du joueur ou non)
-function finSautHills(v){ const s=v.sautHills; v.sautHills=null; if(!s||v.conduit!=='joueur'||P.veh!==v) return;
+function finSautHills(v){ const s=v.sautHills; v.sautHills=null; if(s&&s.vertige) return finSautVertige(v,s); if(!s||v.conduit!=='joueur'||P.veh!==v) return;
   const m=Math.round(Math.hypot(v.x-s.x,v.z-s.z)); if(m<8) return;
   const pts=Math.round(m*12*(ETAT.combo||1)); ETAT.score+=pts; spawnTexte(v.x,4,v.z,'BIG JUMP '+m+' m  +'+pts,'#ffd23f');
   const rec=m>(META.stats.bigJump||0); if(rec) META.stats.bigJump=m;
@@ -10516,6 +10610,7 @@ function pointsActivites(){
   for(const b of AERO.balises) add(b.x,b.z,b.ico,b.coul,0);
   if(typeof BASE!=='undefined'&&BASE.ok){ add(BASE.depart.x,BASE.depart.z,'🎖️','#4a5238',0,'Parcours du combattant'); }
   if(typeof SAUTS_HILLS!=='undefined') for(const sj of SAUTS_HILLS) if(sj.ok) add(sj.x,sj.zBas-6,'🏔️','#ff7a1a',sj.hBas,sj.nom);
+  if(typeof SAUTV!=='undefined'&&SAUTV.ok) add(SAUTV.x,SAUTV.zE-6,'🎯','#ff7a1a',SAUTV.hE,'Saut du Vertige');
   if(typeof HELIPORT!=='undefined'&&HELIPORT.console) add(HELIPORT.console.x,HELIPORT.console.z,'🚁','#d8b02a',HELIPORT.pad.h,'Héliport du manoir');
   if(typeof SURPRISES!=='undefined') for(const sp of SURPRISES.liste) if(sp.type==='tyro'||sp.type==='dj') add(sp.x,sp.z,sp.type==='tyro'?'🪢':'🎧','#c83a9a',sp.y,sp.type==='tyro'?'Tyrolienne':'Fête sur le toit');
   for(const pq of PLANQUES.liste) add(pq.x,pq.z,pq.def.ico,'#2a8a4a',pq.y,pq.def.nom);
@@ -10870,6 +10965,8 @@ function garerRides(){
       if(poses.some(p=>dist2(p[0],p[1],x,z)<9)) continue; poses.push([x,z,y,a]); }
     ['velo','bmx','bmx','motocross'].forEach((k,i)=>{ const p=poses[i]; if(!p) return; const v=creerVehicule(k,p[0],p[1],p[3]); if(v) v.h=p[2]; }); }
   if(PIC.ok){ const tr=PIC.tremplin; [['motocross',-6],['motocross',-9],['bmx',7],['velo',10]].forEach(([k,dx])=>{ const x=tr.x+dx, z=tr.z1-tr.long-6; const v=creerVehicule(k,x,z,0); v.h=solY(x,z); }); } // en haut du Pic : motos et vélo, face au tremplin
+  if(SAUTV.ok){ const S=SAUTV; [['sport',-2.2],['buggy',2.4]].forEach(([k,dx])=>{ const x=S.x+dx, z=S.zE-11; if(!vehicules.some((o)=>dist2(o.x,o.z,x,z)<6)){ const v=creerVehicule(k,x,z,0); if(v) v.h=solY(x,z); } }); // au départ du Saut du Vertige, face à la piste
+    if(S.barge){ const v=creerVehicule('jetski',S.x+S.barge.hw+3,S.barge.z0+6,Math.PI); if(v) v.h=0; } } // jet-ski amarré à la barge : pour rentrer
   if(SKX.ok) [['bmx',SKX.x0+30,SKX.z0+24],['bmx',SKX.x0+32,SKX.z0+24],['velo',SKX.x0+42,SKX.z0+66.5],['motocross',SKX.x0+46,SKX.z0-6]].forEach(([k,x,z])=>{ // skatepark XXL : BMX sur la plate-forme, vélo et moto cross à l'entrée
     if(!vehicules.some((o)=>dist2(o.x,o.z,x,z)<9)){ const v=creerVehicule(k,x,z,Math.PI/2); if(v) v.h=solY(x,z); } });
   const dc=rideDepart('colline'), ds=rideDepart('stunt'); // montée sèche et parc stunt : face à la pente / aux tables
@@ -12158,17 +12255,17 @@ function construireRelief(){
     // chaque frame, un décrochage soudain déclenche déjà l'envol, voir
     // majVehiculePhys, RELIEF).
     const fx=pd.x+140, fz=200, fH=17, fHW=14, fHD=18;
-    PLATS.push({x:fx,z:fz,hw:fHW,hd:fHD,h:fH});
+    PLATS.push({x:fx,z:fz,hw:fHW,hd:fHD,h:fH}); POIS._vieuxSaut={plat:PLATS[PLATS.length-1],meshes:[]}; // 18 octobre : retiré en fin de décor (mkSautVertige), construit ici pour ne décaler aucun tirage
     const blocFalaise=new THREE.Mesh(new THREE.BoxGeometry(fHW*2,fH,fHD*2),mat(0x8a6a48));
     blocFalaise.position.set(fx,fH/2,fz); scene.add(blocFalaise);
     const dessusFalaise=new THREE.Mesh(new THREE.BoxGeometry(fHW*2,0.1,fHD*2),mDesert);
-    dessusFalaise.position.set(fx,fH+0.02,fz); scene.add(dessusFalaise);
+    dessusFalaise.position.set(fx,fH+0.02,fz); scene.add(dessusFalaise); POIS._vieuxSaut.meshes.push(blocFalaise,dessusFalaise);
     // Rampe : base à fz-55, atteint fH à fz-55+45=fz-10 — bien À
     // L'INTÉRIEUR de l'emprise du plateau (fz±fHD=182..218), jamais juste
     // à son bord (un écart, même petit, laisserait un creux entre le haut
     // de la rampe et le début du plateau — solY ne recouvre rien entre
     // les deux formules sinon).
-    mkRampe(fx,fz-55,0,45,fH,6,mDesert);
+    POIS._vieuxSaut.rampe=mkRampe(fx,fz-55,0,45,fH,6,mDesert);
     // Épave échouée au bord de l'eau, au sud du désert (demandé
     // explicitement) : le coin restait silencieux, mort — canon TOUJOURS
     // actif (jamais un simple décor, voir majEpaveCanon) pour « faire vivre
@@ -17815,7 +17912,12 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
   // plafond relevé pendant la nitro ; une fois coupée, un véhicule équipé
   // redescend en douceur vers sa vitesse max au lieu d'être ramené net.
   // Sans nitro, comportement strictement inchangé.
-  const vmaxEff=d.vmax*(v.nitroActif?NITRO_VMAX_MULT:1)*(v.rouesPerdues?Math.max(0.45,1-0.24*nbRouesPerdues(v)):1); // roue arrachée : vitesse bridée
+  let vmaxEff=d.vmax*(v.nitroActif?NITRO_VMAX_MULT:1)*(v.rouesPerdues?Math.max(0.45,1-0.24*nbRouesPerdues(v)):1); // roue arrachée : vitesse bridée
+  if(SAUTV.ok&&!d.air&&!d.eau){ // Saut du Vertige : la pente fait dépasser la vitesse max, gardée en vol, rendue doucement après
+    if(dansPisteVertige(v.x,v.z)||(v.enAir&&v.sautHills&&v.sautHills.vertige)){ vmaxEff=Math.max(vmaxEff,SAUTV.vmax); v.retombeV=true; }
+    else if(v.arretBarge>0){ v.arretBarge-=dt; v.v=Math.max(0,v.v-SAUTV.FREIN*dt); vmaxEff=v.v; v.retombeV=false; // freinage d'arrivée sur la barge (on arrive à 60 u/s)
+      if(Math.random()<dt*20) burst(v.x,0.3+(v.h||0),v.z,2,0xd8d8d8,3,2); if(v.v<6) v.arretBarge=0; }
+    else if(v.retombeV){ if(v.v>vmaxEff){ v.v=Math.max(vmaxEff,v.v-18*dt); vmaxEff=v.v; } else v.retombeV=false; } }
   const retombeNitro=v.nitro&&!v.nitroActif&&v.v>d.vmax; // nitro tout juste coupée
   if(retombeNitro) v.v=Math.max(d.vmax,v.v-14*dt);
   v.v=clamp(v.v,-d.vmax*0.42,retombeNitro?v.v:vmaxEff);
@@ -17899,7 +18001,7 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
   } else if(heurte){
     const impact=Math.abs(v.v);
     if(impact>5){
-      abimerVehicule(v,impact*(d.milit?0.5:d.type==='moto'?2.4:1.5)*(eau?0.6:1)*(v.derby?0.3:1),false); // derby : les murs de pneus amortissent
+      abimerVehicule(v,impact*(d.milit?0.5:d.type==='moto'?2.4:1.5)*(eau?0.6:1)*(v.derby||(sFront&&sFront.pneus)?0.3:1),false); // derby, bout de la barge du Saut du Vertige : les murs de pneus amortissent
       if(!eau) degatsChoc(v,v.x+(fx-v.x)*1.02,v.z+(fz-v.z)*1.02,clamp(impact/30,0,1.3)*(v.derby?0.5:1)); // dégâts V2 : le nez s'enfonce contre le mur
       burst(fx,0.8,fz,6,eau?0x9fd8ff:0xd8dce4,7);
       bruit(0.15,0.5,500);
@@ -17913,7 +18015,7 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
   // voir IOFF) — jamais bornés aux limites de la ville, sinon ils seraient
   // instantanément ramenés en centre-ville dès le premier appel.
   if(!v.horsVille){
-    const zMax=eau?LIMITE_SUD_MER:HALF+8;
+    const B=SAUTV.barge, surBarge=!!B&&Math.abs(v.x-B.x)<B.hw+3&&(v.z>HALF||(v.sautHills&&v.sautHills.vertige)), zMax=eau||surBarge?(eau?LIMITE_SUD_MER:B.z1+2):HALF+8; // la barge du Saut du Vertige est au large : on y vole et on y roule
     // Audit des bordures : un véhicule s'arrêtait 8 u avant les murs ouest et
     // nord (limite invisible) ; il va désormais jusqu'au mur, qui l'arrête.
     // En mer, jamais à l'ouest de la ligne du mur (jetée).
@@ -17975,8 +18077,9 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
       // seuls un vrai bord (falaise, tremplin, gap de mesa) ou une bosse franche lancent le véhicule
       const seuilEnvol=DECOR_V2&&dansReliefLibre(v.x,v.z)&&!MONT.kickers.some((k)=>dist2(k.x,k.z,v.x,v.z)<64)?2.4:0.9; // au tremplin du sentier : on décolle
       if(prev-gY>seuilEnvol&&Math.abs(v.v)>9){ // vraie crête : envol (pas une bordure de trottoir)
-        const lvH=DECOR_V2&&presTremplinHills(v.x,v.z); v.sautHills=lvH?{x:v.x,z:v.z}:null; // tremplin de la colline : réception de cascade
+        const lvV=DECOR_V2&&presTremplinVertige(v.x,v.z), lvH=DECOR_V2&&(presTremplinHills(v.x,v.z)||lvV); v.sautHills=lvH?{x:v.x,z:v.z,vertige:lvV}:null; // tremplin de la colline et Saut du Vertige : réception de cascade
         v.enAir=true; v.h=prev; v.vy=Math.max(2,(DECOR_V2&&(presTremplinStunt(v.x,v.z)||presTremplinPic(v.x,v.z)||lvH)?pvLevre:v.penteVy)*0.85); v.airT=0; // tables du parc stunt : vrai envol dans l'axe de la rampe
+        if(lvV) v.vy=Math.abs(v.v)*SAUTV.levre*0.9; // Saut du Vertige : l'angle de la lèvre (à 55 u/s, la mesure d'une image tombait encore dans le creux de la table)
         if(seuilEnvol<1&&DECOR_V2&&dansReliefLibre(v.x,v.z)) v.vy=Math.min(v.vy,6.5); // tremplin du sentier : un saut, jamais un envol hors du lacet
         if(v.conduit==='joueur') SFX.swing();
       }

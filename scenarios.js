@@ -12515,6 +12515,57 @@ async function main() {
     }
 
     // -------------------------------------------------------------------
+    // Saut du Vertige (18 octobre, demandé : « supprimer le gros bloc au pied de la falaise, un énorme jump qui démarre
+    // en haut de la falaise, réception sur une grande barge dans la mer »). Lu dans le jeu : l'ancien plateau carré et
+    // sa rampe ont disparu (plateau, rampe, maillages) ; la piste part du sommet du Pic sans marche, continue, sans
+    // obstacle sur le tablier ; la barge est un pont praticable (pas de l'eau) au large ; un pilote au gaz décolle
+    // plus vite que sa vitesse max, survit et se pose sur la barge avec chaque véhicule essayé ; la première arrivée
+    // de la vague paie la prime, la suivante non ; le record est gardé ; après la réception, lâcher le gaz suffit pour
+    // s'arrêter avant le mur de pneus ; la balise de l'activité existe.
+    // -------------------------------------------------------------------
+    console.log('\n--- Saut du Vertige : le bloc retiré, la piste du sommet, la barge, réception de cascade ---');
+    {
+      const sv = await page.evaluate(() => {
+        const ko = [], info = [], S = SAUTV;
+        if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6; for (const e of ennemis) e.mort = true; WANTED.heat = 0;
+        if (!S.ok || !S.barge) return { ko: ['Saut du Vertige absent (Pic ' + PIC.ok + ')'], info };
+        // l'ancien plateau
+        if (POIS._vieuxSaut || PLATS.some((q) => q.h === 17 && q.hw === 14 && q.hd === 18) || RAMPES.some((r) => r.haut === 17 && r.long === 45)) ko.push('l’ancien bloc ou sa rampe est encore là');
+        let bloc = false; scene.traverse((o) => { if (o.isMesh && o.geometry && o.geometry.parameters && o.geometry.parameters.width === 28 && o.geometry.parameters.height === 17) bloc = true; }); if (bloc) ko.push('le maillage du bloc est encore dans la scène');
+        // la piste : départ au niveau du sommet, continue, rien sur le tablier
+        const hPic = hauteurPic(S.x, S.zE - 0.5); if (Math.abs(hauteurSautVertige(S.x, S.zE) - hPic) > 0.6) ko.push('marche au départ : piste ' + hauteurSautVertige(S.x, S.zE).toFixed(1) + ' / sommet ' + hPic.toFixed(1));
+        let saut = 0, obst = 0; for (let z = S.zE; z < S.zL - 0.5; z += 0.5) { saut = Math.max(saut, Math.abs(solY(S.x, z + 0.5) - solY(S.x, z))); const so = solidAt(S.x, z, 1.0); if (so && so.h > solY(S.x, z) + 0.5) obst++; }
+        if (saut > 0.6 || obst) ko.push('piste : marche de ' + saut.toFixed(2) + ' u, ' + obst + ' obstacle(s) sur le tablier');
+        // jamais sur ce qui est déjà au bord du sommet : monte-charge, tremplin, plongeoir (lus dans PIC)
+        for (let x = S.x - S.demi - 0.6; x <= S.x + S.demi + 0.6; x += 0.3) for (let z = S.zE - 3; z < S.zE + 6; z += 0.5) {
+          if (dansCagePic(x, z, 0.3)) { ko.push('la piste empiète sur le monte-charge'); x = 1e9; break; }
+          const tr = PIC.tremplin, pl = PIC.plg; if ((tr && Math.abs(x - tr.x) < tr.demi + 0.3 && z < tr.z1 + 0.5) || (pl && Math.abs(x - pl.x) < 1.2)) { ko.push('la piste empiète sur le tremplin ou le plongeoir du sommet'); x = 1e9; break; } }
+        const B = S.barge, zc = (B.z0 + B.z1) / 2; if (estEau(B.x, zc) || Math.abs(solY(B.x, zc) - B.h) > 0.05 || !estEau(B.x + B.hw + 4, zc)) ko.push('la barge n’est pas un pont praticable au large');
+        if (!pointsActivites().some((q) => /Vertige/.test(q.nom || ''))) ko.push('pas de balise');
+        // le saut, à plusieurs véhicules
+        const rec0 = META.stats.sautVertige, prime0 = META.argent, res = []; META.stats.sautVertige = 0;
+        for (const k of ['motocross', 'citadine', 'sport', 'bmx']) {
+          for (const o of [...vehicules]) if (o.conduit !== 'joueur' && (dist2(o.x, o.z, S.x, S.zE) < 900 || dansRectPlat(B.plat, o.x, o.z))) { scene.remove(o.mesh); vehicules.splice(vehicules.indexOf(o), 1); }
+          const v = creerVehicule(k, S.x, S.zE - 12, 0); v.h = solY(v.x, v.z); P.x = v.x; P.z = v.z; P.y = v.h; entrerVehicule(v);
+          let t = 0, decol = null, atter = null, argent = META.argent;
+          while (t < 30) { const dt = 1 / 30; t += dt; const air0 = v.enAir; majVehiculePhys(v, dt, atter ? 0 : 1, 0, false); P.x = v.x; P.z = v.z;
+            if (!air0 && v.enAir && !decol) decol = { v: v.v, z: v.z };
+            if (decol && air0 && !v.enAir && !atter) atter = { t, surBarge: dansRectPlat(B.plat, v.x, v.z), z: v.z };
+            if (v.noye || v.mort || P.hp <= 0 || (atter && t > atter.t + 6)) break; }
+          res.push({ k, vDecol: decol ? +decol.v.toFixed(1) : 0, vmax: v.def.vmax, surBarge: !!(atter && atter.surBarge), zAtt: atter ? Math.round(atter.z) : 0, arret: Math.abs(v.v) < 2 && v.z < B.z1 - 2, hp: +(v.hp / v.def.hp).toFixed(2), gain: META.argent - argent, mort: P.hp <= 0 || v.mort });
+          if (P.veh) sortirVehicule(true); }
+        for (const r of res) if (!r.surBarge || r.mort || !(r.vDecol > r.vmax) || !r.arret || r.hp < 0.7) ko.push(r.k + ' : ' + JSON.stringify(r));
+        if (!(res[0].gain >= S.PRIME) || res.slice(1).some((r) => r.gain >= S.PRIME)) ko.push('prime : ' + res.map((r) => r.gain).join(', ') + ' (une fois par vague)');
+        if (!(META.stats.sautVertige > 80)) ko.push('record non gardé (' + META.stats.sautVertige + ')');
+        else info.push(res.map((r) => r.k + ' ' + r.vDecol + ' u/s (max ' + r.vmax + ') → ' + r.zAtt).join(', ') + ' ; record ' + META.stats.sautVertige + ' m');
+        META.stats.sautVertige = Math.max(rec0 || 0, 0); META.argent = prime0; startRun();
+        return { ko, info };
+      });
+      if (sv.ko.length) fail('Saut du Vertige : ' + sv.ko.join(' ; '));
+      else ok('Saut du Vertige : ancien bloc retiré, piste continue depuis le sommet, barge praticable ; tous sur la barge, plus vite que leur vitesse max, prime une fois par vague : ' + sv.info.join(' ; '));
+    }
+
+    // -------------------------------------------------------------------
     // Habillage V2 des salles (18 octobre, demandé : « refais la cohérence, les textures, le réalisme, la
     // qualité de toutes les salles »). Pour CHAQUE salle d'INTDEFS hors SALLES_SANS_HABILLAGE (listes lues dans
     // le jeu) : sol et murs texturés, plus aucune boîte unie (matériau mat() partagé) parmi les meubles visibles,
