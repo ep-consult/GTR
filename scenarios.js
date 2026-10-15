@@ -12566,6 +12566,64 @@ async function main() {
     }
 
     // -------------------------------------------------------------------
+    // Toutes les armes personnalisables (18 octobre, demandé : « il faut que toutes les armes soient personnalisables ;
+    // faire tourner l'arme au doigt pour regarder le style et ce que ça améliore »). Lu dans le jeu (ORDRE_ARMES,
+    // MODS_ARMES) : chaque arme qui a un modèle a au moins trois pièces dont une finition, chaque arme à feu à canon
+    // une optique ; une seule optique et une seule finition ; les pièces changent vraiment les statistiques ;
+    // chaque pièce posée touche l'arme (aucune ne flotte) et une optique donne la ligne de mire ; à l'établi, une arme
+    // qu'on n'a pas encore se regarde et s'essaie (achat proposé, pièces non achetables), l'essai montre sa différence
+    // en vert ; le choc électrique étourdit, la lame enflammée et le napalm font brûler.
+    // -------------------------------------------------------------------
+    console.log('\n--- Toutes les armes personnalisables : pièces, optiques, statistiques, établi, effets ---');
+    {
+      const pa = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
+        const sauve = JSON.stringify(META.modsArmes), sArmes = JSON.stringify(META.armes), arg = META.argent;
+        const armes = ORDRE_ARMES.filter((id) => META.armes[id] && mkArmeModeleDispo(id) && !ARMES[id].cachee && id !== 'poings');
+        let nPieces = 0;
+        for (const id of armes) { const a = ARMES[id], L = Object.keys(MODS_ARMES).filter((k) => MODS_ARMES[k].pour(a, id)); nPieces += L.length;
+          if (L.length < 3 || !L.some((k) => FINITIONS_ARME.includes(k))) ko.push(id + ' : ' + L.length + ' pièce(s)');
+          if (a.type === 'gun' && !a.flamme && !a.desint && !L.some((k) => OPTIQUES_ARME.includes(k)) && id !== 'sniper') ko.push(id + ' : aucune optique'); }
+        info.push(armes.length + ' armes, ' + nPieces + ' pièces en tout');
+        // une seule optique, une seule finition
+        META.armes.fusil.poss = true; META.argent = 1e6; delete META.modsArmes.fusil;
+        acheterMod('fusil', 'pointRouge'); acheterMod('fusil', 'holo'); acheterMod('fusil', 'tigre'); acheterMod('fusil', 'chrome');
+        const mf = modsArme('fusil'); if (mf.includes('pointRouge') || !mf.includes('holo') || mf.includes('tigre') || !mf.includes('chrome')) ko.push('exclusivité : ' + mf.join(','));
+        // les statistiques suivent les pièces
+        const s0 = armeStats('fusil', []), s1 = armeStats('fusil', ['canon', 'poignee', 'holo']);
+        if (!(s1.portee > s0.portee * 1.2 && s1.disp < s0.disp * 0.75 && s1.degats > s0.degats)) ko.push('statistiques : portée ' + s0.portee + '→' + s1.portee + ', dispersion ' + s0.disp + '→' + s1.disp);
+        if (!(armeStats('minigun', ['refroidi']).cad < armeStats('minigun', []).cad && armeStats('roquette', ['fragmentation']).degats > armeStats('roquette', []).degats)) ko.push('refroidi / fragmentation sans effet');
+        // aucune pièce ne flotte : chaque pièce ajoutée touche le corps de l'arme
+        const flottent = [];
+        for (const [id, L] of [['pistolet', ['pointRouge', 'silencieux']], ['fusil', ['holo', 'poignee', 'canon']], ['pm', ['lunette4', 'poignee']], ['pompe', ['pointRouge', 'poignee']], ['sniper', ['canon']], ['flamme', ['napalm']], ['roquette', ['fragmentation']], ['minigun', ['refroidi']]]) {
+          const g0 = mkArmeModele(id); g0.updateMatrixWorld(true); const corps = new THREE.Box3().setFromObject(g0), n0 = g0.children.length;
+          const g = habillerArme(mkArmeModele(id), id, L); g.updateMatrixWorld(true);
+          for (let i = n0; i < g.children.length; i++) { const b = new THREE.Box3().setFromObject(g.children[i]); b.expandByScalar(0.025); if (!b.intersectsBox(corps)) { flottent.push(id + '/' + i); } }
+          if (L.some((k) => OPTIQUES_ARME.includes(k)) && !g.userData.visee) ko.push(id + ' : optique sans ligne de mire'); }
+        if (flottent.length) ko.push('pièces qui flottent : ' + flottent.join(', ')); else info.push('aucune pièce ne flotte, les optiques donnent la ligne de mire');
+        // l'établi : une arme qu'on n'a pas, l'essai et sa différence
+        META.armes.aa12.poss = false; META.armes.pistolet.poss = true; majArmeJoueur('pistolet');
+        entrerInterieur('armurerie', PORTES.find((q) => q.id === 'armurerie')); const s = INT.actif; P.x = s.etabliArmes.x; P.z = s.etabliArmes.z; ouvrirAtelierArme(s);
+        let tours = 0; while (ATELIER.id !== 'aa12' && tours++ < 40) atelierChanger(1);
+        if (ATELIER.id !== 'aa12') ko.push('une arme qu’on n’a pas ne défile pas à l’établi');
+        else { const h = ATELIER.el.innerHTML; if (!h.includes('atAcheterArme') || h.includes('data-k=')) ko.push('arme non possédée : achat absent ou pièces achetables');
+          atelierEssayer('canon'); if (!/#7dff7a/.test(ATELIER.el.querySelector('#atCarac').innerHTML)) ko.push('l’essai ne montre pas ce qu’il améliore');
+          else info.push('établi : une arme non possédée se regarde et s’essaie, l’essai montre son gain en vert'); }
+        fermerAtelierArme(); sortirInterieur();
+        // les effets : choc électrique, lame enflammée, napalm
+        startRun(); for (const e of ennemis) e.mort = true;
+        META.armes.batte.poss = true; META.modsArmes.batte = 'electrique,lameFeu'; majArmeJoueur('batte');
+        const e = creerEnnemi('vip_batte', P.x + Math.sin(P.ang) * 1.5, P.z + Math.cos(P.ang) * 1.5, false); e.hp = 1e5; e.stun = 0; e.feuT = 0; P.cadT = 0; P.frappeT = 0; attaquer();
+        if (!(e.stun >= 1.4) || !(e.feuT >= 2.9)) ko.push('choc électrique / lame enflammée : stun ' + (e.stun || 0).toFixed(2) + ', feu ' + (e.feuT || 0).toFixed(2));
+        META.modsArmes = JSON.parse(sauve); const sa = JSON.parse(sArmes); for (const k in sa) Object.assign(META.armes[k], sa[k]); META.argent = arg; startRun();
+        return { ko, info };
+      });
+      if (pa.ko.length) fail('Armes personnalisables : ' + pa.ko.join(' ; '));
+      else ok('Armes personnalisables : ' + pa.info.join(' ; ') + ' ; une optique et une finition à la fois ; choc électrique et lame enflammée efficaces');
+    }
+
+    // -------------------------------------------------------------------
     // Habillage V2 des salles (18 octobre, demandé : « refais la cohérence, les textures, le réalisme, la
     // qualité de toutes les salles »). Pour CHAQUE salle d'INTDEFS hors SALLES_SANS_HABILLAGE (listes lues dans
     // le jeu) : sol et murs texturés, plus aucune boîte unie (matériau mat() partagé) parmi les meubles visibles,

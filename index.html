@@ -2292,12 +2292,29 @@ const MODS_ARMES={
   explosif:{nom:'Balles explosives',ico:'💥',prix:900,det:'Petite explosion à l’impact : dégâts autour de la cible',pour:(a)=>a.type==='gun'&&!a.roquette&&!a.flamme&&a.ico!=='☢️'},
   incendiaire:{nom:'Balles incendiaires',ico:'🔥',prix:700,det:'La cible prend feu (dégâts sur 3 s, elle panique)',pour:(a)=>a.type==='gun'&&!a.roquette&&!a.flamme&&a.ico!=='☢️'},
   chargeur:{nom:'Chargeur grande capacité',ico:'🔋',prix:400,det:'+50 % de munitions par chargeur',pour:(a)=>a.type==='gun'&&(a.mag||0)>1&&!a.flamme},
-  silencieux:{nom:'Silencieux',ico:'🔇',prix:500,det:'Les tirs n’alertent presque plus la police',pour:(a,id)=>['pistolet','revolver','uzi','pm','fusil','sniper','aa12'].includes(id)},
+  silencieux:{nom:'Silencieux',ico:'🔇',prix:500,det:'Les tirs n’alertent presque plus la police',pour:(a,id)=>a.type==='gun'&&!a.flamme&&!a.roquette&&!a.discret&&!a.desint&&!['minigun','silence'].includes(id)}, // 18 octobre : toutes les armes à canon (avant : 7)
   laser:{nom:'Visée laser',ico:'🔴',prix:350,det:'Dispersion réduite de 60 %',pour:(a)=>a.type==='gun'&&!a.roquette&&!a.flamme},
-  double:{nom:'Akimbo (une 2e arme)',ico:'✌️',prix:4500,det:'Une arme dans chaque main : cadence ×1,8',pour:(a,id)=>['pistolet','silence','revolver','uzi'].includes(id)},
+  double:{nom:'Akimbo (une 2e arme)',ico:'✌️',prix:4500,det:'Une arme dans chaque main : cadence ×1,8',pour:(a,id)=>['pistolet','silence','revolver','uzi','pm'].includes(id)},
   electrique:{nom:'Choc électrique',ico:'⚡',prix:600,det:'Étourdit la cible 1,5 s',pour:(a,id)=>['batte','batte2','couteau','sabre'].includes(id)},
+  // 18 octobre (demandé : « toutes les armes doivent être personnalisables ») : optiques (une seule à la fois), poignée,
+  // canon long ; pour les armes lourdes et les armes blanches, leurs propres pièces ; et cinq finitions de plus
+  pointRouge:{nom:'Viseur point rouge',ico:'🎯',prix:450,det:'Dispersion −15 % ; un point rouge pour viser',optique:true,pour:(a,id)=>a.type==='gun'&&!a.flamme&&!a.desint&&id!=='sniper'},
+  holo:{nom:'Viseur holographique',ico:'⭕',prix:650,det:'Dispersion −20 % ; un réticule net, cadre large',optique:true,pour:(a,id)=>a.type==='gun'&&!a.flamme&&!a.desint&&id!=='sniper'&&!['pistolet','silence','revolver'].includes(id)},
+  lunette4:{nom:'Lunette ×4',ico:'🔭',prix:900,det:'Portée +20 %, dispersion −30 % ; zoom en visée',optique:true,pour:(a,id)=>a.type==='gun'&&!a.flamme&&!a.roquette&&!a.desint&&id!=='sniper'&&(a.pellets||1)===1&&a.portee>=20},
+  poignee:{nom:'Poignée avant',ico:'🤜',prix:350,det:'Recul et dispersion −15 %',pour:(a,id)=>a.type==='gun'&&!a.flamme&&!a.desint&&!['pistolet','silence','revolver','uzi'].includes(id)},
+  canon:{nom:'Canon long',ico:'📏',prix:550,det:'Portée +25 %, dégâts +10 %',pour:(a,id)=>a.type==='gun'&&!a.flamme&&!a.roquette&&!a.desint&&id!=='minigun'},
+  napalm:{nom:'Napalm',ico:'🔥',prix:800,det:'Jet 30 % plus long, la cible brûle 5 s',pour:(a)=>!!a.flamme},
+  fragmentation:{nom:'Ogive à fragmentation',ico:'💣',prix:900,det:'Dégâts de l’explosion +30 %',pour:(a)=>!!a.roquette},
+  refroidi:{nom:'Canons refroidis',ico:'❄️',prix:900,det:'Cadence +25 %',pour:(a,id)=>id==='minigun'},
+  lameFeu:{nom:'Lame enflammée',ico:'🔥',prix:700,det:'La cible prend feu (3 s)',pour:(a,id)=>['batte','batte2','couteau','sabre'].includes(id)},
+  poigneeCuir:{nom:'Poignée gainée',ico:'🧤',prix:250,det:'Coups 15 % plus rapides',pour:(a,id)=>a.type==='melee'&&!!mkArmeModeleDispo(id)},
+  chrome:{nom:'Finition chrome',ico:'🪞',prix:800,det:'Purement esthétique',pour:(a,id)=>!!mkArmeModeleDispo(id),deco:true},
+  carbone:{nom:'Fibre de carbone',ico:'⬛',prix:600,det:'Purement esthétique',pour:(a,id)=>!!mkArmeModeleDispo(id),deco:true},
+  neon:{nom:'Finition néon',ico:'💡',prix:900,det:'Purement esthétique — elle brille la nuit',pour:(a,id)=>!!mkArmeModeleDispo(id),deco:true},
+  damas:{nom:'Acier damassé',ico:'🌊',prix:1000,det:'Purement esthétique',pour:(a,id)=>!!mkArmeModeleDispo(id),deco:true},
+  tigre:{nom:'Rayures de tigre',ico:'🐯',prix:500,det:'Purement esthétique',pour:(a,id)=>!!mkArmeModeleDispo(id),deco:true},
   or:{nom:'Finition or',ico:'✨',prix:1200,det:'Purement esthétique',pour:(a,id)=>!!mkArmeModeleDispo(id),deco:true},
-  camo:{nom:'Camouflage',ico:'🌿',prix:300,det:'Purement esthétique',pour:(a)=>a.type==='gun',deco:true},
+  camo:{nom:'Camouflage',ico:'🌿',prix:300,det:'Purement esthétique',pour:(a,id)=>!!mkArmeModeleDispo(id),deco:true},
 };
 function mkArmeModeleDispo(id){ return !['poings','gadget','bouleC'].includes(id); }
 function modsArme(id){ const s=(META.modsArmes&&META.modsArmes[id])||''; return s?s.split(','):[]; }
@@ -2307,23 +2324,59 @@ function acheterMod(id,k){
   if(aMod(id,k)){ SFX.refus(); return false; }
   if(META.argent<M.prix){ SFX.refus(); toast('Il te faut '+M.prix+' $','warn'); return false; }
   META.argent-=M.prix; const L=modsArme(id);
-  if(k==='or'||k==='camo'){ const i=L.indexOf(k==='or'?'camo':'or'); if(i>=0) L.splice(i,1); } // une seule finition
+  for(const groupe of [FINITIONS_ARME,OPTIQUES_ARME]) if(groupe.includes(k)) for(const f of groupe){ const i=L.indexOf(f); if(i>=0) L.splice(i,1); } // une seule finition, une seule optique
   L.push(k); META.modsArmes[id]=L.join(','); sauveMeta(); SFX.achat(); vibre(40);
   if(k==='chargeur'&&P.mags[id]!==undefined) P.mags[id]=armeStats(id).mag;
   rebatirArmeJoueur(id); toast(M.ico+' '+M.nom+' — '+a.nom,'or'); return true;
 }
 // habillage d'un modèle d'arme selon ses modifications (canon le long de -y, dessus vers +z)
 let _MAT_OR=null, _texCamo=null; // créés à la première utilisation : rien de Three.js au chargement (tirages de la ville)
+const _MATS_FINITION={}; // finitions des armes, créées à la première utilisation (rien de Three.js au chargement)
+// les sommets d'une arme dans le repère de son groupe (canon le long de −y, dessus +z) ; une tranche : haut, bas, côtés, milieu
+const _mPr=new THREE.Matrix4(), _mPrI=new THREE.Matrix4(), _vPr=new THREE.Vector3();
+function profilArme(g){ const pts=[]; g.updateMatrixWorld(true); _mPrI.copy(g.matrixWorld).invert();
+  g.traverse((o)=>{ if(!o.isMesh||!o.geometry||!o.geometry.attributes.position||(o.material&&o.material.isMeshBasicMaterial)) return; _mPr.multiplyMatrices(_mPrI,o.matrixWorld); const a=o.geometry.attributes.position;
+    for(let i=0;i<a.count;i++){ _vPr.fromBufferAttribute(a,i).applyMatrix4(_mPr); pts.push(_vPr.x,_vPr.y,_vPr.z); } });
+  return pts; }
+function tranchArme(pts,y,w){ let zTop=-1e9,zBot=1e9,xMin=1e9,xMax=-1e9,n=0;
+  for(let i=0;i<pts.length;i+=3){ if(Math.abs(pts[i+1]-y)>w) continue; n++; const x=pts[i], z=pts[i+2]; if(z>zTop) zTop=z; if(z<zBot) zBot=z; if(x<xMin) xMin=x; if(x>xMax) xMax=x; }
+  return n?{zTop,zBot,xMin,xMax,xMil:(xMin+xMax)/2}:null; }
+function matFinition(k){ if(_MATS_FINITION[k]) return _MATS_FINITION[k]; let m=null;
+  const tex=(f)=>cTex(128,f,2,2);
+  if(k==='or'){ if(!_MAT_OR) _MAT_OR=new THREE.MeshPhongMaterial({color:0xe8b830,shininess:90,specular:0xfff2c0}); m=_MAT_OR; }
+  else if(k==='camo'){ if(!_texCamo) _texCamo=cTex(64,(c,s)=>{ c.fillStyle='#4a5232'; c.fillRect(0,0,s,s); for(let i=0;i<14;i++){ c.fillStyle=['#2e3420','#6a6a3a','#3a2f24'][i%3]; c.beginPath(); c.ellipse(Math.random()*s,Math.random()*s,6+Math.random()*10,4+Math.random()*8,Math.random()*3,0,6.3); c.fill(); } }); m=new THREE.MeshLambertMaterial({map:_texCamo}); }
+  else if(k==='chrome') m=new THREE.MeshPhongMaterial({color:0xd8dde4,shininess:140,specular:0xffffff});
+  else if(k==='carbone') m=new THREE.MeshPhongMaterial({map:tex((c,s)=>{ c.fillStyle='#16181c'; c.fillRect(0,0,s,s); for(let i=0;i<s;i+=8) for(let j=0;j<s;j+=8){ c.fillStyle=((i+j)/8)%2?'#2a2e36':'#0e1014'; c.fillRect(i,j,8,4); c.fillRect(i+4,j+4,4,4); } }),shininess:70,specular:0x606a78});
+  else if(k==='neon'){ const t=tex((c,s)=>{ c.fillStyle='#120a1e'; c.fillRect(0,0,s,s); c.strokeStyle='#ff3bd4'; c.lineWidth=3; for(let i=-s;i<s*2;i+=22){ c.beginPath(); c.moveTo(i,0); c.lineTo(i+s*0.6,s); c.stroke(); } c.strokeStyle='#35e0ff'; c.lineWidth=2; for(let i=-s;i<s*2;i+=22){ c.beginPath(); c.moveTo(i+11,0); c.lineTo(i+11+s*0.6,s); c.stroke(); } });
+    m=new THREE.MeshLambertMaterial({map:t,emissive:0xffffff,emissiveMap:t,emissiveIntensity:0.55}); }
+  else if(k==='damas') m=new THREE.MeshPhongMaterial({map:tex((c,s)=>{ c.fillStyle='#8a9098'; c.fillRect(0,0,s,s); for(let i=0;i<26;i++){ c.strokeStyle=i%2?'rgba(40,44,52,0.55)':'rgba(220,226,234,0.45)'; c.lineWidth=2; c.beginPath(); for(let x=0;x<=s;x+=4){ const y=i*5+Math.sin(x*0.09+i)*6+Math.sin(x*0.031)*9; x?c.lineTo(x,y):c.moveTo(x,y); } c.stroke(); } }),shininess:100,specular:0xe0e6ee});
+  else if(k==='tigre') m=new THREE.MeshLambertMaterial({map:tex((c,s)=>{ c.fillStyle='#e8851c'; c.fillRect(0,0,s,s); c.fillStyle='#14100c'; for(let i=0;i<9;i++){ const x=i*s/9+Math.random()*6; c.beginPath(); c.moveTo(x,0); c.quadraticCurveTo(x+18,s*0.5,x-4,s); c.lineTo(x+5,s); c.quadraticCurveTo(x+24,s*0.5,x+7,0); c.fill(); } })});
+  return (_MATS_FINITION[k]=m); }
 function habillerArme(g,id,Lforce){
   if(!g) return g; const L=Lforce||modsArme(id); if(!L.length) return g; // Lforce : l'aperçu de l'établi (pièces essayées)
-  g.updateMatrixWorld(true); let yMin=0; g.traverse((o)=>{ if(o.isMesh){ o.geometry.computeBoundingBox(); const bb=o.geometry.boundingBox; yMin=Math.min(yMin,o.position.y+bb.min.y); } });
-  if(L.includes('or')||L.includes('camo')){
-    if(L.includes('camo')&&!_texCamo) _texCamo=cTex(64,(c,s)=>{ c.fillStyle='#4a5232'; c.fillRect(0,0,s,s); for(let i=0;i<14;i++){ c.fillStyle=['#2e3420','#6a6a3a','#3a2f24'][i%3]; c.beginPath(); c.ellipse(Math.random()*s,Math.random()*s,6+Math.random()*10,4+Math.random()*8,Math.random()*3,0,6.3); c.fill(); } });
-    if(L.includes('or')&&!_MAT_OR) _MAT_OR=new THREE.MeshPhongMaterial({color:0xe8b830,shininess:90,specular:0xfff2c0});
-    const m=L.includes('or')?_MAT_OR:new THREE.MeshLambertMaterial({map:_texCamo});
-    g.traverse((o)=>{ if(o.isMesh&&!(o.material&&o.material.isMeshBasicMaterial)) o.material=m; });
-  }
-  if(L.includes('silencieux')){ const s=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.05,0.3,10),mat(0x1c1e22)); s.position.set(0,yMin-0.13,0.09); g.add(s); }
+  g.updateMatrixWorld(true); let yMin=0, zMax=0.12, zMin=0; g.traverse((o)=>{ if(o.isMesh){ o.geometry.computeBoundingBox(); const bb=o.geometry.boundingBox; yMin=Math.min(yMin,o.position.y+bb.min.y); zMax=Math.max(zMax,o.position.z+bb.max.z); zMin=Math.min(zMin,o.position.z+bb.min.z); } });
+  const fin=L.find((k)=>FINITIONS_ARME.includes(k)); if(fin){ const m=matFinition(fin); g.traverse((o)=>{ if(o.isMesh&&!(o.material&&o.material.isMeshBasicMaterial)) o.material=m; }); }
+  const melee=ARMES[id]&&ARMES[id].type==='melee', pose=(o,x,y,z)=>{ o.position.set(x,y,z); g.add(o); return o; };
+  // la forme réelle de l'arme, tranche par tranche le long du canon (−y) : les pièces se posent SUR elle (avant : au plus haut / au
+  // plus bas de toute l'arme, elles flottaient au-dessus de la carcasse ou sous le garde-main)
+  const prof=profilArme(g), tr=(y,w)=>tranchArme(prof,y,w||0.05);
+  const yO=yMin*0.3, tO=tr(yO,0.07), zO=(tO?tO.zTop:zMax)+0.035;
+  if(L.includes('pointRouge')){ pose(mkBoxG(0.05,0.08,0.06,0x15171c,0,0,0),0,yO,zO); const l=new THREE.Mesh(new THREE.CircleGeometry(0.018,10),new THREE.MeshBasicMaterial({color:0xff2030})); l.rotation.x=Math.PI/2; pose(l,0,yO+0.041,zO+0.01); g.userData.visee={y:yO,z:zO+0.01,type:'point'}; }
+  if(L.includes('holo')){ pose(mkBoxG(0.08,0.12,0.03,0x15171c,0,0,0),0,yO,zO-0.012); for(const sx of [-1,1]) pose(mkBoxG(0.012,0.012,0.07,0x15171c,0,0,0),sx*0.034,yO-0.05,zO+0.03); pose(mkBoxG(0.08,0.012,0.012,0x15171c,0,0,0),0,yO-0.05,zO+0.065);
+    const w=new THREE.Mesh(new THREE.PlaneGeometry(0.06,0.05),new THREE.MeshBasicMaterial({color:0x7adfff,transparent:true,opacity:0.25,side:THREE.DoubleSide})); w.rotation.x=Math.PI/2; pose(w,0,yO-0.05,zO+0.03); g.userData.visee={y:yO-0.05,z:zO+0.03,type:'holo'}; }
+  if(L.includes('lunette4')){ const t=new THREE.Mesh(new THREE.CylinderGeometry(0.032,0.032,0.26,12),mat(0x15171c)); pose(t,0,yO,zO+0.02);
+    for(const dy of [-0.13,0.13]){ const r=new THREE.Mesh(new THREE.CylinderGeometry(0.042,0.042,0.05,12),mat(0x23262e)); pose(r,0,yO+dy,zO+0.02); }
+    const lens=new THREE.Mesh(new THREE.CircleGeometry(0.036,12),new THREE.MeshBasicMaterial({color:0x5ab8ff})); lens.rotation.x=Math.PI/2; pose(lens,0,yO-0.156,zO+0.02); g.userData.visee={y:yO,z:zO+0.02,type:'lunette'}; }
+  if(L.includes('poignee')){ const yP=yMin*0.6, tP=tr(yP,0.05); pose(mkBoxG(0.045,0.05,0.13,0x1c1e22,0,0,0),tP?tP.xMil:0,yP,(tP?tP.zBot:zMin)-0.06); }
+  const yBout=yMin-(L.includes('canon')?0.14:0);
+  if(L.includes('canon')){ const c=new THREE.Mesh(new THREE.CylinderGeometry(0.022,0.026,0.16,10),mat(0x23262e)); pose(c,0,yMin-0.07,0.09); }
+  if(L.includes('silencieux')){ const s=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.05,0.3,10),mat(0x1c1e22)); s.position.set(0,yBout-0.13,0.09); g.add(s); }
+  if(L.includes('napalm')){ const yN=yMin*0.35, tN=tr(yN,0.08), t=new THREE.Mesh(new THREE.CylinderGeometry(0.045,0.045,0.24,12),mat(0xff7a1a)); pose(t,tN?tN.xMil:0,yN,(tN?tN.zBot:zMin)-0.04); }
+  if(L.includes('fragmentation')) for(const dy of [0,0.05]){ const r=new THREE.Mesh(new THREE.TorusGeometry(0.075,0.012,6,14),mat(0xd8261c)); r.rotation.x=Math.PI/2; pose(r,0,yMin+0.1+dy,0.09); }
+  if(L.includes('refroidi')) for(let k=0;k<4;k++){ const r=new THREE.Mesh(new THREE.TorusGeometry(0.09,0.012,6,14),new THREE.MeshBasicMaterial({color:0x7adfff})); r.rotation.x=Math.PI/2; pose(r,0,yMin*0.25-k*0.1+yMin*0.3,0.09); }
+  if(L.includes('lameFeu')&&melee){ if(!_MATS_FINITION._braise) _MATS_FINITION._braise=new THREE.MeshLambertMaterial({color:0xff8a2a,emissive:0xff4a00,emissiveIntensity:0.85}); // la lame (ou la tête de batte) devient braise
+    const yB=yMin*0.3; g.traverse((o)=>{ if(!o.isMesh||!o.geometry) return; if(!o.geometry.boundingBox) o.geometry.computeBoundingBox(); const c=o.geometry.boundingBox.getCenter(_vPr); o.localToWorld(c); g.worldToLocal(c); if(c.y<yB) o.material=_MATS_FINITION._braise; }); }
+  if(L.includes('poigneeCuir')&&melee){ const p2=new THREE.Mesh(new THREE.CylinderGeometry(0.045,0.045,0.16,10),mat(0x5a3a22)); pose(p2,0,-0.02,0); }
   if(L.includes('laser')){ g.add(mkBoxG(0.05,0.12,0.05,0x2a2e36,0,yMin*0.55,-0.03)); const l=new THREE.Mesh(new THREE.SphereGeometry(0.025,6,4),new THREE.MeshBasicMaterial({color:0xff2030})); l.position.set(0,yMin*0.55-0.07,-0.03); g.add(l); }
   if(L.includes('chargeur')) g.add(mkBoxG(0.07,0.12,0.34,0x2a2e36,0,-0.12,-0.2));
   if(L.includes('explosif')||L.includes('incendiaire')){ const c=new THREE.Mesh(new THREE.TorusGeometry(0.06,0.015,6,10),new THREE.MeshBasicMaterial({color:L.includes('explosif')?0xffb23a:0xff4b2e})); c.rotation.x=Math.PI/2; c.position.set(0,yMin*0.85,0.09); g.add(c); }
@@ -2333,10 +2386,10 @@ function habillerArme(g,id,Lforce){
 // reconstruit l'arme en main (et sa jumelle main gauche en akimbo) après un achat
 // ---------- l'établi de l'armurerie : l'arme tourne en grand sur l'établi, un panneau propose ses modifications ----------
 const ATELIER={ouvert:false,salle:null,id:null,modele:null,el:null,apercu:[],ang:0,tilt:0,drag:null,pauseT:0};
-const FINITIONS_ARME=['or','camo'];
+const FINITIONS_ARME=['or','camo','chrome','carbone','neon','damas','tigre'], OPTIQUES_ARME=['pointRouge','holo','lunette4'];
 // les modifications montrées : celles posées + celles à l'essai (une seule finition à la fois)
 function atelierMods(){ const pos=modsArme(ATELIER.id), ap=ATELIER.apercu; let L=pos.concat(ap.filter((k)=>pos.indexOf(k)<0));
-  if(ap.some((k)=>FINITIONS_ARME.includes(k))) L=L.filter((k)=>!FINITIONS_ARME.includes(k)||ap.includes(k)); return L; }
+  for(const groupe of [FINITIONS_ARME,OPTIQUES_ARME]) if(ap.some((k)=>groupe.includes(k))) L=L.filter((k)=>!groupe.includes(k)||ap.includes(k)); return L; }
 function armeMurProche(s){ let best=null, bd=0.81; for(const sl of s.murArmes){ const d=dist2(P.x,P.z,sl.x,sl.z); if(d<bd){ bd=d; best=sl; } } return best; }
 function ouvrirAtelierArme(s){
   ATELIER.ouvert=true; ATELIER.salle=s; ATELIER.id=P.armeCur; ATELIER.apercu=[]; ATELIER.ang=0; ATELIER.tilt=0; ATELIER.pauseT=0;
@@ -2350,8 +2403,19 @@ function ouvrirAtelierArme(s){
   ATELIER.el.style.display='flex'; atelierModele(); renderAtelier(); SFX.ui();
 }
 function fermerAtelierArme(){ ATELIER.ouvert=false; ATELIER.apercu=[]; ATELIER.drag=null; /* ce qu'on essaie sans l'acheter n'est jamais gardé */ if(ATELIER.el) ATELIER.el.style.display='none'; if(ATELIER.modele&&ATELIER.modele.parent) ATELIER.modele.parent.remove(ATELIER.modele); ATELIER.modele=null; }
-function atelierArmesDispo(){ return ORDRE_ARMES.filter((id)=>META.armes[id].poss&&mkArmeModeleDispo(id)); }
-function atelierChanger(sens){ const L=atelierArmesDispo(); if(!L.length) return; const i=L.indexOf(ATELIER.id); ATELIER.id=L[(i+sens+L.length)%L.length]; ATELIER.apercu=[]; majArmeJoueur(ATELIER.id); atelierModele(); renderAtelier(); SFX.ui(); }
+// 18 octobre (demandé : « faire tourner l'arme avec le doigt pour regarder le style et ce que ça améliore ») : TOUTES les armes
+// défilent à l'établi (celles qu'on n'a pas encore : on les regarde, on essaie leurs pièces, on peut les acheter là)
+function atelierArmesDispo(){ return ORDRE_ARMES.filter((id)=>META.armes[id]&&mkArmeModeleDispo(id)&&!ARMES[id].cachee&&id!=='poings'); }
+function atelierChanger(sens){ const L=atelierArmesDispo(); if(!L.length) return; const i=L.indexOf(ATELIER.id); ATELIER.id=L[(i+sens+L.length)%L.length]; ATELIER.apercu=[]; if(META.armes[ATELIER.id].poss) majArmeJoueur(ATELIER.id); atelierModele(); renderAtelier(); SFX.ui(); }
+// ce qu'on compare : dégâts (par tir), cadence, précision, portée, chargeur, discrétion — les pièces posées, puis avec l'essai
+function atelierCarac(id,L){ const a=ARMES[id], st=armeStats(id,L), melee=a.type==='melee';
+  return [['Dégâts',st.degats*(st.pellets||1),160],['Cadence',1/Math.max(0.03,st.cad),14],['Précision',melee?1:1/(1+(st.disp||0)*0.12),1],['Portée',st.portee,90],['Chargeur',melee?0:st.mag,120],['Discrétion',melee||a.discret||L.includes('silencieux')?1:0.25,1]]; }
+function htmlCarac(id){ const A=atelierCarac(id,modsArme(id)), B=atelierCarac(id,atelierMods()); let h='';
+  for(let i=0;i<A.length;i++){ const [nom,va,mx]=A[i], vb=B[i][1], pa=clamp(va/mx,0,1)*100, pb=clamp(vb/mx,0,1)*100, d=pb-pa;
+    h+='<div style="display:flex;align-items:center;gap:6px;margin:2px 0"><span style="width:74px;font:700 11px Arial;color:#9fb0c4">'+nom+'</span><div style="flex:1;height:7px;background:#232833;border-radius:4px;position:relative;overflow:hidden">'+
+      '<div style="position:absolute;left:0;top:0;bottom:0;width:'+Math.min(pa,pb)+'%;background:#c8d0dc"></div>'+(Math.abs(d)>0.5?'<div style="position:absolute;top:0;bottom:0;left:'+Math.min(pa,pb)+'%;width:'+Math.abs(d)+'%;background:'+(d>0?'#7dff7a':'#ff5a5a')+'"></div>':'')+'</div>'+
+      '<span style="width:44px;text-align:right;font:700 11px Arial;color:'+(d>0.5?'#7dff7a':(d<-0.5?'#ff5a5a':'#e8ecf2'))+'">'+(nom==='Précision'||nom==='Discrétion'?Math.round(pb)+'%':(vb>=10?Math.round(vb):vb.toFixed(1)))+'</span></div>'; }
+  return h; }
 function atelierModele(){
   const s=ATELIER.salle; if(ATELIER.modele&&ATELIER.modele.parent) ATELIER.modele.parent.remove(ATELIER.modele);
   const L=atelierMods(), m=habillerArme(mkArmeModele(ATELIER.id),ATELIER.id,L); if(!m){ ATELIER.modele=null; return; } m.visible=true;
@@ -2360,21 +2424,24 @@ function atelierModele(){
   pv.position.set(s.etabliArmes.px,1.75,s.etabliArmes.pz); scene.add(pv); ATELIER.modele=pv;
 }
 function renderAtelier(){
-  const id=ATELIER.id, a=ARMES[id]; if(!a) return;
-  ATELIER.el.querySelector('#atNom').textContent=a.ico+' '+a.nom; ATELIER.el.querySelector('#atArgent').textContent=fmt$(META.argent);
-  let h=''; let n=0;
+  const id=ATELIER.id, a=ARMES[id]; if(!a) return; const poss=!!META.armes[id].poss;
+  ATELIER.el.querySelector('#atNom').textContent=a.ico+' '+a.nom; ATELIER.el.querySelector('#atArgent').textContent=fmt$(META.argent)+' · ☝ glisse sur l’arme pour la tourner';
+  let h='<div id="atCarac" style="margin:4px 2px 8px">'+htmlCarac(id)+'</div>'; let n=0;
+  if(!poss) h+='<div class="ligneItem"><div class="ico">🔒</div><div class="inf"><div class="nom">Pas encore à toi</div><div class="det">Essaie ses pièces et regarde ce qu’elles changent ; achète-la pour les poser'+(META.niveau<a.niv?' (niveau '+a.niv+')':'')+'</div></div><button class="pill buy" id="atAcheterArme">'+prixShop(a.prix)+' $</button></div>';
   for(const k in MODS_ARMES){ const M=MODS_ARMES[k]; if(!M.pour(a,id)) continue; n++; const pos=aMod(id,k);
     const essai=ATELIER.apercu.includes(k);
     h+='<div class="ligneItem"><div class="ico">'+M.ico+'</div><div class="inf"><div class="nom">'+M.nom+(essai?' <span style="color:#35e0ff">(essai)</span>':'')+'</div><div class="det">'+M.det+'</div></div>'+
-      (pos?'<button class="pill equip">POSÉ</button>':'<button class="pill" data-essai="'+k+'">'+(essai?'✓ ESSAI':'ESSAYER')+'</button> <button class="pill buy" data-k="'+k+'">'+M.prix+' $</button>')+'</div>'; }
-  if(!n) h='<div class="det" style="text-align:center;margin-top:20px">Rien à modifier sur cette arme.</div>';
+      (pos?'<button class="pill equip">POSÉ</button>':'<button class="pill" data-essai="'+k+'">'+(essai?'✓ ESSAI':'ESSAYER')+'</button>'+(poss?' <button class="pill buy" data-k="'+k+'">'+M.prix+' $</button>':''))+'</div>'; }
+  if(!n) h+='<div class="det" style="text-align:center;margin-top:20px">Rien à modifier sur cette arme.</div>';
   const L=ATELIER.el.querySelector('#atListe'); L.innerHTML=h;
   L.querySelectorAll('.pill[data-k]').forEach((b)=>b.addEventListener('pointerdown',(e)=>{ e.preventDefault(); if(acheterMod(id,b.dataset.k)){ ATELIER.apercu=ATELIER.apercu.filter((q)=>q!==b.dataset.k); atelierModele(); } renderAtelier(); }));
   L.querySelectorAll('.pill[data-essai]').forEach((b)=>b.addEventListener('pointerdown',(e)=>{ e.preventDefault(); atelierEssayer(b.dataset.essai); }));
+  const ba=L.querySelector('#atAcheterArme'); if(ba) ba.addEventListener('pointerdown',(e)=>{ e.preventDefault(); if(META.niveau<a.niv){ SFX.refus(); toast('Niveau '+a.niv+' requis','warn'); return; }
+    actionShop('buyW',id); if(META.armes[id].poss){ majArmeJoueur(id); atelierModele(); } renderAtelier(); });
 }
 // essayer une pièce : elle apparaît sur l'arme, rien n'est payé (une seule finition à la fois)
 function atelierEssayer(k){ if(!ATELIER.ouvert||aMod(ATELIER.id,k)) return; const A=ATELIER.apercu, i=A.indexOf(k);
-  if(i>=0) A.splice(i,1); else { if(FINITIONS_ARME.includes(k)) for(const f of FINITIONS_ARME){ const j=A.indexOf(f); if(j>=0) A.splice(j,1); } A.push(k); }
+  if(i>=0) A.splice(i,1); else { for(const groupe of [FINITIONS_ARME,OPTIQUES_ARME]) if(groupe.includes(k)) for(const f of groupe){ const j=A.indexOf(f); if(j>=0) A.splice(j,1); } A.push(k); }
   atelierModele(); renderAtelier(); SFX.ui(); }
 function majAtelierArme(dt){
   if(STAND.ouvert&&(FPS.actif||(STAND.salle?INT.actif!==STAND.salle:!!INT.actif)||!STAND.opts||dist2(P.x,P.z,STAND.opts.zone.x,STAND.opts.zone.z)>16)) fermerStandTir(); // le choix d'arme (stand de tir, ball-trap) se ferme si l'on s'éloigne
@@ -2391,14 +2458,16 @@ function rebatirArmeJoueur(id){
   if(aMod(id,'double')){ const m2=habillerArme(mkArmeModele(id),id); if(m2){ P.armeMeshesG[id]=m2; P.h.brasG.add(m2); } }
   majArmeJoueur();
 }
-function armeStats(id){
-  const a=ARMES[id], lv=META.armes[id].lv, mo=(typeof modsArme==='function')?modsArme(id):[];
+function armeStats(id,Lforce){
+  const a=ARMES[id], lv=META.armes[id].lv, mo=Lforce||((typeof modsArme==='function')?modsArme(id):[]);
   const mag=a.mag?Math.round(a.mag*(1+0.15*lv)*(mo.includes('chargeur')?1.5:1)):0;
   return {
-    degats:a.degats*(1+0.15*lv),
+    degats:a.degats*(1+0.15*lv)*(mo.includes('canon')?1.1:1)*(mo.includes('fragmentation')?1.3:1),
     mag:mag*(mo.includes('double')?2:1),
     rech:a.rech?a.rech*(1-0.08*lv)*(1-0.09*META.upg.recharge):0,
-    cad:a.cad*(P.buffs.cadence>0?0.75:1)/(mo.includes('double')?1.8:1), portee:a.portee, disp:(a.disp||0)*(mo.includes('laser')?0.4:1)*(a.pellets>1?tenueK('cowboy',0.8):1), pellets:a.pellets||1, knock:a.knock||3
+    cad:a.cad*(P.buffs.cadence>0?0.75:1)/(mo.includes('double')?1.8:1)/(mo.includes('refroidi')?1.25:1)/(mo.includes('poigneeCuir')?1.15:1),
+    portee:a.portee*(mo.includes('canon')?1.25:1)*(mo.includes('lunette4')?1.2:1)*(mo.includes('napalm')?1.3:1),
+    disp:(a.disp||0)*(mo.includes('laser')?0.4:1)*(a.pellets>1?tenueK('cowboy',0.8):1)*(mo.includes('poignee')?0.85:1)*(mo.includes('pointRouge')?0.85:1)*(mo.includes('holo')?0.8:1)*(mo.includes('lunette4')?0.7:1), pellets:a.pellets||1, knock:a.knock||3
   };
 }
 
@@ -16659,8 +16728,11 @@ function attaquer(){
       if(Math.abs(angDiff(P.ang,aC))>1.1&&d>1.2) return;
       cb(); touche=true;
     };
+    const moM=modsArme(P.armeCur);
     for(const e of ennemis){ if(e.mort||e.heli) continue;
-      cible(0,e.x,e.z,()=>{toucherEnnemi(e,dmg,true,knock);});
+      cible(0,e.x,e.z,()=>{toucherEnnemi(e,dmg,true,knock);
+        if(moM.includes('electrique')&&!e.mort){ e.stun=Math.max(e.stun||0,1.5); burst(e.x,1.4+(e.hSol||0),e.z,8,0x6ad8ff,5,3); } // le choc électrique étourdit (il n'avait jusqu'ici qu'un habillage)
+        if(moM.includes('lameFeu')&&!e.mort) e.feuT=Math.max(e.feuT||0,3); });
     }
     for(const p of pietons){ if(p.etat==='mort') continue;
       cible(0,p.x,p.z,()=>{tuerPieton(p,true,knock);});
@@ -16694,12 +16766,12 @@ function attaquer(){
   }
   if((P.ivresse||0)>IVRESSE.ivre) ang+=rand(-1,1)*0.16*Math.min(1,(P.ivresse-IVRESSE.ivre)/40); // ivre : tir imprécis
   const dmg=st.degats*(P.buffs.dmg>0?1.35:1);
-  const vitB=a.roquette?34:(a.flamme?26:72);
+  const vitB=a.roquette?34:(a.flamme?26*(modsArme(P.armeCur).includes('napalm')?1.3:1):72); // napalm : le jet porte plus loin
   const typ=a.roquette?'roquette':(a.flamme?'flamme':null);
   // Jetpack : en vol, précision réduite (CLAUDE.md) — voler n'est pas un
   // stand de tir stable.
   const dispVol=P.jetpackVol?st.disp*2.4+6:st.disp;
-  const mo=modsArme(P.armeCur); TIR_MOD=a.flamme?'feu':(mo.includes('explosif')?'explosif':(mo.includes('incendiaire')?'feu':null));
+  const mo=modsArme(P.armeCur); TIR_MOD=a.flamme?(mo.includes('napalm')?'napalm':'feu'):(mo.includes('explosif')?'explosif':(mo.includes('incendiaire')?'feu':null));
   const main=mo.includes('double')&&(P.akimboG=!P.akimboG)?-1:1; // akimbo : une main puis l'autre
   const ox=Math.cos(ang)*0.35*main*(mo.includes('double')?1:0), oz=-Math.sin(ang)*0.35*main*(mo.includes('double')?1:0);
   for(let i=0;i<st.pellets;i++)
@@ -20778,7 +20850,7 @@ function impactSpecial(b,e){
   if(!b.mod) return;
   if(b.mod==='explosif'){ burst(b.x,b.y,b.z,8,0xffb23a,7,6); spawnP(b.x,b.y,b.z,0,0,0,0.12,1.4,0xffe9a0,0,6); bruit(0.08,0.25,500);
     for(const o of ennemis){ if(o===e||o.mort||o.heli||o.captureOvni) continue; if(dist2(o.x,o.z,b.x,b.z)<6.25) toucherEnnemi(o,b.dmg*0.4,true,4,'joueur',b.x,b.z); } }
-  else if(b.mod==='feu'&&e&&!e.mort){ e.feuT=Math.max(e.feuT||0,3); }
+  else if((b.mod==='feu'||b.mod==='napalm')&&e&&!e.mort){ e.feuT=Math.max(e.feuT||0,b.mod==='napalm'?5:3); }
 }
 function collisionBalle(b){
   if(b.fac==='joueur'&&(toucherFigurant(b)||toucherCibleBase(b)||toucherCiel(b))) return true; // figurants de décor et des salles (16 octobre)
