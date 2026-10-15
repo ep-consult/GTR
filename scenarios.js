@@ -7702,7 +7702,7 @@ async function main() {
         startRun(); ETAT.timeScale = 1; P.hp = P.hpMax = 1e6;
         const enVille = (v) => v.def.velo && !v.auSkatepark && Math.abs(v.x) < HALF && Math.abs(v.z) < HALF; // hors des vélos du Mont Reyes (garés au pied, pas aux arceaux) et des skateparks
         o.nbGares = vehicules.filter(enVille).length;
-        o.garesSurArceaux = vehicules.filter(enVille).every((v) => MOB.arceaux.some((a) => Math.abs(a.x - v.x) < 0.01 && Math.abs(a.z - v.z) < 0.01));
+        o.garesSurArceaux = vehicules.filter(enVille).every((v) => MOB.arceaux.some((a) => Math.abs(a.x - v.x) < 0.01 && Math.abs(a.z - v.z) < 0.01) || STATIONS_VELO.some((st) => st.places.some((q) => Math.abs(q.x - v.x) < 0.01 && Math.abs(q.z - v.z) < 0.01))); // aux arceaux, ou à une station REYES BIKE
         // scène maîtrisée : plus aucun véhicule, un carrefour dégagé
         for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0;
         const X = -HALF + 6 * CELL, Z = -HALF + 6 * CELL;
@@ -12258,7 +12258,7 @@ async function main() {
     // -------------------------------------------------------------------
     // Les ultimes (18 octobre, demandé : « ajoute une Bugatti, le Bolide, et une Ferrari Enzo, ultimes, rares,
     // chères, et augmente le prix de la villa ») : Bellatti « Bolide » et Ferroni « Enzo » (marques de fantaisie).
-    // Lu dans le jeu : les plus rapides et les plus vives des voitures, les deux plus chères du catalogue, rares
+    // Lu dans le jeu : les plus rapides et les plus vives des voitures, la Bolide la plus chère du catalogue, rares
     // (constantes ULTIME_*, utilisées par le trafic et les voitures garées) ; à chaque partie, le Bolide dans
     // l'allée de la plus grande villa, sous la garde de la Brigada, l'Enzo dans le hangar de l'aviation
     // d'affaires (sortie libre, rien sur le jet) ; les deux sur les podiums du showroom ; l'aileron actif se lève
@@ -12280,8 +12280,10 @@ async function main() {
         if (!(VEHDEFS.bolide.vmax > VEHDEFS.enzo.vmax && VEHDEFS.enzo.man > VEHDEFS.bolide.man)) ko.push('le Bolide doit être le plus rapide, l’Enzo le plus maniable');
         // catalogue : les deux plus chères
         const tri = CATALOGUE.slice().sort((a, b) => b.prix - a.prix);
-        if (!(U.includes(tri[0].key) && U.includes(tri[1].key))) ko.push('pas les deux plus chères du catalogue (' + tri[0].key + ', ' + tri[1].key + ')');
-        else info.push('catalogue ' + tri[1].key + ' ' + tri[1].prix + ' $, ' + tri[0].key + ' ' + tri[0].prix + ' $ (suivante ' + tri[2].prix + ' $)');
+        // prix revus à la baisse (demandé : Enzo 12 000, Bolide 18 000) : la Bolide reste la plus chère, l'Enzo dans le haut du catalogue
+        const pE = CATALOGUE.find((c) => c.key === 'enzo'), pB = CATALOGUE.find((c) => c.key === 'bolide');
+        if (!pE || !pB || tri[0].key !== 'bolide' || tri.indexOf(pE) > 2) ko.push('prix des ultimes : ' + tri.slice(0, 4).map((c) => c.key + ' ' + c.prix).join(', '));
+        else info.push('catalogue : Bolide ' + pB.prix + ' $ (la plus chère), Enzo ' + pE.prix + ' $');
         // rareté : constantes basses, réellement utilisées par le trafic et les voitures garées au hasard
         if (!(ULTIME_TRAFIC > 0 && ULTIME_TRAFIC <= 0.005 && ULTIME_GAREE > 0 && ULTIME_GAREE <= 0.005)) ko.push('rareté mal réglée (' + ULTIME_TRAFIC + ', ' + ULTIME_GAREE + ')');
         if (!/ULTIME_TRAFIC/.test(creerTrafic.toString())) ko.push('le trafic ignore ULTIME_TRAFIC');
@@ -12343,6 +12345,86 @@ async function main() {
       });
       if (ult.ko.length) fail('Ultimes : ' + ult.ko.join(' ; '));
       else ok('Ultimes : ' + ult.info.join(' ; '));
+    }
+
+    // -------------------------------------------------------------------
+    // Retours du 18 octobre (lot 1) : HUD, achats, skates, vélos, mur des armes. Tout est lu dans le jeu :
+    // - HUD : les boutons Vue et Pause et la pastille des défis ne chevauchent plus la minimap, l'argent ni les
+    //   étoiles ; les notifications commencent sous eux ;
+    // - un achat chez REYES MOTORS se range dans « Mes véhicules » (deux achats : deux fiches ; avant, le 2e
+    //   écrasait le 1er), le véhicule livré porte sa fiche ; collection pleine = refus AVANT de débiter ; le garage
+    //   de la villa sort un véhicule rangé au choix (tapis SUIVANT) ; l'ancien emplacement unique migre ;
+    // - les skates et BMX du Skatepark XXL sont sur sa plate-forme ; les stations REYES BIKE ont leurs vélos ;
+    // - mur de l'armurerie : aucune arme ne chevauche sa voisine, chacune centrée sur sa zone et son étiquette, à sa
+    //   longueur réelle (LONGUEUR_ARME × AFFICHE_ARME).
+    // -------------------------------------------------------------------
+    console.log('\n--- Retours du 18 octobre (lot 1) : HUD, achats rangés, skates du XXL, vélos, mur des armes ---');
+    {
+      const l1 = await page.evaluate(() => {
+        const ko = [], info = [];
+        META.vue = 'classique'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6; addHeat(80, false, true); toast('essai', 'or');
+        if (META.defis && META.defis.aReclamer) { META.defis.aReclamer.sang = true; if (typeof majPastilleDefis === 'function') majPastilleDefis(); }
+        // HUD
+        const r = (id) => { const e = el(id); if (!e) return null; const b = e.getBoundingClientRect(); return b.width && b.height ? b : null; };
+        const inter = (a, b) => a && b && a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1;
+        const btns = ['btnVue', 'btnPause'].map(r), infos = ['miniWrap', 'moneyVal', 'stars'].map(r);
+        for (const b of btns) for (const i of infos) if (inter(b, i)) ko.push('HUD : un bouton chevauche la minimap, l’argent ou les étoiles');
+        const pa = r('pastilleDefis'); if (pa) for (const i of infos) if (inter(pa, i)) ko.push('HUD : la pastille des défis chevauche l’argent ou les étoiles');
+        const ns = r('notifStack'); if (ns && btns[0] && ns.top < btns[0].bottom - 1) ko.push('HUD : les notifications commencent sur les boutons');
+        // achats rangés dans « Mes véhicules »
+        const sauv = JSON.stringify(META.vehPerso), g0 = META.garage, a0 = META.argent;
+        for (const id in META.vehPerso) Object.assign(META.vehPerso[id], slotGarageDefaut());
+        META.garage = null; META.argent = 1e6;
+        const pc = PORTES.find((q) => q.id === 'conces');
+        const acheter = (cle) => { entrerInterieur('conces', pc); const s = INT.actif; s.artIdx = CATALOGUE.findIndex((c) => c.key === cle); P.x = s.vente.x; P.z = s.vente.z; majAction(); const f = el('btnAction')._fn; if (f) f(); sortirInterieur(); };
+        const av = META.argent; acheter('bolide'); const dB = vehicules.find((v) => v.key === 'bolide' && v.persoId); acheter('citadine');
+        const fiches = vehPersoIds().map((id) => fichePerso(id).cle);
+        if (!(fiches.includes('bolide') && fiches.includes('citadine'))) ko.push('achats : la collection contient ' + fiches.join(','));
+        if (META.garage) ko.push('achat : l’ancien emplacement unique est encore utilisé');
+        if (!dB) ko.push('la voiture livrée ne porte pas sa fiche (persoId)');
+        const prixB = CATALOGUE.find((c) => c.key === 'bolide').prix, prixC = CATALOGUE.find((c) => c.key === 'citadine').prix;
+        if (av - META.argent !== prixB + prixC) ko.push('achats : débité ' + (av - META.argent));
+        // collection pleine : refus avant de débiter
+        for (const id in META.vehPerso) if (!META.vehPerso[id].cle) Object.assign(META.vehPerso[id], slotGarageDefaut(), { cle: 'berline' });
+        const a1 = META.argent; acheter('enzo'); if (META.argent !== a1 || vehPersoIds().some((id) => fichePerso(id).cle === 'enzo')) ko.push('collection pleine : achat accepté ou débité');
+        // garage de la villa : choix parmi les véhicules rangés
+        for (const v of [...vehicules]) if (v.persoId) { scene.remove(v.mesh); vehicules.splice(vehicules.indexOf(v), 1); }
+        const pv = PORTES.find((q) => q.id === 'planque'), plq = META.planque; META.planque = true;
+        entrerInterieur('planque', pv); const s = INT.actif;
+        if (!s.garage || !s.garageSuiv) ko.push('villa : zones du garage absentes');
+        else { P.x = s.garageSuiv.x; P.z = s.garageSuiv.z; majAction(); el('btnAction')._fn(); P.x = s.garage.x; P.z = s.garage.z; majAction(); const lab = el('btnAction').textContent;
+          const L = listeGarageVilla(); if (L.length !== VEHPERSO_MAX || !/SORTIR/.test(lab) || !lab.includes('(2/' + L.length + ')')) ko.push('villa : ' + lab + ' (' + L.length + ' rangés)');
+          const cle = L[1].cle; el('btnAction')._fn(); const sv = vehicules.find((v) => v.persoId === L[1].id); if (!sv || sv.key !== cle) ko.push('villa : le véhicule choisi n’est pas sorti');
+          else info.push('villa : ' + L.length + ' véhicules rangés, le 2e sorti (' + cle + ')'); }
+        if (INT.actif) sortirInterieur(); META.planque = plq;
+        // ancien emplacement unique : migré dans la collection
+        for (const id in META.vehPerso) Object.assign(META.vehPerso[id], slotGarageDefaut());
+        META.garage = 'sport'; migrerAchatVersVehPerso(); if (META.garage || !vehPersoIds().some((id) => fichePerso(id).cle === 'sport')) ko.push('l’ancien achat n’a pas migré');
+        const vp = JSON.parse(sauv); for (const id in META.vehPerso) Object.assign(META.vehPerso[id], vp[id]); META.garage = g0; META.argent = a0;
+        // skates du Skatepark XXL : sur la plate-forme
+        startRun();
+        if (SKX.ok) { const sk = vehicules.filter((v) => (v.key === 'skate' || v.key === 'bmx') && v.auSkatepark && Math.abs(v.x - (SKX.x0 + SKX.x1) / 2) < 40 && Math.abs(v.z - (SKX.z0 + SKX.z1) / 2) < 50);
+          const dehors = sk.filter((v) => v.x < SKX.x0 || v.x > SKX.x1 || v.z < SKX.z0 || v.z > SKX.z1 || Math.abs(solY(v.x, v.z) - SKX.D) > 0.1);
+          if (sk.filter((v) => v.key === 'skate').length < 2 || dehors.length) ko.push('Skatepark XXL : ' + sk.length + ' engins, ' + dehors.length + ' hors de la plate-forme');
+          else info.push(sk.length + ' skates et BMX sur la plate-forme du XXL'); }
+        // stations REYES BIKE
+        let manque = 0; for (const st of STATIONS_VELO) for (const q of st.places) if (!vehicules.some((v) => v.key === 'velo' && dist2(v.x, v.z, q.x, q.z) < 0.25)) manque++;
+        const velos = vehicules.filter((v) => v.key === 'velo' || v.key === 'bmx').length;
+        if (STATIONS_VELO.length < 3 || manque) ko.push(STATIONS_VELO.length + ' stations, ' + manque + ' places vides');
+        for (const st of STATIONS_VELO) for (const q of st.places) if (solidAt(q.x, q.z, 0.4) || solY(q.x, q.z) < 0.12) { ko.push('station sur un obstacle ou hors du trottoir'); break; }
+        info.push(STATIONS_VELO.length + ' stations REYES BIKE, ' + velos + ' vélos et BMX en ville');
+        // le mur des armes
+        const pa2 = PORTES.find((q) => q.id === 'armurerie'); entrerInterieur('armurerie', pa2); const sa = INT.actif;
+        const bs = sa.murArmes.map((m) => new THREE.Box3().setFromObject(m.hold)); let chev = 0, decal = 0, prop = 0;
+        for (let i = 0; i < bs.length; i++) { if (i && bs[i].min.z < bs[i - 1].max.z) chev++; if (Math.abs((bs[i].min.z + bs[i].max.z) / 2 - sa.murArmes[i].z) > 0.02) decal++;
+          const Lr = LONGUEUR_ARME[sa.murArmes[i].id]; if (!Lr || Math.abs((bs[i].max.z - bs[i].min.z) / (Lr * AFFICHE_ARME) - 1) > 0.05) prop++; }
+        if (chev || decal || prop) ko.push('mur des armes : ' + chev + ' chevauchement(s), ' + decal + ' arme(s) décentrée(s) de leur étiquette, ' + prop + ' hors de leur taille réelle');
+        else info.push(bs.length + ' armes à taille réelle, centrées sur leur étiquette, sans chevauchement');
+        sortirInterieur(); startRun();
+        return { ko, info };
+      });
+      if (l1.ko.length) fail('Lot 1 : ' + l1.ko.join(' ; '));
+      else ok('Lot 1 : HUD sans chevauchement ; achats rangés dans « Mes véhicules », refus si plein, choix au garage de la villa, migration ; ' + l1.info.join(' ; '));
     }
 
     // -------------------------------------------------------------------

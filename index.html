@@ -68,7 +68,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
 #stars{margin-top:2px;font-size:15px;letter-spacing:2px;color:#ffffff2a;text-shadow:0 1px 3px #000}
 #stars .on{color:var(--rouge);text-shadow:0 0 8px #ff3b5c}
 #stars .mil{color:var(--orange);text-shadow:0 0 9px var(--orange)}
-#btnPause{position:absolute;top:calc(env(safe-area-inset-top,0px) + 112px);right:10px;pointer-events:auto;
+#btnPause{position:absolute;top:calc(env(safe-area-inset-top,0px) + 160px);right:10px;pointer-events:auto; /* 18 octobre : sous la minimap, l'argent et les étoiles (avant : par-dessus) */
   width:36px;height:36px;border-radius:10px;background:#0009;border:1px solid #ffffff2e;color:var(--blanc);
   font-size:15px;font-weight:900;display:flex;align-items:center;justify-content:center}
 /* pendant une partie de borne d'arcade : même bouton, élargi, rôle QUITTER —
@@ -259,7 +259,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
    la pile ne peut de toute façon jamais physiquement atteindre le bas de
    l'écran — la séparation est garantie par construction, pas seulement par
    un réglage de position. */
-#notifStack{position:fixed;top:calc(env(safe-area-inset-top,0px) + 150px);left:50%;transform:translateX(-50%);
+#notifStack{position:fixed;top:calc(env(safe-area-inset-top,0px) + 206px);left:50%;transform:translateX(-50%);
   z-index:7;display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none;
   width:min(320px,88vw)}
 /* Fondu en apparition ET en disparition (pas d'apparition sèche), fond
@@ -298,7 +298,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
 /* pastille « récompense à récupérer » (défis) */
 .pastille{display:none;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 5px;border-radius:10px;
   background:#ff3b3b;color:#fff;font-size:12px;font-weight:900;box-shadow:0 0 10px #ff3b3baa;margin-left:auto;margin-right:8px}
-#pastilleDefis{position:absolute;top:calc(env(safe-area-inset-top,0px) + 136px);right:2px;pointer-events:auto;z-index:3;animation:pastillePulse 1.4s ease-in-out infinite}
+#pastilleDefis{position:absolute;top:calc(env(safe-area-inset-top,0px) + 184px);right:2px;pointer-events:auto;z-index:3;animation:pastillePulse 1.4s ease-in-out infinite}
 @keyframes pastillePulse{0%,100%{transform:scale(1)}50%{transform:scale(1.18)}}
 .btnRecup{border:1px solid #7dff7a;background:#123a1c;color:#7dff7a;border-radius:9px;padding:8px 9px;font-weight:900;font-size:12px;white-space:nowrap}
 .btnRecup.x2{border-color:#ffd23f;background:#3a300f;color:#ffd23f;margin-left:5px}
@@ -399,7 +399,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
 #btnPause .icoSvg{width:18px;height:18px}
 /* bouton de vue (VUE) : à gauche de la pause, même gabarit ; allumé en vue immersive */
 /* signalé : « on ne voit pas trop la caméra de changement de vue » : pastille contrastée, mode affiché (3D / 2D) */
-#btnVue{position:absolute;top:calc(env(safe-area-inset-top,0px) + 112px);right:52px;pointer-events:auto;
+#btnVue{position:absolute;top:calc(env(safe-area-inset-top,0px) + 160px);right:52px;pointer-events:auto;
   height:36px;padding:0 10px;border-radius:18px;background:#0b2233ee;border:2px solid #35e0ff;color:#eaf8ff;
   font:900 14px Arial;letter-spacing:.04em;display:flex;align-items:center;gap:5px;box-shadow:0 0 12px #35e0ff66,0 2px 6px #000a}
 #btnVue span{font-size:17px}
@@ -2262,6 +2262,8 @@ const ARMES={
     prix:0,niv:1,son:'desintegrateur',tr:0x39ff6a,cachee:true,pasRecharge:true,desint:true,
     det:'Trouvé au Site 51. Personne n’a demandé comment ça marche.'}
 };
+// longueur RÉELLE de chaque arme à feu (m ; 1 u ≈ 1 m) : mur de l'armurerie à taille réelle (×AFFICHE_ARME, à peine agrandi pour la lecture)
+const LONGUEUR_ARME={pistolet:0.2,silence:0.34,revolver:0.32,uzi:0.47,pm:0.68,pompe:1.05,aa12:0.96,fusil:0.9,sniper:1.2,arbalete:0.85,flamme:1.1,roquette:1.0,minigun:0.95,desintegrateur:0.8}, AFFICHE_ARME=1.35;
 const ORDRE_ARMES=['poings','gadget','couteau','batte','batte2','sabre','bouleC','pistolet','silence','revolver','pompe','aa12','uzi','pm','fusil','sniper','arbalete','flamme','roquette','minigun','desintegrateur'];
 /* ressenti par arme : secousse caméra, taille du flash, vibration, recul du corps */
 const ARME_FEEL={
@@ -4066,7 +4068,7 @@ function construireVille(){
     if(qq!=='plage'&&qq!=='parc'&&bx%3===1&&bz%3===1) mkFeu(cx+INNER/2+1.4,cz-INNER/2-1.4);
   }
   placerPortes();
-  if(DECOR_V2){ sansAleaVille(()=>{ reserverHills(); reserverChantier(); reserverBase(); reserverSports(); ameliorerPortes(); mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkBasket(); mkCiel(); mkKiosqueBanderole(); mkCrique(); mkMontReyes(); mkVieMont(); mkBordureEst(); mkCanyonsDesert(); mkPicVertige(); mkParcStunt(); mkSkateXXL(); mkRides(); mkMerVivante(); mkRemorquage(); mkLarge(); deplacerVoltige(); mkAeroportVivant(); mkHeliGrue(); mkPlanques(); mkBoutiques(); mkGrandHuit(); mkToitsVivants(); mkTracesSable(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkNeonVivant(); mkQuartiersFinitions(); mkFacadesVariees(); mkCascades(); if(MERV.ok) mkVolcanIle(); mkAeroVie(); mkLosReyesHills(); mkBordsHills(); mkChantierV2(); mkPlanquesV2(); mkBaseV2(); mkBallTrap(); mkSportsParcs(); mkHalosBoutiques(); mkSurprisesToits(); mkArenaDerby(); mkBalises(); }); } // cascades et volcan EN DERNIER : leurs tirages du décor ne décalent rien de ce qui précède (mobilier...) // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
+  if(DECOR_V2){ sansAleaVille(()=>{ reserverHills(); reserverChantier(); reserverBase(); reserverSports(); ameliorerPortes(); mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkBasket(); mkCiel(); mkKiosqueBanderole(); mkCrique(); mkMontReyes(); mkVieMont(); mkBordureEst(); mkCanyonsDesert(); mkPicVertige(); mkParcStunt(); mkSkateXXL(); mkRides(); mkMerVivante(); mkRemorquage(); mkLarge(); deplacerVoltige(); mkAeroportVivant(); mkHeliGrue(); mkPlanques(); mkBoutiques(); mkGrandHuit(); mkToitsVivants(); mkTracesSable(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkNeonVivant(); mkQuartiersFinitions(); mkFacadesVariees(); mkCascades(); if(MERV.ok) mkVolcanIle(); mkAeroVie(); mkLosReyesHills(); mkBordsHills(); mkChantierV2(); mkPlanquesV2(); mkBaseV2(); mkBallTrap(); mkSportsParcs(); mkHalosBoutiques(); mkSurprisesToits(); mkArenaDerby(); mkRatelierSkateXXL(); mkStationsVelo(); mkBalises(); }); } // cascades et volcan EN DERNIER : leurs tirages du décor ne décalent rien de ce qui précède (mobilier...) // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
   finaliserMerge();
   construireMinimapStatique();
 }
@@ -10794,11 +10796,56 @@ function mkRides(){
 // véhicules garés au pied des départs (startRun)
 // les deux skateparks (18 octobre, demandé : « des vélos au skate park, et le skate ») : BMX, vélo et skates garés
 // au bord, sur une place libre ; v.auSkatepark (les vélos de la ville, eux, sont aux arceaux)
+/* Râtelier du Skatepark XXL (18 octobre, signalé : « je ne vois pas les skates dans le skatepark du désert ») : sur la
+   plate-forme ouest, entre le half-pipe et le bowl (la plate-forme y est plate), face au parc ; skates et BMX y sont
+   garés à chaque partie (garerSkateparks). Décor en fin de décor : aucun tirage décalé. */
+function mkRatelierSkateXXL(){
+  if(!SKX.ok) return; const S=SKX, x=S.x0+8.2, z0=S.z0+23, cles=['skate','skate','skate','bmx','bmx'], places=[];
+  for(let k=0;k<cles.length;k++){ const z=z0+k*1.6; if(Math.abs(hauteurSkateXXL(x+1.2,z)-S.D)>0.05) continue; places.push({x:x+1.2,z}); }
+  if(places.length<3) return;
+  const y=S.D, pieces=[], L=(cles.length-1)*1.6+1.6, zc=z0+(cles.length-1)*0.8;
+  pieces.push(['box',0.12,0.5,L,x,y+0.25,zc,0x9aa0a8],['box',0.5,0.08,L+0.2,x,y+0.04,zc,0x3a3e46]);
+  for(let k=0;k<=cles.length;k++) pieces.push(['box',0.1,0.75,0.1,x,y+0.37,z0-0.8+k*1.6,0x6a7078]);
+  scene.add(meshPieces(pieces));
+  mkEnseigne('SKATES — BMX','#35e0ff',x-0.6,y+2.3,zc,Math.PI/2,3.2);
+  S.ratelier={places,cles:cles.slice(0,places.length),ang:Math.PI/2};
+}
+/* Stations REYES BIKE (18 octobre, demandé : plus de vélos) : quatre stations de vélos en libre-service, près de la
+   place, de la plage, du parc et du port, chacune posée contre un arceau du mobilier (sur le trottoir, à l'écart des
+   portes), cinq places côte à côte le long du trottoir ; une borne à l'enseigne. Garées à chaque partie (garerVelos). */
+const STATIONS_VELO=[];
+function mkStationsVelo(){
+  if(!DECOR_V2||!MOB.arceaux.length) return;
+  const cibles=['place','plage','parc','port'].map((k)=>POIS[k]).filter(Boolean), pris=[];
+  const libre=(x,z)=>{ if(solidAt(x,z,0.55)||estEau(x,z)||solY(x,z)<0.12) return false;
+    for(const p of PORTES) if(dist2(x,z,p.x,p.z)<(p.garageId!==undefined?196:30)) return false;
+    for(const r of ZONES_SANS_MOBILIER) if(x>r.x0&&x<r.x1&&z>r.z0&&z<r.z1) return false; return true; };
+  for(const c of cibles){
+    const tri=MOB.arceaux.slice().sort((a,b)=>dist2(a.x,a.z,c.x,c.z)-dist2(b.x,b.z,c.x,c.z));
+    for(const a of tri){
+      if(pris.some((q)=>dist2(q.x,q.z,a.x,a.z)<60*60)) continue;
+      let ok=null; // les cinq places côte à côte : le long d'un des deux axes du trottoir, de part et d'autre de l'arceau
+      for(const [ax,az,ang] of [[Math.cos(a.ry),-Math.sin(a.ry),a.ry],[Math.sin(a.ry),Math.cos(a.ry),a.ry+Math.PI/2]]){
+        const pl=[]; for(let k=1;k<=5;k++){ const x=a.x+ax*(k*1.0+0.6), z=a.z+az*(k*1.0+0.6); if(!libre(x,z)) break; pl.push({x,z}); }
+        if(pl.length===5){ ok={places:pl,ang,ax,az}; break; } }
+      if(!ok) continue;
+      const st={x:a.x,z:a.z,ang:ok.ang,places:ok.places}; STATIONS_VELO.push(st); pris.push(st);
+      const y=MOB_Y_TROTTOIR, pieces=[], cx=(ok.places[0].x+ok.places[4].x)/2, cz=(ok.places[0].z+ok.places[4].z)/2, Lr=5.2, ry=Math.atan2(ok.ax,ok.az);
+      for(const q of ok.places) pieces.push(['box',0.16,0.55,0.16,q.x,y+0.27,q.z,0x2f9a4a],['box',0.18,0.12,0.18,q.x,y+0.6,q.z,0xd8e8dc]); // bornettes d'attache
+      scene.add(meshPieces(pieces));
+      const rail=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.06,Lr),mat(0x3a3e46)); rail.position.set(cx,y+0.03,cz); rail.rotation.y=ry; scene.add(rail);
+      const bx=a.x+ok.ax*0.2, bz=a.z+ok.az*0.2, tot=new THREE.Mesh(new THREE.BoxGeometry(0.5,2.2,0.3),mat(0x2f9a4a)); tot.position.set(bx,y+1.1,bz); tot.rotation.y=ry; scene.add(tot);
+      addSolid({x:bx,z:bz,hw:0.3,hd:0.3,h:2.2});
+      mkEnseigne('REYES BIKE','#7dff7a',bx,y+2.6,bz,0,2.2);
+      break;
+    }
+  }
+}
 function garerSkateparks(){
   const poser=(k,x,z,a)=>{ for(let r=0;r<8;r+=1.5) for(let t=0;t<6.28;t+=0.8){ const px=x+Math.cos(t)*r, pz=z+Math.sin(t)*r;
       if(solidAt(px,pz,0.8)||estEau(px,pz)||vehicules.some((o)=>dist2(o.x,o.z,px,pz)<2.2)) continue; const v=creerVehicule(k,px,pz,a); if(v){ v.h=solY(px,pz); v.auSkatepark=true; } return; } };
   if(SKATE.ok){ const z=SKATE.z+INNER/2-2.2; [['skate',-5],['skate',-3.6],['bmx',3.5],['velo',5.5]].forEach(([k,dx])=>poser(k,SKATE.x+dx,z,Math.PI)); }
-  if(SKX.ok){ const x=SKX.x0-3; [['skate',SKX.z0+12],['skate',SKX.z0+14],['bmx',SKX.z0+17],['bmx',SKX.z0+20]].forEach(([k,z])=>poser(k,x,z,Math.PI/2)); }
+  if(SKX.ok&&SKX.ratelier){ const R=SKX.ratelier; R.places.forEach((q,i)=>poser(R.cles[i],q.x,q.z,R.ang)); } // sur la plate-forme, devant le râtelier (avant : hors du parc, au pied du mur : invisibles)
 }
 function garerRides(){
   garerSkateparks();
@@ -10989,9 +11036,10 @@ function majMobilier(){
 }
 // Vélos garés aux arceaux en début de partie : au plus VELOS_GARES, répartis
 // sur toute la liste (choix déterministe, aucun tirage), un BMX sur trois.
-const VELOS_GARES=12;
+const VELOS_GARES=24; // 18 octobre, signalé : « peu de vélos » (12 avant), plus les stations REYES BIKE (STATIONS_VELO)
 function garerVelos(){
   if(!DECOR_V2||!MOB.arceaux.length) return;
+  for(const st of STATIONS_VELO) for(const q of st.places) if(!vehicules.some((o)=>dist2(o.x,o.z,q.x,q.z)<1)){ const v=creerVehicule('velo',q.x,q.z,st.ang); if(v){ v.h=solY(q.x,q.z); v.enStation=true; } }
   const pas=Math.max(1,Math.floor(MOB.arceaux.length/VELOS_GARES));
   for(let i=0,n=0;i<MOB.arceaux.length&&n<VELOS_GARES;i+=pas){
     const a=MOB.arceaux[i];
@@ -23380,7 +23428,7 @@ const CATALOGUE=[
   {key:'moto',prix:1800},{key:'motocross',prix:2400},{key:'pickup',prix:2000},{key:'buggy',prix:2600},
   {key:'muscle',prix:3800},{key:'motoS',prix:4200},{key:'sport',prix:7500},
   {key:'cabriolet',prix:6200},{key:'suvLuxe',prix:6800},{key:'limousine',prix:9500},{key:'hyper',prix:16000}, // voitures de luxe (15 octobre)
-  {key:'enzo',prix:42000},{key:'bolide',prix:55000}, // les ultimes (18 octobre) : les plus chères du jeu
+  {key:'enzo',prix:12000},{key:'bolide',prix:18000}, // les ultimes (18 octobre ; prix revus à la baisse, demandé : 12 000 et 18 000) — la Bolide est la plus chère du catalogue
   {key:'charger',prix:4600},{key:'jeep',prix:3200}
 ];
 /* ======== HABILLAGE V2 DES SALLES (18 octobre, demandé : « refais la cohérence des salles, les textures, le
@@ -23849,20 +23897,36 @@ function construireSalle(id){
     for(const o of g.children){ if(o.isMesh&&(o.position.y===2.2||o.position.y===4.5)&&Math.abs(o.position.z-(oz-P2/2))<0.01) o.visible=false; } // le mur nord devient la vitre du stand ; son SOLIDE reste
     for(let i=-5;i<5;i++) for(let j=-4;j<4;j++){ const t=new THREE.Mesh(new THREE.PlaneGeometry(3.9,3.65),mat((i+j)%2?0x45423a:0x3d3a33)); t.rotation.x=-Math.PI/2; t.position.set(ox+i*4+2,0.11,oz+j*3.75+1.87); g.add(t); }
     { const t=new THREE.Mesh(new THREE.PlaneGeometry(3,P2-4),mat(0x6a1c1c)); t.rotation.x=-Math.PI/2; t.position.set(ox,0.12,oz); g.add(t); } // allée centrale
-    // le mur des armes à feu (ouest) : panneau perforé, une arme par emplacement, prix, familles
+    // le mur des armes à feu (ouest) : panneau perforé, une arme par emplacement, prix, familles. 18 octobre, signalé :
+    // « trop grosses, elles se chevauchent, pas proportionnelles, et le prix devant est celui d'à côté » (×2,2, accrochées
+    // par la poignée : chaque arme débordait de 1 à 2 u sur la voisine) — chaque arme à sa TAILLE RÉELLE (LONGUEUR_ARME,
+    // ×AFFICHE_ARME), CENTRÉE sur sa propre boîte, espacée selon sa longueur, son étiquette (nom, prix) juste dessous
     box(0.3,3.2,26,0x2a2c30,-W/2+0.6,1.8,0,false);
     inter.murArmes=[];
     const famille=(id)=>{ const a=ARMES[id]; return a.roquette||a.flamme||id==='minigun'?['LOURDES','#ff3b5c',4]:(a.pellets||1)>1?['À POMPE','#ff9f2e',2]:a.cad<=0.09?['MITRAILLETTES','#35e0ff',1]:a.portee>=55||a.manuel?['FUSILS','#7dff7a',3]:['POING','#ffd23f',0]; };
-    const fusils=ORDRE_ARMES.filter((id)=>ARMES[id].type==='gun'&&!ARMES[id].cachee&&mkArmeModeleDispo(id)).map((id,k)=>[id,k]).sort((a,b)=>famille(a[0])[2]-famille(b[0])[2]||a[1]-b[1]).map((q)=>q[0]), pas=Math.min(2.05,24/Math.max(1,fusils.length)); // rangées par familles
-    { const fams={}; fusils.forEach((id,k)=>{ const f=famille(id); (fams[f[0]]=fams[f[0]]||{f,k0:k,n:0}).n++; }); // un panneau centré au-dessus de chaque famille
-      for(const nm in fams){ const F2=fams[nm], zc=-11.8+(F2.k0+F2.n/2)*pas; ens(nm,F2.f[1],-W/2+1.15,3.15,zc,Math.PI/2,Math.min(2.6,F2.n*pas-0.25)); } }
-    fusils.forEach((id,k)=>{ const z=-11.8+k*pas+pas/2, x=-W/2+0.9;
-      const hold=new THREE.Group(); const m=habillerArme(mkArmeModele(id),id); if(m){ m.visible=true; hold.add(m); }
-      hold.rotation.x=-Math.PI/2; hold.scale.setScalar(2.2); hold.position.set(ox+x,1.7,oz+z); g.add(hold);
-      box(0.08,0.06,0.9,0x15171c,x+0.1,1.25,z,false);
-      const etq=cTex(128,(cx,s2)=>{ cx.fillStyle='#14161c'; cx.fillRect(0,0,s2,s2*0.4); cx.fillStyle='#ffd23f'; cx.font='900 30px Arial'; cx.textAlign='center'; cx.fillText(ARMES[id].prix+' $',s2/2,s2*0.28); });
-      const pl=new THREE.Mesh(new THREE.PlaneGeometry(0.9,0.36),new THREE.MeshBasicMaterial({map:etq,transparent:true})); pl.position.set(ox+x+0.02,0.95,oz+z); pl.rotation.y=Math.PI/2; g.add(pl);
-      inter.murArmes.push({id,x:ox+x+1.7,z:oz+z,r:0.9,hold,c:-1}); });
+    const fusils=ORDRE_ARMES.filter((id)=>ARMES[id].type==='gun'&&!ARMES[id].cachee&&mkArmeModeleDispo(id)).map((id,k)=>[id,k]).sort((a,b)=>famille(a[0])[2]-famille(b[0])[2]||a[1]-b[1]).map((q)=>q[0]); // rangées par familles
+    const poses=fusils.map((id)=>{ const hold=new THREE.Group(), m=habillerArme(mkArmeModele(id),id); if(m){ m.visible=true; hold.add(m); }
+      hold.rotation.x=-Math.PI/2; hold.updateMatrixWorld(true); const b0=new THREE.Box3().setFromObject(hold), L0=Math.max(0.05,b0.max.z-b0.min.z);
+      hold.scale.setScalar(AFFICHE_ARME*(LONGUEUR_ARME[id]||0.9)/L0); hold.updateMatrixWorld(true); const b=new THREE.Box3().setFromObject(hold);
+      return {id,hold,b,L:b.max.z-b.min.z,f:famille(id)}; });
+    // espacement : 0,6 u entre deux armes (0,5 de plus entre deux familles), jamais moins de 1,25 u entre deux centres (zones d'achat)
+    const ecart=(a,b)=>Math.max(0.6+(a.f[0]!==b.f[0]?0.5:0),1.25-(a.L+b.L)/2);
+    let tot=poses.length?poses[0].L:0; for(let k=1;k<poses.length;k++) tot+=ecart(poses[k-1],poses[k])+poses[k].L;
+    poses.forEach((q,k)=>{ q.zc=k?poses[k-1].zc+poses[k-1].L/2+ecart(poses[k-1],q)+q.L/2:-tot/2+q.L/2; });
+    const xMur=-W/2+0.8, yc=1.6;
+    { const tp=cTex(128,(cx,s2)=>{ cx.fillStyle='#c9ccd2'; cx.fillRect(0,0,s2,s2); cx.fillStyle='#8e939c'; for(let i=0;i<8;i++) for(let j=0;j<8;j++){ cx.beginPath(); cx.arc(8+i*16,8+j*16,2.4,0,7); cx.fill(); } },(tot+1)/0.8,1.9/0.8); // panneau perforé clair : les armes ressortent
+      const pb=new THREE.Mesh(new THREE.BoxGeometry(0.05,1.9,tot+1),new THREE.MeshLambertMaterial({map:tp})); pb.position.set(ox+xMur-0.03,yc,oz); g.add(pb);
+      for(const zz of [-(tot+1)/2,(tot+1)/2]) box(0.08,1.98,0.08,0x9aa0a8,xMur-0.02,yc,zz,false); box(0.08,0.06,tot+1.1,0x9aa0a8,xMur-0.02,yc+0.98,0,false); box(0.08,0.06,tot+1.1,0x9aa0a8,xMur-0.02,yc-0.98,0,false); }
+    { const fams={}; poses.forEach((q)=>{ const F2=(fams[q.f[0]]=fams[q.f[0]]||{f:q.f,z0:q.zc-q.L/2,z1:q.zc+q.L/2}); F2.z0=Math.min(F2.z0,q.zc-q.L/2); F2.z1=Math.max(F2.z1,q.zc+q.L/2); }); // un panneau centré au-dessus de chaque famille
+      for(const nm in fams){ const F2=fams[nm]; ens(nm,F2.f[1],-W/2+1.15,3.15,(F2.z0+F2.z1)/2,Math.PI/2,Math.max(1.4,Math.min(2.6,F2.z1-F2.z0+0.3))); } }
+    poses.forEach((q)=>{ const id=q.id, b=q.b, hold=q.hold;
+      hold.position.set(ox+xMur-b.min.x+0.04,yc+0.12-(b.min.y+b.max.y)/2,oz+q.zc-(b.min.z+b.max.z)/2); g.add(hold);
+      for(const dz of q.L>0.6?[-q.L*0.3,q.L*0.3]:[0]) box(0.12,0.05,0.05,0x3a3e46,xMur+0.06,yc+0.12-(b.max.y-b.min.y)/2-0.03,q.zc+dz,false); // crochets
+      const a=ARMES[id], etq=cTex(256,(cx,s2)=>{ cx.fillStyle='#14161c'; cx.fillRect(0,0,s2,s2*0.42); cx.strokeStyle='#ffd23f'; cx.lineWidth=4; cx.strokeRect(3,3,s2-6,s2*0.42-6);
+        cx.textAlign='center'; cx.fillStyle='#e8ecf2'; cx.font='700 34px Arial'; let n=a.nom; while(cx.measureText(n).width>s2-20&&n.length>4) n=n.slice(0,-1); cx.fillText(n,s2/2,s2*0.17);
+        cx.fillStyle='#ffd23f'; cx.font='900 44px Arial'; cx.fillText(a.prix+' $',s2/2,s2*0.36); });
+      const pl=new THREE.Mesh(new THREE.PlaneGeometry(0.95,0.4),new THREE.MeshBasicMaterial({map:etq,transparent:true})); pl.position.set(ox+xMur+0.03,yc-0.62,oz+q.zc); pl.rotation.y=Math.PI/2; g.add(pl);
+      inter.murArmes.push({id,x:ox+xMur+1.6,z:oz+q.zc,r:0.9,hold,c:-1}); });
     // la vitrine des armes blanches (au centre, à l'ouest de l'allée)
     box(5.2,1.0,1.8,0x2a2c30,-5,0.5,3); { const v=new THREE.Mesh(new THREE.BoxGeometry(5,0.7,1.6),new THREE.MeshPhongMaterial({color:0xbfe6ff,transparent:true,opacity:0.22,shininess:90})); v.position.set(ox-5,1.35,oz+3); g.add(v); }
     ['couteau','batte','sabre','batte2'].forEach((id,k)=>{ const m=mkArmeModele(id); if(!m) return; m.visible=true; const hh=new THREE.Group(); hh.add(m);
@@ -24042,6 +24106,9 @@ function construireSalle(id){
     gar.rotation.x=-Math.PI/2; gar.position.set(ox-17,0.13,oz-10); g.add(gar);
     mkEnseigne('GARAGE','#35e0ff',ox-17,2.2,oz-11.5,0,6);
     inter.garage={x:ox-17,z:oz-10};
+    { const t=new THREE.Mesh(new THREE.PlaneGeometry(2.4,2.4),new THREE.MeshBasicMaterial({color:0xffd23f,transparent:true,opacity:0.3,depthWrite:false}));
+      t.rotation.x=-Math.PI/2; t.position.set(ox-11,0.13,oz-10); g.add(t); mkEnseigne('SUIVANT','#ffd23f',ox-11,1.8,oz-11.3,0,3.2); }
+    inter.garageSuiv={x:ox-11,z:oz-10}; // choisir le véhicule rangé à sortir
     // === CABINET DE CURIOSITÉS (ouest) : ambiance musée — vitrine éclairée,
     // objets sous verre, cordon de velours. Nettement différent du mur de
     // trophées (ambiance salle de sport, bois et affiches) pour ne plus les
@@ -26042,11 +26109,11 @@ function sortirInterieur(){
   VUE.yawUser=VUE.yaw=INT.rYaw||0; // vue immersive : dos à la porte, on regarde la rue
   // véhicule acheté / sorti du garage : il apparaît devant la porte
   if(sc.livrer){
-    const cle=sc.livrer; sc.livrer=null;
+    const cle=sc.livrer, id=sc.livrerId; sc.livrer=null; sc.livrerId=null;
     let px=P.x, pz=P.z+5;
     for(let r=4;r<=16&&solidAt(px,pz,2.4);r+=2){ px=P.x+rand(-r,r); pz=P.z+rand(2,r); }
     const nv=creerVehicule(cle,px,pz,Math.PI);
-    if(nv){ nv.perso=true; toast(VEHDEFS[cle].nom+' livrée !','or'); }
+    if(nv){ nv.perso=true; if(id&&fichePerso(id)) appliquerTuning(nv,id); toast(VEHDEFS[cle].nom+' livrée !','or'); } // un véhicule de « Mes véhicules » : ses améliorations, et il compte « en ville »
   }
   // Garages tuning : ressortir au volant du véhicule modifié (ou à pied,
   // en le laissant garé) — le joueur est déjà replacé devant la porte.
@@ -31005,6 +31072,14 @@ function migrerGaragesVersVehPerso(){
   return n;
 }
 migrerGaragesVersVehPerso();
+// 18 octobre : les achats du concessionnaire vont dans « Mes véhicules » ; l'ancien emplacement unique (META.garage,
+// qu'un 2e achat écrasait) y est rangé s'il reste une place (sinon il reste sortable au garage de la villa)
+function migrerAchatVersVehPerso(){ const k=META.garage; if(!k||!VEHDEFS[k]) return false; const id=vehPersoLibre(); if(!id) return false;
+  Object.assign(META.vehPerso[id],slotGarageDefaut(),{cle:k}); META.garage=null; sauveMeta(); return true; }
+migrerAchatVersVehPerso();
+// ce que le garage de la villa peut sortir : les véhicules rangés de la collection (pas déjà en ville), et l'ancien achat s'il n'a pas pu migrer
+function listeGarageVilla(){ const L=[]; for(const id in META.vehPerso){ const f=fichePerso(id); if(f&&!vehPersoDehors(id)) L.push({id,cle:f.cle}); }
+  if(META.garage&&VEHDEFS[META.garage]) L.push({id:null,cle:META.garage}); return L; }
 // Éligibilité DÉCLARÉE dans VEHDEFS (jamais une liste ici) : tuningMeca =
 // tout ce qui roule et se conduit (char compris) ; tuningCarro = voitures et
 // motos civiles, avec famille + ancrages — et les vélos, qui n'ont QUE
@@ -33877,12 +33952,14 @@ function majAction(){
       const off=CATALOGUE[s.artIdx||0];
       const dv=VEHDEFS[off.key];
       label='🚗 '+dv.nom+' — '+off.prix+' $';
-      fn=()=>{
+      fn=()=>{ // 18 octobre : l'achat se range dans « Mes véhicules » (avant : un emplacement unique, qu'un 2e achat écrasait)
+        const id=vehPersoLibre();
+        if(!id){SFX.refus();toast('« Mes véhicules » est plein ('+VEHPERSO_MAX+'/'+VEHPERSO_MAX+') — mets-en un à la casse dans un garage tuning','warn');return;}
         if(META.argent<off.prix){SFX.refus();toast('Pas assez d\u2019argent');return;}
         META.argent-=off.prix; SFX.achat();
-        META.garage=off.key;
-        toast(dv.nom+' achetée ! Elle t\u2019attend dehors','or'); bigMsg('🚗 NOUVELLE VOITURE');
-        s.livrer=off.key;
+        Object.assign(META.vehPerso[id],slotGarageDefaut(),{cle:off.key,investi:off.prix}); sauveMeta();
+        toast(dv.nom+' achetée ! Elle t\u2019attend dehors — rangée dans « Mes véhicules »','or'); bigMsg('🚗 NOUVELLE VOITURE');
+        s.livrer=off.key; s.livrerId=id;
       };
     /* ---------- GARAGE TUNING : l'atelier ouvre le menu de personnalisation ---------- */
     } else if(s.atelier&&dist2(P.x,P.z,s.atelier.x,s.atelier.z)<marquerZone(s.atelier,12)){
@@ -33944,13 +34021,19 @@ function majAction(){
         toast('+'+rev+' $ encaissés','or'); SFX.achat();
       };
     } else if(s.garage&&dist2(P.x,P.z,s.garage.x,s.garage.z)<marquerZone(s.garage,14)){
-      label=META.garage?('🚗 SORTIR '+VEHDEFS[META.garage].nom):'🚗 Garage vide';
+      // garage de la villa : sort un véhicule RANGÉ de « Mes véhicules » (pas déjà en ville), choisi au tapis « SUIVANT »
+      const L=listeGarageVilla(), n=L.length, i=(s.garageSel||0)%Math.max(1,n), q=L[i];
+      label=q?('🚗 SORTIR '+VEHDEFS[q.cle].nom.toUpperCase()+(n>1?' ('+(i+1)+'/'+n+')':'')):'🚗 Garage vide';
       fn=()=>{
-        if(!META.garage){SFX.refus();toast('Achète une voiture au concessionnaire');return;}
-        INT.actif.livrer=META.garage;
+        if(!q){SFX.refus();toast('Achète une voiture chez REYES MOTORS : elle se range dans « Mes véhicules »');return;}
+        INT.actif.livrer=q.cle; INT.actif.livrerId=q.id;
         toast('Elle t\u2019attend devant la villa','or'); SFX.ui();
         sortirInterieur();
       };
+    } else if(s.garageSuiv&&dist2(P.x,P.z,s.garageSuiv.x,s.garageSuiv.z)<marquerZone(s.garageSuiv,4)){
+      const n=listeGarageVilla().length;
+      label=n>1?'🔁 VÉHICULE SUIVANT ('+n+' rangés)':(n?'🔁 Un seul véhicule rangé':'🔁 Aucun véhicule rangé');
+      fn=()=>{ if(n<2){SFX.refus();return;} s.garageSel=((s.garageSel||0)+1)%n; SFX.ui(); };
     } else if(s.casier&&!s.casier.pris&&dist2(P.x,P.z,s.casier.x,s.casier.z)<marquerZone(s.casier,12)){
       label='FOUILLER LES CASIERS';
       fn=()=>{
