@@ -12120,6 +12120,57 @@ async function main() {
         ok('Règle des 8 u : ' + Object.keys(regle8.mesures).length + ' salles mesurées, aucune nouvelle violation — dette connue : ' + nbZones + ' zones dans ' + Object.keys(DETTE_REGLE_8U).length + ' salles (' + nbChev + ' chevauchent la SORTIE)');
       }
     }
+
+    // -------------------------------------------------------------------
+    // Habillage V2 des salles (18 octobre, demandé : « refais la cohérence, les textures, le réalisme, la
+    // qualité de toutes les salles »). Pour CHAQUE salle d'INTDEFS hors SALLES_SANS_HABILLAGE (listes lues dans
+    // le jeu) : sol et murs texturés, plus aucune boîte unie (matériau mat() partagé) parmi les meubles visibles,
+    // un lambris, des murs habillés ; aucun solide ajouté (l'habillage ne change jamais où l'on marche) ; jamais
+    // de lumière dans le métro ni au Site 51 ; chaque meuble a SON matériau (recolorer l'un ne touche pas les
+    // autres). Et, dans le source : aucune fonction de premier niveau déclarée deux fois — la seconde écrase la
+    // première sans erreur (bug trouvé ainsi : texAffiche des salles écrasait celle des affiches de la ville et
+    // décalait les tirages — une porte avait changé de façade).
+    // -------------------------------------------------------------------
+    console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
+    {
+      const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];
+      for (const m of src.matchAll(/^function ([A-Za-z0-9_$]+)\(/gm)) { if (vus[m[1]]) doubles.push(m[1]); vus[m[1]] = 1; }
+      if (doubles.length) fail('Source : fonctions de premier niveau déclarées deux fois (la seconde écrase la première) : ' + doubles.join(', '));
+      else ok('Source : aucune fonction de premier niveau déclarée deux fois (' + Object.keys(vus).length + ' fonctions)');
+    }
+    const habillage = await page.evaluate(() => {
+      startRun();
+      const ko = [], bilan = []; let nSalles = 0;
+      if (/addSolid|solide\(|box\(/.test(habillerSalleV2.toString())) ko.push('habillerSalleV2 pose des solides (il ne doit jamais changer où l’on marche)');
+      const estMatPartage = (m) => m && m.isMeshLambertMaterial && !m.map && (_matCache[m.color.getHex()] === m || _matCacheDecor[m.color.getHex()] === m);
+      for (const id of Object.keys(INTDEFS)) {
+        if (SALLES_SANS_HABILLAGE.has(id)) continue;
+        if (INT.actif) sortirInterieur();
+        const pte = PORTES.find((q) => q.id === id) || { x: P.x, z: P.z, nx: 0, nz: 1 }; entrerInterieur(id, pte);
+        const s = INT.actif; if (!s || s.id !== id) { ko.push(id + ' : entrée impossible'); continue; }
+        nSalles++;
+        let solTex = false, murTex = 0, nus = 0, matieres = new Set(), nMeubles = 0, lumieres = 0;
+        for (const o of s.g.children) { if (!o.isMesh || !o.visible) continue;
+          if (o.geometry && o.geometry.parameters && o.geometry.parameters.width === s.D.w && o.geometry.parameters.depth === s.D.d && o.position.y === 0) solTex = !!o.material.map;
+          if (o.position.y === 2.2 && o.geometry.parameters && o.geometry.parameters.height === 4.4 && o.material.map) murTex++;
+          if (o.geometry && o.geometry.type === 'BoxGeometry' && o !== s.dehors && estMatPartage(o.material) && s.g.children.indexOf(o) < s.habillageN) nus++; // les objets nés en jeu (piles, poids…) gardent le leur
+          if (o.geometry && o.geometry.type === 'BoxGeometry' && o.material && o.material.map && o.position.y > 0.2 && o.position.y < 3.9 && !(o.position.y === 2.2 && o.geometry.parameters.height === 4.4)) { nMeubles++; matieres.add(o.material); } // les murs partagent le leur
+          if (o.material && o.material.isMeshBasicMaterial && o.material.map === texGlow && o.position.y > 1.5) lumieres++; }
+        if (!solTex) ko.push(id + ' : sol sans texture');
+        if (murTex < 3) ko.push(id + ' : murs sans texture (' + murTex + ')');
+        if (nus) ko.push(id + ' : ' + nus + ' meuble(s) encore en matériau uni partagé');
+        if (nMeubles > 1 && matieres.size < nMeubles) ko.push(id + ' : des meubles partagent leur matériau (' + matieres.size + ' pour ' + nMeubles + ')');
+        if (HABILLAGE_SALLES[id] && HABILLAGE_SALLES[id].sansLumiere && lumieres) ko.push(id + ' : ' + lumieres + ' lumière(s) ajoutée(s) dans une salle où l’obscurité est le jeu');
+        bilan.push(id);
+        sortirInterieur();
+      }
+      // un matériau du cache mat() est PARTAGÉ par tous les objets de sa couleur : le rendre translucide (ou le
+      // recolorer) touche tout le jeu — la clôture de l'aérodrome rendait translucides les rampes, rails, appareils…
+      for (const [nom, C] of [['ville', _matCache], ['décor', _matCacheDecor]]) for (const k in C) { const m = C[k]; if (m.transparent || m.opacity < 1) ko.push('matériau partagé ' + nom + ' #' + (+k).toString(16).padStart(6, '0') + ' rendu translucide (opacité ' + m.opacity + ')'); }
+      return { ko, nSalles, bilan: bilan.join(', ') };
+    });
+    if (habillage.ko.length) fail('Habillage des salles : ' + habillage.ko.length + ' défaut(s) — ' + habillage.ko.slice(0, 8).join(' ; '));
+    else ok('Habillage des salles : ' + habillage.nSalles + ' salles — sol et murs texturés, aucun meuble uni partagé, chaque meuble a son matériau, aucun solide ajouté, aucune lumière dans le noir, aucun matériau partagé translucide (' + habillage.bilan + ')');
   } catch (e) {
     fail('Exception pendant les scénarios : ' + (e && e.stack || e));
   } finally {

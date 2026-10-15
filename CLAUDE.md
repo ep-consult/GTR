@@ -55,7 +55,7 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
   echo "$ln | $(sed -n "$((ln+1))p" index.html | sed 's/^[ \t]*//')"; done
 ```
 
-**Relevé du 18 octobre — 34 563 lignes.**
+**Relevé du 18 octobre — 34 796 lignes.**
 Attention : `maj_carte` recale les numéros dans l'ordre des lignes de la table ;
 un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la main.
 
@@ -83,36 +83,36 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 8524 | **TIR À LA PREMIÈRE PERSONNE** (`FPS`, `fpsDemarrer`, `majFPS`) et **BALL-TRAP** du ranch (`BT`, `mkBallTrap`) |
 | 8922 | **TERRAINS DE SPORT DES PARCS** (`SPORTS`, `mkSportsParcs`, `majSportsParcs`, match de foot) |
 | 9062 | **ARÈNE DE DERBY** (`DERBY`, `mkArenaDerby`, `majDerby`, `majDerbyIA`, voitures et améliorations de derby) |
-| 13512 | MODÈLES — humains, armes, véhicules, hélico, ramassables |
-| 15685 | POOLS — balles, particules, textes flottants, traces de pneus |
-| 16054 | ÉTAT GLOBAL + JOUEUR (`P`) |
-| 16910 | VÉHICULES — physique arcade, trafic, dégâts |
-| 19569 | PIÉTONS |
-| 19752 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
-| 20324 | **RAYON TRACTEUR DE L'OVNI** |
-| 20789 | NIVEAU DE RECHERCHE (étoiles) |
-| 21068 | VAGUES + bonus de fin de vague |
-| 21190 | MISSIONS COURTES |
-| 21193 | BÂTIMENTS VISITABLES — intérieurs |
-| 21263 | FOUILLE — mécanique générique |
-| 21811 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
-| 25800 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
-| 26208 | **LAVERIE** V2 — l'essorage de la machine 7 |
-| 26473 | **SERRE** V2 — la nuit de la floraison |
-| 26765 | CINÉ-PALACE |
-| 27009 | MÉTRO ABANDONNÉ |
-| 27075 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
-| 27426 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
-| 28328 | SITE 51 |
-| 28558 | LE DÉPÔT DE BUS — courses clandestines |
-| 30004 | **MÉTIERS** — missions liées à un véhicule |
-| 30294 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
-| 31301 | ÉCRANS / MENUS / BOUTIQUES |
-| 31576 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
-| 32378 | DÉBUT / FIN DE PARTIE |
-| 33811 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
-| 34048 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
-| 34441 | BOUCLE PRINCIPALE |
+| 13521 | MODÈLES — humains, armes, véhicules, hélico, ramassables |
+| 15694 | POOLS — balles, particules, textes flottants, traces de pneus |
+| 16063 | ÉTAT GLOBAL + JOUEUR (`P`) |
+| 16919 | VÉHICULES — physique arcade, trafic, dégâts |
+| 19578 | PIÉTONS |
+| 19761 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
+| 20333 | **RAYON TRACTEUR DE L'OVNI** |
+| 20798 | NIVEAU DE RECHERCHE (étoiles) |
+| 21077 | VAGUES + bonus de fin de vague |
+| 21199 | MISSIONS COURTES |
+| 21202 | BÂTIMENTS VISITABLES — intérieurs |
+| 21272 | FOUILLE — mécanique générique |
+| 21820 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
+| 26032 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
+| 26440 | **LAVERIE** V2 — l'essorage de la machine 7 |
+| 26705 | **SERRE** V2 — la nuit de la floraison |
+| 26997 | CINÉ-PALACE |
+| 27241 | MÉTRO ABANDONNÉ |
+| 27307 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
+| 27658 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
+| 28560 | SITE 51 |
+| 28790 | LE DÉPÔT DE BUS — courses clandestines |
+| 30236 | **MÉTIERS** — missions liées à un véhicule |
+| 30526 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
+| 31533 | ÉCRANS / MENUS / BOUTIQUES |
+| 31808 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
+| 32610 | DÉBUT / FIN DE PARTIE |
+| 34044 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
+| 34281 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
+| 34674 | BOUCLE PRINCIPALE |
 
 ### Ancres fines (hors bandeaux)
 
@@ -148,34 +148,34 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 10907 | `mkLacParc()` — lac du parc, passerelle, barques |
 | 11036 | `mkLumieresQuartiers()` — Times Square, quartier chinois, Brooklyn |
 | 11122 | `mkEnceinte()` — murs, enseigne, jetées de rochers |
-| 11654 | `GALION` — galion échoué : `sansAleaVille()`, `coqueGalion()`, `mkGalion()`, `majGalion()` |
-| 12686 | `mkPorteGarage()` — porte roulante des garages |
-| 12756 | `placeLibrePorte()` |
-| 12815 | helper `poser()` — placement des lieux |
-| 12841 | `caseCentre(bx,bz)` |
-| 12934 | `REPLIS` — filet de sécurité en spirale |
-| 15553 | `makeVelo()` — vélo de ville et BMX |
+| 11663 | `GALION` — galion échoué : `sansAleaVille()`, `coqueGalion()`, `mkGalion()`, `majGalion()` |
+| 12695 | `mkPorteGarage()` — porte roulante des garages |
+| 12765 | `placeLibrePorte()` |
+| 12824 | helper `poser()` — placement des lieux |
+| 12850 | `caseCentre(bx,bz)` |
+| 12943 | `REPLIS` — filet de sécurité en spirale |
+| 15562 | `makeVelo()` — vélo de ville et BMX |
 | 13574 | `voitureV2()` — voiture réaliste : `geoVoiture` (géométries partagées par modèle), `janteVoiture` |
-| 12602 | `ENSEIGNES` — portes mieux placées : `ameliorerPortes()`, `profondeurDevant()`, `orienterPorte()` |
-| 16062 | `const P` — état du joueur |
-| 16105 | `P.stamMax = 100 + 12*mus` |
-| 17289 | `resoudreCollisionsVehicule()` — collisions entre véhicules (SAT sur les 4 axes) |
-| 17946 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
-| 18070 | `boutonsAPied()` — boutons du HUD remis « à pied » (sortie de véhicule ET début de partie) |
-| 18991 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
-| 19122 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
-| 21199 | `IOFF = -9000` |
-| 22992 | `INTDEFS` — définitions des **27 salles** |
-| 23177 | `construireSalle(id)` |
+| 12611 | `ENSEIGNES` — portes mieux placées : `ameliorerPortes()`, `profondeurDevant()`, `orienterPorte()` |
+| 16071 | `const P` — état du joueur |
+| 16114 | `P.stamMax = 100 + 12*mus` |
+| 17298 | `resoudreCollisionsVehicule()` — collisions entre véhicules (SAT sur les 4 axes) |
+| 17955 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
+| 18079 | `boutonsAPied()` — boutons du HUD remis « à pied » (sortie de véhicule ET début de partie) |
+| 19000 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
+| 19131 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
+| 21208 | `IOFF = -9000` |
+| 23012 | `INTDEFS` — définitions des **27 salles** |
+| 23396 | `construireSalle(id)` |
 | 20390 | `CHALUTIER_BANCS_PLAN` — chalutier V2 ; `chalutierMaj` (20761), `dessinerRadarChalutier` (21018) |
-| 30013 | `METIERS_CIBLE` |
-| 30312 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
-| 30400 | `PIECES_FAMILLES` — catalogues de pièces par famille |
-| 30702 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
-| 30765 | `libererObjet()` — libère les géométries d'un objet retiré |
-| 30781 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
-| 30905 | `construireGarageTuning()` — la salle partagée |
-| 31275 | `majNitro()` |
+| 30245 | `METIERS_CIBLE` |
+| 30544 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
+| 30632 | `PIECES_FAMILLES` — catalogues de pièces par famille |
+| 30934 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
+| 30997 | `libererObjet()` — libère les géométries d'un objet retiré |
+| 31013 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
+| 31137 | `construireGarageTuning()` — la salle partagée |
+| 31507 | `majNitro()` |
 
 ---
 
@@ -1523,6 +1523,62 @@ l'amélioration du style des mini-jeux de la salle arcade ».
   du Jeton Doré est atteinte au moins deux fois, un joueur passif ou maladroit
   en reste loin ; le rendu est appelé pendant la partie. Une borne active sans
   pilote fait échouer le test.
+
+## Habillage V2 des salles (18 octobre, 3e demande) — `habillerSalleV2`
+
+Demandé : « refais la cohérence des salles, les textures, le réalisme, la
+qualité de toutes les salles ». Une passe générique en fin de
+`construireSalle` (juste avant `peuplerSalle`), sur toutes les salles sauf
+`SALLES_SANS_HABILLAGE` (les V3 — laverie, aquarium, serre, radio,
+chalutier, ciné, dépôt — et la boutique, qui recolore ses murs à chaque
+entrée via `s.matMur`). Style par salle dans `HABILLAGE_SALLES` (sol, mur,
+lambris, objets muraux, textes d'affiches, accent, `sansLumiere`,
+`dalleLum`).
+- **Enveloppe** : sol et murs texturés (`texDetail` : textures de détail en
+  niveaux de gris multipliées par la couleur de la salle — chaque salle garde
+  sa palette), lambris, cimaise et vraies plinthes contre les faces
+  intérieures des murs VISIBLES (le mur nord masqué de l'armurerie n'en a
+  pas) ; les anciennes plinthes, qui flottaient à 7 % de la largeur dans les
+  grandes salles, sont masquées.
+- **Meubles** : chaque boîte `mat()` unie reçoit SA matière (`genreMeuble` :
+  bois, métal brossé, stratifié, panneau peint biseauté, sombre) et son
+  propre matériau (Site 51, planque… recolorent des objets en jeu : avant,
+  `mat()` étant partagé, cela recolorait tous les objets de même couleur).
+  Comptoirs : plan de travail en bois qui déborde ; rayonnages : tablettes.
+  Luminaires du plafond et tubes néon restent lumineux (`MeshBasic`). Dalles
+  posées par la salle : la matière de son sol (l'eau reste de l'eau, un tapis
+  allongé devient moquette). Couleurs trop claires adoucies
+  (`couleurHabillee`).
+- **Murs habillés** : cadres, affiches, appliques, horloge, néons, grilles,
+  miroirs, tableau d'affichage, panneaux d'outils, extincteur, plantes —
+  murs nord, est, ouest seulement (jamais au sud : la SORTIE, derrière la
+  caméra), jamais devant un meuble ou une enseigne (boîtes englobantes),
+  aucun solide, aucune zone ; fusionnés (`fusionnerDans`). Ni applique ni
+  néon dans le métro et le Site 51 (l'obscurité y est le jeu).
+- **Bornes d'arcade** : vrai meuble (écran d'attente `texEcranBorne`,
+  fronton lumineux, flancs, pupitre incliné, joystick, boutons, porte à
+  monnaie).
+- **Piège retrouvé** : `texAffiche` des salles écrasait la fonction
+  homonyme des affiches de la ville (déclarée bien plus haut) — les tirages
+  de la ville changeaient et la porte de la supérette changeait de façade
+  (vu par le contrôle des portes). Renommée `texAfficheSalle` ; le test
+  « Source : aucune fonction déclarée deux fois » l'interdit désormais.
+- **Bug trouvé au passage** : la clôture de l'aérodrome (`mkAeroport`,
+  `clot`) rendait translucide (0,55) le matériau PARTAGÉ `mat(0x5a5f66)` —
+  donc tous les objets de cette couleur dans tout le jeu (rampes et
+  passerelle du Dépôt, rails du métro, appareils de la salle de sport,
+  coffre de la banque…). Créer un matériau pendant la génération décalerait
+  la ville : les clôtures sont notées (`mkAeroport.clotures`) et
+  `clotureMatPropre` (en tête de `startRun`, une seule fois) leur donne leur
+  propre matériau, créé sur le générateur du décor, puis rend le partagé
+  opaque. **Règle : ne jamais modifier un matériau rendu par `mat()`**
+  (transparence, opacité, couleur) — il est partagé par toute la ville.
+- `inter.habillageN` : nombre d'objets de la salle à sa construction (ceux
+  qui suivent naissent en jeu — piles, poids — et gardent leur matériau).
+- Test : « Habillage V2 des salles » (sol et murs texturés, aucun meuble uni
+  partagé, un matériau par meuble, aucun solide posé, aucune lumière dans le
+  noir — sur toutes les salles lues dans `INTDEFS` ; et, en fin de suite,
+  aucun matériau des caches `mat()` translucide).
 
 ## Fort Reyes, la base militaire V2 (17 octobre) — `BASE`, bandeau `FORT REYES`
 
