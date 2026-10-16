@@ -8885,7 +8885,14 @@ function fpsBras(W,cote,p,prise,peau,manche,ech){
   const mP=mat(0x8b7355), mJ=mat(0x6f5a40), mM=mat(manche), mO=mat(0x3a332a), mPeau=mat(peau); /* gant coyote, coussinets plus sombres, poignet nu */
   const D=(pts,r)=>fpsDoigt(G,pts,r,mP,mJ);
   let poignet, coude;
-  if(prise==='poignee'||prise==='manche'){ /* la main referme la poignée (inclinée vers l'avant) : paume côté extérieur, index sur la détente (poignee) ou replié (manche), pouce de l'autre côté */
+  if(prise==='manche'){ /* gant refermé sur le manche, d'un seul volume : trois sillons marquent les doigts, le pouce passe par-dessus (16 octobre : quatre doigts articulés par main se lisaient comme une grappe) */
+    G.rotation.x=-0.2; const e=s*0.004;
+    const pa=new THREE.Mesh(new THREE.SphereGeometry(0.034,12,9),mP); pa.scale.set(0.9,1.25,0.95); pa.position.set(e+s*0.012,-0.008,0.012); G.add(pa);
+    const wrap=new THREE.Mesh(new THREE.CylinderGeometry(0.031,0.029,0.074,14),mP); wrap.position.set(e,-0.01,-0.008); G.add(wrap);
+    for(let k=0;k<3;k++){ const t=new THREE.Mesh(new THREE.TorusGeometry(0.03,0.0035,6,16),mJ); t.rotation.x=Math.PI/2; t.position.set(e,0.016-k*0.019,-0.008); G.add(t); }
+    D([[-s*0.018,0.03,0.014],[-s*0.026,0.032,-0.012],[-s*0.016,0.03,-0.03]],0.0115);
+    poignet=[e+s*0.006,-0.052,0.03]; coude=[s*0.26,-0.3,0.24];
+  } else if(prise==='poignee'||prise==='manche'){ /* la main referme la poignée (inclinée vers l'avant) : paume côté extérieur, index sur la détente (poignee) ou replié (manche), pouce de l'autre côté */
     G.rotation.x=-0.2; const e=s*0.03; fpsPaume(G,0.072,0.092,0.03,e,-0.008,0.004,0,Math.PI/2,0,mP);
     if(prise==='poignee') D([[e,0.032,-0.012],[e-s*0.006,0.031,-0.046],[-s*0.004,0.028,-0.06]],0.0092);
     else D([[e,0.03,-0.024],[e-s*0.004,0.028,-0.05],[-s*0.024,0.026,-0.048],[-s*0.03,0.024,-0.02]],0.0094);
@@ -14154,7 +14161,7 @@ const ANCRES_ARME={
   roquette:{main:[0.08,-0.05],appui:[0.35,-0.03],priseG:'poignee',pose:'lourd',canon:0.13},minigun:{main:[-0.15,0.0],appui:[0.22,0.32],priseG:'dessus',pose:'lourd',canon:0.1},
   flamme:{main:[-0.02,-0.04],appui:[0.42,0.0],priseG:'poignee',pose:'epaule',canon:0.12},desintegrateur:{main:[-0.02,-0.07],pose:'poing',canon:0.08},
   /* armes blanches à la 1re personne : la batte à deux mains sur le manche, au-dessus de l'épaule droite ; le sabre tenu haut ; le couteau bas, lame vers l'avant */
-  batte:{main:[0.56,0.06],appui:[0.44,0.06],priseD:'manche',priseG:'manche',pose:'melee',canon:0},batte2:{main:[0.56,0.06],appui:[0.44,0.06],priseD:'manche',priseG:'manche',pose:'melee',canon:0},
+  batte:{main:[0.6,0.06],priseD:'manche',pose:'melee',canon:0},batte2:{main:[0.6,0.06],priseD:'manche',pose:'melee',canon:0}, /* une seule main, en bas du manche : avec deux mains à doigts articulés, on comptait « vingt doigts » (16 octobre) */
   sabre:{main:[0.06,0.0],priseD:'manche',pose:'melee',canon:0},couteau:{main:[0.02,0.0],priseD:'manche',pose:'lame',canon:0},
 };
 function ancreArme(id){ return ANCRES_ARME[id]||{main:[-0.02,-0.07],pose:'poing',canon:0.08}; }
@@ -16901,7 +16908,7 @@ function attaquer(){
     SFX.refus(); P.cadT=0.5; return;
   }
   if(a.type==='melee'){
-    P.cadT=st.cad; P.frappeT=0.2; P.h._frappe=0.2; if(VUE1P.actif){ VUE1P.frappe=0.3; VUE1P.coupMain=!VUE1P.coupMain; VUE1P.gardeT=GARDE_DUREE; }
+    P.cadT=st.cad; P.frappeT=0.2; P.h._frappe=0.2; if(VUE1P.actif){ VUE1P.frappe=0.3; VUE1P.coupMain=!VUE1P.coupMain; }
     P.h.brasD.rotation.x=-1.6;
     let touche=false;
     const dmg=st.degats*P.meleeMul*(P.buffs.dmg>0?1.35:1)*((P.ivresse||0)>IVRESSE.pompette?1.2:1); // pompette : « courage liquide » au corps à corps
@@ -16929,7 +16936,7 @@ function attaquer(){
     for(const c of cassables){ if(c.hp<=0) continue;
       cible(0,c.x,c.z,()=>{c.hp-=dmg;if(c.hp<=0)casserCaisse(c);});
     }
-    if(touche){SFX[a.son]();vibre(20);}else SFX.swing();
+    if(touche){SFX[a.son]();vibre(20); if(VUE1P.actif) VUE1P.impact=0.22;}else SFX.swing(); /* 1re personne : impact visible (cameraPremiere) */
     return;
   }
   // sniper : visée manuelle, géré séparément (voir majJoueur)
@@ -35384,7 +35391,6 @@ window.addEventListener('pointerup',vueFinDrag); window.addEventListener('pointe
    ×4 et l'image de la lunette ; sniper : ×8), la dispersion −65 %, on marche à 55 %. Mire de hanche fine (quatre
    traits qui s'écartent avec la dispersion), marque de touche. */
 const VUE1P={actif:false,montage:null,arme:null,k:0,vise:false,recul:0,flash:0,frappe:0,pas:0,touche:0,zoom:1,mire:null,lunette:null,appuiSniper:false};
-const GARDE_DUREE=2.5; /* s sans coup avant que les poings retombent en position de marche */
 const OEIL_1P=1.52;
 function vuePremiere(){ return vue1P()&&ETAT.mode==='jeu'&&!INT.actif&&!P.veh&&!FPS.actif&&!P.chute&&!P.para&&!P.wing&&!P.jetpackVol&&!P.nage&&!MANEGES.actif&&!BOUT.ouvert
   &&!(typeof TOW!=='undefined'&&TOW.actif)&&!(DECOR_V2&&typeof SURPRISES!=='undefined'&&SURPRISES.tyro)&&!lunetteSniper()&&P.hp>0&&!!P.h; }
@@ -35421,8 +35427,8 @@ function montagePremiere(){ const V=VUE1P;
   if(mkArmeModeleDispo(id)&&mkArmeModele(id)){ V.montage=fpsMontage(id); }
   if(!V.montage){ /* les poings : garde de boxeur, jointures en avant, le droit un peu en retrait */
     const R=new THREE.Group(), W=new THREE.Group(); R.add(W); const c=coifCouleurs();
-    const d=fpsBras(W,'d',new THREE.Vector3(0.11,-0.15,-0.25),'poing',c.peau,c.haut,0.72), g=fpsBras(W,'g',new THREE.Vector3(-0.12,-0.15,-0.28),'poing',c.peau,c.haut,0.72);
-    d.rotation.set(-0.75,-0.25,0.3); g.rotation.set(-0.75,0.25,-0.3); V.kGarde=0; V.gardeT=0; /* au départ : bras bas (marche) ; la garde se lève au premier coup (cameraPremiere) */
+    const d=fpsBras(W,'d',new THREE.Vector3(0.2,-0.36,-0.14),'poing',c.peau,c.haut,0.72), g=fpsBras(W,'g',new THREE.Vector3(-0.2,-0.36,-0.14),'poing',c.peau,c.haut,0.72);
+    d.rotation.set(-0.9,-0.25,0.3); g.rotation.set(-0.9,0.25,-0.3); d.visible=false; g.visible=false; /* au repos, rien à l'écran : le poing n'entre que pour frapper (cameraPremiere) */
     R.traverse((o)=>{ o.renderOrder=5; o.frustumCulled=false; }); V.montage={R,W,P0:{k:0.4,pos:[0.02,-0.14,-0.32],yaw:0,roll:0},poings:true,mains:[d,g],douilles:[],lagX:0,lagY:0}; }
   if(V.montage&&V.montage.mod){ const A=ancreArme(P.armeCur); V.montage.melee=A.pose==='melee'||A.pose==='lame'; }
   const M=V.montage; scene.add(M.R); if(a&&a.type==='gun') ligneDeMire(M,id); /* une arme blanche ne se vise pas à la mire */
@@ -35451,7 +35457,8 @@ function cameraPremiere(dt){ const V=VUE1P; if(!V.actif) entrerPremiere(); if(V.
   V.kCourse=lerp(V.kCourse||0,court&&V.k<0.3?1:0,clamp(dt*5,0,1)); /* en courant, l'arme se baisse et se balance */
   const bob=Math.sin(V.pas)*0.04*(1-V.k*0.85)*mv;
   camera.position.set(P.x,P.y+OEIL_1P+bob,P.z); camera.rotation.order='YXZ';
-  camera.rotation.set((VUE.pitch1P||0)+V.recul*0.035,VUE.yawUser,(P.ivresse||0)>IVRESSE.pompette?Math.sin(ETAT.runT*1.1)*0.05:0);
+  V.impact=Math.max(0,(V.impact||0)-dt); const kI=V.impact/0.22; /* un coup qui porte : la vue encaisse (secousse brève), un éclat sous la mire */
+  camera.rotation.set((VUE.pitch1P||0)+V.recul*0.035+kI*kI*0.045*Math.sin(V.impact*90),VUE.yawUser+kI*kI*0.03*Math.sin(V.impact*70+1),(P.ivresse||0)>IVRESSE.pompette?Math.sin(ETAT.runT*1.1)*0.05:0);
   const fv=M&&M.fovVise?M.fovVise:52, fov=lerp(72,fv,V.k); V.zoom=fov/72;
   if(Math.abs(camera.fov-fov)>0.01||camera.near!==0.05){ camera.fov=fov; camera.near=0.05; camera.updateProjectionMatrix(); }
   VUE.yawRendu=VUE.yawUser; VUE.yaw=VUE.yawUser; if(VUE.ciel) VUE.ciel.position.copy(camera.position);
@@ -35467,21 +35474,18 @@ function cameraPremiere(dt){ const V=VUE1P; if(!V.actif) entrerPremiere(); if(V.
     if(M.melee&&P0.pitch!==undefined){ /* batte et sabre : de l'épaule, un grand swing en travers ; couteau : un estoc */
       const lame=P0===FPS_POSES.lame; W.rotation.set(P0.pitch-(lame?0.6:2.1)*sw2+r*0.05,P0.yaw-(lame?0.2:1.3)*sw2+M.lagX*0.8,(P0.roll||0)+(lame?-0.3:0.9)*sw2); W.position.x-=(lame?0.04:0.18)*sw2; W.position.y-=0.05*sw2; W.position.z-=(lame?0.2:0.06)*sw2; }
     else { W.rotation.set(lerp(r*0.2,r*0.05,k)+kc*0.55+M.lagY*0.8*(1-k),lerp(P0.yaw,0,k)+M.lagX*0.8*(1-k)+kc*0.35,lerp(P0.roll||0,0,k)+kc*0.15); }
-    if(M.poings&&M.mains){ /* Poings (16 octobre, signalé : « statiques, en plein milieu ») : deux modes. MARCHE — bras bas sur les côtés, balancement
-         opposé au rythme des pas (plus ample et plus haut en courant), respiration à l'arrêt. GARDE — poings levés devant, levée au premier coup
-         (attaquer pose V.gardeT) et retombée en marche après GARDE_DUREE s sans frapper, fondu V.kGarde. Les coups alternés partent de la garde. */
-      const [d,g]=M.mains; V.gardeT=Math.max(0,(V.gardeT||0)-dt); const kg=V.kGarde=lerp(V.kGarde||0,V.gardeT>0?1:0,clamp(dt*6,0,1));
-      const swp=Math.sin(V.pas*0.5)*mv, bob=Math.abs(Math.cos(V.pas*0.5))*mv, resp=Math.sin(t*1.3), amp=0.06+0.07*kc;
-      const L3=(a,b,k)=>[lerp(a[0],b[0],k),lerp(a[1],b[1],k),lerp(a[2],b[2],k)];
-      const mD=[0.11+kc*0.02,-0.15+kc*0.06+bob*0.012+resp*0.003,-0.25-swp*amp], mG=[-0.12-kc*0.02,-0.15+kc*0.06+bob*0.012+resp*0.003,-0.28+swp*amp]; /* marche : bas dans les coins, dans le champ (portrait : ~31° de large) */
-      const rmD=[-0.75+kc*0.3-swp*0.25,-0.25,0.3], rmG=[-0.75+kc*0.3+swp*0.25,0.25,-0.3];
-      const gD=[0.07,-0.06+resp*0.004+bob*0.006,-0.14+swp*0.012], gG=[-0.09,-0.04+resp*0.004+bob*0.006,-0.17-swp*0.012]; /* garde : les deux poings visibles, sous la ligne de mire */
-      const rgD=[-0.5,-0.35,0.35], rgG=[-0.5,0.35,-0.3];
-      const pD=L3(mD,gD,kg), pG=L3(mG,gG,kg), qD=L3(rmD,rgD,kg), qG=L3(rmG,rgG,kg);
-      const qui=V.coupMain?pG:pD, rq=V.coupMain?qG:qD, autre=V.coupMain?pD:pG, sg=V.coupMain?-1:1; /* coups alternés : le poing part droit devant en tournant, l'autre se replie */
-      qui[2]-=0.26*sw2; qui[1]+=0.03*sw2; qui[0]+=sg*0.06*sw2; rq[1]+=sg*(-0.4+1.2*sw2)*kg; rq[2]+=sg*(0.2-0.6*sw2)*kg; autre[2]+=0.04*sw;
-      d.position.set(pD[0],pD[1],pD[2]); g.position.set(pG[0],pG[1],pG[2]); d.rotation.set(qD[0],qD[1],qD[2]); g.rotation.set(qG[0],qG[1],qG[2]);
-      W.rotation.z+=sg*0.12*sw; W.rotation.y+=sg*0.1*sw; }
+    if(M.poings&&M.mains){ /* Poings (16 octobre, 2e retour : « deux tiges vers l'avant ; ne pas voir les bras au repos, voir le coup ») : au repos les deux
+         mains sont hors champ ; un coup (V.frappe, 0,3 s) fait entrer le poing du coin bas de son côté, il frappe juste sous la mire en tournant
+         (crochet léger), puis ressort ; coups alternés (V.coupMain). Rien d'autre ne bouge à l'écran. */
+      const [d,g]=M.mains, qui=V.coupMain?g:d, autre=V.coupMain?d:g, sg=V.coupMain?-1:1;
+      const f=V.frappe>0?1-V.frappe/0.3:1, aller=Math.min(1,f/0.38), retour=f<0.5?0:(f-0.5)/0.5, kp=f<0.38?aller*aller*(3-2*aller):(f<0.5?1:1-retour*retour); /* aller vif (0,11 s), tenue, retour */
+      qui.visible=V.frappe>0; autre.visible=false;
+      const xS=sg*0.1, yS=-0.3, zS=-0.06, xP=sg*0.03, yP=-0.075, zP=-0.4; /* départ bas et près de l'œil : l'avant-bras pointe dans l'écran, raccourci, au lieu de le traverser en diagonale */
+      qui.position.set(lerp(xS,xP,kp),lerp(yS,yP,kp)+Math.sin(kp*Math.PI)*0.03,lerp(zS,zP,kp));
+      qui.rotation.set(lerp(-1.1,-0.4,kp),sg*lerp(-0.1,0.35,kp),sg*lerp(0.3,-0.2,kp));
+      W.rotation.z+=sg*0.05*Math.sin(kp*Math.PI); }
+    if(!M.choc){ M.choc=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:0xffe6b0,transparent:true,depthWrite:false,depthTest:false,blending:THREE.AdditiveBlending,opacity:0})); M.choc.renderOrder=6; M.choc.frustumCulled=false; M.R.add(M.choc); }
+    M.choc.material.opacity=kI*kI*0.95; M.choc.visible=kI>0.01; if(kI>0.01){ M.choc.position.set(0,-0.025,-0.42); M.choc.scale.setScalar(0.05+0.22*(1-kI)); M.choc.material.rotation=V.impact*40; }
     if(M.culasse) for(const m of M.culasse) m.position.y=Math.min(1,r*2.6)*0.055;
     if(M.fl){ const f=V.flash>0; M.fl.material.opacity=f?1:0; M.fl2.material.opacity=f?0.9:0; if(f){ M.fl.material.rotation=Math.random()*6.28; M.fl.scale.setScalar(0.11+Math.random()*0.06); M.fl2.scale.set(0.24+Math.random()*0.1,0.05,1); } }
     majDouilles(M,dt); }

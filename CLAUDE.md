@@ -1367,14 +1367,18 @@ puis redescendre tirer : on ne peut pas ajuster ».
   refermés : armes blanches), `garde`, `dessus`, `soutien`, `poing` (vu par celui qui
   le serre : dos de la main dessus, doigts repliés devant). Le haut des bras
   (`userData.hautBras`) est masqué en visée (`fpsHautBras`).
-- **Poings, deux modes** (16 octobre, signalé : « statiques, en plein milieu ») :
-  MARCHE — bras bas dans les coins du champ, balancement opposé au rythme des
-  pas (`V.pas`), plus ample et plus haut en courant, respiration à l'arrêt ;
-  GARDE — poings levés sous la ligne de mire, levée au premier coup (`attaquer`
-  pose `VUE1P.gardeT = GARDE_DUREE` 2,5 s) et retombée en marche sans coup,
-  fondu `V.kGarde`. Les coups alternés partent de la garde. Le poing est un
-  galet (sphère aplatie) à jointures et doigts repliés, échelle 0,72. Portrait :
-  ~31° de champ horizontal, une main à |x| > 0,13 pour z = −0,25 sort du cadre.
+- **Poings** (16 octobre, deux retours : « statiques, en plein milieu », puis
+  « deux tiges vers l'avant ; ne pas voir les bras au repos, voir le coup ») :
+  au repos et en marche, RIEN à l'écran (les deux mains masquées) ; un coup
+  (`V.frappe`, 0,3 s) fait entrer le poing du coin bas de son côté, près de
+  l'œil (l'avant-bras pointe dans l'écran, raccourci), il frappe sous la mire
+  en crochet léger et ressort ; coups alternés (`V.coupMain`). Un coup qui
+  porte (`VUE1P.impact`, posé par `attaquer`) : la vue encaisse une secousse
+  brève et un éclat additif s'ouvre sous la mire (`M.choc`), armes blanches
+  comprises. Poing en galet à jointures, échelle 0,72.
+- **Une seule main sur la batte, en mitaine** (prise `manche` : un volume
+  refermé, trois sillons, le pouce) : deux mains à quatre doigts articulés
+  se lisaient comme « vingt doigts ».
 - **Armes blanches** : ancrages dans `ANCRES_ARME` (batte à deux mains sur le
   manche, sabre et couteau à une main), poses `FPS_POSES.melee` (relevée sur
   l'épaule, `pitch`) et `lame` ; **swing** de la batte et du sabre, estoc du couteau,
