@@ -1922,7 +1922,86 @@ Régénérée au commit `60680a2` (lot 7) : 47 bandeaux, 54 ancres fines recalé
 
 ### Plan de la nuit
 
-(après les six audits)
+Six audits en lecture seule (A conventions, B robustesse, C performance, D HUD,
+E jouabilité, F textes ; rapports bruts dans le scratchpad de la session), fusionnés
+et filtrés par la section 8 de STRATEGIE.md. Ordre d'exécution : plantages et NaN →
+état qui survit → farming et paiements → performance (chargement puis tick) → HUD
+portrait → zones et règle des 8 u → pilotes manquants → textes.
+
+**Ce que je fais (dans cet ordre)**
+
+1. Plantages (B, A) : `el('grenN')` sans garde dans `ramasser` et dans la carte
+   « Poche à grenades » (au volant d'un deux-roues, exception et écran de bonus
+   figé) ; filet `try` autour du tick avec rendu garanti et compteur d'erreurs ;
+   `#errBox` créé à la volée par `window.onerror` (il n'existe pas) ; `sauveMeta`
+   qui retente 60 fois par seconde en cas d'échec ; copie de secours d'une
+   sauvegarde illisible ; `fusionMeta` et `null` (dans les deux sens : `stats:null`
+   plante `startRun`, `garage:null` empêche la migration de l'ancien achat) ;
+   création du `WebGLRenderer` et perte de contexte ; reprise de l'audio iOS sur
+   `pointerup` / `visibilitychange` ; garde NaN de `SFX.choc`.
+2. État qui survit (A, E) : braquages (`caisse`, `coffre`, `casier`, `preuves`)
+   remis à zéro à chaque partie — la règle « réinitialiser l'état des mini-jeux
+   au game over » tranche ce que PLAYTEST.md laissait ouvert ; `s.litArme`
+   (CONFIRMER en pleine vague lançait `lancerVague`) ; `MET2.vague` ; `SURPRISES`
+   `s.vague` ; `BT.partie` ; `mourir` arrête le sport, le sandwich, le karaoké, le
+   bowling et le casse du musée (une pièce était volée et inscrite dans `META`
+   deux secondes après la mort) ; `setTimeout` de `mourir` annulé par `startRun`
+   (il tombait au milieu du test suivant) ; véhicules du stand du Dépôt après un
+   game over (à confirmer).
+3. Boucle et paiements (A, E, économie) : la mission `purge` ne comptait que deux
+   gangs sur quatre ; garde d'entrée propre dans les douze fonctions de paiement
+   qui n'en ont pas ; `cashRun` crédité partout ; `FOUILLE.t` et les renforts
+   d'alarme sur `dtJeu` ; chrono du remorquage sur `dtJeu`.
+4. Performance (C, Phase 0), mesurée avant/après, image identique : rejet par la
+   distance dans `vehiculeBloquant` (23 ms par image au centre) ; sprites à
+   opacité 0 masqués (phares, lampadaires) ; DOM par image via `hudT/hudW/hudD`
+   (`majVagues`, `majMissions`, `pointerVersCible`, jauges) ; bug du `else` de
+   `shWrap` ; filet « qualité auto » réécrit par `jourNuit` ; `pow(x,2.0)` → `x*x`
+   dans le shader des sols (NaN possible sous Metal) ; branches sur les facteurs
+   nuls du shader de la mer ; véhicules garés retirés de la scène au-delà du
+   brouillard (vue classique : le brouillard est opaque) ; chargement :
+   `renderer.compile`, minimap statique différée, `calculerHills` à clé entière,
+   `fusionnerDecor` en une passe, écran « Chargement… » avec JOUER inactif avant la
+   fin — sans changer l'ordre des `mk*`.
+5. HUD portrait (D) : `.screen` au-dessus des panneaux (pause et mort couverts par
+   l'établi, la boutique, le derby…) ; QUITTER et la croix masqués par l'écran des
+   bornes ; `#viseeZone` qui bloque QUITTER aux canards ; jauges VÉHICULE et
+   CARBURANT sous GRENADE ; `#btnAction` sur DÉCOLLER et sur le tir au volant ;
+   lunette du sniper qui noircit le HUD ; cartes de bonus validées au `pointerdown`
+   sans délai ; `#missionTxt` sous la minimap ; pastille des défis sur le coin de
+   Pause.
+6. Pilotes manquants, cœur seulement (E) : missions courtes (aucun test), métiers
+   taxi / ambulance / pompier au joystick si le temps le permet.
+7. Textes (F), ce que le joueur lit en premier : aide `#help` (sniper « à la
+   marina », unité de vitesse, « farme », conflit de la touche A, G et F absents),
+   toast de l'avion de voltige (faux), toasts de niveau générés depuis `ARMES`,
+   défis « 4 curiosités », « / 7 », « quartier résidentiel », bunker « bientôt »,
+   deux « Propriétaire », libellés de quartier du tableau de la ville, indice de
+   la serre, anglicismes, « ... » → « … », message de chargement du moteur 3D.
+8. Tests rendus déterministes (E) : pilotes sans graine (aquarium, laverie,
+   radio, ciné, chalutier) ; test sauté sans `saute()` (taxi fragile) ; REPLIS
+   construit depuis `INTDEFS`.
+
+**Ce que je ne fais pas, et pourquoi**
+
+- Rien n'est retiré, aucun contenu neuf (règle de la nuit).
+- Salles et activités « risque d'être coupé » (STRATEGIE §8 : supérette, banque,
+  commissariat, voyance, casino, club, karaoké, bowling, sandwich, sport, métro,
+  pharmacie, tour, musée, Site 51 ; tour de contrôle, manèges, surprises, métiers
+  dépanneuse et police, mission `course`, stand de tir ; OVNI, véhicules de piste)
+  : correctifs « quoi qu'il arrive » seulement. Leur polissage (horloges `dt` des
+  anciens mini-jeux, pilotes du casino, du sandwich, du musée, règle des 8 u,
+  panneaux au milieu de l'écran) est listé plus bas, avec l'estimation.
+- Décisions de design laissées au matin (« À trancher ») : le farming
+  « Abandonner → Rejouer » (tous les plafonds par vague repartent à zéro et
+  l'argent ne se perd jamais — les tests actuels FIGENT ce comportement) ; le
+  plafond des missions courtes ; l'aquarium gratuit en cas de défaite ; la
+  conversion des 72 noms à guillemets droits (un `split('"')` en dépend) ;
+  l'argent perdu à la mort que les commentaires promettent.
+- Optimisations qui changent l'ordre des tirages ou le rendu (double
+  construction de `makeVoiture`, fusion indexée, `MERV.feu` en sprite, ciel en
+  dôme réordonné) : proposées, mesurées si possible, non appliquées sans capture
+  identique.
 
 ### Correctifs
 
