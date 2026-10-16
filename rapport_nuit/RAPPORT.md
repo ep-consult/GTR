@@ -2242,15 +2242,97 @@ sans changement pour qui joue en vue classique ou immersive.
 
 ### Résumé
 
-(écrit en fin de nuit)
+1. **Les consignes de la nuit n'existaient pas** (trois fichiers absents partout) : périmètre fixé seul, décrit juste au-dessus. Tout est derrière la vue 1P : rien ne change en vue classique ou immersive.
+2. **Cockpits : 80 / 80 véhicules de `VEHDEFS` cochés** dans `COCKPITS.md` — en vue 1P, monter dans un véhicule met l'œil à la place du conducteur, avec un intérieur par famille (13 familles), des instruments qui vivent, le volant qui suit le braquage, les mains et avant-bras, le regard au doigt. Chaque véhicule a passé le diagnostic (œil dans l'emprise, vue libre, instruments dans le champ) ET sa capture a été regardée (galeries `captures/nuit2/cockpits_*.png`).
+3. **Deux leçons de rendu** qui ont coûté la moitié des itérations : la caisse des voitures est pleine jusqu'à la ceinture (tout ce qui est construit dessous est invisible : le volant doit monter au-dessus) ; le champ du portrait fait 38° de large (un volant à 30 cm remplit l'écran, une console décalée de 30 cm sort du cadre). Notées dans CLAUDE.md.
+4. **Qualité** : galerie des 28 salles (aucun matériau noir, rien qui flotte à l'entrée), ville et écran titre sous quatre vues et deux heures du jour, HUD mesuré à deux tailles d'iPhone (un seul recouvrement, le libellé VÉHICULE, corrigé), balayage des textes (une faute : « FOUILLE... »).
+5. **Test** « Cockpits » (lit `VEHDEFS`, vrai chemin `entrerVehicule`, 20 images, diagnostic, volant, retour en immersive, moto, à pied, scène propre) ; « Terrains de sport » rendu déterministe (1 échec sur 2 suites avant).
+6. **Suite** : voir « Vérifications de fin de nuit » (remplie quand les quatre exécutions sont finies).
+7. **Les questions du soir** (commandes intuitives, portrait ou paysage) ont une réponse argumentée dans « À trancher ».
 
 ### Qualité — ce qui a été regardé et corrigé
 
-(mis à jour en continu)
+| Regardé | Comment | Trouvé | Fait |
+|---|---|---|---|
+| Les 28 salles | entrée par la porte, vue immersive, rendu réel (`captures/nuit2/salles_galerie.png`) | aucun matériau noir, aucun objet qui flotte ; le métro et le Site 51 sont sombres par choix ; la radio n'a pas de porte sans le Disque de Platine (voulu) | rien à corriger |
+| La ville | écran titre + 4 points × (classique, immersive jour, immersive nuit, 1P) (`captures/nuit2/ville_galerie.png`) | rien de cassé | rien à corriger |
+| HUD en portrait | rectangles de tous les éléments visibles, paires qui se recouvrent, à 390×844 et 393×852, dans 5 états (à pied, 1P en visée, voiture, hélico, mission) | un seul recouvrement : la boîte du libellé VÉHICULE (pleine largeur) sous « VAGUE n » — le texte, lui, ne touchait pas | boîte du libellé réduite à son texte (`#vehWrap .lbl`, `#jetWrap .lbl`) |
+| Textes du script | balayage de toutes les chaînes : casse GTRoyal / Los Reyes, ancien nom, anciens noms de gangs, doubles espaces, « ... », anglais | une faute : « FOUILLE... » (deux fois) | « FOUILLE… » |
+| Établi de l'armurerie | rendu réel, vrai glisser tactile | (fait en soirée, avant la nuit) l'arme ne tournait pas en salle | commit `e10aebc` |
+| Rechargements 1P | rendu réel des douze armes | (fait en soirée) rien ne se voyait | commit `e5a2cca` |
+
+Non fait, faute de consignes : son, équilibrage, textures des façades — rien ne disait que c'était « la qualité » attendue.
 
 ### Cockpits
 
-(mis à jour en continu ; liste de contrôle : `rapport_nuit/COCKPITS.md`)
+Code : bandeau `COCKPITS` d'`index.html` (≈ 300 lignes), décrit dans CLAUDE.md
+(« Cockpits — la vue à la 1re personne au volant »). Commit `b374112`.
+
+**Ce que le joueur voit.** Bouton 1P (déjà là), on monte : l'œil est à la
+place du conducteur, le véhicule garde son tangage et son dévers, le regard
+suit un peu le braquage, un second doigt tourne la tête (il revient devant),
+le champ s'ouvre avec la vitesse, le ciel en dôme et les traits de vitesse de
+la vue immersive sont là. Devant : planche de bord, bloc d'instruments
+(vitesse en km/h, arc de régime, barre d'état du véhicule, rapport ou
+altitude ou cap, voyants frein / nitro / dégâts / sirène), volant ou guidon qui
+tourne avec les mains gantées et les avant-bras (à la couleur du haut porté),
+montants, pavillon, pare-soleil, rétroviseur, siège voisin ; moto : guidon,
+compteur, rétroviseurs, té de fourche, réservoir ; bateau : console, barre à
+six rayons, manette des gaz, compas ; passerelle : console large et radar ;
+hélico : tableau vert, cyclique, collectif, palonniers ; avion : volant ou
+manche, manette ; char : couronne d'écoutille et périscope ; OVNI : console
+cyan et boule de commande ; kayak : la pagaie dans les mains ; skate et
+planche : rien, on voit la planche en baissant les yeux.
+
+**Comment chaque véhicule a été coché** (`COCKPITS.md`, générée par
+`outils/cockpits_liste.js` depuis `VEHDEFS`) : (1) `cockpitDiagnostic`
+bon — œil dans l'emprise et à bonne hauteur, rayon central libre à plus de
+1,1 u et un des deux rayons de côté (un montant ou un mât est normal),
+instruments projetés dans le champ (coup d'œil vers le bas admis debout),
+intérieur présent ; (2) la capture regardée dans la galerie
+(`outils/cap_cockpits.js`, 80 cellules, 10 passes dans la nuit :
+`captures/nuit2/cockpits_1..4.png` = la dernière).
+
+**Les dix passes, et ce qu'elles ont appris** (toutes en rendu réel) :
+1. Les rayons du diagnostic heurtaient les sprites d'ombre (r128 :
+   `rc.camera` obligatoire).
+2. Le corps du pilote caché par son groupe bouchait quand même les rayons :
+   la visibilité se lit sur toute la chaîne des parents.
+3. Les vitres peintes en sombre et opaques (avions, bateaux, engins)
+   bouchaient la vue de l'intérieur : du verre le temps du cockpit.
+4. **La caisse des voitures est pleine jusqu'à la ceinture** : le volant et
+   le bloc d'instruments construits sous la ceinture n'existaient pas à
+   l'écran ; tout se cale désormais sur l'œil, au-dessus.
+5. **Le champ du portrait fait ~38° de large** : volant à 30 cm = tout
+   l'écran ; console décalée = hors cadre ; les avant-bras placés dans le
+   repère de la roue couchée d'un camion partaient au plafond.
+6. Bas de caisse d'une sportive : l'œil à 20 cm au-dessus de la ceinture ne
+   voyait que le capot → au moins 30 cm.
+7. Le socle sombre d'une rampe de gyrophares, recoloré en verre, étirait la
+   boîte de vitrage : l'œil de la dépanneuse était au-dessus du toit ; les
+   hauteurs viennent du vitrage principal ; son plateau passe sous la zone
+   vitrée : l'œil tout à l'avant (`COCKPIT_DEFS`).
+8. Œil des avions au ras de la verrière (en dessous c'est le fuselage), des
+   motos à selle + 1,05 (le pilote du jeu garde sa taille debout), assis à ciel
+   ouvert à la hauteur des yeux du modèle assis, bateau à gauche du mât du
+   T-top, timonerie du bateau de pêche : dedans.
+9. Instruments des familles debout (bateau, char) : un coup d'œil vers le bas
+   est la réalité ; admis par le diagnostic (p.y ≥ −1,3).
+10. Le champ de la caméra se cale d'un coup à la construction (sinon il
+    rattrapait l'ancien champ pendant une demi-seconde et le test voyait les
+    instruments hors cadre).
+
+**Ce qui reste approximatif, et dit dans la liste** : 9 véhicules ont l'œil
+estimé sur l'encombrement (pas de vitrage reconnu : buggys, grue, passerelle
+mobile, tracteur à bagages, hélico-grue, long-courrier, cargo aérien) — ils
+passent le diagnostic et se regardent bien, mais une retouche à la main dans
+`COCKPIT_DEFS` est possible véhicule par véhicule. Les mains du vélo sortent
+du champ étroit (guidon large) ; la GT « Agent Gris » a un habitacle sombre.
+
+**Coût** : intérieur de 15 à 40 maillages, construit à l'entrée, libéré à la
+sortie ; une texture canvas 256×128 redessinée 10 fois par seconde ; rien
+par image sinon le volant, les deux avant-bras et le balancement. Pas mesuré
+sur iPhone.
 
 ### Décisions prises seul
 
@@ -2258,10 +2340,80 @@ sans changement pour qui joue en vue classique ou immersive.
 - Le test « Terrains de sport » échouait une suite sur deux (balle de tennis mesurée
   sur son déplacement net, nul quand elle faisait demi-tour) : mesurée sur sa course
   (`685d9fb`). Ce n'était pas lié aux commits du soir.
+- Cockpits derrière la vue 1P existante (bouton 1P), pas de quatrième vue ni de
+  réglage : en vue classique et immersive, rien ne change.
+- Le corps du pilote est caché en cockpit (moto, cabriolet, jeep) : il était devant
+  l'œil ; les mains du cockpit le remplacent.
+- Cockpit autorisé dans le hangar du Dépôt (sa salle garde la vue de ville), interdit
+  dans les autres salles, au stand de tir, sur un manège, à la lunette du sniper.
+- Les vitres opaques des anciens modèles deviennent du verre pendant le cockpit
+  seulement (de l'extérieur, pendant qu'on conduit, elles sont donc translucides —
+  acceptable, personne ne se voit conduire).
+- Les véhicules du Dépôt et les trois voitures de derby sont dans la liste (ils sont
+  dans `VEHDEFS`) : cochés comme les autres.
+- Pas de son de cockpit (clignotant, tableau) : la famille audio n'a rien demandé.
+- HUD : la boîte du libellé VÉHICULE recadrée sur son texte plutôt que déplacer le
+  libellé de vague.
 
 ### À trancher
 
+- **Les trois fichiers de consignes** : s'ils existent sur une autre machine,
+  dis-moi ce qu'ils demandaient d'autre ; tout ce qui est fait reste utile.
+- **Les commandes sont-elles intuitives ?** (ta question du soir). Ce que le code
+  montre : le joystick est **flottant** (`zoneL` : toute la moitié gauche basse de
+  l'écran, le joystick naît sous le pouce au premier contact) — on ne « cherche »
+  donc pas sa place ; à droite, les boutons sont dessinés avec icône et libellé
+  (TIR, SPRINT, ESQUIVE, ARME, grenades, saut) ; il n'y a **aucun joystick de
+  visée** : la visée est automatique (`viseAuto`), le doigt fait regarder en vue
+  immersive et 1P (glisser), et le bouton TIR glissé fait regarder en 1P. Ce qui
+  manque pour un inconnu : rien ne le DIT. Il n'existe **aucun tutoriel** ni
+  première-partie guidée (`grep` : `astuceTirVolant` est la seule astuce, un toast
+  au volant) ; l'écran « Commandes » du menu existe mais personne ne l'ouvre avant
+  de jouer. Ma recommandation, à ta décision : trois bulles au premier `startRun`
+  seulement (« pouce gauche n'importe où en bas = marcher », « glisse pour
+  regarder », « TIR vise tout seul »), effacées au premier geste réussi, jamais
+  revues (un champ `META.tuto` à clés fixes). Une heure de travail, un test. Je ne
+  l'ai pas fait : c'est une décision de design visible.
+- **Portrait ou paysage ?** Rendu réel en paysage 844×390 fait cette nuit
+  (`captures/nuit2/paysage.png`) : le jeu **tourne** (rien ne plante, la caméra et
+  le HUD suivent la fenêtre), mais le HUD est pensé portrait : les boutons de droite
+  et la minimap se marchent dessus, les notifications passent sous les boutons, le
+  panneau de l'établi (50 % de la hauteur) ne laisse que 195 px au jeu, le champ 1P
+  devient très large (l'arme est minuscule). Trois niveaux possibles : (a) verrouiller
+  le portrait (une ligne de manifeste Capacitor, et un écran « tourne ton téléphone »
+  en web) ; (b) laisser le paysage tel quel « toléré » ; (c) un vrai HUD paysage
+  (joystick gauche, boutons droite, jauges en haut, panneaux de salle en colonne à
+  droite) : deux à trois jours avec les 28 salles à revérifier. Je recommande (a)
+  pour la publication, et de revenir à (c) seulement si les retours le demandent.
+  Rien n'a été changé : décision de design.
+
 ### À tester à la main sur iPhone demain
 
+1. **Cockpit** : bouton 1P, monter dans la première voiture venue → le volant tourne
+   avec le joystick, les mains suivent, les km/h montent ; un second doigt tourne la
+   tête ; repasser 3D/2D au volant → le corps et la vue reviennent ; descendre → la 1P
+   à pied reprend. Fluidité à surveiller (le cockpit ajoute 15 à 40 maillages et une
+   texture vivante) ; le balancement avec la vitesse ne doit pas donner la nausée.
+2. **Moto en cockpit** : selle + 1,05 — trop haut ? trop bas ? Les rétroviseurs sont-ils
+   lisibles ? Le guidon tourne-t-il assez ?
+3. **Bateau** : la barre, la manette, le compas ; le mât du T-top à droite de la barre.
+4. **Hélico** : le tableau vert, le cyclique qui suit le joystick, l'altitude.
+5. **Établi** : glisser sur l'arme la fait tourner (corrigé en soirée).
+6. **Rechargement 1P** : vider un chargeur, regarder la manœuvre ; en visée l'arme
+   descend puis revient.
+7. **HUD au volant** : le libellé VÉHICULE et « VAGUE n » ne se touchent pas.
+
 ### Idées non faites
+
+- Cockpit : essuie-glaces sous la pluie, rétroviseur qui reflète (une seconde
+  caméra), clignotants, bruit de tableau, sièges qui vibrent au choc, mains qui
+  lâchent le volant pour le levier de vitesse ; aiguilles réelles plutôt qu'un canvas.
+- Quelques cockpits « à la main » pour les 9 véhicules estimés sur l'encombrement.
+- Tutoriel de première partie (voir « À trancher »).
+- HUD paysage (voir « À trancher »).
+
+### Vérifications de fin de nuit
+
+(remplies quand les quatre exécutions sont finies — suite par défaut, puis
+`SEED=random` trois fois, enchaînées dans `scratchpad/suite/nuit2.sh`)
 
