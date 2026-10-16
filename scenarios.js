@@ -8543,7 +8543,7 @@ async function main() {
         if (t1.erreur || !(t1.gain > 0) || !t1.fini) o.ko.push('taxi : ' + JSON.stringify(t1)); else o.info.push('taxi ' + t1.type + ' vers ' + t1.nom + ' : +' + t1.gain + ' $');
         if (t2.gain !== 0) o.ko.push('taxi en retard payé : ' + JSON.stringify(t2));
         // fragile : un gros choc le fâche (moins de pourboire)
-        let f = null; for (let k = 0; k < 12 && !f; k++) { const v = scene0('taxi'); if (MET.taxi.T.id === 'fragile') f = v; }
+        let f = null; { const v = scene0('taxi'); if (MET.taxi) { MET.taxi.T = TAXI_TYPES.find((x) => x.id === 'fragile'); f = v; } } /* le test maîtrise sa scène : le client fragile est posé, pas espéré (12 tirages, sauté selon l'état du hasard) */
         if (f) { const m = MET.taxi; amener(f, m.x, m.z); majMetiers(1 / 30, 1 / 30); const s0 = MET.taxi.sat; f.hp -= 20; majMetiers(1 / 30, 1 / 30); if (!(MET.taxi.sat < s0 - 20)) o.ko.push('client fragile insensible aux chocs (' + s0 + ' → ' + MET.taxi.sat + ')'); } else o.saute = 'client fragile jamais tiré en 12 courses : le choc sur un client fragile n’a pas été vérifié';
         // ambulance : défibrillateur (trop tôt = pénalité, au maximum = choc), puis clinique
         { const v = scene0('ambulance'), m = MET.ambulance; if (!m || MET2.pnj.length < 3) o.ko.push('ambulance : blessé ou témoins absents');

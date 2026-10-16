@@ -1429,6 +1429,32 @@ puis redescendre tirer : on ne peut pas ajuster ».
   quand il ne reste que deux IA, le plafond d'IA sur le joueur saute : elles
   foncent toutes les deux sur lui.
 
+### Vitrage uniforme et avant du Raptor (16 octobre) — `vitrerAncien`, `geoHabitacle`
+
+Demandé : « certains véhicules ont des pare-brise, d'autres non : qu'on sente la
+même qualité » ; « enlève le capot qui descend sur le Raptor, un vrai avant massif ».
+- **Anciens modèles** (taxi, police, Rafale, GT « Agent Gris », camions
+  militaires, ambulance, pompiers, dépanneuse, bus, véhicules de piste,
+  fourgon) : `vitrerAncien(g,key)`, appelée par `makeVoiture` avant
+  `rehausserModele`. L'habitacle « bloc noir » noté à sa création
+  (`userData.habitacle` : largeur, bas, haut, avant, arrière, `camion`,
+  `coupe`) est masqué et remplacé par `geoHabitacle` — verre, pare-brise et
+  lunette inclinés (droits sur un camion), pavillon et montants A, B, C peints
+  (`mat(coul)` : le garage repeint le toit), joint sombre ; géométries en cache
+  par modèle (`_GEO_HAB`, `partagee`). Les vitres sombres connues
+  (`VITRES_SOMBRES`) prennent le même verre `_MAT_VITRE_A` (celui des V2,
+  opaque : ces cabines sont vides, transparent on voyait le toit du fourgon).
+  Carrosserie et capot inchangés (le taxi, la police et la Rafale gardent leur
+  ancien capot, demandé le 16). Ambulance : sa cabine passe devant le caisson
+  (au milieu, elle y était enterrée).
+- **Aucun tirage** : tout est construit sous un générateur PRIVÉ (`Math.random`
+  remplacé le temps de la passe) — les uuid ne touchent ni la ville ni le
+  décor ; un ancien objet est masqué, jamais retiré. Portes vérifiées identiques.
+- **Raptor** (`PROFILS_VOITURE.pickup`) : `nez` 1,56 et `capot` 1,62 — face
+  avant verticale au niveau du capot, calandre noire agrandie ; les ancrages du
+  garage se recalculent seuls (`ancragesProfil`).
+- Vérifié en rendu réel (galerie des 48 véhicules terrestres, même angle).
+
 ## Retours de playtest du 16 octobre — véhicules et conduite
 
 - **Taxi, police et Rafale** gardent leur ANCIEN modèle (signalé : « le capot

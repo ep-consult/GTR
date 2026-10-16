@@ -2810,7 +2810,7 @@ const PROFILS_VOITURE={
   // nouveaux modèles ; carre : capot plat et nez peu arrondi (signalé : « le taxi et la police étaient mieux avant » — ils
   // gardent leur ancien modèle, comme la Rafale) ; benne : pick-up (plateau ouvert derrière la cabine) ; ailes : élargisseurs noirs
   charger:{carre:true,L:5.0,W:2.1,R:0.38,ep:0.3,garde:0.18,axe:0.3,nez:0.84,capot:0.98,caisse:1.0,malle:0.96,cul:0.95,toit:1.4,zPb:0.13,zAv:-0.01,zAr:-0.24,zLu:-0.36,jante:'etoile',portes:2,ecope:true},
-  pickup:{carre:true,benne:true,ailes:true,raptor:true,L:5.0,W:2.2,R:0.5,ep:0.4,garde:0.5,axe:0.31,nez:1.3,capot:1.58,caisse:1.64,malle:1.6,cul:1.62,toit:2.22,zPb:0.2,zAv:0.12,zAr:-0.11,zLu:-0.15,jante:'multi',portes:4},
+  pickup:{carre:true,benne:true,ailes:true,raptor:true,L:5.0,W:2.2,R:0.5,ep:0.4,garde:0.5,axe:0.31,nez:1.56,capot:1.62, /* nez au niveau du capot : face avant verticale et massive (16 octobre : « enlève le capot qui descend ») */caisse:1.64,malle:1.6,cul:1.62,toit:2.22,zPb:0.2,zAv:0.12,zAr:-0.11,zLu:-0.15,jante:'multi',portes:4},
   limousine:{carre:true,L:7.2,W:2.1,R:0.37,ep:0.26,garde:0.2,axe:0.37,nez:0.8,capot:0.94,caisse:1.0,malle:0.96,cul:0.92,toit:1.48,zPb:0.25,zAv:0.16,zAr:-0.3,zLu:-0.37,jante:'chrome',portes:6,chromes:true},
   suvLuxe:{carre:true,ailes:true,L:5.1,W:2.15,R:0.46,ep:0.32,garde:0.36,axe:0.31,nez:1.12,capot:1.24,caisse:1.3,malle:1.32,cul:1.26,toit:1.96,zPb:0.2,zAv:0.1,zAr:-0.42,zLu:-0.47,jante:'multi',portes:4,barres:true,chromes:true},
   cabriolet:{L:4.6,W:2.02,R:0.36,ep:0.27,garde:0.18,axe:0.3,nez:0.56,capot:0.86,caisse:0.94,malle:0.92,cul:0.88,toit:1.24,zPb:0.15,zAv:0.03,zAr:-0.16,zLu:-0.26,jante:'multi',portes:2,ouvert:true},
@@ -3606,6 +3606,7 @@ const _matCache={};
 // tirage de l'identifiant de ce matériau et se décalerait (portes déplacées).
 const _matCacheDecor={}; var _HORS_ALEA_VILLE=false;
 const mat=c=>{ const C=_HORS_ALEA_VILLE?_matCacheDecor:_matCache; return C[c]||(C[c]=new THREE.MeshLambertMaterial({color:c})); };
+const _matCacheTient=c=>!!(_HORS_ALEA_VILLE?_matCacheDecor:_matCache)[c]; /* la couleur existe déjà : mat(c) ne créera rien (aucun tirage) */
 /* ---- fusion de géométries statiques (perf) ---- */
 const MERGE={}; // clé matériau -> {mat, geos:[]}
 let mergeMatId=0;
@@ -14943,10 +14944,50 @@ function agrandirHelico(g,K){
   if(ud.ombre) ud.ombre.scale.multiplyScalar(K);
   ud.kHeli=K; g.userData=ud; return g;
 }
+/* Vitrage des anciens modèles (16 octobre, demandé : « certains véhicules ont des pare-brise, d'autres non : qu'on sente la même
+   qualité partout ») : l'habitacle « bloc noir » (taxi, police, Rafale, GT, camions) devient un vrai vitrage comme celui des voitures
+   V2 — verre teinté brillant, pare-brise et lunette inclinés (droits sur un camion), pavillon et montants peints ; les autres vitres
+   sombres (pare-brise de camion, bandeaux du bus, cabines d'engins) prennent le même verre. La carrosserie et le capot ne bougent pas.
+   Tout est construit sur un générateur PRIVÉ (uuid des objets Three.js) : ni la ville ni le décor ne voient un tirage de plus. */
+let _MAT_VITRE_A=null, _MAT_JOINT_A=null; const _GEO_HAB={};
+const VITRES_SOMBRES=[0x141b26,0x0c0e12,0x1c2a3a,0x10161f,0x16202a]; /* vitrages des anciens modèles, des véhicules de piste (vit) et du bus */
+function vitrerAncien(g,key){
+  if(!DECOR_V2) return;
+  const def=VEHDEFS[key]; if(!def||def.air||def.eau||def.velo) return;
+  const r0=Math.random; let sd=(0x9e3779b9^key.length*7919)>>>0; Math.random=()=>{ sd=(sd*1664525+1013904223)>>>0; return sd/4294967296; };
+  try{
+    if(!_MAT_VITRE_A) _MAT_VITRE_A=new THREE.MeshPhongMaterial({color:0x16202a,specular:0x8aa4c0,shininess:90}); /* le verre des voitures V2, opaque : ces cabines sont vides (transparent, on voyait le toit gris du fourgon à travers le pare-brise) */
+    if(!_MAT_JOINT_A) _MAT_JOINT_A=new THREE.MeshLambertMaterial({color:0x15171c}); /* propre à la passe : une couleur créée dans le cache partagé mat() changeait les tirages de la partie */
+    const cP=g.userData.coul!==undefined?g.userData.coul:def.cols[0], peint=_matCacheTient(cP)?mat(cP):_MAT_JOINT_A, habs=[];
+    g.traverse((o)=>{ if(!o.isMesh) return;
+      if(o.userData.habitacle){ habs.push(o); return; }
+      if(o.userData.ancienVitrage){ o.visible=false; return; }
+      const c=o.material&&o.material.color&&!o.material.map?o.material.color.getHex():-1;
+      if(VITRES_SOMBRES.includes(c)&&o.material!==_MAT_VITRE_A){ if(!o.geometry.boundingBox) o.geometry.computeBoundingBox(); const t=o.geometry.boundingBox.getSize(new THREE.Vector3()), a=[t.x,t.y,t.z].sort((x,y)=>y-x); if(a[0]>=0.25&&a[1]>=0.15) o.material=_MAT_VITRE_A; } }); /* une vitre, pas un petit détail sombre */
+    for(const o of habs){ const H=o.userData.habitacle, par=o.parent; o.visible=false;
+      const cle=key+':'+[H.w,H.y0,H.y1,H.zAv,H.zAr].map((v)=>v.toFixed(3)).join(',');
+      const geos=_GEO_HAB[cle]||(_GEO_HAB[cle]=geoHabitacle(H));
+      for(const [n,geo] of geos){ const m=new THREE.Mesh(geo,n==='vitre'?_MAT_VITRE_A:(n==='sombre'?_MAT_JOINT_A:peint)); par.add(m); } }
+  } finally { Math.random=r0; }
+}
+function geoHabitacle(H){ /* pare-brise, lunette, vitres latérales (le verre), pavillon, montants A, B, C (peints), joint de bas de vitre (sombre) */
+  const w=H.w, y0=H.y0, y1=H.y1, hh=y1-y0, out=[];
+  const pb=H.camion?0.06:(H.coupe?0.42:0.34)*hh/0.48, lu=H.camion?0.0:(H.coupe?0.36:0.26)*hh/0.48; /* recul du haut du pare-brise et de la lunette */
+  const zA=H.zAv+(H.camion?0.04:0.16), zR=H.zAr-(H.camion?0:0.08), zAt=zA-pb-(H.camion?0:0.16), zRt=zR+lu;
+  const extru=(forme,larg,biseau)=>{ const geo=new THREE.ExtrudeGeometry(forme,{depth:Math.max(0.04,larg-2*biseau),bevelEnabled:true,bevelThickness:biseau,bevelSize:biseau,bevelSegments:2,curveSegments:4}); geo.translate(0,0,-(larg-2*biseau)/2); geo.rotateY(-Math.PI/2); return geo; };
+  const v=new THREE.Shape(); v.moveTo(zA,y0); v.lineTo(zAt,y1-0.02); v.lineTo(zRt,y1-0.02); v.lineTo(zR,y0); v.lineTo(zA,y0); out.push(['vitre',extru(v,w,0.025)]);
+  const t=new THREE.Shape(); t.moveTo(zAt+0.05,y1-0.05); t.lineTo(zAt-0.03,y1+0.04); t.lineTo(zRt+0.03,y1+0.04); t.lineTo(zRt-0.05,y1-0.05); t.lineTo(zAt+0.05,y1-0.05); out.push(['peint',extru(t,w*1.03,0.025)]);
+  const barre=(ep,larg,x,ya,za,yb,zb)=>{ const dy=yb-ya, dz=zb-za, geo=new THREE.BoxGeometry(ep,larg,Math.hypot(dy,dz)); geo.applyMatrix4(new THREE.Matrix4().makeRotationX(Math.atan2(-dy,dz))); geo.translate(x,(ya+yb)/2,(za+zb)/2); return geo; };
+  const xp=w*0.5+0.006;
+  for(const sx of [-1,1]){ out.push(['peint',barre(0.06,0.09,sx*xp,y0,zA,y1-0.02,zAt)]); out.push(['peint',barre(0.06,H.camion?0.12:0.2,sx*xp,y0,zR,y1-0.02,zRt)]);
+    const zB=(zAt+zRt)/2+(H.coupe?0.1:0), b=new THREE.BoxGeometry(0.06,hh,H.camion?0.1:0.12); b.translate(sx*xp,(y0+y1)/2-0.01,zB); out.push(['peint',b]); }
+  const j=new THREE.BoxGeometry(w*1.02,0.04,Math.abs(zA-zR)+0.04); j.translate(0,y0+0.01,(zA+zR)/2); out.push(['sombre',j]);
+  for(const [,geo] of out) geo.userData.partagee=true; /* en cache par modèle : jamais libérées */
+  return out; }
 function makeVoiture(key){
   if(VEHDEFS[key]&&VEHDEFS[key].modele){ const g=makeVoiture(VEHDEFS[key].modele); peindreMesh(g,VEHDEFS[key].cols[0]); return g; } // véhicules du Dépôt : un vrai modèle (citadine, pick-up à benne, supercar, bus) à leur couleur
   if(VEHDEFS[key]&&VEHDEFS[key].derby){ _VEH_V2=true; try{ return makeVoitureBase(key); } finally{ _VEH_V2=false; } } // derby : carrosserie voitureV2, habillage à part (habillerDerby)
-  if(!vehiculeRestyle(VEHDEFS[key])){ const g=makeVoitureBase(key); rehausserModele(g,key); if(VEHDEFS[key].air==='helico'&&!VEHDEFS[key].ovni) agrandirHelico(g,ECH_HELI[key]||1.55); return g; } // l'OVNI garde sa taille (rayon tracteur)
+  if(!vehiculeRestyle(VEHDEFS[key])){ const g=makeVoitureBase(key); vitrerAncien(g,key); rehausserModele(g,key); if(VEHDEFS[key].air==='helico'&&!VEHDEFS[key].ovni) agrandirHelico(g,ECH_HELI[key]||1.55); return g; } // l'OVNI garde sa taille (rayon tracteur)
   makeVoitureBase(key);
   _VEH_V2=true; try{ const g=sansAleaVille(()=>makeVoitureBase(key)); rehausserModele(g,key); return g; } finally{ _VEH_V2=false; }
 }
@@ -15508,10 +15549,10 @@ function makeVoitureBase(key){
       // majConduite, TEL QUEL) postés juste en dessous, façon gadget caché
       // derrière la calandre.
       corps.add(mkBoxG(W*0.86,0.38,L*0.94,coul,0,bodyY,0));                       // caisse basse et longue
-      corps.add(mkBoxG(W*0.62,0.4,L*0.42,0x1a1d24,0,bodyY+0.55,-L*0.06));         // habitacle fermé, bas, ramené vers l'arrière
+      { const hab=mkBoxG(W*0.62,0.4,L*0.42,0x1a1d24,0,bodyY+0.55,-L*0.06); hab.userData.habitacle={w:W*0.62,y0:bodyY+0.35,y1:bodyY+0.75,zAv:-L*0.06+L*0.21,zAr:-L*0.06-L*0.21,coupe:true}; corps.add(hab); } // habitacle fermé, bas, ramené vers l'arrière (vrai vitrage : vitrerAncien)
       corps.add(mkBoxG(W*0.58,0.06,L*0.4,coul,0,bodyY+0.78,-L*0.06));             // toit rigide
-      corps.add(mkBoxG(W*0.5,0.3,0.04,0x0c0e12,0,bodyY+0.56,L*0.16));             // pare-brise incliné
-      corps.add(mkBoxG(W*0.5,0.3,0.04,0x0c0e12,0,bodyY+0.56,-L*0.28));            // lunette arrière
+      { const m=mkBoxG(W*0.5,0.3,0.04,0x0c0e12,0,bodyY+0.56,L*0.16); m.userData.ancienVitrage=true; corps.add(m); } // pare-brise incliné (remplacé)
+      { const m=mkBoxG(W*0.5,0.3,0.04,0x0c0e12,0,bodyY+0.56,-L*0.28); m.userData.ancienVitrage=true; corps.add(m); } // lunette arrière (remplacée)
       corps.add(mkBoxG(W*0.9,0.16,0.14,0xc4c8ce,0,bodyY-0.18,L/2*0.98));          // pare-chocs avant, chromé
       corps.add(mkBoxG(W*0.9,0.16,0.14,0xc4c8ce,0,bodyY-0.18,-L/2*0.98));         // pare-chocs arrière, chromé
       [-1,1].forEach(sx=>{ // phares ronds jumelés
@@ -15564,8 +15605,8 @@ function makeVoitureBase(key){
       corps.add(tourJeep); ud.tourelle=tourJeep;
     } else if(key!=='busville'){
       corps.add(mkBoxG(W,busH,L*0.92,coul,0,bodyY+(busH-0.6)/2,0));
-      corps.add(mkBoxG(W*0.8,0.48,L*0.44,0x141b26,0,bodyY+0.53,-L*0.06)); // habitacle vitré
-      corps.add(mkBoxG(W*0.6,0.05,L*0.28,def.taxi?0xf2c21f:0x0d1119,0,bodyY+0.8,-L*0.06)); // pavillon détaillé vu du dessus
+      { const hab=mkBoxG(W*0.8,0.48,L*0.44,0x141b26,0,bodyY+0.53,-L*0.06); hab.userData.habitacle=def.ambulance?{w:W*0.84,y0:bodyY+0.29,y1:bodyY+0.8,zAv:L*0.31,zAr:L*0.15,camion:true}:{w:W*0.8,y0:bodyY+0.29,y1:bodyY+0.77,zAv:-L*0.06+L*0.22,zAr:-L*0.06-L*0.22,camion:!!HAUTEUR_VEH[key]}; /* ambulance : la cabine devant le caisson (au milieu, elle y était enterrée) */ corps.add(hab); } // habitacle : remplacé par un vrai vitrage (vitrerAncien)
+      { const pav=mkBoxG(W*0.6,0.05,L*0.28,def.taxi?0xf2c21f:0x0d1119,0,bodyY+0.8,-L*0.06); pav.userData.ancienVitrage=true; corps.add(pav); } // pavillon détaillé vu du dessus (remplacé)
       corps.add(mkBoxG(W*0.66,0.04,0.08,0x1a2028,0,bodyY+0.32,L*0.2)); // ligne de capot
     } else {
       // Bus de ville : bandeau de vitres continu, pare-brise + lunette,
@@ -16099,7 +16140,7 @@ function geoVoiture(k){
   if(P.feuxRonds){ bx('sombre',W*0.9,0.3,0.03,0,P.cul-0.32,fr); // la face arrière sombre, quatre feux ronds
     for(const x of [-0.36,-0.22,0.22,0.36]){ const c=new THREE.CylinderGeometry(0.085,0.085,0.05,16); ajout('feu',c,x*W,P.cul-0.32,fr-0.01,Math.PI/2); } }
   if(P.taxi){ bx('sombre',0.9,0.08,0.36,0,P.toit+0.05,(zAv+zAr)/2); bx('taxi',0.8,0.24,0.3,0,P.toit+0.2,(zAv+zAr)/2); }
-  if(P.raptor){ bx('sombre',W*0.8,0.5,0.06,0,P.nez-0.32,fa+0.01); for(const dx of [-0.3,0,0.3]){ bx('orange',0.14,0.05,0.04,dx,P.nez-0.2,fa+0.04); bx('orange',0.12,0.05,0.08,dx,P.toit+0.04,zAv-0.02); }
+  if(P.raptor){ bx('sombre',W*0.84,0.62,0.06,0,P.nez-0.4,fa+0.01); for(const dx of [-0.3,0,0.3]){ bx('orange',0.14,0.05,0.04,dx,P.nez-0.2,fa+0.04); bx('orange',0.12,0.05,0.08,dx,P.toit+0.04,zAv-0.02); }
     bx('sombre',W*0.9,0.26,0.24,0,g0+0.12,fa); bx('chrome',W*0.5,0.06,0.3,0,g0-0.02,fa-0.15); }
   if(P.police){ bx('sombre',1.3,0.08,0.3,0,P.toit+0.05,(zAv+zAr)/2+0.1); bx('sombre',W*0.7,0.3,0.1,0,g0+0.38,av+0.12); for(const sx of [-0.5,0.5]) bx('sombre',0.08,0.42,0.08,sx,g0+0.38,av+0.07); }
   const out={}; for(const n in listes){ out[n]=mergeGeoManuel(listes[n]); out[n].userData.partagee=true; for(const gg of listes[n]) gg.dispose(); }
