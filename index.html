@@ -818,25 +818,25 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
     et à <b>réparer</b> au garage. En véhicule, <b>pousse simplement le joystick dans la direction où tu veux aller</b> :
     le véhicule s'oriente et avance tout seul (pointe derrière toi pour la marche arrière).
     Le gros bouton 🛑 est un <b>frein à main</b> : garde-le enfoncé en tournant pour drifter.
-    Des <b>tremplins</b> (chantier, plage, port, aérodrome) et des <b>dunes</b> permettent de
+    Des <b>tremplins</b> (chantier, plage, port, aéroport) et des <b>dunes</b> permettent de
     décoller — prends de la vitesse, les crêtes s'occupent du reste. Touche la <b>minimap</b> pour ouvrir la grande carte.
-    À la marina (plage sud), le <b>sniper Faucon</b> se vise à la main (maintiens TIR, oriente au joystick, relâche pour transpercer), et tu <b>ramasses l'arme des ennemis tués</b> en marchant dessus. Des <b>bateaux et jet-skis</b> t'attendent — et tu peux carrément
+    Le <b>sniper Faucon</b> (armurerie, niveau 6) se vise à la main (maintiens TIR, oriente au joystick, relâche pour transpercer), et tu <b>ramasses l’arme des ennemis tués</b> en marchant dessus. À la marina (plage sud), des <b>bateaux et jet-skis</b> t’attendent — et tu peux carrément
     <b>nager</b> : entre dans la mer depuis la plage (vitesse réduite, seul le pistolet fonctionne,
-    surveille ton endurance). Les <b>gangs tiennent des quartiers</b> (Sunset Vipers en zone industrielle,
-    Los Calaveras au quartier néon, Dockside Boys au port, Krasnaya Brigada côté villas) et se battent entre eux
+    surveille ton endurance). Les <b>gangs tiennent des quartiers</b> (les Sunset Vipers — « les Vipers » — en zone industrielle,
+    Los Calaveras au quartier néon, les Dockside Boys au port et à la plage, la Krasnaya Brigada — « la Brigada » — aux villas et au centre) et se battent entre eux
     et contre la police — profites-en. Des <b>véhicules uniques et des armes rares</b> sont cachés
     sur la carte : un léger scintillement les trahit quand tu es tout près.
     Un <b>aéroport</b> se trouve à l'est (portail dans l'enceinte) : avion et hélico pilotables.
     En vol, <b>MONTER / DESCENDRE</b> remplacent sprint et frein — l'avion doit prendre de la
-    vitesse sur la piste pour décoller et <b>décroche</b> sous 19 de vitesse ; tout contact avec
+    vitesse sur la piste pour décoller (vers 97 km/h) et <b>décroche</b> sous 68 km/h ; tout contact avec
     un immeuble plus haut que ton altitude, c'est le <b>crash</b>. L'hélico peut se <b>poser sur
     les toits</b> : descends doucement au-dessus d'un immeuble, sors, et marche sur le toit
-    (attention aux bords — la chute fait mal). Un hélipad t'attend au sommet de la plus haute
+    (attention aux bords — la chute fait mal). Un héliport t’attend au sommet de la plus haute
     tour du centre, avec du butin.<br><br>
     <b>Clavier</b> — ZQSD / WASD / flèches : déplacement · <b>Espace ou J</b> : attaque ·
-    <b>K</b> : esquive · <b>Maj</b> : sprint · <b>E</b> : action · <b>A / Tab</b> : changer d'arme ·
+    <b>K</b> : esquive · <b>Maj</b> : sprint · <b>E</b> : action · <b>Tab</b> : changer d’arme · <b>G</b> : grenade · <b>F</b> : jetpack ·
     <b>R</b> : spécial · <b>S</b> (en véhicule) : frein · <b>P</b> : pause.<br><br>
-    <b>La boucle</b> — survis aux vagues, farme les gangs, encaisse les dollars, améliore-toi
+    <b>La boucle</b> — survis aux vagues, pille les gangs, encaisse les dollars, améliore-toi
     à l'armurerie. La police monte en pression avec ton niveau de recherche (jusqu'à
     l'armée ★6). Pour redescendre : reste hors de vue ou change de véhicule.
   </div>
@@ -901,7 +901,7 @@ function signalerErreur(msg){ /* la boîte n'existait pas dans le HTML : toute e
 window.addEventListener('error',function(ev){ signalerErreur((ev.message||'?')+' @'+(ev.lineno||'?')+':'+(ev.colno||'?')); });
 window.addEventListener('unhandledrejection',function(ev){ const r=ev&&ev.reason; signalerErreur('promesse : '+(r&&r.message||r||'?')); });
 if(typeof THREE==='undefined'){
-  document.body.innerHTML='<div style="color:#ff5a3a;font:bold 22px Arial;text-align:center;padding:40px">Chargement du moteur 3D...<br><small>Vérifie ta connexion et recharge la page</small></div>';
+  document.body.innerHTML='<div style="color:#ff5a3a;font:bold 22px Arial;text-align:center;padding:40px">Impossible de charger le moteur 3D…<br><small>Vérifie ta connexion et recharge la page</small></div>';
   throw new Error('THREE.js non chargé');
 }
 'use strict';
@@ -1988,7 +1988,7 @@ const DEFIS_SIMPLES=[
   {id:'public',nom:'Ennemi public',det:'Atteins le niveau de recherche ★6',rec:700,prog:m=>[m.defis.etoile6?1:0,1],cond:m=>m.defis.etoile6},
   {id:'marin',nom:'Marin d\u2019eau douce',det:'Pilote un bateau ou un jet-ski',rec:300,prog:m=>[m.defis.bateau?1:0,1],cond:m=>m.defis.bateau},
   {id:'jackpot',nom:'Coup de chance',det:'Décroche un gros gain au casino (jackpot ou quinte flush)',rec:500,prog:m=>[m.defis.jackpot?1:0,1],cond:m=>m.defis.jackpot},
-  {id:'proprio',nom:'Propriétaire',det:'Achète la villa planque du quartier résidentiel',rec:600,prog:m=>[m.planque?1:0,1],cond:m=>m.planque},
+  {id:'proprio',nom:'Propriétaire',det:'Achète la villa planque de Los Reyes Hills',rec:600,prog:m=>[m.planque?1:0,1],cond:m=>m.planque},
   {id:'sommet',nom:'Tout en haut',det:'Monte au toit panoramique par l\u2019ascenseur de la Tour Los Reyes',rec:400,prog:m=>[m.defis.sommet?1:0,1],cond:m=>m.defis.sommet},
   {id:'gadget',nom:'Objet trouvé',det:'Découvre ce que cache le vestiaire du commissariat',rec:250,prog:m=>[m.armes.gadget.poss?1:0,1],cond:m=>m.armes.gadget.poss},
   {id:'casse',nom:'Casse du siècle',det:'Force le coffre de la banque',rec:800,prog:m=>[m.defis.banque?1:0,1],cond:m=>m.defis.banque},
@@ -2000,7 +2000,7 @@ const DEFIS_SIMPLES=[
   {id:'canard',nom:'Coin-coin',det:'Découvre l\u2019île mystérieuse au large',rec:300,prog:m=>[m.defis.ile?1:0,1],cond:m=>m.defis.ile},
   {id:'guerre',nom:'Épervier',det:'Vole le chasseur militaire de l\u2019aéroport',rec:600,prog:m=>[m.decouverts.chasseur?1:0,1],cond:m=>!!m.decouverts.chasseur},
   {id:'curieux',nom:'Curieux',det:'Trouve ta première curiosité dans un lieu spécial',rec:300,prog:m=>[nbCurios(),1],cond:m=>nbCurios()>=1},
-  {id:'cabinet',nom:'Cabinet complet',det:'Réunis les 4 curiosités des lieux spéciaux',rec:1500,prog:m=>[nbCurios(),CURIOS_ACTIVES.length],cond:m=>nbCurios()>=CURIOS_ACTIVES.length},
+  {id:'cabinet',nom:'Cabinet complet',det:'Réunis toutes les curiosités des lieux spéciaux',rec:1500,prog:m=>[nbCurios(),CURIOS_ACTIVES.length],cond:m=>nbCurios()>=CURIOS_ACTIVES.length},
   // --- lot 11/12 : Dépôt de bus, Jetpack, Monster Truck — des lieux/mécaniques
   // entièrement optionnels, invisibles tant qu'on ne les a pas trouvés : ces
   // défis existent pour donner une bonne raison d'aller les chercher.
@@ -2054,11 +2054,11 @@ const DEFIS_THEMES=[
   {theme:'tour',noms:['Aiguilleur','Contrôleur aérien','Maître du ciel'],det:n=>'Pose '+n+' avions depuis la tour de contrôle de l’aéroport',val:m=>m.defis.avionsPoses,paliers:[10,40,100],recs:[400,1200,2500]},
   {theme:'manege',noms:['Ticket de manège','Accro aux sensations'],det:n=>'Fais '+n+(n>1?' tours':' tour')+' de grand huit ou de grande roue',val:m=>m.defis.manege,paliers:[1,10],recs:[150,700]},
   {theme:'style',noms:['Coquet','Fashion victim'],det:n=>'Achète '+n+(n>1?' pièces':' pièce')+' dans les boutiques, chez le barbier ou le tatoueur',val:m=>m.defis.styleAchats,paliers:[1,8],recs:[200,900]},
-  {theme:'planques',noms:['Propriétaire','Agent immobilier','Baron de l’immobilier'],det:n=>'Achète '+n+(n>1?' planques':' planque'),val:m=>Object.values(m.planques||{}).filter((x)=>x===true||(x&&x.achetee)).length,paliers:[1,3,6],recs:[400,1500,4000]},
+  {theme:'planques',noms:['Premier pied-à-terre','Agent immobilier','Baron de l’immobilier'],det:n=>'Achète '+n+(n>1?' planques':' planque'),val:m=>Object.values(m.planques||{}).filter((x)=>x===true||(x&&x.achetee)).length,paliers:[1,3,6],recs:[400,1500,4000]},
   {theme:'derby',noms:['Casse-cou','Roi de l’arène','Légende du derby'],det:n=>'Gagne '+n+(n>1?' derbys':' derby')+' dans l’arène',val:m=>(m.derby&&m.derby.victoires)||0,paliers:[1,5,15],recs:[500,1500,4000]},
   {theme:'fauves',noms:['Chasseur','Dompteur de fauves'],det:n=>'Viens à bout de '+n+' bêtes sauvages (sangliers, jaguar, ours)',val:m=>m.defis.fauves,paliers:[3,12],recs:[400,1300]},
   {theme:'aimant',noms:['Grutier volant','As de l’aimant'],det:n=>'Accroche '+n+(n>1?' véhicules':' véhicule')+' avec l’aimant de l’hélico-grue « Titan »',val:m=>m.defis.aimant,paliers:[1,8],recs:[350,1200]},
-  {theme:'exploits',noms:['Touche-à-tout','Champion des mini-jeux','Légende des mini-jeux'],det:n=>'Débloque '+n+(n>1?' tenues':' tenue')+' de mini-jeu (basket, tour de contrôle, supercross, bowl, wakeboard, Badlands)',val:m=>Object.values(m.exploits||{}).filter(Boolean).length,paliers:[1,3,6],recs:[300,1000,3000]},
+  {theme:'exploits',noms:['Touche-à-tout','Champion des mini-jeux','Légende des mini-jeux'],det:n=>'Débloque '+n+(n>1?' tenues':' tenue')+' de mini-jeu (basket, tour de contrôle, supercross, bowl, wakeboard, Badlands, parcours militaire, ball-trap, derby, tennis)',val:m=>Object.values(m.exploits||{}).filter(Boolean).length,paliers:[1,3,6],recs:[300,1000,3000]},
   {theme:'armurier',noms:['Bricoleur d’armes','Armurier'],det:n=>'Pose '+n+(n>1?' modifications':' modification')+' sur tes armes à l’établi de l’armurerie',val:m=>Object.values(m.modsArmes||{}).reduce((s,v)=>s+(v?String(v).split(',').filter(Boolean).length:0),0),paliers:[1,6],recs:[250,1000]}
 ];
 const DEFIS=DEFIS_SIMPLES.concat(...DEFIS_THEMES.map(themeDefi));
@@ -2184,7 +2184,7 @@ const CURIOS=[
    ind:'Il faut avoir soulevé les trois barres. Toutes les trois.',actif:true},
   {id:'fleur',ico:'🌺',nom:'L\u2019Étoile de Los Reyes',lieu:'Serre du jardin botanique',
    eff:'Les soins que tu ramasses rendent 35 % de PV en plus',
-   ind:'Trois bonnes plantes du premier coup. Lis les étiquettes, regarde la lumière.',actif:true},
+   ind:'Une nuit entière sans laisser faner une seule plante : l’arrosoir pour la soif, le pulvérisateur pour les pucerons.',actif:true},
   {id:'ceinture',ico:'🥇',nom:'La Ceinture de Champion',lieu:'Le Roi des Sandwichs',
    eff:'+20 PV maximum, définitivement',
    ind:'Le Monstre entier. Sans rendre. Il paraît que c\u2019est faisable.',actif:true},
@@ -17322,7 +17322,7 @@ function majJoueur(dt,dtJeu){
     P.dodgeT=0.32; P.dodgeVx=dx*27; P.dodgeVz=dz*27; P.dodgeCd=0.9; P.iframes=0.45;
     P.stam-=25; P.stamDelai=0.8; SFX.swing();
   }
-  if(pressed('arme')||edgeKey('KeyA')||edgeKey('Tab')) changerArme();
+  if(pressed('arme')||edgeKey('Tab')) changerArme();
   if(pressed('spec')||edgeKey('KeyR')) capaciteSpeciale();
   if(pressed('gren')||edgeKey('KeyG')) lancerGrenade();
   // Jetpack : décollage immédiat, tant qu'il reste du carburant — voir
@@ -19288,7 +19288,7 @@ function majVol(v,dt){
   if(v.def.ovni) v.mesh.rotation.y+=1.1*dt;
   else v.mesh.rotation.y=v.ang;
   moteurUpdate(clamp((Math.abs(v.v)+Math.abs(v.va)*3)/v.def.vmax,0,1));
-  if(pressed('arme')||edgeKey('KeyA')||edgeKey('Tab')) changerRadio();
+  if(pressed('arme')||edgeKey('Tab')) changerRadio();
   P.x=v.x; P.z=v.z; P.ang=v.ang;
   META.defis.dist+=Math.abs(v.v)*dt/1000;
   hudW('vehFill',clamp(v.hp/v.def.hp*100,0,100));
@@ -19744,7 +19744,7 @@ function majConduite(dt){
       } else { toast('Huile en recharge ('+Math.ceil(v.huileCd)+'s)','warn'); SFX.refus(); }
     }
   }
-  if(pressed('arme')||edgeKey('KeyA')||edgeKey('Tab')){
+  if(pressed('arme')||edgeKey('Tab')){
     if(v.def.pompier) toggleSirenePompiers(v); else changerRadio();
   }
   META.defis.dist+=Math.abs(v.v)*dt/1000;
@@ -21681,7 +21681,7 @@ function majEvenements(dt){
     for(let i=0;i<3;i++) mkCaisse(p.x+rand(-3,3),p.z+rand(-3,3));
     creerPickup('cash',p.x,p.z+2,randi(25,50));
     creerPickup('mun',p.x+2,p.z);
-    toast('Une cargaison est tombée d\u2019un camion pas loin...');
+    toast('Une cargaison est tombée d\u2019un camion pas loin…');
   } else if(r<0.54){ // convoi militaire traversant la ville
     const k=randi(1,NB-1), r2=-HALF+k*CELL;
     const v=creerVehicule('milit',r2+3.2,clamp(P.z-70,-HALF+10,HALF-CELL),0,'trafic');
@@ -21704,7 +21704,7 @@ function majEvenements(dt){
       const p=spawnRing(34,48);
       const c=creerEnnemi(CHEFS_GANG[g],p.x,p.z,false);
       if(c){ c.hp=c.hpMax*0.65; c.libre=true;
-        toast('Le chef '+NOMS_GANG_DE[g]+' se balade dans le coin...','warn'); }
+        toast('Le chef '+NOMS_GANG_DE[g]+' se balade dans le coin…','warn'); }
     } else EVT.t=15;
   } else { // ÉVÉNEMENTS EN MER
     const rm=Math.random();
@@ -21713,7 +21713,7 @@ function majEvenements(dt){
       const v=creerVehicule('peche',bx2,MER+rand(22,40),rand(0,6));
       v.hp=v.def.hp*0.34;
       creerPickup('cash',v.x+2,v.z,55); creerPickup('med',v.x-2,v.z);
-      toast('Un bateau de pêche est en détresse au large...');
+      toast('Un bateau de pêche est en détresse au large…');
     } else if(rm<0.72){ // course de jet-skis le long de la côte
       const dir=Math.random()<0.5?1:-1;
       for(let k=0;k<3;k++){
@@ -21978,7 +21978,7 @@ const ARTICLES_SUPERETTE=[
   {ico:'🥪',nom:'Sandwich',prix:35,peut:()=>P.hp<P.maxHp||toast('Tu n\u2019as pas faim')&&false,
     act:()=>{soigner(45);toast('Sandwich avalé (+45 PV)','or');}},
   {ico:'🥤',nom:'Boisson énergisante',prix:50,peut:()=>true,
-    act:()=>{P.stam=P.stamMax;P.buffs.vit=Math.max(P.buffs.vit,8);toast('Boost de vitesse 8 s !','or');}},
+    act:()=>{P.stam=P.stamMax;P.buffs.vit=Math.max(P.buffs.vit,8);toast('Coup de vitesse 8 s !','or');}},
   {ico:'🍫',nom:'Barre chocolatée',prix:20,peut:()=>P.hp<P.maxHp||toast('Tu n\u2019as pas faim')&&false,
     act:()=>{soigner(20);toast('Miam (+20 PV)','or');}},
   {ico:'🧯',nom:'Trousse de secours',prix:120,peut:()=>P.hp<P.maxHp||toast('Tu es au maximum')&&false,
@@ -22006,7 +22006,7 @@ const LOTS_ROUE=[
   {p:7,txt:'Confettis',ico:'🎉',act:()=>{
     for(let i=0;i<60;i++) spawnP(P.x+rand(-3,3),rand(1,5),P.z+rand(-3,3),rand(-2,2),rand(1,4),rand(-2,2),
       1.6,0.5,pick([0xff5ad0,0xffd23f,0x35e0ff,0x7dff7a]),0);
-    toast('Bravo ! Tu gagnes... des confettis.','warn');}},
+    toast('Bravo ! Tu gagnes… des confettis.','warn');}},
   {p:5,txt:'Bagarre générale',ico:'🥊',act:()=>{
     toast('La sécurité n\u2019a pas aimé ta tête !','warn');
     const s=INT.actif; if(s) declencherAlarme(s,'On t\u2019accuse de tricher !');}},
@@ -22608,7 +22608,7 @@ const BORNES_ARCADE=[
 ];
 const LOTS_ARCADE=[
   {ico:'🧸',nom:'Peluche Vipère',cout:15,
-   act:()=>{ toast('Une peluche vipère en peluche. Personne ne sait vraiment pourquoi.','or'); }},
+   act:()=>{ toast('Une vipère en peluche. Personne ne sait vraiment pourquoi.','or'); }},
   {ico:'🔫',nom:'Chargeur de munitions',cout:40,
    act:()=>{ const id=(ARMES[P.armeCur].type==='gun')?P.armeCur:'pistolet';
      if(META.armes[id].poss&&!ARMES[id].pasRecharge){ P.mun[id]=(P.mun[id]||0)+armeStats(id).mag; toast('Munitions : '+ARMES[id].nom,'or'); }
@@ -26705,7 +26705,7 @@ function evaluerKaraoke(s){
     } else {
       bigMsg('🎤 BIEN CHANTÉ');
       toast('Le public applaudit : +'+g+' $ ('+s.karaPerf+'/3 parfaits)','or');
-      if(!aCurio('platine')) toast('Un sans-faute complet vaudrait bien plus...','warn');
+      if(!aCurio('platine')) toast('Un sans-faute complet vaudrait bien plus…','warn');
     }
     checkDefis(); sauveMeta();
   } else {
@@ -29571,7 +29571,7 @@ function tirDesintegrateur(){
       c.hp3=(c.hp3||0)+1;
       burst(c.x,1.4,c.z,10,0x39ff6a,6);
       if(c.hp3>=3) site51TuerCreature(s);
-      else { toast('La créature encaisse... ('+c.hp3+'/3)','warn'); secousse(2); }
+      else { toast('La créature encaisse… ('+c.hp3+'/3)','warn'); secousse(2); }
     }
   }
   if(s) s.tirFlashT=0.15;
@@ -30991,7 +30991,7 @@ function majMissions(dt,dtJeu){
     m.t-=dtJeu;
     txt='Course : point '+(m.i+1)+'/3 — '+Math.ceil(Math.max(0,m.t))+' s';
     ciblePos=m.pts[m.i];
-    if(m.t<=0){ toast('Course ratée... on remet ça ?','warn'); MISSION.cur=null; MISSION.t=6; balise.visible=false; hudD('missionArrow','none'); return; }
+    if(m.t<=0){ toast('Course ratée… on remet ça ?','warn'); MISSION.cur=null; MISSION.t=6; balise.visible=false; hudD('missionArrow','none'); return; }
     if(P.veh&&dist2(P.x,P.z,ciblePos.x,ciblePos.z)<60){
       m.i++;
       if(m.i>=3){ finirMission(); return; }
@@ -31057,7 +31057,7 @@ metierBalise.visible=false; scene.add(metierBalise);
 function metierReussite(job){
   META.metiers[job]=Math.min(METIERS_CIBLE,(META.metiers[job]||0)+1);
   const n=META.metiers[job];
-  if(n>=METIERS_CIBLE) toast('🏅 '+NOMS_METIER[job]+' : dernière mission accomplie ! Skin dispo aux personnages','or');
+  if(n>=METIERS_CIBLE) toast('🏅 '+NOMS_METIER[job]+' : dernière mission accomplie ! Tenue disponible dans Personnages','or');
   else toast(NOMS_METIER[job]+' accompli ('+n+'/'+METIERS_CIBLE+')','or');
   SFX.achat(); sauveMeta();
 }
@@ -31174,7 +31174,7 @@ function majMetierPompier(v,dt,dtJeu){
   if(!actif){ if(MET.pompier){ MET.pompier=null; nettoyerPnjMetier(); } return; }
   let m=MET.pompier;
   if(!m){ m=MET.pompier={t:1.5,pret:false}; toast('🚒 Appel en cours : un incendie se déclare…','warn'); }
-  if(!m.pret){ m.t-=dtJeu; MET.txt='Repérage de l’incendie en cours...';
+  if(!m.pret){ m.t-=dtJeu; MET.txt='Repérage de l’incendie en cours…';
     if(m.t<=0){ const p=spawnRing(28,50); m.x=p.x; m.z=p.z; m.pret=true; m.feux=[]; m.chrono=110; m.propag=9; m.coinces=[];
       for(let k=0;k<3;k++) m.feux.push({x:p.x+rand(-4,4),z:p.z+rand(-4,4),vie:100});
       for(let k=0;k<2;k++){ const f=m.feux[k]; m.coinces.push({x:f.x+1.5,z:f.z+1.5,h:pnjMetier({haut:0xffd23f},f.x+1.5,f.z+1.5),sauve:false,f}); }
@@ -31247,7 +31247,7 @@ function majMetierPolice(v,dt,dtJeu){
     metierReussite('police');
   } else if(dist2(P.x,P.z,c.x,c.z)>150*150){
     metierBalise.visible=false; c.mort=true; MET.police=null;
-    toast('Le suspect a filé...','warn');
+    toast('Le suspect a filé…','warn');
   }
 }
 function majMetiers(dt,dtJeu){
@@ -31274,10 +31274,11 @@ function gainXp(n){
   while(META.xp>=xpRequis(META.niveau)){
     META.xp-=xpRequis(META.niveau); META.niveau++;
     SFX.niveau(); bigMsg('NIVEAU '+META.niveau); soigner(25);
-    const deb={2:'Pompe "Brisant" dispo à l\u2019armurerie',3:'P.M. "Guêpe" dispo à l\u2019armurerie',
-      4:'RIA débloquable (Personnages)',5:'Fusil "Tempête" dispo à l\u2019armurerie',
-      6:'MALO débloquable + Lance-flammes à l\u2019armurerie',7:'Bazooka "Comète" dispo à l\u2019armurerie'}[META.niveau];
-    if(deb) toast(deb,'or');
+    const debL=[]; /* lu dans ARMES et PERSOS : la table en dur oubliait sabre, uzi, silencieux, revolver, arbalète, sniper, AA-12 et minigun (nuit du 16 octobre) */
+    for(const k in PERSOS) if(PERSOS[k].niv===META.niveau&&PERSOS[k].prix>0) debL.push(PERSOS[k].nom+' débloquable (Personnages)');
+    const debA=[]; for(const k in ARMES) if(ARMES[k].niv===META.niveau&&ARMES[k].prix>0&&!ARMES[k].cachee) debA.push(ARMES[k].nom);
+    if(debA.length) debL.push(debA.join(', ')+(debA.length>1?' disponibles':' disponible')+' à l\u2019armurerie');
+    if(debL.length) toast(debL.join(' · '),'or');
   }
 }
 // Pile unique de notifications (voir #notifStack) : toast() ET bigMsg()
@@ -32823,17 +32824,15 @@ function renderCasino(){
 }
 el('casClose').addEventListener('pointerdown',()=>{CAS.etat=null;fermerVers();});
 
+const NOMS_QUARTIER={residentiel:'Résidentiel',neon:'Quartier néon',industriel:'Zone industrielle',villas:'Villas',centre:'Centre-ville',commerce:'Commerces',place:'Place centrale',parc:'Parc',port:'Port',plage:'Plage',base:'Fort Reyes',aeroport:'Aéroport'};
+function nomQuartier(q){ return NOMS_QUARTIER[q]||(q.charAt(0).toUpperCase()+q.slice(1)); }
+function nbVehiculesCaches(){ let n=0; for(const k in VEHDEFS) if(VEHDEFS[k].cache) n++; return n; } /* « / 7 » était écrit en dur : il y en a 20 */
 function renderDefis(){
   // ---- Cabinet de curiosités : ce qui donne envie de retourner partout ----
   let h='<div class="panneau"><h3>Cabinet de curiosités — '+nbCurios()+' / '+CURIOS_ACTIVES.length+'</h3>';
   for(const c of CURIOS){
     const eu=!!META.curios[c.id];
-    if(!c.actif){
-      h+='<div class="ligneItem" style="opacity:.42"><div class="ico">🔒</div><div class="inf">'+
-         '<div class="nom">? ? ?</div><div class="det">'+c.lieu+' — lieu à venir</div></div>'+
-         '<span class="pill lock">bientôt</span></div>';
-      continue;
-    }
+    if(!c.actif) continue; /* une curiosité inactive (Les Plans du Rhinocéros, bunker inexistant) affichait « lieu à venir — bientôt » : un texte de développeur */
     h+='<div class="ligneItem"'+(eu?'':' style="opacity:.72"')+'><div class="ico">'+(eu?c.ico:'❔')+'</div><div class="inf">'+
        '<div class="nom">'+(eu?c.nom:'Curiosité inconnue')+'</div>'+
        '<div class="det">'+(eu?(c.lieu+' — '+c.eff):(c.lieu+' — '+c.ind))+'</div></div>'+
@@ -32841,12 +32840,12 @@ function renderDefis(){
   }
   if(nbCurios()>=CURIOS_ACTIVES.length)
     h+='<div class="ligneItem"><div class="ico">🦴</div><div class="inf"><div class="nom">Collection complète</div>'+
-       '<div class="det">La batte « Vertèbre » est débloquée à l\u2019armurerie</div></div>'+
+       '<div class="det">La batte « Vertèbre » est à toi</div></div>'+
        '<span class="pill equip">fait</span></div>';
   h+='</div>';
   h+='<div class="panneau"><h3>Exploration</h3><div class="ligneItem"><div class="ico">🗺️</div><div class="inf">'+
     '<div class="nom">Véhicules cachés découverts</div><div class="det">Ils scintillent discrètement quand tu approches — fouille les recoins, la mer et le ciel</div></div>'+
-    '<span class="pill equip">'+Object.keys(META.decouverts).length+' / 7</span></div></div>'+
+    '<span class="pill equip">'+Object.keys(META.decouverts).length+' / '+nbVehiculesCaches()+'</span></div></div>'+
     '';
   // récompenses à récupérer, TOUT EN HAUT de l'écran (bouton ×2 : seulement si une pub récompensée est disponible, voir PUB_X2)
   const aRec=DEFIS.filter((d)=>META.defis.aReclamer[d.id]&&!META.defis.faits[d.id]);
@@ -32945,7 +32944,7 @@ function renderTableau(){
     let quart='';
     if(porte){
       const bx=Math.floor((porte.x+HALF)/CELL), bz=Math.floor((porte.z+HALF)/CELL);
-      const q=quartier(bx,bz); quart=q.charAt(0).toUpperCase()+q.slice(1);
+      const q=quartier(bx,bz); quart=nomQuartier(q);
     }
     const vu=!!META.lieuxVus[salle];
     h+='<div class="ligneItem" style="opacity:.72"><div class="ico">'+(vu?'📍':'❔')+'</div><div class="inf">'+
@@ -32976,7 +32975,7 @@ function renderTableau(){
       '<div class="nom">Encore rien de répertorié</div><div class="det">Visite des lieux pour que le tableau les recense ici</div></div></div>';
   } else for(const q of quartiersConnus){
     h+='<div class="ligneItem"><div class="ico">🔎</div><div class="inf">'+
-      '<div class="nom">'+q.charAt(0).toUpperCase()+q.slice(1)+'</div>'+
+      '<div class="nom">'+nomQuartier(q)+'</div>'+
       '<div class="det">Dans les lieux déjà explorés de ce quartier</div></div>'+
       '<span class="pill equip">'+parQuartier[q]+'</span></div>';
   }
@@ -33331,7 +33330,7 @@ function renderStats(){
     ['💰','Argent total gagné',fmt$(S.cashTotal)],
     ['🔫','Coups de feu tirés',S.tirs],
     ['🧨','Grenades lancées',S.grenades],
-    ['🗺️','Véhicules cachés trouvés',Object.keys(META.decouverts).length+' / 7'],
+    ['🗺️','Véhicules cachés trouvés',Object.keys(META.decouverts).length+' / '+nbVehiculesCaches()],
     ['🎮','Parties jouées',S.parties],
     ['⏱️','Temps de jeu',tps],
     ['⭐','Meilleur score',META.record]
@@ -33537,7 +33536,7 @@ function startRun(){
   // Message d'indication, une seule fois dans la vie de la sauvegarde — au
   // tout premier lancement de partie, jamais republié ensuite (même après
   // un game over), pour ne pas polluer les runs suivants.
-  if(META.parties===1) setTimeout(()=>toast(DECOR_V2?'Un avion de voltige attend à l’aéroport, au bout de la grande piste':'Un avion de voltige attend à l’aéro-club, au bout de la piste','or'),1200);
+  if(META.parties===1) setTimeout(()=>toast(DECOR_V2?'Un avion de voltige attend dans son hangar VOLTIGE, au sud du tarmac de l’aéroport':'Un avion de voltige attend à l’aéro-club, au bout de la piste','or'),1200);
   ETAT.mode='jeu'; ETAT.runT=0; ETAT.kills=0; ETAT.cashRun=0;
   ETAT.score=0; ETAT.combo=1; ETAT.comboT=0; ETAT.timeScale=1;
   // P.bonusMaxHp (bonus de fin de vague « Endurcissement ») remis à zéro
@@ -34204,7 +34203,7 @@ function majAction(){
           SFX.achat(); addHeat(0.4); vibre(60);
           for(let i=0;i<18;i++) spawnP(s.machine7.x+rand(-1,1),rand(1,2.6),s.machine7.z+rand(-1,1),
             rand(-1,1),rand(1,3),rand(-1,1),1,0.5,0x7dff7a,0);
-          if(META.lessives===1) toast('Un truc est resté coincé dans le filtre à peluches...','warn');
+          if(META.lessives===1) toast('Un truc est resté coincé dans le filtre à peluches…','warn');
           checkDefis(); sauveMeta();
         };
       } else {
@@ -34279,7 +34278,7 @@ function majAction(){
             '« Un canard changera ta vie. Je ne saurais dire quand. »',
             '« Méfie-toi des escaliers. Et des gens. Surtout des gens. »',
             '« Tu vas beaucoup courir. Ça, c\u2019était facile. »',
-            '« Je vois... 150 $ qui changent de poche. C\u2019est fait. »',
+            '« Je vois… 150 $ qui changent de poche. C\u2019est fait. »',
             '« Ta chaussette gauche te trahira. »'
           ]),'warn');
           const g2=randi(10,40); META.argent+=g2; ETAT.cashRun+=g2;
@@ -34475,7 +34474,7 @@ function majAction(){
         const lot=tirerLot();
         s.roueSpin=2.4; s.roueLot=lot;          // l'animation joue puis le lot tombe
         SFX.ui(); vibre(40);
-        toast('La roue tourne...');
+        toast('La roue tourne…');
       };
     } else if(s.slots&&dist2(P.x,P.z,s.slots.x,s.slots.z)<marquerZone(s.slots,26)){
       label='🎰 MACHINES À SOUS';
@@ -35173,7 +35172,7 @@ function majCamp(dt){
   if(POIS.friche&&!META.monstertruckTrouve&&dist2(P.x,P.z,POIS.friche.x,POIS.friche.z)<400){
     META.monstertruckTrouve=true;
     bigMsg('🔓 MONSTER TRUCK DÉCOUVERT');
-    toast('Une friche industrielle... et un Monster Truck derrière le grillage','or');
+    toast('Une friche industrielle… et un Monster Truck derrière le grillage','or');
     SFX.niveau(); vibre(90);
     for(let i=0;i<20;i++) spawnP(POIS.friche.x+rand(-2,2),rand(1,3),POIS.friche.z+rand(-2,2),
       rand(-1.5,1.5),rand(1.5,3),rand(-1.5,1.5),1,0.5,pick([0xff3b1a,0xffd23f]),0);
@@ -35185,7 +35184,7 @@ function majCamp(dt){
   if(POIS.toitH&&POIS.toitH.jetpack&&!META.jetpackTrouve&&dist2(P.x,P.z,POIS.toitH.jetpack.x,POIS.toitH.jetpack.z)<225&&Math.abs(P.y-POIS.toitH.jetpack.h)<8){
     META.jetpackTrouve=true;
     bigMsg('🔓 JETPACK DÉCOUVERT');
-    toast('Un mannequin calciné, des traces de brûlure... et un jetpack','or');
+    toast('Un mannequin calciné, des traces de brûlure… et un jetpack','or');
     SFX.niveau(); vibre(90);
     for(let i=0;i<20;i++) spawnP(POIS.toitH.jetpack.x+rand(-2,2),POIS.toitH.jetpack.h+rand(1,3),POIS.toitH.jetpack.z+rand(-2,2),
       rand(-1.5,1.5),rand(1.5,3),rand(-1.5,1.5),1,0.5,pick([0x35c8ff,0xe8ecf2]),0);

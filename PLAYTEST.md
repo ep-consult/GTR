@@ -3,7 +3,7 @@
 Objectif : tester **toutes les salles existantes** sur iPhone (Safari, écran
 d'accueil) avant publication. On inventorie, on ne corrige rien dans cette passe.
 
-Les lignes de la grille suivent `INTDEFS` (index.html) : **27 salles**,
+Les lignes de la grille suivent `INTDEFS` (index.html) : **28 salles** (la boutique s'est ajoutée le 17 octobre, sans ligne ici),
 dans l'ordre de la source. Pour vérifier que la grille n'a pas dérivé :
 
 ```bash
@@ -96,7 +96,7 @@ console eruda.
 4. **Minijeux sans défaite** : chasse à Gaston (Aquarium) et Serre. La machine 7
    de la Laverie n'est pas un minijeu mais ne peut pas échouer non plus.
 5. **Récompense unique** : aucun double paiement trouvé, sur tous les chemins
-   de paiement des 26 salles. Les deux paiements qui ne tenaient que par leurs
+   de paiement des 28 salles. Les deux paiements qui ne tenaient que par leurs
    appelants ont maintenant leur propre garde d'entrée (voir ci-dessous).
 6. **Horloges** (hors des six risques) : les minijeux les plus anciens font
    avancer leurs chronos sur `dt`, pas sur `dtJeu` (Sport `spT`, Sandwich

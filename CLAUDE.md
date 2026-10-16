@@ -62,7 +62,7 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | Ligne | Section |
 |---|---|
 | 1–905 | `<head>`, CSS, HUD, écrans (menu, game over, panneaux) |
-| 417–567 | **icônes SVG** : copie des 42 `<symbol>` de `icones/icones.svg` (générée, ne pas éditer) |
+| 417–567 | **icônes SVG** : copie des 46 `<symbol>` de `icones/icones.svg` (générée, ne pas éditer) |
 | 882–884 | **eruda** (console mobile de dev — à retirer avant diffusion) |
 | 885 | chargement Three.js r128 depuis CDN |
 | 890 | `<script id="gamejs">` + handler `window.onerror` → affichage dans `#errBox` |
@@ -165,7 +165,7 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 19731 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
 | 19862 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
 | 21943 | `IOFF = -9000` |
-| 23747 | `INTDEFS` — définitions des **27 salles** |
+| 23747 | `INTDEFS` — définitions des **28 salles** (27 + la boutique) |
 | 24132 | `construireSalle(id)` |
 | 20390 | `CHALUTIER_BANCS_PLAN` — chalutier V2 ; `chalutierMaj` (20761), `dessinerRadarChalutier` (21018) |
 | 31000 | `METIERS_CIBLE` |

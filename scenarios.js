@@ -12904,6 +12904,28 @@ async function main() {
       });
       if (hp.ko.length) fail('HUD portrait : ' + hp.ko.join(' ; ')); else ok('HUD portrait : ' + hp.info.join(' ; '));
     }
+
+    console.log('\n--- Textes (nuit du 16 octobre) : toasts de niveau lus dans ARMES, compte des véhicules cachés, libellés de quartier, aide, curiosités inactives masquées ---');
+    {
+      const tx = await page.evaluate(() => {
+        const ko = [], info = [];
+        // le compte des véhicules cachés vient de VEHDEFS
+        const nb = Object.keys(VEHDEFS).filter((k) => VEHDEFS[k].cache).length; if (nbVehiculesCaches() !== nb || nb === 7) ko.push('véhicules cachés : ' + nbVehiculesCaches() + ' pour ' + nb + ' dans VEHDEFS');
+        renderDefis(); const hDefis = el('defis').innerHTML; if (!hDefis.includes(' / ' + nb + '<')) ko.push('écran Défis : le total des véhicules cachés n’est pas ' + nb); if (hDefis.includes('lieu à venir') || hDefis.includes('bientôt')) ko.push('écran Défis : une curiosité inactive est encore affichée'); if (hDefis.includes('4 curiosités')) ko.push('défi cabinet : « 4 curiosités »');
+        // deux défis portaient le même nom
+        const noms = DEFIS.map((d) => d.nom), doubles = noms.filter((n, i) => noms.indexOf(n) !== i); if (doubles.length) ko.push('défis homonymes : ' + [...new Set(doubles)].join(', '));
+        // toasts de niveau : chaque arme en vente est annoncée à son niveau
+        const niv0 = META.niveau, xp0 = META.xp, argent0 = META.argent; const toasts = []; const t0 = toast; window.toast = (m) => toasts.push(String(m));
+        for (const k in ARMES) { const a = ARMES[k]; if (!(a.niv > 1) || !(a.prix > 0) || a.cachee) continue; META.niveau = a.niv - 1; META.xp = xpRequis(META.niveau) - 1; gainXp(2); if (!toasts.some((m) => m.includes(a.nom))) ko.push('niveau ' + a.niv + ' : ' + a.nom + ' non annoncée'); }
+        window.toast = t0; META.niveau = niv0; META.xp = xp0; META.argent = argent0; if (!ko.some((m) => m.startsWith('niveau'))) info.push('toutes les armes annoncées à leur niveau');
+        // libellés de quartier accentués
+        for (const q of ['residentiel', 'neon', 'industriel', 'centre']) if (nomQuartier(q) === q.charAt(0).toUpperCase() + q.slice(1) && /[a-z]/.test(q) && (q === 'residentiel' || q === 'neon')) ko.push('quartier sans libellé : ' + q);
+        // aide : plus de « farme », touche A réservée au déplacement, unité de vitesse
+        const aide = el('help').textContent; if (/farme/.test(aide)) ko.push('aide : « farme »'); if (/A \/ Tab/.test(aide)) ko.push('aide : A / Tab'); if (/sous 19 de vitesse/.test(aide)) ko.push('aide : vitesse sans unité');
+        return { ko, info, nb };
+      });
+      if (tx.ko.length) fail('Textes : ' + tx.ko.join(' ; ')); else ok('Textes : ' + tx.info.join(' ; ') + ' ; ' + tx.nb + ' véhicules cachés comptés depuis VEHDEFS ; défis sans homonyme ; curiosités inactives masquées');
+    }
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];
