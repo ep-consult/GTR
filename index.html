@@ -799,6 +799,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
   <div class="togg">Musique <div class="sw on" id="tMusic"></div></div>
   <div class="togg">Effets sonores <div class="sw on" id="tSfx"></div></div>
   <div class="togg">Vibrations <div class="sw on" id="tVib"></div></div>
+  <div class="togg">Tir automatique (1re personne) <div class="sw on" id="tTirAuto"></div></div>
   <div id="saveInfo" style="margin:14px 16px 4px;font-size:10.5px;line-height:1.5;color:var(--gris);text-align:center"></div>
   <button class="mbtn" id="tReset" style="margin:6px auto 0;max-width:280px;border-color:#ff3b5c66;color:#ff8a9a">Effacer la sauvegarde</button>
   <button class="retour" id="setClose">Retour</button>
@@ -1868,7 +1869,7 @@ const META={
   derby:{voiture:'derbyBreak',poss:{derbyBreak:true,derbyCompacte:false,derbyPickup:false},niv:{pareChocs:0,blindage:0,moteur:0,pneus:0},victoires:0,kos:0}, // arène de derby (clés fixes) // mini-jeux réussis (tenues)
   argent:150, xp:0, niveau:1,
   record:0, recordVague:0, killsTotal:0, parties:0,
-  perso:'jax', persosPoss:['jax'], radio:0, planque:false, garage:null, revenus:0,
+  perso:'jax', persosPoss:['jax'], radio:0, planque:false, garage:null, revenus:0, tirAuto:true, /* 1re personne : le tir part tout seul sur la cible sous la mire */
   helisManoir:{ecureuil:false,titan:false,vip:false,vautour:false}, heliManoir:'helico', // héliport du manoir (clés fixes ; la Libellule vient avec la villa)
   style:{haut:-1,bas:-1,cheveux:-1,coiffure:'',chapeau:'',chapeauCoul:-1,lunettes:'',tatouage:''}, // pièces portées séparément (boutiques) : -1/'' = celles de la tenue
   garde:{}, // pièces achetées en boutique (VETEMENTS) : id → true
@@ -8844,47 +8845,60 @@ const FPS={actif:null,yaw:0,pitch:0,drag:null,cibles:[],arme:null,st:null,el:nul
    regard, recul pivoté à la poignée, culasse des pistolets qui recule, rechargement (l'arme plonge et pivote),
    flamme de bouche ; douilles éjectées (réserve fixe de six, majFPS). Tout est libéré à la fin (libererEntite :
    jamais les géométries partagées des armes). */
-const FPS_POSES={poing:{k:0.38,pos:[0.075,-0.19,-0.46],yaw:0.2,roll:-0.06},epaule:{k:0.36,pos:[0.066,-0.175,-0.36],yaw:0.17,roll:-0.05},lourd:{k:0.3,pos:[0.085,-0.2,-0.4],yaw:0.12,roll:-0.03}}; // portrait : champ horizontal étroit, l'arme en bas à droite
+const FPS_POSES={poing:{k:0.38,pos:[0.075,-0.19,-0.46],yaw:0.2,roll:-0.06,prof:0.16},epaule:{k:0.36,pos:[0.066,-0.175,-0.36],yaw:0.17,roll:-0.05,prof:0.27},lourd:{k:0.3,pos:[0.085,-0.2,-0.4],yaw:0.12,roll:-0.03,prof:0.3},
+  melee:{k:0.34,pos:[0.11,-0.2,-0.3],yaw:0.3,roll:-0.2,pitch:1.1},lame:{k:0.38,pos:[0.1,-0.19,-0.36],yaw:0.1,roll:0.25,pitch:0.4}}; /* prof : recul de l'arme en visée (la carcasse d'un fusil à pompe entrait dans la caméra) ; pitch : arme relevée (batte sur l'épaule) */ // portrait : champ horizontal étroit, l'arme en bas à droite
 function fpsSeg(G,a,b,r1,m,r2){ const A=new THREE.Vector3(a[0],a[1],a[2]), B=new THREE.Vector3(b[0],b[1],b[2]), L=A.distanceTo(B);
   const o=new THREE.Mesh(new THREE.CylinderGeometry(r2===undefined?r1:r2,r1,L,10),m); o.position.copy(A).add(B).multiplyScalar(0.5);
   o.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),B.clone().sub(A).normalize()); G.add(o); return o; }
 // une main et son bras, posés en p (repère de la main qui tient la poignée) ; prise : poignee, garde, dessus, soutien
+/* la main gantée (16 octobre, signalé : « les mains sont horribles ») : paume en galet arrondi (extrusion biseautée), quatre
+   doigts à trois phalanges articulées (articulations rondes, coussinets aux jointures), pouce à deux phalanges ; chaque
+   PRISE écrit la courbure des doigts autour de ce qu'elle tient : poignee (index sur la détente), manche (les quatre
+   doigts refermés), garde (sous le garde-main), dessus (poignée de transport), soutien (main gauche sur la droite),
+   poing (fermé, pouce par-dessus) ; poignet nu, avant-bras et manche à la couleur du haut, jusqu'au coude hors champ. */
+function fpsPaume(G,w,h,d,x,y,z,rx,ry,rz,m){ const r=Math.min(w,h)*0.24, sh=new THREE.Shape(); sh.moveTo(-w/2+r,-h/2); sh.lineTo(w/2-r,-h/2); sh.quadraticCurveTo(w/2,-h/2,w/2,-h/2+r); sh.lineTo(w/2,h/2-r); sh.quadraticCurveTo(w/2,h/2,w/2-r,h/2); sh.lineTo(-w/2+r,h/2); sh.quadraticCurveTo(-w/2,h/2,-w/2,h/2-r); sh.lineTo(-w/2,-h/2+r); sh.quadraticCurveTo(-w/2,-h/2,-w/2+r,-h/2);
+  const g=new THREE.ExtrudeGeometry(sh,{depth:d*0.5,bevelEnabled:true,bevelThickness:d*0.25,bevelSize:d*0.25,bevelSegments:3,curveSegments:5}); g.translate(0,0,-d*0.25); const o=new THREE.Mesh(g,m); o.position.set(x,y,z); o.rotation.set(rx||0,ry||0,rz||0); G.add(o); return o; }
+function fpsDoigt(G,pts,r,m,mJ){ for(let i=0;i<pts.length-1;i++){ const rr=r*(1-i*0.1); fpsSeg(G,pts[i],pts[i+1],rr,m,rr*0.92); const j=new THREE.Mesh(new THREE.SphereGeometry(rr*1.04,8,6),i?m:(mJ||m)); j.position.set(pts[i+1][0],pts[i+1][1],pts[i+1][2]); G.add(j); } }
 function fpsBras(W,cote,p,prise,peau,manche,ech){
   const s=cote==='g'?-1:1, G=new THREE.Group(); G.position.copy(p); G.scale.setScalar(ech||1); W.add(G);
-  const mP=mat(0x8b7355), mM=mat(manche), mO=mat(0x3a332a), mPeau=mat(peau); // gants tactiques coyote (ils ressortent sur une arme noire), poignets nus
-  const B=(w,h,d,x,y,z,m)=>{ const o=new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.5,1,12),m||mP); o.scale.set(w*1.15,h,d*1.08); o.position.set(x,y,z); G.add(o); return o; }; // paume arrondie (cylindre aplati)
-  const doigt=(a,b,r)=>{ fpsSeg(G,a,b,r||0.0088,mP); const o=new THREE.Mesh(new THREE.SphereGeometry((r||0.0088)*1.02,8,6),mP); o.position.set(b[0],b[1],b[2]); G.add(o); };
+  const mP=mat(0x8b7355), mJ=mat(0x6f5a40), mM=mat(manche), mO=mat(0x3a332a), mPeau=mat(peau); /* gant coyote, coussinets plus sombres, poignet nu */
+  const D=(pts,r)=>fpsDoigt(G,pts,r,mP,mJ);
   let poignet, coude;
-  if(prise==='poignee'){ // la main referme la poignée (inclinée vers l'avant) : paume du côté extérieur, index sur la détente, pouce de l'autre côté
-    G.rotation.x=-0.2; const e=s*0.03;
-    B(0.024,0.086,0.07,e,-0.008,0.006);
-    doigt([e,0.032,-0.012],[s*0.004,0.03,-0.052],0.0092); // index allongé vers la détente
-    for(let k=0;k<3;k++){ const y=0.006-k*0.022; doigt([e,y,-0.026],[-s*0.024,y-0.003,-0.031],0.0098); doigt([-s*0.024,y-0.003,-0.031],[-s*0.029,y-0.006,-0.008],0.0092); }
-    doigt([-s*0.012,0.044,0.022],[-s*0.03,0.042,-0.022],0.0108); // pouce
+  if(prise==='poignee'||prise==='manche'){ /* la main referme la poignée (inclinée vers l'avant) : paume côté extérieur, index sur la détente (poignee) ou replié (manche), pouce de l'autre côté */
+    G.rotation.x=-0.2; const e=s*0.03; fpsPaume(G,0.072,0.092,0.03,e,-0.008,0.004,0,Math.PI/2,0,mP);
+    if(prise==='poignee') D([[e,0.032,-0.012],[e-s*0.006,0.031,-0.046],[-s*0.004,0.028,-0.06]],0.0092);
+    else D([[e,0.03,-0.024],[e-s*0.004,0.028,-0.05],[-s*0.024,0.026,-0.048],[-s*0.03,0.024,-0.02]],0.0094);
+    for(let k=0;k<3;k++){ const y=0.006-k*0.022; D([[e,y,-0.024],[e-s*0.004,y-0.002,-0.052],[-s*0.024,y-0.004,-0.05],[-s*0.03,y-0.006,-0.02]],0.0098-k*0.0004); }
+    D([[-s*0.012,0.046,0.018],[-s*0.028,0.044,-0.006],[-s*0.03,0.04,-0.03]],0.011);
     poignet=[e,-0.052,0.03]; coude=[s*0.26,-0.3,0.24];
-  } else if(prise==='garde'){ // sous le garde-main : paume dessous, doigts qui remontent d'un côté, pouce de l'autre
-    B(0.062,0.022,0.078,0.002,-0.012,0.0);
-    for(let k=0;k<4;k++){ const z=-0.03+k*0.019; doigt([0.024,-0.012,z],[0.034,0.016,z-0.002],0.009); doigt([0.034,0.016,z-0.002],[0.025,0.036,z-0.004],0.0084); }
-    doigt([-0.026,-0.012,0.022],[-0.033,0.016,-0.018],0.0105);
+  } else if(prise==='garde'){ /* sous le garde-main : paume dessous, doigts qui remontent d'un côté, pouce de l'autre */
+    fpsPaume(G,0.08,0.07,0.026,0.002,-0.012,0,Math.PI/2,0,0,mP);
+    for(let k=0;k<4;k++){ const z=-0.03+k*0.019; D([[0.024,-0.01,z],[0.036,0.012,z-0.002],[0.03,0.034,z-0.004],[0.016,0.04,z-0.004]],0.009); }
+    D([[-0.026,-0.01,0.022],[-0.034,0.012,-0.004],[-0.03,0.028,-0.026]],0.0105);
     poignet=[0.0,-0.034,0.05]; coude=[-0.17,-0.3,0.3];
-  } else if(prise==='dessus'){ // sur une poignée de transport : paume dessus, doigts qui l'entourent
-    B(0.062,0.022,0.075,0.0,0.026,0.0);
-    for(let k=0;k<4;k++){ const z=-0.028+k*0.019; doigt([0.026,0.026,z],[0.032,-0.004,z],0.009); }
-    doigt([-0.026,0.026,0.02],[-0.03,0.0,-0.02],0.0105);
+  } else if(prise==='dessus'){ /* sur une poignée de transport : paume dessus, doigts qui l'entourent */
+    fpsPaume(G,0.08,0.07,0.026,0.0,0.026,0.0,Math.PI/2,0,0,mP);
+    for(let k=0;k<4;k++){ const z=-0.028+k*0.019; D([[0.026,0.026,z],[0.034,0.0,z],[0.022,-0.014,z]],0.009); }
+    D([[-0.026,0.026,0.02],[-0.032,0.004,-0.01],[-0.024,-0.01,-0.03]],0.0105);
     poignet=[0.0,0.03,0.05]; coude=[0.02,-0.32,0.26];
-  } else { // soutien du pistolet : la main gauche enveloppe la droite, ses doigts par-dessus ceux de la droite
-    G.rotation.x=-0.2;
-    B(0.024,0.08,0.066,-0.034,-0.014,0.008);
-    for(let k=0;k<4;k++){ const y=0.012-k*0.021; doigt([-0.034,y,-0.03],[0.022,y-0.002,-0.047],0.0095); }
-    doigt([-0.026,0.032,0.0],[-0.022,0.036,-0.046],0.0106);
+  } else if(prise==='poing'){ /* poing fermé vu par celui qui le serre : le dos de la main dessus, les doigts repliés devant et dessous, le pouce par-dessus */
+    fpsPaume(G,0.078,0.082,0.03,0,0.0,0.004,Math.PI/2,0,0,mP);
+    for(let k=0;k<4;k++){ const x=s*(-0.028+k*0.0187); D([[x,0.01,-0.038],[x,-0.006,-0.062],[x,-0.034,-0.056],[x,-0.036,-0.03]],0.0098-k*0.0003); const c=new THREE.Mesh(new THREE.SphereGeometry(0.011,8,6),mJ); c.position.set(x,0.012,-0.04); G.add(c); }
+    D([[s*0.044,-0.004,0.0],[s*0.04,-0.022,-0.034],[s*0.014,-0.034,-0.046]],0.0112);
+    poignet=[0,-0.01,0.046]; coude=[s*0.1,-0.22,0.34];
+  } else { /* soutien du pistolet : la main gauche enveloppe la droite, ses doigts par-dessus ceux de la droite */
+    G.rotation.x=-0.2; fpsPaume(G,0.066,0.08,0.03,-0.034,-0.014,0.008,0,Math.PI/2,0,mP);
+    for(let k=0;k<4;k++){ const y=0.012-k*0.021; D([[-0.034,y,-0.03],[-0.006,y-0.002,-0.047],[0.022,y-0.004,-0.045]],0.0095); }
+    D([[-0.026,0.034,0.0],[-0.024,0.038,-0.03],[-0.02,0.036,-0.05]],0.0106);
     poignet=[-0.034,-0.058,0.03]; coude=[-0.2,-0.3,0.3];
   }
-  // poignet, avant-bras (peau puis manche), coude, bras jusqu'à l'épaule hors champ
+  /* poignet (gant), avant-bras nu puis manche, coude, bras jusqu'à l'épaule hors champ */
   const m=[poignet[0]+(coude[0]-poignet[0])*0.4,poignet[1]+(coude[1]-poignet[1])*0.4,poignet[2]+(coude[2]-poignet[2])*0.4];
   const q=[poignet[0]+(coude[0]-poignet[0])*0.08,poignet[1]+(coude[1]-poignet[1])*0.08,poignet[2]+(coude[2]-poignet[2])*0.08];
-  fpsSeg(G,poignet,q,0.025,mO,0.026); fpsSeg(G,q,m,0.025,mPeau,0.028); fpsSeg(G,[m[0]-(coude[0]-poignet[0])*0.03,m[1]-(coude[1]-poignet[1])*0.03,m[2]-(coude[2]-poignet[2])*0.03],m,0.035,mM,0.035); // poignet du gant, avant-bras, revers de manche
-  fpsSeg(G,m,coude,0.033,mM,0.04); const ep=[coude[0]+s*0.08,coude[1]-0.2,coude[2]+0.25]; fpsSeg(G,coude,ep,0.042,mM,0.046);
+  fpsSeg(G,poignet,q,0.023,mO,0.025); fpsSeg(G,q,m,0.024,mPeau,0.029); fpsSeg(G,[m[0]-(coude[0]-poignet[0])*0.03,m[1]-(coude[1]-poignet[1])*0.03,m[2]-(coude[2]-poignet[2])*0.03],m,0.034,mM,0.034);
+  fpsSeg(G,m,coude,0.032,mM,0.039).userData.hautBras=true; const ep=[coude[0]+s*0.08,coude[1]-0.2,coude[2]+0.25]; fpsSeg(G,coude,ep,0.041,mM,0.046).userData.hautBras=true;
   return G; }
+function fpsHautBras(R,visible){ R.traverse((o)=>{ if(o.userData.hautBras&&o.visible!==visible) o.visible=visible; }); } /* en visée, l'arme recule vers l'œil : les bras au-delà du coude traverseraient la caméra */
 function fpsMontage(id){
   const mod=mkArmeModele(id); if(!mod) return null; mod.visible=true; habillerArme(mod,id);
   const A=ancreArme(id), P0=FPS_POSES[A.pose]||FPS_POSES.poing, R=new THREE.Group(), W=new THREE.Group(), H=new THREE.Group(); R.add(W); W.add(H); H.add(mod);
@@ -8893,8 +8907,8 @@ function fpsMontage(id){
   H.position.copy(vue(A.main[0],A.main[1])).negate(); H.updateMatrix(); // la poignée à l'origine de W : le recul pivote dans la main
   let yMin=0; mod.traverse((o)=>{ if(o.isMesh&&o.geometry){ if(!o.geometry.boundingBox) o.geometry.computeBoundingBox(); yMin=Math.min(yMin,o.position.y+o.geometry.boundingBox.min.y); } });
   const bouche=vue(-yMin,A.canon), ejection=vue(A.main[0]+0.13,A.canon+0.02,-0.045);
-  const c=coifCouleurs(), e=P0.k/0.5; fpsBras(W,'d',new THREE.Vector3(),'poignee',c.peau,c.haut,e);
-  if(A.appui) fpsBras(W,'g',vue(A.appui[0],A.appui[1]),A.priseG||'garde',c.peau,c.haut,e); else fpsBras(W,'g',new THREE.Vector3(),'soutien',c.peau,c.haut,e);
+  const c=coifCouleurs(), e=P0.k/0.5; fpsBras(W,'d',new THREE.Vector3(),A.priseD||'poignee',c.peau,c.haut,e);
+  if(A.appui) fpsBras(W,'g',vue(A.appui[0],A.appui[1]),A.priseG||'garde',c.peau,c.haut,e); else if(A.pose!=='melee'&&A.pose!=='lame') fpsBras(W,'g',new THREE.Vector3(),'soutien',c.peau,c.haut,e); /* sabre, couteau : une seule main, l'autre reste hors champ */
   const fl=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:0xffc860,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,opacity:0}));
   fl.position.copy(bouche); fl.scale.set(0.14,0.14,1); W.add(fl);
   const fl2=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:0xfff2c0,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,opacity:0}));
@@ -9009,14 +9023,25 @@ function fpsCamera(){
     M.lagX+=(clamp(dY*0.7,-0.025,0.025)-M.lagX)*0.18; M.lagY+=(clamp(-dP*0.7,-0.025,0.025)-M.lagY)*0.18;
     const rech=FPS.rechT>0&&FPS.st&&FPS.st.rech?Math.sin(Math.PI*clamp(1-FPS.rechT/FPS.st.rech,0,1)):0; // rechargement : l'arme plonge et pivote
     const hx=P0.pos[0]+Math.sin(t*1.1)*0.0022+M.lagX, hy=P0.pos[1]+Math.sin(t*2.2)*0.0016+M.lagY-rech*0.075, hz=P0.pos[2]+r*0.045, mi=M.mire;
-    W.position.set(lerp(hx,mi?-mi.x:hx,kV),lerp(hy,mi?-mi.y-rech*0.075:hy,kV),lerp(hz,mi?-0.13-mi.z+r*0.03:hz,kV)); // VISER : la ligne de mire sur l'axe de l'œil
-    W.rotation.set(lerp(r*0.2,r*0.05,kV)-rech*0.3,lerp(P0.yaw+M.lagX*0.8,0,kV),lerp(P0.roll||0,0,kV)+rech*0.55); M.R.visible=!(M.lunette&&kV>0.85);
+    const scV=lerp(1,0.42,kV); W.scale.setScalar(scV); /* en visée, arme et mains rapetissent (voir cameraPremiere) */
+    W.position.set(lerp(hx,mi?-mi.x*scV:hx,kV),lerp(hy,mi?-mi.y*scV-rech*0.075:hy,kV),lerp(hz,mi?-(M.prof||0.16)-mi.z*scV+r*0.03:hz,kV)); // VISER : la ligne de mire sur l'axe de l'œil
+    W.rotation.set(lerp(r*0.2,r*0.05,kV)-rech*0.3,lerp(P0.yaw+M.lagX*0.8,0,kV),lerp(P0.roll||0,0,kV)+rech*0.55); M.R.visible=!(M.lunette&&kV>0.85); fpsHautBras(M.R,kV<0.45);
     if(M.culasse) for(const m of M.culasse) m.position.y=Math.min(1,r*2.6)*0.055; // la culasse des pistolets recule
     const f=FPS.flash>0; M.fl.material.opacity=f?1:0; M.fl2.material.opacity=f?0.9:0;
     if(f){ const k=M.A.pose==='lourd'?1.6:1; M.fl.material.rotation=Math.random()*6.28; M.fl.scale.setScalar((0.11+Math.random()*0.06)*k); M.fl2.material.rotation=Math.random()*6.28; M.fl2.scale.set((0.24+Math.random()*0.1)*k,0.05*k,1); } }
   if(FPS.mire){ FPS.mire.style.transform='scale('+(1+FPS.recul*0.35)+')'; const dm=kV>0.6?'none':'block'; if(FPS.mire.style.display!==dm) FPS.mire.style.display=dm; }
   mirePremiere(); { const dl=M&&M.lunette&&kV>0.85?'block':'none'; if(VUE1P.lunette.style.display!==dl) VUE1P.lunette.style.display=dl; } /* la lunette : son image, comme en ville */
 }
+/* 16 octobre (signalé : « quand on vise, on doit bouger le joystick, aller viser en haut, puis tirer en bas à droite : on
+   ne peut pas ajuster ») : le pouce droit fait TOUT depuis le bouton TIR — appuyé, il tire ; glissé, il fait regarder
+   (le bouton garde le doigt : setPointerCapture, le geste continue hors du bouton), plus finement en visée. En ville à
+   la 1re personne, le tir est en plus AUTOMATIQUE dès que la mire est sur une cible (META.tirAuto, réglable dans les
+   paramètres) : on n'a plus qu'à regarder. Double-tap sur l'écran libre = VISER. */
+{ const bf=el('btnFire');
+  bf.addEventListener('pointerdown',e=>{ if(!(VUE1P.actif||FPS.actif)) return; try{ bf.setPointerCapture(e.pointerId); }catch(err){} VUE1P.dragTir={id:e.pointerId,x:e.clientX,y:e.clientY}; });
+  window.addEventListener('pointermove',e=>{ const d=VUE1P.dragTir; if(!d||e.pointerId!==d.id) return; const k=0.0062*(1-0.6*(VUE1P.actif?VUE1P.k:(FPS.k||0))), ddx=e.clientX-d.x, ddy=e.clientY-d.y; d.x=e.clientX; d.y=e.clientY;
+    if(VUE1P.actif){ VUE.yawUser-=ddx*k; VUE.pitch1P=clamp((VUE.pitch1P||0)-ddy*k*0.85,-1.1,1.15); } else if(FPS.actif){ FPS.yaw-=ddx*k; FPS.pitch-=ddy*k; } });
+  const finTir=e=>{ if(VUE1P.dragTir&&e.pointerId===VUE1P.dragTir.id){ VUE1P.dragTir=null; try{ bf.releasePointerCapture(e.pointerId); }catch(err){} } }; window.addEventListener('pointerup',finTir); window.addEventListener('pointercancel',finTir); }
 // viser au doigt : glisser n'importe où sur l'écran (le HUD laisse passer les gestes)
 renderer.domElement.addEventListener('pointerdown',e=>{ if(FPS.actif) FPS.drag={id:e.pointerId,x:e.clientX,y:e.clientY}; });
 window.addEventListener('pointermove',e=>{ if(!FPS.actif||!FPS.drag||e.pointerId!==FPS.drag.id) return; const k=0.0062*(FPS.actif.sensDoigt||1)*(1-0.55*(FPS.k||0));
@@ -9591,8 +9616,9 @@ function derbyDegats(v,d,parJoueur){
   if(v.derbyKO||(DERBY.actif&&DERBY.actif.etat==='fin')) return; d*=(v.blindage||1)*DERBY_DEGATS; // match fini : plus de dégâts (une épave qui glisse)
   const pr=DERBY._paire, att=pr&&(pr[0]===v?pr[1]:(pr[1]===v?pr[0]:null));
   const A0=DERBY.actif; if(A0&&v===A0.vJ&&att&&att!==A0.vJ) d*=A0.forceIA; // les IA ménagent un peu le joueur au début (niveau 0 : ×0,6), plus du tout au niveau 3
-  d=Math.min(d,v.hp); v.hp-=d; burst(v.x,1,v.z,3,0xffd88a,6); if(att) att.dbInflige=(att.dbInflige||0)+d; // les dégâts infligés : le classement au temps
-  const A=DERBY.actif, parJ=A?att===A.vJ:parJoueur; if(A&&parJ&&v!==A.vJ){ A.degats+=d; ETAT.score+=Math.round(d*1.5); }
+  const actif=!!att&&Math.abs(att.v||0)>4; /* seul un attaquant qui ROULE est crédité : une voiture immobile percutée « infligeait » les dégâts de celui qui la heurtait (un joueur passif gagnait des KO) */
+  d=Math.min(d,v.hp); v.hp-=d; burst(v.x,1,v.z,3,0xffd88a,6); if(actif) att.dbInflige=(att.dbInflige||0)+d; // les dégâts infligés : le classement au temps
+  const A=DERBY.actif, parJ=A?(actif&&att===A.vJ):parJoueur; if(A&&parJ&&v!==A.vJ){ A.degats+=d; ETAT.score+=Math.round(d*1.5); }
   if(v.hp<=0) derbyKO(v,parJ); else degatsVisuels(v); }
 function derbyKO(v,parJoueur){
   if(v.derbyKO) return; v.derbyKO=true; v.hp=0; degatsVisuels(v); v.v*=0.3;
@@ -9604,7 +9630,8 @@ function derbyKO(v,parJoueur){
 // IA : la voiture la plus proche (le joueur un peu plus souvent), anticipée ; coincée = marche arrière
 function derbyChoisirCible(v){ const A=DERBY.actif; let best=null, bd=1e9, surJ=0;
   for(const o of A.ias) if(o!==v&&!o.derbyKO&&o.dbCible===A.vJ) surJ++; // jamais toute l'arène sur le joueur à la fois
-  const maxJ=1+Math.floor((A.niveauIA+1)/2); // 1 au niveau 0, 2 aux niveaux 1-2, 3 au niveau 3
+  let vivantes=0; for(const o of A.ias) if(!o.derbyKO&&!o.mort) vivantes++;
+  const maxJ=vivantes<=2?9:1+Math.floor((A.niveauIA+1)/2); /* 1 au niveau 0, 2 aux niveaux 1-2, 3 au niveau 3 ; les deux dernières IA foncent toutes sur le joueur (duel final) : sinon, les IA s'entre-détruisant, un joueur immobile pouvait gagner « dernier qui roule » */
   for(const o of A.voitures){ if(o===v||o.derbyKO||o.mort||(o===A.vJ&&surJ>=maxJ)) continue;
     const dd=Math.hypot(o.x-v.x,o.z-v.z)*(o===A.vJ?A.biais:1)*(0.8+Math.random()*0.45); if(dd<bd){ bd=dd; best=o; } }
   return best; }
@@ -9668,7 +9695,7 @@ function derbyFin(gagne,raison){
     checkDefis(); sauveMeta();
   } else {
     META.derby.kos=(META.derby.kos||0)+A.kos;
-    bigMsg(raison==='abandon'?'🏳️ ABANDON':(raison==='temps'?'⏱️ BATTU AUX POINTS':'💥 ÉPAVE — ÉLIMINÉ')); SFX.refus(); sauveMeta();
+    bigMsg(raison==='abandon'?'🏳️ ABANDON':(raison==='temps'?'⏱️ BATTU AUX POINTS':(raison==='dernier'?'🙈 PAS UN SEUL COUP DONNÉ':'💥 ÉPAVE — ÉLIMINÉ'))); SFX.refus(); sauveMeta();
   }
   if(DERBY.txt) DERBY.txt.style.display='none'; }
 function derbyNettoyer(){
@@ -9704,7 +9731,7 @@ function majDerby(dt,dtJeu){
     A.t+=dtJeu; let ia=0; for(const v of A.ias) if(!v.derbyKO&&!v.mort) ia++;
     if(A.vJ.derbyKO||A.vJ.mort) derbyFin(false,'epave');
     else if(P.veh!==A.vJ) derbyFin(false,'abandon');
-    else if(ia===0) derbyFin(true,'dernier');
+    else if(ia===0) derbyFin((A.vJ.dbInflige||0)>0,'dernier'); // dernier qui roule — mais sans un seul coup donné, ce n'est pas une victoire
     else if(A.t>=DERBY_DUREE){ let m=0; for(const v of A.ias) if(!v.derbyKO&&!v.mort) m=Math.max(m,v.dbInflige||0); derbyFin((A.vJ.dbInflige||0)>m,'temps'); } // aux points : les dégâts infligés
     if(D.actif&&A.etat==='combat') derbyHud();
   } else if(A.etat==='fin'){ A.finT-=dtJeu; if(A.finT<=0) derbyNettoyer(); }
@@ -14104,6 +14131,9 @@ const ANCRES_ARME={
   sniper:{main:[-0.12,-0.05],appui:[0.36,0.0],pose:'epaule',canon:0.1},arbalete:{main:[-0.06,-0.06],appui:[0.24,0.035],pose:'epaule',canon:0.11},
   roquette:{main:[0.08,-0.05],appui:[0.35,-0.03],priseG:'poignee',pose:'lourd',canon:0.13},minigun:{main:[-0.15,0.0],appui:[0.22,0.32],priseG:'dessus',pose:'lourd',canon:0.1},
   flamme:{main:[-0.02,-0.04],appui:[0.42,0.0],priseG:'poignee',pose:'epaule',canon:0.12},desintegrateur:{main:[-0.02,-0.07],pose:'poing',canon:0.08},
+  /* armes blanches à la 1re personne : la batte à deux mains sur le manche, au-dessus de l'épaule droite ; le sabre tenu haut ; le couteau bas, lame vers l'avant */
+  batte:{main:[0.56,0.06],appui:[0.44,0.06],priseD:'manche',priseG:'manche',pose:'melee',canon:0},batte2:{main:[0.56,0.06],appui:[0.44,0.06],priseD:'manche',priseG:'manche',pose:'melee',canon:0},
+  sabre:{main:[0.06,0.0],priseD:'manche',pose:'melee',canon:0},couteau:{main:[0.02,0.0],priseD:'manche',pose:'lame',canon:0},
 };
 function ancreArme(id){ return ANCRES_ARME[id]||{main:[-0.02,-0.07],pose:'poing',canon:0.08}; }
 function construireArmeV2(id){
@@ -14326,9 +14356,11 @@ function mkArmeModele(id){
       { const sh=new THREE.Shape(); sh.moveTo(-0.045,0); sh.lineTo(0.045,0); sh.lineTo(0.03,0.34); sh.lineTo(-0.045,0.26); sh.lineTo(-0.045,0);
         const l=new THREE.Mesh(new THREE.ExtrudeGeometry(sh,{depth:0.012,bevelEnabled:false}),mat(0xdfe4ea)); l.rotation.set(Math.PI,0,0); l.rotation.order='XYZ';
         l.rotation.y=Math.PI/2; l.position.set(-0.006,-0.11,0); g.add(l); } break;
-    case 'sabre': // sabre : longue lame courbe, garde dorée, poignée tressée
-      b(0.05,0.24,0.07,0x2a1c14,0.06,0); b(0.12,0.03,0.2,0xc8a040,0.19,0);
-      for(let k=0;k<6;k++){ const s=b(0.025,0.17,0.07,0xe8eef4,0.27+k*0.155,0.012*k*k); s.rotation.x=-0.03*k; } break;
+    case 'sabre': { // sabre : poignée tressée, garde dorée, longue lame courbe d'un seul tenant (16 octobre : six boîtes en escalier avant)
+      b(0.05,0.24,0.07,0x2a1c14,0.06,0); for(let k=0;k<6;k++) b(0.052,0.012,0.072,0x5a3a22,0.0+k*0.038,0); b(0.12,0.03,0.2,0xc8a040,0.19,0); b(0.06,0.04,0.06,0xc8a040,-0.07,0);
+      const sh=new THREE.Shape(); sh.moveTo(0,-0.035); sh.quadraticCurveTo(0.45,-0.03,0.78,0.02); sh.lineTo(0.9,0.09); sh.quadraticCurveTo(0.5,0.05,0,0.025); sh.lineTo(0,-0.035);
+      const l=new THREE.ExtrudeGeometry(sh,{depth:0.014,bevelEnabled:true,bevelThickness:0.004,bevelSize:0.004,bevelSegments:2,curveSegments:12}); l.rotateX(Math.PI/2); l.rotateZ(-Math.PI/2); l.translate(0.009,-0.21,0.0);
+      const lame=new THREE.Mesh(l,new THREE.MeshPhongMaterial({color:0xe8eef4,shininess:120,specular:0xffffff})); g.add(lame); break; }
     default: return null; // poings, gadget, boule : rien en main (ou leur propre modèle)
   }
   g.visible=false; return g;
@@ -16847,7 +16879,7 @@ function attaquer(){
     SFX.refus(); P.cadT=0.5; return;
   }
   if(a.type==='melee'){
-    P.cadT=st.cad; P.frappeT=0.2; P.h._frappe=0.2; if(VUE1P.actif) VUE1P.frappe=0.3;
+    P.cadT=st.cad; P.frappeT=0.2; P.h._frappe=0.2; if(VUE1P.actif){ VUE1P.frappe=0.3; VUE1P.coupMain=!VUE1P.coupMain; }
     P.h.brasD.rotation.x=-1.6;
     let touche=false;
     const dmg=st.degats*P.meleeMul*(P.buffs.dmg>0?1.35:1)*((P.ivresse||0)>IVRESSE.pompette?1.2:1); // pompette : « courage liquide » au corps à corps
@@ -17238,8 +17270,9 @@ function majJoueur(dt,dtJeu){
   const armeM=ARMES[P.armeCur].manuel;
   const appuie=INPUT.btn.tir||INPUT.btn.tirK;
   if(armeM&&!P.veh&&VUE1P.actif){ P_SNIPE.vise=false; laser.visible=false; viseur.visible=false;
-    if(appuie&&!VUE1P.appuiSniper&&P.cadT<=0){ const c=viseAuto1P(armeStats(P.armeCur).portee); P_SNIPE.dist=armeStats(P.armeCur).portee; const a0=P.ang; if(c) P.ang=Math.atan2(c.x-P.x,c.z-P.z); tirPremiere(armeStats(P.armeCur)); tirSniper(); P.ang=a0; }
-    VUE1P.appuiSniper=appuie; }
+    const appuieS=appuie||(META.tirAuto!==false&&!!VUE1P.verrou); /* le sniper aussi tire tout seul sur la cible verrouillée */
+    if(appuieS&&!VUE1P.appuiSniper&&P.cadT<=0){ const c=viseAuto1P(armeStats(P.armeCur).portee); P_SNIPE.dist=armeStats(P.armeCur).portee; const a0=P.ang; if(c) P.ang=Math.atan2(c.x-P.x,c.z-P.z); tirPremiere(armeStats(P.armeCur)); tirSniper(); P.ang=a0; }
+    VUE1P.appuiSniper=appuieS; }
   else if(armeM&&!P.veh){
     if(appuie){
       if(!P_SNIPE.vise){ P_SNIPE.vise=true; P_SNIPE.lunetteT=0; }
@@ -17259,6 +17292,7 @@ function majJoueur(dt,dtJeu){
   } else { P_SNIPE.vise=false; laser.visible=false; viseur.visible=false; }
   // actions
   if((INPUT.btn.tir||INPUT.btn.tirK)&&P.cadT<=0&&P.frappeT<=0&&!armeM) attaquer();
+  else if(VUE1P.actif&&VUE1P.verrou&&META.tirAuto!==false&&!armeM&&ARMES[P.armeCur].type==='gun'&&P.cadT<=0&&P.frappeT<=0&&P.rechT<=0&&(P.mags[P.armeCur]||0)>0) attaquer(); /* tir automatique : la mire est sur une cible */
   if(P.frappeT>0){P.frappeT-=dt;if(P.frappeT<=0)P.h.brasD.rotation.x=0;}
   if((pressed('esquive')||edgeKey('KeyK'))&&P.dodgeCd<=0&&P.stam>=25&&!P.nage){
     const l=Math.hypot(INPUT.mx,INPUT.mz);
@@ -17917,11 +17951,14 @@ function bloqueParSolide(v,x,z){ const d=v.def; if(d.air||d.eau||v.enAir||surEau
    contre un mur par une autre, poussée par l'élan d'un choc ou par la séparation entre véhicules, finissait DANS le
    mur (derby : les carrosseries plantées dans les pneus, une épave sortie de l'arène). Hors des salles (le Dépôt
    garde sa physique, mesurée). */
-const DEG_PTS=[[0.95,0.95],[0.95,-0.95],[-0.95,0.95],[-0.95,-0.95],[0,0.95],[0,-0.95],[0.95,0],[-0.95,0]];
+const DEG_PTS=[[1,1],[1,-1],[-1,1],[-1,-1],[0,0.95],[0,-0.95],[0.95,0],[-0.95,0]]; /* les vrais coins (à 0,95, un coin pouvait rester 0,13 u dans un bloc sans être vu) */
 function degagerDesMurs(v){
   const d=v.def, L=d.long/2, W=d.larg/2, s=Math.sin(v.ang), c=Math.cos(v.ang), hv=(v.h||0)+(d.franchit||0.5); let mx=0, mz=0;
   for(let i=0;i<DEG_PTS.length;i++){ const a=DEG_PTS[i][0]*L, b=DEG_PTS[i][1]*W, px=v.x+s*a+c*b, pz=v.z+c*a-s*b, so=solidAt(px,pz,0); if(!so||so.h<=hv) continue;
     const dx=px-so.x, dz=pz-so.z, ex=so.hw-Math.abs(dx), ez=so.hd-Math.abs(dz); if(ex<=0||ez<=0) continue;
+    if(so.hw<1.5&&so.hd<1.5){ /* petit bloc (coins en escalier des murs de pneus) : sorti vers le centre du véhicule — poussé le long d'un axe, le coin passait dans le bloc voisin de l'escalier, qui le renvoyait sur l'autre axe (0,66 u pendant 8 à 23 images, mesuré au derby) */
+      let ux=v.x-so.x, uz=v.z-so.z; const lu=Math.hypot(ux,uz); if(lu>1e-6){ ux/=lu; uz/=lu; const tx=Math.abs(ux)>1e-6?(Math.sign(ux)*so.hw-dx)/ux:1e9, tz=Math.abs(uz)>1e-6?(Math.sign(uz)*so.hd-dz)/uz:1e9, t=Math.min(tx,tz)+0.02, qx=ux*t, qz=uz*t;
+        if(Math.hypot(qx,qz)>Math.hypot(mx,mz)){ mx=qx; mz=qz; } continue; } }
     if(ex<ez){ const p=(Math.sign(dx)||1)*(ex+0.02); if(Math.abs(p)>Math.abs(mx)) mx=p; } else { const p=(Math.sign(dz)||1)*(ez+0.02); if(Math.abs(p)>Math.abs(mz)) mz=p; } }
   if(!mx&&!mz) return false;
   const l=Math.hypot(mx,mz), k=Math.min(1,0.6/l); v.x+=mx*k; v.z+=mz*k; v.knockVx=0; v.knockVz=0; return true;
@@ -33363,6 +33400,8 @@ function bindSw(id,key,fn){
 bindSw('tMusic','musique',()=>{if(AUDIO.musG)AUDIO.musG.gain.value=REGLAGES.musique?0.30:0;});
 bindSw('tSfx','sfx',()=>{if(AUDIO.sfxG)AUDIO.sfxG.gain.value=REGLAGES.sfx?0.85:0;if(AUDIO.uiG)AUDIO.uiG.gain.value=REGLAGES.sfx?0.85:0;});
 bindSw('tVib','vib');
+el('tTirAuto').addEventListener('pointerdown',()=>{ META.tirAuto=META.tirAuto===false; el('tTirAuto').classList.toggle('on',META.tirAuto!==false); sauveMeta(); SFX.ui(); }); /* sauvegardé dans META */
+el('tTirAuto').classList.toggle('on',META.tirAuto!==false);
 
 /* =====================================================================
    DÉBUT / FIN DE PARTIE
@@ -35265,7 +35304,7 @@ function majBoutonVue(){ const b=el('btnVue'); if(!b) return; b.classList.toggle
 renderer.domElement.addEventListener('pointerdown',e=>{
   if(!salleImmersive(INT.actif)||!vueImmersive()||ETAT.mode!=='jeu'||ATELIER.ouvert||FPS.actif) return; // l'établi et le tir à la première personne ont leurs propres gestes
   const t=performance.now();
-  if(t-VUE.tapT<300&&!P.veh){ if(VUE1P.actif) VUE.pitch1P=0; else VUE.yawUser=(P.ang||0)+Math.PI; VUE.tapT=0; return; } /* 1re personne : double-tap = regarder droit devant */
+  if(t-VUE.tapT<300&&!P.veh){ if(VUE1P.actif) INPUT.edge.viser=true; else VUE.yawUser=(P.ang||0)+Math.PI; VUE.tapT=0; return; } /* 1re personne : double-tap = VISER */
   VUE.tapT=t; if(P.veh&&INT.actif) return;
   VUE.drag={id:e.pointerId,x:e.clientX,y:e.clientY};
 });
@@ -35300,7 +35339,7 @@ const OEIL_1P=1.52;
 function vuePremiere(){ return vue1P()&&ETAT.mode==='jeu'&&!INT.actif&&!P.veh&&!FPS.actif&&!P.chute&&!P.para&&!P.wing&&!P.jetpackVol&&!P.nage&&!MANEGES.actif&&!BOUT.ouvert
   &&!(typeof TOW!=='undefined'&&TOW.actif)&&!(DECOR_V2&&typeof SURPRISES!=='undefined'&&SURPRISES.tyro)&&!lunetteSniper()&&P.hp>0&&!!P.h; }
 // la cible sous la mire : un cône étroit autour du regard (plus étroit en visant), élargi de près
-function viseAuto1P(portee){ const cone=VUE1P.k>0.5?0.045:0.1, oeil=P.y+OEIL_1P, pit=VUE.pitch1P||0; let best=null, bs=1e9;
+function viseAuto1P(portee,verrou){ const cone=verrou?(VUE1P.k>0.5?0.03:0.055):(VUE1P.k>0.5?0.045:0.1), oeil=P.y+OEIL_1P, pit=VUE.pitch1P||0; let best=null, bs=1e9;
   const test=(c,x,z,h)=>{ const d=Math.sqrt(dist2(x,z,P.x,P.z)); if(d>portee*1.12||d<0.4) return; const da=Math.abs(angDiff(P.ang,Math.atan2(x-P.x,z-P.z))), dp=Math.abs(Math.atan2(h-oeil,d)-pit);
     if(da>cone+0.7/d||dp>cone*1.6+0.9/d) return; const sc=da+dp*0.7; if(sc<bs){ if(!c.heli&&!ligneLibre(P.x,P.z,x,z)) return; bs=sc; best=c; } };
   for(const e of ennemis) if(!e.mort) test(e,e.x,e.z,hCible(e));
@@ -35323,26 +35362,32 @@ function majMirePremiere(st){ const V=VUE1P, q=V.mire&&V.mire._q; if(!q) return;
   if(V.mire._ec!==ec){ V.mire._ec=ec; q.t.style.top=(-ec-7)+'px'; q.b.style.top=ec+'px'; q.l.style.left=(-ec-7)+'px'; q.r.style.left=ec+'px'; }
   const disp=montrer?'block':'none'; if(V.mire.style.display!==disp) V.mire.style.display=disp;
   q.x.style.opacity=V.touche>0?'1':'0';
+  const coul=V.verrou?'#ff3b3b':'#fff'; if(V.mire._coul!==coul){ V.mire._coul=coul; for(const e of [q.t,q.b,q.l,q.r]) e.style.background=coul; }
   const dl=V.actif&&lun?'block':'none'; if(V.lunette.style.display!==dl) V.lunette.style.display=dl; }
 // l'arme en main : le montage du stand de tir ; sa ligne de mire, dans le repère de la main (W)
 function montagePremiere(){ const V=VUE1P;
   if(V.montage){ scene.remove(V.montage.R); libererEntite(V.montage.R); V.montage=null; }
   V.arme=P.armeCur; const id=P.armeCur, a=ARMES[id];
   if(mkArmeModeleDispo(id)&&mkArmeModele(id)){ V.montage=fpsMontage(id); }
-  if(!V.montage){ // les poings : deux mains, sans arme
-    const R=new THREE.Group(), W=new THREE.Group(); R.add(W); const c=coifCouleurs(); fpsBras(W,'d',new THREE.Vector3(0,0,0),'poignee',c.peau,c.haut,0.76); fpsBras(W,'g',new THREE.Vector3(-0.17,0.01,0.02),'poignee',c.peau,c.haut,0.76);
-    R.traverse((o)=>{ o.renderOrder=5; o.frustumCulled=false; }); V.montage={R,W,P0:FPS_POSES.poing,poings:true,douilles:[],lagX:0,lagY:0}; }
+  if(!V.montage){ /* les poings : garde de boxeur, jointures en avant, le droit un peu en retrait */
+    const R=new THREE.Group(), W=new THREE.Group(); R.add(W); const c=coifCouleurs();
+    const d=fpsBras(W,'d',new THREE.Vector3(0.06,-0.03,-0.02),'poing',c.peau,c.haut,0.8), g=fpsBras(W,'g',new THREE.Vector3(-0.1,0.0,-0.07),'poing',c.peau,c.haut,0.8);
+    d.rotation.set(-0.5,-0.35,0.35); g.rotation.set(-0.5,0.35,-0.35);
+    R.traverse((o)=>{ o.renderOrder=5; o.frustumCulled=false; }); V.montage={R,W,P0:{k:0.4,pos:[0.02,-0.14,-0.32],yaw:0,roll:0},poings:true,mains:[d,g],douilles:[],lagX:0,lagY:0}; }
+  if(V.montage&&V.montage.mod){ const A=ancreArme(P.armeCur); V.montage.melee=A.pose==='melee'||A.pose==='lame'; }
   const M=V.montage; scene.add(M.R); if(a&&a.type==='gun') ligneDeMire(M,id); /* une arme blanche ne se vise pas à la mire */
 }
 // la ligne de mire d'un montage : l'optique posée à l'établi (userData.visee), sinon le haut de l'arme (ses organes de
 // visée), un peu en avant de la poignée — dans le repère de la main W ; et le champ en visant (lunette : zoom)
 function ligneDeMire(M,id){ if(!M||!M.mod) return;
-  let zTop=-1e9, yMin=0; M.mod.traverse((o)=>{ if(o.isMesh&&o.geometry){ if(!o.geometry.boundingBox) o.geometry.computeBoundingBox(); const b=o.geometry.boundingBox; zTop=Math.max(zTop,o.position.z+b.max.z); yMin=Math.min(yMin,o.position.y+b.min.y); } });
+  let zTop=-1e9, yMin=0, yMax=-1e9; M.mod.traverse((o)=>{ if(o.isMesh&&o.geometry){ if(!o.geometry.boundingBox) o.geometry.computeBoundingBox(); const b=o.geometry.boundingBox; zTop=Math.max(zTop,o.position.z+b.max.z); yMin=Math.min(yMin,o.position.y+b.min.y); yMax=Math.max(yMax,o.position.y+b.max.y); } });
   const vis=M.mod.userData.visee, ys=vis?vis.y:yMin*0.2, zs=vis?vis.z:zTop+0.012; M.H.updateMatrix();
+  M.crosse=Math.max(0,yMax-ys)*(M.P0?M.P0.k:0.36)*0.5; /* ce qui dépasse derrière la mire (la crosse), à l'échelle de visée : l'arme recule d'autant (sinon la crosse d'un fusil à pompe finissait à 5 cm de l'œil) */
   M.mire=new THREE.Vector3(0,ys+M.mod.position.y,zs+M.mod.position.z).applyMatrix4(M.H.matrix);
-  M.lunette=(vis&&vis.type==='lunette')||id==='sniper'; M.fovVise=id==='sniper'?9:(M.lunette?16:(vis&&vis.type==='holo'?46:(vis?48:52))); }
+  M.lunette=(vis&&vis.type==='lunette')||id==='sniper'; M.fovVise=id==='sniper'?9:(M.lunette?16:(vis&&vis.type==='holo'?46:(vis?48:52))); M.prof=M.lunette?0.36:0.32; } /* l'œil à 32 cm derrière la hausse (à l'échelle de visée 0,42) : comparé en rendu à 12, 22, 32 et 42 cm — à 12 cm les mains remplissaient l'écran, à 32 l'arme est petite au centre, les avant-bras partent des coins du bas, la crosse passe sous l'œil */
 function entrerPremiere(){ const V=VUE1P; V.actif=true; V.k=0; V.vise=false; V.recul=0; if(P.h) P.h.g.visible=false; reticule.visible=false;
-  mirePremiere(); montagePremiere(); const b=el('btnViser'); if(b){ b.style.display='flex'; b.classList.remove('on'); } }
+  mirePremiere(); montagePremiere(); const b=el('btnViser'); if(b){ b.style.display='flex'; b.classList.remove('on'); }
+  if(!V.aideVue){ V.aideVue=true; toast('☝ Glisse le pouce sur TIR pour regarder ; le tir part tout seul sur une cible ; double-tap : VISER','or'); } }
 function quitterPremiere(){ const V=VUE1P; V.actif=false; V.vise=false; V.k=0;
   if(V.montage){ scene.remove(V.montage.R); libererEntite(V.montage.R); V.montage=null; } V.arme=null;
   if(P.h&&!P.veh) P.h.g.visible=true; camera.near=0.5; camera.updateProjectionMatrix();
@@ -35351,20 +35396,30 @@ function cameraPremiere(dt){ const V=VUE1P; if(!V.actif) entrerPremiere(); if(V.
   const M=V.montage, st=ARMES[P.armeCur]&&ARMES[P.armeCur].type==='gun'?armeStats(P.armeCur):null;
   if(pressed('viser')){ V.vise=!V.vise&&!!(M&&M.mire)&&!!st; const b=el('btnViser'); if(b) b.classList.toggle('on',V.vise); SFX.ui(); } if(!st&&V.vise){ V.vise=false; const b=el('btnViser'); if(b) b.classList.remove('on'); }
   V.k=lerp(V.k,V.vise?1:0,clamp(dt*11,0,1)); V.recul=Math.max(0,V.recul-dt*5); V.flash=Math.max(0,V.flash-dt); V.frappe=Math.max(0,V.frappe-dt); V.touche=Math.max(0,V.touche-dt);
-  const mv=Math.min(1,Math.hypot(INPUT.mx,INPUT.mz)); V.pas+=dt*(mv>0.12?(INPUT.btn.sprint?13:9)*mv:0);
+  V.verrou=st?viseAuto1P(st.portee,true):null; /* la cible sous la mire (cône étroit) : mire rouge, tir automatique */
+  const mv=Math.min(1,Math.hypot(INPUT.mx,INPUT.mz)), court=(INPUT.btn.sprint||INPUT.btn.sprintK)&&mv>0.3&&!P.nage?1:0; V.pas+=dt*(mv>0.12?(court?13:9)*mv:0);
+  V.kCourse=lerp(V.kCourse||0,court&&V.k<0.3?1:0,clamp(dt*5,0,1)); /* en courant, l'arme se baisse et se balance */
   const bob=Math.sin(V.pas)*0.04*(1-V.k*0.85)*mv;
   camera.position.set(P.x,P.y+OEIL_1P+bob,P.z); camera.rotation.order='YXZ';
   camera.rotation.set((VUE.pitch1P||0)+V.recul*0.035,VUE.yawUser,(P.ivresse||0)>IVRESSE.pompette?Math.sin(ETAT.runT*1.1)*0.05:0);
   const fv=M&&M.fovVise?M.fovVise:52, fov=lerp(72,fv,V.k); V.zoom=fov/72;
   if(Math.abs(camera.fov-fov)>0.01||camera.near!==0.05){ camera.fov=fov; camera.near=0.05; camera.updateProjectionMatrix(); }
   VUE.yawRendu=VUE.yawUser; VUE.yaw=VUE.yawUser; if(VUE.ciel) VUE.ciel.position.copy(camera.position);
-  if(M){ const W=M.W, P0=M.P0||FPS_POSES.poing, t=performance.now()*0.001, r=V.recul, k=V.k*V.k*(3-2*V.k);
-    M.R.position.copy(camera.position); M.R.quaternion.copy(camera.quaternion); M.R.visible=!(M.lunette&&V.k>0.85);
-    const hx=P0.pos[0]+Math.sin(t*1.1)*0.0022+Math.sin(V.pas*0.5)*0.006*mv, hy=P0.pos[1]+Math.sin(t*2.2)*0.0016+Math.abs(Math.cos(V.pas*0.5))*0.005*mv, hz=P0.pos[2]+r*0.045;
-    const ax=M.mire?-M.mire.x:hx, ay=M.mire?-M.mire.y:hy, az=M.mire?-0.13-M.mire.z+r*0.03:hz; // visée : la ligne de mire sur l'axe de l'œil, 0,13 u devant
+  if(M){ const W=M.W, P0=M.P0||FPS_POSES.poing, t=performance.now()*0.001, r=V.recul, k=V.k*V.k*(3-2*V.k), kc=V.kCourse||0;
+    M.R.position.copy(camera.position); M.R.quaternion.copy(camera.quaternion); M.R.visible=!(M.lunette&&V.k>0.85); fpsHautBras(M.R,V.k<0.45);
+    const dY=M.yawP===undefined?0:angDiff(M.yawP,VUE.yawUser), dP=M.pitchP===undefined?0:(VUE.pitch1P||0)-M.pitchP; M.yawP=VUE.yawUser; M.pitchP=VUE.pitch1P||0; /* l'arme traîne un peu derrière le regard */
+    M.lagX+=(clamp(-dY*0.6,-0.03,0.03)-M.lagX)*0.18; M.lagY+=(clamp(-dP*0.6,-0.03,0.03)-M.lagY)*0.18;
+    const hx=P0.pos[0]+Math.sin(t*1.1)*0.0022+Math.sin(V.pas*0.5)*(0.006+0.02*kc)*mv+M.lagX*(1-k)+kc*0.03, hy=P0.pos[1]+Math.sin(t*2.2)*0.0016+Math.abs(Math.cos(V.pas*0.5))*(0.005+0.018*kc)*mv+M.lagY*(1-k)-kc*0.06, hz=P0.pos[2]+r*0.045;
+    const sc=lerp(1,0.42,k); W.scale.setScalar(sc); /* en visée, l'ensemble arme + mains rapetisse : l'arme paraît plus loin, la crosse sort du champ (à l'échelle de hanche, elle remplissait l'écran à 10 cm de l'œil) */
+    const ax=M.mire?-M.mire.x*sc:hx, ay=M.mire?-M.mire.y*sc:hy, az=M.mire?-(M.prof||0.16)-M.mire.z*sc+r*0.03:hz; /* visée : la ligne de mire sur l'axe de l'œil, à prof devant */
     W.position.set(lerp(hx,ax,k),lerp(hy,ay,k),lerp(hz,az,k));
-    const sw=V.frappe>0?Math.sin(Math.PI*(1-V.frappe/0.3)):0; // coup au corps à corps : l'arme (ou le poing) part en avant
-    W.rotation.set(lerp(r*0.2,r*0.05,k)-sw*0.9,lerp(P0.yaw,0,k)+sw*0.5,lerp(P0.roll||0,0,k)-sw*0.4); if(M.poings) W.position.z-=sw*0.12;
+    const f=V.frappe>0?1-V.frappe/0.3:0, sw=f?Math.sin(Math.PI*f):0, sw2=f?Math.sin(Math.PI*Math.min(1,f*1.6)):0; /* coup : course rapide à l'aller, retour plus lent */
+    if(M.melee&&P0.pitch!==undefined){ /* batte et sabre : de l'épaule, un grand swing en travers ; couteau : un estoc */
+      const lame=P0===FPS_POSES.lame; W.rotation.set(P0.pitch-(lame?0.6:2.1)*sw2+r*0.05,P0.yaw-(lame?0.2:1.3)*sw2+M.lagX*0.8,(P0.roll||0)+(lame?-0.3:0.9)*sw2); W.position.x-=(lame?0.04:0.18)*sw2; W.position.y-=0.05*sw2; W.position.z-=(lame?0.2:0.06)*sw2; }
+    else { W.rotation.set(lerp(r*0.2,r*0.05,k)+kc*0.55+M.lagY*0.8*(1-k),lerp(P0.yaw,0,k)+M.lagX*0.8*(1-k)+kc*0.35,lerp(P0.roll||0,0,k)+kc*0.15); }
+    if(M.poings&&M.mains){ const [d,g]=M.mains, qui=V.coupMain?g:d, autre=V.coupMain?d:g, sg=V.coupMain?-1:1; /* coups alternés : le poing part droit devant en tournant, l'autre se replie */
+      qui.position.z=(V.coupMain?-0.07:-0.02)-0.26*sw2; qui.position.y=(V.coupMain?0.0:-0.03)+0.03*sw2; qui.position.x=(V.coupMain?-0.1:0.06)+sg*0.06*sw2; qui.rotation.y=sg*(-0.4+1.2*sw2); qui.rotation.z=sg*(0.2-0.6*sw2);
+      autre.position.z=(V.coupMain?-0.02:-0.07)+0.04*sw; W.rotation.z+=sg*0.12*sw; W.rotation.y+=sg*0.1*sw; }
     if(M.culasse) for(const m of M.culasse) m.position.y=Math.min(1,r*2.6)*0.055;
     if(M.fl){ const f=V.flash>0; M.fl.material.opacity=f?1:0; M.fl2.material.opacity=f?0.9:0; if(f){ M.fl.material.rotation=Math.random()*6.28; M.fl.scale.setScalar(0.11+Math.random()*0.06); M.fl2.scale.set(0.24+Math.random()*0.1,0.05,1); } }
     majDouilles(M,dt); }

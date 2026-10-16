@@ -12494,8 +12494,8 @@ async function main() {
           else info.push('l’élan d’un choc à 45 u/s s’arrête au mur ; coincée par une autre, la voiture reste à ' + Math.max(0, -prof).toFixed(2) + ' u du mur'); }
         // 6. derby : un match simulé, pilote qui charge (graine propre)
         const D = DERBY;
-        if (D.ok) { graine(77); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6; for (const e of ennemis) e.mort = true; WANTED.heat = 0; P.x = D.stand.x; P.z = D.stand.z; P.y = 0;
-          for (const v of vehicules) { scene.remove(v.mesh); libererEntite(v.mesh); } vehicules.length = 0;
+        if (D.ok) { if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6; for (const e of ennemis) e.mort = true; WANTED.heat = 0; P.x = D.stand.x; P.z = D.stand.z; P.y = 0;
+          for (const v of vehicules) { scene.remove(v.mesh); libererEntite(v.mesh); } vehicules.length = 0; graine(77); /* graine posée APRÈS startRun : le match ne dépend plus du nombre de tirages de la mise en place (un objet Three.js de plus au démarrage changeait tout le match) */
           META.derby.niv = { pareChocs: 0, blindage: 0, moteur: 0, pneus: 0 }; derbyLancer(); const A2 = D.actif; let t = 0, decT = 0, reculT = 0, dir = [0, 0], hors = 0, profMax = 0;
           while (D.actif === A2 && A2.etat !== 'fin' && t < 160) { const dt = 1 / 30; t += dt;
             if (A2.etat === 'combat') { const v = A2.vJ; decT -= dt; if (v.dentT > 0.3 && !v._vu && reculT <= 0) { v._vu = true; reculT = 0.7; } else if (!(v.dentT > 0.3)) v._vu = false;
@@ -12653,7 +12653,7 @@ async function main() {
         devant.mort = true; if (viseAuto1P(armeStats('fusil').portee) === cote40) ko.push('une cible à 40° de la mire est visée'); devant.mort = false;
         const h0 = devant.hp; for (let i = 0; i < 6; i++) { P.cadT = 0; attaquer(); for (let k = 0; k < 8; k++) majPools(1 / 60); } if (!(devant.hp < h0)) ko.push('la cible sous la mire n’est pas touchée');
         // lever les yeux : le tir monte
-        devant.mort = true; cote40.mort = true; VUE.pitch1P = 0.35; P.cadT = 0; attaquer(); const b = balles.filter((q) => q.on && q.fac === 'joueur').pop(); if (!b || !(b.vy > 2)) ko.push('regard levé : le tir ne monte pas (' + (b ? b.vy.toFixed(2) : 'aucune balle') + ')');
+        devant.mort = true; cote40.mort = true; VUE.pitch1P = 0.35; P.cadT = 0; const cLev = viseAuto1P(armeStats('fusil').portee); attaquer(); const b = balles.filter((q) => q.on && q.fac === 'joueur').pop(); if (!b || !(b.vy > 2)) ko.push('regard levé : le tir ne monte pas (' + (b ? b.vy.toFixed(2) : 'aucune balle') + ') ; sous la mire : ' + (cLev ? (cLev.type || cLev.esp || cLev.def && cLev.def.nom || '?') + ' à ' + Math.sqrt(dist2(cLev.x, cLev.z, P.x, P.z)).toFixed(1) + ' u, mort ' + cLev.mort + ', faune ' + FAUNE.includes(cLev) : 'rien'));
         VUE.pitch1P = 0;
         // VISER : la ligne de mire au centre de l'écran, champ resserré ; avec une lunette, son image
         const auCentre = () => { const M = VUE1P.montage; camera.updateMatrixWorld(true); M.R.updateMatrixWorld(true); const p = M.mire.clone().applyMatrix4(M.W.matrixWorld); p.project(camera); return Math.hypot(p.x, p.y); }; /* la caméra n'a pas été rendue entre deux images : sa matrice inverse se recalcule ici */
@@ -12668,6 +12668,16 @@ async function main() {
         if (!(camera.fov < 20) || VUE1P.lunette.style.display !== 'block' || VUE1P.montage.R.visible) ko.push('lunette : champ ' + camera.fov.toFixed(1) + ', image ' + VUE1P.lunette.style.display + ', arme ' + VUE1P.montage.R.visible);
         else info.push('lunette ×4 : champ ' + camera.fov.toFixed(0) + '°, image de la lunette');
         INPUT.edge.viser = true; frame(20);
+        // le pouce sur TIR fait regarder (le bouton garde le doigt) ; le tir est automatique sur la cible sous la mire ; la batte swingue
+        META.modsArmes.fusil = ''; montagePremiere(); const y0 = VUE.yawUser, bf = el('btnFire');
+        bf.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 9, clientX: 330, clientY: 700, bubbles: true })); window.dispatchEvent(new PointerEvent('pointermove', { pointerId: 9, clientX: 390, clientY: 690 })); window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 9 }));
+        if (!(Math.abs(VUE.yawUser - y0) > 0.2)) ko.push('glisser le pouce sur TIR ne fait pas regarder (' + (VUE.yawUser - y0).toFixed(3) + ')'); else info.push('TIR glissé : la vue tourne de ' + Math.abs(VUE.yawUser - y0).toFixed(2) + ' rad');
+        VUE.yawUser = y0; INPUT.btn.tir = false; P.mags.fusil = 30; META.tirAuto = true; devant.mort = false; devant.hp = 1e5; const n0 = META.stats.tirs; for (let i = 0; i < 30; i++) frame(1);
+        if (!(META.stats.tirs > n0)) ko.push('tir automatique : aucun tir sur la cible sous la mire'); else info.push('tir automatique : ' + (META.stats.tirs - n0) + ' tirs sans appuyer');
+        devant.mort = true; META.tirAuto = false; const n1 = META.stats.tirs; for (let i = 0; i < 20; i++) frame(1); if (META.stats.tirs !== n1) ko.push('tir automatique coupé : ça tire encore'); META.tirAuto = true;
+        META.armes.batte.poss = true; majArmeJoueur('batte'); frame(2); const Wb = VUE1P.montage.W, rx0 = Wb.rotation.x; P.cadT = 0; P.frappeT = 0; attaquer(); let amp = 0; for (let i = 0; i < 9; i++) { frame(1); amp = Math.max(amp, Math.abs(Wb.rotation.x - rx0)); }
+        if (!(VUE1P.montage.melee && amp > 0.8)) ko.push('batte : pas de swing (' + amp.toFixed(2) + ' rad)'); else info.push('batte : swing de ' + amp.toFixed(2) + ' rad');
+        majArmeJoueur('poings'); frame(2); if (!(VUE1P.montage && VUE1P.montage.poings && VUE1P.montage.mains && VUE1P.montage.mains.length === 2)) ko.push('poings : pas de garde à deux mains'); majArmeJoueur('fusil');
         // les sorties : véhicule, salle
         const v = creerVehicule('berline', P.x + 2, P.z, 0); entrerVehicule(v); frame(2);
         if (VUE1P.actif || VUE1P.montage) ko.push('en véhicule : la 1re personne reste active'); sortirVehicule(true); frame(2);
