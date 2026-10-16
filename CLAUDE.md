@@ -379,6 +379,20 @@ en place, toutes vérifiées par simulation longue puis `scenarios.js` :
   vers la colline, `pousserHorsHills` ramenait tout le monde sur la même ligne
   (un tas immobile qui tremblait). Test « Trafic sans scintillement ».
 
+- **Routes de bordure** (16 octobre, signalé avec une capture le long du mur
+  nord : « les voitures scintillent, se percutent et s'accumulent ») : les
+  voies des routes de bordure (axes ±HALF, voies à ±3,2) étaient AU-DELÀ des
+  limites du demi-tour (`LIMN = −HALF+6`) : une voiture y faisait demi-tour à
+  CHAQUE image et tournait sur place (11 000 rad en 120 s mesurés), la file
+  s'empilait derrière. Le demi-tour ne se déclenche plus que dans le SENS DE
+  LA MARCHE (`v.axe`) ; en travers, le véhicule est gardé sur la chaussée
+  (`BORD` = HALF+5). Existait avant les lots du 18 (vérifié sur 796eb69).
+- **Interblocage dans un croisement** (apparu quand les bordures ont
+  recommencé à circuler : trois véhicules engagés, chacun devant le suivant) :
+  après `TRAFIC_PATIENCE`×1,5 à l'arrêt DANS le croisement, un seul véhicule
+  (jamais deux à moins de 9 u) s'efface en 0,5 s (`v.fadeOutT`) — à l'écran,
+  le filet hors écran n'agissait jamais. Test « Trafic aux bordures ».
+
 Outil de mesure (non versionné, à refaire au besoin) : `majVehicules` réel
 pendant 90 s simulées en 3 points de la ville, `requestAnimationFrame` coupé
 pour un tirage déterministe, en comptant chocs (`dentT`), dégâts et véhicules

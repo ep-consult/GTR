@@ -20132,10 +20132,15 @@ function majTrafic(v,dt){
   majImpactPersonnages(v,dt);
   for(const r of v.mesh.userData.roues) r.rotation.x+=v.v*dt*1.6;
   // aux limites de la ville : demi-tour propre au lieu de foncer dans le mur et disparaître
-  const LIMN=-HALF+6, LIMS=MER-CELL*1.4, LIMO=-HALF+6, LIME=HALF-6;
+  // Le demi-tour ne se déclenche que dans le SENS DE LA MARCHE ; en travers, le véhicule est seulement gardé sur la chaussée.
+  // Bug signalé (16 octobre, capture d'une file le long du mur nord : « les voitures scintillent, se percutent et
+  // s'accumulent ») : les routes de bordure (axes −HALF et +HALF) ont leurs voies à ±3,2 de l'axe, donc AU-DELÀ de ces
+  // limites (−288 contre −290,8 et −297,2). Une voiture qui y roulait était ramenée à la limite et faisait demi-tour À
+  // CHAQUE IMAGE : elle tournait sur place (11 000 rad en 120 s mesurés), la file s'empilait derrière en se percutant.
+  const LIMN=-HALF+6, LIMS=MER-CELL*1.4, LIMO=-HALF+6, LIME=HALF-6, BORD=HALF+5; /* BORD : la voie extérieure d'une route de bordure (−297,2) tient dedans */
   let rebond=false;
-  if(v.z<LIMN){ v.z=LIMN; rebond=true; } else if(v.z>LIMS){ v.z=LIMS; rebond=true; }
-  if(v.x<LIMO){ v.x=LIMO; rebond=true; } else if(v.x>LIME){ v.x=LIME; rebond=true; }
+  if(v.axe==='z'){ if(v.z<LIMN){ v.z=LIMN; rebond=true; } else if(v.z>LIMS){ v.z=LIMS; rebond=true; } v.x=clamp(v.x,-BORD,BORD); }
+  else { if(v.x<LIMO){ v.x=LIMO; rebond=true; } else if(v.x>LIME){ v.x=LIME; rebond=true; } v.z=clamp(v.z,-BORD,LIMS); }
   // Zone militaire interdite à la circulation civile — signalé : des
   // véhicules civils y roulaient, traversaient les murs (majTrafic ne
   // vérifie jamais solidAt, seuls les murs eux-mêmes existent) et
@@ -20227,6 +20232,13 @@ function majTrafic(v,dt){
   // champ, elle se défait donc sans que rien ne disparaisse sous les yeux.
   v.arretT=Math.abs(v.v)<0.3?(v.arretT||0)+dt:0;
   if(v.arretT>TRAFIC_PATIENCE&&horsEcran(v.x,v.z)) v.mort=true;
+  // Interblocage DANS un croisement (16 octobre, apparu en simulation quand les routes de bordure ont recommencé à
+  // circuler) : trois véhicules déjà engagés, chacun physiquement devant le suivant, s'attendent pour toujours — à
+  // l'écran, le filet ci-dessus n'agit jamais. Après TRAFIC_PATIENCE×1,5 dans le croisement, UN des véhicules (jamais
+  // deux à la fois à moins de 9 u) s'efface en 0,5 s : le cercle se défait.
+  if(v.fadeOutT>0){ v.fadeOutT-=dt; v.mesh.scale.setScalar(Math.max(0.01,v.fadeOutT/0.5)); if(v.fadeOutT<=0) v.mort=true; }
+  else if(v.arretT>TRAFIC_PATIENCE*1.5){ const ax=-HALF+Math.round((v.x+HALF)/CELL)*CELL, az=-HALF+Math.round((v.z+HALF)/CELL)*CELL;
+    if(Math.abs(v.x-ax)<ROADW*0.5&&Math.abs(v.z-az)<ROADW*0.5){ let seul=true; for(const o of vehicules){ if(o!==v&&o.fadeOutT>0&&dist2(o.x,o.z,v.x,v.z)<81){ seul=false; break; } } if(seul) v.fadeOutT=0.5; } }
 }
 // gyrophares du camion de pompiers : bleus (demandé explicitement — jamais
 // rouges, pour ne pas se confondre avec les gyrophares rouge/bleu de la

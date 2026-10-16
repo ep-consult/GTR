@@ -12939,6 +12939,28 @@ async function main() {
       });
       if (tx.ko.length) fail('Textes : ' + tx.ko.join(' ; ')); else ok('Textes : ' + tx.info.join(' ; ') + ' ; ' + tx.nb + ' véhicules cachés comptés depuis VEHDEFS ; défis sans homonyme ; curiosités inactives masquées');
     }
+
+    console.log('\n--- Trafic aux bordures : une voiture sur la route du mur roule, ne tourne jamais sur place ---');
+    {
+      const tb = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); META.vue = 'classique'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6; WANTED.heat = 0; for (const e of ennemis) e.mort = true;
+        for (const v of vehicules) { scene.remove(v.mesh); libererEntite(v.mesh); } vehicules.length = 0;
+        P.x = 0; P.z = 0; P.y = 0;
+        /* les routes de bordure, dans les deux sens : voie = axe ± 3,2, comme dans creerTrafic */
+        const cas = [['x', -HALF - 3.2, -150, -Math.PI / 2], ['x', -HALF + 3.2, -150, Math.PI / 2], ['z', -HALF - 3.2, -150, Math.PI], ['z', HALF + 3.2, -150, 0]];
+        const vs = [];
+        for (const [axe, lane, pos, ang] of cas) { for (const o of vehicules) { scene.remove(o.mesh); libererEntite(o.mesh); } vehicules.length = 0;
+          const x = axe === 'x' ? pos : lane, z = axe === 'x' ? lane : pos; P.x = axe === 'x' ? x : x - Math.sign(x) * 14; P.z = axe === 'x' ? z - Math.sign(z) * 14 : z; P.y = solPied(P.x, P.z); /* le joueur à côté, dans la ville : sinon le véhicule, loin de lui, est recyclé */
+          const v = creerVehicule('citadine', x, z, ang, 'trafic'); v._traf = true; v.axe = axe; v.lane = lane; v.uidT = 9000 + vs.length; v.v = 6; const c = { v, x0: x, z0: z, a0: ang }; vs.push(c);
+          for (let i = 0; i < 90; i++) majVehicules(1 / 30); c.x1 = v.x; c.z1 = v.z; c.a1 = v.ang; c.mort = v.mort; }
+        for (const c of vs) { if (c.mort) { ko.push(c.v.axe + ' voie ' + c.v.lane.toFixed(1) + ' : recyclé'); continue; } c.v.x = c.x1; c.v.z = c.z1; c.v.ang = c.a1; c.v.mort = false; const d = Math.hypot(c.v.x - c.x0, c.v.z - c.z0), da = Math.abs(c.v.ang - c.a0);
+          if (!(d > 12) || da > 0.3) ko.push('voie ' + c.v.axe + ' ' + c.v.lane.toFixed(1) + ' : ' + d.toFixed(1) + ' u en 3 s, cap changé de ' + da.toFixed(2) + ' rad'); }
+        if (!ko.length) info.push('quatre voies de bordure : chaque voiture roule (12 u et plus en 3 s), cap stable');
+        return { ko, info };
+      });
+      if (tb.ko.length) fail('Trafic aux bordures : ' + tb.ko.join(' ; ')); else ok('Trafic aux bordures : ' + tb.info.join(' ; '));
+    }
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];
