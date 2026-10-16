@@ -10680,6 +10680,7 @@ function actionMer(){
   return null;
 }
 function plonger(s){
+  if(s.vague===WAVES.n) return; // garde d'entrée propre
   s.vague=WAVES.n; const gain=60+Math.floor(aleaDecor()*60);
   META.argent+=gain; ETAT.cashRun+=gain; ETAT.score+=150; sauveMeta();
   bigMsg('🤿 COFFRE DE L’ÉPAVE ! +'+gain+' $'); SFX.ramasse(); vibre(50);
@@ -11009,10 +11010,10 @@ function finTow(raison){
     bigMsg(msg); P.y=0.3; } // relâché dans l'eau, on nage
   else if(raison!=='lache'){ paraMesh.visible=false; P.para=false; P.chute=false; P.y=0.3; }
 }
-function majTow(dt){
-  const T=TOW.actif; if(!T) return;
+function majTow(dt,dtJeu){
+  const T=TOW.actif; if(!T) return; if(dtJeu===undefined) dtJeu=dt;
   if(P.veh||ETAT.mode!=='jeu'){ finTow('annule'); return; }
-  const D=TOW_DEFS[T.id]; T.t-=dt; T.s+=dt*16/Math.hypot(TOW.boucle.rx,TOW.boucle.rz);
+  const D=TOW_DEFS[T.id]; T.t-=dtJeu; T.s+=dt*16/Math.hypot(TOW.boucle.rx,TOW.boucle.rz);
   const b=towPoint(T.s), fl=Math.hypot(b.fx,b.fz), fx=b.fx/fl, fz=b.fz/fl, rx=fz, rz=-fx, ang=Math.atan2(fx,fz);
   TOW.bateau.position.set(b.x,MER_V2?houleY(b.x,b.z)+0.15:0.15,b.z); TOW.bateau.rotation.y=ang;
   if(Math.random()<0.6) spawnP(b.x-fx*3+rand(-0.5,0.5),0.2,b.z-fz*3+rand(-0.5,0.5),0,0.4,0,0.35,0.8,0xe8f6ff,0,2);
@@ -20673,7 +20674,7 @@ function tuerEnnemi(e,parJoueur){
     spawnTexte(e.x,2.6,e.z,'+'+pts,ETAT.combo>3?'#ffd23f':'#f2f4f8');
     gainXp(e.def.xp);
     if(e.fac==='police') addHeat(e.def.mil?1.5:1.2);
-    if((e.fac==='viperes'||e.fac==='frelons')&&MISSION.cur&&MISSION.cur.type==='purge'){
+    if(GANGS.includes(e.fac)&&MISSION.cur&&MISSION.cur.type==='purge'){ /* seuls les Vipers et les Calaveras comptaient : pendant une vague des Dockside Boys ou de la Brigada, « Neutralise N membres de gangs » n'avançait pas (nuit du 16 octobre) */
       MISSION.cur.fait++;
     }
   }
@@ -21902,6 +21903,7 @@ function majVagues(dt){
   }
 }
 function finVague(){
+  if(WAVES.etat==='bonus') return; // garde d'entrée propre : une seule paie par vague
   WAVES.etat='bonus';
   const gain=Math.round((40+WAVES.n*12)*(1+0.12*META.upg.butin));
   META.argent+=gain; ETAT.cashRun+=gain;
@@ -21984,7 +21986,7 @@ const ARTICLES_SUPERETTE=[
 ];
 const LOTS_ROUE=[
   {p:22,txt:'Rien du tout',ico:'💨',act:()=>{toast('La roue s\u2019arrête sur « Rien ». Classique.','warn');}},
-  {p:18,txt:'Petit lot',ico:'💵',act:()=>{const g=randi(80,180);META.argent+=g;META.stats.cashTotal+=g;
+  {p:18,txt:'Petit lot',ico:'💵',act:()=>{const g=randi(80,180);META.argent+=g;ETAT.cashRun+=g;META.stats.cashTotal+=g;
     toast('+'+g+' $','or');}},
   {p:13,txt:'Munitions à volonté',ico:'📦',act:()=>{for(const id in META.armes)
     if(META.armes[id].poss&&ARMES[id].type==='gun'&&!ARMES[id].pasRecharge) P.mun[id]=(P.mun[id]||0)+armeStats(id).mag*3;
@@ -21993,7 +21995,7 @@ const LOTS_ROUE=[
     el('grenN').textContent=P.grenades;toast('+3 grenades','or');}},
   {p:10,txt:'Remise en forme',ico:'💗',act:()=>{soigner(P.maxHp);P.bouclier=Math.min(60,P.bouclier+40);
     toast('Soigné et blindé !','or');}},
-  {p:8,txt:'Gros lot',ico:'💰',act:()=>{const g=randi(500,900);META.argent+=g;META.stats.cashTotal+=g;
+  {p:8,txt:'Gros lot',ico:'💰',act:()=>{const g=randi(500,900);META.argent+=g;ETAT.cashRun+=g;META.stats.cashTotal+=g;
     bigMsg('💰 GROS LOT');toast('+'+g+' $ !','or');}},
   {p:7,txt:'Confettis',ico:'🎉',act:()=>{
     for(let i=0;i<60;i++) spawnP(P.x+rand(-3,3),rand(1,5),P.z+rand(-3,3),rand(-2,2),rand(1,4),rand(-2,2),
@@ -22007,9 +22009,9 @@ const LOTS_ROUE=[
     if(dispo.length){const id=pick(dispo);META.armes[id].poss=true;
       if(ARMES[id].type==='gun'){P.mun[id]=armeStats(id).mag*2;P.mags[id]=armeStats(id).mag;}
       majArmeJoueur(id);bigMsg('🎁 '+ARMES[id].nom);toast('Arme gagnée : '+ARMES[id].nom,'or');}
-    else {const g=randi(400,700);META.argent+=g;toast('+'+g+' $ (tu as déjà tout)','or');}}},
+    else {const g=randi(400,700);META.argent+=g;ETAT.cashRun+=g;toast('+'+g+' $ (tu as déjà tout)','or');}}},
   {p:2,txt:'JACKPOT DE LA ROUE',ico:'🌟',act:()=>{const g=randi(2000,3500);
-    META.argent+=g;META.stats.cashTotal+=g;META.defis.jackpot=true;
+    META.argent+=g;ETAT.cashRun+=g;META.stats.cashTotal+=g;META.defis.jackpot=true;
     bigMsg('🌟 JACKPOT');toast('+'+g+' $ — la roue t\u2019adore !','or');SFX.niveau();}}
 ];
 function tirerLot(){
@@ -22230,7 +22232,7 @@ function resoudreFouille(f){
       if(id){ P.mun[id]=(P.mun[id]||0)+armeStats(id).mag; toast('Munitions : '+ARMES[id].nom,'or'); }
       else {
         const g=randi(20,50);
-        if(enDescente){ s.butin+=g; } else { META.argent+=g; }
+        if(enDescente){ s.butin+=g; } else { META.argent+=g; ETAT.cashRun+=g; }
         toast('+'+g+' $ (rien à charger)','or');
       }
       SFX.achat();
@@ -22250,7 +22252,7 @@ function resoudreFouille(f){
     const id=(ARMES[P.armeCur].type==='gun'&&!ARMES[P.armeCur].pasRecharge)?P.armeCur:
       ORDRE_ARMES.find(i=>META.armes[i].poss&&ARMES[i].type==='gun'&&!ARMES[i].pasRecharge);
     if(id){ P.mun[id]=(P.mun[id]||0)+armeStats(id).mag; toast('Munitions : '+ARMES[id].nom,'or'); }
-    else { const g=randi(20,50); META.argent+=g; toast('+'+g+' $ (rien à charger)','or'); }
+    else { const g=randi(20,50); META.argent+=g; ETAT.cashRun+=g; toast('+'+g+' $ (rien à charger)','or'); }
     SFX.achat();
   } else if(typ==='soin'){
     creerPickup('med',f.x+rand(-1,1),f.z+rand(0.8,1.6));
@@ -22280,7 +22282,7 @@ function resoudreFouille(f){
       burst(f.x,0.4,f.z,6,0x6a5a4a,5); vibre(30); secousse(2);
     } else if(r<0.8){
       toast('Une facture impayée. Elle n\u2019est pas à ton nom.','warn');
-      const g=randi(5,20); META.argent+=g;
+      const g=randi(5,20); META.argent+=g; ETAT.cashRun+=g;
     } else {
       toast('Tu as fait tomber quelque chose de bruyant.','warn');
       if(s&&!s.alarme&&s.gardes) declencherAlarme(s,'Du bruit dans les réserves !');
@@ -26786,6 +26788,7 @@ function finSoulevé(s,gagne){
 }
 /* ---------- sandwich : fin du défi ---------- */
 function finMonstre(s,gagne){
+  if(!s.swEtat) gagne=false; // garde d'entrée propre : sans défi en cours, rien n'est payé
   s.swEtat=null; swWrap.style.display='none';
   s.monstre.scale.set(1,1,1); s.monstre.visible=true;
   if(gagne){
@@ -27132,6 +27135,7 @@ function aquaRepere(s){
   aquaFuir(s);
 }
 function aquaVictoire(s){
+  if(s.gastonTrouve&&s.gastonVague===WAVES.n) return; // garde d'entrée propre
   const premier=!aCurio('perle');
   s.gastonTrouve=true; s.gastonVague=WAVES.n; META.gaston++;
   s.aqFin='gagne'; s.aqFinT=3;
@@ -27575,6 +27579,7 @@ function serreFaner(s,p){
   else bigMsg('🥀 UNE PLANTE FANE ('+s.srFanees+'/'+SERRE_FANEES_MAX+')');
 }
 function serreFin(s,auBout){
+  if(s.srFini&&s.srVague===WAVES.n) return; // garde d'entrée propre
   const parfait=auBout&&s.srFanees===0;
   s.srFini=true; s.srVague=WAVES.n; META.plantes++;
   const gain=auBout?s.srSoins*SERRE_GAIN_SOIN+(parfait?SERRE_BONUS_PARFAIT:0):0;
@@ -28167,6 +28172,7 @@ function radioAppelAuditeur(s){
   s.appelTexte=RADIO_APPELS[idx];
 }
 function radioFinSegment(s){
+  if(!s.emissionOn) return; // garde d'entrée propre
   const frac=s.segTempsZone/RADIO_SEG_DUREE;
   const reussi=frac>=0.70;
   if(reussi){
@@ -28187,6 +28193,7 @@ function radioDescentePolice(s){
   sortirInterieur();
 }
 function radioTerminerEmission(s){
+  if(!s.emissionOn) return; // garde d'entrée propre
   const parfaite=s.emissionParfaite&&s.segmentsReussis>=3;
   const audi=Math.round(s.auditeursMax||0);
   radioArreterEmission(s);
@@ -30126,7 +30133,7 @@ function depotMajRecordBus(s,temps){
   s.panneauBusEnseigne=true;
 }
 function depotTerminerCourse(s,place){
-  const c0=s.course; if(!c0) return;
+  const c0=s.course; if(!c0||c0.paye) return; c0.paye=true; // garde d'entrée propre
   const cid=c0.cid, c=c0.c, temps=c0.chrono, gagneEnBus=c0.gagneEnBus;
   const gain=place===1?c.gain:place===2?Math.round(c.gain/2):0;
   if(gain>0){ META.argent+=gain; ETAT.cashRun+=gain; }
@@ -30450,7 +30457,7 @@ function majInterieur(dt,dtJeu){
     if(f.prisVague===WAVES.n||dist2(P.x,P.z,f.x,f.z)>(f.rayon+1.4)*(f.rayon+1.4)){
       annulerFouille();
     } else {
-      FOUILLE.t-=dt;
+      FOUILLE.t-=dtJeu; // chrono subi : jamais ralenti par un ralenti
       if(Math.random()<0.35) spawnP(f.x+rand(-0.5,0.5),rand(0.7,1.4),f.z+rand(-0.5,0.5),
         0,rand(0.5,1.2),0,0.35,0.3,0xffe9a0,0);
       if(FOUILLE.t<=0) resoudreFouille(f);
@@ -30551,7 +30558,7 @@ function majInterieur(dt,dtJeu){
     declencherAlarme(s,'Tu es passé derrière le comptoir !');
   // renforts périodiques une fois l'alarme déclenchée
   if(s.alarme&&s.vagueT!==undefined){
-    s.vagueT-=dt;
+    s.vagueT-=dtJeu; // renforts après alarme : chrono subi
     if(s.vagueT<=0){
       s.vagueT=13;
       const nb=ennemis.filter(e=>e.interieur===s.id&&!e.mort).length;
@@ -30893,6 +30900,7 @@ function nouvelleMission(){
   }
 }
 function finirMission(){
+  if(!MISSION.cur) return; // garde d'entrée propre
   const gain=Math.round((140+WAVES.n*30)*(1+0.12*META.upg.butin));
   META.argent+=gain; ETAT.cashRun+=gain;
   gainXp(25+WAVES.n*4);
@@ -34111,7 +34119,7 @@ function majAction(){
         label='🙏 GLISSER LA MAIN DANS LE TRONC';
         fn=()=>{
           s.troncN=(s.troncN||0)+1;
-          const g2=randi(10,40); META.argent+=g2; ETAT.cashRun+=g2; META.stats.cashTotal+=g2;
+          const g2=randi(10,40); META.argent+=g2; ETAT.cashRun+=g2; ETAT.cashRun+=g2; META.stats.cashTotal+=g2;
           spawnTexte(s.tronc.x,1.6,s.tronc.z,'+'+g2+' $','#7dff7a');
           toast('+'+g2+' $ — un don pour un don.','or'); SFX.achat(); checkDefis(); sauveMeta();
         };
@@ -34155,7 +34163,7 @@ function majAction(){
     } else if(s.caisse&&!s.caisse.pris&&dist2(P.x,P.z,s.caisse.x,s.caisse.z)<marquerZone(s.caisse,12)){
       label='BRAQUER LA CAISSE';
       fn=()=>{
-        s.caisse.pris=true;
+        if(s.caisse.pris) return; s.caisse.pris=true;
         const g=randi(s.gain[0],s.gain[1]);
         META.argent+=g; ETAT.cashRun+=g; META.stats.cashTotal+=g;
         addHeat(s.heat,false,true); spawnTexte(P.x,2,P.z,'+'+g+' $','#7dff7a');
@@ -34165,7 +34173,7 @@ function majAction(){
     } else if(s.coffre&&!s.coffre.pris&&dist2(P.x,P.z,s.coffre.x,s.coffre.z)<marquerZone(s.coffre,14)){
       label='FORCER LE COFFRE';
       fn=()=>{
-        s.coffre.pris=true;
+        if(s.coffre.pris) return; s.coffre.pris=true;
         const g=randi(s.gain[0],s.gain[1]);
         META.argent+=g; ETAT.cashRun+=g; META.stats.cashTotal+=g;
         addHeat(s.heat,false,true); META.defis.banque=true;
@@ -34268,7 +34276,7 @@ function majAction(){
             '« Je vois... 150 $ qui changent de poche. C\u2019est fait. »',
             '« Ta chaussette gauche te trahira. »'
           ]),'warn');
-          const g2=randi(10,40); META.argent+=g2;
+          const g2=randi(10,40); META.argent+=g2; ETAT.cashRun+=g2;
         }
         if(META.zohra===2) toast('Zohra te regarde autrement. Reviens la voir.','or');
         sauveMeta();
@@ -34560,8 +34568,8 @@ function majAction(){
       const rev=Math.floor(META.revenus||0);
       label=rev>0?('💰 ENCAISSER LES REVENUS — '+rev+' $'):'💰 Coffre vide (revenus à venir)';
       fn=()=>{
-        if(rev<=0){SFX.refus();return;}
-        META.argent+=rev; ETAT.cashRun+=rev; META.stats.cashTotal+=rev; META.revenus=0;
+        const revNow=Math.floor(META.revenus||0); if(revNow<=0){SFX.refus();return;} /* lu au moment de l'appui, pas la valeur capturée par le libellé */
+        META.argent+=revNow; ETAT.cashRun+=revNow; META.stats.cashTotal+=revNow; META.revenus=0;
         toast('+'+rev+' $ encaissés','or'); SFX.achat();
       };
     } else if(s.garage&&dist2(P.x,P.z,s.garage.x,s.garage.z)<marquerZone(s.garage,14)){
@@ -34581,7 +34589,7 @@ function majAction(){
     } else if(s.casier&&!s.casier.pris&&dist2(P.x,P.z,s.casier.x,s.casier.z)<marquerZone(s.casier,12)){
       label='FOUILLER LES CASIERS';
       fn=()=>{
-        s.casier.pris=true;
+        if(s.casier.pris) return; s.casier.pris=true;
         META.armes.gadget.poss=true; majArmeJoueur('gadget');
         bigMsg('🩷 LE GADGET ROSE'); SFX.achat();
         toast('Trouvé au fond d\u2019un casier. Personne n\u2019a rien vu.','or');
@@ -34590,7 +34598,7 @@ function majAction(){
     } else if(s.preuves&&!s.preuves.pris&&dist2(P.x,P.z,s.preuves.x,s.preuves.z)<marquerZone(s.preuves,13)){
       label='PILLER LA SALLE DES PREUVES';
       fn=()=>{
-        s.preuves.pris=true;
+        if(s.preuves.pris) return; s.preuves.pris=true;
         const g2=randi(400,750);
         META.argent+=g2; ETAT.cashRun+=g2; META.stats.cashTotal+=g2;
         for(const id2 of ['pompe','uzi','silence']) if(!META.armes[id2].poss){
@@ -35734,7 +35742,7 @@ function tick(t){
     ETAT.comboT-=dt;
     if(ETAT.comboT<=0) ETAT.combo=1;
     if(ETAT.slowT>0){ ETAT.slowT-=dtReel; if(ETAT.slowT<=0&&ETAT.mode==='jeu') ETAT.timeScale=1; }
-    if(ETAT.mode==='jeu'){ majNitro(dtJeu); if(DECOR_V2) towEntrees(); if(DERBY.actif) derbyEntrees(); if(!MANEGES.actif&&!FPS.actif) majJoueur(dt,dtJeu); majFPS(dt,dtJeu); majIvresse(dtJeu); if(DECOR_V2){ majRides(dtJeu); majPic(dt); majTow(dt); majBasket(dt,dtJeu); majSportJ(dt,dtJeu); majToitsSurprises(dt,dtJeu); } } // nitro décidée AVANT la physique du véhicule
+    if(ETAT.mode==='jeu'){ majNitro(dtJeu); if(DECOR_V2) towEntrees(); if(DERBY.actif) derbyEntrees(); if(!MANEGES.actif&&!FPS.actif) majJoueur(dt,dtJeu); majFPS(dt,dtJeu); majIvresse(dtJeu); if(DECOR_V2){ majRides(dtJeu); majPic(dt); majTow(dt,dtJeu); majBasket(dt,dtJeu); majSportJ(dt,dtJeu); majToitsSurprises(dt,dtJeu); } } // nitro décidée AVANT la physique du véhicule
     majEnnemis(dt);
     if(!INT.actif){
       majPietons(dt);

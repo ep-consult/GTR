@@ -12841,6 +12841,30 @@ async function main() {
       if (eg.ko.length) fail('État au game over : ' + eg.ko.join(' ; '));
       else ok('État au game over : ' + eg.info.join(' ; ') + ' ; minuteur de mort annulé par Rejouer');
     }
+
+    console.log('\n--- Boucle et paiements (nuit du 16 octobre) : mission purge sur les quatre gangs, gardes d’entrée des paiements, cashRun ---');
+    {
+      const bp = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); META.vue = 'classique'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6; for (const e of ennemis) e.mort = true; WANTED.heat = 0;
+        // 1. la mission purge compte un membre de chaque gang (lu dans POOLS_GANG)
+        MISSION.cur = { type: 'purge', n: 40, fait: 0, txt: 'test' }; let attendus = 0;
+        for (const g in POOLS_GANG) { const e = creerEnnemi(POOLS_GANG[g][0], P.x + 12, P.z + 12, false); if (!e) { ko.push('ennemi ' + g + ' non créé'); continue; } attendus++; tuerEnnemi(e, true); }
+        if (MISSION.cur && MISSION.cur.fait !== attendus) ko.push('purge : ' + (MISSION.cur && MISSION.cur.fait) + ' compté(s) sur ' + attendus + ' gangs'); else info.push('purge : les ' + attendus + ' gangs comptent');
+        MISSION.cur = null;
+        // 2. gardes d'entrée : deux appels, un seul paiement
+        const a0 = META.argent; MISSION.cur = { type: 'zone', txt: 'test' }; finirMission(); const a1 = META.argent; finirMission(); if (META.argent !== a1 || a1 === a0) ko.push('finirMission : payé ' + (META.argent - a0) + ' pour deux appels'); else info.push('finirMission payé une fois');
+        MISSION.cur = null; MISSION.t = 5;
+        WAVES.etat = 'active'; WAVES.n = 2; const b0 = META.argent; finVague(); const b1 = META.argent; finVague(); ecran(null); ETAT.mode = 'jeu'; WAVES.etat = 'repos'; WAVES.t = WAVES_REPOS;
+        if (META.argent !== b1 || b1 === b0) ko.push('finVague : payé ' + (META.argent - b0) + ' pour deux appels'); else info.push('finVague payé une fois');
+        // 3. cashRun suit l'argent gagné : les lots de la roue comptent
+        const cr0 = ETAT.cashRun, m0 = META.argent;
+        for (const lot of LOTS_ROUE) if (lot.act && /lot/i.test(lot.txt)) lot.act();
+        const dCash = ETAT.cashRun - cr0, dArg = META.argent - m0; if (dArg > 0 && dCash !== dArg) ko.push('roue : argent +' + dArg + ' mais cashRun +' + dCash); else info.push('roue : cashRun suit (+' + dArg + ')');
+        META.argent = a0; return { ko, info };
+      });
+      if (bp.ko.length) fail('Boucle et paiements : ' + bp.ko.join(' ; ')); else ok('Boucle et paiements : ' + bp.info.join(' ; '));
+    }
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];
