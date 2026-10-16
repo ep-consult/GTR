@@ -12788,6 +12788,9 @@ async function main() {
         // 6. errBox créé à la volée par le gestionnaire d'erreurs
         const eb0 = el('errBox'); if (eb0) eb0.remove(); signalerErreur('essai [test tick]'); const eb = el('errBox');
         if (!eb || eb.style.display === 'none' || !eb.textContent.includes('essai')) ko.push('#errBox absent ou vide après une erreur'); else { eb.style.display = 'none'; info.push('#errBox créé et rempli'); }
+        // 8. jauge de bouclier : affichée dès qu'il y a du bouclier, masquée sinon (le else se rattachait au gilet)
+        const gm = P.giletMesh; P.giletMesh = null; P.bouclier = 30; majHUD(); const d1 = el('shWrap').style.display; P.bouclier = 0; majHUD(); const d2 = el('shWrap').style.display; P.giletMesh = gm;
+        if (d1 !== 'block' || d2 !== 'none') ko.push('jauge de bouclier : ' + d1 + ' avec bouclier, ' + d2 + ' sans'); else info.push('jauge de bouclier cohérente');
         return { ko, info };
       });
       // 7. filet de la boucle : une exception à chaque tick ne fige pas le rendu

@@ -16750,7 +16750,7 @@ function toucherJoueur(dmg,srcX,srcZ){
   }
   P.hp-=dmg; P.regenDelai=5; P.iframes=0.25;
   if(FOUILLE.cible) annulerFouille();   // on ne fouille pas tranquillement sous les balles
-  el('dmgV').style.opacity=0.9;
+  HUDC.dmgOp=0.9; el('dmgV').style.opacity=0.9;
   secousse(4); vibre(40); SFX.degat();
   burst(P.x,1.2,P.z,4,0xff5a6a,5);
   if(P.hp<=0) mourir();
@@ -17102,7 +17102,7 @@ function majJoueur(dt,dtJeu){
   if(P.rechT>0){ P.rechT-=dt; if(P.rechT<=0) finRecharge(); }
   if(P.h._frappe!==undefined&&P.h._frappe>0) P.h._frappe-=dt;
   if(META.upg.regen>0&&P.regenDelai<=0&&P.hp<P.maxHp) P.hp=Math.min(P.maxHp,P.hp+1.1*META.upg.regen*dt);
-  el('dmgV').style.opacity=Math.max(0,(parseFloat(el('dmgV').style.opacity)||0)-dt*2.2);
+  if(HUDC.dmgOp>0){ HUDC.dmgOp=Math.max(0,HUDC.dmgOp-dt*2.2); el('dmgV').style.opacity=HUDC.dmgOp; } /* deux lectures et une écriture de style par image, même à 0 */
   const dh=el('dirHit'); if(dh.style.opacity>0) dh.style.opacity=Math.max(0,(parseFloat(dh.style.opacity)||0)-dt*1.6);
 
   // Dépôt de bus : en pleine course, le véhicule du joueur est piloté à la
@@ -17128,7 +17128,7 @@ function majJoueur(dt,dtJeu){
   const bouge=Math.hypot(INPUT.mx,INPUT.mz)>0.12;
   const sprint=!P.nage&&(INPUT.btn.sprint||INPUT.btn.sprintK)&&bouge&&(P.stam>1||P.buffs.nitroT>0);
   const crawl=P.nage&&(INPUT.btn.sprint||INPUT.btn.sprintK)&&bouge&&P.stam>8; // demandé : SPRINT à la nage = crawl, plus rapide
-  el('btnSprint').classList.toggle('actif',!!sprint);
+  if(HUDC.sprintActif!==!!sprint){ HUDC.sprintActif=!!sprint; el('btnSprint').classList.toggle('actif',!!sprint); }
   let vit=P.vitBase*(sprint?1.5:1)*(P.nage?(aCurio('perle')?0.567:0.42)*(crawl?1.7:1)*tenueK('wakeur',1.3):1);  // La Perle Noire : +35 % à la nage ; crawl : ×1,7 ; combinaison de wakeboard : ×1,3
   if(P.buffs.lourd>0) vit*=0.68;                    // digestion du Monstre
   if(VUE1P.actif&&VUE1P.k>0.5) vit*=0.55;           // à la 1re personne, on marche lentement en visant à la mire
@@ -17443,7 +17443,7 @@ const JET_DRAIN_MONTEE=100/12, JET_DRAIN_STABLE=4.2, JET_RECHARGE=5;
 // coupe le vol, le son des réacteurs, les flammes, la jauge.
 function atterrirJetpack(){
   P.jetpackVol=false; P.vy=0; P.jetVx=0; P.jetVz=0;
-  el('jetWrap').style.display='none'; el('jetWarn').style.display='none';
+  el('jetWrap').style.display='none'; hudD('jetWarn','none');
   if(P.jetMesh) for(const f of P.jetMesh.flammes) f.material.opacity=0;
   jetpackSonStop();
 }
@@ -17464,11 +17464,11 @@ function majJetpackVol(dt,dtJeu){
   // avertissement de vitesse de chute critique : clair, avant qu'il ne soit
   // trop tard — une mort qu'on n'a pas vue venir est injuste (CLAUDE.md).
   if(-P.vy>JET_VY_AVERT){
-    el('jetWarn').style.display='block';
+    hudD('jetWarn','block');
     P.jetAvertVu=true; // voir DEFIS 'jetpackSauvetage' : a vu le danger et va quand même atterrir proprement
     P.jetWarnT-=dt;
     if(P.jetWarnT<=0){ P.jetWarnT=0.26; beep(230,0.09,'square',0.18,700); vibre(25); }
-  } else { el('jetWarn').style.display='none'; }
+  } else { hudD('jetWarn','none'); }
   // inertie horizontale : on glisse, on ne s'arrête jamais net (CLAUDE.md)
   const l=Math.hypot(INPUT.mx,INPUT.mz);
   let tx=0,tz=0;
@@ -17744,6 +17744,8 @@ function majDeformation(v,dt){
 // personnage conduit lui-même, sinon il ne pourrait plus avancer dedans).
 function vehiculeBloquant(x,z,marge,ignore){
   for(const o of vehicules){
+    const ddx=x-o.x, ddz=z-o.z, rb=(o._rayBloc||(o._rayBloc=(o.def.long+o.def.larg)*0.5+0.6))+marge; /* rejet par la distance (nuit du 16 octobre) : deux sinus et six lectures de def par véhicule et par appel, trois appels par piéton et par image — 23 ms par image au centre-ville ; (long+larg)/2 majore la demi-diagonale */
+    if(ddx*ddx+ddz*ddz>rb*rb) continue;
     if(o===ignore||o.mort||o.epave||o.def.surf||o.captureOvni) continue;
     if(o.def.air&&(o.alt||0)>3) continue;
     if(o===GYACHT.v&&o.conduit!=='joueur') continue; // grand yacht au mouillage : on marche sur son pont
@@ -19076,7 +19078,7 @@ function majVol(v,dt){
   majLumieresOvni(v,dt);
   const monter=INPUT.btn.sprint||INPUT.btn.sprintK;
   const desc=INPUT.btn.frein||INPUT.btn.freinK;
-  el('btnSprint').classList.toggle('actif',!!monter);
+  if(HUDC.sprintActif!==!!monter){ HUDC.sprintActif=!!monter; el('btnSprint').classList.toggle('actif',!!monter); }
   // armement de l'Épervier
   v.cadTir=(v.cadTir||0)-dt; v.cadBmb=(v.cadBmb||0)-dt;
   if(v.def.armes&&v.vol){
@@ -19286,7 +19288,7 @@ function majVol(v,dt){
   if(pressed('arme')||edgeKey('KeyA')||edgeKey('Tab')) changerRadio();
   P.x=v.x; P.z=v.z; P.ang=v.ang;
   META.defis.dist+=Math.abs(v.v)*dt/1000;
-  el('vehFill').style.width=clamp(v.hp/v.def.hp*100,0,100)+'%';
+  hudW('vehFill',clamp(v.hp/v.def.hp*100,0,100));
 }
 function majSurfJoueur(v,dt){
   // surf arcade : la houle pousse vers la plage, on trace des courbes, on gagne de la vitesse
@@ -19326,7 +19328,7 @@ function majSurfJoueur(v,dt){
   if(v.v>4) collisionsSurf(v.x,v.z,v.v,v.ang,true,v);
   P.x=v.x; P.z=v.z; P.ang=angG;
   META.stats.distVeh+=Math.abs(v.v)*dt/1000;
-  el('vehFill').style.width='100%';
+  hudW('vehFill',100);
   moteurUpdate(0);
 }
 function controleDir(v,frein){
@@ -19747,7 +19749,7 @@ function majConduite(dt){
   moteurUpdate(clamp(Math.abs(v.v)/v.def.vmax,0,1));
   P.x=v.x; P.z=v.z; P.ang=v.ang;
   if(pressed('spec')||edgeKey('KeyR')) capaciteSpeciale();
-  el('vehFill').style.width=clamp(v.hp/v.def.hp*100,0,100)+'%';
+  hudW('vehFill',clamp(v.hp/v.def.hp*100,0,100));
 }
 /* ---------- trafic ---------- */
 // Suivi de file et contournement (voir majTrafic). Distances en unités,
@@ -21881,16 +21883,16 @@ function majVagues(dt){
   // vagues rendaient ces missions illisibles. Les ennemis déjà en vie
   // restent une menace, ils continuent d'être mis à jour ailleurs.
   if(INT.actif) return;
-  if(treveActivite()){ if(!WAVES.enTreve){ WAVES.enTreve=true; el('waveLabel').textContent='VAGUES EN PAUSE — '+(RIDES.actif?'défi':(metierEnCours()?'mission':'activité'))+' en cours'; } return; } // écrit une fois (le reste de majVagues écrit ce libellé directement)
+  if(treveActivite()){ if(!WAVES.enTreve){ WAVES.enTreve=true; hudT('waveLabel','VAGUES EN PAUSE — '+(RIDES.actif?'défi':(metierEnCours()?'mission':'activité'))+' en cours'); } return; } // écrit une fois (le reste de majVagues écrit ce libellé directement)
   WAVES.enTreve=false;
   if(WAVES.etat==='repos'){
     WAVES.t-=dt;
-    el('waveLabel').textContent='VAGUE '+(WAVES.n+1)+' DANS '+Math.ceil(Math.max(0,WAVES.t))+' s';
+    hudT('waveLabel','VAGUE '+(WAVES.n+1)+' DANS '+Math.ceil(Math.max(0,WAVES.t))+' s');
     if(WAVES.t<=0) lancerVague();
     return;
   }
   let vivants=0; for(let i=0;i<ennemis.length;i++){const e2=ennemis[i];if(e2.wave&&!e2.mort)vivants++;}
-  el('waveLabel').textContent='VAGUE '+WAVES.n+' — '+(vivants+WAVES.queue.length)+' ennemis';
+  hudT('waveLabel','VAGUE '+WAVES.n+' — '+(vivants+WAVES.queue.length)+' ennemis');
   if(WAVES.queue.length){
     WAVES.spawnT-=dt;
     if(WAVES.spawnT<=0&&vivants<16){
@@ -26878,7 +26880,7 @@ let aquaEncreT=0;
    violet au repos, jaune au frisson, rouge quand il regarde). Tout cosmétique
    (dt) : la mécanique « 1, 2, 3… GASTON ! » ne change pas. */
 // bruit de valeur GLSL, partagé (aquarium, serre, chalutier) : déclaré ici, AVANT ses utilisateurs (ordre des const)
-const CHAL_GLSL_BRUIT='float hashC(vec2 p){ p=fract(p*vec2(0.1031,0.1030)); p+=dot(p,p.yx+33.33); return fract((p.x+p.y)*p.x); }'+
+const CHAL_GLSL_BRUIT='float chalSq(float v){return v*v;}\n'+'float hashC(vec2 p){ p=fract(p*vec2(0.1031,0.1030)); p+=dot(p,p.yx+33.33); return fract((p.x+p.y)*p.x); }'+
   'float bruitC(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);'+
   ' return mix(mix(hashC(i),hashC(i+vec2(1.0,0.0)),f.x),mix(hashC(i+vec2(0.0,1.0)),hashC(i+vec2(1.0,1.0)),f.x),f.y); }';
 const AQ_FOND_Y=-4.2;   // le fond marin, sous la galerie
@@ -28570,8 +28572,8 @@ const CHAL_MER_FS='uniform float uT; uniform float uTempete; uniform float uCap;
   ' vec2 fw=vec2(sin(uCap),cos(uCap)); float f=dot(vRel,fw); float al=abs(vRel.x*fw.y-vRel.y*fw.x);'+
   ' float d=-f-22.6;'+
   ' if(d>0.0){ float fade=1.0-smoothstep(8.0,125.0,d);'+
-  '  float bras=exp(-pow((al-(6.5+d*0.36))/(0.8+d*0.04),2.0));'+
-  '  float axe=exp(-pow(al/(3.4+d*0.08),2.0))*(1.0-smoothstep(0.0,85.0,d));'+
+  '  float bras=exp(-chalSq((al-(6.5+d*0.36))/(0.8+d*0.04)));'+
+  '  float axe=exp(-chalSq(al/(3.4+d*0.08)))*(1.0-smoothstep(0.0,85.0,d));'+
   '  float tex=0.45+0.55*bruitC(p*0.9+vec2(0.0,t*0.5));'+
   '  ecume+=(bras*0.9+axe*0.95)*fade*uVit*tex; }'+
   ' if(f>-23.5&&f<31.0){ float e=f>27.0?length(vec2(al,f-27.0)):al-demiL(f); e=max(e,0.0);'+
@@ -30177,7 +30179,7 @@ function depotMajCourse(s,dtJeu){
       majVehiculePhys(ent.v,dtJeu,cd.throttle,cd.steer,frein);
       moteurUpdate(clamp(Math.abs(ent.v.v)/ent.v.def.vmax,0,1));
       P.x=ent.v.x; P.z=ent.v.z; P.ang=ent.v.ang;
-      el('vehFill').style.width=clamp(ent.v.hp/ent.v.def.hp*100,0,100)+'%';
+      hudW('vehFill',clamp(ent.v.hp/ent.v.def.hp*100,0,100));
       if(ent.v.mort){ depotAnnulerCourse(s); return; }
     } else {
       depotPiloterIA(ent,c0,dtJeu);
@@ -30906,16 +30908,16 @@ function finirMission(){
   gainXp(25+WAVES.n*4);
   toast('Mission accomplie : +'+gain+' $','or'); SFX.achat();
   MISSION.cur=null; MISSION.t=6; balise.visible=false;
-  el('missionArrow').style.display='none';
+  hudD('missionArrow','none');
 }
 // Oriente la flèche GPS + distance affichée vers une position cible —
 // factorisé car utilisé aussi bien sans mission courte (juste un métier ou
 // un waypoint) qu'avec (voir majMissions()).
 function pointerVersCible(fl,pos){
-  fl.style.display='block';
+  hudD('missionArrow','block');
   const a=Math.atan2(pos.x-P.x,-(pos.z-P.z))+vueAngleEcran(); // vue immersive : relatif à la caméra (la minimap, elle, reste nord en haut)
-  const sv=fl.querySelector('svg'); if(sv) sv.style.transform='rotate('+(a*180/Math.PI)+'deg)';
-  fl.title=Math.round(Math.sqrt(dist2(P.x,P.z,pos.x,pos.z)))+' m';
+  const deg=Math.round(a*180/Math.PI*2)/2; /* au demi-degré près, et seulement au changement : querySelector, transform et title étaient écrits à chaque image */
+  if(HUDC.flecheDeg!==deg){ HUDC.flecheDeg=deg; const sv=fl._svg||(fl._svg=fl.querySelector('svg')); if(sv) sv.style.transform='rotate('+deg+'deg)'; }
 }
 function majMissions(dt,dtJeu){
   if(INT.actif) return;
@@ -30933,25 +30935,25 @@ function majMissions(dt,dtJeu){
     // besoin d'un texte d'objectif et d'une flèche, pas seulement de son
     // halo 3D (« on ne sait pas où aller », signalé explicitement).
     if(WAYP.actif){
-      el('missionTxt').style.display='none';
+      hudD('missionTxt','none');
       pointerVersCible(fl0,{x:WAYP.x,z:WAYP.z});
       if(dist2(P.x,P.z,WAYP.x,WAYP.z)<90){
-        WAYP.actif=false; fl0.style.display='none';
+        WAYP.actif=false; hudD('missionArrow','none');
         toast('Arrivé : '+WAYP.nom,'or'); SFX.ramasse();
       }
     } else if(MET.txt){
-      el('missionTxt').style.display='block';
-      el('missionTxt').textContent='◈ '+MET.txt;
-      if(MET.ciblePos) pointerVersCible(fl0,MET.ciblePos); else fl0.style.display='none';
+      hudD('missionTxt','block');
+      hudT('missionTxt','◈ '+MET.txt);
+      if(MET.ciblePos) pointerVersCible(fl0,MET.ciblePos); else hudD('missionArrow','none');
     } else {
-      el('missionTxt').style.display='none';
-      if(!EVT.cible) fl0.style.display='none';
+      hudD('missionTxt','none');
+      if(!EVT.cible) hudD('missionArrow','none');
     }
     if(MISSION.t<=0) nouvelleMission();
     return;
   }
   const m=MISSION.cur;
-  el('missionTxt').style.display='block';
+  hudD('missionTxt','block');
   let txt='',ciblePos=null;
   if(m.type==='rack'){
     txt=m.txt; ciblePos=POIS.rack;
@@ -30985,7 +30987,7 @@ function majMissions(dt,dtJeu){
     m.t-=dtJeu;
     txt='Course : point '+(m.i+1)+'/3 — '+Math.ceil(Math.max(0,m.t))+' s';
     ciblePos=m.pts[m.i];
-    if(m.t<=0){ toast('Course ratée... on remet ça ?','warn'); MISSION.cur=null; MISSION.t=6; balise.visible=false; el('missionArrow').style.display='none'; return; }
+    if(m.t<=0){ toast('Course ratée... on remet ça ?','warn'); MISSION.cur=null; MISSION.t=6; balise.visible=false; hudD('missionArrow','none'); return; }
     if(P.veh&&dist2(P.x,P.z,ciblePos.x,ciblePos.z)<60){
       m.i++;
       if(m.i>=3){ finirMission(); return; }
@@ -30997,7 +30999,7 @@ function majMissions(dt,dtJeu){
     if(m.fait>=m.n){ finirMission(); return; }
   } else if(m.type==='fuite'){
     txt='Sème la police : rejoins la marina'; ciblePos={x:POIS.marina.x,z:POIS.marina.z-6};
-    if(WANTED.stars===0){ toast('La police t\u2019a perdu — mission annulée'); MISSION.cur=null; MISSION.t=5; balise.visible=false; el('missionArrow').style.display='none'; return; }
+    if(WANTED.stars===0){ toast('La police t\u2019a perdu — mission annulée'); MISSION.cur=null; MISSION.t=5; balise.visible=false; hudD('missionArrow','none'); return; }
     if(dist2(P.x,P.z,POIS.marina.x,POIS.marina.z-6)<70){
       WANTED.heat=Math.max(0,WANTED.heat-2); finirMission(); return; }
   }
@@ -31015,9 +31017,9 @@ function majMissions(dt,dtJeu){
     }
   } else if(!ciblePos&&EVT.cible&&!EVT.cible.mort){ ciblePos={x:EVT.cible.x,z:EVT.cible.z}; }
   MISSION.ciblePosActuel=ciblePos;   // La Boussole du Capitaine : lu par majMinimap()
-  el('missionTxt').textContent='◈ '+txt;
+  hudT('missionTxt','◈ '+txt);
   const fl=el('missionArrow');
-  if(ciblePos) pointerVersCible(fl,ciblePos); else fl.style.display='none';
+  if(ciblePos) pointerVersCible(fl,ciblePos); else hudD('missionArrow','none');
 }
 
 /* =====================================================================
@@ -33461,7 +33463,7 @@ function aleaLocal(g){ let a=g>>>0; return ()=>{ a=(a+0x6D2B79F5)|0; let t=Math.
 function redessinerTexture(tex,taille,fn){ if(!tex) return; const cv=document.createElement('canvas'); cv.width=cv.height=taille; const c=cv.getContext('2d'); if(!c) return; fn(c,taille); tex.image=cv; tex.needsUpdate=true; }
 // dessine fn(x,y) et ses copies décalées d'une tuile quand il déborde : aucune couture entre deux répétitions
 function enRaccord(s,x,y,r,fn){ for(const dx of [-s,0,s]) for(const dy of [-s,0,s]){ const X=x+dx, Y=y+dy; if(X+r<0||X-r>s||Y+r<0||Y-r>s) continue; fn(X,Y); } }
-const SOL_GLSL_BRUIT=`varying vec3 vSolPos; uniform float uMerZ;
+const SOL_GLSL_BRUIT='float solSq(float v){return v*v;}\n'+`varying vec3 vSolPos; uniform float uMerZ;
 float solH(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
 float solN(vec2 p){ vec2 i=floor(p), f=fract(p), u=f*f*(3.0-2.0*f); return mix(mix(solH(i),solH(i+vec2(1.0,0.0)),u.x),mix(solH(i+vec2(0.0,1.0)),solH(i+vec2(1.0,1.0)),u.x),u.y); }
 `;
@@ -33478,7 +33480,7 @@ function variationSol(m,force,mouille,route){
       // grille des rues (axes à −HALF + k·CELL, largeur ROADW) ; effacés dans les carrefours et hors de la ville
       +(route?' { vec2 uR=vSolPos.xz+'+HALF.toFixed(1)+'; vec2 dR=abs(uR-'+CELL.toFixed(1)+'*floor(uR/'+CELL.toFixed(1)+'+0.5)); float hw='+(ROADW/2).toFixed(2)+';'
         +' float ville=step(abs(vSolPos.x),'+(HALF+ROADW/2).toFixed(1)+')*step(vSolPos.z,uMerZ-4.0)*step(-'+(HALF+ROADW/2).toFixed(1)+',vSolPos.z);'
-        +' float tX=exp(-pow((dR.x-hw*0.37)/0.42,2.0))+exp(-pow((dR.x-hw*0.63)/0.42,2.0)), tZ=exp(-pow((dR.y-hw*0.37)/0.42,2.0))+exp(-pow((dR.y-hw*0.63)/0.42,2.0));'
+        +' float tX=exp(-solSq((dR.x-hw*0.37)/0.42))+exp(-solSq((dR.x-hw*0.63)/0.42)), tZ=exp(-solSq((dR.y-hw*0.37)/0.42))+exp(-solSq((dR.y-hw*0.63)/0.42));'
         +' float cX=step(dR.x,hw)*step(hw,dR.y), cZ=step(dR.y,hw)*step(hw,dR.x);'
         +' float usure=(tX*cX+tZ*cZ)*ville, caniveau=(smoothstep(hw-1.0,hw-0.1,dR.x)*step(dR.x,hw)*step(hw,dR.y)+smoothstep(hw-1.0,hw-0.1,dR.y)*step(dR.y,hw)*step(hw,dR.x))*ville;'
         +' diffuseColor.rgb*=1.0-0.13*clamp(usure,0.0,1.0); diffuseColor.rgb*=mix(vec3(1.0),vec3(0.84,0.82,0.8),clamp(caniveau,0.0,1.0)); }':'')+' }');
@@ -33550,7 +33552,7 @@ function startRun(){
   // faut remonter le chercher. Le lieu, lui (META.jetpackTrouve), reste acquis.
   P.jetpack=false; P.jetpackVol=false; P.jetFuel=100; P.jetVx=0; P.jetVz=0; P.jetWarnT=0; P.jetAvertVu=false;
   if(P.jetMesh) P.jetMesh.g.visible=false;
-  el('jetWrap').style.display='none'; el('jetWarn').style.display='none'; el('btnJetpack').style.display='none';
+  el('jetWrap').style.display='none'; hudD('jetWarn','none'); el('btnJetpack').style.display='none';
   jetpackSonStop();
   lanceSonStop();
   // Ambiances des salles : coupées à chaque nouvelle partie, quel que soit le
@@ -34770,7 +34772,7 @@ function majAction(){
         META.argent-=40; soigner(60); SFX.soin(); toast('À la tienne !','or');
       };
     }
-    if(label){ b.style.display='block'; labelAction(b,label); b._fn=fn; }
+    if(label){ if(b.style.display!=='block') b.style.display='block'; labelAction(b,label); b._fn=fn; }
     else b.style.display='none';
     if((pressed('action')||edgeKey('KeyE'))&&fn) fn();
     return;
@@ -35141,7 +35143,7 @@ function jourNuit(dt){
   if(METEO.inten>0.02) scene.background.lerp(new THREE.Color(0x55636f),METEO.inten*0.55);
   scene.fog.color.copy(scene.background);
   const altVol=(P.veh&&P.veh.def.air)?(P.veh.alt||0):0;
-  scene.fog.far=(q().fogF*(1-METEO.inten*0.3)+altVol*2.2)*(1+VUE.k*1.1); // vue immersive : on voit loin
+  scene.fog.far=(q().fogF*(1-METEO.inten*0.3)+altVol*2.2)*(1+VUE.k*1.1)*(ETAT.fogEco||1); // vue immersive : on voit loin ; fogEco : filet « qualité auto »
   if(METEO.flashT>0){
     soleil.intensity=2.4; hemi.intensity=1.7;
     scene.background.lerp(new THREE.Color(0xeaf2ff),0.75);
@@ -35149,13 +35151,13 @@ function jourNuit(dt){
   }
   for(const m of matsBatiments) m.emissiveIntensity=f*0.95;
   const gl=q().glow?f:0;
-  for(const l of lampes) l.material.opacity=gl*0.8;
+  { const vis=gl>0.001; for(const l of lampes){ l.material.opacity=gl*0.8; if(l.visible!==vis) l.visible=vis; } } /* r128 dessine un sprite à opacité 0 : le jour, ~180 appels de rendu pour rien */
   lampeNuit.intensity=f*0.9;
   lampeNuit.distance=aCurio('lampe')?63:42;   // La Lampe de Mineur : halo nocturne 50 % plus large
   lampeNuit.position.set(P.x,7,P.z);
   for(const v of vehicules){
-    const on=(v.conduit==='joueur'||v.conduit==='trafic'||v.conduit==='police')?f:0;
-    for(const s of v.mesh.userData.phG) s.material.opacity=on*0.75;
+    const on=(v.conduit==='joueur'||v.conduit==='trafic'||v.conduit==='police')?f:0, visPh=on>0.001;
+    for(const s of v.mesh.userData.phG){ s.material.opacity=on*0.75; if(s.visible!==visPh) s.visible=visPh; }
   }
 }
 function majCamp(dt){
@@ -35579,9 +35581,8 @@ function majHUD(){
     if(ETAT.coeurT<=0){ ETAT.coeurT=hpR<0.15?0.5:0.8; beep(60,0.12,'sine',0.18,45); }
   } else if(HUDC.shadow){ HUDC.shadow=false; document.body.style.boxShadow='none'; }
   hudW('stFill',clamp(P.stam/P.stamMax*100,0,100));
-  if(P.bouclier>0){hudD('shWrap','block');hudW('shFill',clamp(P.bouclier/Math.max(60,P.bouclierMax||0)*100,0,100));}
-  if(P.giletMesh){ const gv=P.bouclier>0; if(P.giletMesh.visible!==gv) P.giletMesh.visible=gv; }
-  else hudD('shWrap','none');
+  if(P.bouclier>0){hudD('shWrap','block');hudW('shFill',clamp(P.bouclier/Math.max(60,P.bouclierMax||0)*100,0,100));} else hudD('shWrap','none');
+  if(P.giletMesh){ const gv=P.bouclier>0; if(P.giletMesh.visible!==gv) P.giletMesh.visible=gv; } /* le else ci-dessus se rattachait à ce if : jauge qui clignotait sans gilet, jamais masquée avec (nuit du 16 octobre) */
   // Bonus de fin de vague actifs : chip + décompte, voir buffsBox. Boucle
   // explicite sur une petite table fixe (règle perf CLAUDE.md) plutôt qu'un
   // bloc if/else par buff — même 6 buffs, jamais plus, pas un souci si ça
@@ -35711,7 +35712,7 @@ construireVille();
 recalcJoueur(); construireJoueur();
 P.x=POIS.place.x; P.z=POIS.place.z+8;
 appliqueQualite(); majMenuStats();
-el('missionTxt').style.display='none';
+hudD('missionTxt','none');
 
 let dernierT=performance.now(), mmFrame=0, perfAcc=0, perfN=0, perfT=0;
 /* Filet de la boucle (nuit du 16 octobre) : une exception dans le tick sautait le rendu de l'image ; répétée, elle
@@ -35824,7 +35825,7 @@ function tick(t){
       toast('Qualité graphique réduite pour la fluidité');
     } else if(moy>0.055&&REGLAGES.qualite===0){
       // déjà en éco : on réduit la portée de rendu (brouillard plus proche)
-      scene.fog.far=Math.max(70,scene.fog.far-15);
+      ETAT.fogEco=Math.max(0.5,(ETAT.fogEco||1)-0.08); /* appliqué par jourNuit : l'ancienne écriture directe était écrasée à l'image suivante */
     }
   }
 }
