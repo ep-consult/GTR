@@ -12681,10 +12681,14 @@ async function main() {
         if (!(VUE1P.montage.melee && amp > 0.8)) ko.push('batte : pas de swing (' + amp.toFixed(2) + ' rad)'); else info.push('batte : swing de ' + amp.toFixed(2) + ' rad');
         majArmeJoueur('poings'); frame(2); if (!(VUE1P.montage && VUE1P.montage.poings && VUE1P.montage.mains && VUE1P.montage.mains.length === 2)) ko.push('poings : pas de garde à deux mains');
         { const [d, g] = VUE1P.montage.mains; frame(3); if (d.visible || g.visible) ko.push('poings : visibles au repos');
-          INPUT.jy = -1; frame(15); INPUT.jy = 0; if (d.visible || g.visible) ko.push('poings : visibles en marchant');
+          INPUT.jy = -1; frame(20); const yA = d.position.y, zA = d.position.z; frame(9); const zB = d.position.z; INPUT.jy = 0;
+          if (!d.visible || !g.visible || !(yA < -0.18)) ko.push('poings : en marchant, ils doivent pointer à peine en bas (visibles ' + d.visible + '/' + g.visible + ', y ' + yA.toFixed(2) + ')');
+          if (!(Math.abs(zB - zA) > 0.01)) ko.push('poings : ils ne balancent pas en marchant (' + Math.abs(zB - zA).toFixed(3) + ')');
+          frame(40); if (d.visible || g.visible) ko.push('poings : encore visibles 1,3 s après l’arrêt');
           P.cadT = 0; P.frappeT = 0; attaquer(); const qui = VUE1P.coupMain ? g : d; frame(3); const pIn = qui.position.clone(); /* au plus loin du coup */
           if (!qui.visible || !(Math.abs(pIn.x) < 0.08) || !(pIn.y > -0.12) || !(pIn.z < -0.25)) ko.push('poings : le coup ne passe pas sous la mire (' + [pIn.x, pIn.y, pIn.z].map((v) => v.toFixed(2)).join(', ') + ', visible ' + qui.visible + ')');
-          frame(12); if (d.visible || g.visible) ko.push('poings : encore visibles après le coup'); else info.push('poings : invisibles au repos et en marche, le poing entre, frappe sous la mire et ressort'); }
+          frame(12); if (d.visible || g.visible) ko.push('poings : encore visibles après le coup'); else info.push('poings : invisibles au repos, à peine visibles et balancés en marchant, le poing entre, frappe sous la mire et ressort'); }
+        { /* en visée, le haut des bras reste affiché (sinon deux moignons au milieu de l'écran) */ majArmeJoueur('fusil'); INPUT.edge.viser = true; frame(20); let cache = 0; VUE1P.montage.R.traverse((o) => { if (o.userData && o.userData.hautBras && !o.visible) cache++; }); if (cache) ko.push('visée : ' + cache + ' segment(s) du haut des bras masqués'); INPUT.edge.viser = true; frame(20); }
         { /* une batte, une seule main : plus de « vingt doigts » */ majArmeJoueur('batte'); frame(2); let mains = 0; VUE1P.montage.W.traverse((o) => { if (o.userData && o.userData.hautBras) mains++; }); if (mains > 2) ko.push('batte : ' + (mains / 2) + ' bras'); }
         majArmeJoueur('fusil');
         // les sorties : véhicule, salle

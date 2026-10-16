@@ -8924,7 +8924,7 @@ function fpsBras(W,cote,p,prise,peau,manche,ech){
   const m=[poignet[0]+(coude[0]-poignet[0])*0.4,poignet[1]+(coude[1]-poignet[1])*0.4,poignet[2]+(coude[2]-poignet[2])*0.4];
   const q=[poignet[0]+(coude[0]-poignet[0])*0.08,poignet[1]+(coude[1]-poignet[1])*0.08,poignet[2]+(coude[2]-poignet[2])*0.08];
   fpsSeg(G,poignet,q,0.023,mO,0.025); fpsSeg(G,q,m,0.024,mPeau,0.029); fpsSeg(G,[m[0]-(coude[0]-poignet[0])*0.03,m[1]-(coude[1]-poignet[1])*0.03,m[2]-(coude[2]-poignet[2])*0.03],m,0.034,mM,0.034);
-  fpsSeg(G,m,coude,0.032,mM,0.039).userData.hautBras=true; const ep=[coude[0]+s*0.08,coude[1]-0.2,coude[2]+0.25]; fpsSeg(G,coude,ep,0.041,mM,0.046).userData.hautBras=true;
+  fpsSeg(G,m,coude,0.032,mM,0.039).userData.hautBras=true; const ep=[coude[0]+s*0.14,coude[1]-0.46,coude[2]+0.4]; fpsSeg(G,coude,ep,0.041,mM,0.05).userData.hautBras=true; /* jusqu'à l'épaule, loin vers le bas et l'arrière : le bras sort toujours par le bas du cadre (raccourci, il finissait en moignon) */
   return G; }
 function fpsHautBras(R,visible){ R.traverse((o)=>{ if(o.userData.hautBras&&o.visible!==visible) o.visible=visible; }); } /* en visée, l'arme recule vers l'œil : les bras au-delà du coude traverseraient la caméra */
 function fpsMontage(id){
@@ -9053,7 +9053,7 @@ function fpsCamera(){
     const hx=P0.pos[0]+Math.sin(t*1.1)*0.0022+M.lagX, hy=P0.pos[1]+Math.sin(t*2.2)*0.0016+M.lagY-rech*0.075, hz=P0.pos[2]+r*0.045, mi=M.mire;
     const scV=lerp(1,0.42,kV); W.scale.setScalar(scV); /* en visée, arme et mains rapetissent (voir cameraPremiere) */
     W.position.set(lerp(hx,mi?-mi.x*scV:hx,kV),lerp(hy,mi?-mi.y*scV-rech*0.075:hy,kV),lerp(hz,mi?-(M.prof||0.16)-mi.z*scV+r*0.03:hz,kV)); // VISER : la ligne de mire sur l'axe de l'œil
-    W.rotation.set(lerp(r*0.2,r*0.05,kV)-rech*0.3,lerp(P0.yaw+M.lagX*0.8,0,kV),lerp(P0.roll||0,0,kV)+rech*0.55); M.R.visible=!(M.lunette&&kV>0.85); fpsHautBras(M.R,kV<0.45);
+    W.rotation.set(lerp(r*0.2,r*0.05,kV)-rech*0.3,lerp(P0.yaw+M.lagX*0.8,0,kV),lerp(P0.roll||0,0,kV)+rech*0.55); M.R.visible=!(M.lunette&&kV>0.85); fpsHautBras(M.R,true);
     if(M.culasse) for(const m of M.culasse) m.position.y=Math.min(1,r*2.6)*0.055; // la culasse des pistolets recule
     const f=FPS.flash>0; M.fl.material.opacity=f?1:0; M.fl2.material.opacity=f?0.9:0;
     if(f){ const k=M.A.pose==='lourd'?1.6:1; M.fl.material.rotation=Math.random()*6.28; M.fl.scale.setScalar((0.11+Math.random()*0.06)*k); M.fl2.material.rotation=Math.random()*6.28; M.fl2.scale.set((0.24+Math.random()*0.1)*k,0.05*k,1); } }
@@ -35463,7 +35463,7 @@ function cameraPremiere(dt){ const V=VUE1P; if(!V.actif) entrerPremiere(); if(V.
   if(Math.abs(camera.fov-fov)>0.01||camera.near!==0.05){ camera.fov=fov; camera.near=0.05; camera.updateProjectionMatrix(); }
   VUE.yawRendu=VUE.yawUser; VUE.yaw=VUE.yawUser; if(VUE.ciel) VUE.ciel.position.copy(camera.position);
   if(M){ const W=M.W, P0=M.P0||FPS_POSES.poing, t=performance.now()*0.001, r=V.recul, k=V.k*V.k*(3-2*V.k), kc=V.kCourse||0;
-    M.R.position.copy(camera.position); M.R.quaternion.copy(camera.quaternion); M.R.visible=!(M.lunette&&V.k>0.85); fpsHautBras(M.R,V.k<0.45);
+    M.R.position.copy(camera.position); M.R.quaternion.copy(camera.quaternion); M.R.visible=!(M.lunette&&V.k>0.85); fpsHautBras(M.R,true); /* bras entiers en visée aussi : masqué, le haut du bras laissait deux moignons coupés au milieu de l'écran (16 octobre) */
     const dY=M.yawP===undefined?0:angDiff(M.yawP,VUE.yawUser), dP=M.pitchP===undefined?0:(VUE.pitch1P||0)-M.pitchP; M.yawP=VUE.yawUser; M.pitchP=VUE.pitch1P||0; /* l'arme traîne un peu derrière le regard */
     M.lagX+=(clamp(-dY*0.6,-0.03,0.03)-M.lagX)*0.18; M.lagY+=(clamp(-dP*0.6,-0.03,0.03)-M.lagY)*0.18;
     const hx=P0.pos[0]+Math.sin(t*1.1)*0.0022+Math.sin(V.pas*0.5)*(0.006+0.02*kc)*mv+M.lagX*(1-k)+kc*0.03, hy=P0.pos[1]+Math.sin(t*2.2)*0.0016+Math.abs(Math.cos(V.pas*0.5))*(0.005+0.018*kc)*mv+M.lagY*(1-k)-kc*0.06, hz=P0.pos[2]+r*0.045;
@@ -35477,12 +35477,19 @@ function cameraPremiere(dt){ const V=VUE1P; if(!V.actif) entrerPremiere(); if(V.
     if(M.poings&&M.mains){ /* Poings (16 octobre, 2e retour : « deux tiges vers l'avant ; ne pas voir les bras au repos, voir le coup ») : au repos les deux
          mains sont hors champ ; un coup (V.frappe, 0,3 s) fait entrer le poing du coin bas de son côté, il frappe juste sous la mire en tournant
          (crochet léger), puis ressort ; coups alternés (V.coupMain). Rien d'autre ne bouge à l'écran. */
-      const [d,g]=M.mains, qui=V.coupMain?g:d, autre=V.coupMain?d:g, sg=V.coupMain?-1:1;
-      const f=V.frappe>0?1-V.frappe/0.3:1, aller=Math.min(1,f/0.38), retour=f<0.5?0:(f-0.5)/0.5, kp=f<0.38?aller*aller*(3-2*aller):(f<0.5?1:1-retour*retour); /* aller vif (0,11 s), tenue, retour */
-      qui.visible=V.frappe>0; autre.visible=false;
-      const xS=sg*0.1, yS=-0.3, zS=-0.06, xP=sg*0.03, yP=-0.075, zP=-0.4; /* départ bas et près de l'œil : l'avant-bras pointe dans l'écran, raccourci, au lieu de le traverser en diagonale */
-      qui.position.set(lerp(xS,xP,kp),lerp(yS,yP,kp)+Math.sin(kp*Math.PI)*0.03,lerp(zS,zP,kp));
-      qui.rotation.set(lerp(-1.1,-0.4,kp),sg*lerp(-0.1,0.35,kp),sg*lerp(0.3,-0.2,kp));
+      const [d,g]=M.mains, sg=V.coupMain?-1:1, qui=V.coupMain?g:d;
+      V.kMarche=lerp(V.kMarche||0,mv>0.12&&!P.nage?1:0,clamp(dt*4,0,1)); /* en marchant, les poings pointent à peine dans les coins bas et balancent ; à l'arrêt, ils redescendent hors champ */
+      const f=V.frappe>0?1-V.frappe/0.3:1, aller=Math.min(1,f/0.38), retour=f<0.5?0:(f-0.5)/0.5, kp=V.frappe>0?(f<0.38?aller*aller*(3-2*aller):(f<0.5?1:1-retour*retour)):0; /* aller vif (0,11 s), tenue, retour */
+      const swp=Math.sin(V.pas*0.5), amp=1+kc*0.8, hwC=Math.tan(camera.fov*Math.PI/360)*camera.aspect; /* demi-largeur du champ à 1 m : les coins bas suivent le format (portrait ou large) */
+      for(const [h,sh] of [[d,1],[g,-1]]){
+        const ph=sh*swp; /* les deux mains en opposition */
+        const xS=sh*Math.max(0.1,0.3*hwC), yS=-0.3, zS=-0.06; /* hors champ, en bas, près de l'œil */
+        const xM=sh*0.21*hwC, yM=-0.21+ph*0.012*amp+kc*0.01, zM=-0.26-ph*0.03*amp; /* à peine visibles : le haut du poing dans le coin bas */
+        const bx=lerp(xS,xM,V.kMarche), by=lerp(yS,yM,V.kMarche), bz=lerp(zS,zM,V.kMarche), brx=lerp(-1.1,-0.7-ph*0.15,V.kMarche);
+        if(h===qui&&kp>0){ const xP=sh*0.03, yP=-0.075, zP=-0.4;
+          h.position.set(lerp(bx,xP,kp),lerp(by,yP,kp)+Math.sin(kp*Math.PI)*0.03,lerp(bz,zP,kp)); h.rotation.set(lerp(brx,-0.4,kp),sh*lerp(-0.1,0.35,kp),sh*lerp(0.3,-0.2,kp)); }
+        else { h.position.set(bx,by,bz); h.rotation.set(brx,-sh*0.1,sh*0.3); }
+        h.visible=(h===qui&&kp>0)||V.kMarche>0.03; }
       W.rotation.z+=sg*0.05*Math.sin(kp*Math.PI); }
     if(!M.choc){ M.choc=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:0xffe6b0,transparent:true,depthWrite:false,depthTest:false,blending:THREE.AdditiveBlending,opacity:0})); M.choc.renderOrder=6; M.choc.frustumCulled=false; M.R.add(M.choc); }
     M.choc.material.opacity=kI*kI*0.95; M.choc.visible=kI>0.01; if(kI>0.01){ M.choc.position.set(0,-0.025,-0.42); M.choc.scale.setScalar(0.05+0.22*(1-kI)); M.choc.material.rotation=V.impact*40; }

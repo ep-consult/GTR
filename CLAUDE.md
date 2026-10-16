@@ -1375,7 +1375,15 @@ puis redescendre tirer : on ne peut pas ajuster ».
   en crochet léger et ressort ; coups alternés (`V.coupMain`). Un coup qui
   porte (`VUE1P.impact`, posé par `attaquer`) : la vue encaisse une secousse
   brève et un éclat additif s'ouvre sous la mire (`M.choc`), armes blanches
-  comprises. Poing en galet à jointures, échelle 0,72.
+  comprises. Poing en galet à jointures, échelle 0,72. En marchant, les deux
+  poings pointent à peine dans les coins bas et balancent au rythme des pas
+  (`V.kMarche`, place calée sur la demi-largeur réelle du champ `hwC` : portrait
+  et format large) ; à l'arrêt ils redescendent hors champ.
+- **Bras entiers, jamais coupés** : le haut du bras va jusqu'à l'épaule, loin
+  vers le bas et l'arrière, et n'est plus masqué en visée (`fpsHautBras(R,true)`)
+  — masqué, il laissait deux moignons au milieu de l'écran (signalé le 16
+  octobre). En visée l'arme est à ~0,76 m équivalent (échelle 0,42 à 32 cm) :
+  les bras ne traversent plus la caméra.
 - **Une seule main sur la batte, en mitaine** (prise `manche` : un volume
   refermé, trois sillons, le pouce) : deux mains à quatre doigts articulés
   se lisaient comme « vingt doigts ».
