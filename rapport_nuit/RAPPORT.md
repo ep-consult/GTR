@@ -1862,3 +1862,83 @@ Captures : `captures/lot11/skate_18oct.png`, `derby_arene.png`, `derby_jeu_conce
 
 Captures : `captures/lot11/armes_v2_galerie.png`, `armes_v2_en_main.png`, `stand_tir_v2.png`.
 
+
+
+## Nuit de revue globale — 16 octobre 2026
+
+> Branche `nuit-revue-globale` (depuis `decor-ville`, commit `60680a2`). Rien n'est
+> fusionné. Date réelle lue par `date` : **vendredi 16 octobre 2026** — les libellés
+> « 16, 17, 18 octobre » du CLAUDE.md et des sections précédentes de ce rapport sont
+> en avance sur le calendrier (ils ont été écrits les 15 et 16 octobre au plus tard) ;
+> ils sont laissés tels quels, mais ne servent pas de repère.
+> Partie 1 : `rapport_nuit/STRATEGIE.md` (commit `e7fe29a`). Partie 2 : ci-dessous,
+> mis à jour en continu.
+
+### Résumé
+
+(à écrire en fin de nuit)
+
+### Mesures avant / après
+
+Protocole (`scratchpad/phase0.js`, Chrome headless sur ce PC, sans GPU — les temps de
+RENDU ne sont pas représentatifs d'un iPhone, les temps de LOGIQUE le sont à un
+facteur près) : ville construite, partie lancée, 60 s simulées à 30 i/s en trois
+points (centre : `POIS.place` ; colline : centre de `HILLS` ; large : `MER+60`),
+coût de la logique par image (`majEnnemis`, `majPietons`, `majFigurants`,
+`majVehicules`, `majDebris`, `majMobilier`, `majCascades`, `majAeroVie`,
+`majVieHills`, `majMerV2`), rendu une image sur deux, puis trois parties
+successives pour la mémoire.
+
+| Mesure | Avant (60680a2) | Après |
+|---|---|---|
+| `index.html` | 2 663 Ko | |
+| De la navigation au premier `evaluate` (ville construite), headless | ~30 s (`performance.now()` = 30,5 s ; 37,7 s avec le lancement du navigateur) | |
+| Premier rendu, centre, vue classique | 119 draw calls, 56 886 triangles, 118 géométries, 36 textures | |
+| Premier rendu, centre, vue immersive | 689 draw calls, 82 116 triangles, 363 géométries, 62 textures | |
+| Logique par image, centre (208 véhicules, 22 piétons) | **48,7 ms** — `majPietons` 32,1, `majVehicules` 15,6, `majTrafic` 9,7 (compté dans `majVehicules`) | |
+| Logique par image, colline (181 véhicules) | 31,4 ms — `majPietons` 24,8, `majVehicules` 5,7 | |
+| Logique par image, large (180 véhicules) | 10,7 ms — `majPietons` 5,5, `majVehicules` 4,8 | |
+| Rendu par image (headless, non représentatif) | 55 / 60 / 85 ms | |
+| Mémoire après 3 parties | géométries 1 784 → 1 781 → 1 859 ; textures 153 → 156 → 159 ; tas JS 398 → 171 → 208 Mo | |
+
+Première lecture : **`majPietons` coûte 25 à 32 ms par image en ville pour 22
+piétons**. Micro-mesure (`scratchpad/dbg_pietons.js`) : `vehiculeBloquant` 0,35 ms
+par appel et `degageDeVehicule` 0,36 ms (il appelle le premier) — chaque piéton en
+fait trois par image, soit ~1 ms par piéton : la fonction parcourt les 180 à 208
+véhicules avec deux sinus/cosinus et six lectures de `o.def.*` (accès mégamorphes)
+par véhicule, sans rejet par la distance. `solY` : 0,07 ms par appel. Tout le
+reste des helpers du piéton est négligeable (`estEau` 0,003 ms, `solidAt`
+0,004 ms). Le rendu immersif fait 5,8 fois plus de draw calls que la vue classique.
+
+Suite de référence : `node valider.js` vert ; `node scenarios.js` (graine 20260731)
+**757 vérifications vertes, aucune sautée** (`suite_lot7b.log`, avant la création de
+la branche) ; `SEED=random` ×3 : en cours (résultats plus bas).
+
+### Carte du fichier
+
+Régénérée au commit `60680a2` (lot 7) : 47 bandeaux, 54 ancres fines recalées,
+« Relevé du 18 octobre — 35 778 lignes » (libellé daté comme les autres : à lire
+« relevé du 16 octobre au matin »). Rien à corriger de plus cette nuit.
+
+### Plan de la nuit
+
+(après les six audits)
+
+### Correctifs
+
+(un par ligne : symptôme, cause, fix, test)
+
+### Décisions prises seul
+
+### À trancher
+
+### Polissage différé en attente de décision
+
+### Abandonné et pourquoi
+
+### À tester à la main sur iPhone demain
+
+### Idées non faites
+
+### `git log --oneline` de la branche
+
