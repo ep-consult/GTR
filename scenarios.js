@@ -12644,6 +12644,7 @@ async function main() {
         P.x = POIS.place.x; P.z = POIS.place.z; P.y = solPied(P.x, P.z); VUE.yawUser = Math.PI; VUE.pitch1P = 0; INPUT.jx = INPUT.jy = 0; frame(3);
         if (!VUE1P.actif || !VUE1P.montage || P.h.g.visible || Math.abs(camera.position.y - (P.y + OEIL_1P)) > 0.15 || el('btnViser').style.display === 'none') ko.push('entrée : actif ' + VUE1P.actif + ', montage ' + !!VUE1P.montage + ', corps visible ' + P.h.g.visible + ', œil ' + (camera.position.y - P.y).toFixed(2));
         // marcher dans le regard (le corps suit)
+        { let best = VUE.yawUser, dMax = -1; for (let k = 0; k < 16; k++) { const a = k * Math.PI / 8, rg = a + Math.PI; let d = 1; while (d <= 16 && !solidAt(P.x + Math.sin(rg) * d, P.z + Math.cos(rg) * d, 0.5)) d += 0.5; if (d > dMax) { dMax = d; best = a; } } VUE.yawUser = best; frame(2); } /* la direction la plus dégagée : sur certaines graines, un solide de la place coupait la ligne de vue vers la cible (le test maîtrise sa scène) */
         const x0 = P.x, z0 = P.z; INPUT.jy = -1; frame(15); INPUT.jy = 0; frame(1);
         const dx = P.x - x0, dz = P.z - z0, regard = VUE.yawUser + Math.PI, avance = dx * Math.sin(regard) + dz * Math.cos(regard), cote = Math.abs(dx * Math.cos(regard) - dz * Math.sin(regard));
         if (!(avance > 3) || cote > 0.6 || Math.abs(angDiff(P.ang, regard)) > 0.05) ko.push('marche : avance ' + avance.toFixed(2) + ', écart ' + cote.toFixed(2) + ', corps ' + angDiff(P.ang, regard).toFixed(2));
