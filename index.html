@@ -2405,6 +2405,7 @@ function habillerArme(g,id,Lforce){
 // reconstruit l'arme en main (et sa jumelle main gauche en akimbo) après un achat
 // ---------- l'établi de l'armurerie : l'arme tourne en grand sur l'établi, un panneau propose ses modifications ----------
 const ATELIER={ouvert:false,salle:null,id:null,modele:null,el:null,apercu:[],ang:0,tilt:0,drag:null,pauseT:0};
+const ATELIER_RAYON=0.85; /* rayon de l'arme en vitrine (demi-diagonale de sa boîte) : elle tient, en tournant, dans la bande visible au-dessus du panneau */
 const FINITIONS_ARME=['or','camo','chrome','carbone','neon','damas','tigre'], OPTIQUES_ARME=['pointRouge','holo','lunette4'];
 // les modifications montrées : celles posées + celles à l'essai (une seule finition à la fois)
 function atelierMods(){ const pos=modsArme(ATELIER.id), ap=ATELIER.apercu; let L=pos.concat(ap.filter((k)=>pos.indexOf(k)<0));
@@ -2420,8 +2421,9 @@ function ouvrirAtelierArme(s){
     d.querySelector('#atPrec').addEventListener('pointerdown',(e)=>{ e.preventDefault(); atelierChanger(-1); });
     d.querySelector('#atSuiv').addEventListener('pointerdown',(e)=>{ e.preventDefault(); atelierChanger(1); }); }
   ATELIER.el.style.display='flex'; atelierModele(); renderAtelier(); SFX.ui();
+  const pile=el('notifStack'); if(pile){ pile.innerHTML=''; pile.style.visibility='hidden'; } /* les notifications tombaient sur l'arme */
 }
-function fermerAtelierArme(){ ATELIER.ouvert=false; ATELIER.apercu=[]; ATELIER.drag=null; /* ce qu'on essaie sans l'acheter n'est jamais gardé */ if(ATELIER.el) ATELIER.el.style.display='none'; if(ATELIER.modele&&ATELIER.modele.parent) ATELIER.modele.parent.remove(ATELIER.modele); ATELIER.modele=null; }
+function fermerAtelierArme(){ const pile=el('notifStack'); if(pile) pile.style.visibility=''; ATELIER.ouvert=false; ATELIER.apercu=[]; ATELIER.drag=null; /* ce qu'on essaie sans l'acheter n'est jamais gardé */ if(ATELIER.el) ATELIER.el.style.display='none'; if(ATELIER.modele&&ATELIER.modele.parent) ATELIER.modele.parent.remove(ATELIER.modele); ATELIER.modele=null; }
 // 18 octobre (demandé : « faire tourner l'arme avec le doigt pour regarder le style et ce que ça améliore ») : TOUTES les armes
 // défilent à l'établi (celles qu'on n'a pas encore : on les regarde, on essaie leurs pièces, on peut les acheter là)
 function atelierArmesDispo(){ return ORDRE_ARMES.filter((id)=>META.armes[id]&&mkArmeModeleDispo(id)&&!ARMES[id].cachee&&id!=='poings'); }
@@ -2440,6 +2442,12 @@ function atelierModele(){
   const L=atelierMods(), m=habillerArme(mkArmeModele(ATELIER.id),ATELIER.id,L); if(!m){ ATELIER.modele=null; return; } m.visible=true;
   const h=new THREE.Group(); h.add(m); m.position.set(0,0.4,0); const pv=new THREE.Group(); pv.add(h); h.rotation.x=-Math.PI/2; pv.scale.setScalar(2.6);
   if(L.includes('double')){ const m2=habillerArme(mkArmeModele(ATELIER.id),ATELIER.id,L); if(m2){ m2.visible=true; m2.position.set(0.32,0.4,0); m.position.x=-0.32; h.add(m2); } } // akimbo : la jumelle à côté
+  /* cadrage (16 octobre, rendu réel : à l'échelle fixe 2,6, les pistolets en akimbo débordaient de la bande visible au-dessus du panneau) :
+     l'arme est centrée sur l'axe du plateau et mise à la taille de la vitrine, mesurée sur ses seuls maillages, comme le véhicule du garage */
+  pv.scale.setScalar(1); pv.updateMatrixWorld(true); const bb=new THREE.Box3(), bm=new THREE.Box3(); let vide=true;
+  pv.traverse((o)=>{ if(o.isMesh&&o.geometry){ if(!o.geometry.boundingBox) o.geometry.computeBoundingBox(); bm.copy(o.geometry.boundingBox).applyMatrix4(o.matrixWorld); if(vide){ bb.copy(bm); vide=false; } else bb.union(bm); } });
+  if(!vide){ const c=bb.getCenter(new THREE.Vector3()), R=Math.max(0.05,bb.getSize(new THREE.Vector3()).length()/2); h.position.sub(c); pv.scale.setScalar(clamp(ATELIER_RAYON/R,0.6,6)); }
+  else pv.scale.setScalar(2.6);
   pv.position.set(s.etabliArmes.px,1.75,s.etabliArmes.pz); scene.add(pv); ATELIER.modele=pv;
 }
 function renderAtelier(){
@@ -35850,13 +35858,14 @@ function tick(t){
       majAction();
     }
     majInterieur(dt,dtJeu);
+    majAtelierArme(dt); majBoutique(dt); /* établi de l'armurerie et cabine d'essayage : ils sont EN SALLE, ils tournent donc aussi en salle (avant : seulement dehors, l'arme restait figée malgré le doigt) ; chacun se ferme seul hors de propos */
     if(!INT.actif){
       majFeux(dt);
       majCamp(dt);
       majMeteo(dt);
       majMer(dt);
       majMerV2(dt);
-      if(DECOR_V2){ majHorsLesMurs(dt); majMobilier(); majLac(dt); majLumieres(dt); majJetee(dt); majPortVivant(dt); majAeroportVivant(dt); majAeroVie(dt); majVieHills(dt); majChantierV2(dt); majBaseV2(dt,dtJeu); majSportsParcs(dt); majConcession(dt); majDerby(dt,dtJeu); majHeliportManoir(dt); majPlanques(dt); majAtelierArme(dt); majBoutique(dt); majTour(dtJeu); majCascades(dt); majManeges(dt); majBrooklyn(dt); majCiel(dt); majCielCibles(dt); majNeonVivant(dt); majQuartiersFinitions(dt); }
+      if(DECOR_V2){ majHorsLesMurs(dt); majMobilier(); majLac(dt); majLumieres(dt); majJetee(dt); majPortVivant(dt); majAeroportVivant(dt); majAeroVie(dt); majVieHills(dt); majChantierV2(dt); majBaseV2(dt,dtJeu); majSportsParcs(dt); majConcession(dt); majDerby(dt,dtJeu); majHeliportManoir(dt); majPlanques(dt); majTour(dtJeu); majCascades(dt); majManeges(dt); majBrooklyn(dt); majCiel(dt); majCielCibles(dt); majNeonVivant(dt); majQuartiersFinitions(dt); }
       majEpaveCanon(dt);
     }
     majHUD();

@@ -12961,6 +12961,61 @@ async function main() {
       });
       if (tb.ko.length) fail('Trafic aux bordures : ' + tb.ko.join(' ; ')); else ok('Trafic aux bordures : ' + tb.info.join(' ; '));
     }
+
+    // -------------------------------------------------------------------
+    // Établi et cabine EN SALLE, par la vraie boucle (16 octobre, signalé
+    // plusieurs fois : « faire pivoter l'arme avec le doigt à l'établi, comme
+    // les voitures au garage »). Leurs mises à jour n'étaient appelées que
+    // dehors : en salle, l'arme restait figée malgré le doigt, et le joueur ne
+    // tournait pas dans la cabine. L'ancien test appelait majAtelierArme à la
+    // main : il passait au vert sans que le jeu le fasse jamais.
+    // -------------------------------------------------------------------
+    console.log('\n--- Établi et cabine en salle : l’arme tourne et suit le doigt par la vraie boucle ---');
+    {
+      const ko = [], info = [];
+      const o = await page.evaluate(() => {
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6; WANTED.heat = 0; for (const e of ennemis) e.mort = true; WAVES.etat = 'repos'; WAVES.t = 1e9;
+        META.armes.pistolet.poss = true; majArmeJoueur('pistolet');
+        entrerInterieur('armurerie', PORTES.find((q) => q.id === 'armurerie')); const s = INT.actif;
+        if (!s || !s.etabliArmes) return 'pas d’établi';
+        P.x = s.etabliArmes.x; P.z = s.etabliArmes.z; majAction();
+        if (!/PERSONNALISER/.test(el('btnAction').textContent)) return 'pas de bouton PERSONNALISER : ' + el('btnAction').textContent;
+        el('btnAction')._fn(); return ATELIER.ouvert ? '' : 'l’établi ne s’ouvre pas';
+      });
+      if (o) ko.push(o);
+      else {
+        await new Promise((r) => setTimeout(r, 1500));
+        const a = await page.evaluate(() => ({ ang: ATELIER.ang, ry: ATELIER.modele ? ATELIER.modele.rotation.y : NaN, ouvert: ATELIER.ouvert }));
+        if (!a.ouvert) ko.push('l’établi s’est refermé tout seul');
+        else if (!(a.ang > 0.15) || Math.abs(a.ry - a.ang) > 1e-6) ko.push('en salle, l’arme ne tourne pas seule (angle ' + a.ang.toFixed(2) + ', modèle ' + a.ry.toFixed(2) + ')');
+        else info.push('l’arme tourne seule (' + a.ang.toFixed(2) + ' rad en 1,5 s)');
+        const d = await page.evaluate(() => { const a0 = ATELIER.ang, c = renderer.domElement.getBoundingClientRect(), x = c.left + c.width * 0.3, y = c.top + c.height * 0.25;
+          renderer.domElement.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 9, clientX: x, clientY: y, bubbles: true }));
+          window.dispatchEvent(new PointerEvent('pointermove', { pointerId: 9, clientX: x + 60, clientY: y + 30 })); window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 9 }));
+          return { a0, a1: ATELIER.ang }; });
+        await new Promise((r) => setTimeout(r, 800));
+        const b = await page.evaluate(() => ({ ang: ATELIER.ang, ry: ATELIER.modele ? ATELIER.modele.rotation.y : NaN, rx: ATELIER.modele ? ATELIER.modele.rotation.x : NaN, tilt: ATELIER.tilt }));
+        if (Math.abs(d.a1 - d.a0 - 0.72) > 0.05) ko.push('le glisser ne tourne pas l’arme (' + (d.a1 - d.a0).toFixed(2) + ' rad)');
+        else if (Math.abs(b.ry - b.ang) > 1e-6 || Math.abs(b.rx - b.tilt) > 1e-6 || !(b.tilt > 0.1)) ko.push('le modèle ne suit pas le doigt en salle (angle ' + b.ang.toFixed(2) + ' / modèle ' + b.ry.toFixed(2) + ', inclinaison ' + b.tilt.toFixed(2) + ' / ' + b.rx.toFixed(2) + ')');
+        else if (Math.abs(b.ang - d.a1) > 0.01) ko.push('la rotation seule reprend aussitôt après le geste (' + (b.ang - d.a1).toFixed(2) + ' rad)');
+        else info.push('elle suit le doigt (+' + (d.a1 - d.a0).toFixed(2) + ' rad, penchée de ' + b.tilt.toFixed(2) + ') et reste où on l’a laissée');
+      }
+      const c0 = await page.evaluate(() => { fermerAtelierArme(); sortirInterieur();
+        const b = BOUTIQUES.find((q) => q.id === 'surf'); P.x = b.x; P.z = b.z; majAction(); if (!/ENTRER/.test(el('btnAction').textContent)) return 'pas d’entrée au surf shop';
+        el('btnAction')._fn(); const sb = INT.actif; if (!sb || !sb.cabineBoutique) return 'pas dans la boutique';
+        P.x = sb.cabineBoutique.x; P.z = sb.cabineBoutique.z; majAction(); if (!/CABINE/.test(el('btnAction').textContent)) return 'pas de cabine : ' + el('btnAction').textContent;
+        el('btnAction')._fn(); return BOUT.ouvert ? BOUT.ang : 'la cabine ne s’ouvre pas'; });
+      if (typeof c0 === 'string') ko.push(c0);
+      else {
+        await new Promise((r) => setTimeout(r, 1200));
+        const c1 = await page.evaluate(() => ({ ouvert: BOUT.ouvert, ang: BOUT.ang, gy: P.h ? P.h.g.rotation.y : NaN }));
+        if (!c1.ouvert) ko.push('la cabine s’est refermée toute seule');
+        else if (!(c1.ang - c0 > 0.15) || Math.abs(c1.gy - c1.ang) > 0.05) ko.push('en cabine, le joueur ne tourne pas (' + (c1.ang - c0).toFixed(2) + ' rad, corps ' + c1.gy.toFixed(2) + ')');
+        else info.push('en cabine, le joueur tourne (' + (c1.ang - c0).toFixed(2) + ' rad en 1,2 s)');
+      }
+      await page.evaluate(() => { if (BOUT.ouvert) fermerBoutique(); if (INT.actif) sortirInterieur(); });
+      if (ko.length) fail('Établi et cabine en salle : ' + ko.join(' ; ')); else ok('Établi et cabine en salle : ' + info.join(' ; '));
+    }
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];

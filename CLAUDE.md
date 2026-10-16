@@ -1306,6 +1306,16 @@ l'arme avec le doigt pour regarder le style et ce que ça améliore ».
   barres (`htmlCarac` : dégâts, cadence, précision, portée, chargeur, discrétion),
   le gain de l'essai en vert, la perte en rouge ; « ☝ glisse sur l'arme pour la
   tourner ».
+- **L'arme tourne au doigt EN SALLE** (16 octobre, demandé plusieurs fois) :
+  `majAtelierArme` et `majBoutique` n'étaient appelées que DEHORS (liste du
+  décor, sous `if(!INT.actif)`) ; l'établi et la cabine sont en salle : l'arme
+  restait figée malgré le doigt, le joueur ne tournait pas en cabine. Elles
+  sont appelées juste après `majInterieur` (chacune se ferme seule hors de
+  propos). L'ancien test appelait `majAtelierArme` à la main et passait au
+  vert : le test « Établi et cabine en salle » passe par la vraie boucle et
+  un vrai glisser. Cadrage : l'arme est centrée sur l'axe du plateau et mise
+  à la taille de la vitrine (`ATELIER_RAYON`, demi-diagonale de sa boîte),
+  les notifications sont masquées pendant l'établi (elles tombaient dessus).
 - Test : « Toutes les armes personnalisables ».
 
 ### Vue à la 1re personne et visée à la mire (lot 5) — `VUE1P`, `cameraPremiere`, `ligneDeMire`
