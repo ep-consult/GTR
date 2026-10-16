@@ -13084,6 +13084,80 @@ async function main() {
       });
       if (r.ko.length) fail('Rechargements à la 1re personne : ' + r.ko.join(' ; ')); else ok('Rechargements à la 1re personne : ' + r.info.join(' ; '));
     }
+
+    // -------------------------------------------------------------------
+    // Intervention de la police pendant les vagues (16 octobre, demandé :
+    // « que la police intervienne quand je me fais tirer dessus, pour créer
+    // des fusillades avec les gangs lors des vagues, avec des effets
+    // collatéraux de mes tirs »). La scène est maîtrisée : vague lancée à la
+    // main, ville vidée de ses véhicules et ennemis, joueur invulnérable.
+    // Hors vague : rien. En vague : les tirs du gang appellent une voiture,
+    // elle débarque des agents d'intervention qui visent le gang (jamais le
+    // joueur sans étoile), une vraie fusillade s'ensuit (simulation des vraies
+    // mises à jour) ; une balle perdue du joueur sur un agent fait monter la
+    // recherche ; fin de vague : agents ordinaires.
+    // -------------------------------------------------------------------
+    console.log('\n--- Intervention de la police pendant les vagues : appel, voiture, agents contre le gang, balle perdue ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WANTED.heat = 0; WANTED.stars = 0;
+        let g = 4242; const rnd0 = Math.random; Math.random = () => { g = (g * 1664525 + 1013904223) >>> 0; return g / 4294967296; };
+        for (const e of ennemis) { e.mort = true; if (e.h) scene.remove(e.h.g); } ennemis.length = 0;
+        for (const v of vehicules) { scene.remove(v.mesh); libererEntite(v.mesh); } vehicules.length = 0;
+        P.x = POIS.place.x; P.z = POIS.place.z + 10; P.y = 0;
+        // hors vague : les tirs ne déclenchent rien
+        WAVES.etat = 'repos'; WAVES.t = 1e9; for (let k = 0; k < 10; k++) signalerFusillade(P.x + 10, P.z); majInterventionPolice(1 / 30);
+        if (POLICE_INTER.alerte > 0 || vehicules.some((v) => v.intervention)) ko.push('hors vague, la police est appelée');
+        // en vague : un gang, des tireurs au contact
+        WAVES.etat = 'active'; WAVES.n = 3; WAVES.gang = 'viperes'; WAVES.queue = []; WAVES.spawnT = 1e9; POLICE_INTER.cd = 0; POLICE_INTER.vague = -1;
+        const tireur = POOLS_GANG.viperes.find((ty) => ETYPES[ty] && ETYPES[ty].arme !== 'melee'); /* un tireur du gang, lu dans son vivier */
+        const gang = []; for (let k = 0; k < 4; k++) { const e = creerEnnemi(tireur, P.x + 14 + k * 2, P.z - 4 + k * 3, true); if (e) { e.wave = true; gang.push(e); } }
+        const toasts = []; const tst = toast; toast = (m, c) => { toasts.push(m); return tst(m, c); };
+        // les vrais tirs du gang sur le joueur : majEnnemis tourne jusqu'à l'appel
+        let appel = null; for (let f = 0; f < 30 * 20 && !appel; f++) { majEnnemis(1 / 30); majPools(1 / 30); majInterventionPolice(1 / 30); appel = vehicules.find((v) => v.intervention) || ennemis.find((e) => e.intervention); }
+        if (!appel) ko.push('le gang tire sur le joueur pendant la vague, la police ne vient pas (alerte ' + POLICE_INTER.alerte.toFixed(1) + ')');
+        else if (!toasts.some((m) => /police intervient/.test(m))) ko.push('pas d’annonce de l’intervention');
+        // la voiture roule sans étoile et débarque des agents d'intervention
+        const voit = vehicules.find((v) => v.intervention);
+        if (voit) { if (!voit.sirene) ko.push('voiture sans sirène');
+          let f = 0; for (; f < 30 * 25 && voit.conduit === 'police'; f++) { majVehicules(1 / 30); majInterventionPolice(1 / 30); }
+          if (voit.conduit === 'police') ko.push('la voiture d’intervention ne débarque jamais personne'); else info.push('voiture arrivée et agents débarqués en ' + (f / 30).toFixed(1) + ' s'); }
+        const agents = ennemis.filter((e) => !e.mort && e.intervention);
+        if (agents.length < 2) ko.push('agents d’intervention : ' + agents.length);
+        // ils visent le gang, jamais le joueur sans étoile
+        for (const a of agents) a.cibleT = 0; majEnnemis(1 / 30);
+        const surJoueur = agents.filter((a) => !a.mort && !a.cible && !a.passif);
+        if (surJoueur.length) ko.push(surJoueur.length + ' agent(s) visent le joueur sans étoile');
+        if (!agents.some((a) => a.cible && GANGS.includes(a.cible.fac))) ko.push('aucun agent ne vise le gang (distances ' + agents.map((a) => Math.round(Math.min(...gang.filter((x) => !x.mort).map((x) => Math.hypot(x.x - a.x, x.z - a.z))))).join(',') + ')');
+        // la fusillade : vraies mises à jour, les agents touchent le gang, le gang riposte sur les agents
+        let surGang = 0, surPolice = 0; const tE = toucherEnnemi;
+        toucherEnnemi = function (e, dmg, parJoueur, knock, srcFac) { if (!parJoueur && srcFac === 'police' && GANGS.includes(e.fac)) surGang++; if (!parJoueur && GANGS.includes(srcFac || '') && e.fac === 'police') surPolice++; return tE.apply(this, arguments); };
+        for (let f = 0; f < 30 * 30; f++) { majEnnemis(1 / 30); majPools(1 / 30); majVehicules(1 / 30); majInterventionPolice(1 / 30); if (WANTED.stars > 0) break; }
+        toucherEnnemi = tE;
+        if (!(surGang > 0)) ko.push('aucune balle de la police n’atteint le gang en 30 s');
+        if (!(surPolice > 0)) ko.push('le gang ne riposte jamais sur la police');
+        if (WANTED.stars > 0) ko.push('le joueur est recherché sans avoir rien fait (' + WANTED.stars + ' étoiles)');
+        info.push('fusillade : ' + surGang + ' balles de la police dans le gang, ' + surPolice + ' du gang dans la police');
+        // balle perdue : toucher un agent fait monter la recherche, une fois par demi-seconde
+        const ag = ennemis.find((e) => !e.mort && e.intervention && e.fac === 'police');
+        if (!ag) ko.push('plus d’agent pour la balle perdue'); else {
+          ag.hp = 1e6; const h0 = WANTED.heat; toasts.length = 0;
+          toucherEnnemi(ag, 1, true, 0); toucherEnnemi(ag, 1, true, 0); const h1 = WANTED.heat;
+          if (!(h1 > h0 + 0.2) || h1 > h0 + 0.3) ko.push('balle perdue : chaleur ' + h0.toFixed(2) + ' → ' + h1.toFixed(2) + ' (une seule fois par demi-seconde attendue)');
+          if (!toasts.some((m) => /policier/.test(m))) ko.push('balle perdue : pas d’avertissement');
+          for (let k = 0; k < 4; k++) { ETAT.runT += 0.6; toucherEnnemi(ag, 1, true, 0); }
+          if (!(WANTED.stars >= 1)) ko.push('cinq balles sur un agent : toujours pas recherché (' + WANTED.heat.toFixed(2) + ')');
+          ag.cibleT = 0; majEnnemis(1 / 30); if (!ag.mort && (ag.cible || ag.passif)) { const reste = gang.filter((x) => !x.mort).length; if (!reste) ko.push('recherché, l’agent ne s’occupe pas du joueur'); }
+          info.push('balle perdue : +' + (h1 - h0).toFixed(2) + ' de chaleur, averti ; recherché après ' + 5 + ' balles'); }
+        // fin de vague : agents ordinaires
+        WAVES.etat = 'repos'; majInterventionPolice(1 / 30);
+        if (ennemis.some((e) => e.intervention) || vehicules.some((v) => v.intervention)) ko.push('fin de vague : des agents restent en intervention');
+        toast = tst; Math.random = rnd0; WANTED.heat = 0; WANTED.stars = 0; for (const e of ennemis) e.mort = true; WAVES.etat = 'repos';
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Intervention de la police : ' + r.ko.join(' ; ')); else ok('Intervention de la police : ' + r.info.join(' ; '));
+    }
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];

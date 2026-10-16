@@ -55,7 +55,7 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
   echo "$ln | $(sed -n "$((ln+1))p" index.html | sed 's/^[ \t]*//')"; done
 ```
 
-**Relevé du 18 octobre — 36 041 lignes.**
+**Relevé du 18 octobre — 36 098 lignes.**
 Attention : `maj_carte` recale les numéros dans l'ordre des lignes de la table ;
 un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la main.
 
@@ -89,30 +89,30 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 17690 | VÉHICULES — physique arcade, trafic, dégâts |
 | 20523 | PIÉTONS |
 | 20706 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
-| 21279 | **RAYON TRACTEUR DE L'OVNI** |
-| 21744 | NIVEAU DE RECHERCHE (étoiles) |
-| 22023 | VAGUES + bonus de fin de vague |
-| 22148 | MISSIONS COURTES |
-| 22151 | BÂTIMENTS VISITABLES — intérieurs |
-| 22221 | FOUILLE — mécanique générique |
-| 22769 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
-| 27002 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
-| 27411 | **LAVERIE** V2 — l'essorage de la machine 7 |
-| 27676 | **SERRE** V2 — la nuit de la floraison |
-| 27969 | CINÉ-PALACE |
-| 28213 | MÉTRO ABANDONNÉ |
-| 28279 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
-| 28632 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
-| 29534 | SITE 51 |
-| 29764 | LE DÉPÔT DE BUS — courses clandestines |
-| 31211 | **MÉTIERS** — missions liées à un véhicule |
-| 31502 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
-| 32518 | ÉCRANS / MENUS / BOUTIQUES |
-| 32793 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
-| 33620 | DÉBUT / FIN DE PARTIE |
-| 35153 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
-| 35390 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
-| 35910 | BOUCLE PRINCIPALE |
+| 21285 | **RAYON TRACTEUR DE L'OVNI** |
+| 21750 | NIVEAU DE RECHERCHE (étoiles) |
+| 22079 | VAGUES + bonus de fin de vague |
+| 22204 | MISSIONS COURTES |
+| 22207 | BÂTIMENTS VISITABLES — intérieurs |
+| 22277 | FOUILLE — mécanique générique |
+| 22825 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
+| 27058 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
+| 27467 | **LAVERIE** V2 — l'essorage de la machine 7 |
+| 27732 | **SERRE** V2 — la nuit de la floraison |
+| 28025 | CINÉ-PALACE |
+| 28269 | MÉTRO ABANDONNÉ |
+| 28335 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
+| 28688 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
+| 29590 | SITE 51 |
+| 29820 | LE DÉPÔT DE BUS — courses clandestines |
+| 31267 | **MÉTIERS** — missions liées à un véhicule |
+| 31558 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
+| 32574 | ÉCRANS / MENUS / BOUTIQUES |
+| 32849 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
+| 33676 | DÉBUT / FIN DE PARTIE |
+| 35209 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
+| 35446 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
+| 35966 | BOUCLE PRINCIPALE |
 
 ### Ancres fines (hors bandeaux)
 
@@ -164,21 +164,21 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 19009 | `boutonsAPied()` — boutons du HUD remis « à pied » (sortie de véhicule ET début de partie) |
 | 19930 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
 | 20061 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
-| 22157 | `IOFF = -9000` |
-| 23961 | `INTDEFS` — définitions des **28 salles** (27 + la boutique) |
-| 24346 | `construireSalle(id)` |
+| 22213 | `IOFF = -9000` |
+| 24017 | `INTDEFS` — définitions des **28 salles** (27 + la boutique) |
+| 24402 | `construireSalle(id)` |
 | 20390 | `CHALUTIER_BANCS_PLAN` — chalutier V2 ; `chalutierMaj` (20761), `dessinerRadarChalutier` (21018) |
-| 31220 | `METIERS_CIBLE` |
-| 31520 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
-| 31608 | `PIECES_FAMILLES` — catalogues de pièces par famille |
-| 31918 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
-| 31982 | `libererObjet()` — libère les géométries d'un objet retiré |
-| 31998 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
-| 32122 | `construireGarageTuning()` — la salle partagée |
-| 32492 | `majNitro()` |
+| 31276 | `METIERS_CIBLE` |
+| 31576 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
+| 31664 | `PIECES_FAMILLES` — catalogues de pièces par famille |
+| 31974 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
+| 32038 | `libererObjet()` — libère les géométries d'un objet retiré |
+| 32054 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
+| 32178 | `construireGarageTuning()` — la salle partagée |
+| 32548 | `majNitro()` |
 | 17883 | `degatsChoc()` — dégâts V2 : `bosseler`, débris, `perdreRoue` ; murs : `degagerDesMurs` (plus haut) |
 | 7682 | `SAUTV` — Saut du Vertige : `hauteurSautVertige`, `mkSautVertige`, `mkBargeVertige`, `finSautVertige` |
-| 35568 | `VUE1P` — vue à la 1re personne : `cameraPremiere`, `ligneDeMire`, `viseAuto1P` |
+| 35624 | `VUE1P` — vue à la 1re personne : `cameraPremiere`, `ligneDeMire`, `viseAuto1P` |
 | 9554 | `SPORTJ` — le centre sportif se joue : `sportjDemarrer`, `majSportJ`, `sportjFrapper` |
 | 8980 | `RECHARGE_ARME` — rechargements à la 1re personne : `animRecharge`, `rechPiece`, `rechRemise`, `rechAccessoire` |
 
@@ -2791,6 +2791,37 @@ puis refonte en profondeur de la pire à la meilleure, une salle par commit.
 - Tests : « Garage / Monster Truck », « Hélico du yacht », « Grand yacht »,
   « Sauter d'un bateau », « Circulation », « Police », « Pentes réalistes »,
   « Défis ».
+
+## Police en intervention pendant les vagues (16 octobre) — `POLICE_INTER`, `majInterventionPolice`
+
+Demandé : « depuis la limitation des étoiles il y a moins de police ; que la
+police intervienne quand je me fais tirer dessus, pour créer des fusillades
+avec les gangs lors des vagues ; mes tirs feront aussi des effets
+collatéraux ».
+- **Appel** : chaque tir d'un gangster de la vague sur le joueur (à pied et en
+  moto) appelle `signalerFusillade` (alerte qui décroît de 0,5/s, dernier
+  tireur noté). Au-delà de `INTER_SEUIL`, une voiture de police arrive toutes
+  sirènes, PAR LA RUE (`pointRoutePolice` : chaussée à 35–55 u, hors champ ;
+  posée au hasard, elle naissait face à un mur) — `v.intervention` : elle roule
+  SANS étoile (`majVoiturePolice`) — et
+  débarque deux agents ; renforts toutes les `INTER_DELAI` s tant que ça tire,
+  jamais plus de `INTER_CAP` agents ; voiture bloquée (deux marches arrière sans passer) ou 14 s en route : agents à pied ; la voiture de police (recherche comprise) freine en approchant.
+  Jamais hors vague, en salle, ni pendant une activité.
+- **Agents d'intervention** (`e.intervention`) : sans étoile, ils visent le
+  gangster le plus proche à `INTER_PORTEE` (60 u), jamais le joueur ; sans
+  gangster à portée, ils marchent vers le dernier tireur (ils ne disparaissent
+  pas en route) ; occupés avec un gang, ils n'empêchent pas la recherche de
+  retomber (`copProche`). Le gang riposte (rivaux).
+- **Collatéral** : une balle du joueur sur un policier (tout policier, hors
+  garnison) fait monter la recherche (`toucherEnnemi` : 0,45 brut, une fois
+  par agent et par demi-seconde — la gerbe d'un fusil à pompe compte pour
+  une) ; la première balle perdue sur un agent d'intervention est signalée.
+  Avant, toucher un policier sans le tuer ne coûtait rien.
+- **Fin de vague** : les agents redeviennent des policiers ordinaires.
+- Les policiers passifs qui disparaissent au loin passent désormais par
+  `libererEntite`.
+- Test : « Intervention de la police pendant les vagues » (vraie fusillade
+  simulée : balles de la police dans le gang et riposte).
 
 ## Défis (`DEFIS`, `DEFIS_THEMES`)
 
