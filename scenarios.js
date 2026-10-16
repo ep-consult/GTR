@@ -3438,7 +3438,7 @@ async function main() {
     const bancs = await page.evaluate(() => {
       const ko = [];
       for (let k = 0; k < 15; k++) {
-        const s = __chal.entrer(); __chal.larguer(s);
+        const s = __chal.entrer(); { let g = 777; Math.random = () => { g = (g * 1664525 + 1013904223) >>> 0; return g / 4294967296; }; } /* graine propre posée APRÈS startRun : le pilote tirait sur l'état laissé par les tests précédents (nuit du 16 octobre) */ __chal.larguer(s);
         if (s.bancs.length !== CHALUTIER_BANCS_PLAN.length) ko.push('nombre de bancs ' + s.bancs.length);
         s.bancs.forEach((b, i) => { const d = Math.hypot(b.x, b.z);
           if (chalutierZoneDe(d) !== CHALUTIER_BANCS_PLAN[i].zone) ko.push(b.type + ' hors de sa zone (' + d.toFixed(0) + ')');
@@ -3460,7 +3460,7 @@ async function main() {
     // -------------------------------------------------------------------
     console.log('\n--- Chalutier « Sainte-Odile » : canne — banc, ralenti, touche, ferrage, combat de tension ---');
     const canneBase = await page.evaluate(() => {
-      const s = __chal.entrer(); __chal.larguer(s); s.introT = 0;
+      const s = __chal.entrer(); { let g = 777; Math.random = () => { g = (g * 1664525 + 1013904223) >>> 0; return g / 4294967296; }; } /* graine propre posée APRÈS startRun : le pilote tirait sur l'état laissé par les tests précédents (nuit du 16 octobre) */ __chal.larguer(s); s.introT = 0;
       s.bateau.x = 0; s.bateau.z = -12; s.aQuitteLePort = true;
       for (const bb of s.bancs) bb.x += 5000; // le test maîtrise sa scène : aucun banc à portée
       majAction(); const labelLoin = document.getElementById('btnAction').textContent;
@@ -3521,7 +3521,7 @@ async function main() {
     const combatSim = await page.evaluate(() => {
       const centre = (CHALUTIER_TENSION_BONNE[0] + CHALUTIER_TENSION_BONNE[1]) / 2;
       function combat(strategie, espece) {
-        const s = __chal.entrer(); __chal.larguer(s); __chal.surBanc(s, 'canne'); s.auxCommandes = false;
+        const s = __chal.entrer(); { let g = 777; Math.random = () => { g = (g * 1664525 + 1013904223) >>> 0; return g / 4294967296; }; } /* graine propre posée APRÈS startRun : le pilote tirait sur l'état laissé par les tests précédents (nuit du 16 octobre) */ __chal.larguer(s); __chal.surBanc(s, 'canne'); s.auxCommandes = false;
         s.canneEtat = 'combat'; s.canneEspece = espece || 'maquereau'; s.canneTension = 50; s.canneProgres = 0; s.rush = false; s.rushT = 2;
         const po = CHALUTIER_POISSONS[s.canneEspece], dl = po.tensionEtroite ? 8 : 15;
         let tenant = true, ticks = 0;
@@ -3537,7 +3537,7 @@ async function main() {
         return { gagne, t: Math.round(ticks * 0.05 * 10) / 10 };
       }
       // rush : mouliner pendant un coup de tête recule la prise, lâcher ne coûte rien
-      const s = __chal.entrer(); __chal.larguer(s); s.auxCommandes = false;
+      const s = __chal.entrer(); { let g = 777; Math.random = () => { g = (g * 1664525 + 1013904223) >>> 0; return g / 4294967296; }; } /* graine propre posée APRÈS startRun : le pilote tirait sur l'état laissé par les tests précédents (nuit du 16 octobre) */ __chal.larguer(s); s.auxCommandes = false;
       s.canneEtat = 'combat'; s.canneEspece = 'bar'; s.canneTension = 40; s.canneProgres = 50; s.rush = true; s.rushT = 5;
       INPUT.btn.action = true; majInterieur(0.1, 0.1); const reculEnTirant = s.canneProgres < 50; const tensionEnTirant = s.canneTension;
       s.canneTension = 40; s.canneProgres = 50; INPUT.btn.action = false; majInterieur(0.1, 0.1); const tientEnLachant = s.canneProgres === 50;
@@ -3560,7 +3560,7 @@ async function main() {
     // -------------------------------------------------------------------
     console.log('\n--- Chalutier « Sainte-Odile » : le Vieux Roi (sauts, arrimé contre la tempête) ---');
     const roiTest = await page.evaluate(() => {
-      const s = __chal.entrer(); __chal.larguer(s); const b = __chal.surBanc(s, 'roi'); s.introT = 0;
+      const s = __chal.entrer(); { let g = 777; Math.random = () => { g = (g * 1664525 + 1013904223) >>> 0; return g / 4294967296; }; } /* graine propre posée APRÈS startRun : le pilote tirait sur l'état laissé par les tests précédents (nuit du 16 octobre) */ __chal.larguer(s); const b = __chal.surBanc(s, 'roi'); s.introT = 0;
       const label = __chal.appuyer(); s.canneDelai = 0; majInterieur(0.01, 0.01); chalutierFerrer(s);
       const espece = s.canneEspece; s.rushT = 999; s.canneTension = 50;
       let sauts = 0, vuSaut = false; INPUT.btn.action = false;
@@ -3586,7 +3586,7 @@ async function main() {
     // -------------------------------------------------------------------
     console.log('\n--- Chalutier « Sainte-Odile » : filet — banc de sardines, remplissage au moteur, déchirure ---');
     const filet = await page.evaluate(() => {
-      const s = __chal.entrer(); __chal.larguer(s); s.introT = 0;
+      const s = __chal.entrer(); { let g = 777; Math.random = () => { g = (g * 1664525 + 1013904223) >>> 0; return g / 4294967296; }; } /* graine propre posée APRÈS startRun : le pilote tirait sur l'état laissé par les tests précédents (nuit du 16 octobre) */ __chal.larguer(s); s.introT = 0;
       const b = __chal.surBanc(s, 'filet');
       const label = __chal.appuyer(); const traine = s.filetEtat === 'traine';
       s.bateau.x = b.x; s.bateau.z = b.z; s.bateau.v = 6; s.auxCommandes = false; majInterieur(0.5, 0.5); const dansBanc = s.filetCharge;
@@ -3626,7 +3626,7 @@ async function main() {
 
     console.log('\n--- Chalutier « Sainte-Odile » : la cale (poids, valeur, plafond) et sa vitesse ---');
     const caleTest = await page.evaluate(() => {
-      const s = __chal.entrer(); __chal.larguer(s);
+      const s = __chal.entrer(); { let g = 777; Math.random = () => { g = (g * 1664525 + 1013904223) >>> 0; return g / 4294967296; }; } /* graine propre posée APRÈS startRun : le pilote tirait sur l'état laissé par les tests précédents (nuit du 16 octobre) */ __chal.larguer(s);
       chalutierAjouterCale(s, { nom: 'Test1', valeur: 100, poids: 10 }); chalutierAjouterCale(s, { nom: 'Test2', valeur: 50, poids: 5 });
       const poids = s.calePoids, valeur = s.caleValeur;
       const refusePleine = !chalutierAjouterCale(s, { nom: 'Trop', valeur: 10, poids: CHALUTIER_CALE_MAX });
@@ -3649,7 +3649,7 @@ async function main() {
 
     console.log('\n--- Chalutier « Sainte-Odile » : météo — seuils, perte de cale en tempête ---');
     const meteoTest = await page.evaluate(() => {
-      const s = __chal.entrer(); __chal.larguer(s);
+      const s = __chal.entrer(); { let g = 777; Math.random = () => { g = (g * 1664525 + 1013904223) >>> 0; return g / 4294967296; }; } /* graine propre posée APRÈS startRun : le pilote tirait sur l'état laissé par les tests précédents (nuit du 16 octobre) */ __chal.larguer(s);
       s.bateau.x = 0; s.bateau.z = 0;
       s.meteoJauge = CHALUTIER_METEO_HOULE - 1; majInterieur(0.01, 4); const houle = s.meteoEtat === 'houle';
       s.meteoJauge = CHALUTIER_METEO_TEMPETE - 1; majInterieur(0.01, 4); const tempete = s.meteoEtat === 'tempete';
@@ -3731,7 +3731,7 @@ async function main() {
     console.log('\n--- Chalutier « Sainte-Odile » : pilote simulé — sortie complète au joystick, et sortie ratée ---');
     const pilote = await page.evaluate(() => {
       function sortieComplete() {
-        const s = __chal.entrer(); __chal.larguer(s);
+        const s = __chal.entrer(); { let g = 777; Math.random = () => { g = (g * 1664525 + 1013904223) >>> 0; return g / 4294967296; }; } /* graine propre posée APRÈS startRun : le pilote tirait sur l'état laissé par les tests précédents (nuit du 16 octobre) */ __chal.larguer(s);
         const dt = 1 / 30; let t = 0, roiPris = false, retour = false, peches = 0;
         const vers = (x0, z0, arret) => { let x = x0, z = z0;
           for (const rc of s.recifs) { const ux = x0 - s.bateau.x, uz = z0 - s.bateau.z, L = Math.hypot(ux, uz) || 1, px = rc.x - s.bateau.x, pz = rc.z - s.bateau.z, pr = (px * ux + pz * uz) / L, lat = (px * uz - pz * ux) / L;
@@ -3762,7 +3762,7 @@ async function main() {
       }
       const reussies = []; for (let i = 0; i < 4; i++) reussies.push(sortieComplete());
       // sortie ratée : on largue et on ne fait rien
-      const s = __chal.entrer(); __chal.larguer(s); let t = 0; while (s.sortieEnCours && t < 200) { majInterieur(0.1, 0.1); t += 0.1; }
+      const s = __chal.entrer(); { let g = 777; Math.random = () => { g = (g * 1664525 + 1013904223) >>> 0; return g / 4294967296; }; } /* graine propre posée APRÈS startRun : le pilote tirait sur l'état laissé par les tests précédents (nuit du 16 octobre) */ __chal.larguer(s); let t = 0; while (s.sortieEnCours && t < 200) { majInterieur(0.1, 0.1); t += 0.1; }
       const passif = { t: Math.round(t), vente: s.bilanTotal };
       sortirInterieur();
       return { reussies, passif };
@@ -3792,7 +3792,7 @@ async function main() {
 
     console.log('\n--- Chalutier « Sainte-Odile » : la zone de SORTIE est inerte en pleine mer, l\'abandon passe par un bouton dédié ---');
     const sortieEnMer = await page.evaluate(() => {
-      const s = __chal.entrer(); __chal.larguer(s);
+      const s = __chal.entrer(); { let g = 777; Math.random = () => { g = (g * 1664525 + 1013904223) >>> 0; return g / 4294967296; }; } /* graine propre posée APRÈS startRun : le pilote tirait sur l'état laissé par les tests précédents (nuit du 16 octobre) */ __chal.larguer(s);
       P.x = s.sortie.x; P.z = s.sortie.z; majAction();
       const labelEnMer = document.getElementById('btnAction').textContent; document.getElementById('btnAction')._fn();
       const resteEnMer = !!INT.actif && s.sortieEnCours, cpt = s.sortiesVague;
@@ -3810,7 +3810,7 @@ async function main() {
 
     console.log('\n--- Chalutier « Sainte-Odile » : réinitialisations (vague, mort, game over) ---');
     const resetsChal = await page.evaluate(() => {
-      const s = __chal.entrer(); __chal.larguer(s);
+      const s = __chal.entrer(); { let g = 777; Math.random = () => { g = (g * 1664525 + 1013904223) >>> 0; return g / 4294967296; }; } /* graine propre posée APRÈS startRun : le pilote tirait sur l'état laissé par les tests précédents (nuit du 16 octobre) */ __chal.larguer(s);
       chalutierAjouterCale(s, { nom: 'x', valeur: 100, poids: 10 });
       s.meteoJauge = 50; s.meteoEtat = 'houle'; s.bateau.x = 30; s.bateau.z = -30; s.filetEtat = 'traine';
       WAVES.n++; majInterieur(0, 0);
@@ -3854,7 +3854,7 @@ async function main() {
     // -------------------------------------------------------------------
     console.log('\n--- Horloges séparées : chrono, filet, combat et déplacement du Chalutier suivent tous dtJeu ---');
     const horlogesChal = await page.evaluate(() => {
-      const s = __chal.entrer(); __chal.larguer(s);
+      const s = __chal.entrer(); { let g = 777; Math.random = () => { g = (g * 1664525 + 1013904223) >>> 0; return g / 4294967296; }; } /* graine propre posée APRÈS startRun : le pilote tirait sur l'état laissé par les tests précédents (nuit du 16 octobre) */ __chal.larguer(s);
       const b = __chal.surBanc(s, 'filet'); s.bateau.x = b.x; s.bateau.z = b.z; s.bateau.v = 6; s.auxCommandes = true; INPUT.mx = 0; INPUT.mz = -1; // au moteur dans le banc
       s.filetEtat = 'traine'; s.filetCharge = 0;
       const c0 = s.chrono; majInterieur(0.5, 1); INPUT.mz = 0;
@@ -8544,7 +8544,7 @@ async function main() {
         if (t2.gain !== 0) o.ko.push('taxi en retard payé : ' + JSON.stringify(t2));
         // fragile : un gros choc le fâche (moins de pourboire)
         let f = null; for (let k = 0; k < 12 && !f; k++) { const v = scene0('taxi'); if (MET.taxi.T.id === 'fragile') f = v; }
-        if (f) { const m = MET.taxi; amener(f, m.x, m.z); majMetiers(1 / 30, 1 / 30); const s0 = MET.taxi.sat; f.hp -= 20; majMetiers(1 / 30, 1 / 30); if (!(MET.taxi.sat < s0 - 20)) o.ko.push('client fragile insensible aux chocs (' + s0 + ' → ' + MET.taxi.sat + ')'); }
+        if (f) { const m = MET.taxi; amener(f, m.x, m.z); majMetiers(1 / 30, 1 / 30); const s0 = MET.taxi.sat; f.hp -= 20; majMetiers(1 / 30, 1 / 30); if (!(MET.taxi.sat < s0 - 20)) o.ko.push('client fragile insensible aux chocs (' + s0 + ' → ' + MET.taxi.sat + ')'); } else o.saute = 'client fragile jamais tiré en 12 courses : le choc sur un client fragile n’a pas été vérifié';
         // ambulance : défibrillateur (trop tôt = pénalité, au maximum = choc), puis clinique
         { const v = scene0('ambulance'), m = MET.ambulance; if (!m || MET2.pnj.length < 3) o.ko.push('ambulance : blessé ou témoins absents');
           else { amener(v, m.x, m.z); majMetiers(1 / 30, 1 / 30); if (m.etat !== 'soins') o.ko.push('ambulance : pas de premiers soins à l\'arrêt');
@@ -8569,6 +8569,7 @@ async function main() {
         startRun(); if (P.wingsuit) o.ko.push('wingsuit gardée après une nouvelle partie');
         return o;
       });
+      if (mt.saute) saute('Métiers v2 : ' + mt.saute);
       if (mt.ko.length) fail('Métiers v2 / wingsuit : ' + mt.ko.join(' | '));
       else ok('Métiers v2 / wingsuit : ' + mt.info.join(' ; ') + ' ; taxi en retard non payé, client fragile fâché par les chocs, choc trop tôt pénalisé, le feu s\'étend, palier 3 du taxi');
     }
@@ -9371,7 +9372,7 @@ async function main() {
     {
       const r = await page.evaluate(() => {
         const ko = [], info = [];
-        const entrer = () => { if (INT.actif) sortirInterieur(); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
+        const entrer = () => { if (INT.actif) sortirInterieur(); startRun(); { let g = 4100; Math.random = () => { g = (g * 1664525 + 1013904223) >>> 0; return g / 4294967296; }; } /* graine propre posée APRÈS startRun : le pilote tirait sur l'état laissé par les tests précédents (nuit du 16 octobre) */ ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
           entrerInterieur('aquarium', PORTES.find((x) => x.id === 'aquarium')); ETAT.intT = 0; return INT.actif; };
         const appuyer = () => { majAction(); const b = document.getElementById('btnAction'); const l = b.style.display === 'none' ? '' : b.textContent; if (b._fn && l) b._fn(); return l; };
         const vu = (e) => getComputedStyle(e).display !== 'none';
@@ -9466,7 +9467,7 @@ async function main() {
     {
       const r = await page.evaluate(() => {
         const ko = [], info = [];
-        const entrer = () => { if (INT.actif) sortirInterieur(); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6; META.argent = Math.max(META.argent, 2000);
+        const entrer = () => { if (INT.actif) sortirInterieur(); startRun(); { let g = 4101; Math.random = () => { g = (g * 1664525 + 1013904223) >>> 0; return g / 4294967296; }; } /* graine propre posée APRÈS startRun : le pilote tirait sur l'état laissé par les tests précédents (nuit du 16 octobre) */ ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6; META.argent = Math.max(META.argent, 2000);
           entrerInterieur('laverie', PORTES.find((x) => x.id === 'laverie')); ETAT.intT = 0; return INT.actif; };
         const appuyer = () => { majAction(); const b = document.getElementById('btnAction'); const l = b.style.display === 'none' ? '' : b.textContent; if (b._fn && l) b._fn(); return l; };
         const vu = (e) => getComputedStyle(e).display !== 'none';
@@ -9531,7 +9532,7 @@ async function main() {
     {
       const r = await page.evaluate(() => {
         const ko = [], info = [];
-        const entrer = () => { if (INT.actif) sortirInterieur(); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
+        const entrer = () => { if (INT.actif) sortirInterieur(); startRun(); { let g = 4102; Math.random = () => { g = (g * 1664525 + 1013904223) >>> 0; return g / 4294967296; }; } /* graine propre posée APRÈS startRun : le pilote tirait sur l'état laissé par les tests précédents (nuit du 16 octobre) */ ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
           entrerInterieur('serre', PORTES.find((x) => x.id === 'serre')); ETAT.intT = 0; return INT.actif; };
         const appuyer = () => { majAction(); const b = document.getElementById('btnAction'); const l = b.style.display === 'none' ? '' : b.textContent; if (b._fn && l) b._fn(); return l; };
         const vu = (e) => getComputedStyle(e).display !== 'none';
@@ -9635,7 +9636,7 @@ async function main() {
       const r = await page.evaluate(() => {
         const ko = [], info = [];
         const vu = (e) => getComputedStyle(e).display !== 'none';
-        const entrer = () => { if (INT.actif) sortirInterieur(); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
+        const entrer = () => { if (INT.actif) sortirInterieur(); startRun(); { let g = 4103; Math.random = () => { g = (g * 1664525 + 1013904223) >>> 0; return g / 4294967296; }; } /* graine propre posée APRÈS startRun : le pilote tirait sur l'état laissé par les tests précédents (nuit du 16 octobre) */ ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
           entrerInterieur('radio', PORTES.find((x) => x.id === 'radio') || { x: P.x, z: P.z, nx: 0, nz: 1 }); ETAT.intT = 0; return INT.actif; };
         const lancer = (s) => { P.x = s.console.x; P.z = s.console.z; majAction(); const b = document.getElementById('btnAction'); if (b._fn) b._fn(); };
         let s = entrer(); lancer(s);
@@ -9686,7 +9687,7 @@ async function main() {
       const r = await page.evaluate(() => {
         const ko = [], info = [];
         const vu = (e) => getComputedStyle(e).display !== 'none';
-        const entrer = () => { if (INT.actif) sortirInterieur(); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
+        const entrer = () => { if (INT.actif) sortirInterieur(); startRun(); { let g = 4104; Math.random = () => { g = (g * 1664525 + 1013904223) >>> 0; return g / 4294967296; }; } /* graine propre posée APRÈS startRun : le pilote tirait sur l'état laissé par les tests précédents (nuit du 16 octobre) */ ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
           entrerInterieur('cine', PORTES.find((x) => x.id === 'cine')); ETAT.intT = 0; return INT.actif; };
         const appuyer = () => { majAction(); const b = document.getElementById('btnAction'); const l = b.style.display === 'none' ? '' : b.textContent; if (b._fn && l) b._fn(); return l; };
         let s = entrer(); P.x = s.projecteur.x; P.z = s.projecteur.z + 2.8; appuyer();
