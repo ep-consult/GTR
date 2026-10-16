@@ -11695,7 +11695,7 @@ async function main() {
         if (!figConverti(j0.h)) ko.push('le joueur visé reste sur le terrain'); const bx0 = F.bx, bz0 = F.bz; F.vx = 5; for (let i = 0; i < 10; i++) majSportsParcs(1 / 30); if (F.bx !== bx0) ko.push('le match continue après la panique');
         startRun(); P.x = S.x - D.x - 6; P.z = S.z; if (figConverti(j0.h) || F.score[0] + F.score[1] !== 0) ko.push('match pas repris à la partie suivante'); for (let i = 0; i < 90; i++) majSportsParcs(1 / 30); if (Math.hypot(F.bx - S.x, F.bz - S.z) < 0.01 && F.vx === 0) ko.push('le match ne repart pas');
         // 4. tennis, ping-pong
-        const T = SPORTS.tennis, z0 = T.balle.position.z; for (let i = 0; i < 20; i++) majSportsParcs(1 / 30); if (Math.abs(T.balle.position.z - z0) < 1) ko.push('la balle de tennis ne bouge pas');
+        const T = SPORTS.tennis; let zMin = T.balle.position.z, zMax = zMin; for (let i = 0; i < 20; i++) { majSportsParcs(1 / 30); zMin = Math.min(zMin, T.balle.position.z); zMax = Math.max(zMax, T.balle.position.z); } if (zMax - zMin < 1) ko.push('la balle de tennis ne bouge pas'); /* course de la balle sur 20 images (le net déplacement était nul quand elle faisait demi-tour : 1 échec sur 2 suites) */
         if (SPORTS.pong.length !== 2 || SPORTS.workout.length !== 2) ko.push('complexe incomplet'); else info.push('tennis, 2 tables de ping-pong, street workout');
         META.argent = arg0; sauveMeta(); startRun(); P.hp = P.maxHp = 1e6;
         return { ko, info };
