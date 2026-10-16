@@ -51,9 +51,9 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
 #comboBar{width:90px;height:4px;margin:2px auto 0;background:#0008;border-radius:2px;overflow:hidden}
 #comboFill{display:block;height:100%;background:var(--jaune)}
 #waveLabel{font-size:11px;color:var(--gris);margin-top:2px;font-weight:700;letter-spacing:.08em}
-#missionTxt{position:absolute;top:calc(env(safe-area-inset-top,0px) + 64px);left:50%;transform:translateX(-50%);
+#missionTxt{position:absolute;top:calc(env(safe-area-inset-top,0px) + 64px);left:12px; /* centré, il passait sous la minimap (x ≥ 280) ; à gauche, borné avant elle */
   font-size:12px;font-weight:700;color:var(--jaune);background:#000a;border:1px solid #ffd23f44;
-  padding:4px 12px;border-radius:14px;white-space:nowrap;max-width:88vw;overflow:hidden;text-overflow:ellipsis}
+  padding:4px 12px;border-radius:14px;white-space:nowrap;max-width:calc(100vw - 134px);overflow:hidden;text-overflow:ellipsis}
 #missionArrow{position:absolute;top:calc(env(safe-area-inset-top,0px) + 92px);left:50%;margin-left:-26px;
   width:52px;height:52px;display:none;filter:drop-shadow(0 0 8px #ffd23fcc);animation:gpsPulse 1.5s ease-in-out infinite}
 @keyframes gpsPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
@@ -68,7 +68,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
 #stars{margin-top:2px;font-size:15px;letter-spacing:2px;color:#ffffff2a;text-shadow:0 1px 3px #000}
 #stars .on{color:var(--rouge);text-shadow:0 0 8px #ff3b5c}
 #stars .mil{color:var(--orange);text-shadow:0 0 9px var(--orange)}
-#btnPause{position:absolute;top:calc(env(safe-area-inset-top,0px) + 160px);right:10px;pointer-events:auto; /* 18 octobre : sous la minimap, l'argent et les étoiles (avant : par-dessus) */
+#btnPause{position:absolute;top:calc(env(safe-area-inset-top,0px) + 160px);right:10px;pointer-events:auto;z-index:8; /* au-dessus de l'écran des bornes et de #viseeZone : QUITTER était caché ou inatteignable */ /* 18 octobre : sous la minimap, l'argent et les étoiles (avant : par-dessus) */
   width:36px;height:36px;border-radius:10px;background:#0009;border:1px solid #ffffff2e;color:var(--blanc);
   font-size:15px;font-weight:900;display:flex;align-items:center;justify-content:center}
 /* pendant une partie de borne d'arcade : même bouton, élargi, rôle QUITTER —
@@ -82,7 +82,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
 #bossBar{height:9px;margin-top:2px}
 #bossFill{background:linear-gradient(90deg,#7a1230,var(--rouge));width:100%}
 
-#vehWrap{position:absolute;bottom:calc(env(safe-area-inset-bottom,0px) + 190px);left:50%;transform:translateX(-50%);width:130px;display:none}
+#vehWrap{margin-top:4px;display:none} /* dans #statsBox : au centre-bas, GRENADE et SAUT en cachaient 61 % (nuit du 16 octobre) */
 #vehWrap .lbl{font-size:9px;font-weight:800;letter-spacing:.12em;color:var(--gris);text-align:center;margin-bottom:2px}
 /* garages tuning : jauge de nitro (sous les barres de vie, zone libre au volant —
    placée d'abord près des boutons, elle passait SOUS grenade/sprint, vu en rendu réel)
@@ -123,7 +123,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
 #vehBar{height:8px}
 #vehFill{background:linear-gradient(90deg,#c77a12,var(--orange));width:100%}
 
-#jetWrap{position:absolute;bottom:calc(env(safe-area-inset-bottom,0px) + 190px);left:50%;transform:translateX(-50%);width:130px;display:none}
+#jetWrap{margin-top:4px;display:none}
 #jetWrap .lbl{font-size:9px;font-weight:800;letter-spacing:.12em;color:var(--gris);text-align:center;margin-bottom:2px}
 #jetBar{height:8px}
 #jetFill{background:linear-gradient(90deg,#1a6ac7,#35c8ff);width:100%}
@@ -157,7 +157,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
 /* croix directionnelle des bornes d'arcade : remplace le joystick pendant une
    partie. Chaque bouton a une zone tactile (.croixHit) nettement plus grande
    que sa partie visible (.croixVis), pour un pouce qui ne vise pas au pixel près. */
-#croixWrap{position:absolute;left:14px;bottom:calc(env(safe-area-inset-bottom,0px) + 14px);
+#croixWrap{position:absolute;left:14px;bottom:calc(env(safe-area-inset-bottom,0px) + 14px);z-index:8;
   width:300px;height:216px;display:none;pointer-events:none}
 .croixHit{position:absolute;width:72px;height:72px;display:none;pointer-events:auto;
   touch-action:none;align-items:center;justify-content:center}
@@ -221,7 +221,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
   -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 6px),#000 calc(100% - 5px));
   mask:radial-gradient(farthest-side,transparent calc(100% - 6px),#000 calc(100% - 5px))}
 #btnSwitch{right:20px;bottom:calc(env(safe-area-inset-bottom,0px) + 172px);width:56px;height:56px;font-size:18px}
-#btnViser{right:20px;bottom:calc(env(safe-area-inset-bottom,0px) + 290px);width:60px;height:60px;font-size:22px;border-color:#ff3b5c99} /* vue à la 1re personne : viser à la mire (appui = on vise, nouvel appui = on relâche) */
+#btnViser{right:20px;bottom:calc(env(safe-area-inset-bottom,0px) + 356px);width:60px;height:60px;font-size:22px;border-color:#ff3b5c99} /* vue à la 1re personne : viser à la mire (appui = on vise, nouvel appui = on relâche) */
 #btnViser.on{background:#5a1420e6;border-color:#ff3b5c;box-shadow:0 0 14px #ff3b5c88}
 #btnViser small{font-size:8px;display:block}
 #btnGren{right:170px;bottom:calc(env(safe-area-inset-bottom,0px) + 176px);width:50px;height:50px;font-size:19px}
@@ -236,7 +236,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
 #btnBrake.volA{right:20px;bottom:calc(env(safe-area-inset-bottom,0px) + 172px);width:58px;height:58px;font-size:20px}
 /* Tir par la vitre (voiture, moto) : place du jetpack, libre au volant — FREIN garde la sienne */
 #btnFire.volTir{right:124px;bottom:calc(env(safe-area-inset-bottom,0px) + 248px);width:64px;height:64px;font-size:24px}
-#btnAction{position:absolute;right:14px;bottom:calc(env(safe-area-inset-bottom,0px) + 238px);
+#btnAction{position:absolute;right:14px;bottom:calc(env(safe-area-inset-bottom,0px) + 306px);z-index:8; /* 238 : son bas touchait SAUT et il recouvrait DÉCOLLER (28 px) et le tir au volant (26 px) */
   pointer-events:auto;display:none;padding:9px 15px;border-radius:16px;background:#101625ee;border:1.5px solid var(--cyan);
   color:var(--cyan);font-weight:900;font-size:11.5px;letter-spacing:.05em;box-shadow:0 0 14px #35e0ff44,0 3px 10px #000a;
   max-width:74vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right}
@@ -287,7 +287,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
   letter-spacing:.03em;padding:9px 20px;border-left-color:var(--jaune)}
 
 /* ====== ÉCRANS ====== */
-.screen{position:fixed;inset:0;z-index:10;display:none;flex-direction:column;align-items:center;
+.screen{position:fixed;inset:0;z-index:70; /* au-dessus de tous les panneaux de jeu (établi, boutique, derby, tour : 40 à 60) : la pause et l'écran de mort passaient dessous (nuit du 16 octobre) */display:none;flex-direction:column;align-items:center;
   background:linear-gradient(180deg,#0b0c10f2,#0e1017fa);overflow-y:auto;touch-action:pan-y;
   padding:calc(env(safe-area-inset-top,0px) + 22px) 18px calc(env(safe-area-inset-bottom,0px) + 26px)}
 .screen.on{display:flex}
@@ -301,7 +301,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
 /* pastille « récompense à récupérer » (défis) */
 .pastille{display:none;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 5px;border-radius:10px;
   background:#ff3b3b;color:#fff;font-size:12px;font-weight:900;box-shadow:0 0 10px #ff3b3baa;margin-left:auto;margin-right:8px}
-#pastilleDefis{position:absolute;top:calc(env(safe-area-inset-top,0px) + 184px);right:2px;pointer-events:auto;z-index:3;animation:pastillePulse 1.4s ease-in-out infinite}
+#pastilleDefis{position:absolute;top:calc(env(safe-area-inset-top,0px) + 198px);right:0;pointer-events:auto;z-index:9;animation:pastillePulse 1.4s ease-in-out infinite}
 @keyframes pastillePulse{0%,100%{transform:scale(1)}50%{transform:scale(1.18)}}
 .btnRecup{border:1px solid #7dff7a;background:#123a1c;color:#7dff7a;border-radius:9px;padding:8px 9px;font-weight:900;font-size:12px;white-space:nowrap}
 .btnRecup.x2{border-color:#ffd23f;background:#3a300f;color:#ffd23f;margin-left:5px}
@@ -402,7 +402,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
 #btnPause .icoSvg{width:18px;height:18px}
 /* bouton de vue (VUE) : à gauche de la pause, même gabarit ; allumé en vue immersive */
 /* signalé : « on ne voit pas trop la caméra de changement de vue » : pastille contrastée, mode affiché (3D / 2D) */
-#btnVue{position:absolute;top:calc(env(safe-area-inset-top,0px) + 160px);right:52px;pointer-events:auto;
+#btnVue{position:absolute;top:calc(env(safe-area-inset-top,0px) + 160px);right:52px;pointer-events:auto;z-index:8;
   height:36px;padding:0 10px;border-radius:18px;background:#0b2233ee;border:2px solid #35e0ff;color:#eaf8ff;
   font:900 14px Arial;letter-spacing:.04em;display:flex;align-items:center;gap:5px;box-shadow:0 0 12px #35e0ff66,0 2px 6px #000a}
 #btnVue span{font-size:17px}
@@ -574,6 +574,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
     <div class="barre" id="stBar"><i id="stFill"></i></div>
     <div class="barre" id="shWrap"><i id="shFill"></i></div>
     <div class="barre" id="nitroWrap"><i id="nitroFill"></i></div>
+    <div id="vehWrap"><div class="lbl">VÉHICULE</div><div class="barre" id="vehBar"><i id="vehFill"></i></div></div>
+    <div id="jetWrap"><div class="lbl">CARBURANT</div><div class="barre" id="jetBar"><i id="jetFill"></i></div></div>
   </div>
   <!-- Bonus de fin de vague actifs (P.buffs) : jamais visibles avant, un
        joueur ne pouvait pas voir CE qu'il avait choisi ni combien de temps
@@ -607,8 +609,6 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
 <div id="btnVue" title="Changer de vue"><span>🎥</span><b id="btnVueTxt">3D</b></div>
   <div id="pastilleDefis" class="pastille" title="Récompenses à récupérer"></div>
   <div id="bossWrap"><div id="bossName">CHEF</div><div class="barre" id="bossBar"><i id="bossFill"></i></div></div>
-  <div id="vehWrap"><div class="lbl">VÉHICULE</div><div class="barre" id="vehBar"><i id="vehFill"></i></div></div>
-  <div id="jetWrap"><div class="lbl">CARBURANT</div><div class="barre" id="jetBar"><i id="jetFill"></i></div></div>
   <div id="garageMenu"><div id="gmTete"><b id="gmTitre">GARAGE</b><span id="gmArgent"></span></div>
     <div id="gmZone"><div id="gmCorps"></div><div class="gmFondu" id="gmFonduH"></div><div class="gmFondu" id="gmFonduB"></div>
       <div id="gmRail"><div id="gmPouce"></div></div></div><div id="gmFermer">FERMER</div></div>
@@ -21944,14 +21944,15 @@ const BONUS_DEFS=[
   }}
 ];
 function ouvrirBonus(){
-  ETAT.mode='bonus';
+  ETAT.mode='bonus'; ETAT.bonusT0=performance.now();
   const choix=[]; const dispo=[...BONUS_DEFS];
   while(choix.length<3&&dispo.length) choix.push(dispo.splice(randi(0,dispo.length-1),1)[0]);
   el('bonusCards').innerHTML='';
   choix.forEach(b=>{
     const c=document.createElement('div'); c.className='bcard';
     c.innerHTML=b.t+'<small>'+b.d+'</small>';
-    c.addEventListener('pointerdown',()=>{
+    c.addEventListener('pointerup',()=>{ /* au relâcher et jamais dans les 400 premières ms : un toucher en plein combat choisissait une carte au hasard (nuit du 16 octobre) */
+      if(performance.now()-(ETAT.bonusT0||0)<400||ETAT.mode!=='bonus') return;
       try{ b.f(); }catch(e){ console.error('Carte de bonus : '+(e&&e.message||e)); } /* quoi qu'il arrive, l'écran se ferme : une exception ici figeait le jeu en mode bonus */
       SFX.achat();
       ecran(null); ETAT.mode='jeu';
@@ -35403,7 +35404,7 @@ function mirePremiere(){ const V=VUE1P;
       '<div style="position:absolute;left:-1.5px;top:-1.5px;width:3px;height:3px;border-radius:2px;background:#ff3b3b;box-shadow:0 0 2px #000"></div>'+
       '<div class="mx" style="position:absolute;left:-9px;top:-9px;width:18px;height:18px;opacity:0;font:900 18px/18px Arial;color:#fff;text-align:center;text-shadow:0 0 3px #f33">✕</div>';
     document.body.appendChild(m); V.mire=m; V.mire._q={t:m.querySelector('.mt'),b:m.querySelector('.mb'),l:m.querySelector('.ml'),r:m.querySelector('.mr'),x:m.querySelector('.mx')}; }
-  if(!V.lunette){ const l=document.createElement('div'); l.id='lunette1P'; l.style.cssText='position:fixed;inset:0;z-index:33;pointer-events:none;display:none;background:radial-gradient(circle at 50% 50%,transparent 0,transparent 36vmin,#000 37vmin)';
+  if(!V.lunette){ const l=document.createElement('div'); l.id='lunette1P'; l.style.cssText='position:fixed;inset:0;z-index:4;pointer-events:none;display:none;background:radial-gradient(circle at 50% 50%,transparent 0,transparent 36vmin,#000 37vmin)';
     l.innerHTML='<div style="position:absolute;left:50%;top:0;bottom:0;width:1.5px;margin-left:-0.75px;background:#000c"></div><div style="position:absolute;top:50%;left:0;right:0;height:1.5px;margin-top:-0.75px;background:#000c"></div><div style="position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px;border-radius:3px;background:#ff2020"></div>';
     document.body.appendChild(l); V.lunette=l; } }
 function majMirePremiere(st){ const V=VUE1P, q=V.mire&&V.mire._q; if(!q) return;

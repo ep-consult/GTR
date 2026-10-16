@@ -12772,7 +12772,7 @@ async function main() {
         // 2. carte « Poche à grenades » au volant : l'écran de bonus se ferme
         ouvrirBonus(); const cartes = [...el('bonusCards').children]; let carte = null; for (let i = 0; i < cartes.length; i++) if (cartes[i].textContent.startsWith('Poche à grenades')) carte = cartes[i];
         if (!carte) { /* la carte n'est pas tirée : on l'ajoute à la main par la même fonction */ const b = BONUS_DEFS.find((x) => x.t === 'Poche à grenades'); let exc2 = null; try { b.f(); } catch (e) { exc2 = e; } if (exc2) ko.push('carte Poche à grenades au volant : ' + exc2.message); ecran(null); ETAT.mode = 'jeu'; }
-        else { carte.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); if (ETAT.mode !== 'jeu') ko.push('écran de bonus figé après la carte Poche à grenades (mode ' + ETAT.mode + ')'); else info.push('carte Poche à grenades au volant : écran fermé'); }
+        else { ETAT.bonusT0 = performance.now() - 1000; carte.dispatchEvent(new PointerEvent('pointerup', { bubbles: true })); if (ETAT.mode !== 'jeu') ko.push('écran de bonus figé après la carte Poche à grenades (mode ' + ETAT.mode + ')'); else info.push('carte Poche à grenades au volant : écran fermé'); }
         sortirVehicule(true); P.grenades = 3;
         // 3. fusionMeta et null, dans les deux sens
         const cible = { stats: { parties: 2 }, garage: null, argent: 10 }; fusionMeta(cible, { stats: null, garage: 'sport', argent: null });
@@ -12867,6 +12867,42 @@ async function main() {
         META.argent = a0; return { ko, info };
       });
       if (bp.ko.length) fail('Boucle et paiements : ' + bp.ko.join(' ; ')); else ok('Boucle et paiements : ' + bp.info.join(' ; '));
+    }
+
+    console.log('\n--- HUD en portrait (nuit du 16 octobre) : écrans au-dessus des panneaux, boutons au-dessus des bornes, jauges dans la colonne, bouton d’action, lunette, cartes de bonus ---');
+    {
+      const hp = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); META.vue = 'classique'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6; for (const e of ennemis) e.mort = true; WANTED.heat = 0;
+        const z = (el0) => parseInt(getComputedStyle(el0).zIndex) || 0, R = (id) => el(id).getBoundingClientRect(), inter = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+        // écrans au-dessus des panneaux rattachés à body (z-index 40 à 60)
+        const zScreen = z(el('pauseM')); let zMax = 0; for (const d of document.body.children) { if (d.classList.contains('screen') || d.id === 'hud' || d.id === 'errBox') continue; zMax = Math.max(zMax, z(d)); }
+        if (zScreen <= zMax) ko.push('écrans (z ' + zScreen + ') sous un panneau (z ' + zMax + ')'); else info.push('écrans z ' + zScreen + ' > panneaux ' + zMax);
+        // QUITTER / Vue / croix / action au-dessus de l'écran des bornes (z 7) et de la zone de visée
+        for (const id of ['btnPause', 'btnVue', 'croixWrap', 'btnAction']) if (z(el(id)) < 8) ko.push(id + ' : z-index ' + z(el(id)) + ' (< 8, caché par l’écran des bornes)');
+        if (z(el('btnPause')) <= z(el('viseeZone'))) ko.push('QUITTER sous #viseeZone');
+        // jauges du véhicule et du carburant dans la colonne des jauges
+        for (const id of ['vehWrap', 'jetWrap']) if (el(id).parentElement.id !== 'statsBox') ko.push(id + ' hors de #statsBox');
+        // bouton d'action : jamais sur DÉCOLLER ni sur le tir au volant, jamais collé à SAUT
+        el('btnAction').style.display = 'block'; labelAction(el('btnAction'), '🔧 ENTRER AU GARAGE — RÉPARER (60 $)'); el('btnJetpack').style.display = 'flex';
+        const rA = R('btnAction'), rJ = R('btnJetpack'), rS = R('btnSpec'); el('btnJetpack').style.display = '';
+        if (inter(rA, rJ)) ko.push('bouton d’action sur DÉCOLLER (' + Math.round(rA.bottom - rJ.top) + ' px)'); if (rA.bottom > rS.top - 2) ko.push('bouton d’action collé à SAUT');
+        if (!ko.length) info.push('bouton d’action à ' + Math.round(rJ.top - rA.bottom) + ' px de DÉCOLLER');
+        // pastille des défis : jamais sur Pause
+        el('pastilleDefis').style.display = 'flex'; const rP = R('pastilleDefis'), rPa = R('btnPause'); el('pastilleDefis').style.display = '';
+        if (inter(rP, rPa)) ko.push('pastille des défis sur le bouton Pause');
+        // lunette sous le HUD
+        if (typeof mirePremiere === 'function') { mirePremiere(); const l = el('lunette1P'); if (l && z(l) >= z(el('hud'))) ko.push('lunette (z ' + z(l) + ') au-dessus du HUD (z ' + z(el('hud')) + ')'); }
+        // cartes de bonus : un toucher immédiat ne choisit rien, un relâcher après 400 ms oui
+        ouvrirBonus(); const c0 = el('bonusCards').children[0]; c0.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); c0.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+        if (ETAT.mode !== 'bonus') ko.push('carte de bonus choisie par un toucher immédiat'); ETAT.bonusT0 = performance.now() - 1000; c0.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+        if (ETAT.mode !== 'jeu') { ko.push('carte de bonus non choisie au relâcher après 400 ms'); ecran(null); ETAT.mode = 'jeu'; } else info.push('cartes de bonus : relâcher après 400 ms seulement');
+        WAVES.etat = 'repos'; WAVES.t = WAVES_REPOS;
+        // texte de mission jamais sous la minimap
+        hudD('missionTxt', 'block'); hudT('missionTxt', '◈ Neutralise 12 membres de gangs dans le quartier du port avant la nuit'); const rT = R('missionTxt'), rM = R('miniWrap'); if (inter(rT, rM)) ko.push('texte de mission sous la minimap'); else info.push('texte de mission à ' + Math.round(rM.left - rT.right) + ' px de la minimap');
+        return { ko, info };
+      });
+      if (hp.ko.length) fail('HUD portrait : ' + hp.ko.join(' ; ')); else ok('HUD portrait : ' + hp.info.join(' ; '));
     }
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
