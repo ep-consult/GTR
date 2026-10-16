@@ -889,15 +889,17 @@ window.__threeOk = typeof THREE !== 'undefined';
 </script>
 <script id="gamejs">
 // affiche à l'écran le détail de toute erreur, pour pouvoir la corriger précisément
-window.addEventListener('error',function(ev){
+function signalerErreur(msg){ /* la boîte n'existait pas dans le HTML : toute erreur était muette sur l'appareil (nuit du 16 octobre) */
   try{
-    const d=document.getElementById('errBox');
-    if(!d) return;
-    const msg=(ev.message||'?')+' @'+(ev.lineno||'?')+':'+(ev.colno||'?');
+    let d=document.getElementById('errBox');
+    if(!d){ d=document.createElement('div'); d.id='errBox'; d.style.cssText='position:fixed;left:8px;right:8px;bottom:calc(env(safe-area-inset-bottom,0px) + 8px);z-index:99;background:rgba(60,8,8,.86);color:#ffe9b0;font:12px/1.35 monospace;padding:6px 8px;border-radius:6px;pointer-events:none;white-space:pre-wrap;word-break:break-word;display:none'; document.body.appendChild(d); }
+    window.__nbErreurs=(window.__nbErreurs||0)+1;
     d.style.display='block';
-    d.textContent='⚠ '+msg;
+    d.textContent='⚠ '+msg+(window.__nbErreurs>1?'  (×'+window.__nbErreurs+')':'');
   }catch(e){}
-});
+}
+window.addEventListener('error',function(ev){ signalerErreur((ev.message||'?')+' @'+(ev.lineno||'?')+':'+(ev.colno||'?')); });
+window.addEventListener('unhandledrejection',function(ev){ const r=ev&&ev.reason; signalerErreur('promesse : '+(r&&r.message||r||'?')); });
 if(typeof THREE==='undefined'){
   document.body.innerHTML='<div style="color:#ff5a3a;font:bold 22px Arial;text-align:center;padding:40px">Chargement du moteur 3D...<br><small>Vérifie ta connexion et recharge la page</small></div>';
   throw new Error('THREE.js non chargé');
@@ -1043,8 +1045,13 @@ function audioInit(){
   AUDIO.pret=true;
   musiqueStart();
 }
+/* iOS suspend ou interrompt le contexte audio (appel, verrouillage, geste incomplet) et ne le relance jamais seul :
+   on le reprend sur chaque geste fini et au retour au premier plan (nuit du 16 octobre) */
+function audioReprendre(){ try{ if(AUDIO.ctx&&AUDIO.ctx.state!=='running'&&AUDIO.ctx.resume){ const p=AUDIO.ctx.resume(); if(p&&p.catch) p.catch(()=>{}); } }catch(e){} }
+window.addEventListener('pointerup',audioReprendre);
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) audioReprendre(); });
 function beep(f,dur,type,vol,slide,dest){
-  if(!AUDIO.pret) return;
+  if(!AUDIO.pret||!isFinite(f)||!isFinite(dur)) return; /* un NaN dans un paramètre WebAudio lève une exception dans le tick */
   const ctx=AUDIO.ctx,t=ctx.currentTime;
   const o=ctx.createOscillator(),g=ctx.createGain();
   o.type=type||'square'; o.frequency.setValueAtTime(f,t);
@@ -1053,7 +1060,7 @@ function beep(f,dur,type,vol,slide,dest){
   o.connect(g); g.connect(dest||AUDIO.sfxG); o.start(t); o.stop(t+dur+0.02);
 }
 function bruit(dur,vol,freq,type,dest){
-  if(!AUDIO.pret) return;
+  if(!AUDIO.pret||!isFinite(dur)) return;
   const ctx=AUDIO.ctx,t=ctx.currentTime;
   const s=ctx.createBufferSource(); s.buffer=AUDIO.noise;
   const f=ctx.createBiquadFilter(); f.type=type||'lowpass'; f.frequency.value=freq||900;
@@ -1107,6 +1114,7 @@ const SFX={
   // coup sec), un choc frontal à pleine vitesse est spectaculaire (plus
   // long, plus fort, plus grave, avec un « thud » distinct) — viol 0..1,4.
   choc(viol){
+    if(!isFinite(viol)) return; /* clamp(NaN) reste NaN : les collisions lui passent une violence calculée */
     const v=clamp(viol,0,1.4);
     bruit(0.06+0.16*v,0.2+0.5*v,850-450*v,'lowpass');
     bruit(0.03+0.05*v,0.12+0.28*v,2600,'highpass');
@@ -2121,6 +2129,8 @@ function fusionMeta(cible,src){
     if(DICOS_OUVERTS.has(k)){ if(src[k]&&typeof src[k]==='object'&&!Array.isArray(src[k])) cible[k]=Object.assign({},cible[k],src[k]); continue; }
     if(!(k in cible)) continue;
     const a=cible[k], b=src[k];
+    if(b===null||b===undefined) continue; /* typeof null === 'object' : une sauvegarde {stats:null} remplaçait META.stats et startRun plantait */
+    if(a===null){ if(typeof b!=='object') cible[k]=b; continue; } /* valeur par défaut null (META.garage) : la chaîne sauvegardée n'était jamais relue, la migration de l'ancien achat ne voyait rien */
     if(Array.isArray(a)){ if(Array.isArray(b)) cible[k]=b.slice(); }
     else if(a&&b&&typeof a==='object'&&typeof b==='object') fusionMeta(a,b);
     else if(typeof a===typeof b) cible[k]=b;
@@ -2128,15 +2138,19 @@ function fusionMeta(cible,src){
 }
 let sauveT=0;
 function sauveMeta(){
-  try{ localStorage.setItem(SAVE_KEY,JSON.stringify(META)); sauveT=0; }catch(e){}
+  sauveT=0; /* AVANT l'essai : en cas d'échec (quota, stockage désactivé), la boucle retentait JSON.stringify(META) à chaque image (nuit du 16 octobre) */
+  try{ localStorage.setItem(SAVE_KEY,JSON.stringify(META)); sauveMeta.echecs=0; }
+  catch(e){ sauveMeta.echecs=(sauveMeta.echecs||0)+1; if(sauveMeta.echecs===1&&typeof toast==='function') toast('⚠ Sauvegarde impossible (stockage plein ou désactivé)','warn'); }
 }
 function chargerMeta(){
+  let raw=null;
   try{
-    const raw=localStorage.getItem(SAVE_KEY);
+    raw=localStorage.getItem(SAVE_KEY);
     if(!raw) return;
     const d=JSON.parse(raw);
     if(d&&typeof d==='object') fusionMeta(META,d);
-  }catch(e){ /* sauvegarde illisible : on repart proprement des valeurs par défaut */ }
+  }catch(e){ /* sauvegarde illisible : on repart des valeurs par défaut, mais la chaîne brute est gardée (l'autosauvegarde l'aurait écrasée 15 s plus tard) */
+    try{ if(raw) localStorage.setItem(SAVE_KEY+'_bak',raw); }catch(e2){} signalerErreur('sauvegarde illisible, copie gardée dans '+SAVE_KEY+'_bak'); }
 }
 function effacerSauvegarde(){
   try{ localStorage.removeItem(SAVE_KEY); }catch(e){}
@@ -2915,7 +2929,11 @@ function nbFac(fac){let n=0;for(const e of ennemis)if(!e.mort&&e.fac===fac)n++;r
    THREE.JS — rendu
 ===================================================================== */
 const conteneur=el('game');
-const renderer=new THREE.WebGLRenderer({antialias:false,powerPreference:'high-performance'});
+let renderer=null;
+try{ renderer=new THREE.WebGLRenderer({antialias:false,powerPreference:'high-performance'}); }
+catch(e){ document.body.innerHTML='<div style="color:#ff5a3a;font:bold 22px Arial;text-align:center;padding:40px">Impossible de démarrer le rendu 3D (WebGL)<br><small>Ferme les autres onglets, puis recharge la page</small></div>'; throw e; }
+renderer.domElement.addEventListener('webglcontextlost',(e)=>{ e.preventDefault(); if(typeof ETAT!=='undefined'&&ETAT.mode==='jeu'&&typeof togglePause==='function') togglePause(); signalerErreur('rendu 3D interrompu (contexte WebGL perdu) — reprise automatique'); });
+renderer.domElement.addEventListener('webglcontextrestored',()=>{ const d=document.getElementById('errBox'); if(d) d.style.display='none'; });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,q().px+0.5));
 renderer.setSize(window.innerWidth,window.innerHeight);
 conteneur.appendChild(renderer.domElement);
@@ -16601,7 +16619,7 @@ function ramasser(p){
     const id=(ARMES[P.armeCur].type==='gun')?P.armeCur:'pistolet';
     if(META.armes[id].poss&&!ARMES[id].pasRecharge){P.mun[id]=(P.mun[id]||0)+Math.round(armeStats(id).mag*1.5);
       spawnTexte(P.x,2.4,P.z,'MUNITIONS','#ffd23f');}
-    if(Math.random()<0.5&&P.grenades<5){P.grenades++;el('grenN').textContent=P.grenades;}
+    if(Math.random()<0.5&&P.grenades<5){P.grenades++; const gn=el('grenN'); if(gn) gn.textContent=P.grenades;} /* au volant, #btnGren est réécrit sans #grenN : une moto qui roulait sur des munitions levait une exception (nuit du 16 octobre) */
     SFX.ramasse();
   } else if(p.type==='gilet'){
     P.bouclier=Math.min(60,P.bouclier+30);
@@ -21909,7 +21927,7 @@ const BONUS_DEFS=[
   {t:'Poumons d’acier',d:'Le sprint ne coûte plus d’endurance pendant 30 s',f:()=>P.buffs.sprintLibre=30},
   {t:'Vengeance',d:'Chaque ennemi vaincu te rend 3 PV pendant 40 s',f:()=>P.buffs.vol=40},
   {t:'Rafale nerveuse',d:'Cadence de tir +25 % pendant 30 s',f:()=>P.buffs.cadence=30},
-  {t:'Poche à grenades',d:'+2 grenades tout de suite',f:()=>{P.grenades=Math.min(5,P.grenades+2);el('grenN').textContent=P.grenades;}},
+  {t:'Poche à grenades',d:'+2 grenades tout de suite',f:()=>{P.grenades=Math.min(5,P.grenades+2); const gn=el('grenN'); if(gn) gn.textContent=P.grenades;}},
   // Grossit avec la vague atteinte — demandé explicitement : « créer une
   // histoire par le biais des vagues ». Reste pertinent en vague 3 comme en
   // vague 20, jamais dérisoire ni cassé (contrairement à un montant fixe).
@@ -21927,7 +21945,8 @@ function ouvrirBonus(){
     const c=document.createElement('div'); c.className='bcard';
     c.innerHTML=b.t+'<small>'+b.d+'</small>';
     c.addEventListener('pointerdown',()=>{
-      b.f(); SFX.achat();
+      try{ b.f(); }catch(e){ console.error('Carte de bonus : '+(e&&e.message||e)); } /* quoi qu'il arrive, l'écran se ferme : une exception ici figeait le jeu en mode bonus */
+      SFX.achat();
       ecran(null); ETAT.mode='jeu';
       WAVES.etat='repos'; WAVES.t=WAVES_REPOS;
     });
@@ -35670,9 +35689,17 @@ appliqueQualite(); majMenuStats();
 el('missionTxt').style.display='none';
 
 let dernierT=performance.now(), mmFrame=0, perfAcc=0, perfN=0, perfT=0;
+/* Filet de la boucle (nuit du 16 octobre) : une exception dans le tick sautait le rendu de l'image ; répétée, elle
+   figeait l'écran sans aucun message. Le tick est protégé, le rendu a toujours lieu, l'erreur est affichée
+   (#errBox) et comptée (ETAT.erreursTick) — et reste remontée par console.error pour les tests. */
 function boucle(t){
   requestAnimationFrame(boucle);
-  let dtReel=Math.min(0.05,(t-dernierT)/1000);
+  try{ tick(t); }
+  catch(e){ ETAT.erreursTick=(ETAT.erreursTick||0)+1; if(ETAT.erreursTick<=3||ETAT.erreursTick%300===0) console.error('Erreur dans la boucle : '+(e&&e.stack||e)); signalerErreur('boucle : '+(e&&e.message||e)); }
+  try{ renderer.render(scene,camera); }catch(e){ ETAT.erreursTick=(ETAT.erreursTick||0)+1; if(ETAT.erreursTick<=3) console.error('Erreur de rendu : '+(e&&e.message||e)); }
+}
+function tick(t){
+  let dtReel=Math.max(0,Math.min(0.05,(t-dernierT)/1000));
   dernierT=t;
   litEntrees();
   const actif=(ETAT.mode==='jeu'||ETAT.mode==='mort');
@@ -35775,7 +35802,6 @@ function boucle(t){
       scene.fog.far=Math.max(70,scene.fog.far-15);
     }
   }
-  renderer.render(scene,camera);
 }
 requestAnimationFrame(boucle);
 </script>

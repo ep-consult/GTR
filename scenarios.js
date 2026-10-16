@@ -195,7 +195,7 @@ async function main() {
 
   const erreursPage = [];
   page.on('pageerror', (e) => erreursPage.push('pageerror: ' + (e && e.message || e)));
-  page.on('console', (msg) => { if (msg.type() === 'error') erreursPage.push('console.error: ' + msg.text()); });
+  page.on('console', (msg) => { if (msg.type() === 'error' && !msg.text().includes('[test tick]')) erreursPage.push('console.error: ' + msg.text()); }); /* [test tick] : l'erreur que le test du filet de la boucle provoque exprès */
   page.on('requestfailed', (req) => {
     if (!req.url().startsWith('http://127.0.0.1')) return; // ressources externes non pertinentes (aucune attendue)
     erreursPage.push('requestfailed: ' + req.url() + ' — ' + (req.failure() && req.failure().errorText));
@@ -12756,6 +12756,50 @@ async function main() {
     // première sans erreur (bug trouvé ainsi : texAffiche des salles écrasait celle des affiches de la ville et
     // décalait les tirages — une porte avait changé de façade).
     // -------------------------------------------------------------------
+
+    console.log('\n--- Robustesse (nuit du 16 octobre) : grenN au volant, carte de bonus, filet de la boucle, errBox, sauvegarde, fusionMeta et null ---');
+    {
+      const rb = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); META.vue = 'classique'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6; for (const e of ennemis) e.mort = true; WANTED.heat = 0;
+        for (const v of vehicules) { scene.remove(v.mesh); libererEntite(v.mesh); } vehicules.length = 0;
+        // 1. munitions ramassées au guidon d'une moto cross : #grenN n'existe plus
+        const m = creerVehicule('motocross', P.x + 2, P.z, 0); entrerVehicule(m); if (!P.veh) ko.push('pas monté sur la moto');
+        if (el('grenN')) ko.push('le test suppose #grenN absent au volant (HUD changé ?)');
+        P.grenades = 3; const nPick0 = pickups.length; const rnd0 = Math.random; Math.random = () => 0.1; /* < 0,5 : la branche grenade est prise */
+        let exc = null; try { creerPickup('mun', P.x, P.z); for (let i = 0; i < 30; i++) majPickups(1 / 30); } catch (e) { exc = e; } Math.random = rnd0;
+        if (exc) ko.push('ramasser des munitions au volant lève : ' + exc.message); else if (!(P.grenades === 4)) ko.push('grenade non créditée au volant (' + P.grenades + ')'); else info.push('munitions au volant : +1 grenade sans exception');
+        // 2. carte « Poche à grenades » au volant : l'écran de bonus se ferme
+        ouvrirBonus(); const cartes = [...el('bonusCards').children]; let carte = null; for (let i = 0; i < cartes.length; i++) if (cartes[i].textContent.startsWith('Poche à grenades')) carte = cartes[i];
+        if (!carte) { /* la carte n'est pas tirée : on l'ajoute à la main par la même fonction */ const b = BONUS_DEFS.find((x) => x.t === 'Poche à grenades'); let exc2 = null; try { b.f(); } catch (e) { exc2 = e; } if (exc2) ko.push('carte Poche à grenades au volant : ' + exc2.message); ecran(null); ETAT.mode = 'jeu'; }
+        else { carte.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); if (ETAT.mode !== 'jeu') ko.push('écran de bonus figé après la carte Poche à grenades (mode ' + ETAT.mode + ')'); else info.push('carte Poche à grenades au volant : écran fermé'); }
+        sortirVehicule(true); P.grenades = 3;
+        // 3. fusionMeta et null, dans les deux sens
+        const cible = { stats: { parties: 2 }, garage: null, argent: 10 }; fusionMeta(cible, { stats: null, garage: 'sport', argent: null });
+        if (cible.stats === null || cible.stats.parties !== 2) ko.push('fusionMeta : {stats:null} a remplacé l’objet'); if (cible.garage !== 'sport') ko.push('fusionMeta : la chaîne sauvegardée sur un défaut null n’est pas reprise (' + cible.garage + ')'); if (cible.argent !== 10) ko.push('fusionMeta : argent:null repris');
+        // 4. sauvegarde en échec : pas de tempête
+        const setItem0 = localStorage.setItem; let nSet = 0; localStorage.setItem = function () { nSet++; throw new Error('QuotaExceededError (test)'); };
+        sauveMeta(); const sT = sauveT; for (let i = 0; i < 120; i++) { sauveT += 1 / 60; if (sauveT > 15) sauveMeta(); } localStorage.setItem = setItem0;
+        if (nSet !== 1 || sT !== 0) ko.push('sauvegarde en échec : ' + nSet + ' tentative(s) en 2 s simulées (sauveT ' + sT + ')'); else info.push('sauvegarde en échec : une seule tentative par 15 s');
+        // 5. sauvegarde illisible : copie de secours
+        const brut = localStorage.getItem(SAVE_KEY) || JSON.stringify(META); localStorage.removeItem(SAVE_KEY + '_bak'); localStorage.setItem(SAVE_KEY, brut.slice(0, Math.max(10, brut.length - 40)));
+        const avantArgent = META.argent; chargerMeta(); const bak = localStorage.getItem(SAVE_KEY + '_bak'); localStorage.setItem(SAVE_KEY, brut); META.argent = avantArgent;
+        if (!bak || !bak.startsWith(brut.slice(0, 10))) ko.push('sauvegarde illisible : aucune copie de secours'); else info.push('sauvegarde illisible : copie gardée');
+        // 6. errBox créé à la volée par le gestionnaire d'erreurs
+        const eb0 = el('errBox'); if (eb0) eb0.remove(); signalerErreur('essai [test tick]'); const eb = el('errBox');
+        if (!eb || eb.style.display === 'none' || !eb.textContent.includes('essai')) ko.push('#errBox absent ou vide après une erreur'); else { eb.style.display = 'none'; info.push('#errBox créé et rempli'); }
+        return { ko, info };
+      });
+      // 7. filet de la boucle : une exception à chaque tick ne fige pas le rendu
+      const filet = await page.evaluate(() => { window.__majDebrisOrig = majDebris; majDebris = () => { throw new Error('[test tick] boum'); }; ETAT.erreursTick = 0; return renderer.info.render.frame; });
+      await new Promise((r) => setTimeout(r, 1500)); /* le headless rend ~5 images par seconde quand chaque tick lève */
+      const filet2 = await page.evaluate(() => { const f = renderer.info.render.frame, n = ETAT.erreursTick; majDebris = window.__majDebrisOrig; const eb = el('errBox'); const vu = !!(eb && eb.style.display !== 'none' && eb.textContent.includes('boum')); if (eb) eb.style.display = 'none'; ETAT.erreursTick = 0; return { f, n, vu }; });
+      if (!(filet2.f > filet + 2)) rb.ko.push('filet de la boucle : le rendu s’est arrêté (' + filet + ' → ' + filet2.f + ' images)');
+      if (!(filet2.n >= 2)) rb.ko.push('filet de la boucle : erreurs non comptées (' + filet2.n + ')');
+      if (!filet2.vu) rb.ko.push('filet de la boucle : erreur non affichée dans #errBox');
+      if (rb.ko.length) fail('Robustesse : ' + rb.ko.join(' ; '));
+      else ok('Robustesse : ' + rb.info.join(' ; ') + ' ; filet de la boucle : ' + (filet2.f - filet) + ' images rendues malgré ' + filet2.n + ' exceptions, erreur affichée');
+    }
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];
