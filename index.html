@@ -8963,7 +8963,7 @@ function fpsDemarrer(cfg){
 function fpsHud(){ const C=FPS.actif; if(!C||!FPS.el) return; const s=Math.max(0,Math.ceil(FPS.t));
   FPS.el.innerHTML=(C.nom||'🎯')+' — <span style="color:#ffd23f">'+FPS.score+'</span> pts'+(FPS.combo>1?' <span style="color:#7dff7a">×'+FPS.combo+'</span>':'')+' — '+Math.floor(s/60)+':'+String(s%60).padStart(2,'0')+
     '<div style="font:700 13px Arial;opacity:0.9">'+(FPS.rechT>0?'⏳ rechargement…':'🔫 '+FPS.mun+'/'+(FPS.st.mag||1))+(C.aide?' — '+C.aide:'')+'</div>'; }
-function fpsArreter(){ const C=FPS.actif; if(!C) return; FPS.actif=null;
+function fpsArreter(){ const C=FPS.actif; if(!C) return; FPS.actif=null; BT.partie=false;
   for(const c of FPS.cibles) if(c.m){ scene.remove(c.m); libererEntite(c.m); } FPS.cibles.length=0;
   for(const t of FPS.traces) scene.remove(t.m); FPS.traces.length=0;
   if(FPS.montage){ scene.remove(FPS.montage.R); libererEntite(FPS.montage.R); FPS.montage=null; }
@@ -33509,6 +33509,9 @@ function ameliorerTexturesSol(){
   scene.traverse((o)=>{ if(!o.isMesh||Array.isArray(o.material)||!o.material||!o.material.map) return; const fz=forces.get(o.material.map); if(fz) variationSol(o.material,fz[0],fz[1],fz[2]); });
 }
 function startRun(){
+  if(ETAT.mortTimer){ clearTimeout(ETAT.mortTimer); ETAT.mortTimer=null; } // Rejouer avant l'écran de mort : il tombait au milieu de la partie suivante
+  sireneStop(); moteurStop(); // mourir au volant sans sortirVehicule laissait une sirène allumée
+  MET2.vague=-1; MET2.parVague={}; // compteurs de paie des métiers par vague : hérités de la partie d'avant au même numéro de vague
   clotureMatPropre(); // une fois : la clôture de l'aérodrome a son propre matériau translucide
   ameliorerTexturesSol(); // une fois : asphalte et sable redessinés, variation de teinte des sols
   viderDebris(); // dégâts V2 : éclats, roues et pièces au sol
@@ -33534,7 +33537,7 @@ function startRun(){
   P.hp=P.maxHp; P.stam=P.stamMax; P.bouclier=0; P.bouclierMax=60; P.giletLourd=false; P.veh=null;
   P.buffs={dmg:0,vit:0,butin:0,lourd:0,sprintLibre:0,vol:0,cadence:0}; P.ivresse=0; P.iframes=0; P.dodgeT=0; P.rechT=0; P.specCd=0; P.ecraseT=0;
   P.grenades=3; boutonsAPied(); // jamais el('grenN') seul : voir boutonsAPied (mort au volant)
-  if(DECOR_V2){ reparerMobilier(); cielRetablir(); fpsArreter(); derbyArreter(); sportjArreter(); SPORTJ.primes=null; SPORTJ.gagnes=null; footDemarrer(); SURPRISES.tyro=null; poserTexteBanderole(META.banderole); if(RIDES.porte){ RIDES.actif=null; RIDES.porte.visible=false; RIDES.txt.style.display='none'; rivalesFin(); if(RIDES.fleche) RIDES.fleche.visible=false; RIDES.records={}; RIDES.primeVague={}; } resetPic(); resetMer(); basketArreter(); BASKET.reussi=false; BASKET.vague=-1; } P.wingsuit=false; P.wing=false; if(P.wingMesh) P.wingMesh.visible=false; nettoyerPnjMetier(); MET2.serie={taxi:0,ambulance:0,pompier:0}; // course en cours : jamais survivante d'une partie à l'autre // mobilier renversé réparé ; message acheté sur la banderole
+  if(DECOR_V2){ reparerMobilier(); cielRetablir(); fpsArreter(); derbyArreter(); sportjArreter(); SPORTJ.primes=null; SPORTJ.gagnes=null; footDemarrer(); SURPRISES.tyro=null; for(const su of SURPRISES.liste) if(su.vague!==undefined) su.vague=-1; poserTexteBanderole(META.banderole); if(RIDES.porte){ RIDES.actif=null; RIDES.porte.visible=false; RIDES.txt.style.display='none'; rivalesFin(); if(RIDES.fleche) RIDES.fleche.visible=false; RIDES.records={}; RIDES.primeVague={}; } resetPic(); resetMer(); basketArreter(); BASKET.reussi=false; BASKET.vague=-1; } P.wingsuit=false; P.wing=false; if(P.wingMesh) P.wingMesh.visible=false; nettoyerPnjMetier(); MET2.serie={taxi:0,ambulance:0,pompier:0}; // course en cours : jamais survivante d'une partie à l'autre // mobilier renversé réparé ; message acheté sur la banderole
   // Jetpack : perdu au game over, comme les armes (voir CLAUDE.md) — il
   // faut remonter le chercher. Le lieu, lui (META.jetpackTrouve), reste acquis.
   P.jetpack=false; P.jetpackVol=false; P.jetFuel=100; P.jetVx=0; P.jetVz=0; P.jetWarnT=0; P.jetAvertVu=false;
@@ -33559,6 +33562,12 @@ function startRun(){
     if(sa.cycleOn!==undefined){ laverieArreter(sa); sa.cycleOn=false; sa.cycleT=0; sa.sacPret=false; sa.lavGain=0;
       if(sa.hublot7) sa.hublot7.material.color.setHex(0x9fe4ff); }
     if(sa.machinesFond) for(const m of sa.machinesFond) m.pris=false;
+    // braquages (supérette, banque, commissariat) : ils ne revenaient qu'au rechargement de la page (nuit du 16 octobre)
+    if(sa.caisse){ sa.caisse.pris=false; if(sa.caisse.mesh&&sa.caisse.matOrig) sa.caisse.mesh.material=sa.caisse.matOrig; }
+    if(sa.coffre) sa.coffre.pris=false;
+    if(sa.casier) sa.casier.pris=false;
+    if(sa.preuves) sa.preuves.pris=false;
+    sa.litArme=false; // un lit armé dans la partie d'avant lançait la vague suivante au premier appui
     if(sa.karaOn!==undefined){ sa.karaOn=false; if(sa.karaBarre) sa.karaBarre.visible=false; sa.karaVague=-1; sa.karaN=0; }
     if(sa.machine7){ sa.lavVague=-1; sa.lavN=0; } // laverie : plafond de la machine 7 levé
     if(sa.gastonMesh){ sa.gastonMesh.visible=false; sa.gastonVague=-1; sa.gastonTrouve=false; }
@@ -33876,6 +33885,13 @@ function mourir(){
   if(INT.actif&&INT.actif.console&&INT.actif.emissionOn) radioArreterEmission(INT.actif); // coupe le son tout de suite
   if(INT.actif&&INT.actif.aqActif) aquariumArreter(INT.actif); // Aquarium : la chasse s'arrête, boutons rendus
   if(INT.actif&&INT.actif.machine7&&INT.actif.cycleOn) laverieArreter(INT.actif); // Laverie : l'essorage s'arrête
+  if(INT.actif){ const sa=INT.actif; /* anciens mini-jeux (nuit du 16 octobre) : la boucle continue pendant la mort et leurs chronos concluaient — dégâts du soulevé raté, « Monstre » perdu, et la vitrine du musée en cours de forçage était volée et inscrite dans META deux secondes après la mort */
+    if(sa.karaOn){ sa.karaOn=false; if(sa.karaBarre) sa.karaBarre.visible=false; }
+    if(sa.bwEtat){ sa.bwEtat=null; sa.bwAnim=0; if(sa.boule) sa.boule.visible=false; }
+    if(sa.spEtat) sa.spEtat=null;
+    if(sa.swEtat){ sa.swEtat=null; if(sa.monstre){ sa.monstre.scale.set(1,1,1); sa.monstre.visible=true; } }
+    if(sa.casseEtat==='actif'){ sa.casseEtat=null; sa.casseT=0; sa.soupcon=0; sa.bruitAcc=0; }
+    sa.forcerCible=null; sa.forcerT=0; sa.litArme=false; }
   if(INT.actif&&INT.actif.pots&&INT.actif.srNuit) serreArreter(INT.actif); // Serre : la nuit s'arrête
   if(INT.actif&&INT.actif.barre&&INT.actif.sortieEnCours) chalutierArreterSortie(INT.actif); // coupe le son tout de suite, cale perdue
   chalutierAmbianceStop(); // l'ambiance du port tourne dès qu'on est dans la salle, sortie en mer ou non (audit de nuit)
@@ -33891,7 +33907,7 @@ function mourir(){
   if(record) META.record=ETAT.score;
   META.stats.tempsTotal+=ETAT.runT; META.stats.cashTotal+=ETAT.cashRun;
   checkDefis(); sauveMeta();
-  setTimeout(()=>{
+  ETAT.mortTimer=setTimeout(()=>{ ETAT.mortTimer=null;
     ETAT.timeScale=1;
     const mn=Math.floor(ETAT.runT/60), sc=Math.floor(ETAT.runT%60);
     el('dTime').textContent=mn+':'+(sc<10?'0':'')+sc;
@@ -34144,7 +34160,7 @@ function majAction(){
         META.argent+=g; ETAT.cashRun+=g; META.stats.cashTotal+=g;
         addHeat(s.heat,false,true); spawnTexte(P.x,2,P.z,'+'+g+' $','#7dff7a');
         toast('Caisse braquée : +'+g+' $','warn'); SFX.achat(); bigMsg('BRAQUAGE !');
-        s.caisse.mesh.material=mat(0x2a2e36);
+        if(!s.caisse.matOrig) s.caisse.matOrig=s.caisse.mesh.material; s.caisse.mesh.material=mat(0x2a2e36);
       };
     } else if(s.coffre&&!s.coffre.pris&&dist2(P.x,P.z,s.coffre.x,s.coffre.z)<marquerZone(s.coffre,14)){
       label='FORCER LE COFFRE';
@@ -34518,6 +34534,7 @@ function majAction(){
       // il faut avoir fini cette nouvelle vague (repos à nouveau) pour
       // pouvoir redormir. Impossible de farmer les salles/caches en boucle
       // sans jamais affronter de vague.
+      if(s.litArme&&WAVES.etat!=='repos') s.litArme=false; /* armé au repos puis confirmé en pleine vague : lancerVague vidait la file d'ennemis sans payer la vague (nuit du 16 octobre) */
       if(s.litArme){
         label='✅ CONFIRMER — dormir jusqu’à la vague suivante';
         fn=()=>{

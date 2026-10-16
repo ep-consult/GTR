@@ -12653,7 +12653,7 @@ async function main() {
         devant.mort = true; if (viseAuto1P(armeStats('fusil').portee) === cote40) ko.push('une cible à 40° de la mire est visée'); devant.mort = false;
         const h0 = devant.hp; for (let i = 0; i < 6; i++) { P.cadT = 0; attaquer(); for (let k = 0; k < 8; k++) majPools(1 / 60); } if (!(devant.hp < h0)) ko.push('la cible sous la mire n’est pas touchée');
         // lever les yeux : le tir monte
-        devant.mort = true; cote40.mort = true; VUE.pitch1P = 0.35; P.cadT = 0; const cLev = viseAuto1P(armeStats('fusil').portee); attaquer(); const b = balles.filter((q) => q.on && q.fac === 'joueur').pop(); if (!b || !(b.vy > 2)) ko.push('regard levé : le tir ne monte pas (' + (b ? b.vy.toFixed(2) : 'aucune balle') + ') ; sous la mire : ' + (cLev ? (cLev.type || cLev.esp || cLev.def && cLev.def.nom || '?') + ' à ' + Math.sqrt(dist2(cLev.x, cLev.z, P.x, P.z)).toFixed(1) + ' u, mort ' + cLev.mort + ', faune ' + FAUNE.includes(cLev) : 'rien'));
+        devant.mort = true; cote40.mort = true; VUE.pitch1P = 0.35; P.cadT = 0; P.rechT = 0; P.mags.fusil = 30; for (const q of balles) q._vieille = q.on; /* la réserve de balles réutilise ses objets : seules les balles EN VOL sont marquées ; le chargeur pouvait être vide après les six rafales : attaquer() rechargeait sans tirer et l'on relisait une vieille balle visant la cible au sol */ attaquer(); let b = null; for (const q of balles) if (q.on && q.fac === 'joueur' && !q._vieille) b = q; if (!b || !(b.vy > 2)) ko.push('regard levé : le tir ne monte pas (' + (b ? b.vy.toFixed(2) : 'aucune balle tirée') + ') ; état : arme ' + P.armeCur + ', cadT ' + P.cadT.toFixed(2) + ', rechT ' + (P.rechT || 0).toFixed(2) + ', frappeT ' + (P.frappeT || 0).toFixed(2) + ', mags ' + JSON.stringify(P.mags.fusil) + ', mode ' + ETAT.mode + ', veh ' + !!P.veh + ', nage ' + !!P.nage + ', chute ' + !!P.chute + ', 1P ' + VUE1P.actif + ', balles ' + balles.filter((q) => q.on).length + '/' + balles.length);
         VUE.pitch1P = 0;
         // VISER : la ligne de mire au centre de l'écran, champ resserré ; avec une lunette, son image
         const auCentre = () => { const M = VUE1P.montage; camera.updateMatrixWorld(true); M.R.updateMatrixWorld(true); const p = M.mire.clone().applyMatrix4(M.W.matrixWorld); p.project(camera); return Math.hypot(p.x, p.y); }; /* la caméra n'a pas été rendue entre deux images : sa matrice inverse se recalcule ici */
@@ -12799,6 +12799,47 @@ async function main() {
       if (!filet2.vu) rb.ko.push('filet de la boucle : erreur non affichée dans #errBox');
       if (rb.ko.length) fail('Robustesse : ' + rb.ko.join(' ; '));
       else ok('Robustesse : ' + rb.info.join(' ; ') + ' ; filet de la boucle : ' + (filet2.f - filet) + ' images rendues malgré ' + filet2.n + ' exceptions, erreur affichée');
+    }
+
+    console.log('\n--- État au game over (nuit du 16 octobre) : braquages, lit, métiers, surprises, mini-jeux arrêtés à la mort, minuteur de mort ---');
+    {
+      const eg = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); META.vue = 'classique'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6; for (const e of ennemis) e.mort = true; WANTED.heat = 0;
+        const argent0 = META.argent;
+        // 1. braquages : caisse, coffre, casier et preuves reviennent à chaque partie
+        const porte = (id) => PORTES.find((p) => p.id === id);
+        const braque = [];
+        for (const [id, champ] of [['superette', 'caisse'], ['banque', 'coffre'], ['poste', 'casier'], ['poste', 'preuves']]) {
+          const p = porte(id); if (!p) { ko.push('porte ' + id + ' absente'); continue; }
+          entrerInterieur(id, p); const s = INT.actif; if (!s || !s[champ]) { ko.push(id + ' : champ ' + champ + ' absent'); sortirInterieur(); continue; }
+          s[champ].pris = true; if (champ === 'caisse' && s.caisse.mesh) { s.caisse.matOrig = s.caisse.mesh.material; s.caisse.mesh.material = mat(0x2a2e36); }
+          sortirInterieur(); braque.push([id, champ, s]);
+        }
+        WANTED.heat = 0; startRun(); ecran(null); ETAT.mode = 'jeu'; for (const e of ennemis) e.mort = true;
+        for (const [id, champ, s] of braque) { if (s[champ].pris) ko.push(id + '.' + champ + ' encore pris après startRun'); if (champ === 'caisse' && s.caisse.mesh && s.caisse.mesh.material !== s.caisse.matOrig) ko.push('matériau de la caisse non rendu'); }
+        if (!ko.length) info.push('braquages remis à zéro (' + braque.length + ')');
+        // 2. le lit : armé au repos, confirmé en pleine vague → plus de CONFIRMER
+        { const p = porte('planque'); if (p) { META.planque = true; entrerInterieur('planque', p); const s = INT.actif; if (s && s.lit) { WAVES.etat = 'repos'; s.litArme = true; WAVES.etat = 'active'; const n0 = WAVES.n; P.x = s.lit.x; P.z = s.lit.z; majAction(); const lab = el('btnAction').textContent; if (lab.includes('CONFIRMER') || s.litArme) ko.push('lit : CONFIRMER proposé en pleine vague (' + lab + ')'); if (WAVES.n !== n0) ko.push('lit : vague lancée'); info.push('lit : confirmation désarmée en pleine vague'); } else ko.push('planque sans lit'); sortirInterieur(); WAVES.etat = 'repos'; } }
+        // 3. métiers : compteurs de paie remis par startRun
+        MET2.vague = 3; MET2.parVague = { taxi: 5 }; startRun(); ecran(null); ETAT.mode = 'jeu'; for (const e of ennemis) e.mort = true; WANTED.heat = 0;
+        if (MET2.vague === 3 || (MET2.parVague && MET2.parVague.taxi)) ko.push('MET2 hérité après startRun'); else info.push('MET2 remis');
+        // 4. surprises des toits : refaites à chaque partie
+        let nSur = 0; for (const su of SURPRISES.liste) if (su.vague !== undefined) { su.vague = WAVES.n; nSur++; } startRun(); ecran(null); ETAT.mode = 'jeu'; for (const e of ennemis) e.mort = true; WANTED.heat = 0;
+        let restent = 0; for (const su of SURPRISES.liste) if (su.vague !== undefined && su.vague === WAVES.n) restent++; if (nSur && restent) ko.push('surprises : ' + restent + '/' + nSur + ' encore « faites » après startRun'); else info.push('surprises remises (' + nSur + ')');
+        // 5. mourir arrête le casse du musée : la vitrine en cours de forçage n'est plus volée après la mort
+        { const p = porte('musee'); if (p) { entrerInterieur('musee', p); const s = INT.actif; const vit = s && s.vitrinesValeur && s.vitrinesValeur.find((v) => !META.museeArtefacts[v.cle]); if (s && vit) { s.casseEtat = 'actif'; s.casseT = 60; s.forcerCible = vit; s.forcerT = 0.3; P.x = vit.x; P.z = vit.z; const art0 = Object.keys(META.museeArtefacts).length; mourir(); for (let i = 0; i < 90; i++) majInterieur(1 / 30, 1 / 30); if (s.forcerCible || s.casseEtat === 'actif') ko.push('musée : forçage encore en cours après la mort'); if (Object.keys(META.museeArtefacts).length !== art0) ko.push('musée : une pièce a été volée pendant la mort'); else info.push('musée : forçage arrêté à la mort'); } else info.push('musée : pas de vitrine libre à tester'); } }
+        // 6. le minuteur de mort est annulé par Rejouer
+        const timer = ETAT.mortTimer; startRun(); ecran(null); ETAT.mode = 'jeu'; for (const e of ennemis) e.mort = true; WANTED.heat = 0;
+        if (!timer) ko.push('mourir ne note pas son minuteur'); if (ETAT.mortTimer) ko.push('minuteur de mort non annulé par startRun');
+        META.argent = argent0;
+        return { ko, info };
+      });
+      await new Promise((r) => setTimeout(r, 1300));
+      const mort = await page.evaluate(() => ({ death: el('death').classList.contains('on'), mode: ETAT.mode, ts: ETAT.timeScale }));
+      if (mort.death || mort.mode !== 'jeu') eg.ko.push('écran de mort apparu dans la partie suivante (mode ' + mort.mode + ')');
+      if (eg.ko.length) fail('État au game over : ' + eg.ko.join(' ; '));
+      else ok('État au game over : ' + eg.info.join(' ; ') + ' ; minuteur de mort annulé par Rejouer');
     }
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
