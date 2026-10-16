@@ -652,7 +652,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
   <div class="titre logoBig">GTRoyal</div>
   <div class="ssous">LOS REYES — <span class="ville">CHAOS URBAIN</span></div>
   <div class="hazard"></div>
-  <button class="mbtn play" id="mPlay">▶ Jouer</button>
+  <button class="mbtn play" id="mPlay" disabled>Chargement de Los Reyes…</button>
   <button class="mbtn" id="mChars">Personnages <span class="fl">›</span></button>
   <button class="mbtn" id="mShop">Armurerie <span class="fl">›</span></button>
   <button class="mbtn" id="mUpg">Améliorations <span class="fl">›</span></button>
@@ -6337,8 +6337,10 @@ function mkBordureEst(){
    puis retirées. */
 const CANYON={mesas:[],tremplins:[],ligneX:535};
 function plateau(x,z,m){ // mesa à bords raides : 0 dehors, m.h sur le dessus
+  const b=m.bruit===undefined?1:m.bruit, e0=m.e||2.4;
+  if(Math.abs(x-m.x)>m.hw+e0+2.1*b||Math.abs(z-m.z)>m.hd+e0+1.8) return 0; /* hors de la boîte englobante (érosion maximale comprise) la fonction valait déjà 0 : quatre sinus économisés par mesa et par appel (chargement et solY en jeu) */
   // bords latéraux irréguliers (érosion) ; le bord sud des mesas de la ligne reste droit (tremplin)
-  const b=m.bruit===undefined?1:m.bruit, nx=(1.4*Math.sin(z*0.41+m.x)+0.7*Math.sin(z*1.13+m.h))*b, nz=m.droitZ?0:1.2*Math.sin(x*0.37+m.z)+0.6*Math.sin(x*0.97); // crêtes : bords presque droits (b petit)
+  const nx=(1.4*Math.sin(z*0.41+m.x)+0.7*Math.sin(z*1.13+m.h))*b, nz=m.droitZ?0:1.2*Math.sin(x*0.37+m.z)+0.6*Math.sin(x*0.97); // crêtes : bords presque droits (b petit)
   const ix=m.hw+nx-Math.abs(x-m.x), iz=m.hd+nz-Math.abs(z-m.z), e=m.e||2.4;
   if(ix<=-e||iz<=-e) return 0;
   return m.h*lisse((Math.min(ix,iz)+e)/e);
@@ -7784,11 +7786,12 @@ function calculerHills(){
   for(const p of H.pads) if(p.h===undefined){ let bd=1e9, bh=0; for(const R of H.routes) R.pts.forEach(([x,z],i)=>{ const d=dist2(x,z,p.ax,p.az); if(d<bd){ bd=d; bh=R.h[i]; } }); p.h=bh+(p.dh||0); }
   // grille : colline, taillée par les routes (plates en travers, talus de HILLS.talus) et les parcelles
   H.nx=Math.round((H.x1-H.x0)/H.pas)+1; H.nz=Math.round((H.z1-H.z0)/H.pas)+1; H.h=new Float32Array(H.nx*H.nz); H.route=new Uint8Array(H.nx*H.nz);
-  const B=new Map(), cle=(x,z)=>Math.floor(x/10)+'_'+Math.floor(z/10);
+  const B=new Map(), cle=(x,z)=>(Math.floor(x/10)+2048)*4096+(Math.floor(z/10)+2048); /* clé entière : même partition en seaux de 10 u que l'ancienne clé chaîne, dix fois moins chère (nuit du 16 octobre) */
   for(const R of H.routes) R.pts.forEach(([x,z],i)=>{ const k=cle(x,z); if(!B.has(k)) B.set(k,[]); B.get(k).push([x,z,R.h[i]]); });
   const W2=H.larg/2+H.trot, portee=W2+H.talus, masque=new Uint8Array(H.nx*H.nz);
   for(let j=0;j<H.nz;j++) for(let i=0;i<H.nx;i++){ const x=H.x0+i*H.pas, z=H.z0+j*H.pas; let h=hillsBase(x,z), bd=1e9, bh=0;
-    for(let a=-2;a<=2;a++) for(let b=-2;b<=2;b++){ const L=B.get((Math.floor(x/10)+a)+'_'+(Math.floor(z/10)+b)); if(!L) continue; for(const q of L){ const d=dist2(x,z,q[0],q[1]); if(d<bd){ bd=d; bh=q[2]; } } }
+    const fx=Math.floor(x/10)+2048, fz=Math.floor(z/10)+2048;
+    for(let a=-2;a<=2;a++) for(let b=-2;b<=2;b++){ const L=B.get((fx+a)*4096+(fz+b)); if(!L) continue; for(const q of L){ const d=dist2(x,z,q[0],q[1]); if(d<bd){ bd=d; bh=q[2]; } } }
     bd=Math.sqrt(bd); if(bd<=H.larg/2) H.route[j*H.nx+i]=1; if(bd<=W2) h=bh; else if(bd<portee) h=bh+(h-bh)*lisse((bd-W2)/H.talus);
     for(const p of H.pads){ const dx=Math.max(0,Math.abs(x-p.x)-p.hw), dz=Math.max(0,Math.abs(z-p.z)-p.hd), dp=Math.hypot(dx,dz);
       if(dp<=0) h=p.h; else if(dp<(p.talus||7)) h=p.h+(h-p.h)*lisse(dp/(p.talus||7)); }
@@ -35711,6 +35714,7 @@ for(let i=0;i<6;i++){const s=document.createElement('span');s.textContent=i<5?'�
 construireVille();
 recalcJoueur(); construireJoueur();
 P.x=POIS.place.x; P.z=POIS.place.z+8;
+{ const bp=el('mPlay'); bp.disabled=false; bp.textContent='▶ Jouer'; } /* la ville est construite : le menu, peint pendant la construction, disait « Chargement de Los Reyes… » */
 appliqueQualite(); majMenuStats();
 hudD('missionTxt','none');
 
