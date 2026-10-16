@@ -2005,19 +2005,135 @@ portrait → zones et règle des 8 u → pilotes manquants → textes.
 
 ### Correctifs
 
-(un par ligne : symptôme, cause, fix, test)
+Un par ligne : symptôme → cause → correctif → test. Commits sur `nuit-revue-globale`.
+
+**Plantages et filets** (`e08113e`)
+- Rouler sur des munitions au guidon d'une moto cross levait une exception à chaque image (et recréditait les munitions) → `#btnGren` est réécrit sans `#grenN` au volant, `ramasser()` y écrivait sans garde → garde → « Robustesse ».
+- La carte de bonus « Poche à grenades » figeait le jeu en mode `bonus` au volant d'un deux-roues → même `#grenN`, et `b.f()` levait avant `ecran(null)` → garde, et l'écran se ferme quoi qu'il arrive → « Robustesse ».
+- Une exception répétée dans le tick figeait l'écran sans message (le rendu suivait l'exception) → `boucle()` = `tick()` protégé + rendu garanti, erreur affichée et comptée (`ETAT.erreursTick`) → « Robustesse » (une mise à jour qui lève à chaque image : le rendu continue).
+- Toute erreur était muette sur l'appareil → `window.onerror` écrivait dans `#errBox`, qui n'existait pas dans le HTML → `signalerErreur()` crée la boîte, `unhandledrejection` aussi → « Robustesse ».
+- Stockage plein ou désactivé : `JSON.stringify(META)` et `setItem` retentés 60 fois par seconde → `sauveT` n'était remis à 0 qu'en cas de succès → remis avant l'essai, toast unique → « Robustesse ».
+- Sauvegarde illisible (JSON tronqué) : tout perdu 15 s plus tard → `catch` muet puis autosauvegarde → copie dans `asphalte_save_v1_bak` → « Robustesse ».
+- `{"stats":null}` remplaçait `META.stats` et `startRun` plantait ; `META.garage:null` n'était jamais relu (`typeof null`) et la migration de l'ancien achat ne voyait rien → `fusionMeta` ignore un `null` sauvegardé et reprend une valeur simple sur un défaut `null` → « Robustesse ».
+- WebGL absent ou contexte perdu : rien → création protégée avec message, `webglcontextlost` → pause + message.
+- Audio iOS suspendu ou interrompu jamais relancé → `resume()` sur `pointerup` et `visibilitychange` (à vérifier sur l'appareil).
+- NaN passé à WebAudio (`SFX.choc(viol)` depuis les collisions, `beep`, `bruit`) → gardes `isFinite`.
+
+**État qui survit au game over** (`0363ed3`)
+- Caisse, coffre, casiers et preuves braqués une fois pour toute la session → `.pris` jamais remis → remis à chaque partie dans la boucle des salles de `startRun` (matériau de la caisse rendu) → « État au game over ».
+- Lit de la villa armé au repos puis confirmé en pleine vague : `lancerVague` vidait la file d'ennemis sans payer la vague → `litArme` désarmé hors repos, à la mort et au `startRun` → idem.
+- Paie des métiers à 20 % trop tôt dans la partie suivante → `MET2.vague/parVague` jamais remis → `startRun` → idem.
+- Surprises des toits « déjà faites » au même numéro de vague de la partie suivante → `s.vague` → `startRun` → idem.
+- `BT.partie` restait vrai après l'arrêt → `fpsArreter`.
+- Pendant l'écran de mort, les mini-jeux des anciennes salles continuaient : dégâts du soulevé, Monstre perdu, et la vitrine du musée en cours de forçage était volée et inscrite dans `META.museeArtefacts` deux secondes après la mort → arrêtés dans `mourir` → idem.
+- Le `setTimeout` de 1,1 s de `mourir` tombait au milieu de la partie suivante (et d'une vingtaine de tests) → noté dans `ETAT.mortTimer`, annulé par `startRun` → idem.
+- Sirène allumée après une mort au volant sans `sortirVehicule` → `sireneStop(); moteurStop()` dans `startRun`.
+
+**Boucle et paiements** (`fd58d3f`)
+- La mission « Neutralise N membres de gangs » n'avançait pas pendant une vague des Dockside Boys ou de la Brigada → `tuerEnnemi` ne comptait que `viperes` et `frelons` → `GANGS.includes` → « Boucle et paiements ».
+- Douze fonctions de paiement sans garde d'entrée propre (`finirMission`, `finVague`, `aquaVictoire`, `serreFin`, `plonger`, `finMonstre`, `radioFinSegment`, `radioTerminerEmission`, `depotTerminerCourse`, les trois braquages, le coffre des revenus qui lisait une valeur capturée par le libellé) → gardes → idem (deux appels, un paiement).
+- L'écran de mort sous-estimait l'argent de la partie → roue, fouilles et Zohra ne créditaient pas `ETAT.cashRun` → crédités → idem.
+- `FOUILLE.t`, les renforts d'alarme (`vagueT`) et le chrono du remorquage (`majTow`) couraient sur `dt` → `dtJeu`.
+
+**Performance du tick, image identique** (`3853c2e`)
+- `majPietons` 25 à 32 ms par image en ville (Phase 0) → `vehiculeBloquant` parcourait ~200 véhicules avec deux sinus et six lectures de `def` chacun, trois fois par piéton et par image → rejet par la distance des centres → 9 → 1,2 ms par image (mesure directe, `dbg_pietons.js`).
+- r128 dessine un sprite à opacité 0 : phares des voitures garées et ~180 lampadaires le jour → `visible = opacité > 0`.
+- HUD écrit à chaque image (libellé de vague, texte et flèche de mission — `querySelector`, `transform`, `title` —, jauges véhicule et carburant, alerte du jetpack, indicateur de dégâts, bouton SPRINT, bouton d'action) → `hudT/hudW/hudD`, écrits au changement.
+- Jauge de bouclier : le `else` se rattachait au gilet (clignotement sans gilet, jamais masquée avec) → corrigé → « Robustesse ».
+- Le filet « qualité auto » réduisait `fog.far`, réécrit à l'image suivante par `jourNuit` → `ETAT.fogEco` appliqué dans `jourNuit`.
+- `pow(x,2.0)` avec `x` négatif (indéfini en GLSL ES, NaN possible sous Metal) dans le shader des sols et celui de la mer du chalutier → `x*x`.
+
+**Chargement, résultat bit-identique** (`c8e769d`)
+- `plateau()` (mesas) calculait quatre sinus pour chaque mesa à chaque `solY` du désert → rejet par la boîte englobante (érosion comprise) : 1,1 s de construction de moins, et `solY` plus léger en jeu.
+- `calculerHills` : 31 243 cases × 25 recherches dans une `Map` à clé chaîne → clé entière, même partition → 0,86 → 0,55 s.
+- Le menu se peint pendant la construction : le bouton dit « Chargement de Los Reyes… » et reste inactif jusqu'à la fin ; aucun déplacement des `mk*` (valider.js exige une construction synchrone).
+
+**HUD en portrait** (`00508d1`)
+- Pause, mort et bonus passaient SOUS l'établi, la boutique, l'héliport, le stand, le derby, le dépôt, la tour (z 40 à 60) : « Abandonner » couvert, achats possibles en pause → `.screen` z 70 → « HUD en portrait ».
+- QUITTER, Vue, croix et bouton d'action cachés par l'écran des bornes (z 7, opaque) ; QUITTER inatteignable aux canards (`#viseeZone` plein écran) → z 8 → idem.
+- Jauges VÉHICULE et CARBURANT sous GRENADE et SAUT (61 % cachés) → dans la colonne des jauges comme la nitro → idem.
+- Bouton d'action collé à SAUT, sur DÉCOLLER (28 px) et sur le tir au volant (26 px) → remonté à +306 px, VISER à +356 → idem (rendu vérifié : `hud_nuit.png`).
+- Pastille des défis sur le coin de Pause (toucher ce coin ouvrait les Défis) → déplacée → idem.
+- Lunette du sniper (z 33) noircissait TIR, VISER, le joystick et la vie → z 4, sous le HUD → idem.
+- Texte de mission centré sous la minimap (jusqu'à 86 px masqués) → à gauche, borné avant elle → idem.
+- Cartes de bonus validées au `pointerdown`, sans délai, sous les boutons de combat → au relâcher, jamais dans les 400 premières ms → idem.
+
+**Textes** (`4b23faf`) — aide (sniper « à la marina », vitesse sans unité, « farme », territoires incomplets, aérodrome/aéro-club/aéroport, hélipad, touches G et F), touche A qui changeait d'arme ET allait à gauche en WASD, toast de l'avion de voltige faux, toasts de niveau générés depuis `ARMES`/`PERSOS` (huit armes jamais annoncées), défis périmés (« 4 curiosités », « quartier résidentiel », deux « Propriétaire », six tenues sur dix, « / 7 » pour 20 véhicules cachés, « lieu à venir — bientôt » visible, « Vertèbre débloquée à l'armurerie »), libellés de quartier (« Residentiel », « Neon »), indice de la serre V2, anglicismes, message du moteur 3D inversé, « … » → « Textes ».
+
+**Tests** (`01354bd`) — graine propre après `startRun` pour les pilotes de l'aquarium, de la laverie, de la radio, du ciné et toutes les sorties du chalutier ; saut visible du client fragile du taxi ; test « Vue 1re personne » : il relisait une vieille balle de la réserve (chargeur vide après six rafales) ; test « Dégâts V2 » (lot 7) : graine après `startRun` — un objet Three.js de plus au démarrage changeait tout le match.
+
 
 ### Décisions prises seul
 
+- Les braquages (caisse, coffre, casiers, preuves) reviennent à chaque partie : la règle « réinitialiser l'état des mini-jeux au game over » de CLAUDE.md tranche ce que PLAYTEST.md laissait ouvert (« voulu ou non : à trancher »). Si tu veux un braquage « une fois pour toutes », il faut l'écrire dans `META`, pas dans la salle en cache.
+- La touche **A** ne change plus d'arme (clavier) : elle servait aussi à aller à gauche en WASD ; Tab reste.
+- Les cartes de bonus se choisissent au relâcher et jamais dans les 400 premières ms.
+- `.screen` à z 70 : tout panneau de jeu rattaché à `body` doit rester sous 70 (règle ajoutée au CLAUDE.md).
+- Le thème « planques » : son premier palier s'appelle « Premier pied-à-terre » (il portait le même nom que le défi « Propriétaire » de la villa).
+- Au derby (lot 7, avant la nuit) : seul un attaquant qui roule est crédité, « dernier qui roule » exige au moins un coup donné, les deux dernières IA foncent sur le joueur.
+- Pilotes de salle : graine posée après `startRun` ; l'ordre des blocs de la suite ne change plus leur résultat.
+- Rien n'a été fait sur les salles et activités « risque d'être coupé » au-delà des catégories « quoi qu'il arrive ».
+
+
 ### À trancher
+
+1. **Abandonner → Rejouer ne coûte rien** : `META.argent` ne baisse jamais, et `startRun` remet à zéro TOUS les plafonds par vague (primes, courses, salles, coffres) ; la vague 0 ne se termine jamais tant qu'on est en salle ou en activité. Un joueur peut tout refaire en boucle. Les tests actuels (« le plafond ne survit pas au game over », tronc du musée) figent ce comportement. Ce n'est pas un bug local : c'est la question 2 de STRATEGIE.md.
+2. **Missions courtes sans plafond** (`finirMission`, 140 + 30·n $ toutes les 6 s). Proposition : N pleines paies par vague comme `payerMetier`, puis 20 %.
+3. **Aquarium gratuit en cas de défaite** : la limite ne se pose qu'à la victoire ; retentatives illimitées.
+4. **Les 72 noms d'armes et de véhicules à guillemets droits** (`Pompe "Brisant"`) contre 589 « » : la conversion est mécanique mais `a.nom.split('"')` (L16711 avant la nuit) en dépend.
+5. **Achats au `pointerdown` dans les listes qui défilent** (armurerie, boutique, héliport, établi, défis, garage) : commencer un défilement sur un prix achète. Correctif connu (`pointerup` avec déplacement < 8 px), six endroits, non appliqué cette nuit faute de temps pour vérifier chaque liste en rendu réel.
+6. **`libererEntite` ne libère ni matériaux ni textures** (texture de l'hélipad du yacht recréée à chaque partie, `texNumeroCourse`) ; `libererObjet` libère des géométries partagées ; coques de bateaux et planches non marquées `partagee`. Mesure stable sur 3 parties en Phase 0 (géométries 1 784 → 1 781 → 1 859), à surveiller sur une longue session.
+7. **REPLIS** ne couvre que 14 salles sur 28 (manquent supérette, club, poste, tour, pharma, armurerie, concession, casino, planque, boutique) : la règle « toute salle dans REPLIS » n'est pas tenue, mais aucune porte ne manque sur les graines testées. À construire depuis `INTDEFS` avec les bonnes cases.
+8. **Les dates du CLAUDE.md** (« 16, 17, 18 octobre ») sont en avance sur le calendrier : les laisser ou les recaler ?
+
 
 ### Polissage différé en attente de décision
 
+Salles et activités « risque d'être coupé » (STRATEGIE §8). Estimations en heures de travail avec l'outillage actuel.
+- Horloges `dt` → `dtJeu` des anciens mini-jeux : sport (`spForce`, `spT`), sandwich (`swT`, `swNausee`), karaoké (`karaPos`), bowling (`bwCur`), musée (`museeT`, `deviationT`, `forcerT`) — 1 h, test « horloges » sur le modèle du chalutier.
+- Pilotes simulés manquants : casino (espérance des trois jeux jamais vérifiée, 3 h), Roi des Sandwichs (victoire et défaite aux commandes, 2 h), musée (casse au joystick entre les rondes, 3 h), salle de sport / bowling / karaoké à cadence humaine (2 h), métiers dépanneuse et police (2 h), tour de contrôle au canvas tactile (1 h), Saut du Vertige et Big Jump perdables (1 h).
+- Règle des 8 unités : 26 zones dans 12 salles (`DETTE_REGLE_8U`), dont serre (0,6 u), karaoké (1,9 u), sandwich (5,1 u) — 4 h, déplacements à vérifier en rendu réel.
+- Panneaux au milieu de l'écran (musée, métro, dépôt, karaoké, bowling, sport, sandwich, radio pendant l'émission) : vérification en rendu réel à 390×844 et 393×852 avec `env()` simulé — 3 h.
+- `bigMsg` qui couvre le titre des cartes d'intro (aquarium, laverie, serre, ciné, radio) — 30 min.
+- `#missionTxt` et `#missionArrow` affichés en salle, sous les panneaux — 30 min.
+- Minimap : badges pré-rendus, `listeCommerces` calculée une fois (allocations à 30 i/s) — 1 h.
+- Textures redessinées sans changement (tableau du derby à 4 Hz hors match, écrans néon partout en ville) — 1 h.
+
+
 ### Abandonné et pourquoi
+
+- **Écran de chargement par étapes** (construction différée après la première peinture) : `valider.js` exige une construction synchrone au niveau du script, et un tap sur un bouton du menu pendant la construction aurait appelé `audioInit` (52 920 `Math.random` pour le bruit) et décalé toute la ville. Gardé : le bouton JOUER inactif et explicite pendant la construction.
+- **Véhicules garés retirés de la scène au-delà du brouillard**, mise en sommeil des immobiles dans les collisions, fusion des pièces statiques des modèles, `MERV.feu` en sprite, ciel en dôme réordonné, fusion indexée des bâtiments : chacun change soit le nombre d'uuid (donc les tirages), soit le rendu, et aucun n'a pu être validé par capture identique cette nuit.
+- **Double construction de `makeVoiture`** (le modèle jeté pour consommer les tirages) : avancer le générateur d'un nombre fixe suppose que ce nombre est constant par clé, ce qui n'est pas prouvé.
+- **Reconstitution du `(idle)` de 7 s** dans le profil de chargement : non identifié (fetch de Three.js ou parse du HTML de 2,6 Mo), rien d'actionnable sans mesure sur l'appareil.
+- **`SEED=random` ×3 de la Phase 0** : deux des trois exécutions se sont arrêtées sur `Runtime.callFunctionOn timed out` pendant que d'autres Chrome tournaient à côté (blocs de test lancés en parallèle) ; la première a passé 755 vérifications avec deux échecs corrigés ensuite (derby : seuil fragile, non modifié ; vue 1P : vieille balle). Les exécutions de fin de nuit tournent seules.
+
 
 ### À tester à la main sur iPhone demain
 
+Par ordre de valeur, avec le geste exact.
+1. **Vue à la 1re personne** (lot 7, veille) : ARME → fusil à pompe, VISER, puis glisse le pouce sur TIR : la vue tourne et le tir part seul sur un ennemi (mire rouge). Paramètres → « Tir automatique » coupé : le tir ne part plus seul. Batte : un swing visible ; poings : coups alternés.
+2. **Monte sur une moto cross et roule sur une caisse de munitions** (ou tue un ennemi au guidon et roule sur ce qu'il lâche) : aucune boîte rouge en bas de l'écran, la grenade est créditée une fois.
+3. **Fin de vague au volant d'un deux-roues** : les trois cartes ; appuie en plein martelage de TIR — rien ne se choisit pendant 0,4 s ; relâche sur « Poche à grenades » : l'écran se ferme.
+4. **Pause depuis l'établi de l'armurerie** (ou la boutique, le derby) : l'écran de pause est au-dessus du panneau, « Abandonner » touchable.
+5. **Borne d'arcade** : ✕ QUITTER visible et touchable pendant la partie ; STAND DE CANARDS : QUITTER répond.
+6. **Au volant** : la jauge VÉHICULE est sous les barres de vie en haut à gauche ; au jetpack, CARBURANT au même endroit ; DÉCOLLER n'est plus sous le bouton d'action.
+7. **Sniper en 1P, lunette** : TIR, VISER et le joystick restent visibles dans le noir de la lunette.
+8. **Chargement** : au premier lancement, le bouton dit « Chargement de Los Reyes… » puis « ▶ Jouer » ; note le temps à la montre (jamais mesuré sur l'appareil).
+9. **Fluidité en ville, vue immersive**, au centre près des piétons : à comparer à hier (−30 ms de logique par image sur PC).
+10. **Son après un verrouillage** : verrouille, déverrouille, tape une fois : le son reprend.
+11. **Braquage de la supérette, mourir, Rejouer** : la caisse se braque à nouveau.
+12. **Lit de la villa** : DORMIR puis sortir avant de confirmer ; revenir en pleine vague : plus de CONFIRMER.
+
+
 ### Idées non faites
+
+- Analytics : les quinze événements de STRATEGIE §4 ; `erreur_js` est désormais possible (`signalerErreur` centralise).
+- Un `preflight` de HUD : capturer chaque état (à pied, volant, jetpack, 1P, chaque salle à panneau) à 390×844 et 393×852 avec `env()` simulé, et comparer les rectangles — le test « HUD en portrait » n'en couvre qu'une partie.
+- Grille spatiale des véhicules pour `collisionBalle` (parcourt tous les véhicules par balle).
+- `renderer.compile(scene, camera)` après la construction pour lisser la première image (déplace le coût, ne le réduit pas).
+- Minimap statique et `ameliorerTexturesSol` en `requestIdleCallback` avant `startRun` (aucun uuid, aucun tirage).
+
 
 ### `git log --oneline` de la branche
 

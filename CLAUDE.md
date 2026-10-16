@@ -279,6 +279,55 @@ il est listé nommément dans le résumé final.
 Un bug visuel se valide par un **rendu Three.js réel**, jamais par un test de
 logique. Trop de régressions d'affichage passent au vert en logique pure.
 
+### Nuit de revue globale (16 octobre 2026, branche `nuit-revue-globale`)
+Rapport : `rapport_nuit/RAPPORT.md`, section « Nuit de revue globale » ;
+stratégie : `rapport_nuit/STRATEGIE.md`. Pièges trouvés cette nuit :
+- **La boucle est protégée** : `boucle()` appelle `tick()` dans un `try`, puis
+  rend quoi qu'il arrive ; une exception est affichée (`signalerErreur` →
+  `#errBox`, créé à la volée : il n'existait pas dans le HTML, toute erreur
+  était muette sur l'appareil) et comptée (`ETAT.erreursTick`), et remontée
+  par `console.error` pour la suite. Le test « Robustesse » provoque une
+  erreur `[test tick]` que le collecteur de `scenarios.js` ignore.
+- **`#grenN` n'existe pas au volant** (`#btnGren` réécrit) : `ramasser()` et
+  la carte « Poche à grenades » plantaient sur un deux-roues. Toujours
+  `const gn=el('grenN'); if(gn)`.
+- **`sauveMeta` remet `sauveT` à 0 AVANT l'essai** : en cas d'échec
+  (quota), la boucle retentait `JSON.stringify(META)` à chaque image. Une
+  sauvegarde illisible est copiée dans `asphalte_save_v1_bak` avant d'être
+  écrasée.
+- **`fusionMeta` et `null`** : `typeof null === 'object'` — un `null`
+  sauvegardé est ignoré (`{stats:null}` plantait `startRun`) ; sur un défaut
+  `null` (`META.garage`), une valeur simple sauvegardée est reprise (sinon la
+  migration de l'ancien achat ne voyait rien).
+- **La boucle continue pendant la mort** (déjà connu pour les sons) : elle
+  concluait aussi les anciens mini-jeux (soulevé, Monstre) et volait la
+  vitrine du musée en cours de forçage. `mourir` arrête `karaOn`, `bwEtat`,
+  `spEtat`, `swEtat`, `casseEtat`, `forcerCible`, `litArme`. Le `setTimeout`
+  de l'écran de mort est noté (`ETAT.mortTimer`) et annulé par `startRun`.
+- **Un élément du HUD mis en cache (`hudT`/`hudW`/`hudD`) doit l'être par
+  TOUS ses écrivains** : une écriture directe de `style.display` à côté
+  désynchronise `HUDC` et l'élément ne réapparaît plus. `missionTxt`,
+  `missionArrow`, `waveLabel`, `jetWarn`, `vehFill` passent désormais tous par
+  le cache.
+- **r128 dessine un sprite à opacité 0** (un appel de rendu et un
+  remplissage) : `jourNuit` pose `visible = opacité > 0` sur les phares et
+  les lampadaires.
+- **`pow(x, 2.0)` avec `x` négatif est indéfini en GLSL ES** (NaN possible
+  sous Metal) : écrire `x*x` (`solSq`, `chalSq`).
+- **`.screen` est à z-index 70** : tout panneau de jeu rattaché à `body`
+  (établi, boutique, héliport, stand, derby, dépôt, tour : 40 à 60) reste
+  en dessous, sinon la pause et l'écran de mort passent sous lui. Les
+  boutons du HUD qui doivent rester touchables pendant une borne ou les
+  canards (`#btnPause`, `#btnVue`, `#croixWrap`, `#btnAction`) sont à z 8.
+- **`vehiculeBloquant` rejette par la distance** (`o._rayBloc`,
+  `(long+larg)/2 + 0,6`) : trois appels par piéton et par image sur ~200
+  véhicules coûtaient 23 ms par image au centre-ville.
+- **Un pilote simulé pose sa graine APRÈS `startRun`** (aquarium, laverie,
+  radio, ciné, chalutier, derby, « Dégâts V2 ») : un objet Three.js de plus
+  au démarrage changeait tout le match.
+- **Dates** : les libellés « 16, 17, 18 octobre » de ce fichier sont en avance
+  sur le calendrier réel (`date` disait le 16 octobre pendant la nuit).
+
 ### Performance mobile
 - HUD : cache DOM via l'objet `HUDC`, jamais de `getElementById` par frame.
 - Boucles explicites plutôt que `filter`/`some`/`map` dans le `tick` — pas
