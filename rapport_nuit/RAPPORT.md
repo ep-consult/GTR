@@ -2185,3 +2185,83 @@ f932f44 docs(nuit, phase 1): plan de la nuit, six audits fusionnés et filtrés 
 9224ed1 docs(nuit, phase 0): mesures de référence (chargement, draw calls, coût de la logique par image en trois points,…
 e7fe29a docs(nuit, partie 1): STRATEGIE.md — ce que GTRoyal est aujourd'hui (boucle, persistance, inventaire cœur / péri…
 ```
+
+## Nuit 2 — qualité, puis cockpits — 17 octobre 2026
+
+> Branche `nuit-revue-globale`, à la suite de la nuit du 16. Rien n'est fusionné.
+> Date réelle lue par `date` : **samedi 17 octobre 2026**.
+
+### Les consignes de la nuit n'existent pas : ce que j'ai décidé
+
+La demande du soir : « lis `rapport_nuit/PROMPT_NUIT_2_QUALITE.md` et exécute-le
+intégralement, puis enchaîne sur `rapport_nuit/PROMPT_COCKPITS.md` jusqu'à ce que chaque
+véhicule soit coché dans `rapport_nuit/COCKPITS.md` ». **Aucun de ces trois fichiers
+n'existe** : ni dans `rapport_nuit/`, ni ailleurs sur le disque (`find` sur `C:\app`,
+Bureau, Documents, Téléchargements), ni dans l'historique git d'aucune branche
+(`git log --all`), ni dans une remise (`git stash`). Ils n'ont probablement jamais été
+enregistrés (ou pas sur cette machine). Personne ne répond avant demain matin : j'ai
+fixé moi-même le périmètre, en restant au plus près de ce que les noms et la nuit
+précédente laissent entendre, et je le note ici pour que tu puisses le corriger d'un mot.
+
+**Nuit 2 « qualité »**, interprétée comme le pendant *perçu* de la revue du 16 (qui
+visait plantages, sauvegarde, performance) : ce que le joueur VOIT et LIT. Même cadre
+que la Partie 2 du `PROMPT_NUIT.md` : un commit par correctif validé, pas de contenu
+neuf, les salles et activités marquées « risque d'être coupé » dans `STRATEGIE.md` §8
+ne reçoivent que les correctifs qui s'imposent quoi qu'il arrive.
+1. Rendu réel de **chaque salle** (lue dans `INTDEFS`, entrée par sa porte, vue
+   immersive) en galerie : matériaux noirs, objets qui flottent, textures manquantes,
+   panneaux qui cachent l'action.
+2. Rendu réel de la **ville** (jour et nuit, vue classique, immersive, 1re personne,
+   quatre points) et de l'**écran titre**.
+3. **HUD en portrait** à 390×844 et 393×852 : recouvrements, libellés, safe-areas
+   (le test « HUD en portrait » existe : je vérifie ce qu'il ne couvre pas).
+4. **Textes** : casse de « GTRoyal » et « Los Reyes », ancien nom, anciens noms de
+   gangs, typographie (« ... », doubles espaces), anglais oublié — par un balayage de
+   toutes les chaînes du script.
+5. Suite complète (graine par défaut) puis `SEED=random` trois fois en fin de nuit.
+
+**Cockpits**, interprétés comme *la vue à la première personne au volant* — le seul
+sens cohérent avec les demandes de la semaine (vue 1re personne à pied, « on ne voit
+pas le rechargement », « la même qualité sur tous les véhicules », pare-brise refaits
+hier) : aujourd'hui la 1re personne s'interrompt dès qu'on monte dans un véhicule
+(`vuePremiere()` exclut `P.veh`). Pour **chaque véhicule pilotable de `VEHDEFS`**
+(70 clés, cachées et véhicules du Dépôt compris) : un poste de pilotage vu de
+l'intérieur — œil à la place du conducteur, intérieur construit (planche de bord,
+volant ou guidon, mains, montants, sièges, selon la famille), instruments qui vivent
+(vitesse, compte-tours, voyants), le regard au doigt, retour automatique vers l'avant.
+`rapport_nuit/COCKPITS.md` est la liste de contrôle : une ligne par clé de `VEHDEFS`,
+**générée depuis la source** (jamais recopiée), cochée seulement après un rendu réel
+vérifié par le test (œil dans l'habitacle, rien du véhicule devant l'œil à moins de
+15 cm hors vitrage, instruments dans le champ) et un regard sur la capture.
+
+Ce que cette interprétation ne couvre PAS et qui attend ta confirmation : si
+« qualité » visait autre chose (son, équilibrage, textures des façades…), ou si
+« cockpits » voulait dire autre chose (intérieurs visitables, menu de sélection…), rien
+de ce qui est fait cette nuit n'est perdu — tout est derrière la vue 1P existante,
+sans changement pour qui joue en vue classique ou immersive.
+
+### Résumé
+
+(écrit en fin de nuit)
+
+### Qualité — ce qui a été regardé et corrigé
+
+(mis à jour en continu)
+
+### Cockpits
+
+(mis à jour en continu ; liste de contrôle : `rapport_nuit/COCKPITS.md`)
+
+### Décisions prises seul
+
+- Les trois fichiers de consignes n'existant pas, périmètre fixé comme ci-dessus.
+- Le test « Terrains de sport » échouait une suite sur deux (balle de tennis mesurée
+  sur son déplacement net, nul quand elle faisait demi-tour) : mesurée sur sa course
+  (`685d9fb`). Ce n'était pas lié aux commits du soir.
+
+### À trancher
+
+### À tester à la main sur iPhone demain
+
+### Idées non faites
+

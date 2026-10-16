@@ -1,0 +1,88 @@
+# Cockpits — liste de contrôle (nuit du 17 octobre 2026)
+
+Un cockpit = la vue à la 1re personne au volant (META.vue 'fps', bouton 1P) : œil à la place du conducteur, intérieur construit pour la famille du véhicule, instruments qui vivent, volant qui suit le braquage, regard au doigt. Code : bandeau « COCKPITS » d'index.html (`COCKPIT`, `cockpitDims`, `mkCockpitInterieur`, `cameraCockpit`, `cockpitDiagnostic`, corrections à la main dans `COCKPIT_DEFS`).
+
+Cette liste est **générée depuis la source** (`VEHDEFS`, 80 clés, véhicules cachés et du Dépôt compris) par `scratchpad/cockpits_liste.js` : une case est cochée seulement si (1) `cockpitDiagnostic` est bon — œil dans l'emprise du véhicule et à bonne hauteur, vue libre devant sur trois rayons (hors vitrage), instruments dans le champ, intérieur présent — et (2) la capture a été regardée. Le test « Cockpits » de scenarios.js rejoue (1) sur toutes les clés.
+
+**80 / 80 cochés.**
+
+- [x] `citadine` — Citadine — voiture (planche de bord, volant, mains, montants, pavillon, rétroviseur, siège voisin)
+- [x] `muscle` — Muscle "Rafale" — voiture (planche de bord, volant, mains, montants, pavillon, rétroviseur, siège voisin)
+- [x] `van` — Fourgon — voiture (planche de bord, volant, mains, montants, pavillon, rétroviseur, siège voisin)
+- [x] `police` — Interceptor — voiture (planche de bord, volant, mains, montants, pavillon, rétroviseur, siège voisin)
+- [x] `gangcar` — Berline Viper — voiture (planche de bord, volant, mains, montants, pavillon, rétroviseur, siège voisin)
+- [x] `milit` — Camion "Aigle" — camion ou bus (planche large, volant couché)
+- [x] `moto` — Moto — moto (guidon, compteur, rétroviseurs, réservoir)
+- [x] `motoR` — Moto "Frelon" — moto (guidon, compteur, rétroviseurs, réservoir)
+- [x] `velo` — Vélo de ville — vélo (guidon, sonnette) ; guidon large : les mains sortent du champ étroit du portrait
+- [x] `bmx` — BMX — vélo (guidon, sonnette) ; guidon large : les mains sortent du champ étroit du portrait
+- [x] `skate` — Skateboard — debout (rien à construire) ; debout : rien à construire, on voit la planche en baissant les yeux
+- [x] `motocross` — Moto cross — moto (guidon, compteur, rétroviseurs, réservoir)
+- [x] `sport` — Supercar "Éclipse" — voiture (planche de bord, volant, mains, montants, pavillon, rétroviseur, siège voisin) ; œil juste au-dessus de la ceinture (sportive basse) : on voit le haut du volant et le capot
+- [x] `taxi` — Taxi — voiture (planche de bord, volant, mains, montants, pavillon, rétroviseur, siège voisin)
+- [x] `pickup` — Pickup — voiture (planche de bord, volant, mains, montants, pavillon, rétroviseur, siège voisin)
+- [x] `buggy` — Buggy des dunes — voiture (planche de bord, volant, mains, montants, pavillon, rétroviseur, siège voisin) ; œil estimé sur l’encombrement
+- [x] `yacht` — Yacht "Impérial" — bateau (console, barre, manette, compas)
+- [x] `bateau` — Vedette "Sirène" — bateau (console, barre, manette, compas)
+- [x] `surf` — Planche de surf — debout (rien à construire) ; debout : rien à construire
+- [x] `kayak` — Kayak — kayak (pagaie en mains, hiloire)
+- [x] `jetski` — Jet-ski — jet-ski (guidon, capot)
+- [x] `berline` — Berline — voiture (planche de bord, volant, mains, montants, pavillon, rétroviseur, siège voisin)
+- [x] `motoS` — Moto sportive — moto (guidon, compteur, rétroviseurs, réservoir)
+- [x] `bateauP` — Vedette de police — bateau (console, barre, manette, compas)
+- [x] `peche` — Bateau de pêche — bateau (console, barre, manette, compas)
+- [x] `fantome` — Moto "Fantôme" — moto (guidon, compteur, rétroviseurs, réservoir)
+- [x] `blinde` — Blindé "Bastion" — camion ou bus (planche large, volant couché)
+- [x] `jeepMil` — Jeep militaire "Guépard" — voiture (planche de bord, volant, mains, montants, pavillon, rétroviseur, siège voisin)
+- [x] `dca` — Camion DCA "Foudre" — camion ou bus (planche large, volant couché)
+- [x] `grandyacht` — Méga-yacht "Reyes Royale" — passerelle (console large, barre, radar)
+- [x] `cargo` — Porte-conteneurs "Reyes Star" — passerelle (console large, barre, radar)
+- [x] `espadon` — Vedette "Espadon" — bateau (console, barre, manette, compas)
+- [x] `mirage` — Supercar "Mirage" — voiture (planche de bord, volant, mains, montants, pavillon, rétroviseur, siège voisin) ; idem sportive basse
+- [x] `ovni` — OVNI "Zeta-9" — OVNI (console, boule de commande)
+- [x] `quad` — Quad "Scorpide" — moto (guidon, compteur, rétroviseurs, réservoir) ; œil estimé sur l’encombrement
+- [x] `motoMil` — Moto cross militaire — moto (guidon, compteur, rétroviseurs, réservoir)
+- [x] `buggyCanon` — Buggy-canon "Sirocco" — voiture (planche de bord, volant, mains, montants, pavillon, rétroviseur, siège voisin) ; œil estimé sur l’encombrement
+- [x] `bulldozer` — Bulldozer "Titan" — camion ou bus (planche large, volant couché)
+- [x] `grue` — Grue "Marteau" — camion ou bus (planche large, volant couché) ; œil estimé sur l’encombrement
+- [x] `ambulance` — Ambulance "Secours" — camion ou bus (planche large, volant couché)
+- [x] `depanneuse` — Dépanneuse "Grizzly" — camion ou bus (planche large, volant couché)
+- [x] `scarabee` — Buggy "Scarabée" — voiture (planche de bord, volant, mains, montants, pavillon, rétroviseur, siège voisin) ; œil estimé sur l’encombrement
+- [x] `amphibie` — 4x4 Amphibie "Loutre" — voiture (planche de bord, volant, mains, montants, pavillon, rétroviseur, siège voisin) ; œil estimé sur l’encombrement
+- [x] `bond` — GT "Agent Gris" — voiture (planche de bord, volant, mains, montants, pavillon, rétroviseur, siège voisin) ; habitacle sombre (la GT est peinte sombre à l'intérieur), le volant se voit
+- [x] `baronne` — Ancienne "Baronne" — voiture (planche de bord, volant, mains, montants, pavillon, rétroviseur, siège voisin)
+- [x] `avion` — Avion "Colibri" — avion (tableau, volant ou manche, manette)
+- [x] `char` — Char "Rhinocéros" — char (tourelleau, périscope) ; œil estimé sur l’encombrement
+- [x] `chasseur` — Chasseur "Épervier" — avion (tableau, volant ou manche, manette)
+- [x] `tourisme` — Avion de tourisme "Pélican" — avion (tableau, volant ou manche, manette)
+- [x] `jetprive` — Jet privé "Albatros" — avion (tableau, volant ou manche, manette)
+- [x] `ligne` — Long-courrier "Reyes Air" — avion (tableau, volant ou manche, manette)
+- [x] `fret` — Cargo "Baleine" — avion (tableau, volant ou manche, manette)
+- [x] `tracteurPiste` — Tracteur de piste "Mule" — camion ou bus (planche large, volant couché)
+- [x] `citerne` — Camion-citerne "Kérosène" — camion ou bus (planche large, volant couché)
+- [x] `escalier` — Passerelle mobile "Échelle" — camion ou bus (planche large, volant couché) ; œil estimé sur l’encombrement
+- [x] `bagagiste` — Tracteur à bagages "Valise" — camion ou bus (planche large, volant couché) ; œil estimé sur l’encombrement
+- [x] `voltige` — Voltige "Colibri Rouge" — avion (tableau, volant ou manche, manette)
+- [x] `vautour` — Hélico de combat "Vautour" — hélico (tableau, cyclique, collectif, palonniers) ; bulle teintée : la vue est bleutée, le capot olive en bas
+- [x] `vip` — Hélico VIP "Riviera" — hélico (tableau, cyclique, collectif, palonniers)
+- [x] `ecureuil` — Hélico "Écureuil" — hélico (tableau, cyclique, collectif, palonniers)
+- [x] `titan` — Hélico-grue "Titan" — hélico (tableau, cyclique, collectif, palonniers)
+- [x] `helico` — Hélico "Libellule" — hélico (tableau, cyclique, collectif, palonniers)
+- [x] `busville` — Bus de ville — camion ou bus (planche large, volant couché)
+- [x] `pompiers` — Camion de pompiers — camion ou bus (planche large, volant couché)
+- [x] `jeep` — 4x4 "Coyote" — voiture (planche de bord, volant, mains, montants, pavillon, rétroviseur, siège voisin)
+- [x] `monstertruck` — Monster Truck — voiture (planche de bord, volant, mains, montants, pavillon, rétroviseur, siège voisin)
+- [x] `depotCitadine` — La Citadine — voiture (planche de bord, volant, mains, montants, pavillon, rétroviseur, siège voisin)
+- [x] `depotPickup` — Le Pick-up — camion ou bus (planche large, volant couché)
+- [x] `depotBolide` — Le Bolide — voiture (planche de bord, volant, mains, montants, pavillon, rétroviseur, siège voisin) ; idem sportive basse
+- [x] `depotBus` — Le Bus — camion ou bus (planche large, volant couché)
+- [x] `limousine` — Limousine "Majesté" — voiture (planche de bord, volant, mains, montants, pavillon, rétroviseur, siège voisin)
+- [x] `suvLuxe` — SUV de luxe "Sierra" — voiture (planche de bord, volant, mains, montants, pavillon, rétroviseur, siège voisin)
+- [x] `cabriolet` — Cabriolet "Azur" — voiture (planche de bord, volant, mains, montants, pavillon, rétroviseur, siège voisin)
+- [x] `charger` — Muscle "Taureau" — voiture (planche de bord, volant, mains, montants, pavillon, rétroviseur, siège voisin) ; idem sportive basse
+- [x] `hyper` — Hypercar "Zénith" — voiture (planche de bord, volant, mains, montants, pavillon, rétroviseur, siège voisin) ; idem sportive basse
+- [x] `bolide` — Bellatti "Bolide" — voiture (planche de bord, volant, mains, montants, pavillon, rétroviseur, siège voisin) ; idem sportive basse
+- [x] `enzo` — Ferroni "Enzo" — voiture (planche de bord, volant, mains, montants, pavillon, rétroviseur, siège voisin) ; idem sportive basse
+- [x] `derbyBreak` — Break « Corbillard » — voiture (planche de bord, volant, mains, montants, pavillon, rétroviseur, siège voisin)
+- [x] `derbyCompacte` — Citadine « Savonnette » — voiture (planche de bord, volant, mains, montants, pavillon, rétroviseur, siège voisin)
+- [x] `derbyPickup` — Pick-up « Bétaillère » — voiture (planche de bord, volant, mains, montants, pavillon, rétroviseur, siège voisin)

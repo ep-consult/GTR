@@ -55,7 +55,7 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
   echo "$ln | $(sed -n "$((ln+1))p" index.html | sed 's/^[ \t]*//')"; done
 ```
 
-**Relevé du 18 octobre — 36 098 lignes.**
+**Relevé du 18 octobre — 36 338 lignes.**
 Attention : `maj_carte` recale les numéros dans l'ordre des lignes de la table ;
 un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la main.
 
@@ -87,32 +87,33 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 16452 | POOLS — balles, particules, textes flottants, traces de pneus |
 | 16821 | ÉTAT GLOBAL + JOUEUR (`P`) |
 | 17690 | VÉHICULES — physique arcade, trafic, dégâts |
-| 20523 | PIÉTONS |
-| 20706 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
-| 21285 | **RAYON TRACTEUR DE L'OVNI** |
-| 21750 | NIVEAU DE RECHERCHE (étoiles) |
-| 22079 | VAGUES + bonus de fin de vague |
-| 22204 | MISSIONS COURTES |
-| 22207 | BÂTIMENTS VISITABLES — intérieurs |
-| 22277 | FOUILLE — mécanique générique |
-| 22825 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
-| 27058 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
-| 27467 | **LAVERIE** V2 — l'essorage de la machine 7 |
-| 27732 | **SERRE** V2 — la nuit de la floraison |
-| 28025 | CINÉ-PALACE |
-| 28269 | MÉTRO ABANDONNÉ |
-| 28335 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
-| 28688 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
-| 29590 | SITE 51 |
-| 29820 | LE DÉPÔT DE BUS — courses clandestines |
-| 31267 | **MÉTIERS** — missions liées à un véhicule |
-| 31558 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
-| 32574 | ÉCRANS / MENUS / BOUTIQUES |
-| 32849 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
-| 33676 | DÉBUT / FIN DE PARTIE |
-| 35209 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
-| 35446 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
-| 35966 | BOUCLE PRINCIPALE |
+| 20524 | PIÉTONS |
+| 20707 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
+| 21286 | **RAYON TRACTEUR DE L'OVNI** |
+| 21751 | NIVEAU DE RECHERCHE (étoiles) |
+| 22080 | VAGUES + bonus de fin de vague |
+| 22205 | MISSIONS COURTES |
+| 22208 | BÂTIMENTS VISITABLES — intérieurs |
+| 22278 | FOUILLE — mécanique générique |
+| 22826 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
+| 27059 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
+| 27468 | **LAVERIE** V2 — l'essorage de la machine 7 |
+| 27733 | **SERRE** V2 — la nuit de la floraison |
+| 28026 | CINÉ-PALACE |
+| 28270 | MÉTRO ABANDONNÉ |
+| 28336 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
+| 28689 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
+| 29591 | SITE 51 |
+| 29821 | LE DÉPÔT DE BUS — courses clandestines |
+| 31268 | **MÉTIERS** — missions liées à un véhicule |
+| 31559 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
+| 32575 | ÉCRANS / MENUS / BOUTIQUES |
+| 32850 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
+| 33677 | DÉBUT / FIN DE PARTIE |
+| 35210 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
+| 35447 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
+| 35735 | **COCKPITS** — vue 1re personne au volant (`COCKPIT`, `cockpitDims`, `mkCockpitInterieur`, `cameraCockpit`, `cockpitDiagnostic`) |
+| 36206 | BOUCLE PRINCIPALE |
 
 ### Ancres fines (hors bandeaux)
 
@@ -160,25 +161,25 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 16829 | `const P` — état du joueur |
 | 16872 | `P.stamMax = 100 + 12*mus` |
 | 18215 | `resoudreCollisionsVehicule()` — collisions entre véhicules (SAT sur les 4 axes) |
-| 18885 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
-| 19009 | `boutonsAPied()` — boutons du HUD remis « à pied » (sortie de véhicule ET début de partie) |
-| 19930 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
-| 20061 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
-| 22213 | `IOFF = -9000` |
-| 24017 | `INTDEFS` — définitions des **28 salles** (27 + la boutique) |
-| 24402 | `construireSalle(id)` |
+| 18886 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
+| 19010 | `boutonsAPied()` — boutons du HUD remis « à pied » (sortie de véhicule ET début de partie) |
+| 19931 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
+| 20062 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
+| 22214 | `IOFF = -9000` |
+| 24018 | `INTDEFS` — définitions des **28 salles** (27 + la boutique) |
+| 24403 | `construireSalle(id)` |
 | 20390 | `CHALUTIER_BANCS_PLAN` — chalutier V2 ; `chalutierMaj` (20761), `dessinerRadarChalutier` (21018) |
-| 31276 | `METIERS_CIBLE` |
-| 31576 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
-| 31664 | `PIECES_FAMILLES` — catalogues de pièces par famille |
-| 31974 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
-| 32038 | `libererObjet()` — libère les géométries d'un objet retiré |
-| 32054 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
-| 32178 | `construireGarageTuning()` — la salle partagée |
-| 32548 | `majNitro()` |
+| 31277 | `METIERS_CIBLE` |
+| 31577 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
+| 31665 | `PIECES_FAMILLES` — catalogues de pièces par famille |
+| 31975 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
+| 32039 | `libererObjet()` — libère les géométries d'un objet retiré |
+| 32055 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
+| 32179 | `construireGarageTuning()` — la salle partagée |
+| 32549 | `majNitro()` |
 | 17883 | `degatsChoc()` — dégâts V2 : `bosseler`, débris, `perdreRoue` ; murs : `degagerDesMurs` (plus haut) |
 | 7682 | `SAUTV` — Saut du Vertige : `hauteurSautVertige`, `mkSautVertige`, `mkBargeVertige`, `finSautVertige` |
-| 35624 | `VUE1P` — vue à la 1re personne : `cameraPremiere`, `ligneDeMire`, `viseAuto1P` |
+| 35625 | `VUE1P` — vue à la 1re personne : `cameraPremiere`, `ligneDeMire`, `viseAuto1P` |
 | 9554 | `SPORTJ` — le centre sportif se joue : `sportjDemarrer`, `majSportJ`, `sportjFrapper` |
 | 8980 | `RECHARGE_ARME` — rechargements à la 1re personne : `animRecharge`, `rechPiece`, `rechRemise`, `rechAccessoire` |
 
@@ -1507,6 +1508,56 @@ même qualité » ; « enlève le capot qui descend sur le Raptor, un vrai avant
   avant verticale au niveau du capot, calandre noire agrandie ; les ancrages du
   garage se recalculent seuls (`ancragesProfil`).
 - Vérifié en rendu réel (galerie des 48 véhicules terrestres, même angle).
+
+## Cockpits — la vue à la 1re personne au volant (nuit du 17 octobre 2026) — bandeau `COCKPITS`
+
+Demandé : des cockpits pour chaque véhicule (liste de contrôle
+`rapport_nuit/COCKPITS.md`, générée depuis `VEHDEFS`). En vue 1P
+(`META.vue 'fps'`), monter dans un véhicule ne ramène plus la vue immersive :
+`vueCockpit()` → `cameraCockpit` (branche de `majCamera`, juste après le tir à
+la 1re personne).
+- **Œil** (`cockpitDims`) : d'après le VRAI vitrage du modèle
+  (`ckBoitesVitres` : la plus grande boîte de verre et celles qui la recoupent
+  en hauteur — une calandre ou un pneu sombres recolorés en verre tiraient la
+  boîte vers le bas), sinon l'assise `ud.siege`, sinon l'encombrement
+  (`approx`). Voiture : un mètre derrière le pied du pare-brise, à gauche ;
+  camion et bus : 1,15 m ; avion : au ras du haut de la verrière (en dessous,
+  c'est le fuselage) ; assis à ciel ouvert (`siege.assis`) : à la hauteur des
+  yeux du pilote assis (le modèle humain garde sa taille debout) ; moto : la
+  selle + 1,05 ; bateau : debout à la barre, à gauche du mât du T-top,
+  derrière le vitrage ; timonerie vitrée (pêche) : dedans. `COCKPIT_DEFS`
+  corrige à la main (char, fantôme, bulldozer, scarabée, jet, vieux avions).
+- **La caisse des voitures est pleine jusqu'à la ceinture** (le pont de la
+  carrosserie) : tout ce qui compte se construit AU-DESSUS, par rapport à
+  l'œil (planche 42 cm sous l'œil, instruments à 56 cm devant et 30 cm
+  dessous, volant à 46 cm devant). **Le champ du portrait fait ~38° de
+  large** : à 30 cm, un volant remplit l'écran ; une console 30 cm de côté
+  sort du cadre. Tout est dans l'axe de l'œil.
+- **Vitres sombres et opaques** des anciens modèles (avions, bateaux, engins :
+  `VITRES_CK`) : rendues transparentes le temps du cockpit
+  (`cockpitVitrer`, `o.userData.matCk`), rendues à la sortie.
+- **Familles** (`ckFamille`, `mkCockpitInterieur`) : auto, camion, char
+  (écoutille), moto, jetski, vélo, kayak (pagaie), bateau, passerelle, hélico
+  (cyclique, collectif, palonniers), avion (volant ou manche), OVNI, debout
+  (skate, planche : rien). Mains gantées (`ckMain`) : le poing dans le repère
+  qui tourne (roue, guidon), l'avant-bras dans le repère du cockpit, recalculé
+  à chaque image (`majBrasCockpit`) — placés dans la roue, ils partaient au
+  plafond quand la roue était couchée. Instruments : une texture canvas
+  (`cockpitInstruments`, 10 fois par seconde : vitesse, régime, état,
+  altitude ou cap, voyants). Volant : `v.steerIn`, `v.freinIn` notés par
+  `majVehiculePhys`.
+- **Caméra** : quaternion du véhicule (tangage, dévers) × (π + regard au
+  doigt `VUE.offVeh`, qui revient) ; `VUE.yawRendu` et `VUE.offVehRendu`
+  comme en poursuite : la conduite ne change pas. Champ 74° + vitesse, ciel
+  en dôme, traits de vitesse. Le corps du pilote est caché (moto, cabriolet),
+  rendu par `cockpitRetirer`. Intérieur enfant du véhicule, libéré
+  (`libererEntite`) à la sortie ; matériaux propres, jamais `mat()`.
+- **Diagnostic** (`cockpitDiagnostic`, lu par le test et par la liste) : œil
+  dans l'emprise ; rayon central libre à plus de 1,1 u ET un des deux rayons
+  de côté (un montant, un mât sont normaux) ; instruments dans le champ (un
+  coup d'œil vers le bas admis pour les familles debout) ; `rc.camera=camera`
+  (r128 : les sprites d'ombre lisent la caméra du rayon).
+- Test : « Cockpits » ; liste : `rapport_nuit/COCKPITS.md`.
 
 ## Retours de playtest du 16 octobre — véhicules et conduite
 

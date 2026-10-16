@@ -13158,6 +13158,58 @@ async function main() {
       });
       if (r.ko.length) fail('Intervention de la police : ' + r.ko.join(' ; ')); else ok('Intervention de la police : ' + r.info.join(' ; '));
     }
+
+    // -------------------------------------------------------------------
+    // Cockpits (nuit du 17 octobre) : la vue à la 1re personne au volant.
+    // Pour CHAQUE clé de VEHDEFS (lue dans la source) : on monte, la vue 1P
+    // construit un cockpit et cockpitDiagnostic est bon (œil dans l'emprise et
+    // à bonne hauteur, vue libre devant, instruments dans le champ, intérieur
+    // présent) ; le volant suit le braquage ; repasser en vue immersive retire
+    // le cockpit, rend les vitres et le corps du pilote ; descendre rend la 1re
+    // personne à pied ; aucune fuite d'objets dans la scène.
+    // -------------------------------------------------------------------
+    console.log('\n--- Cockpits : chaque véhicule de VEHDEFS a son poste de pilotage à la 1re personne ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); META.vue = 'fps'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WANTED.heat = 0; for (const e of ennemis) e.mort = true; WAVES.etat = 'repos'; WAVES.t = 1e9;
+        for (const v of vehicules) { scene.remove(v.mesh); libererEntite(v.mesh); } vehicules.length = 0;
+        const nbScene0 = (() => { let n = 0; scene.traverse(() => n++); return n; })();
+        const cles = Object.keys(VEHDEFS); let n = 0, approx = 0; const fams = {};
+        for (const k of cles) {
+          if (P.veh) sortirVehicule(true); for (const v of vehicules) { scene.remove(v.mesh); libererEntite(v.mesh); } vehicules.length = 0;
+          const d = VEHDEFS[k], mer = !!d.eau, x = mer ? -60 : POIS.place.x + 40, z = mer ? MER + 40 : POIS.place.z + 10;
+          const v = creerVehicule(k, x, z, 0); if (!v) { ko.push(k + ' : pas de véhicule'); continue; } P.x = x; P.z = z + 1; P.y = 0; entrerVehicule(v); if (P.veh !== v) { ko.push(k + ' : pas monté'); continue; }
+          v.v = 0; for (let i = 0; i < 20; i++) { majVehicules(1 / 30); majCamera(1 / 30); } renderer.render(scene, camera);
+          if (!vueCockpit() || COCKPIT.v !== v || !COCKPIT.g) { ko.push(k + ' : pas de cockpit'); continue; }
+          const dg = cockpitDiagnostic(v); fams[dg.fam] = (fams[dg.fam] || 0) + 1; if (dg.approx) approx++;
+          if (!dg.ok) ko.push(k + ' : ' + [dg.dansXZ ? '' : 'œil hors emprise', dg.dansY ? '' : 'œil hors hauteur (' + dg.eye.y + ' pour ' + dg.haut + ')', dg.libre ? '' : 'vue bouchée (' + dg.devant + ')', dg.instrVu === false ? 'instruments hors champ' : '', dg.nb >= 3 || dg.fam === 'debout' ? '' : 'intérieur vide'].filter(Boolean).join(', '));
+          if (P.h && P.h.g.visible && P.surMoto) ko.push(k + ' : le corps du pilote est devant l’œil');
+          n++; }
+        info.push(n + ' véhicules, familles ' + JSON.stringify(fams) + (approx ? ', ' + approx + ' œil estimé sur l’encombrement' : ''));
+        // le volant suit le braquage, les instruments vivent
+        const v = P.veh; if (v && COCKPIT.volant) { const a0 = COCKPIT.volant.rotation.z; v.steerIn = 1; for (let i = 0; i < 20; i++) majCockpit(v, 1 / 30); const a1 = COCKPIT.volant.rotation.z;
+          if (Math.abs(a1 - a0) < 0.05 && Math.abs(COCKPIT.volant.rotation.y) < 0.05) ko.push('le volant ne suit pas le braquage'); else info.push('volant : ' + Math.abs(a1 - a0 || COCKPIT.volant.rotation.y).toFixed(2) + ' rad à fond');
+          if (!COCKPIT.tex || !COCKPIT.cvs) ko.push('pas d’instruments'); }
+        // retour en vue immersive : cockpit retiré, vitres rendues
+        const vit = []; if (v) v.mesh.traverse((o) => { if (o.userData && o.userData.matCk) vit.push(o); });
+        META.vue = 'immersive'; majCamera(1 / 30); if (COCKPIT.g || COCKPIT.v) ko.push('cockpit encore là en vue immersive');
+        if (v && v.mesh) { let reste = 0; v.mesh.traverse((o) => { if (o.userData && o.userData.matCk) reste++; }); if (reste) ko.push('vitres pas rendues au véhicule (' + reste + ')'); }
+        // sur une moto : repasser en 1P puis en immersive rend le corps du pilote
+        if (P.veh) sortirVehicule(true); for (const q of vehicules) { scene.remove(q.mesh); libererEntite(q.mesh); } vehicules.length = 0;
+        { const m = creerVehicule('moto', POIS.place.x + 40, POIS.place.z + 10, 0); P.x = m.x; P.z = m.z + 1; entrerVehicule(m); META.vue = 'fps'; for (let i = 0; i < 5; i++) majCamera(1 / 30);
+          if (!COCKPIT.g) ko.push('moto : pas de cockpit'); if (P.h.g.visible) ko.push('moto : corps visible en cockpit');
+          META.vue = 'immersive'; majCamera(1 / 30); if (!P.h.g.visible) ko.push('moto : corps pas rendu en vue immersive'); META.vue = 'fps'; for (let i = 0; i < 3; i++) majCamera(1 / 30);
+          // descendre : la 1re personne à pied reprend
+          sortirVehicule(true); for (let i = 0; i < 3; i++) majCamera(1 / 30); if (COCKPIT.g) ko.push('cockpit encore là à pied'); if (!VUE1P.actif) ko.push('à pied, la 1re personne ne reprend pas');
+          scene.remove(m.mesh); libererEntite(m.mesh); vehicules.length = 0; }
+        META.vue = 'classique'; majCamera(1 / 30);
+        const nbScene1 = (() => { let n2 = 0; scene.traverse(() => n2++); return n2; })();
+        if (nbScene1 > nbScene0 + 8) ko.push('objets laissés dans la scène : ' + (nbScene1 - nbScene0)); else info.push('scène propre (' + (nbScene1 - nbScene0) + ' objets de plus)');
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Cockpits : ' + r.ko.join(' ; ')); else ok('Cockpits : ' + r.info.join(' ; '));
+    }
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];
