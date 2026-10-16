@@ -1375,8 +1375,11 @@ puis redescendre tirer : on ne peut pas ajuster ».
   en crochet léger et ressort ; coups alternés (`V.coupMain`). Un coup qui
   porte (`VUE1P.impact`, posé par `attaquer`) : la vue encaisse une secousse
   brève et un éclat additif s'ouvre sous la mire (`M.choc`), armes blanches
-  comprises. Poing en galet à jointures, échelle 0,72. En marchant, les deux
-  poings pointent à peine dans les coins bas et balancent au rythme des pas
+  comprises. Poing en galet à jointures, échelle 0,72. En marchant, seul le
+  haut des deux poings affleure au bord bas (avant-bras tourné vers le bas,
+  il sort droit par le bord), balancement à peine perceptible — juste pour que
+  la vue ne soit pas vide (2e retour du 16 octobre : « il ne faut presque pas
+  les voir ») ; au rythme des pas
   (`V.kMarche`, place calée sur la demi-largeur réelle du champ `hwC` : portrait
   et format large) ; à l'arrêt ils redescendent hors champ.
 - **Bras entiers, jamais coupés** : le haut du bras va jusqu'à l'épaule, loin

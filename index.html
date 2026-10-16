@@ -35484,8 +35484,8 @@ function cameraPremiere(dt){ const V=VUE1P; if(!V.actif) entrerPremiere(); if(V.
       for(const [h,sh] of [[d,1],[g,-1]]){
         const ph=sh*swp; /* les deux mains en opposition */
         const xS=sh*Math.max(0.1,0.3*hwC), yS=-0.3, zS=-0.06; /* hors champ, en bas, près de l'œil */
-        const xM=sh*0.21*hwC, yM=-0.21+ph*0.012*amp+kc*0.01, zM=-0.26-ph*0.03*amp; /* à peine visibles : le haut du poing dans le coin bas */
-        const bx=lerp(xS,xM,V.kMarche), by=lerp(yS,yM,V.kMarche), bz=lerp(zS,zM,V.kMarche), brx=lerp(-1.1,-0.7-ph*0.15,V.kMarche);
+        const xM=sh*0.21*hwC, yM=-0.245+ph*0.004*amp+kc*0.004, zM=-0.26-ph*0.01*amp; /* presque invisibles : seul le haut des jointures affleure au bord bas, un balancement à peine perceptible — juste pour que la vue ne soit pas vide (16 octobre) */
+        const bx=lerp(xS,xM,V.kMarche), by=lerp(yS,yM,V.kMarche), bz=lerp(zS,zM,V.kMarche), brx=lerp(-1.1,-0.2-ph*0.05,V.kMarche); /* avant-bras tourné vers le bas : il sort droit par le bord, seul le haut du poing reste */
         if(h===qui&&kp>0){ const xP=sh*0.03, yP=-0.075, zP=-0.4;
           h.position.set(lerp(bx,xP,kp),lerp(by,yP,kp)+Math.sin(kp*Math.PI)*0.03,lerp(bz,zP,kp)); h.rotation.set(lerp(brx,-0.4,kp),sh*lerp(-0.1,0.35,kp),sh*lerp(0.3,-0.2,kp)); }
         else { h.position.set(bx,by,bz); h.rotation.set(brx,-sh*0.1,sh*0.3); }
