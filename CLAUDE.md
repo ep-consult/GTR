@@ -322,6 +322,10 @@ stratégie : `rapport_nuit/STRATEGIE.md`. Pièges trouvés cette nuit :
 - **`vehiculeBloquant` rejette par la distance** (`o._rayBloc`,
   `(long+larg)/2 + 0,6`) : trois appels par piéton et par image sur ~200
   véhicules coûtaient 23 ms par image au centre-ville.
+- **`degagerDesMurs` : la sortie « vers le centre du véhicule » ne vaut que pour
+  les coins en escalier de l'arène (`coinDerby:true`)** : appliquée à tout
+  petit solide, elle poussait un skate hors d'un potelet du mobilier à chaque
+  image (il reculait à 3 u/s sur une graine).
 - **Un pilote simulé pose sa graine APRÈS `startRun`** (aquarium, laverie,
   radio, ciné, chalutier, derby, « Dégâts V2 ») : un objet Three.js de plus
   au démarrage changeait tout le match.

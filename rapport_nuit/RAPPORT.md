@@ -1876,7 +1876,16 @@ Captures : `captures/lot11/armes_v2_galerie.png`, `armes_v2_en_main.png`, `stand
 
 ### Résumé
 
-(à écrire en fin de nuit)
+1. **Deux documents** : `STRATEGIE.md` (ce que le jeu est, trois directions, dix questions — à lire en premier) et cette section. Branche `nuit-revue-globale`, 14 commits, rien de fusionné. Date réelle : vendredi 16 octobre 2026 (les « 17, 18 octobre » du CLAUDE.md sont en avance).
+2. **Plus de plantage connu** : munitions ramassées au guidon d'une moto cross (exception à chaque image), carte de bonus qui figeait le jeu au volant, exception du tick qui figeait l'écran sans message (le rendu est maintenant garanti, l'erreur affichée), `#errBox` qui n'existait pas.
+3. **Sauvegarde solide** : plus de tempête de `setItem` en cas de quota, copie de secours d'une sauvegarde illisible, `null` géré dans les deux sens (une sauvegarde `{stats:null}` plantait le démarrage ; l'ancien achat du concessionnaire n'était jamais relu).
+4. **Rien ne survit plus au game over** : braquages, lit de la villa (qui lançait une vague en pleine vague), compteurs de métiers, surprises des toits ; et la mort arrête vraiment les anciens mini-jeux (une pièce du musée était volée et inscrite dans la sauvegarde deux secondes après la mort).
+5. **Boucle** : la mission « Neutralise N membres de gangs » n'avançait pas contre deux gangs sur quatre ; douze paiements ont leur garde ; l'écran de mort compte tout l'argent de la partie.
+6. **Performance** : logique par image au centre-ville **48,7 → 24,2 ms** (piétons 32 → 4 ms : `vehiculeBloquant` sans rejet par la distance), sprites invisibles plus dessinés, HUD écrit au changement ; image identique. Chargement : `construireVille` 20,4 → 18,5 s (profilé), bouton JOUER explicite pendant la construction.
+7. **HUD en portrait** : la pause et l'écran de mort passaient SOUS l'établi, la boutique, le derby ; QUITTER caché pendant une borne ; jauges VÉHICULE/CARBURANT sous GRENADE ; bouton d'action sur DÉCOLLER ; cartes de bonus choisies par un toucher accidentel — tout corrigé, capture `hud_nuit.png`.
+8. **Textes** : aide fausse (sniper « à la marina », touche A en conflit), toast de l'avion faux, huit armes jamais annoncées à leur niveau, « 4 curiosités » pour 16, « / 7 » pour 20 véhicules cachés, « bientôt » visible, quartiers sans accents.
+9. **Suite** : 762 vérifications vertes, aucune sautée (graine par défaut) ; deux `SEED=random` : 759 et 760 vertes, échecs analysés plus bas — trois fragilités de tirage qui existaient AVANT la nuit (vérifié sur le fichier d'avant), une régression du lot 7 corrigée (skate poussé hors d'un potelet).
+10. **Les décisions t'attendent** dans « À trancher » : le farming « Abandonner → Rejouer », le plafond des missions courtes, l'aquarium gratuit, les guillemets des noms, les achats au `pointerdown`, REPLIS incomplet, les dates.
 
 ### Mesures avant / après
 
@@ -1891,15 +1900,15 @@ successives pour la mémoire.
 
 | Mesure | Avant (60680a2) | Après |
 |---|---|---|
-| `index.html` | 2 663 Ko | |
-| De la navigation au premier `evaluate` (ville construite), headless | ~30 s (`performance.now()` = 30,5 s ; 37,7 s avec le lancement du navigateur) | |
-| Premier rendu, centre, vue classique | 119 draw calls, 56 886 triangles, 118 géométries, 36 textures | |
-| Premier rendu, centre, vue immersive | 689 draw calls, 82 116 triangles, 363 géométries, 62 textures | |
-| Logique par image, centre (208 véhicules, 22 piétons) | **48,7 ms** — `majPietons` 32,1, `majVehicules` 15,6, `majTrafic` 9,7 (compté dans `majVehicules`) | |
-| Logique par image, colline (181 véhicules) | 31,4 ms — `majPietons` 24,8, `majVehicules` 5,7 | |
-| Logique par image, large (180 véhicules) | 10,7 ms — `majPietons` 5,5, `majVehicules` 4,8 | |
-| Rendu par image (headless, non représentatif) | 55 / 60 / 85 ms | |
-| Mémoire après 3 parties | géométries 1 784 → 1 781 → 1 859 ; textures 153 → 156 → 159 ; tas JS 398 → 171 → 208 Mo | |
+| `index.html` | 2 663 Ko | 2 674 Ko |
+| De la navigation au premier `evaluate` (ville construite), headless | ~30 s (`performance.now()` = 30,5 s ; 37,7 s avec le lancement du navigateur) | 28,1 s (33,1 s avec le navigateur) ; profil : `construireVille` 20,4 → 18,5 s |
+| Premier rendu, centre, vue classique | 119 draw calls, 56 886 triangles, 118 géométries, 36 textures | identique (les sprites masqués le sont le jour en jeu, pas au premier rendu du menu) |
+| Premier rendu, centre, vue immersive | 689 draw calls, 82 116 triangles, 363 géométries, 62 textures | identique |
+| Logique par image, centre (208 véhicules, 22 piétons) | **48,7 ms** — `majPietons` 32,1, `majVehicules` 15,6, `majTrafic` 9,7 (compté dans `majVehicules`) | **24,2 ms** — `majPietons` 4,1, `majVehicules` 19,1 (trafic 12,3 : la circulation simulée diffère d'une exécution à l'autre) |
+| Logique par image, colline (181 véhicules) | 31,4 ms — `majPietons` 24,8, `majVehicules` 5,7 | **10,3 ms** — `majPietons` 3,6, `majVehicules` 5,8 |
+| Logique par image, large (180 véhicules) | 10,7 ms — `majPietons` 5,5, `majVehicules` 4,8 | **6,5 ms** — `majPietons` 1,0, `majVehicules` 5,1 |
+| Rendu par image (headless, non représentatif) | 55 / 60 / 85 ms | 52 / 57 / 90 ms |
+| Mémoire après 3 parties | géométries 1 784 → 1 781 → 1 859 ; textures 153 → 156 → 159 ; tas JS 398 → 171 → 208 Mo | géométries 1 784 → 1 781 → 1 859 ; textures 153 → 156 → 159 ; tas 211 → 190 → 211 Mo (identique) |
 
 Première lecture : **`majPietons` coûte 25 à 32 ms par image en ville pour 22
 piétons**. Micro-mesure (`scratchpad/dbg_pietons.js`) : `vehiculeBloquant` 0,35 ms
@@ -1912,7 +1921,28 @@ reste des helpers du piéton est négligeable (`estEau` 0,003 ms, `solidAt`
 
 Suite de référence : `node valider.js` vert ; `node scenarios.js` (graine 20260731)
 **757 vérifications vertes, aucune sautée** (`suite_lot7b.log`, avant la création de
-la branche) ; `SEED=random` ×3 : en cours (résultats plus bas).
+la branche) ; `SEED=random` ×3 avant les correctifs : une exécution complète (755 vertes,
+deux échecs corrigés ensuite : derby au seuil fragile, vue 1P qui relisait une vieille
+balle), deux arrêtées sur un délai du protocole pendant que d'autres Chrome tournaient.
+
+**Fin de nuit** : `node valider.js` vert ; `node scenarios.js` (graine 20260731) :
+**762 vérifications vertes, aucune sautée** (`suite_fin.log`). `SEED=random` :
+- graine 1113670003 : 759 vertes, 1 saut rendu visible (client fragile du taxi jamais
+  tiré en 12 courses — c'était l'angle mort que `saute()` devait exposer), 3 échecs :
+  **derby** (pilote 0/4 : seuil fragile connu, non modifié), **tyrolienne** qui
+  traverse un immeuble de 0,45 u (échoue aussi sur le fichier d'AVANT la nuit avec
+  cette graine : placement des surprises, préexistant, « À trancher »), **skate** qui
+  reculait en poussant (régression du lot 7 : la règle « petit bloc » de
+  `degagerDesMurs` poussait un skate hors d'un potelet ; réservée aux coins de l'arène,
+  `c7cc19d` — passe maintenant sur cette graine) ;
+- graine 3242734423 : 760 vertes, même saut, 2 échecs : **skate** (−2,7 u/s : échoue
+  aussi sur le fichier d'AVANT le lot 7 `bde3f63` avec cette graine — fragilité de
+  tirage préexistante du test, sans rapport avec la nuit ; en isolant la scène le skate
+  accélère à 10 u/s : à reprendre), **vue 1P** (cible non choisie : un solide de la
+  place coupait la ligne de vue sur cette graine — le test choisit désormais la
+  direction la plus dégagée, `c7cc19d`).
+`catalogue.html` : non rouvert cette nuit (il charge `index.html` depuis le CDN, hors
+du harnais) ; aucune table qu'il lit n'a été renommée.
 
 ### Carte du fichier
 
@@ -2137,3 +2167,21 @@ Par ordre de valeur, avec le geste exact.
 
 ### `git log --oneline` de la branche
 
+(messages tronqués à 120 caractères ; le commit de ce rapport s'ajoute en tête)
+
+```
+c7cc19d fix(nuit, dégagement des murs): la sortie « vers le centre du véhicule » des petits solides ne s'applique qu'aux…
+39488fb docs(carte): numéros de lignes recalés après les correctifs de la nuit
+8f478f5 docs(nuit): rapport — correctifs, décisions prises seul, à trancher, polissage différé, abandonné, à tester sur …
+01354bd test(nuit, déterminisme): les pilotes de l'aquarium, de la laverie, de la radio, du ciné et toutes les sorties d…
+4b23faf fix(nuit, textes): aide — le sniper n'est pas « à la marina », vitesse de décrochage en km/h, « pille » au lieu …
+00508d1 fix(nuit, HUD portrait): les écrans (pause, mort, bonus, menus) passent au-dessus des panneaux de jeu (établi, b…
+c8e769d perf(nuit, chargement): plateau des mesas rejeté par sa boîte englobante avant les quatre sinus (appelé pour cha…
+3853c2e perf(nuit, tick): vehiculeBloquant rejette par la distance avant toute trigonométrie (trois appels par piéton et…
+fd58d3f fix(nuit, boucle et paiements): la mission « purge » compte les quatre gangs (seuls les Vipers et les Calaveras …
+0363ed3 fix(nuit, état au game over): braquages (caisse, coffre, casier, preuves) remis à zéro à chaque partie (ils ne r…
+e08113e fix(nuit, plantages): grenN sans garde dans ramasser et la carte « Poche à grenades » (au volant d'un deux-roues…
+f932f44 docs(nuit, phase 1): plan de la nuit, six audits fusionnés et filtrés par STRATEGIE section 8
+9224ed1 docs(nuit, phase 0): mesures de référence (chargement, draw calls, coût de la logique par image en trois points,…
+e7fe29a docs(nuit, partie 1): STRATEGIE.md — ce que GTRoyal est aujourd'hui (boucle, persistance, inventaire cœur / péri…
+```
