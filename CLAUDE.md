@@ -1367,6 +1367,14 @@ puis redescendre tirer : on ne peut pas ajuster ».
   refermés : armes blanches), `garde`, `dessus`, `soutien`, `poing` (vu par celui qui
   le serre : dos de la main dessus, doigts repliés devant). Le haut des bras
   (`userData.hautBras`) est masqué en visée (`fpsHautBras`).
+- **Poings, deux modes** (16 octobre, signalé : « statiques, en plein milieu ») :
+  MARCHE — bras bas dans les coins du champ, balancement opposé au rythme des
+  pas (`V.pas`), plus ample et plus haut en courant, respiration à l'arrêt ;
+  GARDE — poings levés sous la ligne de mire, levée au premier coup (`attaquer`
+  pose `VUE1P.gardeT = GARDE_DUREE` 2,5 s) et retombée en marche sans coup,
+  fondu `V.kGarde`. Les coups alternés partent de la garde. Le poing est un
+  galet (sphère aplatie) à jointures et doigts repliés, échelle 0,72. Portrait :
+  ~31° de champ horizontal, une main à |x| > 0,13 pour z = −0,25 sort du cadre.
 - **Armes blanches** : ancrages dans `ANCRES_ARME` (batte à deux mains sur le
   manche, sabre et couteau à une main), poses `FPS_POSES.melee` (relevée sur
   l'épaule, `pitch`) et `lame` ; **swing** de la batte et du sabre, estoc du couteau,

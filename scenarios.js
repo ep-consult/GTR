@@ -12679,7 +12679,12 @@ async function main() {
         devant.mort = true; META.tirAuto = false; const n1 = META.stats.tirs; for (let i = 0; i < 20; i++) frame(1); if (META.stats.tirs !== n1) ko.push('tir automatique coupé : ça tire encore'); META.tirAuto = true;
         META.armes.batte.poss = true; majArmeJoueur('batte'); frame(2); const Wb = VUE1P.montage.W, rx0 = Wb.rotation.x; P.cadT = 0; P.frappeT = 0; attaquer(); let amp = 0; for (let i = 0; i < 9; i++) { frame(1); amp = Math.max(amp, Math.abs(Wb.rotation.x - rx0)); }
         if (!(VUE1P.montage.melee && amp > 0.8)) ko.push('batte : pas de swing (' + amp.toFixed(2) + ' rad)'); else info.push('batte : swing de ' + amp.toFixed(2) + ' rad');
-        majArmeJoueur('poings'); frame(2); if (!(VUE1P.montage && VUE1P.montage.poings && VUE1P.montage.mains && VUE1P.montage.mains.length === 2)) ko.push('poings : pas de garde à deux mains'); majArmeJoueur('fusil');
+        majArmeJoueur('poings'); frame(2); if (!(VUE1P.montage && VUE1P.montage.poings && VUE1P.montage.mains && VUE1P.montage.mains.length === 2)) ko.push('poings : pas de garde à deux mains');
+        { const [d, g] = VUE1P.montage.mains; const yBas = d.position.y; if (!(VUE1P.kGarde < 0.05) || !(yBas < -0.1)) ko.push('poings : garde levée sans avoir frappé (kGarde ' + VUE1P.kGarde.toFixed(2) + ', y ' + yBas.toFixed(2) + ')'); /* marche : bras bas */
+          INPUT.jy = -1; frame(10); const zA = d.position.z; frame(8); const zB = d.position.z; INPUT.jy = 0; if (!(Math.abs(zB - zA) > 0.01)) ko.push('poings : les bras ne balancent pas en marchant (' + Math.abs(zB - zA).toFixed(3) + ')');
+          P.cadT = 0; P.frappeT = 0; attaquer(); frame(12); if (!(VUE1P.kGarde > 0.5) || !(d.position.y > yBas + 0.06)) ko.push('poings : la garde ne se lève pas au coup (kGarde ' + VUE1P.kGarde.toFixed(2) + ', y ' + d.position.y.toFixed(2) + ')');
+          frame(Math.ceil(GARDE_DUREE * 30) + 20); if (!(VUE1P.kGarde < 0.2)) ko.push('poings : la garde ne retombe pas après ' + GARDE_DUREE + ' s (' + VUE1P.kGarde.toFixed(2) + ')'); else info.push('poings : marche bras bas, balancement au pas, garde levée au coup et retombée après ' + GARDE_DUREE + ' s'); }
+        majArmeJoueur('fusil');
         // les sorties : véhicule, salle
         const v = creerVehicule('berline', P.x + 2, P.z, 0); entrerVehicule(v); frame(2);
         if (VUE1P.actif || VUE1P.montage) ko.push('en véhicule : la 1re personne reste active'); sortirVehicule(true); frame(2);
