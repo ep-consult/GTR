@@ -13016,6 +13016,74 @@ async function main() {
       await page.evaluate(() => { if (BOUT.ouvert) fermerBoutique(); if (INT.actif) sortirInterieur(); });
       if (ko.length) fail('Établi et cabine en salle : ' + ko.join(' ; ')); else ok('Établi et cabine en salle : ' + info.join(' ; '));
     }
+
+    // -------------------------------------------------------------------
+    // Rechargements à la 1re personne (16 octobre, demandé : « en vue 1re
+    // personne et en visée, on ne voit pas le rechargement »). Les armes sont
+    // lues dans RECHARGE_ARME (jamais recopiées) : pour chacune, le vrai
+    // chemin (chargeur vide, rechargerArme), image par image : la pièce de sa
+    // manœuvre bouge, la main gauche part et revient, tout revient en place à
+    // la fin ; en visée l'arme quitte l'œil puis y revient ; le stand de tir
+    // joue la même manœuvre.
+    // -------------------------------------------------------------------
+    console.log('\n--- Rechargements à la 1re personne : chaque arme sa manœuvre, la visée quitte l’œil, retour en place ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); META.vue = 'fps'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6; WANTED.heat = 0; for (const e of ennemis) e.mort = true;
+        P.x = POIS.place.x; P.z = POIS.place.z + 14; P.y = solPied(P.x, P.z); VUE.yawUser = Math.PI; VUE.pitch1P = 0.05;
+        const sons = { rechSort: 0, rechInsere: 0, rechCulasse: 0, rechDouilles: 0 }, orig = {};
+        for (const k in sons) { orig[k] = SFX[k]; SFX[k] = () => { sons[k]++; }; }
+        const pieceDe = (R) => R.piece || ({ chargeur: 'chargeur', barillet: 'barillet', cartouches: 'pompe' })[R.type];
+        const ids = Object.keys(RECHARGE_ARME); let n = 0;
+        for (const id of ids) {
+          META.armes[id].poss = true; P.mun[id] = 60; majArmeJoueur(id); for (let i = 0; i < 8; i++) majCamera(1 / 30);
+          if (!vuePremiere() || !VUE1P.montage || VUE1P.arme !== id) { ko.push(id + ' : pas en vue 1re personne'); continue; }
+          const M = VUE1P.montage, R = RECHARGE_ARME[id], L = M.mod.userData[pieceDe(R)];
+          if (!L || !L.length) { ko.push(id + ' : pas de pièce « ' + pieceDe(R) + ' » dans le modèle'); continue; }
+          if (!M.mainG) { ko.push(id + ' : pas de main gauche'); continue; }
+          const g0 = M.mainG.position.clone(); let dPiece = 0, dMain = 0, levier = 0, culasse = 0, douilles = 0;
+          P.mags[id] = 0; P.rechT = 0; rechargerArme(); if (!(P.rechT > 0)) { ko.push(id + ' : rechargerArme ne lance rien'); continue; }
+          for (let f = 0; f < 600 && P.rechT > 0; f++) { P.rechT -= 1 / 30; if (P.rechT <= 0) finRecharge(); majCamera(1 / 30);
+            for (const m of L) { const p0 = m.userData.p0; if (p0) dPiece = Math.max(dPiece, m.position.distanceTo(p0) + (m.visible ? 0 : 1)); }
+            dMain = Math.max(dMain, M.mainG.position.distanceTo(g0));
+            if (R.verrou && M.mod.userData.levier) levier = Math.max(levier, M.mod.userData.levier[0].rotation.y);
+            if (R.glisse && M.mod.userData[R.glisse]) culasse = Math.max(culasse, M.mod.userData[R.glisse][0].position.y - (M.mod.userData[R.glisse][0].userData.p0 ? M.mod.userData[R.glisse][0].userData.p0.y : 0));
+            for (const d of M.douilles) if (d.m.visible) douilles++; }
+          majCamera(1 / 30);
+          if (!(dPiece > 0.04)) ko.push(id + ' : la pièce « ' + pieceDe(R) + ' » ne bouge pas (' + dPiece.toFixed(3) + ')');
+          if (!(dMain > 0.05)) ko.push(id + ' : la main gauche ne bouge pas (' + dMain.toFixed(3) + ')');
+          if (R.verrou && !(levier > 0.6)) ko.push(id + ' : le verrou ne se lève pas (' + levier.toFixed(2) + ')');
+          if (R.glisse && !(culasse > 0.03)) ko.push(id + ' : ' + R.glisse + ' pas tiré(e) (' + culasse.toFixed(3) + ')');
+          if (R.type === 'barillet' && !douilles) ko.push(id + ' : aucune douille ne tombe du barillet');
+          let place = true; for (const k of ['chargeur', 'barillet', 'levier', 'pompe', 'ogive', 'carreau', 'reservoir', 'bande']) for (const m of (M.mod.userData[k] || [])) { if (!m.visible || (m.userData.p0 && m.position.distanceTo(m.userData.p0) > 1e-6) || Math.abs(m.rotation.y) > 1e-6) place = false; }
+          if (!place || M.mainG.position.distanceTo(g0) > 1e-6 || (M.rechProp && M.rechProp.visible)) ko.push(id + ' : après le rechargement, pièces ou main pas revenues en place');
+          if (P.mags[id] <= 0) ko.push(id + ' : chargeur toujours vide');
+          n++; }
+        if (!(sons.rechInsere >= n) || !(sons.rechSort > 0) || !(sons.rechCulasse > 0) || !(sons.rechDouilles > 0)) ko.push('sons de la manœuvre : ' + JSON.stringify(sons));
+        // en visée : l'arme quitte l'œil le temps du rechargement, puis y revient
+        majArmeJoueur('fusil'); P.mun.fusil = 60; for (let i = 0; i < 5; i++) majCamera(1 / 30); VUE1P.vise = true; for (let i = 0; i < 30; i++) majCamera(1 / 30);
+        const k0 = VUE1P.k; let kMin = 1; P.mags.fusil = 0; rechargerArme();
+        for (let f = 0; f < 600 && P.rechT > 0; f++) { P.rechT -= 1 / 30; if (P.rechT <= 0) finRecharge(); majCamera(1 / 30); kMin = Math.min(kMin, VUE1P.k); }
+        for (let i = 0; i < 30; i++) majCamera(1 / 30);
+        if (!(k0 > 0.95) || !(kMin < 0.1) || !(VUE1P.k > 0.95)) ko.push('visée pendant le rechargement : ' + k0.toFixed(2) + ' → ' + kMin.toFixed(2) + ' → ' + VUE1P.k.toFixed(2));
+        VUE1P.vise = false;
+        for (const k in orig) SFX[k] = orig[k];
+        // le stand de tir : la même manœuvre
+        entrerInterieur('armurerie', PORTES.find((q) => q.id === 'armurerie')); const s = INT.actif;
+        lancerStandTir(s, 'pistolet');
+        if (!FPS.actif || !FPS.montage) ko.push('stand de tir : pas de partie');
+        else { const L = FPS.montage.mod.userData.chargeur; FPS.rechT = FPS.st.rech * 0.75; for (let i = 0; i < 3; i++) majCamera(1 / 30);
+          let d = 0; for (const m of L || []) if (m.userData.p0) d = Math.max(d, m.position.distanceTo(m.userData.p0));
+          if (!(d > 0.04)) ko.push('stand de tir : le chargeur ne tombe pas (' + d.toFixed(3) + ')');
+          FPS.rechT = 0; majCamera(1 / 30); let ok2 = true; for (const m of L || []) if (m.userData.p0 && m.position.distanceTo(m.userData.p0) > 1e-6) ok2 = false; if (!ok2) ko.push('stand de tir : le chargeur ne revient pas');
+          fpsArreter(); }
+        sortirInterieur(); META.vue = 'classique';
+        if (!ko.length) info.push(n + ' armes (lues dans RECHARGE_ARME) : pièce qui bouge, main gauche, retour en place ; sons ' + JSON.stringify(sons) + ' ; visée quittée puis reprise ; stand de tir');
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Rechargements à la 1re personne : ' + r.ko.join(' ; ')); else ok('Rechargements à la 1re personne : ' + r.info.join(' ; '));
+    }
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];
