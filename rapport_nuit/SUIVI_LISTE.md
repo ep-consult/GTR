@@ -12,7 +12,7 @@ Chaque point est coché quand il est fait ET vérifié (rendu réel, test, valid
 - [x] 8. Bateaux : claquements sur l'eau moins fréquents et moins amples — un bond tous les 25 à 60 u (avant 6 à 15), 0,07 u de haut (avant 0,22), retombée douce ; la houle reste ; test « Bateaux »
 - [x] 9. Vue 1re personne en chute libre (base jump, wingsuit, parachute) — œil à la tête, regard vers le sol / devant, voile visible en levant les yeux, altimètre et « OUVRE LA VOILE ! » ; test « Chute 1P »
 - [x] 10. Police — patrouilles à pied et voitures de patrouille en ville, témoins des délits (au moins une étoile, la voiture prend la poursuite), intervention dans TOUTES les fusillades de gangs (vague ou non), retour à la patrouille au calme ; recherche un peu plus forte. Interprétation : « intervenir contre moi » = un délit vu par un policier est relevé à coup sûr, mais tirer pendant une fusillade de gang reste de la légitime défense. Test « Police en ville »
-- [ ] 11. Avions : montée et caméra 1P adoucies
+- [x] 11. Avions, montée trop brutale — la vitesse verticale se prend en ~1 s (avant : une image) ; au cockpit, assiette ≤ 0,09 rad (avant 0,9) et roulis réduit : l'horizon reste au-dessus du capot ; vue de dessus inchangée. Test « Avions au cockpit »
 - [ ] 12. Hélicoptère : monte à la verticale, presque à plat
 - [ ] 13. Cockpit de l'hélicoptère : complet, fermé, solidaire de la caméra
 - [ ] 14. PNJ en moto cross dans le désert et la montagne

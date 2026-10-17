@@ -13688,6 +13688,43 @@ async function main() {
       });
       if (r.ko.length) fail('Police en ville : ' + r.ko.join(' ; ')); else ok('Police en ville : ' + r.info.join(' ; '));
     }
+    // -------------------------------------------------------------------
+    // Montée des avions au cockpit (17 octobre au soir, signalé : « quand
+    // l'avion monte, la vue 1re personne s'incline d'un coup, on ne voit plus
+    // que le sol ou le ciel »). Pour chaque avion de VEHDEFS (lu dans la
+    // source) : MONTER puis DESCENDRE tenus en vue 1P — la vitesse verticale
+    // se prend progressivement, la vue ne saute jamais, l'horizon reste à
+    // l'écran ; en vue de dessus, l'assiette reste marquée (lisibilité).
+    // -------------------------------------------------------------------
+    console.log('\n--- Avions au cockpit : montée progressive, horizon toujours visible ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; for (const e of ennemis) e.mort = true; WAVES.etat = 'repos'; WAVES.t = 1e9;
+        const avions = Object.keys(VEHDEFS).filter((k) => VEHDEFS[k].air === 'avion');
+        const B = INPUT.btn, essai = (cle, vue) => { META.vue = vue; const v = creerVehicule(cle, POIS.place.x, POIS.place.z + 40, Math.PI, null); P.x = v.x; P.z = v.z; entrerVehicule(v);
+          v.vol = true; v.alt = 70; v.v = 38; v.va = 0; v.decolT = 0; v.figureCdT = 1e9; /* MONTER tenu : pas de looping (une figure voulue, chasseur et voltige) */ v.mesh.position.y = 70; INPUT.mx = INPUT.mz = 0; let prec = null, saut = 0, hMin = 9, hMax = -9, assMax = 0, va05 = null;
+          const pas = (n, m, d) => { for (let i = 0; i < n; i++) { B.sprint = m; B.frein = d; majVol(v, 1 / 30); v.mesh.position.set(v.x, v.alt, v.z); v.mesh.rotation.y = v.ang; P.x = v.x; P.z = v.z; majCamera(1 / 30);
+            camera.updateMatrixWorld(); const dir = camera.getWorldDirection(new THREE.Vector3()), pit = Math.asin(dir.y), l = Math.hypot(dir.x, dir.z) || 1;
+            if (prec !== null) saut = Math.max(saut, Math.abs(pit - prec)); prec = pit; assMax = Math.max(assMax, Math.abs(v.mesh.rotation.x));
+            const hz = new THREE.Vector3(camera.position.x + dir.x / l * 3000, camera.position.y, camera.position.z + dir.z / l * 3000).project(camera); hMin = Math.min(hMin, hz.y); hMax = Math.max(hMax, hz.y);
+            if (m && i === 14 && va05 === null) va05 = v.va; } };
+          pas(20, false, false); pas(90, true, false); pas(30, false, false); pas(75, false, true); B.sprint = B.frein = false;
+          const res = { saut, hMin, hMax, assMax, va05, vaFin: v.va }; sortirVehicule(true); scene.remove(v.mesh); libererEntite(v.mesh); const i = vehicules.indexOf(v); if (i >= 0) vehicules.splice(i, 1); return res; };
+        for (const cle of avions) {
+          const a = essai(cle, 'fps');
+          if (a.saut > 0.02) ko.push(cle + ' : la vue saute de ' + a.saut.toFixed(3) + ' rad en une image');
+          if (!(a.va05 < 10)) ko.push(cle + ' : la montée se prend d’un coup (' + (a.va05 || 0).toFixed(1) + ' u/s après 0,5 s)');
+          if (a.hMin < -0.3 || a.hMax > 0.6) ko.push(cle + ' : l’horizon sort du cadre (' + a.hMin.toFixed(2) + ' … ' + a.hMax.toFixed(2) + ')');
+          if (a.assMax > 0.2) ko.push(cle + ' : assiette de ' + a.assMax.toFixed(2) + ' rad au cockpit');
+          info.push(cle + ' (horizon ' + a.hMin.toFixed(2) + '…' + a.hMax.toFixed(2) + ')');
+        }
+        const c = essai(avions[0], 'classique'); if (!(c.assMax > 0.5)) ko.push('vue de dessus : l’assiette n’est plus marquée (' + c.assMax.toFixed(2) + ')');
+        META.vue = 'classique'; majCamera(1 / 30);
+        return { ko, info: [avions.length + ' avions : ' + info.join(', ') + ' ; vue de dessus : assiette ' + c.assMax.toFixed(2)] };
+      });
+      if (r.ko.length) fail('Avions au cockpit : ' + r.ko.join(' ; ')); else ok('Avions au cockpit : ' + r.info.join(' ; '));
+    }
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];

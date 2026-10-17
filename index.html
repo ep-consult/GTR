@@ -19208,6 +19208,12 @@ const DECOL_GRACE=0.5;
 // peu ; un appui maintenu incline pleinement — inutile de mesurer la durée
 // d'appui séparément pour obtenir ce comportement.
 const PITCH_LISSAGE=6;
+/* Montée des avions (17 octobre au soir, signalé : « quand l'avion monte, la vue 1re personne s'incline d'un coup, on ne voit
+   plus que le sol ou le ciel ») : la vitesse verticale va vers sa consigne à AVION_VA_ACC u/s² (avant : 0 → 15 u/s en une
+   image) ; au cockpit, l'assiette ne dépasse pas ~5° (AVION_TANGAGE_1P) et se prend en ~0,6 s (AVION_LISSAGE_1P) : le capot
+   masque tout ce qui passe à plus de ~0,13 rad sous l'œil, à 0,9 rad on ne voyait que le ciel. La vue de dessus garde son
+   assiette marquée (lisibilité, voir plus bas). Roulis du virage réduit au cockpit (AVION_ROULIS_1P). */
+const AVION_VA_ACC=14, AVION_TANGAGE_1P=0.006, AVION_LISSAGE_1P=1.8, AVION_ROULIS_1P=0.26;
 // FIGURES (looping + vrille) — disponibles sur les appareils avec
 // figures:true (chasseur et voltige, voir VEHDEFS). Deux déclencheurs
 // DÉLIBÉRÉMENT différents, choisis pour deux raisons différentes :
@@ -19470,8 +19476,8 @@ function majVol(v,dt){
       // appareil particulier (la voltige, « direction sensible ») de virer
       // bien plus sec sans toucher au taux partagé des autres.
       if(l>0.15) v.ang=angLerp(v.ang,Math.atan2(INPUT.mx,INPUT.mz),(v.def.turnVol||1.15)*dt);
-      v.va=(monter?15:0)+(desc?-11:0);
-      if(v.v<19){ v.va-=9; if(Math.random()<0.1) toast('DÉCROCHAGE — accélère !','warn'); }
+      const vaC=(monter?15:0)+(desc?-11:0)-(v.v<19?9:0); v.va+=clamp(vaC-(v.va||0),-AVION_VA_ACC*dt,AVION_VA_ACC*dt); /* la montée se prend progressivement */
+      if(v.v<19&&Math.random()<0.1) toast('DÉCROCHAGE — accélère !','warn');
       { const hS=v.alt-poseY(v.x,v.z); if(v.va<0&&hS<10&&!estEau(v.x,v.z)) v.va=Math.max(v.va,-2.2-hS*0.9); } // arrondi : près du sol, la descente se ralentit d'elle-même (signalé : « impossible d'atterrir » — FREIN arrivait au sol à -11 u/s, crash au-delà de -4,5)
       v.alt=clamp(v.alt+v.va*dt,0,180);  // très haut au-dessus de la ville
       const nx=v.x+Math.sin(v.ang)*v.v*dt, nz=v.z+Math.cos(v.ang)*v.v*dt;
@@ -19484,7 +19490,8 @@ function majVol(v,dt){
         v.vol=false; v.alt=surfA; v.v=Math.min(v.v,20); toast(surfA>4?'Posé sur le toit !':'Posé — lâche le joystick pour freiner','or');
         if(surfA>4&&!META.defis.toit){ META.defis.toit=true; bigMsg('POSÉ SUR LE TOIT'); }
       }
-      v.mesh.rotation.z=lerp(v.mesh.rotation.z,-clamp(angDiff(v.ang,Math.atan2(INPUT.mx||Math.sin(v.ang),INPUT.mz||Math.cos(v.ang))),-1,1)*0.5,0.15);
+      const ck1P=v===P.veh&&vueCockpit(); /* au cockpit : assiette et roulis adoucis (AVION_TANGAGE_1P) */
+      v.mesh.rotation.z=lerp(v.mesh.rotation.z,-clamp(angDiff(v.ang,Math.atan2(INPUT.mx||Math.sin(v.ang),INPUT.mz||Math.cos(v.ang))),-1,1)*(ck1P?AVION_ROULIS_1P:0.5),clamp((ck1P?2.2:4.5)*dt,0,1)); /* lissage sur dt (avant : 0,15 par image) */
       // Assiette : le sens (nez qui se relève en montée, plonge en descente)
       // est correct — vérifié par un rendu de PROFIL réel (pas de calcul en
       // l'air) : le nez (cône pointu du fuselage, littéralement nommé `nez`
@@ -19507,7 +19514,7 @@ function majVol(v,dt){
       // progressif (lissage mis à l'échelle par dt, PITCH_LISSAGE) — l'ancien
       // facteur fixe convergeait en 4-5 frames quel que soit le framerate,
       // perçu comme un à-coup malgré le lerp (bug remonté par un joueur).
-      v.mesh.rotation.x=clamp(lerp(v.mesh.rotation.x,-v.va*0.06,Math.min(1,PITCH_LISSAGE*dt)),-1.1,1.1);
+      v.mesh.rotation.x=clamp(lerp(v.mesh.rotation.x,-v.va*(ck1P?AVION_TANGAGE_1P:0.06),Math.min(1,(ck1P?AVION_LISSAGE_1P:PITCH_LISSAGE)*dt)),-1.1,1.1);
       // FIGURES — disponibles sur le chasseur ET la voltige (def.figures) ;
       // l'avion de ligne garde un vol stable, sans acrobaties. LOOPING sur
       // appui long du bouton MONTER, VRILLE sur maintien latéral du
