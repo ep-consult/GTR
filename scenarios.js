@@ -2869,28 +2869,31 @@ async function main() {
       for (let i = 0; i < 30; i++) majConduite(0.1); // décolle et monte
       INPUT.btn.sprint = false;
       const volApresDecollage = heli.vol, altApresDecollage = heli.alt;
-      // redescend vite en altitude, puis relâche DESCENDRE avant le sol : se
-      // poser à pleine vitesse de descente (va=-13) déclenche un crash
-      // (crashAerien, va<-5.5) — un vrai pilote lève le pied avant de toucher
+      // redescend, relâche DESCENDRE en l'air : il tient son altitude (17 octobre au soir : jamais de descente automatique,
+      // « c'est toujours moi qui contrôle l'altitude ») ; puis DESCENDRE tenu jusqu'au sol : l'effet de sol le pose en douceur
       INPUT.btn.frein = true;
       for (let i = 0; i < 60 && heli.alt > 8; i++) majConduite(0.1);
+      INPUT.btn.frein = false; for (let i = 0; i < 10; i++) majConduite(0.1); const altLache = heli.alt; for (let i = 0; i < 50; i++) majConduite(0.1); const derive = Math.abs(heli.alt - altLache);
+      INPUT.btn.frein = true;
+      for (let i = 0; i < 200 && heli.vol; i++) majConduite(0.1);
       INPUT.btn.frein = false;
-      for (let i = 0; i < 200 && heli.vol; i++) majConduite(0.1); // pose en douceur (chute lente, sûre)
       const volApresAtterrissage = heli.vol, altApresAtterrissage = heli.alt, crashe = !!heli.mort;
       sortirVehicule();
       const labelsSortie = {
         sprint: document.getElementById('btnSprint').querySelector('small').textContent,
         brake: document.getElementById('btnBrake').querySelector('small').textContent,
       };
-      return { labelsEntree, volApresDecollage, altApresDecollage, volApresAtterrissage, altApresAtterrissage, crashe, labelsSortie };
+      return { labelsEntree, volApresDecollage, altApresDecollage, volApresAtterrissage, altApresAtterrissage, crashe, labelsSortie, derive, altLache };
     });
     if (vol.labelsEntree.sprint !== 'MONTER' || vol.labelsEntree.brake !== 'DESCENDRE') fail('Vol : les libellés des boutons ne changent pas à l\'entrée dans un appareil volant (' + JSON.stringify(vol.labelsEntree) + ')');
     else ok('Vol : SPRINT/FREIN deviennent bien MONTER/DESCENDRE en hélicoptère');
     if (!vol.volApresDecollage || vol.altApresDecollage < 3) fail('Vol : l\'hélicoptère n\'a pas décollé (vol=' + vol.volApresDecollage + ', alt=' + vol.altApresDecollage + ')');
     else ok('Vol : maintenir MONTER fait bien décoller et monter l\'hélicoptère');
-    if (vol.volApresAtterrissage) fail('Vol : l\'hélicoptère n\'a pas atterri après DESCENDRE puis une chute lente (alt=' + vol.altApresAtterrissage + ', crashé=' + vol.crashe + ')');
-    else if (vol.crashe) fail('Vol : l\'hélicoptère s\'est crashé au lieu d\'atterrir en douceur — le test descend trop vite près du sol');
-    else ok('Vol : DESCENDRE puis relâcher avant le sol fait bien atterrir l\'hélicoptère sans le crasher');
+    if (vol.derive > 0.3) fail('Vol : DESCENDRE relâché en l\'air, l\'hélicoptère ne tient pas son altitude (' + vol.derive.toFixed(2) + ' u en 5 s)');
+    else ok('Vol : DESCENDRE relâché en l\'air, l\'hélicoptère tient son altitude (stationnaire à ' + vol.altLache.toFixed(1) + ' u)');
+    if (vol.volApresAtterrissage) fail('Vol : l\'hélicoptère n\'a pas atterri avec DESCENDRE tenu (alt=' + vol.altApresAtterrissage + ', crashé=' + vol.crashe + ')');
+    else if (vol.crashe) fail('Vol : l\'hélicoptère s\'est crashé au lieu d\'atterrir en douceur avec DESCENDRE tenu');
+    else ok('Vol : DESCENDRE tenu jusqu\'au sol pose l\'hélicoptère sans le crasher (effet de sol)');
     if (vol.labelsSortie.sprint !== 'SPRINT' || vol.labelsSortie.brake !== 'FREIN') fail('Vol : les libellés des boutons ne reviennent pas à SPRINT/FREIN à la sortie (' + JSON.stringify(vol.labelsSortie) + ')');
     else ok('Vol : les libellés reviennent bien à SPRINT/FREIN en sortant de l\'appareil');
 
@@ -13913,6 +13916,52 @@ async function main() {
         return { ko, info: [info.join(', ') + ' : rien devant l’œil, halos atténués, vitres mates'] };
       });
       if (r.ko.length) fail('Reflets au cockpit : ' + r.ko.join(' ; ')); else ok('Reflets au cockpit : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
+    // Hélicoptère, inclinaison réaliste (17 octobre au soir, 2e liste) : le
+    // cyclique incline l'appareil et c'est l'inclinaison qui le fait avancer ;
+    // nez haut en reculant et au freinage, roulis en virage ; lâché, il revient
+    // à plat en stationnaire ; jamais d'altitude qui change toute seule ; la
+    // caméra (1P et poursuite) suit sans à-coup. Chaque hélico de VEHDEFS.
+    // -------------------------------------------------------------------
+    console.log('\n--- Hélicoptère, inclinaison réaliste : cyclique, flare, marche arrière, stationnaire ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; for (const e of ennemis) e.mort = true; WAVES.etat = 'repos'; WAVES.t = 1e9;
+        const helis = Object.keys(VEHDEFS).filter((k) => VEHDEFS[k].air === 'helico' && !VEHDEFS[k].ovni);
+        for (const vue of ['fps', 'immersive']) for (const cle of helis) {
+          META.vue = vue; const v = creerVehicule(cle, POIS.place.x, POIS.place.z + 60, Math.PI, null); P.x = v.x; P.z = v.z; entrerVehicule(v);
+          v.vol = true; v.alt = 45; v.v = 0; v.va = 0; v.decolT = 0; v.mesh.position.y = 45; INPUT.btn.sprint = INPUT.btn.frein = false;
+          let prec = null, saut = 0, roulisCam = 0; const n = cle + (vue === 'fps' ? ' (1P)' : ' (3D)');
+          const pas = (k, mx, mz, f) => { for (let i = 0; i < k; i++) { INPUT.mx = mx; INPUT.mz = mz; majVol(v, 1 / 30); v.mesh.position.set(v.x, v.alt, v.z); v.mesh.rotation.y = v.ang; P.x = v.x; P.z = v.z; majCamera(1 / 30);
+            camera.updateMatrixWorld(); const d = camera.getWorldDirection(new THREE.Vector3()), pit = Math.asin(d.y); if (prec !== null) saut = Math.max(saut, Math.abs(pit - prec)); prec = pit; roulisCam = Math.max(roulisCam, Math.abs(VUE.roulisCam || 0)); if (f) f(i); } };
+          const alt0 = v.alt;
+          // avancer : l'inclinaison vient AVANT la vitesse (c'est elle qui pousse)
+          let inclAvantVit = null; pas(45, 0, -1, (i) => { if (i === 4) inclAvantVit = { incl: v.mesh.rotation.x, v: v.v }; });
+          const nezAv = v.mesh.rotation.x, vAv = v.v;
+          if (!(inclAvantVit.incl > 0.08 && inclAvantVit.v < 3)) ko.push(n + ' : l’appareil ne s’incline pas avant d’avancer (' + JSON.stringify(inclAvantVit) + ')');
+          if (!(nezAv > 0.15 && vAv > 8)) ko.push(n + ' : en avançant, nez ' + nezAv.toFixed(2) + ', vitesse ' + vAv.toFixed(1));
+          // virer : roulis du côté du virage (vers la gauche : roulis négatif)
+          let roulisMax = 0; pas(25, -0.9, -0.4, () => { roulisMax = Math.min(roulisMax, v.mesh.rotation.z); });
+          if (!(roulisMax < -0.1)) ko.push(n + ' : pas de roulis en virant à gauche (' + roulisMax.toFixed(2) + ')');
+          // lâcher : flare (nez haut), puis à plat et stationnaire
+          let nezHaut = 0; pas(30, 0, 0, () => { nezHaut = Math.min(nezHaut, v.mesh.rotation.x); }); pas(120, 0, 0);
+          if (!(nezHaut < -0.08)) ko.push(n + ' : pas de flare au relâcher (' + nezHaut.toFixed(2) + ')');
+          if (Math.abs(v.mesh.rotation.x) > 0.03 || Math.abs(v.mesh.rotation.z) > 0.03 || Math.hypot(v.hvx || 0, v.hvz || 0) > 0.3) ko.push(n + ' : lâché, il ne revient pas à plat en stationnaire (' + v.mesh.rotation.x.toFixed(2) + ', ' + v.mesh.rotation.z.toFixed(2) + ', ' + Math.hypot(v.hvx || 0, v.hvz || 0).toFixed(2) + ' u/s)');
+          if (Math.abs(v.alt - alt0) > 0.3) ko.push(n + ' : l’altitude a changé toute seule (' + alt0.toFixed(1) + ' → ' + v.alt.toFixed(1) + ')');
+          // reculer (joystick vers l'arrière de l'écran) : il garde son cap, nez haut, vitesse négative
+          const cap0 = v.ang, ax = -Math.sin(v.ang), az = -Math.cos(v.ang); let nezRecul = 0; pas(50, ax, az, () => { nezRecul = Math.min(nezRecul, v.mesh.rotation.x); });
+          if (Math.abs(angDiff(cap0, v.ang)) > 0.05 || !(v.v < -3) || !(nezRecul < -0.08)) ko.push(n + ' : en reculant, cap ' + angDiff(cap0, v.ang).toFixed(2) + ', vitesse ' + v.v.toFixed(1) + ', nez ' + nezRecul.toFixed(2));
+          if (saut > 0.03) ko.push(n + ' : la caméra saute de ' + saut.toFixed(3) + ' rad en une image');
+          if (vue === 'immersive' && !(roulisCam > 0.02)) ko.push(n + ' : la caméra de poursuite ne suit pas le roulis');
+          if (vue === 'fps') info.push(cle + ' (nez ' + nezAv.toFixed(2) + ', roulis ' + roulisMax.toFixed(2) + ', flare ' + nezHaut.toFixed(2) + ')');
+          INPUT.mx = INPUT.mz = 0; sortirVehicule(true); scene.remove(v.mesh); libererEntite(v.mesh); const i = vehicules.indexOf(v); if (i >= 0) vehicules.splice(i, 1);
+        }
+        META.vue = 'classique'; majCamera(1 / 30);
+        return { ko, info: [info.join(', ') + ' ; marche arrière nez haut, stationnaire au relâcher, caméra sans à-coup (1P et poursuite)'] };
+      });
+      if (r.ko.length) fail('Hélicoptère, inclinaison : ' + r.ko.join(' ; ')); else ok('Hélicoptère, inclinaison : ' + r.info.join(' ; '));
     }
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {

@@ -55,7 +55,7 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
   echo "$ln | $(sed -n "$((ln+1))p" index.html | sed 's/^[ \t]*//')"; done
 ```
 
-**Relevé du 18 octobre — 37 054 lignes.**
+**Relevé du 18 octobre — 37 091 lignes.**
 Attention : `maj_carte` recale les numéros dans l'ordre des lignes de la table ;
 un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la main.
 
@@ -87,33 +87,33 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 16623 | POOLS — balles, particules, textes flottants, traces de pneus |
 | 17008 | ÉTAT GLOBAL + JOUEUR (`P`) |
 | 17884 | VÉHICULES — physique arcade, trafic, dégâts |
-| 20785 | PIÉTONS |
-| 21055 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
-| 21643 | **RAYON TRACTEUR DE L'OVNI** |
-| 22108 | NIVEAU DE RECHERCHE (étoiles) |
-| 22464 | VAGUES + bonus de fin de vague |
-| 22589 | MISSIONS COURTES |
-| 22592 | BÂTIMENTS VISITABLES — intérieurs |
-| 22662 | FOUILLE — mécanique générique |
-| 23210 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
-| 27443 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
-| 27852 | **LAVERIE** V2 — l'essorage de la machine 7 |
-| 28117 | **SERRE** V2 — la nuit de la floraison |
-| 28410 | CINÉ-PALACE |
-| 28654 | MÉTRO ABANDONNÉ |
-| 28720 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
-| 29073 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
-| 29975 | SITE 51 |
-| 30205 | LE DÉPÔT DE BUS — courses clandestines |
-| 31652 | **MÉTIERS** — missions liées à un véhicule |
-| 31943 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
-| 32965 | ÉCRANS / MENUS / BOUTIQUES |
-| 33240 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
-| 34067 | DÉBUT / FIN DE PARTIE |
-| 35602 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
-| 35843 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
-| 36132 | **COCKPITS** — vue 1re personne au volant (`COCKPIT`, `COCKPIT_FAMILLES`, `cockpitDims`, `mkCockpitInterieur`, `ckDessiner`, `rendreCockpit`, `cameraCockpit`, `cockpitDiagnostic`, `photoCockpit`) |
-| 36919 | BOUCLE PRINCIPALE |
+| 20819 | PIÉTONS |
+| 21089 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
+| 21677 | **RAYON TRACTEUR DE L'OVNI** |
+| 22142 | NIVEAU DE RECHERCHE (étoiles) |
+| 22498 | VAGUES + bonus de fin de vague |
+| 22623 | MISSIONS COURTES |
+| 22626 | BÂTIMENTS VISITABLES — intérieurs |
+| 22696 | FOUILLE — mécanique générique |
+| 23244 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
+| 27477 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
+| 27886 | **LAVERIE** V2 — l'essorage de la machine 7 |
+| 28151 | **SERRE** V2 — la nuit de la floraison |
+| 28444 | CINÉ-PALACE |
+| 28688 | MÉTRO ABANDONNÉ |
+| 28754 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
+| 29107 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
+| 30009 | SITE 51 |
+| 30239 | LE DÉPÔT DE BUS — courses clandestines |
+| 31686 | **MÉTIERS** — missions liées à un véhicule |
+| 31977 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
+| 32999 | ÉCRANS / MENUS / BOUTIQUES |
+| 33274 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
+| 34101 | DÉBUT / FIN DE PARTIE |
+| 35636 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
+| 35877 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
+| 36169 | **COCKPITS** — vue 1re personne au volant (`COCKPIT`, `COCKPIT_FAMILLES`, `cockpitDims`, `mkCockpitInterieur`, `ckDessiner`, `rendreCockpit`, `cameraCockpit`, `cockpitDiagnostic`, `photoCockpit`) |
+| 36956 | BOUCLE PRINCIPALE |
 
 ### Ancres fines (hors bandeaux)
 
@@ -163,20 +163,20 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 18410 | `resoudreCollisionsVehicule()` — collisions entre véhicules (SAT sur les 4 axes) |
 | 19087 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
 | 19211 | `boutonsAPied()` — boutons du HUD remis « à pied » (sortie de véhicule ET début de partie) |
-| 20191 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
-| 20323 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
-| 22598 | `IOFF = -9000` |
-| 24402 | `INTDEFS` — définitions des **28 salles** (27 + la boutique) |
-| 24787 | `construireSalle(id)` |
+| 20225 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
+| 20357 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
+| 22632 | `IOFF = -9000` |
+| 24436 | `INTDEFS` — définitions des **28 salles** (27 + la boutique) |
+| 24821 | `construireSalle(id)` |
 | 20390 | `CHALUTIER_BANCS_PLAN` — chalutier V2 ; `chalutierMaj` (20761), `dessinerRadarChalutier` (21018) |
-| 31661 | `METIERS_CIBLE` |
-| 31961 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
-| 32049 | `PIECES_FAMILLES` — catalogues de pièces par famille |
-| 32359 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
-| 32423 | `libererObjet()` — libère les géométries d'un objet retiré |
-| 32439 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
-| 32569 | `construireGarageTuning()` — la salle partagée |
-| 32939 | `majNitro()` |
+| 31695 | `METIERS_CIBLE` |
+| 31995 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
+| 32083 | `PIECES_FAMILLES` — catalogues de pièces par famille |
+| 32393 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
+| 32457 | `libererObjet()` — libère les géométries d'un objet retiré |
+| 32473 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
+| 32603 | `construireGarageTuning()` — la salle partagée |
+| 32973 | `majNitro()` |
 | 17883 | `degatsChoc()` — dégâts V2 : `bosseler`, débris, `perdreRoue` ; murs : `degagerDesMurs` (plus haut) |
 | 7682 | `SAUTV` — Saut du Vertige : `hauteurSautVertige`, `mkSautVertige`, `mkBargeVertige`, `finSautVertige` |
 | 35625 | `VUE1P` — vue à la 1re personne : `cameraPremiere`, `ligneDeMire`, `viseAuto1P` |
@@ -1777,6 +1777,32 @@ image). Désormais (`majVol`, branche hélico, jamais l'OVNI) :
 - inclinaison dans les virages (`HELI_ROULIS`), retour à plat une fois posé.
 - Test : « Hélicoptères, montée » (chaque hélico de `VEHDEFS`, vue 1P et vue de
   dessus).
+
+### Pilotage de l'hélicoptère, 2e passe (17 octobre au soir, 2e liste) — `helicoCyclique`, `HELI_INCL_*`
+
+Demandé : « quand j'avance, le nez s'incline et tout l'appareil penche, c'est
+cette inclinaison qui le fait avancer ; je recule, le nez se relève ; roulis en
+virage ; je lâche, il revient à plat en stationnaire ; montée et descente à
+plat ; la caméra suit en douceur ». D'après le vrai pilotage (le cyclique
+incline le disque rotor, une part de la portance devient poussée ; le
+collectif gère l'altitude ; le palonnier le cap), en arcade :
+- **Cyclique = joystick** (`helicoCyclique`, avant `majVol`) : vitesse voulue →
+  inclinaison voulue (écart de vitesse × `HELI_K_INCL`, plus ce qu'il faut contre
+  la traînée), bornée (`HELI_INCL_AV` 0,32, `HELI_INCL_LAT` 0,28), prise en
+  douceur (`HELI_INCL_VIT`) et jamais plus vite que `HELI_INCL_MAXV` (0,75 rad/s :
+  pas d'à-coup au flare) ; la poussée = `HELI_G` × tan(inclinaison) − traînée.
+  La vitesse est un vecteur (`v.hvx`, `v.hvz`) ; `v.v` = la vitesse le long du
+  nez (instruments, caméra, son). Joystick lâché : flare, arrêt, à plat.
+- **Collectif** : MONTER / DESCENDRE, à plat ; **jamais d'altitude qui change
+  toute seule** (avant : −0,5 u/s à vide). DESCENDRE tenu pose en douceur
+  (effet de sol).
+- **Palonnier** : le cap suit le joystick ; en vue 3D ou 1P, vers l'arrière de
+  l'écran, il garde son cap et recule nez haut (`HELI_RECUL` × vmax).
+- **Caméra** : au cockpit, l'assiette (lissée) suffit ; en poursuite, 30 % du
+  roulis, lissé (`VUE.roulisCam`, `camera.rotateZ` après `lookAt`, avions aussi).
+- L'OVNI garde son vol (cap et vitesse directs, à plat).
+- Tests : « Hélicoptère, inclinaison » ; « Vol » (DESCENDRE relâché en l'air :
+  il tient son altitude ; tenu jusqu'au sol : posé sans casse).
 
 ## Cockpit fermé de l'hélicoptère (17 octobre au soir) — `ckCabineHelico`, `COCKPIT.regardVire`
 

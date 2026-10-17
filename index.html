@@ -19310,6 +19310,18 @@ const PITCH_LISSAGE=6;
    il penche le nez vers l'avant selon sa vitesse (HELI_TANG_AVANT) et quand il accélère, se cabre un peu en freinant (HELI_TANG_ACC),
    s'incline dans les virages (HELI_ROULIS) ; la vitesse verticale se prend en ~0,8 s (HELI_VA_ACC). */
 const HELI_VA_ACC=20, HELI_TANG_AVANT=0.14, HELI_TANG_ACC=0.01, HELI_TANG_MONTEE=0.002, HELI_ROULIS=0.16;
+/* Pilotage de l'hélicoptère, 2e passe (17 octobre au soir, demandé : « quand j'avance, le nez s'incline et tout l'appareil penche,
+   c'est cette inclinaison qui le fait avancer ; je recule, le nez se relève ; virages en roulis ; je lâche : il revient à plat en
+   stationnaire ; montée et descente à plat ») — d'après le vrai pilotage, en arcade :
+   - CYCLIQUE = le joystick : il donne une vitesse voulue ; l'écart avec la vitesse réelle donne l'INCLINAISON voulue (nez bas pour
+     accélérer, nez haut pour freiner ou reculer, roulis pour glisser ou virer), bornée (HELI_INCL_AV, HELI_INCL_LAT), prise en
+     douceur (HELI_INCL_VIT : le disque rotor, puis le fuselage) ; et c'est cette inclinaison qui pousse : accélération =
+     HELI_G × tan(inclinaison), moins la traînée (HELI_TRAINEE). Le joystick lâché : flare, arrêt, retour à plat, stationnaire.
+   - COLLECTIF = MONTER / DESCENDRE : l'altitude, à plat ; jamais de descente à vide (avant : −0,5 u/s).
+   - PALONNIER = le cap, qui suit la direction du joystick ; en vue immersive ou 1P, tirer vers l'arrière de l'écran fait RECULER
+     (nez relevé, au plus HELI_RECUL × la vitesse max) au lieu de faire demi-tour.
+   La vitesse est un vecteur (v.hvx, v.hvz) ; v.v reste la vitesse le long du nez (instruments, caméra, son). L'OVNI garde son vol. */
+const HELI_INCL_AV=0.32, HELI_INCL_LAT=0.28, HELI_INCL_VIT=3.2, HELI_K_INCL=0.04, HELI_G=32, HELI_TRAINEE=0.32, HELI_RECUL=0.45, HELI_LATERAL=0.6, HELI_LACET=2.2, HELI_INCL_MAXV=0.75;
 const AVION_VA_ACC=14, AVION_TANGAGE_1P=0.006, AVION_LISSAGE_1P=1.8, AVION_ROULIS_1P=0.26;
 // FIGURES (looping + vrille) — disponibles sur les appareils avec
 // figures:true (chasseur et voltige, voir VEHDEFS). Deux déclencheurs
@@ -19456,6 +19468,28 @@ function majVrille(v,dt){
     toast('Vrille réussie !','or'); SFX.niveau(); vibre(40);
   }
 }
+/* le cyclique de l'hélicoptère (voir HELI_INCL_AV) : la vitesse voulue → l'inclinaison voulue → l'inclinaison réelle (en douceur) → la
+   poussée. Repère du nez : avant f = (sin a, cos a), gauche g = (cos a, −sin a) (v.ang croît vers la gauche). */
+function helicoCyclique(v,dt,l){
+  if(v.hvx===undefined||!isFinite(v.hvx+v.hvz)){ v.hvx=Math.sin(v.ang)*(v.v||0); v.hvz=Math.cos(v.ang)*(v.v||0); v.inclF=0; v.inclL=0; }
+  const vm=(v.def.vmax||24)*tenueK('aiguilleur',1.15);
+  let sA=Math.sin(v.ang), cA=Math.cos(v.ang);
+  // le palonnier : le cap suit la direction du joystick ; en vue immersive ou 1P, vers l'arrière de l'écran, il garde son cap (marche arrière)
+  if(l>0.15){ const aJ=Math.atan2(INPUT.mx,INPUT.mz), ecart=Math.abs(angDiff(v.ang,aJ)); if(!(vueImmersive()&&ecart>1.9)){ v.ang=angLerp(v.ang,aJ,HELI_LACET*dt); sA=Math.sin(v.ang); cA=Math.cos(v.ang); } }
+  // la vitesse voulue, dans le repère du nez : en avant jusqu'à vm, en arrière et sur les côtés moins vite
+  const jx=l>0.15?INPUT.mx:0, jz=l>0.15?INPUT.mz:0;
+  const vF=clamp((jx*sA+jz*cA)*vm,-vm*HELI_RECUL,vm), vL=clamp((jx*cA-jz*sA)*vm,-vm*HELI_LATERAL,vm*HELI_LATERAL);
+  const rF=v.hvx*sA+v.hvz*cA, rL=v.hvx*cA-v.hvz*sA;
+  // l'inclinaison voulue : l'écart de vitesse, plus ce qu'il faut pour tenir la vitesse contre la traînée
+  const tF=clamp((vF-rF)*HELI_K_INCL+Math.atan(HELI_TRAINEE*vF/HELI_G),-HELI_INCL_AV,HELI_INCL_AV);
+  const tL=clamp((vL-rL)*HELI_K_INCL+Math.atan(HELI_TRAINEE*vL/HELI_G),-HELI_INCL_LAT,HELI_INCL_LAT);
+  const k=1-Math.exp(-HELI_INCL_VIT*dt), m=HELI_INCL_MAXV*dt; v.inclF+=clamp((tF-v.inclF)*k,-m,m); v.inclL+=clamp((tL-v.inclL)*k,-m,m); /* en douceur, et jamais plus vite que HELI_INCL_MAXV : pas d'à-coup au flare */
+  // la poussée vient de l'inclinaison
+  const aF=HELI_G*Math.tan(v.inclF)-HELI_TRAINEE*rF, aL=HELI_G*Math.tan(v.inclL)-HELI_TRAINEE*rL;
+  v.hvx+=(sA*aF+cA*aL)*dt; v.hvz+=(cA*aF-sA*aL)*dt;
+  // joystick lâché et presque à l'arrêt : stationnaire franc (pas de dérive qui ne finit jamais)
+  if(l<=0.15&&Math.hypot(v.hvx,v.hvz)<0.15&&Math.abs(v.inclF)<0.01&&Math.abs(v.inclL)<0.01){ v.hvx=0; v.hvz=0; }
+  v.v=v.hvx*sA+v.hvz*cA; }
 function majVol(v,dt){
   const air=v.def.air;
   if(v.alt===undefined){v.alt=0;v.vol=false;v.va=0;}
@@ -19495,7 +19529,7 @@ function majVol(v,dt){
       v.v*=(1-2*dt);
     }
     if(v.vol){
-      const vaC=(monter?16:0)+(desc?-13:0)+((!monter&&!desc)?-0.5:0); v.va+=clamp(vaC-v.va,-HELI_VA_ACC*dt,HELI_VA_ACC*dt); /* le collectif : progressif */
+      const vaC=(monter?16:0)+(desc?-13:0)+((v.def.ovni&&!monter&&!desc)?-0.5:0); v.va+=clamp(vaC-v.va,-HELI_VA_ACC*dt,HELI_VA_ACC*dt); /* le collectif : progressif ; à vide, l'hélico tient son altitude (stationnaire) */
       // effet de sol (8e lot, signalé : « l'hélico du yacht explose toujours ») :
       // DESCENDRE tenu arrivait au contact à -13 u/s, au-delà du seuil de crash
       // (-5,5) : tout atterrissage normal explosait, sur le pont du yacht comme
@@ -19504,15 +19538,17 @@ function majVol(v,dt){
       if(v.va<0&&hSol<HELI_SOL) v.va=Math.max(v.va,-HELI_POSE_V-(Math.max(0,hSol)/HELI_SOL)*(13-HELI_POSE_V));
       v.alt=clamp(v.alt+v.va*dt,0,v.def.altMax||150);  // très haut au-dessus de la ville (OVNI : encore plus, voir VEHDEFS)
       const l=Math.hypot(INPUT.mx,INPUT.mz);
-      if(l>0.15){
-        v.ang=angLerp(v.ang,Math.atan2(INPUT.mx,INPUT.mz),2.6*dt);
-        v.v=lerp(v.v,l*v.def.vmax*tenueK('aiguilleur',1.15),1.3*dt);
-      } else v.v=lerp(v.v,0,1.6*dt);
-      const nx=v.x+Math.sin(v.ang)*v.v*dt, nz=v.z+Math.cos(v.ang)*v.v*dt;
+      let dxH, dzH;
+      if(v.def.ovni){ /* l'OVNI : son vol d'avant (cap et vitesse directs) */
+        if(l>0.15){ v.ang=angLerp(v.ang,Math.atan2(INPUT.mx,INPUT.mz),2.6*dt); v.v=lerp(v.v,l*v.def.vmax*tenueK('aiguilleur',1.15),1.3*dt); }
+        else v.v=lerp(v.v,0,1.6*dt);
+        dxH=Math.sin(v.ang)*v.v; dzH=Math.cos(v.ang)*v.v;
+      } else { helicoCyclique(v,dt,l); dxH=v.hvx; dzH=v.hvz; }
+      const nx=v.x+dxH*dt, nz=v.z+dzH*dt;
       const s=v.decolT>0?null:solidAt(nx,nz,2);
       if((s&&s.h>v.alt)||(DECOR_V2&&v.decolT<=0&&solY(nx,nz)>v.alt+0.3)){ // immeuble ou relief (montagne, Pic, mesas)
-        if(Math.abs(v.v)>6){ crashAerien(v); return; }
-        v.v=0;
+        if(Math.hypot(dxH,dzH)>6){ crashAerien(v); return; }
+        v.v=0; v.hvx=0; v.hvz=0;
       } else { v.x=nx; v.z=nz; }
       const surf=poseY(v.x,v.z);
       // pas de posé sur l'eau : l'hélico reste au ras des vagues (il explosait
@@ -19539,14 +19575,12 @@ function majVol(v,dt){
       // magnétique » penché. Reste parfaitement à plat, tourne sur lui-même
       // à la place — signature visuelle demandée explicitement.
       if(v.def.ovni){ v.mesh.rotation.x=0; v.mesh.rotation.z=0; }
-      else { /* à plat en montée ; nez vers l'avant selon la vitesse et l'accélération ; incliné dans les virages */
-        const vm=v.def.vmax||24, acc=dt>0?(v.v-(v.vPrecH===undefined?v.v:v.vPrecH))/dt:0; v.vPrecH=v.v; v.accH=lerp(v.accH||0,acc,clamp(dt*4,0,1));
-        const tang=clamp(v.v/vm,-0.5,1.2)*HELI_TANG_AVANT+clamp(v.accH*HELI_TANG_ACC,-0.1,0.1)-v.va*HELI_TANG_MONTEE;
-        v.mesh.rotation.x=clamp(lerp(v.mesh.rotation.x,tang,Math.min(1,3*dt)),-0.4,0.4);
-        const vire=l>0.15?clamp(angDiff(v.ang,Math.atan2(INPUT.mx,INPUT.mz)),-1,1)*Math.min(1,v.v/(vm*0.4)):0;
-        v.mesh.rotation.z=lerp(v.mesh.rotation.z||0,-vire*HELI_ROULIS,clamp(dt*3,0,1)); }
+      else { /* l'assiette EST l'inclinaison du cyclique (helicoCyclique) : nez bas = il accélère, nez haut = il freine ou recule ;
+           roulis = il glisse ou vire ; à plat en montée et en descente (un souffle de cabré au collectif) */
+        v.mesh.rotation.x=clamp((v.inclF||0)-v.va*HELI_TANG_MONTEE,-0.45,0.45);
+        v.mesh.rotation.z=clamp(-(v.inclL||0),-0.4,0.4); }
     } else if(v.def.ovni) v.mesh.rotation.x=0;
-    else { v.mesh.rotation.x=lerp(v.mesh.rotation.x,0,Math.min(1,PITCH_LISSAGE*dt)); v.mesh.rotation.z=lerp(v.mesh.rotation.z||0,0,Math.min(1,PITCH_LISSAGE*dt)); v.vPrecH=undefined; v.accH=0; } // posé : retour à l'horizontale
+    else { v.mesh.rotation.x=lerp(v.mesh.rotation.x,0,Math.min(1,PITCH_LISSAGE*dt)); v.mesh.rotation.z=lerp(v.mesh.rotation.z||0,0,Math.min(1,PITCH_LISSAGE*dt)); v.inclF=0; v.inclL=0; v.hvx=0; v.hvz=0; } // posé : retour à l'horizontale, à l'arrêt
   } else { // avion
     if(!v.vol){
       const c=controleDir(v,false);
@@ -35961,6 +35995,9 @@ function vueCamera(dt,sx,sz){
   const nx=camera.position.x, ny=camera.position.y, nz=camera.position.z;
   camera.position.set(lerp(nx,cx,k),lerp(ny,cy,k),lerp(nz,cz,k));
   cl.set(lerp(nx+cd.x*40,tx,k),lerp(ny+cd.y*40,ty,k),lerp(nz+cd.z*40,tz,k)); camera.lookAt(cl);
+  /* aéronef en poursuite : la caméra prend un peu du roulis de l'appareil (30 %), en douceur — on sent le virage sans être secoué
+     (17 octobre au soir, « la caméra suit ces inclinaisons avec douceur, sans à-coups ») */
+  if(v&&air&&!v.def.ovni&&v.vol){ VUE.roulisCam=lerp(VUE.roulisCam||0,-(v.mesh.rotation.z||0)*0.3,clamp(dt*2.5,0,1)); camera.rotateZ(VUE.roulisCam*k); } else VUE.roulisCam=0;
   // l'angle réellement affiché (pour le joystick)
   camera.getWorldDirection(cd); VUE.yawRendu=Math.hypot(cd.x,cd.z)>1e-3?Math.atan2(-cd.x,-cd.z):0;
   // le ciel : suit la caméra, couleurs du jour (horizon = fond de scène)

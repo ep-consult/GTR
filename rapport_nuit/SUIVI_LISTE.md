@@ -25,3 +25,11 @@ Chaque point est coché quand il est fait ET vérifié (rendu réel, test, valid
 - Point 4 : le « chalet sur la colline » est la planque « Chalet retranché » près du sommet du Mont Reyes ; de ses trois options (plateforme, pilotis, terrain modelé), j'ai choisi le pilotis : la pente fait jusqu'à 8 m sous la terrasse.
 - Point 5 : je n'ai trouvé aucun animal sauvage dans les rues ; les animaux « figés qu'on traverse » sont la faune du Mont Reyes (figée au-delà de 160 u, sans collision). La « forêt » est celle des sapins autour du chalet. Si tu en as vu ailleurs en ville, une capture m'aidera.
 - Point 6 : en 1re personne, c'est le regard qui choisit la tête ou le corps ; à la lunette du sniper, toujours la tête ; en 3e personne (visée automatique), une chance de 4 à 20 % selon la précision de l'arme.
+
+
+# Suivi de la 2e liste du 17 octobre (soir) — 4 points (ordre : 1, 2, 4, puis 3)
+
+- [x] 1. Hélicoptère, inclinaison réaliste — l'inclinaison (cyclique) fait avancer : nez bas en avançant, nez haut au freinage et en marche arrière, roulis en virage ; lâché, flare puis à plat en stationnaire ; plus de descente automatique à vide ; en vue 3D/1P, tirer vers l'arrière fait reculer ; caméra : 30 % du roulis en poursuite, sans à-coup. Test « Hélicoptère, inclinaison »
+- [ ] 2. Autres véhicules : moto/vélo penchent, voitures (roulis, plongée, cabrage), bateaux (nez qui se lève, gîte), avions (roulis, cabrage progressif)
+- [ ] 4. Pictos monter / descendre : des flèches haut / bas
+- [ ] 3. Commandes de l'hélicoptère : 2 ou 3 schémas proposés (avantages, inconvénients), en attente du choix
