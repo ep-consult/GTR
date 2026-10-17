@@ -21,6 +21,8 @@ section h2{font-size:18px;margin:0 0 4px;color:var(--or)}
 section .sous{color:var(--doux);font-size:12px;margin-bottom:10px}
 .grille{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
 .grille.large{grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
+.grille.cockpits{grid-template-columns:repeat(auto-fill,minmax(170px,1fr))}
+.grille.cockpits .carte .img{aspect-ratio:300/480}
 .carte{background:var(--carte);border:1px solid var(--ligne);border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
 .carte .img{aspect-ratio:11/8;background:radial-gradient(circle at 50% 40%,#2a3242,#141820);display:flex;align-items:center;justify-content:center;color:var(--doux);font-size:12px}
 .carte .img img{width:100%;height:100%;object-fit:cover;display:block}
@@ -100,6 +102,12 @@ async function vehicules(){
   for(const k of ks){ const d=V[k], p=[cat(d),[Math.round((d.vmax||0)*3.6)+' km/h'],[(d.hp||0)+' PV']]; if(d.tuningMeca) p.push(['Garage : méca','vert']); if(d.tuningCarro) p.push(['Carrosserie','vert']); if(d.armes||d.canon||d.mitrailleuse) p.push(['Armé','rose']); if(d.cache) p.push(['Caché','rose']);
     const c=carte(esc(d.nom||k),esc(k)+(d.long?' — '+d.long.toFixed(1)+' × '+(d.larg||0).toFixed(1)+' u':''),p); gr.appendChild(c);
     try{ poserImage(c,photo(G.makeVoiture(k))); }catch(e){ poserImage(c,null); } await pause(); } }
+async function cockpits(){ // la vue à la 1re personne au volant : le vrai cockpit de chaque véhicule, rendu par le jeu (photoCockpit)
+  const V=G.VEHDEFS, ks=Object.keys(V), s=section('cockpits','Cockpits — '+ks.length,'La vue à la 1re personne au volant, en portrait comme sur iPhone : rendue par <code>photoCockpit</code> (le vrai véhicule, le vrai cockpit, ses afficheurs). Familles et tableaux d’après <code>COCKPIT_FAMILLES</code>.'), gr=document.createElement('div'); gr.className='grille cockpits'; s.appendChild(gr);
+  const fams={}; for(const k of ks){ const i=G.cockpitInfo(k); if(i) (fams[i.style]=fams[i.style]||[]).push(k); }
+  for(const st in fams) for(const k of fams[st]){ const d=V[k], i=G.cockpitInfo(k);
+    const c=carte(esc(d.nom||k),esc(i.desc.split(' : ').slice(1).join(' : ')),[[i.desc.split(' : ')[0],'cyan'],[esc(k)]]); gr.appendChild(c);
+    try{ poserImage(c,G.photoCockpit(k,300,480)); }catch(e){ console.error(k,e); poserImage(c,null); } await pause(); } }
 async function armes(){
   const A=G.ARMES, ids=G.ORDRE_ARMES.filter((id)=>A[id]), s=section('armes','Armes — '+ids.length,'Lues dans <code>ARMES</code> (ordre du jeu) ; modèles de <code>mkArmeModele</code> ; les modifications possibles d’après <code>MODS_ARMES</code>.'), gr=document.createElement('div'); gr.className='grille'; s.appendChild(gr);
   for(const id of ids){ const a=A[id], mods=Object.keys(G.MODS_ARMES).filter((k)=>{ try{ return G.MODS_ARMES[k].pour(a,id); }catch(e){ return false; } });
@@ -193,10 +201,10 @@ async function lancer(){
   for(let i=0;i<300;i++){ try{ if(w.eval('typeof PORTES!=="undefined"&&PORTES.length>0&&typeof VEHDEFS!=="undefined"')) break; }catch(e){ return erreur(); } await new Promise((r)=>setTimeout(r,200)); }
   W=w; W.requestAnimationFrame=()=>0; // la boucle du jeu s'arrête : on ne fait que lire
   G=W.eval('({VEHDEFS,ARMES,ORDRE_ARMES,MODS_ARMES,GILETS,TENUES,VETEMENTS,BOUTIQUES_DEF,HILLS,ETYPES,NOMS_GANG,PERSOS,FAUNE_DEFS,INTDEFS,PORTES,PLANQUES_DEF,CURIOS,DEFIS,PIECES_FAMILLES,mmStatic,renderer,scene,'+
-    'HELIS_MANOIR:typeof HELIS_MANOIR!=="undefined"?HELIS_MANOIR:[],makeVoiture,mkArmeModele,makeHumain,mkAnimal,construireSalle,pointsActivites})');
+    'HELIS_MANOIR:typeof HELIS_MANOIR!=="undefined"?HELIS_MANOIR:[],makeVoiture,mkArmeModele,makeHumain,mkAnimal,construireSalle,pointsActivites,photoCockpit,cockpitInfo})');
   T=W.THREE; studio=monterStudio();
   const n=(o)=>Object.keys(o).length; etat.textContent='Lu en direct dans index.html — '+n(G.VEHDEFS)+' véhicules, '+G.ORDRE_ARMES.length+' armes, '+G.TENUES.length+' tenues, '+n(G.INTDEFS)+' salles, '+n(G.ETYPES)+' types de PNJ. Vignettes en cours…';
-  for(const f2 of [journal,vehicules,armes,tuning,tenues,villas,pnj,salles,activites,carteVille]){ try{ await f2(); }catch(e){ console.error(e); } }
+  for(const f2 of [journal,vehicules,cockpits,armes,tuning,tenues,villas,pnj,salles,activites,carteVille]){ try{ await f2(); }catch(e){ console.error(e); } }
   etat.textContent=etat.textContent.replace('Vignettes en cours…','Tout est à jour.'); }
 function erreur(){ main.innerHTML='<div class="erreur"><b>Impossible de lire le jeu.</b><br>Ouvre ce catalogue par le serveur local, dans le dossier du jeu : <code>npx live-server --host=0.0.0.0 --port=8080</code>, puis <code>http://localhost:8080/catalogue.html</code>. En <code>file://</code>, le navigateur interdit de lire le cadre.</div>'; etat.textContent='Échec du chargement'; }
 $('#jeu').addEventListener('load',lancer);

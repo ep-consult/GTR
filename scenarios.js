@@ -13160,13 +13160,18 @@ async function main() {
     }
 
     // -------------------------------------------------------------------
-    // Cockpits (nuit du 17 octobre) : la vue à la 1re personne au volant.
+    // Cockpits (nuit du 17 octobre, refondus le 17 au soir après un essai sur iPhone).
     // Pour CHAQUE clé de VEHDEFS (lue dans la source) : on monte, la vue 1P
     // construit un cockpit et cockpitDiagnostic est bon (œil dans l'emprise et
     // à bonne hauteur, vue libre devant, instruments dans le champ, intérieur
-    // présent) ; le volant suit le braquage ; repasser en vue immersive retire
-    // le cockpit, rend les vitres et le corps du pilote ; descendre rend la 1re
-    // personne à pied ; aucune fuite d'objets dans la scène.
+    // présent). Puis : l'intérieur est une SURCOUCHE (hors de la scène et du
+    // véhicule : la caisse ne le cache plus) ; en marche avant, un virage à
+    // droite envoie le haut du volant à droite de l'écran et ramène la poignée
+    // droite du guidon (le sens était inversé) ; un tableau par famille ; le
+    // viseur du chasseur dégagé ; la soucoupe tourne, pas son cockpit ; les
+    // balises (« paillettes ») cachées par les murs et à courte portée ; un vélo
+    // sans phare ; repasser en vue immersive retire le cockpit, rend les vitres et
+    // le corps du pilote ; descendre rend la 1re personne à pied ; aucune fuite.
     // -------------------------------------------------------------------
     console.log('\n--- Cockpits : chaque véhicule de VEHDEFS a son poste de pilotage à la 1re personne ---');
     {
@@ -13187,10 +13192,54 @@ async function main() {
           if (P.h && P.h.g.visible && P.surMoto) ko.push(k + ' : le corps du pilote est devant l’œil');
           n++; }
         info.push(n + ' véhicules, familles ' + JSON.stringify(fams) + (approx ? ', ' + approx + ' œil estimé sur l’encombrement' : ''));
-        // le volant suit le braquage, les instruments vivent
-        const v = P.veh; if (v && COCKPIT.volant) { const a0 = COCKPIT.volant.rotation.z; v.steerIn = 1; for (let i = 0; i < 20; i++) majCockpit(v, 1 / 30); const a1 = COCKPIT.volant.rotation.z;
-          if (Math.abs(a1 - a0) < 0.05 && Math.abs(COCKPIT.volant.rotation.y) < 0.05) ko.push('le volant ne suit pas le braquage'); else info.push('volant : ' + Math.abs(a1 - a0 || COCKPIT.volant.rotation.y).toFixed(2) + ' rad à fond');
-          if (!COCKPIT.tex || !COCKPIT.cvs) ko.push('pas d’instruments'); }
+        const vider = () => { if (P.veh) sortirVehicule(true); for (const q of vehicules) { scene.remove(q.mesh); libererEntite(q.mesh); } vehicules.length = 0; };
+        const monter = (k, air) => { vider(); const d = VEHDEFS[k], mer = !!d.eau, x = mer ? -60 : POIS.place.x + 40, z = mer ? MER + 60 : POIS.place.z + 10; const q = creerVehicule(k, x, z, 0); P.x = x; P.z = z + 1; P.y = 0; entrerVehicule(q); if (air) q.alt = 30; for (let i = 0; i < 3; i++) { majVehicules(1 / 30); majCamera(1 / 30); } return q; };
+        const pousse = (q, lat) => { const a = q.ang, fx = Math.sin(a), fz = Math.cos(a); camera.updateMatrixWorld(); const cr = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion); cr.y = 0; cr.normalize(); INPUT.mx = fx + lat * cr.x; INPUT.mz = fz + lat * cr.z; const l = Math.hypot(INPUT.mx, INPUT.mz); INPUT.mx /= l; INPUT.mz /= l; majConduite(1 / 30); majVehicules(1 / 30); majCamera(1 / 30); };
+        const ecranDe = (o, lx, ly, lz) => { camera.updateMatrixWorld(); COCKPIT.g.updateMatrixWorld(true); return o.localToWorld(new THREE.Vector3(lx, ly, lz)).project(camera); };
+        // 1. une surcouche : ni dans la scène ni dans le véhicule (la caisse pleine des voitures cachait volant et mains) ; mains et volant à l'écran
+        { const q = monter('citadine'); const G = COCKPIT.g; let dansScene = false, dansVeh = false; for (let p = G; p; p = p.parent) { if (p === scene) dansScene = true; if (p === q.mesh) dansVeh = true; }
+          if (dansScene || dansVeh) ko.push('le cockpit est dans la scène ou dans le véhicule (la caisse le cache)');
+          try { renderer.render(scene, camera); rendreCockpit(); } catch (e) { ko.push('rendreCockpit : ' + e.message); }
+          const mains = COCKPIT.bras.map((b) => { b.poing.updateMatrixWorld(true); return b.poing.getWorldPosition(new THREE.Vector3()).project(camera); });
+          if (mains.length < 2 || mains.some((p) => Math.abs(p.x) > 0.95 || Math.abs(p.y) > 0.95)) ko.push('voiture : une main hors de l’écran ' + JSON.stringify(mains.map((p) => [+p.x.toFixed(2), +p.y.toFixed(2)])));
+          const vt = ecranDe(COCKPIT.volant, 0, 0, 0); if (Math.abs(vt.x) > 0.9 || vt.y < -1 || vt.y > 0) ko.push('voiture : volant hors champ (' + vt.x.toFixed(2) + ',' + vt.y.toFixed(2) + ')'); }
+        // 2. le sens : en marche avant, cible à droite de l'écran → le véhicule tourne à droite, le haut du volant part à droite, la poignée droite revient vers le pilote
+        for (const k of ['citadine', 'busville', 'bateau', 'moto', 'velo']) { const q = monter(k); for (let i = 0; i < 30; i++) pousse(q, 0);
+          const R = COCKPIT.fam === 'moto' || COCKPIT.fam === 'velo'; const p0 = R ? ecranDe(COCKPIT.volant, -0.25, 0, 0) : ecranDe(COCKPIT.volant, 0, 0.17, 0); const a0 = q.ang;
+          for (let i = 0; i < 12; i++) pousse(q, 0.8); const p1 = R ? ecranDe(COCKPIT.volant, -0.25, 0, 0) : ecranDe(COCKPIT.volant, 0, 0.17, 0);
+          camera.updateMatrixWorld(); const cr = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion); const droite = new THREE.Vector3(Math.sin(q.ang) - Math.sin(a0), 0, Math.cos(q.ang) - Math.cos(a0)).dot(cr) > 0;
+          if (!droite || q.v < 2) { ko.push(k + ' : ne tourne pas à droite en marche avant (sens non mesuré)'); INPUT.mx = 0; INPUT.mz = 0; continue; }
+          if (R ? !(p1.z < p0.z - 0.002) : !(p1.x > p0.x + 0.15)) ko.push(k + ' : ' + (R ? 'virage à droite, la poignée droite ne revient pas vers le pilote' : 'virage à droite, le haut du volant ne part pas à droite (' + p0.x.toFixed(2) + ' → ' + p1.x.toFixed(2) + ')'));
+          INPUT.mx = 0; INPUT.mz = 0; }
+        info.push('volant et guidon dans le sens du virage');
+        // 3. un tableau par famille (une voiture n'a pas l'affichage d'un avion), la vedette rapide a un volant sport, le vélo n'a pas d'écran
+        const affs = (k) => { monter(k, !!VEHDEFS[k].air); return COCKPIT.affs.map((a) => a.type).join(','); };
+        const attendus = { citadine: 'auto', sport: 'sport', jeep: 'tt', busville: 'camion', moto: 'lcd', bateau: 'bateau', grandyacht: 'radar', avion: 'six', helico: 'sixHelico', chasseur: 'hud', ovni: 'ovniBoutons', char: 'char' };
+        for (const k in attendus) { const t = affs(k); if (!t.split(',').includes(attendus[k])) ko.push(k + ' : tableau « ' + t + ' » au lieu de ' + attendus[k]); }
+        if (ckStyle({ def: VEHDEFS.bateau, key: 'bateau' }, 'bateau') !== 'bateauSport') ko.push('la vedette rapide n’a pas un volant sport');
+        { const t = affs('velo'); if (t !== '') ko.push('vélo : un écran (' + t + ')'); }
+        // 4. chasseur : manche entre les jambes, viseur tête haute que rien ne cache
+        { monter('chasseur', true); const C = COCKPIT, hud = []; C.g.traverse((o) => { if (o.isMesh && CK_AFF.hud && o.material === CK_AFF.hud.mat) hud.push(o); });
+          if (!C.volant || !C.volant.userData.manche) ko.push('chasseur : pas de manche');
+          else { const pm = ecranDe(C.volant, 0, 0.44, 0); if (Math.abs(pm.x) > 0.3 || pm.y > -0.2 || pm.y < -1) ko.push('chasseur : le manche n’est pas entre les jambes (' + pm.x.toFixed(2) + ',' + pm.y.toFixed(2) + ')'); }
+          if (!hud.length) ko.push('chasseur : pas de viseur tête haute');
+          else { C.g.updateMatrixWorld(true); camera.updateMatrixWorld(); const rc = new THREE.Raycaster(); let bouche = 0;
+            for (const [u, w] of [[0, 0], [-0.4, 0.3], [0.4, 0.3], [-0.4, -0.3], [0.4, -0.3]]) { const cible = hud[0].localToWorld(new THREE.Vector3(u * 0.7, w * 0.7, 0)); rc.set(camera.position, cible.clone().sub(camera.position).normalize()); const h = rc.intersectObject(C.g, true)[0]; if (h && h.object !== hud[0]) bouche++; }
+            if (bouche) ko.push('chasseur : ' + bouche + ' point(s) du viseur caché(s) par le cockpit'); } }
+        // 5. soucoupe : la coque tourne sur elle-même, le cockpit garde le cap
+        { const q = monter('ovni', true); const r0 = q.mesh.rotation.y; for (let i = 0; i < 30; i++) { q.mesh.rotation.y += 0.1; majCamera(1 / 30); }
+          camera.updateMatrixWorld(); const dir = camera.getWorldDirection(new THREE.Vector3()); dir.y = 0; dir.normalize(); const ecart = Math.abs(angDiff(Math.atan2(dir.x, dir.z), q.ang));
+          if (ecart > 0.2) ko.push('soucoupe : le cockpit tourne avec la coque (' + ecart.toFixed(2) + ' rad du cap)'); else info.push('soucoupe : coque +' + (q.mesh.rotation.y - r0).toFixed(1) + ' rad, regard au cap');
+          if (!COCKPIT.jauge) ko.push('soucoupe : pas de jauge de vitesse'); }
+        // 6. balises (les « paillettes » de toutes les couleurs sur la route) : en cockpit, cachées par les murs et à courte portée ; à pied, comme avant
+        { monter('citadine'); majBalises(0); let mauvaises = 0, vues = 0; for (const b of BALISES) { if (!b.sp.visible) continue; vues++; if (!b.sp.material.depthTest || Math.hypot(b.x - P.x, b.z - P.z) > BALISE_PORTEE_CK) mauvaises++; }
+          if (mauvaises) ko.push('cockpit : ' + mauvaises + ' balise(s) vue(s) à travers les murs ou au loin');
+          vider(); META.vue = 'immersive'; majCamera(1 / 30); majBalises(0); if (BALISES.some((b) => b.sp.material.depthTest)) ko.push('à pied : des balises restent cachées par les murs'); META.vue = 'fps'; info.push('balises en cockpit : ' + vues + ' à moins de ' + BALISE_PORTEE_CK + ' u'); }
+        // 7. un vélo n'a pas de phare
+        { const q = monter('velo'); const ud = q.mesh.userData; let lumineux = 0; q.mesh.traverse((o) => { if (!o.isSprite || !o.visible || !o.material || o.material.map !== texGlow) return; for (let p = o; p; p = p.parent) if (P.h && p === P.h.g) return; lumineux++; }); /* le pilote assis dessus a ses propres halos */
+          if ((ud.phG && ud.phG.length) || lumineux) ko.push('vélo : un phare (' + ((ud.phG || []).length) + ' halo(s) pilotés, ' + lumineux + ' visible(s))'); }
+        const v = monter('citadine');
+        if (!COCKPIT.affs.length) ko.push('pas d’instruments');
         // retour en vue immersive : cockpit retiré, vitres rendues
         const vit = []; if (v) v.mesh.traverse((o) => { if (o.userData && o.userData.matCk) vit.push(o); });
         META.vue = 'immersive'; majCamera(1 / 30); if (COCKPIT.g || COCKPIT.v) ko.push('cockpit encore là en vue immersive');
