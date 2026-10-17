@@ -15,7 +15,7 @@ Chaque point est coché quand il est fait ET vérifié (rendu réel, test, valid
 - [x] 11. Avions, montée trop brutale — la vitesse verticale se prend en ~1 s (avant : une image) ; au cockpit, assiette ≤ 0,09 rad (avant 0,9) et roulis réduit : l'horizon reste au-dessus du capot ; vue de dessus inchangée. Test « Avions au cockpit »
 - [x] 12. Hélicoptère, montée — monte au collectif à plat (0,03 rad au lieu de 0,76), montée progressive ; le nez penche vers l'avant en avançant, se relève au freinage, l'appareil s'incline en virage. Test « Hélicoptères, montée »
 - [x] 13. Cockpit de l'hélicoptère — cabine fermée : montants, arceau, toit et console de plafond, portes vitrées, planche pleine largeur, compas, plancher et palonniers, sièges, cloison arrière ; posée dans le repère du véhicule (solidaire de la caméra) ; en virage, le regard part dans le virage sans changer la conduite. Interprétation : « solidaire de la caméra » = la cabine bouge exactement avec l'œil, et se voit dès qu'on tourne. Test « Cockpit de l'hélicoptère »
-- [ ] 14. PNJ en moto cross dans le désert et la montagne
+- [x] 14. Motocross / supercross — 7 motards PNJ : 3 sur la piste de supercross (ils sautent les tables), 2 sur le sentier du Mont Reyes (montée et descente), 2 dans le désert sud ; ils freinent devant le joueur, tombent sous les balles (HEADSHOT) ou percutés, la moto se prend, ils reviennent hors de vue ; ils laissent la piste pendant un défi. Interprétation : « désert » = la zone sableuse au sud-est (`estDesert`), autour de la mesa. Test « Motards »
 - [ ] 15. Reflets en vue 1re personne : réduire fortement les « paillettes » sur le pare-brise
 
 ## Notes et interprétations

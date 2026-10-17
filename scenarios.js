@@ -13810,6 +13810,63 @@ async function main() {
       });
       if (r.ko.length) fail('Cockpit de l’hélicoptère : ' + r.ko.join(' ; ')); else ok('Cockpit de l’hélicoptère : ' + r.info.join(' ; '));
     }
+    // -------------------------------------------------------------------
+    // Motards du désert et de la montagne (17 octobre au soir, demandé :
+    // « ajoute des PNJ en moto cross qui se baladent dans le désert et dans la
+    // montagne »). Ils roulent sur leurs trois circuits (supercross, sentier du
+    // mont, désert sud), sautent au supercross, ne passent jamais sous le sol,
+    // gardent leurs distances, s'arrêtent devant le joueur ; une balle (ou un
+    // véhicule lancé) les fait tomber, la moto se prend ; ils reviennent hors
+    // de vue ; une 2e partie ne les reconstruit pas.
+    // -------------------------------------------------------------------
+    console.log('\n--- Motards du désert et de la montagne : circuits, sauts, chute, retour ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (!DECOR_V2) return { off: true };
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); META.vue = 'classique'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; for (const e of ennemis) e.mort = true; WAVES.etat = 'repos'; WAVES.t = 1e9;
+        const L = MOTARDS.liste, noms = [...new Set(L.map((m) => m.c.nom))];
+        if (L.length < 6 || !['supercross', 'mont', 'desert'].every((n) => noms.includes(n))) ko.push('motards : ' + L.length + ' sur ' + noms.join(','));
+        // 20 s de route, le joueur près de chaque circuit à tour de rôle (les motards loin restent posés au sol)
+        const S = L.map((m) => ({ d: 0, air: 0, sous: 0, haut: 0, nan: 0, proche: 9 }));
+        const centre = (n) => { const m = L.find((x) => x.c.nom === n); return { x: m.x + 20, z: m.z + 20 }; };
+        for (const n of noms) { const c = centre(n); P.x = c.x; P.z = c.z; P.y = solY(P.x, P.z);
+          for (let f = 0; f < 30 * 7; f++) { majMotards(1 / 30); L.forEach((m, i) => { const s = S[i], sol = solY(m.x, m.z); s.d += m.vCur / 30; if (m.air) s.air++; if (m.g.visible && m.y < sol - 0.05) s.sous++; /* au loin (caché), il suit le sol mis en cache au demi-mètre */ s.haut = Math.max(s.haut, m.y - sol); if (!isFinite(m.x + m.y + m.z)) s.nan++;
+            for (const o of L) if (o !== m && o.b === m.b && m.actif && o.actif) s.proche = Math.min(s.proche, Math.hypot(o.x - m.x, o.z - m.z)); }); } }
+        L.forEach((m, i) => { const s = S[i], n = m.c.nom + '#' + i; if (s.nan) ko.push(n + ' : position NaN'); if (s.sous) ko.push(n + ' : sous le sol (' + s.sous + ' images)'); if (s.haut > 7) ko.push(n + ' : envolé à ' + s.haut.toFixed(1) + ' u');
+          if (!(s.d > 120)) ko.push(n + ' : il n’avance pas (' + s.d.toFixed(0) + ' u en 21 s)'); if (s.proche < 2.5) ko.push(n + ' : collé à un autre motard (' + s.proche.toFixed(1) + ' u)'); });
+        const sautsSX = L.filter((m, i) => m.c.nom === 'supercross' && S[i].air > 10).length; if (!sautsSX) ko.push('au supercross, personne ne saute');
+        info.push(L.length + ' motards (' + noms.join(', ') + '), ' + sautsSX + ' sauteurs au supercross, saut le plus haut ' + Math.max(...S.map((s) => s.haut)).toFixed(1) + ' u');
+        // devant le joueur : il s'arrête
+        const m0 = L.find((m) => m.c.nom === 'desert'); for (let f = 0; f < 30; f++) majMotards(1 / 30);
+        P.x = m0.x + Math.sin(m0.ang) * 5; P.z = m0.z + Math.cos(m0.ang) * 5; P.y = solY(P.x, P.z); for (let f = 0; f < 60; f++) majMotards(1 / 30);
+        if (!(m0.vCur < 1)) ko.push('le motard ne s’arrête pas devant le joueur (' + m0.vCur.toFixed(1) + ' u/s)'); if (Math.hypot(m0.x - P.x, m0.z - P.z) < 1.5) ko.push('le motard roule sur le joueur');
+        // une balle dans le pilote : il tombe, la moto reste couchée et se prend ; à la tête : HEADSHOT
+        P.x = m0.x + 30; P.z = m0.z + 30; const hs0 = HEADSHOTS.n; m0.g.updateMatrixWorld(true); const t = teteDe(m0).clone();
+        const balle = (x, y, z, dx, dz) => ({ fac: 'joueur', x, y, z, vx: dx * 72, vy: 0, vz: dz * 72, dmg: 20 });
+        const sa = Math.sin(m0.ang + Math.PI / 2), ca = Math.cos(m0.ang + Math.PI / 2);
+        const touche = collisionBalle(balle(t.x - sa * 0.3, t.y, t.z - ca * 0.3, sa, ca));
+        if (!touche || m0.actif) ko.push('une balle dans la tête ne fait pas tomber le motard'); if (HEADSHOTS.n !== hs0 + 1) ko.push('pas de HEADSHOT sur le motard');
+        const moto = vehicules.find((v) => v.key === 'motocross' && v.abandonne && Math.hypot(v.x - m0.x, v.z - m0.z) < 3);
+        if (!moto) ko.push('pas de moto à terre après la chute'); else { P.x = moto.x + 1; P.z = moto.z; P.y = solY(P.x, P.z); entrerVehicule(moto); if (P.veh !== moto) ko.push('la moto du motard ne se prend pas'); sortirVehicule(true); }
+        for (let f = 0; f < 45; f++) majMotards(1 / 30); const g = m0.h.g; if (Math.abs(g.position.y - solY(g.position.x, g.position.z) - 0.25) > 0.3) ko.push('le pilote ne retombe pas au sol (' + (g.position.y - solY(g.position.x, g.position.z)).toFixed(2) + ')');
+        // un véhicule lancé renverse un autre motard
+        const m1 = L.find((m) => m.actif && m.c.nom === 'supercross' && !m.air); P.x = m1.x + 12; P.z = m1.z; P.y = solY(P.x, P.z); majMotards(1 / 30); const car = creerVehicule('citadine', m1.x - Math.sin(m1.ang) * 2, m1.z - Math.cos(m1.ang) * 2, m1.ang, null);
+        car.conduit = 'joueur'; car.v = 20; car.h = solY(car.x, car.z); majImpactPersonnages(car, 1 / 30); if (m1.actif) ko.push('un véhicule lancé ne renverse pas le motard'); car.conduit = null; car.mort = true;
+        // retour hors de vue
+        P.x = m0.x + 400; P.z = m0.z; for (let k = 0; k < 30 * (MOT_RETOUR + 3); k++) majMotards(1 / 30); if (!m0.actif || !m1.actif) ko.push('les motards tombés ne reviennent pas hors de vue');
+        // pendant un défi sur leur circuit, ils laissent la piste ; après, ils reviennent hors de vue
+        const sx = L.filter((m) => m.c.nom === 'supercross'); demarrerRide('stunt'); for (let k = 0; k < 10; k++) majMotards(1 / 30);
+        if (sx.some((m) => m.g.visible)) ko.push('défi supercross : des motards restent sur la piste');
+        finirRide(false); if (RIDES.actif) ko.push('défi pas terminé'); P.x = STUNT.x + 500; P.z = STUNT.zN; majCamera(1 / 30); for (let k = 0; k < 30; k++) { majMotards(1 / 30); majCamera(1 / 30); }
+        if (sx.some((m) => m.cache)) ko.push('après le défi, les motards ne reviennent pas');
+        // une 2e partie ne les reconstruit pas
+        const n0 = L.length, g0 = L[0].g; startRun(); ecran(null); if (MOTARDS.liste.length !== n0 || MOTARDS.liste[0].g !== g0 || !MOTARDS.liste.every((m) => m.actif)) ko.push('une 2e partie reconstruit ou ne remet pas les motards');
+        info.push('arrêt devant le joueur, chute par balle (HEADSHOT) et par véhicule, moto reprise, retour hors de vue');
+        return { ko, info };
+      });
+      if (r.off) saute('Motards : DECOR_V2 désactivé'); else if (r.ko.length) fail('Motards : ' + r.ko.join(' ; ')); else ok('Motards : ' + r.info.join(' ; '));
+    }
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];

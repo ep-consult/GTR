@@ -10482,7 +10482,7 @@ function boucleRect(x0,x1,z0,z1,r){
   const cum=[0]; let L=0; for(let i=1;i<pts.length;i++){ L+=Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]); cum.push(L); }
   return {pts,cum,L};
 }
-function pointBoucle(b,s){ s=((s%b.L)+b.L)%b.L; let i=1; while(i<b.cum.length-1&&b.cum[i]<s) i++;
+function pointBoucle(b,s){ s=((s%b.L)+b.L)%b.L; let i=1, hi=b.cum.length-1; while(i<hi){ const k=(i+hi)>>1; if(b.cum[k]<s) i=k+1; else hi=k; } /* le premier point au-delà de s (dichotomie : les boucles des motards ont jusqu'à 280 points) */
   const a=b.pts[i-1], c=b.pts[i], u=(s-b.cum[i-1])/Math.max(1e-6,b.cum[i]-b.cum[i-1]);
   return {x:a[0]+(c[0]-a[0])*u,z:a[1]+(c[1]-a[1])*u,ang:Math.atan2(c[0]-a[0],c[1]-a[1])}; }
 function mkAeroVie(){
@@ -11507,7 +11507,7 @@ function majRivales(dt,r){
 }
 function demarrerRide(id){
   RIDES.actif={id,portes:ridePortes(id),i:0,t:RIDE_DEFS[id].temps,t0:0,pts:0,placesRiv:0};
-  rivalesDemarrer(id);
+  rivalesDemarrer(id); motardsLibererPiste(); /* les motards du décor laissent la piste au défi */
   RIDES.txt.style.display='block'; bigMsg('🏁 '+RIDE_DEFS[id].nom); SFX.niveau(); vibre(40);
   if(id==='colline'&&P.veh&&!toutTerrain(P.veh.def)) toast('Pneus de route : ça va patiner dans la terre — moto cross, quad ou 4x4 conseillés','warn');
 }
@@ -12794,6 +12794,97 @@ function renverserCycliste(b,vx,vz,vit,parJoueur){
   burst(b.x,0.6,b.z,8,0xd8dce4,5,6); SFX.choc(0.6);
   if(parJoueur){ addHeat(0.5); spawnTexte(b.x,1.8,b.z,pick(['RENVERSÉ !','À BICYCLETTE…','CHUTE !']),'#ffd23f'); }
 }
+/* ---------- Motards du désert et de la montagne (17 octobre au soir, demandé : « ajoute des PNJ en moto cross qui se baladent
+   dans le désert et dans la montagne, pour donner de la vie à ces zones ») ----------
+   Sept motards (MOTARDS) : trois sur la piste de SUPERCROSS (ils sautent : vol balistique quand la pente se casse sous eux), deux
+   qui montent et descendent le sentier du MONT REYES, deux autour de la mesa du DÉSERT sud. Décor léger, comme les cyclistes de la
+   ville : le vrai modèle de moto cross, un pilote en tenue de cross et casque intégral ; ils suivent leur boucle (plus lents en
+   côte), gardent leurs distances, s'inclinent dans les virages, soulèvent la poussière, freinent devant le joueur. Un véhicule
+   lancé les renverse, une balle les fait tomber (la tête compte : HEADSHOT) : le pilote est projeté, la moto reste couchée et se
+   prend. Ils reviennent hors de vue (MOT_RETOUR s) et à chaque partie. Construits UNE fois, sur un générateur privé (aucun tirage
+   de la ville, du décor ni de la partie). Ils ne sont dans aucune liste d'entités (ni piétons, ni véhicules) : le rayon de l'OVNI
+   ne les prend pas, leurs touches passent par motardTombe (collisionBalle, majImpactPersonnages). */
+const MOTARDS={liste:[],ok:false,epaves:[]};
+const MOT_RETOUR=40, MOT_G=26, MOT_LOD=150, MOT_EPAVES=4; /* au-delà de 150 u, un motard fait quelques pixels : caché (une trentaine d’appels de dessin chacun) */
+/* le sol le long d'une boucle, au mètre, mis en cache à la première lecture : la boucle ne bouge pas, et solY coûte ~0,1 ms
+   en montagne (35 appels par image : 3,6 ms mesurées ; avec le cache, quasi rien) */
+function solBoucleIdx(b,i){ const n=b.sol.length; i=((i%n)+n)%n; let h=b.sol[i]; if(h!==h){ const p=pointBoucle(b,i/2); h=b.sol[i]=solY(p.x,p.z); } return h; }
+function solBoucle(b,s){ if(!b.sol) b.sol=new Float32Array(Math.ceil(b.L*2)+3).fill(NaN); s=((s%b.L)+b.L)%b.L*2; const i=Math.floor(s), f=s-i, a=solBoucleIdx(b,i); return a+(solBoucleIdx(b,i+1)-a)*f; } /* au demi-mètre */
+const MOT_TENUES=[[0xff7a1a,0x1c2030],[0x2a6ad8,0xe8ecf2],[0x2fd06a,0x1c2030],[0xd8323a,0x23262e],[0xffd23f,0x2a2e3a],[0x8a4de0,0xe8ecf2],[0xe8ecf2,0xd8323a]];
+function boucleDePoints(pts){ const cum=[0]; let L=0; for(let i=1;i<pts.length;i++){ L+=Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]); cum.push(L); } return {pts,cum,L}; }
+function motardsCircuits(){ const C=[];
+  if(STUNT.ok){ const pts=[]; for(let s=0;s<STUNT.L;s+=2){ const p=pointPiste(s); pts.push([p.x,p.z]); } pts.push(pts[0]); C.push({nom:'supercross',b:boucleDePoints(pts),n:3,vit:[15,18]}); }
+  if(MONT.sentier&&MONT.sentier.length>2) C.push({nom:'mont',b:boucleRoute(MONT.sentier,1.4),n:2,vit:[10,12.5],sansSaut:true}); /* balade sur le sentier : ses tremplins et ses épingles raides lançaient le motard au-dessus d'une pente à 55° */
+  C.push({nom:'desert',b:boucleRect(384,444,126,186,10),n:2,vit:[13,16]}); /* autour de la mesa du désert sud (relevé : terre ferme, sans solide, pente < 0,25) */
+  return C; }
+function mkMotard(c,i,k){ const g=new THREE.Group(); g.rotation.order='YXZ'; const moto=makeVoiture('motocross'); g.add(moto);
+  const sg=moto.userData.siege||{y:0.62,z:-0.1}, T=MOT_TENUES[k%MOT_TENUES.length], h=makeHumain({haut:T[0],bas:T[1],peau:pick(civPeau),casq:T[0],visage:'cool'},1);
+  for(const o of h.g.children) if(o.geometry===geoCasq) o.visible=false; /* le casque intégral remplace les cheveux */
+  const mC=new THREE.MeshLambertMaterial({color:T[0]}), mN=new THREE.MeshLambertMaterial({color:0x14161c});
+  const cq=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.47,0.5),mC); cq.position.y=0.035; h.tete.add(cq); /* coque : elle englobe la tête (une boîte de 0,42) */
+  const vis=new THREE.Mesh(new THREE.BoxGeometry(0.46,0.035,0.22),mC); vis.position.set(0,0.21,0.33); vis.rotation.x=-0.22; h.tete.add(vis);
+  const men=new THREE.Mesh(new THREE.BoxGeometry(0.32,0.15,0.12),mC); men.position.set(0,-0.14,0.29); h.tete.add(men);
+  const lun=new THREE.Mesh(new THREE.BoxGeometry(0.38,0.1,0.05),mN); lun.position.set(0,0.05,0.27); h.tete.add(lun);
+  g.add(h.g); scene.add(g);
+  const m={g,moto,h,c,b:c.b,s0:c.b.L*i/c.n+k*5,vit:c.vit[0]+(c.vit[1]-c.vit[0])*((k*0.37)%1),sg,actif:true}; motardReset(m); return m; }
+function motardPose(m){ const h=m.h, sg=m.sg; if(h.g.parent!==m.g) m.g.attach(h.g); h.g.position.set(0,sg.y+0.12,sg.z); h.g.rotation.set(0,0,0);
+  h.torse.rotation.set(0.32,0,0); const jb=(sg.jambes||-0.7)*0.75; h.jambeG.rotation.set(jb,0,0); h.jambeD.rotation.set(jb,0,0); h.brasG.rotation.set(-1.15,0,0); h.brasD.rotation.set(-1.15,0,0); }
+function motardReset(m){ m.s=m.s0; const p=pointBoucle(m.b,m.s); m.x=p.x; m.z=p.z; m.ang=p.ang; m.y=solY(m.x,m.z); m.vy=0; m.air=false; m.vCur=m.vit*0.6; m.lean=0; m.pit=0;
+  m.actif=true; m.reT=0; m.chute=null; m.cache=false; m.moto.visible=true; motardPose(m); m.g.position.set(m.x,m.y,m.z); m.g.rotation.set(0,m.ang,0); m.g.visible=true; }
+function motardsStartRun(){ if(!DECOR_V2) return; const M=MOTARDS;
+  if(!M.ok){ M.ok=true; const r0=Math.random; let g=7177; Math.random=()=>{ g=(g*1664525+1013904223)>>>0; return g/4294967296; };
+    try{ let k=0; for(const c of motardsCircuits()) for(let i=0;i<c.n;i++,k++) M.liste.push(mkMotard(c,i,k)); } finally{ Math.random=r0; } }
+  for(const m of M.liste) motardReset(m); M.epaves.length=0; }
+/* pendant un défi sur leur circuit (supercross, mont, montée sèche), les motards laissent la piste : cachés, ils ne reviennent
+   qu'hors de vue une fois le défi fini (le pilote simulé du défi supercross percutait un motard resté sur la piste et s'écrasait
+   sur sa moto couchée) */
+function motardReserve(m){ const id=RIDES.actif&&RIDES.actif.id; return !!id&&((id==='stunt'&&m.c.nom==='supercross')||((id==='mont'||id==='colline')&&m.c.nom==='mont')); }
+function motardsLibererPiste(){ for(const m of MOTARDS.liste) if(m.actif&&motardReserve(m)){ m.cache=true; m.g.visible=false; } }
+/* devant le motard (à moins de d u, dans son couloir) */
+function devantMotard(m,x,z,d){ const s=Math.sin(m.ang), c=Math.cos(m.ang), dx=x-m.x, dz=z-m.z, av=dx*s+dz*c; return av>0&&av<d&&Math.abs(dx*c-dz*s)<1.6; }
+function majMotards(dt){ const M=MOTARDS; if(!M.liste.length||INT.actif||dt<=0) return;
+  for(const m of M.liste){
+    if(m.cache){ if(motardReserve(m)||!horsEcran(m.x,m.z)){ if(m.g.visible) m.g.visible=false; continue; } m.cache=false; } /* piste laissée au défi */
+    if(!m.actif){ majChuteMotard(m,dt); m.reT-=dt; if(m.reT<=0){ const p=pointBoucle(m.b,m.s), loin=dist2(p.x,p.z,P.x,P.z)>90*90; if(loin&&horsEcran(p.x,p.z)){ const s0=m.s0; m.s0=m.s; motardReset(m); m.s0=s0; } } continue; }
+    // vitesse : plus lent en côte, distance gardée sur le motard de devant, arrêt devant le joueur
+    const sa=Math.sin(m.ang), ca=Math.cos(m.ang), pente=(solBoucle(m.b,m.s+3)-solBoucle(m.b,m.s))/3;
+    let cible=m.vit*(1-clamp(pente,0,0.8)*0.55)*(1+clamp(-pente,0,0.4)*0.2);
+    for(const o of M.liste){ if(o===m||o.b!==m.b||!o.actif) continue; const ds=((o.s-m.s)%m.b.L+m.b.L)%m.b.L; if(ds<8) cible=Math.min(cible,o.vCur*0.85); }
+    const px=P.veh?P.veh.x:P.x, pz=P.veh?P.veh.z:P.z, py=P.veh?(P.veh.h||0):P.y, haut=Math.abs(py-m.y)<2.5, bloque=haut&&devantMotard(m,px,pz,3+m.vCur*m.vCur/44); /* portée = distance d'arrêt à 22 u/s² */
+    if(bloque){ cible=0; if(!m.klax&&dist2(px,pz,m.x,m.z)<900){ m.klax=true; beep(520,0.12,'square',0.05); setTimeout(()=>beep(520,0.12,'square',0.05),180); } } else m.klax=false;
+    m.vCur+=clamp(cible-m.vCur,-(bloque?22:6)*dt,5*dt); if(haut&&devantMotard(m,px,pz,2.2)) m.vCur=0; /* surpris de tout près : il pile, il ne passe jamais à travers */
+    m.s+=m.vCur*dt; const p=pointBoucle(m.b,m.s); const angA=m.ang; m.x=p.x; m.z=p.z; m.ang=angLerp(m.ang,p.ang,Math.min(1,dt*7));
+    const vis=dist2(m.x,m.z,P.x,P.z)<MOT_LOD*MOT_LOD; if(m.g.visible!==vis) m.g.visible=vis;
+    if(!vis){ m.air=false; m.y=solBoucle(m.b,m.s); continue; } /* au loin : il avance sur le sol mis en cache, sans rien calculer d'autre */
+    const gy=solY(m.x,m.z); /* visible : le vrai sol (lèvres franches des tremplins, bords du sentier : le cache ne les suit pas) */
+    // vertical : au sol on suit le terrain ; quand la pente se casse sous la roue (lèvre d'une table), on s'envole
+    if(m.air){ m.vy-=MOT_G*dt; m.y+=m.vy*dt; if(m.y<=gy){ m.y=gy; m.air=false; if(m.vy<-6){ burst(m.x,gy+0.2,m.z,6,0xc8a878,4,4); } m.vy=0; } }
+    else { /* décollage à la cassure d'une VRAIE rampe (pente lue sur 1,5 u avant et après, sur le sol en cache) — jamais d'une marche :
+         en redescendant le sentier, le dos d'un tremplin (3,2 u d'un coup) lançait le motard à 9 u au-dessus de la pente */
+      const sAv=(gy-solBoucle(m.b,m.s-1.5))/1.5, sAp=(solBoucle(m.b,m.s+1.5)-gy)/1.5;
+      if(!m.c.sansSaut&&m.vCur>9&&sAv>0.25&&sAv<1.05&&sAp<sAv-0.35){ m.air=true; m.vy=Math.min(m.vCur*sAv,9); m.y=gy+m.vy*dt; } else m.y=gy; }
+    // assiette, inclinaison dans les virages, roues, poussière
+    const pitC=m.air?-Math.atan2(m.vy,Math.max(4,m.vCur))*0.7:-Math.atan2(solBoucle(m.b,m.s+1.2)-solBoucle(m.b,m.s-1.2),2.4);
+    m.pit=lerp(m.pit,pitC,Math.min(1,dt*8)); const taux=angDiff(angA,m.ang)/dt; m.lean=lerp(m.lean,clamp(-taux*m.vCur*0.045,-0.6,0.6),Math.min(1,dt*5));
+    m.g.position.set(m.x,m.y,m.z); m.g.rotation.set(m.pit,m.ang,m.lean);
+    const ud=m.moto.userData; for(const r of ud.roues||[]) r.rotation.x+=m.vCur*dt*2.2;
+    const jb=(m.sg.jambes||-0.7)*(m.air?0.45:0.75); m.h.jambeG.rotation.x=m.h.jambeD.rotation.x=jb; m.h.torse.rotation.x=m.air?0.12:0.32;
+    if(!m.air&&m.vCur>6&&Math.random()<dt*9) spawnP(m.x-sa*1.1,m.y+0.2,m.z-ca*1.1,-sa*2+rand(-1,1),rand(0.5,1.6),-ca*2+rand(-1,1),0.5,0.9,0xc8a878,2);
+  } }
+/* le pilote tombe : projeté, il roule au sol ; s'il n'est pas tué, il se relève et regarde sa moto */
+function majChuteMotard(m,dt){ const C=m.chute; if(!C) return; const g=m.h.g; C.t+=dt;
+  if(!C.pose){ C.vy-=MOT_G*dt; g.position.x+=C.vx*dt; g.position.y+=C.vy*dt; g.position.z+=C.vz*dt; g.rotation.x+=C.rot*dt; const sol=solY(g.position.x,g.position.z);
+    if(g.position.y<=sol+0.25&&C.vy<0){ g.position.y=sol+0.25; C.pose=true; g.rotation.set(-Math.PI/2,g.rotation.y,C.cote); burst(g.position.x,sol+0.3,g.position.z,5,0xc8a878,3,3); } }
+  else if(!C.tue&&C.t>3&&!C.debout){ C.debout=true; const sol=solY(g.position.x,g.position.z); g.position.y=sol; g.rotation.set(0,Math.atan2(m.x-g.position.x,m.z-g.position.z),0); m.h.jambeG.rotation.x=m.h.jambeD.rotation.x=0; m.h.brasG.rotation.x=m.h.brasD.rotation.x=-0.2; m.h.torse.rotation.x=0; } }
+function motardTombe(m,dx,dz,parJoueur,tue,vit){ if(!m.actif) return; m.actif=false; m.reT=MOT_RETOUR; const M=MOTARDS;
+  const nv=creerVehicule('motocross',m.x,m.z,m.ang+rand(-0.6,0.6)); /* la moto reste couchée : elle se prend */
+  if(nv){ nv.mesh.rotation.z=1.3; nv.h=m.y; nv.v=0; nv.abandonne=true; M.epaves.push(nv);
+    if(M.epaves.length>MOT_EPAVES){ const o=M.epaves.shift(); if(o&&o!==P.veh&&!o.mort&&o.conduit!=='joueur'){ o.mort=true; scene.remove(o.mesh); libererEntite(o.mesh); const j=vehicules.indexOf(o); if(j>=0) vehicules.splice(j,1); } } }
+  m.moto.visible=false; m.g.updateMatrixWorld(true); scene.attach(m.h.g);
+  const k=6+(vit||8)*0.4, l=Math.hypot(dx,dz)||1; m.chute={vx:dx/l*k,vz:dz/l*k,vy:4+(vit||8)*0.15,rot:rand(4,8)*(Math.random()<0.5?1:-1),t:0,tue:!!tue,cote:rand(-0.4,0.4)};
+  m.h.brasG.rotation.x=m.h.brasD.rotation.x=-2.6; m.h.jambeG.rotation.x=0.3; m.h.jambeD.rotation.x=-0.3;
+  burst(m.x,m.y+0.8,m.z,8,0xc8a878,5,6); if(SFX.choc) SFX.choc(0.5);
+  if(parJoueur){ addHeat(tue?1.15:0.5); spawnTexte(m.x,m.y+2.2,m.z,tue?'MOTARD À TERRE':pick(['CHUTE !','GADIN !','PAR-DESSUS LE GUIDON !']),'#ffd23f'); if(tue) ETAT.score+=10; } }
 // animaux de rue percutés : projetés, et un petit message négatif (pour rire)
 const MSG_ANIMAL=['BAD KARMA 🐾','PAUVRE TOUTOU…','LA SPA PORTE PLAINTE','OUAF… AÏE !','−50 KARMA','TON CHIEN T’EN VEUT','MAUVAIS CONDUCTEUR !'];
 function percuterAnimal(c,vx,vz,vit,parJoueur){
@@ -18097,6 +18188,7 @@ function majImpactPersonnages(v,dt){
     if(dist2(c.x,c.z,px,pz)<3.4){ casserCaisse(c); }
   }
   for(let i=VELOS.length-1;i>=0;i--){ const b=VELOS[i]; if(dist2(b.x,b.z,px,pz)<3.4) renverserCycliste(b,sA*sgn,cA*sgn,Math.abs(v.v),v.conduit==='joueur'); }
+  for(const m of MOTARDS.liste){ if(m.actif&&m.g.visible&&dist2(m.x,m.z,px,pz)<3.4&&Math.abs(m.y-(v.h||0))<2.2) motardTombe(m,sA*sgn,cA*sgn,v.conduit==='joueur',Math.abs(v.v)>17,Math.abs(v.v)); } /* les motards aussi */
   for(const c of CHIENS){ if(!c.vole&&dist2(c.x,c.z,px,pz)<3) percuterAnimal(c,sA*sgn,cA*sgn,Math.abs(v.v),v.conduit==='joueur'); }
   // Le joueur À PIED est sensible à l'écrasement. Jamais de mort instantanée
   // (dégâts plafonnés à P.hp-1), projection franche (réutilise l'inertie du
@@ -21506,6 +21598,8 @@ function collisionBalle(b){
     const px=b.x-b.vx/30, py=b.y-b.vy/30, pz=b.z-b.vz/30, vx=b.vx/30, vy=b.vy/30, vz=b.vz/30, vv=vx*vx+vy*vy+vz*vz||1, t=clamp(((cx-px)*vx+(cy-py)*vy+(cz-pz)*vz)/vv,0,1);
     const qx=px+vx*t-cx, qy=py+vy*t-cy, qz=pz+vz*t-cz, r=0.3*k; if(qx*qx+qy*qy+qz*qz<r*r){ const hs=estHeadshot({fac:'joueur',x:px+vx*t,y:py+vy*t,z:pz+vz*t},o); oiseauTue(o,b.vx*0.04,b.vz*0.04); if(hs) annonceHeadshot(teteDe(o)); return true; } }
   if(b.fac==='joueur') for(const c of CHIENS){ if(c.vole) continue; if(dist2(b.x,b.z,c.x,c.z)<0.5&&b.y-solY(c.x,c.z)<0.9){ percuterAnimal(c,b.vx/72,b.vz/72,8,true); return true; } } /* les chiens des rues aussi (karma en moins) */
+  if(b.fac==='joueur'&&MOTARDS.liste.length) for(const m of MOTARDS.liste){ if(!m.actif||!m.g.visible) continue; const sB=segBalle(b,m.x,m.z); if(sB.d2>1.4) continue; /* les motards du désert et de la montagne */
+    const hs=estHeadshot(b,m); if(hs||(sB.d2<0.5&&sB.y>m.y+0.4&&sB.y<m.y+2.1)){ if(hs) annonceHeadshot(teteDe(m)); motardTombe(m,b.vx/72,b.vz/72,true,true,10); return true; } }
   for(const e of ennemis){
     if(e.mort||e.fac===b.fac) continue;
     if(e.heli){
@@ -34285,7 +34379,7 @@ function startRun(){
   for(const c of TOITS.coffres) c.vague=-1;
   HELIPORT.v=null; poserHeliManoir(); // l'hélico du manoir sur sa dalle
   for(const hp of TOITS.helis){ const he=creerVehicule(hp.cle,hp.x,hp.z,Math.PI/2); if(he){ he.alt=hp.h; he.vol=false; he.va=0; he.mesh.position.y=hp.h; } } // hélicos posés sur les toits
-  aeroStartRun(); // aéroport vivant : long-courrier à la porte A1, avions des hangars, taxi et bus à la dépose-minute
+  aeroStartRun(); motardsStartRun(); /* motards du désert et de la montagne */ // aéroport vivant : long-courrier à la porte A1, avions des hangars, taxi et bus à la dépose-minute
   if(POIS.heliGrue) creerVehicule('titan',POIS.heliGrue.x,POIS.heliGrue.z,CHANTIER.ok?-Math.PI/2:0); /* nez à l'ouest : la queue passe au-dessus de la rue, jamais sur la base de vie */ // hélico-grue au chantier
   planquesStartRun(); // véhicules garés aux planques possédées, usages de la vague remis à zéro
   if(POIS.base&&BASE.ok) creerVehicule('vautour',BASE.heli.x,BASE.heli.z,Math.PI); // Fort Reyes : sur son héliport, jamais à cheval sur un véhicule
@@ -36870,6 +36964,7 @@ function tick(t){
     }
     majPools(dt); majJetEau(dt); /* lance à eau : le jet se cache quand on ne tire plus, les flaques sèchent */
     majOiseaux(dt); /* pigeons et mouettes de la ville */
+    majMotards(dt); /* motards du désert et de la montagne */
     majGrenades(dt);
     majPickups(dt);
     if(ETAT.mode==='jeu'){
