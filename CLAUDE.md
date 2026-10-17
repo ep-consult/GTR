@@ -729,7 +729,10 @@ décor sur un générateur **à part** (`aleaDecor()`, `aD()`, `choixD()`, grain
   grenade — ; figure pas finie à la réception = chute ; objectif 9 000,
   impossible sans figures) ; planche aux bouts arrondis ; **crawl** (SPRINT à
   la nage : ×1,7, endurance ×5) ; petits bonds de crête en crête au large
-  (`v.distVague`, jamais près d'un tremplin flottant). **Île aux trésors v2**
+  (`v.distVague`, jamais près d'un tremplin flottant) — **espacés le 17 octobre
+  au soir** (« claquements beaucoup trop fréquents ») : un tous les 25 à 60 u
+  (avant 6 à 15 : trois par seconde à pleine vitesse), ~0,07 u de haut, petite
+  retombée sans choc ; test « Bateaux ». **Île aux trésors v2**
   (`ILE2`, relief `hauteurIleTresor`, contour `ileU`, `ILES[i].dans` lu par
   `estEau`) : montagne de 16 u, jungle, 6 trous (`creuserTrou`, un seul
   trésor tiré à chaque vague, ailleurs or, bouteille ou indice de direction),

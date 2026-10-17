@@ -10884,16 +10884,18 @@ function majSautMer(v,dt){
   if(v.vyMer!==undefined&&v.hMer>0){ // en l'air
     v.vyMer-=26*dt; v.hMer+=v.vyMer*dt; v.airMer+=dt;
     if(v.hMer<=0){ v.hMer=0; const air=v.airMer; v.vyMer=undefined;
-      if(MER_V2) eclaboussure(v.x,v.z,air>0.5?1.8:1); else burst(v.x,0.3,v.z,10,0x9fd8ff,5,6);
-      if(v.conduit==='joueur'){ secousse(air>0.5?3:0.8); vibre(air>0.5?40:12); if(air>0.5){ const pts=Math.round(60+air*80); ETAT.score+=pts; spawnTexte(v.x,3,v.z,'SAUT ! +'+pts,'#35e0ff'); }
+      if(MER_V2) eclaboussure(v.x,v.z,air>0.5?1.8:0.7); else burst(v.x,0.3,v.z,10,0x9fd8ff,5,6);
+      if(v.conduit==='joueur'){ secousse(air>0.5?3:0.25); vibre(air>0.5?40:5); /* une crête : une petite retombée, pas un choc */ if(air>0.5){ const pts=Math.round(60+air*80); ETAT.score+=pts; spawnTexte(v.x,3,v.z,'SAUT ! +'+pts,'#35e0ff'); }
         if(RIDES.actif&&RIDE_DEFS[RIDES.actif.id].stunt) rideFigure({airT:air,def:v.def,mesh:v.mesh}); } }
     return true;
   }
   const rp=rampeMerSous(v.x,v.z);
   if(rp){ v.hMer=rp.h; v.rampeMer=rp; return true; }
   // signalé : « on dirait un lac, pas d'effet de vagues » — au large, lancé, on décolle de crête en crête
-  if(Math.abs(v.v)>11&&v.z>MER+14&&!v.rampeMer&&!MERV.rampes.some((r)=>dist2(r.x,r.z,v.x,v.z)<900)){ v.distVague=(v.distVague===undefined?6:v.distVague)-Math.abs(v.v)*dt;
-    if(v.distVague<=0){ v.distVague=6+Math.random()*9; v.vyMer=1.6+Math.abs(v.v)*0.07; v.hMer=0.01; v.airMer=0; if(MER_V2) eclaboussure(v.x,v.z,0.8+Math.abs(v.v)*0.02); return true; } }
+  // 17 octobre au soir (signalé : « les claquements sur l'eau sont beaucoup trop fréquents ; garde du mouvement, réduis nettement
+  // fréquence et amplitude ») : un bond tous les 25 à 60 u (avant : 6 à 15 u, soit trois par seconde à pleine vitesse), moins haut
+  if(Math.abs(v.v)>11&&v.z>MER+14&&!v.rampeMer&&!MERV.rampes.some((r)=>dist2(r.x,r.z,v.x,v.z)<900)){ v.distVague=(v.distVague===undefined?20:v.distVague)-Math.abs(v.v)*dt;
+    if(v.distVague<=0){ v.distVague=25+Math.random()*35; v.vyMer=Math.min(2.6,1.1+Math.abs(v.v)*0.045); v.hMer=0.01; v.airMer=0; if(MER_V2) eclaboussure(v.x,v.z,0.6+Math.abs(v.v)*0.012); return true; } }
   if(v.rampeMer){ const r=v.rampeMer.r; v.rampeMer=null; // on quitte le tremplin
     if(Math.abs(v.v)>9&&v.hMer>r.haut*0.7){ v.vyMer=Math.min(14,Math.abs(v.v)*0.42); v.airMer=0; if(v.conduit==='joueur') SFX.swing(); return true; } }
   v.hMer=0; return false;

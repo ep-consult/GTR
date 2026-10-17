@@ -9,7 +9,7 @@ Chaque point est coché quand il est fait ET vérifié (rendu réel, test, valid
 - [x] 5. Animaux : oiseaux en ville ; animaux de la forêt figés en ville → dans la forêt et fonctionnels — pigeons (volées, envol à l'approche et aux tirs), mouettes au bord de mer, forêt du chalet peuplée (cerf, biches, renard, lapins, l'ours), faune qui ne se fige plus et ne se traverse plus ; test « Animaux »
 - [x] 6. Tir sur les animaux + HEADSHOT (tête séparée du corps, PNJ et animaux) — tête ×2,5, « HEADSHOT ! », oiseaux et animaux visables et abattables ; test « Tir à la tête »
 - [x] 7. Suspension des voitures : lisse en ville, secousses seulement hors route, plus d'effet à fréquence fixe — bosses irrégulières selon le sol (ville 0,001 u, sable 0,03 u), plus de sinusoïde ni de balancement à l'arrêt ; test « Suspension »
-- [ ] 8. Bateaux : claquements sur l'eau moins fréquents et moins amples
+- [x] 8. Bateaux : claquements sur l'eau moins fréquents et moins amples — un bond tous les 25 à 60 u (avant 6 à 15), 0,07 u de haut (avant 0,22), retombée douce ; la houle reste ; test « Bateaux »
 - [ ] 9. Vue 1re personne en chute libre (base jump, wingsuit, parachute)
 - [ ] 10. Police : plus présente, intervient dans les fusillades entre gangs et contre le joueur
 - [ ] 11. Avions : montée et caméra 1P adoucies

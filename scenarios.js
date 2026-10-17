@@ -13545,6 +13545,31 @@ async function main() {
       });
       if (r.ko.length) fail('Suspension : ' + r.ko.join(' ; ')); else ok('Suspension : ' + r.info.join(' ; '));
     }
+    // -------------------------------------------------------------------
+    // Bateaux (17 octobre au soir, signalé : « les claquements sur l'eau sont
+    // beaucoup trop fréquents ; garde du mouvement, réduis nettement fréquence
+    // et amplitude ») : au large, lancé, un bond tous les 25 à 60 u, bas.
+    // -------------------------------------------------------------------
+    console.log('\n--- Bateaux : bonds de crête espacés et bas ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (!DECOR_V2 || !MERV.ok) return { ko, info: ['mer vivante absente'] };
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); META.vue = 'classique'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9;
+        for (const e of ennemis) e.mort = true; WAVES.etat = 'repos'; WAVES.t = 1e9;
+        const x = -40, z = MER + 160, v = creerVehicule('bateau', x, z, Math.PI / 2); P.x = x; P.z = z; entrerVehicule(v);
+        let bonds = 0, hMax = 0, enVol = false, dist = 0;
+        for (let i = 0; i < 30 * 20; i++) { v.v = 25; v.ang = Math.PI / 2; if (Math.abs(v.x) > 250) v.x = x; const x0 = v.x; majSautMer(v, 1 / 30); v.x += v.v / 30; dist += Math.abs(v.x - x0);
+          const air = (v.hMer || 0) > 0.005; if (air && !enVol) bonds++; enVol = air; hMax = Math.max(hMax, v.hMer || 0); }
+        const parBond = dist / Math.max(1, bonds);
+        if (bonds < 1) ko.push('plus aucun mouvement de crête');
+        if (parBond < 24) ko.push('bonds trop fréquents : un tous les ' + parBond.toFixed(0) + ' u');
+        if (hMax > 0.16) ko.push('bonds trop hauts : ' + hMax.toFixed(2) + ' u');
+        info.push(bonds + ' bonds en ' + dist.toFixed(0) + ' u (un tous les ' + parBond.toFixed(0) + ' u), ' + hMax.toFixed(2) + ' u de haut');
+        sortirVehicule(true); return { ko, info };
+      });
+      if (r.ko.length) fail('Bateaux : ' + r.ko.join(' ; ')); else ok('Bateaux : ' + r.info.join(' ; '));
+    }
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];
