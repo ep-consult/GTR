@@ -13149,7 +13149,8 @@ async function main() {
           if (!toasts.some((m) => /policier/.test(m))) ko.push('balle perdue : pas d’avertissement');
           for (let k = 0; k < 4; k++) { ETAT.runT += 0.6; toucherEnnemi(ag, 1, true, 0); }
           if (!(WANTED.stars >= 1)) ko.push('cinq balles sur un agent : toujours pas recherché (' + WANTED.heat.toFixed(2) + ')');
-          ag.cibleT = 0; majEnnemis(1 / 30); if (!ag.mort && (ag.cible || ag.passif)) { const reste = gang.filter((x) => !x.mort).length; if (!reste) ko.push('recherché, l’agent ne s’occupe pas du joueur'); }
+          for (const x of gang) x.mort = true; ag.rag = null; ag.stun = 0; ag.fuiteT = undefined; ag.x = P.x + 8; ag.z = P.z; if (ag.h) ag.h.g.position.set(ag.x, 0, ag.z); /* la scène maîtrisée : l'agent debout, près du joueur, plus aucun gangster */
+          ag.cibleT = 0; majEnnemis(1 / 30); if (!ag.mort && (ag.cible || ag.passif)) ko.push('recherché, l’agent ne s’occupe pas du joueur (cible ' + (ag.cible ? ag.cible.fac + '/' + (ag.cible.type || '') : '—') + ', passif ' + !!ag.passif + ', ' + WANTED.stars + '★)');
           info.push('balle perdue : +' + (h1 - h0).toFixed(2) + ' de chaleur, averti ; recherché après ' + 5 + ' balles'); }
         // fin de vague, au calme (INTER_CALME s sans un coup de feu) : les agents reprennent leur patrouille
         WAVES.etat = 'repos'; for (const e of gang) e.mort = true; WANTED.heat = 0; WANTED.stars = 0; POLICE_INTER.alerte = 0; for (let k = 0; k < 30 * (INTER_CALME + 2); k++) majInterventionPolice(1 / 30);
@@ -13452,7 +13453,12 @@ async function main() {
           P.x = 0; P.z = 0; const p0 = F.map((a) => [a.x, a.z]); for (let i = 0; i < 30 * 8; i++) majFaune(1 / 30); const bougent = F.filter((a, i) => Math.hypot(a.x - p0[i][0], a.z - p0[i][1]) > 0.3).length;
           if (bougent < 3) ko.push('loin du joueur, la faune reste figée (' + bougent + '/' + F.length + ' bougent)'); else info.push(F.length + ' bêtes dans la forêt (' + [...new Set(F.map((a) => a.type))].join(', ') + '), ' + bougent + ' bougent loin du joueur');
           // on ne traverse plus un cerf
-          const c = F.find((a) => a.type === 'cerf'); if (c) { P.chute = false; P.nage = false; P.para = false; P.jetpackVol = false; P.jetpack = false; /* en vol au jetpack (laissé par un autre test), on passe au-dessus des bêtes */ P.x = c.x - 3; P.z = c.z; P.y = hauteurMont(P.x, P.z); /* le cerf ne bouge pas : seule la marche du joueur tourne */
+          const c = F.find((a) => a.type === 'cerf'); if (c) { P.chute = false; P.nage = false; P.para = false; P.jetpackVol = false; P.jetpack = false;
+            /* la scène maîtrisée : le cerf posé sur un replat libre de la forêt, le joueur à 3 u à l'ouest, à la même hauteur (sinon, selon le tirage, le cerf
+               finissait sur la terrasse du chalet ou au-dessus d'un talus : à plus de 1,6 u de hauteur, on passe à côté de lui, normalement) */
+            for (let k = 0; k < 64; k++) { const a = k * 0.9, rr = 6 + (k % 8) * 3, x = FORET.x + Math.cos(a) * rr, z = FORET.z + Math.sin(a) * rr, y = solY(x, z);
+              if (solidAt(x, z, 2) || solidAt(x - 3, z, 1) || Math.abs(solY(x - 3, z) - y) > 0.6 || Math.abs(solY(x + 2, z) - y) > 0.6) continue; c.x = x; c.z = z; c.y = y; break; }
+            P.x = c.x - 3; P.z = c.z; P.y = solY(P.x, P.z); /* le cerf ne bouge pas : seule la marche du joueur tourne */
             for (let i = 0; i < 40; i++) { INPUT.mx = 1; INPUT.mz = 0; majJoueur(1 / 30, 1 / 30); } INPUT.mx = 0;
             if (P.x > c.x - 0.6) ko.push('le joueur traverse le cerf'); } }
         return { ko, info };
@@ -13888,12 +13894,13 @@ async function main() {
           if (d.air) { v.vol = true; v.alt = 30; v.mesh.position.y = 30; v.v = d.air === 'avion' ? 34 : 0; }
           for (let i = 0; i < 40; i++) { T += 1000 / 30; ETAT.jour = 130; tick(T); }
           if (!COCKPIT.g) { ko.push(c + ' : pas de cockpit'); continue; }
-          camera.updateMatrixWorld(); let pres = 0, propres = 0, autresMax = 0;
-          scene.traverseVisible((o) => { if (!o.isSprite || !o.material || o.material.map !== texGlow || o.material.opacity < 0.02) return; const p = o.getWorldPosition(new THREE.Vector3()); if (camera.position.distanceTo(p) < 12) pres++; });
+          camera.updateMatrixWorld(); let pres = 0, propres = 0, autresMax = 0; const detail = [];
+          /* un HALO (phare, lampadaire : échelle ≥ 1,5) ; les particules (embruns, pluie, échelle < 1) ne sont pas des halos */
+          scene.traverseVisible((o) => { if (!o.isSprite || !o.material || o.material.map !== texGlow || o.material.opacity < 0.02 || o.scale.x < 1.5) return; const p = o.getWorldPosition(new THREE.Vector3()), dd = camera.position.distanceTo(p); if (dd < 12) { pres++; detail.push('#' + o.material.color.getHexString() + ' à ' + dd.toFixed(1) + ' u, op ' + o.material.opacity.toFixed(2) + ', éch ' + o.scale.x.toFixed(1)); } });
           for (const s of v.mesh.userData.phG || []) if (s.visible && s.material.opacity > 0.01) propres++;
           for (const o of vehicules) if (o !== v) for (const s of o.mesh.userData.phG || []) if (s.visible) autresMax = Math.max(autresMax, s.material.opacity);
           if (propres) ko.push(c + ' : ses propres phares brillent devant l’œil');
-          if (pres) ko.push(c + ' : ' + pres + ' halo(s) à moins de 12 u de l’œil');
+          if (pres) ko.push(c + ' : ' + pres + ' halo(s) à moins de 12 u de l’œil (' + detail.slice(0, 4).join(' ; ') + ')');
           if (autresMax > 0.75 * CK_HALOS + 0.01) ko.push(c + ' : halos des autres véhicules non atténués (' + autresMax.toFixed(2) + ')');
           let brillant = 0; v.mesh.traverse((o) => { if (o.isMesh && o.visible && o.material && ckEstVitre(o.material) && o.material.side === THREE.DoubleSide && (o.material.isMeshPhongMaterial || o.material.isMeshStandardMaterial)) brillant++; });
           if (brillant) ko.push(c + ' : ' + brillant + ' vitre(s) brillante(s) vue(s) de l’intérieur');
