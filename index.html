@@ -8688,6 +8688,7 @@ function mkPlanquesV2(){
       // la forêt : sapins tout autour, au sol du mont, jamais sur le sentier
       for(let k=0;k<26;k++){ const a=k*2.399, r=9+(k%7)*3.2, tx=x+Math.cos(a)*r, tz=z+Math.sin(a)*r; if(MONT.presDuSentier&&MONT.presDuSentier(tx,tz,4)) continue; if(Math.abs(tx-x)<6.5&&Math.abs(tz-z-0.6)<6) continue;
         const ty=solY(tx,tz), hs=3+(k%4)*0.9; mkBox(0.3,1,0.3,mat(0x4a3020),tx,ty+0.5,tz); for(let q=0;q<3;q++){ const co=new THREE.Mesh(new THREE.ConeGeometry(1.4-q*0.35,hs*0.45,7),mat(q===2?0xf2f4f8:0x1f4a2a)); co.position.set(tx,ty+1+q*hs*0.25+hs*0.2,tz); scene.add(co); } addSolid({x:tx,z:tz,hw:0.3,hd:0.3,h:ty+hs}); }
+      FORET.x=x; FORET.z=z+0.6; FORET.ok=true; /* la forêt de sapins autour du chalet : le foyer de l'ours, des cerfs, des renards, des lapins */
       ch.lit={x,z:z+3.2,y}; ch.coffre={x:x-3.6,z:z+3.4,y}; ch.spec={x:x+3.4,z:z+3.4,y}; ch.achat=ch.lit; ch.vehPos={x:x-8,z:z+7,ang:0};
       ch.enseigne=mkEnseigne('CHALET À VENDRE','#ffd23f',x,y+6,z+1.9,0,6); } }
 }
@@ -10711,7 +10712,13 @@ function creuserTrou(t){
 // charge comme le jaguar. Décor à part (VIE_MONT) : aigles qui tournent au-dessus du sommet, marmottes qui
 // plongent dans leur terrier quand on approche.
 const FAUNE=[], FAUNE_DEFS={sanglier:{hp:60,vit:8,deg:10,col:0x5a3e2a,long:1.4,cash:[10,20]},jaguar:{hp:110,vit:11.5,deg:16,col:0x2a2a2e,long:1.8,cash:[25,45]},
-  bouquetin:{hp:40,vit:9,deg:0,col:0x8a7458,long:1.3,cash:[0,0],paisible:true},ours:{hp:240,vit:9.5,deg:24,col:0x3a2a1e,long:2.1,cash:[45,80]}};
+  bouquetin:{hp:40,vit:9,deg:0,col:0x8a7458,long:1.3,cash:[0,0],paisible:true},ours:{hp:240,vit:9.5,deg:24,col:0x3a2a1e,long:2.1,cash:[45,80]},
+  cerf:{hp:70,vit:12,deg:0,col:0x8a5a34,long:1.6,cash:[0,0],paisible:true},biche:{hp:55,vit:12,deg:0,col:0xa46c40,long:1.45,cash:[0,0],paisible:true},
+  renard:{hp:30,vit:10,deg:0,col:0xd2681e,long:0.85,cash:[0,0],paisible:true},lapin:{hp:12,vit:8,deg:0,col:0x9a8a78,long:0.45,cash:[0,0],paisible:true,saute:true}};
+/* la forêt de sapins autour du chalet du Mont Reyes (17 octobre au soir, demandé : « les animaux de la forêt, figés, qu'on traverse :
+   dans la forêt, et fonctionnels ») : son centre, posé par mkPlanquesV2 ; FAUNE_FORET : qui y vit (zone 'foret', en plus de l'ours) */
+const FORET={x:0,z:0,r:34,ok:false}, FAUNE_FORET=['cerf','biche','biche','renard','lapin','lapin','lapin'];
+const MSG_FORET=['BAD KARMA 🦌','LES GARDES FORESTIERS ONT TA PLAQUE','−50 KARMA','PAUVRE BÊTE…','LA FORÊT T’EN VEUT'];
 const MSG_BOUQUETIN=['BAD KARMA 🐐','IL NE T’AVAIT RIEN FAIT…','−50 KARMA','LES GARDES FORESTIERS ONT TA PLAQUE','PAUVRE BIQUETTE'];
 function mkAnimal(type){
   const D=FAUNE_DEFS[type], g=new THREE.Group(), L=D.long;
@@ -10723,16 +10730,25 @@ function mkAnimal(type){
     g.add(mkBoxG(0.1,0.18,0.08,0x5a4a34,0,0.52,L/2+0.42)); } // barbiche
   else if(type==='ours'){ g.children[0].scale.set(1.5,1.45,1); tete.scale.set(1.25,1.2,1.1); tete.position.y=1.05; g.add(mkBoxG(0.32,0.26,0.32,0x6a5a48,0,0.98,L/2+0.55)); // museau
     for(const s of [-1,1]) g.add(mkBoxG(0.16,0.16,0.1,D.col,s*0.25,1.42,L/2+0.15)); g.add(mkBoxG(0.12,0.08,0.06,0x15171c,0,1.06,L/2+0.72)); g.add(mkBoxG(0.9,0.5,0.8,D.col,0,1.2,L*0.2)); } // oreilles, truffe, bosse
+  else if(type==='cerf'||type==='biche'){ const corps=g.children[0]; corps.scale.set(0.72,0.78,1); corps.position.y=1.02; tete.scale.set(0.58,0.62,0.95); tete.position.set(0,1.62,L/2+0.32);
+    const cou=mkBoxG(0.26,0.66,0.3,D.col,0,1.32,L/2+0.06); cou.rotation.x=0.45; g.add(cou); g.add(mkBoxG(0.18,0.17,0.24,0x4a3020,0,1.55,L/2+0.66)); g.add(mkBoxG(0.42,0.3,L*0.7,0xd8c4a4,0,0.82,0)); // museau, ventre clair
+    g.add(mkBoxG(0.2,0.22,0.08,0xf2ecdc,0,1.12,-L/2-0.02)); for(const s of [-1,1]){ const o=mkBoxG(0.06,0.22,0.12,D.col,s*0.17,1.86,L/2+0.2); o.rotation.z=s*0.5; g.add(o); } // queue blanche, oreilles
+    if(type==='cerf') for(const s of [-1,1]){ const b=mkBoxG(0.05,0.55,0.05,0x6a5236,s*0.13,2.08,L/2+0.22); b.rotation.z=-s*0.35; g.add(b); for(let k=0;k<3;k++){ const t=mkBoxG(0.04,0.22,0.04,0x6a5236,s*(0.2+k*0.05),2.05+k*0.14,L/2+0.3); t.rotation.x=0.6; g.add(t); } } } // bois du cerf
+  else if(type==='renard'){ const corps=g.children[0]; corps.scale.set(0.45,0.48,1); corps.position.y=0.38; tete.scale.set(0.62,0.62,0.7); tete.position.set(0,0.5,L/2+0.16); g.add(mkBoxG(0.14,0.12,0.2,0xf2ecdc,0,0.43,L/2+0.42)); // museau clair
+    for(const s of [-1,1]) g.add(mkBoxG(0.08,0.16,0.05,0x2a1a10,s*0.1,0.72,L/2+0.12)); const q=mkBoxG(0.18,0.18,0.62,D.col,0,0.42,-L/2-0.26); q.rotation.x=0.35; g.add(q); g.add(mkBoxG(0.19,0.19,0.16,0xf2ecdc,0,0.31,-L/2-0.56)); g.add(mkBoxG(0.24,0.18,0.3,0xf2ecdc,0,0.3,L/2-0.12)); } // oreilles noires, queue en panache au bout blanc, plastron
+  else if(type==='lapin'){ const corps=g.children[0]; corps.scale.set(0.38,0.42,1); corps.position.y=0.22; tete.scale.set(0.46,0.46,0.42); tete.position.set(0,0.34,L/2+0.06);
+    for(const s of [-1,1]){ const o=mkBoxG(0.05,0.26,0.07,D.col,s*0.05,0.58,L/2+0.02); o.rotation.x=-0.2; g.add(o); } g.add(mkBoxG(0.12,0.12,0.1,0xf2f2ee,0,0.28,-L/2-0.03)); } // grandes oreilles, queue blanche
   else { g.add(mkBoxG(0.08,0.08,1.1,D.col,0,0.85,-L/2-0.5)); for(let k=0;k<8;k++) g.add(mkBoxG(0.12,0.02,0.12,0xd8a830,(k%2?0.2:-0.2),0.96,-L/2+0.3+k*0.18)); for(const s of [-1,1]) g.add(mkBoxG(0.08,0.06,0.04,0xffd23f,s*0.13,0.9,L/2+0.47)); } // queue, taches, yeux
-  const ep=type==='ours'?0.3:(type==='bouquetin'?0.11:0.16), lp=type==='bouquetin'?0.62:0.5, ex=type==='ours'?0.4:(type==='bouquetin'?0.18:0.25);
+  const cerv=type==='cerf'||type==='biche', ep=type==='ours'?0.3:(type==='bouquetin'?0.11:(cerv?0.1:(type==='renard'?0.08:(type==='lapin'?0.07:0.16)))), lp=type==='bouquetin'?0.62:(cerv?0.9:(type==='renard'?0.3:(type==='lapin'?0.14:0.5))), ex=type==='ours'?0.4:(type==='bouquetin'?0.18:(cerv?0.2:(type==='renard'?0.12:(type==='lapin'?0.09:0.25))));
   const pattes=[]; for(const [sx,sz] of [[-1,1],[1,1],[-1,-1],[1,-1]]){ const p=mkBoxG(ep,lp,ep,D.col,sx*ex,lp/2,sz*L*0.35); g.add(p); pattes.push(p); }
   if(type==='bouquetin'){ g.children[0].position.y=0.78; tete.position.y=0.98; }
-  scene.add(g); return {g,pattes};
+  scene.add(g); return {g,pattes,tete};
 }
 function retirerFaune(zone){ for(let i=FAUNE.length-1;i>=0;i--){ const a=FAUNE[i]; if((a.zone||'ile')!==zone) continue; scene.remove(a.g); libererEntite(a.g); FAUNE.splice(i,1); } }
 function montU(x,z){ return Math.hypot((x-MONT.x)/MONT.rx,(z-MONT.z)/MONT.rz); }
 function placerFauneMont(){ // à chaque partie et chaque vague, comme l'île
   if(!DECOR_V2||!MONT.sommet) return;
+  placerFauneForet(); /* la forêt du chalet, à chaque partie et chaque vague aussi */
   if(FAUNE.filter((a)=>a.zone==='mont'&&!a.mort).length>=6) return;
   retirerFaune('mont');
   for(const type of ['bouquetin','bouquetin','bouquetin','bouquetin','bouquetin','ours']){ const m=mkAnimal(type), D=FAUNE_DEFS[type];
@@ -10741,7 +10757,9 @@ function placerFauneMont(){ // à chaque partie et chaque vague, comme l'île
       if(x2>LIMITE_EST-2||(MONT.presDuSentier&&MONT.presDuSentier(x2,z2,6))) continue;
       const h=hauteurMont(x2,z2); if(h<3||Math.abs(hauteurMont(x2+1.5,z2)-h)>2.2||Math.abs(hauteurMont(x2,z2+1.5)-h)>2.2) continue; x=x2; z=z2; break; }
     m.g.position.set(x,hauteurMont(x,z),z); // posé dès sa création : au loin il est figé (LOD) et restait à (0,0), en plein centre-ville (« un ours au milieu de la ville »)
-    FAUNE.push({type,D,zone:'mont',g:m.g,pattes:m.pattes,x,z,y:hauteurMont(x,z),ang:rand(0,6.28),hp:D.hp,mort:false,mordT:0,errT:0,ph:rand(0,6),corpsT:0}); }
+    const foyer=type==='ours'&&FORET.ok?{x:FORET.x,z:FORET.z,r:FORET.r}:null; /* l'ours vit dans la forêt du chalet */
+    if(foyer){ for(let t=0;t<40;t++){ const a=rand(0,6.28), r=rand(10,foyer.r-4), x2=foyer.x+Math.cos(a)*r, z2=foyer.z+Math.sin(a)*r; if(faunePosable(x2,z2)){ x=x2; z=z2; break; } } m.g.position.set(x,hauteurMont(x,z),z); }
+    FAUNE.push({type,D,zone:'mont',foyer,g:m.g,pattes:m.pattes,tete:m.tete,x,z,y:hauteurMont(x,z),ang:rand(0,6.28),hp:D.hp,mort:false,mordT:0,errT:0,ph:rand(0,6),corpsT:0}); }
 }
 function placerFaune(){ // à chaque partie et chaque vague : les morts reviennent
   if(!MERV.ok) return;
@@ -10750,21 +10768,30 @@ function placerFaune(){ // à chaque partie et chaque vague : les morts revienne
   for(const type of ['sanglier','sanglier','sanglier','jaguar']){ const m=mkAnimal(type), D=FAUNE_DEFS[type];
     let x=MERV.camp?MERV.camp.x-4:ILE2.cx+10, z=MERV.camp?MERV.camp.z-4:ILE2.cz; for(let t=0;t<30;t++){ const a=rand(0,6.28), r=rand(5,18), x2=ILE2.cx+Math.cos(a)*r, z2=ILE2.cz+Math.sin(a)*r*0.7; if(ileU(x2,z2)<0.75&&!dansLave(x2,z2)&&!lavePres(x2,z2,1.5)){ x=x2; z=z2; break; } } // jamais dans la lave (ni au cratère : à défaut, près du camp)
     m.g.position.set(x,hauteurIleTresor(x,z),z);
-    FAUNE.push({type,D,g:m.g,pattes:m.pattes,x,z,y:hauteurIleTresor(x,z),ang:rand(0,6.28),hp:D.hp,mort:false,mordT:0,errT:0,ph:rand(0,6),corpsT:0}); }
+    FAUNE.push({type,D,g:m.g,pattes:m.pattes,tete:m.tete,x,z,y:hauteurIleTresor(x,z),ang:rand(0,6.28),hp:D.hp,mort:false,mordT:0,errT:0,ph:rand(0,6),corpsT:0}); }
 }
+/* un endroit du mont où poser une bête : dans le relief, pas trop raide, ni arbre ni maison */
+function faunePosable(x,z){ if(montU(x,z)>0.85||x>LIMITE_EST-2) return false; const h=hauteurMont(x,z); if(h<1.5||Math.abs(hauteurMont(x+1.5,z)-h)>1.6||Math.abs(hauteurMont(x,z+1.5)-h)>1.6) return false; return !solidAt(x,z,0.8,undefined,h+0.5); }
+/* la forêt du chalet : cerfs, biches, renard, lapins (paisibles : ils fuient), à chaque partie et chaque vague */
+function placerFauneForet(){ if(!DECOR_V2||!FORET.ok) return; if(FAUNE.filter((a)=>a.zone==='foret'&&!a.mort).length>=FAUNE_FORET.length) return; retirerFaune('foret');
+  for(const type of FAUNE_FORET){ const m=mkAnimal(type), D=FAUNE_DEFS[type]; let x=FORET.x+12, z=FORET.z;
+    for(let t=0;t<40;t++){ const a=rand(0,6.28), r=rand(9,FORET.r-3), x2=FORET.x+Math.cos(a)*r, z2=FORET.z+Math.sin(a)*r; if(faunePosable(x2,z2)){ x=x2; z=z2; break; } }
+    const y=hauteurMont(x,z); m.g.position.set(x,y,z); FAUNE.push({type,D,zone:'foret',foyer:{x:FORET.x,z:FORET.z,r:FORET.r},g:m.g,pattes:m.pattes,tete:m.tete,x,z,y,ang:rand(0,6.28),hp:D.hp,mort:false,mordT:0,errT:0,ph:rand(0,6),corpsT:0}); } }
+/* une bête vivante sur le chemin du joueur à pied : on ne la traverse plus (on peut toujours s'en éloigner) */
+function fauneBloque(x,z,y){ for(const a of FAUNE){ if(a.mort||a.type==='lapin'||Math.abs(a.y-y)>1.6) continue; const r=a.D.long*0.45+0.3, d2=dist2(x,z,a.x,a.z); if(d2<r*r&&d2<dist2(P.x,P.z,a.x,a.z)) return true; } return false; }
 function toucherAnimal(a,dmg){
   if(a.mort) return; a.hp-=dmg; a.colere=true; burst(a.x,a.y+0.8,a.z,4,0xb8282a,4);
   if(a.hp<=0){ a.mort=true; a.corpsT=5; a.g.rotation.z=Math.PI/2; SFX.mort();
-    if(a.D.paisible){ ETAT.score=Math.max(0,ETAT.score-50); const m=pick(MSG_BOUQUETIN); spawnTexte(a.x,a.y+2.2,a.z,m,'#ff5a6a'); toast('🐐 '+m,'warn'); return; } // un animal paisible : du karma en moins, rien à gagner
+    if(a.D.paisible){ ETAT.score=Math.max(0,ETAT.score-50); const m=pick(a.type==='bouquetin'?MSG_BOUQUETIN:MSG_FORET); spawnTexte(a.x,a.y+2.2,a.z,m,'#ff5a6a'); toast('🐐 '+m,'warn'); return; } // un animal paisible : du karma en moins, rien à gagner
     const pts=a.type==='jaguar'?250:(a.type==='ours'?320:80); ETAT.score+=pts; META.defis.fauves++;
     creerPickup('cash',a.x,a.z,randi(a.D.cash[0],a.D.cash[1])); spawnTexte(a.x,a.y+2.5,a.z,(a.type==='jaguar'?'JAGUAR !':(a.type==='ours'?'OURS !':'SANGLIER'))+' +'+pts,'#ffd23f'); }
 }
 function majFaune(dt){
   for(const a of FAUNE){
     if(a.mort){ if(a.corpsT>0){ a.corpsT-=dt; if(a.corpsT<=0) a.g.visible=false; } continue; }
-    const mont=a.zone==='mont', H=mont?hauteurMont:hauteurIleTresor;
+    const mont=a.zone==='mont'||a.zone==='foret', H=mont?hauteurMont:hauteurIleTresor;
     const d=Math.sqrt(dist2(a.x,a.z,P.x,P.z));
-    if(mont&&d>160){ continue; } // loin du joueur : figé (LOD)
+    /* plus jamais figée au loin (17 octobre au soir : « des animaux bloqués qui ne bougent pas ») : quelques bêtes, peu de calcul */
     // percuté par le véhicule du joueur (au sol, lancé)
     const pv=P.veh; if(pv&&!pv.def.air&&Math.abs(pv.v||0)>5&&Math.sqrt(dist2(a.x,a.z,pv.x,pv.z))<a.D.long*0.6+pv.def.long*0.45&&Math.abs((pv.enAir?(pv.h||0):solY(pv.x,pv.z))-a.y)<2.5){
       a.x+=Math.sin(pv.ang)*2; a.z+=Math.cos(pv.ang)*2; burst(a.x,a.y+0.6,a.z,8,0xc8a878,5,6); SFX.choc(0.5); toucherAnimal(a,999);
@@ -10774,12 +10801,15 @@ function majFaune(dt){
     if(a.D.paisible&&d<11&&Math.abs(P.y-a.y)<8){ const fuite=Math.atan2(a.x-P.x,a.z-P.z); a.ang=angLerp(a.ang,fuite,5*dt); vit=a.D.vit; a.pause=false; } // il détale
     else if(voit){ const cible=Math.atan2(P.x-a.x,P.z-a.z); a.ang=angLerp(a.ang,cible,4*dt); vit=d>1.4?a.D.vit:0;
       a.mordT-=dt; if(d<1.7&&a.mordT<=0){ a.mordT=1.2; toucherJoueur(a.D.deg,a.x,a.z); if(Math.random()<0.4) toast(a.type==='jaguar'?'🐆 Le jaguar t’a lacéré !':'🐗 Coup de défense !','warn'); } }
-    else { a.errT-=dt; if(a.errT<=0){ a.errT=rand(2,5); a.ang+=rand(-1.5,1.5); a.pause=Math.random()<0.35; } vit=a.pause?0:a.D.vit*0.25; }
+    else { a.errT-=dt; if(a.errT<=0){ a.errT=rand(2,5); a.ang+=rand(-1.5,1.5); a.pause=Math.random()<0.35;
+        if(a.foyer&&dist2(a.x,a.z,a.foyer.x,a.foyer.z)>a.foyer.r*a.foyer.r*0.7) a.ang=Math.atan2(a.foyer.x-a.x,a.foyer.z-a.z)+rand(-0.4,0.4); } /* il rentre dans sa forêt */
+      vit=a.pause?0:a.D.vit*0.25; }
     if(vit>0){ const nx=a.x+Math.sin(a.ang)*vit*dt, nz=a.z+Math.cos(a.ang)*vit*dt, pente=a.D.paisible?4:2.5; // le bouquetin grimpe partout
       const dedans=mont?(montU(nx,nz)<0.85&&nx<LIMITE_EST-2&&H(nx,nz)>1):(ileU(nx,nz)<0.9&&!dansLave(nx,nz)); // jamais dans la lave
-      if(dedans&&H(nx,nz)-a.y<vit*dt*pente){ a.x=nx; a.z=nz; } else a.ang+=Math.PI*0.6; } // jamais à l'eau ni hors de sa zone, jamais une paroi
+      const libre=!solidAt(nx,nz,0.35,undefined,a.y+0.5)&&(dist2(nx,nz,P.x,P.z)>0.9||dist2(nx,nz,P.x,P.z)>dist2(a.x,a.z,P.x,P.z)); /* ni un sapin ni le chalet ; jamais dans le joueur */
+      if(dedans&&libre&&H(nx,nz)-a.y<vit*dt*pente){ a.x=nx; a.z=nz; } else a.ang+=Math.PI*0.6; } // jamais à l'eau ni hors de sa zone, jamais une paroi
     a.y=H(a.x,a.z); a.ph+=dt*vit*1.6;
-    a.g.position.set(a.x,a.y,a.z); a.g.rotation.y=a.ang;
+    a.g.position.set(a.x,a.y+(a.D.saute&&vit>0?Math.abs(Math.sin(a.ph*1.4))*0.25:0),a.z); a.g.rotation.y=a.ang; /* le lapin bondit */
     for(let k=0;k<4;k++) a.pattes[k].rotation.x=Math.sin(a.ph+(k%2?Math.PI:0))*Math.min(0.8,vit*0.08);
   }
 }
@@ -17406,7 +17436,8 @@ function majJoueur(dt,dtJeu){
   }
   P.vitesseReelle=Math.hypot(vx,vz);   // vitesse instantanée réelle (joystick analogique compris)
   const marchable=(x,z)=>{
-    if(P.y<0.35&&dansCoqueYacht(x,z)&&!dansCoqueYacht(P.x,P.z)) return false; /* à la nage, la coque du méga-yacht est un mur : on monte à bord par la plateforme de bain, à l'arrière (avant : on surgissait sur le pont par n'importe quel côté) */
+    if(P.y<0.35&&dansCoqueYacht(x,z)&&!dansCoqueYacht(P.x,P.z)) return false;
+    if(FAUNE.length&&auSol()&&fauneBloque(x,z,P.y)) return false; /* une bête vivante ne se traverse plus */ /* à la nage, la coque du méga-yacht est un mur : on monte à bord par la plateforme de bain, à l'arrière (avant : on surgissait sur le pont par n'importe quel côté) */
     const s=solidAt(x,z,0.5,undefined,P.y);
     if(s){
       if(!auSol()&&P.y>s.h+0.2) return true; // en l'air AU-DESSUS du solide (chute libre, voile, wingsuit, jetpack) : on passe par-dessus — 9e lot : le mur de l'aéroport arrêtait un parachutiste à 30 u
@@ -20684,6 +20715,93 @@ function majRagdoll(ent,dt){
     ent.rag=null;
   }
 }
+/* ---- Oiseaux de la ville (17 octobre au soir, demandé : « des animaux, notamment des oiseaux — pigeons, mouettes — pour
+   donner de la vie à la ville ») : OISEAUX.
+   - Pigeons en volées de 3 à 7 sur les trottoirs et les places : ils marchent, picorent (la tête qui bat), s'envolent tous
+     ensemble quand on approche (à pied 5 u, en véhicule lancé 10 u), au bruit d'un tir ou d'une explosion (DANGER), puis se
+     reposent plus loin ou s'éloignent. Ils arrivent du ciel (jamais d'apparition au sol sous les yeux).
+   - Mouettes au bord de mer (plage, port, jetée, au-dessus de l'eau) : elles planent en cercles, se posent sur le sable.
+   - Rendu : trois InstancedMesh (corps, aile gauche, aile droite) : trois appels de rendu pour tous les oiseaux ; aucune
+     allocation en jeu. Leur hasard est un générateur PROPRE (jamais Math.random : les tests et la ville n'en dépendent pas).
+   - On peut les abattre (point 6 : collisionBalle, visée) : plumes, ils tombent. */
+const OIS_MAX=40, OIS_PORTEE=95;
+const OISEAUX={liste:[],corps:null,aileG:null,aileD:null,sd:0x51ed270b,spawnT:0,T:0,dum:null,ok:false};
+const OIS_TYPES={pigeon:{cols:[0x8a909c,0x737985,0x9ca2ac,0x5e636e,0xb8bcc4],k:1,vVol:9.5,hVol:[7,14]},mouette:{cols:[0xf4f6f8,0xe8ecf0],k:1.7,vVol:8.5,hVol:[9,18]}};
+function aO(a,b){ OISEAUX.sd=(OISEAUX.sd*1664525+1013904223)>>>0; const r=OISEAUX.sd/4294967296; return a===undefined?r:a+(b-a)*r; }
+function oiseauxConstruire(){ const O=OISEAUX; if(O.corps) return; const r0=Math.random; Math.random=()=>aO(); /* les uuid aussi : rien de la partie ne bouge */
+  try{ const pos=[], col=[], c3=new THREE.Color(), boite=(w,h,d,x,y,z,coul)=>{ const g=new THREE.BoxGeometry(w,h,d).toNonIndexed(); g.translate(x,y,z); const p=g.attributes.position.array; c3.setHex(coul); for(let i=0;i<p.length;i+=3){ pos.push(p[i],p[i+1],p[i+2]); col.push(c3.r,c3.g,c3.b); } g.dispose(); };
+    boite(0.17,0.15,0.3,0,0.13,0,0xffffff);        /* corps (teinté par oiseau) */
+    boite(0.12,0.12,0.12,0,0.24,0.17,0xffffff);    /* tête */
+    boite(0.05,0.04,0.07,0,0.23,0.26,0xe0a030);    /* bec */
+    boite(0.13,0.03,0.14,0,0.15,-0.2,0xd8dce2);    /* queue */
+    for(const s of [-1,1]) boite(0.02,0.03,0.025,s*0.062,0.26,0.2,0x15171c); /* yeux */
+    for(const s of [-1,1]) boite(0.02,0.08,0.02,s*0.04,0.03,0,0xd0603a); /* pattes */
+    const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(col,3)); g.computeVertexNormals();
+    const m=new THREE.MeshLambertMaterial({vertexColors:true});
+    O.corps=new THREE.InstancedMesh(g,m,OIS_MAX);
+    const ga=new THREE.BoxGeometry(0.3,0.018,0.16); ga.translate(0.15,0,0); /* l'aile, pivot à l'épaule */
+    const ma=new THREE.MeshLambertMaterial({color:0xffffff});
+    O.aileG=new THREE.InstancedMesh(ga,ma,OIS_MAX); O.aileD=new THREE.InstancedMesh(ga,ma,OIS_MAX);
+    const blanc=new THREE.Color(0xffffff); for(const im of [O.corps,O.aileG,O.aileD]){ for(let i=0;i<OIS_MAX;i++) im.setColorAt(i,blanc); im.count=0; im.frustumCulled=false; im.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(im); } /* la couleur par oiseau existe avant le premier rendu (sinon le shader est compilé sans elle) */
+    O.dum=new THREE.Object3D(); O.ok=true;
+  } finally { Math.random=r0; } }
+/* un point posable pour des pigeons : trottoir, place ou rue de la ville, ni eau, ni solide, ni relief */
+function oisPosable(x,z){ if(Math.abs(x)>HALF-3||Math.abs(z)>HALF-3) return false; if(estEau(x,z)||solidAt(x,z,0.8)) return false; const y=solY(x,z); return y<0.6; }
+function oisBordDeMer(x,z){ return z>MER-45&&z<MER+60&&x>LIMITE_OUEST_MER&&x<HALF+20; }
+function oisNouveau(type,x,y,z,cx,cz){ const O=OISEAUX, T=OIS_TYPES[type];
+  const o={oiseau:true,type,T,x,y,z,ang:aO(0,6.28),etat:'arrive',vx:0,vy:0,vz:0,t:0,ph:aO(0,6.28),bec:0,cx,cz,gx:x,gz:z,col:T.cols[Math.floor(aO()*T.cols.length)],mort:false,hp:1,tombeT:0,cercle:aO(0,6.28),rayonC:aO(6,14),hC:aO(T.hVol[0],T.hVol[1])};
+  O.liste.push(o); return o; }
+/* une volée de pigeons qui arrive du ciel et se pose autour de (cx,cz) */
+function oisVolee(cx,cz){ const n=3+Math.floor(aO()*5), O=OISEAUX; const gy=solY(cx,cz);
+  for(let i=0;i<n&&O.liste.length<OIS_MAX;i++){ const a=aO(0,6.28), r=aO(0.3,2.2), gx=cx+Math.cos(a)*r, gz=cz+Math.sin(a)*r; if(!oisPosable(gx,gz)) continue;
+    const d=aO(14,22), da=aO(0,6.28), o=oisNouveau('pigeon',gx+Math.cos(da)*d,gy+aO(9,14),gz+Math.sin(da)*d,cx,cz); o.gx=gx; o.gz=gz; o.etat='arrive'; } }
+function oisEnvol(o,depuisX,depuisZ){ if(o.etat==='vol'||o.etat==='envol'||o.mort) return; const a=Math.atan2(o.x-depuisX,o.z-depuisZ)+aO(-0.5,0.5), v=o.T.vVol*aO(0.85,1.15);
+  o.etat='envol'; o.vx=Math.sin(a)*v; o.vz=Math.cos(a)*v; o.vy=aO(4,6); o.t=aO(3,6); o.ang=a; if(o.type==='pigeon'&&aO()<0.25&&typeof bruit==='function') bruit(0.05,0.18,1400); }
+function majOiseaux(dt){ const O=OISEAUX; if(!DECOR_V2||INT.actif||ETAT.mode!=='jeu'){ if(O.ok) O.corps.count=O.aileG.count=O.aileD.count=0; return; }
+  if(!O.ok) oiseauxConstruire(); O.T+=dt;
+  // arrivées : des volées de pigeons autour du joueur, des mouettes au bord de mer
+  O.spawnT-=dt; if(O.spawnT<=0){ O.spawnT=aO(0.8,1.6);
+    if(O.liste.length<OIS_MAX-6){ const a=aO(0,6.28), d=aO(22,50), x=P.x+Math.sin(a)*d, z=P.z+Math.cos(a)*d;
+      if(oisBordDeMer(x,z)){ if(O.liste.filter((o)=>o.type==='mouette').length<12){ const o=oisNouveau('mouette',x,aO(10,18),z,x,z); o.etat='plane'; } }
+      else if(oisPosable(x,z)&&O.liste.filter((o)=>o.type==='pigeon').length<28) oisVolee(x,z); } }
+  const pv=P.veh, vitV=pv?Math.abs(pv.v||0):0;
+  for(let i=O.liste.length-1;i>=0;i--){ const o=O.liste[i];
+    const dP=Math.hypot(o.x-P.x,o.z-P.z); if(dP>OIS_PORTEE&&o.etat!=='arrive'){ O.liste.splice(i,1); continue; }
+    if(o.mort){ o.vy-=14*dt; o.x+=o.vx*dt; o.z+=o.vz*dt; o.y+=o.vy*dt; const g=solY(o.x,o.z); if(o.y<=g){ o.y=g; o.vx=o.vz=o.vy=0; } o.tombeT-=dt; if(o.tombeT<=0){ O.liste.splice(i,1); } continue; }
+    o.ph+=dt*(o.etat==='sol'||o.etat==='pose'?6:18);
+    if(o.etat==='arrive'){ /* il plane vers sa place et se pose */ const g=solY(o.gx,o.gz), dx=o.gx-o.x, dz=o.gz-o.z, dy=g-o.y, d=Math.hypot(dx,dz,dy);
+      if(d<0.3){ o.x=o.gx; o.z=o.gz; o.y=g; o.etat='sol'; o.t=aO(1,3); }
+      else { const v=Math.min(8,d*1.6+1.5); o.x+=dx/d*v*dt; o.z+=dz/d*v*dt; o.y+=dy/d*v*dt; o.ang=Math.atan2(dx,dz); } }
+    else if(o.etat==='sol'||o.etat==='pose'){ /* il marche, picore, s'envole si on approche ou si ça tire */
+      const peur=(!pv&&dP<5)||(pv&&vitV>3&&dP<10)||(pv&&dP<4)||(DANGER.t>0&&dist2(o.x,o.z,DANGER.x,DANGER.z)<16*16);
+      if(peur){ const sx=pv?pv.x:(DANGER.t>0&&dP>=5?DANGER.x:P.x), sz=pv?pv.z:(DANGER.t>0&&dP>=5?DANGER.z:P.z); for(const q of O.liste) if(q!==o&&q.etat!=='vol'&&q.etat!=='envol'&&!q.mort&&dist2(q.x,q.z,o.x,o.z)<9) { q.envolT=aO(0,0.25); q.envolDe={x:sx,z:sz}; } oisEnvol(o,sx,sz); }
+      else { o.t-=dt; if(o.t<=0){ o.t=aO(0.8,2.6); o.ang+=aO(-1.6,1.6); o.marche=aO()<0.6; }
+        if(o.marche){ const nx=o.x+Math.sin(o.ang)*0.55*dt, nz=o.z+Math.cos(o.ang)*0.55*dt; if(oisPosable(nx,nz)&&dist2(nx,nz,o.cx,o.cz)<16){ o.x=nx; o.z=nz; } else o.ang+=Math.PI*0.7; }
+        o.bec=o.marche?Math.sin(o.ph*1.6)*0.5:Math.max(0,Math.sin(o.ph*0.9))*0.9; o.y=solY(o.x,o.z); }
+      if(o.envolT!==undefined){ o.envolT-=dt; if(o.envolT<=0){ oisEnvol(o,o.envolDe.x,o.envolDe.z); o.envolT=undefined; } } }
+    else if(o.etat==='envol'||o.etat==='vol'){ /* il monte, file, puis cherche une place plus loin (ou s'éloigne) */
+      o.t-=dt; const hc=solY(o.x,o.z)+o.hC; o.vy=lerp(o.vy,clamp((hc-o.y)*0.8,-3,5),clamp(dt*2,0,1)); o.x+=o.vx*dt; o.z+=o.vz*dt; o.y+=o.vy*dt; o.ang=Math.atan2(o.vx,o.vz); o.etat='vol';
+      if(o.t<=0){ if(o.type==='mouette'){ o.etat='plane'; o.cx=o.x; o.cz=o.z; }
+        else { let ok=false; for(let k=0;k<6&&!ok;k++){ const a=aO(0,6.28), d=aO(18,40), gx=o.x+Math.sin(a)*d, gz=o.z+Math.cos(a)*d; if(oisPosable(gx,gz)&&Math.hypot(gx-P.x,gz-P.z)>12){ o.gx=gx; o.gz=gz; o.cx=gx; o.cz=gz; o.etat='arrive'; ok=true; } } if(!ok) o.t=aO(2,4); } } }
+    else if(o.etat==='plane'){ /* mouette : grands cercles au-dessus du rivage, parfois posée sur le sable */
+      o.cercle+=dt*(o.T.vVol/o.rayonC)*0.8; const tx=o.cx+Math.cos(o.cercle)*o.rayonC, tz=o.cz+Math.sin(o.cercle)*o.rayonC; o.ang=Math.atan2(tx-o.x,tz-o.z); o.x=tx; o.z=tz; o.y=lerp(o.y,o.hC,clamp(dt,0,1));
+      if(aO()<dt*0.04){ const gx=o.x+aO(-8,8), gz=o.z+aO(-8,8); if(!estEau(gx,gz)&&solY(gx,gz)<0.6&&!solidAt(gx,gz,0.8)&&Math.hypot(gx-P.x,gz-P.z)>8){ o.gx=gx; o.gz=gz; o.etat='arrive'; } } }
+    // percuté par un véhicule lancé : plumes
+    if(pv&&vitV>8&&o.y-(pv.h||0)<2&&Math.hypot(o.x-pv.x,o.z-pv.z)<1.2) oiseauTue(o,Math.sin(pv.ang)*vitV*0.3,Math.cos(pv.ang)*vitV*0.3);
+  }
+  oiseauxRendu(); }
+function oiseauTue(o,vx,vz){ if(o.mort) return; o.mort=true; o.tombeT=4; o.vx=vx||0; o.vz=vz||0; o.vy=Math.max(o.vy,1); burst(o.x,o.y+0.15,o.z,10,o.type==='mouette'?0xf4f6f8:0xb8bcc4,3,2); }
+/* les matrices des trois InstancedMesh : corps, ailes qui battent (posé : repliées, en vol plané : à peine) */
+function oiseauxRendu(){ const O=OISEAUX, D=O.dum; let n=0; const c=new THREE.Color();
+  for(const o of O.liste){ if(n>=OIS_MAX) break; const k=o.T.k, sol=o.etat==='sol'||o.etat==='pose';
+    D.position.set(o.x,o.y,o.z); D.rotation.set(o.mort?1.4:(o.etat==='vol'||o.etat==='arrive'?-clamp(o.vy*0.08,-0.4,0.4):o.bec*0.25),o.ang,o.mort?1.2:0,'YXZ'); D.scale.setScalar(k); D.updateMatrix(); O.corps.setMatrixAt(n,D.matrix); c.setHex(o.col); O.corps.setColorAt(n,c);
+    const bat=sol?-1.45:(o.mort?0.4:(o.etat==='plane'?0.15+Math.sin(o.ph*0.25)*0.1:Math.sin(o.ph)*0.9)); /* posé : ailes repliées le long des flancs */
+    for(const [im,s] of [[O.aileG,1],[O.aileD,-1]]){ D.position.set(o.x,o.y,o.z); D.rotation.set(0,o.ang,0,'YXZ'); D.scale.setScalar(k); D.updateMatrix();
+      const m=_oisM.copy(D.matrix); _oisL.makeTranslation(s*0.08,0.19,0.02); m.multiply(_oisL); _oisL.makeRotationZ(s*bat); m.multiply(_oisL); _oisL.makeScale(s<0?-1:1,1,sol?0.9:1); if(sol) _oisL.elements[0]*=0.5; m.multiply(_oisL); im.setMatrixAt(n,m); c.setHex(o.col); c.multiplyScalar(0.92); im.setColorAt(n,c); }
+    n++; }
+  for(const im of [O.corps,O.aileG,O.aileD]){ im.count=n; im.instanceMatrix.needsUpdate=true; if(im.instanceColor) im.instanceColor.needsUpdate=true; } }
+const _oisM=new THREE.Matrix4(), _oisL=new THREE.Matrix4();
+function viderOiseaux(){ OISEAUX.liste.length=0; if(OISEAUX.ok){ OISEAUX.corps.count=OISEAUX.aileG.count=OISEAUX.aileD.count=0; } }
 function majFauneRue(dt){
   // chiens
   if(CHIENS.length<3&&Math.random()<dt*0.6){
@@ -33864,6 +33982,7 @@ function startRun(){
   ameliorerTexturesSol(); // une fois : asphalte et sable redessinés, variation de teinte des sols
   viderDebris(); // dégâts V2 : éclats, roues et pièces au sol
   viderJetEau(); /* lance à eau : jet et flaques */
+  viderOiseaux();
   vitrineUltimes(); // une fois : le Bolide et l'Enzo sur les podiums du showroom
   // icône de la capacité spéciale du personnage (adrénaline, nitro, onde)
   el('specIco').innerHTML=ico('ico-spec-'+PERSOS[META.perso].spec,'⚡');
@@ -36591,6 +36710,7 @@ function tick(t){
       majRayonOvni(dt);
     }
     majPools(dt); majJetEau(dt); /* lance à eau : le jet se cache quand on ne tire plus, les flaques sèchent */
+    majOiseaux(dt); /* pigeons et mouettes de la ville */
     majGrenades(dt);
     majPickups(dt);
     if(ETAT.mode==='jeu'){

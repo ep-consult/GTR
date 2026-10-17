@@ -13412,6 +13412,52 @@ async function main() {
       });
       if (r.ko.length) fail('Chalet : ' + r.ko.join(' ; ')); else ok('Chalet : ' + r.info.join(' ; '));
     }
+    // -------------------------------------------------------------------
+    // Animaux (17 octobre au soir) : pigeons en volées dans la ville (ils
+    // s'envolent quand on approche), mouettes au bord de mer ; la forêt du
+    // chalet peuplée (cerf, biches, renard, lapins ; l'ours y vit) ; la faune
+    // ne se fige plus au loin et ne se traverse plus.
+    // -------------------------------------------------------------------
+    console.log('\n--- Animaux : oiseaux de la ville, forêt du chalet, faune vivante et solide ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (!DECOR_V2) return { ko, info: ['décor V2 coupé'] };
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); META.vue = 'classique'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WANTED.heat = 0;
+        for (const e of ennemis) e.mort = true; WAVES.etat = 'repos'; WAVES.t = 1e9;
+        for (const v of vehicules) { scene.remove(v.mesh); libererEntite(v.mesh); } vehicules.length = 0;
+        // les pigeons arrivent et se posent autour du joueur, en ville
+        P.x = POIS.place.x; P.z = POIS.place.z; P.y = solY(P.x, P.z); viderOiseaux();
+        for (let i = 0; i < 30 * 12; i++) majOiseaux(1 / 30);
+        const L = OISEAUX.liste, pig = L.filter((o) => o.type === 'pigeon'), poses = pig.filter((o) => o.etat === 'sol');
+        if (pig.length < 6 || poses.length < 3) ko.push('pas de volées de pigeons en ville (' + pig.length + ', ' + poses.length + ' posés)');
+        if (OISEAUX.corps && OISEAUX.corps.count !== L.length) ko.push('rendu : ' + OISEAUX.corps.count + ' oiseaux affichés pour ' + L.length);
+        if (pig.some((o) => o.etat === 'sol' && (estEau(o.x, o.z) || solidAt(o.x, o.z, 0.2)))) ko.push('un pigeon posé dans l’eau ou un mur');
+        // on approche d'un pigeon posé : sa volée s'envole
+        const o = poses[0]; if (o) { P.x = o.x + 2; P.z = o.z + 1; for (let i = 0; i < 30; i++) majOiseaux(1 / 30); if (!(o.etat === 'vol' && o.y > solY(o.x, o.z) + 1.5)) ko.push('le pigeon ne s’envole pas quand on approche (' + o.etat + ')'); else info.push(pig.length + ' pigeons, ' + poses.length + ' posés ; ils s’envolent à l’approche'); }
+        // un coup de feu fait envoler une volée plus loin
+        const o2 = OISEAUX.liste.find((q) => q.etat === 'sol' && Math.hypot(q.x - P.x, q.z - P.z) > 8); if (o2) { DANGER.x = o2.x + 3; DANGER.z = o2.z; DANGER.t = 1; for (let i = 0; i < 10; i++) majOiseaux(1 / 30); if (o2.etat !== 'vol') ko.push('un coup de feu ne fait pas envoler les pigeons'); DANGER.t = 0; }
+        // les mouettes au bord de mer
+        viderOiseaux(); P.x = 0; P.z = MER - 10; for (let i = 0; i < 30 * 15; i++) majOiseaux(1 / 30);
+        const mou = OISEAUX.liste.filter((q) => q.type === 'mouette'); if (mou.length < 2) ko.push('pas de mouettes au bord de mer (' + mou.length + ')'); else info.push(mou.length + ' mouettes à la plage');
+        viderOiseaux();
+        // la forêt du chalet
+        if (!FORET.ok) ko.push('forêt du chalet inconnue');
+        else { const F = FAUNE.filter((a) => a.zone === 'foret'), ours = FAUNE.find((a) => a.type === 'ours' && !a.mort);
+          if (F.length < 5 || !F.some((a) => a.type === 'cerf') || !F.some((a) => a.type === 'lapin')) ko.push('forêt peu peuplée (' + F.map((a) => a.type).join(',') + ')');
+          if (F.some((a) => Math.hypot(a.x - FORET.x, a.z - FORET.z) > FORET.r + 1)) ko.push('une bête de la forêt hors de la forêt');
+          if (ours && Math.hypot(ours.x - FORET.x, ours.z - FORET.z) > FORET.r + 4) ko.push('l’ours ne vit pas dans la forêt (' + Math.hypot(ours.x - FORET.x, ours.z - FORET.z).toFixed(0) + ' u)');
+          // loin du joueur, elles bougent encore (avant : figées au-delà de 160 u)
+          P.x = 0; P.z = 0; const p0 = F.map((a) => [a.x, a.z]); for (let i = 0; i < 30 * 8; i++) majFaune(1 / 30); const bougent = F.filter((a, i) => Math.hypot(a.x - p0[i][0], a.z - p0[i][1]) > 0.3).length;
+          if (bougent < 3) ko.push('loin du joueur, la faune reste figée (' + bougent + '/' + F.length + ' bougent)'); else info.push(F.length + ' bêtes dans la forêt (' + [...new Set(F.map((a) => a.type))].join(', ') + '), ' + bougent + ' bougent loin du joueur');
+          // on ne traverse plus un cerf
+          const c = F.find((a) => a.type === 'cerf'); if (c) { P.chute = false; P.nage = false; P.para = false; P.x = c.x - 3; P.z = c.z; P.y = hauteurMont(P.x, P.z); /* le cerf ne bouge pas : seule la marche du joueur tourne */
+            for (let i = 0; i < 40; i++) { INPUT.mx = 1; INPUT.mz = 0; majJoueur(1 / 30, 1 / 30); } INPUT.mx = 0;
+            if (P.x > c.x - 0.6) ko.push('le joueur traverse le cerf'); } }
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Animaux : ' + r.ko.join(' ; ')); else ok('Animaux : ' + r.info.join(' ; '));
+    }
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];
