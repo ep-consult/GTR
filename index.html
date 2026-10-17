@@ -36344,7 +36344,7 @@ function ckStyle(v,fam){ const d=v.def, k=v.key, o=COCKPIT_DEFS[k]; if(o&&o.styl
   if(fam==='avion') return d.armes?'chasseur':(k==='voltige'?'manche':'yoke');
   if(fam==='helico') return d.armes?'combat':'helico';
   return fam; }
-function cockpitInfo(cle){ const v={def:VEHDEFS[cle],key:cle}; if(!v.def) return null; const fam=ckFamille(v), style=ckStyle(v,fam); return {fam,style,desc:COCKPIT_FAMILLES[style]||COCKPIT_FAMILLES[fam]||''}; }
+function cockpitInfo(cle){ const v={def:VEHDEFS[cle],key:cle}; if(!v.def) return null; const fam=ckFamille(v), style=ckStyle(v,fam), h=CK_HAB[cle]||{}; return {fam,style,cadran:h.cad,garnissage:h.th,desc:CK_CADRANS[h.cad]||COCKPIT_FAMILLES[style]||COCKPIT_FAMILLES[fam]||''}; } /* cockpits V2 : le cadran de CK_HAB, décrit dans CK_CADRANS */
 function cockpitDims(v){ const g=v.mesh, d=v.def, k=v.key, L=d.long, W=d.larg, fam=ckFamille(v), o=COCKPIT_DEFS[k]||{}, ud=g.userData||{}, sg=ud.siege;
   const corps=ckBoite(g,(m)=>!ckEstVitre(m.material)), hC=corps?corps.max.y:1.5; let cab=null, eye=null, approx=false;
   const P=d.profil&&PROFILS_VOITURE[d.profil], vit=ckBoitesVitres(g), vitOk=!!(vit&&vit.max.y-vit.min.y>0.18&&vit.max.z-vit.min.z>0.25&&vit.max.x-vit.min.x>0.5);
@@ -36542,7 +36542,8 @@ const CK_SC={sc:null,hemi:null,sol:null,amb:null};
 function ckScene(){ if(CK_SC.sc) return CK_SC.sc; const sc=new THREE.Scene(); CK_SC.hemi=new THREE.HemisphereLight(0xcfe2ff,0x33291d,0.8); CK_SC.sol=new THREE.DirectionalLight(0xfff0cd,0.9); CK_SC.amb=new THREE.AmbientLight(0xffffff,0.16);
   sc.add(CK_SC.hemi); sc.add(CK_SC.sol); sc.add(CK_SC.amb); CK_SC.sc=sc; return sc; }
 function ckLumieres(){ const H=CK_SC; H.hemi.color.copy(hemi.color); H.hemi.groundColor.copy(hemi.groundColor); H.hemi.intensity=hemi.intensity; H.sol.color.copy(soleil.color); H.sol.intensity=soleil.intensity;
-  H.sol.position.copy(soleil.position).sub(soleil.target.position); H.amb.intensity=0.1+Math.max(0,0.5-hemi.intensity)*0.35; } /* un peu de lumière de tableau la nuit : les mains se voient */
+  H.sol.position.copy(soleil.position).sub(soleil.target.position); H.amb.intensity=0.1+Math.max(0,0.5-hemi.intensity)*0.35; /* un peu de lumière de tableau la nuit : les mains se voient */
+  const kj=clamp(hemi.intensity/0.8,0.12,1); for(const k in _MATS_CK2){ const m=_MATS_CK2[k]; if(m.userData.em!==undefined) m.emissive.setHex(m.userData.em).multiplyScalar(kj); } } /* le pavillon s'assombrit la nuit (sa lueur fixe le faisait briller) */
 function rendreCockpit(){ const C=COCKPIT; if(!C.g||!CK_SC.sc) return; ckLumieres(); const ac=renderer.autoClear; renderer.autoClear=false; renderer.clearDepth(); renderer.render(CK_SC.sc,camera); renderer.autoClear=ac; }
 /* repère du cockpit : celui du véhicule ; la soucoupe tourne sur elle-même, son cockpit suit son cap */
 function ckRepere(v){ const g=v.mesh; g.updateMatrixWorld(true); g.matrixWorld.decompose(_ckP,_ckQ2,_ckS);
@@ -36604,47 +36605,25 @@ function mkCockpitInterieur(v,D){ const S=matsCockpit(), G=new THREE.Group(), e=
     const tor=new THREE.Mesh(new THREE.TorusGeometry(0.42,0.05,8,28),S.olive); tor.rotation.x=Math.PI/2; pose(tor,0,-0.4,0);
     boite(S.plast2,0.18,0.1,0.03,0,-0.36,0.5,0.6); C.instr=ecran('char',256,112,0.15,0.066,0,-0.354,0.482,0.6);
     for(const s of [1,-1]){ const m=new THREE.Group(); pose(m,s*-0.14,-0.37,0.37); ckMain(m,0,0,0,s>0?epG:epD,S,manche,G); }
+    ckCharV2(G,S,v,D,Lp,pose,epG,epD,manche); /* épiscopes, couvercle, mitrailleuse, manomètres (18 octobre) */
   } else if(fam==='moto'||fam==='jetski'||fam==='velo'){ ckDeuxRoues(G,S,v,D,ckHab(v),epG,epD,manche); /* deux-roues V2 (18 octobre) */
-  } else if(fam==='bateau'||fam==='passerelle'){
-    const pas=fam==='passerelle', bois=st==='bois'||pas;
-    boite(pas?S.plast2:S.blanc,pas?1.5:0.74,0.5,0.34,0,-0.6,0.76); boite(S.plast,pas?1.44:0.7,0.04,0.36,0,-0.33,0.74,-0.5); /* console (derrière le volant : sa colonne y entre) et son plan incliné */
-    if(pas){ C.instr=ecran('radar',256,256,0.24,0.24,-0.13,-0.27,0.76,0.6); ecran('bateau',384,144,0.25,0.094,0.14,-0.26,0.76,0.6); } /* en portrait le champ fait ±20° : radar et compas côte à côte, au milieu */
-    else C.instr=ecran('bateau',384,144,0.34,0.128,0,-0.255,0.76,0.6);
-    const vol=new THREE.Group(); pose(vol,0,bois?-0.46:-0.42,0.5); vol.rotation.x=0.5; const R=bois?0.17:0.15, roue=ckVolant(S,bois?'bois':'bateauSport',R); vol.add(roue); C.volant=roue;
-    const col=new THREE.Mesh(new THREE.CylinderGeometry(0.024,0.03,0.25,10),S.chrome); col.rotation.x=Math.PI/2; col.position.z=0.13; vol.add(col);
-    if(!bois){ for(const s of [1,-1]){ const a=s*0.95, m=ckMain(roue,s*Math.sin(Math.abs(a))*R,Math.cos(a)*R,-0.012,s>0?epG:epD,S,manche,G); m.rotation.z=-a; } } /* volant sport : les mains à 10 h et 2 h */
-    else { ckMain(roue,Math.cos(Math.PI*0.75)*(R+0.075),Math.sin(Math.PI*0.75)*(R+0.075),0,epD,S,manche,G); ckMain(roue,Math.cos(Math.PI*0.25)*(R+0.075),Math.sin(Math.PI*0.25)*(R+0.075),0,epG,S,manche,G); } /* barre : les mains sur deux poignées */
-    if(!pas){ const man=new THREE.Group(); pose(man,0.2,-0.31,0.64); const b=new THREE.Mesh(new THREE.BoxGeometry(0.05,0.04,0.08),S.plast); man.add(b); const l=new THREE.Mesh(new THREE.CylinderGeometry(0.008,0.008,0.14,8),S.chrome); l.position.y=0.07; man.add(l);
-      const p=new THREE.Mesh(new THREE.SphereGeometry(0.022,10,8),S.noir); p.position.y=0.14; man.add(p); C.manettes.push(man); } /* manette des gaz, sur la console */
-  } else if(fam==='avion'||fam==='helico'){
-    const heli=fam==='helico', chasse=st==='chasseur', combat=st==='combat', manche2=chasse||st==='manche'||heli;
-    if(heli) ckCabineHelico(G,S,e,c,barre); /* cabine fermée : montants, portes, toit, sièges (17 octobre au soir) */
-    else boite(S.plast2,1.1,0.42,0.22,0,-0.45,0.79); /* tableau : sa face à 68 cm de l'œil, les écrans juste devant */
-    if(chasse){ C.instr=ecran('mfd',384,144,0.44,0.165,0,-0.345,0.665,0.15); /* deux écrans : radar, état et armes */
-      ecran('hud',384,384,1.4,1.4,0,0.22,2.6,0,true); } /* viseur tête haute projeté sur la verrière, au-dessus du nez — signalé : « enlever la barre qui cache l'affichage » (le combinateur et son socle, devant les chiffres) */ /* viseur tête haute, projeté à l'infini : vitesse, altitude, cap et inclinaison en degrés */
-    else { C.instr=ecran(heli?'sixHelico':'six',384,192,0.46,0.23,0,-0.32,0.665,0.12); if(combat) ecran('hud',384,384,1.4,1.4,0,0.14,2.6,0,true); }
-    if(manche2){ const lv=ckLevier(S,0.4,chasse||combat); pose(lv,0,-0.74,0.42); C.volant=lv; const mn=new THREE.Group(); mn.position.set(0,0.44,0); lv.add(mn); ckMain(mn,0,0,0,epD,S,manche,G); /* le manche ENTRE LES JAMBES, main droite dessus */
-      const gaz=new THREE.Group(); pose(gaz,-0.2,-0.5,0.2); gaz.rotation.x=0.3; const gl=new THREE.Mesh(new THREE.CylinderGeometry(0.012,0.012,0.18,8),S.plast2); gl.position.y=0.09; gaz.add(gl);
-      const gp=new THREE.Mesh(new THREE.BoxGeometry(0.05,0.07,0.06),S.plast); gp.position.y=0.2; gaz.add(gp); C.manettes.push(gaz); const mg=new THREE.Group(); mg.position.y=0.2; gaz.add(mg); ckMain(mg,0,0,0,epG,S,manche,G); } /* manette des gaz (ou collectif), main gauche */
-    else { const yo=ckYoke(S); pose(yo,0,-0.4,0.5); yo.userData.z0=yo.position.z; C.volant=yo; for(const s of [1,-1]) ckMain(yo,s*0.1,0.05,0,s>0?epG:epD,S,manche,G);
-      const gaz=new THREE.Group(); pose(gaz,-0.17,-0.45,0.62); for(let k=0;k<2;k++){ const l=new THREE.Mesh(new THREE.CylinderGeometry(0.008,0.008,0.1,8),S.chrome); l.position.set(k*0.04-0.02,0.05,0); gaz.add(l); const p=new THREE.Mesh(new THREE.SphereGeometry(0.016,8,6),k?S.noir:S.clair); p.position.set(k*0.04-0.02,0.1,0); gaz.add(p); } C.manettes.push(gaz); }
+  } else if(fam==='bateau'||fam==='passerelle'){ ckBateau2(G,S,v,D,ckHab(v),epG,epD,manche); /* bateaux V2 (18 octobre) */
+  } else if(fam==='avion'||fam==='helico'){ ckAvion2(G,S,v,D,ckHab(v),epG,epD,manche,barre); /* avions et hélicos V2 (18 octobre) */
   } else if(fam==='ovni'){
     /* cockpit rond : un muret circulaire autour du pilote, le damier de boutons dessus ; il garde le cap pendant que la coque tourne */
     const mur=new THREE.Mesh(new THREE.CylinderGeometry(0.64,0.64,0.2,48,1,true,-Math.PI*0.75,Math.PI*1.5),S.violet); pose(mur,0,-0.36,0);
     const bord=new THREE.Mesh(new THREE.TorusGeometry(0.64,0.025,8,64),S.violet2); bord.rotation.x=Math.PI/2; pose(bord,0,-0.26,0);
     const ab=ckAffichage('ovniBoutons',256,256); const anneau=new THREE.Mesh(new THREE.RingGeometry(0.4,0.64,48,1,-Math.PI*1.25,Math.PI*1.5),ab.mat); anneau.rotation.x=-Math.PI/2; pose(anneau,0,-0.26,0); if(!C.affs.includes(ab)) C.affs.push(ab);
-    const aa=ckAffichage('ovniAlt',256,256); const cad=new THREE.Mesh(new THREE.CircleGeometry(0.07,32),aa.mat); cad.rotation.set(-0.6,Math.PI,0,'YXZ'); pose(cad,0,-0.17,0.52); if(!C.affs.includes(aa)) C.affs.push(aa); C.instr=cad; /* cadran d'altitude */
-    const pied=new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.03,0.1,10),S.violet2); pose(pied,0,-0.26,0.54);
-    boite(S.noir,0.034,0.19,0.02,0.15,-0.18,0.5); /* jauge droite de vitesse : elle monte avec la vitesse */
-    for(let k=0;k<=6;k++) boite(S.violet2,0.02,0.004,0.006,0.185,-0.265+k*0.028,0.5);
-    const rem=new THREE.Mesh(new THREE.BoxGeometry(0.024,1,0.012),S.cyan); pose(rem,0.15,-0.265,0.488); C.jauge={m:rem,y0:rem.position.y,h:0.17};
+    /* cadran d'altitude et jauge de vitesse d'avant : remplacés par les panneaux holographiques (ckHoloOvni, 18 octobre) */
     for(const s of [1,-1]){ const mt=new THREE.Group(); pose(mt,s*-0.12,-0.4,0.36); const b=new THREE.Mesh(new THREE.SphereGeometry(0.04,12,8),S.violet2); mt.add(b); const l=new THREE.Mesh(new THREE.CylinderGeometry(0.01,0.012,0.16,8),S.chrome); l.position.y=0.08; mt.add(l);
       const p=new THREE.Mesh(new THREE.SphereGeometry(0.026,12,10),s>0?S.magenta:S.cyan); p.position.y=0.17; mt.add(p); const hl=new THREE.Sprite(s>0?S.haloM:S.haloC); hl.scale.set(0.12,0.12,1); hl.position.y=0.17; mt.add(hl);
-      C.manettes.push(mt); const mh=new THREE.Group(); mh.position.y=0.15; mt.add(mh); ckMain(mh,0,0,0,s>0?epG:epD,S,manche,G); } /* manettes lumineuses, une dans chaque main */
+      C.manettes.push(mt); const mh=new THREE.Group(); mh.position.y=0.15; mh.rotation.z=Math.PI/2; mt.add(mh); ckMain(mh,0,0,0,s>0?epG:epD,S,manche,G); } /* manettes lumineuses, une dans chaque main */
+    ckHoloOvni(G,C,Lp); /* affichages holographiques (18 octobre) */
   } else if(fam==='kayak'){
     const pag=new THREE.Group(); pose(pag,0,-0.32,0.55); C.volant=pag; const sh=new THREE.Mesh(new THREE.CylinderGeometry(0.016,0.016,2.1,10),S.noir); sh.rotation.z=Math.PI/2; pag.add(sh);
     for(const s of [-1,1]){ const pal=new THREE.Mesh(new THREE.BoxGeometry(0.42,0.18,0.02),S.orange); pal.position.set(s*1.2,0,0); pal.rotation.x=s*0.6; pag.add(pal); ckMain(pag,s*0.19,0,0,s>0?epG:epD,S,manche,G); }
     boite(S.noir,0.74,0.04,0.5,0,-0.7,0.35);
+    { const a=ckAffichage('bt_compas',128,128), d=new THREE.Mesh(new THREE.CircleGeometry(0.045,24),a.mat); d.rotation.x=-Math.PI/2+0.25; d.position.copy(Lp(0,-0.555,0.74)); G.add(d); if(!C.affs.includes(a)) C.affs.push(a); C.instr=d; const pd=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.06,0.08,16),S.noir); pd.position.copy(Lp(0,-0.6,0.745)); G.add(pd); } /* compas de pont (18 octobre) */
   } /* debout (skate, planche) : rien à construire, le regard porte sur la planche sous les pieds */
   G.traverse((o)=>{ o.frustumCulled=false; });
   return G; }
@@ -36806,7 +36785,7 @@ function ckM(c,sorte){ const k=(sorte||'l')+'_'+c; let m=_MATS_CK2[k]; if(m) ret
   if(sorte==='p') m=new THREE.MeshPhongMaterial({color:c,specular:0x5a5e66,shininess:55}); /* peinture */
   else if(sorte==='m') m=new THREE.MeshPhongMaterial({color:c,specular:0xffffff,shininess:85}); /* métal, chrome */
   else if(sorte==='b') m=new THREE.MeshBasicMaterial({color:c}); /* lumineux */
-  else if(sorte==='ciel') m=new THREE.MeshLambertMaterial({color:c,emissive:ckTeinte(c,0.42)}); /* pavillon, montants : vus d'en dessous, ils ne recevaient que la lumière du sol (brun foncé) */
+  else if(sorte==='ciel'){ m=new THREE.MeshLambertMaterial({color:c,emissive:ckTeinte(c,0.42)}); m.userData.em=ckTeinte(c,0.42); } /* pavillon, montants : vus d'en dessous, ils ne recevaient que la lumière du sol (brun foncé) ; leur lueur suit le jour (ckLumieres) */
   else if(sorte==='bois') m=new THREE.MeshPhongMaterial({color:0xffffff,map:ckTexMatiere('bois'),specular:0x3a2414,shininess:30});
   else if(sorte==='carbone') m=new THREE.MeshPhongMaterial({color:0xffffff,map:ckTexMatiere('carbone'),specular:0x6a7282,shininess:50});
   else m=new THREE.MeshLambertMaterial({color:c});
@@ -36832,7 +36811,7 @@ function ckDial(g,cx,cy,r,val,max,o){ o=o||{}; const a0=o.a0!==undefined?o.a0:Ma
   const fd=g.createRadialGradient(cx,cy-r*0.35,r*0.05,cx,cy,r); fd.addColorStop(0,o.fond2||o.fond||'#1a1c22'); fd.addColorStop(1,o.fond||'#08090c'); g.fillStyle=fd; g.beginPath(); g.arc(cx,cy,r,0,6.2832); g.fill();
   if(rg!==undefined){ g.strokeStyle=o.rougeC||'rgba(235,38,38,0.9)'; g.lineWidth=r*0.075; g.beginPath(); g.arc(cx,cy,r*0.87,a0+(a1-a0)*rg,a1); g.stroke(); }
   const cn=o.num||'#e8edf4', N=n*sub, fam=o.famille||'Arial'; g.textAlign='center'; g.textBaseline='middle';
-  if(o.lum){ g.save(); g.shadowColor=o.lum; g.shadowBlur=r*0.08; }
+  if(o.lum){ g.save(); g.globalAlpha=0.12; g.strokeStyle=o.lum; g.lineWidth=r*0.16; g.beginPath(); g.arc(cx,cy,r*0.86,a0,a1); g.stroke(); g.restore(); g.save(); } /* une lueur derrière les graduations (le flou par trait coûtait cher sur iPhone) */
   for(let i=0;i<=N;i++){ const t=i/N, a=a0+(a1-a0)*t, ca=Math.cos(a), sa=Math.sin(a), maj=i%sub===0, rr=rg!==undefined&&t>=rg-1e-6;
     g.strokeStyle=rr?'#ff4a3a':cn; g.lineWidth=maj?Math.max(1.6,r*0.034):Math.max(0.8,r*0.014); const r0=maj?r*0.77:r*0.86;
     g.beginPath(); g.moveTo(cx+ca*r0,cy+sa*r0); g.lineTo(cx+ca*r*0.94,cy+sa*r*0.94); g.stroke();
@@ -36854,7 +36833,7 @@ function ckTFT(g,x,y,w,h,o){ o=o||{}; const gr=g.createLinearGradient(x,y,x,y+h)
 function ckReflet(g,x,y,w,h){ const gr=g.createLinearGradient(x,y,x+w*0.6,y+h); gr.addColorStop(0,'rgba(255,255,255,0.07)'); gr.addColorStop(0.5,'rgba(255,255,255,0.0)'); g.fillStyle=gr; g.fillRect(x,y,w,h); }
 function ckArc(g,cx,cy,r,ep,t,c,fondC,a0,a1){ a0=a0===undefined?Math.PI*0.8:a0; a1=a1===undefined?Math.PI*2.2:a1; g.lineCap='round'; g.lineWidth=ep; g.strokeStyle=fondC||'#1c2028'; g.beginPath(); g.arc(cx,cy,r,a0,a1); g.stroke(); if(t>0.002){ g.strokeStyle=c; g.beginPath(); g.arc(cx,cy,r,a0,a0+(a1-a0)*clamp(t,0,1)); g.stroke(); } g.lineCap='butt'; }
 function ckJauge(g,x,y,w,h,t,c,lib,vert){ g.fillStyle='#14171c'; g.fillRect(x,y,w,h); g.fillStyle=c; if(vert){ const hh=h*clamp(t,0,1); g.fillRect(x,y+h-hh,w,hh); } else g.fillRect(x,y,w*clamp(t,0,1),h); g.strokeStyle='#3a3f48'; g.lineWidth=1; g.strokeRect(x,y,w,h); if(lib) ckTexte(g,lib,vert?x+w/2:x,vert?y+h+9:y-8,10,'#8f9aaa',vert?'center':'left'); }
-function ckVoyant(g,x,y,r,on,c,sym){ g.save(); if(on){ g.shadowColor=c; g.shadowBlur=r*1.2; } g.fillStyle=on?c:'#1c1f24'; g.beginPath(); g.arc(x,y,r,0,6.2832); g.fill(); g.restore(); if(sym){ g.fillStyle=on?'#06080a':'#3a3f48'; g.font='900 '+Math.round(r*1.2)+'px Arial'; g.textAlign='center'; g.textBaseline='middle'; g.fillText(sym,x,y+0.5); } }
+function ckVoyant(g,x,y,r,on,c,sym){ if(on){ g.globalAlpha=0.3; g.fillStyle=c; g.beginPath(); g.arc(x,y,r*1.8,0,6.2832); g.fill(); g.globalAlpha=1; } g.fillStyle=on?c:'#1c1f24'; g.beginPath(); g.arc(x,y,r,0,6.2832); g.fill(); if(sym){ g.fillStyle=on?'#06080a':'#3a3f48'; g.font='900 '+Math.round(r*1.2)+'px Arial'; g.textAlign='center'; g.textBaseline='middle'; g.fillText(sym,x,y+0.5); } }
 /* les combinés V2 des voitures, camions et bus (512 × 192) et les écrans de console (256 × 192) : un style par véhicule (CK_HAB.cad) */
 function ckHeure(){ const j=ETAT.jour||0; return {h:Math.floor((j/170*24+6)%24),m:Math.floor((j/170*1440)%60)}; }
 const CK_ESS=0.74; /* l'essence (aucune jauge réelle dans le jeu) */
@@ -36898,7 +36877,7 @@ function ckCombine(a,v,V){ const g=a.ctx, W=a.w, H=a.h, d=v.def, T=ETAT.runT, st
       ckDial(g,418,66,40,essence,1,{bord:'chrome',fond:'#060606',num:c,aig:'#ffffff',n:2,sub:2,chiffres:false,lib:'FUEL',tlib:0.2,ylib:0.5,reflet:false}); ckDial(g,418,148,40,tmp,1,{bord:'chrome',fond:'#060606',num:c,aig:'#ffffff',n:4,sub:1,chiffres:false,lib:'TEMP',tlib:0.2,ylib:0.5,rouge:0.8,reflet:false});
       ckVoyant(g,256,12,8,V.tr>5900,'#ff2a2a'); ckTexte(g,V.rap,256,160,20,'#ffffff'); break; }
     case 'sport': { g.fillStyle='#050506'; g.fillRect(0,0,W,H); const t=V.tr/8000;
-      for(let i=0;i<14;i++){ const on=t>0.2+i/14*0.75; g.save(); if(on){ g.shadowColor=i<7?'#3aff7a':(i<11?'#ffd23f':'#ff2a2a'); g.shadowBlur=8; } g.fillStyle=on?(i<7?'#3aff7a':(i<11?'#ffd23f':'#ff2a2a')):'#1a1d22'; g.beginPath(); g.arc(152+i*16,12,5,0,6.2832); g.fill(); g.restore(); }
+      for(let i=0;i<14;i++){ const on=t>0.2+i/14*0.75; ckVoyant(g,152+i*16,12,5,on,i<7?'#3aff7a':(i<11?'#ffd23f':'#ff2a2a')); }
       ckDial(g,256,104,82,V.tr/1000,8,{fond:'#020203',fond2:'#121316',num:'#f4f4f4',aig:'#ff1a1a',lumAig:true,n:8,sub:4,rouge:0.82,lib:'',chiffres:true,tch:0.15});
       ckTexte(g,String(Math.round(V.kmh)),256,118,30,'#ffffff'); ckTexte(g,'km/h',256,142,11,'#8f9aaa'); ckTexte(g,V.rap,256,80,22,'#ff3b3b');
       ckTexte(g,'HUILE',30,60,11,'#8f9aaa','left'); ckJauge(g,30,68,120,8,0.55+V.ratio*0.3,'#ffb23a'); ckTexte(g,'EAU',30,96,11,'#8f9aaa','left'); ckJauge(g,30,104,120,8,tmp,'#35c8ff'); etat(30,138,120);
@@ -37016,9 +36995,14 @@ function ckMDT(a,v,V){ const g=a.ctx, W=a.w, H=a.h; ckTFT(g,0,0,W,H,{fond:'#020a
   ckTexte(g,'STATUT : EN PATROUILLE',8,62,12,'#3aff7a','left'); ckTexte(g,'APPEL : vol à l’étalage',8,84,12,'#ffd23f','left'); ckTexte(g,'POSITION '+Math.round(v.x)+' ; '+Math.round(v.z),8,106,12,'#8f9aaa','left'); if(Math.floor(ETAT.runT*2)%2===0) { g.fillStyle='#3a9aff'; g.fillRect(8,120,8,12); } }
 function ckDessinerV2(a,v,V){ const t=a.type;
   if(t.charCodeAt(2)===95&&t.startsWith('m2_')) return ckDeuxRouesAff(a,v,V);
+  if(t.charCodeAt(2)===95&&t.startsWith('bt_')) return ckBateauAff(a,v,V);
+  if(t.charCodeAt(2)===95&&t.startsWith('av_')) return ckAvionAff(a,v,V);
+  if(t.charCodeAt(4)===95&&t.startsWith('holo_')) return ckHoloAff(a,v,V);
+  if(t==='char_jauges') return ckCharAff(a,v,V);
+  if(t.charCodeAt(2)===95&&t.startsWith('hl_')) return ckHeliAff(a,v,V);
   if(t.length>4&&t.charCodeAt(3)===95){ if(t.startsWith('cmb_')) return ckCombine(a,v,V); if(t.startsWith('ctr_')) return ckEcranCentre(a,v,V); }
   if(t==='taximetre'){ ckTaximetre(a,v,V); return true; } if(t==='mdt'){ ckMDT(a,v,V); return true; }
-  if(t==='volEnzo'){ const g=a.ctx; g.fillStyle='#050505'; g.fillRect(0,0,a.w,a.h); const r=V.tr/8000; for(let i=0;i<10;i++){ const on=r>0.3+i*0.065, c=i<4?'#3aff7a':(i<7?'#ff2a2a':'#3a7bff'); g.save(); if(on){ g.shadowColor=c; g.shadowBlur=8; } g.fillStyle=on?c:'#1c1c1c'; g.beginPath(); g.arc(26+i*22.6,16,7,0,6.2832); g.fill(); g.restore(); }
+  if(t==='volEnzo'){ const g=a.ctx; g.fillStyle='#050505'; g.fillRect(0,0,a.w,a.h); const r=V.tr/8000; for(let i=0;i<10;i++){ const on=r>0.3+i*0.065, c=i<4?'#3aff7a':(i<7?'#ff2a2a':'#3a7bff'); ckVoyant(g,26+i*22.6,16,7,on,c); }
     ckTexte(g,V.rap,128,46,24,'#ffd23f'); ckTexte(g,String(Math.round(V.kmh)),40,46,16,'#ffffff'); ckTexte(g,'RACE',212,46,13,'#ff3b3b'); return true; }
   return false; }
 /* un texte flottant né sur le véhicule du joueur, au cockpit : dans la pile de notifications, sur UNE ligne qui se remplace (jamais un
@@ -37266,6 +37250,179 @@ function ckDeuxRouesAff(a,v,V){ const g=a.ctx, W=a.w, H=a.h, T=ETAT.runT, st=a.t
     case 'compteurVelo': { ckLCD(g,0,0,W,H,{fond:'#a8b8a0',fond2:'#94a48c',cadre:'#1a1a1a',lcadre:4}); ckSeg(g,(V.kmh).toFixed(1),W-10,H*0.45,30,'#1a2414','right','rgba(0,0,0,0.07)'); ckTexte(g,'km/h',10,H*0.8,10,'#1a2414','left'); return true; }
     case 'plaque': { g.fillStyle=v.key==='motoMil'?'#4a5238':'#f2f4f8'; g.fillRect(0,0,W,H); ckTexte(g,v.key==='motoMil'?'★':'7',W/2,H/2+4,70,v.key==='motoMil'?'#e8ead8':'#111111'); return true; }
   } return false; }
+/* ---------- bateaux et passerelles V2 : un poste par bateau (CK_HAB.cad) — console profilée, panneau incliné, volant ou barre, manettes,
+   compas sous dôme, écrans de navigation ; plus de boîte posée devant le barreur ---------- */
+function ckBateau2(G,S,v,D,H,epG,epD,manche){ const C=COCKPIT, e=D.eye, st=H.cad, pas=D.fam==='passerelle', coulC=couleurCaisseCk(v);
+  const Gs=new THREE.Group(); G.add(Gs); const mCh=ckM(0xc8ced8,'m'), mNoir=ckM(0x121315), mBois=ckM(0,'bois');
+  const coque={nautique:ckM(0xf2f4f6,'p'),yacht:ckM(0xf2f4f6,'p'),bateauPolice:ckM(0x5a606a,'p'),offshore:ckM(0x1a1c20,'p'),peche:ckM(0x8a5a30),passerelle:ckM(0x6a7078),passerelleLuxe:ckM(0xe8e4dc,'p')}[st]||ckM(0xf2f4f6,'p');
+  const panneau={nautique:ckM(0x1a1c20),yacht:mBois,bateauPolice:ckM(0x2a2e34),offshore:ckM(0,'carbone'),peche:mBois,passerelle:ckM(0x3a3f46),passerelleLuxe:mBois}[st]||ckM(0x1a1c20);
+  const Wc=pas?1.7:(st==='yacht'?1.0:0.82), x0=e.x;
+  /* la console : un profil extrudé (dos vers le barreur, panneau incliné, dessus), centrée sur le barreur */
+  const P=[[0.6,-1.4],[0.6,-0.36],[0.72,-0.23],[0.98,-0.2],[1.1,-0.26],[1.1,-1.4]].map(([dz,dy])=>[e.z+dz,e.y+dy]);
+  const sh=new THREE.Shape(); sh.moveTo(P[0][0],P[0][1]); for(let i=1;i<P.length;i++) sh.lineTo(P[i][0],P[i][1]); sh.closePath();
+  const gC=new THREE.ExtrudeGeometry(sh,{depth:Wc,bevelEnabled:false}); gC.rotateY(-Math.PI/2); gC.translate(x0+Wc/2,0,0); Gs.add(new THREE.Mesh(gC,coque));
+  const bx=(m,w,h,d,x,y,z,rx,ry,rz)=>{ const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m); o.position.set(x,y,z); if(rx||ry||rz) o.rotation.set(rx||0,ry||0,rz||0,'YXZ'); Gs.add(o); return o; };
+  const cy=(m,r1,r2,h,x,y,z,rx,ry,rz,seg)=>{ const o=new THREE.Mesh(new THREE.CylinderGeometry(r1,r2,h,seg||14),m); o.position.set(x,y,z); if(rx||ry||rz) o.rotation.set(rx||0,ry||0,rz||0,'YXZ'); Gs.add(o); return o; };
+  const ecran=(type,w,h,larg,haut,dx,dy,dz,incl)=>{ const a=ckAffichage(type,w,h); const o=new THREE.Mesh(new THREE.PlaneGeometry(larg,haut),a.mat); o.rotation.set(-incl,Math.PI,0,'YXZ'); o.position.set(e.x-dx,e.y+dy,e.z+dz); G.add(o); if(!C.affs.includes(a)) C.affs.push(a); return o; };
+  const incl=0.745; /* la pente du panneau */
+  bx(panneau,Wc-0.06,0.17,0.02,x0,e.y-0.307,e.z+0.668,incl); /* le panneau des instruments (reculé : sa face avant cachait les écrans) */
+  if(st==='nautique'||st==='offshore'||st==='peche'){ C.instr=ecran('bt_'+st,384,144,0.36,0.135,0,-0.293,0.648,incl); }
+  else if(st==='bateauPolice'){ C.instr=ecran('bt_police',256,192,0.2,0.15,0.1,-0.29,0.65,incl); ecran('bt_nautique',384,144,0.2,0.075,-0.13,-0.3,0.645,incl); }
+  else if(st==='yacht'){ C.instr=ecran('bt_carte',256,192,0.22,0.165,0.13,-0.29,0.648,incl); ecran('bt_moteurs',256,192,0.22,0.165,-0.13,-0.29,0.648,incl); }
+  else if(st==='passerelle'){ C.instr=ecran('radar',256,256,0.25,0.25,0.15,-0.29,0.648,incl); ecran('bt_ecdis',256,192,0.3,0.225,-0.2,-0.29,0.648,incl); ecran('bt_nautique',384,144,0.22,0.083,0.48,-0.3,0.645,incl); }
+  else if(st==='passerelleLuxe'){ C.instr=ecran('bt_carte',256,192,0.3,0.225,0.18,-0.29,0.648,incl); ecran('radar',256,256,0.22,0.22,-0.16,-0.29,0.648,incl); ecran('bt_moteurs',256,192,0.26,0.195,-0.45,-0.29,0.648,incl); }
+  /* le dessus : main courante chromée ; compas sous dôme (petits bateaux) ; radio VHF (pêche, police) */
+  if(!pas){ const rz=e.z+0.98; cy(mCh,0.012,0.012,Wc-0.1,x0,e.y-0.17,rz,0,0,Math.PI/2,8); for(const k of [-1,1]) cy(mCh,0.012,0.012,0.05,x0+k*(Wc/2-0.06),e.y-0.19,rz,0,0,0,8); }
+  if(st==='nautique'||st==='offshore'||st==='bateauPolice'){ const xc=x0, yc=e.y-0.185, zc=e.z+0.86; cy(mNoir,0.055,0.06,0.03,xc,yc,zc,0,0,0,20);
+    const a=ckAffichage('bt_compas',128,128); const disque=new THREE.Mesh(new THREE.CircleGeometry(0.048,28),a.mat); disque.rotation.x=-Math.PI/2; disque.position.set(xc,yc+0.017,zc); G.add(disque); if(!C.affs.includes(a)) C.affs.push(a);
+    const dome=new THREE.Mesh(new THREE.SphereGeometry(0.052,16,10,0,Math.PI*2,0,Math.PI/2),new THREE.MeshBasicMaterial({color:0x9ac8e8,transparent:true,opacity:0.14,depthWrite:false})); dome.position.set(xc,yc+0.015,zc); dome.userData.garder=true; G.add(dome); }
+  if(st==='peche'||st==='bateauPolice'||st==='passerelle'){ const xv=x0-Wc/2+0.2; bx(mNoir,0.2,0.07,0.14,xv,e.y-0.17,e.z+0.84); ecran('bt_vhf',128,48,0.16,0.06,e.x-xv,-0.17,0.768,0.15); }
+  if(st==='peche'){ bx(mNoir,0.2,0.16,0.04,x0+0.32,e.y-0.1,e.z+0.86,0.2); ecran('bt_sonar',192,192,0.17,0.13,-0.32,-0.1,0.825,0.2); }
+  /* le volant (ou la barre à rayons) et les mains */
+  const bois=st==='peche'||pas, vol=new THREE.Group(); vol.position.set(e.x,e.y+(bois?-0.47:-0.44),e.z+0.52); vol.rotation.x=0.5; G.add(vol);
+  const R=bois?0.17:0.15, roue=ckVolant(S,bois?'bois':'bateauSport',R); ckFusionner(roue); vol.add(roue); C.volant=roue; const col=new THREE.Mesh(new THREE.CylinderGeometry(0.024,0.03,0.25,10),mCh); col.rotation.x=Math.PI/2; col.position.z=0.13; vol.add(col);
+  if(!bois){ for(const s of [1,-1]){ const a=s*0.95, m=ckMain(roue,s*Math.sin(Math.abs(a))*R,Math.cos(a)*R,0,s>0?epG:epD,S,manche,G); m.rotation.z=-a; } }
+  else { ckMain(roue,Math.cos(Math.PI*0.75)*(R+0.075),Math.sin(Math.PI*0.75)*(R+0.075),0,epD,S,manche,G); ckMain(roue,Math.cos(Math.PI*0.25)*(R+0.075),Math.sin(Math.PI*0.25)*(R+0.075),0,epG,S,manche,G); }
+  /* les manettes des gaz (deux sur le yacht, l'offshore et la passerelle ; le transmetteur d'ordres sur le navire) */
+  const nM=st==='yacht'||st==='offshore'||st==='passerelleLuxe'?2:(st==='passerelle'?0:1);
+  for(let k=0;k<nM;k++){ const man=new THREE.Group(); man.position.set(e.x-0.22-k*0.05,e.y-0.3,e.z+0.64); G.add(man); const b=new THREE.Mesh(new THREE.BoxGeometry(0.05,0.04,0.08),mNoir); man.add(b);
+    const l=new THREE.Mesh(new THREE.CylinderGeometry(0.008,0.008,0.14,8),mCh); l.position.y=0.07; man.add(l); const p=new THREE.Mesh(new THREE.SphereGeometry(0.022,10,8),k?ckM(0xd0202a):mNoir); p.position.y=0.14; man.add(p); C.manettes.push(man); }
+  if(st==='passerelle'){ const tg=new THREE.Group(); tg.position.set(e.x-0.62,e.y-0.25,e.z+0.7); G.add(tg); const cad=new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.1,0.06,24),mCh); cad.rotation.x=Math.PI/2-0.5; tg.add(cad);
+    const a=ckAffichage('bt_telegraphe',128,128); const f=new THREE.Mesh(new THREE.CircleGeometry(0.09,28),a.mat); f.rotation.set(-(Math.PI/2-0.5)+Math.PI/2,Math.PI,0,'YXZ'); f.position.set(0,0.02,-0.025); tg.add(f); if(!C.affs.includes(a)) C.affs.push(a);
+    const man=new THREE.Group(); man.position.set(e.x-0.62,e.y-0.27,e.z+0.66); G.add(man); const l=new THREE.Mesh(new THREE.CylinderGeometry(0.01,0.01,0.16,8),mCh); l.position.y=0.08; man.add(l); const p=new THREE.Mesh(new THREE.SphereGeometry(0.024,10,8),ckM(0xd0202a)); p.position.y=0.16; man.add(p); C.manettes.push(man); }
+  ckFusionner(Gs); }
+/* les afficheurs des bateaux */
+function ckBateauAff(a,v,V){ const g=a.ctx, W=a.w, H=a.h, T=ETAT.runT, st=a.type.slice(3), Mk=Math.max(20,Math.ceil((v.def.vmax||20)*1.944/10)*10);
+  switch(st){
+    case 'nautique': case 'offshore': case 'peche': { const off=st==='offshore', pe=st==='peche'; g.fillStyle=off?'#060606':(pe?'#2a1a0c':'#101216'); g.fillRect(0,0,W,H);
+      const o=pe?{bord:'laiton',fond:'#f2e8cc',fond2:'#fbf4e2',num:'#2a1a0c',aig:'#111',famille:'Georgia,serif'}:(off?{bord:'noir',fond:'#030303',num:'#ffffff',aig:'#ff2a2a',lumAig:true}:{bord:'chrome',fond:'#0a0b0e',num:'#f2f4f8',aig:'#ff7a1a'});
+      ckDial(g,72,74,58,V.kn,Mk,Object.assign({n:Mk/10,sub:2,lib:'NŒUDS'},o)); ckDial(g,312,74,58,V.tr/1000,6,Object.assign({n:6,sub:2,rouge:0.83,lib:'×1000'},o));
+      if(pe){ ckDial(g,192,52,34,0.55,1,Object.assign({n:4,sub:1,chiffres:false,lib:'HUILE',tlib:0.22,ylib:0.5,reflet:false},o)); ckDial(g,192,112,28,CK_ESS,1,Object.assign({n:2,sub:2,chiffres:false,lib:'GAZOLE',tlib:0.24,ylib:0.55,reflet:false},o)); }
+      else { ckTexte(g,String(Math.round(V.cap)).padStart(3,'0')+'°',192,42,24,off?'#ff3b3b':'#ffd23f'); ckTexte(g,'CAP',192,66,11,'#8f9aaa'); ckTexte(g,'TRIM',192,96,11,'#8f9aaa'); ckJauge(g,152,104,80,8,0.4+V.ratio*0.3,off?'#ff3b3b':'#35c8ff'); ckTexte(g,'ÉTAT',192,124,11,'#8f9aaa'); ckJauge(g,152,130,80,6,V.hp,V.hp<0.3?'#ff3b3b':'#3aff7a'); } return true; }
+    case 'carte': case 'ecdis': { const ec=st==='ecdis'; g.fillStyle=ec?'#c8dcec':'#0a2a4a'; g.fillRect(0,0,W,H); g.save(); g.translate(W/2,H*0.6); g.rotate(-V.cap*Math.PI/180); const ox=(v.x%60)/60*40, oz=(v.z%60)/60*40;
+      for(let k=0;k<6;k++){ g.strokeStyle=ec?'rgba(40,90,140,0.5)':'rgba(120,190,255,0.25)'; g.lineWidth=1.5; g.beginPath(); g.arc(-ox,-oz,30+k*28,0,6.2832); g.stroke(); }
+      g.fillStyle=ec?'#e8d8a0':'#c8a860'; g.beginPath(); g.ellipse(80-ox,-120-oz,90,40,0.3,0,6.2832); g.fill(); g.restore(); g.fillStyle=ec?'#d02020':'#ffd23f'; g.beginPath(); g.moveTo(W/2,H*0.6-12); g.lineTo(W/2-8,H*0.6+8); g.lineTo(W/2+8,H*0.6+8); g.fill();
+      g.strokeStyle=ec?'#d02020':'#ffd23f'; g.setLineDash([6,5]); g.beginPath(); g.moveTo(W/2,H*0.6); g.lineTo(W/2,0); g.stroke(); g.setLineDash([]);
+      g.fillStyle='rgba(0,0,0,0.55)'; g.fillRect(0,H-26,W,26); ckTexte(g,'SOG '+V.kn.toFixed(1)+' nd   COG '+String(Math.round(V.cap)).padStart(3,'0')+'°',W/2,H-13,13,'#ffffff'); return true; }
+    case 'moteurs': { ckTFT(g,0,0,W,H,{fond:'#05080e'}); ckTexte(g,'MOTEURS',W/2,16,12,'#7ab8ff'); for(const k of [0,1]){ const cx=W*(0.27+k*0.46); g.save(); g.shadowColor='#35c8ff'; g.shadowBlur=6; ckArc(g,cx,H*0.58,48,9,V.tr/6500,'#35c8ff','#122030'); g.restore(); ckTexte(g,String(Math.round(V.tr/10)*10),cx,H*0.56,16,'#ffffff'); ckTexte(g,k?'TRIBORD':'BÂBORD',cx,H*0.9,10,'#8f9aaa'); } return true; }
+    case 'police': { ckTFT(g,0,0,W,H,{fond:'#03100a'}); const cx=W/2, cy=H*0.55, r=H*0.4; g.strokeStyle='#1d6b3a'; for(const k of [1,0.5]){ g.beginPath(); g.arc(cx,cy,r*k,0,6.2832); g.stroke(); } const ba=T*2.4%6.2832; g.strokeStyle='#5aff8a'; g.lineWidth=2; g.beginPath(); g.moveTo(cx,cy); g.lineTo(cx+Math.cos(ba)*r,cy+Math.sin(ba)*r); g.stroke();
+      ckTexte(g,'POLICE MARITIME',cx,14,12,'#7aa8ff'); ckVoyant(g,30,H-20,8,!!v.sirene&&Math.floor(T*6)%2===0,'#2a6aff'); ckTexte(g,v.sirene?'GYRO':'—',62,H-20,11,'#dfe6f0','left'); return true; }
+    case 'compas': { ckCompas(g,64,64,60,V.cap,'#ff3b3b'); return true; }
+    case 'vhf': { g.fillStyle='#0a0a0a'; g.fillRect(0,0,W,H); ckLCD(g,6,6,W-12,H-12,{fond:'#ffb23a',fond2:'#e89a20',cadre:'#000',lcadre:2}); ckSeg(g,'CH 16',W-14,H/2,24,'#2a1a00','right'); return true; }
+    case 'sonar': { g.fillStyle='#04121e'; g.fillRect(0,0,W,H); for(let x=0;x<W;x+=3){ const f=118+Math.sin((x+T*30)*0.04)*10+Math.sin(x*0.11)*6; g.fillStyle='#8a5a20'; g.fillRect(x,f,3,H-f); g.fillStyle='#d8a040'; g.fillRect(x,f,3,4); }
+      for(let i=0;i<4;i++){ const x=(i*61+T*30)%W, y=50+i*14; g.strokeStyle='#ff6a3a'; g.lineWidth=3; g.beginPath(); g.arc(W-x,y,8,Math.PI*1.1,Math.PI*1.9); g.stroke(); } ckTexte(g,'12,4 m',W-8,14,13,'#ffffff','right'); return true; }
+    case 'telegraphe': { g.fillStyle='#f2e8cc'; g.beginPath(); g.arc(64,64,62,0,6.2832); g.fill(); const L=['STOP','LENT','DEMI','TOUTE']; for(let i=0;i<4;i++){ const a=Math.PI*(1.15+i*0.23); ckTexte(g,L[i],64+Math.cos(a)*42,64+Math.sin(a)*42,11,'#2a1a0c'); } const a=Math.PI*(1.15+clamp(V.ratio,0,1)*0.69); g.strokeStyle='#a01818'; g.lineWidth=4; g.beginPath(); g.moveTo(64,64); g.lineTo(64+Math.cos(a)*52,64+Math.sin(a)*52); g.stroke(); return true; }
+  } return false; }
+/* ---------- avions et hélicoptères V2 : un tableau par appareil (CK_HAB.cad) — planche profilée sous sa casquette, instruments à
+   aiguilles (classiques, laiton, voltige), cockpit de verre (écran de pilotage, carte, moteurs), radar météo ; cabine fermée des avions
+   à verrière (parois, montants, plafond, panneau du plafond, siège du copilote) ; l'hélicoptère garde sa cabine (ckCabineHelico) ---------- */
+function ckAvion2(G,S,v,D,H,epG,epD,manche,barre){ const C=COCKPIT, e=D.eye, c=D.cab, heli=D.fam==='helico', st=H.cad, coulC=couleurCaisseCk(v);
+  const Lp=(dx,dy,dz)=>new THREE.Vector3(e.x-dx,e.y+dy,e.z+dz), Gs=new THREE.Group(); G.add(Gs);
+  const mPl=ckM({vintage6:0x5a3a20,voltige:0x1a1a1c,chasseur:0x2a2e28,combat:0x2a2e28}[st]||0x24272c), mNoir=ckM(0x121315), mCh=ckM(0xc8ced8,'m'), mParoi=ckM(st==='vintage6'?0x6a4a2a:(st==='chasseur'||st==='combat'?0x3a4034:0x3a3e46)), mSg=ckM(st==='verre'||st==='helicoVerre'?0xc8b49a:0x2c2f36), mCiel=ckM(0x9a9da3,'ciel');
+  const bx=(m,w,h,d,x,y,z,rx,ry,rz)=>{ const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m); o.position.set(x,y,z); if(rx||ry||rz) o.rotation.set(rx||0,ry||0,rz||0,'YXZ'); Gs.add(o); return o; };
+  const ecran=(type,w,h,larg,haut,dx,dy,dz,incl,transp)=>{ const a=ckAffichage(type,w,h,transp); const o=new THREE.Mesh(new THREE.PlaneGeometry(larg,haut),a.mat); o.rotation.set(-(incl||0),Math.PI,0,'YXZ'); o.position.copy(Lp(dx,dy,dz)); G.add(o); if(!C.affs.includes(a)) C.affs.push(a); return o; };
+  const Wp=clamp(c?c.w:1.0,0.8,1.7), deux=!heli&&Math.abs(e.x)>0.2, ferme=['six','verre','ligne','fret'].includes(st)&&!heli;
+  const barreS=(m,r,a,b)=>{ const o=new THREE.Mesh(new THREE.CylinderGeometry(r,r,1,8),m); o.position.copy(a).lerp(b,0.5); o.scale.set(1,a.distanceTo(b),1); o.quaternion.setFromUnitVectors(_ckY,_ckV2.copy(b).sub(a).normalize()); Gs.add(o); return o; };
+  if(heli) ckCabineHelico(Gs,S,e,c,barreS); /* la cabine fermée, fusionnée avec les pièces fixes (63 objets → une vingtaine) */
+  else { /* la planche : face verticale à 68 cm, casquette qui avance de 8 cm, sur toute la largeur du poste */
+    const P=[[0.95,-0.165],[0.6,-0.15],[0.6,-0.195],[0.68,-0.205],[0.68,-0.64],[0.95,-0.64]].map(([dz,dy])=>[e.z+dz,e.y+dy]);
+    const sh=new THREE.Shape(); sh.moveTo(P[0][0],P[0][1]); for(let i=1;i<P.length;i++) sh.lineTo(P[i][0],P[i][1]); sh.closePath();
+    const gP=new THREE.ExtrudeGeometry(sh,{depth:Wp,bevelEnabled:false}); gP.rotateY(-Math.PI/2); gP.translate(Wp/2+(deux?0:e.x),0,0); Gs.add(new THREE.Mesh(gP,mPl));
+    /* bords du poste (les rebords sous la verrière), parois et plafond des postes fermés, siège du copilote */
+    const xs=Wp/2, yS=e.y-0.24, yF=e.y-1.0, x0=deux?0:e.x;
+    for(const s of [1,-1]){ bx(mParoi,0.06,yS-yF,1.5,x0+s*xs,(yS+yF)/2,e.z-0.05); bx(mNoir,0.1,0.03,1.5,x0+s*(xs-0.03),yS,e.z-0.05); }
+    if(ferme){ const yR=e.y+(st==='ligne'?0.32:0.26), zA=e.z+0.62; for(const s of [1,-1]){ barreS(mPl,0.03,new THREE.Vector3(x0+s*(xs-0.03),e.y-0.16,e.z+0.72),new THREE.Vector3(x0+s*(xs-0.12),yR,zA-0.15)); barreS(mPl,0.03,new THREE.Vector3(x0+s*xs,yS,e.z-0.35),new THREE.Vector3(x0+s*xs,yR,e.z-0.35)); }
+      bx(mCiel,Wp,0.03,1.1,x0,yR+0.015,e.z-0.05);
+      if(st==='ligne'||st==='fret'){ bx(mNoir,0.6,0.06,0.5,0,yR-0.04,e.z+0.05,0.12); const a=ckAffichage('av_plafond',256,192); const o=new THREE.Mesh(new THREE.PlaneGeometry(0.56,0.44),a.mat); o.rotation.x=Math.PI/2+0.12; o.position.set(0,yR-0.072,e.z+0.05); G.add(o); if(!C.affs.includes(a)) C.affs.push(a); } }
+    if(deux){ const xp=-e.x; bx(mSg,0.46,0.12,0.48,xp,yF+0.36,e.z-0.05); bx(mSg,0.48,0.66,0.1,xp,yF+0.71,e.z-0.34,-0.2); bx(mSg,0.26,0.17,0.09,xp,yF+1.1,e.z-0.43,-0.1); bx(mNoir,0.24,0.24,0.6,0,yF+0.3,e.z+0.25); } }
+  /* les instruments */
+  const dyI=-0.33, dzI=0.672;
+  switch(st){
+    case 'six': case 'vintage6': case 'voltige': C.instr=ecran('av_'+st,384,192,0.46,0.23,0,dyI,dzI,0.04); if(st==='six'){ ecran('av_radio',192,96,0.18,0.09,-0.36,dyI+0.02,dzI,0.04); } break;
+    case 'verre': case 'helicoVerre': case 'titan': { C.instr=ecran('av_pfd',256,256,0.2,0.2,0,dyI,dzI,0.04); ecran(st==='titan'?'av_crochet':'av_nd',256,256,0.2,0.2,heli?-0.215:0.215,dyI,dzI,0.04); /* l'écran de pilotage en face du pilote, la carte côté cabine (le pilote d'hélico est à droite) */ if(st==='verre') ecran('av_fcu',384,64,0.4,0.042,0,-0.172,0.596,0); break; } /* l'écran de pilotage devant le pilote, la carte à sa droite ; le pilote automatique sur la face de la casquette */
+    case 'ligne': { C.instr=ecran('av_pfd',256,256,0.2,0.2,-0.11,dyI,dzI,0.04); ecran('av_nd',256,256,0.2,0.2,0.11,dyI,dzI,0.04); ecran('av_eicas',256,256,0.2,0.2,Math.max(0.33,e.x),dyI,dzI,0.04); ecran('av_fcu',384,64,0.42,0.042,Math.max(0.2,e.x*0.6),-0.172,0.596,0); break; }
+    case 'fret': C.instr=ecran('av_six',384,192,0.4,0.2,0.08,dyI,dzI,0.04); ecran('av_meteo',256,256,0.2,0.2,-0.26,dyI,dzI,0.04); break;
+    case 'chasseur': C.instr=ecran('mfd',384,144,0.44,0.165,0,-0.345,0.665,0.15); ecran('hud',384,384,1.4,1.4,0,0.22,2.6,0,true); break;
+    case 'combat': C.instr=ecran('mfd',384,144,0.44,0.165,0,-0.33,0.665,0.12); ecran('hud',384,384,1.4,1.4,0,0.14,2.6,0,true); break;
+    case 'helicoSimple': case 'sixHelico': C.instr=ecran('hl_'+st,384,192,0.46,0.23,0,-0.32,0.665,0.12); break;
+    default: C.instr=ecran('av_six',384,192,0.46,0.23,0,dyI,dzI,0.04); }
+  /* les commandes : manche entre les jambes (voltige, chasseur, hélicos) ou manche à volant ; manette des gaz (ou collectif) */
+  const manche2=st==='chasseur'||st==='voltige'||heli;
+  if(manche2){ const lv=ckLevier(S,0.4,st==='chasseur'||st==='combat'); lv.position.copy(Lp(0,-0.74,0.42)); G.add(lv); C.volant=lv; const mn=new THREE.Group(); mn.position.set(0,0.44,0); mn.rotation.z=Math.PI/2; lv.add(mn); ckMain(mn,0,0,0,epD,S,manche,G);
+    const gaz=new THREE.Group(); gaz.position.copy(Lp(-0.2,-0.5,0.2)); gaz.rotation.x=0.3; G.add(gaz); const gl=new THREE.Mesh(new THREE.CylinderGeometry(0.012,0.012,0.18,8),S.plast2); gl.position.y=0.09; gaz.add(gl);
+    const gp=new THREE.Mesh(new THREE.BoxGeometry(0.05,0.07,0.06),S.plast); gp.position.y=0.2; gaz.add(gp); C.manettes.push(gaz); const mg=new THREE.Group(); mg.position.y=0.2; mg.rotation.z=Math.PI/2; gaz.add(mg); ckMain(mg,0,0,0,epG,S,manche,G); }
+  else { const yo=ckYoke(S); yo.position.copy(Lp(0,-0.4,0.5)); yo.userData.z0=yo.position.z; G.add(yo); C.volant=yo; for(const s of [1,-1]){ const m=ckMain(yo,s*0.1,0.05,0,s>0?epG:epD,S,manche,G); m.rotation.z=Math.PI/2; }
+    const xg=deux?0:e.x+0.2, gaz=new THREE.Group(); gaz.position.set(xg,e.y-0.45,e.z+0.55); G.add(gaz);
+    const nL=st==='ligne'||st==='fret'||st==='verre'?2:3; for(let k=0;k<nL;k++){ const l=new THREE.Mesh(new THREE.CylinderGeometry(0.008,0.008,0.12,8),mCh); l.position.set(k*0.045-(nL-1)*0.0225,0.06,0); gaz.add(l); const p=new THREE.Mesh(nL===2?new THREE.BoxGeometry(0.04,0.03,0.05):new THREE.SphereGeometry(0.018,10,8),nL===2?mNoir:[mNoir,ckM(0xd0202a),ckM(0x2a6aff)][k]); p.position.set(k*0.045-(nL-1)*0.0225,0.12,0); gaz.add(p); } C.manettes.push(gaz); }
+  ckFusionner(Gs); }
+/* les afficheurs des avions et des hélicoptères */
+const CK_SIX_NOIR={panneau:'#14161a',bord:'chrome',fond:'#08090b',num:'#f2f4f8',aig:'#ffffff'};
+function ckSixPack(g,W,H,V,d,T,o,heli){ g.fillStyle=o.panneau; g.fillRect(0,0,W,H); const r=50, xs=[64,192,320], ys=[52,142]; for(const x of xs) for(const y of ys){ g.fillStyle='rgba(0,0,0,0.35)'; g.beginPath(); g.arc(x+2,y+3,r+6,0,6.2832); g.fill(); }
+  const b={bord:o.bord,fond:o.fond,fond2:o.fond2,num:o.num,aig:o.aig,famille:o.famille,tch:0.2};
+  if(heli) ckDial(g,xs[0],ys[0],r,V.kmh,Math.max(120,Math.ceil(d.vmax*3.6/40)*40),Object.assign({},b,{n:6,sub:2,lib:'km/h'})); else ckDial(g,xs[0],ys[0],r,V.kn,Math.max(80,Math.ceil(d.vmax*1.944*1.3/20)*20),Object.assign({},b,{n:8,sub:2,pas:2,lib:'NŒUDS',rouge:0.9}));
+  ckDial(g,xs[1],ys[0],r,0,1,{bord:o.bord,fond:'#000',n:1,sub:1,chiffres:false,aig:'rgba(0,0,0,0)',moyeu:'rgba(0,0,0,0)',moyeuC:'rgba(0,0,0,0)',reflet:false}); ckHorizon(g,xs[1],ys[0],r,V.tang,V.incl); /* la lunette d'abord, l'horizon dedans */
+  ckDial(g,xs[2],ys[0],r,V.alt%1000,1000,Object.assign({},b,{n:10,sub:5,mult:0.01,lib:'ALT ×100 m',texte:(g2,cx,cy,rr)=>{ const a2=(V.alt%10000)/10000*6.2832-Math.PI/2; g2.strokeStyle=o.aig; g2.lineWidth=4; g2.beginPath(); g2.moveTo(cx,cy); g2.lineTo(cx+Math.cos(a2)*rr*0.45,cy+Math.sin(a2)*rr*0.45); g2.stroke(); }}));
+  ckCompas(g,xs[0],ys[1],r,V.cap,'#ffd23f'); ckDial(g,xs[1],ys[1],r,clamp(V.vario,-10,10)+10,20,Object.assign({},b,{n:4,sub:5,chiffres:false,lib:'VARIO',a0:Math.PI*0.5,a1:Math.PI*2.5})); ckTexte(g,(V.vario>=0?'+':'')+V.vario.toFixed(1),xs[1],ys[1]+20,12,o.num);
+  ckDial(g,xs[2],ys[1],r,heli?96+Math.sin(T*3)*1.5:clamp(55+V.ratio*45,0,110),110,Object.assign({},b,{n:11,sub:1,rouge:0.9,lib:heli?'ROTOR %':'TOURS %',pas:2})); }
+function ckAvionAff(a,v,V){ const g=a.ctx, W=a.w, H=a.h, T=ETAT.runT, st=a.type.slice(3), d=v.def;
+  switch(st){
+    case 'six': ckSixPack(g,W,H,V,d,T,CK_SIX_NOIR,false); return true;
+    case 'vintage6': ckSixPack(g,W,H,V,d,T,{panneau:'#4a2e18',bord:'laiton',fond:'#efe4c4',fond2:'#fbf4e2',num:'#2a1a0c',aig:'#111111',famille:'Georgia,serif'},false); return true;
+    case 'voltige': { g.fillStyle='#151517'; g.fillRect(0,0,W,H); ckDial(g,192,100,82,clamp(1+V.tang/25+Math.abs(V.incl)/40,-5,10)+5,15,{bord:'chrome',fond:'#050505',num:'#ffffff',aig:'#ffd23f',n:15,sub:1,chiffres:false,lib:'g',rouge:0.85,texte:(g2,cx,cy,r)=>{ for(const gv of [-5,0,5,10]){ const a=Math.PI*0.75+Math.PI*1.5*(gv+5)/15; ckTexte(g2,String(gv),cx+Math.cos(a)*r*0.6,cy+Math.sin(a)*r*0.6,Math.round(r*0.2),gv===10?'#ff6a5a':'#ffffff'); } }});
+      ckDial(g,62,64,50,V.kn,Math.max(100,Math.ceil(d.vmax*1.944*1.3/20)*20),{bord:'noir',fond:'#050505',num:'#ffffff',aig:'#ff3b3b',n:5,sub:2,lib:'NŒUDS',tch:0.2}); ckDial(g,322,64,50,V.alt%1000,1000,{bord:'noir',fond:'#050505',num:'#ffffff',aig:'#ff3b3b',n:10,sub:1,mult:0.01,lib:'ALT',tch:0.2});
+      ckDial(g,62,150,36,clamp(55+V.ratio*45,0,110),110,{bord:'noir',fond:'#050505',num:'#ffffff',aig:'#ff3b3b',n:5,sub:1,lib:'%',chiffres:false}); ckTexte(g,'COLIBRI ROUGE',322,150,13,'#ff3b3b'); return true; }
+    case 'radio': { g.fillStyle='#0c0c0e'; g.fillRect(0,0,W,H); ckLCD(g,6,8,W-12,36,{fond:'#0a1206',cadre:'#000'}); ckSeg(g,'COM 118.30',W-14,26,18,'#7dff7a','right'); ckLCD(g,6,52,W-12,36,{fond:'#0a1206',cadre:'#000'}); ckSeg(g,'NAV 110.50',W-14,70,18,'#7dff7a','right'); return true; }
+    case 'pfd': { g.fillStyle='#000'; g.fillRect(0,0,W,H); g.save(); g.beginPath(); g.rect(36,24,184,180); g.clip(); g.translate(128,114); g.rotate(-V.incl*Math.PI/180); const dy=clamp(V.tang,-30,30)*4;
+      g.fillStyle='#2a6ac8'; g.fillRect(-300,-300+dy,600,300); g.fillStyle='#7a4a1a'; g.fillRect(-300,dy,600,300); g.strokeStyle='#fff'; g.lineWidth=2; g.beginPath(); g.moveTo(-300,dy); g.lineTo(300,dy); g.stroke();
+      for(const p of [-20,-10,10,20]){ const y=dy-p*4; g.beginPath(); g.moveTo(-26,y); g.lineTo(26,y); g.stroke(); ckTexte(g,String(Math.abs(p)),-40,y,11,'#fff'); } g.restore();
+      g.strokeStyle='#ffd23f'; g.lineWidth=4; g.beginPath(); g.moveTo(88,114); g.lineTo(116,114); g.moveTo(140,114); g.lineTo(168,114); g.stroke(); g.fillStyle='#ffd23f'; g.fillRect(124,110,8,8);
+      g.fillStyle='rgba(20,24,30,0.9)'; g.fillRect(0,24,36,180); g.fillRect(220,24,36,180); ckTexte(g,String(Math.round(V.kn)),18,114,14,'#ffffff'); ckTexte(g,String(Math.round(V.alt)),238,114,13,'#ffffff');
+      for(let i=-3;i<=3;i++){ g.fillStyle='#8f9aaa'; g.fillRect(28,114+i*24,8,2); g.fillRect(220,114+i*24,8,2); } ckBandeCap(g,36,206,184,40,V.cap,'#ffffff','#000'); ckTexte(g,'AP  ALT  NAV',128,12,12,'#3aff7a'); return true; }
+    case 'nd': case 'crochet': case 'meteo': { g.fillStyle='#000'; g.fillRect(0,0,W,H); const cx=W/2, cy=H*0.86;
+      if(st==='crochet'){ ckTexte(g,'CROCHET',cx,14,13,'#35c8ff'); g.strokeStyle='#35c8ff'; g.lineWidth=2; g.strokeRect(40,40,176,150); const ch=v.cibles&&v.cibles.length; g.beginPath(); g.moveTo(cx,40); g.lineTo(cx,110); g.stroke(); g.fillStyle=ch?'#ffd23f':'#2a3a4a'; g.fillRect(cx-30,112,60,40); ckTexte(g,ch?'CHARGE ACCROCHÉE':'LIBRE',cx,210,14,ch?'#ffd23f':'#8f9aaa'); ckTexte(g,'ALT '+Math.round(V.alt)+' m',cx,236,13,'#ffffff'); return true; }
+      for(const k of [1,0.66,0.33]){ g.strokeStyle='#3a4a5a'; g.lineWidth=1.5; g.beginPath(); g.arc(cx,cy,H*0.78*k,Math.PI*1.12,Math.PI*1.88); g.stroke(); }
+      if(st==='meteo'){ for(let i=0;i<14;i++){ const a=Math.PI*(1.2+((i*37)%60)/100), rr=H*(0.2+((i*53)%60)/100); g.fillStyle=i%5===0?'#ff3b3b':(i%3===0?'#ffd23f':'#3aff7a'); g.globalAlpha=0.6; g.beginPath(); g.arc(cx+Math.cos(a)*rr,cy+Math.sin(a)*rr,10+(i%4)*5,0,6.2832); g.fill(); g.globalAlpha=1; } ckTexte(g,'RADAR MÉTÉO',cx,14,13,'#3aff7a'); }
+      else { g.save(); g.translate(cx,cy); g.rotate(-V.cap*Math.PI/180); g.strokeStyle='#ff3ad8'; g.lineWidth=2; g.beginPath(); g.moveTo(0,0); g.lineTo(60,-150); g.lineTo(-30,-260); g.stroke(); g.fillStyle='#35e0ff'; for(const [x,y] of [[60,-150],[-30,-260]]){ g.fillRect(x-4,y-4,8,8); } g.restore(); ckTexte(g,'HDG '+String(Math.round(V.cap)).padStart(3,'0'),cx,14,14,'#ffffff'); ckTexte(g,'GS '+Math.round(V.kn),36,14,12,'#3aff7a'); }
+      g.fillStyle='#ffd23f'; g.beginPath(); g.moveTo(cx,cy-12); g.lineTo(cx-8,cy+6); g.lineTo(cx+8,cy+6); g.fill(); return true; }
+    case 'eicas': { g.fillStyle='#000'; g.fillRect(0,0,W,H); for(const k of [0,1]){ const cx=W*(0.28+k*0.44); ckArc(g,cx,70,40,8,0.3+V.ratio*0.6,'#ffffff','#1c2028',Math.PI*0.9,Math.PI*2.1); ckTexte(g,(30+V.ratio*60).toFixed(1),cx,72,14,'#3aff7a'); ckTexte(g,'N1',cx,104,11,'#8f9aaa'); ckArc(g,cx,160,32,7,0.4+V.ratio*0.4,'#ffd23f','#1c2028',Math.PI*0.9,Math.PI*2.1); ckTexte(g,'EGT',cx,186,11,'#8f9aaa'); }
+      ckTexte(g,'CARBURANT 18,4 t',W/2,226,13,'#35e0ff'); ckTexte(g,'VOLETS 0',W/2,246,12,'#ffffff'); return true; }
+    case 'fcu': { g.fillStyle='#2a2d33'; g.fillRect(0,0,W,H); const L=[['SPD',Math.round(V.kn)],['HDG',String(Math.round(V.cap)).padStart(3,'0')],['ALT',Math.round(V.alt/10)*10],['V/S',Math.round(V.vario*10)]]; for(let i=0;i<4;i++){ const x=8+i*94; ckTexte(g,L[i][0],x+44,10,10,'#dfe6f0'); ckLCD(g,x,18,88,40,{fond:'#0a0a0a',cadre:'#000'}); ckSeg(g,String(L[i][1]),x+82,38,20,'#ffb23a','right'); } return true; }
+    case 'plafond': { g.fillStyle='#3a3f46'; g.fillRect(0,0,W,H); for(let i=0;i<40;i++){ const x=14+(i%8)*30, y=14+Math.floor(i/8)*34; g.fillStyle='#1a1c20'; g.fillRect(x,y,22,18); const on=((i*7)%5)===0; g.fillStyle=on?'#ffd23f':'#c8ccd2'; g.fillRect(x+7,on?y+2:y+9,8,7); } return true; }
+  } return false; }
+function ckHeliAff(a,v,V){ const g=a.ctx, W=a.w, H=a.h, T=ETAT.runT, st=a.type.slice(3), d=v.def;
+  if(st==='sixHelico'){ ckSixPack(g,W,H,V,d,T,CK_SIX_NOIR,true); return true; } /* la planche de l'avion, en km/h, le rotor à la place du moteur */
+  if(st==='helicoSimple'){ g.fillStyle='#202226'; g.fillRect(0,0,W,H); const o={bord:'noir',fond:'#0a0b0e',num:'#f2f4f8',aig:'#ffd23f',tch:0.2};
+    ckDial(g,62,96,56,V.kmh,Math.max(120,Math.ceil(d.vmax*3.6/40)*40),Object.assign({n:6,sub:2,lib:'km/h'},o)); ckDial(g,192,96,56,V.alt%1000,1000,Object.assign({n:10,sub:1,mult:0.01,lib:'ALT ×100'},o)); ckDial(g,322,96,56,96+Math.sin(T*3)*1.5,110,Object.assign({n:11,sub:1,rouge:0.9,lib:'ROTOR %',pas:2},o)); ckTexte(g,'LIBELLULE',192,176,12,'#d83a3a'); return true; }
+  return false; }
+/* ---------- soucoupe : affichages holographiques flottants (18 octobre, demandé : « des écrans futuristes holographiques pour la
+   soucoupe ») — un disque radar qui tourne au-dessus de la console, deux panneaux de lumière (vitesse, altitude) tournés vers le pilote,
+   lignes de balayage et scintillement ; mélange additif, sans profondeur : ils ne cachent jamais le sol ---------- */
+function ckHoloOvni(G,C,Lp){ const holo=(type,w,h,larg,haut,dx,dy,dz,rx,ry)=>{ const a=ckAffichage(type,w,h,true); if(!a.holo){ a.holo=true; a.mat.blending=THREE.AdditiveBlending; a.mat.opacity=0.92; a.mat.depthTest=true; }
+    const o=new THREE.Mesh(new THREE.PlaneGeometry(larg,haut),a.mat); o.position.copy(Lp(dx,dy,dz)); o.rotation.set(rx||0,ry||0,0,'YXZ'); o.renderOrder=3; G.add(o); if(!C.affs.includes(a)) C.affs.push(a); return o; };
+  const ra=holo('holo_radar',256,256,0.28,0.28,0,-0.13,0.6,0,Math.PI); ra.rotation.set(-1.15,Math.PI,0,'YXZ'); C.instr=ra;
+  holo('holo_vit',128,192,0.11,0.165,0.19,-0.06,0.55,0,Math.PI-0.3); holo('holo_alt',128,192,0.11,0.165,-0.19,-0.06,0.55,0,Math.PI+0.3);
+  const an=new THREE.Mesh(new THREE.TorusGeometry(0.19,0.004,6,48),new THREE.MeshBasicMaterial({color:0x35e0ff,transparent:true,opacity:0.7,blending:THREE.AdditiveBlending,depthWrite:false})); an.scale.setScalar(0.74); an.position.copy(Lp(0,-0.13,0.6)); an.rotation.x=-1.15+Math.PI/2; an.renderOrder=3; G.add(an); }
+function ckHoloAff(a,v,V){ const g=a.ctx, W=a.w, H=a.h, T=ETAT.runT, st=a.type.slice(5), fl=0.82+Math.sin(T*23)*0.06+Math.sin(T*7.3)*0.05; g.clearRect(0,0,W,H); g.globalAlpha=fl;
+  const lignes=()=>{ g.globalAlpha=1; g.fillStyle='rgba(0,0,0,0.35)'; for(let y=(T*40)%4;y<H;y+=4) g.fillRect(0,y,W,1.5); };
+  if(st==='radar'){ const cx=W/2, cy=H/2, r=W/2-8; g.strokeStyle='#35e0ff'; g.lineWidth=2; for(const k of [1,0.66,0.33]){ g.beginPath(); g.arc(cx,cy,r*k,0,6.2832); g.stroke(); } g.beginPath(); g.moveTo(cx-r,cy); g.lineTo(cx+r,cy); g.moveTo(cx,cy-r); g.lineTo(cx,cy+r); g.stroke();
+    const ba=T*2.6%6.2832, gr=g.createRadialGradient(cx,cy,0,cx,cy,r); gr.addColorStop(0,'rgba(53,224,255,0.5)'); gr.addColorStop(1,'rgba(53,224,255,0)'); g.fillStyle=gr; g.beginPath(); g.moveTo(cx,cy); g.arc(cx,cy,r,ba-0.6,ba); g.closePath(); g.fill();
+    const ang=v.ang||0, ca=Math.cos(ang), sa=Math.sin(ang); for(const L of [ennemis,pietons,vehicules]) for(const o of L){ if(o===v||o.mort||o.etat==='mort') continue; const dx=o.x-v.x, dz=o.z-v.z; if(dx*dx+dz*dz>160*160) continue; const lx=-(dx*ca-dz*sa), lz=dx*sa+dz*ca; g.fillStyle=L===ennemis?'#ff3ad8':(L===pietons?'#ffd23f':'#7dff7a'); g.beginPath(); g.arc(cx+lx/160*r,cy-lz/160*r,3.5,0,6.2832); g.fill(); }
+    g.fillStyle='#ffffff'; g.beginPath(); g.moveTo(cx,cy-8); g.lineTo(cx-6,cy+6); g.lineTo(cx+6,cy+6); g.fill(); ckTexte(g,'BALAYAGE 160',cx,H-12,12,'#35e0ff'); }
+  else { const alt=st==='alt', t=alt?clamp((V.alt||0)/120,0,1):clamp(V.vit/(v.def.vmax||30),0,1), c=alt?'#ff3ad8':'#35e0ff'; g.strokeStyle=c; g.lineWidth=2; g.strokeRect(6,6,W-12,H-12);
+    for(let i=0;i<12;i++){ const on=i/12<t; g.fillStyle=on?c:'rgba(255,255,255,0.08)'; g.fillRect(20,H-28-i*12,W-40,8); } ckTexte(g,alt?String(Math.round(V.alt))+' m':String(Math.round(V.kmh)),W/2,24,20,'#ffffff'); ckTexte(g,alt?'ALTITUDE':'VITESSE',W/2,H-12,11,c); }
+  lignes(); g.globalAlpha=1; return true; }
+/* ---------- char : l'écoutille du chef (épiscopes, couvercle relevé, mitrailleuse sur son affût, manomètres en laiton) ---------- */
+function ckCharV2(G,S,v,D,Lp,pose,epG,epD,manche){ const C=COCKPIT, Gs=new THREE.Group(), mOl=ckM(0x4a5238,'p'), mNoir=ckM(0x141614), mVitre=ckM(0x1a3a4a,'m'), mAcier=ckM(0x3a3e40,'m'); G.add(Gs);
+  const add=(o,dx,dy,dz)=>{ o.position.copy(Lp(dx,dy,dz)); Gs.add(o); return o; };
+  for(let k=0;k<7;k++){ const a=-Math.PI*0.75+k*Math.PI*0.25, x=Math.sin(a)*0.5, z=Math.cos(a)*0.5; const b=add(new THREE.Mesh(new THREE.BoxGeometry(0.14,0.07,0.06),mOl),x,-0.5,z); b.rotation.y=a; const vb=add(new THREE.Mesh(new THREE.BoxGeometry(0.1,0.035,0.01),mVitre),x*1.06,-0.5,z*1.06); vb.rotation.y=a; }
+  const cou=add(new THREE.Mesh(new THREE.CylinderGeometry(0.45,0.45,0.04,28),mOl),0,-0.35,-0.62); cou.rotation.x=Math.PI/2-0.2; /* le couvercle relevé, derrière */
+  const mi=new THREE.Group(); mi.position.copy(Lp(-0.21,-0.3,0.58)); Gs.add(mi); const rc=new THREE.Mesh(new THREE.BoxGeometry(0.1,0.12,0.42),mNoir); mi.add(rc); const ca=new THREE.Mesh(new THREE.CylinderGeometry(0.018,0.018,0.9,10),mAcier); ca.rotation.x=Math.PI/2; ca.position.z=0.6; mi.add(ca);
+  const bo=new THREE.Mesh(new THREE.BoxGeometry(0.12,0.1,0.16),mOl); bo.position.set(-0.11,-0.02,0); mi.add(bo); const af=new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.03,0.3,8),mAcier); af.position.set(0,-0.18,-0.05); mi.add(af);
+  const pj=new THREE.Mesh(new THREE.BoxGeometry(0.22,0.12,0.02),mOl); pj.position.copy(Lp(0.22,-0.42,0.42)); pj.rotation.set(-0.6,Math.PI-0.4,0,'YXZ'); Gs.add(pj);
+  const a=ckAffichage('char_jauges',256,128); const pa=new THREE.Mesh(new THREE.PlaneGeometry(0.2,0.1),a.mat); pa.position.copy(Lp(0.22,-0.42,0.408)); pa.rotation.set(-0.6,Math.PI-0.4,0,'YXZ'); G.add(pa); if(!C.affs.includes(a)) C.affs.push(a);
+  ckFusionner(Gs); }
+function ckCharAff(a,v,V){ const g=a.ctx, W=a.w, H=a.h; g.fillStyle='#3a4230'; g.fillRect(0,0,W,H); ckDial(g,64,64,52,V.kmh,80,{bord:'laiton',fond:'#efe4c4',num:'#2a1a0c',aig:'#111',n:8,sub:1,lib:'km/h',famille:'Georgia,serif',tch:0.22});
+  ckDial(g,192,64,52,V.hp,1,{bord:'laiton',fond:'#efe4c4',num:'#2a1a0c',aig:'#a01818',n:4,sub:1,chiffres:false,lib:'BLINDAGE',famille:'Georgia,serif',tlib:0.16}); return true; }
 function vueCockpit(){ const v=P.veh; return vue1P()&&ETAT.mode==='jeu'&&!!v&&!v.noye&&!FPS.actif&&(!INT.actif||!!INT.actif.depot)&&!MANEGES.actif&&!lunetteSniper()&&P.hp>0; }
 /* La soucoupe vue de dedans (17 octobre au soir, 3e liste, signalé : « en 1re personne, en altitude, on ne voit rien du sol, car
    l'appareil ne s'incline pas ») : sa coque (les deux disques, juste sous l'œil) et son dôme deviennent, le temps du cockpit, un
@@ -37296,7 +37453,7 @@ function majCockpit(v,dt){ const C=COCKPIT; if(!C.g) return; const d=v.def, joue
   if(d.air){ const a=v.alt||0; C.vario=lerp(C.vario,(a-C.altP)/Math.max(dt,1e-3),clamp(dt*3,0,1)); C.altP=a; }
   if(C.jauge){ const r=Math.max(0.02,gazV), J=C.jauge; J.m.scale.y=J.h*r; J.m.position.y=J.y0+J.h*r/2; J.m.material=r>0.85?matsCockpit().magenta:matsCockpit().cyan; }
   if(C.bras.length){ C.g.updateMatrixWorld(true); majBrasCockpit(); }
-  C.majT-=dt; if(C.majT<=0){ C.majT=0.1; cockpitInstruments(v); } }
+  C.majT-=dt; if(C.majT<=0&&C.affs.length){ C.majT=0.1/C.affs.length; const a=C.affs[(C.affI=(C.affI||0)+1)%C.affs.length]; ckDessiner(a,v,ckValeurs(v)); } } /* un afficheur par image, à tour de rôle : le redessin ne fait plus un pic de plusieurs millisecondes (18 octobre) */
 function cameraCockpit(dt){ const v=P.veh, C=COCKPIT; if(C.v!==v||!C.g) cockpitConstruire(v);
   if(!C.cls){ C.cls=true; document.body.classList.add('ck1P'); } /* la pile de messages passe en haut à gauche */
   const M=ckRepere(v); C.g.matrix.copy(M); C.g.matrixWorldNeedsUpdate=true; C.g.updateMatrixWorld(true); majCockpit(v,dt);

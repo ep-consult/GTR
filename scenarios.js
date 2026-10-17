@@ -13228,9 +13228,9 @@ async function main() {
         // 3. un tableau par véhicule (une voiture n'a pas l'affichage d'un avion) : voitures, camions, bus et deux-roues lisent leur
         //    combiné dans CK_HAB (cockpits V2, 18 octobre) ; la vedette rapide a un volant sport ; le vélo a son petit compteur
         const affs = (k) => { monter(k, !!VEHDEFS[k].air); return COCKPIT.affs.map((a) => a.type).join(','); };
-        const attenduV2 = (k) => { const f = ckFamille({ def: VEHDEFS[k], key: k }), c = CK_HAB[k] && CK_HAB[k].cad; if (f === 'auto' || f === 'camion') return c === 'raptor' ? 'raptor' : 'cmb_' + c; if (f === 'moto' || f === 'jetski' || f === 'velo') return c === 'aucun' ? null : 'm2_' + c; return undefined; };
-        const attendus = { bateau: 'bateau', grandyacht: 'radar', avion: 'six', helico: 'sixHelico', chasseur: 'hud', ovni: 'ovniBoutons', char: 'char' };
-        for (const k of ['citadine', 'taxi', 'pickup', 'sport', 'jeep', 'busville', 'moto', 'motoS', 'fantome', 'motocross']) { const t = affs(k), a = attenduV2(k); if (!a || !t.split(',').includes(a)) ko.push(k + ' : tableau « ' + t + ' » au lieu de ' + a); }
+        const attenduV2 = (k) => { const f = ckFamille({ def: VEHDEFS[k], key: k }), c = CK_HAB[k] && CK_HAB[k].cad; if (f === 'auto' || f === 'camion') return c === 'raptor' ? 'raptor' : 'cmb_' + c; if (f === 'moto' || f === 'jetski' || f === 'velo') return c === 'aucun' ? null : 'm2_' + c; if (f === 'avion') return 'av_' + c; if (f === 'helico') return 'hl_' + c; if (f === 'bateau') return 'bt_' + c; return undefined; };
+        const attendus = { grandyacht: 'radar', chasseur: 'hud', ovni: 'ovniBoutons', char: 'char' };
+        for (const k of ['citadine', 'taxi', 'pickup', 'sport', 'jeep', 'busville', 'moto', 'motoS', 'fantome', 'motocross', 'avion', 'helico', 'bateau']) { const t = affs(k), a = attenduV2(k); if (!a || !t.split(',').includes(a)) ko.push(k + ' : tableau « ' + t + ' » au lieu de ' + a); }
         for (const k in attendus) { const t = affs(k); if (!t.split(',').includes(attendus[k])) ko.push(k + ' : tableau « ' + t + ' » au lieu de ' + attendus[k]); }
         if (ckStyle({ def: VEHDEFS.bateau, key: 'bateau' }, 'bateau') !== 'bateauSport') ko.push('la vedette rapide n’a pas un volant sport');
         { const t = affs('velo'); if (t !== 'm2_compteurVelo') ko.push('vélo : « ' + t + ' » au lieu de son petit compteur'); }
@@ -13246,7 +13246,7 @@ async function main() {
         { const q = monter('ovni', true); const r0 = q.mesh.rotation.y; for (let i = 0; i < 30; i++) { q.mesh.rotation.y += 0.1; majCamera(1 / 30); }
           camera.updateMatrixWorld(); const dir = camera.getWorldDirection(new THREE.Vector3()); dir.y = 0; dir.normalize(); const ecart = Math.abs(angDiff(Math.atan2(dir.x, dir.z), q.ang));
           if (ecart > 0.2) ko.push('soucoupe : le cockpit tourne avec la coque (' + ecart.toFixed(2) + ' rad du cap)'); else info.push('soucoupe : coque +' + (q.mesh.rotation.y - r0).toFixed(1) + ' rad, regard au cap');
-          if (!COCKPIT.jauge) ko.push('soucoupe : pas de jauge de vitesse'); }
+          if (!COCKPIT.affs.some((x) => x.type === 'holo_vit') || !COCKPIT.affs.some((x) => x.type === 'holo_alt') || !COCKPIT.affs.some((x) => x.type === 'holo_radar')) ko.push('soucoupe : il manque un affichage holographique (vitesse, altitude, radar)'); } /* cockpits V2 (18 octobre) : la jauge et le cadran d'altitude sont devenus des hologrammes */
         // 6. balises (les « paillettes » de toutes les couleurs sur la route) : en cockpit, cachées par les murs et à courte portée ; à pied, comme avant
         { monter('citadine'); majBalises(0); let mauvaises = 0, vues = 0; for (const b of BALISES) { if (!b.sp.visible) continue; vues++; if (!b.sp.material.depthTest || Math.hypot(b.x - P.x, b.z - P.z) > BALISE_PORTEE_CK) mauvaises++; }
           if (mauvaises) ko.push('cockpit : ' + mauvaises + ' balise(s) vue(s) à travers les murs ou au loin');
@@ -13274,6 +13274,65 @@ async function main() {
         return { ko, info };
       });
       if (r.ko.length) fail('Cockpits : ' + r.ko.join(' ; ')); else ok('Cockpits : ' + r.info.join(' ; '));
+    }
+
+    // -------------------------------------------------------------------
+    // Cockpits V2 (18 octobre) : chaque véhicule de VEHDEFS a sa ligne CK_HAB (cadran décrit dans CK_CADRANS), son combiné
+    // affiché ; cabine fermée (en tournant la tête, on voit l'intérieur, jamais le vide) ; moto : rétroviseurs au bout du
+    // guidon, aucun près du compteur ; conducteur à gauche ; messages hors du pare-brise ; textes flottants du véhicule dans
+    // la pile ; une quarantaine d'objets dessinés au plus.
+    // -------------------------------------------------------------------
+    console.log('\n--- Cockpits V2 : un intérieur par véhicule, cabine fermée, moto épurée, messages hors du pare-brise ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); META.vue = 'fps'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; ETAT.jour = 40; WAVES.etat = 'repos'; WAVES.t = 1e9;
+        const trafic0 = creerTrafic; creerTrafic = () => {}; for (const o of vehicules) { scene.remove(o.mesh); libererEntite(o.mesh); } vehicules.length = 0;
+        const monter = (k, off) => { if (P.veh) sortirVehicule(true); for (const o of vehicules) { scene.remove(o.mesh); libererEntite(o.mesh); } vehicules.length = 0; const d = VEHDEFS[k], mer = !!d.eau, x = mer ? -60 : POIS.place.x + 40, z = mer ? MER + 40 : POIS.place.z + 10;
+          const v = creerVehicule(k, x, z, 0); P.x = x; P.z = z + 1; entrerVehicule(v); v.v = 0; VUE.drag = !!off; VUE.offVeh = off || 0; for (let i = 0; i < 4; i++) majCamera(1 / 30); VUE.offVeh = off || 0; majCamera(1 / 30); camera.updateMatrixWorld(); return v; };
+        // 1. les tables : aucune clé oubliée, chaque cadran décrit ; le combiné affiché est celui de CK_HAB
+        const prefixe = { auto: 'cmb_', camion: 'cmb_', moto: 'm2_', velo: 'm2_', jetski: 'm2_', bateau: 'bt_', passerelle: 'bt_', avion: 'av_', helico: 'hl_' }; /* l'hélico de verre partage l'écran de pilotage des avions (av_) */
+        let nObj = 0, maxObj = 0, maxK = '', vus = 0;
+        for (const k of Object.keys(VEHDEFS)) { const h = CK_HAB[k]; if (!h) { ko.push(k + ' : absent de CK_HAB'); continue; } if (!CK_CADRANS[h.cad]) ko.push(k + ' : cadran « ' + h.cad + ' » non décrit');
+          const v = monter(k), C = COCKPIT, t = C.affs.map((a) => a.type), f = C.fam; vus++;
+          if (h.cad !== 'aucun') { const p = prefixe[f]; const ok2 = f === 'auto' || f === 'camion' ? t.includes(h.cad === 'raptor' ? 'raptor' : 'cmb_' + h.cad) : (p === 'm2_' ? t.includes('m2_' + h.cad) : (p ? t.some((x) => x.startsWith(p) || (f === 'helico' && x.startsWith('av_')) || x === 'radar' || x === 'mfd') : true));
+            if (!ok2) ko.push(k + ' : combiné « ' + t.join(',') + ' » au lieu de ' + h.cad); }
+          let n = 0; C.g.traverse((o) => { if (o.isMesh || o.isSprite) n++; }); nObj += n; if (n > maxObj) { maxObj = n; maxK = k; }
+          if (h.cad !== 'aucun' && f !== 'debout' && !C.instr) ko.push(k + ' : aucun instrument'); }
+        if (maxObj > 45) ko.push('trop d’objets dessinés : ' + maxObj + ' (' + maxK + ')');
+        info.push(vus + ' véhicules, ' + (nObj / vus).toFixed(0) + ' objets en moyenne au cockpit (au plus ' + maxObj + ', ' + maxK + ')');
+        // 2. cabine fermée : la tête tournée à gauche et à droite, les rayons vers le bas du champ touchent l'intérieur (portière, console)
+        const rc = new THREE.Raycaster(); rc.camera = camera;
+        for (const k of ['citadine', 'berline', 'police', 'sport', 'van', 'pompiers', 'busville', 'muscle']) { for (const off of [1.05, -1.05]) { monter(k, off); let tous = 0, touches = 0;
+            for (const nx of [-0.5, 0, 0.5]) { rc.setFromCamera(new THREE.Vector2(nx, k === 'pompiers' || k === 'busville' || k === 'van' ? -0.92 : -0.75), camera); /* camions, bus : grande vitre latérale, la portière tout en bas */ tous++; if (rc.intersectObject(COCKPIT.g, true).some((hh) => hh.distance < 2.4)) touches++; }
+            if (touches < 2) ko.push(k + ' : tête tournée ' + (off > 0 ? 'à gauche' : 'à droite') + ', le bas du champ ne voit pas l’intérieur (' + touches + '/' + tous + ')'); } }
+        info.push('cabines fermées : portières et console dans le champ en tournant la tête');
+        // 3. conducteur à gauche (le trafic roule à droite) : voitures, camions, bus ; cabriolet et jeep (siège du modèle)
+        for (const k of ['citadine', 'pickup', 'busville', 'pompiers', 'limousine']) { monter(k); if (!(COCKPIT.eye.x > 0.2)) ko.push(k + ' : conducteur à droite (œil x ' + COCKPIT.eye.x.toFixed(2) + ')'); }
+        for (const k of ['cabriolet', 'jeep']) { const v = monter(k); const sg = v.mesh.userData.siege; if (!(sg && sg.x > 0)) ko.push(k + ' : siège du modèle à droite'); }
+        // 4. moto : les rétroviseurs sont au bout du guidon (plus loin que les poignées), aucun près du compteur ; le compteur au centre
+        for (const k of ['moto', 'motoR', 'motoS', 'fantome']) { const v = monter(k), C = COCKPIT, gui = C.volant; gui.updateMatrixWorld(true); const inv = new THREE.Matrix4().copy(gui.matrixWorld).invert(), miroirs = [];
+          /* les miroirs sont fusionnés avec les pièces fixes du guidon : on lit leurs sommets, dans le repère du guidon */
+          C.g.traverse((o) => { if (o.isMesh && o.material === ckMatRetro()) { o.updateMatrixWorld(true); const pa = o.geometry.attributes.position, M = new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld); for (let i = 0; i < pa.count; i++) miroirs.push(new THREE.Vector3().fromBufferAttribute(pa, i).applyMatrix4(M)); } });
+          const poignee = Math.max(...C.bras.map((b) => Math.abs(b.poing.parent.position.x)));
+          const gauche = miroirs.filter((p) => p.x > 0), droite = miroirs.filter((p) => p.x < 0);
+          if (!gauche.length || !droite.length) ko.push(k + ' : il manque un rétroviseur (' + gauche.length + '/' + droite.length + ' sommets)');
+          else { const xmin = Math.min(...miroirs.map((p) => Math.abs(p.x))); if (xmin < poignee * 0.75) ko.push(k + ' : un rétroviseur près du compteur (' + xmin.toFixed(2) + ' pour des poignées à ' + poignee.toFixed(2) + ')'); if (Math.max(...miroirs.map((p) => Math.abs(p.x))) < poignee) ko.push(k + ' : rétroviseurs en deçà des poignées'); if (miroirs.some((p) => p.y < 0.1)) ko.push(k + ' : rétroviseur sous le guidon'); }
+          if (!C.instr || Math.abs(C.instr.position.x) > 0.02) ko.push(k + ' : compteur pas au centre'); }
+        info.push('motos : rétroviseurs au bout du guidon, compteur au centre');
+        // 5. messages : au cockpit, la pile passe en haut à gauche (hors du pare-brise) ; un texte flottant né sur le véhicule n'allume aucun sprite
+        { const v = monter('citadine'); toast('essai cockpit'); const pile = el('notifStack'), b = pile.getBoundingClientRect(), H = innerHeight, Wd = innerWidth;
+          if (!document.body.classList.contains('ck1P')) ko.push('pas de classe ck1P au cockpit');
+          if (b.top > H * 0.22 || b.left > Wd * 0.1) ko.push('pile de messages hors du coin haut gauche (' + Math.round(b.left) + ',' + Math.round(b.top) + ')');
+          const n = pile.lastChild, nb = n && n.getBoundingClientRect(); if (nb && (nb.bottom > H * 0.32 || nb.right > Wd * 0.68)) ko.push('un message déborde sur le pare-brise (' + Math.round(nb.right) + '×' + Math.round(nb.bottom) + ')');
+          const allumes0 = textes.filter((t) => t.on).length; spawnTexte(v.x, 2.4, v.z, '+250 $', '#58ff7a'); const allumes1 = textes.filter((t) => t.on).length;
+          if (allumes1 > allumes0) ko.push('un texte flottant né sur le véhicule s’allume en plein pare-brise'); if (!pile.querySelector('.notif.pts')) ko.push('le texte flottant n’est pas dans la pile');
+          sortirVehicule(true); majCamera(1 / 30); if (document.body.classList.contains('ck1P')) ko.push('classe ck1P restée à la sortie du cockpit'); }
+        info.push('messages et textes flottants en haut à gauche, rien au milieu du pare-brise');
+        creerTrafic = trafic0; VUE.drag = false; VUE.offVeh = 0; META.vue = 'classique'; for (const o of vehicules) { scene.remove(o.mesh); libererEntite(o.mesh); } vehicules.length = 0; majCamera(1 / 30);
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Cockpits V2 : ' + r.ko.join(' ; ')); else ok('Cockpits V2 : ' + r.info.join(' ; '));
     }
     // -------------------------------------------------------------------
     // Lance à eau V2 (17 octobre au soir) : un vrai jet balistique qui

@@ -8,9 +8,9 @@ Demandé : « amélioration globale des cockpits et des intérieurs de véhicule
 - [x] Messages en 1re personne au volant : en haut à gauche, sous les jauges, dans la bande du pavillon (body.ck1P)
 - [x] Textes flottants (+250 $…) nés sur le véhicule : dans la pile, sur une ligne qui se remplace (ckTexte1P)
 - [x] Moto : rétroviseurs sur tige depuis les leviers, tête au bout du guidon ; compteur rond chromé dans la tête de fourche (sportive : écran sous la bulle ; chopper : compteur chromé ; cross : plaque et écran de rallye, sans rétroviseurs)
-- [ ] Mains et bras au volant
-- [ ] Performances (appels de rendu fusionnés)
-- [ ] Test « Cockpits V2 »
+- [x] Mains et bras au volant : gant qui serre (doigts autour de la jante, pouce couché), bras plié au coude
+- [x] Performances : pièces fixes fusionnées (25 objets en moyenne, 34 au plus), un afficheur redessiné par image, plus de flou par diode
+- [x] Test « Cockpits V2 » (et « Cockpits » relit ses attentes dans CK_HAB)
 
 ## Voitures
 
@@ -66,7 +66,7 @@ Demandé : « amélioration globale des cockpits et des intérieurs de véhicule
 
 ## Char
 
-- [ ] `char` — Char "Rhinocéros"
+- [x] `char` — Char "Rhinocéros" — cadran `char` : Char : épiscopes, cap et état du canon, manomètres en laiton
 
 ## Motos et quad
 
@@ -89,44 +89,44 @@ Demandé : « amélioration globale des cockpits et des intérieurs de véhicule
 
 ## Planches (debout)
 
-- [ ] `skate` — Skateboard
-- [ ] `surf` — Planche de surf
+- [x] `skate` — Skateboard — cadran `aucun` : Rien à lire : la machine seule
+- [x] `surf` — Planche de surf — cadran `aucun` : Rien à lire : la machine seule
 
 ## Kayak
 
-- [ ] `kayak` — Kayak
+- [x] `kayak` — Kayak — cadran `kayak` : Kayak : la pagaie et un compas de pont
 
 ## Bateaux
 
-- [ ] `yacht` — Yacht "Impérial"
-- [ ] `bateau` — Vedette "Sirène"
-- [ ] `bateauP` — Vedette de police
-- [ ] `peche` — Bateau de pêche
-- [ ] `espadon` — Vedette "Espadon"
+- [x] `yacht` — Yacht "Impérial" — cadran `yacht` : Yacht : poste de luxe, deux écrans (carte marine, moteurs)
+- [x] `bateau` — Vedette "Sirène" — cadran `nautique` : Bateau : console blanche, cadrans cerclés de chrome (nœuds, régime), compas
+- [x] `bateauP` — Vedette de police — cadran `bateauPolice` : Vedette de police : écran radar, cadrans, radio
+- [x] `peche` — Bateau de pêche — cadran `peche` : Bateau de pêche : cadrans en laiton, sondeur, radio VHF
+- [x] `espadon` — Vedette "Espadon" — cadran `offshore` : Offshore : cadrans sport et écran
 
 ## Navires (passerelle)
 
-- [ ] `grandyacht` — Méga-yacht "Reyes Royale"
-- [ ] `cargo` — Porte-conteneurs "Reyes Star"
+- [x] `grandyacht` — Méga-yacht "Reyes Royale" — cadran `passerelleLuxe` : Passerelle de yacht : écrans de navigation, bois
+- [x] `cargo` — Porte-conteneurs "Reyes Star" — cadran `passerelle` : Passerelle de navire : radar, carte électronique, transmetteur d’ordres
 
 ## Avions
 
-- [ ] `avion` — Avion "Colibri"
-- [ ] `chasseur` — Chasseur "Épervier"
-- [ ] `tourisme` — Avion de tourisme "Pélican"
-- [ ] `jetprive` — Jet privé "Albatros"
-- [ ] `ligne` — Long-courrier "Reyes Air"
-- [ ] `fret` — Cargo "Baleine"
-- [ ] `voltige` — Voltige "Colibri Rouge"
+- [x] `avion` — Avion "Colibri" — cadran `vintage6` : Avion ancien : instruments à lunette laiton
+- [x] `chasseur` — Chasseur "Épervier" — cadran `chasseur` : Chasseur : viseur tête haute, deux écrans
+- [x] `tourisme` — Avion de tourisme "Pélican" — cadran `six` : Avion de tourisme : les six instruments à aiguilles
+- [x] `jetprive` — Jet privé "Albatros" — cadran `verre` : Jet privé : cockpit de verre (écran de pilotage et carte)
+- [x] `ligne` — Long-courrier "Reyes Air" — cadran `ligne` : Long-courrier : six écrans, panneau du plafond
+- [x] `fret` — Cargo "Baleine" — cadran `fret` : Cargo : instruments à aiguilles et radar météo
+- [x] `voltige` — Voltige "Colibri Rouge" — cadran `voltige` : Voltige : accéléromètre, vitesse, altitude, régime
 
 ## Hélicoptères
 
-- [ ] `vautour` — Hélico de combat "Vautour"
-- [ ] `vip` — Hélico VIP "Riviera"
-- [ ] `ecureuil` — Hélico "Écureuil"
-- [ ] `titan` — Hélico-grue "Titan"
-- [ ] `helico` — Hélico "Libellule"
+- [x] `vautour` — Hélico de combat "Vautour" — cadran `combat` : Hélicoptère de combat : écrans et viseur tête haute
+- [x] `vip` — Hélico VIP "Riviera" — cadran `helicoVerre` : Hélicoptère VIP : cockpit de verre
+- [x] `ecureuil` — Hélico "Écureuil" — cadran `sixHelico` : Hélicoptère : six instruments et rotor
+- [x] `titan` — Hélico-grue "Titan" — cadran `titan` : Hélico-grue : écrans, charge au crochet
+- [x] `helico` — Hélico "Libellule" — cadran `helicoSimple` : Hélicoptère léger : instruments à aiguilles
 
 ## Soucoupe
 
-- [ ] `ovni` — OVNI "Zeta-9"
+- [x] `ovni` — OVNI "Zeta-9" — cadran `holo` : Soucoupe : affichages holographiques flottants

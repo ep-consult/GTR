@@ -55,7 +55,7 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
   echo "$ln | $(sed -n "$((ln+1))p" index.html | sed 's/^[ \t]*//')"; done
 ```
 
-**Relevé du 18 octobre — 37 747 lignes.**
+**Relevé du 18 octobre — 37 904 lignes.**
 Attention : `maj_carte` recale les numéros dans l'ordre des lignes de la table ;
 un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la main.
 
@@ -113,7 +113,7 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 35700 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
 | 35941 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
 | 36231 | **COCKPITS** — vue 1re personne au volant (`COCKPIT`, `COCKPIT_FAMILLES`, `cockpitDims`, `mkCockpitInterieur`, `ckDessiner`, `rendreCockpit`, `cameraCockpit`, `cockpitDiagnostic`, `photoCockpit`) |
-| 37612 | BOUCLE PRINCIPALE |
+| 37769 | BOUCLE PRINCIPALE |
 
 ### Ancres fines (hors bandeaux)
 
@@ -182,6 +182,7 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 35625 | `VUE1P` — vue à la 1re personne : `cameraPremiere`, `ligneDeMire`, `viseAuto1P` |
 | 9554 | `SPORTJ` — le centre sportif se joue : `sportjDemarrer`, `majSportJ`, `sportjFrapper` |
 | 8980 | `RECHARGE_ARME` — rechargements à la 1re personne : `animRecharge`, `rechPiece`, `rechRemise`, `rechAccessoire` |
+| 36640 | `CK_HAB` — cockpits V2 : `CK_TH`, `CK_CADRANS`, `ckDial`, `ckCombine`, `ckHabitacle`, `ckVolant2`, `ckMain`, `ckDeuxRoues`, `ckBateau2`, `ckAvion2`, `ckHoloOvni` |
 
 ---
 
@@ -1616,6 +1617,68 @@ la 1re personne).
   sens du volant et du guidon en marche avant ; un tableau par famille ;
   viseur du chasseur dégagé ; soucoupe ; balises ; vélo sans phare) ; liste :
   `rapport_nuit/COCKPITS.md` (`rapport_nuit/outils/cockpits_liste.js`).
+
+## Cockpits V2 (18 octobre) — `CK_HAB`, `CK_TH`, `CK_CADRANS`, `ckHabitacle`, `ckDeuxRoues`, `ckBateau2`, `ckAvion2`
+
+Demandé : « amélioration globale des cockpits et des intérieurs, véhicule par véhicule : tableau de bord propre au type,
+cadrans variés, commandes qui bougent, habitacle complet et fermé, couleurs de l'extérieur, vitres propres, la route jamais
+masquée ; moto à épurer (rétroviseurs étranges qui tenaient le cadran) ; messages hors du pare-brise ». Suivi véhicule par
+véhicule : `rapport_nuit/SUIVI_COCKPITS.md` (coché par `rapport_nuit/outils/suivi_cockpits.js`, qui lit `CK_HAB` et
+`CK_CADRANS` dans la source) ; galerie : `rapport_nuit/outils/cap_cockpits_v2.js` (devant, tête à gauche, tête à droite ;
+`VEH=`, `NUIT=1`, `GRAND=1`, `DPR=2`, `CROP=0.5,0.9`, `OFF=1.2`), captures `rapport_nuit/captures/cockpits_v2/` (avant_*, apres_*).
+- **`CK_HAB`** : pour CHAQUE clé de `VEHDEFS` le cadran (`cad`), le garnissage (`th`), le volant (`vol`), les places, la
+  console (`centre`), les options (`cage`, `ouvert`, `taximetre`, `mdt`, `bus`, `cloison`) ; `CK_CADRANS` décrit chaque cadran
+  (lu par `cockpitInfo`, le catalogue, le suivi). Une clé ajoutée à `VEHDEFS` doit y entrer : le test « Cockpits V2 » échoue sinon.
+- **Garnissages** (`CK_TH`) : planche, insert, portières, sièges, pavillon, tapis, diodes d'ambiance ; `'peinture'` = la
+  couleur de la caisse (`couleurCaisseCk`, peinture du garage comprise), `'bois'`, `'carbone'` (textures dessinées par hachage,
+  aucun `Math.random`), `'alu'`, `'rouille'`. Matériaux en cache (`ckM`), jamais ceux de `mat()`.
+- **La cabine** (`ckHabitacle`, voitures, camions, bus) : planche extrudée (dessus, lèvre, face), combiné qui avance sous une
+  casquette en arc, aérateurs, console centrale (écran `ctr_*`, levier, frein à main, accoudoir), boîte à gants, montants plats
+  (`poutre`), pavillon, pare-soleil, rétroviseur intérieur, portières (garniture, jonc, accoudoir, poignée, haut-parleur,
+  lève-vitres), montants B et C, rétroviseurs extérieurs à la couleur de la caisse, siège passager, banquette, plancher,
+  arceaux (derby, buggy, monster) ; bus : allée, sièges, barres. **La ceinture de caisse est MESURÉE** (`ckCeinture`, rayons
+  vers les portières, comme `ckToit` pour le toit) : le bas de la boîte du vitrage est souvent plus bas que la vraie ceinture,
+  la caisse dépassait alors au-dessus de la garniture (aplat de la couleur de la voiture en tournant la tête). L'œil d'une
+  voiture est à mi-hauteur de la vitre (au moins 27 cm au-dessus de la ceinture) : à 62 %, il frôlait le toit et la portière
+  sortait du champ.
+- **Pavillon** : matériau `'ciel'` (Lambert à lueur propre) — vu d'en dessous, il ne recevait que la lumière du sol (brun
+  foncé) ; sa lueur suit le jour (`ckLumieres`).
+- **Conducteur à gauche** (le trafic roule à droite) : voitures, camions, bus, avions à deux places ; la jeep, le cabriolet
+  (siège et volant extérieurs) et les silhouettes des conducteurs (`majChauffeur`) aussi. Hélicos (pilote à droite) et bateaux
+  (barre à tribord) inchangés. **Repère** : en regardant vers +z, la droite de l'écran est le −x du véhicule.
+- **Combinés** : `ckCombine` (512 × 192, types `cmb_<cad>`), `ckEcranCentre` (`ctr_*`), `ckDeuxRouesAff` (`m2_*`),
+  `ckBateauAff` (`bt_*`), `ckAvionAff` (`av_*`, `ckSixPack`), `ckHeliAff` (`hl_*`), `ckHoloAff` (`holo_*`), taximètre, terminal
+  de police, diodes du volant de l'Enzo ; aiguillés par `ckDessinerV2` en tête de `ckDessiner`. Bibliothèque : `ckDial`
+  (lunette chrome / or / laiton / néon, graduations, zone rouge, aiguille, reflet), `ckLCD`, `ckSeg`, `ckTFT`, `ckArc`, `ckJauge`,
+  `ckVoyant`. **Pas de `shadowBlur` par trait ni par diode** (cher sur iPhone) : un disque translucide autour. **Un afficheur
+  par image, à tour de rôle** (`C.affI`) : le redessin ne fait plus un pic de plusieurs millisecondes.
+- **Volants** (`ckVolant2`) : moderne, utilitaire, luxe (jante bois et cuir), vintage (bakélite, branches chromées), muscle
+  (branches ajourées), `nardi` (jante bois : Agent Gris, cabriolet — `bois` est la barre à rayons des bateaux), Enzo (rectangle,
+  écran et diodes), hyper et Bolide (méplat), derby (baquet), bus ; leviers du bulldozer (`u.leviers` dans `majCockpit`).
+- **Mains V2** : un gant qui serre (dos de la main face au conducteur, quatre doigts autour de la jante, jointures, pouce
+  couché sur l'intérieur), géométrie fusionnée et partagée (`geoMainCk`) ; **bras en deux segments plié au coude**
+  (`majBrasCockpit`, `CK_BRAS`, épaules `C.epG`/`C.epD`). Une poignée verticale (manche, manette) tourne le groupe de la main
+  de π/2 en z.
+- **Motos** (`ckDeuxRoues`) : guidon, poignées, leviers et maîtres-cylindres, commodos, embouts, té de fourche ; rétroviseurs
+  sur tige depuis les leviers, tête au bout du guidon (route, sportive, chopper ; le cross n'en a pas) ; compteur rond chromé
+  dans la tête de fourche à la couleur de la moto, écran sous la bulle (sportive), compteur chromé (chopper), plaque et écran
+  de rallye (cross), capot et écran (jet-ski), petit compteur (vélo ; pas le BMX). En portrait le champ ne fait que ±20° : la
+  tête des rétroviseurs est au bord de l'écran.
+- **Bateaux** (`ckBateau2`) : console extrudée, panneau incliné (**reculé** : sa face avant cachait les écrans posés au même
+  endroit), écrans par bateau, compas sous dôme, radio VHF, sondeur, manettes, transmetteur d'ordres (cargo).
+- **Avions** (`ckAvion2`) : planche à casquette, parois, montants, plafond et panneau du plafond (long-courrier, cargo), siège
+  du copilote ; écran de pilotage EN FACE du pilote (sinon il glisse à l'écran dans le virage : test « Cockpit de
+  l'hélicoptère »), carte côté cabine. Hélicos : la cabine fermée d'avant (`ckCabineHelico`) fusionnée avec les pièces fixes.
+- **Soucoupe** : affichages holographiques (`ckHoloOvni` : radar qui tourne, vitesse, altitude ; mélange additif) à la place
+  du cadran d'altitude et de la jauge. **Char** : épiscopes, couvercle relevé, mitrailleuse, manomètres en laiton.
+- **Performances** : pièces fixes fusionnées par matériau (`ckFusionner` : cabine, guidon, volant) — 25 objets dessinés en
+  moyenne au cockpit, 34 au plus (police) ; les hélicos passent de 65 à ~27. Mesuré : 16 à 34 appels de rendu (la ville : ~2 700).
+- **Messages au cockpit** (`body.ck1P`, posée par `cameraCockpit`, retirée par `cockpitRetirer`) : la pile de notifications
+  passe en haut à gauche (146 px, sous les jauges, dans la bande du pavillon), plus petite, alignée à gauche ; un texte flottant
+  né sur le véhicule (`spawnTexte` : « +250 $ », figures…, un sprite de 5 m à un mètre de l'œil) va dans la pile
+  (`ckTexte1P`, une ligne qui se remplace).
+- Tests : « Cockpits V2 » (les 80 clés, cabine fermée en tournant la tête, rétroviseurs de moto, conducteur à gauche,
+  messages, textes flottants, plafond d'objets) ; « Cockpits » relit ses attentes dans `CK_HAB`.
 
 ## Lance à eau V2 (17 octobre au soir) — `majLanceEau`, `JET_EAU`
 
