@@ -35785,12 +35785,16 @@ function jourNuit(dt){
   }
   for(const m of matsBatiments) m.emissiveIntensity=f*0.95;
   const gl=q().glow?f:0;
-  { const vis=gl>0.001; for(const l of lampes){ l.material.opacity=gl*0.8; if(l.visible!==vis) l.visible=vis; } } /* r128 dessine un sprite à opacité 0 : le jour, ~180 appels de rendu pour rien */
+  /* au cockpit (17 octobre au soir, signalé : « trop d'effets de lumière, des paillettes de toutes les couleurs sur le pare-brise, on ne
+     voit plus rien à travers ») : les halos pensés pour la vue de dessus — phares, lampadaires — deviennent, à hauteur d'yeux, de grosses
+     taches devant la vitre. Ceux du véhicule piloté (posés sur son capot, à 3 u de l'œil) sont éteints, les autres atténués (CK_HALOS). */
+  const ck=!!COCKPIT.g, kH=ck?CK_HALOS:1;
+  { const vis=gl>0.001; for(const l of lampes){ l.material.opacity=gl*0.8*kH; if(l.visible!==vis) l.visible=vis; } } /* r128 dessine un sprite à opacité 0 : le jour, ~180 appels de rendu pour rien */
   lampeNuit.intensity=f*0.9;
   lampeNuit.distance=aCurio('lampe')?63:42;   // La Lampe de Mineur : halo nocturne 50 % plus large
   lampeNuit.position.set(P.x,7,P.z);
   for(const v of vehicules){
-    const on=(v.conduit==='joueur'||v.conduit==='trafic'||v.conduit==='police')?f:0, visPh=on>0.001;
+    const on=(v.conduit==='joueur'||v.conduit==='trafic'||v.conduit==='police')?f*(ck?(v===COCKPIT.v?0:kH):1):0, visPh=on>0.001;
     for(const s of v.mesh.userData.phG){ s.material.opacity=on*0.75; if(s.visible!==visPh) s.visible=visPh; }
   }
 }
@@ -36204,7 +36208,8 @@ const _GEO_CK={}; function geoCk(n,f){ let g=_GEO_CK[n]; if(!g){ g=f(); g.userDa
 const _ckV=new THREE.Vector3(), _ckV2=new THREE.Vector3(), _ckQ=new THREE.Quaternion(), _ckQ2=new THREE.Quaternion(), _ckE=new THREE.Euler(), _ckP=new THREE.Vector3(), _ckS=new THREE.Vector3(), _ckY=new THREE.Vector3(0,1,0);
 let _MAT_VITRE_CK=null; const VITRES_CK=[0x141b26,0x0c0e12,0x1c2a3a,0x10161f,0x16202a,0x1a2a3e,0x1a2a3a,0x0a0c12,0x16233a];
 /* les vitres peintes en sombre et opaques (avions, bateaux, engins de l'aéroport) laissent voir dehors le temps du cockpit */
-function cockpitVitrer(g){ if(!_MAT_VITRE_CK) _MAT_VITRE_CK=new THREE.MeshPhongMaterial({color:0x7a9ac0,specular:0xffffff,shininess:90,transparent:true,opacity:0.28,side:THREE.DoubleSide,depthWrite:false});
+const CK_HALOS=0.3; /* au cockpit : part des halos (phares des autres, lampadaires) gardée */
+function cockpitVitrer(g){ if(!_MAT_VITRE_CK) _MAT_VITRE_CK=new THREE.MeshBasicMaterial({color:0x8fb0cc,transparent:true,opacity:0.12,side:THREE.DoubleSide,depthWrite:false}); /* verre vu de l'intérieur : sans reflet (avant : Phong brillant à 28 %, soleil et néons y allumaient des points de toutes les couleurs) */
   g.traverse((o)=>{ if(!o.isMesh||o.isSprite||!o.material||o.material.map||!o.material.color||o.material.transparent) return; if(!VITRES_CK.includes(o.material.color.getHex())) return;
     o.geometry.computeBoundingBox(); const s=o.geometry.boundingBox.getSize(_ckV2); const a=[s.x*o.scale.x,s.y*o.scale.y,s.z*o.scale.z].sort((p,q)=>q-p); if(a[0]<0.25||a[1]<0.15) return; o.userData.matCk=o.material; o.material=_MAT_VITRE_CK; }); }
 function cockpitDevitrer(g){ g.traverse((o)=>{ if(o.userData&&o.userData.matCk){ o.material=o.userData.matCk; delete o.userData.matCk; } if(o.userData&&o.userData.ckMasque){ o.visible=true; delete o.userData.ckMasque; } }); }

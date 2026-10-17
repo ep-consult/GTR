@@ -55,7 +55,7 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
   echo "$ln | $(sed -n "$((ln+1))p" index.html | sed 's/^[ \t]*//')"; done
 ```
 
-**Relevé du 18 octobre — 37 049 lignes.**
+**Relevé du 18 octobre — 37 054 lignes.**
 Attention : `maj_carte` recale les numéros dans l'ordre des lignes de la table ;
 un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la main.
 
@@ -111,9 +111,9 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 33240 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
 | 34067 | DÉBUT / FIN DE PARTIE |
 | 35602 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
-| 35839 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
-| 36128 | **COCKPITS** — vue 1re personne au volant (`COCKPIT`, `COCKPIT_FAMILLES`, `cockpitDims`, `mkCockpitInterieur`, `ckDessiner`, `rendreCockpit`, `cameraCockpit`, `cockpitDiagnostic`, `photoCockpit`) |
-| 36914 | BOUCLE PRINCIPALE |
+| 35843 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
+| 36132 | **COCKPITS** — vue 1re personne au volant (`COCKPIT`, `COCKPIT_FAMILLES`, `cockpitDims`, `mkCockpitInterieur`, `ckDessiner`, `rendreCockpit`, `cameraCockpit`, `cockpitDiagnostic`, `photoCockpit`) |
+| 36919 | BOUCLE PRINCIPALE |
 
 ### Ancres fines (hors bandeaux)
 
@@ -1841,6 +1841,27 @@ dans la montagne ». Juste avant `percuterAnimal` (animation de rue).
   piste et ne reviennent qu'hors de vue : le pilote simulé du défi supercross
   percutait un motard et s'écrasait sur sa moto couchée.
 - Test : « Motards ».
+
+## Reflets au cockpit (17 octobre au soir) — `CK_HALOS`, verre mat `_MAT_VITRE_CK`
+
+Signalé : « trop d'effets de lumière (paillettes de toutes les couleurs) sur le
+pare-brise, on ne voit plus rien à travers ; dans tous les véhicules ».
+Relevé de nuit au cockpit (vraie boucle) : les halos pensés pour la vue de
+dessus deviennent, à hauteur d'yeux, des taches devant la vitre — ceux des
+phares du véhicule piloté sont posés sur son capot, à 3 u de l'œil (voile
+laiteux), ceux des autres véhicules et des lampadaires font les points de
+couleur. Et les vitres sombres rendues transparentes au cockpit
+(`cockpitVitrer`) étaient un Phong brillant à 28 % (soleil et néons y
+allumaient des points).
+- `jourNuit` : au cockpit (`COCKPIT.g`), halos des phares du véhicule piloté
+  éteints, ceux des autres véhicules et des lampadaires (`lampes`) ×`CK_HALOS`
+  (0,3). Hors du cockpit, rien ne change.
+- `_MAT_VITRE_CK` : `MeshBasicMaterial` teinté à 12 %, sans reflet.
+- Les balises étaient déjà cachées par les murs au cockpit (`majBalises`) — une
+  capture qui n'appelle pas la boucle les montre encore : toujours capturer
+  avec `tick`.
+- Test : « Reflets au cockpit » (voiture, avion, bateau, hélico lus dans
+  `VEHDEFS`, de nuit ; l'ancienne version y échoue sur les quatre points).
 
 ## Retours de playtest du 16 octobre — véhicules et conduite
 

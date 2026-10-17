@@ -13867,6 +13867,46 @@ async function main() {
       });
       if (r.off) saute('Motards : DECOR_V2 désactivé'); else if (r.ko.length) fail('Motards : ' + r.ko.join(' ; ')); else ok('Motards : ' + r.info.join(' ; '));
     }
+    // -------------------------------------------------------------------
+    // Reflets au cockpit (17 octobre au soir, signalé : « trop d'effets de
+    // lumière, des paillettes de toutes les couleurs sur le pare-brise, on ne
+    // voit plus rien à travers »). Vraie boucle, de nuit, dans une voiture, un
+    // avion, un bateau et un hélico (premiers de chaque famille lus dans
+    // VEHDEFS) : aucun halo à moins de 12 u de l'œil, les halos des autres
+    // atténués, les vitres vues de l'intérieur sans reflet ; en sortant, les
+    // phares se rallument (vue classique).
+    // -------------------------------------------------------------------
+    console.log('\n--- Reflets au cockpit : pas de halo devant l’œil, vitres sans reflet ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = []; let T = dernierT + 1000;
+        const cle = (f) => Object.keys(VEHDEFS).find(f);
+        const cles = [cle((k) => VEHDEFS[k].profil && !VEHDEFS[k].air && !VEHDEFS[k].eau), cle((k) => VEHDEFS[k].air === 'avion'), cle((k) => VEHDEFS[k].eau && !VEHDEFS[k].surf && !VEHDEFS[k].pagaie && !VEHDEFS[k].cargo), cle((k) => VEHDEFS[k].air === 'helico' && !VEHDEFS[k].ovni)].filter(Boolean);
+        for (const c of cles) {
+          if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); META.vue = 'fps'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9;
+          const d = VEHDEFS[c], x = d.eau ? 40 : POIS.place.x, z = d.eau ? MER + 30 : POIS.place.z + 12, v = creerVehicule(c, x, z, Math.PI, null); P.x = v.x; P.z = v.z; entrerVehicule(v);
+          if (d.air) { v.vol = true; v.alt = 30; v.mesh.position.y = 30; v.v = d.air === 'avion' ? 34 : 0; }
+          for (let i = 0; i < 40; i++) { T += 1000 / 30; ETAT.jour = 130; tick(T); }
+          if (!COCKPIT.g) { ko.push(c + ' : pas de cockpit'); continue; }
+          camera.updateMatrixWorld(); let pres = 0, propres = 0, autresMax = 0;
+          scene.traverseVisible((o) => { if (!o.isSprite || !o.material || o.material.map !== texGlow || o.material.opacity < 0.02) return; const p = o.getWorldPosition(new THREE.Vector3()); if (camera.position.distanceTo(p) < 12) pres++; });
+          for (const s of v.mesh.userData.phG || []) if (s.visible && s.material.opacity > 0.01) propres++;
+          for (const o of vehicules) if (o !== v) for (const s of o.mesh.userData.phG || []) if (s.visible) autresMax = Math.max(autresMax, s.material.opacity);
+          if (propres) ko.push(c + ' : ses propres phares brillent devant l’œil');
+          if (pres) ko.push(c + ' : ' + pres + ' halo(s) à moins de 12 u de l’œil');
+          if (autresMax > 0.75 * CK_HALOS + 0.01) ko.push(c + ' : halos des autres véhicules non atténués (' + autresMax.toFixed(2) + ')');
+          let brillant = 0; v.mesh.traverse((o) => { if (o.isMesh && o.visible && o.material && ckEstVitre(o.material) && o.material.side === THREE.DoubleSide && (o.material.isMeshPhongMaterial || o.material.isMeshStandardMaterial)) brillant++; });
+          if (brillant) ko.push(c + ' : ' + brillant + ' vitre(s) brillante(s) vue(s) de l’intérieur');
+          META.vue = 'classique'; for (let i = 0; i < 5; i++) { T += 1000 / 30; ETAT.jour = 130; tick(T); } /* hors du cockpit, au volant : les phares se rallument */
+          if (!d.velo && (v.mesh.userData.phG || []).length && !d.air && !d.eau && !v.mesh.userData.phG.some((s) => s.visible && s.material.opacity > 0.1)) ko.push(c + ' : hors du cockpit, les phares ne se rallument pas');
+          sortirVehicule(true);
+          info.push(c);
+        }
+        META.vue = 'classique'; ETAT.jour = 50; majCamera(1 / 30);
+        return { ko, info: [info.join(', ') + ' : rien devant l’œil, halos atténués, vitres mates'] };
+      });
+      if (r.ko.length) fail('Reflets au cockpit : ' + r.ko.join(' ; ')); else ok('Reflets au cockpit : ' + r.info.join(' ; '));
+    }
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];
