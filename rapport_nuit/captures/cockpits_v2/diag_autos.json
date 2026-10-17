@@ -1,0 +1,803 @@
+{
+ "citadine": {
+  "nom": "Citadine",
+  "nbObj": 40,
+  "nbMat": 26,
+  "ok": true,
+  "fam": "auto",
+  "style": "classique",
+  "approx": false,
+  "eye": {
+   "x": 0.38,
+   "y": 1.22,
+   "z": -0.32
+  },
+  "haut": 1.57,
+  "dansXZ": true,
+  "dansY": true,
+  "libre": true,
+  "devant": "rien",
+  "instrVu": true,
+  "nb": 40,
+  "affs": [
+   "cmb_moderne",
+   "ctr_media"
+  ]
+ },
+ "muscle": {
+  "nom": "Muscle \"Rafale\"",
+  "nbObj": 40,
+  "nbMat": 23,
+  "ok": true,
+  "fam": "auto",
+  "style": "sport",
+  "approx": false,
+  "eye": {
+   "x": 0.4,
+   "y": 1.06,
+   "z": -0.09
+  },
+  "haut": 1.75,
+  "dansXZ": true,
+  "dansY": true,
+  "libre": true,
+  "devant": "rien",
+  "instrVu": true,
+  "nb": 40,
+  "affs": [
+   "cmb_muscle",
+   "ctr_radioK7"
+  ]
+ },
+ "van": {
+  "nom": "Fourgon",
+  "nbObj": 35,
+  "nbMat": 24,
+  "ok": true,
+  "fam": "auto",
+  "style": "classique",
+  "approx": false,
+  "eye": {
+   "x": 0.42,
+   "y": 1.62,
+   "z": 1.27
+  },
+  "haut": 2.29,
+  "dansXZ": true,
+  "dansY": true,
+  "libre": true,
+  "devant": "rien",
+  "instrVu": true,
+  "nb": 35,
+  "affs": [
+   "cmb_utilitaire",
+   "ctr_radio"
+  ]
+ },
+ "police": {
+  "nom": "Interceptor",
+  "nbObj": 41,
+  "nbMat": 27,
+  "ok": true,
+  "fam": "auto",
+  "style": "classique",
+  "approx": false,
+  "eye": {
+   "x": 0.39,
+   "y": 1.06,
+   "z": -0.12
+  },
+  "haut": 1.43,
+  "dansXZ": true,
+  "dansY": true,
+  "libre": true,
+  "devant": "rien",
+  "instrVu": true,
+  "nb": 41,
+  "affs": [
+   "cmb_police",
+   "ctr_radioPolice",
+   "mdt"
+  ]
+ },
+ "gangcar": {
+  "nom": "Berline Viper",
+  "nbObj": 41,
+  "nbMat": 27,
+  "ok": true,
+  "fam": "auto",
+  "style": "classique",
+  "approx": false,
+  "eye": {
+   "x": 0.39,
+   "y": 1.11,
+   "z": -0.09
+  },
+  "haut": 1.41,
+  "dansXZ": true,
+  "dansY": true,
+  "libre": true,
+  "devant": "rien",
+  "instrVu": true,
+  "nb": 41,
+  "affs": [
+   "cmb_neon",
+   "ctr_media"
+  ]
+ },
+ "sport": {
+  "nom": "Supercar \"Éclipse\"",
+  "nbObj": 41,
+  "nbMat": 27,
+  "ok": true,
+  "fam": "auto",
+  "style": "sport",
+  "approx": false,
+  "eye": {
+   "x": 0.38,
+   "y": 1.04,
+   "z": -0.19
+  },
+  "haut": 1.23,
+  "dansXZ": true,
+  "dansY": true,
+  "libre": true,
+  "devant": "rien",
+  "instrVu": true,
+  "nb": 41,
+  "affs": [
+   "cmb_sport",
+   "ctr_media"
+  ]
+ },
+ "taxi": {
+  "nom": "Taxi",
+  "nbObj": 41,
+  "nbMat": 27,
+  "ok": true,
+  "fam": "auto",
+  "style": "classique",
+  "approx": false,
+  "eye": {
+   "x": 0.38,
+   "y": 1.06,
+   "z": -0.17
+  },
+  "haut": 1.57,
+  "dansXZ": true,
+  "dansY": true,
+  "libre": true,
+  "devant": "rien",
+  "instrVu": true,
+  "nb": 41,
+  "affs": [
+   "cmb_taxi",
+   "ctr_gps",
+   "taximetre"
+  ]
+ },
+ "pickup": {
+  "nom": "Pickup",
+  "nbObj": 42,
+  "nbMat": 28,
+  "ok": true,
+  "fam": "auto",
+  "style": "raptor",
+  "approx": false,
+  "eye": {
+   "x": 0.42,
+   "y": 1.89,
+   "z": -0.03
+  },
+  "haut": 2.29,
+  "dansXZ": true,
+  "dansY": true,
+  "libre": true,
+  "devant": "rien",
+  "instrVu": true,
+  "nb": 42,
+  "affs": [
+   "raptor",
+   "raptorEcran"
+  ]
+ },
+ "buggy": {
+  "nom": "Buggy des dunes",
+  "nbObj": 31,
+  "nbMat": 21,
+  "ok": true,
+  "fam": "auto",
+  "style": "tt",
+  "approx": true,
+  "eye": {
+   "x": 0.39,
+   "y": 1.17,
+   "z": -0.54
+  },
+  "haut": 1.53,
+  "dansXZ": true,
+  "dansY": true,
+  "libre": true,
+  "devant": "rien",
+  "instrVu": true,
+  "nb": 31,
+  "affs": [
+   "cmb_rallyeLCD",
+   "ctr_interrupteurs"
+  ]
+ },
+ "berline": {
+  "nom": "Berline",
+  "nbObj": 41,
+  "nbMat": 25,
+  "ok": true,
+  "fam": "auto",
+  "style": "classique",
+  "approx": false,
+  "eye": {
+   "x": 0.39,
+   "y": 1.17,
+   "z": -0.09
+  },
+  "haut": 1.49,
+  "dansXZ": true,
+  "dansY": true,
+  "libre": true,
+  "devant": "rien",
+  "instrVu": true,
+  "nb": 41,
+  "affs": [
+   "cmb_elegant",
+   "ctr_gps"
+  ]
+ },
+ "jeepMil": {
+  "nom": "Jeep militaire \"Guépard\"",
+  "nbObj": 30,
+  "nbMat": 20,
+  "ok": true,
+  "fam": "auto",
+  "style": "tt",
+  "approx": false,
+  "eye": {
+   "x": 0.46,
+   "y": 2.12,
+   "z": -0.38
+  },
+  "haut": 2.74,
+  "dansXZ": true,
+  "dansY": true,
+  "libre": true,
+  "devant": "rien",
+  "instrVu": true,
+  "nb": 30,
+  "affs": [
+   "cmb_militaire",
+   "ctr_radioMil"
+  ]
+ },
+ "mirage": {
+  "nom": "Supercar \"Mirage\"",
+  "nbObj": 41,
+  "nbMat": 27,
+  "ok": true,
+  "fam": "auto",
+  "style": "sport",
+  "approx": false,
+  "eye": {
+   "x": 0.38,
+   "y": 1.06,
+   "z": -0.19
+  },
+  "haut": 1.25,
+  "dansXZ": true,
+  "dansY": true,
+  "libre": true,
+  "devant": "rien",
+  "instrVu": true,
+  "nb": 41,
+  "affs": [
+   "cmb_numerique",
+   "ctr_media"
+  ]
+ },
+ "buggyCanon": {
+  "nom": "Buggy-canon \"Sirocco\"",
+  "nbObj": 31,
+  "nbMat": 21,
+  "ok": true,
+  "fam": "auto",
+  "style": "tt",
+  "approx": true,
+  "eye": {
+   "x": 0.38,
+   "y": 1.34,
+   "z": -0.56
+  },
+  "haut": 1.75,
+  "dansXZ": true,
+  "dansY": true,
+  "libre": true,
+  "devant": "rien",
+  "instrVu": true,
+  "nb": 31,
+  "affs": [
+   "cmb_canon",
+   "ctr_canon"
+  ]
+ },
+ "scarabee": {
+  "nom": "Buggy \"Scarabée\"",
+  "nbObj": 29,
+  "nbMat": 16,
+  "ok": true,
+  "fam": "auto",
+  "style": "tt",
+  "approx": true,
+  "eye": {
+   "x": 0.39,
+   "y": 1.42,
+   "z": -0.54
+  },
+  "haut": 1.53,
+  "dansXZ": true,
+  "dansY": true,
+  "libre": true,
+  "devant": "#f2f4f8 à 0.78",
+  "instrVu": true,
+  "nb": 29,
+  "affs": [
+   "cmb_vw"
+  ]
+ },
+ "amphibie": {
+  "nom": "4x4 Amphibie \"Loutre\"",
+  "nbObj": 35,
+  "nbMat": 25,
+  "ok": true,
+  "fam": "auto",
+  "style": "tt",
+  "approx": true,
+  "eye": {
+   "x": 0.42,
+   "y": 1.51,
+   "z": -0.36
+  },
+  "haut": 1.97,
+  "dansXZ": true,
+  "dansY": true,
+  "libre": true,
+  "devant": "rien",
+  "instrVu": true,
+  "nb": 35,
+  "affs": [
+   "cmb_amphibie",
+   "ctr_sonar"
+  ]
+ },
+ "bond": {
+  "nom": "GT \"Agent Gris\"",
+  "nbObj": 42,
+  "nbMat": 23,
+  "ok": true,
+  "fam": "auto",
+  "style": "sport",
+  "approx": false,
+  "eye": {
+   "x": 0.29,
+   "y": 1.12,
+   "z": -0.18
+  },
+  "haut": 1.34,
+  "dansXZ": true,
+  "dansY": true,
+  "libre": true,
+  "devant": "#c7ccd2 à 0.85",
+  "instrVu": true,
+  "nb": 42,
+  "affs": [
+   "cmb_chrome",
+   "ctr_gadgets"
+  ]
+ },
+ "baronne": {
+  "nom": "Ancienne \"Baronne\"",
+  "nbObj": 35,
+  "nbMat": 22,
+  "ok": true,
+  "fam": "auto",
+  "style": "classique",
+  "approx": false,
+  "eye": {
+   "x": 0.4,
+   "y": 1.3,
+   "z": -0.49
+  },
+  "haut": 1.67,
+  "dansXZ": true,
+  "dansY": true,
+  "libre": true,
+  "devant": "rien",
+  "instrVu": true,
+  "nb": 35,
+  "affs": [
+   "cmb_baronne",
+   "ctr_radioVintage"
+  ]
+ },
+ "jeep": {
+  "nom": "4x4 \"Coyote\"",
+  "nbObj": 31,
+  "nbMat": 21,
+  "ok": true,
+  "fam": "auto",
+  "style": "tt",
+  "approx": false,
+  "eye": {
+   "x": 0.42,
+   "y": 2.12,
+   "z": -0.35
+  },
+  "haut": 2.74,
+  "dansXZ": true,
+  "dansY": true,
+  "libre": true,
+  "devant": "rien",
+  "instrVu": true,
+  "nb": 31,
+  "affs": [
+   "cmb_tt",
+   "ctr_tt"
+  ]
+ },
+ "monstertruck": {
+  "nom": "Monster Truck",
+  "nbObj": 37,
+  "nbMat": 27,
+  "ok": true,
+  "fam": "auto",
+  "style": "tt",
+  "approx": false,
+  "eye": {
+   "x": 0.42,
+   "y": 3.39,
+   "z": -0.03
+  },
+  "haut": 3.84,
+  "dansXZ": true,
+  "dansY": true,
+  "libre": true,
+  "devant": "rien",
+  "instrVu": true,
+  "nb": 37,
+  "affs": [
+   "cmb_monster",
+   "ctr_interrupteurs"
+  ]
+ },
+ "depotCitadine": {
+  "nom": "La Citadine",
+  "nbObj": 40,
+  "nbMat": 26,
+  "ok": true,
+  "fam": "auto",
+  "style": "classique",
+  "approx": false,
+  "eye": {
+   "x": 0.38,
+   "y": 1.22,
+   "z": -0.32
+  },
+  "haut": 1.57,
+  "dansXZ": true,
+  "dansY": true,
+  "libre": true,
+  "devant": "rien",
+  "instrVu": true,
+  "nb": 40,
+  "affs": [
+   "cmb_moderne",
+   "ctr_media"
+  ]
+ },
+ "depotPickup": {
+  "nom": "Le Pick-up",
+  "nbObj": 42,
+  "nbMat": 28,
+  "ok": true,
+  "fam": "auto",
+  "style": "raptor",
+  "approx": false,
+  "eye": {
+   "x": 0.42,
+   "y": 1.89,
+   "z": -0.03
+  },
+  "haut": 2.29,
+  "dansXZ": true,
+  "dansY": true,
+  "libre": true,
+  "devant": "rien",
+  "instrVu": true,
+  "nb": 42,
+  "affs": [
+   "raptor",
+   "raptorEcran"
+  ]
+ },
+ "depotBolide": {
+  "nom": "Le Bolide",
+  "nbObj": 41,
+  "nbMat": 27,
+  "ok": true,
+  "fam": "auto",
+  "style": "sport",
+  "approx": false,
+  "eye": {
+   "x": 0.38,
+   "y": 1.04,
+   "z": -0.19
+  },
+  "haut": 1.23,
+  "dansXZ": true,
+  "dansY": true,
+  "libre": true,
+  "devant": "rien",
+  "instrVu": true,
+  "nb": 41,
+  "affs": [
+   "cmb_sport",
+   "ctr_media"
+  ]
+ },
+ "limousine": {
+  "nom": "Limousine \"Majesté\"",
+  "nbObj": 41,
+  "nbMat": 25,
+  "ok": true,
+  "fam": "auto",
+  "style": "classique",
+  "approx": false,
+  "eye": {
+   "x": 0.4,
+   "y": 1.21,
+   "z": 0.77
+  },
+  "haut": 1.53,
+  "dansXZ": true,
+  "dansY": true,
+  "libre": true,
+  "devant": "rien",
+  "instrVu": true,
+  "nb": 41,
+  "affs": [
+   "cmb_luxe",
+   "ctr_horloge"
+  ]
+ },
+ "suvLuxe": {
+  "nom": "SUV de luxe \"Sierra\"",
+  "nbObj": 41,
+  "nbMat": 25,
+  "ok": true,
+  "fam": "auto",
+  "style": "classique",
+  "approx": false,
+  "eye": {
+   "x": 0.41,
+   "y": 1.59,
+   "z": -0.01
+  },
+  "haut": 2.06,
+  "dansXZ": true,
+  "dansY": true,
+  "libre": true,
+  "devant": "rien",
+  "instrVu": true,
+  "nb": 41,
+  "affs": [
+   "cmb_luxeNum",
+   "ctr_gps"
+  ]
+ },
+ "cabriolet": {
+  "nom": "Cabriolet \"Azur\"",
+  "nbObj": 38,
+  "nbMat": 19,
+  "ok": true,
+  "fam": "auto",
+  "style": "sport",
+  "approx": false,
+  "eye": {
+   "x": 0.42,
+   "y": 1.58,
+   "z": -0.25
+  },
+  "haut": 1.59,
+  "dansXZ": true,
+  "dansY": true,
+  "libre": true,
+  "devant": "rien",
+  "instrVu": true,
+  "nb": 38,
+  "affs": [
+   "cmb_retro",
+   "ctr_radioVintage"
+  ]
+ },
+ "charger": {
+  "nom": "Muscle \"Taureau\"",
+  "nbObj": 40,
+  "nbMat": 23,
+  "ok": true,
+  "fam": "auto",
+  "style": "sport",
+  "approx": false,
+  "eye": {
+   "x": 0.4,
+   "y": 1.22,
+   "z": -0.38
+  },
+  "haut": 1.46,
+  "dansXZ": true,
+  "dansY": true,
+  "libre": true,
+  "devant": "rien",
+  "instrVu": true,
+  "nb": 40,
+  "affs": [
+   "cmb_rallye",
+   "ctr_radioK7"
+  ]
+ },
+ "hyper": {
+  "nom": "Hypercar \"Zénith\"",
+  "nbObj": 39,
+  "nbMat": 24,
+  "ok": true,
+  "fam": "auto",
+  "style": "sport",
+  "approx": false,
+  "eye": {
+   "x": 0.4,
+   "y": 1,
+   "z": -0.11
+  },
+  "haut": 1.4,
+  "dansXZ": true,
+  "dansY": true,
+  "libre": true,
+  "devant": "#ff7a1a à 1.68",
+  "instrVu": true,
+  "nb": 39,
+  "affs": [
+   "cmb_hyper",
+   "ctr_hyper"
+  ]
+ },
+ "bolide": {
+  "nom": "Bellatti \"Bolide\"",
+  "nbObj": 35,
+  "nbMat": 22,
+  "ok": true,
+  "fam": "auto",
+  "style": "sport",
+  "approx": false,
+  "eye": {
+   "x": 0.4,
+   "y": 1.06,
+   "z": -0.25
+  },
+  "haut": 1.25,
+  "dansXZ": true,
+  "dansY": true,
+  "libre": true,
+  "devant": "rien",
+  "instrVu": true,
+  "nb": 35,
+  "affs": [
+   "cmb_bolide",
+   "ctr_bolide"
+  ]
+ },
+ "enzo": {
+  "nom": "Ferroni \"Enzo\"",
+  "nbObj": 41,
+  "nbMat": 26,
+  "ok": true,
+  "fam": "auto",
+  "style": "sport",
+  "approx": false,
+  "eye": {
+   "x": 0.4,
+   "y": 1.02,
+   "z": 0.01
+  },
+  "haut": 1.19,
+  "dansXZ": true,
+  "dansY": true,
+  "libre": true,
+  "devant": "rien",
+  "instrVu": true,
+  "nb": 41,
+  "affs": [
+   "cmb_enzo",
+   "volEnzo"
+  ]
+ },
+ "derbyBreak": {
+  "nom": "Break « Corbillard »",
+  "nbObj": 31,
+  "nbMat": 20,
+  "ok": true,
+  "fam": "auto",
+  "style": "classique",
+  "approx": false,
+  "eye": {
+   "x": 0.39,
+   "y": 1.17,
+   "z": -0.09
+  },
+  "haut": 1.49,
+  "dansXZ": true,
+  "dansY": true,
+  "libre": true,
+  "devant": "rien",
+  "instrVu": true,
+  "nb": 31,
+  "affs": [
+   "cmb_derby",
+   "ctr_interrupteurs"
+  ]
+ },
+ "derbyCompacte": {
+  "nom": "Citadine « Savonnette »",
+  "nbObj": 30,
+  "nbMat": 19,
+  "ok": true,
+  "fam": "auto",
+  "style": "classique",
+  "approx": false,
+  "eye": {
+   "x": 0.38,
+   "y": 1.22,
+   "z": -0.32
+  },
+  "haut": 1.57,
+  "dansXZ": true,
+  "dansY": true,
+  "libre": true,
+  "devant": "rien",
+  "instrVu": true,
+  "nb": 30,
+  "affs": [
+   "cmb_derby",
+   "ctr_interrupteurs"
+  ]
+ },
+ "derbyPickup": {
+  "nom": "Pick-up « Bétaillère »",
+  "nbObj": 31,
+  "nbMat": 20,
+  "ok": true,
+  "fam": "auto",
+  "style": "classique",
+  "approx": false,
+  "eye": {
+   "x": 0.42,
+   "y": 1.89,
+   "z": -0.03
+  },
+  "haut": 2.29,
+  "dansXZ": true,
+  "dansY": true,
+  "libre": true,
+  "devant": "rien",
+  "instrVu": true,
+  "nb": 31,
+  "affs": [
+   "cmb_derby",
+   "ctr_interrupteurs"
+  ]
+ }
+}

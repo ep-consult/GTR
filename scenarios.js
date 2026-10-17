@@ -13225,12 +13225,15 @@ async function main() {
           if (R ? !(p1.z < p0.z - 0.002) : !(p1.x > p0.x + 0.15)) ko.push(k + ' : ' + (R ? 'virage à droite, la poignée droite ne revient pas vers le pilote' : 'virage à droite, le haut du volant ne part pas à droite (' + p0.x.toFixed(2) + ' → ' + p1.x.toFixed(2) + ')'));
           INPUT.mx = 0; INPUT.mz = 0; }
         info.push('volant et guidon dans le sens du virage');
-        // 3. un tableau par famille (une voiture n'a pas l'affichage d'un avion), la vedette rapide a un volant sport, le vélo n'a pas d'écran
+        // 3. un tableau par véhicule (une voiture n'a pas l'affichage d'un avion) : voitures, camions, bus et deux-roues lisent leur
+        //    combiné dans CK_HAB (cockpits V2, 18 octobre) ; la vedette rapide a un volant sport ; le vélo a son petit compteur
         const affs = (k) => { monter(k, !!VEHDEFS[k].air); return COCKPIT.affs.map((a) => a.type).join(','); };
-        const attendus = { citadine: 'auto', taxi: 'auto', pickup: 'raptor', sport: 'sport', jeep: 'tt', busville: 'camion', moto: 'lcd', bateau: 'bateau', grandyacht: 'radar', avion: 'six', helico: 'sixHelico', chasseur: 'hud', ovni: 'ovniBoutons', char: 'char' };
+        const attenduV2 = (k) => { const f = ckFamille({ def: VEHDEFS[k], key: k }), c = CK_HAB[k] && CK_HAB[k].cad; if (f === 'auto' || f === 'camion') return c === 'raptor' ? 'raptor' : 'cmb_' + c; if (f === 'moto' || f === 'jetski' || f === 'velo') return c === 'aucun' ? null : 'm2_' + c; return undefined; };
+        const attendus = { bateau: 'bateau', grandyacht: 'radar', avion: 'six', helico: 'sixHelico', chasseur: 'hud', ovni: 'ovniBoutons', char: 'char' };
+        for (const k of ['citadine', 'taxi', 'pickup', 'sport', 'jeep', 'busville', 'moto', 'motoS', 'fantome', 'motocross']) { const t = affs(k), a = attenduV2(k); if (!a || !t.split(',').includes(a)) ko.push(k + ' : tableau « ' + t + ' » au lieu de ' + a); }
         for (const k in attendus) { const t = affs(k); if (!t.split(',').includes(attendus[k])) ko.push(k + ' : tableau « ' + t + ' » au lieu de ' + attendus[k]); }
         if (ckStyle({ def: VEHDEFS.bateau, key: 'bateau' }, 'bateau') !== 'bateauSport') ko.push('la vedette rapide n’a pas un volant sport');
-        { const t = affs('velo'); if (t !== '') ko.push('vélo : un écran (' + t + ')'); }
+        { const t = affs('velo'); if (t !== 'm2_compteurVelo') ko.push('vélo : « ' + t + ' » au lieu de son petit compteur'); }
         // 4. chasseur : manche entre les jambes, viseur tête haute que rien ne cache
         { monter('chasseur', true); const C = COCKPIT, hud = []; C.g.traverse((o) => { if (o.isMesh && CK_AFF.hud && o.material === CK_AFF.hud.mat) hud.push(o); });
           if (!C.volant || !C.volant.userData.manche) ko.push('chasseur : pas de manche');

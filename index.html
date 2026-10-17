@@ -285,6 +285,13 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
    plus jamais rien en dessous. */
 .notif.gros{font-size:15px;font-weight:900;font-style:italic;text-transform:uppercase;
   letter-spacing:.03em;padding:9px 20px;border-left-color:var(--jaune)}
+/* Au volant en vue 1re personne (body.ck1P, posée par cameraCockpit, retirée par cockpitRetirer) : la pile passe en haut à gauche,
+   sous les jauges, dans la bande du pavillon — jamais au milieu du pare-brise (18 octobre) ; plus petite, alignée à gauche. Les
+   textes flottants nés sur le véhicule (+250 $, figures…) y passent aussi (ckTexte1P), sur une ligne qui se remplace. */
+body.ck1P #notifStack{top:calc(env(safe-area-inset-top,0px) + 146px);left:10px;transform:none;align-items:flex-start;width:min(246px,63vw)}
+body.ck1P .notif{font-size:11.5px;padding:5px 11px;text-align:left;max-width:min(246px,63vw);border-radius:8px}
+body.ck1P .notif.gros{font-size:12.5px;padding:6px 12px}
+.notif.pts{font-style:italic;font-weight:900;letter-spacing:.02em;border-left-color:#ffffff55}
 
 /* ====== ÉCRANS ====== */
 .screen{position:fixed;inset:0;z-index:70; /* au-dessus de tous les panneaux de jeu (établi, boutique, derby, tour : 40 à 60) : la pause et l'écran de mort passaient dessous (nuit du 16 octobre) */display:none;flex-direction:column;align-items:center;
@@ -15119,7 +15126,7 @@ function jeepCarrosserie(corps,coul,L,W,bodyY){
   for(const s of [-1,1]){ corps.add(mkBoxG(0.46,0.14,0.46,0x14161c,s*W*0.24,bodyY+0.3,-L*0.08));
     const d=mkBoxG(0.46,0.62,0.12,0x14161c,s*W*0.24,bodyY+0.6,-L*0.16); d.rotation.x=-0.15; corps.add(d); }
   corps.add(mkBoxG(0.46,0.14,0.42,0x14161c,0,bodyY+0.3,-L*0.36));
-  const vol=new THREE.Mesh(new THREE.TorusGeometry(0.17,0.035,4,10),mat(0x14161c)); vol.position.set(-W*0.24,bodyY+0.62,zTub1-0.25); vol.rotation.x=-1.0; corps.add(vol);
+  const vol=new THREE.Mesh(new THREE.TorusGeometry(0.17,0.035,4,10),mat(0x14161c)); vol.position.set(W*0.24,bodyY+0.62,zTub1-0.25); /* le conducteur à gauche (18 octobre) */ vol.rotation.x=-1.0; corps.add(vol);
   // arceau de sécurité + rampe de phares
   const yA=bodyY+0.31, hA=0.95, zA=-L*0.24;
   for(const s of [-1,1]){ barreG(corps,[s*W*0.42,yA,zA],[s*W*0.4,yA+hA,zA],0.09,noir);
@@ -15746,7 +15753,7 @@ function makeVoitureBase(key){
       corps.add(mkBoxG(W*0.94,0.2,0.16,0x9aa0a8,0,bodyY-0.22,L/2*0.98));             // pare-chocs avant, chromé et marqué
       corps.add(mkBoxG(W*0.94,0.2,0.16,0x9aa0a8,0,bodyY-0.22,-L/2*0.98));            // pare-chocs arrière, chromé
       corps.add(mkBoxG(W*0.68,0.08,0.1,0xe8ecf2,0,bodyY+0.72,L*0.5-cabL*0.55));      // barre de toit à leds
-    } else if(def.jeep){ jeepCarrosserie(corps,coul,L,W,bodyY); ud.siege={assis:true,x:-W*0.22,y:bodyY-0.5,z:-L*0.06}; // à ciel ouvert : le conducteur se voit
+    } else if(def.jeep){ jeepCarrosserie(corps,coul,L,W,bodyY); ud.siege={assis:true,x:W*0.22,y:bodyY-0.5,z:-L*0.06}; // à ciel ouvert : le conducteur se voit
       if(def.mitrailleuse){ // jeep militaire : arceau, caisses de munitions, affût de mitrailleuse qui pivote (ud.tourelle)
         for(const s of [-1,1]) corps.add(mkBoxG(0.5,0.3,0.6,0x3a4228,s*W*0.3,bodyY+0.46,-L*0.36));
         const tj=new THREE.Group(); tj.position.set(0,bodyY+1.0,-L*0.18);
@@ -16408,7 +16415,7 @@ function geoVoiture(k){
     for(const sx of [-1,1]){ barre('sombre',0.06,0.08,sx*W*0.39,P.caisse,zPb,P.toit,zAv); bx('peinture',0.14,P.caisse-plancher,cockAv-cockAr,sx*(hb-0.07),(P.caisse+plancher)/2,(cockAv+cockAr)/2); }
     bx('sombre',W*0.8,0.22,0.36,0,P.caisse-0.08,cockAv-0.16);
     const zs=cockAv-0.75; for(const sx of [-0.42,0.42]){ bx('cuir',0.5,0.16,0.55,sx,plancher+0.1,zs); bx('cuir',0.5,0.62,0.14,sx,plancher+0.42,zs-0.3,-0.18); bx('cuir',0.3,0.16,0.1,sx,plancher+0.82,zs-0.36,-0.18); }
-    ajout('sombre',new THREE.TorusGeometry(0.17,0.03,6,14),-0.42,P.caisse+0.04,cockAv-0.42,-1.0);
+    ajout('sombre',new THREE.TorusGeometry(0.17,0.03,6,14),0.42,P.caisse+0.04,cockAv-0.42,-1.0); /* volant à gauche (18 octobre) */
     if(cockAr<zs-0.7) for(const sx of [-0.4,0.4]) bx('cuir',0.6,0.4,0.4,sx,plancher+0.2,(cockAr+zs-0.5)/2);
   }
   // 3. face avant : optiques, calandre, bouclier, plaque ; face arrière : feux, diffuseur, plaque, échappements
@@ -16501,7 +16508,7 @@ function voitureV2(def,coul,g,ud,corps,key){
   for(const sx of [-1,1]){ const s=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:0xffe9b0,transparent:true,depthWrite:false,opacity:0})); s.scale.set(3.2,3.2,1); s.position.set(sx*W*0.3,P.nez,L/2+0.5); corps.add(s); ud.phG.push(s); }
   if(P.police){ const zb=L*(P.zAv+P.zAr)/2+0.1, br=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.12,0.24),new THREE.MeshBasicMaterial({color:0xff3b4b})), bb=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.12,0.24),new THREE.MeshBasicMaterial({color:0x3a7bff}));
     br.position.set(-0.32,P.toit+0.15,zb); bb.position.set(0.32,P.toit+0.15,zb); corps.add(br); corps.add(bb); ud.bar=[br,bb]; }
-  if(P.ouvert){ const zPb=L*P.zPb; ud.siege={assis:true,x:-0.42,y:P.garde+0.5+0.18-0.6,z:zPb-0.12-0.7}; } // le conducteur du cabriolet se voit, assis au volant
+  if(P.ouvert){ const zPb=L*P.zPb; ud.siege={assis:true,x:0.42,y:P.garde+0.5+0.18-0.6,z:zPb-0.12-0.7}; } // le conducteur du cabriolet se voit, assis au volant
   if(P.volet){ // aileron actif (Bellatti) : à plat dans la malle, il se lève à haute vitesse et se cabre en aérofrein (majVolet)
     if(!_GEO_VOIT[k+'_volet']){ const pl=new THREE.BoxGeometry(W*0.86,0.05,0.42), j=mergeGeoManuel([new THREE.BoxGeometry(0.06,0.36,0.12).translate(-0.5,-0.18,0.04),new THREE.BoxGeometry(0.06,0.36,0.12).translate(0.5,-0.18,0.04)]);
       pl.translate(0,0.025,0); pl.userData.partagee=true; j.userData.partagee=true; _GEO_VOIT[k+'_volet']={pl,j}; }
@@ -16818,6 +16825,7 @@ for(let i=0;i<12;i++){
 }
 let txtCursor=0;
 function spawnTexte(x,y,z,txt,coul,k){
+  if(COCKPIT.g&&P.veh&&COCKPIT.v===P.veh){ const v=P.veh, r=Math.max(4.5,(v.def.long||4)*0.65); if(dist2(x,z,v.x,v.z)<r*r&&Math.abs(y-((v.def.air?(v.alt||0):(v.h||0))+1.5))<5){ ckTexte1P(txt,coul); return; } } /* au cockpit : jamais en plein pare-brise (18 octobre) */
   const T=textes[txtCursor++%12];
   const g=T.cv.getContext('2d');
   g.clearRect(0,0,256,64);
@@ -20764,7 +20772,7 @@ function majChauffeur(v){
       h.g.position.set(sg.x,sg.y,sg.z); h.jambeG.rotation.x=h.jambeD.rotation.x=-1.45; h.brasG.rotation.x=h.brasD.rotation.x=-1.15; v.mesh.add(h.g); ud.chauffeur=h.g; }
     else if(v.def.profil&&PROFILS_VOITURE[v.def.profil]&&!PROFILS_VOITURE[v.def.profil].ouvert){ const Pf=PROFILS_VOITURE[v.def.profil];
       if(!_GEO_BUSTE){ const tor=new THREE.BoxGeometry(0.44,0.42,0.3); tor.translate(0,0.21,0); const tete=new THREE.SphereGeometry(0.15,8,6); tete.translate(0,0.6,0.02); _GEO_BUSTE=mergeGeoManuel([tor,tete]); _GEO_BUSTE.userData.partagee=true; }
-      const b=new THREE.Mesh(_GEO_BUSTE,mat(pick([0x2a3a5a,0xc8a878,0x3a3e46,0xf2f4f8,0x7a3a3a]))); b.position.set(-Pf.W*0.2,Pf.caisse-0.18,Pf.L*Pf.zAv-0.35); (ud.corps||v.mesh).add(b); ud.chauffeur=b; }
+      const b=new THREE.Mesh(_GEO_BUSTE,mat(pick([0x2a3a5a,0xc8a878,0x3a3e46,0xf2f4f8,0x7a3a3a]))); b.position.set(Pf.W*0.2,Pf.caisse-0.18,Pf.L*Pf.zAv-0.35); (ud.corps||v.mesh).add(b); ud.chauffeur=b; }
     else return; }
   if(ud.chauffeur.visible!==ia) ud.chauffeur.visible=ia;
 }
@@ -36252,7 +36260,7 @@ const COCKPIT={g:null,v:null,fam:null,style:null,eye:null,cab:null,approx:false,
 const COCKPIT_DEFS={
   char:{fam:'char',eye:{x:0.5,y:3.4,z:-0.55}},            /* debout dans l'écoutille du tourelleau */
   fantome:{dy:0.1,dz:-0.3},                                /* chopper : le pilote est loin derrière le phare et sa carène */
-  bulldozer:{fam:'camion',dx:0.3},                         /* la cheminée est dans l'axe du siège gauche */
+  bulldozer:{fam:'camion',dx:-0.3},                         /* la cheminée est dans l'axe du siège gauche */
   ovni:{fam:'ovni',eye:{x:0,y:1.85,z:0}},                  /* au centre de la soucoupe, sous le dôme, au-dessus de l'anneau de la coque (plus bas, on voyait l'anneau de l'intérieur : une bande noire sur l'horizon) */
   chasseur:{dy:0.12},                                      /* un peu plus haut : le nez descend sous le viseur tête haute */
   grue:{fam:'camion'},
@@ -36345,11 +36353,11 @@ function cockpitDims(v){ const g=v.mesh, d=v.def, k=v.key, L=d.long, W=d.larg, f
     else if(P){ cab={w:W*0.9,y0:P.caisse,y1:P.toit,zA:L*P.zPb,zR:L*P.zLu}; }
     else { approx=true; cab={w:W*0.86,y0:hC*0.55,y1:hC*0.98,zA:L*0.15,zR:-L*0.25}; }
     cab.zAt=P?L*P.zAv:(fam==='camion'?cab.zA-0.12:cab.zA-(cab.y1-cab.y0)*0.9); cab.ouvert=!!(P&&P.ouvert)||!!d.jeep;
-    const h=cab.y1-cab.y0, xC=-Math.min(0.42,cab.w*0.24);
-    if(fam==='auto') eye={x:xC,y:Math.min(cab.y1-0.02,cab.y0+Math.max(h*0.62,0.3)),z:Math.max(cab.zR+0.25,cab.zA-1.05)}; /* au moins 30 cm au-dessus de la ceinture */
+    const h=cab.y1-cab.y0, xC=Math.min(0.42,cab.w*0.24); /* à gauche : le trafic roule à droite (18 octobre ; avant, à droite, à l'anglaise) */
+    if(fam==='auto') eye={x:xC,y:Math.min(cab.y1-0.02,cab.y0+Math.max(h*0.5,0.27)),z:Math.max(cab.zR+0.25,cab.zA-1.05)}; /* à mi-hauteur de la vitre, au moins 27 cm au-dessus de la ceinture (18 octobre : 62 %, l'œil frôlait le toit et la portière sortait du champ quand on tourne la tête) */
     else if(fam==='camion') eye={x:xC,y:cab.y0+h*0.55,z:Math.max(cab.zR+0.3,cab.zA-1.15)};
     else if(fam==='helico') eye={x:cab.w>1.7?-0.36:0,y:cab.y0+h*0.5,z:cab.zR+(cab.zA-cab.zR)*0.42};
-    else if(fam==='avion') eye={x:cab.w>1.5?-0.36:0,y:cab.y0+h*0.86,z:cab.zA-Math.min(1.3,(cab.zA-cab.zR)*0.62)}; /* au ras du haut de la verrière : en dessous, c'est le fuselage */
+    else if(fam==='avion') eye={x:cab.w>1.5?0.36:0,y:cab.y0+h*0.86,z:cab.zA-Math.min(1.3,(cab.zA-cab.zR)*0.62)}; /* au ras du haut de la verrière : en dessous, c'est le fuselage */
     else eye={x:0,y:hC*0.6,z:0}; /* char, soucoupe : corrigés par COCKPIT_DEFS */
     if(sg&&sg.assis&&(fam==='auto'||fam==='camion')){ eye={x:sg.x||0,y:clamp(sg.y+1.32,cab.y0+0.25,cab.y1+0.35),z:(sg.z||0)-0.12}; approx=false; } /* assis à ciel ouvert : à la hauteur des yeux du pilote assis */
   } else if(fam==='moto'||fam==='jetski'){ if(sg){ eye={x:0,y:sg.y+(fam==='jetski'?0.9:(d.cross?1.15:1.05)),z:sg.z+(fam==='jetski'?0.15:(d.cross?-0.05:0.05))}; } else { approx=true; eye={x:0,y:hC+0.45,z:-L*0.05}; } } /* le pilote du jeu garde sa taille debout */
@@ -36361,14 +36369,6 @@ function cockpitDims(v){ const g=v.mesh, d=v.def, k=v.key, L=d.long, W=d.larg, f
     if(vitOk&&fam==='bateau'){ const hv=vit.max.y-vit.min.y; if(hv>0.6||vit.max.x-vit.min.x>1.2){ eye={x:-0.3,y:vit.min.y+hv*0.55,z:(vit.min.z+vit.max.z)/2-0.15}; } else { eye.z=Math.min(eye.z,vit.max.z-0.6); eye.y=Math.max(eye.y,vit.min.y+hv*0.5); } } }
   if(o.eye) eye=Object.assign({},o.eye); if(o.dy) eye.y+=o.dy; if(o.dz) eye.z+=o.dz; if(o.dx) eye.x+=o.dx;
   return {fam,cab,eye,approx,corps}; }
-/* ---------- mains : un gant qui serre (paume, doigts enroulés, pouce), l'avant-bras jusqu'à l'épaule, recalculé à chaque image ---------- */
-function ckMain(Gp,x,y,z,ep,S,manche,Gb){ const m=new THREE.Group(); m.position.set(x,y,z); Gp.add(m);
-  m.add(new THREE.Mesh(geoCk('paume',()=>{ const g=new THREE.SphereGeometry(0.046,12,9); g.scale(1.05,0.82,1.2); return g; }),S.gant));
-  const d=new THREE.Mesh(geoCk('doigts',()=>{ const g=new THREE.CylinderGeometry(0.021,0.021,0.08,10); g.rotateZ(Math.PI/2); return g; }),S.gant2); d.position.set(0,0.006,0.03); m.add(d);
-  const p=new THREE.Mesh(geoCk('pouce',()=>{ const g=new THREE.SphereGeometry(0.017,8,6); g.scale(1,1,1.6); return g; }),S.gant2); p.position.set(0,0.036,-0.006); m.add(p);
-  const ab=new THREE.Mesh(geoCk('bras',()=>new THREE.CylinderGeometry(0.03,0.038,1,10)),manche); (Gb||Gp).add(ab); COCKPIT.bras.push({poing:m,arm:ab,ep:ep.clone(),G:Gb||Gp}); return m; }
-function majBrasCockpit(){ for(const b of COCKPIT.bras){ b.poing.getWorldPosition(_ckV); b.G.worldToLocal(_ckV); const Lb=_ckV.distanceTo(b.ep); if(Lb<1e-3) continue;
-  b.arm.position.copy(_ckV).lerp(b.ep,0.5); b.arm.scale.set(1,Lb,1); _ckV2.copy(b.ep).sub(_ckV).normalize(); b.arm.quaternion.setFromUnitVectors(_ckY,_ckV2); } }
 function ckManche(S){ const c=coifCouleurs().haut; if(!S.manches[c]) S.manches[c]=new THREE.MeshLambertMaterial({color:c}); return S.manches[c]; }
 /* ---------- volants, guidons, manches ---------- */
 /* volant : la jante dans le plan XY du groupe, son axe vers le conducteur ; rotation.z > 0 = braquer à droite (le haut de la jante part à droite de l'écran) */
@@ -36472,6 +36472,7 @@ const _ckRond=(x,p)=>Math.ceil(x/p)*p;
 function ckDessiner(a,v,V){ const g=a.ctx, W=a.w, H=a.h, d=v.def, T=ETAT.runT, nuit=typeof ETAT.jour==='number'&&(ETAT.jour<30||ETAT.jour>140);
   const etat=(x,y,w)=>{ ckTexte(g,'ÉTAT',x,y,12,'#8fa0b4','left'); ckBarre(g,x,y+10,w,8,V.hp,V.hp<0.3?'#ff3b3b':(V.hp<0.6?'#ffb23a':'#3aff7a')); };
   const voyants=(x,y)=>{ ckLampe(g,x,y,6,!!v.freinIn,'#ff3b3b'); ckLampe(g,x+18,y,6,!!(v.nitroT>0||v.nitroOn),'#35e0ff'); ckLampe(g,x+36,y,6,V.hp<0.3&&Math.floor(T*4)%2===0,'#ffb23a'); ckLampe(g,x+54,y,6,nuit,'#3aff7a'); ckLampe(g,x+72,y,6,!!v.sirene,'#3a7bff'); };
+  if(ckDessinerV2(a,v,V)){ a.tex.needsUpdate=true; return; } /* cockpits V2 (18 octobre) */
   switch(a.type){
     case 'auto': ckFond(g,W,H,'#08090c'); { const mk=_ckRond(d.vmax*3.6,40); ckCadran(g,72,74,66,V.kmh,mk,mk>200?mk/20:mk/10,'km/h'); ckCadran(g,312,74,66,V.tr/1000,8,8,'tr/min ×1000','#ff6a2e',0.8); }
       ckTexte(g,V.rap,192,52,40,'#ffd23f'); etat(150,92,84); voyants(156,128); break;
@@ -36597,42 +36598,13 @@ function mkCockpitInterieur(v,D){ const S=matsCockpit(), G=new THREE.Group(), e=
   const barre=(m,r,a,b)=>{ const o=new THREE.Mesh(new THREE.CylinderGeometry(r,r,1,8),m); o.position.copy(a).lerp(b,0.5); o.scale.set(1,a.distanceTo(b),1); o.quaternion.setFromUnitVectors(_ckY,_ckV2.copy(b).sub(a).normalize()); G.add(o); return o; }; /* tube d'un point à l'autre, repère du véhicule */
   /* afficheur posé face au conducteur ; inclin > 0 : le haut part vers l'avant */
   const ecran=(type,w,h,larg,haut,dx,dy,dz,inclin,transp,par)=>{ const a=ckAffichage(type,w,h,transp); const o=new THREE.Mesh(new THREE.PlaneGeometry(larg,haut),a.mat); o.rotation.set(-(inclin||0),Math.PI,0,'YXZ'); if(par){ o.position.set(dx,dy,dz); par.add(o); } else pose(o,dx,dy,dz); if(!C.affs.includes(a)) C.affs.push(a); return o; };
-  const epG=Lp(-0.2,-0.62,0.08), epD=Lp(0.2,-0.62,0.08); /* là où l'avant-bras sort par le bas de l'écran (vers l'épaule) : plus près de l'œil, il remplissait la vue */
-  if(fam==='auto'||fam==='camion'){
-    /* angles en portrait (champ vertical ±38°, horizontal ±20°) : haut de la planche à ~9° sous l'horizon, compteurs vers 15°, haut de la jante vers 20° */
-    const cam=fam==='camion', rap=st==='raptor', w=Math.max(1.3,c?c.w:1.5), dash=st==='sport'?S.carbone:(rap?S.raptor:S.plast), ouvert=c&&c.ouvert;
-    const yT=cam?-0.15:-0.125, zF=cam?0.84:0.78; /* haut de la planche, sa face vers le conducteur */
-    const pl=new THREE.Mesh(new THREE.BoxGeometry(w,0.9,0.46),dash); pl.position.set(0,e.y+yT-0.45,e.z+zF+0.23); G.add(pl); /* planche sur toute la largeur, centrée sur la voiture */
-    if(rap){ const et=new THREE.Mesh(new THREE.BoxGeometry(w,0.05,0.34),dash); et.position.set(0,e.y+yT+0.025,e.z+zF+0.2); G.add(et); /* deuxième étage de la planche : massive, le capot du pick-up dans son prolongement */
-      const ps=new THREE.Mesh(new THREE.BoxGeometry(w-0.12,0.007,0.007),S.orangeR); ps.position.set(0,e.y+yT+0.002,e.z+zF-0.004); G.add(ps); /* surpiqûre orange le long de la planche */
-      boite(dash,0.5,0.17,0.15,0,yT-0.03,zF-0.06); boite(dash,0.53,0.032,0.2,0,yT+0.065,zF-0.07); /* gros bloc d'instruments et sa casquette épaisse */
-      C.instr=ecran('raptor',384,144,0.37,0.139,0,yT-0.035,zF-0.14,0.1); }
-    else { boite(dash,0.4,0.14,0.13,0,yT-0.045,zF-0.055); boite(dash,0.42,0.022,0.17,0,yT+0.03,zF-0.06); /* bloc d'instruments et sa casquette, à peine au-dessus de la planche */
-      C.instr=ecran(cam?'camion':(st==='classique'?'auto':st),384,144,0.31,0.116,0,yT-0.05,zF-0.125,0.1); }
-    const toit=!ouvert&&c?ckToit(v,e):null; /* mesuré sur le modèle : le dessous de son toit, peint, se voyait derrière un pavillon trop court ; sans toit vu de l'intérieur (cabriolet), ni pavillon ni montants */
-    if(toit){ const yP=Math.max(e.y+0.08,toit.y-0.015), zP=Math.min(toit.z+0.04,e.z+1.2), xa=c.w/2-0.06;
-      const pav=new THREE.Mesh(new THREE.BoxGeometry(w,0.03,zP-e.z+0.3),S.pavillon); pav.position.set(0,yP,(zP+e.z-0.3)/2); G.add(pav); /* pavillon */
-      for(const s of [-1,1]){ const xv=s*xa, a=new THREE.Vector3(xv,e.y+yT+0.01,e.z+zF+0.08), b=new THREE.Vector3(xv*0.94,yP,zP); barre(S.plast2,rap?0.045:0.03,a,b);
-        if(rap){ const a2=a.clone().lerp(b,0.3), b2=a.clone().lerp(b,0.75), dIn=-Math.sign(xv)*0.07; a2.x+=dIn; b2.x+=dIn; a2.z-=0.05; b2.z-=0.05; barre(S.noir,0.016,a2,b2); barre(S.noir,0.012,a2,a2.clone().setX(a2.x-dIn)); barre(S.noir,0.012,b2,b2.clone().setX(b2.x-dIn)); } } } /* montants du pare-brise (épais sur le Raptor, une poignée de maintien sur chacun) */
-    if(Math.abs(e.x)>=0.3){ const cons=new THREE.Mesh(new THREE.BoxGeometry(0.28,0.16,0.5),dash); cons.position.set(0,e.y+yT-0.2,e.z+zF-0.2); G.add(cons); /* console centrale, au milieu de la voiture (pas quand le siège est au milieu : bulldozer, elle cachait le volant) */
-      if(rap){ const ec=ckAffichage('raptorEcran',192,256); const eo=new THREE.Mesh(new THREE.PlaneGeometry(0.24,0.32),ec.mat); eo.rotation.set(-0.18,Math.PI,0,'YXZ'); eo.position.set(0,e.y+yT-0.13,e.z+zF-0.015); G.add(eo); if(!C.affs.includes(ec)) C.affs.push(ec); /* grand écran central vertical */
-        const cad=new THREE.Mesh(new THREE.BoxGeometry(0.27,0.35,0.03),dash); cad.rotation.copy(eo.rotation); cad.position.set(0,e.y+yT-0.13,e.z+zF+0.005); G.add(cad); }
-      else { const ec=ckAffichage('ecran',192,160); const eo=new THREE.Mesh(new THREE.PlaneGeometry(0.2,0.165),ec.mat); eo.rotation.set(-0.25,Math.PI,0,'YXZ'); eo.position.set(0,e.y+yT-0.06,e.z+zF-0.005); G.add(eo); if(!C.affs.includes(ec)) C.affs.push(ec); } }
-    if(st==='tt'){ const pg=new THREE.Mesh(new THREE.CylinderGeometry(0.014,0.014,0.34,8),S.chrome); pg.rotation.z=Math.PI/2; pg.position.set(e.x*0.2,e.y+yT+0.03,e.z+zF-0.04); G.add(pg); } /* poignée de maintien du passager */
-    const vol=new THREE.Group(); pose(vol,0,cam||rap?-0.42:-0.4,cam?0.56:0.6); vol.rotation.x=cam?0.95:0.45; /* le haut de la jante penche vers l'avant ; couché sur un camion */
-    const R=cam?0.21:(rap?0.185:0.17), roue=ckVolant(S,cam?'camion':st,R); vol.add(roue); C.volant=roue;
-    const col=new THREE.Mesh(new THREE.CylinderGeometry(0.024,0.03,0.3,10),S.plast); col.rotation.x=Math.PI/2; col.position.z=0.16; vol.add(col);
-    for(const s of [1,-1]){ const a=s*0.95, m=ckMain(roue,s*Math.sin(Math.abs(a))*R,Math.cos(a)*R,-0.012,s>0?epG:epD,S,manche,G); m.rotation.z=-a; } /* mains à 10 h et 2 h : elles tournent avec la jante */
+  const epG=Lp(-0.21,-0.33,-0.06), epD=Lp(0.21,-0.33,-0.06); C.epG=epG; C.epD=epD; /* les épaules (18 octobre : le bras est plié au coude, majBrasCockpit) */
+  if(fam==='auto'||fam==='camion'){ ckHabitacle(G,S,v,D,ckHab(v)); /* cockpits V2 (18 octobre) : la cabine fermée, son combiné, son volant */
   } else if(fam==='char'){ /* debout dans l'écoutille : les mains sur le bord, l'écran du chef fixé devant */
     const tor=new THREE.Mesh(new THREE.TorusGeometry(0.42,0.05,8,28),S.olive); tor.rotation.x=Math.PI/2; pose(tor,0,-0.4,0);
     boite(S.plast2,0.18,0.1,0.03,0,-0.36,0.5,0.6); C.instr=ecran('char',256,112,0.15,0.066,0,-0.354,0.482,0.6);
     for(const s of [1,-1]){ const m=new THREE.Group(); pose(m,s*-0.14,-0.37,0.37); ckMain(m,0,0,0,s>0?epG:epD,S,manche,G); }
-  } else if(fam==='moto'||fam==='jetski'||fam==='velo'){
-    const velo=fam==='velo', js=fam==='jetski', sty=velo?(v.def.bmx?'bmx':'velo'):(js?'jetski':st), larg=js?0.6:(velo?(v.def.bmx?0.52:0.5):(st==='cross'?0.6:0.56)); /* en portrait le champ fait ±20° : un vrai guidon (0,7 m à 50 cm) sortait de l'écran, les mains avec */
-    const yB=velo?-0.46:-0.48, zB=velo?0.6:(js?0.68:0.72), gui=ckGuidon(S,sty,larg); pose(gui,0,yB,zB); C.volant=gui;
-    if(!velo){ const bt=new THREE.Mesh(new THREE.BoxGeometry(0.26,0.15,0.08),S.plast); bt.position.set(0,0.12,0.19); bt.rotation.x=0.35; gui.add(bt);
-      ecran(js?'lcdJet':(st==='cross'?'lcdCross':'lcd'),256,128,0.22,0.11,0,0.13,0.135,0.35,false,gui); C.instr=C.affs.length?gui.children[gui.children.length-1]:null; }
-    for(const s of [1,-1]) ckMain(gui,s*(larg/2-0.06),0.004,0,s>0?epG:epD,S,manche,G);
+  } else if(fam==='moto'||fam==='jetski'||fam==='velo'){ ckDeuxRoues(G,S,v,D,ckHab(v),epG,epD,manche); /* deux-roues V2 (18 octobre) */
   } else if(fam==='bateau'||fam==='passerelle'){
     const pas=fam==='passerelle', bois=st==='bois'||pas;
     boite(pas?S.plast2:S.blanc,pas?1.5:0.74,0.5,0.34,0,-0.6,0.76); boite(S.plast,pas?1.44:0.7,0.04,0.36,0,-0.33,0.74,-0.5); /* console (derrière le volant : sa colonne y entre) et son plan incliné */
@@ -36676,6 +36648,624 @@ function mkCockpitInterieur(v,D){ const S=matsCockpit(), G=new THREE.Group(), e=
   } /* debout (skate, planche) : rien à construire, le regard porte sur la planche sous les pieds */
   G.traverse((o)=>{ o.frustumCulled=false; });
   return G; }
+/* ---------- COCKPITS V2 (18 octobre 2026) — habitacles et cadrans, véhicule par véhicule ----------
+   Demandé : « amélioration globale des cockpits et des intérieurs : tableau de bord propre au type de véhicule, cadrans variés
+   (aiguilles, numériques, LCD rétro, sport fond noir et aiguille rouge, aviation, holographique pour la soucoupe, vintage
+   chromés), commandes qui bougent, habitacle complet et fermé (montants, sièges, rétroviseurs, plafond, portières), couleurs de
+   l'extérieur, vitres propres, la route jamais masquée ». Suivi : rapport_nuit/SUIVI_COCKPITS.md (les 80 clés de VEHDEFS).
+   - CK_HAB : pour chaque clé, le cadran (cad), le garnissage (th), le volant (vol) et les options ; une clé absente prend la
+     ligne de sa famille (CK_HAB_FAM) — le test « Cockpits V2 » vérifie qu'aucune clé n'y tombe.
+   - CK_TH : les garnissages (planche, insert, portières, sièges, pavillon, tapis, diodes) ; 'peinture' = la couleur de la caisse
+     (couleurCaisseCk : la peinture du garage comprise), 'bois', 'carbone', 'alu', 'rouille' : matières.
+   - ckHabitacle : la cabine fermée des voitures, camions et bus ; les pièces fixes sont fusionnées par matériau (ckFusionner). */
+const CK_HAB={
+  citadine:{cad:'moderne',th:'moderne',vol:'moderne',places:4,centre:'media'}, depotCitadine:{cad:'moderne',th:'moderne',vol:'moderne',places:4,centre:'media'},
+  berline:{cad:'elegant',th:'chic',vol:'luxe',places:4,centre:'gps'}, taxi:{cad:'taxi',th:'taxi',vol:'moderne',places:4,centre:'gps',taximetre:true},
+  police:{cad:'police',th:'police',vol:'moderne',places:4,centre:'radioPolice',mdt:true}, gangcar:{cad:'neon',th:'tuner',vol:'sport',places:4,centre:'media'},
+  van:{cad:'utilitaire',th:'utilitaire',vol:'utilitaire',places:3,centre:'radio',cloison:true},
+  muscle:{cad:'muscle',th:'muscle',vol:'muscle',places:4,centre:'radioK7'}, charger:{cad:'rallye',th:'muscle',vol:'muscle',places:4,centre:'radioK7'},
+  sport:{cad:'sport',th:'sport',vol:'sport',places:2,centre:'media'}, depotBolide:{cad:'sport',th:'sport',vol:'sport',places:2,centre:'media'},
+  mirage:{cad:'numerique',th:'mirage',vol:'sport',places:2,centre:'media'}, hyper:{cad:'hyper',th:'hyper',vol:'hyper',places:2,centre:'hyper'},
+  bolide:{cad:'bolide',th:'bolide',vol:'bolide',places:2,centre:'bolide'}, enzo:{cad:'enzo',th:'enzo',vol:'enzo',places:2,centre:'aucun'},
+  bond:{cad:'chrome',th:'gt',vol:'nardi',places:2,centre:'gadgets'}, baronne:{cad:'baronne',th:'vintage',vol:'vintage',places:4,centre:'radioVintage'},
+  limousine:{cad:'luxe',th:'chic',vol:'luxe',places:4,centre:'horloge'}, suvLuxe:{cad:'luxeNum',th:'luxe',vol:'luxe',places:4,centre:'gps'},
+  cabriolet:{cad:'retro',th:'cabriolet',vol:'nardi',places:2,centre:'radioVintage'},
+  pickup:{cad:'raptor',th:'raptor',vol:'raptor',places:4,centre:'raptor'}, depotPickup:{cad:'raptor',th:'raptor',vol:'raptor',places:4,centre:'raptor'},
+  derbyBreak:{cad:'derby',th:'derby',vol:'derby',places:1,cage:true,centre:'interrupteurs'}, derbyCompacte:{cad:'derby',th:'derby',vol:'derby',places:1,cage:true,centre:'interrupteurs'},
+  derbyPickup:{cad:'derby',th:'derby',vol:'derby',places:1,cage:true,centre:'interrupteurs'},
+  buggy:{cad:'rallyeLCD',th:'buggy',vol:'tt',places:2,cage:true,ouvert:true,centre:'interrupteurs'}, buggyCanon:{cad:'canon',th:'buggy',vol:'tt',places:2,cage:true,ouvert:true,centre:'canon'},
+  scarabee:{cad:'vw',th:'scarabee',vol:'vintage',places:2,cage:true,ouvert:true,centre:'aucun'},
+  jeep:{cad:'tt',th:'tt',vol:'tt',places:4,ouvert:true,centre:'tt'}, jeepMil:{cad:'militaire',th:'militaire',vol:'tt',places:2,ouvert:true,centre:'radioMil'},
+  amphibie:{cad:'amphibie',th:'tt',vol:'tt',places:4,centre:'sonar'}, monstertruck:{cad:'monster',th:'monster',vol:'tt',places:2,cage:true,centre:'interrupteurs'},
+  milit:{cad:'militaire',th:'militaire',vol:'camion',places:2,centre:'radioMil'}, blinde:{cad:'blinde',th:'militaire',vol:'camion',places:2,centre:'periscope'},
+  dca:{cad:'dca',th:'militaire',vol:'camion',places:2,centre:'radarDca'}, bulldozer:{cad:'engin',th:'engin',vol:'leviers',places:1,centre:'engin'},
+  grue:{cad:'grue',th:'engin',vol:'camion',places:1,centre:'grue'}, ambulance:{cad:'ambulance',th:'ambulance',vol:'utilitaire',places:2,centre:'sirene'},
+  depanneuse:{cad:'camion',th:'camion',vol:'camion',places:2,centre:'treuil'}, pompiers:{cad:'pompiers',th:'pompiers',vol:'camion',places:2,centre:'sirene'},
+  busville:{cad:'bus',th:'bus',vol:'bus',bus:true,centre:'billetterie'}, depotBus:{cad:'bus',th:'bus',vol:'bus',bus:true,centre:'billetterie'},
+  tracteurPiste:{cad:'piste',th:'piste',vol:'utilitaire',places:1,ouvert:true,centre:'gyro'}, citerne:{cad:'piste',th:'piste',vol:'camion',places:2,centre:'gyro'},
+  escalier:{cad:'piste',th:'piste',vol:'utilitaire',places:1,centre:'gyro'}, bagagiste:{cad:'piste',th:'piste',vol:'utilitaire',places:1,ouvert:true,centre:'gyro'},
+  char:{cad:'char'},
+  moto:{cad:'motoRond'}, motoR:{cad:'motoRond'}, motoS:{cad:'tft'}, fantome:{cad:'chopper'}, motocross:{cad:'enduro'}, motoMil:{cad:'enduro'}, quad:{cad:'quad'},
+  velo:{cad:'compteurVelo'}, bmx:{cad:'aucun'}, jetski:{cad:'jetski'}, skate:{cad:'aucun'}, surf:{cad:'aucun'}, kayak:{cad:'kayak'},
+  bateau:{cad:'nautique'}, yacht:{cad:'yacht'}, bateauP:{cad:'bateauPolice'}, espadon:{cad:'offshore'}, peche:{cad:'peche'},
+  grandyacht:{cad:'passerelleLuxe'}, cargo:{cad:'passerelle'},
+  avion:{cad:'vintage6'}, tourisme:{cad:'six'}, voltige:{cad:'voltige'}, jetprive:{cad:'verre'}, ligne:{cad:'ligne'}, fret:{cad:'fret'}, chasseur:{cad:'chasseur'},
+  helico:{cad:'helicoSimple'}, ecureuil:{cad:'sixHelico'}, vip:{cad:'helicoVerre'}, titan:{cad:'titan'}, vautour:{cad:'combat'}, ovni:{cad:'holo'}
+};
+const CK_HAB_FAM={auto:{cad:'moderne',th:'moderne',vol:'moderne',places:4,centre:'media'},camion:{cad:'camion',th:'camion',vol:'camion',places:2,centre:'radio'}};
+function ckHab(v){ return CK_HAB[v.key]||CK_HAB_FAM[ckFamille(v)]||{cad:'aucun'}; }
+/* ce que montre chaque cadran (lu par le catalogue, le suivi et le récapitulatif) */
+const CK_CADRANS={
+  moderne:'Deux cadrans à aiguilles, fond noir, chiffres blancs, aiguilles orange, petit écran central (rapport, compteur, essence)',
+  elegant:'Cadrans cerclés de chrome, fond anthracite, aiguilles rouges fines, écran central',
+  taxi:'Cadrans classiques et taximètre à diodes rouges posé sur la planche',
+  police:'Cadrans à fond bleu nuit, voyants de gyrophares, terminal embarqué et radio de police',
+  neon:'Cadrans au néon vert des Vipers, manomètre de turbo',
+  utilitaire:'Un grand compteur, jauges d’essence et de température, totaliseur à cristaux liquides',
+  muscle:'Années 70 : compte-tours et compteur à fond noir cerclés de chrome, rangée de trois manomètres (huile, eau, volts)',
+  rallye:'Muscle « rallye » : chiffres orange, quatre cadrans, voyant de passage',
+  sport:'Sport : fond noir, aiguille rouge, compte-tours central, vitesse en chiffres, diodes de passage',
+  numerique:'Numérique futuriste cyan : arcs lumineux, vitesse et rapport en grands chiffres',
+  hyper:'Écran plein, arcs violet et cyan, puissance et batterie',
+  bolide:'Grand compteur central à aiguille jusqu’à 500 km/h, cerclage aluminium, deux petits écrans',
+  enzo:'Compte-tours jaune au centre, vitesse numérique, diodes de passage sur le volant',
+  chrome:'Vintage britannique : cadrans crème cerclés de chrome, chiffres à empattements',
+  baronne:'Vintage art déco : cadrans ivoire, aiguilles noires, chrome',
+  luxe:'Luxe : cadrans blancs cerclés de chrome, horloge analogique au centre, bois',
+  luxeNum:'Luxe numérique : deux grands écrans côte à côte',
+  retro:'Rétro italien : cadrans crème, aiguilles noires, planche à la couleur de la caisse',
+  raptor:'Pick-up : compteur numérique orange (vitesse, rapport, 4×4, tangage, dévers), grand écran central',
+  derby:'Derby : planche dépouillée, manomètres rapportés au verre fêlé, interrupteurs',
+  rallyeLCD:'Rallye : écran à cristaux liquides, compte-tours en barres',
+  canon:'Buggy-canon : écran de visée et état du canon',
+  vw:'Un seul grand compteur rond, à l’ancienne',
+  tt:'Tout-terrain : deux cadrans et l’inclinomètre (tangage, dévers)',
+  amphibie:'Tout-terrain amphibie : cadrans, compas et profondeur',
+  monster:'Monster truck : énorme compte-tours, interrupteurs à clapet',
+  militaire:'Militaire : cadrans à fond noir sur planche kaki, inscriptions au pochoir',
+  blinde:'Blindé : écrans verts à balayage, épiscope',
+  dca:'DCA : radar de veille et cadrans militaires',
+  engin:'Engin : écran robuste, deux leviers',
+  grue:'Grue : écran de charge, cadrans',
+  ambulance:'Ambulance : cadrans et panneau des sirènes',
+  camion:'Camion : grands cadrans, manomètres d’air',
+  pompiers:'Pompiers : grands cadrans, panneau rouge des sirènes et de la pompe',
+  bus:'Bus : combiné numérique, boutons des portes, billetterie',
+  piste:'Engin de piste : écran simple, interrupteur du gyrophare',
+  char:'Char : épiscopes, cap et état du canon, manomètres en laiton',
+  motoRond:'Moto : compteur rond à aiguille cerclé de chrome et petit écran, rétroviseurs au bout du guidon',
+  tft:'Moto sportive : écran couleur (régime en arc, vitesse, rapport), rétroviseurs au bout du guidon',
+  chopper:'Chopper : compteur chromé sur le réservoir, guidon chromé',
+  enduro:'Cross : écran de rallye sur la plaque, guidon à mousse',
+  quad:'Quad : petit écran sur le guidon',
+  compteurVelo:'Vélo : petit compteur à cristaux liquides sur la potence',
+  aucun:'Rien à lire : la machine seule',
+  jetski:'Jet-ski : écran cyan (vitesse, cap)',
+  kayak:'Kayak : la pagaie et un compas de pont',
+  nautique:'Bateau : console blanche, cadrans cerclés de chrome (nœuds, régime), compas',
+  yacht:'Yacht : poste de luxe, deux écrans (carte marine, moteurs)',
+  bateauPolice:'Vedette de police : écran radar, cadrans, radio',
+  offshore:'Offshore : cadrans sport et écran',
+  peche:'Bateau de pêche : cadrans en laiton, sondeur, radio VHF',
+  passerelleLuxe:'Passerelle de yacht : écrans de navigation, bois',
+  passerelle:'Passerelle de navire : radar, carte électronique, transmetteur d’ordres',
+  vintage6:'Avion ancien : instruments à lunette laiton',
+  six:'Avion de tourisme : les six instruments à aiguilles',
+  voltige:'Voltige : accéléromètre, vitesse, altitude, régime',
+  verre:'Jet privé : cockpit de verre (écran de pilotage et carte)',
+  ligne:'Long-courrier : six écrans, panneau du plafond',
+  fret:'Cargo : instruments à aiguilles et radar météo',
+  chasseur:'Chasseur : viseur tête haute, deux écrans',
+  helicoSimple:'Hélicoptère léger : instruments à aiguilles',
+  sixHelico:'Hélicoptère : six instruments et rotor',
+  helicoVerre:'Hélicoptère VIP : cockpit de verre',
+  titan:'Hélico-grue : écrans, charge au crochet',
+  combat:'Hélicoptère de combat : écrans et viseur tête haute',
+  holo:'Soucoupe : affichages holographiques flottants'
+};
+const CK_TH={ /* pl planche, ins insert, gar portières, sg sièges, ciel pavillon (0 : à ciel ouvert), tap tapis, acc diodes d'ambiance (0 : aucune), cout surpiqûres */
+  moderne:{pl:0x1d1f24,ins:0x4a4f58,gar:0x2c2f35,sg:0x30333a,ciel:0x9a9da3,tap:0x17181b,acc:0x35c8ff},
+  taxi:{pl:0x1d1f24,ins:0x3a3e46,gar:0x2c2f35,sg:0x6a5a3a,ciel:0x9a9da3,tap:0x17181b,acc:0,cout:0xf2c21f},
+  chic:{pl:0x2b2520,ins:'bois',gar:0xb8a488,sg:0xcdb99c,ciel:0xd9d0c1,tap:0x3a2f26,acc:0xffc070,chrome:true},
+  luxe:{pl:0x1e1b19,ins:'bois',gar:0x3a2c22,sg:0x4a3326,ciel:0xcfc6b6,tap:0x231c17,acc:0xffa860,chrome:true},
+  sport:{pl:0x141518,ins:'carbone',gar:0x1b1c20,sg:0x18191c,cout:0xd0202a,ciel:0x1f2023,tap:0x111214,acc:0xff3030},
+  mirage:{pl:0x16181d,ins:'carbone',gar:0x1d2026,sg:0x22262e,cout:0x35e0ff,ciel:0x24272d,tap:0x121316,acc:0x35e0ff},
+  hyper:{pl:0x111214,ins:'carbone',gar:0x18191c,sg:0x1c1d22,cout:0x7a5aff,ciel:0x1a1b1e,tap:0x0e0f11,acc:0x8a6aff},
+  bolide:{pl:0x2a1c14,ins:'alu',gar:0x6a4630,sg:0x8a5a3a,ciel:0x3a2a20,tap:0x24170f,acc:0xffd090,chrome:true},
+  enzo:{pl:0x141518,ins:'carbone',gar:0x1b1c20,sg:0xa8141c,cout:0x111111,ciel:0x1b1c20,tap:0x111214,acc:0},
+  muscle:{pl:0x17171a,ins:'peinture',gar:0x1d1d20,sg:0x1e1c1b,ciel:0x1c1c1f,tap:0x141416,acc:0,chrome:true},
+  vintage:{pl:'peinture',ins:'bois',gar:0x5a2a2e,sg:0xd2c19c,ciel:0xd4c9ae,tap:0x3a2a20,acc:0,chrome:true},
+  gt:{pl:0x262320,ins:'bois',gar:0x3a2c22,sg:0x6a4430,ciel:0xb8b0a0,tap:0x2a2018,acc:0,chrome:true},
+  cabriolet:{pl:'peinture',ins:'bois',gar:0xd8c49a,sg:0xd9c6a0,ciel:0,tap:0x3a2a1e,acc:0,chrome:true},
+  scarabee:{pl:'peinture',ins:'peinture',gar:'peinture',sg:0x2a2826,ciel:0,tap:0x1a1918,acc:0,chrome:true},
+  tuner:{pl:0x141618,ins:'carbone',gar:0x1a1c1f,sg:0x15171a,cout:0x3aff7a,ciel:0x1c1e21,tap:0x101112,acc:0x3aff7a},
+  police:{pl:0x1b1d22,ins:0x30343b,gar:0x24272d,sg:0x23252b,ciel:0x7e8187,tap:0x15161a,acc:0x3a7bff},
+  utilitaire:{pl:0x3a3e45,ins:0x50555d,gar:0x464b52,sg:0x3e434b,ciel:0x9ea2a8,tap:0x26282c,acc:0},
+  ambulance:{pl:0x3a3e45,ins:0xd8dce2,gar:0xc8ccd2,sg:0x2a3a5a,ciel:0xdfe3e8,tap:0x26282c,acc:0},
+  raptor:{pl:0x1d1e21,ins:0x2b2d31,gar:0x232528,sg:0x26282c,cout:0xff6a10,ciel:0x5c6068,tap:0x161719,acc:0xff6a10},
+  derby:{pl:0x55595e,ins:'rouille',gar:'peinture',sg:0x1a1a1c,cout:0xffd23f,ciel:0,tap:0x3a3d40,acc:0},
+  buggy:{pl:'peinture',ins:0x2a2c30,gar:'peinture',sg:0x1a1b1e,ciel:0,tap:0x2a2b2e,acc:0},
+  tt:{pl:0x2a2c30,ins:0x3a3d42,gar:'peinture',sg:0x2c2d30,ciel:0x5a5e66,tap:0x202124,acc:0},
+  monster:{pl:0x1a1b1e,ins:'carbone',gar:0x222428,sg:0x1a1b1e,cout:0xff3b1a,ciel:0x1c1d20,tap:0x141518,acc:0xff3b1a},
+  militaire:{pl:0x4a5238,ins:0x3a4130,gar:0x4a5238,sg:0x6a6a48,ciel:0x4a5238,tap:0x2a2e22,acc:0},
+  camion:{pl:0x2c2f35,ins:0x3e434b,gar:0x383c43,sg:0x34383f,ciel:0x8a8e94,tap:0x222428,acc:0},
+  pompiers:{pl:0x2a2c31,ins:0x9a1c1c,gar:0x34373d,sg:0x2d2f34,ciel:0x8a8e94,tap:0x1e2024,acc:0},
+  bus:{pl:0x2e3238,ins:0x4a4f57,gar:0x3a3e45,sg:0x2a4a8a,ciel:0xc8ccd2,tap:0x2a2d32,acc:0},
+  piste:{pl:0x3a3d42,ins:0xffb21a,gar:0x45484e,sg:0x2f3237,ciel:0x8e9298,tap:0x26282c,acc:0},
+  engin:{pl:0x2e3034,ins:0xffc21a,gar:0x3a3c40,sg:0x2a2b2e,ciel:0x6a6e74,tap:0x202124,acc:0}
+};
+/* matériaux de l'intérieur, en cache par couleur et par sorte (jamais ceux de mat() : ils sont partagés par la ville) */
+const _MATS_CK2={};
+let _TEX_BOIS=null, _TEX_CARBONE=null;
+function ckTexMatiere(sorte){ if(sorte==='bois'&&_TEX_BOIS) return _TEX_BOIS; if(sorte==='carbone'&&_TEX_CARBONE) return _TEX_CARBONE;
+  const c=document.createElement('canvas'); c.width=c.height=128; const g=c.getContext('2d'), h=(i)=>{ const s=Math.sin(i*127.1+311.7)*43758.5453; return s-Math.floor(s); }; /* bruit par hachage : aucun Math.random */
+  if(sorte==='bois'){ g.fillStyle='#6e3f1d'; g.fillRect(0,0,128,128); for(let i=0;i<46;i++){ const y=h(i)*128, a=0.05+h(i+50)*0.12; g.strokeStyle=h(i+9)>0.5?'rgba(40,18,6,'+a+')':'rgba(160,96,48,'+a+')'; g.lineWidth=0.6+h(i+3)*2; g.beginPath(); g.moveTo(0,y); g.bezierCurveTo(40,y+(h(i+7)-0.5)*10,90,y+(h(i+8)-0.5)*10,128,y); g.stroke(); } }
+  else { for(let y=0;y<128;y+=8) for(let x=0;x<128;x+=8){ const d=((x+y)/8)%2===0; const gr=g.createLinearGradient(x,y,d?x+8:x,d?y:y+8); gr.addColorStop(0,'#101216'); gr.addColorStop(0.5,'#2c3138'); gr.addColorStop(1,'#101216'); g.fillStyle=gr; g.fillRect(x,y,8,8); } }
+  const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(sorte==='bois'?2:6,sorte==='bois'?2:6); if(sorte==='bois') _TEX_BOIS=t; else _TEX_CARBONE=t; return t; }
+function ckM(c,sorte){ const k=(sorte||'l')+'_'+c; let m=_MATS_CK2[k]; if(m) return m;
+  if(sorte==='p') m=new THREE.MeshPhongMaterial({color:c,specular:0x5a5e66,shininess:55}); /* peinture */
+  else if(sorte==='m') m=new THREE.MeshPhongMaterial({color:c,specular:0xffffff,shininess:85}); /* métal, chrome */
+  else if(sorte==='b') m=new THREE.MeshBasicMaterial({color:c}); /* lumineux */
+  else if(sorte==='ciel') m=new THREE.MeshLambertMaterial({color:c,emissive:ckTeinte(c,0.42)}); /* pavillon, montants : vus d'en dessous, ils ne recevaient que la lumière du sol (brun foncé) */
+  else if(sorte==='bois') m=new THREE.MeshPhongMaterial({color:0xffffff,map:ckTexMatiere('bois'),specular:0x3a2414,shininess:30});
+  else if(sorte==='carbone') m=new THREE.MeshPhongMaterial({color:0xffffff,map:ckTexMatiere('carbone'),specular:0x6a7282,shininess:50});
+  else m=new THREE.MeshLambertMaterial({color:c});
+  _MATS_CK2[k]=m; return m; }
+function couleurCaisseCk(v){ const ud=v.mesh&&v.mesh.userData; if(!ud) return 0x8a909a; if(ud.matPeinture) return ud.matPeinture.color.getHex(); return ud.coul!==undefined?ud.coul:0x8a909a; }
+function ckMatG(spec,coulC){ if(spec==='peinture') return ckM(coulC,'p'); if(spec==='bois') return ckM(0,'bois'); if(spec==='carbone') return ckM(0,'carbone'); if(spec==='alu') return ckM(0xb4bac2,'m'); if(spec==='rouille') return ckM(0x7a4a2a,'l'); return ckM(spec,'l'); }
+/* fusion des pièces fixes par matériau : une quinzaine d'appels de rendu par cockpit au lieu d'une centaine (perf iPhone) */
+function ckFusionner(Gs){ Gs.updateMatrixWorld(true); const par=new Map(), retires=[]; const inv=new THREE.Matrix4().copy(Gs.matrixWorld).invert(), M=new THREE.Matrix4();
+  Gs.traverse((o)=>{ if(!o.isMesh||o.isSprite||o===Gs||!o.geometry||!o.geometry.attributes.normal||Array.isArray(o.material)||o.userData.garder) return;
+    const g=o.geometry.clone(); M.multiplyMatrices(inv,o.matrixWorld); g.applyMatrix4(M); if(!g.attributes.uv){ const n=g.attributes.position.count; g.setAttribute('uv',new THREE.BufferAttribute(new Float32Array(n*2),2)); }
+    if(!par.has(o.material)) par.set(o.material,[]); par.get(o.material).push(g); retires.push(o); });
+  for(const o of retires){ if(o.parent) o.parent.remove(o); o.geometry.dispose(); }
+  for(const [m,gs] of par){ const f=new THREE.Mesh(mergeGeoManuel(gs),m); Gs.add(f); for(const g of gs) g.dispose(); } }
+/* ---------- instruments V2 : une bibliothèque de dessin (cadran à aiguille, cristaux liquides, écran couleur) ---------- */
+/* cadran à aiguille : lunette (chrome, or, laiton, noire, néon), fond en dégradé, graduations fines et chiffres, zone rouge,
+   aiguille effilée, moyeu, reflet du verre. o.a0/o.a1 : arc (par défaut de 135° à 405°, sens horaire) */
+function ckDial(g,cx,cy,r,val,max,o){ o=o||{}; const a0=o.a0!==undefined?o.a0:Math.PI*0.75, a1=o.a1!==undefined?o.a1:Math.PI*2.25, n=o.n||8, sub=o.sub||4, rg=o.rouge, lw=Math.max(2,r*(o.lunette||0.085));
+  const b=o.bord||'noir';
+  if(b==='chrome'||b==='or'||b==='laiton'){ const gr=g.createLinearGradient(cx-r,cy-r,cx+r,cy+r); const cs=b==='chrome'?['#ffffff','#8a929e','#d8dde4','#3e444c']:(b==='or'?['#fff1b8','#b8862a','#f0d070','#5a3e10']:['#f4dca0','#9a7030','#e0c070','#4a3410']);
+    gr.addColorStop(0,cs[0]); gr.addColorStop(0.42,cs[1]); gr.addColorStop(0.58,cs[2]); gr.addColorStop(1,cs[3]); g.fillStyle=gr; g.beginPath(); g.arc(cx,cy,r+lw,0,6.2832); g.fill(); }
+  else if(b==='neon'){ g.fillStyle='#050607'; g.beginPath(); g.arc(cx,cy,r+lw,0,6.2832); g.fill(); g.save(); g.shadowColor=o.neon||'#3aff7a'; g.shadowBlur=r*0.2; g.strokeStyle=o.neon||'#3aff7a'; g.lineWidth=lw*0.55; g.beginPath(); g.arc(cx,cy,r+lw*0.3,0,6.2832); g.stroke(); g.restore(); }
+  else if(b!=='aucun'){ g.fillStyle=o.bordC||'#1e2127'; g.beginPath(); g.arc(cx,cy,r+lw,0,6.2832); g.fill(); g.strokeStyle='#3a3f48'; g.lineWidth=1.2; g.stroke(); }
+  const fd=g.createRadialGradient(cx,cy-r*0.35,r*0.05,cx,cy,r); fd.addColorStop(0,o.fond2||o.fond||'#1a1c22'); fd.addColorStop(1,o.fond||'#08090c'); g.fillStyle=fd; g.beginPath(); g.arc(cx,cy,r,0,6.2832); g.fill();
+  if(rg!==undefined){ g.strokeStyle=o.rougeC||'rgba(235,38,38,0.9)'; g.lineWidth=r*0.075; g.beginPath(); g.arc(cx,cy,r*0.87,a0+(a1-a0)*rg,a1); g.stroke(); }
+  const cn=o.num||'#e8edf4', N=n*sub, fam=o.famille||'Arial'; g.textAlign='center'; g.textBaseline='middle';
+  if(o.lum){ g.save(); g.shadowColor=o.lum; g.shadowBlur=r*0.08; }
+  for(let i=0;i<=N;i++){ const t=i/N, a=a0+(a1-a0)*t, ca=Math.cos(a), sa=Math.sin(a), maj=i%sub===0, rr=rg!==undefined&&t>=rg-1e-6;
+    g.strokeStyle=rr?'#ff4a3a':cn; g.lineWidth=maj?Math.max(1.6,r*0.034):Math.max(0.8,r*0.014); const r0=maj?r*0.77:r*0.86;
+    g.beginPath(); g.moveTo(cx+ca*r0,cy+sa*r0); g.lineTo(cx+ca*r*0.94,cy+sa*r*0.94); g.stroke();
+    if(maj&&o.chiffres!==false&&(!o.pas||(i/sub)%o.pas===0)){ g.fillStyle=rr?'#ff6a5a':cn; g.font=(o.gras||'700')+' '+Math.round(r*(o.tch||0.17))+'px '+fam; g.fillText(String(Math.round(i/sub*max/n*(o.mult||1))),cx+ca*r*0.585,cy+sa*r*0.585); } }
+  if(o.lum) g.restore();
+  if(o.lib){ g.fillStyle=o.libC||'#8f9aaa'; g.font='700 '+Math.round(r*(o.tlib||0.12))+'px '+fam; g.fillText(o.lib,cx,cy+r*(o.ylib||0.42)); }
+  if(o.marque){ g.fillStyle=o.marqueC||cn; g.font='italic 700 '+Math.round(r*0.12)+'px Georgia'; g.fillText(o.marque,cx,cy-r*0.36); }
+  if(o.texte){ o.texte(g,cx,cy,r); }
+  const t=clamp(val/max,0,1), a=a0+(a1-a0)*t, ca=Math.cos(a), sa=Math.sin(a), ac=o.aig||'#ff5a1f', la=r*(o.laig||0.9), ep=r*(o.epaig||0.034);
+  g.save(); if(o.lumAig){ g.shadowColor=ac; g.shadowBlur=r*0.14; } g.fillStyle=ac; g.beginPath(); g.moveTo(cx+ca*la,cy+sa*la); g.lineTo(cx-sa*ep-ca*r*0.16,cy+ca*ep-sa*r*0.16); g.lineTo(cx+sa*ep-ca*r*0.16,cy-ca*ep-sa*r*0.16); g.closePath(); g.fill(); g.restore();
+  g.fillStyle=o.moyeu||'#22252c'; g.beginPath(); g.arc(cx,cy,r*0.085,0,6.2832); g.fill(); g.strokeStyle=o.moyeuC||'#6a707a'; g.lineWidth=1; g.stroke();
+  if(o.reflet!==false){ const rf=g.createLinearGradient(cx,cy-r,cx,cy); rf.addColorStop(0,'rgba(255,255,255,0.13)'); rf.addColorStop(1,'rgba(255,255,255,0)'); g.fillStyle=rf; g.beginPath(); g.ellipse(cx,cy-r*0.42,r*0.8,r*0.46,0,0,6.2832); g.fill(); } }
+/* cristaux liquides : un fond vert, ambre ou bleuté, les segments éteints en filigrane, le texte allumé */
+function ckLCD(g,x,y,w,h,o){ o=o||{}; const f=o.fond||'#9fb79a', s=o.ombre||'rgba(0,0,0,0.07)'; const gr=g.createLinearGradient(x,y,x,y+h); gr.addColorStop(0,f); gr.addColorStop(1,o.fond2||f); g.fillStyle=gr; g.fillRect(x,y,w,h);
+  g.strokeStyle=o.cadre||'#1a1c20'; g.lineWidth=o.lcadre||3; g.strokeRect(x+1,y+1,w-2,h-2); g.fillStyle='rgba(0,0,0,0.12)'; g.fillRect(x+3,y+3,w-6,3); }
+function ckSeg(g,txt,x,y,taille,c,al,fant){ g.font='700 '+taille+'px "Courier New",monospace'; g.textAlign=al||'right'; g.textBaseline='middle'; if(fant){ g.fillStyle=fant; g.fillText('8'.repeat(String(txt).length),x,y); } g.fillStyle=c; g.fillText(txt,x,y); }
+/* écran couleur : fond, cadre, reflet en biais */
+function ckTFT(g,x,y,w,h,o){ o=o||{}; const gr=g.createLinearGradient(x,y,x,y+h); gr.addColorStop(0,o.fond||'#0a0e16'); gr.addColorStop(1,o.fond2||'#04060a'); g.fillStyle=gr; g.fillRect(x,y,w,h); if(o.cadre!==false){ g.strokeStyle=o.cadre||'#2a2f38'; g.lineWidth=2; g.strokeRect(x+1,y+1,w-2,h-2); } }
+function ckReflet(g,x,y,w,h){ const gr=g.createLinearGradient(x,y,x+w*0.6,y+h); gr.addColorStop(0,'rgba(255,255,255,0.07)'); gr.addColorStop(0.5,'rgba(255,255,255,0.0)'); g.fillStyle=gr; g.fillRect(x,y,w,h); }
+function ckArc(g,cx,cy,r,ep,t,c,fondC,a0,a1){ a0=a0===undefined?Math.PI*0.8:a0; a1=a1===undefined?Math.PI*2.2:a1; g.lineCap='round'; g.lineWidth=ep; g.strokeStyle=fondC||'#1c2028'; g.beginPath(); g.arc(cx,cy,r,a0,a1); g.stroke(); if(t>0.002){ g.strokeStyle=c; g.beginPath(); g.arc(cx,cy,r,a0,a0+(a1-a0)*clamp(t,0,1)); g.stroke(); } g.lineCap='butt'; }
+function ckJauge(g,x,y,w,h,t,c,lib,vert){ g.fillStyle='#14171c'; g.fillRect(x,y,w,h); g.fillStyle=c; if(vert){ const hh=h*clamp(t,0,1); g.fillRect(x,y+h-hh,w,hh); } else g.fillRect(x,y,w*clamp(t,0,1),h); g.strokeStyle='#3a3f48'; g.lineWidth=1; g.strokeRect(x,y,w,h); if(lib) ckTexte(g,lib,vert?x+w/2:x,vert?y+h+9:y-8,10,'#8f9aaa',vert?'center':'left'); }
+function ckVoyant(g,x,y,r,on,c,sym){ g.save(); if(on){ g.shadowColor=c; g.shadowBlur=r*1.2; } g.fillStyle=on?c:'#1c1f24'; g.beginPath(); g.arc(x,y,r,0,6.2832); g.fill(); g.restore(); if(sym){ g.fillStyle=on?'#06080a':'#3a3f48'; g.font='900 '+Math.round(r*1.2)+'px Arial'; g.textAlign='center'; g.textBaseline='middle'; g.fillText(sym,x,y+0.5); } }
+/* les combinés V2 des voitures, camions et bus (512 × 192) et les écrans de console (256 × 192) : un style par véhicule (CK_HAB.cad) */
+function ckHeure(){ const j=ETAT.jour||0; return {h:Math.floor((j/170*24+6)%24),m:Math.floor((j/170*1440)%60)}; }
+const CK_ESS=0.74; /* l'essence (aucune jauge réelle dans le jeu) */
+function ckCombine(a,v,V){ const g=a.ctx, W=a.w, H=a.h, d=v.def, T=ETAT.runT, st=a.type.slice(4), mk=(p)=>Math.max(p*4,Math.ceil(d.vmax*3.6/p)*p), nuit=typeof ETAT.jour==='number'&&(ETAT.jour<30||ETAT.jour>140);
+  const tmp=0.45+clamp(V.tr/7000,0,1)*0.2, pr=V.hp, essence=CK_ESS-T*0.0004%0.1;
+  const voyants=(x,y,pas,c)=>{ ckVoyant(g,x,y,7,!!v.freinIn,'#ff3b3b','!'); ckVoyant(g,x+pas,y,7,!!(v.nitroT>0||v.nitroOn),'#35e0ff','N'); ckVoyant(g,x+pas*2,y,7,pr<0.3&&Math.floor(T*4)%2===0,'#ffb23a','⚠'); ckVoyant(g,x+pas*3,y,7,nuit,c||'#3aff7a','☼'); ckVoyant(g,x+pas*4,y,7,!!v.sirene,'#3a7bff','◆'); };
+  const etat=(x,y,w,c)=>{ ckTexte(g,'ÉTAT',x,y,11,'#8f9aaa','left'); ckJauge(g,x+38,y-5,w-38,9,pr,pr<0.3?'#ff3b3b':(pr<0.6?'#ffb23a':(c||'#3aff7a'))); };
+  switch(st){
+    case 'moderne': case 'taxi': { const gr=g.createLinearGradient(0,0,0,H); gr.addColorStop(0,'#101216'); gr.addColorStop(1,'#060709'); g.fillStyle=gr; g.fillRect(0,0,W,H);
+      const ac=st==='taxi'?'#ffd23f':'#ff6a1a', M=mk(20); ckDial(g,104,98,82,V.kmh,M,{n:M>=200?M/20:M/10,sub:2,pas:M>160?2:1,aig:ac,lib:'km/h',lum:'#ffffff'}); ckDial(g,408,98,82,V.tr/1000,8,{n:8,sub:2,aig:ac,rouge:0.78,lib:'tr/min ×1000'});
+      ckTFT(g,200,24,112,144,{fond:'#0b1018',fond2:'#05070b'}); ckTexte(g,V.rap,256,62,46,st==='taxi'?'#ffd23f':'#ffffff'); ckTexte(g,String(Math.round(V.kmh))+' km/h',256,98,15,'#9fd8ff');
+      ckJauge(g,214,118,84,7,essence,'#dfe6f0'); ckTexte(g,'⛽',214,136,11,'#8f9aaa','left'); ckJauge(g,214,146,84,7,tmp,tmp>0.75?'#ff3b3b':'#35c8ff'); ckTexte(g,'°C',214,163,11,'#8f9aaa','left'); etat(214,180,84);
+      voyants(16,178,22,'#3aff7a'); break; }
+    case 'elegant': { g.fillStyle='#0c0d10'; g.fillRect(0,0,W,H); const M=mk(20);
+      ckDial(g,108,98,80,V.kmh,M,{bord:'chrome',fond:'#15171b',fond2:'#2a2e35',num:'#dfe3ea',aig:'#e8242c',n:M>=200?M/20:M/10,sub:2,pas:M>160?2:1,lib:'km/h',epaig:0.025});
+      ckDial(g,404,98,80,V.tr/1000,7,{bord:'chrome',fond:'#15171b',fond2:'#2a2e35',num:'#dfe3ea',aig:'#e8242c',n:7,sub:2,rouge:0.8,lib:'×1000',epaig:0.025});
+      ckTFT(g,206,34,100,124,{fond:'#101318'}); ckTexte(g,V.rap,256,70,38,'#ffffff'); const h=ckHeure(); ckTexte(g,String(h.h).padStart(2,'0')+':'+String(h.m).padStart(2,'0'),256,108,16,'#c8d0dc'); etat(214,140,84,'#7ad0ff'); voyants(18,180,22); break; }
+    case 'police': { g.fillStyle='#05070d'; g.fillRect(0,0,W,H); const M=mk(40);
+      ckDial(g,104,98,80,V.kmh,M,{fond:'#06102a',fond2:'#10204a',num:'#e8f0ff',aig:'#ff3b3b',n:M/20,sub:2,pas:2,lib:'km/h',lum:'#7aa8ff'}); ckDial(g,408,98,80,V.tr/1000,8,{fond:'#06102a',fond2:'#10204a',num:'#e8f0ff',aig:'#ff3b3b',n:8,sub:2,rouge:0.8,lib:'×1000'});
+      ckTFT(g,200,24,112,144,{fond:'#060a14'}); ckTexte(g,'PATROUILLE',256,40,11,'#7aa8ff'); ckTexte(g,V.rap,256,74,38,'#ffffff'); const on=!!v.sirene&&Math.floor(T*6)%2===0;
+      ckVoyant(g,232,112,9,on,'#ff2a2a'); ckVoyant(g,280,112,9,!!v.sirene&&!on,'#2a6aff'); ckTexte(g,v.sirene?'GYRO ON':'GYRO OFF',256,134,12,v.sirene?'#ffffff':'#5a6478'); etat(212,156,88,'#7aa8ff'); voyants(18,180,22); break; }
+    case 'neon': { g.fillStyle='#030403'; g.fillRect(0,0,W,H); const M=mk(40), c='#3aff7a';
+      ckDial(g,104,98,80,V.kmh,M,{bord:'neon',neon:c,fond:'#020302',num:c,lum:c,aig:'#ffffff',lumAig:true,n:M/20,sub:2,pas:2,lib:'km/h',libC:c});
+      ckDial(g,408,98,80,V.tr/1000,9,{bord:'neon',neon:c,fond:'#020302',num:c,lum:c,aig:'#ffffff',lumAig:true,n:9,sub:2,rouge:0.82,lib:'×1000',libC:c});
+      ckDial(g,256,84,46,clamp(V.ratio*1.4,0,1.2),1.2,{bord:'neon',neon:'#c8ff3a',fond:'#020302',num:'#c8ff3a',aig:'#ff3ad8',n:6,sub:2,lib:'TURBO bar',libC:'#c8ff3a',tch:0.22,chiffres:false});
+      ckTexte(g,'VIPERS',256,150,15,c); ckTexte(g,V.rap,256,176,18,'#ffffff'); voyants(18,180,22,c); break; }
+    case 'utilitaire': case 'ambulance': { g.fillStyle='#202327'; g.fillRect(0,0,W,H); const M=mk(20);
+      ckDial(g,256,104,86,V.kmh,M,{fond:'#0b0c0f',num:'#f2f4f8',aig:'#ff7a1a',n:M>=160?M/20:M/10,sub:2,pas:M>140?2:1,lib:'km/h'});
+      ckDial(g,82,78,44,essence,1,{fond:'#0b0c0f',num:'#f2f4f8',aig:'#ff7a1a',n:2,sub:2,chiffres:false,lib:'ESSENCE',tlib:0.17,ylib:0.5,a0:Math.PI*1.1,a1:Math.PI*1.9});
+      ckDial(g,430,78,44,tmp,1,{fond:'#0b0c0f',num:'#f2f4f8',aig:'#ff7a1a',n:2,sub:2,chiffres:false,lib:'EAU °C',tlib:0.17,ylib:0.5,rouge:0.8,a0:Math.PI*1.1,a1:Math.PI*1.9});
+      ckLCD(g,30,128,108,32,{fond:'#8fae8a'}); ckSeg(g,String(Math.floor(48211+ETAT.runT*V.vit/1000)).padStart(6,'0'),132,145,20,'#1a2a1a','right','rgba(0,0,0,0.06)');
+      ckTexte(g,V.rap,430,140,30,'#ffd23f'); if(st==='ambulance'){ const on=!!v.sirene&&Math.floor(T*5)%2===0; ckVoyant(g,400,170,8,on,'#ff2a2a'); ckVoyant(g,460,170,8,!!v.sirene&&!on,'#3a7bff'); } voyants(30,178,22); break; }
+    case 'muscle': { g.fillStyle='#0b0b0c'; g.fillRect(0,0,W,H); const M=mk(20);
+      ckDial(g,124,82,72,V.tr/1000,8,{bord:'chrome',lunette:0.06,fond:'#050505',num:'#f4f4f0',aig:'#ff6a1a',n:8,sub:2,rouge:0.75,lib:'RPM ×1000',famille:'Arial Black,Arial'});
+      ckDial(g,388,82,72,V.kmh,M,{bord:'chrome',lunette:0.06,fond:'#050505',num:'#f4f4f0',aig:'#ff6a1a',n:M>=200?M/20:M/10,sub:2,pas:2,lib:'km/h',famille:'Arial Black,Arial'});
+      [['HUILE',0.62+V.ratio*0.2],['EAU',tmp],['VOLTS',0.55+Math.sin(T)*0.02]].forEach((p,i)=>ckDial(g,192+i*64,160,26,p[1],1,{bord:'chrome',lunette:0.1,fond:'#050505',num:'#f4f4f0',aig:'#ff6a1a',n:4,sub:1,chiffres:false,lib:p[0],tlib:0.3,ylib:0.55,reflet:false}));
+      ckTexte(g,V.rap,256,82,30,'#ffb23a'); break; }
+    case 'rallye': { g.fillStyle='#0a0a0a'; g.fillRect(0,0,W,H); const M=mk(20), c='#ff8a2a';
+      ckDial(g,256,96,88,V.tr/1000,8,{bord:'chrome',lunette:0.05,fond:'#060606',num:c,aig:'#ffffff',n:8,sub:4,rouge:0.78,lib:'RPM ×1000',libC:c});
+      ckDial(g,96,104,64,V.kmh,M,{bord:'chrome',lunette:0.06,fond:'#060606',num:c,aig:'#ffffff',n:M/40,sub:2,lib:'km/h',libC:c,tch:0.2});
+      ckDial(g,418,66,40,essence,1,{bord:'chrome',fond:'#060606',num:c,aig:'#ffffff',n:2,sub:2,chiffres:false,lib:'FUEL',tlib:0.2,ylib:0.5,reflet:false}); ckDial(g,418,148,40,tmp,1,{bord:'chrome',fond:'#060606',num:c,aig:'#ffffff',n:4,sub:1,chiffres:false,lib:'TEMP',tlib:0.2,ylib:0.5,rouge:0.8,reflet:false});
+      ckVoyant(g,256,12,8,V.tr>5900,'#ff2a2a'); ckTexte(g,V.rap,256,160,20,'#ffffff'); break; }
+    case 'sport': { g.fillStyle='#050506'; g.fillRect(0,0,W,H); const t=V.tr/8000;
+      for(let i=0;i<14;i++){ const on=t>0.2+i/14*0.75; g.save(); if(on){ g.shadowColor=i<7?'#3aff7a':(i<11?'#ffd23f':'#ff2a2a'); g.shadowBlur=8; } g.fillStyle=on?(i<7?'#3aff7a':(i<11?'#ffd23f':'#ff2a2a')):'#1a1d22'; g.beginPath(); g.arc(152+i*16,12,5,0,6.2832); g.fill(); g.restore(); }
+      ckDial(g,256,104,82,V.tr/1000,8,{fond:'#020203',fond2:'#121316',num:'#f4f4f4',aig:'#ff1a1a',lumAig:true,n:8,sub:4,rouge:0.82,lib:'',chiffres:true,tch:0.15});
+      ckTexte(g,String(Math.round(V.kmh)),256,118,30,'#ffffff'); ckTexte(g,'km/h',256,142,11,'#8f9aaa'); ckTexte(g,V.rap,256,80,22,'#ff3b3b');
+      ckTexte(g,'HUILE',30,60,11,'#8f9aaa','left'); ckJauge(g,30,68,120,8,0.55+V.ratio*0.3,'#ffb23a'); ckTexte(g,'EAU',30,96,11,'#8f9aaa','left'); ckJauge(g,30,104,120,8,tmp,'#35c8ff'); etat(30,138,120);
+      ckTexte(g,'TURBO',362,60,11,'#8f9aaa','left'); ckJauge(g,362,68,120,8,V.ratio*0.9+Math.sin(T*7)*0.03,'#35e0ff'); ckTexte(g,'BOÎTE',362,96,11,'#8f9aaa','left'); ckTexte(g,'S+',362,116,18,'#ff3b3b','left'); voyants(362,170,24); break; }
+    case 'numerique': { ckTFT(g,0,0,W,H,{fond:'#03060c',fond2:'#071224',cadre:false}); const t=V.tr/8000, c='#35e0ff';
+      g.save(); g.shadowColor=c; g.shadowBlur=10; ckArc(g,256,118,92,12,t,t>0.85?'#ff3ad8':c,'#0c1a2a',Math.PI*0.95,Math.PI*2.05); g.restore();
+      ckTexte(g,String(Math.round(V.kmh)),256,108,58,'#ffffff'); ckTexte(g,'KM/H',256,146,13,c); ckTexte(g,V.rap,256,40,24,'#ff3ad8');
+      for(let i=0;i<10;i++){ g.fillStyle=i/10<V.ratio?c:'#0c1a2a'; g.fillRect(28,160-i*14,48,10); g.fillStyle=i/10<pr?'#3aff7a':'#0c1a2a'; g.fillRect(436,160-i*14,48,10); }
+      ckTexte(g,'BOOST',52,24,11,c); ckTexte(g,'ÉTAT',460,24,11,'#3aff7a'); ckReflet(g,0,0,W,H); break; }
+    case 'hyper': { ckTFT(g,0,0,W,H,{fond:'#05040c',fond2:'#0c0820',cadre:false}); const pu=V.ratio;
+      g.save(); g.shadowColor='#8a6aff'; g.shadowBlur=12; ckArc(g,128,104,74,14,V.kmh/(d.vmax*3.6),'#8a6aff','#16122a'); ckArc(g,384,104,74,14,pu,'#35e0ff','#0e1a2a'); g.restore();
+      ckTexte(g,String(Math.round(V.kmh)),128,100,40,'#ffffff'); ckTexte(g,'km/h',128,132,12,'#a89aff'); ckTexte(g,String(Math.round(pu*1500))+' ch',384,100,30,'#ffffff'); ckTexte(g,'PUISSANCE',384,132,11,'#7ae8ff');
+      ckTexte(g,V.rap,256,72,40,'#ffffff'); ckTexte(g,'PISTE',256,112,14,'#ff3ad8'); ckJauge(g,206,140,100,8,0.86,'#3aff7a'); ckTexte(g,'BATTERIE 86 %',256,164,11,'#8f9aaa'); ckReflet(g,0,0,W,H); break; }
+    case 'bolide': { g.fillStyle='#0a0705'; g.fillRect(0,0,W,H);
+      ckDial(g,256,100,88,V.kmh,500,{bord:'chrome',lunette:0.07,fond:'#050505',fond2:'#151210',num:'#f4f0ea',aig:'#ff3b1a',n:10,sub:5,pas:2,lib:'km/h',lum:'#ffffff',tch:0.15});
+      ckTFT(g,20,40,140,112,{fond:'#0a0c10'}); ckTexte(g,'PUISSANCE',90,58,11,'#c8b08a'); g.save(); g.shadowColor='#ffd090'; g.shadowBlur=8; ckArc(g,90,118,40,8,V.ratio,'#ffd090','#2a2016'); g.restore(); ckTexte(g,String(Math.round(V.ratio*1500)),90,116,20,'#ffffff');
+      ckTFT(g,352,40,140,112,{fond:'#0a0c10'}); ckTexte(g,V.rap,422,82,40,'#ffffff'); ckTexte(g,'TOP SPEED',422,120,11,'#c8b08a'); etat(368,140,112,'#ffd090'); break; }
+    case 'enzo': { g.fillStyle='#070707'; g.fillRect(0,0,W,H);
+      ckDial(g,256,100,86,V.tr/1000,10,{fond:'#f2c21f',fond2:'#ffd84a',num:'#111111',aig:'#e01414',n:10,sub:2,rouge:0.8,rougeC:'rgba(200,20,20,0.95)',lib:'RPM × 1000',libC:'#222',moyeu:'#111',bord:'noir',famille:'Arial'});
+      ckTFT(g,22,52,128,96,{fond:'#0a0c10'}); ckTexte(g,String(Math.round(V.kmh)),86,92,40,'#ffffff'); ckTexte(g,'km/h',86,126,12,'#ffd23f');
+      ckTFT(g,362,52,128,96,{fond:'#0a0c10'}); ckTexte(g,V.rap,426,90,44,'#ffd23f'); ckTexte(g,'RACE',426,128,13,'#ff3b3b'); break; }
+    case 'chrome': case 'baronne': case 'retro': { const fond=st==='baronne'?'#f3ead2':'#efe6cf', fond2=st==='retro'?'#e8dcc0':'#fbf6e8', fam='Georgia,serif', M=mk(20);
+      g.fillStyle=st==='retro'?'#0e0c0a':'#14100c'; g.fillRect(0,0,W,H);
+      ckDial(g,110,96,80,V.kmh,M,{bord:'chrome',fond:fond2,fond2:fond,num:'#16120c',aig:'#111111',moyeu:'#c8ccd2',n:M>=200?M/20:M/10,sub:2,pas:M>160?2:1,lib:st==='retro'?'KM/H':'MILES',libC:'#5a4a30',famille:fam,gras:'700',marque:st==='chrome'?'Smiths':(st==='baronne'?'Baronne':'Veglia'),marqueC:'#5a4a30'});
+      ckDial(g,402,96,80,V.tr/1000,7,{bord:'chrome',fond:fond2,fond2:fond,num:'#16120c',aig:'#111111',moyeu:'#c8ccd2',n:7,sub:2,rouge:0.82,lib:'R.P.M. × 1000',libC:'#5a4a30',famille:fam,gras:'700'});
+      ckDial(g,256,62,40,essence,1,{bord:'chrome',fond:fond2,fond2:fond,num:'#16120c',aig:'#111111',n:2,sub:2,chiffres:false,lib:'FUEL',libC:'#5a4a30',tlib:0.2,ylib:0.45,famille:fam,a0:Math.PI*1.15,a1:Math.PI*1.85});
+      ckDial(g,256,146,40,tmp,1,{bord:'chrome',fond:fond2,fond2:fond,num:'#16120c',aig:'#111111',n:2,sub:2,chiffres:false,lib:'TEMP',libC:'#5a4a30',tlib:0.2,ylib:0.45,famille:fam,a0:Math.PI*1.15,a1:Math.PI*1.85}); break; }
+    case 'luxe': { g.fillStyle='#120e0a'; g.fillRect(0,0,W,H); const M=mk(20);
+      ckDial(g,110,96,80,V.kmh,M,{bord:'chrome',lunette:0.07,fond:'#fbfaf6',fond2:'#ecebe6',num:'#1a1a1a',aig:'#1a3a8a',moyeu:'#c8ccd2',n:M>=200?M/20:M/10,sub:2,pas:M>160?2:1,lib:'km/h',libC:'#4a4a4a',famille:'Georgia,serif',gras:'400'});
+      ckDial(g,402,96,80,0.4+V.ratio*0.6,1,{bord:'chrome',lunette:0.07,fond:'#fbfaf6',fond2:'#ecebe6',num:'#1a1a1a',aig:'#1a3a8a',moyeu:'#c8ccd2',n:4,sub:5,chiffres:false,lib:'RÉSERVE DE PUISSANCE',tlib:0.09,libC:'#4a4a4a',famille:'Georgia,serif',a0:Math.PI*0.9,a1:Math.PI*2.1});
+      ckTexte(g,V.rap,256,98,30,'#e8dcc0'); ckTexte(g,'MAJESTÉ',256,140,12,'#b8a070'); break; }
+    case 'luxeNum': { ckTFT(g,0,0,W,H,{fond:'#05070b',fond2:'#0b1018',cadre:false}); const M=mk(20);
+      ckDial(g,128,100,80,V.kmh,M,{bord:'aucun',fond:'#05070b',fond2:'#0e1622',num:'#dfe8f4',aig:'#ff6a3a',lumAig:true,n:M/20,sub:2,pas:2,lib:'km/h',lum:'#7ab8ff'});
+      ckDial(g,384,100,80,V.tr/1000,7,{bord:'aucun',fond:'#05070b',fond2:'#0e1622',num:'#dfe8f4',aig:'#ff6a3a',lumAig:true,n:7,sub:2,rouge:0.8,lib:'×1000',lum:'#7ab8ff'});
+      ckTexte(g,V.rap,256,80,34,'#ffffff'); ckTexte(g,'CONFORT',256,116,12,'#ffa860'); etat(212,150,88,'#7ab8ff'); ckReflet(g,0,0,W,H); break; }
+    case 'derby': { g.fillStyle='#3a3d40'; g.fillRect(0,0,W,H); for(let i=0;i<40;i++){ g.fillStyle='rgba(120,70,30,'+(0.05+((i*37)%10)/80)+')'; g.fillRect((i*97)%W,(i*53)%H,12+(i%5)*6,4+(i%3)*3); }
+      const fel=(cx,cy,r)=>{ g.strokeStyle='rgba(255,255,255,0.55)'; g.lineWidth=1.2; g.beginPath(); g.moveTo(cx-r*0.6,cy-r*0.5); g.lineTo(cx-r*0.1,cy-r*0.05); g.lineTo(cx+r*0.5,cy-r*0.2); g.moveTo(cx-r*0.1,cy-r*0.05); g.lineTo(cx+r*0.05,cy+r*0.6); g.stroke(); };
+      ckDial(g,130,96,64,V.tr/1000,8,{fond:'#0a0a0a',num:'#ffd23f',aig:'#ff2a2a',n:8,sub:1,rouge:0.75,lib:'RPM',libC:'#ffd23f'}); fel(130,96,64);
+      ckDial(g,382,96,64,V.kmh,mk(40),{fond:'#0a0a0a',num:'#ffffff',aig:'#ff2a2a',n:mk(40)/40,sub:1,lib:'km/h'});
+      ckTexte(g,'N° '+(v.dbNum||7),256,40,26,'#ffd23f'); etat(196,150,120,'#ffd23f'); ckTexte(g,V.rap,256,96,30,'#ffffff'); break; }
+    case 'rallyeLCD': case 'canon': { g.fillStyle='#16181c'; g.fillRect(0,0,W,H); const amb=st==='canon'?'#7dff7a':'#ffb23a'; ckLCD(g,24,20,464,152,{fond:'#0a0c08',fond2:'#14180e',cadre:'#2a2c30'});
+      for(let i=0;i<24;i++){ g.fillStyle=V.tr/7500>i/24?(i>19?'#ff3b3b':amb):'#1e2214'; g.fillRect(44+i*17.5,34,13,16); }
+      ckSeg(g,String(Math.round(V.kmh)).padStart(3,' '),232,108,64,amb,'right','rgba(255,255,255,0.04)'); ckTexte(g,'km/h',244,128,13,amb,'left');
+      if(st==='canon'){ const pret=!(v.cadCanon>0); g.strokeStyle=amb; g.lineWidth=2; g.beginPath(); g.arc(396,104,40,0,6.2832); g.moveTo(346,104); g.lineTo(446,104); g.moveTo(396,54); g.lineTo(396,154); g.stroke(); ckTexte(g,pret?'PRÊT':'RECH.',396,164,13,pret?amb:'#ff3b3b'); }
+      else { ckSeg(g,V.rap,404,100,58,'#ffffff','center','rgba(255,255,255,0.04)'); etat(330,150,140,amb); } break; }
+    case 'vw': { g.fillStyle='#0e0d0c'; g.fillRect(0,0,W,H); const M=mk(20);
+      ckDial(g,256,96,90,V.kmh,M,{bord:'chrome',lunette:0.05,fond:'#0b0b0b',num:'#f4f2ec',aig:'#f4f2ec',n:M>=160?M/20:M/10,sub:2,pas:M>140?2:1,lib:'km/h',famille:'Georgia,serif',
+        texte:(g2,cx,cy,r)=>{ ckDial(g2,cx,cy+r*0.42,r*0.26,essence,1,{bord:'aucun',fond:'#0b0b0b',num:'#f4f2ec',aig:'#ff7a1a',n:2,sub:2,chiffres:false,reflet:false,a0:Math.PI*1.1,a1:Math.PI*1.9}); }}); break; }
+    case 'tt': case 'amphibie': { g.fillStyle='#0b0c0e'; g.fillRect(0,0,W,H); const M=mk(20);
+      ckDial(g,92,96,76,V.kmh,M,{fond:'#08090b',num:'#f2f4f8',aig:'#ffd23f',n:M/20,sub:2,pas:2,lib:'km/h'}); ckDial(g,420,96,76,V.tr/1000,6,{fond:'#08090b',num:'#f2f4f8',aig:'#ffd23f',n:6,sub:2,rouge:0.8,lib:'×1000'});
+      const sil=(cx,cy,ang,lib,val)=>{ g.save(); g.translate(cx,cy); g.rotate(ang*Math.PI/180); g.fillStyle='#dfe6f0'; g.fillRect(-22,-8,44,10); g.fillRect(-12,-16,24,8); g.fillStyle='#ffd23f'; g.beginPath(); g.arc(-14,4,6,0,6.2832); g.arc(14,4,6,0,6.2832); g.fill(); g.restore(); ckTexte(g,lib+' '+Math.round(val)+'°',cx,cy+28,12,Math.abs(val)>25?'#ff6a5a':'#dfe6f0'); };
+      if(st==='amphibie'){ ckCompas(g,256,70,44,V.cap,'#35e0ff'); ckTexte(g,v.surEau?'NAVIGATION':'ROUTE',256,140,13,'#35e0ff'); ckTexte(g,V.rap,256,166,20,'#ffd23f'); }
+      else { sil(256,48,-V.tang,'TANGAGE',V.tang); sil(256,118,V.incl,'DÉVERS',V.incl); ckTexte(g,V.rap,256,172,18,'#ffd23f'); } break; }
+    case 'monster': { g.fillStyle='#08080a'; g.fillRect(0,0,W,H);
+      ckDial(g,256,104,90,V.tr/1000,10,{bord:'chrome',fond:'#050505',num:'#ffffff',aig:'#ff3b1a',lumAig:true,n:10,sub:2,rouge:0.75,lib:'RPM ×1000',tch:0.15});
+      ckTFT(g,20,50,130,90,{fond:'#0a0c10'}); ckTexte(g,String(Math.round(V.kmh)),85,90,40,'#ffffff'); ckTexte(g,'km/h',85,122,12,'#ff8a5a');
+      for(let i=0;i<4;i++){ const x=380+i*30; g.fillStyle='#2a2c30'; g.fillRect(x-9,62,18,30); g.fillStyle=i===0||(i===2&&!!v.nitroOn)?'#ff3b1a':'#8a8e96'; g.fillRect(x-4,i%2?64:74,8,16); } ckTexte(g,'NOS  PHARES',440,108,10,'#8f9aaa'); ckTexte(g,V.rap,440,146,26,'#ffd23f'); break; }
+    case 'militaire': case 'blinde': case 'dca': { g.fillStyle='#3a4230'; g.fillRect(0,0,W,H); for(let i=0;i<6;i++){ g.fillStyle='#2a3022'; g.beginPath(); g.arc(14+(i%2)*484,14+Math.floor(i/2)*82,4,0,6.2832); g.fill(); } const M=mk(20);
+      ckDial(g,100,98,72,V.kmh,M,{bordC:'#1a1e14',fond:'#0a0b08',num:'#e8ead8',aig:'#e8ead8',n:M/20,sub:2,pas:2,lib:'km/h',famille:'Courier New,monospace'});
+      ckDial(g,412,98,72,V.tr/1000,4,{bordC:'#1a1e14',fond:'#0a0b08',num:'#e8ead8',aig:'#e8ead8',n:4,sub:4,rouge:0.8,lib:'×1000',famille:'Courier New,monospace'});
+      if(st==='militaire'){ ckTexte(g,'ARMÉE — LOS REYES',256,36,12,'#e8ead8'); ckTexte(g,'CARBURANT',256,72,11,'#c8caa8'); ckJauge(g,206,80,100,10,essence,'#e8ead8'); ckTexte(g,V.rap,256,128,34,'#ffd23f'); ckTexte(g,'BLACKOUT',256,166,11,nuit?'#ff6a3a':'#5a6048'); }
+      else if(st==='blinde'){ ckTFT(g,190,24,132,144,{fond:'#031208',fond2:'#06200e'}); for(let y=26;y<166;y+=4){ g.fillStyle='rgba(0,0,0,0.25)'; g.fillRect(190,y,132,2); } ckTexte(g,'CAP '+String(Math.round(V.cap)).padStart(3,'0'),256,52,16,'#7dff7a'); ckTexte(g,V.rap,256,96,36,'#7dff7a'); etat(198,146,116,'#7dff7a'); }
+      else { ckTFT(g,190,24,132,144,{fond:'#03100a'}); const cx=256,cy=96,r=60; g.strokeStyle='#1d6b3a'; for(const k of [1,0.6]){ g.beginPath(); g.arc(cx,cy,r*k,0,6.2832); g.stroke(); } const ba=T*2%6.2832; g.strokeStyle='#5aff8a'; g.lineWidth=2; g.beginPath(); g.moveTo(cx,cy); g.lineTo(cx+Math.cos(ba)*r,cy+Math.sin(ba)*r); g.stroke(); ckTexte(g,'VEILLE AÉRIENNE',256,160,10,'#7dff7a'); } break; }
+    case 'engin': case 'grue': case 'piste': { g.fillStyle='#1a1b1e'; g.fillRect(0,0,W,H); const amb=st==='piste'?'#ffb21a':'#ffc21a';
+      ckLCD(g,24,22,300,148,{fond:'#0b0c0a',fond2:'#151710',cadre:'#2a2c30'}); ckSeg(g,String(Math.round(V.kmh)),190,86,64,amb,'right','rgba(255,255,255,0.04)'); ckTexte(g,'km/h',200,104,14,amb,'left');
+      ckTexte(g,'CARB.',40,136,11,'#8f9aaa','left'); ckJauge(g,90,130,80,9,essence,amb); ckTexte(g,'HUILE',180,136,11,'#8f9aaa','left'); ckJauge(g,226,130,80,9,0.6,amb); ckTexte(g,V.rap,290,72,30,'#ffffff');
+      if(st==='grue'){ ckTFT(g,340,22,150,148,{fond:'#0a0c10'}); ckTexte(g,'CHARGE',415,42,12,'#8f9aaa'); ckJauge(g,370,70,90,12,0.35,'#3aff7a'); ckTexte(g,'2,4 t / 12 t',415,104,14,'#ffffff'); ckTexte(g,'FLÈCHE 18 m',415,132,12,'#ffc21a'); }
+      else if(st==='piste'){ const on=Math.floor(T*3)%2===0; ckVoyant(g,410,70,20,on,'#ffb21a'); ckTexte(g,'GYROPHARE',410,110,12,'#ffb21a'); ckTexte(g,'PISTE — PRIORITÉ AVIONS',410,150,10,'#8f9aaa'); }
+      else { ckTexte(g,'HYDRAULIQUE',415,48,12,'#8f9aaa'); ckJauge(g,365,60,100,10,0.7+Math.sin(T)*0.04,'#ffc21a'); ckTexte(g,'LAME',415,100,12,'#8f9aaa'); ckTexte(g,'BAISSÉE',415,122,16,'#3aff7a'); } break; }
+    case 'camion': case 'pompiers': { g.fillStyle='#16181c'; g.fillRect(0,0,W,H); const M=mk(20);
+      ckDial(g,96,98,78,V.kmh,M,{bord:'chrome',lunette:0.05,fond:'#0a0b0e',num:'#f2f4f8',aig:'#ff7a1a',n:M/20,sub:2,pas:2,lib:'km/h'});
+      ckDial(g,416,98,78,V.tr/1000,3,{bord:'chrome',lunette:0.05,fond:'#0a0b0e',num:'#f2f4f8',aig:'#ff7a1a',n:6,sub:2,rouge:0.8,lib:'×1000',mult:0.5});
+      ckDial(g,220,64,36,0.78+Math.sin(T*0.7)*0.03,1,{fond:'#0a0b0e',num:'#f2f4f8',aig:'#35c8ff',n:4,sub:2,chiffres:false,lib:'AIR 1',tlib:0.22,ylib:0.5,reflet:false}); ckDial(g,292,64,36,0.74,1,{fond:'#0a0b0e',num:'#f2f4f8',aig:'#35c8ff',n:4,sub:2,chiffres:false,lib:'AIR 2',tlib:0.22,ylib:0.5,reflet:false});
+      if(st==='pompiers'){ ckTexte(g,'POMPE',256,124,11,'#ff6a5a'); ckJauge(g,206,132,100,9,v.sirene?0.8:0.1,'#ff3b3b'); ckTexte(g,'CITERNE',256,156,11,'#8fd8ff'); ckJauge(g,206,164,100,9,0.66,'#35c8ff'); }
+      else { ckTexte(g,V.rap,256,136,30,'#ffd23f'); etat(206,170,100); } break; }
+    case 'bus': { ckTFT(g,0,0,W,H,{fond:'#0a0d12',cadre:false}); const M=mk(20);
+      ckDial(g,120,100,78,V.kmh,M,{bord:'noir',fond:'#05070a',num:'#f2f4f8',aig:'#ffb23a',n:M/20,sub:2,pas:2,lib:'km/h'});
+      ckTFT(g,220,24,272,144,{fond:'#0b1422'}); ckTexte(g,'LIGNE 7 — PLAGE ⇄ CENTRE',356,44,13,'#ffd23f'); ckTexte(g,'PORTES',260,80,12,'#8f9aaa','left'); ckVoyant(g,350,80,9,false,'#3aff7a'); ckVoyant(g,380,80,9,false,'#3aff7a'); ckVoyant(g,410,80,9,false,'#3aff7a');
+      const arret=Math.floor(T/6)%3===0; ckTexte(g,arret?'ARRÊT DEMANDÉ':'—',356,116,16,arret?'#ff3b3b':'#5a6478'); ckTexte(g,'RAPPORT '+V.rap,356,150,14,'#ffffff'); break; }
+    default: return false; }
+  return true; }
+/* écrans de la console centrale (256 × 192) */
+function ckEcranCentre(a,v,V){ const g=a.ctx, W=a.w, H=a.h, T=ETAT.runT, st=a.type.slice(4), h=ckHeure(), hh=String(h.h).padStart(2,'0')+':'+String(h.m).padStart(2,'0');
+  switch(st){
+    case 'media': case 'hyper': case 'bolide': { ckTFT(g,0,0,W,H,{fond:st==='hyper'?'#08061a':'#0a1626',cadre:false}); ckTexte(g,hh,W/2,26,24,'#ffffff'); ckTexte(g,'♫ REYES FM 107.7',W/2,62,14,st==='hyper'?'#a89aff':'#35e0ff'); for(let i=0;i<16;i++){ const hgt=6+Math.abs(Math.sin(T*3+i*0.8))*26; g.fillStyle=st==='hyper'?'#8a6aff':'#35c8ff'; g.fillRect(20+i*14,112-hgt,9,hgt); } ckCompas(g,W/2,152,30,V.cap,'#35e0ff'); break; }
+    case 'gps': { ckTFT(g,0,0,W,H,{fond:'#1a2a1a',cadre:false}); g.save(); g.translate(W/2,H*0.62); g.rotate(-V.cap*Math.PI/180); g.strokeStyle='#4a6a4a'; g.lineWidth=10; for(let k=-3;k<=3;k++){ g.beginPath(); g.moveTo(k*42,-200); g.lineTo(k*42,200); g.moveTo(-200,k*42); g.lineTo(200,k*42); g.stroke(); } g.restore();
+      g.fillStyle='#35a0ff'; g.beginPath(); g.moveTo(W/2,H*0.62-14); g.lineTo(W/2-9,H*0.62+8); g.lineTo(W/2+9,H*0.62+8); g.fill(); g.fillStyle='rgba(0,0,0,0.55)'; g.fillRect(0,0,W,30); ckTexte(g,hh+'  ·  '+Math.round(V.kmh)+' km/h',W/2,15,14,'#ffffff'); break; }
+    case 'radioPolice': { ckTFT(g,0,0,W,H,{fond:'#05080e',cadre:false}); ckTexte(g,'RADIO POLICE — CANAL 4',W/2,22,13,'#7aa8ff'); ckTexte(g,'« Unité 12, à vous »',W/2,52,13,'#dfe6f0'); ckTexte(g,'RECHERCHE : '+'★'.repeat(Math.min(6,(typeof WANTED!=='undefined'?Math.ceil(WANTED.heat||0):0)))+'☆'.repeat(Math.max(0,6-Math.min(6,(typeof WANTED!=='undefined'?Math.ceil(WANTED.heat||0):0)))),W/2,84,13,'#ffd23f');
+      ckVoyant(g,70,128,14,!!v.sirene&&Math.floor(T*6)%2===0,'#ff2a2a'); ckVoyant(g,128,128,14,!!v.sirene&&Math.floor(T*6)%2===1,'#2a6aff'); ckVoyant(g,186,128,14,!!v.sirene,'#ffd23f'); ckTexte(g,'GYRO   SIRÈNE   FLASH',W/2,166,11,'#8f9aaa'); break; }
+    case 'radio': case 'radioK7': case 'radioVintage': case 'radioMil': { const vint=st==='radioVintage', mil=st==='radioMil'; g.fillStyle=vint?'#c8ccd2':(mil?'#3a4230':'#15171b'); g.fillRect(0,0,W,H);
+      ckLCD(g,24,30,208,56,{fond:vint?'#e8dcb0':(mil?'#0a0c08':(st==='radioK7'?'#2a1406':'#0b1a10')),cadre:'#0e0f12'}); ckSeg(g,mil?'CH 07 — 45.250':(vint?'FM 107.7':'107.7 FM'),220,58,22,vint?'#3a2a10':(mil?'#7dff7a':(st==='radioK7'?'#ffb23a':'#7dff7a')),'right');
+      if(st==='radioK7'){ g.fillStyle='#0a0a0a'; g.fillRect(60,104,136,48); for(const x of [100,156]){ g.fillStyle='#3a3a3a'; g.beginPath(); g.arc(x,128,14,0,6.2832); g.fill(); g.save(); g.translate(x,128); g.rotate(T*3); g.fillStyle='#bbb'; g.fillRect(-2,-12,4,24); g.restore(); } }
+      else for(let i=0;i<5;i++){ g.fillStyle=vint?'#f2f4f8':'#2a2d33'; g.beginPath(); g.arc(44+i*42,132,14,0,6.2832); g.fill(); g.strokeStyle='#0e0f12'; g.stroke(); }
+      ckTexte(g,hh,W/2,176,12,vint?'#3a2a10':'#8f9aaa'); break; }
+    case 'horloge': { g.fillStyle='#2a1a10'; g.fillRect(0,0,W,H); ckDial(g,W/2,H/2,74,(h.h%12)+h.m/60,12,{bord:'chrome',fond:'#fbfaf6',num:'#1a1a1a',aig:'#1a1a1a',n:12,sub:5,a0:-Math.PI/2,a1:Math.PI*1.5,chiffres:true,pas:1,famille:'Georgia,serif',gras:'400',
+        texte:(g2,cx,cy,r)=>{ const am=(h.m/60)*6.2832-Math.PI/2; g2.strokeStyle='#1a1a1a'; g2.lineWidth=3; g2.beginPath(); g2.moveTo(cx,cy); g2.lineTo(cx+Math.cos(am)*r*0.82,cy+Math.sin(am)*r*0.82); g2.stroke(); }}); break; }
+    case 'gadgets': case 'interrupteurs': { const bond=st==='gadgets'; g.fillStyle=bond?'#2a1a10':'#2a2c30'; g.fillRect(0,0,W,H); const lib=bond?['FUMÉE','HUILE','RADAR','BÉLIER','ÉJECT.','PLAQUES']:['ALLUM.','POMPE','VENTIL.','PHARES','RADIO','DÉMAR.'];
+      for(let i=0;i<6;i++){ const x=36+(i%3)*92, y=48+Math.floor(i/3)*86, on=i===((Math.floor(T*0.5))%6); g.fillStyle='#0e0f12'; g.fillRect(x-14,y-20,28,40); g.fillStyle=i===4&&bond?'#e81a1a':(on?'#ffd23f':'#c8ccd2'); g.fillRect(x-6,on?y-18:y,12,18); ckTexte(g,lib[i],x,y+32,11,bond?'#e8dcc0':'#dfe6f0'); } break; }
+    case 'tt': case 'sonar': { ckTFT(g,0,0,W,H,{fond:'#04101a',cadre:false}); if(st==='sonar'){ ckTexte(g,'SONDEUR',W/2,18,12,'#35e0ff'); for(let x=0;x<W;x+=4){ const p=110+Math.sin(x*0.05+T)*14+Math.sin(x*0.13)*8; g.fillStyle='#ffb23a'; g.fillRect(x,p,4,H-p); g.fillStyle='#103a5a'; g.fillRect(x,30,4,p-30); } ckTexte(g,v.surEau?'FOND 6,2 m':'— ROUTE —',W/2,H-14,13,'#ffffff'); }
+      else { ckCompas(g,W/2,H/2+6,60,V.cap,'#ffd23f'); ckTexte(g,'ALT '+Math.round(v.h||0)+' m',W/2,16,13,'#dfe6f0'); } break; }
+    case 'periscope': case 'radarDca': { ckTFT(g,0,0,W,H,{fond:'#031208',cadre:false}); for(let y=0;y<H;y+=4){ g.fillStyle='rgba(0,0,0,0.25)'; g.fillRect(0,y,W,2); } ckTexte(g,st==='periscope'?'ÉPISCOPE':'RADAR DCA',W/2,18,13,'#7dff7a');
+      g.strokeStyle='#7dff7a'; g.lineWidth=2; g.beginPath(); g.arc(W/2,H/2+10,58,0,6.2832); g.moveTo(W/2-70,H/2+10); g.lineTo(W/2+70,H/2+10); g.moveTo(W/2,H/2-58); g.lineTo(W/2,H/2+78); g.stroke(); if(st==='radarDca'){ const ba=T*2%6.2832; g.beginPath(); g.moveTo(W/2,H/2+10); g.lineTo(W/2+Math.cos(ba)*58,H/2+10+Math.sin(ba)*58); g.stroke(); } break; }
+    case 'engin': case 'grue': case 'treuil': case 'gyro': case 'sirene': case 'billetterie': case 'canon': { g.fillStyle='#202226'; g.fillRect(0,0,W,H);
+      const L={engin:['LAME ▲','LAME ▼','RIPPER','KLAXON'],grue:['FLÈCHE ▲','FLÈCHE ▼','ROTATION','STABIL.'],treuil:['TREUIL ▲','TREUIL ▼','PLATEAU','GYRO'],gyro:['GYRO','FEUX','PHARES','KLAXON'],sirene:['SIRÈNE','DEUX-TONS','GYRO','HAUT-PARL.'],billetterie:['TICKET 2 €','PASS JOUR','OUVRIR','FERMER'],canon:['CHARGER','TIR','VISÉE','FUMÉE']}[st];
+      ckTexte(g,{engin:'COMMANDES DE LA LAME',grue:'COMMANDES DE LA GRUE',treuil:'DÉPANNAGE',gyro:'ÉQUIPEMENT DE PISTE',sirene:'SIGNALISATION',billetterie:'BILLETTERIE',canon:'TOURELLE'}[st],W/2,18,12,'#ffd23f');
+      for(let i=0;i<4;i++){ const x=16+(i%2)*120, y=38+Math.floor(i/2)*76, on=(st==='sirene'||st==='gyro')?!!v.sirene&&Math.floor(T*4+i)%2===0:false; g.fillStyle=on?'#ff3b3b':(i===1&&st==='canon'?'#a01818':'#3a3e45'); g.fillRect(x,y,104,60); g.strokeStyle='#5a606a'; g.strokeRect(x,y,104,60); ckTexte(g,L[i],x+52,y+30,13,'#f2f4f8'); } break; }
+    case 'raptor': return false;
+    default: ckTFT(g,0,0,W,H,{fond:'#0a1626',cadre:false}); ckTexte(g,hh,W/2,H/2,26,'#ffffff'); }
+  return true; }
+/* le taximètre (posé sur la planche) : tarif qui tourne, LIBRE quand on roule à vide */
+function ckTaximetre(a,v,V){ const g=a.ctx, W=a.w, H=a.h; g.fillStyle='#0a0a0a'; g.fillRect(0,0,W,H); const enCourse=typeof MET!=='undefined'&&MET&&MET.taxi&&MET.taxi.client; const prix=enCourse?(2.6+(ETAT.runT%600)*0.03).toFixed(2):'0.00';
+  ckSeg(g,prix+' €',W-12,H*0.42,H*0.42,'#ff3a1a','right','rgba(255,60,30,0.08)'); ckTexte(g,enCourse?'TARIF 1':'LIBRE',W/2,H*0.82,H*0.2,enCourse?'#ffb23a':'#3aff7a'); }
+/* le terminal de la police (ordinateur portable sur la console) */
+function ckMDT(a,v,V){ const g=a.ctx, W=a.w, H=a.h; ckTFT(g,0,0,W,H,{fond:'#020a14',cadre:false}); ckTexte(g,'LRPD — TERMINAL',8,14,12,'#3a9aff','left'); ckTexte(g,'PLAQUE  LR-'+String(1000+Math.floor(ETAT.runT*0.2)%9000),8,40,12,'#dfe6f0','left');
+  ckTexte(g,'STATUT : EN PATROUILLE',8,62,12,'#3aff7a','left'); ckTexte(g,'APPEL : vol à l’étalage',8,84,12,'#ffd23f','left'); ckTexte(g,'POSITION '+Math.round(v.x)+' ; '+Math.round(v.z),8,106,12,'#8f9aaa','left'); if(Math.floor(ETAT.runT*2)%2===0) { g.fillStyle='#3a9aff'; g.fillRect(8,120,8,12); } }
+function ckDessinerV2(a,v,V){ const t=a.type;
+  if(t.charCodeAt(2)===95&&t.startsWith('m2_')) return ckDeuxRouesAff(a,v,V);
+  if(t.length>4&&t.charCodeAt(3)===95){ if(t.startsWith('cmb_')) return ckCombine(a,v,V); if(t.startsWith('ctr_')) return ckEcranCentre(a,v,V); }
+  if(t==='taximetre'){ ckTaximetre(a,v,V); return true; } if(t==='mdt'){ ckMDT(a,v,V); return true; }
+  if(t==='volEnzo'){ const g=a.ctx; g.fillStyle='#050505'; g.fillRect(0,0,a.w,a.h); const r=V.tr/8000; for(let i=0;i<10;i++){ const on=r>0.3+i*0.065, c=i<4?'#3aff7a':(i<7?'#ff2a2a':'#3a7bff'); g.save(); if(on){ g.shadowColor=c; g.shadowBlur=8; } g.fillStyle=on?c:'#1c1c1c'; g.beginPath(); g.arc(26+i*22.6,16,7,0,6.2832); g.fill(); g.restore(); }
+    ckTexte(g,V.rap,128,46,24,'#ffd23f'); ckTexte(g,String(Math.round(V.kmh)),40,46,16,'#ffffff'); ckTexte(g,'RACE',212,46,13,'#ff3b3b'); return true; }
+  return false; }
+/* un texte flottant né sur le véhicule du joueur, au cockpit : dans la pile de notifications, sur UNE ligne qui se remplace (jamais un
+   sprite de 5 m à un mètre de l'œil, en plein pare-brise) */
+function ckTexte1P(txt,coul){ const pile=el('notifStack'); if(!pile) return; let n=pile.querySelector('.notif.pts');
+  if(!n){ while(pile.children.length>=2) pile.removeChild(pile.firstChild); n=document.createElement('div'); n.className='notif pts'; pile.appendChild(n); void n.offsetWidth; n.classList.add('on'); }
+  n.textContent=txt; n.style.color=coul||'#ffffff'; clearTimeout(n._t); n._t=setTimeout(()=>{ n.classList.remove('on'); setTimeout(()=>{ if(n.parentNode) n.parentNode.removeChild(n); },NOTIF_FADE); },1500); }
+function ckTeinte(c,k){ const r=Math.min(255,Math.round(((c>>16)&255)*k)), g=Math.min(255,Math.round(((c>>8)&255)*k)), b=Math.min(255,Math.round((c&255)*k)); return (r<<16)|(g<<8)|b; }
+let _TEX_RETRO=null, _MAT_RETRO=null; function ckMatRetro(){ if(!_MAT_RETRO) _MAT_RETRO=new THREE.MeshBasicMaterial({map:ckTexRetro()}); return _MAT_RETRO; } /* le reflet d'un rétroviseur : ciel clair en haut, route grise en bas (statique, aucun second rendu) */
+function ckTexRetro(){ if(_TEX_RETRO) return _TEX_RETRO; const c=document.createElement('canvas'); c.width=64; c.height=32; const g=c.getContext('2d'), gr=g.createLinearGradient(0,0,0,32);
+  gr.addColorStop(0,'#7e94aa'); gr.addColorStop(0.48,'#5e7286'); gr.addColorStop(0.52,'#3a3e44'); gr.addColorStop(1,'#26292e'); g.fillStyle=gr; g.fillRect(0,0,64,32); g.fillStyle='rgba(255,255,255,0.1)'; g.fillRect(0,0,64,3);
+  _TEX_RETRO=new THREE.CanvasTexture(c); return _TEX_RETRO; }
+/* le haut des portières vu de l'œil (la ceinture de caisse) : rayons vers chaque portière, de 4° à 72° sous l'horizontale ; le premier qui
+   touche la caisse (hors vitrage) — le bas de la boîte du vitrage est souvent plus bas que la vraie ceinture : la caisse dépassait alors
+   au-dessus de la garniture, un aplat de la couleur de la voiture en tournant la tête (18 octobre) */
+function ckCeinture(v,e){ const g=v.mesh; g.updateMatrixWorld(true); const rc=new THREE.Raycaster(); rc.far=1.8; rc.camera=camera; const o=new THREE.Vector3(e.x,e.y,e.z).applyMatrix4(g.matrixWorld), q=g.getWorldQuaternion(new THREE.Quaternion()), d=new THREE.Vector3(); let best=null;
+  for(const s of [1,-1]){ for(let a=4;a<=72;a+=3){ const r=a*Math.PI/180; d.set(s*Math.cos(r),-Math.sin(r),0).applyQuaternion(q); rc.set(o,d); let y=null;
+      for(const h of rc.intersectObject(g,true)){ const m=h.object; if(m.isSprite||ckEstVitre(m.material)||!ckVisible(m)||ckSousCockpit(m)) continue; y=g.worldToLocal(h.point.clone()).y; break; }
+      if(y!==null){ best=best===null?y:Math.max(best,y); break; } } }
+  return best; }
+/* ---------- la cabine fermée des voitures, camions et bus ---------- */
+function ckHabitacle(G,S,v,D,H){ const e=D.eye, c=D.cab, fam=D.fam, cam=fam==='camion', bus=!!H.bus, T=CK_TH[H.th]||CK_TH.moderne, C=COCKPIT;
+  const coulC=couleurCaisseCk(v), mt=(s)=>ckMatG(s,coulC), mPl=mt(T.pl), mIns=mt(T.ins), mGar=mt(T.gar), mSg=mt(T.sg), mTap=mt(T.tap), mCiel=T.ciel?(typeof T.ciel==='number'?ckM(T.ciel,'ciel'):mt(T.ciel)):null, mCh=ckM(0xc8ced8,'m'), mNoir=ckM(0x111215), mPeint=ckM(coulC,'p'), mFonce=ckM(ckTeinte(typeof T.pl==='number'?T.pl:0x2a2c30,0.7));
+  const Gs=new THREE.Group(); G.add(Gs);
+  const W=clamp(c?c.w:1.6,1.2,2.62)-0.04, xs=W/2, sd=Math.sign(e.x)||1; /* sd : le côté du conducteur (+1 : à gauche ; le trafic roule à droite) */
+  const ouvert=!!H.ouvert||!!(c&&c.ouvert), toit=!ouvert&&c?ckToit(v,e):null, ferme=!ouvert&&!!mCiel;
+  const yT=e.y+(cam||bus?-0.16:-0.13), zL=e.z+(cam||bus?0.82:0.74), ceint=ckCeinture(v,e), yS=ceint!==null?clamp(ceint+0.015,e.y-0.45,e.y-0.1):(c?Math.min(c.y0+0.02,e.y-0.17):e.y-0.3), yF=e.y-(cam||bus?1.2:0.98);
+  const yR=toit?toit.y-0.012:(c?Math.max(c.y1+0.01,e.y+0.14):e.y+0.25), zRf=toit?Math.min(toit.z,e.z+1.1):(c?Math.min(c.zA-0.15,e.z+0.7):e.z+0.5);
+  const zW=Math.max(zL+0.24,c?Math.min(c.zA,zL+0.5):zL+0.3), zB=e.z-0.42, P=H.places||4;
+  const zArr=bus?Math.max(c?c.zR+0.35:e.z-6,e.z-7.5):(cam||P===3||H.cloison?e.z-0.66:(P<=2?e.z-0.8:Math.max(c?c.zR+0.12:-99,e.z-1.55)));
+  const bx=(m,w,h,d,x,y,z,rx,ry,rz,par)=>{ const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m); o.position.set(x,y,z); if(rx||ry||rz) o.rotation.set(rx||0,ry||0,rz||0,'YXZ'); (par||Gs).add(o); return o; };
+  const cy=(m,r1,r2,h,x,y,z,rx,ry,rz,seg,par)=>{ const o=new THREE.Mesh(new THREE.CylinderGeometry(r1,r2,h,seg||12),m); o.position.set(x,y,z); if(rx||ry||rz) o.rotation.set(rx||0,ry||0,rz||0,'YXZ'); (par||Gs).add(o); return o; };
+  const tube=(m,r,a,b,par)=>{ const o=new THREE.Mesh(new THREE.CylinderGeometry(r,r,1,8),m); o.position.copy(a).lerp(b,0.5); o.scale.set(1,a.distanceTo(b),1); o.quaternion.setFromUnitVectors(_ckY,_ckV2.copy(b).sub(a).normalize()); (par||Gs).add(o); return o; };
+  const V3=(x,y,z)=>new THREE.Vector3(x,y,z);
+  const poutre=(m,w,ep,a,b)=>{ const L=a.distanceTo(b), o=new THREE.Mesh(new THREE.BoxGeometry(w,L,ep),m), Y=_ckV2.copy(b).sub(a).normalize(), X=new THREE.Vector3().crossVectors(Y,_ckY); if(X.lengthSq()<1e-6) X.set(1,0,0); X.normalize(); const Z=new THREE.Vector3().crossVectors(X,Y);
+    o.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(X,Y,Z)); o.position.copy(a).lerp(b,0.5); Gs.add(o); return o; }; /* montant plat : large dans le plan du vitrage, mince vers l'œil */
+  const face=(o,px,pz)=>{ o.rotation.y=Math.atan2(e.x-px,e.z-pz); return o; }; /* un plan (normale +z) tourné vers l'œil */
+  const ecran=(type,w,h,larg,haut,x,y,z,incl,par)=>{ const a=ckAffichage(type,w,h); const o=new THREE.Mesh(new THREE.PlaneGeometry(larg,haut),a.mat); o.rotation.set(-(incl||0),Math.PI,0,'YXZ'); o.position.set(x,y,z); o.userData.garder=true; (par||G).add(o); if(!C.affs.includes(a)) C.affs.push(a); return o; };
+  /* la planche : un profil extrudé sur toute la largeur (dessus, lèvre, face qui recule vers le haut, genoux) */
+  const hP=cam||bus?0.62:0.56, prof=[[zW+0.06,yT-0.06],[zL+0.1,yT],[zL+0.012,yT-0.018],[zL-0.004,yT-0.1],[zL-0.04,yT-0.34],[zL-0.02,yT-hP+0.06],[zL+0.1,yT-hP],[zW+0.06,yT-hP]];
+  const sh=new THREE.Shape(); sh.moveTo(prof[0][0],prof[0][1]); for(let i=1;i<prof.length;i++) sh.lineTo(prof[i][0],prof[i][1]); sh.closePath();
+  const gP=new THREE.ExtrudeGeometry(sh,{depth:W,bevelEnabled:false}); gP.rotateY(-Math.PI/2); gP.translate(W/2,0,0); Gs.add(new THREE.Mesh(gP,mPl));
+  /* le jonc décoratif sur la face (bois, carbone, alu, peinture…), interrompu derrière le combiné */
+  const zJ=zL-0.012, yJ=yT-0.165; bx(mIns,W-0.12,0.055,0.014,0,yJ,zJ,0.15);
+  if(T.acc) bx(ckM(T.acc,'b'),W-0.3,0.005,0.006,0,yJ-0.036,zJ-0.004,0.15); /* diodes d'ambiance */
+  /* le combiné : un bloc qui avance vers le conducteur, sous une casquette en arc */
+  const xC=e.x, zC=zL-0.07, yC=yT-0.07, larC=bus?0.36:(cam?0.34:0.31), hC=larC*0.375;
+  bx(mFonce,larC+0.05,hC+0.04,0.1,xC,yC,zC+0.06,0.1);
+  const ar=new THREE.Shape(), Ro=larC/2+0.035, Ri=larC/2+0.012, hb=0.075; ar.moveTo(-Ro,0); ar.quadraticCurveTo(-Ro,hb,0,hb); ar.quadraticCurveTo(Ro,hb,Ro,0); ar.lineTo(Ri,0); ar.quadraticCurveTo(Ri,hb-0.022,0,hb-0.022); ar.quadraticCurveTo(-Ri,hb-0.022,-Ri,0); ar.closePath();
+  const gA=new THREE.ExtrudeGeometry(ar,{depth:0.2,bevelEnabled:false,curveSegments:8}); const casq=new THREE.Mesh(gA,mPl); casq.position.set(xC,yC+hC/2-0.004,zC-0.06); Gs.add(casq);
+  const rap=H.cad==='raptor'; C.instr=ecran(rap?'raptor':'cmb_'+H.cad,rap?384:512,rap?144:192,larC,hC,xC,yC,zC,0.1);
+  /* aérateurs : ronds (sport) ou rectangulaires à lamelles, aux deux bouts de la planche */
+  const aerat=(x)=>{ if(T.cout||H.vol==='muscle'){ const r=cy(mNoir,0.045,0.045,0.03,x,yT-0.07,zL-0.01,Math.PI/2+0.1); const an=new THREE.Mesh(new THREE.TorusGeometry(0.047,0.007,6,16),T.chrome||H.vol==='muscle'?mCh:mIns); an.position.set(x,yT-0.07,zL-0.026); an.rotation.x=0.1; Gs.add(an); }
+    else { bx(mNoir,0.13,0.06,0.03,x,yT-0.07,zL-0.008,0.1); for(let k=0;k<3;k++) bx(T.chrome?mCh:mIns,0.12,0.005,0.034,x,yT-0.088+k*0.018,zL-0.012,0.1); } };
+  aerat(sd*(xs-0.13)); aerat(-sd*(xs-0.13));
+  /* console centrale : la façade (aérateurs, écran, commandes), le tunnel, le levier, le frein à main */
+  if(!bus&&Math.abs(e.x)>=0.25){ const zc=zL-0.02;
+    bx(mFonce,0.3,0.36,0.05,0,yT-0.2,zc+0.02,0.15);
+    if(H.centre!=='aucun'){ if(H.centre==='raptor'){ const a=ckAffichage('raptorEcran',192,256); const o=new THREE.Mesh(new THREE.PlaneGeometry(0.22,0.29),a.mat); o.rotation.set(-0.15,Math.PI,0,'YXZ'); o.position.set(0,yT-0.18,zc-0.008); o.userData.garder=true; G.add(o); if(!C.affs.includes(a)) C.affs.push(a); }
+      else ecran('ctr_'+(H.centre||'media'),256,192,0.21,0.157,0,yT-0.15,zc-0.008,0.15); }
+    for(let k=0;k<3;k++) cy(T.chrome?mCh:mNoir,0.018,0.018,0.025,(k-1)*0.075,yT-0.305,zc-0.01,Math.PI/2+0.15);
+    if(!cam){ const zT=e.z+0.18; bx(mPl,0.24,0.22,zc-zT+0.3,0,yF+0.32,(zc+zT)/2-0.12);
+      cy(mNoir,0.045,0.02,0.05,0,yF+0.455,e.z+0.3); cy(mCh,0.006,0.006,0.13,0,yF+0.52,e.z+0.3); const pom=new THREE.Mesh(new THREE.SphereGeometry(0.028,12,8),T.ins==='bois'?ckM(0,'bois'):ckM(0x1a1a1c)); pom.position.set(0,yF+0.59,e.z+0.3); Gs.add(pom);
+      bx(mNoir,0.03,0.025,0.22,0,yF+0.46,e.z-0.02,-0.25); /* frein à main */
+      for(const k of [-1,1]){ const r=new THREE.Mesh(new THREE.CircleGeometry(0.03,14),mNoir); r.rotation.x=-Math.PI/2; r.position.set(k*0.05,yF+0.432,e.z+0.12); Gs.add(r); }
+      if(P>=4) bx(mGar,0.22,0.08,0.3,0,yF+0.47,e.z-0.32); } /* accoudoir central */
+    else bx(mFonce,0.5,0.3,0.6,0,yF+0.15,e.z+0.05); } /* camion : le capot moteur entre les sièges */
+  /* boîte à gants côté passager */
+  if(!bus){ const xg=-sd*Math.min(xs-0.3,0.45); bx(mPl,0.42,0.15,0.02,xg,yT-0.24,zL-0.035,0.15); bx(T.chrome?mCh:mNoir,0.1,0.016,0.018,xg,yT-0.19,zL-0.046,0.15); }
+  /* taximètre, terminal de la police */
+  if(H.taximetre){ const xt=e.x-sd*0.24; bx(mNoir,0.17,0.06,0.08,xt,yT+0.03,zL+0.06); ecran('taximetre',128,48,0.15,0.047,xt,yT+0.03,zL+0.019,0.1); }
+  if(H.mdt){ const xm=-sd*0.05; tube(mNoir,0.012,V3(xm,yF+0.42,zL-0.25),V3(xm,yT-0.12,zL-0.32)); bx(mNoir,0.3,0.02,0.21,xm,yT-0.12,zL-0.32,0.35); ecran('mdt',256,160,0.27,0.17,xm,yT-0.035,zL-0.39,-0.95); }
+  /* montants du pare-brise, pavillon, pare-soleil, rétroviseur intérieur, plafonnier */
+  const mMont=ferme?mCiel:(H.cage?null:mPl);
+  if(ferme){ for(const s of [1,-1]) poutre(mMont,0.075,0.035,V3(s*(xs-0.04),yT-0.04,zW-0.02),V3(s*(xs-0.11),yR-0.01,zRf+0.02));
+    const lgP=zRf-zArr+0.05; bx(mCiel,W,0.03,lgP,0,yR+0.015,zRf-lgP/2); cy(mCiel,0.02,0.02,W,0,yR,zRf,0,0,Math.PI/2,10);
+    const mPs=ckM(ckTeinte(T.ciel,0.86),'ciel'); for(const s of [1,-1]){ const xv=s*Math.min(xs-0.22,Math.max(0.3,Math.abs(e.x))); bx(mPs,0.34,0.016,0.16,xv,yR-0.014,zRf-0.1,-0.08); }
+    const zm=zRf-0.07, ym=yR-0.08; tube(mNoir,0.007,V3(0,yR,zRf-0.03),V3(0,ym+0.02,zm)); const rb=bx(mNoir,0.25,0.065,0.03,0,ym,zm); face(rb,0,zm); const rg=new THREE.Mesh(new THREE.PlaneGeometry(0.235,0.052),ckMatRetro()); rg.position.set(0,ym,zm); face(rg,0,zm); rg.translateZ(0.016); Gs.add(rg);
+    bx(ckM(0xe8e2d0,'b'),0.15,0.018,0.09,0,yR-0.005,e.z-0.15); }
+  /* portières : garniture, haut de portière, jonc, accoudoir, poignée, haut-parleur ; montants B et C, longerons du toit ; rétroviseurs extérieurs */
+  const mHaut=T.ins==='peinture'||T.pl==='peinture'||T.gar==='peinture'?ckM(coulC):mPl; /* peinture mate : brillante, le soleil y allumait un grand reflet */
+  for(const s of [1,-1]){ const zD0=Math.min(zL+0.25,zW), zD1=bus?zArr:zB+0.03, lD=zD0-zD1, zm=(zD0+zD1)/2;
+    if(!(bus&&s===-sd)){ bx(mGar,0.05,yS-yF,lD,s*(xs-0.035),(yS+yF)/2,zm); bx(mHaut,0.075,0.03,lD,s*(xs-0.05),yS-0.005,zm);
+      if(!bus){ bx(mIns,0.012,0.045,lD*0.78,s*(xs-0.061),yS-0.11,zm+0.02); bx(mPl,0.085,0.05,0.42,s*(xs-0.1),yS-0.215,e.z+0.07); bx(T.chrome?mCh:mNoir,0.02,0.024,0.11,s*(xs-0.071),yS-0.075,e.z+0.37);
+        const hp=new THREE.Mesh(new THREE.CircleGeometry(0.065,16),mNoir); hp.position.set(s*(xs-0.061),yF+0.25,Math.min(e.z+0.45,zD0-0.12)); hp.rotation.y=-s*Math.PI/2; Gs.add(hp);
+        if(s===sd){ bx(mNoir,0.055,0.018,0.11,s*(xs-0.11),yS-0.18,e.z+0.22); for(const k of [0,1]) bx(ckM(0x3a3e45),0.018,0.008,0.03,s*(xs-0.11),yS-0.168,e.z+0.19+k*0.05); }
+        if(T.acc) bx(ckM(T.acc,'b'),0.005,0.005,lD*0.6,s*(xs-0.062),yS-0.145,zm); } }
+    if(P>=4&&!cam&&!bus&&!H.cloison&&zArr<zB-0.5){ const zr0=zB-0.03, zr1=zArr+0.2; bx(mGar,0.05,yS-yF,zr0-zr1,s*(xs-0.035),(yS+yF)/2,(zr0+zr1)/2); bx(mHaut,0.075,0.03,zr0-zr1,s*(xs-0.05),yS-0.005,(zr0+zr1)/2); }
+    if(ferme){ bx(mCiel,0.07,yR-yS,0.1,s*(xs-0.035),(yR+yS)/2,zB); bx(mCiel,0.06,0.05,zRf-zArr,s*(xs-0.04),yR-0.02,(zRf+zArr)/2); bx(mCiel,0.07,yR-yS,0.26,s*(xs-0.035),(yR+yS)/2,zArr+0.13);
+      if(bus) for(let z=zB-1.1;z>zArr+0.4;z-=1.15) bx(mCiel,0.07,yR-yS,0.08,s*(xs-0.035),(yR+yS)/2,z); }
+    if(!bus||s===sd){ const big=cam||bus, xm=s*(xs+(big?0.34:0.17)), ym=yS+(big?0.1:0.06), zm2=zW-(big?0.1:0.18);
+      bx(mPeint,big?0.24:0.17,0.03,0.06,s*(xs+(big?0.16:0.085)),yS+0.03,zm2+0.04); const hb2=bx(big?mNoir:mPeint,0.07,big?0.32:0.11,big?0.2:0.16,xm,ym,zm2); face(hb2,xm,zm2);
+      const mg=new THREE.Mesh(new THREE.PlaneGeometry(big?0.17:0.13,big?0.28:0.085),ckMatRetro()); mg.position.set(xm,ym,zm2); face(mg,xm,zm2); mg.translateZ(big?0.1:0.08); Gs.add(mg); } }
+  /* sièges : celui du passager (ou la banquette), la banquette arrière ; le dos du véhicule (plage arrière, cloison, lunette) */
+  const siege=(x,z,larg,sport)=>{ bx(mSg,larg,0.12,0.5,x,yF+0.36,z); const dz=bx(mSg,larg+0.02,0.66,0.11,x,yF+0.71,z-0.3,-0.2); if(T.cout){ bx(ckM(T.cout),0.012,0.6,0.004,x,yF+0.71,z-0.244,-0.2); }
+    bx(mSg,0.26,0.17,0.09,x,yF+1.12,z-0.41,-0.1); if(sport){ for(const k of [-1,1]){ bx(mSg,0.07,0.5,0.15,x+k*(larg/2),yF+0.72,z-0.27,-0.2); bx(mSg,0.07,0.1,0.42,x+k*(larg/2-0.02),yF+0.43,z); } } return dz; };
+  const xp=-sd*Math.min(Math.abs(e.x)||0.4,xs-0.3);
+  if(!bus){ if(cam||P===3) { bx(mSg,0.86,0.12,0.5,-sd*(xs-0.48),yF+0.4,e.z); bx(mSg,0.88,0.6,0.11,-sd*(xs-0.48),yF+0.74,e.z-0.32,-0.12); }
+    else if(P>=2) siege(xp,e.z-0.02,0.48,!!T.cout);
+    if(P>=4&&zArr<zB-0.5){ const zb=zB-0.5; bx(mSg,W-0.26,0.12,0.46,0,yF+0.33,zb); bx(mSg,W-0.26,0.56,0.1,0,yF+0.63,zb-0.28,-0.15); for(const k of [-1,1]) bx(mSg,0.24,0.15,0.08,k*(xs-0.45),yF+0.98,zb-0.34,-0.1); }
+    if(ferme&&!cam&&P!==3&&!H.cloison) bx(mPl,W,0.025,0.3,0,yS+0.03,zArr+0.18);
+    else if(cam||P===3||H.cloison){ const yW0=yS+0.08, yW1=Math.min(yR-0.08,yS+0.4); bx(mGar,W,yW0-yF,0.05,0,(yW0+yF)/2,zArr); bx(mGar,W,yR-yW1,0.05,0,(yR+yW1)/2,zArr); for(const k of [-1,1]) bx(mGar,W/2-0.35,yW1-yW0,0.05,k*(W/4+0.175),(yW0+yW1)/2,zArr); }
+    else if(P<=2) bx(mGar,W,yS-yF+0.02,0.05,0,(yS+yF)/2,zArr); }
+  else { /* bus : rangées de sièges bleus, barres jaunes, plafonniers, l'allée */ const mBar=ckM(0xffc21a,'p'), xa=0.32;
+    for(let z=zB-0.4, n=0; z>zArr+0.6; z-=0.86, n++){ for(const k of [-1,1]){ const x0=k*(xa+(xs-xa)/2); bx(mSg,xs-xa-0.08,0.1,0.44,x0,yF+0.45,z); bx(mSg,xs-xa-0.08,0.5,0.08,x0,yF+0.72,z-0.24,-0.1); }
+      if(n%2===0) for(const k of [-1,1]) cy(mBar,0.018,0.018,yR-yF,k*xa,(yR+yF)/2,z-0.3,0,0,0,8); bx(ckM(0xf2f4f8,'b'),0.4,0.015,0.3,0,yR-0.01,z); }
+    for(const k of [-1,1]) cy(mBar,0.015,0.015,zB-zArr,k*xa,yR-0.18,(zB+zArr)/2,Math.PI/2,0,0,8);
+    bx(mFonce,0.3,0.5,0.32,e.x-sd*0.55,yF+0.6,e.z+0.25); ecran('ctr_'+(H.centre||'billetterie'),256,192,0.24,0.18,e.x-sd*0.55,yF+0.95,e.z+0.08,-0.5); }
+  bx(mTap,W,0.02,zW-zArr,0,yF,(zW+zArr)/2);
+  /* arceaux (derby, buggy, monster truck) : avant le long des montants, sur le toit, derrière les sièges, croix */
+  if(H.cage){ const mc=ckM(H.th==='derby'?0xffd23f:ckTeinte(coulC,0.8),'p'), r=0.022, yH=ferme?yR-0.06:Math.max(yR,e.y+0.22), zH=zB-0.12, zA=Math.min(zW-0.05,zRf+0.15);
+    for(const s of [1,-1]){ const xa2=s*(xs-0.08); tube(mc,r,V3(s*(xs-0.06),yF+0.1,zA-0.05),V3(xa2,yT-0.05,zA)); tube(mc,r,V3(xa2,yT-0.05,zA),V3(s*(xs-0.12),yH,zRf+0.05)); tube(mc,r,V3(s*(xs-0.12),yH,zRf+0.05),V3(s*(xs-0.1),yH,zH)); tube(mc,r,V3(s*(xs-0.1),yH,zH),V3(s*(xs-0.06),yF+0.1,zH));
+      if(s===sd) { tube(mc,r*0.85,V3(s*(xs-0.06),yF+0.25,zA-0.1),V3(s*(xs-0.06),yS-0.05,zH)); tube(mc,r*0.85,V3(s*(xs-0.06),yS-0.05,zA-0.1),V3(s*(xs-0.06),yF+0.25,zH)); } }
+    tube(mc,r,V3(xs-0.12,yH,zRf+0.05),V3(-(xs-0.12),yH,zRf+0.05)); tube(mc,r,V3(xs-0.1,yH,zH),V3(-(xs-0.1),yH,zH)); tube(mc,r*0.85,V3(xs-0.1,yH,zH),V3(-(xs-0.06),yF+0.3,zH)); }
+  /* volant (ou leviers) et mains */
+  if(H.vol==='leviers'){ const lv=new THREE.Group(); lv.position.copy(V3(e.x,e.y-0.5,e.z+0.44)); lv.userData.leviers=[]; G.add(lv); C.volant=lv;
+    for(const k of [1,-1]){ const l=new THREE.Group(); l.position.set(k*0.13,0,0); lv.add(l); const t=new THREE.Mesh(new THREE.CylinderGeometry(0.012,0.014,0.34,8),mCh); t.position.y=0.17; l.add(t); const p=new THREE.Mesh(new THREE.CylinderGeometry(0.026,0.024,0.1,10),mNoir); p.position.y=0.36; l.add(p); lv.userData.leviers.push(l);
+      const mn=new THREE.Group(); mn.position.set(0,0.35,0); mn.rotation.z=Math.PI/2; l.add(mn); ckMain(mn,0,0,0,k>0?C.epG:C.epD,S,ckManche(S),G); }
+    bx(mNoir,0.5,0.06,0.3,e.x,e.y-0.52,e.z+0.44); }
+  else { const vol=new THREE.Group(); vol.position.copy(V3(e.x,e.y+(bus?-0.5:(cam?-0.445:-0.425)),e.z+(bus?0.5:(cam?0.56:0.6)))); /* la jante passe sous le combiné */ vol.rotation.x=bus?1.15:(cam?0.95:0.45); G.add(vol);
+    const R=bus?0.25:(cam?0.21:(H.vol==='raptor'?0.185:(H.vol==='vintage'?0.2:(H.vol==='derby'?0.155:0.17)))), roue=ckVolant2(S,H.vol||'moderne',R,coulC); ckFusionner(roue); vol.add(roue); C.volant=roue;
+    const col=new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.04,0.32,12),mFonce); col.rotation.x=Math.PI/2; col.position.z=0.18; vol.add(col);
+    const ca=new THREE.Mesh(new THREE.BoxGeometry(0.11,0.08,0.14),mFonce); ca.position.set(0,-0.03,0.12); vol.add(ca); /* le capot de la colonne, les commodos */
+    for(const k of [-1,1]){ const cm=new THREE.Mesh(new THREE.BoxGeometry(0.1,0.012,0.02),mNoir); cm.position.set(k*0.1,-0.01,0.08); cm.rotation.y=k*0.2; vol.add(cm); }
+    for(const s of [1,-1]){ const a=s*0.95, m=ckMain(roue,s*Math.sin(Math.abs(a))*R,Math.cos(a)*R,0,s>0?C.epG:C.epD,S,ckManche(S),G); m.rotation.z=-a; } }
+  ckFusionner(Gs); }
+/* volants V2 : la jante dans le plan XY du groupe, son axe vers le conducteur (−z) ; rotation.z > 0 = braquer à droite */
+function ckVolant2(S,style,R,coulC){ if(['raptor','camion','tt','sport','bois','bateauSport'].includes(style)) return ckVolant(S,style,R);
+  const roue=new THREE.Group(), add=(o)=>{ roue.add(o); return o; }, cuir=ckM(0x1a1a1c,'p'), noir=ckM(0x121315), ch=ckM(0xc8ced8,'m');
+  const br=(m,ang,len,larg,ep,z)=>{ const b=add(new THREE.Mesh(new THREE.BoxGeometry(len,larg,ep||0.016),m)); b.position.set(Math.cos(ang)*len/2,Math.sin(ang)*len/2,z||0.006); b.rotation.z=ang; return b; };
+  const moyeu=(m,r,ep)=>{ const h=add(new THREE.Mesh(new THREE.CylinderGeometry(r,r*1.06,ep||0.05,20),m)); h.rotation.x=Math.PI/2; h.position.z=0.012; return h; };
+  switch(style){
+    case 'moderne': case 'utilitaire': case 'luxe': { const lux=style==='luxe', ut=style==='utilitaire';
+      add(new THREE.Mesh(new THREE.TorusGeometry(R,ut?0.017:0.02,10,44),cuir));
+      if(lux){ for(const a0 of [Math.PI*0.2,Math.PI*1.2]){ const b=add(new THREE.Mesh(new THREE.TorusGeometry(R,0.021,10,16,Math.PI*0.6),ckM(0,'bois'))); b.rotation.z=a0; } }
+      br(ut?noir:ckM(0x2a2c31,'p'),0,R*0.98,0.045); br(ut?noir:ckM(0x2a2c31,'p'),Math.PI,R*0.98,0.045); if(!lux) br(ckM(0x2a2c31,'p'),-Math.PI/2,R*0.98,0.04);
+      const h=add(new THREE.Mesh(new THREE.BoxGeometry(0.12,0.085,0.05),ut?noir:ckM(0x1e2024,'p'))); h.position.z=0.01; /* coussin d'airbag */
+      const lg=add(new THREE.Mesh(new THREE.CircleGeometry(0.016,16),lux?ch:ckM(0x9aa0a8,'m'))); lg.position.z=-0.016; lg.rotation.y=Math.PI;
+      if(!ut) for(const k of [-1,1]) for(let i=0;i<2;i++){ const b=add(new THREE.Mesh(new THREE.BoxGeometry(0.014,0.01,0.006),ckM(0x3e424a))); b.position.set(k*(R*0.5+i*0.022),0.008,-0.012); }
+      if(lux){ const an=add(new THREE.Mesh(new THREE.TorusGeometry(0.05,0.004,6,24),ch)); an.position.z=-0.017; } return roue; }
+    case 'vintage': { const iv=ckM(0xe8dcc0,'p'); add(new THREE.Mesh(new THREE.TorusGeometry(R,0.012,8,48),iv));
+      for(const a of [Math.PI*0.5+0.0,Math.PI*1.17,Math.PI*1.83]) br(ch,a,R*0.98,0.012,0.006);
+      const an=add(new THREE.Mesh(new THREE.TorusGeometry(R*0.55,0.005,6,36),ch)); an.position.z=-0.004; moyeu(ch,0.04,0.04); const lg=add(new THREE.Mesh(new THREE.CircleGeometry(0.026,18),ckM(0x8a1a1a,'p'))); lg.position.z=-0.023; lg.rotation.y=Math.PI; return roue; }
+    case 'nardi': { add(new THREE.Mesh(new THREE.TorusGeometry(R,0.017,10,48),ckM(0,'bois'))); /* jante en bois verni, trois branches d'alu ajourées (Agent Gris, cabriolet) */
+      for(const a of [0,Math.PI,-Math.PI/2]){ br(ckM(0xc4cad2,'m'),a,R*0.98,0.036,0.006); for(const f of [0.4,0.66]){ const t=add(new THREE.Mesh(new THREE.CircleGeometry(0.007,10),noir)); t.position.set(Math.cos(a)*R*f,Math.sin(a)*R*f,-0.004); t.rotation.y=Math.PI; } }
+      moyeu(noir,0.042,0.04); const lg=add(new THREE.Mesh(new THREE.CircleGeometry(0.022,16),ckM(0xc4cad2,'m'))); lg.position.z=-0.02; lg.rotation.y=Math.PI; return roue; }
+    case 'muscle': { add(new THREE.Mesh(new THREE.TorusGeometry(R,0.018,8,44),ckM(0x111111,'p')));
+      for(const a of [0,Math.PI,-Math.PI/2]){ const b=br(ckM(0xb8bec8,'m'),a,R*0.98,0.05,0.008); for(const f of [0.35,0.62]){ const t=add(new THREE.Mesh(new THREE.CircleGeometry(0.009,10),noir)); t.position.set(Math.cos(a)*R*f,Math.sin(a)*R*f,-0.003); t.rotation.y=Math.PI; } }
+      moyeu(noir,0.05,0.045); const an=add(new THREE.Mesh(new THREE.TorusGeometry(0.045,0.006,6,24),ch)); an.position.z=-0.02; return roue; }
+    case 'enzo': { /* volant de course à diodes : jante rectangulaire, poignées, écran et rampe de diodes de passage */
+      const cf=ckM(0,'carbone'), al=ckM(0x1a1a1c,'l');
+      for(const k of [-1,1]){ const p=add(new THREE.Mesh(new THREE.CylinderGeometry(0.024,0.022,0.17,12),al)); p.position.set(k*R*0.92,0,0); }
+      const hb=add(new THREE.Mesh(new THREE.BoxGeometry(R*1.84,0.05,0.03),cf)); hb.position.set(0,R*0.5,0.005); const bb=add(new THREE.Mesh(new THREE.BoxGeometry(R*1.5,0.04,0.03),cf)); bb.position.set(0,-R*0.62,0.005);
+      const pl=add(new THREE.Mesh(new THREE.BoxGeometry(R*1.6,R*1.05,0.02),cf)); pl.position.set(0,-0.01,0.012);
+      const a=ckAffichage('volEnzo',256,64); const ec=add(new THREE.Mesh(new THREE.PlaneGeometry(R*1.2,R*0.3),a.mat)); ec.position.set(0,R*0.5,-0.016); ec.rotation.y=Math.PI; if(!COCKPIT.affs.includes(a)) COCKPIT.affs.push(a);
+      for(const k of [-1,1]) for(let i=0;i<2;i++){ const b=add(new THREE.Mesh(new THREE.CylinderGeometry(0.009,0.009,0.01,10),[ckM(0xff2a2a,'b'),ckM(0xffd23f,'b')][i])); b.rotation.x=Math.PI/2; b.position.set(k*R*0.45,-R*0.15-i*0.03,-0.006); }
+      for(const k of [-1,1]){ const p=add(new THREE.Mesh(new THREE.BoxGeometry(0.06,0.1,0.008),ckM(0xb8bec8,'m'))); p.position.set(k*R*0.75,0.02,0.04); } return roue; }
+    case 'hyper': case 'bolide': { const hy=style==='hyper', jm=hy?ckM(0x1a1a1e,'p'):ckM(0x5a3a26,'l');
+      const arc=add(new THREE.Mesh(new THREE.TorusGeometry(R,0.02,8,36,Math.PI*(hy?1.2:1.62)),jm)); arc.rotation.z=hy?Math.PI*0.9:Math.PI*1.69;
+      const bar=add(new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.02,(hy?1.6:1.124)*R,8),jm)); bar.rotation.z=Math.PI/2; bar.position.y=hy?-0.6*R:-0.827*R; if(hy){ for(const k of [-1,1]){ const s=add(new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.02,0.6*R,8),jm)); s.position.set(k*0.8*R,-0.3*R,0); } }
+      br(hy?ckM(0,'carbone'):ckM(0xb4bac2,'m'),0,R*0.98,0.04); br(hy?ckM(0,'carbone'):ckM(0xb4bac2,'m'),Math.PI,R*0.98,0.04); moyeu(hy?ckM(0,'carbone'):ckM(0xb4bac2,'m'),0.055,0.045);
+      const rep=add(new THREE.Mesh(new THREE.BoxGeometry(0.014,0.03,0.044),ckM(hy?0x8a6aff:0xffd090,'b'))); rep.position.y=hy?R*0.95:R; return roue; }
+    case 'derby': { const sd2=ckM(0x2a2826,'l'); add(new THREE.Mesh(new THREE.TorusGeometry(R,0.022,8,36),sd2));
+      for(const a of [Math.PI*0.5,Math.PI*1.17,Math.PI*1.83]){ const b=br(ckM(0x111111,'p'),a,R*0.98,0.03,0.01); b.position.z=0.025; }
+      moyeu(ckM(0xd0202a,'p'),0.035,0.05); const q=add(new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.03,0.04,6),ch)); q.rotation.x=Math.PI/2; q.position.z=0.05; return roue; }
+    case 'bus': { add(new THREE.Mesh(new THREE.TorusGeometry(R,0.019,8,48),ckM(0x1a1c20,'p'))); br(noir,0,R*0.98,0.05); br(noir,Math.PI,R*0.98,0.05); moyeu(noir,0.07,0.05); return roue; }
+    default: return ckVolant(S,style,R); } }
+/* ---------- mains V2 : un gant qui serre vraiment (le dos de la main face au conducteur, quatre doigts qui font le tour de la jante,
+   jointures, pouce sur l'intérieur), un poignet de gant ; le bras en DEUX segments (avant-bras, bras) plié au coude, recalculé à chaque
+   image (majBrasCockpit). Repère de la prise : x le long de la jante, y vers l'extérieur, z vers l'avant (le conducteur est en −z). ---------- */
+function geoMainCk(cote){ return geoCk('main2_'+cote,()=>{ const P=[];
+  const dos=new THREE.SphereGeometry(0.05,14,10); dos.scale(0.95,0.62,0.55); dos.translate(0,0.012,-0.034); P.push(dos);
+  for(let i=0;i<4;i++){ const x=-0.033+i*0.022, l=i===0||i===3?0.92:1; const t=new THREE.TorusGeometry(0.028*l,0.0098,6,10,3.9); t.rotateY(Math.PI/2); t.rotateX(-0.55); t.translate(x,0.002,0); P.push(t);
+    const j=new THREE.SphereGeometry(0.0118,8,6); j.translate(x,0.03,-0.012); P.push(j); }
+  const po=new THREE.CylinderGeometry(0.012,0.013,0.04,8); po.rotateZ(Math.PI/2); po.translate(cote*0.035,-0.026,-0.03); P.push(po); const pb=new THREE.SphereGeometry(0.0125,8,6); pb.translate(cote*0.055,-0.026,-0.028); P.push(pb); /* le pouce, couché le long de l'intérieur de la jante */
+  const pg=new THREE.CylinderGeometry(0.036,0.033,0.07,12); pg.rotateX(Math.PI/2); pg.translate(0,-0.006,-0.088); P.push(pg); /* poignet du gant */
+  return mergeGeoManuel(P); }); }
+const CK_BRAS={haut:0.3,avant:0.31};
+function ckMain(Gp,x,y,z,ep,S,manche,Gb){ const m=new THREE.Group(); m.position.set(x,y,z); Gp.add(m); const cote=x>0.001?-1:(x<-0.001?1:-1);
+  const gm=new THREE.Mesh(geoMainCk(cote),S.gantV2||(S.gantV2=new THREE.MeshLambertMaterial({color:0x8a6a4a}))); m.add(gm);
+  const poignet=new THREE.Object3D(); poignet.position.set(0,-0.006,-0.12); m.add(poignet);
+  const G=Gb||Gp, av=new THREE.Mesh(geoCk('avBras',()=>new THREE.CylinderGeometry(0.028,0.033,1,10)),manche), br=new THREE.Mesh(geoCk('bras',()=>new THREE.CylinderGeometry(0.033,0.04,1,10)),manche); G.add(av); G.add(br);
+  COCKPIT.bras.push({poing:poignet,av,br,ep:ep.clone(),G}); return m; }
+const _ckCoude=new THREE.Vector3(), _ckPref=new THREE.Vector3(), _ckDir=new THREE.Vector3();
+function majBrasCockpit(){ const C=COCKPIT, e=C.eye; for(const b of C.bras){ b.poing.getWorldPosition(_ckV); b.G.worldToLocal(_ckV); const S=b.ep, d=_ckV.distanceTo(S); if(d<1e-3) continue;
+  const Lh=CK_BRAS.haut, La=CK_BRAS.avant; _ckDir.copy(_ckV).sub(S).divideScalar(d);
+  if(d>=Lh+La-0.002){ _ckCoude.copy(S).addScaledVector(_ckDir,d*Lh/(Lh+La)); }
+  else { const a=(Lh*Lh-La*La+d*d)/(2*d), h=Math.sqrt(Math.max(0,Lh*Lh-a*a)); const ext=e?Math.sign(S.x-e.x)||1:1; _ckPref.set(ext*0.7,-1,-0.3); _ckPref.addScaledVector(_ckDir,-_ckPref.dot(_ckDir)).normalize(); _ckCoude.copy(S).addScaledVector(_ckDir,a).addScaledVector(_ckPref,h); }
+  const pose=(mesh,A,B)=>{ const L=A.distanceTo(B); mesh.position.copy(A).lerp(B,0.5); mesh.scale.set(1,Math.max(L,1e-3),1); mesh.quaternion.setFromUnitVectors(_ckY,_ckV2.copy(A).sub(B).normalize()); };
+  pose(b.av,_ckV,_ckCoude); pose(b.br,_ckCoude,S); } }
+/* ---------- motos, quad, jet-ski, vélos V2 (18 octobre, signalé : « de petits rétroviseurs étranges qui ont l'air de tenir le cadran ») :
+   un vrai guidon (poignées, leviers et leurs maîtres-cylindres, commodos, embouts chromés, té de fourche), des rétroviseurs montés sur
+   les leviers, tête au bout du guidon (moto de route, chopper), le compteur intégré au centre dans la tête de fourche à la couleur de la
+   moto (ou l'écran de la sportive sous sa bulle, celui du cross sur sa plaque) ; rien ne flotte. Tout le guidon tourne d'un bloc. ---------- */
+function ckDeuxRoues(G,S,v,D,H,epG,epD,manche){ const C=COCKPIT, e=D.eye, fam=D.fam, velo=fam==='velo', js=fam==='jetski', st=H.cad, coulC=couleurCaisseCk(v);
+  const cross=st==='enduro'||st==='quad', chop=st==='chopper', sp=st==='tft', route=st==='motoRond'||sp||chop, bmx=!!v.def.bmx;
+  const larg=js?0.6:(velo?(bmx?0.52:0.5):(cross?0.6:(chop?0.62:0.56))), yB=velo?-0.46:(chop?-0.4:-0.48), zB=velo?0.6:(js?0.68:(chop?0.62:0.72));
+  const gui=new THREE.Group(); gui.position.set(e.x,e.y+yB,e.z+zB); G.add(gui); C.volant=gui; const Gs=new THREE.Group(); gui.add(Gs);
+  const mCh=ckM(0xc8ced8,'m'), mNoir=ckM(0x121315), mCaou=ckM(0x1b1b1d), mPeint=ckM(coulC,'p'), mAlu=ckM(0x8a9098,'m');
+  const mBarre=velo?ckM(0x9aa0a8,'m'):(cross||js?ckM(0x1a1a1c,'p'):(chop?mCh:ckM(0x2c2e33,'p')));
+  const bx=(m,w,h,d,x,y,z,rx,ry,rz,par)=>{ const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m); o.position.set(x,y,z); if(rx||ry||rz) o.rotation.set(rx||0,ry||0,rz||0); (par||Gs).add(o); return o; };
+  const cy=(m,r1,r2,h,x,y,z,rx,ry,rz,seg,par)=>{ const o=new THREE.Mesh(new THREE.CylinderGeometry(r1,r2,h,seg||12),m); o.position.set(x,y,z); if(rx||ry||rz) o.rotation.set(rx||0,ry||0,rz||0); (par||Gs).add(o); return o; };
+  const tube=(m,r,a,b)=>{ const o=new THREE.Mesh(new THREE.CylinderGeometry(r,r,1,8),m); o.position.copy(a).lerp(b,0.5); o.scale.set(1,a.distanceTo(b),1); o.quaternion.setFromUnitVectors(_ckY,_ckV2.copy(b).sub(a).normalize()); Gs.add(o); return o; };
+  const V3=(x,y,z)=>new THREE.Vector3(x,y,z);
+  const aff=(type,w,h,larg2,haut,x,y,z,incl,rond)=>{ const a=ckAffichage(type,w,h); const o=new THREE.Mesh(rond?new THREE.CircleGeometry(larg2,40):new THREE.PlaneGeometry(larg2,haut),a.mat); o.rotation.set(-(incl||0),Math.PI,0,'YXZ'); o.position.set(x,y,z); gui.add(o); if(!C.affs.includes(a)) C.affs.push(a); return o; };
+  /* la barre (relevée sur deux pontets pour le chopper), les poignées, les embouts */
+  const yb=chop?0.12:0; if(chop){ for(const k of [-1,1]) tube(mCh,0.013,V3(k*0.08,-0.02,0.02),V3(k*0.12,yb,0.0)); }
+  cy(mBarre,velo?0.011:0.0135,velo?0.011:0.0135,larg,0,yb,0,0,0,Math.PI/2,10);
+  for(const s of [1,-1]){ cy(mCaou,0.019,0.019,0.12,s*(larg/2-0.06),yb,0,0,0,Math.PI/2,12); if(!velo&&!js) cy(chop?mCh:mAlu,0.017,0.017,0.02,s*(larg/2+0.008),yb,0,0,0,Math.PI/2,12);
+    if(!js){ /* levier (frein à droite, embrayage à gauche) et son maître-cylindre */ bx(mNoir,0.045,0.035,0.035,s*(larg/2-0.15),yb+0.006,0.012); const lv=bx(velo?ckM(0x8a9098,'m'):mAlu,0.15,0.009,0.016,s*(larg/2-0.07),yb-0.004,0.065,0,-s*0.3,0); lv.position.z=0.06;
+      if(!velo&&!cross){ bx(mNoir,0.05,0.04,0.045,s*(larg/2-0.135),yb-0.004,-0.02); bx(s>0?ckM(0xffb21a):ckM(0xd0202a),0.012,0.012,0.012,s*(larg/2-0.135),yb+0.02,-0.03); } } }
+  /* té de fourche et tubes */
+  if(!velo&&!js){ bx(mAlu,0.2,0.022,0.08,0,-0.03,0.05); for(const k of [-1,1]) cy(mAlu,0.021,0.021,0.12,k*0.085,-0.08,0.05,0,0,0,12); cy(mNoir,0.012,0.012,0.012,0.04,-0.016,0.02,0,0,0,8); }
+  /* rétroviseurs des motos de route : tige depuis le levier, tête ovale au bout du guidon, miroir tourné vers le pilote */
+  if(route){ for(const s of [1,-1]){ const a=V3(s*(larg/2-0.15),yb+0.02,0.015), b=V3(s*(larg/2-0.06),yb+0.19,-0.015); tube(chop?mCh:mNoir,0.007,a,b);
+      const hd=new THREE.Mesh(new THREE.CylinderGeometry(0.052,0.052,0.024,20),chop?mCh:mNoir); hd.scale.set(chop?1:1.4,1,1); hd.rotation.x=Math.PI/2; hd.position.set(b.x+s*0.02,b.y+0.03,b.z); Gs.add(hd);
+      const gl=new THREE.Mesh(new THREE.CircleGeometry(0.046,20),ckMatRetro()); gl.scale.set(chop?1:1.4,1,1); gl.rotation.y=Math.PI; gl.position.set(b.x+s*0.02,b.y+0.03,b.z-0.0125); Gs.add(gl); } }
+  /* le compteur, au centre */
+  if(st==='motoRond'){ const nac=new THREE.Mesh(new THREE.SphereGeometry(0.13,20,14),mPeint); nac.scale.set(1.1,0.78,1); nac.position.set(0,0.07,0.21); Gs.add(nac);
+    C.instr=aff('m2_motoRond',256,256,0.068,0,0,0.105,0.075,0.55,true); const lu=new THREE.Mesh(new THREE.TorusGeometry(0.07,0.007,8,32),mCh); lu.rotation.set(-0.55,Math.PI,0,'YXZ'); lu.position.set(0,0.105,0.076); Gs.add(lu);
+    const co=cy(mNoir,0.072,0.08,0.05,0,0.105,0.1,Math.PI/2-0.55,0,0,24); }
+  else if(sp){ bx(mNoir,0.3,0.14,0.04,0,0.1,0.18,-0.5); for(const k of [-1,1]) bx(mPeint,0.035,0.17,0.22,k*0.165,0.1,0.24,-0.5); bx(mPeint,0.36,0.03,0.18,0,0.185,0.27,-0.5); /* carénage : l'intérieur sombre, les bords à la couleur de la moto */
+    C.instr=aff('m2_tft',256,160,0.16,0.1,0,0.115,0.14,0.5); const bul=new THREE.Mesh(new THREE.PlaneGeometry(0.3,0.2),new THREE.MeshBasicMaterial({color:0x9ab8d0,transparent:true,opacity:0.12,depthWrite:false,side:THREE.DoubleSide})); bul.position.set(0,0.25,0.3); bul.rotation.x=-0.55; bul.userData.garder=true; gui.add(bul); }
+  else if(chop){ cy(mCh,0.062,0.07,0.045,0,yb+0.045,0.03,Math.PI/2-0.6,0,0,24); C.instr=aff('m2_chopper',256,256,0.056,0,0,yb+0.05,0.006,0.6,true); }
+  else if(cross){ if(st==='enduro'){ const pl=bx(v.key==='motoMil'?ckM(0x4a5238):ckM(0xf2f4f8),0.26,0.2,0.012,0,0.06,0.17,-0.35); const pn=aff('m2_plaque',128,96,0.17,0.13,0,0.06,0.162,0.35); pn.renderOrder=1; }
+    const pd=bx(ckM(0x1a1a1c),0.16,0.06,0.05,0,yb+0.035,0.03); C.instr=aff('m2_'+st,256,128,0.12,0.06,0,yb+0.07,0.006,0.5); if(st==='enduro') bx(ckM(0xd0202a),0.2,0.035,0.035,0,yb+0.02,-0.025); }
+  else if(js){ const cap=new THREE.Mesh(new THREE.SphereGeometry(0.2,20,12,0,Math.PI*2,0,Math.PI/2),mPeint); cap.scale.set(1.2,0.5,1.1); cap.position.set(0,-0.08,0.28); Gs.add(cap);
+    bx(mNoir,0.2,0.09,0.03,0,0.02,0.12,-0.6); C.instr=aff('m2_jetski',256,128,0.17,0.085,0,0.022,0.105,0.6); }
+  else if(velo){ cy(mAlu,0.016,0.016,0.06,0,-0.03,0.02,0,0,0,10); /* potence */ const so=cy(ckM(0x9aa0a8,'m'),0.016,0.02,0.012,larg/2-0.15,0.02,0,0,0,0,14);
+    if(bmx){ cy(mBarre,0.01,0.01,larg*0.42,0,0.08,0,0,0,Math.PI/2,8); for(const k of [-1,1]) cy(mBarre,0.01,0.01,0.1,k*larg*0.2,0.04,0,0,0,0,8); }
+    else { bx(mNoir,0.05,0.022,0.04,0,0.022,0.01); C.instr=aff('m2_compteurVelo',128,64,0.05,0.025,0,0.035,0.008,0.6); } }
+  for(const s of [1,-1]) ckMain(gui,s*(larg/2-0.06),yb+0.004,0,s>0?epG:epD,S,manche,G);
+  ckFusionner(Gs); }
+/* les afficheurs des deux-roues */
+function ckDeuxRouesAff(a,v,V){ const g=a.ctx, W=a.w, H=a.h, T=ETAT.runT, st=a.type.slice(3), M=Math.max(80,Math.ceil((v.def.vmax||30)*3.6/20)*20);
+  switch(st){
+    case 'motoRond': ckDial(g,128,128,112,V.kmh,M,{bord:'aucun',fond:'#08090b',fond2:'#16181d',num:'#f2f4f8',aig:'#ff5a1a',n:M/20,sub:2,pas:M>160?2:1,lib:'km/h',ylib:0.26,a0:Math.PI*0.7,a1:Math.PI*2.3,
+        texte:(g2,cx,cy,r)=>{ ckLCD(g2,cx-r*0.36,cy+r*0.42,r*0.72,r*0.3,{fond:'#1a2618',fond2:'#0e160c',cadre:'#000',lcadre:2}); ckSeg(g2,V.rap,cx-r*0.12,cy+r*0.57,r*0.24,'#9aff6a','center'); ckSeg(g2,String(Math.round(V.tr/100)*100),cx+r*0.32,cy+r*0.57,r*0.14,'#9aff6a','right'); }}); return true;
+    case 'tft': { ckTFT(g,0,0,W,H,{fond:'#05070c',fond2:'#0a1020'}); const t=V.tr/12000; g.save(); g.shadowColor='#ff3b1a'; g.shadowBlur=8; ckArc(g,W/2,H*0.95,H*0.8,12,t,t>0.85?'#ff2a2a':'#ff8a1a','#1c2028',Math.PI*1.1,Math.PI*1.9); g.restore();
+      ckTexte(g,String(Math.round(V.kmh)),W/2,H*0.62,46,'#ffffff'); ckTexte(g,'km/h',W/2,H*0.86,12,'#8fa0b4'); ckTexte(g,V.rap,W*0.86,H*0.6,30,'#ffd23f'); ckTexte(g,'RACE',W*0.14,H*0.6,12,'#ff3b3b'); ckJauge(g,W*0.06,H*0.12,W*0.25,6,V.hp,'#3aff7a'); return true; }
+    case 'chopper': ckDial(g,128,128,112,V.kmh,M,{bord:'aucun',fond:'#f2e8cc',fond2:'#fbf4e2',num:'#1a140c',aig:'#111',moyeu:'#c8ccd2',n:M/20,sub:2,pas:2,lib:'MPH',libC:'#5a4a30',famille:'Georgia,serif',marque:'Fantôme',marqueC:'#7a2a1a'}); return true;
+    case 'enduro': case 'quad': { ckLCD(g,0,0,W,H,{fond:'#0a0c08',fond2:'#14180e',cadre:'#2a2c30',lcadre:4}); const c=st==='enduro'?'#9aff6a':'#35e0ff'; for(let i=0;i<16;i++){ g.fillStyle=V.tr/9000>i/16?(i>12?'#ff3b3b':c):'#1e2214'; g.fillRect(12+i*14.5,10,11,14); }
+      ckSeg(g,String(Math.round(V.kmh)).padStart(3,' '),150,78,52,c,'right','rgba(255,255,255,0.05)'); ckTexte(g,'km/h',156,96,11,c,'left'); ckSeg(g,V.rap,220,76,42,'#ffffff','center'); return true; }
+    case 'jetski': { ckTFT(g,0,0,W,H,{fond:'#021018',fond2:'#04202c'}); ckTexte(g,String(Math.round(V.kn)),W*0.3,H*0.5,44,'#35e0ff'); ckTexte(g,'nœuds',W*0.3,H*0.82,11,'#7ae8ff'); ckCompas(g,W*0.75,H*0.5,40,V.cap,'#35e0ff'); return true; }
+    case 'compteurVelo': { ckLCD(g,0,0,W,H,{fond:'#a8b8a0',fond2:'#94a48c',cadre:'#1a1a1a',lcadre:4}); ckSeg(g,(V.kmh).toFixed(1),W-10,H*0.45,30,'#1a2414','right','rgba(0,0,0,0.07)'); ckTexte(g,'km/h',10,H*0.8,10,'#1a2414','left'); return true; }
+    case 'plaque': { g.fillStyle=v.key==='motoMil'?'#4a5238':'#f2f4f8'; g.fillRect(0,0,W,H); ckTexte(g,v.key==='motoMil'?'★':'7',W/2,H/2+4,70,v.key==='motoMil'?'#e8ead8':'#111111'); return true; }
+  } return false; }
 function vueCockpit(){ const v=P.veh; return vue1P()&&ETAT.mode==='jeu'&&!!v&&!v.noye&&!FPS.actif&&(!INT.actif||!!INT.actif.depot)&&!MANEGES.actif&&!lunetteSniper()&&P.hp>0; }
 /* La soucoupe vue de dedans (17 octobre au soir, 3e liste, signalé : « en 1re personne, en altitude, on ne voit rien du sol, car
    l'appareil ne s'incline pas ») : sa coque (les deux disques, juste sous l'œil) et son dôme deviennent, le temps du cockpit, un
@@ -36690,7 +37280,7 @@ function cockpitConstruire(v){ cockpitRetirer(); cockpitVitrer(v.mesh); if(v.def
   C.fam=D.fam; C.style=ckStyle(v,D.fam); C.cab=D.cab; C.eye=D.eye; C.approx=D.approx; C.instr=null; C.volant=null; C.manettes=[]; C.affs=[]; C.jauge=null; C.volantA=0; C.bras=[]; C.pitch=CK_PITCH_STYLE[C.style]!==undefined?CK_PITCH_STYLE[C.style]:(CK_PITCH[D.fam]!==undefined?CK_PITCH[D.fam]:-0.06); C.altP=v.alt||0; C.vario=0; C.angP=v.ang||0; C.drAir=0;
   const G=mkCockpitInterieur(v,D); G.matrixAutoUpdate=false; ckScene().add(G); C.g=G; C.v=v; G.matrix.copy(ckRepere(v)); G.updateMatrixWorld(true); majBrasCockpit(); cockpitInstruments(v);
   camera.fov=CK_FOV; camera.near=0.05; camera.updateProjectionMatrix(); if(P.h) P.h.g.visible=false; } /* le corps du joueur (assis sur une moto) serait devant l'œil */
-function cockpitRetirer(){ const C=COCKPIT; C.bras=[]; C.angPrec=undefined; C.regardVire=0; C.plonge=0; if(C.g){ if(C.g.parent) C.g.parent.remove(C.g); libererEntite(C.g); } const v=C.v; if(v&&v.mesh) cockpitDevitrer(v.mesh); C.g=null; C.v=null; C.instr=null; C.volant=null; C.manettes=[]; C.affs=[]; C.jauge=null;
+function cockpitRetirer(){ const C=COCKPIT; if(C.cls){ C.cls=false; document.body.classList.remove('ck1P'); } C.bras=[]; C.angPrec=undefined; C.regardVire=0; C.plonge=0; if(C.g){ if(C.g.parent) C.g.parent.remove(C.g); libererEntite(C.g); } const v=C.v; if(v&&v.mesh) cockpitDevitrer(v.mesh); C.g=null; C.v=null; C.instr=null; C.volant=null; C.manettes=[]; C.affs=[]; C.jauge=null;
   if(v&&P.veh===v&&P.h&&P.surMoto) P.h.g.visible=true; }
 function majCockpit(v,dt){ const C=COCKPIT; if(!C.g) return; const d=v.def, joueur=v===P.veh&&v.conduit==='joueur';
   const a=v.ang||0, taux=dt>0?angDiff(C.angP===undefined?a:C.angP,a)/dt:0; C.angP=a; if(d.air) C.drAir=lerp(C.drAir||0,clamp(-taux*0.8,-1,1),clamp(dt*5,0,1));
@@ -36699,6 +37289,7 @@ function majCockpit(v,dt){ const C=COCKPIT; if(!C.g) return; const d=v.def, joue
     if(f==='moto'||f==='jetski'||f==='velo'){ C.volantA=lerp(C.volantA,-dr*0.38,k); C.volant.rotation.y=C.volantA; } /* virage à droite : la poignée droite revient vers le pilote (elle partait en avant : signalé « le guidon ne tourne pas dans le bon sens ») */
     else if(f==='kayak'){ C.volantA+=dt*Math.min(3,Math.abs(v.v||0))*1.4; C.volant.rotation.x=Math.sin(C.volantA)*0.5; C.volant.rotation.z=Math.cos(C.volantA)*0.25; }
     else if(u.manche){ C.volantA=lerp(C.volantA,dr,k); C.volant.rotation.z=C.volantA*0.3; C.volant.rotation.x=lerp(C.volant.rotation.x,-tg*0.28,k); } /* manche : penché à droite dans un virage à droite, tiré en montée */
+    else if(u.leviers){ C.volantA=lerp(C.volantA,dr,k); const av=clamp((v.v||0)/(d.vmax||10),-1,1); u.leviers[0].rotation.x=clamp(av*0.35-C.volantA*0.3,-0.5,0.5); u.leviers[1].rotation.x=clamp(av*0.35+C.volantA*0.3,-0.5,0.5); } /* bulldozer : deux leviers (18 octobre) */
     else if(u.yoke){ C.volantA=lerp(C.volantA,dr,k); C.volant.rotation.z=C.volantA*0.9; C.volant.position.z=lerp(C.volant.position.z,u.z0-tg*0.05,k); }
     else { C.volantA=lerp(C.volantA,dr*(f==='camion'?2.4:(f==='bateau'||f==='passerelle'?2.0:1.6)),k); C.volant.rotation.z=C.volantA; } } /* volant : virage à droite, le haut de la jante part à droite de l'écran (vérifié en marche avant : « Cockpits » le mesure) */
   const gazV=clamp(Math.abs(v.v||0)/(d.vmax||20),0,1); for(const m of C.manettes) m.rotation.x=lerp(m.rotation.x,(f==='ovni'?(m.position.x<C.eye.x?-tg*0.4:gazV*0.6):gazV*0.7)-0.1,k);
@@ -36707,6 +37298,7 @@ function majCockpit(v,dt){ const C=COCKPIT; if(!C.g) return; const d=v.def, joue
   if(C.bras.length){ C.g.updateMatrixWorld(true); majBrasCockpit(); }
   C.majT-=dt; if(C.majT<=0){ C.majT=0.1; cockpitInstruments(v); } }
 function cameraCockpit(dt){ const v=P.veh, C=COCKPIT; if(C.v!==v||!C.g) cockpitConstruire(v);
+  if(!C.cls){ C.cls=true; document.body.classList.add('ck1P'); } /* la pile de messages passe en haut à gauche */
   const M=ckRepere(v); C.g.matrix.copy(M); C.g.matrixWorldNeedsUpdate=true; C.g.updateMatrixWorld(true); majCockpit(v,dt);
   if(P.h&&P.h.g.visible) P.h.g.visible=false; if(reticule.visible) reticule.visible=false;
   if(!VUE.drag) VUE.offVeh=lerp(VUE.offVeh||0,0,clamp(dt*2.2,0,1)); const off=VUE.offVeh||0;
