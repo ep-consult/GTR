@@ -4,7 +4,7 @@ Chaque point est coché quand il est fait ET vérifié (rendu réel, test, valid
 
 - [x] 1. Lance à eau du pompier : jet plus réaliste, portée, effet sur ce qu'elle touche — vrai jet balistique continu, portée 6 à 42 u (24 par défaut, 15 avant), effets le long du jet ; test « Lance à eau V2 »
 - [x] 2. Vélo : supprimer la barre blanche sous le vélo — guidon du modèle masqué en 1re personne ; en plus, l'erreur « v.mort » de la capture corrigée ; test « Vélo »
-- [ ] 3. Yacht : vraie coque, flotte sur l'eau, montée à bord par l'arrière (plateforme de bain, échelle)
+- [x] 3. Yacht : vraie coque, flotte sur l'eau, montée à bord par l'arrière (plateforme de bain, échelle) — coque à tirant d'eau 1,7 u, plateforme de bain, échelle, deux escaliers, la coque arrête les nageurs ; test « Méga-yacht V2 »
 - [ ] 4. Chalet sur la colline : ne flotte plus dans le vide
 - [ ] 5. Animaux : oiseaux en ville ; animaux de la forêt figés en ville → dans la forêt et fonctionnels
 - [ ] 6. Tir sur les animaux + HEADSHOT (tête séparée du corps, PNJ et animaux)
@@ -21,3 +21,4 @@ Chaque point est coché quand il est fait ET vérifié (rendu réel, test, valid
 ## Notes et interprétations
 - Point 1 : « portée » = la distance où l'eau retombe, réglée par la longueur du glisser ; sans glisser, la lance vise d'elle-même le feu ou le gangster le plus proche devant (la buse est sur le toit : un jet tendu passait au-dessus des têtes).
 - Point 2 : la « barre blanche » est le guidon en acier clair du modèle du vélo, vu juste sous l'œil en 1re personne (vérifié : rien sous le vélo en vue extérieure). Corrigé au passage : l'erreur rouge de la même capture (un coup reçu en l'air après une chute de vélo).
+- Point 3 : le yacht de la photo est le méga-yacht « Reyes Royale » (celui à l'hélicoptère). Le petit yacht « Impérial » n'a pas été touché.

@@ -3264,7 +3264,12 @@ const PLATS=[];  // {x,z,hw,hd|r,h} : plateformes marchables (pontons, pont du y
 // décor amarré est devenu un véhicule (VEHDEFS.grandyacht). Son pont et son
 // ponton suivent la coque (majGrandYacht) et ne sont praticables que sans
 // personne à la barre ; l'hélico posé sur l'héliport est emporté avec lui.
-const GYACHT={v:null,plat:null,ponton:null,pass:null,passPlat:null,heli:null};
+const GYACHT={v:null,plat:null,ponton:null,pass:null,passPlat:null,heli:null,passMesh:null};
+/* la poupe du méga-yacht : plateforme de bain (h 0,5) et les huit marches des deux escaliers jusqu'au pont (1,31) — plateformes orientées posées par majGrandYacht */
+const YACHT_POUPE={bain:null,plats:[]};
+/* (x,z) dans la coque du méga-yacht au mouillage ? Une coque qui s'affine vers l'étrave */
+function dansCoqueYacht(x,z){ const v=GYACHT.v; if(!v||v.mort||v.noye||v.conduit==='joueur') return false; const dx=x-v.x, dz=z-v.z, sa=Math.sin(v.ang), ca=Math.cos(v.ang), f=dx*sa+dz*ca, r=Math.abs(dx*ca-dz*sa);
+  if(f<-13.05||f>13) return false; const t=f>6?(f-6)/7:0; return r<4.2*(1-0.85*t*t); }
 function grosNavire(d){ return !!(d&&(d.cargo||d.navire)); } // porte-conteneurs, grand yacht
 // emprise d'une plateforme {x,z,hw,hd,ang?} (ang : même convention que les véhicules)
 function dansRectPlat(p,x,z){
@@ -12043,7 +12048,7 @@ function mkIlotRocher(){
 // reste sous la hauteur praticable (PLATS h 1,31) : on y marche toujours.
 function mkGrandYachtV2(x,z){
   const g=new THREE.Group(), L=26, W=8.4, blanc=0xf2f4f8, nuit=0x1b2430, vitre=0x16233a, teck=0xc89a68;
-  const c0=coqueBateau(L,W,1.12,blanc,nuit,0x23303e,teck,{tonture:0.12}); c0.g.rotation.y=Math.PI; g.add(c0.g);
+  const c0=coqueBateau(L,W,1.12,blanc,nuit,0x5a2622,teck,{tonture:0.12,quille:1.7}); c0.g.rotation.y=Math.PI; g.add(c0.g); /* 17 octobre au soir (signalé avec une photo : « posé sur le sol ») : la coque plonge de 1,7 u — liseré bleu nuit à la flottaison, antifouling dessous ; avant, 0,12 u : un fond plat posé SUR l'eau, la houle le soulevait */
   const c={yPont:(z)=>c0.yPont(-z),demi:(z)=>c0.demi(-z)};               // repère tourné : étrave vers -z
   // hublots et filet chromé le long de la coque
   for(const s of [-1,1]){ g.add(mkBoxG(0.06,0.3,L*0.55,vitre,s*(c.demi(0)+0.01),0.62,1)); g.add(mkBoxG(0.05,0.06,L*0.8,0xd8dce4,s*(c.demi(0)+0.02),0.95,0.5)); }
@@ -12086,8 +12091,8 @@ function mkGrandYachtV2(x,z){
   for(let k=0;k<8;k++){ const a=k/8*Math.PI*2, f=new THREE.Mesh(new THREE.BoxGeometry(0.22,0.12,0.22),new THREE.MeshBasicMaterial({color:0xffd23f})); f.position.set(Math.cos(a)*3.4,c.yPont(6.4)+0.08,6.4+Math.sin(a)*3.4); g.add(f); }
   for(const [px,pz,col] of [[-2.9,0.4,0xe05252],[2.9,0.4,0x35c8e0]]){ const t=mkBoxG(1,0.16,2.2,col,px,c.yPont(pz)+0.2,pz); t.rotation.x=0.16; g.add(t); }
   g.add(mkBoxG(1.6,0.12,1.6,0x8a6a44,0,c.yPont(1.4)+0.45,1.4)); g.add(mkBoxG(0.2,0.45,0.2,0x8a6a44,0,c.yPont(1.4)+0.22,1.4));
-  g.add(mkBoxG(W*0.78,0.18,1.6,teck,0,0.55,L/2+0.7));                                     // plateforme de bain
-  g.add(mkBoxG(0.5,0.6,0.08,0xd8dce4,1.6,0.9,L/2+1.4));                                   // échelle de bain
+  g.add(mkBoxG(W*0.8,0.16,1.5,teck,0,0.27,L/2+0.75));                                     // plateforme de bain, au ras de l'eau (le dessus à 0,35 : 0,5 dans le monde)
+  g.add(mkBoxG(W*0.8,0.5,0.1,blanc,0,0.05,L/2+1.48));                                     // son bord, qui plonge dans l'eau (marches et échelle : yachtPoupe)
   rambarde(g,c,-L*0.46,L*0.47,0.85,0.18);
   g.add(spriteBlob(13));
   g.position.set(x,0,z); return g;
@@ -12143,7 +12148,7 @@ function mkGrandYacht(x,z){
   PLATS.push({x,z,hw:3.7,hd:10.6,h:1.31}); GYACHT.plat=PLATS[PLATS.length-1];   // tout le pont, y compris les côtés
   // passerelle flottante côté plage pour remonter à bord facilement
   const pas=new THREE.Mesh(new THREE.BoxGeometry(1.6,0.2,7),new THREE.MeshLambertMaterial({map:texPlanche}));
-  pas.position.set(x,0.35,z-11); scene.add(pas);
+  pas.position.set(x,0.35,z-11); scene.add(pas); GYACHT.passMesh=pas;
   PONTONS.push({x,z:z-11,hw:0.9,hd:3.6}); GYACHT.pass=PONTONS[PONTONS.length-1];
   PLATS.push({x,z:z-11,hw:0.9,hd:3.6,h:0.42}); GYACHT.passPlat=PLATS[PLATS.length-1];
   POIS.yacht={x,z};
@@ -14610,7 +14615,7 @@ function coqueBateau(L,W,H,coulHaut,coulBande,coulBas,coulPont,opt){
   const N=22, c3=new THREE.Color(), pos=[], col=[];
   const demi=(t)=>W/2*(t<0.55?0.9+0.1*t/0.55:Math.pow(Math.max(0,Math.cos((t-0.55)/0.45*Math.PI/2)),0.75));
   const yd=(t)=>H*(1+(opt.tonture||0.3)*Math.pow(Math.max(0,t-0.45)/0.55,2));
-  const yk=(t)=>t<0.7?-0.12:lerp(-0.12,yd(t)*0.75,Math.pow((t-0.7)/0.3,1.6));
+  const Q=opt.quille||0.12, yk=(t)=>t<0.7?-Q:lerp(-Q,yd(t)*0.75,Math.pow((t-0.7)/0.3,1.6)); /* quille : 0,12 par défaut ; le méga-yacht a un vrai tirant d'eau */
   const sec=(i)=>{ const t=i/N, z=-L/2+t*L, w=demi(t), d=yd(t), k=yk(t), ch=k+(d-k)*0.32;
     return {z,d,w,R:[[w,d],[w*0.98,lerp(d,ch,0.62)],[w*0.92,ch],[0,k]]}; }; // bordé haut, liseré, bouchain, quille
   const S=[]; for(let i=0;i<=N;i++) S.push(sec(i));
@@ -14622,8 +14627,9 @@ function coqueBateau(L,W,H,coulHaut,coulBande,coulBas,coulPont,opt){
       tri(a,b,c,bandes[j]); tri(a,c,d,bandes[j]);
     } }
   // tableau arrière
-  const T=S[0]; for(let j=0;j<3;j++) for(const s of [1,-1]){ tri([0,T.d*0.5,T.z],[s*T.R[j][0],T.R[j][1],T.z],[s*T.R[j+1][0],T.R[j+1][1],T.z],j?coulBas:coulHaut); }
-  tri([0,T.d*0.5,T.z],[T.w,T.d,T.z],[-T.w,T.d,T.z],coulHaut);
+  const T=S[0], yT0=opt.quille?-0.25:T.d*0.5; /* coque à tirant d'eau : le centre du tableau sous la flottaison, ses bandes aux couleurs du bordé (sinon un triangle d'antifouling dépassait au-dessus de la plateforme de bain) */
+  for(let j=0;j<3;j++) for(const s of [1,-1]){ tri([0,yT0,T.z],[s*T.R[j][0],T.R[j][1],T.z],[s*T.R[j+1][0],T.R[j+1][1],T.z],j?(opt.quille&&j===1?coulBande:coulBas):coulHaut); }
+  tri([0,yT0,T.z],[T.w,T.d,T.z],[-T.w,T.d,T.z],coulHaut);
   // pont (un peu en retrait du livet : on voit le bordé autour)
   for(let i=0;i<N;i++){ const A=S[i], B=S[i+1], ra=0.94, rb=0.94;
     tri([-A.w*ra,A.d,A.z],[A.w*ra,A.d,A.z],[B.w*rb,B.d,B.z],coulPont); tri([-A.w*ra,A.d,A.z],[B.w*rb,B.d,B.z],[-B.w*rb,B.d,B.z],coulPont); }
@@ -14650,9 +14656,25 @@ function moteurHorsBord(g,x,zArr,yPont,coul){
   g.add(mkBoxG(0.06,0.32,0.3,0x8a8f96,x,yPont-0.72,zArr-0.42));    // hélice (vue de profil)
 }
 // Construit tous les bateaux sauf le surf (géré à part). def, key, coul, L, W : comme makeVoiture.
+/* Méga-yacht, la poupe (17 octobre au soir, demandé : « monter à bord par l'arrière, plateforme de bain, échelle, comme sur un vrai
+   yacht ») : deux escaliers en teck posés sur la plateforme de bain, contre le tableau arrière, jusqu'au pont ; une échelle chromée
+   qui descend dans l'eau au milieu ; main courante. Repère du modèle (étrave vers −z, poupe vers +z). Construit sous un
+   générateur PRIVÉ : un objet de plus au démarrage changerait les tirages de la partie. Le jeu : YACHT_POUPE, majGrandYacht. */
+let _MATS_POUPE=null;
+function yachtPoupe(m){ const L=26, W=8.4, r0=Math.random; let sd=0x5ea7a17>>>0; Math.random=()=>{ sd=(sd*1664525+1013904223)>>>0; return sd/4294967296; };
+  try{ if(!_MATS_POUPE) _MATS_POUPE={teck:new THREE.MeshLambertMaterial({color:0xc89a68}),chrome:new THREE.MeshPhongMaterial({color:0xc8ccd4,specular:0xffffff,shininess:80}),blanc:new THREE.MeshLambertMaterial({color:0xf2f4f8})};
+    const M=_MATS_POUPE, b=(w,h,d,mt,x,y,z)=>{ const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mt); o.position.set(x,y,z); m.add(o); return o; };
+    for(const s of [-1,1]){ const x=s*2.2; /* deux escaliers de quatre marches, de la plateforme (0,35) au pont (1,12) */
+      for(let i=0;i<4;i++){ const yT=0.35+(i+1)*0.195, z=L/2+0.12+(3-i)*0.24; b(1.5,yT-0.2,0.26,M.teck,x,(yT+0.2)/2,z); }
+      b(1.6,0.95,0.06,M.blanc,x+s*0.78,0.85,L/2+0.7).rotation.x=0; /* joue de l'escalier */
+      const mc=b(0.05,0.05,1.3,M.chrome,x+s*0.74,1.55,L/2+0.72); mc.rotation.x=0.6; } /* main courante */
+    for(const s of [-1,1]) b(0.05,1.55,0.05,M.chrome,s*0.3,-0.35,L/2+1.6); /* échelle de bain : deux montants qui plongent dans l'eau */
+    for(let k=0;k<5;k++) b(0.6,0.04,0.05,M.chrome,0,0.25-k*0.3,L/2+1.6); /* et ses barreaux */
+    for(const s of [-1,1]){ const a=b(0.05,0.05,0.5,M.chrome,s*0.3,0.62,L/2+1.42); a.rotation.x=-0.9; } /* les crosses pour se hisser */
+  } finally { Math.random=r0; } }
 function makeBateauV2(def,key,coul,L,W,g,ud){
   if(key==='grandyacht'){ // le modèle de l'ancien décor amarré (étrave vers -z), tourné : étrave vers l'avant
-    const m=mkGrandYachtV2(0,0); m.rotation.y=Math.PI; g.add(m);
+    const m=mkGrandYachtV2(0,0); m.rotation.y=Math.PI; g.add(m); yachtPoupe(m);
     ud.siege={y:4.4,z:3.0}; g.userData=ud; return g;           // debout sur le fly, derrière le poste de pilotage
   }
   const blanc=0xf2f4f8, noir=0x1c1e24, rougeAF=0x7a2420, vitre=0x1a2a3e;
@@ -17364,6 +17386,7 @@ function majJoueur(dt,dtJeu){
   }
   P.vitesseReelle=Math.hypot(vx,vz);   // vitesse instantanée réelle (joystick analogique compris)
   const marchable=(x,z)=>{
+    if(P.y<0.35&&dansCoqueYacht(x,z)&&!dansCoqueYacht(P.x,P.z)) return false; /* à la nage, la coque du méga-yacht est un mur : on monte à bord par la plateforme de bain, à l'arrière (avant : on surgissait sur le pont par n'importe quel côté) */
     const s=solidAt(x,z,0.5,undefined,P.y);
     if(s){
       if(!auSol()&&P.y>s.h+0.2) return true; // en l'air AU-DESSUS du solide (chute libre, voile, wingsuit, jetpack) : on passe par-dessus — 9e lot : le mur de l'aéroport arrêtait un parachutiste à 30 u
@@ -32168,14 +32191,20 @@ function choisirPiece(s,cat,i){
 function majGrandYacht(){
   const v=GYACHT.v, pl=GYACHT.plat, po=GYACHT.ponton; if(!pl||!po) return;
   if(!v||v.mort||v.noye||vehicules.indexOf(v)<0){
-    if(DECOR_V2){ pl.hw=pl.hd=po.hw=po.hd=0; }
+    if(DECOR_V2){ pl.hw=pl.hd=po.hw=po.hd=0; if(YACHT_POUPE.bain) YACHT_POUPE.bain.hw=YACHT_POUPE.bain.hd=0; for(const p of YACHT_POUPE.plats) p.hw=p.hd=0; }
     if(GYACHT.pass){ GYACHT.pass.hw=0.9; GYACHT.passPlat.hw=0.9; }
     return;
   }
   const libre=v.conduit!=='joueur';
   if(libre) v.v=0;
-  pl.x=po.x=v.x; pl.z=po.z=v.z; pl.ang=po.ang=v.ang+Math.PI; // rectangles orientés comme la coque
-  pl.hw=libre?3.7:0; pl.hd=libre?10.6:0; po.hw=libre?4.2:0; po.hd=libre?12:0;
+  const sa0=Math.sin(v.ang), ca0=Math.cos(v.ang), ici=(p,f,hw,hd)=>{ p.x=v.x+sa0*f; p.z=v.z+ca0*f; p.ang=v.ang+Math.PI; p.hw=libre?hw:0; p.hd=libre?hd:0; }; // rectangles orientés comme la coque, centrés à f le long de l'axe (avant +)
+  ici(pl,-1,3.7,12); /* tout le pont, de la poupe (−13) à 11 u devant (avant : 21 u au milieu, la poupe sous le pont était à 0) */
+  ici(po,-3.275,4.15,11.275); /* la coque, de la plateforme de bain (−14,55) à 8 u devant (au-delà l'étrave s'affine) : jamais de l'eau */
+  if(!YACHT_POUPE.plats.length){ PLATS.push(YACHT_POUPE.bain={x:0,z:0,hw:0,hd:0,h:0.5}); for(let i=0;i<4;i++) for(const s of [-1,1]){ const p={x:0,z:0,hw:0,hd:0,h:0.5+(i+1)*0.195,cote:s,i}; PLATS.push(p); YACHT_POUPE.plats.push(p); } }
+  ici(YACHT_POUPE.bain,-13.75,3.36,0.75); /* plateforme de bain, derrière le tableau arrière */
+  for(const p of YACHT_POUPE.plats){ ici(p,-(13+0.12+(3-p.i)*0.24),0.75,0.12); const dx=p.cote*2.2*ca0, dz=-p.cote*2.2*sa0; p.x-=dx; p.z-=dz; } /* marches des deux escaliers (côté = x du modèle, tourné de π) */
+  if(GYACHT.pass&&GYACHT.passMesh&&libre){ const f=-18.15, px=v.x+sa0*f, pz=v.z+ca0*f; /* la passerelle flottante s'amarre derrière la plateforme de bain, dans l'axe */
+    GYACHT.pass.x=GYACHT.passPlat.x=px; GYACHT.pass.z=GYACHT.passPlat.z=pz; GYACHT.pass.ang=GYACHT.passPlat.ang=v.ang; GYACHT.passMesh.position.set(px,0.35,pz); GYACHT.passMesh.rotation.y=v.ang; }
   // passerelle flottante d'amarrage : désactivée quand la coque la traverse en manœuvre
   if(GYACHT.pass){
     const pa=GYACHT.pass, dx=pa.x-v.x, dz=pa.z-v.z, sa=Math.sin(v.ang), ca=Math.cos(v.ang);

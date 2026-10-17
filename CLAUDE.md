@@ -1629,6 +1629,31 @@ Demandé : « visuel du jet plus réaliste, portée, effet sur ce qu'elle touche
   brume, gerbe dans la mer.
 - Test : « Lance à eau V2 ».
 
+## Méga-yacht V2 (17 octobre au soir) — `coqueBateau(…,{quille})`, `YACHT_POUPE`, `dansCoqueYacht`
+
+Signalé avec une photo : « le yacht est posé sur le sol » ; demandé : une vraie
+coque, qu'il flotte, monter à bord par l'arrière (plateforme de bain, échelle).
+- **Coque** : `coqueBateau` prend une `quille` (0,12 par défaut, inchangé pour
+  les autres bateaux) ; le méga-yacht plonge de 1,7 u : bordé blanc, liseré
+  bleu nuit à la flottaison, antifouling dessous, tableau arrière centré sous
+  l'eau. Avant, un fond plat à 0,12 u sous un modèle posé à 0,15 au-dessus de
+  l'eau + la houle : il flottait AU-DESSUS de la surface.
+- **Poupe** : plateforme de bain au ras de l'eau (dessus à 0,5 dans le monde),
+  deux escaliers de quatre marches en teck contre le tableau arrière jusqu'au
+  pont (1,31), échelle chromée qui plonge au milieu, mains courantes
+  (`yachtPoupe`, sur le modèle du VÉHICULE, sous un générateur PRIVÉ : le
+  modèle du décor, construit pendant la génération, garde le même nombre
+  d'objets — la ville et le décor ne bougent pas).
+- **Le jeu** (`majGrandYacht`) : pont, ponton, plateforme et huit marches
+  sont des plateformes ORIENTÉES (`ang`) recalées sur la coque à chaque image
+  (`YACHT_POUPE`) ; le pont couvre désormais la poupe (avant, sous le pont
+  arrière, `solY` valait 0). **À la nage, la coque est un mur**
+  (`dansCoqueYacht` dans `marchable`, sous 0,35 de hauteur) : on monte par
+  l'arrière ; avant, le joueur n'a aucune limite de marche sur une plateforme
+  et surgissait sur le pont par n'importe quel côté. La passerelle flottante
+  s'amarre derrière la plateforme de bain (`GYACHT.passMesh`).
+- Test : « Méga-yacht V2 ».
+
 ## Retours de playtest du 16 octobre — véhicules et conduite
 
 - **Taxi, police et Rafale** gardent leur ANCIEN modèle (signalé : « le capot

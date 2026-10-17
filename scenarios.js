@@ -13348,6 +13348,43 @@ async function main() {
       });
       if (r.ko.length) fail('Vélo : ' + r.ko.join(' ; ')); else ok('Vélo : ' + r.info.join(' ; '));
     }
+    // -------------------------------------------------------------------
+    // Méga-yacht V2 (17 octobre au soir, signalé avec une photo : « posé sur
+    // le sol ») : la coque plonge sous la flottaison (tirant d'eau 1,7 u) ; à
+    // la nage, la coque est un mur ; on monte à bord par l'arrière (plateforme
+    // de bain, échelle, deux escaliers jusqu'au pont).
+    // -------------------------------------------------------------------
+    console.log('\n--- Méga-yacht V2 : coque dans l’eau, montée à bord par l’arrière ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); META.vue = 'classique'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WANTED.heat = 0;
+        for (const e of ennemis) e.mort = true; WAVES.etat = 'repos'; WAVES.t = 1e9;
+        const v = GYACHT.v; if (!v) return { ko: ['pas de méga-yacht'], info };
+        for (let i = 0; i < 4; i++) { majVehicules(1 / 30); majGrandYacht(); }
+        // la coque descend sous l'eau (hors sprites)
+        v.mesh.updateMatrixWorld(true); let bas = 9; v.mesh.traverse((o) => { if (!o.isMesh || o.isSprite) return; o.geometry.computeBoundingBox(); const b = o.geometry.boundingBox.clone().applyMatrix4(o.matrixWorld); if (b.max.x - b.min.x > 6) bas = Math.min(bas, b.min.y); });
+        if (!(bas < -1.2)) ko.push('la coque ne plonge pas sous l’eau (bas ' + bas.toFixed(2) + ')'); info.push('quille à ' + bas.toFixed(2));
+        const pl = YACHT_POUPE.plats; if (!YACHT_POUPE.bain || pl.length !== 8) ko.push('plateforme de bain ou marches absentes');
+        else { const hs = [...new Set(pl.map((p) => +p.h.toFixed(2)))].sort(); if (hs.length !== 4 || hs[0] <= YACHT_POUPE.bain.h || hs[3] > GYACHT.plat.h) ko.push('marches incohérentes ' + JSON.stringify(hs)); }
+        const sa = Math.sin(v.ang), ca = Math.cos(v.ang), W = (f, rr) => ({ x: v.x + sa * f + ca * rr, z: v.z + ca * f - sa * rr });
+        const pose = (f, rr) => { const q = W(f, rr); P.x = q.x; P.z = q.z; P.y = -0.78; P.vy = 0; P.chute = false; P.nage = true; P.veh = null; };
+        const vers = (q, n, ys) => { for (let i = 0; i < n; i++) { const dx = q.x - P.x, dz = q.z - P.z, l = Math.hypot(dx, dz) || 1; INPUT.mx = dx / l; INPUT.mz = dz / l; majJoueur(1 / 30, 1 / 30); majGrandYacht(); if (ys) ys.push(P.y); } INPUT.mx = 0; INPUT.mz = 0; };
+        // le long du flanc : la coque arrête le nageur
+        pose(2, 7); vers(W(2, 0), 90); if (dansCoqueYacht(P.x, P.z) || P.y > 1) ko.push('à la nage, on entre dans la coque par le flanc');
+        // derrière la poupe : la plateforme de bain hisse, les escaliers montent au pont
+        pose(-16.2, 2.2); const ys = []; vers(W(-8, 2.2), 75, ys);
+        const vus = new Set(ys.map((y) => +y.toFixed(2)));
+        if (!(P.y > 1.25 && dansCoqueYacht(P.x, P.z))) ko.push('par l’arrière, on n’arrive pas sur le pont (y ' + P.y.toFixed(2) + ')');
+        if (![...vus].some((y) => y > 0.45 && y < 0.55)) ko.push('on ne passe pas par la plateforme de bain');
+        if (![...vus].some((y) => y > 0.6 && y < 1.25)) ko.push('on ne passe pas par les marches');
+        info.push('nage le long du flanc : arrêté ; par l’arrière : ' + [...vus].filter((y) => y > 0).sort((a, b) => a - b).join(' → '));
+        // la passerelle flottante est amarrée derrière la plateforme
+        const pa = GYACHT.pass, f = (pa.x - v.x) * sa + (pa.z - v.z) * ca; if (!(f < -14.5)) ko.push('la passerelle flottante n’est pas derrière la poupe (' + f.toFixed(1) + ')');
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Méga-yacht V2 : ' + r.ko.join(' ; ')); else ok('Méga-yacht V2 : ' + r.info.join(' ; '));
+    }
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];
