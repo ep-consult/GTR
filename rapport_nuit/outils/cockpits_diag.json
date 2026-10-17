@@ -313,7 +313,7 @@
   "nom": "Pickup",
   "ok": true,
   "fam": "auto",
-  "style": "classique",
+  "style": "raptor",
   "approx": false,
   "eye": {
    "x": -0.42,
@@ -326,10 +326,10 @@
   "libre": true,
   "devant": "rien",
   "instrVu": true,
-  "nb": 24,
+  "nb": 38,
   "affs": [
-   "auto",
-   "ecran"
+   "raptor",
+   "raptorEcran"
   ]
  },
  "buggy": {
@@ -340,16 +340,16 @@
   "approx": true,
   "eye": {
    "x": -0.39,
-   "y": 1.43,
+   "y": 1.25,
    "z": -0.54
   },
-  "haut": 1.75,
+  "haut": 1.53,
   "dansXZ": true,
   "dansY": true,
   "libre": true,
-  "devant": "#f2f4f8 à 1.52",
+  "devant": "rien",
   "instrVu": true,
-  "nb": 22,
+  "nb": 25,
   "affs": [
    "tt",
    "ecran"
@@ -837,7 +837,7 @@
   "dansXZ": true,
   "dansY": true,
   "libre": true,
-  "devant": "#ffd23f à 1.19",
+  "devant": "#e07020 à 1.19",
   "instrVu": true,
   "nb": 23,
   "affs": [
@@ -875,7 +875,7 @@
   "approx": false,
   "eye": {
    "x": -0.4,
-   "y": 1.4,
+   "y": 1.49,
    "z": 0.81
   },
   "haut": 2.7,
@@ -1501,13 +1501,13 @@
  "depotPickup": {
   "nom": "Le Pick-up",
   "ok": true,
-  "fam": "camion",
-  "style": "camion",
+  "fam": "auto",
+  "style": "raptor",
   "approx": false,
   "eye": {
    "x": -0.42,
-   "y": 1.92,
-   "z": -0.13
+   "y": 1.97,
+   "z": -0.03
   },
   "haut": 2.29,
   "dansXZ": true,
@@ -1515,10 +1515,10 @@
   "libre": true,
   "devant": "rien",
   "instrVu": true,
-  "nb": 25,
+  "nb": 38,
   "affs": [
-   "camion",
-   "ecran"
+   "raptor",
+   "raptorEcran"
   ]
  },
  "depotBolide": {

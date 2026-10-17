@@ -13214,7 +13214,7 @@ async function main() {
         info.push('volant et guidon dans le sens du virage');
         // 3. un tableau par famille (une voiture n'a pas l'affichage d'un avion), la vedette rapide a un volant sport, le vélo n'a pas d'écran
         const affs = (k) => { monter(k, !!VEHDEFS[k].air); return COCKPIT.affs.map((a) => a.type).join(','); };
-        const attendus = { citadine: 'auto', sport: 'sport', jeep: 'tt', busville: 'camion', moto: 'lcd', bateau: 'bateau', grandyacht: 'radar', avion: 'six', helico: 'sixHelico', chasseur: 'hud', ovni: 'ovniBoutons', char: 'char' };
+        const attendus = { citadine: 'auto', taxi: 'auto', pickup: 'raptor', sport: 'sport', jeep: 'tt', busville: 'camion', moto: 'lcd', bateau: 'bateau', grandyacht: 'radar', avion: 'six', helico: 'sixHelico', chasseur: 'hud', ovni: 'ovniBoutons', char: 'char' };
         for (const k in attendus) { const t = affs(k); if (!t.split(',').includes(attendus[k])) ko.push(k + ' : tableau « ' + t + ' » au lieu de ' + attendus[k]); }
         if (ckStyle({ def: VEHDEFS.bateau, key: 'bateau' }, 'bateau') !== 'bateauSport') ko.push('la vedette rapide n’a pas un volant sport');
         { const t = affs('velo'); if (t !== '') ko.push('vélo : un écran (' + t + ')'); }

@@ -19,6 +19,6 @@ const puppeteer = require(path.join(R, 'node_modules/puppeteer'));
   const info = await page.evaluate(() => ({ cartes: document.querySelectorAll('#cockpits .carte').length, vides: [...document.querySelectorAll('#cockpits .carte .img')].filter((z) => !z.querySelector('img')).length, nav: [...document.querySelectorAll('#nav a')].map((a) => a.textContent).join(' | ') }));
   console.log('images', n, JSON.stringify(info), 'en', Math.round((Date.now() - t0) / 1000), 's');
   const urls = await page.evaluate(() => [...document.querySelectorAll('#cockpits .carte')].slice(0, 80).map((c) => ({ k: (c.querySelector('.pastille:last-child') || {}).textContent, u: (c.querySelector('.img img') || {}).src })));
-  for (const o of urls) if (['citadine', 'ovni', 'chasseur', 'bateau', 'velo', 'suvLuxe'].includes(o.k) && o.u) fs.writeFileSync(path.join(__dirname, 'cat_' + o.k + '.jpg'), Buffer.from(o.u.split(',')[1], 'base64'));
+  for (const o of urls) if ((process.env.VEH || 'citadine,ovni,chasseur,bateau,velo,suvLuxe').split(',').includes(o.k) && o.u) fs.writeFileSync(path.join(__dirname, 'cat_' + o.k + '.jpg'), Buffer.from(o.u.split(',')[1], 'base64'));
   const el = await page.$('#cockpits'); await el.screenshot({ path: path.join(__dirname, 'catalogue_cockpits.png') });
   console.log('erreurs', err.slice(0, 5)); await nav.close(); server.close(); })();

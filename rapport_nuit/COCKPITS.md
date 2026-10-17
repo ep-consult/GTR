@@ -20,7 +20,7 @@ Cette liste est **générée depuis la source** (`VEHDEFS`, 80 clés, véhicules
 - [x] `motocross` — Moto cross — Moto cross, quad : guidon large à mousse, écran simple
 - [x] `sport` — Supercar "Éclipse" — Sportive : planche en carbone, volant à méplat avec repère rouge et palettes, compte-tours central, vitesse numérique, diodes de passage
 - [x] `taxi` — Taxi — Voiture : planche de bord, compteur de vitesse et compte-tours à aiguilles, rapport, voyants, écran central, volant et mains, montants et pavillon
-- [x] `pickup` — Pickup — Voiture : planche de bord, compteur de vitesse et compte-tours à aiguilles, rapport, voyants, écran central, volant et mains, montants et pavillon
+- [x] `pickup` — Pickup — Pick-up « Raptor » : planche massive à deux étages surpiquée d’orange, gros volant à trois branches et moyeu plat, palettes, compteur numérique (vitesse, rapport, mode 4×4, tangage et dévers), grand écran central vertical (terrain, cap, pression des pneus), montants épais et poignées de maintien
 - [x] `buggy` — Buggy des dunes — Tout-terrain : volant épais, poignée de maintien, inclinomètre (tangage et dévers en degrés) entre les compteurs ; œil estimé sur l’encombrement
 - [x] `yacht` — Yacht "Impérial" — Bateau rapide : volant sport, console, compteur en nœuds, compas, régime, manette des gaz
 - [x] `bateau` — Vedette "Sirène" — Bateau rapide : volant sport, console, compteur en nœuds, compas, régime, manette des gaz
@@ -73,7 +73,7 @@ Cette liste est **générée depuis la source** (`VEHDEFS`, 80 clés, véhicules
 - [x] `jeep` — 4x4 "Coyote" — Tout-terrain : volant épais, poignée de maintien, inclinomètre (tangage et dévers en degrés) entre les compteurs
 - [x] `monstertruck` — Monster Truck — Tout-terrain : volant épais, poignée de maintien, inclinomètre (tangage et dévers en degrés) entre les compteurs
 - [x] `depotCitadine` — La Citadine — Voiture : planche de bord, compteur de vitesse et compte-tours à aiguilles, rapport, voyants, écran central, volant et mains, montants et pavillon
-- [x] `depotPickup` — Le Pick-up — Camion, bus, engin : volant couché à quatre branches, grands cadrans, manomètres d’air
+- [x] `depotPickup` — Le Pick-up — Pick-up « Raptor » : planche massive à deux étages surpiquée d’orange, gros volant à trois branches et moyeu plat, palettes, compteur numérique (vitesse, rapport, mode 4×4, tangage et dévers), grand écran central vertical (terrain, cap, pression des pneus), montants épais et poignées de maintien
 - [x] `depotBolide` — Le Bolide — Sportive : planche en carbone, volant à méplat avec repère rouge et palettes, compte-tours central, vitesse numérique, diodes de passage
 - [x] `depotBus` — Le Bus — Camion, bus, engin : volant couché à quatre branches, grands cadrans, manomètres d’air
 - [x] `limousine` — Limousine "Majesté" — Voiture : planche de bord, compteur de vitesse et compte-tours à aiguilles, rapport, voyants, écran central, volant et mains, montants et pavillon

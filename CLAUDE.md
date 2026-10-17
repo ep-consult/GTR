@@ -55,7 +55,7 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
   echo "$ln | $(sed -n "$((ln+1))p" index.html | sed 's/^[ \t]*//')"; done
 ```
 
-**Relevé du 18 octobre — 36 547 lignes.**
+**Relevé du 18 octobre — 36 574 lignes.**
 Attention : `maj_carte` recale les numéros dans l'ordre des lignes de la table ;
 un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la main.
 
@@ -113,7 +113,7 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 35211 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
 | 35448 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
 | 35736 | **COCKPITS** — vue 1re personne au volant (`COCKPIT`, `COCKPIT_FAMILLES`, `cockpitDims`, `mkCockpitInterieur`, `ckDessiner`, `rendreCockpit`, `cameraCockpit`, `cockpitDiagnostic`, `photoCockpit`) |
-| 36415 | BOUCLE PRINCIPALE |
+| 36442 | BOUCLE PRINCIPALE |
 
 ### Ancres fines (hors bandeaux)
 
@@ -1547,7 +1547,11 @@ la 1re personne).
   derrière un pavillon trop court ; cabriolet, Bolide, Enzo : rien.
 - **Familles × styles** (`ckFamille`, `ckStyle`, descriptions dans
   `COCKPIT_FAMILLES`, lues par le catalogue et la liste) : voiture classique,
-  sportive (méplat, palettes, diodes), tout-terrain (inclinomètre), camion,
+  sportive (méplat, palettes, diodes), tout-terrain (inclinomètre), **pick-up
+  façon Raptor** (`pickup`, `depotPickup` : planche massive à deux étages
+  surpiquée d'orange, gros volant à moyeu plat, compteur numérique 4×4,
+  grand écran central vertical, montants épais à poignées — demandé : « le
+  taxi reste à l'ancienne, le Raptor quelque chose d'imposant »), camion,
   char (écoutille), moto route / cross (écran LCD), vélo (ni phare ni écran),
   jet-ski, bateau rapide (VOLANT SPORT : c'était « une barre de voilier »),
   bateau de pêche et navire (barre à rayons, radar), avion (manche à volant,
