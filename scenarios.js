@@ -11953,26 +11953,31 @@ async function main() {
           // chaque match maîtrise sa scène : graine posée AVANT startRun, voitures de la ville retirées, niveau 0 des IA
           // (sinon le trafic et l'état laissé par les autres tests changent l'issue : 2/4 seul, 1/4 dans la suite)
           const match = (mode, g) => { prep(); for (const v of vehicules) { scene.remove(v.mesh); libererEntite(v.mesh); } vehicules.length = 0; graine(g); /* graine APRÈS la mise en place (17 octobre au soir : un objet de plus créé par startRun — la faune de la forêt — faisait perdre les quatre matchs) */
-            META.derby.niv = Object.assign({}, niv0); META.derby.victoires = 0; derbyLancer(); const A = D.actif; if (!A) { Math.random = rnd0; return null; }
+            META.derby.niv = Object.assign({}, niv0); META.derby.victoires = 0;
+            /* 17 octobre au soir : le match ne dépend plus de l'état laissé par les autres tests ni de la ville — la curiosité du volant (accélération ×1,15)
+               coupée, aucune voiture de la circulation créée (elle tirait des nombres pendant le match) ; 1/4 seul, 0/4 dans la suite avant */
+            const volant0 = META.curios.volant, trafic0 = creerTrafic; META.curios.volant = false; creerTrafic = () => {};
+            derbyLancer(); const A = D.actif; if (!A) { Math.random = rnd0; META.curios.volant = volant0; creerTrafic = trafic0; return null; }
             let t = 0, cible = null, decT = 0, bloqT = 0, reculT = 0, dir = [0, 0];
             while (D.actif === A && t < 200) { const dt = 1 / 30; t += dt;
               if (mode === 'pilote' && A.etat === 'combat') { const v = A.vJ; decT -= dt;
                 if (v.dentT > 0.3 && !v._vu && reculT <= 0) { v._vu = true; reculT = 0.7; } else if (!(v.dentT > 0.3)) v._vu = false; // après l'impact, on recule pour reprendre de l'élan
                 if (reculT > 0) { reculT -= dt; dir = [-Math.sin(v.ang), -Math.cos(v.ang)]; decT = 0; }
                 else if (decT <= 0) { decT = 0.3; // réaction humaine
-                  let best = null, bd = 1e9; for (const o of A.ias) { if (o.derbyKO || o.mort) continue; const d = Math.hypot(o.x - v.x, o.z - v.z) * (o.dbCible === v ? 1.6 : 1); if (d < bd) { bd = d; best = o; } }
-                  cible = best; if (best) { const tx = best.x + Math.sin(best.ang) * best.v * 0.35, tz = best.z + Math.cos(best.ang) * best.v * 0.35, l = Math.hypot(tx - v.x, tz - v.z) || 1; dir = [(tx - v.x) / l, (tz - v.z) / l]; } }
+                  let best = null, bd = 1e9; for (const o of A.ias) { if (o.derbyKO || o.mort) continue; const d = Math.hypot(o.x - v.x, o.z - v.z) * (o.dbCible === v ? 1.6 : 1) * (0.5 + (o.hp / (o.def.hp || 100))); if (d < bd) { bd = d; best = o; } }
+                  cible = best; if (best) { const sb = Math.sin(best.ang), cb = Math.cos(best.ang), lx = cb, lz = -sb, cote = ((v.x - best.x) * lx + (v.z - best.z) * lz) >= 0 ? 1 : -1, dd = Math.hypot(best.x - v.x, best.z - v.z);
+                    const off = dd > 6 ? 2.2 * cote : 0, tx = best.x + sb * best.v * 0.35 + lx * off, tz = best.z + cb * best.v * 0.35 + lz * off, l = Math.hypot(tx - v.x, tz - v.z) || 1; dir = [(tx - v.x) / l, (tz - v.z) / l]; } } /* 17 octobre au soir : l'adversaire le plus abîmé, pris par le flanc (×1,3 au jeu) — en fonçant de face sur le plus proche, le pilote ne gagnait plus qu'un match sur huit */
                 if (Math.abs(v.v) < 1 && reculT <= 0) { bloqT += dt; if (bloqT > 1) { bloqT = 0; reculT = 0.8; } } else bloqT = 0;
                 INPUT.mx = dir[0]; INPUT.mz = dir[1]; } else { INPUT.mx = 0; INPUT.mz = 0; }
               derbyEntrees(); if (P.veh) majConduite(dt); majVehicules(dt); majDerby(dt, dt); }
-            INPUT.mx = INPUT.mz = 0; Math.random = rnd0; return { gagne: A.gagne, t: Math.round(A.t), kos: A.kos }; };
+            INPUT.mx = INPUT.mz = 0; Math.random = rnd0; META.curios.volant = volant0; creerTrafic = trafic0; return { gagne: A.gagne, t: Math.round(A.t), kos: A.kos }; };
           const pil = [], pas = [];
-          for (const g of [101, 202, 303, 404]) pil.push(match('pilote', g));
-          for (const g of [505, 606]) pas.push(match('passif', g));
+          for (const g of [101, 202, 303, 404, 505, 606, 707, 808]) pil.push(match('pilote', g)); /* huit matchs : le pilote simulé gagne environ un sur quatre */
+          for (const g of [909, 1010]) pas.push(match('passif', g));
           const nG = pil.filter((x) => x && x.gagne).length;
           if (!nG) ko.push('le pilote ne gagne jamais ' + JSON.stringify(pil));
           if (pas.some((x) => !x || x.gagne)) ko.push('un joueur passif gagne ' + JSON.stringify(pas));
-          info.push('pilote : ' + nG + '/4 gagnés (' + pil.map((x) => x && (x.gagne ? 'G' : 'p') + x.t + 's').join(' ') + '), passif : 0/2');
+          info.push('pilote : ' + nG + '/' + pil.length + ' gagnés (' + pil.map((x) => x && (x.gagne ? 'G' : 'p') + x.t + 's').join(' ') + '), passif : 0/2');
           // prime une fois par vague, tenue « Casse-cou », victoires
           prep(); META.exploits.derby = false; const v0 = META.derby.victoires || 0; MERV.primes.derby = -1; derbyLancer(); const a1 = META.argent; derbyFin(true, 'dernier'); const g1 = META.argent - a1; derbyNettoyer();
           P.x = D.stand.x; P.z = D.stand.z; P.y = 0; derbyLancer(); const a2 = META.argent; /* même partie, même vague */ derbyFin(true, 'dernier'); const g2 = META.argent - a2; derbyNettoyer();
@@ -13484,6 +13489,8 @@ async function main() {
         let x0 = POIS.place.x, z0 = POIS.place.z, ang = 0, best = -1;
         for (let gx = -2; gx <= 2; gx++) for (let gz = -2; gz <= 2; gz++) { const cx = POIS.place.x + gx * 13, cz = POIS.place.z + gz * 13; if (solidAt(cx, cz, 2)) continue; for (const a of [0, Math.PI / 2, Math.PI, -Math.PI / 2]) { let L = 0; for (let d = 2; d < 30; d++) { if (solidAt(cx + Math.sin(a) * d, cz + Math.cos(a) * d, 1.2)) break; L = d; } if (L > best) { best = L; ang = a; x0 = cx; z0 = cz; } } }
         P.x = x0; P.z = z0; P.y = solY(x0, z0); P.ang = ang; P.chute = false; P.nage = false; P.armeCur = 'pistolet'; META.armes.pistolet.poss = true; P.mags.pistolet = 99; P.mun.pistolet = 99; P.cadT = 0;
+        /* le test maîtrise sa scène : un pistolet nu (une paire « akimbo » ou des balles explosives laissées par un test d'armes doublaient les dégâts au corps), sans bonus de dégâts */
+        const modsPist = META.modsArmes.pistolet; META.modsArmes.pistolet = ''; P.buffs.dmg = 0; if (typeof rebatirArmeJoueur === 'function') rebatirArmeJoueur('pistolet');
         const fx = Math.sin(ang), fz = Math.cos(ang);
         const tire = (n) => { for (let i = 0; i < n; i++) majPools(1 / 30); };
         const regarde = (y, d) => { VUE.pitch1P = Math.atan2(y - (P.y + OEIL_1P), d); VUE1P.k = 1; };
@@ -13510,6 +13517,7 @@ async function main() {
         // en 3e personne, sans personne d'autre devant, la visée prend un oiseau
         META.vue = 'classique'; majCamera(1 / 30); viderOiseaux(); const o2 = oisNouveau('pigeon', x0 + fx * 9, solY(x0 + fx * 9, z0 + fz * 9), z0 + fz * 9, x0, z0); o2.etat = 'sol';
         if (viseAuto(30) !== o2) ko.push('en 3e personne, la visée ne prend pas l’oiseau devant'); viderOiseaux(); META.vue = 'classique';
+        META.modsArmes.pistolet = modsPist;
         return { ko, info };
       });
       if (r.ko.length) fail('Tir à la tête : ' + r.ko.join(' ; ')); else ok('Tir à la tête : ' + r.info.join(' ; '));
@@ -14125,6 +14133,32 @@ async function main() {
         return { ko, info };
       });
       if (r.ko.length) fail('Soucoupe 1P : ' + r.ko.join(' ; ')); else ok('Soucoupe 1P : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
+    // Corps à corps avec la faune en pente (17 octobre au soir, trouvé par la
+    // suite complète) : un sanglier 2 u plus haut sur la pente de l'île
+    // mordait mais ne se laissait pas frapper (60 coups sans dégât). Même
+    // tolérance verticale pour la morsure et le coup (FAUNE_PORTEE_Y).
+    // -------------------------------------------------------------------
+    console.log('\n--- Faune en pente : la bête qui te mord se frappe, pas celle du haut de la falaise ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); META.vue = 'classique'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9;
+        P.nage = false; P.chute = false; P.armeCur = 'poings'; P.buffs.dmg = 0; P.ivresse = 0; placerFaune();
+        const sg = FAUNE.find((a) => a.type === 'sanglier'); if (!sg) return { ko: ['pas de sanglier'], info };
+        for (const a of FAUNE) if (a !== sg) a.mort = true;
+        const essai = (dy) => { sg.mort = false; sg.hp = 500; P.x = sg.x - 1.4; P.z = sg.z; P.y = sg.y - dy; P.ang = Math.atan2(sg.x - P.x, sg.z - P.z); P.cadT = 0; P.frappeT = 0; attaquer(); return 500 - sg.hp; };
+        const pente = essai(2.2), falaise = essai(3.2);
+        if (!(pente > 0)) ko.push('un sanglier 2,2 u plus haut, à 1,4 u, n’est pas touché');
+        if (falaise > 0) ko.push('un sanglier 3,2 u plus haut (falaise) est touché');
+        // la morsure suit la même règle
+        sg.hp = 500; sg.mordT = 0; sg.etat = 'charge'; P.x = sg.x - 1.2; P.z = sg.z; P.y = sg.y - 3.2; const hp0 = P.hp; for (let i = 0; i < 30; i++) { P.x = sg.x - 1.2; P.z = sg.z; P.y = sg.y - 3.2; majFaune(1 / 30); }
+        if (P.hp < hp0) ko.push('un sanglier mord depuis 3,2 u plus haut');
+        info.push('pente 2,2 u : touché (' + pente.toFixed(0) + '), falaise 3,2 u : ni coup ni morsure');
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Faune en pente : ' + r.ko.join(' ; ')); else ok('Faune en pente : ' + r.info.join(' ; '));
     }
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {

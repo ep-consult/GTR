@@ -10812,6 +10812,10 @@ function placerFauneForet(){ if(!DECOR_V2||!FORET.ok) return; if(FAUNE.filter((a
     for(let t=0;t<40;t++){ const a=rand(0,6.28), r=rand(9,FORET.r-3), x2=FORET.x+Math.cos(a)*r, z2=FORET.z+Math.sin(a)*r; if(faunePosable(x2,z2)){ x=x2; z=z2; break; } }
     const y=hauteurMont(x,z); m.g.position.set(x,y,z); FAUNE.push({type,D,zone:'foret',foyer:{x:FORET.x,z:FORET.z,r:FORET.r},g:m.g,pattes:m.pattes,tete:m.tete,x,z,y,ang:rand(0,6.28),hp:D.hp,mort:false,mordT:0,errT:0,ph:rand(0,6),corpsT:0}); } }
 /* une bête vivante sur le chemin du joueur à pied : on ne la traverse plus (on peut toujours s'en éloigner) */
+/* corps à corps avec la faune (17 octobre au soir, trouvé par la suite complète) : un sanglier 2 u plus haut sur la pente de
+   l'île mordait (aucune limite de hauteur) mais ne se laissait pas frapper (|dy| > 2) — 60 coups sans un dégât. La même
+   tolérance verticale pour les deux. */
+const FAUNE_PORTEE_Y=2.6;
 function fauneBloque(x,z,y){ for(const a of FAUNE){ if(a.mort||a.type==='lapin'||Math.abs(a.y-y)>1.6) continue; const r=a.D.long*0.45+0.3, d2=dist2(x,z,a.x,a.z); if(d2<r*r&&d2<dist2(P.x,P.z,a.x,a.z)) return true; } return false; }
 function toucherAnimal(a,dmg){
   if(a.mort) return; a.hp-=dmg; a.colere=true; burst(a.x,a.y+0.8,a.z,4,0xb8282a,4);
@@ -10834,7 +10838,7 @@ function majFaune(dt){
     let vit=0;
     if(a.D.paisible&&d<11&&Math.abs(P.y-a.y)<8){ const fuite=Math.atan2(a.x-P.x,a.z-P.z); a.ang=angLerp(a.ang,fuite,5*dt); vit=a.D.vit; a.pause=false; } // il détale
     else if(voit){ const cible=Math.atan2(P.x-a.x,P.z-a.z); a.ang=angLerp(a.ang,cible,4*dt); vit=d>1.4?a.D.vit:0;
-      a.mordT-=dt; if(d<1.7&&a.mordT<=0){ a.mordT=1.2; toucherJoueur(a.D.deg,a.x,a.z); if(Math.random()<0.4) toast(a.type==='jaguar'?'🐆 Le jaguar t’a lacéré !':'🐗 Coup de défense !','warn'); } }
+      a.mordT-=dt; if(d<1.7&&Math.abs((P.y||0)-(a.y||0))<FAUNE_PORTEE_Y&&a.mordT<=0){ /* jamais depuis le haut d'une falaise */ a.mordT=1.2; toucherJoueur(a.D.deg,a.x,a.z); if(Math.random()<0.4) toast(a.type==='jaguar'?'🐆 Le jaguar t’a lacéré !':'🐗 Coup de défense !','warn'); } }
     else { a.errT-=dt; if(a.errT<=0){ a.errT=rand(2,5); a.ang+=rand(-1.5,1.5); a.pause=Math.random()<0.35;
         if(a.foyer&&dist2(a.x,a.z,a.foyer.x,a.foyer.z)>a.foyer.r*a.foyer.r*0.7) a.ang=Math.atan2(a.foyer.x-a.x,a.foyer.z-a.z)+rand(-0.4,0.4); } /* il rentre dans sa forêt */
       vit=a.pause?0:a.D.vit*0.25; }
@@ -17313,7 +17317,7 @@ function attaquer(){
     for(const p of pietons){ if(p.etat==='mort') continue;
       cible(0,p.x,p.z,()=>{tuerPieton(p,true,knock);});
     }
-    for(const an of FAUNE){ if(an.mort||Math.abs(P.y-an.y)>2) continue; cible(0,an.x,an.z,()=>{toucherAnimal(an,dmg);}); }
+    for(const an of FAUNE){ if(an.mort||Math.abs(P.y-an.y)>FAUNE_PORTEE_Y) continue; /* même tolérance que sa morsure : sur une pente, une bête qui te mord se frappe */ cible(0,an.x,an.z,()=>{toucherAnimal(an,dmg);}); }
     for(const v of vehicules){ if(v.mort) continue;
       cible(0,v.x,v.z,()=>{abimerVehicule(v,dmg*0.6,true);});
     }
