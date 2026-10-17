@@ -13570,6 +13570,39 @@ async function main() {
       });
       if (r.ko.length) fail('Bateaux : ' + r.ko.join(' ; ')); else ok('Bateaux : ' + r.info.join(' ; '));
     }
+    // -------------------------------------------------------------------
+    // Vue 1re personne en chute (17 octobre au soir) : en vue 1P, la chute
+    // libre, la wingsuit et la voile gardent la 1re personne (œil à la tête,
+    // corps masqué, altimètre) ; posé, la 1re personne à pied reprend.
+    // -------------------------------------------------------------------
+    console.log('\n--- Vue 1re personne en chute : base jump, wingsuit, voile ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); META.vue = 'fps'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WANTED.heat = 0;
+        for (const e of ennemis) e.mort = true; WAVES.etat = 'repos'; WAVES.t = 1e9;
+        const S = MONT.sommet || POIS.place; P.x = S.x - 60; P.z = S.z + 70; P.y = solY(P.x, P.z) + 110; P.chute = true; P.chuteY0 = P.y; P.chuteHaut = P.y; P.chuteT = 0; P.vy = -25; P.para = false; P.wing = false; P.ang = 0.6; P.wingsuit = true; VUE.pitch1P = 0;
+        const pas = (n) => { for (let i = 0; i < n; i++) { majJoueur(1 / 30, 1 / 30); majCamera(1 / 30); } };
+        const vue = () => { camera.updateMatrixWorld(); const d = camera.getWorldDirection(new THREE.Vector3()); P.h.g.updateMatrixWorld(true); const t = P.h.tete.getWorldPosition(new THREE.Vector3()); const hud = document.getElementById('altChute');
+          return { actif: CHUTE1P.actif, cache: !P.h.g.visible, oeil: camera.position.distanceTo(t), dy: d.y, alt: hud && hud.style.display === 'block' ? hud.textContent : '', cap: Math.atan2(d.x, d.z) }; };
+        pas(15); const l = vue();
+        if (!(l.actif && l.cache && l.oeil < 0.4)) ko.push('chute libre : pas à la 1re personne ' + JSON.stringify(l));
+        if (!(l.dy < -0.5)) ko.push('chute libre : on ne regarde pas le sol (' + l.dy.toFixed(2) + ')');
+        if (!/▼ \d+ m/.test(l.alt)) ko.push('pas d’altimètre');
+        deployerWingsuit(); pas(30); const w = vue();
+        if (!(w.actif && w.cache && w.dy > -0.6 && w.dy < 0.1)) ko.push('wingsuit : ' + JSON.stringify(w));
+        if (Math.abs(angDiff(w.cap, P.wingAng)) > 0.3) ko.push('wingsuit : la vue ne suit pas le vol (' + w.cap.toFixed(2) + ' / ' + P.wingAng.toFixed(2) + ')');
+        P.wing = false; P.para = true; P.vy = -4; pas(30); const v = vue();
+        if (!(v.actif && v.cache)) ko.push('voile : pas à la 1re personne');
+        VUE.pitch1P = 1.2; pas(10); const vh = vue(); if (!(vh.dy > 0.5)) ko.push('sous la voile, on ne lève pas les yeux vers elle (' + vh.dy.toFixed(2) + ')'); VUE.pitch1P = 0;
+        P.y = solY(P.x, P.z) + 0.2; P.vy = -2; pas(30); const hud = document.getElementById('altChute');
+        if (CHUTE1P.actif || !VUE1P.actif) ko.push('posé : la 1re personne à pied ne reprend pas'); if (hud && hud.style.display !== 'none') ko.push('posé : l’altimètre reste affiché');
+        info.push('chute libre (regard ' + l.dy.toFixed(2) + ', ' + l.alt + '), wingsuit, voile ; posé : 1re personne à pied');
+        META.vue = 'classique'; majCamera(1 / 30);
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Chute 1P : ' + r.ko.join(' ; ')); else ok('Chute 1P : ' + r.info.join(' ; '));
+    }
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];

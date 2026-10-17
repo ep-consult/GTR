@@ -36458,10 +36458,45 @@ function photoCockpit(cle,lw,lh){ const d=VEHDEFS[cle]; if(!d) return null; cons
   finally{ cockpitRetirer(); P.veh=vehAvant; P.x=px; P.z=pz; if(typeof majBalises==='function') majBalises(0); if(P.h) P.h.g.visible=corpsVis; scene.remove(v.mesh); libererEntite(v.mesh); const i=vehicules.indexOf(v); if(i>=0) vehicules.splice(i,1);
     R.setSize(taille.x,taille.y,false); camera.aspect=asp; camera.fov=fovA; camera.near=nearA; camera.updateProjectionMatrix(); }
   return url; }
+/* Vue 1re personne en chute (17 octobre au soir, demandé : « une vue à la première personne pour le base jump, la wingsuit et le
+   parachute ») : en vue 1P, la chute ne ramène plus la vue immersive. L'œil est à la tête du vrai modèle (masqué), le regard :
+   vers le sol qui arrive en chute libre, devant en wingsuit (le roulis des virages, WING_FX.roulis), devant sous la voile (la voile
+   au-dessus : on la voit en levant les yeux, au doigt). Remous du vent (bruitRoute, jamais une sinusoïde), traits de vitesse,
+   champ plus large avec la vitesse ; altimètre en haut de l'écran (hauteur au-dessus du sol, vitesse de chute) et « OUVRE LA
+   VOILE ! » sous 45 m en chute libre. Le joystick suit la vue (VUE.yawRendu) : à droite, on vire à droite. */
+const CHUTE1P={actif:false,hud:null,ph:0,majT:0,txt:''};
+const _chuteV=new THREE.Vector3(), _chuteE=new THREE.Euler(), _chuteQ=new THREE.Quaternion();
+function vueChute(){ return vue1P()&&ETAT.mode==='jeu'&&!INT.actif&&!P.veh&&(P.chute||P.para||P.wing)&&!FPS.actif&&!MANEGES.actif&&!(typeof TOW!=='undefined'&&TOW.actif)&&P.hp>0&&!!P.h; }
+function quitterChute(){ const C=CHUTE1P; C.actif=false; if(P.h&&!VUE1P.actif) P.h.g.visible=true; if(C.hud) C.hud.style.display='none'; C.txt=''; }
+function cameraChute(dt){ const C=CHUTE1P; C.actif=true; if(P.h.g.visible) P.h.g.visible=false; if(reticule.visible) reticule.visible=false;
+  const wing=P.wing&&!P.para, para=!!P.para, libre=!wing&&!para, cap=wing&&P.wingAng!==undefined?P.wingAng:P.ang, vy=P.vy||0;
+  if(!VUE.drag) VUE.offChute=lerp(VUE.offChute||0,0,clamp(dt*2,0,1));
+  // l'œil : la tête du modèle (orienté par la wingsuit, la voile ou la chute), un peu devant elle
+  P.h.g.updateMatrixWorld(true); if(P.h.tete) P.h.tete.getWorldPosition(_chuteV); else _chuteV.set(P.x,P.y+1.5,P.z);
+  _chuteV.x+=Math.sin(cap)*0.22; _chuteV.z+=Math.cos(cap)*0.22;
+  C.ph+=dt*(2+Math.abs(vy)*0.12+(wing?3:0)); const fort=para?0.004:0.01+Math.min(Math.abs(vy),55)*0.0005;
+  camera.position.set(_chuteV.x,_chuteV.y+(bruitRoute(C.ph)-0.5)*fort,_chuteV.z);
+  const base=libre?-0.95:(wing?-0.3:-0.26), pit=clamp(base+(VUE.pitch1P||0)*(para?1.1:0.7)+(bruitRoute(C.ph+31)-0.5)*fort*1.5,-1.5,para?1.35:1.0); /* sous la voile, on lève les yeux jusqu'à elle */
+  const roul=wing?WING_FX.roulis*0.8:(bruitRoute(C.ph*0.3+7)-0.5)*(para?0.04:0.06);
+  _chuteQ.setFromEuler(_chuteE.set(pit,cap+Math.PI+(VUE.offChute||0),roul,'YXZ')); camera.quaternion.copy(_chuteQ);
+  const vh=wing?(P.wingV||24):Math.hypot(P.chuteVx||0,P.chuteVz||0), vit=Math.hypot(vh,vy), fov=(para?74:80)+Math.min(vit,60)*0.12;
+  if(Math.abs(camera.fov-fov)>0.05||camera.near!==0.05){ camera.fov=lerp(camera.fov,fov,0.15); camera.near=0.05; camera.updateProjectionMatrix(); }
+  VUE.k=1; VUE.yaw=VUE.yawUser=cap+Math.PI; if(!_chalCam.d) _chalCam.d=new THREE.Vector3(); const cd=_chalCam.d; camera.getWorldDirection(cd); VUE.yawRendu=Math.hypot(cd.x,cd.z)>1e-3?Math.atan2(-cd.x,-cd.z):VUE.yaw;
+  const ciel=vueCiel(); ciel.visible=true; ciel.position.copy(camera.position); const U=VUE.cielU; U.uT.value+=dt;
+  if(scene.background&&scene.background.isColor){ U.uCiel.value.copy(scene.background); U.uZenith.value.copy(scene.background).multiplyScalar(0.55).lerp(VUE_ZENITH,0.35); }
+  U.uSoleil.value.copy(soleil.position).normalize();
+  // traits de vitesse : l'air qui file autour de l'œil
+  if(vit>16&&Math.random()<(vit-16)*0.05){ const a=rand(0,6.28), r=rand(1.6,3.6), dir=_chuteV.set(Math.sin(cap)*vh,vy,Math.cos(cap)*vh).normalize(), px=camera.position.x+dir.x*7+Math.cos(a)*r, py=camera.position.y+dir.y*7+Math.sin(a)*r, pz=camera.position.z+dir.z*7+Math.sin(a+1)*r;
+    spawnP(px,py,pz,-dir.x*vit*1.4,-dir.y*vit*1.4,-dir.z*vit*1.4,0.18,0.12,0xffffff,0,0); }
+  // l'altimètre
+  C.majT-=dt; if(C.majT<=0){ C.majT=0.1; if(!C.hud){ const d=document.createElement('div'); d.id='altChute'; d.style.cssText='position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 196px);transform:translateX(-50%);z-index:9;pointer-events:none;font:800 15px/1.2 Arial;color:#fff;text-align:center;text-shadow:0 0 4px #000,0 0 2px #000;padding:4px 10px;border-radius:10px;background:rgba(10,14,22,0.45)'; document.body.appendChild(d); C.hud=d; }
+    const alt=Math.max(0,P.y-solY(P.x,P.z)), t='▼ '+Math.round(alt)+' m · '+Math.round(Math.abs(vy)*3.6)+' km/h'+(libre&&alt<45?'<br><span style="color:#ff5a4a">OUVRE LA VOILE !</span>':'')+(wing?'<br><span style="color:#9fd8ff">WINGSUIT · '+Math.round(vh*3.6)+' km/h</span>':'');
+    if(t!==C.txt){ C.txt=t; C.hud.innerHTML=t; } if(C.hud.style.display!=='block') C.hud.style.display='block'; } }
 function majCamera(dt){
   if(VUE1P.actif&&!vuePremiere()) quitterPremiere(); /* on quitte la 1re personne (salle, véhicule, chute, mini-jeu, manège…) : le corps revient, les bras s'en vont */
   if(FPS.actif){ fpsCamera(); return; } // tir à la première personne : l'œil du joueur
   if(COCKPIT.g&&!vueCockpit()) cockpitRetirer(); if(vueCockpit()){ cameraCockpit(dt); return; } /* au volant à la 1re personne : le cockpit (nuit du 17 octobre) */
+  if(vueChute()){ cameraChute(dt); return; } else if(CHUTE1P.actif) quitterChute(); /* en chute à la 1re personne : base jump, wingsuit, voile (17 octobre au soir) */
   // Garage tuning, menu d'atelier ouvert : vue de présentation — caméra
   // fixe face au plateau (le joueur fait tourner le véhicule au doigt, voir
   // GAR_DRAG ; sinon il tourne seul), le véhicule cadré dans la moitié

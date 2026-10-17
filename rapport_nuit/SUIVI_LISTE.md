@@ -10,7 +10,7 @@ Chaque point est coché quand il est fait ET vérifié (rendu réel, test, valid
 - [x] 6. Tir sur les animaux + HEADSHOT (tête séparée du corps, PNJ et animaux) — tête ×2,5, « HEADSHOT ! », oiseaux et animaux visables et abattables ; test « Tir à la tête »
 - [x] 7. Suspension des voitures : lisse en ville, secousses seulement hors route, plus d'effet à fréquence fixe — bosses irrégulières selon le sol (ville 0,001 u, sable 0,03 u), plus de sinusoïde ni de balancement à l'arrêt ; test « Suspension »
 - [x] 8. Bateaux : claquements sur l'eau moins fréquents et moins amples — un bond tous les 25 à 60 u (avant 6 à 15), 0,07 u de haut (avant 0,22), retombée douce ; la houle reste ; test « Bateaux »
-- [ ] 9. Vue 1re personne en chute libre (base jump, wingsuit, parachute)
+- [x] 9. Vue 1re personne en chute libre (base jump, wingsuit, parachute) — œil à la tête, regard vers le sol / devant, voile visible en levant les yeux, altimètre et « OUVRE LA VOILE ! » ; test « Chute 1P »
 - [ ] 10. Police : plus présente, intervient dans les fusillades entre gangs et contre le joueur
 - [ ] 11. Avions : montée et caméra 1P adoucies
 - [ ] 12. Hélicoptère : monte à la verticale, presque à plat
