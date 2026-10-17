@@ -1593,6 +1593,33 @@ la 1re personne).
   viseur du chasseur dégagé ; soucoupe ; balises ; vélo sans phare) ; liste :
   `rapport_nuit/COCKPITS.md` (`rapport_nuit/outils/cockpits_liste.js`).
 
+## Lance à eau V2 (17 octobre au soir) — `majLanceEau`, `JET_EAU`
+
+Demandé : « visuel du jet plus réaliste, portée, effet sur ce qu'elle touche ».
+- **Un vrai jet** : une colonne d'eau continue depuis la buse rouge (`jetBuse`),
+  sur sa trajectoire balistique (`LANCE_V0`, `LANCE_G`, `jetEauArc`), qui
+  s'évase (`jetRayon`), se brise en gouttes et **s'arrête sur ce qu'elle
+  touche** : sol (relief compris), mur (`solidAt` à la hauteur du jet),
+  véhicule, mer ou bassin. Tube maillé une fois (`jetEauConstruire`, sommets
+  et uv réécrits à chaque image par `jetEauMaillage`), filets d'eau qui
+  défilent dans le shader (`JET_FS`), moins clair la nuit. Aucune allocation
+  en jeu. `majJetEau` (boucle) le cache quand on ne tire plus ; `viderJetEau`
+  dans `startRun`.
+- **Visée et portée** : le glisser choisit où l'eau retombe, de 6 à 42 u
+  (`lanceHausse` : la hausse calculée sur la parabole, buse sur le toit
+  comprise) ; sans glisser, elle vise d'elle-même un feu devant (foyer du
+  métier, véhicule, personne), sinon le gangster le plus proche
+  (`lanceCible`), sinon 22 u. **Piège** : la buse est à ~3 m ; un jet tendu
+  passait au-dessus des têtes, d'où la hausse calculée sur la cible.
+- **Effets le long du jet** (`jetTouche` : distance à la trajectoire, hauteur
+  comprise — plus un cône de 15 u) : ennemis et piétons projetés et trempés,
+  ennemis étourdis tant qu'ils sont dedans, toute personne en feu éteinte,
+  véhicules éteints (vapeur) et légers poussés, foyers du métier éteints,
+  petits objets du mobilier renversés à l'impact (`casserMobilier`, sortie de
+  `majMobilier`), flaques qui sèchent en 6 s (`poserFlaque`, réserve de 10),
+  brume, gerbe dans la mer.
+- Test : « Lance à eau V2 ».
+
 ## Retours de playtest du 16 octobre — véhicules et conduite
 
 - **Taxi, police et Rafale** gardent leur ANCIEN modèle (signalé : « le capot

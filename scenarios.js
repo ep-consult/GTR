@@ -13259,6 +13259,55 @@ async function main() {
       });
       if (r.ko.length) fail('Cockpits : ' + r.ko.join(' ; ')); else ok('Cockpits : ' + r.info.join(' ; '));
     }
+    // -------------------------------------------------------------------
+    // Lance à eau V2 (17 octobre au soir) : un vrai jet balistique qui
+    // s'arrête sur ce qu'il touche. Portée réglée par le glisser ; effets LE
+    // LONG DU JET (plus un cône) : projeté, éteint, poussé ; un passant à côté
+    // du jet n'est pas touché ; flaque à l'impact ; le jet disparaît au relâcher.
+    // -------------------------------------------------------------------
+    console.log('\n--- Lance à eau V2 : jet balistique, portée, effets le long du jet ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); META.vue = 'classique'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WANTED.heat = 0;
+        for (const e of ennemis) e.mort = true; WAVES.etat = 'repos'; WAVES.t = 1e9;
+        for (const v of vehicules) { scene.remove(v.mesh); libererEntite(v.mesh); } vehicules.length = 0; for (const q of pietons) scene.remove(q.h.g); pietons.length = 0;
+        // une rue droite et libre près de la place (la plus longue des quatre directions)
+        let x0 = 0, z0 = 0, ang = 0, best = -1;
+        for (let gx = -2; gx <= 2; gx++) for (let gz = -2; gz <= 2; gz++) { const cx = POIS.place.x + gx * 13, cz = POIS.place.z + gz * 13; if (solidAt(cx, cz, 2)) continue;
+          for (const a of [0, Math.PI / 2, Math.PI, -Math.PI / 2]) { let L = 0; for (let d = 3; d < 50; d++) { if (solidAt(cx + Math.sin(a) * d, cz + Math.cos(a) * d, 1.5)) break; L = d; } if (L > best) { best = L; ang = a; x0 = cx; z0 = cz; } } }
+        if (best < 30) return { ko: ['pas de rue libre de 30 u près de la place (' + best + ')'], info };
+        const v = creerVehicule('pompiers', x0, z0, ang); P.x = x0; P.z = z0; entrerVehicule(v); if (P.veh !== v) return { ko: ['pas monté dans le camion'], info };
+        v.v = 0; v.eau = 100; const fx = Math.sin(ang), fz = Math.cos(ang), lx = Math.cos(ang), lz = -Math.sin(ang);
+        const pas = (n) => { for (let i = 0; i < n; i++) { majConduite(1 / 30); majPools(1 / 30); majJetEau(1 / 30); } };
+        // portée : sans glisser, jet tendu ; glisser court = près, glisser loin = loin
+        INPUT.lanceHold = true; INPUT.lanceDx = 0; INPUT.lanceDy = 0; pas(30); const J = JET_EAU, dImp = () => Math.hypot(J.imp.x - v.x, J.imp.z - v.z);
+        const p0 = dImp(); if (!(J.mesh && J.mesh.visible)) ko.push('le jet ne se voit pas'); if (J.imp.quoi !== 'sol') ko.push('sans glisser, le jet ne retombe pas au sol (' + J.imp.quoi + ')'); if (p0 < 20) ko.push('portée par défaut ' + p0.toFixed(1) + ' u (avant : 15)');
+        INPUT.lanceDx = fx * 0.2; INPUT.lanceDy = fz * 0.2; pas(40); const pC = dImp(); INPUT.lanceDx = fx; INPUT.lanceDy = fz; pas(40); const pL = dImp();
+        if (!(pC < p0 - 2 && pL > p0 + 8)) ko.push('le glisser ne règle pas la portée (court ' + pC.toFixed(1) + ', défaut ' + p0.toFixed(1) + ', loin ' + pL.toFixed(1) + ')');
+        info.push('portée ' + pC.toFixed(0) + ' / ' + p0.toFixed(0) + ' / ' + pL.toFixed(0) + ' u');
+        // sur le trajet : un gangster à 10 u, un passant en feu à 16 u, une voiture en feu à 20 u ; à côté : un passant à 8 u devant mais 5 u sur le côté
+        INPUT.lanceDx = 0; INPUT.lanceDy = 0; pas(30);
+        const typ = Object.keys(ETYPES).find((k) => ETYPES[k].fac && ETYPES[k].fac !== 'police' && !ETYPES[k].boss && !ETYPES[k].heli) || 'gang1';
+        const e = creerEnnemi(typ, x0 + fx * 10, z0 + fz * 10, true);
+        creerPieton(x0 + fx * 16, z0 + fz * 16); const pf = pietons[pietons.length - 1]; pf.feuT = 3;
+        creerPieton(x0 + fx * 8 + lx * 5, z0 + fz * 8 + lz * 5); const pc = pietons[pietons.length - 1];
+        const vf = creerVehicule('citadine', x0 + fx * 20, z0 + fz * 20, ang); vf.v = 0; vf.enFeu = true; vf.feuT = 9;
+        for (const q of [pf, pc]) { q.etat = 'marche'; q.t = 99; q.vx = 0; q.vz = 0; }
+        const eX = e ? e.x : 0, eZ = e ? e.z : 0;
+        pas(60);
+        if (!e) ko.push('gangster pas créé'); else if (!e.rag && Math.hypot(e.x - eX, e.z - eZ) < 1) ko.push('le gangster sur le trajet n’est ni projeté ni repoussé');
+        if (pf.feuT > 0) ko.push('le passant en feu sur le trajet n’est pas éteint');
+        if (vf.enFeu) ko.push('la voiture en feu sur le trajet n’est pas éteinte');
+        if (pc.rag) ko.push('un passant 5 u à côté du jet est projeté (le cône d’avant)');
+        if (!J.flaques.some((f) => f.m.visible)) ko.push('pas de flaque à l’impact');
+        INPUT.lanceHold = false; pas(2); if (J.mesh.visible) ko.push('le jet reste affiché au relâcher');
+        sortirVehicule(true); for (const q of vehicules) { scene.remove(q.mesh); libererEntite(q.mesh); } vehicules.length = 0; viderJetEau();
+        info.push('gangster projeté, passant et voiture éteints, passant à côté épargné');
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Lance à eau V2 : ' + r.ko.join(' ; ')); else ok('Lance à eau V2 : ' + r.info.join(' ; '));
+    }
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];

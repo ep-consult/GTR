@@ -11503,16 +11503,20 @@ function majMobilier(){
     for(const o of l){
       if(o.casse) continue;
       const r=o.r+rv*0.75; if(dist2(o.x,o.z,v.x,v.z)>r*r) continue;
-      o.casse=true; MOB.casses.push(o);
-      const m=MOB.zones[o.zone], a=m.geometry.attributes.position, A=a.array;
-      for(let k=o.debut*3;k<(o.debut+o.nb)*3;k+=3){ A[k]=o.x; A[k+1]=-2; A[k+2]=o.z; } // repliés sous le sol (y = -2 : marqueur testé)
-      a.needsUpdate=true;
-      burst(o.x,0.6,o.z,8,o.type==='poubelle'||o.type==='jardiniere'?0x3d7a34:o.type==='borne'?0x9fd8ff:0xa08060,6);
-      bruit(0.12,0.4,700); v.v*=0.94;
-      if(o.type==='cagettes'){ for(let k=0;k<12;k++) spawnP(o.x,0.7,o.z,rand(-4,4),rand(3,7),rand(-4,4),0.9,rand(0.25,0.38),pick([0xe83a2a,0xff9a1a,0x7dc93a,0xffd23f]),14,0); } // les fruits volent
-      if(o.type==='borne'){ for(let k=0;k<14;k++) spawnP(o.x,0.6,o.z,rand(-1.5,1.5),rand(6,10),rand(-1.5,1.5),1.2,rand(0.3,0.5),0x9fd8f5,9,0); }
+      casserMobilier(o,v);
     }
   }
+}
+/* un objet du mobilier renversé (par un véhicule lancé, ou par le jet de la lance à eau : v=null) */
+function casserMobilier(o,v){
+  o.casse=true; MOB.casses.push(o);
+  const m=MOB.zones[o.zone], a=m.geometry.attributes.position, A=a.array;
+  for(let k=o.debut*3;k<(o.debut+o.nb)*3;k+=3){ A[k]=o.x; A[k+1]=-2; A[k+2]=o.z; } // repliés sous le sol (y = -2 : marqueur testé)
+  a.needsUpdate=true;
+  burst(o.x,0.6,o.z,8,o.type==='poubelle'||o.type==='jardiniere'?0x3d7a34:o.type==='borne'?0x9fd8ff:0xa08060,6);
+  bruit(0.12,0.4,700); if(v) v.v*=0.94;
+  if(o.type==='cagettes'){ for(let k=0;k<12;k++) spawnP(o.x,0.7,o.z,rand(-4,4),rand(3,7),rand(-4,4),0.9,rand(0.25,0.38),pick([0xe83a2a,0xff9a1a,0x7dc93a,0xffd23f]),14,0); } // les fruits volent
+  if(o.type==='borne'){ for(let k=0;k<14;k++) spawnP(o.x,0.6,o.z,rand(-1.5,1.5),rand(6,10),rand(-1.5,1.5),1.2,rand(0.3,0.5),0x9fd8f5,9,0); }
 }
 // Vélos garés aux arceaux en début de partie : au plus VELOS_GARES, répartis
 // sur toute la liste (choix déterministe, aucun tirage), un BMX sur trois.
@@ -19531,121 +19535,163 @@ const CROSS_CABRAGE_RATE=1.1, CROSS_CABRAGE_RELACHE=2.6, CROSS_CABRAGE_MAX=0.68,
       CROSS_CABRAGE_DANGER=0.55, CROSS_CABRAGE_GRACE=0.8;
 /* ---- Lance à eau du camion de pompiers : outil de CONTRÔLE, pas une arme.
    Repousse fortement et fait TOMBER (ragdoll non mortel, voir majRagdoll)
-   ennemis/piétons dans un cône devant le camion, dégâts volontairement
-   dérisoires (quelques dps — jamais assez pour neutraliser vite ni finir
-   une vague seule). Pousse légèrement les véhicules légers, éteint les
-   véhicules en feu. Réserve limitée, jauge affichée sur le bouton MONTER
-   (majHUD), recharge lente à l'arrêt.
-   Rendue spectaculaire (demandé explicitement, « actuellement trop
-   discrète ») : jet dense (plusieurs gouttes par tick, nozzle élargi),
-   éclaboussures au sol régulières, projection forte (ragdoll, pas un
-   simple recul), son de haute pression continu (voir lanceSonStart/Stop).
-   Jet et éclaboussures en particules : réutilisent les pools `parts`
-   (spawnP) et burst() existants, aucune allocation par frame (CLAUDE.md). */
-const LANCE_PORTEE=15, LANCE_DEMI_ANGLE=0.42, LANCE_DEBIT=26, LANCE_RECHARGE=7, LANCE_RESEUIL=15;
+   ennemis et piétons, dégâts volontairement dérisoires (jamais assez pour
+   neutraliser vite ni finir une vague seule). Réserve limitée, jauge sur le
+   bouton, recharge lente quand on ne tire pas. Son de haute pression continu
+   (lanceSonStart/Stop).
+   V2 (17 octobre au soir, demandé : « visuel du jet plus réaliste, portée, effet
+   sur ce qu'elle touche ») :
+   - un VRAI JET (JET_EAU) : une colonne d'eau continue qui part de la buse rouge
+     et suit sa trajectoire balistique (vitesse LANCE_V0, gravité), s'évase, se
+     brise en gouttes, et S'ARRÊTE sur ce qu'elle touche — sol, mur, véhicule,
+     mer (jetEauArc). Tube maillé une fois, sommets réécrits à chaque image,
+     filets d'eau qui défilent dans le shader : aucune allocation en jeu.
+   - portée et visée : le glisser choisit où l'eau retombe, de 6 à 42 u (lanceHausse :
+     la hausse calculée sur la parabole, buse sur le toit comprise) ; sans glisser,
+     la lance vise d'elle-même un feu devant, sinon le gangster le plus proche
+     (lanceCible), sinon 22 u. Avant : 15 u, un cône.
+   - effet LE LONG DU JET (jetTouche), plus dans un cône : piétons et ennemis
+     projetés et trempés, ennemis étourdis tant qu'ils sont dans le jet, toute
+     personne en feu éteinte, véhicules éteints et (légers) poussés, foyers du
+     métier éteints, petits objets du mobilier renversés à l'impact, flaque qui
+     sèche, brume, gerbe dans la mer. */
+const LANCE_V0=24, LANCE_EL_MIN=-0.4, LANCE_EL_MAX=0.42, LANCE_EL_DEF=0.06, LANCE_G=9.8, LANCE_N=40, LANCE_RAD=8, LANCE_PAS=0.05;
+const LANCE_DEBIT=26, LANCE_RECHARGE=7, LANCE_RESEUIL=15;
+const JET_EAU={mesh:null,geo:null,mat:null,pts:new Float32Array(LANCE_N*3),n:0,imp:{x:0,y:0,z:0,quoi:'',veh:null},vu:false,t:0,fxT:0,impT:0,flaqT:0,flaques:[],flaqI:0,vehs:[]};
+const _jetP=new THREE.Vector3();
+const JET_VS='varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }';
+const JET_FS='uniform float uT; uniform float uLong; uniform vec3 uCol; varying vec2 vUv;\n'+
+  'void main(){ float s=vUv.x; float a=smoothstep(0.0,0.03,s)*(1.0-smoothstep(0.7,1.0,s));\n'+
+  ' float fil=0.55+0.45*sin(s*uLong*2.2-uT*34.0+sin(vUv.y*18.85)*1.7);\n'+ /* filets d'eau qui filent le long du jet */
+  ' float bord=0.6+0.4*sin(vUv.y*6.2832*2.0+s*9.0);\n'+
+  ' vec3 c=mix(uCol,vec3(1.0),0.45*fil);\n'+
+  ' gl_FragColor=vec4(c,a*(0.62+0.3*fil)*bord*(1.0-0.4*s)); }';
+function jetEauConstruire(){ const J=JET_EAU; if(J.mesh) return J; const nv=LANCE_N*LANCE_RAD, pos=new Float32Array(nv*3), uv=new Float32Array(nv*2), idx=[];
+  for(let i=0;i<LANCE_N;i++) for(let k=0;k<LANCE_RAD;k++){ uv[(i*LANCE_RAD+k)*2]=i/(LANCE_N-1); uv[(i*LANCE_RAD+k)*2+1]=k/LANCE_RAD; }
+  for(let i=0;i<LANCE_N-1;i++) for(let k=0;k<LANCE_RAD;k++){ const a=i*LANCE_RAD+k, b=i*LANCE_RAD+(k+1)%LANCE_RAD, c=a+LANCE_RAD, d=b+LANCE_RAD; idx.push(a,c,b,b,c,d); }
+  const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.BufferAttribute(pos,3)); g.setAttribute('uv',new THREE.BufferAttribute(uv,2)); g.setIndex(idx);
+  const m=new THREE.ShaderMaterial({vertexShader:JET_VS,fragmentShader:JET_FS,uniforms:{uT:{value:0},uLong:{value:30},uCol:{value:new THREE.Color(0xbfe6ff)}},transparent:true,depthWrite:false,side:THREE.DoubleSide});
+  J.geo=g; J.mat=m; J.mesh=new THREE.Mesh(g,m); J.mesh.frustumCulled=false; J.mesh.visible=false; J.mesh.renderOrder=3; scene.add(J.mesh); return J; }
+/* rayon du jet à la fraction s de sa longueur : serré à la buse, il s'évase en se brisant */
+const jetRayon=(s)=>0.12+0.55*s*s;
+/* la trajectoire : depuis la buse, cap aimAng, hausse el ; elle s'arrête au sol (relief compris), dans l'eau, contre un mur ou un véhicule */
+function jetBuse(v,aimAng){ const lance=v.mesh.userData.lance;
+  if(lance){ lance.updateWorldMatrix(true,false); _jetP.set(0,0.03,0.67); lance.localToWorld(_jetP); } /* parents compris : le camion a pu bouger depuis le dernier rendu */ else _jetP.set(v.x+Math.sin(aimAng)*2.6,(v.h||0)+2.4,v.z+Math.cos(aimAng)*2.6);
+  return _jetP; }
+/* la hausse qui fait passer le jet à la hauteur yT à la distance D (tir tendu, la branche montante de la parabole) */
+function lanceHausse(D,yT,h0){ const V=LANCE_V0, g=LANCE_G, f=(th)=>{ const c=Math.cos(th); return h0+D*Math.tan(th)-g*D*D/(2*V*V*c*c); }; let lo=LANCE_EL_MIN, hi=LANCE_EL_MAX;
+  if(f(hi)<yT) return hi; if(f(lo)>yT) return lo; for(let i=0;i<14;i++){ const m=(lo+hi)/2; if(f(m)<yT) lo=m; else hi=m; } return (lo+hi)/2; }
+/* sans glisser, la lance vise d'elle-même ce qui est devant : un feu d'abord (foyer du métier, véhicule ou personne en feu), sinon le gangster le plus proche */
+function lanceCible(v,aimAng){ let best=null, bd=1e9, prio=9; const essai=(x,z,y,p)=>{ const dx=x-v.x, dz=z-v.z, d=Math.hypot(dx,dz); if(d<4||d>36||Math.abs(angDiff(aimAng,Math.atan2(dx,dz)))>0.35) return; if(p<prio||(p===prio&&d<bd)){ best={d,y}; bd=d; prio=p; } };
+  if(MET.pompier&&MET.pompier.pret&&MET.pompier.feux) for(const fm of MET.pompier.feux) if(fm.vie>0) essai(fm.x,fm.z,solY(fm.x,fm.z)+0.6,0);
+  for(const o of vehicules) if(o!==v&&!o.mort&&o.enFeu) essai(o.x,o.z,(o.h||0)+1,0);
+  for(const p of pietons) if(p.etat!=='mort'&&p.feuT>0) essai(p.x,p.z,solY(p.x,p.z)+1.1,0);
+  for(const e of ennemis) if(!e.mort&&!e.heli&&!e.rag) essai(e.x,e.z,solY(e.x,e.z)+1.1,e.feuT>0?0:1);
+  return best; }
+function jetEauArc(v,aimAng,el){ const J=JET_EAU, P=J.pts; jetBuse(v,aimAng);
+  const sx=Math.sin(aimAng), sz=Math.cos(aimAng), vh=LANCE_V0*Math.cos(el), vy=LANCE_V0*Math.sin(el), I=J.imp; I.quoi=''; I.veh=null;
+  P[0]=_jetP.x; P[1]=_jetP.y; P[2]=_jetP.z; let n=1;
+  for(let i=1;i<LANCE_N;i++){ const t=i*LANCE_PAS, x=_jetP.x+sx*vh*t, z=_jetP.z+sz*vh*t, y=_jetP.y+vy*t-0.5*LANCE_G*t*t;
+    const eau=estEau(x,z), sol=eau?niveauEau(x,z):solY(x,z); let quoi='', f=1;
+    if(y<=sol){ quoi=eau?'eau':'sol'; const y0=P[(n-1)*3+1]; f=clamp((y0-sol)/Math.max(1e-4,y0-y),0,1); }
+    else { const s=solidAt(x,z,0.05,undefined,y); if(s&&y<(s.h===undefined?99:s.h)) quoi='mur';
+      else for(const o of J.vehs){ const dx=x-o.x, dz=z-o.z, c=Math.cos(o.ang), sn=Math.sin(o.ang), lx=dx*c-dz*sn, lz=dx*sn+dz*c, oy=o.h||0;
+        if(Math.abs(lx)<o.def.larg*0.5&&Math.abs(lz)<o.def.long*0.5&&y<oy+(HAUTEUR_VEH[o.key]||1.7)&&y>oy){ quoi='veh'; I.veh=o; break; } } }
+    if(quoi){ const a=(n-1)*3; P[n*3]=P[a]+(x-P[a])*f; P[n*3+1]=P[a+1]+(y-P[a+1])*f; P[n*3+2]=P[a+2]+(z-P[a+2])*f; n++; I.quoi=quoi; break; }
+    P[n*3]=x; P[n*3+1]=y; P[n*3+2]=z; n++; }
+  J.n=n; I.x=P[(n-1)*3]; I.y=P[(n-1)*3+1]; I.z=P[(n-1)*3+2]; return J; }
+/* sommets du tube le long de la trajectoire ; les anneaux inutilisés sont repliés sur l'impact */
+function jetEauMaillage(){ const J=JET_EAU, P=J.pts, n=J.n, A=J.geo.attributes.position.array, U=J.geo.attributes.uv.array;
+  for(let i=0;i<LANCE_N;i++){ const j=Math.min(i,n-1), s=j/Math.max(1,n-1), r=jetRayon(s), px=P[j*3], py=P[j*3+1], pz=P[j*3+2];
+    const ja=Math.max(0,j-1), jb=Math.min(n-1,j+1); let tx=P[jb*3]-P[ja*3], ty=P[jb*3+1]-P[ja*3+1], tz=P[jb*3+2]-P[ja*3+2]; const tl=Math.hypot(tx,ty,tz)||1; tx/=tl; ty/=tl; tz/=tl;
+    let ux=-tz, uz=tx, ul=Math.hypot(ux,uz)||1; ux/=ul; uz/=ul; const wx=ty*uz, wy=tz*ux-tx*uz, wz=-ty*ux; /* u : horizontal, w : le second axe du plan perpendiculaire */
+    for(let k=0;k<LANCE_RAD;k++){ const a=k/LANCE_RAD*6.2832, ca=Math.cos(a)*r, sa=Math.sin(a)*r, o=(i*LANCE_RAD+k)*3; A[o]=px+ux*ca+wx*sa; A[o+1]=py+wy*sa; A[o+2]=pz+uz*ca+wz*sa; U[(i*LANCE_RAD+k)*2]=s; } }
+  J.geo.attributes.position.needsUpdate=true; J.geo.attributes.uv.needsUpdate=true; let L=0; for(let i=1;i<n;i++) L+=Math.hypot(P[i*3]-P[i*3-3],P[i*3+1]-P[i*3-2],P[i*3+2]-P[i*3-1]); J.mat.uniforms.uLong.value=L; }
+/* une entité (cylindre x,z, du sol à yHaut, rayon r) dans le jet ? → la fraction s du jet où elle est touchée (0 à la buse), sinon -1 */
+function jetTouche(x,z,yBas,yHaut,r){ const J=JET_EAU, P=J.pts;
+  for(let i=0;i<J.n-1;i++){ const ax=P[i*3], az=P[i*3+2], bx=P[i*3+3], bz=P[i*3+5], dx=bx-ax, dz=bz-az, l2=dx*dx+dz*dz;
+    const t=l2>1e-6?clamp(((x-ax)*dx+(z-az)*dz)/l2,0,1):0, cx=ax+dx*t, cz=az+dz*t, s=(i+t)/Math.max(1,J.n-1), y=P[i*3+1]+(P[i*3+4]-P[i*3+1])*t, rr=r+jetRayon(s);
+    if((x-cx)*(x-cx)+(z-cz)*(z-cz)<=rr*rr&&y>=yBas-rr&&y<=yHaut+rr) return s; }
+  return -1; }
+/* flaques laissées par le jet : réserve fixe, elles sèchent en 6 s */
+const _texFlaque={t:null};
+function texFlaque(){ if(_texFlaque.t) return _texFlaque.t; const c=document.createElement('canvas'); c.width=c.height=64; const g=c.getContext('2d'), gr=g.createRadialGradient(32,32,4,32,32,31);
+  gr.addColorStop(0,'rgba(255,255,255,1)'); gr.addColorStop(0.6,'rgba(255,255,255,0.75)'); gr.addColorStop(1,'rgba(255,255,255,0)'); g.fillStyle=gr; g.fillRect(0,0,64,64); _texFlaque.t=new THREE.CanvasTexture(c); return _texFlaque.t; }
+function poserFlaque(x,y,z){ const J=JET_EAU; if(J.flaques.length<10){ const m=new THREE.Mesh(new THREE.PlaneGeometry(1,1),new THREE.MeshBasicMaterial({color:0x162636,map:texFlaque(),transparent:true,opacity:0,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2}));
+    m.rotation.x=-Math.PI/2; m.renderOrder=1; scene.add(m); J.flaques.push({m,t:0}); }
+  const f=J.flaques[J.flaqI%J.flaques.length]; J.flaqI++; f.t=6; const r=rand(2.2,3.4); f.m.scale.set(r,r*rand(0.75,1),1); f.m.rotation.z=rand(0,6.28); f.m.position.set(x,y+0.03,z); f.m.visible=true; }
+/* chaque image (boucle) : le jet se cache s'il n'a pas été tiré, les flaques sèchent */
+function majJetEau(dt){ const J=JET_EAU; if(J.mesh){ J.mesh.visible=J.vu&&!INT.actif; } J.vu=false;
+  for(const f of J.flaques){ if(f.t<=0) continue; f.t-=dt; f.m.material.opacity=clamp(f.t/6,0,1)*0.42; if(f.t<=0) f.m.visible=false; } }
+function viderJetEau(){ const J=JET_EAU; J.vu=false; if(J.mesh) J.mesh.visible=false; for(const f of J.flaques){ f.t=0; f.m.visible=false; } }
 function majLanceEau(v,dt){
   // Hystérésis anti-scintillement : une fois la réserve à sec, il faut
-  // remonter à LANCE_RESEUIL avant de pouvoir retirer. Sans ça, un seul
-  // frame de recharge (v.eau tout juste > 0) suffisait à rouvrir le tir un
-  // frame sur deux indéfiniment — un maintien continu du bouton ne
-  // s'arrêtait donc jamais vraiment, et sur une trentaine de secondes ça
-  // suffisait à tuer un ennemi malgré des dégâts/frame dérisoires (trouvé
-  // par test_lance_tmp.js : mort:true après 20 s de tir continu simulé).
+  // remonter à LANCE_RESEUIL avant de pouvoir retirer (sinon une recharge
+  // d'une image rouvrait le tir une image sur deux, indéfiniment).
   if(v.eau<=0) v.lanceSeche=true;
   if(v.lanceSeche&&v.eau>=LANCE_RESEUIL) v.lanceSeche=false;
-  // LANCE est réaffectée sur le bouton SPRINT (voir entrerVehicule) — TIR
-  // reste physiquement recouvert par FREIN au volant du camion, jamais
-  // utilisé pour cette mécanique.
-  // Visée indépendante du cap (joystick superposé sur LANCE, voir
-  // bindViseeJoystick) : tenir le bouton ET faire glisser vise dans la
-  // direction du glissement — vers l'arrière si besoin — sans que le
-  // camion cesse d'avancer dans SA propre direction. v.ang (le cap) n'est
-  // jamais modifié ici. INPUT.lanceHold fait foi pour « le bouton est
-  // tenu » (pas INPUT.btn.sprint, qui se coupe dès que le doigt sort des
-  // bornes du petit bouton en visant loin).
-  const viseeLibre=INPUT.lanceHold&&Math.hypot(INPUT.lanceDx||0,INPUT.lanceDy||0)>0.12;
+  // LANCE est sur le bouton SPRINT (voir entrerVehicule). Visée indépendante
+  // du cap (joystick superposé, bindViseeJoystick) : tenir le bouton ET glisser
+  // vise dans la direction du glissement, sans changer le cap du camion ; la
+  // longueur du glissement règle la hausse, donc la portée.
+  const m=Math.hypot(INPUT.lanceDx||0,INPUT.lanceDy||0), viseeLibre=INPUT.lanceHold&&m>0.12;
   const aimAng=viseeLibre?Math.atan2(INPUT.lanceDx,INPUT.lanceDy):v.ang;
-  // Canon rouge visible sur le toit (ud.lance, voir makeVoiture) : pivote
-  // vers la visée en continu, même hors tir (relâché ou réserve à sec), pour
-  // que le geste de visée se voie tout de suite — c'est lui qui « tourne »
-  // à l'écran, pas juste un calcul invisible (signalé explicitement).
-  if(v.mesh.userData.lance) v.mesh.userData.lance.rotation.y=angDiff(v.ang,aimAng);
+  // la hausse : le glisser choisit où l'eau retombe (de 6 à 42 u) ; sans glisser, elle vise d'elle-même (lanceCible), sinon 22 u
+  const buse=jetBuse(v,aimAng), sol0=solY(v.x,v.z), cib=viseeLibre?null:lanceCible(v,aimAng);
+  const D=viseeLibre?6+36*clamp((m-0.12)/0.88,0,1):(cib?cib.d:22), yT=cib?cib.y:sol0, elC=lanceHausse(D,yT-sol0,buse.y-sol0);
+  v.lanceEl=lerp(v.lanceEl===undefined?LANCE_EL_DEF:v.lanceEl,elC,clamp(dt*7,0,1)); const el=v.lanceEl;
+  // le canon rouge suit la visée en continu, même hors tir (le geste se voit tout de suite)
+  const ud=v.mesh.userData; if(ud.lance){ ud.lance.rotation.order='YXZ'; ud.lance.rotation.y=angDiff(v.ang,aimAng); ud.lance.rotation.x=-el; }
   const tirLance=(INPUT.lanceHold||INPUT.btn.sprintK)&&v.eau>0&&!v.lanceSeche;
-  if(tirLance){
-    if(!AUDIO.lanceOn) lanceSonStart();
-    v.eau=Math.max(0,v.eau-LANCE_DEBIT*dt);
-    // Jet dense et large : plusieurs gouttes par tick, légèrement dispersées
-    // en position ET en angle — un seul filet fin ne lisait pas comme un
-    // jet de pompier.
-    v.jetFx=(v.jetFx||0)-dt;
-    if(v.jetFx<=0){
-      v.jetFx=0.018;
-      const bx=v.x+Math.sin(aimAng)*2.6, bz=v.z+Math.cos(aimAng)*2.6;
-      for(let k=0;k<3;k++){
-        const a=aimAng+rand(-0.1,0.1);
-        spawnP(bx+rand(-0.3,0.3),1.15+rand(-0.15,0.3),bz+rand(-0.3,0.3),
-          Math.sin(a)*rand(13,17),rand(1.5,4),Math.cos(a)*rand(13,17),
-          0.3,rand(0.32,0.5),0x9fd8f5,9,0);
-      }
-    }
-    // Éclaboussures au sol, régulières, aux ~3/4 de la portée — le jet
-    // « atterrit » quelque part, ce n'est pas juste un rayon immatériel.
-    v.splashFx=(v.splashFx||0)-dt;
-    if(v.splashFx<=0){
-      v.splashFx=0.09;
-      const ix=v.x+Math.sin(aimAng)*LANCE_PORTEE*0.72+rand(-1,1);
-      const iz=v.z+Math.cos(aimAng)*LANCE_PORTEE*0.72+rand(-1,1);
-      burst(ix,0.15,iz,5,0xcfe8f8,4,2);
-    }
-    for(const e of ennemis){
-      if(e.mort||e.heli||e.rag) continue;
-      const dx=e.x-v.x, dz=e.z-v.z, dist=Math.hypot(dx,dz);
-      if(dist>LANCE_PORTEE||dist<0.1) continue;
-      if(Math.abs(angDiff(aimAng,Math.atan2(dx,dz)))>LANCE_DEMI_ANGLE) continue;
-      const fall=1-dist/LANCE_PORTEE;
-      toucherEnnemi(e,2.5*dt,true,0);
-      // Projection forte : part loin et tombe (ragdoll NON mortel — voir le
-      // correctif de majRagdoll, qui relève tout seul un ragdoll dont la
-      // cible n'est pas morte). Un ennemi déjà à terre (e.rag, filtré plus
-      // haut) n'est pas re-projeté avant de s'être relevé.
-      lancerRagdoll(e,Math.sin(aimAng),Math.cos(aimAng),13+fall*11);
-    }
-    for(const p of pietons){
-      if(p.etat==='mort'||p.rag) continue;
-      const dx=p.x-v.x, dz=p.z-v.z, dist=Math.hypot(dx,dz);
-      if(dist>LANCE_PORTEE||dist<0.1) continue;
-      if(Math.abs(angDiff(aimAng,Math.atan2(dx,dz)))>LANCE_DEMI_ANGLE) continue;
-      const fall=1-dist/LANCE_PORTEE;
-      lancerRagdoll(p,Math.sin(aimAng),Math.cos(aimAng),12+fall*10);
-      if(Math.random()<dt*10) spawnP(p.x,0.8,p.z,rand(-1.5,1.5),rand(1.5,3),rand(-1.5,1.5),0.35,0.4,0x9fd8f5,6);
-    }
-    for(const o of vehicules){
-      if(o===v||o.mort) continue;
-      const dx=o.x-v.x, dz=o.z-v.z, dist=Math.hypot(dx,dz);
-      if(dist>LANCE_PORTEE||dist<0.1) continue;
-      if(Math.abs(angDiff(aimAng,Math.atan2(dx,dz)))>LANCE_DEMI_ANGLE) continue;
-      const fall=1-dist/LANCE_PORTEE;
-      if(o.enFeu){ o.enFeu=false; spawnP(o.x,1.5,o.z,0,2,0,0.4,1.4,0xd8ecff,2); }
-      // Pousse LÉGÈREMENT les véhicules légers seulement (masse = gabarit,
-      // même formule que resoudreCollisionsVehicule) — jamais un bus, un
-      // camion ou un blindé, demandé explicitement.
-      const masse=o.def.long*o.def.larg*((o.def.milit||o.def.blinde)?2.2:1);
-      if(masse<=12){
-        o.knockVx=clamp((o.knockVx||0)+Math.sin(aimAng)*10*fall*dt,-KNOCK_VMAX,KNOCK_VMAX);
-        o.knockVz=clamp((o.knockVz||0)+Math.cos(aimAng)*10*fall*dt,-KNOCK_VMAX,KNOCK_VMAX);
-      }
-    }
-    // Métier Pompier (voir majMetierPompier) : même cône visée/portée que
-    // ci-dessus, contre l'incendie de la mission en cours s'il y en a une.
-    if(MET.pompier&&MET.pompier.pret&&MET.pompier.feux){
-      for(const fm of MET.pompier.feux){ if(fm.vie<=0) continue; // tous les foyers du sinistre (métier v2)
-        const dxf=fm.x-v.x, dzf=fm.z-v.z, distf=Math.hypot(dxf,dzf);
-        if(distf<=LANCE_PORTEE&&Math.abs(angDiff(aimAng,Math.atan2(dxf,dzf)))<=LANCE_DEMI_ANGLE) fm.vie=Math.max(0,fm.vie-40*dt*(palierMetier('pompier',3)?1.6:1)); }
-    }
-  } else {
-    lanceSonStop();
-    if(v.eau<100) v.eau=Math.min(100,v.eau+LANCE_RECHARGE*dt);
-  }
+  if(!tirLance){ lanceSonStop(); if(v.eau<100) v.eau=Math.min(100,v.eau+LANCE_RECHARGE*dt); return; }
+  if(!AUDIO.lanceOn) lanceSonStart();
+  v.eau=Math.max(0,v.eau-LANCE_DEBIT*dt);
+  const J=jetEauConstruire(); J.vu=true; J.t+=dt; J.mat.uniforms.uT.value=J.t;
+  const jour=clamp(hemi.intensity/0.8,0.25,1); J.mat.uniforms.uCol.value.setRGB(0.74*jour+0.08,0.9*jour+0.06,1.0*jour); /* moins clair la nuit */
+  J.vehs.length=0; const sx=Math.sin(aimAng), sz=Math.cos(aimAng);
+  for(const o of vehicules){ if(o===v||o.mort||o.def.air&&(o.alt||0)>4) continue; const dx=o.x-v.x, dz=o.z-v.z; if(dx*dx+dz*dz<48*48&&dx*sx+dz*sz>-2) J.vehs.push(o); }
+  jetEauArc(v,aimAng,el); jetEauMaillage();
+  const P=J.pts, n=J.n, I=J.imp, dirx=sx, dirz=sz;
+  // le jet se brise : des gouttes s'en détachent, surtout vers le bout
+  J.fxT-=dt; if(J.fxT<=0){ J.fxT=0.025;
+    for(let k=0;k<4;k++){ const i=Math.min(n-1,Math.floor(rand(0.35,1)*(n-1))), s=i/Math.max(1,n-1), r=jetRayon(s);
+      spawnP(P[i*3]+rand(-r,r),P[i*3+1]+rand(-r,r)*0.6,P[i*3+2]+rand(-r,r),dirx*rand(14,19)+rand(-1.5,1.5),rand(-1,2),dirz*rand(14,19)+rand(-1.5,1.5),0.4,rand(0.2,0.36),0xdff2ff,LANCE_G,0); } }
+  // l'impact : gerbe, brume, flaque, ou gerbe dans la mer
+  J.impT-=dt; if(J.impT<=0&&I.quoi){ J.impT=0.07;
+    if(I.quoi==='eau') eclaboussure(I.x,I.z,0.55);
+    else { burst(I.x,I.y+0.15,I.z,4,0xd8f0ff,4.5,7); spawnP(I.x+rand(-0.6,0.6),I.y+0.4,I.z+rand(-0.6,0.6),rand(-0.8,0.8),rand(0.6,1.4),rand(-0.8,0.8),0.7,rand(0.9,1.4),0xe8f4ff,-0.4,0); } /* brume qui monte */
+    if(I.quoi==='sol'){ J.flaqT-=0.07; if(J.flaqT<=0){ J.flaqT=0.3; poserFlaque(I.x,I.y,I.z); } } }
+  // ce qu'il touche, le long du jet : projeté, trempé, étourdi, éteint
+  for(const e of ennemis){
+    if(e.mort||e.heli) continue; const dx=e.x-v.x, dz=e.z-v.z; if(dx*dx+dz*dz>48*48) continue;
+    const yb=solY(e.x,e.z), s=jetTouche(e.x,e.z,yb,yb+1.9,0.45); if(s<0) continue;
+    if(e.feuT>0){ e.feuT=0; spawnP(e.x,yb+1.4,e.z,0,1.5,0,0.6,1.1,0xd8ecff,-0.5); } /* une personne en feu est éteinte */
+    if(e.rag) continue; // déjà à terre : pas re-projeté avant de s'être relevé
+    toucherEnnemi(e,2.5*dt,true,0); /* dégâts dérisoires, mais étourdi tant qu'il est dans le jet : il ne tire plus */
+    lancerRagdoll(e,dirx,dirz,11+13*(1-s));
+    for(let k=0;k<3;k++) spawnP(e.x,yb+1.2,e.z,dirx*3+rand(-2,2),rand(1.5,3.5),dirz*3+rand(-2,2),0.4,0.3,0xcfeaff,8); }
+  for(const p of pietons){
+    if(p.etat==='mort') continue; const dx=p.x-v.x, dz=p.z-v.z; if(dx*dx+dz*dz>48*48) continue;
+    const yb=solY(p.x,p.z), s=jetTouche(p.x,p.z,yb,yb+1.8,0.4); if(s<0) continue;
+    if(p.feuT>0){ p.feuT=0; spawnP(p.x,yb+1.3,p.z,0,1.5,0,0.6,1.1,0xd8ecff,-0.5); }
+    if(p.rag) continue;
+    lancerRagdoll(p,dirx,dirz,10+11*(1-s));
+    for(let k=0;k<3;k++) spawnP(p.x,yb+1.1,p.z,dirx*3+rand(-2,2),rand(1.5,3.5),dirz*3+rand(-2,2),0.4,0.3,0xcfeaff,8); }
+  for(const o of J.vehs){
+    const yb=o.h||0, s=o===I.veh?1:jetTouche(o.x,o.z,yb,yb+(HAUTEUR_VEH[o.key]||1.7),Math.min(o.def.larg,o.def.long)*0.5); if(s<0) continue;
+    if(o.enFeu){ o.enFeu=false; o.feuT=0; spawnP(o.x,yb+1.5,o.z,0,2,0,0.5,1.6,0xd8ecff,-0.6); spawnP(o.x,yb+1.2,o.z,0,1.6,0,0.6,1.3,0xbfd4e4,-0.5); } /* vapeur */
+    // pousse les véhicules LÉGERS seulement (jamais un bus, un camion, un blindé)
+    const masse=o.def.long*o.def.larg*((o.def.milit||o.def.blinde)?2.2:1);
+    if(masse<=12){ const f=1-0.5*s; o.knockVx=clamp((o.knockVx||0)+dirx*12*f*dt,-KNOCK_VMAX,KNOCK_VMAX); o.knockVz=clamp((o.knockVz||0)+dirz*12*f*dt,-KNOCK_VMAX,KNOCK_VMAX); }
+    if(o===I.veh&&Math.random()<dt*14) burst(I.x,I.y,I.z,3,0xd8f0ff,5,7); }
+  // petits objets du mobilier renversés par le jet, là où il tombe
+  if(I.quoi==='sol'&&MOB.cassables.size){ const cx=Math.floor(I.x/8), cz=Math.floor(I.z/8);
+    for(let i=-1;i<=1;i++) for(let j=-1;j<=1;j++){ const l=MOB.cassables.get((cx+i)+','+(cz+j)); if(!l) continue; for(const o of l){ if(!o.casse&&dist2(o.x,o.z,I.x,I.z)<(o.r+1.4)*(o.r+1.4)) casserMobilier(o,null); } } }
+  // métier Pompier : les foyers sur le trajet du jet ou sous son impact
+  if(MET.pompier&&MET.pompier.pret&&MET.pompier.feux){
+    for(const fm of MET.pompier.feux){ if(fm.vie<=0) continue;
+      const ys=solY(fm.x,fm.z), touche=jetTouche(fm.x,fm.z,ys,ys+3,1.8)>=0||(I.quoi&&dist2(fm.x,fm.z,I.x,I.z)<9);
+      if(touche){ fm.vie=Math.max(0,fm.vie-40*dt*(palierMetier('pompier',3)?1.6:1)); if(Math.random()<dt*8) spawnP(fm.x+rand(-1,1),ys+1.5,fm.z+rand(-1,1),0,2.2,0,0.8,1.6,0xd8e2ea,-0.6); } } } /* vapeur sur le foyer */
 }
 // Boulet de démolition de la Grue "Marteau" : vrai pendule en repère LOCAL
 // du camion (ud.ancrage, voir makeVoiture/def.grue) — jamais une position
@@ -33768,6 +33814,7 @@ function startRun(){
   clotureMatPropre(); // une fois : la clôture de l'aérodrome a son propre matériau translucide
   ameliorerTexturesSol(); // une fois : asphalte et sable redessinés, variation de teinte des sols
   viderDebris(); // dégâts V2 : éclats, roues et pièces au sol
+  viderJetEau(); /* lance à eau : jet et flaques */
   vitrineUltimes(); // une fois : le Bolide et l'Enzo sur les podiums du showroom
   // icône de la capacité spéciale du personnage (adrénaline, nitro, onde)
   el('specIco').innerHTML=ico('ico-spec-'+PERSOS[META.perso].spec,'⚡');
@@ -36490,7 +36537,7 @@ function tick(t){
       majGrandYacht();
       majRayonOvni(dt);
     }
-    majPools(dt);
+    majPools(dt); majJetEau(dt); /* lance à eau : le jet se cache quand on ne tire plus, les flaques sèchent */
     majGrenades(dt);
     majPickups(dt);
     if(ETAT.mode==='jeu'){
