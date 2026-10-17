@@ -13863,7 +13863,7 @@ async function main() {
         const m1 = L.find((m) => m.actif && m.c.nom === 'supercross' && !m.air); P.x = m1.x + 12; P.z = m1.z; P.y = solY(P.x, P.z); majMotards(1 / 30); const car = creerVehicule('citadine', m1.x - Math.sin(m1.ang) * 2, m1.z - Math.cos(m1.ang) * 2, m1.ang, null);
         car.conduit = 'joueur'; car.v = 20; car.h = solY(car.x, car.z); majImpactPersonnages(car, 1 / 30); if (m1.actif) ko.push('un véhicule lancé ne renverse pas le motard'); car.conduit = null; car.mort = true;
         // retour hors de vue
-        P.x = m0.x + 400; P.z = m0.z; for (let k = 0; k < 30 * (MOT_RETOUR + 3); k++) majMotards(1 / 30); if (!m0.actif || !m1.actif) ko.push('les motards tombés ne reviennent pas hors de vue');
+        P.x = m0.x + 400; P.z = m0.z; for (let k = 0; k < 30 * (MOT_RETOUR + 3); k++) { majMotards(1 / 30); if (k % 10 === 0) majCamera(1 / 30); } /* la caméra suit le joueur, comme en jeu : « hors de vue » se juge sur elle */ if (!m0.actif || !m1.actif) ko.push('les motards tombés ne reviennent pas hors de vue');
         // pendant un défi sur leur circuit, ils laissent la piste ; après, ils reviennent hors de vue
         const sx = L.filter((m) => m.c.nom === 'supercross'); demarrerRide('stunt'); for (let k = 0; k < 10; k++) majMotards(1 / 30);
         if (sx.some((m) => m.g.visible)) ko.push('défi supercross : des motards restent sur la piste');
