@@ -2411,9 +2411,58 @@ sur iPhone.
 - Quelques cockpits « à la main » pour les 9 véhicules estimés sur l'encombrement.
 - Tutoriel de première partie (voir « À trancher »).
 - HUD paysage (voir « À trancher »).
+- Rendre le match de derby et la chasse du chalutier vraiment déterministes sous
+  graine (ils varient encore d'un build à l'autre et selon les tests qui précèdent).
 
 ### Vérifications de fin de nuit
 
-(remplies quand les quatre exécutions sont finies — suite par défaut, puis
-`SEED=random` trois fois, enchaînées dans `scratchpad/suite/nuit2.sh`)
+Quatre exécutions enchaînées sur le dernier commit de code (`b374112`), sans
+autre Chrome à côté :
 
+| Exécution | Vertes | Échecs | Sautées |
+|---|---|---|---|
+| graine par défaut 20260731 | **767** | 0 | 0 |
+| `SEED=random` 3321418926 | 764 | 4 | 0 |
+| `SEED=random` 2800063352 | 765 | 2 | 0 |
+| `SEED=random` 45396135 | 762 | 4 | 1 (somme rare de la Radio : connu) |
+
+Aucun des échecs des graines libres ne touche ce qui a été fait cette nuit ni ce
+soir (cockpits, rechargements, établi, police, trafic de bordure). Chacun a été
+rejoué **avec la même graine, en bloc isolé, sur le build d'AVANT la nuit**
+(`446c879`) :
+- **4x4 amphibie « pas au large »** et **Surprises sur les toits « le passager
+  traverse un immeuble »** (3321418926) : échouent à l'identique sur l'ancien
+  build — fragilités de tirage préexistantes.
+- **Portes « arcade 1,5 »** (45396135) : échoue à l'identique sur l'ancien build
+  (une porte de l'arcade trop près de la bordure sur cette ville).
+- **Ville « des lieux sans rapport se chevauchent »** (les trois graines, toujours
+  avec la porte de la boutique) : la pose de la boutique date du 17 ; sur une ville
+  tirée au hasard sa porte tombe à 14–18 u d'une autre. Rien de cette nuit ne
+  touche aux portes. À regarder un jour avec `SEED=random` : la boutique devrait
+  tenir compte des portes voisines à sa pose.
+- **Arène de derby « le pilote ne gagne jamais »** (deux graines, 0/4) : la même
+  graine en bloc isolé donne 2/4 sur l'ancien build et **1/4 sur le nouveau** —
+  le match n'est donc PAS déterministe d'un build à l'autre malgré la graine
+  posée après `startRun` ; un pilote qui gagne 1 à 2 fois sur 4 tombe à 0/4 une
+  fois sur six ou sept. Le test est fragile, pas le derby. À rendre déterministe
+  (trouver ce qui consomme encore `Math.random` ou le temps réel pendant le
+  match) — noté dans « Idées non faites ».
+- **Chalutier « le filet ne se remplit pas »** et **Arcade « un ramassable ne se
+  rapproche pas »** : non reproduits en bloc isolé (le second passe sur l'ancien
+  build avec la même graine) : ils dépendent de l'état laissé par les tests qui
+  précèdent dans la suite. Même famille de fragilité que ci-dessus.
+
+La graine par défaut, elle, est à 767 vertes et 0 sautée : c'est la référence
+de la branche.
+
+### `git log --oneline` de la nuit 2
+
+```
+a4f8462 docs(rapport de nuit 2)
+b374112 feat(cockpits): la vue à la 1re personne au volant, pour chacun des 80 véhicules
+685d9fb test(terrains de sport): la balle de tennis mesurée sur sa course
+e84970b feat(police, vagues): la police intervient dans les fusillades des vagues
+e5a2cca feat(vue 1re personne, rechargements): chaque arme a sa manœuvre
+e10aebc fix(armurerie, établi): l'arme tourne enfin au doigt
+446c879 fix(trafic, bordures): les voitures des routes de bordure tournaient sur place
+```
