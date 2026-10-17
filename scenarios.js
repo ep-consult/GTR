@@ -13385,6 +13385,33 @@ async function main() {
       });
       if (r.ko.length) fail('Méga-yacht V2 : ' + r.ko.join(' ; ')); else ok('Méga-yacht V2 : ' + r.info.join(' ; '));
     }
+    // -------------------------------------------------------------------
+    // Chalet du Mont Reyes (17 octobre au soir, signalé : « il flotte dans le
+    // vide ») : les poteaux étaient mesurés sur la terrasse elle-même (solY la
+    // comptait) — aucun n'était posé. Désormais un pilotis : chaque point de la
+    // grille au-dessus du vide a un poteau qui descend jusqu'au vrai terrain.
+    // -------------------------------------------------------------------
+    console.log('\n--- Chalet du Mont Reyes : posé sur un pilotis jusqu’au terrain ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        const ch = PLANQUES.liste.find((q) => q.def.id === 'chalet'); if (!ch || !ch.lit) return { ko: ['pas de chalet'], info };
+        const x = ch.lit.x, zc = ch.lit.z - 3.2, y = ch.lit.y, zt = zc + 0.6;
+        const t = PLATS.find((q) => Math.abs(q.h - y) < 1e-6 && q.hw > 5); if (!t) return { ko: ['terrasse introuvable'], info };
+        const sol = (px, pz) => { const h0 = t.h; t.h = -1e9; const g = solY(px, pz); t.h = h0; return g; };
+        const poteaux = []; for (const o of scene.children) { const p = o.geometry && o.geometry.parameters; if (o.isMesh && p && p.width === 0.36 && p.depth === 0.36 && Math.abs(o.position.x - x) < 6 && Math.abs(o.position.z - zt) < 5.5) poteaux.push(o); }
+        let vides = 0, manques = 0, maxVide = 0;
+        for (const dx of [-5.2, -2.6, 0, 2.6, 5.2]) for (const dz of [-4.6, -2.3, 0, 2.3, 4.6]) { const px = x + dx, pz = zt + dz, g = sol(px, pz), vide = y - 0.25 - g; if (vide < 0.3) continue;
+          if (Math.abs(dx) < 3.7 && pz > zc - 3.8 && pz < zc + 1.8) continue; /* sous la cabane : le socle de pierre */
+          vides++; maxVide = Math.max(maxVide, vide);
+          const ok = poteaux.some((o) => Math.hypot(o.position.x - px, o.position.z - pz) < 0.3 && o.position.y - o.geometry.parameters.height / 2 <= g + 0.05 && o.position.y + o.geometry.parameters.height / 2 >= y - 0.3); if (!ok) manques++; }
+        if (!vides) ko.push('aucun vide sous la terrasse : le chalet n’est plus sur une pente (scène à revoir)');
+        if (manques) ko.push(manques + ' point(s) de la terrasse au-dessus du vide sans poteau jusqu’au terrain');
+        info.push(vides + ' points au-dessus du vide (jusqu’à ' + maxVide.toFixed(1) + ' u), tous sur un poteau');
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Chalet : ' + r.ko.join(' ; ')); else ok('Chalet : ' + r.info.join(' ; '));
+    }
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];

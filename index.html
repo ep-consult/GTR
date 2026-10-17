@@ -8674,7 +8674,8 @@ function mkPlanquesV2(){
       PLATS.push({x,z:z+0.6,hw:5.6,hd:5,h:y}); // terrasse à pilotis (praticable)
       const planches=new THREE.MeshLambertMaterial({map:texPlanche,color:0xb8865a}), rond=cTex(64,(cc,s)=>{ for(let i=0;i<6;i++){ const g2=cc.createLinearGradient(0,i*s/6,0,(i+1)*s/6); g2.addColorStop(0,'#8a5e38'); g2.addColorStop(0.5,'#6a4426'); g2.addColorStop(1,'#3e2814'); cc.fillStyle=g2; cc.fillRect(0,i*s/6,s,s/6); } },2,2);
       const mRond=new THREE.MeshLambertMaterial({map:rond});
-      mkBox(11.2,0.25,10,planches,x,y-0.12,z+0.6); for(const [dx,dz] of [[-5,-4],[5,-4],[-5,5],[5,5],[0,-4],[0,5]]){ const yb=solY(x+dx,z+dz); if(y-yb>0.2) mkBox(0.35,y-yb,0.35,mat(0x5a3e24),x+dx,(y+yb)/2,z+dz); }
+      mkBox(11.2,0.25,10,planches,x,y-0.12,z+0.6); { const vieux=[]; for(const [dx,dz] of [[-5,-4],[5,-4],[-5,5],[5,5],[0,-4],[0,5]]){ const yb=solY(x+dx,z+dz); if(y-yb>0.2) vieux.push(mkBox(0.35,y-yb,0.35,mat(0x5a3e24),x+dx,(y+yb)/2,z+dz)); } for(const o of vieux) scene.remove(o); } /* les six anciens poteaux : construits (mêmes tirages du décor) puis retirés */
+      pilotisChalet(x,z,y,PLATS[PLATS.length-1]); /* signalé : « le chalet flotte dans le vide » — six poteaux fins, mesurés sur la terrasse elle-même (solY la comptait) : le côté aval restait suspendu */
       mkBox(7,3.2,5.4,mRond,x,y+1.6,z-1); addSolid({x,z:z-1,hw:3.5,hd:2.7,h:y+5.4,base:y-0.5,toit:true});
       { const tg=new THREE.Mesh(geoToit(8.4,7,2.3,'pignon'),mat(0x3a2a20)); tg.position.set(x,y+3.2,z-1); scene.add(tg); const ne=new THREE.Mesh(geoToit(8.5,7.1,2.32,'pignon'),mat(0xf2f4f8)); ne.position.set(x,y+3.32,z-1); ne.scale.set(0.98,0.5,0.6); scene.add(ne); }
       mkBox(1.2,2,0.12,mat(0x3a2414),x,y+1,z+1.75); for(const dx of [-2.3,2.3]){ mkBox(1.1,0.9,0.1,mat(0x2a3a4a),x+dx,y+1.8,z+1.76); mkBox(1.3,0.1,0.12,mat(0xf2f2ee),x+dx,y+1.3,z+1.8); }
@@ -8690,6 +8691,25 @@ function mkPlanquesV2(){
       ch.lit={x,z:z+3.2,y}; ch.coffre={x:x-3.6,z:z+3.4,y}; ch.spec={x:x+3.4,z:z+3.4,y}; ch.achat=ch.lit; ch.vehPos={x:x-8,z:z+7,ang:0};
       ch.enseigne=mkEnseigne('CHALET À VENDRE','#ffd23f',x,y+6,z+1.9,0,6); } }
 }
+/* Le soubassement du chalet (17 octobre au soir) : un socle de pierre sous la cabane, un pilotis complet sous la terrasse (poteaux
+   tous les 2,6 u, chacun jusqu'au VRAI terrain — la terrasse elle-même exclue du sol —, lisses, croix de Saint-André sur les
+   faces). Construit sous un générateur PRIVÉ, matériau propre (jamais matMurPierre() : la créer plus tôt changerait les tirages de
+   Los Reyes Hills) : le décor ne bouge pas. */
+let _MAT_SOCLE=null;
+function pilotisChalet(x,z,y,terrasse){ const r0=Math.random; let sd=0xc4a1e7>>>0; Math.random=()=>{ sd=(sd*1664525+1013904223)>>>0; return sd/4294967296; };
+  const h0=terrasse.h; terrasse.h=-1e9; const sol=(px,pz)=>solY(px,pz); /* le terrain seul, sans la terrasse */
+  try{ const bois=mat(0x5a3e24), pierre=_MAT_SOCLE||(_MAT_SOCLE=new THREE.MeshLambertMaterial({color:0x7c7466,flatShading:true})), zt=z+0.6;
+    const poutre=(ax,ay,az,bx,by,bz,ep,m)=>{ const l=Math.hypot(bx-ax,by-ay,bz-az); if(l<0.05) return; const o=new THREE.Mesh(new THREE.BoxGeometry(ep,ep,l),m); o.position.set((ax+bx)/2,(ay+by)/2,(az+bz)/2); o.lookAt(bx,by,bz); scene.add(o); };
+    let gmin=1e9; for(let dx=-3.6;dx<=3.6;dx+=0.6) for(let dz=-2.8;dz<=2.8;dz+=0.6) gmin=Math.min(gmin,sol(x+dx,z-1+dz)); /* socle sous la cabane (7 × 5,4, en z−1) */
+    if(y-0.25-gmin>0.1) mkBox(7.3,y-0.25-gmin+0.6,5.7,pierre,x,(y-0.25+gmin-0.6)/2,z-1);
+    const XS=[-5.2,-2.6,0,2.6,5.2], ZS=[-4.6,-2.3,0,2.3,4.6], H=[]; /* pilotis de la terrasse (11,2 × 10), sauf sous le socle */
+    for(let i=0;i<5;i++){ H[i]=[]; for(let j=0;j<5;j++){ const px=x+XS[i], pz=zt+ZS[j], g=sol(px,pz); H[i][j]=g; const sous=Math.abs(XS[i])<3.7&&pz>z-3.8&&pz<z+1.8; if(sous||y-0.25-g<0.12) continue;
+      mkBox(0.36,y-0.25-g+0.5,0.36,bois,px,(y-0.25+g-0.5)/2,pz); } }
+    for(let j=0;j<5;j++) mkBox(11,0.24,0.26,bois,x,y-0.37,zt+ZS[j]); /* lisses sous le plancher */
+    const croix=(i1,j1,i2,j2)=>{ const ax=x+XS[i1], az=zt+ZS[j1], bx=x+XS[i2], bz=zt+ZS[j2], ga=H[i1][j1], gb=H[i2][j2], top=y-0.45; if(top-Math.max(ga,gb)<1.3) return;
+      poutre(ax,top,az,bx,gb+0.3,bz,0.16,bois); poutre(bx,top,bz,ax,ga+0.3,az,0.16,bois); }; /* croix de Saint-André entre deux poteaux voisins assez hauts */
+    for(let i=0;i<4;i++){ croix(i,0,i+1,0); croix(i,4,i+1,4); } for(let j=0;j<4;j++){ croix(0,j,0,j+1); croix(4,j,4,j+1); }
+  } finally { terrasse.h=h0; Math.random=r0; } }
 // --- Bords de Los Reyes Hills : un vrai mur de soutènement (signalé : « un mur au bord, pas naturel ») — pierre
 // appareillée, contreforts, chaperon, garde-corps en haut, lierre qui retombe, arbustes au pied
 function mkBordsHills(){

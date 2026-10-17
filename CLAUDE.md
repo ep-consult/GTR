@@ -1710,6 +1710,15 @@ Bandeau `CHANTIER ET PLANQUES V2` (juste avant `CASCADES ET VOLCAN`).
   désert (emprise de 15 u libre : avant, seul le centre était testé et elle
   finissait dans une mesa) ; chalet en rondins près du sommet du Mont Reyes,
   sur une terrasse à pilotis (`PLATS`), cheminée qui fume, sapins.
+- **Chalet, soubassement** (17 octobre au soir, signalé : « il flotte dans le
+  vide ») : ses six poteaux étaient mesurés APRÈS la pose de la terrasse dans
+  `PLATS` — `solY` la comptait, aucun n'était jamais posé. `pilotisChalet` :
+  socle de pierre sous la cabane, poteaux tous les 2,6 u jusqu'au vrai terrain
+  (la terrasse retirée du sol le temps de la mesure), lisses, croix de
+  Saint-André ; générateur privé et matériau propre (`_MAT_SOCLE` ; jamais
+  `matMurPierre()` : la créer plus tôt changerait les tirages de la colline).
+  **Piège** : pour poser quelque chose SOUS une plateforme, mesurer le sol sans
+  elle. Test « Chalet ».
 - **Bords de Los Reyes Hills** (`mkBordsHills`) : mur de soutènement en
   pierre appareillée, contreforts, chaperon, garde-corps, lierre, arbustes.
 - Test : « Retours du 16 octobre, monde ».
