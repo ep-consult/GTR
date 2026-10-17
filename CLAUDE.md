@@ -331,6 +331,11 @@ stratégie : `rapport_nuit/STRATEGIE.md`. Pièges trouvés cette nuit :
 - **Un pilote simulé pose sa graine APRÈS `startRun`** (aquarium, laverie,
   radio, ciné, chalutier, derby, « Dégâts V2 ») : un objet Three.js de plus
   au démarrage changeait tout le match.
+- **À pied mais en l'air** (chute d'un vélo après une figure ratée, saut) :
+  `P.veh` est nul et `P.y` dépasse 2 ; le coup de corps à corps d'un ennemi
+  appelait `abimerVehicule(P.veh)` → « null is not an object (evaluating
+  'v.mort') » (vu sur iPhone). Toujours `if(P.veh)` avant de viser le
+  véhicule du joueur ; `abimerVehicule` refuse `null`. Test « Vélo ».
 - **Dates** : les libellés « 16, 17, 18 octobre » de ce fichier sont en avance
   sur le calendrier réel (`date` disait le 16 octobre pendant la nuit).
 
@@ -1574,6 +1579,10 @@ la 1re personne).
   l'horizon. En cockpit : `depthTest` rendu et portée `BALISE_PORTEE_CK` (70 u).
 - **Vélo** : le halo de phare de `makeVelo` est encore créé (mêmes tirages)
   mais jamais allumé (hors de `ud.phG`).
+  En cockpit, le guidon, la potence et les poignées du MODÈLE (acier clair et
+  noir, fusionnés par `makeVelo`) sont masqués (`ckMasquerGuidon`,
+  `CK_GUIDON_VELO`, rendus par `cockpitDevitrer`) : juste sous l'œil, ils
+  barraient la vue d'une large bande claire (« la barre blanche sous le vélo »).
 - **Caméra** : repère du cockpit × (π + regard au doigt `VUE.offVeh`, qui
   revient ; + un peu dans le virage), tangage par famille (`CK_PITCH`,
   `CK_PITCH_STYLE`), champ `CK_FOV` 76° + vitesse ; `VUE.yawRendu`,

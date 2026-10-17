@@ -17723,7 +17723,7 @@ function creerVehicule(key,x,z,ang,conduit){
   return v;
 }
 function abimerVehicule(v,d,parJoueur){
-  if(v.mort) return;
+  if(!v||v.mort) return;
   if(parJoueur) v.tapeJoueur=true;
   if(v.def.surf){                 // la planche ne se détruit jamais
     if(d>25) wipeout(v);
@@ -21199,7 +21199,7 @@ function majEnnemis(dt){
           e.cad=e.def.cad; if(e.h){e.h.brasD.rotation.x=-1.7; e.h._frappe=0.25;}
           if(e.cible) toucherEnnemi(e.cible,e.def.degats,false,4);
           else if(!P.veh&&P.y<2) toucherJoueur(e.def.degats);
-          else abimerVehicule(P.veh,e.def.degats*0.6,false);
+          else if(P.veh) abimerVehicule(P.veh,e.def.degats*0.6,false); /* à pied mais en l'air (chute d'un vélo après une figure ratée) : le coup passe dessous — avant, abimerVehicule(null) plantait la boucle (« null is not an object (evaluating 'v.mort') », vu sur iPhone) */
           SFX.coup();
         }
       } else {
@@ -35861,7 +35861,11 @@ let _MAT_VITRE_CK=null; const VITRES_CK=[0x141b26,0x0c0e12,0x1c2a3a,0x10161f,0x1
 function cockpitVitrer(g){ if(!_MAT_VITRE_CK) _MAT_VITRE_CK=new THREE.MeshPhongMaterial({color:0x7a9ac0,specular:0xffffff,shininess:90,transparent:true,opacity:0.28,side:THREE.DoubleSide,depthWrite:false});
   g.traverse((o)=>{ if(!o.isMesh||o.isSprite||!o.material||o.material.map||!o.material.color||o.material.transparent) return; if(!VITRES_CK.includes(o.material.color.getHex())) return;
     o.geometry.computeBoundingBox(); const s=o.geometry.boundingBox.getSize(_ckV2); const a=[s.x*o.scale.x,s.y*o.scale.y,s.z*o.scale.z].sort((p,q)=>q-p); if(a[0]<0.25||a[1]<0.15) return; o.userData.matCk=o.material; o.material=_MAT_VITRE_CK; }); }
-function cockpitDevitrer(g){ g.traverse((o)=>{ if(o.userData&&o.userData.matCk){ o.material=o.userData.matCk; delete o.userData.matCk; } }); }
+function cockpitDevitrer(g){ g.traverse((o)=>{ if(o.userData&&o.userData.matCk){ o.material=o.userData.matCk; delete o.userData.matCk; } if(o.userData&&o.userData.ckMasque){ o.visible=true; delete o.userData.ckMasque; } }); }
+/* vélo : le guidon, la potence et les poignées du MODÈLE (acier clair et noir, fusionnés par makeVelo) sont juste sous l'œil — ils barraient la vue d'une large bande
+   claire sous le guidon du cockpit (signalé : « la barre blanche sous le vélo »). Masqués le temps du cockpit, rendus par cockpitDevitrer. */
+const CK_GUIDON_VELO=[0x9aa0a8,0x1c1e24,0xfff0b8];
+function ckMasquerGuidon(g){ const corps=g.userData&&g.userData.corps; if(!corps) return; for(const c of corps.children){ if(!c.isMesh||!c.visible||!c.material||!c.material.color) continue; if(CK_GUIDON_VELO.includes(c.material.color.getHex())){ c.visible=false; c.userData.ckMasque=true; } } }
 function ckEstVitre(m){ if(!m||m.isSpriteMaterial) return false; if(m===_MAT_VITRE_CK) return true; if(typeof _MAT_VITRE_A!=='undefined'&&m===_MAT_VITRE_A) return true; if(typeof _MAT_VITRE!=='undefined'&&m===_MAT_VITRE) return true;
   return !!(m.transparent&&m.opacity<0.96&&m.opacity>0.3&&!m.map&&m.color); }
 function ckSousCockpit(o){ for(let p=o;p;p=p.parent) if(p===COCKPIT.g) return true; return false; }
@@ -36193,7 +36197,7 @@ function mkCockpitInterieur(v,D){ const S=matsCockpit(), G=new THREE.Group(), e=
   G.traverse((o)=>{ o.frustumCulled=false; });
   return G; }
 function vueCockpit(){ const v=P.veh; return vue1P()&&ETAT.mode==='jeu'&&!!v&&!v.noye&&!FPS.actif&&(!INT.actif||!!INT.actif.depot)&&!MANEGES.actif&&!lunetteSniper()&&P.hp>0; }
-function cockpitConstruire(v){ cockpitRetirer(); cockpitVitrer(v.mesh); const D=cockpitDims(v), C=COCKPIT;
+function cockpitConstruire(v){ cockpitRetirer(); cockpitVitrer(v.mesh); const D=cockpitDims(v), C=COCKPIT; if(D.fam==='velo') ckMasquerGuidon(v.mesh);
   C.fam=D.fam; C.style=ckStyle(v,D.fam); C.cab=D.cab; C.eye=D.eye; C.approx=D.approx; C.instr=null; C.volant=null; C.manettes=[]; C.affs=[]; C.jauge=null; C.volantA=0; C.bras=[]; C.pitch=CK_PITCH_STYLE[C.style]!==undefined?CK_PITCH_STYLE[C.style]:(CK_PITCH[D.fam]!==undefined?CK_PITCH[D.fam]:-0.06); C.altP=v.alt||0; C.vario=0; C.angP=v.ang||0; C.drAir=0;
   const G=mkCockpitInterieur(v,D); G.matrixAutoUpdate=false; ckScene().add(G); C.g=G; C.v=v; G.matrix.copy(ckRepere(v)); G.updateMatrixWorld(true); majBrasCockpit(); cockpitInstruments(v);
   camera.fov=CK_FOV; camera.near=0.05; camera.updateProjectionMatrix(); if(P.h) P.h.g.visible=false; } /* le corps du joueur (assis sur une moto) serait devant l'œil */

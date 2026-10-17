@@ -13308,6 +13308,46 @@ async function main() {
       });
       if (r.ko.length) fail('Lance à eau V2 : ' + r.ko.join(' ; ')); else ok('Lance à eau V2 : ' + r.info.join(' ; '));
     }
+    // -------------------------------------------------------------------
+    // Vélo (17 octobre au soir) : en 1re personne, le guidon du MODÈLE (acier
+    // clair) barrait la vue d'une bande blanche sous le guidon du cockpit ; il
+    // est masqué le temps du cockpit et rendu ensuite. Et un coup de corps à
+    // corps reçu à pied mais en l'air (chute d'un vélo après une figure ratée)
+    // plantait la boucle (« null is not an object (evaluating 'v.mort') »).
+    // -------------------------------------------------------------------
+    console.log('\n--- Vélo : guidon du modèle masqué en 1re personne, coup reçu en l’air ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); META.vue = 'fps'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WANTED.heat = 0;
+        for (const e of ennemis) e.mort = true; WAVES.etat = 'repos'; WAVES.t = 1e9;
+        for (const v of vehicules) { scene.remove(v.mesh); libererEntite(v.mesh); } vehicules.length = 0;
+        for (const k of ['velo', 'bmx']) {
+          const x = POIS.place.x + 40, z = POIS.place.z + 10, v = creerVehicule(k, x, z, 0); P.x = x; P.z = z + 1; entrerVehicule(v);
+          for (let i = 0; i < 6; i++) { majVehicules(1 / 30); majCamera(1 / 30); }
+          const corps = v.mesh.userData.corps; let caches = 0; for (const c of corps.children) if (c.userData.ckMasque && !c.visible) caches++;
+          if (!COCKPIT.g) ko.push(k + ' : pas de cockpit');
+          if (!caches) ko.push(k + ' : le guidon du modèle reste visible en 1re personne');
+          // l'œil ne voit plus de grande pièce claire du modèle juste devant lui
+          camera.updateMatrixWorld(); const rc = new THREE.Raycaster(); rc.camera = camera; let clair = 0;
+          for (const a of [-0.3, -0.15, 0, 0.15, 0.3]) for (const b of [-0.45, -0.6, -0.75]) { const d = new THREE.Vector3(Math.sin(a), b, -1).normalize().applyQuaternion(camera.quaternion); rc.set(camera.position, d);
+            const h = rc.intersectObject(v.mesh, true).find((o) => !o.object.isSprite && o.object.visible); if (h && h.distance < 0.9 && h.object.material && h.object.material.color && h.object.material.color.getHex() === 0x9aa0a8) clair++; }
+          if (clair) ko.push(k + ' : ' + clair + ' rayon(s) touchent encore le guidon clair du modèle');
+          META.vue = 'immersive'; majCamera(1 / 30); let rendus = 0; for (const c of corps.children) if (c.visible && c.material && c.material.color && c.material.color.getHex() === 0x9aa0a8) rendus++;
+          if (!rendus) ko.push(k + ' : le guidon du modèle n’est pas rendu en vue immersive'); META.vue = 'fps';
+          sortirVehicule(true); scene.remove(v.mesh); libererEntite(v.mesh); vehicules.length = 0; }
+        info.push('guidon du modèle masqué en cockpit, rendu ensuite (vélo, BMX)');
+        // un gangster à la batte frappe un joueur à pied, en l'air
+        const typ = Object.keys(ETYPES).find((k) => ETYPES[k].fac && ETYPES[k].fac !== 'police' && !ETYPES[k].boss && !ETYPES[k].heli && ETYPES[k].melee) || Object.keys(ETYPES).find((k) => /batte/.test(k));
+        if (!typ) ko.push('pas de type d’ennemi au corps à corps');
+        else { META.vue = 'classique'; const e = creerEnnemi(typ, P.x + 0.8, P.z, true); P.y = 3.2; P.veh = null; let err = '';
+          const sc = SFX.coup; let coups = 0; SFX.coup = () => { coups++; };
+          try { for (let i = 0; i < 40; i++) { if (e) { e.cad = 0; e.x = P.x + 0.8; e.z = P.z; } P.y = 3.2; majEnnemis(1 / 30); } } catch (x) { err = x.message; } SFX.coup = sc;
+          if (err) ko.push('coup reçu en l’air : ' + err); else if (!coups) ko.push('le gangster n’a pas frappé (scène à revoir)'); else info.push(coups + ' coup(s) de ' + typ + ' reçus en l’air : aucune erreur'); if (e) e.mort = true; P.y = 0; }
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Vélo : ' + r.ko.join(' ; ')); else ok('Vélo : ' + r.info.join(' ; '));
+    }
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];
