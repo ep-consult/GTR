@@ -13725,6 +13725,42 @@ async function main() {
       });
       if (r.ko.length) fail('Avions au cockpit : ' + r.ko.join(' ; ')); else ok('Avions au cockpit : ' + r.info.join(' ; '));
     }
+    // -------------------------------------------------------------------
+    // Montée de l'hélicoptère (17 octobre au soir, signalé : « l'hélico monte
+    // comme un avion, en s'inclinant beaucoup ; il doit monter verticalement
+    // en restant presque à plat »). Pour chaque hélico de VEHDEFS (lu dans la
+    // source, sauf l'OVNI) : MONTER tenu en vol stationnaire = montée à plat,
+    // progressive, sans à-coup de la vue ; en avançant, le nez penche vers
+    // l'avant ; au freinage, il se relève.
+    // -------------------------------------------------------------------
+    console.log('\n--- Hélicoptères : montée verticale à plat, nez vers l’avant en avançant ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; for (const e of ennemis) e.mort = true; WAVES.etat = 'repos'; WAVES.t = 1e9;
+        const helis = Object.keys(VEHDEFS).filter((k) => VEHDEFS[k].air === 'helico' && !VEHDEFS[k].ovni), B = INPUT.btn;
+        for (const vue of ['fps', 'classique']) for (const cle of helis) {
+          META.vue = vue; const v = creerVehicule(cle, POIS.place.x, POIS.place.z + 40, Math.PI, null); P.x = v.x; P.z = v.z; entrerVehicule(v);
+          v.vol = true; v.alt = 50; v.v = 0; v.va = 0; v.decolT = 0; v.mesh.position.y = 50; let prec = null, saut = 0, assMax = 0, va05 = null;
+          const pas = (n, m, mz, f) => { for (let i = 0; i < n; i++) { B.sprint = m; INPUT.mx = 0; INPUT.mz = mz; majVol(v, 1 / 30); v.mesh.position.set(v.x, v.alt, v.z); v.mesh.rotation.y = v.ang; P.x = v.x; P.z = v.z; majCamera(1 / 30);
+            camera.updateMatrixWorld(); const pit = Math.asin(camera.getWorldDirection(new THREE.Vector3()).y); if (prec !== null) saut = Math.max(saut, Math.abs(pit - prec)); prec = pit; if (f) f(i); } };
+          const alt0 = v.alt; pas(90, true, 0, (i) => { assMax = Math.max(assMax, Math.abs(v.mesh.rotation.x)); if (i === 14) va05 = v.va; }); const monte = v.alt - alt0;
+          B.sprint = false; pas(60, false, -1); const avant = v.mesh.rotation.x; pas(15, false, 0); const frein = v.mesh.rotation.x; pas(45, false, 0); INPUT.mz = 0;
+          const n = cle + (vue === 'fps' ? ' (1P)' : '');
+          if (assMax > 0.08) ko.push(n + ' : il se cabre en montant (' + assMax.toFixed(2) + ' rad)');
+          if (!(monte > 25)) ko.push(n + ' : il ne monte pas (' + monte.toFixed(1) + ' u en 3 s)');
+          if (!(va05 < 12)) ko.push(n + ' : la montée se prend d’un coup (' + (va05 || 0).toFixed(1) + ' u/s après 0,5 s)');
+          if (vue === 'fps' && saut > 0.03) ko.push(n + ' : la vue saute de ' + saut.toFixed(3) + ' rad');
+          if (!(avant > 0.08 && avant < 0.35)) ko.push(n + ' : en avançant, nez à ' + avant.toFixed(2) + ' rad (attendu vers l’avant, sans excès)');
+          if (!(frein < avant - 0.05)) ko.push(n + ' : au freinage, il ne se relève pas (' + avant.toFixed(2) + ' → ' + frein.toFixed(2) + ')');
+          if (vue === 'fps') info.push(cle + ' (montée ' + monte.toFixed(0) + ' u, assiette ' + assMax.toFixed(2) + ', nez ' + avant.toFixed(2) + ')');
+          sortirVehicule(true); scene.remove(v.mesh); libererEntite(v.mesh); const i = vehicules.indexOf(v); if (i >= 0) vehicules.splice(i, 1);
+        }
+        B.sprint = false; META.vue = 'classique'; majCamera(1 / 30);
+        return { ko, info: [helis.length + ' hélicos : ' + info.join(', ') + ' ; idem en vue de dessus'] };
+      });
+      if (r.ko.length) fail('Hélicoptères, montée : ' + r.ko.join(' ; ')); else ok('Hélicoptères, montée : ' + r.info.join(' ; '));
+    }
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];

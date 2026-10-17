@@ -55,7 +55,7 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
   echo "$ln | $(sed -n "$((ln+1))p" index.html | sed 's/^[ \t]*//')"; done
 ```
 
-**Relevé du 18 octobre — 36 904 lignes.**
+**Relevé du 18 octobre — 36 914 lignes.**
 Attention : `maj_carte` recale les numéros dans l'ordre des lignes de la table ;
 un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la main.
 
@@ -87,33 +87,33 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 16532 | POOLS — balles, particules, textes flottants, traces de pneus |
 | 16917 | ÉTAT GLOBAL + JOUEUR (`P`) |
 | 17793 | VÉHICULES — physique arcade, trafic, dégâts |
-| 20683 | PIÉTONS |
-| 20953 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
-| 21539 | **RAYON TRACTEUR DE L'OVNI** |
-| 22004 | NIVEAU DE RECHERCHE (étoiles) |
-| 22360 | VAGUES + bonus de fin de vague |
-| 22485 | MISSIONS COURTES |
-| 22488 | BÂTIMENTS VISITABLES — intérieurs |
-| 22558 | FOUILLE — mécanique générique |
-| 23106 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
-| 27339 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
-| 27748 | **LAVERIE** V2 — l'essorage de la machine 7 |
-| 28013 | **SERRE** V2 — la nuit de la floraison |
-| 28306 | CINÉ-PALACE |
-| 28550 | MÉTRO ABANDONNÉ |
-| 28616 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
-| 28969 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
-| 29871 | SITE 51 |
-| 30101 | LE DÉPÔT DE BUS — courses clandestines |
-| 31548 | **MÉTIERS** — missions liées à un véhicule |
-| 31839 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
-| 32861 | ÉCRANS / MENUS / BOUTIQUES |
-| 33136 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
-| 33963 | DÉBUT / FIN DE PARTIE |
-| 35498 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
-| 35735 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
-| 36024 | **COCKPITS** — vue 1re personne au volant (`COCKPIT`, `COCKPIT_FAMILLES`, `cockpitDims`, `mkCockpitInterieur`, `ckDessiner`, `rendreCockpit`, `cameraCockpit`, `cockpitDiagnostic`, `photoCockpit`) |
-| 36770 | BOUCLE PRINCIPALE |
+| 20693 | PIÉTONS |
+| 20963 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
+| 21549 | **RAYON TRACTEUR DE L'OVNI** |
+| 22014 | NIVEAU DE RECHERCHE (étoiles) |
+| 22370 | VAGUES + bonus de fin de vague |
+| 22495 | MISSIONS COURTES |
+| 22498 | BÂTIMENTS VISITABLES — intérieurs |
+| 22568 | FOUILLE — mécanique générique |
+| 23116 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
+| 27349 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
+| 27758 | **LAVERIE** V2 — l'essorage de la machine 7 |
+| 28023 | **SERRE** V2 — la nuit de la floraison |
+| 28316 | CINÉ-PALACE |
+| 28560 | MÉTRO ABANDONNÉ |
+| 28626 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
+| 28979 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
+| 29881 | SITE 51 |
+| 30111 | LE DÉPÔT DE BUS — courses clandestines |
+| 31558 | **MÉTIERS** — missions liées à un véhicule |
+| 31849 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
+| 32871 | ÉCRANS / MENUS / BOUTIQUES |
+| 33146 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
+| 33973 | DÉBUT / FIN DE PARTIE |
+| 35508 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
+| 35745 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
+| 36034 | **COCKPITS** — vue 1re personne au volant (`COCKPIT`, `COCKPIT_FAMILLES`, `cockpitDims`, `mkCockpitInterieur`, `ckDessiner`, `rendreCockpit`, `cameraCockpit`, `cockpitDiagnostic`, `photoCockpit`) |
+| 36780 | BOUCLE PRINCIPALE |
 
 ### Ancres fines (hors bandeaux)
 
@@ -163,20 +163,20 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 18318 | `resoudreCollisionsVehicule()` — collisions entre véhicules (SAT sur les 4 axes) |
 | 18995 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
 | 19119 | `boutonsAPied()` — boutons du HUD remis « à pied » (sortie de véhicule ET début de partie) |
-| 20089 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
-| 20221 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
-| 22494 | `IOFF = -9000` |
-| 24298 | `INTDEFS` — définitions des **28 salles** (27 + la boutique) |
-| 24683 | `construireSalle(id)` |
+| 20099 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
+| 20231 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
+| 22504 | `IOFF = -9000` |
+| 24308 | `INTDEFS` — définitions des **28 salles** (27 + la boutique) |
+| 24693 | `construireSalle(id)` |
 | 20390 | `CHALUTIER_BANCS_PLAN` — chalutier V2 ; `chalutierMaj` (20761), `dessinerRadarChalutier` (21018) |
-| 31557 | `METIERS_CIBLE` |
-| 31857 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
-| 31945 | `PIECES_FAMILLES` — catalogues de pièces par famille |
-| 32255 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
-| 32319 | `libererObjet()` — libère les géométries d'un objet retiré |
-| 32335 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
-| 32465 | `construireGarageTuning()` — la salle partagée |
-| 32835 | `majNitro()` |
+| 31567 | `METIERS_CIBLE` |
+| 31867 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
+| 31955 | `PIECES_FAMILLES` — catalogues de pièces par famille |
+| 32265 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
+| 32329 | `libererObjet()` — libère les géométries d'un objet retiré |
+| 32345 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
+| 32475 | `construireGarageTuning()` — la salle partagée |
+| 32845 | `majNitro()` |
 | 17883 | `degatsChoc()` — dégâts V2 : `bosseler`, débris, `perdreRoue` ; murs : `degagerDesMurs` (plus haut) |
 | 7682 | `SAUTV` — Saut du Vertige : `hauteurSautVertige`, `mkSautVertige`, `mkBargeVertige`, `finSautVertige` |
 | 35625 | `VUE1P` — vue à la 1re personne : `cameraPremiere`, `ligneDeMire`, `viseAuto1P` |
@@ -1763,6 +1763,20 @@ ne voit plus que le sol ou le ciel ». Mesuré : la vitesse verticale passait de
 - Vue de dessus et immersive : assiette marquée inchangée (0,9 rad).
 - Test : « Avions au cockpit » (chaque avion de `VEHDEFS`, figures coupées :
   MONTER tenu fait un looping sur la voltige et le chasseur, c'est voulu).
+
+## Montée de l'hélicoptère (17 octobre au soir) — `HELI_VA_ACC`, `HELI_TANG_AVANT`
+
+Signalé : « l'hélico monte comme un avion, en s'inclinant beaucoup ; il doit
+monter verticalement en restant presque à plat ». L'assiette suivait la vitesse
+de MONTÉE (−va × 0,0475 : 0,76 rad nez en l'air, la vue sautait de 0,16 rad par
+image). Désormais (`majVol`, branche hélico, jamais l'OVNI) :
+- montée au collectif, à plat (`HELI_TANG_MONTEE` : 0,03 rad à 16 u/s), vitesse
+  verticale progressive (`HELI_VA_ACC` 20 u/s²) ;
+- nez vers l'avant selon la vitesse (`HELI_TANG_AVANT` : ~0,18 rad à pleine
+  vitesse) et l'accélération, relevé au freinage (`HELI_TANG_ACC`, `v.accH`) ;
+- inclinaison dans les virages (`HELI_ROULIS`), retour à plat une fois posé.
+- Test : « Hélicoptères, montée » (chaque hélico de `VEHDEFS`, vue 1P et vue de
+  dessus).
 
 ## Retours de playtest du 16 octobre — véhicules et conduite
 
