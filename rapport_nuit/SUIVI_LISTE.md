@@ -14,7 +14,7 @@ Chaque point est coché quand il est fait ET vérifié (rendu réel, test, valid
 - [x] 10. Police — patrouilles à pied et voitures de patrouille en ville, témoins des délits (au moins une étoile, la voiture prend la poursuite), intervention dans TOUTES les fusillades de gangs (vague ou non), retour à la patrouille au calme ; recherche un peu plus forte. Interprétation : « intervenir contre moi » = un délit vu par un policier est relevé à coup sûr, mais tirer pendant une fusillade de gang reste de la légitime défense. Test « Police en ville »
 - [x] 11. Avions, montée trop brutale — la vitesse verticale se prend en ~1 s (avant : une image) ; au cockpit, assiette ≤ 0,09 rad (avant 0,9) et roulis réduit : l'horizon reste au-dessus du capot ; vue de dessus inchangée. Test « Avions au cockpit »
 - [x] 12. Hélicoptère, montée — monte au collectif à plat (0,03 rad au lieu de 0,76), montée progressive ; le nez penche vers l'avant en avançant, se relève au freinage, l'appareil s'incline en virage. Test « Hélicoptères, montée »
-- [ ] 13. Cockpit de l'hélicoptère : complet, fermé, solidaire de la caméra
+- [x] 13. Cockpit de l'hélicoptère — cabine fermée : montants, arceau, toit et console de plafond, portes vitrées, planche pleine largeur, compas, plancher et palonniers, sièges, cloison arrière ; posée dans le repère du véhicule (solidaire de la caméra) ; en virage, le regard part dans le virage sans changer la conduite. Interprétation : « solidaire de la caméra » = la cabine bouge exactement avec l'œil, et se voit dès qu'on tourne. Test « Cockpit de l'hélicoptère »
 - [ ] 14. PNJ en moto cross dans le désert et la montagne
 - [ ] 15. Reflets en vue 1re personne : réduire fortement les « paillettes » sur le pare-brise
 

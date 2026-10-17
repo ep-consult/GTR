@@ -55,7 +55,7 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
   echo "$ln | $(sed -n "$((ln+1))p" index.html | sed 's/^[ \t]*//')"; done
 ```
 
-**Relevé du 18 octobre — 36 914 lignes.**
+**Relevé du 18 octobre — 36 954 lignes.**
 Attention : `maj_carte` recale les numéros dans l'ordre des lignes de la table ;
 un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la main.
 
@@ -113,7 +113,7 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 35508 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
 | 35745 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
 | 36034 | **COCKPITS** — vue 1re personne au volant (`COCKPIT`, `COCKPIT_FAMILLES`, `cockpitDims`, `mkCockpitInterieur`, `ckDessiner`, `rendreCockpit`, `cameraCockpit`, `cockpitDiagnostic`, `photoCockpit`) |
-| 36780 | BOUCLE PRINCIPALE |
+| 36820 | BOUCLE PRINCIPALE |
 
 ### Ancres fines (hors bandeaux)
 
@@ -1777,6 +1777,33 @@ image). Désormais (`majVol`, branche hélico, jamais l'OVNI) :
 - inclinaison dans les virages (`HELI_ROULIS`), retour à plat une fois posé.
 - Test : « Hélicoptères, montée » (chaque hélico de `VEHDEFS`, vue 1P et vue de
   dessus).
+
+## Cockpit fermé de l'hélicoptère (17 octobre au soir) — `ckCabineHelico`, `COCKPIT.regardVire`
+
+Signalé : « en vue 1re personne, quand on tourne, on a l'impression d'être dans
+le vide ; le cockpit doit être complet et fermé (parois, montants, tableau de
+bord visibles) et rester solidaire de la caméra ». Le cockpit d'hélico n'avait
+qu'un tableau, un manche et un collectif : tête tournée, on ne voyait que la
+ville.
+- `ckCabineHelico` (famille `helico`, appelée par `mkCockpitInterieur`), dans
+  le repère du véhicule comme la caméra, à la largeur de la vraie verrière
+  (`cab.w`, bornée 1,3–2,3) : planche sur toute la largeur et casquette (au-dessus
+  de la ligne de visée des instruments), montants avant courbes, arceau du haut
+  du pare-brise, montant central si le pilote est de côté, compas accroché à
+  l'arceau ; toit et console de plafond ; portes (bas garni, accoudoir, poignée,
+  rebord, rail, montant arrière, vitre teintée à 6 %) ; plancher, palonniers,
+  console centrale ; sièges (pilote, place d'à côté vide), cloison arrière et
+  extincteur. Matériaux `S.cadre`, `S.siege`, `S.rouge`, `S.vitreCab`.
+- Devant, la bulle reste dégagée au centre (montants à ±35°, hors du champ
+  portrait de ±19°). **En virage, le regard part dans le virage**
+  (`C.regardVire`, 0,3 × la vitesse de lacet, ±0,4 rad) : le montant et la porte
+  entrent dans le champ. Ce regard est retranché de la conduite
+  (`VUE.offVehRendu`, lu par `vueAngleEcran`) — sans ça, « haut » visait le
+  regard et l'appareil spiralait.
+- La pale noire vue en haut de l'écran est le rotor (modèle extérieur), normal.
+- Test : « Cockpit de l'hélicoptère » (part de cabine à l'écran dans 5
+  directions, centre dégagé, tableau fixe en virage, joystick réel : cap stable
+  vers le haut, arrêt au relâcher).
 
 ## Retours de playtest du 16 octobre — véhicules et conduite
 

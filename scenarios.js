@@ -13761,6 +13761,55 @@ async function main() {
       });
       if (r.ko.length) fail('Hélicoptères, montée : ' + r.ko.join(' ; ')); else ok('Hélicoptères, montée : ' + r.info.join(' ; '));
     }
+    // -------------------------------------------------------------------
+    // Cockpit fermé de l'hélicoptère (17 octobre au soir, signalé : « en vue
+    // 1re personne, quand on tourne, on a l'impression d'être dans le vide ;
+    // le cockpit doit être complet et fermé — parois, montants, tableau de
+    // bord — et rester solidaire de la caméra »). Pour chaque hélico de
+    // VEHDEFS (lu dans la source, sauf l'OVNI) : quelle que soit la direction
+    // du regard (devant, côtés, arrière, plafond), la cabine occupe une part
+    // de l'écran (rayons depuis l'œil contre l'intérieur du cockpit) ; devant,
+    // la bulle reste dégagée au centre ; la cabine suit la caméra ; en virage,
+    // le regard part dans le virage sans changer la conduite (joystick réel).
+    // -------------------------------------------------------------------
+    console.log('\n--- Cockpit de l’hélicoptère : cabine fermée, solidaire, regard dans le virage ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); META.vue = 'fps'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; for (const e of ennemis) e.mort = true; WAVES.etat = 'repos'; WAVES.t = 1e9;
+        const helis = Object.keys(VEHDEFS).filter((k) => VEHDEFS[k].air === 'helico' && !VEHDEFS[k].ovni), rc = new THREE.Raycaster(); rc.camera = camera;
+        /* part de l'écran couverte par la cabine (grille de 9 × 15 rayons) */
+        const couvert = () => { camera.updateMatrixWorld(); COCKPIT.g.updateMatrixWorld(true); let n = 0, t = 0;
+          for (let i = 0; i < 9; i++) for (let j = 0; j < 15; j++) { rc.setFromCamera(new THREE.Vector2(-0.9 + i * 0.225, -0.9 + j * 0.1286), camera); t++; if (rc.intersectObject(COCKPIT.g, true).some((h) => h.object.isMesh && !(h.object.material && h.object.material.transparent))) n++; }
+          return n / t; };
+        const centreLibre = () => { rc.setFromCamera(new THREE.Vector2(0, 0.15), camera); return !rc.intersectObject(COCKPIT.g, true).some((h) => h.object.isMesh && !(h.object.material && h.object.material.transparent)); };
+        for (const cle of helis) {
+          const v = creerVehicule(cle, POIS.place.x, POIS.place.z + 60, Math.PI, null); P.x = v.x; P.z = v.z; entrerVehicule(v); v.vol = true; v.alt = 40; v.v = 0; v.va = 0; v.decolT = 0; v.mesh.position.y = 40; INPUT.jx = INPUT.jy = 0;
+          const pas = (n) => { for (let i = 0; i < n; i++) { litEntrees(); majVol(v, 1 / 30); v.mesh.position.set(v.x, v.alt, v.z); v.mesh.rotation.y = v.ang; P.x = v.x; P.z = v.z; majCamera(1 / 30); } };
+          pas(5); if (!COCKPIT.g) { ko.push(cle + ' : pas de cockpit'); continue; }
+          const parts = {}; VUE.drag = { id: 99, x: 0 };
+          for (const [nom, off, pit] of [['devant', 0, 0], ['gauche', 1.2, 0], ['droite', -1.2, 0], ['arrière', 2.6, 0], ['plafond', 0, 1.4]]) { VUE.offVeh = off; VUE.pitch1P = pit; pas(3); parts[nom] = couvert(); if (nom === 'devant' && !centreLibre()) ko.push(cle + ' : la cabine bouche le centre de la vue'); }
+          VUE.drag = null; VUE.offVeh = 0; VUE.pitch1P = 0; pas(30);
+          for (const nom of ['gauche', 'droite', 'arrière', 'plafond']) if (!(parts[nom] > 0.25)) ko.push(cle + ' : vers ' + nom + ', on est dans le vide (' + Math.round(parts[nom] * 100) + ' % de cabine)');
+          if (!(parts.devant > 0.12 && parts.devant < 0.6)) ko.push(cle + ' : devant, cabine ' + Math.round(parts.devant * 100) + ' %');
+          // solidaire : en virage et en piqué, le cockpit garde sa place devant l'œil
+          camera.updateMatrixWorld(); const pI = (COCKPIT.instr || COCKPIT.g).getWorldPosition(new THREE.Vector3()).project(camera);
+          INPUT.jx = 1; INPUT.jy = 0; pas(20); const rv = COCKPIT.regardVire || 0; camera.updateMatrixWorld(); const pI2 = (COCKPIT.instr || COCKPIT.g).getWorldPosition(new THREE.Vector3()).project(camera);
+          if (!(Math.abs(rv) > 0.1)) ko.push(cle + ' : en virage, le regard ne part pas dans le virage (' + rv.toFixed(2) + ')');
+          if (!(Math.abs(pI2.y - pI.y) < 0.05)) ko.push(cle + ' : en virage, le tableau bouge à l’écran (' + pI.y.toFixed(2) + ' → ' + pI2.y.toFixed(2) + ')');
+          // la conduite ne change pas : joystick vers le haut = cap stable ; relâché, l'appareil s'arrête de tourner
+          INPUT.jx = 0; INPUT.jy = -1; pas(45); const a0 = v.ang; pas(45); const derive = Math.abs(angDiff(a0, v.ang));
+          INPUT.jy = 0; pas(30); const a1 = v.ang; pas(30); const apres = Math.abs(angDiff(a1, v.ang));
+          if (derive > 0.15) ko.push(cle + ' : joystick vers le haut, le cap dérive de ' + derive.toFixed(2) + ' rad en 1,5 s (spirale)');
+          if (apres > 0.05) ko.push(cle + ' : joystick lâché, il tourne encore (' + apres.toFixed(2) + ' rad)');
+          info.push(cle + ' (' + ['devant', 'gauche', 'droite', 'arrière', 'plafond'].map((n) => Math.round(parts[n] * 100)).join('/') + ' %)');
+          INPUT.jx = INPUT.jy = 0; sortirVehicule(true); scene.remove(v.mesh); libererEntite(v.mesh); const i = vehicules.indexOf(v); if (i >= 0) vehicules.splice(i, 1);
+        }
+        META.vue = 'classique'; majCamera(1 / 30);
+        return { ko, info: [helis.length + ' hélicos, cabine devant/gauche/droite/arrière/plafond : ' + info.join(', ')] };
+      });
+      if (r.ko.length) fail('Cockpit de l’hélicoptère : ' + r.ko.join(' ; ')); else ok('Cockpit de l’hélicoptère : ' + r.info.join(' ; '));
+    }
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];
