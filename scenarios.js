@@ -8805,7 +8805,7 @@ async function main() {
         const ko = [], info = [];
         if (P.veh) sortirVehicule(true);
         startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
-        for (const e of ennemis) e.mort = true;
+        for (const e of ennemis) e.mort = true; for (const v of vehicules) v.patrouilleP = false; /* aucun policier témoin (Police en ville) */
         WANTED.heat = 0; WANTED.stars = 0;
         // deux vrais piétons tués (tuerPieton) : la chaleur réellement ajoutée
         creerPieton(P.x + 3, P.z); creerPieton(P.x - 3, P.z); const vivants = pietons.slice(-2);
@@ -13106,9 +13106,10 @@ async function main() {
         for (const e of ennemis) { e.mort = true; if (e.h) scene.remove(e.h.g); } ennemis.length = 0;
         for (const v of vehicules) { scene.remove(v.mesh); libererEntite(v.mesh); } vehicules.length = 0;
         P.x = POIS.place.x; P.z = POIS.place.z + 10; P.y = 0;
-        // hors vague : les tirs ne déclenchent rien
-        WAVES.etat = 'repos'; WAVES.t = 1e9; for (let k = 0; k < 10; k++) signalerFusillade(P.x + 10, P.z); majInterventionPolice(1 / 30);
-        if (POLICE_INTER.alerte > 0 || vehicules.some((v) => v.intervention)) ko.push('hors vague, la police est appelée');
+        // hors vague aussi, une fusillade appelle la police (17 octobre au soir ; avant : jamais hors vague)
+        WAVES.etat = 'repos'; WAVES.t = 1e9; POLICE_INTER.cd = 0; POLICE_INTER.alerte = 0; for (let k = 0; k < 10; k++) signalerFusillade(P.x + 10, P.z, 'viperes'); majInterventionPolice(1 / 30);
+        if (!(vehicules.some((v) => v.intervention) || ennemis.some((e) => e.intervention))) ko.push('hors vague, une fusillade n’appelle pas la police');
+        for (const e of ennemis) { e.mort = true; if (e.h) scene.remove(e.h.g); } ennemis.length = 0; for (const v of vehicules) { scene.remove(v.mesh); libererEntite(v.mesh); } vehicules.length = 0; POLICE_INTER.alerte = 0;
         // en vague : un gang, des tireurs au contact
         WAVES.etat = 'active'; WAVES.n = 3; WAVES.gang = 'viperes'; WAVES.queue = []; WAVES.spawnT = 1e9; POLICE_INTER.cd = 0; POLICE_INTER.vague = -1;
         const tireur = POOLS_GANG.viperes.find((ty) => ETYPES[ty] && ETYPES[ty].arme !== 'melee'); /* un tireur du gang, lu dans son vivier */
@@ -13150,9 +13151,9 @@ async function main() {
           if (!(WANTED.stars >= 1)) ko.push('cinq balles sur un agent : toujours pas recherché (' + WANTED.heat.toFixed(2) + ')');
           ag.cibleT = 0; majEnnemis(1 / 30); if (!ag.mort && (ag.cible || ag.passif)) { const reste = gang.filter((x) => !x.mort).length; if (!reste) ko.push('recherché, l’agent ne s’occupe pas du joueur'); }
           info.push('balle perdue : +' + (h1 - h0).toFixed(2) + ' de chaleur, averti ; recherché après ' + 5 + ' balles'); }
-        // fin de vague : agents ordinaires
-        WAVES.etat = 'repos'; majInterventionPolice(1 / 30);
-        if (ennemis.some((e) => e.intervention) || vehicules.some((v) => v.intervention)) ko.push('fin de vague : des agents restent en intervention');
+        // fin de vague, au calme (INTER_CALME s sans un coup de feu) : les agents reprennent leur patrouille
+        WAVES.etat = 'repos'; for (const e of gang) e.mort = true; WANTED.heat = 0; WANTED.stars = 0; POLICE_INTER.alerte = 0; for (let k = 0; k < 30 * (INTER_CALME + 2); k++) majInterventionPolice(1 / 30);
+        if (ennemis.some((e) => !e.mort && e.intervention) || vehicules.some((v) => v.intervention)) ko.push('au calme : des agents restent en intervention');
         toast = tst; Math.random = rnd0; WANTED.heat = 0; WANTED.stars = 0; for (const e of ennemis) e.mort = true; WAVES.etat = 'repos';
         return { ko, info };
       });
@@ -13602,6 +13603,90 @@ async function main() {
         return { ko, info };
       });
       if (r.ko.length) fail('Chute 1P : ' + r.ko.join(' ; ')); else ok('Chute 1P : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
+    // Police en ville (17 octobre au soir, signalé : « la police a quasiment
+    // disparu ; les gangs se tirent dessus, puis tout le monde se retourne
+    // contre moi, et la police n'intervient jamais »). Patrouilles à pied et
+    // voitures de patrouille dans la circulation ; un délit sous leurs yeux
+    // vaut une étoile (jamais un tir de légitime défense pendant une
+    // fusillade) ; une fusillade entre gangs HORS vague appelle la police,
+    // qui vise les gangs ; au calme, les agents reprennent leur patrouille.
+    // -------------------------------------------------------------------
+    console.log('\n--- Police en ville : patrouilles, témoin des délits, fusillade entre gangs hors vague ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); META.vue = 'classique'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WANTED.heat = 0; WANTED.stars = 0;
+        let g = 9137; const rnd0 = Math.random; Math.random = () => { g = (g * 1664525 + 1013904223) >>> 0; return g / 4294967296; };
+        const vider = () => { for (const e of ennemis) { e.mort = true; if (e.h) scene.remove(e.h.g); else if (e.mesh) scene.remove(e.mesh); } ennemis.length = 0; for (const v of vehicules) { scene.remove(v.mesh); libererEntite(v.mesh); } vehicules.length = 0; };
+        const toasts = []; const tst = toast; toast = (m, c) => { toasts.push(m); return tst(m, c); };
+        vider(); WAVES.etat = 'repos'; WAVES.t = 1e9; POLICE_INTER.alerte = 0; POLICE_INTER.cd = 0; POLICE_INTER.calmeT = 0; POLICE_INTER.annonceT = 0;
+        P.x = POIS.place.x; P.z = POIS.place.z + 10; P.y = 0;
+        /* un point dégagé, en vue du joueur, à d u */
+        const pointVu = (d) => { for (let a = 0; a < 6.28; a += 0.2) { const x = P.x + Math.sin(a) * d, z = P.z + Math.cos(a) * d; if (!solidAt(x, z, 1.2) && !estEau(x, z) && ligneLibre(x, z, P.x, P.z)) return { x, z }; } return null; };
+        const poser = (o, p) => { o.x = p.x; o.z = p.z; if (o.h) o.h.g.position.set(o.x, 0, o.z); if (o.mesh) o.mesh.position.set(o.x, 0, o.z); };
+        // 1. patrouilles à pied : elles apparaissent sans étoile, se promènent, ne visent personne
+        POL_PATR.t = 0; for (let f = 0; f < 30 * 10; f++) { majPatrouillesPolice(1 / 30); majEnnemis(1 / 30); }
+        const patr = ennemis.filter((e) => !e.mort && e.patrouillePolice);
+        if (patr.length < POL_PATR_N) ko.push('patrouilles à pied : ' + patr.length + ' / ' + POL_PATR_N);
+        for (const e of patr) e.cibleT = 0; majEnnemis(1 / 30);
+        if (patr.some((e) => !e.passif || e.cible)) ko.push('une patrouille vise quelqu’un sans raison');
+        // 2. voitures de patrouille dans la circulation
+        let nPat = 0; for (let k = 0; k < 600 && nPat < POL_VOIT_N; k++) { creerTrafic(); nPat = vehicules.filter((v) => !v.mort && v.patrouilleP).length; }
+        if (nPat < 1) ko.push('aucune voiture de patrouille dans la circulation');
+        if (vehicules.filter((v) => !v.mort && v.patrouilleP).length > POL_VOIT_N) ko.push('trop de voitures de patrouille');
+        const vp = vehicules.find((v) => !v.mort && v.patrouilleP); if (vp && vp.conduit !== 'trafic') ko.push('la voiture de patrouille ne roule pas dans la circulation');
+        info.push(patr.length + ' agents à pied, ' + nPat + ' voiture(s) de patrouille');
+        if (WANTED.stars) ko.push('recherché sans rien faire');
+        // 3. le témoin : un coup de feu sans policier en vue ne donne rien ; sous les yeux d'un agent, une étoile
+        const loin = { x: P.x + 400, z: P.z }; for (const e of patr) poser(e, loin); for (const v of vehicules) if (v.patrouilleP) poser(v, loin);
+        WANTED.tirCd = 0; addHeat(0.055, true); if (WANTED.stars) ko.push('coup de feu sans témoin : déjà ' + WANTED.stars + '★');
+        const pc = pointVu(14); if (!pc) ko.push('pas de point en vue pour le policier'); else {
+          const cop = patr[0]; poser(cop, pc); toasts.length = 0; WANTED.tirCd = 0; addHeat(0.055, true);
+          if (!(WANTED.stars >= 1)) ko.push('coup de feu sous les yeux d’un policier : ' + WANTED.heat.toFixed(2) + ' de chaleur, pas d’étoile');
+          if (!toasts.some((m) => /policier t’a vu/.test(m))) ko.push('pas d’avertissement « un policier t’a vu »');
+          cop.cibleT = 0; majEnnemis(1 / 30); if (cop.passif || cop.cible) ko.push('recherché, le policier de patrouille ne s’occupe pas du joueur');
+          // légitime défense : pendant une fusillade de gang, tirer sous ses yeux ne donne rien
+          WANTED.heat = 0; WANTED.stars = 0; POLICE_INTER.alerte = 3; WANTED.tirCd = 0; addHeat(0.055, true);
+          if (WANTED.stars) ko.push('légitime défense : tirer pendant une fusillade donne une étoile');
+          // tuer un passant sous ses yeux reste un délit, même en pleine fusillade
+          creerPieton(P.x + 2, P.z); tuerPieton(pietons[pietons.length - 1], true); if (!(WANTED.stars >= 1)) ko.push('passant tué sous les yeux d’un policier : pas d’étoile');
+          WANTED.heat = 0; WANTED.stars = 0; POLICE_INTER.alerte = 0; poser(cop, loin); }
+        // la voiture de patrouille témoin prend la poursuite, sirène allumée
+        if (vp) { const pv = pointVu(18); if (pv) { poser(vp, pv); vp.conduit = 'trafic'; WANTED.tirCd = 0; addHeat(0.055, true);
+          if (!(WANTED.stars >= 1) || vp.conduit !== 'police' || !vp.sirene) ko.push('voiture de patrouille témoin : ' + WANTED.stars + '★, conduite ' + vp.conduit + ', sirène ' + !!vp.sirene);
+          else info.push('délit vu : 1★, la voiture de patrouille prend la poursuite'); } }
+        WANTED.heat = 0; WANTED.stars = 0;
+        // 4. fusillade entre deux gangs, HORS vague, le joueur à l'écart : la police est appelée et vise les gangs
+        vider(); POLICE_INTER.alerte = 0; POLICE_INTER.cd = 0; POLICE_INTER.calmeT = 0; POLICE_INTER.annonceT = 0; toasts.length = 0;
+        const tireur = (gg) => POOLS_GANG[gg].find((ty) => ETYPES[ty] && ETYPES[ty].arme !== 'melee');
+        const pa = pointVu(22) || { x: P.x + 22, z: P.z }, ux = (pa.x - P.x) / 22, uz = (pa.z - P.z) / 22;
+        const gangs = [];
+        for (let k = 0; k < 3; k++) { const a = creerEnnemi(tireur('viperes'), pa.x - uz * (k - 1) * 2.5, pa.z + ux * (k - 1) * 2.5, false); if (a) { a.libre = true; a.hp = a.hpMax = 400; gangs.push(a); }
+          const b = creerEnnemi(tireur('frelons'), pa.x + ux * 12 - uz * (k - 1) * 2.5, pa.z + uz * 12 + ux * (k - 1) * 2.5, false); if (b) { b.libre = true; b.hp = b.hpMax = 400; gangs.push(b); } }
+        for (const gg of GANGS) HOSTILITE[gg] = 0;
+        let appel = null, f = 0;
+        for (; f < 30 * 25 && !appel; f++) { majEnnemis(1 / 30); majPools(1 / 30); majInterventionPolice(1 / 30); appel = vehicules.find((v) => v.intervention) || ennemis.find((e) => e.intervention); }
+        if (!appel) ko.push('fusillade entre gangs hors vague : la police ne vient pas (alerte ' + POLICE_INTER.alerte.toFixed(1) + ')');
+        else { info.push('fusillade entre gangs hors vague : police appelée en ' + (f / 30).toFixed(1) + ' s');
+          if (!toasts.some((m) => /police intervient contre/.test(m))) ko.push('pas d’annonce de l’intervention'); }
+        let surGang = 0; const tE = toucherEnnemi;
+        toucherEnnemi = function (e, dmg, parJoueur, knock, srcFac) { if (!parJoueur && srcFac === 'police' && GANGS.includes(e.fac)) surGang++; return tE.apply(this, arguments); };
+        for (let k = 0; k < 30 * 40 && !surGang; k++) { majEnnemis(1 / 30); majPools(1 / 30); majVehicules(1 / 30); majInterventionPolice(1 / 30); }
+        toucherEnnemi = tE;
+        if (!surGang) ko.push('la police intervient mais n’atteint jamais les gangs');
+        if (WANTED.stars) ko.push('le joueur, à l’écart, est recherché (' + WANTED.stars + '★)');
+        // 5. au calme : les agents d'intervention reprennent leur patrouille
+        for (const e of ennemis) if (GANGS.includes(e.fac)) e.mort = true;
+        POLICE_INTER.alerte = 0; for (let k = 0; k < 30 * (INTER_CALME + 2); k++) majInterventionPolice(1 / 30);
+        if (ennemis.some((e) => !e.mort && e.intervention) || vehicules.some((v) => v.intervention)) ko.push('au calme, des agents restent en intervention');
+        const repris = ennemis.filter((e) => !e.mort && e.fac === 'police' && e.patrouillePolice).length; if (!repris) ko.push('au calme, aucun agent ne reprend la patrouille');
+        info.push('au calme : ' + repris + ' agent(s) en patrouille');
+        toast = tst; Math.random = rnd0; WANTED.heat = 0; WANTED.stars = 0; vider(); WAVES.etat = 'repos';
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Police en ville : ' + r.ko.join(' ; ')); else ok('Police en ville : ' + r.info.join(' ; '));
     }
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
