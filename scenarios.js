@@ -14081,6 +14081,51 @@ async function main() {
       });
       if (r.ko.length) fail('Poings 1P : ' + r.ko.join(' ; ')); else ok('Poings 1P : ' + r.info.join(' ; '));
     }
+    // -------------------------------------------------------------------
+    // Soucoupe à la 1re personne : voir en dessous (17 octobre au soir, 3e
+    // liste). Plancher vitré (la coque devient un verre sans reflet le temps
+    // du cockpit, rendue à la sortie), regard qui plonge avec l'altitude ;
+    // au centre de l'écran, en altitude, on voit le sol (rien d'opaque entre
+    // l'œil et lui) ; le pilotage ne change pas (même altitude, même cap).
+    // -------------------------------------------------------------------
+    console.log('\n--- Soucoupe à la 1re personne : plancher vitré, regard qui plonge avec l’altitude ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = []; let T = dernierT + 1000;
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); META.vue = 'fps'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9;
+        const cle = Object.keys(VEHDEFS).find((k) => VEHDEFS[k].ovni), v = creerVehicule(cle, POIS.place.x, POIS.place.z + 20, Math.PI, null); P.x = v.x; P.z = v.z; entrerVehicule(v);
+        v.vol = true; v.va = 0; v.v = 0; v.decolT = 0; VUE.pitch1P = 0; INPUT.mx = INPUT.mz = 0;
+        const pas = (n, alt) => { for (let i = 0; i < n; i++) { T += 1000 / 30; tick(T); if (alt !== undefined) { v.alt = alt; v.va = 0; v.vol = true; } } }; /* tenu en vol à cette altitude (au ras de la place, elle se poserait) */
+        const regard = () => { camera.updateMatrixWorld(); return Math.asin(camera.getWorldDirection(new THREE.Vector3()).y); };
+        pas(60, poseY(v.x, v.z) + 4); const bas = regard(); pas(90, poseY(v.x, v.z) + 60); const haut = regard();
+        if (!(bas > -0.25)) ko.push('près du sol, le regard plonge déjà (' + bas.toFixed(2) + ')');
+        if (!(haut < -0.55)) ko.push('à 60 u, le regard ne plonge pas vers le sol (' + haut.toFixed(2) + ')');
+        // la coque est vitrée au cockpit, et le centre de l'écran voit le sol
+        let opaques = 0; v.mesh.traverse((o) => { if (o.isMesh && o.material && o.material.color && CK_OVNI_COQUE.includes((o.userData.matCk || o.material).color.getHex()) && !ckEstVitre(o.material)) opaques++; });
+        if (opaques) ko.push(opaques + ' pièce(s) de la coque restent opaques au cockpit');
+        const rc = new THREE.Raycaster(); rc.camera = camera; rc.setFromCamera(new THREE.Vector2(0, 0), camera); rc.far = 400;
+        const bloque = rc.intersectObject(v.mesh, true).find((h) => h.object.isMesh && !h.object.isSprite && h.object.visible && !ckEstVitre(h.object.material) && !(h.object.material.transparent && h.object.material.opacity < 0.3));
+        const couvre = COCKPIT.g ? rc.intersectObject(COCKPIT.g, true).find((h) => h.object.isMesh && !(h.object.material.transparent && h.object.material.opacity < 0.3)) : null;
+        if (bloque) ko.push('au centre de l’écran, la coque cache le sol (#' + bloque.object.material.color.getHexString() + ')');
+        if (couvre) ko.push('au centre de l’écran, le cockpit cache le sol');
+        const d = rc.ray.direction, tSol = (camera.position.y - solY(camera.position.x, camera.position.z)) / Math.max(1e-3, -d.y);
+        if (!(d.y < 0 && tSol < 300)) ko.push('le centre de l’écran ne regarde pas le sol');
+        // le pilotage ne change pas : à vide, altitude tenue, cap tenu
+        /* le même vol (joystick vers l'avant 2 s, puis lâché 1 s) en vue 1P et en vue classique : mêmes altitude, cap et position */
+        const vol = (vue) => { META.vue = vue; const x0 = v.x, z0 = v.z; v.alt = poseY(v.x, v.z) + 60; v.va = 0; v.v = 0; v.ang = Math.PI; v.vol = true;
+          for (let i = 0; i < 90; i++) { INPUT.mx = 0; INPUT.mz = i < 60 ? -1 : 0; majVol(v, 1 / 30); v.mesh.position.set(v.x, v.alt, v.z); v.mesh.rotation.y = v.ang; P.x = v.x; P.z = v.z; majCamera(1 / 30); }
+          INPUT.mz = 0; const r = { dAlt: v.alt - poseY(x0, z0) - 60, dx: v.x - x0, dz: v.z - z0, cap: v.ang }; v.x = x0; v.z = z0; return r; };
+        const a1 = vol('fps'), a2 = vol('classique'); META.vue = 'fps'; majCamera(1 / 30);
+        if (Math.abs(a1.dAlt - a2.dAlt) > 0.01 || Math.hypot(a1.dx - a2.dx, a1.dz - a2.dz) > 0.01 || Math.abs(angDiff(a1.cap, a2.cap)) > 0.001) ko.push('le vol diffère entre la vue 1P et la vue classique (' + JSON.stringify([a1, a2]) + ')');
+        // à la sortie, la coque redevient opaque
+        sortirVehicule(true); majCamera(1 / 30); /* le cockpit se retire à l'image suivante */ let rendues = 0, verre = 0; v.mesh.traverse((o) => { if (o.isMesh && o.material === _MAT_VITRE_OVNI) verre++; if (o.isMesh && o.material && o.material.color && CK_OVNI_COQUE.includes(o.material.color.getHex())) rendues++; });
+        if (verre) ko.push('après la sortie, ' + verre + ' pièce(s) restent en verre');
+        info.push('regard ' + bas.toFixed(2) + ' au sol, ' + haut.toFixed(2) + ' à 60 u ; coque vitrée au cockpit (' + rendues + ' pièces rendues à la sortie) ; le centre de l’écran voit le sol à ' + tSol.toFixed(0) + ' u ; vol inchangé');
+        scene.remove(v.mesh); const i = vehicules.indexOf(v); if (i >= 0) vehicules.splice(i, 1); META.vue = 'classique'; majCamera(1 / 30);
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Soucoupe 1P : ' + r.ko.join(' ; ')); else ok('Soucoupe 1P : ' + r.info.join(' ; '));
+    }
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];

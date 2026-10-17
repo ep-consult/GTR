@@ -36304,7 +36304,7 @@ function cockpitDevitrer(g){ g.traverse((o)=>{ if(o.userData&&o.userData.matCk){
    claire sous le guidon du cockpit (signalé : « la barre blanche sous le vélo »). Masqués le temps du cockpit, rendus par cockpitDevitrer. */
 const CK_GUIDON_VELO=[0x9aa0a8,0x1c1e24,0xfff0b8];
 function ckMasquerGuidon(g){ const corps=g.userData&&g.userData.corps; if(!corps) return; for(const c of corps.children){ if(!c.isMesh||!c.visible||!c.material||!c.material.color) continue; if(CK_GUIDON_VELO.includes(c.material.color.getHex())){ c.visible=false; c.userData.ckMasque=true; } } }
-function ckEstVitre(m){ if(!m||m.isSpriteMaterial) return false; if(m===_MAT_VITRE_CK) return true; if(typeof _MAT_VITRE_A!=='undefined'&&m===_MAT_VITRE_A) return true; if(typeof _MAT_VITRE!=='undefined'&&m===_MAT_VITRE) return true;
+function ckEstVitre(m){ if(!m||m.isSpriteMaterial) return false; if(m===_MAT_VITRE_CK||(_MAT_VITRE_OVNI&&m===_MAT_VITRE_OVNI)) return true; if(typeof _MAT_VITRE_A!=='undefined'&&m===_MAT_VITRE_A) return true; if(typeof _MAT_VITRE!=='undefined'&&m===_MAT_VITRE) return true;
   return !!(m.transparent&&m.opacity<0.96&&m.opacity>0.3&&!m.map&&m.color); }
 function ckSousCockpit(o){ for(let p=o;p;p=p.parent) if(p===COCKPIT.g) return true; return false; }
 function ckVisible(o){ for(let p=o;p;p=p.parent) if(!p.visible) return false; return true; }
@@ -36673,11 +36673,20 @@ function mkCockpitInterieur(v,D){ const S=matsCockpit(), G=new THREE.Group(), e=
   G.traverse((o)=>{ o.frustumCulled=false; });
   return G; }
 function vueCockpit(){ const v=P.veh; return vue1P()&&ETAT.mode==='jeu'&&!!v&&!v.noye&&!FPS.actif&&(!INT.actif||!!INT.actif.depot)&&!MANEGES.actif&&!lunetteSniper()&&P.hp>0; }
-function cockpitConstruire(v){ cockpitRetirer(); cockpitVitrer(v.mesh); const D=cockpitDims(v), C=COCKPIT; if(D.fam==='velo') ckMasquerGuidon(v.mesh);
+/* La soucoupe vue de dedans (17 octobre au soir, 3e liste, signalé : « en 1re personne, en altitude, on ne voit rien du sol, car
+   l'appareil ne s'incline pas ») : sa coque (les deux disques, juste sous l'œil) et son dôme deviennent, le temps du cockpit, un
+   verre à peine teinté sans reflet (_MAT_VITRE_OVNI) — l'anneau sombre du bord reste opaque et sert de cadre ; le regard plonge
+   avec l'altitude (cameraCockpit, CK_OVNI_PLONGE) : on voit le sol défiler sous soi, le faisceau du rayon tracteur et ce qu'il
+   soulève. Rien n'est changé au pilotage. Comparé : un écran « caméra au sol » demanderait un 2e rendu de la ville par image
+   (trop lourd pour un iPhone), un radar resterait abstrait. */
+let _MAT_VITRE_OVNI=null; const CK_OVNI_COQUE=[0x8ab4c8,0x8adfff], CK_OVNI_PLONGE=0.6, CK_OVNI_ALT=[6,50];
+function ckVitrerOvni(g){ if(!_MAT_VITRE_OVNI) _MAT_VITRE_OVNI=new THREE.MeshBasicMaterial({color:0xa8e4ff,transparent:true,opacity:0.1,side:THREE.DoubleSide,depthWrite:false});
+  g.traverse((o)=>{ if(!o.isMesh||!o.material||!o.material.color||o.userData.matCk) return; if(!CK_OVNI_COQUE.includes(o.material.color.getHex())) return; o.userData.matCk=o.material; o.material=_MAT_VITRE_OVNI; }); }
+function cockpitConstruire(v){ cockpitRetirer(); cockpitVitrer(v.mesh); if(v.def.ovni) ckVitrerOvni(v.mesh); const D=cockpitDims(v), C=COCKPIT; if(D.fam==='velo') ckMasquerGuidon(v.mesh);
   C.fam=D.fam; C.style=ckStyle(v,D.fam); C.cab=D.cab; C.eye=D.eye; C.approx=D.approx; C.instr=null; C.volant=null; C.manettes=[]; C.affs=[]; C.jauge=null; C.volantA=0; C.bras=[]; C.pitch=CK_PITCH_STYLE[C.style]!==undefined?CK_PITCH_STYLE[C.style]:(CK_PITCH[D.fam]!==undefined?CK_PITCH[D.fam]:-0.06); C.altP=v.alt||0; C.vario=0; C.angP=v.ang||0; C.drAir=0;
   const G=mkCockpitInterieur(v,D); G.matrixAutoUpdate=false; ckScene().add(G); C.g=G; C.v=v; G.matrix.copy(ckRepere(v)); G.updateMatrixWorld(true); majBrasCockpit(); cockpitInstruments(v);
   camera.fov=CK_FOV; camera.near=0.05; camera.updateProjectionMatrix(); if(P.h) P.h.g.visible=false; } /* le corps du joueur (assis sur une moto) serait devant l'œil */
-function cockpitRetirer(){ const C=COCKPIT; C.bras=[]; C.angPrec=undefined; C.regardVire=0; if(C.g){ if(C.g.parent) C.g.parent.remove(C.g); libererEntite(C.g); } const v=C.v; if(v&&v.mesh) cockpitDevitrer(v.mesh); C.g=null; C.v=null; C.instr=null; C.volant=null; C.manettes=[]; C.affs=[]; C.jauge=null;
+function cockpitRetirer(){ const C=COCKPIT; C.bras=[]; C.angPrec=undefined; C.regardVire=0; C.plonge=0; if(C.g){ if(C.g.parent) C.g.parent.remove(C.g); libererEntite(C.g); } const v=C.v; if(v&&v.mesh) cockpitDevitrer(v.mesh); C.g=null; C.v=null; C.instr=null; C.volant=null; C.manettes=[]; C.affs=[]; C.jauge=null;
   if(v&&P.veh===v&&P.h&&P.surMoto) P.h.g.visible=true; }
 function majCockpit(v,dt){ const C=COCKPIT; if(!C.g) return; const d=v.def, joueur=v===P.veh&&v.conduit==='joueur';
   const a=v.ang||0, taux=dt>0?angDiff(C.angP===undefined?a:C.angP,a)/dt:0; C.angP=a; if(d.air) C.drAir=lerp(C.drAir||0,clamp(-taux*0.8,-1,1),clamp(dt*5,0,1));
@@ -36700,8 +36709,9 @@ function cameraCockpit(dt){ const v=P.veh, C=COCKPIT; if(C.v!==v||!C.g) cockpitC
   const vit=Math.abs(v.v||0), o=v.odo||0, R=(v.def.air||v.def.eau)?0:(v.rugL||0)*Math.min(1,vit/14); /* les bosses du terrain (bruitRoute), pas une sinusoïde à fréquence fixe : en ville, l'œil ne bouge presque pas */
   const bob=R*((bruitRoute(o*0.55)-0.5)*0.07+(bruitRoute(o*2.3+17)-0.5)*0.025);
   const e=C.eye; _ckV.set(e.x,e.y+bob,e.z).applyMatrix4(M); camera.position.copy(_ckV);
+  { const cible=C.fam==='ovni'&&v.vol?-CK_OVNI_PLONGE*clamp(((v.alt||0)-poseY(v.x,v.z)-CK_OVNI_ALT[0])/(CK_OVNI_ALT[1]-CK_OVNI_ALT[0]),0,1):0; C.plonge=lerp(C.plonge||0,cible,clamp(dt*1.2,0,1)); } /* soucoupe : plus haut, le regard plonge vers le sol (elle ne s'incline jamais) */
   if(C.fam==='helico'){ const da=angDiff(C.angPrec===undefined?v.ang:C.angPrec,v.ang)/Math.max(dt,1e-3); C.angPrec=v.ang; C.regardVire=lerp(C.regardVire||0,clamp(da*0.3,-0.4,0.4),clamp(dt*2.5,0,1)); } else C.regardVire=0; /* hélico : le regard part dans le virage, le montant et la porte entrent dans le champ (17 octobre au soir : « quand on tourne, on a l'impression d'être dans le vide ») */
-  _ckQ.setFromEuler(_ckE.set(C.pitch+(VUE.pitch1P||0)*0.5,Math.PI+off+st0(v)*0.06+C.regardVire,0,'YXZ')); camera.quaternion.copy(C.quat).multiply(_ckQ); /* l'avant du véhicule est +z, la caméra regarde −z ; le regard part un peu dans le virage (steerIn < 0 = à droite, lacet négatif = regard à droite) */
+  _ckQ.setFromEuler(_ckE.set(C.pitch+(C.plonge||0)+(VUE.pitch1P||0)*0.5,Math.PI+off+st0(v)*0.06+C.regardVire,0,'YXZ')); camera.quaternion.copy(C.quat).multiply(_ckQ); /* l'avant du véhicule est +z, la caméra regarde −z ; le regard part un peu dans le virage (steerIn < 0 = à droite, lacet négatif = regard à droite) */
   const fov=CK_FOV+Math.min(vit,45)*0.18; if(Math.abs(camera.fov-fov)>0.05||camera.near!==0.05){ camera.fov=lerp(camera.fov,fov,0.2); camera.near=0.05; camera.updateProjectionMatrix(); }
   VUE.k=1; VUE.kVeh=1; VUE.yaw=(v.ang||0)+Math.PI+off; VUE.yawUser=VUE.yaw; VUE.offVehRendu=off+C.regardVire; /* le regard dans le virage ne change pas la conduite (vueAngleEcran le retranche) */
   if(!_chalCam.d) _chalCam.d=new THREE.Vector3(); const cd=_chalCam.d; camera.getWorldDirection(cd); VUE.yawRendu=Math.hypot(cd.x,cd.z)>1e-3?Math.atan2(-cd.x,-cd.z):0;

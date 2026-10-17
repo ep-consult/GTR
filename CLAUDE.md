@@ -55,7 +55,7 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
   echo "$ln | $(sed -n "$((ln+1))p" index.html | sed 's/^[ \t]*//')"; done
 ```
 
-**Relevé du 18 octobre — 37 141 lignes.**
+**Relevé du 18 octobre — 37 151 lignes.**
 Attention : `maj_carte` recale les numéros dans l'ordre des lignes de la table ;
 un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la main.
 
@@ -113,7 +113,7 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 35688 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
 | 35929 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
 | 36219 | **COCKPITS** — vue 1re personne au volant (`COCKPIT`, `COCKPIT_FAMILLES`, `cockpitDims`, `mkCockpitInterieur`, `ckDessiner`, `rendreCockpit`, `cameraCockpit`, `cockpitDiagnostic`, `photoCockpit`) |
-| 37006 | BOUCLE PRINCIPALE |
+| 37016 | BOUCLE PRINCIPALE |
 
 ### Ancres fines (hors bandeaux)
 
@@ -1841,6 +1841,28 @@ collectif gère l'altitude ; le palonnier le cap), en arcade :
 - L'OVNI garde son vol (cap et vitesse directs, à plat).
 - Tests : « Hélicoptère, inclinaison » ; « Vol » (DESCENDRE relâché en l'air :
   il tient son altitude ; tenu jusqu'au sol : posé sans casse).
+
+## Soucoupe à la 1re personne : voir en dessous (17 octobre au soir, 3e liste) — `ckVitrerOvni`, `CK_OVNI_PLONGE`
+
+Signalé : « en 1re personne, en altitude, on ne voit rien du sol, car l'appareil
+ne s'incline pas » (pilotage à ne pas toucher). Mesuré : même en regardant vers
+le bas, la console et la COQUE (deux disques opaques juste sous l'œil, à 1,85 u)
+couvraient toute la moitié basse. Options comparées : écran « caméra au sol »
+(un 2e rendu de la ville par image : trop lourd pour un iPhone), radar (abstrait),
+plancher ou bulle vitrée (quasi gratuit, mais utile seulement si l'on regarde en
+bas), caméra inclinée (gratuite, gênante au ras du sol). Retenu : les deux
+dernières ensemble.
+- **Plancher vitré** (`ckVitrerOvni`, dans `cockpitConstruire`) : le temps du
+  cockpit, les disques de la coque et le dôme (`CK_OVNI_COQUE`) prennent un verre
+  à peine teinté sans reflet (`_MAT_VITRE_OVNI`, reconnu par `ckEstVitre`) ;
+  l'anneau sombre du bord reste opaque et sert de cadre ; rendus par
+  `cockpitDevitrer` à la sortie.
+- **Le regard plonge avec l'altitude** (`cameraCockpit`, `C.plonge`) : 0 sous
+  6 u au-dessus du sol, jusqu'à `CK_OVNI_PLONGE` (0,6 rad) à 50 u, lissé ; le
+  regard au doigt s'y ajoute. On voit la ville défiler, le faisceau du rayon et
+  ce qu'il soulève ; la console passe en bandeau en haut. Le joystick suit la
+  vue horizontale (`VUE.yawRendu`) : le pilotage est identique (vérifié).
+- Test : « Soucoupe 1P ».
 
 ## Cockpit fermé de l'hélicoptère (17 octobre au soir) — `ckCabineHelico`, `COCKPIT.regardVire`
 
