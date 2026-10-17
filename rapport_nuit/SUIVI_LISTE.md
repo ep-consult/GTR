@@ -7,7 +7,7 @@ Chaque point est coché quand il est fait ET vérifié (rendu réel, test, valid
 - [x] 3. Yacht : vraie coque, flotte sur l'eau, montée à bord par l'arrière (plateforme de bain, échelle) — coque à tirant d'eau 1,7 u, plateforme de bain, échelle, deux escaliers, la coque arrête les nageurs ; test « Méga-yacht V2 »
 - [x] 4. Chalet sur la colline : ne flotte plus dans le vide — pilotis complet jusqu'au terrain (jusqu'à 8,4 u), croix de contreventement, socle de pierre sous la cabane ; test « Chalet »
 - [x] 5. Animaux : oiseaux en ville ; animaux de la forêt figés en ville → dans la forêt et fonctionnels — pigeons (volées, envol à l'approche et aux tirs), mouettes au bord de mer, forêt du chalet peuplée (cerf, biches, renard, lapins, l'ours), faune qui ne se fige plus et ne se traverse plus ; test « Animaux »
-- [ ] 6. Tir sur les animaux + HEADSHOT (tête séparée du corps, PNJ et animaux)
+- [x] 6. Tir sur les animaux + HEADSHOT (tête séparée du corps, PNJ et animaux) — tête ×2,5, « HEADSHOT ! », oiseaux et animaux visables et abattables ; test « Tir à la tête »
 - [ ] 7. Suspension des voitures : lisse en ville, secousses seulement hors route, plus d'effet à fréquence fixe
 - [ ] 8. Bateaux : claquements sur l'eau moins fréquents et moins amples
 - [ ] 9. Vue 1re personne en chute libre (base jump, wingsuit, parachute)
@@ -24,3 +24,4 @@ Chaque point est coché quand il est fait ET vérifié (rendu réel, test, valid
 - Point 3 : le yacht de la photo est le méga-yacht « Reyes Royale » (celui à l'hélicoptère). Le petit yacht « Impérial » n'a pas été touché.
 - Point 4 : le « chalet sur la colline » est la planque « Chalet retranché » près du sommet du Mont Reyes ; de ses trois options (plateforme, pilotis, terrain modelé), j'ai choisi le pilotis : la pente fait jusqu'à 8 m sous la terrasse.
 - Point 5 : je n'ai trouvé aucun animal sauvage dans les rues ; les animaux « figés qu'on traverse » sont la faune du Mont Reyes (figée au-delà de 160 u, sans collision). La « forêt » est celle des sapins autour du chalet. Si tu en as vu ailleurs en ville, une capture m'aidera.
+- Point 6 : en 1re personne, c'est le regard qui choisit la tête ou le corps ; à la lunette du sniper, toujours la tête ; en 3e personne (visée automatique), une chance de 4 à 20 % selon la précision de l'arme.

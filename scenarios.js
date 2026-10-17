@@ -13458,6 +13458,53 @@ async function main() {
       });
       if (r.ko.length) fail('Animaux : ' + r.ko.join(' ; ')); else ok('Animaux : ' + r.info.join(' ; '));
     }
+    // -------------------------------------------------------------------
+    // Tir à la tête (17 octobre au soir) : une balle du joueur qui arrive à la
+    // tête fait HEADSHOT_K fois plus de dégâts et affiche « HEADSHOT ! », sur
+    // les PNJ comme sur les animaux ; à la 1re personne, c'est le regard qui
+    // décide ; les oiseaux et les animaux se visent et s'abattent.
+    // -------------------------------------------------------------------
+    console.log('\n--- Tir à la tête : HEADSHOT sur PNJ et animaux, oiseaux et animaux abattus ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); META.vue = 'fps'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WANTED.heat = 0;
+        for (const e of ennemis) e.mort = true; WAVES.etat = 'repos'; WAVES.t = 1e9; viderOiseaux();
+        for (const v of vehicules) { scene.remove(v.mesh); libererEntite(v.mesh); } vehicules.length = 0; for (const q of pietons) scene.remove(q.h.g); pietons.length = 0;
+        // une rue libre devant le joueur
+        let x0 = POIS.place.x, z0 = POIS.place.z, ang = 0, best = -1;
+        for (let gx = -2; gx <= 2; gx++) for (let gz = -2; gz <= 2; gz++) { const cx = POIS.place.x + gx * 13, cz = POIS.place.z + gz * 13; if (solidAt(cx, cz, 2)) continue; for (const a of [0, Math.PI / 2, Math.PI, -Math.PI / 2]) { let L = 0; for (let d = 2; d < 30; d++) { if (solidAt(cx + Math.sin(a) * d, cz + Math.cos(a) * d, 1.2)) break; L = d; } if (L > best) { best = L; ang = a; x0 = cx; z0 = cz; } } }
+        P.x = x0; P.z = z0; P.y = solY(x0, z0); P.ang = ang; P.chute = false; P.nage = false; P.armeCur = 'pistolet'; META.armes.pistolet.poss = true; P.mags.pistolet = 99; P.mun.pistolet = 99; P.cadT = 0;
+        const fx = Math.sin(ang), fz = Math.cos(ang);
+        const tire = (n) => { for (let i = 0; i < n; i++) majPools(1 / 30); };
+        const regarde = (y, d) => { VUE.pitch1P = Math.atan2(y - (P.y + OEIL_1P), d); VUE1P.k = 1; };
+        for (let i = 0; i < 4; i++) majCamera(1 / 30); if (!VUE1P.actif) ko.push('pas de 1re personne');
+        // un gangster à 10 u : au corps, puis à la tête
+        const typ = Object.keys(ETYPES).find((k) => ETYPES[k].fac && ETYPES[k].fac !== 'police' && !ETYPES[k].boss && !ETYPES[k].heli) || 'gang1';
+        const e = creerEnnemi(typ, x0 + fx * 10, z0 + fz * 10, true); if (!e) return { ko: ['gangster pas créé'], info };
+        e.stun = 99; e.passif = true; const essai = (yVise) => { e.hp = 1000; e.mort = false; e.x = x0 + fx * 10; e.z = z0 + fz * 10; if (e.h) { e.h.g.position.set(e.x, solY(e.x, e.z), e.z); e.h.g.updateMatrixWorld(true); }
+          regarde(yVise, 10); P.cadT = 0; const n0 = HEADSHOTS.n; attaquer(); tire(20); return { perte: 1000 - e.hp, hs: HEADSHOTS.n - n0 }; };
+        const corps = essai(solY(e.x, e.z) + 1.0), tete = essai(teteDe(e).y);
+        if (!(corps.perte > 0 && corps.hs === 0)) ko.push('tir au corps : ' + JSON.stringify(corps));
+        if (!(tete.hs === 1 && tete.perte > corps.perte * 2)) ko.push('tir à la tête : ' + JSON.stringify(tete) + ' (corps ' + corps.perte + ')');
+        else info.push('gangster : corps −' + corps.perte.toFixed(0) + ', tête −' + tete.perte.toFixed(0) + ' (HEADSHOT)');
+        e.mort = true;
+        // un sanglier à la tête (la tête dépasse devant le corps)
+        const m = mkAnimal('sanglier'), D = FAUNE_DEFS.sanglier, ax = x0 + fx * 9, az = z0 + fz * 9, ay = solY(ax, az); m.g.position.set(ax, ay, az);
+        const an = { type: 'sanglier', D, g: m.g, pattes: m.pattes, tete: m.tete, x: ax, z: az, y: ay, ang: ang + Math.PI / 2, hp: 1000, mort: false, mordT: 0, errT: 99, ph: 0, corpsT: 0, zone: 'test' }; m.g.rotation.y = an.ang; m.g.updateMatrixWorld(true); FAUNE.push(an);
+        const t = teteDe(an).clone(); const d = Math.hypot(t.x - P.x, t.z - P.z); regarde(t.y, d); P.cadT = 0; const n1 = HEADSHOTS.n; attaquer(); tire(20);
+        if (HEADSHOTS.n - n1 !== 1 || !(1000 - an.hp > 0)) ko.push('sanglier : pas de HEADSHOT (' + (1000 - an.hp) + ')'); else info.push('sanglier : HEADSHOT −' + (1000 - an.hp).toFixed(0));
+        scene.remove(m.g); FAUNE.splice(FAUNE.indexOf(an), 1);
+        // un pigeon : on le vise sous la mire et on l'abat
+        const o = oisNouveau('pigeon', x0 + fx * 8, solY(x0 + fx * 8, z0 + fz * 8) + 1.6, z0 + fz * 8, x0, z0); o.etat = 'plane'; regarde(o.y + 0.15, 8); P.cadT = 0; attaquer(); tire(20);
+        if (!o.mort) ko.push('le pigeon sous la mire n’est pas abattu'); else info.push('pigeon abattu');
+        // en 3e personne, sans personne d'autre devant, la visée prend un oiseau
+        META.vue = 'classique'; majCamera(1 / 30); viderOiseaux(); const o2 = oisNouveau('pigeon', x0 + fx * 9, solY(x0 + fx * 9, z0 + fz * 9), z0 + fz * 9, x0, z0); o2.etat = 'sol';
+        if (viseAuto(30) !== o2) ko.push('en 3e personne, la visée ne prend pas l’oiseau devant'); viderOiseaux(); META.vue = 'classique';
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Tir à la tête : ' + r.ko.join(' ; ')); else ok('Tir à la tête : ' + r.info.join(' ; '));
+    }
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];

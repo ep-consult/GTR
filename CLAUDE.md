@@ -1685,6 +1685,30 @@ bougent pas, qu'on traverse : dans la forêt, et fonctionnels ».
   « figés qu'on traverse » sont la faune du Mont Reyes.
 - Test : « Animaux ».
 
+## Tir à la tête et tir sur les animaux (17 octobre au soir) — `teteDe`, `estHeadshot`, `HEADSHOT_K`
+
+Demandé : « tirer sur les oiseaux et les animaux avec les armes et le viseur ;
+sépare la tête du corps pour les dégâts, sur les PNJ comme sur les animaux ;
+un message HEADSHOT ».
+- **La tête** (`teteDe`, `rayonTete`) : celle du vrai modèle (PNJ : `h.tete`),
+  devant le corps pour les animaux (`mkAnimal` la rend, FAUNE la garde), le
+  bout du corps pour un oiseau. **`estHeadshot`** : balle du joueur au-dessus
+  du menton (le torse est visé à 1,2, juste dessous) et près de la tête ; ×2,5
+  de dégâts (`HEADSHOT_K`), « HEADSHOT ! » au-dessus de la tête (taille selon
+  la distance : `spawnTexte(…, k)`), +50, son `SFX.headshot`, `HEADSHOTS.n`.
+- **Sur le dernier pas de la balle** (`segBalle` : 1/30 s) : à 72 u/s une balle
+  saute 2,4 u d'une image à l'autre et passait à côté d'une tête ou d'un animal
+  sans jamais y tomber. Animaux (corps et tête) et oiseaux testés ainsi ;
+  ennemis : la tête seulement (leur corps garde le test d'avant).
+- **Viser la tête** : à la 1re personne, le regard décide (si la ligne du
+  regard passe plus près de la tête que du torse, la balle va à la tête) ; à la
+  lunette du sniper, toujours ; en 3e personne, une chance selon la précision
+  de l'arme (4 à 20 %).
+- **Les oiseaux et les animaux se visent** : sous la mire en 1re personne
+  (`viseAuto1P`) ; en 3e personne, un oiseau devant seulement s'il n'y a
+  personne d'autre (`viseAuto`) ; les chiens des rues aussi (karma en moins).
+- Test : « Tir à la tête ».
+
 ## Retours de playtest du 16 octobre — véhicules et conduite
 
 - **Taxi, police et Rafale** gardent leur ANCIEN modèle (signalé : « le capot

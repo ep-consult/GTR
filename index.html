@@ -1083,6 +1083,7 @@ const SFX={
   rechDouilles(){[0,70,130,210].forEach((d,i)=>setTimeout(()=>beep(2400+i*300,0.03,'sine',0.06,1800),d));},
   vide(){beep(220,0.05,'square',0.12);},
   ramasse(){beep(660,0.06,'square',0.16);setTimeout(()=>beep(990,0.08,'square',0.16),60);},
+  headshot(){beep(1480,0.05,'square',0.18);setTimeout(()=>beep(1980,0.07,'triangle',0.16),45);}, /* le tir à la tête : un ping sec, plus aigu que ramasse */
   cash(){beep(880,0.05,'square',0.14,0,AUDIO.uiG);setTimeout(()=>beep(1320,0.09,'square',0.14,0,AUDIO.uiG),55);},
   soin(){beep(520,0.12,'sine',0.2,780);},
   explo(){bruit(0.6,1.0,250);beep(60,0.5,'sine',0.5,28);vibre(80);},
@@ -16539,7 +16540,23 @@ let TIR_MOD=null; // munition spéciale de la salve en cours (balles explosives 
 // (16 octobre, signalé : « sur les collines et la montagne, ni moi ni les ennemis ne pouvons tirer ») : toutes les
 // hauteurs de tir et de touche se comptent depuis le SOL de chacun (solY), plus depuis y = 0
 function hCibleJoueur(){ return P.veh?(P.veh.def.air?Math.max(1,P.veh.alt||0):(P.veh.h||0)+1):P.y+1.2; }
-function hCible(c){ return c.heli?15.4:(c.D?c.y+0.7:solY(c.x,c.z)+1.2); }
+function hCible(c){ return c.heli?15.4:(c.oiseau?c.y+0.15*c.T.k:(c.D?c.y+0.7:solY(c.x,c.z)+1.2)); }
+/* ---- La tête et le corps (17 octobre au soir, demandé : « sépare la tête du corps pour les dégâts, sur les PNJ comme sur les
+   animaux ; un message HEADSHOT ») : une balle du joueur qui arrive à hauteur de la tête, près d'elle, fait HEADSHOT_K fois plus
+   de dégâts. La tête : celle du vrai modèle (PNJ), devant le corps (animaux, mkAnimal la note), le bout du corps (oiseaux). */
+const HEADSHOT_K=2.5, _teteV=new THREE.Vector3();
+function teteDe(c){ if(c.oiseau){ const k=c.T.k; return _teteV.set(c.x+Math.sin(c.ang)*0.17*k,c.y+0.24*k,c.z+Math.cos(c.ang)*0.17*k); }
+  if(c.D&&c.g){ if(c.tete){ c.tete.getWorldPosition(_teteV); return _teteV; } const l=c.D.long/2+0.2; return _teteV.set(c.x+Math.sin(c.ang)*l,c.y+0.85,c.z+Math.cos(c.ang)*l); }
+  const h=c.h; if(h&&h.tete){ h.tete.getWorldPosition(_teteV); return _teteV; } return _teteV.set(c.x,solY(c.x,c.z)+1.5,c.z); }
+function rayonTete(c){ if(c.oiseau) return 0.07*c.T.k; if(c.D) return c.type==='ours'?0.42:0.3; const s=c.h&&c.h.g?c.h.g.scale.y:1; return 0.22*s*(c.boss?1.4:1); }
+/* le dernier pas de la balle (1/30 s) : son point le plus proche de (x,z) dans le plan, et sa hauteur là — à 72 u/s une balle saute 2,4 u
+   d'une image à l'autre : testée sur sa seule position, elle passait à côté d'une tête (ou d'un animal) sans jamais y tomber */
+const _segB={d2:0,y:0};
+function segBalle(b,x,z){ const vx=b.vx/30, vz=b.vz/30, px=b.x-vx, pz=b.z-vz, vv=vx*vx+vz*vz||1, t=clamp(((x-px)*vx+(z-pz)*vz)/vv,0,1), qx=px+vx*t-x, qz=pz+vz*t-z; _segB.d2=qx*qx+qz*qz; _segB.y=b.y-(b.vy||0)/30*(1-t); return _segB; }
+function estHeadshot(b,c){ if(b.fac!=='joueur') return false; const t=teteDe(c), r=rayonTete(c), rh=r+0.5, sg=segBalle(b,t.x,t.z);
+  return sg.d2<rh*rh&&sg.y>t.y-r*0.7&&sg.y<t.y+r+0.06; } /* au-dessus du menton : le torse est visé à 1,2, juste sous la tête */
+function annonceHeadshot(t){ const dC=camera.position.distanceTo(t); spawnTexte(t.x,t.y+0.5,t.z,'HEADSHOT !','#ff3b3b',clamp(dC/14,0.35,1)); ETAT.score+=50; vibre(25); if(SFX.headshot) SFX.headshot(); else if(SFX.ramasse) SFX.ramasse(); if(VUE1P.actif) VUE1P.headshot=0.5; HEADSHOTS.n++; }
+const HEADSHOTS={n:0};
 function tirer(x,y,z,ang,disp,vitesse,dmg,fac,coul,cibleY,distCible,typ){
   const b=balles.find(b=>!b.on); if(!b) return;
   const a=ang+rand(-disp,disp)*Math.PI/180;
@@ -16670,7 +16687,7 @@ for(let i=0;i<12;i++){
   textes.push({on:false,sp:s,cv,tx,t:0});
 }
 let txtCursor=0;
-function spawnTexte(x,y,z,txt,coul){
+function spawnTexte(x,y,z,txt,coul,k){
   const T=textes[txtCursor++%12];
   const g=T.cv.getContext('2d');
   g.clearRect(0,0,256,64);
@@ -16678,7 +16695,7 @@ function spawnTexte(x,y,z,txt,coul){
   g.lineWidth=7; g.strokeStyle='#0b0c10'; g.strokeText(txt,128,32);
   g.fillStyle=coul||'#fff'; g.fillText(txt,128,32);
   T.tx.needsUpdate=true;
-  T.on=true; T.t=1.05; T.sp.visible=true; T.sp.material.opacity=1;
+  T.on=true; T.t=1.05; T.sp.visible=true; T.sp.material.opacity=1; const kk=k||1; T.sp.scale.set(5.2*kk,1.3*kk,1); /* k : taille (HEADSHOT, plus petit : à 7 u en portrait, il débordait de l'écran) */
   T.sp.position.set(x,y,z);
 }
 const skids=[];
@@ -17137,6 +17154,7 @@ function viseAuto(portee){
   }
   for(const an of FAUNE){ if(an.mort) continue; const d=Math.sqrt(dist2(an.x,an.z,P.x,P.z)); if(d>portee*1.12) continue; // animaux de l'île
     const s2=d+Math.abs(angDiff(P.ang,Math.atan2(an.x-P.x,an.z-P.z)))*6; if(s2<bs){ bs=s2; best=an; } }
+  if(!best) for(const o of OISEAUX.liste){ if(o.mort) continue; const d=Math.sqrt(dist2(o.x,o.z,P.x,P.z)); if(d>Math.min(portee,35)) continue; const da=Math.abs(angDiff(P.ang,Math.atan2(o.x-P.x,o.z-P.z))); if(da>0.6) continue; const s3=d+da*6; if(s3<bs){ bs=s3; best=o; } } /* un oiseau devant, s'il n'y a personne d'autre (jamais une volée de pigeons à la place d'un gangster) */
   return best;
 }
 /* ---------- attaques ---------- */
@@ -17195,6 +17213,10 @@ function attaquer(){
     if(!v1p){ P.ang=ang; P.tirT=0.5; }
     dc=Math.sqrt(dist2(cible.x,cible.z,P.x,P.z));
     cy=hCible(cible); // animal : visé à sa hauteur (montagne de l'île) ; au sol : à sa hauteur sur le relief
+    if(!cible.heli&&!cible.oiseau){ /* la tête : à la 1re personne, si le regard passe plus près d'elle que du corps ; à la lunette du sniper, toujours ; sinon, une chance selon la précision de l'arme */
+      const t=teteDe(cible), dT=Math.hypot(t.x-P.x,t.z-P.z), yL=P.y+OEIL_1P+Math.tan(VUE.pitch1P||0)*dT, lun=typeof lunetteSniper==='function'&&lunetteSniper();
+      const vise=v1p?(Math.abs(yL-t.y)<Math.abs(yL-cy)&&Math.abs(yL-t.y)<0.45):(lun||Math.random()<clamp(0.2-(st.disp||0)*0.02,0.04,0.2));
+      if(vise){ cy=t.y; dc=dT; ang=Math.atan2(t.x-P.x,t.z-P.z); } }
   } else if(v1p){ dc=Math.min(st.portee,70); cy=P.y+OEIL_1P+Math.tan(VUE.pitch1P||0)*dc; } /* rien sous la mire : droit où l'on regarde, à la hauteur du regard */
   if(v1p) tirPremiere(st);
   if((P.ivresse||0)>IVRESSE.ivre) ang+=rand(-1,1)*0.16*Math.min(1,(P.ivresse-IVRESSE.ivre)/40); // ivre : tir imprécis
@@ -21450,7 +21472,11 @@ function impactSpecial(b,e){
 }
 function collisionBalle(b){
   if(b.fac==='joueur'&&(toucherFigurant(b)||toucherCibleBase(b)||toucherCiel(b))) return true; // figurants de décor et des salles (16 octobre)
-  if(b.fac==='joueur') for(let i=0;i<FAUNE.length;i++){ const a=FAUNE[i]; if(!a.mort&&Math.abs(b.y-(a.y+0.7))<1.4&&dist2(b.x,b.z,a.x,a.z)<1.2){ toucherAnimal(a,b.dmg); return true; } } // animaux de l'île
+  if(b.fac==='joueur') for(let i=0;i<FAUNE.length;i++){ const a=FAUNE[i]; if(a.mort) continue; const hs=estHeadshot(b,a), sB=segBalle(b,a.x,a.z); if(hs||(Math.abs(sB.y-(a.y+0.7))<1.4&&sB.d2<1.2)){ toucherAnimal(a,b.dmg*(hs?HEADSHOT_K:1)); if(hs) annonceHeadshot(teteDe(a)); return true; } } // animaux de l'île et du mont (la tête dépasse devant le corps)
+  if(b.fac==='joueur'&&OISEAUX.liste.length) for(const o of OISEAUX.liste){ if(o.mort) continue; const k=o.T.k, cx=o.x, cy=o.y+0.15*k, cz=o.z; /* oiseaux : petits et rapides, testés sur le trajet de la balle pendant la dernière image */
+    const px=b.x-b.vx/30, py=b.y-b.vy/30, pz=b.z-b.vz/30, vx=b.vx/30, vy=b.vy/30, vz=b.vz/30, vv=vx*vx+vy*vy+vz*vz||1, t=clamp(((cx-px)*vx+(cy-py)*vy+(cz-pz)*vz)/vv,0,1);
+    const qx=px+vx*t-cx, qy=py+vy*t-cy, qz=pz+vz*t-cz, r=0.3*k; if(qx*qx+qy*qy+qz*qz<r*r){ const hs=estHeadshot({fac:'joueur',x:px+vx*t,y:py+vy*t,z:pz+vz*t},o); oiseauTue(o,b.vx*0.04,b.vz*0.04); if(hs) annonceHeadshot(teteDe(o)); return true; } }
+  if(b.fac==='joueur') for(const c of CHIENS){ if(c.vole) continue; if(dist2(b.x,b.z,c.x,c.z)<0.5&&b.y-solY(c.x,c.z)<0.9){ percuterAnimal(c,b.vx/72,b.vz/72,8,true); return true; } } /* les chiens des rues aussi (karma en moins) */
   for(const e of ennemis){
     if(e.mort||e.fac===b.fac) continue;
     if(e.heli){
@@ -21464,7 +21490,7 @@ function collisionBalle(b){
     // réelle) tout en la déclarant à tort « au sol ». Hors de portée des
     // tirs le temps du levage, cohérent avec l'IA déjà coupée.
     if(e.captureOvni) continue;
-    if(dist2(b.x,b.z,e.x,e.z)<(e.boss?2.2:0.8)&&b.y-solY(e.x,e.z)<2.6&&b.y-solY(e.x,e.z)>-0.3){ toucherEnnemi(e,b.dmg,b.fac==='joueur',2,b.fac,b.x-b.vx*0.1,b.z-b.vz*0.1); impactSpecial(b,e); return true; }
+    if(dist2(b.x,b.z,e.x,e.z)<(e.boss?2.2:0.8)&&b.y-solY(e.x,e.z)<2.6&&b.y-solY(e.x,e.z)>-0.3){ const hs=estHeadshot(b,e); toucherEnnemi(e,b.dmg*(hs?HEADSHOT_K:1),b.fac==='joueur',2,b.fac,b.x-b.vx*0.1,b.z-b.vz*0.1); if(hs) annonceHeadshot(teteDe(e)); impactSpecial(b,e); return true; }
   }
   if(b.fac!=='joueur'){
     if(P.veh){
@@ -21477,7 +21503,7 @@ function collisionBalle(b){
   }
   for(const p of pietons){
     if(p.etat==='mort'||p.captureOvni) continue;
-    if(dist2(b.x,b.z,p.x,p.z)<0.55&&b.y-(p.h.g.position.y||0)<2.2&&b.y-(p.h.g.position.y||0)>-0.3){ if(b.mod==='feu'&&!p.feuT){ p.feuT=2.5; p.etat='fuite'; p.t=2.5; } else tuerPieton(p,b.fac==='joueur',5); impactSpecial(b,null); return true; }
+    if(dist2(b.x,b.z,p.x,p.z)<0.55&&b.y-(p.h.g.position.y||0)<2.2&&b.y-(p.h.g.position.y||0)>-0.3){ const hs=b.mod!=='feu'&&estHeadshot(b,p); if(b.mod==='feu'&&!p.feuT){ p.feuT=2.5; p.etat='fuite'; p.t=2.5; } else tuerPieton(p,b.fac==='joueur',5); if(hs) annonceHeadshot(teteDe(p)); impactSpecial(b,null); return true; }
   }
   for(const v of vehicules){
     if(v.mort||v===P.veh||v.captureOvni) continue;
@@ -35848,6 +35874,7 @@ function viseAuto1P(portee,verrou){ const cone=verrou?(VUE1P.k>0.5?0.03:0.055):(
     if(da>cone+0.7/d||dp>cone*1.6+0.9/d) return; const sc=da+dp*0.7; if(sc<bs){ if(!c.heli&&!ligneLibre(P.x,P.z,x,z)) return; bs=sc; best=c; } };
   for(const e of ennemis) if(!e.mort) test(e,e.x,e.z,hCible(e));
   for(const an of FAUNE) if(!an.mort) test(an,an.x,an.z,hCible(an));
+  for(const o of OISEAUX.liste) if(!o.mort) test(o,o.x,o.z,hCible(o)); /* les oiseaux : sous la mire, on les vise */
   return best; }
 function tirPremiere(st){ const V=VUE1P, A=ARMES[P.armeCur]; V.recul=Math.min(1,V.recul+(A&&A.roquette?1:(st.pellets||1)>1?0.8:0.35)); V.flash=0.06; if(V.montage&&V.montage.douilles) fpsEjecter(V.montage); }
 // la mire de hanche (fine : quatre traits qui s'écartent avec la dispersion, un point) et l'image de la lunette
