@@ -18684,25 +18684,28 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
   else if(eau) v.mesh.rotation.x=Math.sin(ETAT.runT*2.2)*0.03;
   for(const r of v.mesh.userData.roues) r.rotation.x+=v.v*dt*1.6;
   if(v.mesh.userData.volet) majVolet(v,dt);
-  // Monster Truck : suspension molle — le châssis (userData.corps, roues
-  // exclues) tangue et rebondit indépendamment des roues, qui restent au
-  // sol. Amplitude/fréquence croissent avec la vitesse, léger roulis en
-  // virage, plus un très léger balancement au ralenti (une suspension à
-  // grand débattement ne se fige jamais tout à fait) — voir CLAUDE.md.
-  // Pickup (Ford Raptor) et Buggy des dunes partagent la même suspension
-  // molle que le Monster Truck, en amplitude réduite (suspKey) — demandé
-  // explicitement pour le Pickup (« même sensation que le Monster Truck »).
+  // Suspension (17 octobre au soir, signalé : « la voiture monte et descend sans arrêt, toujours à la même fréquence ;
+  // en ville, conduite quasi lisse ; un peu de secousses seulement dans le désert ou en tout-terrain ») : la caisse
+  // (userData.corps, roues exclues) suit des BOSSES IRRÉGULIÈRES le long du chemin parcouru (bruitRoute, jamais une
+  // sinusoïde), à la mesure du sol (rugositeSol : rien sur l'asphalte de la ville, beaucoup sur le sable, le désert,
+  // le relief) et de la vitesse. Monster Truck, Pickup et Buggy (suspKey) gardent leur grand débattement et leur
+  // roulis en virage, sur le même bruit ; à l'arrêt, plus de balancement.
+  if(!d.air&&!eau){ v.odo=(v.odo||0)+Math.abs(v.v)*dt; v.rugL=lerp(v.rugL||0,v.enAir?0:rugositeSol(v.x,v.z),clamp(dt*3,0,1)); }
   const suspKey=v.key==='monstertruck'?1:(v.key==='pickup'?0.55:(v.def.buggy?0.32:0));
-  if(suspKey&&v.mesh.userData.corps){
-    v.suspPh=(v.suspPh||0)+dt*(1.7+Math.min(2.6,Math.abs(v.v)*0.16));
-    const amp=(0.045+Math.min(0.15,Math.abs(v.v)*0.011))*suspKey;
-    const bounce=Math.sin(v.suspPh)*amp+Math.sin(v.suspPh*2.3+1)*amp*0.35;
-    const cc=v.mesh.userData.corps;
-    cc.position.y=bounce;
-    cc.rotation.z=lerp(cc.rotation.z||0,(-steerEff*fac*0.16+Math.sin(v.suspPh*0.9)*0.02)*suspKey,clamp(6*dt,0,1));
-    cc.rotation.x=Math.sin(v.suspPh*1.3)*0.02*suspKey;
+  const cc=v.mesh.userData.corps;
+  if(cc&&!d.air&&!eau&&d.type!=='moto'&&!d.velo&&!d.skate&&!d.surf&&!v.wheelieA){
+    const R=(v.rugL||0)*Math.min(1,Math.abs(v.v)/14), sk=0.35+suspKey, o=v.odo||0;
+    const amp=(0.05+0.12*suspKey)*R, b=(bruitRoute(o*0.55)-0.5)+(bruitRoute(o*2.3+17)-0.5)*0.35;
+    cc.position.y=lerp(cc.position.y||0,b*amp,clamp(dt*10,0,1));
+    cc.rotation.x=lerp(cc.rotation.x||0,(bruitRoute(o*0.8+5)-0.5)*0.05*R*sk,clamp(dt*8,0,1));
+    cc.rotation.z=lerp(cc.rotation.z||0,(v.degSt>=3?0.05:0)-steerEff*fac*0.16*suspKey+(bruitRoute(o*0.7+9)-0.5)*0.05*R*sk,clamp(6*dt,0,1)); /* caisse de travers des gros dégâts (degatsVisuels) gardée */
   }
 }
+/* la rugosité du sol sous un véhicule : 0 sur l'eau, presque rien sur l'asphalte et les trottoirs de la ville, un peu
+   ailleurs (herbe, hors de la ville), beaucoup sur le sable, le désert et les reliefs (montagne, canyons, parcs de terre) */
+function rugositeSol(x,z){ if(estEau(x,z)) return 0; if(DECOR_V2&&dansReliefLibre(x,z)) return 1; if(estSable(x,z)) return 0.75; if(estDesert(x,z)) return 0.85; if(Math.abs(x)<HALF&&Math.abs(z)<HALF) return 0.03; return 0.45; }
+/* bruit de valeur 1D lissé : des bosses irrégulières le long du chemin, jamais une période fixe */
+function bruitRoute(t){ const i=Math.floor(t), f=t-i, h=(n)=>{ const q=Math.sin(n*127.1+311.7)*43758.5453; return q-Math.floor(q); }, u=f*f*(3-2*f); return h(i)*(1-u)+h(i+1)*u; }
 function lancerRagdollJoueurFx(){ burst(P.x,1,P.z,8,0xff9f5a,8); secousse(8); }
 /* ---------- conduite joueur ---------- */
 // Véhicule terrestre à l'eau (demandé : « rentrer dans l'eau sans exploser, mais
@@ -36416,7 +36419,8 @@ function cameraCockpit(dt){ const v=P.veh, C=COCKPIT; if(C.v!==v||!C.g) cockpitC
   const M=ckRepere(v); C.g.matrix.copy(M); C.g.matrixWorldNeedsUpdate=true; C.g.updateMatrixWorld(true); majCockpit(v,dt);
   if(P.h&&P.h.g.visible) P.h.g.visible=false; if(reticule.visible) reticule.visible=false;
   if(!VUE.drag) VUE.offVeh=lerp(VUE.offVeh||0,0,clamp(dt*2.2,0,1)); const off=VUE.offVeh||0;
-  const vit=Math.abs(v.v||0); C.bob+=dt*(4+vit*0.35); const bob=(vit>2?0.004+Math.min(vit,40)*0.0004:0)*Math.sin(C.bob);
+  const vit=Math.abs(v.v||0), o=v.odo||0, R=(v.def.air||v.def.eau)?0:(v.rugL||0)*Math.min(1,vit/14); /* les bosses du terrain (bruitRoute), pas une sinusoïde à fréquence fixe : en ville, l'œil ne bouge presque pas */
+  const bob=R*((bruitRoute(o*0.55)-0.5)*0.07+(bruitRoute(o*2.3+17)-0.5)*0.025);
   const e=C.eye; _ckV.set(e.x,e.y+bob,e.z).applyMatrix4(M); camera.position.copy(_ckV);
   _ckQ.setFromEuler(_ckE.set(C.pitch+(VUE.pitch1P||0)*0.5,Math.PI+off+st0(v)*0.06,0,'YXZ')); camera.quaternion.copy(C.quat).multiply(_ckQ); /* l'avant du véhicule est +z, la caméra regarde −z ; le regard part un peu dans le virage (steerIn < 0 = à droite, lacet négatif = regard à droite) */
   const fov=CK_FOV+Math.min(vit,45)*0.18; if(Math.abs(camera.fov-fov)>0.05||camera.near!==0.05){ camera.fov=lerp(camera.fov,fov,0.2); camera.near=0.05; camera.updateProjectionMatrix(); }

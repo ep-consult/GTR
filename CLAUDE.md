@@ -1709,6 +1709,24 @@ un message HEADSHOT ».
   personne d'autre (`viseAuto`) ; les chiens des rues aussi (karma en moins).
 - Test : « Tir à la tête ».
 
+## Suspension (17 octobre au soir) — `rugositeSol`, `bruitRoute`
+
+Signalé : « en conduisant, la voiture monte et descend sans arrêt, toujours à la
+même fréquence ; en ville quasi lisse, un peu de secousses seulement dans le
+désert ou en tout-terrain ». Deux sources : l'œil du cockpit (une sinusoïde à
+chaque vitesse, partout) et la suspension du Monster Truck, du Pickup et du
+Buggy (sinusoïdes, même à l'arrêt).
+- La caisse (`userData.corps`, roues exclues) de tout véhicule terrestre à
+  caisse suit des **bosses irrégulières le long du chemin parcouru** (`v.odo`,
+  `bruitRoute` : bruit de valeur lissé, jamais une période), à la mesure du sol
+  (`rugositeSol` : 0,03 sur l'asphalte de la ville, 0,75 le sable, 0,85 le
+  désert, 1 les reliefs) lissée (`v.rugL`) et de la vitesse. Les `suspKey`
+  gardent un grand débattement et leur roulis en virage ; à l'arrêt, plus rien.
+  La caisse de travers des gros dégâts (`v.degSt>=3`) est gardée.
+- L'œil du cockpit suit les mêmes bosses (plus de sinusoïde).
+- Mesuré (test « Suspension ») : en ville, caisse 0,001 u et œil 0,002 u ; sur
+  le sable, caisse ~0,03 u, rythme irrégulier.
+
 ## Retours de playtest du 16 octobre — véhicules et conduite
 
 - **Taxi, police et Rafale** gardent leur ANCIEN modèle (signalé : « le capot

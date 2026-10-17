@@ -13505,6 +13505,46 @@ async function main() {
       });
       if (r.ko.length) fail('Tir à la tête : ' + r.ko.join(' ; ')); else ok('Tir à la tête : ' + r.info.join(' ; '));
     }
+    // -------------------------------------------------------------------
+    // Suspension (17 octobre au soir, signalé : « la voiture monte et descend
+    // sans arrêt, toujours à la même fréquence ») : en ville la caisse et l'œil
+    // du cockpit restent quasi immobiles ; sur le sable, des bosses
+    // IRRÉGULIÈRES (jamais une période fixe) ; à l'arrêt, plus de balancement.
+    // -------------------------------------------------------------------
+    console.log('\n--- Suspension : lisse en ville, bosses irrégulières hors route ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); META.vue = 'fps'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WANTED.heat = 0;
+        for (const e of ennemis) e.mort = true; WAVES.etat = 'repos'; WAVES.t = 1e9;
+        for (const v of vehicules) { scene.remove(v.mesh); libererEntite(v.mesh); } vehicules.length = 0;
+        // une rue droite et libre
+        let x0 = 0, z0 = 0, ang = 0, best = -1;
+        for (let gx = -3; gx <= 3; gx++) for (let gz = -3; gz <= 3; gz++) { const cx = POIS.place.x + gx * 13, cz = POIS.place.z + gz * 13; if (solidAt(cx, cz, 2) || Math.abs(cx) > HALF - 60 || Math.abs(cz) > HALF - 60) continue; for (const a of [0, Math.PI / 2, Math.PI, -Math.PI / 2]) { let L = 0; for (let d = 3; d < 70; d++) { if (solidAt(cx + Math.sin(a) * d, cz + Math.cos(a) * d, 1.6)) break; L = d; } if (L > best) { best = L; ang = a; x0 = cx; z0 = cz; } } }
+        const roule = (k, x, z, a, s, n) => { for (const q of vehicules) { scene.remove(q.mesh); libererEntite(q.mesh); } vehicules.length = 0; const v = creerVehicule(k, x, z, a); P.x = x; P.z = z; entrerVehicule(v); v.v = s;
+          const ys = [], eyes = [];
+          for (let i = 0; i < n; i++) { majVehiculePhys(v, 1 / 30, s > 0 ? 0.55 : 0, 0, false); if (s > 0) v.v = s; const c = v.mesh.userData.corps; ys.push(c ? c.position.y : 0); cameraCockpit(1 / 30); camera.updateMatrixWorld(); const e = new THREE.Vector3(); v.mesh.worldToLocal(e.copy(camera.position)); eyes.push(e.y); }
+          sortirVehicule(true); return { ys, eyes }; };
+        const amp = (t) => { let mn = 1e9, mx = -1e9; for (const y of t.slice(10)) { mn = Math.min(mn, y); mx = Math.max(mx, y); } return mx - mn; };
+        const ville = roule('citadine', x0, z0, ang, 18, Math.min(150, Math.floor(best / 18 * 30) - 10));
+        if (amp(ville.ys) > 0.008 || amp(ville.eyes) > 0.008) ko.push('en ville, ça bouge encore (caisse ' + amp(ville.ys).toFixed(3) + ', œil ' + amp(ville.eyes).toFixed(3) + ')');
+        info.push('ville : caisse ' + amp(ville.ys).toFixed(3) + ' u, œil ' + amp(ville.eyes).toFixed(3) + ' u');
+        // la plage : le long du sable
+        let bx = 0, bz = MER - 14; for (let x = -200; x < 200; x += 4) { if (estSable(x, bz) && estSable(x + 60, bz) && !solidAt(x, bz, 2)) { bx = x; break; } }
+        const plage = roule('citadine', bx, bz, Math.PI / 2, 18, 120);
+        if (amp(plage.ys) < 0.02) ko.push('sur le sable, la caisse ne secoue pas (' + amp(plage.ys).toFixed(3) + ')');
+        // irrégulier : les passages par zéro (autour de la moyenne) ne sont pas espacés régulièrement
+        const m = plage.ys.reduce((a, b) => a + b, 0) / plage.ys.length, cr = []; for (let i = 11; i < plage.ys.length; i++) if ((plage.ys[i - 1] - m) * (plage.ys[i] - m) < 0) cr.push(i);
+        const iv = []; for (let i = 1; i < cr.length; i++) iv.push(cr[i] - cr[i - 1]); const mi = iv.reduce((a, b) => a + b, 0) / Math.max(1, iv.length), sd = Math.sqrt(iv.reduce((a, b) => a + (b - mi) * (b - mi), 0) / Math.max(1, iv.length));
+        if (iv.length >= 3 && sd / mi < 0.2) ko.push('sur le sable, les secousses ont une période fixe (écart relatif ' + (sd / mi).toFixed(2) + ')');
+        info.push('sable : caisse ' + amp(plage.ys).toFixed(3) + ' u, rythme irrégulier (écart relatif ' + (iv.length ? (sd / mi).toFixed(2) : '—') + ')');
+        // le Monster Truck à l'arrêt en ville : plus de balancement
+        const mt = roule('monstertruck', x0, z0, ang, 0, 90); if (amp(mt.ys) > 0.005) ko.push('le Monster Truck se balance à l’arrêt (' + amp(mt.ys).toFixed(3) + ')'); else info.push('Monster Truck à l’arrêt : immobile');
+        META.vue = 'classique';
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Suspension : ' + r.ko.join(' ; ')); else ok('Suspension : ' + r.info.join(' ; '));
+    }
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];

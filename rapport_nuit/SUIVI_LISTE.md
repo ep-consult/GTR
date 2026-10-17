@@ -8,7 +8,7 @@ Chaque point est coché quand il est fait ET vérifié (rendu réel, test, valid
 - [x] 4. Chalet sur la colline : ne flotte plus dans le vide — pilotis complet jusqu'au terrain (jusqu'à 8,4 u), croix de contreventement, socle de pierre sous la cabane ; test « Chalet »
 - [x] 5. Animaux : oiseaux en ville ; animaux de la forêt figés en ville → dans la forêt et fonctionnels — pigeons (volées, envol à l'approche et aux tirs), mouettes au bord de mer, forêt du chalet peuplée (cerf, biches, renard, lapins, l'ours), faune qui ne se fige plus et ne se traverse plus ; test « Animaux »
 - [x] 6. Tir sur les animaux + HEADSHOT (tête séparée du corps, PNJ et animaux) — tête ×2,5, « HEADSHOT ! », oiseaux et animaux visables et abattables ; test « Tir à la tête »
-- [ ] 7. Suspension des voitures : lisse en ville, secousses seulement hors route, plus d'effet à fréquence fixe
+- [x] 7. Suspension des voitures : lisse en ville, secousses seulement hors route, plus d'effet à fréquence fixe — bosses irrégulières selon le sol (ville 0,001 u, sable 0,03 u), plus de sinusoïde ni de balancement à l'arrêt ; test « Suspension »
 - [ ] 8. Bateaux : claquements sur l'eau moins fréquents et moins amples
 - [ ] 9. Vue 1re personne en chute libre (base jump, wingsuit, parachute)
 - [ ] 10. Police : plus présente, intervient dans les fusillades entre gangs et contre le joueur
