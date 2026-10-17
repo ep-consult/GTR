@@ -8972,6 +8972,33 @@ function fpsBras(W,cote,p,prise,peau,manche,ech){
   fpsSeg(G,poignet,q,0.023,mO,0.025); fpsSeg(G,q,m,0.024,mPeau,0.029); fpsSeg(G,[m[0]-(coude[0]-poignet[0])*0.03,m[1]-(coude[1]-poignet[1])*0.03,m[2]-(coude[2]-poignet[2])*0.03],m,0.034,mM,0.034);
   fpsSeg(G,m,coude,0.032,mM,0.039).userData.hautBras=true; const ep=[coude[0]+s*0.14,coude[1]-0.46,coude[2]+0.4]; fpsSeg(G,coude,ep,0.041,mM,0.05).userData.hautBras=true; /* jusqu'à l'épaule, loin vers le bas et l'arrière : le bras sort toujours par le bas du cadre (raccourci, il finissait en moignon) */
   return G; }
+/* Le poing à mains nues, 2e version (17 octobre au soir, 3e liste, signalé : « au repos et en marchant, les mains font vraiment bas de
+   gamme ») — option B retenue : RIEN à l'écran au repos ni en marchant (en portrait, le bas de l'écran est sous le joystick et les
+   boutons : des mains au repos y seraient cachées, ou il faudrait les monter dans la vue), le poing n'apparaît que pour frapper —
+   mais un VRAI poing : gant (dos de la main arrondi, quatre doigts repliés en rouleaux, jointures, pouce en travers), revers du
+   gant, poignet, avant-bras épais et manche à revers roulé, aux vraies proportions (main 9 cm, avant-bras 28 cm). Repère : les
+   jointures vers −z, l'avant-bras part vers +z (vers l'épaule) ; origine au centre du poing. Avant : une sphère et des doigts en
+   tubes au bout d'un long tube de bras qui traversait l'écran. */
+function poingPremiere(cote,peau,manche){ const s=cote==='g'?-1:1, G=new THREE.Group();
+  const mG=mat(0x8b7355), mGs=mat(0x6a553c), mPe=mat(peau), mM=mat(manche), mMs=mat(new THREE.Color(manche).multiplyScalar(0.78).getHex());
+  const rond=(w,h,d,r,m)=>{ const sh=new THREE.Shape(), x=w/2-r, y=h/2-r; sh.moveTo(-x,-h/2); sh.lineTo(x,-h/2); sh.quadraticCurveTo(w/2,-h/2,w/2,-y); sh.lineTo(w/2,y); sh.quadraticCurveTo(w/2,h/2,x,h/2); sh.lineTo(-x,h/2); sh.quadraticCurveTo(-w/2,h/2,-w/2,y); sh.lineTo(-w/2,-y); sh.quadraticCurveTo(-w/2,-h/2,-x,-h/2);
+    const g=new THREE.ExtrudeGeometry(sh,{depth:Math.max(0.001,d-2*r*0.8),bevelEnabled:true,bevelThickness:r*0.8,bevelSize:r*0.8,bevelSegments:3,curveSegments:4}); g.translate(0,0,-(d-2*r*0.8)/2); return new THREE.Mesh(g,m); };
+  const pose=(o,x,y,z,rx,ry,rz)=>{ o.position.set(x,y,z); o.rotation.set(rx||0,ry||0,rz||0); G.add(o); return o; };
+  // le dos de la main (et la paume refermée dessous)
+  pose(rond(0.086,0.06,0.074,0.016,mG),0,0.008,0.006);
+  // quatre doigts repliés : des rouleaux serrés sous les jointures, un peu plus courts vers l'auriculaire
+  for(let k=0;k<4;k++){ const x=s*(-0.03+k*0.02), l=0.022-k*0.0012, dg=rond(0.0185,0.036,0.034,0.0085,mG); pose(dg,x,-0.016,-0.03+k*0.0015,0.18,0,0);
+    const j=new THREE.Mesh(new THREE.SphereGeometry(0.0118,10,8),mGs); j.scale.set(1,0.8,0.9); pose(j,x,0.024,-0.035); /* la jointure, saillante à l'avant du dos de la main */
+    const pl=new THREE.Mesh(new THREE.BoxGeometry(0.016,0.0025,0.012),mGs); pose(pl,x,-0.0,-0.047); } /* le pli de la 2e phalange */
+  // le pouce : sa base sur le côté INTÉRIEUR (côté index), replié en travers devant les deux premiers doigts
+  const pr=new THREE.Mesh(new THREE.SphereGeometry(0.0135,10,8),mG); pr.scale.set(1,1,1.3); pose(pr,-s*0.044,-0.012,-0.014);
+  const pc=new THREE.Mesh(new THREE.CylinderGeometry(0.0105,0.0118,0.042,10),mG); pose(pc,-s*0.024,-0.031,-0.045,0,0,Math.PI/2-s*0.3);
+  const pb=new THREE.Mesh(new THREE.SphereGeometry(0.0108,10,8),mG); pose(pb,-s*0.002,-0.037,-0.049);
+  // revers du gant, poignet nu, avant-bras, manche à revers roulé — le long de +z (vers l'épaule), un peu plus bas
+  const seg=(r0,r1,z0,z1,m)=>{ const c=new THREE.Mesh(new THREE.CylinderGeometry(r1,r0,z1-z0,14),m); c.rotation.x=Math.PI/2; c.position.set(0,-0.004,(z0+z1)/2); G.add(c); return c; };
+  seg(0.036,0.037,0.035,0.07,mGs); seg(0.031,0.034,0.07,0.1,mPe); seg(0.034,0.044,0.1,0.36,mM);
+  const rev=new THREE.Mesh(new THREE.TorusGeometry(0.038,0.0065,8,18),mMs); rev.position.set(0,-0.004,0.104); G.add(rev);
+  return G; }
 function fpsHautBras(R,visible){ R.traverse((o)=>{ if(o.userData.hautBras&&o.visible!==visible) o.visible=visible; }); } /* en visée, l'arme recule vers l'œil : les bras au-delà du coude traverseraient la caméra */
 function fpsMontage(id){
   const mod=mkArmeModele(id); if(!mod) return null; mod.visible=true; habillerArme(mod,id);
@@ -36080,6 +36107,7 @@ window.addEventListener('pointerup',vueFinDrag); window.addEventListener('pointe
    l'optique posée à l'établi : userData.visee) exactement sur l'axe du regard ; le champ se resserre (lunette : zoom
    ×4 et l'image de la lunette ; sniper : ×8), la dispersion −65 %, on marche à 55 %. Mire de hanche fine (quatre
    traits qui s'écartent avec la dispersion), marque de touche. */
+const _poingZ=new THREE.Vector3(0,0,-1), _poingD=new THREE.Vector3(); /* le poing à mains nues (poingPremiere) : les jointures vers −z */
 const VUE1P={actif:false,montage:null,arme:null,k:0,vise:false,recul:0,flash:0,frappe:0,pas:0,touche:0,zoom:1,mire:null,lunette:null,appuiSniper:false};
 const OEIL_1P=1.52;
 function vuePremiere(){ return vue1P()&&ETAT.mode==='jeu'&&!INT.actif&&!P.veh&&!FPS.actif&&!P.chute&&!P.para&&!P.wing&&!P.jetpackVol&&!P.nage&&!MANEGES.actif&&!BOUT.ouvert
@@ -36118,8 +36146,7 @@ function montagePremiere(){ const V=VUE1P;
   if(mkArmeModeleDispo(id)&&mkArmeModele(id)){ V.montage=fpsMontage(id); }
   if(!V.montage){ /* les poings : garde de boxeur, jointures en avant, le droit un peu en retrait */
     const R=new THREE.Group(), W=new THREE.Group(); R.add(W); const c=coifCouleurs();
-    const d=fpsBras(W,'d',new THREE.Vector3(0.2,-0.36,-0.14),'poing',c.peau,c.haut,0.72), g=fpsBras(W,'g',new THREE.Vector3(-0.2,-0.36,-0.14),'poing',c.peau,c.haut,0.72);
-    d.rotation.set(-0.9,-0.25,0.3); g.rotation.set(-0.9,0.25,-0.3); d.visible=false; g.visible=false; /* au repos, rien à l'écran : le poing n'entre que pour frapper (cameraPremiere) */
+    const d=poingPremiere('d',c.peau,c.haut), g=poingPremiere('g',c.peau,c.haut); R.add(d); R.add(g); d.visible=false; g.visible=false; /* au repos et en marchant, rien à l'écran : le poing n'entre que pour frapper (cameraPremiere) */
     R.traverse((o)=>{ o.renderOrder=5; o.frustumCulled=false; }); V.montage={R,W,P0:{k:0.4,pos:[0.02,-0.14,-0.32],yaw:0,roll:0},poings:true,mains:[d,g],douilles:[],lagX:0,lagY:0}; }
   if(V.montage&&V.montage.mod){ const A=ancreArme(P.armeCur); V.montage.melee=A.pose==='melee'||A.pose==='lame'; }
   const M=V.montage; scene.add(M.R); if(a&&a.type==='gun') ligneDeMire(M,id); /* une arme blanche ne se vise pas à la mire */
@@ -36173,15 +36200,13 @@ function cameraPremiere(dt){ const V=VUE1P; if(!V.actif) entrerPremiere(); if(V.
       V.kMarche=lerp(V.kMarche||0,mv>0.12&&!P.nage?1:0,clamp(dt*4,0,1)); /* en marchant, les poings pointent à peine dans les coins bas et balancent ; à l'arrêt, ils redescendent hors champ */
       const f=V.frappe>0?1-V.frappe/0.3:1, aller=Math.min(1,f/0.38), retour=f<0.5?0:(f-0.5)/0.5, kp=V.frappe>0?(f<0.38?aller*aller*(3-2*aller):(f<0.5?1:1-retour*retour)):0; /* aller vif (0,11 s), tenue, retour */
       const swp=Math.sin(V.pas*0.5), amp=1+kc*0.8, hwC=Math.tan(camera.fov*Math.PI/360)*camera.aspect; /* demi-largeur du champ à 1 m : les coins bas suivent le format (portrait ou large) */
-      for(const [h,sh] of [[d,1],[g,-1]]){
-        const ph=sh*swp; /* les deux mains en opposition */
-        const xS=sh*Math.max(0.1,0.3*hwC), yS=-0.3, zS=-0.06; /* hors champ, en bas, près de l'œil */
-        const xM=sh*0.21*hwC, yM=-0.245+ph*0.004*amp+kc*0.004, zM=-0.26-ph*0.01*amp; /* presque invisibles : seul le haut des jointures affleure au bord bas, un balancement à peine perceptible — juste pour que la vue ne soit pas vide (16 octobre) */
-        const bx=lerp(xS,xM,V.kMarche), by=lerp(yS,yM,V.kMarche), bz=lerp(zS,zM,V.kMarche), brx=lerp(-1.1,-0.2-ph*0.05,V.kMarche); /* avant-bras tourné vers le bas : il sort droit par le bord, seul le haut du poing reste */
-        if(h===qui&&kp>0){ const xP=sh*0.03, yP=-0.075, zP=-0.4;
-          h.position.set(lerp(bx,xP,kp),lerp(by,yP,kp)+Math.sin(kp*Math.PI)*0.03,lerp(bz,zP,kp)); h.rotation.set(lerp(brx,-0.4,kp),sh*lerp(-0.1,0.35,kp),sh*lerp(0.3,-0.2,kp)); }
-        else { h.position.set(bx,by,bz); h.rotation.set(brx,-sh*0.1,sh*0.3); }
-        h.visible=(h===qui&&kp>0)||V.kMarche>0.03; }
+      for(const [h,sh] of [[d,1],[g,-1]]){ /* 3e liste du 17 au soir (option B) : rien au repos ni en marchant ; le coup : le poing monte de sous le coin
+           bas de son côté vers un point juste sous la mire, l'avant-bras toujours dans l'axe de l'épaule (il s'allonge en perspective, jamais un
+           tube en travers de l'écran), le poing tourne paume vers le bas à l'impact (direct), puis il redescend */
+        if(h===qui&&kp>0.02){ const ex=sh*0.2, ey=-0.36, ez=0.1; /* l'épaule, sous et derrière l'œil */
+          const px=lerp(sh*0.15,sh*0.035,kp), py=lerp(-0.34,-0.085,kp)+Math.sin(kp*Math.PI)*0.015, pz=lerp(-0.16,-0.42,kp);
+          h.position.set(px,py,pz); _poingD.set(px-ex,py-ey,pz-ez).normalize(); h.quaternion.setFromUnitVectors(_poingZ,_poingD); h.rotateZ(-sh*lerp(1.05,0.6,kp)); h.scale.setScalar(0.9); h.visible=true; } /* de trois quarts, pouce vers le haut (un direct en garde) : on voit les doigts repliés et le pouce, pas un pavé de dos de main */
+        else h.visible=false; }
       W.rotation.z+=sg*0.05*Math.sin(kp*Math.PI); }
     if(!M.choc){ M.choc=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:0xffe6b0,transparent:true,depthWrite:false,depthTest:false,blending:THREE.AdditiveBlending,opacity:0})); M.choc.renderOrder=6; M.choc.frustumCulled=false; M.R.add(M.choc); }
     M.choc.material.opacity=kI*kI*0.95; M.choc.visible=kI>0.01; if(kI>0.01){ M.choc.position.set(0,-0.025,-0.42); M.choc.scale.setScalar(0.05+0.22*(1-kI)); M.choc.material.rotation=V.impact*40; }

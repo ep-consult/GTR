@@ -12684,13 +12684,12 @@ async function main() {
         if (!(VUE1P.montage.melee && amp > 0.8)) ko.push('batte : pas de swing (' + amp.toFixed(2) + ' rad)'); else info.push('batte : swing de ' + amp.toFixed(2) + ' rad');
         majArmeJoueur('poings'); frame(2); if (!(VUE1P.montage && VUE1P.montage.poings && VUE1P.montage.mains && VUE1P.montage.mains.length === 2)) ko.push('poings : pas de garde à deux mains');
         { const [d, g] = VUE1P.montage.mains; frame(3); if (d.visible || g.visible) ko.push('poings : visibles au repos');
-          INPUT.jy = -1; frame(20); const yA = d.position.y, zA = d.position.z; frame(9); const zB = d.position.z; INPUT.jy = 0;
-          if (!d.visible || !g.visible || !(yA < -0.22)) ko.push('poings : en marchant, ils doivent pointer à peine en bas (visibles ' + d.visible + '/' + g.visible + ', y ' + yA.toFixed(2) + ')');
-          if (!(Math.abs(zB - zA) > 0.003)) ko.push('poings : ils ne balancent pas en marchant (' + Math.abs(zB - zA).toFixed(3) + ')');
-          frame(40); if (d.visible || g.visible) ko.push('poings : encore visibles 1,3 s après l’arrêt');
+          INPUT.jy = -1; let vusMarche = 0; for (let k = 0; k < 30; k++) { frame(1); if (d.visible || g.visible) vusMarche++; } INPUT.jy = 0; /* 17 octobre au soir, 3e liste (option B) : rien à l'écran en marchant non plus */
+          if (vusMarche) ko.push('poings : visibles en marchant (' + vusMarche + ' images sur 30)');
+          frame(40); if (d.visible || g.visible) ko.push('poings : visibles à l’arrêt');
           P.cadT = 0; P.frappeT = 0; attaquer(); const qui = VUE1P.coupMain ? g : d; frame(3); const pIn = qui.position.clone(); /* au plus loin du coup */
           if (!qui.visible || !(Math.abs(pIn.x) < 0.08) || !(pIn.y > -0.12) || !(pIn.z < -0.25)) ko.push('poings : le coup ne passe pas sous la mire (' + [pIn.x, pIn.y, pIn.z].map((v) => v.toFixed(2)).join(', ') + ', visible ' + qui.visible + ')');
-          frame(12); if (d.visible || g.visible) ko.push('poings : encore visibles après le coup'); else info.push('poings : invisibles au repos, à peine visibles et balancés en marchant, le poing entre, frappe sous la mire et ressort'); }
+          frame(12); if (d.visible || g.visible) ko.push('poings : encore visibles après le coup'); else info.push('poings : invisibles au repos et en marchant ; le poing entre, frappe sous la mire et ressort'); }
         { /* en visée, le haut des bras reste affiché (sinon deux moignons au milieu de l'écran) */ majArmeJoueur('fusil'); INPUT.edge.viser = true; frame(20); let cache = 0; VUE1P.montage.R.traverse((o) => { if (o.userData && o.userData.hautBras && !o.visible) cache++; }); if (cache) ko.push('visée : ' + cache + ' segment(s) du haut des bras masqués'); INPUT.edge.viser = true; frame(20); }
         { /* une batte, une seule main : plus de « vingt doigts » */ majArmeJoueur('batte'); frame(2); let mains = 0; VUE1P.montage.W.traverse((o) => { if (o.userData && o.userData.hautBras) mains++; }); if (mains > 2) ko.push('batte : ' + (mains / 2) + ' bras'); }
         majArmeJoueur('fusil');
@@ -14042,6 +14041,45 @@ async function main() {
         return { ko, info: [info.join(', ') + ' : flèches haut / bas en vol, sprint et frein à pied'] };
       });
       if (r.ko.length) fail('Pictos monter / descendre : ' + r.ko.join(' ; ')); else ok('Pictos monter / descendre : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
+    // Poings à la 1re personne (17 octobre au soir, 3e liste, option B) : rien
+    // à l'écran au repos ni en marchant ; le coup montre un vrai poing (gant,
+    // jointures, pouce, poignet, avant-bras, manche) qui monte du coin bas et
+    // frappe sous la mire ; la mécanique de frappe est intacte : cadence,
+    // dégâts et portée lus dans ARMES.poings (un gangster à portée est touché,
+    // un autre au-delà ne l'est pas).
+    // -------------------------------------------------------------------
+    console.log('\n--- Poings à la 1re personne : cachés au repos, un vrai poing au coup, même mécanique ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); META.vue = 'fps'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WANTED.heat = 0;
+        for (const e of ennemis) { e.mort = true; if (e.h) scene.remove(e.h.g); } ennemis.length = 0; WAVES.etat = 'repos'; WAVES.t = 1e9;
+        P.x = POIS.place.x - 20; P.z = POIS.place.z + 30; P.y = solY(P.x, P.z); P.ang = 0; VUE.yawUser = Math.PI; VUE.pitch1P = 0; majArmeJoueur('poings');
+        const frame = (n) => { for (let i = 0; i < n; i++) { majJoueur(1 / 30, 1 / 30); majCamera(1 / 30); } };
+        frame(10); const M = VUE1P.montage; if (!M || !M.poings) { ko.push('pas de montage des poings'); return { ko, info }; }
+        const [d, g] = M.mains; let n = 0; d.traverse((o) => { if (o.isMesh) n++; });
+        if (n < 15) ko.push('le poing n’a que ' + n + ' pièces (gant, doigts, jointures, pouce, poignet, avant-bras, manche attendus)');
+        if (d.parent !== M.R) ko.push('le poing n’est pas dans le repère de la caméra');
+        // au coup : visible, sous la mire, l'avant-bras dans l'axe de l'épaule (il sort par le bas de l'écran)
+        P.cadT = 0; attaquer(); const qui = VUE1P.coupMain ? g : d; frame(3); camera.updateMatrixWorld(); qui.updateMatrixWorld(true);
+        const poing = qui.getWorldPosition(new THREE.Vector3()).project(camera), coude = new THREE.Vector3(0, 0, 0.3).applyMatrix4(qui.matrixWorld).project(camera);
+        if (!qui.visible || Math.abs(poing.x) > 0.35 || !(poing.y < 0 && poing.y > -0.6)) ko.push('au coup, le poing n’est pas juste sous la mire (' + poing.x.toFixed(2) + ', ' + poing.y.toFixed(2) + ')');
+        if (!(coude.y < poing.y - 0.3)) ko.push('l’avant-bras ne descend pas vers le bas de l’écran (' + coude.y.toFixed(2) + ')');
+        frame(15); if (d.visible || g.visible) ko.push('encore visible après le coup');
+        // la mécanique : cadence, dégâts, portée (ARMES.poings)
+        const A = ARMES.poings, st = armeStats('poings'); if (P.cadT > 0 && Math.abs(st.cad - A.cad) > 1e-6) ko.push('cadence changée');
+        const tireur = POOLS_GANG.viperes[0], av = (dist) => { const e = creerEnnemi(tireur, P.x + Math.sin(P.ang) * dist, P.z + Math.cos(P.ang) * dist, false); e.hp = e.hpMax = 1000; e.passif = true; return e; };
+        const pres = av(A.portee * 0.6), loin = av(A.portee + 1.5); P.cadT = 0; P.meleeMul = 1; P.buffs.dmg = 0; P.ivresse = 0; attaquer(); frame(10);
+        const dPres = 1000 - pres.hp, dLoin = 1000 - loin.hp;
+        if (!(dPres > 0)) ko.push('un gangster à ' + (A.portee * 0.6).toFixed(1) + ' u n’est pas touché');
+        if (dLoin > 0) ko.push('un gangster au-delà de la portée (' + (A.portee + 1.5).toFixed(1) + ' u) est touché');
+        info.push(n + ' pièces par poing ; invisible au repos et après le coup ; coup sous la mire ; touché à portée (' + dPres.toFixed(0) + ' de dégâts, ' + A.degats + ' de base), raté au-delà');
+        for (const e of ennemis) e.mort = true; META.vue = 'classique'; majCamera(1 / 30);
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Poings 1P : ' + r.ko.join(' ; ')); else ok('Poings 1P : ' + r.info.join(' ; '));
     }
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
