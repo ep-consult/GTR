@@ -11949,7 +11949,7 @@ async function main() {
           // jouable et perdable : matches complets, chacun sur sa graine
           // chaque match maîtrise sa scène : graine posée AVANT startRun, voitures de la ville retirées, niveau 0 des IA
           // (sinon le trafic et l'état laissé par les autres tests changent l'issue : 2/4 seul, 1/4 dans la suite)
-          const match = (mode, g) => { graine(g); prep(); for (const v of vehicules) { scene.remove(v.mesh); libererEntite(v.mesh); } vehicules.length = 0;
+          const match = (mode, g) => { prep(); for (const v of vehicules) { scene.remove(v.mesh); libererEntite(v.mesh); } vehicules.length = 0; graine(g); /* graine APRÈS la mise en place (17 octobre au soir : un objet de plus créé par startRun — la faune de la forêt — faisait perdre les quatre matchs) */
             META.derby.niv = Object.assign({}, niv0); META.derby.victoires = 0; derbyLancer(); const A = D.actif; if (!A) { Math.random = rnd0; return null; }
             let t = 0, cible = null, decT = 0, bloqT = 0, reculT = 0, dir = [0, 0];
             while (D.actif === A && t < 200) { const dt = 1 / 30; t += dt;
@@ -13451,7 +13451,7 @@ async function main() {
           P.x = 0; P.z = 0; const p0 = F.map((a) => [a.x, a.z]); for (let i = 0; i < 30 * 8; i++) majFaune(1 / 30); const bougent = F.filter((a, i) => Math.hypot(a.x - p0[i][0], a.z - p0[i][1]) > 0.3).length;
           if (bougent < 3) ko.push('loin du joueur, la faune reste figée (' + bougent + '/' + F.length + ' bougent)'); else info.push(F.length + ' bêtes dans la forêt (' + [...new Set(F.map((a) => a.type))].join(', ') + '), ' + bougent + ' bougent loin du joueur');
           // on ne traverse plus un cerf
-          const c = F.find((a) => a.type === 'cerf'); if (c) { P.chute = false; P.nage = false; P.para = false; P.x = c.x - 3; P.z = c.z; P.y = hauteurMont(P.x, P.z); /* le cerf ne bouge pas : seule la marche du joueur tourne */
+          const c = F.find((a) => a.type === 'cerf'); if (c) { P.chute = false; P.nage = false; P.para = false; P.jetpackVol = false; P.jetpack = false; /* en vol au jetpack (laissé par un autre test), on passe au-dessus des bêtes */ P.x = c.x - 3; P.z = c.z; P.y = hauteurMont(P.x, P.z); /* le cerf ne bouge pas : seule la marche du joueur tourne */
             for (let i = 0; i < 40; i++) { INPUT.mx = 1; INPUT.mz = 0; majJoueur(1 / 30, 1 / 30); } INPUT.mx = 0;
             if (P.x > c.x - 0.6) ko.push('le joueur traverse le cerf'); } }
         return { ko, info };
