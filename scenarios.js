@@ -13963,6 +13963,60 @@ async function main() {
       });
       if (r.ko.length) fail('Hélicoptère, inclinaison : ' + r.ko.join(' ; ')); else ok('Hélicoptère, inclinaison : ' + r.info.join(' ; '));
     }
+    // -------------------------------------------------------------------
+    // Inclinaisons des véhicules (17 octobre au soir, 2e liste) : voitures
+    // (caisse qui se cabre à l'accélération, plonge au freinage, roule vers
+    // l'extérieur du virage), deux-roues (penchent vers l'intérieur, selon la
+    // vitesse), bateaux (nez qui se lève, gîte vers l'intérieur), avions
+    // (roulis en virage). Vraie physique (majVehiculePhys, majVol).
+    // -------------------------------------------------------------------
+    console.log('\n--- Inclinaisons : voitures, deux-roues, bateaux, avions ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); META.vue = 'classique'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; for (const e of ennemis) e.mort = true; WAVES.etat = 'repos'; WAVES.t = 1e9;
+        for (const v of vehicules) { scene.remove(v.mesh); libererEntite(v.mesh); } vehicules.length = 0;
+        const sol = (x, z) => !solidAt(x, z, 4) && !estEau(x, z);
+        /* un grand espace libre : le tarmac de l'aéroport */
+        const X = AERO.RX, Z = -60, pose = (v) => { v.h = solY(v.x, v.z); };
+        const rouler = (v, n, thr, st, fr, f) => { for (let i = 0; i < n; i++) { majVehiculePhys(v, 1 / 30, thr, st, fr); if (f) f(i); } };
+        // voiture : cabre, plonge, roulis vers l'extérieur (gauche → caisse vers la droite : rotation.z > 0)
+        for (const cle of ['citadine', 'pickup']) { const v = creerVehicule(cle, X, Z, Math.PI, null); pose(v); const cc = v.mesh.userData.corps;
+          if (!cc) { ko.push(cle + ' : pas de caisse'); continue; }
+          let cabre = 0; rouler(v, 25, 1, 0, false, () => { cabre = Math.min(cabre, cc.rotation.x); });
+          rouler(v, 30, 1, 0, false); let plonge = 0; rouler(v, 20, 0, 0, true, () => { plonge = Math.max(plonge, cc.rotation.x); });
+          /* roulis vers l'EXTÉRIEUR : de même signe que vitesse × lacet (virage à gauche → caisse vers la droite) */
+          rouler(v, 40, 1, 0, false); let rG = 0, rD = 0, faux = 0; const roul = () => { const lat = v.v * v.lacet; if (Math.abs(lat) > 4) { const ext = cc.rotation.z * Math.sign(lat); if (ext < -0.005) faux++; if (lat > 0) rG = Math.max(rG, cc.rotation.z); else rD = Math.min(rD, cc.rotation.z); } };
+          rouler(v, 30, 1, 0.8, false, roul); rouler(v, 40, 1, -0.8, false, roul); if (faux > 3) ko.push(cle + ' : la caisse penche vers l’intérieur du virage');
+          if (!(cabre < -0.01)) ko.push(cle + ' : pas de cabrage à l’accélération (' + cabre.toFixed(3) + ')');
+          if (!(plonge > 0.015)) ko.push(cle + ' : le nez ne plonge pas au freinage (' + plonge.toFixed(3) + ')');
+          if (!(rG > 0.01 && rD < -0.01)) ko.push(cle + ' : pas de roulis vers l’extérieur (' + rG.toFixed(3) + ' / ' + rD.toFixed(3) + ')');
+          if (Math.max(-cabre, plonge, rG, -rD) > 0.2) ko.push(cle + ' : inclinaison excessive');
+          info.push(cle + ' (cabre ' + (-cabre).toFixed(3) + ', plonge ' + plonge.toFixed(3) + ', roulis ' + rG.toFixed(3) + ')');
+          scene.remove(v.mesh); libererEntite(v.mesh); vehicules.splice(vehicules.indexOf(v), 1); }
+        // deux-roues : penche vers l'intérieur (virage à gauche → rotation.z < 0), plus vite = plus penché
+        for (const cle of ['motocross', 'velo']) { const pen = (vmax) => { const v = creerVehicule(cle, X, Z, Math.PI, null); pose(v); let p = 0;
+            rouler(v, 60, 1, 0, false, () => { if (Math.abs(v.v) > vmax) v.v = Math.sign(v.v) * vmax; }); rouler(v, 40, 1, 0.8, false, (i) => { if (Math.abs(v.v) > vmax) v.v = Math.sign(v.v) * vmax; if (i > 10) p = Math.max(p, -v.mesh.rotation.z * Math.sign(v.v * v.lacet || 1)); }); /* vers l'INTÉRIEUR : de signe opposé à vitesse × lacet */
+            scene.remove(v.mesh); libererEntite(v.mesh); vehicules.splice(vehicules.indexOf(v), 1); return p; };
+          const lent = pen(3), vite = pen(VEHDEFS[cle].vmax);
+          if (!(vite > 0.15)) ko.push(cle + ' : ne penche pas vers l’intérieur en virage rapide (' + vite.toFixed(2) + ')');
+          if (!(Math.abs(lent) < Math.abs(vite) * 0.5)) ko.push(cle + ' : penche autant au pas qu’en vitesse (' + lent.toFixed(2) + ' / ' + vite.toFixed(2) + ')');
+          info.push(cle + ' (au pas ' + lent.toFixed(2) + ', vite ' + vite.toFixed(2) + ')'); }
+        // bateaux : nez qui se lève en accélérant, gîte vers l'intérieur
+        for (const cle of ['bateau', 'jetski'].filter((k) => VEHDEFS[k])) { const v = creerVehicule(cle, 40, MER + 60, Math.PI, null); const r0x = v.mesh.rotation.x;
+          let nez = 0; rouler(v, 60, 1, 0, false, () => { nez = Math.max(nez, v.bateauNez || 0); }); let gite = 0; rouler(v, 40, 1, 0.8, false, () => { gite = Math.max(gite, -(v.bateauGite || 0) * Math.sign(v.v * v.lacet || 1)); });
+          if (!(nez > 0.03)) ko.push(cle + ' : le nez ne se lève pas (' + nez.toFixed(3) + ')');
+          if (!(gite > 0.02)) ko.push(cle + ' : ne gîte pas vers l’intérieur du virage (' + gite.toFixed(3) + ')');
+          info.push(cle + ' (nez ' + nez.toFixed(2) + ', gîte ' + gite.toFixed(2) + ')');
+          scene.remove(v.mesh); libererEntite(v.mesh); vehicules.splice(vehicules.indexOf(v), 1); }
+        // avion : roulis en virage
+        { const v = creerVehicule('avion', X, Z, Math.PI, null); P.x = v.x; P.z = v.z; entrerVehicule(v); v.vol = true; v.alt = 60; v.v = 38; v.va = 0; v.decolT = 0; v.figureCdT = 1e9; let rl = 0;
+          for (let i = 0; i < 45; i++) { INPUT.mx = -1; INPUT.mz = 0; majVol(v, 1 / 30); rl = Math.max(rl, Math.abs(v.mesh.rotation.z)); } INPUT.mx = INPUT.mz = 0;
+          if (!(rl > 0.15)) ko.push('avion : pas de roulis en virage (' + rl.toFixed(2) + ')'); info.push('avion (roulis ' + rl.toFixed(2) + ')'); sortirVehicule(true); }
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Inclinaisons : ' + r.ko.join(' ; ')); else ok('Inclinaisons : ' + r.info.join(', '));
+    }
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];

@@ -55,7 +55,7 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
   echo "$ln | $(sed -n "$((ln+1))p" index.html | sed 's/^[ \t]*//')"; done
 ```
 
-**Relevé du 18 octobre — 37 091 lignes.**
+**Relevé du 18 octobre — 37 110 lignes.**
 Attention : `maj_carte` recale les numéros dans l'ordre des lignes de la table ;
 un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la main.
 
@@ -87,33 +87,33 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 16623 | POOLS — balles, particules, textes flottants, traces de pneus |
 | 17008 | ÉTAT GLOBAL + JOUEUR (`P`) |
 | 17884 | VÉHICULES — physique arcade, trafic, dégâts |
-| 20819 | PIÉTONS |
-| 21089 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
-| 21677 | **RAYON TRACTEUR DE L'OVNI** |
-| 22142 | NIVEAU DE RECHERCHE (étoiles) |
-| 22498 | VAGUES + bonus de fin de vague |
-| 22623 | MISSIONS COURTES |
-| 22626 | BÂTIMENTS VISITABLES — intérieurs |
-| 22696 | FOUILLE — mécanique générique |
-| 23244 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
-| 27477 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
-| 27886 | **LAVERIE** V2 — l'essorage de la machine 7 |
-| 28151 | **SERRE** V2 — la nuit de la floraison |
-| 28444 | CINÉ-PALACE |
-| 28688 | MÉTRO ABANDONNÉ |
-| 28754 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
-| 29107 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
-| 30009 | SITE 51 |
-| 30239 | LE DÉPÔT DE BUS — courses clandestines |
-| 31686 | **MÉTIERS** — missions liées à un véhicule |
-| 31977 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
-| 32999 | ÉCRANS / MENUS / BOUTIQUES |
-| 33274 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
-| 34101 | DÉBUT / FIN DE PARTIE |
-| 35636 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
-| 35877 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
-| 36169 | **COCKPITS** — vue 1re personne au volant (`COCKPIT`, `COCKPIT_FAMILLES`, `cockpitDims`, `mkCockpitInterieur`, `ckDessiner`, `rendreCockpit`, `cameraCockpit`, `cockpitDiagnostic`, `photoCockpit`) |
-| 36956 | BOUCLE PRINCIPALE |
+| 20838 | PIÉTONS |
+| 21108 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
+| 21696 | **RAYON TRACTEUR DE L'OVNI** |
+| 22161 | NIVEAU DE RECHERCHE (étoiles) |
+| 22517 | VAGUES + bonus de fin de vague |
+| 22642 | MISSIONS COURTES |
+| 22645 | BÂTIMENTS VISITABLES — intérieurs |
+| 22715 | FOUILLE — mécanique générique |
+| 23263 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
+| 27496 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
+| 27905 | **LAVERIE** V2 — l'essorage de la machine 7 |
+| 28170 | **SERRE** V2 — la nuit de la floraison |
+| 28463 | CINÉ-PALACE |
+| 28707 | MÉTRO ABANDONNÉ |
+| 28773 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
+| 29126 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
+| 30028 | SITE 51 |
+| 30258 | LE DÉPÔT DE BUS — courses clandestines |
+| 31705 | **MÉTIERS** — missions liées à un véhicule |
+| 31996 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
+| 33018 | ÉCRANS / MENUS / BOUTIQUES |
+| 33293 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
+| 34120 | DÉBUT / FIN DE PARTIE |
+| 35655 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
+| 35896 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
+| 36188 | **COCKPITS** — vue 1re personne au volant (`COCKPIT`, `COCKPIT_FAMILLES`, `cockpitDims`, `mkCockpitInterieur`, `ckDessiner`, `rendreCockpit`, `cameraCockpit`, `cockpitDiagnostic`, `photoCockpit`) |
+| 36975 | BOUCLE PRINCIPALE |
 
 ### Ancres fines (hors bandeaux)
 
@@ -161,22 +161,22 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 17016 | `const P` — état du joueur |
 | 17059 | `P.stamMax = 100 + 12*mus` |
 | 18410 | `resoudreCollisionsVehicule()` — collisions entre véhicules (SAT sur les 4 axes) |
-| 19087 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
-| 19211 | `boutonsAPied()` — boutons du HUD remis « à pied » (sortie de véhicule ET début de partie) |
-| 20225 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
-| 20357 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
-| 22632 | `IOFF = -9000` |
-| 24436 | `INTDEFS` — définitions des **28 salles** (27 + la boutique) |
-| 24821 | `construireSalle(id)` |
+| 19106 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
+| 19230 | `boutonsAPied()` — boutons du HUD remis « à pied » (sortie de véhicule ET début de partie) |
+| 20244 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
+| 20376 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
+| 22651 | `IOFF = -9000` |
+| 24455 | `INTDEFS` — définitions des **28 salles** (27 + la boutique) |
+| 24840 | `construireSalle(id)` |
 | 20390 | `CHALUTIER_BANCS_PLAN` — chalutier V2 ; `chalutierMaj` (20761), `dessinerRadarChalutier` (21018) |
-| 31695 | `METIERS_CIBLE` |
-| 31995 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
-| 32083 | `PIECES_FAMILLES` — catalogues de pièces par famille |
-| 32393 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
-| 32457 | `libererObjet()` — libère les géométries d'un objet retiré |
-| 32473 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
-| 32603 | `construireGarageTuning()` — la salle partagée |
-| 32973 | `majNitro()` |
+| 31714 | `METIERS_CIBLE` |
+| 32014 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
+| 32102 | `PIECES_FAMILLES` — catalogues de pièces par famille |
+| 32412 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
+| 32476 | `libererObjet()` — libère les géométries d'un objet retiré |
+| 32492 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
+| 32622 | `construireGarageTuning()` — la salle partagée |
+| 32992 | `majNitro()` |
 | 17883 | `degatsChoc()` — dégâts V2 : `bosseler`, débris, `perdreRoue` ; murs : `degagerDesMurs` (plus haut) |
 | 7682 | `SAUTV` — Saut du Vertige : `hauteurSautVertige`, `mkSautVertige`, `mkBargeVertige`, `finSautVertige` |
 | 35625 | `VUE1P` — vue à la 1re personne : `cameraPremiere`, `ligneDeMire`, `viseAuto1P` |
@@ -1729,6 +1729,32 @@ Buggy (sinusoïdes, même à l'arrêt).
 - L'œil du cockpit suit les mêmes bosses (plus de sinusoïde).
 - Mesuré (test « Suspension ») : en ville, caisse 0,001 u et œil 0,002 u ; sur
   le sable, caisse ~0,03 u, rythme irrégulier.
+
+## Inclinaisons des véhicules (17 octobre au soir, 2e liste) — `v.lacet`, `v.accL`, `INCL_2R`, `CAISSE_*`, `BATEAU_NEZ`
+
+Demandé : « moto / vélo : le pilote et le véhicule penchent dans les virages,
+proportionnellement à la vitesse ; voitures : léger roulis, plongée du nez au
+freinage, cabrage à l'accélération ; bateaux : le nez se lève à
+l'accélération, il penche dans les virages ; avions : roulis, cabrage
+progressif ; esprit arcade ». Tout est lu sur les VRAIES grandeurs de l'image
+(`majVehiculePhys`) : le lacet `v.lacet` (rad/s, positif à gauche) et
+l'accélération le long du véhicule `v.accL`, lissés — jamais sur le seul
+joystick. Trafic et IA en profitent aussi.
+- **Deux-roues** (moto, vélo ; le skate garde l'ancien) : l'inclinaison
+  d'équilibre, tan = vitesse × lacet / g (`INCL_2R` 0,8, plafond `INCL_2R_MAX`
+  0,55) : nulle au pas, forte en virage rapide ; le pilote penche avec.
+- **Voitures, camions** : la caisse (`ud.corps`, roues exclues) se cabre à
+  l'accélération et plonge au freinage (`CAISSE_TANGAGE`), roule vers
+  l'EXTÉRIEUR du virage (`CAISSE_ROULIS` × vitesse × lacet), environ 4° au plus ;
+  Monster Truck, Pickup, Buggy ×2,6 (avant, ils penchaient vers l'intérieur,
+  comme une moto). L'ancienne plongée de tout le véhicule (`dip`) ne joue plus
+  que pour un modèle sans caisse.
+- **Bateaux** : le nez se lève avec la vitesse et à l'accélération
+  (`BATEAU_NEZ`), gîte vers l'INTÉRIEUR du virage (jet-ski jusqu'à 0,45), par-
+  dessus l'assiette de la houle ; jamais les grands navires, la planche, le kayak.
+- **Avions** : roulis en virage et cabré progressif, déjà en place (montée des
+  avions au cockpit).
+- Test : « Inclinaisons » (sens vérifiés contre le lacet mesuré).
 
 ## Vue 1re personne en chute (17 octobre au soir) — `CHUTE1P`, `vueChute`, `cameraChute`
 

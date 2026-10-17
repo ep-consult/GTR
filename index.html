@@ -18597,8 +18597,16 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
   if(surfDesert&&!v.enAir&&Math.abs(v.v)>5&&Math.random()<0.55){
     fumee(v.x-Math.sin(v.dirAng)*d.long*0.35+rand(-0.5,0.5),0.2,v.z-Math.cos(v.dirAng)*d.long*0.35+rand(-0.5,0.5),0xd0a868);
   }
-  // inclinaison des motos dans les virages
-  if(d.type==='moto'&&!eau) v.mesh.rotation.z=lerp(v.mesh.rotation.z||0,-steerEff*fac*0.45,clamp(8*dt,0,1));
+  /* Inclinaisons (17 octobre au soir, 2e liste, demandé : « moto / vélo : le pilote et le véhicule penchent dans les virages,
+     proportionnellement à la vitesse ; voitures : léger roulis, plongée du nez au freinage, cabrage à l'accélération ; bateaux : le
+     nez se lève à l'accélération, il penche dans les virages ») : toutes lues sur les VRAIES grandeurs de l'image — le lacet
+     (v.lacet, rad/s, positif à gauche) et l'accélération le long du véhicule (v.accL) —, jamais sur la seule position du joystick. */
+  { const lac=dt>0?angDiff(v.angPrecP===undefined?v.ang:v.angPrecP,v.ang)/dt:0, acc=dt>0?(v.v-(v.vPrecP===undefined?v.v:v.vPrecP))/dt:0; v.angPrecP=v.ang; v.vPrecP=v.v;
+    v.lacet=lerp(v.lacet||0,clamp(lac,-4,4),clamp(dt*8,0,1)); v.accL=lerp(v.accL||0,clamp(acc,-60,60),clamp(dt*6,0,1)); }
+  // deux-roues : l'inclinaison d'équilibre (tan = accélération latérale / g), donc nulle au pas et forte en virage rapide ; le pilote,
+  // enfant du véhicule, penche avec lui (le skate garde son inclinaison au braquage)
+  if(d.type==='moto'&&!eau){ const pen=d.skate?-steerEff*fac*0.45:-clamp(Math.atan((v.v||0)*(v.lacet||0)/26)*INCL_2R,-INCL_2R_MAX,INCL_2R_MAX);
+    v.mesh.rotation.z=lerp(v.mesh.rotation.z||0,pen,clamp(8*dt,0,1)); }
   if(reliefV&&!d.cross){ // en relief, la caisse suit la pente (tangage) au lieu de monter à plat
     const sA2=Math.sin(v.ang), cA2=Math.cos(v.ang), L2=Math.max(1.2,d.long*0.45), tang=Math.atan2(solY(v.x+sA2*L2,v.z+cA2*L2)-solY(v.x-sA2*L2,v.z-cA2*L2),2*L2);
     v.mesh.rotation.x=lerp(v.mesh.rotation.x||0,-tang,clamp(6*dt,0,1)); v.tangageRelief=true;
@@ -18730,7 +18738,7 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
       // l'empattement et à la voie du véhicule (avant : 3,2 u fixes, sans dévers, et un signe
       // qui s'inversait en marche arrière) : tangage, dévers, et la caisse remonte du creux
       // pour qu'aucune roue ne s'enfonce dans le terrain.
-      const aV=v.ang, cY=Math.cos(aV), sY=Math.sin(aV), dip=(frein&&Math.abs(v.v)>6&&d.type!=='moto')?0.045:0; // le nez plonge au freinage
+      const aV=v.ang, cY=Math.cos(aV), sY=Math.sin(aV), dip=(frein&&Math.abs(v.v)>6&&d.type!=='moto'&&!v.mesh.userData.corps)?0.045:0; // le nez plonge au freinage (une caisse sur ses roues le fait elle-même, plus bas)
       const roues=v.mesh.userData.roues||[];
       // positions RÉELLES des roues (repère du véhicule) : avant/arrière, gauche/droite
       let zAv=0,zAr=0,nAv=0,nAr=0,hAv=0,hAr=0,xD=0,xG=0,nD=0,nG=0,hD=0,hG=0;
@@ -18776,6 +18784,12 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
   else if(echoue) poseEchoue(v,dt);
   else if(eau&&MER_V2) assietteHoule(v.mesh,v.x,v.z,v.ang,0.15,d.long); // houle partagée (voir MER_V2)
   else if(eau) v.mesh.rotation.x=Math.sin(ETAT.runT*2.2)*0.03;
+  /* bateau : le nez se lève avec la vitesse et à l'accélération (il déjauge), il gîte vers l'INTÉRIEUR du virage (fort pour le
+     jet-ski) — par-dessus l'assiette de la houle, posée juste avant à chaque image ; jamais les grands navires, la planche, le kayak */
+  if(eau&&!sautMer&&!echoue&&d.eau&&!d.surf&&!d.pagaie&&!grosNavire(d)){ const jet=v.key==='jetski';
+    const nez=BATEAU_NEZ*fac+clamp((v.accL||0)*0.004,0,0.05), gite=-clamp((v.v||0)*(v.lacet||0)*(jet?0.013:0.006),jet?-0.45:-0.2,jet?0.45:0.2);
+    v.bateauNez=lerp(v.bateauNez||0,nez,clamp(dt*3,0,1)); v.bateauGite=lerp(v.bateauGite||0,gite,clamp(dt*3,0,1));
+    v.mesh.rotation.x-=v.bateauNez; v.mesh.rotation.z=(MER_V2?v.mesh.rotation.z:0)+v.bateauGite; }
   for(const r of v.mesh.userData.roues) r.rotation.x+=v.v*dt*1.6;
   if(v.mesh.userData.volet) majVolet(v,dt);
   // Suspension (17 octobre au soir, signalé : « la voiture monte et descend sans arrêt, toujours à la même fréquence ;
@@ -18791,12 +18805,17 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
     const R=(v.rugL||0)*Math.min(1,Math.abs(v.v)/14), sk=0.35+suspKey, o=v.odo||0;
     const amp=(0.05+0.12*suspKey)*R, b=(bruitRoute(o*0.55)-0.5)+(bruitRoute(o*2.3+17)-0.5)*0.35;
     cc.position.y=lerp(cc.position.y||0,b*amp,clamp(dt*10,0,1));
-    cc.rotation.x=lerp(cc.rotation.x||0,(bruitRoute(o*0.8+5)-0.5)*0.05*R*sk,clamp(dt*8,0,1));
-    cc.rotation.z=lerp(cc.rotation.z||0,(v.degSt>=3?0.05:0)-steerEff*fac*0.16*suspKey+(bruitRoute(o*0.7+9)-0.5)*0.05*R*sk,clamp(6*dt,0,1)); /* caisse de travers des gros dégâts (degatsVisuels) gardée */
+    /* la caisse sur ses ressorts : elle se cabre à l'accélération et plonge au freinage (v.accL), roule vers l'EXTÉRIEUR du virage
+       (accélération latérale = vitesse × lacet) ; les grands débattements (Monster Truck, Pickup, Buggy) bien plus (avant, ils
+       penchaient vers l'intérieur, comme une moto) */
+    const souple=1+1.6*suspKey, tangC=clamp(-(v.accL||0)*CAISSE_TANGAGE*souple,-0.08,0.08), roulisC=clamp((v.v||0)*(v.lacet||0)*CAISSE_ROULIS*souple,-0.1,0.1);
+    cc.rotation.x=lerp(cc.rotation.x||0,tangC+(bruitRoute(o*0.8+5)-0.5)*0.05*R*sk,clamp(dt*7,0,1));
+    cc.rotation.z=lerp(cc.rotation.z||0,(v.degSt>=3?0.05:0)+roulisC+(bruitRoute(o*0.7+9)-0.5)*0.05*R*sk,clamp(6*dt,0,1)); /* caisse de travers des gros dégâts (degatsVisuels) gardée */
   }
 }
 /* la rugosité du sol sous un véhicule : 0 sur l'eau, presque rien sur l'asphalte et les trottoirs de la ville, un peu
    ailleurs (herbe, hors de la ville), beaucoup sur le sable, le désert et les reliefs (montagne, canyons, parcs de terre) */
+const INCL_2R=0.8, INCL_2R_MAX=0.55, CAISSE_TANGAGE=0.0024, CAISSE_ROULIS=0.0016, BATEAU_NEZ=0.07; /* inclinaisons (voir majVehiculePhys) */
 function rugositeSol(x,z){ if(estEau(x,z)) return 0; if(DECOR_V2&&dansReliefLibre(x,z)) return 1; if(estSable(x,z)) return 0.75; if(estDesert(x,z)) return 0.85; if(Math.abs(x)<HALF&&Math.abs(z)<HALF) return 0.03; return 0.45; }
 /* bruit de valeur 1D lissé : des bosses irrégulières le long du chemin, jamais une période fixe */
 function bruitRoute(t){ const i=Math.floor(t), f=t-i, h=(n)=>{ const q=Math.sin(n*127.1+311.7)*43758.5453; return q-Math.floor(q); }, u=f*f*(3-2*f); return h(i)*(1-u)+h(i+1)*u; }

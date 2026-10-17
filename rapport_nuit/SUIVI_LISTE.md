@@ -30,6 +30,6 @@ Chaque point est coché quand il est fait ET vérifié (rendu réel, test, valid
 # Suivi de la 2e liste du 17 octobre (soir) — 4 points (ordre : 1, 2, 4, puis 3)
 
 - [x] 1. Hélicoptère, inclinaison réaliste — l'inclinaison (cyclique) fait avancer : nez bas en avançant, nez haut au freinage et en marche arrière, roulis en virage ; lâché, flare puis à plat en stationnaire ; plus de descente automatique à vide ; en vue 3D/1P, tirer vers l'arrière fait reculer ; caméra : 30 % du roulis en poursuite, sans à-coup. Test « Hélicoptère, inclinaison »
-- [ ] 2. Autres véhicules : moto/vélo penchent, voitures (roulis, plongée, cabrage), bateaux (nez qui se lève, gîte), avions (roulis, cabrage progressif)
+- [x] 2. Autres véhicules — inclinaisons lues sur le vrai lacet et la vraie accélération : moto et vélo penchent vers l'intérieur selon la vitesse (jusqu'à 0,55 rad), caisse des voitures cabrée à l'accélération, plongée au freinage, roulis vers l'extérieur (~4°, plus pour le Monster Truck, le Pickup, le Buggy), bateaux nez levé et gîte vers l'intérieur (jet-ski fort) ; avions : roulis et cabré progressif déjà en place. Test « Inclinaisons »
 - [ ] 4. Pictos monter / descendre : des flèches haut / bas
 - [ ] 3. Commandes de l'hélicoptère : 2 ou 3 schémas proposés (avantages, inconvénients), en attente du choix
