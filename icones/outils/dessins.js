@@ -500,6 +500,12 @@ I['ico-btn-action'] = () => {
 
 I['ico-btn-pause'] = () => [[boite(5.9, 12.0, 8.2, 22.2, 0, 1.3), boite(18.15, 12.0, 8.1, 22.2, 0, 1.3)]];
 
+// MONTER / DESCENDRE en vol (17 octobre au soir, signalé : « les icônes ressemblent à des micros, aucun rapport ») :
+// une flèche pleine, large et nette, vers le haut ou vers le bas — lisible à 24 px sous le pouce
+const FLECHE_HAUT = [[12.0, 1.4], [22.2, 11.8], [16.2, 11.8], [16.2, 22.6], [7.8, 22.6], [7.8, 11.8], [1.8, 11.8]];
+I['ico-btn-monter'] = () => [[poly(FLECHE_HAUT)]];
+I['ico-btn-descendre'] = () => [[poly(FLECHE_HAUT.map(([x, y]) => [x, 24 - y]).reverse())]];
+
 I['ico-btn-taxi'] = () => [[
   // berline de trois quarts avant : caisse avec passages de roue ouverts
   lisse([[1.5, 17.3, 1], [1.0, 15.0], [1.2, 13.8], [1.8, 12.4], [3.6, 11.5], [4.9, 11.0], [5.8, 10.2], [7.3, 9.5], [8.2, 8.6], [9.1, 7.8],

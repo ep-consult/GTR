@@ -14017,6 +14017,32 @@ async function main() {
       });
       if (r.ko.length) fail('Inclinaisons : ' + r.ko.join(' ; ')); else ok('Inclinaisons : ' + r.info.join(', '));
     }
+    // -------------------------------------------------------------------
+    // Pictos MONTER / DESCENDRE (17 octobre au soir, 2e liste, signalé : « les
+    // icônes ressemblent à des micros ») : en vol (hélico, avion — clés lues
+    // dans VEHDEFS), une flèche vers le haut et une vers le bas ; à pied, les
+    // icônes du sprint et du frein reviennent.
+    // -------------------------------------------------------------------
+    console.log('\n--- Pictos monter / descendre : des flèches en vol, les icônes d’origine à pied ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu';
+        const pointe = (id) => { const s = document.getElementById(id), p = s && s.querySelector('path'); if (!p) return null; const n = p.getAttribute('d').match(/-?\d+(\.\d+)?/g).map(Number), pts = [];
+          for (let i = 0; i + 1 < n.length; i += 2) pts.push([n[i], n[i + 1]]); const c = pts.filter(([x]) => Math.abs(x - 12) < 0.01); return c.length ? c[0][1] : null; };
+        const yM = pointe('ico-btn-monter'), yD = pointe('ico-btn-descendre');
+        if (!(yM !== null && yM < 5)) ko.push('la flèche MONTER ne pointe pas vers le haut (' + yM + ')');
+        if (!(yD !== null && yD > 19)) ko.push('la flèche DESCENDRE ne pointe pas vers le bas (' + yD + ')');
+        const use = (id) => { const e = document.getElementById(id), u = e && e.querySelector('use'); return u ? u.getAttribute('href') : ''; };
+        const cles = [Object.keys(VEHDEFS).find((k) => VEHDEFS[k].air === 'helico' && !VEHDEFS[k].ovni), Object.keys(VEHDEFS).find((k) => VEHDEFS[k].air === 'avion')];
+        for (const c of cles) { const v = creerVehicule(c, P.x + 6, P.z, 0); entrerVehicule(v);
+          if (use('btnSprint') !== '#ico-btn-monter' || use('btnBrake') !== '#ico-btn-descendre') ko.push(c + ' : boutons ' + use('btnSprint') + ' / ' + use('btnBrake'));
+          sortirVehicule(true); if (use('btnSprint') !== '#ico-btn-sprint' || use('btnBrake') !== '#ico-btn-brake') ko.push(c + ' : à pied, ' + use('btnSprint') + ' / ' + use('btnBrake'));
+          scene.remove(v.mesh); const i = vehicules.indexOf(v); if (i >= 0) vehicules.splice(i, 1); info.push(c); }
+        return { ko, info: [info.join(', ') + ' : flèches haut / bas en vol, sprint et frein à pied'] };
+      });
+      if (r.ko.length) fail('Pictos monter / descendre : ' + r.ko.join(' ; ')); else ok('Pictos monter / descendre : ' + r.info.join(' ; '));
+    }
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];
