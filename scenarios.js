@@ -13281,11 +13281,11 @@ async function main() {
           if (!toasts.some((m) => /policier/.test(m))) ko.push('balle perdue : pas d’avertissement');
           for (let k = 0; k < 4; k++) { ETAT.runT += 0.6; toucherEnnemi(ag, 1, true, 0); }
           if (!(WANTED.stars >= 1)) ko.push('cinq balles sur un agent : toujours pas recherché (' + WANTED.heat.toFixed(2) + ')');
-          for (const x of gang) x.mort = true; ag.rag = null; ag.stun = 0; ag.fuiteT = undefined; ag.x = P.x + 8; ag.z = P.z; if (ag.h) ag.h.g.position.set(ag.x, 0, ag.z); /* la scène maîtrisée : l'agent debout, près du joueur, plus aucun gangster */
+          for (const x of ennemis) if (x !== ag && GANGS.includes(x.fac)) x.mort = true; /* tous les gangsters, renforts compris (tuerEnnemi en fait venir un, 28 % des fois : il restait la cible de l'agent) */ ag.rag = null; ag.stun = 0; ag.fuiteT = undefined; ag.x = P.x + 8; ag.z = P.z; if (ag.h) ag.h.g.position.set(ag.x, 0, ag.z); /* la scène maîtrisée : l'agent debout, près du joueur, plus aucun gangster */
           ag.cibleT = 0; majEnnemis(1 / 30); if (!ag.mort && (ag.cible || ag.passif)) ko.push('recherché, l’agent ne s’occupe pas du joueur (cible ' + (ag.cible ? ag.cible.fac + '/' + (ag.cible.type || '') : '—') + ', passif ' + !!ag.passif + ', ' + WANTED.stars + '★)');
           info.push('balle perdue : +' + (h1 - h0).toFixed(2) + ' de chaleur, averti ; recherché après ' + 5 + ' balles'); }
         // fin de vague, au calme (INTER_CALME s sans un coup de feu) : les agents reprennent leur patrouille
-        WAVES.etat = 'repos'; for (const e of gang) e.mort = true; WANTED.heat = 0; WANTED.stars = 0; POLICE_INTER.alerte = 0; for (let k = 0; k < 30 * (INTER_CALME + 2); k++) majInterventionPolice(1 / 30);
+        WAVES.etat = 'repos'; for (const e of ennemis) if (GANGS.includes(e.fac)) e.mort = true; WANTED.heat = 0; WANTED.stars = 0; POLICE_INTER.alerte = 0; for (let k = 0; k < 30 * (INTER_CALME + 2); k++) majInterventionPolice(1 / 30);
         if (ennemis.some((e) => !e.mort && e.intervention) || vehicules.some((v) => v.intervention)) ko.push('au calme : des agents restent en intervention');
         toast = tst; Math.random = rnd0; WANTED.heat = 0; WANTED.stars = 0; for (const e of ennemis) e.mort = true; WAVES.etat = 'repos';
         return { ko, info };
