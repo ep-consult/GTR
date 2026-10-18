@@ -14404,6 +14404,65 @@ async function main() {
       if (r.ko.length) fail('Pilotage au manche : ' + r.ko.join(' ; ')); else ok('Pilotage au manche : ' + r.info.join(' ; '));
     }
     // -------------------------------------------------------------------
+    // Cabrage de toutes les motos (18 octobre, demandé : « le cabrage de la moto cross, ajoute-le sur toutes les motos ; en
+    // première personne la personne ne se lève pas, seul l'avant se lève tout seul »). Pour chaque moto de VEHDEFS (lue dans la
+    // source, motoCabrable) : CABRER sur ESQUIVE ; tenu, la moto ENTIÈRE pivote sur sa roue arrière (elle reste au sol, l'avant
+    // monte) et le pilote se lève avec elle ; relâché, tout redescend à plat ; tenu trop longtemps, la bascule. Au cockpit,
+    // l'œil monte (ou reste, sur le chopper dont la selle est au-dessus de l'axe) et le regard se lève de (1 − CABRAGE_TETE_1P) de
+    // l'angle. Une nitro de garage passe sur SPRINT. Descendre en plein cabrage : la moto est à plat, le pilote droit.
+    // -------------------------------------------------------------------
+    console.log('\n--- Cabrage de toutes les motos : la moto entière pivote sur la roue arrière, le pilote et l’œil du cockpit se lèvent ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = []; let T = dernierT + 1000; const B = INPUT.btn; const trafic0 = creerTrafic; creerTrafic = () => {};
+        const motos = Object.keys(VEHDEFS).filter((k) => motoCabrable({ def: VEHDEFS[k] }));
+        const monter = (cle, vue) => { META.vue = vue; if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; ETAT.jour = 40; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9;
+          for (const o of vehicules) { scene.remove(o.mesh); libererEntite(o.mesh); } vehicules.length = 0; for (const e of ennemis) e.mort = true;
+          const v = creerVehicule(cle, POIS.place.x, POIS.place.z + 60, Math.PI, null); P.x = v.x; P.z = v.z; return v; };
+        const W = (o) => o.getWorldPosition(new THREE.Vector3());
+        for (const cle of motos) {
+          const v = monter(cle, 'classique'); entrerVehicule(v); const X0 = v.x, Z0 = v.z;
+          const pas = (n, esq) => { for (let i = 0; i < n && P.veh === v; i++) { B.esquive = esq; INPUT.jx = INPUT.jy = 0; v.v = 15; v.x = X0; v.z = Z0; T += 1000 / 60; tick(T); } };
+          const roues = v.mesh.userData.roues.filter((r) => r.parent === v.mesh).sort((a, b) => a.position.z - b.position.z), rAr = roues[0], rAv = roues[roues.length - 1];
+          const m = () => { v.mesh.updateMatrixWorld(true); return { a: v.wheelieA || 0, ar: W(rAr).y, av: W(rAv).y, tete: W(P.h.tete).y, rx: v.mesh.rotation.x }; };
+          const btn = el('btnDodge').textContent;
+          pas(30, false); const plat = m(); pas(24, true); const cab = m(); pas(60, false); const ret = m();
+          if (!/CABRER/.test(btn)) ko.push(cle + ' : ESQUIVE « ' + btn + ' »');
+          if (!(cab.a > 0.3)) ko.push(cle + ' : tenu 0,4 s, angle ' + cab.a.toFixed(2));
+          if (Math.abs(cab.ar - plat.ar) > 0.03) ko.push(cle + ' : la roue arrière quitte le sol (' + plat.ar.toFixed(2) + ' → ' + cab.ar.toFixed(2) + ')');
+          if (!(cab.av - plat.av > 0.3)) ko.push(cle + ' : l’avant ne monte pas (' + plat.av.toFixed(2) + ' → ' + cab.av.toFixed(2) + ')');
+          if (!(cab.tete - plat.tete > 0.06)) ko.push(cle + ' : le pilote ne se lève pas (tête ' + plat.tete.toFixed(2) + ' → ' + cab.tete.toFixed(2) + ')');
+          if (Math.abs(ret.av - plat.av) > 0.02 || Math.abs(ret.rx - plat.rx) > 0.01 || ret.a > 0.001) ko.push(cle + ' : relâché, pas revenu à plat (' + JSON.stringify(ret) + ')');
+          pas(18, true); sortirVehicule(true); v.mesh.updateMatrixWorld(true);
+          if (Math.abs(v.mesh.rotation.x - plat.rx) > 0.01 || Math.abs(W(rAv).y - plat.av) > 0.02 || Math.abs(P.h.g.rotation.x) > 1e-6) ko.push(cle + ' : descendu en plein cabrage, moto ou pilote restés penchés');
+          const v2 = monter(cle, 'classique'); entrerVehicule(v2); let t = 0; const X2 = v2.x, Z2 = v2.z;
+          while (P.veh === v2 && t < 4) { B.esquive = true; v2.v = 15; v2.x = X2; v2.z = Z2; T += 1000 / 60; tick(T); t += 1 / 60; } B.esquive = false;
+          if (P.veh === v2) ko.push(cle + ' : tenu 4 s, jamais de bascule');
+          /* au cockpit : l'œil monte avec la moto, le regard se lève de (1 − CABRAGE_TETE_1P) de l'angle */
+          const v3 = monter(cle, 'fps'); entrerVehicule(v3); const X3 = v3.x, Z3 = v3.z;
+          const pas3 = (n, esq) => { for (let i = 0; i < n && P.veh === v3; i++) { B.esquive = esq; INPUT.jx = INPUT.jy = 0; v3.v = 15; v3.x = X3; v3.z = Z3; T += 1000 / 60; tick(T); } };
+          const cam = () => { camera.updateMatrixWorld(); const d = camera.getWorldDirection(new THREE.Vector3()); return { y: camera.position.y, reg: Math.asin(d.y), a: v3.wheelieA || 0 }; };
+          pas3(30, false); const c0 = cam(); pas3(24, true); const c1 = cam(); B.esquive = false;
+          const attendu = c1.a * (1 - CABRAGE_TETE_1P);
+          if (!COCKPIT.g) ko.push(cle + ' : pas de cockpit en 1re personne');
+          if (c1.y < c0.y - 0.005) ko.push(cle + ' : au cockpit, l’œil descend (' + c0.y.toFixed(2) + ' → ' + c1.y.toFixed(2) + ')');
+          if (Math.abs((c1.reg - c0.reg) - attendu) > 0.04) ko.push(cle + ' : au cockpit, le regard se lève de ' + (c1.reg - c0.reg).toFixed(3) + ' pour ' + attendu.toFixed(3) + ' attendus');
+          info.push(cle + ' ' + (cab.a * 57.3).toFixed(0) + '° : avant +' + (cab.av - plat.av).toFixed(2) + ' u, tête +' + (cab.tete - plat.tete).toFixed(2) + ', œil +' + (c1.y - c0.y).toFixed(2) + ', regard +' + ((c1.reg - c0.reg) * 57.3).toFixed(0) + '°, bascule en ' + t.toFixed(1) + ' s');
+          if (P.veh) sortirVehicule(true);
+        }
+        if (motos.length < 5) ko.push('seulement ' + motos.length + ' motos cabrables');
+        /* nitro de garage sur une moto de route : sur SPRINT, jamais sur ESQUIVE (CABRER) */
+        { const cle = motos.find((k) => !VEHDEFS[k].cross), v = monter(cle, 'classique'); v.nitro = true; v.nitroJauge = 100; entrerVehicule(v);
+          const lab = el('btnSprint').textContent; B.esquive = true; B.sprint = false; majNitro(0.1); const parEsq = v.nitroActif; B.esquive = false; B.sprint = true; majNitro(0.1); const parSprint = v.nitroActif; B.sprint = false;
+          if (!/NITRO/.test(lab) || parEsq || !parSprint) ko.push(cle + ' avec nitro : SPRINT « ' + lab + ' », par ESQUIVE ' + parEsq + ', par SPRINT ' + parSprint);
+          else info.push('nitro d’une moto sur SPRINT'); sortirVehicule(true); }
+        creerTrafic = trafic0; B.esquive = B.sprint = false; META.vue = 'classique'; majCamera(1 / 30);
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Cabrage des motos : ' + r.ko.join(' ; ')); else ok('Cabrage des motos : ' + r.info.join(' ; '));
+    }
+
+    // -------------------------------------------------------------------
     // Pictos MONTER / DESCENDRE (17 octobre au soir, 2e liste, signalé : « les
     // icônes ressemblent à des micros ») : en vol (hélico, avion — clés lues
     // dans VEHDEFS), une flèche vers le haut et une vers le bas ; à pied, les

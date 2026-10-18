@@ -1905,8 +1905,8 @@ function litEntrees(){
   INPUT.btn.freinK=KEYS['KeyS']||KEYS['ArrowDown'];
   INPUT.btn.jetpackK=KEYS['KeyF'];
   // maintien clavier (pas juste un front montant, KeyK est déjà pris pour
-  // l'esquive à pied en edge) : nécessaire pour le cabrage de la Moto
-  // cross, qui doit monter progressivement tant que la touche est tenue.
+  // l'esquive à pied en edge) : nécessaire pour le cabrage des motos,
+  // qui doit monter progressivement tant que la touche est tenue.
   INPUT.btn.esquiveK=KEYS['KeyK'];
   if(ATELIER.ouvert||BOUT.ouvert||TOUR.actif||(DECOR_V2&&SURPRISES.tyro)){ INPUT.mx=0; INPUT.mz=0; } // à l'établi, en cabine d'essayage : on ne marche pas
 }
@@ -2721,8 +2721,8 @@ const VEHDEFS={
   milit:{nom:'Camion "Aigle"',tuningMeca:true,vmax:23,acc:10,man:1.7,hp:520,long:6.2,larg:2.6,type:'car',cols:[0x4a5238],milit:true},
   moto:{nom:'Moto',tuningMeca:true,tuningCarro:{famille:'deuxroues',ancrages:{avant:{x:0,y:0.9,z:0.7},arriere:{x:0,y:0.95,z:-1.18},toit:{x:0,y:1.1,z:0.47},basCaisse:{x:0.2,y:0.42,z:0}}},vmax:34,acc:21,man:3.4,hp:70,long:2.4,larg:0.9,type:'moto',cols:[0xd05038,0x3a70c0,0x24272e]},
   motoR:{nom:'Moto "Frelon"',tuningMeca:true,tuningCarro:{famille:'deuxroues',ancrages:{avant:{x:0,y:0.9,z:0.7},arriere:{x:0,y:0.95,z:-1.18},toit:{x:0,y:1.1,z:0.47},basCaisse:{x:0.2,y:0.42,z:0}}},vmax:41,acc:24,man:3.6,hp:60,long:2.4,larg:0.9,type:'moto',cols:[0xe6a41f]},
-  // Moto cross : seule moto capable de cabrer (bouton CABRER, voir
-  // majConduite/entrerVehicule) — un vrai risque de chute si l'angle est
+  // Moto cross : la première moto capable de cabrer (bouton CABRER — toutes les motos depuis le 18 octobre, voir
+  // majCabrageMoto/entrerVehicule) — un vrai risque de chute si l'angle est
   // tenu trop longtemps, jamais un simple effet cosmétique (CLAUDE.md,
   // « un minigame doit être perdable »). Look tout-terrain propre, voir
   // makeVoiture (def.cross).
@@ -11632,7 +11632,7 @@ function majRides(dtJeu){
   r.t-=dtJeu; r.t0+=dtJeu;
   const D=RIDE_DEFS[r.id];
   if(D.stunt){
-    const v=P.veh; if(v.wheelieA>0.3&&!v.enAir) r.pts+=40*dtJeu; // cabrage de la moto cross
+    const v=P.veh; if(v.wheelieA>0.3&&!v.enAir) r.pts+=40*dtJeu; // cabrage (motos, vélos)
     RIDES.porte.visible=false;
     RIDES.txt.textContent='🤘 '+D.nom+' — '+Math.round(r.pts)+' / '+D.objectif+' pts — '+Math.ceil(Math.max(0,r.t))+' s';
     if(r.pts>=D.objectif){ finirRide(true); return; }
@@ -18797,6 +18797,7 @@ function resoudreCollisionsVehicule(v,dt){
 const _vRoue=new THREE.Vector3();
 function majVehiculePhys(v,dt,throttle,steer,frein){
   v.steerIn=steer; v.freinIn=!!frein; /* lus par le cockpit (volant, voyant de frein) */
+  if(v.cabreX) retirerPoseCabrage(v); /* le cabrage des motos s'ajoute à l'assiette : retiré ici, reposé après (poseCabrage) */
   if(v.noye) return; // noyé : il coule (majNoyade), plus aucune conduite
   const d=v.def, eau=surEauVeh(v); // surEauVeh : dynamique pour l'amphibie, statique pour les bateaux
   const echoue=!!d.eau&&!v.horsVille&&!estEau(v.x,v.z); // bateau posé sur le sable (échouage)
@@ -19213,9 +19214,10 @@ function entrerVehicule(v){
   el('btnBrake').style.display='flex'; el('btnBrake').classList.add('gros');
   el('vehWrap').style.display='block';
   el('btnJetpack').style.display='none'; // inutilisable en véhicule — voir sortirVehicule
-  if(v.def.cross){
-    // Moto cross : bouton CABRER, sur l'emplacement ESQUIVE (inutilisée en
+  if(motoCabrable(v)){
+    // Motos : bouton CABRER, sur l'emplacement ESQUIVE (inutilisée en
     // véhicule) — jamais un nouveau bouton, pas de place libre à l'écran.
+    // (Toutes les motos depuis le 18 octobre ; une nitro de garage passe sur SPRINT.)
     el('btnDodge').style.display='flex';
     el('btnDodge').innerHTML='🏍️<small>CABRER</small>';
     toast('Maintiens CABRER pour te cabrer — trop longtemps et tu bascules','or');
@@ -19363,8 +19365,9 @@ function entrerVehicule(v){
     toast('🪝 TREUIL accroche le véhicule le plus proche et le tracte — rappuie pour décrocher','or');
   }
   if(v.nitro&&!v.def.cross&&!v.def.pelle&&!v.def.ambulance&&!v.def.bond){
-    el('btnDodge').style.display='flex';
-    el('btnDodge').innerHTML=ico('ico-spec-nitro','🔥')+'<small>NITRO</small>';
+    const bN=el(motoCabrable(v)?'btnSprint':'btnDodge'); /* moto : ESQUIVE est CABRER, la nitro passe sur SPRINT (libre au volant) */
+    bN.style.display='flex';
+    bN.innerHTML=ico('ico-spec-nitro','🔥')+'<small>NITRO</small>';
     NITRO_HUD.wrap.style.display='block'; NITRO_HUD.dernier=-1;
   }
   MISSION.volT=0;
@@ -19447,12 +19450,9 @@ function sortirVehicule(force){
   loopRingEl.style.display='none'; // au cas où on sortait en pleine charge de looping
   desintRingEl.style.display='none'; // au cas où on sortait en pleine charge du Désintégrateur
   if(v.def.type==='moto') v.mesh.rotation.z=0; // on redresse la moto au parking
-  if(v.def.cross){
-    // on redescend la roue avant et on remet le châssis à plat au parking
-    // — sinon la Moto cross resterait visuellement cabrée après la descente.
-    v.wheelieA=0; v.wheelieChuteT=undefined;
-    if(v.mesh.userData.corps){ v.mesh.userData.corps.rotation.x=0; v.mesh.userData.corps.position.y=0; }
-    const roueAv=v.mesh.userData.roues[0]; if(roueAv) roueAv.position.y=0.4;
+  if(motoCabrable(v)){ // la moto redescend à plat au parking (sinon elle resterait cabrée après la descente), le pilote se redresse
+    v.wheelieA=0; v.wheelieChuteT=undefined; retirerPoseCabrage(v); v.cabrePose=false;
+    if(P.surMoto&&P.h) P.h.g.rotation.x=0;
   }
   if(v.sirene){ v.sirene=false; sireneStop(); }
   lanceSonStop();
@@ -20184,6 +20184,38 @@ function controleDir(v,frein){
    la fin du délai de grâce sauve toujours. */
 const CROSS_CABRAGE_RATE=1.1, CROSS_CABRAGE_RELACHE=2.6, CROSS_CABRAGE_MAX=0.68,
       CROSS_CABRAGE_DANGER=0.55, CROSS_CABRAGE_GRACE=0.8;
+/* ---- Cabrage de TOUTES les motos (18 octobre, demandé : « le cabrage de la moto cross, ajoute-le sur toutes les motos ; en
+   première personne la personne ne se lève pas, seul l'avant se lève tout seul »). Avant, seule la caisse de la moto cross
+   tournait (et sa roue avant était relevée à la main) : le pilote et la caméra du cockpit, accrochés au MODÈLE, restaient à plat.
+   Désormais la moto ENTIÈRE pivote autour de l'axe de sa roue arrière (poseCabrage) : le pilote, enfant du modèle, se lève avec
+   elle et se penche un peu en avant pour tenir l'équilibre (CABRAGE_PENCHE) ; au cockpit, l'œil monte et le regard se lève — le
+   casque en rattrape une part (CABRAGE_TETE_1P) — pendant que le guidon monte devant. Même geste pour toutes (ESQUIVE tenu ; au
+   delà du seuil de danger, un délai avant la bascule) ; réglages par style (CABRAGE_MOTO), la moto cross garde les siens. La pose
+   s'ajoute à l'assiette de la pente : majVehiculePhys la retire en tête (v.cabreX, v.cabreD), poseCabrage la remet après. */
+const CABRAGE_MOTO={cross:{vit:CROSS_CABRAGE_RATE,max:CROSS_CABRAGE_MAX,danger:CROSS_CABRAGE_DANGER},
+  sport:{vit:1.25,max:0.66,danger:0.54}, route:{vit:0.95,max:0.62,danger:0.5}, chopper:{vit:0.8,max:0.56,danger:0.46}};
+const CABRAGE_TETE_1P=0.4, CABRAGE_PENCHE=0.55;
+function motoCabrable(v){ const d=v&&v.def; return !!d&&d.type==='moto'&&!d.velo&&!d.skate&&!d.eau&&!d.surf; }
+function styleCabrage(v){ return v.def.cross?'cross':(v.key==='motoS'?'sport':(v.key==='fantome'?'chopper':'route')); }
+function majCabrageMoto(v,dt){ /* renvoie true si le pilote vient de basculer */
+  const C=CABRAGE_MOTO[styleCabrage(v)], cabre=(INPUT.btn.esquive||INPUT.btn.esquiveK)&&Math.abs(v.v)>3&&!v.enAir;
+  v.wheelieA=clamp((v.wheelieA||0)+(cabre?C.vit:-CROSS_CABRAGE_RELACHE)*dt,0,C.max);
+  if(v.wheelieA>C.danger){
+    if(v.wheelieChuteT===undefined){ v.wheelieChuteT=CROSS_CABRAGE_GRACE; toast('Trop cabré !','warn'); SFX.refus(); vibre(25); }
+    v.wheelieChuteT-=dt;
+    if(v.wheelieChuteT<=0){ toucherJoueur(18); sortirVehicule(true); lancerRagdollJoueurFx(); toast('Tu bascules en arrière — trop cabré trop longtemps','warn'); return true; }
+  } else v.wheelieChuteT=undefined;
+  poseCabrage(v); return false; }
+function poseCabrage(v){ const a=v.wheelieA||0, g=v.mesh, pil=P.surMoto&&P.veh===v;
+  if(!(a>0.0005)||v.figSpin>0||v.figFlip>0){ v.cabreX=0; v.cabreD=null;
+    if(v.cabrePose){ v.cabrePose=false; if(pil){ P.h.g.rotation.x=0; P.h.brasG.rotation.x=-1.1; if(!(v.tirBrasT>0)) P.h.brasD.rotation.x=-1.1; } } return; }
+  if(!v.cabrePivot){ let zR=Infinity, R=0.35; for(const r of g.userData.roues||[]) if(r.parent===g&&r.position.z<zR){ zR=r.position.z; R=r.position.y; } /* l'axe de la roue arrière */
+    v.cabrePivot={z:zR===Infinity?-v.def.long*0.4:zR,R:zR===Infinity?0.35:R}; }
+  const zR=v.cabrePivot.z, R=v.cabrePivot.R, c=Math.cos(a), sn=Math.sin(a), dy=R*(1-c)-zR*sn, dz=zR*(1-c)+R*sn, dx=Math.sin(v.ang)*dz, dzM=Math.cos(v.ang)*dz;
+  g.rotation.order='YXZ'; g.rotation.x-=a; g.position.x+=dx; g.position.y+=dy; g.position.z+=dzM; /* l'axe arrière ne bouge pas : le nez monte, la roue arrière reste au sol */
+  v.cabreX=a; v.cabreD=[dx,dy,dzM];
+  if(pil){ v.cabrePose=true; P.h.g.rotation.x=a*CABRAGE_PENCHE; P.h.brasG.rotation.x=-1.1-a*0.5; if(!(v.tirBrasT>0)) P.h.brasD.rotation.x=-1.1-a*0.5; } } /* il se penche sur le guidon, les bras tendus */
+function retirerPoseCabrage(v){ const g=v&&v.mesh; if(!g||!v.cabreX) return; g.rotation.x+=v.cabreX; if(v.cabreD){ g.position.x-=v.cabreD[0]; g.position.y-=v.cabreD[1]; g.position.z-=v.cabreD[2]; } v.cabreX=0; v.cabreD=null; }
 /* ---- Lance à eau du camion de pompiers : outil de CONTRÔLE, pas une arme.
    Repousse fortement et fait TOMBER (ragdoll non mortel, voir majRagdoll)
    ennemis et piétons, dégâts volontairement dérisoires (jamais assez pour
@@ -20421,7 +20453,7 @@ function majFiguresDeuxRoues(v,dt){
   } else if(v.figEnVol){ // réception
     v.figEnVol=false;
     const s=v.figSpin||0, f=v.figFlip||0; v.figSpin=0; v.figFlip=0;
-    v.mesh.rotation.x=0; if(ud.corps&&!d.cross) ud.corps.rotation.x=0; if(ud.planche) ud.planche.rotation.set(0,0,0);
+    v.mesh.rotation.x=0; v.cabreX=0; v.cabreD=null; if(ud.corps&&!d.cross) ud.corps.rotation.x=0; if(ud.planche) ud.planche.rotation.set(0,0,0);
     if((s>0&&s<1)||(f>0&&f<1)){ // pas finie : chute
       v.v*=0.2; toast('Chute ! Figure pas finie','warn'); vibre(80); secousse(6);
       sortirVehicule(true); toucherJoueur(15); lancerRagdollJoueurFx(); return true;
@@ -20507,27 +20539,7 @@ function majConduite(dt){
   const c=controleDir(v,frein);
   majVehiculePhys(v,dt,c.throttle,c.steer,frein);
   if(dansSkateXXL(v.x,v.z)) majSkateXXL(v,dt); // skatepark XXL : airs de bowl
-  if(v.def.cross){
-    const cabre=(INPUT.btn.esquive||INPUT.btn.esquiveK)&&Math.abs(v.v)>3&&!v.enAir;
-    v.wheelieA=clamp((v.wheelieA||0)+(cabre?CROSS_CABRAGE_RATE:-CROSS_CABRAGE_RELACHE)*dt,0,CROSS_CABRAGE_MAX);
-    if(v.wheelieA>CROSS_CABRAGE_DANGER){
-      if(v.wheelieChuteT===undefined){ v.wheelieChuteT=CROSS_CABRAGE_GRACE; toast('Trop cabré !','warn'); SFX.refus(); vibre(25); }
-      v.wheelieChuteT-=dt;
-      if(v.wheelieChuteT<=0){
-        toucherJoueur(18);
-        sortirVehicule(true);
-        lancerRagdollJoueurFx();
-        toast('Tu bascules en arrière — trop cabré trop longtemps','warn');
-        return;
-      }
-    } else v.wheelieChuteT=undefined;
-    if(v.mesh.userData.corps){
-      v.mesh.userData.corps.rotation.x=-v.wheelieA;
-      v.mesh.userData.corps.position.y=Math.sin(v.wheelieA)*0.22;
-    }
-    const roueAv=v.mesh.userData.roues[0];
-    if(roueAv) roueAv.position.y=0.4+Math.sin(v.wheelieA)*0.5;
-  }
+  if(motoCabrable(v)&&majCabrageMoto(v,dt)) return; /* toutes les motos cabrent (ESQUIVE tenu) ; trop longtemps : la bascule */
   if(v.def.velo){
     // BUNNY HOP : appui bref d'ESQUIVE (au relâcher), roues au sol → envol par la
     // physique de saut partagée (v.enAir/v.vy, majVehiculePhys) ; par-dessus
@@ -33394,7 +33406,7 @@ function nitroAutorisee(v){
 function majNitro(dtJeu){
   const v=P.veh;
   if(!v||!v.nitro){ if(v) v.nitroActif=false; return; }
-  const veut=!!(INPUT.btn.esquive||INPUT.btn.esquiveK)&&!v.def.cross&&!v.def.pelle&&!v.def.ambulance&&!v.def.bond;
+  const veut=!!(motoCabrable(v)?(INPUT.btn.sprint||INPUT.btn.sprintK):(INPUT.btn.esquive||INPUT.btn.esquiveK))&&!v.def.cross&&!v.def.pelle&&!v.def.ambulance&&!v.def.bond; /* moto : NITRO sur SPRINT (ESQUIVE = CABRER) */
   const ok=nitroAutorisee(v);
   if(veut&&!ok){
     NITRO_HUD.refusT-=dtJeu;
@@ -37838,7 +37850,7 @@ function cameraCockpit(dt){ const v=P.veh, C=COCKPIT; if(C.v!==v||!C.g) cockpitC
   if(C.fam==='helico'){ const da=angDiff(C.angPrec===undefined?v.ang:C.angPrec,v.ang)/Math.max(dt,1e-3); C.angPrec=v.ang; C.regardVire=lerp(C.regardVire||0,clamp(da*0.3,-0.4,0.4),clamp(dt*2.5,0,1)); } else C.regardVire=0; /* hélico : le regard part dans le virage, le montant et la porte entrent dans le champ (17 octobre au soir : « quand on tourne, on a l'impression d'être dans le vide ») */
   { const man=avionManche(v), f=man?clamp(META.horizonCk===undefined?1:META.horizonCk,0,1):1, cible=man&&!v.tonneau&&!v.tonFin?-(1-f)*clamp(Math.atan2(Math.sin(v.bank||0),Math.cos(v.bank||0)),-1.5,1.5):0;
     C.contreRoulis=lerp(C.contreRoulis||0,cible,clamp(dt*8,0,1)); } /* l'avion penche en entier ; l'œil se redresse de (1 − réglage) : l'horizon ne bascule que de la part choisie */
-  _ckQ.setFromEuler(_ckE.set(C.pitch+(C.plonge||0)+(VUE.pitch1P||0)*0.5,Math.PI+off+st0(v)*0.06+C.regardVire,C.contreRoulis||0,'YXZ')); camera.quaternion.copy(C.quat).multiply(_ckQ); /* l'avant du véhicule est +z, la caméra regarde −z ; le regard part un peu dans le virage (steerIn < 0 = à droite, lacet négatif = regard à droite) */
+  _ckQ.setFromEuler(_ckE.set(C.pitch+(C.plonge||0)+(VUE.pitch1P||0)*0.5-(v.cabreX||0)*CABRAGE_TETE_1P,Math.PI+off+st0(v)*0.06+C.regardVire,C.contreRoulis||0,'YXZ')); camera.quaternion.copy(C.quat).multiply(_ckQ); /* l'avant du véhicule est +z, la caméra regarde −z ; le regard part un peu dans le virage (steerIn < 0 = à droite, lacet négatif = regard à droite) */
   const fov=CK_FOV+Math.min(vit,45)*0.18; if(Math.abs(camera.fov-fov)>0.05||camera.near!==0.05){ camera.fov=lerp(camera.fov,fov,0.2); camera.near=0.05; camera.updateProjectionMatrix(); }
   VUE.k=1; VUE.kVeh=1; VUE.yaw=(v.ang||0)+Math.PI+off; VUE.yawUser=VUE.yaw; VUE.offVehRendu=off+C.regardVire; /* le regard dans le virage ne change pas la conduite (vueAngleEcran le retranche) */
   if(!_chalCam.d) _chalCam.d=new THREE.Vector3(); const cd=_chalCam.d; camera.getWorldDirection(cd); VUE.yawRendu=Math.hypot(cd.x,cd.z)>1e-3?Math.atan2(-cd.x,-cd.z):0;

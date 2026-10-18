@@ -55,7 +55,7 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
   echo "$ln | $(sed -n "$((ln+1))p" index.html | sed 's/^[ \t]*//')"; done
 ```
 
-**Relevé du 18 octobre — 38 278 lignes.**
+**Relevé du 18 octobre — 38 290 lignes.**
 Attention : `maj_carte` recale les numéros dans l'ordre des lignes de la table ;
 un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la main.
 
@@ -88,33 +88,33 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 16803 | POOLS — balles, particules, textes flottants, traces de pneus |
 | 17280 | ÉTAT GLOBAL + JOUEUR (`P`) |
 | 18157 | VÉHICULES — physique arcade, trafic, dégâts |
-| 21223 | PIÉTONS |
-| 21493 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
-| 22082 | **RAYON TRACTEUR DE L'OVNI** |
-| 22547 | NIVEAU DE RECHERCHE (étoiles) |
-| 22903 | VAGUES + bonus de fin de vague |
-| 23028 | MISSIONS COURTES |
-| 23031 | BÂTIMENTS VISITABLES — intérieurs |
-| 23101 | FOUILLE — mécanique générique |
-| 23649 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
-| 27898 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
-| 28307 | **LAVERIE** V2 — l'essorage de la machine 7 |
-| 28572 | **SERRE** V2 — la nuit de la floraison |
-| 28865 | CINÉ-PALACE |
-| 29109 | MÉTRO ABANDONNÉ |
-| 29175 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
-| 29528 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
-| 30430 | SITE 51 |
-| 30660 | LE DÉPÔT DE BUS — courses clandestines |
-| 32107 | **MÉTIERS** — missions liées à un véhicule |
-| 32398 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
-| 33420 | ÉCRANS / MENUS / BOUTIQUES |
-| 33696 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
-| 34528 | DÉBUT / FIN DE PARTIE |
-| 36065 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
-| 36306 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
-| 36603 | **COCKPITS** — vue 1re personne au volant (`COCKPIT`, `COCKPIT_FAMILLES`, `cockpitDims`, `mkCockpitInterieur`, `ckDessiner`, `rendreCockpit`, `cameraCockpit`, `cockpitDiagnostic`, `photoCockpit`) |
-| 38143 | BOUCLE PRINCIPALE |
+| 21235 | PIÉTONS |
+| 21505 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
+| 22094 | **RAYON TRACTEUR DE L'OVNI** |
+| 22559 | NIVEAU DE RECHERCHE (étoiles) |
+| 22915 | VAGUES + bonus de fin de vague |
+| 23040 | MISSIONS COURTES |
+| 23043 | BÂTIMENTS VISITABLES — intérieurs |
+| 23113 | FOUILLE — mécanique générique |
+| 23661 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
+| 27910 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
+| 28319 | **LAVERIE** V2 — l'essorage de la machine 7 |
+| 28584 | **SERRE** V2 — la nuit de la floraison |
+| 28877 | CINÉ-PALACE |
+| 29121 | MÉTRO ABANDONNÉ |
+| 29187 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
+| 29540 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
+| 30442 | SITE 51 |
+| 30672 | LE DÉPÔT DE BUS — courses clandestines |
+| 32119 | **MÉTIERS** — missions liées à un véhicule |
+| 32410 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
+| 33432 | ÉCRANS / MENUS / BOUTIQUES |
+| 33708 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
+| 34540 | DÉBUT / FIN DE PARTIE |
+| 36077 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
+| 36318 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
+| 36615 | **COCKPITS** — vue 1re personne au volant (`COCKPIT`, `COCKPIT_FAMILLES`, `cockpitDims`, `mkCockpitInterieur`, `ckDessiner`, `rendreCockpit`, `cameraCockpit`, `cockpitDiagnostic`, `photoCockpit`) |
+| 38155 | BOUCLE PRINCIPALE |
 
 ### Ancres fines (hors bandeaux)
 
@@ -163,34 +163,35 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 17288 | `const P` — état du joueur |
 | 17331 | `P.stamMax = 100 + 12*mus` |
 | 18683 | `resoudreCollisionsVehicule()` — collisions entre véhicules (SAT sur les 4 axes) |
-| 19380 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
+| 19383 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
 | 19504 | `boutonsAPied()` — boutons du HUD remis « à pied » (sortie de véhicule ET début de partie) |
-| 20629 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
-| 20761 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
-| 23037 | `IOFF = -9000` |
-| 24841 | `INTDEFS` — définitions des **28 salles** (27 + la boutique) |
-| 25226 | `construireSalle(id)` |
-| 29582 | `CHALUTIER_BANCS_PLAN` — chalutier V2 ; `chalutierMaj` (30084), `dessinerRadarChalutier` (30395) |
-| 32116 | `METIERS_CIBLE` |
-| 32416 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
-| 32504 | `PIECES_FAMILLES` — catalogues de pièces par famille |
-| 32814 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
-| 32878 | `libererObjet()` — libère les géométries d'un objet retiré |
-| 32894 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
-| 33024 | `construireGarageTuning()` — la salle partagée |
-| 33394 | `majNitro()` |
+| 20641 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
+| 20773 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
+| 23049 | `IOFF = -9000` |
+| 24853 | `INTDEFS` — définitions des **28 salles** (27 + la boutique) |
+| 25238 | `construireSalle(id)` |
+| 29594 | `CHALUTIER_BANCS_PLAN` — chalutier V2 ; `chalutierMaj` (30096), `dessinerRadarChalutier` (30407) |
+| 32128 | `METIERS_CIBLE` |
+| 32428 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
+| 32516 | `PIECES_FAMILLES` — catalogues de pièces par famille |
+| 32826 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
+| 32890 | `libererObjet()` — libère les géométries d'un objet retiré |
+| 32906 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
+| 33036 | `construireGarageTuning()` — la salle partagée |
+| 33406 | `majNitro()` |
 | 18350 | `degatsChoc()` — dégâts V2 : `bosseler`, débris, `perdreRoue` ; murs : `degagerDesMurs` (plus haut) |
 | 7758 | `SAUTV` — Saut du Vertige : `hauteurSautVertige`, `mkSautVertige`, `mkBargeVertige`, `finSautVertige` |
-| 36492 | `VUE1P` — vue à la 1re personne : `cameraPremiere`, `ligneDeMire`, `viseAuto1P` |
+| 36504 | `VUE1P` — vue à la 1re personne : `cameraPremiere`, `ligneDeMire`, `viseAuto1P` |
 | 9678 | `SPORTJ` — le centre sportif se joue : `sportjDemarrer`, `majSportJ`, `sportjFrapper` |
 | 9104 | `RECHARGE_ARME` — rechargements à la 1re personne : `animRecharge`, `rechPiece`, `rechRemise`, `rechAccessoire` |
-| 37012 | `CK_HAB` — cockpits V2 : `CK_TH`, `CK_CADRANS`, `ckDial`, `ckCombine`, `ckHabitacle`, `ckVolant2`, `ckMain`, `ckDeuxRoues`, `ckBateau2`, `ckAvion2`, `ckHoloOvni` |
+| 37024 | `CK_HAB` — cockpits V2 : `CK_TH`, `CK_CADRANS`, `ckDial`, `ckCombine`, `ckHabitacle`, `ckVolant2`, `ckMain`, `ckDeuxRoues`, `ckBateau2`, `ckAvion2`, `ckHoloOvni` |
 | 14698 | `construireBatte(id)` — la batte cloutée et la Vertèbre (géométries partagées, manche et tête séparés) |
 | 17018 | `lancerMissileAvion()` — le missile des appareils : `missileProfil`, `missilePos`, `missileTraj`, traînée `MFUM` |
 | 19618 | `appuiVolCran()` — un appui bref sur MONTER / DESCENDRE vaut un cran (`APPUI_VOL_MIN`) |
 | 19813 | `virageAvion()` — le virage des avions : `roulisAvion`, `roulisIA` (juste avant `majVol`) |
 | 19856 | `volManche()` — le pilotage au manche (vue 3D et 1P) : `avionManche`, `majGazAvion`, `majBoutonsVol`, `figuresManche` |
 | 19837 | `MANETTE` — la manette des gaz des avions au manche : `manetteDoigt`, `majManette` (juste avant `majBoutonsVol`) |
+| 20200 | `majCabrageMoto()` — le cabrage de toutes les motos : `CABRAGE_MOTO`, `motoCabrable`, `poseCabrage`, `retirerPoseCabrage` |
 | 1004 | `AVION_MANCHE` — inclinaison, roulis, tangage, taux de virage, tonneaux et looping par avion (pilotage au manche) |
 
 ---
@@ -2001,6 +2002,27 @@ pilotage par direction** (« Virage des avions »).
   défaut). Le manche du cockpit suit le joystick (`majCockpit`).
 - Tests : « Pilotage au manche » (7 avions, tangage, gaz, manette au doigt — cran, FREIN en vol et au sol, retour à 0, aucun
   bouton ne la chevauche —, tonneaux, looping, décollage, horizon au réglage) ; « Avions au cockpit » réécrit pour le manche ; « Aéroport vivant » et « Appui bref en vol » fixent la vue 2D (leur pilotage est celui-là).
+
+## Cabrage de toutes les motos (18 octobre) — `majCabrageMoto`, `poseCabrage`, `CABRAGE_MOTO`
+
+Demandé : « le cabrage de la moto cross, ajoute-le sur toutes les motos ; en première personne la personne ne se lève pas,
+seul l'avant se lève tout seul ». Avant, seule la CAISSE de la moto cross tournait (`ud.corps`, roue avant relevée à la main à
+y = 0,4 — fausse sur les modèles V2) : le pilote et la caméra du cockpit, accrochés au modèle, restaient à plat.
+- **Toutes les motos** (`motoCabrable` : `type:'moto'` sans vélo, skate, eau ni planche — Moto, Frelon, sportive, Fantôme,
+  cross, cross militaire) : ESQUIVE = CABRER, tenu ; au-delà du seuil de danger, `CROSS_CABRAGE_GRACE` s avant la bascule
+  (dégâts, éjection). Réglages par style (`CABRAGE_MOTO` : vitesse, angle max, seuil) — sportive la plus vive (29°), chopper la
+  plus sage (18°), la cross garde les siens (`CROSS_CABRAGE_*`).
+- **La moto ENTIÈRE pivote sur l'axe de sa roue arrière** (`poseCabrage` : pivot lu sur la vraie roue arrière, `v.cabrePivot`) :
+  la roue arrière reste au sol, l'avant monte, le pilote (enfant du modèle) se lève avec elle et se penche un peu en avant, bras
+  tendus (`CABRAGE_PENCHE`). La pose s'AJOUTE à l'assiette de la pente : `majVehiculePhys` la retire en tête
+  (`retirerPoseCabrage`, `v.cabreX`, `v.cabreD`), `poseCabrage` la remet après la physique ; jamais pendant une figure en l'air
+  (à la réception, la pose de l'image est oubliée). Descendre en plein cabrage : moto à plat, pilote droit.
+- **Au cockpit** : le repère du cockpit est celui du modèle (`ckRepere`) — l'œil monte, le guidon et le compteur montent devant ;
+  le regard se lève de (1 − `CABRAGE_TETE_1P`) de l'angle (le casque en rattrape 40 %, la route reste en vue).
+- **Nitro de garage sur une moto** : sur SPRINT (libre au volant d'une moto de route), plus sur ESQUIVE ; la moto cross reste sans
+  nitro (SPRINT = 360).
+- Test : « Cabrage des motos » (chaque moto lue dans `VEHDEFS` : roue arrière au sol, avant et tête qui montent, retour à plat,
+  bascule tenue, descente en plein cabrage, œil et regard au cockpit, nitro sur SPRINT).
 
 ## Montée de l'hélicoptère (17 octobre au soir) — `HELI_VA_ACC`, `HELI_TANG_AVANT`
 
