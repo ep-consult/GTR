@@ -7459,7 +7459,7 @@ async function main() {
         const ko = [], vues = [];
         for (const id of Object.keys(INTDEFS)) {
           startRun(); ETAT.mode = 'jeu';
-          const po = PORTES.find((x) => x.id === id); if (!po) continue;
+          const po = (typeof porteSalle === 'function' ? porteSalle(id) : null) || PORTES.find((x) => x.id === id); if (!po) continue; /* une planque : sa porte (pas dans PORTES) */
           P.x = po.x; P.z = po.z + 1.5; entrerInterieur(id, po);
           if (!INT.actif) continue;
           P.hp = 1e6; await dors(350);
@@ -9937,7 +9937,7 @@ async function main() {
         const pv = new THREE.Vector3();
         for (const id of Object.keys(INTDEFS)) {
           if (INT.actif) sortirInterieur(); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6; META.vue = 'immersive';
-          const porte = PORTES.find((p) => p.id === id) || { x: P.x, z: P.z, nx: 0, nz: 1 }; // la radio n'a pas de porte (on y monte autrement)
+          const porte = (typeof porteSalle === 'function' ? porteSalle(id) : null) || PORTES.find((p) => p.id === id) || { x: P.x, z: P.z, nx: 0, nz: 1 }; // la radio n'a pas de porte (on y monte autrement) ; une planque : la sienne
           entrerInterieur(id, porte); const s = INT.actif; if (!s) { ko.push(id + ' : on n’entre pas'); continue; }
           if (s.tuning) s.menuOuvert = false; ETAT.intT = 0; frames(60);
           if (!salleImmersive(s)) { if (VUE.k !== 0) ko.push(id + ' garde sa caméra, mais VUE.k = ' + VUE.k.toFixed(2)); continue; }
@@ -10147,21 +10147,28 @@ async function main() {
           META.argent = d.prix + 100; appui(); if (!planquePossedee(d.id) || META.argent !== 100) ko.push(d.id + ' : achat raté');
           checkTenues(); const tn = TENUES.find((t) => t.condTxt && t.condTxt.indexOf('Planque') >= 0 && t.cond() && t.condTxt.toLowerCase().indexOf(d.nom.split(' ')[0].toLowerCase().slice(0, 5)) >= 0);
           if (!tn) ko.push(d.id + ' : pas de tenue débloquée');
+          // une planque qui a un intérieur (19 octobre) : on entre par sa porte ; lit, coffre et spécificité sont dedans
+          const dedans = planqueAInterieur(q);
+          if (dedans) { if (INT.actif) sortirInterieur(); ici(q.entree, q); const le = appui(); if (!INT.actif || INT.actif.id !== d.id) { ko.push(d.id + ' : on n’entre pas (' + le + ')'); continue; } }
+          const zone = (k) => dedans ? INT.actif[{ lit: 'pqLit', coffre: 'pqCoffre', spec: 'pqSpec' }[k]] : q[k];
+          const iciZ = (k) => { const zn = zone(k); P.x = zn.x; P.z = zn.z; P.y = dedans ? 0 : (zn.y !== undefined ? zn.y : q.y); };
+          const attendre = () => { if (dedans) for (let i = 0; i < 40; i++) majInterieur(0.1, 0.1); }; /* la réparation de l'atelier prend 2,6 s */
           // repos : une fois par vague
-          ici(q.lit, q); P.hp = 100; appui(); if (P.hp !== P.maxHp) ko.push(d.id + ' : le repos ne soigne pas');
+          iciZ('lit'); P.hp = 100; appui(); if (P.hp !== P.maxHp) ko.push(d.id + ' : le repos ne soigne pas');
           P.hp = 100; appui(); if (P.hp !== 100) ko.push(d.id + ' : repos deux fois dans la vague');
           // coffre
-          META.revenus = 77; const a0 = META.argent; ici(q.coffre, q); appui(); if (META.argent !== a0 + 77 || META.revenus !== 0) ko.push(d.id + ' : coffre');
+          META.revenus = 77; const a0 = META.argent; iciZ('coffre'); appui(); if (META.argent !== a0 + 77 || META.revenus !== 0) ko.push(d.id + ' : coffre');
           // spécificité : on prépare ce qu'il faut, une fois par vague
-          P.hp = 300; ici(q.spec, q);
-          if (d.spec === 'atelier') { const v = creerVehicule('berline', q.x - 3, q.z + 6, 0); v.hp = 10; appui(); if (v.hp !== v.def.hp) ko.push('atelier : véhicule non réparé'); v.hp = 10; ici(q.spec, q); appui(); if (v.hp !== 10) ko.push('atelier : deux fois'); v.mort = true; }
+          P.hp = 300; iciZ('spec');
+          if (d.spec === 'atelier') { const v = creerVehicule('berline', q.x - 3, q.z + 6, 0); v.hp = 10; appui(); attendre(); if (v.hp !== v.def.hp) ko.push('atelier : véhicule non réparé'); v.hp = 10; iciZ('spec'); appui(); attendre(); if (v.hp !== 10) ko.push('atelier : deux fois'); v.mort = true; }
           else if (d.spec === 'base') { appui(); if (!P.chute || !(P.y > q.y - 1)) ko.push('plongeoir : pas de saut'); P.chute = false; P.y = 0; }
           else if (d.spec === 'punch') { P.buffs.vit = 0; appui(); if (!(P.buffs.vit > 30) || !(P.hp > 300)) ko.push('punch (' + P.hp + ' PV, ' + P.buffs.vit + ')'); }
           else if (d.spec === 'armurerie') { const ga = Object.keys(ARMES).find((k) => ARMES[k].type === 'gun' && META.armes[k]); META.armes[ga].poss = true; P.grenades = 0; P.mun[ga] = 0; appui(); if (P.grenades !== 5 || !(P.mun[ga] > 0)) ko.push('armurerie'); P.grenades = 0; ici(q.spec, q); appui(); if (P.grenades !== 0) ko.push('armurerie deux fois'); }
           else if (d.spec === 'disparaitre') { WANTED.heat = 3.5; WANTED.stars = 3; appui(); if (WANTED.stars !== 0) ko.push('voilier : la police ne perd pas ta trace'); }
           else if (d.spec === 'grenades') { P.grenades = 1; appui(); if (P.grenades !== 4) ko.push('établi : grenades'); }
+          if (dedans && INT.actif) sortirInterieur();
         }
-        info.push(PLANQUES_DEF.length + ' planques achetées, reposées, coffre, spécificités');
+        info.push(PLANQUES_DEF.length + ' planques achetées, reposées, coffre, spécificités (' + PLANQUES.liste.filter((q) => planqueAInterieur(q)).length + ' par leur intérieur)');
         // revenus à la vague suivante, sauvegarde
         const r0 = META.revenus = 0; lancerVague(); if (!(META.revenus > 0)) ko.push('aucun revenu à la vague');
         sauveMeta(); const s = JSON.parse(localStorage.getItem(SAVE_KEY) || '{}'); if (!s.planques || !PLANQUES_DEF.every((d) => s.planques[d.id] === true)) ko.push('planques non sauvegardées');
@@ -10170,6 +10177,85 @@ async function main() {
       });
       if (r.ko.length) fail('Planques : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
       else ok('Planques : ' + r.info.join(' ; ') + ' ; tenues débloquées, revenus à chaque vague, sauvegardées');
+    }
+
+    // -------------------------------------------------------------------
+    // Intérieurs des planques, 1 : la caravane du désert (19 octobre, demandé : « un VRAI intérieur où l'on entre, une déco
+    // qui raconte qui vit là, la spécificité dedans comme un vrai objet, une activité qu'on a envie de refaire, le lit et le
+    // coffre dedans »). On entre par la porte de la planque possédée ; le toit s'efface quand on est dedans ; l'établi répare le
+    // VRAI véhicule garé devant (affiché à l'atelier), une fois par vague ; le tir sur canettes se joue (tireur simulé, réaction
+    // humaine) et se perd (passif : 0), son record est sauvegardé ; la radio de Dusty coûte des points ; l'ambiance (lumière,
+    // son) part et se coupe par la sortie, la mort, une nouvelle partie.
+    // -------------------------------------------------------------------
+    console.log('\n--- Planques, 1 : la caravane du désert (intérieur, atelier, tir sur canettes, ambiance) ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = []; audioInit();
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); META.vue = 'classique'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6; WAVES.etat = 'repos'; WAVES.t = 1e9; for (const e of ennemis) e.mort = true;
+        const q = PLANQUES.liste.find((x) => x.def.id === 'caravane'); if (!q || !planqueAInterieur(q)) return { ko: ['pas de caravane avec un intérieur'], info };
+        const avant = META.planques.caravane, recAvant = META.planquesJeux.canettes; META.planques.caravane = true; META.planquesJeux.canettes = 0;
+        let T = dernierT + 1000; const pas = (n) => { for (let i = 0; i < n; i++) { T += 1000 / 60; tick(T); } };
+        const appui = () => { majAction(); const b = el('btnAction'); const l = b.style.display === 'none' ? '' : b.textContent; if (b._fn && l) b._fn(); return l; };
+        // 1. dehors : ENTRER par la porte ; dedans : la salle, son ambiance
+        for (let i = vehicules.length - 1; i >= 0; i--) { const v = vehicules[i]; if (dist2(v.x, v.z, q.x, q.z) < 30 * 30) { scene.remove(v.mesh); vehicules.splice(i, 1); } } /* le test maîtrise sa scène : aucun véhicule autour */
+        const vReel = creerVehicule('citadine', q.x - 3, q.z + 6, 0); vReel.hp = vReel.def.hp * 0.3;
+        P.x = q.entree.x; P.z = q.entree.z; const l0 = appui();
+        const s = INT.actif; if (!s || s.id !== 'caravane') return { ko: ['on n’entre pas dans la caravane (' + l0 + ')'], info };
+        if (!AUDIO.pqAmbOn) ko.push('pas d’ambiance sonore en entrant');
+        if (!s.pqAmb) ko.push('pas de lumière propre'); else { pas(2); if (Math.abs(soleil.intensity - s.pqAmb.soleil) > 1e-6 || !scene.background.equals(s.pqAmb.ciel)) ko.push('la lumière du crépuscule ne s’applique pas'); }
+        // 2. les zones : à 8 u au moins de la SORTIE ; le toit s'efface dedans, revient dehors
+        { const { zones } = zonesInterieurActives(); const so = zones.find((z) => z.champ === 'sortie'); for (const z of zones) if (z.champ !== 'sortie' && Math.hypot(z.x - so.x, z.z - so.z) < 8) ko.push(z.champ + ' à moins de 8 u de la sortie');
+          if (['pqLit', 'pqCoffre', 'pqSpec', 'pqJeu'].some((k) => !zones.find((z) => z.champ === k))) ko.push('zones manquantes : ' + zones.map((z) => z.champ).join(','));
+          else info.push((zones.length - 1) + ' zones (lit, coffre, établi, tir), toutes à 8 u ou plus de la sortie'); }
+        { const tt = s.pq.toits[0]; P.x = s.ox + s.pq.cx; P.z = s.oz + s.pq.cz; P.y = 0; pas(2); const dansCache = tt.objs.every((o) => !o.visible); P.x = s.ox; P.z = s.oz + 6; pas(2); const dehorsVu = tt.objs.every((o) => o.visible);
+          if (!dansCache || !dehorsVu) ko.push('toit : caché dedans ' + dansCache + ', visible dehors ' + dehorsVu); else info.push('le toit s’efface quand on est dedans'); }
+        // 3. le lit (une sieste) et le coffre, dedans
+        { P.x = s.pqLit.x; P.z = s.pqLit.z; P.hp = 100; const l = appui(); if (P.hp !== P.maxHp) ko.push('lit : ' + l);
+          META.revenus = 55; const a0 = META.argent; P.x = s.pqCoffre.x; P.z = s.pqCoffre.z; appui(); if (META.argent !== a0 + 55) ko.push('coffre'); }
+        // 4. l'établi : le vrai véhicule garé devant, affiché à l'atelier, réparé sous nos yeux (2,6 s), une fois par vague
+        { if (!s.pq.vehAff || s.pq.vehAff.v !== vReel) ko.push('l’atelier n’affiche pas le véhicule garé devant');
+          P.x = s.pqSpec.x; P.z = s.pqSpec.z; const l1 = appui(); if (!/RÉPARER/.test(l1)) ko.push('établi : ' + l1);
+          let leve = 0; for (let i = 0; i < 30; i++){ majInterieur(0.05, 0.05); if (s.pq.vehAff) leve = Math.max(leve, s.pq.vehAff.m.position.y); }
+          const ancien = s.pq.vehAff && s.pq.vehAff.m; for (let i = 0; i < 30; i++) majInterieur(0.05, 0.05);
+          if (vReel.hp !== vReel.def.hp) ko.push('le véhicule n’est pas réparé (' + vReel.hp + ')'); if (!(leve > 0.2)) ko.push('le cric ne soulève pas le véhicule');
+          vReel.hp = 10; const l2 = appui(); for (let i = 0; i < 60; i++) majInterieur(0.05, 0.05); if (vReel.hp !== 10 || !/déjà/.test(l2)) ko.push('l’établi sert deux fois dans la vague (' + l2 + ')');
+          else info.push('établi : le véhicule garé devant, soulevé au cric, réparé, une fois par vague'); }
+        // 5. le tir sur canettes : un tireur simulé (réaction 0,32 s, petite erreur de visée), puis un joueur passif
+        const joue = (bon, graine) => { let sd = graine; const R0 = Math.random; Math.random = () => { sd = (sd * 16807) % 2147483647; return sd / 2147483647; };
+          P.x = s.pqJeu.x; P.z = s.pqJeu.z; cntDemarrer(s, 'revolver'); const C = FPS.actif; if (!C || C.planque !== 'caravane') { Math.random = R0; return null; }
+          const n0 = FPS.cibles.length; let bilan = null; const f0 = C.fin; C.fin = (b) => { bilan = b; f0(b); }; let cible = null, att = 0.4;
+          const gauss = () => (Math.random() + Math.random() + Math.random() - 1.5) * 1.15;
+          for (let i = 0; i < 60 * 45 && FPS.actif; i++) { INPUT.btn.tir = false;
+            if (bon) { if (cible && (cible.mort || !FPS.cibles.includes(cible))) { cible = null; att = 0.32; }
+              if (!cible) { att -= 1 / 60; if (att <= 0) { let b = null, bd = 1e9; const e = camera.position; for (const c of FPS.cibles) { if (c.mort || c.pts <= 0 || c.pop < 0.6) continue; const d = Math.abs(Math.atan2(-(c.x - e.x), -(c.z - e.z)) - FPS.yaw); if (d < bd) { bd = d; b = c; } } cible = b; if (cible) { cible.ex = gauss() * 0.012; cible.ey = gauss() * 0.012; } } }
+              if (cible) { const e = camera.position, dx = cible.x - e.x, dy = cible.y - e.y, dz = cible.z - e.z, yv = Math.atan2(-dx, -dz) + cible.ex, pv = Math.atan2(dy, Math.hypot(dx, dz)) + cible.ey, vi = 3.2 / 60;
+                FPS.yaw += clamp(yv - FPS.yaw, -vi, vi); FPS.pitch += clamp(pv - FPS.pitch, -vi, vi); if (Math.abs(yv - FPS.yaw) < 0.004 && Math.abs(pv - FPS.pitch) < 0.004 && FPS.cadT <= 0 && FPS.rechT <= 0) INPUT.btn.tir = true; } }
+            T += 1000 / 60; tick(T); }
+          INPUT.btn.tir = false; Math.random = R0; return { bilan, n0 }; };
+        { const a = joue(true, 7); if (!a || !a.bilan) ko.push('le tir sur canettes ne se termine pas'); else {
+            if (a.n0 !== s.pq.slots.length) ko.push(a.n0 + ' cibles au départ pour ' + s.pq.slots.length + ' places');
+            if (!(a.bilan.score >= CNT_OBJECTIF)) ko.push('tireur simulé : ' + a.bilan.score + ' (objectif ' + CNT_OBJECTIF + ')');
+            if (META.planquesJeux.canettes !== a.bilan.score) ko.push('record non noté (' + META.planquesJeux.canettes + ')');
+            const sv = JSON.parse(localStorage.getItem(SAVE_KEY) || '{}'); if (!sv.planquesJeux || sv.planquesJeux.canettes !== a.bilan.score) ko.push('record non sauvegardé');
+            if (s.g.children.some((o) => o.userData.cnt)) ko.push('des canettes restent après la partie');
+            info.push('tireur simulé : ' + a.bilan.score + ' pts (' + a.bilan.touches + '/' + a.bilan.coups + '), record sauvegardé'); }
+          const p = joue(false, 8); if (!p || !p.bilan || p.bilan.score !== 0) ko.push('le joueur passif marque ' + (p && p.bilan ? p.bilan.score : '?')); else if (META.planquesJeux.canettes !== a.bilan.score) ko.push('le passif a écrasé le record'); else info.push('passif : 0'); }
+        // 6. la radio de Dusty : la toucher coûte des points
+        { P.x = s.pqJeu.x; P.z = s.pqJeu.z; cntDemarrer(s, 'revolver'); pas(3); /* la caméra passe à l'œil du tireur */ const c = FPS.cibles.find((x) => x.slot && !x.mort); c.slot.c = null; c.mort = true; if (c.m.parent) c.m.parent.remove(c.m); const rd = cntPoser(s, c.slot, 'radio'); rd.pop = 1;
+          FPS.score = 500; const e = camera.position; FPS.yaw = Math.atan2(-(rd.x - e.x), -(rd.z - e.z)); FPS.pitch = Math.atan2(rd.y - e.y, Math.hypot(rd.x - e.x, rd.z - e.z)); FPS.cadT = 0; const st = FPS.st.disp; FPS.st.disp = 0; fpsTirer(); FPS.st.disp = st;
+          if (!(FPS.score < 500)) ko.push('la radio ne coûte rien (' + FPS.score + ')'); else info.push('la radio de Dusty coûte ' + (500 - FPS.score) + ' pts'); fpsArreter(); cntNettoyer(s); }
+        // 7. sortir : devant la porte, ambiance coupée ; mourir dedans : coupée tout de suite
+        { const so = s.sortie; P.x = so.x; P.z = so.z; ETAT.intT = 0; const l = appui(); if (INT.actif) ko.push('SORTIR ne sort pas (' + l + ')');
+          if (dist2(P.x, P.z, q.porte.x, q.porte.z) > 16) ko.push('on ne ressort pas devant la porte'); if (AUDIO.pqAmbOn) ko.push('l’ambiance continue dehors');
+          P.x = q.entree.x; P.z = q.entree.z; appui(); P.x = s.pqJeu.x; P.z = s.pqJeu.z; cntDemarrer(s, 'revolver'); P.hp = 0; mourir();
+          if (AUDIO.pqAmbOn || FPS.actif || s.g.children.some((o) => o.userData.cnt)) ko.push('la mort laisse ambiance ' + AUDIO.pqAmbOn + ', tir ' + !!FPS.actif);
+          else info.push('ambiance coupée à la sortie et à la mort'); }
+        META.planques.caravane = avant; META.planquesJeux.canettes = recAvant; sauveMeta(); if (ETAT.mortTimer) { clearTimeout(ETAT.mortTimer); ETAT.mortTimer = null; } ETAT.timeScale = 1; startRun();
+        if (AUDIO.pqAmbOn) ko.push('une nouvelle partie garde l’ambiance');
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Caravane du désert : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
+      else ok('Caravane du désert : ' + r.info.join(' ; '));
     }
 
     // -------------------------------------------------------------------
@@ -12262,7 +12348,7 @@ async function main() {
       startRun();
       const mesures = {}, nonMesurees = [];
       for (const id of Object.keys(INTDEFS)) {
-        const porte = PORTES.find((p) => p.id === id);
+        const porte = (typeof porteSalle === 'function' ? porteSalle(id) : null) || PORTES.find((p) => p.id === id); /* une planque : sa porte (pas dans PORTES) */
         if (!porte) { nonMesurees.push(id + ' (aucune porte)'); continue; }
         entrerInterieur(id, porte);
         if (!INT.actif || INT.actif.id !== id) { nonMesurees.push(id + ' (entrée refusée)'); if (INT.actif) sortirInterieur(); continue; }

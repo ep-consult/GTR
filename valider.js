@@ -416,7 +416,7 @@ if (!chargementOk) {
 // ---------------------------------------------------------------------------
 try {
   new vm.Script(
-    `global.__PORTES__=PORTES; global.__INT__=INT; global.__INTDEFS__=INTDEFS; global.__scene__=scene;`,
+    `global.__PORTES__=PORTES; global.__INT__=INT; global.__INTDEFS__=INTDEFS; global.__scene__=scene; global.__porteSalle__=porteSalle;`,
     { filename: 'pont-bindings.js' }
   ).runInThisContext();
   ok('Accès établi aux structures internes (PORTES, INT, INTDEFS, scene)');
@@ -437,9 +437,11 @@ console.log('\n--- Portes des 18 salles ---');
 const idsAttendus = Object.keys(INTDEFS);
 const idsPresents = new Set(PORTES.map((p) => p.id));
 info(idsAttendus.length + ' salles définies dans INTDEFS, ' + PORTES.length + ' portes posées dans PORTES');
-const manquantes = idsAttendus.filter((id) => !idsPresents.has(id));
+// une planque (INTDEFS[id].planque) n'a pas de porte dans PORTES (une de plus décalerait la ville) : sa porte vient de la
+// planque elle-même, lue par porteSalle(id) dans le jeu
+const manquantes = idsAttendus.filter((id) => !idsPresents.has(id) && !(INTDEFS[id].planque && global.__porteSalle__ && global.__porteSalle__(id)));
 if (manquantes.length) fail('Portes manquantes pour : ' + manquantes.join(', '));
-else ok('Toutes les salles ont une porte dans PORTES');
+else ok('Toutes les salles ont une porte (PORTES, ou celle de leur planque)');
 
 // ---------------------------------------------------------------------------
 // Vérification : aucun bâtiment invisible (finaliserMerge appelé)

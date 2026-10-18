@@ -1963,6 +1963,7 @@ const META={
   garde:{}, // pièces achetées en boutique (VETEMENTS) : id → true
   modsArmes:{}, // modifications d'armes achetées à l'établi de l'armurerie : id → 'explosif,laser,…' (MODS_ARMES)
   planques:{caravane:false,penthouse:false,cabanon:false,chalet:false,voilier:false,taudis:false}, // planques en plein air (PLANQUES_DEF), clés fixes
+  planquesJeux:{canettes:0,longueVue:0,punch:0,peche:0,hache:0,tresors:0,frappe:0}, // records des activités des planques (19 octobre), clés fixes
   // vue de jeu en ville (bouton 🎥 à côté de la pause, voir VUE) :
   // 'immersive' = caméra inclinée vers l'horizon, orientable au doigt, poursuite
   // automatique en véhicule ; 'classique' = la vue de dessus d'origine
@@ -7228,7 +7229,7 @@ function mkPlanques(){
       // établi de l'atelier, coffre (caisse de munitions)
       mkBox(2.2,0.9,0.9,mat(0x6a4a2e),x-5.4,0.45,z+2.4); mkBox(0.5,0.4,0.4,mat(0xd83a3a),x-5.8,1.1,z+2.4); mkBox(0.7,0.25,0.3,mat(0x9aa2ad),x-5,1.0,z+2.4); addSolid({x:x-5.4,z:z+2.4,hw:1.1,hd:0.45,h:0.9});
       mkBox(1,0.6,0.7,mat(0x3a5a2a),x+4.6,0.3,z+2.6); addSolid({x:x+4.6,z:z+2.6,hw:0.5,hd:0.35,h:0.6});
-      pq.lit={x:x+1.8,z:z+2.7}; pq.coffre={x:x+4.6,z:z+3.8}; pq.spec={x:x-5.4,z:z+3.6}; pq.achat=pq.lit; pq.vehPos={x:x-7,z:z+7,ang:Math.PI/2};
+      pq.lit={x:x+1.8,z:z+2.7}; pq.coffre={x:x+4.6,z:z+3.8}; pq.spec={x:x-5.4,z:z+3.6}; pq.achat=pq.lit; pq.vehPos={x:x-7,z:z+7,ang:Math.PI/2}; pq.porte={x:x+1.8,z:z+1.55,nx:0,nz:1,sortieD:1.3}; pq.entree=pq.lit;
       pq.enseigne=mkEnseigne('CARAVANE À VENDRE','#ffd23f',x,4.6,z-1.4,0,7); pq.vieux={objs:scene.children.slice(n0),sol:_SOL_TRACE}; }
     _SOL_TRACE=null; }
   // --- 2) penthouse sur le toit de la Tour Los Reyes : verrière, bar, transats, plantes, garde-corps, plongeoir ---
@@ -7346,7 +7347,7 @@ function planqueProche(){
   if(P.veh) return null;
   let best=null, bd=PQ_R*PQ_R;
   for(const pq of PLANQUES.liste){
-    const zones=planquePossedee(pq.def.id)?['lit','coffre','spec']:['achat'];
+    const zones=planquePossedee(pq.def.id)?(planqueAInterieur(pq)?['entree']:['lit','coffre','spec']):['achat']; // une planque qui a un intérieur : sa porte (lit, coffre, spécificité sont dedans)
     for(const k of zones){ const zn=pq[k]; if(!zn) continue; const y=zn.y!==undefined?zn.y:pq.y;
       if(Math.abs(P.y-y)>2.5) continue; const d=dist2(P.x,P.z,zn.x,zn.z); if(d<bd){ bd=d; best={pq,k}; } }
   }
@@ -7358,6 +7359,7 @@ function planqueAction(z){
     P.x=p.x+(p.nx||0)*3; P.z=p.z+(p.nz===undefined?1:p.nz)*3; P.y=solPied(P.x,P.z); P.vy=0; P.chute=false; SFX.niveau(); toast('🛗 Rez-de-chaussée','or'); }};
   const pq=z.pq, d=pq.def, U=PLANQUES.usage[d.id]||(PLANQUES.usage[d.id]={lit:-1,spec:-1});
   if(z.k==='achat') return {label:d.ico+' ACHETER — '+d.nom.toUpperCase()+' — '+d.prix+' $',fn:()=>acheterPlanque(d.id)};
+  if(z.k==='entree') return {label:d.ico+' ENTRER — '+d.nom.toUpperCase(),fn:()=>planqueEntrer(pq)};
   if(z.k==='lit') return {label:U.lit===WAVES.n?'🛏️ Déjà reposé cette vague':'🛏️ SE REPOSER',fn:()=>{
     if(U.lit===WAVES.n){ SFX.refus(); toast('Tu t’es déjà reposé ici cette vague','warn'); return; }
     if(P.hp>=P.maxHp){ SFX.refus(); toast('Tu es en pleine forme'); return; }
@@ -7380,7 +7382,7 @@ function acheterPlanque(id){
 function planqueSpec(pq){
   const d=pq.def, U=PLANQUES.usage[d.id]||(PLANQUES.usage[d.id]={lit:-1,spec:-1});
   if(d.spec!=='base'&&U.spec===WAVES.n){ SFX.refus(); toast('Déjà utilisé cette vague','warn'); return false; }
-  if(d.spec==='atelier'){ let v=null, vd=144; for(const o of vehicules){ if(o.mort||o.def.air||o.def.eau) continue; const dd=dist2(o.x,o.z,pq.x,pq.z); if(dd<vd){ vd=dd; v=o; } }
+  if(d.spec==='atelier'){ const v=cvVehicule(pq); /* 16 u : le véhicule de la planque, garé à 12 u, était juste hors de portée (144 = 12²) */
     if(!v){ SFX.refus(); toast('Gare ton véhicule près de la caravane','warn'); return false; }
     if(v.hp>=v.def.hp){ SFX.refus(); toast('Ton véhicule est déjà en parfait état'); return false; }
     v.hp=v.def.hp; v.fumeT=1; v.enFeu=false; reparerVisuels(v); for(let i=0;i<10;i++) spawnP(v.x+rand(-1,1),1,v.z+rand(-1,1),0,rand(1,2),0,0.6,0.3,0xffd23f,0); toast('🔧 '+v.def.nom+' comme neuf','or'); }
@@ -7402,6 +7404,416 @@ function planquesStartRun(){
 }
 function majPlanques(dt){ for(const pq of PLANQUES.liste) if(pq.enseigne){ const v=!planquePossedee(pq.def.id); if(pq.enseigne.visible!==v) pq.enseigne.visible=v; }
   for(const f of PLANQUES.feux){ f.t+=dt*9; const k=1+Math.sin(f.t)*0.12+Math.sin(f.t*2.7)*0.08; f.sp.scale.set(f.b*k,f.b*1.3*k,1); } }
+/* =====================================================================
+   INTÉRIEURS DES PLANQUES (19 octobre, demandé : « que CHAQUE planque ait un VRAI intérieur où l'on entre : une déco
+   propre qui raconte qui vit là, sa spécificité installée dedans comme un vrai objet, une activité qu'on a envie de
+   refaire, le lit et le coffre dedans »). Une SALLE par planque (INTDEFS.<id>, champ D.planque), avec ses abords — la
+   cour de la caravane… —, dans sa tranche de 400 u, bâtie à la première visite : rien de la ville ne bouge. On y entre
+   par la porte de la planque possédée (pq.entree → planqueEntrer), jamais par PORTES (une porte de plus décalerait la
+   ville, et toucherait balises, carte, taxis) ; porteSalle(id) la donne aux tests. Zones : s.pqLit, s.pqCoffre,
+   s.pqSpec, s.pqJeu (règle des 8 u) ; l'état de la salle est rangé dans s.pq (jamais lu comme une zone). Lumière
+   (jourNuit, s.pqAmb, lampeNuit) et sons (planqueAmbianceStart / Stop, AUDIO.pqAmbOn) propres au lieu, coupés par
+   sortirInterieur, mourir et startRun. Records des activités : META.planquesJeux (clés fixes).
+===================================================================== */
+const PQ_INT={}, PQ_SONS={}, PQ_TEX={};
+function porteSalle(id){ const p=PORTES.find((q)=>q.id===id); if(p) return p; const pq=PLANQUES.liste.find((q)=>q.def.id===id); return pq&&pq.porte?pq.porte:null; } /* la porte d'une salle : PORTES, ou celle d'une planque */
+function planqueAInterieur(pq){ return !!(pq&&pq.porte&&pq.entree&&INTDEFS[pq.def.id]&&INTDEFS[pq.def.id].planque); }
+function planqueEntrer(pq){ if(INT.actif||!planqueAInterieur(pq)||!planquePossedee(pq.def.id)) return; entrerInterieur(pq.def.id,pq.porte); }
+function pqAlea(sd){ let h=(sd>>>0)||1; return ()=>{ h=(Math.imul(h,1664525)+1013904223)>>>0; return h/4294967296; }; } /* hasard de décor PRIVÉ : la salle est toujours la même */
+// la boîte à outils d'un constructeur de salle de planque (coordonnées locales à la salle ; matériaux propres, jamais ceux de mat())
+function pqOutils(s,g){ const ox=s.ox, oz=s.oz, cache={};
+  const M=(c)=>cache['L'+c]||(cache['L'+c]=new THREE.MeshLambertMaterial({color:c}));
+  const MF=(c)=>cache['F'+c]||(cache['F'+c]=new THREE.MeshLambertMaterial({color:c,flatShading:true}));
+  const MP=(c,sh,sp)=>cache['P'+c+'|'+sh+'|'+sp]||(cache['P'+c+'|'+sh+'|'+sp]=new THREE.MeshPhongMaterial({color:c,shininess:sh,specular:sp}));
+  const MB=(c)=>cache['B'+c]||(cache['B'+c]=new THREE.MeshBasicMaterial({color:c}));
+  const MT=(tex,c,o)=>new THREE.MeshLambertMaterial(Object.assign({map:tex,color:c===undefined?0xffffff:c},o||{}));
+  const mesh=(geo,m,x,y,z)=>{ const o=new THREE.Mesh(geo,m); o.position.set(ox+x,y,oz+z); g.add(o); return o; };
+  const B=(w,h,d,m,x,y,z,ry)=>{ const o=mesh(new THREE.BoxGeometry(w,h,d),m,x,y,z); if(ry) o.rotation.y=ry; return o; };
+  const C=(rt,rb,h,m,x,y,z,seg)=>mesh(new THREE.CylinderGeometry(rt,rb,h,seg||14),m,x,y,z);
+  const S=(r,m,x,y,z,sx,sy,sz)=>{ const o=mesh(new THREE.SphereGeometry(r,12,9),m,x,y,z); if(sx) o.scale.set(sx,sy===undefined?sx:sy,sz===undefined?sx:sz); return o; };
+  const PL=(w,h,m,x,y,z,rx,ry)=>{ const o=mesh(new THREE.PlaneGeometry(w,h),m,x,y,z); o.rotation.set(rx||0,ry||0,0); return o; };
+  const solide=(x,z,hw,hd,h)=>addSolid({x:ox+x,z:oz+z,hw,hd,h});
+  const seg=(a,b,r,m,n)=>{ const A=new THREE.Vector3(ox+a[0],a[1],oz+a[2]), Bv=new THREE.Vector3(ox+b[0],b[1],oz+b[2]), L=A.distanceTo(Bv), o=new THREE.Mesh(new THREE.CylinderGeometry(r,r,L,n||6),m);
+    o.position.copy(A).add(Bv).multiplyScalar(0.5); o.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),Bv.clone().sub(A).normalize()); g.add(o); return o; };
+  const sprite=(m,x,y,z,sx,sy)=>{ const o=new THREE.Sprite(m); o.position.set(ox+x,y,oz+z); o.scale.set(sx,sy===undefined?sx:sy,1); g.add(o); return o; };
+  return {M,MF,MP,MB,MT,mesh,B,C,S,PL,solide,seg,sprite,ox,oz,g}; }
+// un dôme de ciel en dégradé (zénith, milieu, horizon) : il écrit la profondeur et cache les salles voisines (400 u plus loin)
+function pqCiel(ox,oz,cols,r){ const R=r||175, geo=new THREE.SphereGeometry(R,28,14,0,Math.PI*2,0,Math.PI*0.6), n=geo.attributes.position.count, col=new Float32Array(n*3);
+  const cA=new THREE.Color(cols[0]), cB=new THREE.Color(cols[1]), cC=new THREE.Color(cols[2]), c=new THREE.Color();
+  for(let i=0;i<n;i++){ const k=Math.max(0,geo.attributes.position.getY(i)/R); if(k>0.3) c.copy(cB).lerp(cA,Math.min(1,(k-0.3)/0.7)); else c.copy(cC).lerp(cB,k/0.3); col[i*3]=c.r; col[i*3+1]=c.g; col[i*3+2]=c.b; }
+  geo.setAttribute('color',new THREE.BufferAttribute(col,3));
+  const m=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({vertexColors:true,side:THREE.BackSide,fog:false})); m.position.set(ox,-6,oz); m.renderOrder=-5; m.userData.garder=true; return m; }
+function pqTexte(txt,fond,encre,lw,lh,police){ return cTex(256,(c,s)=>{ c.fillStyle=fond; c.fillRect(0,0,s,s); c.fillStyle=encre; c.textAlign='center'; c.textBaseline='middle';
+  const L=txt.split('\n'); let fs=Math.floor(s*0.8/Math.max(1,L.length)); c.font=(police||'900 ')+fs+'px Arial'; for(const l of L) while(c.measureText(l).width>s*0.92&&fs>8){ fs--; c.font=(police||'900 ')+fs+'px Arial'; }
+  L.forEach((l,i)=>c.fillText(l,s/2,s/2+(i-(L.length-1)/2)*fs*1.05)); }); }
+// ---- entrée, sortie, arrêt (TOUS les chemins : sortirInterieur, mourir, startRun) ----
+function planqueSurEntree(s){ const Q=s.pq; Q.pq=PLANQUES.liste.find((q)=>q.def.id===Q.id)||null; Q.t=0; if(Q.surEntree) Q.surEntree(s); planqueAmbianceStart(Q.id); }
+function planqueSalleArreter(s){ if(!s||!s.pq) return; const Q=s.pq; if(FPS.actif&&FPS.actif.planque===Q.id) fpsArreter(); if(STAND.ouvert&&STAND.salle===s) fermerStandTir(); if(Q.arreter) Q.arreter(s); planqueAmbianceStop(); }
+// ---- les zones de la salle (lit, coffre, spécificité, activité) : marquées à chaque appel (règle des 8 u), la plus proche gagne ----
+function planqueSalleAction(s){ const Q=s.pq; let best=null, bd=1e9; s.pqAc=null;
+  for(const [k,r2] of [['pqLit',6.25],['pqCoffre',5.3],['pqSpec',6.25],['pqJeu',6.25],['pqPlus',6.25]]){ const z=s[k]; if(!z) continue; marquerZone(z,r2); const d=dist2(P.x,P.z,z.x,z.z); if(d<r2&&d<bd){ bd=d; best=k; } }
+  if(!best||FPS.actif||!Q.pq) return false; let ac=null;
+  if(best==='pqLit'){ const a0=planqueAction({pq:Q.pq,k:'lit'}); ac={label:a0.label,fn:()=>{ const h0=P.hp; a0.fn(); if(P.hp>h0) pqFondu(); }}; }
+  else if(best==='pqCoffre') ac=planqueAction({pq:Q.pq,k:'coffre'});
+  else if(Q.action) ac=Q.action(s,best);
+  if(!ac) return false; s.pqAc=ac; return true; }
+function pqFondu(){ const f=document.getElementById('fonduNoir'); if(!f) return; f.style.transition='opacity 0.35s'; f.style.opacity='0.92'; setTimeout(()=>{ f.style.transition='opacity 1.6s'; f.style.opacity='0'; },700); } /* une sieste : l'écran se ferme et se rouvre */
+function majPlanqueSalle(s,dt,dtJeu){ const Q=s.pq; Q.t+=dt; let dedans=false;
+  for(const tt of Q.toits){ const sous=P.x>s.ox+tt.x0&&P.x<s.ox+tt.x1&&P.z>s.oz+tt.z0&&P.z<s.oz+tt.z1; if(tt.dedans&&sous) dedans=true;
+    if(tt.vis!==!sous){ tt.vis=!sous; for(const o of tt.objs) o.visible=tt.vis; } } /* toits et auvents : masqués quand le joueur est dessous (vue de dessus) */
+  Q.dedans=dedans; for(const a of Q.anim) a(dt,dtJeu); if(Q.maj) Q.maj(s,dt,dtJeu);
+  if(ETAT.mode==='jeu') majPlanqueAmbiance(s,dt); }
+// ---- les sons d'ambiance : des nappes de bruit filtré qui respirent (vent, ventilateur…), des événements brefs (grillons, radio) ----
+const PQ_SON={nappes:[],id:null};
+function planqueAmbianceStart(id){ planqueAmbianceStop(); const conf=PQ_SONS[id]; if(!conf||!AUDIO.pret||!AUDIO.noise) return; const ctx=AUDIO.ctx, t=ctx.currentTime;
+  for(const n of conf.nappes){ const src=ctx.createBufferSource(); src.buffer=AUDIO.noise; src.loop=true;
+    const f=ctx.createBiquadFilter(); f.type=n.type||'bandpass'; f.frequency.value=n.f; f.Q.value=n.q||0.7;
+    const gn=ctx.createGain(); gn.gain.value=0; gn.gain.setTargetAtTime(n.v,t,0.6);
+    const lfo=ctx.createOscillator(); lfo.frequency.value=n.lfo||0.12; const lg=ctx.createGain(); lg.gain.value=n.v*(n.prof===undefined?0.5:n.prof); lfo.connect(lg); lg.connect(gn.gain);
+    src.connect(f); f.connect(gn); gn.connect(AUDIO.sfxG); src.start(t); lfo.start(t); PQ_SON.nappes.push({src,lfo,gn,n,vise:n.v}); }
+  PQ_SON.id=id; AUDIO.pqAmbOn=true; }
+function planqueAmbianceStop(){ for(const x of PQ_SON.nappes){ try{ x.src.stop(); x.lfo.stop(); x.gn.disconnect(); }catch(e){} } PQ_SON.nappes.length=0; PQ_SON.id=null; AUDIO.pqAmbOn=false; }
+function majPlanqueAmbiance(s,dt){ if(!AUDIO.pqAmbOn||!AUDIO.pret) return; const conf=PQ_SONS[PQ_SON.id]; if(!conf) return; const t=AUDIO.ctx.currentTime, dd=!!s.pq.dedans;
+  for(const x of PQ_SON.nappes){ if(x.n.dedans===undefined) continue; const v=x.n.v*(dd?x.n.dedans:1); if(Math.abs(x.vise-v)>1e-5){ x.vise=v; x.gn.gain.setTargetAtTime(v,t,0.35); } }
+  if(conf.evts) conf.evts(s,dt,dd); }
+// la construction : l'enveloppe générique est masquée (ses SOLIDES restent : les bords de la salle), puis le décor du lieu, fusionné par matériau
+function construirePlanqueSalle(inter,g,ox,oz,W,P2,sol,dehors){
+  for(const o of g.children){ if(!o.isMesh) continue; if(o===sol||o===dehors||o.position.y===2.2||o.position.y===4.5||o.position.y===0.28) o.visible=false; }
+  const id=inter.D.planque; inter.pq={id,toits:[],anim:[],t:0,dedans:false}; inter.planque=id;
+  const i0=g.children.length; if(PQ_INT[id]) PQ_INT[id](inter,g,ox,oz,W,P2); fusionnerDans(g,i0); }
+
+/* ---------- 1. LA CARAVANE DU DÉSERT : l'Airstream de Dusty, un mécano qui a tout plaqué pour le désert ----------
+   La salle : la cour au crépuscule (ciel du soir, soleil bas, mesas à l'horizon, cactus, virevoltants), l'Airstream
+   (coque alu, hublots, porte ouverte ; on y entre, son toit s'efface), son auvent rayé et sa guirlande, le feu de camp,
+   l'atelier à l'ouest (établi, cric : le VRAI véhicule garé devant la caravane, réparé sous nos yeux), le stand de tir
+   à l'est (tir sur canettes). Dedans : lit au fond, kitchenette et radio CB, cartes routières punaisées, pièces de
+   moteur, ventilateur, banquette en skaï et table en formica à l'avant, la caisse aux billets (coffre). */
+const PQ_TEX_DESSIN={
+  sable:()=>cTex(256,(c,s)=>{ const r=pqAlea(11); c.fillStyle='#d6ad78'; c.fillRect(0,0,s,s);
+    for(let i=0;i<4200;i++){ const v=r(); c.fillStyle=v<0.55?'rgba(130,88,50,'+(0.04+v*0.1).toFixed(3)+')':'rgba(255,240,210,'+((v-0.55)*0.22).toFixed(3)+')'; c.fillRect(r()*s,r()*s,1+r()*1.6,1+r()*1.6); }
+    c.strokeStyle='rgba(150,100,55,0.16)'; c.lineWidth=2; for(let i=0;i<8;i++){ const y0=(i+0.5)*s/8; c.beginPath(); for(let x=0;x<=s;x+=8){ const y=y0+Math.sin(x*Math.PI*4/s+i*1.7)*5; if(x) c.lineTo(x,y); else c.moveTo(x,y); } c.stroke(); } /* rides du vent */
+    for(let i=0;i<70;i++){ c.fillStyle='rgba('+(70+r()*50|0)+','+(55+r()*35|0)+','+(40+r()*30|0)+','+(0.35+r()*0.4).toFixed(2)+')'; c.beginPath(); c.ellipse(r()*s,r()*s,1.5+r()*3.5,1+r()*2.5,r()*3,0,7); c.fill(); } },42,42),
+  terre:()=>cTex(256,(c,s)=>{ const r=pqAlea(23); c.fillStyle='#b48a58'; c.fillRect(0,0,s,s);
+    for(let i=0;i<3000;i++){ const v=r(); c.fillStyle=v<0.6?'rgba(95,62,35,'+(0.05+v*0.1).toFixed(3)+')':'rgba(240,215,170,'+((v-0.6)*0.25).toFixed(3)+')'; c.fillRect(r()*s,r()*s,1+r()*2,1+r()*2); }
+    }),
+  piste:()=>cTex(128,(c,s)=>{ const r=pqAlea(29); c.fillStyle='#b08656'; c.fillRect(0,0,s,s); for(let i=0;i<1400;i++){ const v=r(); c.fillStyle=v<0.6?'rgba(95,62,35,'+(0.05+v*0.1).toFixed(3)+')':'rgba(240,215,170,'+((v-0.6)*0.25).toFixed(3)+')'; c.fillRect(r()*s,r()*s,1+r()*2,1+r()*2); }
+    for(const x0 of [s*0.24,s*0.66]){ c.fillStyle='rgba(80,52,28,0.24)'; c.fillRect(x0,0,14,s); c.fillStyle='rgba(60,40,20,0.25)'; for(let y=0;y<s;y+=6) c.fillRect(x0+1,y,12,2); } }),
+  chaux:()=>cTex(128,(c,s)=>{ const r=pqAlea(37); c.fillStyle='#ece4d6'; c.fillRect(0,0,s,s); for(let i=0;i<900;i++){ const v=r(); c.fillStyle=v<0.5?'rgba(150,120,90,'+(0.04+v*0.08).toFixed(3)+')':'rgba(255,255,250,'+((v-0.5)*0.3).toFixed(3)+')'; c.fillRect(r()*s,r()*s,2+r()*3,1+r()*2); }
+    c.fillStyle='rgba(160,110,70,0.35)'; for(let k=0;k<5;k++){ c.beginPath(); c.ellipse(r()*s,s*(0.75+r()*0.25),8+r()*14,4+r()*6,0,0,7); c.fill(); } c.strokeStyle='rgba(120,90,60,0.3)'; c.lineWidth=1; for(let y=21;y<s;y+=21){ c.beginPath(); c.moveTo(0,y); c.lineTo(s,y); c.stroke(); } },2,1),
+  bord:()=>cTex(128,(c,s)=>{ const g=c.createRadialGradient(s/2,s/2,s*0.3,s/2,s/2,s*0.5); g.addColorStop(0,'#fff'); g.addColorStop(1,'#000'); c.fillStyle=g; c.fillRect(0,0,s,s); }),
+  bordPiste:()=>cTex(64,(c,s)=>{ const g=c.createLinearGradient(0,0,s,0); g.addColorStop(0,'#000'); g.addColorStop(0.25,'#fff'); g.addColorStop(0.75,'#fff'); g.addColorStop(1,'#000'); c.fillStyle=g; c.fillRect(0,0,s,s); }),
+  lino:()=>cTex(64,(c,s)=>{ for(let i=0;i<8;i++) for(let j=0;j<8;j++){ c.fillStyle=(i+j)%2?'#2f8f88':'#efe4c8'; c.fillRect(i*8,j*8,8,8); } c.fillStyle='rgba(60,40,20,0.08)'; for(let k=0;k<40;k++) c.fillRect((k*37)%64,(k*23)%64,3,1); }),
+  skai:()=>cTex(128,(c,s)=>{ c.fillStyle='#2aa39a'; c.fillRect(0,0,s,s); c.strokeStyle='rgba(10,60,56,0.45)'; c.lineWidth=2;
+    for(let k=-s;k<s*2;k+=32){ c.beginPath(); c.moveTo(k,0); c.lineTo(k+s,s); c.stroke(); c.beginPath(); c.moveTo(k,s); c.lineTo(k+s,0); c.stroke(); }
+    c.fillStyle='rgba(220,255,250,0.5)'; for(let i=0;i<4;i++) for(let j=0;j<4;j++){ c.beginPath(); c.arc(i*32+16,j*32+16,2.5,0,7); c.fill(); } },2,1),
+  carte:()=>cTex(256,(c,s)=>{ const r=pqAlea(5); c.fillStyle='#efe2c0'; c.fillRect(0,0,s,s); c.fillStyle='rgba(120,170,90,0.35)'; c.fillRect(150,30,70,50); c.fillRect(20,170,60,40);
+    c.strokeStyle='#5a9ad8'; c.lineWidth=3; c.beginPath(); c.moveTo(0,90); c.bezierCurveTo(80,120,120,60,256,110); c.stroke();
+    c.strokeStyle='#d8402a'; c.lineWidth=5; c.beginPath(); c.moveTo(10,240); c.lineTo(110,140); c.lineTo(250,20); c.stroke();
+    c.strokeStyle='#f0a020'; c.lineWidth=3; for(let k=0;k<5;k++){ c.beginPath(); c.moveTo(r()*s,r()*s); c.quadraticCurveTo(r()*s,r()*s,r()*s,r()*s); c.stroke(); }
+    c.fillStyle='#222'; c.font='900 15px Arial'; c.fillText('LOS REYES',120,160); c.fillText('MESA',30,60); c.font='700 11px Arial'; c.fillText('COYOTE WELLS',150,215); c.fillText('ROUTE 66',60,200);
+    c.strokeStyle='#d8102a'; c.lineWidth=3; c.beginPath(); c.arc(120,150,26,0,7); c.stroke(); c.beginPath(); c.moveTo(200,190); c.lineTo(214,204); c.moveTo(214,190); c.lineTo(200,204); c.stroke();
+    c.strokeStyle='rgba(90,70,40,0.25)'; c.lineWidth=1; c.beginPath(); c.moveTo(s/2,0); c.lineTo(s/2,s); c.moveTo(0,s/2); c.lineTo(s,s/2); c.stroke(); }),
+  couette:()=>cTex(128,(c,s)=>{ const col=['#b8382a','#efe2c4','#1c1a18','#e08a2a','#2a6a8a']; for(let y=0;y<s;y+=16){ c.fillStyle=col[(y/16)%5]; c.fillRect(0,y,s,16); }
+    c.fillStyle='#1c1a18'; for(let x=0;x<s;x+=32){ c.beginPath(); c.moveTo(x+16,40); c.lineTo(x+30,64); c.lineTo(x+16,88); c.lineTo(x+2,64); c.closePath(); c.fill(); }
+    c.fillStyle='#efe2c4'; for(let x=0;x<s;x+=32){ c.beginPath(); c.moveTo(x+16,52); c.lineTo(x+22,64); c.lineTo(x+16,76); c.lineTo(x+10,64); c.closePath(); c.fill(); } }),
+  toile:()=>cTex(64,(c,s)=>{ for(let i=0;i<8;i++){ c.fillStyle=i%2?'#f2ece0':'#1a8a8a'; c.fillRect(i*s/8,0,s/8,s); } c.fillStyle='rgba(0,0,0,0.08)'; c.fillRect(0,s-6,s,6); },5,1),
+  outils:()=>cTex(256,(c,s)=>{ c.fillStyle='#c8a878'; c.fillRect(0,0,s,s); c.fillStyle='rgba(60,40,20,0.55)'; for(let x=8;x<s;x+=14) for(let y=8;y<s;y+=14){ c.beginPath(); c.arc(x,y,2,0,7); c.fill(); }
+    c.lineCap='round'; const outil=(x,y,l,ang,ep,tete)=>{ c.save(); c.translate(x,y); c.rotate(ang); c.strokeStyle='#fff'; c.lineWidth=ep+4; c.beginPath(); c.moveTo(0,0); c.lineTo(0,l); c.stroke(); c.strokeStyle='#3a3e46'; c.lineWidth=ep; c.beginPath(); c.moveTo(0,0); c.lineTo(0,l); c.stroke();
+      if(tete==='cle'){ c.lineWidth=ep*0.9; c.beginPath(); c.arc(0,-6,9,0.6,Math.PI*2-0.6); c.stroke(); } else if(tete==='marteau'){ c.fillStyle='#3a3e46'; c.fillRect(-16,-10,32,12); } else if(tete==='tourne'){ c.fillStyle='#d83a3a'; c.fillRect(-ep,l-26,ep*2,26); } c.restore(); };
+    for(let k=0;k<6;k++) outil(24+k*20,40,60+k*8,0,6,'cle'); outil(170,40,90,0,7,'marteau'); outil(205,40,80,0,5,'tourne'); outil(230,40,70,0,4,'tourne');
+    c.strokeStyle='#3a3e46'; c.lineWidth=5; c.beginPath(); c.arc(80,180,34,0,7); c.stroke(); c.fillStyle='#3a3e46'; c.fillRect(140,160,90,16); c.fillRect(140,190,70,10); }),
+  bouleau:()=>cTex(128,(c,s)=>{ c.fillStyle='#d8b07a'; c.fillRect(0,0,s,s); for(let x=0;x<s;x+=32){ c.fillStyle='rgba(90,55,25,0.45)'; c.fillRect(x,0,2,s); }
+    c.strokeStyle='rgba(140,90,40,0.25)'; c.lineWidth=1; for(let k=0;k<30;k++){ const x=(k*13)%s; c.beginPath(); c.moveTo(x,0); c.bezierCurveTo(x+4,s*0.3,x-4,s*0.6,x+2,s); c.stroke(); } },3,1),
+  canette:()=>cTex(128,(c,s)=>{ c.fillStyle='#d8202a'; c.fillRect(0,0,s,s); c.fillStyle='#c8ccd4'; c.fillRect(0,0,s,10); c.fillRect(0,s-10,s,10);
+    c.fillStyle='#fff'; c.beginPath(); c.moveTo(0,52); for(let x=0;x<=s;x+=8) c.lineTo(x,52+Math.sin(x*Math.PI*2/s)*8); c.lineTo(s,80); for(let x=s;x>=0;x-=8) c.lineTo(x,80+Math.sin(x*Math.PI*2/s)*8); c.closePath(); c.fill();
+    c.fillStyle='#1a1a1a'; c.font='900 22px Arial'; c.textAlign='center'; c.fillText('COYOTE',s/2,74); }),
+  radio:()=>cTex(64,(c,s)=>{ c.fillStyle='#8a5a32'; c.fillRect(0,0,s,s); c.fillStyle='#e8dcc0'; c.fillRect(6,8,30,48); c.fillStyle='#3a2a1a'; for(let x=10;x<34;x+=5) for(let y=12;y<52;y+=5){ c.beginPath(); c.arc(x,y,1.2,0,7); c.fill(); }
+    c.fillStyle='#f0d070'; c.fillRect(40,10,18,22); c.fillStyle='#1a1a1a'; c.fillRect(48,12,2,18); c.beginPath(); c.arc(49,46,7,0,7); c.fill(); }),
+  adobe:()=>cTex(128,(c,s)=>{ const r=pqAlea(31); c.fillStyle='#b98a5e'; c.fillRect(0,0,s,s); for(let y=0;y<s;y+=21){ const dec=(y/21)%2?16:0; for(let x=-dec;x<s;x+=40){ c.fillStyle='rgb('+(170+r()*30|0)+','+(122+r()*25|0)+','+(80+r()*20|0)+')'; c.fillRect(x+2,y+2,36,17); } }
+    c.fillStyle='rgba(60,40,20,0.2)'; for(let k=0;k<200;k++) c.fillRect(r()*s,r()*s,2,2); },2,1),
+  tole:()=>cTex(64,(c,s)=>{ for(let i=0;i<8;i++){ c.fillStyle=i%2?'#8a8f96':'#a8adb4'; c.fillRect(i*8,0,8,s); } c.fillStyle='rgba(150,70,20,0.45)'; c.fillRect(10,30,22,30); c.fillRect(44,4,14,16); },2,1),
+  flamme:()=>cTex(64,(c,s)=>{ const g=c.createRadialGradient(s/2,s*0.62,1,s/2,s*0.55,s*0.48); g.addColorStop(0,'rgba(255,250,210,1)'); g.addColorStop(0.3,'rgba(255,200,80,0.9)'); g.addColorStop(0.7,'rgba(255,90,20,0.45)'); g.addColorStop(1,'rgba(255,40,0,0)'); c.fillStyle=g; c.beginPath(); c.moveTo(s/2,2); c.quadraticCurveTo(s*0.95,s*0.6,s/2,s-2); c.quadraticCurveTo(s*0.05,s*0.6,s/2,2); c.fill(); }),
+  tapis:()=>cTex(128,(c,s)=>{ const col=['#d8402a','#f0c040','#2a8a8a','#efe2c4','#6a2a6a','#f08a2a']; for(let y=0;y<s;y+=8){ c.fillStyle=col[(y/8)%6]; c.fillRect(0,y,s,8); } c.fillStyle='rgba(255,255,255,0.4)'; for(let x=0;x<s;x+=6) c.fillRect(x,0,2,4); }),
+  cb:()=>cTex(64,(c,s)=>{ c.fillStyle='#1c1d20'; c.fillRect(0,0,s,s); c.fillStyle='#ff3a20'; c.font='900 20px Arial'; c.fillText('19',6,30); c.fillStyle='#c8ccd4'; for(const x of [40,54]){ c.beginPath(); c.arc(x,24,6,0,7); c.fill(); } c.fillStyle='#7dff7a'; c.fillRect(6,44,8,4); c.fillStyle='#ffd23f'; c.fillRect(18,44,8,4); c.fillStyle='#c8ccd4'; c.font='700 9px Arial'; c.fillText('CB 40',30,56); }),
+};
+function pqTex(nom){ if(!PQ_TEX[nom]&&PQ_TEX_DESSIN[nom]) PQ_TEX[nom]=PQ_TEX_DESSIN[nom](); return PQ_TEX[nom]||null; }
+function pqTexRep(nom,rx,ry){ const t=pqTex(nom).clone(); t.needsUpdate=true; t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(rx,ry); return t; }
+PQ_INT.caravane=function(s,g,ox,oz,W,P2){
+  const T=pqOutils(s,g), {M,MF,MP,MB,MT,mesh,B,C,S,PL,solide,seg,sprite}=T, Q=s.pq, r=pqAlea(1975);
+  const cx=-1, cz=-8, R=2.7, Ls=5.3; Q.cx=cx; Q.cz=cz; Q.feu={x:5.5,z:6.8}; Q.place={x:-11.2,z:6.6,ang:0};
+  s.pqAmb={soleil:0.62,hemi:0.66,ciel:new THREE.Color(0xd8986a),fogN:80,fogF:240,
+    lampe:(sa)=>sa.pq.dedans?{x:sa.ox+cx+0.5,y:2.1,z:sa.oz+cz,c:0xffb46a,i:1.15,d:12}:{x:sa.ox+Q.feu.x,y:1.3,z:sa.oz+Q.feu.z,c:0xff8a3a,i:1.25+0.25*Math.sin(Q.t*13)*Math.sin(Q.t*7.1),d:17}};
+  // ---- le désert au crépuscule ----
+  g.add(pqCiel(ox,oz,[0x283466,0x8a6a96,0xf2a466]));
+  const soleilM=new THREE.SpriteMaterial({map:texGlow,color:0xffb060,transparent:true,depthWrite:false,fog:false,blending:THREE.AdditiveBlending}), coeurM=new THREE.SpriteMaterial({map:texGlow,color:0xfff0c8,transparent:true,depthWrite:false,fog:false,blending:THREE.AdditiveBlending});
+  sprite(soleilM,-150,13,-34,46); sprite(coeurM,-150,13,-34,13);
+  PL(360,360,MT(pqTexRep('sable',40,40),0xf0d2a8),0,0,0,-Math.PI/2);
+  const decal={transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2};
+  PL(32,28,new THREE.MeshLambertMaterial(Object.assign({map:pqTex('terre'),alphaMap:pqTex('bord')},decal)),-0.5,0.012,-1,-Math.PI/2); /* la cour, terre battue */
+  PL(5,150,new THREE.MeshLambertMaterial(Object.assign({map:pqTexRep('piste',1,30),alphaMap:pqTex('bordPiste')},decal)),0,0.014,88,-Math.PI/2); /* la piste vers le sud, ses ornières */
+  { const mStr=matStrates(), blanc=(geo)=>{ geo.setAttribute('color',new THREE.BufferAttribute(new Float32Array(geo.attributes.position.count*3).fill(1),3)); return geo; };
+    for(const [x,z,w,d,h,ry] of [[-60,-140,70,30,26,0.2],[45,-125,50,26,18,-0.3],[150,-35,30,60,22,0.1],[132,62,26,40,14,0.5],[-150,18,34,70,30,-0.1],[-122,-92,40,30,16,0.7],[64,148,60,30,12,0.3],[-92,138,40,30,20,-0.4]]){
+      const m=new THREE.Mesh(blanc(new THREE.BoxGeometry(w,h,d,3,Math.max(2,Math.round(h/4)),3)),mStr); m.position.set(ox+x,h/2-0.6,oz+z); m.rotation.y=ry; m.userData.garder=true; g.add(m);
+      const cap=new THREE.Mesh(blanc(new THREE.BoxGeometry(w*1.04,1.2,d*1.04)),mStr); cap.position.set(ox+x,h-0.2,oz+z); cap.rotation.y=ry; cap.userData.garder=true; g.add(cap); }
+    for(const [x,z,rb,h] of [[102,-112,8,30],[-30,-152,10,22],[160,30,7,26]]){ const m=new THREE.Mesh(blanc(new THREE.CylinderGeometry(rb*0.8,rb,h,10,4)),mStr); m.position.set(ox+x,h/2-0.6,oz+z); m.userData.garder=true; g.add(m); } }
+  { const vert=MF(0x3e6b3a), vert2=MF(0x4f7a40), roc=MF(0x9a7a5e), roc2=MF(0x7a6250);
+    const saguaro=(x,z,h)=>{ C(0.3,0.36,h,vert,x,h/2,z,9); S(0.3,vert,x,h,z); const n=1+(r()<0.5?1:0);
+      for(let k=0;k<n;k++){ const sd=k?-1:1, ha=h*(0.45+r()*0.2), l=0.6+r()*0.4; C(0.2,0.2,l,vert2,x+sd*l/2,ha,z,8).rotation.z=Math.PI/2; const hv=0.9+r()*0.9; C(0.2,0.22,hv,vert2,x+sd*l,ha+hv/2,z,8); S(0.2,vert2,x+sd*l,ha+hv,z); }
+      solide(x,z,0.4,0.4,h); };
+    const libre=(x,z)=>!(Math.abs(x)<20&&Math.abs(z)<18)&&!(x>15&&x<44&&Math.abs(z)<10)&&!(Math.abs(x)<5&&z>14);
+    for(let k=0,n=0;k<200&&n<26;k++){ const a=r()*6.283, d=24+r()*70, x=Math.cos(a)*d, z=Math.sin(a)*d; if(!libre(x,z)) continue; n++; saguaro(x,z,2.6+r()*2.6); }
+    for(let k=0,n=0;k<300&&n<46;k++){ const a=r()*6.283, d=21+r()*95, x=Math.cos(a)*d, z=Math.sin(a)*d; if(!libre(x,z)) continue; n++;
+      const o=mesh(new THREE.DodecahedronGeometry(0.4+r()*1.4,0),r()<0.5?roc:roc2,x,0.1,z); o.scale.set(1,0.55+r()*0.4,0.8+r()*0.4); o.rotation.y=r()*6; }
+    for(const [x,z] of [[-14,-14.5],[-9,-15.2],[-3,-15.4],[4,-15],[10,-14.6],[15.4,-13],[-16.8,-11],[-16.6,9],[-15.8,13],[13.5,13.6],[9.6,14.8]]){ const o=mesh(new THREE.DodecahedronGeometry(0.6+r()*0.5,0),roc,x,0.25,z); o.scale.set(1.2,0.7,1); o.rotation.y=r()*6; }
+    S(1,MT(pqTexRep('sable',3,2),0xe8c69a),-4,-1.2,-27,16,4.5,6); S(1,MT(pqTexRep('sable',3,2),0xe8c69a),36,-1.4,0,7,3.6,22); /* une dune au nord, la butte de tir à l'est */
+    for(let k=0;k<14;k++){ const a=r()*6.283, d=22+r()*40, x=Math.cos(a)*d, z=Math.sin(a)*d; if(!libre(x,z)) continue; const o=mesh(new THREE.ConeGeometry(0.5,0.9,6),MF(0x6a8a5a),x,0.45,z); o.scale.set(1,1,0.5); const o2=mesh(new THREE.ConeGeometry(0.5,0.8,6),MF(0x6a8a5a),x,0.4,z); o2.rotation.y=1.4; o2.scale.set(1,1,0.5); } /* agaves */
+    for(let k=0;k<12;k++){ const z=18+k*12; C(0.09,0.12,6.5,M(0x6a5038),-4.8,3.25,z,6); B(1.4,0.1,0.1,M(0x6a5038),-4.8,6.1,z); } /* les poteaux du téléphone, le long de la piste */
+    for(let k=0;k<11;k++) for(const dx of [-0.6,0.6]) seg([-4.8+dx,6.15,18+k*12],[-4.8+dx,5.8,30+k*12],0.012,M(0x2a2a2a),3); }
+  // virevoltants : poussés par le vent d'ouest en est, ils roulent et rebondissent (décor)
+  { const mv=new THREE.MeshLambertMaterial({color:0x8a6a40,wireframe:true}); for(let k=0;k<3;k++){ const o=mesh(new THREE.IcosahedronGeometry(0.55+k*0.12,1),mv,-60-k*45,0.6,[-26,24,36][k]); o.userData.garder=true;
+    const v=3+k; Q.anim.push((dt)=>{ o.position.x+=v*dt; o.rotation.z-=v*dt/0.6; o.position.y=0.6+Math.abs(Math.sin(o.position.x*0.7))*0.5; if(o.position.x>s.ox+90) o.position.x=s.ox-90; }); } }
+  // ---- l'Airstream ----
+  const alu=new THREE.MeshPhongMaterial({color:0xd4dae2,shininess:95,specular:0xb0b8c4,side:THREE.DoubleSide}), aluF=MP(0x9aa2ac,60,0x7a828c), joint=M(0x23262e),
+    verre=new THREE.MeshPhongMaterial({color:0x8ab8d8,shininess:120,specular:0xffffff,transparent:true,opacity:0.2,depthWrite:false,side:THREE.DoubleSide});
+  const toitCar=[], toitAuv=[];
+  const mur=(lz,trous)=>{ const xs=new Set([-Ls,Ls]); for(const t of trous){ xs.add(t[0]); xs.add(t[1]); } const X=[...xs].sort((a,b)=>a-b);
+    for(let i=0;i<X.length-1;i++){ const a=X[i], b=X[i+1], mx=(a+b)/2; let ys=[[0.3,2.2]];
+      for(const t of trous) if(mx>t[0]&&mx<t[1]){ const n=[]; for(const [y0,y1] of ys){ if(t[3]<=y0||t[2]>=y1){ n.push([y0,y1]); continue; } if(t[2]>y0) n.push([y0,t[2]]); if(t[3]<y1) n.push([t[3],y1]); } ys=n; }
+      for(const [y0,y1] of ys) if(y1-y0>0.01) B(b-a,y1-y0,0.1,alu,cx+mx,(y0+y1)/2,cz+lz); }
+    for(const t of trous){ if(t[2]<0.5) continue; const w=t[1]-t[0], h=t[3]-t[2], mx=cx+(t[0]+t[1])/2, my=(t[2]+t[3])/2; PL(w,h,verre,mx,my,cz+lz);
+      for(const [bw,bh,dx,dy] of [[w+0.14,0.07,0,h/2],[w+0.14,0.07,0,-h/2],[0.07,h,w/2,0],[0.07,h,-w/2,0]]) B(bw,bh,0.15,aluF,mx+dx,my+dy,cz+lz); } };
+  mur(-R,[[-4.9,-3.9,1.05,1.75],[-2.6,-1.2,1.1,1.7],[1.4,2.6,1.05,1.75],[3.8,5.0,1.05,1.75]]);
+  mur(R,[[-4.9,-3.9,1.05,1.75],[0.2,1.6,0.3,2.0],[3.8,5.0,1.05,1.75]]);
+  const bout=(sd)=>{ const t0=sd>0?0:Math.PI, ouv=sd>0?0.95:0.38, piece=(y0,y1,a0,a1,mt)=>mesh(new THREE.CylinderGeometry(R,R,y1-y0,Math.max(3,Math.round((a1-a0)*9)),1,true,t0+a0,a1-a0),mt,cx+sd*Ls,(y0+y1)/2,cz);
+    piece(0.3,1.0,0,Math.PI,alu); piece(1.75,2.2,0,Math.PI,alu); piece(1.0,1.75,0,Math.PI/2-ouv,alu); piece(1.0,1.75,Math.PI/2+ouv,Math.PI,alu); piece(1.0,1.75,Math.PI/2-ouv,Math.PI/2+ouv,verre);
+    for(let a=0;a<=Math.PI+1e-6;a+=Math.PI/8) solide(cx+sd*(Ls+Math.sin(a)*R),cz+Math.cos(a)*R,0.3,0.3,2.3);
+    mesh(new THREE.CylinderGeometry(R+0.02,R+0.02,0.3,24,1,true,t0,Math.PI),joint,cx+sd*Ls,0.15,cz); };
+  bout(1); bout(-1);
+  for(const lz of [-R,R]) B(2*Ls,0.3,0.1,joint,cx,0.15,cz+lz);
+  { const geo=new THREE.CylinderGeometry(R,R,2*Ls,30,1,true,0,Math.PI); geo.rotateZ(Math.PI/2); const m=mesh(geo,alu,cx,2.2,cz); m.scale.y=1.15/R; toitCar.push(m);
+    for(const sd of [1,-1]){ const d=mesh(new THREE.SphereGeometry(R,26,10,sd>0?Math.PI/2:-Math.PI/2,Math.PI,0,Math.PI/2),alu,cx+sd*Ls,2.2,cz); d.scale.y=1.15/R; toitCar.push(d); }
+    for(let q=-4;q<=4;q++){ const jg=new THREE.CylinderGeometry(R+0.015,R+0.015,0.05,30,1,true,0,Math.PI); jg.rotateZ(Math.PI/2); const j=mesh(jg,aluF,cx+q*1.18,2.2,cz); j.scale.y=1.16/R; toitCar.push(j); } /* les joints rivetés de la coque */
+    for(const dx of [-2.2,-0.4]){ toitCar.push(B(1.5,0.06,1.0,MP(0x1a3a6a,80,0x6a8ab0),cx+dx,3.33,cz)); toitCar.push(B(1.5,0.05,0.04,aluF,cx+dx,3.3,cz-0.52)); } /* panneaux solaires */
+    toitCar.push(B(0.7,0.18,0.7,MP(0xe8ecf2,60,0x9aa2ad),cx+2.4,3.36,cz)); toitCar.push(C(0.02,0.02,2.4,M(0x23262e),cx+4.6,4.3,cz-1.6,5)); toitCar.push(S(0.05,MB(0xff3a20),cx+4.6,5.5,cz-1.6)); } /* lanterneau, antenne de la CB */
+  // la porte ouverte (hublot rond), le marchepied ; roues, timon et bouteilles de gaz ; réservoir d'eau, groupe électrogène
+  { const a=1.75, px=cx+1.6-0.7*Math.cos(a), pz=cz+R+0.7*Math.sin(a), pd=B(1.4,1.8,0.06,alu,px,1.2,pz); pd.rotation.y=a-Math.PI; /* ouverte vers la cour, charnière côté est */
+    const hb=C(0.21,0.21,0.08,MP(0x2a3a4a,90,0xffffff),px,1.5,pz,16); hb.rotation.set(Math.PI/2,a-Math.PI,0,'YXZ'); /* le hublot rond de la porte */
+    B(1.3,0.1,0.55,aluF,cx+0.9,0.24,cz+R+0.35); B(1.3,0.1,0.5,aluF,cx+0.9,0.08,cz+R+0.75); }
+  for(const sd of [-1,1]) for(const dx of [-0.55,0.55]){ const w=mesh(new THREE.CylinderGeometry(0.4,0.4,0.24,16),M(0x15171c),cx+dx,0.38,cz+sd*(R+0.08)); w.rotation.x=Math.PI/2; }
+  seg([cx+Ls+R-0.2,0.45,cz-0.9],[cx+Ls+R+1.6,0.42,cz],0.06,M(0x2a2c30)); seg([cx+Ls+R-0.2,0.45,cz+0.9],[cx+Ls+R+1.6,0.42,cz],0.06,M(0x2a2c30)); S(0.12,M(0x2a2c30),cx+Ls+R+1.65,0.42,cz);
+  for(const dz of [-0.32,0.32]){ C(0.21,0.21,0.72,MP(0xf2f2ee,40,0x8a8a8a),cx+Ls+R+0.55,0.8,cz+dz); S(0.21,MP(0xf2f2ee,40,0x8a8a8a),cx+Ls+R+0.55,1.16,cz+dz,1,0.6,1); }
+  solide(cx+Ls+R+0.8,cz,0.9,0.6,1.2);
+  { const w=mesh(new THREE.CylinderGeometry(0.55,0.55,2,16),M(0x1d1f24),cx-2.2,0.62,cz-R-1.3); w.rotation.z=Math.PI/2; solide(cx-2.2,cz-R-1.3,1,0.6,1.2);
+    B(1.0,0.75,0.65,M(0xc8342a),cx+2.6,0.38,cz-R-1.2); B(0.9,0.06,0.55,M(0x2a2c30),cx+2.6,0.78,cz-R-1.2); C(0.05,0.05,0.4,M(0x5a5e66),cx+2.95,0.95,cz-R-1.0,6); solide(cx+2.6,cz-R-1.2,0.55,0.4,0.9); }
+  Q.toits.push({x0:cx-Ls-R-0.2,x1:cx+Ls+R+0.2,z0:cz-R-0.1,z1:cz+R+0.1,objs:toitCar,dedans:true,vis:true});
+  // les murs (solides) : l'entrée par la porte seulement
+  solide(cx,cz-R,Ls,0.14,2.3); solide(cx+(-Ls+0.2)/2,cz+R,(Ls+0.2)/2,0.14,2.3); solide(cx+(1.6+Ls)/2,cz+R,(Ls-1.6)/2,0.14,2.3);
+  // ---- dedans : sol en lino, lambris de bouleau ----
+  { const t=pqTexRep('lino',2*Ls/2.4,(2*R)/2.4), td=pqTexRep('lino',2*R/2.4,2*R/2.4), devant={polygonOffset:true,polygonOffsetFactor:-6,polygonOffsetUnits:-6}; /* devant la terre de la cour (un décalque décalé en profondeur) */ PL(2*Ls,2*R-0.12,MT(t,0xffffff,devant),cx,0.035,cz,-Math.PI/2);
+    for(const sd of [1,-1]){ const d=mesh(new THREE.CircleGeometry(R-0.08,22,sd>0?-Math.PI/2:Math.PI/2,Math.PI),MT(td,0xffffff,devant),cx+sd*Ls,0.034,cz); d.rotation.x=-Math.PI/2; }
+    const lb=MT(pqTexRep('bouleau',4,1)); B(2*Ls,0.72,0.04,lb,cx,0.66,cz-R+0.08); B(Ls+0.2,0.72,0.04,lb,cx+(-Ls+0.2)/2,0.66,cz+R-0.08); B(Ls-1.6,0.72,0.04,lb,cx+(1.6+Ls)/2,0.66,cz+R-0.08); }
+  // la chambre, au fond : lit sous la couette navajo, oreillers, liseuse, rideau ; une étagère courbe dans le bout
+  { const bf=M(0x6a4a2e); B(2.2,0.42,2.2,bf,cx-5.5,0.25,cz-1.1); B(2.12,0.24,2.12,M(0xf0ece0),cx-5.5,0.56,cz-1.1); B(1.5,0.08,2.18,MT(pqTex('couette')),cx-5.15,0.71,cz-1.1);
+    for(const dz of [-1.6,-0.6]) S(0.3,M(0xf4f2ea),cx-6.3,0.74,cz+dz,1,0.38,1.25); B(0.06,0.6,2.2,bf,cx-6.62,0.82,cz-1.1);
+    S(0.09,MB(0xffd890),cx-6.4,1.55,cz-2.45); C(0.12,0.06,0.1,M(0xd8b030),cx-6.4,1.62,cz-2.45,10);
+    B(0.04,1.85,1.5,MT(pqTexRep('couette',1,2),0xffe0b0),cx-4.25,1.15,cz-1.8); /* le rideau, du même tissu que la couette */ seg([cx-4.25,2.1,cz-2.6],[cx-4.25,2.1,cz-0.6],0.02,M(0x9aa2ad));
+    B(0.9,0.06,1.6,M(0x8a6a44),cx-7.5,1.4,cz); B(0.9,0.06,1.4,M(0x8a6a44),cx-7.4,0.95,cz); for(let k=0;k<5;k++) B(0.12,0.3,0.18,M([0x2a6a8a,0xd83a3a,0xe8c040,0x3a7a3a,0x6a3a8a][k]),cx-7.5,1.58,cz-0.6+k*0.3);
+    solide(cx-5.5,cz-1.1,1.15,1.15,0.8); }
+  // la kitchenette : frigo menthe, plan de travail, évier, réchaud et sa bouilloire, placards ; la radio CB et son micro
+  { const bois=MT(pqTexRep('bouleau',2,1),0xffe6c4), menthe=MP(0x9ad8c0,60,0xc8ffe8), chrome=MP(0xd8dce4,90,0xffffff);
+    B(0.62,1.55,0.66,menthe,cx-3.6,0.8,cz-2.25); C(0.31,0.31,0.66,menthe,cx-3.6,1.58,cz-2.25,14).rotation.x=Math.PI/2; B(0.04,0.4,0.04,chrome,cx-3.33,1.15,cz-1.9);
+    B(2.8,0.9,0.66,bois,cx-1.9,0.45,cz-2.25); B(2.86,0.06,0.72,M(0xf0e6c8),cx-1.9,0.93,cz-2.23); B(2.8,0.42,0.38,bois,cx-2.1,1.95,cz-2.4);
+    B(0.62,0.05,0.44,chrome,cx-1.95,0.965,cz-2.22); C(0.025,0.025,0.32,chrome,cx-1.95,1.12,cz-2.48,6); seg([cx-1.95,1.27,cz-2.48],[cx-1.95,1.27,cz-2.3],0.022,chrome);
+    B(0.62,0.04,0.5,M(0x1d1f24),cx-0.9,0.97,cz-2.22); for(const dx of [-0.15,0.15]){ const t=mesh(new THREE.TorusGeometry(0.1,0.015,6,16),M(0x5a5e66),cx-0.9+dx,1.0,cz-2.2); t.rotation.x=Math.PI/2; }
+    S(0.16,MP(0xd8342a,70,0xffa080),cx-0.75,1.13,cz-2.2,1,0.85,1); seg([cx-0.6,1.12,cz-2.2],[cx-0.5,1.22,cz-2.2],0.025,MP(0xd8342a,70,0xffa080)); C(0.05,0.07,0.06,M(0x1d1f24),cx-0.75,1.28,cz-2.2,8);
+    B(0.44,0.14,0.3,M(0x1c1d20),cx-2.95,1.03,cz-2.25); PL(0.42,0.13,MT(pqTex('cb')),cx-2.95,1.03,cz-2.09); S(0.025,MB(0xff3a20),cx-3.1,1.12,cz-2.09); /* la radio CB, canal 19 */
+    B(0.08,0.12,0.04,M(0x2a2c30),cx-2.62,1.06,cz-2.06); for(let k=0;k<5;k++){ const t=mesh(new THREE.TorusGeometry(0.03,0.006,4,10),M(0x2a2c30),cx-2.7-k*0.025,1.0-k*0.02,cz-2.02); t.rotation.y=Math.PI/2; }
+    solide(cx-2.25,cz-2.25,1.75,0.36,1.0); }
+  // les cartes routières punaisées (liège), deux photos ; le coffre : la vieille caisse à munitions où dorment les billets
+  { B(2.8,1.0,0.04,M(0xb88a5a),cx-2.3,1.45,cz+R-0.14); PL(1.15,0.8,MT(pqTex('carte')),cx-2.85,1.48,cz+R-0.17,0,Math.PI); PL(0.9,0.7,MT(pqTex('carte')),cx-1.55,1.42,cz+R-0.17,0,Math.PI);
+    for(const [dx,dy,c] of [[-3.35,1.84,0xd8102a],[-2.35,1.84,0x2a6ad8],[-1.95,1.74,0xd8102a],[-1.15,1.74,0xffd23f],[-2.9,1.1,0x2aaa4a]]) S(0.03,MB(c),cx+dx,dy,cz+R-0.2);
+    for(const [dx,dy] of [[-3.55,1.2],[-1.0,1.15]]) PL(0.22,0.26,MB(0xf4f2ea),cx+dx,dy,cz+R-0.18,0,Math.PI);
+    B(0.62,0.48,0.42,M(0x4a5a32),cx+2.95,0.27,cz+R-0.42); B(0.64,0.06,0.44,M(0x3a4a28),cx+2.95,0.53,cz+R-0.42); B(0.1,0.12,0.04,MP(0xd8b030,80,0xffe080),cx+2.95,0.38,cz+R-0.64);
+    PL(0.5,0.18,MT(pqTexte('$$$','#4a5a32','#e8e4c8')),cx+2.95,0.3,cz+R-0.64,0,Math.PI); solide(cx+2.95,cz+R-0.42,0.32,0.22,0.6); }
+  // l'avant : banquette en U en skaï turquoise, table en formica rouge cerclée de chrome ; la grande baie sur le désert
+  { const sk=MT(pqTexRep('skai',2,1)), skB=MT(pqTexRep('skai',3,1)), chrome=MP(0xd8dce4,90,0xffffff);
+    for(const sd of [-1,1]){ B(2.0,0.42,0.6,sk,cx+4.35,0.25,cz+sd*2.0); B(2.0,0.5,0.14,skB,cx+4.35,0.7,cz+sd*2.38); solide(cx+4.35,cz+sd*2.0,1.0,0.32,0.6); }
+    { const sh=new THREE.Shape(), r0=R-0.85, r1=R-0.15, a0=-1.15, a1=1.15; sh.moveTo(Math.cos(a0)*r1,Math.sin(a0)*r1); sh.absarc(0,0,r1,a0,a1,false); sh.lineTo(Math.cos(a1)*r0,Math.sin(a1)*r0); sh.absarc(0,0,r0,a1,a0,true);
+      const geo=new THREE.ExtrudeGeometry(sh,{depth:0.42,bevelEnabled:false,curveSegments:14}); geo.rotateX(-Math.PI/2); const m=mesh(geo,sk,cx+Ls,0.04,cz); solide(cx+Ls+1.9,cz,0.5,1.2,0.6); }
+    C(0.75,0.75,0.05,MP(0xd83a2a,60,0xffb0a0),cx+5.1,0.76,cz,24); mesh(new THREE.TorusGeometry(0.75,0.025,6,28),chrome,cx+5.1,0.76,cz).rotation.x=Math.PI/2; C(0.05,0.05,0.72,chrome,cx+5.1,0.38,cz,8); C(0.3,0.3,0.03,chrome,cx+5.1,0.04,cz,14);
+    C(0.06,0.05,0.11,M(0xf4f2ea),cx+4.8,0.84,cz+0.25,10); B(0.25,0.02,0.35,M(0xf4f2ea),cx+5.35,0.8,cz-0.2); B(0.5,0.03,0.36,MT(pqTex('carte')),cx+5.1,0.79,cz+0.35); solide(cx+5.1,cz,0.78,0.78,0.8); }
+  // les pièces de moteur sur un chiffon (carbu, pistons, culasse, bougies), le ventilateur sur pied qui tourne, la guirlande au mur
+  { PL(1.7,0.8,M(0x7a2a2a),cx+0.9,0.05,cz-2.15,-Math.PI/2); B(0.5,0.18,0.3,M(0x6a6e76),cx+0.4,0.14,cz-2.15); for(const dx of [0.95,1.25]){ C(0.11,0.11,0.2,MP(0xb8bcc4,80,0xffffff),cx+dx,0.15,cz-2.1,12); C(0.02,0.02,0.22,M(0x8a8e96),cx+dx,0.3,cz-2.1,5); }
+    B(0.36,0.2,0.26,M(0x8a5a32),cx+1.6,0.15,cz-2.25); for(let k=0;k<4;k++) C(0.018,0.018,0.1,M(0xf2f2ee),cx+0.55+k*0.12,0.1,cz-1.85,5);
+    C(0.22,0.26,0.05,M(0x2a2c30),cx+2.4,0.03,cz-1.9,14); C(0.025,0.025,1.15,M(0x9aa2ad),cx+2.4,0.6,cz-1.9,6);
+    const tete=new THREE.Group(); tete.position.set(T.ox+cx+2.4,1.25,T.oz+cz-1.85); tete.rotation.y=0.6; g.add(tete); tete.userData.garder=true;
+    const cage=new THREE.Mesh(new THREE.TorusGeometry(0.26,0.012,4,22),MP(0xd8dce4,90,0xffffff)); tete.add(cage);
+    const helice=new THREE.Group(); tete.add(helice); for(let k=0;k<3;k++){ const p=new THREE.Mesh(new THREE.BoxGeometry(0.09,0.22,0.01),MP(0x9ad8c0,60,0xffffff)); p.position.set(Math.cos(k*2.09)*0.13,Math.sin(k*2.09)*0.13,0); p.rotation.z=k*2.09-Math.PI/2; helice.add(p); }
+    const moteur=new THREE.Mesh(new THREE.SphereGeometry(0.09,10,8),MP(0x9ad8c0,60,0xffffff)); moteur.position.z=-0.08; tete.add(moteur);
+    Q.anim.push((dt)=>{ helice.rotation.z+=dt*16; tete.rotation.y=0.6+Math.sin(Q.t*0.5)*0.5; }); }
+  // la guirlande lumineuse : dans la caravane le long du mur nord, dehors sous l'auvent ; quatre couleurs qui battent à tour de rôle
+  { const cols=[0xffd23f,0xff5a6a,0x7dff7a,0x35c8e0], mats=cols.map((c)=>new THREE.MeshBasicMaterial({color:c})), base=cols.map((c)=>new THREE.Color(c));
+    const fil=(pts,n)=>{ for(let k=0;k<n;k++){ const t=k/(n-1), p=pts(t); S(0.06,mats[k%4],p[0],p[1],p[2]); } };
+    fil((t)=>[cx-4+t*8.6,2.06-Math.sin(t*Math.PI*4)*0.05,cz-R+0.16],18);
+    fil((t)=>[cx-4.8+t*8.0,2.0-Math.sin(t*Math.PI)*0.32,cz+R+3.75],16);
+    Q.anim.push(()=>{ for(let i=0;i<4;i++){ const k=0.45+0.55*Math.max(0,Math.sin(Q.t*2.2+i*1.57)); mats[i].color.copy(base[i]).multiplyScalar(k); } }); }
+  { const cuir=MP(0x7a4a24,30,0x3a2a1a); C(0.42,0.42,0.03,cuir,cx-0.25,1.72,cz+R-0.32,18); C(0.2,0.24,0.2,cuir,cx-0.25,1.82,cz+R-0.32,14); C(0.205,0.205,0.04,M(0x2a1a10),cx-0.25,1.75,cz+R-0.32,14); /* le chapeau au crochet, près de la porte */
+    const bg=MP(0xc88a3a,50,0xffd8a0); S(0.26,bg,cx+3.25,0.42,cz-2.3,1,1.2,0.35); S(0.2,bg,cx+3.25,0.78,cz-2.32,1,1.1,0.35); S(0.07,M(0x1a1a1a),cx+3.25,0.72,cz-2.22,1,1,0.3); B(0.08,0.75,0.05,M(0x4a2a14),cx+3.25,1.28,cz-2.36); B(0.12,0.16,0.05,M(0x4a2a14),cx+3.25,1.72,cz-2.38); /* la guitare */
+    C(0.1,0.08,0.12,M(0xb8562a),cx-0.4,1.02,cz-2.05,10); C(0.05,0.05,0.2,MF(0x3e6b3a),cx-0.4,1.18,cz-2.05,7); }
+  { const fx=Q.feu.x-1.7, fz=Q.feu.z+0.4, poil=M(0xb8864a), sombre=M(0x6a4a2a), chien=new THREE.Group(); chien.position.set(T.ox+fx,0,T.oz+fz); chien.rotation.y=0.7; g.add(chien); chien.userData.garder=true;
+    const corps=new THREE.Mesh(new THREE.SphereGeometry(0.3,12,9),poil); corps.scale.set(1.5,0.55,0.8); corps.position.y=0.18; chien.add(corps);
+    const tete=new THREE.Group(); tete.position.set(0.5,0.16,0.05); chien.add(tete); const cr=new THREE.Mesh(new THREE.SphereGeometry(0.15,10,8),poil); tete.add(cr); const mus=new THREE.Mesh(new THREE.SphereGeometry(0.08,8,6),M(0xe8d0a8)); mus.position.set(0.14,-0.03,0); tete.add(mus);
+    for(const sz of [-0.08,0.08]){ const o=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.14,0.08),sombre); o.position.set(-0.02,0.08,sz); o.rotation.x=sz>0?0.5:-0.5; tete.add(o); }
+    const queue=new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.05,0.38,6),poil); queue.position.set(-0.52,0.12,0.05); queue.rotation.z=1.2; chien.add(queue);
+    for(const dz of [-0.12,0.12]){ const pa=new THREE.Mesh(new THREE.BoxGeometry(0.34,0.06,0.07),poil); pa.position.set(0.5,0.04,dz); chien.add(pa); }
+    let reveil=0, aboie=0; Q.anim.push((dt)=>{ const d=Math.hypot(P.x-chien.position.x,P.z-chien.position.z), pres=d<2.8; reveil+=((pres?1:0)-reveil)*Math.min(1,dt*3);
+      corps.scale.y=0.55+Math.sin(Q.t*1.6)*0.03*(1-reveil); tete.position.y=0.16+reveil*0.2; tete.rotation.z=reveil*0.3; queue.rotation.y=reveil*Math.sin(Q.t*14)*0.7; /* Bandit dort ; on approche : il lève la tête et remue la queue */
+      if(pres&&aboie<=0&&reveil>0.6&&ETAT.mode==='jeu'){ aboie=9; beep(330,0.08,'triangle',0.04,240); setTimeout(()=>beep(330,0.08,'triangle',0.035,250),160); } aboie-=dt; }); }
+  // ---- l'auvent rayé, le tapis mexicain, la table et la lanterne, deux chaises pliantes, la glacière ----
+  { const tl=MT(pqTex('toile')); const a=mesh(new THREE.BoxGeometry(8.2,0.04,3.8),tl,cx-0.6,2.32,cz+R+1.9); a.rotation.x=0.1; toitAuv.push(a); toitAuv.push(B(8.2,0.24,0.03,tl,cx-0.6,2.05,cz+R+3.8));
+    for(const dx of [-4.6,3.4]){ C(0.04,0.04,2.15,MP(0x9aa2ad,60,0xffffff),cx+dx,1.07,cz+R+3.8,6); seg([cx+dx,2.1,cz+R+3.8],[cx+dx+(dx<0?-0.8:0.8),0.02,cz+R+5],0.012,M(0xd8d0b8)); }
+    Q.toits.push({x0:cx-4.8,x1:cx+3.6,z0:cz+R,z1:cz+R+3.9,objs:toitAuv,vis:true});
+    PL(4.2,2.8,MT(pqTex('tapis')),cx-1.4,0.02,cz+R+1.9,-Math.PI/2);
+    B(0.9,0.05,0.6,M(0xe8e4d8),cx-2.4,0.72,cz+R+2.2); for(const [dx,dz] of [[-0.4,-0.25],[0.4,-0.25],[-0.4,0.25],[0.4,0.25]]) C(0.015,0.015,0.7,M(0x9aa2ad),cx-2.4+dx,0.36,cz+R+2.2+dz,5);
+    C(0.08,0.1,0.22,M(0x2a2c30),cx-2.25,0.86,cz+R+2.1,8); S(0.07,MB(0xffd27a),cx-2.25,0.88,cz+R+2.1); solide(cx-2.4,cz+R+2.2,0.45,0.3,0.8);
+    for(const [dx,dz,ry] of [[-3.6,2.9,0.5],[-1.0,3.0,-0.4]]){ const ch=new THREE.Group(); ch.position.set(T.ox+cx+dx,0,T.oz+cz+R+dz); ch.rotation.y=ry; g.add(ch); ch.userData.garder=true;
+      for(let k=0;k<5;k++){ const b=new THREE.Mesh(new THREE.BoxGeometry(0.58,0.02,0.09),M(k%2?0xf2ece0:0x2a7a8a)); b.position.set(0,0.46,-0.22+k*0.11); ch.add(b); const d=b.clone(); d.position.set(0,0.62+k*0.1,-0.3); d.rotation.x=-0.25; ch.add(d); }
+      for(const sx of [-0.3,0.3]){ const l=new THREE.Mesh(new THREE.CylinderGeometry(0.015,0.015,0.62,5),MP(0x9aa2ad,60,0xffffff)); l.position.set(sx,0.31,0); l.rotation.x=0.5; ch.add(l); const l2=l.clone(); l2.rotation.x=-0.5; ch.add(l2); } }
+    B(0.8,0.45,0.48,M(0x2a6ad8),cx+1.9,0.23,cz+R+2.8); B(0.82,0.08,0.5,M(0xf2f2ee),cx+1.9,0.5,cz+R+2.8); solide(cx+1.9,cz+R+2.8,0.4,0.25,0.55); }
+  // ---- le feu de camp : cercle de pierres, bûches, flammes vivantes, braises ; trois fauteuils de camping, le bois coupé, la cafetière ----
+  { const fx=Q.feu.x, fz=Q.feu.z, roc=MF(0x7a6a5e);
+    for(let k=0;k<10;k++){ const a=k/10*6.283; const o=mesh(new THREE.DodecahedronGeometry(0.22,0),roc,fx+Math.cos(a)*0.85,0.12,fz+Math.sin(a)*0.85); o.scale.set(1.2,0.8,1); o.rotation.y=k; }
+    for(let k=0;k<3;k++){ const b=C(0.09,0.1,1.1,M(0x4a3020),fx,0.16,fz,7); b.rotation.set(Math.PI/2,0,k*1.05); }
+    const fm=new THREE.SpriteMaterial({map:pqTex('flamme'),transparent:true,depthWrite:false,blending:THREE.AdditiveBlending}), flammes=[];
+    for(let k=0;k<3;k++) flammes.push(sprite(fm,fx+(k-1)*0.18,0.75,fz+(k%2)*0.1,0.9,1.3));
+    const lueur=PL(4.5,4.5,new THREE.MeshBasicMaterial({map:texGlow,color:0xff8030,transparent:true,opacity:0.35,depthWrite:false,blending:THREE.AdditiveBlending}),fx,0.03,fz,-Math.PI/2); lueur.userData.garder=true;
+    Q.anim.push((dt)=>{ flammes.forEach((f,k)=>{ const v=Q.t*(9+k*2.3); f.scale.set(0.85+Math.sin(v)*0.12,1.25+Math.sin(v*1.7)*0.25,1); f.position.y=0.72+Math.sin(v*0.8)*0.05; }); lueur.material.opacity=0.3+Math.sin(Q.t*11)*0.05;
+      if(Math.random()<dt*7) spawnP(s.ox+fx+rand(-0.3,0.3),0.9,s.oz+fz+rand(-0.3,0.3),rand(-0.3,0.3),rand(1.2,2.4),rand(-0.3,0.3),rand(0.6,1.2),0.07,0xffa040,-0.4); });
+    solide(fx,fz,0.95,0.95,0.4);
+    for(const [a,c] of [[2.6,0x2a5a8a],[3.7,0xd8402a],[5.0,0x3a7a3a]]){ const ch=new THREE.Group(); ch.position.set(T.ox+fx+Math.cos(a)*2.3,0,T.oz+fz+Math.sin(a)*2.3); ch.rotation.y=-a-Math.PI/2; g.add(ch); ch.userData.garder=true;
+      const st=new THREE.MeshLambertMaterial({color:c}); const sg=new THREE.Mesh(new THREE.BoxGeometry(0.6,0.05,0.5),st); sg.position.y=0.42; ch.add(sg); const ds=new THREE.Mesh(new THREE.BoxGeometry(0.6,0.6,0.05),st); ds.position.set(0,0.75,-0.27); ds.rotation.x=-0.18; ch.add(ds);
+      for(const sx of [-0.3,0.3]) for(const sz of [-0.22,0.22]){ const l=new THREE.Mesh(new THREE.CylinderGeometry(0.015,0.015,0.44,5),M(0x2a2c30)); l.position.set(sx,0.21,sz); ch.add(l); } }
+    for(let k=0;k<6;k++) C(0.12,0.12,0.9,M(0x6a4a2e),fx+3.2,0.13+(k%3)*0.24,fz+1.6+Math.floor(k/3)*0.25,7).rotation.z=Math.PI/2; solide(fx+3.2,fz+1.7,0.5,0.35,0.7);
+    C(0.08,0.1,0.18,M(0x5a5e66),fx+0.62,0.32,fz-0.5,8); }
+  // ---- l'atelier, à l'ouest : établi, panneau d'outils, étau, caisse à outils ; pneus, bloc moteur ; le cric et la place du véhicule ----
+  { const ex=-16.1, ez=-0.4, bois=MT(pqTexRep('bouleau',2,1),0xc89a6a), metal=MP(0x5a5e66,50,0x9aa2ad);
+    B(0.95,0.09,3.4,bois,ex,0.95,ez); B(0.85,0.05,3.2,bois,ex,0.32,ez); for(const [dx,dz] of [[-0.4,-1.6],[0.4,-1.6],[-0.4,1.6],[0.4,1.6]]) B(0.07,0.95,0.07,metal,ex+dx,0.47,ez+dz);
+    PL(3.4,1.4,MT(pqTex('outils')),ex-0.55,1.75,ez,0,Math.PI/2); for(const dz of [-1.75,1.75]) B(0.08,2.5,0.08,M(0x6a4a2e),ex-0.6,1.25,ez+dz);
+    B(0.2,0.2,0.34,M(0x2a4a8a),ex+0.1,1.1,ez-1.4); B(0.06,0.16,0.3,M(0x2a4a8a),ex+0.18,1.18,ez-1.4); seg([ex+0.1,1.2,ez-1.6],[ex+0.1,1.2,ez-1.85],0.02,metal);
+    B(0.5,0.28,0.3,M(0xc8342a),ex,1.14,ez+0.6); B(0.52,0.04,0.32,M(0x8a1a14),ex,1.29,ez+0.6); C(0.07,0.07,0.22,M(0x2a6a2a),ex+0.1,1.1,ez-0.2,8); C(0.06,0.06,0.18,M(0xd8b030),ex-0.15,1.08,ez+1.3,8);
+    S(0.07,MB(0xfff0c0),ex+0.2,1.75,ez+1.5); seg([ex+0.2,1.75,ez+1.5],[ex-0.4,1.9,ez+1.6],0.015,metal);
+    for(let k=0;k<3;k++){ const t=mesh(new THREE.TorusGeometry(0.42,0.18,8,16),M(0x15171c),ex+0.1,0.18+k*0.36,ez+3.8); t.rotation.x=Math.PI/2; } solide(ex+0.1,ez+3.8,0.6,0.6,1.1);
+    B(0.8,0.55,0.6,MP(0x6a6e76,40,0x9aa2ad),ex+0.4,0.75,ez-4.6); B(0.4,0.5,0.4,M(0x2a2c30),ex+0.4,0.25,ez-4.6); for(let k=0;k<3;k++) C(0.08,0.08,0.12,M(0x8a8e96),ex+0.25+k*0.15,1.08,ez-4.6,8); solide(ex+0.4,ez-4.6,0.45,0.35,1.1);
+    solide(ex,ez,0.5,1.75,1.0);
+    for(const z of [-6,-4,-2,0,2,4,6]){ B(0.05,1.8,2.0,MT(pqTex('tole')),-17.6,0.9,z); } /* la clôture de tôle */
+    // le cric : chariot rouge, bras qui monte pendant la réparation
+    const P0=Q.place, jx=P0.x+1.25, jz=P0.z-0.4; B(0.5,0.16,1.1,MP(0xc8342a,50,0xff9080),jx,0.1,jz); const bras=new THREE.Group(); bras.position.set(T.ox+jx,0.2,T.oz+jz-0.45); g.add(bras); bras.userData.garder=true;
+    const br=new THREE.Mesh(new THREE.BoxGeometry(0.12,0.1,0.9),MP(0xc8342a,50,0xff9080)); br.position.z=0.45; bras.add(br); const pt=new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.1,0.06,10),M(0x2a2c30)); pt.position.set(0,0.06,0.88); bras.add(pt);
+    seg([jx,0.2,jz+0.55],[jx+0.9,1.0,jz+0.9],0.025,M(0x2a2c30)); Q.cric=bras;
+    PL(4.6,7.4,new THREE.MeshLambertMaterial(Object.assign({color:0x5a3e24,opacity:0.35},decal)),P0.x,0.016,P0.z,-Math.PI/2); /* la tache d'huile de la place de l'atelier */ }
+  // ---- le stand de tir, à l'est : poste (table, munitions, sacs de sable), corde, muret d'adobe, bidons et caisses, la butte ----
+  { const px=13.2, pz=0; Q.poste={x:px,z:pz};
+    B(0.7,0.06,1.4,M(0x8a6a44),px+1.0,0.95,pz); for(const [dx,dz] of [[-0.3,-0.65],[0.3,-0.65],[-0.3,0.65],[0.3,0.65]]) B(0.06,0.95,0.06,M(0x6a4a2e),px+1.0+dx,0.47,pz+dz);
+    B(0.3,0.16,0.24,M(0x4a5a32),px+1.0,1.06,pz-0.35); B(0.18,0.1,0.14,M(0xd8b030),px+1.0,1.03,pz+0.3); solide(px+1.0,pz,0.36,0.72,1.0);
+    for(let k=0;k<4;k++) S(0.32,M(0xb8a878),px+1.55,0.2,pz-0.9+k*0.6,1.2,0.6,0.9);
+    PL(0.06,3.2,MB(0xf4f2ea),px+0.5,0.02,pz,-Math.PI/2);
+    for(let z=-10;z<=12.5;z+=2.5) if(Math.abs(z)>4) C(0.05,0.06,1.0,M(0x6a4a2e),17.5,0.5,z,6); seg([17.5,0.88,-10],[17.5,0.88,12.5],0.018,M(0xd8c8a0),4); /* aucun poteau dans la ligne de tir */
+    const pan=PL(1.6,0.7,MT(pqTexte('STAND DE TIR\nNE PAS DÉPASSER','#e8dcc0','#8a1a14')),17.4,1.25,-11.5,0,-Math.PI/2); C(0.05,0.05,1.2,M(0x6a4a2e),17.5,0.6,-11.5,6);
+    B(0.8,0.95,8,new THREE.MeshLambertMaterial({map:pqTexRep('chaux',3,1),emissive:0x5a5244}),22.0,0.475,0); B(0.9,0.08,8.2,M(0xf2ece0),22.0,0.99,0); /* le muret blanchi à la chaux : les canettes s'y détachent */
+    const fut=(z,c)=>{ C(0.4,0.4,1.1,MP(c,40,0x6a6e76),29,0.55,z,16); for(const y of [0.2,0.9]){ const t=mesh(new THREE.TorusGeometry(0.405,0.02,4,20),M(0x2a2c30),29,y,z); t.rotation.x=Math.PI/2; } };
+    fut(-3,0xb84a2a); fut(1,0x2a5a8a); B(0.8,0.8,0.8,M(0x9a7a4e),29,0.4,-1); B(0.8,0.8,0.8,M(0x8a6a44),29,1.2,-1); B(0.8,0.8,0.8,M(0x9a7a4e),29,0.4,3);
+    PL(9,3.2,MT(pqTexRep('tole',4,1),0xd8d0c4),31.5,1.6,0,0,-Math.PI/2); for(const z of [-4.4,4.4]) C(0.07,0.07,3.3,M(0x6a4a2e),31.4,1.65,z,6); /* une palissade de tôle derrière les bidons */
+    B(0.7,0.5,0.7,M(0x6a5a3a),23.4,0.25,0); B(0.5,0.06,0.5,M(0x3a3a3a),23.4,0.53,0); /* le lanceur de canettes (un piège à ressort) */
+    Q.slots=[]; for(const z of [-3,-1.5,0,1.5,3]) Q.slots.push({x:22.0,y:1.03,z}); Q.slots.push({x:29,y:1.1,z:-3},{x:29,y:1.6,z:-1},{x:29,y:1.1,z:1},{x:29,y:0.8,z:3});
+    Q.lanceur={x:23.4,z:0}; }
+  // ---- un peu de vie dans la cour : flamants roses en plastique, barbecue, corde à linge qui flotte au vent ----
+  { const rose=MP(0xff6aa8,60,0xffd0e0);
+    for(const [x,z,ry] of [[-6.4,0.8,0.4],[-5.6,1.4,-0.5]]){ S(0.2,rose,x,0.72,z,1,0.75,1.5); seg([x,0.62,z],[x,0.05,z],0.015,M(0x2a2c30),4); seg([x,0.8,z-0.22],[x,1.05,z-0.26],0.03,rose,6); S(0.08,rose,x,1.08,z-0.3); C(0.015,0.03,0.12,M(0x1a1a1a),x,1.06,z-0.4,5).rotation.x=Math.PI/2; }
+    S(0.38,M(0x1d1f24),3.6,0.78,1.6,1,0.62,1); for(let k=0;k<3;k++){ const a=k*2.09; seg([3.6+Math.cos(a)*0.32,0.62,1.6+Math.sin(a)*0.32],[3.6+Math.cos(a)*0.45,0.02,1.6+Math.sin(a)*0.45],0.025,M(0x2a2c30),5); } S(0.38,M(0x1d1f24),3.6,0.86,1.6,1,0.4,1).rotation.x=0.3; solide(3.6,1.6,0.4,0.4,1.0);
+    const fl=[-1.2,0.4], hx=9.5; for(const z of fl){ C(0.05,0.05,2.0,M(0x9aa2ad),hx,1.0,z*5,6); } seg([hx,1.92,-6],[hx,1.82,2],0.01,M(0xe8e4d8),3);
+    const linge=[[0xf2f2ee,0.6,0.8],[0x2a6ad8,0.5,0.9],[0xd8402a,0.45,0.5],[0xf0c040,0.7,0.6],[0x3a7a3a,0.4,0.7]], pans=[];
+    linge.forEach(([c,w,hh],k)=>{ const z=-5.2+k*1.5, p=PL(w,hh,new THREE.MeshLambertMaterial({color:c,side:THREE.DoubleSide}),hx,1.85-hh/2,z,0,Math.PI/2); p.userData.garder=true; pans.push(p); });
+    Q.anim.push(()=>{ pans.forEach((p,k)=>{ p.rotation.set(Math.sin(Q.t*2.4+k)*0.32,Math.PI/2,0,'YXZ'); }); }); }
+  // ---- la boîte aux lettres de Dusty, sur la piste ----
+  { C(0.05,0.05,1.1,M(0x6a4a2e),-3.4,0.55,12.6,6); B(0.3,0.26,0.5,MP(0x9aa2ad,60,0xffffff),-3.4,1.2,12.6); C(0.15,0.15,0.5,MP(0x9aa2ad,60,0xffffff),-3.4,1.33,12.6,12).rotation.x=Math.PI/2; B(0.03,0.22,0.08,M(0xd8202a),-3.22,1.42,12.75);
+    PL(0.6,0.26,MT(pqTexte('D. DUSTY','#9aa2ad','#1a1a1a')),-3.24,1.2,12.6,0,Math.PI/2); }
+  // ---- les zones ----
+  s.pqLit={x:ox+cx-3.0,z:oz+cz+0.6}; s.pqCoffre={x:ox+cx+2.95,z:oz+cz+1.2}; s.pqSpec={x:ox-15.0,z:oz-0.4}; s.pqJeu={x:ox+13.2,z:oz};
+  for(const tt of Q.toits) for(const o of tt.objs) o.userData.garder=true; /* hors de la fusion : on les masque quand le joueur est dessous */
+  Q.surEntree=(sa)=>{ cvAfficherVehicule(sa); cntNettoyer(sa); };
+  Q.arreter=(sa)=>{ cntNettoyer(sa); sa.pq.rep=null; if(sa.pq.vehAff&&sa.pq.vehAff.m.parent) sa.pq.vehAff.m.parent.remove(sa.pq.vehAff.m); sa.pq.vehAff=null; if(sa.pq.cric) sa.pq.cric.rotation.x=0; };
+  Q.action=(sa,k)=>k==='pqSpec'?cvAtelierAction(sa):(k==='pqJeu'?cntAction(sa):null);
+  Q.maj=(sa,dt,dtJeu)=>{ cvMajAtelier(sa,dt,dtJeu); cntMajDebris(sa,dtJeu); };
+};
+// le son de la caravane : le vent du désert, la nuit qui tombe (grillons), le feu qui crépite, la radio CB, le ventilateur dedans
+PQ_SONS.caravane={nappes:[{f:420,q:0.5,v:0.03,lfo:0.09,prof:0.7,dedans:0.45},{f:1900,q:3,v:0.005,lfo:0.23,prof:0.9,dedans:0.3},{type:'lowpass',f:160,q:0.8,v:0.008,lfo:3.1,prof:0.2,dedans:3}],
+  evts:(s,dt,dd)=>{ const Q=s.pq; Q.grilT=(Q.grilT||0)-dt; if(Q.grilT<=0){ Q.grilT=0.7+Math.random()*1.4; if(!dd){ const f=4200+Math.random()*400; for(let i=0;i<3;i++) setTimeout(()=>{ if(AUDIO.pqAmbOn) beep(f,0.025,'sine',0.009); },i*70); } }
+    const df=Math.sqrt(dist2(P.x,P.z,s.ox+Q.feu.x,s.oz+Q.feu.z)); if(df<14&&Math.random()<dt*6) bruit(0.03+Math.random()*0.04,0.05*(1-df/14),2400+Math.random()*1500,'highpass');
+    Q.cbT=(Q.cbT===undefined?5:Q.cbT)-dt; if(Q.cbT<=0){ Q.cbT=11+Math.random()*12; if(dd){ bruit(0.5,0.028,1700,'bandpass'); for(let i=0;i<4;i++) setTimeout(()=>{ if(AUDIO.pqAmbOn&&s.pq.dedans) beep(600+Math.random()*500,0.07,'square',0.007); },140+i*110); } } }};
+// ---- l'établi : le VRAI véhicule garé devant la caravane, posé sur la place de l'atelier, réparé sous nos yeux ----
+function cvVehicule(pq){ let v=null, vd=16*16; if(!pq) return null; for(const o of vehicules){ if(o.mort||!o.def||o.def.air||o.def.eau||o.def.velo||o.def.planche) continue; const d=dist2(o.x,o.z,pq.x,pq.z); if(d<vd){ vd=d; v=o; } } return v; }
+function pqCloneVisuel(o){ const sauv=[]; o.traverse((n)=>{ sauv.push([n,n.userData]); n.userData={}; }); let c=null; try{ c=o.clone(); } finally { for(const [n,u] of sauv) n.userData=u; } return c; } /* un clone qui partage géométries et matériaux (peinture, pièces, bosses) — sans recopier userData (références circulaires) */
+function cvAfficherVehicule(s){ const Q=s.pq; if(Q.vehAff){ if(Q.vehAff.m.parent) Q.vehAff.m.parent.remove(Q.vehAff.m); Q.vehAff=null; }
+  const v=cvVehicule(Q.pq); if(!v||!v.mesh||(v.def.long||4)>8.5) return; const m=pqCloneVisuel(v.mesh); if(!m) return;
+  m.position.set(s.ox+Q.place.x,0,s.oz+Q.place.z); m.rotation.set(0,Q.place.ang,0); m.visible=true; s.g.add(m); Q.vehAff={m,v}; }
+function cvAtelierAction(s){ const Q=s.pq, pq=Q.pq, U=PLANQUES.usage.caravane||(PLANQUES.usage.caravane={lit:-1,spec:-1}), v=cvVehicule(pq);
+  if(Q.rep) return {label:'🔧 RÉPARATION… '+Math.round(Math.min(1,Q.rep.t/Q.rep.dur)*100)+' %',fn:()=>{}};
+  if(!v) return {label:'🔧 ÉTABLI — gare un véhicule devant la caravane',fn:()=>{ SFX.refus(); toast('Gare ton véhicule devant la caravane (dehors), puis reviens à l’établi','warn'); }};
+  const pc=Math.round(clamp(v.hp/v.def.hp,0,1)*100), nom=(v.def.nom||'véhicule').toUpperCase();
+  if(U.spec===WAVES.n) return {label:'⏳ ÉTABLI : déjà servi cette vague — '+nom+' '+pc+' %',fn:()=>{ SFX.refus(); toast('L’établi a déjà servi cette vague','warn'); }};
+  if(v.hp>=v.def.hp) return {label:'🔧 '+nom+' : en parfait état',fn:()=>{ SFX.refus(); toast('Ton '+v.def.nom+' est déjà en parfait état'); }};
+  return {label:'🔧 ÉTABLI : RÉPARER — '+nom+' ('+pc+' %)',fn:()=>{ if(Q.rep) return; if(!Q.vehAff||Q.vehAff.v!==v) cvAfficherVehicule(s); Q.rep={t:0,dur:2.6,v,clT:0}; SFX.ui(); vibre(30); }}; }
+function cvMajAtelier(s,dt,dtJeu){ const Q=s.pq, R=Q.rep; let lev=0;
+  if(R){ R.t+=dtJeu; lev=Math.min(1,R.t/0.45,(R.dur+0.3-R.t)/0.45); R.clT-=dtJeu;
+    if(R.clT<=0&&R.t<R.dur){ R.clT=0.28+Math.random()*0.12; bruit(0.06,0.22,2600,'highpass'); beep(1300+Math.random()*300,0.05,'square',0.04,900); vibre(8);
+      const px=s.ox+Q.place.x+rand(-0.8,0.8), pz=s.oz+Q.place.z+rand(-1.5,1.5); for(let i=0;i<6;i++) spawnP(px,0.6,pz,rand(-2,2),rand(1,3),rand(-2,2),0.35,0.06,0xffd23f,9); }
+    if(R.t>=R.dur&&!R.fini){ R.fini=true; if(planqueSpec(Q.pq)){ bigMsg('🔧 '+(R.v.def.nom||'VÉHICULE').toUpperCase()+' COMME NEUF'); vibre(40); } }
+    if(R.t>=R.dur+0.3){ Q.rep=null; cvAfficherVehicule(s); } }
+  if(Q.cric) Q.cric.rotation.x=-0.42*lev; if(Q.vehAff) Q.vehAff.m.position.y=0.32*lev; }
+// ---- TIR SUR CANETTES : le moteur de tir à la 1re personne (FPS), des cibles posées sur le muret et les bidons ----
+const CNT_DUREE=40, CNT_OBJECTIF=8000, CNT_PRIME=200; /* tireur simulé (réaction 0,32 s) au revolver : ~20 000 ; moyen : 2 500 à 13 000 ; passif : 0 */
+const CNT_TYPES={canette:{pts:50,r:0.32,h:0.46},bouteille:{pts:75,r:0.33,h:0.66},or:{pts:250,r:0.3,h:0.46,cri:'CANETTE D’OR'},radio:{pts:-200,r:0.36,h:0.38,cri:'LA RADIO DE DUSTY !'},volante:{pts:150,r:0.4,h:0.46,cri:'EN L’AIR !'}};
+function cntGeo(s){ const Q=s.pq; if(Q.cntG) return Q.cntG; const part=(geo)=>{ geo.userData.partagee=true; return geo; };
+  const can=part(new THREE.CylinderGeometry(0.165,0.165,0.46,16)), bout=part(new THREE.LatheGeometry([[0,-0.33],[0.13,-0.33],[0.14,-0.25],[0.14,0.03],[0.075,0.15],[0.045,0.21],[0.045,0.33],[0,0.33]].map(([x,y])=>new THREE.Vector2(x,y)),14)), radio=part(new THREE.BoxGeometry(0.54,0.38,0.2));
+  const lab=new THREE.MeshLambertMaterial({map:pqTex('canette')}), alu=new THREE.MeshPhongMaterial({color:0xc8ccd4,shininess:90,specular:0xffffff}), or=new THREE.MeshPhongMaterial({color:0xffc830,shininess:110,specular:0xfff0a0,emissive:0x3a2a00});
+  const verre=[new THREE.MeshPhongMaterial({color:0x2f7a3a,shininess:120,specular:0xffffff,transparent:true,opacity:0.88}),new THREE.MeshPhongMaterial({color:0x6a3a14,shininess:120,specular:0xffffff,transparent:true,opacity:0.88})];
+  const radioM=[new THREE.MeshLambertMaterial({color:0x6a4a2a}),new THREE.MeshLambertMaterial({color:0x6a4a2a}),new THREE.MeshLambertMaterial({color:0x6a4a2a}),new THREE.MeshLambertMaterial({color:0x6a4a2a}),new THREE.MeshLambertMaterial({map:pqTex('radio')}),new THREE.MeshLambertMaterial({color:0x6a4a2a})];
+  return (Q.cntG={can,bout,radio,mats:{canette:[lab,alu,alu],or:[or,or,or],bouteille:verre,radio:radioM}}); }
+function cntMesh(s,k){ const G=cntGeo(s), m=k==='bouteille'?new THREE.Mesh(G.bout,G.mats.bouteille[Math.random()<0.5?0:1]):(k==='radio'?new THREE.Mesh(G.radio,G.mats.radio):new THREE.Mesh(G.can,k==='or'?G.mats.or:G.mats.canette)); m.userData.cnt=true; s.g.add(m); return m; }
+function cntPoser(s,sl,k){ const T=CNT_TYPES[k], m=cntMesh(s,k), c={x:s.ox+sl.x,y:sl.y+T.h/2,z:s.oz+sl.z,vx:0,vy:0,vz:0,g:0,r:T.r,pts:T.pts,cri:T.cri,coul:k==='bouteille'?0x5aa86a:(k==='radio'?0x8a5a32:0xd8202a),m,vie:1e9,sol:-9,k,slot:sl,pop:0,eclats:k==='bouteille'?22:12};
+  m.position.set(c.x,c.y,c.z); m.rotation.y=Math.random()*6.28; m.scale.setScalar(0.01); FPS.cibles.push(c); sl.c=c; sl.att=0; return c; }
+function cntChoix(){ const r=Math.random(); return r<0.05?'or':(r<0.12?'radio':(r<0.55?'canette':'bouteille')); }
+function cntArmes(){ return ['revolver'].concat(armesFPS().filter((id)=>id!=='revolver'&&META.armes[id]&&META.armes[id].poss)); }
+function cntAction(s){ const rec=META.planquesJeux?META.planquesJeux.canettes:0; return {label:'🥫 TIR SUR CANETTES'+(rec?' — record '+rec:' — '+CNT_DUREE+' s'),fn:()=>cntChoisirArme(s)}; }
+function cntChoisirArme(s){ ouvrirChoixArme({titre:'🥫 Tir sur canettes — choisis ton arme',aide:'Le vieux Magnum de Dusty est prêté. '+CNT_DUREE+' s : canettes, bouteilles, la canette lancée en l’air, la canette d’or ; jamais la radio de Dusty. Une arme plus dure rapporte plus.',couleur:'#ffb347',salle:s,zone:{x:s.pqJeu.x,z:s.pqJeu.z},
+  ids:cntArmes(),choisir:(id)=>cntDemarrer(s,id),bouton:(id)=>'POINTS ×'+String(btMult(id)).replace('.',','),det:(id)=>id==='revolver'&&!(META.armes.revolver&&META.armes.revolver.poss)?'prêté par Dusty':'à toi'}); }
+function cntDemarrer(s,arme){ if(FPS.actif||INT.actif!==s) return; const Q=s.pq; arme=(arme&&ARMES[arme]&&(arme==='revolver'||(META.armes[arme]&&META.armes[arme].poss)))?arme:'revolver'; const mult=btMult(arme);
+  cntNettoyer(s); Q.cnt={lanceT:4,arme};
+  fpsDemarrer({nom:'🥫 CANETTES'+(mult>1?' ×'+String(mult).replace('.',','):''),titre:'🥫 FEU À VOLONTÉ !',aide:'jamais la radio de Dusty',arme,mult,planque:'caravane',x:s.ox+Q.poste.x,y:1.62,z:s.oz+Q.poste.z,yaw:-Math.PI/2,pitch:-0.05,
+    yawMin:-Math.PI/2-0.5,yawMax:-Math.PI/2+0.5,pitchMin:-0.25,pitchMax:0.4,fov:68,duree:CNT_DUREE,portee:45,comboMax:5,
+    maj:(dt)=>cntMaj(s,dt),toucher:(c)=>cntToucher(s,c),rate:(c)=>{ if(c.k==='volante') FPS.combo=1; },fin:(b)=>cntFin(s,b)});
+  for(const sl of Q.slots) cntPoser(s,sl,Math.random()<0.5?'canette':'bouteille'); }
+function cntMaj(s,dt){ const Q=s.pq, Cn=Q.cnt; if(!Cn) return;
+  for(const sl of Q.slots){ const c=sl.c; if(c&&!c.mort){ if(c.pop<1){ c.pop=Math.min(1,c.pop+dt*4.5); const k=c.pop, e=1+2.4*(k-1)*(k-1)*(k-1)+1.4*(k-1)*(k-1); c.m.scale.setScalar(Math.max(0.01,e)); } continue; } /* elle surgit (rebond) */
+    sl.att-=dt; if(sl.att<=0) cntPoser(s,sl,cntChoix()); }
+  Cn.lanceT-=dt; if(Cn.lanceT<=0){ Cn.lanceT=4.5+Math.random()*3.5; const L=Q.lanceur, m=cntMesh(s,'volante'), T=CNT_TYPES.volante;
+    FPS.cibles.push({x:s.ox+L.x,y:0.8,z:s.oz+L.z+rand(-0.6,0.6),vx:-1.2,vy:9.6+Math.random()*1.6,vz:rand(-0.9,0.9),g:9.8,r:T.r,pts:T.pts,cri:T.cri,coul:0xd8202a,m,vie:4,sol:0.3,k:'volante',rx:7,ry:4,eclats:12}); beep(220,0.12,'square',0.05,520); bruit(0.08,0.12,900); } }
+function cntToucher(s,c){ const Q=s.pq; if(c.m&&c.m.parent) c.m.parent.remove(c.m); if(c.slot) c.slot.att=1.0+Math.random()*1.2;
+  if(c.k==='bouteille'){ bruit(0.28,0.24,3600,'highpass'); beep(2600,0.12,'triangle',0.05,1800); }
+  else { beep(c.k==='or'?1500:1800,0.07,'square',0.05,c.k==='or'?2600:1100); bruit(0.05,0.14,3000,'highpass'); if(c.k!=='radio') cntDebris(s,c,'can'); }
+  if(c.k==='radio'){ bruit(0.5,0.2,1400,'bandpass'); beep(300,0.25,'sawtooth',0.05,80); cntDebris(s,c,'radio'); toast('📻 Dusty : « MA RADIO ! Trente ans qu’elle me suivait… »','warn'); }
+  if(c.k==='or') SFX.achat(); }
+function cntDebris(s,c,typ){ const Q=s.pq, G=cntGeo(s); Q.debris=Q.debris||[]; if(Q.debris.length>10){ const v=Q.debris.shift(); if(v.m.parent) v.m.parent.remove(v.m); }
+  const m=typ==='radio'?new THREE.Mesh(G.radio,G.mats.radio):new THREE.Mesh(G.can,c.k==='or'?G.mats.or:G.mats.canette); m.position.set(c.x,c.y,c.z); s.g.add(m);
+  Q.debris.push({m,vx:3+Math.random()*4,vy:3+Math.random()*3.5,vz:rand(-2,2),rx:rand(-14,14),rz:rand(-14,14),t:0,rebond:false}); }
+function cntMajDebris(s,dt){ const Q=s.pq; if(!Q.debris) return; for(let i=Q.debris.length-1;i>=0;i--){ const d=Q.debris[i], m=d.m; d.t+=dt; d.vy-=12*dt; m.position.x+=d.vx*dt; m.position.y+=d.vy*dt; m.position.z+=d.vz*dt; m.rotation.x+=d.rx*dt; m.rotation.z+=d.rz*dt;
+  if(m.position.y<0.14){ m.position.y=0.14; if(!d.rebond&&d.vy<-2){ d.rebond=true; d.vy*=-0.35; d.vx*=0.5; d.vz*=0.5; d.rx*=0.4; d.rz*=0.4; beep(900,0.04,'triangle',0.02,600); } else { d.vy=0; d.vx*=0.9; d.vz*=0.9; d.rx*=0.8; d.rz*=0.8; } }
+  if(d.t>2.6){ if(m.parent) m.parent.remove(m); Q.debris.splice(i,1); } } }
+function cntNettoyer(s){ const Q=s.pq; Q.cnt=null; for(let i=s.g.children.length-1;i>=0;i--){ const o=s.g.children[i]; if(o.userData.cnt) s.g.remove(o); } if(Q.debris){ for(const d of Q.debris) if(d.m.parent) d.m.parent.remove(d.m); Q.debris.length=0; } if(Q.slots) for(const sl of Q.slots){ sl.c=null; sl.att=0; } }
+function cntFin(s,b){ const Q=s.pq; cntNettoyer(s); const J=META.planquesJeux, rec=b.score>(J.canettes||0); if(rec) J.canettes=b.score;
+  const g=b.score>=CNT_OBJECTIF?primeMerUneFois('canettes',CNT_PRIME):0;
+  bigMsg('🥫 '+b.score+' PTS'+(rec?' — NOUVEAU RECORD':'')+(g?' — +'+g+' $':''));
+  toast('Précision : '+b.precision+' % ('+b.touches+'/'+b.coups+')'+(b.score>=CNT_OBJECTIF?' — Dusty : « Joli ! T’as la main sûre. »':' — Dusty : « Allez, on remet ça ? »'),rec||g?'or':''); if(rec) SFX.niveau(); sauveMeta(); }
 /* =====================================================================
    BOUTIQUES DE STYLE (14 octobre, demandé : « des boutiques où l'on se change, des habits classe en ville, fun
    sur la plage, adaptés aux quartiers, avec un tatoueur et un coiffeur ; se changer de manière dépareillée »).
@@ -8774,6 +9186,7 @@ function mkPlanquesV2(){
       mkBox(1,0.6,0.7,mat(0x3a5a2a),x+4.9,0.3,z+2.8); addSolid({x:x+4.9,z:z+2.8,hw:0.5,hd:0.35,h:0.6});
       addSolid({x,z,hw:3.9,hd:1.4,h:3.4,toit:true});
       ca.lit={x:x+1.9,z:z+2.6}; ca.coffre={x:x+4.9,z:z+4}; ca.spec={x:x-5.4,z:z+3.6}; ca.achat=ca.lit; ca.vehPos={x:x-8,z:z+9,ang:Math.PI/2};
+      ca.porte={x:x+1.9,z:z+1.35,nx:0,nz:1,sortieD:1.4}; ca.entree={x:x+1.9,z:z+2.6}; /* la porte de l'intérieur (19 octobre) */
       ca.enseigne=mkEnseigne('CARAVANE À VENDRE','#ffd23f',x,4.8,z-1.4,0,7); } }
   // 2) chalet d'altitude : sur un replat près du sommet du Mont Reyes, sur une terrasse à pilotis, dans les sapins
   if(ch&&MONT.sommet){ const S=MONT.sommet; let best=null, bs=-1e9;
@@ -9505,7 +9918,7 @@ function fpsTirer(){
 function fpsToucher(c,zone,u,v){
   const C=FPS.actif; c.mort=true; if(c.m&&!c.forme) c.m.visible=false;
   const k=zone&&c.pts>0?zone.k:1, pts=Math.round((c.pts||0)*(c.pts>0?FPS.combo*(C.mult||1)*k:1)); FPS.score=Math.max(0,FPS.score+pts);
-  if(c.pts>0) FPS.combo=Math.min(8,FPS.combo+1); else FPS.combo=1;
+  if(c.pts>0) FPS.combo=Math.min(C.comboMax||8,FPS.combo+1); else FPS.combo=1; /* comboMax : plafond propre à un mini-jeu (canettes ×5) */
   if(c.forme){ c.chuteT=0; // la cible tombe en arrière, l'impact visible ; la plaque d'acier sonne
     if(c.carte){ const R=ciblesRes(), t=new THREE.Mesh(R.trou,c.acier?R.mats.eclat:R.mats.trou); t.position.set((u||0)/CIBLE_ECH,(v||0)/CIBLE_ECH+CIBLE_CENTRE,0.004); if(c.acier) t.scale.setScalar(1.6); c.carte.add(t);
       if(c.acier&&c.carte.material.color){ c.carte.material.color.setHex(0xffb060); } }
@@ -25274,7 +25687,9 @@ const INTDEFS={
     ens:['GARAGE','#ff8c1a']},
   // boutique de style (17 octobre) : UNE salle pour les cinq boutiques, reconfigurée à l'entrée (porte.boutiqueId)
   boutique:{nom:'Boutique',ico:'🛍️',w:26,d:22,sol:0x6a5a4a,mur:0xe8e2d6,
-    ens:['BOUTIQUE','#ff5ad0']}
+    ens:['BOUTIQUE','#ff5ad0']},
+  // planques (19 octobre) : une salle par planque, avec ses abords — on y entre par la porte de la planque possédée (pq.entree)
+  caravane:{nom:'Caravane du désert',ico:'🚐',w:36,d:32,sol:0xc8a070,mur:0xd0b088,ens:['CARAVANE','#ffd23f'],planque:'caravane'}
 };
 // SITE 51 — dix objets de valeur, position relative (dx,dz depuis ox,oz), et
 // sas fermés à la prise (définitivement, pour la visite). Graphe et fermetures
@@ -25389,7 +25804,7 @@ const CATALOGUE=[
      fusionnés par matériau. Ni lumière ni applique dans le métro et le Site 51 (l'obscurité y est le jeu).
    Textures de détail en niveaux de gris, multipliées par la couleur d'origine de chaque salle : chaque salle
    garde sa palette. Rien n'est créé au chargement (textures à la première salle). */
-const SALLES_SANS_HABILLAGE=new Set(['aquarium','laverie','serre','radio','chalutier','cine','depot','boutique']);
+const SALLES_SANS_HABILLAGE=new Set(['aquarium','laverie','serre','radio','chalutier','cine','depot','boutique','caravane']);
 const HABILLAGE_SALLES={
   superette:{sol:['carrelage',2.7],mur:['faience',1.6],lambris:['panneau',0x4a6a58],deco:['affiche','neon','horloge','affiche','grille','extincteur'],affiches:['PROMO −30 %','FRAIS DU JOUR','OUVERT 24/7'],accent:'#ffd23f'},
   club:{dalleLum:0.42,sol:['dalles',2],mur:['capitonne',1.2],lambris:['capitonne',0x1c1630],deco:['neon','affiche','applique','neon','affiche'],affiches:['NUIT NÉON','DJ KAA','VENDREDI'],accent:'#ff5ad0'},
@@ -27916,6 +28331,8 @@ function construireSalle(id){
      A/B/C). Nuit permanente : voir jourNuit. */
   else if(id==='depot'){
     construireDepotV2(inter,g,ox,oz,W,P2,sol,dehors,box,fouillable); // LE DÉPÔT V2 (18 octobre)
+  } else if(D.planque){
+    construirePlanqueSalle(inter,g,ox,oz,W,P2,sol,dehors); // INTÉRIEURS DES PLANQUES (19 octobre)
   } else if(id==='tuning'){
     construireGarageTuning(inter,box,lampe);
   }
@@ -28021,6 +28438,7 @@ function entrerInterieur(id,porte){
   // franchi (enseigne, véhicule garé, porte roulante, étoiles qui tombent).
   if(s.tuning) garageSurEntree(s,porte);
   if(s.cabineBoutique) boutiqueSurEntree(s,porte); // boutique de style : celle dont on a franchi la porte
+  if(s.pq) planqueSurEntree(s); // planque (19 octobre) : le véhicule de l'atelier, l'ambiance du lieu
   ETAT.intT=0.5;
   toast('Tu entres : '+s.D.nom,'or'); SFX.ui();
   el('minimap').style.opacity='1';
@@ -28048,6 +28466,7 @@ function sortirInterieur(){
   // chemin de sortie (ex : mort gérée séparément dans mourir()). La foule et
   // le moteur au ralenti sont coupés dans tous les cas, course ou pas.
   if(sc.depot){ if(sc.courseEnCours) depotAnnulerCourse(sc); depotAmbianceStop(); fermerDepotPanneau(); }
+  if(sc.pq) planqueSalleArreter(sc); // planque : activité arrêtée, ambiance coupée
   // Site 51 : filet de sécurité générique — les sorties normales (SORTIE,
   // GRANDE PORTE) concluent déjà la visite avant d'appeler sortirInterieur
   // (visiteEnCours passe à false), donc ceci ne fait rien dans ce cas ; ça
@@ -31881,6 +32300,7 @@ function majClub(s,dt,dtJeu){
 function majInterieur(dt,dtJeu){
   const s=INT.actif; if(!s) return;
   if(s.tuning) garageMajInterieur(s,dt,dtJeu); // porte roulante, étoiles, plateau
+  if(s.pq) majPlanqueSalle(s,dt,dtJeu); // planque : toits, animations, activité, ambiance
   // ---- fouille en cours ----
   if(FOUILLE.cible){
     const f=FOUILLE.cible;
@@ -35002,6 +35422,7 @@ function startRun(){
   // tourne encore) et suivait le joueur dans la partie suivante, en pleine
   // ville. Chaque arrêt est sans effet si l'ambiance ne tourne pas.
   metroAmbianceStop(); chalutierAmbianceStop(); radioAmbianceStop(); cineAmbianceStop(); depotAmbianceStop(); fermerDepotPanneau();
+  planqueAmbianceStop(); for(const k in INT.salles) if(INT.salles[k].pq) planqueSalleArreter(INT.salles[k]); // planques : ambiance, activités, véhicule de l'atelier
   if(INT.actif){ INT.actif=null; el('minimap').style.opacity='1'; }
   // lieux spéciaux : on remet à zéro ce qui appartient à la partie (les
   // curiosités, elles, sont acquises pour de bon et vivent dans META)
@@ -35353,6 +35774,7 @@ function mourir(){
   // depotLancerCourse), foule coupée (moteurStop() ci-dessus a déjà coupé le
   // moteur). Course déjà propre : deuxième appel sans effet.
   if(INT.actif&&INT.actif.depot){ if(INT.actif.courseEnCours) depotAnnulerCourse(INT.actif); depotAmbianceStop(); fermerDepotPanneau(); }
+  if(INT.actif&&INT.actif.pq) planqueSalleArreter(INT.actif); planqueAmbianceStop(); // planque : activité arrêtée, ambiance coupée tout de suite
   P.h.g.rotation.z=Math.PI/2; P.h.g.position.y=0.35;
   reticule.visible=false;
   const record=ETAT.score>META.record;
@@ -35502,6 +35924,9 @@ function majAction(){
       label='SORTIR';
       fn=()=>{ if(s.casseEtat==='actif') finirCasseMusee(s,true); if(s.piles) metroEncaisser(s);
         if(s.site51) site51ConclureVisite(s,true); sortirInterieur(); };
+    /* ---------- PLANQUES : lit, coffre, spécificité, activité (planqueSalleAction) ---------- */
+    } else if(s.pq&&planqueSalleAction(s)){
+      label=s.pqAc.label; fn=s.pqAc.fn;
     /* ---------- MUSÉE : boîtier électrique (déclenche/referme le casse) ---------- */
     } else if(s.boitier&&dist2(P.x,P.z,s.boitier.x,s.boitier.z)<marquerZone(s.boitier,16)){
       if(s.museeVague!==WAVES.n){ s.museeVague=WAVES.n; s.museeFait=false; s.boitierArme=false; }
@@ -36562,6 +36987,13 @@ function jourNuit(dt){
     // véhicule le plus rapide (Le Bolide, 48 u/s : ~5 s de visibilité).
     scene.fog.near=70; scene.fog.far=320; // Dépôt V2 : terrain lisible, la nuit bleutée prend le relais
     lampeNuit.intensity=0; lampeNuit.distance=42;
+    return;
+  }
+  if(INT.actif&&INT.actif.pqAmb){
+    // planques (19 octobre) : la lumière du lieu (le crépuscule du désert…), la lampe qui suit l'intérieur ou le feu de camp
+    const s=INT.actif, A=s.pqAmb, L=A.lampe(s);
+    soleil.intensity=A.soleil; hemi.intensity=A.hemi; scene.background.copy(A.ciel); scene.fog.color.copy(A.ciel); scene.fog.near=A.fogN; scene.fog.far=A.fogF;
+    lampeNuit.color.setHex(L.c); lampeNuit.intensity=L.i; lampeNuit.distance=L.d; lampeNuit.position.set(L.x,L.y,L.z);
     return;
   }
   if(INT.actif){
