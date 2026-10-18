@@ -14255,6 +14255,60 @@ async function main() {
       });
       if (r.ko.length) fail('Faune en pente : ' + r.ko.join(' ; ')); else ok('Faune en pente : ' + r.info.join(' ; '));
     }
+    // -------------------------------------------------------------------
+    // Missile du chasseur à la 1re personne (18 octobre, 4e liste, demandé : « voir le missile partir de dessous et passer devant
+    // l'appareil, qu'on le voie bien partir ») : il sort de sous le nez sur le côté, monte au regard en rejoignant l'axe (une
+    // diagonale à l'écran), file devant le nez avec sa traînée de fumée, puis touche le sol au point visé ; en altitude il ne meurt
+    // plus au départ (plafond de 40 u des balles) ; en rase-mottes, il ne touche pas le sol au départ ; son modèle et sa fumée
+    // disparaissent ensuite.
+    // -------------------------------------------------------------------
+    console.log('\n--- Missile du chasseur : il sort de sous le nez et passe devant, en 1re personne ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = []; let T = dernierT + 1000;
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); META.vue = 'fps'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9;
+        const trafic0 = creerTrafic; creerTrafic = () => {}; for (const o of vehicules) { scene.remove(o.mesh); libererEntite(o.mesh); } vehicules.length = 0; for (const e of ennemis) e.mort = true;
+        const ex0 = explosionArme, explosions = []; explosionArme = (x, z, j) => { explosions.push({ x, z }); };
+        const tirerA = (alt, mer) => { /* en rase-mottes, au-dessus de la mer, cap au large : aucun immeuble devant */
+          const v = mer ? creerVehicule('chasseur', POIS.place.x, MER + 60, 0, null) : creerVehicule('chasseur', POIS.place.x, POIS.place.z + 40, Math.PI, null); P.x = v.x; P.z = v.z; entrerVehicule(v);
+          v.vol = true; v.alt = alt; v.va = 0; v.v = 45; v.decolT = 0; v.mesh.position.y = alt; INPUT.mx = INPUT.mz = 0;
+          for (let i = 0; i < 30; i++) { T += 1000 / 60; tick(T); v.alt = alt; v.va = 0; }
+          explosions.length = 0; const x0 = v.x, z0 = v.z; INPUT.btn.tir = true; T += 1000 / 60; tick(T); INPUT.btn.tir = false;
+          const b = balles.find((q) => q.on && q.vis && q.traj); return { v, b, x0, z0, M: b ? b.traj : null }; };
+        const finir = (v) => { sortirVehicule(true); scene.remove(v.mesh); const iv = vehicules.indexOf(v); if (iv >= 0) vehicules.splice(iv, 1); };
+        /* 1. en altitude, en 1re personne */
+        const A = tirerA(60);
+        if (!A.b) ko.push('pas de missile tiré');
+        else {
+          const { v, b, M } = A, ix = M.ix, iz = M.iz; let vus = 0, xPrem = null, xDern = null, hMin = 9, hMax = -9, fumEcran = 0, fum05 = 0;
+          for (let i = 0; i < 48 && b.on; i++) { T += 1000 / 60; tick(T); v.alt = 60; v.va = 0; camera.updateMatrixWorld();
+            const q = b.vis.position.clone().project(camera), h = b.y - (v.alt + COCKPIT.eye.y); hMin = Math.min(hMin, h); hMax = Math.max(hMax, h);
+            if (q.z < 1 && Math.abs(q.x) < 1 && q.y > -0.15 && q.y < 1) { vus++; if (xPrem === null) xPrem = q.x; xDern = q.x; }
+            if (i === 30) { fum05 = MFUM.actifs; const e = MFUM.mesh.instanceMatrix.array; for (let k = 0; k < MFUM.N; k++) if (e[k * 16] > 0) { const p = new THREE.Vector3(e[k * 16 + 12], e[k * 16 + 13], e[k * 16 + 14]).project(camera); if (p.z < 1 && Math.abs(p.x) < 1 && p.y > -0.15 && p.y < 1) fumEcran++; } } }
+          if (vus < 20) ko.push('le missile n’est presque pas à l’écran (' + vus + ' images sur 48)');
+          if (!(hMin < -1.5 && hMax > 0)) ko.push('il ne sort pas de dessous pour passer devant le regard (hauteur sous l’œil ' + hMin.toFixed(2) + ' → ' + hMax.toFixed(2) + ')');
+          if (xPrem === null || !(Math.abs(xPrem) > 0.4 && Math.abs(xDern) < 0.2)) ko.push('il ne traverse pas l’écran vers l’axe (x ' + (xPrem === null ? '—' : xPrem.toFixed(2) + ' → ' + xDern.toFixed(2)) + ')');
+          if (fum05 < 20 || fumEcran < 5) ko.push('pas de traînée de fumée visible (' + fum05 + ' bouffées, ' + fumEcran + ' à l’écran)');
+          if (explosions.length) ko.push('le missile explose au départ');
+          for (let i = 0; i < 300 && b.on; i++) { T += 1000 / 60; tick(T); v.alt = 60; v.va = 0; }
+          if (b.on) ko.push('le missile ne retombe jamais'); else { const e = explosions[0]; if (!e) ko.push('aucune explosion à l’impact'); else { const d = Math.hypot(e.x - ix, e.z - iz); if (d > 12) ko.push('impact à ' + d.toFixed(1) + ' u du point visé'); else info.push('impact à ' + d.toFixed(1) + ' u du point visé'); } }
+          if (MISSILES_VIS.some((m) => m.visible)) ko.push('le modèle du missile reste affiché après l’impact');
+          for (let i = 0; i < 150; i++) { T += 1000 / 60; tick(T); v.alt = 60; v.va = 0; }
+          if (MFUM.actifs || MFUM.mesh.visible) ko.push('la fumée ne s’efface pas (' + MFUM.actifs + ' bouffées)');
+          info.push('à l’écran ' + vus + '/48 images, x ' + xPrem.toFixed(2) + ' → ' + xDern.toFixed(2) + ', hauteur sous l’œil ' + hMin.toFixed(1) + ' → +' + hMax.toFixed(1) + ', ' + fum05 + ' bouffées (' + fumEcran + ' à l’écran)');
+          finir(v);
+        }
+        /* 2. en rase-mottes : pas d'explosion au départ, impact au point visé */
+        const B = tirerA(8, true);
+        if (!B.b) ko.push('rase-mottes : pas de missile tiré');
+        else { for (let i = 0; i < 300 && B.b.on; i++) { T += 1000 / 60; tick(T); B.v.alt = 8; B.v.va = 0; } const e = explosions[0];
+          if (!e) ko.push('rase-mottes : aucune explosion'); else { const d = Math.hypot(e.x - B.M.ix, e.z - B.M.iz), d0 = Math.hypot(e.x - B.x0, e.z - B.z0); if (d > 12 || d0 < 15) ko.push('rase-mottes : impact à ' + d.toFixed(1) + ' u du point visé, ' + d0.toFixed(1) + ' u du départ'); else info.push('rase-mottes : impact à ' + d.toFixed(1) + ' u du point visé'); }
+          finir(B.v); }
+        explosionArme = ex0; creerTrafic = trafic0; META.vue = 'classique'; majCamera(1 / 30);
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Missile du chasseur : ' + r.ko.join(' ; ')); else ok('Missile du chasseur : ' + r.info.join(' ; '));
+    }
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];

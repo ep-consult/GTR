@@ -1879,6 +1879,27 @@ ne voit plus que le sol ou le ciel ». Mesuré : la vitesse verticale passait de
   au moins `APPUI_VOL_MIN` (0,15 s) de collectif (`appuiVolCran` → `v.monterV`, `v.descV`, lus par `majVol`) : un tap fait
   toujours le même cran (~0,6 u hélico, ~0,4 u avion) — avant, de 7 à 59 cm selon sa durée exacte. Test « Appui bref en vol ».
 
+## Missile des appareils armés (18 octobre, 4e liste) — `lancerMissileAvion`, `missilePos`, `MFUM`
+
+Demandé : « en 1re personne, voir le missile partir de dessous et passer devant l'appareil, qu'on le voie bien
+partir ». Le missile du chasseur et du Vautour (TIR en vol) n'est plus une balle droite tirée du nez :
+- **Trajectoire** (`missileProfil`, puis `missilePos` ; `b.traj`, appliquée par `missileTraj` dans `majPools`, qui
+  donne à la balle la vitesse de l'image) : il quitte le pylône (gauche, droite, à tour de rôle), tombe un peu
+  (jamais au ras du sol : `chute`), accélère (`MISSILE_ACC`), **sort de sous le nez sur le côté** vers 0,3 s, monte
+  juste au-dessus du regard (`MISSILE_T_MONTEE`) en rejoignant l'axe (une diagonale à l'écran), file devant le nez,
+  puis pique en courbe de Bézier (tangente de départ, sans cassure) vers le MÊME point d'impact qu'avant. Le piqué
+  commence au plus tard à `MISSILE_PIQUE_MAX` s et avant 55 % de la distance de l'impact (rase-mottes compris).
+  Dégâts, cadence et impact inchangés. **Les roquettes et les bombes ne meurent plus au-dessus de 40 u** (plafond
+  des balles : en altitude, elles explosaient au départ).
+- **Visuel** (`mkMissileVis`, réserve de 8, `finBalle` le rend) : corps, ogive, ailettes, bague rouge ; jet en
+  deux cônes et halo en **mélange normal** (en additif, l'orange devenait blanc sur un ciel clair).
+- **Traînée** (`MFUM`, `fumeeMissile`, `majFumeeMissile` au début des particules, `viderFumeeMissile` dans
+  `nettoieMonde`) : 96 bouffées dans UN `InstancedMesh` (un appel de rendu), placées face à la caméra par le shader
+  (`MFUM_VS`), brouillard compris, qui s'élargissent et s'effacent ; une tous les 0,7 u au départ, 1,6 u ensuite ;
+  effacées à moins de 7 u de l'œil (l'appareil traverse la traînée qu'il vient de tirer) ; sombres la nuit (`uLum`).
+- Test : « Missile du chasseur » (sort de sous le regard, traverse vers l'axe, traînée à l'écran, impact au point
+  visé, rase-mottes sans explosion au départ, modèle et fumée effacés).
+
 ## Montée de l'hélicoptère (17 octobre au soir) — `HELI_VA_ACC`, `HELI_TANG_AVANT`
 
 Signalé : « l'hélico monte comme un avion, en s'inclinant beaucoup ; il doit
