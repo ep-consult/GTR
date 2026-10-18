@@ -12790,14 +12790,14 @@ async function main() {
         // VISER : la ligne de mire au centre de l'écran, champ resserré ; avec une lunette, son image
         const auCentre = () => { const M = VUE1P.montage; camera.updateMatrixWorld(true); M.R.updateMatrixWorld(true); const p = M.mire.clone().applyMatrix4(M.W.matrixWorld); p.project(camera); return Math.hypot(p.x, p.y); }; /* la caméra n'a pas été rendue entre deux images : sa matrice inverse se recalcule ici */
         INPUT.edge.viser = true; frame(20);
-        if (!VUE1P.vise || !(VUE1P.k > 0.95) || !(camera.fov < 56) || auCentre() > 0.03) ko.push('visée (organes de visée) : k ' + VUE1P.k.toFixed(2) + ', champ ' + camera.fov.toFixed(1) + ', mire à ' + auCentre().toFixed(3));
+        if (!VUE1P.vise || !(VUE1P.k > 0.95) || Math.abs(camera.fov - zoomVersChamp(VISEURS_1P.fusil.zoom)) > 0.6 || auCentre() > 0.03) ko.push('visée (organes de visée) : k ' + VUE1P.k.toFixed(2) + ', champ ' + camera.fov.toFixed(1) + ', mire à ' + auCentre().toFixed(3));
         else info.push('visée aux organes de visée : la mire à ' + auCentre().toFixed(3) + ' du centre, champ ' + camera.fov.toFixed(0) + '°');
         INPUT.edge.viser = true; frame(20); if (VUE1P.vise || VUE1P.k > 0.05) ko.push('VISER ne se relâche pas');
         META.modsArmes.fusil = 'holo'; montagePremiere(); INPUT.edge.viser = true; frame(20);
         if (auCentre() > 0.03) ko.push('visée holographique : mire à ' + auCentre().toFixed(3)); else info.push('holographique : ' + auCentre().toFixed(3));
         INPUT.edge.viser = true; frame(20);
         META.modsArmes.fusil = 'lunette4'; montagePremiere(); INPUT.edge.viser = true; frame(20);
-        if (!(camera.fov < 20) || VUE1P.lunette.style.display !== 'block' || VUE1P.montage.R.visible) ko.push('lunette : champ ' + camera.fov.toFixed(1) + ', image ' + VUE1P.lunette.style.display + ', arme ' + VUE1P.montage.R.visible);
+        if (!(camera.fov < 21) || VUE1P.lunette.style.display !== 'block' || VUE1P.montage.R.visible) ko.push('lunette : champ ' + camera.fov.toFixed(1) + ', image ' + VUE1P.lunette.style.display + ', arme ' + VUE1P.montage.R.visible);
         else info.push('lunette ×4 : champ ' + camera.fov.toFixed(0) + '°, image de la lunette');
         INPUT.edge.viser = true; frame(20);
         // le pouce sur TIR fait regarder (le bouton garde le doigt) ; le tir est automatique sur la cible sous la mire ; la batte swingue
@@ -12818,7 +12818,7 @@ async function main() {
           if (!qui.visible || !(Math.abs(pIn.x) < 0.08) || !(pIn.y > -0.12) || !(pIn.z < -0.25)) ko.push('poings : le coup ne passe pas sous la mire (' + [pIn.x, pIn.y, pIn.z].map((v) => v.toFixed(2)).join(', ') + ', visible ' + qui.visible + ')');
           frame(12); if (d.visible || g.visible) ko.push('poings : encore visibles après le coup'); else info.push('poings : invisibles au repos et en marchant ; le poing entre, frappe sous la mire et ressort'); }
         { /* en visée, le haut des bras reste affiché (sinon deux moignons au milieu de l'écran) */ majArmeJoueur('fusil'); INPUT.edge.viser = true; frame(20); let cache = 0; VUE1P.montage.R.traverse((o) => { if (o.userData && o.userData.hautBras && !o.visible) cache++; }); if (cache) ko.push('visée : ' + cache + ' segment(s) du haut des bras masqués'); INPUT.edge.viser = true; frame(20); }
-        { /* une batte, une seule main : plus de « vingt doigts » */ majArmeJoueur('batte'); frame(2); let mains = 0; VUE1P.montage.W.traverse((o) => { if (o.userData && o.userData.hautBras) mains++; }); if (mains > 2) ko.push('batte : ' + (mains / 2) + ' bras'); }
+        { /* une batte : deux mains (18 octobre, visée V2 : « tenue à deux mains »), en moufles : jamais « vingt doigts » */ majArmeJoueur('batte'); frame(2); let mains = 0; VUE1P.montage.W.traverse((o) => { if (o.userData && o.userData.hautBras) mains++; }); if (mains !== 4) ko.push('batte : ' + (mains / 2) + ' bras (deux attendus)'); }
         majArmeJoueur('fusil');
         // les sorties : véhicule, salle
         const v = creerVehicule('berline', P.x + 2, P.z, 0); entrerVehicule(v); frame(2);
@@ -14571,6 +14571,61 @@ async function main() {
         return { ko, info };
       });
       if (r.ko.length) fail('Camp d’entraînement : ' + r.ko.join(' ; ')); else ok('Camp d’entraînement : ' + r.info.join(' ; '));
+    }
+
+    // -------------------------------------------------------------------
+    // Visée à la 1re personne V2 (18 octobre, demandé avec une planche avant/après : l'arme montée à l'œil, l'organe de visée pile au
+    // centre, des mains gantées, un recul par arme, plus de message au milieu). Pour CHAQUE arme à feu de VISEURS_1P (lue dans la
+    // source) : à l'œil en 0,2 s et retour ; le point de la ligne de mire au centre de l'écran ; l'arme à sa taille (plus de
+    // rapetissement) ; le champ du zoom de l'arme ; la mire de hanche masquée (sauf minigun) ; un tir relève l'arme puis elle
+    // revient ; le revolver relève plus que le pistolet. Gants noirs partout, manche olive au bazooka ; deux mains sur les battes,
+    // garde au couteau, la boule et le Gadget tenus en main ; le faisceau du minigun tourne au tir ; messages en haut à gauche.
+    // -------------------------------------------------------------------
+    console.log('\n--- Visée à la 1re personne V2 : l’organe de visée au centre, gants, recul, transitions ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = []; let T = dernierT + 1000;
+        META.vue = 'fps'; if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; ETAT.jour = 40; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9; for (const e of ennemis) e.mort = true;
+        const frame = (n) => { for (let i = 0; i < (n || 1); i++) { INPUT.jx = INPUT.jy = 0; P.x = POIS.place.x; P.z = POIS.place.z + 40; P.ang = Math.PI; VUE.yawUser = Math.PI; VUE.pitch1P = 0; T += 1000 / 60; tick(T); } };
+        const auCentre = (M) => { camera.updateMatrixWorld(true); M.R.updateMatrixWorld(true); const p = M.mire.clone().applyMatrix4(M.W.matrixWorld); p.project(camera); return Math.hypot(p.x, p.y); };
+        const guns = ORDRE_ARMES.filter((id) => ARMES[id].type === 'gun' && VISEURS_1P[id]); const kicks = {};
+        for (const id of guns) { META.armes[id].poss = true; majArmeJoueur(id); P.mags[id] = 30; frame(6); const M = VUE1P.montage, VZ = VISEURS_1P[id];
+          if (!M || !M.mire) { ko.push(id + ' : pas de montage ou de ligne de mire'); continue; }
+          INPUT.edge.viser = true; let t100 = -1; for (let i = 1; i <= 24; i++) { frame(1); if (t100 < 0 && VUE1P.k >= 1) t100 = i / 60; }
+          if (!(t100 > 0.15 && t100 < 0.23)) ko.push(id + ' : à l’œil en ' + t100.toFixed(2) + ' s (0,2 attendu)');
+          const fovA = zoomVersChamp(VZ.zoom); if (Math.abs(camera.fov - fovA) > 0.6) ko.push(id + ' : champ ' + camera.fov.toFixed(1) + '° pour ' + fovA.toFixed(1) + '° (×' + VZ.zoom + ')');
+          if (Math.abs(M.W.scale.x - 1) > 1e-6) ko.push(id + ' : l’arme rapetisse en visée (' + M.W.scale.x + ')');
+          const c = auCentre(M), mireVue = VUE1P.mire.style.display !== 'none';
+          if (!VZ.hanche && c > 0.012) ko.push(id + ' : l’organe de visée à ' + c.toFixed(3) + ' du centre');
+          if (VZ.hanche ? !mireVue : mireVue) ko.push(id + ' : mire de hanche ' + (mireVue ? 'affichée' : 'masquée') + ' en visée');
+          if (id === 'sniper' && (VUE1P.lunette.style.display !== 'block' || M.R.visible)) ko.push('sniper : pas de lunette plein écran');
+          /* le recul : l'arme se relève, puis revient */
+          const rx0 = M.W.rotation.x; tirPremiere(armeStats(id)); frame(1); const rx1 = M.W.rotation.x; frame(30); const rx2 = M.W.rotation.x; kicks[id] = rx1 - rx0;
+          if (!(rx1 - rx0 > 0.004) || Math.abs(rx2 - rx0) > Math.max(0.006, (rx1 - rx0) * 0.25)) ko.push(id + ' : recul ' + (rx1 - rx0).toFixed(3) + ' rad, retour à ' + (rx2 - rx0).toFixed(3));
+          INPUT.edge.viser = true; let t0 = -1; for (let i = 1; i <= 24; i++) { frame(1); if (t0 < 0 && VUE1P.k <= 0) t0 = i / 60; } if (!(t0 > 0.15 && t0 < 0.23)) ko.push(id + ' : retour à la hanche en ' + t0.toFixed(2) + ' s');
+          /* gants noirs ; manche olive au bazooka */
+          let gant = 0, olive = 0; M.R.traverse((o) => { if (o.isMesh && o.material && o.material.color) { const hx = o.material.color.getHex(); if (hx === 0x1b1c1f) gant++; if (hx === 0x4f5a34) olive++; } });
+          if (!gant) ko.push(id + ' : pas de gant noir'); if (id === 'roquette' && !olive) ko.push('bazooka : pas de manche olive');
+          info.push(id + ' ' + M.typeVisee + ' ×' + VZ.zoom); }
+        if (!(kicks.revolver > kicks.pistolet * 1.8)) ko.push('le revolver ne relève pas plus que le pistolet (' + (kicks.revolver || 0).toFixed(3) + ' / ' + (kicks.pistolet || 0).toFixed(3) + ')');
+        /* le minigun : le faisceau tourne quand on tire */
+        { majArmeJoueur('minigun'); frame(4); const M = VUE1P.montage, cn = M.mod.userData.canons; const a0 = cn ? cn[0].rotation.y : 0; for (let i = 0; i < 10; i++) { tirPremiere(armeStats('minigun')); frame(1); }
+          if (!cn || !(Math.abs(cn[0].rotation.y - a0) > 1)) ko.push('minigun : le faisceau ne tourne pas'); }
+        /* la mêlée : deux mains sur les battes, la garde du couteau, la boule et le Gadget en main ; gants partout */
+        for (const id of ['couteau', 'batte', 'batte2', 'sabre', 'gadget', 'bouleC']) { META.armes[id].poss = true; majArmeJoueur(id); frame(4); const M = VUE1P.montage;
+          if (!M || !M.mod) { ko.push(id + ' : rien en main'); continue; } let bras = 0, gant = 0; M.R.traverse((o) => { if (o.userData && o.userData.hautBras) bras++; if (o.isMesh && o.material && o.material.color && o.material.color.getHex() === 0x1b1c1f) gant++; });
+          const att = id === 'batte' || id === 'batte2' ? 4 : (id === 'couteau' ? 4 : 2); if (bras !== att) ko.push(id + ' : ' + bras / 2 + ' bras (' + att / 2 + ' attendus)'); if (!gant) ko.push(id + ' : pas de gant noir'); }
+        { majArmeJoueur('sabre'); frame(2); const W = VUE1P.montage.W; if (!(Math.abs(W.rotation.z) > 0.5)) ko.push('sabre : la lame n’est pas en diagonale (' + W.rotation.z.toFixed(2) + ')'); }
+        /* les messages : en haut à gauche, jamais au milieu de la vue */
+        majArmeJoueur('fusil'); frame(2); toast('Fusillade signalée : la police intervient contre les Vipers !', 'warn'); frame(2); const ns = document.getElementById('notifStack').getBoundingClientRect();
+        if (!document.body.classList.contains('a1P') || !(ns.top < 200) || !(ns.left < 30)) ko.push('messages : en 1re personne, la pile est à ' + Math.round(ns.left) + ', ' + Math.round(ns.top));
+        /* au stand de tir, la même visée */
+        META.vue = 'classique'; startRun(); entrerInterieur('armurerie', PORTES.find((q) => q.id === 'armurerie')); lancerStandTir(INT.actif, 'fusil');
+        if (FPS.actif){ INPUT.edge.viser = true; for (let i = 0; i < 20; i++){ majFPS(1 / 60, 1 / 60); majCamera(1 / 60); } const M = FPS.montage; if (!(FPS.k >= 1) || Math.abs(M.W.scale.x - 1) > 1e-6 || auCentre(M) > 0.012) ko.push('stand de tir : visée ' + FPS.k.toFixed(2) + ', échelle ' + M.W.scale.x + ', mire à ' + auCentre(M).toFixed(3)); fpsArreter(); } else ko.push('stand de tir : pas lancé');
+        sortirInterieur(); document.body.classList.remove('a1P'); META.vue = 'classique'; startRun();
+        return { ko, info: [guns.length + ' armes à feu : ' + info.join(', ') + ' ; recul revolver ' + (kicks.revolver || 0).toFixed(2) + ' rad contre pistolet ' + (kicks.pistolet || 0).toFixed(2) + ' ; mêlée gantée, deux mains aux battes, garde au couteau ; messages en haut'] };
+      });
+      if (r.ko.length) fail('Visée 1re personne V2 : ' + r.ko.join(' ; ')); else ok('Visée 1re personne V2 : ' + r.info.join(' ; '));
     }
 
     // -------------------------------------------------------------------

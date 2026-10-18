@@ -55,7 +55,7 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
   echo "$ln | $(sed -n "$((ln+1))p" index.html | sed 's/^[ \t]*//')"; done
 ```
 
-**Relevé du 18 octobre — 38 506 lignes.**
+**Relevé du 18 octobre — 38 624 lignes.**
 Attention : `maj_carte` recale les numéros dans l'ordre des lignes de la table ;
 un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la main.
 
@@ -81,40 +81,40 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 8592 | **CHANTIER ET PLANQUES V2** — `ETAGES`, `mkChantierV2`, `mkPlanquesV2`, `mkBordsHills` |
 | 8811 | **FORT REYES** — base militaire V2 (`BASE`, `reserverBase`, `mkBaseV2`, `majBaseV2`, parcours du combattant) |
 | 9144 | **TIR À LA PREMIÈRE PERSONNE** (`FPS`, `fpsDemarrer`, `majFPS`) et **BALL-TRAP** du ranch (`BT`, `mkBallTrap`) |
-| 9715 | **TERRAINS DE SPORT DES PARCS** (`SPORTS`, `mkSportsParcs`, `majSportsParcs`, match de foot) |
-| 9973 | **ARÈNE DE DERBY** (`DERBY`, `mkArenaDerby`, `majDerby`, `majDerbyIA`, voitures et améliorations de derby) |
-| 14640 | MODÈLES — humains, armes, véhicules, hélico, ramassables |
-| 15069 | **COUPS À L'ARME BLANCHE** — `COUPS`, `lancerCoup`, `majCoup3P`, `finCoup` (un geste par arme, 3e et 1re personne) |
-| 17000 | POOLS — balles, particules, textes flottants, traces de pneus |
-| 17477 | ÉTAT GLOBAL + JOUEUR (`P`) |
-| 18354 | VÉHICULES — physique arcade, trafic, dégâts |
-| 21436 | PIÉTONS |
-| 21706 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
-| 22295 | **RAYON TRACTEUR DE L'OVNI** |
-| 22760 | NIVEAU DE RECHERCHE (étoiles) |
-| 23116 | VAGUES + bonus de fin de vague |
-| 23241 | MISSIONS COURTES |
-| 23244 | BÂTIMENTS VISITABLES — intérieurs |
-| 23314 | FOUILLE — mécanique générique |
-| 23862 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
-| 28111 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
-| 28520 | **LAVERIE** V2 — l'essorage de la machine 7 |
-| 28785 | **SERRE** V2 — la nuit de la floraison |
-| 29078 | CINÉ-PALACE |
-| 29322 | MÉTRO ABANDONNÉ |
-| 29388 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
-| 29741 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
-| 30643 | SITE 51 |
-| 30873 | LE DÉPÔT DE BUS — courses clandestines |
-| 32320 | **MÉTIERS** — missions liées à un véhicule |
-| 32611 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
-| 33633 | ÉCRANS / MENUS / BOUTIQUES |
-| 33909 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
-| 34741 | DÉBUT / FIN DE PARTIE |
-| 36278 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
-| 36519 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
-| 36816 | **COCKPITS** — vue 1re personne au volant (`COCKPIT`, `COCKPIT_FAMILLES`, `cockpitDims`, `mkCockpitInterieur`, `ckDessiner`, `rendreCockpit`, `cameraCockpit`, `cockpitDiagnostic`, `photoCockpit`) |
-| 38371 | BOUCLE PRINCIPALE |
+| 9730 | **TERRAINS DE SPORT DES PARCS** (`SPORTS`, `mkSportsParcs`, `majSportsParcs`, match de foot) |
+| 9988 | **ARÈNE DE DERBY** (`DERBY`, `mkArenaDerby`, `majDerby`, `majDerbyIA`, voitures et améliorations de derby) |
+| 14655 | MODÈLES — humains, armes, véhicules, hélico, ramassables |
+| 15154 | **COUPS À L'ARME BLANCHE** — `COUPS`, `lancerCoup`, `majCoup3P`, `finCoup` (un geste par arme, 3e et 1re personne) |
+| 17085 | POOLS — balles, particules, textes flottants, traces de pneus |
+| 17562 | ÉTAT GLOBAL + JOUEUR (`P`) |
+| 18439 | VÉHICULES — physique arcade, trafic, dégâts |
+| 21521 | PIÉTONS |
+| 21791 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
+| 22380 | **RAYON TRACTEUR DE L'OVNI** |
+| 22845 | NIVEAU DE RECHERCHE (étoiles) |
+| 23201 | VAGUES + bonus de fin de vague |
+| 23326 | MISSIONS COURTES |
+| 23329 | BÂTIMENTS VISITABLES — intérieurs |
+| 23399 | FOUILLE — mécanique générique |
+| 23947 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
+| 28196 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
+| 28605 | **LAVERIE** V2 — l'essorage de la machine 7 |
+| 28870 | **SERRE** V2 — la nuit de la floraison |
+| 29163 | CINÉ-PALACE |
+| 29407 | MÉTRO ABANDONNÉ |
+| 29473 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
+| 29826 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
+| 30728 | SITE 51 |
+| 30958 | LE DÉPÔT DE BUS — courses clandestines |
+| 32405 | **MÉTIERS** — missions liées à un véhicule |
+| 32696 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
+| 33718 | ÉCRANS / MENUS / BOUTIQUES |
+| 33994 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
+| 34826 | DÉBUT / FIN DE PARTIE |
+| 36363 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
+| 36604 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
+| 36922 | **COCKPITS** — vue 1re personne au volant (`COCKPIT`, `COCKPIT_FAMILLES`, `cockpitDims`, `mkCockpitInterieur`, `ckDessiner`, `rendreCockpit`, `cameraCockpit`, `cockpitDiagnostic`, `photoCockpit`) |
+| 38489 | BOUCLE PRINCIPALE |
 
 ### Ancres fines (hors bandeaux)
 
@@ -148,51 +148,54 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 6213 | `VILLA_PISC` — finitions de quartier : `mkQuartiersFinitions()` |
 | 6293 | `MONT` — Mont Reyes, puis `CANYON` (canyons) et `RIDES` (courses) |
 | 4752 | `SOLS` — dalles de sol enregistrées, puis `mkTransitionsSols()` (jonctions entre sols) |
-| 11916 | `mkLacParc()` — lac du parc, passerelle, barques |
-| 12045 | `mkLumieresQuartiers()` — Times Square, quartier chinois, Brooklyn |
-| 12131 | `mkEnceinte()` — murs, enseigne, jetées de rochers |
-| 12672 | `GALION` — galion échoué : `sansAleaVille()`, `coqueGalion()`, `mkGalion()`, `majGalion()` |
-| 13795 | `mkPorteGarage()` — porte roulante des garages |
-| 13865 | `placeLibrePorte()` |
-| 13924 | helper `poser()` — placement des lieux |
-| 13950 | `caseCentre(bx,bz)` |
-| 14043 | `REPLIS` — filet de sécurité en spirale |
-| 16868 | `makeVelo()` — vélo de ville et BMX |
-| 16830 | `voitureV2()` — voiture réaliste : `geoVoiture` (géométries partagées par modèle), `janteVoiture` |
-| 13711 | `ENSEIGNES` — portes mieux placées : `ameliorerPortes()`, `profondeurDevant()`, `orienterPorte()` |
-| 17485 | `const P` — état du joueur |
-| 17528 | `P.stamMax = 100 + 12*mus` |
-| 18880 | `resoudreCollisionsVehicule()` — collisions entre véhicules (SAT sur les 4 axes) |
-| 19580 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
-| 19701 | `boutonsAPied()` — boutons du HUD remis « à pied » (sortie de véhicule ET début de partie) |
-| 20842 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
-| 20974 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
-| 23250 | `IOFF = -9000` |
-| 25054 | `INTDEFS` — définitions des **28 salles** (27 + la boutique) |
-| 25439 | `construireSalle(id)` |
-| 29795 | `CHALUTIER_BANCS_PLAN` — chalutier V2 ; `chalutierMaj` (30297), `dessinerRadarChalutier` (30608) |
-| 32329 | `METIERS_CIBLE` |
-| 32629 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
-| 32717 | `PIECES_FAMILLES` — catalogues de pièces par famille |
-| 33027 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
-| 33091 | `libererObjet()` — libère les géométries d'un objet retiré |
-| 33107 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
-| 33237 | `construireGarageTuning()` — la salle partagée |
-| 33607 | `majNitro()` |
-| 18547 | `degatsChoc()` — dégâts V2 : `bosseler`, débris, `perdreRoue` ; murs : `degagerDesMurs` (plus haut) |
+| 11931 | `mkLacParc()` — lac du parc, passerelle, barques |
+| 12060 | `mkLumieresQuartiers()` — Times Square, quartier chinois, Brooklyn |
+| 12146 | `mkEnceinte()` — murs, enseigne, jetées de rochers |
+| 12687 | `GALION` — galion échoué : `sansAleaVille()`, `coqueGalion()`, `mkGalion()`, `majGalion()` |
+| 13810 | `mkPorteGarage()` — porte roulante des garages |
+| 13880 | `placeLibrePorte()` |
+| 13939 | helper `poser()` — placement des lieux |
+| 13965 | `caseCentre(bx,bz)` |
+| 14058 | `REPLIS` — filet de sécurité en spirale |
+| 16953 | `makeVelo()` — vélo de ville et BMX |
+| 16915 | `voitureV2()` — voiture réaliste : `geoVoiture` (géométries partagées par modèle), `janteVoiture` |
+| 13726 | `ENSEIGNES` — portes mieux placées : `ameliorerPortes()`, `profondeurDevant()`, `orienterPorte()` |
+| 17570 | `const P` — état du joueur |
+| 17613 | `P.stamMax = 100 + 12*mus` |
+| 18965 | `resoudreCollisionsVehicule()` — collisions entre véhicules (SAT sur les 4 axes) |
+| 19665 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
+| 19786 | `boutonsAPied()` — boutons du HUD remis « à pied » (sortie de véhicule ET début de partie) |
+| 20927 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
+| 21059 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
+| 23335 | `IOFF = -9000` |
+| 25139 | `INTDEFS` — définitions des **28 salles** (27 + la boutique) |
+| 25524 | `construireSalle(id)` |
+| 29880 | `CHALUTIER_BANCS_PLAN` — chalutier V2 ; `chalutierMaj` (30382), `dessinerRadarChalutier` (30693) |
+| 32414 | `METIERS_CIBLE` |
+| 32714 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
+| 32802 | `PIECES_FAMILLES` — catalogues de pièces par famille |
+| 33112 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
+| 33176 | `libererObjet()` — libère les géométries d'un objet retiré |
+| 33192 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
+| 33322 | `construireGarageTuning()` — la salle partagée |
+| 33692 | `majNitro()` |
+| 18632 | `degatsChoc()` — dégâts V2 : `bosseler`, débris, `perdreRoue` ; murs : `degagerDesMurs` (plus haut) |
 | 7762 | `SAUTV` — Saut du Vertige : `hauteurSautVertige`, `mkSautVertige`, `mkBargeVertige`, `finSautVertige` |
-| 36705 | `VUE1P` — vue à la 1re personne : `cameraPremiere`, `ligneDeMire`, `viseAuto1P` |
-| 9871 | `SPORTJ` — le centre sportif se joue : `sportjDemarrer`, `majSportJ`, `sportjFrapper` |
-| 9297 | `RECHARGE_ARME` — rechargements à la 1re personne : `animRecharge`, `rechPiece`, `rechRemise`, `rechAccessoire` |
-| 37240 | `CK_HAB` — cockpits V2 : `CK_TH`, `CK_CADRANS`, `ckDial`, `ckCombine`, `ckHabitacle`, `ckVolant2`, `ckMain`, `ckDeuxRoues`, `ckBateau2`, `ckAvion2`, `ckHoloOvni` |
-| 14891 | `construireBatte(id)` — la batte cloutée et la Vertèbre (géométries partagées, manche et tête séparés) |
-| 17215 | `lancerMissileAvion()` — le missile des appareils : `missileProfil`, `missilePos`, `missileTraj`, traînée `MFUM` |
-| 19815 | `appuiVolCran()` — un appui bref sur MONTER / DESCENDRE vaut un cran (`APPUI_VOL_MIN`) |
-| 20010 | `virageAvion()` — le virage des avions : `roulisAvion`, `roulisIA` (juste avant `majVol`) |
-| 20054 | `volManche()` — le pilotage au manche (vue 3D et 1P) : `avionManche`, `majGazAvion`, `majBoutonsVol`, `figuresManche` |
-| 20035 | `MANETTE` — la manette des gaz des avions au manche : `manetteDoigt`, `majManette` (juste avant `majBoutonsVol`) |
-| 20401 | `majCabrageMoto()` — le cabrage de toutes les motos : `CABRAGE_MOTO`, `motoCabrable`, `poseCabrage`, `retirerPoseCabrage` |
+| 36790 | `VUE1P` — vue à la 1re personne : `cameraPremiere`, `ligneDeMire`, `viseAuto1P` |
+| 9886 | `SPORTJ` — le centre sportif se joue : `sportjDemarrer`, `majSportJ`, `sportjFrapper` |
+| 9313 | `RECHARGE_ARME` — rechargements à la 1re personne : `animRecharge`, `rechPiece`, `rechRemise`, `rechAccessoire` |
+| 37358 | `CK_HAB` — cockpits V2 : `CK_TH`, `CK_CADRANS`, `ckDial`, `ckCombine`, `ckHabitacle`, `ckVolant2`, `ckMain`, `ckDeuxRoues`, `ckBateau2`, `ckAvion2`, `ckHoloOvni` |
+| 14957 | `construireBatte(id)` — la batte cloutée et la Vertèbre (géométries partagées, manche et tête séparés) |
+| 17300 | `lancerMissileAvion()` — le missile des appareils : `missileProfil`, `missilePos`, `missileTraj`, traînée `MFUM` |
+| 19900 | `appuiVolCran()` — un appui bref sur MONTER / DESCENDRE vaut un cran (`APPUI_VOL_MIN`) |
+| 20095 | `virageAvion()` — le virage des avions : `roulisAvion`, `roulisIA` (juste avant `majVol`) |
+| 20139 | `volManche()` — le pilotage au manche (vue 3D et 1P) : `avionManche`, `majGazAvion`, `majBoutonsVol`, `figuresManche` |
+| 20120 | `MANETTE` — la manette des gaz des avions au manche : `manetteDoigt`, `majManette` (juste avant `majBoutonsVol`) |
+| 20486 | `majCabrageMoto()` — le cabrage de toutes les motos : `CABRAGE_MOTO`, `motoCabrable`, `poseCabrage`, `retirerPoseCabrage` |
 | 8941 | `CAMPENT` — le camp d'entraînement de Fort Reyes : `mkCampEntrainement`, `campConstruire`, `campEntrainementStartRun`, `majCampEntrainement` |
+| 14769 | `VISEURS_1P` — la visée à la 1re personne V2 : œil, organe, zoom et recul par arme, `VISEE_T`, `zoomVersChamp` (`ligneDeMire` 36842, `poseVisee1P` 36855) |
+| 9267 | `matsMains1P()` — gants noirs et manches texturées des mains de la 1re personne (`_texTissu`) ; `modele1P()` (15067) : Gadget et Boule « Comète » en main |
+| 37256 | `ARME_SC` — l'arme de la 1re personne rendue dans sa propre scène : `sceneArme1P`, `rendreArme1P` |
 | 1007 | `AVION_MANCHE` — inclinaison, roulis, tangage, taux de virage, tonneaux et looping par avion (pilotage au manche) |
 
 ---
@@ -1389,8 +1392,8 @@ l'œil, on vise avec la mire de toutes les armes ».
 - **VISER** (`#btnViser`, `pressed('viser')`, armes à feu seulement) : la ligne
   de mire (`ligneDeMire` : l'optique posée `userData.visee`, sinon le haut de
   l'arme) vient exactement sur l'axe de l'œil (`M.mire`, dans le repère de la
-  main W), champ 72° → 52° (holo 46°, lunette ×4 16° avec l'image de la lunette
-  `VUE1P.lunette`, sniper 9°), dispersion −65 %, doigt plus fin, marche à 55 %.
+  main W), dispersion −65 %, doigt plus fin, marche à 55 %. (Pose, champ et
+  organe de visée refaits le 18 octobre : voir « Visée à la 1re personne V2 ».)
   Mire de hanche fine (quatre traits qui s'écartent avec la dispersion,
   `majMirePremiere`), marque ✕ à la touche.
 - **Stand de tir et ball-trap** : VISER aussi (`FPS.vise`, `FPS.k`), réticule
@@ -1498,22 +1501,18 @@ puis redescendre tirer : on ne peut pas ajuster ».
 - **Bras entiers, jamais coupés** : le haut du bras va jusqu'à l'épaule, loin
   vers le bas et l'arrière, et n'est plus masqué en visée (`fpsHautBras(R,true)`)
   — masqué, il laissait deux moignons au milieu de l'écran (signalé le 16
-  octobre). En visée l'arme est à ~0,76 m équivalent (échelle 0,42 à 32 cm) :
-  les bras ne traversent plus la caméra.
-- **Une seule main sur la batte, en mitaine** (prise `manche` : un volume
-  refermé, trois sillons, le pouce) : deux mains à quatre doigts articulés
-  se lisaient comme « vingt doigts ».
+  octobre).
+- **Batte** : une main en mitaine le 16 octobre (deux mains à quatre doigts se
+  lisaient comme « vingt doigts ») ; depuis le 18, deux mains en bas du manche,
+  batte sur l'épaule (voir « Visée à la 1re personne V2 »).
 - **Armes blanches** : ancrages dans `ANCRES_ARME` (batte à deux mains sur le
   manche, sabre et couteau à une main), poses `FPS_POSES.melee` (relevée sur
   l'épaule, `pitch`) et `lame` ; **swing** de la batte et du sabre, estoc du couteau,
   **coups de poing alternés** (`VUE1P.coupMain`, garde de boxeur `M.mains`) ; le
   sabre a une vraie lame courbe (avant : six boîtes en escalier).
-- **Visée** : en visée, arme et mains rapetissent (`W.scale` → 0,42) et la hausse
-  se place sur l'axe de l'œil à `M.prof` = 32 cm (lunette 36). Comparé en rendu
-  réel à 12, 22, 32 et 42 cm : à 12 cm (1re tentative, « l'œil juste derrière la
-  hausse ») les mains remplissaient l'écran ; à 32 l'arme est petite au centre,
-  les avant-bras partent des coins du bas, la crosse passe sous l'œil et
-  derrière le plan proche (`camera.near` 0,05).
+- **Visée** (16 octobre, remplacée le 18) : l'arme rapetissait (`W.scale` 0,42)
+  et la hausse se plaçait à 32 cm de l'œil. Depuis la V2, l'arme garde sa taille
+  et l'œil est À l'organe de visée (voir « Visée à la 1re personne V2 »).
 - **Geste de tir** : le bouton TIR garde le doigt (`setPointerCapture`) et le
   glisser fait regarder (`VUE1P.dragTir`, aussi au stand et au ball-trap) ; **tir
   automatique** quand la mire est sur une cible (`VUE1P.verrou` = `viseAuto1P(…,
@@ -1541,6 +1540,45 @@ puis redescendre tirer : on ne peut pas ajuster ».
   victoire qu'avec au moins un coup donné (sinon « PAS UN SEUL COUP DONNÉ ») ;
   quand il ne reste que deux IA, le plafond d'IA sur le joueur saute : elles
   foncent toutes les deux sur lui.
+
+### Visée à la 1re personne V2 (18 octobre) — `VISEURS_1P`, `poseVisee1P`, `ARME_SC`, `matsMains1P`
+
+Demandé avec une planche avant/après (bazooka, P.M., lance-flammes, fusil, pompe) : « l'arme montée à hauteur d'œil, vue
+depuis l'arrière du viseur, l'organe de visée pile au centre, des mains gantées détaillées, fini les bras orange, un recul par
+arme, aucun message au milieu ». Non touchés : HUD, boutons, dégâts, chargeurs, rechargements, portée, prix. Suivi arme par
+arme : `rapport_nuit/SUIVI_VISEE_1P.md`.
+- **L'œil à l'organe de visée** (`VISEURS_1P` : par arme `oeil` = [dx, av, el] dans le repère du modèle, `type`, `zoom`,
+  `rec`) : en visée, W garde sa taille (échelle 1) et se place à −œil (`poseVisee1P`, partagée par la ville et le stand de
+  tir / ball-trap) ; `ligneDeMire` note `M.oeil`, `M.mire` (un point 0,6 devant, ou le guidon `mire` : la ligne de mire du
+  pompe descend de l'œil au guidon perle, l'arme se relève de `M.visePitch`). Une optique de l'établi remplace l'organe
+  (lunette ×4, holo ×1,3, point ×1,25). Champ = `zoomVersChamp(zoom)` (72° à la hanche). Montée et descente LINÉAIRES en
+  `VISEE_T` (0,2 s). Réticule de hanche masqué au-delà de 60 % (sauf minigun).
+- **Organes modelés** (`construireArmeV2`, aides `an`, `tuo`, `plq` ; matériaux `blanc`, `vitreV`, `reticuleHolo`,
+  `reticuleDot`, `reticuleCroix` dans `matsArme`) : 3 points (pistolets, sur la culasse qui recule ; silencieux surélevé,
+  silencieux plus gros), cran et lame à insert rouge (revolver), bande ventilée et guidon perle (pompe ; crosse en
+  `partie:'crosse'`, masquée en visée : sous la joue elle faisait un grand trapèze de bois), reflex ouvert (AA-12),
+  œilleton et oreilles (Uzi), holographique (P.M.), œilleton et guidon en tour (fusil : l'ancien point rouge est retiré),
+  œilleton et perle (arbalète), anneau sur support (lance-flammes), lunette à croix sur le flanc droit (bazooka, œil décalé
+  en x), anneau lumineux (désintégrateur, ancien modèle). Minigun : à la hanche (`hanche:true`), canons en `partie:'canons'`
+  autour de leur axe (pivot noté dans `out`, posé par `mkArmeModeleV2`) qui tournent au tir (`M.spin`).
+- **Sniper** : `#lunette1P` = vignette ronde, réticule fin gradué, poteaux épais, point rouge ; ×4 ; respiration lente
+  (`V.swP`/`V.swY`, ajoutés au regard puis retirés).
+- **Recul par arme** (`rec` : `k` relevé, `z` retour vers l'épaule, `c` coup de caméra, `v` vibration, `ret` vitesse de
+  retour) : impulsion `V.rk` / `FPS.rk` (+1 par tir, 1,6 au plus) qui décroît en exp(−dt·ret). Revolver ≈ 3× le pistolet.
+- **L'arme dans sa propre scène** (`ARME_SC`, `sceneArme1P`, `rendreArme1P` après la ville et le cockpit dans `boucle`,
+  profondeur effacée, sautée si rien n'est visible) : les lumières de la ville copiées + une lumière d'appoint qui suit la
+  caméra — à l'œil, l'arme ne passe plus dans un mur, et elle n'est plus une silhouette noire à contre-jour.
+- **Mains** (`matsMains1P`, cache par couleur de manche) : gants noirs (dos, jointures plus claires), revers, manche en tissu
+  texturé (`_texTissu`) tactique sombre quelle que soit la tenue (`MANCHE_1P` : « fini les bras orange » — avant, la couleur
+  du haut porté), olive au bazooka ; mêmes gants et manches pour les poings.
+- **Mêlée** (`ANCRES_ARME`, `FPS_POSES`) : couteau en avant, main gauche en garde (`A.garde`) ; battes à deux mains en bas du
+  manche, sur l'épaule droite (`pose:'batte'`) ; sabre levé en diagonale (`pose:'sabre'`) ; Gadget rose et Boule « Comète »
+  ont un modèle de 1re personne (`modele1P`, matériaux `_MATS_1P`). Gestes de coup (`COUPS`) inchangés.
+- **Messages** : `body.a1P` (posée par `entrerPremiere`, retirée par `quitterPremiere`) range la pile de notifications en
+  haut à gauche, comme au cockpit.
+- Test : « Visée à la 1re personne V2 » (chaque arme à feu de `VISEURS_1P` : 0,2 s aller et retour, champ, échelle 1, mire
+  au centre, réticule, recul et retour, gants ; minigun ; mêlée ; messages ; stand de tir). Captures :
+  `rapport_nuit/captures/visee_1p_v2/`.
 
 ### Vitrage uniforme et avant du Raptor (16 octobre) — `vitrerAncien`, `geoHabitacle`
 
@@ -2585,8 +2623,9 @@ du visuel avec le bras qui tient les armes ».
   (pivot du recul), H porte le modèle tourné vers l'avant de la vue. Deux bras
   jusqu'aux mains posées sur les ancres (poignée ; garde-main, seconde
   poignée ou poignée de transport ; au pistolet la main gauche enveloppe la
-  droite) : gants coyote (ils ressortent sur une arme noire), poignets nus,
-  manches à la couleur du haut porté (`coifCouleurs`). Portrait : champ
+  droite) : gants noirs détaillés depuis le 18 octobre (`matsMains1P` ;
+  avant : coyote), manches de tissu tactique sombre (`MANCHE_1P` ; avant : la
+  couleur du haut porté, orange par défaut). Portrait : champ
   horizontal étroit (~31°), l'arme est petite, en bas à droite, tournée vers
   le centre (on voit son flanc). Animations (`fpsCamera`) : balancement,
   retard sur le regard, recul pivoté à la poignée, culasse qui recule,
