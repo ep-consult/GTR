@@ -54,3 +54,7 @@ Chaque point est coché quand il est fait ET vérifié (rendu réel, test, valid
 # Virage des avions — 18 octobre
 
 - [x] Inclinaison progressive du côté du virage (≈ 40° au plus), retour à plat en douceur ; le cap tourne d'autant plus vite que l'avion penche ; la trajectoire suit le nez ; inertie (pas de changement de direction instantané) ; un peu de vitesse et d'altitude perdues dans les virages serrés ; caméra de poursuite en léger retard et légèrement inclinée ; avions du décor (tour de piste, banderole) inclinés dans leurs virages. Réglages `AVION_INCL_*` en tête de `index.html`. Test « Virage des avions »
+
+# Pilotage au manche — 18 octobre (vue 3D et 1re personne)
+
+- [x] Joystick vers le bas = nez haut et montée, vers le haut = nez bas et descente, gauche/droite = inclinaison qui fait virer ; lâché, à plat ; boutons ACCÉLÉRER (gaz affichés, qui restent) et FREINER (aérofreins) ; décollage en tirant ; inclinaison propre à chaque avion (30° long-courrier … 80° chasseur, 85° voltige) ; tonneaux continus du chasseur et de la voltige (à fond sur le côté), looping tiré à fond ; horizon du cockpit à 100 % avec réglage 100 / 70 / 40 % dans les Paramètres ; caméra de poursuite qui penche (50 %) et suit le nez ; vue 2D inchangée ; hélicos et soucoupe inchangés. Tests « Pilotage au manche », « Avions au cockpit »

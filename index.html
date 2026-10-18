@@ -813,6 +813,7 @@ body.ck1P .notif.gros{font-size:12.5px;padding:6px 12px}
   <div class="togg">Effets sonores <div class="sw on" id="tSfx"></div></div>
   <div class="togg">Vibrations <div class="sw on" id="tVib"></div></div>
   <div class="togg">Tir automatique (1re personne) <div class="sw on" id="tTirAuto"></div></div>
+  <div class="togg">Horizon au cockpit (avions) <button class="pill" id="tHorizonCk" style="min-width:64px">100 %</button></div>
   <div id="saveInfo" style="margin:14px 16px 4px;font-size:10.5px;line-height:1.5;color:var(--gris);text-align:center"></div>
   <button class="mbtn" id="tReset" style="margin:6px auto 0;max-width:280px;border-color:#ff3b5c66;color:#ff8a9a">Effacer la sauvegarde</button>
   <button class="retour" id="setClose">Retour</button>
@@ -966,12 +967,35 @@ const DECOR_V2=true;
    - AVION_ANTICIP      l'avion se redresse avant d'atteindre le cap voulu (s) : de l'inertie, sans dépasser ;
    - AVION_PERTE_VIRAGE vitesse perdue à l'inclinaison maximale (0,12 = 12 %) ; AVION_CHUTE_VIRAGE : altitude perdue (u/s,
                         le nez baisse un peu ; jamais près du sol) — 0 pour les couper ;
-   - AVION_INCL_1P      part de l'inclinaison montrée au cockpit (l'horizon y tourne avec l'avion) ;
-   - AVION_CAM_ROULIS   part de l'inclinaison prise par la caméra de poursuite (petite : pas de mal au cœur) ;
+   Ces réglages-là valent pour la vue 2D (le joystick indique une direction, MONTER / DESCENDRE la hauteur).
+   - AVION_CAM_ROULIS   part de l'inclinaison prise par la caméra de poursuite (vue 3D) ;
+   - AVION_CAM_TANG     part du tangage (nez haut, nez bas) suivie par la caméra de poursuite ;
    - AVION_CAM_SUIVI    vitesse à laquelle la caméra de poursuite rattrape le cap (plus bas = l'avion pivote plus à l'écran). */
 const AVION_INCL_MAX=0.7, AVION_INCL_VIT=1.6, AVION_INCL_RETOUR=1.2, AVION_INCL_RAIDEUR=4, AVION_INCL_DOUCEUR=8;
 const AVION_LACET_K=1.0, AVION_ECART_PLEIN=0.6, AVION_ANTICIP=0.35, AVION_PERTE_VIRAGE=0.12, AVION_CHUTE_VIRAGE=1.5;
-const AVION_INCL_1P=0.4, AVION_CAM_ROULIS=0.25, AVION_CAM_SUIVI=2.6;
+const AVION_CAM_ROULIS=0.5, AVION_CAM_TANG=0.6, AVION_CAM_SUIVI=2.6;
+/* PILOTAGE AU MANCHE (18 octobre, demandé : « en vue 3D et en 1re personne, piloter comme un vrai avion : joystick vers le bas
+   le nez monte, vers le haut il descend, à gauche et à droite il s'incline et vire ; les boutons deviennent ACCÉLÉRER et
+   FREINER ; joystick lâché, il se remet à plat ») — la vue 2D garde le pilotage par direction. Par appareil (AVION_MANCHE, clé de
+   VEHDEFS ; AVION_MANCHE_DEF pour une clé absente), « comme un vrai avion » :
+     incl   inclinaison maximale (rad : 0,52 = 30°, 0,96 = 55°, 1,4 = 80°)      vRoul  vitesse de roulis (rad/s)
+     tang   assiette maximale, nez haut comme nez bas (rad)                     vTang  vitesse de tangage (rad/s)
+     lacet  taux de virage maximal (rad/s)
+     tonneau  joystick tenu à fond sur le côté : tonneaux continus (« vrilles »)   loop  tiré à fond, il boucle au bout de (s)
+   AVION_G_VIRAGE    taux de virage = AVION_G_VIRAGE × tan(inclinaison) / vitesse : à inclinaison égale, plus vite = plus large ;
+   AVION_TIRE_VIRAGE tirer dans un virage le resserre ; AVION_G_PENTE : vitesse perdue en montée, gagnée en piqué (u/s²) ;
+   AVION_GAZ_VIT     vitesse de la manette des gaz (0 → 100 % en 1/AVION_GAZ_VIT s) ; AVION_AEROFREIN : FREINER en vol (u/s²).
+   L'inclinaison de l'horizon au cockpit est un réglage du joueur (Paramètres, META.horizonCk : 100, 70 ou 40 %). */
+const AVION_MANCHE={
+  avion:{incl:0.96,vRoul:1.4,tang:0.42,vTang:0.9,lacet:1.5},                         /* Colibri : avion léger */
+  tourisme:{incl:0.96,vRoul:1.2,tang:0.35,vTang:0.8,lacet:1.3},                      /* Pélican */
+  jetprive:{incl:0.61,vRoul:0.8,tang:0.35,vTang:0.6,lacet:0.9},                      /* Albatros */
+  ligne:{incl:0.52,vRoul:0.5,tang:0.26,vTang:0.4,lacet:0.55},                        /* long-courrier */
+  fret:{incl:0.52,vRoul:0.5,tang:0.26,vTang:0.4,lacet:0.55},                         /* cargo Baleine */
+  chasseur:{incl:1.4,vRoul:3.2,tang:0.8,vTang:1.4,lacet:2.0,tonneau:true,loop:1.0},   /* Épervier */
+  voltige:{incl:1.48,vRoul:4.5,tang:0.9,vTang:2.0,lacet:2.8,tonneau:true,loop:0.7}}; /* Colibri Rouge : hyper maniable */
+const AVION_MANCHE_DEF={incl:0.8,vRoul:1.2,tang:0.4,vTang:0.8,lacet:1.2};
+const AVION_G_VIRAGE=30, AVION_TIRE_VIRAGE=0.5, AVION_G_PENTE=6, AVION_GAZ_VIT=0.6, AVION_AEROFREIN=9;
 function ico(id,secours){
   if(!ICONES_SVG||!document.getElementById(id)) return secours||'';
   return '<svg class="icoSvg" viewBox="0 0 24 24" aria-hidden="true"><use href="#'+id+'"></use></svg>';
@@ -1855,6 +1879,7 @@ function litEntrees(){
   if(KEYS['KeyD']||KEYS['ArrowRight']) mx+=1;
   const l=Math.hypot(mx,mz);
   if(l>1){mx/=l;mz/=l;}
+  INPUT.ex=mx; INPUT.ey=mz; /* le joystick tel qu'à l'écran (x à droite, y vers le bas) : le manche de l'avion */
   // vue immersive (VUE) : le joystick suit l'écran — on tourne le vecteur
   // selon l'angle de la caméra affichée (0 dans les salles et en vue classique)
   const th=typeof vueAngleEcran==='function'?vueAngleEcran():0;
@@ -1913,7 +1938,7 @@ const META={
   derby:{voiture:'derbyBreak',poss:{derbyBreak:true,derbyCompacte:false,derbyPickup:false},niv:{pareChocs:0,blindage:0,moteur:0,pneus:0},victoires:0,kos:0}, // arène de derby (clés fixes) // mini-jeux réussis (tenues)
   argent:150, xp:0, niveau:1,
   record:0, recordVague:0, killsTotal:0, parties:0,
-  perso:'jax', persosPoss:['jax'], radio:0, planque:false, garage:null, revenus:0, tirAuto:true, /* 1re personne : le tir part tout seul sur la cible sous la mire */
+  perso:'jax', persosPoss:['jax'], radio:0, planque:false, garage:null, revenus:0, tirAuto:true, horizonCk:1, /* avions au cockpit : part de l'inclinaison vue sur l'horizon (1, 0,7, 0,4 — Paramètres) */ /* 1re personne : le tir part tout seul sur la cible sous la mire */
   helisManoir:{ecureuil:false,titan:false,vip:false,vautour:false}, heliManoir:'helico', // héliport du manoir (clés fixes ; la Libellule vient avec la villa)
   style:{haut:-1,bas:-1,cheveux:-1,coiffure:'',chapeau:'',chapeauCoul:-1,lunettes:'',tatouage:''}, // pièces portées séparément (boutiques) : -1/'' = celles de la tenue
   garde:{}, // pièces achetées en boutique (VETEMENTS) : id → true
@@ -19271,7 +19296,7 @@ function entrerVehicule(v){
   }
   if(v.def.air){
     el('btnSprint').innerHTML=ico('ico-btn-monter','⬆️')+'<small>MONTER</small>'; /* des flèches claires (17 octobre au soir : l'icône du sprint et celle du frein « ressemblaient à des micros ») */
-    el('btnBrake').innerHTML=ico('ico-btn-descendre','⬇️')+'<small>DESCENDRE</small>';
+    el('btnBrake').innerHTML=ico('ico-btn-descendre','⬇️')+'<small>DESCENDRE</small>'; v._btnVol='vol0'; /* au manche, majBoutonsVol les réécrit (ACCÉLÉRER / FREINER) */
     if(v.def.armes){
       el('btnFire').style.display='flex';
       el('fireIco').textContent='🚀'; el('fireAmmo').textContent='∞';
@@ -19590,7 +19615,7 @@ function appuiVolCran(v,monter,desc,dt){
      (nez relevé, au plus HELI_RECUL × la vitesse max) au lieu de faire demi-tour.
    La vitesse est un vecteur (v.hvx, v.hvz) ; v.v reste la vitesse le long du nez (instruments, caméra, son). L'OVNI garde son vol. */
 const HELI_INCL_AV=0.32, HELI_INCL_LAT=0.28, HELI_INCL_VIT=3.2, HELI_K_INCL=0.04, HELI_G=32, HELI_TRAINEE=0.32, HELI_RECUL=0.45, HELI_LATERAL=0.6, HELI_LACET=2.2, HELI_INCL_MAXV=0.75;
-const AVION_VA_ACC=18, AVION_TANGAGE_1P=0.006, AVION_LISSAGE_1P=1.8; /* (le roulis au cockpit : AVION_INCL_1P, en tête du fichier) */
+const AVION_VA_ACC=18, AVION_TANGAGE_1P=0.006, AVION_LISSAGE_1P=1.8; /* (vue 2D ; au manche, l'horizon du cockpit suit le réglage du joueur, META.horizonCk) */
 // FIGURES (looping + vrille) — disponibles sur les appareils avec
 // figures:true (chasseur et voltige, voir VEHDEFS). Deux déclencheurs
 // DÉLIBÉRÉMENT différents, choisis pour deux raisons différentes :
@@ -19693,7 +19718,7 @@ function majLooping(v,dt){
   const theta=-frac*Math.PI*2;
   v.alt=L.altDep+Math.sin(frac*Math.PI)*6+frac*3;
   v.x+=Math.sin(v.ang)*L.vDep*dt; v.z+=Math.cos(v.ang)*L.vDep*dt;
-  v.mesh.rotation.x=theta;
+  v.mesh.rotation.x=theta+(L.x0||0)*(1-frac); /* il part de l'assiette du moment (au manche, le nez est déjà haut) */
   // régime moteur qui monte puis retombe : réutilise le calcul habituel de
   // fin de majVol (moteurUpdate d'après v.v/v.va), pas de second appel.
   v.va=26*Math.sin(frac*Math.PI);
@@ -19707,7 +19732,7 @@ function majLooping(v,dt){
   const coulFumee=v.def.voltige?FUMEE_VOLTIGE[Math.floor(frac*10)%FUMEE_VOLTIGE.length]:0xe8ecf2;
   if(Math.random()<0.85) fumee(tx,ty,tz,coulFumee);
   if(frac>=1){
-    v.loopEnCours=null; v.mesh.rotation.x=0; v.va=0;
+    v.loopEnCours=null; v.mesh.rotation.x=0; v.va=0; v.tang=0; v.vt=0;
     META.stats.loopings=(META.stats.loopings||0)+1;
     spawnTexte(v.x,v.alt+2.4,v.z,'🔁 LOOPING !','#ffd23f');
     toast('Looping réussi !','or'); SFX.niveau(); vibre(40);
@@ -19765,10 +19790,10 @@ function helicoCyclique(v,dt,l){
    instant, et en poursuite la caméra tournait et penchait avec l'avion : il paraissait droit. Désormais : commande → roulis
    (v.bank, > 0 = virage à GAUCHE, pris et rendu progressivement) → taux de virage (v.lacetAv) → cap (v.ang) ; la trajectoire
    suit le nez, sans glissade. Seul le MODÈLE penche (mesh.rotation.z) : collisions, tirs et caméras lisent le cap. */
-function roulisAvion(e,cible,dt){ /* e.bank va vers cible : prise à AVION_INCL_VIT, retour à plat à AVION_INCL_RETOUR, vitesse de roulis lissée */
-  const b=e.bank||0, retour=cible*b<0||Math.abs(cible)<Math.abs(b), vmax=retour?AVION_INCL_RETOUR:AVION_INCL_VIT;
+function roulisAvion(e,cible,dt,vit,ret,lim){ /* e.bank va vers cible : prise à vit (AVION_INCL_VIT), retour à plat à ret (AVION_INCL_RETOUR), vitesse de roulis lissée */
+  const b=e.bank||0, retour=cible*b<0||Math.abs(cible)<Math.abs(b), vmax=retour?(ret||AVION_INCL_RETOUR):(vit||AVION_INCL_VIT), L=(lim||AVION_INCL_MAX)*1.05;
   e.vb=lerp(e.vb||0,clamp((cible-b)*AVION_INCL_RAIDEUR,-vmax,vmax),clamp(dt*AVION_INCL_DOUCEUR,0,1));
-  e.bank=clamp(b+e.vb*dt,-AVION_INCL_MAX*1.05,AVION_INCL_MAX*1.05); return e.bank; }
+  e.bank=Math.abs(b)>L?b+e.vb*dt:clamp(b+e.vb*dt,-L,L); return e.bank; } /* (au-delà de la limite — sortie de tonneau —, il y revient sans saut) */
 function virageAvion(v,l,dt){ /* le joueur : l'écart entre le nez (anticipé) et la direction du joystick incline l'avion ; l'inclinaison le fait tourner */
   let cmd=0;
   if(l>0.15){ const e=angDiff(v.ang+(v.lacetAv||0)*AVION_ANTICIP,Math.atan2(INPUT.mx,INPUT.mz)); cmd=clamp(e/AVION_ECART_PLEIN,-1,1)*Math.min(1,(l-0.15)/0.5); }
@@ -19778,6 +19803,52 @@ function roulisIA(e,cap,dt){ /* un avion de l'IA ou du décor : son roulis suit 
   if(!(dt>0)) return e.bank||0; if(e.capPrec===undefined){ e.capPrec=cap; return e.bank||0; }
   const w=angDiff(e.capPrec,cap)/dt; e.capPrec=cap; e.lacetL=lerp(e.lacetL||0,w,clamp(dt*6,0,1));
   return roulisAvion(e,clamp(e.lacetL/(1.15*AVION_LACET_K),-1,1)*AVION_INCL_MAX,dt); }
+/* ---------- PILOTAGE AU MANCHE (vue 3D et 1re personne ; réglages AVION_MANCHE… en tête du fichier) ----------
+   Le joystick est le manche : x = roulis (v.bank, > 0 = à gauche), y = tangage (v.tang, > 0 = nez haut ; tirer vers le bas
+   de l'écran = cabrer) — proportionnels, ramenés à plat quand on lâche. L'inclinaison fait tourner (taux = g·tan(φ)/v, tirer
+   resserre) ; la vitesse verticale vient de l'assiette (v.va = v · sin θ · cos φ). La vitesse suit la manette des gaz (v.gaz,
+   ACCÉLÉRER / FREINER, elle reste quand on lâche), perd en montée, gagne en piqué. Chasseur et voltige : à fond sur le côté,
+   tonneaux continus ; tiré à fond, looping. Seul le modèle penche ; collisions et tirs lisent le cap et l'altitude. */
+const AVION_AIDE={vu:false,decol:false};
+function avionManche(v){ return !!(v&&v.def&&v.def.air==='avion'&&v===P.veh&&META.vue!=='classique'&&!INT.actif); }
+function pilotageAvion(v){ return AVION_MANCHE[v.key]||AVION_MANCHE_DEF; }
+function majGazAvion(v,dt,plus,moins){ if(v.gaz===undefined) v.gaz=clamp((v.v||0)/(v.def.vmax||40),0,1);
+  if(plus) v.gaz=Math.min(1,v.gaz+AVION_GAZ_VIT*dt); if(moins) v.gaz=Math.max(0,v.gaz-AVION_GAZ_VIT*1.3*dt); }
+function majBoutonsVol(v,manche){ /* MONTER / DESCENDRE en 2D, ACCÉLÉRER (les gaz, en %) / FREINER au manche ; réécrits seulement au changement */
+  const pct=manche?Math.round((v.gaz||0)*20)*5:0, cle=(manche?'manche':'vol')+pct; if(v._btnVol===cle) return; const avant=v._btnVol; v._btnVol=cle;
+  const bS=el('btnSprint'), bB=el('btnBrake'); if(!bS||!bB) return;
+  if(manche){ bS.innerHTML='<b style="font-size:15px;line-height:1.1">'+pct+'%</b><small>ACCÉLÉRER</small>'; if(!avant||!avant.startsWith('manche')) bB.innerHTML=ico('ico-btn-brake','🛑')+'<small>FREINER</small>';
+    if(!AVION_AIDE.vu){ AVION_AIDE.vu=true; toast('✈ Au manche : tire le joystick vers toi pour monter, pousse pour descendre, à gauche ou à droite pour virer ; ACCÉLÉRER / FREINER règlent les gaz','or'); } }
+  else { bS.innerHTML=ico('ico-btn-monter','⬆️')+'<small>MONTER</small>'; bB.innerHTML=ico('ico-btn-descendre','⬇️')+'<small>DESCENDRE</small>'; } }
+function volManche(v,dt,plus,moins){ const A=pilotageAvion(v), ex=clamp(INPUT.ex||0,-1,1), ey=clamp(INPUT.ey||0,-1,1), hS=v.alt-poseY(v.x,v.z), dtd=dt/ETAT.timeScale;
+  majGazAvion(v,dt,plus,moins);
+  if(v.tang===undefined) v.tang=clamp(Math.asin(clamp((v.va||0)/Math.max(10,v.v||10),-1,1)),-A.tang,A.tang);
+  /* le roulis : proportionnel au manche, à plat quand on le lâche ; à fond sur le côté, les tonneaux (chasseur, voltige) */
+  const fond=Math.abs(ex)>0.92&&Math.abs(ey)<0.35, sens=ex<0?1:-1; /* tonneau : à fond PUREMENT sur le côté ; un virage serré se fait en diagonale (sur le côté et tiré) */
+  if(v.tonneau&&!(fond&&sens===v.tonneau)){ v.tonneau=0; v.tonFin=1; v.bank=Math.atan2(Math.sin(v.bank),Math.cos(v.bank)); } /* lâché : il revient à plat par le plus court */
+  if(!v.tonneau){ v.tonT=A.tonneau&&fond&&hS>12&&Math.abs(v.bank||0)>A.incl*0.9?(v.tonT||0)+dtd:0;
+    if(v.tonT>0.5){ v.tonneau=sens; v.tonFin=0; v.tonDep=v.bank; v.tonT=0; } }
+  if(v.tonneau){ v.bank+=v.tonneau*A.vRoul*dt; v.vb=v.tonneau*A.vRoul;
+    if(Math.abs(v.bank-v.tonDep)>=Math.PI*2){ v.tonDep+=v.tonneau*Math.PI*2; META.stats.loopings=(META.stats.loopings||0)+1; spawnTexte(v.x,v.alt+2.4,v.z,'🌀 VRILLE !','#35e0ff'); SFX.niveau(); vibre(30); } }
+  else { roulisAvion(v,v.tonFin?0:-ex*A.incl,dt,A.vRoul,A.vRoul*0.8,A.incl); if(v.tonFin&&Math.abs(v.bank)<A.incl*0.9) v.tonFin=0; }
+  /* le tangage : proportionnel au manche (tiré = nez haut), à plat quand on le lâche ; décroché, le nez tombe */
+  const decroche=v.v<19, thC=decroche?-0.25:(v.tonneau||v.tonFin?0:ey*A.tang);
+  v.vt=lerp(v.vt||0,clamp((thC-v.tang)*3.5,-A.vTang,A.vTang),clamp(dt*6,0,1)); v.tang=clamp(v.tang+v.vt*dt,-A.tang*1.05,A.tang*1.05);
+  if(decroche&&Math.random()<0.1) toast('DÉCROCHAGE — accélère !','warn');
+  /* le virage : l'inclinaison fait tourner, tirer le resserre ; jamais pendant un tonneau */
+  const phi=v.bank||0; let w=AVION_G_VIRAGE*Math.tan(clamp(phi,-1.45,1.45))/Math.max(20,v.v||20)+AVION_TIRE_VIRAGE*Math.max(0,ey)*Math.sin(phi);
+  w=v.tonneau||v.tonFin?0:clamp(w,-A.lacet,A.lacet); v.lacetAv=w; v.ang+=w*dt;
+  /* la vitesse : vers la manette des gaz, moins en montée, plus en piqué ; FREINER = aérofreins */
+  v.v=clamp(lerp(v.v||0,v.gaz*v.def.vmax*tenueK('aiguilleur',1.15),0.45*dt)-AVION_G_PENTE*Math.sin(v.tang)*dt-(moins?AVION_AEROFREIN*dt:0),0,v.def.vmax*1.35);
+  /* la hauteur : l'assiette, l'inclinaison (une aile basse porte moins) */
+  v.va=(v.v||0)*Math.sin(v.tang)*Math.cos(phi)-AVION_CHUTE_VIRAGE*(1-Math.cos(clamp(phi,-1.5,1.5)))*clamp((hS-4)/8,0,1)-(decroche?(19-(v.v||0))*0.6:0); }
+function figuresManche(v,dt){ /* chasseur et voltige : tiré à fond, nez au plus haut, il boucle (les tonneaux sont dans volManche) */
+  const A=pilotageAvion(v), dtd=dt/ETAT.timeScale; if(v.figureCdT>0) v.figureCdT-=dtd;
+  const ok=A.loop&&v.def.figures&&v.alt>LOOP_ALT_MIN&&v.decolT<=0&&!(v.figureCdT>0)&&!v.tonneau&&!v.tonFin;
+  if(ok&&(INPUT.ey||0)>0.9&&(v.tang||0)>A.tang*0.85){ v.holdLoopT=(v.holdLoopT||0)+dtd;
+    if(v.holdLoopT>=A.loop){ v.loopEnCours={t:0,altDep:v.alt,vDep:v.v,x0:v.mesh.rotation.x}; v.holdLoopT=0; v.figureCdT=FIGURE_COOLDOWN; } }
+  else v.holdLoopT=Math.max(0,(v.holdLoopT||0)-FIGURE_DECAY*dtd);
+  if(v.holdLoopT>0&&!v.loopEnCours&&A.loop){ loopRingEl.style.display='block'; loopRingEl.style.setProperty('--pct',Math.min(100,v.holdLoopT/A.loop*100)); } else loopRingEl.style.display='none'; }
 function majVol(v,dt){
   const air=v.def.air;
   if(v.alt===undefined){v.alt=0;v.vol=false;v.va=0;}
@@ -19870,7 +19941,15 @@ function majVol(v,dt){
     } else if(v.def.ovni) v.mesh.rotation.x=0;
     else { v.mesh.rotation.x=lerp(v.mesh.rotation.x,0,Math.min(1,PITCH_LISSAGE*dt)); v.mesh.rotation.z=lerp(v.mesh.rotation.z||0,0,Math.min(1,PITCH_LISSAGE*dt)); v.inclF=0; v.inclL=0; v.hvx=0; v.hvz=0; } // posé : retour à l'horizontale, à l'arrêt
   } else { // avion
-    if(!v.vol){
+    const manche=avionManche(v); if(v===P.veh) majBoutonsVol(v,manche);
+    if(!v.vol&&manche){ /* au manche, au sol : le joystick dirige, les gaz font rouler, on tire pour décoller */
+      majGazAvion(v,dt,monter,desc); const ex=clamp(INPUT.ex||0,-1,1);
+      majVehiculePhys(v,dt,v.gaz,-ex*(1-Math.min(0.6,(v.v||0)/60)),desc&&v.gaz<0.05); if(v.mort) return;
+      v.tang=0; v.bank=0; v.vb=0; v.vt=0; v.tonneau=0; v.tonFin=0;
+      if(v.v>=27&&!((INPUT.ey||0)>0.25)&&!AVION_AIDE.decol){ AVION_AIDE.decol=true; toast('✈ Vitesse de décollage : tire le joystick vers toi','or'); }
+      if(v.v>=27&&(INPUT.ey||0)>0.25){ v.vol=true; v.decolT=DECOL_GRACE; v.alt=poseY(v.x,v.z)+0.3; v.tang=0.1; v.va=0;
+        if(!META.defis.avion){META.defis.avion=true;} if(v.def.voltige&&!META.defis.voltigePilote){META.defis.voltigePilote=true;} toast('Décollage !','or'); SFX.vague(); }
+    } else if(!v.vol){
       const c=controleDir(v,false);
       majVehiculePhys(v,dt,c.throttle,c.steer,(desc||(v.v>0.5&&v.v<27))&&c.l<0.2); // au sol, joystick lâché : il freine (il ne s'arrêtait jamais)
       if(v.mort) return;
@@ -19893,14 +19972,16 @@ function majVol(v,dt){
     } else if(v.vrilleEnCours){
       majVrille(v,dt);
     } else {
+      const l=Math.hypot(INPUT.mx,INPUT.mz);
+      if(manche) volManche(v,dt,monter,desc); /* vue 3D et 1re personne : le manche */
+      else { if(v.tonneau||v.tonFin){ v.tonneau=0; v.tonFin=0; v.bank=Math.atan2(Math.sin(v.bank),Math.cos(v.bank)); } v.tang=undefined; v.gaz=undefined;
       const kB=Math.abs(v.bank||0)/AVION_INCL_MAX, hS0=v.alt-poseY(v.x,v.z); /* kB : 0 à plat, 1 à l'inclinaison maximale */
       v.v=lerp(v.v,desc?19:v.def.vmax*tenueK('aiguilleur',1.15)*(1-AVION_PERTE_VIRAGE*kB),0.5*dt); /* un virage serré coûte un peu de vitesse */
-      const l=Math.hypot(INPUT.mx,INPUT.mz);
       // le virage (18 octobre) : le joystick incline l'avion, l'inclinaison le fait tourner — voir virageAvion ;
       // def.turnVol reste le taux de chaque appareil (la voltige, « direction sensible », vire deux fois plus sec)
       virageAvion(v,l,dt);
       const vaC=(v.monterV?AVION_VA_MONTEE:0)+(v.descV?-AVION_VA_DESCENTE:0)-(v.v<19?9:0)-AVION_CHUTE_VIRAGE*kB*clamp((hS0-4)/8,0,1); v.va+=clamp(vaC-(v.va||0),-AVION_VA_ACC*dt,AVION_VA_ACC*dt); /* la montée se prend progressivement */
-      if(v.v<19&&Math.random()<0.1) toast('DÉCROCHAGE — accélère !','warn');
+      if(v.v<19&&Math.random()<0.1) toast('DÉCROCHAGE — accélère !','warn'); }
       { const hS=v.alt-poseY(v.x,v.z); if(v.va<0&&hS<(AVION_VA_DESCENTE-2.2)/0.9&&!estEau(v.x,v.z)) v.va=Math.max(v.va,-2.2-hS*0.9); } /* zone d'arrondi à la mesure de la descente : le freinage reste continu */ // arrondi : près du sol, la descente se ralentit d'elle-même (signalé : « impossible d'atterrir » — FREIN arrivait au sol à -11 u/s, crash au-delà de -4,5)
       v.alt=clamp(v.alt+v.va*dt,0,180);  // très haut au-dessus de la ville
       const nx=v.x+Math.sin(v.ang)*v.v*dt, nz=v.z+Math.cos(v.ang)*v.v*dt;
@@ -19910,11 +19991,12 @@ function majVol(v,dt){
       const surfA=poseY(v.x,v.z);
       if(v.alt<=surfA+0.15&&v.va<=0){
         if(v.decolT<=0&&((surfA<0.5&&estEau(v.x,v.z))||v.va<-4.5||v.v>32)){ crashAerien(v); return; }
-        v.vol=false; v.alt=surfA; v.v=Math.min(v.v,20); v.bank=0; v.vb=0; v.lacetAv=0; toast(surfA>4?'Posé sur le toit !':'Posé — lâche le joystick pour freiner','or');
+        v.vol=false; v.alt=surfA; v.v=Math.min(v.v,20); v.bank=0; v.vb=0; v.lacetAv=0; v.tang=0; v.vt=0; v.tonneau=0; v.tonFin=0; if(v.gaz!==undefined) v.gaz=Math.min(v.gaz,0.45); toast(surfA>4?'Posé sur le toit !':'Posé — lâche le joystick pour freiner','or');
         if(surfA>4&&!META.defis.toit){ META.defis.toit=true; bigMsg('POSÉ SUR LE TOIT'); }
       }
       const ck1P=v===P.veh&&vueCockpit(); /* au cockpit : assiette et roulis adoucis (AVION_TANGAGE_1P) */
-      v.mesh.rotation.z=lerp(v.mesh.rotation.z,-(v.bank||0)*(ck1P?AVION_INCL_1P:1),clamp(dt*10,0,1)); /* le roulis du virage (v.bank) : aile gauche vers le bas à gauche ; lissé au changement de vue */
+      if(manche){ v.mesh.rotation.z=-(v.bank||0); v.mesh.rotation.x=-(v.tang||0); figuresManche(v,dt); } else {
+      v.mesh.rotation.z=lerp(v.mesh.rotation.z,-(v.bank||0),clamp(dt*10,0,1)); /* le roulis du virage (v.bank) : aile gauche vers le bas à gauche ; lissé au changement de vue */
       // Assiette : le sens (nez qui se relève en montée, plonge en descente)
       // est correct — vérifié par un rendu de PROFIL réel (pas de calcul en
       // l'air) : le nez (cône pointu du fuselage, littéralement nommé `nez`
@@ -19978,6 +20060,7 @@ function majVol(v,dt){
           loopRingEl.style.setProperty('--pct',Math.min(100,v.holdLoopT/seuil*100));
         } else loopRingEl.style.display='none';
       } else { v.holdLoopT=0; v.holdVrilleT=0; v.figHeadingRef=undefined; loopRingEl.style.display='none'; }
+      } /* (fin de la vue 2D) */
     }
   }
   // limites du ciel : au-delà de la ville et de la mer, demi-tour
@@ -34402,6 +34485,11 @@ bindSw('tSfx','sfx',()=>{if(AUDIO.sfxG)AUDIO.sfxG.gain.value=REGLAGES.sfx?0.85:0
 bindSw('tVib','vib');
 el('tTirAuto').addEventListener('pointerdown',()=>{ META.tirAuto=META.tirAuto===false; el('tTirAuto').classList.toggle('on',META.tirAuto!==false); sauveMeta(); SFX.ui(); }); /* sauvegardé dans META */
 el('tTirAuto').classList.toggle('on',META.tirAuto!==false);
+/* l'horizon au cockpit des avions (18 octobre) : 100 % = l'horizon bascule de toute l'inclinaison de l'avion, comme dans un vrai
+   cockpit ; 70 % ou 40 % : plus doux (contre le mal de mer). Un appui passe au réglage suivant. */
+function majReglageHorizon(){ const b=el('tHorizonCk'); if(b) b.textContent=Math.round((META.horizonCk===undefined?1:META.horizonCk)*100)+' %'; }
+el('tHorizonCk').addEventListener('pointerdown',(e)=>{ e.preventDefault(); const h=META.horizonCk===undefined?1:META.horizonCk; META.horizonCk=h>0.85?0.7:(h>0.55?0.4:1); majReglageHorizon(); sauveMeta(); SFX.ui(); });
+majReglageHorizon();
 
 /* =====================================================================
    DÉBUT / FIN DE PARTIE
@@ -36287,6 +36375,9 @@ function vueCamera(dt,sx,sz){
   const fx=-Math.sin(VUE.yaw), fz=-Math.cos(VUE.yaw);
   let cx=P.x-fx*D+sx, cz=P.z-fz*D+sz;
   let cy=hSol+H;
+  /* avion au manche : la caméra reste dans l'axe de l'avion qui monte ou pique (elle passe dessous quand le nez se lève) */
+  VUE.tangCam=lerp(VUE.tangCam||0,v&&air&&v.vol&&avionManche(v)?(v.tang||0)*AVION_CAM_TANG:0,clamp(dt*2.5,0,1));
+  if(Math.abs(VUE.tangCam)>1e-3){ cy-=Math.sin(VUE.tangCam)*D; cy=Math.max(cy,solY(cx,cz)+1.5); }
   if(sal){ // en salle : la caméra reste entre les murs, et monte de ce qu'elle perd en recul
     const mW=sal.D.w/2-0.9, mP=sal.D.d/2-0.9, bx=clamp(cx,sal.ox-mW,sal.ox+mW), bz=clamp(cz,sal.oz-mP,sal.oz+mP);
     cy+=Math.hypot(cx-bx,cz-bz)*0.6; cx=bx; cz=bz;
@@ -36304,7 +36395,8 @@ function vueCamera(dt,sx,sz){
   cl.set(lerp(nx+cd.x*40,tx,k),lerp(ny+cd.y*40,ty,k),lerp(nz+cd.z*40,tz,k)); camera.lookAt(cl);
   /* aéronef en poursuite : la caméra prend un peu du roulis de l'appareil (30 %), en douceur — on sent le virage sans être secoué
      (17 octobre au soir, « la caméra suit ces inclinaisons avec douceur, sans à-coups ») */
-  if(v&&air&&!v.def.ovni&&v.vol){ VUE.roulisCam=lerp(VUE.roulisCam||0,-(v.mesh.rotation.z||0)*(v.def.air==='avion'?AVION_CAM_ROULIS:0.3),clamp(dt*2.5,0,1)); camera.rotateZ(VUE.roulisCam*k); } else VUE.roulisCam=0;
+  if(v&&air&&!v.def.ovni&&v.vol){ const rz=v.def.air==='avion'?(v.tonneau||v.tonFin?0:Math.atan2(Math.sin(v.mesh.rotation.z||0),Math.cos(v.mesh.rotation.z||0))):(v.mesh.rotation.z||0); /* un tonneau tourne à l'écran, la caméra garde l'horizon */
+    VUE.roulisCam=lerp(VUE.roulisCam||0,-rz*(v.def.air==='avion'?AVION_CAM_ROULIS:0.3),clamp(dt*2.5,0,1)); camera.rotateZ(VUE.roulisCam*k); } else VUE.roulisCam=0;
   // l'angle réellement affiché (pour le joystick)
   camera.getWorldDirection(cd); VUE.yawRendu=Math.hypot(cd.x,cd.z)>1e-3?Math.atan2(-cd.x,-cd.z):0;
   // le ciel : suit la caméra, couleurs du jour (horizon = fond de scène)
@@ -37687,7 +37779,7 @@ function cockpitRetirer(){ const C=COCKPIT; if(C.cls){ C.cls=false; document.bod
   if(v&&P.veh===v&&P.h&&P.surMoto) P.h.g.visible=true; }
 function majCockpit(v,dt){ const C=COCKPIT; if(!C.g) return; const d=v.def, joueur=v===P.veh&&v.conduit==='joueur';
   const a=v.ang||0, taux=dt>0?angDiff(C.angP===undefined?a:C.angP,a)/dt:0; C.angP=a; if(d.air) C.drAir=lerp(C.drAir||0,clamp(-taux*0.8,-1,1),clamp(dt*5,0,1));
-  const dr=d.air?C.drAir:-(v.steerIn||0), tg=d.air?clamp((C.vario||0)/8,-1,1):0, k=clamp(dt*8,0,1), f=C.fam; /* dr > 0 : on tourne à DROITE (steerIn < 0 : v.ang croît vers la gauche ; en l'air, le vrai taux de virage) ; tg > 0 : on monte, le manche est tiré */
+  const manC=joueur&&avionManche(v), dr=manC?clamp(INPUT.ex||0,-1,1):(d.air?C.drAir:-(v.steerIn||0)), tg=manC?clamp(INPUT.ey||0,-1,1):(d.air?clamp((C.vario||0)/8,-1,1):0), /* au manche : il suit le joystick */ k=clamp(dt*8,0,1), f=C.fam; /* dr > 0 : on tourne à DROITE (steerIn < 0 : v.ang croît vers la gauche ; en l'air, le vrai taux de virage) ; tg > 0 : on monte, le manche est tiré */
   if(C.volant){ const u=C.volant.userData;
     if(f==='moto'||f==='jetski'||f==='velo'){ C.volantA=lerp(C.volantA,-dr*0.38,k); C.volant.rotation.y=C.volantA; } /* virage à droite : la poignée droite revient vers le pilote (elle partait en avant : signalé « le guidon ne tourne pas dans le bon sens ») */
     else if(f==='kayak'){ C.volantA+=dt*Math.min(3,Math.abs(v.v||0))*1.4; C.volant.rotation.x=Math.sin(C.volantA)*0.5; C.volant.rotation.z=Math.cos(C.volantA)*0.25; }
@@ -37710,7 +37802,9 @@ function cameraCockpit(dt){ const v=P.veh, C=COCKPIT; if(C.v!==v||!C.g) cockpitC
   const e=C.eye; _ckV.set(e.x,e.y+bob,e.z).applyMatrix4(M); camera.position.copy(_ckV);
   { const cible=C.fam==='ovni'&&v.vol?-CK_OVNI_PLONGE*clamp(((v.alt||0)-poseY(v.x,v.z)-CK_OVNI_ALT[0])/(CK_OVNI_ALT[1]-CK_OVNI_ALT[0]),0,1):0; C.plonge=lerp(C.plonge||0,cible,clamp(dt*1.2,0,1)); } /* soucoupe : plus haut, le regard plonge vers le sol (elle ne s'incline jamais) */
   if(C.fam==='helico'){ const da=angDiff(C.angPrec===undefined?v.ang:C.angPrec,v.ang)/Math.max(dt,1e-3); C.angPrec=v.ang; C.regardVire=lerp(C.regardVire||0,clamp(da*0.3,-0.4,0.4),clamp(dt*2.5,0,1)); } else C.regardVire=0; /* hélico : le regard part dans le virage, le montant et la porte entrent dans le champ (17 octobre au soir : « quand on tourne, on a l'impression d'être dans le vide ») */
-  _ckQ.setFromEuler(_ckE.set(C.pitch+(C.plonge||0)+(VUE.pitch1P||0)*0.5,Math.PI+off+st0(v)*0.06+C.regardVire,0,'YXZ')); camera.quaternion.copy(C.quat).multiply(_ckQ); /* l'avant du véhicule est +z, la caméra regarde −z ; le regard part un peu dans le virage (steerIn < 0 = à droite, lacet négatif = regard à droite) */
+  { const man=avionManche(v), f=man?clamp(META.horizonCk===undefined?1:META.horizonCk,0,1):1, cible=man&&!v.tonneau&&!v.tonFin?-(1-f)*clamp(Math.atan2(Math.sin(v.bank||0),Math.cos(v.bank||0)),-1.5,1.5):0;
+    C.contreRoulis=lerp(C.contreRoulis||0,cible,clamp(dt*8,0,1)); } /* l'avion penche en entier ; l'œil se redresse de (1 − réglage) : l'horizon ne bascule que de la part choisie */
+  _ckQ.setFromEuler(_ckE.set(C.pitch+(C.plonge||0)+(VUE.pitch1P||0)*0.5,Math.PI+off+st0(v)*0.06+C.regardVire,C.contreRoulis||0,'YXZ')); camera.quaternion.copy(C.quat).multiply(_ckQ); /* l'avant du véhicule est +z, la caméra regarde −z ; le regard part un peu dans le virage (steerIn < 0 = à droite, lacet négatif = regard à droite) */
   const fov=CK_FOV+Math.min(vit,45)*0.18; if(Math.abs(camera.fov-fov)>0.05||camera.near!==0.05){ camera.fov=lerp(camera.fov,fov,0.2); camera.near=0.05; camera.updateProjectionMatrix(); }
   VUE.k=1; VUE.kVeh=1; VUE.yaw=(v.ang||0)+Math.PI+off; VUE.yawUser=VUE.yaw; VUE.offVehRendu=off+C.regardVire; /* le regard dans le virage ne change pas la conduite (vueAngleEcran le retranche) */
   if(!_chalCam.d) _chalCam.d=new THREE.Vector3(); const cd=_chalCam.d; camera.getWorldDirection(cd); VUE.yawRendu=Math.hypot(cd.x,cd.z)>1e-3?Math.atan2(-cd.x,-cd.z):0;

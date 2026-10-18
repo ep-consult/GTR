@@ -10049,6 +10049,7 @@ async function main() {
         if (!(P.hp < 500) || Math.abs(P.x - AERO.RX) < 2) ko.push('l’avion qui roule traverse le joueur sans le bousculer');
         d.etat = 'libre'; d.mesh.visible = false; AERO.piste = null; P.hp = P.maxHp = 1e6;
         // 7) les trois nouveaux avions : modèle à roues, décollage, montée sans crash au-dessus de la mer
+        META.vue = 'classique'; /* le joystick « direction » de la vue 2D (en 3D et en 1P, l'avion se pilote au manche : test « Pilotage au manche ») */
         for (const k of ['tourisme', 'jetprive', 'ligne']) {
           const m = makeVoiture(k); if (!m.userData.roues || m.userData.roues.length < 3) ko.push(k + ' : modèle sans train');
           for (const q of vehicules) if (q.key === 'ligne' || Math.abs(q.x - AERO.RX) < 16) q.mort = true; // le test maîtrise sa scène : la piste est libre
@@ -13892,39 +13893,47 @@ async function main() {
       if (r.ko.length) fail('Police en ville : ' + r.ko.join(' ; ')); else ok('Police en ville : ' + r.info.join(' ; '));
     }
     // -------------------------------------------------------------------
-    // Montée des avions au cockpit (17 octobre au soir, signalé : « quand
-    // l'avion monte, la vue 1re personne s'incline d'un coup, on ne voit plus
-    // que le sol ou le ciel »). Pour chaque avion de VEHDEFS (lu dans la
-    // source) : MONTER puis DESCENDRE tenus en vue 1P — la vitesse verticale
-    // se prend progressivement, la vue ne saute jamais, l'horizon reste à
-    // l'écran ; en vue de dessus, l'assiette reste marquée (lisibilité).
+    // Avions au cockpit (17 octobre au soir, signalé : « quand l'avion monte, la vue 1re personne s'incline d'un coup » ; 18 octobre :
+    // au cockpit, on pilote AU MANCHE). Pour chaque avion de VEHDEFS (lu dans la source), en vue 1P : tiré, le nez monte
+    // progressivement jusqu'à son assiette maximale (AVION_MANCHE, lue dans la source) et l'avion monte ; la vue ne saute jamais
+    // (au plus ~2 rad/s) ; lâché, le nez revient à plat ; poussé, il descend ; ACCÉLÉRER monte les gaz, qui restent ; les boutons
+    // disent ACCÉLÉRER et FREINER. En vue de dessus, MONTER reste MONTER et l'assiette reste marquée (lisibilité).
     // -------------------------------------------------------------------
-    console.log('\n--- Avions au cockpit : montée progressive, horizon toujours visible ---');
+    console.log('\n--- Avions au cockpit : au manche, tangage progressif, la vue ne saute jamais ---');
     {
       const r = await page.evaluate(() => {
         const ko = [], info = [];
         if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; for (const e of ennemis) e.mort = true; WAVES.etat = 'repos'; WAVES.t = 1e9;
-        const avions = Object.keys(VEHDEFS).filter((k) => VEHDEFS[k].air === 'avion');
-        const B = INPUT.btn, essai = (cle, vue) => { META.vue = vue; const v = creerVehicule(cle, POIS.place.x, POIS.place.z + 40, Math.PI, null); P.x = v.x; P.z = v.z; entrerVehicule(v);
-          v.vol = true; v.alt = 70; v.v = 38; v.va = 0; v.decolT = 0; v.figureCdT = 1e9; /* MONTER tenu : pas de looping (une figure voulue, chasseur et voltige) */ v.mesh.position.y = 70; INPUT.mx = INPUT.mz = 0; let prec = null, saut = 0, hMin = 9, hMax = -9, assMax = 0, va05 = null;
-          const pas = (n, m, d) => { for (let i = 0; i < n; i++) { B.sprint = m; B.frein = d; majVol(v, 1 / 30); v.mesh.position.set(v.x, v.alt, v.z); v.mesh.rotation.y = v.ang; P.x = v.x; P.z = v.z; majCamera(1 / 30);
-            camera.updateMatrixWorld(); const dir = camera.getWorldDirection(new THREE.Vector3()), pit = Math.asin(dir.y), l = Math.hypot(dir.x, dir.z) || 1;
-            if (prec !== null) saut = Math.max(saut, Math.abs(pit - prec)); prec = pit; assMax = Math.max(assMax, Math.abs(v.mesh.rotation.x));
-            const hz = new THREE.Vector3(camera.position.x + dir.x / l * 3000, camera.position.y, camera.position.z + dir.z / l * 3000).project(camera); hMin = Math.min(hMin, hz.y); hMax = Math.max(hMax, hz.y);
-            if (m && i === 14 && va05 === null) va05 = v.va; } };
-          pas(20, false, false); pas(90, true, false); pas(30, false, false); pas(75, false, true); B.sprint = B.frein = false;
-          const res = { saut, hMin, hMax, assMax, va05, vaFin: v.va, vaMax: AVION_VA_MONTEE }; sortirVehicule(true); scene.remove(v.mesh); libererEntite(v.mesh); const i = vehicules.indexOf(v); if (i >= 0) vehicules.splice(i, 1); return res; };
-        for (const cle of avions) {
-          const a = essai(cle, 'fps');
-          if (a.saut > 0.02) ko.push(cle + ' : la vue saute de ' + a.saut.toFixed(3) + ' rad en une image');
-          if (!(a.va05 < a.vaMax * 0.7)) ko.push(cle + ' : la montée se prend d’un coup (' + (a.va05 || 0).toFixed(1) + ' u/s après 0,5 s pour ' + a.vaMax + ')'); if (!(a.va05 > a.vaMax * 0.3)) ko.push(cle + ' : la montée traîne (' + (a.va05 || 0).toFixed(1) + ' u/s après 0,5 s)'); /* progressive mais vive (4e liste : montée plus rapide) */
-          if (a.hMin < -0.3 || a.hMax > 0.6) ko.push(cle + ' : l’horizon sort du cadre (' + a.hMin.toFixed(2) + ' … ' + a.hMax.toFixed(2) + ')');
-          if (a.assMax > 0.2) ko.push(cle + ' : assiette de ' + a.assMax.toFixed(2) + ' rad au cockpit');
-          info.push(cle + ' (horizon ' + a.hMin.toFixed(2) + '…' + a.hMax.toFixed(2) + ')');
-        }
-        const c = essai(avions[0], 'classique'); if (!(c.assMax > 0.5)) ko.push('vue de dessus : l’assiette n’est plus marquée (' + c.assMax.toFixed(2) + ')');
+        const avions = Object.keys(VEHDEFS).filter((k) => VEHDEFS[k].air === 'avion'), B = INPUT.btn;
+        const essai = (cle, vue) => { META.vue = vue; const v = creerVehicule(cle, POIS.place.x, POIS.place.z + 40, Math.PI, null); P.x = v.x; P.z = v.z; entrerVehicule(v);
+          v.vol = true; v.alt = 90; v.v = v.def.vmax * 0.8; v.va = 0; v.decolT = 0; v.figureCdT = 1e9; /* tiré à fond : pas de looping */ v.mesh.position.y = 90; INPUT.mx = INPUT.mz = 0; INPUT.ex = INPUT.ey = 0;
+          const R = { saut: 0, assMax: 0, tMax: 0 }; let prec = null;
+          const pas = (n, ey, m, f) => { for (let i = 0; i < n; i++) { INPUT.ex = 0; INPUT.ey = ey; B.sprint = m; B.frein = false; majVol(v, 1 / 30); v.alt = Math.max(v.alt, 40); v.mesh.position.set(v.x, v.alt, v.z); v.mesh.rotation.y = v.ang; P.x = v.x; P.z = v.z; majCamera(1 / 30);
+            camera.updateMatrixWorld(); const pit = Math.asin(camera.getWorldDirection(new THREE.Vector3()).y); if (prec !== null) R.saut = Math.max(R.saut, Math.abs(pit - prec)); prec = pit;
+            R.assMax = Math.max(R.assMax, Math.abs(v.mesh.rotation.x)); R.tMax = Math.max(R.tMax, v.tang || 0); if (f) f(i); } };
+          pas(10, 0, false); R.btn = el('btnSprint').textContent + ' / ' + el('btnBrake').textContent;
+          pas(45, 1, false, (i) => { if (i === 7) R.va025 = v.va; if (i === 29) R.va1 = v.va; }); pas(60, 0, false); R.platT = v.tang || 0;
+          pas(45, -1, false); R.vaPousse = v.va; pas(60, 0, false);
+          const g0 = v.gaz; pas(30, 0, true); const g1 = v.gaz; pas(30, 0, false); R.gaz = [g0, g1, v.gaz];
+          B.sprint = false; INPUT.ex = INPUT.ey = 0; sortirVehicule(true); scene.remove(v.mesh); libererEntite(v.mesh); const iv = vehicules.indexOf(v); if (iv >= 0) vehicules.splice(iv, 1);
+          R.A = pilotageAvion(v); return R; };
+        for (const cle of avions) { const a = essai(cle, 'fps');
+          if (!/ACCÉLÉRER/.test(a.btn) || !/FREINER/.test(a.btn)) ko.push(cle + ' : boutons « ' + a.btn + ' » au manche');
+          if (a.saut > 0.075) ko.push(cle + ' : la vue saute de ' + a.saut.toFixed(3) + ' rad en une image');
+          if (!(a.va025 < a.va1 && a.va1 > 3)) ko.push(cle + ' : tiré, la montée ne se prend pas progressivement (' + (a.va025 || 0).toFixed(1) + ' → ' + (a.va1 || 0).toFixed(1) + ' u/s)');
+          if (!(a.tMax > a.A.tang * 0.85 && a.tMax < a.A.tang * 1.06)) ko.push(cle + ' : assiette maximale ' + a.tMax.toFixed(2) + ' pour ' + a.A.tang);
+          if (Math.abs(a.platT) > 0.05) ko.push(cle + ' : lâché, le nez ne revient pas à plat (' + a.platT.toFixed(2) + ')');
+          if (!(a.vaPousse < -3)) ko.push(cle + ' : poussé, il ne descend pas (' + a.vaPousse.toFixed(1) + ' u/s)');
+          if (!(a.gaz[1] > a.gaz[0] + 0.1 && Math.abs(a.gaz[2] - a.gaz[1]) < 1e-6)) ko.push(cle + ' : gaz ' + a.gaz.map((x) => x.toFixed(2)).join(' → '));
+          info.push(cle + ' (nez ' + a.tMax.toFixed(2) + ', +' + a.va1.toFixed(0) + ' u/s)'); }
+        const c = essai(avions[0], 'classique'); if (!/MONTER/.test(c.btn)) ko.push('vue de dessus : boutons « ' + c.btn + ' »');
+        /* en vue de dessus, MONTER monte l'avion, assiette marquée */
+        { META.vue = 'classique'; const v = creerVehicule(avions[0], POIS.place.x, POIS.place.z + 40, Math.PI, null); P.x = v.x; P.z = v.z; entrerVehicule(v); v.vol = true; v.alt = 70; v.v = 38; v.va = 0; v.decolT = 0; v.figureCdT = 1e9; let ass = 0;
+          for (let i = 0; i < 60; i++) { B.sprint = true; majVol(v, 1 / 30); ass = Math.max(ass, Math.abs(v.mesh.rotation.x)); } B.sprint = false;
+          if (!(ass > 0.5)) ko.push('vue de dessus : l’assiette n’est plus marquée (' + ass.toFixed(2) + ')'); else info.push('vue de dessus : MONTER, assiette ' + ass.toFixed(2));
+          sortirVehicule(true); scene.remove(v.mesh); const iv = vehicules.indexOf(v); if (iv >= 0) vehicules.splice(iv, 1); }
         META.vue = 'classique'; majCamera(1 / 30);
-        return { ko, info: [avions.length + ' avions : ' + info.join(', ') + ' ; vue de dessus : assiette ' + c.assMax.toFixed(2)] };
+        return { ko, info: [avions.length + ' avions au manche : ' + info.join(', ')] };
       });
       if (r.ko.length) fail('Avions au cockpit : ' + r.ko.join(' ; ')); else ok('Avions au cockpit : ' + r.info.join(' ; '));
     }
@@ -13974,6 +13983,7 @@ async function main() {
       const r = await page.evaluate(() => {
         const ko = [], info = [];
         if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; for (const e of ennemis) e.mort = true; WAVES.etat = 'repos'; WAVES.t = 1e9;
+        META.vue = 'classique'; /* MONTER / DESCENDRE de l'avion : la vue 2D (au manche, ce sont les gaz) */
         const B = INPUT.btn, heli = Object.keys(VEHDEFS).find((k) => VEHDEFS[k].air === 'helico' && !VEHDEFS[k].ovni), avion = Object.keys(VEHDEFS).find((k) => VEHDEFS[k].air === 'avion');
         const essai = (cle, bouton, duree) => { const v = creerVehicule(cle, POIS.place.x, POIS.place.z + 40, Math.PI, null); P.x = v.x; P.z = v.z; entrerVehicule(v);
           v.vol = true; v.alt = 60; v.va = 0; v.v = VEHDEFS[cle].air === 'avion' ? 40 : 0; v.decolT = 0; v.figureCdT = 1e9; INPUT.mx = INPUT.mz = 0; B.sprint = B.frein = false;
@@ -14285,7 +14295,7 @@ async function main() {
         /* poursuite : la caméra penche, bien moins que l'avion */
         { META.vue = 'immersive'; const v = creerVehicule(avions[0], POIS.place.x, POIS.place.z + 60, Math.PI, null); P.x = v.x; P.z = v.z; entrerVehicule(v); v.vol = true; v.alt = 90; v.va = 0; v.v = v.def.vmax * 0.8; v.decolT = 0; v.figureCdT = 1e9;
           let camMax = 0, bMax = 0; for (let i = 0; i < 120; i++) { INPUT.jx = -1; INPUT.jy = 0; T += 1000 / 60; tick(T); v.alt = 90; v.va = 0; camMax = Math.max(camMax, Math.abs(VUE.roulisCam || 0)); bMax = Math.max(bMax, Math.abs(v.mesh.rotation.z)); }
-          INPUT.jx = 0; if (!(camMax > 0.03 && camMax < bMax * 0.4)) ko.push('poursuite : roulis de la caméra ' + camMax.toFixed(2) + ' pour ' + bMax.toFixed(2) + ' à l’avion');
+          INPUT.jx = 0; if (!(camMax > 0.03 && camMax <= bMax * AVION_CAM_ROULIS * 1.15)) ko.push('poursuite : roulis de la caméra ' + camMax.toFixed(2) + ' pour ' + bMax.toFixed(2) + ' à l’avion'); /* (vue 3D = au manche : AVION_CAM_ROULIS de l'inclinaison) */
           else info.push('poursuite : caméra ' + camMax.toFixed(2) + ' rad pour ' + bMax.toFixed(2) + ' à l’avion');
           sortirVehicule(true); scene.remove(v.mesh); const iv = vehicules.indexOf(v); if (iv >= 0) vehicules.splice(iv, 1); META.vue = 'classique'; }
         /* les avions du décor */
@@ -14298,6 +14308,75 @@ async function main() {
         majCamera(1 / 30); return { ko, info };
       });
       if (r.ko.length) fail('Virage des avions : ' + r.ko.join(' ; ')); else ok('Virage des avions : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
+    // Pilotage au manche (18 octobre, demandé : « en vue 3D et en 1re personne, piloter comme un vrai avion : joystick vers le bas
+    // le nez monte, vers le haut il descend, gauche-droite il s'incline et vire, les boutons deviennent accélérer et freiner ;
+    // lâché, il se remet à plat ; le chasseur fait des vrilles, la voltige est hyper maniable »). Vraie boucle, joystick brut :
+    // chaque avion de VEHDEFS penche à SON inclinaison (AVION_MANCHE, lue dans la source), vire du côté penché, sans saut, et
+    // revient à plat ; le long-courrier vire plus large que le Colibri ; tiré il monte, poussé il descend ; les gaz restent ;
+    // FREINER ralentit ; boutons ACCÉLÉRER / FREINER (MONTER en 2D) ; tonneaux à fond sur le côté (chasseur, voltige ; jamais le
+    // long-courrier, jamais en diagonale) ; looping tiré à fond ; au sol, on ne décolle qu'en tirant ; horizon du cockpit au réglage.
+    // -------------------------------------------------------------------
+    console.log('\n--- Pilotage au manche (vue 3D et 1re personne) : roulis, tangage, gaz, tonneaux, looping, décollage, horizon ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = []; let T = dernierT + 1000; const B = INPUT.btn; const pas = (n, f) => { for (let i = 0; i < n; i++) { if (f) f(i); T += 1000 / 60; tick(T); } };
+        const trafic0 = creerTrafic; creerTrafic = () => {}; const h0 = META.horizonCk;
+        const vol = (cle, vue) => { META.vue = vue; if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; ETAT.jour = 40; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9;
+          for (const o of vehicules) { scene.remove(o.mesh); libererEntite(o.mesh); } vehicules.length = 0; for (const e of ennemis) e.mort = true;
+          const v = creerVehicule(cle, POIS.place.x, POIS.place.z + 60, Math.PI, null); P.x = v.x; P.z = v.z; entrerVehicule(v); v.vol = true; v.alt = 150; v.va = 0; v.v = v.def.vmax * 0.8; v.decolT = 0; v.figureCdT = 1e9;
+          INPUT.jx = INPUT.jy = 0; B.sprint = B.frein = false; pas(20); return v; };
+        const avions = Object.keys(VEHDEFS).filter((k) => VEHDEFS[k].air === 'avion'), lacets = {};
+        for (const cle of avions) { const v = vol(cle, 'immersive'), A = pilotageAvion(v); let bmax = 0, bmin = 0, saut = 0, pb = v.bank || 0, tPlat = -1; const a0 = v.ang;
+          let cap = 0, ap = v.ang; pas(120, () => { INPUT.jx = -0.85; INPUT.jy = 0; v.alt = 150; saut = Math.max(saut, Math.abs(v.bank - pb)); pb = v.bank; cap += angDiff(ap, v.ang); ap = v.ang; }); bmax = v.bank; lacets[cle] = v.lacetAv; /* cap cumulé : la voltige fait plus d'un demi-tour */
+          pas(150, (i) => { INPUT.jx = 0; v.alt = 150; saut = Math.max(saut, Math.abs(v.bank - pb)); pb = v.bank; if (tPlat < 0 && Math.abs(v.bank) < 0.03) tPlat = i / 60; });
+          pas(120, () => { INPUT.jx = 0.85; v.alt = 150; saut = Math.max(saut, Math.abs(v.bank - pb)); pb = v.bank; bmin = Math.min(bmin, v.bank); }); INPUT.jx = 0;
+          if (!(bmax > A.incl * 0.8 && bmax < A.incl * 1.06)) ko.push(cle + ' : inclinaison ' + bmax.toFixed(2) + ' rad pour ' + A.incl);
+          if (!(cap > 0.25)) ko.push(cle + ' : penché à gauche, il ne vire pas à gauche (' + cap.toFixed(2) + ')');
+          if (!(bmin < -A.incl * 0.8)) ko.push(cle + ' : à droite, inclinaison ' + bmin.toFixed(2));
+          if (!(tPlat >= 0 && tPlat < 2)) ko.push(cle + ' : lâché, pas à plat (' + tPlat.toFixed(2) + ' s)');
+          if (saut > A.vRoul / 60 * 1.15 + 0.005) ko.push(cle + ' : saut de roulis de ' + saut.toFixed(3) + ' rad en une image'); }
+        if (!(lacets.ligne < lacets.avion * 0.6)) ko.push('le long-courrier vire aussi serré que le Colibri (' + (lacets.ligne || 0).toFixed(2) + ' contre ' + (lacets.avion || 0).toFixed(2) + ' rad/s)');
+        info.push(avions.length + ' avions inclinés à leur maximum, à plat au relâcher ; virage ' + (lacets.avion || 0).toFixed(2) + ' rad/s (Colibri) contre ' + (lacets.ligne || 0).toFixed(2) + ' (long-courrier)');
+        // tangage, gaz, boutons
+        { const v = vol('avion', 'immersive'); const btn = el('btnSprint').textContent + ' / ' + el('btnBrake').textContent; const a0 = v.alt;
+          pas(90, () => { INPUT.jy = 1; }); const monte = v.alt - a0; INPUT.jy = 0; pas(120); const plat = v.tang; const a1 = v.alt; pas(60, () => { INPUT.jy = -1; }); const descend = a1 - v.alt; INPUT.jy = 0; pas(90);
+          const g0 = v.gaz; pas(60, () => { B.sprint = true; }); B.sprint = false; const g1 = v.gaz; pas(60); const g2 = v.gaz, v0 = v.v; pas(60, () => { B.frein = true; }); B.frein = false; const g3 = v.gaz, v1 = v.v;
+          if (!/ACCÉLÉRER/.test(btn) || !/FREINER/.test(btn)) ko.push('boutons au manche : « ' + btn + ' »');
+          if (!(monte > 5 && descend > 3 && Math.abs(plat) < 0.05)) ko.push('tangage : tiré +' + monte.toFixed(1) + ' u, lâché nez ' + plat.toFixed(2) + ', poussé −' + descend.toFixed(1) + ' u');
+          if (!(g1 > g0 + 0.1 && Math.abs(g2 - g1) < 1e-6 && g3 < g2 - 0.1 && v1 < v0 - 3)) ko.push('gaz ' + [g0, g1, g2, g3].map((x) => x.toFixed(2)).join(' → ') + ', vitesse ' + v0.toFixed(0) + ' → ' + v1.toFixed(0));
+          info.push('tiré +' + monte.toFixed(0) + ' u en 1,5 s, poussé −' + descend.toFixed(0) + ' u en 1 s ; gaz ' + g0.toFixed(2) + ' → ' + g1.toFixed(2) + ' (restent), FREINER : ' + v0.toFixed(0) + ' → ' + v1.toFixed(0) + ' u/s'); }
+        { META.vue = 'classique'; const v = vol('avion', 'classique'); if (!/MONTER/.test(el('btnSprint').textContent)) ko.push('vue 2D : bouton « ' + el('btnSprint').textContent + ' »'); }
+        // tonneaux : chasseur et voltige, à fond purement sur le côté ; jamais le long-courrier ; jamais en diagonale
+        for (const cle of ['chasseur', 'voltige', 'ligne']) { const v = vol(cle, 'immersive'), A = pilotageAvion(v), n0 = META.stats.loopings || 0; let maxB = 0, tPlat = -1;
+          pas(240, () => { INPUT.jx = -1; INPUT.jy = 0; v.alt = 150; maxB = Math.max(maxB, Math.abs(v.bank)); }); const tours = (META.stats.loopings || 0) - n0;
+          pas(150, (i) => { INPUT.jx = 0; v.alt = 150; if (tPlat < 0 && Math.abs(Math.atan2(Math.sin(v.bank), Math.cos(v.bank))) < 0.03) tPlat = i / 60; });
+          if (A.tonneau && !(tours >= 1 && tPlat >= 0 && tPlat < 1.6)) ko.push(cle + ' : tonneaux ' + tours + ', à plat en ' + tPlat.toFixed(2) + ' s');
+          if (!A.tonneau && (tours || maxB > A.incl * 1.06)) ko.push(cle + ' : il part en tonneau (' + maxB.toFixed(2) + ' rad)');
+          if (A.tonneau) { let maxD = 0; pas(150, () => { INPUT.jx = -0.95; INPUT.jy = 0.6; v.alt = 150; maxD = Math.max(maxD, Math.abs(v.bank)); }); INPUT.jx = INPUT.jy = 0;
+            if (v.tonneau || maxD > A.incl * 1.06) ko.push(cle + ' : en diagonale (virage serré), il part en tonneau'); }
+          info.push(cle + (A.tonneau ? ' : ' + tours + ' tonneau(x) en 4 s, à plat ' + tPlat.toFixed(1) + ' s après' : ' : jamais de tonneau')); }
+        // looping tiré à fond
+        { const v = vol('chasseur', 'immersive'); v.figureCdT = 0; let boucle = false; pas(180, () => { INPUT.jy = 1; v.alt = Math.max(v.alt, 120); if (v.loopEnCours) boucle = true; }); INPUT.jy = 0; pas(120);
+          if (!boucle || Math.abs(v.tang || 0) > 0.05) ko.push('chasseur tiré à fond : looping ' + boucle + ', nez ' + (v.tang || 0).toFixed(2)); else info.push('looping tiré à fond'); }
+        // au sol : les gaz font rouler ; on ne décolle qu'en tirant
+        { META.vue = 'immersive'; if (P.veh) sortirVehicule(true); startRun(); for (const o of vehicules) { scene.remove(o.mesh); libererEntite(o.mesh); } vehicules.length = 0; const pi = POIS.piste || POIS.aerodrome;
+          const v = creerVehicule('avion', pi.x, pi.z, pi.ang || 0, null); P.x = v.x; P.z = v.z; entrerVehicule(v); pas(10); let vmax = 0; pas(300, () => { B.sprint = true; vmax = Math.max(vmax, v.v); }); B.sprint = false;
+          const sol = !v.vol; pas(40, () => { INPUT.jy = 1; }); INPUT.jy = 0;
+          if (!(vmax >= 27 && sol && v.vol)) ko.push('au sol : ' + vmax.toFixed(0) + ' u/s, au sol sans tirer ' + sol + ', décolle en tirant ' + v.vol); else info.push('au sol : ' + vmax.toFixed(0) + ' u/s sans décoller, décolle en tirant'); }
+        // horizon du cockpit : la part réglée de l'inclinaison
+        { const hz = () => { camera.updateMatrixWorld(); const d = camera.getWorldDirection(new THREE.Vector3()), l = Math.hypot(d.x, d.z) || 1, fx = d.x / l, fz = d.z / l, c = camera.position;
+            const a = new THREE.Vector3(c.x + fx * 800 - fz * 150, c.y, c.z + fz * 800 + fx * 150).project(camera), b = new THREE.Vector3(c.x + fx * 800 + fz * 150, c.y, c.z + fz * 800 - fx * 150).project(camera);
+            let ang = Math.atan2((b.y - a.y) * renderer.domElement.height, (b.x - a.x) * renderer.domElement.width); if (ang > Math.PI / 2) ang -= Math.PI; if (ang < -Math.PI / 2) ang += Math.PI; return Math.abs(ang); };
+          const lig = []; for (const f of [1, 0.7, 0.4]) { META.horizonCk = f; const v = vol('chasseur', 'fps'); pas(80, () => { INPUT.jx = -0.6; v.alt = 150; }); const bank = Math.abs(v.bank), tilt = hz(); INPUT.jx = 0;
+            if (Math.abs(tilt - f * bank) > 0.08) ko.push('horizon à ' + Math.round(f * 100) + ' % : ' + (tilt * 57.3).toFixed(0) + '° pour un avion à ' + (bank * 57.3).toFixed(0) + '°');
+            lig.push(Math.round(f * 100) + ' % → ' + (tilt * 57.3).toFixed(0) + '°'); }
+          info.push('horizon au cockpit (avion à ~48°) : ' + lig.join(', ')); }
+        META.horizonCk = h0; creerTrafic = trafic0; INPUT.jx = INPUT.jy = 0; B.sprint = B.frein = false; if (P.veh) sortirVehicule(true); META.vue = 'classique'; majCamera(1 / 30);
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Pilotage au manche : ' + r.ko.join(' ; ')); else ok('Pilotage au manche : ' + r.info.join(' ; '));
     }
     // -------------------------------------------------------------------
     // Pictos MONTER / DESCENDRE (17 octobre au soir, 2e liste, signalé : « les
