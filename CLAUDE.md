@@ -1220,6 +1220,13 @@ chères, et augmente le prix de la villa ». Marques de fantaisie (univers ficti
   (`inter.armesBlanches`, lue par `armeMurProche` avec le mur). La Vertèbre y est un trophée (« réunis les curiosités »).
   `actionShop('buyW')` porte sa propre garde (déjà possédée, `cachee`, niveau). Toast d'achat neutre (« Achat : … » ; avant,
   « Couteau achetée »). Test « Armes blanches de l'armurerie ».
+- **Les deux battes** (4e liste, signalé : « la Vertèbre est une batte à piques blanche identique à la cloutée ») :
+  `construireBatte(id)`, géométries partagées dans `_GEO_ARMES`, matériaux dans `matsArme()` (`os`, `osP`, `disque`, `cuir`,
+  `cuirF`). La cloutée est une vraie batte de bois (pommeau, manche fin sous ruban, fût qui s'évase ; l'ancienne était épaisse au
+  manche et fine au bout, ses clous flottaient à 3 cm du bois), quinze clous plantés de part en part ; la Vertèbre, une colonne de
+  huit vertèbres qui grossissent vers le bout, crête d'apophyses, disques sombres, manche d'os gainé de cuir lacé, pommeau à deux
+  condyles. Manche et tête sont des maillages séparés (`userData.partie`) : la « lame enflammée » ne fait rougir que la tête. Le
+  manche reste où la main le tient (`ANCRES_ARME`). Test « Battes ».
 
 ### Dégâts V2 et murs (18 octobre, lot 2) — `degatsChoc`, `bosseler`, `perdreRoue`, `degagerDesMurs`
 

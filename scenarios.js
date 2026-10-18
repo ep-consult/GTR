@@ -11708,6 +11708,35 @@ async function main() {
       if (r.ko.length) fail('Armes blanches de l’armurerie : ' + r.ko.join(' ; ')); else ok('Armes blanches de l’armurerie : ' + r.info.join(' ; '));
     }
     // -------------------------------------------------------------------
+    // Les deux battes (18 octobre, 4e liste, signalé : « la Vertèbre est une batte à piques blanche identique à la batte cloutée ») :
+    // deux modèles distincts — la cloutée est fine au manche et épaisse au bout (l'ancienne était inversée), ses clous partent du
+    // bois ; la Vertèbre est en os (matériaux os, disques) ; géométries partagées (jamais libérées) ; la « lame enflammée » ne fait
+    // rougir que la tête, jamais le manche.
+    // -------------------------------------------------------------------
+    console.log('\n--- Battes : la cloutée et la Vertèbre, deux modèles ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [], M = matsArme();
+        const desc = (id) => { const g = mkArmeModele(id); const out = { mats: new Set(), parties: new Set(), sommets: 0, geos: [] }; g.traverse((o) => { if (o.isMesh) { out.mats.add(o.material); out.parties.add(o.userData.partie); out.sommets += o.geometry.attributes.position.count; out.geos.push(o.geometry); } }); out.g = g; return out; };
+        const a = desc('batte'), b = desc('batte2');
+        if (a.sommets === b.sommets || [...b.mats].some((m) => a.mats.has(m))) ko.push('les deux battes partagent leur modèle ou leurs matériaux');
+        if (!b.mats.has(M.os) || !b.mats.has(M.disque)) ko.push('la Vertèbre n’est pas en os');
+        if ([...a.geos, ...b.geos].some((q) => !q.userData.partagee)) ko.push('géométrie de batte non partagée (elle serait libérée avec un ennemi)');
+        /* la cloutée : rayon du bois près du manche et près du bout */
+        const bois = a.g.children.filter((o) => o.material === M.bois); let rManche = 0, rBout = 0;
+        for (const o of bois) { const p = o.geometry.attributes.position; for (let i = 0; i < p.count; i++) { const y = p.getY(i), rr = Math.hypot(p.getX(i), p.getZ(i)); if (y > -0.25 && y < -0.05) rManche = Math.max(rManche, rr); if (y < -0.8 && y > -1.0) rBout = Math.max(rBout, rr); } }
+        if (!(rBout > rManche * 2)) ko.push('la cloutée n’est pas plus épaisse au bout qu’au manche (' + rManche.toFixed(3) + ' → ' + rBout.toFixed(3) + ')');
+        const clous = a.g.children.find((o) => o.material === M.acier); let rMin = 9; if (clous) { const p = clous.geometry.attributes.position; for (let i = 0; i < p.count; i++) rMin = Math.min(rMin, Math.hypot(p.getX(i), p.getZ(i))); }
+        if (!clous || !(rMin < 0.064)) ko.push('les clous ne partent pas du bois (' + rMin.toFixed(3) + ')');
+        /* lame enflammée : seule la tête rougit */
+        for (const id of ['batte', 'batte2']) { const g = habillerArme(mkArmeModele(id), id, ['lameFeu']); let manche = 0, tete = 0; g.traverse((o) => { if (o.isMesh && o.material === _MATS_FINITION._braise) { if (o.userData.partie === 'manche') manche++; else tete++; } });
+          if (manche || !tete) ko.push(id + ' : lame enflammée sur le manche (' + manche + ') ou pas sur la tête (' + tete + ')'); }
+        info.push('cloutée ' + rManche.toFixed(3) + ' → ' + rBout.toFixed(3) + ' u de rayon, clous plantés ; Vertèbre en os (' + b.sommets + ' sommets) ; lame enflammée sur la tête seule');
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Battes : ' + r.ko.join(' ; ')); else ok('Battes : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
     // Terrains de sport des parcs (17 octobre, demandé : « un terrain de foot
     // et d'autres terrains de sport pour faire vivre l'endroit de verdure ») :
     // le match se joue tout seul (le ballon reste sur le terrain, les joueurs
