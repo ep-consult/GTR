@@ -55,7 +55,7 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
   echo "$ln | $(sed -n "$((ln+1))p" index.html | sed 's/^[ \t]*//')"; done
 ```
 
-**Relevé du 18 octobre — 37 904 lignes.**
+**Relevé du 18 octobre — 38 114 lignes.**
 Attention : `maj_carte` recale les numéros dans l'ordre des lignes de la table ;
 un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la main.
 
@@ -84,36 +84,37 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 9465 | **TERRAINS DE SPORT DES PARCS** (`SPORTS`, `mkSportsParcs`, `majSportsParcs`, match de foot) |
 | 9723 | **ARÈNE DE DERBY** (`DERBY`, `mkArenaDerby`, `majDerby`, `majDerbyIA`, voitures et améliorations de derby) |
 | 14390 | MODÈLES — humains, armes, véhicules, hélico, ramassables |
-| 16667 | POOLS — balles, particules, textes flottants, traces de pneus |
-| 17053 | ÉTAT GLOBAL + JOUEUR (`P`) |
-| 17929 | VÉHICULES — physique arcade, trafic, dégâts |
-| 20883 | PIÉTONS |
-| 21153 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
-| 21741 | **RAYON TRACTEUR DE L'OVNI** |
-| 22206 | NIVEAU DE RECHERCHE (étoiles) |
-| 22562 | VAGUES + bonus de fin de vague |
-| 22687 | MISSIONS COURTES |
-| 22690 | BÂTIMENTS VISITABLES — intérieurs |
-| 22760 | FOUILLE — mécanique générique |
-| 23308 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
-| 27541 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
-| 27950 | **LAVERIE** V2 — l'essorage de la machine 7 |
-| 28215 | **SERRE** V2 — la nuit de la floraison |
-| 28508 | CINÉ-PALACE |
-| 28752 | MÉTRO ABANDONNÉ |
-| 28818 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
-| 29171 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
-| 30073 | SITE 51 |
-| 30303 | LE DÉPÔT DE BUS — courses clandestines |
-| 31750 | **MÉTIERS** — missions liées à un véhicule |
-| 32041 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
-| 33063 | ÉCRANS / MENUS / BOUTIQUES |
-| 33338 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
-| 34165 | DÉBUT / FIN DE PARTIE |
-| 35700 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
-| 35941 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
-| 36231 | **COCKPITS** — vue 1re personne au volant (`COCKPIT`, `COCKPIT_FAMILLES`, `cockpitDims`, `mkCockpitInterieur`, `ckDessiner`, `rendreCockpit`, `cameraCockpit`, `cockpitDiagnostic`, `photoCockpit`) |
-| 37769 | BOUCLE PRINCIPALE |
+| 14819 | **COUPS À L'ARME BLANCHE** — `COUPS`, `lancerCoup`, `majCoup3P`, `finCoup` (un geste par arme, 3e et 1re personne) |
+| 16746 | POOLS — balles, particules, textes flottants, traces de pneus |
+| 17223 | ÉTAT GLOBAL + JOUEUR (`P`) |
+| 18100 | VÉHICULES — physique arcade, trafic, dégâts |
+| 21070 | PIÉTONS |
+| 21340 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
+| 21929 | **RAYON TRACTEUR DE L'OVNI** |
+| 22394 | NIVEAU DE RECHERCHE (étoiles) |
+| 22750 | VAGUES + bonus de fin de vague |
+| 22875 | MISSIONS COURTES |
+| 22878 | BÂTIMENTS VISITABLES — intérieurs |
+| 22948 | FOUILLE — mécanique générique |
+| 23496 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
+| 27745 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
+| 28154 | **LAVERIE** V2 — l'essorage de la machine 7 |
+| 28419 | **SERRE** V2 — la nuit de la floraison |
+| 28712 | CINÉ-PALACE |
+| 28956 | MÉTRO ABANDONNÉ |
+| 29022 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
+| 29375 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
+| 30277 | SITE 51 |
+| 30507 | LE DÉPÔT DE BUS — courses clandestines |
+| 31954 | **MÉTIERS** — missions liées à un véhicule |
+| 32245 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
+| 33267 | ÉCRANS / MENUS / BOUTIQUES |
+| 33543 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
+| 34370 | DÉBUT / FIN DE PARTIE |
+| 35907 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
+| 36148 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
+| 36441 | **COCKPITS** — vue 1re personne au volant (`COCKPIT`, `COCKPIT_FAMILLES`, `cockpitDims`, `mkCockpitInterieur`, `ckDessiner`, `rendreCockpit`, `cameraCockpit`, `cockpitDiagnostic`, `photoCockpit`) |
+| 37979 | BOUCLE PRINCIPALE |
 
 ### Ancres fines (hors bandeaux)
 
@@ -127,17 +128,17 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 2145 | `fusionMeta()` — deep-merge de la sauvegarde, `DICOS_OUVERTS` juste avant |
 | 2181 | `CURIOS` — tableau des curiosités |
 | 2232 | `CURIOS_ACTIVES` |
-| 2246 | déblocage de `batte2` (toutes curiosités actives réunies) |
+| 2247 | déblocage de `batte2` (toutes curiosités actives réunies) |
 | 2657 | `VEHDEFS` — véhicules, éligibilité garage (`tuningMeca`, `tuningCarro`) |
-| 2687 | `PROFILS_VOITURE` — silhouettes des voitures réalistes, `ancragesProfil`, modèles de luxe ajoutés à `VEHDEFS` |
-| 3306 | mer V2 : `houle()`/`houleY()`, shader (`merV2Materiau`), sillage, éclaboussures, `assietteHoule()` |
+| 2829 | `PROFILS_VOITURE` — silhouettes des voitures réalistes, `ancragesProfil`, modèles de luxe ajoutés à `VEHDEFS` |
+| 3321 | mer V2 : `houle()`/`houleY()`, shader (`merV2Materiau`), sillage, éclaboussures, `assietteHoule()` |
 | 3654 | `finaliserMerge()` |
 | 4235 | `mkLittoral()` — fondus sable/mer/désert, vagues sur le sable |
 | 4290 | `mkHorsLesMurs()` — décor factice hors de l'enceinte |
 | 4406 | `MOB_CAT` — catalogue du mobilier urbain, puis `mkMobilierUrbain()`, `majMobilier()`, `garerVelos()` |
 | 4937 | `JETEE` — jetée de fête foraine : `ZONES_SANS_MOBILIER`, `mkJeteeForaine()`, `majJetee()` |
 | 5068 | `SKATE` — skatepark : `mkSkatepark()`, `texMurSkate()` |
-| 4542 | `SKX` — Reyes Skatepark XXL : `hauteurSkateXXL()`, `zoneVertSkate()`, `mkSkateXXL()`, `majSkateXXL()` |
+| 5150 | `SKX` — Reyes Skatepark XXL : `hauteurSkateXXL()`, `zoneVertSkate()`, `mkSkateXXL()`, `majSkateXXL()` |
 | 5284 | `PORT` — port vivant : `mkPortVivant()`, `majPortVivant()` |
 | 5383 | `BROOK` — Brooklyn : `texFresque()`, `mkBrooklyn()`, `majBrooklyn()` |
 | 5599 | `CIEL` — dirigeable, avion à banderole, mouettes, feux d'artifice : `mkCiel()`, `majCiel()` |
@@ -155,34 +156,37 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 13674 | helper `poser()` — placement des lieux |
 | 13700 | `caseCentre(bx,bz)` |
 | 13793 | `REPLIS` — filet de sécurité en spirale |
-| 16535 | `makeVelo()` — vélo de ville et BMX |
-| 13574 | `voitureV2()` — voiture réaliste : `geoVoiture` (géométries partagées par modèle), `janteVoiture` |
+| 16614 | `makeVelo()` — vélo de ville et BMX |
+| 16576 | `voitureV2()` — voiture réaliste : `geoVoiture` (géométries partagées par modèle), `janteVoiture` |
 | 13461 | `ENSEIGNES` — portes mieux placées : `ameliorerPortes()`, `profondeurDevant()`, `orienterPorte()` |
-| 17061 | `const P` — état du joueur |
-| 17104 | `P.stamMax = 100 + 12*mus` |
-| 18455 | `resoudreCollisionsVehicule()` — collisions entre véhicules (SAT sur les 4 axes) |
-| 19151 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
-| 19275 | `boutonsAPied()` — boutons du HUD remis « à pied » (sortie de véhicule ET début de partie) |
-| 20289 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
-| 20421 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
-| 22696 | `IOFF = -9000` |
-| 24500 | `INTDEFS` — définitions des **28 salles** (27 + la boutique) |
-| 24885 | `construireSalle(id)` |
-| 20390 | `CHALUTIER_BANCS_PLAN` — chalutier V2 ; `chalutierMaj` (20761), `dessinerRadarChalutier` (21018) |
-| 31759 | `METIERS_CIBLE` |
-| 32059 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
-| 32147 | `PIECES_FAMILLES` — catalogues de pièces par famille |
-| 32457 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
-| 32521 | `libererObjet()` — libère les géométries d'un objet retiré |
-| 32537 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
-| 32667 | `construireGarageTuning()` — la salle partagée |
-| 33037 | `majNitro()` |
-| 17883 | `degatsChoc()` — dégâts V2 : `bosseler`, débris, `perdreRoue` ; murs : `degagerDesMurs` (plus haut) |
-| 7682 | `SAUTV` — Saut du Vertige : `hauteurSautVertige`, `mkSautVertige`, `mkBargeVertige`, `finSautVertige` |
-| 35625 | `VUE1P` — vue à la 1re personne : `cameraPremiere`, `ligneDeMire`, `viseAuto1P` |
-| 9554 | `SPORTJ` — le centre sportif se joue : `sportjDemarrer`, `majSportJ`, `sportjFrapper` |
-| 8980 | `RECHARGE_ARME` — rechargements à la 1re personne : `animRecharge`, `rechPiece`, `rechRemise`, `rechAccessoire` |
-| 36640 | `CK_HAB` — cockpits V2 : `CK_TH`, `CK_CADRANS`, `ckDial`, `ckCombine`, `ckHabitacle`, `ckVolant2`, `ckMain`, `ckDeuxRoues`, `ckBateau2`, `ckAvion2`, `ckHoloOvni` |
+| 17231 | `const P` — état du joueur |
+| 17274 | `P.stamMax = 100 + 12*mus` |
+| 18626 | `resoudreCollisionsVehicule()` — collisions entre véhicules (SAT sur les 4 axes) |
+| 19323 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
+| 19447 | `boutonsAPied()` — boutons du HUD remis « à pied » (sortie de véhicule ET début de partie) |
+| 20476 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
+| 20608 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
+| 22884 | `IOFF = -9000` |
+| 24688 | `INTDEFS` — définitions des **28 salles** (27 + la boutique) |
+| 25073 | `construireSalle(id)` |
+| 29429 | `CHALUTIER_BANCS_PLAN` — chalutier V2 ; `chalutierMaj` (29931), `dessinerRadarChalutier` (30242) |
+| 31963 | `METIERS_CIBLE` |
+| 32263 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
+| 32351 | `PIECES_FAMILLES` — catalogues de pièces par famille |
+| 32661 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
+| 32725 | `libererObjet()` — libère les géométries d'un objet retiré |
+| 32741 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
+| 32871 | `construireGarageTuning()` — la salle partagée |
+| 33241 | `majNitro()` |
+| 18293 | `degatsChoc()` — dégâts V2 : `bosseler`, débris, `perdreRoue` ; murs : `degagerDesMurs` (plus haut) |
+| 7701 | `SAUTV` — Saut du Vertige : `hauteurSautVertige`, `mkSautVertige`, `mkBargeVertige`, `finSautVertige` |
+| 36330 | `VUE1P` — vue à la 1re personne : `cameraPremiere`, `ligneDeMire`, `viseAuto1P` |
+| 9621 | `SPORTJ` — le centre sportif se joue : `sportjDemarrer`, `majSportJ`, `sportjFrapper` |
+| 9047 | `RECHARGE_ARME` — rechargements à la 1re personne : `animRecharge`, `rechPiece`, `rechRemise`, `rechAccessoire` |
+| 36850 | `CK_HAB` — cockpits V2 : `CK_TH`, `CK_CADRANS`, `ckDial`, `ckCombine`, `ckHabitacle`, `ckVolant2`, `ckMain`, `ckDeuxRoues`, `ckBateau2`, `ckAvion2`, `ckHoloOvni` |
+| 14641 | `construireBatte(id)` — la batte cloutée et la Vertèbre (géométries partagées, manche et tête séparés) |
+| 16961 | `lancerMissileAvion()` — le missile des appareils : `missileProfil`, `missilePos`, `missileTraj`, traînée `MFUM` |
+| 19560 | `appuiVolCran()` — un appui bref sur MONTER / DESCENDRE vaut un cran (`APPUI_VOL_MIN`) |
 
 ---
 
