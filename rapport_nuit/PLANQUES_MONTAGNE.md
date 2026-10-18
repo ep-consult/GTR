@@ -23,22 +23,22 @@ carte, taxis) : on entre par la zone `pq.entree` de la planque possédée ; `por
 ## Partie A — intérieurs des planques
 
 ### Socle commun
-- [ ] Salles `INTDEFS.<planque>` (construction `construirePlanqueSalle`, enveloppe générique masquée, hors habillage V2)
-- [ ] Entrer par la porte de la planque possédée (ENTRER) ; achat devant inchangé ; ressortir devant la porte
-- [ ] Zones dedans : lit, coffre, spécificité, activité (+ extra) ; toutes à ≥ 8 u de la SORTIE
-- [ ] Lumière d'ambiance propre (`jourNuit`, `s.pqAmb`, `lampeNuit`), sons d'ambiance coupés par tous les chemins
-- [ ] Records des mini-jeux sauvegardés (`META.planquesJeux`, clés fixes) ; timers en `dtJeu`
-- [ ] Toits et auvents masqués quand le joueur est dessous (vue de dessus)
-- [ ] `porteSalle(id)` lu par les tests qui parcourent `INTDEFS`
+- [x] Salles `INTDEFS.<planque>` (construction `construirePlanqueSalle`, enveloppe générique masquée, hors habillage V2)
+- [x] Entrer par la porte de la planque possédée (ENTRER) ; achat devant inchangé ; ressortir devant la porte
+- [x] Zones dedans : lit, coffre, spécificité, activité (+ extra) ; toutes à ≥ 8 u de la SORTIE
+- [x] Lumière d'ambiance propre (`jourNuit`, `s.pqAmb`, `lampeNuit`), sons d'ambiance coupés par tous les chemins
+- [x] Records des mini-jeux sauvegardés (`META.planquesJeux`, clés fixes) ; timers en `dtJeu`
+- [x] Toits et auvents masqués quand le joueur est dessous (vue de dessus)
+- [x] `porteSalle(id)` lu par les tests qui parcourent `INTDEFS`
 
-### 1. Caravane du désert (atelier)
-- [ ] Déco : Airstream rétro (coque alu, hublots), banquette en skaï, kitchenette, radio CB, cartes routières punaisées,
+### 1. Caravane du désert (atelier) — faite (19 octobre)
+- [x] Déco : Airstream rétro (coque alu, hublots), banquette en skaï, kitchenette, radio CB, cartes routières punaisées,
       pièces de moteur, ventilateur, guirlande lumineuse, vue sur le désert (mesas, ciel du crépuscule)
-- [ ] Spécificité : l'établi (outils, cric) relié au véhicule garé devant — le vrai véhicule, réparation animée
-- [ ] Activité : TIR SUR CANETTES (muret, bouteilles, canette lancée, radio de Joe à épargner), temps limité, score, record
-- [ ] Lit et coffre dedans
-- [ ] Ambiance : guirlande, lampe, feu de camp ; vent, grillons, radio CB, feu qui crépite
-- [ ] Test de scénario + captures (intérieur, cour, tir)
+- [x] Spécificité : l'établi (outils, cric) relié au véhicule garé devant — le vrai véhicule, réparation animée
+- [x] Activité : TIR SUR CANETTES (muret, bouteilles, canette lancée, radio de Joe à épargner), temps limité, score, record
+- [x] Lit et coffre dedans
+- [x] Ambiance : guirlande, lampe, feu de camp ; vent, grillons, radio CB, feu qui crépite
+- [x] Test de scénario + captures (intérieur, cour, tir)
 
 ### 2. Penthouse de la Tour Los Reyes (saut BASE)
 - [ ] Déco : loft, grande baie vitrée sur la ville la nuit, canapé d'angle, bar éclairé, home cinéma, œuvres d'art,
