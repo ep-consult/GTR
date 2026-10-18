@@ -40,3 +40,12 @@ Chaque point est coché quand il est fait ET vérifié (rendu réel, test, valid
 - [x] 0. Ne pas toucher au pilotage (hélico et autres véhicules) — consigne respectée tout au long de la liste
 - [x] 1. Mains du joueur en vue 1re personne — **option B** : rien à l'écran au repos ni en marchant (en portrait, le bas de l'écran est sous le joystick et les boutons : des mains au repos y seraient cachées, ou boucheraient la vue) ; au coup, un vrai poing ganté (jointures, pouce, poignet, avant-bras, manche) qui monte du coin bas et frappe sous la mire, de trois quarts ; même mécanique (cadence, dégâts, portée). Test « Poings 1P »
 - [x] 2. Soucoupe : voir en dessous — options comparées (caméra au sol : un 2e rendu de la ville, trop lourd pour l'iPhone ; radar : abstrait ; plancher vitré : gratuit mais il faut regarder en bas ; caméra inclinée : gratuite mais gênante au ras du sol) ; retenu : plancher vitré (la coque devient un verre sans reflet au cockpit, l'anneau sert de cadre) + regard qui plonge avec l'altitude (0 sous 6 u, 0,6 rad à 50 u) ; pilotage identique. Test « Soucoupe 1P »
+
+# Suivi de la 4e liste du 18 octobre — ordre : 1 à 6
+
+- [x] 1. MONTER / DESCENDRE plus vifs, toujours progressifs : avions 15 → 20 u/s en montée, 11 → 15 en descente (accélération 14 → 18 u/s²) ; hélicos et soucoupe 16 → 21 et 13 → 17 (20 → 26 u/s², toujours ~0,8 s) ; effet de sol et arrondi recalés (posés doux) ; assiette extérieure inchangée
+- [ ] 2. Chasseur en vue 1re personne : voir le missile partir de dessous et passer devant l'appareil
+- [ ] 3. Cabriolet « Azur » : un volant sport normal (plus de barre de bateau)
+- [ ] 4. Armureries : armes blanches achetables, rangées sans se chevaucher
+- [ ] 5. Batte « Vertèbre » : son propre modèle (plus la batte cloutée en blanc)
+- [ ] 6. Coups à l'arme blanche : gestes réalistes, propres à chaque arme

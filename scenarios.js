@@ -13792,11 +13792,11 @@ async function main() {
             const hz = new THREE.Vector3(camera.position.x + dir.x / l * 3000, camera.position.y, camera.position.z + dir.z / l * 3000).project(camera); hMin = Math.min(hMin, hz.y); hMax = Math.max(hMax, hz.y);
             if (m && i === 14 && va05 === null) va05 = v.va; } };
           pas(20, false, false); pas(90, true, false); pas(30, false, false); pas(75, false, true); B.sprint = B.frein = false;
-          const res = { saut, hMin, hMax, assMax, va05, vaFin: v.va }; sortirVehicule(true); scene.remove(v.mesh); libererEntite(v.mesh); const i = vehicules.indexOf(v); if (i >= 0) vehicules.splice(i, 1); return res; };
+          const res = { saut, hMin, hMax, assMax, va05, vaFin: v.va, vaMax: AVION_VA_MONTEE }; sortirVehicule(true); scene.remove(v.mesh); libererEntite(v.mesh); const i = vehicules.indexOf(v); if (i >= 0) vehicules.splice(i, 1); return res; };
         for (const cle of avions) {
           const a = essai(cle, 'fps');
           if (a.saut > 0.02) ko.push(cle + ' : la vue saute de ' + a.saut.toFixed(3) + ' rad en une image');
-          if (!(a.va05 < 10)) ko.push(cle + ' : la montée se prend d’un coup (' + (a.va05 || 0).toFixed(1) + ' u/s après 0,5 s)');
+          if (!(a.va05 < a.vaMax * 0.7)) ko.push(cle + ' : la montée se prend d’un coup (' + (a.va05 || 0).toFixed(1) + ' u/s après 0,5 s pour ' + a.vaMax + ')'); if (!(a.va05 > a.vaMax * 0.3)) ko.push(cle + ' : la montée traîne (' + (a.va05 || 0).toFixed(1) + ' u/s après 0,5 s)'); /* progressive mais vive (4e liste : montée plus rapide) */
           if (a.hMin < -0.3 || a.hMax > 0.6) ko.push(cle + ' : l’horizon sort du cadre (' + a.hMin.toFixed(2) + ' … ' + a.hMax.toFixed(2) + ')');
           if (a.assMax > 0.2) ko.push(cle + ' : assiette de ' + a.assMax.toFixed(2) + ' rad au cockpit');
           info.push(cle + ' (horizon ' + a.hMin.toFixed(2) + '…' + a.hMax.toFixed(2) + ')');
@@ -13831,7 +13831,7 @@ async function main() {
           const n = cle + (vue === 'fps' ? ' (1P)' : '');
           if (assMax > 0.08) ko.push(n + ' : il se cabre en montant (' + assMax.toFixed(2) + ' rad)');
           if (!(monte > 25)) ko.push(n + ' : il ne monte pas (' + monte.toFixed(1) + ' u en 3 s)');
-          if (!(va05 < 12)) ko.push(n + ' : la montée se prend d’un coup (' + (va05 || 0).toFixed(1) + ' u/s après 0,5 s)');
+          if (!(va05 < HELI_VA_MONTEE * 0.7)) ko.push(n + ' : la montée se prend d’un coup (' + (va05 || 0).toFixed(1) + ' u/s après 0,5 s)'); if (!(va05 > HELI_VA_MONTEE * 0.3)) ko.push(n + ' : la montée traîne (' + (va05 || 0).toFixed(1) + ' u/s après 0,5 s)'); /* progressive mais vive (4e liste) */
           if (vue === 'fps' && saut > 0.03) ko.push(n + ' : la vue saute de ' + saut.toFixed(3) + ' rad');
           if (!(avant > 0.08 && avant < 0.35)) ko.push(n + ' : en avançant, nez à ' + avant.toFixed(2) + ' rad (attendu vers l’avant, sans excès)');
           if (!(frein < avant - 0.05)) ko.push(n + ' : au freinage, il ne se relève pas (' + avant.toFixed(2) + ' → ' + frein.toFixed(2) + ')');

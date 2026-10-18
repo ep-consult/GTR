@@ -19373,7 +19373,11 @@ const PITCH_LISSAGE=6;
    l'assiette suivait la vitesse de MONTÉE (−va × 0,0475 : 0,76 rad nez en l'air). Un hélicoptère monte au collectif, à plat :
    il penche le nez vers l'avant selon sa vitesse (HELI_TANG_AVANT) et quand il accélère, se cabre un peu en freinant (HELI_TANG_ACC),
    s'incline dans les virages (HELI_ROULIS) ; la vitesse verticale se prend en ~0,8 s (HELI_VA_ACC). */
-const HELI_VA_ACC=20, HELI_TANG_AVANT=0.14, HELI_TANG_ACC=0.01, HELI_TANG_MONTEE=0.002, HELI_ROULIS=0.16;
+/* 18 octobre (4e liste, demandé : « monter et descendre un peu plus vite, plus vif, en restant progressif ») : montée 16 → 21 u/s,
+   descente 13 → 17 u/s, toujours prises en ~0,8 s (HELI_VA_ACC 20 → 26) ; avion : 15 → 20 et 11 → 15 u/s (AVION_VA_ACC 14 → 18).
+   L'effet de sol de l'hélico et l'arrondi de l'avion suivent la nouvelle descente : les posés restent doux. */
+const HELI_VA_MONTEE=21, HELI_VA_DESCENTE=17, AVION_VA_MONTEE=20, AVION_VA_DESCENTE=15;
+const HELI_VA_ACC=26, HELI_TANG_AVANT=0.14, HELI_TANG_ACC=0.01, HELI_TANG_MONTEE=0.002, HELI_ROULIS=0.16;
 /* Pilotage de l'hélicoptère, 2e passe (17 octobre au soir, demandé : « quand j'avance, le nez s'incline et tout l'appareil penche,
    c'est cette inclinaison qui le fait avancer ; je recule, le nez se relève ; virages en roulis ; je lâche : il revient à plat en
    stationnaire ; montée et descente à plat ») — d'après le vrai pilotage, en arcade :
@@ -19386,7 +19390,7 @@ const HELI_VA_ACC=20, HELI_TANG_AVANT=0.14, HELI_TANG_ACC=0.01, HELI_TANG_MONTEE
      (nez relevé, au plus HELI_RECUL × la vitesse max) au lieu de faire demi-tour.
    La vitesse est un vecteur (v.hvx, v.hvz) ; v.v reste la vitesse le long du nez (instruments, caméra, son). L'OVNI garde son vol. */
 const HELI_INCL_AV=0.32, HELI_INCL_LAT=0.28, HELI_INCL_VIT=3.2, HELI_K_INCL=0.04, HELI_G=32, HELI_TRAINEE=0.32, HELI_RECUL=0.45, HELI_LATERAL=0.6, HELI_LACET=2.2, HELI_INCL_MAXV=0.75;
-const AVION_VA_ACC=14, AVION_TANGAGE_1P=0.006, AVION_LISSAGE_1P=1.8, AVION_ROULIS_1P=0.26;
+const AVION_VA_ACC=18, AVION_TANGAGE_1P=0.006, AVION_LISSAGE_1P=1.8, AVION_ROULIS_1P=0.26;
 // FIGURES (looping + vrille) — disponibles sur les appareils avec
 // figures:true (chasseur et voltige, voir VEHDEFS). Deux déclencheurs
 // DÉLIBÉRÉMENT différents, choisis pour deux raisons différentes :
@@ -19593,13 +19597,13 @@ function majVol(v,dt){
       v.v*=(1-2*dt);
     }
     if(v.vol){
-      const vaC=(monter?16:0)+(desc?-13:0)+((v.def.ovni&&!monter&&!desc)?-0.5:0); v.va+=clamp(vaC-v.va,-HELI_VA_ACC*dt,HELI_VA_ACC*dt); /* le collectif : progressif ; à vide, l'hélico tient son altitude (stationnaire) */
+      const vaC=(monter?HELI_VA_MONTEE:0)+(desc?-HELI_VA_DESCENTE:0)+((v.def.ovni&&!monter&&!desc)?-0.5:0); v.va+=clamp(vaC-v.va,-HELI_VA_ACC*dt,HELI_VA_ACC*dt); /* le collectif : progressif ; à vide, l'hélico tient son altitude (stationnaire) */
       // effet de sol (8e lot, signalé : « l'hélico du yacht explose toujours ») :
       // DESCENDRE tenu arrivait au contact à -13 u/s, au-delà du seuil de crash
       // (-5,5) : tout atterrissage normal explosait, sur le pont du yacht comme
       // ailleurs. Sous HELI_SOL u, la descente est amortie jusqu'au posé.
       const hSol=v.alt-poseY(v.x,v.z);
-      if(v.va<0&&hSol<HELI_SOL) v.va=Math.max(v.va,-HELI_POSE_V-(Math.max(0,hSol)/HELI_SOL)*(13-HELI_POSE_V));
+      if(v.va<0&&hSol<HELI_SOL) v.va=Math.max(v.va,-HELI_POSE_V-(Math.max(0,hSol)/HELI_SOL)*(HELI_VA_DESCENTE-HELI_POSE_V));
       v.alt=clamp(v.alt+v.va*dt,0,v.def.altMax||150);  // très haut au-dessus de la ville (OVNI : encore plus, voir VEHDEFS)
       const l=Math.hypot(INPUT.mx,INPUT.mz);
       let dxH, dzH;
@@ -19676,9 +19680,9 @@ function majVol(v,dt){
       // appareil particulier (la voltige, « direction sensible ») de virer
       // bien plus sec sans toucher au taux partagé des autres.
       if(l>0.15) v.ang=angLerp(v.ang,Math.atan2(INPUT.mx,INPUT.mz),(v.def.turnVol||1.15)*dt);
-      const vaC=(monter?15:0)+(desc?-11:0)-(v.v<19?9:0); v.va+=clamp(vaC-(v.va||0),-AVION_VA_ACC*dt,AVION_VA_ACC*dt); /* la montée se prend progressivement */
+      const vaC=(monter?AVION_VA_MONTEE:0)+(desc?-AVION_VA_DESCENTE:0)-(v.v<19?9:0); v.va+=clamp(vaC-(v.va||0),-AVION_VA_ACC*dt,AVION_VA_ACC*dt); /* la montée se prend progressivement */
       if(v.v<19&&Math.random()<0.1) toast('DÉCROCHAGE — accélère !','warn');
-      { const hS=v.alt-poseY(v.x,v.z); if(v.va<0&&hS<10&&!estEau(v.x,v.z)) v.va=Math.max(v.va,-2.2-hS*0.9); } // arrondi : près du sol, la descente se ralentit d'elle-même (signalé : « impossible d'atterrir » — FREIN arrivait au sol à -11 u/s, crash au-delà de -4,5)
+      { const hS=v.alt-poseY(v.x,v.z); if(v.va<0&&hS<(AVION_VA_DESCENTE-2.2)/0.9&&!estEau(v.x,v.z)) v.va=Math.max(v.va,-2.2-hS*0.9); } /* zone d'arrondi à la mesure de la descente : le freinage reste continu */ // arrondi : près du sol, la descente se ralentit d'elle-même (signalé : « impossible d'atterrir » — FREIN arrivait au sol à -11 u/s, crash au-delà de -4,5)
       v.alt=clamp(v.alt+v.va*dt,0,180);  // très haut au-dessus de la ville
       const nx=v.x+Math.sin(v.ang)*v.v*dt, nz=v.z+Math.cos(v.ang)*v.v*dt;
       const s=v.decolT>0?null:solidAt(nx,nz,2.5);
@@ -19714,7 +19718,7 @@ function majVol(v,dt){
       // progressif (lissage mis à l'échelle par dt, PITCH_LISSAGE) — l'ancien
       // facteur fixe convergeait en 4-5 frames quel que soit le framerate,
       // perçu comme un à-coup malgré le lerp (bug remonté par un joueur).
-      v.mesh.rotation.x=clamp(lerp(v.mesh.rotation.x,-v.va*(ck1P?AVION_TANGAGE_1P:0.06),Math.min(1,(ck1P?AVION_LISSAGE_1P:PITCH_LISSAGE)*dt)),-1.1,1.1);
+      v.mesh.rotation.x=clamp(lerp(v.mesh.rotation.x,-v.va*(ck1P?AVION_TANGAGE_1P:0.9/AVION_VA_MONTEE),Math.min(1,(ck1P?AVION_LISSAGE_1P:PITCH_LISSAGE)*dt)),-1.1,1.1);
       // FIGURES — disponibles sur le chasseur ET la voltige (def.figures) ;
       // l'avion de ligne garde un vol stable, sans acrobaties. LOOPING sur
       // appui long du bouton MONTER, VRILLE sur maintien latéral du

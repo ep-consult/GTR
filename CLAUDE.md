@@ -1869,6 +1869,11 @@ ne voit plus que le sol ou le ciel ». Mesuré : la vitesse verticale passait de
 - Vue de dessus et immersive : assiette marquée inchangée (0,9 rad).
 - Test : « Avions au cockpit » (chaque avion de `VEHDEFS`, figures coupées :
   MONTER tenu fait un looping sur la voltige et le chasseur, c'est voulu).
+- **Plus vif (18 octobre, 4e liste)** : « monter et descendre un peu plus vite, en restant progressif » — avion 20 / 15 u/s
+  (`AVION_VA_MONTEE`, `AVION_VA_DESCENTE`, avant 15 / 11), prises à `AVION_VA_ACC` 18 ; hélicos et soucoupe 21 / 17 u/s
+  (`HELI_VA_MONTEE`, `HELI_VA_DESCENTE`, avant 16 / 13), `HELI_VA_ACC` 26 (toujours ~0,8 s). L'effet de sol de l'hélico et la zone
+  d'arrondi de l'avion suivent la descente (posés toujours doux) ; vue extérieure : même assiette qu'avant (0,9 rad), seule la
+  vitesse change. Tests : montée « progressive mais vive » (après 0,5 s, entre 30 et 70 % de la consigne).
 
 ## Montée de l'hélicoptère (17 octobre au soir) — `HELI_VA_ACC`, `HELI_TANG_AVANT`
 
