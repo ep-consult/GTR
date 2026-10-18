@@ -1227,6 +1227,19 @@ chères, et augmente le prix de la villa ». Marques de fantaisie (univers ficti
   huit vertèbres qui grossissent vers le bout, crête d'apophyses, disques sombres, manche d'os gainé de cuir lacé, pommeau à deux
   condyles. Manche et tête sont des maillages séparés (`userData.partie`) : la « lame enflammée » ne fait rougir que la tête. Le
   manche reste où la main le tient (`ANCRES_ARME`). Test « Battes ».
+- **Coups à l'arme blanche** (4e liste, demandé : « une cinématique réaliste et adaptée à l'arme ») : `COUPS` (après
+  `animeHumain`), `lancerCoup`, `majCoup3P`, `finCoup`, `coupEchantillon` (Catmull-Rom). Avant : le bras droit levé d'un bloc
+  à −1,6 rad pendant 0,2 s pour toutes les armes (3e personne), le même essuie-glace aller-retour en 1re personne. Chaque arme a
+  son geste en quatre temps (armé, frappe, accompagnement, retour), plus court que sa cadence : couteau = estoc puis revers ;
+  batte = swing à plat d'une épaule à l'autre, à deux mains ; Vertèbre = massue levée au-dessus de la tête, abattue ; sabre =
+  coup droit en diagonale puis revers ; poings = directs alternés (bras gauche compris ; la 1re personne garde son poing) ;
+  Gadget = le swing de la batte, plus vif ; les ennemis au corps à corps frappent pareil (batte ou poing). Le buste vrille, les
+  épaules tournent avec lui, la main libre accompagne. **Mécanique inchangée** : dégâts immédiats à l'appui, portée, cadence ;
+  la frappe visible arrive vers 0,08 à 0,17 s. 3e personne : le bras du coup passe en ordre `YXZ` (y nul hors coup : même pose
+  qu'en `XYZ` pour le reste du jeu), la marche reste dessous (`animeHumain` écrit le bras, le coup s'y fond à l'entrée et à la
+  sortie) ; coupé à la nage, en chute, à la mort, en montant dans un véhicule, au ragdoll. 1re personne (`VUE1P.coup`, clés
+  `p1` de la main W) : l'arme traverse le centre de l'écran à la frappe, la main reste à droite (sinon le bras traversait
+  l'écran comme un tube) et ne roule jamais beaucoup (le bras tourne avec elle). Test « Coups à l'arme blanche ».
 
 ### Dégâts V2 et murs (18 octobre, lot 2) — `degatsChoc`, `bosseler`, `perdreRoue`, `degagerDesMurs`
 

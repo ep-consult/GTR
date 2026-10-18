@@ -11737,6 +11737,55 @@ async function main() {
       if (r.ko.length) fail('Battes : ' + r.ko.join(' ; ')); else ok('Battes : ' + r.info.join(' ; '));
     }
     // -------------------------------------------------------------------
+    // Coups à l'arme blanche (18 octobre, 4e liste, demandé : « retravailler la cinématique des coups à l'arme blanche pour qu'ils
+    // soient réalistes et adaptés à l'arme ») : chaque arme de COUPS (lue dans la source) a son geste — la batte balaie à plat, la
+    // Vertèbre s'abat par-dessus la tête, le sabre et le couteau alternent deux gestes — avec le buste qui vrille ; la frappe garde sa
+    // mécanique (dégâts immédiats sur la cible devant) ; le corps revient au repos avant le coup suivant ; à la 1re personne, l'arme
+    // traverse le centre de l'écran, puis revient à sa pose.
+    // -------------------------------------------------------------------
+    console.log('\n--- Coups à l’arme blanche : un geste par arme, en 3e et en 1re personne ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = []; let T = dernierT + 1000; const pas = () => { T += 1000 / 60; tick(T); };
+        const ids = Object.keys(COUPS).filter((id) => ARMES[id] && ARMES[id].type === 'melee' && META.armes[id]);
+        const prep = (vue) => { if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); META.vue = vue; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9;
+          creerTrafic = () => {}; for (const o of vehicules) scene.remove(o.mesh); vehicules.length = 0; for (const e of ennemis) e.mort = true; P.x = POIS.place.x + 6; P.z = POIS.place.z + 6; P.ang = 0; INPUT.mx = INPUT.mz = 0; };
+        const trafic0 = creerTrafic, poss0 = {}; for (const id of ids) poss0[id] = META.armes[id].poss;
+        /* 3e personne */
+        prep('classique'); const geste = {};
+        for (const id of ids) { META.armes[id].poss = true; majArmeJoueur(id); for (let i = 0; i < 20; i++) pas();
+          const cible = creerEnnemi('vip_batte', P.x, P.z + 1.6, 0); if (cible) { cible.hp = cible.hpMax = 1e5; } const hp0 = cible ? cible.hp : 0; P.cadT = 0; attaquer(); const touche = cible && cible.hp < hp0;
+          if (cible) { cible.mort = true; if (cible.h) scene.remove(cible.h.g); }
+          const h = P.h, g = { xMin: 9, xMax: -9, yAbs: 0, tw: 0, n: h.coupN }; let fin = -1;
+          for (let i = 0; i < 60; i++) { pas(); const b = h.coup && h.coup.V.gauche ? h.brasG : h.brasD; g.xMin = Math.min(g.xMin, b.rotation.x); g.yAbs = Math.max(g.yAbs, Math.abs(b.rotation.y)); g.tw = Math.max(g.tw, Math.abs(h.torse.rotation.y)); if (!h.coup && fin < 0) fin = (i + 1) / 60; }
+          geste[id] = g;
+          if (!touche) ko.push(id + ' : la cible devant n’est pas touchée à l’instant du coup');
+          if (fin < 0 || fin > ARMES[id].cad + 0.02) ko.push(id + ' : le geste dure ' + (fin < 0 ? '> 1 s' : fin.toFixed(2) + ' s') + ' pour une cadence de ' + ARMES[id].cad + ' s');
+          if (!(g.xMin < -1.3)) ko.push(id + ' : le bras ne frappe pas (' + g.xMin.toFixed(2) + ' rad)');
+          if (!(g.tw > 0.12)) ko.push(id + ' : le buste ne vrille pas');
+          if (h.torse.rotation.y !== 0 || h.brasD.rotation.y !== 0 || h.brasG.rotation.y !== 0 || (h.coupRepos && h.brasD.position.distanceTo(h.coupRepos.bD) > 1e-6)) ko.push(id + ' : le corps ne revient pas au repos'); }
+        if (geste.batte && !(geste.batte.yAbs > 0.8)) ko.push('batte : pas de balayage à plat (' + geste.batte.yAbs.toFixed(2) + ')');
+        if (geste.batte2 && !(geste.batte2.xMin < -2.8)) ko.push('Vertèbre : pas levée par-dessus la tête (' + geste.batte2.xMin.toFixed(2) + ')');
+        for (const id of ids) if (COUPS[id].v.length > 1) { const v1 = P.h.coupN; META.armes[id].poss = true; majArmeJoueur(id); P.cadT = 0; attaquer(); const a = P.h.coup && P.h.coup.V; for (let i = 0; i < 60; i++) pas(); P.cadT = 0; attaquer(); const b = P.h.coup && P.h.coup.V; for (let i = 0; i < 60; i++) pas();
+          if (!a || !b || a === b) ko.push(id + ' : les deux gestes n’alternent pas'); }
+        info.push(ids.length + ' armes : ' + ids.map((id) => id + ' (bras ' + geste[id].xMin.toFixed(1) + ', buste ' + geste[id].tw.toFixed(2) + ')').join(', '));
+        /* 1re personne */
+        prep('fps'); const centre = [];
+        for (const id of ids) { if (!mkArmeModeleDispo(id)) continue; META.armes[id].poss = true; majArmeJoueur(id); for (let i = 0; i < 20; i++) pas(); const M = VUE1P.montage; if (!M || !M.melee) continue;
+          let yMin = 0; M.mod.traverse((o) => { if (o.isMesh) { if (!o.geometry.boundingBox) o.geometry.computeBoundingBox(); yMin = Math.min(yMin, o.position.y + o.geometry.boundingBox.min.y); } });
+          const rx0 = M.W.rotation.x; let auCentre = 0; P.cadT = 0; attaquer(); const v = new THREE.Vector3();
+          for (let i = 0; i < 40; i++) { pas(); camera.updateMatrixWorld(); M.R.updateMatrixWorld(true); let ici = false;
+            for (let k = 1; k <= 5; k++) { v.set(0, yMin * k / 5, 0); M.mod.localToWorld(v); v.project(camera); if (v.z < 1 && Math.abs(v.x) < 0.35 && Math.abs(v.y) < 0.45) ici = true; } if (ici) auCentre++; }
+          if (!auCentre) ko.push(id + ' (1P) : l’arme ne passe jamais au centre de l’écran');
+          if (Math.abs(M.W.rotation.x - rx0) > 0.05) ko.push(id + ' (1P) : la main ne revient pas à sa pose');
+          centre.push(id + ' ' + auCentre); }
+        info.push('1re personne, images où l’arme passe au centre : ' + centre.join(', '));
+        for (const id of ids) META.armes[id].poss = poss0[id]; majArmeJoueur('poings'); creerTrafic = trafic0; META.vue = 'classique'; majCamera(1 / 30);
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Coups à l’arme blanche : ' + r.ko.join(' ; ')); else ok('Coups à l’arme blanche : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
     // Terrains de sport des parcs (17 octobre, demandé : « un terrain de foot
     // et d'autres terrains de sport pour faire vivre l'endroit de verdure ») :
     // le match se joue tout seul (le ballon reste sur le terrain, les joueurs

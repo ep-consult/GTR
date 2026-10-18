@@ -14814,8 +14814,60 @@ function animeHumain(h,dt,vitesse,vise){
   h.jambeG.rotation.x=s; h.jambeD.rotation.x=-s;
   h.brasG.rotation.x=-s*0.7;
   if(vise){ h.brasD.rotation.x=lerp(h.brasD.rotation.x,-1.35,0.35); }
-  else if(h._frappe===undefined||h._frappe<=0){ h.brasD.rotation.x=s*0.7; }
+  else if(!(h._frappe>0)||h.coup){ h.brasD.rotation.x=s*0.7; } /* pendant un coup à l'arme blanche (h.coup), majCoup3P part de cette pose */
 }
+/* =====================================================================
+   COUPS À L'ARME BLANCHE (18 octobre, 4e liste, demandé : « retravailler la cinématique des coups à l'arme blanche pour qu'ils soient
+   réalistes et adaptés à l'arme ») — avant : en 3e personne, le bras droit se levait d'un bloc à −1,6 rad pendant 0,2 s quelle que soit
+   l'arme ; en 1re personne, la batte, la Vertèbre et le sabre faisaient le même essuie-glace aller-retour en 0,19 s. Désormais chaque
+   arme a son geste, en quatre temps — armé, frappe, accompagnement, retour : le couteau alterne estoc et revers ; la batte, un grand
+   swing à plat d'une épaule à l'autre, à deux mains ; la Vertèbre, un coup de massue par-dessus la tête ; le sabre, des coups de taille
+   en diagonale (coup droit, revers) ; les poings, des directs alternés (3e personne ; la 1re personne garde son poing). Le buste vrille
+   avec le coup, les épaules suivent, la main libre accompagne. La frappe arrive vers 0,08 à 0,17 s : les dégâts restent immédiats (portée,
+   dégâts, cadence inchangés), le geste les rejoint sans retard visible. Durée < cadence de l'arme.
+   Clés [u, ...] en fraction de la durée, extrémités = repos (ajoutées à l'emploi) ; interpolation de Catmull-Rom : on passe la frappe
+   sans s'arrêter. p3 (3e personne) : [u, bras levé (x), balayage autour de l'épaule (y, ordre YXZ : + vers l'extérieur), écart (z),
+   vrille du buste (+ = armé, l'épaule du coup recule), bras libre (x)]. p1 (1re personne, la main W dans le repère de la caméra) :
+   [u, pitch, yaw (+ = vers la gauche), roll, x, y, z]. ---------- */
+const COUPS={
+  couteau:{d:0.26,v:[ /* estoc, puis revers */
+    {p3:[[0.14,-0.9,0.35,0.15,0.25,-0.3],[0.3,-1.6,-0.15,0,-0.35,0.25],[0.5,-1.5,-0.1,0,-0.3,0.2]],
+     p1:[[0.14,0.45,0.0,0.3,0.12,-0.2,-0.29],[0.3,0.08,0.25,0.1,0.03,-0.1,-0.55],[0.45,0.1,0.22,0.1,0.035,-0.105,-0.53]]},
+    {p3:[[0.14,-1.2,0.9,0.2,0.3,0],[0.32,-1.45,-0.7,0,-0.4,0.15],[0.5,-1.3,-0.95,0,-0.45,0.15]],
+     p1:[[0.14,0.3,-0.8,-0.3,0.15,-0.15,-0.32],[0.3,0.2,1.0,0.5,0.03,-0.12,-0.45],[0.45,0.1,1.45,0.6,-0.05,-0.15,-0.42],[0.7,0.3,0.6,0.3,0.04,-0.27,-0.33]]}]},
+  poings:{d:0.28,v:[ /* direct du droit, direct du gauche */
+    {p3:[[0.12,-0.5,0.1,0.1,0.2,-0.3],[0.3,-1.58,-0.12,0,-0.4,-0.5],[0.45,-1.5,-0.1,0,-0.35,-0.5]]},
+    {gauche:true,p3:[[0.12,-0.5,0.1,0.1,0.2,-0.3],[0.3,-1.58,-0.12,0,-0.4,-0.5],[0.45,-1.5,-0.1,0,-0.35,-0.5]]}]},
+  batte:{d:0.5,v:[ /* swing à plat, à deux mains : armée sur l'épaule, à plat devant, accompagnement de l'autre côté */
+    {p3:[[0.14,-2.5,0.8,0.1,0.5,-2.2],[0.27,-1.55,0.05,0,-0.15,-1.45],[0.42,-1.35,-1.15,0,-0.75,-1.2],[0.62,-0.9,-0.8,0,-0.45,-0.6]],
+     p1:[[0.12,1.2,-0.6,-0.5,0.16,-0.12,-0.27],[0.2,0.75,0.35,0.1,0.12,-0.08,-0.36],[0.27,0.3,1.15,0.2,0.06,-0.1,-0.4],[0.42,-0.1,1.75,0.3,-0.04,-0.17,-0.36],[0.65,0.5,1.0,0.1,0.03,-0.27,-0.3]]}]},
+  batte2:{d:0.56,v:[ /* la massue : levée à deux mains au-dessus de la tête, abattue devant, elle finit bas */
+    {p3:[[0.16,-3.25,0.25,0.1,0.15,-3.0],[0.31,-1.25,0,0,-0.15,-1.25],[0.42,-0.75,-0.05,0,-0.2,-0.85],[0.65,-0.6,0,0,-0.1,-0.5]],
+     p1:[[0.15,1.75,0.15,-0.1,0.12,0.02,-0.24],[0.24,0.7,0.25,0.0,0.07,0.0,-0.36],[0.31,-0.25,0.35,0.1,0.04,-0.06,-0.42],[0.42,-0.85,0.25,0.1,0.03,-0.22,-0.42],[0.7,0.3,0.25,-0.1,0.1,-0.3,-0.32]]}]},
+  sabre:{d:0.4,v:[ /* coup droit (de haut à droite vers le bas à gauche), puis revers (du bas à gauche vers le haut à droite) */
+    {p3:[[0.12,-2.5,0.75,0.2,0.35,0],[0.3,-1.2,-0.55,0,-0.4,0.2],[0.45,-0.7,-0.9,0,-0.5,0.25]],
+     p1:[[0.12,1.5,-0.4,-0.5,0.14,-0.06,-0.27],[0.22,0.75,0.55,0.25,0.09,-0.04,-0.38],[0.3,0.05,0.9,0.4,0.04,-0.1,-0.42],[0.45,-0.6,1.25,0.5,-0.03,-0.2,-0.38],[0.7,0.5,0.7,0.1,0.05,-0.3,-0.3]]},
+    {p3:[[0.12,-1.0,-0.85,0,-0.35,0.15],[0.3,-2.1,0.6,0.25,0.3,0],[0.45,-2.4,0.95,0.3,0.4,0]],
+     p1:[[0.12,-0.4,1.15,0.5,-0.02,-0.26,-0.33],[0.22,0.0,0.6,0.3,0.02,-0.14,-0.4],[0.3,0.55,0.1,-0.2,0.03,-0.06,-0.42],[0.45,1.0,-0.7,-0.4,0.13,0.0,-0.36],[0.7,1.2,-0.1,-0.2,0.12,-0.12,-0.3]]}]}};
+COUPS.gadget={d:0.32,v:COUPS.batte.v}; /* le Gadget rose : le swing de la batte, plus vif */
+const _cv=[0,0,0,0,0,0];
+function coupEchantillon(K,u,out,n){ /* Catmull-Rom sur les clés K ([u, v1..vn], extrémités comprises) */
+  let k=0; while(k<K.length-2&&u>K[k+1][0]) k++;
+  const a=K[Math.max(0,k-1)], b=K[k], c=K[k+1], d=K[Math.min(K.length-1,k+2)], t=clamp((u-b[0])/((c[0]-b[0])||1),0,1), t2=t*t, t3=t2*t;
+  for(let i=1;i<=n;i++){ const p0=a[i], p1=b[i], p2=c[i], p3=d[i]; out[i-1]=0.5*(2*p1+(p2-p0)*t+(2*p0-5*p1+4*p2-p3)*t2+(3*p1-p0-3*p2+p3)*t3); }
+  return out; }
+function lancerCoup(h,id){ const C=COUPS[id]; if(!h||!C) return; h.coupN=(h.coupN||0)+1;
+  if(!h.coup) h.coupRepos={bD:h.brasD.position.clone(),bG:h.brasG.position.clone()}; /* les épaules au repos (une fois par coup, jamais par image) */
+  h.coup={id,V:C.v[h.coupN%C.v.length],t:0,d:C.d}; h.brasD.rotation.order='YXZ'; h.brasG.rotation.order='YXZ'; } /* (y nul : même pose qu'en XYZ pour tout le reste du jeu) */
+function finCoup(h){ if(!h||!h.coup) return; const R=h.coupRepos; for(const b of [h.brasD,h.brasG]){ b.rotation.y=0; b.rotation.z=0; } h.torse.rotation.y=0;
+  if(R){ h.brasD.position.copy(R.bD); h.brasG.position.copy(R.bG); } h.coup=null; }
+function majCoup3P(h,dt){ const c=h.coup; if(!c) return; c.t+=dt; const u=c.t/c.d; if(u>=1){ finCoup(h); return; }
+  const V=c.V, bras=V.gauche?h.brasG:h.brasD, autre=V.gauche?h.brasD:h.brasG, sg=V.gauche?-1:1, R=h.coupRepos;
+  const K=V._k3||(V._k3=[[0,0,0,0,0,0]].concat(V.p3,[[1,0,0,0,0,0]])), v=coupEchantillon(K,u,_cv,5), w=u<0.05?u/0.05:(u>0.8?(1-u)/0.2:1); /* entrée et sortie fondues dans la marche */
+  const tw=v[3]*sg*w, ct=Math.cos(tw), st=Math.sin(tw); h.torse.rotation.y=tw; /* le buste vrille ; les épaules tournent avec lui autour de l'axe du corps */
+  h.brasD.position.set(R.bD.x*ct+R.bD.z*st,R.bD.y,-R.bD.x*st+R.bD.z*ct); h.brasG.position.set(R.bG.x*ct+R.bG.z*st,R.bG.y,-R.bG.x*st+R.bG.z*ct);
+  bras.rotation.x=lerp(bras.rotation.x,v[0],w); bras.rotation.y=v[1]*sg*w+tw; bras.rotation.z=v[2]*sg*w;
+  autre.rotation.x=lerp(autre.rotation.x,v[4],w); autre.rotation.y=tw; }
 /* ---------- BATEAUX RESTYLÉS (DECOR_V2) ----------
    Signalé : « des bateaux carrés, sans détail ». Et un vrai défaut : la
    coque d'origine (geoCoque) a son étrave vers -z alors que les véhicules
@@ -17422,8 +17474,8 @@ function attaquer(){
     SFX.refus(); P.cadT=0.5; return;
   }
   if(a.type==='melee'){
-    P.cadT=st.cad; P.frappeT=0.2; P.h._frappe=0.2; if(VUE1P.actif){ VUE1P.frappe=0.3; VUE1P.coupMain=!VUE1P.coupMain; }
-    P.h.brasD.rotation.x=-1.6;
+    P.cadT=st.cad; P.frappeT=0.2; lancerCoup(P.h,P.armeCur); /* le geste de l'arme (COUPS) */
+    if(VUE1P.actif){ VUE1P.frappe=0.3; VUE1P.coupMain=!VUE1P.coupMain; const C=COUPS[P.armeCur]; VUE1P.coup=C?{id:P.armeCur,V:C.v[P.h.coupN%C.v.length],t:0,d:C.d}:null; }
     let touche=false;
     const dmg=st.degats*P.meleeMul*(P.buffs.dmg>0?1.35:1)*((P.ivresse||0)>IVRESSE.pompette?1.2:1); // pompette : « courage liquide » au corps à corps
     const knock=st.knock*(aCurio('haltere')?1.6:1);   // L'Haltère « Enclume »
@@ -17934,6 +17986,7 @@ function majJoueur(dt,dtJeu){
   // les deux (chute libre ET parachute, voir ouvrirParachute qui exige
   // P.chute déjà vrai sans jamais le repasser à faux) : un seul garde suffit.
   else if(!P.chute) animeHumain(P.h,dt,Math.hypot(vx,vz),ARMES[P.armeCur].type==='gun'&&P.tirT>0);
+  if(P.h.coup){ if(P.nage||P.chute) finCoup(P.h); else majCoup3P(P.h,dt); } /* le coup à l'arme blanche, par-dessus la marche */
   // viseur manuel du sniper
   if(P_SNIPE.vise){
     const tx=P.x+Math.sin(P.ang)*P_SNIPE.dist, tz=P.z+Math.cos(P.ang)*P_SNIPE.dist;
@@ -19014,6 +19067,7 @@ function majNoyade(v,dt){
   if(v.noyeT>14) v.mort=true; // disparu au fond
 }
 function entrerVehicule(v){
+  if(P.h) finCoup(P.h); /* on ne monte pas en plein swing */
   if(v.conduit==='trafic'&&v.patrouilleP){ /* une voiture de patrouille (POL_PATR) : l'agent s'enfuit, et c'est une étoile */
     v.patrouilleP=false; creerPietonFuite(v.x+2,v.z);
     toast('🚓 Voiture de police volée !','warn'); addHeat(2.2);
@@ -21038,7 +21092,7 @@ function tuerPieton(p,parJoueur,knock,srcX,srcZ){
 // dos (repoussé), à plat ventre, ou en vrille quand on est projeté fort —, l'angle va vers la pose couchée,
 // et le corps est soulevé de ce qu'il faut pour que rien ne traverse le sol (ragdollLevage).
 function lancerRagdoll(ent,dx,dz,force){
-  if(ent&&ent.h) finNage(ent.h); // une pose de chute part toujours de l'ordre d'Euler d'origine
+  if(ent&&ent.h){ finNage(ent.h); finCoup(ent.h); } // une pose de chute part toujours de l'ordre d'Euler d'origine (et d'un corps sans coup en cours)
   if(!ent||!ent.h) return; // motos, hélicos et piétons déjà retirés n'ont pas de corps articulé
   const l=Math.hypot(dx,dz)||1, fort=force>11;
   const pose=fort?(Math.random()<0.45?'vrille':(Math.random()<0.6?'dos':'cote')):pick(['cote','dos','ventre','cote','dos']);
@@ -21731,7 +21785,7 @@ function majEnnemis(dt){
         if(d>e.def.portee||e.dansEau||(P.nage&&!e.cible&&!e.def.nage)){
           vx=Math.sin(versA)*e.def.vit*facEau; vz=Math.cos(versA)*e.def.vit*facEau;
         } else if(e.cad<=0){
-          e.cad=e.def.cad; if(e.h){e.h.brasD.rotation.x=-1.7; e.h._frappe=0.25;}
+          e.cad=e.def.cad; if(e.h) lancerCoup(e.h,e.def.armeM==='batte'?'batte':'poings'); /* (18 octobre) leur coup, comme le tien */
           if(e.cible) toucherEnnemi(e.cible,e.def.degats,false,4);
           else if(!P.veh&&P.y<2) toucherJoueur(e.def.degats);
           else if(P.veh) abimerVehicule(P.veh,e.def.degats*0.6,false); /* à pied mais en l'air (chute d'un vélo après une figure ratée) : le coup passe dessous — avant, abimerVehicule(null) plantait la boucle (« null is not an object (evaluating 'v.mort') », vu sur iPhone) */
@@ -21794,6 +21848,7 @@ function majEnnemis(dt){
       }
     }
     if(e.h&&e.h._frappe!==undefined&&e.h._frappe>0){e.h._frappe-=dt;if(e.h._frappe<=0)e.h.brasD.rotation.x=0;}
+    if(e.h&&e.h.coup) majCoup3P(e.h,dt);
     // trop loin : on le ramène (les vagues doivent trouver le joueur)
     if(e.wave&&d>78){
       const a=rand(0,6.28);
@@ -34752,6 +34807,7 @@ function startRun(){
 }
 function mourir(){
   if(ETAT.mode==='mort') return;
+  if(P.h) finCoup(P.h); /* un coup à l'arme blanche en cours : le corps revient au repos */
   if(DECOR_V2&&RIDES.actif){ RIDES.actif=null; RIDES.porte.visible=false; RIDES.txt.style.display='none'; rivalesFin(); if(RIDES.fleche) RIDES.fleche.visible=false; } // course abandonnée à la mort
   if(DECOR_V2){ basketArreter(); sportjArreter(); } // concours de tirs, sports du complexe : abandonnés
   if(BASE.defi) finDefiBase(false); // parcours du combattant abandonné
@@ -36352,9 +36408,12 @@ function cameraPremiere(dt){ const V=VUE1P; if(!V.actif) entrerPremiere(); if(V.
     const sc=lerp(1,0.42,k); W.scale.setScalar(sc); /* en visée, l'ensemble arme + mains rapetisse : l'arme paraît plus loin, la crosse sort du champ (à l'échelle de hanche, elle remplissait l'écran à 10 cm de l'œil) */
     const ax=M.mire?-M.mire.x*sc:hx, ay=M.mire?-M.mire.y*sc:hy, az=M.mire?-(M.prof||0.16)-M.mire.z*sc+r*0.03:hz; /* visée : la ligne de mire sur l'axe de l'œil, à prof devant */
     W.position.set(lerp(hx,ax,k),lerp(hy,ay,k),lerp(hz,az,k));
-    const f=V.frappe>0?1-V.frappe/0.3:0, sw=f?Math.sin(Math.PI*f):0, sw2=f?Math.sin(Math.PI*Math.min(1,f*1.6)):0; /* coup : course rapide à l'aller, retour plus lent */
-    if(M.melee&&P0.pitch!==undefined){ /* batte et sabre : de l'épaule, un grand swing en travers ; couteau : un estoc */
-      const lame=P0===FPS_POSES.lame; W.rotation.set(P0.pitch-(lame?0.6:2.1)*sw2+r*0.05,P0.yaw-(lame?0.2:1.3)*sw2+M.lagX*0.8,(P0.roll||0)+(lame?-0.3:0.9)*sw2); W.position.x-=(lame?0.04:0.18)*sw2; W.position.y-=0.05*sw2; W.position.z-=(lame?0.2:0.06)*sw2; }
+    if(V.coup){ V.coup.t+=dt; if(V.coup.t>=V.coup.d||V.coup.id!==V.arme) V.coup=null; }
+    if(M.melee&&P0.pitch!==undefined){ /* le geste de l'arme (COUPS, p1) : armé, frappe, accompagnement, retour ; au repos, la pose de l'arme */
+      const Cp=V.coup&&V.coup.V.p1?V.coup:null;
+      if(Cp){ const R0=[P0.pitch,P0.yaw,P0.roll||0,P0.pos[0],P0.pos[1],P0.pos[2]], K=Cp.V._k1||(Cp.V._k1=[[0].concat(R0)].concat(Cp.V.p1,[[1].concat(R0)])), v=coupEchantillon(K,Math.min(1,Cp.t/Cp.d),_cv,6);
+        W.rotation.set(v[0]+r*0.05,v[1]+M.lagX*0.8,v[2]); W.position.x+=v[3]-P0.pos[0]; W.position.y+=v[4]-P0.pos[1]; W.position.z+=v[5]-P0.pos[2]; }
+      else W.rotation.set(P0.pitch+r*0.05,P0.yaw+M.lagX*0.8,P0.roll||0); }
     else { W.rotation.set(lerp(r*0.2,r*0.05,k)+kc*0.55+M.lagY*0.8*(1-k),lerp(P0.yaw,0,k)+M.lagX*0.8*(1-k)+kc*0.35,lerp(P0.roll||0,0,k)+kc*0.15); }
     if(M.poings&&M.mains){ /* Poings (16 octobre, 2e retour : « deux tiges vers l'avant ; ne pas voir les bras au repos, voir le coup ») : au repos les deux
          mains sont hors champ ; un coup (V.frappe, 0,3 s) fait entrer le poing du coin bas de son côté, il frappe juste sous la mire en tournant
