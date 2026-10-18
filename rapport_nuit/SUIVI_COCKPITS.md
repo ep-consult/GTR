@@ -38,7 +38,7 @@ Demandé : « amélioration globale des cockpits et des intérieurs de véhicule
 - [x] `depotBolide` — Le Bolide — cadran `sport` : Sport : fond noir, aiguille rouge, compte-tours central, vitesse en chiffres, diodes de passage ; garnissage `sport`
 - [x] `limousine` — Limousine "Majesté" — cadran `luxe` : Luxe : cadrans blancs cerclés de chrome, horloge analogique au centre, bois ; garnissage `chic`
 - [x] `suvLuxe` — SUV de luxe "Sierra" — cadran `luxeNum` : Luxe numérique : deux grands écrans côte à côte ; garnissage `luxe`
-- [x] `cabriolet` — Cabriolet "Azur" — cadran `retro` : Rétro italien : cadrans crème, aiguilles noires, planche à la couleur de la caisse ; garnissage `cabriolet`
+- [x] `cabriolet` — Cabriolet "Azur" — cadran `retro` : Rétro italien : cadrans crème, aiguilles noires, planche à la couleur de la caisse ; garnissage `cabriolet` ; volant sport à méplat (18 octobre, 4e liste : la jante de bois se lisait comme une barre de bateau)
 - [x] `charger` — Muscle "Taureau" — cadran `rallye` : Muscle « rallye » : chiffres orange, quatre cadrans, voyant de passage ; garnissage `muscle`
 - [x] `hyper` — Hypercar "Zénith" — cadran `hyper` : Écran plein, arcs violet et cyan, puissance et batterie ; garnissage `hyper`
 - [x] `bolide` — Bellatti "Bolide" — cadran `bolide` : Grand compteur central à aiguille jusqu’à 500 km/h, cerclage aluminium, deux petits écrans ; garnissage `bolide`

@@ -36754,7 +36754,7 @@ const CK_HAB={
   bolide:{cad:'bolide',th:'bolide',vol:'bolide',places:2,centre:'bolide'}, enzo:{cad:'enzo',th:'enzo',vol:'enzo',places:2,centre:'aucun'},
   bond:{cad:'chrome',th:'gt',vol:'nardi',places:2,centre:'gadgets'}, baronne:{cad:'baronne',th:'vintage',vol:'vintage',places:4,centre:'radioVintage'},
   limousine:{cad:'luxe',th:'chic',vol:'luxe',places:4,centre:'horloge'}, suvLuxe:{cad:'luxeNum',th:'luxe',vol:'luxe',places:4,centre:'gps'},
-  cabriolet:{cad:'retro',th:'cabriolet',vol:'nardi',places:2,centre:'radioVintage'},
+  cabriolet:{cad:'retro',th:'cabriolet',vol:'sport',places:2,centre:'radioVintage'}, /* 18 octobre (4e liste) : un volant sport (la jante de bois à barre d'alu se lisait comme une barre de bateau) */
   pickup:{cad:'raptor',th:'raptor',vol:'raptor',places:4,centre:'raptor'}, depotPickup:{cad:'raptor',th:'raptor',vol:'raptor',places:4,centre:'raptor'},
   derbyBreak:{cad:'derby',th:'derby',vol:'derby',places:1,cage:true,centre:'interrupteurs'}, derbyCompacte:{cad:'derby',th:'derby',vol:'derby',places:1,cage:true,centre:'interrupteurs'},
   derbyPickup:{cad:'derby',th:'derby',vol:'derby',places:1,cage:true,centre:'interrupteurs'},
@@ -37252,7 +37252,7 @@ function ckVolant2(S,style,R,coulC){ if(['raptor','camion','tt','sport','bois','
     case 'vintage': { const iv=ckM(0xe8dcc0,'p'); add(new THREE.Mesh(new THREE.TorusGeometry(R,0.012,8,48),iv));
       for(const a of [Math.PI*0.5+0.0,Math.PI*1.17,Math.PI*1.83]) br(ch,a,R*0.98,0.012,0.006);
       const an=add(new THREE.Mesh(new THREE.TorusGeometry(R*0.55,0.005,6,36),ch)); an.position.z=-0.004; moyeu(ch,0.04,0.04); const lg=add(new THREE.Mesh(new THREE.CircleGeometry(0.026,18),ckM(0x8a1a1a,'p'))); lg.position.z=-0.023; lg.rotation.y=Math.PI; return roue; }
-    case 'nardi': { add(new THREE.Mesh(new THREE.TorusGeometry(R,0.017,10,48),ckM(0,'bois'))); /* jante en bois verni, trois branches d'alu ajourées (Agent Gris, cabriolet) */
+    case 'nardi': { add(new THREE.Mesh(new THREE.TorusGeometry(R,0.017,10,48),ckM(0,'bois'))); /* jante en bois verni, trois branches d'alu ajourées (Agent Gris) */
       for(const a of [0,Math.PI,-Math.PI/2]){ br(ckM(0xc4cad2,'m'),a,R*0.98,0.036,0.006); for(const f of [0.4,0.66]){ const t=add(new THREE.Mesh(new THREE.CircleGeometry(0.007,10),noir)); t.position.set(Math.cos(a)*R*f,Math.sin(a)*R*f,-0.004); t.rotation.y=Math.PI; } }
       moyeu(noir,0.042,0.04); const lg=add(new THREE.Mesh(new THREE.CircleGeometry(0.022,16),ckM(0xc4cad2,'m'))); lg.position.z=-0.02; lg.rotation.y=Math.PI; return roue; }
     case 'muscle': { add(new THREE.Mesh(new THREE.TorusGeometry(R,0.018,8,44),ckM(0x111111,'p')));

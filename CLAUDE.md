@@ -1653,7 +1653,8 @@ véhicule : `rapport_nuit/SUIVI_COCKPITS.md` (coché par `rapport_nuit/outils/su
   `ckVoyant`. **Pas de `shadowBlur` par trait ni par diode** (cher sur iPhone) : un disque translucide autour. **Un afficheur
   par image, à tour de rôle** (`C.affI`) : le redessin ne fait plus un pic de plusieurs millisecondes.
 - **Volants** (`ckVolant2`) : moderne, utilitaire, luxe (jante bois et cuir), vintage (bakélite, branches chromées), muscle
-  (branches ajourées), `nardi` (jante bois : Agent Gris, cabriolet — `bois` est la barre à rayons des bateaux), Enzo (rectangle,
+  (branches ajourées), `nardi` (jante bois : Agent Gris ; le cabriolet « Azur » a un volant `sport` depuis la 4e liste du 18 octobre — sa jante de bois
+  à barre d'alu se lisait comme une barre de bateau ; `bois` est la barre à rayons des bateaux), Enzo (rectangle,
   écran et diodes), hyper et Bolide (méplat), derby (baquet), bus ; leviers du bulldozer (`u.leviers` dans `majCockpit`).
 - **Mains V2** : un gant qui serre (dos de la main face au conducteur, quatre doigts autour de la jante, jointures, pouce
   couché sur l'intérieur), géométrie fusionnée et partagée (`geoMainCk`) ; **bras en deux segments plié au coude**
