@@ -47,3 +47,12 @@ Commun : [x] moteur de visée (œil par arme, `VISEURS_1P`, `poseVisee1P`) · [x
 - [x] Boule « Comète » (mêlée) — modèle 1re personne (boule bleue à trois trous) tenue en main
 - [x] Le Désintégrateur (arme à feu du Site 51) — anneau lumineux et guidon, ×1,2
 - [x] Lance à eau du camion de pompiers — arme de véhicule (tirée depuis la cabine, sans arme en main) : vérifiée, inchangée
+
+## Retours sur la V2 (18 octobre)
+- [x] « Pourquoi les bras sont noirs ? » — choix du joueur : avant-bras nus (peau du perso), manche du haut porté retroussée au
+  coude, gants noirs ; torse nu : la peau jusqu'à l'épaule ; mêmes bras pour les poings
+- [x] Le pouce de la main de tir ne flotte plus près de l'œil en visée au fusil à pompe (il disparaît avec la crosse)
+- [x] Optiques de l'établi : elles REMPLACENT la mire d'origine (un seul viseur holographique sur le P.M., plus d'empilement),
+  posées à la place de la mire, modelées (point rouge, holographique, lunette ×4)
+- [x] L'armurerie prévient (« Remplace la mire d'origine (…) », « Remplace ton viseur point rouge (retiré) »), le toast d'achat aussi
+- [x] ESSAYER AU STAND depuis l'établi : l'arme avec ses pièces à l'essai, gratuit, retour à l'établi avec le bilan

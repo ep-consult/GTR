@@ -14629,6 +14629,56 @@ async function main() {
     }
 
     // -------------------------------------------------------------------
+    // Optiques de l'établi (18 octobre, signalé : « le viseur holographique du P.M. se cumule sur l'autre ; que l'un remplace l'autre,
+    // qu'on prévienne à l'armurerie, et qu'on puisse essayer, au stand aussi ») ; avant-bras nus en 1re personne (« pourquoi les bras
+    // sont noirs ? », choix du joueur : avant-bras nus, manche retroussée). Armes et optiques lues dans ORDRE_ARMES et MODS_ARMES.
+    // -------------------------------------------------------------------
+    console.log('\n--- Optiques de l’établi : elles remplacent la mire d’origine, l’armurerie prévient, essai au stand ; avant-bras nus ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = []; let T = dernierT + 1000; const MA = matsArme(), RET = [MA.reticuleHolo, MA.reticuleDot, MA.reticuleCroix];
+        const reticules = (g) => { let n = 0; g.traverse((o) => { if (o.isMesh && RET.includes(o.material)) { let vis = true; for (let q = o; q && q !== g; q = q.parent) if (!q.visible) vis = false; if (vis) n++; } }); return n; };
+        /* 1. sur chaque arme qui accepte une optique : la mire d'origine disparaît, une seule optique, une seule ligne de mire */
+        let n = 0;
+        for (const id of ORDRE_ARMES) { const a = ARMES[id]; if (a.type !== 'gun' || !mkArmeModeleDispo(id)) continue;
+          const g0 = mkArmeModele(id); if ((g0.userData.viseur || []).some((m) => !m.visible)) ko.push(id + ' : mire d’origine masquée sans optique');
+          for (const k of OPTIQUES_ARME) { if (!MODS_ARMES[k].pour(a, id)) continue; n++;
+            const g = habillerArme(mkArmeModele(id), id, [k]);
+            if ((g.userData.viseur || []).some((m) => m.visible)) ko.push(id + '/' + k + ' : la mire d’origine reste visible');
+            if (!g.userData.visee) ko.push(id + '/' + k + ' : pas de ligne de mire');
+            const nr = reticules(g); if (nr !== 1) ko.push(id + '/' + k + ' : ' + nr + ' réticules visibles'); } }
+        info.push(n + ' couples arme / optique : la mire d’origine masquée, un seul réticule');
+        /* 2. en visée à la 1re personne : le P.M. et son holographique de l'établi — un seul viseur, au centre */
+        META.vue = 'fps'; if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; ETAT.jour = 40; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9; for (const e of ennemis) e.mort = true;
+        const frame = (k) => { for (let i = 0; i < (k || 1); i++) { INPUT.jx = INPUT.jy = 0; P.x = POIS.place.x; P.z = POIS.place.z + 40; P.ang = Math.PI; VUE.yawUser = Math.PI; VUE.pitch1P = 0; T += 1000 / 60; tick(T); } };
+        const auCentre = (M) => { camera.updateMatrixWorld(true); M.R.updateMatrixWorld(true); const p = M.mire.clone().applyMatrix4(M.W.matrixWorld); p.project(camera); return Math.hypot(p.x, p.y); };
+        META.armes.pm.poss = true; const avantPm = META.modsArmes.pm; META.modsArmes.pm = 'holo'; majArmeJoueur('pm'); VUE1P.arme = null; montagePremiere(); frame(6); INPUT.edge.viser = true; frame(20);
+        { const M = VUE1P.montage; if (!M || reticules(M.R) !== 1 || auCentre(M) > 0.012 || !/établi/.test(M.typeVisee || '')) ko.push('P.M. + holographique en visée : ' + (M ? reticules(M.R) + ' réticules, mire à ' + auCentre(M).toFixed(3) + ', ' + M.typeVisee : 'pas de montage'));
+          else info.push('P.M. + holographique : un seul viseur, au centre (' + auCentre(M).toFixed(3) + ')'); }
+        INPUT.edge.viser = true; frame(20);
+        /* 3. avant-bras nus : la peau du perso, la manche du haut porté retroussée (sauf torse nu) ; gants noirs */
+        { majArmeJoueur('pistolet'); VUE1P.arme = null; montagePremiere(); frame(4); const M = VUE1P.montage, c = coifCouleurs(); let peau = 0, manche = 0;
+          M.R.traverse((o) => { if (!o.isMesh || !o.material || !o.material.color) return; if (o.material.map === _texPeau) peau++; if (o.material.map === _texTissu && o.material.color.getHex() === (c.haut & 0xffffff)) manche++; });
+          if (!peau || (!manche && c.haut !== c.peau)) ko.push('avant-bras : ' + peau + ' pièces de peau, ' + manche + ' de manche (haut ' + c.haut.toString(16) + ')'); else info.push('avant-bras nus (' + peau + ' pièces de peau), manche retroussée à la couleur du haut'); }
+        /* 4. l'armurerie prévient, et l'essai part au stand de tir avec les pièces à l'essai — rien n'est payé, retour à l'établi */
+        META.vue = 'classique'; startRun(); ecran(null); ETAT.mode = 'jeu'; entrerInterieur('armurerie', PORTES.find((q) => q.id === 'armurerie')); const sa = INT.actif;
+        META.modsArmes.pm = ''; ouvrirAtelierArme(sa, 'pm'); let txt = ATELIER.el.textContent;
+        if (!txt.includes('Remplace la mire d’origine (holographique)')) ko.push('établi : l’optique ne prévient pas qu’elle remplace la mire d’origine');
+        META.modsArmes.pm = 'pointRouge'; renderAtelier(); txt = ATELIER.el.textContent; if (!txt.includes('Remplace ton viseur point rouge (retiré)')) ko.push('établi : rien ne dit que l’holographique retire le point rouge posé');
+        META.modsArmes.pm = ''; atelierEssayer('holo'); const argent = META.argent;
+        if (!ATELIER.el.querySelector('#atStand')) ko.push('établi : pas de bouton ESSAYER AU STAND');
+        atelierEssaiStand();
+        if (!FPS.actif || !(FPS.actif.mods || []).includes('holo') || !FPS.montage || !FPS.montage.mod.userData.visee || FPS.montage.mod.userData.visee.type !== 'holo' || Math.abs(FPS.st.disp - armeStats('pm', ['holo']).disp) > 1e-9) ko.push('stand : l’essai n’a pas l’holographique (' + (FPS.actif ? (FPS.actif.mods || []).join(',') : 'pas lancé') + ')');
+        else info.push('essai au stand avec l’holographique (dispersion ' + FPS.st.disp.toFixed(2) + ' contre ' + armeStats('pm', []).disp.toFixed(2) + ')');
+        fpsFinir();
+        if (!ATELIER.ouvert || ATELIER.id !== 'pm' || !ATELIER.apercu.includes('holo') || !ATELIER.bilan) ko.push('retour du stand : établi ' + ATELIER.ouvert + ', ' + ATELIER.id + ', essai ' + ATELIER.apercu.join(','));
+        if (META.argent !== argent || modsArme('pm').length) ko.push('l’essai a coûté ou posé quelque chose');
+        fermerAtelierArme(); sortirInterieur(); META.modsArmes.pm = avantPm || ''; META.vue = 'classique'; startRun();
+        return { ko, info }; });
+      if (r.ko.length) fail('Optiques de l’établi : ' + r.ko.join(' ; ')); else ok('Optiques de l’établi : ' + r.info.join(' ; '));
+    }
+
+    // -------------------------------------------------------------------
     // Pictos MONTER / DESCENDRE (17 octobre au soir, 2e liste, signalé : « les
     // icônes ressemblent à des micros ») : en vol (hélico, avion — clés lues
     // dans VEHDEFS), une flèche vers le haut et une vers le bas ; à pied, les
