@@ -14463,6 +14463,117 @@ async function main() {
     }
 
     // -------------------------------------------------------------------
+    // Poussée des avions (18 octobre, demandé : « un peu de puissance d'effet d'accélération de 0 à plein gaz avec le levier ») :
+    // au manche, la manette poussée à fond, l'avion accélère de AVION_POUSSE × son acc (VEHDEFS, lu dans la source) jusqu'à sa
+    // vitesse, sans saut ; le long-courrier reste plus lent que le Colibri ; la sensation : le champ s'ouvre (poursuite et
+    // cockpit), la caméra recule, l'œil du cockpit est plaqué au siège ; moins de gaz : il ralentit doucement.
+    // -------------------------------------------------------------------
+    console.log('\n--- Poussée des avions : la manette à fond, une accélération franche qu’on sent ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = []; let T = dernierT + 1000; const trafic0 = creerTrafic; creerTrafic = () => {};
+        const vol = (cle, vue) => { META.vue = vue; if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9;
+          for (const o of vehicules) { scene.remove(o.mesh); libererEntite(o.mesh); } vehicules.length = 0; for (const e of ennemis) e.mort = true;
+          const v = creerVehicule(cle, POIS.place.x, POIS.place.z + 60, Math.PI, null); P.x = v.x; P.z = v.z; entrerVehicule(v); v.vol = true; v.alt = 120; v.va = 0; v.v = v.def.vmax * 0.35; v.gaz = 0.35; v.decolT = 0; v.figureCdT = 1e9; return v; };
+        const pas = (v, n, f) => { for (let i = 0; i < n; i++) { INPUT.jx = INPUT.jy = 0; v.alt = 120; T += 1000 / 60; tick(T); if (f) f(i); } };
+        const res = {};
+        for (const cle of ['avion', 'ligne']) { const v = vol(cle, 'immersive'); pas(v, 60); const v0 = v.v, fov0 = camera.fov; let saut = 0, pv = v.v, fovMax = 0;
+          MANETTE.val = 1; MANETTE.touche = true; let t95 = -1;
+          pas(v, 480, (i) => { saut = Math.max(saut, Math.abs(v.v - pv)); pv = v.v; fovMax = Math.max(fovMax, camera.fov); if (t95 < 0 && v.v >= v.def.vmax * 0.95) t95 = (i + 1) / 60; });
+          const acc1 = (v.def.acc || 10) * AVION_POUSSE; res[cle] = { t95, saut, gain: fovMax - fov0, acc1 };
+          if (saut > acc1 / 60 * 1.3 + 0.05) ko.push(cle + ' : la vitesse saute de ' + saut.toFixed(2) + ' u/s en une image');
+          if (!(fovMax > fov0 + 2)) ko.push(cle + ' : le champ ne s’ouvre pas à l’accélération (' + fov0.toFixed(1) + ' → ' + fovMax.toFixed(1) + ')');
+          MANETTE.val = 0.3; MANETTE.touche = true; const vH = v.v; pas(v, 60); if (!(v.v < vH && vH - v.v < (vH - v.def.vmax * 0.3) * 0.6)) ko.push(cle + ' : gaz réduits, ralentissement ' + vH.toFixed(1) + ' → ' + v.v.toFixed(1)); }
+        if (!(res.avion.t95 > 0 && res.avion.t95 < 3.2)) ko.push('Colibri : 35 → 95 % de sa vitesse en ' + res.avion.t95.toFixed(2) + ' s (attendu moins de 3,2 s)');
+        if (!(res.ligne.t95 > res.avion.t95 * 1.5)) ko.push('le long-courrier accélère aussi vite que le Colibri (' + res.ligne.t95.toFixed(2) + ' s contre ' + res.avion.t95.toFixed(2) + ')');
+        info.push('35 → 95 % : Colibri ' + res.avion.t95.toFixed(1) + ' s, long-courrier ' + res.ligne.t95.toFixed(1) + ' s ; champ +' + res.avion.gain.toFixed(1) + '°');
+        { const v = vol('avion', 'fps'); pas(v, 40); const e0 = COCKPIT.eye.z; const M = ckRepere(v), loc = () => camera.position.clone().applyMatrix4(new THREE.Matrix4().copy(M).invert()).z;
+          const z0 = loc(); MANETTE.val = 1; MANETTE.touche = true; let zMin = z0; pas(v, 40, () => { const Mi = new THREE.Matrix4().copy(ckRepere(v)).invert(); zMin = Math.min(zMin, camera.position.clone().applyMatrix4(Mi).z); });
+          if (!(zMin < z0 - 0.02)) ko.push('cockpit : l’œil n’est pas plaqué au siège (' + z0.toFixed(3) + ' → ' + zMin.toFixed(3) + ')'); else info.push('au cockpit, l’œil recule de ' + (z0 - zMin).toFixed(2) + ' u'); }
+        creerTrafic = trafic0; if (P.veh) sortirVehicule(true); META.vue = 'classique'; majCamera(1 / 30);
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Poussée des avions : ' + r.ko.join(' ; ')); else ok('Poussée des avions : ' + r.info.join(' ; '));
+    }
+
+    // -------------------------------------------------------------------
+    // Guidon des motos au cockpit (18 octobre, signalé avec une capture : le rétroviseur et la poignée du MODÈLE, entourés,
+    // doublaient ceux du cockpit) : pour chaque moto (motoCabrable, lue dans VEHDEFS), au cockpit, plus aucun triangle du modèle
+    // dans la zone du guidon (ud.guidonCk), le reste intact ; à la descente, la géométrie d'origine revient ; le cockpit reste sain.
+    // -------------------------------------------------------------------
+    console.log('\n--- Guidon des motos au cockpit : celui du modèle masqué, rendu à la descente ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = []; let T = dernierT + 1000;
+        const motos = Object.keys(VEHDEFS).filter((k) => motoCabrable({ def: VEHDEFS[k] }));
+        const compte = (v) => { const Z = v.mesh.userData.guidonCk; let tri = 0, dedans = 0; for (const c of v.mesh.userData.corps.children) { if (!c.isMesh || !c.geometry.attributes.position) continue; const g = c.geometry, p = g.attributes.position, I = g.index, n = I ? I.count : p.count;
+            for (let t = 0; t + 2 < n; t += 3) { tri++; let tous = true; for (let k = 0; k < 3; k++) { const i = I ? I.getX(t + k) : t + k, x = p.getX(i), y = p.getY(i), z = p.getZ(i); if (!(y >= Z.yMin && (Z.yMax === undefined || y <= Z.yMax) && z >= Z.zMin && z <= Z.zMax && Math.abs(x) >= Z.xMin)) { tous = false; break; } } if (tous) dedans++; } } return { tri, dedans }; };
+        for (const cle of motos) { META.vue = 'fps'; if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9;
+          const v = creerVehicule(cle, POIS.place.x, POIS.place.z + 60, Math.PI, null); P.x = v.x; P.z = v.z;
+          if (!v.mesh.userData.guidonCk) { ko.push(cle + ' : pas de zone du guidon'); continue; } const avant = compte(v);
+          entrerVehicule(v); for (let i = 0; i < 10; i++) { v.v = 0; T += 1000 / 60; tick(T); } const ck = compte(v), diag = cockpitDiagnostic(v);
+          sortirVehicule(true); for (let i = 0; i < 3; i++) { T += 1000 / 60; tick(T); } const apres = compte(v);
+          if (!(avant.dedans > 4)) ko.push(cle + ' : le modèle n’a presque rien dans la zone du guidon (' + avant.dedans + ')');
+          if (ck.dedans !== 0 || ck.tri !== avant.tri - avant.dedans) ko.push(cle + ' : au cockpit, ' + ck.dedans + ' triangles du guidon restent (' + ck.tri + ' / ' + avant.tri + ')');
+          if (apres.tri !== avant.tri || apres.dedans !== avant.dedans) ko.push(cle + ' : à la descente, le guidon du modèle ne revient pas (' + apres.tri + ' / ' + avant.tri + ')');
+          if (!diag.ok) ko.push(cle + ' : diagnostic du cockpit ' + JSON.stringify(diag));
+          info.push(cle + ' −' + avant.dedans); }
+        META.vue = 'classique'; majCamera(1 / 30);
+        return { ko, info: [info.join(', ') + ' triangles masqués au cockpit, rendus à la descente'] };
+      });
+      if (r.ko.length) fail('Guidon des motos : ' + r.ko.join(' ; ')); else ok('Guidon des motos : ' + r.info.join(' ; '));
+    }
+
+    // -------------------------------------------------------------------
+    // Camp d'entraînement de Fort Reyes (18 octobre, demandé : « faire disparaître le muret et exploiter cette zone autour de la
+    // base militaire, il faut que ça vive ») : plus de clôture (ni mesh ni solide) au nord de l'aérodrome, matériau partagé opaque ;
+    // le camp vit — la section court, les tireurs tirent (traçantes, cibles qui tombent), le mortier frappe le flanc du mont, la
+    // jeep de patrouille roule sur une boucle libre de tout solide ; « cessez le feu » quand on est sur le pas de tir ; les soldats
+    // sont des figurants « soldat » (une balle en fait un vrai soldat) ; masqués au loin, de retour près ; feu de camp la nuit.
+    // -------------------------------------------------------------------
+    console.log('\n--- Camp d’entraînement de Fort Reyes : plus de muret, un camp qui vit ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = []; let T = dernierT + 1000; const C = CAMPENT; META.vue = 'classique'; if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true);
+        startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9; ETAT.jour = 40; for (const e of ennemis) e.mort = true;
+        if (!C.ok) return { ko: ['camp non construit'], info };
+        const s = solidAt(358, -272, 0.4); if (s && s.h > 1 && s.h < 2 && s.hw > 30) ko.push('la clôture nord de l’aérodrome est toujours là (solide)');
+        for (const C2 of [_matCache, _matCacheDecor]) for (const k in C2) { const mc = C2[k]; if (mc && mc.color && mc.color.getHex() === 0x5a5f66 && (mc.transparent || mc.opacity < 1)) ko.push('matériau partagé de la clôture translucide'); }
+        const fig = C.humains.filter((h) => FIGURANTS.some((f) => f.h === h && f.ennemi === 'soldat')).length;
+        if (C.humains.length < 20 || fig !== C.humains.length) ko.push(C.humains.length + ' soldats, ' + fig + ' figurants « soldat »');
+        /* boucles libres : la jeep, la section */
+        let bloque = 0; for (let sv = 0; sv < C.boucleJeep.L; sv += 1) { const p = pointBoucle(C.boucleJeep, sv); if (solidAt(p.x, p.z, 1.3)) bloque++; }
+        let bloqueC = 0; for (let sv = 0; sv < C.boucleCourse.L; sv += 1) { const p = pointBoucle(C.boucleCourse, sv); if (solidAt(p.x, p.z, 0.5)) bloqueC++; }
+        if (bloque || bloqueC) ko.push('boucles encombrées : jeep ' + bloque + ', section ' + bloqueC);
+        const jeep = vehicules.find((v) => v === C.jeep && !v.mort); if (!jeep || jeep.conduit !== 'piste') ko.push('pas de jeep de patrouille');
+        /* la vie du camp, joueur à l'entrée */
+        P.x = 330; P.z = -262; const j0 = C.colonne[3].h.g.position.clone(), jp0 = jeep ? { x: jeep.x, z: jeep.z } : null; let tirs = 0, tombes = 0, impacts = 0, mort0 = 0;
+        for (let i = 0; i < 60 * 14; i++) { P.x = 330; P.z = -262; T += 1000 / 60; tick(T); for (const q of C.tireurs) if (q.trT > 0.068) tirs++; for (const c of C.cibles) if (c.tombe > 2.18) tombes++; if (C.mortier.exT > 0.34) impacts++; }
+        const j1 = C.colonne[3].h.g.position;
+        if (j0.distanceTo(j1) < 3) ko.push('la section ne court pas');
+        if (tirs < 10 || tombes < 1) ko.push('champ de tir : ' + tirs + ' tirs, ' + tombes + ' cibles tombées en 14 s');
+        if (impacts < 1) ko.push('le mortier n’a pas frappé en 14 s');
+        if (jeep && jp0 && Math.hypot(jeep.x - jp0.x, jeep.z - jp0.z) < 10) ko.push('la jeep ne patrouille pas');
+        info.push(C.humains.length + ' soldats, ' + tirs + ' tirs, ' + tombes + ' cibles tombées et ' + impacts + ' obus en 14 s, jeep et section en mouvement');
+        /* cessez le feu */
+        let tirsPas = 0; for (let i = 0; i < 60 * 4; i++) { P.x = 396; P.z = -276; T += 1000 / 60; tick(T); if (i > 30) for (const q of C.tireurs) if (q.trT > 0.068) tirsPas++; }
+        if (!C.cesse || tirsPas) ko.push('sur le pas de tir : cessez-le-feu ' + C.cesse + ', ' + tirsPas + ' tirs');
+        /* au loin : masqués ; de retour : visibles */
+        P.x = 0; P.z = 0; for (let i = 0; i < 3; i++) { T += 1000 / 60; tick(T); } const caches = C.humains.every((h) => !h.g.visible || figConverti(h));
+        P.x = 330; P.z = -262; for (let i = 0; i < 3; i++) { T += 1000 / 60; tick(T); } const vus = C.humains.every((h) => h.g.visible || figConverti(h));
+        if (!caches || !vus) ko.push('niveau de détail : cachés au loin ' + caches + ', visibles de près ' + vus);
+        /* la nuit : le feu de camp éclaire */
+        ETAT.jour = 130; for (let i = 0; i < 4; i++) { T += 1000 / 60; tick(T); } const nuitL = C.lueur.material.opacity; ETAT.jour = 40; for (let i = 0; i < 4; i++) { T += 1000 / 60; tick(T); }
+        if (!(nuitL > 0.3 && C.lueur.material.opacity === 0)) ko.push('feu de camp : lueur ' + nuitL.toFixed(2) + ' la nuit, ' + C.lueur.material.opacity + ' le jour');
+        /* une balle sur un tireur : un vrai soldat */
+        const cible = C.tireurs[0].h, g = cible.g, n0 = ennemis.length; const pris = toucherFigurant({ x: g.position.x, y: g.position.y + 1.2, z: g.position.z, vx: 0, vz: 0, dmg: 5 });
+        if (!pris || !figConverti(cible) || !ennemis.slice(n0).some((e) => e.type === 'soldat' || e.etype === 'soldat' || e.def === ETYPES.soldat)) ko.push('un tireur touché ne devient pas un soldat (' + pris + ')');
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Camp d’entraînement : ' + r.ko.join(' ; ')); else ok('Camp d’entraînement : ' + r.info.join(' ; '));
+    }
+
+    // -------------------------------------------------------------------
     // Pictos MONTER / DESCENDRE (17 octobre au soir, 2e liste, signalé : « les
     // icônes ressemblent à des micros ») : en vol (hélico, avion — clés lues
     // dans VEHDEFS), une flèche vers le haut et une vers le bas ; à pied, les

@@ -1000,6 +1000,9 @@ const AVION_CAM_ROULIS=0.5, AVION_CAM_TANG=0.6, AVION_CAM_SUIVI=2.6;
    AVION_G_VIRAGE    taux de virage = AVION_G_VIRAGE × tan(inclinaison) / vitesse : à inclinaison égale, plus vite = plus large ;
    AVION_TIRE_VIRAGE tirer dans un virage le resserre ; AVION_G_PENTE : vitesse perdue en montée, gagnée en piqué (u/s²) ;
    AVION_GAZ_VIT     vitesse de la manette des gaz (0 → 100 % en 1/AVION_GAZ_VIT s) ; AVION_AEROFREIN : FREINER en vol (u/s²).
+   AVION_POUSSE      la poussée : sous la vitesse de la manette, l'avion accélère de AVION_POUSSE × son acc (VEHDEFS) en u/s², puis s'y
+                     pose ; AVION_POUSSE_FOV (° de champ), AVION_POUSSE_RECUL (u de recul de la caméra), AVION_POUSSE_DOS (u : plaqué au
+                     siège, au cockpit) : la sensation, par u/s² d'accélération (bornée à 25).
    L'inclinaison de l'horizon au cockpit est un réglage du joueur (Paramètres, META.horizonCk : 100, 70 ou 40 %). */
 const AVION_MANCHE={
   avion:{incl:0.96,vRoul:1.4,tang:0.42,vTang:0.9,lacet:1.5},                         /* Colibri : avion léger */
@@ -1011,6 +1014,7 @@ const AVION_MANCHE={
   voltige:{incl:1.48,vRoul:4.5,tang:0.9,vTang:2.0,lacet:2.8,tonneau:true,loop:0.7}}; /* Colibri Rouge : hyper maniable */
 const AVION_MANCHE_DEF={incl:0.8,vRoul:1.2,tang:0.4,vTang:0.8,lacet:1.2};
 const AVION_G_VIRAGE=30, AVION_TIRE_VIRAGE=0.5, AVION_G_PENTE=6, AVION_GAZ_VIT=0.6, AVION_AEROFREIN=9;
+const AVION_POUSSE=1.0, AVION_POUSSE_FOV=0.35, AVION_POUSSE_RECUL=0.12, AVION_POUSSE_DOS=0.006;
 function ico(id,secours){
   if(!ICONES_SVG||!document.getElementById(id)) return secours||'';
   return '<svg class="icoSvg" viewBox="0 0 24 24" aria-hidden="true"><use href="#'+id+'"></use></svg>';
@@ -4252,7 +4256,7 @@ function construireVille(){
     if(qq!=='plage'&&qq!=='parc'&&bx%3===1&&bz%3===1) mkFeu(cx+INNER/2+1.4,cz-INNER/2-1.4);
   }
   placerPortes();
-  if(DECOR_V2){ sansAleaVille(()=>{ reserverHills(); reserverChantier(); reserverBase(); reserverSports(); ameliorerPortes(); mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkBasket(); mkCiel(); mkKiosqueBanderole(); mkCrique(); mkMontReyes(); mkVieMont(); mkBordureEst(); mkCanyonsDesert(); mkPicVertige(); mkParcStunt(); mkSkateXXL(); mkRides(); mkMerVivante(); mkRemorquage(); mkLarge(); deplacerVoltige(); mkAeroportVivant(); mkHeliGrue(); mkPlanques(); mkBoutiques(); mkGrandHuit(); mkToitsVivants(); mkTracesSable(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkNeonVivant(); mkQuartiersFinitions(); mkFacadesVariees(); mkCascades(); if(MERV.ok) mkVolcanIle(); mkAeroVie(); mkLosReyesHills(); mkBordsHills(); mkChantierV2(); mkPlanquesV2(); mkBaseV2(); mkBallTrap(); mkSportsParcs(); mkHalosBoutiques(); mkSurprisesToits(); mkArenaDerby(); mkRatelierSkateXXL(); mkStationsVelo(); mkSautVertige(); mkBalises(); }); } // cascades et volcan EN DERNIER : leurs tirages du décor ne décalent rien de ce qui précède (mobilier...) // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
+  if(DECOR_V2){ sansAleaVille(()=>{ reserverHills(); reserverChantier(); reserverBase(); reserverSports(); ameliorerPortes(); mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkBasket(); mkCiel(); mkKiosqueBanderole(); mkCrique(); mkMontReyes(); mkVieMont(); mkBordureEst(); mkCanyonsDesert(); mkPicVertige(); mkParcStunt(); mkSkateXXL(); mkRides(); mkMerVivante(); mkRemorquage(); mkLarge(); deplacerVoltige(); mkAeroportVivant(); mkHeliGrue(); mkPlanques(); mkBoutiques(); mkGrandHuit(); mkToitsVivants(); mkTracesSable(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkNeonVivant(); mkQuartiersFinitions(); mkFacadesVariees(); mkCascades(); if(MERV.ok) mkVolcanIle(); mkAeroVie(); mkLosReyesHills(); mkBordsHills(); mkChantierV2(); mkPlanquesV2(); mkBaseV2(); mkBallTrap(); mkSportsParcs(); mkHalosBoutiques(); mkSurprisesToits(); mkArenaDerby(); mkRatelierSkateXXL(); mkStationsVelo(); mkSautVertige(); mkCampEntrainement(); mkBalises(); }); } // cascades et volcan EN DERNIER : leurs tirages du décor ne décalent rien de ce qui précède (mobilier...) // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
   finaliserMerge();
   construireMinimapStatique();
 }
@@ -8916,6 +8920,195 @@ function majBaseV2(dt,dtJeu){
   if(BASE.laissez&&!BASE.revoque&&dansBase(P.x,P.z)&&(P.tirT>0.3||P.frappeT>0)){ BASE.revoque=true; toast('🚨 Tu as ouvert le feu dans la base : alerte générale !','warn'); addHeat(3,false,true); }
   majDefiBase(dtJeu);
 }
+/* ---- CAMP D'ENTRAÎNEMENT DE FORT REYES (18 octobre, demandé avec deux captures : « faire disparaître le muret et exploiter
+   cette zone autour de la base militaire, c'est trop vide, il faut que ça vive »). La bande de sable hors les murs, entre le mur
+   est de la ville, l'aérogare, les champs et le pied du Mont Reyes (x 309–432, z −292 à −259). Le « muret » était la clôture
+   nord de l'aérodrome (translucide, 1,5 u) qui la coupait en deux : construite puis retirée, comme celle de l'est (mêmes
+   tirages). À sa place, le camp où s'entraîne la garnison :
+   - bivouac : trois tentes, feu de camp et soldats assis autour (fumée, lueur la nuit), cuisine de campagne qui fume ;
+   - chargement : camion « Aigle », pile de caisses, deux soldats qui les portent ; char à l'exercice, tourelle qui pivote ;
+   - section au pas de course autour du camp, son sergent en tête (CAMPENT.boucleCourse) ;
+   - champ de tir : quatre tireurs derrière leurs sacs de sable, rafales (éclair, traçante, bruit qui baisse avec la distance),
+     cibles qui tombent et se relèvent, butte, moniteur, drapeau rouge ; « CESSEZ LE FEU » dès qu'on entre sur le pas de tir ;
+   - fosse de mortier au bout du camp : un coup toutes les 7 à 11 s, l'obus tombe sur le flanc du Mont Reyes (éclair,
+     poussière, fumée, bruit sourd) — pur spectacle, aucun dégât ;
+   - jeep de patrouille : un VRAI véhicule (conduit:'piste', majVehPiste) sur sa boucle, volable ; mirador et son projecteur
+     la nuit ; un Vautour à l'exercice qui tourne au-dessus du champ de tir (cibleCiel : il se percute et s'abat, revient à
+     la vague suivante) ; entrée : panneau et drapeaux face à l'aérogare.
+   Les soldats sont des figurants « soldat » (figurant) : touchés, ou à l'alarme, ils prennent les armes comme ceux de la base.
+   Construit en fin de décor sur un générateur PRIVÉ (ni la ville ni le décor ne voient un tirage de plus) ; masqué et figé
+   au-delà de CAMPENT_LOD. */
+const CAMPENT={ok:false,t:0,x0:309,x1:432,z0:-292,z1:-259,humains:[],colonne:[],assis:[],porteurs:[],tireurs:[],cibles:[],cuistot:null,moniteur:null,mortier:null,sport:[],sergent:null,officiers:[],balise:null,flammes:[],lueur:null,lampes:[],projo:null,heli:null,char:null,jeep:null,drapeaux:[],cesse:false,vu:null,fumT:0,boucleJeep:null,boucleCourse:null};
+const CAMPENT_LOD=170, CAMPENT_LANES=[-285,-280,-275,-270], CAMPENT_TIR_X=386, CAMPENT_CIBLE_X=406, CAMPENT_MORTIER={x:421,z:-275.5}, CAMPENT_FEU={x:330,z:-276}, CAMPENT_CUISINE={x:346.8,y:2.9,z:-284};
+function mkCampEntrainement(){
+  if(!DECOR_V2||!BASE.ok||CAMPENT.ok) return; const r0=Math.random; let sd=0x5eed51>>>0; Math.random=()=>{ sd=(sd*1664525+1013904223)>>>0; return sd/4294967296; };
+  try{ campConstruire(); CAMPENT.ok=true; } finally { Math.random=r0; } }
+function campConstruire(){
+  const C=CAMPENT, i0=scene.children.length, MT={}, m=(c)=>MT[c]||(MT[c]=new THREE.MeshLambertMaterial({color:c})), al=(a,b)=>a+Math.random()*(b-a);
+  const KAKI=0x4a5238, KAKIF=0x3a4228, TOILE=0x5d6444, BOIS=0x6a4a2a, SABLE=0xa88a5a, NOIR=0x23262e, TERRE=0x8a6a44;
+  const box=(w,h,d,c,x,y,z,ry)=>{ const b=mkBox(w,h,d,m(c),x,y,z); if(ry) b.rotation.y=ry; return b; };
+  const humain=(x,z,ry,o)=>{ o=o||{}; const h=makeHumain({haut:o.haut||KAKI,bas:KAKIF,peau:civPeau[Math.floor(Math.random()*civPeau.length)],casq:o.casq||0x2a3220,visage:'neutre'},1);
+    h.g.position.set(x,solY(x,z)+(o.dy||0),z); h.g.rotation.y=ry||0; scene.add(h.g); figurant(h,null,'soldat'); C.humains.push(h); return h; };
+  const fusil=(h)=>{ const g=new THREE.Group(); g.add(mkBoxG(0.06,0.92,0.07,NOIR,0,-1.08,0.03)); g.add(mkBoxG(0.08,0.34,0.15,BOIS,0,-0.64,0.05)); g.add(mkBoxG(0.05,0.14,0.1,NOIR,0,-0.95,-0.06));
+    const bout=new THREE.Object3D(); bout.position.set(0,-1.56,0.03); g.add(bout); h.brasD.add(g); return bout; };
+  const lueur=(x,y,z,c,sc)=>{ const s=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:c,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,opacity:0})); s.scale.set(sc,sc,1); s.position.set(x,y,z); scene.add(s); return s; };
+  const drapeau=(x,z,h,c1,c2)=>{ box(0.14,h,0.14,0xd8dce4,x,h/2,z); const tx=cTex(64,(g2,s)=>{ g2.fillStyle='#'+c1.toString(16).padStart(6,'0'); g2.fillRect(0,0,s,s); g2.fillStyle='#'+c2.toString(16).padStart(6,'0'); g2.fillRect(0,s*0.4,s,s*0.2); });
+    const dr=new THREE.Mesh(new THREE.PlaneGeometry(2.2,1.4,6,1),new THREE.MeshLambertMaterial({map:tx,side:THREE.DoubleSide})); dr.position.set(x+1.15,h-0.8,z); dr.userData.garder=true; scene.add(dr); C.drapeaux.push({m:dr,ph:Math.random()*6}); };
+  // --- entrée, face à l'aérogare : panneau et drapeaux
+  { const txt='CAMP D’ENTRAÎNEMENT — FORT REYES', L=9, p=new THREE.Mesh(new THREE.PlaneGeometry(L,L/2.4),new THREE.MeshBasicMaterial({map:texEnseigne(txt,'#d8b02a')}));
+    p.position.set(326,3.4,-255.4); p.rotation.order='YXZ'; p.rotation.x=-0.32; scene.add(p); const dos=new THREE.Mesh(p.geometry,p.material); dos.rotation.y=Math.PI; dos.position.z=-0.04; p.add(dos);
+    for(const sx of [-1,1]) box(0.25,3.4,0.25,KAKIF,326+sx*4.2,1.7,-255.8);
+    drapeau(319.4,-255.8,7,0x4a5238,0xd8b02a); drapeau(332.6,-255.8,7,0x1a4fa0,0xf2f2ee); }
+  // --- bivouac : trois tentes (prismes de toile), feu de camp, soldats assis, cuisine de campagne
+  const tente=(x,z)=>{ const gT=new THREE.CylinderGeometry(2.4,2.4,5,3,1); gT.rotateX(Math.PI/2); gT.rotateZ(Math.PI); gT.scale(1,0.75,1);
+    const t=new THREE.Mesh(gT,m(TOILE)); t.position.set(x,0.9,z); scene.add(t);
+    box(1.1,1.5,0.06,0x2a2e22,x,0.75,z+2.53); box(0.08,2.9,0.08,BOIS,x,1.45,z+2.62); C.lampes.push(lueur(x+0.5,1.9,z+2.8,0xffc06a,1.6)); addSolid({x,z,hw:2.1,hd:2.55,h:2.7}); };
+  for(const x of [322,330,338]) tente(x,-283.5);
+  { const F=CAMPENT_FEU; for(let k=0;k<8;k++){ const a=k/8*Math.PI*2; box(0.28,0.2,0.28,0x7a7468,F.x+Math.cos(a)*0.65,0.1,F.z+Math.sin(a)*0.65,a); }
+    box(1.1,0.16,0.16,0x4a3220,F.x,0.12,F.z,0.6); box(1.1,0.16,0.16,0x4a3220,F.x,0.2,F.z,-0.6);
+    for(let k=0;k<2;k++){ const fl=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:k?0xffd040:0xff6a1a,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,opacity:0.9})); fl.scale.set(0.9,1.3,1); fl.position.set(F.x,0.55+k*0.15,F.z); scene.add(fl); C.flammes.push(fl); }
+    C.lueur=lueur(F.x,0.3,F.z,0xff8a3a,7);
+    const angs=[0.5,2.0,3.5,5.0]; for(let k=0;k<4;k++){ const a=angs[k], x=F.x+Math.cos(a)*2.05, z=F.z+Math.sin(a)*2.05, ry=Math.atan2(F.x-x,F.z-z);
+      box(1.2,0.3,0.36,0x5a3e24,F.x+Math.cos(a)*2.25,0.15,F.z+Math.sin(a)*2.25,-a); /* rondin-banc */
+      const h=humain(x,z,ry,{dy:-0.2}); h.jambeG.rotation.x=h.jambeD.rotation.x=-1.45; h.brasG.rotation.x=h.brasD.rotation.x=-0.55; C.assis.push({h,k}); } }
+  { const K=CAMPENT_CUISINE; box(2.4,1.5,1.6,KAKI,346,0.75,-284); box(2.5,0.12,1.7,KAKIF,346,1.56,-284); const ch=new THREE.Mesh(new THREE.CylinderGeometry(0.13,0.13,1.3,8),m(NOIR)); ch.position.set(K.x,2.2,K.z); scene.add(ch);
+    const mar=new THREE.Mesh(new THREE.CylinderGeometry(0.35,0.3,0.4,10),m(0x9aa0a8)); mar.position.set(345.4,1.8,-284); scene.add(mar); addSolid({x:346,z:-284,hw:1.25,hd:0.85,h:1.6});
+    const h=humain(345.4,-282.5,Math.PI,{casq:0xf2f2ee,haut:0xe8e4d2}); C.cuistot=h; }
+  // --- chargement : camion « Aigle », pile de caisses, deux porteurs ; char à l'exercice
+  { const cam=makeVoiture('milit'); cam.position.set(357,solY(357,-284.5),-284.5); cam.rotation.y=Math.PI/2; scene.add(cam); addSolid({x:357,z:-284.5,hw:3.1,hd:1.3,h:3}); }
+  { for(let i=0;i<3;i++) for(let j=0;j<2;j++) box(0.9,0.85,0.9,0x5a5a3a,363.4+i*0.95,0.43,-279+j*0.95,(i+j)%2?0.06:-0.04); for(let i=0;i<2;i++) box(0.9,0.85,0.9,0x6a6a44,363.9+i*0.95,1.28,-278.5,0.05); addSolid({x:364.35,z:-278.5,hw:1.45,hd:1,h:1.7}); }
+  for(let k=0;k<2;k++){ const a={x:352.4,z:-282.9}, b={x:362.2,z:-277.4+k*0.0}, h=humain(a.x,a.z,0); const cr=mkBoxG(0.7,0.5,0.55,0x5a5a3a,0,1.12,0.5); h.g.add(cr); cr.visible=false;
+    C.porteurs.push({h,a,b,L:Math.hypot(b.x-a.x,b.z-a.z),ph:k*4.6,caisse:cr}); }
+  { const ch=makeVoiture('char'); ch.position.set(346,solY(346,-268),-268); ch.rotation.y=Math.PI/2; scene.add(ch); C.char=ch; addSolid({x:346,z:-268,hw:3.9,hd:1.85,h:2.6}); }
+  // --- filet de camouflage au-dessus du camion ; fûts de carburant
+  { const fil=new THREE.Mesh(new THREE.PlaneGeometry(10.5,5.6,6,3),new THREE.MeshLambertMaterial({color:0x4a5a2a,transparent:true,opacity:0.5,depthWrite:false,side:THREE.DoubleSide}));
+    fil.rotation.x=-Math.PI/2; fil.position.set(357,3.7,-284.6); fil.userData.garder=true; scene.add(fil); for(const sx of [-1,1]) for(const sz of [-1,1]) box(0.16,3.7,0.16,KAKIF,357+sx*5,1.85,-284.6+sz*2.6);
+    for(let k=0;k<7;k++){ const f2=new THREE.Mesh(new THREE.CylinderGeometry(0.3,0.3,0.9,10),m(k%3?0x3a5a2a:0x8a2a1a)); f2.position.set(368.4+(k%3)*0.65,0.45,-285.2+Math.floor(k/3)*0.65); scene.add(f2); } addSolid({x:369.1,z:-284.5,hw:1.1,hd:1,h:0.9}); }
+  // --- entraînement physique : deux rangs de soldats (pompes, puis sauts), le sergent face à eux
+  for(let k=0;k<6;k++){ const x=347+(k%3)*2.6, z=-275.5+Math.floor(k/3)*2.6, h=humain(x,z,Math.PI); C.sport.push({h,k,y0:h.g.position.y}); }
+  C.sergent=humain(349.6,-279.3,0,{casq:0x3a4228});
+  // --- poste de commandement : sacs de sable, table et carte, deux officiers, mât radio (feu rouge la nuit)
+  { const X=366.5, Z=-268.5; for(let k=0;k<9;k++){ const a=Math.PI*0.15+k/8*Math.PI*1.7; box(0.62,0.6,0.36,k%2?0xa08458:SABLE,X+Math.cos(a)*2.6,0.3,Z+Math.sin(a)*2.6,-a); }
+    box(1.6,0.08,1.0,0x5a4632,X,0.9,Z); for(const sx of [-1,1]) for(const sz of [-1,1]) box(0.08,0.86,0.08,0x3a2a1e,X+sx*0.7,0.43,Z+sz*0.42);
+    const tc=cTex(64,(g2,s2)=>{ g2.fillStyle='#d8cfa8'; g2.fillRect(0,0,s2,s2); g2.strokeStyle='#4a6a8a'; g2.lineWidth=2; g2.beginPath(); g2.moveTo(4,40); g2.quadraticCurveTo(30,10,60,30); g2.stroke(); g2.fillStyle='#d83a3a'; g2.fillRect(28,22,6,6); g2.fillRect(44,36,5,5); });
+    const carte=new THREE.Mesh(new THREE.PlaneGeometry(1.2,0.8),new THREE.MeshLambertMaterial({map:tc})); carte.rotation.x=-Math.PI/2; carte.position.set(X,0.95,Z); carte.userData.garder=true; scene.add(carte);
+    box(0.1,9,0.1,0x9aa0a8,X+1.9,4.5,Z-1.2); for(let k=1;k<4;k++) box(1.2-k*0.25,0.05,0.05,0x9aa0a8,X+1.9,2+k*2.2,Z-1.2);
+    C.balise=lueur(X+1.9,9.1,Z-1.2,0xff3b3b,1.2);
+    for(const [dx,ry] of [[-1.1,Math.PI/2],[1.1,-Math.PI/2]]){ const h=humain(X+dx,Z,ry,{casq:0x3a4228}); h.brasG.rotation.x=h.brasD.rotation.x=-0.5; C.officiers.push(h); } addSolid({x:X,z:Z,hw:0.85,hd:0.55,h:1}); }
+  // --- mâts d'éclairage (la nuit)
+  for(const [x,z] of [[318,-276],[379.5,-273]]){ box(0.16,7,0.16,0x5a5e66,x,3.5,z); box(1.2,0.3,0.4,0x3a3e46,x,7,z); C.lampes.push(lueur(x,6.8,z,0xfff0c8,6)); }
+  // --- section au pas de course autour du camp
+  C.boucleCourse=boucleRect(316,372,-288.5,-262.5,4);
+  for(let k=0;k<7;k++){ const p=pointBoucle(C.boucleCourse,-k*1.25), h=humain(p.x,p.z,p.ang,{haut:k?0x6a7050:KAKI}); C.colonne.push({h,k}); }
+  // --- champ de tir : pas de tir, sacs de sable, tireurs, cibles, butte, moniteur, drapeau rouge
+  const texC=cTex(128,(g2,s)=>{ g2.fillStyle='#d8c8a0'; g2.fillRect(0,0,s,s); g2.fillStyle='#23262e'; g2.beginPath(); g2.arc(s/2,s*0.2,s*0.13,0,7); g2.fill();
+    g2.beginPath(); g2.moveTo(s*0.18,s); g2.lineTo(s*0.24,s*0.44); g2.quadraticCurveTo(s/2,s*0.32,s*0.76,s*0.44); g2.lineTo(s*0.82,s); g2.fill(); g2.strokeStyle='#d83a3a'; g2.lineWidth=5; g2.beginPath(); g2.arc(s/2,s*0.62,s*0.11,0,7); g2.stroke(); });
+  const matC=new THREE.MeshLambertMaterial({map:texC,side:THREE.DoubleSide});
+  box(0.16,0.03,20,0xf2f2ee,CAMPENT_TIR_X+0.9,0.03,-277.5);
+  for(const z of CAMPENT_LANES){
+    for(let r=0;r<3;r++) for(let k=0;k<(r===2?3:4);k++) box(0.36,0.3,0.6,r%2?0xa08458:SABLE,CAMPENT_TIR_X+1.7,0.15+r*0.29,z-0.95+k*0.62+(r%2?0.31:0)+(r===2?0.31:0),(k%2?0.08:-0.06));
+    const h=humain(CAMPENT_TIR_X,z,Math.PI/2); h.brasD.rotation.x=-1.45; h.brasG.rotation.x=-1.35; h.brasG.rotation.z=-0.35; const bout=fusil(h);
+    const fl=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:0xffd27a,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,opacity:0})); fl.scale.set(1.3,1.3,1); scene.add(fl);
+    const tr=new THREE.Mesh(new THREE.BoxGeometry(0.07,0.07,1),new THREE.MeshBasicMaterial({color:0xffdf8a,transparent:true,opacity:0.95,blending:THREE.AdditiveBlending,depthWrite:false})); tr.visible=false; tr.userData.garder=true; scene.add(tr);
+    C.tireurs.push({h,bout,fl,tr,z,t:al(0.3,3),rafale:0,flT:0,trT:0,recul:0});
+    const piv=new THREE.Group(); piv.position.set(CAMPENT_CIBLE_X,solY(CAMPENT_CIBLE_X,z),z); piv.rotation.y=-Math.PI/2; const bas=new THREE.Group(); piv.add(bas);
+    const carte=new THREE.Mesh(new THREE.PlaneGeometry(0.9,1.5),matC); carte.position.y=1.55; bas.add(carte); for(const sx of [-1,1]) bas.add(mkBoxG(0.06,1.0,0.06,BOIS,sx*0.36,0.5,-0.03));
+    scene.add(piv); C.cibles.push({bas,k:0,tombe:0}); }
+  for(const z of CAMPENT_LANES){ const b=new THREE.Mesh(new THREE.SphereGeometry(1,12,8),m(TERRE)); b.scale.set(1.5,2.5,2.2); b.position.set(CAMPENT_CIBLE_X+3.2,0,z); scene.add(b); addSolid({x:CAMPENT_CIBLE_X+3.2,z,hw:1.3,hd:1.9,h:2.3}); } /* une butte de terre derrière chaque cible (une butte d'un seul tenant se lisait comme un mur) */
+  for(let k=1;k<4;k++){ const x=CAMPENT_TIR_X+k*5; for(const z of [-287.6,-267.4]){ box(0.12,1.2,0.12,k%2?0xd83a3a:0xf2f2ee,x,0.6,z); } } /* jalons des distances */
+  // --- fosse de mortier : sacs de sable en couronne, le tube pointé vers le Mont Reyes, deux servants, caisses d'obus
+  { const M=CAMPENT_MORTIER; for(let k=0;k<12;k++){ const a=k/12*Math.PI*2; if(Math.cos(a)<-0.8) continue; /* l'entrée de la fosse, côté camp */ box(0.62,0.62,0.36,k%2?0xa08458:SABLE,M.x+Math.cos(a)*2.4,0.31,M.z+Math.sin(a)*2.4,-a); }
+    const tube=new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.12,1.3,10),m(NOIR)); tube.position.set(M.x+0.25,0.62,M.z); tube.rotation.z=-0.7; tube.userData.garder=true; scene.add(tube);
+    box(0.7,0.08,0.7,0x3a3e46,M.x,0.05,M.z); for(let k=0;k<3;k++) box(0.55,0.32,0.36,0x5a5a3a,M.x-1.2,0.17+k*0.33,M.z+1.2,0.1*k);
+    const s1=humain(M.x-0.8,M.z-0.7,Math.PI/2), s2=humain(M.x-0.3,M.z+0.9,2.3); s2.jambeG.rotation.x=-1.3; s2.g.position.y-=0.35; /* l'un charge, l'autre accroupi */
+    const fl=lueur(M.x+0.7,1.15,M.z,0xffd27a,2.4), ex=lueur(0,0,0,0xffb060,9);
+    C.mortier={x:M.x,z:M.z,tube,s1,s2,fl,ex,t:3,vol:0,ix:0,iy:0,iz:0,flT:0,exT:0}; addSolid({x:M.x,z:M.z,hw:2.6,hd:2.6,h:0.62}); }
+  { const h=humain(382.5,-277.5,Math.PI/2,{casq:0x3a4228}); h.brasG.rotation.x=h.brasD.rotation.x=0.45; C.moniteur=h; }
+  drapeau(381,-263.5,6,0xd83a3a,0xd83a3a);
+  // --- mirador (et son projecteur la nuit)
+  { const X=381, Z=-290.5; for(const sx of [-1,1]) for(const sz of [-1,1]){ box(0.22,6,0.22,BOIS,X+sx*1.1,3,Z+sz*1.1); addSolid({x:X+sx*1.1,z:Z+sz*1.1,hw:0.15,hd:0.15,h:6}); }
+    box(2.8,0.2,2.8,BOIS,X,6,Z); for(const sx of [-1,1]){ box(0.1,1.0,2.8,KAKIF,X+sx*1.35,6.6,Z); box(2.8,1.0,0.1,KAKIF,X,6.6,Z+sx*1.35); }
+    for(const sx of [-1,1]) for(const sz of [-1,1]) box(0.12,2.3,0.12,BOIS,X+sx*1.3,7.2,Z+sz*1.3); box(3.2,0.2,3.2,KAKIF,X,8.4,Z);
+    for(let k=0;k<7;k++) box(0.7,0.06,0.08,BOIS,X,0.5+k*0.8,Z+1.5); box(0.35,0.3,0.4,0x3a3e46,X+0.9,7.3,Z+1.3);
+    const h=humain(X-0.3,Z,0.6); h.g.position.y=6.1; const cone=new THREE.Mesh(new THREE.ConeGeometry(2.6,1,18,1,true),new THREE.MeshBasicMaterial({color:0xfff2c8,transparent:true,opacity:0.1,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide}));
+    cone.userData.garder=true; cone.visible=false; scene.add(cone); C.projo={x:X+0.9,y:7.3,z:Z+1.3,cone,tache:lueur(X,0.2,Z+10,0xfff2c8,7)}; }
+  // --- le Vautour à l'exercice, au-dessus du champ de tir
+  { const hm=makeVoiture('vautour'); hm.rotation.order='YXZ'; hm.position.set(430,24,-275); scene.add(hm); C.heli={m:hm,a:0,c:cibleCiel('vautour','💥 HÉLICO ABATTU',hm,6.5,2.6,6.5,120,1)}; }
+  C.boucleJeep=boucleRect(312,377,-292,-259,6);
+  fusionnerDecor(i0);
+}
+function campEntrainementStartRun(){ const C=CAMPENT; if(!C.ok) return; C.vu=null; C.cesse=false;
+  const p=pointBoucle(C.boucleJeep,0), v=creerVehicule('jeepMil',p.x,p.z,p.ang); if(v){ v.conduit='piste'; v.piste={b:C.boucleJeep,s:0,vit:7,vCur:0}; C.jeep=v; } }
+const _vCamp=new THREE.Vector3();
+function majCampEntrainement(dt){
+  const C=CAMPENT; if(!C.ok||INT.actif) return; C.t+=dt; const t=C.t, nuit=(ETAT.nuitF||0)>0.3;
+  // le Vautour tourne au-dessus du champ de tir (toujours : on le voit de loin), à droite, incliné dans son virage
+  if(C.heli&&C.heli.c.etat==='vol'){ const H=C.heli; H.a+=dt*0.28; const x=404+Math.cos(H.a)*26, z=-275+Math.sin(H.a)*19;
+    H.m.position.set(x,24+Math.sin(H.a*2.3)*2,z); H.m.rotation.y=Math.atan2(-Math.sin(H.a)*26,Math.cos(H.a)*19); H.m.rotation.z=0.16; H.m.rotation.x=0.06; const ud=H.m.userData; if(ud.rotor) ud.rotor.rotation.y+=dt*26; }
+  const d=Math.sqrt(dist2(P.x,P.z,(C.x0+C.x1)/2,(C.z0+C.z1)/2)), pres=d<CAMPENT_LOD;
+  if(pres!==C.vu){ C.vu=pres; for(const h of C.humains) if(!figConverti(h)) h.g.visible=pres; }
+  if(!pres) return;
+  for(const dr of C.drapeaux){ const p=dr.m.geometry.attributes.position; for(let i=0;i<p.count;i++){ const x=p.getX(i); p.setZ(i,Math.sin(t*4+dr.ph+x*2)*0.16*(x+1.1)); } p.needsUpdate=true; }
+  // feu de camp, fumées, lumières de la nuit
+  for(let k=0;k<C.flammes.length;k++){ const f=C.flammes[k], a=0.75+0.25*Math.sin(t*17+k*2.1)*Math.sin(t*7.3+k); f.scale.set(0.8*a+0.2,1.3*a,1); f.material.opacity=0.65+0.3*a; }
+  if(C.lueur) C.lueur.material.opacity=nuit?0.55+0.15*Math.sin(t*9):0;
+  for(const l of C.lampes) l.material.opacity=nuit?0.75:0;
+  C.fumT-=dt; if(C.fumT<=0&&d<120){ C.fumT=0.45; fumee(CAMPENT_FEU.x,1.0,CAMPENT_FEU.z,0x8a8a8a); const K=CAMPENT_CUISINE; fumee(K.x,K.y,K.z,0xa0a0a0); }
+  // assis autour du feu : l'un raconte (il gesticule), les autres tournent la tête ; le cuistot remue la marmite
+  for(const a of C.assis){ if(figConverti(a.h)) continue; const h=a.h; if(a.k===0){ h.brasD.rotation.x=-0.9+Math.sin(t*3.1)*0.45; h.brasG.rotation.x=-0.7+Math.sin(t*2.3)*0.3; } else h.tete.rotation.y=Math.sin(t*0.5+a.k*1.7)*0.45; }
+  if(C.cuistot&&!figConverti(C.cuistot)){ C.cuistot.brasD.rotation.x=-0.95+Math.sin(t*4)*0.25; C.cuistot.brasD.rotation.z=Math.cos(t*4)*0.2; }
+  // entraînement physique : 6 s de pompes, 6 s de sauts écartés, au rythme du sergent
+  { const ph=(t%12)<6, b=Math.sin(t*5);
+    for(const s2 of C.sport){ if(figConverti(s2.h)) continue; const h=s2.h;
+      if(ph){ h.g.rotation.x=-1.25; h.g.position.y=s2.y0+0.48+b*0.12; h.brasG.rotation.x=h.brasD.rotation.x=-1.4+b*0.25; h.brasG.rotation.z=h.brasD.rotation.z=0; h.jambeG.rotation.z=h.jambeD.rotation.z=0; }
+      else { const j=Math.max(0,b); h.g.rotation.x=0; h.g.position.y=s2.y0+j*0.35; h.brasG.rotation.x=h.brasD.rotation.x=0; h.brasG.rotation.z=-j*2.6; h.brasD.rotation.z=j*2.6; h.jambeG.rotation.z=-j*0.35; h.jambeD.rotation.z=j*0.35; } }
+    if(C.sergent&&!figConverti(C.sergent)){ C.sergent.brasD.rotation.x=-0.4+Math.max(0,Math.sin(t*5))*-1.2; C.sergent.tete.rotation.y=Math.sin(t*0.7)*0.4; } }
+  for(let k=0;k<C.officiers.length;k++){ const h=C.officiers[k]; if(figConverti(h)) continue; h.tete.rotation.y=Math.sin(t*0.8+k*2)*0.35; if(k===0) h.brasD.rotation.x=-0.5-Math.max(0,Math.sin(t*1.3))*0.6; }
+  if(C.balise) C.balise.material.opacity=Math.floor(t*1.2)%2?(nuit?0.95:0.5):0.08; /* le feu rouge du mât radio clignote */
+  // la section au pas de course, le sergent devant
+  for(const j of C.colonne){ if(figConverti(j.h)) continue; const p=pointBoucle(C.boucleCourse,t*3.3-j.k*1.25+(j.k===0?0.6:0)), off=j.k===0?0:(j.k%2?0.5:-0.5), x=p.x+Math.cos(p.ang)*off, z=p.z-Math.sin(p.ang)*off;
+    j.h.g.position.set(x,solY(x,z),z); j.h.g.rotation.y=p.ang; animeHumain(j.h,dt,6.5,false); j.h.brasG.rotation.x-=0.5; j.h.brasD.rotation.x-=0.5; }
+  // les porteurs : une caisse du camion à la pile, puis retour à vide
+  for(const q of C.porteurs){ if(figConverti(q.h)) continue; const vit=1.7, Tm=q.L/vit, T=2*Tm+2.4, u=((t+q.ph)%T+T)%T; let f, aller, marche=true;
+    if(u<1.2){ f=0; aller=true; marche=false; } else if(u<1.2+Tm){ f=(u-1.2)/Tm; aller=true; } else if(u<2.4+Tm){ f=1; aller=false; marche=false; } else { f=1-(u-2.4-Tm)/Tm; aller=false; }
+    const porte=u>=0.6&&u<1.8+Tm, x=q.a.x+(q.b.x-q.a.x)*f, z=q.a.z+(q.b.z-q.a.z)*f, h=q.h; h.g.position.set(x,solY(x,z),z);
+    if(marche) h.g.rotation.y=Math.atan2((q.b.x-q.a.x)*(aller?1:-1),(q.b.z-q.a.z)*(aller?1:-1)); animeHumain(h,dt,marche?4:0,false);
+    q.caisse.visible=porte; if(porte){ h.brasG.rotation.x=h.brasD.rotation.x=-1.15; } }
+  // le char : la tourelle cherche sa cible
+  if(C.char&&C.char.userData.tourelle) C.char.userData.tourelle.rotation.y=Math.sin(t*0.23)*0.75;
+  // champ de tir : rafales, traçantes, cibles ; « CESSEZ LE FEU » si quelqu'un est sur le pas de tir
+  const surPas=P.x>CAMPENT_TIR_X+1&&P.x<CAMPENT_CIBLE_X+4&&P.z>-289&&P.z<-262;
+  if(surPas&&!C.cesse){ C.cesse=true; toast('🎖️ « CESSEZ LE FEU ! » — quelqu’un sur le pas de tir','warn'); } else if(!surPas) C.cesse=false;
+  for(const q of C.tireurs){ const h=q.h, vivant=!figConverti(h);
+    if(q.flT>0){ q.flT-=dt; q.fl.material.opacity=q.flT>0?1:0; } if(q.trT>0){ q.trT-=dt; q.tr.material.opacity=Math.max(0,q.trT/0.07)*0.85; if(q.trT<=0) q.tr.visible=false; }
+    if(!vivant){ q.fl.material.opacity=0; q.tr.visible=false; continue; }
+    q.recul=Math.max(0,q.recul-dt*8); h.brasD.rotation.x=lerp(h.brasD.rotation.x,(C.cesse?-0.45:-1.45)+q.recul*0.12,clamp(dt*8,0,1)); h.brasG.rotation.x=lerp(h.brasG.rotation.x,C.cesse?-0.3:-1.35,clamp(dt*8,0,1));
+    if(C.cesse){ q.rafale=0; continue; }
+    q.t-=dt; if(q.t>0) continue;
+    if(q.rafale<=0){ q.rafale=2+Math.floor(Math.random()*3); }
+    q.rafale--; q.t=q.rafale>0?0.14:rand(1.4,3.4); q.recul=1;
+    const o=q.bout.getWorldPosition(_vCamp); q.fl.position.copy(o); q.flT=0.05; q.fl.material.opacity=1;
+    const tx=CAMPENT_CIBLE_X, ty=solY(tx,q.z)+1.55+rand(-0.4,0.35), tz=q.z+rand(-0.35,0.35), L=Math.hypot(tx-o.x,ty-o.y,tz-o.z);
+    q.tr.position.set((o.x+tx)/2,(o.y+ty)/2,(o.z+tz)/2); q.tr.lookAt(tx,ty,tz); q.tr.scale.set(1,1,L); q.tr.visible=true; q.trT=0.07; q.tr.material.opacity=0.85;
+    if(d<110){ const a=1-d/110; bruit(0.06,0.015+0.17*a*a,1700); }
+    const c=C.cibles[CAMPENT_LANES.indexOf(q.z)]; if(c&&c.tombe<=0&&Math.random()<0.3){ c.tombe=2.2; if(d<60) beep(1400,0.04,'square',0.03*(1-d/60)); } }
+  // le mortier : départ (éclair, fumée, coup sourd), 2,6 s plus tard l'impact sur le flanc du Mont Reyes
+  if(C.mortier){ const M=C.mortier, vivant=!figConverti(M.s1)&&!figConverti(M.s2);
+    if(M.flT>0){ M.flT-=dt; M.fl.material.opacity=Math.max(0,M.flT/0.12); } if(M.exT>0){ M.exT-=dt; M.ex.material.opacity=Math.max(0,M.exT/0.35); }
+    if(!figConverti(M.s1)) M.s1.brasD.rotation.x=M.t<1.2&&M.t>0?-1.6-Math.sin(M.t*5)*0.3:-0.4;
+    if(M.vol>0){ M.vol-=dt; if(M.vol<=0){ const x=M.ix, y=M.iy, z=M.iz; M.ex.position.set(x,y+1.5,z); M.exT=0.35; M.ex.material.opacity=1;
+        for(let k=0;k<14;k++) spawnP(x,y+0.5,z,rand(-5,5),rand(3,9),rand(-5,5),rand(0.8,1.4),rand(0.6,1.3),k%2?0x8a6a44:0x6a5a48,1);
+        for(let k=0;k<4;k++) fumee(x+rand(-1.5,1.5),y+1,z+rand(-1.5,1.5),0x7a746a);
+        const dd=Math.sqrt(dist2(P.x,P.z,x,z)); if(dd<160){ const a=1-dd/160; bruit(0.5,0.05+0.3*a*a,180); if(dd<70) secousse(1.5*a); } } }
+    M.t-=dt; if(vivant&&!C.cesse&&M.t<=0&&M.vol<=0){ M.t=rand(7,11); M.flT=0.12; M.fl.material.opacity=1; fumee(M.x+0.75,1.4,M.z,0x9a9a9a);
+      M.ix=rand(452,472); M.iz=rand(-286,-266); M.iy=solY(M.ix,M.iz); M.vol=2.6; if(d<110){ const a=1-d/110; bruit(0.18,0.04+0.2*a*a,260); } } }
+  for(const c of C.cibles){ if(c.tombe>0) c.tombe-=dt; c.k=lerp(c.k,c.tombe>0?1:0,clamp(dt*(c.tombe>0?10:3),0,1)); c.bas.rotation.x=-c.k*1.45; }
+  if(C.moniteur&&!figConverti(C.moniteur)){ const h=C.moniteur; h.brasD.rotation.x=lerp(h.brasD.rotation.x,C.cesse?-2.7:0.45,clamp(dt*6,0,1)); h.tete.rotation.y=C.cesse?0:Math.sin(t*0.6)*0.5; }
+  // le projecteur du mirador balaie le camp la nuit
+  if(C.projo){ const J=C.projo; J.cone.visible=nuit; J.tache.material.opacity=nuit?0.5:0;
+    if(nuit){ const a=Math.sin(t*0.35), px=362+a*24, pz=-275+Math.sin(t*0.61)*9; J.tache.position.set(px,0.25,pz); const L=Math.hypot(px-J.x,0.25-J.y,pz-J.z);
+      J.cone.position.set((J.x+px)/2,(J.y+0.25)/2,(J.z+pz)/2); J.cone.scale.set(1,L,1); J.cone.lookAt(px,0.25,pz); J.cone.rotateX(-Math.PI/2); } }
+}
 function baseAction(){
   if(!BASE.ok||P.veh) return null; const g=BASE.porte, d=BASE.depart;
   if(dist2(P.x,P.z,g.x,g.z-2.5)<16&&!baseAutorisee()&&!BASE.revoque) return {label:'🎖️ S’ENGAGER — VISITER FORT REYES',fn:()=>{ BASE.laissez=true; SFX.achat(); bigMsg('🎖️ BIENVENUE À FORT REYES'); toast('Visite libre : ne tire pas dans la base. Le parcours du combattant t’attend au sud-est.','or'); }};
@@ -12106,13 +12299,13 @@ function mkAeroport(){
   // clôture grillagée du périmètre
   const matCl=mat(0x5a5f66);
   const clot=(x,z,w,d,retirer)=>{const m=mkBox(w,1.5,d,matCl,x,0.75,z);m.material.transparent=true;m.material.opacity=0.55;
-    if(retirer){ scene.remove(m); return; } // construite (mêmes tirages pour la ville), jamais affichée ni solide
+    if(retirer){ scene.remove(m); m.material.transparent=false; m.material.opacity=1; return; } // construite (mêmes tirages pour la ville), jamais affichée ni solide ; le matériau PARTAGÉ redevient opaque
     (mkAeroport.clotures||(mkAeroport.clotures=[])).push(m); // son propre matériau à la 1re partie : clotureMatPropre
     addSolid({x,z,hw:w/2,hd:d/2,h:1.5});};
   // DECOR_V2 : plus de clôture à l'est (elle séparait l'aérodrome du Mont Reyes) ;
   // celle du nord s'arrête avant le pied de la montagne
   clot(AX+70,-70,0.3,364,DECOR_V2);
-  if(DECOR_V2) clot(AX-16,-HALF+22,140,0.3); else clot(AX+8,-HALF+22,186,0.3);
+  if(DECOR_V2) clot(AX-16,-HALF+22,140,0.3,true); else clot(AX+8,-HALF+22,186,0.3); // 18 octobre : plus de clôture au nord non plus (le « muret » qui coupait la bande de sable) — le camp d'entraînement de Fort Reyes s'y installe
   // Clôture sud retirée (demandé explicitement, « en bas enlever le mur ») :
   // ouvre tout le désert au sud (POIS.desert/dunes/tremplins, voir
   // construireRelief) au lieu de le couper net avant la clôture — estEau()
@@ -16419,6 +16612,7 @@ function makeMotoV2(def,coul,g,ud,corps,key){
     boite(0.17,0.03,0.42,coul,0,0.73,0.77,-0.12); boite(0.16,0.03,0.3,NOIR,0,0.72,-0.64,0.25);  // garde-boue
     boite(0.7,0.035,0.035,SOMBRE,0,1.1,0.4); for(const s of [-1,1]){ boite(0.06,0.06,0.13,NOIR,s*0.34,1.1,0.39); tube(s*0.24,1.1,0.42,s*0.27,1.28,0.45,0.02,SOMBRE); boite(0.1,0.06,0.02,0x9aa0a8,s*0.28,1.3,0.46); } // guidon, rétros
     phare(0,0.9,0.63,0.11); boite(0.1,0.07,0.08,NOIR,0,1.06,0.5);           // phare, compteur
+    ud.guidonCk={yMin:1.065,zMin:0.3,zMax:0.56,xMin:0.12}; /* guidon, poignées, rétros : masqués au cockpit (ckMasquerGuidonMoto) */
     seat={y:1.02-0.6,z:-0.18};
   } else if(st==='sport'){
     const R=0.33, zf=0.76, zr=-0.73, H={y:0.98,z:0.5};
@@ -16438,6 +16632,7 @@ function makeMotoV2(def,coul,g,ud,corps,key){
     for(const s of [-1,1]){ boite(0.2,0.03,0.03,SOMBRE,s*0.17,0.98,0.5); boite(0.05,0.05,0.1,NOIR,s*0.27,0.98,0.48); boite(0.1,0.05,0.02,coul,s*0.2,1.06,0.68); } // demi-guidons, rétros
     for(const s of [-1,1]) phare(s*0.08,0.87,0.86,0.06);
     boite(0.16,0.03,0.3,coul,0,0.71,0.78,-0.1);
+    ud.guidonCk={yMin:0.93,yMax:1.1,zMin:0.4,zMax:0.75,xMin:0.06};
     seat={y:1.04-0.6,z:-0.16};
   } else if(st==='cross'){
     const R=0.4, zf=0.72, zr=-0.7, H={y:1.12,z:0.42};
@@ -16458,6 +16653,7 @@ function makeMotoV2(def,coul,g,ud,corps,key){
     boite(0.3,0.26,0.03,0xf2f4f6,0,1.02,0.58,-0.3);                           // plaque numéro
     boite(0.84,0.035,0.035,SOMBRE,0,1.28,0.36); boite(0.16,0.06,0.06,coul,0,1.3,0.36); // guidon large et mousse
     for(const s of [-1,1]){ boite(0.06,0.06,0.12,NOIR,s*0.4,1.28,0.35); boite(0.1,0.12,0.04,coul,s*0.36,1.26,0.43); } // poignées, protège-mains
+    ud.guidonCk={yMin:1.2,zMin:0.25,zMax:0.5,xMin:0};
     seat={y:1.12-0.6,z:-0.12};
   } else { // chopper « Fantôme » : fourche très inclinée, selle basse, guidon haut, bicylindre en V, chromes
     const R=0.34, zf=0.86, zr=-0.74, H={y:1.02,z:0.42};
@@ -16476,6 +16672,7 @@ function makeMotoV2(def,coul,g,ud,corps,key){
     boite(0.56,0.03,0.03,CHROME,0,1.38,0.32); for(const s of [-1,1]) boite(0.05,0.05,0.12,NOIR,s*0.28,1.38,0.3);
     phare(0,0.92,0.58,0.12);
     const lueur=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:0x7dffd8,transparent:true,depthWrite:false,opacity:0.18,blending:THREE.AdditiveBlending})); lueur.scale.set(2.6,1.2,1); lueur.position.set(0,0.3,0); g.add(lueur); // lueur fantôme
+    ud.guidonCk={yMin:1.0,zMin:0.2,zMax:0.5,xMin:0};
     seat={y:0.82-0.6,z:-0.28,jambes:-1.25};
   }
   // pièces fusionnées par matériau (les sprites restent à part ; l'échappement d'origine aussi)
@@ -19828,6 +20025,7 @@ function roulisIA(e,cap,dt){ /* un avion de l'IA ou du décor : son roulis suit 
 const AVION_AIDE={vu:false,decol:false};
 function avionManche(v){ return !!(v&&v.def&&v.def.air==='avion'&&v===P.veh&&META.vue!=='classique'&&!INT.actif); }
 function pilotageAvion(v){ return AVION_MANCHE[v.key]||AVION_MANCHE_DEF; }
+function accAvion(v){ return v&&v.def&&v.def.air==='avion'&&avionManche(v)?clamp(v.accAv||0,0,25):0; } /* l'accélération ressentie (u/s², lissée) : champ, recul de la caméra, plaqué au siège */
 function majGazAvion(v,dt,plus,moins){ if(v.gaz===undefined) v.gaz=clamp((v.v||0)/(v.def.vmax||40),0,1);
   if(plus) v.gaz=Math.min(1,v.gaz+AVION_GAZ_VIT*dt); if(moins) v.gaz=Math.max(0,v.gaz-AVION_GAZ_VIT*1.3*dt); }
 /* la manette des gaz (18 octobre, demandé : « une manette qu'on monte du bas vers le haut à la place des boutons accélérer et
@@ -19872,7 +20070,9 @@ function volManche(v,dt,plus,moins){ const A=pilotageAvion(v), ex=clamp(INPUT.ex
   const phi=v.bank||0; let w=AVION_G_VIRAGE*Math.tan(clamp(phi,-1.45,1.45))/Math.max(20,v.v||20)+AVION_TIRE_VIRAGE*Math.max(0,ey)*Math.sin(phi);
   w=v.tonneau||v.tonFin?0:clamp(w,-A.lacet,A.lacet); v.lacetAv=w; v.ang+=w*dt;
   /* la vitesse : vers la manette des gaz, moins en montée, plus en piqué ; FREINER = aérofreins */
-  v.v=clamp(lerp(v.v||0,v.gaz*v.def.vmax*tenueK('aiguilleur',1.15),0.45*dt)-AVION_G_PENTE*Math.sin(v.tang)*dt-(moins?AVION_AEROFREIN*dt:0),0,v.def.vmax*1.35);
+  { const v0=v.v||0, ec=v.gaz*v.def.vmax*tenueK('aiguilleur',1.15)-v0, pousse=(v.def.acc||10)*AVION_POUSSE; /* la poussée (18 octobre, demandé : « un peu plus de puissance de 0 à plein gaz ») : franche jusqu'à la vitesse de la manette, puis elle s'y pose ; moins de gaz, il ralentit doucement, comme avant */
+    v.v=clamp(v0+(ec>0?Math.min(ec*1.6,pousse):ec*0.45)*dt-AVION_G_PENTE*Math.sin(v.tang)*dt-(moins?AVION_AEROFREIN*dt:0),0,v.def.vmax*1.35);
+    v.accAv=lerp(v.accAv||0,dt>0?(v.v-v0)/dt:0,clamp(dt*4,0,1)); }
   /* la hauteur : l'assiette, l'inclinaison (une aile basse porte moins) */
   v.va=(v.v||0)*Math.sin(v.tang)*Math.cos(phi)-AVION_CHUTE_VIRAGE*(1-Math.cos(clamp(phi,-1.5,1.5)))*clamp((hS-4)/8,0,1)-(decroche?(19-(v.v||0))*0.6:0); }
 function figuresManche(v,dt){ /* chasseur et voltige : tiré à fond, nez au plus haut, il boucle (les tonneaux sont dans volManche) */
@@ -19976,8 +20176,9 @@ function majVol(v,dt){
   } else { // avion
     const manche=avionManche(v), descM=desc||MANETTE.frein; if(manche&&MANETTE.touche){ v.gaz=MANETTE.val; MANETTE.touche=false; } /* la manette des gaz */
     if(!v.vol&&manche){ /* au manche, au sol : le joystick dirige, les gaz font rouler, on tire pour décoller */
-      majGazAvion(v,dt,monter,descM); const ex=clamp(INPUT.ex||0,-1,1);
+      majGazAvion(v,dt,monter,descM); const ex=clamp(INPUT.ex||0,-1,1), v0s=v.v||0;
       majVehiculePhys(v,dt,v.gaz,-ex*(1-Math.min(0.6,(v.v||0)/60)),descM&&v.gaz<0.05); if(v.mort) return;
+      v.accAv=lerp(v.accAv||0,dt>0?(v.v-v0s)/dt:0,clamp(dt*4,0,1)); /* au roulage aussi : la sensation de la poussée */
       v.tang=0; v.bank=0; v.vb=0; v.vt=0; v.tonneau=0; v.tonFin=0;
       if(v.v>=27&&!((INPUT.ey||0)>0.25)&&!AVION_AIDE.decol){ AVION_AIDE.decol=true; toast('✈ Vitesse de décollage : tire le joystick vers toi','or'); }
       if(v.v>=27&&(INPUT.ey||0)>0.25){ v.vol=true; v.decolT=DECOL_GRACE; v.alt=poseY(v.x,v.z)+0.3; v.tang=0.1; v.va=0;
@@ -20114,7 +20315,7 @@ function majVol(v,dt){
   // de v.ang directement, jamais de mesh.rotation.y, voir plus haut).
   if(v.def.ovni) v.mesh.rotation.y+=1.1*dt;
   else v.mesh.rotation.y=v.ang;
-  moteurUpdate(clamp((Math.abs(v.v)+Math.abs(v.va)*3)/v.def.vmax,0,1));
+  { const rv=clamp((Math.abs(v.v)+Math.abs(v.va)*3)/v.def.vmax,0,1); moteurUpdate(v.def.air==='avion'&&v.gaz!==undefined&&avionManche(v)?clamp(0.45*rv+0.55*v.gaz,0,1):rv); } /* au manche, le moteur monte en régime avec la manette, avant la vitesse */
   if(pressed('arme')||edgeKey('Tab')) changerRadio();
   P.x=v.x; P.z=v.z; P.ang=v.ang;
   META.defis.dist+=Math.abs(v.v)*dt/1000;
@@ -34852,7 +35053,7 @@ function startRun(){
   for(const c of TOITS.coffres) c.vague=-1;
   HELIPORT.v=null; poserHeliManoir(); // l'hélico du manoir sur sa dalle
   for(const hp of TOITS.helis){ const he=creerVehicule(hp.cle,hp.x,hp.z,Math.PI/2); if(he){ he.alt=hp.h; he.vol=false; he.va=0; he.mesh.position.y=hp.h; } } // hélicos posés sur les toits
-  aeroStartRun(); motardsStartRun(); /* motards du désert et de la montagne */ // aéroport vivant : long-courrier à la porte A1, avions des hangars, taxi et bus à la dépose-minute
+  aeroStartRun(); motardsStartRun(); campEntrainementStartRun(); /* la jeep de patrouille du camp d'entraînement */ /* motards du désert et de la montagne */ // aéroport vivant : long-courrier à la porte A1, avions des hangars, taxi et bus à la dépose-minute
   if(POIS.heliGrue) creerVehicule('titan',POIS.heliGrue.x,POIS.heliGrue.z,CHANTIER.ok?-Math.PI/2:0); /* nez à l'ouest : la queue passe au-dessus de la rue, jamais sur la base de vie */ // hélico-grue au chantier
   planquesStartRun(); // véhicules garés aux planques possédées, usages de la vague remis à zéro
   if(POIS.base&&BASE.ok) creerVehicule('vautour',BASE.heli.x,BASE.heli.z,Math.PI); // Fort Reyes : sur son héliport, jamais à cheval sur un véhicule
@@ -36408,7 +36609,7 @@ function vueCamera(dt,sx,sz){
   else if(glisse){ VUE.yaw=angLerp(VUE.yaw,TOW.cap+Math.PI,clamp(dt*2,0,1)); VUE.yawUser=VUE.yaw; } // wakeboard : derrière la planche, le bateau devant
   else VUE.yaw=angLerp(VUE.yaw,VUE.yawUser,clamp(dt*12,0,1));
   const kv=VUE.kVeh, vit=v?Math.abs(v.v||0):0, lg=v?(v.def.long||4):0, ks=sal&&!sal.depot?1:0; // en salle (le Dépôt, hangar immense, garde la vue de ville)
-  let H=lerp(lerp(VUE.PIED.H,VUE.SALLE.H,ks),VUE.VEH.H+lg*0.42+(air?4:0)+(v&&v.def.eau?1.5:0),kv), D=lerp(lerp(VUE.PIED.D,VUE.SALLE.D,ks),VUE.VEH.D+lg*0.95+Math.min(vit,40)*0.1,kv), devant=lerp(lerp(VUE.PIED.devant,VUE.SALLE.devant,ks),VUE.VEH.devant+Math.min(vit,40)*0.25,kv);
+  let H=lerp(lerp(VUE.PIED.H,VUE.SALLE.H,ks),VUE.VEH.H+lg*0.42+(air?4:0)+(v&&v.def.eau?1.5:0),kv), D=lerp(lerp(VUE.PIED.D,VUE.SALLE.D,ks),VUE.VEH.D+lg*0.95+Math.min(vit,40)*0.1+accAvion(v)*AVION_POUSSE_RECUL,kv), devant=lerp(lerp(VUE.PIED.devant,VUE.SALLE.devant,ks),VUE.VEH.devant+Math.min(vit,40)*0.25,kv);
   const hSol=v?(air?(v.alt||0):(v.h||0)):P.y;
   // sous un toit où l'on passe dessous (aérogare, hangars) : la caméra reste sous le plafond, plus près
   const toit=!sal&&!air?solidAt(P.x,P.z,0.1,undefined,999):null, sousToit=!!(toit&&toit.base!==undefined&&toit.base>hSol+2.5);
@@ -36454,7 +36655,7 @@ function vueCamera(dt,sx,sz){
   if(v&&!air&&!v.def.eau&&vit>18&&Math.random()<(vit-18)*0.08){ const a=rand(0,6.28), r=rand(2.5,5);
     spawnP(camera.position.x+Math.sin(VUE.yaw+Math.PI)*-8+Math.cos(a)*r,camera.position.y-1.5+Math.sin(a)*r*0.5,camera.position.z+Math.cos(VUE.yaw+Math.PI)*-8,
       Math.sin(VUE.yaw)*vit*1.6,0,Math.cos(VUE.yaw)*vit*1.6,0.18,0.14,0xffffff,0,0); }
-  return k*(2+(v?Math.min(vit,45)*0.32:0)); // champ qui s'ouvre avec la vitesse (jusqu'à +16°)
+  return k*(2+(v?Math.min(vit,45)*0.32+accAvion(v)*AVION_POUSSE_FOV:0)); // champ qui s'ouvre avec la vitesse (jusqu'à +16°), et à l'accélération d'un avion
 }
 const VUE_ZENITH=new THREE.Color(0x2a5ab0);
 // bascule de vue (bouton #btnVue, à côté de la pause)
@@ -36695,11 +36896,26 @@ const CK_HALOS=0.3; /* au cockpit : part des halos (phares des autres, lampadair
 function cockpitVitrer(g){ if(!_MAT_VITRE_CK) _MAT_VITRE_CK=new THREE.MeshBasicMaterial({color:0x8fb0cc,transparent:true,opacity:0.12,side:THREE.DoubleSide,depthWrite:false}); /* verre vu de l'intérieur : sans reflet (avant : Phong brillant à 28 %, soleil et néons y allumaient des points de toutes les couleurs) */
   g.traverse((o)=>{ if(!o.isMesh||o.isSprite||!o.material||o.material.map||!o.material.color||o.material.transparent) return; if(!VITRES_CK.includes(o.material.color.getHex())) return;
     o.geometry.computeBoundingBox(); const s=o.geometry.boundingBox.getSize(_ckV2); const a=[s.x*o.scale.x,s.y*o.scale.y,s.z*o.scale.z].sort((p,q)=>q-p); if(a[0]<0.25||a[1]<0.15) return; o.userData.matCk=o.material; o.material=_MAT_VITRE_CK; }); }
-function cockpitDevitrer(g){ g.traverse((o)=>{ if(o.userData&&o.userData.matCk){ o.material=o.userData.matCk; delete o.userData.matCk; } if(o.userData&&o.userData.ckMasque){ o.visible=true; delete o.userData.ckMasque; } }); }
+function cockpitDevitrer(g){ g.traverse((o)=>{ if(o.userData&&o.userData.geoCkAvant){ if(o.geometry===o.userData.geoCk) o.geometry.dispose(); o.geometry=o.userData.geoCkAvant; delete o.userData.geoCkAvant; delete o.userData.geoCk; } /* moto : la géométrie avec son guidon */
+  if(o.userData&&o.userData.matCk){ o.material=o.userData.matCk; delete o.userData.matCk; } if(o.userData&&o.userData.ckMasque){ o.visible=true; delete o.userData.ckMasque; } }); }
 /* vélo : le guidon, la potence et les poignées du MODÈLE (acier clair et noir, fusionnés par makeVelo) sont juste sous l'œil — ils barraient la vue d'une large bande
    claire sous le guidon du cockpit (signalé : « la barre blanche sous le vélo »). Masqués le temps du cockpit, rendus par cockpitDevitrer. */
 const CK_GUIDON_VELO=[0x9aa0a8,0x1c1e24,0xfff0b8];
 function ckMasquerGuidon(g){ const corps=g.userData&&g.userData.corps; if(!corps) return; for(const c of corps.children){ if(!c.isMesh||!c.visible||!c.material||!c.material.color) continue; if(CK_GUIDON_VELO.includes(c.material.color.getHex())){ c.visible=false; c.userData.ckMasque=true; } } }
+/* moto (18 octobre, signalé avec une capture : « faire disparaître ces éléments ») : le guidon, les poignées, les leviers et les
+   rétroviseurs du MODÈLE (fusionnés par matériau dans makeMotoV2) doublaient ceux du cockpit et barraient la vue sur les côtés. Le
+   temps du cockpit, chaque pièce fusionnée prend une copie de sa géométrie sans les triangles de la zone du guidon (ud.guidonCk,
+   notée par makeMotoV2 : un triangle part seulement si ses trois sommets y sont) ; cockpitDevitrer rend l'originale. */
+function ckMasquerGuidonMoto(g){ const ud=g.userData, Z=ud&&ud.guidonCk, corps=ud&&ud.corps; if(!Z||!corps) return;
+  const dans=(x,y,z)=>y>=Z.yMin&&(Z.yMax===undefined||y<=Z.yMax)&&z>=Z.zMin&&z<=Z.zMax&&Math.abs(x)>=Z.xMin;
+  for(const c of corps.children){ if(!c.isMesh||!c.geometry||!c.geometry.attributes||!c.geometry.attributes.position||c.userData.geoCkAvant) continue;
+    const geo=c.geometry, pos=geo.attributes.position, idx=geo.index, n=idx?idx.count:pos.count, garde=[]; let retire=0;
+    for(let t=0;t+2<n;t+=3){ let tous=true; for(let k=0;k<3;k++){ const i=idx?idx.getX(t+k):t+k; if(!dans(pos.getX(i),pos.getY(i),pos.getZ(i))){ tous=false; break; } } if(tous) retire++; else garde.push(t); }
+    if(!retire) continue;
+    const ng=new THREE.BufferGeometry();
+    if(idx){ const I=[]; for(const t of garde) I.push(idx.getX(t),idx.getX(t+1),idx.getX(t+2)); for(const k in geo.attributes) ng.setAttribute(k,geo.attributes[k].clone()); ng.setIndex(I); }
+    else for(const k in geo.attributes){ const a=geo.attributes[k], sz=a.itemSize, A=new a.array.constructor(garde.length*3*sz); let o=0; for(const t of garde) for(let j=0;j<3;j++) for(let q=0;q<sz;q++) A[o++]=a.array[(t+j)*sz+q]; ng.setAttribute(k,new THREE.BufferAttribute(A,sz)); }
+    c.userData.geoCkAvant=geo; c.userData.geoCk=ng; c.geometry=ng; } }
 function ckEstVitre(m){ if(!m||m.isSpriteMaterial) return false; if(m===_MAT_VITRE_CK||(_MAT_VITRE_OVNI&&m===_MAT_VITRE_OVNI)) return true; if(typeof _MAT_VITRE_A!=='undefined'&&m===_MAT_VITRE_A) return true; if(typeof _MAT_VITRE!=='undefined'&&m===_MAT_VITRE) return true;
   return !!(m.transparent&&m.opacity<0.96&&m.opacity>0.3&&!m.map&&m.color); }
 function ckSousCockpit(o){ for(let p=o;p;p=p.parent) if(p===COCKPIT.g) return true; return false; }
@@ -37817,7 +38033,7 @@ function vueCockpit(){ const v=P.veh; return vue1P()&&ETAT.mode==='jeu'&&!!v&&!v
 let _MAT_VITRE_OVNI=null; const CK_OVNI_COQUE=[0x8ab4c8,0x8adfff], CK_OVNI_PLONGE=0.6, CK_OVNI_ALT=[6,50];
 function ckVitrerOvni(g){ if(!_MAT_VITRE_OVNI) _MAT_VITRE_OVNI=new THREE.MeshBasicMaterial({color:0xa8e4ff,transparent:true,opacity:0.1,side:THREE.DoubleSide,depthWrite:false});
   g.traverse((o)=>{ if(!o.isMesh||!o.material||!o.material.color||o.userData.matCk) return; if(!CK_OVNI_COQUE.includes(o.material.color.getHex())) return; o.userData.matCk=o.material; o.material=_MAT_VITRE_OVNI; }); }
-function cockpitConstruire(v){ cockpitRetirer(); cockpitVitrer(v.mesh); if(v.def.ovni) ckVitrerOvni(v.mesh); const D=cockpitDims(v), C=COCKPIT; if(D.fam==='velo') ckMasquerGuidon(v.mesh);
+function cockpitConstruire(v){ cockpitRetirer(); cockpitVitrer(v.mesh); if(v.def.ovni) ckVitrerOvni(v.mesh); const D=cockpitDims(v), C=COCKPIT; if(D.fam==='velo') ckMasquerGuidon(v.mesh); else if(D.fam==='moto') ckMasquerGuidonMoto(v.mesh);
   C.fam=D.fam; C.style=ckStyle(v,D.fam); C.cab=D.cab; C.eye=D.eye; C.approx=D.approx; C.instr=null; C.volant=null; C.manettes=[]; C.affs=[]; C.jauge=null; C.volantA=0; C.bras=[]; C.pitch=CK_PITCH_STYLE[C.style]!==undefined?CK_PITCH_STYLE[C.style]:(CK_PITCH[D.fam]!==undefined?CK_PITCH[D.fam]:-0.06); C.altP=v.alt||0; C.vario=0; C.angP=v.ang||0; C.drAir=0;
   const G=mkCockpitInterieur(v,D); G.matrixAutoUpdate=false; ckScene().add(G); C.g=G; C.v=v; G.matrix.copy(ckRepere(v)); G.updateMatrixWorld(true); majBrasCockpit(); cockpitInstruments(v);
   camera.fov=CK_FOV; camera.near=0.05; camera.updateProjectionMatrix(); if(P.h) P.h.g.visible=false; } /* le corps du joueur (assis sur une moto) serait devant l'œil */
@@ -37844,20 +38060,20 @@ function cameraCockpit(dt){ const v=P.veh, C=COCKPIT; if(C.v!==v||!C.g) cockpitC
   if(P.h&&P.h.g.visible) P.h.g.visible=false; if(reticule.visible) reticule.visible=false;
   if(!VUE.drag) VUE.offVeh=lerp(VUE.offVeh||0,0,clamp(dt*2.2,0,1)); const off=VUE.offVeh||0;
   const vit=Math.abs(v.v||0), o=v.odo||0, R=(v.def.air||v.def.eau)?0:(v.rugL||0)*Math.min(1,vit/14); /* les bosses du terrain (bruitRoute), pas une sinusoïde à fréquence fixe : en ville, l'œil ne bouge presque pas */
-  const bob=R*((bruitRoute(o*0.55)-0.5)*0.07+(bruitRoute(o*2.3+17)-0.5)*0.025);
-  const e=C.eye; _ckV.set(e.x,e.y+bob,e.z).applyMatrix4(M); camera.position.copy(_ckV);
+  const aA=accAvion(v), bob=R*((bruitRoute(o*0.55)-0.5)*0.07+(bruitRoute(o*2.3+17)-0.5)*0.025)+aA*0.0011*(bruitRoute(ETAT.runT*45)-0.5); /* avion qui accélère : le moteur fait vibrer la cabine */
+  const e=C.eye; _ckV.set(e.x,e.y+bob,e.z-aA*AVION_POUSSE_DOS).applyMatrix4(M); camera.position.copy(_ckV); /* et plaque au siège (l'œil recule) */
   { const cible=C.fam==='ovni'&&v.vol?-CK_OVNI_PLONGE*clamp(((v.alt||0)-poseY(v.x,v.z)-CK_OVNI_ALT[0])/(CK_OVNI_ALT[1]-CK_OVNI_ALT[0]),0,1):0; C.plonge=lerp(C.plonge||0,cible,clamp(dt*1.2,0,1)); } /* soucoupe : plus haut, le regard plonge vers le sol (elle ne s'incline jamais) */
   if(C.fam==='helico'){ const da=angDiff(C.angPrec===undefined?v.ang:C.angPrec,v.ang)/Math.max(dt,1e-3); C.angPrec=v.ang; C.regardVire=lerp(C.regardVire||0,clamp(da*0.3,-0.4,0.4),clamp(dt*2.5,0,1)); } else C.regardVire=0; /* hélico : le regard part dans le virage, le montant et la porte entrent dans le champ (17 octobre au soir : « quand on tourne, on a l'impression d'être dans le vide ») */
   { const man=avionManche(v), f=man?clamp(META.horizonCk===undefined?1:META.horizonCk,0,1):1, cible=man&&!v.tonneau&&!v.tonFin?-(1-f)*clamp(Math.atan2(Math.sin(v.bank||0),Math.cos(v.bank||0)),-1.5,1.5):0;
     C.contreRoulis=lerp(C.contreRoulis||0,cible,clamp(dt*8,0,1)); } /* l'avion penche en entier ; l'œil se redresse de (1 − réglage) : l'horizon ne bascule que de la part choisie */
   _ckQ.setFromEuler(_ckE.set(C.pitch+(C.plonge||0)+(VUE.pitch1P||0)*0.5-(v.cabreX||0)*CABRAGE_TETE_1P,Math.PI+off+st0(v)*0.06+C.regardVire,C.contreRoulis||0,'YXZ')); camera.quaternion.copy(C.quat).multiply(_ckQ); /* l'avant du véhicule est +z, la caméra regarde −z ; le regard part un peu dans le virage (steerIn < 0 = à droite, lacet négatif = regard à droite) */
-  const fov=CK_FOV+Math.min(vit,45)*0.18; if(Math.abs(camera.fov-fov)>0.05||camera.near!==0.05){ camera.fov=lerp(camera.fov,fov,0.2); camera.near=0.05; camera.updateProjectionMatrix(); }
+  const fov=CK_FOV+Math.min(vit,45)*0.18+aA*AVION_POUSSE_FOV; if(Math.abs(camera.fov-fov)>0.05||camera.near!==0.05){ camera.fov=lerp(camera.fov,fov,0.2); camera.near=0.05; camera.updateProjectionMatrix(); }
   VUE.k=1; VUE.kVeh=1; VUE.yaw=(v.ang||0)+Math.PI+off; VUE.yawUser=VUE.yaw; VUE.offVehRendu=off+C.regardVire; /* le regard dans le virage ne change pas la conduite (vueAngleEcran le retranche) */
   if(!_chalCam.d) _chalCam.d=new THREE.Vector3(); const cd=_chalCam.d; camera.getWorldDirection(cd); VUE.yawRendu=Math.hypot(cd.x,cd.z)>1e-3?Math.atan2(-cd.x,-cd.z):0;
   const ciel=vueCiel(); ciel.visible=!INT.actif; ciel.position.copy(camera.position); const U=VUE.cielU; U.uT.value+=dt;
   if(scene.background&&scene.background.isColor){ U.uCiel.value.copy(scene.background); U.uZenith.value.copy(scene.background).multiplyScalar(0.55).lerp(VUE_ZENITH,0.35); }
   U.uSoleil.value.copy(soleil.position).normalize(); U.uTempete.value=typeof METEO!=='undefined'?clamp(METEO.inten||0,0,1)*0.8:0;
-  if(!v.def.air&&!v.def.eau&&vit>18&&Math.random()<(vit-18)*0.08){ const a=rand(0,6.28), r=rand(2.5,5); spawnP(camera.position.x+Math.sin(VUE.yaw+Math.PI)*-8+Math.cos(a)*r,camera.position.y-1.5+Math.sin(a)*r*0.5,camera.position.z+Math.cos(VUE.yaw+Math.PI)*-8,Math.sin(VUE.yaw)*vit*1.6,0,Math.cos(VUE.yaw)*vit*1.6,0.18,0.14,0xffffff,0,0); } }
+  if((!v.def.air&&!v.def.eau&&vit>18&&Math.random()<(vit-18)*0.08)||(aA>4&&Math.random()<aA*0.025)){ /* traits de vitesse : vite au sol, ou quand l'avion accélère fort */ const a=rand(0,6.28), r=rand(2.5,5); spawnP(camera.position.x+Math.sin(VUE.yaw+Math.PI)*-8+Math.cos(a)*r,camera.position.y-1.5+Math.sin(a)*r*0.5,camera.position.z+Math.cos(VUE.yaw+Math.PI)*-8,Math.sin(VUE.yaw)*vit*1.6,0,Math.cos(VUE.yaw)*vit*1.6,0.18,0.14,0xffffff,0,0); } }
 function st0(v){ return v.def.air?0:(v.steerIn||0); }
 /* ce que vérifient le test « Cockpits » et la liste de contrôle : l'œil dans l'emprise, la vue libre devant (rayons
    contre les maillages du véhicule hors vitrage), les instruments dans le champ */
@@ -38230,7 +38446,7 @@ function tick(t){
       majMeteo(dt);
       majMer(dt);
       majMerV2(dt);
-      if(DECOR_V2){ majHorsLesMurs(dt); majMobilier(); majLac(dt); majLumieres(dt); majJetee(dt); majPortVivant(dt); majAeroportVivant(dt); majAeroVie(dt); majVieHills(dt); majChantierV2(dt); majBaseV2(dt,dtJeu); majSportsParcs(dt); majConcession(dt); majDerby(dt,dtJeu); majHeliportManoir(dt); majPlanques(dt); majTour(dtJeu); majCascades(dt); majManeges(dt); majBrooklyn(dt); majCiel(dt); majCielCibles(dt); majNeonVivant(dt); majQuartiersFinitions(dt); }
+      if(DECOR_V2){ majHorsLesMurs(dt); majMobilier(); majLac(dt); majLumieres(dt); majJetee(dt); majPortVivant(dt); majAeroportVivant(dt); majAeroVie(dt); majVieHills(dt); majChantierV2(dt); majBaseV2(dt,dtJeu); majCampEntrainement(dt); majSportsParcs(dt); majConcession(dt); majDerby(dt,dtJeu); majHeliportManoir(dt); majPlanques(dt); majTour(dtJeu); majCascades(dt); majManeges(dt); majBrooklyn(dt); majCiel(dt); majCielCibles(dt); majNeonVivant(dt); majQuartiersFinitions(dt); }
       majEpaveCanon(dt);
     }
     majHUD();
