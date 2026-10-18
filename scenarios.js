@@ -11665,6 +11665,49 @@ async function main() {
     }
 
     // -------------------------------------------------------------------
+    // Armes blanches de l'armurerie (18 octobre, 4e liste, signalé : « pas accessibles à l'achat dans les armureries, et elles se
+    // chevauchent ») : la panoplie expose chaque arme blanche (lue dans ORDRE_ARMES) à sa taille réelle, sans chevauchement, centrée
+    // sur sa zone ; devant elle, le vrai bouton d'action l'achète (débit, arme en main), puis propose de la prendre ; la Vertèbre
+    // (trophée des curiosités) ne s'achète pas, même par actionShop ; une arme déjà possédée n'est jamais payée deux fois.
+    // -------------------------------------------------------------------
+    console.log('\n--- Armes blanches de l’armurerie : panoplie à taille réelle, achat au bouton, Vertèbre en trophée ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); META.vue = 'classique'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9;
+        const attendues = ORDRE_ARMES.filter((id) => ARMES[id].type === 'melee' && mkArmeModeleDispo(id));
+        const sauve = { argent: META.argent, niveau: META.niveau, poss: {} }; for (const id of attendues) sauve.poss[id] = META.armes[id].poss;
+        const pa = PORTES.find((q) => q.id === 'armurerie'); entrerInterieur('armurerie', pa); const s = INT.actif, L = s.armesBlanches || [];
+        const ids = L.map((q) => q.id); for (const id of attendues) if (!ids.includes(id)) ko.push(id + ' absente de la panoplie');
+        const bs = L.map((q) => new THREE.Box3().setFromObject(q.hold)), ordre = L.map((q, i) => i).sort((a, b) => L[a].x - L[b].x);
+        let chev = 0, decal = 0, prop = 0;
+        for (let k = 0; k < ordre.length; k++) { const i = ordre[k], b = bs[i]; if (k && b.min.x < bs[ordre[k - 1]].max.x) chev++;
+          if (Math.abs((b.min.x + b.max.x) / 2 - L[i].x) > 0.05) decal++;
+          const Lr = LONGUEUR_ARME[L[i].id]; if (!Lr || Math.abs((b.max.y - b.min.y) / (Lr * AFFICHE_ARME) - 1) > 0.05) prop++; }
+        if (chev || decal || prop) ko.push('panoplie : ' + chev + ' chevauchement(s), ' + decal + ' arme(s) décentrée(s) de leur zone, ' + prop + ' hors de leur taille réelle');
+        const bouton = (q) => { P.x = q.x; P.z = q.z; majAction(); return { lab: el('btnAction').textContent, fn: el('btnAction')._fn }; };
+        // achat au vrai bouton
+        const qa = L.find((q) => !ARMES[q.id].cachee && ARMES[q.id].prix > 0);
+        if (!qa) ko.push('aucune arme blanche à vendre');
+        else { META.argent = 100000; META.niveau = 10; META.armes[qa.id].poss = false; const a0 = META.argent, b1 = bouton(qa);
+          if (!/ACHETER/.test(b1.lab) || !b1.fn) ko.push(qa.id + ' : le bouton ne propose pas l’achat (« ' + b1.lab + ' »)');
+          else { b1.fn(); if (!META.armes[qa.id].poss || a0 - META.argent !== prixShop(ARMES[qa.id].prix) || P.armeCur !== qa.id) ko.push(qa.id + ' : achat raté (possédée ' + META.armes[qa.id].poss + ', débité ' + (a0 - META.argent) + ', en main ' + P.armeCur + ')');
+            else info.push('achat au bouton : ' + ARMES[qa.id].nom + ' (' + (a0 - META.argent) + ' $), en main'); }
+          const a1 = META.argent; actionShop('buyW', qa.id); if (META.argent !== a1) ko.push('une arme possédée est payée une 2e fois');
+          majArmeJoueur('poings'); const b2 = bouton(qa); if (!/PRENDRE/.test(b2.lab)) ko.push('possédée, le bouton ne propose pas de la prendre (« ' + b2.lab + ' »)'); }
+        // la Vertèbre : un trophée
+        const qv = L.find((q) => ARMES[q.id].cachee);
+        if (qv) { META.armes[qv.id].poss = false; META.argent = 100000; const a0 = META.argent, b3 = bouton(qv); if (b3.fn) b3.fn(); actionShop('buyW', qv.id);
+          if (!/🔒/.test(b3.lab) || META.armes[qv.id].poss || META.argent !== a0) ko.push('Vertèbre : achetable (« ' + b3.lab + ' », possédée ' + META.armes[qv.id].poss + ')');
+          else info.push('Vertèbre en trophée (« ' + b3.lab + ' »)'); }
+        info.unshift(L.length + ' armes blanches à taille réelle, sans chevauchement');
+        for (const id in sauve.poss) META.armes[id].poss = sauve.poss[id]; META.argent = sauve.argent; META.niveau = sauve.niveau; majArmeJoueur('poings');
+        sortirInterieur(); startRun();
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Armes blanches de l’armurerie : ' + r.ko.join(' ; ')); else ok('Armes blanches de l’armurerie : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
     // Terrains de sport des parcs (17 octobre, demandé : « un terrain de foot
     // et d'autres terrains de sport pour faire vivre l'endroit de verdure ») :
     // le match se joue tout seul (le ballon reste sur le terrain, les joueurs

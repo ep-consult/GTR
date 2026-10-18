@@ -2300,7 +2300,7 @@ const ARMES={
     det:'Trouvé au Site 51. Personne n’a demandé comment ça marche.'}
 };
 // longueur RÉELLE de chaque arme à feu (m ; 1 u ≈ 1 m) : mur de l'armurerie à taille réelle (×AFFICHE_ARME, à peine agrandi pour la lecture)
-const LONGUEUR_ARME={pistolet:0.2,silence:0.34,revolver:0.32,uzi:0.47,pm:0.68,pompe:1.05,aa12:0.96,fusil:0.9,sniper:1.2,arbalete:0.85,flamme:1.1,roquette:1.0,minigun:0.95,desintegrateur:0.8}, AFFICHE_ARME=1.35;
+const LONGUEUR_ARME={pistolet:0.2,silence:0.34,revolver:0.32,uzi:0.47,pm:0.68,pompe:1.05,aa12:0.96,fusil:0.9,sniper:1.2,arbalete:0.85,flamme:1.1,roquette:1.0,minigun:0.95,desintegrateur:0.8,couteau:0.3,batte:0.86,sabre:0.98,batte2:0.92}, AFFICHE_ARME=1.35; /* armes blanches : 18 octobre (4e liste), pour la panoplie de l'armurerie */
 const ORDRE_ARMES=['poings','gadget','couteau','batte','batte2','sabre','bouleC','pistolet','silence','revolver','pompe','aa12','uzi','pm','fusil','sniper','arbalete','flamme','roquette','minigun','desintegrateur'];
 /* ressenti par arme : secousse caméra, taille du flash, vibration, recul du corps */
 const ARME_FEEL={
@@ -2428,7 +2428,7 @@ const FINITIONS_ARME=['or','camo','chrome','carbone','neon','damas','tigre'], OP
 // les modifications montrées : celles posées + celles à l'essai (une seule finition à la fois)
 function atelierMods(){ const pos=modsArme(ATELIER.id), ap=ATELIER.apercu; let L=pos.concat(ap.filter((k)=>pos.indexOf(k)<0));
   for(const groupe of [FINITIONS_ARME,OPTIQUES_ARME]) if(ap.some((k)=>groupe.includes(k))) L=L.filter((k)=>!groupe.includes(k)||ap.includes(k)); return L; }
-function armeMurProche(s){ let best=null, bd=0.81; for(const sl of s.murArmes){ const d=dist2(P.x,P.z,sl.x,sl.z); if(d<bd){ bd=d; best=sl; } } return best; }
+function armeMurProche(s){ let best=null, bd=0.81; for(const L of [s.murArmes,s.armesBlanches]) if(L) for(const sl of L){ const d=dist2(P.x,P.z,sl.x,sl.z); if(d<bd){ bd=d; best=sl; } } return best; } /* le mur des armes à feu et la panoplie des armes blanches */
 function ouvrirAtelierArme(s){
   ATELIER.ouvert=true; ATELIER.salle=s; ATELIER.id=P.armeCur; ATELIER.apercu=[]; ATELIER.ang=0; ATELIER.tilt=0; ATELIER.pauseT=0;
   if(!ATELIER.el){ const d=document.createElement('div'); d.id='atelierArme';
@@ -25260,6 +25260,9 @@ function construireSalle(id){
     // par la poignée : chaque arme débordait de 1 à 2 u sur la voisine) — chaque arme à sa TAILLE RÉELLE (LONGUEUR_ARME,
     // ×AFFICHE_ARME), CENTRÉE sur sa propre boîte, espacée selon sa longueur, son étiquette (nom, prix) juste dessous
     box(0.3,3.2,26,0x2a2c30,-W/2+0.6,1.8,0,false);
+    const etiquetteArme=(a,prixTxt)=>cTex(256,(cx,s2)=>{ cx.fillStyle='#14161c'; cx.fillRect(0,0,s2,s2*0.42); cx.strokeStyle='#ffd23f'; cx.lineWidth=4; cx.strokeRect(3,3,s2-6,s2*0.42-6);
+        cx.textAlign='center'; cx.fillStyle='#e8ecf2'; cx.font='700 34px Arial'; let n=a.nom; while(cx.measureText(n).width>s2-20&&n.length>4) n=n.slice(0,-1); cx.fillText(n,s2/2,s2*0.17);
+        cx.fillStyle='#ffd23f'; cx.font='900 44px Arial'; cx.fillText(prixTxt||(a.prix+' $'),s2/2,s2*0.36); });
     inter.murArmes=[];
     const famille=(id)=>{ const a=ARMES[id]; return a.roquette||a.flamme||id==='minigun'?['LOURDES','#ff3b5c',4]:(a.pellets||1)>1?['À POMPE','#ff9f2e',2]:a.cad<=0.09?['MITRAILLETTES','#35e0ff',1]:a.portee>=55||a.manuel?['FUSILS','#7dff7a',3]:['POING','#ffd23f',0]; };
     const fusils=ORDRE_ARMES.filter((id)=>ARMES[id].type==='gun'&&!ARMES[id].cachee&&mkArmeModeleDispo(id)).map((id,k)=>[id,k]).sort((a,b)=>famille(a[0])[2]-famille(b[0])[2]||a[1]-b[1]).map((q)=>q[0]); // rangées par familles
@@ -25280,16 +25283,29 @@ function construireSalle(id){
     poses.forEach((q)=>{ const id=q.id, b=q.b, hold=q.hold;
       hold.position.set(ox+xMur-b.min.x+0.04,yc+0.12-(b.min.y+b.max.y)/2,oz+q.zc-(b.min.z+b.max.z)/2); g.add(hold);
       for(const dz of q.L>0.6?[-q.L*0.3,q.L*0.3]:[0]) box(0.12,0.05,0.05,0x3a3e46,xMur+0.06,yc+0.12-(b.max.y-b.min.y)/2-0.03,q.zc+dz,false); // crochets
-      const a=ARMES[id], etq=cTex(256,(cx,s2)=>{ cx.fillStyle='#14161c'; cx.fillRect(0,0,s2,s2*0.42); cx.strokeStyle='#ffd23f'; cx.lineWidth=4; cx.strokeRect(3,3,s2-6,s2*0.42-6);
-        cx.textAlign='center'; cx.fillStyle='#e8ecf2'; cx.font='700 34px Arial'; let n=a.nom; while(cx.measureText(n).width>s2-20&&n.length>4) n=n.slice(0,-1); cx.fillText(n,s2/2,s2*0.17);
-        cx.fillStyle='#ffd23f'; cx.font='900 44px Arial'; cx.fillText(a.prix+' $',s2/2,s2*0.36); });
+      const a=ARMES[id], etq=etiquetteArme(a);
       const pl=new THREE.Mesh(new THREE.PlaneGeometry(0.95,0.4),new THREE.MeshBasicMaterial({map:etq,transparent:true})); pl.position.set(ox+xMur+0.03,yc-0.62,oz+q.zc); pl.rotation.y=Math.PI/2; g.add(pl);
       inter.murArmes.push({id,x:ox+xMur+1.6,z:oz+q.zc,r:0.9,hold,c:-1}); });
-    // la vitrine des armes blanches (au centre, à l'ouest de l'allée)
-    box(5.2,1.0,1.8,0x2a2c30,-5,0.5,3); { const v=new THREE.Mesh(new THREE.BoxGeometry(5,0.7,1.6),new THREE.MeshPhongMaterial({color:0xbfe6ff,transparent:true,opacity:0.22,shininess:90})); v.position.set(ox-5,1.35,oz+3); g.add(v); }
-    ['couteau','batte','sabre','batte2'].forEach((id,k)=>{ const m=mkArmeModele(id); if(!m) return; m.visible=true; const hh=new THREE.Group(); hh.add(m);
-      hh.rotation.set(-Math.PI/2,0,Math.PI/2); hh.scale.setScalar(1.5); hh.position.set(ox-6.8+k*1.2,1.1,oz+3); g.add(hh); });
-    ens('ARMES BLANCHES','#ffd23f',-5,2.5,3.95,0,3.6);
+    // la panoplie des armes blanches (au centre, à l'ouest de l'allée). 18 octobre (4e liste), signalé : « pas achetables, et elles
+    // se chevauchent » (couchées dans une vitrine, 1,6 u de long tous les 1,2 u, sans zone d'achat) — un présentoir debout, face à
+    // l'allée : chaque arme accrochée à la verticale à sa TAILLE RÉELLE (LONGUEUR_ARME × AFFICHE_ARME), lame ou tête en haut, le
+    // plat de la lame vers l'allée, son étiquette dessous, sa zone d'achat devant (inter.armesBlanches, lue par armeMurProche comme
+    // le mur des armes à feu) ; la Vertèbre y est exposée en trophée tant que les curiosités ne sont pas réunies.
+    { const xc=-5, zc=3, zF=zc+0.07, yc=1.88, blanches=ORDRE_ARMES.filter((id)=>ARMES[id].type==='melee'&&mkArmeModeleDispo(id)), n=blanches.length, pas=1.45, lp=n*pas+0.4;
+      const rot=new THREE.Matrix4().makeBasis(new THREE.Vector3(0,0,1),new THREE.Vector3(0,-1,0),new THREE.Vector3(1,0,0)); /* le canon (−y) vers le haut, le flanc (+x) vers l'allée */
+      box(lp,0.42,0.7,0x2a2c30,xc,0.21,zc+0.1); box(lp,2.5,0.14,0x3a3a40,xc,1.67,zc,false); addSolid({x:ox+xc,z:oz+zc,hw:lp/2,hd:0.12,h:2.92});
+      for(const k of [-1,1]) box(0.12,2.6,0.2,0x9aa0a8,xc+k*lp/2,1.72,zc,false); box(lp+0.12,0.1,0.2,0x9aa0a8,xc,2.97,zc,false); /* cadre */
+      { const tf=cTex(128,(cx,s2)=>{ cx.fillStyle='#2e3a32'; cx.fillRect(0,0,s2,s2); for(let i=0;i<400;i++){ cx.fillStyle='rgba(255,255,255,'+(0.02+0.03*((i*37)%7)/7)+')'; cx.fillRect((i*53)%s2,(i*97)%s2,1,1); } },lp/0.8,2.3/0.8);
+        const fe=new THREE.Mesh(new THREE.PlaneGeometry(lp-0.12,2.36),new THREE.MeshLambertMaterial({map:tf})); fe.position.set(ox+xc,1.7,oz+zF+0.002); g.add(fe); } /* feutre vert sombre : les lames et les battes ressortent */
+      inter.armesBlanches=[];
+      blanches.forEach((id,k)=>{ const a=ARMES[id], x=xc+(k-(n-1)/2)*pas, hold=new THREE.Group(), m=habillerArme(mkArmeModele(id),id); if(m){ m.visible=true; hold.add(m); }
+        hold.quaternion.setFromRotationMatrix(rot); hold.updateMatrixWorld(true); const b0=new THREE.Box3().setFromObject(hold), L0=Math.max(0.05,b0.max.y-b0.min.y);
+        hold.scale.setScalar(AFFICHE_ARME*(LONGUEUR_ARME[id]||0.9)/L0); hold.updateMatrixWorld(true); const b=new THREE.Box3().setFromObject(hold), hb=b.max.y-b.min.y;
+        hold.position.set(ox+x-(b.min.x+b.max.x)/2,yc-(b.min.y+b.max.y)/2,oz+zF+0.04-b.min.z); g.add(hold);
+        for(const dy of [-0.32,0.32]) box(0.05,0.05,0.12,0x9aa0a8,x,yc+dy*hb,zF+0.06,false); /* crochets */
+        const pl=new THREE.Mesh(new THREE.PlaneGeometry(0.95,0.4),new THREE.MeshBasicMaterial({map:etiquetteArme(a,a.cachee?'TROPHÉE':null),transparent:true})); pl.position.set(ox+x,0.83,oz+zF+0.01); g.add(pl);
+        inter.armesBlanches.push({id,x:ox+x,z:oz+zc+1.3,r:0.9,hold,c:-1}); });
+      ens('ARMES BLANCHES','#ffd23f',xc,3.4,zF+0.04,0,3.6); }
     // les protections : deux mannequins en gilet (est, côté sud)
     inter.gilets=[]; GILETS.forEach((G,k)=>{ const x=W/2-2.4, z=3.5+k*3.6; box(1.1,0.25,1.1,0x2a2c30,x,0.12,z,false); addSolid({x:ox+x,z:oz+z,hw:0.55,hd:0.55,h:2});
       const h=makeHumain({haut:0x3a3e46,bas:0x2a2c30,peau:0x8a8f9a,casq:0x2a2c30,visage:'neutre'},1); h.g.position.set(ox+x,0.25,oz+z); h.g.rotation.y=-Math.PI/2; g.add(h.g);
@@ -33218,11 +33234,12 @@ const GILETS=[{id:'tactique',nom:'Gilet tactique',det:'Bouclier de 100 points (c
 function actionShop(act,id){
   if(act==='buyW'){
     const a=ARMES[id];
+    if(!a||!META.armes[id]||META.armes[id].poss||a.cachee||META.niveau<a.niv){ SFX.refus(); return; } /* garde propre : déjà possédée, trophée, niveau (18 octobre) */
     const px=prixShop(a.prix);
     if(META.argent<px){SFX.refus();return;}
     META.argent-=px; META.armes[id].poss=true;
     if(a.type==='gun'){const st=armeStats(id);P.mags[id]=st.mag;P.mun[id]=st.mag*2;}
-    majArmeJoueur(id); SFX.achat(); toast(a.nom+' achetée','or');
+    majArmeJoueur(id); SFX.achat(); toast(a.ico+' Achat : '+a.nom,'or'); /* (« Couteau achetée », « Pistolet achetée » : un libellé neutre) */
   } else if(act==='upW'){
     const c=armeUpCout(META.armes[id].lv);
     if(META.argent<c||META.armes[id].lv>=3){SFX.refus();return;}
@@ -35322,8 +35339,9 @@ function majAction(){
       fn=()=>ouvrirCasino('poker');
     } else if(s.murArmes&&armeMurProche(s)){
       const sl=armeMurProche(s), a=ARMES[sl.id], m=META.armes[sl.id]; marquerZone(sl,0.81);
-      if(!m.poss){ const ok=META.niveau>=a.niv;
-        label=ok?('🔫 ACHETER '+a.nom.toUpperCase()+' — '+prixShop(a.prix)+' $'):('🔒 '+a.nom+' — NIVEAU '+a.niv);
+      if(!m.poss&&a.cachee){ label='🔒 '+a.nom+' — RÉUNIS LES CURIOSITÉS ('+nbCurios()+'/'+CURIOS_ACTIVES.length+')'; fn=()=>{ SFX.refus(); toast(a.ico+' '+a.nom+' : la récompense des curiosités, pas à vendre','warn'); }; } /* la Vertèbre : un trophée */
+      else if(!m.poss){ const ok=META.niveau>=a.niv;
+        label=ok?((a.type==='melee'?a.ico:'🔫')+' ACHETER '+a.nom.toUpperCase()+' — '+prixShop(a.prix)+' $'):('🔒 '+a.nom+' — NIVEAU '+a.niv);
         fn=()=>{ if(!ok){ SFX.refus(); return; } actionShop('buyW',sl.id); }; }
       else if(P.armeCur!==sl.id){ label='✋ PRENDRE '+a.nom.toUpperCase(); fn=()=>{ majArmeJoueur(sl.id); SFX.ui(); toast(a.ico+' '+a.nom+' en main','or'); }; }
       else { label='🛠 '+a.nom+' en main — à l’ÉTABLI pour la personnaliser'; fn=()=>{ SFX.ui(); }; }

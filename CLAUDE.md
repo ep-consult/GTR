@@ -1213,6 +1213,13 @@ chères, et augmente le prix de la villa ». Marques de fantaisie (univers ficti
   `AFFICHE_ARME` 1,35), centrée sur sa boîte, espacée selon sa longueur, sur un
   panneau perforé clair à hauteur des yeux, étiquette (nom, prix) dessous.
 - Test : « Retours du 18 octobre (lot 1) ».
+- **Panoplie des armes blanches** (4e liste, signalé : « pas accessibles à l'achat dans les armureries, elles se
+  chevauchent » — couchées dans une vitrine, 1,6 u de long tous les 1,2 u, sans zone d'achat) : un présentoir debout face à
+  l'allée, chaque arme blanche de `ORDRE_ARMES` accrochée à la verticale à sa taille réelle (`LONGUEUR_ARME` a désormais les
+  armes blanches), lame ou tête en haut, étiquette dessous (`etiquetteArme`, partagée avec le mur), zone d'achat devant
+  (`inter.armesBlanches`, lue par `armeMurProche` avec le mur). La Vertèbre y est un trophée (« réunis les curiosités »).
+  `actionShop('buyW')` porte sa propre garde (déjà possédée, `cachee`, niveau). Toast d'achat neutre (« Achat : … » ; avant,
+  « Couteau achetée »). Test « Armes blanches de l'armurerie ».
 
 ### Dégâts V2 et murs (18 octobre, lot 2) — `degatsChoc`, `bosseler`, `perdreRoue`, `degagerDesMurs`
 
