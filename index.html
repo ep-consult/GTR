@@ -234,6 +234,20 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
 #btnBrake{right:122px;bottom:calc(env(safe-area-inset-bottom,0px) + 42px);width:66px;height:66px;font-size:22px;display:none;border-color:#ff9f2e66}
 #btnBrake.gros{right:16px;bottom:calc(env(safe-area-inset-bottom,0px) + 62px);width:92px;height:92px;font-size:32px}
 #btnBrake.volA{right:20px;bottom:calc(env(safe-area-inset-bottom,0px) + 172px);width:58px;height:58px;font-size:20px}
+/* la manette des gaz des avions au manche (vue 3D et 1re personne, 18 octobre) : à la place d'ACCÉLÉRER et FREINER, dans la
+   colonne d'ACCÉLÉRER ; piste 0 → 100 %, cran en haut, zone FREIN en bas (on y tient le pouce) ; BOMBE prend la place de FREINER */
+#manetteGaz{position:absolute;right:150px;bottom:calc(env(safe-area-inset-bottom,0px) + 30px);width:56px;height:140px;display:none;pointer-events:auto;touch-action:none;
+  border-radius:16px;border:2px solid #ffffff30;background:#12141bd9;box-shadow:0 5px 16px #000b;color:var(--blanc);font-weight:900;user-select:none;-webkit-user-select:none}
+#manetteGaz .mgTitre{position:absolute;top:2px;left:0;right:0;text-align:center;font-size:8px;letter-spacing:.08em;color:var(--gris);font-weight:800}
+#manetteGaz .mgPiste{position:absolute;left:22px;width:12px;bottom:34px;height:90px;border-radius:6px;background:#ffffff14;overflow:visible}
+#manetteGaz .mgRemp{position:absolute;left:0;right:0;bottom:0;height:0;border-radius:6px;background:linear-gradient(to top,#35e0ff,#ffd23f)}
+#manetteGaz .mgTick{position:absolute;left:-7px;right:-7px;height:2px;background:#ffffff40;margin-bottom:-1px}
+#manetteGaz .mgTick.cran{background:#ffd23f;height:3px}
+#manetteGaz .mgFrein{position:absolute;left:5px;right:5px;bottom:4px;height:20px;border-radius:9px;background:#ff3b5c26;border:1px solid #ff3b5c66;color:#ff8a9a;font-size:8px;letter-spacing:.08em;display:flex;align-items:center;justify-content:center}
+#manetteGaz .mgFrein.on{background:#ff3b5cb0;color:#fff}
+#manetteGaz .mgPoignee{position:absolute;left:5px;right:5px;bottom:23px;height:22px;border-radius:8px;background:#e8ecf2;color:#12141b;font-size:11px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px #000a}
+#manetteGaz .mgPoignee.frein{background:#ff3b5c;color:#fff}
+#btnDodge.volB{right:20px;bottom:calc(env(safe-area-inset-bottom,0px) + 172px);width:58px;height:58px;font-size:20px}
 /* Tir par la vitre (voiture, moto) : place du jetpack, libre au volant — FREIN garde la sienne */
 #btnFire.volTir{right:124px;bottom:calc(env(safe-area-inset-bottom,0px) + 248px);width:64px;height:64px;font-size:24px}
 #btnAction{position:absolute;right:14px;bottom:calc(env(safe-area-inset-bottom,0px) + 306px);z-index:8; /* 238 : son bas touchait SAUT et il recouvrait DÉCOLLER (28 px) et le tir au volant (26 px) */
@@ -653,6 +667,7 @@ body.ck1P .notif.gros{font-size:12.5px;padding:6px 12px}
   <div class="btn" id="btnGren">💣<small id="grenN">3</small></div>
   <div class="btn" id="btnViser" style="display:none">🎯<small>VISER</small></div>
   <div class="btn" id="btnBrake">🛑<small>FREIN</small></div>
+  <div id="manetteGaz"><small class="mgTitre">GAZ</small><div class="mgPiste"><i class="mgTick" style="bottom:0"></i><i class="mgTick" style="bottom:50%"></i><i class="mgTick cran" style="bottom:100%"></i><div class="mgRemp"></div></div><div class="mgFrein">FREIN</div><div class="mgPoignee"><b id="mgPct">0</b></div></div>
   <div id="btnAction">MONTER</div>
 </div>
 <div id="hitMk">✕</div>
@@ -19296,7 +19311,7 @@ function entrerVehicule(v){
   }
   if(v.def.air){
     el('btnSprint').innerHTML=ico('ico-btn-monter','⬆️')+'<small>MONTER</small>'; /* des flèches claires (17 octobre au soir : l'icône du sprint et celle du frein « ressemblaient à des micros ») */
-    el('btnBrake').innerHTML=ico('ico-btn-descendre','⬇️')+'<small>DESCENDRE</small>'; v._btnVol='vol0'; /* au manche, majBoutonsVol les réécrit (ACCÉLÉRER / FREINER) */
+    el('btnBrake').innerHTML=ico('ico-btn-descendre','⬇️')+'<small>DESCENDRE</small>'; v._btnVol='vol'; /* au manche, majBoutonsVol les remplace par la manette des gaz */
     if(v.def.armes){
       el('btnFire').style.display='flex';
       el('fireIco').textContent='🚀'; el('fireAmmo').textContent='∞';
@@ -19335,7 +19350,7 @@ function entrerVehicule(v){
     }
     if(v.def.aimant){ el('btnGren').style.display='flex'; el('btnGren').innerHTML='🧲<small>AIMANT</small>';
       toast('🧲 Survole un véhicule (anneau vert) et appuie sur AIMANT pour l’accrocher, rappuie pour le lâcher','or'); }
-    if(v.def.air==='avion') toast('Pointe le joystick vers le bout de la piste et fonce !','or');
+    if(v.def.air==='avion') toast(META.vue!=='classique'?'Monte la manette GAZ, puis tire le joystick vers toi pour décoller':'Pointe le joystick vers le bout de la piste et fonce !','or');
     else if(!v.def.ovni) toast('Maintiens MONTER pour décoller','or');
     el('btnSpec').style.display='none'; el('btnJump').style.display='flex';
   }
@@ -19498,6 +19513,7 @@ function boutonsAPied(){
   el('btnDodge').innerHTML=ico('ico-btn-dodge','💨')+'<small>ESQUIVE</small>';
   el('btnGren').innerHTML=ico('ico-btn-grenade','💣')+'<small id="grenN">'+P.grenades+'</small>';
   el('btnJump').style.display='none'; el('btnSpec').style.display='flex';
+  if(el('manetteGaz').style.display==='block'){ el('manetteGaz').style.display='none'; el('btnSprint').style.display=''; } el('btnDodge').classList.remove('volB'); MANETTE.frein=false; MANETTE.doigt=null; /* la manette des gaz de l'avion (SPRINT n'est rendu que s'il lui avait cédé la place) */
 }
 function ouvrirParachute(){
   if(P.para||!P.chute){ SFX.refus(); return; }
@@ -19814,12 +19830,29 @@ function avionManche(v){ return !!(v&&v.def&&v.def.air==='avion'&&v===P.veh&&MET
 function pilotageAvion(v){ return AVION_MANCHE[v.key]||AVION_MANCHE_DEF; }
 function majGazAvion(v,dt,plus,moins){ if(v.gaz===undefined) v.gaz=clamp((v.v||0)/(v.def.vmax||40),0,1);
   if(plus) v.gaz=Math.min(1,v.gaz+AVION_GAZ_VIT*dt); if(moins) v.gaz=Math.max(0,v.gaz-AVION_GAZ_VIT*1.3*dt); }
-function majBoutonsVol(v,manche){ /* MONTER / DESCENDRE en 2D, ACCÉLÉRER (les gaz, en %) / FREINER au manche ; réécrits seulement au changement */
-  const pct=manche?Math.round((v.gaz||0)*20)*5:0, cle=(manche?'manche':'vol')+pct; if(v._btnVol===cle) return; const avant=v._btnVol; v._btnVol=cle;
-  const bS=el('btnSprint'), bB=el('btnBrake'); if(!bS||!bB) return;
-  if(manche){ bS.innerHTML='<b style="font-size:15px;line-height:1.1">'+pct+'%</b><small>ACCÉLÉRER</small>'; if(!avant||!avant.startsWith('manche')) bB.innerHTML=ico('ico-btn-brake','🛑')+'<small>FREINER</small>';
-    if(!AVION_AIDE.vu){ AVION_AIDE.vu=true; toast('✈ Au manche : tire le joystick vers toi pour monter, pousse pour descendre, à gauche ou à droite pour virer ; ACCÉLÉRER / FREINER règlent les gaz','or'); } }
-  else { bS.innerHTML=ico('ico-btn-monter','⬆️')+'<small>MONTER</small>'; bB.innerHTML=ico('ico-btn-descendre','⬇️')+'<small>DESCENDRE</small>'; } }
+/* la manette des gaz (18 octobre, demandé : « une manette qu'on monte du bas vers le haut à la place des boutons accélérer et
+   freiner ») : on la prend n'importe où, elle reste où on la lâche ; un cran à 100 % (vibration) ; tenir le pouce dans la zone
+   FREIN, en bas, freine (aérofreins en vol, freins au sol) et la ramène à 0 au relâcher. MANETTE.val est recopiée dans v.gaz
+   par majVol (le clavier — Maj, S — règle toujours v.gaz : majManette affiche la valeur réelle). */
+const MANETTE={val:0,frein:false,touche:false,doigt:null,vu:null};
+function manetteDoigt(e){ const b=el('manetteGaz').getBoundingClientRect(), k=b.height/140, y0=b.top+106*k, y1=b.top+16*k;
+  if(e.clientY>b.top+114*k){ if(!MANETTE.frein) vibre(15); MANETTE.frein=true; MANETTE.val=0; }
+  else { MANETTE.frein=false; const u=clamp((y0-e.clientY)/(y0-y1),0,1), avant=MANETTE.val; MANETTE.val=u>0.96?1:u; if(MANETTE.val>=1&&avant<1){ vibre(30); SFX.ui(); } } /* le cran du plein gaz */
+  MANETTE.touche=true; }
+el('manetteGaz').addEventListener('pointerdown',(e)=>{ e.preventDefault(); MANETTE.doigt=e.pointerId; try{ el('manetteGaz').setPointerCapture(e.pointerId); }catch(_){} manetteDoigt(e); });
+el('manetteGaz').addEventListener('pointermove',(e)=>{ if(e.pointerId!==MANETTE.doigt) return; e.preventDefault(); manetteDoigt(e); });
+{ const fin=(e)=>{ if(e.pointerId!==MANETTE.doigt) return; MANETTE.doigt=null; if(MANETTE.frein){ MANETTE.frein=false; MANETTE.val=0; MANETTE.touche=true; } };
+  el('manetteGaz').addEventListener('pointerup',fin); el('manetteGaz').addEventListener('pointercancel',fin); }
+function majManette(v){ const g=clamp(v.gaz||0,0,1), f=MANETTE.frein, cle=Math.round(g*100)+(f?'f':''); if(MANETTE.vu===cle) return; MANETTE.vu=cle; /* écrite au changement seulement */
+  const mg=el('manetteGaz'); if(!mg._p){ mg._p=mg.querySelector('.mgPoignee'); mg._r=mg.querySelector('.mgRemp'); mg._f=mg.querySelector('.mgFrein'); mg._t=el('mgPct'); }
+  mg._r.style.height=(g*100)+'%'; mg._p.style.bottom=(f?3:23+90*g)+'px'; mg._t.textContent=f?'■':Math.round(g*100); mg._p.classList.toggle('frein',f); mg._f.classList.toggle('on',f); }
+function majBoutonsVol(v,manche){ /* MONTER / DESCENDRE en 2D ; au manche, la manette des gaz à leur place (et BOMBE à la place de FREINER) */
+  const cle=manche?'manche':'vol';
+  if(v._btnVol!==cle){ v._btnVol=cle; const bS=el('btnSprint'), bB=el('btnBrake'), mg=el('manetteGaz'), bD=el('btnDodge'); if(!bS||!bB||!mg) return;
+    if(manche){ bS.style.display='none'; bB.style.display='none'; mg.style.display='block'; if(v.def.armes&&bD) bD.classList.add('volB'); MANETTE.vu=null; MANETTE.val=clamp(v.gaz||0,0,1); MANETTE.frein=false; MANETTE.touche=false;
+      if(!AVION_AIDE.vu){ AVION_AIDE.vu=true; toast('✈ Au manche : tire le joystick vers toi pour monter, pousse pour descendre, à gauche ou à droite pour virer ; la manette GAZ règle la vitesse','or'); } }
+    else { bS.style.display=''; bB.style.display='flex'; mg.style.display='none'; if(bD) bD.classList.remove('volB'); bS.innerHTML=ico('ico-btn-monter','⬆️')+'<small>MONTER</small>'; bB.innerHTML=ico('ico-btn-descendre','⬇️')+'<small>DESCENDRE</small>'; } }
+  if(manche) majManette(v); }
 function volManche(v,dt,plus,moins){ const A=pilotageAvion(v), ex=clamp(INPUT.ex||0,-1,1), ey=clamp(INPUT.ey||0,-1,1), hS=v.alt-poseY(v.x,v.z), dtd=dt/ETAT.timeScale;
   majGazAvion(v,dt,plus,moins);
   if(v.tang===undefined) v.tang=clamp(Math.asin(clamp((v.va||0)/Math.max(10,v.v||10),-1,1)),-A.tang,A.tang);
@@ -19941,10 +19974,10 @@ function majVol(v,dt){
     } else if(v.def.ovni) v.mesh.rotation.x=0;
     else { v.mesh.rotation.x=lerp(v.mesh.rotation.x,0,Math.min(1,PITCH_LISSAGE*dt)); v.mesh.rotation.z=lerp(v.mesh.rotation.z||0,0,Math.min(1,PITCH_LISSAGE*dt)); v.inclF=0; v.inclL=0; v.hvx=0; v.hvz=0; } // posé : retour à l'horizontale, à l'arrêt
   } else { // avion
-    const manche=avionManche(v); if(v===P.veh) majBoutonsVol(v,manche);
+    const manche=avionManche(v), descM=desc||MANETTE.frein; if(manche&&MANETTE.touche){ v.gaz=MANETTE.val; MANETTE.touche=false; } /* la manette des gaz */
     if(!v.vol&&manche){ /* au manche, au sol : le joystick dirige, les gaz font rouler, on tire pour décoller */
-      majGazAvion(v,dt,monter,desc); const ex=clamp(INPUT.ex||0,-1,1);
-      majVehiculePhys(v,dt,v.gaz,-ex*(1-Math.min(0.6,(v.v||0)/60)),desc&&v.gaz<0.05); if(v.mort) return;
+      majGazAvion(v,dt,monter,descM); const ex=clamp(INPUT.ex||0,-1,1);
+      majVehiculePhys(v,dt,v.gaz,-ex*(1-Math.min(0.6,(v.v||0)/60)),descM&&v.gaz<0.05); if(v.mort) return;
       v.tang=0; v.bank=0; v.vb=0; v.vt=0; v.tonneau=0; v.tonFin=0;
       if(v.v>=27&&!((INPUT.ey||0)>0.25)&&!AVION_AIDE.decol){ AVION_AIDE.decol=true; toast('✈ Vitesse de décollage : tire le joystick vers toi','or'); }
       if(v.v>=27&&(INPUT.ey||0)>0.25){ v.vol=true; v.decolT=DECOL_GRACE; v.alt=poseY(v.x,v.z)+0.3; v.tang=0.1; v.va=0;
@@ -19973,7 +20006,7 @@ function majVol(v,dt){
       majVrille(v,dt);
     } else {
       const l=Math.hypot(INPUT.mx,INPUT.mz);
-      if(manche) volManche(v,dt,monter,desc); /* vue 3D et 1re personne : le manche */
+      if(manche) volManche(v,dt,monter,descM); /* vue 3D et 1re personne : le manche */
       else { if(v.tonneau||v.tonFin){ v.tonneau=0; v.tonFin=0; v.bank=Math.atan2(Math.sin(v.bank),Math.cos(v.bank)); } v.tang=undefined; v.gaz=undefined;
       const kB=Math.abs(v.bank||0)/AVION_INCL_MAX, hS0=v.alt-poseY(v.x,v.z); /* kB : 0 à plat, 1 à l'inclinaison maximale */
       v.v=lerp(v.v,desc?19:v.def.vmax*tenueK('aiguilleur',1.15)*(1-AVION_PERTE_VIRAGE*kB),0.5*dt); /* un virage serré coûte un peu de vitesse */
@@ -20062,6 +20095,7 @@ function majVol(v,dt){
       } else { v.holdLoopT=0; v.holdVrilleT=0; v.figHeadingRef=undefined; loopRingEl.style.display='none'; }
       } /* (fin de la vue 2D) */
     }
+    if(v===P.veh) majBoutonsVol(v,manche); /* boutons de la 2D ou manette des gaz, à la valeur de l'image */
   }
   // limites du ciel : au-delà de la ville et de la mer, demi-tour
   v.x=clamp(v.x,DECOR_V2?LIMITE_OUEST_MER-20:-HALF-30,DECOR_V2?LIMITE_EST+20:HALF+170); v.z=clamp(v.z,-HALF-40,LIMITE_SUD_MER); // DECOR_V2 : tout le ciel, montagne et large compris

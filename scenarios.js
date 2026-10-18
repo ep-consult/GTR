@@ -13896,8 +13896,8 @@ async function main() {
     // Avions au cockpit (17 octobre au soir, signalé : « quand l'avion monte, la vue 1re personne s'incline d'un coup » ; 18 octobre :
     // au cockpit, on pilote AU MANCHE). Pour chaque avion de VEHDEFS (lu dans la source), en vue 1P : tiré, le nez monte
     // progressivement jusqu'à son assiette maximale (AVION_MANCHE, lue dans la source) et l'avion monte ; la vue ne saute jamais
-    // (au plus ~2 rad/s) ; lâché, le nez revient à plat ; poussé, il descend ; ACCÉLÉRER monte les gaz, qui restent ; les boutons
-    // disent ACCÉLÉRER et FREINER. En vue de dessus, MONTER reste MONTER et l'assiette reste marquée (lisibilité).
+    // (au plus ~2 rad/s) ; lâché, le nez revient à plat ; poussé, il descend ; Maj (clavier) monte les gaz, qui restent ; la
+    // manette des gaz remplace les boutons. En vue de dessus, MONTER reste MONTER et l'assiette reste marquée (lisibilité).
     // -------------------------------------------------------------------
     console.log('\n--- Avions au cockpit : au manche, tangage progressif, la vue ne saute jamais ---');
     {
@@ -13911,14 +13911,14 @@ async function main() {
           const pas = (n, ey, m, f) => { for (let i = 0; i < n; i++) { INPUT.ex = 0; INPUT.ey = ey; B.sprint = m; B.frein = false; majVol(v, 1 / 30); v.alt = Math.max(v.alt, 40); v.mesh.position.set(v.x, v.alt, v.z); v.mesh.rotation.y = v.ang; P.x = v.x; P.z = v.z; majCamera(1 / 30);
             camera.updateMatrixWorld(); const pit = Math.asin(camera.getWorldDirection(new THREE.Vector3()).y); if (prec !== null) R.saut = Math.max(R.saut, Math.abs(pit - prec)); prec = pit;
             R.assMax = Math.max(R.assMax, Math.abs(v.mesh.rotation.x)); R.tMax = Math.max(R.tMax, v.tang || 0); if (f) f(i); } };
-          pas(10, 0, false); R.btn = el('btnSprint').textContent + ' / ' + el('btnBrake').textContent;
+          pas(10, 0, false); R.btn = (el('manetteGaz').style.display === 'block' ? 'manette' : 'pas de manette') + (el('btnSprint').style.display === 'none' && el('btnBrake').style.display === 'none' ? ' seule' : ' et les boutons') + ' ' + el('btnSprint').textContent;
           pas(45, 1, false, (i) => { if (i === 7) R.va025 = v.va; if (i === 29) R.va1 = v.va; }); pas(60, 0, false); R.platT = v.tang || 0;
           pas(45, -1, false); R.vaPousse = v.va; pas(60, 0, false);
           const g0 = v.gaz; pas(30, 0, true); const g1 = v.gaz; pas(30, 0, false); R.gaz = [g0, g1, v.gaz];
           B.sprint = false; INPUT.ex = INPUT.ey = 0; sortirVehicule(true); scene.remove(v.mesh); libererEntite(v.mesh); const iv = vehicules.indexOf(v); if (iv >= 0) vehicules.splice(iv, 1);
           R.A = pilotageAvion(v); return R; };
         for (const cle of avions) { const a = essai(cle, 'fps');
-          if (!/ACCÉLÉRER/.test(a.btn) || !/FREINER/.test(a.btn)) ko.push(cle + ' : boutons « ' + a.btn + ' » au manche');
+          if (!/^manette seule/.test(a.btn)) ko.push(cle + ' : au manche, ' + a.btn);
           if (a.saut > 0.075) ko.push(cle + ' : la vue saute de ' + a.saut.toFixed(3) + ' rad en une image');
           if (!(a.va025 < a.va1 && a.va1 > 3)) ko.push(cle + ' : tiré, la montée ne se prend pas progressivement (' + (a.va025 || 0).toFixed(1) + ' → ' + (a.va1 || 0).toFixed(1) + ' u/s)');
           if (!(a.tMax > a.A.tang * 0.85 && a.tMax < a.A.tang * 1.06)) ko.push(cle + ' : assiette maximale ' + a.tMax.toFixed(2) + ' pour ' + a.A.tang);
@@ -13926,7 +13926,7 @@ async function main() {
           if (!(a.vaPousse < -3)) ko.push(cle + ' : poussé, il ne descend pas (' + a.vaPousse.toFixed(1) + ' u/s)');
           if (!(a.gaz[1] > a.gaz[0] + 0.1 && Math.abs(a.gaz[2] - a.gaz[1]) < 1e-6)) ko.push(cle + ' : gaz ' + a.gaz.map((x) => x.toFixed(2)).join(' → '));
           info.push(cle + ' (nez ' + a.tMax.toFixed(2) + ', +' + a.va1.toFixed(0) + ' u/s)'); }
-        const c = essai(avions[0], 'classique'); if (!/MONTER/.test(c.btn)) ko.push('vue de dessus : boutons « ' + c.btn + ' »');
+        const c = essai(avions[0], 'classique'); if (!/^pas de manette et les boutons .*MONTER/.test(c.btn)) ko.push('vue de dessus : boutons « ' + c.btn + ' »');
         /* en vue de dessus, MONTER monte l'avion, assiette marquée */
         { META.vue = 'classique'; const v = creerVehicule(avions[0], POIS.place.x, POIS.place.z + 40, Math.PI, null); P.x = v.x; P.z = v.z; entrerVehicule(v); v.vol = true; v.alt = 70; v.v = 38; v.va = 0; v.decolT = 0; v.figureCdT = 1e9; let ass = 0;
           for (let i = 0; i < 60; i++) { B.sprint = true; majVol(v, 1 / 30); ass = Math.max(ass, Math.abs(v.mesh.rotation.x)); } B.sprint = false;
@@ -14315,7 +14315,8 @@ async function main() {
     // lâché, il se remet à plat ; le chasseur fait des vrilles, la voltige est hyper maniable »). Vraie boucle, joystick brut :
     // chaque avion de VEHDEFS penche à SON inclinaison (AVION_MANCHE, lue dans la source), vire du côté penché, sans saut, et
     // revient à plat ; le long-courrier vire plus large que le Colibri ; tiré il monte, poussé il descend ; les gaz restent ;
-    // FREINER ralentit ; boutons ACCÉLÉRER / FREINER (MONTER en 2D) ; tonneaux à fond sur le côté (chasseur, voltige ; jamais le
+    // FREINER ralentit ; la manette des gaz au doigt (cran à 100 %, FREIN tenu, retour à 0, au sol aussi ; rien ne la chevauche ;
+    // MONTER en 2D, SPRINT à pied) ; tonneaux à fond sur le côté (chasseur, voltige ; jamais le
     // long-courrier, jamais en diagonale) ; looping tiré à fond ; au sol, on ne décolle qu'en tirant ; horizon du cockpit au réglage.
     // -------------------------------------------------------------------
     console.log('\n--- Pilotage au manche (vue 3D et 1re personne) : roulis, tangage, gaz, tonneaux, looping, décollage, horizon ---');
@@ -14340,14 +14341,38 @@ async function main() {
         if (!(lacets.ligne < lacets.avion * 0.6)) ko.push('le long-courrier vire aussi serré que le Colibri (' + (lacets.ligne || 0).toFixed(2) + ' contre ' + (lacets.avion || 0).toFixed(2) + ' rad/s)');
         info.push(avions.length + ' avions inclinés à leur maximum, à plat au relâcher ; virage ' + (lacets.avion || 0).toFixed(2) + ' rad/s (Colibri) contre ' + (lacets.ligne || 0).toFixed(2) + ' (long-courrier)');
         // tangage, gaz, boutons
-        { const v = vol('avion', 'immersive'); const btn = el('btnSprint').textContent + ' / ' + el('btnBrake').textContent; const a0 = v.alt;
+        { const v = vol('avion', 'immersive'); const btn = (el('manetteGaz').style.display === 'block' ? 'manette' : 'pas de manette') + (el('btnSprint').style.display === 'none' && el('btnBrake').style.display === 'none' ? ' seule' : ' et les boutons'); const a0 = v.alt;
           pas(90, () => { INPUT.jy = 1; }); const monte = v.alt - a0; INPUT.jy = 0; pas(120); const plat = v.tang; const a1 = v.alt; pas(60, () => { INPUT.jy = -1; }); const descend = a1 - v.alt; INPUT.jy = 0; pas(90);
           const g0 = v.gaz; pas(60, () => { B.sprint = true; }); B.sprint = false; const g1 = v.gaz; pas(60); const g2 = v.gaz, v0 = v.v; pas(60, () => { B.frein = true; }); B.frein = false; const g3 = v.gaz, v1 = v.v;
-          if (!/ACCÉLÉRER/.test(btn) || !/FREINER/.test(btn)) ko.push('boutons au manche : « ' + btn + ' »');
+          if (btn !== 'manette seule') ko.push('au manche : ' + btn);
           if (!(monte > 5 && descend > 3 && Math.abs(plat) < 0.05)) ko.push('tangage : tiré +' + monte.toFixed(1) + ' u, lâché nez ' + plat.toFixed(2) + ', poussé −' + descend.toFixed(1) + ' u');
           if (!(g1 > g0 + 0.1 && Math.abs(g2 - g1) < 1e-6 && g3 < g2 - 0.1 && v1 < v0 - 3)) ko.push('gaz ' + [g0, g1, g2, g3].map((x) => x.toFixed(2)).join(' → ') + ', vitesse ' + v0.toFixed(0) + ' → ' + v1.toFixed(0));
           info.push('tiré +' + monte.toFixed(0) + ' u en 1,5 s, poussé −' + descend.toFixed(0) + ' u en 1 s ; gaz ' + g0.toFixed(2) + ' → ' + g1.toFixed(2) + ' (restent), FREINER : ' + v0.toFixed(0) + ' → ' + v1.toFixed(0) + ' u/s'); }
-        { META.vue = 'classique'; const v = vol('avion', 'classique'); if (!/MONTER/.test(el('btnSprint').textContent)) ko.push('vue 2D : bouton « ' + el('btnSprint').textContent + ' »'); }
+        { META.vue = 'classique'; const v = vol('avion', 'classique'); if (!/MONTER/.test(el('btnSprint').textContent) || el('manetteGaz').style.display !== 'none') ko.push('vue 2D : bouton « ' + el('btnSprint').textContent + ' », manette ' + el('manetteGaz').style.display); }
+        // la manette des gaz au doigt (vrais évènements de pointeur sur #manetteGaz) : on la prend n'importe où, elle reste où on la
+        // lâche, un cran (vibration) au plein gaz, la zone FREIN tenue freine (en vol et au sol) et la ramène à 0 au relâcher
+        { const vib0 = vibre, vibs = []; vibre = (ms) => vibs.push(ms);
+          const mg = el('manetteGaz'), doigt = (type, u) => { const b = mg.getBoundingClientRect(); mg.dispatchEvent(new PointerEvent(type, { pointerId: 41, clientX: b.left + b.width / 2, clientY: b.top + b.height * u, bubbles: true, cancelable: true })); };
+          const glisse = (u0, u1, n) => { doigt('pointerdown', u0); for (let i = 1; i <= n; i++) doigt('pointermove', u0 + (u1 - u0) * i / n); };
+          for (const cle of ['avion', 'chasseur']) { const v = vol(cle, cle === 'avion' ? 'immersive' : 'fps'); v.gaz = 0.5; pas(2);
+            /* rien ne chevauche la manette (boutons visibles du HUD) */
+            const rm = mg.getBoundingClientRect(); for (const id of ['btnFire', 'btnDodge', 'btnSprint', 'btnBrake', 'btnAction', 'btnSwitch', 'btnGren', 'btnSpec', 'btnJump', 'btnJetpack', 'btnViser']) { const e = el(id); if (!e || getComputedStyle(e).display === 'none') continue; const r2 = e.getBoundingClientRect();
+              if (r2.width && r2.left < rm.right - 1 && r2.right > rm.left + 1 && r2.top < rm.bottom - 1 && r2.bottom > rm.top + 1) ko.push(cle + ' : ' + id + ' chevauche la manette'); }
+            glisse(0.5, 0.06, 12); pas(2); const haut = v.gaz, nVib = vibs.length; doigt('pointerup', 0.06); pas(60); const reste = v.gaz;
+            glisse(0.2, 0.47, 6); doigt('pointerup', 0.47); pas(2); const milieu = v.gaz;
+            const vv0 = v.v; glisse(0.47, 0.93, 8); pas(60); const frein = MANETTE.frein, gF = v.gaz, vv1 = v.v; doigt('pointerup', 0.93); pas(2);
+            if (!(haut === 1 && nVib >= 1 && reste === 1)) ko.push(cle + ' : en haut, gaz ' + haut + ' (vibrations ' + nVib + '), lâché ' + reste);
+            if (!(milieu > 0.35 && milieu < 0.65)) ko.push(cle + ' : au milieu, gaz ' + milieu.toFixed(2));
+            if (!(frein && gF === 0 && vv1 < vv0 - 5)) ko.push(cle + ' : FREIN tenu ' + frein + ', gaz ' + gF + ', vitesse ' + vv0.toFixed(0) + ' → ' + vv1.toFixed(0));
+            if (MANETTE.frein || v.gaz !== 0 || MANETTE.val !== 0) ko.push(cle + ' : FREIN lâché, la manette ne revient pas à 0 (' + MANETTE.val + ')');
+            if (cle === 'chasseur' && !el('btnDodge').classList.contains('volB')) ko.push('chasseur : BOMBE pas à la place de FREINER');
+            if (cle === 'avion') info.push('manette : cran à 100 % (' + nVib + ' vibration), reste au lâcher, milieu ' + milieu.toFixed(2) + ', FREIN ' + vv0.toFixed(0) + ' → ' + vv1.toFixed(0) + ' u/s en 1 s puis 0'); }
+          { const v = vol('avion', 'immersive'), pi = POIS.piste || POIS.aerodrome; v.x = pi.x; v.z = pi.z; v.ang = pi.ang || 0; v.vol = false; v.alt = poseY(v.x, v.z); v.v = 20; v.gaz = 0; pas(2); /* sur la piste */ const r0 = v.v; pas(45); const roue = r0 - v.v;
+            v.v = 20; pas(1); const r1 = v.v; glisse(0.5, 0.95, 4); pas(45); const freine = r1 - v.v; doigt('pointerup', 0.95);
+            if (!(freine > roue + 4)) ko.push('au sol, FREIN tenu : −' + freine.toFixed(1) + ' u/s contre −' + roue.toFixed(1) + ' en roue libre');
+            info.push('au sol, FREIN : −' + freine.toFixed(0) + ' u/s en 0,75 s (roue libre −' + roue.toFixed(0) + ')'); }
+          sortirVehicule(true); if (el('manetteGaz').style.display !== 'none' || getComputedStyle(el('btnSprint')).display === 'none' || el('btnDodge').classList.contains('volB')) ko.push('à pied : la manette ou BOMBE restent, ou SPRINT manque');
+          vibre = vib0; }
         // tonneaux : chasseur et voltige, à fond purement sur le côté ; jamais le long-courrier ; jamais en diagonale
         for (const cle of ['chasseur', 'voltige', 'ligne']) { const v = vol(cle, 'immersive'), A = pilotageAvion(v), n0 = META.stats.loopings || 0; let maxB = 0, tPlat = -1;
           pas(240, () => { INPUT.jx = -1; INPUT.jy = 0; v.alt = 150; maxB = Math.max(maxB, Math.abs(v.bank)); }); const tours = (META.stats.loopings || 0) - n0;
