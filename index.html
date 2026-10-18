@@ -954,6 +954,24 @@ const MER_V2=true;
    de quartier. À false : le décor d'avant (les correctifs de bordure, eux,
    restent — ce sont des bugs, pas du décor). */
 const DECOR_V2=true;
+/* VIRAGE DES AVIONS — RÉGLAGES (18 octobre, demandé : « quand je tourne, l'avion reste tout droit ; il doit s'incliner et
+   pivoter comme un vrai avion »). Le joystick INCLINE l'avion (roulis), et c'est l'inclinaison qui le fait TOURNER (cap) ;
+   la trajectoire suit le nez. Angles en radians (0,7 rad ≈ 40°), vitesses en rad/s. Code : virageAvion, roulisAvion, roulisIA
+   (juste avant majVol), caméra de poursuite dans vueCamera.
+   - AVION_INCL_MAX     inclinaison maximale (0,6 ≈ 34°, 0,7 ≈ 40°, 0,78 ≈ 45°) : l'effet le plus visible ;
+   - AVION_INCL_VIT     vitesse de mise en virage (rad/s) ; AVION_INCL_RETOUR : vitesse de retour à plat au relâcher ;
+   - AVION_INCL_RAIDEUR réponse du roulis (plus haut = plus vif) ; AVION_INCL_DOUCEUR : lissage de sa vitesse (aucun à-coup) ;
+   - AVION_LACET_K      taux de virage à l'inclinaison maximale, en multiple de def.turnVol (1,15 rad/s ; voltige 2,3) ;
+   - AVION_ECART_PLEIN  écart entre le nez et la direction du joystick qui demande l'inclinaison maximale (rad) ;
+   - AVION_ANTICIP      l'avion se redresse avant d'atteindre le cap voulu (s) : de l'inertie, sans dépasser ;
+   - AVION_PERTE_VIRAGE vitesse perdue à l'inclinaison maximale (0,12 = 12 %) ; AVION_CHUTE_VIRAGE : altitude perdue (u/s,
+                        le nez baisse un peu ; jamais près du sol) — 0 pour les couper ;
+   - AVION_INCL_1P      part de l'inclinaison montrée au cockpit (l'horizon y tourne avec l'avion) ;
+   - AVION_CAM_ROULIS   part de l'inclinaison prise par la caméra de poursuite (petite : pas de mal au cœur) ;
+   - AVION_CAM_SUIVI    vitesse à laquelle la caméra de poursuite rattrape le cap (plus bas = l'avion pivote plus à l'écran). */
+const AVION_INCL_MAX=0.7, AVION_INCL_VIT=1.6, AVION_INCL_RETOUR=1.2, AVION_INCL_RAIDEUR=4, AVION_INCL_DOUCEUR=8;
+const AVION_LACET_K=1.0, AVION_ECART_PLEIN=0.6, AVION_ANTICIP=0.35, AVION_PERTE_VIRAGE=0.12, AVION_CHUTE_VIRAGE=1.5;
+const AVION_INCL_1P=0.4, AVION_CAM_ROULIS=0.25, AVION_CAM_SUIVI=2.6;
 function ico(id,secours){
   if(!ICONES_SVG||!document.getElementById(id)) return secours||'';
   return '<svg class="icoSvg" viewBox="0 0 24 24" aria-hidden="true"><use href="#'+id+'"></use></svg>';
@@ -5676,8 +5694,7 @@ function majAvionBanderole(dt){
   const p=trajetAvion(AVION.s), t=(CIEL.av.t+=dt);
   a.position.set(p.x,AVION.y+Math.sin(t*0.7)*0.4,p.z);
   a.rotation.order='YXZ'; a.rotation.y=p.cap;
-  const vire=Math.abs(p.z-AVION.zA)>0.5&&Math.abs(p.z-AVION.zB)>0.5;  // en virage : inclinaison
-  a.rotation.x=vire?-0.45:Math.sin(t*0.9)*0.05;
+  a.rotation.x=-roulisIA(CIEL.av,p.cap,dt)+Math.sin(t*0.9)*0.03; /* il penche dans ses virages (son nez est vers +x : le roulis est rotation.x ; avant : −0,45 d'un coup) */
   CIEL.helice.rotation.x+=dt*45;
   // vers l'ouest, l'avion est retourné : la banderole tourne dans son plan pour rester lisible
   const versOuest=Math.cos(p.cap)<0;
@@ -10593,7 +10610,7 @@ function majAeroVie(dt){
   for(let k=0;k<V.rampe.length;k++){ const ph=(V.t*2.2)%1.4; V.rampe[V.rampe.length-1-k].material.opacity=nuit?(Math.abs(ph-k/V.rampe.length)<0.08?1:0.12):0; }
   // avion de tourisme : tour de piste, passage bas sur la branche ouest
   if(V.avion.c.etat==='vol'){ const A=V.avion; A.s+=dt*17; const p=pointBoucle(A.b,A.s), u=((A.s%A.b.L)+A.b.L)%A.b.L/A.b.L;
-    const alt=10+16*(0.5+0.5*Math.cos(u*Math.PI*2)); A.m.position.set(p.x,alt,p.z); A.m.rotation.y=p.ang; A.m.rotation.z=Math.abs(Math.sin(u*Math.PI*4))>0.9?-0.25:0;
+    const alt=10+16*(0.5+0.5*Math.cos(u*Math.PI*2)); A.m.position.set(p.x,alt,p.z); A.m.rotation.y=p.ang; A.m.rotation.z=-roulisIA(A,p.ang,dt); /* il penche dans ses virages (avant : 0 ou −0,25 d'un coup) */
     const ud=A.m.userData; if(ud.rotor) ud.rotor.rotation.y+=dt*30; }
   // Écureuil : ronde autour de la tour de contrôle
   if(AERO.tour&&V.helico.c.etat==='vol'){ const H=V.helico; H.a+=dt*0.22; const x=AERO.tour.x+Math.cos(H.a)*45, z=AERO.tour.z-16+Math.sin(H.a)*45;
@@ -19573,7 +19590,7 @@ function appuiVolCran(v,monter,desc,dt){
      (nez relevé, au plus HELI_RECUL × la vitesse max) au lieu de faire demi-tour.
    La vitesse est un vecteur (v.hvx, v.hvz) ; v.v reste la vitesse le long du nez (instruments, caméra, son). L'OVNI garde son vol. */
 const HELI_INCL_AV=0.32, HELI_INCL_LAT=0.28, HELI_INCL_VIT=3.2, HELI_K_INCL=0.04, HELI_G=32, HELI_TRAINEE=0.32, HELI_RECUL=0.45, HELI_LATERAL=0.6, HELI_LACET=2.2, HELI_INCL_MAXV=0.75;
-const AVION_VA_ACC=18, AVION_TANGAGE_1P=0.006, AVION_LISSAGE_1P=1.8, AVION_ROULIS_1P=0.26;
+const AVION_VA_ACC=18, AVION_TANGAGE_1P=0.006, AVION_LISSAGE_1P=1.8; /* (le roulis au cockpit : AVION_INCL_1P, en tête du fichier) */
 // FIGURES (looping + vrille) — disponibles sur les appareils avec
 // figures:true (chasseur et voltige, voir VEHDEFS). Deux déclencheurs
 // DÉLIBÉRÉMENT différents, choisis pour deux raisons différentes :
@@ -19669,6 +19686,7 @@ function majLumieresOvni(v,dt){
 // v.alt suit une simple bosse scriptée — jamais la vraie excursion
 // verticale d'un looping réel — avec un léger gain net à la sortie.
 function majLooping(v,dt){
+  if(v.bank){ v.bank*=Math.max(0,1-3*dt); v.vb=0; v.lacetAv=0; v.mesh.rotation.z=-v.bank; } /* un looping se fait ailes à plat */
   const L=v.loopEnCours;
   L.t+=dt/ETAT.timeScale; // dtJeu : la durée du looping n'est jamais affectée par un ralenti en cours
   const frac=clamp(L.t/LOOP_DUREE,0,1);
@@ -19706,14 +19724,14 @@ function majVrille(v,dt){
   const L=v.vrilleEnCours;
   L.t+=dt/ETAT.timeScale; // dtJeu : la durée de la vrille n'est jamais affectée par un ralenti en cours
   const frac=clamp(L.t/VRILLE_DUREE,0,1);
-  v.mesh.rotation.z=L.sens*frac*Math.PI*2;
+  v.mesh.rotation.z=(L.z0||0)*(1-frac)+L.sens*frac*Math.PI*2; /* elle part de l'inclinaison du virage, dans son sens (18 octobre) */
   v.x+=Math.sin(v.ang)*v.v*dt; v.z+=Math.cos(v.ang)*v.v*dt;
   const c=v.def.long*0.42;
   const tx=v.x-Math.sin(v.ang)*c, tz=v.z-Math.cos(v.ang)*c;
   const coulFumee=v.def.voltige?FUMEE_VOLTIGE[Math.floor(frac*10)%FUMEE_VOLTIGE.length]:0xe8ecf2;
   if(Math.random()<0.85) fumee(tx,v.alt,tz,coulFumee);
   if(frac>=1){
-    v.vrilleEnCours=null; v.mesh.rotation.z=0;
+    v.vrilleEnCours=null; v.mesh.rotation.z=0; v.bank=0; v.vb=0; v.lacetAv=0;
     META.stats.loopings=(META.stats.loopings||0)+1; // comptée comme un looping, comme demandé
     spawnTexte(v.x,v.alt+2.4,v.z,'🌀 VRILLE !','#35e0ff');
     toast('Vrille réussie !','or'); SFX.niveau(); vibre(40);
@@ -19741,6 +19759,25 @@ function helicoCyclique(v,dt,l){
   // joystick lâché et presque à l'arrêt : stationnaire franc (pas de dérive qui ne finit jamais)
   if(l<=0.15&&Math.hypot(v.hvx,v.hvz)<0.15&&Math.abs(v.inclF)<0.01&&Math.abs(v.inclL)<0.01){ v.hvx=0; v.hvz=0; }
   v.v=v.hvx*sA+v.hvz*cA; }
+/* ---------- VIRAGE DES AVIONS (réglages en tête du fichier : AVION_INCL_*, AVION_LACET_K…) ----------
+   Avant : le cap était TIRÉ vers la direction du joystick (angLerp : taux = écart × turnVol) et le roulis n'en était qu'un
+   reflet (l'écart borné × 0,5 rad), qui retombait dès que le nez approchait du cap voulu — vu de dessus il ne durait qu'un
+   instant, et en poursuite la caméra tournait et penchait avec l'avion : il paraissait droit. Désormais : commande → roulis
+   (v.bank, > 0 = virage à GAUCHE, pris et rendu progressivement) → taux de virage (v.lacetAv) → cap (v.ang) ; la trajectoire
+   suit le nez, sans glissade. Seul le MODÈLE penche (mesh.rotation.z) : collisions, tirs et caméras lisent le cap. */
+function roulisAvion(e,cible,dt){ /* e.bank va vers cible : prise à AVION_INCL_VIT, retour à plat à AVION_INCL_RETOUR, vitesse de roulis lissée */
+  const b=e.bank||0, retour=cible*b<0||Math.abs(cible)<Math.abs(b), vmax=retour?AVION_INCL_RETOUR:AVION_INCL_VIT;
+  e.vb=lerp(e.vb||0,clamp((cible-b)*AVION_INCL_RAIDEUR,-vmax,vmax),clamp(dt*AVION_INCL_DOUCEUR,0,1));
+  e.bank=clamp(b+e.vb*dt,-AVION_INCL_MAX*1.05,AVION_INCL_MAX*1.05); return e.bank; }
+function virageAvion(v,l,dt){ /* le joueur : l'écart entre le nez (anticipé) et la direction du joystick incline l'avion ; l'inclinaison le fait tourner */
+  let cmd=0;
+  if(l>0.15){ const e=angDiff(v.ang+(v.lacetAv||0)*AVION_ANTICIP,Math.atan2(INPUT.mx,INPUT.mz)); cmd=clamp(e/AVION_ECART_PLEIN,-1,1)*Math.min(1,(l-0.15)/0.5); }
+  roulisAvion(v,cmd*AVION_INCL_MAX,dt);
+  v.lacetAv=(v.def.turnVol||1.15)*AVION_LACET_K*v.bank/AVION_INCL_MAX; v.ang+=v.lacetAv*dt; }
+function roulisIA(e,cap,dt){ /* un avion de l'IA ou du décor : son roulis suit le taux de virage MESURÉ sur son cap, même dynamique que le joueur */
+  if(!(dt>0)) return e.bank||0; if(e.capPrec===undefined){ e.capPrec=cap; return e.bank||0; }
+  const w=angDiff(e.capPrec,cap)/dt; e.capPrec=cap; e.lacetL=lerp(e.lacetL||0,w,clamp(dt*6,0,1));
+  return roulisAvion(e,clamp(e.lacetL/(1.15*AVION_LACET_K),-1,1)*AVION_INCL_MAX,dt); }
 function majVol(v,dt){
   const air=v.def.air;
   if(v.alt===undefined){v.alt=0;v.vol=false;v.va=0;}
@@ -19856,14 +19893,13 @@ function majVol(v,dt){
     } else if(v.vrilleEnCours){
       majVrille(v,dt);
     } else {
-      v.v=lerp(v.v,desc?19:v.def.vmax*tenueK('aiguilleur',1.15),0.5*dt);
+      const kB=Math.abs(v.bank||0)/AVION_INCL_MAX, hS0=v.alt-poseY(v.x,v.z); /* kB : 0 à plat, 1 à l'inclinaison maximale */
+      v.v=lerp(v.v,desc?19:v.def.vmax*tenueK('aiguilleur',1.15)*(1-AVION_PERTE_VIRAGE*kB),0.5*dt); /* un virage serré coûte un peu de vitesse */
       const l=Math.hypot(INPUT.mx,INPUT.mz);
-      // taux de virage en vol : fixe pour l'avion de ligne et le chasseur
-      // (comportement existant, inchangé) ; def.turnVol permet à un
-      // appareil particulier (la voltige, « direction sensible ») de virer
-      // bien plus sec sans toucher au taux partagé des autres.
-      if(l>0.15) v.ang=angLerp(v.ang,Math.atan2(INPUT.mx,INPUT.mz),(v.def.turnVol||1.15)*dt);
-      const vaC=(v.monterV?AVION_VA_MONTEE:0)+(v.descV?-AVION_VA_DESCENTE:0)-(v.v<19?9:0); v.va+=clamp(vaC-(v.va||0),-AVION_VA_ACC*dt,AVION_VA_ACC*dt); /* la montée se prend progressivement */
+      // le virage (18 octobre) : le joystick incline l'avion, l'inclinaison le fait tourner — voir virageAvion ;
+      // def.turnVol reste le taux de chaque appareil (la voltige, « direction sensible », vire deux fois plus sec)
+      virageAvion(v,l,dt);
+      const vaC=(v.monterV?AVION_VA_MONTEE:0)+(v.descV?-AVION_VA_DESCENTE:0)-(v.v<19?9:0)-AVION_CHUTE_VIRAGE*kB*clamp((hS0-4)/8,0,1); v.va+=clamp(vaC-(v.va||0),-AVION_VA_ACC*dt,AVION_VA_ACC*dt); /* la montée se prend progressivement */
       if(v.v<19&&Math.random()<0.1) toast('DÉCROCHAGE — accélère !','warn');
       { const hS=v.alt-poseY(v.x,v.z); if(v.va<0&&hS<(AVION_VA_DESCENTE-2.2)/0.9&&!estEau(v.x,v.z)) v.va=Math.max(v.va,-2.2-hS*0.9); } /* zone d'arrondi à la mesure de la descente : le freinage reste continu */ // arrondi : près du sol, la descente se ralentit d'elle-même (signalé : « impossible d'atterrir » — FREIN arrivait au sol à -11 u/s, crash au-delà de -4,5)
       v.alt=clamp(v.alt+v.va*dt,0,180);  // très haut au-dessus de la ville
@@ -19874,11 +19910,11 @@ function majVol(v,dt){
       const surfA=poseY(v.x,v.z);
       if(v.alt<=surfA+0.15&&v.va<=0){
         if(v.decolT<=0&&((surfA<0.5&&estEau(v.x,v.z))||v.va<-4.5||v.v>32)){ crashAerien(v); return; }
-        v.vol=false; v.alt=surfA; v.v=Math.min(v.v,20); toast(surfA>4?'Posé sur le toit !':'Posé — lâche le joystick pour freiner','or');
+        v.vol=false; v.alt=surfA; v.v=Math.min(v.v,20); v.bank=0; v.vb=0; v.lacetAv=0; toast(surfA>4?'Posé sur le toit !':'Posé — lâche le joystick pour freiner','or');
         if(surfA>4&&!META.defis.toit){ META.defis.toit=true; bigMsg('POSÉ SUR LE TOIT'); }
       }
       const ck1P=v===P.veh&&vueCockpit(); /* au cockpit : assiette et roulis adoucis (AVION_TANGAGE_1P) */
-      v.mesh.rotation.z=lerp(v.mesh.rotation.z,-clamp(angDiff(v.ang,Math.atan2(INPUT.mx||Math.sin(v.ang),INPUT.mz||Math.cos(v.ang))),-1,1)*(ck1P?AVION_ROULIS_1P:0.5),clamp((ck1P?2.2:4.5)*dt,0,1)); /* lissage sur dt (avant : 0,15 par image) */
+      v.mesh.rotation.z=lerp(v.mesh.rotation.z,-(v.bank||0)*(ck1P?AVION_INCL_1P:1),clamp(dt*10,0,1)); /* le roulis du virage (v.bank) : aile gauche vers le bas à gauche ; lissé au changement de vue */
       // Assiette : le sens (nez qui se relève en montée, plonge en descente)
       // est correct — vérifié par un rendu de PROFIL réel (pas de calcul en
       // l'air) : le nez (cône pointu du fuselage, littéralement nommé `nez`
@@ -19930,7 +19966,7 @@ function majVol(v,dt){
         if(franc&&dc>FIGURE_ANGLE_VRILLE){
           v.holdVrilleT=(v.holdVrilleT||0)+dtd;
           if(v.holdVrilleT>=seuil){
-            v.vrilleEnCours={t:0,sens:INPUT.mx<0?1:-1}; v.holdVrilleT=0; v.figureCdT=FIGURE_COOLDOWN; v.figHeadingRef=undefined;
+            v.vrilleEnCours={t:0,sens:(v.bank||0)>0?-1:1,z0:v.mesh.rotation.z}; v.holdVrilleT=0; v.figureCdT=FIGURE_COOLDOWN; v.figHeadingRef=undefined;
           }
         } else v.holdVrilleT=Math.max(0,(v.holdVrilleT||0)-decay);
         if(!franc) v.figHeadingRef=undefined;
@@ -36233,7 +36269,7 @@ function vueCamera(dt,sx,sz){
     // au sol, elle suit le MOUVEMENT plutôt que le nez : dans un drift, on voit la voiture glisser de travers
     if(!VUE.drag) VUE.offVeh=lerp(VUE.offVeh||0,0,clamp(dt*2.2,0,1));
     const dirMvt=!air&&!v.def.eau&&(v.v||0)>5&&v.dirAng!==undefined?angLerp(v.ang||0,v.dirAng,0.75):(v.ang||0);
-    VUE.yaw=angLerp(VUE.yaw,dirMvt+Math.PI+(VUE.offVeh||0),clamp(dt*(VUE.drag?10:(air?1.5:2.4)),0,1)); VUE.yawUser=VUE.yaw;
+    VUE.yaw=angLerp(VUE.yaw,dirMvt+Math.PI+(VUE.offVeh||0),clamp(dt*(VUE.drag?10:(air?(v.def.air==='avion'?AVION_CAM_SUIVI:1.5):2.4)),0,1)); VUE.yawUser=VUE.yaw;
     VUE.offVehRendu=(VUE.offVeh||0)+angDiff(v.ang||0,dirMvt); } /* le joystick reste calé sur le nez du véhicule (comme avant) : ni le doigt ni le drift ne le font tourner */
   else if(glisse){ VUE.yaw=angLerp(VUE.yaw,TOW.cap+Math.PI,clamp(dt*2,0,1)); VUE.yawUser=VUE.yaw; } // wakeboard : derrière la planche, le bateau devant
   else VUE.yaw=angLerp(VUE.yaw,VUE.yawUser,clamp(dt*12,0,1));
@@ -36268,7 +36304,7 @@ function vueCamera(dt,sx,sz){
   cl.set(lerp(nx+cd.x*40,tx,k),lerp(ny+cd.y*40,ty,k),lerp(nz+cd.z*40,tz,k)); camera.lookAt(cl);
   /* aéronef en poursuite : la caméra prend un peu du roulis de l'appareil (30 %), en douceur — on sent le virage sans être secoué
      (17 octobre au soir, « la caméra suit ces inclinaisons avec douceur, sans à-coups ») */
-  if(v&&air&&!v.def.ovni&&v.vol){ VUE.roulisCam=lerp(VUE.roulisCam||0,-(v.mesh.rotation.z||0)*0.3,clamp(dt*2.5,0,1)); camera.rotateZ(VUE.roulisCam*k); } else VUE.roulisCam=0;
+  if(v&&air&&!v.def.ovni&&v.vol){ VUE.roulisCam=lerp(VUE.roulisCam||0,-(v.mesh.rotation.z||0)*(v.def.air==='avion'?AVION_CAM_ROULIS:0.3),clamp(dt*2.5,0,1)); camera.rotateZ(VUE.roulisCam*k); } else VUE.roulisCam=0;
   // l'angle réellement affiché (pour le joystick)
   camera.getWorldDirection(cd); VUE.yawRendu=Math.hypot(cd.x,cd.z)>1e-3?Math.atan2(-cd.x,-cd.z):0;
   // le ciel : suit la caméra, couleurs du jour (horizon = fond de scène)

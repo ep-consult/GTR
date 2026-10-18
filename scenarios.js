@@ -14241,6 +14241,65 @@ async function main() {
       if (r.ko.length) fail('Inclinaisons : ' + r.ko.join(' ; ')); else ok('Inclinaisons : ' + r.info.join(', '));
     }
     // -------------------------------------------------------------------
+    // Virage des avions (18 octobre, demandé : « quand je tourne, l'avion reste tout droit ; il doit s'incliner et pivoter comme
+    // un vrai avion ; les autres avions aussi ») : pour chaque avion de VEHDEFS, joystick à gauche puis à droite (vue de dessus,
+    // cap visé fixe) : l'aile du côté du virage descend, progressivement (aucun saut d'une image à l'autre), jusqu'à
+    // ~AVION_INCL_MAX ; le cap tourne du même côté, d'autant plus vite que l'avion penche ; la trajectoire suit le nez ; au
+    // relâcher, retour à plat en douceur, sans dépasser le cap voulu. En poursuite, la caméra penche bien moins que l'avion. Les
+    // avions du décor (tour de piste de l'aéroport, avion à banderole) penchent dans leurs virages, à plat en ligne droite.
+    // -------------------------------------------------------------------
+    console.log('\n--- Virage des avions : roulis, cap, retour à plat, caméra, avions du décor ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = []; let T = dernierT + 1000;
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); META.vue = 'classique'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9;
+        const avions = Object.keys(VEHDEFS).filter((k) => VEHDEFS[k].air === 'avion'), lignes = [];
+        const essai = (cle) => { const v = creerVehicule(cle, POIS.place.x, POIS.place.z + 60, Math.PI, null); P.x = v.x; P.z = v.z; entrerVehicule(v);
+          v.vol = true; v.alt = 90; v.va = 0; v.v = v.def.vmax * 0.8; v.decolT = 0; v.figureCdT = 1e9; INPUT.mx = INPUT.mz = 0; for (let i = 0; i < 10; i++) majVol(v, 1 / 60);
+          const R = { cle, saut: 0, bankMax: 0, z02: 0, glisse: 0, lacetOk: true };
+          const X0 = v.x, Z0 = v.z, pas = (mx, mz, n, f) => { for (let i = 0; i < n; i++) { v.x = X0; v.z = Z0; const b0 = v.bank || 0, x0 = v.x, z0 = v.z, a0 = v.ang; INPUT.mx = mx; INPUT.mz = mz; majVol(v, 1 / 60); v.alt = 90; v.va = 0;
+            R.saut = Math.max(R.saut, Math.abs((v.bank || 0) - b0)); const dl = Math.hypot(v.x - x0, v.z - z0); if (dl > 0.05) R.glisse = Math.max(R.glisse, Math.abs(angDiff(Math.atan2(v.x - x0, v.z - z0), v.ang)));
+            if (Math.abs(v.bank) > 0.2 && Math.sign(angDiff(a0, v.ang)) !== Math.sign(v.bank)) R.lacetOk = false; if (f) f(i); } };
+          /* à gauche : cap visé à +90° du nez (vue de dessus : une direction fixe) */
+          const a = v.ang, VISE = 2.6, gx = Math.sin(a + VISE), gz = Math.cos(a + VISE); R.modele = 0;
+          pas(gx, gz, 72, (i) => { if (i === 11) R.z02 = v.bank; R.bankMax = Math.max(R.bankMax, v.bank); R.modele = Math.min(R.modele, v.mesh.rotation.z); });
+          R.tourne = angDiff(a, v.ang); pas(gx, gz, Math.ceil(60 * (2 + 2.6 / ((v.def.turnVol || 1.15) * AVION_LACET_K)))); /* le temps de finir le virage : l'avion de ligne vire deux fois moins vite */ R.fin = angDiff(a, v.ang); R.bankArrive = v.bank;
+          /* relâché en plein virage : retour à plat */
+          const b2 = v.ang, dx = Math.sin(b2 + 2.5), dz = Math.cos(b2 + 2.5); pas(dx, dz, 60); const bRel = v.bank; let tPlat = -1; pas(0, 0, 150, (i) => { if (tPlat < 0 && Math.abs(v.bank) < 0.03) tPlat = (i + 1) / 60; });
+          R.bRel = bRel; R.tPlat = tPlat; R.platFin = Math.abs(v.bank);
+          /* à droite */
+          const c = v.ang; let bMin = 0, zMax = 0; pas(Math.sin(c - Math.PI / 2), Math.cos(c - Math.PI / 2), 72, () => { bMin = Math.min(bMin, v.bank); zMax = Math.max(zMax, v.mesh.rotation.z); }); R.droite = angDiff(c, v.ang); R.bMin = bMin; R.zMax = zMax;
+          INPUT.mx = INPUT.mz = 0; sortirVehicule(true); scene.remove(v.mesh); const iv = vehicules.indexOf(v); if (iv >= 0) vehicules.splice(iv, 1); return R; };
+        for (const cle of avions) { const R = essai(cle);
+          if (!(R.bankMax > AVION_INCL_MAX * 0.85 && R.modele < -AVION_INCL_MAX * 0.8)) ko.push(cle + ' : à gauche, il ne penche pas assez (' + R.bankMax.toFixed(2) + ', modèle ' + (R.modele || 0).toFixed(2) + ')');
+          if (!(R.z02 < AVION_INCL_MAX * 0.6)) ko.push(cle + ' : l’inclinaison se prend d’un coup (' + R.z02.toFixed(2) + ' en 0,2 s)');
+          if (R.saut > 0.04) ko.push(cle + ' : saut de roulis de ' + R.saut.toFixed(3) + ' rad en une image');
+          if (!(R.tourne > 0.4)) ko.push(cle + ' : il ne tourne pas à gauche (' + R.tourne.toFixed(2) + ')');
+          if (!R.lacetOk) ko.push(cle + ' : il tourne du côté opposé à son inclinaison');
+          if (Math.abs(R.fin - 2.6) > 0.12 || Math.abs(R.bankArrive) > 0.05) ko.push(cle + ' : cap visé mal tenu (' + R.fin.toFixed(2) + ' pour 2,6, roulis ' + R.bankArrive.toFixed(2) + ')');
+          if (R.glisse > 0.01) ko.push(cle + ' : la trajectoire ne suit pas le nez (' + R.glisse.toFixed(3) + ' rad)');
+          if (!(R.bRel > 0.3 && R.tPlat > 0.3 && R.tPlat < 1.6 && R.platFin < 0.02)) ko.push(cle + ' : retour à plat (' + R.bRel.toFixed(2) + ' → à plat en ' + R.tPlat.toFixed(2) + ' s, reste ' + R.platFin.toFixed(2) + ')');
+          if (!(R.droite < -0.4 && R.bMin < -AVION_INCL_MAX * 0.85 && R.zMax > AVION_INCL_MAX * 0.8)) ko.push(cle + ' : à droite (cap ' + R.droite.toFixed(2) + ', roulis ' + R.bMin.toFixed(2) + ')');
+          lignes.push(cle + ' ' + R.bankMax.toFixed(2) + ' rad, à plat en ' + R.tPlat.toFixed(1) + ' s'); }
+        info.push(avions.length + ' avions : ' + lignes.join(', '));
+        /* poursuite : la caméra penche, bien moins que l'avion */
+        { META.vue = 'immersive'; const v = creerVehicule(avions[0], POIS.place.x, POIS.place.z + 60, Math.PI, null); P.x = v.x; P.z = v.z; entrerVehicule(v); v.vol = true; v.alt = 90; v.va = 0; v.v = v.def.vmax * 0.8; v.decolT = 0; v.figureCdT = 1e9;
+          let camMax = 0, bMax = 0; for (let i = 0; i < 120; i++) { INPUT.jx = -1; INPUT.jy = 0; T += 1000 / 60; tick(T); v.alt = 90; v.va = 0; camMax = Math.max(camMax, Math.abs(VUE.roulisCam || 0)); bMax = Math.max(bMax, Math.abs(v.mesh.rotation.z)); }
+          INPUT.jx = 0; if (!(camMax > 0.03 && camMax < bMax * 0.4)) ko.push('poursuite : roulis de la caméra ' + camMax.toFixed(2) + ' pour ' + bMax.toFixed(2) + ' à l’avion');
+          else info.push('poursuite : caméra ' + camMax.toFixed(2) + ' rad pour ' + bMax.toFixed(2) + ' à l’avion');
+          sortirVehicule(true); scene.remove(v.mesh); const iv = vehicules.indexOf(v); if (iv >= 0) vehicules.splice(iv, 1); META.vue = 'classique'; }
+        /* les avions du décor */
+        { let pT = null, pB = null, sT = 0, sB = 0, mT = 0, mB = 0, platT = false, platB = false;
+          for (let i = 0; i < 60 * 45; i++) { T += 1000 / 60; tick(T); const zt = AERO_VIE.avion ? AERO_VIE.avion.m.rotation.z : 0, zb = CIEL.avion ? CIEL.avion.rotation.x : 0;
+            if (pT !== null) { sT = Math.max(sT, Math.abs(zt - pT)); sB = Math.max(sB, Math.abs(zb - pB)); } pT = zt; pB = zb; mT = Math.max(mT, Math.abs(zt)); mB = Math.max(mB, Math.abs(zb)); if (i > 60 && Math.abs(zt) < 0.02) platT = true; if (i > 60 && Math.abs(zb) < 0.04) platB = true; }
+          if (AERO_VIE.avion && !(mT > 0.3 && sT < 0.05 && platT)) ko.push('avion du tour de piste : roulis ' + mT.toFixed(2) + ', saut ' + sT.toFixed(3) + ', à plat en ligne droite ' + platT);
+          if (CIEL.avion && !(mB > 0.3 && sB < 0.05 && platB)) ko.push('avion à banderole : roulis ' + mB.toFixed(2) + ', saut ' + sB.toFixed(3) + ', à plat en ligne droite ' + platB);
+          info.push('décor : tour de piste ' + mT.toFixed(2) + ' rad, banderole ' + mB.toFixed(2) + ' rad dans les virages'); }
+        majCamera(1 / 30); return { ko, info };
+      });
+      if (r.ko.length) fail('Virage des avions : ' + r.ko.join(' ; ')); else ok('Virage des avions : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
     // Pictos MONTER / DESCENDRE (17 octobre au soir, 2e liste, signalé : « les
     // icônes ressemblent à des micros ») : en vol (hélico, avion — clés lues
     // dans VEHDEFS), une flèche vers le haut et une vers le bas ; à pied, les
