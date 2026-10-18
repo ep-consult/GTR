@@ -1874,6 +1874,10 @@ ne voit plus que le sol ou le ciel ». Mesuré : la vitesse verticale passait de
   (`HELI_VA_MONTEE`, `HELI_VA_DESCENTE`, avant 16 / 13), `HELI_VA_ACC` 26 (toujours ~0,8 s). L'effet de sol de l'hélico et la zone
   d'arrondi de l'avion suivent la descente (posés toujours doux) ; vue extérieure : même assiette qu'avant (0,9 rad), seule la
   vitesse change. Tests : montée « progressive mais vive » (après 0,5 s, entre 30 et 70 % de la consigne).
+- **Appui bref** (18 octobre, 4e liste, « un appui bref monte tout doucement, 0,5 s plus fort ») : la vitesse verticale croît
+  avec la durée d'appui, l'altitude gagnée avec son carré (hélico : 0,1 s → 0,26 u, 0,5 s → 6,5 u, 1 s → 21 u). Tout appui vaut
+  au moins `APPUI_VOL_MIN` (0,15 s) de collectif (`appuiVolCran` → `v.monterV`, `v.descV`, lus par `majVol`) : un tap fait
+  toujours le même cran (~0,6 u hélico, ~0,4 u avion) — avant, de 7 à 59 cm selon sa durée exacte. Test « Appui bref en vol ».
 
 ## Montée de l'hélicoptère (17 octobre au soir) — `HELI_VA_ACC`, `HELI_TANG_AVANT`
 

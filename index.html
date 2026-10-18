@@ -19378,6 +19378,17 @@ const PITCH_LISSAGE=6;
    L'effet de sol de l'hélico et l'arrondi de l'avion suivent la nouvelle descente : les posés restent doux. */
 const HELI_VA_MONTEE=21, HELI_VA_DESCENTE=17, AVION_VA_MONTEE=20, AVION_VA_DESCENTE=15;
 const HELI_VA_ACC=26, HELI_TANG_AVANT=0.14, HELI_TANG_ACC=0.01, HELI_TANG_MONTEE=0.002, HELI_ROULIS=0.16;
+/* L'appui bref (18 octobre, 4e liste, demandé : « en appuyant juste un peu il monte tout doucement, plus longtemps, 0,5 s, il monte
+   plus fort ») : mesuré, c'est déjà le cas — la vitesse verticale croît avec la durée d'appui, l'altitude gagnée avec son carré
+   (hélico : 0,1 s → 0,26 u, 0,5 s → 6,5 u, 1 s → 21 u ; avion : 0,18, 4,5, 18 u ; arrêt au relâcher aussi progressif). Un seul
+   défaut : un tap sur l'écran dure de 50 à 150 ms, et le même geste donnait de 7 à 59 cm — un tap rapide ne faisait rien.
+   Désormais, tout appui vaut au moins APPUI_VOL_MIN s de collectif (un « cran » : ~0,6 u pour l'hélico, ~0,4 u pour l'avion,
+   toujours le même) ; tenu plus longtemps, rien ne change. Appuyer sur l'autre bouton annule le cran en cours. */
+const APPUI_VOL_MIN=0.15;
+function appuiVolCran(v,monter,desc,dt){
+  if(monter&&!v.apM){ v.cranM=APPUI_VOL_MIN; v.cranD=0; } if(desc&&!v.apD){ v.cranD=APPUI_VOL_MIN; v.cranM=0; }
+  v.apM=!!monter; v.apD=!!desc; v.monterV=!!monter||v.cranM>1e-4; v.descV=!!desc||v.cranD>1e-4; /* (marge : 0,15 − 9 × 1/60 n'est pas exactement 0) */
+  v.cranM=Math.max(0,(v.cranM||0)-dt); v.cranD=Math.max(0,(v.cranD||0)-dt); }
 /* Pilotage de l'hélicoptère, 2e passe (17 octobre au soir, demandé : « quand j'avance, le nez s'incline et tout l'appareil penche,
    c'est cette inclinaison qui le fait avancer ; je recule, le nez se relève ; virages en roulis ; je lâche : il revient à plat en
    stationnaire ; montée et descente à plat ») — d'après le vrai pilotage, en arcade :
@@ -19566,6 +19577,7 @@ function majVol(v,dt){
   majLumieresOvni(v,dt);
   const monter=INPUT.btn.sprint||INPUT.btn.sprintK;
   const desc=INPUT.btn.frein||INPUT.btn.freinK;
+  appuiVolCran(v,monter,desc,dt); /* v.monterV, v.descV : l'appui, au moins un cran (APPUI_VOL_MIN) */
   if(HUDC.sprintActif!==!!monter){ HUDC.sprintActif=!!monter; el('btnSprint').classList.toggle('actif',!!monter); }
   // armement de l'Épervier
   v.cadTir=(v.cadTir||0)-dt; v.cadBmb=(v.cadBmb||0)-dt;
@@ -19597,7 +19609,7 @@ function majVol(v,dt){
       v.v*=(1-2*dt);
     }
     if(v.vol){
-      const vaC=(monter?HELI_VA_MONTEE:0)+(desc?-HELI_VA_DESCENTE:0)+((v.def.ovni&&!monter&&!desc)?-0.5:0); v.va+=clamp(vaC-v.va,-HELI_VA_ACC*dt,HELI_VA_ACC*dt); /* le collectif : progressif ; à vide, l'hélico tient son altitude (stationnaire) */
+      const vaC=(v.monterV?HELI_VA_MONTEE:0)+(v.descV?-HELI_VA_DESCENTE:0)+((v.def.ovni&&!v.monterV&&!v.descV)?-0.5:0); v.va+=clamp(vaC-v.va,-HELI_VA_ACC*dt,HELI_VA_ACC*dt); /* le collectif : progressif ; à vide, l'hélico tient son altitude (stationnaire) */
       // effet de sol (8e lot, signalé : « l'hélico du yacht explose toujours ») :
       // DESCENDRE tenu arrivait au contact à -13 u/s, au-delà du seuil de crash
       // (-5,5) : tout atterrissage normal explosait, sur le pont du yacht comme
@@ -19680,7 +19692,7 @@ function majVol(v,dt){
       // appareil particulier (la voltige, « direction sensible ») de virer
       // bien plus sec sans toucher au taux partagé des autres.
       if(l>0.15) v.ang=angLerp(v.ang,Math.atan2(INPUT.mx,INPUT.mz),(v.def.turnVol||1.15)*dt);
-      const vaC=(monter?AVION_VA_MONTEE:0)+(desc?-AVION_VA_DESCENTE:0)-(v.v<19?9:0); v.va+=clamp(vaC-(v.va||0),-AVION_VA_ACC*dt,AVION_VA_ACC*dt); /* la montée se prend progressivement */
+      const vaC=(v.monterV?AVION_VA_MONTEE:0)+(v.descV?-AVION_VA_DESCENTE:0)-(v.v<19?9:0); v.va+=clamp(vaC-(v.va||0),-AVION_VA_ACC*dt,AVION_VA_ACC*dt); /* la montée se prend progressivement */
       if(v.v<19&&Math.random()<0.1) toast('DÉCROCHAGE — accélère !','warn');
       { const hS=v.alt-poseY(v.x,v.z); if(v.va<0&&hS<(AVION_VA_DESCENTE-2.2)/0.9&&!estEau(v.x,v.z)) v.va=Math.max(v.va,-2.2-hS*0.9); } /* zone d'arrondi à la mesure de la descente : le freinage reste continu */ // arrondi : près du sol, la descente se ralentit d'elle-même (signalé : « impossible d'atterrir » — FREIN arrivait au sol à -11 u/s, crash au-delà de -4,5)
       v.alt=clamp(v.alt+v.va*dt,0,180);  // très haut au-dessus de la ville

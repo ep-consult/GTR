@@ -13844,6 +13844,35 @@ async function main() {
       if (r.ko.length) fail('Hélicoptères, montée : ' + r.ko.join(' ; ')); else ok('Hélicoptères, montée : ' + r.info.join(' ; '));
     }
     // -------------------------------------------------------------------
+    // Appui bref sur MONTER / DESCENDRE (18 octobre, 4e liste, demandé : « en appuyant juste un peu il monte tout doucement, plus
+    // longtemps, 0,5 s, il monte plus fort ») : un tap, quelle que soit sa durée (50 à 150 ms), vaut toujours le même petit cran ;
+    // tenu 0,5 s, bien plus ; tenu 1 s, plus encore ; relâché, l'appareil se stabilise. Un hélico et un avion lus dans VEHDEFS.
+    // -------------------------------------------------------------------
+    console.log('\n--- Appui bref sur MONTER / DESCENDRE : un cran constant, l’appui long monte plus fort ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; for (const e of ennemis) e.mort = true; WAVES.etat = 'repos'; WAVES.t = 1e9;
+        const B = INPUT.btn, heli = Object.keys(VEHDEFS).find((k) => VEHDEFS[k].air === 'helico' && !VEHDEFS[k].ovni), avion = Object.keys(VEHDEFS).find((k) => VEHDEFS[k].air === 'avion');
+        const essai = (cle, bouton, duree) => { const v = creerVehicule(cle, POIS.place.x, POIS.place.z + 40, Math.PI, null); P.x = v.x; P.z = v.z; entrerVehicule(v);
+          v.vol = true; v.alt = 60; v.va = 0; v.v = VEHDEFS[cle].air === 'avion' ? 40 : 0; v.decolT = 0; v.figureCdT = 1e9; INPUT.mx = INPUT.mz = 0; B.sprint = B.frein = false;
+          for (let i = 0; i < 10; i++) majVol(v, 1 / 60); const a0 = v.alt;
+          for (let i = 0; i < 180; i++) { B[bouton] = i / 60 < duree - 1e-6; majVol(v, 1 / 60); } B.sprint = B.frein = false;
+          const res = { gain: Math.abs(v.alt - a0), vaFin: v.va }; sortirVehicule(true); scene.remove(v.mesh); libererEntite(v.mesh); const i = vehicules.indexOf(v); if (i >= 0) vehicules.splice(i, 1); return res; };
+        for (const cle of [heli, avion]) for (const bouton of ['sprint', 'frein']) {
+          const t50 = essai(cle, bouton, 0.05), t150 = essai(cle, bouton, 0.15), t500 = essai(cle, bouton, 0.5), t1000 = essai(cle, bouton, 1), n = cle + (bouton === 'sprint' ? ' MONTER' : ' DESCENDRE');
+          if (!(t50.gain > 0.3)) ko.push(n + ' : un tap ne fait presque rien (' + t50.gain.toFixed(2) + ' u)');
+          if (Math.abs(t50.gain - t150.gain) > 0.1 * t150.gain) ko.push(n + ' : le tap dépend de sa durée (' + t50.gain.toFixed(2) + ' u à 50 ms, ' + t150.gain.toFixed(2) + ' u à 150 ms)');
+          if (!(t500.gain > 8 * t150.gain)) ko.push(n + ' : tenu 0,5 s, guère plus qu’un tap (' + t500.gain.toFixed(2) + ' u)');
+          if (!(t1000.gain > 2 * t500.gain)) ko.push(n + ' : tenu 1 s, guère plus qu’à 0,5 s (' + t1000.gain.toFixed(1) + ' u)');
+          for (const t of [t50, t500, t1000]) if (Math.abs(t.vaFin) > 0.05) { ko.push(n + ' : relâché, il ne se stabilise pas (' + t.vaFin.toFixed(2) + ' u/s)'); break; }
+          info.push(n + ' : tap ' + t50.gain.toFixed(2) + ' u, 0,5 s ' + t500.gain.toFixed(1) + ' u, 1 s ' + t1000.gain.toFixed(0) + ' u');
+        }
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Appui bref en vol : ' + r.ko.join(' ; ')); else ok('Appui bref en vol : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
     // Cockpit fermé de l'hélicoptère (17 octobre au soir, signalé : « en vue
     // 1re personne, quand on tourne, on a l'impression d'être dans le vide ;
     // le cockpit doit être complet et fermé — parois, montants, tableau de

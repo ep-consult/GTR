@@ -44,6 +44,7 @@ Chaque point est coché quand il est fait ET vérifié (rendu réel, test, valid
 # Suivi de la 4e liste du 18 octobre — ordre : 1 à 6
 
 - [x] 1. MONTER / DESCENDRE plus vifs, toujours progressifs : avions 15 → 20 u/s en montée, 11 → 15 en descente (accélération 14 → 18 u/s²) ; hélicos et soucoupe 16 → 21 et 13 → 17 (20 → 26 u/s², toujours ~0,8 s) ; effet de sol et arrondi recalés (posés doux) ; assiette extérieure inchangée
+  - 1 bis (question : « un appui bref monte tout doucement, 0,5 s plus fort ? ») : mesuré, c'était déjà le cas (vitesse verticale proportionnelle à la durée d'appui, altitude au carré : hélico 0,1 s → 0,26 u, 0,5 s → 6,5 u, 1 s → 21 u) ; seul défaut, un tap de 50 ms ne faisait que 7 cm et le même geste variait du simple au huituple selon sa durée. Ajouté : un « cran » — tout appui vaut au moins 0,15 s (hélico ~0,6 u, avion ~0,4 u, toujours pareil) ; tenu plus longtemps, rien ne change. Test « Appui bref en vol »
 - [ ] 2. Chasseur en vue 1re personne : voir le missile partir de dessous et passer devant l'appareil
 - [ ] 3. Cabriolet « Azur » : un volant sport normal (plus de barre de bateau)
 - [ ] 4. Armureries : armes blanches achetables, rangées sans se chevaucher
