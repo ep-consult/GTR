@@ -10259,6 +10259,60 @@ async function main() {
     }
 
     // -------------------------------------------------------------------
+    // Intérieurs des planques, 2 : le penthouse de la Tour Los Reyes. On entre par la verrière du vrai toit ; dedans, la nuit,
+    // une ville factice sous la baie ; le lit, le coffre derrière le tableau (il s'écarte), le piano ; le PLONGEOIR saute du
+    // vrai toit (saut BASE) ; la LONGUE-VUE regarde la vraie ville depuis le toit, la nuit : une chose visée 0,6 s est repérée,
+    // marquée sur la carte jusqu'à la vague suivante, record sauvegardé ; ambiance coupée par la sortie et la mort.
+    // -------------------------------------------------------------------
+    console.log('\n--- Planques, 2 : le penthouse (loft de nuit, plongeoir, longue-vue sur la vraie ville) ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = []; audioInit();
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); META.vue = 'classique'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6; WAVES.etat = 'repos'; WAVES.t = 1e9; for (const e of ennemis) e.mort = true;
+        const q = PLANQUES.liste.find((x) => x.def.id === 'penthouse'); if (!q || !planqueAInterieur(q)) return { ko: ['pas de penthouse avec un intérieur'], info };
+        const avant = META.planques.penthouse, recAvant = META.planquesJeux.longueVue; META.planques.penthouse = true; META.planquesJeux.longueVue = 0;
+        let T = dernierT + 1000; const pas = (n) => { for (let i = 0; i < n; i++) { T += 1000 / 60; tick(T); } };
+        const appui = () => { majAction(); const b = el('btnAction'); const l = b.style.display === 'none' ? '' : b.textContent; if (b._fn && l) b._fn(); return l; };
+        // 1. sur le vrai toit : ENTRER par la verrière
+        P.x = q.entree.x; P.z = q.entree.z; P.y = q.entree.y; const l0 = appui(); const s = INT.actif;
+        if (!s || s.id !== 'penthouse') return { ko: ['on n’entre pas dans le penthouse (' + l0 + ')'], info };
+        if (!AUDIO.pqAmbOn) ko.push('pas d’ambiance sonore'); pas(2); if (!scene.background.equals(s.pqAmb.ciel)) ko.push('pas la nuit du penthouse');
+        { const { zones } = zonesInterieurActives(); const so = zones.find((z) => z.champ === 'sortie'); for (const z of zones) if (z.champ !== 'sortie' && Math.hypot(z.x - so.x, z.z - so.z) < 8) ko.push(z.champ + ' à moins de 8 u de la sortie');
+          if (['pqLit', 'pqCoffre', 'pqSpec', 'pqJeu', 'pqPlus'].some((k) => !zones.find((z) => z.champ === k))) ko.push('zones : ' + zones.map((z) => z.champ).join(',')); }
+        // 2. le lit, le coffre derrière le tableau (il s'écarte quand on approche), le piano
+        { P.x = s.pqLit.x; P.z = s.pqLit.z; P.y = 0; P.hp = 100; appui(); if (P.hp !== P.maxHp) ko.push('lit');
+          META.revenus = 31; const a0 = META.argent; P.x = s.pqCoffre.x; P.z = s.pqCoffre.z; pas(40); const ouvert = s.pq.cadre.rotation.y; appui(); if (META.argent !== a0 + 31) ko.push('coffre'); if (!(ouvert > 1)) ko.push('le tableau ne s’écarte pas du coffre (' + ouvert.toFixed(2) + ')');
+          P.x = s.pqPlus.x; P.z = s.pqPlus.z; const lp = appui(); if (!/PIANO/.test(lp)) ko.push('piano : ' + lp); else info.push('lit, coffre derrière le tableau, piano'); }
+        // 3. la longue-vue : la vraie ville, la nuit, depuis le toit ; une chose visée 0,6 s est repérée et marquée sur la carte
+        { P.x = s.pqJeu.x; P.z = s.pqJeu.z; const l = appui(); if (!LV.actif) ko.push('la longue-vue ne s’ouvre pas (' + l + ')');
+          else { pas(2); const O = lvOeil(); if (camera.position.distanceTo(new THREE.Vector3(O.x, O.y, O.z)) > 0.01) ko.push('la caméra n’est pas sur le toit'); if (!(ETAT.nuitF >= 0.8)) ko.push('la ville n’est pas à la nuit tombée dans la longue-vue (' + ETAT.nuitF + ')');
+            const c = LV.liste.find((q) => lvVisible(O, q) && Math.hypot(q.x - O.x, q.z - O.z) > 10); /* une chose qu'on voit vraiment depuis le toit */
+            if (!LV.liste.length) ko.push('rien à repérer en ville'); else if (!c) ko.push('rien de visible depuis le toit (' + LV.liste.length + ' choses, toutes cachées)'); else { LV.zoom = 8; LV.yaw = Math.atan2(-(c.x - O.x), -(c.z - O.z)); LV.pitch = Math.atan2(c.y - O.y, Math.hypot(c.x - O.x, c.z - O.z));
+              const a0 = META.argent; for (let i = 0; i < 50; i++) majLongueVue(1 / 60);
+              if (LV.n !== 1 || !reperesActifs().length || META.argent !== a0 + 20) ko.push('repérage raté (' + LV.n + ', ' + reperesActifs().length + ')');
+              else info.push('longue-vue : « ' + c.nom + ' » repéré à ' + Math.round(Math.hypot(c.x - O.x, c.z - O.z)) + ' u, marqué sur la carte (' + LV.liste.length + ' choses à trouver)');
+              for (let i = 0; i < 50; i++) majLongueVue(1 / 60); if (LV.n !== 1) ko.push('la même chose repérée deux fois');
+              const cachee = LV.liste.find((q) => !lvVisible(O, q) && LV.trouves[q.cle] !== WAVES.n);
+              if (cachee) { LV.yaw = Math.atan2(-(cachee.x - O.x), -(cachee.z - O.z)); LV.pitch = Math.atan2(cachee.y - O.y, Math.hypot(cachee.x - O.x, cachee.z - O.z)); for (let i = 0; i < 50; i++) majLongueVue(1 / 60); if (LV.n !== 1) ko.push('« ' + cachee.nom + ' » repéré à travers un immeuble'); else info.push('une chose cachée derrière un immeuble ne se repère pas'); } }
+            const nRep = LV.n; longueVueArreter(); if (META.planquesJeux.longueVue !== nRep) ko.push('record non noté'); if (LV.el.style.display !== 'none') ko.push('la longue-vue reste affichée');
+            majMinimap(); pas(1); if (!(camera.fov > 50)) ko.push('le champ ne revient pas (' + camera.fov + ')'); } }
+        // 4. le plongeoir : saut BASE du vrai toit
+        { P.x = s.pqSpec.x; P.z = s.pqSpec.z; P.y = 0; const l = appui(); if (INT.actif || !P.chute || !(P.y > q.y - 1)) ko.push('plongeoir : ' + l + ' (chute ' + P.chute + ', y ' + P.y.toFixed(1) + ')'); else info.push('plongeoir : saut BASE du vrai toit');
+          P.chute = false; P.y = q.y; if (AUDIO.pqAmbOn) ko.push('l’ambiance continue après le saut'); }
+        // 5. ressortir par l'ascenseur : devant la verrière, sur le toit ; les repères tombent à la vague suivante ; mourir dedans
+        { P.x = q.entree.x; P.z = q.entree.z; P.y = q.entree.y; appui(); const s2 = INT.actif; if (!s2) ko.push('pas rentré'); else { const so = s2.sortie; P.x = so.x; P.z = so.z; P.y = 0; ETAT.intT = 0; appui();
+            if (INT.actif || Math.abs(P.y - q.y) > 0.6 || dist2(P.x, P.z, q.porte.x, q.porte.z) > 9) ko.push('on ne ressort pas sur le toit (y ' + P.y.toFixed(1) + ')'); }
+          lancerVague(); if (reperesActifs().length) ko.push('les repères restent après la vague'); WAVES.etat = 'repos'; WAVES.t = 1e9; for (const e of ennemis) e.mort = true;
+          P.x = q.entree.x; P.z = q.entree.z; P.y = q.entree.y; appui(); P.x = INT.actif.pqJeu.x; P.z = INT.actif.pqJeu.z; appui(); P.hp = 0; mourir();
+          if (AUDIO.pqAmbOn || LV.actif) ko.push('la mort laisse ambiance ' + AUDIO.pqAmbOn + ', longue-vue ' + LV.actif); else info.push('ambiance et longue-vue coupées à la mort'); }
+        META.planques.penthouse = avant; META.planquesJeux.longueVue = recAvant; sauveMeta(); if (ETAT.mortTimer) { clearTimeout(ETAT.mortTimer); ETAT.mortTimer = null; } ETAT.timeScale = 1; startRun();
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Penthouse : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
+      else ok('Penthouse : ' + r.info.join(' ; '));
+    }
+
+    // -------------------------------------------------------------------
     // Retours de playtest, 3e série (14 octobre) — correctifs : un véhicule
     // est un mur pour les ennemis ; les petits bateaux virent (demi-tour en
     // avançant) ; un bateau piloté percute nageurs, surfeurs et kayaks ; un

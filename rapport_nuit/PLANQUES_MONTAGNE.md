@@ -35,17 +35,18 @@ carte, taxis) : on entre par la zone `pq.entree` de la planque possédée ; `por
 - [x] Déco : Airstream rétro (coque alu, hublots), banquette en skaï, kitchenette, radio CB, cartes routières punaisées,
       pièces de moteur, ventilateur, guirlande lumineuse, vue sur le désert (mesas, ciel du crépuscule)
 - [x] Spécificité : l'établi (outils, cric) relié au véhicule garé devant — le vrai véhicule, réparation animée
-- [x] Activité : TIR SUR CANETTES (muret, bouteilles, canette lancée, radio de Joe à épargner), temps limité, score, record
+- [x] Activité : TIR SUR CANETTES (muret, bouteilles, canette lancée, radio de Dusty à épargner), temps limité, score, record
 - [x] Lit et coffre dedans
 - [x] Ambiance : guirlande, lampe, feu de camp ; vent, grillons, radio CB, feu qui crépite
 - [x] Test de scénario + captures (intérieur, cour, tir)
 
-### 2. Penthouse de la Tour Los Reyes (saut BASE)
-- [ ] Déco : loft, grande baie vitrée sur la ville la nuit, canapé d'angle, bar éclairé, home cinéma, œuvres d'art,
-      plantes, sol marbre
-- [ ] Spécificité : accès direct au plongeoir depuis la terrasse
-- [ ] Activité : LONGUE-VUE sur la ville (zoom, repérer curiosités / coffres / cibles → marqués sur la carte)
-- [ ] Lit, coffre ; ambiance (néons, ville, musique douce) ; test + captures
+### 2. Penthouse de la Tour Los Reyes (saut BASE) — fait (19 octobre)
+- [x] Déco : loft vitré sur trois côtés au-dessus d'une ville de lumières (rues, phares, tours, feux d'obstacle, néons),
+      canapé d'angle, bar rétroéclairé, home cinéma qui passe un film, piano à queue, sculpture, tableaux, plantes, marbre
+- [x] Spécificité : le plongeoir au bout de la terrasse — le vrai saut BASE du vrai toit
+- [x] Activité : LONGUE-VUE sur la vraie ville depuis le toit (zoom ×1 à ×14 ; coffres, surprises, lieux jamais vus,
+      voitures rares, chefs de gang repérés → marqués sur la carte jusqu'à la vague suivante ; jamais à travers un immeuble)
+- [x] Lit, coffre (derrière le tableau qui pivote) ; ambiance (ville, vent, lounge, cheminée) ; test + captures
 
 ### 3. Cabanon de plage (punch)
 - [ ] Déco : bois flotté, hamac, planches de surf, coquillages, filets, bar tiki, lampions, reggae doux
