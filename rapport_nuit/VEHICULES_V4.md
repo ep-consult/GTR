@@ -135,9 +135,9 @@ dans l'ordre demandé : ils passent en dernier (groupe 7).
 - [x] Cabriolet « Azur » (`cabriolet`) → Mercedes-Benz SL (R230) — doubles phares ovales, barre chromée, arceaux, cuir clair ; `trafic_lot1_*`
 - [x] Supercar « Éclipse » (`sport`) → Porsche 911 (992) — phares ronds sur les ailes, capot creux, bandeau arrière, grille moteur et aileron ; `trafic_lot1_*`
 - [x] Muscle « Taureau » (`charger`) → Dodge Charger R/T 1969 — calandre pleine largeur partagée, arcs-boutants, bande « bumblebee », deux longs feux ; `trafic_lot1_*`
-- [ ] 4x4 « Coyote » (`jeep`) → Jeep Wrangler (JL)
-- [ ] Limousine « Majesté » (`limousine`) → Lincoln Town Car limousine
-- [ ] Bus de ville (`busville`) → New Flyer Xcelsior (bus urbain de Los Angeles)
+- [x] 4x4 « Coyote » (`jeep`) → Jeep Wrangler (JL) — ouvert, sept fentes, ailes noires détachées, arceau, roue de secours ; conducteur assis visible ; `trafic_lot2_*`
+- [x] Limousine « Majesté » (`limousine`) → Lincoln Town Car limousine — calandre à barres, joncs chromés, section des passagers teintée, banquettes en L et bar ; `trafic_lot2_*`
+- [x] Bus de ville (`busville`) → New Flyer Xcelsior (bus urbain de Los Angeles) — girouette à diodes, portes vitrées, support à vélos, carénages de toit, sièges et barres ; essieux gardés à ±3,36 (règle des roues) ; `trafic_lot2_*`
 - [ ] Bellatti « Bolide » (`bolide`) → Bugatti Chiron
 - [ ] Ferroni « Enzo » (`enzo`) → Ferrari Enzo
 - [x] déjà V3 : Taxi, Interceptor, Fourgon (niveau de détail ajouté : ils roulent dans le trafic)
