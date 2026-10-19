@@ -8137,7 +8137,7 @@ async function main() {
           const d = VEHDEFS[k]; if (d.type !== 'bateau' || d.surf || d.pagaie) continue;
           const m = makeVoiture(k); m.updateMatrixWorld(true);
           const L = d.long, pts = [];
-          m.traverse((o) => { if (o.isMesh && o.geometry && o.geometry.attributes.position && o.material && o.material.vertexColors) { const a = o.geometry.attributes.position.array; for (let i = 0; i < a.length; i += 3) pts.push([a[i], a[i + 2]]); } });
+          m.traverse((o) => { if (o.isMesh && o.geometry && o.geometry.attributes.position && o.material && (o.material.vertexColors || m.userData.v3)) { /* la coque : couleurs de sommets (makeBateauV2), ou tout le modèle V3 (vedettes) */ const a = o.geometry.attributes.position.array; for (let i = 0; i < a.length; i += 3) pts.push([a[i], a[i + 2]]); } });
           const larg = (z0) => { let w = 0; for (const [x, z] of pts) if (Math.abs(z - z0) < L * 0.06) w = Math.max(w, Math.abs(x)); return w; };
           const av = larg(L * 0.44), ar = larg(-L * 0.44); vus.push(k);
           if (!pts.length || !(av < ar * 0.7)) ko.push(k + ' (avant ' + av.toFixed(2) + ', arrière ' + ar.toFixed(2) + ')');
@@ -15545,7 +15545,7 @@ async function main() {
           if (!spec.ouvert && !vitres) ko.push(k + ' : aucune vitre transparente');
           if (n > 48) ko.push(k + ' : ' + n + ' maillages (plafond 48)');
           const sz = boite(g).getSize(new THREE.Vector3());
-          const s0 = vehiculeRestyle(d) ? null : boite(makeVoitureBase(k)).getSize(new THREE.Vector3()), l0 = s0 ? s0.z : 0, okL = (l) => l > 0 && Math.abs(sz.z - l) / l <= 0.12; /* la taille de VEHDEFS, ou celle de l'ancien modèle (la flèche de la grue, les roues du quad dépassaient déjà) */
+          const s0 = boite(vehiculeRestyle(d) ? (() => { _VEH_V2 = true; try { return makeVoitureBase(k); } finally { _VEH_V2 = false; } })() : makeVoitureBase(k)).getSize(new THREE.Vector3()), /* modèle restylé (vedettes : makeBateauV2) : l'ancien est celui-là */ l0 = s0 ? s0.z : 0, okL = (l) => l > 0 && Math.abs(sz.z - l) / l <= 0.12; /* la taille de VEHDEFS, ou celle de l'ancien modèle (la flèche de la grue, les roues du quad dépassaient déjà) */
           if (!okL(d.long) && !okL(l0)) ko.push(k + ' : longueur ' + sz.z.toFixed(2) + ' pour ' + d.long + ' (ancien modèle : ' + l0.toFixed(2) + ')');
           if (sz.x > Math.max(d.larg * 1.3, s0 ? s0.x * 1.12 : 0)) ko.push(k + ' : largeur ' + sz.x.toFixed(2) + ' pour ' + d.larg + (s0 ? ' (ancien modèle : ' + s0.x.toFixed(2) + ')' : ''));
           for (const r of ud.roues) if (!(r.geometry.parameters && r.geometry.parameters.radiusTop > 0)) { ko.push(k + ' : rayon de roue illisible (garage, derby)'); break; }
@@ -15584,6 +15584,55 @@ async function main() {
       if (r.off) saute('Véhicules V3 : décor V2 coupé');
       else if (r.ko.length) fail('Véhicules V3 : ' + r.ko.join(' | '));
       else ok('Véhicules V3 : ' + r.info.join(', '));
+    }
+    // -------------------------------------------------------------------
+    // Vedettes V3 (19 octobre, signalé : « bateau totalement transparent ») : la coque est fermée vue de l'intérieur
+    // (des rayons tirés du cockpit vers les flancs et l'arrière rencontrent un pavois opaque), le pare-brise est le
+    // seul verre, la coque descend sous la flottaison (antifouling sous l'eau), un PNJ barre debout sur le pont des
+    // vedettes de l'IA, la rampe de la police est là, les hélices tournent en marche. Clés lues dans VEH_V3.
+    // -------------------------------------------------------------------
+    console.log('\n--- Vedettes V3 : coque fermée, seul le pare-brise est en verre, barreur debout ---');
+    {
+      const r = await page.evaluate(() => {
+        if (!DECOR_V2 || typeof VEH_V3 === 'undefined') return { off: true };
+        const ko = [], info = []; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; for (const e of ennemis) e.mort = true;
+        const cles = Object.keys(VEH_V3).filter((k) => VEHDEFS[k] && VEHDEFS[k].eau && VEHDEFS[k].type === 'bateau');
+        const rc = new THREE.Raycaster(); rc.camera = camera;
+        for (const k of cles) {
+          for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0; if (P.veh) sortirVehicule(true);
+          const d = VEHDEFS[k], v = creerVehicule(k, -90, MER + 80, 0, null), ud = v.mesh.userData, sg = ud.siege; v.mesh.updateMatrixWorld(true);
+          if (!sg || !sg.debout) { ko.push(k + ' : pas de poste debout (ud.siege)'); continue; }
+          /* verre : seulement le pare-brise */
+          const verres = []; v.mesh.traverse((o) => { if (o.isMesh && o.material && o.material.transparent && !o.isSprite) verres.push(o); });
+          if (!verres.length || verres.some((o) => !ckEstVitre(o.material))) ko.push(k + ' : matière transparente hors du pare-brise (' + verres.length + ')');
+          /* coque fermée : depuis le poste, à 0,3 au-dessus du pont, vers bâbord, tribord, l'arrière (quatre hauteurs de regard) */
+          const cibles = []; v.mesh.traverse((o) => { if (o.isMesh && !o.isSprite && o.visible) cibles.push(o); });
+          const o0 = new THREE.Vector3(), dir = new THREE.Vector3();
+          for (const [dx, dz] of [[1, 0], [-1, 0], [0, -1], [0.7, -0.7], [-0.7, -0.7]]) {
+            o0.set(0, sg.y + 0.3, sg.z); v.mesh.localToWorld(o0); dir.set(dx, 0, dz).normalize().applyQuaternion(v.mesh.quaternion); rc.set(o0, dir); rc.far = d.long;
+            const h = rc.intersectObjects(cibles, false).find((x) => !(x.object.material && x.object.material.transparent));
+            if (!h || h.distance > (dz < 0 && !dx ? d.long : d.larg)) ko.push(k + ' : rien d\'opaque vers (' + dx + ',' + dz + ') depuis le poste — on voit à travers la coque'); }
+          /* sous la flottaison : la coque descend sous le pont, posée à 0,15 au-dessus de l'eau */
+          let yMin = 1e9; v.mesh.traverse((o) => { if (o.isMesh && !o.isSprite && o.geometry && o.geometry.attributes.position && o.parent === ud.corps) { const a = o.geometry.attributes.position.array; for (let i = 1; i < a.length; i += 3) yMin = Math.min(yMin, a[i]); } });
+          if (!(yMin < -0.25)) ko.push(k + ' : la coque ne descend pas sous l\'eau (fond à ' + yMin.toFixed(2) + ')');
+          /* le barreur de l'IA : debout sur le pont, visible */
+          v.conduit = 'police'; majChauffeur(v); const ch = ud.chauffeur;
+          if (!ch || !ch.visible || Math.abs(ch.position.y - sg.y) > 0.01) ko.push(k + ' : pas de barreur debout à la console (IA)');
+          v.conduit = null; majChauffeur(v); if (ch && ch.visible) ko.push(k + ' : barreur encore visible sans pilote');
+          if (d.police && !(ud.bar && ud.bar.length === 2)) ko.push(k + ' : pas de rampe de gyrophares (ud.bar)');
+          /* les hélices tournent en marche */
+          const helices = []; ud.corps.traverse((o) => { if (o.isMesh && o.geometry === (_GEO_V3['vedette:helice'] || {}).h) helices.push(o); });
+          const r0 = helices.map((h) => h.rotation.z); v.x += 2; majChauffeur(v); v.x += 2; majChauffeur(v);
+          if (!helices.length || helices.some((h, i) => Math.abs(h.rotation.z - r0[i]) < 0.5)) ko.push(k + ' : hélice immobile en marche (' + helices.length + ')');
+          info.push(k + ' (' + verres.length + ' panneau' + (verres.length > 1 ? 'x' : '') + ' de verre, fond à ' + yMin.toFixed(2) + ', ' + helices.length + ' hélice' + (helices.length > 1 ? 's' : '') + ')');
+        }
+        for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0; startRun();
+        return { ko, info, n: cles.length };
+      });
+      if (r.off) saute('Vedettes V3 : décor V2 coupé');
+      else if (!r.n) fail('Vedettes V3 : aucune vedette dans VEH_V3');
+      else if (r.ko.length) fail('Vedettes V3 : ' + r.ko.join(' | '));
+      else ok('Vedettes V3 : ' + r.info.join(', ') + ' ; coque fermée vue du poste, barreur debout, rampe de la police');
     }
     // -------------------------------------------------------------------
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
