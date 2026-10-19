@@ -10163,7 +10163,7 @@ async function main() {
           if (d.spec === 'atelier') { const v = creerVehicule('berline', q.x - 3, q.z + 6, 0); v.hp = 10; appui(); attendre(); if (v.hp !== v.def.hp) ko.push('atelier : véhicule non réparé'); v.hp = 10; iciZ('spec'); appui(); attendre(); if (v.hp !== 10) ko.push('atelier : deux fois'); v.mort = true; }
           else if (d.spec === 'base') { appui(); if (!P.chute || !(P.y > q.y - 1)) ko.push('plongeoir : pas de saut'); P.chute = false; P.y = 0; }
           else if (d.spec === 'punch') { P.buffs.vit = 0; appui(); const sa = dedans && INT.actif; if (sa && sa.pq && sa.pq.punch) for (const I of PUNCH_ING) { sa.pq.punch.niv = (I.lo + I.hi) / 2; punchArret(sa); } /* le punch du cabanon se dose : versé pile à chaque ligne */ if (!(P.buffs.vit > 30) || !(P.hp > 300)) ko.push('punch (' + P.hp + ' PV, ' + P.buffs.vit + ')'); }
-          else if (d.spec === 'armurerie') { const ga = Object.keys(ARMES).find((k) => ARMES[k].type === 'gun' && META.armes[k]); META.armes[ga].poss = true; P.grenades = 0; P.mun[ga] = 0; appui(); if (P.grenades !== 5 || !(P.mun[ga] > 0)) ko.push('armurerie'); P.grenades = 0; ici(q.spec, q); appui(); if (P.grenades !== 0) ko.push('armurerie deux fois'); }
+          else if (d.spec === 'armurerie') { const ga = Object.keys(ARMES).find((k) => ARMES[k].type === 'gun' && META.armes[k]); META.armes[ga].poss = true; P.grenades = 0; P.mun[ga] = 0; appui(); if (P.grenades !== 5 || !(P.mun[ga] > 0)) ko.push('armurerie'); P.grenades = 0; iciZ('spec'); appui(); if (P.grenades !== 0) ko.push('armurerie deux fois'); }
           else if (d.spec === 'disparaitre') { WANTED.heat = 3.5; WANTED.stars = 3; appui(); if (WANTED.stars !== 0) ko.push('voilier : la police ne perd pas ta trace'); }
           else if (d.spec === 'grenades') { P.grenades = 1; appui(); if (P.grenades !== 4) ko.push('établi : grenades'); }
           if (dedans && INT.actif) sortirInterieur();
@@ -10388,6 +10388,74 @@ async function main() {
       });
       if (r.ko.length) fail('Cabanon : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
       else ok('Cabanon : ' + r.info.join(' ; '));
+    }
+
+    // -------------------------------------------------------------------
+    // Intérieurs des planques, 4 : le chalet retranché (chez Bruno). On entre par la porte de la planque possédée (sur la
+    // terrasse à pilotis du Mont Reyes) ; un matin d'hiver (lumière, sons) ; le toit s'efface dedans ; le lit et la malle ; le
+    // RÂTELIER s'ouvre sur les armes qu'on possède et refait le plein (munitions, grenades), une fois par vague ; le LANCER DE
+    // HACHE se joue aux vrais contrôles (lanceur simulé : il retient la mire au joystick, arme au vrai bouton et relâche dans
+    // le vert, 0,15 s de réaction) et se perd (passif : rien ; maladroit qui lâche aussitôt : le manche cogne) ; record et
+    // prime ; le joueur est tenu sur la ligne et retrouve son arme ; ambiance et jeu coupés par la sortie et la mort.
+    // -------------------------------------------------------------------
+    console.log('\n--- Planques, 4 : le chalet retranché (râtelier, lancer de hache aux vrais contrôles) ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = []; audioInit();
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); META.vue = 'classique'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6; WAVES.etat = 'repos'; WAVES.t = 1e9; for (const e of ennemis) e.mort = true;
+        const q = PLANQUES.liste.find((x) => x.def.id === 'chalet'); if (!q || !planqueAInterieur(q)) return { ko: ['pas de chalet avec un intérieur'], info };
+        const sav = { poss: META.planques.chalet, rec: META.planquesJeux.hache, armes: JSON.stringify(META.armes) }; META.planques.chalet = true; META.planquesJeux.hache = 0;
+        const rnd0 = Math.random; let gr = 5151; Math.random = () => { gr = (gr * 1664525 + 1013904223) >>> 0; return gr / 4294967296; };
+        let T = dernierT + 1000; const pas = (n) => { for (let i = 0; i < n; i++) { T += 1000 / 60; tick(T); } };
+        const appui = () => { majAction(); const b = el('btnAction'); const l = b.style.display === 'none' ? '' : b.textContent; if (b._fn && l) b._fn(); return l; };
+        const ev = (id, type) => { const b = document.getElementById(id); if (!b) return false; b.dispatchEvent(new PointerEvent(type, { bubbles: true, pointerId: 9 })); return true; };
+        const fin = () => { INPUT.jx = INPUT.jy = 0; Math.random = rnd0; META.planques.chalet = sav.poss; META.planquesJeux.hache = sav.rec; META.armes = JSON.parse(sav.armes); sauveMeta(); if (ETAT.mortTimer) { clearTimeout(ETAT.mortTimer); ETAT.mortTimer = null; } ETAT.timeScale = 1; startRun(); return { ko, info }; };
+        // 1. entrer depuis la terrasse : le matin d'hiver, les zones, le toit
+        P.x = q.entree.x; P.z = q.entree.z; P.y = q.entree.y; const l0 = appui(); const s = INT.actif;
+        if (!s || s.id !== 'chalet') { ko.push('on n’entre pas dans le chalet (' + l0 + ')'); return fin(); }
+        pas(2); if (!AUDIO.pqAmbOn) ko.push('pas d’ambiance sonore'); if (!scene.background.equals(s.pqAmb.ciel)) ko.push('pas la lumière du matin');
+        { const { zones } = zonesInterieurActives(); const so = zones.find((z) => z.champ === 'sortie'); for (const z of zones) if (z.champ !== 'sortie' && Math.hypot(z.x - so.x, z.z - so.z) < 8) ko.push(z.champ + ' à moins de 8 u de la sortie');
+          if (['pqLit', 'pqCoffre', 'pqSpec', 'pqJeu'].some((k) => !zones.find((z) => z.champ === k))) ko.push('zones : ' + zones.map((z) => z.champ).join(',')); }
+        { const t = s.pq.toits.find((tt) => tt.dedans); P.x = s.ox + s.pq.cx; P.z = s.oz + s.pq.cz; pas(2); const vis = t.objs.some((o) => o.visible); P.x = s.ox; P.z = s.oz + 12; pas(2); if (vis || !t.objs.every((o) => o.visible)) ko.push('le toit du chalet ne s’efface pas'); }
+        // 2. le lit, la malle
+        P.x = s.pqLit.x; P.z = s.pqLit.z; P.hp = 100; appui(); if (P.hp !== P.maxHp) ko.push('lit');
+        META.revenus = 41; const a0 = META.argent; P.x = s.pqCoffre.x; P.z = s.pqCoffre.z; appui(); if (META.argent !== a0 + 41) ko.push('malle');
+        // 3. le râtelier : les armes qu'on possède, le plein une fois par vague
+        { const guns = Object.keys(ARMES).filter((id) => ARMES[id].type === 'gun' && META.armes[id]).slice(0, 2); for (const id of guns) { META.armes[id].poss = true; P.mun[id] = 0; } P.grenades = 0; chaletRatelierArmes(s);
+          P.x = s.pqSpec.x; P.z = s.pqSpec.z; const l = appui(); pas(40);
+          if (!/RÂTELIER/.test(l) || P.grenades !== 5 || guns.some((id) => !(P.mun[id] > 0))) ko.push('râtelier : ' + l + ' (' + P.grenades + ' grenades, ' + guns.map((id) => P.mun[id]).join('/') + ')');
+          else if (!(s.pq.ouvK > 1) || !s.pq.rackArmes.visible || s.pq.rackArmes.children.length !== s.pq.rackN || s.pq.rackN < guns.length) ko.push('le râtelier ne s’ouvre pas sur les armes (' + s.pq.rackN + ')');
+          else info.push('râtelier : ' + s.pq.rackN + ' armes exposées, munitions et 5 grenades');
+          P.grenades = 0; const l2 = appui(); if (!/⏳/.test(l2) || P.grenades !== 0) ko.push('deux pleins dans la vague (' + l2 + ')'); P.x = s.ox; P.z = s.oz + 10; pas(200); if (s.pq.ouvK > 0.3) ko.push('le râtelier reste ouvert'); }
+        // 4. le lancer de hache : un lanceur simulé aux vrais contrôles
+        const lanceur = (style) => { P.x = s.pqJeu.x; P.z = s.pqJeu.z; const l = appui(); const H = s.pq.hache; if (!H) return { err: 'pas de partie (' + l + ')' };
+          let dec = 0, arme = false, lache = -1, t = 0;
+          for (let i = 0; i < 60 * 90 && s.pq.hache === H; i++) { t += 1 / 60;
+            if (style === 'bon') { dec -= 1 / 60; if (dec <= 0) { dec = 0.15; const [mx, my] = hacheMire(H); INPUT.jx = clamp(-mx * 3.2, -1, 1); INPUT.jy = clamp(my * 3.2, -1, 1);
+                if (!arme && !s.pq.vol && H.n < HACHE_N && Math.hypot(mx, my) < 0.07) { ev('hcLancer', 'pointerdown'); arme = true; } }
+              if (arme && lache < 0 && H.dir > 0 && H.jauge >= 0.6) lache = t + 0.15; /* il voit l'aiguille arriver au vert et relâche 0,15 s plus tard */
+              if (arme && lache >= 0 && t >= lache) { ev('hcLancer', 'pointerup'); arme = false; lache = -1; } }
+            else if (style === 'maladroit') { if (!s.pq.vol && H.n < HACHE_N && i % 30 === 0) { ev('hcLancer', 'pointerdown'); ev('hcLancer', 'pointerup'); } }
+            pas(1); if (style === 'passif' && t > 20) { ev('hcStop', 'pointerdown'); break; }
+            if (s.pq.tenu && (Math.abs(P.x - (s.pqJeu.x - 0.35)) > 0.01 || Math.abs(P.z - s.pqJeu.z) > 0.01)) return { err: 'le joueur n’est pas tenu sur la ligne' }; }
+          INPUT.jx = INPUT.jy = 0; return { n: H.n, score: H.score, fini: !s.pq.hache }; };
+        { const avant = META.argent; const R = lanceur('bon'); if (R.err) ko.push(R.err);
+          else if (R.n !== HACHE_N || !(R.score >= HACHE_OBJECTIF)) ko.push('lanceur simulé : ' + R.n + ' haches, ' + R.score + ' pts (objectif ' + HACHE_OBJECTIF + ')');
+          else { info.push('lanceur simulé : ' + R.score + ' pts sur ' + HACHE_N * 8 + ', ' + s.pq.plantees.length + ' haches plantées');
+            if (META.planquesJeux.hache !== R.score) ko.push('record non noté'); if (!(META.argent >= avant + HACHE_PRIME)) ko.push('pas de prime au-delà de ' + HACHE_OBJECTIF); }
+          if (s.pq.tenu || (s.pq.cadrage && s.pq.cadrage.actif) || document.getElementById('hachePan').style.display !== 'none') ko.push('la fin du jeu ne rend pas la main');
+          if (P.armeMeshes[P.armeCur] && !P.armeMeshes[P.armeCur].visible) ko.push('l’arme du joueur ne revient pas'); }
+        { const R1 = lanceur('maladroit'); if (R1.err) ko.push(R1.err); else if (R1.score > 0) ko.push('le maladroit marque ' + R1.score); else info.push('maladroit : ' + R1.n + ' haches, 0 pt (le manche cogne)');
+          const R2 = lanceur('passif'); if (R2.err) ko.push(R2.err); else if (R2.n > 0 || R2.score > 0) ko.push('le passif lance'); }
+        { const avant = META.argent; lanceur('bon'); if (META.argent > avant) ko.push('deux primes dans la vague'); }
+        // 5. la sortie, la mort en pleine partie
+        { const so = s.sortie; P.x = so.x; P.z = so.z; P.y = 0; ETAT.intT = 0; appui(); if (INT.actif || Math.abs(P.y - q.entree.y) > 0.8 || dist2(P.x, P.z, q.porte.x, q.porte.z) > 9) ko.push('on ne ressort pas sur la terrasse (y ' + P.y.toFixed(1) + ')'); if (AUDIO.pqAmbOn) ko.push('ambiance après la sortie'); }
+        { P.x = q.entree.x; P.z = q.entree.z; P.y = q.entree.y; appui(); const s2 = INT.actif; if (!s2) ko.push('pas rentré'); else { P.x = s2.pqJeu.x; P.z = s2.pqJeu.z; appui(); const enJeu = !!s2.pq.hache; P.hp = 0; mourir();
+            if (!enJeu || AUDIO.pqAmbOn || s2.pq.hache || s2.pq.tenu) ko.push('la mort en pleine partie laisse ambiance ' + AUDIO.pqAmbOn + ', partie ' + !!s2.pq.hache); else info.push('ambiance et partie coupées à la mort'); } }
+        return fin();
+      });
+      if (r.ko.length) fail('Chalet : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
+      else ok('Chalet : ' + r.info.join(' ; '));
     }
 
     // -------------------------------------------------------------------

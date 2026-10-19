@@ -56,12 +56,12 @@ carte, taxis) : on entre par la zone `pq.entree` de la planque possédée ; `por
       des trophées)
 - [x] Lit (hamac), coffre de marin ; ambiance ; test + captures
 
-### 4. Chalet retranché (armurerie)
-- [ ] Déco : rondins, cheminée qui crépite, peaux et trophées, râtelier, conserves, carte du mont annotée, lampe à
-      pétrole, fenêtres sur les sapins et la vallée
-- [ ] Spécificité : le râtelier ouvert comme une vraie armurerie (munitions pleines, grenades)
-- [ ] Activité : LANCER DE HACHE sur une cible en bois devant le chalet (score, record, son de bois)
-- [ ] Lit, coffre ; ambiance ; test + captures
+### 4. Chalet retranché (armurerie) — fait (19 octobre)
+- [x] Déco : rondins, cheminée qui crépite, peau d'ours, bois de cerf, conserves, carte du mont annotée, lampe à pétrole,
+      fenêtres sur les sapins et la vallée ; dehors la neige qui tombe, le tas de bois, le drapeau, le bonhomme de neige
+- [x] Spécificité : le râtelier s'ouvre sur les armes possédées (vrais modèles), munitions pleines et grenades
+- [x] Activité : LANCER DE HACHE (dix haches, mire qui tangue, rotation à doser, « tchok » du bois, record, prime)
+- [x] Lit, malle ; ambiance (vent, feu, corbeau) ; test + captures
 
 ### 5. Voilier « Belle Échappée » (disparaître)
 - [ ] Déco : carré en bois verni, couchette, table à cartes, instruments, cordages, hublots sur la mer, lumière qui tangue
