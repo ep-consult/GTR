@@ -63,26 +63,43 @@ carte, taxis) : on entre par la zone `pq.entree` de la planque possédée ; `por
 - [x] Activité : LANCER DE HACHE (dix haches, mire qui tangue, rotation à doser, « tchok » du bois, record, prime)
 - [x] Lit, malle ; ambiance (vent, feu, corbeau) ; test + captures
 
-### 5. Voilier « Belle Échappée » (disparaître)
-- [ ] Déco : carré en bois verni, couchette, table à cartes, instruments, cordages, hublots sur la mer, lumière qui tangue
-- [ ] Spécificité : la barre et le guindeau pour lever l'ancre
-- [ ] Activité : TABLE À CARTES, chasse au trésor (une carte par vague, trésor caché plage / épave / crique)
-- [ ] Lit, coffre ; ambiance ; test + captures
+### 5. Voilier « Belle Échappée » (disparaître) — fait (19 octobre)
+- [x] Déco : mouillage turquoise, voilier à quai, carré en bois verni, couchette, table à cartes et instruments, cordages,
+      hublots sur la mer, la lampe qui se balance (sa lumière tangue), le monde qui bouge avec la houle
+- [x] Spécificité : à la barre, LEVER L'ANCRE — le guindeau remonte l'ancre, le voilier évite, la police perd ta trace
+- [x] Activité : TABLE À CARTES — une carte par vague, taillée dans la vraie carte (plage, épave du galion, crique), la zone
+      sur la minimap, CREUSER dans la vraie ville
+- [x] Couchette, coffre ; ambiance (clapot, drisses, mouettes) ; test + captures
 
-### 6. Taudis de la zone (grenades)
-- [ ] Déco : canapé défoncé, bidons, matelas au sol, graffitis, télé cathodique qui grésille, ampoule nue, tôles, chat
-- [ ] Spécificité : l'établi bricolé (tuyaux, mèches, bocaux) pour les grenades
-- [ ] Activité : SAC DE FRAPPE (rythme, score, bonus de force temporaire)
-- [ ] Lit, coffre ; ambiance ; test + captures
+### 6. Taudis de la zone (grenades) — fait (19 octobre)
+- [x] Déco : friche sous la bruine, cabane de tôles, canapé défoncé, bidons, matelas sur palettes, tags, télé cathodique qui
+      grésille (ZAPPER), ampoule nue qui se balance et clignote, fût en feu, le chat errant
+- [x] Spécificité : l'établi bricolé (tuyaux, mèches, bocaux, étau) : 3 grenades artisanales
+- [x] Activité : SAC DE FRAPPE en rythme (deux boutons, tempo qui monte), bonus de force (+35 % de dégâts) si bon score
+- [x] Matelas, cachette ; ambiance (pluie, télé, feu, gouttes) ; test + captures
 
-### 7. Villa planque
-- [ ] Vérifier : rien de cassé, la plus belle et la plus chère ; ajouter une activité si elle n'en a pas
+### 7. Villa planque — faite (19 octobre)
+- [x] Vérifié : rien de cassé (lit, coffre, garage, cabinet, trophées, tableau, penderie, piscine), la plus chère (20 000 $)
+- [x] Activité ajoutée : le CONCOURS DE PLONGEON (élan, saltos, entrée à la verticale, trois juges, record, prime)
 
 ### Fin de la partie A
-- [ ] Aucun meuble copié d'une planque à l'autre ; sons coupés par tous les chemins ; zones à ≥ 8 u ; records en META
+- [x] Aucun meuble copié d'une planque à l'autre ; sons coupés par tous les chemins ; zones à ≥ 8 u ; records en META
 - [ ] CLAUDE.md (section, carte) ; suite complète
 
 ## Partie B — refonte du Mont Reyes
+
+### Choix techniques de la partie B (avant de coder)
+- **Règle des tirages** : `mkMontReyes` et `mkVieMont` sont dans le PREMIER groupe du décor ; leurs boucles décident sur la
+  hauteur (`hauteurMont`) puis tirent `aD` / `aleaDecor` : changer la hauteur pendant ce groupe changerait le nombre de tirages
+  et déplacerait tout le mobilier. Donc le relief de détail est une **couche** (`MONT.detail`) coupée pendant ce groupe et
+  allumée par `mkMontReyesV2`, en tête du second groupe, sur un **générateur privé** (aucun tirage du décor) : ce qui suit
+  (le chalet de `mkPlanquesV2`, le camp…) voit déjà le nouveau relief. L'ancienne forêt est construite puis retirée.
+- **Le sol** : un nouveau maillage plus fin, `MeshLambertMaterial` dont la couleur est remplacée par un mélange de textures
+  procédurales (canevas) selon l'altitude et la pente (`onBeforeCompile`, comme la mer V2 : lumière, brouillard, jour et nuit
+  conservés) ; strates de la roche projetées sur la verticale ; bruit à deux échelles contre la répétition.
+- **La végétation et les rochers** : `InstancedMesh` (un appel de rendu par matière), étagés par altitude.
+- **Ce qui doit rester exact** : le sentier (taillé, ±5 u), la montée sèche, les paliers d'épingle, les tremplins, le sommet ;
+  la couche de détail y est nulle.
 
 ### 1. Textures et rendu du terrain
 - [ ] Textures procédurales (canvas) selon l'altitude et la pente : prairie, maquis et terre, roche à strates, éboulis, neige

@@ -1963,7 +1963,7 @@ const META={
   garde:{}, // pièces achetées en boutique (VETEMENTS) : id → true
   modsArmes:{}, // modifications d'armes achetées à l'établi de l'armurerie : id → 'explosif,laser,…' (MODS_ARMES)
   planques:{caravane:false,penthouse:false,cabanon:false,chalet:false,voilier:false,taudis:false}, // planques en plein air (PLANQUES_DEF), clés fixes
-  planquesJeux:{canettes:0,longueVue:0,punch:0,peche:0,hache:0,tresors:0,frappe:0}, // records des activités des planques (19 octobre)
+  planquesJeux:{canettes:0,longueVue:0,punch:0,peche:0,hache:0,tresors:0,frappe:0,plongeon:0}, // records des activités des planques (19 octobre)
   pecheTrophees:{sardine:0,maquereau:0,dorade:0,bar:0,poulpe:0,espadon:0}, // le mur des trophées du cabanon : la plus lourde prise exposée de chaque espèce (kg), clés fixes
   // vue de jeu en ville (bouton 🎥 à côté de la pause, voir VUE) :
   // 'immersive' = caméra inclinée vers l'horizon, orientable au doigt, poursuite
@@ -7322,6 +7322,7 @@ function mkPlanques(){
     PLATS.push({x:vx,z:vz,hw:1.55,hd:4.6,h:0.82}); PLATS.push({x:px+2.2,z:vz-3.6,hw:1.2,hd:0.5,h:0.7});
     addSolid({x:vx,z:vz+0.6,hw:1,hd:1.6,h:2.2,base:0.7}); // la cabine (sur le pont seulement)
     pq.lit={x:vx,z:vz+3.6,y:0.82}; pq.coffre={x:vx,z:vz-2.2,y:0.82}; pq.spec={x:vx,z:vz-4.2,y:0.82}; pq.achat={x:px,z:vz,y:0.45};
+    pq.porte={x:px+1.2,z:vz-3.6,nx:-1,nz:0,sortieD:0.6,y:0.45}; pq.entree={x:px+0.6,z:vz-3.6,y:0.45}; /* l'intérieur : à bord, par la passerelle (19 octobre) */
     pq.enseigne=mkEnseigne('VOILIER À VENDRE','#ffd23f',px-1.6,3.2,vz,-Math.PI/2,6); }
   // --- 6) taudis de la zone industrielle : tôle ondulée, bâche, fût en feu, pneus, matelas, tags ---
   { const L=[]; for(let bx=0;bx<NB;bx++) for(let bz=0;bz<NB;bz++) if(quartier(bx,bz)==='industriel') L.push([bx,bz]);
@@ -7340,7 +7341,7 @@ function mkPlanques(){
       for(let k=0;k<3;k++){ const pn=new THREE.Mesh(new THREE.TorusGeometry(0.45,0.2,6,12),mat(0x15171c)); pn.rotation.x=Math.PI/2; pn.position.set(x-3.2,0.2+k*0.38,z-1.2); scene.add(pn); }
       mkBox(1.8,0.25,1,mat(0x8a7a6a),x-2.2,0.13,z+3); // matelas
       mkBox(1.6,0.9,0.7,mat(0x6a5a4a),x+2.6,0.45,z-0.4); addSolid({x:x+2.6,z:z-0.4,hw:0.8,hd:0.35,h:0.9}); mkBox(0.3,0.3,0.3,mat(0x3a5a2a),x+2.3,1.05,z-0.4); // établi, bocal
-      pq.lit={x:x-0.6,z:z+3.1}; pq.coffre={x:x-3.2,z:z+0.6}; pq.spec={x:x+2.6,z:z+0.9}; pq.achat=pq.lit; pq.vehPos={x:x+1,z:z+7.5,ang:Math.PI/2};
+      pq.lit={x:x-0.6,z:z+3.1}; pq.coffre={x:x-3.2,z:z+0.6}; pq.spec={x:x+2.6,z:z+0.9}; pq.achat=pq.lit; pq.porte={x:x+0.8,z:z+1.85,nx:0,nz:1,sortieD:1.3}; pq.entree={x:x+0.8,z:z+3.2}; /* l'intérieur : chez Rico (19 octobre) */ pq.vehPos={x:x+1,z:z+7.5,ang:Math.PI/2};
       pq.enseigne=mkEnseigne('TAUDIS À VENDRE','#ffd23f',x,3.6,z+1.9,0,5); } }
   for(const pq of PLANQUES.liste) ZONES_SANS_MOBILIER.push({x0:pq.x-9,x1:pq.x+9,z0:pq.z-9,z1:pq.z+9});
 }
@@ -8522,6 +8523,389 @@ function hacheUI(s,vis){ let d=document.getElementById('hachePan'); const H=s.pq
   if(d.style.display!=='flex') d.style.display='flex'; const inf='🪓 Hache '+Math.min(HACHE_N,H.n+(s.pq.vol?0:1))+' / '+HACHE_N+' — '+H.score+' pts'; const ie=d.querySelector('#hcInfo'); if(ie._t!==inf){ ie._t=inf; ie.textContent=inf; }
   const re=d.querySelector('#hcRes'), rt=H.dernier&&H.dernier.t>0?H.dernier.nom:''; if(re._t!==rt){ re._t=rt; re.textContent=rt; }
   const v=d.querySelector('#hcVert'); if(!v._ok){ v._ok=1; v.style.left=(HACHE_VERT[0]*100)+'%'; v.style.width=((HACHE_VERT[1]-HACHE_VERT[0])*100)+'%'; } d.querySelector('#hcAig').style.left='calc('+(H.jauge*100)+'% - 2px)'; }
+/* ---------- 5. LE VOILIER « BELLE ÉCHAPPÉE » : chez Lou, ancienne contrebandière qui connaît toutes les criques ----------
+   La salle : un mouillage turquoise en fin de matinée (eau claire et ses reflets, îles, voiliers au loin, mouettes), le
+   voilier amarré cul à quai au bout d'un ponton : coque blanche à liseré marine, pont de teck, filières, winchs, mât et grand-
+   voile ferlée sous son taud, génois enroulé, cockpit et sa grande barre à roue, compas d'habitacle, guindeau et ancre à
+   l'étrave ; le rouf s'efface quand on descend dans le carré : bois verni, banquette en U et sa table, cuisine sur cardan, table
+   à cartes et ses instruments (VHF, GPS, baromètre, pendule), livres, cordages, hublots sur la mer, cabine avant et sa
+   couchette, et la lampe qui se balance (sa lumière tangue avec la houle).
+   - LEVER L'ANCRE (spécificité, à la barre) : le guindeau remonte la chaîne, l'ancre sort de l'eau, la roue tourne, le
+     voilier évite sur son mouillage — et la police perd ta trace (planqueSpec, une fois par vague).
+   - La CHASSE AU TRÉSOR (activité, à la table à cartes) : une fois par vague, Lou sort une carte taillée dans la VRAIE carte
+     de Los Reyes (plage, épave du galion, crique) avec la croix ; sur la minimap, seulement la zone ; sur place, CREUSER
+     (TRESOR_CARTE, branche de majAction). Récompense, record (trésors trouvés), défi des trésors. */
+Object.assign(PQ_TEX_DESSIN,{
+  acajou:()=>cTex(128,(c,s)=>{ const r=pqAlea(81); const g=c.createLinearGradient(0,0,s,0); g.addColorStop(0,'#6a2e16'); g.addColorStop(0.5,'#8a3e1e'); g.addColorStop(1,'#6a2e16'); c.fillStyle=g; c.fillRect(0,0,s,s);
+    c.strokeStyle='rgba(40,14,4,0.35)'; for(let k=0;k<34;k++){ const y=r()*s; c.lineWidth=0.6+r(); c.beginPath(); c.moveTo(0,y); c.bezierCurveTo(s*0.3,y+r()*8-4,s*0.7,y+r()*8-4,s,y+r()*4-2); c.stroke(); }
+    c.fillStyle='rgba(255,220,180,0.10)'; c.fillRect(0,s*0.1,s,s*0.08); }),
+  pontTeck:()=>cTex(128,(c,s)=>{ for(let x=0;x<s;x+=16){ c.fillStyle=(x/16)%2?'#b08a5a':'#a47e50'; c.fillRect(x,0,14,s); c.fillStyle='#2a2018'; c.fillRect(x+14,0,2,s); } const r=pqAlea(83); c.strokeStyle='rgba(80,56,30,0.3)'; for(let k=0;k<26;k++){ const x=r()*s; c.beginPath(); c.moveTo(x,0); c.lineTo(x+r()*3-1.5,s); c.stroke(); } }),
+  carteMarine:()=>cTex(256,(c,s)=>{ const r=pqAlea(87); c.fillStyle='#dce8ec'; c.fillRect(0,0,s,s); c.fillStyle='#e8dcb4'; c.beginPath(); c.moveTo(0,0); for(let x=0;x<=s;x+=16) c.lineTo(x,40+Math.sin(x*0.05)*18+r()*10); c.lineTo(s,0); c.fill();
+    c.strokeStyle='rgba(60,110,150,0.45)'; for(let k=1;k<5;k++){ c.beginPath(); for(let x=0;x<=s;x+=16){ const y=40+k*34+Math.sin(x*0.05+k)*14; x?c.lineTo(x,y):c.moveTo(x,y); } c.stroke(); }
+    c.fillStyle='rgba(40,60,90,0.7)'; c.font='8px Arial'; for(let k=0;k<40;k++) c.fillText(String(5+Math.floor(r()*40)),r()*s,90+r()*(s-100));
+    c.save(); c.translate(196,196); c.strokeStyle='#a0282a'; c.lineWidth=1.5; c.beginPath(); c.arc(0,0,34,0,7); c.stroke(); for(let k=0;k<8;k++){ c.rotate(Math.PI/4); c.beginPath(); c.moveTo(0,0); c.lineTo(0,k%2?-22:-38); c.stroke(); } c.restore();
+    c.strokeStyle='#1a1a1a'; c.setLineDash([4,3]); c.beginPath(); c.moveTo(30,220); c.lineTo(110,150); c.lineTo(170,120); c.stroke(); c.setLineDash([]); }),
+  voile:()=>cTex(64,(c,s)=>{ c.fillStyle='#1a3a6a'; c.fillRect(0,0,s,s); c.fillStyle='rgba(255,255,255,0.08)'; for(let y=0;y<s;y+=8) c.fillRect(0,y,s,1); }),
+});
+const PQ_MER2_FS=()=>'uniform float uT; uniform vec2 uC; uniform vec3 uHor; varying vec3 vW;'+CHAL_GLSL_BRUIT+
+  /* l'eau claire du mouillage : turquoise près du bateau, bleu profond au large, caustiques, rides qui scintillent, l'ombre de la coque */
+  'void main(){ vec2 p=vW.xz-uC; float d=length(p*vec2(1.0,0.75));'+
+  ' vec3 c=mix(vec3(0.10,0.66,0.70),vec3(0.03,0.28,0.48),smoothstep(10.0,80.0,d));'+
+  ' vec2 q=p*0.55+vec2(uT*0.12,uT*0.07); float ca=sin(q.x*3.1+sin(q.y*2.3+uT))*sin(q.y*2.7+sin(q.x*1.9-uT*0.8)); c+=vec3(0.10,0.16,0.14)*pow(max(0.0,ca),4.0)*(1.0-smoothstep(6.0,30.0,d))*(0.4+0.6*hashC(floor(q*0.7)));'+
+  ' float w=sin(p.x*0.9+uT*1.3)*sin(p.y*0.7-uT*1.1); vec2 cs=floor(p*2.2+vec2(uT*0.5,0.0)); float sc=step(0.994,hashC(cs))*(0.5+0.5*sin(uT*4.0+hashC(cs+3.1)*6.3)); c+=vec3(1.0)*sc*0.4*step(0.3,w);'+ /* quelques paillettes qui clignent, pas une pluie de traits */
+  ' float coque=1.0-smoothstep(0.0,3.0,max(abs(p.x)-3.4,0.0)+max(abs(p.y+3.0)-11.0,0.0)); c*=1.0-0.35*coque;'+
+  ' c=mix(c,uHor,smoothstep(70.0,180.0,d)); gl_FragColor=vec4(c,1.0); }';
+PQ_INT.voilier=function(s,g,ox,oz,W,P2){
+  const T=pqOutils(s,g), {M,MF,MP,MB,MT,mesh,B,C,S,PL,solide,seg,sprite}=T, Q=s.pq, r=pqAlea(1990);
+  const CIEL=new THREE.Color(0x9ccbe8); Q.feu={x:0,z:-3}; Q.lampe={x:-0.6,y:2.15,z:-2.6,ang:0};
+  s.pqAmb={soleil:0.95,hemi:0.8,ciel:CIEL,fogN:120,fogF:330,
+    lampe:(sa)=>{ const L=sa.pq.lampe; return sa.pq.dedans?{x:sa.ox+L.x+Math.sin(L.ang)*0.9,y:L.y-0.15,z:sa.oz+L.z,c:0xffd8a0,i:1.25,d:11}:{x:sa.ox,y:3,z:sa.oz+6,c:0xfff2d8,i:0.35,d:12}; }};
+  // ---- le mouillage : ciel clair, soleil, eau turquoise, îles, voiliers au loin, mouettes ; tout bouge doucement avec la houle ----
+  const monde=new THREE.Group(); monde.position.set(ox,0,oz); g.add(monde); monde.userData.garder=true; Q.monde=monde;
+  { const dome=pqCiel(0,0,[0x3a78c0,0x8cc0e4,0xd8ecf6],185); monde.add(dome); }
+  { const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:0xfff6e0,transparent:true,depthWrite:false,fog:false,blending:THREE.AdditiveBlending})); sp.position.set(60,90,-110); sp.scale.set(70,70,1); monde.add(sp); }
+  { const U={uT:{value:0},uC:{value:new THREE.Vector2(ox,oz)},uHor:{value:new THREE.Vector3(CIEL.r,CIEL.g,CIEL.b)}}; const m=new THREE.Mesh(new THREE.PlaneGeometry(370,370),new THREE.ShaderMaterial({uniforms:U,vertexShader:AQ_SOL_VS,fragmentShader:PQ_MER2_FS()})); m.rotation.x=-Math.PI/2; m.position.y=-1.2; monde.add(m); Q.anim.push((dt)=>{ U.uT.value+=dt; }); }
+  { const vert=MF(0x4a7a3a), roc=MF(0xb8a888), sable=MF(0xe8d8a8); for(const [x,z,w,h] of [[-70,-120,46,16],[85,-140,38,12],[-130,-40,30,9],[120,-20,24,7],[20,-165,60,20]]){ const o=new THREE.Mesh(new THREE.SphereGeometry(1,18,8,0,Math.PI*2,0,Math.PI/2),vert); o.scale.set(w,h,w*0.55); o.position.set(x,-1.2,z); monde.add(o);
+      const b=new THREE.Mesh(new THREE.CylinderGeometry(w*1.04,w*1.08,0.8,24),sable); b.scale.z=0.57; b.position.set(x,-1.0,z); monde.add(b); for(let k=0;k<4;k++){ const rc=new THREE.Mesh(new THREE.DodecahedronGeometry(2+r()*3,0),roc); rc.position.set(x+(r()-0.5)*w*1.6,-0.6,z+w*0.45+r()*4); monde.add(rc); } }
+    for(let k=0;k<5;k++){ const v=new THREE.Group(); const coq=new THREE.Mesh(new THREE.BoxGeometry(1.6,0.7,5),M(0xf4f4f0)); coq.position.y=-0.9; v.add(coq); const vo=new THREE.Mesh(new THREE.ConeGeometry(1.8,7,3),M(0xf8f6f0)); vo.scale.z=0.12; vo.position.y=3; v.add(vo); v.position.set(-90+k*45+r()*10,0,-60-r()*70); v.rotation.y=r()*3; monde.add(v); } }
+  { const mo=new THREE.SpriteMaterial({map:cTex(32,(c,s)=>{ c.strokeStyle='#fff'; c.lineWidth=3; c.beginPath(); c.moveTo(2,18); c.quadraticCurveTo(9,8,16,16); c.quadraticCurveTo(23,8,30,18); c.stroke(); }),transparent:true,depthWrite:false}), ms=[];
+    for(let k=0;k<5;k++){ const m=new THREE.Sprite(mo); m.scale.set(1.3,1.3,1); monde.add(m); ms.push(m); } Q.anim.push(()=>{ ms.forEach((m,k)=>{ const a=Q.t*(0.25+k*0.04)+k*1.3; m.position.set(Math.cos(a)*(14+k*4),9+k*1.5+Math.sin(Q.t*1.3+k)*0.6,-6+Math.sin(a)*(10+k*3)); }); }); }
+  Q.anim.push(()=>{ monde.rotation.z=Math.sin(Q.t*0.6)*0.012+Math.sin(Q.t*1.03)*0.006; monde.rotation.x=Math.sin(Q.t*0.47+1)*0.006; monde.position.y=Math.sin(Q.t*0.8)*0.05; if(Q.evite) monde.rotation.y=Q.evite.ang; }); /* la houle : c'est le monde qui bouge, le pont reste sous les pieds */
+  // ---- le ponton : de la sortie jusqu'à la poupe ; bites d'amarrage, lampadaire, aussières ----
+  const tk=MT(pqTexRep('pontTeck',1,1)); { const dk=MT(pqTexRep('boisFlotte',1,3),0xc8b898); B(3.2,0.12,10,dk,0,-0.04,13); for(let z=9;z<=18;z+=3) for(const dx of [-1.5,1.5]) C(0.14,0.14,2.2,M(0x5a4a3a),dx,-1.0,z,8);
+    for(const dx of [-1.3,1.3]){ C(0.12,0.16,0.4,MP(0x2a2c30,60,0x9aa2ad),dx,0.2,8.6,10); seg([dx,0.32,8.6],[dx*1.6,0.9,7.4],0.025,M(0xe8dcc0),5); }
+    C(0.05,0.05,2.4,M(0x2a2c30),-1.4,1.2,15,6); S(0.15,MB(0xfff2d8),-1.4,2.45,15); }
+  // ---- la coque : blanche, liseré marine, antifouling ; le pont de teck ; les filières ; le nom au tableau arrière ----
+  const zP=-14.5, zA=8; Q.zA=zA; /* étrave, tableau arrière */
+  { const sh=new THREE.Shape(); sh.moveTo(-3.4,zA); sh.lineTo(3.4,zA); sh.quadraticCurveTo(3.8,-2,2.6,-9); sh.quadraticCurveTo(1.4,-13,0,zP); sh.quadraticCurveTo(-1.4,-13,-2.6,-9); sh.quadraticCurveTo(-3.8,-2,-3.4,zA);
+    const coque=new THREE.ExtrudeGeometry(sh,{depth:1.6,bevelEnabled:true,bevelThickness:0.12,bevelSize:0.12,bevelSegments:2}); coque.rotateX(Math.PI/2); coque.translate(0,-0.1,0); mesh(coque,MP(0xf6f6f2,80,0xffffff),0,0,0); /* rotateX(+90°) : le y de la forme devient le z du monde, la profondeur descend sous le pont */
+    const liseret=new THREE.ExtrudeGeometry(sh,{depth:0.16,bevelEnabled:false}); liseret.rotateX(Math.PI/2); liseret.scale(1.045,1,1.012); mesh(liseret,MP(0x1a2a5a,60,0xffffff),0,-0.5,0);
+    const pont=new THREE.ShapeGeometry(sh,16); pont.rotateX(Math.PI/2); pont.scale(0.97,1,0.99); mesh(pont,MT(pqTexRep('pontTeck',1.6,5),0xffffff,{side:THREE.DoubleSide}),0,0.03,0);
+    PL(5.6,0.7,MT(pqTexte('BELLE ÉCHAPPÉE\nLOS REYES','#f6f6f2','#1a2a5a')),0,-0.6,zA+0.17,0,0);
+    const pts=sh.getPoints(24).filter((p)=>p.x>=0).sort((a,b)=>b.y-a.y), bordX=(z)=>{ for(let i=1;i<pts.length;i++) if(pts[i].y<=z){ const a=pts[i-1], b=pts[i], k=(z-b.y)/((a.y-b.y)||1); return b.x+(a.x-b.x)*k; } return 0; }; Q.bordX=bordX;
+    const inox=MP(0xd8dce4,120,0xffffff); const bord=(t)=>{ /* le contour du pont, du tableau (t=0) à l'étrave (t=1), à tribord (+x) : lu sur la vraie forme */ const z=zA+(zP+0.3-zA)*t; return [Math.max(0.12,bordX(z)-0.2),z]; };
+    for(const sd of [-1,1]){ let prev=null; for(let k=0;k<=9;k++){ const [x,z]=bord(k/9); C(0.025,0.025,0.75,inox,sd*x,0.4,z,6); if(prev) seg([sd*prev[0],0.75,prev[1]],[sd*x,0.75,z],0.012,inox,4); prev=[x,z]; } }
+    // la mer : on n'y marche pas (les flancs du bateau, et l'eau autour du ponton)
+    for(let k=0;k<12;k++){ const [x,z]=bord(k/11+0.02); solide(-x-0.5,z,0.5,1.1,1.2); solide(x+0.5,z,0.5,1.1,1.2); }
+    solide(0,zP-1.2,1.6,1.0,1.2); solide(-12.6,13,10.9,5.1,1.2); solide(12.6,13,10.9,5.1,1.2); }
+  // ---- le cockpit : banquettes, la grande barre à roue et son compas, les winchs, les coffres ----
+  { const zc=4.5; for(const sd of [-1,1]){ B(0.9,0.45,4.2,MT(pqTexRep('pontTeck',0.6,2)),sd*2.3,0.23,zc); B(0.9,0.12,4.2,MP(0xf2f0e8,30,0x6a6a6a),sd*2.3,0.5,zc); B(0.2,0.55,4.4,MP(0xf6f6f2,80,0xffffff),sd*2.85,0.6,zc); solide(sd*2.3,zc,0.5,2.1,0.6); }
+    for(const [dx,dz] of [[-2.6,2.5],[2.6,2.5],[-2.6,6.5],[2.6,6.5]]){ C(0.18,0.22,0.3,MP(0xc8ccd4,120,0xffffff),dx,0.92,dz,12); C(0.08,0.08,0.12,MP(0x2a2c30,60,0x9aa2ad),dx,1.12,dz,10); }
+    C(0.14,0.2,0.95,MP(0xf6f6f2,80,0xffffff),0,0.48,6.6,10); const hab=mesh(new THREE.SphereGeometry(0.18,14,10,0,Math.PI*2,0,Math.PI/2),new THREE.MeshPhongMaterial({color:0x2a3a4a,shininess:140,specular:0xffffff,transparent:true,opacity:0.7}),0,0.98,6.6); solide(0,6.6,0.25,0.25,1);
+    const roue=new THREE.Group(); roue.position.set(T.ox,1.25,T.oz+6.95); g.add(roue); roue.userData.garder=true; const ti=new THREE.Mesh(new THREE.TorusGeometry(0.62,0.035,8,36),MP(0xd8dce4,120,0xffffff)); roue.add(ti);
+    for(let k=0;k<6;k++){ const ry=new THREE.Mesh(new THREE.CylinderGeometry(0.018,0.018,1.22,6),MP(0xd8dce4,120,0xffffff)); ry.rotation.z=k*Math.PI/6; roue.add(ry); } const moy=new THREE.Mesh(new THREE.CylinderGeometry(0.09,0.09,0.12,12),MP(0x2a2c30,60,0x9aa2ad)); moy.rotation.x=Math.PI/2; roue.add(moy); Q.roue=roue;
+    PL(1.6,1.1,MT(pqTexRep('pontTeck',0.5,0.5),0xd8c8a8),0,0.05,zc,-Math.PI/2); }
+  // ---- le rouf (il s'efface quand on est dans le carré), le mât, la bôme et sa grand-voile ferlée, le génois enroulé, le guindeau et l'ancre ----
+  const rx0=-2.4, rx1=2.4, rz0=-8.0, rz1=1.6; Q.rouf={x0:rx0,x1:rx1,z0:rz0,z1:rz1};
+  { const blanc=MP(0xf6f6f2,80,0xffffff), toit=[];
+    for(const sd of [-1,1]){ B(0.14,1.0,rz1-rz0,blanc,sd*rx1,0.5,(rz0+rz1)/2); solide(sd*rx1,(rz0+rz1)/2,0.12,(rz1-rz0)/2,1.0); for(let k=0;k<4;k++){ const hb=C(0.17,0.17,0.04,MP(0x9ad0e8,120,0xffffff),sd*(rx1+0.07),0.55,rz0+1.6+k*2.4,16); hb.rotation.z=Math.PI/2; const cad=mesh(new THREE.TorusGeometry(0.19,0.03,6,18),MP(0xd8dce4,120,0xffffff),sd*(rx1+0.08),0.55,rz0+1.6+k*2.4); cad.rotation.y=Math.PI/2; } }
+    B(rx1*2,1.0,0.14,blanc,0,0.5,rz0); solide(0,rz0,rx1,0.12,1.0); for(const sd of [-1,1]){ B(rx1-0.7,1.0,0.14,blanc,sd*(0.7+(rx1-0.7)/2),0.5,rz1); solide(sd*(0.7+(rx1-0.7)/2),rz1,(rx1-0.7)/2,0.12,1.0); } /* la descente au milieu de l'arrière */
+    const dessus=mesh(new THREE.BoxGeometry(rx1*2+0.1,0.12,rz1-rz0+0.1),blanc,0,1.06,(rz0+rz1)/2); toit.push(dessus);
+    for(const [z,w] of [[-7.5,1.1],[-3.5,0.9],[-0.2,1.0]]){ toit.push(B(w,0.08,w,MP(0x3a4a5a,120,0xffffff),0,1.14,z)); toit.push(B(w+0.12,0.06,w+0.12,MP(0xc8ccd4,90,0xffffff),0,1.12,z)); }
+    for(const sd of [-1,1]) toit.push(B(0.06,0.06,rz1-rz0-0.8,MP(0xc8ccd4,90,0xffffff),sd*(rx1-0.3),1.15,(rz0+rz1)/2));
+    // le mât (sur le rouf), la bôme, la grand-voile sous son taud, les haubans, l'étai et le génois enroulé
+    /* le mât est posé sur le rouf : lui et son gréement s'effacent avec le toit quand on est dans le carré */
+    const alu=MP(0xd8dce4,110,0xffffff), mz=-5.4; toit.push(C(0.11,0.13,14,alu,0,8.1,mz,10)); for(const sd of [-1,1]){ toit.push(seg([0,13,mz],[sd*(Q.bordX(mz+0.6)-0.15),0.4,mz+0.6],0.012,M(0x9aa2ad),4)); toit.push(seg([0,7.5,mz],[sd*2.0,7.5,mz+0.3],0.02,alu,4)); }
+    toit.push(seg([0,14.8,mz],[0,0.4,zP+0.6],0.012,M(0x9aa2ad),4)); toit.push(seg([0,13.2,mz-0.3],[0,1.0,zP+1.0],0.12,MT(pqTex('voile')),8)); toit.push(seg([0,14.8,mz],[0,1.0,zA-0.4],0.01,M(0x9aa2ad),4));
+    toit.push(seg([0,2.0,mz+0.2],[0,1.75,mz+6.2],0.07,alu,8)); toit.push(seg([0,2.18,mz+0.4],[0,1.98,mz+5.8],0.26,MT(pqTex('voile')),10)); toit.push(PL(2.6,0.36,MT(pqTexte('BELLE ÉCHAPPÉE','#1a3a6a','#f2f0e8')),0.27,2.08,mz+3.1,0,Math.PI/2));
+    Q.toits.push({x0:rx0,x1:rx1,z0:rz0,z1:rz1,objs:toit,dedans:true,vis:true});
+    // le guindeau à l'étrave, la chaîne qui descend dans l'eau, l'ancre ; un rouleau de cordage, une bouée
+    const gu=new THREE.Group(); gu.position.set(T.ox,0.3,T.oz+zP+2.4); g.add(gu); gu.userData.garder=true; const tb=new THREE.Mesh(new THREE.CylinderGeometry(0.18,0.18,0.42,14),MP(0xc8ccd4,110,0xffffff)); tb.rotation.z=Math.PI/2; gu.add(tb); const cap=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.25,0.4),MP(0x2a2c30,60,0x9aa2ad)); cap.position.y=-0.15; gu.add(cap); Q.guindeau=tb;
+    const ancre=new THREE.Group(); const ti=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,0.8,6),MP(0x5a5e66,80,0xc8ccd4)); ti.position.y=0.4; ancre.add(ti); const sc=new THREE.Mesh(new THREE.ConeGeometry(0.28,0.4,4),MP(0x5a5e66,80,0xc8ccd4)); sc.rotation.x=Math.PI; sc.scale.z=0.35; ancre.add(sc);
+    ancre.position.set(T.ox,-2.6,T.oz+zP-0.4); g.add(ancre); ancre.userData.garder=true; Q.ancre=ancre; const ch=new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.03,1,6),M(0x4a4e56)); g.add(ch); ch.userData.garder=true; Q.chaine=ch;
+    const ro=mesh(new THREE.TorusGeometry(0.32,0.07,8,18),M(0xe8dcc0),1.4,0.08,zP+4.2); ro.rotation.x=Math.PI/2; const bo=mesh(new THREE.TorusGeometry(0.34,0.1,8,18),MP(0xff5a2a,40,0xffffff),2.7,0.95,2.2); bo.rotation.y=Math.PI/2; }
+  // ---- le carré, sous le rouf : plancher clair, banquette en U et table vernie, cuisine, table à cartes et instruments, livres, cabine avant ----
+  { const aca=MT(pqTexRep('acajou',1,1)), ac2=MT(pqTexRep('acajou',2,1)), bleu=MP(0x2a4a7a,20,0x3a3a3a);
+    PL(rx1*2-0.2,rz1-rz0-0.2,MT(pqTexRep('pontTeck',2,4),0xe8d8b8),0,0.04,(rz0+rz1)/2,-Math.PI/2);
+    for(const sd of [-1,1]) for(let k=0;k<3;k++) B(0.08,0.9,(rz1-rz0)/3-0.1,ac2,sd*(rx1-0.1),0.5,rz0+(k+0.5)*(rz1-rz0)/3); /* les vaigrages vernis */
+    for(const [dx,dz] of [[-0.5,1.25],[0.5,1.25]]) B(0.95,0.06,0.3,aca,dx*0+0,0.15+Math.abs(dx)*0,rz1-0.4); for(let k=0;k<3;k++) B(1.0,0.06,0.3,aca,0,0.2+k*0.25,rz1-0.25-k*0.25); /* l'escalier de descente */
+    // bâbord : la banquette en U et la table (son plateau à rebords)
+    B(0.7,0.42,3.0,bleu,-rx1+0.5,0.21,-3.0); B(1.5,0.42,0.7,bleu,-rx1+1.1,0.21,-4.6); B(0.22,0.5,3.0,bleu,-rx1+0.25,0.66,-3.0); solide(-rx1+0.55,-3.3,0.4,1.7,0.6);
+    B(1.0,0.06,1.8,aca,-1.0,0.75,-3.0); C(0.07,0.07,0.72,M(0x9aa2ad),-1.0,0.38,-3.0,8); for(const sd of [-1,1]) B(1.0,0.08,0.03,aca,-1.0,0.8,-3.0+sd*0.9); solide(-1.0,-3.0,0.52,0.92,0.8);
+    C(0.05,0.06,0.16,MP(0x9ad0e8,80,0xffffff),-1.2,0.86,-3.3,10); B(0.3,0.04,0.22,M(0xf0ece4),-0.9,0.8,-2.6); /* un verre, un livre de bord */
+    // tribord : la cuisine sur cardan (réchaud, évier), puis la table à cartes et ses instruments
+    B(0.7,0.95,2.0,ac2,rx1-0.45,0.47,-4.1); B(0.72,0.05,2.02,MP(0xe8e4dc,40,0x8a8a8a),rx1-0.45,0.96,-4.1); B(0.5,0.12,0.5,MP(0x2a2c30,60,0x9aa2ad),rx1-0.45,1.03,-4.6); for(const dz of [-4.72,-4.48]) C(0.08,0.08,0.02,M(0x5a5e66),rx1-0.45,1.1,dz,10); B(0.4,0.1,0.36,MP(0xc8ccd4,120,0xffffff),rx1-0.45,0.95,-3.5); solide(rx1-0.45,-4.1,0.36,1.0,1.0);
+    B(0.9,0.06,1.2,aca,rx1-0.55,0.82,-1.2); PL(0.8,1.0,MT(pqTex('carteMarine')),rx1-0.55,0.86,-1.2,-Math.PI/2); B(0.85,0.8,1.2,ac2,rx1-0.55,0.4,-1.2); solide(rx1-0.55,-1.2,0.45,0.6,0.85);
+    B(0.06,0.7,1.1,MP(0x14161a,40,0x5a5e66),rx1-0.14,1.35,-1.2); for(const [dz,c] of [[-0.35,0x7dff7a],[0,0x35c8e0],[0.35,0xffb347]]) PL(0.26,0.18,MB(c),rx1-0.18,1.45,-1.2+dz,0,-Math.PI/2); /* VHF, GPS, sondeur */
+    for(const [dz,c] of [[-0.3,0xc8963a],[0.3,0xc8963a]]){ const ba=C(0.13,0.13,0.05,MP(c,90,0xffe0a0),rx1-0.14,1.95,-1.2+dz,16); ba.rotation.z=Math.PI/2; const fd=C(0.11,0.11,0.01,M(0xf4f0e0),rx1-0.17,1.95,-1.2+dz,16); fd.rotation.z=Math.PI/2; } /* baromètre et pendule en laiton */
+    // les livres derrière leurs barreaux, le cordage lové, le gilet de sauvetage
+    for(let k=0;k<12;k++) B(0.16,0.24+((k*7)%5)*0.03,0.05,M([0x8a2a2a,0x2a4a7a,0x3a6a3a,0xc89a3a][k%4]),-rx1+0.2,1.25,-4.4+k*0.07); B(0.24,0.03,1.0,aca,-rx1+0.2,1.1,-4.0);
+    const cl=mesh(new THREE.TorusGeometry(0.22,0.05,6,16),M(0xe8dcc0),rx1-0.4,0.1,-2.6); cl.rotation.x=Math.PI/2; B(0.4,0.5,0.15,MP(0xff6a2a,30,0x8a8a8a),rx1-0.2,1.3,-2.6);
+    // la cabine avant : cloison et porte ouverte, la couchette en V sous son édredon
+    for(const sd of [-1,1]) B(1.45,1.0,0.08,ac2,sd*1.67,0.5,-5.6); solide(-1.67,-5.6,0.73,0.06,1); solide(1.67,-5.6,0.73,0.06,1);
+    B(3.6,0.45,2.0,aca,0,0.23,-6.9); B(3.4,0.18,1.8,M(0xf4f0e8),0,0.53,-6.9); B(2.8,0.14,1.3,MP(0x2a4a7a,20,0x3a3a3a),0,0.66,-6.7); for(const sd of [-1,1]) B(0.6,0.16,0.4,M(0xf4f2ee),sd*0.6,0.7,-7.6); solide(0,-6.9,1.8,1.0,0.6); Q.couchette={x:0,z:-5.0};
+    // la lampe du carré : elle se balance avec la houle, sa lumière tangue
+    const lp=new THREE.Group(); lp.position.set(T.ox+Q.lampe.x,Q.lampe.y,T.oz+Q.lampe.z); g.add(lp); lp.userData.garder=true; const fil=new THREE.Mesh(new THREE.CylinderGeometry(0.008,0.008,0.5,4),M(0x2a2a2a)); fil.position.y=-0.25; lp.add(fil);
+    const ab=new THREE.Mesh(new THREE.SphereGeometry(0.16,12,8,0,Math.PI*2,0,Math.PI*0.6),MP(0xc8963a,90,0xffe0a0)); ab.position.y=-0.5; lp.add(ab); const am=new THREE.Mesh(new THREE.SphereGeometry(0.09,10,8),new THREE.MeshBasicMaterial({color:0xffe0a0})); am.position.y=-0.58; lp.add(am);
+    Q.anim.push(()=>{ Q.lampe.ang=Math.sin(Q.t*0.9)*0.16+Math.sin(Q.t*1.7)*0.05; lp.rotation.x=Q.lampe.ang; }); pqDessous(Q,lp); }
+  // ---- les zones : la couchette, le coffre sous la banquette, la barre (lever l'ancre), la table à cartes (le trésor) ----
+  s.pqLit={x:ox,z:oz-5.0}; s.pqCoffre={x:ox-1.4,z:oz-0.9}; s.pqSpec={x:ox,z:oz+5.7}; s.pqJeu={x:ox+0.9,z:oz-1.2};
+  for(const tt of Q.toits) for(const o of tt.objs) o.userData.garder=true;
+  Q.action=(sa,k)=>k==='pqSpec'?voilierAncreAction(sa):(k==='pqJeu'?tresorTableAction(sa):null);
+  Q.maj=(sa,dt,dtJeu)=>voilierMaj(sa,dt,dtJeu);
+  Q.arreter=(sa)=>{ const d=document.getElementById('tresorPan'); if(d) d.style.display='none'; };
+};
+function pqDessous(Q,o){ /* un objet qui pend sous le rouf : visible seulement dedans (sinon il traverse le toit vu de dessus) */ Q.dessous=Q.dessous||[]; Q.dessous.push(o); }
+// le son du voilier : le clapot contre la coque, les drisses qui tintent contre le mât, les mouettes, le bois qui craque dedans
+PQ_SONS.voilier={nappes:[{type:'lowpass',f:380,q:0.7,v:0.03,lfo:0.32,prof:0.9,dedans:0.7},{f:1800,q:1.6,v:0.005,lfo:0.2,prof:1,dedans:0.3}],
+  evts:(s,dt,dd)=>{ const Q=s.pq; Q.drT=(Q.drT===undefined?1:Q.drT)-dt; if(Q.drT<=0){ Q.drT=1.2+Math.random()*2.5; const v=dd?0.004:0.01; beep(2600+Math.random()*400,0.05,'triangle',v); if(Math.random()<0.5) setTimeout(()=>beep(2400,0.04,'triangle',v*0.7),110); }
+    Q.mouT=(Q.mouT===undefined?5:Q.mouT)-dt; if(Q.mouT<=0){ Q.mouT=7+Math.random()*10; if(!dd){ beep(1700+Math.random()*300,0.22,'sine',0.01,1150); setTimeout(()=>beep(1600,0.18,'sine',0.008,1100),260); } }
+    if(dd&&Math.random()<dt*0.4) bruit(0.25,0.018,160+Math.random()*60,'lowpass'); }};
+/* ---- LEVER L'ANCRE (à la barre) : le guindeau remonte la chaîne, l'ancre sort de l'eau, la roue tourne, le voilier évite ---- */
+function voilierAncreAction(s){ const pq=s.pq.pq; if(!pq) return null; const U=PLANQUES.usage.voilier||(PLANQUES.usage.voilier={lit:-1,spec:-1});
+  if(s.pq.evite&&s.pq.evite.t<4) return {label:'⛵ L’ancre remonte…',fn:()=>{}};
+  if(U.spec===WAVES.n) return {label:'⏳ LEVER L’ANCRE : Lou attend la prochaine vague',fn:()=>{ SFX.refus(); toast('Déjà fait cette vague','warn'); }};
+  return {label:'⛵ LEVER L’ANCRE — la police perd ta trace',fn:()=>{ if(!planqueSpec(pq)) return; s.pq.evite={t:0,ang:0}; beep(160,0.6,'sawtooth',0.03,120); vibre(40); }}; }
+function voilierMaj(s,dt,dtJeu){ const Q=s.pq; const dedans=Q.dedans; if(Q.dessous) for(const o of Q.dessous) if(o.visible!==dedans) o.visible=dedans;
+  const E=Q.evite; let haut=0; if(E){ E.t+=dtJeu; const t=E.t; haut=Math.min(1,t/3.2); if(t<4){ Q.guindeau.rotation.x+=dtJeu*7; Q.roue.rotation.z+=dtJeu*2.4; if(Math.random()<dtJeu*14) beep(900+Math.random()*200,0.03,'square',0.015); } /* la chaîne cliquette */
+    E.ang=t<5?-0.45*Math.sin(Math.min(1,t/5)*Math.PI/2):-0.45*Math.max(0,1-(t-5)/9); if(t>14){ Q.evite=null; haut=0; } }
+  const zA=Q.ancre.position.z, yA=lerp(-2.6,0.15,haut); Q.ancre.position.y=yA; Q.ancre.rotation.x=haut*0.6; /* l'ancre sort de l'eau jusqu'à l'étrave */
+  const top=new THREE.Vector3(s.ox,0.3,zA+2.0), bas=new THREE.Vector3(s.ox,yA+0.8,zA), L=top.distanceTo(bas); Q.chaine.position.copy(top).add(bas).multiplyScalar(0.5); Q.chaine.scale.set(1,L,1); Q.chaine.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),top.clone().sub(bas).normalize()); }
+/* ---- LA CHASSE AU TRÉSOR : une carte par vague, taillée dans la vraie carte de Los Reyes ; on creuse sur place ---- */
+const TRESOR_CARTE={actif:false,vague:-1,x:0,z:0,zx:0,zz:0,lieu:'',trouve:false,cv:null,dig:null}, TRESOR_GAIN={plage:320,epave:450,crique:520}, TRESOR_RAYON=2.4;
+function tresorCandidats(){ const L=[], vus=new Set(); const ok=(x,z)=>!estEau(x,z)&&!solidAt(x,z,1.4)&&Math.abs(solY(x,z))<0.4&&!surChaussee(x,z);
+  if(GALION.ok&&GALION.tresor){ const G=GALION.tresor; for(let k=0;k<24;k++){ const a=k/24*6.283, d=7+(k%3)*3, x=G.x+Math.cos(a)*d, z=G.z+Math.sin(a)*d; if(ok(x,z)&&estSable(x,z)) L.push({x,z,lieu:'epave',nom:'près de l’épave du galion'}); } }
+  if(CRIQUE){ const cx=(CRIQUE.x0+CRIQUE.x1)/2, cz=CRIQUE.z0; for(let k=0;k<40;k++){ const a=k/40*6.283, d=10+(k%4)*5, x=cx+Math.cos(a)*d, z=cz+Math.sin(a)*d; if(ok(x,z)) L.push({x,z,lieu:'crique',nom:'au-dessus de la crique des plongeurs'}); } }
+  for(let x=-HALF+20;x<HALF-20;x+=9) for(let z=MER-26;z<MER;z+=5) if(ok(x,z)&&estSable(x,z)&&(!JETEE.ok||Math.abs(x-JETEE.x)>14)) L.push({x,z,lieu:'plage',nom:'sur la plage'});
+  return L; }
+function tresorTableAction(s){ const C=TRESOR_CARTE, rec=META.planquesJeux.tresors||0;
+  if(C.actif&&!C.trouve&&C.vague===WAVES.n) return {label:'🗺️ REVOIR LA CARTE AU TRÉSOR',fn:()=>tresorPanneau(true)};
+  if(C.vague===WAVES.n) return {label:'⏳ CARTE AU TRÉSOR : Lou en dessine une autre à la prochaine vague',fn:()=>{ SFX.refus(); toast('Une carte par vague','warn'); }};
+  return {label:'🗺️ LA CARTE AU TRÉSOR DE LOU'+(rec?' ('+rec+' trouvés)':''),fn:()=>tresorNouvelle()}; }
+function tresorNouvelle(){ const L=tresorCandidats(); if(!L.length){ SFX.refus(); toast('Lou ne trouve plus ses cartes…','warn'); return; }
+  const lieux=[...new Set(L.map((q)=>q.lieu))], lieu=lieux[Math.floor(Math.random()*lieux.length)], P2=L.filter((q)=>q.lieu===lieu), c=P2[Math.floor(Math.random()*P2.length)], C=TRESOR_CARTE;
+  C.actif=true; C.trouve=false; C.vague=WAVES.n; C.x=c.x; C.z=c.z; C.lieu=c.lieu; C.nom=c.nom; const a=Math.random()*6.283, d=6+Math.random()*12; C.zx=c.x+Math.cos(a)*d; C.zz=c.z+Math.sin(a)*d; /* la zone sur la minimap : décalée, jamais la croix exacte */
+  tresorDessiner(); tresorPanneau(true); SFX.ui(); }
+function tresorDessiner(){ const C=TRESOR_CARTE; if(!C.cv){ C.cv=document.createElement('canvas'); C.cv.width=C.cv.height=320; } const c=C.cv.getContext('2d'), S=320;
+  c.fillStyle='#efe0bc'; c.fillRect(0,0,S,S); const span=150, ox=C.x+(Math.sin(C.x*0.37)*0.3)*span*0.5-span/2, oz=C.z+(Math.cos(C.z*0.29)*0.3)*span*0.5-span/2; /* la croix jamais au centre */
+  const k=MM_RES, sx=mmX(ox)*k, sz=mmZ(oz)*k, sw=span*mmS*k; c.globalAlpha=0.7; try{ c.drawImage(mmStatic,sx,sz,sw,sw,0,0,S,S); }catch(e){} c.globalAlpha=1;
+  c.globalCompositeOperation='multiply'; c.fillStyle='#ecd2a0'; c.fillRect(0,0,S,S); c.globalCompositeOperation='source-over'; /* sépia : le vieux papier */
+  const g=c.createRadialGradient(S/2,S/2,S*0.3,S/2,S/2,S*0.72); g.addColorStop(0,'rgba(90,60,20,0)'); g.addColorStop(1,'rgba(90,60,20,0.55)'); c.fillStyle=g; c.fillRect(0,0,S,S);
+  const X=(C.x-ox)/span*S, Z=(C.z-oz)/span*S; c.strokeStyle='#a0181a'; c.lineWidth=6; c.beginPath(); c.moveTo(X-11,Z-11); c.lineTo(X+11,Z+11); c.moveTo(X+11,Z-11); c.lineTo(X-11,Z+11); c.stroke();
+  c.setLineDash([6,5]); c.lineWidth=2.5; c.beginPath(); c.moveTo(S*0.08,S*0.92); c.quadraticCurveTo(S*0.5,S*0.5+(X-S/2)*0.2,X,Z+16); c.stroke(); c.setLineDash([]);
+  c.save(); c.translate(S-42,42); c.strokeStyle='#3a2410'; c.lineWidth=1.5; for(let i=0;i<4;i++){ c.rotate(Math.PI/2); c.beginPath(); c.moveTo(0,0); c.lineTo(0,-26); c.stroke(); } c.fillStyle='#3a2410'; c.font='900 13px Georgia'; c.textAlign='center'; c.fillText('N',0,-30); c.restore();
+  c.fillStyle='#3a2410'; c.font='italic 700 15px Georgia'; c.textAlign='left'; c.fillText('Lou — '+C.nom,12,S-14); c.strokeStyle='#5a3a18'; c.lineWidth=3; c.strokeRect(4,4,S-8,S-8); }
+function tresorPanneau(vis){ let d=document.getElementById('tresorPan'); if(!vis){ if(d) d.style.display='none'; return; }
+  if(!d){ d=document.createElement('div'); d.id='tresorPan'; d.style.cssText='position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:45;background:#2a1a0cf2;border:2px solid #c8963a;border-radius:14px;padding:12px;color:#f2e6c8;font:700 13px Arial;text-align:center;width:min(86vw,340px)';
+    d.innerHTML='<div style="font:900 16px Georgia;margin-bottom:6px">🗺️ La carte de Lou</div><div id="tresorImg"></div><div class="det" style="margin:8px 0">La croix marque l’endroit. Sur ta carte, seulement la zone (🗺️). Sur place : CREUSER.</div><button class="pill" id="tresorOk">J’Y VAIS</button>';
+    document.body.appendChild(d); d.querySelector('#tresorOk').addEventListener('pointerdown',(e)=>{ e.preventDefault(); tresorPanneau(false); }); }
+  const box=d.querySelector('#tresorImg'); if(TRESOR_CARTE.cv&&TRESOR_CARTE.cv.parentNode!==box){ box.innerHTML=''; TRESOR_CARTE.cv.style.cssText='width:100%;border-radius:6px'; box.appendChild(TRESOR_CARTE.cv); } d.style.display='block'; }
+function tresorCarteProche(){ const C=TRESOR_CARTE; return C.actif&&!C.trouve&&C.vague===WAVES.n&&!INT.actif&&!P.veh&&dist2(P.x,P.z,C.x,C.z)<TRESOR_RAYON*TRESOR_RAYON; }
+function tresorCreuser(){ const C=TRESOR_CARTE; if(!tresorCarteProche()) return; /* sa propre garde */ C.trouve=true; const g=TRESOR_GAIN[C.lieu]||300;
+  META.argent+=g; ETAT.cashRun+=g; ETAT.score+=300; META.defis.tresors=(META.defis.tresors||0)+1; META.planquesJeux.tresors=(META.planquesJeux.tresors||0)+1; sauveMeta();
+  vibre(60); SFX.swing(); for(let i=0;i<3;i++) burst(C.x+rand(-0.4,0.4),0.4,C.z+rand(-0.4,0.4),8,0xd8c088,5,5); burst(C.x,0.9,C.z,16,0xffd23f,6,6); SFX.niveau();
+  if(!C.coffre){ C.coffre=new THREE.Group(); const b=new THREE.Mesh(new THREE.BoxGeometry(0.8,0.45,0.5),new THREE.MeshLambertMaterial({color:0x6a3a1a})), cv=new THREE.Mesh(new THREE.BoxGeometry(0.82,0.12,0.52),new THREE.MeshLambertMaterial({color:0xc8963a})), or=new THREE.Mesh(new THREE.BoxGeometry(0.7,0.1,0.4),new THREE.MeshBasicMaterial({color:0xffd23f})); cv.position.y=0.28; or.position.y=0.24; C.coffre.add(b); C.coffre.add(cv); C.coffre.add(or); scene.add(C.coffre); }
+  C.coffre.position.set(C.x,-0.3,C.z); C.coffre.visible=true; C.dig={t:0}; bigMsg('💰 LE TRÉSOR DE LOU ! +'+g+' $'); }
+function majTresorCarte(dt){ const C=TRESOR_CARTE; if(C.dig&&C.coffre){ C.dig.t+=dt; C.coffre.position.y=Math.min(0.15,-0.3+C.dig.t*0.6); if(C.dig.t>8){ C.coffre.visible=false; C.dig=null; } } if(C.actif&&C.vague!==WAVES.n){ C.actif=false; } } /* une carte expire à la vague suivante */
+function tresorReinit(){ const C=TRESOR_CARTE; C.actif=false; C.vague=-1; C.trouve=false; C.dig=null; if(C.coffre) C.coffre.visible=false; tresorPanneau(false); }
+/* ---------- 6. LE TAUDIS DE LA ZONE : chez Rico « le Marteau », ancien boxeur qui squatte une friche industrielle ----------
+   La salle : une cour de friche la nuit sous la bruine (bitume mouillé et flaques, grillage, lampadaire au sodium, épave de
+   voiture brûlée, benne, palettes, pneus, le fût en feu, cheminées d'usine au loin, la ville orangée dans le ciel), la cabane de
+   tôles adossée au mur de l'entrepôt couvert de tags (son toit s'efface dedans) : canapé défoncé, matelas sur des palettes,
+   télé cathodique qui grésille (ZAPPER), ampoule nue qui se balance et clignote, bidons, bougie, canettes, le poste à cassettes,
+   l'affiche du dernier combat de Rico, et le chat errant qui va de son carton au feu.
+   - L'ÉTABLI BRICOLÉ (spécificité) : tuyaux, mèches, bocaux, ruban adhésif, étau — 3 grenades artisanales (planqueSpec, une
+     fois par vague), étincelles et grésillement de mèche.
+   - Le SAC DE FRAPPE (activité, sous l'auvent près du feu) : Rico annonce les coups, les notes descendent dans deux couloirs
+     (GAUCHE / DROITE) ; on frappe dans le temps au vrai bouton ; le tempo monte ; le sac encaisse et se balance. Bon score :
+     P.buffs.dmg (+35 % de dégâts) pendant 30 à 60 s ; record dans META.planquesJeux.frappe. */
+Object.assign(PQ_TEX_DESSIN,{
+  bitume:()=>cTex(256,(c,s)=>{ const r=pqAlea(91); c.fillStyle='#24252a'; c.fillRect(0,0,s,s); for(let i=0;i<5000;i++){ const v=r(); c.fillStyle=v<0.5?'rgba(10,10,12,'+(v*0.4).toFixed(2)+')':'rgba(120,120,130,'+((v-0.5)*0.18).toFixed(3)+')'; c.fillRect(r()*s,r()*s,1+r()*2,1+r()*2); }
+    c.strokeStyle='rgba(8,8,10,0.6)'; c.lineWidth=1.2; for(let k=0;k<6;k++){ c.beginPath(); let x=r()*s, y=r()*s; c.moveTo(x,y); for(let j=0;j<6;j++){ x+=(r()-0.5)*40; y+=(r()-0.5)*40; c.lineTo(x,y); } c.stroke(); } }),
+  toleRouille:()=>cTex(128,(c,s)=>{ for(let x=0;x<s;x+=8){ const g=c.createLinearGradient(x,0,x+8,0); g.addColorStop(0,'#6a6660'); g.addColorStop(0.5,'#9a948a'); g.addColorStop(1,'#5a5650'); c.fillStyle=g; c.fillRect(x,0,8,s); }
+    const r=pqAlea(93); for(let k=0;k<14;k++){ const x=r()*s, y=r()*s, w=8+r()*30; const g=c.createRadialGradient(x,y,1,x,y,w); g.addColorStop(0,'rgba(140,60,20,0.7)'); g.addColorStop(1,'rgba(140,60,20,0)'); c.fillStyle=g; c.fillRect(x-w,y-w,w*2,w*2); } c.fillStyle='rgba(120,50,20,0.5)'; for(let k=0;k<20;k++) c.fillRect(r()*s,r()*s*0.3,1.5,8+r()*30); }),
+  tags:()=>cTex(256,(c,s)=>{ const r=pqAlea(97); c.fillStyle='#5a5652'; c.fillRect(0,0,s,s); for(let i=0;i<1500;i++){ c.fillStyle='rgba(0,0,0,'+(r()*0.12).toFixed(2)+')'; c.fillRect(r()*s,r()*s,2,2); }
+    const mots=['RICO','ZONE','LE MARTEAU','KO','REYES','NO FUTUR']; const cols=['#ff5ad0','#7dff7a','#35c8e0','#ffd23f','#ff6a3a','#b48bff'];
+    for(let k=0;k<6;k++){ const t=mots[k%mots.length], x=10+r()*(s-120), y=40+r()*(s-60), fs=26+r()*22; c.save(); c.translate(x,y); c.rotate((r()-0.5)*0.35); c.font='900 '+fs+'px Arial'; c.lineWidth=7; c.strokeStyle='#111'; c.strokeText(t,0,0); c.fillStyle=cols[k%cols.length]; c.fillText(t,0,0);
+      c.fillStyle=cols[k%cols.length]; for(let d=0;d<4;d++) c.fillRect(r()*c.measureText(t).width,2,2,8+r()*20); c.restore(); } }),
+  affiche:()=>cTex(128,(c,s)=>{ c.fillStyle='#e8dcc0'; c.fillRect(0,0,s,s); c.fillStyle='#b8202a'; c.fillRect(0,0,s,30); c.fillStyle='#fff'; c.font='900 16px Arial'; c.textAlign='center'; c.fillText('GRAND COMBAT',s/2,21);
+    c.fillStyle='#1a1a1a'; c.font='900 20px Arial'; c.fillText('RICO',s/2,58); c.font='italic 700 12px Arial'; c.fillText('« LE MARTEAU »',s/2,74); c.font='900 14px Arial'; c.fillText('vs EL TORO',s/2,94); c.font='700 10px Arial'; c.fillText('LOS REYES — 1998',s/2,116); }),
+  carton:()=>cTex(64,(c,s)=>{ c.fillStyle='#b88a52'; c.fillRect(0,0,s,s); c.strokeStyle='rgba(90,60,30,0.5)'; for(let x=0;x<s;x+=4){ c.beginPath(); c.moveTo(x,0); c.lineTo(x,s); c.stroke(); } c.fillStyle='#5a3a1a'; c.font='900 11px Arial'; c.fillText('FRAGILE',6,36); }),
+});
+const SAC_NOTES=32, SAC_OBJECTIF=2200, SAC_PARFAIT=0.07, SAC_BON=0.15, SAC_BPM=[96,138];
+PQ_INT.taudis=function(s,g,ox,oz,W,P2){
+  const T=pqOutils(s,g), {M,MF,MP,MB,MT,mesh,B,C,S,PL,solide,seg,sprite}=T, Q=s.pq, r=pqAlea(1998);
+  const CIEL=new THREE.Color(0x2c2630); Q.feu={x:5.5,z:2.5}; Q.ampoule={x:-3,y:2.35,z:-4,ang:0,on:1};
+  s.pqAmb={soleil:0.34,hemi:0.64,ciel:CIEL,fogN:30,fogF:140,
+    lampe:(sa)=>{ const A=sa.pq.ampoule; return sa.pq.dedans?{x:sa.ox+A.x+Math.sin(A.ang)*0.4,y:A.y-0.5,z:sa.oz+A.z,c:0xffd8a0,i:1.35*A.on,d:11}:{x:sa.ox+sa.pq.feu.x,y:1.6,z:sa.oz+sa.pq.feu.z,c:0xff8a3a,i:1.5+0.3*Math.sin(Q.t*11)+0.2*Math.sin(Q.t*23),d:14}; }};
+  // ---- la nuit de la friche : ciel orangé par la ville, cheminées d'usine et leurs feux, la bruine ----
+  g.add(pqCiel(ox,oz,[0x14121a,0x2c2630,0x6a4a3a],185));
+  { const brique=MF(0x3a3230), feu=new THREE.SpriteMaterial({map:texGlow,color:0xff3a2a,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,fog:false}), fl=[];
+    for(const [x,z,h] of [[-60,-110,48],[-35,-120,62],[40,-100,40],[75,-130,70],[110,-90,34]]){ C(2.4,3.2,h,brique,x,h/2-2,z,10); fl.push(sprite(feu,x,h+0.5,z,5)); }
+    for(let k=0;k<9;k++){ const x=-120+k*30+r()*10, z=-80-r()*60, w=20+r()*20, h=10+r()*18; B(w,h,12,MF(0x1c1a20),x,h/2-2,z); }
+    Q.anim.push(()=>{ const on=Math.sin(Q.t*2.2)>0; for(const f of fl) if(f.visible!==on) f.visible=on; }); }
+  { const n=420, pos=new Float32Array(n*6), ra=pqAlea(99); for(let i=0;i<n;i++){ const x=ox+(ra()-0.5)*60, y=ra()*12, z=oz+(ra()-0.5)*44; pos.set([x,y,z,x-0.05,y-0.5,z],i*6); }
+    const geo=new THREE.BufferGeometry(); geo.setAttribute('position',new THREE.BufferAttribute(pos,3)); const U={uT:{value:0}};
+    const mt=new THREE.ShaderMaterial({uniforms:U,transparent:true,depthWrite:false,vertexShader:'uniform float uT; varying float vA; void main(){ vec3 p=position; float ph=fract(sin(dot(p.xz,vec2(12.9,78.2)))*43758.5); p.y=mod(p.y-uT*(9.0+ph*3.0),12.0); vA=0.22+ph*0.18; gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.0); }',fragmentShader:'varying float vA; void main(){ gl_FragColor=vec4(0.75,0.78,0.85,vA); }'});
+    const ln=new THREE.LineSegments(geo,mt); ln.frustumCulled=false; ln.userData.garder=true; g.add(ln); Q.anim.push((dt)=>{ U.uT.value+=dt; }); }
+  // ---- la cour : bitume mouillé, flaques qui reflètent, grillage, lampadaire au sodium, épave, benne, palettes, pneus ----
+  PL(120,60,MT(pqTexRep('bitume',20,10),0xc4c4cc),0,0,4,-Math.PI/2);
+  { const halo=new THREE.MeshBasicMaterial({map:texGlow,color:0xff9a3a,transparent:true,opacity:0.32,depthWrite:false,blending:THREE.AdditiveBlending}); for(const [x,z,r2] of [[-13.6,8,9],[-1.6,0.8,4.5],[5.5,2.5,7]]){ const h=mesh(new THREE.PlaneGeometry(r2,r2),halo,x,0.03,z); h.rotation.x=-Math.PI/2; h.userData.garder=true; } } /* les flaques de lumière : sous le lampadaire, devant la porte, autour du feu */
+  { const fl=new THREE.MeshPhongMaterial({color:0x14161c,shininess:140,specular:0xffb070,transparent:true,opacity:0.75}); for(const [x,z,w,d] of [[3,8,3.4,1.6],[-9,6,2.4,1.2],[11,1,2,1.4],[-1,11,1.6,0.9],[15,-6,2.6,1.4]]){ const f=mesh(new THREE.CircleGeometry(1,20),fl,x,0.02,z); f.rotation.x=-Math.PI/2; f.scale.set(w,d,1); } }
+  { const grill=new THREE.MeshLambertMaterial({color:0x8a8e96,wireframe:true}), poteau=M(0x6a6e76);
+    for(const [x0,z0,x1,z1] of [[-20,-9.5,-20,15],[20,-9.5,20,15],[-20,15,-3,15],[3,15,20,15]]){ const l=Math.hypot(x1-x0,z1-z0), ry=Math.atan2(-(z1-z0),x1-x0); const gm=mesh(new THREE.PlaneGeometry(l,2.4,Math.round(l*2),5),grill,(x0+x1)/2,1.2,(z0+z1)/2); gm.rotation.y=ry; gm.userData.garder=true;
+      for(let k=0;k<=Math.round(l/3);k++){ const t=k/Math.round(l/3); C(0.05,0.05,2.5,poteau,x0+(x1-x0)*t,1.25,z0+(z1-z0)*t,6); } seg([x0,2.42,z0],[x1,2.42,z1],0.03,poteau,4); } }
+  { C(0.08,0.1,6,M(0x3a3e46),-15,3,8,8); seg([-15,6,8],[-13.6,6.2,8],0.05,M(0x3a3e46),5); S(0.25,MB(0xffb050),-13.6,6.05,8,1.2,0.6,1); sprite(new THREE.SpriteMaterial({map:texGlow,color:0xff9a3a,transparent:true,opacity:0.5,depthWrite:false,blending:THREE.AdditiveBlending}),-13.6,5.6,8,7); solide(-15,8,0.12,0.12,6); }
+  { const ep=new THREE.Group(); ep.position.set(T.ox+14,0,T.oz+7); ep.rotation.y=0.5; g.add(ep); const noir=MF(0x2a2624), rou=MF(0x6a3a22); const bx=(w,h,d,m,x,y,z)=>{ const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m); o.position.set(x,y,z); ep.add(o); };
+    bx(1.9,0.7,4.4,rou,0,0.55,0); bx(1.7,0.6,2.2,noir,0,1.15,-0.3); bx(1.95,0.1,1.2,MF(0x1a1816),0,0.95,1.5); for(const [dx,dz] of [[-0.95,1.3],[0.95,1.3],[-0.95,-1.4],[0.95,-1.4]]) bx(0.3,0.3,0.3,noir,dx,0.15,dz); solide(14,7,1.6,2.3,1.6); }
+  { B(3.2,1.4,1.6,MP(0x2a5a3a,30,0x4a4a4a),-12,0.7,4); B(3.3,0.1,1.7,MF(0x1a3a26),-12,1.45,4); solide(-12,4,1.6,0.8,1.5);
+    for(const [x,z,n] of [[9,8,3],[-6,9,2],[17,-2,2]]) for(let k=0;k<n;k++) B(1.2,0.14,1.0,M(0x9a7a4a),x,0.07+k*0.15,z+(k%2)*0.1);
+    for(const [x,z] of [[-17,-3],[-16.2,-2.4],[-16.6,-3.4]]){ const pn=mesh(new THREE.TorusGeometry(0.42,0.18,6,14),MF(0x15171c),x,0.2,z); pn.rotation.x=Math.PI/2; } solide(-16.6,-3,1,1,0.6); }
+  // ---- le fût en feu, sous l'auvent : le coin du sac de frappe ----
+  { const fx=Q.feu.x, fz=Q.feu.z; C(0.45,0.45,1.0,MF(0x5a3a2a),fx,0.5,fz,12); solide(fx,fz,0.45,0.45,1.0);
+    const fm=new THREE.SpriteMaterial({map:pqTex('flamme'),transparent:true,depthWrite:false,blending:THREE.AdditiveBlending}), fl=[]; for(let k=0;k<3;k++) fl.push(sprite(fm,fx+(k-1)*0.14,1.3,fz,0.8,1.0));
+    sprite(new THREE.SpriteMaterial({map:texGlow,color:0xff7a2a,transparent:true,opacity:0.55,depthWrite:false,blending:THREE.AdditiveBlending}),fx,1.2,fz,4); Q.anim.push(()=>{ fl.forEach((f,k)=>{ const v=Q.t*(11+k*2); f.scale.set(0.7+Math.sin(v)*0.12,0.95+Math.sin(v*1.6)*0.2,1); }); });
+    const tole=MT(pqTexRep('toleRouille',2,1)); const au=B(6,0.1,4,tole,9.5,2.9,-2.5); au.rotation.x=-0.12; for(const [dx,dz] of [[-2.8,-0.6],[2.8,-0.6]]) C(0.08,0.08,3,M(0x6a6e76),9.5+dx,1.5,-2.5+dz+2,6); Q.toits.push({x0:6.5,x1:12.5,z0:-4.5,z1:-0.5,objs:[au],vis:true}); }
+  // ---- le sac de frappe : une poutre, une chaîne, le sac de cuir rafistolé au chatterton ; les gants sur un clou ----
+  { const sx=9.5, sz=-3.0; seg([7,2.6,sz],[12,2.6,sz],0.09,M(0x5a5e66),6); const sac=new THREE.Group(); sac.position.set(T.ox+sx,2.55,T.oz+sz); g.add(sac); sac.userData.garder=true;
+    const ch=new THREE.Mesh(new THREE.CylinderGeometry(0.015,0.015,0.5,4),M(0x8a8e96)); ch.position.y=-0.25; sac.add(ch);
+    const corps=new THREE.Mesh(new THREE.CylinderGeometry(0.32,0.32,1.25,16),MP(0x8a2420,30,0x5a3a3a)); corps.position.y=-1.15; sac.add(corps); for(const y of [-0.75,-1.55]){ const sc=new THREE.Mesh(new THREE.CylinderGeometry(0.33,0.33,0.12,16),M(0x7a7e86)); sc.position.y=y; sac.add(sc); }
+    const fond=new THREE.Mesh(new THREE.SphereGeometry(0.32,16,8,0,Math.PI*2,Math.PI/2,Math.PI/2),MP(0x8a2420,30,0x5a3a3a)); fond.position.y=-1.77; sac.add(fond); Q.sac={g:sac,vx:0,vz:0,ax:0,az:0,x:sx,z:sz}; solide(sx,sz,0.35,0.35,2.6);
+    for(const dx of [-0.2,0.2]) S(0.12,MP(0xc8202a,40,0x8a8a8a),7.2+dx,1.5,sz+0.05,1,1.1,0.8); B(0.1,0.04,0.04,M(0x8a8e96),7.2,1.75,sz+0.05); }
+  // ---- la cabane de tôles adossée au mur de l'entrepôt : le mur tagué, la porte bâchée ----
+  const cx=-3, cz=-4, cw=10, cd=7, hm=2.7; Q.cx=cx; Q.cz=cz; const tole=MT(pqTexRep('toleRouille',3,1));
+  { B(60,7,1,MT(pqTexRep('tags',6,1)),0,3.5,-9.5); solide(0,-9.5,30,0.5,7); B(4,3.2,0.1,MF(0x3a3e46),10,1.6,-8.95);
+    PL(cw,cd,MT(pqTexRep('bitume',3,2),0x6a6058),cx,0.02,cz,-Math.PI/2); PL(3.2,2.2,MT(pqTexRep('tags',1,1)),cx-cw/2+0.1,1.4,cz,0,Math.PI/2);
+    const mur=(x0,z0,x1,z1,ouv)=>{ const ry=Math.atan2(-(z1-z0),x1-x0), P0=(a)=>[x0+(x1-x0)*a,z0+(z1-z0)*a];
+      const morceau=(a,b)=>{ const [xa,za]=P0(a), [xb,zb]=P0(b), l=Math.hypot(xb-xa,zb-za); if(l<0.05) return; const o=mesh(pqBoiteUV(l,hm,0.08,2),tole,cx+(xa+xb)/2,hm/2,cz+(za+zb)/2); o.rotation.y=ry; solide(cx+(xa+xb)/2,cz+(za+zb)/2,Math.max(0.1,Math.abs(xb-xa)/2),Math.max(0.1,Math.abs(zb-za)/2),hm); };
+      if(!ouv){ morceau(0,1); return; } morceau(0,ouv[0]); morceau(ouv[1],1); };
+    mur(-cw/2,-cd/2,-cw/2,cd/2); mur(cw/2,-cd/2,cw/2,cd/2,[0.55,0.75]); mur(-cw/2,cd/2,cw/2,cd/2,[0.5,0.68]);
+    const bache=mesh(new THREE.PlaneGeometry(0.95,2.2,4,1),new THREE.MeshLambertMaterial({color:0x2a5a8a,side:THREE.DoubleSide}),cx+0.45,1.2,cz+cd/2-0.05); /* la bâche tirée sur un côté de la porte */ bache.userData.garder=true; { const p=bache.geometry.attributes.position, x0=Float32Array.from(p.array); Q.anim.push(()=>{ for(let i=0;i<p.count;i++) p.setZ(i,Math.sin(x0[i*3]*6+Q.t*1.3)*0.06*(1-(x0[i*3+1]+1.1)/2.2)); p.needsUpdate=true; }); }
+    const toit=[]; for(let k=0;k<4;k++){ const p=mesh(new THREE.BoxGeometry(cw/4+0.3,0.06,cd+0.8),MT(pqTexRep('toleRouille',1,2)),cx-cw/2+cw/8+k*cw/4,hm+0.15+k*0.04,cz); p.rotation.z=0.05*(k%2?1:-1); p.rotation.x=0.06; toit.push(p); }
+    toit.push(B(1.5,0.4,1.0,MF(0x3a3e46),cx+2,hm+0.45,cz-1)); toit.push(S(0.3,MF(0x15171c),cx-3,hm+0.4,cz+1.5,1,0.4,1)); Q.toits.push({x0:cx-cw/2,x1:cx+cw/2,z0:cz-cd/2,z1:cz+cd/2,objs:toit,dedans:true,vis:true}); }
+  // ---- dedans : canapé défoncé, matelas sur palettes, la télé qui grésille sur sa caisse, bidons, bougie, canettes, le poste, l'affiche ----
+  { const tis=MP(0x6a5a3a,10,0x2a2a2a), tis2=MP(0x5a4a30,10,0x2a2a2a);
+    B(3.0,0.5,1.0,tis,cx+0.5,0.3,cz-cd/2+0.8); B(3.0,0.75,0.3,tis,cx+0.5,0.75,cz-cd/2+0.35); for(const sd of [-1,1]) B(0.3,0.65,1.0,tis,cx+0.5+sd*1.45,0.55,cz-cd/2+0.8); B(1.3,0.16,0.9,tis2,cx-0.2,0.48,cz-cd/2+0.85).rotation.z=-0.12; B(1.2,0.22,0.9,tis2,cx+1.2,0.55,cz-cd/2+0.85); S(0.2,MF(0xd8d0c0),cx+1.3,0.62,cz-cd/2+1.0,1,0.4,1); solide(cx+0.5,cz-cd/2+0.7,1.6,0.6,0.9); /* une crevasse, de la mousse qui sort */
+    for(let k=0;k<3;k++) B(1.2,0.14,1.0,M(0x9a7a4a),cx-cw/2+1.1,0.07+k*0.15,cz-cd/2+1.4); B(1.9,0.22,0.95,M(0x7a7468),cx-cw/2+1.1,0.55,cz-cd/2+1.4); B(1.5,0.16,0.9,MP(0x2a4a3a,20,0x3a3a3a),cx-cw/2+1.2,0.72,cz-cd/2+1.4); B(0.5,0.14,0.35,M(0xd8d0c0),cx-cw/2+0.5,0.72,cz-cd/2+1.4); solide(cx-cw/2+1.1,cz-cd/2+1.4,0.95,0.55,0.8); Q.lit={x:cx-cw/2+1.1,z:cz-cd/2+2.6};
+    // la télé cathodique sur une caisse : un canevas qui grésille, une chaîne de boxe, les infos
+    B(1.0,0.6,0.7,MT(pqTex('carton')),cx+0.5,0.3,cz+0.4); const tv=B(0.9,0.7,0.65,MF(0x2a2a2c),cx+0.5,0.95,cz+0.35); const cv=document.createElement('canvas'); cv.width=128; cv.height=96; const tex=new THREE.CanvasTexture(cv); Q.tele={cv,tex,ch:0,t:0};
+    const ecr=PL(0.72,0.54,new THREE.MeshBasicMaterial({map:tex}),cx+0.5,0.97,cz+0.02,0,Math.PI); ecr.userData.garder=true; solide(cx+0.5,cz+0.4,0.5,0.4,1.3); seg([cx+0.75,1.3,cz+0.35],[cx+1.0,1.75,cz+0.3],0.008,M(0x9aa2ad),3); seg([cx+0.75,1.3,cz+0.35],[cx+0.5,1.78,cz+0.45],0.008,M(0x9aa2ad),3);
+    Q.anim.push((dt)=>{ const V=Q.tele; V.t+=dt; if((V.k=(V.k||0)+dt)<0.07) return; V.k=0; teleDessiner(V); V.tex.needsUpdate=true; });
+    for(const [x,z,c] of [[cx-2.5,cz+1.6,0x2a4a8a],[cx+3.8,cz+2.4,0x8a2a2a]]){ C(0.4,0.4,0.95,MF(c),x,0.48,z,12); solide(x,z,0.4,0.4,0.95); } C(0.05,0.05,0.12,M(0xf4f0e0),cx-2.5,1.02,cz+1.6,8); S(0.04,MB(0xffc870),cx-2.5,1.12,cz+1.6,1,1.6,1); sprite(new THREE.SpriteMaterial({map:texGlow,color:0xffb050,transparent:true,opacity:0.5,depthWrite:false,blending:THREE.AdditiveBlending}),cx-2.5,1.12,cz+1.6,0.9);
+    for(let k=0;k<7;k++){ const ca=C(0.035,0.035,0.12,MP([0xc8202a,0x2a8a3a,0xd8d8d8][k%3],80,0xffffff),cx-1+r()*3,0.06,cz-0.8+r()*3,8); if(k%2) ca.rotation.z=Math.PI/2; }
+    B(0.6,0.3,0.2,MF(0x2a2a2c),cx+3.6,1.12,cz+2.4); for(const dx of [-0.16,0.16]){ const hp=C(0.08,0.08,0.02,M(0x5a5e66),cx+3.6+dx,1.12,cz+2.29,10); hp.rotation.x=Math.PI/2; }
+    PL(0.9,1.2,MT(pqTex('affiche')),cx+1.6,1.6,cz-cd/2+0.06,0,0); /* le dernier combat de Rico */
+    // le carton du chat, la gamelle
+    B(0.8,0.45,0.6,MT(pqTex('carton')),cx-cw/2+0.6,0.23,cz+2.6); PL(0.6,0.45,M(0x8a6a4a),cx-cw/2+0.6,0.3,cz+2.6,-Math.PI/2); C(0.12,0.1,0.06,MP(0x3a6ad8,40,0x8a8a8a),cx-cw/2+1.4,0.03,cz+3.0,12);
+    // l'ampoule nue qui pend, se balance et clignote
+    const amp=new THREE.Group(); amp.position.set(T.ox+Q.ampoule.x,Q.ampoule.y+0.3,T.oz+Q.ampoule.z); g.add(amp); amp.userData.garder=true; const fil=new THREE.Mesh(new THREE.CylinderGeometry(0.008,0.008,0.6,4),M(0x111111)); fil.position.y=-0.3; amp.add(fil);
+    const bu=new THREE.Mesh(new THREE.SphereGeometry(0.07,10,8),new THREE.MeshBasicMaterial({color:0xffe6b0})); bu.position.y=-0.66; amp.add(bu); Q.ampM=bu.material; pqDessous(Q,amp);
+    Q.anim.push((dt)=>{ const A=Q.ampoule; A.ang=Math.sin(Q.t*1.1)*0.12; amp.rotation.x=A.ang; A.cl=(A.cl===undefined?3:A.cl)-dt; if(A.cl<=0){ A.cl=2+Math.random()*6; A.on=0.25; } else if(A.on<1) A.on=Math.min(1,A.on+dt*(Math.random()<0.5?6:1)); Q.ampM.color.setRGB(A.on,A.on*0.9,A.on*0.69); }); }
+  // ---- l'établi bricolé (est, dedans) : tuyaux, mèches, bocaux, ruban, étau, une grenade artisanale à moitié montée ----
+  { const ex=cx+cw/2-0.55, ez=cz-1.0; B(0.9,0.08,2.2,M(0x7a5a3a),ex,0.92,ez); for(const [dx,dz] of [[-0.35,-1.0],[0.35,-1.0],[-0.35,1.0],[0.35,1.0]]) B(0.08,0.9,0.08,M(0x5a5e66),ex+dx,0.45,ez+dz); solide(ex,ez,0.48,1.12,1.0);
+    for(let k=0;k<3;k++){ const tu=C(0.05,0.05,0.35,MP(0x7a7e86,80,0xc8ccd4),ex-0.1,1.03,ez-0.7+k*0.18,10); tu.rotation.z=Math.PI/2; } for(let k=0;k<3;k++){ C(0.08,0.08,0.2,new THREE.MeshPhongMaterial({color:[0x9ad0a0,0xd8c890,0x9ab8d8][k],transparent:true,opacity:0.6,shininess:120}),ex+0.25,1.06,ez+0.3+k*0.22,10); }
+    const ruban=mesh(new THREE.TorusGeometry(0.06,0.03,6,12),M(0x9aa2ad),ex-0.2,1.0,ez+0.6); ruban.rotation.x=Math.PI/2; B(0.2,0.14,0.16,MP(0x3a5aa0,60,0x9aa2ad),ex+0.2,1.03,ez-0.3); seg([ex-0.3,0.98,ez-0.1],[ex-0.05,0.98,ez+0.15],0.006,M(0xd8c060),3);
+    const gr=new THREE.Group(); gr.position.set(T.ox+ex+0.05,1.06,T.oz+ez); g.add(gr); gr.userData.garder=true; const gc=new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.06,0.22,10),MP(0x6a6e76,80,0xc8ccd4)); gc.rotation.z=Math.PI/2; gr.add(gc); const mc=new THREE.Mesh(new THREE.CylinderGeometry(0.008,0.008,0.18,4),M(0xd8c060)); mc.position.set(-0.18,0,0); mc.rotation.z=Math.PI/2; gr.add(mc); Q.grenade=gr;
+    PL(1.0,0.7,MT(pqTexte('NE PAS\nFUMER','#c8202a','#f4f0e0')),ex+0.4,1.7,ez,0,-Math.PI/2); }
+  // ---- le chat errant : il va de son carton au feu, s'assoit, se lèche, fuit quand on court sur lui ----
+  { const chat=new THREE.Group(); g.add(chat); chat.userData.garder=true; const gris=MF(0x6a6460), clair=MF(0x9a948a);
+    const co=new THREE.Mesh(new THREE.SphereGeometry(0.16,10,8),gris); co.scale.set(1,0.85,1.9); co.position.y=0.22; chat.add(co); const te=new THREE.Mesh(new THREE.SphereGeometry(0.11,10,8),gris); te.position.set(0,0.36,0.3); chat.add(te);
+    for(const sd of [-1,1]){ const o=new THREE.Mesh(new THREE.ConeGeometry(0.04,0.08,4),gris); o.position.set(sd*0.06,0.47,0.3); chat.add(o); const pa=new THREE.Mesh(new THREE.BoxGeometry(0.05,0.16,0.05),clair); pa.position.set(sd*0.07,0.08,0.18); chat.add(pa); const pb=pa.clone(); pb.position.z=-0.2; chat.add(pb); }
+    const queue=new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.03,0.42,6),gris); queue.position.set(0,0.36,-0.42); queue.rotation.x=-0.7; chat.add(queue);
+    for(const sd of [-1,1]){ const oe=new THREE.Mesh(new THREE.SphereGeometry(0.018,6,4),new THREE.MeshBasicMaterial({color:0xb8ff6a})); oe.position.set(sd*0.04,0.39,0.4); chat.add(oe); }
+    Q.chat={g:chat,queue,x:cx-cw/2+0.6,z:cz+2.6,cible:null,pause:3,etape:0,pts:[[cx-cw/2+0.6,cz+2.6],[Q.feu.x-1.2,Q.feu.z+0.8],[cx+0.5,cz-0.9],[cx-cw/2+1.4,cz+3.0],[3,5]]}; }
+  // ---- les zones : le matelas, la cachette (le bidon creux), l'établi, le sac ; la télé en plus ----
+  s.pqLit={x:ox+Q.lit.x,z:oz+Q.lit.z}; s.pqCoffre={x:ox+cx-2.5,z:oz+cz+2.4}; s.pqSpec={x:ox+cx+cw/2-1.5,z:oz+cz-1.0}; s.pqJeu={x:ox+Q.sac.x,z:oz+Q.sac.z+2.1}; s.pqPlus={x:ox+cx+0.5,z:oz+cz-0.9};
+  for(const tt of Q.toits) for(const o of tt.objs) o.userData.garder=true;
+  Q.action=(sa,k)=>k==='pqSpec'?taudisEtabliAction(sa):(k==='pqJeu'?sacAction(sa):(k==='pqPlus'?{label:'📺 ZAPPER',fn:()=>{ const V=sa.pq.tele; V.ch=(V.ch+1)%4; beep(1200,0.05,'square',0.03); }}:null));
+  Q.maj=(sa,dt,dtJeu)=>{ taudisMaj(sa,dt,dtJeu); majSac(sa,dt,dtJeu); };
+  Q.arreter=(sa)=>{ sacArreter(sa,false); };
+};
+// le son du taudis : la pluie sur la tôle (plus forte dedans), la télé qui grésille près d'elle, le feu, des gouttes, le chat
+PQ_SONS.taudis={nappes:[{type:'highpass',f:2600,q:0.4,v:0.022,lfo:0.07,prof:0.3,dedans:1.5},{type:'lowpass',f:180,q:0.6,v:0.012,lfo:0.05,prof:0.6,dedans:0.6}],
+  evts:(s,dt,dd)=>{ const Q=s.pq; const dt2=Math.sqrt(dist2(P.x,P.z,s.ox+Q.cx+0.5,s.oz+Q.cz+0.35)); if(dt2<6&&Q.tele&&Q.tele.ch===0&&Math.random()<dt*14) bruit(0.03,0.012*(1-dt2/6),3000+Math.random()*2000,'bandpass');
+    const df=Math.sqrt(dist2(P.x,P.z,s.ox+Q.feu.x,s.oz+Q.feu.z)); if(df<9&&Math.random()<dt*5) bruit(0.03+Math.random()*0.04,0.035*(1-df/9),2400+Math.random()*1400,'highpass');
+    if(Math.random()<dt*0.8) beep(1800+Math.random()*900,0.03,'sine',0.006,900); /* une goutte qui tombe du toit */
+    const K=Q.chat; if(K&&Math.random()<dt*0.04&&dist2(P.x,P.z,s.ox+K.x,s.oz+K.z)<64) beep(760,0.32,'triangle',0.012,540); }};
+function teleDessiner(V){ const c=V.cv.getContext('2d'), w=128, h=96; if(V.ch===0){ const im=c.createImageData(w,h); for(let i=0;i<im.data.length;i+=4){ const v=Math.random()*255|0; im.data[i]=im.data[i+1]=im.data[i+2]=v; im.data[i+3]=255; } c.putImageData(im,0,0); return; }
+  if(V.ch===1){ c.fillStyle='#2a3a6a'; c.fillRect(0,0,w,h); c.fillStyle='#d8c8a0'; c.fillRect(0,h*0.6,w,h*0.4); c.fillStyle='#c82a2a'; const x=40+Math.sin(V.t*3)*12; c.fillRect(x,30,14,30); c.fillStyle='#2a6ad8'; c.fillRect(x+26+Math.sin(V.t*4)*6,32,14,28); c.fillStyle='#fff'; c.font='700 9px Arial'; c.fillText('BOXE — ROUND 9',4,10); }
+  else if(V.ch===2){ c.fillStyle='#1a1a2a'; c.fillRect(0,0,w,h); c.fillStyle='#c8202a'; c.fillRect(0,h-20,w,20); c.fillStyle='#fff'; c.font='900 9px Arial'; c.fillText('FLASH INFO — LOS REYES',4,h-7); c.fillStyle='#d8b890'; c.fillRect(46,20,36,46); }
+  else { c.fillStyle='#0a0a0a'; c.fillRect(0,0,w,h); const cols=['#fff','#ff0','#0ff','#0f0','#f0f','#f00','#00f']; for(let k=0;k<7;k++){ c.fillStyle=cols[k]; c.fillRect(k*w/7,0,w/7+1,h*0.7); } }
+  c.fillStyle='rgba(0,0,0,0.25)'; for(let y=0;y<h;y+=3) c.fillRect(0,y,w,1); }
+function taudisEtabliAction(s){ const pq=s.pq.pq; if(!pq) return null; const U=PLANQUES.usage.taudis||(PLANQUES.usage.taudis={lit:-1,spec:-1});
+  if(U.spec===WAVES.n) return {label:'⏳ ÉTABLI : plus de tuyaux avant la prochaine vague',fn:()=>{ SFX.refus(); toast('Déjà bricolé cette vague','warn'); }};
+  return {label:'💣 BRICOLER 3 GRENADES ARTISANALES',fn:()=>{ if(!planqueSpec(pq)) return; s.pq.brico=1.4; bruit(0.6,0.05,3200,'highpass'); }}; }
+function taudisMaj(s,dt,dtJeu){ const Q=s.pq; if(Q.dessous) for(const o of Q.dessous) if(o.visible!==Q.dedans) o.visible=Q.dedans;
+  if(Q.brico>0){ Q.brico-=dtJeu; Q.grenade.rotation.x+=dtJeu*6; if(Math.random()<dtJeu*20){ const p=Q.grenade.getWorldPosition(new THREE.Vector3()); spawnP(p.x+rand(-0.1,0.1),p.y+0.1,p.z,rand(-1,1),rand(1,2.5),rand(-1,1),0.25,0.08,0xffd23f,0); } }
+  const K=Q.chat; if(K){ const c=K.g; const dj=Math.sqrt(dist2(P.x,P.z,s.ox+K.x,s.oz+K.z)), vite=Math.hypot(INPUT.mx||0,INPUT.mz||0)>0.6;
+    if(dj<1.8&&vite&&!K.fuite){ K.fuite=1.2; K.pause=0; K.cible=K.pts[(K.etape=(K.etape+2)%K.pts.length)]; beep(780,0.28,'triangle',0.02,520); }
+    if(K.fuite>0) K.fuite-=dtJeu; else K.fuite=0;
+    if(K.pause>0){ K.pause-=dtJeu; if(K.pause<=0) K.cible=K.pts[(K.etape=(K.etape+1)%K.pts.length)]; K.queue.rotation.z=Math.sin(Q.t*2)*0.4; }
+    else if(K.cible){ const dx=K.cible[0]-K.x, dz=K.cible[1]-K.z, d=Math.hypot(dx,dz), v=K.fuite>0?3.2:0.8; if(d<0.15){ K.cible=null; K.pause=4+Math.random()*7; if(dj<4&&Math.random()<0.4) beep(700,0.3,'triangle',0.015,560); }
+      else { K.x+=dx/d*Math.min(d,v*dtJeu); K.z+=dz/d*Math.min(d,v*dtJeu); c.rotation.y=Math.atan2(dx,dz); } }
+    c.position.set(s.ox+K.x,0,s.oz+K.z); } }
+/* ---- LE SAC DE FRAPPE : un jeu de rythme à deux boutons ---- */
+function sacAction(s){ if(s.pq.sacJ) return null; const rec=META.planquesJeux.frappe||0; return {label:'🥊 SAC DE FRAPPE — suis le rythme de Rico'+(rec?' (record '+rec+')':''),fn:()=>sacDemarrer(s)}; }
+function sacDemarrer(s){ const Q=s.pq; if(Q.sacJ) return; const notes=[]; let t=2.2;
+  for(let i=0;i<SAC_NOTES;i++){ const k=i/(SAC_NOTES-1), bpm=SAC_BPM[0]+(SAC_BPM[1]-SAC_BPM[0])*k, beat=60/bpm, motif=Math.floor(i/4)%4; const cote=[[0,1,0,1],[0,0,1,1],[0,1,1,0],[1,0,0,1]][motif][i%4];
+    notes.push({t,c:cote,etat:0}); t+=beat*(k>0.45&&i%4===0?0.5:1); } /* le tempo monte ; dans la 2e moitié, des une-deux rapides */
+  Q.sacJ={t:0,notes,score:0,combo:0,maxCombo:0,dernier:null,fin:t+1.2}; Q.tenu=true; const S0=Q.sac; Q.cadrage={actif:true,oeil:{x:s.ox+S0.x+0.45,y:2.35,z:s.oz+S0.z+5.4},vise:{x:s.ox+S0.x,y:1.3,z:s.oz+S0.z},fov:-10};
+  P.x=s.ox+S0.x-0.55; P.z=s.oz+S0.z+1.0; P.ang=Math.PI; if(P.h){ P.h.g.position.set(P.x,0,P.z); P.h.g.rotation.y=P.ang; } cacherBoutonsCombat(); sacUI(s,true); SFX.ui(); toast('Rico : « Garde ta garde, et cogne dans le temps ! »'); }
+function sacArreter(s,fini){ const Q=s&&s.pq; if(!Q||!Q.sacJ) return; Q.sacJ=null; Q.tenu=false; if(Q.cadrage) Q.cadrage.actif=false; sacUI(s,false); afficherBoutonsCombat(); }
+function sacFrapper(s,cote){ const Q=s.pq, J=Q.sacJ; if(!J) return; let best=null, bd=1e9; for(const n of J.notes){ if(n.etat||n.c!==cote) continue; const d=Math.abs(n.t-J.t); if(d<bd){ bd=d; best=n; } }
+  if(P.h) lancerCoup(P.h,'poings'); const S0=Q.sac;
+  if(best&&bd<=SAC_BON){ best.etat=1; const parfait=bd<=SAC_PARFAIT; J.combo++; J.maxCombo=Math.max(J.maxCombo,J.combo); const pts=Math.round((parfait?100:60)*(1+Math.min(1,Math.floor(J.combo/5)*0.1))); J.score+=pts; J.dernier={txt:parfait?'PARFAIT !':'BIEN',t:0.6,coul:parfait?'#ffd23f':'#7dff7a'};
+    S0.vz-=parfait?2.6:1.8; S0.vx+=(cote?-1:1)*0.6; beep(70,0.14,'sine',0.1); bruit(0.07,0.07,260,'lowpass'); vibre(parfait?30:15); }
+  else { J.combo=0; J.dernier={txt:'À CÔTÉ',t:0.5,coul:'#ff6a6a'}; S0.vz-=0.6; bruit(0.05,0.03,900); } }
+function majSac(s,dt,dtJeu){ const Q=s.pq, S0=Q.sac; if(S0){ S0.vx+=(-S0.ax*14-S0.vx*1.6)*dtJeu; S0.vz+=(-S0.az*14-S0.vz*1.6)*dtJeu; S0.ax+=S0.vx*dtJeu; S0.az+=S0.vz*dtJeu; S0.g.rotation.z=S0.ax*0.35; S0.g.rotation.x=-S0.az*0.35; } /* le sac encaisse et se balance (un pendule amorti) : poussé vers le nord, il s'éloigne */
+  const J=Q.sacJ; if(!J) return; P.x=s.ox+S0.x-0.55; P.z=s.oz+S0.z+1.0; P.ang=Math.PI; if(P.h){ P.h.g.position.set(P.x,0,P.z); P.h.g.rotation.y=P.ang; }
+  if(P.h&&P.h.coup) majCoup3P(P.h,dt); /* le joueur est tenu (majJoueur rend la main) : son coup de poing se joue ici */
+  J.t+=dtJeu; if(J.dernier) J.dernier.t-=dtJeu; for(const n of J.notes) if(!n.etat&&J.t>n.t+SAC_BON){ n.etat=2; J.combo=0; J.dernier={txt:'RATÉ',t:0.5,coul:'#ff6a6a'}; }
+  if(J.t>=J.fin) sacFin(s); else sacUI(s,true); }
+function sacFin(s){ const Q=s.pq, J=Q.sacJ; if(!J) return; const sc=J.score, Jx=META.planquesJeux, rec=sc>(Jx.frappe||0); if(rec){ Jx.frappe=sc; sauveMeta(); }
+  const buff=sc>=SAC_OBJECTIF*1.35?60:(sc>=SAC_OBJECTIF?30:0); if(buff) P.buffs.dmg=Math.max(P.buffs.dmg||0,buff); sacArreter(s,true);
+  bigMsg('🥊 '+sc+' POINTS'); toast(buff?'Rico : « T’as la frappe, gamin ! » — dégâts +35 % pendant '+buff+' s':'Rico : « Encore ! Dans le temps ! » ('+SAC_OBJECTIF+' pour la force)','or'); if(rec) toast('🏆 Record au sac : '+sc,'or'); }
+function sacUI(s,vis){ let d=document.getElementById('sacPan'); const J=s.pq.sacJ; if(!vis||!J){ if(d&&d.style.display!=='none') d.style.display='none'; return; }
+  if(!d){ d=document.createElement('div'); d.id='sacPan'; d.style.cssText='position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 14px);z-index:35;display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none;color:#f4f0e6;font:800 13px Arial;text-shadow:0 2px 3px #000';
+    d.innerHTML='<div id="scInfo" style="font:900 16px Arial"></div><div id="scRes" style="font:900 20px Arial;min-height:24px"></div><canvas id="scPiste" width="240" height="150" style="width:240px;height:150px;background:#0c0c10cc;border:2px solid #f4f0e6;border-radius:10px"></canvas><div style="display:flex;gap:18px"><button class="pill" id="scG" style="pointer-events:auto;font:900 17px Arial;width:120px;height:62px;background:#ff6a3a;color:#1a0a04;touch-action:none">◀ GAUCHE</button><button class="pill" id="scD" style="pointer-events:auto;font:900 17px Arial;width:120px;height:62px;background:#35c8e0;color:#04141a;touch-action:none">DROITE ▶</button></div><button class="pill" id="scStop" style="pointer-events:auto;font:700 11px Arial">✕ arrêter</button>';
+    document.body.appendChild(d); for(const [id,c] of [['scG',0],['scD',1]]) d.querySelector('#'+id).addEventListener('pointerdown',(e)=>{ e.preventDefault(); if(INT.actif&&INT.actif.pq) sacFrapper(INT.actif,c); });
+    d.querySelector('#scStop').addEventListener('pointerdown',(e)=>{ e.preventDefault(); if(INT.actif) sacArreter(INT.actif,false); }); }
+  if(d.style.display!=='flex') d.style.display='flex'; const inf='🥊 '+J.score+' pts — combo ×'+J.combo; const ie=d.querySelector('#scInfo'); if(ie._t!==inf){ ie._t=inf; ie.textContent=inf; }
+  const re=d.querySelector('#scRes'), rt=J.dernier&&J.dernier.t>0?J.dernier.txt:''; if(re._t!==rt){ re._t=rt; re.textContent=rt; re.style.color=J.dernier?J.dernier.coul:'#fff'; }
+  const c=d.querySelector('#scPiste').getContext('2d'), W2=240, H2=150, ligne=126, vit=110; c.clearRect(0,0,W2,H2); c.fillStyle='rgba(255,255,255,0.06)'; c.fillRect(20,0,90,H2); c.fillRect(130,0,90,H2);
+  c.strokeStyle='#f4f0e6'; c.lineWidth=3; c.beginPath(); c.moveTo(14,ligne); c.lineTo(226,ligne); c.stroke();
+  for(const n of J.notes){ if(n.etat===1) continue; const y=ligne-(n.t-J.t)*vit; if(y<-20||y>H2+20) continue; const x=n.c?175:65; c.fillStyle=n.etat===2?'#5a5a5a':(n.c?'#35c8e0':'#ff6a3a'); c.beginPath(); c.arc(x,y,14,0,7); c.fill(); c.fillStyle='#111'; c.font='900 13px Arial'; c.textAlign='center'; c.fillText(n.c?'D':'G',x,y+5); } }
+/* ---------- 7. LA VILLA PLANQUE : le concours de plongeon (l'activité qui lui manquait) ----------
+   La villa (salle « planque ») garde tout ce qu'elle avait ; son plongeoir, jusqu'ici décoratif, devient un concours : trois
+   plongeons. On monte l'échelle ; sur la planche qui ploie, l'aiguille d'ÉLAN monte et descend : SAUTER en haut donne de la
+   hauteur ; en l'air, MAINTENIR fait tourner (groupé), relâcher arrête ; il faut entrer dans l'eau tête la première, à la
+   verticale. Difficulté = demi-tours ; exécution = la verticale et la hauteur ; trois juges lèvent leurs notes. Record
+   META.planquesJeux.plongeon, prime une fois par vague au-delà de PLG_OBJECTIF. Le joueur est tenu (INT.actif.tenu). */
+const PLG_N=3, PLG_OBJECTIF=150, PLG_PRIME=200, PLG_G=9.8, PLG_EAU=-0.85, PLG_PLANCHE={x:0,y:1.86,z:-2.4};
+function plongeonAction(s){ if(s.plgJ) return null; const rec=META.planquesJeux.plongeon||0; return {label:'🤿 CONCOURS DE PLONGEON — 3 plongeons'+(rec?' (record '+rec+')':''),fn:()=>plongeonDemarrer(s)}; }
+function plongeonDemarrer(s){ if(s.plgJ) return; s.plgJ={n:0,total:0,phase:'elan',t:0,el:0,vy:0,y:0,z:0,ang:0,tourne:false,notes:null,attente:0,hist:[]}; s.tenu=true;
+  s.cadrage={actif:true,oeil:{x:s.ox+10.5,y:3.7,z:s.oz-0.6},vise:{x:s.ox,y:2.2,z:s.oz-1.4},fov:-2}; cacherBoutonsCombat(); plongeonPlacer(s); plongeonUI(s,true); SFX.ui();
+  s.plgEns=ENSEIGNES.filter((e)=>e.p&&e.p.parent&&Math.abs(e.p.position.x-s.ox)<4&&Math.abs(e.p.position.z-(s.oz-3.5))<2.5).map((e)=>e.p); for(const p of s.plgEns) p.visible=false; } /* l'enseigne PISCINE cachait le plongeur, vue de profil */
+function plongeonArreter(s){ if(!s||!s.plgJ) return; s.plgJ=null; s.tenu=false; for(const p of (s.plgEns||[])) p.visible=true; s.plgEns=null; if(s.cadrage) s.cadrage.actif=false; if(P.h){ P.h.g.rotation.x=0; P.h.brasD.rotation.x=0; P.h.brasG.rotation.x=0; } P.y=0; plongeonUI(s,false); afficherBoutonsCombat();
+  P.x=s.ox; P.z=s.oz-7.8; if(P.h) P.h.g.position.set(P.x,0,P.z); }
+function plongeonPlacer(s){ const J=s.plgJ; J.phase='elan'; J.t=0; J.ang=0; J.tourne=false; J.y=PLG_PLANCHE.y; J.z=PLG_PLANCHE.z; J.vy=0; P.x=s.ox+PLG_PLANCHE.x; P.z=s.oz+J.z; P.ang=0; }
+function plongeonAppui(s,bas){ const J=s.plgJ; if(!J) return; if(J.phase==='elan'&&bas){ J.q=0.5+0.5*Math.sin(J.el); J.vy=4.6+3.0*J.q; J.phase='vol'; J.t=0; beep(220,0.12,'sine',0.05,440); vibre(20); }
+  else if(J.phase==='vol') J.tourne=bas; }
+function majPlongeon(s,dt,dtJeu){ const J=s.plgJ; if(!J) return; J.t+=dtJeu; const h=P.h;
+  if(J.phase==='elan'){ J.el+=dtJeu*3.2; J.y=PLG_PLANCHE.y+Math.max(0,Math.sin(J.el))*0.1; if(h){ h.brasD.rotation.x=h.brasG.rotation.x=-0.4-0.3*Math.sin(J.el); } } /* la planche ploie, les bras battent la mesure */
+  else if(J.phase==='vol'){ J.vy-=PLG_G*dtJeu; J.y+=J.vy*dtJeu; J.z+=1.3*dtJeu; J.ang+=(J.tourne?9:1.1)*dtJeu; if(h){ const a=J.tourne?-2.4:-2.9; h.brasD.rotation.x=h.brasG.rotation.x=a; }
+    if(J.y<=PLG_EAU){ plongeonEntree(s); } } /* J.y : le bas du corps debout = la tête une fois retourné ; l'entrée, quand elle touche l'eau */
+  else if(J.phase==='notes'){ J.attente-=dtJeu; J.y=Math.min(PLG_EAU,J.y+dtJeu*0.6); if(J.attente<=0){ if(J.n>=PLG_N) plongeonFin(s); else plongeonPlacer(s); } }
+  if(!s.plgJ) return; P.y=J.phase==='notes'?0:J.y; if(h){ const th=J.phase==='vol'?J.ang:0; h.g.rotation.order='YXZ'; h.g.rotation.set(th,0,0); /* le salto autour du bassin du corps, pas des pieds */
+    h.g.position.set(s.ox,(J.phase==='notes'?PLG_EAU-0.4:J.y+0.9-0.9*Math.cos(th)),s.oz+J.z-0.9*Math.sin(th)); if(J.phase==='notes') h.g.visible=J.attente<1.0; else h.g.visible=true; }
+  plongeonUI(s,true); }
+function plongeonEntree(s){ const J=s.plgJ; const demi=Math.max(1,Math.round(J.ang/Math.PI)), cible=Math.PI*(demi%2?demi:demi+1), err=Math.abs(J.ang-cible); /* tête la première : un nombre impair de demi-tours */
+  const vertical=Math.max(0,1-err/0.9), haut=clamp(J.q||0,0,1), exec=clamp(10*vertical*(0.75+0.25*haut),0,10), dd=1+0.5*Math.min(5,demi);
+  const juges=[0,1,2].map((k)=>Math.round(clamp(exec+(Math.random()-0.5)*1.0,0,10)*2)/2), pts=Math.round(juges.reduce((a,b)=>a+b,0)*dd*10)/10;
+  J.total=Math.round((J.total+pts)*10)/10; J.n++; J.phase='notes'; J.attente=2.6; J.notes={juges,dd,pts,demi,nom:demi>=5?'Double salto et demi !':(demi>=3?'Salto et demi':'Plongeon simple')}; J.hist.push(pts);
+  const gros=vertical<0.6; for(let i=0;i<(gros?4:1);i++) burst(s.ox+(Math.random()-0.5)*0.6,PLG_EAU+0.2,s.oz+J.z,gros?14:6,0xd8f0ff,gros?7:3,gros?7:4); bruit(gros?0.5:0.18,gros?0.12:0.05,gros?600:1400,'lowpass'); vibre(gros?50:15);
+  if(!gros) beep(1200,0.08,'triangle',0.03); }
+function plongeonFin(s){ const J=s.plgJ; if(!J) return; const sc=J.total, Jx=META.planquesJeux, rec=sc>(Jx.plongeon||0); if(rec){ Jx.plongeon=sc; sauveMeta(); }
+  const g=sc>=PLG_OBJECTIF?primeMerUneFois('plongeon',PLG_PRIME):0; plongeonArreter(s); bigMsg('🤿 '+sc+' POINTS'); toast('🤿 '+sc+' points'+(rec?' — record !':'')+(g?' — +'+g+' $':(sc>=PLG_OBJECTIF?'':' — '+PLG_OBJECTIF+' pour la prime')),'or'); }
+function plongeonUI(s,vis){ let d=document.getElementById('plgPan'); const J=s.plgJ; if(!vis||!J){ if(d&&d.style.display!=='none') d.style.display='none'; return; }
+  if(!d){ d=document.createElement('div'); d.id='plgPan'; d.style.cssText='position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 16px);z-index:35;display:flex;flex-direction:column;align-items:center;gap:7px;pointer-events:none;color:#f4f8fc;font:800 13px Arial;text-shadow:0 2px 3px #000';
+    d.innerHTML='<div id="plgInfo" style="font:900 16px Arial"></div><div id="plgNotes" style="font:900 18px Arial;min-height:46px;text-align:center"></div><div id="plgJauge" style="width:min(70vw,280px)"><div style="font:700 11px Arial;text-align:left">ÉLAN</div><div style="position:relative;height:16px;background:#0c1620;border:2px solid #f4f8fc;border-radius:8px;overflow:hidden"><div style="position:absolute;top:0;bottom:0;left:80%;right:0;background:#3ad86a99"></div><div id="plgAig" style="position:absolute;top:-2px;bottom:-2px;width:5px;background:#fff"></div></div></div><button class="pill" id="plgBtn" style="pointer-events:auto;font:900 17px Arial;width:210px;height:60px;background:#35c8e0;color:#04141a;touch-action:none">SAUTER</button><button class="pill" id="plgStop" style="pointer-events:auto;font:700 11px Arial">✕ arrêter</button>';
+    document.body.appendChild(d); const b=d.querySelector('#plgBtn'); b.addEventListener('pointerdown',(e)=>{ e.preventDefault(); if(INT.actif) plongeonAppui(INT.actif,true); try{ b.setPointerCapture(e.pointerId); }catch(er){} });
+    const up=()=>{ if(INT.actif) plongeonAppui(INT.actif,false); }; b.addEventListener('pointerup',up); b.addEventListener('pointercancel',up); d.querySelector('#plgStop').addEventListener('pointerdown',(e)=>{ e.preventDefault(); if(INT.actif) plongeonArreter(INT.actif); }); }
+  if(d.style.display!=='flex') d.style.display='flex'; const inf='🤿 Plongeon '+Math.min(PLG_N,J.n+(J.phase==='notes'?0:1))+' / '+PLG_N+' — '+J.total+' pts'; const ie=d.querySelector('#plgInfo'); if(ie._t!==inf){ ie._t=inf; ie.textContent=inf; }
+  const nt=J.phase==='notes'&&J.notes?(J.notes.nom+'<br>'+J.notes.juges.map((v)=>'<span style="display:inline-block;background:#f4f8fc;color:#14202a;border-radius:4px;padding:1px 6px;margin:2px">'+v.toFixed(1)+'</span>').join('')+' × '+J.notes.dd+' = '+J.notes.pts):''; const ne=d.querySelector('#plgNotes'); if(ne._t!==nt){ ne._t=nt; ne.innerHTML=nt; }
+  const bt=d.querySelector('#plgBtn'), lab=J.phase==='elan'?'SAUTER':(J.phase==='vol'?'MAINTIENS : TOURNE':'…'); if(bt._t!==lab){ bt._t=lab; bt.textContent=lab; }
+  d.querySelector('#plgJauge').style.visibility=J.phase==='elan'?'visible':'hidden'; d.querySelector('#plgAig').style.left='calc('+((0.5+0.5*Math.sin(J.el))*100)+'% - 2px)'; }
 /* =====================================================================
    BOUTIQUES DE STYLE (14 octobre, demandé : « des boutiques où l'on se change, des habits classe en ville, fun
    sur la plage, adaptés aux quartiers, avec un tatoueur et un coiffeur ; se changer de manière dépareillée »).
@@ -19207,7 +19591,7 @@ function majJoueur(dt,dtJeu){
   // saisie des initiales) : le joueur reste immobile devant la machine, le
   // temps qui passe n'en coûte pas moins ailleurs (pas de pause du jeu ici)
   if(ARCADE.jeu||ARCADE.attenteInitiales) return;
-  if(INT.actif&&INT.actif.pq&&INT.actif.pq.tenu) return; // planques : tenu sur place pendant un jeu (le lancer de hache…)
+  if(INT.actif&&(INT.actif.tenu||INT.actif.pq&&INT.actif.pq.tenu)) return; // planques : tenu sur place pendant un jeu (le lancer de hache, le plongeon de la villa…)
 
   // déplacement à pied / à la nage
   const etaitNage=P.nage;
@@ -26401,7 +26785,9 @@ const INTDEFS={
   caravane:{nom:'Caravane du désert',ico:'🚐',w:36,d:32,sol:0xc8a070,mur:0xd0b088,ens:['CARAVANE','#ffd23f'],planque:'caravane'},
   penthouse:{nom:'Penthouse de la Tour Los Reyes',ico:'🏙️',w:44,d:36,sol:0x2a2e38,mur:0x3e4552,ens:['PENTHOUSE','#ffd23f'],planque:'penthouse'},
   cabanon:{nom:'Cabanon de plage',ico:'🏖️',w:44,d:36,sol:0xe8d0a0,mur:0xb89a72,ens:['CABANON','#ffd23f'],planque:'cabanon'},
-  chalet:{nom:'Chalet retranché',ico:'🏔️',w:44,d:36,sol:0xe8eef4,mur:0x7a5434,ens:['CHALET','#ffd23f'],planque:'chalet'}
+  chalet:{nom:'Chalet retranché',ico:'🏔️',w:44,d:36,sol:0xe8eef4,mur:0x7a5434,ens:['CHALET','#ffd23f'],planque:'chalet'},
+  voilier:{nom:'Voilier « Belle Échappée »',ico:'⛵',w:44,d:36,sol:0x1a8aa0,mur:0xf6f6f2,ens:['BELLE ÉCHAPPÉE','#ffd23f'],planque:'voilier'},
+  taudis:{nom:'Taudis de la zone',ico:'🛢️',w:44,d:36,sol:0x24252a,mur:0x7a6a5a,ens:['TAUDIS','#ffd23f'],planque:'taudis'}
 };
 // SITE 51 — dix objets de valeur, position relative (dx,dz depuis ox,oz), et
 // sas fermés à la prise (définitivement, pour la visite). Graphe et fermetures
@@ -26516,7 +26902,7 @@ const CATALOGUE=[
      fusionnés par matériau. Ni lumière ni applique dans le métro et le Site 51 (l'obscurité y est le jeu).
    Textures de détail en niveaux de gris, multipliées par la couleur d'origine de chaque salle : chaque salle
    garde sa palette. Rien n'est créé au chargement (textures à la première salle). */
-const SALLES_SANS_HABILLAGE=new Set(['aquarium','laverie','serre','radio','chalutier','cine','depot','boutique','caravane','penthouse','cabanon','chalet']);
+const SALLES_SANS_HABILLAGE=new Set(['aquarium','laverie','serre','radio','chalutier','cine','depot','boutique','caravane','penthouse','cabanon','chalet','voilier','taudis']);
 const HABILLAGE_SALLES={
   superette:{sol:['carrelage',2.7],mur:['faience',1.6],lambris:['panneau',0x4a6a58],deco:['affiche','neon','horloge','affiche','grille','extincteur'],affiches:['PROMO −30 %','FRAIS DU JOUR','OUVERT 24/7'],accent:'#ffd23f'},
   club:{dalleLum:0.42,sol:['dalles',2],mur:['capitonne',1.2],lambris:['capitonne',0x1c1630],deco:['neon','affiche','applique','neon','affiche'],affiches:['NUIT NÉON','DJ KAA','VENDREDI'],accent:'#ff5ad0'},
@@ -27318,6 +27704,7 @@ function construireSalle(id){
       new THREE.MeshLambertMaterial({color:0x0f6fa8,transparent:true,opacity:0.86}));
     eauPisc.rotation.x=-Math.PI/2; eauPisc.position.set(ox+PISC_CX,-0.85,oz+PISC_CZ); g.add(eauPisc);
     inter.piscine={x:ox+PISC_CX,z:oz+PISC_CZ,r:6};
+    inter.plongeoirV={x:ox,z:oz-7.8}; // le concours de plongeon (19 octobre) : au pied de l'échelle
     // plongeoir : une vraie structure en hauteur — socle, échelle,
     // plateforme, planche qui surplombe l'eau (jamais solide).
     const tCol=0xd8d2be, echCol=0x6a7480;
@@ -29178,7 +29565,7 @@ function sortirInterieur(){
   // chemin de sortie (ex : mort gérée séparément dans mourir()). La foule et
   // le moteur au ralenti sont coupés dans tous les cas, course ou pas.
   if(sc.depot){ if(sc.courseEnCours) depotAnnulerCourse(sc); depotAmbianceStop(); fermerDepotPanneau(); }
-  if(sc.pq) planqueSalleArreter(sc); // planque : activité arrêtée, ambiance coupée
+  if(sc.pq) planqueSalleArreter(sc); if(sc.plgJ) plongeonArreter(sc); // planque : activité arrêtée, ambiance coupée
   // Site 51 : filet de sécurité générique — les sorties normales (SORTIE,
   // GRANDE PORTE) concluent déjà la visite avant d'appeler sortirInterieur
   // (visiteEnCours passe à false), donc ceci ne fait rien dans ce cas ; ça
@@ -33018,7 +33405,8 @@ function majClub(s,dt,dtJeu){
 function majInterieur(dt,dtJeu){
   const s=INT.actif; if(!s) return;
   if(s.tuning) garageMajInterieur(s,dt,dtJeu); // porte roulante, étoiles, plateau
-  if(s.pq) majPlanqueSalle(s,dt,dtJeu); // planque : toits, animations, activité, ambiance
+  if(s.pq) majPlanqueSalle(s,dt,dtJeu);
+  if(s.plgJ) majPlongeon(s,dt,dtJeu); // la villa : le concours de plongeon // planque : toits, animations, activité, ambiance
   // ---- fouille en cours ----
   if(FOUILLE.cible){
     const f=FOUILLE.cible;
@@ -35705,6 +36093,7 @@ function drawCarte(){
     }
   }
   for(const q of reperesActifs()){ const p=carteProj(q.x,q.z); dessinerBadge(g,p.x,p.z,9,q.coul,q.ico,11); } // repérés à la longue-vue du penthouse
+  if(TRESOR_CARTE.actif&&!TRESOR_CARTE.trouve&&TRESOR_CARTE.vague===WAVES.n){ const p=carteProj(TRESOR_CARTE.zx,TRESOR_CARTE.zz); dessinerBadge(g,p.x,p.z,10,'#c8963a','🗺️',12); } // la carte au trésor de Lou
   // activités en plein air (courses, sports, sauts, ball-trap, héliport, tyrolienne…), sous les lieux
   if(MAPUI.filtres.activites){ if(!MAPUI.activites) MAPUI.activites=pointsActivites();
     for(const a of MAPUI.activites){ const p=carteProj(a.x,a.z); if(p.x<-10||p.x>346||p.z<-10||p.z>346) continue; dessinerBadge(g,p.x,p.z,8,a.coul||'#c8901a',a.ico,10); } }
@@ -36141,7 +36530,7 @@ function startRun(){
   // tourne encore) et suivait le joueur dans la partie suivante, en pleine
   // ville. Chaque arrêt est sans effet si l'ambiance ne tourne pas.
   metroAmbianceStop(); chalutierAmbianceStop(); radioAmbianceStop(); cineAmbianceStop(); depotAmbianceStop(); fermerDepotPanneau();
-  planqueAmbianceStop(); for(const k in INT.salles) if(INT.salles[k].pq) planqueSalleArreter(INT.salles[k]); REPERES.length=0; // planques : ambiance, activités, véhicule de l'atelier, repères de la longue-vue
+  planqueAmbianceStop(); for(const k in INT.salles){ if(INT.salles[k].pq) planqueSalleArreter(INT.salles[k]); if(INT.salles[k].plgJ) plongeonArreter(INT.salles[k]); } REPERES.length=0; tresorReinit(); // planques : ambiance, activités, véhicule de l'atelier, repères de la longue-vue
   if(INT.actif){ INT.actif=null; el('minimap').style.opacity='1'; }
   // lieux spéciaux : on remet à zéro ce qui appartient à la partie (les
   // curiosités, elles, sont acquises pour de bon et vivent dans META)
@@ -36493,7 +36882,7 @@ function mourir(){
   // depotLancerCourse), foule coupée (moteurStop() ci-dessus a déjà coupé le
   // moteur). Course déjà propre : deuxième appel sans effet.
   if(INT.actif&&INT.actif.depot){ if(INT.actif.courseEnCours) depotAnnulerCourse(INT.actif); depotAmbianceStop(); fermerDepotPanneau(); }
-  if(INT.actif&&INT.actif.pq) planqueSalleArreter(INT.actif); planqueAmbianceStop(); // planque : activité arrêtée, ambiance coupée tout de suite
+  if(INT.actif&&INT.actif.pq) planqueSalleArreter(INT.actif); if(INT.actif&&INT.actif.plgJ) plongeonArreter(INT.actif); planqueAmbianceStop(); // planque : activité arrêtée, ambiance coupée tout de suite
   P.h.g.rotation.z=Math.PI/2; P.h.g.position.y=0.35;
   reticule.visible=false;
   const record=ETAT.score>META.record;
@@ -36906,6 +37295,8 @@ function majAction(){
         fn=()=>aquariumDemarrer(s);
       }
     /* ---------- CABINET DE CURIOSITÉS (planque) ---------- */
+    } else if(s.plongeoirV&&!s.plgJ&&dist2(P.x,P.z,s.plongeoirV.x,s.plongeoirV.z)<marquerZone(s.plongeoirV,6.25)){
+      const a=plongeonAction(s); label=a.label; fn=a.fn;
     } else if(s.vitrine&&dist2(P.x,P.z,s.vitrine.x,s.vitrine.z)<marquerZone(s.vitrine,15)){
       label='🗄️ CABINET DE CURIOSITÉS — '+nbCurios()+'/'+CURIOS_ACTIVES.length;
       fn=()=>{ ETAT.retour='jeu'; renderDefis(); ecran('defis'); SFX.ui(); };
@@ -37438,6 +37829,8 @@ function majAction(){
       label='🏀 CONCOURS DE TIRS — 10 tirs, 45 s'; fn=basketDemarrer;
     } else if(!P.veh&&SURPRISES.liste.length&&surpriseAction()){
       const a=surpriseAction(); label=a.label; fn=a.fn;
+    } else if(tresorCarteProche()){
+      label='⛏️ CREUSER ICI — la carte de Lou'; fn=tresorCreuser;
     } else if(!P.veh&&TOITS.coffres.length&&coffreToitProche()){
       const c=coffreToitProche(); label=c.vague===WAVES.n?'📦 Coffre déjà fouillé':'📦 FOUILLER LE COFFRE DU TOIT'; fn=()=>fouillerCoffreToit(c);
     } else if(DECOR_V2&&tourProche()){
@@ -39530,7 +39923,7 @@ function majCamera(dt){
   if(INT.actif&&INT.actif.leds&&INT.actif.console) cadrageSalle(INT.actif,dt,!!INT.actif.emissionOn,INT.actif.console.x,0.5,INT.actif.console.z-3.5,16,12); // radio V3 : on se penche sur la console
   if(INT.actif&&INT.actif.etabliArmes) cadrageSalle(INT.actif,dt,!!ATELIER.ouvert,INT.actif.etabliArmes.px,1.6,INT.actif.etabliArmes.pz+1.2,2.6,3.6); // armurerie : penché sur l'établi
   if(INT.actif&&INT.actif.mach7) cadrageSalle(INT.actif,dt,!!INT.actif.cycleOn,INT.actif.mach7X,1.2,INT.actif.mach7Z-1.8,13,10.5); // laverie V3 : on se penche sur la machine 7
-  if(INT.actif&&INT.actif.pq&&INT.actif.pq.cadrage) fovPlus+=cadragePlanque(INT.actif,dt,INT.actif.pq.cadrage); // planques : un jeu vu de près (le lancer de hache, par-dessus l'épaule)
+  { const cad=INT.actif&&(INT.actif.pq&&INT.actif.pq.cadrage||INT.actif.cadrage); if(cad) fovPlus+=cadragePlanque(INT.actif,dt,cad); } // planques : un jeu vu de près (le lancer de hache par-dessus l'épaule, le plongeon de la villa de profil)
   if(INT.actif&&INT.actif.barre){ fovPlus=chalutierCamera(INT.actif,dt,sx,sz); // chalutier en mer : caméra de poursuite (V3)
     const m=INT.actif.meteoEtat; camera.rotation.z+=Math.sin(ETAT.runT*0.9)*(m==='tempete'?0.05:(m==='houle'?0.025:0.008)); } // chalutier : roulis selon la mer
   if((P.ivresse||0)>IVRESSE.pompette) camera.rotation.z+=Math.sin(ETAT.runT*1.1)*0.06*Math.min(1,(P.ivresse-IVRESSE.pompette)/50); // ivresse : l'image tangue
@@ -39658,6 +40051,7 @@ function majMinimap(){
   if(POIS.skateXXL) badge(POIS.skateXXL.x,POIS.skateXXL.z,'#ff3bd0','🛹'); // Reyes Skatepark (désert)
   if(META.jetpackTrouve&&POIS.toitH&&POIS.toitH.jetpack) badge(POIS.toitH.jetpack.x,POIS.toitH.jetpack.z,'#35c8ff','🚀');
   for(const q of reperesActifs()) badge(q.x,q.z,q.coul,q.ico); // repérés à la longue-vue du penthouse (jusqu'à la vague suivante)
+  if(TRESOR_CARTE.actif&&!TRESOR_CARTE.trouve&&TRESOR_CARTE.vague===WAVES.n) badge(TRESOR_CARTE.zx,TRESOR_CARTE.zz,'#c8963a','🗺️'); // la carte au trésor de Lou : la zone, jamais la croix
   // Le Micro Vintage : les caches non fouillées de la salle (40 m), à leur offset réel autour de la porte
   if(INT.actif&&aCurio('micro')) for(const f of INT.actif.fouilles){
     if(f.prisVague===WAVES.n) continue;
@@ -39731,7 +40125,7 @@ function tick(t){
     ETAT.comboT-=dt;
     if(ETAT.comboT<=0) ETAT.combo=1;
     if(ETAT.slowT>0){ ETAT.slowT-=dtReel; if(ETAT.slowT<=0&&ETAT.mode==='jeu') ETAT.timeScale=1; }
-    if(ETAT.mode==='jeu'){ majNitro(dtJeu); if(DECOR_V2) towEntrees(); if(DERBY.actif) derbyEntrees(); if(!MANEGES.actif&&!FPS.actif) majJoueur(dt,dtJeu); majFPS(dt,dtJeu); majIvresse(dtJeu); if(DECOR_V2){ majRides(dtJeu); majPic(dt); majTow(dt,dtJeu); majBasket(dt,dtJeu); majSportJ(dt,dtJeu); majToitsSurprises(dt,dtJeu); } } // nitro décidée AVANT la physique du véhicule
+    if(ETAT.mode==='jeu'){ majNitro(dtJeu); if(DECOR_V2) towEntrees(); if(DERBY.actif) derbyEntrees(); if(!MANEGES.actif&&!FPS.actif) majJoueur(dt,dtJeu); majFPS(dt,dtJeu); majIvresse(dtJeu); majTresorCarte(dt); if(DECOR_V2){ majRides(dtJeu); majPic(dt); majTow(dt,dtJeu); majBasket(dt,dtJeu); majSportJ(dt,dtJeu); majToitsSurprises(dt,dtJeu); } } // nitro décidée AVANT la physique du véhicule
     majEnnemis(dt);
     if(!INT.actif){
       majPietons(dt);
