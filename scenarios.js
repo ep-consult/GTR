@@ -8212,7 +8212,7 @@ async function main() {
           const y0 = P.y; for (let i = 0; i < 120; i++) { INPUT.mx = mx; INPUT.mz = mz; majJoueur(1 / 30, 1 / 30); } INPUT.mx = INPUT.mz = 0; return { d: +Math.hypot(P.x - x, P.z - z).toFixed(1), dy: +(P.y - y0).toFixed(1) }; };
         const veh = (cle, x, z, ang) => { startRun(); for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0; const v = creerVehicule(cle, x, z, ang, null); v.h = solY(x, z);
           const y0 = v.h; for (let i = 0; i < 150; i++) majVehiculePhys(v, 1 / 30, 1, 0, false); const r = { d: +Math.hypot(v.x - x, v.z - z).toFixed(0), dy: +((v.h || 0) - y0).toFixed(1), degats: v.def.hp - v.hp, vmax5: v.def.vmax * 5 }; scene.remove(v.mesh); vehicules.length = 0; return r; };
-        o.mesaH = m.h; o.piedParoi = pied(sx, sz, -1, 0); o.piedPlat = pied(sx, sz + 60, 0, 1); o.piedMont = pied(s.x - 50, s.z, 1, 0);
+        o.mesaH = m.h; o.piedParoi = pied(sx, sz, -1, 0); o.piedPlat = pied(sx, sz + 60, 0, 1); o.piedMont = pied(s.x - 50, (() => { for (let dz = 0; dz <= 40; dz += 2) for (const sg of [1, -1]) { const z = s.z + sg * dz; let ok = true; for (let k = 1; k <= 16; k++) if (solPied(s.x - 50 + k, z) - solPied(s.x - 51 + k, z) > 1.1) { ok = false; break; } if (ok && solPied(s.x - 34, z) - solPied(s.x - 50, z) > 4) return z; } return s.z; })(), 1, 0); /* une pente régulière (le relief du mont V2 a ses petites falaises) : le test maîtrise sa scène */
         o.vehParoi = veh('motocross', sx, sz, -Math.PI / 2); o.vehMont = veh('motocross', s.x - 68, s.z, Math.PI / 2);
         startRun(); return o;
       });
@@ -15318,6 +15318,184 @@ async function main() {
       });
       if (r.ko.length) fail('Missile du chasseur : ' + r.ko.join(' ; ')); else ok('Missile du chasseur : ' + r.info.join(' ; '));
     }
+    console.log('\n--- Mont Reyes V2 : relief et sols, lieux, sentier et montée sèche intacts, végétation, sentes ---');
+    {
+      const r = await page.evaluate(() => {
+        if (!DECOR_V2 || typeof MONT2 === 'undefined' || !MONT2.ok) return { off: true };
+        const ko = [], info = []; startRun(); ecran(null); ETAT.mode = 'jeu';
+        if (!MONT2.actif || !MONT.detail) ko.push('couche de relief éteinte');
+        const S = MONT2.sites, H = hauteurMont, H0 = hauteurMontSansDetail;
+        const voulus = ['lac', 'chute', 'grotte', 'refuge', 'belvedere', 'parapente', 'camp', 'pont', 'alpage']; /* la demande (les lieux du mont), pas une liste du jeu */
+        const manquent = voulus.filter((k) => !S[k]); if (manquent.length) ko.push('lieux absents : ' + manquent.join(', ')); else info.push(voulus.length + ' lieux');
+        // le sentier (son ruban), la montée sèche, les tremplins : exactement l'ancien relief
+        let eS = 0, eC = 0, eK = 0; const T = MONT.sentier;
+        for (let s = 0; s < T.length - 1; s++) { const [ax, az] = T[s], [bx, bz] = T[s + 1], L = Math.hypot(bx - ax, bz - az) || 1, nx = -(bz - az) / L, nz = (bx - ax) / L;
+          for (let k = 0; k <= 24; k++) for (const lat of [-1.3, 0, 1.3]) { const t = k / 24, x = ax + (bx - ax) * t + nx * lat, z = az + (bz - az) * t + nz * lat; if (H0(x, z) > 0 && s < T.length - 2 && dist2(x, z, T[T.length - 2][0], T[T.length - 2][1]) > 25) eS = Math.max(eS, Math.abs(H(x, z) - H0(x, z))); } } /* hors de l'emprise, la rampe du pied est nouvelle ; la dernière branche, la rampe du sommet aussi (la continuité les vérifie) */
+        // le sentier sans marche : de 0,5 u en 0,5 u, jamais plus de 0,9 u de dénivelé (une vraie marche ; les raidillons d’origine après les virages, jusqu’à 1,7, se gravissent : le marcheur le vérifie) (hors des tremplins, dont la lèvre est franche)
+        let marche = 0, ou = ''; for (let s = 0; s < T.length - 1; s++) { const [ax, az] = T[s], [bx, bz] = T[s + 1], L = Math.hypot(bx - ax, bz - az) || 1; let yp = null; for (let d = 0; d <= L; d += 0.5) { const x = ax + (bx - ax) * d / L, z = az + (bz - az) * d / L, y = solY(x, z);
+            if (yp !== null && !MONT.kickers.some((k) => dist2(x, z, k.x, k.z) < 49) && Math.abs(y - yp) > marche) { marche = Math.abs(y - yp); ou = x.toFixed(0) + ',' + z.toFixed(0); } yp = y; } }
+        if (marche > 0.9) ko.push('une marche de ' + marche.toFixed(2) + ' u sur le sentier (' + ou + ')'); else info.push('sentier continu (marche max ' + marche.toFixed(2) + ' u)');
+        const C = MONT.couloir; if (C) for (let z = C.z1; z <= C.z0; z += 1.5) for (const dx of [-3, 0, 3]) eC = Math.max(eC, Math.abs(H(C.x + dx, z) - H0(C.x + dx, z)));
+        for (const k of MONT.kickers) eK = Math.max(eK, Math.abs(H(k.x, k.z) - H0(k.x, k.z)));
+        if (eS > 0.02 || eC > 0.02 || eK > 0.02) ko.push('écart à l’ancien relief : sentier ' + eS.toFixed(3) + ', montée sèche ' + eC.toFixed(3) + ', tremplins ' + eK.toFixed(3) + ' u');
+        // les terrasses des lieux : à plat (hors de la bande qui rejoint le sentier)
+        for (const k of ['refuge', 'belvedere', 'camp']) { const q = S[k]; if (!q) continue; let e = 0; for (let a = 0; a < 12; a++) for (const rr of [0, q.r * 0.4, q.r * 0.75]) { const x = q.x + Math.cos(a / 12 * 6.283) * rr, z = q.z + Math.sin(a / 12 * 6.283) * rr; if (montDistSentier(x, z) < 4.8) continue; e = Math.max(e, Math.abs(H(x, z) - q.y)); } if (e > 0.4) ko.push(k + ' pas à plat (' + e.toFixed(2) + ' u)'); }
+        // le lac : de la vraie eau, une berge toujours au-dessus de l'eau (sauf l'échancrure de la cascade)
+        if (S.lac) { const L = S.lac; if (!estEau(L.x, L.z)) ko.push('le lac n’est pas de l’eau'); let bas = 1e9; for (let a = 0; a < 24; a++) { const x = L.x + Math.cos(a / 24 * 6.283) * (L.r + 0.3), z = L.z + Math.sin(a / 24 * 6.283) * (L.r + 0.3); /* au bord du disque d'eau */ if (S.chute && dist2(x, z, S.chute.x, S.chute.z) < 16) continue; bas = Math.min(bas, H(x, z)); } /* l'échancrure de la cascade : 4 u */
+          if (bas < L.y - 0.05) ko.push('la berge du lac passe sous l’eau (' + (bas - L.y).toFixed(2) + ' u)'); }
+        // le pont de singe : un tablier praticable, au-dessus de la gorge
+        if (S.pont) { const R = S.pont, mx = R.ax + R.ux * 8, mz = R.az + R.uz * 8, yd = solY(mx, mz); if (!(yd > H(mx, mz) + 1)) ko.push('le pont de singe ne porte pas (' + yd.toFixed(1) + ', sol ' + H(mx, mz).toFixed(1) + ')'); else info.push('pont de singe à ' + (yd - H(mx, mz)).toFixed(1) + ' u au-dessus de la gorge'); }
+        // les sols : neige au sommet, prairie à l'alpage, roche sur les parois
+        const pente = (x, z) => Math.hypot(H(x + 1, z) - H(x - 1, z), H(x, z + 1) - H(x, z - 1)) / 2, poids = (x, z) => montPoids(x, z, H(x, z), pente(x, z), 0), Sm = MONT.sommet;
+        if (!(poids(Sm.x + 3, Sm.z + 3)[5] > 0.5)) ko.push('pas de neige au sommet');
+        if (S.alpage && !(poids(S.alpage.x, S.alpage.z)[0] > 0.4)) ko.push('l’alpage n’est pas une prairie');
+        let roc = null; for (let k = 0; k < 800 && !roc; k++) { const a = k * 2.399, rr = 0.3 + (k % 6) * 0.08, x = MONT.x + Math.cos(a) * MONT.rx * rr, z = MONT.z + Math.sin(a) * MONT.rz * rr, al = H(x, z) / MONT.H; if (al > 0.4 && al < 0.7 && pente(x, z) > 2.2 && montU(x, z) < 0.8) roc = { x, z }; }
+        if (roc && !(poids(roc.x, roc.z)[4] > 0.5)) ko.push('une paroi (pente > 2,2) n’est pas de la roche');
+        // la végétation : par étage ; ni arbre ni rocher sur le sentier, rien dans le lac, l'alpage sans arbres
+        const veg = {}; let surSentier = 0, dansLac = 0, dansAlpage = 0, horsEtage = 0;
+        for (const im of MONT2.veg) { const so = im.userData.sorte, L2 = im.userData.liste.filter((it) => !it.cache); veg[so] = L2.length; im.geometry.computeBoundingBox(); const grand = im.geometry.boundingBox.max.y - im.geometry.boundingBox.min.y > 0.9; /* arbres, buissons, rochers : la taille de la géométrie */
+          for (const it of L2) { if (grand && montDistSentier(it.x, it.z) < 2.6) surSentier++; if (S.lac && dist2(it.x, it.z, S.lac.x, S.lac.z) < S.lac.r * S.lac.r) dansLac++; if (grand && S.alpage && dist2(it.x, it.z, S.alpage.x, S.alpage.z) < S.alpage.r * S.alpage.r) dansAlpage++;
+            if (so === 'sapin') { const al = H(it.x, it.z) / MONT.H; if (al < 0.18 || al > 0.72) horsEtage++; } } }
+        if (surSentier || dansLac || dansAlpage || horsEtage) ko.push('végétation : ' + surSentier + ' sur le sentier, ' + dansLac + ' dans le lac, ' + dansAlpage + ' arbres dans l’alpage, ' + horsEtage + ' sapins hors de leur étage');
+        if (!(veg.sapin > 100) || !(veg.herbe > 300)) ko.push('végétation clairsemée : ' + JSON.stringify(veg)); else info.push(Object.entries(veg).map(([k, n]) => n + ' ' + k).join(', '));
+        // les sentes : du lieu jusqu'au sentier, marchables
+        for (const se of MONT2.sentes) { const f = se.pts[se.pts.length - 1]; if (montDistSentier(f[0], f[1]) > 2) ko.push('la sente ' + se.k + ' n’atteint pas le sentier');
+          let raides = 0; for (let i = 1; i < se.pts.length; i++) { const [x0, z0] = se.pts[i - 1], [x1, z1] = se.pts[i]; if (Math.abs(H(x1, z1) - H(x0, z0)) / (Math.hypot(x1 - x0, z1 - z0) || 1) > PENTE_MAX_PIED) raides++; }
+          if (raides > se.pts.length * 0.1) ko.push('la sente ' + se.k + ' est trop raide (' + raides + '/' + se.pts.length + ' pas)'); }
+        if (MONT2.sentes.length < 3) ko.push('seulement ' + MONT2.sentes.length + ' sentes'); else info.push(MONT2.sentes.length + ' sentes (' + MONT2.sentes.map((q) => q.k).join(', ') + ')');
+        return { ko, info };
+      });
+      if (r.off) saute('Mont Reyes V2 : décor V2 coupé');
+      else if (r.ko.length) fail('Mont Reyes V2, relief : ' + r.ko.join(' | ') + ' [' + r.info.join(' ; ') + ']');
+      else ok('Mont Reyes V2, relief : ' + r.info.join(' ; ') + ' — sentier, montée sèche et tremplins inchangés, terrasses à plat, lac contenu, neige au sommet, roche sur les parois');
+    }
+
+    // -------------------------------------------------------------------
+    console.log('\n--- Mont Reyes V2 : montée réaliste (à pied, moto cross, 4x4, citadine), jamais sous le sol, filet de sécurité ---');
+    {
+      const r = await page.evaluate(() => {
+        if (!DECOR_V2 || typeof MONT2 === 'undefined' || !MONT2.ok) return { off: true };
+        const ko = [], info = []; META.vue = 'classique';
+        const T = MONT.sentier, cumul = [0]; for (let i = 1; i < T.length; i++) cumul.push(cumul[i - 1] + Math.hypot(T[i][0] - T[i - 1][0], T[i][1] - T[i - 1][1])); const Ltot = cumul[cumul.length - 1];
+        const point = (s) => { s = clamp(s, 0, Ltot); let i = 1; while (i < T.length - 1 && cumul[i] < s) i++; const t = (s - cumul[i - 1]) / ((cumul[i] - cumul[i - 1]) || 1); return [T[i - 1][0] + (T[i][0] - T[i - 1][0]) * t, T[i - 1][1] + (T[i][1] - T[i - 1][1]) * t]; };
+        /* l'abscisse sur le tracé, cherchée près de la précédente : les branches du lacet sont à 10 u l'une de l'autre */
+        const absPres = (x, z, cur, sens) => { let best = cur, bd = 1e9; const av = sens < 0 ? 40 : 15, ap = sens < 0 ? 15 : 40; for (let s = 0; s < T.length - 1; s++) { if (cumul[s + 1] < cur - av || cumul[s] > cur + ap) continue; /* dans le sens de la marche */ const [ax, az] = T[s], [bx, bz] = T[s + 1], dx = bx - ax, dz = bz - az, L2 = dx * dx + dz * dz || 1, t = clamp(((x - ax) * dx + (z - az) * dz) / L2, 0, 1), d = dist2(x, z, ax + dx * t, az + dz * t); if (d < bd) { bd = d; best = cumul[s] + t * Math.sqrt(L2); } } return best; };
+        const scene0 = () => { startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6; for (const e of ennemis) e.mort = true; WAVES.etat = 'repos'; WAVES.t = 1e9; for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0;
+          for (const m of MOTARDS.liste) { m.actif = false; m.g.visible = false; m.reT = 1e9; } }; /* la scène maîtrisée : les motards du sentier écartés (percutés, leur moto devenait un véhicule sur le chemin) */
+        // à pied : le sentier entier, à la marche, au sprint, puis la descente
+        const aPied = (sprint, monte) => { scene0(); let cur = monte ? 0 : Ltot; const [x0, z0] = point(cur); P.x = x0; P.z = z0; P.y = solY(x0, z0); P.vy = 0; P.chute = false; P.stam = P.stamMax; P.essouffle = false;
+          let t = 0, sousSol = 0, derP = cur, derT = 0, essT = 0, maxBloc = 0, dist = 0; const dt = 1 / 30;
+          while (t < 400) { const nc = absPres(P.x, P.z, cur, monte ? 1 : -1); cur = monte ? Math.max(cur, nc) : Math.min(cur, nc); /* la progression ne recule jamais (les branches du lacet sont voisines) */ if (monte ? cur > Ltot - 2 : cur < 2) break; let [tx, tz] = point(cur + (monte ? 4 : -4));
+            if (!monte) for (const k of MONT.kickers) { const ax = P.x - k.x, az = P.z - k.z, al = ax * k.tx + az * k.tz, la = -ax * k.tz + az * k.tx; if (al > -1.5 && al < 9 && Math.abs(la) < 2.8) { const sg = la < 0 ? -1 : 1, aa = Math.abs(la) < 2.3 && al > 2 ? al : -2.5; tx = k.x + k.tx * aa - k.tz * sg * 3.2; tz = k.z + k.tz * aa + k.tx * sg * 3.2; break; } } /* au pied de la lèvre, d'abord un pas de côté */ /* en descendant, la lèvre d'un tremplin est un mur de 3 u : on passe à côté, comme un randonneur */
+            const dx = tx - P.x, dz = tz - P.z, l = Math.hypot(dx, dz) || 1;
+            INPUT.mx = dx / l; INPUT.mz = dz / l; INPUT.btn.sprint = sprint; const ox = P.x, oz = P.z; majJoueur(dt, dt); majFilet(dt); dist += Math.hypot(P.x - ox, P.z - oz); t += dt;
+            if (P.y < solY(P.x, P.z) - 0.3) sousSol++; if (P.essouffle) essT += dt; if (Math.abs(cur - derP) > 1) { derP = cur; derT = t; } else maxBloc = Math.max(maxBloc, t - derT); }
+          INPUT.mx = INPUT.mz = 0; INPUT.btn.sprint = false; return { t: +t.toFixed(1), fini: monte ? cur > Ltot - 2 : cur < 2, v: +(dist / t).toFixed(2), sousSol, maxBloc: +maxBloc.toFixed(1), essT: +essT.toFixed(1) }; };
+        const marche = aPied(false, true), sprint = aPied(true, true), descente = aPied(false, false);
+        if (!marche.fini || marche.sousSol || marche.maxBloc > 4) ko.push('à pied, montée : ' + JSON.stringify(marche));
+        if (!sprint.fini || !(sprint.essT > 0)) ko.push('au sprint, jamais essoufflé : ' + JSON.stringify(sprint));
+        if (!descente.fini || !(descente.v > marche.v)) ko.push('la descente n’est pas plus rapide : ' + JSON.stringify(descente) + ' contre ' + JSON.stringify(marche));
+        info.push('à pied : ' + Ltot.toFixed(0) + ' u de sentier en ' + marche.t + ' s (' + marche.v + ' u/s), au sprint ' + sprint.t + ' s dont ' + sprint.essT + ' s essoufflé, descente ' + descente.t + ' s (' + descente.v + ' u/s)');
+        // en véhicule : le sentier au joystick réel
+        const conduire = (cle) => { scene0(); let cur = 0; const [x0, z0] = point(0), [x1, z1] = point(3), v = creerVehicule(cle, x0, z0, Math.atan2(x1 - x0, z1 - z0), null); v.h = solY(x0, z0); P.x = v.x; P.z = v.z; entrerVehicule(v);
+          let t = 0, sousSol = 0, maxCur = 0, derP = 0, derT = 0, maxBloc = 0; const dt = 1 / 30, f0 = FILET.n;
+          while (t < 150 && !v.mort) { cur = absPres(v.x, v.z, cur, 1); maxCur = Math.max(maxCur, cur); if (cur > Ltot - 3) break; const [tx, tz] = point(cur + 9), dx = tx - v.x, dz = tz - v.z, l = Math.hypot(dx, dz) || 1; INPUT.mx = dx / l; INPUT.mz = dz / l;
+            const [ux, uz] = point(cur + 18), virage = Math.abs(angDiff(Math.atan2(dx, dz), Math.atan2(ux - v.x, uz - v.z))) > 0.7, fr = virage && Math.abs(v.v) > 14; /* il freine avant l'épingle, comme un conducteur */
+            const c = controleDir(v, fr); majVehiculePhys(v, dt, c.throttle, c.steer, fr); P.x = v.x; P.z = v.z; majFilet(dt); t += dt;
+            if (!v.enAir && (v.h || 0) < solY(v.x, v.z) - 0.4) sousSol++; if (cur - derP > 1) { derP = cur; derT = t; } else maxBloc = Math.max(maxBloc, t - derT); }
+          INPUT.mx = INPUT.mz = 0; const res = { cle, t: +t.toFixed(1), part: +(maxCur / Ltot).toFixed(2), sousSol, hp: +(v.hp / v.def.hp).toFixed(2), maxBloc: +maxBloc.toFixed(1), filet: FILET.n - f0 }; if (P.veh) sortirVehicule(true); return res; };
+        const veh = ['motocross', 'jeep', 'citadine'].map(conduire);
+        for (const v of veh) { if (v.sousSol || v.hp < 0.3) ko.push(v.cle + ' : ' + JSON.stringify(v)); if (v.cle !== 'citadine' && v.part < 0.97) ko.push(v.cle + ' n’atteint pas le sommet : ' + JSON.stringify(v)); }
+        info.push(veh.map((v) => v.cle + ' ' + Math.round(v.part * 100) + ' % du sentier en ' + v.t + ' s').join(', '));
+        // le filet : sous le sol, remonté aussitôt ; coincé contre un rocher plus de 2 s, replacé sur un passage sûr
+        scene0(); const [fx, fz] = point(Ltot * 0.3); P.x = fx; P.z = fz; P.y = solY(fx, fz) - 2; P.vy = 0; P.chute = false; const n0 = FILET.n; majFilet(1 / 30);
+        if (!(P.y >= solY(fx, fz) - 0.01) || FILET.n !== n0 + 1) ko.push('sous le sol : pas remonté (' + (P.y - solY(fx, fz)).toFixed(2) + ' u)');
+        // coincé : pousser contre une paroi dont on peut se détourner ne déclenche rien ; cerné de quatre parois, le filet replace sur un passage sûr
+        { scene0(); const [cx, cz] = point(Ltot * 0.3), y0 = solY(cx, cz); P.x = cx; P.z = cz; P.y = y0; P.vy = 0; FILET.pied.sur.length = 0; FILET.pied.sur.push({ x: cx - 8, z: cz }); const n1 = FILET.n;
+          const mur = { x: cx + 1.2, z: cz, hw: 0.3, hd: 3, h: y0 + 4 }; addSolid(mur);
+          for (let i = 0; i < 30 * 3; i++) { INPUT.mx = 1; INPUT.mz = 0; majJoueur(1 / 30, 1 / 30); majFilet(1 / 30); } INPUT.mx = 0;
+          if (FILET.n !== n1) ko.push('le filet replace un joueur qui pousse contre une paroi dont il peut se détourner');
+          const cage = [{ x: cx - 1.2, z: cz, hw: 0.3, hd: 3, h: y0 + 4 }, { x: cx, z: cz + 1.2, hw: 3, hd: 0.3, h: y0 + 4 }, { x: cx, z: cz - 1.2, hw: 3, hd: 0.3, h: y0 + 4 }]; for (const c of cage) addSolid(c);
+          P.x = cx; P.z = cz; P.y = y0; for (let i = 0; i < 30 * 3; i++) { INPUT.mx = 1; INPUT.mz = 0; majJoueur(1 / 30, 1 / 30); majFilet(1 / 30); } INPUT.mx = 0;
+          for (const c of [mur, ...cage]) retirerSolide(c);
+          if (FILET.n === n1 || FILET.dernier !== 'coince') ko.push('cerné de quatre parois, le filet n’agit pas (' + FILET.dernier + ')'); else info.push('cerné de quatre parois : replacé ' + Math.hypot(P.x - cx, P.z - cz).toFixed(1) + ' u plus loin ; contre une seule, rien'); }
+        startRun(); return { ko, info };
+      });
+      if (r.off) saute('Mont Reyes V2 : décor V2 coupé');
+      else if (r.ko.length) fail('Mont Reyes V2, montée : ' + r.ko.join(' | ') + ' [' + r.info.join(' ; ') + ']');
+      else ok('Mont Reyes V2, montée : ' + r.info.join(' ; ') + ' — jamais sous le sol, jamais bloqué');
+    }
+
+    // -------------------------------------------------------------------
+    console.log('\n--- Mont Reyes V2 : la vie (chamois, troupeau, sangliers, rapaces, randonneurs, VTT, grimpeurs…), les lieux qui se jouent, le son ---');
+    {
+      const r = await page.evaluate(() => {
+        if (!DECOR_V2 || typeof MONT_VIE === 'undefined' || typeof MONT2 === 'undefined' || !MONT2.ok) return { off: true };
+        const ko = [], info = []; audioInit(); META.vue = 'classique';
+        const scene0 = () => { startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6; for (const e of ennemis) e.mort = true; WAVES.etat = 'repos'; WAVES.t = 1e9; P.nage = P.chute = P.para = false; P.veh = null; };
+        const appui = () => { majAction(); const b = el('btnAction'); const l = b.style.display === 'none' ? '' : b.textContent; if (b._fn && l) b._fn(); return l; };
+        scene0(); const S = MONT2.sites, Z = (z) => FAUNE.filter((a) => a.zone === z && !a.mort);
+        // les bêtes
+        const ch = Z('mont').filter((a) => a.type === 'chamois'), tr = Z('alpage'), sg = Z('foret').filter((a) => a.D.mefiant);
+        if (ch.length < 2 || tr.length < 5 || !tr.some((a) => a.type === 'vache') || !tr.some((a) => a.type === 'chevre') || !sg.length) ko.push('faune : ' + ch.length + ' chamois, ' + tr.length + ' bêtes au troupeau, ' + sg.length + ' sangliers');
+        const c = ch[0]; if (c) { /* la scène maîtrisée : le chamois sur un versant dégagé (ni arbre ni rocher à 10 u), le joueur 16 u en contrebas */
+          for (let k = 0; k < 300; k++) { const an = k * 2.399, rr = 0.25 + (k % 7) * 0.07, x = MONT.x + Math.cos(an) * MONT.rx * rr, z = MONT.z + Math.sin(an) * MONT.rz * rr, hh = hauteurMont(x, z), gx = (hauteurMont(x + 1, z) - hauteurMont(x - 1, z)) / 2, gz = (hauteurMont(x, z + 1) - hauteurMont(x, z - 1)) / 2, pg = Math.hypot(gx, gz);
+            if (pg < 0.3 || pg > 1.1 || solidAt(x, z, 10) || montDistSentier(x, z) < 12 || montU(x, z) > 0.7) continue; c.x = x; c.z = z; c.y = hh; c.vx = -gx / pg; c.vz = -gz / pg; break; }
+          P.x = c.x + (c.vx || -1) * 16; P.z = c.z + (c.vz || 0) * 16; P.y = solY(P.x, P.z); const y0 = c.y; for (let i = 0; i < 90; i++) majFaune(1 / 30); const d1 = Math.hypot(P.x - c.x, P.z - c.z);
+          if (!(d1 > 20)) ko.push('le chamois ne détale pas de loin (16 → ' + d1.toFixed(1) + ' u)'); else info.push('le chamois détale à 16 u (→ ' + d1.toFixed(0) + ' u, ' + (c.y - y0 >= 0 ? '+' : '') + (c.y - y0).toFixed(1) + ' u)'); }
+        const A = montAlpage(); if (A) { let cloches = 0; const sc0 = sonCloche; sonCloche = () => { cloches++; }; P.x = A.x + 22; P.z = A.z; P.y = solY(P.x, P.z);
+          for (let i = 0; i < 30 * 40; i++) majFaune(1 / 30); sonCloche = sc0; const loin = tr.filter((a) => Math.hypot(a.x - A.x, a.z - A.z) > A.r + 3).length;
+          if (loin) ko.push(loin + ' bêtes ont quitté le troupeau'); if (!cloches) ko.push('aucune cloche en 40 s'); else info.push('troupeau groupé, ' + cloches + ' coups de cloche en 40 s'); }
+        const s = sg[0]; if (s) { /* la scène maîtrisée : le sanglier sur un replat libre de la forêt, rien entre lui et le joueur */
+          for (let k = 0; k < 80; k++) { const a = k * 0.9, rr = 6 + (k % 8) * 3, x = FORET.x + Math.cos(a) * rr, z = FORET.z + Math.sin(a) * rr, y = solY(x, z); let libre = true; for (let d = -8; d <= 8; d += 1) if (solidAt(x - d, z, 0.9) || Math.abs(solY(x - d, z) - y) > 1.2) { libre = false; break; } if (libre) { s.x = x; s.z = z; s.y = y; break; } }
+          P.x = s.x - 6; P.z = s.z; P.y = solY(P.x, P.z); for (let i = 0; i < 45; i++) majFaune(1 / 30); const e1 = Math.hypot(P.x - s.x, P.z - s.z);
+          if (!(e1 > 8)) ko.push('le sanglier de la forêt ne fuit pas (6 → ' + e1.toFixed(1) + ' u)');
+          toucherAnimal(s, 1); P.x = s.x - 5; P.z = s.z; P.y = solY(P.x, P.z); const hp0 = P.hp; P.iframes = 0; s.mordT = 0; for (let i = 0; i < 30 * 6 && P.hp === hp0; i++) { majFaune(1 / 30); P.iframes = 0; }
+          if (!(P.hp < hp0)) ko.push('provoqué, le sanglier ne charge pas'); else info.push('le sanglier fuit, provoqué il charge (−' + Math.round(hp0 - P.hp) + ')'); }
+        // les rapaces : abattus (karma en moins), de retour à la vague suivante
+        P.x = MONT.x; P.z = MONT.z + 60; P.y = solY(P.x, P.z); for (let i = 0; i < 30; i++) majMontVie(1 / 30);
+        const rp = MONT_VIE.rapaces.find((q) => q.type === 'vautour'); if (!rp || MONT_VIE.rapaces.length < 4) ko.push('rapaces : ' + MONT_VIE.rapaces.length);
+        else { const o = rp.g.position.clone(); ETAT.score = 500; const touche = collisionBalle({ fac: 'joueur', x: o.x, y: o.y, z: o.z, vx: 60, vy: 0, vz: 0, dmg: 20 });
+          if (!touche || !rp.mort || ETAT.score !== 450) ko.push('le vautour ne se tire pas (touché ' + touche + ', score ' + ETAT.score + ')');
+          else { WAVES.n++; majMontVie(1 / 30); if (rp.mort) ko.push('le vautour abattu ne revient pas à la vague suivante'); WAVES.n--; MONT_VIE.vague = WAVES.n; info.push(MONT_VIE.rapaces.length + ' rapaces : abattu (−50 karma), de retour à la vague suivante'); } }
+        // les gens : tous là, ce sont des figurants
+        const types = new Set(MONT_VIE.gens.map((p) => p.type)), voulus = ['rando', 'vtt', 'grimpe', 'camp', 'gardien', 'photo', 'para', 'berger']; /* la demande : randonneurs, VTTistes, grimpeurs, campeurs, gardien, photographe, parapentiste ; et le berger */
+        const absents = voulus.filter((t) => !types.has(t)); if (absents.length) ko.push('gens absents : ' + absents.join(', '));
+        const figs = MONT_VIE.gens.flatMap((p) => p.membres ? p.membres.map((m) => m.h) : [p.h, p.a, p.h2].filter((h) => h && h.g)); /* p.a du berger est un angle */ const nonFig = figs.filter((h) => !FIGURANTS.some((f) => f.h === h)).length; if (nonFig) ko.push(nonFig + ' personnes ne sont pas des figurants');
+        const ra = MONT_VIE.gens.find((p) => p.type === 'rando'), vt = MONT_VIE.gens.find((p) => p.type === 'vtt');
+        if (ra && vt) { const q = pointBoucle(ra.b, ra.s); P.x = q.x + 30; P.z = q.z + 30; P.y = solY(P.x, P.z); const s0 = ra.s, v0 = vt.s; let vmaxV = 0; for (let i = 0; i < 30 * 20; i++) { majMontVie(1 / 30); vmaxV = Math.max(vmaxV, vt.v); }
+          if (!(ra.s - s0 > 8) || !(vt.s - v0 > 30)) ko.push('randonneurs ' + (ra.s - s0).toFixed(1) + ' u, VTT ' + (vt.s - v0).toFixed(1) + ' u en 20 s');
+          else info.push('en 20 s : randonneurs ' + (ra.s - s0).toFixed(0) + ' u, VTT ' + (vt.s - v0).toFixed(0) + ' u (jusqu’à ' + vmaxV.toFixed(1) + ' u/s)');
+          // le joueur sur leur chemin : ils s'arrêtent
+          const q2 = pointBoucle(ra.b, ra.s + 2); P.x = q2.x; P.z = q2.z; P.y = solY(P.x, P.z); const s1 = ra.s; for (let i = 0; i < 60; i++) majMontVie(1 / 30); if (ra.s - s1 > 0.5) ko.push('les randonneurs passent à travers le joueur');
+          // une balle : un vrai piéton
+          const h = ra.membres[0].h, g = h.g, np = pietons.length; collisionBalle({ fac: 'joueur', x: g.position.x, y: g.position.y + 1.2, z: g.position.z, vx: 0.01, vy: 0, vz: 0.01, dmg: 10 });
+          if (!figConverti(h) || pietons.length <= np) ko.push('un randonneur touché ne devient pas un piéton'); }
+        // la soupe du gardien
+        const F = S.refuge; if (F && F.soupe) { scene0(); P.x = F.soupe.x; P.z = F.soupe.z; P.y = solY(P.x, P.z); MONT_VIE.soupeV = -1; META.argent = 100; P.maxHp = 100; P.hp = 30; const l1 = appui();
+          if (P.hp !== 70 || META.argent !== 85) ko.push('la soupe : ' + l1 + ' (PV ' + P.hp + ', ' + META.argent + ' $)'); appui(); if (P.hp !== 70 || META.argent !== 85) ko.push('deux soupes dans la vague'); else info.push('soupe du gardien : +40 PV, 15 $, une par vague'); }
+        // le coffre de la grotte
+        const G = S.grotte; if (G && G.cache) { scene0(); P.x = G.cache.x; P.z = G.cache.z; P.y = solY(P.x, P.z); MONT_VIE.grotteV = -1; const a0 = META.argent, l1 = appui(), a1 = META.argent; appui();
+          if (!(a1 > a0) || META.argent !== a1) ko.push('le coffre de la grotte : ' + l1 + ' (' + (a1 - a0) + ' $ puis ' + (META.argent - a1) + ' $)'); else info.push('grotte : ' + (a1 - a0) + ' $ une fois par vague'); }
+        // les jumelles du belvédère : on regarde la ville, on ne marche pas
+        const B = S.belvedere; if (B) { scene0(); const ang = B.ang || 0; P.x = B.x + Math.sin(ang) * 2.8; P.z = B.z + Math.cos(ang) * 2.8; P.y = solY(P.x, P.z); META.argent = 10; const l = appui();
+          if (!MONT_VIE.jum.actif) ko.push('les jumelles ne s’ouvrent pas (' + l + ')');
+          else { const x0 = P.x; for (let i = 0; i < 30; i++) { INPUT.mx = 1; majJoueur(1 / 30, 1 / 30); majCamera(1 / 30); } INPUT.mx = 0; if (P.x !== x0) ko.push('derrière les jumelles, le joueur marche'); if (!(camera.fov < 30)) ko.push('pas de zoom (' + camera.fov.toFixed(0) + '°)');
+            appui(); if (MONT_VIE.jum.actif) ko.push('les jumelles ne se rangent pas'); else info.push('jumelles : zoom ×' + (58 / camera.fov).toFixed(1)); } }
+        // le décollage en parapente : la voile prend de la hauteur au-dessus de la pente, puis on se pose
+        const V = MONT2.voileSol; if (V) { scene0(); P.x = V.sx; P.z = V.sz; P.y = solY(P.x, P.z); const l = appui(); if (!P.para || !P.chute) ko.push('pas de décollage en parapente (' + l + ')');
+          else { let hMax = 0, t = 0; while (P.chute && t < 150) { INPUT.mx = V.fx; INPUT.mz = V.fz; majJoueur(1 / 30, 1 / 30); hMax = Math.max(hMax, P.y - solY(P.x, P.z)); t += 1 / 30; } INPUT.mx = INPUT.mz = 0;
+            if (!(hMax > 6)) ko.push('la voile ne prend pas de hauteur (' + hMax.toFixed(1) + ' u)'); else if (P.chute) ko.push('toujours en l’air après 150 s'); else info.push('parapente : jusqu’à ' + hMax.toFixed(0) + ' u au-dessus du sol, posé en ' + t.toFixed(0) + ' s'); } }
+        // le son du mont : le vent au sommet ; coupé à la mort
+        scene0(); P.x = MONT.sommet.x; P.z = MONT.sommet.z + 4; P.y = solY(P.x, P.z); majMontSon(1 / 30); const on = MONT_SON.on; P.hp = 1; mourir(); majMontSon(1 / 30); const apres = MONT_SON.on;
+        if (ETAT.mortTimer) { clearTimeout(ETAT.mortTimer); ETAT.mortTimer = null; } if (AUDIO.pret && (!on || apres)) ko.push('le vent du mont : ' + (on ? 'allumé' : 'éteint') + ' au sommet, ' + (apres ? 'toujours là' : 'coupé') + ' à la mort'); else if (AUDIO.pret) info.push('vent du mont : au sommet, coupé à la mort');
+        startRun(); return { ko, info };
+      });
+      if (r.off) saute('Mont Reyes V2 : décor V2 coupé');
+      else if (r.ko.length) fail('Mont Reyes V2, la vie : ' + r.ko.join(' | ') + ' [' + r.info.join(' ; ') + ']');
+      else ok('Mont Reyes V2, la vie : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];

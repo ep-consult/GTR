@@ -84,60 +84,69 @@ carte, taxis) : on entre par la zone `pq.entree` de la planque possédée ; `por
 
 ### Fin de la partie A
 - [x] Aucun meuble copié d'une planque à l'autre ; sons coupés par tous les chemins ; zones à ≥ 8 u ; records en META
-- [ ] CLAUDE.md (section, carte) ; suite complète
+- [x] CLAUDE.md (section, carte) ; suite complète (809 vérifications ; le seul échec, l'ancre du voilier restée en manœuvre d'un test à l'autre, corrigé : 888efa2)
 
 ## Partie B — refonte du Mont Reyes
 
-### Choix techniques de la partie B (avant de coder)
-- **Règle des tirages** : `mkMontReyes` et `mkVieMont` sont dans le PREMIER groupe du décor ; leurs boucles décident sur la
-  hauteur (`hauteurMont`) puis tirent `aD` / `aleaDecor` : changer la hauteur pendant ce groupe changerait le nombre de tirages
-  et déplacerait tout le mobilier. Donc le relief de détail est une **couche** (`MONT.detail`) coupée pendant ce groupe et
-  allumée par `mkMontReyesV2`, en tête du second groupe, sur un **générateur privé** (aucun tirage du décor) : ce qui suit
-  (le chalet de `mkPlanquesV2`, le camp…) voit déjà le nouveau relief. L'ancienne forêt est construite puis retirée.
-- **Le sol** : un nouveau maillage plus fin, `MeshLambertMaterial` dont la couleur est remplacée par un mélange de textures
-  procédurales (canevas) selon l'altitude et la pente (`onBeforeCompile`, comme la mer V2 : lumière, brouillard, jour et nuit
-  conservés) ; strates de la roche projetées sur la verticale ; bruit à deux échelles contre la répétition.
-- **La végétation et les rochers** : `InstancedMesh` (un appel de rendu par matière), étagés par altitude.
-- **Ce qui doit rester exact** : le sentier (taillé, ±5 u), la montée sèche, les paliers d'épingle, les tremplins, le sommet ;
-  la couche de détail y est nulle.
+### Choix techniques de la partie B
+- **Règle des tirages** : le relief de détail est une **couche** (`MONT.detail`, grille de 1 u) ajoutée à l'ancien relief
+  (`hauteurMontSansDetail`). Tout le mont V2 est bâti en tête du second groupe du décor sur un **générateur privé**, puis la
+  couche est COUPÉE pendant tout le reste du décor (qui décide sur l'ancien relief : mêmes tirages) et allumée à la toute fin
+  (`montActiver`), qui recale ce qui a été posé sur le mont entre-temps. Le lac, la vasque et le pont ne deviennent de l'eau
+  et un sol qu'à l'allumage. Les singletons paresseux (`matChute`, `matRuisseau`) ne sont jamais créés trop tôt (copies à part).
+  Vérifié à chaque étape : empreinte du décor identique (portes, chalet).
+- **Le sol** : un maillage de 1,25 u, `MeshLambertMaterial` dont la couleur est un mélange de textures procédurales (canevas)
+  par sommet selon l'altitude, la pente, les crêtes et les creux (`onBeforeCompile`, comme la mer V2 : lumière, brouillard,
+  nuit conservés) ; roche projetée de côté ; bruit à deux échelles et teinte à grande échelle contre la répétition.
+- **La végétation et les rochers** : `InstancedMesh` (un appel de rendu par sorte), étagés par altitude.
+- **Ce qui reste exact** : le sentier (son ruban et ses bords), la montée sèche, les paliers d'épingle, les tremplins ; la
+  couche y est nulle et les terrassements des lieux ne touchent jamais le chemin. Deux défauts d'origine corrigés à part
+  (rampe du pied, rampe du sommet).
+- **Mesuré avant de choisir** : pente médiane du mont 1 à 1,5 (la roche affleure au-delà de ~1,25, sinon tout était gris) ;
+  lacet serré (branches à 10 u) : aucun replat au bord du chemin, les lieux sont taillés à l'écart et reliés par des sentes.
 
 ### 1. Textures et rendu du terrain
-- [ ] Textures procédurales (canvas) selon l'altitude et la pente : prairie, maquis et terre, roche à strates, éboulis, neige
-- [ ] Transitions douces, détail de près sans motif répétitif
-- [ ] Relief de détail : crêtes, ravines, petites falaises, corniches, gros rochers solides, éboulis au pied des parois
+- [x] Textures procédurales (canvas) selon l'altitude et la pente : prairie, maquis et terre, roche à strates, éboulis, neige
+- [x] Transitions douces, détail de près sans motif répétitif (bruit à deux échelles, teinte à grande échelle)
+- [x] Relief de détail : crêtes, ravines, petites falaises, corniches, gros rochers solides, éboulis au pied des parois
 
 ### 2. Décor et points d'intérêt
-- [ ] Végétation par étage (feuillus, sapins et pins, arbustes rabougris, rien au sommet), herbes, fleurs, buissons
-- [ ] Neige et névés au sommet ; brume accrochée au sommet et dans les creux
-- [ ] Lieux : croix ou cairn au sommet, table d'orientation, belvédère et bancs, refuge, lac d'altitude, cascade, grotte,
-      pont de singe, aire de parapente, panneaux de randonnée (ce qui n'existe pas déjà)
-- [ ] Ambiance sonore : vent qui forcit avec l'altitude, cloches, rapaces, cascade
+- [x] Végétation par étage (feuillus, sapins et pins, arbustes rabougris, rien au sommet), herbes, fleurs, buissons
+- [x] Neige et névés au sommet ; brume accrochée au sommet et dans les creux
+- [x] Lieux : croix et cairn au sommet, table d'orientation, belvédère et bancs (jumelles), refuge (soupe), lac d'altitude,
+      cascade, grotte (coffre), pont de singe, aire de parapente (décollage), campement, alpage, panneaux, sentes
+- [x] Ambiance sonore : vent qui forcit avec l'altitude, sifflement des crêtes, cloches du troupeau, rapaces, cascade
 
 ### 3. Montée réaliste
-- [ ] À pied : marche et sprint ralentis selon la pente, essoufflement (endurance) en montée, descente contrôlée
-- [ ] En véhicule : perte de vitesse en côte selon la puissance et le type, patinage sur terre et éboulis, poussière,
-      pneus de route moins bons hors sentier
-- [ ] Mouvements du terrain irréguliers (jamais à fréquence fixe), agréables
+- [x] À pied : marche et sprint ralentis selon la pente, essoufflement en montée (plus de sprint avant d'avoir repris son
+      souffle, le souffle s'entend), descente plus rapide mais retenue
+- [x] En véhicule : perte de vitesse en côte (gravité réelle), patinage sur terre et éboulis, poussière, pneus de route moins
+      bons hors sentier ; gaz ouverts dans le trop raide, on glisse en arrière au pas
+- [x] Mouvements du terrain irréguliers (bruit le long du chemin parcouru, déjà en place : `rugositeSol`)
 
 ### 4. Plus jamais bloqué, plus jamais à travers le sol
-- [ ] Corriger les enfoncements / passages à travers / blocages (creux, bords de falaise, rochers, jonctions sentier,
-      couloir de la montée sèche, terrasse du chalet) — joueur, véhicules, PNJ
-- [ ] Filet de sécurité : sous le sol ou coincé plus de 2 s → replacé au point sûr le plus proche
-- [ ] Parcours de toute la montagne par un pilote simulé (à pied, moto, 4x4, voiture)
+- [x] Corrigé : marche de 2 u à l'entrée du sentier (rampe du pied), raidillon du sommet (rampe régulière), arbres et rochers
+      solides à l'écart du chemin et des virages, terrassements jamais sur le chemin, lac contenu, cascade sans terrain qui perce
+- [x] Filet de sécurité : sous le sol → remonté ; coincé 2 s → replacé au dernier point sûr ou au sentier
+- [x] Parcours de toute la montagne par un pilote simulé : à pied (marche, sprint, descente), moto cross, 4x4, citadine —
+      jamais sous le sol, jamais bloqué, tous au sommet
 
 ### 5. La vie sur la montagne
-- [ ] Animaux : chamois, troupeau (chèvres ou vaches à cloches), sangliers en forêt, rapaces ; brouter, fuir, se
-      regrouper ; visables, tête et corps
-- [ ] Personnes : randonneurs, VTTistes, grimpeurs, campeurs, gardien du refuge, photographe, parapentistes (figurants)
-- [ ] Motards cross gardés
+- [x] Animaux : chamois, troupeau (vaches et chèvres à cloches), sangliers en forêt, rapaces (aigles, vautours, faucon) ;
+      brouter, fuir, se regrouper, charger si provoqué ; visables, tête et corps
+- [x] Personnes : randonneurs, VTTistes, grimpeurs, campeurs, gardien du refuge, photographe, parapentiste, berger (figurants)
+- [x] Motards cross gardés (le test les écarte de sa scène)
 
 ### 6. Ne rien casser
-- [ ] Sentier, MONTÉE SÈCHE, SUPERCROSS, PIC DU VERTIGE, courses RIDES faisables, temps de référence revérifiés
-- [ ] Chalet sur pilotis, véhicules garés, faune de la forêt ; règle des tirages ; tout recalé si les hauteurs changent
+- [x] Sentier, MONTÉE SÈCHE, SUPERCROSS, PIC DU VERTIGE, courses RIDES faisables (tests de non-régression du mont : courses,
+      pentes, zone extrême, badlands, saut du Vertige, motards, chalet, faune, camp)
+- [x] Chalet sur pilotis, véhicules garés, faune de la forêt ; règle des tirages ; tout recalé à l'allumage
 
 ### 7. Performances iPhone
-- [ ] InstancedMesh (végétation, rochers, animaux), LOD / masquage au loin, textures raisonnables
-- [ ] Coût mesuré avant / après
+- [x] InstancedMesh (végétation, rochers), géométries fusionnées (bêtes, rubans, planches, névés, cristaux), LOD (petites choses
+      de près, gens à 110 u, bêtes à 130 u, parapentes), textures 256 px
+- [x] Coût mesuré avant / après (voir CLAUDE.md, « Mont Reyes V2 ») : tick +1 à +3 ms près du mont, appels de dessin 124–384
+      (45–290 avant), construction 1,65 s (5,2 s avant les optimisations : `pqTexte`, `bruitDecor`, `solY`)
 
 ### Fin de la partie B
 - [ ] Tests (sol, courses, vitesses de montée) ; rendus de près, de loin, au sommet ; CLAUDE.md ; suite complète
