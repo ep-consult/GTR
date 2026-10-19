@@ -9080,6 +9080,7 @@ PQ_INT.voilier=function(s,g,ox,oz,W,P2){
     const gu=new THREE.Group(); gu.position.set(T.ox,0.3,T.oz+zP+2.4); g.add(gu); gu.userData.garder=true; const tb=new THREE.Mesh(new THREE.CylinderGeometry(0.18,0.18,0.42,14),MP(0xc8ccd4,110,0xffffff)); tb.rotation.z=Math.PI/2; gu.add(tb); const cap=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.25,0.4),MP(0x2a2c30,60,0x9aa2ad)); cap.position.y=-0.15; gu.add(cap); Q.guindeau=tb;
     const ancre=new THREE.Group(); const ti=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,0.8,6),MP(0x5a5e66,80,0xc8ccd4)); ti.position.y=0.4; ancre.add(ti); const sc=new THREE.Mesh(new THREE.ConeGeometry(0.28,0.4,4),MP(0x5a5e66,80,0xc8ccd4)); sc.rotation.x=Math.PI; sc.scale.z=0.35; ancre.add(sc);
     ancre.position.set(T.ox,-2.6,T.oz+zP-0.4); g.add(ancre); ancre.userData.garder=true; Q.ancre=ancre; const ch=new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.03,1,6),M(0x4a4e56)); g.add(ch); ch.userData.garder=true; Q.chaine=ch;
+    { const zA=T.oz+zP-0.4, top=new THREE.Vector3(T.ox,0.3,zA+2.0), bas=new THREE.Vector3(T.ox,-1.8,zA); ch.position.copy(top).add(bas).multiplyScalar(0.5); ch.scale.set(1,top.distanceTo(bas),1); ch.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),top.clone().sub(bas).normalize()); } /* la chaîne tendue vers l'ancre dès sa création (voilierMaj la suit ensuite ; avant, elle attendait à l'origine du monde) */
     const ro=mesh(new THREE.TorusGeometry(0.32,0.07,8,18),M(0xe8dcc0),1.4,0.08,zP+4.2); ro.rotation.x=Math.PI/2; const bo=mesh(new THREE.TorusGeometry(0.34,0.1,8,18),MP(0xff5a2a,40,0xffffff),2.7,0.95,2.2); bo.rotation.y=Math.PI/2; }
   // ---- le carré, sous le rouf : plancher clair, banquette en U et table vernie, cuisine, table à cartes et instruments, livres, cabine avant ----
   { const aca=MT(pqTexRep('acajou',1,1)), ac2=MT(pqTexRep('acajou',2,1)), bleu=MP(0x2a4a7a,20,0x3a3a3a);
@@ -32931,7 +32932,7 @@ function construireSalle(id){
       for(let q=0;q<4;q++){ const f=new THREE.Group(), c=pick(coulsPoissons);
         const corps=new THREE.Mesh(new THREE.BoxGeometry(0.24,0.2,0.55),mat(c)); f.add(corps);
         const queue=new THREE.Mesh(new THREE.BoxGeometry(0.05,0.24,0.2),mat(c)); queue.position.z=-0.36; f.add(queue);
-        g.add(f); poissons.push({m:f,a:rand(0,6.28),r:rand(0.7,1.8),v:rand(0.5,1.1)*(Math.random()<0.5?-1:1),y:rand(0.6,1.15)}); }
+        g.add(f); const pf={m:f,a:rand(0,6.28),r:rand(0.7,1.8),v:rand(0.5,1.1)*(Math.random()<0.5?-1:1),y:rand(0.6,1.15)}; poissons.push(pf); f.position.set(ox+p[0]+Math.sin(pf.a)*pf.r,pf.y,oz+p[1]+Math.cos(pf.a)*pf.r); } /* dans leur bassin dès leur création (jamais à l'origine du monde) */
       inter.cuves.push({cx:ox+p[0],cz:oz+p[1],poissons});
       // perchoir de Gaston : le bord tourné vers l'allée la plus large ;
       // (ax,az) = d'où on l'attrape — champs gx/ax (jamais x/z : ce ne sont pas des zones d'action)
@@ -34009,7 +34010,7 @@ function construireSalle(id){
       const aD=mkBoxG(0.7,0.05,0.3,0xd8dce4,0.55,0.05,0); mo.add(aD);
       return {g:mo,aG,aD}; };
     for(let k=0;k<3;k++){ const mo=mouette(); g.add(mo.g);
-      inter.mouettes.push({m:mo.g,aG:mo.aG,aD:mo.aD,a:rand(0,6.28),r:rand(9,15),cx:ox,cz:oz+rand(-26,-14),ph:rand(0,6),hy:rand(13,17)}); }
+      const M0={m:mo.g,aG:mo.aG,aD:mo.aD,a:rand(0,6.28),r:rand(9,15),cx:ox,cz:oz+rand(-26,-14),ph:rand(0,6),hy:rand(13,17)}; inter.mouettes.push(M0); mo.g.position.set(M0.cx+Math.sin(M0.a)*M0.r,M0.hy,M0.cz+Math.cos(M0.a)*M0.r); } /* au-dessus du pont dès leur création (jamais à l'origine du monde) */
     // ---- la mer et tout ce qui flotte : repère mer (port en 0,0, le large vers z<0) ----
     // V3 : descendu de CHAL_DY (franc-bord visible) ; ordre XZY : le roulis et
     // le tangage (majDecor) s'appliquent APRÈS le cap — la mer bouge autour du bateau
@@ -34807,6 +34808,7 @@ function aquariumDecorV3(inter,g,ox,oz,W,P2,sol,dehors){
   inter.aqManta=aquaModeleManta(); inter.aqManta.scale.setScalar(1.2); g.add(inter.aqManta); inter.aqMantaA=rand(0,6.28);
   // bouches de bulles sur le fond
   inter.aqBulles=[]; for(let i=0;i<5;i++){ const [x,z]=placeDehors(16,30,1.5); inter.aqBulles.push({bx:ox+x,bz:oz+z}); }
+  aquariumMajDecorV3({aqBancs:inter.aqBancs,aqRequin:inter.aqRequin,aqRequinA:inter.aqRequinA,aqManta:inter.aqManta,aqMantaA:inter.aqMantaA,ox,oz},0); /* posés autour de la galerie tout de suite : une salle construite sans qu'on y entre laissait ses 52 poissons à l'origine du monde (une rue) */
 }
 // animation du décor V3 (dt, pur habillage)
 function aquariumMajDecorV3(s,dt){
@@ -35469,7 +35471,7 @@ function serreDecorV3(inter,g,ox,oz,W,P2,sol,dehors){
   inter.serLucioles=[];
   for(let k=0;k<26;k++){ const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:0xd8ff6a,transparent:true,opacity:0.8,depthWrite:false,blending:THREE.AdditiveBlending}));
     sp.scale.set(0.5,0.5,1); g.add(sp); const dedans=k<14;
-    inter.serLucioles.push({sp,cx:ox+(dedans?rand(-10,10):rand(-30,30)),cz:oz+(dedans?rand(-7,7):rand(-24,26)),cy:dedans?rand(1,3.4):rand(0.8,3),ph:rand(0,6),r:rand(0.6,2)}); }
+    const L={sp,cx:ox+(dedans?rand(-10,10):rand(-30,30)),cz:oz+(dedans?rand(-7,7):rand(-24,26)),cy:dedans?rand(1,3.4):rand(0.8,3),ph:rand(0,6),r:rand(0.6,2)}; inter.serLucioles.push(L); sp.position.set(L.cx,L.cy,L.cz); } /* à leur place dès leur création (jamais à l'origine du monde) */
   // chevalet du jardinier (le tableau) : on le reconnaît, plus besoin d'étiquette
   const texTab=cTex(128,(c,t)=>{ c.fillStyle='#1e2a22'; c.fillRect(0,0,t,t); c.strokeStyle='#e8ecd8'; c.lineWidth=3;
     for(let k=0;k<6;k++){ const a=k/6*6.28; c.beginPath(); c.ellipse(t/2+Math.sin(a)*22,t*0.42+Math.cos(a)*22,10,22,-a,0,6.3); c.stroke(); }

@@ -15981,13 +15981,14 @@ async function main() {
     // ce qui n'avait jamais été placé restait là où il était né, en (0,0,0) — une rue résidentielle : les aigles et les vautours
     // du Mont Reyes, une voile de parapente, des randonneurs, deux VTT, la fumée du refuge, les accompagnants des promeneurs de
     // Los Reyes Hills (conjoint, chien, poussette), les balles du stade et du complexe sportif. Depuis plusieurs points de la
-    // carte (dont la rue de l'origine elle-même), rien de visible ne doit s'y trouver.
+    // carte (dont la rue de l'origine elle-même), rien de visible ne doit s'y trouver — toutes les salles construites, sans y entrer.
     // -------------------------------------------------------------------
     console.log('\n--- Rien n’est oublié à l’origine du monde : la vie du décor est placée ou cachée, jamais figée en (0,0,0) ---');
     {
       const r = await page.evaluate(() => {
         const ko = [], info = [];
         startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; for (const e of ennemis) e.mort = true; WAVES.etat = 'repos'; WAVES.t = 1e9;
+        for (const id of Object.keys(INTDEFS)) { try { construireSalle(id); } catch (e) { ko.push('salle ' + id + ' : ' + e.message); } } /* une salle construite sans qu’on y entre ne doit rien laisser en (0,0,0) (les poissons de l’aquarium, les lucioles de la serre, les mouettes du chalutier, la chaîne du voilier y attendaient) */
         const points = [['rue de l’origine', 9, 16], ['départ', POIS.place.x, POIS.place.z]];
         if (typeof MONT !== 'undefined' && MONT.x) points.push(['pied du Mont Reyes', MONT.x - MONT.rx - 10, MONT.z]);
         if (typeof HILLS !== 'undefined' && HILLS.ok) points.push(['Los Reyes Hills', (HILLS.x0 + HILLS.x1) / 2, HILLS.z1 + 10]);
