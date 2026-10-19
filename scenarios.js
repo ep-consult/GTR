@@ -15508,6 +15508,61 @@ async function main() {
       if (r.off) saute('Deux-roues V4 : casque absent');
       else if (r.ko.length) fail('Deux-roues V4 : ' + r.ko.join(' ; ')); else ok('Deux-roues V4 : ' + r.info.join(' ; '));
     }
+    // -------------------------------------------------------------------
+    // Véhicules V4, aéronefs (19 octobre) : chaque avion et hélico V4 de VEHDEFS (lus dans la source, sauf la soucoupe) a son feu vert
+    // à droite, un disque flou qui n'apparaît qu'en vol (s'il a une hélice ou un rotor), une anticollision qui clignote, des ailerons
+    // qui suivent le roulis (avions), un train rentrant rangé en vol AVEC ses jambes et ressorti posé ; la postcombustion suit les gaz,
+    // la rampe du C-130 s'abaisse jusqu'au sol à l'arrêt et remonte en roulant ; le Super Cub du décor remplace l'ancien modèle.
+    // -------------------------------------------------------------------
+    console.log('\n--- Véhicules V4 : aéronefs — disque flou, feux, anticollision, gouvernes, train et jambes, postcombustion, rampe ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; for (const e of ennemis) e.mort = true; WAVES.etat = 'repos'; WAVES.t = 1e9;
+        const aeros = Object.keys(VEHDEFS).filter((k) => VEHDEFS[k].air && !VEHDEFS[k].ovni && VEH_V3[k]), t0 = ETAT.runT;
+        if (!aeros.length) return { off: true };
+        const vertDroite = (g) => { let n = 0, bon = 0; g.updateMatrixWorld(true); g.traverse((o) => { if (o.isMesh && o.material && o.material.color && o.material.color.getHex() === 0x2ad84a) { n++; const p = new THREE.Vector3(); o.getWorldPosition(p); g.worldToLocal(p); if (p.x < 0) bon++; } }); return n > 0 && bon === n; };
+        let nDisque = 0, nTrain = 0, nGouv = 0;
+        for (const k of aeros) {
+          const d = VEHDEFS[k], v = creerVehicule(k, POIS.place.x + 40, POIS.place.z + 10, 0), ud = v.mesh.userData;
+          if (!vertDroite(v.mesh)) ko.push(k + ' : feu vert absent, ou pas à droite');
+          if (!ud.anim) { ko.push(k + ' : rien d’animé'); continue; }
+          const disques = ud.disques || (ud.disqueRotor ? [ud.disqueRotor] : []);
+          v.v = 0; v.vol = false; v.conduit = null; ud.anim(v);
+          if (ud.rotor && !disques.length) ko.push(k + ' : pas de disque flou');
+          if (disques.some((dm) => dm.visible)) ko.push(k + ' : disque flou visible à l’arrêt');
+          v.vol = true; v.v = d.vmax * 0.8; v.conduit = 'joueur'; const cols = new Set();
+          for (let i = 0; i < 44; i++) { ETAT.runT = t0 + 100 + i * 0.05; ud.anim(v); if (ud.anti) cols.add(ud.anti.color.getHex()); }
+          if (disques.length) { nDisque++; if (!disques.every((dm) => dm.visible)) ko.push(k + ' : disque flou absent en vol'); }
+          if (cols.size < 2) ko.push(k + ' : l’anticollision ne clignote pas');
+          if (d.air === 'avion') { const ail = (ud.gouv || []).filter((q) => q.t === 'ail');
+            if (ail.length >= 2) { nGouv++; v.vb = 0.6; ud.anim(v); const a0 = ail[0].g.rotation.x, a1 = ail[1].g.rotation.x; if (!(Math.abs(a0) > 0.05 && Math.sign(a0) === -Math.sign(a1))) ko.push(k + ' : ailerons immobiles au roulis (' + a0.toFixed(2) + ', ' + a1.toFixed(2) + ')'); v.vb = 0; }
+            else if (k !== 'chasseur') ko.push(k + ' : pas d’ailerons'); }
+          if (ud.train) { nTrain++; for (const rr of ud.roues) if (!rr.userData.jambe) { ko.push(k + ' : une roue rentrante sans jambe'); break; }
+            const om = ud.ombre, y0 = om ? om.position.y : 0; if (om) om.position.y = -10;
+            for (let i = 0; i < 120; i++) ud.anim(v);
+            const sorties = ud.roues.filter((rr) => rr.visible || (rr.userData.jambe && rr.userData.jambe.visible)).length; if (sorties) ko.push(k + ' : ' + sorties + ' roue(s) ou jambe(s) encore sorties en vol');
+            v.vol = false; if (om) om.position.y = y0; for (let i = 0; i < 120; i++) ud.anim(v);
+            if (ud.roues.some((rr) => !rr.visible || (rr.userData.jambe && !rr.userData.jambe.visible))) ko.push(k + ' : train pas ressorti, posé'); }
+          if (ud.pc) { v.vol = true; v.gaz = 1; ud.anim(v); const plein = ud.pc.visible; v.gaz = 0.3; ud.anim(v); if (!plein || ud.pc.visible) ko.push(k + ' : postcombustion (' + plein + ', ' + ud.pc.visible + ')'); else info.push(k + ' : postcombustion au-delà de 72 % des gaz'); }
+          if (ud.rampe) { const R = ud.rampe; v.vol = false; v.v = 0; v.mesh.updateMatrixWorld(true); let t = t0 + 200;
+            for (let i = 0; i < 150; i++) { ETAT.runT = (t += 1 / 30); ud.anim(v); }
+            R.g.updateMatrixWorld(true); const bout = R.g.localToWorld(new THREE.Vector3(0, 0, -4.3)); const hy = bout.y - v.mesh.position.y;
+            if (!R.soute.visible || Math.abs(hy) > 0.2) ko.push(k + ' : rampe pas posée au sol à l’arrêt (bout à ' + hy.toFixed(2) + ' u, soute ' + R.soute.visible + ')');
+            v.v = 12; for (let i = 0; i < 150; i++) { ETAT.runT = (t += 1 / 30); ud.anim(v); }
+            if (R.soute.visible || Math.abs(R.g.rotation.x - R.ferme) > 0.02) ko.push(k + ' : rampe pas refermée en roulant');
+            else info.push(k + ' : rampe au sol à l’arrêt (bout à ' + hy.toFixed(2) + ' u), refermée en roulant'); }
+          v.mort = true; scene.remove(v.mesh); const iv = vehicules.indexOf(v); if (iv >= 0) vehicules.splice(iv, 1); libererEntite(v.mesh);
+        }
+        ETAT.runT = t0;
+        info.push(aeros.length + ' aéronefs : feu vert à droite, anticollision qui clignote ; ' + nDisque + ' disques flous en vol seulement ; ' + nGouv + ' avions aux ailerons animés ; ' + nTrain + ' trains rentrants (jambes comprises)');
+        if (DECOR_V2) { const c = CIEL.cub; if (!c) ko.push('avion à banderole : pas de Super Cub');
+          else { const ro = c.mesh.userData.rotor, a0 = ro ? ro.rotation.y : 0; majAvionBanderole(1 / 30); if (!ro || ro.rotation.y === a0) ko.push('avion à banderole : l’hélice ne tourne pas'); else info.push('Super Cub du décor, hélice qui tourne'); } }
+        startRun(); return { ko, info };
+      });
+      if (r.off) saute('Aéronefs V4 : aucun aéronef V4');
+      else if (r.ko.length) fail('Aéronefs V4 : ' + r.ko.join(' ; ')); else ok('Aéronefs V4 : ' + r.info.join(' ; '));
+    }
 
     // -------------------------------------------------------------------
     console.log('\n--- Mont Reyes V2 : la vie (chamois, troupeau, sangliers, rapaces, randonneurs, VTT, grimpeurs…), les lieux qui se jouent, le son ---');

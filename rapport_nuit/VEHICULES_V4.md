@@ -188,10 +188,10 @@ dans l'ordre demandé : ils passent en dernier (groupe 7).
 - [x] Avion de tourisme « Pélican » (`tourisme`) → Cirrus SR22 — fuselage composite lisse, aile basse, grande verrière, tripale, trappe du parachute, carénages de roues ; `avions_lot1_*`
 - [x] Voltige « Colibri Rouge » (`voltige`) → Extra 300 — bulle en tandem, aile médiane à rayons de soleil plaqués sur l'extrados, grande dérive, train classique, roulette en bout de queue (refonte) ; `avions_lot1_*`
 - [x] Chasseur « Épervier » (`chasseur`) → General Dynamics F-16 — bulle sans arceau, entrée d'air sous le menton, stabilisateurs monoblocs, dérives ventrales, POSTCOMBUSTION, missiles, train qui rentre ; `avions_lot1_*`
-- [ ] Jet privé « Albatros » (`jetprive`) → Learjet 75
-- [ ] Long-courrier « Reyes Air » (`ligne`) → Airbus A320
-- [ ] Cargo « Baleine » (`fret`) → Lockheed C-130 Hercules
-- [ ] Avion à banderole du décor (`mkAvionBanderole`) → Piper PA-18 Super Cub
+- [x] Jet privé « Albatros » (`jetprive`) → Learjet 75 — empennage en T, réacteurs arrière, hublots ovales, winglets, train qui rentre ; `avions_lot2_*`
+- [x] Long-courrier « Reyes Air » (`ligne`) → Airbus A320 — pare-brise à six panneaux, sharklets, CFM56, dérive bleue au soleil d'or, « REYES AIR », train qui rentre ; `avions_lot2_*`
+- [x] Cargo « Baleine » (`fret`) → Lockheed C-130 Hercules — aile haute, quatre turbopropulseurs, sponsons, RAMPE ARRIÈRE QUI S'OUVRE à l'arrêt ; `avions_lot2_*`, `fret_rampe.png`
+- [x] Avion à banderole du décor (`mkAvionBanderole`) → Piper PA-18 Super Cub — éclair noir, mâts en V, pneus de brousse, pilote ; `superCub_*`
 
 ### 7. Bateaux et engins de plage (pas dans l'ordre demandé : en dernier)
 - [ ] Yacht « Impérial » (`yacht`) → Sunseeker Predator 74
@@ -496,6 +496,31 @@ dans l'ordre demandé : ils passent en dernier (groupe 7).
   tronquée, dérive unique, **stabilisateurs monoblocs** animés au tangage, deux dérives ventrales, tuyère à pétales et
   **postcombustion**, missiles en bout d'aile et sous les ailes, réservoir ventral, cocardes ; **train tricycle qui rentre** (refonte :
   l'ancien était à roulette de queue) ; siège éjectable.
+- **Learjet 75** (`jetprive`) : fuselage cylindrique effilé, pare-brise en bande de verre qui épouse le nez (montant central), vitres
+  du poste, six **hublots ovales** cerclés de chrome par côté, porte, aile basse en flèche à **winglets**, deux **réacteurs arrière** sur
+  mâts (lèvre chromée, soufflante, tuyère), **empennage en T** et son bulbe, deux « delta fins » sous la queue, train qui rentre ;
+  filets gris et bleu ; deux pilotes, planche à trois écrans, fauteuils club en cuir.
+- **Airbus A320** (`ligne`, aussi les long-courriers de l'aérogare) : nez arrondi et pare-brise à panneaux et montants, vitres du poste,
+  rangée de hublots, quatre portes, aile en flèche et en dièdre à **sharklets**, ailerons cisaillés qui suivent la flèche du bord de
+  fuite, deux **CFM56** (lèvre, soufflante et cône, tuyère et cône d'éjection, mât), carénage de voilure, cône de queue relevé et sortie
+  de l'APU, **dérive bleue au soleil d'or**, « REYES AIR » (`matTexteV3('reyesAir')`), bandes bleue et or, train qui rentre (six
+  roues, jambes) ; poste à six écrans et piédestal, rangées de sièges bleus dans la cabine.
+- **Lockheed C-130 Hercules** (`fret`) : fuselage ventru au ras du sol, poste vitré jusqu'aux « sourcils », aile haute droite posée sur
+  le dos, **quatre turbopropulseurs** à hélices quadripales (`ud.rotor`, `ud.rotor2`, les deux autres suivent : `ud.helicesPlus`),
+  sponsons du train, portes des parachutistes, étoile et numéro, grande dérive à dorsale, train qui rentre ; **la rampe de chargement**
+  (`ud.rampe`, `animRampeV4`, temps réel) s'abaisse jusqu'au sol quand l'avion est arrêté au sol (la soute sombre apparaît sur le ventre
+  relevé) et remonte dès qu'il roule ou vole. Œil du cockpit sous la traverse des sourcils (`COCKPIT_DEFS.fret` −0,42).
+- **Piper PA-18 Super Cub** (l'avion à banderole du décor, `SUPERCUB_V4`, hors de `VEHDEFS`) : fuselage entoilé jaune à l'éclair noir,
+  aile haute rectangulaire aux saumons rouges et mâts en V, pare-brise et vitres de la cabine en tandem, bipale, empennage haubané,
+  **pneus de brousse**, roulette de queue, crochet de la banderole, pilote à la place avant. L'ancien modèle est construit comme avant
+  (mêmes objets : mêmes tirages du décor) puis masqué ; le nouveau est bâti sur le générateur privé de `construireV3Spec` et tourné vers
+  le +x du décor. `majAvionBanderole` fait tourner son hélice et clignoter ses feux (`animAvionV4`). Empreinte de la ville identique.
+- **Jambes des trains rentrants** (`jambeTrainV4`, dans `avionInstV4` et pour l'AW109) : une jambe par roue, du moyeu au fuselage, qui
+  se rétracte et disparaît avec sa roue. Avant, les jambes étaient dans la géométrie fixe : train rentré, elles restaient visibles en vol
+  (F-16, AW109).
+- **Test « Véhicules V4 : aéronefs »** (lit `VEHDEFS`) : feu vert à droite, anticollision qui clignote, disque flou en vol seulement,
+  ailerons qui suivent le roulis, trains rangés en vol jambes comprises et ressortis posé, postcombustion, rampe au sol à l'arrêt et
+  refermée en roulant, hélice du Super Cub.
 
 ## Mesures et tests
 
