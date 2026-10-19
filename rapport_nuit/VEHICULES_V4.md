@@ -138,8 +138,8 @@ dans l'ordre demandé : ils passent en dernier (groupe 7).
 - [x] 4x4 « Coyote » (`jeep`) → Jeep Wrangler (JL) — ouvert, sept fentes, ailes noires détachées, arceau, roue de secours ; conducteur assis visible ; `trafic_lot2_*`
 - [x] Limousine « Majesté » (`limousine`) → Lincoln Town Car limousine — calandre à barres, joncs chromés, section des passagers teintée, banquettes en L et bar ; `trafic_lot2_*`
 - [x] Bus de ville (`busville`) → New Flyer Xcelsior (bus urbain de Los Angeles) — girouette à diodes, portes vitrées, support à vélos, carénages de toit, sièges et barres ; essieux gardés à ±3,36 (règle des roues) ; `trafic_lot2_*`
-- [ ] Bellatti « Bolide » (`bolide`) → Bugatti Chiron
-- [ ] Ferroni « Enzo » (`enzo`) → Ferrari Enzo
+- [x] Bellatti « Bolide » (`bolide`) → Bugatti Chiron — fer à cheval cerclé de chrome, courbe en C autour de l'entrée d'air, arête dorsale, bandeau de feux, quatre sorties ; aileron actif gardé (`ud.volet`, masqué de loin) ; `ultimes_*`
+- [x] Ferroni « Enzo » (`enzo`) → Ferrari Enzo — nez de F1 entre deux entrées d'air, phares étirés sur les ailes, prises latérales, V12 rouge sous le capot vitré, quatre feux ronds ; `ultimes_*`
 - [x] déjà V3 : Taxi, Interceptor, Fourgon (niveau de détail ajouté : ils roulent dans le trafic)
 
 ### 2. Police et urgences
@@ -290,11 +290,22 @@ dans l'ordre demandé : ils passent en dernier (groupe 7).
 - **Intérieur** : sièges en plastique, barres jaunes, poste de conduite.
 
 ### Bellatti « Bolide » (`bolide`) → Bugatti Chiron
-- **Silhouette** : hypercar large et basse ; signatures déjà dessinées le 18 octobre (calandre en fer à cheval, courbe en C, arête
-  dorsale, rampe de feux, aileron actif) — à reprendre au standard V4 : verre transparent, conducteur, intérieur.
+- **Silhouette** : hypercar à moteur central, large (2 m) et basse (1,2 m), verrière en goutte, hanches arrière massives.
+- **Signature** : calandre en fer à cheval cerclée de chrome (écusson rouge) ; phares à quatre diodes en ligne ; courbe en C chromée
+  sur le flanc autour de la grande entrée d'air ; arête dorsale du pare-brise à la poupe ; bandeau de feux pleine largeur ; diffuseur
+  et quatre sorties au milieu ; aileron actif (le contrat `ud.volet` de `majVolet` est gardé : levé à 40 u/s, cabré au freinage).
+- **Livrée** : bleu nuit, noir, argent, bordeaux (couleurs du jeu inchangées).
+- **Intérieur** : cuir cognac (comme le cockpit V2 existant), la lame de lumière de la console.
+- Fait seul : la verrière basse demandait que la planche se cale moins haut sous le pare-brise (`margePb` de `interieurV4`, sinon
+  les sièges partaient derrière le toit) ; caissons des passages de roue réduits (ils perçaient le capot bas).
 
 ### Ferroni « Enzo » (`enzo`) → Ferrari Enzo
-- Nez de Formule 1, grandes prises latérales, capot moteur vitré, quatre feux ronds — même reprise au standard V4.
+- **Silhouette** : hypercar à moteur central, ailes avant plus hautes que le capot creusé, verrière en goutte.
+- **Signature** : nez de Formule 1 entre deux grandes entrées d'air ; phares étirés sur le haut des ailes ; grandes prises latérales
+  derrière les portes papillon ; capot moteur vitré sur le V12 aux culasses rouges ; poupe noire à quatre feux ronds et grille ;
+  deux sorties au milieu ; diffuseur ; becquet intégré ; écusson jaune.
+- **Livrée** : rouge, jaune, noir.
+- **Intérieur** : monocoque de carbone, baquets rouges (comme le cockpit V2).
 
 ## Mesures et tests
 
