@@ -19799,6 +19799,85 @@ VEH_V3.amphibie={
     I.ud.flottaison=-0.77; /* tirant d'eau : la ligne de flottaison à mi-coque (0,62 au-dessus du fond du modèle) */
     halosPharesV3(I,0.68,1.12,2.6); I.ud.conducteur={x:0.42,y:0.95,z:0.5,k:0.95,pose:{hy:(1.5-0.95)/0.95,hz:(0.92-0.5)/0.95}}; I.ud.pareBrise={y:1.62,z:1.4}; }
 };
+/* ---------- 12. Quad « Scorpide » (quad) : quad sportif — garde-boue moulés, carénage avant, phares, selle longue, guidon à protège-mains,
+   porte-bagages, échappement, bras de suspension et amortisseurs à ressort rouge, repose-pieds, moteur sous la selle, plaque de
+   course ; le pilote est assis à califourchon (ud.siege.chevauche : entrerVehicule) et se voit ---------- */
+VEH_V3.quad={
+  ouvert:true, interieur:['guidon','guidonN','protege'],
+  geo(B,d){ const R=0.34, zf=0.68, zr=-0.66;
+    /* cadre tubulaire, moteur, sabot */
+    for(const sx of [-0.2,0.2]){ B.tube('sombre',0.03,[sx,0.36,0.95],[sx,0.36,-0.85]); B.tube('sombre',0.025,[sx,0.36,0.6],[sx*1.1,0.74,0.42]); B.tube('sombre',0.025,[sx,0.36,-0.5],[sx*1.1,0.74,-0.3]); }
+    B.bloc('acier',0.36,0.34,0.5,0,0.5,0.0,0.03); for(let i=0;i<4;i++) B.bx('sombre',0.4,0.02,0.3,0,0.58+i*0.05,0.12); B.bloc('sombre',0.5,0.05,0.9,0,0.28,0.1,0.015); /* moteur à ailettes, sabot */
+    /* plastiques : garde-boue avant et arrière (sur toute la largeur, au-dessus des roues), carénage, réservoir, selle */
+    B.profil('peinture',[[1.08,0.7],[1.02,0.84],[0.86,0.9],[0.38,0.9],[0.24,0.8],[0.3,0.7],[0.98,0.66]],1.12,0.05);
+    B.profil('peinture',[[-0.3,0.8],[-0.4,0.9],[-0.92,0.9],[-1.06,0.82],[-1.08,0.72],[-0.32,0.72]],1.12,0.05);
+    B.bloc('peinture',0.42,0.2,0.36,0,0.92,0.36,0.05,0.08); B.bloc('sombre',0.36,0.12,0.82,0,0.93,-0.2,0.05,0.06);                             /* réservoir, selle */
+    B.bloc('sombre',0.5,0.16,0.08,0,0.78,1.07,0.02); for(const sx of [-1,1]){ B.bloc('sombre',0.2,0.1,0.05,sx*0.22,0.8,1.08,0.02); B.bloc('phare',0.16,0.07,0.02,sx*0.22,0.8,1.105,0.01); } /* phares */
+    B.bx('plaqueQuad',0.3,0.2,0.012,0,0.98,0.6,-0.5);                                                                                     /* plaque de course */
+    /* pare-chocs, porte-bagages, feu, échappement, repose-pieds */
+    B.tube('acier',0.025,[-0.36,0.5,1.12],[0.36,0.5,1.12]); for(const sx of [-0.36,0.36]) B.tube('acier',0.022,[sx,0.5,1.12],[sx*0.6,0.36,0.95]); B.tore('acier',0.05,0.015,0,0.42,1.14,Math.PI/2,0,0);
+    for(const sx of [-0.36,0.36]) B.tube('acier',0.018,[sx,0.98,-0.45],[sx,0.98,-1.0]); for(let z=-0.5;z>=-1.0;z-=0.125) B.tube('acier',0.015,[-0.36,0.98,z],[0.36,0.98,z]); for(const sx of [-0.36,0.36]) B.tube('acier',0.015,[sx,0.9,-0.95],[sx,0.98,-1.0]);
+    B.bx('feu',0.16,0.06,0.03,0,0.84,-1.09); B.tube('chrome',0.035,[0.16,0.5,-0.2],[0.24,0.62,-0.9]); B.cyl('chrome',0.045,0.04,0.2,10,0.24,0.64,-1.0,Math.PI/2+0.2);
+    for(const sx of [-1,1]){ B.bloc('plastique',0.26,0.04,0.7,sx*0.36,0.4,0.0,0.01); B.tube('sombre',0.02,[sx*0.22,0.4,0.32],[sx*0.48,0.4,0.3]); B.tube('sombre',0.02,[sx*0.22,0.4,-0.32],[sx*0.48,0.4,-0.3]);
+      /* bras de suspension avant, amortisseurs à ressort rouge */
+      B.tube('sombre',0.022,[sx*0.18,0.36,zf+0.12],[sx*0.48,0.32,zf]); B.tube('sombre',0.022,[sx*0.18,0.5,zf-0.06],[sx*0.48,0.38,zf]);
+      B.tube('acier',0.022,[sx*0.44,0.36,zf],[sx*0.24,0.74,zf-0.08]); for(let i=0;i<5;i++) B.tore('ressort',0.045,0.012,sx*(0.42-i*0.04),0.4+i*0.07,zf-i*0.016,Math.PI/2,0,sx*0.48); }
+    B.tube('acier',0.03,[0,0.42,zr+0.2],[0,0.78,-0.25]); for(let i=0;i<5;i++) B.tore('ressort',0.06,0.013,0,0.48+i*0.06,zr+0.17+i*0.075,Math.PI/2-0.6,0,0); /* mono-amortisseur arrière */
+    B.bx('sombre',0.9,0.06,0.06,0,R,zr);                                                                                                  /* essieu arrière */
+    /* le guidon (effacé en 1re personne : le cockpit a le sien) : potence, cintre, poignées, protège-mains, compteur */
+    B.tube('guidon',0.025,[0,0.95,0.44],[0,1.06,0.42]); B.tube('guidon',0.02,[-0.36,1.1,0.4],[0.36,1.1,0.4]); for(const sx of [-1,1]){ B.cyl('guidonN',0.026,0.026,0.13,8,sx*0.32,1.1,0.4,0,0,Math.PI/2); B.bloc('protege',0.1,0.06,0.14,sx*0.38,1.12,0.47,0.01); }
+    B.bloc('guidonN',0.14,0.08,0.06,0,1.1,0.47,0.01); B.bx('ecranI',0.1,0.05,0.01,0,1.13,0.442,-0.6);
+    return {R,zf,zr}; },
+  mats:{ plaqueQuad:()=>matTexteV3('plaqueQuad'), ressort:()=>new THREE.MeshLambertMaterial({color:0xd8202a}), guidon:()=>matsV3().acier, guidonN:()=>matsV3().sombre, protege:()=>matsV3().plastique },
+  ancrages:{avant:{x:0,y:0.62,z:1.12},arriere:{x:0,y:0.84,z:-1.08},toit:{x:0,y:1.12,z:0.42},basCaisse:{x:0.58,y:0.3,z:0}}, /* mesurés sur le quad V3 */
+  inst(I){ const o=I.info; for(const [sx,z] of [[1,o.zf],[-1,o.zf],[1,o.zr],[-1,o.zr]]) roueV3(I,o.R,0.3,sx*0.6,z,'alu5',I.M.alu,true);
+    halosPharesV3(I,0.22,0.8,1.6); I.ud.siege={assis:true,chevauche:true,x:0,y:0.36,z:-0.18,jambes:-0.95,bras:-1.05,penche:0.18}; }
+};
+/* ---------- 13. Buggy-canon « Sirocco » (buggyCanon) : buggy des sables — châssis tubulaire et arceau complet, nez en fibre,
+   baquets à harnais, moteur arrière à nu, amortisseurs à ressort, rampe de phares, roue de secours à plat ; la mitrailleuse reste
+   un groupe à part (ud.tourelle, que majConduite tourne vers la visée) sur l'arceau ; le pilote est assis au volant et se voit ---------- */
+VEH_V3.buggyCanon={
+  ouvert:true, interieur:['cage','harnais','volant','tableau','baquet'],
+  geo(B,d){ const R=0.44, zf=1.05, zr=-1.08, hw=0.78;
+    /* plancher, nez en fibre, flancs */
+    B.bloc('sombre',1.3,0.08,2.6,0,0.42,-0.1,0.02); B.profil('peinture',[[1.66,0.5],[1.62,0.72],[1.3,0.86],[0.82,0.9],[0.78,0.6],[0.9,0.46],[1.5,0.44]],1.3,0.05);
+    for(const sx of [-1,1]) B.bloc('peinture',0.06,0.32,1.1,sx*0.64,0.6,-0.05,0.02);
+    B.tube('acier',0.035,[-0.62,0.55,1.78],[0.62,0.55,1.78]); for(const sx of [-0.55,0.55]) B.tube('acier',0.03,[sx,0.55,1.78],[sx*0.8,0.48,1.5]); B.tore('acier',0.06,0.018,0,0.5,1.82,Math.PI/2,0,0);
+    for(const sx of [-1,1]){ B.cyl('sombre',0.09,0.09,0.08,14,sx*0.38,0.78,1.6,Math.PI/2+0.4); B.cyl('phare',0.07,0.07,0.02,14,sx*0.38,0.79,1.64,Math.PI/2+0.4); }
+    B.bx('plaqueBuggy',0.3,0.2,0.012,0,0.66,1.67,0.2);
+    /* l'arceau (effacé en 1re personne : le cockpit dessine le sien) */
+    const T=(a,b,r)=>B.tube('cage',r||0.035,a,b);
+    for(const sx of [-1,1]){ const x=sx*hw;
+      T([x,0.48,-0.42],[x,1.62,-0.36]); T([x,1.62,-0.36],[x*0.92,1.66,0.2]); T([x*0.92,1.66,0.2],[x,0.86,0.82]);       /* arceau principal, pavillon, montant avant */
+      T([x*0.75,0.86,0.82],[x*0.7,0.56,1.4]); T([x,1.58,-0.38],[x*0.9,0.82,-1.45]); T([x*0.64,0.48,-0.42],[x*0.64,0.5,-1.45]);          /* vers le nez, jambes de force arrière */
+      T([x,0.62,0.55],[x,0.62,-0.42]); T([x,0.95,0.6],[x,0.95,-0.4]); T([x,0.86,0.82],[x*0.75,0.86,0.82]);                                                      /* barres latérales */ }
+    T([-hw,1.62,-0.36],[hw,1.62,-0.36]); T([-hw*0.92,1.66,0.2],[hw*0.92,1.66,0.2]); T([-hw,0.86,0.82],[hw,0.86,0.82]); T([-hw,0.48,-0.42],[hw,1.58,-0.38],0.03); /* traverses, croix */
+    T([-hw*0.9,0.82,-1.45],[hw*0.9,0.82,-1.45]); T([-hw*0.64,0.5,-1.45],[hw*0.64,0.5,-1.45]);
+    B.bloc('sombre',1.5,0.08,0.12,0,1.74,0.18,0.015); for(const x of [-0.5,-0.17,0.17,0.5]){ B.bloc('sombre',0.16,0.12,0.08,x,1.82,0.18,0.015); B.bx('phare',0.12,0.08,0.012,x,1.82,0.225); } /* rampe de phares */
+    /* baquets à harnais, volant, petite planche */
+    for(const x of [0.42,-0.42]){ B.bloc('baquet',0.44,0.7,0.14,x,0.86,-0.3,0.04,0.08,-0.22); B.bloc('baquet',0.44,0.1,0.44,x,0.52,-0.08,0.03,0.05); for(const dx of [-0.1,0.1]) B.bx('harnais',0.05,0.62,0.012,x+dx,0.9,-0.215,-0.22); }
+    B.bloc('tableau',1.2,0.16,0.2,0,0.84,0.66,0.03); B.tore('volant',0.17,0.024,0.42,0.92,0.42,0.6); B.tube('volant',0.028,[0.42,0.92,0.42],[0.42,0.84,0.6]); B.bx('volant',0.3,0.025,0.03,0.42,0.92,0.42,0.6);
+    /* moteur arrière à nu, filtre, échappements, roue de secours à plat */
+    B.bloc('acier',0.62,0.4,0.6,0,0.7,-1.12,0.04); for(let i=0;i<4;i++) B.bx('sombre',0.66,0.02,0.5,0,0.62+i*0.08,-1.12); B.cyl('rougeF',0.12,0.12,0.16,14,0.5,0.95,-0.9); B.cyl('acier',0.08,0.08,0.06,12,-0.2,0.95,-1.15);
+    for(const sx of [-0.18,0.18]){ B.tube('chrome',0.04,[sx,0.62,-1.3],[sx*1.4,0.95,-1.6]); B.cyl('chrome',0.05,0.05,0.08,10,sx*1.4,0.98,-1.63,0.9); }
+    /* amortisseurs à ressort */
+    for(const sx of [-1,1]) for(const [zc,zt] of [[zf,0.82],[zr,-0.6]]){ B.tube('acier',0.03,[sx*0.6,0.45,zc],[sx*0.64,0.95,zt]); for(let i=0;i<6;i++){ const t=0.2+i*0.11; B.tore('rougeF',0.055,0.013,sx*(0.6+0.04*t),0.45+0.5*t,zc+(zt-zc)*t,Math.PI/2,0,0); }
+      B.tube('sombre',0.025,[sx*0.4,0.45,zc+0.12],[sx*0.66,R,zc]); B.tube('sombre',0.025,[sx*0.4,0.55,zc-0.1],[sx*0.66,R+0.04,zc]); }
+    for(const zc of [zf,zr]) B.bx('sombre',1.2,0.08,0.08,0,R,zc);
+    return {R,zf,zr}; },
+  mats:{ cage:(c)=>matPeintV3(c), harnais:()=>matV3Couleur(0xc8202a), baquet:()=>matV3Couleur(0x202226), rougeF:()=>matV3Couleur(0xc8302a), plaqueBuggy:()=>matTexteV3('plaqueBuggy') },
+  inst(I){ const o=I.info; for(const [sx,z] of [[1,o.zf],[-1,o.zf],[1,o.zr],[-1,o.zr]]) roueV3(I,o.R,0.38,sx*0.84,z,'alu5',matV3Couleur(0x2a2c30),true);
+    const sec=new THREE.Mesh(geoPneuV3(0.4,0.3,true),I.M.caoutchouc); sec.position.set(0,1.07,-1.15); sec.add(new THREE.Mesh(geoJanteV3(0.4,0.3,'alu5'),matV3Couleur(0x2a2c30))); I.corps.add(sec); /* roue de secours à plat derrière les baquets */
+    /* la mitrailleuse sur son affût, au-dessus de l'arceau (ud.tourelle : avant = +z) */
+    let T=_GEO_V3['buggyCanon:tourelle']; if(!T){ const B=constructeurV3();
+      B.cyl('sombre',0.05,0.05,0.34,10,0,-0.17,0); B.cyl('sombre',0.09,0.09,0.06,12,0,0.0,0);                                                     /* pivot */
+      B.bloc('sombre',0.16,0.18,0.5,0,0.12,0.05,0.02); B.cyl('sombre',0.03,0.03,0.7,10,0,0.14,0.62,Math.PI/2); B.cyl('acier',0.045,0.04,0.12,10,0,0.14,0.99,Math.PI/2); /* boîte de culasse, canon, cache-flammes */
+      for(let i=0;i<4;i++) B.bx('acier',0.07,0.07,0.012,0,0.14,0.32+i*0.1);                                                                       /* radiateur du canon */
+      B.bloc('mun',0.16,0.16,0.24,0.16,0.08,-0.02,0.02); B.bloc('sombre',0.5,0.3,0.03,0,0.2,0.3,0.01); for(const sx of [-0.12,0.12]) B.tube('sombre',0.015,[sx,0.1,-0.2],[sx,0.22,-0.3]); /* munitions, bouclier, poignées */
+      T=_GEO_V3['buggyCanon:tourelle']=B.fin(); }
+    const tg=new THREE.Group(); tg.position.set(0,1.86,-0.6); for(const n in T) tg.add(new THREE.Mesh(T[n],n==='mun'?matV3Couleur(0x4a5238):I.M[n])); I.corps.add(tg); I.ud.tourelle=tg;
+    halosPharesV3(I,0.38,0.78,2.1); I.ud.siege={assis:true,x:0.42,y:-0.04,z:-0.12}; }
+};
 /* textes et motifs peints (une texture par motif, à la demande) — découpés (alphaTest) et opaques : jamais pris pour une vitre */
 const _TEX_V3={};
 function matTexteV3(id){ if(_TEX_V3[id]) return _TEX_V3[id]; let t, dec=false;
@@ -19818,6 +19897,7 @@ function matTexteV3(id){ if(_TEX_V3[id]) return _TEX_V3[id]; let t, dec=false;
   else if(id==='hachures'){ t=texV3(64,64,(x,w,h)=>{ x.fillStyle='#ffd21f'; x.fillRect(0,0,w,h); x.fillStyle='#16171a'; for(let i=-2;i<4;i++){ x.beginPath(); x.moveTo(i*32,h); x.lineTo(i*32+16,h); x.lineTo(i*32+16+h,0); x.lineTo(i*32+h,0); x.closePath(); x.fill(); } }); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(3,3); }
   else if(id==='grizzly'){ t=texV3(256,104,(x,w,h)=>{ x.clearRect(0,0,w,h); x.textAlign='center'; x.textBaseline='middle'; x.fillStyle='#16171a'; x.font='bold 44px Arial, sans-serif'; x.fillText('GRIZZLY',w/2,36); x.font='bold 20px Arial, sans-serif'; x.fillText('DÉPANNAGE 24/24',w/2,80); }); dec=true; }
   else if(id==='plaqueBond') t=texV3(128,32,(x,w,h)=>{ x.fillStyle='#14161b'; x.fillRect(0,0,w,h); x.strokeStyle='#c8ccd2'; x.lineWidth=2; x.strokeRect(2,2,w-4,h-4); x.fillStyle='#e8eaee'; x.font='bold 19px Arial, sans-serif'; x.textAlign='center'; x.textBaseline='middle'; x.fillText('AG 1964',w/2,h/2+1); });
+  else if(id==='plaqueQuad'||id==='plaqueBuggy'){ const n=id==='plaqueQuad'?'27':'33'; t=texV3(96,64,(x,w,h)=>{ x.fillStyle='#f2f2ec'; x.fillRect(0,0,w,h); x.fillStyle='#14161b'; x.font='bold 46px Arial, sans-serif'; x.textAlign='center'; x.textBaseline='middle'; x.fillText(n,w/2,h/2+3); }); }
   else if(id==='aigle') t=texV3(160,32,(x,w,h)=>{ x.fillStyle='#3e4430'; x.fillRect(0,0,w,h); x.fillStyle='#e8e6da'; x.font='bold 22px Arial, sans-serif'; x.textAlign='center'; x.textBaseline='middle'; x.fillText('AIGLE-07',w/2,h/2+1); });
   else if(id==='etoile'){ t=texV3(128,128,(x,w,h)=>{ x.clearRect(0,0,w,h); x.strokeStyle='#e8e6da'; x.lineWidth=7; x.beginPath(); x.arc(64,64,56,0,Math.PI*2); x.stroke(); x.fillStyle='#e8e6da'; x.beginPath();
       for(let i=0;i<10;i++){ const a=-Math.PI/2+i*Math.PI/5, r=i%2?20:50; x.lineTo(64+Math.cos(a)*r,64+Math.sin(a)*r); } x.closePath(); x.fill(); }); dec=true; }
@@ -22252,7 +22332,7 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
   // le relief) et de la vitesse. Monster Truck, Pickup et Buggy (suspKey) gardent leur grand débattement et leur
   // roulis en virage, sur le même bruit ; à l'arrêt, plus de balancement.
   if(!d.air&&!eau){ v.odo=(v.odo||0)+Math.abs(v.v)*dt; v.rugL=lerp(v.rugL||0,v.enAir?0:rugositeSol(v.x,v.z),clamp(dt*3,0,1)); }
-  const suspKey=v.key==='monstertruck'?1:(v.key==='pickup'?0.55:(v.def.buggy?0.32:0));
+  const suspKey=v.key==='monstertruck'?1:(v.key==='pickup'?0.55:(v.def.buggy||v.key==='buggyCanon'?0.32:(v.key==='quad'?0.22:0))); /* le Buggy-canon et le Quad V3 : grand débattement, comme le buggy des dunes */
   const cc=v.mesh.userData.corps;
   if(cc&&!d.air&&!eau&&d.type!=='moto'&&!d.velo&&!d.skate&&!d.surf&&!v.wheelieA){
     const R=(v.rugL||0)*Math.min(1,Math.abs(v.v)/14), sk=0.35+suspKey, o=v.odo||0;
@@ -22367,6 +22447,10 @@ function entrerVehicule(v){
       P.h.jambeG.rotation.x=0; P.h.jambeD.rotation.x=0;
       P.h.brasG.rotation.x=-1.1; P.h.brasD.rotation.x=-1.1;
       P.h.brasG.rotation.z=0; P.h.brasD.rotation.z=0;
+    } else if(sgA&&sgA.assis&&sgA.chevauche){ // quad (V3) : à califourchon, buste penché, pieds aux repose-pieds, mains au guidon
+      P.h.g.position.set(sgA.x||0,sgA.y,sgA.z); P.h.g.rotation.set(sgA.penche||0,0,0);
+      P.h.jambeG.rotation.x=P.h.jambeD.rotation.x=sgA.jambes||-0.9;
+      P.h.brasG.rotation.x=P.h.brasD.rotation.x=sgA.bras||-1.05; P.h.brasG.rotation.z=P.h.brasD.rotation.z=0;
     } else if(sgA&&sgA.assis){      // cabriolet : assis au volant, on le voit
       P.h.g.position.set(sgA.x,sgA.y,sgA.z); P.h.g.rotation.set(0,0,0);
       P.h.jambeG.rotation.x=-1.45; P.h.jambeD.rotation.x=-1.45;
@@ -24302,10 +24386,11 @@ var _GEO_BUSTE=null;
 function majChauffeur(v){
   const ud=v.mesh&&v.mesh.userData; if(!ud) return; const ia=!!v.conduit&&v.conduit!=='joueur'&&!v.mort&&!v.def.air;
   if(ud.conducteur) return majConducteurV3(v,ud,ia); /* V3 : le conducteur assis derrière les vitres, joueur compris */
+  if(ud.v3){ if(ud.anim) ud.anim(v); if(ud.interieurV3){ const ck=P.veh===v&&vueCockpit(); if(ud.interieurV3.visible===ck) ud.interieurV3.visible=!ck; } } /* V3 ouvert (quad, buggy) : guidon, volant, arceau effacés en 1re personne */
   if(!ia&&!ud.chauffeur) return;
   if(!ud.chauffeur){ const sg=ud.siege;
     if(sg&&sg.assis){ const h=makeHumain({haut:pick(civHaut),bas:pick(civBas),peau:pick(civPeau),casq:pick([0x2a2018,0x4a3520,0x111318]),visage:'neutre'},1);
-      h.g.position.set(sg.x,sg.y,sg.z); h.jambeG.rotation.x=h.jambeD.rotation.x=-1.45; h.brasG.rotation.x=h.brasD.rotation.x=-1.15; v.mesh.add(h.g); ud.chauffeur=h.g; }
+      h.g.position.set(sg.x,sg.y,sg.z); h.jambeG.rotation.x=h.jambeD.rotation.x=sg.chevauche?(sg.jambes||-0.9):-1.45; h.brasG.rotation.x=h.brasD.rotation.x=sg.chevauche?(sg.bras||-1.05):-1.15; if(sg.chevauche) h.g.rotation.x=sg.penche||0; v.mesh.add(h.g); ud.chauffeur=h.g; }
     else if(v.def.profil&&PROFILS_VOITURE[v.def.profil]&&!PROFILS_VOITURE[v.def.profil].ouvert){ const Pf=PROFILS_VOITURE[v.def.profil];
       if(!_GEO_BUSTE){ const tor=new THREE.BoxGeometry(0.44,0.42,0.3); tor.translate(0,0.21,0); const tete=new THREE.SphereGeometry(0.15,8,6); tete.translate(0,0.6,0.02); _GEO_BUSTE=mergeGeoManuel([tor,tete]); _GEO_BUSTE.userData.partagee=true; }
       const b=new THREE.Mesh(_GEO_BUSTE,mat(pick([0x2a3a5a,0xc8a878,0x3a3e46,0xf2f4f8,0x7a3a3a]))); b.position.set(Pf.W*0.2,Pf.caisse-0.18,Pf.L*Pf.zAv-0.35); (ud.corps||v.mesh).add(b); ud.chauffeur=b; }

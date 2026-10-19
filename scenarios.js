@@ -15510,9 +15510,9 @@ async function main() {
           if (!spec.ouvert && !vitres) ko.push(k + ' : aucune vitre transparente');
           if (n > 48) ko.push(k + ' : ' + n + ' maillages (plafond 48)');
           const sz = boite(g).getSize(new THREE.Vector3());
-          const l0 = vehiculeRestyle(d) ? 0 : boite(makeVoitureBase(k)).getSize(new THREE.Vector3()).z, okL = (l) => l > 0 && Math.abs(sz.z - l) / l <= 0.12; /* la longueur de VEHDEFS, ou celle de l'ancien modèle (la flèche de la grue dépassait déjà) */
+          const s0 = vehiculeRestyle(d) ? null : boite(makeVoitureBase(k)).getSize(new THREE.Vector3()), l0 = s0 ? s0.z : 0, okL = (l) => l > 0 && Math.abs(sz.z - l) / l <= 0.12; /* la taille de VEHDEFS, ou celle de l'ancien modèle (la flèche de la grue, les roues du quad dépassaient déjà) */
           if (!okL(d.long) && !okL(l0)) ko.push(k + ' : longueur ' + sz.z.toFixed(2) + ' pour ' + d.long + ' (ancien modèle : ' + l0.toFixed(2) + ')');
-          if (sz.x > d.larg * 1.3) ko.push(k + ' : largeur ' + sz.x.toFixed(2) + ' pour ' + d.larg);
+          if (sz.x > Math.max(d.larg * 1.3, s0 ? s0.x * 1.12 : 0)) ko.push(k + ' : largeur ' + sz.x.toFixed(2) + ' pour ' + d.larg + (s0 ? ' (ancien modèle : ' + s0.x.toFixed(2) + ')' : ''));
           for (const r of ud.roues) if (!(r.geometry.parameters && r.geometry.parameters.radiusTop > 0)) { ko.push(k + ' : rayon de roue illisible (garage, derby)'); break; }
           if (!vehiculeRestyle(d)) { const g0 = makeVoitureBase(k), r0 = g0.userData.roues || [];
             if (r0.length !== ud.roues.length) ko.push(k + ' : ' + ud.roues.length + ' roues pour ' + r0.length + ' avant');
@@ -15535,7 +15535,14 @@ async function main() {
               majRemorquage(v, 1 / 30, true); majChauffeur(v); if (v.remorque || !C.crochet.visible) ko.push(k + ' : décroché, le crochet ne revient pas'); scene.remove(c.mesh); }
             sortirVehicule(true); scene.remove(v.mesh); vehicules.length = 0;
           }
-          if (ko.length === ok0) info.push(k + ' (' + n + ' maillages, ' + vitres + ' vitrage' + (vitres > 1 ? 's' : '') + ')');
+          else if (ud.siege && ud.siege.assis) { /* véhicule ouvert (quad, buggy) : le joueur assis et visible en vue 3D ; en 1re personne, l'intérieur du modèle s'efface */
+            const x = POIS.place.x + 40, z = POIS.place.z + 10, v = creerVehicule(k, x, z, 0, null), C = v.mesh.userData; P.x = x; P.z = z + 1; entrerVehicule(v); META.vue = 'immersive'; majChauffeur(v);
+            if (!(P.h.g.visible && P.h.g.parent === v.mesh && P.surMoto)) ko.push(k + ' : le joueur ne se voit pas sur le véhicule');
+            if (!C.interieurV3.visible) ko.push(k + ' : intérieur masqué en vue 3D');
+            META.vue = 'fps'; majChauffeur(v); if (C.interieurV3.visible) ko.push(k + ' : guidon, volant ou arceau du modèle visibles en 1re personne (le cockpit a les siens)');
+            majCamera(1 / 30); const dg = cockpitDiagnostic(v); if (!dg.ok) ko.push(k + ' : cockpit ' + JSON.stringify(dg));
+            META.vue = 'immersive'; majCamera(1 / 30); sortirVehicule(true); scene.remove(v.mesh); vehicules.length = 0; }
+          if (ko.length === ok0) info.push(k + ' (' + n + ' maillages, ' + (spec.ouvert ? 'ouvert' : vitres + ' vitrage' + (vitres > 1 ? 's' : '')) + ')');
         }
         META.vue = 'classique'; return { ko, info };
       });
