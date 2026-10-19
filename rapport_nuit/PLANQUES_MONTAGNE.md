@@ -149,7 +149,7 @@ carte, taxis) : on entre par la zone `pq.entree` de la planque possédée ; `por
       (45–290 avant), construction 1,65 s (5,2 s avant les optimisations : `pqTexte`, `bruitDecor`, `solY`)
 
 ### Fin de la partie B
-- [ ] Tests (sol, courses, vitesses de montée) ; rendus de près, de loin, au sommet ; CLAUDE.md ; suite complète
+- [x] Tests (sol, courses, vitesses de montée) ; rendus de près, de loin, au sommet ; CLAUDE.md ; suite complète — 812 vérifications vertes sur 813 (98c1385) ; le randonneur simulé butait sur un renard de la forêt du chalet posé sur le sentier (le test n'anime pas la faune) : le test écarte désormais la faune, vert seul
 
 ## Récap final
-- [ ] Planque par planque, montagne, fichiers modifiés, à tester sur iPhone en priorité
+- [x] Planque par planque, montagne, fichiers modifiés, à tester sur iPhone en priorité (donné dans la conversation)
