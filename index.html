@@ -19214,6 +19214,8 @@ function geoJanteV3(R,ep,style){ const cle='j'+R.toFixed(3)+'_'+ep.toFixed(3)+'_
       const bo=new THREE.CylinderGeometry(R*0.22,R*0.27,0.07,14); face(bo,s,0.035);
       const n=style==='mil'?10:6; for(let k=0;k<n;k++){ const a=k/n*Math.PI*2, e=new THREE.CylinderGeometry(0.02,0.02,0.04,6); e.translate(Math.cos(a)*R*0.36,0,Math.sin(a)*R*0.36); face(e,s,0.025); }
       if(style==='mil') for(let k=0;k<14;k++){ const a=k/14*Math.PI*2, e=new THREE.CylinderGeometry(0.016,0.016,0.035,6); e.translate(Math.cos(a)*R*0.61,0,Math.sin(a)*R*0.61); face(e,s,0.03); } } /* cerclage à boulons */
+    else if(style==='rayons'){ for(let k=0;k<28;k++){ const a=k/28*Math.PI*2, b=new THREE.BoxGeometry(R*0.5,0.008,0.008); b.translate(R*0.33,(k%2?0.012:-0.004),0); b.rotateY(-a); face(b,s,0.006); } /* jante à rayons croisés */
+      const mo=new THREE.CylinderGeometry(R*0.14,R*0.17,0.06,12); face(mo,s,0.03); const pap=new THREE.BoxGeometry(R*0.5,0.03,R*0.08); face(pap,s,0.06); const pap2=new THREE.BoxGeometry(R*0.08,0.03,R*0.5); face(pap2,s,0.06); } /* moyeu, papillon */
     else { const n=style==='alu5'?5:6;
       for(let k=0;k<n;k++){ for(const d of (style==='alu5'?[0]:[-0.08,0.08])){ const a=k/n*Math.PI*2+d, b=new THREE.BoxGeometry(R*0.46,0.03,R*(style==='alu5'?0.13:0.06)); b.translate(R*0.33,0,0); b.rotateY(-a); face(b,s,0.006); } }
       const mo=new THREE.CylinderGeometry(R*0.17,R*0.19,0.05,14); face(mo,s,0.02);
@@ -19261,7 +19263,7 @@ function construireV3(key,g0){
     const g=new THREE.Group(), corps=new THREE.Group(); g.add(corps); const ud={roues:[],phG:[],def,key,coul,corps,v3:true};
     const inter=new THREE.Group(); corps.add(inter); ud.interieurV3=inter; const Mp=matPeintV3(coul), I={g,corps,ud,def,key,coul,M,info:G.info,meshes:{}};
     for(const n in G.geos){ const base=n.replace(/\d+$/,''), m0=base==='peinture'?Mp:(spec.mats&&spec.mats[base]?spec.mats[base](coul,M):M[base]); if(!m0) throw new Error('V3 '+key+' : matière inconnue '+n);
-      const m=new THREE.Mesh(G.geos[n],m0); (INTERIEUR_V3.has(base)?inter:corps).add(m); I.meshes[n]=m; }
+      const m=new THREE.Mesh(G.geos[n],m0); (INTERIEUR_V3.has(base)||(spec.interieur&&spec.interieur.includes(base))?inter:corps).add(m); I.meshes[n]=m; }
     if(spec.inst) spec.inst(I);
     g.add(spriteBlob(def.long*1.05)); g.userData=ud; return g; }); }
 /* ---------- 1. Fourgon (van) : utilitaire à toit haut, cabine vitrée, porte latérale coulissante côté passager, portes arrière ---------- */
@@ -19710,6 +19712,46 @@ VEH_V3.depanneuse={
       const z1=-(v.def.long*0.5+1.1)+0.25, y1=0.6, dyy=y1-P.y, dzz=z1-P.z, l=Math.hypot(dyy,dzz); el.position.set(0,(P.y+y1)/2,(P.z+z1)/2); el.scale.set(1,l,1); el.rotation.set(Math.atan2(dzz,dyy),0,0); };
     halosPharesV3(I,0.82,1.06,3.0); ud.conducteur={x:0.45,y:1.12,z:0.82,k:0.96,pose:{hy:(1.68-1.12)/0.96,hz:(1.18-0.82)/0.96}}; ud.pareBrise={y:1.8,z:1.47}; }
 };
+/* ---------- 10. GT « Agent Gris » (bond) : coupé grand tourisme des années 60 — long capot à prise d'air, fastback, phares ronds
+   sous carénage, calandre chromée, ouïes d'aile, roues à rayons et papillons, pare-chocs chromés à butoirs ; les gadgets se voient
+   (canons sous les phares, trappe à huile) ; cuir fauve, planche en bois, volant à jante bois ---------- */
+VEH_V3.bond={
+  interieur:['cuir','bois','chromeI'],
+  geo(B,d){ const L=d.long, W=d.larg-0.08, hw=W/2, g0=0.22, R=0.34, Ra=0.44, zf=1.42, zr=-1.38, hx=0.6, av=L/2, ar=-L/2;
+    B.profil('peinture',[[2.1,0.26],[2.2,0.36],[2.24,0.5],[2.18,0.62],[2.02,0.71],[1.8,0.77],[1.5,0.82],[1.1,0.86],[0.78,0.88],[-0.85,0.9],[-1.15,0.93],[-1.5,0.92],[-1.82,0.89],[-2.06,0.83],[-2.2,0.74],[-2.24,0.6],[-2.22,0.42],[-2.12,0.28]]
+      .concat(basCaisseV3(-1.95,1.98,g0,R,Ra,[zr,zf])),W,0.07);
+    B.profil('vitre',[[0.76,0.86],[0.18,1.25],[-0.55,1.25],[-1.47,0.89]],W*0.76,0.025);                                                         /* fastback */
+    B.profil('peinture',[[0.24,1.22],[0.12,1.29],[-0.55,1.29],[-0.74,1.2]],W*0.8,0.025);                                                      /* pavillon */
+    for(const sx of [-1,1]){ const xs=sx*(hw+0.004), xh=sx*(W*0.38+0.012);
+      B.barre('chrome',0.035,0.05,xh,0.88,0.76,1.26,0.17); B.barre('chrome',0.03,0.03,xh,1.26,0.17,1.27,-0.56); B.barre('peinture',0.06,0.12,sx*(W*0.38+0.004),0.9,-1.42,1.24,-0.58); B.barre('peinture',0.06,0.1,sx*(W*0.38+0.004),0.92,-0.98,1.24,-0.42); /* montants chromés, custode */
+      B.bx('chrome',0.02,0.025,2.2,sx*(hw+0.003),0.88,-0.2); B.bx('chrome',0.02,0.03,1.86,xs,0.26,0.02);                                         /* joncs */
+      B.bx('sombre',0.012,0.56,0.02,xs,0.6,0.72); B.bx('sombre',0.012,0.56,0.02,xs,0.6,-0.72); B.bloc('chrome',0.035,0.04,0.16,sx*(hw+0.014),0.78,-0.52,0.01); /* portière */
+      for(let i=0;i<3;i++) B.bx('chrome',0.014,0.03,0.22,xs,0.5+i*0.06,0.86);                                                                  /* ouïes d'aile */
+      B.cyl('chrome',0.012,0.018,0.1,8,sx*(hw-0.08),0.98,1.05); B.sph('chrome',0.035,sx*(hw-0.08),1.04,1.035,1,0.8,1.4);           /* rétroviseur obus sur l'aile */
+      B.cyl('sombre',0.12,0.12,0.06,16,sx*0.6,0.56,2.25,Math.PI/2+0.25); B.cyl('phare',0.1,0.1,0.02,16,sx*0.6,0.565,2.28,Math.PI/2+0.25); B.tore('chrome',0.11,0.014,sx*0.6,0.565,2.288,-0.25,0,0); /* phares ronds */
+      B.bx('orange',0.1,0.05,0.03,sx*0.62,0.4,2.29); B.cyl('sombre',0.03,0.03,0.24,8,sx*0.5,0.33,2.25,Math.PI/2); B.cyl('acier',0.036,0.036,0.03,8,sx*0.5,0.33,2.37,Math.PI/2); /* clignotant, canon caché */
+      B.bloc('chrome',0.05,0.14,0.08,sx*0.36,0.32,2.27,0.015); B.bloc('chrome',0.05,0.14,0.08,sx*0.36,0.36,-2.28,0.015);                       /* butoirs */
+      for(const [dx,c] of [[0,'feu'],[0.15,'feu'],[0.3,'orange']]){ B.cyl(c,0.05,0.05,0.03,14,sx*(0.42+dx),0.62,-2.31,Math.PI/2); B.tore('chrome',0.055,0.01,sx*(0.42+dx),0.62,-2.32); }              /* feux ronds */
+      B.cyl('chrome',0.035,0.035,0.2,10,sx*0.32,0.2,-2.22,Math.PI/2);                                                                           /* échappements */
+      for(const zc of [zf,zr]) B.tore('chrome',Ra+0.0,0.012,sx*(hw-0.01),R,zc,0,Math.PI/2,0,Math.PI); }
+    for(const zc of [zf,zr]) B.bx('sombre',W*0.6,Ra*0.9,Ra*1.9,0,R+Ra*0.4,zc);
+    B.bloc('sombre',0.62,0.2,0.05,0,0.43,2.29,0.015,0.06); for(let i=0;i<4;i++) B.bx('chrome',0.58,0.016,0.02,0,0.36+i*0.045,2.315); B.bx('chrome',0.016,0.18,0.02,0,0.43,2.32); /* calandre */
+    B.tore('chrome',0.31,0.014,0,0.43,2.31,0,0,0,Math.PI); B.bx('chrome',0.64,0.016,0.02,0,0.33,2.31);
+    B.bx('chrome',W*0.9,0.06,0.07,0,0.3,2.25); B.bx('chrome',W*0.9,0.06,0.07,0,0.34,-2.26);                                                   /* pare-chocs lames */
+    B.bloc('peinture',0.62,0.07,0.42,0,0.92,1.45,0.02,0.04); B.bx('sombre',0.46,0.04,0.03,0,0.93,1.665);                                           /* prise d'air du capot */
+    B.bx('plaqueBond',0.46,0.11,0.012,0,0.22,2.19); B.bx('plaqueBond',0.46,0.11,0.012,0,0.48,-2.316); B.bx('sombre',0.32,0.05,0.18,0,0.24,-1.98); /* plaques, trappe à huile */
+    /* intérieur : planche en bois, compteurs, volant à jante bois, deux baquets de cuir fauve, petite banquette, console */
+    const zH=-0.42, xD=0.38;
+    B.bx('interieur',W*0.74,0.012,1.4,0,0.975,-0.32); B.bloc('tableau',W*0.74,0.14,0.34,0,0.95,0.32,0.03); B.bx('bois',W*0.72,0.05,0.04,0,1.0,0.14);
+    for(const dx of [-0.08,0.08]){ B.cyl('recul',0.045,0.045,0.01,14,xD+dx,0.96,0.145,Math.PI/2); B.tore('chromeI',0.05,0.008,xD+dx,0.96,0.14); }
+    B.tore('bois',0.17,0.016,xD,0.95,0.0,0.5); for(let k=0;k<3;k++) B.bx('chromeI',0.32,0.012,0.012,xD,0.95,0.0,0.5,0,k*Math.PI/3); B.tube('sombre',0.022,[xD,0.95,0.0],[xD,0.9,0.16]);
+    for(const x of [xD,-xD]){ B.bloc('cuir',0.46,0.62,0.14,x,0.62,zH-0.22,0.05,0.07,-0.28); B.bloc('cuir',0.24,0.13,0.08,x,1.0,zH-0.36,0.03,0.04,-0.28); }
+    B.bloc('cuir',W*0.66,0.4,0.12,0,0.62,-1.05,0.04,0.05,-0.45); B.bloc('tableau',0.22,0.1,0.7,0,0.86,-0.05,0.02); B.cyl('feu',0.025,0.025,0.02,10,0,0.92,0.1); B.tube('chromeI',0.012,[0,0.9,-0.1],[0,1.04,-0.14]);
+    return {R,zf,zr,xD,zH}; },
+  mats:{ plaqueBond:()=>matTexteV3('plaqueBond'), chromeI:()=>matsV3().chrome, cuir:()=>matV3Couleur(0x9a6a3c), bois:()=>new THREE.MeshPhongMaterial({color:0x6e3d1c,specular:0x553322,shininess:60}) },
+  inst(I){ const o=I.info; for(const [sx,z] of [[1,o.zf],[-1,o.zf],[1,o.zr],[-1,o.zr]]) roueV3(I,o.R,0.22,sx*0.79,z,'rayons',I.M.chrome);
+    halosPharesV3(I,0.6,0.56,2.75); I.ud.conducteur={x:o.xD,y:0.38,z:o.zH,k:0.88,pose:{hy:(0.95-0.38)/0.88,hz:(0.0-o.zH)/0.88}}; I.ud.pareBrise={y:1.05,z:0.5}; }
+};
 /* textes et motifs peints (une texture par motif, à la demande) — découpés (alphaTest) et opaques : jamais pris pour une vitre */
 const _TEX_V3={};
 function matTexteV3(id){ if(_TEX_V3[id]) return _TEX_V3[id]; let t, dec=false;
@@ -19728,6 +19770,7 @@ function matTexteV3(id){ if(_TEX_V3[id]) return _TEX_V3[id]; let t, dec=false;
   else if(id==='chevrons') t=texV3(256,64,(x,w,h)=>{ for(let i=-4;i<20;i++){ x.fillStyle=i%2?'#ffd21f':'#d8202a'; x.beginPath(); x.moveTo(i*24,h); x.lineTo(i*24+24,h); x.lineTo(i*24+24+h*0.6,0); x.lineTo(i*24+h*0.6,0); x.closePath(); x.fill(); } });
   else if(id==='hachures'){ t=texV3(64,64,(x,w,h)=>{ x.fillStyle='#ffd21f'; x.fillRect(0,0,w,h); x.fillStyle='#16171a'; for(let i=-2;i<4;i++){ x.beginPath(); x.moveTo(i*32,h); x.lineTo(i*32+16,h); x.lineTo(i*32+16+h,0); x.lineTo(i*32+h,0); x.closePath(); x.fill(); } }); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(3,3); }
   else if(id==='grizzly'){ t=texV3(256,104,(x,w,h)=>{ x.clearRect(0,0,w,h); x.textAlign='center'; x.textBaseline='middle'; x.fillStyle='#16171a'; x.font='bold 44px Arial, sans-serif'; x.fillText('GRIZZLY',w/2,36); x.font='bold 20px Arial, sans-serif'; x.fillText('DÉPANNAGE 24/24',w/2,80); }); dec=true; }
+  else if(id==='plaqueBond') t=texV3(128,32,(x,w,h)=>{ x.fillStyle='#14161b'; x.fillRect(0,0,w,h); x.strokeStyle='#c8ccd2'; x.lineWidth=2; x.strokeRect(2,2,w-4,h-4); x.fillStyle='#e8eaee'; x.font='bold 19px Arial, sans-serif'; x.textAlign='center'; x.textBaseline='middle'; x.fillText('AG 1964',w/2,h/2+1); });
   else if(id==='aigle') t=texV3(160,32,(x,w,h)=>{ x.fillStyle='#3e4430'; x.fillRect(0,0,w,h); x.fillStyle='#e8e6da'; x.font='bold 22px Arial, sans-serif'; x.textAlign='center'; x.textBaseline='middle'; x.fillText('AIGLE-07',w/2,h/2+1); });
   else if(id==='etoile'){ t=texV3(128,128,(x,w,h)=>{ x.clearRect(0,0,w,h); x.strokeStyle='#e8e6da'; x.lineWidth=7; x.beginPath(); x.arc(64,64,56,0,Math.PI*2); x.stroke(); x.fillStyle='#e8e6da'; x.beginPath();
       for(let i=0;i<10;i++){ const a=-Math.PI/2+i*Math.PI/5, r=i%2?20:50; x.lineTo(64+Math.cos(a)*r,64+Math.sin(a)*r); } x.closePath(); x.fill(); }); dec=true; }
@@ -39815,7 +39858,8 @@ const COCKPIT_DEFS={
   chasseur:{dy:0.12},                                      /* un peu plus haut : le nez descend sous le viseur tête haute */
   grue:{fam:'camion',dz:0.2},                                 /* Grue V3 : la cabine d'opérateur s'ajoute au vitrage ; l'œil à la tête du conducteur */
   van:{dz:-0.13,dy:0.04},
-  ambulance:{dz:-0.1},                                     /* Ambulance V3 : le haut du pare-brise dans le champ (cabine de fourgon) */                                 /* Fourgon V3 : l'œil à la tête du conducteur, 1 m derrière le pied du pare-brise (le pavillon et les pare-soleil dans le champ) */
+  ambulance:{dz:-0.1},
+  bond:{dz:-0.15,dy:-0.08},                                /* GT V3 : baquets reculés et bas, l'œil à la tête du conducteur */                                     /* Ambulance V3 : le haut du pare-brise dans le champ (cabine de fourgon) */                                 /* Fourgon V3 : l'œil à la tête du conducteur, 1 m derrière le pied du pare-brise (le pavillon et les pare-soleil dans le champ) */
   quad:{fam:'moto'},
   scarabee:{dy:0.25},jetprive:{dz:-0.7,dy:0.3},avion:{dy:0.14},voltige:{dy:0.32}, /* vieux modèles d'avion : la verrière dépasse à peine du fuselage, l'œil au ras */
   depanneuse:{dz:0.12},                                    /* Dépanneuse V3 : l'œil à la tête du conducteur (le vieux modèle avait 0,55 : son siège était tout à l'avant) */
