@@ -15510,7 +15510,8 @@ async function main() {
           if (!spec.ouvert && !vitres) ko.push(k + ' : aucune vitre transparente');
           if (n > 48) ko.push(k + ' : ' + n + ' maillages (plafond 48)');
           const sz = boite(g).getSize(new THREE.Vector3());
-          if (Math.abs(sz.z - d.long) / d.long > 0.12) ko.push(k + ' : longueur ' + sz.z.toFixed(2) + ' pour ' + d.long);
+          const l0 = vehiculeRestyle(d) ? 0 : boite(makeVoitureBase(k)).getSize(new THREE.Vector3()).z, okL = (l) => l > 0 && Math.abs(sz.z - l) / l <= 0.12; /* la longueur de VEHDEFS, ou celle de l'ancien modèle (la flèche de la grue dépassait déjà) */
+          if (!okL(d.long) && !okL(l0)) ko.push(k + ' : longueur ' + sz.z.toFixed(2) + ' pour ' + d.long + ' (ancien modèle : ' + l0.toFixed(2) + ')');
           if (sz.x > d.larg * 1.3) ko.push(k + ' : largeur ' + sz.x.toFixed(2) + ' pour ' + d.larg);
           for (const r of ud.roues) if (!(r.geometry.parameters && r.geometry.parameters.radiusTop > 0)) { ko.push(k + ' : rayon de roue illisible (garage, derby)'); break; }
           if (!vehiculeRestyle(d)) { const g0 = makeVoitureBase(k), r0 = g0.userData.roues || [];
