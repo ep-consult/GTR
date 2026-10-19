@@ -22295,6 +22295,7 @@ function retombeesEpave(o,duJoueur,ecrase){
   if(duJoueur){ addHeat(ecrase?1.0:0.8); META.defis.detruits++; META.stats.vehDetruits++; if(ecrase) META.stats.vehEcrases++; } }
 /* ---- niveau 2 : l'enfoncement. v (lourd) avance sur o (léger) à plus de ENFONCE_VMIN ; distFwd : o devant v (> 0) ---- */
 function enfoncer(v,o,distFwd){ const sp=Math.abs(v.v||0), sens=Math.sign(v.v||0); if(sp<ENFONCE_VMIN||!sens||distFwd*sens<=0||o.ecr) return false;
+  if(v.def.pelle&&v.pelleBaisse&&distFwd>0) return false; /* bulldozer : devant la lame baissée, il POUSSE (demandé le 14 octobre), il n'enfonce pas */
   if(o===P.veh){ sortirVehicule(true); toucherJoueur(12+sp*0.6,v.x,v.z); }
   const sa=Math.sin(v.ang)*sens, ca=Math.cos(v.ang)*sens, fx=v.x+sa*v.def.long*0.5, fz=v.z+ca*v.def.long*0.5, so=Math.sin(o.ang), co=Math.cos(o.ang);
   const lz=clamp((fx-o.x)*so+(fz-o.z)*co,-o.def.long/2,o.def.long/2), lx=clamp((fx-o.x)*co-(fz-o.z)*so,-o.def.larg/2,o.def.larg/2);
