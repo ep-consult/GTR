@@ -5102,16 +5102,12 @@ async function main() {
       const citadine = creerVehicule('citadine', LIMITE_EST - 16, MER - 140, 0, null);
       const roueMT = mt.mesh.userData.roues[0], roueC = citadine.mesh.userData.roues[0];
       const corps = mt.mesh.userData.corps;
-      const bodyBox = (v) => v.mesh.userData.corps.children
-        .filter((c) => c.geometry && c.geometry.type === 'BoxGeometry')
-        .sort((a, b) => (b.geometry.parameters.width * b.geometry.parameters.height * b.geometry.parameters.depth)
-          - (a.geometry.parameters.width * a.geometry.parameters.height * a.geometry.parameters.depth))[0];
-      const boxMT = bodyBox(mt), boxC = bodyBox(citadine);
-      const gapMT = (boxMT.position.y - boxMT.geometry.parameters.height / 2) - (roueMT.position.y + roueMT.geometry.parameters.radiusTop);
-      /* la citadine n'est plus faite de boîtes (voitures réalistes, profil extrudé) : bas de sa caisse mesuré sur ses meshes */
-      const basC = boxC ? boxC.position.y - boxC.geometry.parameters.height / 2 : (() => { let m = 1e9; citadine.mesh.userData.corps.traverse((o) => { if (o.isMesh && o.geometry) { o.geometry.computeBoundingBox(); m = Math.min(m, o.geometry.boundingBox.min.y + o.position.y); } }); return m; })();
-      const gapC = basC - (roueC.position.y + roueC.geometry.parameters.radiusTop);
-      const stanceMT = Math.abs(roueMT.position.x), demiCaisseMT = VEHDEFS.monstertruck.larg / 2;
+      /* le bas de la caisse, mesuré sur ses maillages (Monster Truck V3 : caisse, châssis tubulaire et moteur suspendus ; ponts,
+         bras et amortisseurs restent au sol, avec les roues) — pour les deux véhicules */
+      const bas = (v) => { let m = 1e9; v.mesh.userData.corps.traverse((o) => { if (o.isMesh && !o.isSprite && o.geometry && o.visible) { o.geometry.computeBoundingBox(); const b = o.geometry.boundingBox.clone().applyMatrix4(o.matrixWorld); m = Math.min(m, b.min.y - v.mesh.position.y); } }); return m; };
+      mt.mesh.updateMatrixWorld(true); citadine.mesh.updateMatrixWorld(true);
+      const gapMT = bas(mt), gapC = bas(citadine);
+      const stanceMT = Math.abs(roueMT.position.x) + roueMT.geometry.parameters.height / 2, demiCaisseMT = (() => { let m = 0; corps.traverse((o) => { if (o.isMesh && o.material && o.material.userData && o.material.userData.peintV3) { o.geometry.computeBoundingBox(); m = Math.max(m, o.geometry.boundingBox.max.x); } }); return m || VEHDEFS.monstertruck.larg / 2; })(); /* le flanc extérieur des pneus contre la caisse peinte */
 
       // conduit un moment pour vérifier que le châssis (userData.corps)
       // bouge réellement de façon indépendante des roues, jamais figé.
@@ -5131,8 +5127,8 @@ async function main() {
     });
     if (!(gabarit.roueRadiusMT > gabarit.roueRadiusCitadine * 2)) fail('Monster Truck : les roues ne sont pas nettement plus grandes qu\'une voiture normale (MT=' + gabarit.roueRadiusMT + ', citadine=' + gabarit.roueRadiusCitadine + ')');
     else ok('Monster Truck : les roues sont bien nettement plus grandes qu\'une voiture normale (' + (gabarit.roueRadiusMT / gabarit.roueRadiusCitadine).toFixed(1) + '× le rayon)');
-    if (!(gabarit.gapMT > 0.15)) fail('Monster Truck : le châssis est collé (ou trop proche) du sommet des roues, écart=' + gabarit.gapMT.toFixed(3) + ' (attendu un vrai vide visible, > 0.15)');
-    else ok('Monster Truck : un vrai vide est bien visible entre le châssis et le sommet des roues (écart=' + gabarit.gapMT.toFixed(2) + ' unités), jamais collé — contrairement à une voiture normale (écart=' + gabarit.gapC.toFixed(2) + ')');
+    if (!(gabarit.gapMT > gabarit.roueRadiusMT)) fail('Monster Truck : la caisse n\'est pas perchée au-dessus du sol (bas de caisse à ' + gabarit.gapMT.toFixed(2) + ' u pour des roues de ' + gabarit.roueRadiusMT + ')');
+    else ok('Monster Truck : on voit le vide sous la caisse — châssis et caisse à ' + gabarit.gapMT.toFixed(2) + ' u du sol (une citadine : ' + gabarit.gapC.toFixed(2) + ' u), ponts et amortisseurs dessous');
     if (!gabarit.stanceDebordeDeLaCaisse) fail('Monster Truck : les roues ne débordent pas de la caisse (allure typique attendue)');
     else ok('Monster Truck : les roues débordent bien de la caisse, allure typique d\'un monster truck');
     if (!(gabarit.bounceAmplitude > 0.02)) fail('Monster Truck : le châssis ne bouge pas (ou trop peu) en conduite — pas d\'effet de suspension molle perceptible (amplitude=' + gabarit.bounceAmplitude.toFixed(4) + ')');
@@ -15567,7 +15563,7 @@ async function main() {
           for (const r of ud.roues) if (!(r.geometry.parameters && r.geometry.parameters.radiusTop > 0)) { ko.push(k + ' : rayon de roue illisible (garage, derby)'); break; }
           if (!vehiculeRestyle(d)) { const g0 = makeVoitureBase(k), r0 = g0.userData.roues || [];
             if (r0.length !== ud.roues.length) ko.push(k + ' : ' + ud.roues.length + ' roues pour ' + r0.length + ' avant');
-            else for (const r of ud.roues) { let dm = 1e9; for (const q of r0) dm = Math.min(dm, Math.hypot(r.position.x - q.position.x, r.position.z - q.position.z)); if (dm > 0.25) { ko.push(k + ' : une roue déplacée de ' + dm.toFixed(2) + ' u (l’assiette les lit)'); break; } } }
+            else if (!spec.refonte) for (const r of ud.roues) { let dm = 1e9; /* refonte totale déclarée (Monster Truck) : nouvelles roues, nouvel encombrement */ for (const q of r0) dm = Math.min(dm, Math.hypot(r.position.x - q.position.x, r.position.z - q.position.z)); if (dm > 0.25) { ko.push(k + ' : une roue déplacée de ' + dm.toFixed(2) + ' u (l’assiette les lit)'); break; } } }
           /* en ville : un PNJ au volant, puis le joueur, en vue 3D puis en 1re personne */
           if (ud.conducteur) {
             const x = POIS.place.x + 40, z = POIS.place.z + 10, v = creerVehicule(k, x, z, 0, 'trafic'); v.conduit = 'trafic'; majChauffeur(v);

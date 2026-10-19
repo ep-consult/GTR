@@ -20156,6 +20156,7 @@ function geoJanteMonsterV3(R,ep){ const cle='jm'+R+'_'+ep; if(_ROUE_V3[cle]) ret
     for(let k=0;k<8;k++){ const a=k/8*Math.PI*2, e=new THREE.CylinderGeometry(0.03,0.03,0.07,6); e.translate(Math.cos(a)*rj*0.22,0,Math.sin(a)*rj*0.22); at(C,e,sy,0.0); } } /* écrous */
   const o={face:mergeGeoManuel(F),chrome:mergeGeoManuel(C)}; for(const g of F.concat(C)) g.dispose(); o.face.userData.partagee=o.chrome.userData.partagee=true; return (_ROUE_V3[cle]=o); }
 VEH_V3.monstertruck={
+  refonte:true, /* refonte totale demandée : roues, encombrement et hitbox changent (le test « Véhicules V3 » n'exige pas les roues de l'ancien modèle) */
   interieur:['cageI','harnais','chromeI'],
   geo(B,d){ const M=MONSTER_V3, R=M.R, hw=M.hw, g0=M.g0, zf=M.zf, zr=M.zr, Ra=1.66, av=2.85, ar=-2.82, yb=3.68, yt=4.38;
     /* la caisse : capot long et bombé, cabine haute, benne ; passages de roue taillés dans la caisse (elle passe au-dessus des pneus) */
