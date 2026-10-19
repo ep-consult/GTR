@@ -5146,13 +5146,13 @@ async function main() {
     // -------------------------------------------------------------------
     console.log('\n--- Écrasement : char et Monster Truck aplatissent tout véhicule, sans exception ---');
     const ecrasement = await page.evaluate(() => {
-      function openSpot(k) {
+      function couloirLibre(x, z) { for (let dz = -8; dz <= 32; dz += 2) for (let dx = -4; dx <= 4; dx += 2) if (solidAt(x + dx, z + dz, 1) || estEau(x + dx, z + dz) || solY(x + dx, z + dz) > 0.4) return false; return true; } function openSpot(k) {
         for (let ring = 0; ring < 8; ring++) {
           for (let a = 0; a < 8; a++) {
             const ang = (a / 8) * Math.PI * 2;
             const x = POIS.place.x + Math.cos(ang) * (20 + ring * 15) + k * 3;
             const z = POIS.place.z + Math.sin(ang) * (20 + ring * 15);
-            if (!solidAt(x, z, 3) && !estEau(x, z)) return { x, z };
+            if (!solidAt(x, z, 3) && !estEau(x, z) && couloirLibre(x, z)) return { x, z }; /* écrasement V2 : l'écraseur passe SUR sa cible, il faut le couloir plat et dégagé devant (une plateforme à 8 u l'arrêtait) */
           }
         }
         return { x: POIS.place.x, z: POIS.place.z };
@@ -5175,7 +5175,7 @@ async function main() {
           let ok2 = false;
           for (let t = 0; t < 500 && !ok2; t++) {
             majVehiculePhys(att, 0.05, 1, 0, false);
-            if (cible.epave || cible.aplatiPartiel) ok2 = true;
+            if (cible.epave) ok2 = true;
           }
           // un véhicule long peut nécessiter un second passage
           if (cible.aplatiPartiel && !cible.epave) {
@@ -5194,11 +5194,11 @@ async function main() {
 
     console.log('\n--- Écrasement : aucun gain d\'argent ni de progression de vague, véhicule non-écraseur incapable d\'écraser ---');
     const ecrasementEquilibrage = await page.evaluate(() => {
-      function openSpot(k) {
+      function couloirLibre(x, z) { for (let dz = -8; dz <= 32; dz += 2) for (let dx = -4; dx <= 4; dx += 2) if (solidAt(x + dx, z + dz, 1) || estEau(x + dx, z + dz) || solY(x + dx, z + dz) > 0.4) return false; return true; } function openSpot(k) {
         for (let ring = 0; ring < 8; ring++) for (let a = 0; a < 8; a++) {
           const ang = (a / 8) * Math.PI * 2;
           const x = POIS.place.x + Math.cos(ang) * (20 + ring * 15) + k * 3, z = POIS.place.z + Math.sin(ang) * (20 + ring * 15);
-          if (!solidAt(x, z, 3) && !estEau(x, z)) return { x, z };
+          if (!solidAt(x, z, 3) && !estEau(x, z) && couloirLibre(x, z)) return { x, z }; /* écrasement V2 : l'écraseur passe SUR sa cible, il faut le couloir plat et dégagé devant (une plateforme à 8 u l'arrêtait) */
         }
         return { x: POIS.place.x, z: POIS.place.z };
       }
@@ -5239,13 +5239,13 @@ async function main() {
     if (!ecrasementEquilibrage.nonEcraseur.pasEcrase) fail('Écrasement : un véhicule sans ecrase:true parvient à aplatir une cible');
     else ok('Écrasement : seuls les véhicules ecrase:true (char, Monster Truck) peuvent aplatir un autre véhicule');
 
-    console.log('\n--- Écrasement : véhicules longs (bus, pompiers) aplatis en deux temps si touchés partiellement ---');
+    console.log('\n--- Écrasement : un véhicule long touché à un bout ne s\'affaisse que là où l\'écraseur passe ---');
     const deuxTemps = await page.evaluate(() => {
-      function openSpot(k) {
+      function couloirLibre(x, z) { for (let dz = -8; dz <= 32; dz += 2) for (let dx = -4; dx <= 4; dx += 2) if (solidAt(x + dx, z + dz, 1) || estEau(x + dx, z + dz) || solY(x + dx, z + dz) > 0.4) return false; return true; } function openSpot(k) {
         for (let ring = 0; ring < 8; ring++) for (let a = 0; a < 8; a++) {
           const ang = (a / 8) * Math.PI * 2;
           const x = POIS.place.x + Math.cos(ang) * (20 + ring * 15) + k * 3, z = POIS.place.z + Math.sin(ang) * (20 + ring * 15);
-          if (!solidAt(x, z, 3) && !estEau(x, z)) return { x, z };
+          if (!solidAt(x, z, 3) && !estEau(x, z) && couloirLibre(x, z)) return { x, z }; /* écrasement V2 : l'écraseur passe SUR sa cible, il faut le couloir plat et dégagé devant (une plateforme à 8 u l'arrêtait) */
         }
         return { x: POIS.place.x, z: POIS.place.z };
       }
@@ -5256,22 +5256,19 @@ async function main() {
       viderVehiculesVille();
       const sp = openSpot(1);
       const charV = creerVehicule('char', sp.x, sp.z, 0, 'joueur');
-      // touché près d'une extrémité (pas au centre) : doit déclencher le stade intermédiaire
-      const bus = creerVehicule('busville', sp.x, sp.z + VEHDEFS.busville.long / 2 + 1, Math.PI, 'trafic');
-      P.veh = charV; charV.v = 15;
-      let stade1 = null, stade2 = null;
-      for (let t = 0; t < 500; t++) {
-        majVehiculePhys(charV, 0.05, 1, 0, false);
-        if (stade1 === null && bus.aplatiPartiel) stade1 = bus.mesh.scale.y;
-        if (bus.epave) { stade2 = bus.mesh.scale.y; break; }
-      }
+      // écrasement V2 (19 octobre) : le bus, en travers, n'est touché qu'à un bout — il ne s'affaisse que LÀ où passent les chenilles
+      const bus = creerVehicule('busville', sp.x + VEHDEFS.busville.long / 2 - 1.8, sp.z + 9, Math.PI / 2, 'trafic');
+      P.veh = charV; charV.v = 12; let h0 = null;
+      for (let t = 0; t < 500 && !bus.epave; t++) { majVehiculePhys(charV, 0.05, 1, 0, false); if (bus.ecr && !h0) h0 = Array.from(bus.ecr.h); if (bus.ecr) bus._h = Array.from(bus.ecr.h); }
+      const h = bus._h || [], n = h.length / 2, bout = (i) => Math.min(h[i * 2], h[i * 2 + 1]);
+      const r = { epave: !!bus.epave, h0: h0 && Math.max(...h0), basTouche: Math.min(bout(0), bout(1)), loinIntact: Math.max(bout(n - 1), bout(n - 2)) };
       P.veh = null; charV.mort = true; nettoyer();
-      return { stade1, stade2 };
+      return r;
     });
-    if (deuxTemps.stade1 === null || !(deuxTemps.stade1 > 0.2 && deuxTemps.stade1 < 1)) fail('Écrasement : le Bus de ville ne passe pas par un stade intermédiaire (' + deuxTemps.stade1 + ')');
-    else ok('Écrasement : le Bus de ville passe bien par un aplatissement partiel (stade intermédiaire) avant l\'aplatissement complet');
-    if (deuxTemps.stade2 !== 0.2) fail('Écrasement : le Bus de ville n\'atteint pas l\'aplatissement complet après un second passage (' + deuxTemps.stade2 + ')');
-    else ok('Écrasement : un second passage achève bien l\'aplatissement du Bus de ville');
+    if (!deuxTemps.epave) fail('Écrasement : le Bus de ville touché à un bout ne finit pas en épave (' + JSON.stringify(deuxTemps) + ')');
+    else ok('Écrasement : le Bus de ville touché à un bout finit en épave après le passage');
+    if (!(deuxTemps.basTouche < 1.0 && deuxTemps.loinIntact > deuxTemps.h0 - 0.2)) fail('Écrasement : l\'affaissement du bus n\'est pas localisé (' + JSON.stringify(deuxTemps) + ')');
+    else ok('Écrasement : seul le bout du bus où passent les chenilles s\'affaisse (' + deuxTemps.basTouche.toFixed(2) + ' u), l\'autre bout reste debout (' + deuxTemps.loinIntact.toFixed(2) + ' u)');
 
     console.log('\n--- Piétons : jamais aplatis, éliminés avec une projection proportionnelle à la puissance du véhicule ---');
     const pietonEcrasement = await page.evaluate(() => {
@@ -6173,11 +6170,11 @@ async function main() {
       // retient ces véhicules juste après startRun().
       function viderVehiculesVille() { for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0; }
       viderVehiculesVille();
-      function openSpot(k) {
+      function couloirLibre(x, z) { for (let dz = -8; dz <= 32; dz += 2) for (let dx = -4; dx <= 4; dx += 2) if (solidAt(x + dx, z + dz, 1) || estEau(x + dx, z + dz) || solY(x + dx, z + dz) > 0.4) return false; return true; } function openSpot(k) {
         for (let ring = 0; ring < 8; ring++) for (let a = 0; a < 8; a++) {
           const ang = (a / 8) * Math.PI * 2;
           const x = POIS.place.x + Math.cos(ang) * (20 + ring * 15) + k * 3, z = POIS.place.z + Math.sin(ang) * (20 + ring * 15);
-          if (!solidAt(x, z, 4) && !estEau(x, z)) return { x, z };
+          if (!solidAt(x, z, 4) && !estEau(x, z) && couloirLibre(x, z)) return { x, z }; /* écrasement V2 : l'écraseur passe SUR sa cible, il faut le couloir plat et dégagé devant (une plateforme à 8 u l'arrêtait) */
         }
         return { x: POIS.place.x, z: POIS.place.z };
       }
@@ -15652,6 +15649,113 @@ async function main() {
       else if (!r.n) fail('Vedettes V3 : aucune vedette dans VEH_V3');
       else if (r.ko.length) fail('Vedettes V3 : ' + r.ko.join(' | '));
       else ok('Vedettes V3 : ' + r.info.join(', ') + ' ; coque fermée vue du poste, barreur debout, rampe de la police');
+    }
+    // -------------------------------------------------------------------
+    // Monster Truck V3 (19 octobre, demandé : « il fait jouet ; un vrai monster truck, totalement massif ») : roues
+    // énormes (diamètre ≥ hauteur de la caisse) à crampons DANS la géométrie du pneu, quatre amortisseurs par roue au sol,
+    // deux cheminées et leur fumée noire (pool fixe, sur dtJeu), roues qui roulent à la vitesse réelle, rebond à la
+    // réception, hitbox = encombrement, cockpit propre (volant course, levier séquentiel, harnais, planche alu).
+    // -------------------------------------------------------------------
+    console.log('\n--- Monster Truck V3 : massif, roues à crampons, amortisseurs, fumée, cockpit propre ---');
+    {
+      const r = await page.evaluate(() => {
+        if (!DECOR_V2 || !VEH_V3.monstertruck) return { off: true };
+        const ko = [], info = []; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; for (const e of ennemis) e.mort = true; creerTrafic = () => {};
+        for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0;
+        const d = VEHDEFS.monstertruck, g = makeVoiture('monstertruck'), ud = g.userData; g.updateMatrixWorld(true);
+        const b = new THREE.Box3(); g.traverse((o) => { if (o.isMesh && !o.isSprite) b.expandByObject(o); }); const sz = b.getSize(new THREE.Vector3());
+        if (Math.abs(sz.z - d.long) / d.long > 0.08 || Math.abs(sz.x - d.larg) / d.larg > 0.08) ko.push('hitbox ' + d.long + ' × ' + d.larg + ' pour un modèle de ' + sz.z.toFixed(2) + ' × ' + sz.x.toFixed(2));
+        /* les roues : énormes, un seul maillage de pneu chacune (crampons compris), plus grandes que la caisse n'est haute */
+        const R = ud.rayonRoue, pneus = ud.roues; let caisseBas = 9, caisseHaut = 0; const cb = new THREE.Box3(); ud.corps.traverse((o) => { if (o.isMesh && !o.isSprite && o.material && o.material.userData && o.material.userData.peintV3) cb.expandByObject(o); });
+        if (pneus.length !== 4 || !(R >= 1.4)) ko.push('roues : ' + pneus.length + ', rayon ' + R);
+        if (!(2 * R >= cb.max.y - cb.min.y)) ko.push('diamètre ' + (2 * R).toFixed(2) + ' < hauteur de caisse ' + (cb.max.y - cb.min.y).toFixed(2));
+        for (const p of pneus) { const n = p.geometry.attributes.position.count; if (n < 3000) ko.push('pneu sans crampons dans sa géométrie (' + n + ' sommets)'); if (p.children.length > 2) ko.push('pneu : ' + p.children.length + ' enfants (un maillage par crampon ?)'); }
+        /* au sol : ponts, bras, amortisseurs (ils suivent les roues, pas la caisse) ; cheminées */
+        const auSol = g.children.filter((o) => o.isMesh && o !== ud.corps).map((o) => o.material && o.material.color && o.material.color.getHexString());
+        if (!auSol.includes('ffc21a')) ko.push('amortisseurs absents ou pas au sol');
+        if (!(ud.cheminees && ud.cheminees.length === 2)) ko.push('cheminées');
+        let objets = 0; g.traverse((o) => { if ((o.isMesh || o.isSprite) && o.visible) objets++; }); info.push(objets + ' objets dessinés'); if (objets > 45) ko.push('trop d\'objets : ' + objets);
+        /* en jeu : fumée, roues, rebond */
+        let sp = null; for (let ring = 0; ring < 30 && !sp; ring++) for (let a = 0; a < 24 && !sp; a++) { const an = a / 24 * Math.PI * 2, x = POIS.place.x + Math.cos(an) * (25 + ring * 14), z = POIS.place.z + Math.sin(an) * (25 + ring * 14); let okk = true; for (let dz = -6; dz <= 40 && okk; dz += 2) for (let dx = -4; dx <= 4; dx += 2) if (solidAt(x + dx, z + dz, 1) || estEau(x + dx, z + dz) || solY(x + dx, z + dz) > 0.4) okk = false; if (okk) sp = { x, z }; }
+        if (!sp) return { ko: ko.concat('aucun couloir libre'), info };
+        viderFumeeNoire(); const v = creerVehicule('monstertruck', sp.x, sp.z, 0, null); P.x = v.x; P.z = v.z + 1; entrerVehicule(v); META.vue = 'classique';
+        const pas = (n, thr) => { for (let i = 0; i < n; i++) { majVehiculePhys(v, 1 / 30, thr, 0, false); majEchappements(1 / 30); } };
+        const e0 = FNOIRE.emis || 0; pas(6, 0); const fDem = (FNOIRE.emis || 0) - e0; pas(40, 0); const e1 = FNOIRE.emis; pas(30, 0); const fArret = FNOIRE.emis - e1; const e2 = FNOIRE.emis; pas(8, 1); const fGaz = FNOIRE.emis - e2; /* bouffées émises */
+        if (!(fDem > 0)) ko.push('pas de fumée au démarrage'); if (!(fGaz > fArret)) ko.push('pas de fumée à l\'accélération (' + fArret + ' → ' + fGaz + ')');
+        pas(80, 1); pas(60, 0.3); const n0 = FNOIRE.emis; pas(40, 0); if (FNOIRE.emis > n0) ko.push('fumée sans accélérer (' + (FNOIRE.emis - n0) + ')');
+        if (FNOIRE.mesh.count !== FNOIRE.N) ko.push('le pool de fumée a grandi');
+        const a0 = v.mesh.userData.roues[0].rotation.x, x0 = v.x, z0 = v.z; pas(10, 0.3); const rr = Math.hypot(v.x - x0, v.z - z0) / (v.mesh.userData.roues[0].rotation.x - a0); if (Math.abs(rr - R) > 0.05) ko.push('les roues ne roulent pas à la vitesse réelle (rayon apparent ' + rr.toFixed(2) + ')');
+        v.enAir = true; v.vy = -16; v.h = 2; let ymin = 9; for (let i = 0; i < 40; i++) { majVehiculePhys(v, 1 / 30, 0, 0, false); ymin = Math.min(ymin, v.mesh.userData.corps.position.y); } if (!(ymin < -0.12)) ko.push('pas de rebond à la réception (' + ymin.toFixed(2) + ')');
+        info.push('fumée : démarrage ' + fDem + ', plein gaz ' + fGaz + ' bouffées ; roues : rayon apparent ' + rr.toFixed(2) + ' ; réception : la caisse descend de ' + (-ymin).toFixed(2));
+        /* cockpit : le sien */
+        const H = CK_HAB.monstertruck; if (!(H && H.vol === 'course' && H.seq && H.harnais && H.cage && CK_TH.monster.pl === 'alu')) ko.push('fiche du cockpit : ' + JSON.stringify(H));
+        META.vue = 'fps'; for (let i = 0; i < 4; i++) { majVehicules(1 / 30); majCamera(1 / 30); } const dg = cockpitDiagnostic(v); if (!dg.ok) ko.push('cockpit ' + JSON.stringify(dg)); const C = COCKPIT;
+        if (C.g) { let rouge = 0; C.g.traverse((o) => { if (o.isMesh && o.material && o.material.color && o.material.color.getHex() === 0xc8202a) rouge++; }); if (!rouge) ko.push('pas de harnais au cockpit'); }
+        META.vue = 'classique'; majCamera(1 / 30); sortirVehicule(true); scene.remove(v.mesh); vehicules.length = 0;
+        return { ko, info }; });
+      if (r.off) saute('Monster Truck V3 : décor V2 coupé');
+      else if (r.ko.length) fail('Monster Truck V3 : ' + r.ko.join(' | '));
+      else ok('Monster Truck V3 : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
+    // Écrasement V2 — trois niveaux (19 octobre). 1 : voiture contre voiture, dégâts classiques ; 2 : un lourd
+    // (VEHDEFS.enfonce) ENFONCE une voiture — tôle pliée au point d'impact, vitres éclatées, voiture projetée et épave, le
+    // lourd perd un peu de vitesse et ne monte jamais dessus ; 3 : le Monster Truck MONTE sur la voiture (la roue suit le
+    // toit) pendant qu'elle s'affaisse là où passent ses roues, le char l'aplatit en tanguant à peine. Épaves noircies,
+    // retirées au-delà du plafond ou au bout de leur vie, sons coupés à la mort.
+    // -------------------------------------------------------------------
+    console.log('\n--- Écrasement V2 : enfoncement par les lourds, écrasement par le char et le Monster Truck, épaves ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = []; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; for (const e of ennemis) e.mort = true; creerTrafic = () => {}; WANTED.heat = 0;
+        const lourds = Object.keys(VEHDEFS).filter((k) => VEHDEFS[k].enfonce), ecraseurs = Object.keys(VEHDEFS).filter((k) => VEHDEFS[k].ecrase);
+        if (ecraseurs.sort().join() !== 'char,monstertruck') ko.push('écraseurs : ' + ecraseurs.join()); if (!lourds.includes('busville') || !lourds.includes('pompiers') || lourds.some((k) => VEHDEFS[k].ecrase)) ko.push('lourds : ' + lourds.join());
+        info.push('niveau 2 : ' + lourds.join(', ') + ' ; niveau 3 : ' + ecraseurs.join(', '));
+        const vider = () => { for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0; viderEpaves(); };
+        let sp = null; for (let ring = 0; ring < 30 && !sp; ring++) for (let a = 0; a < 24 && !sp; a++) { const an = a / 24 * Math.PI * 2, x = POIS.place.x + Math.cos(an) * (25 + ring * 14), z = POIS.place.z + Math.sin(an) * (25 + ring * 14); let okk = true; for (let dz = -8; dz <= 46 && okk; dz += 2) for (let dx = -5; dx <= 5; dx += 2) if (solidAt(x + dx, z + dz, 1) || estEau(x + dx, z + dz) || solY(x + dx, z + dz) > 0.4) okk = false; if (okk) sp = { x, z }; }
+        if (!sp) return { ko: ko.concat('aucun couloir libre'), info };
+        P.x = sp.x; P.z = sp.z;
+        const deplace = (o) => { let n = 0, max = 0; o.mesh.traverse((me) => { if (!me.isMesh || !me.userData.geoPropre || !me.userData.geoOrig) return; const a = me.geometry.attributes.position.array, b = me.userData.geoOrig.attributes.position.array; for (let i = 0; i < a.length; i += 3) { const dd = Math.hypot(a[i] - b[i], a[i + 1] - b[i + 1], a[i + 2] - b[i + 2]); if (dd > 0.3) n++; if (dd > max) max = dd; } }); return { n, max }; }; /* les sommets déplacés, comparés à la géométrie d'origine */
+        const vitresVisibles = (o) => { let n = 0; o.mesh.traverse((m) => { if (m.isMesh && m.visible && m.material && ckEstVitre(m.material)) n++; }); return n; };
+        /* niveau 3 : le Monster Truck sur une citadine en travers */
+        for (const ecr of ['monstertruck', 'char']) { vider(); const A = creerVehicule(ecr, sp.x, sp.z, 0, 'joueur'), C = creerVehicule('citadine', sp.x, sp.z + 10, Math.PI / 2, null); P.veh = A; A.v = 0;
+          const vit0 = vitresVisibles(C); let hMax = 0, tMax = 0, t = 0; const coul0 = (() => { let c = null; C.mesh.traverse((m) => { if (!c && m.isMesh && m.material && m.material.userData && m.material.userData.peintV3) c = m.material.color.getHex(); }); return c; })();
+          for (; t < 400 && !C.epave; t++) { majVehiculePhys(A, 1 / 30, A.v < 9 ? 1 : 0.3, 0, false); hMax = Math.max(hMax, A.hEcrL || 0); tMax = Math.max(tMax, Math.abs(A.tangEcrL || 0)); }
+          const dp = deplace(C), vit1 = vitresVisibles(C), ecartees = (C.mesh.userData.roues || []).filter((rr) => rr.userData.ecarte).length; let noire = false; C.mesh.traverse((m) => { if (m.isMesh && m.userData.noirci) noire = true; });
+          const nom = ecr === 'char' ? 'char' : 'Monster Truck';
+          if (!C.epave) ko.push(nom + ' : pas d\'épave');
+          if (ecr === 'monstertruck' && !(hMax > 0.45 && tMax > 0.08)) ko.push('le Monster Truck ne monte pas sur la voiture (hauteur ' + hMax.toFixed(2) + ', tangage ' + tMax.toFixed(2) + ')');
+          if (ecr === 'char' && !(hMax < 0.4 && tMax > 0.01)) ko.push('le char devrait aplatir en tanguant à peine (hauteur ' + hMax.toFixed(2) + ', tangage ' + tMax.toFixed(3) + ')');
+          if (!(dp.n > 30 && dp.max > 0.4)) ko.push(nom + ' : la carrosserie ne s\'affaisse pas (' + dp.n + ' sommets, ' + dp.max.toFixed(2) + ' u)');
+          if (vit0 && vit1) ko.push(nom + ' : les vitres n\'éclatent pas'); if (!ecartees) ko.push(nom + ' : aucune roue ne s\'écarte'); if (!noire) ko.push(nom + ' : épave pas noircie');
+          majVehicules(1 / 30); if (vehicules.includes(C) || !EPAVES.includes(C)) ko.push(nom + ' : épave pas rangée');
+          info.push(nom + ' : monte à ' + hMax.toFixed(2) + ' u, tangue de ' + tMax.toFixed(2) + ' rad ; ' + dp.n + ' sommets enfoncés (jusqu\'à ' + dp.max.toFixed(2) + ' u), ' + ecartees + ' roue(s) écartée(s)');
+          P.veh = null; A.mort = true; }
+        /* niveau 2 : le bus enfonce une citadine en travers, la pousse devant lui, ne monte jamais dessus */
+        vider(); const B = creerVehicule('busville', sp.x, sp.z, 0, 'joueur'), C2 = creerVehicule('citadine', sp.x, sp.z + 26, Math.PI / 2, null); P.veh = B; B.v = 0;
+        const hp0 = B.hp, zC0 = C2.z; let vAvant = 0, hB = 0, t2 = 0;
+        for (; t2 < 300 && !C2.epave; t2++) { vAvant = B.v; majVehiculePhys(B, 1 / 30, 1, 0, false); hB = Math.max(hB, B.hEcrL || 0); }
+        if (!C2.epave) ko.push('le bus n\'enfonce pas la citadine (vitesse ' + vAvant.toFixed(1) + ')');
+        else { const vApres = B.v, bouge = deplace(C2).max;
+          for (let i = 0; i < 40; i++) { majVehiculePhys(B, 1 / 30, 0.3, 0, false); majVehicules(1 / 30); }
+          const devant = (C2.z - B.z) - (B.def.long / 2);
+          if (!(bouge > 0.2)) ko.push('pas de tôle pliée au point d\'impact (' + bouge.toFixed(2) + ')'); if (vitresVisibles(C2)) ko.push('les vitres n\'éclatent pas (enfoncement)');
+          if (!(C2.z - zC0 > 3)) ko.push('la voiture n\'est pas projetée (' + (C2.z - zC0).toFixed(1) + ' u)'); if (!(devant > -0.5)) ko.push('le bus passe à travers l\'épave (' + devant.toFixed(2) + ')');
+          if (!(vApres > vAvant * 0.6 && vApres < vAvant)) ko.push('le bus : vitesse ' + vAvant.toFixed(1) + ' → ' + vApres.toFixed(1) + ' (perte légère attendue)'); if (!(B.hp < hp0 && B.hp > hp0 * 0.95)) ko.push('le bus : dégâts ' + (hp0 - B.hp).toFixed(1) + ' (légers attendus)');
+          if (hB > 0) ko.push('le bus monte sur la voiture');
+          info.push('bus à ' + vAvant.toFixed(1) + ' u/s : tôle pliée de ' + bouge.toFixed(2) + ' u, voiture projetée de ' + (C2.z - zC0).toFixed(1) + ' u et poussée devant (' + devant.toFixed(1) + ' u), bus ' + vAvant.toFixed(1) + ' → ' + vApres.toFixed(1) + ' u/s, −' + (hp0 - B.hp).toFixed(1) + ' PV'); }
+        P.veh = null; B.mort = true;
+        /* niveau 1 : voiture contre voiture, aucune épave */
+        vider(); const T = creerVehicule('taxi', sp.x, sp.z, 0, 'joueur'), C3 = creerVehicule('citadine', sp.x, sp.z + 14, Math.PI / 2, null); P.veh = T; T.v = 0;
+        for (let t3 = 0; t3 < 120; t3++) majVehiculePhys(T, 1 / 30, 1, 0, false); if (C3.epave || C3.ecr) ko.push('voiture contre voiture : épave'); P.veh = null; T.mort = true;
+        /* épaves : plafond, durée de vie, géométries libérées ; sons coupés à la mort */
+        vider(); for (let i = 0; i < EPAVES_MAX + 3; i++) { const o = creerVehicule('citadine', sp.x + (i % 4) * 5, sp.z + Math.floor(i / 4) * 6, 0, null); finEpave(o); vehicules.splice(vehicules.indexOf(o), 1); enregistrerEpave(o); }
+        if (EPAVES.length !== EPAVES_MAX) ko.push('plafond des épaves : ' + EPAVES.length);
+        const e0 = EPAVES[0]; for (let i = 0; i < 4; i++) majEpaves(EPAVE_VIE / 3); majEpaves(1); majEpaves(1); if (EPAVES.length || !e0.mort) ko.push('épaves pas retirées au bout de leur vie (' + EPAVES.length + ')');
+        try { audioInit(); } catch (e) {} sonEcrasement('tole', 1); sonEcrasement('verre', 1); const sons = ECR_SON.src.length; mourir(); if (ECR_SON.src.length || ECR_SON.g) ko.push('sons d\'écrasement pas coupés à la mort'); info.push(sons + ' sons coupés à la mort');
+        startRun(); return { ko, info }; });
+      if (r.ko.length) fail('Écrasement V2 : ' + r.ko.join(' | '));
+      else ok('Écrasement V2 : ' + r.info.join(' ; '));
     }
     // -------------------------------------------------------------------
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');

@@ -2908,7 +2908,7 @@ const VEHDEFS={
   busville:{nom:'Bus de ville',tuningMeca:true,vmax:16,acc:6,man:0.9,hp:480,long:10.5,larg:2.5,enfonce:true,type:'car',cols:[0xe8ecf2],bus:true},
   pompiers:{nom:'Camion de pompiers',tuningMeca:true,vmax:20,acc:8,man:1.5,hp:480,long:7.5,larg:2.4,enfonce:true,type:'car',cols:[0xd0342e],pompier:true},
   jeep:{nom:'4x4 "Coyote"',tuningMeca:true,vmax:27,acc:18,man:3.0,hp:160,long:3.8,larg:1.9,type:'car',jeep:true,franchissement:true,franchit:0.9,cols:[0x5a6a3a,0xc8a060,0xb83a2a,0xe8e4d8]}, // 4x4 de franchissement : la pente le freine deux fois moins, gravit des pentes bien plus raides
-  monstertruck:{nom:'Monster Truck',tuningMeca:true,tuningCarro:{famille:'toutterrain',ancrages:{avant:{x:0,y:3.19,z:2.53},arriere:{x:0,y:2.98,z:-2.52},toit:{x:0,y:3.84,z:0.78},basCaisse:{x:1.35,y:2.55,z:0}}},vmax:29,acc:12,man:2.2,hp:650,long:6.0,larg:3.7 /* 19 octobre, refonte : l'encombrement réel, roues comprises (5,2 × 2,7 : les pneus débordaient déjà de la hitbox) */,type:'car',cols:[0xff3b1a],ecrase:true,franchissement:true /* grosses roues : il gravit comme le 4x4 (signalé : « il ne monte pas la colline ») */,franchit:1.5},
+  monstertruck:{nom:'Monster Truck',tuningMeca:true,tuningCarro:{famille:'toutterrain',ancrages:{avant:{x:0,y:3.19,z:2.53},arriere:{x:0,y:2.98,z:-2.52},toit:{x:0,y:3.84,z:0.78},basCaisse:{x:1.35,y:2.55,z:0}}},vmax:29,acc:12,man:2.2,hp:650,long:6.4,larg:3.8 /* 19 octobre, refonte : l'encombrement réel, pare-chocs tubulaires et pneus compris (5,2 × 2,7 : les pneus débordaient déjà de la hitbox) */,type:'car',cols:[0xff3b1a],ecrase:true,franchissement:true /* grosses roues : il gravit comme le 4x4 (signalé : « il ne monte pas la colline ») */,franchit:1.5},
   // Dépôt de bus : loués au stand, jamais au concessionnaire (absents de
   // CATALOGUE — suffisant, pas besoin de cache:true qui déclencherait une
   // notification de « découverte » à chaque création). Quatre profils
@@ -20711,7 +20711,7 @@ function fumeeNoireInit(){ const N=FNOIRE.N, geo=new THREE.PlaneGeometry(1,1);
   const e=m.instanceMatrix.array; for(let i=0;i<N;i++){ e.fill(0,i*16,i*16+16); e[i*16+15]=1; }
   for(const k of ['x','y','z','vx','vz','age','vie','s0','s1','a0']) FNOIRE[k]=new Float32Array(N); FNOIRE.vie.fill(1); FNOIRE.age.fill(1); FNOIRE._v=new THREE.Vector3();
   scene.add(m); FNOIRE.mesh=m; }
-function fumeeNoire(x,y,z,vx,vz){ if(!FNOIRE.mesh) fumeeNoireInit(); const i=FNOIRE.i; FNOIRE.i=(i+1)%FNOIRE.N;
+function fumeeNoire(x,y,z,vx,vz){ if(!FNOIRE.mesh) fumeeNoireInit(); const i=FNOIRE.i; FNOIRE.i=(i+1)%FNOIRE.N; FNOIRE.emis=(FNOIRE.emis||0)+1;
   FNOIRE.x[i]=x; FNOIRE.y[i]=y; FNOIRE.z[i]=z; FNOIRE.vx[i]=vx; FNOIRE.vz[i]=vz; FNOIRE.age[i]=0; FNOIRE.vie[i]=1.0+Math.random()*0.7; FNOIRE.s0[i]=0.45+Math.random()*0.2; FNOIRE.s1[i]=2.3+Math.random()*1.0; FNOIRE.a0[i]=0.8+Math.random()*0.15; FNOIRE.mesh.visible=true; }
 function majFumeeNoire(dt){ const m=FNOIRE.mesh; if(!m||!m.visible) return; const e=m.instanceMatrix.array, A=FNOIRE.aA.array; let n=0;
   m.material.uniforms.uLum.value=clamp(hemi.intensity*0.75+soleil.intensity*0.45,0.3,1);
