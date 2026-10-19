@@ -148,8 +148,8 @@ dans l'ordre demandé : ils passent en dernier (groupe 7).
 
 ### 3. Voitures pilotables restantes
 - [x] Berline Viper (`gangcar`) → Chevrolet Impala 1964 lowrider — calandre à barres et quatre phares, trois feux ronds, jantes à rayons et flancs blancs, roue « continental », filets dorés ; `pilotables_lot1_*`
-- [ ] Supercar « Mirage » (`mirage`) → Lamborghini Huracán
-- [ ] Hypercar « Zénith » (`hyper`) → McLaren P1
+- [x] Supercar « Mirage » (`mirage`) → Lamborghini Huracán — coin taillé, phares et feux en « Y », prises triangulaires, ouïes hexagonales, grille hexagonale, quatre sorties ; `pilotables_lot2_*`
+- [x] Hypercar « Zénith » (`hyper`) → McLaren P1 — verrière en goutte, phares en virgule, prise de toit, poupe en grille sous un feu en « C », sortie centrale, aileron ; `pilotables_lot2_*`
 - [x] Ancienne « Baronne » (`baronne`) → Cadillac Eldorado 1959 — ailerons et feux-obus, toit vinyle, calandre « bijou », pare-chocs à obus, larges flancs blancs ; `pilotables_lot1_*`
 - [x] Buggy des dunes (`buggy`) → Meyers Manx — baignoire en fibre, ailes en arches, flat-four à nu, arceau, numéro 23 ; ouvert, conducteur assis ; `pilotables_lot1_*`
 - [x] Buggy « Scarabée » (`scarabee`) → Volkswagen Coccinelle « Baja Bug » cabriolet — ailes rondes raccourcies, phares dressés, feux sur les ailes, arceau et rampe, moteur à nu, numéro 7 ; `pilotables_lot1_*`
@@ -342,6 +342,20 @@ dans l'ordre demandé : ils passent en dernier (groupe 7).
 - **Signature** : phares dressés au bout des ailes avant, feux ronds sur les ailes arrière ; pare-brise droit ; capote repliée ; arceau
   et rampe de phares ; capot court ; moteur à nu ; pare-chocs tubulaires ; numéro 7 sur les portes.
 - Fait seul : cabriolet, pour garder le cockpit existant (déclaré ouvert, avec cage). La rampe de phares s'efface en 1re personne.
+
+### Supercar « Mirage » (`mirage`) → Lamborghini Huracán
+- **Silhouette** : coin taillé au couteau (profil à arêtes franches), nez très bas, cabine avancée.
+- **Signature** : phares à diodes en « Y » ; grandes prises triangulaires derrière les portes et l'arête qui les borde ; capot moteur à
+  ouïes ; poupe en grille hexagonale, feux en « Y », quatre sorties par paires, diffuseur. **Livrée** : jaune (Giallo).
+- **Intérieur** : carbone, baquets noirs, surpiqûres turquoise (comme le cockpit V2).
+
+### Hypercar « Zénith » (`hyper`) → McLaren P1
+- **Silhouette** : verrière en goutte qui file jusqu'au capot moteur ajouré, peau tendue sur la mécanique.
+- **Signature** : phares en virgule ; prise d'air sur le toit ; énormes prises latérales ; poupe ouverte en grille noire sous un fin
+  feu en « C » ; sortie d'échappement centrale ; aileron au ras de la poupe ; jantes noires. **Livrée** : blanc, noir, orange, violet.
+- **Intérieur** : carbone, accents violets.
+- Fait seul : l'œil du cockpit de la Coccinelle Baja (`COCKPIT_DEFS.scarabee`, relevé à la main pour l'ancien modèle) ramené à la hauteur
+  des yeux d'un pilote assis (0,1 au lieu de 0,25) : la nouvelle caisse, rampe masquée en 1re personne, est plus basse que l'ancien œil.
 
 ## Mesures et tests
 
