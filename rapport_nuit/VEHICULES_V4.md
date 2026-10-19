@@ -156,13 +156,13 @@ dans l'ordre demandé : ils passent en dernier (groupe 7).
 - [x] Jeep militaire « Guépard » (`jeepMil`) → AM General Humvee **M998 ouvert** (et non M1151 : le cockpit est déclaré ouvert) — calandre à fentes, sans portes, tunnel central, bâche, arceau et tourelle (`ud.tourelle`) ; `pilotables_lot3_*`
 - [x] Char « Rhinocéros » (`char`) → M1A2 Abrams — tourelle plate à facettes, canon à manchon et évacuateur, viseurs du tireur et du chef, coupole, fumigènes, panier, jupes et sept galets ; `ud.tourelle` gardée ; `pilotables_lot3_*`
 - [x] Bulldozer « Titan » (`bulldozer`) → Caterpillar D6 — chenilles en triangle à barbotin surélevé, cabine de sécurité, cheminée et préfiltre, lame sur bras et vérins (`ud.pelle` gardé), défonceuse, « CAT D6 » ; `pilotables_lot3_*`
-- [ ] Tracteur de piste « Mule » (`tracteurPiste`) → tracteur de repoussage d'avion (Goldhofer AST)
-- [ ] Camion-citerne « Kérosène » (`citerne`) → avitailleur sur porteur Kenworth
-- [ ] Passerelle mobile « Échelle » (`escalier`) → camion-escalier d'aéroport
-- [ ] Tracteur à bagages « Valise » (`bagagiste`) → TUG MA-50 et ses chariots
-- [ ] Break « Corbillard » (`derbyBreak`) → Chevrolet Caprice Estate 1977 (le break des derbys)
-- [ ] Citadine « Savonnette » (`derbyCompacte`) → AMC Pacer
-- [ ] Pick-up « Bétaillère » (`derbyPickup`) → Chevrolet C10 1979
+- [x] Tracteur de piste « Mule » (`tracteurPiste`) → tracteur de repoussage Goldhofer (AST) — très bas et lesté, poste ouvert sous arceau, pare-chocs hachurés ; `pilotables_lot4_*`
+- [x] Camion-citerne « Kérosène » (`citerne`) → avitailleur sur Kenworth T880 — long capot chromé, cheminées, cuve alu polie, plaques JET A-1 et 30/1863, nacelle arrière ; `pilotables_lot4_*`
+- [x] Passerelle mobile « Échelle » (`escalier`) → camion-escalier d'aéroport — escalier qui monte vers l'avant jusqu'au palier au-dessus de la cabine, auvent, « LOS REYES INTL » ; `pilotables_lot4_*`
+- [x] Tracteur à bagages « Valise » (`bagagiste`) → TUG MA-50 et son chariot bâché — valises de couleur, rideaux roulés ; `pilotables_lot4_*`
+- [x] Break « Corbillard » (`derbyBreak`) → Chevrolet Caprice Estate 1977 — panneaux façon bois, quatre phares carrés, galerie ; habillage de derby sur ses cotes ; `pilotables_lot4_*`, `derby_habillage.png`
+- [x] Citadine « Savonnette » (`derbyCompacte`) → AMC Pacer — la « bulle » vitrée, très large et courte, lisse de caoutchouc ; `pilotables_lot4_*`
+- [x] Pick-up « Bétaillère » (`derbyPickup`) → Chevrolet C10 1979 (« square body ») — quatre phares superposés, calandre en grille, benne fleetside ; `pilotables_lot4_*`
 
 ### 4. Deux-roues
 - [ ] Moto (`moto`) → Triumph Bonneville T120
@@ -380,6 +380,30 @@ dans l'ordre demandé : ils passent en dernier (groupe 7).
 - Contrat gardé : `ud.pelle` (0,5 baissée, −0,15 levée) — la lame est dessinée baissée puis tournée de −0,5 autour du pivot. Les quatre
   « roues » du jeu sont les poulies avant et arrière, visibles par les flancs ouverts de la chenille. Défonceuse raccourcie et capot
   abaissé : la longueur reste dans les ±12 % et l'œil du cockpit passe au-dessus du capot.
+
+### Les engins de piste (`tracteurPiste`, `citerne`, `escalier`, `bagagiste`)
+- **Tracteur de repoussage Goldhofer (AST)** : caisse très basse et lestée (plaques sur les flancs), gros pneus industriels, poste de
+  conduite ouvert sous un arceau à toit décalé sur la gauche, gyrophare et phares de travail, crochets et pare-chocs hachurés. Le
+  conducteur est assis et se voit (`ud.siege`). L'arceau reste visible au cockpit (son toit est au-dessus du regard ; masqué, le
+  véhicule mesuré était plus bas que l'œil). La barre de repoussage attelée allongeait le modèle hors gabarit : retirée.
+- **Avitailleur sur Kenworth T880** : long capot et grande calandre chromée, phares en flèche, filtres à air chromés, deux cheminées,
+  réservoirs chromés, rétroviseurs de camion ; cuve elliptique en aluminium poli, passerelle et garde-corps, trous d'homme, échelle,
+  plaques « JET A-1 » et danger 30/1863 (textures `jetA1`, `onu1863`), armoire à enrouleurs et nacelle à l'arrière, gyrophare ambre.
+- **Camion-escalier** : petite cabine avancée ; l'escalier monte vers l'AVANT jusqu'au palier, au-dessus de la cabine (on arrive face à
+  la porte de l'avion), rampes jaunes, flancs pleins « LOS REYES INTL », butoirs de caoutchouc, auvent, béquilles de calage.
+- **TUG MA-50 et son chariot** : petit tracteur bas, poste ouvert sous arceau (conducteur visible), chariot bâché aux rideaux roulés,
+  valises de toutes les couleurs, timon.
+- Dans les versions lointaines, ce qui est rangé avec l'intérieur disparaît : le gyrophare et les phares de travail du TUG sont rangés
+  avec lui (ils flottaient au-dessus d'un arceau absent).
+
+### Les voitures de derby (`derbyBreak`, `derbyCompacte`, `derbyPickup`)
+- **Branchement** : `makeVoiture` construit l'ancienne carrosserie de derby (mêmes tirages), puis la V4 ; `habillerDerby` lit les cotes
+  déclarées par la fiche (`VEH_V3[k].pfDerby` : longueur, largeur, garde, ceinture, toit, capot, nez, poupe) à la place du profil V2 —
+  numéros, bélier, tôles, grilles, cage, échappements, compresseur, rouille et fanion se posent sur la nouvelle caisse.
+- **Chevrolet Caprice Estate 1977** : grand break carré, pavillon long jusqu'au hayon, quatre phares rectangulaires, calandre en nid,
+  panneaux façon bois cerclés de chrome, galerie, feux verticaux. **AMC Pacer** : la « bulle » — courte, très large, vitrage immense
+  et arrondi, montants fins, phares ronds dans des cadres carrés, lisse de caoutchouc. **Chevrolet C10 1979** : cabine carrée, quatre
+  phares rectangulaires superposés, calandre en grille, benne fleetside et son hayon, chromes.
 
 ## Mesures et tests
 
