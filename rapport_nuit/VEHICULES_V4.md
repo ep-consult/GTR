@@ -165,15 +165,15 @@ dans l'ordre demandé : ils passent en dernier (groupe 7).
 - [x] Pick-up « Bétaillère » (`derbyPickup`) → Chevrolet C10 1979 (« square body ») — quatre phares superposés, calandre en grille, benne fleetside ; `pilotables_lot4_*`
 
 ### 4. Deux-roues
-- [ ] Moto (`moto`) → Triumph Bonneville T120
-- [ ] Moto « Frelon » (`motoR`) → Honda CB600F Hornet
-- [ ] Moto sportive (`motoS`, aussi la moto de police) → Yamaha YZF-R1
-- [ ] Moto cross (`motocross`) → KTM 450 SX-F
-- [ ] Moto cross militaire (`motoMil`) → Kawasaki KLR650 M1030 (moto militaire)
-- [ ] Moto « Fantôme » (`fantome`) → Harley-Davidson Fat Boy
-- [ ] Vélo de ville (`velo`) → Electra Townie (vélo de plage californien)
-- [ ] BMX (`bmx`) → BMX de street (Mongoose Legion)
-- [ ] Skateboard (`skate`) → planche de street
+- [x] Moto (`moto`) → Triumph Bonneville T120 — phare rond, réservoir en goutte, bicylindre à ailettes, peashooters, rayons ; `deux_roues_*`
+- [x] Moto « Frelon » (`motoR`) → Honda CB600F Hornet — roadster dépouillé, quatre-cylindres à nu, silencieux sous la selle ; `deux_roues_*`
+- [x] Moto sportive (`motoS`, aussi la moto de police) → Yamaha YZF-R1 — carénage intégral à prise d'air centrale, bulle, coque arrière effilée, fourche dorée ; `deux_roues_*`
+- [x] Moto cross (`motocross`) → KTM 450 SX-F — plastiques, plaques-numéros, ouïes de radiateur, garde-boue haut, crampons ; `deux_roues_*`
+- [x] Moto cross militaire (`motoMil`) → Kawasaki KLR650 M1030 — petit carénage, gros réservoir, sacoches, pare-cylindres, protège-mains ; `deux_roues_*`
+- [x] Moto « Fantôme » (`fantome`) → Harley-Davidson Fat Boy — V-twin chromé, shotguns, roues pleines, nacelle, lueur verte gardée ; `deux_roues_*`
+- [x] Vélo de ville (`velo`) → Electra Townie — cadre surbaissé, cintre de croisière, selle à ressorts, pneus ballon à flancs blancs ; `deux_roues_*`
+- [x] BMX (`bmx`) → BMX de street (Mongoose Legion) — guidon haut à barre de renfort, pegs, gros tubes ; `deux_roues_*`
+- [x] Skateboard (`skate`) → planche de street — plateau concave à kicks, grip, graphisme, trucks et gommes ; `deux_roues_*`
 
 ### 5. Hélicoptères
 - [ ] Hélico « Libellule » (`helico`) → Robinson R44
@@ -404,6 +404,37 @@ dans l'ordre demandé : ils passent en dernier (groupe 7).
   panneaux façon bois cerclés de chrome, galerie, feux verticaux. **AMC Pacer** : la « bulle » — courte, très large, vitrage immense
   et arrondi, montants fins, phares ronds dans des cadres carrés, lisse de caoutchouc. **Chevrolet C10 1979** : cabine carrée, quatre
   phares rectangulaires superposés, calandre en grille, benne fleetside et son hayon, chromes.
+
+### Deux-roues (groupe 4) — socle commun
+- **Le casque intégral** (`casqueMoto`, géométries partagées : coque, visière fumée, mentonnière) : le joueur le porte à moto
+  (`majCasqueJoueur`, au début de `majVehicules` : piloté par l'état à chaque image, donc ôté en descendant, à la mort comme à la
+  nouvelle partie ; cheveux, coiffures et chapeaux masqués dessous puis rendus), le PNJ d'une moto de l'IA aussi (`majChauffeur`, qui
+  ne dessinait aucun pilote sur une moto), et le motard de police (casque blanc). Jamais sur un vélo. Test « Deux-roues V4 ».
+- **`motoInstV4`** : roues et disques de frein (enfants des roues : ils tournent avec elles), l'échappement d'origine à part
+  (`ud.echapOrigine`, le garage le masque quand il en pose un), l'assise du pilote (`ud.siege`, valeurs d'origine par style : le pilote
+  est placé exactement comme avant), la zone du guidon (`ud.guidonCk`, masquée au cockpit), le phare (sauf la cross).
+- Les motos sont « ouvertes » pour le test V3 (pas de vitrage, le pilote se voit). Vélos : le cintre en acier clair (0x9aa0a8) reste
+  une pièce du corps, que le cockpit masque (test « Vélo : guidon du modèle masqué ») ; le pédalier tourne (`ud.pedalier`). Skate : tout
+  le plateau, les trucks et les roues sont dans `ud.planche` (les figures le font tourner).
+
+### Les fiches des deux-roues
+- **Triumph Bonneville T120** (`moto`) : phare rond chromé et deux compteurs ronds, réservoir en goutte à genouillères et écusson, selle
+  plate, bicylindre parallèle à ailettes (carters chromés, faux carburateurs), deux silencieux « peashooter », fourche à soufflets, deux
+  amortisseurs, garde-boue, roues à rayons. **Honda CB600F Hornet** (`motoR`, « Frelon ») : roadster dépouillé, petit phare sous une
+  casquette, réservoir anguleux à écopes, quatre-cylindres en ligne à nu et ses quatre collecteurs, silencieux remonté sous la selle,
+  cadre-poutre, mono-amortisseur, coque arrière effilée. **Yamaha YZF-R1** (`motoS`, aussi la moto de police) : carénage intégral (un loft,
+  dégagé au-dessus de la roue) percé d'une prise d'air entre deux diodes, bulle fumée, flancs à ouïes, coque arrière haute et fine,
+  silencieux court sous le moteur, fourche inversée dorée, combiné TFT. **KTM 450 SX-F** (`motocross`) : plastiques à la couleur, plaque
+  avant et plaques latérales blanches numérotées, grandes ouïes de radiateur, selle longue et plate, garde-boue avant haut, monocylindre,
+  silencieux remonté, guidon à barre de renfort, crampons ; ni phare ni rétroviseur. **Kawasaki KLR650 M1030** (`motoMil`) : trail
+  militaire olive, petit carénage à phare rectangulaire et saute-vent, gros réservoir, selle longue, porte-bagages et sacoches,
+  pare-cylindres, protège-mains, étoile. **Harley-Davidson Fat Boy** (`fantome`) : cruiser bas et massif, fourche à gros fourreaux,
+  nacelle chromée et phare rond, guidon large ramené, réservoir et sa console, selle solo, larges garde-boue, V-twin à 45° chromé,
+  deux échappements « shotgun », roues pleines ; la lueur verte du fantôme est gardée.
+- **Electra Townie** (`velo`) : cadre surbaissé en col de cygne, pédalier avancé, cintre de croisière, grosse selle à ressorts, pneus
+  ballon à flancs blancs, garde-boue, carter de chaîne, sonnette, béquille. **BMX Mongoose Legion** (`bmx`) : cadre compact à gros
+  tubes, guidon haut à barre de renfort, selle basse, pegs, pneus lisses. **Skate** : plateau concave à kicks relevés, grip noir et
+  graphisme « REYES » dessous, trucks en alu, gommes, roues en uréthane.
 
 ## Mesures et tests
 

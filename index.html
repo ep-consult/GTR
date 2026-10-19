@@ -20574,6 +20574,31 @@ function conducteurV4(i,k){ return {x:i.xD,y:i.yH,z:i.zH,k,pose:{hy:(i.yV-i.yH)/
 /* les flancs blancs d'un pneu (anciennes, lowriders) : deux anneaux enfants de la roue, géométrie partagée par taille */
 let _MAT_FLANC=null; function flancBlancV4(r,R,ep,k0,k1){ const cle='flanc'+R.toFixed(3)+'_'+k0+'_'+k1; let g=_GEO_V3[cle]; if(!g){ g=_GEO_V3[cle]=new THREE.RingGeometry(R*k0,R*k1,24).rotateX(-Math.PI/2); g.userData.partagee=true; }
   const m=_MAT_FLANC||(_MAT_FLANC=new THREE.MeshLambertMaterial({color:0xf2f0e8,side:THREE.DoubleSide})); for(const y of [-(ep/2+0.012),ep/2+0.012]){ const f=new THREE.Mesh(g,m); f.position.y=y; r.add(f); } }
+/* ---------- deux-roues V4 : le casque intégral du pilote (joueur, PNJ, motard de police) — coque, visière fumée, mentonnière, géométries
+   partagées ; il remplace les cheveux (rendus quand on l'ôte) ---------- */
+let _GEO_CASQUE=null, _MAT_VISIERE=null;
+function casqueMoto(h,coul){ if(!h||!h.tete) return null;
+  if(!_GEO_CASQUE){ const c=mergeGeoManuel([new THREE.BoxGeometry(0.5,0.47,0.5).translate(0,0.035,0),new THREE.BoxGeometry(0.32,0.15,0.14).translate(0,-0.14,0.25)]), v=new THREE.BoxGeometry(0.44,0.16,0.04).translate(0,0.07,0.26); c.userData.partagee=true; v.userData.partagee=true; _GEO_CASQUE={c,v}; }
+  _MAT_VISIERE=_MAT_VISIERE||new THREE.MeshPhongMaterial({color:0x10141c,specular:0x8aa0c0,shininess:90});
+  const g=new THREE.Group(); g.add(new THREE.Mesh(_GEO_CASQUE.c,matV3Couleur(coul))); g.add(new THREE.Mesh(_GEO_CASQUE.v,_MAT_VISIERE)); h.tete.add(g);
+  const corps=new Set([h.tete,h.torse,h.brasG,h.brasD,h.jambeG,h.jambeD]), cache=[]; /* cheveux, coiffures, chapeaux, lunettes (posés vers 1,8 m sur le corps) : sous le casque */
+  for(const o of h.g.children) if(!corps.has(o)&&o.visible&&(o.geometry===geoCasq||o.position.y>=1.5)){ o.visible=false; cache.push(o); } g.userData.cheveux=cache; return g; }
+function oterCasqueMoto(g){ if(!g) return; if(g.parent) g.parent.remove(g); for(const o of g.userData.cheveux||[]) o.visible=true; }
+/* le joueur à moto porte le casque, et l'ôte en descendant — piloté par l'état à chaque image (aucun chemin de sortie oublié : la mort,
+   une nouvelle partie, un changement de tenue qui refait le personnage) */
+function motoCasquee(v){ const d=v&&v.def; return !!(d&&d.type==='moto'&&!d.velo&&!d.skate&&!d.eau&&!d.surf); }
+function majCasqueJoueur(){ const doit=!!(P.veh&&P.surMoto&&motoCasquee(P.veh)&&P.h), c=P.casqueMoto;
+  if(c&&(!doit||c.userData.h!==P.h)){ oterCasqueMoto(c); P.casqueMoto=null; }
+  if(doit&&!P.casqueMoto){ const g=casqueMoto(P.h,0x15171c); if(g){ g.userData.h=P.h; P.casqueMoto=g; } } }
+/* l'habillage commun d'un deux-roues V4 (dans inst) : roues et disques de frein (enfants des roues), l'échappement d'origine à part
+   (ud.echapOrigine : le garage le masque quand il en pose un), l'assise du pilote, la zone du guidon (cockpit), le phare */
+function motoInstV4(I,o){ const M=I.M;
+  for(const w of o.roues){ const r=roueV3(I,w.R,w.ep,0,w.z,w.style,w.mJ||M.chrome,w.crampons);
+    if(w.disque){ const cle='disqueMoto'+w.disque.toFixed(3); let gd=_GEO_V3[cle]; if(!gd){ gd=_GEO_V3[cle]=mergeGeoManuel([new THREE.CylinderGeometry(w.disque,w.disque,0.012,20),new THREE.CylinderGeometry(w.disque*0.42,w.disque*0.42,0.016,12)]); gd.userData.partagee=true; }
+      for(const sy of (w.deuxDisques?[-1,1]:[1])){ const d=new THREE.Mesh(gd,M.acier); d.position.y=sy*(w.ep/2+0.022); r.add(d); } } }
+  const eg=new THREE.Group(); I.corps.add(eg); for(const n in I.meshes) if(n.replace(/\d+$/,'')==='echap') eg.add(I.meshes[n]); I.ud.echapOrigine=eg;
+  I.ud.siege=o.siege; I.ud.guidonCk=o.guidonCk;
+  if(o.phare){ const s=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:0xffe9b0,transparent:true,depthWrite:false,opacity:0})); s.scale.set(2.2,2.2,1); s.position.set(0,o.phare[0],o.phare[1]+0.4); I.corps.add(s); I.ud.phG.push(s); } } /* une moto de cross n'a pas de phare */
 /* ---------- niveau de détail du trafic ---------- */
 const LOD_LOIN=62, LOD_PROCHE=54; let _MAT_LOD=null;
 function matLodV4(){ return _MAT_LOD||(_MAT_LOD=new THREE.MeshLambertMaterial({vertexColors:true})); }
@@ -21976,6 +22001,301 @@ VEH_V3.derbyPickup={
   mats:{ vinyle:()=>matV3Couleur(0x3a3a3e), grilleChrome:()=>matsV4().grilleChrome, or:()=>matV3Couleur(0xd8a838) },
   inst(I){ const o=I.info; for(const [sx,z] of [[1,o.zf],[-1,o.zf],[1,o.zr],[-1,o.zr]]) roueV3(I,o.R,0.28,sx*(o.hw-0.15),z,'acier',I.M.chrome);
     halosPharesV3(I,0.74,0.9,o.av+0.3); I.ud.conducteur=conducteurV4(o.I,0.92); I.ud.pareBrise={y:1.5,z:o.zPb-0.2}; }
+};
+/* ---------- V4 · deux-roues 1. Moto → Triumph Bonneville T120 : roadster classique — phare rond chromé et deux compteurs ronds,
+   réservoir en goutte à genouillères et écusson, selle plate, bicylindre parallèle refroidi par air (ailettes, carters chromés, faux
+   carburateurs), deux silencieux « peashooter » chromés, fourche à soufflets, deux amortisseurs arrière, garde-boue, roues à rayons ;
+   le pilote, casqué (casqueMoto) ---------- */
+VEH_V3.moto={ ouvert:true,
+  geo(B,d){ const R=0.34, zf=0.75, zr=-0.75, sY=1.02;
+    const tube=(n,r,a,b)=>B.tube(n,r,a,b,8);
+    /* le cadre : épine sous le réservoir, berceau sous le moteur, boucle arrière ; le bras oscillant */
+    tube('cadre',0.028,[0,1.08,0.52],[0,0.98,-0.12]); for(const sx of [-1,1]){ tube('cadre',0.024,[sx*0.08,1.0,0.5],[sx*0.1,0.38,0.38]); tube('cadre',0.024,[sx*0.1,0.38,0.38],[sx*0.1,0.3,-0.06]); tube('cadre',0.024,[sx*0.1,0.3,-0.06],[sx*0.1,0.5,-0.18]);
+      tube('cadre',0.022,[sx*0.1,0.5,-0.18],[sx*0.1,0.98,-0.12]); tube('cadre',0.02,[sx*0.1,0.98,-0.12],[sx*0.1,0.94,-0.7]); tube('cadre',0.022,[sx*0.11,0.5,-0.16],[sx*0.11,R,zr]); }
+    /* le bicylindre : carter, cylindres à ailettes inclinés, culasse, carters chromés, faux carburateurs, filtre */
+    B.bloc('moteur',0.36,0.28,0.5,0,0.48,0.1,0.04,0.06);
+    for(let k=0;k<7;k++) B.bx('ailettes',0.34,0.018,0.24-k*0.004,0,0.64+k*0.034,0.22-k*0.008,-0.18); B.bloc('moteur',0.34,0.08,0.22,0,0.9,0.17,0.02,0.03,-0.18);
+    for(const sx of [-1,1]){ B.cyl('chrome',0.12,0.12,0.03,20,sx*0.19,0.46,0.05,0,0,Math.PI/2); B.cyl('chrome',0.08,0.08,0.03,16,sx*0.19,0.42,0.28,0,0,Math.PI/2);
+      B.cyl('noirMat',0.04,0.045,0.14,10,sx*0.1,0.78,-0.04,Math.PI/2+0.2); B.cyl('chrome',0.05,0.05,0.04,12,sx*0.1,0.77,-0.12,Math.PI/2+0.2); }
+    /* les échappements : collecteurs et deux silencieux « peashooter » */
+    for(const sx of [-1,1]){ tube('echap',0.026,[sx*0.09,0.74,0.3],[sx*0.13,0.42,0.42]); tube('echap',0.026,[sx*0.13,0.42,0.42],[sx*0.17,0.3,0.2]); tube('echap',0.028,[sx*0.17,0.3,0.2],[sx*0.19,0.34,-0.3]);
+      B.cyl('echap',0.04,0.046,0.62,14,sx*0.19,0.37,-0.6,Math.PI/2-0.06); }
+    /* le réservoir en goutte, ses genouillères et l'écusson ; la selle plate ; les caches latéraux */
+    B.sph('peinture',1,0,1.08,0.27,0.165,0.12,0.3); B.sph('filet',1,0,1.08,0.27,0.168,0.025,0.31);
+    for(const sx of [-1,1]){ B.bloc('caoutchouc',0.02,0.1,0.16,sx*0.15,1.02,0.14,0.005,0.02); B.cyl('chrome',0.035,0.035,0.012,14,sx*0.163,1.08,0.36,0,0,Math.PI/2); }
+    B.profil('selle',[[-0.66,sY-0.08],[-0.64,sY],[0.0,sY+0.01],[0.1,sY-0.04],[0.08,sY-0.12],[-0.62,sY-0.12]],0.3,0.04); B.bx('chrome',0.31,0.02,0.04,0,sY-0.04,-0.3);
+    for(const sx of [-1,1]) B.sph('peinture',1,sx*0.12,0.72,-0.24,0.03,0.1,0.13);
+    /* la fourche à soufflets, les tés, les deux compteurs, le phare rond, les clignotants */
+    for(const sx of [-1,1]){ tube('chrome',0.024,[sx*0.09,1.06,0.53],[sx*0.09,0.76,0.62]); tube('caoutchouc',0.032,[sx*0.09,0.76,0.62],[sx*0.09,0.62,0.66]); tube('alu',0.03,[sx*0.09,0.62,0.66],[sx*0.09,R,zf]); }
+    B.bloc('alu',0.26,0.04,0.1,0,1.06,0.53,0.01,0.02); B.bloc('alu',0.24,0.04,0.1,0,0.94,0.56,0.01,0.02);
+    for(const sx of [-1,1]){ B.cyl('noirMat',0.05,0.05,0.06,16,sx*0.07,1.12,0.5,-0.6,0,0); B.cyl('cadran',0.042,0.042,0.01,16,sx*0.07,1.152,0.505,-0.6,0,0); }
+    B.cyl('chrome',0.1,0.085,0.16,20,0,0.96,0.68,Math.PI/2); B.cyl('phare',0.088,0.088,0.012,20,0,0.96,0.762,Math.PI/2); B.tore('chrome',0.09,0.012,0,0.96,0.762,0,0,0);
+    for(const sx of [-1,1]){ B.cyl('chrome',0.012,0.012,0.12,6,sx*0.14,0.96,0.66,0,0,Math.PI/2); B.sph('orange',0.035,sx*0.21,0.96,0.66,1,1,1.3); }
+    /* le guidon (la zone du cockpit), les poignées, les leviers, les rétroviseurs ronds */
+    tube('chrome',0.016,[-0.33,1.12,0.42],[-0.12,1.12,0.48]); tube('chrome',0.016,[-0.12,1.12,0.48],[0.12,1.12,0.48]); tube('chrome',0.016,[0.12,1.12,0.48],[0.33,1.12,0.42]);
+    for(const sx of [-1,1]){ B.cyl('caoutchouc',0.022,0.022,0.12,10,sx*0.38,1.12,0.4,0,0,Math.PI/2+sx*0.2); tube('noirMat',0.008,[sx*0.25,1.13,0.46],[sx*0.36,1.1,0.47]);
+      tube('chrome',0.008,[sx*0.25,1.13,0.45],[sx*0.29,1.3,0.43]); B.cyl('chrome',0.05,0.05,0.02,14,sx*0.3,1.32,0.43,Math.PI/2); B.cyl('reflecteur',0.043,0.043,0.022,14,sx*0.3,1.32,0.425,Math.PI/2); }
+    /* les garde-boue, le feu arrière, la plaque ; les deux amortisseurs arrière ; la chaîne et ses pignons */
+    B.geo('peinture',new THREE.TorusGeometry(R+0.07,0.035,4,16,Math.PI*0.62).rotateZ(Math.PI*0.2).rotateY(Math.PI/2).scale(2.6,1,1).translate(0,R,zf));
+    B.geo('peinture',new THREE.TorusGeometry(R+0.08,0.04,4,16,Math.PI*0.58).rotateZ(Math.PI*0.1).rotateY(Math.PI/2).scale(3.0,1,1).translate(0,R,zr));
+    B.cyl('feu',0.05,0.05,0.04,14,0,0.88,-0.98,Math.PI/2-0.3); B.bx('plaque',0.22,0.13,0.012,0,0.76,-1.0,-0.3); for(const sx of [-1,1]) B.sph('orange',0.03,sx*0.15,0.86,-0.9,1,1,1.3);
+    for(const sx of [-1,1]){ tube('chrome',0.022,[sx*0.14,0.44,-0.62],[sx*0.13,0.92,-0.48]); for(let k=0;k<5;k++) B.tore('ressort',0.035,0.008,sx*0.14,0.5+k*0.07,-0.6+k*0.024,Math.PI/2,0,0); }
+    tube('chaine',0.012,[0.15,0.52,-0.04],[0.15,R+0.1,zr]); tube('chaine',0.012,[0.15,0.38,-0.04],[0.15,R-0.08,zr]); B.cyl('acier',0.07,0.07,0.012,14,0.15,0.45,-0.04,0,0,Math.PI/2); B.cyl('acier',0.15,0.15,0.012,18,0.15,R,zr,0,0,Math.PI/2);
+    B.bx('plaque',0.16,0.1,0.01,0,0.82,0.79,0.3);
+    return {R,zf,zr}; },
+  mats:{ cadre:()=>matV3Couleur(0x15171c), moteur:()=>matV3Couleur(0x6a6e76), ailettes:()=>matsV3().alu, noirMat:()=>matV3Couleur(0x15171c), echap:()=>matsV3().chrome,
+    filet:()=>matV3Couleur(0xd8a838), selle:()=>matV3Couleur(0x1a1a1c), cadran:()=>matV3Couleur(0xeeeeea), ressort:()=>matV3Couleur(0x2a2c30), chaine:()=>matV3Couleur(0x2a2c30) },
+  inst(I){ const o=I.info; motoInstV4(I,{roues:[{z:o.zf,R:o.R,ep:0.13,style:'rayons',disque:0.16},{z:o.zr,R:o.R,ep:0.16,style:'rayons'}],siege:{y:0.42,z:-0.18},guidonCk:{yMin:1.065,zMin:0.3,zMax:0.56,xMin:0.12},phare:[0.96,0.76]}); }
+};
+/* ---------- V4 · deux-roues 2. Moto « Frelon » → Honda CB600F Hornet : roadster sportif dépouillé — petit phare rond sous une casquette,
+   compteurs jumelés, réservoir anguleux à écopes, quatre-cylindres en ligne à nu et ses quatre collecteurs, silencieux unique remonté
+   sous la selle, cadre-poutre, mono-amortisseur, selle étagée et coque arrière effilée, jantes coulées à trois branches ---------- */
+VEH_V3.motoR={ ouvert:true,
+  geo(B,d){ const R=0.34, zf=0.75, zr=-0.75, sY=1.0;
+    const tube=(n,r,a,b)=>B.tube(n,r,a,b,8);
+    /* le cadre-poutre (deux longerons du té au pivot), le bras oscillant en caisson, le mono-amortisseur */
+    for(const sx of [-1,1]){ B.geo('cadre',new THREE.BoxGeometry(0.05,0.12,0.75).rotateX(0.32).translate(sx*0.12,0.88,0.2)); tube('cadre',0.025,[sx*0.12,0.72,-0.14],[sx*0.12,0.42,-0.14]);
+      tube('cadre',0.02,[sx*0.1,0.9,-0.1],[sx*0.08,0.96,-0.72]); B.geo('bras',new THREE.BoxGeometry(0.05,0.09,0.62).rotateX(-0.12).translate(sx*0.11,0.42,-0.45)); }
+    tube('ressort',0.04,[0,0.48,-0.32],[0,0.82,-0.16]);
+    /* le quatre-cylindres en ligne : carter, bloc incliné à fines ailettes, couvre-culasse, alternateur ; quatre collecteurs */
+    B.bloc('moteur',0.44,0.26,0.46,0,0.46,0.06,0.04,0.06); for(let k=0;k<5;k++) B.bx('ailettes',0.42,0.016,0.2,0,0.62+k*0.035,0.2-k*0.01,-0.3); B.bloc('alu',0.42,0.07,0.2,0,0.82,0.15,0.02,0.03,-0.3);
+    for(const sx of [-1,1]) B.cyl('alu',0.11,0.11,0.03,18,sx*0.23,0.44,0.0,0,0,Math.PI/2);
+    for(let k=0;k<4;k++){ const x=-0.15+k*0.1; tube('echap',0.02,[x,0.66,0.32],[x*0.8,0.36,0.42]); tube('echap',0.022,[x*0.8,0.36,0.42],[0.06,0.26,0.1]); }
+    tube('echap',0.04,[0.06,0.26,0.1],[0.16,0.36,-0.3]); tube('echap',0.04,[0.16,0.36,-0.3],[0.18,0.72,-0.52]); B.cyl('echap',0.07,0.08,0.4,14,0.18,0.82,-0.66,Math.PI/2-0.45); B.cyl('noirMat',0.05,0.05,0.02,12,0.18,0.91,-0.84,Math.PI/2-0.45);
+    /* le réservoir anguleux et ses écopes, la selle étagée, la coque arrière effilée et son feu */
+    B.profil('peinture',[[-0.12,sY+0.0],[0.0,sY+0.12],[0.36,sY+0.15],[0.5,sY+0.04],[0.44,sY-0.1],[-0.1,sY-0.08]],0.36,0.05);
+    for(const sx of [-1,1]) B.geo('peinture',new THREE.BoxGeometry(0.03,0.16,0.3).rotateX(0.2).translate(sx*0.2,sY-0.04,0.38)); B.bx('noirMat',0.37,0.02,0.04,0,sY+0.05,0.2);
+    B.profil('selle',[[-0.5,sY+0.04],[-0.44,sY+0.08],[-0.14,sY+0.02],[-0.1,sY-0.04],[-0.46,sY-0.04]],0.28,0.03); B.profil('selle',[[-0.12,sY],[-0.08,sY+0.04],[0.02,sY+0.02],[0.02,sY-0.06],[-0.12,sY-0.06]],0.3,0.03);
+    B.profil('peinture',[[-0.95,sY+0.06],[-0.5,sY+0.08],[-0.4,sY-0.06],[-0.5,sY-0.14],[-0.9,sY-0.06]],0.24,0.03); B.bx('feu',0.1,0.04,0.02,0,sY+0.03,-0.955,-0.4);
+    B.bx('plaque',0.2,0.12,0.012,0,0.8,-0.95,-0.35); for(const sx of [-1,1]) B.sph('orange',0.03,sx*0.12,0.84,-0.88,1,1,1.3);
+    /* la fourche, les tés, le petit phare rond sous sa casquette, les compteurs jumelés ; le garde-boue avant */
+    for(const sx of [-1,1]){ tube('chrome',0.026,[sx*0.09,1.06,0.52],[sx*0.09,0.68,0.64]); tube('noirMat',0.034,[sx*0.09,0.68,0.64],[sx*0.09,R,zf]); }
+    B.bloc('alu',0.26,0.04,0.1,0,1.06,0.52,0.01,0.02); B.bloc('alu',0.24,0.04,0.1,0,0.92,0.56,0.01,0.02);
+    B.cyl('noirMat',0.09,0.08,0.12,18,0,0.96,0.66,Math.PI/2); B.cyl('phare',0.078,0.078,0.012,18,0,0.96,0.725,Math.PI/2); B.bloc('peinture',0.2,0.05,0.14,0,1.05,0.66,0.02,0.02,-0.25);
+    for(const sx of [-1,1]){ B.cyl('noirMat',0.045,0.045,0.05,14,sx*0.06,1.12,0.52,-0.5,0,0); B.cyl('cadran',0.038,0.038,0.01,14,sx*0.06,1.145,0.53,-0.5,0,0); B.sph('orange',0.03,sx*0.15,0.95,0.65,1,1,1.3); }
+    B.geo('peinture',new THREE.TorusGeometry(R+0.06,0.03,4,14,Math.PI*0.5).rotateZ(Math.PI*0.25).rotateY(Math.PI/2).scale(2.6,1,1).translate(0,R,zf));
+    /* le guidon plat (zone du cockpit), poignées, leviers, rétroviseurs ; la chaîne */
+    tube('noirMat',0.016,[-0.34,1.1,0.44],[0.34,1.1,0.44]);
+    for(const sx of [-1,1]){ B.cyl('caoutchouc',0.022,0.022,0.12,10,sx*0.38,1.1,0.44,0,0,Math.PI/2); tube('alu',0.008,[sx*0.24,1.11,0.48],[sx*0.36,1.09,0.5]);
+      tube('noirMat',0.008,[sx*0.24,1.11,0.46],[sx*0.28,1.28,0.46]); B.bloc('noirMat',0.12,0.06,0.03,sx*0.3,1.3,0.46,0.01,0.01); B.bx('reflecteur',0.1,0.05,0.005,sx*0.3,1.3,0.444); }
+    tube('chaine',0.012,[0.16,0.5,-0.06],[0.16,R+0.1,zr]); tube('chaine',0.012,[0.16,0.38,-0.06],[0.16,R-0.08,zr]); B.cyl('acier',0.14,0.14,0.012,18,0.16,R,zr,0,0,Math.PI/2);
+    return {R,zf,zr}; },
+  mats:{ cadre:()=>matV3Couleur(0xb8bcc2), bras:()=>matV3Couleur(0xb8bcc2), moteur:()=>matV3Couleur(0x2a2c30), ailettes:()=>matsV3().alu, noirMat:()=>matV3Couleur(0x15171c), echap:()=>matV3Couleur(0x8a8e94),
+    selle:()=>matV3Couleur(0x1a1a1c), cadran:()=>matV3Couleur(0xeeeeea), ressort:()=>matV3Couleur(0xc8202a), chaine:()=>matV3Couleur(0x2a2c30) },
+  inst(I){ const o=I.info; motoInstV4(I,{roues:[{z:o.zf,R:o.R,ep:0.13,style:'alu',mJ:I.M.sombre,disque:0.15,deuxDisques:true},{z:o.zr,R:o.R,ep:0.18,style:'alu',mJ:I.M.sombre,disque:0.11}],siege:{y:0.42,z:-0.18},guidonCk:{yMin:1.065,zMin:0.3,zMax:0.56,xMin:0.12},phare:[0.96,0.72]}); }
+};
+/* ---------- V4 · deux-roues 3. Moto sportive → Yamaha YZF-R1 : carénage intégral au nez percé d'une grande prise d'air entre deux
+   feux de position à diodes, bulle fumée, flancs à ouïes, sabot, réservoir bossu, coque arrière haute et effilée à feu à diodes,
+   silencieux court sous le moteur, fourche inversée dorée, double disque et étriers radiaux, bras oscillant « banane » ---------- */
+VEH_V3.motoS={ ouvert:true,
+  geo(B,d){ const R=0.33, zf=0.76, zr=-0.73, sY=1.04;
+    const tube=(n,r,a,b)=>B.tube(n,r,a,b,8);
+    /* le carénage : un loft (nez, flancs, sabot), dégagé au-dessus de la roue avant */
+    const S=carrosserieV4(B,'peinture',{z0:-0.05,z1:1.04,g0:0.26,haut:[[-0.05,0.86],[0.25,0.94],[0.55,1.0],[0.8,0.96],[0.95,0.88],[1.04,0.8]],
+      bas:{lin:true,pts:[[-0.05,0.3],[0.32,0.26],[0.44,0.66],[0.6,0.76],[1.04,0.72]]},larg:[[-0.05,0.18],[0.3,0.25],[0.6,0.24],[0.85,0.17],[1.04,0.07]],
+      rentre:0.32,epaule:0.55,bombe:0.03,creux:0.25,yLarge:0.45,yEpaule:0.62});
+    for(const sx of [-1,1]){ for(let k=0;k<3;k++) S.bande(B,'noirMat',0.12+k*0.08,0.15+k*0.08,S.uY(0.2,0.48),S.uY(0.2,0.7),sx,0.006,2,4);                  /* ouïes des flancs */
+      S.bande(B,'carbone',-0.05,0.4,S.uY(0.2,0.28),S.uY(0.2,0.38),sx,0.006,6,2); }
+    B.bloc('noirMat',0.16,0.12,0.08,0,0.82,S.face(0,0.82,1)-0.01,0.03,0.04); B.bx('nid',0.13,0.09,0.01,0,0.82,S.face(0,0.82,1)+0.03);       /* la prise d'air centrale */
+    for(const sx of [-1,1]){ const z=S.face(sx*0.08,0.86,1); B.geo('diode',new THREE.BoxGeometry(0.06,0.015,0.03).rotateZ(sx*0.35).translate(sx*0.09,0.87,z+0.0)); B.cyl('phare',0.025,0.025,0.01,10,sx*0.07,0.79,z+0.012,Math.PI/2); }
+    B.geo('vitre',new THREE.BoxGeometry(0.3,0.26,0.012).rotateX(-0.85).translate(0,1.06,0.7));                                          /* la bulle */
+    for(const sx of [-1,1]){ tube('noirMat',0.01,[sx*0.2,0.98,0.66],[sx*0.3,1.04,0.62]); B.bloc('peinture',0.1,0.05,0.07,sx*0.33,1.05,0.62,0.01,0.01); B.bx('reflecteur',0.08,0.04,0.005,sx*0.33,1.05,0.583); }
+    /* le réservoir bossu, la selle, la coque arrière effilée et son feu à diodes, le support de plaque */
+    B.profil('peinture',[[-0.08,sY+0.0],[0.05,sY+0.1],[0.32,sY+0.08],[0.42,sY-0.02],[0.3,sY-0.12],[-0.06,sY-0.1]],0.34,0.06);
+    B.profil('selle',[[-0.42,sY+0.02],[-0.36,sY+0.06],[-0.08,sY+0.02],[-0.06,sY-0.04],[-0.4,sY-0.04]],0.26,0.03);
+    B.profil('peinture',[[-1.0,sY+0.08],[-0.46,sY+0.05],[-0.4,sY-0.04],[-0.5,sY-0.1],[-0.96,sY+0.02]],0.15,0.025); B.bx('noirMat',0.1,0.04,0.02,0,sY+0.06,-1.0,-0.3); B.bx('feu',0.08,0.02,0.012,0,sY+0.06,-1.012,-0.3);
+    tube('noirMat',0.012,[0,sY-0.04,-0.85],[0,0.78,-0.98]); B.bx('plaque',0.18,0.1,0.01,0,0.74,-1.0,-0.2); for(const sx of [-1,1]) B.sph('orange',0.025,sx*0.1,0.76,-0.96,1,1,1.3);
+    /* le cadre périmétrique, le bras « banane », le mono-amortisseur ; le moteur visible dessous ; le silencieux court */
+    for(const sx of [-1,1]){ B.geo('alu',new THREE.BoxGeometry(0.05,0.14,0.7).rotateX(0.3).translate(sx*0.17,0.86,0.2)); B.geo('alu',new THREE.BoxGeometry(0.05,0.1,0.6).rotateX(-0.08).translate(sx*0.11,0.42,-0.44)); }
+    tube('ressort',0.035,[0,0.5,-0.3],[0,0.78,-0.14]); B.bloc('moteur',0.34,0.2,0.38,0,0.36,0.08,0.04,0.05);
+    tube('echap',0.035,[0.04,0.3,0.3],[0.1,0.24,0.0]); B.bloc('echap',0.12,0.12,0.3,0.16,0.28,-0.12,0.03,0.04); B.cyl('noirMat',0.03,0.03,0.02,10,0.16,0.28,-0.28,Math.PI/2);
+    /* la fourche inversée dorée, les étriers ; le garde-boue avant ; les bracelets (zone du cockpit), leviers ; repose-pieds */
+    for(const sx of [-1,1]){ tube('or',0.03,[sx*0.09,1.0,0.55],[sx*0.09,0.7,0.66]); tube('chrome',0.024,[sx*0.09,0.7,0.66],[sx*0.09,R,zf]); B.bloc('or',0.04,0.1,0.06,sx*0.11,R+0.08,zf-0.1,0.01,0.01); }
+    B.bloc('alu',0.24,0.04,0.1,0,1.0,0.55,0.01,0.02); B.geo('peinture',new THREE.TorusGeometry(R+0.05,0.025,4,14,Math.PI*0.45).rotateZ(Math.PI*0.28).rotateY(Math.PI/2).scale(2.6,1,1).translate(0,R,zf));
+    for(const sx of [-1,1]){ tube('noirMat',0.016,[sx*0.08,0.99,0.55],[sx*0.3,0.97,0.5]); B.cyl('caoutchouc',0.022,0.022,0.11,10,sx*0.34,0.97,0.49,0,0,Math.PI/2+sx*0.15); tube('alu',0.008,[sx*0.2,0.98,0.54],[sx*0.32,0.96,0.55]);
+      B.bx('alu',0.08,0.02,0.04,sx*0.2,0.5,-0.22); }
+    B.bloc('noirMat',0.18,0.08,0.06,0,1.06,0.52,0.02,0.02); B.bx('ecranI',0.15,0.06,0.005,0,1.08,0.494,-0.5);                         /* le combiné TFT */
+    tube('chaine',0.012,[0.16,0.48,-0.04],[0.16,R+0.1,zr]); tube('chaine',0.012,[0.16,0.36,-0.04],[0.16,R-0.08,zr]); B.cyl('acier',0.13,0.13,0.012,18,0.16,R,zr,0,0,Math.PI/2);
+    return {R,zf,zr}; },
+  mats:{ noirMat:()=>matV3Couleur(0x15171c), carbone:()=>matV3Couleur(0x1a1c20), nid:()=>matsV4().nid, diode:()=>matsV4().diode, selle:()=>matV3Couleur(0x1a1a1c), moteur:()=>matV3Couleur(0x2a2c30),
+    echap:()=>matV3Couleur(0x5a5e66), ressort:()=>matV3Couleur(0x3a7bff), or:()=>matV3Couleur(0xd8a838), chaine:()=>matV3Couleur(0x2a2c30), ecranI:()=>matsV3().ecranI },
+  inst(I){ const o=I.info; motoInstV4(I,{roues:[{z:o.zf,R:o.R,ep:0.13,style:'alu5',mJ:I.M.sombre,disque:0.16,deuxDisques:true},{z:o.zr,R:o.R,ep:0.2,style:'alu5',mJ:I.M.sombre,disque:0.1}],siege:{y:0.44,z:-0.16},guidonCk:{yMin:0.93,yMax:1.1,zMin:0.4,zMax:0.75,xMin:0.06},phare:[0.82,1.0]}); }
+};
+/* ---------- V4 · deux-roues 4. Moto cross → KTM 450 SX-F : plastiques orange, garde-boue avant haut, plaque-numéro avant et plaques
+   latérales blanches, grandes ouïes de radiateur sur le réservoir, selle longue et plate, cadre orange, monocylindre noir, silencieux
+   remonté à droite, fourche inversée, roues à rayons noires et pneus à crampons, guidon à barre de renfort ; ni phare ni rétroviseur ---------- */
+VEH_V3.motocross={ ouvert:true,
+  geo(B,d){ const R=0.4, zf=0.72, zr=-0.7, sY=1.12;
+    const tube=(n,r,a,b)=>B.tube(n,r,a,b,8);
+    /* le cadre orange, le bras oscillant, l'amortisseur ; le monocylindre, son collecteur et le silencieux remonté */
+    for(const sx of [-1,1]){ tube('cadre',0.026,[sx*0.06,1.12,0.42],[sx*0.12,0.95,-0.1]); tube('cadre',0.026,[sx*0.06,1.08,0.4],[sx*0.08,0.5,0.28]); tube('cadre',0.024,[sx*0.08,0.5,0.28],[sx*0.1,0.42,-0.1]);
+      tube('cadre',0.022,[sx*0.1,0.42,-0.1],[sx*0.12,0.95,-0.1]); tube('cadre',0.018,[sx*0.12,0.95,-0.1],[sx*0.09,1.02,-0.7]); B.geo('alu',new THREE.BoxGeometry(0.05,0.08,0.6).rotateX(-0.1).translate(sx*0.11,0.48,-0.4)); }
+    tube('ressort',0.045,[0,0.62,-0.28],[0,0.98,-0.08]); B.bloc('moteur',0.26,0.32,0.36,0,0.6,0.1,0.04,0.05); B.bloc('moteur',0.2,0.2,0.2,0,0.84,0.16,0.03,0.04,-0.2);
+    tube('echap',0.03,[0.04,0.8,0.28],[0.14,0.58,0.36]); tube('echap',0.032,[0.14,0.58,0.36],[0.18,0.6,0.0]); tube('echap',0.035,[0.18,0.6,0.0],[0.19,0.88,-0.38]);
+    B.cyl('echap',0.06,0.06,0.36,14,0.19,0.98,-0.6,Math.PI/2-0.32); B.cyl('noirMat',0.045,0.045,0.03,12,0.19,1.04,-0.78,Math.PI/2-0.32);
+    /* le réservoir et ses grandes ouïes de radiateur, la selle longue et plate, le garde-boue arrière relevé, les plaques latérales */
+    B.profil('peinture',[[-0.05,sY-0.06],[0.05,sY+0.02],[0.36,sY+0.04],[0.46,sY-0.04],[0.4,sY-0.18],[0.0,sY-0.16]],0.3,0.05);
+    for(const sx of [-1,1]){ B.profil('peinture',[[0.04,sY-0.02],[0.44,sY+0.0],[0.5,0.78],[0.3,0.66],[0.08,0.86]],0.03,0.008,sx*0.2); B.profil('noirMat',[[0.1,sY-0.06],[0.38,sY-0.06],[0.42,0.84],[0.26,0.76],[0.14,0.9]],0.02,0.004,sx*0.212); }
+    B.profil('selle',[[-0.72,sY+0.06],[-0.7,sY+0.1],[0.32,sY+0.06],[0.36,sY],[0.3,sY-0.04],[-0.7,sY+0.0]],0.22,0.03);
+    B.profil('peinture',[[-1.18,sY+0.18],[-0.7,sY+0.08],[-0.62,sY-0.02],[-0.74,sY-0.04],[-1.16,sY+0.12]],0.22,0.02);
+    for(const sx of [-1,1]){ B.profil('blancP',[[-0.62,sY-0.02],[-0.2,sY-0.02],[-0.24,0.76],[-0.56,0.8]],0.02,0.004,sx*0.15); B.geo('numero',new THREE.PlaneGeometry(0.2,0.16),sx*0.162,0.92,-0.4,0,sx*Math.PI/2,0); }
+    /* la fourche inversée, les tés, la plaque-numéro avant, le garde-boue avant haut ; le guidon à barre de renfort (zone du cockpit) */
+    for(const sx of [-1,1]){ tube('noirMat',0.034,[sx*0.09,1.22,0.4],[sx*0.09,0.86,0.56]); tube('chrome',0.026,[sx*0.09,0.86,0.56],[sx*0.09,R,zf]); B.bloc('peinture',0.04,0.14,0.08,sx*0.1,R+0.08,zf-0.06,0.01,0.01); }
+    B.bloc('alu',0.26,0.05,0.12,0,1.2,0.4,0.01,0.02); B.bloc('alu',0.24,0.05,0.12,0,1.06,0.46,0.01,0.02);
+    B.profil('blancP',[[0.42,1.2],[0.54,1.18],[0.6,0.98],[0.5,0.92],[0.42,1.0]],0.26,0.02); B.geo('numero',new THREE.PlaneGeometry(0.16,0.13),0,1.07,0.565,-0.38,0,0);
+    B.profil('peinture',[[0.3,1.0],[0.62,1.01],[1.06,0.94],[1.02,0.9],[0.62,0.95],[0.32,0.95]],0.16,0.02);
+    tube('alu',0.016,[-0.38,1.28,0.36],[0.38,1.28,0.36]); B.bx('noirMat',0.2,0.05,0.05,0,1.31,0.37); tube('alu',0.01,[-0.16,1.3,0.37],[0.16,1.3,0.37]);
+    for(const sx of [-1,1]){ B.cyl('caoutchouc',0.022,0.022,0.12,10,sx*0.42,1.28,0.36,0,0,Math.PI/2); tube('alu',0.008,[sx*0.24,1.29,0.4],[sx*0.38,1.27,0.42]); B.bx('alu',0.08,0.025,0.05,sx*0.18,0.56,-0.12); }
+    tube('chaine',0.012,[0.14,0.58,-0.08],[0.14,R+0.1,zr]); tube('chaine',0.012,[0.14,0.46,-0.08],[0.14,R-0.08,zr]); B.cyl('acier',0.14,0.14,0.012,18,0.14,R,zr,0,0,Math.PI/2);
+    return {R,zf,zr}; },
+  mats:{ cadre:(c)=>matV3Couleur(c), noirMat:()=>matV3Couleur(0x15171c), moteur:()=>matV3Couleur(0x26282c), echap:()=>matV3Couleur(0xb8bcc2), ressort:(c)=>matV3Couleur(c),
+    selle:()=>matV3Couleur(0x1c1d20), blancP:()=>matV3Couleur(0xeeeeea), chaine:()=>matV3Couleur(0x2a2c30),
+    numero:()=>{ let m=VEH_V3.motocross._mN; if(!m){ m=VEH_V3.motocross._mN=new THREE.MeshLambertMaterial({map:texNumeroCourse(1),alphaTest:0.4}); m.userData.couleurLod=0xeeeeea; } return m; } },
+  inst(I){ const o=I.info; motoInstV4(I,{roues:[{z:o.zf,R:o.R,ep:0.12,style:'rayons',mJ:I.M.sombre,crampons:true,disque:0.13},{z:o.zr,R:o.R,ep:0.16,style:'rayons',mJ:I.M.sombre,crampons:true,disque:0.11}],siege:{y:0.52,z:-0.12},guidonCk:{yMin:1.2,zMin:0.25,zMax:0.5,xMin:0},phare:null}); }
+};
+/* ---------- V4 · deux-roues 5. Moto cross militaire → Kawasaki KLR650 M1030 : trail militaire vert olive — petit carénage à phare
+   rectangulaire et saute-vent, gros réservoir à écopes, selle longue, porte-bagages chargé (sacoches), pare-cylindres,
+   échappement haut à pare-chaleur, garde-boue avant haut, feux de camouflage, pneus mixtes à crampons, roues à rayons ---------- */
+VEH_V3.motoMil={ ouvert:true,
+  geo(B,d){ const R=0.4, zf=0.72, zr=-0.7, sY=1.12;
+    const tube=(n,r,a,b)=>B.tube(n,r,a,b,8);
+    for(const sx of [-1,1]){ tube('cadre',0.026,[sx*0.06,1.12,0.42],[sx*0.12,0.95,-0.1]); tube('cadre',0.026,[sx*0.06,1.08,0.4],[sx*0.08,0.5,0.28]); tube('cadre',0.024,[sx*0.08,0.5,0.28],[sx*0.1,0.42,-0.1]);
+      tube('cadre',0.022,[sx*0.1,0.42,-0.1],[sx*0.12,0.95,-0.1]); tube('cadre',0.018,[sx*0.12,0.95,-0.1],[sx*0.09,1.02,-0.72]); B.geo('cadre',new THREE.BoxGeometry(0.05,0.08,0.6).rotateX(-0.1).translate(sx*0.11,0.48,-0.4));
+      tube('cadre',0.02,[sx*0.08,0.9,0.36],[sx*0.24,0.62,0.3]); tube('cadre',0.02,[sx*0.24,0.62,0.3],[sx*0.12,0.44,0.22]); }                       /* pare-cylindres */
+    tube('ressort',0.045,[0,0.62,-0.28],[0,0.98,-0.08]); B.bloc('moteur',0.3,0.34,0.4,0,0.6,0.08,0.04,0.05); B.bloc('moteur',0.22,0.22,0.22,0,0.86,0.14,0.03,0.04,-0.2);
+    tube('echap',0.032,[0.04,0.82,0.28],[0.15,0.6,0.34]); tube('echap',0.034,[0.15,0.6,0.34],[0.19,0.62,-0.02]); tube('echap',0.036,[0.19,0.62,-0.02],[0.2,0.88,-0.38]);
+    B.cyl('echap',0.065,0.065,0.42,14,0.2,0.96,-0.6,Math.PI/2-0.25); B.bloc('noirMat',0.03,0.12,0.36,0.27,0.96,-0.58,0.01,0.01,-0.25,0,0);       /* pare-chaleur */
+    /* le gros réservoir et ses écopes, la selle longue, le porte-bagages, les sacoches, l'étui de fusil, la plaque et le feu */
+    B.profil('peinture',[[-0.06,sY-0.04],[0.04,sY+0.08],[0.42,sY+0.08],[0.52,sY-0.06],[0.46,sY-0.22],[-0.02,sY-0.2]],0.42,0.06);
+    for(const sx of [-1,1]) B.profil('peinture',[[0.06,sY-0.06],[0.46,sY-0.04],[0.5,0.82],[0.28,0.72],[0.08,0.84]],0.03,0.008,sx*0.22);
+    B.profil('selle',[[-0.7,sY+0.04],[-0.68,sY+0.09],[0.08,sY+0.08],[0.12,sY+0.02],[0.06,sY-0.04],[-0.68,sY-0.02]],0.26,0.03);
+    B.bx('cadre',0.3,0.03,0.4,0,sY+0.06,-0.92); B.bloc('sac',0.32,0.18,0.3,0,sY+0.17,-0.92,0.04,0.04); for(const sx of [-1,1]) B.bloc('sac',0.14,0.3,0.4,sx*0.24,sY-0.1,-0.82,0.03,0.04);
+    B.geo('etoile',new THREE.PlaneGeometry(0.2,0.2),0.212+0.012,sY-0.1,0.3,0,Math.PI/2,0);
+    B.profil('peinture',[[-1.14,sY+0.0],[-0.7,sY+0.02],[-0.66,sY-0.08],[-1.12,sY-0.08]],0.2,0.02); B.bx('feu',0.06,0.04,0.02,0,sY-0.06,-1.14); B.bx('plaque',0.2,0.12,0.012,0,0.96,-1.13,-0.3);
+    /* la fourche, les tés, le petit carénage à phare rectangulaire et saute-vent, le garde-boue avant haut ; le guidon (zone du cockpit) */
+    for(const sx of [-1,1]){ tube('chrome',0.026,[sx*0.09,1.22,0.4],[sx*0.09,0.86,0.56]); tube('noirMat',0.034,[sx*0.09,0.86,0.56],[sx*0.09,R,zf]); }
+    B.bloc('alu',0.26,0.05,0.12,0,1.2,0.4,0.01,0.02); B.bloc('alu',0.24,0.05,0.12,0,1.06,0.46,0.01,0.02);
+    B.profil('peinture',[[0.42,1.26],[0.56,1.24],[0.62,1.02],[0.52,0.94],[0.42,1.02]],0.3,0.03); B.bloc('noirMat',0.18,0.1,0.03,0,1.1,0.6,0.01,0.02); B.bx('phare',0.1,0.06,0.01,0,1.1,0.616);
+    B.geo('vitreO',new THREE.BoxGeometry(0.26,0.16,0.01).rotateX(-0.4).translate(0,1.34,0.5));
+    B.profil('peinture',[[0.3,1.0],[0.62,1.01],[1.04,0.94],[1.0,0.9],[0.62,0.95],[0.32,0.95]],0.16,0.02);
+    tube('noirMat',0.016,[-0.38,1.28,0.36],[0.38,1.28,0.36]); for(const sx of [-1,1]){ B.cyl('caoutchouc',0.022,0.022,0.12,10,sx*0.42,1.28,0.36,0,0,Math.PI/2); tube('noirMat',0.008,[sx*0.24,1.29,0.4],[sx*0.38,1.27,0.42]);
+      B.bloc('noirMat',0.06,0.12,0.12,sx*0.43,1.22,0.42,0.01,0.01); B.bx('alu',0.08,0.025,0.05,sx*0.18,0.56,-0.12); }                         /* protège-mains */
+    tube('chaine',0.012,[0.14,0.58,-0.08],[0.14,R+0.1,zr]); tube('chaine',0.012,[0.14,0.46,-0.08],[0.14,R-0.08,zr]); B.cyl('acier',0.14,0.14,0.012,18,0.14,R,zr,0,0,Math.PI/2);
+    return {R,zf,zr}; },
+  mats:{ cadre:()=>matV3Couleur(0x2a2e24), noirMat:()=>matV3Couleur(0x15171c), moteur:()=>matV3Couleur(0x26282c), echap:()=>matV3Couleur(0x4a4e44), ressort:()=>matV3Couleur(0x3a4030),
+    selle:()=>matV3Couleur(0x1c1d1a), sac:()=>matV3Couleur(0x5a5a3a), chaine:()=>matV3Couleur(0x2a2c30), etoile:()=>{ const m=matTexteV3('etoile'); m.userData.couleurLod=0x4a5238; return m; } },
+  inst(I){ const o=I.info; motoInstV4(I,{roues:[{z:o.zf,R:o.R,ep:0.13,style:'rayons',mJ:I.M.sombre,crampons:true,disque:0.13},{z:o.zr,R:o.R,ep:0.17,style:'rayons',mJ:I.M.sombre,crampons:true,disque:0.11}],siege:{y:0.52,z:-0.12},guidonCk:{yMin:1.2,zMin:0.25,zMax:0.5,xMin:0},phare:[1.1,0.62]}); }
+};
+/* ---------- V4 · deux-roues 6. Moto « Fantôme » → Harley-Davidson Fat Boy : cruiser massif et bas — fourche à gros fourreaux,
+   phare rond dans sa nacelle chromée, guidon large ramené vers soi, réservoir en goutte et sa console chromée, selle solo basse, larges
+   garde-boue enveloppants, bicylindre en V à 45° (culbuteurs chromés, filtre rond), deux échappements « shotgun » coupés en biseau,
+   roues pleines et gros pneus ; la lueur verte du fantôme ---------- */
+VEH_V3.fantome={ ouvert:true,
+  geo(B,d){ const Rf=0.32, Rr=0.34, zf=0.86, zr=-0.74, sY=0.82;
+    const tube=(n,r,a,b)=>B.tube(n,r,a,b,8);
+    /* le cadre bas, le bras oscillant ; le V-twin : carter, deux cylindres en V à ailettes, culbuteurs chromés, filtre rond chromé */
+    for(const sx of [-1,1]){ tube('cadre',0.03,[sx*0.06,1.0,0.5],[sx*0.1,0.88,-0.2]); tube('cadre',0.028,[sx*0.08,0.98,0.48],[sx*0.12,0.3,0.36]); tube('cadre',0.028,[sx*0.12,0.3,0.36],[sx*0.12,0.24,-0.2]);
+      tube('cadre',0.026,[sx*0.12,0.24,-0.2],[sx*0.12,0.88,-0.2]); tube('cadre',0.026,[sx*0.12,0.34,-0.18],[sx*0.12,Rr,zr]); tube('cadre',0.02,[sx*0.12,0.88,-0.2],[sx*0.12,0.7,-0.72]); }
+    B.bloc('moteur',0.34,0.26,0.6,0,0.38,0.06,0.05,0.07);
+    for(const [a,z] of [[0.38,0.2],[-0.38,-0.1]]){ for(let k=0;k<7;k++) B.geo('ailettes',new THREE.BoxGeometry(0.26,0.018,0.22-k*0.006).rotateX(a).translate(0,0.56+k*0.04,z+Math.sin(a)*k*0.04)); B.geo('chrome',new THREE.BoxGeometry(0.24,0.08,0.2).rotateX(a).translate(0,0.86,z+Math.sin(a)*0.3)); }
+    B.cyl('chrome',0.14,0.14,0.07,24,-0.2,0.7,0.06,0,0,Math.PI/2); B.cyl('noirMat',0.1,0.1,0.072,20,-0.2,0.7,0.06,0,0,Math.PI/2); B.cyl('chrome',0.13,0.13,0.03,20,0.19,0.38,0.0,0,0,Math.PI/2);
+    /* les deux échappements « shotgun » à droite */
+    for(const [y,z0] of [[0.36,0.32],[0.46,0.0]]){ tube('echap',0.035,[-0.06,0.62,z0+0.1],[-0.18,y,z0]); tube('echap',0.04,[-0.18,y,z0],[-0.2,y-0.02,-0.6]); B.cyl('echap',0.045,0.045,0.42,14,-0.21,y-0.03,-0.82,Math.PI/2); }
+    /* le réservoir en goutte et sa console chromée, la selle solo basse, les larges garde-boue, le feu */
+    B.sph('peinture',1,0,1.0,0.3,0.2,0.14,0.36); B.bloc('chrome',0.08,0.03,0.5,0,1.13,0.28,0.01,0.01); B.cyl('cadran',0.04,0.04,0.012,14,0,1.145,0.4,-0.2,0,0);
+    B.profil('selle',[[-0.42,sY+0.04],[-0.36,sY+0.14],[-0.1,sY+0.06],[0.06,sY+0.12],[0.08,sY+0.04],[-0.4,sY-0.04]],0.36,0.05);
+    B.geo('peinture',new THREE.TorusGeometry(Rr+0.1,0.06,4,18,Math.PI*0.72).rotateZ(Math.PI*0.1).rotateY(Math.PI/2).scale(3.6,1,1).translate(0,Rr+0.02,zr));
+    B.geo('peinture',new THREE.TorusGeometry(Rf+0.08,0.05,4,18,Math.PI*0.66).rotateZ(Math.PI*0.17).rotateY(Math.PI/2).scale(3.6,1,1).translate(0,Rf,zf));
+    B.cyl('feu',0.05,0.05,0.04,14,0,0.74,-1.1,Math.PI/2-0.6); B.bx('plaque',0.22,0.13,0.012,0,0.6,-1.13,-0.4); for(const sx of [-1,1]) B.sph('orange',0.03,sx*0.2,0.72,-1.04,1,1,1.3);
+    /* la fourche à gros fourreaux et leurs caches, la nacelle chromée et le phare, les antibrouillards ; le guidon large ramené (zone du cockpit) */
+    for(const sx of [-1,1]){ tube('chrome',0.034,[sx*0.13,1.02,0.5],[sx*0.13,0.7,0.68]); tube('peinture',0.05,[sx*0.13,0.7,0.68],[sx*0.13,Rf+0.04,zf]); }
+    B.bloc('chrome',0.36,0.06,0.12,0,1.02,0.52,0.02,0.03); B.bloc('chrome',0.32,0.14,0.18,0,0.94,0.6,0.04,0.05);
+    B.cyl('chrome',0.12,0.1,0.16,22,0,0.96,0.74,Math.PI/2); B.cyl('phare',0.106,0.106,0.012,22,0,0.96,0.825,Math.PI/2); B.tore('chrome',0.11,0.014,0,0.96,0.826,0,0,0);
+    for(const sx of [-1,1]){ B.cyl('chrome',0.05,0.04,0.08,14,sx*0.2,0.8,0.74,Math.PI/2); B.cyl('phare',0.042,0.042,0.01,14,sx*0.2,0.8,0.785,Math.PI/2); B.sph('orange',0.03,sx*0.28,0.94,0.7,1,1,1.3); }
+    tube('chrome',0.018,[-0.42,1.2,0.26],[-0.2,1.18,0.42]); tube('chrome',0.018,[-0.2,1.18,0.42],[0.2,1.18,0.42]); tube('chrome',0.018,[0.2,1.18,0.42],[0.42,1.2,0.26]);
+    for(const sx of [-1,1]){ tube('chrome',0.02,[sx*0.08,1.04,0.5],[sx*0.1,1.18,0.42]); B.cyl('caoutchouc',0.024,0.024,0.13,10,sx*0.46,1.2,0.22,0,0.5*sx,Math.PI/2); tube('chrome',0.008,[sx*0.3,1.21,0.36],[sx*0.42,1.19,0.3]);
+      tube('chrome',0.008,[sx*0.32,1.2,0.34],[sx*0.36,1.38,0.32]); B.cyl('chrome',0.05,0.05,0.02,14,sx*0.37,1.4,0.32,Math.PI/2); B.cyl('reflecteur',0.043,0.043,0.022,14,sx*0.37,1.4,0.315,Math.PI/2);
+      B.bloc('chrome',0.14,0.03,0.08,sx*0.28,0.36,0.38,0.01,0.01); }                                                                 /* plateformes */
+    tube('chaine',0.014,[-0.16,0.42,0.0],[-0.16,Rr+0.08,zr]); tube('chaine',0.014,[-0.16,0.32,0.0],[-0.16,Rr-0.06,zr]);              /* courroie */
+    return {Rf,Rr,zf,zr}; },
+  mats:{ cadre:()=>matV3Couleur(0x15171c), moteur:()=>matV3Couleur(0x2a2c30), ailettes:()=>matV3Couleur(0x1c1d20), noirMat:()=>matV3Couleur(0x15171c), echap:()=>matsV3().chrome,
+    selle:()=>matV3Couleur(0x1a1a1c), cadran:()=>matV3Couleur(0xeeeeea), chaine:()=>matV3Couleur(0x2a2c30) },
+  inst(I){ const o=I.info; motoInstV4(I,{roues:[{z:o.zf,R:o.Rf,ep:0.2,style:'acier',mJ:I.M.chrome,disque:0.16},{z:o.zr,R:o.Rr,ep:0.26,style:'acier',mJ:I.M.chrome}],siege:{y:0.22,z:-0.28,jambes:-1.25},guidonCk:{yMin:1.0,zMin:0.2,zMax:0.5,xMin:0},phare:[0.96,0.82]});
+    const l=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:0x7dffd8,transparent:true,depthWrite:false,opacity:0.18,blending:THREE.AdditiveBlending})); l.scale.set(2.6,1.2,1); l.position.set(0,0.3,0); I.g.add(l); /* la lueur du fantôme */ }
+};
+/* ---------- V4 · deux-roues 7. Vélo de ville → Electra Townie (le vélo de plage californien) : cadre surbaissé à tube en col de cygne,
+   pédalier avancé, cintre de croisière ramené vers soi (acier clair : le cockpit le masque), grosse selle à ressorts, pneus ballon,
+   garde-boue, carter de chaîne, béquille ; le pédalier tourne (ud.pedalier) ---------- */
+VEH_V3.velo={ ouvert:true,
+  geo(B,d){ const R=0.34, zf=0.56, zr=-0.56, bb={y:R+0.02,z:-0.04}, sY=0.96, sZ=-0.28;
+    const tube=(n,r,a,b)=>B.tube(n,r,a,b,8);
+    /* le cadre : col de cygne bas, tube de selle incliné, haubans et bases, tube de direction */
+    const hz=0.36, hy=0.86; tube('peinture',0.03,[0,hy,hz],[0,0.62,hz-0.12]); tube('peinture',0.03,[0,0.62,hz-0.12],[0,bb.y+0.04,bb.z+0.12]); tube('peinture',0.028,[0,bb.y,bb.z],[0,sY-0.12,sZ+0.06]);
+    tube('peinture',0.024,[0,0.74,hz-0.04],[0,0.58,-0.1]); tube('peinture',0.03,[0,hy+0.08,hz],[0,hy-0.08,hz+0.02]);
+    for(const sx of [-1,1]){ tube('peinture',0.016,[sx*0.05,bb.y,bb.z],[sx*0.06,R,zr]); tube('peinture',0.016,[sx*0.03,sY-0.16,sZ+0.06],[sx*0.06,R,zr]); tube('chrome',0.016,[sx*0.05,hy-0.08,hz+0.02],[sx*0.06,R,zf]); }
+    /* la selle à ressorts, la tige ; le cintre de croisière (acier clair : masqué au cockpit), la potence, les poignées, la sonnette */
+    B.profil('selle',[[sZ-0.14,sY+0.02],[sZ-0.12,sY+0.08],[sZ+0.06,sY+0.06],[sZ+0.16,sY+0.04],[sZ+0.14,sY],[sZ-0.1,sY-0.02]],0.24,0.03); tube('chrome',0.014,[0,sY-0.12,sZ+0.06],[0,sY,sZ+0.02]);
+    for(const sx of [-1,1]) for(let k=0;k<4;k++) B.tore('chrome',0.02,0.005,sx*0.06,sY-0.04+k*0.012,sZ-0.08,Math.PI/2,0,0);
+    tube('guidonAcier',0.016,[0,hy+0.08,hz],[0,hy+0.16,hz+0.04]); tube('guidonAcier',0.014,[-0.12,hy+0.16,hz+0.04],[0.12,hy+0.16,hz+0.04]);
+    for(const sx of [-1,1]){ tube('guidonAcier',0.014,[sx*0.12,hy+0.16,hz+0.04],[sx*0.28,hy+0.2,hz-0.12]); B.cyl('guidonNoir',0.02,0.02,0.1,10,sx*0.32,hy+0.21,hz-0.18,Math.PI/2+0.4,0,sx*0.2); }
+    B.cyl('chrome',0.02,0.02,0.015,10,0.16,hy+0.19,hz-0.02); B.cyl('chrome',0.035,0.035,0.03,12,0,hy+0.02,hz+0.06,Math.PI/2);                          /* sonnette, catadioptre */
+    /* les garde-boue, le carter de chaîne, le catadioptre arrière, la béquille */
+    B.geo('peinture',new THREE.TorusGeometry(R+0.05,0.02,4,16,Math.PI*0.7).rotateZ(Math.PI*0.2).rotateY(Math.PI/2).scale(3.2,1,1).translate(0,R,zf));
+    B.geo('peinture',new THREE.TorusGeometry(R+0.05,0.02,4,16,Math.PI*0.68).rotateZ(Math.PI*0.08).rotateY(Math.PI/2).scale(3.2,1,1).translate(0,R,zr));
+    B.profil('peinture',[[bb.z+0.14,bb.y+0.06],[zr-0.02,R+0.08],[zr-0.04,R-0.02],[bb.z+0.1,bb.y-0.08]],0.02,0.005,0.08);
+    B.bx('feu',0.06,0.04,0.02,0,0.62,zr-0.38); tube('chrome',0.012,[-0.05,0.3,zr+0.12],[-0.16,0.03,zr+0.2]);
+    return {R,zf,zr,bb}; },
+  mats:{ selle:()=>matV3Couleur(0x5a3a28), guidonAcier:()=>matV3Couleur(0x9aa0a8), guidonNoir:()=>matV3Couleur(0x1c1e24) },
+  inst(I){ const o=I.info; for(const z of [o.zf,o.zr]) flancBlancV4(roueV3(I,o.R,0.06,0,z,'rayons',I.M.chrome),o.R,0.06,0.7,0.84);
+    const ped=new THREE.Group(); ped.position.set(0,o.bb.y,o.bb.z); I.corps.add(ped); I.ud.pedalier=ped;
+    if(!_GEO_V3['velo:pedalier']){ const pl=new THREE.CylinderGeometry(0.1,0.1,0.012,18).rotateZ(Math.PI/2).translate(0.07,0,0), m=[], p=[];
+      for(const s of [-1,1]){ m.push(new THREE.BoxGeometry(0.025,0.16,0.035).translate(s*0.1,s*0.08,0)); p.push(new THREE.BoxGeometry(0.1,0.025,0.07).translate(s*0.15,s*0.16,0)); }
+      const g1=mergeGeoManuel([pl,...m]), g2=mergeGeoManuel(p); g1.userData.partagee=g2.userData.partagee=true; _GEO_V3['velo:pedalier']=[g1,g2]; }
+    ped.add(new THREE.Mesh(_GEO_V3['velo:pedalier'][0],I.M.chrome)); ped.add(new THREE.Mesh(_GEO_V3['velo:pedalier'][1],matV3Couleur(0x1c1d20))); }
+};
+/* ---------- V4 · deux-roues 8. BMX → BMX de street (Mongoose Legion) : cadre compact à gros tubes, guidon haut à barre de renfort
+   (acier clair : le cockpit le masque), selle basse, pédalier trois pièces, pegs sur les axes, pneus larges, roues à rayons ;
+   le pédalier tourne (ud.pedalier) ---------- */
+VEH_V3.bmx={ ouvert:true,
+  geo(B,d){ const R=0.28, zf=0.5, zr=-0.5, bb={y:R+0.02,z:-0.04}, sY=0.78, sZ=-0.2;
+    const tube=(n,r,a,b)=>B.tube(n,r,a,b,8);
+    const hz=0.34, hy=0.7; tube('peinture',0.032,[0,hy+0.04,hz],[0,sY-0.04,sZ+0.04]); tube('peinture',0.034,[0,hy-0.02,hz],[0,bb.y,bb.z]); tube('peinture',0.03,[0,bb.y,bb.z],[0,sY-0.04,sZ+0.04]);
+    tube('peinture',0.034,[0,hy+0.1,hz-0.02],[0,hy-0.06,hz+0.02]);
+    for(const sx of [-1,1]){ tube('peinture',0.018,[sx*0.05,bb.y,bb.z],[sx*0.06,R,zr]); tube('peinture',0.018,[sx*0.03,sY-0.06,sZ+0.04],[sx*0.06,R,zr]); tube('peinture',0.02,[sx*0.05,hy-0.06,hz+0.02],[sx*0.06,R,zf]);
+      for(const z of [zf,zr]) B.cyl('chrome',0.022,0.022,0.12,10,sx*0.13,R,z,0,0,Math.PI/2); }                                                  /* pegs */
+    B.profil('selle',[[sZ-0.1,sY+0.02],[sZ-0.08,sY+0.05],[sZ+0.1,sY+0.04],[sZ+0.12,sY+0.0],[sZ-0.08,sY-0.02]],0.12,0.02); tube('chrome',0.014,[0,sY-0.06,sZ+0.04],[0,sY,sZ+0.02]);
+    tube('guidonAcier',0.018,[0,hy+0.1,hz-0.02],[0,hy+0.16,hz+0.02]); for(const sx of [-1,1]) tube('guidonAcier',0.014,[sx*0.08,hy+0.12,hz+0.02],[sx*0.12,hy+0.36,hz-0.02]);
+    tube('guidonAcier',0.014,[-0.31,hy+0.36,hz-0.02],[0.31,hy+0.36,hz-0.02]); tube('guidonAcier',0.012,[-0.12,hy+0.24,hz],[0.12,hy+0.24,hz]);
+    for(const sx of [-1,1]) B.cyl('guidonNoir',0.022,0.022,0.11,10,sx*0.29,hy+0.36,hz-0.02,0,0,Math.PI/2);
+    B.cyl('acier',0.07,0.07,0.012,16,0.07,bb.y,bb.z,0,0,Math.PI/2); B.cyl('acier',0.03,0.03,0.012,12,0.07,R,zr,0,0,Math.PI/2); tube('chaine',0.008,[0.07,bb.y+0.07,bb.z],[0.07,R+0.03,zr]); tube('chaine',0.008,[0.07,bb.y-0.07,bb.z],[0.07,R-0.03,zr]);
+    return {R,zf,zr,bb}; },
+  mats:{ selle:()=>matV3Couleur(0x1c1d20), guidonAcier:()=>matV3Couleur(0x9aa0a8), guidonNoir:()=>matV3Couleur(0x1c1e24), chaine:()=>matV3Couleur(0x2a2c30) },
+  inst(I){ const o=I.info; for(const z of [o.zf,o.zr]) roueV3(I,o.R,0.08,0,z,'rayons',I.M.alu);
+    const ped=new THREE.Group(); ped.position.set(0,o.bb.y,o.bb.z); I.corps.add(ped); I.ud.pedalier=ped;
+    if(!_GEO_V3['bmx:pedalier']){ const m=[], p=[]; for(const s of [-1,1]){ m.push(new THREE.BoxGeometry(0.03,0.15,0.035).translate(s*0.09,s*0.075,0)); p.push(new THREE.BoxGeometry(0.1,0.03,0.08).translate(s*0.14,s*0.15,0)); }
+      const g1=mergeGeoManuel(m), g2=mergeGeoManuel(p); g1.userData.partagee=g2.userData.partagee=true; _GEO_V3['bmx:pedalier']=[g1,g2]; }
+    ped.add(new THREE.Mesh(_GEO_V3['bmx:pedalier'][0],I.M.chrome)); ped.add(new THREE.Mesh(_GEO_V3['bmx:pedalier'][1],matV3Couleur(0x1c1d20))); }
+};
+/* ---------- V4 · deux-roues 9. Skateboard → planche de street : plateau concave à kicks relevés, grip noir et graphisme dessous,
+   trucks en alu (embases, axes, kingpins, gommes), roues en uréthane ; tout tourne avec la planche (ud.planche : les figures) ---------- */
+VEH_V3.skate={ ouvert:true,
+  geo(B,d){ const P={}; const add=(n,g)=>{ (P[n]=P[n]||[]).push(g); };
+    /* le plateau : une section concave extrudée sur la longueur, deux kicks relevés */
+    const sec=(w,c)=>{ const s=new THREE.Shape(); s.moveTo(-w/2,c); s.lineTo(-w/2+0.02,0); s.lineTo(w/2-0.02,0); s.lineTo(w/2,c); s.lineTo(w/2,c+0.012); s.lineTo(w/2-0.02,0.012); s.lineTo(-w/2+0.02,0.012); s.lineTo(-w/2,c+0.012); s.closePath(); return s; };
+    const plateau=new THREE.ExtrudeGeometry(sec(0.22,0.012),{depth:0.58,bevelEnabled:false}); plateau.translate(0,0.125,-0.29); add('peinture',plateau);
+    for(const s2 of [-1,1]){ const k=new THREE.ExtrudeGeometry(sec(0.21,0.008),{depth:0.16,bevelEnabled:false}); k.translate(0,0,s2>0?0:-0.16); k.rotateX(-s2*0.36); k.translate(0,0.125,s2*0.29); add('peinture',k); }
+    add('grip',new THREE.BoxGeometry(0.2,0.004,0.56).translate(0,0.142,0)); add('graphisme',new THREE.PlaneGeometry(0.2,0.52).rotateX(Math.PI/2).translate(0,0.123,0));
+    for(const s2 of [-1,1]){ add('alu',new THREE.BoxGeometry(0.08,0.012,0.1).translate(0,0.115,s2*0.24)); add('alu',new THREE.CylinderGeometry(0.018,0.022,0.06,8).translate(0,0.085,s2*0.24));
+      add('alu',new THREE.CylinderGeometry(0.012,0.012,0.2,8).rotateZ(Math.PI/2).translate(0,0.04,s2*0.24)); add('gomme',new THREE.CylinderGeometry(0.016,0.016,0.03,8).translate(0,0.1,s2*0.235)); }
+    const T={}; for(const n in P){ T[n]=mergeGeoManuel(P[n]); T[n].userData.partagee=true; } return {T}; },
+  mats:{ grip:()=>matV3Couleur(0x15161a), gomme:()=>matV3Couleur(0xe8c21a),
+    graphisme:()=>{ let m=VEH_V3.skate._mG; if(!m){ const t=texV3(64,160,(x,w,h)=>{ x.fillStyle='#14161c'; x.fillRect(0,0,w,h); x.fillStyle='#ff5ad0'; x.beginPath(); x.arc(w/2,h*0.4,22,0,Math.PI*2); x.fill(); x.fillStyle='#35e0ff'; x.font='bold 18px Arial, sans-serif'; x.textAlign='center'; x.save(); x.translate(w/2,h*0.75); x.rotate(-Math.PI/2); x.fillText('REYES',0,6); x.restore(); });
+      m=VEH_V3.skate._mG=new THREE.MeshLambertMaterial({map:t,side:THREE.DoubleSide}); m.userData.couleurLod=0x14161c; } return m; } },
+  inst(I){ const o=I.info, pl=new THREE.Group(); I.corps.add(pl); I.ud.planche=pl;
+    for(const n in I.meshes){ const m=I.meshes[n]; if(m.parent===I.corps) pl.add(m); } /* tout le plateau tourne avec la planche */
+    for(const n in o.T){ const sp=VEH_V3.skate.mats[n]; pl.add(new THREE.Mesh(o.T[n],n==='peinture'?matPeintV3(I.coul):(sp?sp(I.coul,I.M):I.M[n]))); }
+    if(!_GEO_V3['skate:roue']){ const g=new THREE.CylinderGeometry(0.035,0.035,0.035,14); g.userData.partagee=true; _GEO_V3['skate:roue']=g; }
+    for(const s2 of [-1,1]) for(const sx of [-1,1]){ const r=new THREE.Mesh(_GEO_V3['skate:roue'],matV3Couleur(0xf2f0e8)); r.rotation.z=Math.PI/2; r.position.set(sx*0.1,0.04,s2*0.24); pl.add(r); I.ud.roues.push(r); } }
 };
 /* fin des fiches V4 : les ancrages des pièces du garage déclarés dans les fiches (comme celles du V3, plus haut) */
 for(const k in VEH_V3){ const a=VEH_V3[k].ancrages; if(a&&DECOR_V2&&VEHDEFS[k]&&VEHDEFS[k].tuningCarro) VEHDEFS[k].tuningCarro.ancrages=a; }
@@ -26487,6 +26807,8 @@ function majChauffeur(v){
       h.g.position.set(sg.x,sg.y,sg.z); h.jambeG.rotation.x=h.jambeD.rotation.x=sg.chevauche?(sg.jambes||-0.9):-1.45; h.brasG.rotation.x=h.brasD.rotation.x=sg.chevauche?(sg.bras||-1.05):-1.15; if(sg.chevauche) h.g.rotation.x=sg.penche||0; v.mesh.add(h.g); ud.chauffeur=h.g; }
     else if(sg&&sg.debout){ const h=makeHumain(Object.assign({haut:pick(civHaut),bas:pick(civBas),casq:pick([0x2a2018,0x4a3520,0x111318])},sg.pnj||{},{peau:pick(civPeau),visage:'neutre'}),1); /* vedette V3 : le barreur debout à la console */
       h.g.position.set(0,sg.y,sg.z); h.brasG.rotation.x=h.brasD.rotation.x=-1.2; v.mesh.add(h.g); ud.chauffeur=h.g; }
+    else if(sg&&motoCasquee(v)){ const h=makeHumain({haut:pick(civHaut),bas:pick(civBas),peau:pick(civPeau),casq:0x111318,visage:'neutre'},1); casqueMoto(h,pick([0x15171c,0xe8eaec,0xc8202a,0x2a5ac8])); /* V4 : le motard de l'IA, casqué */
+      h.g.position.set(sg.x||0,sg.y,sg.z); const jb=sg.jambes||-0.7; h.jambeG.rotation.x=h.jambeD.rotation.x=jb; h.brasG.rotation.x=h.brasD.rotation.x=-1.1; v.mesh.add(h.g); ud.chauffeur=h.g; }
     else if(v.def.profil&&PROFILS_VOITURE[v.def.profil]&&!PROFILS_VOITURE[v.def.profil].ouvert){ const Pf=PROFILS_VOITURE[v.def.profil];
       if(!_GEO_BUSTE){ const tor=new THREE.BoxGeometry(0.44,0.42,0.3); tor.translate(0,0.21,0); const tete=new THREE.SphereGeometry(0.15,8,6); tete.translate(0,0.6,0.02); _GEO_BUSTE=mergeGeoManuel([tor,tete]); _GEO_BUSTE.userData.partagee=true; }
       const b=new THREE.Mesh(_GEO_BUSTE,mat(pick([0x2a3a5a,0xc8a878,0x3a3e46,0xf2f4f8,0x7a3a3a]))); b.position.set(Pf.W*0.2,Pf.caisse-0.18,Pf.L*Pf.zAv-0.35); (ud.corps||v.mesh).add(b); ud.chauffeur=b; }
@@ -26494,6 +26816,7 @@ function majChauffeur(v){
   if(ud.chauffeur.visible!==ia) ud.chauffeur.visible=ia;
 }
 function majVehicules(dt){
+  majCasqueJoueur(); /* V4 : le casque du joueur à moto */
   for(let i=0;i<vehicules.length;i++) majChauffeur(vehicules[i]);
   majEpaves(dt); /* épaves de l'écrasement et de l'enfoncement : elles glissent, fument, s'en vont */
   let nT=0; for(let i=0;i<vehicules.length;i++){const v2=vehicules[i];if(v2.conduit==='trafic'&&!v2.mort)nT++;}
@@ -26889,6 +27212,7 @@ function creerEnnemi(type,x,z,wave){
     rider.g.position.set(0,0.42,-0.15);
     rider.jambeG.rotation.x=-1.25; rider.jambeD.rotation.x=-1.25;
     rider.brasG.rotation.x=-1.0; rider.brasD.rotation.x=-1.0;
+    if(DECOR_V2) casqueMoto(rider,def.fac==='police'?0xe8eaec:0x15171c); /* V4 : casqué */
     e.mesh.add(rider.g); e.rider=rider;
     e.mesh.position.set(x,0,z); scene.add(e.mesh);
     e.v=14;

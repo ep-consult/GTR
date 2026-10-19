@@ -15475,6 +15475,41 @@ async function main() {
     }
 
     // -------------------------------------------------------------------
+    // Véhicules V4, deux-roues (19 octobre) : le pilote d'une moto porte un casque intégral — le joueur (majCasqueJoueur, piloté par
+    // l'état à chaque image : descendre, mourir ou recommencer l'ôte, cheveux et coiffure rendus) et le PNJ d'une moto de l'IA
+    // (majChauffeur) ; jamais sur un vélo. Les motos sont lues dans VEHDEFS (motoCasquee), jamais recopiées.
+    // -------------------------------------------------------------------
+    console.log('\n--- Véhicules V4 : deux-roues — pilote casqué (joueur et PNJ), casque ôté en descendant ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (typeof motoCasquee !== 'function' || !DECOR_V2) return { off: true };
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WANTED.heat = 0;
+        for (const v of vehicules) { scene.remove(v.mesh); libererEntite(v.mesh); } vehicules.length = 0;
+        const visibles = () => P.h.g.children.filter((o) => o.visible).length, aCasque = (h) => { let c = false; h.traverse((o) => { if (o.geometry && _GEO_CASQUE && o.geometry === _GEO_CASQUE.c) c = true; }); return c; };
+        const motos = Object.keys(VEHDEFS).filter((k) => motoCasquee({ def: VEHDEFS[k] })), velos = Object.keys(VEHDEFS).filter((k) => VEHDEFS[k].velo);
+        if (motos.length < 5) ko.push('motos : ' + motos.join(','));
+        const x = POIS.place.x + 40, z = POIS.place.z + 10;
+        for (const k of motos) {
+          const v0 = visibles(), v = creerVehicule(k, x, z, 0); P.x = x; P.z = z; entrerVehicule(v); majVehicules(1 / 30);
+          if (!P.casqueMoto || P.casqueMoto.parent !== P.h.tete) ko.push(k + ' : le joueur roule sans casque');
+          sortirVehicule(true); majVehicules(1 / 30);
+          if (P.casqueMoto || aCasque(P.h.g)) ko.push(k + ' : casque gardé à pied'); if (visibles() !== v0) ko.push(k + ' : cheveux ou coiffure pas rendus (' + visibles() + ' / ' + v0 + ')');
+          const w = creerVehicule(k, x + 6, z, 0); w.conduit = 'trafic'; majChauffeur(w); const ch = w.mesh.userData.chauffeur;
+          if (!ch || !ch.visible || !aCasque(ch)) ko.push(k + ' : pas de motard casqué au guidon (IA)');
+          for (const o of [v, w]) { o.mort = true; scene.remove(o.mesh); libererEntite(o.mesh); } vehicules.length = 0; }
+        // mourir à moto, puis une nouvelle partie : le casque s'en va
+        { const v = creerVehicule(motos[0], x, z, 0); P.x = x; P.z = z; entrerVehicule(v); majVehicules(1 / 30); const avant = !!P.casqueMoto; startRun(); majVehicules(1 / 30);
+          if (!avant || P.casqueMoto || aCasque(P.h.g)) ko.push('casque après une nouvelle partie (' + avant + ', ' + !!P.casqueMoto + ')'); }
+        for (const k of velos) { const v = creerVehicule(k, x, z, 0); P.x = x; P.z = z; entrerVehicule(v); majVehicules(1 / 30); if (P.casqueMoto) ko.push(k + ' : casque sur un ' + k); sortirVehicule(true); majVehicules(1 / 30); v.mort = true; scene.remove(v.mesh); }
+        info.push(motos.length + ' motos : joueur et PNJ casqués, casque ôté en descendant et à la nouvelle partie ; ' + velos.length + ' vélos sans casque');
+        startRun(); return { ko, info };
+      });
+      if (r.off) saute('Deux-roues V4 : casque absent');
+      else if (r.ko.length) fail('Deux-roues V4 : ' + r.ko.join(' ; ')); else ok('Deux-roues V4 : ' + r.info.join(' ; '));
+    }
+
+    // -------------------------------------------------------------------
     console.log('\n--- Mont Reyes V2 : la vie (chamois, troupeau, sangliers, rapaces, randonneurs, VTT, grimpeurs…), les lieux qui se jouent, le son ---');
     {
       const r = await page.evaluate(() => {
