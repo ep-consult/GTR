@@ -8643,7 +8643,7 @@ PQ_INT.voilier=function(s,g,ox,oz,W,P2){
   for(const tt of Q.toits) for(const o of tt.objs) o.userData.garder=true;
   Q.action=(sa,k)=>k==='pqSpec'?voilierAncreAction(sa):(k==='pqJeu'?tresorTableAction(sa):null);
   Q.maj=(sa,dt,dtJeu)=>voilierMaj(sa,dt,dtJeu);
-  Q.arreter=(sa)=>{ const d=document.getElementById('tresorPan'); if(d) d.style.display='none'; };
+  Q.arreter=(sa)=>{ const d=document.getElementById('tresorPan'); if(d) d.style.display='none'; const Qa=sa.pq; if(Qa.evite){ Qa.evite=null; Qa.monde.rotation.y=0; voilierMaj(sa,0,0); } }; /* la manœuvre de l'ancre ne survit ni à la sortie, ni à la mort, ni à une nouvelle partie (elle n'avance que dans la salle) */
 };
 function pqDessous(Q,o){ /* un objet qui pend sous le rouf : visible seulement dedans (sinon il traverse le toit vu de dessus) */ Q.dessous=Q.dessous||[]; Q.dessous.push(o); }
 // le son du voilier : le clapot contre la coque, les drisses qui tintent contre le mât, les mouettes, le bois qui craque dedans
