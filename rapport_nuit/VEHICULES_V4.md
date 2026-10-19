@@ -130,11 +130,11 @@ dans l'ordre demandé : ils passent en dernier (groupe 7).
 - [x] Citadine (`citadine`) → Mini Cooper — 30 objets de près (16 avant), 4 de loin ; captures `captures/vehicules_v4/citadine_*.png`
 - [x] Berline (`berline`) → Tesla Model 3 — toit de verre teinté, phares fins, jantes aéro, intérieur blanc et grand écran ; captures `berline_*`
 - [x] Muscle « Rafale » (`muscle`) → Ford Mustang Fastback 1967 — calandre profonde, écopes, bandes Le Mans, feux à trois barres ; captures `muscle_*`
-- [ ] Pickup (`pickup`) → Ford F-150 Raptor
-- [ ] SUV de luxe « Sierra » (`suvLuxe`) → Cadillac Escalade
-- [ ] Cabriolet « Azur » (`cabriolet`) → Mercedes-Benz SL (R230)
-- [ ] Supercar « Éclipse » (`sport`) → Porsche 911 (992)
-- [ ] Muscle « Taureau » (`charger`) → Dodge Charger R/T 1969
+- [x] Pickup (`pickup`) → Ford F-150 Raptor — benne ouverte, calandre noire et trois feux orange, élargisseurs, feux de gabarit ; captures `trafic_lot1_*`
+- [x] SUV de luxe « Sierra » (`suvLuxe`) → Cadillac Escalade — calandre chromée à maillage, diodes verticales, feux sur les montants, barres de toit ; `trafic_lot1_*`
+- [x] Cabriolet « Azur » (`cabriolet`) → Mercedes-Benz SL (R230) — doubles phares ovales, barre chromée, arceaux, cuir clair ; `trafic_lot1_*`
+- [x] Supercar « Éclipse » (`sport`) → Porsche 911 (992) — phares ronds sur les ailes, capot creux, bandeau arrière, grille moteur et aileron ; `trafic_lot1_*`
+- [x] Muscle « Taureau » (`charger`) → Dodge Charger R/T 1969 — calandre pleine largeur partagée, arcs-boutants, bande « bumblebee », deux longs feux ; `trafic_lot1_*`
 - [ ] 4x4 « Coyote » (`jeep`) → Jeep Wrangler (JL)
 - [ ] Limousine « Majesté » (`limousine`) → Lincoln Town Car limousine
 - [ ] Bus de ville (`busville`) → New Flyer Xcelsior (bus urbain de Los Angeles)
@@ -297,6 +297,11 @@ dans l'ordre demandé : ils passent en dernier (groupe 7).
 - Nez de Formule 1, grandes prises latérales, capot moteur vitré, quatre feux ronds — même reprise au standard V4.
 
 ## Mesures et tests
+
+### Règle des roues
+Le test « Véhicules V3 » (qui lit aussi les fiches V4) exige que chaque roue reste à moins de 0,25 u de celle de l'ancien modèle :
+l'assiette des véhicules lit leur position. Les empattements V4 sont donc calés sur les anciens (relevé : `scratchpad/roues_old.txt`) ;
+seule une refonte déclarée (`refonte:true`, comme le Monster Truck) y échappe.
 
 ### Avant de commencer
 - Suite complète `scenarios.js` sur `monster-truck-ecrasement` + le correctif du bulldozer : **817 vérifications passées, 1 en échec**
