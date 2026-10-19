@@ -14063,6 +14063,21 @@ async function main() {
         info.push('nage le long du flanc : arrêté ; par l’arrière : ' + [...vus].filter((y) => y > 0).sort((a, b) => a - b).join(' → '));
         // la passerelle flottante est amarrée derrière la plateforme
         const pa = GYACHT.pass, f = (pa.x - v.x) * sa + (pa.z - v.z) * ca; if (!(f < -14.5)) ko.push('la passerelle flottante n’est pas derrière la poupe (' + f.toFixed(1) + ')');
+        // V3 (19 octobre, demandé : « une vraie coque, marcher sur les ponts sans passer à travers ») : flancs hauts, hublots ;
+        // sur le pont, le pavois et le salon sont des murs ; depuis la plateforme, le tableau arrière aussi (les escaliers seuls montent)
+        if (v.mesh.userData.v3) {
+          const loc = () => ({ f: (P.x - v.x) * sa + (P.z - v.z) * ca, r: Math.abs((P.x - v.x) * ca - (P.z - v.z) * sa) });
+          const surPont = (f, rr) => { const q = W(f, rr); P.x = q.x; P.z = q.z; P.y = 1.31; P.vy = 0; P.nage = false; P.chute = false; };
+          let haut = -9, hublots = 0; v.mesh.traverse((o) => { if (!o.isMesh || o.isSprite || !o.geometry.attributes.position) return; if (o.geometry.type === 'BufferGeometry' && o.material && o.material.color && o.material.color.getHex() === 0xd8b02a) hublots++; });
+          v.mesh.updateMatrixWorld(true); const ray = new THREE.Raycaster(), o0 = new THREE.Vector3(), dir = new THREE.Vector3(1, 0, 0); ray.camera = camera; /* r128 : les sprites lisent la caméra du rayon */ for (let y = 3.5; y > 0 && haut < 0; y -= 0.05) { o0.set(-10, y, -9); v.mesh.localToWorld(o0); dir.set(1, 0, 0).applyQuaternion(v.mesh.quaternion); ray.set(o0, dir); ray.far = 9; const h = ray.intersectObject(v.mesh, true).find((x) => x.object.material && !x.object.material.transparent); if (h) haut = y + 0.15; } /* au pont arrière (rien au-dessus du pavois), le modèle posé à 0,15 au-dessus de l'eau */
+          if (!(haut > 2.1)) ko.push('flancs bas (le livet à ' + haut.toFixed(2) + ' au-dessus de l’eau, pont arrière)'); info.push('livet à ' + haut.toFixed(2) + ' au-dessus de l’eau');
+          surPont(-4, 2.4); vers(W(4, 0.5), 60); let q = loc(); if (q.f > -1.5) ko.push('on traverse les murs du salon (f ' + q.f.toFixed(2) + ')');
+          surPont(-4, 2.4); vers(W(-4, 9), 60); q = loc(); if (!(q.r < 4.1) || P.y < 1.2) ko.push('on traverse le pavois (r ' + q.r.toFixed(2) + ', y ' + P.y.toFixed(2) + ')');
+          surPont(0, 3.65); vers(W(7, 3.3), 80); q = loc(); if (!(q.f > 6 && P.y > 1.25)) ko.push('le passavant ne mène pas à l’avant (f ' + q.f.toFixed(2) + ', y ' + P.y.toFixed(2) + ')');
+          { const q0 = W(-13.75, 0); P.x = q0.x; P.z = q0.z; P.y = 0.5; P.nage = false; vers(W(-8, 0), 45); q = loc(); if (q.f > -13.05 || P.y > 1) ko.push('depuis la plateforme, on monte au pont par le tableau arrière (f ' + q.f.toFixed(2) + ', y ' + P.y.toFixed(2) + ')'); }
+          if (P.veh) sortirVehicule(true); P.x = v.x; P.z = v.z; entrerVehicule(v); if (P.veh === v) { sortirVehicule(); for (let i = 0; i < 10; i++) { majJoueur(1 / 30, 1 / 30); majGrandYacht(); } q = loc(); if (Math.abs(P.y - 1.31) > 0.05 || (YACHT_V3.salonHw(q.f) && q.r < YACHT_V3.salonHw(q.f))) ko.push('barre lâchée : pas sur le pont, ou dans le salon (f ' + q.f.toFixed(2) + ', r ' + q.r.toFixed(2) + ', y ' + P.y.toFixed(2) + ')'); }
+          info.push('salon, pavois et tableau arrière infranchissables, passavant vers l’avant');
+        }
         return { ko, info };
       });
       if (r.ko.length) fail('Méga-yacht V2 : ' + r.ko.join(' ; ')); else ok('Méga-yacht V2 : ' + r.info.join(' ; '));
@@ -15596,7 +15611,7 @@ async function main() {
       const r = await page.evaluate(() => {
         if (!DECOR_V2 || typeof VEH_V3 === 'undefined') return { off: true };
         const ko = [], info = []; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; for (const e of ennemis) e.mort = true;
-        const cles = Object.keys(VEH_V3).filter((k) => VEHDEFS[k] && VEHDEFS[k].eau && VEHDEFS[k].type === 'bateau');
+        const cles = Object.keys(VEH_V3).filter((k) => VEHDEFS[k] && VEHDEFS[k].eau && VEHDEFS[k].type === 'bateau' && !grosNavire(VEHDEFS[k])); /* le méga-yacht a son test (« Méga-yacht V2 ») */
         const rc = new THREE.Raycaster(); rc.camera = camera;
         for (const k of cles) {
           for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0; if (P.veh) sortirVehicule(true);

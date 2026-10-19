@@ -3384,6 +3384,16 @@ const YACHT_POUPE={bain:null,plats:[]};
 /* (x,z) dans la coque du méga-yacht au mouillage ? Une coque qui s'affine vers l'étrave */
 function dansCoqueYacht(x,z){ const v=GYACHT.v; if(!v||v.mort||v.noye||v.conduit==='joueur') return false; const dx=x-v.x, dz=z-v.z, sa=Math.sin(v.ang), ca=Math.cos(v.ang), f=dx*sa+dz*ca, r=Math.abs(dx*ca-dz*sa);
   if(f<-13.05||f>13) return false; const t=f>6?(f-6)/7:0; return r<4.2*(1-0.85*t*t); }
+/* le méga-yacht V3 au mouillage, à pied (19 octobre, demandé : « marcher sur les ponts sans passer à travers ») : sur le pont, le pavois
+   et les murs du salon sont des murs (on en sort seulement par les deux escaliers de la poupe) ; depuis la plateforme de bain, le
+   tableau arrière est un mur : on monte par les escaliers (marches de YACHT_POUPE). Déjà dedans (posé là), on peut toujours en sortir */
+function yachtBloque(x,z){ const v=GYACHT.v; if(!DECOR_V2||!v||v.mort||v.noye||v.conduit==='joueur'||!v.mesh||!v.mesh.userData.v3) return false;
+  const dx=x-v.x, dz=z-v.z; if(dx*dx+dz*dz>400) return false;
+  const Y=YACHT_V3, sa=Math.sin(v.ang), ca=Math.cos(v.ang), f=dx*sa+dz*ca, r=Math.abs(dx*ca-dz*sa), px=P.x-v.x, pz=P.z-v.z, f0=px*sa+pz*ca, r0=Math.abs(px*ca-pz*sa);
+  const dedans=(f,r)=>f>-13.05&&f<10.9&&r<Y.hw(f)-Y.pavois, salon=(f,r)=>{ const h=Y.salonHw(f); return h>0&&r<h+0.3; };
+  if(P.y>=1&&P.y<4){ if(dedans(f0,r0)&&!dedans(f,r)) return !(f<=-12.9&&r>1.3&&r<3.0); return salon(f,r)&&!salon(f0,r0); }
+  if(P.y>=0.35&&P.y<1) return !dedans(f0,r0)&&f>-13.05&&f<13&&r<Y.hw(f);
+  return false; }
 function grosNavire(d){ return !!(d&&(d.cargo||d.navire)); } // porte-conteneurs, grand yacht
 // emprise d'une plateforme {x,z,hw,hd,ang?} (ang : même convention que les véhicules)
 function dansRectPlat(p,x,z){
@@ -20014,6 +20024,108 @@ function specVedetteV3(police){
   }; }
 VEH_V3.bateau=specVedetteV3(false);
 VEH_V3.bateauP=specVedetteV3(true);
+/* ---------- 15. Méga-yacht « Reyes Royale » (grandyacht) : une vraie coque. Le modèle de mkGrandYachtV2 reste celui du décor (ses
+   tirages calent le décor) ; le véhicule a désormais le sien. Coque haute (pont principal à 1,31 au-dessus de l'eau, PAVOIS d'un
+   mètre, livet qui remonte vers une étrave haute, fine et inclinée), quille à −1,55 (elle flotte : liseré bleu nuit à la
+   flottaison, antifouling dessous), ligne de hublots cerclés de chrome et grandes vitres de coque, filet d'or au niveau du pont ;
+   poupe ouverte : plateforme de bain au ras de l'eau, deux escaliers de quatre marches (exactement celles de YACHT_POUPE), échelle,
+   main courante entre les deux ; pont de teck, hélipad à sa place (−6,4 : majGrandYacht y pose l'hélico), salon, pont du pilote,
+   flybridge (le barreur y est debout, ud.siege), hardtop, arche radar, mât, annexe sur le pont des embarcations, jacuzzi et bains de
+   soleil à l'avant, ancres, feux. Le jeu (marchableYacht) : pavois et salon sont des murs pour qui marche sur le pont ---------- */
+const YACHT_V3={L:26,W:8.4,D:1.16, /* pont principal (modèle) : 1,31 dans le monde, GYACHT.plat */
+  hw:(z)=>z>4?4.2*Math.pow(Math.max(0,Math.cos((z-4)/9*Math.PI/2)),0.8):4.2-0.3*Math.pow(Math.max(0,(-8-z)/5),2),   /* demi-largeur au livet */
+  ys:(z)=>{ const a=clamp((z+13)/1.8,0,1); return 1.16+a*a*(3-2*a)+0.9*Math.pow(Math.max(0,(z-4)/9),2); },              /* le livet : pont ouvert à la poupe, pavois d'1 u, étrave haute */
+  yk:(z)=>z<-6?lerp(-1.55,-0.45,Math.pow((-6-z)/7,1.5)):(z<9?-1.55:lerp(-1.55,3.0,Math.pow((z-9)/4,1.4))),                /* la quille ; l'étrave inclinée */
+  salonHw:(z)=>z<-1.6||z>8.4?0:(z<=5?3.2:3.2-1.4*(z-5)/3.4), pavois:0.16 };
+function coqueYachtV3(B){ const Y=YACHT_V3, N=52, z0=-13, z1=13;
+  const xU=(w,u)=>w*(1-0.04*u)*(u<0.7?1:Math.sqrt(Math.max(0,1-Math.pow((u-0.7)/0.3,2))));                                      /* bouchain rond */
+  const S=[]; for(let i=0;i<=N;i++){ const z=z0+(z1-z0)*i/N, w=Y.hw(z), a=Y.ys(z), k=Y.yk(z), h=Math.max(0.02,a-k);
+    const us=[0]; for(const y of [1.12,1.04,0.0,-0.22]) us.push(clamp((a-y)/h,us[us.length-1]+0.004,0.95)); const uB=us[us.length-1];
+    us.push(uB+(1-uB)*0.4, uB+(1-uB)*0.75, 1); S.push({z,pts:us.map((u)=>[xU(w,u),a-u*h])}); }
+  const bandes=['peinture','or','peinture','bande','antif','antif','antif'], geo=(n,P,U,I)=>{ const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(P,3)); g.setAttribute('uv',new THREE.Float32BufferAttribute(U,2)); g.setIndex(I); g.computeVertexNormals(); B.geo(n,g); };
+  for(let j=0;j<bandes.length;j++) for(const sx of [-1,1]){ const P=[], U=[], I=[];
+    for(let i=0;i<=N;i++) for(const q of [j,j+1]){ const p=S[i].pts[q]; P.push(sx*p[0],p[1],S[i].z); U.push(S[i].z*0.25,p[1]*0.25); }
+    for(let i=0;i<N;i++){ const a=i*2, b=a+1, c=a+2, d=a+3; if(sx>0) I.push(a,c,b,b,c,d); else I.push(a,b,c,b,d,c); }
+    geo(bandes[j],P,U,I); }
+  { const p=S[0].pts; for(let j=0;j<bandes.length;j++){ const a=p[j], b=p[j+1]; geo(bandes[j],[-a[0],a[1],z0, a[0],a[1],z0, b[0],b[1],z0, -b[0],b[1],z0],[0,0,1,0,1,1,0,1],[0,1,2,0,2,3]); } } /* tableau arrière */
+  /* pavois intérieurs, plat-bord de teck, pont de teck (jusqu'à 12,6 : au-delà, l'étrave) */
+  const zF=12.6, M=46, zi=(i)=>z0+(zF-z0)*i/M, xi=(z)=>Math.max(0.05,Y.hw(z)-Y.pavois);
+  for(const sx of [-1,1]){ const P=[], U=[], I=[], Q=[], V=[], J=[];
+    for(let i=0;i<=M;i++){ const z=zi(i), x=sx*xi(z), xo=sx*Y.hw(z), y=Math.max(Y.D,Y.ys(z)); P.push(x,y,z, x,Y.D,z); U.push(z*0.4,0, z*0.4,0.3); Q.push(x,y,z, xo,y,z); V.push(z*0.6,0, z*0.6,0.2); }
+    for(let i=0;i<M;i++){ const a=i*2, b=a+1, c=a+2, d=a+3; if(sx>0){ I.push(a,b,c,b,d,c); J.push(a,c,b,b,c,d); } else { I.push(a,c,b,b,c,d); J.push(a,b,c,b,d,c); } }
+    geo('liner',P,U,I); geo('cap',Q,V,J); }
+  { const P=[], U=[], I=[]; for(let i=0;i<=M;i++){ const z=zi(i), x=xi(z); P.push(-x,Y.D,z, x,Y.D,z); U.push(-x*0.8,z*0.8, x*0.8,z*0.8); }
+    for(let i=0;i<M;i++){ const a=i*2, b=a+1, c=a+2, d=a+3; I.push(a,c,b,b,c,d); } geo('pont',P,U,I); }
+  { const z=zF, x=xi(z), y=Y.ys(z); geo('liner',[-x,Y.D,z, -x,y,z, x,y,z, x,Y.D,z],[0,0,0,1,1,1,1,0],[0,2,1,0,3,2]); geo('cap',[-x,y,z, x,y,z, Y.hw(13)+0.01,Y.ys(13),13, -Y.hw(13)-0.01,Y.ys(13),13],[0,0,1,0,1,1,0,1],[0,1,2,0,2,3]); } /* le pont d'étrave, au livet */
+  return {xi,S}; }
+/* le bordé à (z, y) : x du point de la section le plus proche en hauteur (les hublots s'y posent) */
+function bordYachtV3(S,z,y){ const i=clamp(Math.round((z+13)/26*(S.length-1)),0,S.length-1), p=S[i].pts; for(let k=0;k<p.length-1;k++){ const a=p[k], b=p[k+1]; if(y<=a[1]&&y>=b[1]){ const t=(a[1]-y)/Math.max(1e-4,a[1]-b[1]); return a[0]+(b[0]-a[0])*t; } } return p[0][0]; }
+/* un plan (x, z) extrudé vers le haut, de y0 à y0 + h */
+function planV3(B,n,pts,y0,h,b){ const s=new THREE.Shape(); s.moveTo(pts[0][0],-pts[0][1]); for(let i=1;i<pts.length;i++) s.lineTo(pts[i][0],-pts[i][1]); s.lineTo(pts[0][0],-pts[0][1]);
+  const g=new THREE.ExtrudeGeometry(s,{depth:Math.max(0.01,h-2*(b||0)),bevelEnabled:!!b,bevelThickness:b||0,bevelSize:b||0,bevelSegments:2,curveSegments:4}); g.rotateX(-Math.PI/2); g.translate(0,y0+(b||0),0); return B.geo(n,g); }
+VEH_V3.grandyacht={
+  interieur:['console','chromeI'],
+  geo(B,d){ const Y=YACHT_V3, D=Y.D, c=coqueYachtV3(B), S=c.S;
+    /* ligne de hublots (cerclés de chrome) et grandes vitres de coque ; filet d'or ; nom à l'étrave */
+    for(const sx of [-1,1]){
+      for(let z=-10.5;z<=8.2;z+=1.15){ if(z>-4.1&&z<3.4) continue; const y=0.55, x=bordYachtV3(S,z,y)+0.01; B.cyl('vitreO',0.15,0.15,0.03,14,sx*x,y,z,0,0,Math.PI/2); B.tore('chrome',0.16,0.026,sx*(x+0.012),y,z,0,Math.PI/2,0); }
+      for(const z of [-3.0,-0.3,2.4]){ const x=bordYachtV3(S,z,0.55)+0.012; B.bloc('vitreO',0.03,0.56,2.3,sx*x,0.55,z,0.012,0.1); B.bloc('chrome',0.02,0.64,2.4,sx*(x-0.004),0.55,z,0.01,0.1); }
+      { const z=9.3, x=bordYachtV3(S,z,2.05)+0.01, a=Math.atan2(YACHT_V3.hw(z+0.5)-YACHT_V3.hw(z-0.5),1); B.bx('nomYacht',0.004,0.34,2.4,sx*x,2.05,z,0,sx*a,0); }
+      { const z=10.9, x=bordYachtV3(S,z,2.2); B.bloc('sombre',0.06,0.5,0.6,sx*x,2.2,z,0.02,0.12); B.bloc('chrome',0.08,0.42,0.3,sx*(x+0.03),2.12,z,0.02,0.05); } /* écubiers et ancres */
+    }
+    /* la poupe : plateforme de bain (0,35 : 0,5 dans le monde), escaliers de YACHT_POUPE (marches de 0,195, de 0,545 à 1,13), échelle, main courante */
+    B.bloc('teck',6.72,0.16,1.5,0,0.27,-13.75,0.03,0.05); B.bx('peinture',6.6,0.5,0.06,0,0.04,-14.47);
+    for(const sx of [-1,1]) for(let i=0;i<4;i++){ const yT=0.545+i*0.195, zc=-(13+0.12+(3-i)*0.24); B.bloc('teck',1.5,yT-0.35,0.24,sx*2.2,(yT+0.35)/2,zc,0.012,0.02); B.bx('blanc',1.5,yT-0.36,0.01,sx*2.2,(yT+0.35)/2,zc-0.125); }
+    B.bx('nomPoupe',2.6,0.3,0.004,0,0.78,-13.01);                                                                                              /* REYES ROYALE — LOS REYES, sur le tableau */
+    for(const sx of [-0.25,0.25]) B.tube('acier',0.022,[sx,0.35,-14.4],[sx,-0.9,-14.5]); for(let k=0;k<4;k++) B.tube('acier',0.016,[-0.25,0.1-k*0.28,-14.45],[0.25,0.1-k*0.28,-14.45]); /* échelle de bain */
+    for(const sx of [-1.25,-0.42,0.42,1.25]) B.tube('acier',0.02,[sx,D,-12.9],[sx,D+0.95,-12.9]); B.tube('acier',0.025,[-1.3,D+0.95,-12.9],[1.3,D+0.95,-12.9]); B.bx('vitreO',2.5,0.7,0.02,0,D+0.5,-12.9);
+    /* le pont arrière : hélipad (décalque) et ses feux, deux bains de soleil contre le salon */
+    B.bx('helipad',6.8,0.01,6.8,0,D+0.012,-6.4); for(let k=0;k<8;k++){ const a=k/8*Math.PI*2; B.bx('jaune',0.2,0.08,0.2,Math.cos(a)*3.5,D+0.04,-6.4+Math.sin(a)*3.5); }
+    /* le salon : plan à étrave effilée, grandes baies, portes vitrées à l'arrière, toit en débord */
+    const sal=[[-3.2,-1.6],[3.2,-1.6],[3.2,5],[1.8,8.4],[-1.8,8.4],[-3.2,5]], hS=2.5;
+    planV3(B,'blanc',sal,D,hS,0.05);
+    for(const sx of [-1,1]){ B.bx('vitreO',0.04,1.25,6.4,sx*3.27,D+1.35,1.7); const a=Math.atan2(1.4,3.4), l=Math.hypot(1.4,3.4); B.bx('vitreO',0.04,1.2,l-0.25,sx*2.565,D+1.38,6.727,0,-sx*a,0); } /* (le biseau du plan le grandit de 0,05) */
+    B.bx('vitreO',3.4,1.0,0.06,0,D+1.5,8.5,-0.35); B.bx('vitreO',5.6,2.0,0.04,0,D+1.05,-1.68); B.bx('acier',0.05,2.0,0.06,0,D+1.05,-1.71);
+    planV3(B,'gris',[[-3.55,-2.4],[3.55,-2.4],[3.55,5.2],[2.0,8.9],[-2.0,8.9],[-3.55,5.2]],D+hS,0.18,0.03);
+    for(const sx of [-1,1]) B.bx('or',0.03,0.05,7.4,sx*3.56,D+hS+0.09,1.4);
+    /* le pont du pilote (au-dessus du salon) : vitrage enveloppant, pare-brise incliné ; devant, la timonerie */
+    const yP=D+hS+0.18, pil=[[-2.6,0.6],[2.6,0.6],[2.6,5.0],[1.4,7.4],[-1.4,7.4],[-2.6,5.0]], hP=1.85;
+    planV3(B,'blanc',pil,yP,hP,0.05);
+    for(const sx of [-1,1]){ B.bx('vitreO',0.04,0.9,4.2,sx*2.67,yP+1.0,2.8); const a=Math.atan2(1.2,2.4); B.bx('vitreO',0.04,0.85,2.4,sx*2.063,yP+1.02,6.231,0,-sx*a,0); }
+    B.bx('vitreO',2.6,0.85,0.06,0,yP+1.05,7.5,-0.4);
+    planV3(B,'gris',[[-2.9,0.2],[2.9,0.2],[2.9,5.2],[1.6,7.8],[-1.6,7.8],[-2.9,5.2]],yP+hP,0.16,0.03);
+    for(const sx of [-1,1]){ B.bx(sx>0?'feu':'vert',0.05,0.12,0.2,sx*2.92,yP+hP-0.15,5.0); B.bx('or',0.03,0.05,4.6,sx*2.62,yP+0.45,2.7); }
+    /* le pont des embarcations (sur le salon, à l'arrière) : l'annexe sur ses berceaux, la grue */
+    { const yb=D+hS+0.18; B.sph('rib',0.55,0,yb+0.5,-1.1,1.25,0.6,2.6); B.bloc('sombre',1.5,0.22,2.6,0,yb+0.28,-1.2,0.05,0.1); B.bx('ribBanc',1.1,0.08,2.2,0,yb+0.62,-1.1);
+      for(const z of [-2.0,0.0]) B.bx('acier',1.0,0.3,0.12,0,yb+0.15,z); B.tube('acier',0.06,[2.1,yb,-1.4],[2.1,yb+1.6,-1.4]); B.tube('acier',0.045,[2.1,yb+1.6,-1.4],[0.4,yb+2.0,-1.1]); B.tube('sombre',0.01,[0.4,yb+2.0,-1.1],[0.4,yb+1.1,-1.1]); }
+    /* le flybridge : console (masquée en 1re personne), banquettes, hardtop sur l'avant, arche radar, dômes, mât */
+    const yF=yP+hP+0.16, zH=3.7;
+    B.profil('console',[[zH+0.55,yF],[zH+0.55,yF+0.95],[zH+0.42,yF+1.1],[zH+0.2,yF+1.12],[zH+0.0,yF+1.0],[zH+0.0,yF]],1.9,0.04);
+    B.bx('tableau',1.6,0.012,0.36,0,yF+1.07,zH+0.12,-0.4); B.bx('ecranI',0.5,0.01,0.26,-0.35,yF+1.08,zH+0.12,-0.4); B.bx('ecranI',0.5,0.01,0.26,0.35,yF+1.08,zH+0.12,-0.4);
+    B.tore('chromeI',0.2,0.02,0,yF+0.98,zH-0.05,0.6,0,0); B.cyl('tableau',0.04,0.045,0.12,12,0,yF+0.95,zH+0.02,0.6+Math.PI/2);
+    B.bx('vitre',1.9,0.4,0.012,0,yF+1.32,zH+0.5,-0.42); for(const sx of [-1,1]) B.bx('vitre',0.012,0.36,0.5,sx*0.96,yF+1.3,zH+0.3,0,sx*0.3,0); B.tube('acier',0.014,[-0.98,yF+1.5,zH+0.42],[0.98,yF+1.5,zH+0.42]); /* le pare-brise du poste du flybridge */
+    for(const sx of [-1,1]) B.bloc('sellerie',0.7,0.42,2.4,sx*2.0,yF+0.21,2.0,0.05,0.08); B.bloc('sellerie',3.2,0.42,0.7,0,yF+0.21,0.8,0.05,0.08); B.bloc('teck',1.2,0.06,0.8,0,yF+0.55,2.0,0.02);
+    for(const sx of [-1,1]) for(const z of [4.1,6.3]) B.tube('blanc',0.07,[sx*2.3,yF,z],[sx*2.2,yF+2.25,z-0.15]);
+    planV3(B,'blanc',[[-2.5,3.9],[2.5,3.9],[2.5,6.0],[1.5,7.1],[-1.5,7.1],[-2.5,6.0]],yF+2.25,0.16,0.04);
+    for(const sx of [-1,1]){ B.tube('blanc',0.16,[sx*1.7,yF+2.4,4.5],[sx*1.3,yF+3.6,4.9]); } B.bloc('blanc',3.0,0.32,0.6,0,yF+3.68,4.95,0.05,0.1);
+    for(const sx of [-1,1]) B.sph('blanc',0.36,sx*0.95,yF+3.86,4.95,1,0.85,1); B.bx('sombre',1.6,0.08,0.3,0,yF+4.05,4.95);
+    B.tube('acier',0.04,[0,yF+3.84,4.95],[0,yF+5.7,4.95]); B.tube('acier',0.03,[-0.7,yF+5.3,4.95],[0.7,yF+5.3,4.95]); B.sph('recul',0.06,0,yF+5.75,4.95);
+    B.tube('acier',0.02,[1.1,yF+3.84,4.8],[1.15,yF+5.2,4.75]); B.tube('acier',0.02,[-1.1,yF+3.84,4.8],[-1.15,yF+4.9,4.75]);
+    /* le pont avant : bain de soleil, jacuzzi, guindeau, main courante sur le pavois */
+    B.bloc('sellerie',3.0,0.32,2.2,0,D+0.16,10.0,0.05,0.12); B.bloc('sellerie',2.9,0.26,0.35,0,D+0.45,9.0,0.05,0.1);
+    for(const sx of [-1,1]) B.bloc('acier',0.3,0.24,0.4,sx*0.35,D+0.12,11.7,0.03,0.05);
+    for(const sx of [-1,1]){ let prev=null; for(let z=7.5;z<=12.6;z+=0.85){ const x=sx*(Y.hw(z)-Y.pavois*0.5), y=Y.ys(z)+0.32; B.tube('acier',0.016,[x,Y.ys(z),z],[x,y,z]); if(prev) B.tube('acier',0.018,prev,[x,y,z]); prev=[x,y,z]; } }
+    return {yF,zH}; },
+  mats:{ or:()=>matV3Couleur(0xd8b02a), bande:()=>new THREE.MeshLambertMaterial({color:0x1b2430,side:THREE.DoubleSide}), antif:()=>new THREE.MeshLambertMaterial({color:0x5a2622,side:THREE.DoubleSide}),
+    liner:()=>new THREE.MeshLambertMaterial({color:0xeef0f2,side:THREE.DoubleSide}), cap:()=>new THREE.MeshLambertMaterial({color:0xb4875a,side:THREE.DoubleSide}),
+    pont:()=>_MATS_YV3.pont||(_MATS_YV3.pont=new THREE.MeshLambertMaterial({color:0xd8b48a,side:THREE.DoubleSide,map:(()=>{ const tx=texV3(64,128,(x,w,h)=>{ x.fillStyle='#e8d4b4'; x.fillRect(0,0,w,h); for(let i=0;i<8;i++){ x.fillStyle=i%2?'#dcc49e':'#e4cca8'; x.fillRect(i*8,0,7,h); x.fillStyle='#3a2a1a'; x.fillRect(i*8+7,0,1,h); }
+      for(let i=0;i<8;i++){ x.fillStyle='#3a2a1a'; x.fillRect(i*8,(i*37)%h,7,1); } }); tx.wrapS=tx.wrapT=THREE.RepeatWrapping; return tx; })()})),
+    teck:()=>matV3Couleur(0xb4875a), blanc:()=>new THREE.MeshPhongMaterial({color:0xf4f5f7,specular:0x3a3a3a,shininess:30}), gris:()=>matV3Couleur(0xd8dce4), sellerie:()=>matV3Couleur(0xf0ead8),
+    console:()=>matV3Couleur(0xeef0f2), chromeI:(c,M)=>M.chrome, rib:()=>matV3Couleur(0x2a2e36), ribBanc:()=>matV3Couleur(0xd8d2c4), jaune:()=>new THREE.MeshBasicMaterial({color:0xffd23f}), vert:()=>new THREE.MeshBasicMaterial({color:0x1fd85a}),
+    eau:()=>new THREE.MeshBasicMaterial({color:0x35d0e0}), helipad:()=>matTexteV3('helipad'), nomYacht:()=>matTexteV3('nomYacht'), nomPoupe:()=>matTexteV3('nomPoupe') },
+  inst(I){ I.ud.siege={y:I.info.yF,z:I.info.zH-0.6}; /* debout au poste du flybridge (le cockpit 1re personne : famille passerelle, l'œil au-dessus du siège) */ }
+};
+const _MATS_YV3={};
 /* textes et motifs peints (une texture par motif, à la demande) — découpés (alphaTest) et opaques : jamais pris pour une vitre */
 const _TEX_V3={};
 function matTexteV3(id){ if(_TEX_V3[id]) return _TEX_V3[id]; let t, dec=false;
@@ -20022,6 +20134,10 @@ function matTexteV3(id){ if(_TEX_V3[id]) return _TEX_V3[id]; let t, dec=false;
   else if(id==='indicatif'){ t=ecrire('LR-12','#10131a',40,160,96); dec=true; }
   else if(id==='cab'){ t=ecrire('LOS REYES CAB','#14161b',28,256,58); dec=true; }
   else if(id==='policeB'){ t=ecrire('POLICE','#f2f4f8',46,256,52); dec=true; }
+  else if(id==='nomYacht'){ t=texV3(320,46,(x,w,h)=>{ x.clearRect(0,0,w,h); x.fillStyle='#b8902a'; x.font='bold 30px Georgia, serif'; x.textAlign='center'; x.textBaseline='middle'; x.fillText('REYES ROYALE',w/2,h/2+2); }); dec=true; }
+  else if(id==='nomPoupe'){ t=texV3(288,34,(x,w,h)=>{ x.clearRect(0,0,w,h); x.fillStyle='#1b2430'; x.font='bold 19px Georgia, serif'; x.textAlign='center'; x.textBaseline='middle'; x.fillText('REYES ROYALE · LOS REYES',w/2,h/2+1); }); dec=true; }
+  else if(id==='helipad'){ t=texV3(256,256,(x,w,h)=>{ x.clearRect(0,0,w,h); x.fillStyle='rgba(20,24,32,1)'; x.beginPath(); x.arc(w/2,h/2,124,0,7); x.fill(); x.strokeStyle='#ffd23f'; x.lineWidth=12; x.beginPath(); x.arc(w/2,h/2,104,0,7); x.stroke();
+      x.fillStyle='#ffd23f'; x.font='900 140px Arial, sans-serif'; x.textAlign='center'; x.textBaseline='middle'; x.fillText('H',w/2,h/2+4); }); dec=true; }
   else if(id==='lrpd'){ t=ecrire('LRPD  07','#f2f4f8',30,224,56); dec=true; }
   else if(id==='nomSirene'){ t=texV3(256,60,(x,w,h)=>{ x.clearRect(0,0,w,h); x.fillStyle='#1d3557'; x.font='italic bold 40px Georgia, serif'; x.textAlign='center'; x.textBaseline='middle'; x.fillText('Sirène',w/2,h/2+2); }); dec=true; }
   else if(id==='bastion'){ t=ecrire('BASTION','#d8d6c8',44,256,56); dec=true; }
@@ -21216,6 +21332,7 @@ function majJoueur(dt,dtJeu){
   P.vitesseReelle=Math.hypot(vx,vz);   // vitesse instantanée réelle (joystick analogique compris)
   const marchable=(x,z)=>{
     if(P.y<0.35&&dansCoqueYacht(x,z)&&!dansCoqueYacht(P.x,P.z)) return false;
+    if(yachtBloque(x,z)) return false; /* méga-yacht V3 : pavois et salon, escaliers de la poupe */
     if(FAUNE.length&&auSol()&&fauneBloque(x,z,P.y)) return false; /* une bête vivante ne se traverse plus */ /* à la nage, la coque du méga-yacht est un mur : on monte à bord par la plateforme de bain, à l'arrière (avant : on surgissait sur le pont par n'importe quel côté) */
     const s=solidAt(x,z,0.5,undefined,P.y);
     if(s){
@@ -21249,7 +21366,10 @@ function majJoueur(dt,dtJeu){
   // dégagement inconditionnel : jamais enfermé sans issue entre deux
   // véhicules, même si le déplacement normal ci-dessus reste bloqué.
   if(!P.veh&&auSol()){
-    const deg=degageDeVehicule(P.x,P.z,0.3,null);
+    let deg=degageDeVehicule(P.x,P.z,0.3,null);
+    if(deg&&yachtBloque(deg.x,deg.z)){ /* sur le pont du méga-yacht, sous l'hélico de l'hélipad : jamais poussé par-dessus le pavois — le long de l'appareil */
+      const o=vehiculeBloquant(P.x,P.z,0.3,null); deg=null;
+      if(o){ const sA=Math.sin(o.ang), cA=Math.cos(o.ang), fw=(P.x-o.x)*sA+(P.z-o.z)*cA, sg=Math.sign(fw)||1, k=o.def.long*0.5+0.35-Math.abs(fw), q={x:P.x+sA*sg*k,z:P.z+cA*sg*k}; if(!yachtBloque(q.x,q.z)) deg=q; } }
     if(deg){ P.x=deg.x; P.z=deg.z; }
   }
   // verticalité : suivre le sol, tomber des bords
@@ -22861,6 +22981,7 @@ function sortirVehicule(force){
   v.conduit=null; P.veh=null;
   if(v===GYACHT.v) majGrandYacht(); // pont praticable avant de poser le joueur dessus
   let sx=v.x+Math.cos(v.ang)*2.2, sz=v.z-Math.sin(v.ang)*2.2;
+  if(v===GYACHT.v&&v.mesh&&v.mesh.userData.v3){ sx=v.x+Math.cos(v.ang)*3.65; sz=v.z-Math.sin(v.ang)*3.65; } /* méga-yacht V3 : sur le passavant, le long du salon (jamais dans ses murs, ni sous l'hélico de l'hélipad) */
   if(v.def.air&&(v.alt||0)>3){
     // posé sur un toit : on descend juste à côté de l'appareil, sur le toit
     sx=v.x+Math.cos(v.ang)*2; sz=v.z-Math.sin(v.ang)*2;
@@ -36422,7 +36543,7 @@ function majGrandYacht(){
   const libre=v.conduit!=='joueur';
   if(libre) v.v=0;
   const sa0=Math.sin(v.ang), ca0=Math.cos(v.ang), ici=(p,f,hw,hd)=>{ p.x=v.x+sa0*f; p.z=v.z+ca0*f; p.ang=v.ang+Math.PI; p.hw=libre?hw:0; p.hd=libre?hd:0; }; // rectangles orientés comme la coque, centrés à f le long de l'axe (avant +)
-  ici(pl,-1,3.7,12); /* tout le pont, de la poupe (−13) à 11 u devant (avant : 21 u au milieu, la poupe sous le pont était à 0) */
+  ici(pl,-1,v.mesh.userData.v3?4.06:3.7,12); /* tout le pont, de la poupe (−13) à 11 u devant (avant : 21 u au milieu, la poupe sous le pont était à 0) ; V3 : jusqu'au pavois (à 3,7, on tombait entre le bord du pont praticable et le pavois) */
   ici(po,-3.275,4.15,11.275); /* la coque, de la plateforme de bain (−14,55) à 8 u devant (au-delà l'étrave s'affine) : jamais de l'eau */
   if(!YACHT_POUPE.plats.length){ PLATS.push(YACHT_POUPE.bain={x:0,z:0,hw:0,hd:0,h:0.5}); for(let i=0;i<4;i++) for(const s of [-1,1]){ const p={x:0,z:0,hw:0,hd:0,h:0.5+(i+1)*0.195,cote:s,i}; PLATS.push(p); YACHT_POUPE.plats.push(p); } }
   ici(YACHT_POUPE.bain,-13.75,3.36,0.75); /* plateforme de bain, derrière le tableau arrière */
