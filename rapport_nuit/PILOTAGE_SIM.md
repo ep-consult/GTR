@@ -181,7 +181,12 @@ alerte DÉCROCHAGE), `voltige_cockpit.png` (1re personne), `voltige_hud.png` (le
 
 ## 7. Suite complète
 
-(à compléter : résultat de `node scenarios.js`)
+`node scenarios.js` (graine 20260731), après le commit `cfcf399` : **826 vérifications vertes, aucune en échec, aucune sautée,
+aucune erreur JavaScript dans la page**. `node valider.js` : vert. Empreinte de la ville (décor, portes, chalet, mobilier) :
+identique à celle d'avant le chantier.
+
+Une première suite complète (avant les essais de vrille, d'immeuble et d'atterrissage) avait donné 825 vertes et 1 échec :
+l'arrondi automatique de l'ancien pilotage, testé désormais en `PILOTAGE_SIM=false` (voir section 5).
 
 ---
 
