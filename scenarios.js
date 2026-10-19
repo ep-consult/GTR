@@ -15755,6 +15755,35 @@ async function main() {
       else ok('Écrasement V2 : ' + r.info.join(' ; '));
     }
     // -------------------------------------------------------------------
+    // Véhicules V4 (19 octobre, demandé : « tous les véhicules au niveau V3 », « pour le trafic, un niveau de détail ») : chaque fiche
+    // lod:true de VEH_V3 (lue dans la source). Loin du joueur : la version fusionnée seule (peu d'objets), le détail caché ; de retour
+    // près : le détail revient ; touché ou piloté : détaillé pour de bon ; la caméra voit la version lointaine, aucun rayon du jeu ne la touche.
+    // -------------------------------------------------------------------
+    console.log('\n--- Véhicules V4 : niveau de détail du trafic (loin, près, touché, piloté) ---');
+    {
+      const r = await page.evaluate(() => { const ko = [], info = [];
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9;
+        const vis = (o) => { for (let q = o; q; q = q.parent) if (!q.visible) return false; return true; };
+        const compte = (g) => { let n = 0; g.traverse((o) => { if ((o.isMesh || (o.isSprite && o.material.opacity > 0)) && vis(o)) n++; }); return n; };
+        const retirer = (v) => { scene.remove(v.mesh); libererEntite(v.mesh); const i = vehicules.indexOf(v); if (i >= 0) vehicules.splice(i, 1); };
+        const cles = Object.keys(VEH_V3).filter((k) => VEH_V3[k].lod); if (!cles.length) ko.push('aucune fiche lod:true'); const res = [];
+        for (const k of cles) { const v = creerVehicule(k, P.x + 120, P.z, 0, 'trafic'); if (!v) { ko.push(k + ' : pas créé'); continue; }
+          majChauffeur(v); const L = v.mesh.userData.lod; if (!L || L.etat !== 'loin') { ko.push(k + ' : pas lointain à 120 u'); retirer(v); continue; }
+          const n1 = compte(v.mesh); if (n1 > 8) ko.push(k + ' : ' + n1 + ' objets dessinés au loin');
+          if (!camera.layers.test(L.loin.layers)) ko.push(k + ' : la caméra ne voit pas la version lointaine');
+          v.mesh.position.set(v.x, 0, v.z); v.mesh.updateMatrixWorld(true); const rc = new THREE.Raycaster(new THREE.Vector3(v.x, 20, v.z), new THREE.Vector3(0, -1, 0)); rc.camera = camera;
+          if (rc.intersectObject(v.mesh, true).some((h) => h.object.userData.lodLoin)) ko.push(k + ' : un rayon touche la version lointaine');
+          v.x = P.x + 10; majChauffeur(v); if (L.etat !== 'proche' || L.loin.visible) ko.push(k + ' : pas détaillé à 10 u'); const n2 = compte(v.mesh);
+          if (!(n2 > n1 * 2)) ko.push(k + ' : près, ' + n2 + ' objets seulement'); if (v.mesh.userData.roues.some((q) => !q.visible)) ko.push(k + ' : une roue reste cachée');
+          v.x = P.x + 120; majChauffeur(v); v.hp = v.def.hp * 0.6; degatsVisuels(v); majChauffeur(v); if (L.etat !== 'proche' || !v.lodFixe) ko.push(k + ' : touché, il redevient lointain');
+          retirer(v); const w = creerVehicule(k, P.x + 120, P.z, 0, 'trafic'); majChauffeur(w); const Lw = w.mesh.userData.lod; P.veh = w; majChauffeur(w); if (Lw.etat !== 'proche') ko.push(k + ' : piloté, il reste lointain'); P.veh = null; retirer(w);
+          res.push(k + ' ' + n2 + '→' + n1); }
+        info.push('près → loin : ' + res.join(', '));
+        startRun(); return { ko, info }; });
+      if (r.ko.length) fail('Véhicules V4, niveau de détail : ' + r.ko.join(' | '));
+      else ok('Véhicules V4, niveau de détail : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];
