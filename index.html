@@ -19241,6 +19241,7 @@ function geoConducteurV3(c,pose){ const hy=pose&&pose.hy||0.43, hz=pose&&pose.hz
 function matConducteurV3(){ return _MAT_COND||(_MAT_COND=new THREE.MeshLambertMaterial({vertexColors:true})); }
 /* au volant d'un V3 : le PNJ qui conduit, ou le joueur (ses couleurs) ; personne en vue 1re personne, où l'intérieur V3 s'efface aussi */
 function majConducteurV3(v,ud,ia){
+  if(ud.anim) ud.anim(v); /* ce qui s'anime sur le modèle (radar de la DCA…) : cosmétique */
   const joueur=P.veh===v&&!v.mort&&P.hp>0, ck=joueur&&vueCockpit(), voirJ=joueur&&!ck;
   if(ud.interieurV3&&ud.interieurV3.visible===ck) ud.interieurV3.visible=!ck;
   if(!ia&&!voirJ){ if(ud.chauffeur&&ud.chauffeur.visible) ud.chauffeur.visible=false; return; }
@@ -19495,6 +19496,63 @@ VEH_V3.blinde={
     const sec=new THREE.Mesh(geoPneuV3(R,0.46,true),I.M.caoutchouc); sec.rotation.x=Math.PI/2; sec.position.set(0.3,1.72,-3.08); sec.add(new THREE.Mesh(geoJanteV3(R,0.46,'mil'),Mj)); I.corps.add(sec);
     halosPharesV3(I,0.86,1.42,3.4); I.ud.conducteur={x:0.5,y:1.38,z:0.86,k:0.98,pose:{hy:(1.95-1.38)/0.98,hz:(1.2-0.86)/0.98}}; I.ud.pareBrise={y:2.15,z:1.53}; }
 };
+/* ---------- 6. Camion DCA « Foudre » (dca) : porteur militaire à cabine avancée, bitube antiaérien sur plateau (la tourelle reste un
+   groupe à part, ud.tourelle, que majConduite tourne vers la visée : son avant est +z, les canons relevés), béquilles, caisses de
+   munitions, radar de veille qui tourne sur le toit de la cabine ---------- */
+VEH_V3.dca={
+  geo(B,d){ const L=d.long, W=d.larg, hw=1.15, R=0.5, zf=2.0, zr=-1.95, av=L/2, ar=-L/2;
+    /* cabine avancée : bas de caisse, grand vitrage, pavillon, calandre, pare-chocs */
+    B.bloc('peinture',2.3,1.2,1.4,0,1.38,2.5,0.05,0.05); B.profil('vitre',[[3.19,1.93],[3.12,2.74],[1.88,2.74],[1.88,1.93]],2.2,0.02);
+    B.bloc('peinture',2.34,0.16,1.46,0,2.82,2.5,0.04,0.04);
+    for(const sx of [-1,1]){ B.barre('peinture',0.1,0.12,sx*1.1,1.95,3.18,2.76,3.12); B.bx('peinture',0.1,0.82,0.14,sx*1.1,2.34,1.9);
+      const xs=sx*(hw+0.004); B.bx('sombre',0.014,1.1,0.024,xs,1.38,3.0); B.bx('sombre',0.014,1.1,0.024,xs,1.38,2.05); B.bloc('acier',0.05,0.06,0.2,sx*(hw+0.02),1.72,2.2,0.012);
+      B.bx('sombre',0.36,0.06,0.4,sx*1.05,0.72,2.55); B.bx('sombre',0.32,0.05,0.36,sx*1.07,0.42,2.55);                                       /* marchepieds */
+      B.tube('sombre',0.025,[sx*(hw-0.02),2.3,3.1],[sx*(hw+0.14),2.45,3.12]); B.bloc('plastique',0.12,0.44,0.24,sx*(hw+0.2),2.38,3.12,0.02,0.03); B.bx('reflecteur',0.1,0.4,0.01,sx*(hw+0.2),2.38,3.0);
+      B.bloc('sombre',0.34,0.2,0.08,sx*0.78,1.0,3.22,0.02); B.bloc('phare',0.28,0.15,0.03,sx*0.78,1.0,3.26,0.01,0.02); B.bx('orange',0.12,0.08,0.03,sx*1.02,1.0,3.24);
+      B.geo('foudre',new THREE.PlaneGeometry(0.9,0.2),sx*(hw+0.008),1.42,2.5,0,sx>0?Math.PI/2:-Math.PI/2,0); }
+    B.bloc('sombre',1.3,0.42,0.05,0,1.42,3.21,0.015); for(let i=0;i<6;i++) B.bx('acier',1.24,0.025,0.02,0,1.25+i*0.068,3.245);             /* calandre */
+    B.bloc('acier',2.32,0.24,0.26,0,0.72,3.2,0.03); B.bx('plaqueFoudre',0.6,0.13,0.012,0,0.72,3.335); for(const sx of [-0.85,0.85]) B.tore('sombre',0.08,0.024,sx,0.66,3.33,Math.PI/2,0,0);
+    for(const sx of [-1,1]) B.bx('sombre',0.62,0.022,0.03,sx*0.45,1.96,3.2,0,0,sx*0.12);                                                   /* essuie-glaces */
+    B.bx('sombre',0.06,0.06,1.2,0,2.92,2.5); B.bx('feu',0.06,0.04,0.06,0.5,2.92,3.15); B.bx('feu',0.06,0.04,0.06,-0.5,2.92,3.15);          /* feux de gabarit */
+    /* le mât du radar (l'antenne, qui tourne, est posée par inst) */
+    B.cyl('sombre',0.06,0.08,0.5,10,0,3.1,1.95); B.bloc('peinture',0.4,0.18,0.3,0,2.95,1.95,0.02);
+    /* plateau : ridelles basses, garde-corps, caisses de munitions, béquilles repliées, coffres */
+    B.bloc('plateau',2.3,0.16,4.95,0,1.42,-0.675,0.02); for(const sx of [-1,1]){ B.bloc('peinture',0.06,0.32,4.95,sx*1.13,1.62,-0.675,0.015);
+      for(let z=-3.0;z<=1.6;z+=0.92) B.tube('acier',0.02,[sx*1.1,1.78,z],[sx*1.1,2.3,z]); B.tube('acier',0.022,[sx*1.1,2.3,-3.0],[sx*1.1,2.3,1.6]);
+      B.bloc('sombre',0.18,0.62,0.18,sx*1.16,1.0,1.35,0.02); B.cyl('acier',0.12,0.12,0.04,12,sx*1.16,0.66,1.35);                          /* béquilles repliées */
+      B.bloc('sombre',0.18,0.62,0.18,sx*1.16,1.0,-2.7,0.02); B.cyl('acier',0.12,0.12,0.04,12,sx*1.16,0.66,-2.7);
+      B.bloc('peinture',0.5,0.45,1.1,sx*0.95,1.05,-0.15,0.02); B.bx('acier',0.02,0.05,0.4,sx*1.205,1.15,-0.15);                          /* coffres */
+      B.bloc('sombre',0.2,0.12,0.06,sx*0.98,1.2,ar+0.03,0.015); B.bx('feu',0.12,0.07,0.02,sx*0.98,1.22,ar-0.01); B.bloc('peinture',0.6,0.05,1.1,sx*0.98,1.12,zr,0.015); }
+    for(const [x,z] of [[0.7,0.9],[-0.7,0.9],[0.7,-2.4],[-0.7,-2.4],[0.7,-2.85],[-0.7,-2.85]]) { B.bloc('peinture',0.5,0.3,0.36,x,1.65,z,0.02); B.bx('acier',0.06,0.04,0.2,x,1.82,z); } /* caisses de munitions */
+    B.bloc('acier',2.2,0.22,0.24,0,0.9,ar+0.08,0.03); B.bx('plaque',0.52,0.12,0.012,0,0.9,ar-0.045); B.bx('sombre',2.2,0.3,0.05,0,1.18,ar+0.06);
+    /* châssis, essieux, réservoir */
+    for(const sx of [-0.5,0.5]) B.bx('sombre',0.14,0.24,L-0.5,sx,0.84,0.05); for(const zc of [zf,zr]) B.bx('sombre',1.1,0.2,0.3,0,R,zc);
+    B.cyl('acier',0.22,0.22,0.8,14,-0.95,0.95,1.05,Math.PI/2);
+    /* intérieur : planche, grand volant presque à plat, deux sièges, écran du radar */
+    B.bx('interieur',2.2,0.015,1.25,0,1.995,2.5); B.bloc('tableau',2.2,0.2,0.32,0,2.02,2.98,0.03); B.bx('ecranI',0.3,0.2,0.012,0,2.18,2.88,-0.45);
+    B.tore('volant',0.24,0.026,0.5,2.1,2.78,1.05); B.tube('volant',0.03,[0.5,2.1,2.78],[0.5,1.98,2.92]);
+    for(const x of [0.5,-0.5]) B.bloc('siege',0.5,0.74,0.14,x,2.12,2.02,0.04,0.06,-0.12);
+    return {R,zf,zr}; },
+  mats:{ foudre:()=>matTexteV3('foudre'), plaqueFoudre:()=>matTexteV3('foudreAv'), plateau:()=>matV3Couleur(0x3b4031) },
+  inst(I){ const R=I.info.R, Mj=matV3Couleur(0x343a26); for(const [sx,z] of [[1,I.info.zf],[-1,I.info.zf],[1,I.info.zr],[-1,I.info.zr]]) roueV3(I,R,0.42,sx*1.0,z,'mil',Mj,true);
+    /* la tourelle (groupe à part : majConduite la tourne vers la visée), géométries partagées */
+    let T=_GEO_V3['dca:tourelle']; if(!T){ const B=constructeurV3();
+      B.cyl('sombre',0.62,0.66,0.14,22,0,0.07,0); B.cyl('peinture',0.56,0.58,0.22,22,0,0.25,0);                                             /* couronne, plateau tournant */
+      for(const sx of [-1,1]) B.bloc('peinture',0.08,0.7,0.9,sx*0.42,0.65,0.05,0.02);                                                       /* flasques */
+      B.bloc('peinture',1.1,0.5,0.06,0,0.72,0.42,0.02,0,-0.35); B.bloc('peinture',0.3,0.4,0.06,0.62,0.66,0.3,0.02,0,-0.35,-0.5);             /* bouclier */
+      B.bloc('siege',0.36,0.1,0.34,0,0.5,-0.4,0.02); B.bloc('siege',0.36,0.4,0.08,0,0.68,-0.58,0.02,0,0.2);                                 /* siège du tireur */
+      B.cyl('sombre',0.15,0.15,0.62,14,0,0.72,0.02,0,0,Math.PI/2);                                                                          /* tourillon */
+      for(const dx of [-0.18,0.18]){ B.tube('sombre',0.045,[dx,0.72,0.02],[dx,1.72,1.18]); B.tube('acier',0.06,[dx,1.66,1.11],[dx,1.82,1.3]); /* les deux canons, relevés, cache-flammes */
+        B.bloc('peinture',0.2,0.3,0.42,dx*2.1,0.78,-0.06,0.02); }                                                                            /* chargeurs */
+      B.bloc('sombre',0.12,0.14,0.22,0.0,1.0,0.12,0.01); B.cyl('reflecteur',0.04,0.04,0.02,10,0,1.0,0.235,Math.PI/2);                      /* viseur */
+      T=_GEO_V3['dca:tourelle']=B.fin(); }
+    const tg=new THREE.Group(); tg.position.set(0,1.5,-1.0); for(const n in T) tg.add(new THREE.Mesh(T[n],n==='peinture'?matPeintV3(I.coul):I.M[n])); I.corps.add(tg); I.ud.tourelle=tg;
+    /* le radar de veille, qui tourne (cosmétique : ud.anim, appelé par majConducteurV3) */
+    let RG=_GEO_V3['dca:radar']; if(!RG){ const B=constructeurV3(); B.bloc('acier',1.0,0.42,0.06,0,0.24,0.12,0.015,0.06,-0.25); B.bx('sombre',0.08,0.08,0.3,0,0.06,0); B.cyl('sombre',0.03,0.03,0.18,8,0,0.34,0.3,Math.PI/2); RG=_GEO_V3['dca:radar']=B.fin(); }
+    const rg=new THREE.Group(); rg.position.set(0,3.35,1.95); for(const n in RG) rg.add(new THREE.Mesh(RG[n],I.M[n])); I.corps.add(rg);
+    I.ud.anim=()=>{ rg.rotation.y=(performance.now()/1000*1.6)%(Math.PI*2); };
+    halosPharesV3(I,0.78,1.0,3.7); I.ud.conducteur={x:0.5,y:1.62,z:2.28,k:0.98,pose:{hy:(2.1-1.62)/0.98,hz:(2.78-2.28)/0.98}}; I.ud.pareBrise={y:2.35,z:3.16}; }
+};
 /* textes et motifs peints (une texture par motif, à la demande) — découpés (alphaTest) et opaques : jamais pris pour une vitre */
 const _TEX_V3={};
 function matTexteV3(id){ if(_TEX_V3[id]) return _TEX_V3[id]; let t, dec=false;
@@ -19504,6 +19562,8 @@ function matTexteV3(id){ if(_TEX_V3[id]) return _TEX_V3[id]; let t, dec=false;
   else if(id==='cab'){ t=ecrire('LOS REYES CAB','#14161b',28,256,58); dec=true; }
   else if(id==='bastion'){ t=ecrire('BASTION','#d8d6c8',44,256,56); dec=true; }
   else if(id==='bastionAv') t=texV3(160,32,(x,w,h)=>{ x.fillStyle='#262a22'; x.fillRect(0,0,w,h); x.fillStyle='#d8d6c8'; x.font='bold 21px Arial, sans-serif'; x.textAlign='center'; x.textBaseline='middle'; x.fillText('BASTION-03',w/2,h/2+1); });
+  else if(id==='foudre'){ t=ecrire('FOUDRE','#d8d6c8',44,256,56); dec=true; }
+  else if(id==='foudreAv') t=texV3(160,32,(x,w,h)=>{ x.fillStyle='#363c28'; x.fillRect(0,0,w,h); x.fillStyle='#d8d6c8'; x.font='bold 21px Arial, sans-serif'; x.textAlign='center'; x.textBaseline='middle'; x.fillText('FOUDRE-11',w/2,h/2+1); });
   else if(id==='aigle') t=texV3(160,32,(x,w,h)=>{ x.fillStyle='#3e4430'; x.fillRect(0,0,w,h); x.fillStyle='#e8e6da'; x.font='bold 22px Arial, sans-serif'; x.textAlign='center'; x.textBaseline='middle'; x.fillText('AIGLE-07',w/2,h/2+1); });
   else if(id==='etoile'){ t=texV3(128,128,(x,w,h)=>{ x.clearRect(0,0,w,h); x.strokeStyle='#e8e6da'; x.lineWidth=7; x.beginPath(); x.arc(64,64,56,0,Math.PI*2); x.stroke(); x.fillStyle='#e8e6da'; x.beginPath();
       for(let i=0;i<10;i++){ const a=-Math.PI/2+i*Math.PI/5, r=i%2?20:50; x.lineTo(64+Math.cos(a)*r,64+Math.sin(a)*r); } x.closePath(); x.fill(); }); dec=true; }
