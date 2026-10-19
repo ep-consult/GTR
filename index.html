@@ -19752,6 +19752,53 @@ VEH_V3.bond={
   inst(I){ const o=I.info; for(const [sx,z] of [[1,o.zf],[-1,o.zf],[1,o.zr],[-1,o.zr]]) roueV3(I,o.R,0.22,sx*0.79,z,'rayons',I.M.chrome);
     halosPharesV3(I,0.6,0.56,2.75); I.ud.conducteur={x:o.xD,y:0.38,z:o.zH,k:0.88,pose:{hy:(0.95-0.38)/0.88,hz:(0.0-o.zH)/0.88}}; I.ud.pareBrise={y:1.05,z:0.5}; }
 };
+/* ---------- 11. 4x4 Amphibie « Loutre » (amphibie) : coque de bateau (étrave, tableau arrière) aux passages de roue découpés, caisse
+   de 4x4 vitrée par-dessus, liston de flottaison, hélice sous le tableau (elle tourne quand on navigue : ud.anim) et gouvernail,
+   schnorchel, galerie de toit (roue de secours, jerricans), feux de navigation, feu de mât, échelle ---------- */
+VEH_V3.amphibie={
+  geo(B,d){ const L=d.long, R=0.42, Ra=0.52, zf=1.45, zr=-1.45, hc=1.05, hu=0.95;
+    /* la coque : étrave relevée, fond plat, tableau arrière */
+    B.profil('coque',[[2.42,0.86],[2.1,0.97],[-2.28,0.97],[-2.3,0.42],[-2.12,0.3]].concat(basCaisseV3(-2.0,2.0,0.3,R,Ra,[zr,zf])).concat([[2.2,0.5]]),2*hc,0.08);
+    for(const sx of [-1,1]){ B.cyl('sombre',0.075,0.075,4.1,12,sx*(hc+0.02),0.97,-0.12,Math.PI/2); B.sph('sombre',0.075,sx*(hc+0.02),0.97,1.93); }   /* liston de flottaison */
+    B.tore('acier',0.08,0.022,0,0.8,2.46,Math.PI/2,0,0); B.bloc('sombre',0.5,0.2,0.16,0,0.62,2.36,0.04,0.06,0.5);                                     /* anneau d'étrave, défense */
+    /* la caisse de 4x4 : capot court, cabine longue, hayon */
+    B.profil('peinture',[[2.06,0.95],[2.08,1.18],[1.98,1.27],[1.44,1.33],[-1.72,1.36],[-2.04,1.34],[-2.1,1.26],[-2.1,0.95]],2*hu,0.05);
+    B.profil('vitre',[[1.45,1.31],[1.32,1.95],[-1.62,1.95],[-1.72,1.33]],2*hu-0.12,0.02); B.bloc('peinture',2*hu-0.02,0.1,3.1,0,2.0,-0.16,0.04,0.04);
+    for(const sx of [-1,1]){ const xs=sx*(hu+0.004), xp=sx*(hu-0.04);
+      B.barre('peinture',0.08,0.11,xp,1.33,1.44,1.98,1.31); for(const z of [0.6,-0.5]) B.bx('peinture',0.08,0.66,0.12,xp,1.66,z); B.bx('peinture',0.08,0.66,0.2,xp,1.66,-1.6); /* montants */
+      for(const z of [1.4,0.62,-0.5]) B.bx('sombre',0.012,0.42,0.02,xs,1.15,z); B.bloc('acier',0.04,0.05,0.18,sx*(hu+0.02),1.28,0.8,0.01); B.bloc('acier',0.04,0.05,0.18,sx*(hu+0.02),1.28,-0.32,0.01); /* portières */
+      B.bloc('sombre',0.26,0.16,0.06,sx*0.68,1.1,2.14,0.02); B.cyl('phare',0.065,0.065,0.02,14,sx*0.68,1.1,2.17,Math.PI/2); B.bx('orange',0.07,0.05,0.03,sx*0.9,1.1,2.16);
+      B.bx(sx>0?'feu':'vert',0.03,0.07,0.12,sx*(hu+0.015),1.22,1.9);                                                                           /* feux de navigation : rouge à bâbord, vert à tribord */
+      B.bloc('sombre',0.16,0.24,0.05,sx*0.82,1.16,-2.16,0.015); B.bx('feu',0.12,0.14,0.02,sx*0.82,1.2,-2.19); B.bx('orange',0.12,0.06,0.02,sx*0.82,1.06,-2.19);
+      B.tube('sombre',0.025,[sx*(hu-0.02),1.48,1.36],[sx*(hu+0.16),1.56,1.34]); B.bloc('plastique',0.1,0.3,0.2,sx*(hu+0.21),1.58,1.34,0.02,0.03); B.bx('reflecteur',0.08,0.26,0.01,sx*(hu+0.21),1.58,1.235);
+      for(const zc of [zf,zr]) B.tore('sombre',Ra+0.03,0.05,sx*(hc+0.01),R,zc,0,Math.PI/2,0,Math.PI); }
+    B.bloc('sombre',0.84,0.2,0.05,0,1.08,2.14,0.015); for(let i=0;i<3;i++) B.bx('acier',0.8,0.02,0.02,0,1.02+i*0.055,2.17);                     /* calandre */
+    B.bx('plaque',0.52,0.12,0.012,0,1.02,-2.17);
+    /* schnorchel, côté conducteur */
+    B.tube('sombre',0.06,[hu+0.06,1.05,1.5],[hu+0.06,1.4,1.42]); B.tube('sombre',0.06,[hu+0.06,1.4,1.42],[hu+0.03,2.08,1.28]); B.bloc('sombre',0.16,0.12,0.2,hu+0.03,2.14,1.32,0.03);
+    /* galerie de toit : cadre, jerricans, pagaie ; feu de mât ; échelle arrière */
+    for(const sx of [-0.82,0.82]) B.tube('acier',0.025,[sx,2.18,1.1],[sx,2.18,-1.5]); for(let z=1.1;z>=-1.5;z-=0.52) B.tube('acier',0.022,[-0.82,2.18,z],[0.82,2.18,z]);
+    for(const sx of [-0.82,0.82]) for(const z of [1.1,-1.5]) B.tube('acier',0.02,[sx,2.05,z],[sx,2.18,z]);
+    for(const x of [-0.5,-0.25]) B.bloc('jerrican',0.2,0.36,0.12,x,2.37,-1.2,0.02); B.bloc('bois',0.14,0.03,1.5,0.62,2.22,-0.2,0.01); B.bloc('bois',0.18,0.03,0.4,0.62,2.22,0.62,0.01);
+    B.tube('acier',0.015,[0,2.05,-1.55],[0,2.6,-1.55]); B.bx('recul',0.06,0.06,0.06,0,2.62,-1.55);
+    for(const sx of [-0.3,0.3]) B.tube('acier',0.02,[sx,0.97,-2.36],[sx,2.0,-2.14]); for(let i=0;i<5;i++){ const t=i/4; B.tube('acier',0.016,[-0.3,0.97+t*1.03,-2.36+t*0.22],[0.3,0.97+t*1.03,-2.36+t*0.22]); }
+    /* sous le tableau : arbre, tunnel de l'hélice, gouvernail (l'hélice, qui tourne, est posée par inst) */
+    B.tube('acier',0.04,[0,0.5,-1.9],[0,0.44,-2.36]); B.tore('sombre',0.25,0.03,0,0.44,-2.38); B.bloc('sombre',0.04,0.42,0.18,0,0.5,-2.47,0.01);
+    for(const zc of [zf,zr]) B.bx('sombre',1.4,0.5,1.0,0,R+0.25,zc);
+    /* intérieur : planche, volant, compas de route, quatre sièges */
+    B.bx('interieur',2*hu-0.14,0.015,2.9,0,1.415,-0.14); B.bloc('tableau',2*hu-0.14,0.14,0.32,0,1.43,1.22,0.03); B.sph('recul',0.06,0,1.53,1.18,1,0.6,1); B.cyl('sombre',0.07,0.08,0.04,12,0,1.5,1.18);
+    B.tore('volant',0.18,0.022,0.42,1.5,0.92,0.6); B.tube('volant',0.028,[0.42,1.5,0.92],[0.42,1.42,1.08]);
+    for(const z of [0.3,-0.8]) for(const x of [0.42,-0.42]) B.bloc('siege',0.48,0.62,0.13,x,1.6,z,0.04,0.06,-0.15);
+    return {R,zf,zr}; },
+  mats:{ coque:()=>matV3Couleur(0x2c322e), vert:()=>new THREE.MeshBasicMaterial({color:0x1fd85a}), jerrican:()=>matV3Couleur(0x5a6a2a), bois:()=>matV3Couleur(0x8a6a3a) },
+  inst(I){ const o=I.info; for(const [sx,z] of [[1,o.zf],[-1,o.zf],[1,o.zr],[-1,o.zr]]) roueV3(I,o.R,0.3,sx*0.9,z,'mil',matV3Couleur(0x3a4036),true);
+    const sec=new THREE.Mesh(geoPneuV3(0.38,0.26,true),I.M.caoutchouc); sec.position.set(0.0,2.34,-0.35); sec.add(new THREE.Mesh(geoJanteV3(0.38,0.26,'mil'),matV3Couleur(0x3a4036))); I.corps.add(sec); /* roue de secours à plat sur la galerie */
+    let H=_GEO_V3['amphibie:helice']; if(!H){ const B=constructeurV3(); B.cyl('h',0.05,0.05,0.12,10,0,0,0,Math.PI/2); for(let k=0;k<3;k++){ const p=new THREE.BoxGeometry(0.08,0.17,0.015); p.translate(0,0.12,0); p.rotateY(0.45); p.rotateZ(k*Math.PI*2/3); B.geo('h',p); } H=_GEO_V3['amphibie:helice']=B.fin(); }
+    const hel=new THREE.Mesh(H.h,I.M.chrome); hel.position.set(0,0.44,-2.38); I.corps.add(hel);
+    let ang=0, px=null, pz=0; I.ud.anim=(v)=>{ const d=px===null?0:Math.min(3,Math.hypot(v.x-px,v.z-pz)); px=v.x; pz=v.z; if(d>0.001&&surEauVeh(v)){ ang+=d*4; hel.rotation.z=ang; } }; /* l'hélice tourne en navigation, à la distance parcourue */
+    I.ud.flottaison=-0.77; /* tirant d'eau : la ligne de flottaison à mi-coque (0,62 au-dessus du fond du modèle) */
+    halosPharesV3(I,0.68,1.12,2.6); I.ud.conducteur={x:0.42,y:0.95,z:0.5,k:0.95,pose:{hy:(1.5-0.95)/0.95,hz:(0.92-0.5)/0.95}}; I.ud.pareBrise={y:1.62,z:1.4}; }
+};
 /* textes et motifs peints (une texture par motif, à la demande) — découpés (alphaTest) et opaques : jamais pris pour une vitre */
 const _TEX_V3={};
 function matTexteV3(id){ if(_TEX_V3[id]) return _TEX_V3[id]; let t, dec=false;
@@ -22195,6 +22242,7 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
     const nez=BATEAU_NEZ*fac+clamp((v.accL||0)*0.004,0,0.05), gite=-clamp((v.v||0)*(v.lacet||0)*(jet?0.013:0.006),jet?-0.45:-0.2,jet?0.45:0.2);
     v.bateauNez=lerp(v.bateauNez||0,nez,clamp(dt*3,0,1)); v.bateauGite=lerp(v.bateauGite||0,gite,clamp(dt*3,0,1));
     v.mesh.rotation.x-=v.bateauNez; v.mesh.rotation.z=(MER_V2?v.mesh.rotation.z:0)+v.bateauGite; }
+  if(v.mesh.userData.flottaison){ v.flotK=clamp((v.flotK||0)+(eau?1:-1)*dt*1.4,0,1); if(v.flotK) v.mesh.position.y+=v.mesh.userData.flottaison*v.flotK; } /* tirant d'eau d'une coque (amphibie V3) : elle s'enfonce en douceur en entrant dans l'eau ; cosmétique */
   for(const r of v.mesh.userData.roues) r.rotation.x+=v.v*dt*1.6;
   if(v.mesh.userData.volet) majVolet(v,dt);
   // Suspension (17 octobre au soir, signalé : « la voiture monte et descend sans arrêt, toujours à la même fréquence ;
@@ -24332,7 +24380,8 @@ function majVehicules(dt){
       majKnockback(v,dt);
       if(v.def.eau&&!estEau(v.x,v.z)){ v.v*=1-5*dt; poseEchoue(v,dt); } // bateau lâché sur le sable : il s'arrête vite, posé de travers
       else { v.mesh.position.y=surEauVeh(v)?0.15:(v.def.air?(v.alt||0):solYGare(v));
-      if(MER_V2&&surEauVeh(v)&&!v.def.air) assietteHoule(v.mesh,v.x,v.z,v.ang,0.15,v.def.long); }
+      if(MER_V2&&surEauVeh(v)&&!v.def.air) assietteHoule(v.mesh,v.x,v.z,v.ang,0.15,v.def.long);
+      if(v.mesh.userData.flottaison&&surEauVeh(v)) v.mesh.position.y+=v.mesh.userData.flottaison; } /* garé à flot : à son tirant d'eau */
       v.mesh.position.x=v.x; v.mesh.position.z=v.z;
       if(v.hp<v.def.hp*0.42){ v.fumeT-=dt; if(v.fumeT<=0){v.fumeT=0.14;fumee(v.x,1.1,v.z,0x555a63);} }
       // Avion de voltige garé : hélice qui tourne au ralenti + rotation lente
