@@ -176,12 +176,12 @@ dans l'ordre demandé : ils passent en dernier (groupe 7).
 - [x] Skateboard (`skate`) → planche de street — plateau concave à kicks, grip, graphisme, trucks et gommes ; `deux_roues_*`
 
 ### 5. Hélicoptères
-- [ ] Hélico « Libellule » (`helico`) → Robinson R44
-- [ ] Hélico « Écureuil » (`ecureuil`) → Airbus AS350 Écureuil
-- [ ] Hélico VIP « Riviera » (`vip`) → AgustaWestland AW109
-- [ ] Hélico de combat « Vautour » (`vautour`, et la version armée ennemie `makeHeli('armee')`) → Boeing AH-64 Apache
-- [ ] Hélico « Rapace » de la police (`makeHeli('police')`) → Airbus EC135
-- [ ] Hélico-grue « Titan » (`titan`) → Sikorsky S-64 Skycrane (vérifier la finition)
+- [x] Hélico « Libellule » (`helico`) → Robinson R44 — cabine en goutte, bipale, poutre fine, patins ; `helicos_*`
+- [x] Hélico « Écureuil » (`ecureuil`) → Airbus AS350 Écureuil — grande cabine arrondie, tripale, stabilisateur à plaques ; `helicos_*`
+- [x] Hélico VIP « Riviera » (`vip`) → AgustaWestland AW109 — fuselage effilé noir et filets d'or, quadripale, TRAIN QUI RENTRE en vol ; `helicos_*`
+- [x] Hélico de combat « Vautour » (`vautour`, et la version armée ennemie `makeHeli('armee')`) → Boeing AH-64 Apache Longbow — tandem à verrières à facettes, Longbow, ailerons armés, canon de 30 ; `helicos_*`
+- [x] Hélico « Rapace » de la police (`makeHeli('police')`) → Airbus EC135 — fenestron, livrée POLICE et LRPD, projecteur (`ud.cone`) ; `helicos_apache_ennemis.png`
+- [x] Hélico-grue « Titan » (`titan`) → Sikorsky S-64 Skycrane — refait (la verrière n'était pas transparente) : poutre squelettique, cabine en bulbe vitrée, six pales, train haut ; aimant inchangé ; `helicos_*`
 
 ### 6. Avions
 - [ ] Avion « Colibri » (`avion`) → Cessna 172
@@ -435,6 +435,36 @@ dans l'ordre demandé : ils passent en dernier (groupe 7).
   ballon à flancs blancs, garde-boue, carter de chaîne, sonnette, béquille. **BMX Mongoose Legion** (`bmx`) : cadre compact à gros
   tubes, guidon haut à barre de renfort, selle basse, pegs, pneus lisses. **Skate** : plateau concave à kicks relevés, grip noir et
   graphisme « REYES » dessous, trucks en alu, gommes, roues en uréthane.
+
+### Hélicoptères (groupe 5) — socle commun
+- **Unités d'origine** : chaque hélico V4 est dessiné dans les cotes de l'ancien modèle et `construireV3` l'agrandit comme avant
+  (`agrandirHelico`, `ECH_HELI`, rotor au même diamètre final, `ud.kHeli` que lit l'aimant du Titan). Les roues du jeu restent à leur
+  place. **Les tirages** : l'ancien chemin agrandissait le modèle d'origine (un groupe de plus, donc un tirage) — le chemin V4 le refait
+  sur le modèle d'origine avant de construire la V4 : l'empreinte de la ville (décor, portes, chalet, mobilier) est identique.
+- **`heliInstV4`** : rotor principal à pales réelles (géométrie partagée par taille) et son disque flou (visible en vol), rotor de queue
+  ou fenestron, feux de navigation (rouge à gauche, vert à droite, blanc derrière), anticollision qui clignote (`animHeliV4`), ombre au
+  sol (`ud.ombre`, recalée par `majVol` : option `sansOmbre` du constructeur), **souffle du rotor** près du sol — un disque de poussière
+  ou d'embruns sur l'eau qui tourne et s'efface avec la hauteur, sans particule ni tirage. De loin, les feux s'effacent.
+- **Hélicos ennemis** (`makeHeli` → `heliEnnemiV4`) : l'Apache (la fiche du Vautour) et l'EC135 de la police (`HELI_POLICE_V4`, hors
+  de `VEHDEFS` : `construireV3Spec`), l'origine au centre du fuselage comme les anciens, équipage assis, disque du rotor toujours
+  visible, projecteur (`ud.cone`), version lointaine (`majLodV4` dans la boucle des ennemis). L'ancien `makeHeli` reste
+  (`makeHeliAncien`) pour le modèle d'origine du Vautour (ses tirages).
+
+### Les fiches des hélicos
+- **Robinson R44** (`helico`) : cabine en goutte à grande verrière, quatre portes vitrées, capot de transmission, rotor bipale, poutre
+  fine, dérives haute et basse, rotor anticouple bipale, patins ; quatre sièges, console centrale, manche en T ; pilote à droite.
+- **Airbus AS350 Écureuil** (`ecureuil`) : grande cabine arrondie et pare-brise d'un seul tenant, capot et tuyère, rotor tripale,
+  stabilisateur à plaques d'extrémité, dérives, rotor anticouple à gauche, patins ; livrée à bande contrastée.
+- **AgustaWestland AW109** (`vip`) : fuselage effilé noir laqué au nez pointu, filets d'or, deux turbines, quadripale, longue poutre,
+  dérive en flèche ; fauteuils club en cuir crème ; **le train tricycle rentre en vol** au-delà de 2,5 u du sol (`animTrainV4`).
+- **AH-64 Apache Longbow** (`vautour`, et l'hélico armé ennemi) : postes en tandem sous des verrières à facettes, tourelle de visée,
+  canon de 30, turbines latérales et suppresseurs, ailerons porte-armes (Hellfire, roquettes), radar Longbow au sommet du mât,
+  rotor anticouple en ciseaux, train fixe et roulette de queue, étoile.
+- **Airbus EC135 de la police** (Rapace, ennemi) : nez arrondi, grande verrière, fenestron, stabilisateur à plaques, patins ; bleu nuit
+  et blanc, « POLICE », « LRPD 07 », projecteur et boule infrarouge, gyrophares.
+- **Sikorsky S-64 Skycrane** (`titan`) : poutre squelettique ouverte dessous (l'aimant pend toujours sous la poutre, cotes gardées),
+  cabine en bulbe vitrée, poste de l'opérateur vers l'arrière (verre fumé : transparent, il déformait la cabine mesurée par le cockpit),
+  deux turbines, six pales, dérive inclinée et stabilisateur en T, train haut, treuil jaune.
 
 ## Mesures et tests
 
