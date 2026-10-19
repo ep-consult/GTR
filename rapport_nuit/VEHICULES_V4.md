@@ -147,12 +147,12 @@ dans l'ordre demandé : ils passent en dernier (groupe 7).
 - [x] déjà V3 : Interceptor, Ambulance, Vedette de police ; la moto de police (`motoS`) est au groupe 4, l'hélico « Rapace » au groupe 5
 
 ### 3. Voitures pilotables restantes
-- [ ] Berline Viper (`gangcar`) → Chevrolet Impala 1964 lowrider
+- [x] Berline Viper (`gangcar`) → Chevrolet Impala 1964 lowrider — calandre à barres et quatre phares, trois feux ronds, jantes à rayons et flancs blancs, roue « continental », filets dorés ; `pilotables_lot1_*`
 - [ ] Supercar « Mirage » (`mirage`) → Lamborghini Huracán
 - [ ] Hypercar « Zénith » (`hyper`) → McLaren P1
-- [ ] Ancienne « Baronne » (`baronne`) → Cadillac Eldorado 1959
-- [ ] Buggy des dunes (`buggy`) → Meyers Manx
-- [ ] Buggy « Scarabée » (`scarabee`) → Volkswagen Coccinelle « Baja Bug »
+- [x] Ancienne « Baronne » (`baronne`) → Cadillac Eldorado 1959 — ailerons et feux-obus, toit vinyle, calandre « bijou », pare-chocs à obus, larges flancs blancs ; `pilotables_lot1_*`
+- [x] Buggy des dunes (`buggy`) → Meyers Manx — baignoire en fibre, ailes en arches, flat-four à nu, arceau, numéro 23 ; ouvert, conducteur assis ; `pilotables_lot1_*`
+- [x] Buggy « Scarabée » (`scarabee`) → Volkswagen Coccinelle « Baja Bug » cabriolet — ailes rondes raccourcies, phares dressés, feux sur les ailes, arceau et rampe, moteur à nu, numéro 7 ; `pilotables_lot1_*`
 - [ ] Jeep militaire « Guépard » (`jeepMil`) → AM General Humvee M1151
 - [ ] Char « Rhinocéros » (`char`) → M1A2 Abrams
 - [ ] Bulldozer « Titan » (`bulldozer`) → Caterpillar D6
@@ -317,6 +317,31 @@ dans l'ordre demandé : ils passent en dernier (groupe 7).
 - **Intérieur** : planche, capot moteur entre les sièges, sièges de l'équipage dos à dos et leurs bouteilles d'air jaunes.
 - Contrats gardés : `ud.lance` (le canon orienté par `majLanceEau`, la buse au même point local), `ud.gyro` (deux feux à matériau propre,
   `majGyrophares`). Rétroviseurs « west coast » rapprochés de la cabine : la largeur reste dans les ±12 % du test.
+
+### Berline Viper (`gangcar`) → Chevrolet Impala 1964 en lowrider (la voiture des Sunset Vipers)
+- **Silhouette** : coupé hardtop très long et plat, arête de caisse franche, toit « formel » sans montant central, caisse au ras du sol.
+- **Signature** : calandre pleine largeur à barres chromées et quatre phares ronds ; trois feux ronds de chaque côté dans leur jonc ;
+  jantes à rayons chromées et flancs blancs fins (`flancBlancV4`, commun aux anciennes) ; roue de secours « continental » derrière le
+  pare-chocs ; filets dorés sur le capot et la malle ; joncs chromés.
+- **Livrée** : vert des Vipers. **Intérieur** : banquettes capitonnées crème, petit volant chaîne.
+
+### Ancienne « Baronne » (`baronne`) → Cadillac Eldorado Seville 1959
+- **Silhouette** : paquebot de 5,4 m, capot plat interminable, pare-brise panoramique, toit vinyle à larges montants.
+- **Signature** : les plus grands ailerons de l'histoire et leurs feux-obus jumeaux ; ailes avant en visière sur quatre phares ;
+  calandre « bijou » pleine largeur ; pare-chocs massifs à obus ; long jonc de flanc, panneau brossé de bas d'aile ; enjoliveurs
+  chromés et larges flancs blancs. **Livrée** : bordeaux (couleur du jeu). **Intérieur** : banquettes de cuir crème, volant fin à cerclage.
+
+### Buggy des dunes (`buggy`) → Meyers Manx
+- **Silhouette** : baignoire en fibre sur un châssis de Coccinelle raccourci, ailes en arches au-dessus de grandes roues.
+- **Signature** : deux phares ronds en saillie sur le nez ; petit pare-brise (abaissé : son cadre barrait la vue du cockpit) ; arceau ;
+  flat-four à nu derrière (filtre chromé, sorties « stinger ») ; amortisseurs orange ; numéro de course sur le capot.
+- Ouvert (`ud.siege`) : le conducteur est assis et visible ; l'arceau, les sièges, la planche s'effacent en 1re personne.
+
+### Buggy « Scarabée » (`scarabee`) → Volkswagen Coccinelle « Baja Bug » cabriolet
+- **Silhouette** : la caisse ronde de la Coccinelle, surélevée, ailes rondes raccourcies sur des pneus à crampons.
+- **Signature** : phares dressés au bout des ailes avant, feux ronds sur les ailes arrière ; pare-brise droit ; capote repliée ; arceau
+  et rampe de phares ; capot court ; moteur à nu ; pare-chocs tubulaires ; numéro 7 sur les portes.
+- Fait seul : cabriolet, pour garder le cockpit existant (déclaré ouvert, avec cage). La rampe de phares s'efface en 1re personne.
 
 ## Mesures et tests
 
