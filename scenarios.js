@@ -5230,8 +5230,8 @@ async function main() {
     else ok('Écrasement : ne fait bien jamais progresser la vague');
     if (ecrasementEquilibrage.apresEcrasement.conduit !== null) fail('Écrasement : l\'épave reste conduisible (conduit=' + ecrasementEquilibrage.apresEcrasement.conduit + ')');
     else ok('Écrasement : l\'épave n\'est bien plus conduisible ni réparable');
-    if (!ecrasementEquilibrage.apresEcrasement.plusDansVehicules || !ecrasementEquilibrage.apresEcrasement.dansEpaves) fail('Écrasement : l\'épave n\'est pas correctement transférée (franchissable = absente de toute boucle de collision)');
-    else ok('Écrasement : l\'épave est bien franchissable (retirée de toute boucle de collision, jamais un obstacle)');
+    if (!ecrasementEquilibrage.apresEcrasement.plusDansVehicules || !ecrasementEquilibrage.apresEcrasement.dansEpaves) fail('Écrasement : l\'épave n\'est pas rangée dans EPAVES (hors de vehicules : ni conduite, ni trafic, ni police)');
+    else ok('Écrasement : l\'épave est bien rangée dans EPAVES (hors de vehicules ; elle reste un obstacle : test « Épaves solides »)');
     if (!ecrasementEquilibrage.nonEcraseur.pasEcrase) fail('Écrasement : un véhicule sans ecrase:true parvient à aplatir une cible');
     else ok('Écrasement : seuls les véhicules ecrase:true (char, Monster Truck) peuvent aplatir un autre véhicule');
 
@@ -15844,6 +15844,83 @@ async function main() {
         startRun(); return { ko, info }; });
       if (r.ko.length) fail('Écrasement V2 : ' + r.ko.join(' | '));
       else ok('Écrasement V2 : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
+    // Épaves solides (19 octobre, signalé : « les véhicules écrasés deviennent noirs et en épave, et d'un seul coup on ne peut
+    // plus monter sur la carcasse, on passe à travers, même les autres véhicules ») : l'épave sortait de la liste des véhicules,
+    // donc de toutes les collisions. Elle garde son profil : le Monster Truck y remonte, une voiture bute dessus, un lourd la
+    // pousse, on ne la traverse pas à pied, le trafic la contourne ; elle noircit peu à peu (plus d'un coup).
+    // -------------------------------------------------------------------
+    console.log('\n--- Épaves solides : on remonte dessus en Monster Truck, une voiture bute, un bus la pousse, le trafic la contourne ---');
+    {
+      const r = await page.evaluate(() => {
+        if (typeof EPAVES === 'undefined' || typeof collisionsEpaves === 'undefined') return { off: true };
+        const ko = [], info = [];
+        const vider = () => { if (P.veh) sortirVehicule(true); for (const v of vehicules) { scene.remove(v.mesh); libererEntite(v.mesh); } vehicules.length = 0; viderEpaves(); };
+        const retirer = (v) => { if (P.veh === v) P.veh = null; v.mort = true; scene.remove(v.mesh); const i = vehicules.indexOf(v); if (i >= 0) vehicules.splice(i, 1); };
+        startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; for (const e of ennemis) e.mort = true; for (const pe of pietons) pe.etat = 'mort'; WAVES.etat = 'repos'; WAVES.t = 1e9; vider();
+        /* une voie dégagée sur 90 u, lue dans la vraie grille (comme le test du trafic) */
+        let sc = null; for (let k = 2; k < NB - 2 && !sc; k++) { const lane = -HALF + k * CELL + 3.2;
+          for (let zz = -HALF + 60; zz < MER - 120 && !sc; zz += CELL) { let libre = true; for (let d = 0; d < 90; d += 2) if (solidAt(lane, zz + d, 1.6) || solY(lane, zz + d) > 0.4) { libre = false; break; } if (libre) sc = { lane, z0: zz }; } }
+        if (!sc) return { ko: ['aucune voie dégagée'], info };
+        P.x = sc.lane - 20; P.z = sc.z0 + 40; P.veh = null;
+        /* 1. une épave faite par le Monster Truck, rangée par la boucle comme en jeu */
+        const ep = creerVehicule('citadine', sc.lane, sc.z0 + 40, 0, null);
+        let mt = creerVehicule('monstertruck', sc.lane, sc.z0 + 31, 0, 'joueur'); P.veh = mt;
+        for (let t = 0; t < 400 && !ep.epave; t++) majVehiculePhys(mt, 1 / 30, 1, 0, false);
+        retirer(mt); majVehicules(1 / 30); for (const v of vehicules.slice()) retirer(v);
+        if (!ep.epave || !EPAVES.includes(ep)) return { ko: ['pas d’épave rangée'], info };
+        const hEp = hautEpave(ep); info.push('épave de ' + hEp.toFixed(2) + ' u de haut');
+        /* 2. le noircissement est progressif : à sa naissance, la couleur d'origine ; 2 s plus tard, ×0,42 */
+        const q = (ep.epMats || []).find((m) => m.c0 && m.c0.r + m.c0.g + m.c0.b > 0.6);
+        if (!q) ko.push('noircissement : rien à suivre (epMats)');
+        else { const lum = () => q.m.color.r + q.m.color.g + q.m.color.b, l0 = lum(), lo = q.c0.r + q.c0.g + q.c0.b;
+          for (let i = 0; i < 60; i++) majEpaves(1 / 30); const l1 = lum();
+          if (Math.abs(l0 - lo) > 0.02 * lo || Math.abs(l1 - 0.42 * lo) > 0.03 * lo) ko.push('noircissement pas progressif (' + l0.toFixed(2) + ' → ' + l1.toFixed(2) + ' pour ' + lo.toFixed(2) + ')');
+          else info.push('noircie peu à peu en ' + EPAVE_NOIRCIT + ' s'); }
+        /* 3. le Monster Truck remonte dessus et passe */
+        mt = creerVehicule('monstertruck', ep.x, ep.z - 9, 0, 'joueur'); P.veh = mt; let hMax = 0, t = 0;
+        for (; t < 200 && mt.z < ep.z + 6; t++) { majVehiculePhys(mt, 1 / 30, 1, 0, false); hMax = Math.max(hMax, mt.hEcrL || 0); }
+        if (!(hMax > 0.25)) ko.push('le Monster Truck ne remonte pas sur l’épave (' + hMax.toFixed(2) + ' u)');
+        if (!(mt.z >= ep.z + 6)) ko.push('le Monster Truck ne passe pas l’épave');
+        info.push('Monster Truck : remonte de ' + hMax.toFixed(2) + ' u, passe en ' + (t / 30).toFixed(1) + ' s');
+        retirer(mt);
+        /* 4. une voiture ordinaire, plein gaz : elle bute, jamais à travers */
+        const avant = (v, o) => { const sO = Math.sin(o.ang), cO = Math.cos(o.ang), dx = v.x - o.x, dz = v.z - o.z; return { lz: dx * sO + dz * cO, lx: dx * cO - dz * sO }; };
+        const dedans = (v, o, m) => { const q2 = avant(v, o); return Math.abs(q2.lz) < o.def.long / 2 + v.def.long / 2 - m && Math.abs(q2.lx) < o.def.larg / 2 + v.def.larg / 2 - m; }; /* véhicules dans l'axe de l'épave */
+        const voit = creerVehicule('citadine', ep.x, ep.z - 8, 0, 'joueur'); P.veh = voit; let zMax = -1e9, hp0 = voit.hp;
+        for (let i = 0; i < 90; i++) { majVehiculePhys(voit, 1 / 30, 1, 0, false); majEpaves(1 / 30); zMax = Math.max(zMax, voit.z); }
+        if (zMax > ep.z) ko.push('une voiture traverse l’épave (z ' + zMax.toFixed(1) + ' pour ' + ep.z.toFixed(1) + ')');
+        info.push('citadine plein gaz : arrêtée à ' + (ep.z - zMax).toFixed(1) + ' u du centre, ' + Math.round(hp0 - voit.hp) + ' PV');
+        retirer(voit);
+        /* 5. un bus la pousse devant lui */
+        const zEp = ep.z, bus = creerVehicule('busville', ep.x, ep.z - 10, 0, 'joueur'); P.veh = bus; let zBus = -1e9;
+        for (let i = 0; i < 90; i++) { majVehiculePhys(bus, 1 / 30, 1, 0, false); majEpaves(1 / 30); zBus = Math.max(zBus, bus.z); }
+        if (!(ep.z - zEp > 1)) ko.push('le bus ne pousse pas l’épave (' + (ep.z - zEp).toFixed(2) + ' u)');
+        if (zBus > ep.z) ko.push('le bus traverse l’épave');
+        info.push('bus : l’épave poussée de ' + (ep.z - zEp).toFixed(1) + ' u');
+        retirer(bus); ep.epVx = ep.epVz = ep.epW = 0;
+        /* 6. à pied : l'épave bloque comme un véhicule, on ne la traverse pas en marchant droit dessus */
+        if (vehiculeBloquant(ep.x, ep.z, 0.3, null) !== ep) ko.push('à pied, l’épave ne bloque pas');
+        P.veh = null; P.x = sc.lane - 8; P.z = ep.z - 12; P.y = solPied(P.x, P.z); const x0 = P.x, z0 = P.z;
+        for (let i = 0; i < 10; i++) { INPUT.mx = 1; INPUT.mz = 0; majJoueur(1 / 30, 1 / 30); } /* le sens où le joystick fait marcher (selon la vue), mesuré */
+        const dl = Math.hypot(P.x - x0, P.z - z0) || 1, ux = (P.x - x0) / dl, uz = (P.z - z0) / dl;
+        P.x = ep.x - ux * 5; P.z = ep.z - uz * 5; P.y = solPied(P.x, P.z); let dansEp = 0;
+        for (let i = 0; i < 90; i++) { INPUT.mx = 1; INPUT.mz = 0; majJoueur(1 / 30, 1 / 30); const q2 = avant(P, ep); if (Math.abs(q2.lz) < ep.def.long / 2 - 0.2 && Math.abs(q2.lx) < ep.def.larg / 2 - 0.2) dansEp++; }
+        INPUT.mx = INPUT.mz = 0;
+        if (dansEp || (P.x - ep.x) * ux + (P.z - ep.z) * uz > 0) ko.push('à pied, on traverse l’épave (' + dansEp + ' images dedans)');
+        else info.push('à pied : arrêté contre l’épave');
+        /* 7. le trafic : une file arrive derrière l'épave, s'arrête sans la percuter puis la contourne */
+        P.x = sc.lane - 20; P.z = ep.z + 20;
+        const f = ['citadine', 'taxi', 'berline'].map((k, i) => { const v = creerVehicule(k, sc.lane, ep.z - 22 - i * 9, 0, 'trafic'); v._traf = true; v.axe = 'z'; v.lane = sc.lane; v.v = 9; v.uidT = 3000 + i; return v; });
+        let touches = 0; const rnd = Math.random; Math.random = () => 0.999;
+        try { for (let tt = 0; tt < 20; tt += 1 / 60) { for (const v of f) if (!v.mort) majTrafic(v, 1 / 60); majEpaves(1 / 60); for (const v of f) if (dedans(v, ep, 0.25)) touches++; } } finally { Math.random = rnd; }
+        const passes = f.filter((v) => v.z > ep.z + 4).length;
+        if (touches) ko.push('le trafic percute l’épave (' + touches + ' images)'); if (passes < f.length) ko.push('le trafic ne contourne pas l’épave (' + passes + '/' + f.length + ')');
+        info.push('trafic : ' + passes + '/' + f.length + ' contournent, sans contact');
+        vider(); startRun(); return { ko, info }; });
+      if (r.off) saute('Épaves solides : écrasement V2 absent');
+      else if (r.ko.length) fail('Épaves solides : ' + r.ko.join(' ; ') + ' [' + r.info.join(' ; ') + ']'); else ok('Épaves solides : ' + r.info.join(' ; '));
     }
     // -------------------------------------------------------------------
     // Véhicules V4 (19 octobre, demandé : « tous les véhicules au niveau V3 », « pour le trafic, un niveau de détail ») : chaque fiche

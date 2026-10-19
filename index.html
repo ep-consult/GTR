@@ -24771,6 +24771,8 @@ function majDeformation(v,dt){
 // un obstacle), les véhicules aériens en vol, et `ignore` (le véhicule que le
 // personnage conduit lui-même, sinon il ne pourrait plus avancer dedans).
 function vehiculeBloquant(x,z,marge,ignore){
+  for(const o of EPAVES){ if(o.mort||!o.mesh||o.epFin>0) continue; const ddx=x-o.x, ddz=z-o.z, rb=(o.def.long+o.def.larg)*0.5+0.6+marge; if(ddx*ddx+ddz*ddz>rb*rb) continue; /* l'épave bloque comme un véhicule */
+    const sA=Math.sin(o.ang), cA=Math.cos(o.ang), fwd=ddx*sA+ddz*cA, right=ddx*cA-ddz*sA; if(Math.abs(fwd)<o.def.long*0.5+marge&&Math.abs(right)<o.def.larg*0.5+marge) return o; }
   for(const o of vehicules){
     const ddx=x-o.x, ddz=z-o.z, rb=(o._rayBloc||(o._rayBloc=(o.def.long+o.def.larg)*0.5+0.6))+marge; /* rejet par la distance (nuit du 16 octobre) : deux sinus et six lectures de def par véhicule et par appel, trois appels par piéton et par image — 23 ms par image au centre-ville ; (long+larg)/2 majore la demi-diagonale */
     if(ddx*ddx+ddz*ddz>rb*rb) continue;
@@ -24951,7 +24953,7 @@ function exploserVehicule(v){
    Moteur commun : deformerLocal(o, point, direction, profondeur, rayon, opts). Épaves : déformées, noircies, elles glissent puis
    fument ; EPAVES_MAX au plus, retirées au bout de EPAVE_VIE s ou loin du joueur (EPAVE_LOIN), géométries et matières libérées.
    Sons (sonEcrasement) sur leur propre bus, coupés par couperSonsEcrasement (mourir, startRun, entrée dans une salle). */
-const EPAVES=[], EPAVES_MAX=10, EPAVE_VIE=75, EPAVE_LOIN=240, ECR_CELLS=8, ENFONCE_VMIN=8, ECR_H_MIN=0.38, ECR_MONTE_MAX=1.75;
+const EPAVES=[], EPAVES_MAX=10, EPAVE_VIE=75, EPAVE_LOIN=240, ECR_CELLS=8, ENFONCE_VMIN=8, ECR_H_MIN=0.38, ECR_MONTE_MAX=1.75, EPAVE_NOIRCIT=1.6;
 const _dP=new THREE.Vector3(), _dD=new THREE.Vector3(), _dF=new THREE.Vector3(), _dC=new THREE.Vector3(), _dL=new THREE.Vector3(), _dT=new THREE.Vector3(), _dB=new THREE.Box3();
 function niveauChoc(d){ return d.ecrase?3:(d.enfonce?2:1); }
 function victimeEcrasable(o){ const d=o.def; return !!o.mesh&&!d.ecrase&&!d.air&&!d.eau&&!d.surf&&!o.horsVille&&!o.mort&&!o.epave&&!o.noye&&!o.captureOvni; }
@@ -24991,19 +24993,26 @@ function eclatsVitres(o,wx,wy,wz,force){ let n=0; o.mesh.traverse((m)=>{ if(m.is
 /* les roues de la victime s'écartent (carrossage), le coin s'affaisse */
 function ecarterRoue(o,r){ if(r.userData.ecarte) return; r.userData.ecarte=true; const sg=Math.sign(r.position.x)||1; r.rotation.z+=sg*0.34; r.position.x+=sg*0.16; r.position.y-=0.1; }
 /* l'épave : noircie (matières copiées : jamais celles du cache mat()), elle glisse (epVx, epVz, epW) puis fume */
-function finEpave(o){ if(o.epave) return; lodFixerV4(o); o.epave=true; o.conduit=null; o.v=0; o.ecr=null; o.epT=0; o.epFumT=0; o.epFin=0; if(o.epVx===undefined){ o.epVx=0; o.epVz=0; o.epW=0; }
-  o.mesh.traverse((m)=>{ if(!m.isMesh||m.isSprite||!m.material||m.userData.noirci||Array.isArray(m.material)) return; const c=m.material.clone(); if(c.color) c.color.multiplyScalar(0.42); if(c.emissive) c.emissive.multiplyScalar(0.3); m.material=c; m.userData.noirci=true; });
+function finEpave(o){ if(o.epave) return; const E0=o.ecr; lodFixerV4(o); o.epave=true; o.conduit=null; o.v=0; o.ecr=null; o.epT=0; o.epFumT=0; o.epFin=0; if(o.epVx===undefined){ o.epVx=0; o.epVz=0; o.epW=0; }
+  /* elle garde son profil (tranche par tranche) : elle reste un obstacle (collisionsEpaves), l'écraseur y remonte et l'aplatit encore
+     (majEcrasementPar) — signalé : « d'un seul coup on ne peut plus monter sur la carcasse, on passe à travers, même les autres véhicules » */
+  if(E0){ E0.par=null; o.epE=E0; } else { const h=profilVictime(o); o.epE={h,dern:Float32Array.from(h),sol:o.mesh.position.y,horsT:0,vitres:false,sonT:0,tank:false}; }
+  /* noircie peu à peu (EPAVE_NOIRCIT s, majEpaves), plus d'un coup : matières copiées, jamais celles du cache mat() */
+  o.epMats=[]; o.mesh.traverse((m)=>{ if(!m.isMesh||m.isSprite||!m.material||m.userData.noirci||Array.isArray(m.material)) return; const c=m.material.clone(); m.material=c; m.userData.noirci=true;
+    o.epMats.push({m:c,c0:c.color?c.color.clone():null,e0:c.emissive?c.emissive.clone():null}); });
   for(const s of o.mesh.userData.phG||[]) s.visible=false; if(o.mesh.userData.bar) for(const b of o.mesh.userData.bar) b.visible=false; }
 function enregistrerEpave(o){ EPAVES.push(o); while(EPAVES.length>EPAVES_MAX) retirerEpave(EPAVES.shift()); }
 function retirerEpave(o){ if(!o||!o.mesh) return; scene.remove(o.mesh); o.mesh.traverse((m)=>{ if(m.isMesh&&m.userData.noirci&&m.material&&m.material.dispose) m.material.dispose(); }); libererEntite(o.mesh); o.mort=true; }
 function viderEpaves(){ while(EPAVES.length) retirerEpave(EPAVES.pop()); }
 function majEpaves(dt){
   for(let i=EPAVES.length-1;i>=0;i--){ const o=EPAVES[i];
+    if(o.epMats){ const t=clamp((o.epT+dt)/EPAVE_NOIRCIT,0,1), k=t*t*(3-2*t), fc=1-0.58*k, fe=1-0.7*k; /* de la couleur d'origine à ×0,42 */
+      for(const q of o.epMats){ if(q.c0) q.m.color.copy(q.c0).multiplyScalar(fc); if(q.e0) q.m.emissive.copy(q.e0).multiplyScalar(fe); } if(t>=1) o.epMats=null; }
     if(o.epVx||o.epVz||o.epW){ o.x+=o.epVx*dt; o.z+=o.epVz*dt; o.ang+=o.epW*dt; const fr=Math.max(0,1-2.6*dt); o.epVx*=fr; o.epVz*=fr; o.epW*=Math.max(0,1-3*dt);
       if(Math.abs(o.epVx)+Math.abs(o.epVz)<0.05){ o.epVx=o.epVz=0; } if(Math.abs(o.epW)<0.02) o.epW=0;
       if(pousseHorsSolide(o,o.def.larg*0.34)){ o.epVx*=-0.3; o.epVz*=-0.3; } o.mesh.position.x=o.x; o.mesh.position.z=o.z; o.mesh.rotation.y=o.ang; }
     if(o.epPousse&&o.epT<30) for(const w of vehicules){ /* épave enfoncée (encore haute) : un véhicule lancé la pousse devant lui, jamais à travers (aplatie, elle se franchit) */
-      if(w.mort||w.epave||w.def.air||w.def.eau||Math.abs(w.v||0)<1.2) continue; const dx=o.x-w.x, dz=o.z-w.z, rr=(w.def.long+w.def.larg+o.def.long)*0.5; if(dx*dx+dz*dz>rr*rr) continue;
+      if(w.mort||w.epave||w.def.air||w.def.eau||w.def.ecrase||Math.abs(w.v||0)<1.2) continue; const dx=o.x-w.x, dz=o.z-w.z, rr=(w.def.long+w.def.larg+o.def.long)*0.5; /* l'écraseur y monte (majEcrasementPar) */ if(dx*dx+dz*dz>rr*rr) continue;
       const sg=Math.sign(w.v), sa=Math.sin(w.ang)*sg, ca=Math.cos(w.ang)*sg, fw=dx*sa+dz*ca, lat=dx*ca-dz*sa, demi=Math.min(o.def.long,o.def.larg)*0.5+0.1, front=w.def.long*0.5+demi;
       if(fw<-0.2||fw>=front||Math.abs(lat)>w.def.larg*0.5+demi) continue; const k=front-fw; o.x+=sa*k; o.z+=ca*k; const vw=Math.abs(w.v);
       if(o.epVx*sa+o.epVz*ca<vw*1.05){ o.epVx=sa*vw*1.08+ca*lat*0.4; o.epVz=ca*vw*1.08-sa*lat*0.4; } o.epW+=clamp(lat,-1,1)*dt*2; w.v*=1-0.45*dt;
@@ -25050,8 +25059,8 @@ function enfoncer(v,o,distFwd){ const sp=Math.abs(v.v||0), sens=Math.sign(v.v||0
 /* ---- niveau 3 : l'écrasement. Les points de contact de l'écraseur (roues du Monster Truck, chenilles du char), dans un tableau
    réutilisé (aucune allocation) ---- */
 function contactsEcraseur(v){ let C=v._ctc; const tank=!!v.def.canon;
-  if(!C){ C=v._ctc=[]; if(tank){ const x=v.def.larg/2-v.def.larg*0.13; for(const sx of [-1,1]) for(const lz of [-3.2,-1.6,0,1.6,3.2]) C.push({lx:sx*x,lz,av:lz>0,cote:sx,x:0,z:0,R:0.55}); }
-    else { const M=MONSTER_V3; for(const sx of [-1,1]) for(const lz of [M.zf,M.zr]) C.push({lx:sx*M.x,lz,av:lz>0,cote:sx,x:0,z:0,R:M.R}); } }
+  if(!C){ C=v._ctc=[]; if(tank){ const x=v.def.larg/2-v.def.larg*0.13; for(const sx of [-1,1]) for(const lz of [-3.2,-1.6,0,1.6,3.2]) C.push({lx:sx*x,lz,av:lz>0,cote:sx,x:0,z:0,R:0.55,ep:0.7}); }
+    else { const M=MONSTER_V3; for(const sx of [-1,1]) for(const lz of [M.zf,M.zr]) C.push({lx:sx*M.x,lz,av:lz>0,cote:sx,x:0,z:0,R:M.R,ep:M.ep}); } }
   const sa=Math.sin(v.ang), ca=Math.cos(v.ang); for(const c of C){ c.x=v.x+sa*c.lz+ca*c.lx; c.z=v.z+ca*c.lz-sa*c.lx; } return C; }
 /* le profil de la victime : la hauteur de sa carrosserie, tranche par tranche et côté par côté (boîtes des pièces, une fois) */
 function profilVictime(o){ const h=new Float32Array(ECR_CELLS*2), sol=o.mesh.position.y, so=Math.sin(o.ang), co=Math.cos(o.ang), L=o.def.long, W=o.def.larg; o.mesh.updateMatrixWorld(true);
@@ -25069,24 +25078,35 @@ function commencerEcrasement(v,o){ if(o.ecr||o.epave||!victimeEcrasable(o)) retu
 function finirEcrasement(o){ const v=o.ecr&&o.ecr.par; if(v&&v.ecrV){ const k=v.ecrV.indexOf(o); if(k>=0) v.ecrV.splice(k,1); } finEpave(o); }
 /* chaque image (majVehiculePhys de l'écraseur) : les contacts sur ses victimes, leurs tranches qui s'affaissent, la hauteur et
    l'assiette de l'écraseur (la roue posée sur le toit : contact d'un cercle sur une marche, même au bord de la victime) */
-function majEcrasementPar(v,dt){ const L=v.ecrV, tank=!!v.def.canon; let hF=0,hR=0,hG=0,hD=0;
+/* le contact des roues (ou des chenilles) de l'écraseur v avec la victime o (profil E) : la roue se pose sur la tranche, la tranche
+   s'affaisse sous elle ; la hauteur des contacts s'ajoute à _EA ; rend vrai si une roue la touche (victime en cours ou épave) */
+const _EA={hF:0,hR:0,hG:0,hD:0};
+function contactsSurVictime(v,o,E,C,dt,tank){
+  const so=Math.sin(o.ang), co=Math.cos(o.ang), Lo=o.def.long, Wo=o.def.larg; let touche=false;
+  for(const c of C){ const dx=c.x-o.x, dz=c.z-o.z, lz=dx*so+dz*co, lx=dx*co-dz*so;
+    if(Math.abs(lx)>Wo/2+0.3+(c.ep||0)*0.4) continue; const hors=Math.max(0,Math.abs(lz)-Lo/2); if(hors>=c.R*0.92) continue; touche=true; /* le pneu (la chenille) a sa largeur : centré sur une petite voiture, il mord sur ses flancs */
+    const i=clamp(Math.floor((clamp(lz,-Lo/2,Lo/2-1e-3)+Lo/2)/Lo*ECR_CELLS),0,ECR_CELLS-1), j=i*2+(lx>=0?1:0), h=E.h[j];
+    const pose=Math.max(0,Math.min(h,tank?0.5:ECR_MONTE_MAX)-c.R+Math.sqrt(Math.max(0,c.R*c.R-hors*hors)))*(tank?0.55:1); /* la roue sur la marche */
+    if(c.av) _EA.hF=Math.max(_EA.hF,pose); else _EA.hR=Math.max(_EA.hR,pose); if(c.cote>0) _EA.hG=Math.max(_EA.hG,pose); else _EA.hD=Math.max(_EA.hD,pose);
+    if(hors>0.05) continue; /* encore au bord : elle monte, elle n'écrase pas encore */
+    const vit=(tank?4.8:3.2)+Math.abs(v.v||0)*0.12+(h>ECR_MONTE_MAX?7:0), nh=Math.max(ECR_H_MIN,h-vit*dt); E.h[j]=nh; /* le poids : la tôle cède en un instant (la roue monte d'abord, la marche s'affaisse sous elle) */
+    const nv=Math.max(nh+0.55,ECR_H_MIN); if(j>=2) E.h[j-2]=Math.min(E.h[j-2],nv); if(j+2<E.h.length) E.h[j+2]=Math.min(E.h[j+2],nv); E.h[j^1]=Math.min(E.h[j^1],nv); /* la tôle voisine suit */
+    if(E.dern[j]-nh>=0.06){ deformerLocal(o,c.x,E.sol+E.dern[j],c.z,0,-1,0,E.dern[j]-nh,tank?1.15:1.0,{plancher:E.sol+ECR_H_MIN*0.55,evase:0.24,horiz:true}); E.dern[j]=nh;
+      if(Math.random()<0.5) burst(c.x,E.sol+nh+0.1,c.z,3,0xffe08a,5); if(v.conduit==='joueur') secousse(1.4); }
+    if(!E.vitres){ E.vitres=true; eclatsVitres(o,c.x,E.sol+h,c.z,1.1); sonEcrasement('verre',1); }
+    for(const r of o.mesh.userData.roues||[]) if(!r.userData.ecarte&&Math.abs(r.position.z-lz)<1.0&&Math.abs(r.position.x-lx)<1.1) ecarterRoue(o,r);
+    E.sonT-=dt; if(E.sonT<=0&&h-nh>0.004){ E.sonT=0.26+Math.random()*0.12; sonEcrasement('grince',tank?1.2:0.9); } }
+  return touche; }
+function majEcrasementPar(v,dt){ const L=v.ecrV, tank=!!v.def.canon; _EA.hF=_EA.hR=_EA.hG=_EA.hD=0;
   if(L&&L.length){ const C=contactsEcraseur(v);
     for(let k=L.length-1;k>=0;k--){ const o=L[k], E=o.ecr; if(!E||o.mort||o.epave){ L.splice(k,1); continue; }
-      const so=Math.sin(o.ang), co=Math.cos(o.ang), Lo=o.def.long, Wo=o.def.larg; let touche=false;
-      for(const c of C){ const dx=c.x-o.x, dz=c.z-o.z, lz=dx*so+dz*co, lx=dx*co-dz*so;
-        if(Math.abs(lx)>Wo/2+0.3) continue; const hors=Math.max(0,Math.abs(lz)-Lo/2); if(hors>=c.R*0.92) continue; touche=true;
-        const i=clamp(Math.floor((clamp(lz,-Lo/2,Lo/2-1e-3)+Lo/2)/Lo*ECR_CELLS),0,ECR_CELLS-1), j=i*2+(lx>=0?1:0), h=E.h[j];
-        const pose=Math.max(0,Math.min(h,tank?0.5:ECR_MONTE_MAX)-c.R+Math.sqrt(Math.max(0,c.R*c.R-hors*hors)))*(tank?0.55:1); /* la roue sur la marche */
-        if(c.av) hF=Math.max(hF,pose); else hR=Math.max(hR,pose); if(c.cote>0) hG=Math.max(hG,pose); else hD=Math.max(hD,pose);
-        if(hors>0.05) continue; /* encore au bord : elle monte, elle n'écrase pas encore */
-        const vit=(tank?4.8:3.2)+Math.abs(v.v||0)*0.12+(h>ECR_MONTE_MAX?7:0), nh=Math.max(ECR_H_MIN,h-vit*dt); E.h[j]=nh; /* le poids : la tôle cède en un instant (la roue monte d'abord, la marche s'affaisse sous elle) */
-        const nv=Math.max(nh+0.55,ECR_H_MIN); if(j>=2) E.h[j-2]=Math.min(E.h[j-2],nv); if(j+2<E.h.length) E.h[j+2]=Math.min(E.h[j+2],nv); E.h[j^1]=Math.min(E.h[j^1],nv); /* la tôle voisine suit */
-        if(E.dern[j]-nh>=0.06){ deformerLocal(o,c.x,E.sol+E.dern[j],c.z,0,-1,0,E.dern[j]-nh,tank?1.15:1.0,{plancher:E.sol+ECR_H_MIN*0.55,evase:0.24,horiz:true}); E.dern[j]=nh;
-          if(Math.random()<0.5) burst(c.x,E.sol+nh+0.1,c.z,3,0xffe08a,5); if(v.conduit==='joueur') secousse(1.4); }
-        if(!E.vitres){ E.vitres=true; eclatsVitres(o,c.x,E.sol+h,c.z,1.1); sonEcrasement('verre',1); }
-        for(const r of o.mesh.userData.roues||[]) if(!r.userData.ecarte&&Math.abs(r.position.z-lz)<1.0&&Math.abs(r.position.x-lx)<1.1) ecarterRoue(o,r);
-        E.sonT-=dt; if(E.sonT<=0&&h-nh>0.004){ E.sonT=0.26+Math.random()*0.12; sonEcrasement('grince',tank?1.2:0.9); } }
+      const touche=contactsSurVictime(v,o,E,C,dt,tank);
       if(touche) E.horsT=0; else { E.horsT+=dt; if(E.horsT>0.3){ L.splice(k,1); finEpave(o); } } } }
+  /* les épaves : il remonte dessus et les aplatit encore (avant, sorties de la liste des véhicules, il passait au travers) */
+  if(EPAVES.length&&(v.h||0)<1.2){ let C=null; const rV=(v.def.long+v.def.larg)*0.5;
+    for(const o of EPAVES){ const E=o.epE; if(!E||o.mort||!o.mesh||o.epFin>0) continue; const dx=o.x-v.x, dz=o.z-v.z, rr=rV+(o.def.long+o.def.larg)*0.5; if(dx*dx+dz*dz>rr*rr) continue;
+      if(!C) C=contactsEcraseur(v); E.sol=o.mesh.position.y; contactsSurVictime(v,o,E,C,dt,tank); } }
+  const hF=_EA.hF, hR=_EA.hR, hG=_EA.hG, hD=_EA.hD;
   const wb=tank?v.def.long*0.82:MONSTER_V3.zf-MONSTER_V3.zr, tw=tank?v.def.larg*0.74:2*MONSTER_V3.x, ch=(hF+hR)/2, ta=Math.atan2(hF-hR,wb), ro=Math.atan2(hG-hD,tw)*0.6;
   v.hEcrL=lerp(v.hEcrL||0,ch,clamp(dt*(ch>(v.hEcrL||0)?9:7),0,1)); v.tangEcrL=lerp(v.tangEcrL||0,ta,clamp(dt*8,0,1)); v.roulEcrL=lerp(v.roulEcrL||0,ro,clamp(dt*8,0,1));
   if(hF>0.4&&!tank) v.v*=1-0.55*dt; /* monter sur un toit, ça retient */
@@ -25181,8 +25201,33 @@ function collPreparer(){
   COLL.n=n; COLL.actif=true;
 }
 function hauteurReelleVehicule(x){ return x.def.air?(x.alt||0):(x.h||0); }
+/* hauteur d'une épave (son profil), et les collisions d'un véhicule au sol avec les épaves : il bute dessus comme sur un véhicule
+   garé — le plus léger recule, un lourd la pousse (elle glisse : epVx, epVz) ; l'écraseur y monte (majEcrasementPar) ; au-dessus
+   de son toit (en plein saut), rien. Les épaves ne sont plus dans vehicules : sans ça, on les traversait */
+function hautEpave(o){ const E=o.epE; if(!E) return 1.2; let m=0; for(let i=0;i<E.h.length;i++) if(E.h[i]>m) m=E.h[i]; return m; }
+function collisionsEpaves(v,dt){ const d=v.def; if(d.air||d.eau||d.surf||d.ecrase||v.noye||v.mort||v.epave) return;
+  const vx=v.x, vz=v.z, sV=Math.sin(v.ang), cV=Math.cos(v.ang), hlV=d.long*0.5, hwV=d.larg*0.5, rV=(d.long+d.larg)*0.5, hV=v.h||0;
+  for(const o of EPAVES){ if(o.mort||!o.mesh||o.epFin>0) continue; const od=o.def, dxw=o.x-vx, dzw=o.z-vz, rr=rV+(od.long+od.larg)*0.5; if(dxw*dxw+dzw*dzw>rr*rr) continue;
+    if(hV>hautEpave(o)+0.15) continue;
+    const hlO=od.long*0.5, hwO=od.larg*0.5, dAng=o.ang-v.ang, cD=Math.abs(Math.cos(dAng)), sD=Math.abs(Math.sin(dAng));
+    const distFwd=dxw*sV+dzw*cV, distRight=dxw*cV-dzw*sV, porteeFwd=hlV+hlO*cD+hwO*sD, porteeRight=hwV+hlO*sD+hwO*cD;
+    if(Math.abs(distFwd)>=porteeFwd||Math.abs(distRight)>=porteeRight) continue;
+    const sO=Math.sin(o.ang), cO=Math.cos(o.ang); if(Math.abs(dxw*sO+dzw*cO)>=hlO+hlV*cD+hwV*sD||Math.abs(dxw*cO-dzw*sO)>=hwO+hlV*sD+hwV*cD) continue;
+    const overFwd=porteeFwd-Math.abs(distFwd), overRight=porteeRight-Math.abs(distRight); let pushX,pushZ;
+    if(overFwd<overRight){ const s2=distFwd>=0?-1:1; pushX=sV*s2; pushZ=cV*s2; } else { const s2=distRight>=0?-1:1; pushX=cV*s2; pushZ=-sV*s2; }
+    const mV=d.long*d.larg*((d.milit||d.blinde)?2.2:1)*(d.enfonce?1.6:1)*((d.pelle&&v.pelleBaisse)?4:1), mO=od.long*od.larg*1.5; /* sans roues, elle frotte : plus lourde qu'il n'y paraît */
+    let partV=clamp(mO/(mV+mO),0.12,0.92); const prof=Math.min(Math.min(overFwd,overRight)+0.01,0.6);
+    if(bloqueParSolide(o,o.x-pushX*prof*(1-partV),o.z-pushZ*prof*(1-partV))) partV=1;
+    v.x+=pushX*prof*partV; v.z+=pushZ*prof*partV; o.x-=pushX*prof*(1-partV); o.z-=pushZ*prof*(1-partV); o.mesh.position.x=o.x; o.mesh.position.z=o.z;
+    const vn=-(pushX*sV+pushZ*cV)*(v.v||0); if(vn<=0.5) continue; /* sa vitesse vers l'épave */
+    const pousse=(1-partV)*vn, cur=-(o.epVx*pushX+o.epVz*pushZ); if(cur<pousse){ o.epVx-=pushX*(pousse-cur); o.epVz-=pushZ*(pousse-cur); o.epW+=clamp(distRight,-1,1)*pousse*0.04; }
+    if(vn>7&&(ETAT.runT||0)-(v._epChocT||-9)>0.5){ v._epChocT=ETAT.runT||0; const viol=clamp(vn/40,0,1.4);
+      const cx=v.x+Math.sign(distFwd||1)*Math.min(Math.abs(distFwd),hlV)*sV+Math.sign(distRight||1)*Math.min(Math.abs(distRight),hwV)*cV, cz=v.z+Math.sign(distFwd||1)*Math.min(Math.abs(distFwd),hlV)*cV-Math.sign(distRight||1)*Math.min(Math.abs(distRight),hwV)*sV;
+      abimerVehicule(v,vn*0.5*partV,false); burst(cx,0.8,cz,4+Math.round(viol*8),0xffd88a,7+viol*6); degatsChoc(v,cx,cz,viol*partV);
+      v.knockVx=clamp((v.knockVx||0)+pushX*vn*0.45*partV,-KNOCK_VMAX,KNOCK_VMAX); v.knockVz=clamp((v.knockVz||0)+pushZ*vn*0.45*partV,-KNOCK_VMAX,KNOCK_VMAX); v.v*=1-0.6*partV;
+      if(v.conduit==='joueur'){ SFX.choc(viol); if(viol>1) secousse(clamp((viol-1)*(viol-1)*22,0,6)); vibre(20+viol*25); } sonEcrasement('tole',0.5*viol); } } }
 function resoudreCollisionsVehicule(v,dt){
-  const d=v.def;
+  const d=v.def; if(EPAVES.length) collisionsEpaves(v,dt);
   const hV=hauteurReelleVehicule(v), vx=v.x, vz=v.z, rV=(d.long+d.larg)*0.5;
   const nV=vehicules.length, cache=COLL.actif&&COLL.n===nV, CX=COLL.x, CZ=COLL.z, CR=COLL.r;
   for(let i=0;i<nV;i++){
@@ -27208,7 +27253,8 @@ function facteurApparition(){ return typeof VUE==='undefined'?1:1+1.6*VUE.k; }
 // ou null si la voie est libre (fin d'un dépassement).
 function obstacleSurVoie(v,sA,cA,hlV,hwV){
   let best=null, bf=Infinity, bext=0;
-  for(const o of vehicules){
+  const nVh=vehicules.length, nTot=nVh+EPAVES.length; /* les épaves aussi */
+  for(let iv=0;iv<nTot;iv++){ const o=iv<nVh?vehicules[iv]:EPAVES[iv-nVh];
     if(o===v||o.mort||o.captureOvni||o.conduit==='trafic'||Math.abs(o.v||0)>=0.5) continue;
     if(hauteurReelleVehicule(o)>1.6) continue;
     const fwd=(o.x-v.x)*sA+(o.z-v.z)*cA;
@@ -27336,7 +27382,8 @@ function majTrafic(v,dt){
   // garanti sans contact, même si le meneur pile net. La vitesse du meneur
   // n'est volontairement pas prise en compte (il peut s'arrêter d'un coup).
   let vSure=Infinity, obstFixe=null, gapFixe=Infinity, extFixe=0, devantJoueur=false, meneur=null, meneurExt=0;
-  for(const o of vehicules){
+  const nVh=vehicules.length, nTot=nVh+EPAVES.length; /* les épaves aussi (immobiles : contournées) */
+  for(let iv=0;iv<nTot;iv++){ const o=iv<nVh?vehicules[iv]:EPAVES[iv-nVh];
     if(o===v||o.mort||o.captureOvni) continue;
     if(hauteurReelleVehicule(o)>1.6) continue; // aéronef en vol : jamais un obstacle de chaussée
     const dx=o.x-v.x, dz=o.z-v.z;

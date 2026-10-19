@@ -55,7 +55,7 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
   echo "$ln | $(sed -n "$((ln+1))p" index.html | sed 's/^[ \t]*//')"; done
 ```
 
-**Relevé du 19 octobre (Véhicules V4) — 44 980 lignes.**
+**Relevé du 19 octobre (épaves solides) — 45027 lignes.**
 Attention : `maj_carte` recale les numéros dans l'ordre des lignes de la table ;
 un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la main.
 
@@ -92,33 +92,33 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 23151 | POOLS — balles, particules, textes flottants, traces de pneus |
 | 23659 | ÉTAT GLOBAL + JOUEUR (`P`) |
 | 24545 | VÉHICULES — physique arcade, trafic, dégâts |
-| 27777 | PIÉTONS |
-| 28047 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
-| 28638 | **RAYON TRACTEUR DE L'OVNI** |
-| 29103 | NIVEAU DE RECHERCHE (étoiles) |
-| 29459 | VAGUES + bonus de fin de vague |
-| 29584 | MISSIONS COURTES |
-| 29587 | BÂTIMENTS VISITABLES — intérieurs |
-| 29657 | FOUILLE — mécanique générique |
-| 30205 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
-| 34467 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
-| 34876 | **LAVERIE** V2 — l'essorage de la machine 7 |
-| 35147 | **SERRE** V2 — la nuit de la floraison |
-| 35440 | CINÉ-PALACE |
-| 35684 | MÉTRO ABANDONNÉ |
-| 35750 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
-| 36103 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
-| 37005 | SITE 51 |
-| 37235 | LE DÉPÔT DE BUS — courses clandestines |
-| 38684 | **MÉTIERS** — missions liées à un véhicule |
-| 38975 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
-| 40000 | ÉCRANS / MENUS / BOUTIQUES |
-| 40276 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
-| 41110 | DÉBUT / FIN DE PARTIE |
-| 42667 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
-| 42917 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
-| 43235 | **COCKPITS** — vue 1re personne au volant (`COCKPIT`, `COCKPIT_FAMILLES`, `cockpitDims`, `mkCockpitInterieur`, `ckDessiner`, `rendreCockpit`, `cameraCockpit`, `cockpitDiagnostic`, `photoCockpit`) |
-| 44844 | BOUCLE PRINCIPALE |
+| 27824 | PIÉTONS |
+| 28094 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
+| 28685 | **RAYON TRACTEUR DE L'OVNI** |
+| 29150 | NIVEAU DE RECHERCHE (étoiles) |
+| 29506 | VAGUES + bonus de fin de vague |
+| 29631 | MISSIONS COURTES |
+| 29634 | BÂTIMENTS VISITABLES — intérieurs |
+| 29704 | FOUILLE — mécanique générique |
+| 30252 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
+| 34514 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
+| 34923 | **LAVERIE** V2 — l'essorage de la machine 7 |
+| 35194 | **SERRE** V2 — la nuit de la floraison |
+| 35487 | CINÉ-PALACE |
+| 35731 | MÉTRO ABANDONNÉ |
+| 35797 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
+| 36150 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
+| 37052 | SITE 51 |
+| 37282 | LE DÉPÔT DE BUS — courses clandestines |
+| 38731 | **MÉTIERS** — missions liées à un véhicule |
+| 39022 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
+| 40047 | ÉCRANS / MENUS / BOUTIQUES |
+| 40323 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
+| 41157 | DÉBUT / FIN DE PARTIE |
+| 42714 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
+| 42964 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
+| 43282 | **COCKPITS** — vue 1re personne au volant (`COCKPIT`, `COCKPIT_FAMILLES`, `cockpitDims`, `mkCockpitInterieur`, `ckDessiner`, `rendreCockpit`, `cameraCockpit`, `cockpitDiagnostic`, `photoCockpit`) |
+| 44891 | BOUCLE PRINCIPALE |
 
 ### Ancres fines (hors bandeaux)
 
@@ -166,40 +166,40 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 15931 | `ENSEIGNES` — portes mieux placées : `ameliorerPortes()`, `profondeurDevant()`, `orienterPorte()` |
 | 2497 | `const P` — état du joueur |
 | 23710 | `P.stamMax = 100 + 12*mus` |
-| 25184 | `resoudreCollisionsVehicule()` — collisions entre véhicules (SAT sur les 4 axes) |
-| 25902 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
-| 26024 | `boutonsAPied()` — boutons du HUD remis « à pied » (sortie de véhicule ET début de partie) |
-| 27174 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
-| 27306 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
-| 29593 | `IOFF = -9000` |
-| 31397 | `INTDEFS` — définitions des **28 salles** (27 + la boutique) |
-| 31789 | `construireSalle(id)` |
-| 36157 | `CHALUTIER_BANCS_PLAN` — chalutier V2 ; `chalutierMaj` (36659), `dessinerRadarChalutier` (36970) |
-| 38693 | `METIERS_CIBLE` |
-| 38993 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
-| 39081 | `PIECES_FAMILLES` — catalogues de pièces par famille |
-| 39391 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
-| 39458 | `libererObjet()` — libère les géométries d'un objet retiré |
-| 39474 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
-| 39604 | `construireGarageTuning()` — la salle partagée |
-| 39974 | `majNitro()` |
+| 25229 | `resoudreCollisionsVehicule()` — collisions entre véhicules (SAT sur les 4 axes) |
+| 25947 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
+| 26069 | `boutonsAPied()` — boutons du HUD remis « à pied » (sortie de véhicule ET début de partie) |
+| 27219 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
+| 27352 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
+| 29640 | `IOFF = -9000` |
+| 31444 | `INTDEFS` — définitions des **28 salles** (27 + la boutique) |
+| 31836 | `construireSalle(id)` |
+| 36204 | `CHALUTIER_BANCS_PLAN` — chalutier V2 ; `chalutierMaj` (36706), `dessinerRadarChalutier` (37017) |
+| 38740 | `METIERS_CIBLE` |
+| 39040 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
+| 39128 | `PIECES_FAMILLES` — catalogues de pièces par famille |
+| 39438 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
+| 39505 | `libererObjet()` — libère les géométries d'un objet retiré |
+| 39521 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
+| 39651 | `construireGarageTuning()` — la salle partagée |
+| 40021 | `majNitro()` |
 | 24738 | `degatsChoc()` — dégâts V2 : `bosseler`, débris, `perdreRoue` ; murs : `degagerDesMurs` (plus haut) |
 | 9768 | `SAUTV` — Saut du Vertige : `hauteurSautVertige`, `mkSautVertige`, `mkBargeVertige`, `finSautVertige` |
-| 43103 | `VUE1P` — vue à la 1re personne : `cameraPremiere`, `ligneDeMire`, `viseAuto1P` |
+| 43150 | `VUE1P` — vue à la 1re personne : `cameraPremiere`, `ligneDeMire`, `viseAuto1P` |
 | 11905 | `SPORTJ` — le centre sportif se joue : `sportjDemarrer`, `majSportJ`, `sportjFrapper` |
 | 11329 | `RECHARGE_ARME` — rechargements à la 1re personne : `animRecharge`, `rechPiece`, `rechRemise`, `rechAccessoire` |
-| 43675 | `CK_HAB` — cockpits V2 : `CK_TH`, `CK_CADRANS`, `ckDial`, `ckCombine`, `ckHabitacle`, `ckVolant2`, `ckMain`, `ckDeuxRoues`, `ckBateau2`, `ckAvion2`, `ckHoloOvni` |
+| 43722 | `CK_HAB` — cockpits V2 : `CK_TH`, `CK_CADRANS`, `ckDial`, `ckCombine`, `ckHabitacle`, `ckVolant2`, `ckMain`, `ckDeuxRoues`, `ckBateau2`, `ckAvion2`, `ckHoloOvni` |
 | 17162 | `construireBatte(id)` — la batte cloutée et la Vertèbre (géométries partagées, manche et tête séparés) |
 | 23366 | `lancerMissileAvion()` — le missile des appareils : `missileProfil`, `missilePos`, `missileTraj`, traînée `MFUM` |
-| 26138 | `appuiVolCran()` — un appui bref sur MONTER / DESCENDRE vaut un cran (`APPUI_VOL_MIN`) |
-| 26333 | `virageAvion()` — le virage des avions : `roulisAvion`, `roulisIA` (juste avant `majVol`) |
-| 26377 | `volManche()` — le pilotage au manche (vue 3D et 1P) : `avionManche`, `majGazAvion`, `majBoutonsVol`, `figuresManche` |
-| 26358 | `MANETTE` — la manette des gaz des avions au manche : `manetteDoigt`, `majManette` (juste avant `majBoutonsVol`) |
-| 26733 | `majCabrageMoto()` — le cabrage de toutes les motos : `CABRAGE_MOTO`, `motoCabrable`, `poseCabrage`, `retirerPoseCabrage` |
+| 26183 | `appuiVolCran()` — un appui bref sur MONTER / DESCENDRE vaut un cran (`APPUI_VOL_MIN`) |
+| 26378 | `virageAvion()` — le virage des avions : `roulisAvion`, `roulisIA` (juste avant `majVol`) |
+| 26422 | `volManche()` — le pilotage au manche (vue 3D et 1P) : `avionManche`, `majGazAvion`, `majBoutonsVol`, `figuresManche` |
+| 26403 | `MANETTE` — la manette des gaz des avions au manche : `manetteDoigt`, `majManette` (juste avant `majBoutonsVol`) |
+| 26778 | `majCabrageMoto()` — le cabrage de toutes les motos : `CABRAGE_MOTO`, `motoCabrable`, `poseCabrage`, `retirerPoseCabrage` |
 | 10948 | `CAMPENT` — le camp d'entraînement de Fort Reyes : `mkCampEntrainement`, `campConstruire`, `campEntrainementStartRun`, `majCampEntrainement` |
 | 16974 | `VISEURS_1P` — la visée à la 1re personne V2 : œil, organe, zoom et recul par arme, `VISEE_T`, `zoomVersChamp` (`ligneDeMire` 37322, `poseVisee1P` 37335) |
 | 11278 | `matsMains1P()` — gants noirs, avant-bras nus, manche retroussée de la 1re personne (`_texPeau`, `_texTissu`) ; `modele1P()` (15528) : Gadget et Boule « Comète » en main |
-| 43573 | `ARME_SC` — l'arme de la 1re personne rendue dans sa propre scène : `sceneArme1P`, `rendreArme1P` |
+| 43620 | `ARME_SC` — l'arme de la 1re personne rendue dans sa propre scène : `sceneArme1P`, `rendreArme1P` |
 | 2496 | `optiqueArme()` — les optiques de l'établi (point rouge, holographique, lunette ×4), qui REMPLACENT la mire d'origine (partie `viseur`) ; `remplaceOptique`, `atelierEssaiStand` (2585) |
 | 1007 | `AVION_MANCHE` — inclinaison, roulis, tangage, taux de virage, tonneaux et looping par avion (pilotage au manche) |
 | 8455 | `LV` — la longue-vue du penthouse : `lvOeil`, `lvVisible`, `majLongueVue`, `cameraLongueVue`, `REPERES`, `reperesActifs` ; avant : `PQ_INT.penthouse`, `PQ_VILLE_FS`, `pqBoiteUV` |
@@ -209,11 +209,11 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 13470 | `MONT_VIE` — la vie du mont : `montVieConstruire`, `montVieStartRun`, `majMontVie`, `mvGens`, rapaces (`toucherRapace`), soupe, grotte, jumelles, parapente |
 | 13085 | `fusionAnimal()` — le corps d'une bête en une géométrie (tête et pattes à part) ; `FAUNE_DEFS` (chamois, vache, chèvre, sanglierF) plus haut |
 | 9130 | `TRESOR_CARTE` — la chasse au trésor du voilier : `tresorCandidats`, `tresorNouvelle`, `tresorDessiner`, `tresorCreuser`, `majTresorCarte` ; puis le taudis (`sacDemarrer`, `majSac`) et la villa (`plongeonDemarrer`, `majPlongeon`) |
-| 26688 | `controleDir()` — le joystick devient gaz et braquage ; bateaux : `sB` compense la marche arrière, une cible derrière se départage par le côté de l'écran (`v.sensDT`) |
+| 26733 | `controleDir()` — le joystick devient gaz et braquage ; bateaux : `sB` compense la marche arrière, une cible derrière se départage par le côté de l'écran (`v.sensDT`) |
 | 3391 | `yachtBloque()` — le méga-yacht V3 à pied, au mouillage : pavois, salon, escaliers de la poupe (avec `dansCoqueYacht`, `GYACHT`, `YACHT_POUPE` ; modèle : `YACHT_V3`) |
 | 20151 | `MONSTER_V3` — le Monster Truck V3 : `geoPneuMonsterV3`, `geoJanteMonsterV3`, `VEH_V3.monstertruck` |
 | 23445 | `FNOIRE` — la fumée noire des cheminées : `fumeeNoire`, `majFumeeNoire`, `viderFumeeNoire`, `majEchappements` |
-| 24964 | `deformerLocal()` — écrasement et enfoncement V2 : `enfoncer`, `commencerEcrasement`, `majEcrasementPar`, `contactsEcraseur`, `profilVictime`, épaves (`EPAVES`, `finEpave`, `majEpaves`), sons (`sonEcrasement`, `couperSonsEcrasement`) |
+| 24966 | `deformerLocal()` — écrasement et enfoncement V2 : `enfoncer`, `commencerEcrasement`, `majEcrasementPar`, `contactsEcraseur`, `profilVictime`, épaves (`EPAVES`, `finEpave`, `majEpaves`), sons (`sonEcrasement`, `couperSonsEcrasement`) ; épaves solides : `contactsSurVictime`, `hautEpave`, `collisionsEpaves` |
 | 20473 | `loftV4` — la carrosserie lissée V4 et son échantillonneur (`S.pt`, `S.pose`, `S.bande`, `S.uY`, `S.xA`) ; `carrosserieV4`, `verriereV4`, `montantsV4`, `interieurV4`, `conducteurV4` juste après |
 | 20722 | `LOD_LOIN` — le niveau de détail du trafic (`LOD_PROCHE`, `lodPoserV4`, `majLodV4`, `lodFixerV4`) |
 | 19281 | `construireV3Spec` — construit une fiche V3/V4 (générateur privé, cache `_GEO_V3`, LOD, ombre, agrandissement des hélicos) ; `construireV3` l'appelle pour une clé de `VEHDEFS` |
@@ -1811,6 +1811,15 @@ l'épave restait jusqu'à la fin de la partie (jamais libérée) ; aucun autre v
   COPIÉES, jamais celles de `mat()`), elles glissent, fument 9 s ; `EPAVES_MAX` (10), retirées au bout de `EPAVE_VIE` (75 s, elles
   s'enfoncent) ou au-delà de `EPAVE_LOIN` (240 u) du joueur ; géométries et matières libérées. Une victime en cours d'écrasement
   (`o.ecr`) ne bouge plus et ne heurte pas son écraseur ; orpheline (écraseur disparu), elle finit en épave.
+- **Épaves solides** (19 octobre, signalé : « d'un seul coup on ne peut plus monter sur la carcasse, on passe à travers, même les
+  autres véhicules ») : une épave quitte `vehicules` (ni conduite, ni trafic, ni police) mais garde son profil (`o.epE` : celui de
+  l'écrasement, ou mesuré par `profilVictime` pour une épave enfoncée). L'écraseur y remonte et l'aplatit encore (`majEcrasementPar` :
+  boucle sur `EPAVES`, contact commun `contactsSurVictime`) ; un véhicule au sol bute dessus comme sur un véhicule garé, un lourd la
+  pousse (`collisionsEpaves`, en tête de `resoudreCollisionsVehicule` ; en plein saut au-dessus de `hautEpave`, rien) ; à pied, elle
+  bloque (`vehiculeBloquant`, donc joueur, ennemis, piétons) ; le trafic la voit (suivi de file et `obstacleSurVoie` parcourent aussi
+  `EPAVES`) et la contourne. **Tout système qui doit voir un obstacle de chaussée parcourt `vehicules` ET `EPAVES`.** Le contact d'une
+  roue compte la largeur du pneu (`c.ep`) : centré sur une petite voiture, le Monster Truck l'enjambait sans la toucher. Elle noircit
+  peu à peu (`EPAVE_NOIRCIT` 1,6 s, `o.epMats`), plus d'un coup. Test « Épaves solides ».
 - **Sons** (`sonEcrasement` : tôle, grincement, verre) sur leur propre bus (`ECR_SON`), coupés par `couperSonsEcrasement` dans
   `mourir`, `startRun` et `entrerInterieur`.
 - Retombées (`retombeesEpave`) : celles d'avant (défis, stats, cargaisons de mission), jamais d'argent ni de vague ;
