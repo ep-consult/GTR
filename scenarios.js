@@ -3442,6 +3442,7 @@ async function main() {
       const ko = [];
       for (let k = 0; k < 15; k++) {
         const s = __chal.entrer(); { let g = 777; Math.random = () => { g = (g * 1664525 + 1013904223) >>> 0; return g / 4294967296; }; } /* graine propre posée APRÈS startRun : le pilote tirait sur l'état laissé par les tests précédents (nuit du 16 octobre) */ __chal.larguer(s);
+      chalutierPreparerBancs(s); /* les bancs, tirés sur cette graine (19 octobre) : ceux de la salle venaient de la sortie d'un test précédent — leur place dépendait de tout ce qui avait tiré avant (un conducteur de plus en ville, et le banc voisin tombait sur un récif) */
         if (s.bancs.length !== CHALUTIER_BANCS_PLAN.length) ko.push('nombre de bancs ' + s.bancs.length);
         s.bancs.forEach((b, i) => { const d = Math.hypot(b.x, b.z);
           if (chalutierZoneDe(d) !== CHALUTIER_BANCS_PLAN[i].zone) ko.push(b.type + ' hors de sa zone (' + d.toFixed(0) + ')');
@@ -9931,7 +9932,7 @@ async function main() {
         const a1 = META.argent; acheterNourriture(s); if (META.argent !== a1) ko.push('le stand revend aussitôt (farming)');
         info.push(STANDS.length + ' stands, ' + q.size + ' quartiers');
         // véhicules hauts : à leur hauteur cible (± 0,15)
-        for (const k in HAUTEUR_VEH) { const g = makeVoiture(k); g.updateMatrixWorld(true); const b = new THREE.Box3(); g.traverse((o) => { if (o.isMesh && !(o.material && o.material.transparent && o.material.opacity < 0.5)) b.expandByObject(o); });
+        for (const k in HAUTEUR_VEH) { if (DECOR_V2 && typeof VEH_V3 !== 'undefined' && VEH_V3[k]) continue; /* modèle V3 : sa propre hauteur (tourelle, radar, rampe), jamais rehaussé — le test « Véhicules V3 » le mesure */ const g = makeVoiture(k); g.updateMatrixWorld(true); const b = new THREE.Box3(); g.traverse((o) => { if (o.isMesh && !(o.material && o.material.transparent && o.material.opacity < 0.5)) b.expandByObject(o); });
           if (Math.abs(b.max.y - b.min.y - HAUTEUR_VEH[k]) > 0.25) ko.push(k + ' mesure ' + (b.max.y - b.min.y).toFixed(2) + ' au lieu de ' + HAUTEUR_VEH[k]); }
         // basket : un joueur passif ne gagne rien ; 10 tirs parfaits gagnent la prime, une seule fois par vague
         const b0 = BASKET.depart; P.x = b0.x; P.z = b0.z; basketDemarrer(); if (!BASKET.actif) ko.push('le concours ne démarre pas');
@@ -11097,9 +11098,12 @@ async function main() {
         for (const a of L) if (montU(a.x, a.z) > 0.86 || Math.abs(a.y - hauteurMont(a.x, a.z)) > 0.01) ko.push(a.type + ' hors du mont');
         info.push(nb + ' bouquetins, ' + (ours ? 1 : 0) + ' ours');
         // un bouquetin détale
-        const b = L.find((a) => a.type === 'bouquetin'); if (ours) { ours.x = MONT.x; ours.z = MONT.z; ours.y = hauteurMont(ours.x, ours.z); } // l'ours à l'écart
-        P.x = b.x + 5; P.z = b.z; P.y = b.y; const d0 = Math.hypot(P.x - b.x, P.z - b.z);
-        for (let i = 0; i < 60; i++) majFaune(1 / 30); const d1 = Math.hypot(P.x - b.x, P.z - b.z);
+        if (ours) { ours.x = MONT.x; ours.z = MONT.z; ours.y = hauteurMont(ours.x, ours.z); } // l'ours à l'écart
+        /* le test maîtrise sa scène : un bouquetin tiré contre une paroi ne peut pas fuir (sa place dépend des tirages) — chacun son tour, le joueur du côté le plus raide */
+        let b = null, d0 = 0, d1 = 0; for (const c of L.filter((a) => a.type === 'bouquetin')) { const x0 = c.x, z0 = c.z;
+          let best = 0, sx = 1; for (const s2 of [1, -1]) { const p = hauteurMont(x0 + s2 * 5, z0) - hauteurMont(x0 - s2 * 8, z0); if (p > best) { best = p; sx = s2; } }
+          P.x = x0 + sx * 5; P.z = z0; P.y = hauteurMont(P.x, P.z); d0 = Math.hypot(P.x - c.x, P.z - c.z);
+          for (let i = 0; i < 60; i++) majFaune(1 / 30); d1 = Math.hypot(P.x - c.x, P.z - c.z); b = c; if (d1 > d0 + 3) break; }
         if (!(d1 > d0 + 3)) ko.push('le bouquetin ne fuit pas (' + d0.toFixed(1) + ' → ' + d1.toFixed(1) + ' u)'); else info.push('le bouquetin fuit (' + d0.toFixed(0) + ' → ' + d1.toFixed(0) + ' u)');
         // le tuer : du karma en moins, rien à ramasser
         ETAT.score = 500; const nPick = pickups.length; toucherAnimal(b, 999); if (!b.mort || ETAT.score !== 450 || pickups.length !== nPick) ko.push('bouquetin tué : score ' + ETAT.score + ', butin ' + (pickups.length - nPick));
