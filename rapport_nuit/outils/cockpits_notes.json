@@ -1,5 +1,10 @@
-{"bond":"habitacle peint sombre, un montant du modèle à droite",
- "vautour":"bulle teintée : la vue est bleutée ; viseur tête haute",
- "cabriolet":"ouvert : ni pavillon ni montants (aucun toit mesuré)",
- "bolide":"aucun dessous de toit vu de l'intérieur : pas de pavillon", "enzo":"aucun dessous de toit vu de l'intérieur : pas de pavillon",
- "skate":"debout : rien à construire, on voit la planche en baissant les yeux", "surf":"debout : rien à construire"}
+{
+ "bond": "habitacle peint sombre, un montant du modèle à droite",
+ "vautour": "bulle teintée : la vue est bleutée ; viseur tête haute",
+ "cabriolet": "ouvert : ni pavillon ni montants (aucun toit mesuré)",
+ "bolide": "aucun dessous de toit vu de l'intérieur : pas de pavillon",
+ "enzo": "aucun dessous de toit vu de l'intérieur : pas de pavillon",
+ "skate": "debout : rien à construire, on voit la planche en baissant les yeux",
+ "surf": "debout : rien à construire",
+ "monstertruck": "refonte du 19 octobre : planche en alu riveté à trois cadrans ronds (pression d’huile, compte-tours, température d’eau), voyant de passage et rapport du séquentiel, interrupteurs à bascule, volant course (jante suédée, branches alu, moyeu rouge), levier séquentiel, harnais 4 points (sur la poitrine et sur le baquet passager), arceau ; œil à 4 u du sol"
+}

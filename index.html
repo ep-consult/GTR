@@ -2903,8 +2903,8 @@ const VEHDEFS={
   // conduisibles, restreints au centre-ville/quartier commerçant (voir
   // creerTrafic) ; monster truck cache: un seul exemplaire, jamais dans le
   // trafic, placé une fois en friche industrielle (voir construireVille).
-  // ecrase:true (char, monster truck) — voir ecraserVehicule : aplatit
-  // n'importe quel autre véhicule au contact, sans exception.
+  // ecrase:true (char, monster truck) : niveau 3, l'écrasement (commencerEcrasement) ; enfonce:true (bus, pompiers, camions…) :
+  // niveau 2, l'enfoncement (enfoncer) — voir « Écrasement et enfoncement V2 » (19 octobre).
   busville:{nom:'Bus de ville',tuningMeca:true,vmax:16,acc:6,man:0.9,hp:480,long:10.5,larg:2.5,enfonce:true,type:'car',cols:[0xe8ecf2],bus:true},
   pompiers:{nom:'Camion de pompiers',tuningMeca:true,vmax:20,acc:8,man:1.5,hp:480,long:7.5,larg:2.4,enfonce:true,type:'car',cols:[0xd0342e],pompier:true},
   jeep:{nom:'4x4 "Coyote"',tuningMeca:true,vmax:27,acc:18,man:3.0,hp:160,long:3.8,larg:1.9,type:'car',jeep:true,franchissement:true,franchit:0.9,cols:[0x5a6a3a,0xc8a060,0xb83a2a,0xe8e4d8]}, // 4x4 de franchissement : la pente le freine deux fois moins, gravit des pentes bien plus raides
@@ -22471,10 +22471,8 @@ function resoudreCollisionsVehicule(v,dt){
       // premier : rien ne change hors des cas de biais.
       const sO=Math.sin(o.ang), cO=Math.cos(o.ang);
       if(Math.abs(dxw*sO+dzw*cO)>=hlO+hlV*cD+hwV*sD||Math.abs(dxw*cO-dzw*sO)>=hwO+hlV*sD+hwV*cD) continue;
-      // écrasement : char et monster truck aplatissent tout véhicule sans
-      // exception, remplace entièrement le rebond/dégâts de masse ci-dessous
-      // pour cette paire — voir ecraserVehicule (aucune exception, aucun
-      // véhicule assez lourd pour y résister, voir CLAUDE.md).
+      // écrasement (niveau 3 : char, Monster Truck) et enfoncement (niveau 2 : les lourds) remplacent le rebond et les dégâts de
+      // masse ci-dessous pour cette paire — voir « Écrasement et enfoncement V2 » (aucun véhicule assez lourd pour résister au niveau 3).
       if((o.ecr&&o.ecr.par===v)||(v.ecr&&v.ecr.par===o)) continue; /* l'écraseur passe sur sa victime : aucun choc entre eux */
       if(d.ecrase&&victimeEcrasable(o)){ if(Math.abs(v.v||0)>1||(v.ecrV&&v.ecrV.length)){ commencerEcrasement(v,o); continue; } } /* niveau 3 (char, Monster Truck), voir commencerEcrasement */
       if(d.enfonce&&victimeEnfoncable(o)&&enfoncer(v,o,distFwd)) continue;                                                      /* niveau 2 : le lourd enfonce le léger */
@@ -24961,7 +24959,6 @@ function majVehicules(dt){
         burst(v.x,1,v.z,2,0xff7a2e,4,3); }
       if(v.feuT<=0){ exploserVehicule(v); continue; }
     }
-    if(v.aplatiPartiel) continue; // à moitié aplati : immobile jusqu'au second passage
     // Déformation après un choc (voir majVehiculePhys) : appliquée ici pour
     // tout véhicule qui NE passe PAS par majVehiculePhys — la police y passe
     // déjà (majVoiturePolice l'appelle), l'appeler aussi ici la ferait

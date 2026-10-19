@@ -55,7 +55,7 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
   echo "$ln | $(sed -n "$((ln+1))p" index.html | sed 's/^[ \t]*//')"; done
 ```
 
-**Relevé du 19 octobre (véhicules V3) — 41 150 lignes.**
+**Relevé du 19 octobre (Monster Truck V3, écrasement V2) — 42 216 lignes.**
 Attention : `maj_carte` recale les numéros dans l'ordre des lignes de la table ;
 un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la main.
 
@@ -88,36 +88,36 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 16856 | MODÈLES — humains, armes, véhicules, hélico, ramassables |
 | 17355 | **COUPS À L'ARME BLANCHE** — `COUPS`, `lancerCoup`, `majCoup3P`, `finCoup` (un geste par arme, 3e et 1re personne) |
 | 19145 | **VÉHICULES V3** — le rattrapage des anciens modèles (`VEH_V3`, `construireV3`, `matsV3`, `constructeurV3`, `roueV3`, `majConducteurV3`, `berlineClassiqueV3` ; vedettes `formeVedetteV3`, `coqueVedetteV3`, `specVedetteV3` ; méga-yacht `YACHT_V3`, `coqueYachtV3`, `planV3`), suivi `rapport_nuit/VEHICULES_V3.md` |
-| 20307 | POOLS — balles, particules, textes flottants, traces de pneus |
-| 20784 | ÉTAT GLOBAL + JOUEUR (`P`) |
-| 21670 | VÉHICULES — physique arcade, trafic, dégâts |
-| 24776 | PIÉTONS |
-| 25046 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
-| 25635 | **RAYON TRACTEUR DE L'OVNI** |
-| 26100 | NIVEAU DE RECHERCHE (étoiles) |
-| 26456 | VAGUES + bonus de fin de vague |
-| 26581 | MISSIONS COURTES |
-| 26584 | BÂTIMENTS VISITABLES — intérieurs |
-| 26654 | FOUILLE — mécanique générique |
-| 27202 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
-| 31463 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
-| 31872 | **LAVERIE** V2 — l'essorage de la machine 7 |
-| 32143 | **SERRE** V2 — la nuit de la floraison |
-| 32436 | CINÉ-PALACE |
-| 32680 | MÉTRO ABANDONNÉ |
-| 32746 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
-| 33099 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
-| 34001 | SITE 51 |
-| 34231 | LE DÉPÔT DE BUS — courses clandestines |
-| 35680 | **MÉTIERS** — missions liées à un véhicule |
-| 35971 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
-| 36996 | ÉCRANS / MENUS / BOUTIQUES |
-| 37272 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
-| 38106 | DÉBUT / FIN DE PARTIE |
-| 39661 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
-| 39911 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
-| 40229 | **COCKPITS** — vue 1re personne au volant (`COCKPIT`, `COCKPIT_FAMILLES`, `cockpitDims`, `mkCockpitInterieur`, `ckDessiner`, `rendreCockpit`, `cameraCockpit`, `cockpitDiagnostic`, `photoCockpit`) |
-| 41805 | BOUCLE PRINCIPALE |
+| 20413 | POOLS — balles, particules, textes flottants, traces de pneus |
+| 20921 | ÉTAT GLOBAL + JOUEUR (`P`) |
+| 21807 | VÉHICULES — physique arcade, trafic, dégâts |
+| 25032 | PIÉTONS |
+| 25302 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
+| 25891 | **RAYON TRACTEUR DE L'OVNI** |
+| 26356 | NIVEAU DE RECHERCHE (étoiles) |
+| 26712 | VAGUES + bonus de fin de vague |
+| 26837 | MISSIONS COURTES |
+| 26840 | BÂTIMENTS VISITABLES — intérieurs |
+| 26910 | FOUILLE — mécanique générique |
+| 27458 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
+| 31720 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
+| 32129 | **LAVERIE** V2 — l'essorage de la machine 7 |
+| 32400 | **SERRE** V2 — la nuit de la floraison |
+| 32693 | CINÉ-PALACE |
+| 32937 | MÉTRO ABANDONNÉ |
+| 33003 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
+| 33356 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
+| 34258 | SITE 51 |
+| 34488 | LE DÉPÔT DE BUS — courses clandestines |
+| 35937 | **MÉTIERS** — missions liées à un véhicule |
+| 36228 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
+| 37253 | ÉCRANS / MENUS / BOUTIQUES |
+| 37529 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
+| 38363 | DÉBUT / FIN DE PARTIE |
+| 39920 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
+| 40170 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
+| 40488 | **COCKPITS** — vue 1re personne au volant (`COCKPIT`, `COCKPIT_FAMILLES`, `cockpitDims`, `mkCockpitInterieur`, `ckDessiner`, `rendreCockpit`, `cameraCockpit`, `cockpitDiagnostic`, `photoCockpit`) |
+| 42080 | BOUCLE PRINCIPALE |
 
 ### Ancres fines (hors bandeaux)
 
@@ -160,28 +160,28 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 16140 | helper `poser()` — placement des lieux |
 | 16166 | `caseCentre(bx,bz)` |
 | 16259 | `REPLIS` — filet de sécurité en spirale |
-| 20175 | `makeVelo()` — vélo de ville et BMX |
+| 20281 | `makeVelo()` — vélo de ville et BMX |
 | 19105 | `voitureV2()` — voiture réaliste : `geoVoiture` (géométries partagées par modèle), `janteVoiture` |
 | 15927 | `ENSEIGNES` — portes mieux placées : `ameliorerPortes()`, `profondeurDevant()`, `orienterPorte()` |
-| 20792 | `const P` — état du joueur |
-| 20835 | `P.stamMax = 100 + 12*mus` |
-| 22196 | `resoudreCollisionsVehicule()` — collisions entre véhicules (SAT sur les 4 axes) |
-| 22905 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
-| 23027 | `boutonsAPied()` — boutons du HUD remis « à pied » (sortie de véhicule ET début de partie) |
-| 24177 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
-| 24309 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
-| 26590 | `IOFF = -9000` |
-| 28394 | `INTDEFS` — définitions des **28 salles** (27 + la boutique) |
-| 28786 | `construireSalle(id)` |
+| 20929 | `const P` — état du joueur |
+| 20972 | `P.stamMax = 100 + 12*mus` |
+| 22445 | `resoudreCollisionsVehicule()` — collisions entre véhicules (SAT sur les 4 axes) |
+| 23160 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
+| 23282 | `boutonsAPied()` — boutons du HUD remis « à pied » (sortie de véhicule ET début de partie) |
+| 24432 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
+| 24564 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
+| 26846 | `IOFF = -9000` |
+| 28650 | `INTDEFS` — définitions des **28 salles** (27 + la boutique) |
+| 29042 | `construireSalle(id)` |
 | 32097 | `CHALUTIER_BANCS_PLAN` — chalutier V2 ; `chalutierMaj` (32599), `dessinerRadarChalutier` (32910) |
-| 35689 | `METIERS_CIBLE` |
-| 35989 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
-| 36077 | `PIECES_FAMILLES` — catalogues de pièces par famille |
-| 36387 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
-| 36454 | `libererObjet()` — libère les géométries d'un objet retiré |
-| 36470 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
-| 36600 | `construireGarageTuning()` — la salle partagée |
-| 36970 | `majNitro()` |
+| 35946 | `METIERS_CIBLE` |
+| 36246 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
+| 36334 | `PIECES_FAMILLES` — catalogues de pièces par famille |
+| 36644 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
+| 36711 | `libererObjet()` — libère les géométries d'un objet retiré |
+| 36727 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
+| 36857 | `construireGarageTuning()` — la salle partagée |
+| 37227 | `majNitro()` |
 | 20827 | `degatsChoc()` — dégâts V2 : `bosseler`, débris, `perdreRoue` ; murs : `degagerDesMurs` (plus haut) |
 | 9754 | `SAUTV` — Saut du Vertige : `hauteurSautVertige`, `mkSautVertige`, `mkBargeVertige`, `finSautVertige` |
 | 39038 | `VUE1P` — vue à la 1re personne : `cameraPremiere`, `ligneDeMire`, `viseAuto1P` |
@@ -210,6 +210,9 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 9116 | `TRESOR_CARTE` — la chasse au trésor du voilier : `tresorCandidats`, `tresorNouvelle`, `tresorDessiner`, `tresorCreuser`, `majTresorCarte` ; puis le taudis (`sacDemarrer`, `majSac`) et la villa (`plongeonDemarrer`, `majPlongeon`) |
 | 23691 | `controleDir()` — le joystick devient gaz et braquage ; bateaux : `sB` compense la marche arrière, une cible derrière se départage par le côté de l'écran (`v.sensDT`) |
 | 3390 | `yachtBloque()` — le méga-yacht V3 à pied, au mouillage : pavois, salon, escaliers de la poupe (avec `dansCoqueYacht`, `GYACHT`, `YACHT_POUPE` ; modèle : `YACHT_V3`) |
+| 20137 | `MONSTER_V3` — le Monster Truck V3 : `geoPneuMonsterV3`, `geoJanteMonsterV3`, `VEH_V3.monstertruck` |
+| 20707 | `FNOIRE` — la fumée noire des cheminées : `fumeeNoire`, `majFumeeNoire`, `viderFumeeNoire`, `majEchappements` |
+| 22226 | `deformerLocal()` — écrasement et enfoncement V2 : `enfoncer`, `commencerEcrasement`, `majEcrasementPar`, `contactsEcraseur`, `profilVictime`, épaves (`EPAVES`, `finEpave`, `majEpaves`), sons (`sonEcrasement`, `couperSonsEcrasement`) |
 
 ---
 
@@ -1730,8 +1733,39 @@ commandes ne changent. Comparaison avant / après et TODO : `rapport_nuit/VEHICU
   visible sur un véhicule ouvert. 21 et 25 maillages.
 - **14. Vedettes « Sirène » (`bateau`) et police (`bateauP`)** (`formeVedetteV3`, `coqueVedetteV3`, `specVedetteV3`) : la coque est lissée section par section (un ruban par bande de couleur : liston, bordé, filet, liseré de flottaison, antifouling, bouchain ; tableau arrière bande par bande) et descend SOUS la flottaison (fond à −0,36, posée à 0,15 au-dessus de l'eau) ; des pavois intérieurs, un plat-bord et un pont de cockpit qui monte vers l'avant (avant : pont au ras du livet, rien ne bordait le cockpit — vue de l'intérieur, la coque « n'existait pas »). Console (masquée en 1re personne : le cockpit a la sienne, `COCKPIT_DEFS.bateau` place l'œil 0,95 u derrière elle), pare-brise enveloppant = le seul verre. Barreur debout (`ud.siege.debout`, `pnj` : un PNJ pour les vedettes de l'IA, `majChauffeur` ; les rivales de la course en mer s'y placent). Hélices animées à la distance parcourue (`ud.anim`). Échouée, la coque garde sa quille au ras du sable (`ud.quilleEchoue`, lu par `poseEchoue`). **Direction** : `controleDir` compense le renversement du braquage en marche arrière (`sB`) et, cible presque derrière en vue qui suit, vire du côté où le joystick penche à l'écran (`v.sensDT`). Tests « Direction des vedettes », « Vedettes V3 ».
 - **15. Méga-yacht « Reyes Royale » (`grandyacht`)** (`YACHT_V3`, `coqueYachtV3`, `bordYachtV3`, `planV3`) : le véhicule a son modèle ; `mkGrandYachtV2` reste celui du décor amarré (construit puis caché : ses tirages calent le décor — ne jamais y ajouter un objet). Coque haute : pont principal à 1,31 au-dessus de l'eau (`GYACHT.plat`, inchangé), pavois d'un mètre, livet qui remonte vers une étrave fine et inclinée (`YACHT_V3.ys`), quille à −1,55 ; liseré de flottaison, antifouling, hublots cerclés de chrome, grandes vitres de coque, filet d'or ; poupe ouverte : plateforme de bain (0,5), les deux escaliers sont EXACTEMENT les marches de `YACHT_POUPE`, échelle, main courante entre eux. **À pied, au mouillage** (`yachtBloque`, dans `marchable`) : sur le pont, le pavois et le salon (`YACHT_V3.salonHw`) sont des murs, on n'en sort que par les escaliers de la poupe ; depuis la plateforme, le tableau arrière est un mur (on monte par les marches). Le pont praticable va jusqu'au pavois (`ici(pl,…,4,06,…)` : à 3,7, on tombait entre les deux) ; le dégagement sous l'hélico de l'hélipad pousse le long de l'appareil, jamais par-dessus bord ; barre lâchée : sur le passavant. Test « Méga-yacht V2 » (livet, salon, pavois, tableau, passavant, sortie de la barre).
+- **16. Monster Truck (`monstertruck`), refonte totale** (`MONSTER_V3`, `geoPneuMonsterV3`, `geoJanteMonsterV3`, branche `monster-truck-ecrasement`) : demandé « il fait jouet ; un vrai monster truck, totalement massif ». Caisse de gros pick-up américain (capot long et bombé traversé par un compresseur à papillons, cabine haute, benne et son arceau, calandre noire à barres chromées et quatre phares ronds, rampe de six projecteurs, rétroviseurs de remorquage, pare-chocs tubulaires et crochets rouges, élargisseurs noirs mats, flammes cernées sur le capot et les ailes, numéro 73 sur les portières). Caisse posée AU-DESSUS des pneus (passages de roue taillés dans le profil, `basCaisseV3`) : on voit le vide dessous — châssis tubulaire (longerons, traverses, croix), moteur et collecteurs, boîte et arbres (dans `ud.corps`, ils suivent la suspension) ; ponts rigides, différentiels, bras et QUATRE amortisseurs par roue (jaunes, ressorts) restent au sol avec les roues (`spec.inst` les sort de `corps`). Roues de 3 u de diamètre, 1,1 de large, flancs bombés, crampons en chevrons et épaulements DANS la géométrie du pneu (un maillage par pneu), jantes creuses à beadlock, trous, moyeu, écrous (deux maillages par roue, géométries partagées). Les roues roulent à la vitesse réelle : `ud.rayonRoue` → `v / R` rad/s (`majVehiculePhys`, trafic compris). Deux cheminées chromées : fumée noire (`FNOIRE`, `fumeeNoire`, `majEchappements(dtJeu)` dans la boucle — un `InstancedMesh` de 72 bouffées, shaders de la traînée des missiles, aucune allocation, `viderFumeeNoire` dans `nettoieMonde`) à l'accélération forte (`v.accL` > 5,5) et 0,6 s au démarrage. Rebond à la réception (`v.vyAir` → ressort amorti `v.rebY` sur la caisse, grands débattements). Hitbox et fiche : 6,4 × 3,8 u (avant 5,2 × 2,7, les pneus en débordaient déjà) ; 104 km/h et 650 PV inchangés. Cockpit propre (`CK_HAB.monstertruck` : `vol:'course'`, `seq`, `harnais`, `CK_TH.monster` planche `alu`, combiné `monster` à trois cadrans ronds — huile, compte-tours, eau —, voyant de passage, rapport) ; `refonte:true` dans la fiche V3 : le test « Véhicules V3 » n'exige plus les roues de l'ancien modèle. Test « Monster Truck V3 ».
 - Test : « Véhicules V3 » (lit `VEH_V3` : vitre transparente, plafond de maillages, taille, roues à leur place et rayon
   lisible, PNJ et joueur visibles, rien en 1re personne, cockpit valide).
+
+## Écrasement et enfoncement V2 (19 octobre) — trois niveaux, un moteur de déformation commun
+
+Demandé : « l'écrasement actuel n'est pas satisfaisant ». **Avant** : au contact, le char ou le Monster Truck réduisait toute la cible à
+20 % de sa hauteur d'un coup (`mesh.scale.y`, en deux temps pour un véhicule long touché à un bout, `ecraserVehicule`, supprimée) ;
+l'épave restait jusqu'à la fin de la partie (jamais libérée) ; aucun autre véhicule n'abîmait autrement qu'au choc classique.
+**Hiérarchie** (lue dans `VEHDEFS`, `niveauChoc(d)`) :
+
+| Niveau | Véhicules | Ce qui se passe |
+|---|---|---|
+| 1 — dégâts classiques | tous les autres (voitures, motos, utilitaires, ambulance, fourgon…) | `bosseler`, débris, roues (Dégâts V2), inchangés |
+| 2 — ENFONCEMENT (`enfonce:true`) | Camion « Aigle » (`milit`), Blindé « Bastion », Camion DCA, Bulldozer, Grue, Dépanneuse, Camion-citerne, Passerelle mobile, Bus de ville, Camion de pompiers | lancé à plus de `ENFONCE_VMIN` (8 u/s) contre un véhicule léger (`victimeEnfoncable`) : `enfoncer` — tôle pliée au point d'impact dans le sens du choc (avant ou flanc), toit qui suit, vitres éclatées, une roue écartée, voiture projetée en tournant et poussée devant le lourd (`o.epPousse` : jamais traversée), épave ; le lourd perd 16 % de vitesse et 4 à 7 PV, jamais d'arrêt net, il ne monte jamais dessus ; secousse légère, aucun ralenti |
+| 3 — ÉCRASEMENT (`ecrase:true`, eux seuls) | Char « Rhinocéros », Monster Truck | `commencerEcrasement` puis `majEcrasementPar` (appelée par `majVehiculePhys` de l'écraseur) : chaque roue du Monster Truck, chaque point des chenilles du char (`contactsEcraseur`) qui passe sur la victime l'affaisse LÀ où il passe — `ECR_CELLS` tranches × 2 côtés, hauteurs mesurées sur la carrosserie (`profilVictime`) ; la roue se pose sur la tranche (contact d'un cercle sur une marche, même au bord) : le Monster Truck MONTE (`v.hEcrL`, tangage `v.tangEcrL`, roulis `v.roulEcrL`, jusqu'à `ECR_MONTE_MAX`) pendant que la tôle cède sous lui, le char aplatit en tanguant à peine ; vitres qui éclatent (`eclatsVitres`), flancs qui s'évasent, roues qui s'écartent (`ecarterRoue`), étincelles, tôle qui grince, ralenti très court (`ETAT.timeScale` : sur `dt`), épave dès que l'écraseur l'a quittée |
+
+- **Moteur commun** `deformerLocal(o, point, direction, profondeur, rayon, opts)` : niveaux 2 et 3 (le niveau 1 garde `bosseler`).
+  Sommets de la carrosserie dans le rayon (à plat avec `opts.horiz`) déplacés le long de la direction ; vers le bas avec un
+  plancher, la colonne se TASSE au prorata de la hauteur (le toit descend, le bas de caisse reste, rien sous le plancher) et les
+  flancs s'évasent (`opts.evase`). Copie de géométrie propre au véhicule (`userData.geoPropre`, comme `bosseler`).
+- **Épaves** (`finEpave`, `EPAVES`, `majEpaves`, `retirerEpave`, `viderEpaves` dans `nettoieMonde`) : déformées, noircies (matières
+  COPIÉES, jamais celles de `mat()`), elles glissent, fument 9 s ; `EPAVES_MAX` (10), retirées au bout de `EPAVE_VIE` (75 s, elles
+  s'enfoncent) ou au-delà de `EPAVE_LOIN` (240 u) du joueur ; géométries et matières libérées. Une victime en cours d'écrasement
+  (`o.ecr`) ne bouge plus et ne heurte pas son écraseur ; orpheline (écraseur disparu), elle finit en épave.
+- **Sons** (`sonEcrasement` : tôle, grincement, verre) sur leur propre bus (`ECR_SON`), coupés par `couperSonsEcrasement` dans
+  `mourir`, `startRun` et `entrerInterieur`.
+- Retombées (`retombeesEpave`) : celles d'avant (défis, stats, cargaisons de mission), jamais d'argent ni de vague ;
+  `META.stats.vehEcrases` compte une fois par victime, au début de l'écrasement.
+- **Piège des tests** : l'écraseur passe SUR sa cible — un lieu de test doit être un couloir plat et dégagé devant (`couloirLibre`
+  dans les tests : une plateforme à 22 u, 8 u plus loin, arrêtait le Monster Truck).
+- Tests : « Écrasement V2 » (les trois niveaux, épaves, sons coupés à la mort), « Écrasement » (paires, retombées, bus touché à un
+  bout), « Nouveaux défis » (Broyeur). Rapport et captures : `rapport_nuit/MONSTER_ECRASEMENT.md`.
 
 ## Cockpits — la vue à la 1re personne au volant (nuit du 17 octobre 2026) — bandeau `COCKPITS`
 

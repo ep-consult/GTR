@@ -32,7 +32,7 @@ Demandé : « amélioration globale des cockpits et des intérieurs de véhicule
 - [x] `bond` — GT "Agent Gris" — cadran `chrome` : Vintage britannique : cadrans crème cerclés de chrome, chiffres à empattements ; garnissage `gt`
 - [x] `baronne` — Ancienne "Baronne" — cadran `baronne` : Vintage art déco : cadrans ivoire, aiguilles noires, chrome ; garnissage `vintage`
 - [x] `jeep` — 4x4 "Coyote" — cadran `tt` : Tout-terrain : deux cadrans et l’inclinomètre (tangage, dévers) ; garnissage `tt`
-- [x] `monstertruck` — Monster Truck — cadran `monster` : Monster truck : énorme compte-tours, interrupteurs à clapet ; garnissage `monster`
+- [x] `monstertruck` — Monster Truck — cadran `monster` : planche en alu riveté, trois cadrans ronds (pression d’huile, compte-tours, température d’eau), voyant de passage, rapport du séquentiel, interrupteurs à bascule ; garnissage `monster` (planche alu) ; volant `course`, levier séquentiel (`seq`), harnais 4 points (`harnais`) — refonte du 19 octobre
 - [x] `depotCitadine` — La Citadine — cadran `moderne` : Deux cadrans à aiguilles, fond noir, chiffres blancs, aiguilles orange, petit écran central (rapport, compteur, essence) ; garnissage `moderne`
 - [x] `depotPickup` — Le Pick-up — cadran `raptor` : Pick-up : compteur numérique orange (vitesse, rapport, 4×4, tangage, dévers), grand écran central ; garnissage `raptor`
 - [x] `depotBolide` — Le Bolide — cadran `sport` : Sport : fond noir, aiguille rouge, compte-tours central, vitesse en chiffres, diodes de passage ; garnissage `sport`
