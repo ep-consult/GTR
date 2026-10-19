@@ -9925,7 +9925,7 @@ async function main() {
         const a1 = META.argent; acheterNourriture(s); if (META.argent !== a1) ko.push('le stand revend aussitôt (farming)');
         info.push(STANDS.length + ' stands, ' + q.size + ' quartiers');
         // véhicules hauts : à leur hauteur cible (± 0,15)
-        for (const k in HAUTEUR_VEH) { if (DECOR_V2 && typeof VEH_V3 !== 'undefined' && VEH_V3[k]) continue; /* modèle V3 : sa propre hauteur (tourelle, radar, rampe), jamais rehaussé — le test « Véhicules V3 » le mesure */ const g = makeVoiture(k); g.updateMatrixWorld(true); const b = new THREE.Box3(); g.traverse((o) => { if (o.isMesh && !(o.material && o.material.transparent && o.material.opacity < 0.5)) b.expandByObject(o); });
+        for (const k in HAUTEUR_VEH) { if (DECOR_V2 && typeof VEH_V3 !== 'undefined' && (VEH_V3[k] || (VEHDEFS[k] && VEHDEFS[k].modele && VEH_V3[VEHDEFS[k].modele]))) continue; /* le bus du Dépôt prend le modèle V4 du bus de ville */ /* modèle V3 : sa propre hauteur (tourelle, radar, rampe), jamais rehaussé — le test « Véhicules V3 » le mesure */ const g = makeVoiture(k); g.updateMatrixWorld(true); const b = new THREE.Box3(); g.traverse((o) => { if (o.isMesh && !(o.material && o.material.transparent && o.material.opacity < 0.5)) b.expandByObject(o); });
           if (Math.abs(b.max.y - b.min.y - HAUTEUR_VEH[k]) > 0.25) ko.push(k + ' mesure ' + (b.max.y - b.min.y).toFixed(2) + ' au lieu de ' + HAUTEUR_VEH[k]); }
         // basket : un joueur passif ne gagne rien ; 10 tirs parfaits gagnent la prime, une seule fois par vague
         const b0 = BASKET.depart; P.x = b0.x; P.z = b0.z; basketDemarrer(); if (!BASKET.actif) ko.push('le concours ne démarre pas');
@@ -14184,7 +14184,7 @@ async function main() {
         // un gangster à 10 u : au corps, puis à la tête
         const typ = Object.keys(ETYPES).find((k) => ETYPES[k].fac && ETYPES[k].fac !== 'police' && !ETYPES[k].boss && !ETYPES[k].heli) || 'gang1';
         const e = creerEnnemi(typ, x0 + fx * 10, z0 + fz * 10, true); if (!e) return { ko: ['gangster pas créé'], info };
-        e.stun = 99; e.passif = true; const essai = (yVise) => { e.hp = 1000; e.mort = false; e.x = x0 + fx * 10; e.z = z0 + fz * 10; if (e.h) { e.h.g.position.set(e.x, solY(e.x, e.z), e.z); e.h.g.updateMatrixWorld(true); }
+        e.stun = 99; e.passif = true; const essai = (yVise) => { for (const b of balles) if (b.on) finBalle(b); /* le test maîtrise sa scène : une balle d'un test précédent encore en vol comptait au corps */ e.hp = 1000; e.mort = false; e.x = x0 + fx * 10; e.z = z0 + fz * 10; if (e.h) { e.h.g.position.set(e.x, solY(e.x, e.z), e.z); e.h.g.updateMatrixWorld(true); }
           regarde(yVise, 10); P.cadT = 0; const n0 = HEADSHOTS.n; attaquer(); tire(20); return { perte: 1000 - e.hp, hs: HEADSHOTS.n - n0 }; };
         const corps = essai(solY(e.x, e.z) + 1.0), tete = essai(teteDe(e).y);
         if (!(corps.perte > 0 && corps.hs === 0)) ko.push('tir au corps : ' + JSON.stringify(corps));

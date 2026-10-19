@@ -383,6 +383,18 @@ dans l'ordre demandé : ils passent en dernier (groupe 7).
 
 ## Mesures et tests
 
+### Suite complète à mi-parcours (après les pilotables, lot 3) : 4 échecs, corrigés
+- **Mont Reyes en buggy** (pilote simulé coincé près du sommet) : à la réception d'un saut, le jeu accorde un bonus de vitesse si le
+  roulis du modèle est faible, et ce roulis se mesure aux positions RÉELLES des roues (`majVehiculePhys`). Les roues du Manx étaient plus
+  rentrées (0,96 au lieu de 1,11) : la trajectoire divergeait. Roues remises exactement à la voie d'origine. Leçon : la place des roues
+  n'est pas que visuelle (dévers, bonus de réception) — elle reste au plus près de l'ancienne.
+- **Voitures réalistes** : la roue continental de l'Impala dépassait de 1 cm la tolérance de longueur ; les rétroviseurs de remorquage du
+  Raptor (lot 1) dépassaient la largeur ; ses crampons s'enfonçaient de 4 cm — `roueV3` pose désormais une roue à crampons sur ses
+  crampons (+0,035), pour tous les modèles V3.
+- **Hauteur du bus du Dépôt** : il emprunte le modèle V4 du bus de ville (carénages de toit) ; le test des hauteurs saute aussi les
+  véhicules qui empruntent un modèle V3 (`modele`).
+- **Tir à la tête** : une balle d'un test précédent encore en vol comptait au corps ; le test vide les balles avant chaque essai.
+
 ### Règle des roues
 Le test « Véhicules V3 » (qui lit aussi les fiches V4) exige que chaque roue reste à moins de 0,25 u de celle de l'ancien modèle :
 l'assiette des véhicules lit leur position. Les empattements V4 sont donc calés sur les anciens (relevé : `scratchpad/roues_old.txt`) ;
