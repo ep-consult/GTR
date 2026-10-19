@@ -128,7 +128,7 @@ dans l'ordre demandé : ils passent en dernier (groupe 7).
 
 ### 1. Trafic civil
 - [x] Citadine (`citadine`) → Mini Cooper — 30 objets de près (16 avant), 4 de loin ; captures `captures/vehicules_v4/citadine_*.png`
-- [ ] Berline (`berline`) → Tesla Model 3
+- [x] Berline (`berline`) → Tesla Model 3 — toit de verre teinté, phares fins, jantes aéro, intérieur blanc et grand écran ; captures `berline_*`
 - [ ] Muscle « Rafale » (`muscle`) → Ford Mustang Fastback 1967
 - [ ] Pickup (`pickup`) → Ford F-150 Raptor
 - [ ] SUV de luxe « Sierra » (`suvLuxe`) → Cadillac Escalade
