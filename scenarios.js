@@ -15593,7 +15593,7 @@ async function main() {
           if (!spec.ouvert && !vitres) ko.push(k + ' : aucune vitre transparente');
           if (n > 48) ko.push(k + ' : ' + n + ' maillages (plafond 48)');
           const sz = boite(g).getSize(new THREE.Vector3());
-          const s0 = boite(vehiculeRestyle(d) ? (() => { _VEH_V2 = true; try { return makeVoitureBase(k); } finally { _VEH_V2 = false; } })() : makeVoitureBase(k)).getSize(new THREE.Vector3()), /* modèle restylé (vedettes : makeBateauV2) : l'ancien est celui-là */ l0 = s0 ? s0.z : 0, okL = (l) => l > 0 && Math.abs(sz.z - l) / l <= 0.12; /* la taille de VEHDEFS, ou celle de l'ancien modèle (la flèche de la grue, les roues du quad dépassaient déjà) */
+          const s0 = boite((() => { const g0 = vehiculeRestyle(d) ? (() => { _VEH_V2 = true; try { return makeVoitureBase(k); } finally { _VEH_V2 = false; } })() : makeVoitureBase(k); if (spec.agrandir) agrandirHelico(g0, ECH_HELI[k] || 1.55); /* hélico : l'ancien modèle tel qu'on le voyait, agrandi (makeVoiture) */ return g0; })()).getSize(new THREE.Vector3()), /* modèle restylé (vedettes : makeBateauV2) : l'ancien est celui-là */ l0 = s0 ? s0.z : 0, okL = (l) => l > 0 && Math.abs(sz.z - l) / l <= 0.12; /* la taille de VEHDEFS, ou celle de l'ancien modèle (la flèche de la grue, les roues du quad dépassaient déjà) */
           if (!okL(d.long) && !okL(l0)) ko.push(k + ' : longueur ' + sz.z.toFixed(2) + ' pour ' + d.long + ' (ancien modèle : ' + l0.toFixed(2) + ')');
           if (sz.x > Math.max(d.larg * 1.3, s0 ? s0.x * 1.12 : 0)) ko.push(k + ' : largeur ' + sz.x.toFixed(2) + ' pour ' + d.larg + (s0 ? ' (ancien modèle : ' + s0.x.toFixed(2) + ')' : ''));
           for (const r of ud.roues) if (!(r.geometry.parameters && r.geometry.parameters.radiusTop > 0)) { ko.push(k + ' : rayon de roue illisible (garage, derby)'); break; }
@@ -15603,8 +15603,8 @@ async function main() {
           /* en ville : un PNJ au volant, puis le joueur, en vue 3D puis en 1re personne */
           if (ud.conducteur) {
             const x = POIS.place.x + 40, z = POIS.place.z + 10, v = creerVehicule(k, x, z, 0, 'trafic'); v.conduit = 'trafic'; majChauffeur(v);
-            const C = v.mesh.userData; if (!(C.chauffeur && C.chauffeur.visible && C.chauffeur.userData.pnj && C.chauffeur.userData.pnj.visible)) ko.push(k + ' : le PNJ au volant ne se voit pas');
-            v.conduit = null; majChauffeur(v); if (C.chauffeur.visible) ko.push(k + ' : un conducteur dans un véhicule vide');
+            const C = v.mesh.userData; if (!d.air && !(C.chauffeur && C.chauffeur.visible && C.chauffeur.userData.pnj && C.chauffeur.userData.pnj.visible)) ko.push(k + ' : le PNJ au volant ne se voit pas'); /* un aéronef n'a jamais de PNJ aux commandes (garé, ou piloté par le joueur) : seul le joueur s'y voit */
+            v.conduit = null; majChauffeur(v); if (C.chauffeur && C.chauffeur.visible) ko.push(k + ' : un conducteur dans un véhicule vide');
             P.x = x; P.z = z + 1; entrerVehicule(v); META.vue = 'immersive'; majChauffeur(v);
             if (!(C.chauffeur.visible && C.chauffeur.userData.joueur && C.chauffeur.userData.joueur.visible)) ko.push(k + ' : le joueur au volant ne se voit pas (vue 3D)');
             if (!C.interieurV3.visible) ko.push(k + ' : intérieur masqué en vue 3D');

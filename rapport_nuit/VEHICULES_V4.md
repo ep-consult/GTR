@@ -184,10 +184,10 @@ dans l'ordre demandé : ils passent en dernier (groupe 7).
 - [x] Hélico-grue « Titan » (`titan`) → Sikorsky S-64 Skycrane — refait (la verrière n'était pas transparente) : poutre squelettique, cabine en bulbe vitrée, six pales, train haut ; aimant inchangé ; `helicos_*`
 
 ### 6. Avions
-- [ ] Avion « Colibri » (`avion`) → Cessna 172
-- [ ] Avion de tourisme « Pélican » (`tourisme`) → Cirrus SR22
-- [ ] Voltige « Colibri Rouge » (`voltige`) → Extra 300
-- [ ] Chasseur « Épervier » (`chasseur`) → General Dynamics F-16
+- [x] Avion « Colibri » (`avion`) → Cessna 172 Skyhawk — aile haute haubanée, train tricycle fixe carené (refonte : l'ancien était à roulette de queue), bipale, filets bleu et rouge ; `avions_lot1_*`
+- [x] Avion de tourisme « Pélican » (`tourisme`) → Cirrus SR22 — fuselage composite lisse, aile basse, grande verrière, tripale, trappe du parachute, carénages de roues ; `avions_lot1_*`
+- [x] Voltige « Colibri Rouge » (`voltige`) → Extra 300 — bulle en tandem, aile médiane à rayons de soleil plaqués sur l'extrados, grande dérive, train classique, roulette en bout de queue (refonte) ; `avions_lot1_*`
+- [x] Chasseur « Épervier » (`chasseur`) → General Dynamics F-16 — bulle sans arceau, entrée d'air sous le menton, stabilisateurs monoblocs, dérives ventrales, POSTCOMBUSTION, missiles, train qui rentre ; `avions_lot1_*`
 - [ ] Jet privé « Albatros » (`jetprive`) → Learjet 75
 - [ ] Long-courrier « Reyes Air » (`ligne`) → Airbus A320
 - [ ] Cargo « Baleine » (`fret`) → Lockheed C-130 Hercules
@@ -465,6 +465,37 @@ dans l'ordre demandé : ils passent en dernier (groupe 7).
 - **Sikorsky S-64 Skycrane** (`titan`) : poutre squelettique ouverte dessous (l'aimant pend toujours sous la poutre, cotes gardées),
   cabine en bulbe vitrée, poste de l'opérateur vers l'arrière (verre fumé : transparent, il déformait la cabine mesurée par le cockpit),
   deux turbines, six pales, dérive inclinée et stabilisateur en T, train haut, treuil jaune.
+
+### Avions (groupe 6) — socle commun
+- **`avionInstV4`** (dans `inst`) : hélices dans l'axe du fuselage (`ud.rotor`, `ud.rotor2` : `majVol` les fait tourner comme avant ; les
+  suivantes, `ud.helicesPlus`, suivent dans `animAvionV4`) et leur **disque flou** visible dès qu'elles tournent ; roues (`ud.roues` :
+  l'assiette au sol les lit) fixes ou **rentrantes** (`rentrant`, `animTrainV4` : au-delà de 2,5 u du sol) ; **gouvernes animées**
+  (ailerons au roulis `v.vb`, profondeur au tangage `v.vt` et à la vitesse verticale, direction au lacet `v.lacetAv`) ; feux de
+  navigation (rouge à gauche, vert à droite, blanc derrière), **anticollision** rouge qui clignote dès que l'avion est piloté,
+  **éclats blancs** en bout d'aile en vol ; ombre au sol (`ud.ombre`, recalée par `majVol`) ; **postcombustion** du chasseur (cône
+  additif, au-delà de 72 % des gaz ; opacité 1 et couleur atténuée d'autant : en opacité partielle le cockpit la prenait pour une
+  vitre). Tout est cosmétique : ni le vol, ni les commandes, ni les stats ne changent.
+- **Pilote** : les avions n'ont jamais de PNJ aux commandes (garés, ou pilotés par le joueur) ; le joueur s'y voit assis en vue 2D/3D,
+  rien en 1re personne (le cockpit V2 a les siens). Le test « Véhicules V3 » le vérifie désormais ainsi pour les aéronefs.
+- **Cotes** : l'encombrement de l'ancien modèle est tenu (±12 %) — le F-16 a été raccourci (queue avancée de 0,45 u) pour y rester.
+  Les hélicos sont comparés à l'ancien modèle **agrandi** comme on le voyait (le test comparait au modèle avant `agrandirHelico` :
+  correction du test, pas des hélicos).
+
+### Les fiches des avions
+- **Cessna 172 Skyhawk** (`avion`) : aile haute sur la cabine et ses haubans, grandes vitres et lunette, capot à deux entrées d'air,
+  bipale à cône, dérive en flèche, empennage bas, train tricycle fixe à carénages de roues (refonte : l'ancien Colibri était à roulette
+  de queue), filets bleu et rouge ; quatre sièges, planche à six instruments, deux volants ; pilote à gauche. Œil du cockpit abaissé
+  (`COCKPIT_DEFS.avion` 0,14 → −0,3 : au réglage de l'ancien modèle, il était dans l'aile).
+- **Cirrus SR22** (`tourisme`) : fuselage composite lisse, aile basse effilée, grande verrière à portes papillon, capot fin, tripale à
+  cône, trappe du parachute derrière la cabine, empennage classique, train fixe caréné, éclats en bout d'aile ; planche à deux grands
+  écrans, quatre sièges de cuir.
+- **Extra 300** (`voltige`) : gros capot rond et tripale, bulle en tandem, aile médiane symétrique aux **rayons de soleil** blancs
+  plaqués sur l'extrados (triangles suivant le profil, pas des boîtes), grands ailerons, grande dérive, train classique à jambes
+  carénées et **roulette en bout de queue** (refonte : elle était à mi-fuselage) ; pilote à la place arrière.
+- **F-16 Fighting Falcon** (`chasseur`) : fuselage fondu à l'aile, entrée d'air sous le menton, **bulle sans arceau**, aile en flèche
+  tronquée, dérive unique, **stabilisateurs monoblocs** animés au tangage, deux dérives ventrales, tuyère à pétales et
+  **postcombustion**, missiles en bout d'aile et sous les ailes, réservoir ventral, cocardes ; **train tricycle qui rentre** (refonte :
+  l'ancien était à roulette de queue) ; siège éjectable.
 
 ## Mesures et tests
 

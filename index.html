@@ -20680,6 +20680,39 @@ const HELI_POLICE_V4={ sansOmbre:true, lod:true,
     const cone=new THREE.Mesh(new THREE.ConeGeometry(4,15,16,1,true),new THREE.MeshBasicMaterial({color:0xfff2c0,transparent:true,opacity:0.1,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending}));
     cone.position.set(0.36,-6.2,2.5); cone.rotation.x=0.3; I.corps.add(cone); I.ud.cone=cone; I.detPlus.push(cone); }
 };
+/* ---------- avions V4 : le socle commun (dans inst) — hélices dans l'axe du fuselage (ud.rotor, ud.rotor2 : majVol les fait tourner
+   autour de leur y ; les suivantes suivent dans animAvionV4) et leur disque flou, train fixe ou rentrant (ud.roues : l'assiette au sol
+   les lit ; animTrainV4), gouvernes animées (ailerons au roulis v.vb, profondeur au tangage v.vt, direction au lacet v.lacetAv), feux de
+   navigation, anticollision et éclats blancs, ombre au sol (ud.ombre), postcombustion (chasseur) — tout est cosmétique ---------- */
+function avionInstV4(I,o){ const M=I.M; I.detPlus=I.detPlus||[]; I.ud.disques=[];
+  (o.helices||[]).forEach((h,i)=>{ const cle='heliceV4_'+[h.R,h.n,h.corde].join('_'); let gp=_GEO_V3[cle];
+    if(!gp){ const ps=[]; for(let k=0;k<h.n;k++){ const b=new THREE.BoxGeometry(h.R*0.88,0.035,h.corde); b.translate(h.R*0.5,0,0); b.rotateX(0.3); b.rotateY(k/h.n*Math.PI*2); ps.push(b); }
+      ps.push(new THREE.ConeGeometry(h.R*0.16,h.R*0.36,14).translate(0,h.R*0.12,0)); gp=_GEO_V3[cle]=mergeGeoManuel(ps); gp.userData.partagee=true; }
+    const g=new THREE.Group(); g.position.set(h.x||0,h.y,h.z); g.rotation.x=Math.PI/2; g.add(new THREE.Mesh(gp,h.mat||M.sombre));
+    const cd='disqueHeliceV4_'+h.R; let gd=_GEO_V3[cd]; if(!gd){ gd=_GEO_V3[cd]=new THREE.RingGeometry(h.R*0.18,h.R,32).rotateX(-Math.PI/2); gd.userData.partagee=true; }
+    const dm=new THREE.Mesh(gd,new THREE.MeshBasicMaterial({color:0x2c2e32,transparent:true,opacity:0,depthWrite:false,side:THREE.DoubleSide})); dm.visible=false; g.add(dm); I.ud.disques.push(dm);
+    I.corps.add(g); if(i===0) I.ud.rotor=g; else if(i===1) I.ud.rotor2=g; else (I.ud.helicesPlus=I.ud.helicesPlus||[]).push(g); });
+  for(const w of (o.roues||[])){ const cle='roueAvionV4_'+w.R+'_'+(w.ep||0.16); let gr=_GEO_V3[cle]; if(!gr){ gr=_GEO_V3[cle]=new THREE.CylinderGeometry(w.R,w.R,w.ep||0.16,16); gr.userData.partagee=true; }
+    const r=new THREE.Mesh(gr,M.caoutchouc); r.rotation.z=Math.PI/2; r.position.set(w.x,w.R,w.z); r.userData.y0=w.R; I.g.add(r); I.ud.roues.push(r); }
+  I.ud.train=!!o.rentrant; I.ud.gouv=[];
+  for(const q of (o.gouv||[])){ const grp=new THREE.Group(); grp.position.set(q.p[0],q.p[1],q.p[2]); grp.add(new THREE.Mesh(I.info.gouv[q.cle],q.mat||matPeintV3(I.coul))); I.corps.add(grp); I.ud.gouv.push({g:grp,t:q.t,s:q.s||1}); I.detPlus.push(grp); }
+  const ajFeu=(m,p,rr)=>{ const f=new THREE.Mesh(_GEO_V3.feuV4||(_GEO_V3.feuV4=Object.assign(new THREE.SphereGeometry(1,8,6),{userData:{partagee:true}})),m); f.scale.setScalar(rr||0.07); f.position.set(p[0],p[1],p[2]); I.corps.add(f); I.detPlus.push(f); return f; };
+  if(o.nav){ ajFeu(M.feu,o.nav.g); ajFeu(matV3Couleur(0x2ad84a),o.nav.d); if(o.nav.ar) ajFeu(M.recul,o.nav.ar); }
+  const ma=new THREE.MeshBasicMaterial({color:0x3a0808}); I.ud.anti=ma; for(const p of (o.anti||[])) ajFeu(ma,p,0.08);
+  if(o.strobes){ const ms=new THREE.MeshBasicMaterial({color:0x2a2a2a}); I.ud.strobe=ms; for(const p of o.strobes) ajFeu(ms,p,0.06); }
+  if(o.pc){ const cle='pcV4'; let gc=_GEO_V3[cle]; if(!gc){ gc=_GEO_V3[cle]=mergeGeoManuel([new THREE.ConeGeometry(1,3,16,1,true).rotateX(-Math.PI/2).translate(0,0,-1.5),new THREE.ConeGeometry(0.55,1.6,14,1,true).rotateX(-Math.PI/2).translate(0,0,-0.8)]); gc.userData.partagee=true; }
+    const mc=new THREE.MeshBasicMaterial({color:0x8c5520,transparent:true,opacity:1,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide}); /* opacité 1, couleur atténuée d'autant : le cockpit ne la prend pas pour une vitre (ckEstVitre) */
+    const pc=new THREE.Mesh(gc,mc); pc.position.set(o.pc.x||0,o.pc.y,o.pc.z); pc.scale.set(o.pc.R,o.pc.R,1); pc.visible=false; I.corps.add(pc); I.ud.pc=pc; I.ud.pcR=o.pc.R; }
+  const om=spriteBlob(o.ombre||7); I.g.add(om); I.ud.ombre=om;
+  if(o.conducteur) I.ud.conducteur=o.conducteur; I.ud.anim=animAvionV4; }
+function animAvionV4(v){ const ud=v.mesh.userData, t=ETAT.runT||0;
+  if(ud.helicesPlus&&ud.rotor) for(const h of ud.helicesPlus) h.rotation.y=ud.rotor.rotation.y+0.6;
+  const tourne=Math.abs(v.v||0)>3||!!v.vol; for(const d of (ud.disques||[])){ const op=tourne?0.2:0; if(d.material.opacity!==op){ d.material.opacity=op; d.visible=op>0; } }
+  for(const q of (ud.gouv||[])){ if(q.t==='ail') q.g.rotation.x=clamp((v.vb||0)*0.45,-0.35,0.35)*q.s; else if(q.t==='prof') q.g.rotation.x=clamp((v.vt||0)*0.5+(v.va||0)*0.012,-0.35,0.35); else if(q.t==='dir') q.g.rotation.y=clamp((v.lacetAv||v.lacet||0)*0.5,-0.35,0.35); }
+  if(ud.anti) ud.anti.color.setHex((v.conduit||v.vol)&&(t%1.0)<0.08?0xff2a2a:0x3a0808);
+  if(ud.strobe){ const p=t%1.3; ud.strobe.color.setHex(v.vol&&(p<0.04||(p>0.12&&p<0.16))?0xffffff:0x2a2a2a); }
+  if(ud.pc){ const g=v.gaz!==undefined?v.gaz:Math.abs(v.v||0)/(v.def.vmax||1), k=clamp((g-0.72)*4,0,1)*(v.vol?1:0.35); ud.pc.visible=k>0.02; if(k>0.02){ ud.pc.scale.set(ud.pcR*(0.8+0.3*k),ud.pcR*(0.8+0.3*k),0.35+k*0.9+0.08*Math.sin(t*40)); } }
+  animTrainV4(v); }
 /* ---------- niveau de détail du trafic ---------- */
 const LOD_LOIN=62, LOD_PROCHE=54; let _MAT_LOD=null;
 function matLodV4(){ return _MAT_LOD||(_MAT_LOD=new THREE.MeshLambertMaterial({vertexColors:true})); }
@@ -22556,6 +22589,140 @@ VEH_V3.titan={ agrandir:true, sansOmbre:true,
     nav:{g:[1.3,5.55,-9.85],d:[-1.3,5.55,-9.85],ar:[0,5.6,-10.2]},anti:[[0,4.1,-1.6],[0,2.3,0.6]],conducteur:{x:-0.32,y:2.66,z:3.72,k:0.7,pose:{hy:0.44,hz:0.48}}});
     for(const [x,z,R] of [[-2.3,-0.8,0.42],[2.3,-0.8,0.42],[0,3.6,0.3]]){ const r=new THREE.Mesh(_GEO_V3['roueTitan'+R]||(_GEO_V3['roueTitan'+R]=Object.assign(new THREE.CylinderGeometry(R,R,R*0.7,16),{userData:{partagee:true}})),I.M.caoutchouc); r.rotation.z=Math.PI/2; r.position.set(x,R,z); I.g.add(r); I.ud.roues.push(r); }
     I.ud.pareBrise={y:3.2,z:4.6}; }
+};
+/* ---------- V4 · avions 1. Avion « Colibri » → Cessna 172 Skyhawk : aile haute haubanée sur la cabine, grandes vitres et lunette, capot
+   moteur et ses entrées d'air, hélice bipale et cône, dérive en flèche, empennage bas, train tricycle fixe à carénages de roues (refonte :
+   l'ancien était à roulette de queue), livrée blanche à filets bleus ; ailerons, profondeur et direction animés ; le pilote à gauche ---------- */
+const profilAileV4=(zl,c,y,t)=>[[zl,y],[zl-0.04*c,y+0.55*t],[zl-0.25*c,y+t],[zl-0.6*c,y+0.75*t],[zl-c,y+0.08*t],[zl-c,y-0.02*t],[zl-0.6*c,y-0.12*t],[zl-0.25*c,y-0.25*t],[zl-0.05*c,y-0.18*t]];
+VEH_V3.avion={ refonte:true, sansOmbre:true,
+  geo(B,d){ const zPb=1.66, zAv=0.95, zAr=-0.55, zLu=-1.78, toit=2.16;
+    const S=carrosserieV4(B,'peinture',{z0:-4.22,z1:3.58,g0:0.6,
+      haut:[[-4.22,1.52],[-1.8,1.56],[0,1.46],[1.66,1.42],[2.9,1.32],[3.58,1.14]],bas:[[-4.22,1.24],[-2.0,0.84],[0,0.62],[2.0,0.62],[3.0,0.7],[3.58,0.86]],
+      larg:[[-4.22,0.07],[-2.6,0.32],[-0.5,0.56],[1.6,0.56],[3.0,0.48],[3.58,0.3]],rentre:0.12,epaule:0.45,bombe:0.04,creux:0.3,yLarge:0.45,yEpaule:0.72});
+    const V=verriereV4(B,{S,zPb,zAv,zAr,zLu,toit,rentre:0.1,epaule:0.2,bombe:0.03,yEpaule:0.6,uToit:0.7,debordAv:0.04,debordAr:0.04});
+    montantsV4(B,V,{n:'peinture',rA:0.035,jA:6,B:[0.2],lB:0.06,C:null});
+    for(const sx of [-1,1]){ S.bande(B,'acc',-4.1,3.5,S.uY(0,1.0),S.uY(0,1.1),sx,0.006,30,2); S.bande(B,'acc2',-4.1,3.5,S.uY(0,0.94),S.uY(0,0.97),sx,0.006,30,2);
+      for(const z of [1.5,0.22]) S.bande(B,'sombre',z-0.008,z+0.008,S.uY(z,0.7),S.uY(z,1.42),sx,0.004,2,6); B.bx('alu',0.18,0.03,0.24,sx*0.62,0.62,0.6); }
+    /* l'aile haute (profil), les haubans, les volets ; la dérive, l'empennage */
+    B.profil('peinture',profilAileV4(0.95,1.5,2.18,0.17),10.0,0.02); for(const sx of [-1,1]){ B.tube('peinture',0.035,[sx*0.5,0.84,0.45],[sx*2.55,2.14,0.22],6); B.bx('sombre',2.0,0.012,0.02,sx*1.6,2.19,-0.5); }
+    B.profil('peinture',[[-2.95,1.5],[-3.62,1.52],[-3.96,2.62],[-3.72,2.64],[-3.3,1.7]],0.07,0.02); B.bx('peinture',3.3,0.06,0.58,0,1.42,-3.66);
+    B.geo('acc',new THREE.BoxGeometry(0.08,0.2,0.5).translate(0,2.32,-3.82));
+    /* le capot : entrées d'air, échappement ; les jambes du train et les carénages de roues */
+    for(const sx of [-1,1]) B.bloc('noirMat',0.22,0.12,0.03,sx*0.2,0.98,3.57,0.02,0.02); B.cyl('acier',0.03,0.03,0.2,8,-0.25,0.66,3.0,Math.PI/2);
+    B.tube('acier',0.035,[0,0.72,2.9],[0,0.22,2.95],8); for(const sx of [-1,1]){ B.tube('acier',0.03,[sx*0.48,0.7,0.35],[sx*1.2,0.28,0.3],8); B.sph('peinture',1,sx*1.2,0.28,0.3,0.1,0.22,0.42); }
+    B.sph('peinture',1,0,0.23,2.95,0.08,0.18,0.34);
+    /* dedans : quatre sièges, la planche, deux volants */
+    for(const [x,z] of [[0.28,0.55],[-0.28,0.55],[0.28,-0.35],[-0.28,-0.35]]){ B.bloc('siege',0.42,0.1,0.4,x,0.86,z,0.02,0.03); B.bloc('siege',0.42,0.55,0.08,x,1.15,z-0.22,0.03,0.04,-0.12); }
+    B.bloc('tableau',1.0,0.32,0.26,0,1.34,1.4,0.03,0.04,-0.3); for(const x of [0.28,-0.28]){ B.tore('volant',0.12,0.015,x,1.3,1.2,0.25); B.tube('volant',0.02,[x,1.3,1.2],[x,1.32,1.42]); }
+    /* les gouvernes (pivot à la charnière, la gouverne vers l'arrière) */
+    const gouv={ ail:new THREE.BoxGeometry(1.9,0.05,0.3).translate(0,0,-0.15), prof:new THREE.BoxGeometry(3.2,0.05,0.32).translate(0,0,-0.16), dir:new THREE.BoxGeometry(0.06,1.05,0.3).translate(0,0,-0.15) };
+    for(const k in gouv) gouv[k].userData.partagee=true;
+    return {gouv}; },
+  mats:{ noirMat:()=>matV3Couleur(0x15171c), acc:()=>matV3Couleur(0x1a3a6a), acc2:()=>matV3Couleur(0xc8202a) },
+  inst(I){ avionInstV4(I,{helices:[{y:1.0,z:3.72,R:0.95,n:2,corde:0.14}],roues:[{x:0,z:2.95,R:0.2,ep:0.1},{x:1.2,z:0.3,R:0.26,ep:0.14},{x:-1.2,z:0.3,R:0.26,ep:0.14}],
+    gouv:[{cle:'ail',t:'ail',p:[3.6,2.2,-0.55],s:1},{cle:'ail',t:'ail',p:[-3.6,2.2,-0.55],s:-1},{cle:'prof',t:'prof',p:[0,1.42,-3.95]},{cle:'dir',t:'dir',p:[0,2.04,-3.98]}],
+    nav:{g:[5.03,2.2,0.2],d:[-5.03,2.2,0.2],ar:[0,1.55,-4.26]},anti:[[0,2.68,-3.84]],strobes:[[5.03,2.22,0.0],[-5.03,2.22,0.0]],ombre:5.2,
+    conducteur:{x:0.28,y:0.94,z:0.58,k:0.92,pose:{hy:0.44,hz:0.5}}}); I.ud.pareBrise={y:1.78,z:1.3}; }
+};
+/* ---------- V4 · avions 4. Chasseur « Épervier » → General Dynamics F-16 Fighting Falcon : fuselage fuselé à l'aile (blended), entrée
+   d'air sous le menton, verrière bulle sans arceau, aile en flèche tronquée, dérive unique, stabilisateurs monoblocs (animés au tangage),
+   flaperons, deux dérives ventrales, tuyère et sa POSTCOMBUSTION (au-delà de 72 % des gaz), missiles en bout d'aile et sous les ailes,
+   train tricycle qui rentre (refonte : l'ancien était à roulette de queue) ; gris, cocardes ; le pilote dans sa bulle ---------- */
+VEH_V3.chasseur={ refonte:true, sansOmbre:true,
+  geo(B,d){
+    const S=carrosserieV4(B,'peinture',{z0:-4.25,z1:4.6,g0:0.72,
+      haut:[[-4.25,1.5],[-2.75,1.72],[0,1.84],[1.5,1.76],[3.4,1.62],[4.25,1.36],[4.6,1.2]],bas:[[-4.25,0.98],[-2.0,0.8],[1.4,0.74],[3.0,0.86],[4.25,1.05],[4.6,1.18]],
+      larg:[[-4.25,0.36],[-3.25,0.6],[-1.0,0.78],[1.2,0.62],[3.0,0.42],[4.15,0.22],[4.6,0.04]],rentre:0.15,epaule:0.55,bombe:0.06,creux:0.3,yLarge:0.45,yEpaule:0.7});
+    B.geo('vitre',new THREE.SphereGeometry(1,24,12,0,Math.PI*2,0,Math.PI/2).scale(0.44,0.56,1.25).translate(0,1.8,2.3));          /* la bulle, sans arceau */
+    B.tube('cadre',0.02,[-0.3,1.86,1.3],[0.3,1.86,1.3]); B.bloc('cadre',0.55,0.12,0.4,0,1.86,1.12,0.04,0.04);                   /* le pied de la bulle */
+    /* l'entrée d'air sous le menton, le conduit ; l'aile (planforme extrudée) ; les flaperons fixes de l'emplanture */
+    B.bloc('peinture',0.84,0.5,2.4,0,0.68,1.55,0.12,0.14); B.bloc('noirMat',0.74,0.4,0.05,0,0.68,2.78,0.1,0.12); B.bloc('peinture',0.88,0.06,0.3,0,0.95,2.7,0.02,0.03);
+    const aile=(sx)=>{ const sh=new THREE.Shape(), P=[[0.5,1.7],[3.42,-0.95],[3.42,-1.72],[0.5,-1.95]]; sh.moveTo(sx*P[0][0],P[0][1]); for(let i=1;i<4;i++) sh.lineTo(sx*P[i][0],P[i][1]); sh.closePath();
+      const g=new THREE.ExtrudeGeometry(sh,{depth:0.09,bevelEnabled:true,bevelThickness:0.02,bevelSize:0.03,bevelSegments:1}); g.rotateX(Math.PI/2); g.translate(0,1.2,0); B.geo('peinture',g); };
+    aile(1); aile(-1);
+    /* la dérive et ses deux ventrales, la tuyère et ses pétales */
+    B.profil('peinture',[[-1.9,1.72],[-3.55,3.2],[-3.9,3.2],[-3.9,1.72]],0.09,0.02); for(const sx of [-1,1]) B.geo('peinture',new THREE.BoxGeometry(0.04,0.42,0.9).rotateZ(sx*0.35).translate(sx*0.42,0.82,-3.2));
+    B.cyl('acier',0.4,0.36,0.75,18,0,1.24,-4.55,Math.PI/2); B.cyl('noirMat',0.32,0.32,0.02,18,0,1.24,-4.91,Math.PI/2); for(let k=0;k<12;k++){ const a=k/12*Math.PI*2; B.bx('cadre',0.08,0.02,0.3,Math.cos(a)*0.37,1.24+Math.sin(a)*0.37,-4.8); }
+    /* les missiles : en bout d'aile, sous les ailes ; les jambes du train */
+    for(const sx of [-1,1]){ B.cyl('blanc',0.06,0.06,1.4,10,sx*3.5,1.2,-1.2,Math.PI/2); B.cyl('noirMat',0.06,0.0,0.18,10,sx*3.5,1.2,-0.41,Math.PI/2); for(const z of [-1.5,-0.95]) B.bx('noirMat',0.01,0.14,0.16,sx*3.5,1.27,z);
+      B.bx('cadre',0.06,0.14,0.6,sx*2.2,1.08,-1.0); B.cyl('blanc',0.08,0.08,1.6,10,sx*2.2,0.92,-1.0,Math.PI/2); B.cyl('noirMat',0.08,0.0,0.22,10,sx*2.2,0.92,-0.09,Math.PI/2);
+      B.tube('acier',0.04,[sx*0.5,0.8,-0.55],[sx*0.72,0.28,-0.6],8); }
+    B.tube('acier',0.04,[0,0.62,2.2],[0,0.22,2.2],8); B.cyl('peinture',0.16,0.16,1.3,12,0,0.62,-0.4,Math.PI/2);                       /* train avant, réservoir ventral */
+    /* les cocardes ; dedans : le siège éjectable, la planche */
+    for(const sx of [-1,1]) B.geo('etoile',new THREE.PlaneGeometry(0.5,0.5).rotateX(-Math.PI/2).translate(sx*2.3,1.3,-0.9));
+    B.bloc('siege',0.42,0.12,0.42,0,1.38,2.2,0.02,0.03); B.bloc('siege',0.42,0.72,0.1,0,1.75,1.95,0.03,0.04,-0.3); B.bloc('tableau',0.6,0.26,0.24,0,1.72,2.85,0.03,0.04,-0.4);
+    const gouv={ prof:(()=>{ const ps=[]; for(const sx of [-1,1]){ const sh=new THREE.Shape(), P=[[0.45,0.5],[2.25,-0.35],[2.25,-0.75],[0.45,-0.65]]; sh.moveTo(sx*P[0][0],P[0][1]); for(let i=1;i<4;i++) sh.lineTo(sx*P[i][0],P[i][1]); sh.closePath();
+        const g=new THREE.ExtrudeGeometry(sh,{depth:0.06,bevelEnabled:false}); g.rotateX(Math.PI/2); ps.push(g); } return mergeGeoManuel(ps); })(),
+      ail:new THREE.BoxGeometry(1.6,0.04,0.28).translate(0,0,-0.14), dir:new THREE.BoxGeometry(0.07,1.2,0.3).translate(0,0,-0.15) };
+    for(const k in gouv) gouv[k].userData.partagee=true;
+    return {gouv}; },
+  mats:{ noirMat:()=>matV3Couleur(0x15171c), cadre:(c)=>matV3Couleur(new THREE.Color(c).multiplyScalar(0.75).getHex()), etoile:()=>{ const m=matTexteV3('etoile'); m.userData.couleurLod=0x3e4434; return m; } },
+  inst(I){ avionInstV4(I,{roues:[{x:0,z:2.2,R:0.2,ep:0.12},{x:0.72,z:-0.6,R:0.28,ep:0.16},{x:-0.72,z:-0.6,R:0.28,ep:0.16}],rentrant:true,
+    gouv:[{cle:'prof',t:'prof',p:[0,1.2,-3.4]},{cle:'ail',t:'ail',p:[1.9,1.2,-1.86],s:1},{cle:'ail',t:'ail',p:[-1.9,1.2,-1.86],s:-1},{cle:'dir',t:'dir',p:[0,2.4,-3.9]}],
+    nav:{g:[3.46,1.32,-0.6],d:[-3.46,1.32,-0.6],ar:[0,3.22,-3.88]},anti:[[0,3.25,-3.7]],ombre:7,pc:{y:1.24,z:-4.95,R:0.34},
+    conducteur:{x:0,y:1.5,z:2.15,k:0.9,pose:{hy:0.38,hz:0.5}}}); I.ud.pareBrise={y:2.1,z:2.9}; }
+};
+/* ---------- V4 · avions 2. Avion de tourisme « Pélican » → Cirrus SR22 : fuselage composite lisse, aile basse effilée, grande verrière et
+   portes papillon, capot fin et hélice tripale à cône, trappe du parachute derrière la cabine, empennage classique, train fixe carené,
+   livrée blanche à filets ; ailerons, profondeur et direction animés ; le pilote à gauche ---------- */
+VEH_V3.tourisme={ sansOmbre:true,
+  geo(B,d){ const zPb=1.4, zAv=0.62, zAr=-0.5, zLu=-1.45, toit=1.92;
+    const S=carrosserieV4(B,'peinture',{z0:-3.72,z1:3.48,g0:0.6,
+      haut:[[-3.72,1.58],[-1.8,1.52],[-0.6,1.42],[1.2,1.3],[2.6,1.2],[3.48,1.04]],bas:[[-3.72,1.32],[-1.5,0.86],[0,0.62],[2.0,0.64],[3.48,0.86]],
+      larg:[[-3.72,0.07],[-2.0,0.38],[-0.4,0.6],[1.0,0.6],[2.6,0.46],[3.48,0.28]],rentre:0.14,epaule:0.5,bombe:0.04,creux:0.35,yLarge:0.45,yEpaule:0.72});
+    const V=verriereV4(B,{S,zPb,zAv,zAr,zLu,toit,rentre:0.3,epaule:0.55,bombe:0.05,yEpaule:0.5,uToit:0.74,debordAv:0.04,debordAr:0.04});
+    montantsV4(B,V,{n:'peinture',rA:0.03,jA:6,B:[0.05],lB:0.05,C:null});
+    for(const sx of [-1,1]){ S.bande(B,'acc',-3.6,3.4,S.uY(0,0.98),S.uY(0,1.06),sx,0.006,30,2); S.bande(B,'sombre',0.9,0.92,S.uY(0.9,0.66),S.uY(0.9,1.4),sx,0.004,2,6); }
+    S.bande(B,'acc',-2.0,-1.62,0.95,1,2,0.006,4,3);                                                                              /* la trappe du parachute */
+    /* l'aile basse effilée, ses saumons ; la dérive, l'empennage ; les entrées d'air, le train fixe carené */
+    B.profil('peinture',profilAileV4(1.3,1.5,0.74,0.17),11.0,0.02); for(const sx of [-1,1]) B.bx('sombre',2.4,0.012,0.02,sx*1.8,0.78,-0.18);
+    B.profil('peinture',[[-2.7,1.5],[-3.45,1.5],[-3.72,2.68],[-3.45,2.7],[-3.05,1.7]],0.07,0.02); B.bx('peinture',3.8,0.06,0.6,0,1.55,-3.2);
+    for(const sx of [-1,1]) B.bloc('noirMat',0.18,0.1,0.03,sx*0.16,0.82,3.48,0.02,0.02);
+    B.tube('acier',0.035,[0,0.72,2.4],[0,0.24,2.4],8); B.sph('peinture',1,0,0.24,2.4,0.09,0.2,0.36);
+    for(const sx of [-1,1]){ B.tube('acier',0.03,[sx*0.5,0.66,0.38],[sx*1.1,0.28,0.35],8); B.sph('peinture',1,sx*1.1,0.28,0.35,0.11,0.24,0.44); }
+    /* dedans : quatre sièges de cuir, la planche à grands écrans, les mini-manches */
+    for(const [x,z] of [[0.28,0.5],[-0.28,0.5],[0.28,-0.38],[-0.28,-0.38]]){ B.bloc('siege',0.42,0.1,0.4,x,0.86,z,0.02,0.03); B.bloc('siege',0.42,0.55,0.08,x,1.15,z-0.22,0.03,0.04,-0.12); }
+    B.bloc('tableau',1.0,0.3,0.26,0,1.24,1.2,0.03,0.04,-0.3); B.bx('ecranI',0.36,0.2,0.01,0.2,1.3,1.06,-0.3); B.bx('ecranI',0.36,0.2,0.01,-0.2,1.3,1.06,-0.3);
+    const gouv={ ail:new THREE.BoxGeometry(1.6,0.05,0.3).translate(0,0,-0.15), prof:new THREE.BoxGeometry(3.6,0.05,0.32).translate(0,0,-0.16), dir:new THREE.BoxGeometry(0.06,1.0,0.3).translate(0,0,-0.15) };
+    for(const k in gouv) gouv[k].userData.partagee=true;
+    return {gouv}; },
+  mats:{ noirMat:()=>matV3Couleur(0x15171c), acc:()=>matV3Couleur(0x5a626c) },
+  inst(I){ avionInstV4(I,{helices:[{y:0.98,z:3.6,R:0.95,n:3,corde:0.13}],roues:[{x:0,z:2.4,R:0.24,ep:0.12},{x:-1.1,z:0.35,R:0.28,ep:0.14},{x:1.1,z:0.35,R:0.28,ep:0.14}],
+    gouv:[{cle:'ail',t:'ail',p:[3.9,0.76,-0.2],s:1},{cle:'ail',t:'ail',p:[-3.9,0.76,-0.2],s:-1},{cle:'prof',t:'prof',p:[0,1.55,-3.5]},{cle:'dir',t:'dir',p:[0,2.12,-3.62]}],
+    nav:{g:[5.5,0.76,0.4],d:[-5.5,0.76,0.4],ar:[0,1.6,-3.76]},anti:[[0,2.72,-3.5]],strobes:[[5.5,0.78,0.2],[-5.5,0.78,0.2]],ombre:5.5,
+    conducteur:{x:0.28,y:0.94,z:0.53,k:0.92,pose:{hy:0.42,hz:0.48}}}); I.ud.pareBrise={y:1.6,z:1.1}; }
+};
+/* ---------- V4 · avions 3. Voltige « Colibri Rouge » → Extra 300 : avion de voltige à aile médiane symétrique, gros capot rond et hélice
+   tripale, longue verrière bulle en tandem, grands ailerons sur toute l'envergure, grande dérive et grande gouverne de direction, train
+   classique à jambes en titane carénées et roulette en bout de queue (refonte : l'ancienne était à mi-fuselage), livrée rouge à rayons de soleil blancs ; le pilote à la place arrière ---------- */
+VEH_V3.voltige={ refonte:true, sansOmbre:true,
+  geo(B,d){
+    const S=carrosserieV4(B,'peinture',{z0:-3.2,z1:2.62,g0:0.62,
+      haut:[[-3.2,1.34],[-1.5,1.4],[-0.3,1.38],[0.8,1.32],[2.0,1.28],[2.62,1.14]],bas:[[-3.2,1.12],[-1.5,0.8],[0,0.62],[1.6,0.6],[2.62,0.78]],
+      larg:[[-3.2,0.06],[-1.6,0.3],[0,0.46],[1.4,0.48],[2.62,0.4]],rentre:0.1,epaule:0.55,bombe:0.05,creux:0.35,yLarge:0.45,yEpaule:0.72});
+    B.geo('vitre',new THREE.SphereGeometry(1,24,12,0,Math.PI*2,0,Math.PI/2).scale(0.36,0.42,1.25).translate(0,1.36,-0.25));      /* la bulle en tandem */
+    for(const sx of [-1,1]) S.bande(B,'blanc',-3.1,2.5,S.uY(0,0.95),S.uY(0,1.02),sx,0.006,30,2);
+    /* l'aile médiane, les rayons de soleil ; la grande dérive, l'empennage ; le capot et ses ouïes ; le train classique */
+    B.profil('peinture',profilAileV4(1.0,1.25,0.98,0.16),6.0,0.02);
+    { const P=profilAileV4(1.0,1.25,0.98,0.16).slice(0,5), dessus=(z)=>{ for(let i=0;i<4;i++){ const [z0,y0]=P[i],[z1,y1]=P[i+1]; if(z<=z0&&z>=z1) return y0+(y1-y0)*(z0-z)/(z0-z1); } return P[4][1]; };
+      const pos=[]; for(const sx of [-1,1]) for(let k=0;k<5;k++){ const ax=sx*0.5, az=0.75, bx=sx*(0.9+k*0.5), N=6; /* un rayon de soleil : du pied de l'aile vers le bord de fuite, plaqué sur l'extrados */
+        for(let i=0;i<N;i++){ const pt=(u,c)=>{ const x=ax+(bx+c*sx*0.11-ax)*u, z=az+(-0.22-az)*u; return [x,dessus(z)+0.03,z]; }, u0=i/N, u1=(i+1)/N, a0=pt(u0,-u0), b0=pt(u0,u0), a1=pt(u1,-u1), b1=pt(u1,u1);
+          if(sx<0) pos.push(...a0,...a1,...b1,...a0,...b1,...b0); else pos.push(...a0,...b1,...a1,...a0,...b0,...b1); } }
+      const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setAttribute('uv',new THREE.Float32BufferAttribute(new Array(pos.length/3*2).fill(0),2)); g.computeVertexNormals(); B.geo('blanc',g); }
+    B.profil('peinture',[[-2.3,1.38],[-3.0,1.38],[-3.25,2.3],[-2.85,2.32],[-2.55,1.6]],0.07,0.02); B.bx('peinture',2.4,0.06,0.62,0,1.25,-2.75);
+    for(let k=0;k<4;k++) B.bx('noirMat',0.02,0.03,0.25,0.42,1.0+k*0.07,1.6); B.cyl('noirMat',0.12,0.12,0.05,14,0,0.95,2.64,Math.PI/2);
+    for(const sx of [-1,1]){ B.tube('acier',0.03,[sx*0.36,0.72,0.42],[sx*0.9,0.24,0.3],8); B.sph('peinture',1,sx*0.9,0.24,0.3,0.09,0.2,0.38); }
+    B.tube('acier',0.025,[0,1.04,-2.78],[0,0.12,-2.9],6); B.bx('acier',0.03,0.03,0.2,0,0.14,-2.84);
+    /* dedans : deux sièges en tandem, la planche */
+    for(const z of [0.25,-0.65]){ B.bloc('siege',0.4,0.1,0.38,0,0.9,z,0.02,0.03); B.bloc('siege',0.4,0.5,0.08,0,1.15,z-0.2,0.03,0.04,-0.2); } B.bloc('tableau',0.5,0.24,0.2,0,1.25,0.75,0.03,0.04,-0.3);
+    const gouv={ ail:new THREE.BoxGeometry(2.3,0.05,0.34).translate(0,0,-0.17), prof:new THREE.BoxGeometry(2.4,0.05,0.34).translate(0,0,-0.17), dir:new THREE.BoxGeometry(0.06,0.92,0.42).translate(0,0,-0.21) };
+    for(const k in gouv) gouv[k].userData.partagee=true;
+    return {gouv}; },
+  mats:{ noirMat:()=>matV3Couleur(0x15171c) },
+  inst(I){ avionInstV4(I,{helices:[{y:0.95,z:2.75,R:0.9,n:3,corde:0.14}],roues:[{x:0.9,z:0.3,R:0.22,ep:0.1},{x:-0.9,z:0.3,R:0.22,ep:0.1},{x:0,z:-2.92,R:0.12,ep:0.06}],
+    gouv:[{cle:'ail',t:'ail',p:[1.7,0.98,-0.25],s:1},{cle:'ail',t:'ail',p:[-1.7,0.98,-0.25],s:-1},{cle:'prof',t:'prof',p:[0,1.25,-3.06]},{cle:'dir',t:'dir',p:[0,1.82,-3.12]}],
+    nav:{g:[3.02,0.98,0.3],d:[-3.02,0.98,0.3],ar:[0,1.4,-3.22]},anti:[[0,2.34,-2.95]],ombre:4.5,
+    conducteur:{x:0,y:0.98,z:-0.62,k:0.9,pose:{hy:0.42,hz:0.48}}}); I.ud.pareBrise={y:1.5,z:0.5}; }
 };
 /* fin des fiches V4 : les ancrages des pièces du garage déclarés dans les fiches (comme celles du V3, plus haut) */
 for(const k in VEH_V3){ const a=VEH_V3[k].ancrages; if(a&&DECOR_V2&&VEHDEFS[k]&&VEHDEFS[k].tuningCarro) VEHDEFS[k].tuningCarro.ancrages=a; }
@@ -42681,7 +42848,7 @@ const COCKPIT_DEFS={
   bateau:{eye:{x:0,y:1.8,z:-0.56}}, bateauP:{eye:{x:0,y:1.8,z:-0.54}}, /* vedettes V3 : debout derrière la console (0,95 u derrière son centre, à 0,06 L), l'œil à 1,5 u au-dessus du pont du cockpit */
   bond:{dz:-0.15,dy:-0.08},                                /* GT V3 : baquets reculés et bas, l'œil à la tête du conducteur */                                     /* Ambulance V3 : le haut du pare-brise dans le champ (cabine de fourgon) */                                 /* Fourgon V3 : l'œil à la tête du conducteur, 1 m derrière le pied du pare-brise (le pavillon et les pare-soleil dans le champ) */
   quad:{fam:'moto'},
-  scarabee:{dy:0.1}, /* V4 (Baja Bug) : l'œil à hauteur d'un pilote assis, sous le haut du pare-brise */jetprive:{dz:-0.7,dy:0.3},avion:{dy:0.14},voltige:{dy:0.32}, /* vieux modèles d'avion : la verrière dépasse à peine du fuselage, l'œil au ras */
+  scarabee:{dy:0.1}, /* V4 (Baja Bug) : l'œil à hauteur d'un pilote assis, sous le haut du pare-brise */jetprive:{dz:-0.7,dy:0.3},avion:{dy:-0.3},voltige:{dy:0.32}, /* vieux modèles d'avion : la verrière dépasse à peine du fuselage, l'œil au ras ; V4 Cessna 172 : l'œil sous l'aile haute */
   depanneuse:{dz:0.12},                                    /* Dépanneuse V3 : l'œil à la tête du conducteur (le vieux modèle avait 0,55 : son siège était tout à l'avant) */
   pickup:{style:'raptor'}, depotPickup:{fam:'auto',style:'raptor'}, /* le pick-up façon Raptor (le Dépôt a la même carrosserie) : un poste imposant ; le taxi garde la voiture classique (demandé le 17 au soir) */
 };
