@@ -143,7 +143,7 @@ dans l'ordre demandé : ils passent en dernier (groupe 7).
 - [x] déjà V3 : Taxi, Interceptor, Fourgon (niveau de détail ajouté : ils roulent dans le trafic)
 
 ### 2. Police et urgences
-- [ ] Camion de pompiers (`pompiers`) → Pierce Arrow XT (autopompe des pompiers de Los Angeles)
+- [x] Camion de pompiers (`pompiers`) → Pierce Arrow XT (autopompe des pompiers de Los Angeles) — cabine avancée à toit blanc, croix de Malte dorée, coffres à volets roulants, lit de tuyaux, échelle, chevrons ; rampe (`ud.gyro`) et canon (`ud.lance`) gardés ; `pompiers_*`
 - [x] déjà V3 : Interceptor, Ambulance, Vedette de police ; la moto de police (`motoS`) est au groupe 4, l'hélico « Rapace » au groupe 5
 
 ### 3. Voitures pilotables restantes
@@ -306,6 +306,17 @@ dans l'ordre demandé : ils passent en dernier (groupe 7).
   deux sorties au milieu ; diffuseur ; becquet intégré ; écusson jaune.
 - **Livrée** : rouge, jaune, noir.
 - **Intérieur** : monocoque de carbone, baquets rouges (comme le cockpit V2).
+
+### Camion de pompiers (`pompiers`) → Pierce Arrow XT (autopompe des pompiers de Los Angeles)
+- **Silhouette** : cabine avancée à quatre portes, haute, grand pare-brise presque droit ; module de pompe, puis le corps à coffres.
+- **Signature** : toit de cabine blanc et rampe de feux (bleue : choix du jeu, la police a déjà le rouge et bleu) ; calandre chromée à
+  lames, pare-chocs allongé avec son tuyau enroulé et la sirène mécanique ; croix de Malte dorée « LOS REYES FIRE DEPT. » sur les portes ;
+  panneau de pompe à manomètres et poignées de couleur ; volets roulants en alu ; lit de tuyaux jaunes et rouges ; échelle sur le toit ;
+  chevrons rouges et jaunes à l'arrière ; canon sur le module de pompe.
+- **Livrée** : rouge, toit blanc, bande blanche et filet doré.
+- **Intérieur** : planche, capot moteur entre les sièges, sièges de l'équipage dos à dos et leurs bouteilles d'air jaunes.
+- Contrats gardés : `ud.lance` (le canon orienté par `majLanceEau`, la buse au même point local), `ud.gyro` (deux feux à matériau propre,
+  `majGyrophares`). Rétroviseurs « west coast » rapprochés de la cabine : la largeur reste dans les ±12 % du test.
 
 ## Mesures et tests
 

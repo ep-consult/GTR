@@ -13914,7 +13914,7 @@ async function main() {
         info.push('cabines fermées : portières et console dans le champ en tournant la tête');
         // 3. conducteur à gauche (le trafic roule à droite) : voitures, camions, bus ; cabriolet et jeep (siège du modèle)
         for (const k of ['citadine', 'pickup', 'busville', 'pompiers', 'limousine']) { monter(k); if (!(COCKPIT.eye.x > 0.2)) ko.push(k + ' : conducteur à droite (œil x ' + COCKPIT.eye.x.toFixed(2) + ')'); }
-        for (const k of ['cabriolet', 'jeep']) { const v = monter(k); const sg = v.mesh.userData.siege; if (!(sg && sg.x > 0)) ko.push(k + ' : siège du modèle à droite'); }
+        for (const k of ['cabriolet', 'jeep']) { const v = monter(k); const sg = v.mesh.userData.siege || v.mesh.userData.conducteur; /* V4 : le conducteur dessiné (ud.conducteur) */ if (!(sg && sg.x > 0)) ko.push(k + ' : siège du modèle à droite'); }
         // 4. moto : les rétroviseurs sont au bout du guidon (plus loin que les poignées), aucun près du compteur ; le compteur au centre
         for (const k of ['moto', 'motoR', 'motoS', 'fantome']) { const v = monter(k), C = COCKPIT, gui = C.volant; gui.updateMatrixWorld(true); const inv = new THREE.Matrix4().copy(gui.matrixWorld).invert(), miroirs = [];
           /* les miroirs sont fusionnés avec les pièces fixes du guidon : on lit leurs sommets, dans le repère du guidon */
