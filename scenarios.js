@@ -15699,7 +15699,7 @@ async function main() {
       const r = await page.evaluate(() => {
         if (!DECOR_V2 || typeof VEH_V3 === 'undefined') return { off: true };
         const ko = [], info = []; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; for (const e of ennemis) e.mort = true;
-        const cles = Object.keys(VEH_V3).filter((k) => VEHDEFS[k] && VEHDEFS[k].eau && VEHDEFS[k].type === 'bateau' && !grosNavire(VEHDEFS[k])); /* le méga-yacht a son test (« Méga-yacht V2 ») */
+        const cles = Object.keys(VEH_V3).filter((k) => VEHDEFS[k] && VEHDEFS[k].eau && VEHDEFS[k].type === 'bateau' && !grosNavire(VEHDEFS[k]) && !VEH_V3[k].ouvert); /* le méga-yacht a son test (« Méga-yacht V2 ») ; les engins ouverts (jet-ski, kayak, planche : V4) n'ont ni poste debout ni coque fermée */
         const rc = new THREE.Raycaster(); rc.camera = camera;
         for (const k of cles) {
           for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0; if (P.veh) sortirVehicule(true);

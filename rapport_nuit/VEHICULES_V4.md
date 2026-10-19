@@ -194,13 +194,13 @@ dans l'ordre demandé : ils passent en dernier (groupe 7).
 - [x] Avion à banderole du décor (`mkAvionBanderole`) → Piper PA-18 Super Cub — éclair noir, mâts en V, pneus de brousse, pilote ; `superCub_*`
 
 ### 7. Bateaux et engins de plage (pas dans l'ordre demandé : en dernier)
-- [ ] Yacht « Impérial » (`yacht`) → Sunseeker Predator 74
-- [ ] Bateau de pêche (`peche`) → caseyeur côtier à timonerie (type Downeast)
-- [ ] Jet-ski (`jetski`) → Sea-Doo GTX
-- [ ] Vedette « Espadon » (`espadon`) → Cigarette Top Gun (offshore)
-- [ ] Porte-conteneurs « Reyes Star » (`cargo`) → porte-conteneurs classe Triple-E
-- [ ] Kayak (`kayak`) → kayak de mer « sit-on-top »
-- [ ] Planche de surf (`surf`) → shortboard
+- [x] Yacht « Impérial » (`yacht`) → Sunseeker Predator 74 — superstructure vitrée, hardtop et toit ouvrant, vitres de coque, plateforme de bain ; la barre au salon ; `bateaux_*`
+- [x] Bateau de pêche (`peche`) → caseyeur côtier Downeast — timonerie vitrée ouverte à l'arrière, casiers, bossoir et treuil, bouées ; `bateaux_*`
+- [x] Jet-ski (`jetski`) → Sea-Doo GTX — coque blanche, pont à la teinte, capot à visière, guidon et rétroviseurs, selle à dosseret ; `bateaux_*`
+- [x] Vedette « Espadon » (`espadon`) → Cigarette Racing Top Gun — V profond, pare-brise enveloppant, bolsters, deux hors-bord de course, graphismes ; `bateaux_*`
+- [x] Porte-conteneurs « Reyes Star » (`cargo`) → classe Triple-E — château avancé, cheminées jumelles, piles resserrées vers l'étrave ; `cargo_*`
+- [x] Kayak (`kayak`) → kayak de mer « sit-on-top » — baquet et dosseret, trappe, filets, pagaie asymétrique ; le pagayeur ASSIS (il était debout) ; `bateaux_*`
+- [x] Planche de surf (`surf`) → shortboard — rocker, rails, latte, pad, trois ailerons, leash ; `bateaux_*`
 
 ### À ne pas toucher
 - Soucoupe « Zeta-9 » (`ovni`), les 17 véhicules V3 et le Monster Truck.
@@ -521,6 +521,41 @@ dans l'ordre demandé : ils passent en dernier (groupe 7).
 - **Test « Véhicules V4 : aéronefs »** (lit `VEHDEFS`) : feu vert à droite, anticollision qui clignote, disque flou en vol seulement,
   ailerons qui suivent le roulis, trains rangés en vol jambes comprises et ressortis posé, postcombustion, rampe au sol à l'arrêt et
   refermée en roulant, hélice du Super Cub.
+
+### Bateaux (groupe 7) — socle commun
+- **`formeBateauV4`** : une forme de coque réglable (longueur, largeur, livet et tonture, quille et étrave, pont du cockpit, pont avant,
+  plénitude de l'avant) pour la coque des vedettes V3 (`coqueVedetteV3` : bandes de couleur, liseré de flottaison, antifouling, pavois
+  intérieurs, plat-bord, ponts) ; `bordeV4` et `vitreCoqueV4` plaquent un panneau ou une vitre sur le bordé (largeur et dévers suivis) ;
+  `helicesBateauV4` pose les hélices partagées des vedettes (`heliceVedetteV4`) qui tournent à la distance parcourue. Les coques
+  descendent sous la flottaison ; `ud.quilleEchoue` les pose sur le sable quand elles s'échouent.
+- **Le pilote** : debout à la barre pour les bateaux à poste (`ud.siege.debout`, un PNJ pour l'IA), assis pour le jet-ski (inchangé) et
+  désormais **assis dans le kayak** (branche de `entrerVehicule` pour un kayak V4 : il était debout sur la coque).
+- **Tests** : « Bateaux : l'étrave est devant » (les piles avant du porte-conteneurs débordaient de l'étrave : elles se resserrent sur
+  la largeur de la coque) ; « Vedettes V3 » s'applique aux bateaux à poste (les engins ouverts — jet-ski, kayak, planche — n'ont ni
+  poste debout ni coque fermée) ; échouage, saut d'un bateau, course en mer, bonds de crête, direction, inclinaisons, cockpits : verts.
+- Empreinte de la ville identique (les bateaux garés pendant la génération sont construits sur le générateur privé).
+
+### Les fiches des bateaux
+- **Sunseeker Predator 74** (`yacht`) : coque blanche à étrave fine, longues vitres de coque teintées, superstructure basse aux flancs
+  vitrés d'un seul tenant, pare-brise très incliné, hardtop au toit ouvrant et radôme, long pont avant et bain de soleil, main
+  courante, cockpit en U et table en teck, plateforme de bain, marches, porte du garage à annexe, échelle, deux hélices (IPS) ; la barre
+  au centre du salon (avant : un flybridge sur le toit), salon en cuir crème.
+- **Caseyeur Downeast** (`peche`) : étrave haute, arrière bas, timonerie à parois minces ouverte à l'arrière et vitrée tout autour, toit
+  débordant, mât, radar, antennes, cheminée verticale, bossoir et treuil de relevage, casiers empilés, bouées sur leurs perches, bac à
+  appâts ; le patron debout à la console.
+- **Sea-Doo GTX** (`jetski`) : coque blanche en V et bourrelets, pont à la teinte d'un seul tenant, filet noir, capot bombé et visière,
+  ouïes, pare-brise fumé, guidon, poignées et rétroviseurs, petit écran, selle biplace à dosseret, repose-pieds, plateforme, buse.
+- **Cigarette Racing Top Gun** (`espadon`) : long, bas et pointu en V profond, graphismes rose et blanc, pare-brise enveloppant (le seul
+  verre), deux bolsters, banquette, deux gros hors-bord de course et leurs hélices.
+- **Porte-conteneurs Triple-E** (`cargo`) : coque pleine à étrave droite, **château avancé** (logements, passerelle vitrée tout autour,
+  ailerons sur toute la largeur, mâts, radôme), salle des machines et **deux cheminées jumelles** à l'arrière, sept travées de conteneurs
+  de toutes les couleurs (`COUL_CONTENEURS`) entre les ponts de saisissage, canot en chute libre, gaillard d'avant et guindeaux, « REYES
+  STAR » à l'étrave et à la poupe (`matTexteV3('reyesStar')`) ; le commandant debout sur la passerelle (avant : sur l'aileron du château
+  arrière).
+- **Kayak sit-on-top** (`kayak`, le kayak pilotable ; les pagayeurs du décor gardent leur modèle : `coqueKayak` est construit pendant le
+  décor) : coque rotomoulée effilée, baquet moulé et dosseret, cale-pieds, trappe ronde, filets élastiques, poignées, dérive ; pagaie à
+  pales asymétriques (`ud.pagaie`, animée comme avant).
+- **Shortboard** (`surf`) : contour en goutte, rocker, rails arrondis, latte, pad de grip, trois ailerons, leash.
 
 ## Mesures et tests
 
