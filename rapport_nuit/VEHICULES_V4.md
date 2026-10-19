@@ -153,9 +153,9 @@ dans l'ordre demandé : ils passent en dernier (groupe 7).
 - [x] Ancienne « Baronne » (`baronne`) → Cadillac Eldorado 1959 — ailerons et feux-obus, toit vinyle, calandre « bijou », pare-chocs à obus, larges flancs blancs ; `pilotables_lot1_*`
 - [x] Buggy des dunes (`buggy`) → Meyers Manx — baignoire en fibre, ailes en arches, flat-four à nu, arceau, numéro 23 ; ouvert, conducteur assis ; `pilotables_lot1_*`
 - [x] Buggy « Scarabée » (`scarabee`) → Volkswagen Coccinelle « Baja Bug » cabriolet — ailes rondes raccourcies, phares dressés, feux sur les ailes, arceau et rampe, moteur à nu, numéro 7 ; `pilotables_lot1_*`
-- [ ] Jeep militaire « Guépard » (`jeepMil`) → AM General Humvee M1151
-- [ ] Char « Rhinocéros » (`char`) → M1A2 Abrams
-- [ ] Bulldozer « Titan » (`bulldozer`) → Caterpillar D6
+- [x] Jeep militaire « Guépard » (`jeepMil`) → AM General Humvee **M998 ouvert** (et non M1151 : le cockpit est déclaré ouvert) — calandre à fentes, sans portes, tunnel central, bâche, arceau et tourelle (`ud.tourelle`) ; `pilotables_lot3_*`
+- [x] Char « Rhinocéros » (`char`) → M1A2 Abrams — tourelle plate à facettes, canon à manchon et évacuateur, viseurs du tireur et du chef, coupole, fumigènes, panier, jupes et sept galets ; `ud.tourelle` gardée ; `pilotables_lot3_*`
+- [x] Bulldozer « Titan » (`bulldozer`) → Caterpillar D6 — chenilles en triangle à barbotin surélevé, cabine de sécurité, cheminée et préfiltre, lame sur bras et vérins (`ud.pelle` gardé), défonceuse, « CAT D6 » ; `pilotables_lot3_*`
 - [ ] Tracteur de piste « Mule » (`tracteurPiste`) → tracteur de repoussage d'avion (Goldhofer AST)
 - [ ] Camion-citerne « Kérosène » (`citerne`) → avitailleur sur porteur Kenworth
 - [ ] Passerelle mobile « Échelle » (`escalier`) → camion-escalier d'aéroport
@@ -356,6 +356,30 @@ dans l'ordre demandé : ils passent en dernier (groupe 7).
 - **Intérieur** : carbone, accents violets.
 - Fait seul : l'œil du cockpit de la Coccinelle Baja (`COCKPIT_DEFS.scarabee`, relevé à la main pour l'ancien modèle) ramené à la hauteur
   des yeux d'un pilote assis (0,1 au lieu de 0,25) : la nouvelle caisse, rampe masquée en 1re personne, est plus basse que l'ancien œil.
+
+### Jeep militaire « Guépard » (`jeepMil`) → AM General Humvee M998, version ouverte
+- **Silhouette** : très large et bas, capot plat et long, sans portes, plateau bâché à l'arrière.
+- **Signature** : calandre plate à fentes verticales et phares ronds dans ses coins ; pare-brise en deux glaces ; énorme tunnel central
+  entre les sièges ; arceau et anneau de tourelle, mitrailleuse et son bouclier en trois plaques (`ud.tourelle`) ; étoile blanche sur le
+  capot ; jerricans ; pneus à crampons, jantes militaires.
+- Fait seul : le M1151 blindé et fermé était prévu, mais le cockpit de ce véhicule est ouvert (`CK_HAB.jeepMil`, `def.jeep`) : un Humvee
+  ouvert reste cohérent, et le soldat assis au volant se voit (`ud.siege`).
+
+### Char « Rhinocéros » (`char`) → M1A2 Abrams
+- **Silhouette** : caisse longue et basse au glacis incliné, tourelle très large et plate à facettes (contour extrudé).
+- **Signature** : canon de 120 lisse à manchon thermique et évacuateur ; viseur du tireur à droite, viseur panoramique du chef (CITV) à
+  gauche ; coupole du chef et sa mitrailleuse, mitrailleuse du chargeur ; lance-pots fumigènes ; panier de tourelle chargé ; antennes ;
+  jupes blindées sur sept galets doubles, barbotin denté ; grille d'échappement de la turbine.
+- Contrats gardés : `ud.tourelle` (le canon tire depuis `def.long`, l'écrasement lit `def`) ; le pilote, tête sortie de son écoutille
+  (`ud.conducteur`), disparaît en 1re personne (l'œil reste dans l'écoutille du chef).
+
+### Bulldozer « Titan » (`bulldozer`) → Caterpillar D6
+- **Silhouette** : chenilles en triangle au barbotin surélevé (« high drive »), capot moteur bas devant la cabine de sécurité vitrée.
+- **Signature** : calandre perforée sous sa protection ; cheminée et préfiltre ; « CAT D6 » ; réservoir arrière ; défonceuse à une dent ;
+  lame bombée sur ses bras et ses vérins ; phares de travail, gyrophare.
+- Contrat gardé : `ud.pelle` (0,5 baissée, −0,15 levée) — la lame est dessinée baissée puis tournée de −0,5 autour du pivot. Les quatre
+  « roues » du jeu sont les poulies avant et arrière, visibles par les flancs ouverts de la chenille. Défonceuse raccourcie et capot
+  abaissé : la longueur reste dans les ±12 % et l'œil du cockpit passe au-dessus du capot.
 
 ## Mesures et tests
 

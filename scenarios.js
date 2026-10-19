@@ -5257,13 +5257,13 @@ async function main() {
       P.veh = charV; charV.v = 12; let h0 = null;
       for (let t = 0; t < 500 && !bus.epave; t++) { majVehiculePhys(charV, 0.05, 1, 0, false); if (bus.ecr && !h0) h0 = Array.from(bus.ecr.h); if (bus.ecr) bus._h = Array.from(bus.ecr.h); }
       const h = bus._h || [], n = h.length / 2, bout = (i) => Math.min(h[i * 2], h[i * 2 + 1]);
-      const r = { epave: !!bus.epave, h0: h0 && Math.max(...h0), basTouche: Math.min(bout(0), bout(1)), loinIntact: Math.max(bout(n - 1), bout(n - 2)) };
+      const r = { epave: !!bus.epave, h0: h0 && Math.max(...h0), basTouche: Math.min(bout(0), bout(1)), loinIntact: Math.max(bout(n - 1), bout(n - 2)), /* V4 : le toit du bus n'est pas plat (carénages) : le bout intact se compare à sa propre hauteur d'avant */ h0Loin: h0 ? Math.max(Math.min(h0[(n - 1) * 2], h0[(n - 1) * 2 + 1]), Math.min(h0[(n - 2) * 2], h0[(n - 2) * 2 + 1])) : 0 };
       P.veh = null; charV.mort = true; nettoyer();
       return r;
     });
     if (!deuxTemps.epave) fail('Écrasement : le Bus de ville touché à un bout ne finit pas en épave (' + JSON.stringify(deuxTemps) + ')');
     else ok('Écrasement : le Bus de ville touché à un bout finit en épave après le passage');
-    if (!(deuxTemps.basTouche < 1.0 && deuxTemps.loinIntact > deuxTemps.h0 - 0.2)) fail('Écrasement : l\'affaissement du bus n\'est pas localisé (' + JSON.stringify(deuxTemps) + ')');
+    if (!(deuxTemps.basTouche < 1.0 && deuxTemps.loinIntact > deuxTemps.h0Loin - 0.2)) fail('Écrasement : l\'affaissement du bus n\'est pas localisé (' + JSON.stringify(deuxTemps) + ')');
     else ok('Écrasement : seul le bout du bus où passent les chenilles s\'affaisse (' + deuxTemps.basTouche.toFixed(2) + ' u), l\'autre bout reste debout (' + deuxTemps.loinIntact.toFixed(2) + ' u)');
 
     console.log('\n--- Piétons : jamais aplatis, éliminés avec une projection proportionnelle à la puissance du véhicule ---');
