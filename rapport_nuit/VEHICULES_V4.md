@@ -194,7 +194,7 @@ dans l'ordre demandé : ils passent en dernier (groupe 7).
 - [x] Avion à banderole du décor (`mkAvionBanderole`) → Piper PA-18 Super Cub — éclair noir, mâts en V, pneus de brousse, pilote ; `superCub_*`
 
 ### 7. Bateaux et engins de plage (pas dans l'ordre demandé : en dernier)
-- [x] Yacht « Impérial » (`yacht`) → Sunseeker Predator 74 — superstructure vitrée, hardtop et toit ouvrant, vitres de coque, plateforme de bain ; la barre au salon ; `bateaux_*`
+- [x] Yacht « Impérial » (`yacht`) → Sunseeker Manhattan 68 — flybridge (pilote en haut), salon vitré, arceau radar et hardtop, vitres de coque, plateforme de bain ; `bateaux_*`
 - [x] Bateau de pêche (`peche`) → caseyeur côtier Downeast — timonerie vitrée ouverte à l'arrière, casiers, bossoir et treuil, bouées ; `bateaux_*`
 - [x] Jet-ski (`jetski`) → Sea-Doo GTX — coque blanche, pont à la teinte, capot à visière, guidon et rétroviseurs, selle à dosseret ; `bateaux_*`
 - [x] Vedette « Espadon » (`espadon`) → Cigarette Racing Top Gun — V profond, pare-brise enveloppant, bolsters, deux hors-bord de course, graphismes ; `bateaux_*`
@@ -536,10 +536,13 @@ dans l'ordre demandé : ils passent en dernier (groupe 7).
 - Empreinte de la ville identique (les bateaux garés pendant la génération sont construits sur le générateur privé).
 
 ### Les fiches des bateaux
-- **Sunseeker Predator 74** (`yacht`) : coque blanche à étrave fine, longues vitres de coque teintées, superstructure basse aux flancs
-  vitrés d'un seul tenant, pare-brise très incliné, hardtop au toit ouvrant et radôme, long pont avant et bain de soleil, main
-  courante, cockpit en U et table en teck, plateforme de bain, marches, porte du garage à annexe, échelle, deux hélices (IPS) ; la barre
-  au centre du salon (avant : un flybridge sur le toit), salon en cuir crème.
+- **Sunseeker Manhattan 68** (`yacht`) : coque blanche à étrave fine, longues vitres de coque teintées, salon aux flancs vitrés d'un
+  seul tenant et pare-brise incliné, **flybridge** sur le toit du salon qui déborde sur le cockpit (pavois, pare-brise fumé, poste de
+  pilotage, banquettes en U et table, bain de soleil), arceau radar incliné, hardtop et radôme, long pont avant et bain de soleil, main
+  courante, cockpit en U et table en teck, plateforme de bain, marches, porte du garage à annexe, échelle, deux hélices (IPS) ; le
+  pilote debout à la barre du flybridge. **D'abord modélisé en Predator 74 (express, sans flybridge)** : le test « Échelle des hélicos et
+  du yacht » (demande du 15 octobre : « yacht tout ratatiné » → 22 m à flybridge, pilote en hauteur) l'a refusé — remplacé par un modèle
+  réel à flybridge plutôt que d'assouplir le test.
 - **Caseyeur Downeast** (`peche`) : étrave haute, arrière bas, timonerie à parois minces ouverte à l'arrière et vitrée tout autour, toit
   débordant, mât, radar, antennes, cheminée verticale, bossoir et treuil de relevage, casiers empilés, bouées sur leurs perches, bac à
   appâts ; le patron debout à la console.
@@ -557,7 +560,54 @@ dans l'ordre demandé : ils passent en dernier (groupe 7).
   pales asymétriques (`ud.pagaie`, animée comme avant).
 - **Shortboard** (`surf`) : contour en goutte, rocker, rails arrondis, latte, pad de grip, trois ailerons, leash.
 
+## Choix faits seul
+- **Modèles réels** choisis pour chaque véhicule (fiches plus haut), en restant dans la taille de l'ancien modèle (±12 %) et à sa place
+  de roues ; aucun nom de marque réel n'est écrit sur un véhicule (« REYES AIR », « REYES STAR », « LOS REYES CAB », « LRPD »…).
+- **Refontes déclarées** (`refonte:true`, roues déplacées) : Cessna 172 et F-16 en train tricycle (les anciens étaient à roulette de
+  queue), roulette de l'Extra 300 en bout de queue — parce que le modèle réel l'impose.
+- **Postes de pilotage déplacés** (cosmétique) : le commandant du porte-conteneurs sur la passerelle du château avancé, le pagayeur
+  assis dans son kayak (il était debout) ; le pilote du yacht reste en haut, sur le flybridge.
+- **Le F-16 raccourci** d'environ 0,6 u pour tenir dans la tolérance de longueur de l'ancien Épervier (le hangar, la base).
+- **Tests adaptés, jamais affaiblis sur ce qu'ils protègent** : aucun PNJ n'est exigé aux commandes d'un aéronef (le jeu n'en met
+  jamais) ; les hélicos sont comparés à l'ancien modèle tel qu'on le voyait (agrandi) ; « Vedettes V3 » ne s'applique qu'aux bateaux à
+  poste ; le cabriolet est lu par `ud.conducteur` ; le bout intact du bus se compare à sa propre hauteur.
+
+## Points perfectibles
+- Les avions de ligne du décor (l'A320 qui atterrit et décolle à l'aérogare) ne sont pas des véhicules pendant leur vol : leur train
+  reste sorti, leurs feux ne clignotent pas (cosmétique).
+- La soute du C-130 est un fond sombre posé sur le ventre : on ne peut pas y entrer, rien n'est chargé dedans.
+- Les cockpits latéraux des gros avions (A320, C-130) montrent les grandes parois grises de la cabine V2 en tournant la tête.
+- Le jet-ski, le kayak et la planche n'ont pas de pilote PNJ quand l'IA les mène (comme avant).
+
+## À tester sur iPhone
+- La fluidité dans la rue dense et autour de l'aéroport (le niveau de détail du trafic ; si elle baisse : `LOD_LOIN` 62 → 40).
+- Les vitres : on voit le conducteur (vue 2D et 3D) dans chaque voiture, rien de bizarre au cockpit.
+- Un vol en Cessna, en Learjet, en A320, en C-130 : disque des hélices, feux qui clignotent la nuit, train qui rentre et sort, rampe
+  du C-130 qui s'ouvre à l'arrêt et se referme au roulage.
+- Le casque des motards (on monte, on descend, on meurt à moto).
+- Les bateaux : à bord de chacun (debout, assis dans le kayak), échouage sur la plage, la course en mer en Cigarette.
+- L'avion à banderole au-dessus de la plage (vue de dessus et vue 3D).
+
 ## Mesures et tests
+
+### Performance, à la fin (19 octobre)
+Mesuré avant (code d'avant la V4 : `suite_copie/index.html`) et après, même machine, même graine, deux passes chacun ; temps d'image =
+mise à jour + rendu attendu jusqu'au bout (`gl.finish`). Cette fois le navigateur de test avait l'accélération graphique : les temps
+absolus ne se comparent pas à la référence du début (rendu logiciel), seulement avant / après entre eux.
+
+| Scène | Avant | Après |
+|---|---|---|
+| Rue à trafic dense, vue immersive, 40 s de trafic (`perf_v4.js`) | 5,8–6,2 ms, 174–274 appels, 156–173 k triangles | 5,6–6,2 ms, 169–252 appels, 166–221 k triangles |
+| Trois hélicos ennemis à l'écran (même scène) | 6,2–6,8 ms, 242–323 appels, 162–181 k triangles | 6,0–6,5 ms, 259–343 appels, 201–250 k triangles |
+| Cas extrême : 26 voitures du trafic posées de 10 à 64 u devant le joueur (`perf_v4b.js`, rendu seul) | 3,5–3,6 ms, 677 appels, 261 k triangles | 3,6–4,0 ms, 815 appels, 502 k triangles |
+
+- **Le temps d'image ne se dégrade pas nettement** : identique dans la rue réelle (le niveau de détail efface les pièces au-delà de 62 u),
+  +0,1 à +0,4 ms dans le cas extrême où 26 voitures détaillées sont à moins de 64 u. Les triangles proches doublent ; les appels de
+  rendu montent d'environ 20 % dans ce cas extrême.
+- **À surveiller sur iPhone** : le GPU mobile est plus sensible aux appels et aux triangles. Si la rue dense descend sous 60 images/s,
+  la parade est d'une ligne : rapprocher le niveau de détail (`LOD_LOIN` 62 → 40, `LOD_PROCHE` 54 → 34) — les voitures lointaines
+  passent plus tôt à leur maillage unique.
+- Capture : `captures/vehicules_v4/rue_trafic_avant_apres.png` (la rue après 40 s de trafic, puis la flotte posée).
 
 ### Suite complète à mi-parcours (après les pilotables, lot 3) : 4 échecs, corrigés
 - **Mont Reyes en buggy** (pilote simulé coincé près du sommet) : à la réception d'un saut, le jeu accorde un bonus de vitesse si le

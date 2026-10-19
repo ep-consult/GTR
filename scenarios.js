@@ -8202,7 +8202,7 @@ async function main() {
       const pt = await page.evaluate(() => {
         if (typeof CANYON === 'undefined' || !CANYON.mesas.length || !MONT.sommet) return { off: true };
         const o = {}, m = CANYON.mesas[0], sx = m.x + m.hw + 5, sz = m.z, s = MONT.sommet;
-        const pied = (x, z, mx, mz) => { startRun(); ecran(null); ETAT.mode = 'jeu'; for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0; P.x = x; P.z = z; P.y = solPied(x, z);
+        const pied = (x, z, mx, mz) => { startRun(); ecran(null); ETAT.mode = 'jeu'; for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0; for (const a of FAUNE) if (Math.hypot(a.x - x, a.z - z) < 60) a.x += 600; /* le test maîtrise sa scène : aucune bête du mont sur le chemin (placée au hasard, elle arrêtait le marcheur selon le tirage laissé par les tests précédents) */ P.stam = P.stamMax; P.essouffle = false; P.x = x; P.z = z; P.y = solPied(x, z);
           const y0 = P.y; for (let i = 0; i < 120; i++) { INPUT.mx = mx; INPUT.mz = mz; majJoueur(1 / 30, 1 / 30); } INPUT.mx = INPUT.mz = 0; return { d: +Math.hypot(P.x - x, P.z - z).toFixed(1), dy: +(P.y - y0).toFixed(1) }; };
         const veh = (cle, x, z, ang) => { startRun(); for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0; const v = creerVehicule(cle, x, z, ang, null); v.h = solY(x, z);
           const y0 = v.h; for (let i = 0; i < 150; i++) majVehiculePhys(v, 1 / 30, 1, 0, false); const r = { d: +Math.hypot(v.x - x, v.z - z).toFixed(0), dy: +((v.h || 0) - y0).toFixed(1), degats: v.def.hp - v.hp, vmax5: v.def.vmax * 5 }; scene.remove(v.mesh); vehicules.length = 0; return r; };
@@ -13803,6 +13803,7 @@ async function main() {
           if (P.veh) sortirVehicule(true); for (const v of vehicules) { scene.remove(v.mesh); libererEntite(v.mesh); } vehicules.length = 0;
           const d = VEHDEFS[k], mer = !!d.eau, x = mer ? -60 : POIS.place.x + 40, z = mer ? MER + 40 : POIS.place.z + 10;
           const v = creerVehicule(k, x, z, 0); if (!v) { ko.push(k + ' : pas de véhicule'); continue; } P.x = x; P.z = z + 1; P.y = 0; entrerVehicule(v); if (P.veh !== v) { ko.push(k + ' : pas monté'); continue; }
+          VUE.offVeh = 0; VUE.pitch1P = 0; VUE.drag = false; /* regard droit devant : un regard levé laissé par un test précédent voyait le toit et l'aile du Cessna */
           v.v = 0; for (let i = 0; i < 20; i++) { majVehicules(1 / 30); majCamera(1 / 30); } renderer.render(scene, camera);
           if (!vueCockpit() || COCKPIT.v !== v || !COCKPIT.g) { ko.push(k + ' : pas de cockpit'); continue; }
           const dg = cockpitDiagnostic(v); fams[dg.fam] = (fams[dg.fam] || 0) + 1; if (dg.approx) approx++;
