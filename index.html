@@ -19367,11 +19367,11 @@ VEH_V3.police={
     halosPharesV3(I,b.hw-0.32,o.capot-0.16,o.L/2+0.5); I.ud.conducteur=conducteurBerlineV3(b,0.92); I.ud.pareBrise={y:b.cein+0.24,z:o.zPb-0.26}; }
 };
 /* ---------- 4. Taxi : berline jaune, damier, lanterne TAXI, pare-chocs chromés, séparation et taximètre ---------- */
-const V3_TAXI_ATTENTE={ /* branché après le Camion « Aigle » (l'ordre du suivi) */
+VEH_V3.taxi={
   geo(B,d){ const L=d.long, W=d.larg-0.12, o={L,W,g0:0.28,R:0.35,zf:1.33,zr:-1.33,capot:0.84,toit:1.36,zPb:0.74,zAv:0.22,zAr:-0.84,zLu:-1.32,malle:0.9}, b=berlineClassiqueV3(B,o), hw=b.hw;
     for(const sx of [-1,1]){ const rot=sx>0?Math.PI/2:-Math.PI/2;
       B.geo('damier',new THREE.PlaneGeometry(o.zPb-o.zLu-0.24,0.1),sx*(hw+0.006),b.cein-0.24,(o.zPb+o.zLu)/2,0,rot,0);                      /* damier sur les flancs */
-      B.geo('cab',new THREE.PlaneGeometry(0.66,0.15),sx*(hw+0.008),0.56,b.zB-0.42,0,rot,0); }                                              /* LOS REYES CAB sur les portes avant */
+      B.geo('cab',new THREE.PlaneGeometry(0.66,0.15),sx*(hw+0.008),0.56,b.zB+0.4,0,rot,0); }                                              /* LOS REYES CAB sur les portes avant */
     B.bloc('chrome',W*0.98,0.14,0.16,0,o.g0+0.18,L/2+0.02,0.03,0.03); B.bloc('chrome',W*0.98,0.14,0.16,0,o.g0+0.2,-L/2-0.02,0.03,0.03); /* pare-chocs chromés */
     const zt=(o.zAv+o.zAr)/2; B.bloc('sombre',0.9,0.06,0.34,0,o.toit+0.085,zt,0.015); B.bx('lanterne',0.8,0.22,0.3,0,o.toit+0.22,zt);  /* lanterne TAXI */
     for(const sx of [-1,1]) B.bx('sombre',0.04,0.06,0.04,sx*0.38,o.toit+0.06,zt);

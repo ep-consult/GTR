@@ -1679,6 +1679,10 @@ commandes ne changent. Comparaison avant / après et TODO : `rapport_nuit/VEHICU
   deux panneaux, plateau sous bâche sur arceaux — `matV3Couleur` —, gros pneus à crampons, jantes `mil` à la teinte, roue
   de secours derrière la cabine, échappement vertical, étoiles et numéro peints). Construit aussi pendant le décor (camp
   d'entraînement) : l'ancien modèle d'abord, empreinte inchangée ; tient dans le solide du camp (6,2 × 2,6 × 3). 28 maillages.
+- **4. Taxi** (`taxi`) : même gabarit que l'Interceptor, à ses cotes ; damier, « LOS REYES CAB », lanterne TAXI lumineuse,
+  pare-chocs chromés ; séparation et taximètre dedans. **Ancrages des pièces du garage** déclarés dans le modèle
+  (`VEH_V3[k].ancrages`, recopiés dans `VEHDEFS[k].tuningCarro.ancrages` au chargement, comme `ancragesProfil`) : mesurés
+  sur la caisse V3. 27 maillages.
 - Test : « Véhicules V3 » (lit `VEH_V3` : vitre transparente, plafond de maillages, taille, roues à leur place et rayon
   lisible, PNJ et joueur visibles, rien en 1re personne, cockpit valide).
 
