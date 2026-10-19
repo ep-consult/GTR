@@ -10162,7 +10162,7 @@ async function main() {
           P.hp = 300; iciZ('spec');
           if (d.spec === 'atelier') { const v = creerVehicule('berline', q.x - 3, q.z + 6, 0); v.hp = 10; appui(); attendre(); if (v.hp !== v.def.hp) ko.push('atelier : véhicule non réparé'); v.hp = 10; iciZ('spec'); appui(); attendre(); if (v.hp !== 10) ko.push('atelier : deux fois'); v.mort = true; }
           else if (d.spec === 'base') { appui(); if (!P.chute || !(P.y > q.y - 1)) ko.push('plongeoir : pas de saut'); P.chute = false; P.y = 0; }
-          else if (d.spec === 'punch') { P.buffs.vit = 0; appui(); if (!(P.buffs.vit > 30) || !(P.hp > 300)) ko.push('punch (' + P.hp + ' PV, ' + P.buffs.vit + ')'); }
+          else if (d.spec === 'punch') { P.buffs.vit = 0; appui(); const sa = dedans && INT.actif; if (sa && sa.pq && sa.pq.punch) for (const I of PUNCH_ING) { sa.pq.punch.niv = (I.lo + I.hi) / 2; punchArret(sa); } /* le punch du cabanon se dose : versé pile à chaque ligne */ if (!(P.buffs.vit > 30) || !(P.hp > 300)) ko.push('punch (' + P.hp + ' PV, ' + P.buffs.vit + ')'); }
           else if (d.spec === 'armurerie') { const ga = Object.keys(ARMES).find((k) => ARMES[k].type === 'gun' && META.armes[k]); META.armes[ga].poss = true; P.grenades = 0; P.mun[ga] = 0; appui(); if (P.grenades !== 5 || !(P.mun[ga] > 0)) ko.push('armurerie'); P.grenades = 0; ici(q.spec, q); appui(); if (P.grenades !== 0) ko.push('armurerie deux fois'); }
           else if (d.spec === 'disparaitre') { WANTED.heat = 3.5; WANTED.stars = 3; appui(); if (WANTED.stars !== 0) ko.push('voilier : la police ne perd pas ta trace'); }
           else if (d.spec === 'grenades') { P.grenades = 1; appui(); if (P.grenades !== 4) ko.push('établi : grenades'); }
@@ -10310,6 +10310,84 @@ async function main() {
       });
       if (r.ko.length) fail('Penthouse : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
       else ok('Penthouse : ' + r.info.join(' ; '));
+    }
+
+    // -------------------------------------------------------------------
+    // Intérieurs des planques, 3 : le cabanon de plage (chez Kai). On entre par la porte de la planque possédée ; la plage au
+    // couchant (lumière, sons) ; le toit du cabanon s'efface quand on est dedans ; le hamac (lit) et le coffre de marin ; le
+    // PUNCH se prépare au vrai bouton VERSER (barman simulé, 0,15 s de réaction : bien dosé, il soigne plus et la vitesse dure
+    // plus ; s'il relâche toujours trop tard, c'est le punch d'avant), une fois par vague ; la PÊCHE au bout du ponton se joue
+    // (pêcheur simulé : attendre la touche, ferrer 0,3 s après, garder la tension au vrai bouton MOULINER, 0,2 s de réaction)
+    // et se perd (passif, pressé) ; la prise se vend (PECHE_VENTES par vague) ou s'expose au mur des trophées ; records
+    // sauvegardés ; ambiance et ligne coupées par la sortie et la mort.
+    // -------------------------------------------------------------------
+    console.log('\n--- Planques, 3 : le cabanon de plage (hamac, punch au bouton VERSER, pêche au ponton, trophées) ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = []; audioInit();
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); META.vue = 'classique'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6; WAVES.etat = 'repos'; WAVES.t = 1e9; for (const e of ennemis) e.mort = true;
+        const q = PLANQUES.liste.find((x) => x.def.id === 'cabanon'); if (!q || !planqueAInterieur(q)) return { ko: ['pas de cabanon avec un intérieur'], info };
+        const sav = { poss: META.planques.cabanon, J: JSON.stringify(META.planquesJeux), T: JSON.stringify(META.pecheTrophees) }; META.planques.cabanon = true; META.planquesJeux.punch = 0; META.planquesJeux.peche = 0; for (const k in META.pecheTrophees) META.pecheTrophees[k] = 0;
+        const rnd0 = Math.random; let gr = 4242; Math.random = () => { gr = (gr * 1664525 + 1013904223) >>> 0; return gr / 4294967296; }; /* graine propre posée APRÈS startRun */
+        let T = dernierT + 1000; const pas = (n) => { for (let i = 0; i < n; i++) { T += 1000 / 60; tick(T); } };
+        const appui = () => { majAction(); const b = el('btnAction'); const l = b.style.display === 'none' ? '' : b.textContent; if (b._fn && l) b._fn(); return l; };
+        const ev = (id, type) => { const b = document.getElementById(id); if (!b) return false; b.dispatchEvent(new PointerEvent(type, { bubbles: true, pointerId: 7 })); return true; };
+        const fin = () => { Math.random = rnd0; META.planques.cabanon = sav.poss; META.planquesJeux = JSON.parse(sav.J); META.pecheTrophees = JSON.parse(sav.T); sauveMeta(); if (ETAT.mortTimer) { clearTimeout(ETAT.mortTimer); ETAT.mortTimer = null; } ETAT.timeScale = 1; startRun(); return { ko, info }; };
+        // 1. entrer : la plage au couchant, les zones à 8 u ou plus de la sortie, le toit qui s'efface
+        P.x = q.entree.x; P.z = q.entree.z; P.y = 0; const l0 = appui(); const s = INT.actif;
+        if (!s || s.id !== 'cabanon') { ko.push('on n’entre pas dans le cabanon (' + l0 + ')'); return fin(); }
+        pas(2); if (!AUDIO.pqAmbOn) ko.push('pas d’ambiance sonore'); if (!scene.background.equals(s.pqAmb.ciel)) ko.push('pas la lumière du couchant');
+        { const { zones } = zonesInterieurActives(); const so = zones.find((z) => z.champ === 'sortie'); for (const z of zones) if (z.champ !== 'sortie' && Math.hypot(z.x - so.x, z.z - so.z) < 8) ko.push(z.champ + ' à moins de 8 u de la sortie');
+          if (['pqLit', 'pqCoffre', 'pqSpec', 'pqJeu'].some((k) => !zones.find((z) => z.champ === k))) ko.push('zones : ' + zones.map((z) => z.champ).join(',')); }
+        { const t = s.pq.toits.find((tt) => tt.dedans); P.x = s.ox + (t.x0 + t.x1) / 2; P.z = s.oz + (t.z0 + t.z1) / 2; pas(2); const vis = t.objs.some((o) => o.visible); P.x = s.ox; P.z = s.oz + 12; pas(2); if (vis || !t.objs.every((o) => o.visible)) ko.push('le toit du cabanon ne s’efface pas'); }
+        // 2. le hamac, le coffre de marin
+        P.x = s.pqLit.x; P.z = s.pqLit.z; P.hp = 100; appui(); if (P.hp !== P.maxHp) ko.push('hamac');
+        META.revenus = 23; const a0 = META.argent; P.x = s.pqCoffre.x; P.z = s.pqCoffre.z; appui(); if (META.argent !== a0 + 23) ko.push('coffre');
+        // 3. le punch au vrai bouton VERSER : le barman simulé regarde le niveau monter et relâche, 0,15 s de réaction
+        const barman = (avance) => { P.x = s.pqSpec.x; P.z = s.pqSpec.z; const l = appui(); const K = s.pq.punch; if (!K) return 'pas de panneau (' + l + ')';
+          for (const I of PUNCH_ING) { if (!ev('pchVerser', 'pointerdown')) return 'pas de bouton VERSER'; let n = 0; const vise = (I.lo + I.hi) / 2 + avance;
+            while (K.verse && n < 600) { pas(1); n++; if (K.niv >= vise - PUNCH_VIT * 0.15) { pas(9); break; } }
+            ev('pchVerser', 'pointerup'); } return K; };
+        { P.hp = 100; P.buffs.vit = 0; const K = barman(0); if (typeof K === 'string') ko.push('punch : ' + K); else {
+            const q2 = K.scores.reduce((a, b) => a + b, 0) / K.scores.length; if (!(q2 >= 0.85) || !(P.buffs.vit >= 75) || P.hp !== 145) ko.push('punch bien dosé : qualité ' + q2.toFixed(2) + ', ' + P.hp + ' PV, ' + P.buffs.vit + ' s');
+            else info.push('punch du barman simulé : ' + Math.round(q2 * 100) + ' %, +45 PV, 75 s de vitesse');
+            if (META.planquesJeux.punch !== Math.round(q2 * 100)) ko.push('record du punch non noté'); }
+          pas(200); if (document.getElementById('punchPan').style.display !== 'none') ko.push('le panneau du punch reste ouvert');
+          P.x = s.pqSpec.x; P.z = s.pqSpec.z; const l2 = appui(); if (!/⏳/.test(l2) || s.pq.punch) ko.push('deux punchs dans la vague (' + l2 + ')'); }
+        { lancerVague(); WAVES.etat = 'repos'; WAVES.t = 1e9; for (const e of ennemis) e.mort = true; P.hp = 100; P.buffs.vit = 0; const K = barman(0.12); /* il relâche toujours trop tard */
+          if (typeof K === 'string') ko.push('punch raté : ' + K); else if (P.hp !== 125 || P.buffs.vit !== 45) ko.push('punch mal dosé : ' + P.hp + ' PV, ' + P.buffs.vit + ' s (le punch d’avant attendu)'); else info.push('mal dosé : le punch d’avant (+25 PV, 45 s)'); pas(200); }
+        // 4. la pêche : attendre la touche, ferrer 0,3 s après, garder la tension au vrai bouton MOULINER (une décision toutes les 0,2 s)
+        const pecheur = (style) => { P.x = s.pqJeu.x; P.z = s.pqJeu.z; const l = appui(); const F = s.pq.peche; if (!F) return 'pas de ligne (' + l + ')';
+          let vu = -1, t = 0, mou = false, dec = 0, res = '';
+          for (let i = 0; i < 60 * 45 && s.pq.peche === F; i++) { pas(1); t += 1 / 60;
+            if (style === 'presse' && F.etat === 'attente' && t > 0.5) { appui(); continue; }
+            if (F.etat === 'touche' && style !== 'passif') { if (vu < 0) vu = t; if (t - vu >= 0.3) appui(); }
+            if (F.etat === 'combat') { dec -= 1 / 60; if (dec <= 0) { dec = 0.2; const veut = style !== 'tetu' && !(F.avert > 0 || F.rush > 0) ? F.tension < F.zone : style === 'tetu'; if (veut !== mou) { mou = veut; ev('pjMou', veut ? 'pointerdown' : 'pointerup'); } } } /* il lâche aux coups de tête (avertissement rouge) ; le têtu mouline sans arrêt */
+            if (F.etat === 'prise') { res = 'prise'; break; } }
+          if (mou) ev('pjMou', 'pointerup'); return res || (s.pq.peche ? 'en cours' : 'raté'); };
+        let prises = 0, expose = false; const vues = {};
+        for (let k = 0; k < 6; k++) { const r = pecheur('bon'); const F = s.pq.peche;
+          if (r === 'prise' && F) { prises++; vues[F.id] = (vues[F.id] || 0) + 1; const kg = F.kg, id = F.id, a1 = META.argent, V = pecheVentes().n;
+            if (!expose && id !== 'botte') { expose = true; if (!ev('pcExposer', 'pointerdown')) ko.push('pas de bouton EXPOSER pour une première prise'); else if (META.pecheTrophees[id] !== kg) ko.push('trophée non noté'); else if (!s.pq.trophees[id].visible) ko.push('le trophée n’apparaît pas au mur'); else info.push(PECHE[id].nom + ' de ' + kg + ' kg exposée au mur des trophées'); }
+            else if (ev('pcVendre', 'pointerdown')) { if (!(META.argent > a1) || pecheVentes().n !== V + 1) ko.push('vente ratée'); }
+            else ev('pcRelacher', 'pointerdown');
+            if (s.pq.peche || document.getElementById('pecheChoix').style.display !== 'none') ko.push('le choix de la prise reste ouvert'); }
+          pas(30); }
+        if (prises < 4) ko.push('pêcheur simulé : ' + prises + ' prises sur 6'); else info.push('pêcheur simulé : ' + prises + ' prises sur 6 (' + Object.keys(vues).map((k) => PECHE[k].nom).join(', ') + '), record ' + META.planquesJeux.peche + ' kg');
+        if (!(META.planquesJeux.peche > 0) && Object.keys(vues).some((k) => k !== 'botte')) ko.push('record de pêche non noté');
+        { const r1 = pecheur('passif'), r2 = pecheur('presse'); if (r1 === 'prise' || r2 === 'prise') ko.push('pêche gagnée sans jouer (' + r1 + ', ' + r2 + ')'); else info.push('passif et pressé : rien'); }
+        { let casse = 0; for (let k = 0; k < 3; k++) { const pc = pecheLancer; pecheLancer = (sa) => { pc(sa); sa.pq.peche.id = 'bar'; }; const r = pecheur('tetu'); pecheLancer = pc; if (r !== 'prise') casse++; } /* un bar, moulinet tenu sans arrêt : la ligne casse aux coups de tête */
+          if (casse < 2) ko.push('mouliner pendant les coups de tête ne casse pas la ligne (' + casse + '/3)'); else info.push('moulinet tenu pendant les coups de tête : ligne cassée ' + casse + ' fois sur 3'); }
+        { const V = pecheVentes(); V.n = PECHE_VENTES; let essai = 0, vendu = null; while (essai++ < 8 && vendu === null) { const r = pecheur('bon'); const F = s.pq.peche; if (r === 'prise' && F) { vendu = F.id !== 'botte' ? !!document.getElementById('pcVendre') : null; ev('pcRelacher', 'pointerdown'); } }
+          if (vendu) ko.push('plus de ' + PECHE_VENTES + ' ventes dans la vague'); else if (vendu === false) info.push('la poissonnière s’arrête à ' + PECHE_VENTES + ' poissons par vague'); }
+        // 5. la sortie, la mort en pleine pêche
+        { const so = s.sortie; P.x = so.x; P.z = so.z; ETAT.intT = 0; appui(); if (INT.actif || dist2(P.x, P.z, q.porte.x, q.porte.z) > 9) ko.push('on ne ressort pas devant le cabanon'); if (AUDIO.pqAmbOn) ko.push('ambiance après la sortie'); }
+        { P.x = q.entree.x; P.z = q.entree.z; appui(); const s2 = INT.actif; if (!s2) ko.push('pas rentré'); else { P.x = s2.pqJeu.x; P.z = s2.pqJeu.z; appui(); const enPeche = !!s2.pq.peche; P.hp = 0; mourir();
+            const jauge = document.getElementById('pecheJauge'); if (!enPeche || AUDIO.pqAmbOn || s2.pq.peche || (jauge && jauge.style.display !== 'none')) ko.push('la mort en pleine pêche laisse ambiance ' + AUDIO.pqAmbOn + ', ligne ' + !!s2.pq.peche); else info.push('ambiance et ligne coupées à la mort'); } }
+        return fin();
+      });
+      if (r.ko.length) fail('Cabanon : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
+      else ok('Cabanon : ' + r.info.join(' ; '));
     }
 
     // -------------------------------------------------------------------

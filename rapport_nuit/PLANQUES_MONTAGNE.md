@@ -48,11 +48,13 @@ carte, taxis) : on entre par la zone `pq.entree` de la planque possédée ; `por
       voitures rares, chefs de gang repérés → marqués sur la carte jusqu'à la vague suivante ; jamais à travers un immeuble)
 - [x] Lit, coffre (derrière le tableau qui pivote) ; ambiance (ville, vent, lounge, cheminée) ; test + captures
 
-### 3. Cabanon de plage (punch)
-- [ ] Déco : bois flotté, hamac, planches de surf, coquillages, filets, bar tiki, lampions, reggae doux
-- [ ] Spécificité : le bar à punch, préparation interactive (dosage / timing ; réussi = bonus meilleur)
-- [ ] Activité : PÊCHE au bout du ponton (timing, raretés, prise revendue ou exposée)
-- [ ] Lit, coffre ; ambiance ; test + captures
+### 3. Cabanon de plage (punch) — fait (19 octobre)
+- [x] Déco : plage au couchant, cabanon de bois flotté, hamac, planches de surf, coquillages, filets et flotteurs, bar
+      tiki, lampions, feu de plage, ponton, reggae doux au poste
+- [x] Spécificité : le bar à punch, trois doses à verser jusqu'à leur ligne (bien dosé : +45 PV et 75 s de vitesse)
+- [x] Activité : PÊCHE au bout du ponton (touche, ferrer, tension, coups de tête ; sept prises ; vendre ou exposer au mur
+      des trophées)
+- [x] Lit (hamac), coffre de marin ; ambiance ; test + captures
 
 ### 4. Chalet retranché (armurerie)
 - [ ] Déco : rondins, cheminée qui crépite, peaux et trophées, râtelier, conserves, carte du mont annotée, lampe à
