@@ -5257,13 +5257,14 @@ async function main() {
       P.veh = charV; charV.v = 12; let h0 = null;
       for (let t = 0; t < 500 && !bus.epave; t++) { majVehiculePhys(charV, 0.05, 1, 0, false); if (bus.ecr && !h0) h0 = Array.from(bus.ecr.h); if (bus.ecr) bus._h = Array.from(bus.ecr.h); }
       const h = bus._h || [], n = h.length / 2, bout = (i) => Math.min(h[i * 2], h[i * 2 + 1]);
-      const r = { epave: !!bus.epave, h0: h0 && Math.max(...h0), basTouche: Math.min(bout(0), bout(1)), loinIntact: Math.max(bout(n - 1), bout(n - 2)), /* V4 : le toit du bus n'est pas plat (carénages) : le bout intact se compare à sa propre hauteur d'avant */ h0Loin: h0 ? Math.max(Math.min(h0[(n - 1) * 2], h0[(n - 1) * 2 + 1]), Math.min(h0[(n - 2) * 2], h0[(n - 2) * 2 + 1])) : 0 };
+      const pal = typeof ECR_PALIERS !== 'undefined' ? ECR_PALIERS[0] : 0.3, rap = h0 && bus._h ? Math.min(...[0, 1, 2, 3].map((k) => bus._h[k] / h0[k])) : 1; /* paliers (19 octobre) : un 1er passage n'enfonce que jusqu'à ECR_PALIERS[0] de la hauteur de chaque tranche */
+      const r = { epave: !!bus.epave, h0: h0 && Math.max(...h0), rap, pal, basTouche: Math.min(bout(0), bout(1)), loinIntact: Math.max(bout(n - 1), bout(n - 2)), /* V4 : le toit du bus n'est pas plat (carénages) : le bout intact se compare à sa propre hauteur d'avant */ h0Loin: h0 ? Math.max(Math.min(h0[(n - 1) * 2], h0[(n - 1) * 2 + 1]), Math.min(h0[(n - 2) * 2], h0[(n - 2) * 2 + 1])) : 0 };
       P.veh = null; charV.mort = true; nettoyer();
       return r;
     });
     if (!deuxTemps.epave) fail('Écrasement : le Bus de ville touché à un bout ne finit pas en épave (' + JSON.stringify(deuxTemps) + ')');
     else ok('Écrasement : le Bus de ville touché à un bout finit en épave après le passage');
-    if (!(deuxTemps.basTouche < 1.0 && deuxTemps.loinIntact > deuxTemps.h0Loin - 0.2)) fail('Écrasement : l\'affaissement du bus n\'est pas localisé (' + JSON.stringify(deuxTemps) + ')');
+    if (!(deuxTemps.rap < deuxTemps.pal + 0.05 && deuxTemps.loinIntact > deuxTemps.h0Loin - 0.2)) fail('Écrasement : l\'affaissement du bus n\'est pas localisé (' + JSON.stringify(deuxTemps) + ')');
     else ok('Écrasement : seul le bout du bus où passent les chenilles s\'affaisse (' + deuxTemps.basTouche.toFixed(2) + ' u), l\'autre bout reste debout (' + deuxTemps.loinIntact.toFixed(2) + ' u)');
 
     console.log('\n--- Piétons : jamais aplatis, éliminés avec une projection proportionnelle à la puissance du véhicule ---');
@@ -15921,6 +15922,96 @@ async function main() {
         vider(); startRun(); return { ko, info }; });
       if (r.off) saute('Épaves solides : écrasement V2 absent');
       else if (r.ko.length) fail('Épaves solides : ' + r.ko.join(' ; ') + ' [' + r.info.join(' ; ') + ']'); else ok('Épaves solides : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
+    // Monster Truck, trois passages sur la même voiture (19 octobre, signalé avec trois captures : « il bascule d'un coup à angle
+    // droit, le nez part vers le ciel ou plante dans le sol, le châssis traverse le bitume, puis il réapparaît de l'autre côté » ;
+    // demandé : « l'écrasement est progressif et cumulatif, chaque passage aplatit davantage : enfoncée → écrasée → galette »). La
+    // pose de montée était reprise par le lissage de l'assiette et s'amplifiait (×3,3) : 29° de montée faisaient 95°.
+    // -------------------------------------------------------------------
+    console.log('\n--- Monster Truck : trois passages sur la même voiture — paliers, tangage borné, jamais sous le sol, aucun saut ---');
+    {
+      const r = await page.evaluate(() => {
+        if (typeof ECR_PALIERS === 'undefined') return { off: true };
+        const ko = [], info = [];
+        const retirer = (v) => { if (P.veh === v) P.veh = null; v.mort = true; scene.remove(v.mesh); const i = vehicules.indexOf(v); if (i >= 0) vehicules.splice(i, 1); };
+        startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; for (const e of ennemis) e.mort = true; for (const pe of pietons) pe.etat = 'mort'; WAVES.etat = 'repos'; WAVES.t = 1e9;
+        for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0; viderEpaves();
+        let sc = null; for (let k = 2; k < NB - 2 && !sc; k++) { const lane = -HALF + k * CELL + 3.2; for (let zz = -HALF + 60; zz < MER - 120 && !sc; zz += CELL) { let libre = true; for (let d = -10; d < 70; d += 2) if (solidAt(lane, zz + d, 3) || solY(lane, zz + d) > 0.4) { libre = false; break; } if (libre) sc = { lane, z0: zz }; } }
+        if (!sc) return { ko: ['aucune voie dégagée'], info };
+        P.x = sc.lane - 15; P.z = sc.z0 + 30;
+        const cible = creerVehicule('citadine', sc.lane, sc.z0 + 30, 0, null), mt = creerVehicule('monstertruck', sc.lane, sc.z0 + 18, 0, 'joueur'); P.veh = mt;
+        const pts = ecrPoints(mt), _v = new THREE.Vector3(); let tMax = 0, rMax = 0, sousSol = 0, sautMax = 0, px = mt.x, pz = mt.z;
+        const surveiller = () => { const g = mt.mesh; g.updateMatrixWorld(true); tMax = Math.max(tMax, Math.abs(g.rotation.x)); rMax = Math.max(rMax, Math.abs(g.rotation.z));
+          const ay = Math.abs(Math.sin(g.rotation.z) * Math.cos(g.rotation.x)), bas = MONSTER_V3.R * Math.sqrt(1 - ay * ay) + MONSTER_V3.ep / 2 * ay; /* de biais, le bord du flanc */
+          for (const ro of (g.userData.roues || [])) { ro.getWorldPosition(_v); sousSol = Math.min(sousSol, _v.y - bas - solY(_v.x, _v.z)); } /* le point le plus bas de chaque pneu */
+          for (const q of pts) if (q[1] > 0) { _v.set(q[0], q[1], q[2]); g.localToWorld(_v); sousSol = Math.min(sousSol, _v.y - solY(_v.x, _v.z)); } /* les pare-chocs */
+          sautMax = Math.max(sautMax, Math.hypot(mt.x - px, mt.z - pz) - (Math.abs(mt.v) + Math.hypot(mt.knockVx || 0, mt.knockVz || 0)) / 30); px = mt.x; pz = mt.z; };
+        const moy = (H) => { let s = 0; for (const h of H) s += h; return s / H.length; }, moyenne = () => moy((cible.ecr || cible.epE).h);
+        const h0 = moy(profilVictime(cible)); const paliers = [];
+        const passe = (sens, zFin) => { for (let t = 0; t < 600; t++) { majVehiculePhys(mt, 1 / 30, sens, 0, false); surveiller(); if (sens > 0 ? mt.z > zFin : mt.z < zFin) break; }
+          for (let t = 0; t < 30; t++) { mt.v *= 0.5; majVehiculePhys(mt, 1 / 30, 0, 0, true); surveiller(); } };
+        passe(1, cible.z + 9); if (!cible.epave) for (let t = 0; t < 30 && !cible.epave; t++) majVehiculePhys(mt, 1 / 30, 0, 0, true);
+        majVehicules(1 / 30); for (const v of vehicules.slice()) if (v !== mt) retirer(v); if (!vehicules.includes(mt)) vehicules.push(mt);
+        if (!cible.epave || !EPAVES.includes(cible)) return { ko: ['1er passage : pas d’épave'], info };
+        paliers.push(moyenne());
+        passe(-1, cible.z - 9); paliers.push(moyenne());
+        passe(1, cible.z + 9); paliers.push(moyenne());
+        /* une 2e voiture, prise de côté : les seules roues droites montent dessus (le roulis) */
+        const c2 = creerVehicule('berline', sc.lane + 1.6, sc.z0 + 52, 0, null); mt.x = sc.lane; mt.z = c2.z - 12; mt.ang = 0; mt.v = 0;
+        passe(1, c2.z + 9); majVehicules(1 / 30); for (const v of vehicules.slice()) if (v !== mt) retirer(v); if (!vehicules.includes(mt)) vehicules.push(mt);
+        if (!c2.epave) ko.push('la voiture prise de côté n’est pas écrasée');
+        info.push('hauteur moyenne de la carcasse : ' + h0.toFixed(2) + ' → ' + paliers.map((x) => x.toFixed(2)).join(' → ') + ' (palier ' + cible.epE.palier + ')');
+        if (!(paliers[0] < h0 - 0.1 && paliers[1] < paliers[0] - 0.05 && paliers[2] < paliers[1] - 0.03)) ko.push('la carcasse ne s’aplatit pas davantage à chaque passage');
+        if (!(paliers[2] <= ECR_GALETTE + 0.15)) ko.push('pas de galette au 3e passage (' + paliers[2].toFixed(2) + ')');
+        if (!(paliers[0] > ECR_GALETTE + 0.2)) ko.push('le 1er passage fait déjà la galette (aucun palier)');
+        const deg = (x) => (x * 180 / Math.PI).toFixed(1);
+        info.push('tangage maxi ' + deg(tMax) + '°, roulis maxi ' + deg(rMax) + '°, point le plus bas ' + sousSol.toFixed(2) + ' u sous le sol, saut maxi ' + sautMax.toFixed(2) + ' u');
+        if (tMax > ECR_TANG_MAX + 0.05) ko.push('tangage ' + deg(tMax) + '° au-delà de ' + deg(ECR_TANG_MAX) + '°');
+        if (rMax > ECR_ROUL_MAX + 0.05) ko.push('roulis ' + deg(rMax) + '°');
+        if (sousSol < -0.1) ko.push('une roue ou le châssis passe sous le sol (' + sousSol.toFixed(2) + ' u)');
+        if (sautMax > 0.35) ko.push('saut de position (' + sautMax.toFixed(2) + ' u en une image)');
+        retirer(mt); viderEpaves(); startRun(); return { ko, info }; });
+      if (r.off) saute('Monster Truck, trois passages : paliers absents');
+      else if (r.ko.length) fail('Monster Truck, trois passages : ' + r.ko.join(' ; ') + ' [' + r.info.join(' ; ') + ']'); else ok('Monster Truck, trois passages : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
+    // Rien n'est oublié à l'origine du monde (19 octobre, signalé avec une capture iPhone : « un oiseau bloqué avec un objet
+    // bizarre, juste au-dessus du centre de la route »). Plusieurs vies du décor ne bougent que de près (niveau de détail) ;
+    // ce qui n'avait jamais été placé restait là où il était né, en (0,0,0) — une rue résidentielle : les aigles et les vautours
+    // du Mont Reyes, une voile de parapente, des randonneurs, deux VTT, la fumée du refuge, les accompagnants des promeneurs de
+    // Los Reyes Hills (conjoint, chien, poussette), les balles du stade et du complexe sportif. Depuis plusieurs points de la
+    // carte (dont la rue de l'origine elle-même), rien de visible ne doit s'y trouver.
+    // -------------------------------------------------------------------
+    console.log('\n--- Rien n’est oublié à l’origine du monde : la vie du décor est placée ou cachée, jamais figée en (0,0,0) ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; for (const e of ennemis) e.mort = true; WAVES.etat = 'repos'; WAVES.t = 1e9;
+        const points = [['rue de l’origine', 9, 16], ['départ', POIS.place.x, POIS.place.z]];
+        if (typeof MONT !== 'undefined' && MONT.x) points.push(['pied du Mont Reyes', MONT.x - MONT.rx - 10, MONT.z]);
+        if (typeof HILLS !== 'undefined' && HILLS.ok) points.push(['Los Reyes Hills', (HILLS.x0 + HILLS.x1) / 2, HILLS.z1 + 10]);
+        if (typeof SPORTS !== 'undefined' && SPORTS.stade) points.push(['stade du parc', SPORTS.stade.x, SPORTS.stade.z + 30]);
+        if (POIS.aeroport) points.push(['aéroport', POIS.aeroport.x, POIS.aeroport.z]);
+        const _b = new THREE.Box3(), _s = new THREE.Vector3(), _c = new THREE.Vector3(), _m = new THREE.Matrix4(), _p = new THREE.Vector3();
+        const vis = (o) => { for (let q = o; q; q = q.parent) if (!q.visible) return false; return true; };
+        let T = performance.now();
+        for (const [nom, x, z] of points) {
+          P.veh = null; P.x = x; P.z = z; P.y = solPied(x, z); dernierT = T;
+          for (let i = 0; i < 20; i++) { try { tick(T += 33); } catch (e) {} }
+          scene.updateMatrixWorld(true); const L = [];
+          scene.traverse((m) => { if (!(m.isMesh || m.isSprite || m.isLine) || !vis(m)) return;
+            if (m.isSprite && !(m.material.opacity > 0.02)) return; /* une lueur éteinte ne se voit pas */
+            if (m.isInstancedMesh) { for (let i = 0; i < m.count; i++) { m.getMatrixAt(i, _m); _p.setFromMatrixPosition(_m).applyMatrix4(m.matrixWorld); if (_p.lengthSq() < 0.01) { L.push('instance ' + i + ' de ' + (m.name || m.geometry.type)); break; } } return; }
+            _b.setFromObject(m); if (_b.isEmpty()) return; _b.getSize(_s); _b.getCenter(_c);
+            if (_s.x < 8 && _s.z < 8 && Math.hypot(_c.x, _c.z) < 2.5 && _c.y < 8 && m.getWorldPosition(_p).lengthSq() < 0.01) L.push(m.type + ' ' + _s.x.toFixed(1) + '×' + _s.y.toFixed(1) + '×' + _s.z.toFixed(1)); });
+          if (L.length) ko.push('vu depuis « ' + nom + ' » : ' + L.length + ' objet(s) en (0,0,0) — ' + L.slice(0, 6).join(', '));
+          else info.push(nom);
+        }
+        P.veh = null; startRun(); return { ko, info };
+      });
+      if (r.ko.length) fail('Origine du monde : ' + r.ko.join(' ; '));
+      else ok('Origine du monde : rien d’oublié en (0,0,0), vu depuis ' + r.info.join(', '));
     }
     // -------------------------------------------------------------------
     // Véhicules V4 (19 octobre, demandé : « tous les véhicules au niveau V3 », « pour le trafic, un niveau de détail ») : chaque fiche

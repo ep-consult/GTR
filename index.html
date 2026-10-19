@@ -6774,7 +6774,7 @@ function montLieux(rnd){ const S=MONT2.sites, pieces=[], TL=MONT2.tLieux={}; let
     pieces.push(['box',1.0,1.9,0.08,F.x,y+0.95,F.z+1.52,0x5a3a20],['box',0.8,0.6,0.08,F.x-1.8,y+1.6,F.z+1.52,0xffd890],['box',0.8,0.6,0.08,F.x+1.8,y+1.6,F.z+1.52,0xffd890],['box',0.9,3.6,0.9,F.x+2.2,y+3.2,F.z-1.8,0x7a7468]);
     const terr=new THREE.Mesh(new THREE.BoxGeometry(6,0.2,2.6),bois); terr.position.set(F.x,y+0.1,F.z+2.8); scene.add(terr); pieces.push(['box',2.4,0.1,0.5,F.x-1.4,y+0.65,F.z+3.4,0x7a5a3a],['box',0.1,0.45,0.4,F.x-2.5,y+0.4,F.z+3.4,0x5a3a20],['box',0.1,0.45,0.4,F.x-0.3,y+0.4,F.z+3.4,0x5a3a20],['box',1.4,0.08,0.9,F.x+1.6,y+0.8,F.z+3.0,0x7a5a3a]);
     const ens=new THREE.Mesh(new THREE.PlaneGeometry(3.6,0.6),new THREE.MeshLambertMaterial({map:pqTexte('REFUGE DU MONT REYES · 1 890 m','#5a3a20','#f4e8c8')})); ens.position.set(F.x,y+2.35,F.z+1.56); scene.add(ens);
-    MONT2.fumee={x:F.x+2.2,y:y+5.1,z:F.z-1.8,sp:[]}; const fm=new THREE.SpriteMaterial({map:texGlow,color:0xc8ccd4,transparent:true,opacity:0.4,depthWrite:false}); for(let k=0;k<5;k++){ const sp=new THREE.Sprite(fm); scene.add(sp); MONT2.fumee.sp.push(sp); }
+    MONT2.fumee={x:F.x+2.2,y:y+5.1,z:F.z-1.8,sp:[]}; const fm=new THREE.SpriteMaterial({map:texGlow,color:0xc8ccd4,transparent:true,opacity:0.4,depthWrite:false}); for(let k=0;k<5;k++){ const sp=new THREE.Sprite(fm); scene.add(sp); MONT2.fumee.sp.push(sp); } fumeeRefuge(0); /* posée tout de suite (avant : à l'origine du monde tant qu'on n'approchait pas du mont) */
     S.refuge.soupe={x:F.x+1.6,z:F.z+4.4}; }
   tp('refuge');
   // le belvédère : plate-forme de bois, garde-corps, deux bancs, les jumelles à pièces
@@ -6805,7 +6805,7 @@ function montLieux(rnd){ const S=MONT2.sites, pieces=[], TL=MONT2.tLieux={}; let
     panneau(A.x+4,A.z+2,['DÉCOLLAGE PARAPENTE','vent d’ouest'],Math.PI/2);
     for(let k=0;k<2;k++){ const g=new THREE.Group(); const aile=new THREE.Mesh(new THREE.CylinderGeometry(3.2,3.2,1.1,16,1,true,-0.9,1.8),new THREE.MeshLambertMaterial({color:k?0x35c8e0:0xff5a8a,side:THREE.DoubleSide})); aile.rotation.z=Math.PI/2; aile.position.y=4; g.add(aile);
       const pilote=new THREE.Mesh(new THREE.BoxGeometry(0.4,0.7,0.4),new THREE.MeshLambertMaterial({color:0x2a2a2a})); g.add(pilote); for(const sd of [-1,1]){ const cd=new THREE.Mesh(new THREE.CylinderGeometry(0.01,0.01,3.4,3),new THREE.MeshBasicMaterial({color:0xdddddd})); cd.position.set(sd*1.0,2.0,0); cd.rotation.z=sd*0.3; g.add(cd); }
-      scene.add(g); MONT2.parapentes.push({g,a:rnd()*6.283,r:24+k*14,cx:A.x-30-k*12,cz:A.z+k*10,h:y+18+k*10,v:0.12+k*0.05}); } }
+      scene.add(g); const pp={g,a:rnd()*6.283,r:24+k*14,cx:A.x-30-k*12,cz:A.z+k*10,h:y+18+k*10,v:0.12+k*0.05}; MONT2.parapentes.push(pp); parapenteOrbite(pp,0); g.visible=false; } } /* sur son orbite, caché tant qu'on n'approche pas (majMontV2) */
   tp('parapente');
   // le campement au bord du lac : une tente, un feu, des sacs
   if(S.camp){ const Cp=S.camp, y=Cp.y; const tente=new THREE.Mesh(new THREE.ConeGeometry(1.5,1.6,4),new THREE.MeshLambertMaterial({color:0xff8a2a,flatShading:true})); tente.position.set(Cp.x-1,y+0.8,Cp.z); tente.rotation.y=0.6; tente.scale.z=1.4; scene.add(tente);
@@ -6873,16 +6873,18 @@ function majMontSon(dt){ const ici=DECOR_V2&&MONT2.ok&&ETAT.mode==='jeu'&&!INT.a
   MONT_SON.aigleT-=dt; if(MONT_SON.aigleT<=0){ MONT_SON.aigleT=12+Math.random()*16; if(alt>0.25) beep(1900+Math.random()*300,0.7,'sine',0.012,1300); } } /* le cri d'un rapace */
 function sprite3(m,x,y,z,s){ const sp=new THREE.Sprite(m); sp.position.set(x,y,z); sp.scale.set(s,s,1); scene.add(sp); return sp; }
 /* ---- l'animation du mont (tout est cosmétique : dt) ---- */
+function fumeeRefuge(t){ MONT2.fumee.sp.forEach((sp,k)=>{ const u=(t*0.25+k/5)%1; sp.position.set(MONT2.fumee.x+u*1.5+Math.sin(t+k)*0.3,MONT2.fumee.y+u*5,MONT2.fumee.z+u*0.8); sp.scale.setScalar(0.8+u*2.6); sp.material.opacity=0.4*(1-u); }); } /* la fumée de la cheminée du refuge */
+function parapenteOrbite(p,dt){ p.a+=p.v*dt; p.g.position.set(p.cx+Math.cos(p.a)*p.r,p.h+Math.sin(p.a*0.5)*3,p.cz+Math.sin(p.a)*p.r); p.g.rotation.y=-p.a; p.g.rotation.z=0.25; }
 function majMontV2(dt){ if(!MONT2.ok) return; MONT2.t+=dt; const t=MONT2.t, prox=dist2(camera.position.x,camera.position.z,MONT.x,MONT.z)<170*170; /* de près seulement : l'herbe, les fleurs, les cailloux */
   for(const im of MONT2.petits) if(im.visible!==prox) im.visible=prox;
+  { const proche=dist2(camera.position.x,camera.position.z,MONT.x,MONT.z)<200*200; for(const p of MONT2.parapentes) if(p.g.visible!==proche) p.g.visible=proche; } /* avant le retour « loin » */
   if(!prox&&dist2(camera.position.x,camera.position.z,MONT.x,MONT.z)>320*320) return;
   for(const b of MONT2.brumes){ b.sp.position.x=b.x0+Math.sin(t*0.05*b.v+b.ph)*6; b.sp.position.z=b.z0+Math.cos(t*0.04*b.v+b.ph)*4; }
   if(MONT2.cascade) MONT2.cascade.ecume.forEach((sp,k)=>{ const u=(t*0.7+k/4)%1; sp.material.opacity=0.5*(1-u); sp.scale.set(1.5+u*2.5,0.8+u*1.2,1); sp.position.y=MONT2.cascade.y+0.2+u*1.2; });
-  if(MONT2.fumee) MONT2.fumee.sp.forEach((sp,k)=>{ const u=(t*0.25+k/5)%1; sp.position.set(MONT2.fumee.x+u*1.5+Math.sin(t+k)*0.3,MONT2.fumee.y+u*5,MONT2.fumee.z+u*0.8); sp.scale.setScalar(0.8+u*2.6); sp.material.opacity=0.4*(1-u); });
+  if(MONT2.fumee) fumeeRefuge(t);
   if(MONT2.feuCamp) MONT2.feuCamp.sp.forEach((sp,k)=>{ const v=t*(10+k*3); sp.scale.set(0.55+Math.sin(v)*0.08,0.75+Math.sin(v*1.7)*0.15,1); });
   if(MONT2.manche) MONT2.manche.rotation.y=Math.sin(t*0.4)*0.4+0.2*Math.sin(t*2.1);
-  for(const p of MONT2.parapentes){ p.a+=p.v*dt; p.g.position.set(p.cx+Math.cos(p.a)*p.r,p.h+Math.sin(p.a*0.5)*3,p.cz+Math.sin(p.a)*p.r); p.g.rotation.y=-p.a; p.g.rotation.z=0.25; }
-  { const proche=dist2(camera.position.x,camera.position.z,MONT.x,MONT.z)<200*200; for(const p of MONT2.parapentes) if(p.g.visible!==proche) p.g.visible=proche; }
+  for(const p of MONT2.parapentes) parapenteOrbite(p,dt);
   if(MONT2.barque) MONT2.barque.position.y=MONT2.sites.lac.y+0.12+Math.sin(t*1.3)*0.03;
   if(MONT2.toitGrotte.length){ const G2=MONT2.sites.grotte, ax=P.x-G2.x, az=P.z-G2.z, al=ax*G2.dx+az*G2.dz, la=Math.abs(-ax*G2.dz+az*G2.dx), dedans=!INT.actif&&al>0&&al<G2.L+0.5&&la<G2.lw+0.6; for(const o of MONT2.toitGrotte) if(o.visible===dedans) o.visible=!dedans; } /* la voûte s'efface quand on est sous elle (vue de dessus) */
   if(MONT2.pont){ const Pn=MONT2.pont, dx=P.x-Pn.ax, dz=P.z-Pn.az, tp=(dx*Pn.ux+dz*Pn.uz)/Pn.L, sur=!INT.actif&&!P.veh&&tp>0&&tp<1&&Math.abs(-dx*Pn.uz+dz*Pn.ux)<1.2, amp=sur?0.05:0.012; /* il tangue quand on marche dessus */ if(Pn.mesh) Pn.mesh.position.y=Math.sin(t*3.1)*amp; } }
@@ -10087,7 +10089,7 @@ function majVieHills(dt){
   if(!HILLS.ok) return; const V=VIE_HILLS, pres=dansHills(P.x,P.z,80), nuit=(ETAT.nuitF||0);
   for(const m of V.eaux) m.emissive.setRGB(0.04+0.18*nuit,0.22+0.4*nuit,0.28+0.45*nuit); // piscines éclairées la nuit
   for(const w of V.pietons) if(!figConverti(w.h)) w.h.g.visible=pres; for(const j of V.jardiniers) if(!figConverti(j.h)) j.h.g.visible=pres;
-  if(!pres||!V.trottoir) return;
+  if(!pres||!V.trottoir){ majHabitantsHills(dt); return; } /* loin : il cache les accompagnants (avant, appelé après ce retour : le conjoint, le chien, la poussette restaient visibles là où ils étaient nés — à l'origine du monde, une rue du centre) */
   for(const w of V.pietons){ if(figConverti(w.h)) continue; w.s=(w.s+w.v*dt/V.trottoir.L+1)%1; const p=pointBoucle(V.trottoir,w.s*V.trottoir.L), a=w.v>0?p.ang:p.ang+Math.PI;
     w.h.g.position.set(p.x,hauteurHills(p.x,p.z)+0.1,p.z); w.h.g.rotation.y=a; animeHumain(w.h,dt,Math.abs(w.v)*3,false); }
   for(const j of V.jardiniers){ if(figConverti(j.h)) continue; j.u+=dt*0.35; const p=j.p, L=p.lay, sx=L?-(Math.sign(L.xa)||1)*(L.hw+L.cote):p.hw*0.6, x=p.x+sx+Math.cos(j.u*2)*0.5, z=p.z+(p.f||1)*((L?L.hz:0)+Math.sin(j.u)*(L?L.hd:p.hd*0.5)); // il tond la pelouse le long de la maison
@@ -11843,7 +11845,9 @@ function footFrappeJoueur(F){
 function majSportsParcs(dt){
   if(!SPORTS.ok||!SPORTS.foot) return; SPORTS.t+=dt; const t=SPORTS.t, S=SPORTS.stade, F=SPORTS.foot, D=FOOT_DEMI, Y=0.24;
   const nuit=(ETAT.nuitF||0)>0.3; for(const l of SPORTS.lampes) l.visible=nuit;
-  if(dist2(P.x,P.z,S.x,S.z)>150*150) return;
+  const proche=dist2(P.x,P.z,S.x,S.z)<=150*150; /* les balles ne bougent que de près : de loin, cachées (avant, elles restaient là où elles étaient nées, à l'origine du monde) */
+  if(F.ballon.visible!==proche){ F.ballon.visible=proche; if(SPORTS.tennis&&SPORTS.tennis.balle) SPORTS.tennis.balle.visible=proche; for(const pg of SPORTS.pong) pg.balle.visible=proche; }
+  if(!proche) return;
   // les supporters : on se lève, on saute à chaque but
   for(const s of SPORTS.supporters){ if(figConverti(s.h)) continue; const sauts=F.butT>0&&F.dernierBut===s.eq; s.h.g.position.y=(s.h.g.userData.y0||(s.h.g.userData.y0=s.h.g.position.y))+(sauts?Math.abs(Math.sin(t*9+s.ph))*0.5:0); s.h.brasG.rotation.x=s.h.brasD.rotation.x=sauts?-2.8:-0.2+Math.sin(t*2+s.ph)*0.1; }
   // le match s'arrête si un joueur a pris peur (devenu un vrai passant)
@@ -13440,7 +13444,7 @@ function mkVieMont(){
     g.add(mkBoxG(0.7,0.05,0.5,0x3a2818,0,0,-0.95)); const ailes=[];
     for(const s of [-1,1]){ const piv=new THREE.Group(); piv.position.set(s*0.25,0.1,0); const a=mkBoxG(2.0,0.05,0.75,0x3a2818,s*1.0,0,0); piv.add(a); const b=mkBoxG(0.6,0.04,0.5,0x241810,s*2.2,0,-0.1); piv.add(b); g.add(piv); ailes.push(piv); }
     g.scale.setScalar(1.3); scene.add(g);
-    VIE_MONT.aigles.push({g,ailes,a:aD(0,6.28),r:aD(22,48),h:S.h+aD(10,26),v:aD(0.18,0.3)*(i%2?1:-1),ph:aD(0,6)}); }
+    VIE_MONT.aigles.push({g,ailes,a:aD(0,6.28),r:aD(22,48),h:S.h+aD(10,26),v:aD(0.18,0.3)*(i%2?1:-1),ph:aD(0,6)}); aigleOrbite(VIE_MONT.aigles[i],0); } /* posé sur son orbite tout de suite : jamais à l'origine du monde (une rue du quartier résidentiel) */
   for(let i=0;i<4;i++){ let x=0,z=0,h=0; for(let k=0;k<30;k++){ const a=aD(0,6.28), r=aD(0.25,0.7); x=MONT.x+Math.cos(a)*MONT.rx*r; z=MONT.z+Math.sin(a)*MONT.rz*r; h=hauteurMont(x,z);
       if(x<LIMITE_EST-4&&h>4&&Math.abs(hauteurMont(x+1,z)-h)<1.2&&Math.abs(hauteurMont(x,z+1)-h)<1.2) break; }
     const g=new THREE.Group(); const trou=new THREE.Mesh(new THREE.CircleGeometry(0.42,10),mat(0x241810)); trou.rotation.x=-Math.PI/2; trou.position.y=0.05; g.add(trou);
@@ -13449,13 +13453,14 @@ function mkVieMont(){
     g.position.set(x,h,z); g.rotation.y=aD(-0.6,0.6); scene.add(g); VIE_MONT.marmottes.push({g,m,x,z,y:0,cache:0}); }
   VIE_MONT.ok=true;
 }
+function aigleOrbite(e,dt){ const S=MONT.sommet; e.a+=e.v*dt; e.ph+=dt*(Math.sin(e.a*3)>0.6?7:1.5); /* quelques battements, puis il plane */
+  const x=S.x+Math.cos(e.a)*e.r, z=S.z+Math.sin(e.a)*e.r*0.8; e.g.position.set(x,e.h+Math.sin(e.a*2)*2,z);
+  e.g.rotation.set(0,Math.atan2(-Math.sin(e.a)*e.v,Math.cos(e.a)*e.v*0.8),e.v>0?-0.25:0.25);
+  const b=Math.sin(e.ph)*(Math.sin(e.a*3)>0.6?0.6:0.08); e.ailes[0].rotation.z=b; e.ailes[1].rotation.z=-b; }
 function majVieMont(dt){
-  if(!VIE_MONT.ok) return; const S=MONT.sommet;
-  if(dist2(P.x,P.z,MONT.x,MONT.z)>260*260) return; // loin du mont : rien ne bouge
-  for(const e of VIE_MONT.aigles){ if(e.mort) continue; e.a+=e.v*dt; e.ph+=dt*(Math.sin(e.a*3)>0.6?7:1.5); // quelques battements, puis il plane
-    const x=S.x+Math.cos(e.a)*e.r, z=S.z+Math.sin(e.a)*e.r*0.8; e.g.position.set(x,e.h+Math.sin(e.a*2)*2,z);
-    e.g.rotation.set(0,Math.atan2(-Math.sin(e.a)*e.v,Math.cos(e.a)*e.v*0.8)+(e.v>0?0:0),e.v>0?-0.25:0.25);
-    const b=Math.sin(e.ph)*(Math.sin(e.a*3)>0.6?0.6:0.08); e.ailes[0].rotation.z=b; e.ailes[1].rotation.z=-b; }
+  if(!VIE_MONT.ok) return;
+  for(const e of VIE_MONT.aigles) if(!e.mort) aigleOrbite(e,dt); /* même de loin : figés, on les voyait arrêtés en plein ciel */
+  if(dist2(P.x,P.z,MONT.x,MONT.z)>260*260) return; /* loin du mont : les marmottes ne bougent pas */
   for(const m of VIE_MONT.marmottes){ const d=dist2(P.x,P.z,m.g.position.x,m.g.position.z); if(d<100) m.cache=3; else if(m.cache>0) m.cache-=dt;
     const cible=m.cache>0?-0.75:0; m.y+=(cible-m.y)*Math.min(1,dt*(cible<m.y?14:2)); m.m.position.y=m.y; m.m.rotation.y=Math.sin(ETAT.runT*0.7+m.x)*0.6; }
 }
@@ -13493,7 +13498,7 @@ function montParoi(){ const H=hauteurMont, S=MONT2.sites; let best=null, bs=-1e9
     const bx=x-dirx*1.6, bz=z-dirz*1.6, pb=Math.hypot(H(bx+1,bz)-H(bx-1,bz),H(bx,bz+1)-H(bx,bz-1))/2; if(pb>0.9||montDistSentier(bx,bz)<2.2) continue; /* l'assureur debout au pied, jamais sur le sentier */
     const sc=Math.min(haut,9)+Math.min(p,2.5)*0.5-ds*0.06-pb; if(sc>bs){ bs=sc; best={x,z,y:h0,dirx,dirz,Lh,haut}; } }
   return best; }
-function montVieConstruire(){ const M=MONT_VIE; if(M.ok||!MONT2.ok||!MONT.sentier.length) return; M.ok=true; const S=MONT2.sites;
+function montVieConstruire(){ const M=MONT_VIE; if(M.ok||!MONT2.ok||!MONT.sentier.length) return; M.ok=true; const S=MONT2.sites, avant=new Set(scene.children);
   const r0=Math.random, rD=_aleaDecorS; let gs=90217; Math.random=()=>{ gs=(gs*1664525+1013904223)>>>0; return gs/4294967296; };
   try{
     // randonneurs : deux couples sur le sentier (montée par une rive, descente par l'autre), un couple qui va au lac par sa sente
@@ -13538,7 +13543,12 @@ function montVieConstruire(){ const M=MONT_VIE; if(M.ok||!MONT2.ok||!MONT.sentie
       g.add(mkBoxG(0.28,0.24,0.3,faucon?0xd8d0c0:0x8a7a6a,0,0.1,0.8)); g.add(mkBoxG(0.1,0.08,0.2,0xd8b030,0,0.06,1.04)); g.add(mkBoxG(0.6,0.05,0.5,col,0,0,-0.95)); const ailes=[];
       for(const sd of [-1,1]){ const piv=new THREE.Group(); piv.position.set(sd*0.25,0.1,0); piv.add(mkBoxG(faucon?1.4:2.4,0.05,faucon?0.5:0.85,col,sd*(faucon?0.7:1.2),0,0)); piv.add(mkBoxG(0.5,0.04,0.4,0x1a1410,sd*(faucon?1.55:2.6),0,-0.1)); g.add(piv); ailes.push(piv); }
       const kk=faucon?0.9:1.6; g.scale.setScalar(kk); scene.add(g); M.rapaces.push({type:faucon?'faucon':'vautour',g,ailes,k:kk,a:k*3.1,ph:k,etat:'plane',t:20+k*7,cx:MONT.x-MONT.rx*0.45+k*12,cz:MONT.z+k*14-10,r:30+k*12,v:(k%2?-1:1)*(faucon?0.32:0.11),h0:faucon?MONT.H*0.8:MONT.H*0.55}); }
-  } finally { Math.random=r0; _aleaDecorS=rD; } }
+  } finally { Math.random=r0; _aleaDecorS=rD; M.racines=scene.children.filter((o)=>!avant.has(o)); } } /* tout ce que la vie du mont a posé dans la scène */
+/* loin du mont, la vie du mont est figée (LOD) : on la cache — ce qui n'avait jamais été placé restait à l'origine du monde, au milieu
+   d'une rue résidentielle (un vautour, deux VTT, une corde, des randonneurs : « l'oiseau bloqué avec un objet bizarre ») ; un figurant
+   devenu piéton (converti) n'est plus à elle. Revenu près du mont, chacun reprend sa visibilité et mvGens le replace dans la même image */
+function montVieCacher(cache){ const L=MONT_VIE.racines; if(!L) return;
+  for(const o of L){ const u=o.userData; if(cache){ if(o.visible&&o.parent===scene&&!u.converti){ o.visible=false; u.mvCache=true; } } else if(u.mvCache){ u.mvCache=false; if(!u.converti) o.visible=true; } } }
 function montVieStartRun(){ if(!DECOR_V2||!MONT2.ok) return; montVieConstruire(); const M=MONT_VIE; M.vague=-2; M.soupeV=-1; M.grotteV=-1; jumellesFin();
   for(const p of M.gens){ p.yS=p.y1=p.by=undefined; p.s=p.s0||0; p.v=0; p.pauseT=0; p.prochPause=30+((p.s0||0)%40); p.vuLac=false; p.tombe=false; if(p.velo){ p.velo.rotation.set(0,0,0); p.velo.visible=true; } }
   for(const r of M.rapaces) mvRapaceReset(r); }
@@ -13560,7 +13570,7 @@ function toucherRapace(b){ for(const r of MONT_VIE.rapaces){ if(r.mort||!r.g.vis
 function majMontVie(dt){ const M=MONT_VIE; if(!M.ok||INT.actif||dt<=0) return; const [px,pz,py]=mvJoueur(), loin=dist2(px,pz,MONT.x,MONT.z)>320*320;
   if(M.vague!==WAVES.n){ M.vague=WAVES.n; for(const r of M.rapaces) if(r.mort) mvRapaceReset(r); } /* abattus, ils reviennent à la vague suivante */
   for(const r of M.rapaces) mvRapace(r,dt,loin);
-  if(loin) return; for(const p of M.gens) mvGens(p,dt,px,pz,py); }
+  montVieCacher(loin); if(loin) return; for(const p of M.gens) mvGens(p,dt,px,pz,py); }
 function mvGens(p,dt,px,pz,py){ const L2=MV_LOD*MV_LOD; p.t=(p.t||0)+dt;
   if(p.type==='rando'){ const b=p.b; if(p.membres.every((m)=>figConverti(m.h))) return; const pt=pointBoucle(b,p.s), vis=dist2(pt.x,pt.z,px,pz)<L2;
     if(p.pauseT>0) p.pauseT-=dt; else { p.prochPause-=dt; if(p.prochPause<=0){ p.prochPause=45+Math.random()*50; p.pauseT=4+Math.random()*5; } } /* une pause : la vue, une gorgée d'eau */
@@ -24954,7 +24964,11 @@ function exploserVehicule(v){
    fument ; EPAVES_MAX au plus, retirées au bout de EPAVE_VIE s ou loin du joueur (EPAVE_LOIN), géométries et matières libérées.
    Sons (sonEcrasement) sur leur propre bus, coupés par couperSonsEcrasement (mourir, startRun, entrée dans une salle). */
 const EPAVES=[], EPAVES_MAX=10, EPAVE_VIE=75, EPAVE_LOIN=240, ECR_CELLS=8, ENFONCE_VMIN=8, ECR_H_MIN=0.38, ECR_MONTE_MAX=1.75, EPAVE_NOIRCIT=1.6;
-const _dP=new THREE.Vector3(), _dD=new THREE.Vector3(), _dF=new THREE.Vector3(), _dC=new THREE.Vector3(), _dL=new THREE.Vector3(), _dT=new THREE.Vector3(), _dB=new THREE.Box3();
+/* l'écrasement par paliers (demandé : « chaque nouveau passage aplatit davantage la carcasse : enfoncée → écrasée → galette ») : au
+   passage n, une tranche ne descend pas sous ECR_PALIERS[n-1] × sa hauteur d'origine, jamais sous ECR_GALETTE (au ras du sol) ;
+   la pose de montée de l'écraseur est bornée (ECR_TANG_MAX, ECR_ROUL_MAX) */
+const ECR_PALIERS=[0.6,0.33,0], ECR_GALETTE=0.28, ECR_TANG_MAX=25*Math.PI/180, ECR_ROUL_MAX=17*Math.PI/180;
+const _dP=new THREE.Vector3(), _dD=new THREE.Vector3(), _dF=new THREE.Vector3(), _dC=new THREE.Vector3(), _dL=new THREE.Vector3(), _dA=new THREE.Vector3(), _dT=new THREE.Vector3(), _dB=new THREE.Box3();
 function niveauChoc(d){ return d.ecrase?3:(d.enfonce?2:1); }
 function victimeEcrasable(o){ const d=o.def; return !!o.mesh&&!d.ecrase&&!d.air&&!d.eau&&!d.surf&&!o.horsVille&&!o.mort&&!o.epave&&!o.noye&&!o.captureOvni; }
 function victimeEnfoncable(o){ const d=o.def; return victimeEcrasable(o)&&!d.enfonce&&!d.blinde&&!d.canon&&!d.navire&&!d.cargo&&!o.derby; }
@@ -24996,7 +25010,7 @@ function ecarterRoue(o,r){ if(r.userData.ecarte) return; r.userData.ecarte=true;
 function finEpave(o){ if(o.epave) return; const E0=o.ecr; lodFixerV4(o); o.epave=true; o.conduit=null; o.v=0; o.ecr=null; o.epT=0; o.epFumT=0; o.epFin=0; if(o.epVx===undefined){ o.epVx=0; o.epVz=0; o.epW=0; }
   /* elle garde son profil (tranche par tranche) : elle reste un obstacle (collisionsEpaves), l'écraseur y remonte et l'aplatit encore
      (majEcrasementPar) — signalé : « d'un seul coup on ne peut plus monter sur la carcasse, on passe à travers, même les autres véhicules » */
-  if(E0){ E0.par=null; o.epE=E0; } else { const h=profilVictime(o); o.epE={h,dern:Float32Array.from(h),sol:o.mesh.position.y,horsT:0,vitres:false,sonT:0,tank:false}; }
+  if(E0){ E0.par=null; E0.enContact=false; E0.horsP=1; o.epE=E0; } else { const h=profilVictime(o); o.epE={h,dern:Float32Array.from(h),h0:Float32Array.from(h),palier:0,enContact:false,horsP:1,sol:o.mesh.position.y,horsT:0,vitres:false,sonT:0,tank:false}; }
   /* noircie peu à peu (EPAVE_NOIRCIT s, majEpaves), plus d'un coup : matières copiées, jamais celles du cache mat() */
   o.epMats=[]; o.mesh.traverse((m)=>{ if(!m.isMesh||m.isSprite||!m.material||m.userData.noirci||Array.isArray(m.material)) return; const c=m.material.clone(); m.material=c; m.userData.noirci=true;
     o.epMats.push({m:c,c0:c.color?c.color.clone():null,e0:c.emissive?c.emissive.clone():null}); });
@@ -25071,7 +25085,7 @@ function profilVictime(o){ const h=new Float32Array(ECR_CELLS*2), sol=o.mesh.pos
   for(let i=0;i<h.length;i++) h[i]=Math.max(h[i]||0.9,ECR_H_MIN+0.05); return h; }
 function commencerEcrasement(v,o){ if(o.ecr||o.epave||!victimeEcrasable(o)) return;
   if(o===P.veh) sortirVehicule(true);
-  const h=profilVictime(o); o.ecr={par:v,h,dern:Float32Array.from(h),sol:o.mesh.position.y,horsT:0,vitres:false,sonT:0,tank:!!v.def.canon};
+  const h=profilVictime(o); o.ecr={par:v,h,dern:Float32Array.from(h),h0:Float32Array.from(h),palier:1,enContact:true,horsP:0,sol:o.mesh.position.y,horsT:0,vitres:false,sonT:0,tank:!!v.def.canon};
   o.v=0; o.conduit=null; o.knockVx=0; o.knockVz=0; (v.ecrV||(v.ecrV=[])).push(o);
   retombeesEpave(o,v.conduit==='joueur',true);
   sonEcrasement('tole',1.1); if(v.conduit==='joueur'){ secousse(3.5); vibre(60); ETAT.timeScale=Math.min(ETAT.timeScale||1,0.55); ETAT.slowT=Math.max(ETAT.slowT||0,0.22); } }
@@ -25081,21 +25095,45 @@ function finirEcrasement(o){ const v=o.ecr&&o.ecr.par; if(v&&v.ecrV){ const k=v.
 /* le contact des roues (ou des chenilles) de l'écraseur v avec la victime o (profil E) : la roue se pose sur la tranche, la tranche
    s'affaisse sous elle ; la hauteur des contacts s'ajoute à _EA ; rend vrai si une roue la touche (victime en cours ou épave) */
 const _EA={hF:0,hR:0,hG:0,hD:0};
+/* une case du profil de la victime (ECR_CELLS tranches × 2 côtés) tassée de sa dernière hauteur vue à sa hauteur actuelle : toute sa
+   largeur et sa longueur, fondue sur les bords (avant : un cercle de 1 u centré sur le pneu — le Monster Truck, plus large qu'une
+   citadine, l'enjambe : le milieu du toit restait debout, la carcasse « galette » de la collision gardait son toit à l'image) */
+function deformerCases(o,E,L){ if(!o.mesh||!L.length) return 0; lodFixerV4(o); o.mesh.updateMatrixWorld(true);
+  const Lo=o.def.long, Wo=o.def.larg, so=Math.sin(o.ang), co=Math.cos(o.ang), pl=E.sol+ECR_GALETTE*0.55, hx=Wo/4, hz=Lo/ECR_CELLS/2, M=0.4; let total=0;
+  const C=L.map((j)=>({lx:(j&1?1:-1)*Wo/4, lz:-Lo/2+Lo*((j>>1)+0.5)/ECR_CELLS, fr:clamp((E.dern[j]-E.h[j])/Math.max(0.05,E.sol+E.dern[j]-pl),0,0.95)})); /* la part de la hauteur à rendre (sans échelle) */
+  for(const m of corpsDeformables(o)){ const g0=m.geometry; if(!g0.boundingSphere) g0.computeBoundingSphere(); m.getWorldScale(_bS); const sc=Math.max(0.2,(_bS.x+_bS.y+_bS.z)/3), rm=M/sc;
+    _dF.set(o.x,pl,o.z); m.worldToLocal(_dF); const fl=_dF.y; _dC.copy(_dF);
+    _dL.set(o.x+co,pl,o.z-so); m.worldToLocal(_dL); _dL.sub(_dC).normalize(); _dA.set(o.x+so,pl,o.z+co); m.worldToLocal(_dA); _dA.sub(_dC).normalize(); /* les axes latéral et long de la victime */
+    const bc=g0.boundingSphere.center, br=g0.boundingSphere.radius, bu=(bc.x-_dC.x)*_dL.x+(bc.z-_dC.z)*_dL.z, bv=(bc.x-_dC.x)*_dA.x+(bc.z-_dC.z)*_dA.z;
+    const Cm=C.filter((c)=>{ const ex=Math.max(0,Math.abs(bu-c.lx/sc)-hx/sc), ez=Math.max(0,Math.abs(bv-c.lz/sc)-hz/sc); return Math.sqrt(ex*ex+ez*ez)<br+rm; }); if(!Cm.length) continue; /* trop loin de ce morceau */
+    const poids=(u,w,c)=>{ const ex=Math.max(0,Math.abs(u-c.lx/sc)-hx/sc), ez=Math.max(0,Math.abs(w-c.lz/sc)-hz/sc); if(ex>=rm||ez>=rm) return 0; const d=Math.sqrt(ex*ex+ez*ez); if(d>=rm) return 0; const k=1-d/rm; return k*k*(3-2*k); };
+    let geo=m.geometry; const a0=geo.attributes.position.array;
+    if(!m.userData.geoPropre){ let tout=false; for(let i=0;i<a0.length&&!tout;i+=3){ const ux=a0[i]-_dC.x, uz=a0[i+2]-_dC.z, u=ux*_dL.x+uz*_dL.z, w=ux*_dA.x+uz*_dA.z; for(const c of Cm) if(poids(u,w,c)>0){ tout=true; break; } } if(!tout) continue;
+      m.userData.geoOrig=g0; const g=g0.clone(); g.userData={}; g.boundingSphere=g0.boundingSphere.clone(); m.geometry=g; m.userData.geoPropre=true; geo=g; }
+    const pos=geo.attributes.position, a=pos.array, tris=geo.index?null:new Uint8Array(pos.count/3|0); let n=0;
+    for(let i=0;i<a.length;i+=3){ const ux=a[i]-_dC.x, uz=a[i+2]-_dC.z, u=ux*_dL.x+uz*_dL.z, w=ux*_dA.x+uz*_dA.z; let k=1, hp=-1;
+      for(const c of Cm){ const p=poids(u,w,c); if(p>0){ if(hp<0) hp=0.9+0.2*hachePos(a[i],a[i+1],a[i+2]); k*=1-c.fr*p*hp; } } /* une case : elle descend d'un bloc, à peine froissée */
+      if(k>=1) continue; const haut=Math.max(0,a[i+1]-fl), dyv=-Math.min(haut*0.98,haut*(1-k)), sg=u>=0?1:-1, e=-dyv*0.24;
+      a[i]+=_dL.x*sg*e; a[i+1]+=dyv; a[i+2]+=_dL.z*sg*e; n++; if(tris) tris[(i/9)|0]=1; } /* la colonne se tasse, les flancs s'évasent */
+    if(n){ pos.needsUpdate=true; if(tris) normalesTriangles(geo,tris); else geo.computeVertexNormals(); geo.computeBoundingSphere(); total+=n; } }
+  return total; }
+const _ECR_CASES=[];
 function contactsSurVictime(v,o,E,C,dt,tank){
-  const so=Math.sin(o.ang), co=Math.cos(o.ang), Lo=o.def.long, Wo=o.def.larg; let touche=false;
+  const so=Math.sin(o.ang), co=Math.cos(o.ang), Lo=o.def.long, Wo=o.def.larg; let touche=false; _ECR_CASES.length=0;
   for(const c of C){ const dx=c.x-o.x, dz=c.z-o.z, lz=dx*so+dz*co, lx=dx*co-dz*so;
     if(Math.abs(lx)>Wo/2+0.3+(c.ep||0)*0.4) continue; const hors=Math.max(0,Math.abs(lz)-Lo/2); if(hors>=c.R*0.92) continue; touche=true; /* le pneu (la chenille) a sa largeur : centré sur une petite voiture, il mord sur ses flancs */
     const i=clamp(Math.floor((clamp(lz,-Lo/2,Lo/2-1e-3)+Lo/2)/Lo*ECR_CELLS),0,ECR_CELLS-1), j=i*2+(lx>=0?1:0), h=E.h[j];
     const pose=Math.max(0,Math.min(h,tank?0.5:ECR_MONTE_MAX)-c.R+Math.sqrt(Math.max(0,c.R*c.R-hors*hors)))*(tank?0.55:1); /* la roue sur la marche */
     if(c.av) _EA.hF=Math.max(_EA.hF,pose); else _EA.hR=Math.max(_EA.hR,pose); if(c.cote>0) _EA.hG=Math.max(_EA.hG,pose); else _EA.hD=Math.max(_EA.hD,pose);
     if(hors>0.05) continue; /* encore au bord : elle monte, elle n'écrase pas encore */
-    const vit=(tank?4.8:3.2)+Math.abs(v.v||0)*0.12+(h>ECR_MONTE_MAX?7:0), nh=Math.max(ECR_H_MIN,h-vit*dt); E.h[j]=nh; /* le poids : la tôle cède en un instant (la roue monte d'abord, la marche s'affaisse sous elle) */
+    const vit=(tank?4.8:3.2)+Math.abs(v.v||0)*0.12+(h>ECR_MONTE_MAX?7:0), pal=ECR_PALIERS[clamp((E.palier||1)-1,0,ECR_PALIERS.length-1)], plancher=Math.max(ECR_GALETTE,(E.h0?E.h0[j]:h)*pal), nh=h<=plancher?h:Math.max(plancher,h-vit*dt); E.h[j]=nh; /* jusqu'au plancher du palier : chaque passage aplatit un peu plus */ /* le poids : la tôle cède en un instant (la roue monte d'abord, la marche s'affaisse sous elle) */
     const nv=Math.max(nh+0.55,ECR_H_MIN); if(j>=2) E.h[j-2]=Math.min(E.h[j-2],nv); if(j+2<E.h.length) E.h[j+2]=Math.min(E.h[j+2],nv); E.h[j^1]=Math.min(E.h[j^1],nv); /* la tôle voisine suit */
-    if(E.dern[j]-nh>=0.06){ deformerLocal(o,c.x,E.sol+E.dern[j],c.z,0,-1,0,E.dern[j]-nh,tank?1.15:1.0,{plancher:E.sol+ECR_H_MIN*0.55,evase:0.24,horiz:true}); E.dern[j]=nh;
+    if(E.dern[j]-nh>=0.06){ for(const jj of [j,j^1,j-2,j+2]) if(jj>=0&&jj<E.h.length&&E.dern[jj]-E.h[jj]>=0.06&&!_ECR_CASES.includes(jj)) _ECR_CASES.push(jj); /* ce qu'on voit suit le profil, case par case (en fin de passage) */
       if(Math.random()<0.5) burst(c.x,E.sol+nh+0.1,c.z,3,0xffe08a,5); if(v.conduit==='joueur') secousse(1.4); }
     if(!E.vitres){ E.vitres=true; eclatsVitres(o,c.x,E.sol+h,c.z,1.1); sonEcrasement('verre',1); }
     for(const r of o.mesh.userData.roues||[]) if(!r.userData.ecarte&&Math.abs(r.position.z-lz)<1.0&&Math.abs(r.position.x-lx)<1.1) ecarterRoue(o,r);
     E.sonT-=dt; if(E.sonT<=0&&h-nh>0.004){ E.sonT=0.26+Math.random()*0.12; sonEcrasement('grince',tank?1.2:0.9); } }
+  if(_ECR_CASES.length){ deformerCases(o,E,_ECR_CASES); for(const jj of _ECR_CASES) E.dern[jj]=E.h[jj]; _ECR_CASES.length=0; }
   return touche; }
 function majEcrasementPar(v,dt){ const L=v.ecrV, tank=!!v.def.canon; _EA.hF=_EA.hR=_EA.hG=_EA.hD=0;
   if(L&&L.length){ const C=contactsEcraseur(v);
@@ -25105,12 +25143,33 @@ function majEcrasementPar(v,dt){ const L=v.ecrV, tank=!!v.def.canon; _EA.hF=_EA.
   /* les épaves : il remonte dessus et les aplatit encore (avant, sorties de la liste des véhicules, il passait au travers) */
   if(EPAVES.length&&(v.h||0)<1.2){ let C=null; const rV=(v.def.long+v.def.larg)*0.5;
     for(const o of EPAVES){ const E=o.epE; if(!E||o.mort||!o.mesh||o.epFin>0) continue; const dx=o.x-v.x, dz=o.z-v.z, rr=rV+(o.def.long+o.def.larg)*0.5; if(dx*dx+dz*dz>rr*rr) continue;
-      if(!C) C=contactsEcraseur(v); E.sol=o.mesh.position.y; contactsSurVictime(v,o,E,C,dt,tank); } }
+      if(!C) C=contactsEcraseur(v); E.sol=o.mesh.position.y; const touche=contactsSurVictime(v,o,E,C,dt,tank);
+      if(touche){ E.horsP=0; if(!E.enContact){ E.enContact=true; if((E.palier||0)<ECR_PALIERS.length){ E.palier=(E.palier||0)+1; /* un nouveau passage : un palier de plus */
+        sonEcrasement('tole',0.9); eclatsChoc(o,o.x,o.z,0.8); burst(o.x,E.sol+hautEpave(o),o.z,8,0xffe08a,5); if(v.conduit==='joueur'){ secousse(1.8); vibre(35); } } } }
+      else { E.horsP=(E.horsP||0)+dt; if(E.horsP>0.4) E.enContact=false; } } }
   const hF=_EA.hF, hR=_EA.hR, hG=_EA.hG, hD=_EA.hD;
   const wb=tank?v.def.long*0.82:MONSTER_V3.zf-MONSTER_V3.zr, tw=tank?v.def.larg*0.74:2*MONSTER_V3.x, ch=(hF+hR)/2, ta=Math.atan2(hF-hR,wb), ro=Math.atan2(hG-hD,tw)*0.6;
   v.hEcrL=lerp(v.hEcrL||0,ch,clamp(dt*(ch>(v.hEcrL||0)?9:7),0,1)); v.tangEcrL=lerp(v.tangEcrL||0,ta,clamp(dt*8,0,1)); v.roulEcrL=lerp(v.roulEcrL||0,ro,clamp(dt*8,0,1));
   if(hF>0.4&&!tank) v.v*=1-0.55*dt; /* monter sur un toit, ça retient */
   if(v.hEcrL<0.003&&Math.abs(v.tangEcrL)<0.003&&Math.abs(v.roulEcrL)<0.003){ v.hEcrL=0; v.tangEcrL=0; v.roulEcrL=0; } }
+/* la pose de montée de l'écraseur, AJOUTÉE à l'assiette du terrain et retirée à l'image suivante (retirerPoseEcrasement, en tête de
+   majVehiculePhys) : avant, l'assiette était lissée DEPUIS la rotation de l'image précédente, montée comprise, et la montée s'y
+   ajoutait encore — à l'équilibre, pente − 3,3 × tangage (6,7 × en l'air) : 29° de montée faisaient 95°, le Monster Truck se dressait
+   à la verticale, l'arrière sous le bitume, puis « réapparaissait » quand le tangage retombait. Bornée (ECR_TANG_MAX, ECR_ROUL_MAX) ;
+   relevée s'il le faut pour qu'aucun pneu ni aucun pare-chocs ne passe sous le sol (ecrPoints : [x, y, z] d'un point du gabarit, ou
+   [x, 0, z, R, largeur] d'un pneu, dont on suit le point le plus bas — de biais, c'est le bord du flanc, pas le bas du pneu) */
+function ecrPoints(v){ if(v._ecrPts) return v._ecrPts; const M=MONSTER_V3, d=v.def;
+  return v._ecrPts=v.def.canon?[[d.larg*0.42,0.12,d.long*0.46],[-d.larg*0.42,0.12,d.long*0.46],[d.larg*0.42,0.12,-d.long*0.46],[-d.larg*0.42,0.12,-d.long*0.46]]
+    :[[M.x,0,M.zf,M.R,M.ep],[-M.x,0,M.zf,M.R,M.ep],[M.x,0,M.zr,M.R,M.ep],[-M.x,0,M.zr,M.R,M.ep],[M.hw,0.85,d.long*0.49],[-M.hw,0.85,d.long*0.49],[M.hw,0.85,-d.long*0.49],[-M.hw,0.85,-d.long*0.49]]; }
+function poseEcrasement(v){ const g=v.mesh, t=clamp(v.tangEcrL||0,-ECR_TANG_MAX,ECR_TANG_MAX), r=clamp(v.roulEcrL||0,-ECR_ROUL_MAX,ECR_ROUL_MAX);
+  const th0=g.rotation.x, ph0=g.rotation.z, th1=th0-t, ph1=ph0+r, c0=Math.cos(th0), s0=Math.sin(th0), c1=Math.cos(th1), s1=Math.sin(th1), cp0=Math.cos(ph0), sp0=Math.sin(ph0), cp1=Math.cos(ph1), sp1=Math.sin(ph1);
+  const a0=Math.abs(sp0*c0), a1=Math.abs(sp1*c1), b0=Math.sqrt(1-a0*a0), b1=Math.sqrt(1-a1*a1); /* la composante verticale de l'essieu (ordre YXZ) */
+  let h=v.hEcrL||0; for(const q of ecrPoints(v)){
+    if(q[3]){ const R=q[3], e=q[4]/2, y0=(q[0]*sp0+R*cp0)*c0-q[2]*s0-R*b0-e*a0, y1=(q[0]*sp1+R*cp1)*c1-q[2]*s1-R*b1-e*a1; h=Math.max(h,y0-y1); continue; } /* le bas du pneu : jamais plus bas que sur le terrain */
+    const y0=(q[0]*sp0+q[1]*cp0)*c0-q[2]*s0, y1=(q[0]*sp1+q[1]*cp1)*c1-q[2]*s1; /* hauteur du point, avant et après la montée */
+    h=Math.max(h,y0-y1-q[1]); } /* q[1] : sa hauteur au-dessus du sol dans la pose de base — il peut descendre jusque-là, pas plus */
+  g.position.y+=h; g.rotation.x=th1; g.rotation.z=ph1; v.ecrPose={h,t,r}; }
+function retirerPoseEcrasement(v){ const g=v.mesh, P0=v.ecrPose; v.ecrPose=null; if(!g||!P0) return; g.rotation.x+=P0.t; g.rotation.z-=P0.r; } /* la hauteur, elle, est reposée à chaque image (mesh.position.set) */
 function pousseHorsSolide(o,r){
   const s=solidAt(o.x,o.z,r);
   if(!s) return false;
@@ -25258,7 +25317,7 @@ function resoudreCollisionsVehicule(v,dt){
       // écrasement (niveau 3 : char, Monster Truck) et enfoncement (niveau 2 : les lourds) remplacent le rebond et les dégâts de
       // masse ci-dessous pour cette paire — voir « Écrasement et enfoncement V2 » (aucun véhicule assez lourd pour résister au niveau 3).
       if((o.ecr&&o.ecr.par===v)||(v.ecr&&v.ecr.par===o)) continue; /* l'écraseur passe sur sa victime : aucun choc entre eux */
-      if(d.ecrase&&victimeEcrasable(o)){ if(Math.abs(v.v||0)>1||(v.ecrV&&v.ecrV.length)){ commencerEcrasement(v,o); continue; } } /* niveau 3 (char, Monster Truck), voir commencerEcrasement */
+      if(d.ecrase&&victimeEcrasable(o)){ if(Math.abs(v.v||0)>1||(v.ecrV&&v.ecrV.length)) commencerEcrasement(v,o); continue; } /* niveau 3 (char, Monster Truck), voir commencerEcrasement ; à l'arrêt, ni écrasé ni repoussé (la séparation le faisait sauter) */
       if(d.enfonce&&victimeEnfoncable(o)&&enfoncer(v,o,distFwd)) continue;                                                      /* niveau 2 : le lourd enfonce le léger */
       if(od.enfonce&&victimeEnfoncable(v)&&enfoncer(o,v,-(dxw*Math.sin(o.ang)+dzw*Math.cos(o.ang)))) return;                     /* (le léger traité avant le lourd : même enfoncement) */
       // bulldozer, lame baissée, véhicule DEVANT la lame (14 octobre, demandé : « il doit vraiment pousser le
@@ -25345,6 +25404,7 @@ const _vRoue=new THREE.Vector3();
 function majVehiculePhys(v,dt,throttle,steer,frein){
   v.steerIn=steer; v.freinIn=!!frein; /* lus par le cockpit (volant, voyant de frein) */
   if(v.cabreX) retirerPoseCabrage(v); /* le cabrage des motos s'ajoute à l'assiette : retiré ici, reposé après (poseCabrage) */
+  if(v.ecrPose) retirerPoseEcrasement(v); /* de même la pose de montée de l'écraseur (posée en fin de majVehiculePhys) */
   if(v.noye) return; // noyé : il coule (majNoyade), plus aucune conduite
   const d=v.def, eau=surEauVeh(v); // surEauVeh : dynamique pour l'amphibie, statique pour les bateaux
   const echoue=!!d.eau&&!v.horsVille&&!estEau(v.x,v.z); // bateau posé sur le sable (échouage)
@@ -25642,7 +25702,7 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
       if(v.rebV||v.rebY){ v.rebV+=(-70*(v.rebY||0)-7*v.rebV)*dt; v.rebY=(v.rebY||0)+v.rebV*dt; if(Math.abs(v.rebV)<0.01&&Math.abs(v.rebY)<0.003){ v.rebV=0; v.rebY=0; } cc.position.y+=v.rebY*suspKey; cc.rotation.x+=(v.rebY||0)*0.12; } }
   }
   if(d.ecrase) majEcrasementPar(v,dt); /* écrasement V2 : il passe sur ses victimes */
-  if(v.hEcrL||v.tangEcrL||v.roulEcrL){ v.mesh.position.y+=v.hEcrL||0; v.mesh.rotation.x-=v.tangEcrL||0; v.mesh.rotation.z+=v.roulEcrL||0; } /* la roue posée sur le toit : il monte, il tangue */
+  if(v.hEcrL||v.tangEcrL||v.roulEcrL) poseEcrasement(v); /* la roue posée sur le toit : il monte, il tangue */
 }
 /* la rugosité du sol sous un véhicule : 0 sur l'eau, presque rien sur l'asphalte et les trottoirs de la ville, un peu
    ailleurs (herbe, hors de la ville), beaucoup sur le sable, le désert et les reliefs (montagne, canyons, parcs de terre) */
@@ -43325,6 +43385,7 @@ const COCKPIT_DEFS={
   pickup:{style:'raptor'}, depotPickup:{fam:'auto',style:'raptor'}, /* le pick-up façon Raptor (le Dépôt a la même carrosserie) : un poste imposant ; le taxi garde la voiture classique (demandé le 17 au soir) */
 };
 const CK_PITCH_STYLE={chasseur:-0.04}; /* le chasseur regarde plus droit : le viseur tête haute au-dessus du nez */
+const CK_GARDE_TOIT=0.2; /* l'œil d'une voiture fermée : au moins 20 cm sous le toit (cockpitDims) ; plus bas, la planche du modèle (gabarit V3 des berlines) masque la route */
 const CK_FOV=76, CK_PITCH={auto:-0.05,camion:-0.08,char:-0.1,moto:-0.13,velo:-0.17,jetski:-0.12,bateau:-0.1,passerelle:-0.08,avion:-0.1,helico:-0.12,ovni:-0.12,kayak:-0.14,debout:-0.3};
 /* ce que montre chaque tableau (lu par le catalogue) */
 const COCKPIT_FAMILLES={
@@ -43438,6 +43499,11 @@ function cockpitDims(v){ const g=v.mesh, d=v.def, k=v.key, L=d.long, W=d.larg, f
     if(sg){ eye={x:fam==='bateau'?-0.3:0,y:sg.y+1.42,z:sg.z-(fam==='bateau'?0.5:0)}; } else { approx=true; eye={x:0,y:hC*0.6+1.4,z:-L*0.05}; }
     if(vitOk&&fam==='bateau'){ const hv=vit.max.y-vit.min.y; if(hv>0.6||vit.max.x-vit.min.x>1.2){ eye={x:-0.3,y:vit.min.y+hv*0.55,z:(vit.min.z+vit.max.z)/2-0.15}; } else { eye.z=Math.min(eye.z,vit.max.z-0.6); eye.y=Math.max(eye.y,vit.min.y+hv*0.5); } } }
   if(o.eye) eye=Object.assign({},o.eye); if(o.dy) eye.y+=o.dy; if(o.dz) eye.z+=o.dz; if(o.dx) eye.x+=o.dx;
+  if(fam==='auto'&&cab&&!o.eye&&!(sg&&sg.assis)){ const T=ckToit(v,eye); if(T&&T.y<=cab.y1+0.05&&T.y-eye.y<CK_GARDE_TOIT) eye.y=Math.max(T.y-CK_GARDE_TOIT,eye.y-0.12,cab.y0+0.15); }
+  /* une garde au toit (19 octobre, signalé sur iPhone : « une barre grise en haut du cockpit du taxi ») : le haut de la boîte du
+     vitrage est souvent DANS le pavillon (gabarit des berlines V3 : taxi, police ; l'Agent Gris) — l'œil, posé à
+     27 cm au-dessus de la ceinture, finissait 13 à 17 cm sous le toit réel, et le pavillon du cockpit couvrait le tiers haut de
+     l'écran (35 %, désormais 30 % comme les autres berlines). Mesuré sur le vrai toit (ckToit), comme ailleurs */
   return {fam,cab,eye,approx,corps}; }
 function ckManche(S){ const c=coifCouleurs().haut; if(!S.manches[c]) S.manches[c]=new THREE.MeshLambertMaterial({color:c}); return S.manches[c]; }
 /* ---------- volants, guidons, manches ---------- */
@@ -44133,7 +44199,7 @@ function ckHabitacle(G,S,v,D,H){ const e=D.eye, c=D.cab, fam=D.fam, cam=fam==='c
   const Gs=new THREE.Group(); G.add(Gs);
   const W=clamp(c?c.w:1.6,1.2,2.62)-0.04, xs=W/2, sd=Math.sign(e.x)||1; /* sd : le côté du conducteur (+1 : à gauche ; le trafic roule à droite) */
   const ouvert=!!H.ouvert||!!(c&&c.ouvert), toit=!ouvert&&c?ckToit(v,e):null, ferme=!ouvert&&!!mCiel;
-  const yT=e.y+(cam||bus?-0.16:-0.13), zL=e.z+(cam||bus?0.82:0.74), ceint=ckCeinture(v,e), yS=ceint!==null?clamp(ceint+0.015,e.y-0.45,e.y-0.1):(c?Math.min(c.y0+0.02,e.y-0.17):e.y-0.3), yF=e.y-(cam||bus?1.2:0.98);
+  const yT=e.y+(cam||bus?-0.16:-0.13), zL=e.z+(cam||bus?0.82:0.74), ceint=ckCeinture(v,e), yS=ceint!==null?clamp(ceint+0.015,e.y-0.45,e.y-0.06):(c?Math.min(c.y0+0.02,e.y-0.17):e.y-0.3), yF=e.y-(cam||bus?1.2:0.98);
   const yR=toit?toit.y-0.012:(c?Math.max(c.y1+0.01,e.y+0.14):e.y+0.25), zRf=toit?Math.min(toit.z,e.z+1.1):(c?Math.min(c.zA-0.15,e.z+0.7):e.z+0.5);
   const zW=Math.max(zL+0.24,c?Math.min(c.zA,zL+0.5):zL+0.3), zB=e.z-0.42, P=H.places||4;
   const zArr=bus?Math.max(c?c.zR+0.35:e.z-6,e.z-7.5):(cam||P===3||H.cloison?e.z-0.66:(P<=2?e.z-0.8:Math.max(c?c.zR+0.12:-99,e.z-1.55)));
