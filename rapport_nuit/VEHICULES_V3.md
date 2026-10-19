@@ -33,7 +33,7 @@ joueur compris** (le récent ne montre que les PNJ).
 
 ### 1. Réactualisation globale
 - [x] Fourgon (`van`) — profil unique (capot, cabine vitrée en encoche, caisse haute à nervures), porte coulissante, portes arrière vitrées, feux verticaux, calandre, pare-chocs, baguettes, rétroviseurs, antibrouillards, jantes ; intérieur (planche, volant, siège, banquette, cloison) ; conducteur visible (PNJ et joueur) ; 1re personne : œil à la tête du conducteur, pavillon et pare-soleil dans le champ. 26 maillages (≈ 40 avant). Rendus : `captures/vehicules_v3/van_exterieur.png`, `captures/vehicules_v3/van_jeu.png`
-- [ ] Interceptor (`police`)
+- [x] Interceptor (`police`) — berline de patrouille à capot plat (la silhouette gardée), caisse profilée, habitacle vitré, portières blanches « POLICE », toit blanc à indicatif, rampe de gyrophares sur socle (feux animés par véhicule, `ud.bar`), pare-buffle à flashs, projecteur orientable, antennes, doubles phares ronds, jantes acier ; intérieur : cage, terminal embarqué, fusil, sièges, banquette ; conducteur visible ; 1re personne fermée (pavillon, combiné police). 29 maillages. Rendus : `captures/vehicules_v3/police_exterieur.png`, `captures/vehicules_v3/police_jeu.png`
 - [ ] Camion « Aigle » (`milit`)
 - [ ] Taxi (`taxi`)
 - [ ] Blindé « Bastion » (`blinde`)

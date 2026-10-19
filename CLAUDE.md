@@ -55,7 +55,7 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
   echo "$ln | $(sed -n "$((ln+1))p" index.html | sed 's/^[ \t]*//')"; done
 ```
 
-**Relevé du 19 octobre (véhicules V3) — 41 053 lignes.**
+**Relevé du 19 octobre (véhicules V3) — 41 150 lignes.**
 Attention : `maj_carte` recale les numéros dans l'ordre des lignes de la table ;
 un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la main.
 
@@ -87,37 +87,37 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 11993 | **ARÈNE DE DERBY** (`DERBY`, `mkArenaDerby`, `majDerby`, `majDerbyIA`, voitures et améliorations de derby) |
 | 16845 | MODÈLES — humains, armes, véhicules, hélico, ramassables |
 | 17344 | **COUPS À L'ARME BLANCHE** — `COUPS`, `lancerCoup`, `majCoup3P`, `finCoup` (un geste par arme, 3e et 1re personne) |
-| 19134 | **VÉHICULES V3** — le rattrapage des anciens modèles (`VEH_V3`, `construireV3`, `matsV3`, `constructeurV3`, `roueV3`, `majConducteurV3`), suivi `rapport_nuit/VEHICULES_V3.md` |
-| 19445 | POOLS — balles, particules, textes flottants, traces de pneus |
-| 19922 | ÉTAT GLOBAL + JOUEUR (`P`) |
-| 20804 | VÉHICULES — physique arcade, trafic, dégâts |
-| 23891 | PIÉTONS |
-| 24161 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
-| 24750 | **RAYON TRACTEUR DE L'OVNI** |
-| 25215 | NIVEAU DE RECHERCHE (étoiles) |
-| 25571 | VAGUES + bonus de fin de vague |
-| 25696 | MISSIONS COURTES |
-| 25699 | BÂTIMENTS VISITABLES — intérieurs |
-| 25769 | FOUILLE — mécanique générique |
-| 26317 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
-| 30578 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
-| 30987 | **LAVERIE** V2 — l'essorage de la machine 7 |
-| 31258 | **SERRE** V2 — la nuit de la floraison |
-| 31551 | CINÉ-PALACE |
-| 31795 | MÉTRO ABANDONNÉ |
-| 31861 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
-| 32214 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
-| 33116 | SITE 51 |
-| 33346 | LE DÉPÔT DE BUS — courses clandestines |
-| 34795 | **MÉTIERS** — missions liées à un véhicule |
-| 35086 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
-| 36111 | ÉCRANS / MENUS / BOUTIQUES |
-| 36387 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
-| 37221 | DÉBUT / FIN DE PARTIE |
-| 38776 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
-| 39026 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
-| 39344 | **COCKPITS** — vue 1re personne au volant (`COCKPIT`, `COCKPIT_FAMILLES`, `cockpitDims`, `mkCockpitInterieur`, `ckDessiner`, `rendreCockpit`, `cameraCockpit`, `cockpitDiagnostic`, `photoCockpit`) |
-| 40917 | BOUCLE PRINCIPALE |
+| 19134 | **VÉHICULES V3** — le rattrapage des anciens modèles (`VEH_V3`, `construireV3`, `matsV3`, `constructeurV3`, `roueV3`, `majConducteurV3`, `berlineClassiqueV3`), suivi `rapport_nuit/VEHICULES_V3.md` |
+| 19542 | POOLS — balles, particules, textes flottants, traces de pneus |
+| 20019 | ÉTAT GLOBAL + JOUEUR (`P`) |
+| 20901 | VÉHICULES — physique arcade, trafic, dégâts |
+| 23988 | PIÉTONS |
+| 24258 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
+| 24847 | **RAYON TRACTEUR DE L'OVNI** |
+| 25312 | NIVEAU DE RECHERCHE (étoiles) |
+| 25668 | VAGUES + bonus de fin de vague |
+| 25793 | MISSIONS COURTES |
+| 25796 | BÂTIMENTS VISITABLES — intérieurs |
+| 25866 | FOUILLE — mécanique générique |
+| 26414 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
+| 30675 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
+| 31084 | **LAVERIE** V2 — l'essorage de la machine 7 |
+| 31355 | **SERRE** V2 — la nuit de la floraison |
+| 31648 | CINÉ-PALACE |
+| 31892 | MÉTRO ABANDONNÉ |
+| 31958 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
+| 32311 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
+| 33213 | SITE 51 |
+| 33443 | LE DÉPÔT DE BUS — courses clandestines |
+| 34892 | **MÉTIERS** — missions liées à un véhicule |
+| 35183 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
+| 36208 | ÉCRANS / MENUS / BOUTIQUES |
+| 36484 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
+| 37318 | DÉBUT / FIN DE PARTIE |
+| 38873 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
+| 39123 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
+| 39441 | **COCKPITS** — vue 1re personne au volant (`COCKPIT`, `COCKPIT_FAMILLES`, `cockpitDims`, `mkCockpitInterieur`, `ckDessiner`, `rendreCockpit`, `cameraCockpit`, `cockpitDiagnostic`, `photoCockpit`) |
+| 41014 | BOUCLE PRINCIPALE |
 
 ### Ancres fines (hors bandeaux)
 
@@ -160,28 +160,28 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 16129 | helper `poser()` — placement des lieux |
 | 16155 | `caseCentre(bx,bz)` |
 | 16248 | `REPLIS` — filet de sécurité en spirale |
-| 19313 | `makeVelo()` — vélo de ville et BMX |
+| 19410 | `makeVelo()` — vélo de ville et BMX |
 | 19105 | `voitureV2()` — voiture réaliste : `geoVoiture` (géométries partagées par modèle), `janteVoiture` |
 | 15916 | `ENSEIGNES` — portes mieux placées : `ameliorerPortes()`, `profondeurDevant()`, `orienterPorte()` |
-| 19930 | `const P` — état du joueur |
-| 19973 | `P.stamMax = 100 + 12*mus` |
-| 21330 | `resoudreCollisionsVehicule()` — collisions entre véhicules (SAT sur les 4 axes) |
-| 22034 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
-| 22155 | `boutonsAPied()` — boutons du HUD remis « à pied » (sortie de véhicule ET début de partie) |
-| 23296 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
-| 23428 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
-| 25705 | `IOFF = -9000` |
-| 27509 | `INTDEFS` — définitions des **28 salles** (27 + la boutique) |
-| 27901 | `construireSalle(id)` |
+| 20027 | `const P` — état du joueur |
+| 20070 | `P.stamMax = 100 + 12*mus` |
+| 21427 | `resoudreCollisionsVehicule()` — collisions entre véhicules (SAT sur les 4 axes) |
+| 22131 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
+| 22252 | `boutonsAPied()` — boutons du HUD remis « à pied » (sortie de véhicule ET début de partie) |
+| 23393 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
+| 23525 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
+| 25802 | `IOFF = -9000` |
+| 27606 | `INTDEFS` — définitions des **28 salles** (27 + la boutique) |
+| 27998 | `construireSalle(id)` |
 | 32097 | `CHALUTIER_BANCS_PLAN` — chalutier V2 ; `chalutierMaj` (32599), `dessinerRadarChalutier` (32910) |
-| 34804 | `METIERS_CIBLE` |
-| 35104 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
-| 35192 | `PIECES_FAMILLES` — catalogues de pièces par famille |
-| 35502 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
-| 35569 | `libererObjet()` — libère les géométries d'un objet retiré |
-| 35585 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
-| 35715 | `construireGarageTuning()` — la salle partagée |
-| 36085 | `majNitro()` |
+| 34901 | `METIERS_CIBLE` |
+| 35201 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
+| 35289 | `PIECES_FAMILLES` — catalogues de pièces par famille |
+| 35599 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
+| 35666 | `libererObjet()` — libère les géométries d'un objet retiré |
+| 35682 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
+| 35812 | `construireGarageTuning()` — la salle partagée |
+| 36182 | `majNitro()` |
 | 20827 | `degatsChoc()` — dégâts V2 : `bosseler`, débris, `perdreRoue` ; murs : `degagerDesMurs` (plus haut) |
 | 9754 | `SAUTV` — Saut du Vertige : `hauteurSautVertige`, `mkSautVertige`, `mkBargeVertige`, `finSautVertige` |
 | 39038 | `VUE1P` — vue à la 1re personne : `cameraPremiere`, `ligneDeMire`, `viseAuto1P` |
@@ -1669,6 +1669,12 @@ commandes ne changent. Comparaison avant / après et TODO : `rapport_nuit/VEHICU
   baguettes plastique, rétroviseurs d'utilitaire, antibrouillards, intérieur (planche, volant, siège et banquette,
   cloison). La cabine est assez longue pour que le pavillon et les pare-soleil entrent dans le champ de la 1re personne
   (`COCKPIT_DEFS.van` : l'œil à la tête du conducteur). 26 maillages (≈ 40 avant).
+- **2. Interceptor** (`police`) : gabarit commun `berlineClassiqueV3` (berline à trois volumes, capot PLAT — la silhouette
+  demandée le 16 octobre —, pavillon, montants A, B, C, doubles phares ronds, calandre chromée, poignées, jonc, rétroviseurs,
+  intérieur : planche, volant à gauche à `xD`, sièges, banquette ; `conducteurBerlineV3` pose les mains sur la jante) ;
+  portières blanches et « POLICE » (`matTexteV3` : textes découpés, éclairés), toit blanc à indicatif, rampe sur socle dont
+  les deux feux ont chacun leur matériau (`ud.bar`, animés par `majVoiturePolice`), pare-buffle à flashs, projecteur,
+  antennes, jantes acier ; cage, terminal embarqué et fusil dedans. 29 maillages.
 - Test : « Véhicules V3 » (lit `VEH_V3` : vitre transparente, plafond de maillages, taille, roues à leur place et rayon
   lisible, PNJ et joueur visibles, rien en 1re personne, cockpit valide).
 

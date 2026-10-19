@@ -19300,6 +19300,103 @@ VEH_V3.van={
   inst(I){ for(const [x,z] of [[0.92,1.70],[-0.92,1.70],[0.92,-1.62],[-0.92,-1.62]]) roueV3(I,0.37,0.26,x,z,'alu',I.M.alu);
     halosPharesV3(I,0.72,0.94,3.25); I.ud.conducteur={x:0.5,y:1.06,z:0.84,k:0.95}; I.ud.pareBrise={y:1.68,z:1.71}; }
 };
+/* ---------- berline classique à trois volumes, capot plat (le taxi et l'Interceptor gardent la silhouette qu'avait l'ancien
+   modèle, demandée le 16 octobre : « le capot du taxi et de la police était mieux avant »), détaillée : caisse profilée,
+   habitacle vitré, pavillon et montants, doubles phares, calandre, poignées, rétroviseurs, passages de roue, intérieur.
+   La caisse est pleine jusqu'à la ceinture (cein, + 0,05 de biseau) : seul ce qui dépasse se voit par les vitres. ---------- */
+function berlineClassiqueV3(B,o){ const L=o.L, W=o.W, av=L/2, ar=-L/2, hw=W/2, g0=o.g0, R=o.R, Ra=R+0.1, zf=o.zf, zr=o.zr, cein=o.capot+0.05, hx=W*0.41+0.012, haut=cein+0.05;
+  B.profil('peinture',[[av-0.12,g0+0.04],[av-0.02,g0+0.2],[av,o.capot-0.1],[av-0.08,o.capot],[o.zPb+0.1,o.capot+0.02],[o.zPb,cein],[o.zLu,cein],[o.zLu-0.12,o.malle],[ar+0.12,o.malle-0.01],[ar,o.malle-0.1],[ar,g0+0.2],[ar+0.12,g0+0.04]]
+    .concat(basCaisseV3(ar+0.2,av-0.2,g0,R,Ra,[zr,zf])),W,0.05);
+  B.profil('vitre',[[o.zPb-0.02,cein-0.03],[o.zAv,o.toit-0.04],[o.zAr,o.toit-0.04],[o.zLu+0.03,cein-0.03]],W*0.82,0.025);           /* le vitrage : pare-brise, vitres, lunette */
+  B.profil('peinture',[[o.zAv+0.08,o.toit-0.08],[o.zAv-0.05,o.toit+0.025],[o.zAr+0.05,o.toit+0.025],[o.zAr-0.1,o.toit-0.08]],W*0.86,0.03); /* pavillon */
+  const zB=(o.zAv+o.zAr)/2+0.1;
+  for(const sx of [-1,1]){ const xs=sx*(hw+0.002);
+    B.barre('peinture',0.07,0.1,sx*hx,cein-0.02,o.zPb-0.02,o.toit-0.04,o.zAv); B.barre('peinture',0.07,0.24,sx*hx,cein-0.02,o.zLu+0.06,o.toit-0.04,o.zAr+0.06); /* montants A et C */
+    B.bx('peinture',0.07,o.toit-cein,0.12,sx*hx,(o.toit+cein)/2-0.02,zB);                                                             /* montant B */
+    B.bx('chrome',0.02,0.022,o.zPb-o.zLu-0.12,sx*(hx+0.035),haut+0.005,(o.zPb+o.zLu)/2);                                               /* jonc de ceinture */
+    for(const zj of [o.zPb-0.06,zB+0.02,o.zLu+0.06]) B.bx('sombre',0.012,cein-g0-0.22,0.022,xs,(cein+g0)/2+0.05,zj);                 /* joints de portes */
+    for(const zp of [zB-0.2,o.zLu-0.06]) B.bloc('chrome',0.04,0.045,0.2,sx*(hw+0.014),cein-0.14,zp,0.01);                            /* poignées */
+    B.bx('sombre',0.05,0.09,zf-zr-2*Ra-0.08,sx*(hw-0.005),g0+0.05,(zf+zr)/2);                                                         /* bas de caisse */
+    B.tube('sombre',0.02,[sx*(hx+0.02),haut+0.04,o.zPb-0.18],[sx*(hw+0.08),haut+0.08,o.zPb-0.2]); B.bloc(o.retro||'peinture',0.1,0.13,0.2,sx*(hw+0.14),haut+0.1,o.zPb-0.22,0.025,0.03); B.bx('reflecteur',0.08,0.1,0.01,sx*(hw+0.14),haut+0.1,o.zPb-0.325); /* rétroviseur */
+    B.bloc('sombre',0.42,0.18,0.08,sx*(hw-0.32),o.capot-0.16,av+0.02,0.02,0.02); B.bloc('reflecteur',0.36,0.13,0.03,sx*(hw-0.32),o.capot-0.16,av+0.06,0.008,0.02);
+    for(const dx of [-0.085,0.085]) B.cyl('phare',0.055,0.055,0.02,16,sx*(hw-0.32)+dx,o.capot-0.16,av+0.075,Math.PI/2);                /* doubles phares ronds dans leur cuvelage */
+    B.bx('orange',0.12,0.06,0.03,sx*(hw-0.06),o.capot-0.27,av+0.04);                                                                    /* clignotants */
+    B.bloc('sombre',0.56,0.16,0.06,sx*(hw-0.33),o.malle-0.13,ar-0.035,0.015); B.bx('feu',0.5,0.1,0.02,sx*(hw-0.33),o.malle-0.11,ar-0.07); B.bx('recul',0.12,0.05,0.02,sx*(hw-0.18),o.malle-0.18,ar-0.07); /* feux arrière */
+    for(const zc of [zf,zr]) B.tore('sombre',Ra+0.01,0.03,sx*(hw-0.02),R,zc,0,Math.PI/2,0,Math.PI); }
+  for(const zc of [zf,zr]) B.bx('sombre',W*0.6,Ra*0.9,Ra*1.9,0,R+Ra*0.4,zc);                                                            /* passages de roue */
+  B.bloc('sombre',W*0.44,0.18,0.06,0,o.capot-0.17,av+0.02,0.015); B.bx('chrome',W*0.46,0.03,0.03,0,o.capot-0.075,av+0.05); B.bx('chrome',W*0.46,0.03,0.03,0,o.capot-0.265,av+0.05); /* calandre */
+  for(let i=-3;i<=3;i++) B.bx('chrome',0.015,0.15,0.02,i*W*0.06,o.capot-0.17,av+0.06);
+  B.bx('plaque',0.52,0.12,0.012,0,g0+0.32,av+0.13); B.bx('plaque',0.52,0.12,0.012,0,o.malle-0.24,ar-0.06);
+  B.bx('sombre',W*0.5,0.022,0.03,0,haut+0.012,o.zPb-0.05,0,0,0.04);                                                                      /* essuie-glaces */
+  B.cyl('acier',0.035,0.035,0.25,8,-hw*0.55,g0+0.04,ar+0.02,Math.PI/2);                                                                    /* échappement */
+  /* l'intérieur : garniture sur le rebord de caisse, planche, volant (à gauche), deux sièges avant, banquette arrière */
+  const zH=o.zPb-1.08, yH=0.44, zV=o.zPb-0.72, yV=cein+0.12, xD=Math.min(0.42,W*0.21);                                                    /* hanches du conducteur, centre du volant, place à gauche */
+  B.bx('interieur',W*0.8,0.015,o.zPb-o.zLu-0.14,0,haut+0.008,(o.zPb+o.zLu)/2);
+  B.bloc('tableau',W*0.8,0.14,0.38,0,cein+0.11,o.zPb-0.48,0.04); B.bloc('tableau',0.34,0.08,0.14,xD,cein+0.2,o.zPb-0.62,0.02);
+  B.tore('volant',0.17,0.02,xD,yV,zV,0.45); B.tube('volant',0.025,[xD,yV,zV],[xD,yV-0.08,zV+0.2]); B.bx('volant',0.3,0.025,0.035,xD,yV,zV,0.45);
+  for(const x of [xD,-xD]){ B.bloc('siege',0.48,0.66,0.13,x,0.78,zH-0.2,0.04,0.06,-0.2); B.bloc('siege',0.26,0.15,0.09,x,1.18,zH-0.27,0.03,0.04,-0.2); }
+  B.bloc('siege',W*0.78,0.6,0.14,0,0.76,o.zLu+0.3,0.04,0.06,-0.25);                                                                       /* banquette */
+  return {cein,haut,hx,hw,zB,zH,yH,zV,yV,xD};
+}
+function conducteurBerlineV3(b,k){ return {x:b.xD,y:b.yH,z:b.zH,k,pose:{hy:(b.yV-b.yH)/k,hz:(b.zV-b.zH)/k}}; } /* les mains sur la jante */
+/* ---------- 2. Interceptor (police) : berline de patrouille noire et blanche, rampe de gyrophares, pare-buffle, projecteur, cage ---------- */
+VEH_V3.police={
+  geo(B,d){ const L=d.long, W=d.larg-0.12, o={L,W,g0:0.28,R:0.36,zf:1.4,zr:-1.4,capot:0.86,toit:1.38,zPb:0.82,zAv:0.28,zAr:-0.86,zLu:-1.42,malle:0.92,retro:'sombre'}, b=berlineClassiqueV3(B,o), hw=b.hw;
+    for(const sx of [-1,1]){ const xs=sx*(hw+0.004), rot=sx>0?Math.PI/2:-Math.PI/2;
+      B.bx('blanc',0.012,b.cein-o.g0-0.26,o.zPb-o.zLu-0.38,xs,(b.cein+o.g0)/2+0.02,(o.zPb+o.zLu)/2+0.02);                                /* portières blanches */
+      B.geo('police',new THREE.PlaneGeometry(0.9,0.18),sx*(hw+0.012),0.62,(o.zPb+o.zLu)/2+0.02,0,rot,0); }                                 /* POLICE sur les portières */
+    const zt=(o.zAv+o.zAr)/2; B.bx('blanc',W*0.8,0.012,1.0,0,o.toit+0.06,zt-0.28); B.geo('indicatif',new THREE.PlaneGeometry(0.5,0.3),0,o.toit+0.068,zt-0.42,-Math.PI/2,0,0); /* toit blanc, indicatif */
+    const zb=zt+0.12; B.bloc('sombre',1.36,0.08,0.3,0,o.toit+0.1,zb,0.02,0.03); for(const sx of [-1,1]) B.bx('sombre',0.06,0.06,0.3,sx*0.6,o.toit+0.06,zb); /* socle de la rampe */
+    B.bx('chrome',1.3,0.02,0.02,0,o.toit+0.25,zb);
+    for(const sx of [-0.42,0.42]) B.bloc('sombre',0.09,0.5,0.09,sx,o.g0+0.34,L/2+0.16,0.02); for(const y of [o.g0+0.56,o.g0+0.26]) B.bloc('sombre',1.04,0.09,0.1,0,y,L/2+0.16,0.02); /* pare-buffle */
+    B.bloc('sombre',W*0.98,0.16,0.18,0,o.g0+0.18,L/2+0.02,0.03); B.bloc('sombre',W*0.98,0.16,0.18,0,o.g0+0.2,-L/2-0.02,0.03);             /* boucliers */
+    for(const sx of [-0.2,0.2]) B.bx('phare',0.12,0.04,0.02,sx,o.g0+0.42,L/2+0.215);                                                        /* flashs du pare-buffle */
+    B.cyl('chrome',0.075,0.06,0.16,12,b.hx+0.08,b.haut+0.12,o.zPb-0.1,Math.PI/2); B.tube('sombre',0.015,[b.hx+0.08,b.haut+0.12,o.zPb-0.04],[b.hx+0.04,b.haut+0.02,o.zPb+0.02]); /* projecteur orientable */
+    B.tube('sombre',0.008,[-0.3,o.malle+0.05,o.zLu-0.3],[-0.3,o.malle+0.85,o.zLu-0.36]); B.tube('sombre',0.008,[0.3,o.toit+0.06,o.zAr+0.3],[0.3,o.toit+0.5,o.zAr+0.26]); /* antennes */
+    /* intérieur : cage entre l'avant et l'arrière, terminal embarqué, fusil */
+    const zc=b.zH-0.38; for(let i=-4;i<=4;i++) B.bx('interieur',0.018,0.36,0.018,i*W*0.09,b.haut+0.17,zc); for(const y of [b.haut+0.03,b.haut+0.18,b.haut+0.33]) B.bx('interieur',W*0.8,0.018,0.018,0,y,zc);
+    B.bx('ecranI',0.26,0.17,0.012,0,b.haut+0.13,b.zV-0.02,-0.4); B.bloc('tableau',0.3,0.2,0.03,0,b.haut+0.13,b.zV+0.0,0.008,0,-0.4); B.tube('interieur',0.02,[0,b.cein+0.05,b.zV+0.05],[0,b.haut+0.05,b.zV+0.02]);
+    B.tube('volant',0.022,[-0.04,b.haut,b.zH-0.05],[-0.04,b.haut+0.3,b.zH-0.12]);
+    return {o,zb,b}; },
+  mats:{ blanc:(c,M)=>M.blanc, police:()=>matTexteV3('police'), indicatif:()=>matTexteV3('indicatif') },
+  ancrages:null, /* pas de pièces de carrosserie (pas de tuningCarro) */
+  inst(I){ const o=I.info.o, b=I.info.b; for(const [sx,z] of [[1,o.zf],[-1,o.zf],[1,o.zr],[-1,o.zr]]) roueV3(I,o.R,0.26,sx*0.83,z,'acier',I.M.acier);
+    /* les feux de la rampe : un matériau par véhicule (majVoiturePolice les fait clignoter) */
+    const br=new THREE.Mesh(new THREE.BoxGeometry(0.56,0.11,0.24),new THREE.MeshBasicMaterial({color:0xff3b4b})), bb=new THREE.Mesh(new THREE.BoxGeometry(0.56,0.11,0.24),new THREE.MeshBasicMaterial({color:0x3a7bff}));
+    br.position.set(-0.33,o.toit+0.195,I.info.zb); bb.position.set(0.33,o.toit+0.195,I.info.zb); I.corps.add(br); I.corps.add(bb); I.ud.bar=[br,bb];
+    halosPharesV3(I,b.hw-0.32,o.capot-0.16,o.L/2+0.5); I.ud.conducteur=conducteurBerlineV3(b,0.92); I.ud.pareBrise={y:b.cein+0.24,z:o.zPb-0.26}; }
+};
+/* ---------- 4. Taxi : berline jaune, damier, lanterne TAXI, pare-chocs chromés, séparation et taximètre ---------- */
+const V3_TAXI_ATTENTE={ /* branché après le Camion « Aigle » (l'ordre du suivi) */
+  geo(B,d){ const L=d.long, W=d.larg-0.12, o={L,W,g0:0.28,R:0.35,zf:1.33,zr:-1.33,capot:0.84,toit:1.36,zPb:0.74,zAv:0.22,zAr:-0.84,zLu:-1.32,malle:0.9}, b=berlineClassiqueV3(B,o), hw=b.hw;
+    for(const sx of [-1,1]){ const rot=sx>0?Math.PI/2:-Math.PI/2;
+      B.geo('damier',new THREE.PlaneGeometry(o.zPb-o.zLu-0.24,0.1),sx*(hw+0.006),b.cein-0.24,(o.zPb+o.zLu)/2,0,rot,0);                      /* damier sur les flancs */
+      B.geo('cab',new THREE.PlaneGeometry(0.66,0.15),sx*(hw+0.008),0.56,b.zB-0.42,0,rot,0); }                                              /* LOS REYES CAB sur les portes avant */
+    B.bloc('chrome',W*0.98,0.14,0.16,0,o.g0+0.18,L/2+0.02,0.03,0.03); B.bloc('chrome',W*0.98,0.14,0.16,0,o.g0+0.2,-L/2-0.02,0.03,0.03); /* pare-chocs chromés */
+    const zt=(o.zAv+o.zAr)/2; B.bloc('sombre',0.9,0.06,0.34,0,o.toit+0.085,zt,0.015); B.bx('lanterne',0.8,0.22,0.3,0,o.toit+0.22,zt);  /* lanterne TAXI */
+    for(const sx of [-1,1]) B.bx('sombre',0.04,0.06,0.04,sx*0.38,o.toit+0.06,zt);
+    /* intérieur : séparation à cadre, taximètre rouge */
+    const zc=b.zH-0.38; B.bx('interieur',W*0.8,0.035,0.035,0,b.haut+0.02,zc); B.bx('interieur',W*0.8,0.035,0.035,0,b.haut+0.34,zc); for(const x of [-W*0.4,0,W*0.4]) B.bx('interieur',0.035,0.34,0.035,x,b.haut+0.18,zc);
+    B.bloc('tableau',0.24,0.08,0.12,0,b.haut+0.14,o.zPb-0.62,0.012); B.bx('compteurTaxi',0.18,0.045,0.01,0,b.haut+0.15,o.zPb-0.685);
+    return {o,b}; },
+  mats:{ damier:()=>matTexteV3('damier'), cab:()=>matTexteV3('cab'), lanterne:()=>matTexteV3('lanterne'), compteurTaxi:()=>matsV3().feu },
+  ancrages:{avant:{x:0,y:0.92,z:2.08},arriere:{x:0,y:0.9,z:-2.1},toit:{x:0,y:1.43,z:-0.31},basCaisse:{x:0.94,y:0.3,z:0}}, /* mesurés sur la caisse V3 (sémantique d'ancragesProfil) */
+  inst(I){ const o=I.info.o, b=I.info.b; for(const [sx,z] of [[1,o.zf],[-1,o.zf],[1,o.zr],[-1,o.zr]]) roueV3(I,o.R,0.24,sx*0.81,z,'acier',I.M.chrome);
+    halosPharesV3(I,b.hw-0.32,o.capot-0.16,o.L/2+0.5); I.ud.conducteur=conducteurBerlineV3(b,0.92); I.ud.pareBrise={y:b.cein+0.24,z:o.zPb-0.26}; }
+};
+/* textes et motifs peints (une texture par motif, à la demande) — découpés (alphaTest) et opaques : jamais pris pour une vitre */
+const _TEX_V3={};
+function matTexteV3(id){ if(_TEX_V3[id]) return _TEX_V3[id]; let t, dec=false;
+  const ecrire=(txt,coul,taille,w,h)=>texV3(w,h,(x)=>{ x.clearRect(0,0,w,h); x.fillStyle=coul; x.font='bold '+taille+'px Arial, sans-serif'; x.textAlign='center'; x.textBaseline='middle'; x.fillText(txt,w/2,h/2+2); });
+  if(id==='police'){ t=ecrire('POLICE','#10131a',46,256,52); dec=true; }
+  else if(id==='indicatif'){ t=ecrire('LR-12','#10131a',40,160,96); dec=true; }
+  else if(id==='cab'){ t=ecrire('LOS REYES CAB','#14161b',28,256,58); dec=true; }
+  else if(id==='damier') t=texV3(256,16,(x)=>{ for(let i=0;i<32;i++) for(let j=0;j<2;j++){ x.fillStyle=(i+j)%2?'#121316':'#f2f2ec'; x.fillRect(i*8,j*8,8,8); } });
+  else if(id==='lanterne') t=texV3(128,64,(x,w,h)=>{ x.fillStyle='#ffd23f'; x.fillRect(0,0,w,h); x.fillStyle='#14161c'; x.font='bold 36px Arial, sans-serif'; x.textAlign='center'; x.textBaseline='middle'; x.fillText('TAXI',w/2,h/2+2); });
+  const m=id==='lanterne'?new THREE.MeshBasicMaterial({map:t}):new THREE.MeshLambertMaterial({map:t}); if(dec) m.alphaTest=0.4; /* éclairés comme la carrosserie ; la lanterne du taxi luit */
+  return (_TEX_V3[id]=m); }
+/* les ancrages des pièces du garage d'un modèle V3, mesurés sur sa caisse (comme ancragesProfil pour les voitures V2) */
+for(const k in VEH_V3){ const a=VEH_V3[k].ancrages; if(a&&DECOR_V2&&VEHDEFS[k]&&VEHDEFS[k].tuningCarro) VEHDEFS[k].tuningCarro.ancrages=a; }
 function makeSkate(def,coul,g,ud,corps){
   const pl=new THREE.Group(); corps.add(pl); ud.planche=pl;
   pl.add(mkBoxG(0.22,0.03,0.6,coul,0,0.13,0)); pl.add(mkBoxG(0.215,0.006,0.58,0x14161c,0,0.148,0)); // plateau et grip
