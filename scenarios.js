@@ -13751,7 +13751,8 @@ async function main() {
         toucherEnnemi = function (e, dmg, parJoueur, knock, srcFac) { if (!parJoueur && srcFac === 'police' && GANGS.includes(e.fac)) surGang++; if (!parJoueur && GANGS.includes(srcFac || '') && e.fac === 'police') surPolice++; return tE.apply(this, arguments); };
         for (let f = 0; f < 30 * 30; f++) { majEnnemis(1 / 30); majPools(1 / 30); majVehicules(1 / 30); majInterventionPolice(1 / 30); if (WANTED.stars > 0) break; }
         toucherEnnemi = tE;
-        if (!(surGang > 0)) ko.push('aucune balle de la police n’atteint le gang en 30 s');
+        if (!(surGang > 0)) ko.push('aucune balle de la police n’atteint le gang en 30 s'); /* (la balle perdue vise un agent qui a survécu : un test maîtrise sa scène — si le gang les a tous abattus en 30 s, un agent de plus est débarqué) */
+        if (!ennemis.some((e) => !e.mort && e.intervention && e.fac === 'police') && agents[0]) { const e = creerEnnemi('cop', P.x + 6, P.z + 2, false); if (e) e.intervention = true; }
         if (!(surPolice > 0)) ko.push('le gang ne riposte jamais sur la police');
         if (WANTED.stars > 0) ko.push('le joueur est recherché sans avoir rien fait (' + WANTED.stars + ' étoiles)');
         info.push('fusillade : ' + surGang + ' balles de la police dans le gang, ' + surPolice + ' du gang dans la police');
