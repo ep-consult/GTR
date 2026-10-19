@@ -23433,11 +23433,20 @@ function controleDir(v,frein){
   if(l<0.15) return {throttle:0,steer:0,l:0};
   const cap=Math.atan2(INPUT.mx,INPUT.mz);
   const diff=angDiff(v.ang,cap);
+  /* bateau (19 octobre, signalé : « la vedette ne tourne que d'un seul côté ») : majVehiculePhys inverse le braquage quand
+     v.v < 0. Un bateau qui recule encore (rebond contre un quai, sortie d'échouage) et à qui l'on demande d'avancer virait
+     donc à l'OPPOSÉ du joystick jusqu'à repartir en avant — et défaisait son virage. sB compense ce renversement : en avant,
+     l'étrave va du côté du joystick ; en marche arrière, la poupe va vers la cible, comme avant (on recule vers l'eau).
+     Les véhicules terrestres gardent leur conduite */
+  const sB=v.def.eau&&v.v<0?-1:1;
   // frein à main : gros braquage vers le cap, la vitesse suit avec retard → glissade
-  if(frein) return {throttle:l*0.45,steer:clamp(diff*3.2,-1,1),l,cap};
+  if(frein) return {throttle:l*0.45,steer:sB*clamp(diff*3.2,-1,1),l,cap};
   if(Math.abs(diff)<2.1)
-    return {throttle:l*(1-Math.min(Math.abs(diff),1.2)*0.3),steer:clamp(diff*2.4,-1,1),l,cap};
-  if(v.def.eau&&v.def.long<12&&estEau(v.x,v.z)&&estEau(v.x+Math.sin(v.ang)*(v.def.long*0.5+5),v.z+Math.cos(v.ang)*(v.def.long*0.5+5))) return {throttle:l*0.55,steer:Math.sign(diff)||1,l,cap}; // un petit bateau à flot ne recule pas : il vire en avançant (échoué, il recule vers l'eau ; les grands navires manœuvrent en arrière)
+    return {throttle:l*(1-Math.min(Math.abs(diff),1.2)*0.3),steer:sB*clamp(diff*2.4,-1,1),l,cap};
+  let dB=diff; /* bateau, cible presque derrière, vue qui suit (3D, 1re personne) : la caméra, en retard sur le bateau, faisait passer la cible d'un côté à l'autre — le bateau zigzaguait sur place, ou virait toujours du même côté joystick tiré droit vers soi. On vire du côté où le joystick penche À L'ÉCRAN (à droite = tribord) */
+  if(v.def.eau&&Math.abs(diff)>Math.PI-0.5&&META.vue!=='classique'&&!INT.actif){ const sx=Math.abs(INPUT.ex||0)>0.01?-Math.sign(INPUT.ex):(v.sensDT||Math.sign(diff)||1); v.sensDT=sx; dB=sx*Math.abs(diff); }
+  if(v.def.eau&&v.def.long<12&&estEau(v.x,v.z)&&estEau(v.x+Math.sin(v.ang)*(v.def.long*0.5+5),v.z+Math.cos(v.ang)*(v.def.long*0.5+5))) return {throttle:l*0.55,steer:sB*(Math.sign(dB)||1),l,cap}; // un petit bateau à flot ne recule pas : il vire en avançant (échoué, il recule vers l'eau ; les grands navires manœuvrent en arrière)
+  if(v.def.eau) return {throttle:-l*0.75,steer:-sB*clamp(dB*1.4,-1,1),l,cap}; /* étrave face au quai ou à la plage : il recule, la poupe vers la cible (sB : même s'il avance encore) */
   return {throttle:-l*0.75,steer:clamp(diff*1.4,-1,1),l,cap}; // cible derrière : marche arrière
 }
 /* ---- Moto cross : cabrage (bouton CABRER, tenu). L'angle monte tant

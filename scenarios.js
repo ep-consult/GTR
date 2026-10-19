@@ -8302,6 +8302,41 @@ async function main() {
     }
 
     // -------------------------------------------------------------------
+    // Direction des vedettes (19 octobre, signalé : « elle ne tourne que d'un
+    // seul côté »). Au large, à l'arrêt et lancée, dans les trois vues : le cap
+    // part du côté du joystick, en miroir exact. Un bateau qui RECULE encore
+    // (rebond contre un quai) vire du côté du joystick quand on le relance ; en
+    // vue qui suit, joystick tiré vers soi, il fait demi-tour du côté où il
+    // penche à l'écran (la caméra en retard le faisait zigzaguer sur place).
+    // -------------------------------------------------------------------
+    console.log('\n--- Direction des vedettes : à gauche et à droite de la même façon ---');
+    {
+      const dv = await page.evaluate(() => {
+        const o = { ko: [], vus: [] }; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; for (const e of ennemis) e.mort = true;
+        const cles = Object.keys(VEHDEFS).filter((k) => VEHDEFS[k].eau && !grosNavire(VEHDEFS[k]) && !VEHDEFS[k].surf && !VEHDEFS[k].pagaie && VEHDEFS[k].long >= 5);
+        const vue0 = META.vue;
+        const essai = (k, vue, lance, deg, v0) => { for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0; if (P.veh) sortirVehicule(true);
+          META.vue = vue; const v = creerVehicule(k, -90, MER + 80, Math.PI, null); P.x = v.x; P.z = v.z + 1; entrerVehicule(v); v.v = 0;
+          VUE.yaw = VUE.yawRendu = 0; VUE.offVeh = VUE.offVehRendu = 0; /* cap π : la caméra de poursuite regarde déjà vers l'étrave (v.ang + π) */
+          const pas = (n, jx, jy) => { let dA = 0; for (let i = 0; i < n; i++) { INPUT.jx = jx; INPUT.jy = jy; litEntrees(); const a = v.ang; majConduite(1 / 30); dA += angDiff(a, v.ang); majCamera(1 / 30); } return dA; };
+          pas(lance ? 60 : 30, 0, lance ? -1 : 0); if (v0 !== undefined) v.v = v0;
+          const a = deg * Math.PI / 180, d = pas(30, Math.sin(a), -Math.cos(a)); INPUT.jx = INPUT.jy = 0; litEntrees(); return d; };
+        const petit = (k) => VEHDEFS[k].long < 12; /* un grand bateau manœuvre en arrière (cible derrière : il recule, la poupe vers elle) : seulement le miroir */
+        for (const k of cles) for (const vue of ['classique', 'immersive', 'fps']) for (const lance of [false, true]) for (const deg of [30, 90, 150]) {
+          const dD = essai(k, vue, lance, deg), dG = essai(k, vue, lance, -deg), nom = k + ' ' + vue + (lance ? ' lancé ' : ' arrêt ') + deg + '°';
+          if ((petit(k) || deg < 120) && !(dD < -0.1 && dG > 0.1)) o.ko.push(nom + ' : droite ' + dD.toFixed(2) + ', gauche ' + dG.toFixed(2));
+          else if (Math.abs(dD + dG) > 0.05) o.ko.push(nom + ' : pas en miroir (' + dD.toFixed(2) + ' / ' + dG.toFixed(2) + ')'); }
+        for (const k of cles) { const dD = essai(k, 'classique', true, 60, -4), dG = essai(k, 'classique', true, -60, -4);
+          if (!(dD < -0.03 && dG > 0.03)) o.ko.push(k + ' relancé en reculant : droite ' + dD.toFixed(2) + ', gauche ' + dG.toFixed(2)); }
+        for (const k of cles.filter(petit)) for (const vue of ['immersive', 'fps']) { const dD = essai(k, vue, true, 178), dG = essai(k, vue, true, -178);
+          if (!(dD < -0.5 && dG > 0.5)) o.ko.push(k + ' ' + vue + ' tiré vers soi : demi-tour droite ' + dD.toFixed(2) + ', gauche ' + dG.toFixed(2)); }
+        o.vus = cles; META.vue = vue0; startRun(); return o; });
+      if (!dv.vus.length) fail('Direction des vedettes : aucune vedette lue dans VEHDEFS');
+      else if (dv.ko.length) fail('Direction des vedettes : ' + dv.ko.slice(0, 12).join(' | ') + (dv.ko.length > 12 ? ' … (' + dv.ko.length + ')' : ''));
+      else ok('Direction des vedettes : ' + dv.vus.join(', ') + ' (grands bateaux : en miroir) virent à gauche et à droite en miroir (3 vues, arrêt et lancées), relancées en reculant vers le joystick, demi-tour tiré vers soi des deux côtés');
+    }
+
+    // -------------------------------------------------------------------
     // Zone extrême (DECOR_V2) : 4x4 de franchissement au pied du mont, MONTÉE
     // SÈCHE, DÉFI STUNT, PIC DU VERTIGE (monte-charge, saut BASE). Tout est lu
     // dans la source (MONT.couloir, STUNT, PIC, RIDE_DEFS), jamais recopié.
