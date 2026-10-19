@@ -55,7 +55,7 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
   echo "$ln | $(sed -n "$((ln+1))p" index.html | sed 's/^[ \t]*//')"; done
 ```
 
-**Relevé du 19 octobre (Mont Reyes V2) — 40 877 lignes.**
+**Relevé du 19 octobre (véhicules V3) — 41 053 lignes.**
 Attention : `maj_carte` recale les numéros dans l'ordre des lignes de la table ;
 un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la main.
 
@@ -87,36 +87,37 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 11993 | **ARÈNE DE DERBY** (`DERBY`, `mkArenaDerby`, `majDerby`, `majDerbyIA`, voitures et améliorations de derby) |
 | 16845 | MODÈLES — humains, armes, véhicules, hélico, ramassables |
 | 17344 | **COUPS À L'ARME BLANCHE** — `COUPS`, `lancerCoup`, `majCoup3P`, `finCoup` (un geste par arme, 3e et 1re personne) |
-| 19275 | POOLS — balles, particules, textes flottants, traces de pneus |
-| 19752 | ÉTAT GLOBAL + JOUEUR (`P`) |
-| 20634 | VÉHICULES — physique arcade, trafic, dégâts |
-| 23720 | PIÉTONS |
-| 23990 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
-| 24579 | **RAYON TRACTEUR DE L'OVNI** |
-| 25044 | NIVEAU DE RECHERCHE (étoiles) |
-| 25400 | VAGUES + bonus de fin de vague |
-| 25525 | MISSIONS COURTES |
-| 25528 | BÂTIMENTS VISITABLES — intérieurs |
-| 25598 | FOUILLE — mécanique générique |
-| 26146 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
-| 30407 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
-| 30816 | **LAVERIE** V2 — l'essorage de la machine 7 |
-| 31087 | **SERRE** V2 — la nuit de la floraison |
-| 31380 | CINÉ-PALACE |
-| 31624 | MÉTRO ABANDONNÉ |
-| 31690 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
-| 32043 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
-| 32945 | SITE 51 |
-| 33175 | LE DÉPÔT DE BUS — courses clandestines |
-| 34624 | **MÉTIERS** — missions liées à un véhicule |
-| 34915 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
-| 35937 | ÉCRANS / MENUS / BOUTIQUES |
-| 36213 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
-| 37047 | DÉBUT / FIN DE PARTIE |
-| 38602 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
-| 38852 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
-| 39170 | **COCKPITS** — vue 1re personne au volant (`COCKPIT`, `COCKPIT_FAMILLES`, `cockpitDims`, `mkCockpitInterieur`, `ckDessiner`, `rendreCockpit`, `cameraCockpit`, `cockpitDiagnostic`, `photoCockpit`) |
-| 40742 | BOUCLE PRINCIPALE |
+| 19134 | **VÉHICULES V3** — le rattrapage des anciens modèles (`VEH_V3`, `construireV3`, `matsV3`, `constructeurV3`, `roueV3`, `majConducteurV3`), suivi `rapport_nuit/VEHICULES_V3.md` |
+| 19445 | POOLS — balles, particules, textes flottants, traces de pneus |
+| 19922 | ÉTAT GLOBAL + JOUEUR (`P`) |
+| 20804 | VÉHICULES — physique arcade, trafic, dégâts |
+| 23891 | PIÉTONS |
+| 24161 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
+| 24750 | **RAYON TRACTEUR DE L'OVNI** |
+| 25215 | NIVEAU DE RECHERCHE (étoiles) |
+| 25571 | VAGUES + bonus de fin de vague |
+| 25696 | MISSIONS COURTES |
+| 25699 | BÂTIMENTS VISITABLES — intérieurs |
+| 25769 | FOUILLE — mécanique générique |
+| 26317 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
+| 30578 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
+| 30987 | **LAVERIE** V2 — l'essorage de la machine 7 |
+| 31258 | **SERRE** V2 — la nuit de la floraison |
+| 31551 | CINÉ-PALACE |
+| 31795 | MÉTRO ABANDONNÉ |
+| 31861 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
+| 32214 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
+| 33116 | SITE 51 |
+| 33346 | LE DÉPÔT DE BUS — courses clandestines |
+| 34795 | **MÉTIERS** — missions liées à un véhicule |
+| 35086 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
+| 36111 | ÉCRANS / MENUS / BOUTIQUES |
+| 36387 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
+| 37221 | DÉBUT / FIN DE PARTIE |
+| 38776 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
+| 39026 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
+| 39344 | **COCKPITS** — vue 1re personne au volant (`COCKPIT`, `COCKPIT_FAMILLES`, `cockpitDims`, `mkCockpitInterieur`, `ckDessiner`, `rendreCockpit`, `cameraCockpit`, `cockpitDiagnostic`, `photoCockpit`) |
+| 40917 | BOUCLE PRINCIPALE |
 
 ### Ancres fines (hors bandeaux)
 
@@ -159,28 +160,28 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 16129 | helper `poser()` — placement des lieux |
 | 16155 | `caseCentre(bx,bz)` |
 | 16248 | `REPLIS` — filet de sécurité en spirale |
-| 19143 | `makeVelo()` — vélo de ville et BMX |
+| 19313 | `makeVelo()` — vélo de ville et BMX |
 | 19105 | `voitureV2()` — voiture réaliste : `geoVoiture` (géométries partagées par modèle), `janteVoiture` |
 | 15916 | `ENSEIGNES` — portes mieux placées : `ameliorerPortes()`, `profondeurDevant()`, `orienterPorte()` |
-| 19760 | `const P` — état du joueur |
-| 19803 | `P.stamMax = 100 + 12*mus` |
-| 21160 | `resoudreCollisionsVehicule()` — collisions entre véhicules (SAT sur les 4 axes) |
-| 21864 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
-| 21985 | `boutonsAPied()` — boutons du HUD remis « à pied » (sortie de véhicule ET début de partie) |
-| 23126 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
-| 23258 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
-| 25534 | `IOFF = -9000` |
-| 27338 | `INTDEFS` — définitions des **28 salles** (27 + la boutique) |
-| 27730 | `construireSalle(id)` |
+| 19930 | `const P` — état du joueur |
+| 19973 | `P.stamMax = 100 + 12*mus` |
+| 21330 | `resoudreCollisionsVehicule()` — collisions entre véhicules (SAT sur les 4 axes) |
+| 22034 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
+| 22155 | `boutonsAPied()` — boutons du HUD remis « à pied » (sortie de véhicule ET début de partie) |
+| 23296 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
+| 23428 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
+| 25705 | `IOFF = -9000` |
+| 27509 | `INTDEFS` — définitions des **28 salles** (27 + la boutique) |
+| 27901 | `construireSalle(id)` |
 | 32097 | `CHALUTIER_BANCS_PLAN` — chalutier V2 ; `chalutierMaj` (32599), `dessinerRadarChalutier` (32910) |
-| 34633 | `METIERS_CIBLE` |
-| 34933 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
-| 35021 | `PIECES_FAMILLES` — catalogues de pièces par famille |
-| 35331 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
-| 35395 | `libererObjet()` — libère les géométries d'un objet retiré |
-| 35411 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
-| 35541 | `construireGarageTuning()` — la salle partagée |
-| 35911 | `majNitro()` |
+| 34804 | `METIERS_CIBLE` |
+| 35104 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
+| 35192 | `PIECES_FAMILLES` — catalogues de pièces par famille |
+| 35502 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
+| 35569 | `libererObjet()` — libère les géométries d'un objet retiré |
+| 35585 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
+| 35715 | `construireGarageTuning()` — la salle partagée |
+| 36085 | `majNitro()` |
 | 20827 | `degatsChoc()` — dégâts V2 : `bosseler`, débris, `perdreRoue` ; murs : `degagerDesMurs` (plus haut) |
 | 9754 | `SAUTV` — Saut du Vertige : `hauteurSautVertige`, `mkSautVertige`, `mkBargeVertige`, `finSautVertige` |
 | 39038 | `VUE1P` — vue à la 1re personne : `cameraPremiere`, `ligneDeMire`, `viseAuto1P` |
@@ -1632,6 +1633,44 @@ même qualité » ; « enlève le capot qui descend sur le Raptor, un vrai avant
   avant verticale au niveau du capot, calandre noire agrandie ; les ancrages du
   garage se recalculent seuls (`ancragesProfil`).
 - Vérifié en rendu réel (galerie des 48 véhicules terrestres, même angle).
+
+## Véhicules V3 (19 octobre) — bandeau `VÉHICULES V3`, `VEH_V3`, `construireV3`, suivi `rapport_nuit/VEHICULES_V3.md`
+
+Demandé : « plusieurs véhicules anciens ont un style dépassé par rapport aux nouveaux ; le problème le plus visible : les
+vitres ne sont pas transparentes ; traite-les un par un, coche chacun ». Ni la physique, ni les stats, ni les prix, ni les
+commandes ne changent. Comparaison avant / après et TODO : `rapport_nuit/VEHICULES_V3.md`.
+- **Un modèle V3** = `VEH_V3[clé] = {geo(B, def), inst(I), mats?, ouvert?}` : `geo` bâtit les pièces FIXES par matière avec
+  le constructeur (`constructeurV3` : `bx`, `bloc` — boîte aux arêtes arrondies —, `profil` — profil de côté extrudé,
+  passages de roue par `basCaisseV3` —, `barre`, `tube`, `cyl`, `tore`, `lathe`), fusionnées UNE fois par clé (`_GEO_V3`,
+  partagées) ; `inst` pose ce qui bouge ou change par exemplaire (roues `roueV3`, halos `halosPharesV3`, gyrophares…) et
+  les champs de userData que lit le jeu (`ud.bar`, `ud.conducteur`, `ud.pareBrise`…). Une matière `nom2` = la même que `nom`
+  dans un autre maillage.
+- **Aucun tirage** : `makeVoiture` construit d'abord l'ancien modèle (mêmes tirages ; pour un modèle restylé, les deux
+  appels d'avant), puis `construireV3` sur un générateur PRIVÉ (`avecAleaPrive`) ; l'ancien est jeté. Matériaux propres
+  (`matsV3`, `matPeintV3` : un Phong par teinte, partagé) — **jamais `mat()`** : une couleur créée dans son cache pendant la
+  génération décale la ville. Empreinte vérifiée identique (décor, portes, chalet).
+- **Peinture** : `peindreMesh` remplace la peinture partagée par une copie propre au véhicule (`ud.v3`) ; les pièces du
+  garage prennent `_PEINT_V3[coul]` (`appliquerCarrosserie`).
+- **Vitres** : `_MV3.vitre`, verre teinté transparent à 58 % (reconnu par `ckEstVitre` : le cockpit y place l'œil) ; une vitre
+  devant une caisse pleine (portes arrière d'utilitaire) est `vitreO` (opaque). Pas de matière transparente ailleurs (le
+  cockpit prendrait la pièce pour une vitre) : les textes peints sont découpés (`alphaTest`), opaques.
+- **Intérieur et conducteur** : planche, volant, sièges dans `ud.interieurV3` (matières `interieur`, `siege`, `tableau`,
+  `volant`, `ecranI`) ; `ud.conducteur = {x, y, z, k, pose:{hy, hz}}` (hanches, échelle, mains au volant). `majChauffeur` →
+  `majConducteurV3` : un PNJ au volant, **ou le joueur lui-même** (ses couleurs, `coifCouleurs`) en vue 2D / 3D ; en vue
+  1re personne, conducteur ET intérieur V3 s'effacent (le cockpit V2 a les siens). Conducteur : un seul maillage à couleurs
+  de sommets (`geoConducteurV3`, en cache par couleurs et pose). Le rebord de caisse vu par les vitres est caché par une
+  garniture posée AU-DESSUS de sa surface (biseau compris).
+- **Roues** : pneu tourné (flancs, épaulements, fond de jante, crampons en option) dont `geometry.parameters.radiusTop` reste
+  lisible (le garage et le derby le lisent), jante en enfant (`alu`, `alu5`, `acier`, `mil`) ; à la place des anciennes
+  (l'assiette lit leur position).
+- `degatsVisuels` : le pare-brise fendu se pose sur `ud.pareBrise`.
+- **1. Fourgon** (`van`) : utilitaire à toit haut (profil unique : capot court, cabine en encoche vitrée, caisse haute à
+  nervures), porte coulissante côté passager, portes arrière vitrées, feux verticaux, calandre chromée, pare-chocs et
+  baguettes plastique, rétroviseurs d'utilitaire, antibrouillards, intérieur (planche, volant, siège et banquette,
+  cloison). La cabine est assez longue pour que le pavillon et les pare-soleil entrent dans le champ de la 1re personne
+  (`COCKPIT_DEFS.van` : l'œil à la tête du conducteur). 26 maillages (≈ 40 avant).
+- Test : « Véhicules V3 » (lit `VEH_V3` : vitre transparente, plafond de maillages, taille, roues à leur place et rayon
+  lisible, PNJ et joueur visibles, rien en 1re personne, cockpit valide).
 
 ## Cockpits — la vue à la 1re personne au volant (nuit du 17 octobre 2026) — bandeau `COCKPITS`
 

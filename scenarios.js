@@ -15496,6 +15496,47 @@ async function main() {
       else ok('Mont Reyes V2, la vie : ' + r.info.join(' ; '));
     }
     // -------------------------------------------------------------------
+    console.log('\n--- Véhicules V3 : vitres transparentes, conducteur visible (PNJ et joueur), intérieur masqué en 1re personne, taille et roues inchangées ---');
+    {
+      const r = await page.evaluate(() => {
+        if (!DECOR_V2 || typeof VEH_V3 === 'undefined') return { off: true };
+        const ko = [], info = []; META.vue = 'immersive'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; for (const e of ennemis) e.mort = true; WAVES.etat = 'repos'; WAVES.t = 1e9;
+        for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0;
+        const boite = (g) => { const b = new THREE.Box3(); g.updateMatrixWorld(true); g.traverse((o) => { if (o.isMesh && !o.isSprite && o.visible) b.expandByObject(o); }); return b; };
+        for (const k of Object.keys(VEH_V3)) {
+          const d = VEHDEFS[k], spec = VEH_V3[k], g = makeVoiture(k), ud = g.userData, ok0 = ko.length;
+          if (!ud.v3) { ko.push(k + ' : ce n’est pas le modèle V3'); continue; }
+          let vitres = 0, n = 0; g.traverse((o) => { if (o.isMesh && !o.isSprite) { n++; if (ckEstVitre(o.material)) vitres++; } });
+          if (!spec.ouvert && !vitres) ko.push(k + ' : aucune vitre transparente');
+          if (n > 48) ko.push(k + ' : ' + n + ' maillages (plafond 48)');
+          const sz = boite(g).getSize(new THREE.Vector3());
+          if (Math.abs(sz.z - d.long) / d.long > 0.12) ko.push(k + ' : longueur ' + sz.z.toFixed(2) + ' pour ' + d.long);
+          if (sz.x > d.larg * 1.3) ko.push(k + ' : largeur ' + sz.x.toFixed(2) + ' pour ' + d.larg);
+          for (const r of ud.roues) if (!(r.geometry.parameters && r.geometry.parameters.radiusTop > 0)) { ko.push(k + ' : rayon de roue illisible (garage, derby)'); break; }
+          if (!vehiculeRestyle(d)) { const g0 = makeVoitureBase(k), r0 = g0.userData.roues || [];
+            if (r0.length !== ud.roues.length) ko.push(k + ' : ' + ud.roues.length + ' roues pour ' + r0.length + ' avant');
+            else for (const r of ud.roues) { let dm = 1e9; for (const q of r0) dm = Math.min(dm, Math.hypot(r.position.x - q.position.x, r.position.z - q.position.z)); if (dm > 0.25) { ko.push(k + ' : une roue déplacée de ' + dm.toFixed(2) + ' u (l’assiette les lit)'); break; } } }
+          /* en ville : un PNJ au volant, puis le joueur, en vue 3D puis en 1re personne */
+          if (ud.conducteur) {
+            const x = POIS.place.x + 40, z = POIS.place.z + 10, v = creerVehicule(k, x, z, 0, 'trafic'); v.conduit = 'trafic'; majChauffeur(v);
+            const C = v.mesh.userData; if (!(C.chauffeur && C.chauffeur.visible && C.chauffeur.userData.pnj && C.chauffeur.userData.pnj.visible)) ko.push(k + ' : le PNJ au volant ne se voit pas');
+            v.conduit = null; majChauffeur(v); if (C.chauffeur.visible) ko.push(k + ' : un conducteur dans un véhicule vide');
+            P.x = x; P.z = z + 1; entrerVehicule(v); META.vue = 'immersive'; majChauffeur(v);
+            if (!(C.chauffeur.visible && C.chauffeur.userData.joueur && C.chauffeur.userData.joueur.visible)) ko.push(k + ' : le joueur au volant ne se voit pas (vue 3D)');
+            if (!C.interieurV3.visible) ko.push(k + ' : intérieur masqué en vue 3D');
+            META.vue = 'fps'; majChauffeur(v); if (C.chauffeur.visible || C.interieurV3.visible) ko.push(k + ' : conducteur ou intérieur visibles en 1re personne (le cockpit a les siens)');
+            majCamera(1 / 30); const dg = cockpitDiagnostic(v); if (!dg.ok) ko.push(k + ' : cockpit ' + JSON.stringify(dg));
+            META.vue = 'immersive'; majCamera(1 / 30); sortirVehicule(true); scene.remove(v.mesh); vehicules.length = 0;
+          }
+          if (ko.length === ok0) info.push(k + ' (' + n + ' maillages, ' + vitres + ' vitrage' + (vitres > 1 ? 's' : '') + ')');
+        }
+        META.vue = 'classique'; return { ko, info };
+      });
+      if (r.off) saute('Véhicules V3 : décor V2 coupé');
+      else if (r.ko.length) fail('Véhicules V3 : ' + r.ko.join(' | '));
+      else ok('Véhicules V3 : ' + r.info.join(', '));
+    }
+    // -------------------------------------------------------------------
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];

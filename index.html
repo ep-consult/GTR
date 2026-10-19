@@ -17928,9 +17928,10 @@ function geoHabitacle(H){ /* pare-brise, lunette, vitres latérales (le verre), 
 function makeVoiture(key){
   if(VEHDEFS[key]&&VEHDEFS[key].modele){ const g=makeVoiture(VEHDEFS[key].modele); peindreMesh(g,VEHDEFS[key].cols[0]); return g; } // véhicules du Dépôt : un vrai modèle (citadine, pick-up à benne, supercar, bus) à leur couleur
   if(VEHDEFS[key]&&VEHDEFS[key].derby){ _VEH_V2=true; try{ return makeVoitureBase(key); } finally{ _VEH_V2=false; } } // derby : carrosserie voitureV2, habillage à part (habillerDerby)
-  if(!vehiculeRestyle(VEHDEFS[key])){ const g=makeVoitureBase(key); vitrerAncien(g,key); rehausserModele(g,key); if(VEHDEFS[key].air==='helico'&&!VEHDEFS[key].ovni) agrandirHelico(g,ECH_HELI[key]||1.55); return g; } // l'OVNI garde sa taille (rayon tracteur)
+  const v3=DECOR_V2&&!!VEH_V3[key]; /* modèle V3 : l'ancien d'abord (ses tirages), puis le nouveau, sur un générateur privé */
+  if(!vehiculeRestyle(VEHDEFS[key])){ const g=makeVoitureBase(key); if(v3) return construireV3(key,g); vitrerAncien(g,key); rehausserModele(g,key); if(VEHDEFS[key].air==='helico'&&!VEHDEFS[key].ovni) agrandirHelico(g,ECH_HELI[key]||1.55); return g; } // l'OVNI garde sa taille (rayon tracteur)
   makeVoitureBase(key);
-  _VEH_V2=true; try{ const g=sansAleaVille(()=>makeVoitureBase(key)); rehausserModele(g,key); return g; } finally{ _VEH_V2=false; }
+  _VEH_V2=true; try{ const g=sansAleaVille(()=>makeVoitureBase(key)); if(v3) return construireV3(key,g); rehausserModele(g,key); return g; } finally{ _VEH_V2=false; }
 }
 function makeVoitureBase(key){
   // ud.coul : teinte de carrosserie tirée ici — retrouvée par peindreMesh()
@@ -19130,6 +19131,175 @@ function majVolet(v,dt){ // l'aileron actif se lève au-delà de 24 u/s, se cabr
   u.k+=(cible-u.k)*k; u.a+=((frein?0.8:0.12*cible)-u.a)*k;
   w.position.y=u.y0+u.k*0.32; w.rotation.x=u.a;
 }
+/* =====================================================================
+   VÉHICULES V3 — le rattrapage des anciens modèles (VEH_V3, construireV3)
+===================================================================== */
+/* (19 octobre, demandé : « plusieurs véhicules anciens ont un style dépassé par rapport aux nouveaux ; le problème le plus visible :
+   les vitres ne sont pas transparentes ») Suivi véhicule par véhicule : rapport_nuit/VEHICULES_V3.md.
+   - Un modèle V3 = VEH_V3[clé] = {geo(B,def), inst(I)} : geo bâtit les pièces FIXES, rangées par matière, une seule fois par clé
+     (_GEO_V3 : géométries fusionnées et partagées, jamais libérées) ; inst pose ce qui bouge ou change d'un exemplaire à l'autre (roues,
+     halos des phares, gyrophares, tourelle…) et les champs de userData que lit le jeu.
+   - L'ancien modèle est TOUJOURS construit d'abord (makeVoitureBase : mêmes tirages, la ville et le décor ne bougent pas), puis jeté ;
+     le V3 tire sur un générateur PRIVÉ (avecAleaPrive : les uuid de Three.js) et ses matériaux sont à lui (_MV3) — jamais le cache
+     mat() : une couleur créée là pendant la génération décalerait les tirages de la ville.
+   - Peinture : un Phong par teinte (matPeintV3, partagé) ; peindreMesh la remplace par une copie propre au véhicule (garage).
+   - Vitres : verre teinté transparent (_MV3.vitre, reconnu par ckEstVitre : le cockpit y place l'œil) ; derrière, un vrai intérieur
+     (planche, volant, sièges : ud.interieurV3, masqué en vue 1re personne, où le cockpit a le sien) et le conducteur assis
+     (ud.conducteur → majConducteurV3 : un PNJ, ou le joueur lui-même quand il conduit, sauf en vue 1re personne).
+   - Taille, physique, stats, prix : ceux de VEHDEFS, inchangés ; les roues restent à leur place (l'assiette les lit) et gardent un
+     rayon lisible (geometry.parameters.radiusTop : le garage et le derby le lisent). */
+const VEH_V3={}; let _MV3=null, _MAT_COND=null; const _GEO_V3={}, _PEINT_V3={}, _ROUE_V3={}, _GEO_COND={};
+const INTERIEUR_V3=new Set(['interieur','siege','tableau','volant','ecranI']); // masqués en vue 1re personne (le cockpit V2 a les siens)
+const _mV3=new THREE.Matrix4(), _eV3=new THREE.Euler(), _qV3=new THREE.Quaternion(), _vV3a=new THREE.Vector3(), _vV3b=new THREE.Vector3();
+function avecAleaPrive(graine,fn){ const r0=Math.random; let sd=graine>>>0; Math.random=()=>{ sd=(sd*1664525+1013904223)>>>0; return sd/4294967296; }; try{ return fn(); } finally{ Math.random=r0; } }
+function texV3(w,h,fn){ try{ const c=document.createElement('canvas'); c.width=w; c.height=h; const x=c.getContext('2d'); if(!x) throw new Error('ctx'); fn(x,w,h); return new THREE.CanvasTexture(c); }
+  catch(e){ const c=document.createElement('canvas'); c.width=c.height=2; return new THREE.CanvasTexture(c); } }
+function matsV3(){ if(_MV3) return _MV3;
+  const Ph=(c,sp,sh,o)=>new THREE.MeshPhongMaterial(Object.assign({color:c,specular:sp,shininess:sh},o||{})), La=(c)=>new THREE.MeshLambertMaterial({color:c}), Ba=(c)=>new THREE.MeshBasicMaterial({color:c});
+  const plaque=texV3(128,32,(x,w,h)=>{ x.fillStyle='#f2f2ec'; x.fillRect(0,0,w,h); x.fillStyle='#1d3fa0'; x.fillRect(2,2,14,h-4); x.strokeStyle='#2a2d33'; x.lineWidth=2; x.strokeRect(1,1,w-2,h-2);
+    x.fillStyle='#1a1c22'; x.font='bold 20px Arial, sans-serif'; x.textAlign='center'; x.textBaseline='middle'; x.fillText('LR 4827',72,17); });
+  _MV3={
+    vitre:Ph(0x1d2a36,0xa8c0dc,96,{transparent:true,opacity:0.58}),   /* teinté : l'intérieur et le conducteur se voient (ckEstVitre : œil du cockpit) */
+    vitreO:Ph(0x121820,0x8aa4c0,90),                                      /* vitre surteintée devant une caisse pleine (portes arrière d'utilitaire) */
+    sombre:La(0x18191d), plastique:La(0x2c2e34), gris:La(0x4a4e56), caoutchouc:La(0x151619),
+    chrome:Ph(0xc4cad4,0xffffff,120), alu:Ph(0xa9afb8,0xe8eef8,70), acier:Ph(0x5d626b,0x9aa0aa,30),
+    phare:Ba(0xfff3da), reflecteur:Ph(0xd8dde4,0xffffff,140), feu:Ba(0xc4141e), orange:Ba(0xff8a14), recul:Ba(0xe8eaec),
+    interieur:La(0x2a2c31), siege:La(0x3a3c43), tableau:La(0x1d1e22), volant:La(0x141518), ecranI:Ba(0x2a6fae),
+    plaque:new THREE.MeshBasicMaterial({map:plaque}), blanc:La(0xeef0f2)
+  }; return _MV3; }
+function matPeintV3(coul){ let m=_PEINT_V3[coul]; if(!m){ m=_PEINT_V3[coul]=new THREE.MeshPhongMaterial({color:coul,specular:0x484848,shininess:46}); m.userData.peintV3=true; } return m; }
+/* le constructeur : des géométries rangées par matière, fusionnées à la fin (une par matière) */
+function constructeurV3(){ const L={}; const B={L,
+  geo(n,geo,x,y,z,rx,ry,rz){ if(rx||ry||rz) geo.applyMatrix4(_mV3.makeRotationFromEuler(_eV3.set(rx||0,ry||0,rz||0))); if(x||y||z) geo.translate(x||0,y||0,z||0); (L[n]=L[n]||[]).push(geo); return geo; },
+  bx(n,w,h,d,x,y,z,rx,ry,rz){ return B.geo(n,new THREE.BoxGeometry(w,h,d),x,y,z,rx,ry,rz); },
+  cyl(n,r1,r2,h,s,x,y,z,rx,ry,rz){ return B.geo(n,new THREE.CylinderGeometry(r1,r2,h,s||12),x,y,z,rx,ry,rz); },
+  sph(n,r,x,y,z,sx,sy,sz){ const g=new THREE.SphereGeometry(r,12,8); if(sx||sy||sz) g.scale(sx||1,sy||1,sz||1); return B.geo(n,g,x,y,z); },
+  tore(n,R,r,x,y,z,rx,ry,rz,arc){ return B.geo(n,new THREE.TorusGeometry(R,r,6,20,arc||Math.PI*2),x,y,z,rx,ry,rz); },
+  barre(n,ep,larg,x,y0,z0,y1,z1){ const dy=y1-y0, dz=z1-z0; return B.bx(n,ep,larg,Math.hypot(dy,dz),x,(y0+y1)/2,(z0+z1)/2,Math.atan2(-dy,dz)); }, /* dans un plan x = cte */
+  tube(n,r,a,b,s){ const dx=b[0]-a[0], dy=b[1]-a[1], dz=b[2]-a[2], l=Math.hypot(dx,dy,dz)||1e-3, g=new THREE.CylinderGeometry(r,r,l,s||8);
+    g.applyMatrix4(_mV3.makeRotationFromQuaternion(_qV3.setFromUnitVectors(_vV3a.set(0,1,0),_vV3b.set(dx/l,dy/l,dz/l)))); g.translate((a[0]+b[0])/2,(a[1]+b[1])/2,(a[2]+b[2])/2); (L[n]=L[n]||[]).push(g); return g; },
+  /* boîte aux arêtes arrondies : w × h × d hors tout, arêtes biseautées de b, coins de face (x, y) arrondis de r */
+  bloc(n,w,h,d,x,y,z,b,r,rx,ry,rz){ b=Math.max(0.004,Math.min(b===undefined?0.03:b,w/2-0.004,h/2-0.004,d/2-0.004)); const w2=w/2-b, h2=h/2-b; r=Math.max(0,Math.min(r||0,w2-0.002,h2-0.002));
+    const s=new THREE.Shape(); if(r>0.002){ s.moveTo(-w2+r,-h2); s.lineTo(w2-r,-h2); s.quadraticCurveTo(w2,-h2,w2,-h2+r); s.lineTo(w2,h2-r); s.quadraticCurveTo(w2,h2,w2-r,h2); s.lineTo(-w2+r,h2); s.quadraticCurveTo(-w2,h2,-w2,h2-r); s.lineTo(-w2,-h2+r); s.quadraticCurveTo(-w2,-h2,-w2+r,-h2); }
+    else { s.moveTo(-w2,-h2); s.lineTo(w2,-h2); s.lineTo(w2,h2); s.lineTo(-w2,h2); s.lineTo(-w2,-h2); }
+    const g=new THREE.ExtrudeGeometry(s,{depth:Math.max(0.002,d-2*b),bevelEnabled:true,bevelThickness:b,bevelSize:b,bevelSegments:2,curveSegments:3}); g.translate(0,0,-(d-2*b)/2); return B.geo(n,g,x,y,z,rx,ry,rz); },
+  /* profil de côté [[z,y],…] extrudé sur la largeur (centré en x), arêtes biseautées de b (le profil grandit de b tout autour) */
+  profil(n,pts,larg,b,x){ const s=new THREE.Shape(); s.moveTo(pts[0][0],pts[0][1]); for(let i=1;i<pts.length;i++) s.lineTo(pts[i][0],pts[i][1]); s.lineTo(pts[0][0],pts[0][1]);
+    const g=new THREE.ExtrudeGeometry(s,{depth:Math.max(0.01,larg-2*b),bevelEnabled:b>0,bevelThickness:b,bevelSize:b,bevelSegments:2,curveSegments:4}); g.translate(0,0,-(larg-2*b)/2); g.rotateY(-Math.PI/2); if(x) g.translate(x,0,0); (L[n]=L[n]||[]).push(g); return g; },
+  lathe(n,pts,seg,x,y,z,rx,ry,rz){ return B.geo(n,new THREE.LatheGeometry(pts.map((p)=>new THREE.Vector2(p[0],p[1])),seg||16),x,y,z,rx,ry,rz); },
+  fin(){ const out={}; for(const n in L){ out[n]=mergeGeoManuel(L[n]); out[n].userData.partagee=true; for(const g of L[n]) g.dispose(); } return out; } };
+  return B; }
+/* points d'un arc (dans le plan du profil) : centre (zc, yc), rayon r, de l'angle a0 à a1 */
+function arcV3(zc,yc,r,a0,a1,n){ const o=[]; for(let i=0;i<=n;i++){ const a=a0+(a1-a0)*i/n; o.push([zc+Math.cos(a)*r,yc+Math.sin(a)*r]); } return o; }
+/* bas de caisse d'un profil : de l'arrière (zAr) à l'avant (zAv) à la garde g0, passages de roue découpés (centres zs, rayon Ra, à la hauteur R) */
+function basCaisseV3(zAr,zAv,g0,R,Ra,zs){ const o=[[zAr,g0]]; for(const zc of zs.slice().sort((a,b)=>a-b)){ o.push([zc-Ra,g0],[zc-Ra,R]); for(const p of arcV3(zc,R,Ra,Math.PI,0,10).slice(1)) o.push(p); o.push([zc+Ra,g0]); } o.push([zAv,g0]); return o; }
+/* ---------- roues : pneu tourné (flancs, épaulements, fond de jante sombre), jante à part (enfant du pneu, axe y local) ---------- */
+function geoPneuV3(R,ep,crampons){ const cle='p'+R.toFixed(3)+'_'+ep.toFixed(3)+(crampons?'c':''); if(_ROUE_V3[cle]) return _ROUE_V3[cle];
+  const h=ep/2, ri=R*0.64, parts=[new THREE.LatheGeometry([[ri,-h+0.012],[R*0.9,-h],[R-0.035,-h+0.016],[R,-h+0.05],[R,h-0.05],[R-0.035,h-0.016],[R*0.9,h],[ri,h-0.012]].map(([a,b])=>new THREE.Vector2(a,b)),28)];
+  for(const s of [-1,1]){ const f=new THREE.CircleGeometry(ri+0.01,22); f.rotateX(s>0?-Math.PI/2:Math.PI/2); f.translate(0,s*(h-0.07),0); parts.push(f); } /* le fond de la jante, dans l'ombre */
+  if(crampons){ const n=Math.round(R*44); for(let k=0;k<n;k++) for(const row of [-1,1]){ const a=(k+(row>0?0.5:0))/n*Math.PI*2, c=new THREE.BoxGeometry(0.05,ep*0.36,R*0.13); c.rotateY(-a); c.translate(Math.cos(a)*(R+0.01),row*ep*0.22,Math.sin(a)*(R+0.01)); parts.push(c); } }
+  const g=mergeGeoManuel(parts); for(const p of parts) p.dispose(); g.parameters={radiusTop:R,radiusBottom:R,height:ep}; /* lus par le garage (jupes, jantes) et le derby */ g.userData.partagee=true; return (_ROUE_V3[cle]=g); }
+function geoJanteV3(R,ep,style){ const cle='j'+R.toFixed(3)+'_'+ep.toFixed(3)+'_'+style; if(_ROUE_V3[cle]) return _ROUE_V3[cle];
+  const h=ep/2, parts=[], face=(g,s,dy)=>{ g.translate(0,s*(h-0.03+(dy||0)),0); parts.push(g); };
+  for(const s of [-1,1]){ const rot=s>0?-Math.PI/2:Math.PI/2;
+    face(new THREE.CylinderGeometry(R*0.66,R*0.66,0.04,26,1,true),s);                        /* la lèvre */
+    const an=new THREE.RingGeometry(R*0.55,R*0.66,26,1); an.rotateX(rot); face(an,s,0.02);
+    if(style==='acier'||style==='mil'){ const v=new THREE.CircleGeometry(R*0.56,22); v.rotateX(rot); face(v,s,0.004);      /* voile plein */
+      const bo=new THREE.CylinderGeometry(R*0.22,R*0.27,0.07,14); face(bo,s,0.035);
+      const n=style==='mil'?10:6; for(let k=0;k<n;k++){ const a=k/n*Math.PI*2, e=new THREE.CylinderGeometry(0.02,0.02,0.04,6); e.translate(Math.cos(a)*R*0.36,0,Math.sin(a)*R*0.36); face(e,s,0.025); }
+      if(style==='mil') for(let k=0;k<14;k++){ const a=k/14*Math.PI*2, e=new THREE.CylinderGeometry(0.016,0.016,0.035,6); e.translate(Math.cos(a)*R*0.61,0,Math.sin(a)*R*0.61); face(e,s,0.03); } } /* cerclage à boulons */
+    else { const n=style==='alu5'?5:6;
+      for(let k=0;k<n;k++){ for(const d of (style==='alu5'?[0]:[-0.08,0.08])){ const a=k/n*Math.PI*2+d, b=new THREE.BoxGeometry(R*0.46,0.03,R*(style==='alu5'?0.13:0.06)); b.translate(R*0.33,0,0); b.rotateY(-a); face(b,s,0.006); } }
+      const mo=new THREE.CylinderGeometry(R*0.17,R*0.19,0.05,14); face(mo,s,0.02);
+      for(let k=0;k<5;k++){ const a=k/5*Math.PI*2+0.3, e=new THREE.CylinderGeometry(0.014,0.014,0.03,6); e.translate(Math.cos(a)*R*0.11,0,Math.sin(a)*R*0.11); face(e,s,0.04); } } }
+  const g=mergeGeoManuel(parts); for(const p of parts) p.dispose(); g.userData.partagee=true; return (_ROUE_V3[cle]=g); }
+function roueV3(I,R,ep,x,z,style,mJ,crampons){ const M=I.M, r=new THREE.Mesh(geoPneuV3(R,ep,crampons),M.caoutchouc); r.rotation.z=Math.PI/2; r.position.set(x,R,z); I.g.add(r); I.ud.roues.push(r);
+  r.add(new THREE.Mesh(geoJanteV3(R,ep,style||'alu'),mJ||M.alu)); return r; }
+function halosPharesV3(I,x,y,z){ for(const sx of [-1,1]){ const s=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:0xffe9b0,transparent:true,depthWrite:false,opacity:0})); s.scale.set(3.2,3.2,1); s.position.set(sx*x,y,z); I.corps.add(s); I.ud.phG.push(s); } }
+/* ---------- le conducteur assis : un seul maillage à couleurs de sommets, l'origine aux hanches, face à +z, mains au volant
+   (pose : hz devant, hy au-dessus des hanches ; 0,46 et 0,43 par défaut) ; le style des personnages du jeu (tête cubique,
+   cheveux en calotte) ---------- */
+function geoConducteurV3(c,pose){ const hy=pose&&pose.hy||0.43, hz=pose&&pose.hz||0.46, cle=[c.haut,c.bas,c.peau,c.casq,hy,hz].join('_'); if(_GEO_COND[cle]) return _GEO_COND[cle];
+  const parts=[], col=(geo,hex)=>{ const g=geo.index?geo.toNonIndexed():geo; if(g!==geo) geo.dispose(); const n=g.attributes.position.count, a=new Float32Array(n*3), cc=new THREE.Color(hex); for(let i=0;i<n;i++){ a[i*3]=cc.r; a[i*3+1]=cc.g; a[i*3+2]=cc.b; } g.setAttribute('color',new THREE.BufferAttribute(a,3)); parts.push(g); };
+  const bxc=(w,h,d,x,y,z,rx,hex)=>{ const g=new THREE.BoxGeometry(w,h,d); if(rx) g.rotateX(rx); g.translate(x,y,z); col(g,hex); };
+  const seg=(a,b,ep,hex)=>{ const dx=b[0]-a[0], dy=b[1]-a[1], dz=b[2]-a[2], l=Math.hypot(dx,dy,dz), g=new THREE.BoxGeometry(ep,l+ep*0.6,ep); g.applyMatrix4(_mV3.makeRotationFromQuaternion(_qV3.setFromUnitVectors(_vV3a.set(0,1,0),_vV3b.set(dx/l,dy/l,dz/l)))); g.translate((a[0]+b[0])/2,(a[1]+b[1])/2,(a[2]+b[2])/2); col(g,hex); };
+  bxc(0.4,0.52,0.24,0,0.31,-0.05,-0.12,c.haut);                                   /* torse, un peu renversé contre le dossier */
+  bxc(0.1,0.08,0.1,0,0.6,-0.03,0,c.peau); bxc(0.25,0.27,0.25,0,0.75,-0.01,0,c.peau); /* cou, tête */
+  bxc(0.27,0.07,0.27,0,0.9,-0.02,0,c.casq); bxc(0.27,0.17,0.07,0,0.82,-0.13,0,c.casq); /* cheveux */
+  for(const s of [-1,1]){ const ce=[s*0.27,(0.5+hy)/2-0.13,(hz-0.05)/2+0.02], mn=[s*0.19,hy-0.01,hz-0.03]; seg([s*0.25,0.5,-0.05],ce,0.11,c.haut); seg(ce,mn,0.09,c.peau); bxc(0.08,0.09,0.09,s*0.18,hy,hz,0,c.peau);
+    seg([s*0.11,0.04,-0.02],[s*0.12,0.11,0.42],0.15,c.bas); seg([s*0.12,0.11,0.42],[s*0.12,-0.36,0.5],0.12,c.bas); }
+  let n=0; for(const g of parts) n+=g.attributes.position.count; const P=new Float32Array(n*3), N=new Float32Array(n*3), C=new Float32Array(n*3); let o=0;
+  for(const g of parts){ P.set(g.attributes.position.array,o); N.set(g.attributes.normal.array,o); C.set(g.attributes.color.array,o); o+=g.attributes.position.count*3; g.dispose(); }
+  const out=new THREE.BufferGeometry(); out.setAttribute('position',new THREE.BufferAttribute(P,3)); out.setAttribute('normal',new THREE.BufferAttribute(N,3)); out.setAttribute('color',new THREE.BufferAttribute(C,3)); out.userData.partagee=true;
+  return (_GEO_COND[cle]=out); }
+function matConducteurV3(){ return _MAT_COND||(_MAT_COND=new THREE.MeshLambertMaterial({vertexColors:true})); }
+/* au volant d'un V3 : le PNJ qui conduit, ou le joueur (ses couleurs) ; personne en vue 1re personne, où l'intérieur V3 s'efface aussi */
+function majConducteurV3(v,ud,ia){
+  const joueur=P.veh===v&&!v.mort&&P.hp>0, ck=joueur&&vueCockpit(), voirJ=joueur&&!ck;
+  if(ud.interieurV3&&ud.interieurV3.visible===ck) ud.interieurV3.visible=!ck;
+  if(!ia&&!voirJ){ if(ud.chauffeur&&ud.chauffeur.visible) ud.chauffeur.visible=false; return; }
+  let gr=ud.chauffeur; const C=ud.conducteur;
+  if(!gr){ gr=new THREE.Group(); gr.position.set(C.x,C.y,C.z); gr.scale.setScalar(C.k||1); (ud.corps||v.mesh).add(gr); ud.chauffeur=gr; }
+  const u=gr.userData;
+  if(ia&&!u.pnj){ u.pnj=new THREE.Mesh(geoConducteurV3({haut:pick(civHaut),bas:pick(civBas),peau:pick(civPeau),casq:pick([0x2a2018,0x4a3520,0x111318,0x8a6a3a])},C.pose),matConducteurV3()); gr.add(u.pnj); }
+  if(voirJ){ const c=coifCouleurs(), cle=c.haut+'_'+c.bas+'_'+c.peau+'_'+c.casq; if(u.cleJ!==cle){ if(u.joueur) gr.remove(u.joueur); u.joueur=new THREE.Mesh(geoConducteurV3(c,C.pose),matConducteurV3()); gr.add(u.joueur); u.cleJ=cle; } }
+  if(u.pnj&&u.pnj.visible!==ia) u.pnj.visible=ia; if(u.joueur&&u.joueur.visible!==voirJ) u.joueur.visible=voirJ; if(!gr.visible) gr.visible=true;
+}
+/* le modèle V3 d'une clé, à la teinte de l'ancien modèle (jeté) */
+function construireV3(key,g0){
+  const def=VEHDEFS[key], spec=VEH_V3[key], coul=g0&&g0.userData&&g0.userData.coul!==undefined?g0.userData.coul:def.cols[0];
+  let sd=2166136261; for(let i=0;i<key.length;i++) sd=Math.imul(sd^key.charCodeAt(i),16777619);
+  return avecAleaPrive(sd,()=>{ const M=matsV3();
+    let G=_GEO_V3[key]; if(!G){ const B=constructeurV3(), info=spec.geo(B,def)||{}; G=_GEO_V3[key]={geos:B.fin(),info}; }
+    const g=new THREE.Group(), corps=new THREE.Group(); g.add(corps); const ud={roues:[],phG:[],def,key,coul,corps,v3:true};
+    const inter=new THREE.Group(); corps.add(inter); ud.interieurV3=inter; const Mp=matPeintV3(coul), I={g,corps,ud,def,key,coul,M,info:G.info,meshes:{}};
+    for(const n in G.geos){ const base=n.replace(/\d+$/,''), m0=base==='peinture'?Mp:(spec.mats&&spec.mats[base]?spec.mats[base](coul,M):M[base]); if(!m0) throw new Error('V3 '+key+' : matière inconnue '+n);
+      const m=new THREE.Mesh(G.geos[n],m0); (INTERIEUR_V3.has(base)?inter:corps).add(m); I.meshes[n]=m; }
+    if(spec.inst) spec.inst(I);
+    g.add(spriteBlob(def.long*1.05)); g.userData=ud; return g; }); }
+/* ---------- 1. Fourgon (van) : utilitaire à toit haut, cabine vitrée, porte latérale coulissante côté passager, portes arrière ---------- */
+VEH_V3.van={
+  geo(B){ const g0=0.34, R=0.37, Ra=0.47, zf=1.70, zr=-1.62, hw=1.07;
+    /* la caisse : un seul profil (capot, baie, cabine en encoche, pavillon, caisse haute), passages de roue découpés */
+    B.profil('peinture',[[2.62,0.40],[2.66,0.58],[2.67,0.95],[2.60,1.04],[2.46,1.11],[2.24,1.19],[2.02,1.27],[1.94,1.30],
+      [0.58,1.36],[0.58,2.0],[1.34,2.02],[1.42,2.08],[1.44,2.15],[1.38,2.23],[1.24,2.27],[-2.48,2.27],[-2.60,2.24],[-2.66,2.16],[-2.67,0.48],[-2.60,g0+0.02]]
+      .concat(basCaisseV3(-2.56,2.56,g0,R,Ra,[zr,zf])),2*hw-0.1,0.05);
+    B.profil('vitre',[[2.0,1.30],[1.43,2.07],[0.56,2.07],[0.56,1.33]],2*hw-0.12,0.02);              /* pare-brise et vitres de cabine : un bloc de verre */
+    for(const sx of [-1,1]){ const x=sx*(hw-0.02);
+      B.barre('peinture',0.09,0.11,x,1.31,1.97,2.12,1.4);                                          /* montant A */
+      B.bx('sombre',0.03,0.04,1.37,sx*(hw+0.005),1.385,1.265); B.bx('sombre',0.03,0.66,0.05,sx*(hw+0.005),1.69,0.605); B.bx('sombre',0.03,0.26,0.035,sx*(hw+0.003),1.51,1.74); /* joints de vitre, déflecteur */
+      const xs=sx*(hw+0.006); B.bx('sombre',0.012,0.86,0.02,xs,0.93,0.61); B.bx('sombre',0.012,0.02,0.61,xs,0.5,0.91); B.bx('sombre',0.012,0.42,0.02,xs,1.09,1.95); /* portière avant */
+      B.bloc('plastique',0.05,0.06,0.22,sx*(hw+0.02),1.22,0.78,0.012);                                /* poignée */
+      B.tube('sombre',0.025,[sx*(hw-0.01),1.42,1.84],[sx*(hw+0.17),1.5,1.8]); B.bloc('plastique',0.13,0.36,0.22,sx*(hw+0.24),1.6,1.78,0.03,0.03); B.bx('reflecteur',0.1,0.3,0.012,sx*(hw+0.24),1.6,1.665); /* rétroviseur */
+      B.bx('plastique',0.04,0.12,2.22,sx*(hw+0.01),0.6,0.04); B.bx('plastique',0.04,0.12,0.4,sx*(hw+0.01),0.6,-2.38); B.bx('plastique',0.04,0.12,0.26,sx*(hw+0.01),0.6,2.4); /* baguettes de protection */
+      B.bx('orange',0.02,0.06,0.12,sx*(hw+0.012),0.86,2.32);                                          /* répétiteur */
+      for(const zc of [zf,zr]) B.tore('sombre',Ra+0.03,0.04,sx*(hw+0.005),R,zc,0,Math.PI/2,0,Math.PI); /* élargisseurs d'aile */
+      const xb=sx*0.98; B.bloc('sombre',0.18,0.8,0.07,xb,0.98,-2.72,0.02); B.bx('feu',0.14,0.32,0.03,xb,1.2,-2.76); B.bx('orange',0.14,0.16,0.03,xb,0.96,-2.76); B.bx('recul',0.14,0.14,0.03,xb,0.78,-2.76); /* feux arrière */
+      B.bloc('sombre',0.44,0.22,0.1,sx*0.72,0.93,2.69,0.02,0.04); B.bloc('phare',0.34,0.15,0.04,sx*0.7,0.94,2.735,0.012,0.03); B.bx('orange',0.08,0.13,0.04,sx*0.93,0.94,2.73); /* optiques avant */
+      B.cyl('phare',0.055,0.055,0.03,14,sx*0.74,0.44,2.84,Math.PI/2); B.tore('sombre',0.065,0.014,sx*0.74,0.44,2.85);             /* antibrouillards */
+      B.bx('sombre',0.6,0.022,0.03,sx*0.36,1.335,1.92,0,0,sx*0.06);                                   /* essuie-glaces */
+      B.bloc('vitreO',0.84,0.5,0.03,sx*0.48,1.84,-2.72,0.01); B.bx('sombre',0.06,0.12,0.04,sx*1.03,1.95,-2.7); B.bx('sombre',0.06,0.12,0.04,sx*1.03,0.75,-2.7); /* vitres arrière, charnières */ }
+    B.bx('sombre',0.012,1.58,0.02,-(hw+0.006),1.2,0.52); B.bx('sombre',0.012,1.58,0.02,-(hw+0.006),1.2,-1.05); B.bx('sombre',0.012,0.02,1.57,-(hw+0.006),1.99,-0.265);   /* porte coulissante (côté passager) */
+    B.bx('sombre',0.04,0.035,1.3,-(hw+0.01),1.39,-1.72); B.bloc('plastique',0.05,0.06,0.2,-(hw+0.02),1.2,0.36,0.012);
+    B.cyl('plastique',0.07,0.07,0.02,14,hw+0.008,1.0,-1.05,0,0,Math.PI/2);                          /* trappe à carburant */
+    B.bx('sombre',0.02,1.66,0.012,0,1.2,-2.722); B.bloc('plastique',0.22,0.05,0.05,0.2,1.22,-2.735,0.012);                       /* portes arrière */
+    B.bloc('sombre',1.0,0.32,0.06,0,0.85,2.705,0.02,0.04); for(const y of [0.77,0.85,0.93]) B.bx('chrome',0.94,0.024,0.02,0,y,2.74); B.cyl('chrome',0.065,0.065,0.025,18,0,0.85,2.755,Math.PI/2); /* calandre */
+    B.bloc('plastique',2.18,0.36,0.24,0,0.47,2.68,0.05,0.06); B.bx('sombre',1.1,0.12,0.03,0,0.42,2.8); B.bx('plaque',0.52,0.12,0.012,0,0.6,2.805); /* bouclier avant */
+    B.bloc('plastique',2.12,0.3,0.24,0,0.47,-2.68,0.05,0.05); B.bx('sombre',0.72,0.05,0.2,0,0.6,-2.78); B.bx('plaque',0.52,0.12,0.012,0,0.76,-2.729); /* bouclier arrière, marchepied, plaque */
+    B.bx('feu',0.32,0.05,0.03,0,2.2,-2.73); B.cyl('acier',0.04,0.04,0.3,8,-0.62,0.32,-2.6,Math.PI/2);                             /* 3e feu stop, échappement */
+    for(const z of [-2.1,-1.4,-0.7,0,0.7]) B.bx('peinture',1.9,0.03,0.07,0,2.335,z);                                               /* nervures du toit */
+    for(const zc of [zf,zr]) B.bx('sombre',1.5,0.5,0.92,0,R+0.27,zc);                                                              /* passages de roue */
+    B.bx('sombre',1.6,0.1,1.9,0,0.36,0.04);                                                                                         /* châssis */
+    /* l'intérieur, vu par les vitres : planche, volant, sièges, cloison */
+    B.bx('interieur',1.98,0.02,1.35,0,1.425,1.27); /* le haut des contre-portes, sur le rebord de caisse */ B.bloc('tableau',1.98,0.12,0.44,0,1.41,1.58,0.03); B.bloc('tableau',0.42,0.1,0.16,0.5,1.5,1.47,0.03); B.bx('ecranI',0.2,0.11,0.012,0,1.5,1.42,-0.35);
+    B.tore('volant',0.19,0.022,0.5,1.48,1.28,0.64); B.tube('volant',0.03,[0.5,1.48,1.28],[0.5,1.38,1.43]); B.bx('volant',0.36,0.03,0.04,0.5,1.48,1.28,0.64);
+    B.bloc('siege',0.52,0.58,0.14,0.5,1.65,0.66,0.04,0.06,-0.15); B.bloc('siege',0.28,0.15,0.1,0.5,1.92,0.61,0.03,0.04);
+    B.bloc('siege',0.96,0.56,0.14,-0.4,1.64,0.66,0.04,0.06,-0.15); for(const x of [-0.18,-0.62]) B.bloc('siege',0.26,0.15,0.1,x,1.9,0.61,0.03,0.04);
+    B.bx('interieur',2.0,0.62,0.04,0,1.67,0.6); for(const sx of [-1,1]) B.bx('interieur',0.58,0.02,0.24,sx*0.48,1.95,1.3); B.bx('sombre',0.22,0.07,0.03,0,1.9,1.42);
+  },
+  inst(I){ for(const [x,z] of [[0.92,1.70],[-0.92,1.70],[0.92,-1.62],[-0.92,-1.62]]) roueV3(I,0.37,0.26,x,z,'alu',I.M.alu);
+    halosPharesV3(I,0.72,0.94,3.25); I.ud.conducteur={x:0.5,y:1.06,z:0.84,k:0.95}; I.ud.pareBrise={y:1.68,z:1.71}; }
+};
 function makeSkate(def,coul,g,ud,corps){
   const pl=new THREE.Group(); corps.add(pl); ud.planche=pl;
   pl.add(mkBoxG(0.22,0.03,0.6,coul,0,0.13,0)); pl.add(mkBoxG(0.215,0.006,0.58,0x14161c,0,0.148,0)); // plateau et grip
@@ -20697,7 +20867,7 @@ function degatsVisuels(v){
   const bx=(w,h,p,m,x,y,z,rx,ry,rz)=>{ const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,p),m); o.position.set(x,y,z); o.rotation.set(rx||0,ry||0,rz||0); G.add(o); return o; };
   for(let s=(v.degSt||0)+1;s<=st;s++){
     if(s===1){ // pare-brise fendu (étoile de fissures) et rayures sur un flanc
-      const cx=0, cy=H*0.84, cz=L*0.16;
+      const pb=ud.pareBrise, cx=0, cy=pb?pb.y:H*0.84, cz=pb?pb.z:L*0.16; /* V3 : le vrai pare-brise */
       for(let k=0;k<5;k++){ const a=k/5*Math.PI*2+0.3; bx(0.025,0.02,0.32,_matFissure,cx+Math.cos(a)*0.14,cy+0.02,cz+Math.sin(a)*0.14,0,a,0); }
       for(let k=0;k<3;k++) bx(0.02,0.04,0.5+k*0.15,_matTole,(k%2?1:-1)*(W/2+0.01),H*0.45+k*0.08,-L*0.1+k*0.35,0,0,0.1); }
     if(s===2){ // tôles enfoncées, pare-chocs arrière qui pend, débris
@@ -23603,6 +23773,7 @@ function solYGare(v){
 var _GEO_BUSTE=null;
 function majChauffeur(v){
   const ud=v.mesh&&v.mesh.userData; if(!ud) return; const ia=!!v.conduit&&v.conduit!=='joueur'&&!v.mort&&!v.def.air;
+  if(ud.conducteur) return majConducteurV3(v,ud,ia); /* V3 : le conducteur assis derrière les vitres, joueur compris */
   if(!ia&&!ud.chauffeur) return;
   if(!ud.chauffeur){ const sg=ud.siege;
     if(sg&&sg.assis){ const h=makeHumain({haut:pick(civHaut),bas:pick(civBas),peau:pick(civPeau),casq:pick([0x2a2018,0x4a3520,0x111318]),visage:'neutre'},1);
@@ -35350,9 +35521,12 @@ function garageCasser(s){
 function peindreMesh(mesh,coul){
   const ud=mesh&&mesh.userData; if(!ud||ud.coul===undefined||coul<0) return;
   if(!ud.matPeinture){
+    if(ud.v3){ const mV=_PEINT_V3[ud.coul]; ud.matPeinture=mV.clone(); ud.matPeinture.userData={}; /* V3 : la peinture est partagée par teinte, jamais le cache mat() */
+      mesh.traverse(o=>{ if(o.isMesh&&o.material===mV) o.material=ud.matPeinture; }); }
+    else {
     const m0=mat(ud.coul); ud.matPeinture=new THREE.MeshLambertMaterial({color:ud.coul});
     const m1=_matCacheDecor[ud.coul]; // véhicules restylés : construits sur le cache du décor
-    mesh.traverse(o=>{ if(o.isMesh&&(o.material===m0||(m1&&o.material===m1))) o.material=ud.matPeinture; });
+    mesh.traverse(o=>{ if(o.isMesh&&(o.material===m0||(m1&&o.material===m1))) o.material=ud.matPeinture; }); }
   }
   ud.matPeinture.color.setHex(coul);
 }
@@ -35416,7 +35590,7 @@ function appliquerCarrosserie(groupe,key,pieces){
   const tc=VEHDEFS[key]&&VEHDEFS[key].tuningCarro;
   if(!tc||!pieces) return 0;
   const fam=PIECES_FAMILLES[tc.famille]; if(!fam) return 0;
-  const d=VEHDEFS[key], mc=ud.matPeinture||mat(ud.coul);
+  const d=VEHDEFS[key], mc=ud.matPeinture||(ud.v3?_PEINT_V3[ud.coul]:mat(ud.coul));
   // espace libre entre les passages de roue, mesuré sur les roues RÉELLES du
   // châssis (jamais recopié de makeVoiture) — sert aux jupes et marchepieds
   let zAv=Infinity, zAr=-Infinity;
@@ -39203,6 +39377,7 @@ const COCKPIT_DEFS={
   ovni:{fam:'ovni',eye:{x:0,y:1.85,z:0}},                  /* au centre de la soucoupe, sous le dôme, au-dessus de l'anneau de la coque (plus bas, on voyait l'anneau de l'intérieur : une bande noire sur l'horizon) */
   chasseur:{dy:0.12},                                      /* un peu plus haut : le nez descend sous le viseur tête haute */
   grue:{fam:'camion'},
+  van:{dz:-0.13,dy:0.04},                                 /* Fourgon V3 : l'œil à la tête du conducteur, 1 m derrière le pied du pare-brise (le pavillon et les pare-soleil dans le champ) */
   quad:{fam:'moto'},
   scarabee:{dy:0.25},jetprive:{dz:-0.7,dy:0.3},avion:{dy:0.14},voltige:{dy:0.32}, /* vieux modèles d'avion : la verrière dépasse à peine du fuselage, l'œil au ras */
   depanneuse:{dz:0.55},                                    /* vieux modèle : le plateau passe sous la zone vitrée, le siège est tout à l'avant */
