@@ -302,9 +302,9 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
 /* Au volant en vue 1re personne (body.ck1P, posée par cameraCockpit, retirée par cockpitRetirer) : la pile passe en haut à gauche,
    sous les jauges, dans la bande du pavillon — jamais au milieu du pare-brise (18 octobre) ; plus petite, alignée à gauche. Les
    textes flottants nés sur le véhicule (+250 $, figures…) y passent aussi (ckTexte1P), sur une ligne qui se remplace. */
-body.ck1P #notifStack,body.a1P #notifStack{top:calc(env(safe-area-inset-top,0px) + 146px);left:10px;transform:none;align-items:flex-start;width:min(246px,63vw)}
-body.ck1P .notif,body.a1P .notif{font-size:11.5px;padding:5px 11px;text-align:left;max-width:min(246px,63vw);border-radius:8px}
-body.ck1P .notif.gros,body.a1P .notif.gros{font-size:12.5px;padding:6px 12px} /* à pied à la 1re personne aussi (body.a1P, 18 octobre : un message au milieu cachait la vue) */
+body.ck1P #notifStack,body.a1P #notifStack,body.volSim #notifStack{top:calc(env(safe-area-inset-top,0px) + 146px);left:10px;transform:none;align-items:flex-start;width:min(246px,63vw)}
+body.ck1P .notif,body.a1P .notif,body.volSim .notif{font-size:11.5px;padding:5px 11px;text-align:left;max-width:min(246px,63vw);border-radius:8px}
+body.ck1P .notif.gros,body.a1P .notif.gros,body.volSim .notif.gros{font-size:12.5px;padding:6px 12px} /* à pied à la 1re personne aussi (body.a1P, 18 octobre : un message au milieu cachait la vue) */
 .notif.pts{font-style:italic;font-weight:900;letter-spacing:.02em;border-left-color:#ffffff55}
 
 /* ====== ÉCRANS ====== */
@@ -829,6 +829,7 @@ body.ck1P .notif.gros,body.a1P .notif.gros{font-size:12.5px;padding:6px 12px} /*
   <div class="togg">Vibrations <div class="sw on" id="tVib"></div></div>
   <div class="togg">Tir automatique (1re personne) <div class="sw on" id="tTirAuto"></div></div>
   <div class="togg">Horizon au cockpit (avions) <button class="pill" id="tHorizonCk" style="min-width:64px">100 %</button></div>
+  <div class="togg">Tangage inversé (avions) <div class="sw" id="tInverseY"></div></div>
   <div id="saveInfo" style="margin:14px 16px 4px;font-size:10.5px;line-height:1.5;color:var(--gris);text-align:center"></div>
   <button class="mbtn" id="tReset" style="margin:6px auto 0;max-width:280px;border-color:#ff3b5c66;color:#ff8a9a">Effacer la sauvegarde</button>
   <button class="retour" id="setClose">Retour</button>
@@ -856,8 +857,9 @@ body.ck1P .notif.gros,body.a1P .notif.gros{font-size:12.5px;padding:6px 12px} /*
     et contre la police — profites-en. Des <b>véhicules uniques et des armes rares</b> sont cachés
     sur la carte : un léger scintillement les trahit quand tu es tout près.
     Un <b>aéroport</b> se trouve à l'est (portail dans l'enceinte) : avion et hélico pilotables.
-    En vol, <b>MONTER / DESCENDRE</b> remplacent sprint et frein — l'avion doit prendre de la
-    vitesse sur la piste pour décoller (vers 97 km/h) et <b>décroche</b> sous 68 km/h ; tout contact avec
+    En avion, le joystick est le <b>manche</b> (à gauche, à droite : roulis ; vers toi : cabrer) et la <b>manette GAZ</b>
+    règle la poussée — boucles, tonneaux et vol sur le dos se pilotent ; prends de la vitesse sur la piste pour décoller
+    et garde-la : trop lent, l'avion <b>décroche</b> (alarme) ; tout contact avec
     un immeuble plus haut que ton altitude, c'est le <b>crash</b>. L'hélico peut se <b>poser sur
     les toits</b> : descends doucement au-dessus d'un immeuble, sors, et marche sur le toit
     (attention aux bords — la chute fait mal). Un héliport t’attend au sommet de la plus haute
@@ -1015,6 +1017,43 @@ const AVION_MANCHE={
 const AVION_MANCHE_DEF={incl:0.8,vRoul:1.2,tang:0.4,vTang:0.8,lacet:1.2};
 const AVION_G_VIRAGE=30, AVION_TIRE_VIRAGE=0.5, AVION_G_PENTE=6, AVION_GAZ_VIT=0.6, AVION_AEROFREIN=9;
 const AVION_POUSSE=1.0, AVION_POUSSE_FOV=0.35, AVION_POUSSE_RECUL=0.12, AVION_POUSSE_DOS=0.006;
+/* PILOTAGE SIMULÉ DES AVIONS (19 octobre, demandé : « passer d'un pilotage arcade à figures scriptées à un vrai pilotage physique au
+   joystick et au levier de gaz ») — PILOTAGE_SIM=false rend le pilotage d'avant (direction en vue 2D, manche à figures en 3D et 1P).
+   L'avion est un corps orienté par un QUATERNION (v.q), tourné dans ses axes LOCAUX : joystick x = vitesse de roulis, joystick y =
+   vitesse de tangage (tiré vers le bas de l'écran = cabrer, inversable : META.inverserY) ; le lacet vient de l'inclinaison (virage
+   coordonné, VOL_G·sin φ / v). La vitesse est un vecteur (v.vel) : poussée de la manette des gaz, traînée ∝ v², portance ∝ v² × angle
+   d'attaque, gravité — boucles, tonneaux et vol sur le dos viennent du pilotage seul. Un profil par avion (PROFILS_VOL, clé de VEHDEFS) ;
+   vitesses en u/s, vitesses angulaires en rad/s :
+     rollRate   vitesse de roulis, manche à fond          pitchRate  vitesse de tangage, manche à fond
+     Vmin       vitesse de décrochage en palier             Vmax       vitesse maximale en palier, plein gaz (la traînée s'en déduit)
+     poussee    poussée plein gaz (u/s²)                   inertie    temps de réponse des gouvernes (s)
+     stabilite  0 à 1 : manche lâché, l'avion revient vers l'horizontale (0 : il garde son attitude, même sur le dos)
+     vrillePossible  décroché, le manche sur le côté le fait partir en vrille
+     gMax       la portance plafonne à gMax × VOL_G (facteur de charge)        vRot  vitesse de rotation au décollage
+     assietteMax, inclMax  (gros porteurs) le manche ne cabre plus au-delà de cette assiette, ne penche plus au-delà de cette
+                inclinaison (rad) : ils ne bouclent jamais
+     decroDoux  décrochage tardif et doux (tourisme, gros porteurs : la portance s'effondre moins, le nez tombe lentement) ;
+                sans lui, décrochage franc (voltige)            protegeAlpha  le manche ne peut pas décrocher l'avion (A320) */
+let PILOTAGE_SIM=true;
+const PROFILS_VOL={
+  avion:   {rollRate:1.6, pitchRate:1.0, Vmin:18,Vmax:40,poussee:13,inertie:0.30,stabilite:0.75,vrillePossible:false,gMax:3.8,vRot:24,decroDoux:true}, /* Colibri : avion léger (Cessna 172) */
+  tourisme:{rollRate:1.4, pitchRate:0.9, Vmin:15,Vmax:34,poussee:11,inertie:0.32,stabilite:0.85,vrillePossible:false,gMax:3.8,vRot:20,decroDoux:true}, /* Pélican (Piper Cub) */
+  jetprive:{rollRate:1.2, pitchRate:0.62,Vmin:25,Vmax:62,poussee:17,inertie:0.45,stabilite:0.7, vrillePossible:false,gMax:3.0,vRot:30,decroDoux:true}, /* Albatros (Learjet 75) */
+  ligne:   {rollRate:0.45,pitchRate:0.26,Vmin:26,Vmax:52,poussee:9, inertie:0.9, stabilite:0.9, vrillePossible:false,gMax:1.6,vRot:31,assietteMax:0.52,inclMax:1.15,decroDoux:true,protegeAlpha:true}, /* long-courrier (A320 : protections d'assiette, d'inclinaison et d'incidence) */
+  fret:    {rollRate:0.5, pitchRate:0.28,Vmin:22,Vmax:40,poussee:8, inertie:0.85,stabilite:0.9, vrillePossible:false,gMax:1.8,vRot:27,assietteMax:0.61,inclMax:1.05,decroDoux:true}, /* cargo Baleine (C-130) */
+  chasseur:{rollRate:3.4, pitchRate:1.5, Vmin:22,Vmax:56,poussee:30,inertie:0.14,stabilite:0.3, vrillePossible:false,gMax:9,  vRot:28}, /* Épervier (F-16 : commandes électriques, pas de vrille) */
+  voltige: {rollRate:4.6, pitchRate:2.3, Vmin:17,Vmax:44,poussee:24,inertie:0.09,stabilite:0,   vrillePossible:true, gMax:9,  vRot:22}};/* Colibri Rouge (Extra 300) : hyper maniable */
+const PROFIL_VOL_DEF=PROFILS_VOL.avion;
+/* le modèle : VOL_G gravité (u/s²) ; VOL_ALPHA_DECRO angle d'attaque du décrochage (rad) — à Vmin, en palier, l'aile y est ;
+   VOL_INDUITE traînée de l'angle d'attaque (une boucle, un virage serré coûtent de la vitesse) ; VOL_AMORT_COTE amortissement du
+   dérapage (1/s) ; VOL_GIROUETTE le nez qui revient vers la trajectoire (rad/s par rad) ; VOL_PIQUE_DECRO le nez qui tombe décroché ;
+   VOL_STAB_ROULIS, VOL_STAB_TANG le retour à l'horizontale (× stabilite) ; VOL_ZONE_MORTE, VOL_EXPO la courbe du joystick ;
+   VOL_PAS le pas d'intégration maximal (s), VOL_DT_MAX le pas d'image maximal (au-delà, il est borné) ; VOL_POSE_VY, VOL_POSE_ROULIS,
+   VOL_POSE_VMAX les limites d'un posé (sinon, crash) ; VOL_PLAFOND le plafond (u). */
+const VOL_G=24, VOL_ALPHA_DECRO=0.28, VOL_INDUITE=1.2, VOL_AMORT_COTE=4, VOL_GIROUETTE=1.0, VOL_PIQUE_DECRO=1.4,
+      VOL_STAB_ROULIS=1.7, VOL_STAB_TANG=0.9, VOL_ZONE_MORTE=0.08, VOL_EXPO=0.55, VOL_PAS=1/60, VOL_DT_MAX=0.05,
+      VOL_POSE_VY=4.5, VOL_POSE_ROULIS=0.35, VOL_POSE_VMAX=1.9, VOL_PLAFOND=300, VOL_VRILLE_ROULIS=2.6, VOL_VRILLE_LACET=1.3,
+      VOL_BORD_MARGE=60, VOL_BORD_LACET=1.1, VOL_BORD_DUR=240, VOL_SUIVI=2.2; /* VOL_SUIVI : la trajectoire rejoint le nez (1/s, à pleine portance) */ /* les limites du ciel : à moins de VOL_BORD_MARGE u, l'avion tourne vers l'intérieur (rad/s) */
 function ico(id,secours){
   if(!ICONES_SVG||!document.getElementById(id)) return secours||'';
   return '<svg class="icoSvg" viewBox="0 0 24 24" aria-hidden="true"><use href="#'+id+'"></use></svg>';
@@ -1957,7 +1996,7 @@ const META={
   derby:{voiture:'derbyBreak',poss:{derbyBreak:true,derbyCompacte:false,derbyPickup:false},niv:{pareChocs:0,blindage:0,moteur:0,pneus:0},victoires:0,kos:0}, // arène de derby (clés fixes) // mini-jeux réussis (tenues)
   argent:150, xp:0, niveau:1,
   record:0, recordVague:0, killsTotal:0, parties:0,
-  perso:'jax', persosPoss:['jax'], radio:0, planque:false, garage:null, revenus:0, tirAuto:true, horizonCk:1, /* avions au cockpit : part de l'inclinaison vue sur l'horizon (1, 0,7, 0,4 — Paramètres) */ /* 1re personne : le tir part tout seul sur la cible sous la mire */
+  perso:'jax', persosPoss:['jax'], radio:0, planque:false, garage:null, revenus:0, tirAuto:true, horizonCk:1, inverserY:false, /* avions : axe de tangage inversé (Paramètres) */ /* avions au cockpit : part de l'inclinaison vue sur l'horizon (1, 0,7, 0,4 — Paramètres) */ /* 1re personne : le tir part tout seul sur la cible sous la mire */
   helisManoir:{ecureuil:false,titan:false,vip:false,vautour:false}, heliManoir:'helico', // héliport du manoir (clés fixes ; la Libellule vient avec la villa)
   style:{haut:-1,bas:-1,cheveux:-1,coiffure:'',chapeau:'',chapeauCoul:-1,lunettes:'',tatouage:''}, // pièces portées séparément (boutiques) : -1/'' = celles de la tenue
   garde:{}, // pièces achetées en boutique (VETEMENTS) : id → true
@@ -26073,6 +26112,7 @@ function sortirVehicule(force){
   // la dépanneuse, qui ne tourne plus une fois le joueur descendu).
   if(v.remorque){ v.remorque.tracte=null; v.remorque=null; if(v.mesh.userData.cable) v.mesh.userData.cable.visible=false; } // dépanneuse ou treuil
   loopRingEl.style.display='none'; // au cas où on sortait en pleine charge de looping
+  volSonCouper(); hudVolCacher(); if(v&&v.def&&v.def.air==='avion'&&!v.vol&&v.simOk){ v.simOk=false; } /* pilotage simulé : alarmes et HUD coupés */
   desintRingEl.style.display='none'; // au cas où on sortait en pleine charge du Désintégrateur
   if(v.def.type==='moto') v.mesh.rotation.z=0; // on redresse la moto au parking
   if(motoCabrable(v)){ // la moto redescend à plat au parking (sinon elle resterait cabrée après la descente), le pilote se redresse
@@ -26154,6 +26194,7 @@ function sauterEnParachute(){
   const v=P.veh;
   if(!v||!v.def.air||!v.vol){ SFX.refus(); return; }
   loopRingEl.style.display='none'; // au cas où on sautait en pleine charge de looping
+  volSonCouper(); hudVolCacher(); /* pilotage simulé : alarmes et HUD coupés */
   // Bug déjà rencontré (signalé par un joueur) : sauter en parachute est un
   // chemin de sortie ENTIÈREMENT séparé de sortirVehicule() (jamais appelée
   // ici) qui duplique une partie de son travail sans le rayon tracteur de
@@ -26192,6 +26233,7 @@ function sauterEnParachute(){
 }
 el('btnJump').addEventListener('pointerdown',()=>{ if(P.veh) sauterEnParachute(); else ouvrirParachute(); });
 function crashAerien(v){
+  volSonCouper(); hudVolCacher(); /* alarmes et HUD du vol simulé */
   toast('CRASH !','warn'); bigMsg('💥 CRASH');
   META.defis.crash=true;
   addHeat(0.8);
@@ -26454,7 +26496,7 @@ function roulisIA(e,cap,dt){ /* un avion de l'IA ou du décor : son roulis suit 
 const AVION_AIDE={vu:false,decol:false};
 function avionManche(v){ return !!(v&&v.def&&v.def.air==='avion'&&v===P.veh&&META.vue!=='classique'&&!INT.actif); }
 function pilotageAvion(v){ return AVION_MANCHE[v.key]||AVION_MANCHE_DEF; }
-function accAvion(v){ return v&&v.def&&v.def.air==='avion'&&avionManche(v)?clamp(v.accAv||0,0,25):0; } /* l'accélération ressentie (u/s², lissée) : champ, recul de la caméra, plaqué au siège */
+function accAvion(v){ return v&&v.def&&v.def.air==='avion'&&(avionManche(v)||avionSim(v))?clamp(v.accAv||0,0,25):0; } /* l'accélération ressentie (u/s², lissée) : champ, recul de la caméra, plaqué au siège */
 function majGazAvion(v,dt,plus,moins){ if(v.gaz===undefined) v.gaz=clamp((v.v||0)/(v.def.vmax||40),0,1);
   if(plus) v.gaz=Math.min(1,v.gaz+AVION_GAZ_VIT*dt); if(moins) v.gaz=Math.max(0,v.gaz-AVION_GAZ_VIT*1.3*dt); }
 /* la manette des gaz (18 octobre, demandé : « une manette qu'on monte du bas vers le haut à la place des boutons accélérer et
@@ -26511,6 +26553,187 @@ function figuresManche(v,dt){ /* chasseur et voltige : tiré à fond, nez au plu
     if(v.holdLoopT>=A.loop){ v.loopEnCours={t:0,altDep:v.alt,vDep:v.v,x0:v.mesh.rotation.x}; v.holdLoopT=0; v.figureCdT=FIGURE_COOLDOWN; } }
   else v.holdLoopT=Math.max(0,(v.holdLoopT||0)-FIGURE_DECAY*dtd);
   if(v.holdLoopT>0&&!v.loopEnCours&&A.loop){ loopRingEl.style.display='block'; loopRingEl.style.setProperty('--pct',Math.min(100,v.holdLoopT/A.loop*100)); } else loopRingEl.style.display='none'; }
+/* ---------- PILOTAGE SIMULÉ DES AVIONS (réglages en tête du fichier : PILOTAGE_SIM, PROFILS_VOL, VOL_*) ----------
+   L'orientation est un quaternion (v.q) tourné dans les axes LOCAUX de l'avion et renormalisé à chaque pas : aucun angle d'Euler dans
+   la logique de vol, donc ni blocage de cardan sur le dos ni à la verticale. Repère local : +z le nez, +y le dessus, +x l'aile GAUCHE
+   (le cap croît vers la gauche) ; une rotation locale positive autour de +z roule à droite, autour de +x pique. La vitesse (v.vel) est
+   un vecteur du monde : la poussée tire le long du nez, la traînée (∝ v², plus l'angle d'attaque) freine, la portance (∝ v² × angle
+   d'attaque, effondrée au-delà du décrochage) courbe la trajectoire vers le nez, la gravité la tire vers le bas — en montée la vitesse
+   tombe, en piqué elle monte. Le nez revient doucement vers la trajectoire (girouette) ; décroché, il tombe. Tout tourne sur dtJeu
+   (jamais le ralenti du spectacle), borné à VOL_DT_MAX et découpé en pas de VOL_PAS. Pour le reste du jeu, l'avion garde ses champs
+   d'avant : v.ang (cap du nez), v.alt, v.v (vitesse), v.va (vitesse verticale), v.bank (inclinaison, > 0 à gauche), v.tang (assiette). */
+const _sF=new THREE.Vector3(), _sU=new THREE.Vector3(), _sL=new THREE.Vector3(), _sA=new THREE.Vector3(), _sB=new THREE.Vector3(),
+      _sQ=new THREE.Quaternion(), _sE=new THREE.Euler(), _sY=new THREE.Vector3(0,1,0);
+function profilVol(v){ return PROFILS_VOL[v.key]||PROFIL_VOL_DEF; }
+function avionSim(v){ return !!(PILOTAGE_SIM&&v&&v.def&&v.def.air==='avion'&&v===P.veh&&!INT.actif); }
+function volSimVue(){ const v=P.veh; return !!(avionSim(v)&&v.vol&&v.simOk&&ETAT.mode==='jeu'); } /* en vol : jamais la vue de dessus (poursuite ou cockpit) */
+function axeVol(x){ const a=Math.abs(x||0); if(a<VOL_ZONE_MORTE) return 0; const u=Math.min(1,(a-VOL_ZONE_MORTE)/(1-VOL_ZONE_MORTE)); return Math.sign(x)*((1-VOL_EXPO)*u+VOL_EXPO*u*u*u); } /* zone morte, puis courbe expo : fin au centre, franc au bord */
+function axesVol(){ return {x:axeVol(INPUT.ex),y:axeVol(INPUT.ey)*(META.inverserY?-1:1)}; } /* le manche : x = roulis (à droite +), y = tangage (tiré +, sauf axe inversé) */
+function volRepere(v){ const q=v.q; _sF.set(0,0,1).applyQuaternion(q); _sU.set(0,1,0).applyQuaternion(q); _sL.set(1,0,0).applyQuaternion(q); } /* nez, dessus, aile gauche */
+function volAttitude(v){ volRepere(v); v.tang=Math.asin(clamp(_sF.y,-1,1)); v.bank=Math.atan2(-_sL.y,_sU.y); if(_sF.x*_sF.x+_sF.z*_sF.z>0.02) v.ang=Math.atan2(_sF.x,_sF.z); else if(v.vel&&v.vel.x*v.vel.x+v.vel.z*v.vel.z>1) v.ang=Math.atan2(v.vel.x,v.vel.z); }
+function volSimInit(v,tang){ /* au décollage, ou en reprenant la main en vol : l'orientation depuis le cap, l'assiette et l'inclinaison */
+  if(!v.q) v.q=new THREE.Quaternion(); if(!v.vel) v.vel=new THREE.Vector3();
+  v.q.setFromEuler(_sE.set(-(tang!==undefined?tang:(v.tang||0)),v.ang||0,-(v.bank||0),'YXZ'));
+  volRepere(v); v.vel.copy(_sF).multiplyScalar(Math.max(0,v.v||0));
+  v.wx=0; v.wy=0; v.wz=0; v.decroche=false; v.vrilleSim=0; v.vrilleSortT=0; v.cumTang=0; v.cumRoul=0; v.relT=0; v.relR=0; v.lacetAv=0; v.simOk=true; volAttitude(v); }
+function volSim(v,dtJ){ /* le vol d'une image : 'vol', 'pose' (posé en douceur) ou 'crash' */
+  const A=profilVol(v); if(!v.simOk) volSimInit(v);
+  const n=Math.max(1,Math.ceil(dtJ/VOL_PAS-1e-9)), h=dtJ/n;
+  for(let i=0;i<n;i++){ const r=volPas(v,A,h); if(r!=='vol') return r; }
+  return 'vol'; }
+function volPas(v,A,h){
+  const q=v.q, vel=v.vel, aS=VOL_ALPHA_DECRO*(A.decroDoux?1.15:1); volRepere(v); /* le décrochage doux vient plus tard */
+  const V=vel.length(), vf=vel.dot(_sF), vu=vel.dot(_sU), vl=vel.dot(_sL);
+  const alpha=V>2?Math.atan2(-vu,Math.max(0.5,vf)):0, beta=V>2?Math.atan2(vl,Math.max(0.5,vf)):0; /* angle d'attaque (le nez au-dessus de la trajectoire : +) et dérapage */
+  const phi=Math.atan2(-_sL.y,_sU.y), theta=Math.asin(clamp(_sF.y,-1,1));
+  if(Math.abs(alpha)>aS) v.decroche=true; else if(Math.abs(alpha)<aS*0.8&&V>A.Vmin*0.8) v.decroche=false; /* le décrochage, avec hystérésis */
+  const J=axesVol(), eff=clamp(V<A.Vmin?(V/A.Vmin)*(V/A.Vmin):1,0.15,1)*(v.decroche?0.6:1); /* sous Vmin, les gouvernes portent moins ; décrochées, encore moins */
+  let cTang=J.y, cRoul=J.x;
+  const thP=theta-v.wx*A.inertie, phP=phi-v.wz*A.inertie; /* l'attitude dans un temps d'inertie : les butées anticipent (sinon un gros porteur, lent à répondre, les dépassait de 15 à 20°) */
+  if(A.assietteMax){ if(cTang>0) cTang*=clamp((A.assietteMax-thP)/0.12,0,1); else cTang*=clamp((A.assietteMax*0.7+thP)/0.12,0,1); } /* gros porteurs : les butées d'assiette */
+  if(A.inclMax&&cRoul*phP<0) cRoul*=clamp((A.inclMax-Math.abs(phP))/0.15,0,1); /* … et d'inclinaison (rouler à droite = φ qui baisse) */
+  if(A.protegeAlpha&&cTang>0) cTang*=clamp((aS*0.85-alpha)/(aS*0.2),0,1); /* la protection d'incidence : tirer ne fait plus décrocher */
+  let wx=-cTang*A.pitchRate*eff*clamp(V/(A.Vmax*0.8),0.5,1.3), wy=0, wz=cRoul*A.rollRate*eff; /* le tangage croît avec la vitesse (la portance ∝ v² : un rayon de boucle à peu près constant — à vitesse de tangage fixe, la boucle tombait de 30 % dans sa moitié rapide) */
+  const st=A.stabilite||0; /* la stabilité naturelle : manche lâché, retour vers l'horizontale — jamais contre une attitude tenue au manche */
+  const gam=V>1?Math.asin(clamp(vel.y/V,-1,1)):0; /* la pente de la trajectoire */
+  if(st>0){ wz+=clamp(st*VOL_STAB_ROULIS*phi,-A.rollRate*0.8,A.rollRate*0.8)*(1-Math.abs(J.x))*(1-Math.abs(J.y)); wx+=clamp(st*VOL_STAB_TANG*gam*Math.cos(phi),-A.pitchRate*0.6,A.pitchRate*0.6)*(1-Math.abs(J.y)); } /* (vers une trajectoire à plat ; en ressource — le manche tiré ou poussé —, pas de retour en roulis : une boucle passe sur le dos sans se vriller) */
+  const cphi=Math.cos(phi), aTrim=clamp(aS*(A.Vmin/Math.max(V,1))*(A.Vmin/Math.max(V,1))*Math.cos(gam)*(cphi>=0?1:-1)/Math.max(0.5,Math.abs(cphi)),-aS*0.92,aS*0.92); /* le compensateur : l'angle d'attaque qui tient la trajectoire du moment à cette vitesse et cette inclinaison (sur le dos : négatif) — sans lui, l'avion lâché pompait de plus en plus fort */
+  wx+=VOL_GIROUETTE*(alpha-aTrim)*(V/A.Vmax+0.3); wy+=VOL_GIROUETTE*1.5*beta; /* la girouette : le nez revient vers la trajectoire, à l'angle du compensateur */
+  if(A.protegeAlpha&&alpha>aS*0.85) wx+=(alpha-aS*0.85)*8; /* la protection d'incidence rend la main : au-delà, elle pique d'elle-même */
+  if(A.assietteMax&&theta>A.assietteMax) wx+=(theta-A.assietteMax)*3; if(A.inclMax&&Math.abs(phi)>A.inclMax) wz+=(Math.abs(phi)-A.inclMax)*3*Math.sign(phi); /* au-delà d'une butée (une rafale, une reprise en main), le rappel */
+  if(v.decroche) wx+=VOL_PIQUE_DECRO*(A.decroDoux?0.45:1)*Math.sign(alpha||1)*clamp((Math.abs(alpha)-aS*0.8)/0.15,0.3,1); /* décroché : le nez tombe (doucement s'il est doux) */
+  let lacet=clamp(VOL_G*Math.sin(phi)*Math.cos(theta)/Math.max(V,A.Vmin*0.8),-1.6,1.6); /* le virage coordonné : le lacet vient de l'inclinaison */
+  const hSol=v.alt-poseY(v.x,v.z);
+  if(A.vrillePossible&&!v.vrilleSim&&v.decroche&&Math.abs(J.x)>0.4&&V<A.Vmin*1.1&&hSol>6){ /* (0,4 : manche tiré à fond ET sur le côté, la diagonale d'un joystick rond, fait 0,48 après la courbe) */ v.vrilleSim=Math.sign(J.x); v.vrilleSortT=0; toast('🌀 VRILLE ! Manche au neutre pour en sortir','warn'); vibre(60); }
+  if(v.vrilleSim){ const s=v.vrilleSim; wz=s*VOL_VRILLE_ROULIS; wx=0; wy=0; lacet=-s*VOL_VRILLE_LACET; /* la vrille : elle roule et tourne seule, nez bas */
+    if(Math.abs(J.x)<0.2&&J.y<0.15){ v.vrilleSortT+=h; if(v.vrilleSortT>0.8){ v.vrilleSim=0; v.decroche=false; } } else v.vrilleSortT=0; }
+  const kI=1-Math.exp(-h/Math.max(0.03,A.inertie)); v.wx+=(wx-v.wx)*kI; v.wy+=(wy-v.wy)*kI; v.wz+=(wz-v.wz)*kI; /* l'inertie des gouvernes */
+  _sA.set(v.wx,v.wy,v.wz); const w=_sA.length(); if(w>1e-7){ _sQ.setFromAxisAngle(_sA.multiplyScalar(1/w),w*h); q.multiply(_sQ); } /* axes LOCAUX */
+  if(Math.abs(lacet)>1e-7){ _sQ.setFromAxisAngle(_sY,lacet*h); q.premultiply(_sQ); }
+  if(v.vrilleSim){ _sB.crossVectors(_sF,_sY); const lb=_sB.length(); if(lb>1e-3){ _sQ.setFromAxisAngle(_sB.multiplyScalar(1/lb),-(theta+0.95)*1.6*h); q.premultiply(_sQ); } } /* en vrille, le nez va vers −55° */
+  q.normalize(); volRepere(v); v.lacetAv=lacet;
+  /* les forces */
+  const thr=clamp(v.gaz||0,0,1)*A.poussee*tenueK('aiguilleur',1.15), kD=A.poussee/(A.Vmax*A.Vmax);
+  const cl=Math.abs(alpha)<=aS?alpha/aS:Math.sign(alpha)*Math.max(A.decroDoux?0.65:0.3,1-(Math.abs(alpha)-aS)*2.5); /* au-delà du décrochage, la portance s'effondre (franc) ou faiblit (doux) */
+  const L=clamp(VOL_G*(V/A.Vmin)*(V/A.Vmin)*cl*(v.vrilleSim?0.3:1),-A.gMax*VOL_G,A.gMax*VOL_G);
+  const D=kD*V*V*(1+VOL_INDUITE*(alpha/aS)*(alpha/aS))+(v.freinAir?AVION_AEROFREIN:0);
+  _sA.copy(_sF).multiplyScalar(thr);
+  if(V>0.5){ _sA.addScaledVector(vel,-Math.min(D,V/h)/V); _sB.crossVectors(vel,_sL); const lB=_sB.length(); if(lB>1e-4) _sA.addScaledVector(_sB,L/lB); } /* la portance : perpendiculaire à la vitesse, dans le plan de symétrie */
+  _sA.y-=VOL_G;
+  vel.addScaledVector(_sA,h);
+  const lat=vel.dot(_sL); vel.addScaledVector(_sL,-lat*(1-Math.exp(-VOL_AMORT_COTE*h))); /* le dérapage reste faible */
+  if(!v.decroche&&!v.vrilleSim){ const Vn=vel.length(); if(Vn>1){ _sB.copy(vel).multiplyScalar(1/Vn); if(_sB.dot(_sF)>0.35){ const k=1-Math.exp(-VOL_SUIVI*Math.min(1,(Vn/A.Vmin)*(Vn/A.Vmin)*0.5)*h); _sB.lerp(_sF,k).normalize(); vel.copy(_sB).multiplyScalar(Vn); } } } /* la vitesse suit le nez avec une légère inertie (sans rien gagner en vitesse) ; lente, beaucoup moins ; décrochée, plus du tout */
+  if(v.vrilleSim){ _sB.set(_sF.x*A.Vmin*0.3,-A.Vmin*0.85,_sF.z*A.Vmin*0.3); vel.lerp(_sB,1-Math.exp(-1.5*h)); } /* en vrille : une descente lente qui tourne */
+  const V2=vel.length(), Vlim=A.Vmax*1.6; if(V2>Vlim) vel.multiplyScalar(Vlim/V2);
+  /* la position ; le sol (posé ou crash) ; un immeuble ou le relief devant (crash) */
+  let nx=v.x+vel.x*h, nz=v.z+vel.z*h, ny=v.alt+vel.y*h;
+  if(ny>VOL_PLAFOND){ ny=VOL_PLAFOND; if(vel.y>0) vel.y=0; }
+  /* les limites du ciel (les mêmes qu'avant : le ciel reste ouvert jusqu'à elles) : passé la limite, l'avion et sa vitesse tournent vers
+     l'intérieur, sans rien perdre, sur une marge de ~3 s de vol (avant, la vitesse contre le bord était annulée : il décrochait et piquait) ;
+     la butée dure est au bout de cette marge */
+  const M=Math.max(VOL_BORD_MARGE,V*3.2), x0=(DECOR_V2?LIMITE_OUEST_MER-20:-HALF-30), x1=(DECOR_V2?LIMITE_EST+20:HALF+170), z0=-HALF-40, z1=LIMITE_SUD_MER;
+  const bx=nx<x0?-(x0-nx)/M:(nx>x1?(nx-x1)/M:0), bz=nz<z0?-(z0-nz)/M:(nz>z1?(nz-z1)/M:0); /* > 0 : on sort par +x (+z) */
+  const sortant=bx*vel.x+bz*vel.z;
+  if((bx||bz)&&sortant>0){ const cr=vel.z*bx-vel.x*bz, wB=-(cr>=0?1:-1)*VOL_BORD_LACET*clamp(Math.max(Math.abs(bx),Math.abs(bz)),0.2,1)*h;
+    _sQ.setFromAxisAngle(_sY,wB); q.premultiply(_sQ); vel.applyQuaternion(_sQ);
+    if(v===P.veh&&!(v.bordAvisT>0)){ v.bordAvisT=4; toast('Limite de la zone : demi-tour','warn'); } }
+  if(v.bordAvisT>0) v.bordAvisT-=h;
+  nx=v.x+vel.x*h; nz=v.z+vel.z*h;
+  const X0=x0-VOL_BORD_DUR, X1=x1+VOL_BORD_DUR, Z0=z0-VOL_BORD_DUR, Z1=z1+VOL_BORD_DUR; /* la butée dure */
+  if(nx<X0||nx>X1){ nx=clamp(nx,X0,X1); if((nx<=X0&&vel.x<0)||(nx>=X1&&vel.x>0)) vel.x=-vel.x*0.5; } if(nz<Z0||nz>Z1){ nz=clamp(nz,Z0,Z1); if((nz<=Z0&&vel.z<0)||(nz>=Z1&&vel.z>0)) vel.z=-vel.z*0.5; }
+  const surf=poseY(nx,nz);
+  if(ny<=surf+0.15){
+    if(v.decolT>0){ v.x=nx; v.z=nz; v.alt=surf+0.15; if(vel.y<0) vel.y=0; return 'vol'; } /* le décollage : quelques instants au ras de la piste */
+    const eau=surf<0.5&&estEau(nx,nz);
+    if(eau||vel.y<-VOL_POSE_VY||Math.abs(phi)>VOL_POSE_ROULIS||theta<-0.15||theta>0.55||V>A.Vmin*VOL_POSE_VMAX||v.vrilleSim) return 'crash';
+    v.x=nx; v.z=nz; v.alt=surf; return 'pose'; }
+  if(v.decolT<=0){ const s=solidAt(nx,nz,2.5); if((s&&s.h>ny)||(DECOR_V2&&solY(nx,nz)>ny+0.3)) return 'crash'; }
+  v.x=nx; v.z=nz; v.alt=ny;
+  /* les figures ne sont plus scriptées : on compte ce que l'avion a vraiment fait (une boucle, un tonneau) */
+  v.cumTang+=-v.wx*h; v.cumRoul+=v.wz*h;
+  if(Math.abs(J.y)<0.3){ v.relT+=h; if(v.relT>1) v.cumTang=0; } else v.relT=0;
+  if(Math.abs(J.x)<0.3){ v.relR+=h; if(v.relR>1) v.cumRoul=0; } else v.relR=0;
+  if(Math.abs(v.cumTang)>=Math.PI*2){ v.cumTang-=Math.sign(v.cumTang)*Math.PI*2; META.stats.loopings=(META.stats.loopings||0)+1; spawnTexte(v.x,v.alt+2.4,v.z,'🔁 LOOPING !','#ffd23f'); SFX.niveau(); vibre(40); }
+  if(Math.abs(v.cumRoul)>=Math.PI*2&&!v.vrilleSim){ v.cumRoul-=Math.sign(v.cumRoul)*Math.PI*2; META.stats.loopings=(META.stats.loopings||0)+1; spawnTexte(v.x,v.alt+2.4,v.z,'🌀 TONNEAU !','#35e0ff'); SFX.niveau(); vibre(30); }
+  return 'vol'; }
+/* les alertes du vol : décrochage (klaxon) et sol (bips rapides) ; un seul oscillateur, coupé à toutes les sorties (volSonCouper) */
+const VOL_SON={osc:null,g:null,mode:null};
+function volSonMaj(mode){ if(!AUDIO.pret||!AUDIO.ctx) return; const ctx=AUDIO.ctx, t=ctx.currentTime;
+  if(!mode){ if(VOL_SON.g&&VOL_SON.mode){ VOL_SON.g.gain.setTargetAtTime(0,t,0.02); VOL_SON.mode=null; } return; }
+  if(!VOL_SON.osc){ const o=ctx.createOscillator(), g=ctx.createGain(); o.type='square'; g.gain.value=0; o.connect(g); g.connect(AUDIO.sfxG); o.start(t); VOL_SON.osc=o; VOL_SON.g=g; }
+  VOL_SON.mode=mode; const tt=performance.now()/1000, on=mode==='sol'?Math.floor(tt*6)%2===0:Math.floor(tt*8)%4!==3;
+  VOL_SON.osc.frequency.setTargetAtTime(mode==='sol'?880:470,t,0.01); VOL_SON.g.gain.setTargetAtTime(on?0.045:0,t,0.008); }
+function volSonCouper(){ if(VOL_SON.osc){ try{ VOL_SON.osc.stop(); }catch(e){} try{ VOL_SON.g.disconnect(); }catch(e){} } VOL_SON.osc=null; VOL_SON.g=null; VOL_SON.mode=null; }
+/* le HUD de vol : horizon artificiel, vitesse, altitude, gaz, alertes (décrochage, sol) — redessiné 15 fois par seconde */
+const HUD_VOL={el:null,cv:null,t:0,alerte:null,cls:false};
+function hudVolCacher(){ if(HUD_VOL.el&&HUD_VOL.el.style.display!=='none') HUD_VOL.el.style.display='none'; HUD_VOL.alerte=null; if(HUD_VOL.cls){ HUD_VOL.cls=false; document.body.classList.remove('volSim'); } }
+function hudVolMaj(v,A,dt,alerte){ HUD_VOL.alerte=alerte;
+  if(!HUD_VOL.el){ const d=document.createElement('div'); d.id='hudVol'; d.style.cssText='position:fixed;right:5px;top:calc(env(safe-area-inset-top,0px) + 226px);z-index:9;pointer-events:none;display:none'; /* à droite, sous Vue et Pause : la pile des messages passe à gauche (body.volSim) */
+    const c=document.createElement('canvas'); c.width=248; c.height=304; c.style.cssText='width:124px;height:152px;display:block'; d.appendChild(c); document.body.appendChild(d); HUD_VOL.el=d; HUD_VOL.cv=c; }
+  if(HUD_VOL.el.style.display!=='block') HUD_VOL.el.style.display='block';
+  if(!HUD_VOL.cls){ HUD_VOL.cls=true; document.body.classList.add('volSim'); }
+  HUD_VOL.t-=dt; if(HUD_VOL.t>0) return; HUD_VOL.t=1/15;
+  const g=HUD_VOL.cv.getContext('2d'); g.setTransform(2,0,0,2,0,0); g.clearRect(0,0,124,152);
+  const ck=vueCockpit(), flash=Math.floor(performance.now()/260)%2===0;
+  if(!ck){ /* au cockpit, le tableau de bord a ses instruments : seulement l'alerte */
+    const cx=62, cy=38, R=34, th=v.vol?(v.tang||0):0, ph=v.vol?(v.bank||0):0, py=th*R*1.5;
+    g.save(); g.beginPath(); g.arc(cx,cy,R,0,6.2832); g.clip(); g.translate(cx,cy); g.rotate(ph); /* l'horizon tourne à l'envers de l'avion */
+    g.fillStyle='#3a86d0'; g.fillRect(-80,-200,160,200+py); g.fillStyle='#8a5a2c'; g.fillRect(-80,py,160,200);
+    g.strokeStyle='#fff'; g.lineWidth=1.5; g.beginPath(); g.moveTo(-80,py); g.lineTo(80,py); g.stroke();
+    g.lineWidth=1; g.font='bold 7px Arial'; g.fillStyle='#fff'; g.textAlign='left';
+    for(let d=-60;d<=60;d+=10){ if(!d) continue; const y=py-d*Math.PI/180*R*1.5, l=d%20?7:12; g.beginPath(); g.moveTo(-l,y); g.lineTo(l,y); g.stroke(); if(!(d%20)) g.fillText(String(Math.abs(d)),l+2,y+2.5); } /* l'échelle d'assiette */
+    g.restore();
+    g.strokeStyle='rgba(255,255,255,0.85)'; g.lineWidth=2; g.beginPath(); g.arc(cx,cy,R,0,6.2832); g.stroke();
+    g.strokeStyle='#ffb52e'; g.lineWidth=3; g.beginPath(); g.moveTo(cx-22,cy); g.lineTo(cx-8,cy); g.lineTo(cx-4,cy+4); g.moveTo(cx+22,cy); g.lineTo(cx+8,cy); g.lineTo(cx+4,cy+4); g.stroke(); /* la maquette */
+    g.fillStyle='#ffb52e'; g.beginPath(); g.arc(cx,cy,2,0,6.2832); g.fill();
+    const kmh=Math.round((v.v||0)*3.6), hS=Math.max(0,Math.round((v.alt||0)-poseY(v.x,v.z))), dec=Math.round(A.Vmin*3.6);
+    const boite=(x,titre,val,unite,coul)=>{ g.fillStyle='rgba(8,12,20,0.75)'; g.fillRect(x,78,59,40); g.strokeStyle=coul; g.lineWidth=1; g.strokeRect(x+0.5,78.5,58,39);
+      g.textAlign='center'; g.fillStyle='#9fb3c8'; g.font='bold 7px Arial'; g.fillText(titre,x+29.5,87); g.fillStyle=coul; g.font='bold 15px Arial'; g.fillText(val,x+29.5,104); g.fillStyle='#9fb3c8'; g.font='7px Arial'; g.fillText(unite,x+29.5,114); };
+    boite(2,'VITESSE',String(kmh),'km/h',v.vol&&kmh<dec*1.1?'#ff5a5a':'#e8f4ff'); boite(63,'ALTITUDE',String(v.vol?Math.round(v.alt||0):hS),v.vol?'m · sol '+hS:'m',alerte==='sol'?'#ff5a5a':'#e8f4ff');
+    const gz=clamp(v.gaz||0,0,1); g.fillStyle='rgba(8,12,20,0.75)'; g.fillRect(2,121,120,11); g.fillStyle='#7dff7a'; g.fillRect(3,122,118*gz,9); g.fillStyle='#fff'; g.font='bold 7px Arial'; g.textAlign='center';
+    g.fillText(v.vol?'GAZ '+Math.round(gz*100)+' %':'GAZ '+Math.round(gz*100)+' % · DÉCOLLAGE '+Math.round(A.vRot*3.6),62,129.5); } /* (au sol : la vitesse de rotation) */
+  if(alerte&&flash){ const txt=alerte==='sol'?'SOL ! REMONTE':(alerte==='vrille'?'VRILLE !':'DÉCROCHAGE'); g.fillStyle='#d8202c'; g.fillRect(2,135,120,16); g.fillStyle='#fff'; g.font='bold 11px Arial'; g.textAlign='center'; g.fillText(txt,62,147); }
+}
+/* l'alerte du moment : sol (la plus urgente), vrille, décrochage */
+function alerteVol(v,A){ if(!v.vol||v.decolT>0) return null; const hS=v.alt-poseY(v.x,v.z), vy=v.vel?v.vel.y:(v.va||0);
+  if((vy<-6&&hS/(-vy)<4)||(hS<25&&(v.tang||0)<-0.35&&vy<-3)) return 'sol';
+  if(v.vrilleSim) return 'vrille';
+  if(v.decroche||((v.v||0)<A.Vmin*1.06&&(v.tang||0)>-0.3)) return 'decro';
+  return null; }
+/* la caméra de poursuite en vol : derrière l'avion, dans SON repère lissé — elle suit le roulis, la boucle, le vol sur le dos */
+const VOLCAM={q:new THREE.Quaternion(),ok:false,p:new THREE.Vector3(),t:new THREE.Vector3(),u:new THREE.Vector3(),o:new THREE.Vector3()};
+function cameraVolSim(dt,v,k){ const C=VOLCAM; if(!C.ok){ C.q.copy(v.q); C.ok=true; } C.q.slerp(v.q,1-Math.exp(-4.2*dt)); C.q.normalize();
+  const lg=v.def.long||7, D=8+lg*0.95+accAvion(v)*AVION_POUSSE_RECUL, Hh=2.2+lg*0.14; C.o.set(v.x,v.alt,v.z);
+  C.p.set(0,Hh,-D).applyQuaternion(C.q).add(C.o); C.t.set(0,-0.6,9).applyQuaternion(C.q).add(C.o); /* visé un peu sous le nez : l'avion vers le milieu de l'écran, au-dessus des boutons */ C.u.set(0,1,0).applyQuaternion(C.q);
+  const sol=solY(C.p.x,C.p.z)+1.2; if(C.p.y<sol) C.p.y=sol;
+  camera.position.lerp(C.p,k); camera.up.set(0,1,0).lerp(C.u,k).normalize(); camera.lookAt(C.t);
+  VUE.roulisCam=0; VUE.offVehRendu=0; _sB.set(0,0,-1).applyQuaternion(camera.quaternion); VUE.yawRendu=Math.hypot(_sB.x,_sB.z)>1e-3?Math.atan2(-_sB.x,-_sB.z):VUE.yawRendu;
+  const ciel=vueCiel(); ciel.visible=true; ciel.position.copy(camera.position); const U=VUE.cielU; U.uT.value+=dt;
+  if(scene.background&&scene.background.isColor){ U.uCiel.value.copy(scene.background); U.uZenith.value.copy(scene.background).multiplyScalar(0.55).lerp(VUE_ZENITH,0.35); }
+  U.uSoleil.value.copy(soleil.position).normalize(); U.uTempete.value=typeof METEO!=='undefined'?clamp(METEO.inten||0,0,1)*0.8:0;
+  return k*(2+Math.min(Math.abs(v.v||0),45)*0.32+accAvion(v)*AVION_POUSSE_FOV); }
+/* le vol simulé d'une image, appelé par majVol pour l'avion du joueur (PILOTAGE_SIM) */
+function majVolSim(v,dt,monter,desc){
+  const A=profilVol(v), dtJ=Math.min(VOL_DT_MAX,dt/(ETAT.timeScale||1)), descM=desc||MANETTE.frein;
+  if(MANETTE.touche){ v.gaz=MANETTE.val; MANETTE.touche=false; } majGazAvion(v,dtJ,monter,descM); v.freinAir=!!descM; /* la manette des gaz (le clavier : Maj, S) */
+  loopRingEl.style.display='none'; v.loopEnCours=null; v.vrilleEnCours=null; v.tonneau=0; v.tonFin=0; /* plus de figures scriptées */
+  if(!v.vol){ /* au sol : le joystick dirige, les gaz font rouler ; à la vitesse de rotation, on tire pour décoller */
+    const J=axesVol(), v0s=v.v||0; v.simOk=false;
+    majVehiculePhys(v,dt,v.gaz,-J.x*(1-Math.min(0.6,(v.v||0)/60)),descM&&v.gaz<0.05); if(v.mort) return 'mort';
+    v.accAv=lerp(v.accAv||0,dt>0?(v.v-v0s)/dt:0,clamp(dt*4,0,1)); v.tang=0; v.bank=0; v.vb=0; v.vt=0; v.va=0;
+    if(v.v>=A.vRot*0.92&&!(J.y>0.25)&&!AVION_AIDE.decol){ AVION_AIDE.decol=true; toast('✈ Vitesse de rotation : tire le joystick vers toi pour décoller','or'); }
+    if(v.v>=A.vRot&&J.y>0.25){ v.vol=true; v.decolT=DECOL_GRACE; v.alt=poseY(v.x,v.z)+0.3; v.bank=0; volSimInit(v,0.14);
+      if(!META.defis.avion){ META.defis.avion=true; } if(v.def.voltige&&!META.defis.voltigePilote){ META.defis.voltigePilote=true; } toast('Décollage !','or'); SFX.vague(); }
+    return 'sol'; }
+  if(!v.simOk) volSimInit(v);
+  const V0=v.v||0, r=dtJ>0?volSim(v,dtJ):'vol';
+  if(r==='crash') return 'crash';
+  if(r==='pose'){ const vh=Math.hypot(v.vel.x,v.vel.z); volAttitude(v); v.vol=false; v.simOk=false; v.v=Math.min(vh,20); v.va=0; v.bank=0; v.tang=0; v.wx=v.wy=v.wz=0; v.decroche=false;
+    if(v.gaz!==undefined) v.gaz=Math.min(v.gaz,0.45); v.mesh.rotation.set(0,v.ang,0);
+    const surf=v.alt; toast(surf>4?'Posé sur le toit !':'Posé — lâche le joystick pour freiner','or'); if(surf>4&&!META.defis.toit){ META.defis.toit=true; bigMsg('POSÉ SUR LE TOIT'); } return 'pose'; }
+  volAttitude(v); v.v=v.vel.length(); v.va=v.vel.y; v.vb=v.wz; v.vt=-v.wx;
+  v.accAv=lerp(v.accAv||0,dtJ>0?(v.v-V0)/dtJ:0,clamp(dtJ*4,0,1));
+  return 'vol'; }
 function majVol(v,dt){
   const air=v.def.air;
   if(v.alt===undefined){v.alt=0;v.vol=false;v.va=0;}
@@ -26543,7 +26766,7 @@ function majVol(v,dt){
   // pendant les tout premiers instants après un passage posé→en vol, pour
   // les deux appareils, sur n'importe quelle surface (yacht, toit, ponton,
   // sol) — jamais de faux crash au décollage.
-  if(v.decolT>0) v.decolT-=dt;
+  if(v.decolT>0) v.decolT-=avionSim(v)?Math.min(VOL_DT_MAX,dt/(ETAT.timeScale||1)):dt; /* pilotage simulé : les minuteurs du vol sur dtJeu */
   if(air==='helico'){
     if(!v.vol){
       if(monter){ v.vol=true; v.decolT=DECOL_GRACE; if(!META.defis.heli){META.defis.heli=true;} SFX.spec(); }
@@ -26602,6 +26825,10 @@ function majVol(v,dt){
         v.mesh.rotation.z=clamp(-(v.inclL||0),-0.4,0.4); }
     } else if(v.def.ovni) v.mesh.rotation.x=0;
     else { v.mesh.rotation.x=lerp(v.mesh.rotation.x,0,Math.min(1,PITCH_LISSAGE*dt)); v.mesh.rotation.z=lerp(v.mesh.rotation.z||0,0,Math.min(1,PITCH_LISSAGE*dt)); v.inclF=0; v.inclL=0; v.hvx=0; v.hvz=0; } // posé : retour à l'horizontale, à l'arrêt
+  } else if(avionSim(v)){ /* PILOTAGE SIMULÉ (PILOTAGE_SIM) : le quaternion, les forces, la manette des gaz ; plus de figures scriptées */
+    const r=majVolSim(v,dt,monter,desc); if(r==='mort') return;
+    if(r==='crash'){ volSonCouper(); hudVolCacher(); crashAerien(v); return; }
+    majBoutonsVol(v,true);
   } else { // avion
     const manche=avionManche(v), descM=desc||MANETTE.frein; if(manche&&MANETTE.touche){ v.gaz=MANETTE.val; MANETTE.touche=false; } /* la manette des gaz */
     if(!v.vol&&manche){ /* au manche, au sol : le joystick dirige, les gaz font rouler, on tire pour décoller */
@@ -26728,7 +26955,7 @@ function majVol(v,dt){
     if(v===P.veh) majBoutonsVol(v,manche); /* boutons de la 2D ou manette des gaz, à la valeur de l'image */
   }
   // limites du ciel : au-delà de la ville et de la mer, demi-tour
-  v.x=clamp(v.x,DECOR_V2?LIMITE_OUEST_MER-20:-HALF-30,DECOR_V2?LIMITE_EST+20:HALF+170); v.z=clamp(v.z,-HALF-40,LIMITE_SUD_MER); // DECOR_V2 : tout le ciel, montagne et large compris
+  if(!(avionSim(v)&&v.vol)){ v.x=clamp(v.x,DECOR_V2?LIMITE_OUEST_MER-20:-HALF-30,DECOR_V2?LIMITE_EST+20:HALF+170); v.z=clamp(v.z,-HALF-40,LIMITE_SUD_MER); } /* l'avion simulé a sa propre limite (il fait demi-tour au-delà, volPas) */ // DECOR_V2 : tout le ciel, montagne et large compris
   const ud=v.mesh.userData;
   if(ud.rotor) ud.rotor.rotation.y+=((v.vol||air==='avion'&&v.v>4)?30:4)*dt;
   if(ud.rotor2) ud.rotor2.rotation.y=ud.rotor.rotation.y; // bimoteur (cargo)
@@ -26744,7 +26971,9 @@ function majVol(v,dt){
   // de v.ang directement, jamais de mesh.rotation.y, voir plus haut).
   if(v.def.ovni) v.mesh.rotation.y+=1.1*dt;
   else v.mesh.rotation.y=v.ang;
-  { const rv=clamp((Math.abs(v.v)+Math.abs(v.va)*3)/v.def.vmax,0,1); moteurUpdate(v.def.air==='avion'&&v.gaz!==undefined&&avionManche(v)?clamp(0.45*rv+0.55*v.gaz,0,1):rv); } /* au manche, le moteur monte en régime avec la manette, avant la vitesse */
+  if(avionSim(v)){ if(v.vol&&v.simOk&&v.q) v.mesh.quaternion.copy(v.q); const A=profilVol(v), al=alerteVol(v,A); volSonMaj(al==='sol'?'sol':(al?'decro':null)); hudVolMaj(v,A,dt,al); } /* le pilotage simulé : l'orientation, le HUD, les alertes */
+  else if(HUD_VOL.el){ hudVolCacher(); volSonMaj(null); }
+  { const rv=clamp((Math.abs(v.v)+Math.abs(v.va)*3)/v.def.vmax,0,1); moteurUpdate(v.def.air==='avion'&&v.gaz!==undefined&&(avionManche(v)||avionSim(v))?clamp(0.45*rv+0.55*v.gaz,0,1):rv); } /* au manche, le moteur monte en régime avec la manette, avant la vitesse */
   if(pressed('arme')||edgeKey('Tab')) changerRadio();
   P.x=v.x; P.z=v.z; P.ang=v.ang;
   META.defis.dist+=Math.abs(v.v)*dt/1000;
@@ -34266,7 +34495,7 @@ function porteArmurerieProche(){
     if(!_porteArmSud) _porteArmSud={id:'armurerie',x:POIS.armurerie2.x,z:POIS.armurerie2.z-1.5,nx:0,nz:1}; return _porteArmSud; }
   return null; }
 function entrerInterieur(id,porte){
-  couperSonsEcrasement();
+  couperSonsEcrasement(); volSonCouper(); hudVolCacher();
   if(INT.actif) return;
   // Rayon tracteur de l'OVNI : majVehicules cesse tout court tant que
   // INT.actif est posé (voir boucle()) — une cible encore en l'air resterait
@@ -41210,6 +41439,8 @@ bindSw('tSfx','sfx',()=>{if(AUDIO.sfxG)AUDIO.sfxG.gain.value=REGLAGES.sfx?0.85:0
 bindSw('tVib','vib');
 el('tTirAuto').addEventListener('pointerdown',()=>{ META.tirAuto=META.tirAuto===false; el('tTirAuto').classList.toggle('on',META.tirAuto!==false); sauveMeta(); SFX.ui(); }); /* sauvegardé dans META */
 el('tTirAuto').classList.toggle('on',META.tirAuto!==false);
+el('tInverseY').addEventListener('pointerdown',()=>{ META.inverserY=!META.inverserY; el('tInverseY').classList.toggle('on',!!META.inverserY); sauveMeta(); SFX.ui(); }); /* avions : tirer le joystick pique au lieu de cabrer (sauvegardé) */
+el('tInverseY').classList.toggle('on',!!META.inverserY);
 /* l'horizon au cockpit des avions (18 octobre) : 100 % = l'horizon bascule de toute l'inclinaison de l'avion, comme dans un vrai
    cockpit ; 70 % ou 40 % : plus doux (contre le mal de mer). Un appui passe au réglage suivant. */
 function majReglageHorizon(){ const b=el('tHorizonCk'); if(b) b.textContent=Math.round((META.horizonCk===undefined?1:META.horizonCk)*100)+' %'; }
@@ -41304,6 +41535,7 @@ function ameliorerTexturesSol(){
 }
 function startRun(){
   couperSonsEcrasement(); /* tôle et verre de l'écrasement (CLAUDE.md : les sons coupés dans toutes les sorties) */
+  volSonCouper(); hudVolCacher(); /* alarmes et HUD du vol simulé */
   if(ETAT.mortTimer){ clearTimeout(ETAT.mortTimer); ETAT.mortTimer=null; } // Rejouer avant l'écran de mort : il tombait au milieu de la partie suivante
   sireneStop(); moteurStop(); // mourir au volant sans sortirVehicule laissait une sirène allumée
   MET2.vague=-1; MET2.parVague={}; // compteurs de paie des métiers par vague : hérités de la partie d'avant au même numéro de vague
@@ -41658,6 +41890,7 @@ function startRun(){
 }
 function mourir(){
   couperSonsEcrasement(); /* tôle et verre de l'écrasement (CLAUDE.md : les sons coupés dans toutes les sorties) */
+  volSonCouper(); hudVolCacher(); /* alarmes et HUD du vol simulé */
   if(ETAT.mode==='mort') return;
   if(P.h) finCoup(P.h); /* un coup à l'arme blanche en cours : le corps revient au repos */
   if(DECOR_V2&&RIDES.actif){ RIDES.actif=null; RIDES.porte.visible=false; RIDES.txt.style.display='none'; rivalesFin(); if(RIDES.fleche) RIDES.fleche.visible=false; } // course abandonnée à la mort
@@ -43053,7 +43286,7 @@ const VUE={cache:[],cacheSalle:null,k:0,kVeh:0,yaw:0,yawUser:0,yawRendu:0,hBonus
   // basse et plus proche (le sol défile), champ qui s'ouvre fort avec la vitesse, traits de vitesse
   PIED:{H:9,D:19,devant:2.5}, VEH:{H:5.2,D:10.5,devant:6}, SALLE:{H:8,D:10,devant:1.5}};
 const VUE_SENS_DOIGT=0.0085;   // rad par pixel de glissement
-function vueImmersive(){ return META.vue==='immersive'||META.vue==='fps'; } /* la 1re personne garde le ciel, le brouillard et les apparitions cachées de la vue immersive */
+function vueImmersive(){ return META.vue==='immersive'||META.vue==='fps'||volSimVue(); } /* (en vol, l'avion simulé n'a jamais la vue de dessus : poursuite) */ /* la 1re personne garde le ciel, le brouillard et les apparitions cachées de la vue immersive */
 function vue1P(){ return META.vue==='fps'; }
 // les salles qui gardent leur propre caméra : le chalutier (poursuite vers le large), le menu du garage
 function salleImmersive(s){ return !s||(!s.barre&&!(s.tuning&&s.menuOuvert)); }
@@ -43105,6 +43338,7 @@ function vueCamera(dt,sx,sz){
   if(sal&&!cible) VUE.k=0; // chalutier, menu du garage : leur caméra, tout de suite
   VUE.k=lerp(VUE.k,cible,clamp(dt*2.4,0,1));
   if(VUE.k<0.002){ VUE.k=0; VUE.yawRendu=0; if(VUE.ciel&&VUE.ciel.visible) VUE.ciel.visible=false; return 0; }
+  if(volSimVue()&&P.veh.q){ const kk=VUE.k*VUE.k*(3-2*VUE.k); return cameraVolSim(dt,P.veh,kk); } /* avion simulé en vol : la poursuite qui suit le roulis */
   const v=P.veh, air=!!(v&&v.def.air), glisse=typeof TOW!=='undefined'&&TOW.actif&&TOW.actif.id==='wake'&&TOW.cap!==undefined;
   VUE.kVeh=lerp(VUE.kVeh,v||glisse?1:0,clamp(dt*2,0,1));
   if(v){ // poursuite (16 octobre, demandé) : on tourne la caméra avec un second doigt, elle revient derrière dès qu'on lâche ;
@@ -44647,7 +44881,7 @@ function cameraCockpit(dt){ const v=P.veh, C=COCKPIT; if(C.v!==v||!C.g) cockpitC
   const e=C.eye; _ckV.set(e.x,e.y+bob,e.z-aA*AVION_POUSSE_DOS).applyMatrix4(M); camera.position.copy(_ckV); /* et plaque au siège (l'œil recule) */
   { const cible=C.fam==='ovni'&&v.vol?-CK_OVNI_PLONGE*clamp(((v.alt||0)-poseY(v.x,v.z)-CK_OVNI_ALT[0])/(CK_OVNI_ALT[1]-CK_OVNI_ALT[0]),0,1):0; C.plonge=lerp(C.plonge||0,cible,clamp(dt*1.2,0,1)); } /* soucoupe : plus haut, le regard plonge vers le sol (elle ne s'incline jamais) */
   if(C.fam==='helico'){ const da=angDiff(C.angPrec===undefined?v.ang:C.angPrec,v.ang)/Math.max(dt,1e-3); C.angPrec=v.ang; C.regardVire=lerp(C.regardVire||0,clamp(da*0.3,-0.4,0.4),clamp(dt*2.5,0,1)); } else C.regardVire=0; /* hélico : le regard part dans le virage, le montant et la porte entrent dans le champ (17 octobre au soir : « quand on tourne, on a l'impression d'être dans le vide ») */
-  { const man=avionManche(v), f=man?clamp(META.horizonCk===undefined?1:META.horizonCk,0,1):1, cible=man&&!v.tonneau&&!v.tonFin?-(1-f)*clamp(Math.atan2(Math.sin(v.bank||0),Math.cos(v.bank||0)),-1.5,1.5):0;
+  { const man=avionManche(v), f=man?clamp(META.horizonCk===undefined?1:META.horizonCk,0,1):1, cible=man&&!v.tonneau&&!v.tonFin&&!(v.simOk&&Math.abs(v.bank||0)>1.1)?-(1-f)*clamp(Math.atan2(Math.sin(v.bank||0),Math.cos(v.bank||0)),-1.5,1.5):0;
     C.contreRoulis=lerp(C.contreRoulis||0,cible,clamp(dt*8,0,1)); } /* l'avion penche en entier ; l'œil se redresse de (1 − réglage) : l'horizon ne bascule que de la part choisie */
   _ckQ.setFromEuler(_ckE.set(C.pitch+(C.plonge||0)+(VUE.pitch1P||0)*0.5-(v.cabreX||0)*CABRAGE_TETE_1P,Math.PI+off+st0(v)*0.06+C.regardVire,C.contreRoulis||0,'YXZ')); camera.quaternion.copy(C.quat).multiply(_ckQ); /* l'avant du véhicule est +z, la caméra regarde −z ; le regard part un peu dans le virage (steerIn < 0 = à droite, lacet négatif = regard à droite) */
   const fov=CK_FOV+Math.min(vit,45)*0.18+aA*AVION_POUSSE_FOV; if(Math.abs(camera.fov-fov)>0.05||camera.near!==0.05){ camera.fov=lerp(camera.fov,fov,0.2); camera.near=0.05; camera.updateProjectionMatrix(); }
@@ -44718,6 +44952,7 @@ function cameraChute(dt){ const C=CHUTE1P; C.actif=true; if(P.h.g.visible) P.h.g
     const alt=Math.max(0,P.y-solY(P.x,P.z)), t='▼ '+Math.round(alt)+' m · '+Math.round(Math.abs(vy)*3.6)+' km/h'+(libre&&alt<45?'<br><span style="color:#ff5a4a">OUVRE LA VOILE !</span>':'')+(wing?'<br><span style="color:#9fd8ff">WINGSUIT · '+Math.round(vh*3.6)+' km/h</span>':'');
     if(t!==C.txt){ C.txt=t; C.hud.innerHTML=t; } if(C.hud.style.display!=='block') C.hud.style.display='block'; } }
 function majCamera(dt){
+  if(VOLCAM.ok&&!volSimVue()){ VOLCAM.ok=false; camera.up.set(0,1,0); } /* fin du vol simulé : la caméra retrouve son haut (la poursuite le penchait avec l'avion) */
   if(VUE1P.actif&&!vuePremiere()) quitterPremiere(); /* on quitte la 1re personne (salle, véhicule, chute, mini-jeu, manège…) : le corps revient, les bras s'en vont */
   if(FPS.actif){ fpsCamera(); return; } // tir à la première personne : l'œil du joueur
   if(LV.actif){ cameraLongueVue(); return; } // la longue-vue du penthouse : la vraie ville, depuis le toit

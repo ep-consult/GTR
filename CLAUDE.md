@@ -55,7 +55,7 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
   echo "$ln | $(sed -n "$((ln+1))p" index.html | sed 's/^[ \t]*//')"; done
 ```
 
-**Relevé du 19 octobre (paliers d'écrasement, origine du monde, garde au toit) — 45 094 lignes.**
+**Relevé du 20 octobre (pilotage simulé des avions) — 45 331 lignes.**
 Attention : `maj_carte` recale les numéros dans l'ordre des lignes de la table ;
 un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la main.
 
@@ -67,162 +67,164 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 914 | chargement Three.js r128 depuis CDN |
 | 919 | `<script id="gamejs">` + handler `window.onerror` → affichage dans `#errBox` |
 | 937 | en-tête GTRoyal, début du code du jeu |
-| 1078 | AUDIO — WebAudio synthétisé, boîte de vitesses simulée |
-| 1612 | ENTRÉES — joystick virtuel, boutons tactiles, clavier ZQSD/WASD |
-| 1925 | MÉTA-PROGRESSION — `META`, défis, sauvegarde |
-| 3054 | THREE.JS — rendu, scène, lumières |
-| 3370 | VILLE DE LOS REYES — génération procédurale par quartiers |
-| 6460 | **MONT REYES V2** — relief de détail (`MONT2`), sols, végétation, lieux, sentes, filet de sécurité (`FILET`), son (`MONT_SON`) ; la vie du mont (`MONT_VIE`) est plus loin, avec la faune |
-| 7447 | **AÉROPORT VIVANT** — aérogare, trafic aérien, hangars (`AERO`) |
-| 7646 | **PLANQUES EN PLEIN AIR** (`PLANQUES_DEF`) |
-| 7876 | **INTÉRIEURS DES PLANQUES** — une salle par planque (`PQ_INT`, `construirePlanqueSalle`, `planqueSalleAction`, `majPlanqueSalle`, sons `PQ_SONS`) ; caravane : atelier `cvAtelierAction`, tir sur canettes `cntDemarrer` |
-| 9376 | **BOUTIQUES DE STYLE** (`BOUTIQUES_DEF`, `VETEMENTS`, `BOUT`) |
-| 9533 | **MANÈGES** — grand huit, grande roue (`MANEGES`) |
-| 9604 | **TOITS VIVANTS** (`TOITS`, `mkToitsVivants`) |
-| 9706 | **LOS REYES HILLS** — colline, lacets, villas, planque (`HILLS`, `ROUTES_HILLS`) |
-| 10600 | **CHANTIER ET PLANQUES V2** — `ETAGES`, `mkChantierV2`, `mkPlanquesV2`, `mkBordsHills` |
-| 10820 | **FORT REYES** — base militaire V2 (`BASE`, `reserverBase`, `mkBaseV2`, `majBaseV2`, parcours du combattant) |
-| 11153 | **TIR À LA PREMIÈRE PERSONNE** (`FPS`, `fpsDemarrer`, `majFPS`) et **BALL-TRAP** du ranch (`BT`, `mkBallTrap`) |
-| 11751 | **TERRAINS DE SPORT DES PARCS** (`SPORTS`, `mkSportsParcs`, `majSportsParcs`, match de foot) |
-| 12011 | **ARÈNE DE DERBY** (`DERBY`, `mkArenaDerby`, `majDerby`, `majDerbyIA`, voitures et améliorations de derby) |
-| 16870 | MODÈLES — humains, armes, véhicules, hélico, ramassables |
-| 17369 | **COUPS À L'ARME BLANCHE** — `COUPS`, `lancerCoup`, `majCoup3P`, `finCoup` (un geste par arme, 3e et 1re personne) |
-| 19159 | **VÉHICULES V3** — le rattrapage des anciens modèles (`VEH_V3`, `construireV3`, `matsV3`, `constructeurV3`, `roueV3`, `majConducteurV3`, `berlineClassiqueV3` ; vedettes `formeVedetteV3`, `coqueVedetteV3`, `specVedetteV3` ; méga-yacht `YACHT_V3`, `coqueYachtV3`, `planV3`), suivi `rapport_nuit/VEHICULES_V3.md` |
-| 20453 | **VÉHICULES V4** — tous les véhicules au niveau V3 : carrosseries lissées (`loftV4`, `carrosserieV4`, `verriereV4`, `interieurV4`, `conducteurV4`), niveau de détail du trafic (`lodPoserV4`, `majLodV4`), socles deux-roues (`motoInstV4`, `casqueMoto`), hélicos (`heliInstV4`, `heliEnnemiV4`), avions (`avionInstV4`, `jambeTrainV4`, `animRampeV4`), bateaux (`formeBateauV4`, `helicesBateauV4`), fiches `VEH_V3.<clé>`, Super Cub du décor (`SUPERCUB_V4`) ; suivi `rapport_nuit/VEHICULES_V4.md` |
-| 23161 | POOLS — balles, particules, textes flottants, traces de pneus |
-| 23669 | ÉTAT GLOBAL + JOUEUR (`P`) |
-| 24555 | VÉHICULES — physique arcade, trafic, dégâts |
-| 27884 | PIÉTONS |
-| 28154 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
-| 28745 | **RAYON TRACTEUR DE L'OVNI** |
-| 29210 | NIVEAU DE RECHERCHE (étoiles) |
-| 29566 | VAGUES + bonus de fin de vague |
-| 29691 | MISSIONS COURTES |
-| 29694 | BÂTIMENTS VISITABLES — intérieurs |
-| 29764 | FOUILLE — mécanique générique |
-| 30312 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
-| 34574 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
-| 34983 | **LAVERIE** V2 — l'essorage de la machine 7 |
-| 35254 | **SERRE** V2 — la nuit de la floraison |
-| 35547 | CINÉ-PALACE |
-| 35791 | MÉTRO ABANDONNÉ |
-| 35857 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
-| 36210 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
-| 37112 | SITE 51 |
-| 37342 | LE DÉPÔT DE BUS — courses clandestines |
-| 38791 | **MÉTIERS** — missions liées à un véhicule |
-| 39082 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
-| 40107 | ÉCRANS / MENUS / BOUTIQUES |
-| 40383 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
-| 41217 | DÉBUT / FIN DE PARTIE |
-| 42774 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
-| 43024 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
-| 43342 | **COCKPITS** — vue 1re personne au volant (`COCKPIT`, `COCKPIT_FAMILLES`, `cockpitDims`, `mkCockpitInterieur`, `ckDessiner`, `rendreCockpit`, `cameraCockpit`, `cockpitDiagnostic`, `photoCockpit`) |
-| 44957 | BOUCLE PRINCIPALE |
+| 1117 | AUDIO — WebAudio synthétisé, boîte de vitesses simulée |
+| 1651 | ENTRÉES — joystick virtuel, boutons tactiles, clavier ZQSD/WASD |
+| 1964 | MÉTA-PROGRESSION — `META`, défis, sauvegarde |
+| 3093 | THREE.JS — rendu, scène, lumières |
+| 3409 | VILLE DE LOS REYES — génération procédurale par quartiers |
+| 6499 | **MONT REYES V2** — relief de détail (`MONT2`), sols, végétation, lieux, sentes, filet de sécurité (`FILET`), son (`MONT_SON`) ; la vie du mont (`MONT_VIE`) est plus loin, avec la faune |
+| 7486 | **AÉROPORT VIVANT** — aérogare, trafic aérien, hangars (`AERO`) |
+| 7685 | **PLANQUES EN PLEIN AIR** (`PLANQUES_DEF`) |
+| 7915 | **INTÉRIEURS DES PLANQUES** — une salle par planque (`PQ_INT`, `construirePlanqueSalle`, `planqueSalleAction`, `majPlanqueSalle`, sons `PQ_SONS`) ; caravane : atelier `cvAtelierAction`, tir sur canettes `cntDemarrer` |
+| 9416 | **BOUTIQUES DE STYLE** (`BOUTIQUES_DEF`, `VETEMENTS`, `BOUT`) |
+| 9573 | **MANÈGES** — grand huit, grande roue (`MANEGES`) |
+| 9644 | **TOITS VIVANTS** (`TOITS`, `mkToitsVivants`) |
+| 9746 | **LOS REYES HILLS** — colline, lacets, villas, planque (`HILLS`, `ROUTES_HILLS`) |
+| 10640 | **CHANTIER ET PLANQUES V2** — `ETAGES`, `mkChantierV2`, `mkPlanquesV2`, `mkBordsHills` |
+| 10860 | **FORT REYES** — base militaire V2 (`BASE`, `reserverBase`, `mkBaseV2`, `majBaseV2`, parcours du combattant) |
+| 11193 | **TIR À LA PREMIÈRE PERSONNE** (`FPS`, `fpsDemarrer`, `majFPS`) et **BALL-TRAP** du ranch (`BT`, `mkBallTrap`) |
+| 11791 | **TERRAINS DE SPORT DES PARCS** (`SPORTS`, `mkSportsParcs`, `majSportsParcs`, match de foot) |
+| 12051 | **ARÈNE DE DERBY** (`DERBY`, `mkArenaDerby`, `majDerby`, `majDerbyIA`, voitures et améliorations de derby) |
+| 16910 | MODÈLES — humains, armes, véhicules, hélico, ramassables |
+| 17409 | **COUPS À L'ARME BLANCHE** — `COUPS`, `lancerCoup`, `majCoup3P`, `finCoup` (un geste par arme, 3e et 1re personne) |
+| 19199 | **VÉHICULES V3** — le rattrapage des anciens modèles (`VEH_V3`, `construireV3`, `matsV3`, `constructeurV3`, `roueV3`, `majConducteurV3`, `berlineClassiqueV3` ; vedettes `formeVedetteV3`, `coqueVedetteV3`, `specVedetteV3` ; méga-yacht `YACHT_V3`, `coqueYachtV3`, `planV3`), suivi `rapport_nuit/VEHICULES_V3.md` |
+| 20493 | **VÉHICULES V4** — tous les véhicules au niveau V3 : carrosseries lissées (`loftV4`, `carrosserieV4`, `verriereV4`, `interieurV4`, `conducteurV4`), niveau de détail du trafic (`lodPoserV4`, `majLodV4`), socles deux-roues (`motoInstV4`, `casqueMoto`), hélicos (`heliInstV4`, `heliEnnemiV4`), avions (`avionInstV4`, `jambeTrainV4`, `animRampeV4`), bateaux (`formeBateauV4`, `helicesBateauV4`), fiches `VEH_V3.<clé>`, Super Cub du décor (`SUPERCUB_V4`) ; suivi `rapport_nuit/VEHICULES_V4.md` |
+| 23201 | POOLS — balles, particules, textes flottants, traces de pneus |
+| 23709 | ÉTAT GLOBAL + JOUEUR (`P`) |
+| 24595 | VÉHICULES — physique arcade, trafic, dégâts |
+| 28114 | PIÉTONS |
+| 28384 | ENNEMIS — gangs, police, armée, motards, hélico, boss |
+| 28975 | **RAYON TRACTEUR DE L'OVNI** |
+| 29440 | NIVEAU DE RECHERCHE (étoiles) |
+| 29796 | VAGUES + bonus de fin de vague |
+| 29921 | MISSIONS COURTES |
+| 29924 | BÂTIMENTS VISITABLES — intérieurs |
+| 29994 | FOUILLE — mécanique générique |
+| 30542 | PALAIS DE L'ARCADE — bornes, tickets, tableau des scores |
+| 34804 | **AQUARIUM** V2 — « 1, 2, 3… GASTON ! » (helpers `carteSalle`, `ligneCarte`) |
+| 35214 | **LAVERIE** V2 — l'essorage de la machine 7 |
+| 35485 | **SERRE** V2 — la nuit de la floraison |
+| 35778 | CINÉ-PALACE |
+| 36022 | MÉTRO ABANDONNÉ |
+| 36088 | **RADIO PIRATE** V2 — le tuner, le brouilleur |
+| 36441 | **LE CHALUTIER** V2 « SAINTE-ODILE » |
+| 37343 | SITE 51 |
+| 37573 | LE DÉPÔT DE BUS — courses clandestines |
+| 39022 | **MÉTIERS** — missions liées à un véhicule |
+| 39313 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
+| 40338 | ÉCRANS / MENUS / BOUTIQUES |
+| 40614 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
+| 41450 | DÉBUT / FIN DE PARTIE |
+| 43009 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
+| 43259 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
+| 43578 | **COCKPITS** — vue 1re personne au volant (`COCKPIT`, `COCKPIT_FAMILLES`, `cockpitDims`, `mkCockpitInterieur`, `ckDessiner`, `rendreCockpit`, `cameraCockpit`, `cockpitDiagnostic`, `photoCockpit`) |
+| 45194 | BOUCLE PRINCIPALE |
 
 ### Ancres fines (hors bandeaux)
 
 | Ligne | Repère |
 |---|---|
-| 959 | `ICONES_SVG` — interrupteur des icônes, `ico()`, `icoArme()`, `labelAction()` |
-| 965 | `MER_V2` — interrupteur de la mer améliorée (false = mer d'avant à l'identique) |
-| 972 | `DECOR_V2` — interrupteur du décor enrichi (voir « Décor V2 ») |
-| 989 | `AVION_INCL_MAX` — réglages du virage des avions (inclinaison, vitesses, inertie, caméra), voir « Virage des avions » |
-| 1933 | `GARAGES_TUNING` — les garages de la ville (déclarés avant `META`) |
-| 1953 | `VEHPERSO_MAX` — taille de « Mes véhicules » (`META.vehPerso`) |
-| 2209 | `fusionMeta()` — deep-merge de la sauvegarde, `DICOS_OUVERTS` juste avant |
-| 2245 | `CURIOS` — tableau des curiosités |
-| 2296 | `CURIOS_ACTIVES` |
+| 961 | `ICONES_SVG` — interrupteur des icônes, `ico()`, `icoArme()`, `labelAction()` |
+| 967 | `MER_V2` — interrupteur de la mer améliorée (false = mer d'avant à l'identique) |
+| 974 | `DECOR_V2` — interrupteur du décor enrichi (voir « Décor V2 ») |
+| 991 | `AVION_INCL_MAX` — réglages du virage des avions (inclinaison, vitesses, inertie, caméra), voir « Virage des avions » |
+| 1972 | `GARAGES_TUNING` — les garages de la ville (déclarés avant `META`) |
+| 1992 | `VEHPERSO_MAX` — taille de « Mes véhicules » (`META.vehPerso`) |
+| 2248 | `fusionMeta()` — deep-merge de la sauvegarde, `DICOS_OUVERTS` juste avant |
+| 2284 | `CURIOS` — tableau des curiosités |
+| 2335 | `CURIOS_ACTIVES` |
 | 2310 | déblocage de `batte2` (toutes curiosités actives réunies) |
-| 2757 | `VEHDEFS` — véhicules, éligibilité garage (`tuningMeca`, `tuningCarro`) |
-| 2929 | `PROFILS_VOITURE` — silhouettes des voitures réalistes, `ancragesProfil`, modèles de luxe ajoutés à `VEHDEFS` |
-| 3432 | mer V2 : `houle()`/`houleY()`, shader (`merV2Materiau`), sillage, éclaboussures, `assietteHoule()` |
-| 3765 | `finaliserMerge()` |
-| 4346 | `mkLittoral()` — fondus sable/mer/désert, vagues sur le sable |
-| 4401 | `mkHorsLesMurs()` — décor factice hors de l'enceinte |
-| 4517 | `MOB_CAT` — catalogue du mobilier urbain, puis `mkMobilierUrbain()`, `majMobilier()`, `garerVelos()` |
-| 5048 | `JETEE` — jetée de fête foraine : `ZONES_SANS_MOBILIER`, `mkJeteeForaine()`, `majJetee()` |
-| 5179 | `SKATE` — skatepark : `mkSkatepark()`, `texMurSkate()` |
-| 5261 | `SKX` — Reyes Skatepark XXL : `hauteurSkateXXL()`, `zoneVertSkate()`, `mkSkateXXL()`, `majSkateXXL()` |
-| 5395 | `PORT` — port vivant : `mkPortVivant()`, `majPortVivant()` |
-| 5494 | `BROOK` — Brooklyn : `texFresque()`, `mkBrooklyn()`, `majBrooklyn()` |
-| 5710 | `CIEL` — dirigeable, avion à banderole, mouettes, feux d'artifice : `mkCiel()`, `majCiel()` |
-| 5981 | `CRIQUE` — crique des plongeurs : `dansCrique()`, `mkCrique()`, `plongeonJoueur()` |
-| 6197 | `NEON` — quartier néon : `BATIMENTS`, `reserverNeon()`, `mkNeonVivant()` |
-| 6265 | `VILLA_PISC` — finitions de quartier : `mkQuartiersFinitions()` |
-| 6345 | `MONT` — Mont Reyes, puis `CANYON` (canyons) et `RIDES` (courses) |
-| 4801 | `SOLS` — dalles de sol enregistrées, puis `mkTransitionsSols()` (jonctions entre sols) |
-| 14146 | `mkLacParc()` — lac du parc, passerelle, barques |
-| 14275 | `mkLumieresQuartiers()` — Times Square, quartier chinois, Brooklyn |
-| 14361 | `mkEnceinte()` — murs, enseigne, jetées de rochers |
-| 14902 | `GALION` — galion échoué : `sansAleaVille()`, `coqueGalion()`, `mkGalion()`, `majGalion()` |
-| 16025 | `mkPorteGarage()` — porte roulante des garages |
-| 16095 | `placeLibrePorte()` |
-| 1043 | helper `poser()` — placement des lieux |
-| 16180 | `caseCentre(bx,bz)` |
-| 16273 | `REPLIS` — filet de sécurité en spirale |
-| 20320 | `makeVelo()` — vélo de ville et BMX |
-| 19131 | `voitureV2()` — voiture réaliste : `geoVoiture` (géométries partagées par modèle), `janteVoiture` |
-| 15941 | `ENSEIGNES` — portes mieux placées : `ameliorerPortes()`, `profondeurDevant()`, `orienterPorte()` |
-| 2497 | `const P` — état du joueur |
-| 23720 | `P.stamMax = 100 + 12*mus` |
-| 25288 | `resoudreCollisionsVehicule()` — collisions entre véhicules (SAT sur les 4 axes) |
-| 26007 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
-| 26129 | `boutonsAPied()` — boutons du HUD remis « à pied » (sortie de véhicule ET début de partie) |
-| 27279 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
-| 27412 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
-| 29700 | `IOFF = -9000` |
-| 31504 | `INTDEFS` — définitions des **28 salles** (27 + la boutique) |
-| 31896 | `construireSalle(id)` |
-| 36264 | `CHALUTIER_BANCS_PLAN` — chalutier V2 ; `chalutierMaj` (36766), `dessinerRadarChalutier` (37077) |
-| 38800 | `METIERS_CIBLE` |
-| 39100 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
-| 39188 | `PIECES_FAMILLES` — catalogues de pièces par famille |
-| 39498 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
-| 39565 | `libererObjet()` — libère les géométries d'un objet retiré |
-| 39581 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
-| 39711 | `construireGarageTuning()` — la salle partagée |
-| 40081 | `majNitro()` |
-| 24748 | `degatsChoc()` — dégâts V2 : `bosseler`, débris, `perdreRoue` ; murs : `degagerDesMurs` (plus haut) |
-| 9770 | `SAUTV` — Saut du Vertige : `hauteurSautVertige`, `mkSautVertige`, `mkBargeVertige`, `finSautVertige` |
-| 43210 | `VUE1P` — vue à la 1re personne : `cameraPremiere`, `ligneDeMire`, `viseAuto1P` |
-| 11909 | `SPORTJ` — le centre sportif se joue : `sportjDemarrer`, `majSportJ`, `sportjFrapper` |
-| 11331 | `RECHARGE_ARME` — rechargements à la 1re personne : `animRecharge`, `rechPiece`, `rechRemise`, `rechAccessoire` |
-| 43788 | `CK_HAB` — cockpits V2 : `CK_TH`, `CK_CADRANS`, `ckDial`, `ckCombine`, `ckHabitacle`, `ckVolant2`, `ckMain`, `ckDeuxRoues`, `ckBateau2`, `ckAvion2`, `ckHoloOvni` |
-| 17172 | `construireBatte(id)` — la batte cloutée et la Vertèbre (géométries partagées, manche et tête séparés) |
-| 23376 | `lancerMissileAvion()` — le missile des appareils : `missileProfil`, `missilePos`, `missileTraj`, traînée `MFUM` |
-| 26243 | `appuiVolCran()` — un appui bref sur MONTER / DESCENDRE vaut un cran (`APPUI_VOL_MIN`) |
-| 26438 | `virageAvion()` — le virage des avions : `roulisAvion`, `roulisIA` (juste avant `majVol`) |
-| 26482 | `volManche()` — le pilotage au manche (vue 3D et 1P) : `avionManche`, `majGazAvion`, `majBoutonsVol`, `figuresManche` |
-| 26463 | `MANETTE` — la manette des gaz des avions au manche : `manetteDoigt`, `majManette` (juste avant `majBoutonsVol`) |
-| 26838 | `majCabrageMoto()` — le cabrage de toutes les motos : `CABRAGE_MOTO`, `motoCabrable`, `poseCabrage`, `retirerPoseCabrage` |
-| 10950 | `CAMPENT` — le camp d'entraînement de Fort Reyes : `mkCampEntrainement`, `campConstruire`, `campEntrainementStartRun`, `majCampEntrainement` |
-| 16984 | `VISEURS_1P` — la visée à la 1re personne V2 : œil, organe, zoom et recul par arme, `VISEE_T`, `zoomVersChamp` (`ligneDeMire` 37322, `poseVisee1P` 37335) |
-| 11280 | `matsMains1P()` — gants noirs, avant-bras nus, manche retroussée de la 1re personne (`_texPeau`, `_texTissu`) ; `modele1P()` (15528) : Gadget et Boule « Comète » en main |
-| 43686 | `ARME_SC` — l'arme de la 1re personne rendue dans sa propre scène : `sceneArme1P`, `rendreArme1P` |
-| 2496 | `optiqueArme()` — les optiques de l'établi (point rouge, holographique, lunette ×4), qui REMPLACENT la mire d'origine (partie `viseur`) ; `remplaceOptique`, `atelierEssaiStand` (2585) |
-| 1007 | `AVION_MANCHE` — inclinaison, roulis, tangage, taux de virage, tonneaux et looping par avion (pilotage au manche) |
-| 8457 | `LV` — la longue-vue du penthouse : `lvOeil`, `lvVisible`, `majLongueVue`, `cameraLongueVue`, `REPERES`, `reperesActifs` ; avant : `PQ_INT.penthouse`, `PQ_VILLE_FS`, `pqBoiteUV` |
-| 6474 | `MONT2` — le Mont Reyes V2 : `grilleDetailMont`, `montMasque`, `detailMontCalc`, `hauteurMont` (couche), `montRampePied`, `montRampeSommet`, `matMontV2`, `montPoids`, `montMaillage`, `montChoisirSites`, `montSentes`, `montVegetation`, `montLieux` |
-| 6828 | `FILET` — le filet de sécurité (`majFilet`, `filetIssue`) ; `MONT_SON` (vent, cascade, rapaces) juste après |
-| 6896 | `montActiver()` — l'allumage du relief V2 à la fin du décor (recale ce qui a été posé sur le mont) ; `mkMontReyesV2`, `montConstruire` autour |
-| 13475 | `MONT_VIE` — la vie du mont : `montVieConstruire`, `montVieStartRun`, `majMontVie`, `mvGens`, rapaces (`toucherRapace`), soupe, grotte, jumelles, parapente |
-| 13089 | `fusionAnimal()` — le corps d'une bête en une géométrie (tête et pattes à part) ; `FAUNE_DEFS` (chamois, vache, chèvre, sanglierF) plus haut |
-| 9132 | `TRESOR_CARTE` — la chasse au trésor du voilier : `tresorCandidats`, `tresorNouvelle`, `tresorDessiner`, `tresorCreuser`, `majTresorCarte` ; puis le taudis (`sacDemarrer`, `majSac`) et la villa (`plongeonDemarrer`, `majPlongeon`) |
-| 26793 | `controleDir()` — le joystick devient gaz et braquage ; bateaux : `sB` compense la marche arrière, une cible derrière se départage par le côté de l'écran (`v.sensDT`) |
-| 3391 | `yachtBloque()` — le méga-yacht V3 à pied, au mouillage : pavois, salon, escaliers de la poupe (avec `dansCoqueYacht`, `GYACHT`, `YACHT_POUPE` ; modèle : `YACHT_V3`) |
-| 20161 | `MONSTER_V3` — le Monster Truck V3 : `geoPneuMonsterV3`, `geoJanteMonsterV3`, `VEH_V3.monstertruck` |
-| 23455 | `FNOIRE` — la fumée noire des cheminées : `fumeeNoire`, `majFumeeNoire`, `viderFumeeNoire`, `majEchappements` |
-| 24980 | `deformerLocal()` — écrasement et enfoncement V2 : `enfoncer`, `commencerEcrasement`, `majEcrasementPar`, `contactsEcraseur`, `profilVictime`, épaves (`EPAVES`, `finEpave`, `majEpaves`), sons (`sonEcrasement`, `couperSonsEcrasement`) ; épaves solides : `contactsSurVictime`, `hautEpave`, `collisionsEpaves` ; paliers et pose : `ECR_PALIERS`, `deformerCases`, `poseEcrasement`, `retirerPoseEcrasement`, `ecrPoints` |
-| 20483 | `loftV4` — la carrosserie lissée V4 et son échantillonneur (`S.pt`, `S.pose`, `S.bande`, `S.uY`, `S.xA`) ; `carrosserieV4`, `verriereV4`, `montantsV4`, `interieurV4`, `conducteurV4` juste après |
-| 20732 | `LOD_LOIN` — le niveau de détail du trafic (`LOD_PROCHE`, `lodPoserV4`, `majLodV4`, `lodFixerV4`) |
-| 19291 | `construireV3Spec` — construit une fiche V3/V4 (générateur privé, cache `_GEO_V3`, LOD, ombre, agrandissement des hélicos) ; `construireV3` l'appelle pour une clé de `VEHDEFS` |
-| 20601 | `casqueMoto` — le casque intégral du motard (joueur : `majCasqueJoueur`, PNJ : `majChauffeur`) ; `motoInstV4` juste après |
-| 20628 | `heliInstV4` — le socle des hélicos V4 : rotor et disque flou, rotor de queue, feux, anticollision, souffle (`animHeliV4`) ; `heliEnnemiV4`, `HELI_POLICE_V4` après |
-| 20702 | `avionInstV4` — le socle des avions V4 : hélices et disque flou, roues fixes ou rentrantes, gouvernes, feux, anticollision, éclats, postcombustion (`animAvionV4`) |
-| 22522 | `animTrainV4` — le train qui rentre en vol ; `jambeTrainV4` : la jambe de chaque roue, qui rentre avec elle |
-| 22898 | `animRampeV4` — la rampe arrière du C-130 (s'abaisse à l'arrêt) ; `SUPERCUB_V4` (l'avion à banderole) juste après |
-| 22936 | `formeBateauV4` — la forme de coque réglable des bateaux V4 (pour `coqueVedetteV3`), `heliceVedetteV4`, `helicesBateauV4`, `bordeV4`, `vitreCoqueV4` |
+| 2796 | `VEHDEFS` — véhicules, éligibilité garage (`tuningMeca`, `tuningCarro`) |
+| 2968 | `PROFILS_VOITURE` — silhouettes des voitures réalistes, `ancragesProfil`, modèles de luxe ajoutés à `VEHDEFS` |
+| 3471 | mer V2 : `houle()`/`houleY()`, shader (`merV2Materiau`), sillage, éclaboussures, `assietteHoule()` |
+| 3804 | `finaliserMerge()` |
+| 4385 | `mkLittoral()` — fondus sable/mer/désert, vagues sur le sable |
+| 4440 | `mkHorsLesMurs()` — décor factice hors de l'enceinte |
+| 4556 | `MOB_CAT` — catalogue du mobilier urbain, puis `mkMobilierUrbain()`, `majMobilier()`, `garerVelos()` |
+| 5087 | `JETEE` — jetée de fête foraine : `ZONES_SANS_MOBILIER`, `mkJeteeForaine()`, `majJetee()` |
+| 5218 | `SKATE` — skatepark : `mkSkatepark()`, `texMurSkate()` |
+| 5300 | `SKX` — Reyes Skatepark XXL : `hauteurSkateXXL()`, `zoneVertSkate()`, `mkSkateXXL()`, `majSkateXXL()` |
+| 5434 | `PORT` — port vivant : `mkPortVivant()`, `majPortVivant()` |
+| 5533 | `BROOK` — Brooklyn : `texFresque()`, `mkBrooklyn()`, `majBrooklyn()` |
+| 5749 | `CIEL` — dirigeable, avion à banderole, mouettes, feux d'artifice : `mkCiel()`, `majCiel()` |
+| 6020 | `CRIQUE` — crique des plongeurs : `dansCrique()`, `mkCrique()`, `plongeonJoueur()` |
+| 6236 | `NEON` — quartier néon : `BATIMENTS`, `reserverNeon()`, `mkNeonVivant()` |
+| 6304 | `VILLA_PISC` — finitions de quartier : `mkQuartiersFinitions()` |
+| 6384 | `MONT` — Mont Reyes, puis `CANYON` (canyons) et `RIDES` (courses) |
+| 4840 | `SOLS` — dalles de sol enregistrées, puis `mkTransitionsSols()` (jonctions entre sols) |
+| 14186 | `mkLacParc()` — lac du parc, passerelle, barques |
+| 14315 | `mkLumieresQuartiers()` — Times Square, quartier chinois, Brooklyn |
+| 14401 | `mkEnceinte()` — murs, enseigne, jetées de rochers |
+| 14942 | `GALION` — galion échoué : `sansAleaVille()`, `coqueGalion()`, `mkGalion()`, `majGalion()` |
+| 16065 | `mkPorteGarage()` — porte roulante des garages |
+| 16135 | `placeLibrePorte()` |
+| 1082 | helper `poser()` — placement des lieux |
+| 16220 | `caseCentre(bx,bz)` |
+| 16313 | `REPLIS` — filet de sécurité en spirale |
+| 20360 | `makeVelo()` — vélo de ville et BMX |
+| 19171 | `voitureV2()` — voiture réaliste : `geoVoiture` (géométries partagées par modèle), `janteVoiture` |
+| 15981 | `ENSEIGNES` — portes mieux placées : `ameliorerPortes()`, `profondeurDevant()`, `orienterPorte()` |
+| 2536 | `const P` — état du joueur |
+| 23760 | `P.stamMax = 100 + 12*mus` |
+| 25328 | `resoudreCollisionsVehicule()` — collisions entre véhicules (SAT sur les 4 axes) |
+| 26047 | `majRemorquage()` — accroche/remorquage (dépanneuse et treuil du garage) |
+| 26170 | `boutonsAPied()` — boutons du HUD remis « à pied » (sortie de véhicule ET début de partie) |
+| 27509 | `TRAFIC_*` — réglages du trafic, `horsEcran()`, `obstacleSurVoie()` |
+| 27642 | `majTrafic()` — suivi de file, priorité au carrefour, contournement, filet anti-blocage |
+| 29930 | `IOFF = -9000` |
+| 31734 | `INTDEFS` — définitions des **28 salles** (27 + la boutique) |
+| 32126 | `construireSalle(id)` |
+| 36495 | `CHALUTIER_BANCS_PLAN` — chalutier V2 ; `chalutierMaj` (36997), `dessinerRadarChalutier` (37308) |
+| 39031 | `METIERS_CIBLE` |
+| 39331 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
+| 39419 | `PIECES_FAMILLES` — catalogues de pièces par famille |
+| 39729 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
+| 39796 | `libererObjet()` — libère les géométries d'un objet retiré |
+| 39812 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
+| 39942 | `construireGarageTuning()` — la salle partagée |
+| 40312 | `majNitro()` |
+| 24788 | `degatsChoc()` — dégâts V2 : `bosseler`, débris, `perdreRoue` ; murs : `degagerDesMurs` (plus haut) |
+| 9810 | `SAUTV` — Saut du Vertige : `hauteurSautVertige`, `mkSautVertige`, `mkBargeVertige`, `finSautVertige` |
+| 43446 | `VUE1P` — vue à la 1re personne : `cameraPremiere`, `ligneDeMire`, `viseAuto1P` |
+| 11949 | `SPORTJ` — le centre sportif se joue : `sportjDemarrer`, `majSportJ`, `sportjFrapper` |
+| 11371 | `RECHARGE_ARME` — rechargements à la 1re personne : `animRecharge`, `rechPiece`, `rechRemise`, `rechAccessoire` |
+| 44024 | `CK_HAB` — cockpits V2 : `CK_TH`, `CK_CADRANS`, `ckDial`, `ckCombine`, `ckHabitacle`, `ckVolant2`, `ckMain`, `ckDeuxRoues`, `ckBateau2`, `ckAvion2`, `ckHoloOvni` |
+| 17212 | `construireBatte(id)` — la batte cloutée et la Vertèbre (géométries partagées, manche et tête séparés) |
+| 23416 | `lancerMissileAvion()` — le missile des appareils : `missileProfil`, `missilePos`, `missileTraj`, traînée `MFUM` |
+| 26286 | `appuiVolCran()` — un appui bref sur MONTER / DESCENDRE vaut un cran (`APPUI_VOL_MIN`) |
+| 26481 | `virageAvion()` — le virage des avions : `roulisAvion`, `roulisIA` (juste avant `majVol`) |
+| 26525 | `volManche()` — le pilotage au manche (vue 3D et 1P) : `avionManche`, `majGazAvion`, `majBoutonsVol`, `figuresManche` |
+| 26506 | `MANETTE` — la manette des gaz des avions au manche : `manetteDoigt`, `majManette` (juste avant `majBoutonsVol`) |
+| 27068 | `majCabrageMoto()` — le cabrage de toutes les motos : `CABRAGE_MOTO`, `motoCabrable`, `poseCabrage`, `retirerPoseCabrage` |
+| 10990 | `CAMPENT` — le camp d'entraînement de Fort Reyes : `mkCampEntrainement`, `campConstruire`, `campEntrainementStartRun`, `majCampEntrainement` |
+| 17024 | `VISEURS_1P` — la visée à la 1re personne V2 : œil, organe, zoom et recul par arme, `VISEE_T`, `zoomVersChamp` (`ligneDeMire` 37322, `poseVisee1P` 37335) |
+| 11320 | `matsMains1P()` — gants noirs, avant-bras nus, manche retroussée de la 1re personne (`_texPeau`, `_texTissu`) ; `modele1P()` (15528) : Gadget et Boule « Comète » en main |
+| 43922 | `ARME_SC` — l'arme de la 1re personne rendue dans sa propre scène : `sceneArme1P`, `rendreArme1P` |
+| 2535 | `optiqueArme()` — les optiques de l'établi (point rouge, holographique, lunette ×4), qui REMPLACENT la mire d'origine (partie `viseur`) ; `remplaceOptique`, `atelierEssaiStand` (2624) |
+| 1009 | `AVION_MANCHE` — inclinaison, roulis, tangage, taux de virage, tonneaux et looping par avion (pilotage au manche) |
+| 8496 | `LV` — la longue-vue du penthouse : `lvOeil`, `lvVisible`, `majLongueVue`, `cameraLongueVue`, `REPERES`, `reperesActifs` ; avant : `PQ_INT.penthouse`, `PQ_VILLE_FS`, `pqBoiteUV` |
+| 6513 | `MONT2` — le Mont Reyes V2 : `grilleDetailMont`, `montMasque`, `detailMontCalc`, `hauteurMont` (couche), `montRampePied`, `montRampeSommet`, `matMontV2`, `montPoids`, `montMaillage`, `montChoisirSites`, `montSentes`, `montVegetation`, `montLieux` |
+| 6867 | `FILET` — le filet de sécurité (`majFilet`, `filetIssue`) ; `MONT_SON` (vent, cascade, rapaces) juste après |
+| 6935 | `montActiver()` — l'allumage du relief V2 à la fin du décor (recale ce qui a été posé sur le mont) ; `mkMontReyesV2`, `montConstruire` autour |
+| 13515 | `MONT_VIE` — la vie du mont : `montVieConstruire`, `montVieStartRun`, `majMontVie`, `mvGens`, rapaces (`toucherRapace`), soupe, grotte, jumelles, parapente |
+| 13129 | `fusionAnimal()` — le corps d'une bête en une géométrie (tête et pattes à part) ; `FAUNE_DEFS` (chamois, vache, chèvre, sanglierF) plus haut |
+| 9172 | `TRESOR_CARTE` — la chasse au trésor du voilier : `tresorCandidats`, `tresorNouvelle`, `tresorDessiner`, `tresorCreuser`, `majTresorCarte` ; puis le taudis (`sacDemarrer`, `majSac`) et la villa (`plongeonDemarrer`, `majPlongeon`) |
+| 27023 | `controleDir()` — le joystick devient gaz et braquage ; bateaux : `sB` compense la marche arrière, une cible derrière se départage par le côté de l'écran (`v.sensDT`) |
+| 3430 | `yachtBloque()` — le méga-yacht V3 à pied, au mouillage : pavois, salon, escaliers de la poupe (avec `dansCoqueYacht`, `GYACHT`, `YACHT_POUPE` ; modèle : `YACHT_V3`) |
+| 20201 | `MONSTER_V3` — le Monster Truck V3 : `geoPneuMonsterV3`, `geoJanteMonsterV3`, `VEH_V3.monstertruck` |
+| 23495 | `FNOIRE` — la fumée noire des cheminées : `fumeeNoire`, `majFumeeNoire`, `viderFumeeNoire`, `majEchappements` |
+| 25020 | `deformerLocal()` — écrasement et enfoncement V2 : `enfoncer`, `commencerEcrasement`, `majEcrasementPar`, `contactsEcraseur`, `profilVictime`, épaves (`EPAVES`, `finEpave`, `majEpaves`), sons (`sonEcrasement`, `couperSonsEcrasement`) ; épaves solides : `contactsSurVictime`, `hautEpave`, `collisionsEpaves` ; paliers et pose : `ECR_PALIERS`, `deformerCases`, `poseEcrasement`, `retirerPoseEcrasement`, `ecrPoints` |
+| 20523 | `loftV4` — la carrosserie lissée V4 et son échantillonneur (`S.pt`, `S.pose`, `S.bande`, `S.uY`, `S.xA`) ; `carrosserieV4`, `verriereV4`, `montantsV4`, `interieurV4`, `conducteurV4` juste après |
+| 20772 | `LOD_LOIN` — le niveau de détail du trafic (`LOD_PROCHE`, `lodPoserV4`, `majLodV4`, `lodFixerV4`) |
+| 19331 | `construireV3Spec` — construit une fiche V3/V4 (générateur privé, cache `_GEO_V3`, LOD, ombre, agrandissement des hélicos) ; `construireV3` l'appelle pour une clé de `VEHDEFS` |
+| 20641 | `casqueMoto` — le casque intégral du motard (joueur : `majCasqueJoueur`, PNJ : `majChauffeur`) ; `motoInstV4` juste après |
+| 20668 | `heliInstV4` — le socle des hélicos V4 : rotor et disque flou, rotor de queue, feux, anticollision, souffle (`animHeliV4`) ; `heliEnnemiV4`, `HELI_POLICE_V4` après |
+| 20742 | `avionInstV4` — le socle des avions V4 : hélices et disque flou, roues fixes ou rentrantes, gouvernes, feux, anticollision, éclats, postcombustion (`animAvionV4`) |
+| 22562 | `animTrainV4` — le train qui rentre en vol ; `jambeTrainV4` : la jambe de chaque roue, qui rentre avec elle |
+| 22938 | `animRampeV4` — la rampe arrière du C-130 (s'abaisse à l'arrêt) ; `SUPERCUB_V4` (l'avion à banderole) juste après |
+| 22976 | `formeBateauV4` — la forme de coque réglable des bateaux V4 (pour `coqueVedetteV3`), `heliceVedetteV4`, `helicesBateauV4`, `bordeV4`, `vitreCoqueV4` |
+| 1037 | `PILOTAGE_SIM` — l'interrupteur du pilotage simulé des avions, puis `PROFILS_VOL` (un profil par avion) et les réglages `VOL_*` |
+| 26568 | `avionSim` — le pilotage simulé : `profilVol`, `axesVol`, `volAttitude`, `volSimInit`, `volSim`, `volPas` (une image de vol : commandes, stabilité, décrochage, vrille, forces, limites, sol), alarmes `VOL_SON`, HUD `HUD_VOL` / `hudVolMaj` / `alerteVol`, caméra `VOLCAM` / `cameraVolSim`, `majVolSim` (juste avant `majVol`) |
 
 ---
 
@@ -289,7 +291,10 @@ complexe sportif. Règle : **un objet animé seulement de près est placé à sa
 création, ou caché de loin** (la visibilité se décide AVANT le retour « loin »).
 `MONT_VIE.racines` note tout ce que `montVieConstruire` pose ; `montVieCacher` les
 cache loin du mont. Test « Rien n'est oublié à l'origine du monde » (six points de
-la carte ; l'ancienne version y laissait 60 objets).
+la carte ; l'ancienne version y laissait 60 objets). **Les salles aussi** (même jour) : une salle construite sans qu'on
+y entre (catalogue, test, `construireSalle`) laissait à l'origine les poissons des bancs et des bassins de l'aquarium, les
+lucioles de la serre, les mouettes du chalutier, la chaîne d'ancre du voilier — tous placés désormais à leur création ; le
+test construit d'abord TOUTES les salles d'`INTDEFS`.
 
 ### Sons à la sortie
 Les sons doivent être coupés dans **tous** les chemins de sortie, y compris
@@ -2242,7 +2247,7 @@ partir ». Le missile du chasseur et du Vautour (TIR en vol) n'est plus une ball
 - Test : « Missile du chasseur » (sort de sous le regard, traverse vers l'axe, traînée à l'écran, impact au point
   visé, rase-mottes sans explosion au départ, modèle et fumée effacés).
 
-## Virage des avions (18 octobre) — `virageAvion`, `roulisAvion`, `roulisIA`, réglages `AVION_INCL_*` en tête du fichier
+## Virage des avions (18 octobre) — `virageAvion`, `roulisAvion`, `roulisIA`, réglages `AVION_INCL_*` en tête du fichier (avion du joueur : pilotage d'avant, `PILOTAGE_SIM=false` ; les avions du décor gardent `roulisIA`)
 
 Signalé : « quand je tourne, l'avion reste tout droit visuellement ; il doit s'incliner et pivoter comme un vrai avion ;
 les autres avions aussi ». Pourquoi : le cap était TIRÉ vers la direction du joystick (`angLerp`, taux = écart × `turnVol`)
@@ -2269,7 +2274,7 @@ décor passaient d'un angle fixe à 0 d'un coup (l'avion à banderole penchait d
 - Test : « Virage des avions » (les avions de `VEHDEFS` des deux côtés, sans saut, retour à plat, cap tenu, trajectoire dans
   l'axe, caméra, décor).
 
-## Pilotage au manche (18 octobre) — vue 3D et 1re personne : `volManche`, `AVION_MANCHE`, `META.horizonCk`
+## Pilotage au manche (18 octobre) — vue 3D et 1re personne : `volManche`, `AVION_MANCHE`, `META.horizonCk` (pilotage d'avant : `PILOTAGE_SIM=false`, voir « Pilotage simulé des avions »)
 
 Signalé : « il y a toujours un effet un peu hélicoptère » ; demandé : « en vue 3D et 1re personne, piloter la hauteur comme un
 vrai manche : je tire vers le bas ça monte, vers le haut ça descend, droite gauche, et les boutons deviennent accélérer et
@@ -2312,6 +2317,61 @@ pilotage par direction** (« Virage des avions »).
   défaut). Le manche du cockpit suit le joystick (`majCockpit`).
 - Tests : « Poussée des avions » ; « Pilotage au manche » (7 avions, tangage, gaz, manette au doigt — cran, FREIN en vol et au sol, retour à 0, aucun
   bouton ne la chevauche —, tonneaux, looping, décollage, horizon au réglage) ; « Avions au cockpit » réécrit pour le manche ; « Aéroport vivant » et « Appui bref en vol » fixent la vue 2D (leur pilotage est celui-là).
+
+## Pilotage simulé des avions (19-20 octobre) — `PILOTAGE_SIM`, `PROFILS_VOL`, `volSim`, `volPas`, `HUD_VOL`, `VOLCAM`, rapport `rapport_nuit/PILOTAGE_SIM.md`
+
+Demandé : « passer d'un pilotage arcade avec figures scriptées (boucle/vrille au bouton maintenu) à un vrai pilotage physique au
+joystick + levier de gaz ». Interrupteur `PILOTAGE_SIM` (true) : à `false`, le pilotage d'avant revient tel quel (direction en vue 2D
+— « Virage des avions » —, manche à figures en 3D et 1P — « Pilotage au manche »), et les anciens tests le vérifient toujours (ils
+posent `PILOTAGE_SIM=false` le temps de leur bloc). Seul l'avion DU JOUEUR (`avionSim(v)` : `v===P.veh`, hors salle) ; hélicos,
+jetpack, OVNI, avions du décor et de l'IA : inchangés.
+- **Orientation** : un quaternion `v.q` (repère local : +z le nez, +y le dessus, +x l'aile GAUCHE — le cap `v.ang` croît vers la
+  gauche), tourné dans ses axes LOCAUX (`q.multiply`), renormalisé à chaque pas ; jamais d'angles d'Euler dans la logique du vol.
+  `volAttitude` en déduit pour le reste du jeu `v.tang`, `v.bank` (> 0 = aile gauche basse) et `v.ang` ; le modèle prend le
+  quaternion tel quel (`mesh.quaternion.copy(v.q)`). Vol sur le dos, boucles, tonneaux : sans blocage de cardan.
+- **Commandes** (`axesVol` : zone morte `VOL_ZONE_MORTE`, courbe expo `VOL_EXPO`, sur `INPUT.ex/ey`, le joystick TEL QU'À L'ÉCRAN) :
+  x = vitesse de roulis, y = vitesse de tangage (tiré vers le bas = cabrer ; `META.inverserY`, réglage « Tangage inversé (avions) »
+  des Paramètres, sauvegardé). Pas de palonnier : le lacet vient de l'inclinaison (virage coordonné, `VOL_G`·sin φ / v). La manette
+  des gaz (`MANETTE`, celle du manche) = la poussée ; MONTER / DESCENDRE et le clavier la règlent aussi (`majGazAvion`).
+- **Forces** (`volPas`, pas de `VOL_PAS` = 1/60 s, sur `dtJeu` = dt / `ETAT.timeScale` borné à `VOL_DT_MAX` : un ralenti ne ralentit
+  pas l'avion) : la vitesse est un vecteur (`v.vel`) — poussée le long du nez, traînée ∝ v² (`kD` = poussée / Vmax² : plein gaz, en
+  palier, Vmax) plus celle de l'incidence (`VOL_INDUITE` : une boucle, un virage serré coûtent de la vitesse), portance ∝ v² ×
+  incidence perpendiculaire à la vitesse (plafonnée à `gMax`·g), gravité (la montée ralentit, le piqué accélère) ; la vitesse suit
+  le nez avec une légère inertie (`VOL_SUIVI`), dérapage amorti (`VOL_AMORT_COTE`). Compensateur (`aTrim`) et girouette : manche
+  lâché, l'avion tient sa trajectoire au lieu de piquer. Le tangage croît avec la vitesse (sinon la boucle tombait de 30 %).
+- **Décrochage** (`v.decroche`, avec hystérésis) : au-delà de `VOL_ALPHA_DECRO` d'incidence (sous Vmin en palier), gouvernes moins
+  efficaces, portance qui s'effondre (franc) ou faiblit (`decroDoux`), nez qui tombe (`VOL_PIQUE_DECRO`). **Vrille**
+  (`vrillePossible` : la voltige seule) : décrochée, manche sur le côté → elle roule et tourne seule, nez bas (`v.vrilleSim`) ;
+  manche au neutre 0,8 s → sortie. Seuil d'entrée : |x| > 0,4 après la courbe — le joystick est ROND, manche tiré à fond et sur
+  le côté donne x = 0,71, soit 0,48 après l'expo (à 0,5, la vrille ne prenait jamais en vrai, seulement manche purement de côté).
+- **Profils** (`PROFILS_VOL`, clé de `VEHDEFS`, juste avant le moteur) : `rollRate`, `pitchRate` (rad/s), `Vmin`, `Vmax`, `poussee`
+  (u/s²), `inertie` (s), `stabilite` (0–1 : manche lâché, retour vers l'horizontale ; il s'efface quand le manche est tenu, jamais
+  contre une attitude voulue), `vrillePossible`, plus `gMax`, `vRot` (vitesse de rotation au décollage), `assietteMax` / `inclMax`
+  (butées des gros porteurs, ANTICIPÉES sur attitude + vitesse × inertie : sans ça, lents à répondre, ils les dépassaient de 15 à
+  20°), `decroDoux`, `protegeAlpha` (long-courrier : tirer ne le fait pas décrocher). Valeurs et justification : le rapport.
+- **Au sol** : roulage, joystick = direction, gaz ; à `vRot`, on tire pour décoller (`volSimInit`). Posé si la descente est sous
+  `VOL_POSE_VY`, ailes à plat (`VOL_POSE_ROULIS`), assiette raisonnable, vitesse sous `VOL_POSE_VMAX`·Vmin, hors de l'eau ; sinon
+  crash (`crashAerien`, comme un obstacle `solidAt` / `solY`). Manche lâché, un avion stable tient son palier : pour descendre, on pousse
+  un peu (le pilote simulé du test tient le taux de descente avec un terme intégral, comme un pouce qui maintient la pression).
+  L'arrondi automatique sous 10 u et « FREIN tenu = posé » sont ceux du pilotage d'avant (« Retours du 16 octobre » les teste en
+  `PILOTAGE_SIM=false`).
+- **Limites du ciel** : au-delà des bornes d'avant (`LIMITE_OUEST_MER`, `LIMITE_EST`, `LIMITE_SUD_MER`), l'avion vire seul vers
+  l'intérieur (`VOL_BORD_LACET`, marge selon la vitesse), borne dure `VOL_BORD_DUR` u plus loin (la borne commune de `majVol` ne
+  s'applique plus à lui). Plafond `VOL_PLAFOND`.
+- **Plus de figures scriptées** (`majVolSim` remet `v.loopEnCours`, `v.vrilleEnCours`, `v.tonneau` à zéro) : un tour complet en
+  tangage ou en roulis est seulement compté (« 🔁 LOOPING ! », « 🌀 TONNEAU ! », `META.stats.loopings`).
+- **Caméra** : en vol, la vue de dessus passe en poursuite (`volSimVue` → `vueImmersive()` vraie) : `cameraVolSim`, derrière
+  l'avion dans SON repère lissé (`VOLCAM`, slerp) — elle suit le roulis, la boucle, le dos (`camera.up` tourné, remis à (0,1,0) au
+  sol) ; en vue 1re personne, le cockpit. Jamais la vue de dessus en vol ; au sol, la vue choisie revient.
+- **HUD** (`HUD_VOL`, `hudVolMaj` : canevas 124 × 152 à droite sous Vue et Pause, 15 images/s) : horizon artificiel, vitesse,
+  altitude et hauteur sol, gaz, alertes DÉCROCHAGE / VRILLE / SOL (`alerteVol`) ; au cockpit, l'alerte seule ; `body.volSim` range
+  la pile des messages à gauche. **Alarmes** (`VOL_SON` : décrochage 470 Hz, sol 880 Hz) : `volSonCouper` + `hudVolCacher` dans
+  `sortirVehicule`, `sauterEnParachute`, `crashAerien`, `mourir`, `startRun`, `entrerInterieur`.
+- Tests : « Pilotage simulé des avions » (profils lus, boucles des agiles à ±15 %, boucle lente → décrochage, alerte et alarme,
+  tonneaux à plat, voltige 10 s sur le dos, stables à plat en moins de 4 s, voltige qui garde 45°, gros porteurs sans boucle ni
+  tonneau, plus de figure scriptée, dtJeu, axe Y, caméra, crash au sol et contre un immeuble, alarmes coupées à chaque sortie, vrille
+  selon le profil, atterrissage de chaque avion sur la piste par un pilote simulé, décollage) ; « Axe Y inversé »
+  (Paramètres, rechargement). Banc hors navigateur : `rapport_nuit/outils/banc_vol.js`. Captures : `rapport_nuit/captures/pilotage_sim/`.
 
 ## Cabrage de toutes les motos (18 octobre) — `majCabrageMoto`, `poseCabrage`, `CABRAGE_MOTO`
 

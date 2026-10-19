@@ -10032,6 +10032,7 @@ async function main() {
     // -------------------------------------------------------------------
     console.log('\n--- Aéroport vivant : aérogare, portes, atterrissage, départ, hangars, nouveaux avions ---');
     {
+      await page.evaluate(() => { PILOTAGE_SIM = false; }); /* le pilotage d'avant (PILOTAGE_SIM=false) : ce bloc le vérifie toujours */
       const r = await page.evaluate(() => {
         const ko = [], info = [];
         if (!DECOR_V2) return { ko, info: ['DECOR_V2 coupé'] };
@@ -10095,6 +10096,7 @@ async function main() {
         startRun(); P.hp = P.maxHp = 1e6;
         return { ko, info };
       });
+      await page.evaluate(() => { PILOTAGE_SIM = true; });
       if (r.ko.length) fail('Aéroport vivant : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
       else ok('Aéroport vivant : ' + r.info.join(' ; ') + ' ; avion du joueur jamais repris, un mouvement à la fois, le joueur bousculé');
     }
@@ -11635,7 +11637,8 @@ async function main() {
         const ko = [], info = [];
         if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6;
         for (const e of ennemis) e.mort = true;
-        // 1. atterrissage : en vol au-dessus de la piste, FREIN tenu, joystick lâché
+        // 1. atterrissage : en vol au-dessus de la piste, FREIN tenu, joystick lâché (l'arrondi automatique du pilotage d'avant : PILOTAGE_SIM=false)
+        PILOTAGE_SIM = false;
         for (const v of [...vehicules]) if (Math.abs(v.x - AERO.RX) < 30 && v.z < 200 && v.z > -150) { scene.remove(v.mesh); vehicules.splice(vehicules.indexOf(v), 1); }
         const av = creerVehicule('avion', AERO.RX, 140, Math.PI, null); P.x = av.x; P.z = av.z; entrerVehicule(av);
         av.vol = true; av.alt = poseY(av.x, av.z) + 22; av.v = 36; av.va = 0; av.decolT = 0; INPUT.mx = INPUT.mz = 0; INPUT.btn.frein = true;
@@ -11644,7 +11647,7 @@ async function main() {
         if (av.mort || av.vol) ko.push('atterrissage : ' + (av.mort ? 'crash' : 'toujours en vol') + ' (' + t.toFixed(1) + ' s)');
         else { let t2 = 0; while (Math.abs(av.v) > 1 && t2 < 10) { majVol(av, 1 / 30); t2 += 1 / 30; }
           if (Math.abs(av.v) > 1) ko.push('l’avion ne s’arrête pas au sol (' + av.v.toFixed(1) + ' u/s)'); else info.push('avion posé en ' + t.toFixed(1) + ' s, arrêté en ' + t2.toFixed(1) + ' s'); }
-        if (P.veh) sortirVehicule(true);
+        if (P.veh) sortirVehicule(true); PILOTAGE_SIM = true;
         // 2. vélo : de l'extérieur du skatepark XXL jusque sur la plate-forme, par une rampe de pourtour
         if (SKX.ok) { const zc = (SKX.z0 + SKX.z1) / 2, x0 = SKX.x0 - 4;
           for (const v of [...vehicules]) if (dist2(v.x, v.z, x0, zc) < 400) { scene.remove(v.mesh); vehicules.splice(vehicules.indexOf(v), 1); }
@@ -14401,6 +14404,7 @@ async function main() {
     // -------------------------------------------------------------------
     console.log('\n--- Avions au cockpit : au manche, tangage progressif, la vue ne saute jamais ---');
     {
+      await page.evaluate(() => { PILOTAGE_SIM = false; }); /* le pilotage d'avant (PILOTAGE_SIM=false) : ce bloc le vérifie toujours */
       const r = await page.evaluate(() => {
         const ko = [], info = [];
         if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; for (const e of ennemis) e.mort = true; WAVES.etat = 'repos'; WAVES.t = 1e9;
@@ -14435,6 +14439,7 @@ async function main() {
         META.vue = 'classique'; majCamera(1 / 30);
         return { ko, info: [avions.length + ' avions au manche : ' + info.join(', ')] };
       });
+      await page.evaluate(() => { PILOTAGE_SIM = true; });
       if (r.ko.length) fail('Avions au cockpit : ' + r.ko.join(' ; ')); else ok('Avions au cockpit : ' + r.info.join(' ; '));
     }
     // -------------------------------------------------------------------
@@ -14480,6 +14485,7 @@ async function main() {
     // -------------------------------------------------------------------
     console.log('\n--- Appui bref sur MONTER / DESCENDRE : un cran constant, l’appui long monte plus fort ---');
     {
+      await page.evaluate(() => { PILOTAGE_SIM = false; }); /* le pilotage d'avant (PILOTAGE_SIM=false) : ce bloc le vérifie toujours */
       const r = await page.evaluate(() => {
         const ko = [], info = [];
         if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; for (const e of ennemis) e.mort = true; WAVES.etat = 'repos'; WAVES.t = 1e9;
@@ -14501,6 +14507,7 @@ async function main() {
         }
         return { ko, info };
       });
+      await page.evaluate(() => { PILOTAGE_SIM = true; });
       if (r.ko.length) fail('Appui bref en vol : ' + r.ko.join(' ; ')); else ok('Appui bref en vol : ' + r.info.join(' ; '));
     }
     // -------------------------------------------------------------------
@@ -14705,6 +14712,7 @@ async function main() {
     // -------------------------------------------------------------------
     console.log('\n--- Inclinaisons : voitures, deux-roues, bateaux, avions ---');
     {
+      await page.evaluate(() => { PILOTAGE_SIM = false; }); /* le pilotage d'avant (PILOTAGE_SIM=false) : ce bloc le vérifie toujours */
       const r = await page.evaluate(() => {
         const ko = [], info = [];
         if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); META.vue = 'classique'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; for (const e of ennemis) e.mort = true; WAVES.etat = 'repos'; WAVES.t = 1e9;
@@ -14748,6 +14756,7 @@ async function main() {
           if (!(rl > 0.15)) ko.push('avion : pas de roulis en virage (' + rl.toFixed(2) + ')'); info.push('avion (roulis ' + rl.toFixed(2) + ')'); sortirVehicule(true); }
         return { ko, info };
       });
+      await page.evaluate(() => { PILOTAGE_SIM = true; });
       if (r.ko.length) fail('Inclinaisons : ' + r.ko.join(' ; ')); else ok('Inclinaisons : ' + r.info.join(', '));
     }
     // -------------------------------------------------------------------
@@ -14760,6 +14769,7 @@ async function main() {
     // -------------------------------------------------------------------
     console.log('\n--- Virage des avions : roulis, cap, retour à plat, caméra, avions du décor ---');
     {
+      await page.evaluate(() => { PILOTAGE_SIM = false; }); /* le pilotage d'avant (PILOTAGE_SIM=false) : ce bloc le vérifie toujours */
       const r = await page.evaluate(() => {
         const ko = [], info = []; let T = dernierT + 1000;
         if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); META.vue = 'classique'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9;
@@ -14807,6 +14817,7 @@ async function main() {
           info.push('décor : tour de piste ' + mT.toFixed(2) + ' rad, banderole ' + mB.toFixed(2) + ' rad dans les virages'); }
         majCamera(1 / 30); return { ko, info };
       });
+      await page.evaluate(() => { PILOTAGE_SIM = true; });
       if (r.ko.length) fail('Virage des avions : ' + r.ko.join(' ; ')); else ok('Virage des avions : ' + r.info.join(' ; '));
     }
     // -------------------------------------------------------------------
@@ -14821,6 +14832,7 @@ async function main() {
     // -------------------------------------------------------------------
     console.log('\n--- Pilotage au manche (vue 3D et 1re personne) : roulis, tangage, gaz, tonneaux, looping, décollage, horizon ---');
     {
+      await page.evaluate(() => { PILOTAGE_SIM = false; }); /* le pilotage d'avant (PILOTAGE_SIM=false) : ce bloc le vérifie toujours */
       const r = await page.evaluate(() => {
         const ko = [], info = []; let T = dernierT + 1000; const B = INPUT.btn; const pas = (n, f) => { for (let i = 0; i < n; i++) { if (f) f(i); T += 1000 / 60; tick(T); } };
         const trafic0 = creerTrafic; creerTrafic = () => {}; const h0 = META.horizonCk;
@@ -14901,6 +14913,7 @@ async function main() {
         META.horizonCk = h0; creerTrafic = trafic0; INPUT.jx = INPUT.jy = 0; B.sprint = B.frein = false; if (P.veh) sortirVehicule(true); META.vue = 'classique'; majCamera(1 / 30);
         return { ko, info };
       });
+      await page.evaluate(() => { PILOTAGE_SIM = true; });
       if (r.ko.length) fail('Pilotage au manche : ' + r.ko.join(' ; ')); else ok('Pilotage au manche : ' + r.info.join(' ; '));
     }
     // -------------------------------------------------------------------
@@ -14970,6 +14983,7 @@ async function main() {
     // -------------------------------------------------------------------
     console.log('\n--- Poussée des avions : la manette à fond, une accélération franche qu’on sent ---');
     {
+      await page.evaluate(() => { PILOTAGE_SIM = false; }); /* le pilotage d'avant (PILOTAGE_SIM=false) : ce bloc le vérifie toujours */
       const r = await page.evaluate(() => {
         const ko = [], info = []; let T = dernierT + 1000; const trafic0 = creerTrafic; creerTrafic = () => {};
         const vol = (cle, vue) => { META.vue = vue; if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9;
@@ -14993,7 +15007,173 @@ async function main() {
         creerTrafic = trafic0; if (P.veh) sortirVehicule(true); META.vue = 'classique'; majCamera(1 / 30);
         return { ko, info };
       });
+      await page.evaluate(() => { PILOTAGE_SIM = true; });
       if (r.ko.length) fail('Poussée des avions : ' + r.ko.join(' ; ')); else ok('Poussée des avions : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
+    // Pilotage simulé des avions (PILOTAGE_SIM, 19 octobre) : un vrai pilotage physique au joystick et à la manette des
+    // gaz. L'avion est un corps orienté par un quaternion (v.q) : boucles, tonneaux, vol sur le dos viennent du pilotage,
+    // plus aucune figure scriptée. Avions lus dans VEHDEFS (air:'avion'), profils dans PROFILS_VOL ; la vraie boucle
+    // (tick) à 60 images par seconde, le joystick par INPUT.jx / INPUT.jy (tiré vers le bas de l'écran = cabrer).
+    // -------------------------------------------------------------------
+    console.log('\n--- Pilotage simulé des avions : quaternion, boucles, tonneaux, vol sur le dos, stabilité, décrochage, crash, sons, HUD, caméra, inversion ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = []; let T = dernierT + 1000; const B = INPUT.btn, deg = (a) => (a * 180 / Math.PI).toFixed(0);
+        const pas = (n, f) => { for (let i = 0; i < n; i++) { if (f && f(i) === false) return i; T += 1000 / 60; tick(T); } return n; };
+        const trafic0 = creerTrafic; creerTrafic = () => {}; PILOTAGE_SIM = true; META.inverserY = false;
+        try { audioInit(); } catch (e) {}
+        const avions = Object.keys(VEHDEFS).filter((k) => VEHDEFS[k].air === 'avion');
+        /* les profils : un par avion, tous les champs demandés */
+        for (const k of avions) { const A = PROFILS_VOL[k]; if (!A) { ko.push(k + ' : aucun profil de vol'); continue; }
+          for (const c of ['rollRate', 'pitchRate', 'Vmin', 'Vmax', 'poussee', 'inertie', 'stabilite', 'vrillePossible']) if (A[c] === undefined) ko.push(k + ' : profil sans ' + c);
+          if (!(A.Vmin > 0 && A.Vmin < A.Vmax)) ko.push(k + ' : Vmin ' + A.Vmin + ' / Vmax ' + A.Vmax); if (!(A.stabilite >= 0 && A.stabilite <= 1)) ko.push(k + ' : stabilité ' + A.stabilite); }
+        for (const k of Object.keys(PROFILS_VOL)) if (!avions.includes(k)) ko.push('profil ' + k + ' sans avion');
+        const agiles = avions.filter((k) => PROFILS_VOL[k] && PROFILS_VOL[k].gMax >= 6), lourds = avions.filter((k) => PROFILS_VOL[k] && PROFILS_VOL[k].assietteMax),
+          stables = avions.filter((k) => PROFILS_VOL[k] && PROFILS_VOL[k].stabilite >= 0.5), libres = avions.filter((k) => PROFILS_VOL[k] && PROFILS_VOL[k].stabilite === 0),
+          rouleurs = avions.filter((k) => PROFILS_VOL[k] && !PROFILS_VOL[k].inclMax);
+        if (!agiles.length || !lourds.length || !stables.length || !libres.length) ko.push('familles de profils vides : agiles ' + agiles + ', lourds ' + lourds + ', stables ' + stables + ', libres ' + libres);
+        /* un avion en vol, au-dessus de la mer, cap à l'est, manche au neutre */
+        const enVol = (cle, o) => { o = o || {}; META.vue = o.vue || 'classique'; if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; ETAT.jour = 40; ETAT.timeScale = 1;
+          P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9; for (const x of vehicules) { scene.remove(x.mesh); libererEntite(x.mesh); } vehicules.length = 0; for (const e of ennemis) e.mort = true;
+          const A = PROFILS_VOL[cle], v = creerVehicule(cle, o.x !== undefined ? o.x : 0, o.z !== undefined ? o.z : MER + 160, o.ang !== undefined ? o.ang : Math.PI / 2, null); P.x = v.x; P.z = v.z; entrerVehicule(v);
+          v.vol = true; v.alt = o.alt || 90; v.v = o.V || A.Vmax; v.va = 0; v.bank = o.bank || 0; v.tang = o.tang || 0; v.gaz = o.gaz !== undefined ? o.gaz : 1; v.decolT = 0; volSimInit(v, v.tang);
+          MANETTE.val = v.gaz; MANETTE.touche = false; INPUT.jx = INPUT.jy = 0; B.sprint = B.frein = false; return v; };
+        const vivant = (v) => P.veh === v && !v.mort;
+        const fwd = new THREE.Vector3();
+        /* 1. boucle complète, manche tiré à fond à pleine vitesse : retour à l'altitude de départ (±15 %), le quaternion reste normé */
+        for (const cle of agiles) { const v = enVol(cle, { alt: 90 }); const hx = Math.sin(v.ang), hz = Math.cos(v.ang); let prev = 0, cum = 0, fin = -1, altFin = 0, dos = false, qErr = 0, decro = false;
+          pas(1800, (i) => { INPUT.jy = 1; if (!vivant(v)) return false; fwd.set(0, 0, 1).applyQuaternion(v.q); const a = Math.atan2(fwd.y, fwd.x * hx + fwd.z * hz); let d = a - prev; if (d > Math.PI) d -= 2 * Math.PI; if (d < -Math.PI) d += 2 * Math.PI; cum += d; prev = a;
+            if (Math.abs(v.bank) > 2.5) dos = true; if (v.decroche) decro = true; qErr = Math.max(qErr, Math.abs(1 - v.q.length())); if (cum >= 2 * Math.PI) { fin = i / 60; altFin = v.alt; return false; } });
+          INPUT.jy = 0;
+          if (fin < 0) ko.push(cle + ' : boucle inachevée (' + deg(cum) + '°, ' + (vivant(v) ? 'en vol' : 'crash') + ')');
+          else if (Math.abs(altFin - 90) > 90 * 0.15) ko.push(cle + ' : boucle finie à ' + altFin.toFixed(1) + ' u pour 90 au départ');
+          else info.push(cle + ' : boucle en ' + fin.toFixed(1) + ' s, 90 → ' + altFin.toFixed(1) + ' u' + (decro ? ' (décroché en haut)' : ''));
+          if (!dos) ko.push(cle + ' : jamais sur le dos pendant la boucle'); if (qErr > 1e-6) ko.push(cle + ' : quaternion non normé (' + qErr.toExponential(1) + ')'); }
+        /* 2. boucle trop lente : gaz coupés, juste au-dessus de Vmin, manche tiré → décrochage, alerte et son */
+        for (const cle of agiles) { const A = PROFILS_VOL[cle], v = enVol(cle, { alt: 120, V: A.Vmin * 1.25, gaz: 0 }); let t = -1, al = null, son = null;
+          pas(300, (i) => { INPUT.jy = 1; if (!vivant(v)) return false; if (v.decroche && t < 0) t = i / 60; if (t >= 0 && i / 60 > t + 0.2) { al = HUD_VOL.alerte; son = VOL_SON.mode; return false; } });
+          INPUT.jy = 0;
+          if (t < 0) ko.push(cle + ' : boucle lente sans décrochage'); else info.push(cle + ' : boucle lente → décroché à ' + t.toFixed(2) + ' s');
+          if (t >= 0 && al !== 'decro' && al !== 'vrille') ko.push(cle + ' : décroché sans alerte au HUD (' + al + ')');
+          if (t >= 0 && AUDIO.pret && son !== 'decro') ko.push(cle + ' : décroché sans alarme sonore (' + son + ')'); }
+        /* 2 bis. la vrille, selon le profil : décroché (gaz coupés, manche tiré), puis manche sur le côté → seuls les avions à vrillePossible partent en vrille
+           (alerte VRILLE) ; manche au neutre → elle en sort, puis on la redresse */
+        for (const cle of avions) { const A = PROFILS_VOL[cle], v = enVol(cle, { alt: 230, V: A.Vmin * 1.2, gaz: 0 }); let tD = -1, tV = -1, tS = -1, al = null, tR = -1, aMin = 1e9;
+          pas(1200, (i) => { const t = i / 60; if (!vivant(v)) return false; if (v.decroche && tD < 0) tD = t;
+            if (tD < 0) { INPUT.jy = 1; INPUT.jx = 0; } else if (t < tD + 3) { INPUT.jy = 1; INPUT.jx = 1; } else if (tV < 0 || tS < 0) { INPUT.jy = 0; INPUT.jx = 0; } else { INPUT.jy = 0.7; INPUT.jx = 0; MANETTE.val = 1; MANETTE.touche = true; aMin = Math.min(aMin, v.alt); if (v.tang > 0 && tR < 0) tR = t; if (tR >= 0 && t > tR + 1) return false; }
+            if (v.vrilleSim && tV < 0) { tV = t; } if (tV >= 0 && v.vrilleSim && t > tV + 0.5 && !al) al = HUD_VOL.alerte; if (tV >= 0 && !v.vrilleSim && tS < 0) tS = t;
+            if (tD >= 0 && tV < 0 && t > tD + 3.5) return false; });
+          INPUT.jx = INPUT.jy = 0;
+          if (tD < 0) ko.push(cle + ' : jamais décroché (vrille)');
+          else if (A.vrillePossible) { if (tV < 0) ko.push(cle + ' : décroché, manche sur le côté, pas de vrille');
+            else { if (al !== 'vrille') ko.push(cle + ' : en vrille sans alerte VRILLE (' + al + ')'); if (tS < 0) ko.push(cle + ' : manche au neutre, ne sort pas de la vrille');
+              else if (!(tS - (tD + 3) < 1.5)) ko.push(cle + ' : sortie de vrille ' + (tS - tD - 3).toFixed(2) + ' s après le neutre');
+              else if (tR < 0 || !vivant(v)) ko.push(cle + ' : sorti de vrille, impossible à redresser depuis 230 u');
+              else info.push(cle + ' : vrille ' + (tV - tD).toFixed(1) + ' s après le décrochage, sortie ' + (tS - tD - 3).toFixed(1) + ' s après le neutre, redressée au plus bas à ' + aMin.toFixed(0) + ' u'); } }
+          else if (tV >= 0) ko.push(cle + ' : part en vrille (profil sans vrille)'); }
+        if (!avions.some((k) => PROFILS_VOL[k] && PROFILS_VOL[k].vrillePossible)) ko.push('aucun avion ne peut vriller');
+        /* 3. tonneau complet manche à fond sur le côté, lâché en anticipant l'inertie → ailes à plat */
+        for (const cle of rouleurs) { const A = PROFILS_VOL[cle], v = enVol(cle, { alt: 110 }); let prev = 0, cum = 0, fin = -1, bp = 0;
+          pas(900, (i) => { if (!vivant(v)) return false; let d = v.bank - prev; if (d > Math.PI) d -= 2 * Math.PI; if (d < -Math.PI) d += 2 * Math.PI; cum += d; prev = v.bank;
+            if (fin < 0) { INPUT.jx = 1; if (Math.abs(cum) >= 2 * Math.PI - Math.abs(d * 60) * A.inertie) { fin = i / 60; INPUT.jx = 0; } } else { INPUT.jx = 0; if (i / 60 > fin + 3) return false; } });
+          INPUT.jx = 0; bp = v.bank;
+          if (fin < 0) ko.push(cle + ' : tonneau inachevé (' + deg(cum) + '°)');
+          else if (!(Math.abs(bp) < 12 * Math.PI / 180)) ko.push(cle + ' : après le tonneau, inclinaison ' + deg(bp) + '° (attendu à plat)');
+          else info.push(cle + ' : tonneau en ' + fin.toFixed(1) + ' s → ' + deg(bp) + '°'); }
+        /* 4. la voltige lâchée sur le dos : 10 s, l'attitude reste, aucune valeur invalide, quaternion normé, le modèle suit */
+        for (const cle of libres) { const A = PROFILS_VOL[cle], v = enVol(cle, { alt: 120, V: A.Vmax * 0.9, gaz: 0.8, bank: Math.PI }); let bMin = 9, nan = false, qErr = 0, ecart = 0;
+          pas(600, (i) => { if (!vivant(v)) return false; if (i > 0) ecart = Math.max(ecart, 1 - Math.abs(v.mesh.quaternion.dot(v.q))); /* (le modèle est posé à la fin de l'image) */ bMin = Math.min(bMin, Math.abs(v.bank)); if (![v.q.x, v.q.y, v.q.z, v.q.w, v.alt, v.v, v.x, v.z].every(isFinite)) nan = true; qErr = Math.max(qErr, Math.abs(1 - v.q.length())); });
+          if (!vivant(v)) ko.push(cle + ' : sur le dos, crash avant 10 s'); if (!(bMin > 160 * Math.PI / 180)) ko.push(cle + ' : lâché sur le dos, il revient (|inclinaison| min ' + deg(bMin) + '°)');
+          if (nan) ko.push(cle + ' : valeur invalide sur le dos'); if (qErr > 1e-6) ko.push(cle + ' : quaternion non normé sur le dos'); if (ecart > 1e-6) ko.push(cle + ' : le modèle ne suit pas le quaternion');
+          if (vivant(v) && bMin > 2.8 && !nan) info.push(cle + ' : 10 s sur le dos, 120 → ' + v.alt.toFixed(0) + ' u'); }
+        /* 5. lâché à 45° : les avions stables reviennent à plat en moins de 4 s ; la voltige (stabilité 0) garde son attitude */
+        for (const cle of stables.concat(libres)) { const A = PROFILS_VOL[cle], v = enVol(cle, { alt: 100, V: A.Vmax * 0.9, gaz: 0.8, bank: Math.PI / 4 }); let tPlat = -1;
+          pas(A.stabilite > 0 ? 300 : 240, (i) => { if (!vivant(v)) return false; if (tPlat < 0 && Math.abs(v.bank) < 3 * Math.PI / 180) tPlat = i / 60; });
+          if (A.stabilite > 0) { if (!(tPlat >= 0 && tPlat < 4)) ko.push(cle + ' : lâché à 45°, pas à plat en 4 s (' + deg(v.bank) + '°)'); else info.push(cle + ' à plat en ' + tPlat.toFixed(1) + ' s'); }
+          else if (!(Math.abs(v.bank) > 35 * Math.PI / 180)) ko.push(cle + ' : stabilité 0, lâché à 45° il revient seul (' + deg(v.bank) + '°)'); }
+        /* 6. les gros porteurs tirés à fond : pas de boucle, jamais sur le dos ; poussés sur le côté : pas de tonneau */
+        for (const cle of lourds) { const A = PROFILS_VOL[cle], v = enVol(cle, { alt: 150 }); let thMax = -9, bMax = 0, cum = 0, prev = 0; const hx = Math.sin(v.ang), hz = Math.cos(v.ang);
+          pas(1200, () => { INPUT.jy = 1; if (!vivant(v)) return false; fwd.set(0, 0, 1).applyQuaternion(v.q); const a = Math.atan2(fwd.y, Math.hypot(fwd.x, fwd.z)); thMax = Math.max(thMax, v.tang); bMax = Math.max(bMax, Math.abs(v.bank)); });
+          INPUT.jy = 0; const w = enVol(cle, { alt: 150 }); let bMax2 = 0;
+          pas(600, () => { INPUT.jx = 1; if (!vivant(w)) return false; bMax2 = Math.max(bMax2, Math.abs(w.bank)); }); INPUT.jx = 0;
+          if (!(thMax <= A.assietteMax + 0.08) || bMax > 1.2) ko.push(cle + ' : tiré à fond, assiette ' + deg(thMax) + '° / inclinaison ' + deg(bMax) + '° (il boucle)');
+          else info.push(cle + ' tiré 20 s : assiette ≤ ' + deg(thMax) + '°');
+          if (!(bMax2 <= A.inclMax + 0.08)) ko.push(cle + ' : sur le côté, inclinaison ' + deg(bMax2) + '° (tonneau)'); }
+        /* 7. plus de figures scriptées : MONTER tenu en vue de dessus ne lance plus de looping, le joystick sur le côté plus de vrille */
+        { const v = enVol('voltige', { alt: 120 }); let fig = false; pas(180, () => { B.sprint = true; INPUT.jx = 1; if (v.loopEnCours || v.vrilleEnCours || v.tonneau) fig = true; }); B.sprint = false; INPUT.jx = 0;
+          if (fig) ko.push('une figure scriptée se déclenche encore'); if (loopRingEl.style.display !== 'none') ko.push('l’anneau de la figure scriptée est affiché'); }
+        /* 8. le pas de temps : la physique du vol tourne sur dtJeu (un ralenti ne ralentit pas l'avion) */
+        { const dist = (ts) => { const v = enVol('avion', { alt: 120, V: 38, gaz: 0.8 }); ETAT.timeScale = ts; const x0 = v.x, z0 = v.z; pas(60); ETAT.timeScale = 1; return Math.hypot(v.x - x0, v.z - z0); };
+          const d1 = dist(1), d4 = dist(0.25); if (!(Math.abs(d4 - d1) < d1 * 0.06)) ko.push('ralenti ×0,25 : ' + d4.toFixed(1) + ' u en 1 s contre ' + d1.toFixed(1) + ' (la physique du vol suit dt)'); else info.push('ralenti sans effet sur le vol (' + d1.toFixed(1) + ' / ' + d4.toFixed(1) + ' u)'); }
+        /* 9. l'inversion de l'axe Y : tiré, l'avion pique */
+        { META.inverserY = true; const v = enVol('avion', { alt: 120, V: 38 }); pas(60, () => { INPUT.jy = 1; }); INPUT.jy = 0; const tInv = v.tang; META.inverserY = false;
+          const w = enVol('avion', { alt: 120, V: 38 }); pas(60, () => { INPUT.jy = 1; }); INPUT.jy = 0;
+          if (!(tInv < -0.3 && w.tang > 0.3)) ko.push('axe Y : tiré 1 s, assiette ' + deg(w.tang) + '° normal, ' + deg(tInv) + '° inversé'); else info.push('axe Y : ' + deg(w.tang) + '° / inversé ' + deg(tInv) + '°'); }
+        /* 10. la caméra : en vue de dessus, en vol, elle passe derrière l'avion et suit le roulis (sur le dos, le haut de l'image aussi) ; au sol, la vue de dessus revient */
+        { const v = enVol('voltige', { alt: 120, V: 38, gaz: 0.8 }); pas(90); const nez = new THREE.Vector3(0, 0, 1).applyQuaternion(v.q), dc = camera.position.clone().sub(new THREE.Vector3(v.x, v.alt, v.z));
+          if (!vueImmersive()) ko.push('en vol, la vue de dessus reste (vueImmersive faux)'); if (!(dc.dot(nez) < -3 && dc.y > 0.5)) ko.push('caméra pas derrière et au-dessus de l’avion (' + dc.dot(nez).toFixed(1) + ', ' + dc.y.toFixed(1) + ')');
+          const hud = HUD_VOL.el && HUD_VOL.el.style.display === 'block' && document.body.classList.contains('volSim'); if (!hud) ko.push('HUD de vol absent en poursuite');
+          const w = enVol('voltige', { alt: 120, V: 40, gaz: 0.8, bank: Math.PI }); pas(120); if (!(camera.up.y < -0.5)) ko.push('sur le dos, la caméra ne suit pas le roulis (up.y ' + camera.up.y.toFixed(2) + ')');
+          w.vol = false; w.simOk = false; w.alt = 0; w.x = POIS.place.x; w.z = POIS.place.z; w.v = 0; pas(30);
+          if (vueImmersive() || VOLCAM.ok || Math.abs(camera.up.y - 1) > 1e-6) ko.push('au sol, la vue de dessus ne revient pas (immersive ' + vueImmersive() + ', up.y ' + camera.up.y.toFixed(2) + ')');
+          else info.push('vol : caméra de poursuite (vue de dessus au sol), HUD affiché'); }
+        /* 11. le crash au sol : piqué sur la place → crash, alarme et HUD coupés */
+        { const v = enVol('avion', { alt: 32, V: 34, x: POIS.place.x, z: POIS.place.z - 30, ang: 0, tang: -0.9, gaz: 1 }); let alSol = false, sonSol = false;
+          pas(300, () => { INPUT.jy = 0; if (HUD_VOL.alerte === 'sol') alSol = true; if (VOL_SON.mode === 'sol') sonSol = true; if (!vivant(v)) return false; });
+          if (vivant(v)) ko.push('piqué au sol : pas de crash');
+          if (!alSol) ko.push('piqué au sol : pas d’alerte SOL au HUD'); if (AUDIO.pret && !sonSol) ko.push('piqué au sol : pas d’alarme sonore');
+          if (VOL_SON.osc || VOL_SON.mode) ko.push('après le crash, l’alarme sonne encore'); if (HUD_VOL.el && HUD_VOL.el.style.display !== 'none') ko.push('après le crash, le HUD de vol reste');
+          if (!vivant(v)) info.push('crash au sol détecté, alarme et HUD coupés'); }
+        /* 11 bis. un immeuble en travers : crash (les solides de la ville, comme avant) */
+        { let cible = null; for (let r = 20; r < 400 && !cible; r += 10) for (let a = 0; a < 6.28 && !cible; a += 0.2) { const x = POIS.place.x + Math.cos(a) * r, z = POIS.place.z + Math.sin(a) * r, s = solidAt(x, z, 0.5, 24);
+            if (s && s.base === undefined && !solidAt(x, z + 70, 3) && !estEau(x, z + 70)) cible = { x, z, h: s.h }; }
+          if (!cible) ko.push('aucun immeuble de plus de 24 u trouvé pour le test de collision');
+          else { const v = enVol('avion', { alt: Math.min(cible.h * 0.5, 30), V: 34, x: cible.x, z: cible.z + 70, ang: Math.PI, gaz: 0.8 }); let altFin = 0;
+            pas(300, () => { INPUT.jy = 0; if (!vivant(v)) return false; altFin = v.alt; v.alt = Math.min(cible.h * 0.5, 30); /* tenu à mi-hauteur de l'immeuble */ });
+            if (vivant(v)) ko.push('l’avion traverse un immeuble (' + cible.h.toFixed(0) + ' u) sans crash'); else info.push('immeuble de ' + cible.h.toFixed(0) + ' u percuté à ' + altFin.toFixed(0) + ' u : crash'); } }
+        /* 12. toutes les sorties coupent l'alarme : mourir(), descendre en vol, parachute */
+        for (const sortie of ['mourir', 'sortirVehicule', 'sauterEnParachute']) { const A = PROFILS_VOL.avion, v = enVol('avion', { alt: 150, V: A.Vmin * 1.02, gaz: 0 }); pas(40, () => { INPUT.jy = 1; }); INPUT.jy = 0;
+          const avant = VOL_SON.mode; if (sortie === 'mourir') mourir(); else if (sortie === 'sortirVehicule') sortirVehicule(true); else sauterEnParachute(); pas(2);
+          if (AUDIO.pret && !avant) ko.push(sortie + ' : l’alarme de décrochage ne sonnait pas avant la sortie');
+          if (VOL_SON.osc || VOL_SON.mode) ko.push(sortie + ' : l’alarme sonne encore'); if (HUD_VOL.el && HUD_VOL.el.style.display !== 'none') ko.push(sortie + ' : le HUD de vol reste'); }
+        /* 13 bis. l'atterrissage sur la piste, pour chaque avion : un pilote tient la vitesse d'approche aux gaz (1,3 × Vmin, 1,15 à l'arrondi)
+           et le taux de descente au manche (−2,2 u/s, −0,9 sous 3 u) — posé doux, puis arrêté au FREIN de la manette, la vue de dessus revient */
+        if (DECOR_V2 && AERO && AERO.RX) for (const cle of avions) { const A = PROFILS_VOL[cle], v = enVol(cle, { x: AERO.RX, z: 200, ang: Math.PI, V: A.Vmin * 1.35, gaz: 0.3, alt: 1 });
+          for (const o of [...vehicules]) if (o !== v && Math.abs(o.x - AERO.RX) < 30 && o.z < 260 && o.z > -420) { scene.remove(o.mesh); vehicules.splice(vehicules.indexOf(o), 1); }
+          v.alt = poseY(v.x, v.z) + 14; volSimInit(v, 0); let I = 0, tP = -1, vyP = 0;
+          pas(1500, (i) => { if (!vivant(v)) return false; if (!v.vol) { if (tP < 0) tP = i / 60; return false; }
+            const hS = v.alt - poseY(v.x, v.z), vy = v.vel.y, cib = hS > 3 ? -2.2 : -0.9; I = clamp(I + (cib - vy) / 60 * 0.4, -0.6, 0.6); vyP = vy;
+            MANETTE.val = clamp(0.45 + (A.Vmin * (hS > 4 ? 1.3 : 1.15) - v.v) * 0.12, 0, 1); MANETTE.touche = true;
+            INPUT.jx = clamp(v.bank * 1.5, -1, 1); INPUT.jy = clamp((cib - vy) * 0.3 + I + (v.wx || 0) * 0.6, -1, 1); });
+          INPUT.jx = INPUT.jy = 0;
+          if (!vivant(v) || tP < 0) { ko.push(cle + ' : atterrissage ' + (vivant(v) ? 'jamais posé' : 'en crash (descente ' + vyP.toFixed(1) + ' u/s)')); continue; }
+          MANETTE.val = 0; MANETTE.frein = true; MANETTE.touche = true; let tA = -1; pas(600, (i) => { if (Math.abs(v.v) < 0.5) { tA = i / 60; return false; } }); MANETTE.frein = false;
+          pas(30); const imm = vueImmersive();
+          if (tA < 0) ko.push(cle + ' : posé, ne s’arrête pas au frein (' + v.v.toFixed(1) + ' u/s)'); else if (imm || VOLCAM.ok) ko.push(cle + ' : au sol, la vue de dessus ne revient pas');
+          else info.push(cle + ' posé en ' + tP.toFixed(1) + ' s (' + vyP.toFixed(1) + ' u/s), arrêté en ' + tA.toFixed(1) + ' s'); }
+        else info.push('SAUT:atterrissage (aéroport absent)');
+        /* 13. le décollage depuis la piste : la manette à fond, la vitesse de rotation, on tire */
+        if (DECOR_V2 && AERO && AERO.RX) { const v = enVol('avion', { x: AERO.RX, z: -260, ang: 0, alt: 0 }); v.vol = false; v.simOk = false; v.alt = 0; v.v = 0; v.gaz = 0;
+          MANETTE.val = 1; MANETTE.touche = true; let tDec = -1; const A = PROFILS_VOL.avion;
+          pas(900, (i) => { INPUT.jy = v.v >= A.vRot ? 0.7 : 0; if (!vivant(v)) return false; if (v.vol && tDec < 0) tDec = i / 60; if (tDec >= 0 && i / 60 > tDec + 3) return false; }); INPUT.jy = 0;
+          if (!vivant(v) || tDec < 0) ko.push('décollage : ' + (vivant(v) ? 'toujours au sol (v ' + v.v.toFixed(1) + ')' : 'crash'));
+          else if (!(v.alt > 6)) ko.push('décollage : 3 s après, à ' + v.alt.toFixed(1) + ' u'); else info.push('décollage en ' + tDec.toFixed(1) + ' s, ' + v.alt.toFixed(0) + ' u 3 s plus tard'); }
+        else info.push('SAUT:décollage (aéroport absent)');
+        creerTrafic = trafic0; INPUT.jx = INPUT.jy = 0; B.sprint = B.frein = false; ETAT.timeScale = 1; META.inverserY = false; if (P.veh) sortirVehicule(true); META.vue = 'classique'; majCamera(1 / 30);
+        return { ko, info };
+      });
+      for (const m of r.info.filter((x) => x.startsWith('SAUT:'))) saute('Pilotage simulé : ' + m.slice(5)); r.info = r.info.filter((x) => !x.startsWith('SAUT:'));
+      if (r.ko.length) fail('Pilotage simulé des avions : ' + r.ko.join(' ; ')); else ok('Pilotage simulé des avions : ' + r.info.join(' ; '));
+    }
+    console.log('\n--- Pilotage simulé : l’axe Y inversé se règle dans les Paramètres et survit au rechargement ---');
+    {
+      const a = await page.evaluate(() => { const s = el('tInverseY'); META.inverserY = false; s.classList.remove('on'); s.dispatchEvent(new Event('pointerdown')); return { meta: META.inverserY, on: s.classList.contains('on') }; });
+      await page.reload({ waitUntil: 'load', timeout: 30000 });
+      await page.waitForFunction(() => typeof PORTES !== 'undefined' && PORTES.length > 0, { timeout: 20000 });
+      const b = await page.evaluate(() => { const r = { meta: META.inverserY, on: el('tInverseY').classList.contains('on') }; META.inverserY = false; el('tInverseY').classList.remove('on'); sauveMeta(); return r; });
+      if (!(a.meta === true && a.on && b.meta === true && b.on)) fail('Axe Y inversé : réglage ' + JSON.stringify(a) + ', après rechargement ' + JSON.stringify(b));
+      else ok('Axe Y inversé : réglé dans les Paramètres, sauvegardé, toujours actif après rechargement');
     }
 
     // -------------------------------------------------------------------
