@@ -15527,7 +15527,13 @@ async function main() {
             if (!C.interieurV3.visible) ko.push(k + ' : intérieur masqué en vue 3D');
             META.vue = 'fps'; majChauffeur(v); if (C.chauffeur.visible || C.interieurV3.visible) ko.push(k + ' : conducteur ou intérieur visibles en 1re personne (le cockpit a les siens)');
             majCamera(1 / 30); const dg = cockpitDiagnostic(v); if (!dg.ok) ko.push(k + ' : cockpit ' + JSON.stringify(dg));
-            META.vue = 'immersive'; majCamera(1 / 30); sortirVehicule(true); scene.remove(v.mesh); vehicules.length = 0;
+            META.vue = 'immersive'; majCamera(1 / 30);
+            if (d.depanneuse && C.crochet) { /* dépanneuse : l'élingue relie la potence au véhicule tracté, le crochet se range ; tout revient au décrochage */
+              const c = creerVehicule('citadine', v.x, v.z - 6, 0, null); majRemorquage(v, 1 / 30, true); majChauffeur(v);
+              const el = C.corps.children.find((o) => o.isMesh && o.visible && o.geometry.parameters && o.geometry.parameters.radiusTop === 0.025);
+              if (v.remorque !== c || !el || C.crochet.visible) ko.push(k + ' : remorquage sans élingue visible');
+              majRemorquage(v, 1 / 30, true); majChauffeur(v); if (v.remorque || !C.crochet.visible) ko.push(k + ' : décroché, le crochet ne revient pas'); scene.remove(c.mesh); }
+            sortirVehicule(true); scene.remove(v.mesh); vehicules.length = 0;
           }
           if (ko.length === ok0) info.push(k + ' (' + n + ' maillages, ' + vitres + ' vitrage' + (vitres > 1 ? 's' : '') + ')');
         }

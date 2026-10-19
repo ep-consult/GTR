@@ -19658,6 +19658,58 @@ VEH_V3.grue={
     boulet.position.set(0,G.teteY-1.6,G.teteZ); cable.position.set(0,G.teteY-0.8,G.teteZ); cable.scale.set(1,1.6,1);                      /* au repos : il pend tout droit */
     halosPharesV3(I,0.78,1.1,3.0); ud.conducteur={x:0.45,y:1.22,z:1.72,k:0.96,pose:{hy:(1.68-1.22)/0.96,hz:(2.12-1.72)/0.96}}; ud.pareBrise={y:1.85,z:2.5}; }
 };
+/* ---------- 9. Dépanneuse « Grizzly » (depanneuse) : dépanneuse lourde — capot court, grosse calandre chromée, cabine, coffres
+   latéraux, potence arrière à treuils, câble et crochet, bras de levage à fourches, rampe ambre (ud.gyroAmbre : un matériau par
+   véhicule, que majGyroAmbre fait pulser) ; quand elle remorque, une élingue relie la potence au véhicule tracté (cosmétique :
+   la traction reste celle de majRemorquage) ---------- */
+const DEP_V3={pointe:{y:2.55,z:-2.72},levage:{y:0.42,z:-2.95}};
+VEH_V3.depanneuse={
+  geo(B,d){ const L=d.long, R=0.4, zf=1.6, zr=-1.6, av=L/2, ar=-L/2, hw=1.0, P=DEP_V3.pointe;
+    /* capot, ailes, calandre, pare-chocs chromé */
+    B.profil('peinture',[[2.45,0.42],[2.55,0.62],[2.56,1.22],[2.46,1.33],[1.6,1.38],[1.52,1.44],[0.36,1.48],[0.36,0.4]].concat(basCaisseV3(0.4,2.4,0.38,R,R+0.1,[zf])),2*hw,0.05);
+    B.profil('vitre',[[1.56,1.44],[1.34,2.14],[0.4,2.14],[0.4,1.46]],2*hw-0.1,0.02); B.bloc('peinture',2*hw+0.02,0.12,1.26,0,2.2,0.92,0.04,0.04);
+    B.bloc('chrome',1.24,0.58,0.06,0,0.98,2.6,0.02,0.04); B.bloc('sombre',1.12,0.48,0.05,0,0.98,2.62,0.01); for(let i=-5;i<=5;i++) B.bx('chrome',0.03,0.46,0.02,i*0.1,0.98,2.64); /* calandre */
+    B.bloc('chrome',2.1,0.24,0.26,0,0.56,2.62,0.04,0.05); B.bx('plaque',0.52,0.12,0.012,0,0.56,2.755);
+    for(const sx of [-1,1]){ B.bloc('sombre',0.34,0.24,0.08,sx*0.82,1.06,2.57,0.02); B.cyl('phare',0.09,0.09,0.03,14,sx*0.76,1.06,2.62,Math.PI/2); B.cyl('phare',0.07,0.07,0.03,14,sx*0.91,1.06,2.62,Math.PI/2);
+      B.bx('orange',0.1,0.07,0.03,sx*0.96,0.86,2.6); B.barre('peinture',0.08,0.1,sx*(hw-0.03),1.44,1.53,2.17,1.33); B.bx('peinture',0.08,0.7,0.12,sx*(hw-0.03),1.8,0.42);
+      const xs=sx*(hw+0.004); B.bx('sombre',0.012,1.0,0.02,xs,0.98,1.48); B.bx('sombre',0.012,1.0,0.02,xs,0.98,0.44); B.bloc('chrome',0.04,0.05,0.2,sx*(hw+0.02),1.3,0.6,0.01);
+      B.geo('grizzly',new THREE.PlaneGeometry(0.9,0.36),sx*(hw+0.008),1.02,0.95,0,sx>0?Math.PI/2:-Math.PI/2,0);
+      B.tube('chrome',0.025,[sx*(hw-0.01),1.62,1.42],[sx*(hw+0.22),1.72,1.44]); B.bloc('chrome',0.1,0.4,0.2,sx*(hw+0.27),1.72,1.44,0.02,0.03); B.bx('reflecteur',0.08,0.36,0.01,sx*(hw+0.27),1.72,1.335);
+      B.cyl('chrome',0.06,0.06,0.9,10,sx*(hw-0.18),2.0,0.32); B.cyl('chrome',0.07,0.06,0.08,10,sx*(hw-0.18),2.46,0.32);                      /* cheminées d'échappement */
+      B.tore('sombre',R+0.12,0.045,sx*(hw+0.005),R,zf,0,Math.PI/2,0,Math.PI);
+      /* coffres latéraux à poignées, garde-boue arrière, feux */
+      B.bloc('peinture',0.42,0.62,2.7,sx*(hw-0.21),1.17,-1.1,0.03); for(const z of [0.24,-0.4,-1.1,-1.8]){ B.bx('sombre',0.012,0.56,0.02,sx*(hw+0.002),1.17,z); } for(const z of [-0.1,-0.8,-1.5]) B.bloc('chrome',0.03,0.04,0.2,sx*(hw+0.01),1.32,z+0.12,0.008); /* coffres au-dessus des roues */
+      B.tore('sombre',R+0.12,0.045,sx*(hw+0.005),R,zr,0,Math.PI/2,0,Math.PI); B.bloc('sombre',0.2,0.3,0.06,sx*0.86,1.0,ar-0.0,0.015); B.bx('feu',0.16,0.12,0.02,sx*0.86,1.06,ar-0.035); B.bx('orange',0.16,0.08,0.02,sx*0.86,0.92,ar-0.035); }
+    /* plateau entre les coffres, rambarde, potence (deux flasques, vérin), treuils, poulie de tête */
+    B.bloc('sombre',1.16,0.12,2.7,0,1.0,-1.1,0.02); B.bloc('hachures',2.0,0.5,0.1,0,0.92,ar+0.04,0.02);
+    const base={y:1.42,z:-0.9}, dz=P.z-base.z, dy=P.y-base.y, lg=Math.hypot(dz,dy), e=Math.atan2(dy,-dz);
+    for(const sx of [-0.18,0.18]) B.bx('peinture',0.1,0.36,lg,sx,base.y+dy/2,base.z+dz/2,e);                                              /* flasques de la potence */
+    for(let t=0.15;t<0.95;t+=0.2) B.bx('sombre',0.36,0.04,0.06,0,base.y+dy*t+0.2,base.z+dz*t,e);
+    B.cyl('sombre',0.16,0.16,0.4,14,0,P.y,P.z,0,0,Math.PI/2); B.cyl('acier',0.1,0.1,0.42,12,0,P.y,P.z,0,0,Math.PI/2);                       /* poulie */
+    B.tube('acier',0.07,[0,1.12,-0.4],[0,1.75,-1.45]); B.tube('chrome',0.045,[0,1.75,-1.45],[0,2.05,-1.85]);                                /* vérin */
+    for(const z of [-0.72,-1.05]){ B.cyl('sombre',0.17,0.17,0.62,14,0,1.3,z,0,0,Math.PI/2); B.cyl('acier',0.14,0.14,0.64,14,0,1.3,z,0,0,Math.PI/2); } /* treuils */
+    B.tube('sombre',0.018,[0,1.47,-1.05],[0,P.y-0.12,P.z]);                                                                               /* câble du treuil à la poulie (celui qui pend au crochet est posé par inst) */
+    for(const sx of [-0.62,0.62]) B.tube('acier',0.028,[sx,1.1,-0.05],[sx,1.95,-0.05]); B.tube('acier',0.028,[-0.62,1.95,-0.05],[0.62,1.95,-0.05]); /* arceau derrière la cabine */
+    B.bloc('phare',0.22,0.1,0.06,0,2.0,-0.02,0.01);                                                                                         /* projecteur de travail */
+    /* bras de levage (sous le châssis, vers l'arrière) à fourches */
+    B.bloc('sombre',0.3,0.2,1.2,0,0.5,ar-0.1,0.02); B.bloc('acier',1.6,0.12,0.14,0,DEP_V3.levage.y,DEP_V3.levage.z,0.02); for(const sx of [-0.62,0.62]) B.bloc('acier',0.12,0.1,0.42,sx,DEP_V3.levage.y,DEP_V3.levage.z-0.2,0.02);
+    B.bx('plaque',0.52,0.12,0.012,0,0.66,ar-0.035);
+    for(const zc of [zf,zr]) B.bx('sombre',1.4,0.24,0.32,0,R,zc); for(const sx of [-0.45,0.45]) B.bx('sombre',0.14,0.22,L-0.6,sx,0.72,-0.2);
+    /* intérieur : planche, volant, banquette */
+    B.bx('interieur',2*hw-0.12,0.015,1.05,0,1.535,0.95); B.bloc('tableau',2*hw-0.12,0.15,0.3,0,1.56,1.33,0.03); B.tore('volant',0.19,0.024,0.45,1.68,1.18,0.7); B.tube('volant',0.03,[0.45,1.68,1.18],[0.45,1.58,1.34]);
+    B.bloc('siege',2*hw-0.2,0.62,0.14,0,1.74,0.52,0.04,0.06,-0.12); for(const x of [0.45,-0.45]) B.bloc('siege',0.28,0.15,0.1,x,2.08,0.47,0.03,0.04);
+    return {R,zf,zr}; },
+  mats:{ grizzly:()=>matTexteV3('grizzly'), hachures:()=>matTexteV3('hachures') },
+  inst(I){ const o=I.info, ud=I.ud, P=DEP_V3.pointe; for(const [sx,z] of [[1,o.zf],[-1,o.zf],[1,o.zr],[-1,o.zr]]) roueV3(I,o.R,0.3,sx*0.94,z,'acier',I.M.chrome);
+    const gy=new THREE.Mesh(new THREE.BoxGeometry(1.2,0.12,0.26),new THREE.MeshBasicMaterial({color:0xffb100})); gy.position.set(0,2.33,0.95); I.corps.add(gy); ud.gyroAmbre=gy; /* rampe ambre */
+    let HG=_GEO_V3['depanneuse:crochet']; if(!HG){ const B=constructeurV3(); B.tore('c',0.13,0.035,0,-0.16,0,0,0,Math.PI*0.25,Math.PI*1.5); B.cyl('c',0.06,0.06,0.16,8,0,0.02,0); HG=_GEO_V3['depanneuse:crochet']=B.fin(); }
+    const cr=new THREE.Mesh(HG.c,I.M.acier); cr.position.set(0,1.32,P.z-0.06); const pend=new THREE.Mesh(new THREE.CylinderGeometry(0.016,0.016,P.y-0.1-1.35,6),I.M.sombre); pend.position.set(0,(P.y-0.1-1.35)/2+0.03,0); cr.add(pend); I.corps.add(cr); ud.crochet=cr; /* le crochet et son câble */
+    /* l'élingue du remorquage : de la poulie au véhicule tracté, visible seulement quand on remorque */
+    const el=new THREE.Mesh(new THREE.CylinderGeometry(0.025,0.025,1,6),I.M.sombre); el.visible=false; I.corps.add(el);
+    ud.anim=(v)=>{ const r=v.remorque, on=!!r; if(el.visible!==on){ el.visible=on; cr.visible=!on; } if(!on) return;
+      const z1=-(v.def.long*0.5+1.1)+0.25, y1=0.6, dyy=y1-P.y, dzz=z1-P.z, l=Math.hypot(dyy,dzz); el.position.set(0,(P.y+y1)/2,(P.z+z1)/2); el.scale.set(1,l,1); el.rotation.set(Math.atan2(dzz,dyy),0,0); };
+    halosPharesV3(I,0.82,1.06,3.0); ud.conducteur={x:0.45,y:1.12,z:0.82,k:0.96,pose:{hy:(1.68-1.12)/0.96,hz:(1.18-0.82)/0.96}}; ud.pareBrise={y:1.8,z:1.47}; }
+};
 /* textes et motifs peints (une texture par motif, à la demande) — découpés (alphaTest) et opaques : jamais pris pour une vitre */
 const _TEX_V3={};
 function matTexteV3(id){ if(_TEX_V3[id]) return _TEX_V3[id]; let t, dec=false;
@@ -19675,6 +19727,7 @@ function matTexteV3(id){ if(_TEX_V3[id]) return _TEX_V3[id]; let t, dec=false;
       x.fillStyle='#f2f4f8'; x.fillRect(-3,-36,6,72); x.beginPath(); x.moveTo(3,-26); x.bezierCurveTo(22,-18,-18,-4,3,6); x.bezierCurveTo(22,14,-14,26,3,32); x.strokeStyle='#f2f4f8'; x.lineWidth=4; x.stroke(); }); dec=true; }
   else if(id==='chevrons') t=texV3(256,64,(x,w,h)=>{ for(let i=-4;i<20;i++){ x.fillStyle=i%2?'#ffd21f':'#d8202a'; x.beginPath(); x.moveTo(i*24,h); x.lineTo(i*24+24,h); x.lineTo(i*24+24+h*0.6,0); x.lineTo(i*24+h*0.6,0); x.closePath(); x.fill(); } });
   else if(id==='hachures'){ t=texV3(64,64,(x,w,h)=>{ x.fillStyle='#ffd21f'; x.fillRect(0,0,w,h); x.fillStyle='#16171a'; for(let i=-2;i<4;i++){ x.beginPath(); x.moveTo(i*32,h); x.lineTo(i*32+16,h); x.lineTo(i*32+16+h,0); x.lineTo(i*32+h,0); x.closePath(); x.fill(); } }); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(3,3); }
+  else if(id==='grizzly'){ t=texV3(256,104,(x,w,h)=>{ x.clearRect(0,0,w,h); x.textAlign='center'; x.textBaseline='middle'; x.fillStyle='#16171a'; x.font='bold 44px Arial, sans-serif'; x.fillText('GRIZZLY',w/2,36); x.font='bold 20px Arial, sans-serif'; x.fillText('DÉPANNAGE 24/24',w/2,80); }); dec=true; }
   else if(id==='aigle') t=texV3(160,32,(x,w,h)=>{ x.fillStyle='#3e4430'; x.fillRect(0,0,w,h); x.fillStyle='#e8e6da'; x.font='bold 22px Arial, sans-serif'; x.textAlign='center'; x.textBaseline='middle'; x.fillText('AIGLE-07',w/2,h/2+1); });
   else if(id==='etoile'){ t=texV3(128,128,(x,w,h)=>{ x.clearRect(0,0,w,h); x.strokeStyle='#e8e6da'; x.lineWidth=7; x.beginPath(); x.arc(64,64,56,0,Math.PI*2); x.stroke(); x.fillStyle='#e8e6da'; x.beginPath();
       for(let i=0;i<10;i++){ const a=-Math.PI/2+i*Math.PI/5, r=i%2?20:50; x.lineTo(64+Math.cos(a)*r,64+Math.sin(a)*r); } x.closePath(); x.fill(); }); dec=true; }
@@ -39765,7 +39818,7 @@ const COCKPIT_DEFS={
   ambulance:{dz:-0.1},                                     /* Ambulance V3 : le haut du pare-brise dans le champ (cabine de fourgon) */                                 /* Fourgon V3 : l'œil à la tête du conducteur, 1 m derrière le pied du pare-brise (le pavillon et les pare-soleil dans le champ) */
   quad:{fam:'moto'},
   scarabee:{dy:0.25},jetprive:{dz:-0.7,dy:0.3},avion:{dy:0.14},voltige:{dy:0.32}, /* vieux modèles d'avion : la verrière dépasse à peine du fuselage, l'œil au ras */
-  depanneuse:{dz:0.55},                                    /* vieux modèle : le plateau passe sous la zone vitrée, le siège est tout à l'avant */
+  depanneuse:{dz:0.12},                                    /* Dépanneuse V3 : l'œil à la tête du conducteur (le vieux modèle avait 0,55 : son siège était tout à l'avant) */
   pickup:{style:'raptor'}, depotPickup:{fam:'auto',style:'raptor'}, /* le pick-up façon Raptor (le Dépôt a la même carrosserie) : un poste imposant ; le taxi garde la voiture classique (demandé le 17 au soir) */
 };
 const CK_PITCH_STYLE={chasseur:-0.04}; /* le chasseur regarde plus droit : le viseur tête haute au-dessus du nez */
