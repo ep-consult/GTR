@@ -7933,7 +7933,7 @@ async function main() {
     {
       const po = await page.evaluate(() => {
         if (typeof PORT === 'undefined' || !PORT.faisceau) return { off: true };
-        const o = { parcs: PORT.portiques.length }, j0 = ETAT.jour;
+        const o = { parcs: PORT.portiques.length, canaux: typeof CANAUX !== 'undefined' && CANAUX.ok }, j0 = ETAT.jour; /* les Canaux de Los Reyes (20 octobre) retirent les parcs à conteneurs et leurs portiques : le phare reste */
         const z0 = PORT.portiques.map((p) => p.g.position.z), r0 = PORT.faisceau.rotation.y;
         for (let i = 0; i < 600; i++) majPortVivant(1 / 60); // 10 s : sur 2 s, un portique au bout de sa course (sommet du sinus) ne bougeait presque pas (test fragile)
         o.bougent = PORT.portiques.every((p, i) => Math.abs(p.g.position.z - z0[i]) > 0.05);
@@ -7945,8 +7945,8 @@ async function main() {
         return o;
       });
       if (po.off) saute('Port vivant : DECOR_V2 désactivé');
-      else if (!(po.parcs >= 1) || !po.bougent || !po.tourne || !po.ilot || !(po.nuit > 0.3) || !(po.jour < 0.1)) fail('Port vivant : ' + JSON.stringify(po));
-      else ok('Port vivant : ' + po.parcs + ' parcs à conteneurs aux portiques en mouvement, îlot du phare praticable, faisceau éteint le jour et allumé la nuit (' + po.nuit.toFixed(2) + ')');
+      else if ((po.canaux ? po.parcs !== 0 : !(po.parcs >= 1)) || !po.bougent || !po.tourne || !po.ilot || !(po.nuit > 0.3) || !(po.jour < 0.1)) fail('Port vivant : ' + JSON.stringify(po));
+      else ok('Port vivant : ' + (po.canaux ? 'parcs à conteneurs retirés par les canaux' : po.parcs + ' parcs à conteneurs aux portiques en mouvement') + ', îlot du phare praticable, faisceau éteint le jour et allumé la nuit (' + po.nuit.toFixed(2) + ')');
     }
 
     // -------------------------------------------------------------------
@@ -15247,6 +15247,156 @@ async function main() {
         return { ko, info };
       });
       if (r.ko.length) fail('Siège éjectable et crash mortel : ' + r.ko.join(' ; ')); else ok('Siège éjectable et crash mortel : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
+    // Canaux de Los Reyes (20 octobre, phase 1 : le squelette jouable). Le port devient un quartier de canaux : deux canaux,
+    // deux embouchures, une traverse, deux bras finis en bassins, six ponts, des quais et leurs marches. Formes lues dans CANAUX
+    // (canauxDefinir), bateaux et voitures dans VEHDEFS ; pilote simulé à poursuite pure (majVehiculePhys réel, 60 i/s), vraie
+    // boucle (tick) pour la noyade, la nage et le trafic. Suivi : rapport_nuit/CANAUX.md.
+    // -------------------------------------------------------------------
+    console.log('\n--- Canaux de Los Reyes : eau, ponts, quais et marches, bateaux, voitures, noyade, trafic, apparitions, carte ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = []; let T = dernierT + 1000; const dt = 1 / 60;
+        const pas = (n, f) => { for (let i = 0; i < n; i++) { if (f && f(i) === false) return i; T += 1000 / 60; tick(T); } return n; };
+        const C = CANAUX; if (!C.ok) return { ko: ['CANAUX.ok faux : le quartier n’est pas bâti'], info };
+        const partie = () => { META.vue = 'classique'; if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9;
+          for (const v of vehicules.slice()) if (v.conduit === 'trafic' || v.conduit === 'police') { scene.remove(v.mesh); vehicules.splice(vehicules.indexOf(v), 1); } for (const e of ennemis) e.mort = true; WANTED.stars = 0; };
+        partie();
+        /* 1. la géométrie : chaque forme d'eau est de l'eau, chaque tablier une chaussée au-dessus d'une eau navigable */
+        for (const e of C.eaux) { const x = e.t === 'r' ? (e.x0 + e.x1) / 2 : (e.t === 'c' ? e.x : e.pts.reduce((a, q) => a + q[0], 0) / e.pts.length), z = e.t === 'r' ? (e.z0 + Math.min(e.z1, MER - 1)) / 2 : (e.t === 'c' ? e.z : e.pts.reduce((a, q) => a + q[1], 0) / e.pts.length);
+          if (!pontCanal(x, z) && !marcheCanal(x, z) && !(estEau(x, z) && solY(x, z) < C.niveau - 1)) ko.push('eau ' + e.id + ' : (' + x.toFixed(0) + ', ' + z.toFixed(0) + ') n’est pas de l’eau navigable'); }
+        if (C.ponts.length !== 6) ko.push(C.ponts.length + ' ponts (6 attendus)');
+        for (const p of C.ponts) { const h = solY(p.xc, p.zc); if (estEau(p.xc, p.zc) || !estEauNav(p.xc, p.zc) || Math.abs(h - p.H) > 0.01) ko.push('pont ' + p.id + ' : eau ' + estEau(p.xc, p.zc) + ', navigable ' + estEauNav(p.xc, p.zc) + ', tablier ' + h.toFixed(2));
+          if (p.H - niveauEau(p.xc, p.zc) < 3) ko.push('pont ' + p.id + ' : tirant d’air ' + (p.H - niveauEau(p.xc, p.zc)).toFixed(2) + ' < 3');
+          for (const x of [p.x0 + 0.3, p.x1 - 0.3]) if (solY(x, p.zc) > 0.35) ko.push('pont ' + p.id + ' : marche de ' + solY(x, p.zc).toFixed(2) + ' u au bout du tablier'); }
+        if (C.ponts.filter((p) => p.orange).length !== 1) ko.push('un seul tablier orange attendu (le pont sud-ouest)');
+        /* l'eau sous les rues, les quais au-dessus ; les marches montent de l'eau au quai */
+        for (const m of C.marches) { const bas = m.axe === 'z' ? (m.sens > 0 ? [(m.x0 + m.x1) / 2, m.z0 + 0.3] : [(m.x0 + m.x1) / 2, m.z1 - 0.3]) : (m.sens > 0 ? [m.x0 + 0.3, (m.z0 + m.z1) / 2] : [m.x1 - 0.3, (m.z0 + m.z1) / 2]),
+            haut = m.axe === 'z' ? (m.sens > 0 ? [bas[0], m.z1 - 0.3] : [bas[0], m.z0 + 0.3]) : (m.sens > 0 ? [m.x1 - 0.3, bas[1]] : [m.x0 + 0.3, bas[1]]);
+          const hb = solY(bas[0], bas[1]), hh = solY(haut[0], haut[1]); if (!(hb < niveauEau(bas[0], bas[1]) + 0.45 && hh > 0.15 && !estEau(bas[0], bas[1]))) ko.push('marche (' + bas[0].toFixed(0) + ', ' + bas[1].toFixed(0) + ') : bas ' + hb.toFixed(2) + ', haut ' + hh.toFixed(2)); }
+        /* une seule nappe d'eau : du bassin ouest aux deux embouchures, jusqu'à la mer (remplissage sur une grille de 1 u) */
+        { const B = C.bb, nx = Math.ceil(B.x1 - B.x0) + 1, nz = Math.ceil(MER + 4 - B.z0) + 1, vu = new Uint8Array(nx * nz), pile = [];
+          const idx = (x, z) => Math.round(x - B.x0) * nz + Math.round(z - B.z0), eauN = (x, z) => z >= MER || estEauNav(x, z) || marcheCanal(x, z);
+          const d = C.eaux.find((e) => e.id === 'bassinO'); pile.push([d.x, d.z]); vu[idx(d.x, d.z)] = 1;
+          while (pile.length) { const [x, z] = pile.pop(); for (const [a, b] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const X = x + a, Z = z + b; if (X < B.x0 || X > B.x1 || Z < B.z0 || Z > MER + 4) continue; const k = idx(X, Z); if (vu[k] || !eauN(X, Z)) continue; vu[k] = 1; pile.push([X, Z]); } }
+          for (const e of C.eaux) { const x = e.t === 'c' ? e.x : (e.t === 'r' ? (e.x0 + e.x1) / 2 : e.pts.reduce((a, q) => a + q[0], 0) / e.pts.length), z = e.t === 'c' ? e.z : (e.t === 'r' ? (e.z0 + Math.min(e.z1, MER)) / 2 : e.pts.reduce((a, q) => a + q[1], 0) / e.pts.length); if (!vu[idx(x, z)]) ko.push('eau ' + e.id + ' : pas reliée au reste'); }
+          for (const x of [159, 231]) if (!vu[idx(x, MER + 3)]) ko.push('embouchure x = ' + x + ' : la mer n’est pas atteinte'); }
+        /* 2. les bateaux : poursuite pure le long d'un tracé — embouchures, canaux, traverse, bras et demi-tour dans les bassins, sous les six ponts dans les deux sens */
+        const piloter = (v, pts, tmax) => { const res = { chocs: 0, bloqueMax: 0, horsEau: 0, fini: false, t: 0 }; let s = 0, bloque = 0, vPrec = 0, recul = 0;
+          const segs = []; let L = 0; for (let i = 0; i + 1 < pts.length; i++) { const a = pts[i], b = pts[i + 1], l = Math.hypot(b[0] - a[0], b[1] - a[1]); segs.push({ a, b, l, s0: L }); L += l; }
+          const pt = (u) => { u = clamp(u, 0, L); for (const g of segs) if (u <= g.s0 + g.l) { const k = (u - g.s0) / g.l; return [g.a[0] + (g.b[0] - g.a[0]) * k, g.a[1] + (g.b[1] - g.a[1]) * k]; } return pts[pts.length - 1]; };
+          const dir = (u) => { const a = pt(u), b = pt(u + 1); return Math.atan2(b[0] - a[0], b[1] - a[1]); };
+          for (let t = 0; t < tmax; t += dt) { let best = s, bd = 1e9; for (let u = s; u <= Math.min(L, s + 30); u += 0.5) { const q = pt(u), d = Math.hypot(q[0] - v.x, q[1] - v.z); if (d < bd) { bd = d; best = u; } } s = best;
+            if (s >= L - 3) { res.fini = true; break; }
+            const vv = Math.abs(v.v), c = pt(s + 6 + vv * 0.35), err = angDiff(v.ang, Math.atan2(c[0] - v.x, c[1] - v.z)), d0 = dir(s); let virage = 0; for (let D = 4; D <= 10 + vv * 1.3; D += 2) virage = Math.max(virage, Math.abs(angDiff(d0, dir(s + D))));
+            const vt = virage > 1.2 ? 6 : (virage > 0.7 ? 8 : (virage > 0.35 ? 12 : 30)); let steer = clamp(err * 2.5, -1, 1), th = clamp((Math.min(vt, Math.abs(err) > 0.6 ? 6 : vt) - v.v) * 0.2 + 0.25, -1, 0.9);
+            if (recul > 0) { recul -= dt; th = -0.6; steer = -steer; } else if (bloque > 1) { recul = 1.2; bloque = 0; }
+            majVehiculePhys(v, dt, th, steer, false); if (vPrec > 6 && Math.abs(v.v) < vPrec * 0.55) res.chocs++; vPrec = Math.abs(v.v);
+            if (Math.abs(v.v) < 1 && recul <= 0) { bloque += dt; res.bloqueMax = Math.max(res.bloqueMax, bloque); } else if (recul <= 0) bloque = 0;
+            if (!estEauNav(v.x, v.z) && v.z < MER) res.horsEau++; res.t = t; }
+          return res; };
+        const bateaux = ['bateauP', 'jetski'].filter((k) => VEHDEFS[k] && VEHDEFS[k].eau);
+        const O = C.ponts.find((p) => p.id === 'nordOuest').xc, E = C.ponts.find((p) => p.id === 'nordEst').xc, zT = (C.eaux.find((e) => e.id === 'traverse').z0 + C.eaux.find((e) => e.id === 'traverse').z1) / 2,
+          bO = C.eaux.find((e) => e.id === 'bassinO'), bE = C.eaux.find((e) => e.id === 'bassinE'), e3 = C.eaux.find((e) => e.id === 'embO3'), xO3 = (e3.x0 + e3.x1) / 2, zM = MER + 30;
+        const tour = (b, a0, sens) => { const R = b.r - 3.5; return [0, 1, 2, 3, 4, 5, 6].map((k) => { const a = a0 + sens * k * Math.PI / 3; return [b.x + Math.cos(a) * R, b.z + Math.sin(a) * R]; }); }; /* un tour du bassin, depuis le côté d'où l'on arrive */
+        const circuits = { est: [[xO3, zM], [xO3, MER - 6], [(xO3 + O) / 2, C.zMer + 10], [O, C.zMer], [O, zT], [E, zT], [E, bE.z], [bE.x - bE.r + 2, bE.z], ...tour(bE, Math.PI, 1), [E, bE.z], [E, zM]],
+          ouest: [[E, zM], [E, zT], [O, zT], [O, bO.z], [bO.x + bO.r - 2, bO.z], ...tour(bO, 0, -1), [O, bO.z], [O, C.zMer], [(xO3 + O) / 2, C.zMer + 10], [xO3, MER - 6], [xO3, zM]],
+          nordEst: [[E, zM], [E, 0], [E, -8], [E - 5.5, -14], [E - 5, -23], [E + 3, -24.5], [E + 6.5, -17], [E + 3, -9], [E, 0], [E, zM]] };
+        const bilan = [];
+        for (const k of bateaux) for (const n in circuits) { const pts = circuits[n], v = creerVehicule(k, pts[0][0], pts[0][1], Math.PI, null); v.conduit = 'joueur'; P.veh = v;
+          const res = piloter(v, pts, 240); scene.remove(v.mesh); vehicules.splice(vehicules.indexOf(v), 1); P.veh = null;
+          if (!res.fini || res.horsEau || res.bloqueMax > 3) ko.push(k + ' ' + n + ' : ' + (res.fini ? '' : 'pas fini, ') + res.horsEau + ' images hors de l’eau, bloqué ' + res.bloqueMax.toFixed(1) + ' s');
+          bilan.push(k + ' ' + n + ' ' + res.t.toFixed(0) + ' s/' + res.chocs + ' choc(s)'); }
+        info.push('bateaux : ' + bilan.join(', '));
+        /* 3. les voitures sur les six ponts, dans les deux sens : le tablier, jamais l'eau */
+        for (const cle of ['citadine', 'busville']) for (const p of C.ponts) for (const sg of [1, -1]) { const zl = p.zc + 3.2 * sg, x0 = sg > 0 ? p.x0 - 20 : p.x1 + 20, x1 = sg > 0 ? p.x1 + 20 : p.x0 - 20;
+          const v = creerVehicule(cle, x0, zl, sg > 0 ? Math.PI / 2 : -Math.PI / 2, null); v.conduit = 'joueur'; P.veh = v; let hMax = 0, t = 0;
+          for (; t < 20; t += dt) { majVehiculePhys(v, dt, 0.6, clamp((angDiff(v.ang, sg > 0 ? Math.PI / 2 : -Math.PI / 2) + clamp((zl - v.z) * -0.05 * sg, -0.3, 0.3)) * 2, -1, 1), false); if (v.noye) break; hMax = Math.max(hMax, v.h || 0); if ((sg > 0 && v.x > x1) || (sg < 0 && v.x < x1)) break; }
+          if (v.noye || Math.abs(hMax - p.H) > 0.05 || !((sg > 0 && v.x > x1) || (sg < 0 && v.x < x1))) ko.push(cle + ' sur le pont ' + p.id + (sg > 0 ? ' vers l’est' : ' vers l’ouest') + ' : ' + (v.noye ? 'noyée' : 'tablier ' + hMax.toFixed(2) + ', arrivée ' + v.x.toFixed(0)));
+          scene.remove(v.mesh); vehicules.splice(vehicules.indexOf(v), 1); P.veh = null; }
+        /* 4. une voiture lancée dans un canal : elle se noie, le joueur nage jusqu'aux marches et remonte sur le quai (vraie boucle) */
+        { partie(); const xq = O - 21 + 3.2, v = creerVehicule('citadine', xq - 6, 100, Math.PI / 2, null); P.x = v.x; P.z = v.z; entrerVehicule(v); v.v = 18; INPUT.jx = 1; INPUT.jy = 0;
+          pas(240, () => { if (!P.veh) return false; }); INPUT.jx = 0;
+          if (P.veh || !v.noye) ko.push('voiture dans le canal : ' + (v.noye ? 'noyée mais le joueur est à bord' : 'pas noyée (' + v.x.toFixed(0) + ', ' + v.z.toFixed(0) + ')'));
+          const m = marcheProche(P.x, P.z); let etape = 0, sorti = false; const cible = () => { if (etape === 0) return [m.x, m.z]; const cx = (m.m.x0 + m.m.x1) / 2, cz = (m.m.z0 + m.m.z1) / 2;
+            const hx = m.m.axe === 'x' ? (m.m.sens > 0 ? m.m.x1 - 0.4 : m.m.x0 + 0.4) : cx, hz = m.m.axe === 'z' ? (m.m.sens > 0 ? m.m.z1 - 0.4 : m.m.z0 + 0.4) : cz; if (etape === 1) return [hx, hz];
+            for (const [a, b] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const qx = hx + a * 2.5, qz = hz + b * 2.5; if (!dansCanal(qx, qz) && !estEau(qx, qz)) return [qx, qz]; } return [hx, hz]; };
+          const n = pas(60 * 60, () => { const [tx, tz] = cible(), dx = tx - P.x, dz = tz - P.z, d = Math.hypot(dx, dz); if (d < 0.5) { etape++; if (etape > 2) { sorti = true; return false; } } INPUT.jx = dx / (d || 1); INPUT.jy = dz / (d || 1); });
+          INPUT.jx = INPUT.jy = 0;
+          if (!sorti || P.nage || P.y < 0.15 || dansCanal(P.x, P.z)) ko.push('sortie de l’eau par les marches : ' + (sorti ? 'arrivé' : 'pas arrivé') + ' en (' + P.x.toFixed(1) + ', ' + P.z.toFixed(1) + '), y ' + P.y.toFixed(2) + (P.nage ? ', nage encore' : ''));
+          else info.push('voiture noyée, sortie par les marches en ' + (n / 60).toFixed(0) + ' s');
+          /* depuis l'eau, un quai sans marche est un mur */
+          P.x = O - 9.6; P.z = 30; P.y = C.fond; P.nage = true; INPUT.jx = -1; pas(120); INPUT.jx = 0; if (P.x < O - 10.05 || !P.nage) ko.push('à la nage, le quai s’escalade sans marche (x ' + P.x.toFixed(2) + ')'); }
+        /* 5. le trafic (30 s, vraie boucle) et les apparitions : jamais dans l'eau, jamais sur une rue retirée */
+        { partie(); P.x = 189; P.z = 63; P.y = solY(P.x, P.z); let eau = 0, coupe = 0, noyes = 0; const vus = new Set();
+          pas(30 * 60, (i) => { P.hp = 1e9; for (const e of ennemis) e.mort = true; WANTED.stars = 0; if (i % 30) return; for (const v of vehicules) { if (v.conduit !== 'trafic') continue; vus.add(v); if (dansCanal(v.x, v.z) && !pontCanal(v.x, v.z)) eau++; if (dansCoupe(v.x, v.z)) coupe++; if (v.noye) noyes++; } });
+          if (eau || coupe || noyes) ko.push('trafic : ' + eau + ' relevés dans l’eau, ' + coupe + ' sur une rue retirée, ' + noyes + ' noyés'); else info.push('trafic : ' + vus.size + ' véhicules vus en 30 s, aucun dans l’eau ni sur une rue retirée');
+          let mal = 0, n = 0; for (let i = 0; i < 500; i++) { P.x = rand(C.bb.x0, C.bb.x1); P.z = rand(C.bb.z0, Math.min(C.bb.z1, MER - 4)); const q = spawnRing(15, 40); if (!q) continue; n++; if (dansCanal(q.x, q.z) || pontCanal(q.x, q.z) || marcheCanal(q.x, q.z)) mal++; }
+          let malP = 0; for (let i = 0; i < 200; i++) { P.x = rand(C.bb.x0, C.bb.x1); P.z = rand(C.bb.z0, Math.min(C.bb.z1, MER - 4)); const q = pointRoutePolice(); if (q && (routeCanalInterdite(q.x, q.z) || pontCanal(q.x, q.z))) malP++; }
+          if (mal || malP) ko.push('apparitions : ' + mal + '/' + n + ' dans l’eau, sur un pont ou une marche ; police : ' + malP + ' sur une rue retirée ou un pont'); else info.push(n + ' apparitions, toutes sur la terre ferme'); }
+        /* 6. la carte : l'eau des canaux en bleu, les ponts, le nom du quartier */
+        { const g = mmStatic.getContext('2d'), px = (x, z) => g.getImageData(Math.round(mmX(x) * MM_RES), Math.round(mmZ(z) * MM_RES), 1, 1).data;
+          const e = px(O, 120), p = px(O, C.ponts.find((q) => q.id === 'sudOuest').zc), q = px(O - 13, 120);
+          if (!(e[2] > e[0] + 40)) ko.push('carte : le canal n’est pas bleu (' + e.slice(0, 3).join(',') + ')');
+          if (!(p[0] > p[2] + 40)) ko.push('carte : le pont sud-ouest n’est pas orange (' + p.slice(0, 3).join(',') + ')');
+          if (q[2] > q[0] + 40) ko.push('carte : le quai est peint en eau');
+          MAPUI.noms = null; if (!nomsQuartiers().some((n2) => n2.nom === 'LES CANAUX')) ko.push('grande carte : pas de nom « LES CANAUX »'); }
+        partie(); return { ko, info };
+      });
+      if (r.ko.length) fail('Canaux de Los Reyes : ' + r.ko.join(' ; ')); else ok('Canaux de Los Reyes : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
+    // Canaux : rien de cassé (20 octobre). Chaque lieu du quartier (portes lues dans PORTES) : porte au sec, trottoir devant,
+    // on entre et on ressort au sec — le garage du port EN VOITURE, on en ressort au volant sur la chaussée ; les véhicules posés
+    // du quartier se prennent ; la mission « zone » du port et les courses de taxi vers ses lieux tombent sur la terre ferme ;
+    // planques et collection sauvegardées puis relues : rien de posé dans l'eau.
+    // -------------------------------------------------------------------
+    console.log('\n--- Canaux : rien de cassé — lieux, garage en voiture, véhicules posés, mission et taxi, sauvegarde ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = []; const C = CANAUX; if (!C.ok) return { ko: ['CANAUX.ok faux'], info };
+        const partie = () => { META.vue = 'classique'; if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9; for (const e of ennemis) e.mort = true; WANTED.stars = 0; };
+        partie();
+        const dans = (x, z) => x > C.bb.x0 - 12 && x < C.bb.x1 + 12 && z > C.bb.z0 - 12 && z < MER + 30;
+        const sec = (x, z) => !estEau(x, z) && !dansCanal(x, z) && !pontCanal(x, z) && !solidAt(x, z, 0.3);
+        const portes = PORTES.filter((p) => dans(p.x, p.z) && INTDEFS[p.id]);
+        if (!portes.some((p) => p.id === 'aquarium') || !portes.some((p) => p.garageId === 'g_port')) ko.push('aquarium ou garage du port absent du quartier');
+        const vus = [];
+        for (const p of portes) { const nom = p.id + (p.garageId ? ':' + p.garageId : '');
+          if (estEau(p.x, p.z) || dansCanal(p.x, p.z)) { ko.push(nom + ' : la porte est dans l’eau'); continue; }
+          const dv = profondeurDevant(p.x, p.z, p.nx === undefined ? 0 : p.nx, p.nz === undefined ? 1 : p.nz); if (dv < 1.4 && p.z < MER) ko.push(nom + ' : ' + dv + ' u de trottoir devant');
+          if (p.id === 'tuning') { /* en voiture : on arrive devant, on entre, on ressort au volant */
+            const nx = p.nx || 0, nz = p.nz === undefined ? 1 : p.nz, v = creerVehicule('citadine', p.x + nx * 5, p.z + nz * 5, Math.atan2(-nx, -nz), null); P.x = v.x; P.z = v.z; entrerVehicule(v);
+            const q = porteGarageProche(P.x, P.z); if (q !== p) { ko.push(nom + ' : ENTRER AU GARAGE absent devant la porte'); continue; }
+            if (!entrerGarageEnVehicule(p) || !INT.actif) { ko.push(nom + ' : entrée refusée en voiture'); continue; }
+            INT.actif.sortirEnVoiture = true; sortirInterieur();
+            const w = P.veh; if (!w) { ko.push(nom + ' : on ne ressort pas au volant'); continue; }
+            if (!sec(w.x, w.z) || !surChaussee(w.x, w.z)) ko.push(nom + ' : véhicule de sortie en (' + w.x.toFixed(1) + ', ' + w.z.toFixed(1) + ')' + (surChaussee(w.x, w.z) ? '' : ' hors de la chaussée') + (sec(w.x, w.z) ? '' : ' pas au sec'));
+            sortirVehicule(true); vus.push(nom + ' en voiture'); continue; }
+          P.x = p.x + (p.nx || 0) * 2; P.z = p.z + (p.nz === undefined ? 2 : p.nz * 2); entrerInterieur(p.id, p);
+          if (!INT.actif) { ko.push(nom + ' : on n’entre pas'); continue; } sortirInterieur();
+          if (INT.actif || !sec(P.x, P.z) || P.y < solY(P.x, P.z) - 0.1) ko.push(nom + ' : sortie en (' + P.x.toFixed(1) + ', ' + P.z.toFixed(1) + '), y ' + P.y.toFixed(2)); else vus.push(nom); }
+        info.push(vus.length + ' lieux entrés et quittés au sec (' + vus.join(', ') + ')');
+        /* les véhicules posés du quartier (hors trafic) : au sec (sauf un bateau, à flot), et on y monte */
+        partie(); let nV = 0;
+        for (const v of vehicules.slice()) { if (v.conduit || !dans(v.x, v.z) || v.z > MER - 2) continue; nV++;
+          const bateau = !!v.def.eau; if (!bateau && !v.def.amphibie && (dansCanal(v.x, v.z) && !pontCanal(v.x, v.z))) ko.push(v.key + ' posé dans l’eau (' + v.x.toFixed(0) + ', ' + v.z.toFixed(0) + ')');
+          if (!bateau && (dansCoupe(v.x, v.z) || pontCanal(v.x, v.z)) && !v.def.velo) ko.push(v.key + ' posé sur une rue retirée ou un pont');
+          P.x = v.x; P.z = v.z; entrerVehicule(v); if (P.veh !== v) ko.push('on ne monte pas dans ' + v.key); else sortirVehicule(true); }
+        info.push(nV + ' véhicules posés du quartier, au sec');
+        /* la mission « zone » du port et les courses de taxi vers les lieux du quartier */
+        if (!POIS.port || !sec(POIS.port.x, POIS.port.z)) ko.push('POIS.port (mission « le port des Dockside Boys ») pas au sec');
+        let nT = 0; for (let i = 0; i < 300; i++) { const d = destinationTaxi(rand(-250, 0), rand(-200, 200)); if (!d || !dans(d.x, d.z)) continue; nT++; if (!sec(d.x, d.z)) ko.push('taxi vers ' + d.nom + ' : dépose en (' + d.x.toFixed(1) + ', ' + d.z.toFixed(1) + ') pas au sec'); }
+        info.push(nT + ' courses de taxi vers le quartier');
+        /* sauvegarde : planques du quartier achetées et un véhicule rangé, relus ; rien de posé dans l'eau */
+        { const bak = JSON.stringify(META); META.planques.cabanon = true; META.planques.voilier = true; sauveMeta(); chargerMeta(); partie();
+          for (const v of vehicules) if (dans(v.x, v.z) && v.z < MER && !v.def.eau && !v.def.amphibie && dansCanal(v.x, v.z) && !pontCanal(v.x, v.z)) ko.push('après rechargement : ' + v.key + ' dans un canal');
+          if (estEau(P.x, P.z)) ko.push('après rechargement : le joueur démarre dans l’eau');
+          Object.assign(META, JSON.parse(bak)); sauveMeta(); }
+        partie(); return { ko, info };
+      });
+      if (r.ko.length) fail('Canaux : rien de cassé : ' + r.ko.join(' ; ')); else ok('Canaux : rien de cassé : ' + r.info.join(' ; '));
     }
 
     // -------------------------------------------------------------------

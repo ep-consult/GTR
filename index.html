@@ -3443,8 +3443,35 @@ function dansRectPlat(p,x,z){
   const dx=x-p.x, dz=z-p.z, sa=Math.sin(p.ang), ca=Math.cos(p.ang);
   return Math.abs(dx*ca-dz*sa)<p.hw&&Math.abs(dx*sa+dz*ca)<p.hd;
 }
+/* ---------- LES CANAUX DE LOS REYES : la géométrie de l'eau (voir le bandeau « LES CANAUX DE LOS REYES ») ----------
+   Déclarée ici, AVANT estEau : estEau, solY, niveauEau et houleY la lisent. Tant que CANAUX.ok est faux (génération de la ville
+   et de presque tout le décor), rien ne change. Formes : rectangles {t:'r'}, cercles {t:'c'}, quadrilatères convexes {t:'q'}
+   (sommets dans le sens trigonométrique, plan x/z). CANAUX.eaux : l'eau (canaux, traverse, bras, bassins, embouchures) ;
+   CANAUX.ponts : les tabliers (au-dessus de l'eau : chaussée pour tous, eau pour les bateaux) ; CANAUX.coupes : les segments de
+   rue retirés d'un carrefour à l'autre (ni trafic, ni voiture garée, ni police) ; CANAUX.marches : les escaliers des quais. */
+const CANAUX={ok:false,niveau:-0.6,fond:-2.4,eaux:[],ponts:[],coupes:[],marches:[],purge:[],bb:{x0:0,x1:0,z0:0,z1:0},zMer:258};
+function formeSdf(e,x,z){ /* distance signée à une forme (négative dedans) */
+  if(e.t==='r'){ const dx=Math.max(e.x0-x,x-e.x1), dz=Math.max(e.z0-z,z-e.z1); return dx>0&&dz>0?Math.hypot(dx,dz):Math.max(dx,dz); }
+  if(e.t==='c') return Math.hypot(x-e.x,z-e.z)-e.r;
+  let d=-1e9; const P=e.pts, n=P.length; /* quadrilatère convexe : le plus grand écart signé aux côtés (assez juste pour un contour) */
+  for(let i=0;i<n;i++){ const a=P[i], b=P[(i+1)%n], ex=b[0]-a[0], ez=b[1]-a[1], l=Math.hypot(ex,ez)||1, s=((x-a[0])*ez-(z-a[1])*ex)/l; if(s>d) d=s; }
+  return d; }
+function formeContient(e,x,z){ if(e.t==='r') return x>e.x0&&x<e.x1&&z>e.z0&&z<e.z1; if(e.t==='c'){ const dx=x-e.x, dz=z-e.z; return dx*dx+dz*dz<e.r*e.r; } return formeSdf(e,x,z)<0; }
+function dansBBCanaux(x,z){ const B=CANAUX.bb; return x>B.x0&&x<B.x1&&z>B.z0&&z<B.z1; }
+function dansCanal(x,z){ if(!CANAUX.ok||!dansBBCanaux(x,z)) return false; for(const e of CANAUX.eaux) if(formeContient(e,x,z)) return true; return false; }
+function pontCanal(x,z){ if(!CANAUX.ok||!dansBBCanaux(x,z)) return null; for(const p of CANAUX.ponts) if(x>p.x0&&x<p.x1&&z>p.z0&&z<p.z1) return p; return null; }
+function marcheCanal(x,z){ if(!CANAUX.ok||!dansBBCanaux(x,z)) return null; for(const m of CANAUX.marches) if(x>m.x0&&x<m.x1&&z>m.z0&&z<m.z1) return m; return null; }
+function dansCoupe(x,z){ if(!CANAUX.ok||!dansBBCanaux(x,z)) return false; for(const c of CANAUX.coupes) if(x>c.x0&&x<c.x1&&z>c.z0&&z<c.z1) return true; return false; }
+/* une chaussée qui n'existe plus : segment retiré, ou de l'eau sans tablier (le trafic y fait demi-tour, rien n'y est garé) */
+function routeCanalInterdite(x,z){ return CANAUX.ok&&dansBBCanaux(x,z)&&(dansCoupe(x,z)||(dansCanal(x,z)&&!pontCanal(x,z))); }
+/* l'eau pour un BATEAU : sous les tabliers aussi (les marches restent un mur) */
+function estEauNav(x,z){ return estEau(x,z)||(CANAUX.ok&&dansCanal(x,z)&&!marcheCanal(x,z)); }
+/* le niveau de l'eau d'un canal : −0,6 (sous les quais), qui remonte jusqu'à celui de la mer entre la route du front de mer et la mer */
+function niveauCanal(x,z){ const N=CANAUX.niveau; if(z<=CANAUX.zMer) return N; if(z>=MER) return 0; const t=(z-CANAUX.zMer)/(MER-CANAUX.zMer); return N*(1-t*t*(3-2*t)); }
+/* ce qu'ajoute un canal à la hauteur d'un objet flottant (0 en mer) */
+function niveauFlot(x,z){ return CANAUX.ok&&z<MER&&dansCanal(x,z)?niveauCanal(x,z):0; }
 function estEau(x,z){
-  if(z<MER) return DECOR_V2&&((LAC!==null&&surLac(x,z))||dansCrique(x,z)||(BASSINS.length>0&&dansBassin(x,z))); // le lac du parc (sauf sa passerelle), la baie de la crique et les bassins des cascades sont de l'eau
+  if(z<MER) return DECOR_V2&&((LAC!==null&&surLac(x,z))||dansCrique(x,z)||(BASSINS.length>0&&dansBassin(x,z))||(CANAUX.ok&&dansCanal(x,z)&&!pontCanal(x,z)&&!marcheCanal(x,z))); // le lac du parc (sauf sa passerelle), la baie de la crique et les bassins des cascades sont de l'eau
   for(const p of PONTONS) if(dansRectPlat(p,x,z)) return false;
   for(const i of ILES) if(i.dans?i.dans(x,z):dist2(x,z,i.x,i.z)<i.r*i.r) return false; // i.dans : contour irrégulier (île aux trésors)
   return true;
@@ -3454,7 +3481,7 @@ function estEau(x,z){
 // def.eau statique — sinon il serait aussi traité comme un bateau à terre,
 // inconduisible). Point d'entrée UNIQUE utilisé partout où le comportement
 // bateau/4x4 doit dépendre de la position réelle, pas juste du type déclaré.
-function surEauVeh(v){ return !!v.def.eau||(!!v.def.amphibie&&estEau(v.x,v.z)); }
+function surEauVeh(v){ return !!v.def.eau||(!!v.def.amphibie&&(estEau(v.x,v.z)||(CANAUX.ok&&dansCanal(v.x,v.z)&&!marcheCanal(v.x,v.z)&&(v.h||0)<0.5))); } /* canaux : sous un tablier, l'amphibie reste à flot */
 /* ---------- MER V2 (voir MER_V2 en tête de fichier) ----------
    Tout est cosmétique : rien ici ne décide d'une issue de jeu, donc horloge
    du spectacle (dt). Coût mesuré avant/après (rapport de nuit) : un seul
@@ -3474,7 +3501,7 @@ function houle(x,z,t){
   return Math.sin(x*0.21+t*1.3)*0.5+Math.sin(z*0.17-t*1.1)*0.35+Math.sin((x+z)*0.11+t*0.7)*0.4;
 }
 const MER_AMPL=0.13; // hauteur de houle en unités (objets posés sur l'eau)
-function houleY(x,z){ return MER_V2?houle(x,z,MER_T)*MER_AMPL:0; }
+function houleY(x,z){ if(!MER_V2) return 0; const h=houle(x,z,MER_T)*MER_AMPL; return z<MER&&CANAUX.ok&&dansCanal(x,z)?h*0.2:h; } /* canaux : la houle y est très atténuée */
 const MER_GLSL_ENTETE=`uniform float uTemps; uniform float uSoleil; uniform float uMer;
 uniform vec4 uPontons[${MER_MAX_PONTONS}]; uniform int uNbPontons;
 uniform vec3 uIles[${MER_MAX_ILES}]; uniform int uNbIles;
@@ -3661,7 +3688,7 @@ function assietteHoule(mesh,x,z,ang,base,longueur){
   const h=houleY(x,z), sA=Math.sin(ang), cA=Math.cos(ang), L=Math.max(1,longueur*0.5);
   const hAv=houleY(x+sA*L,z+cA*L), hAr=houleY(x-sA*L,z-cA*L);
   const hG=houleY(x+cA*1.2,z-sA*1.2), hD=houleY(x-cA*1.2,z+sA*1.2);
-  mesh.position.y=base+h;
+  mesh.position.y=base+h+niveauFlot(x,z); /* canaux : l'eau y est plus bas que la mer */
   mesh.rotation.x=Math.atan2(hAr-hAv,2*L)*1.4;
   mesh.rotation.z=Math.atan2(hG-hD,2.4)*1.4;
 }
@@ -3692,6 +3719,7 @@ function solPied(x,z){ // sol + toits accessibles (les surplombs ne comptent qu'
 }
 function solY(x,z){
   let y=0;
+  if(CANAUX.ok&&dansBBCanaux(x,z)){ const c=solCanaux(x,z); if(c!==null){ if(c<0) return c; y=c; } } /* canaux : le fond d'un canal, une marche, un tablier, un quai */
   for(const t of TROTTOIRS){
     if(Math.abs(x-t.x)<t.hw&&Math.abs(z-t.z)<t.hd){ if(0.22>y) y=0.22; break; }
   }
@@ -4346,7 +4374,7 @@ function construireVille(){
     if(qq!=='plage'&&qq!=='parc'&&bx%3===1&&bz%3===1) mkFeu(cx+INNER/2+1.4,cz-INNER/2-1.4);
   }
   placerPortes();
-  if(DECOR_V2){ sansAleaVille(()=>{ reserverHills(); reserverChantier(); reserverBase(); reserverSports(); ameliorerPortes(); mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkBasket(); mkCiel(); mkKiosqueBanderole(); mkCrique(); mkMontReyes(); mkVieMont(); mkBordureEst(); mkCanyonsDesert(); mkPicVertige(); mkParcStunt(); mkSkateXXL(); mkRides(); mkMerVivante(); mkRemorquage(); mkLarge(); deplacerVoltige(); mkAeroportVivant(); mkHeliGrue(); mkPlanques(); mkBoutiques(); mkGrandHuit(); mkToitsVivants(); mkTracesSable(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkMontReyesV2(); mkNeonVivant(); mkQuartiersFinitions(); mkFacadesVariees(); mkCascades(); if(MERV.ok) mkVolcanIle(); mkAeroVie(); mkLosReyesHills(); mkBordsHills(); mkChantierV2(); mkPlanquesV2(); montSolides(); mkBaseV2(); mkBallTrap(); mkSportsParcs(); mkHalosBoutiques(); mkSurprisesToits(); mkArenaDerby(); mkRatelierSkateXXL(); mkStationsVelo(); mkSautVertige(); mkCampEntrainement(); mkBalises(); montActiver(); }); } // cascades et volcan EN DERNIER : leurs tirages du décor ne décalent rien de ce qui précède (mobilier...) // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
+  if(DECOR_V2){ sansAleaVille(()=>{ reserverHills(); reserverChantier(); reserverBase(); reserverSports(); ameliorerPortes(); mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkBasket(); mkCiel(); mkKiosqueBanderole(); mkCrique(); mkMontReyes(); mkVieMont(); mkBordureEst(); mkCanyonsDesert(); mkPicVertige(); mkParcStunt(); mkSkateXXL(); mkRides(); mkMerVivante(); mkRemorquage(); mkLarge(); deplacerVoltige(); mkAeroportVivant(); mkHeliGrue(); mkPlanques(); mkBoutiques(); mkGrandHuit(); mkToitsVivants(); mkTracesSable(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkMontReyesV2(); mkNeonVivant(); mkQuartiersFinitions(); mkFacadesVariees(); mkCascades(); if(MERV.ok) mkVolcanIle(); mkAeroVie(); mkLosReyesHills(); mkBordsHills(); mkChantierV2(); mkPlanquesV2(); montSolides(); mkBaseV2(); mkBallTrap(); mkSportsParcs(); mkHalosBoutiques(); mkSurprisesToits(); mkArenaDerby(); mkRatelierSkateXXL(); mkStationsVelo(); mkSautVertige(); mkCampEntrainement(); mkBalises(); montActiver(); reserverCanaux(); mkCanaux(); }); } // cascades et volcan EN DERNIER : leurs tirages du décor ne décalent rien de ce qui précède (mobilier...) // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
   finaliserMerge();
   construireMinimapStatique();
 }
@@ -7484,6 +7512,375 @@ function deplacerVoltige(){
   hangarAvion(x-1,z,12,12,5.2,null);
   mkEnseigne('VOLTIGE','#f2c94c',x-1,4.4,z+6.25,0,6);
   const halo=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:0xf2c94c,transparent:true,depthWrite:false,opacity:0.45})); halo.scale.set(10,10,1); halo.position.set(x+9,0.3,z); scene.add(halo);
+}
+/* =====================================================================
+   LES CANAUX DE LOS REYES — le port des Dockside Boys devenu quartier de canaux (CANAUX, suivi rapport_nuit/CANAUX.md)
+   ===================================================================== */
+/* Demandé : « un quartier de canaux résidentiel inspiré des Venice Canals de Los Angeles à la place du port ». Le quartier garde
+   l'id `port` (gangs, territoires, missions). Plan (image d'intention rapport_nuit/canaux.png, colonnes A–E = bx 9–13) :
+   canal ouest (colonne bx 10) et canal est (bx 12), traverse (case 11,9), bras ouest (9,6) et bras est (13,8) qui finissent dans
+   des bassins, deux embouchures à travers la plage, six ponts (z = 42 et 168 sur les deux canaux, la route du front de mer
+   z = 252 sur les deux embouchures), les segments de rue traversés par l'eau retirés d'un carrefour à l'autre.
+   DÉTERMINISME : la ville ET le décor sont construits comme avant ; reserverCanaux (aucun tirage) retire ce qui gêne et déplace
+   deux portes juste avant mkBalises ; mkCanaux bâtit le quartier juste après, sur un générateur privé. */
+const _MAT_CANAUX={};
+function canauxDefinir(){
+  const C=CANAUX, cx=(b)=>-HALF+b*CELL+CELL/2, rue=(k)=>-HALF+k*CELL, P=(INNER+2)/2, R=(CELL-INNER-2)/2, L=10;
+  C.eaux.length=0; C.ponts.length=0; C.coupes.length=0; C.marches.length=0; C.purge.length=0; C.dalles=[];
+  const O=cx(10), E=cx(12), zN=rue(6)+R+3, zR=rue(13)+R; /* tête des canaux à 3 u de la route nord ; bord sud de la route du front de mer */
+  const eau=(o)=>{ C.eaux.push(o); return o; };
+  eau({t:'r',id:'canalO',x0:O-L,x1:O+L,z0:zN,z1:zR});
+  eau({t:'r',id:'canalE',x0:E-L,x1:E+L,z0:zN,z1:MER+6});                          /* droit jusqu'à la mer */
+  eau({t:'r',id:'embO1',x0:O-L,x1:O+L,z0:zR-1,z1:zR+7.5});                         /* l'embouchure ouest : 6,5 u droit… */
+  eau({t:'q',id:'embO2',pts:[[O-L,zR+6.5],[O+L,zR+6.5],[O+19,zR+14.5],[O+5,zR+14.5]]}); /* …puis elle s'écarte vers l'est (le ponton du chalutier, le cabanon)… */
+  eau({t:'r',id:'embO3',x0:O+5,x1:O+19,z0:zR+14,z1:MER+6});                        /* …et rejoint la mer à 14 u de large */
+  eau({t:'c',id:'embO4',x:O+8.5,z:zR+13.5,r:6});                                      /* le coin intérieur arrondi (les bateaux s'y échouaient en sortant) */
+  const zT0=rue(9)+R+6.5, zT1=rue(10)-R-6.5;
+  eau({t:'r',id:'traverse',x0:O+L-1,x1:E-L+1,z0:zT0,z1:zT1});
+  const zB=cx(6); eau({t:'r',id:'brasO',x0:cx(9)+3,x1:O-L+1,z0:zB-6,z1:zB+6}); eau({t:'c',id:'bassinO',x:cx(9)-2,z:zB,r:11});
+  const zE=cx(8); eau({t:'r',id:'brasE',x0:E+L-1,x1:cx(13)+7,z0:zE-6,z1:zE+6}); eau({t:'c',id:'bassinE',x:cx(13)+2,z:zE,r:11});
+  /* les ponts : un tablier en dos d'âne de la largeur de la rue, d'un quai à l'autre */
+  const pont=(id,xc,zc,orange)=>C.ponts.push({id,x0:xc-P,x1:xc+P,z0:zc-6,z1:zc+6,xc,zc,H:2.7,plat:5,orange:!!orange,mats:null,k:1});
+  pont('nordOuest',O,rue(8)); pont('nordEst',E,rue(8)); pont('sudOuest',O,rue(11),true); pont('sudEst',E,rue(11)); pont('plageOuest',O,rue(13)); pont('plageEst',E,rue(13));
+  /* les segments de rue retirés, d'un carrefour à l'autre (jamais d'amorce) */
+  const coupe=(id,x0,x1,z0,z1)=>C.coupes.push({id,x0,x1,z0,z1});
+  for(const k of [7,9,10,12]) for(const [n,X] of [['O',O],['E',E]]) coupe('z'+rue(k)+n,X-P,X+P,rue(k)-R,rue(k)+R);
+  coupe('x'+rue(10),rue(10)-R,rue(10)+R,rue(6)+R,rue(7)-R);   /* x = 126 au nord de z = 0 : le bras ouest */
+  coupe('x'+rue(13),rue(13)-R,rue(13)+R,rue(8)+R,rue(9)-R);   /* x = 252 entre z = 42 et 84 : le bras est */
+  coupe('x'+rue(11),rue(11)-R,rue(11)+R,rue(9)+R,rue(10)-R); coupe('x'+rue(12),rue(12)-R,rue(12)+R,rue(9)+R,rue(10)-R); /* la traverse */
+  /* les dalles du quartier (quais, promenades sur les rues retirées, pâtés libérés) : trottoir à 0,22 hors de l'eau et des ponts */
+  const dalle=(id,x0,x1,z0,z1)=>C.dalles.push({id,t:'r',x0,x1,z0,z1});
+  dalle('colO',O-P,O+P,rue(6)+R,zR-11); dalle('colE',E-P,E+P,rue(6)+R,zR-11);
+  dalle('traverse',rue(11)-R,rue(12)+R,rue(9)+R,rue(10)-R); dalle('brasO',cx(9)-P,rue(10)+R,rue(6)+R,rue(7)-R); dalle('brasE',rue(13)-R,cx(13)+P,rue(8)+R,rue(9)-R);
+  dalle('aquarium',cx(9)-P,cx(9)+P,cx(8)-P,cx(8)+P); dalle('garage',cx(11)-P,cx(11)+P,cx(10)-P,cx(10)+P);
+  if(typeof PORT!=='undefined') for(const g of PORT.portiques) dalle('parc'+Math.round(g.g.position.x)+','+Math.round(g.cz),g.g.position.x-P,g.g.position.x+P,g.cz-P,g.cz+P);
+  /* ce qui est retiré : les dalles (leur contenu), les rues retirées, le passage des embouchures sur la plage */
+  for(const d of C.dalles) C.purge.push({x0:d.x0,x1:d.x1,z0:d.z0,z1:d.z1,mode:'rect'});
+  for(const c of C.coupes) C.purge.push({x0:c.x0,x1:c.x1,z0:c.z0,z1:c.z1,mode:'rect'});
+  C.purge.push({x0:O-P,x1:O+P,z0:zR-11,z1:zR,mode:'rect'}); C.purge.push({x0:E-P,x1:E+P,z0:zR-11,z1:zR,mode:'rect'}); /* le bas des colonnes, jusqu'à la route du front de mer */
+  C.purge.push({mode:'eau',x0:O-L-1,x1:O+20,z0:zR,z1:MER+8}); C.purge.push({mode:'eau',x0:E-L-1,x1:E+L+1,z0:zR,z1:MER+8}); /* sur la plage : ce dont le centre est dans l'eau */
+  /* les marches pour sortir de l'eau : parallèles au quai, 5 marches de l'eau au quai (sens : la marche haute) */
+  const marche=(x0,x1,z0,z1,axe,sens)=>C.marches.push({x0,x1,z0,z1,axe,sens,hB:C.niveau+0.18,hH:0.22});
+  for(const z of [14,118,214]){ marche(O-L,O-L+1.8,z,z+4.4,'z',1); marche(E+L-1.8,E+L,z,z+4.4,'z',1); }
+  for(const z of [64,140,204]){ marche(O+L-1.8,O+L,z,z+4.4,'z',-1); marche(E-L,E-L+1.8,z,z+4.4,'z',-1); }
+  marche(cx(11)-2.2,cx(11)+2.2,zT0,zT0+1.8,'x',1); marche(cx(11)-2.2,cx(11)+2.2,zT1-1.8,zT1,'x',-1);
+  marche(cx(9)-2.2,cx(9)+2.2,zB+11-1.8,zB+11,'x',1); marche(cx(13)+0,cx(13)+4.4,zE-11,zE-11+1.8,'x',-1);
+  let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9; const ext=(a,b,c,d)=>{ x0=Math.min(x0,a); x1=Math.max(x1,b); z0=Math.min(z0,c); z1=Math.max(z1,d); };
+  for(const e of C.eaux){ if(e.t==='r') ext(e.x0,e.x1,e.z0,e.z1); else if(e.t==='c') ext(e.x-e.r,e.x+e.r,e.z-e.r,e.z+e.r); else for(const q of e.pts) ext(q[0],q[0],q[1],q[1]); }
+  for(const L2 of [C.ponts,C.coupes,C.dalles]) for(const p of L2) ext(p.x0,p.x1,p.z0,p.z1);
+  C.bb={x0:x0-1,x1:x1+1,z0:z0-1,z1:z1+1}; C.zMer=zR;
+}
+function hauteurPont(p,x){ const u=Math.abs(x-p.xc), demi=(p.x1-p.x0)/2; if(u<=p.plat) return p.H; const t=clamp((demi-u)/(demi-p.plat),0,1); return p.H*t*t*(3-2*t); }
+function hauteurMarche(m,x,z){ let u=m.axe==='z'?(z-m.z0)/(m.z1-m.z0):(x-m.x0)/(m.x1-m.x0); if(m.sens<0) u=1-u; const n=5, k=Math.min(n-1,Math.floor(clamp(u,0,0.999)*n)); return m.hB+(m.hH-m.hB)*(k+1)/n; }
+function dansDalleCanaux(x,z){ for(const d of CANAUX.dalles) if(x>d.x0&&x<d.x1&&z>d.z0&&z<d.z1) return true; return false; }
+/* le sol du quartier (appelé par solY dans son emprise) : le fond d'un canal, une marche, un tablier, une dalle de quai */
+function solCanaux(x,z){
+  const m=marcheCanal(x,z); if(m) return hauteurMarche(m,x,z);
+  const p=pontCanal(x,z); if(p) return hauteurPont(p,x);
+  if(dansCanal(x,z)) return CANAUX.fond;
+  if(dansDalleCanaux(x,z)) return 0.22;
+  return null; }
+function hPontCanal(x,z){ const p=pontCanal(x,z); return p?hauteurPont(p,x):0; }
+/* le trafic sur un tablier : la caisse suit le dos d'âne (majTrafic pose le trafic à y = 0) */
+function poserTraficPont(v){ const sA=Math.sin(v.ang), cA=Math.cos(v.ang), hA=hPontCanal(v.x+sA*1.5,v.z+cA*1.5), hR=hPontCanal(v.x-sA*1.5,v.z-cA*1.5), h=Math.max(hPontCanal(v.x,v.z),(hA+hR)/2);
+  v.mesh.position.y=h; v.h=h; v.mesh.rotation.x=(hA||hR)?-Math.atan2(hA-hR,3):0; }
+/* l'escalier le plus proche, pour qui nage dans un canal (rivePlusProche) : le pied de la marche basse */
+function marcheProche(x,z){ let best=null, bd=1e9; for(const m of CANAUX.marches){ let px=(m.x0+m.x1)/2, pz=(m.z0+m.z1)/2;
+    if(m.axe==='z') pz=m.sens>0?m.z0+0.5:m.z1-0.5; else px=m.sens>0?m.x0+0.5:m.x1-0.5;
+    const d=dist2(x,z,px,pz); if(d<bd){ bd=d; best={x:px,z:pz,m}; } } return best; }
+
+/* ---------- les contours d'un champ de distance signée (carrés marchants), pour l'eau, les dalles, les quais, l'asphalte percé ---------- */
+function empriseForme(e){ if(e.t==='c') return {x0:e.x-e.r,x1:e.x+e.r,z0:e.z-e.r,z1:e.z+e.r}; if(e.t==='q'){ let a=1e9,b=-1e9,c=1e9,d=-1e9; for(const q of e.pts){ a=Math.min(a,q[0]); b=Math.max(b,q[0]); c=Math.min(c,q[1]); d=Math.max(d,q[1]); } return {x0:a,x1:b,z0:c,z1:d}; } return e; }
+/* la distance signée à une liste de formes sur une grille : chaque forme n'est évaluée que dans son emprise (+ m), ailleurs m —
+   seul le signe et les valeurs près de zéro comptent pour un contour (1,9 s → quelques dizaines de ms) */
+function grilleCanaux(formes,x0,x1,z0,z1,h,m){
+  const nx=Math.ceil((x1-x0)/h)+1, nz=Math.ceil((z1-z0)/h)+1, V=new Float32Array(nx*nz).fill(m);
+  for(const e of formes){ const b=empriseForme(e), i0=Math.max(0,Math.floor((b.x0-m-x0)/h)), i1=Math.min(nx-1,Math.ceil((b.x1+m-x0)/h)), j0=Math.max(0,Math.floor((b.z0-m-z0)/h)), j1=Math.min(nz-1,Math.ceil((b.z1+m-z0)/h));
+    for(let i=i0;i<=i1;i++) for(let j=j0;j<=j1;j++){ const d=formeSdf(e,x0+i*h,z0+j*h), k=i*nz+j; if(d<V[k]) V[k]=d; } }
+  return {V,nx,nz,x0,z0,h}; }
+function contoursSdf(f,x0,x1,z0,z1,h){
+  let nx, nz, V;
+  if(f.V){ nx=f.nx; nz=f.nz; x0=f.x0; z0=f.z0; h=f.h; V=f.V.slice(); } /* une grille déjà calculée (grilleCanaux) */
+  else { nx=Math.ceil((x1-x0)/h)+1; nz=Math.ceil((z1-z0)/h)+1; V=new Float32Array(nx*nz); for(let i=0;i<nx;i++) for(let j=0;j<nz;j++) V[i*nz+j]=f(x0+i*h,z0+j*h); }
+  for(let i=0;i<nx;i++){ V[i*nz]=1; V[i*nz+nz-1]=1; } for(let j=0;j<nz;j++){ V[j]=1; V[(nx-1)*nz+j]=1; } /* le bord : dehors (contours fermés) */
+  const pts=new Map(), adj=new Map();
+  /* une arête par clé numérique : (i·nz + j)·2 vers (i+1, j), +1 vers (i, j+1) — aucune fermeture par case (le moteur
+     allouait un contexte à chaque case : 100 ms pour une grille de 290 000 cases) */
+  const ptH=(i,j)=>{ const q=(i*nz+j)*2; if(!pts.has(q)){ const va=V[i*nz+j], vb=V[(i+1)*nz+j], t=va/(va-vb); pts.set(q,[x0+(i+t)*h,z0+j*h]); } return q; };
+  const ptV=(i,j)=>{ const q=(i*nz+j)*2+1; if(!pts.has(q)){ const va=V[i*nz+j], vb=V[i*nz+j+1], t=va/(va-vb); pts.set(q,[x0+i*h,z0+(j+t)*h]); } return q; };
+  const lien=(a,b)=>{ let l=adj.get(a); if(!l) adj.set(a,l=[]); l.push(b); l=adj.get(b); if(!l) adj.set(b,l=[]); l.push(a); };
+  for(let i=0;i<nx-1;i++) for(let j=0;j<nz-1;j++){
+    const a=V[i*nz+j], b=V[(i+1)*nz+j], c=V[(i+1)*nz+j+1], d=V[i*nz+j+1];
+    const k=(a<0?1:0)|(b<0?2:0)|(c<0?4:0)|(d<0?8:0); if(k===0||k===15) continue;
+    switch(k){ /* B : bas (i,j)→(i+1,j) ; D : droite (i+1,j)→(i+1,j+1) ; H : haut (i,j+1)→(i+1,j+1) ; G : gauche (i,j)→(i,j+1) */
+      case 1: case 14: lien(ptV(i,j),ptH(i,j)); break; case 2: case 13: lien(ptH(i,j),ptV(i+1,j)); break; case 4: case 11: lien(ptV(i+1,j),ptH(i,j+1)); break; case 8: case 7: lien(ptH(i,j+1),ptV(i,j)); break;
+      case 3: case 12: lien(ptV(i,j),ptV(i+1,j)); break; case 6: case 9: lien(ptH(i,j),ptH(i,j+1)); break;
+      case 5: case 10: { const ctr=(a+b+c+d)/4; if((k===5)===(ctr<0)){ lien(ptV(i,j),ptH(i,j+1)); lien(ptH(i,j),ptV(i+1,j)); } else { lien(ptV(i,j),ptH(i,j)); lien(ptV(i+1,j),ptH(i,j+1)); } break; }
+    }
+  }
+  const vus=new Set(), boucles=[];
+  for(const s of adj.keys()){ if(vus.has(s)) continue; const L=[]; let cur=s, prev=null;
+    for(let g=0;g<200000;g++){ vus.add(cur); L.push(pts.get(cur)); const v=adj.get(cur); const nxt=v[0]!==prev?v[0]:v[1]; if(nxt===undefined||nxt===s||vus.has(nxt)) break; prev=cur; cur=nxt; }
+    if(L.length>=3) boucles.push(simplifierBoucle(L,0.04)); }
+  return boucles;
+}
+function simplifierBoucle(L,tol){ /* Douglas-Peucker sur une boucle fermée */
+  const rdp=(P,a,b,out)=>{ let dm=0, im=-1; const ax=P[a][0], az=P[a][1], bx=P[b][0], bz=P[b][1], ex=bx-ax, ez=bz-az, l=Math.hypot(ex,ez)||1e-9;
+    for(let i=a+1;i<b;i++){ const d=Math.abs((P[i][0]-ax)*ez-(P[i][1]-az)*ex)/l; if(d>dm){ dm=d; im=i; } }
+    if(dm>tol&&im>0){ rdp(P,a,im,out); rdp(P,im,b,out); } else out.push(P[a]); };
+  const n=L.length; let far=0, dm=0; for(let i=1;i<n;i++){ const d=dist2(L[0][0],L[0][1],L[i][0],L[i][1]); if(d>dm){ dm=d; far=i; } }
+  const out=[]; rdp(L,0,far,out); const P2=L.slice(far).concat([L[0]]); rdp(P2,0,P2.length-1,out); return out; }
+function aireBoucle(L){ let a=0; for(let i=0;i<L.length;i++){ const p=L[i], q=L[(i+1)%L.length]; a+=p[0]*q[1]-q[0]*p[1]; } return a/2; }
+function dansBoucle(L,x,z){ let c=false; for(let i=0,j=L.length-1;i<L.length;j=i++){ const a=L[i], b=L[j]; if((a[1]>z)!==(b[1]>z)&&x<(b[0]-a[0])*(z-a[1])/(b[1]-a[1])+a[0]) c=!c; } return c; }
+/* boucles → formes THREE (repère local du plan couché : (x, −z)), chaque trou rangé dans la plus petite boucle qui le contient */
+function formesDepuisBoucles(B){
+  const info=B.map((L)=>({L,a:Math.abs(aireBoucle(L)),par:-1,prof:0}));
+  for(let i=0;i<info.length;i++){ let best=-1, ba=1e18; const p=info[i].L[0];
+    for(let j=0;j<info.length;j++){ if(j===i||info[j].a<=info[i].a) continue; if(dansBoucle(info[j].L,p[0],p[1])&&info[j].a<ba){ ba=info[j].a; best=j; } } info[i].par=best; }
+  for(const o of info){ let d=0, q=o.par; while(q>=0){ d++; q=info[q].par; } o.prof=d; }
+  const formes=[], parIdx=new Map();
+  info.forEach((o,i)=>{ if(o.prof%2===0){ const s=new THREE.Shape(o.L.map((p)=>new THREE.Vector2(p[0],-p[1]))); formes.push(s); parIdx.set(i,s); } });
+  info.forEach((o)=>{ if(o.prof%2===1){ const s=parIdx.get(o.par); if(s) s.holes.push(new THREE.Path(o.L.map((p)=>new THREE.Vector2(p[0],-p[1])))); } });
+  return formes; }
+const sdfEauCanaux=(x,z)=>{ let d=1e9; for(const e of CANAUX.eaux){ const s=formeSdf(e,x,z); if(s<d) d=s; } return d; };
+const sdfPontsCanaux=(x,z)=>{ let d=1e9; for(const p of CANAUX.ponts){ const s=formeSdf({t:'r',x0:p.x0,x1:p.x1,z0:p.z0,z1:p.z1},x,z); if(s<d) d=s; } return d; };
+
+/* ---------- RÉSERVER (aucun tirage) : retirer ce qui gêne, déplacer l'aquarium et le garage du port ---------- */
+function reserverCanaux(){
+  if(!DECOR_V2) return; const C=CANAUX; canauxDefinir();
+  const portesBougees=PORTES.filter((p)=>(p.id==='aquarium')||(p.garageId==='g_port'));
+  const garder=new Set(); for(const p of PORTES){ for(const o of [p.g,p.ens,p.halo,p.halo&&p.halo.parent]) if(o) garder.add(o); }
+  for(const e of ENSEIGNES) if(e.lieu&&portesBougees.some((p)=>Math.abs(e.p.position.x-p.x)<1.5&&Math.abs(e.p.position.z-(p.z-1.2))<1.6)) garder.add(e.p);
+  const balisesBougees=BALISES.filter((b)=>portesBougees.some((p)=>Math.abs(b.x-p.x)<0.01&&Math.abs(b.z-p.z)<0.01)); for(const b of balisesBougees) garder.add(b.sp); /* les balises suivent leur porte */
+  const R=C.purge.filter((r)=>r.mode==='rect'), RE=C.purge.filter((r)=>r.mode==='eau');
+  const dansR=(x,z,m)=>{ for(const r of R) if(x>=r.x0-m&&x<=r.x1+m&&z>=r.z0-m&&z<=r.z1+m) return true; return false; };
+  const boiteDans=(b)=>{ for(const r of R) if(b.min.x>=r.x0-0.6&&b.max.x<=r.x1+0.6&&b.min.z>=r.z0-0.6&&b.max.z<=r.z1+0.6) return true; return false; };
+  const centreEau=(b)=>{ const x=(b.min.x+b.max.x)/2, z=(b.min.z+b.max.z)/2; for(const r of RE) if(x>r.x0&&x<r.x1&&z>r.z0&&z<r.z1&&sdfEauCanaux(x,z)<0.6&&b.max.x-b.min.x<30&&b.max.z-b.min.z<30) return true; return false; };
+  const bb=new THREE.Box3(), BB=C.bb, t0=performance.now(); let nRetires=0, nPlies=0;
+  const sph=new THREE.Sphere(), presDuQuartier=(o)=>{ o.updateMatrixWorld(true); let pres=false;
+    o.traverse((c)=>{ const g=c.geometry; if(pres||!g||!g.attributes||!g.attributes.position) return; if(!g.boundingSphere) g.computeBoundingSphere();
+      sph.copy(g.boundingSphere).applyMatrix4(c.matrixWorld); const r=sph.radius, x=sph.center.x, z=sph.center.z; if(x+r>=BB.x0&&x-r<=BB.x1&&z+r>=BB.z0&&z-r<=BB.z1) pres=true; });
+    return pres; };
+  const estPlie=(o)=>o.isMesh&&o.parent===scene&&o.geometry&&o.geometry.attributes&&o.geometry.attributes.position&&!o.geometry.userData.partagee&&!o.isInstancedMesh
+    &&o.position.lengthSq()<1e-8&&o.rotation.x===0&&o.rotation.y===0&&o.rotation.z===0&&o.scale.x===1&&o.scale.y===1&&o.scale.z===1&&o.geometry.attributes.position.count>=24;
+  C.tResP={}; let t1=t0; const tp=(n)=>{ const t=performance.now(); C.tResP[n]=Math.round(t-t1); t1=t; };
+  for(let i=scene.children.length-1;i>=0;i--){ const o=scene.children[i]; if(garder.has(o)) continue;
+    const px=o.position.x, pz=o.position.z; if(px*px+pz*pz>1&&(px<BB.x0-40||px>BB.x1+40||pz<BB.z0-40||pz>BB.z1+40)) continue; /* posé loin du quartier : jamais calculer sa boîte (toute la scène y passait : 0,4 s) */
+    if(o.isInstancedMesh||!presDuQuartier(o)) continue; /* sa sphère englobante (celle que le rendu calcule de toute façon) ne touche pas le quartier */
+    if(estPlie(o)){ /* un maillage fusionné en coordonnées du monde (mobilier, façades, toits, conteneurs…) : ses triangles dans la zone sont repliés sous le sol */
+      const g=o.geometry; if(!g.boundingBox) g.computeBoundingBox(); const gb=g.boundingBox; if(gb.max.x<BB.x0||gb.min.x>BB.x1||gb.max.z<BB.z0||gb.min.z>BB.z1) continue; /* loin du quartier : rien à replier */
+      const A=g.attributes.position.array, idx=g.index, O=o.userData.orig, nT=idx?idx.count/3:A.length/9; let n=0;
+      for(let t=0;t<nT;t++){ let tous=true;
+        for(let k=0;k<3;k++){ const q=idx?idx.array[t*3+k]:t*3+k, x=A[q*3], z=A[q*3+2]; if(!((x>=BB.x0&&x<=BB.x1&&z>=BB.z0&&z<=BB.z1)&&(dansR(x,z,0)||(z>CANAUX.zMer-12&&sdfEauCanaux(x,z)<0.3)))){ tous=false; break; } }
+        if(!tous) continue; n++;
+        if(idx){ idx.array[t*3+1]=idx.array[t*3+2]=idx.array[t*3]; } /* indexée : le triangle devient dégénéré (un sommet partagé ne bouge jamais) */
+        else for(let k=0;k<3;k++){ const q=t*3+k; A[q*3+1]=-60; if(O) O[q*3+1]=-60; } }
+      if(n){ if(idx) idx.needsUpdate=true; else g.attributes.position.needsUpdate=true; g.computeBoundingSphere(); g.computeBoundingBox(); nPlies+=n; }
+      continue; }
+    bb.setFromObject(o); if(bb.isEmpty()) continue;
+    if(boiteDans(bb)||(RE.length&&centreEau(bb))){ scene.remove(o); nRetires++; } }
+  tp('scene');
+  /* les bâtiments pas encore fusionnés : repliés en un point, JAMAIS retirés de MERGE — une clé vidée, c'est un maillage de moins
+     créé par finaliserMerge, donc des tirages en moins pour toute la partie (les voitures garées au hasard changeaient) */
+  for(const k in MERGE){ for(const geo of MERGE[k].geos){ geo.computeBoundingBox(); const b=geo.boundingBox; if(!(boiteDans(b)||centreEau(b))) continue;
+    const A=geo.attributes.position, x=A.getX(0), y=A.getY(0), z=A.getZ(0); for(let i=1;i<A.count;i++) A.setXYZ(i,x,y,z); A.needsUpdate=true; nRetires++; } }
+  for(const arr of sGrid.values()) for(let i=arr.length-1;i>=0;i--){ const s=arr[i];
+    if(boiteDans({min:{x:s.x-s.hw,z:s.z-s.hd},max:{x:s.x+s.hw,z:s.z+s.hd}})||(s.z>CANAUX.zMer-1&&sdfEauCanaux(s.x,s.z)<0.6)) arr.splice(i,1); }
+  tp('merge+solides');
+  const hors=(L,f)=>{ if(!L) return; for(let i=L.length-1;i>=0;i--) if(f(L[i])) L.splice(i,1); };
+  const ici=(x,z)=>dansR(x,z,0)||(z>CANAUX.zMer&&sdfEauCanaux(x,z)<0.6);
+  hors(SOLS,(s)=>R.some((r)=>s.x0>=r.x0-1&&s.x1<=r.x1+1&&s.z0>=r.z0-1&&s.z1<=r.z1+1)); hors(TROTTOIRS,(t)=>ici(t.x,t.z));
+  hors(PLATS,(p)=>!p.ang&&ici(p.x,p.z)); hors(RAMPES,(r)=>ici(r.x,r.z)); hors(COLLINES,(c)=>ici(c.x,c.z));
+  hors(lampes,(l)=>!dansScene(l)); hors(feux,(f)=>!dansScene(f.lum[0])); hors(cassables,(c)=>!dansScene(c.mesh));
+  hors(BATIMENTS,(b)=>ici(b.x,b.z)); hors(MAISONS,(m)=>ici(m.x,m.z)); hors(BRIQUES,(b)=>ici(b.x,b.z)); if(typeof ENTREPOTS!=='undefined') hors(ENTREPOTS,(b)=>ici(b.x,b.z));
+  hors(ENSEIGNES,(e)=>e.p&&!dansScene(e.p)); hors(STANDS,(s)=>ici(s.x,s.z)); hors(MOB.arceaux,(a)=>ici(a.x,a.z));
+  for(const [k,L] of MOB.cassables) hors(L,(c)=>ici(c.x,c.z));
+  if(typeof PORT!=='undefined'){ hors(PORT.portiques,(p)=>!dansScene(p.g)); hors(PORT.feux,(f)=>!dansScene(f)); }
+  hors(BALISES,(b)=>!dansScene(b.sp)); /* une balise posée sur ce qui a été retiré (coffre d'un toit…) */
+  if(typeof TOITS!=='undefined') for(const k of Object.keys(TOITS)) if(Array.isArray(TOITS[k])) hors(TOITS[k],(t)=>t&&typeof t.x==='number'&&ici(t.x,t.z));
+  if(typeof SURPRISES!=='undefined') for(const k of Object.keys(SURPRISES)) if(Array.isArray(SURPRISES[k])) hors(SURPRISES[k],(t)=>t&&typeof t.x==='number'&&ici(t.x,t.z));
+  ZONES_SANS_MOBILIER.push(...R.map((r)=>({x0:r.x0,x1:r.x1,z0:r.z0,z1:r.z1})));
+  /* les portes : l'aquarium sur la façade est du pâté (9,8), le garage du port sur la façade ouest du pâté (11,10) — on les bâtit en fin de décor */
+  const cx=(b)=>-HALF+b*CELL+CELL/2, P=(INNER+2)/2;
+  for(const p of portesBougees){
+    const bal=balisesBougees.filter((b)=>Math.abs(b.x-p.x)<0.01&&Math.abs(b.z-p.z)<0.01);
+    if(p.id==='aquarium'){ C.aquarium={x0:cx(9)-11,x1:cx(9)+9.5,z0:cx(8)-9,z1:cx(8)+9}; const ax=C.aquarium.x1+1.6, az=cx(8);
+      C.deplaces=(C.deplaces||[]).concat([{cle:'aquarium',avant:{x:p.x,z:p.z},apres:{x:ax,z:az}}]); deplacerPorte(p,ax,az,0,1,0); }
+    else { C.garage={x0:cx(11)-P+4,x1:cx(11)+11,z0:cx(10)-10,z1:cx(10)+10}; const gx=C.garage.x0-1.15, gz=cx(10), g=p.halo&&p.halo.parent; /* le rideau (1,05 derrière le seuil) contre le mur ; 4 u de trottoir jusqu'à la rue x = 168 */
+      C.deplaces=(C.deplaces||[]).concat([{cle:'g_port',avant:{x:p.x,z:p.z},apres:{x:gx,z:gz}}]);
+      for(const e of ENSEIGNES) if(e.lieu&&Math.abs(e.p.position.x-p.x)<1.5&&Math.abs(e.p.position.z-(p.z-1.2))<1.6){ /* enseigne drapeau, tournée vers la caméra (comme orienterPorte sur un flanc) */
+        e.p.scale.setScalar(0.62); e.p.rotation.order='YXZ'; e.p.rotation.set(-0.32,0,0); e.p.position.set(gx+1.2-(0.3+8*0.62/2),4.4,gz+0.2); }
+      p.x=gx; p.z=gz; p.nx=-1; p.nz=0; p.hills=true; if(g){ g.position.set(gx,0,gz); g.rotation.y=-Math.PI/2; } }
+    for(const b of bal){ b.x=p.x; b.z=p.z; b.sp.position.x=p.x; b.sp.position.z=p.z; } }
+  C.retires=nRetires; C.plies=nPlies; C.tRes=Math.round(performance.now()-t0); C.ok=true;
+}
+
+/* ---------- BÂTIR (fin du décor, générateur privé) ---------- */
+function matsCanaux(){ const M=_MAT_CANAUX; if(M.pret) return M; M.pret=true;
+  const pierre=cTex(128,(g,s)=>{ g.fillStyle='#b8ac94'; g.fillRect(0,0,s,s); for(let y=0;y<s;y+=16){ g.fillStyle='rgba(60,50,40,0.35)'; g.fillRect(0,y,s,1.5);
+      for(let x=(y/16)%2?0:24;x<s;x+=48) g.fillRect(x,y,1.5,16); } for(let i=0;i<500;i++){ g.fillStyle='rgba('+(Math.random()<0.5?'255,255,255':'40,30,20')+','+(0.05+Math.random()*0.08)+')'; g.fillRect(Math.random()*s,Math.random()*s,2,2); }
+    const gr=g.createLinearGradient(0,s*0.62,0,s); gr.addColorStop(0,'rgba(40,60,50,0)'); gr.addColorStop(1,'rgba(40,62,50,0.55)'); g.fillStyle=gr; g.fillRect(0,0,s,s); }); /* le bas des quais, verdi par l'eau */
+  pierre.wrapS=pierre.wrapT=THREE.RepeatWrapping;
+  const paves=cTex(128,(g,s)=>{ g.fillStyle='#c9bfa8'; g.fillRect(0,0,s,s); for(let y=0;y<s;y+=32) for(let x=(y/32)%2?0:32;x<s;x+=64){ g.fillStyle='rgba(255,255,255,0.08)'; g.fillRect(x+2,y+2,60,28); g.strokeStyle='rgba(90,80,60,0.35)'; g.lineWidth=2; g.strokeRect(x+1,y+1,62,30); }
+    for(let i=0;i<300;i++){ g.fillStyle='rgba(60,50,40,'+(0.04+Math.random()*0.06)+')'; g.fillRect(Math.random()*s,Math.random()*s,2,2); } });
+  paves.wrapS=paves.wrapT=THREE.RepeatWrapping;
+  M.quai=new THREE.MeshLambertMaterial({map:pierre}); M.dalle=new THREE.MeshLambertMaterial({map:paves,color:0xa9a395}); M.margelle=new THREE.MeshLambertMaterial({color:0xc9c2b0}); /* teintés : en plein soleil, le dallage clair virait au blanc */
+  const tEau=texEau.clone(); tEau.needsUpdate=true; tEau.wrapS=tEau.wrapT=THREE.RepeatWrapping; tEau.repeat.set(1,1); M.texEau=tEau;
+  M.eau=new THREE.MeshLambertMaterial({map:tEau,color:0x8fd2e2}); M.fond=new THREE.MeshBasicMaterial({color:0x1d4a52});
+  M.marche=new THREE.MeshLambertMaterial({color:0xd2c8b0});
+  return M; }
+/* un ruban vertical le long d'une boucle (quai), du fond au dessus de la margelle */
+function quaisDepuisBoucles(B,M){
+  const pos=[], uv=[], ind=[], posM=[], indM=[]; let u0=0;
+  for(const L of B){ const n=L.length, sens=aireBoucle(L)>0?1:-1;
+    for(let i=0;i<n;i++){ const a=L[i], b=L[(i+1)%n], dx=b[0]-a[0], dz=b[1]-a[1], l=Math.hypot(dx,dz); if(l<1e-4) continue;
+      const nxo=-dz/l*sens, nzo=dx/l*sens, mx=(a[0]+b[0])/2, mz=(a[1]+b[1])/2;
+      /* dehors : le côté sec (un point juste au-delà du bord) ; rien contre la mer ou un autre canal */
+      let ox=mx+nxo*0.4, oz=mz+nzo*0.4; if(sdfEauCanaux(ox,oz)<0){ ox=mx-nxo*0.4; oz=mz-nzo*0.4; }
+      if(oz>MER-0.2||sdfEauCanaux(ox,oz)<0) continue;
+      const pp=pontCanal(ox,oz), haut=pp?Math.max(0.22,hauteurPont(pp,ox)):(dansDalleCanaux(ox,oz)?0.22:Math.max(0.1,solY(ox,oz)));
+      const k=pos.length/3; pos.push(a[0],CANAUX.fond,a[1], b[0],CANAUX.fond,b[1], b[0],haut,b[1], a[0],haut,a[1]);
+      uv.push(u0/2,0, (u0+l)/2,0, (u0+l)/2,(haut-CANAUX.fond)/2, u0/2,(haut-CANAUX.fond)/2); u0+=l;
+      ind.push(k,k+1,k+2, k,k+2,k+3);
+      if(!pp){ const m=posM.length/3, ex=0.3, ix=0.12; /* la margelle : une pierre claire qui déborde un peu sur l'eau */
+        const dxo=(ox-mx)/0.4, dzo=(oz-mz)/0.4;
+        posM.push(a[0]-dxo*ix,haut+0.04,a[1]-dzo*ix, b[0]-dxo*ix,haut+0.04,b[1]-dzo*ix, b[0]+dxo*ex,haut+0.04,b[1]+dzo*ex, a[0]+dxo*ex,haut+0.04,a[1]+dzo*ex);
+        indM.push(m,m+1,m+2, m,m+2,m+3); } } }
+  const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2)); g.setIndex(ind); g.computeVertexNormals();
+  const gm=new THREE.BufferGeometry(); gm.setAttribute('position',new THREE.Float32BufferAttribute(posM,3)); gm.setIndex(indM); gm.computeVertexNormals();
+  const m1=new THREE.Mesh(g,M.quai), m2=new THREE.Mesh(gm,M.margelle); m1.material.side=THREE.DoubleSide; m2.material.side=THREE.DoubleSide; return [m1,m2]; }
+/* le tablier d'un pont : chaussée en dos d'âne, sous-face, rives, parapets */
+function mkPontCanal(p){
+  const L=p.x1-p.x0, N=28, Z0=p.z0, Z1=p.z1, ep=0.35, para=0.75;
+  const route=cTex(256,(g,s)=>{ if(p.orange){ g.fillStyle='#d9692a'; g.fillRect(0,0,s,s); for(let x=0;x<s;x+=16){ g.fillStyle='rgba(80,30,10,0.35)'; g.fillRect(x,0,2,s); } }
+      else { g.drawImage(texAsphalte.image,0,0,s,s); } g.fillStyle='#f4f1e6'; g.fillRect(0,s*0.06,s,3); g.fillRect(0,s*0.94-3,s,3);
+      g.fillStyle='rgba(255,236,160,0.85)'; for(let x=0;x<s;x+=32) g.fillRect(x,s/2-2,18,4); });
+  const mats={route:new THREE.MeshLambertMaterial({map:route}),rive:new THREE.MeshLambertMaterial({color:p.orange?0xd9692a:0xd8d0bc}),parapet:new THREE.MeshLambertMaterial({color:p.orange?0x2e3238:0xf0ebe0})};
+  for(const k in mats){ mats[k].transparent=true; mats[k].opacity=1; mats[k].depthWrite=true; }
+  p.mats=mats;
+  const pos=[], uv=[], ind=[], posR=[], indR=[], posP=[], indP=[];
+  const X=(i)=>p.x0+L*i/N, H=(i)=>hauteurPont(p,X(i));
+  for(let i=0;i<=N;i++){ const x=X(i), h=H(i)+0.02; pos.push(x,h,Z0, x,h,Z1); uv.push(i/N*L/12,0, i/N*L/12,1); }
+  for(let i=0;i<N;i++){ const k=i*2; ind.push(k,k+1,k+3, k,k+3,k+2); }
+  /* rives (les deux flancs) et sous-face */
+  for(let i=0;i<=N;i++){ const x=X(i), h=H(i), b=Math.max(-0.4,h-ep); posR.push(x,h+0.02,Z0, x,b,Z0, x,h+0.02,Z1, x,b,Z1); }
+  for(let i=0;i<N;i++){ const k=i*4; indR.push(k,k+1,k+5, k,k+5,k+4,  k+2,k+6,k+7, k+2,k+7,k+3,  k+1,k+3,k+7, k+1,k+7,k+5); }
+  /* parapets : un muret de chaque côté, qui suit le tablier */
+  for(const [zc,dir] of [[Z0+0.15,1],[Z1-0.15,-1]]){ const b=posP.length/3;
+    for(let i=0;i<=N;i++){ const x=X(i), h=H(i); posP.push(x,h,zc-0.15, x,h+para,zc-0.15, x,h+para,zc+0.15, x,h,zc+0.15); }
+    for(let i=0;i<N;i++){ const k=b+i*4; indP.push(k,k+4,k+5, k,k+5,k+1,  k+1,k+5,k+6, k+1,k+6,k+2,  k+2,k+6,k+7, k+2,k+7,k+3); } }
+  const geo=(P,I,U)=>{ const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(P,3)); if(U) g.setAttribute('uv',new THREE.Float32BufferAttribute(U,2)); g.setIndex(I); g.computeVertexNormals(); return g; };
+  const G=new THREE.Group(); G.add(new THREE.Mesh(geo(pos,ind,uv),mats.route)); const mr=new THREE.Mesh(geo(posR,indR),mats.rive); mr.material.side=THREE.DoubleSide; G.add(mr);
+  const mp=new THREE.Mesh(geo(posP,indP),mats.parapet); mp.material.side=THREE.DoubleSide; G.add(mp);
+  scene.add(G); p.g=G; return G; }
+function mkMarcheCanal(m,M){ const G=new THREE.Group(), n=5;
+  for(let k=0;k<n;k++){ const h=m.hB+(m.hH-m.hB)*(k+1)/n, y0=CANAUX.fond;
+    let x0=m.x0, x1=m.x1, z0=m.z0, z1=m.z1; const t0=k/n, t1=(k+1)/n;
+    if(m.axe==='z'){ if(m.sens>0){ z0=m.z0+(m.z1-m.z0)*t0; z1=m.z0+(m.z1-m.z0)*t1; } else { z1=m.z1-(m.z1-m.z0)*t0; z0=m.z1-(m.z1-m.z0)*t1; } }
+    else { if(m.sens>0){ x0=m.x0+(m.x1-m.x0)*t0; x1=m.x0+(m.x1-m.x0)*t1; } else { x1=m.x1-(m.x1-m.x0)*t0; x0=m.x1-(m.x1-m.x0)*t1; } }
+    const b=new THREE.Mesh(new THREE.BoxGeometry(x1-x0,h-y0,z1-z0),M.marche); b.position.set((x0+x1)/2,(h+y0)/2,(z0+z1)/2); G.add(b); }
+  scene.add(G); return G; }
+function mkCanaux(){
+  if(!CANAUX.ok) return;
+  avecAleaPrive(1914,()=>{
+    const C=CANAUX, B=C.bb, t0=performance.now(); let t1=t0; C.tPhases={}; const tp=(n)=>{ const t=performance.now(); C.tPhases[n]=Math.round(t-t1); t1=t; }; const M=matsCanaux(); tp('mats');
+    /* 1) l'eau, au niveau de chaque point (elle remonte dans les embouchures) */
+    const gx0=B.x0-3, gx1=B.x1+3, gz0=B.z0-3, gz1=Math.max(B.z1,304)+3, GE=grilleCanaux(C.eaux,gx0,gx1,gz0,gz1,0.5,3),
+      GP=grilleCanaux(C.ponts.map((p)=>({t:'r',x0:p.x0,x1:p.x1,z0:p.z0,z1:p.z1})),gx0,gx1,gz0,gz1,0.5,3), GD=grilleCanaux(C.dalles,gx0,gx1,gz0,gz1,0.5,3);
+    tp('grilles'); const Beau=contoursSdf(GE); tp('contour');
+    const fe=formesDepuisBoucles(Beau), ge=new THREE.ShapeGeometry(fe,4); ge.rotateX(-Math.PI/2);
+    { const A=ge.attributes.position, U=ge.attributes.uv; for(let i=0;i<A.count;i++){ const x=A.getX(i), z=A.getZ(i); A.setY(i,niveauCanal(x,z)); U.setXY(i,x/14,z/14); } A.needsUpdate=true; ge.computeVertexNormals(); }
+    C.eauMesh=new THREE.Mesh(ge,M.eau); scene.add(C.eauMesh); tp('eau');
+    const gf=new THREE.ShapeGeometry(fe,4); gf.rotateX(-Math.PI/2); gf.translate(0,C.fond+0.05,0); scene.add(new THREE.Mesh(gf,M.fond)); /* le fond, sombre */
+    C.boucles=Beau;
+    /* 2) le plan d'asphalte de la ville, percé à l'eau (même matériau, mêmes coordonnées de texture) */
+    let sol=null; for(const o of scene.children){ if(o.isMesh&&o.material&&o.material.map===texAsphalte&&o.geometry&&o.geometry.parameters&&o.geometry.parameters.width>2*HALF+400){ sol=o; break; } }
+    if(sol){ const W=sol.geometry.parameters.width, Hh=sol.geometry.parameters.height, ox=sol.position.x, oz=sol.position.z;
+      const sh=new THREE.Shape([new THREE.Vector2(-W/2,-Hh/2),new THREE.Vector2(W/2,-Hh/2),new THREE.Vector2(W/2,Hh/2),new THREE.Vector2(-W/2,Hh/2)]);
+      for(const L of Beau) if(Math.abs(aireBoucle(L))>4) sh.holes.push(new THREE.Path(L.map((p)=>new THREE.Vector2(p[0]-ox,-(p[1]-oz)))));
+      const g=new THREE.ShapeGeometry(sh), U=g.attributes.uv, A=g.attributes.position; for(let i=0;i<A.count;i++) U.setXY(i,(A.getX(i)+W/2)/W,(A.getY(i)+Hh/2)/Hh);
+      const vieux=sol.geometry; sol.geometry=g; vieux.dispose(); C.solPerce=true; } tp('sol');
+    /* 3) les dalles du quartier (quais, promenades, pâtés libérés) : trottoir de 0,22 hors de l'eau et des tabliers */
+    const VD=new Float32Array(GD.V.length); for(let k=0;k<VD.length;k++) VD[k]=Math.max(GD.V[k],-GE.V[k],-GP.V[k]);
+    const Bd=contoursSdf({V:VD,nx:GD.nx,nz:GD.nz,x0:gx0,z0:gz0,h:0.5}), fd=formesDepuisBoucles(Bd);
+    const gd=new THREE.ExtrudeGeometry(fd,{depth:0.22,bevelEnabled:false,curveSegments:4}); gd.rotateX(-Math.PI/2);
+    { const A=gd.attributes.position, U=gd.attributes.uv; for(let i=0;i<A.count;i++) U.setXY(i,A.getX(i)/4,A.getZ(i)/4); }
+    scene.add(new THREE.Mesh(gd,M.dalle)); tp('dalles');
+    /* 4) les quais : un mur de pierre le long de l'eau, du fond à la margelle */
+    for(const m of quaisDepuisBoucles(Beau,M)) scene.add(m); tp('quais');
+    /* 5) les ponts, 6) les marches */
+    for(const p of C.ponts) mkPontCanal(p);
+    for(const m of C.marches) mkMarcheCanal(m,M); tp('ponts');
+    /* 7) la plage : le sable des cases traversées par une embouchure, refait autour de l'eau ; la pellicule des vagues coupée */
+    for(const o of scene.children.slice()){ const gp=o.geometry&&o.geometry.parameters;
+      if(o.isMesh&&gp&&gp.width===CELL+1&&Math.abs(gp.height-0.1)<1e-6&&gp.depth===INNER+18&&o.material&&o.material.map===texSable&&sdfEauCanaux(o.position.x,MER-6)<CELL/2){
+        const x0=o.position.x-gp.width/2, x1=o.position.x+gp.width/2, z0=o.position.z-gp.depth/2, z1=o.position.z+gp.depth/2;
+        const i0=Math.max(0,Math.floor((x0-1-gx0)/0.5)), i1=Math.min(GE.nx-1,Math.ceil((x1+1-gx0)/0.5)), j0=Math.max(0,Math.floor((z0-1-gz0)/0.5)), j1=Math.min(GE.nz-1,Math.ceil((z1+1-gz0)/0.5)), n2=j1-j0+1, VS=new Float32Array((i1-i0+1)*n2), R={t:'r',x0,x1,z0,z1};
+        for(let i=i0;i<=i1;i++) for(let j=j0;j<=j1;j++){ const k=i*GE.nz+j; VS[(i-i0)*n2+(j-j0)]=Math.max(formeSdf(R,gx0+i*0.5,gz0+j*0.5),-GE.V[k],-GP.V[k]); }
+        const fs=formesDepuisBoucles(contoursSdf({V:VS,nx:i1-i0+1,nz:n2,x0:gx0+i0*0.5,z0:gz0+j0*0.5,h:0.5})); const g=new THREE.ExtrudeGeometry(fs,{depth:0.1,bevelEnabled:false}); g.rotateX(-Math.PI/2);
+        { const A=g.attributes.position, U=g.attributes.uv; for(let i=0;i<A.count;i++) U.setXY(i,(A.getX(i)-x0)/(x1-x0),1-(A.getZ(i)-z0)/(z1-z0)); }
+        const n=new THREE.Mesh(g,o.material); scene.add(n); scene.remove(o); } }
+    for(const o of scene.children.slice()){ const gp=o.geometry&&o.geometry.parameters, m=o.material;
+      if(o.isMesh&&gp&&gp.height===7&&m&&m.customProgramCacheKey&&m.customProgramCacheKey()==='littoralVagues'){
+        const x0=o.position.x-gp.width/2, x1=o.position.x+gp.width/2, coupes=[];
+        for(const e of C.eaux){ if(e.t==='r'&&e.z1>MER-1) coupes.push([e.x0-0.5,e.x1+0.5]); }
+        coupes.sort((a,b)=>a[0]-b[0]); let x=x0;
+        for(const [a,b] of coupes.concat([[x1,x1]])){ if(a>x+0.5){ const s=new THREE.Mesh(new THREE.PlaneGeometry(a-x,7),m); s.rotation.x=-Math.PI/2; s.position.set((x+a)/2,o.position.y,o.position.z); scene.add(s); } x=Math.max(x,b); }
+        scene.remove(o); } }
+    tp('plage');
+    /* 8) les pointillés des rues : refaits par segments là où une rue croise l'eau, un tablier ou un segment retiré */
+    for(const o of scene.children.slice()){ const gp=o.geometry&&o.geometry.parameters, m=o.material;
+      if(!(o.isMesh&&gp&&gp.width===0.5&&m&&m.map===texDash)) continue;
+      const horiz=Math.abs(o.rotation.z)>1, long=gp.height, c0=horiz?o.position.x-long/2:o.position.z-long/2, r=horiz?o.position.z:o.position.x; if(o.userData.canaux) continue;
+      if(!(horiz?(r>B.z0&&r<B.z1):(r>B.x0&&r<B.x1))) continue;
+      const libre=(s)=>{ const x=horiz?s:r, z=horiz?r:s; return !(dansBBCanaux(x,z)&&(routeCanalInterdite(x,z)||pontCanal(x,z)||dansCanal(x,z))); };
+      let deb=null; const segs=[];
+      for(let s=c0;s<=c0+long+0.01;s+=0.5){ const ok=s<c0+long&&libre(s); if(ok&&deb===null) deb=s; if(!ok&&deb!==null){ segs.push([deb,s]); deb=null; } }
+      if(segs.length===1&&segs[0][0]<=c0+0.01&&segs[0][1]>=c0+long-0.6) continue; /* rien à couper */
+      for(const [a,b] of segs){ if(b-a<1) continue; const g=new THREE.PlaneGeometry(0.5,b-a), U=g.attributes.uv; for(let i=0;i<U.count;i++){ const v=U.getY(i); U.setY(i,1-((a-c0)+(1-v)*(b-a))/long); } /* plan couché : v = 1 au bout « moins » de l'axe */
+        const s=new THREE.Mesh(g,m); s.userData.canaux=true; s.rotation.copy(o.rotation); if(horiz) s.position.set((a+b)/2,o.position.y,r); else s.position.set(r,o.position.y,(a+b)/2); scene.add(s); }
+      scene.remove(o); }
+    tp('pointilles');
+    /* 9) les deux lieux déplacés : leur bâtiment */
+    const bat=(R,coul,h)=>{ const w=R.x1-R.x0, d=R.z1-R.z0, m=matFacade(coul,'verre'), b=new THREE.Mesh(uvFacade(new THREE.BoxGeometry(w,h,d),w,h,d),m); b.position.set((R.x0+R.x1)/2,h/2,(R.z0+R.z1)/2); scene.add(b);
+      const t=new THREE.Mesh(new THREE.PlaneGeometry(w,d),new THREE.MeshLambertMaterial({color:0x5a5f66})); t.rotation.x=-Math.PI/2; t.position.set((R.x0+R.x1)/2,h+0.01,(R.z0+R.z1)/2); scene.add(t);
+      addSolid({x:(R.x0+R.x1)/2,z:(R.z0+R.z1)/2,hw:w/2,hd:d/2,h,toit:true}); };
+    if(C.aquarium) bat(C.aquarium,'#2a6a8a',8.5);
+    if(C.garage) bat(C.garage,'#4a5058',6.5);
+    tp('lieux'); C.tBuild=Math.round(performance.now()-t0);
+  });
+}
+/* ---------- startRun : un véhicule posé (garé au hasard, vélo d'un arceau retiré, hélico d'un toit retiré…) que le quartier a rendu
+   impossible est retiré APRÈS sa création — jamais avant : les tirages de la partie (et donc tout ce qui est posé hors du quartier)
+   restent ceux d'avant. Dans l'eau d'un canal (sauf un bateau), sur un segment de rue retiré ou un tablier (une voiture), dans un
+   bâtiment du quartier. */
+function canauxNettoyerVehicules(){
+  if(!CANAUX.ok) return 0; let n=0;
+  for(let i=vehicules.length-1;i>=0;i--){ const v=vehicules[i]; if(v.mort||v.conduit==='joueur'||P.veh===v||!dansBBCanaux(v.x,v.z)) continue;
+    const d=v.def||{}, bateau=!!d.eau, eau=dansCanal(v.x,v.z)&&!pontCanal(v.x,v.z);
+    const mauvais=(eau&&!bateau&&!d.amphibie)||(!eau&&bateau&&dansCanal(v.x,v.z))||(!bateau&&!d.velo&&(dansCoupe(v.x,v.z)||pontCanal(v.x,v.z)))||(!d.air&&solidAt(v.x,v.z,0.3)&&dansDalleCanaux(v.x,v.z));
+    if(!mauvais) continue; v.mort=true; scene.remove(v.mesh); libererEntite(v.mesh); vehicules.splice(i,1); n++; }
+  CANAUX.vehRetires=n; return n; }
+/* ---------- en jeu : l'eau qui ondule, le tablier qui s'efface au-dessus du bateau du joueur ---------- */
+function majCanaux(dt){
+  if(!CANAUX.ok) return; const M=_MAT_CANAUX; if(M.texEau){ M.texEau.offset.x=(M.texEau.offset.x+dt*0.012)%1; M.texEau.offset.y=(M.texEau.offset.y+dt*0.007)%1; }
+  const v=P.veh, enBateau=v&&v.def&&(v.def.eau||v.def.amphibie), nage=P.nage;
+  for(const p of CANAUX.ponts){ if(!p.mats) continue;
+    const dessous=(enBateau||nage)&&P.x>p.x0-4&&P.x<p.x1+4&&P.z>p.z0-6&&P.z<p.z1+6&&(P.veh?(P.veh.h||0):P.y)<hauteurPont(p,P.x)-0.5;
+    const cible=dessous?0.22:1; if(Math.abs(p.k-cible)<0.005) continue; p.k+=(cible-p.k)*Math.min(1,dt*6); if(Math.abs(p.k-cible)<0.01) p.k=cible;
+    for(const k in p.mats){ p.mats[k].opacity=p.k; p.mats[k].depthWrite=p.k>0.98; } }
+}
+/* ---------- la carte : canaux, quais, ponts, nom du quartier ---------- */
+function dessinerCanauxCarte(g){
+  if(!CANAUX.ok||!CANAUX.boucles) return; const C=CANAUX;
+  g.fillStyle='#d6cdb5'; for(const d of C.dalles) g.fillRect(mmX(d.x0),mmZ(d.z0),(d.x1-d.x0)*mmS,(d.z1-d.z0)*mmS); /* les quais et promenades */
+  for(const c of C.coupes) g.fillRect(mmX(c.x0),mmZ(c.z0),(c.x1-c.x0)*mmS,(c.z1-c.z0)*mmS);
+  g.fillStyle='#2f86a8'; g.strokeStyle='#e8e0cc'; g.lineWidth=0.35;
+  for(const L of C.boucles){ g.beginPath(); L.forEach((p,i)=>i?g.lineTo(mmX(p[0]),mmZ(Math.min(p[1],MER))):g.moveTo(mmX(p[0]),mmZ(Math.min(p[1],MER)))); g.closePath(); g.fill(); g.stroke(); }
+  for(const p of C.ponts){ g.fillStyle=p.orange?'#d9692a':'#4a4c55'; g.fillRect(mmX(p.x0),mmZ(p.z0+0.5),(p.x1-p.x0)*mmS,(p.z1-p.z0-1)*mmS);
+    g.fillStyle='#f0ebe0'; g.fillRect(mmX(p.x0),mmZ(p.z0+0.5),(p.x1-p.x0)*mmS,0.3); g.fillRect(mmX(p.x0),mmZ(p.z1-0.5)-0.3,(p.x1-p.x0)*mmS,0.3); }
+  g.fillStyle='#efe6cf'; for(const m of C.marches) g.fillRect(mmX(m.x0),mmZ(m.z0),Math.max(0.6,(m.x1-m.x0)*mmS),Math.max(0.6,(m.z1-m.z0)*mmS));
+  for(const R of [C.aquarium,C.garage]) if(R){ g.fillStyle='rgba(0,0,0,0.35)'; g.fillRect(mmX(R.x0)+0.6,mmZ(R.z0)+0.6,(R.x1-R.x0)*mmS,(R.z1-R.z0)*mmS); g.fillStyle='#5d6470'; g.fillRect(mmX(R.x0),mmZ(R.z0),(R.x1-R.x0)*mmS,(R.z1-R.z0)*mmS); } /* l'aquarium et le garage, sur leurs nouveaux pâtés */
 }
 /* =====================================================================
    AÉROPORT VIVANT (14 octobre, demandé : « un terminal avec plein de
@@ -14178,7 +14575,7 @@ const BASSINS=[]; // bassins au pied des cascades : {x,z,r} — vraie eau pour e
 function bassinEn(x,z){ for(let i=0;i<BASSINS.length;i++){ const b=BASSINS[i]; if(b.r?dist2(x,z,b.x,b.z)<b.r*b.r:(Math.abs(x-b.x)<b.hw&&Math.abs(z-b.z)<b.hd)) return b; } return null; }
 function dansBassin(x,z){ return !!bassinEn(x,z); }
 // niveau de l'eau : 0 (la mer, le lac, la crique) ou celui d'un bassin en hauteur (piscines de Los Reyes Hills)
-function niveauEau(x,z){ const b=BASSINS.length?bassinEn(x,z):null; return b&&b.y?b.y:0; }
+function niveauEau(x,z){ const b=BASSINS.length?bassinEn(x,z):null; if(b&&b.y) return b.y; return CANAUX.ok&&z<MER&&dansCanal(x,z)?niveauCanal(x,z):0; } /* canaux : sous le niveau des rues */
 const LAC_BARQUES=[], LAC_CANARDS=[];
 function surLac(x,z){
   if(!LAC) return false;
@@ -15984,6 +16381,7 @@ var ENSEIGNES=[]; // (var : jamais en zone morte) {p, lieu} : toutes les enseign
 function surChaussee(x,z){
   if(Math.abs(x)>HALF||Math.abs(z)>HALF||z>MER-30) return false;
   if(HILLS.ok&&dansHills(x,z)){ const H=HILLS, i=Math.round((x-H.x0)/H.pas), j=Math.round((z-H.z0)/H.pas); return !!(H.route&&H.route[j*H.nx+i]); } // Los Reyes Hills : ses routes en lacets, plus la grille
+  if(CANAUX.ok&&routeCanalInterdite(x,z)) return false; /* canaux : un segment de rue retiré, ou l'eau */
   const m=(v)=>{ const k=((v+HALF)%CELL+CELL)%CELL; return Math.min(k,CELL-k); };
   return m(x)<ROADW/2||m(z)<ROADW/2;
 }
@@ -16883,6 +17281,7 @@ function construireMinimapStatique(){
   g.strokeStyle='#565b64'; g.lineWidth=1.2;
   if(DECOR_V2) dessinerEstCarte(g);
   if(HILLS.ok) dessinerHillsCarte(g);
+  dessinerCanauxCarte(g);
   if(!DECOR_V2) g.strokeRect(mmX(-HALF-14),mmZ(-HALF-14),(2*HALF+28)*mmS,(MER+HALF+10)*mmS);
 }
 // DECOR_V2 : désert, Mont Reyes, canyons et crique sur la carte, échantillonnés
@@ -24260,6 +24659,7 @@ function majJoueur(dt,dtJeu){
   const marchable=(x,z)=>{
     if(P.y<0.35&&dansCoqueYacht(x,z)&&!dansCoqueYacht(P.x,P.z)) return false;
     if(yachtBloque(x,z)) return false; /* méga-yacht V3 : pavois et salon, escaliers de la poupe */
+    if(P.nage&&CANAUX.ok&&dansBBCanaux(x,z)&&!estEau(x,z)&&solY(x,z)>niveauEau(P.x,P.z)+0.45) return false; /* canaux : depuis l'eau, quais et tabliers sont des murs ; on sort par les marches */
     if(FAUNE.length&&auSol()&&fauneBloque(x,z,P.y)) return false; /* une bête vivante ne se traverse plus */ /* à la nage, la coque du méga-yacht est un mur : on monte à bord par la plateforme de bain, à l'arrière (avant : on surgissait sur le pont par n'importe quel côté) */
     const s=solidAt(x,z,0.5,undefined,P.y);
     if(s){
@@ -24855,7 +25255,7 @@ function poseNage(h,dt,vit){ const g=h.g; if(g.rotation.order!=='YXZ') g.rotatio
   h.brasG.rotation.x=-(h.phase%(Math.PI*2)); h.brasD.rotation.x=-((h.phase+Math.PI)%(Math.PI*2)); h.brasG.rotation.z=0; h.brasD.rotation.z=0; }
 function finNage(h){ const g=h.g; if(g.rotation.order==='YXZ'){ g.rotation.x=0; g.rotation.z=0; g.rotation.order='XYZ'; } }
 // rive la plus proche (16 directions, jusqu'à 60 u), pour un PNJ tombé à l'eau qui ne sait pas nager
-function rivePlusProche(x,z){ for(let r=3;r<=60;r+=3) for(let k=0;k<16;k++){ const a=k/16*Math.PI*2, px=x+Math.sin(a)*r, pz=z+Math.cos(a)*r; if(!estEau(px,pz)&&!solidAt(px,pz,0.5)) return {x:px,z:pz}; } return null; }
+function rivePlusProche(x,z){ if(CANAUX.ok&&dansCanal(x,z)){ const m=marcheProche(x,z); if(m) return {x:m.x,z:m.z}; } /* canaux : on sort de l'eau par les marches */ for(let r=3;r<=60;r+=3) for(let k=0;k<16;k++){ const a=k/16*Math.PI*2, px=x+Math.sin(a)*r, pz=z+Math.cos(a)*r; if(!estEau(px,pz)&&!solidAt(px,pz,0.5)) return {x:px,z:pz}; } return null; }
 function degageDeVehicule(x,z,marge,ignore){
   const o=vehiculeBloquant(x,z,marge,ignore);
   if(!o) return null;
@@ -25449,7 +25849,7 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
   if(v.ecrPose) retirerPoseEcrasement(v); /* de même la pose de montée de l'écraseur (posée en fin de majVehiculePhys) */
   if(v.noye) return; // noyé : il coule (majNoyade), plus aucune conduite
   const d=v.def, eau=surEauVeh(v); // surEauVeh : dynamique pour l'amphibie, statique pour les bateaux
-  const echoue=!!d.eau&&!v.horsVille&&!estEau(v.x,v.z); // bateau posé sur le sable (échouage)
+  const echoue=!!d.eau&&!v.horsVille&&!estEauNav(v.x,v.z); // bateau posé sur le sable (échouage)
   if(echoue){ throttle*=0.25; steer*=0.3; if(!v.echoueT){ v.echoueT=1; if(v.conduit==='joueur'){ secousse(Math.min(3,Math.abs(v.v)*0.12)); vibre(25); } burst(v.x+Math.sin(v.ang)*d.long*0.4,0.3,v.z+Math.cos(v.ang)*d.long*0.4,8,0xe0c890,5); } }
   else if(v.echoueT){ v.echoueT=0; v.echoueSorti=false; } // de retour à l'eau
   const fac0=clamp(Math.abs(v.v)/d.vmax,0,1);
@@ -25561,9 +25961,9 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
   }
   // paroi : le sol devant monte plus raide que PENTE_MAX_VEH → on la heurte, on ne la gravit plus d'un coup
   const paroi=DECOR_V2&&!eau&&!d.air&&!v.enAir&&dansReliefLibre(fx,fz)&&!(MONT.presDuSentier&&MONT.presDuSentier(fx,fz,7))&&!zoneVertSkate(fx,fz)&&!zoneVertSkate(v.x,v.z)&&!dansSkateXXL(fx,fz)&&!surRouteHills(fx,fz)&&!presTremplinHills(fx,fz)&&paroiDevant(v,d,fx,fz,dt,dansParcStunt(fx,fz)?PENTE_PARC_STUNT:penteMaxVeh(d)); // skatepark XXL : on roule sur les murs des transitions // pente maximale du véhicule (penteMaxVeh), montée sèche comprise ; tables du parc stunt : rampes aménagées // sur le sentier : on manœuvre dans les épingles
-  const versPlage=eau&&!!d.eau&&!grosNavire(d)&&(v.conduit==='joueur'||!v.conduit)&&!estEau(nx,nz)&&solY(nx,nz)<0.6&&!solidAt(fx,fz,0.5); // sable : le bateau s'y échoue en douceur
+  const versPlage=eau&&!!d.eau&&!grosNavire(d)&&(v.conduit==='joueur'||!v.conduit)&&!estEauNav(nx,nz)&&!(CANAUX.ok&&dansBBCanaux(nx,nz)&&nz<CANAUX.zMer+0.5)&&solY(nx,nz)<0.6&&!solidAt(fx,fz,0.5); // sable : le bateau s'y échoue en douceur
   const auPasVersTerre=echoue&&Math.abs(v.v)<=2.2&&!eauDevant(v,Math.sign(v.v||1)); // échoué, au pas : seulement vers l'eau (jamais traverser la plage)
-  const heurte=eau?((!estEau(nx,nz)&&!versPlage&&!(d.amphibie&&!solidAt(fx,fz,d.larg*0.35)))||auPasVersTerre):(!!sFront||paroi||((v.h||0)<0.7&&estEau(fx,fz)&&!VEH_IA_NOYABLES&&!!v.conduit&&v.conduit!=='joueur')); // VEH_IA_NOYABLES : police, trafic et autres IA entrent aussi dans l'eau et s'y noient
+  const heurte=eau?((!estEauNav(nx,nz)&&!versPlage&&!(d.amphibie&&!solidAt(fx,fz,d.larg*0.35)))||auPasVersTerre):(!!sFront||paroi||((v.h||0)<0.7&&estEau(fx,fz)&&!VEH_IA_NOYABLES&&!!v.conduit&&v.conduit!=='joueur')); // VEH_IA_NOYABLES : police, trafic et autres IA entrent aussi dans l'eau et s'y noient
   if(heurte&&paroi&&!sFront){ // paroi de relief : on glisse le long (composante montante retirée), sans casse — on peut toujours tourner et repartir
     let gx=solY(fx+0.6,fz)-solY(fx-0.6,fz), gz=solY(fx,fz+0.6)-solY(fx,fz-0.6); const gl=Math.hypot(gx,gz)||1; gx/=gl; gz/=gl;
     const mx=nx-v.x, mz=nz-v.z, mg=mx*gx+mz*gz, tx=mx-Math.max(0,mg)*gx, tz=mz-Math.max(0,mg)*gz;
@@ -25704,7 +26104,7 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
   majDeformation(v,dt);
   // fumée si abîmé
   if(v.hp<v.def.hp*0.42){ v.fumeT-=dt; if(v.fumeT<=0){v.fumeT=0.12;fumee(v.x,1.1,v.z, v.hp<v.def.hp*0.2?0x22242a:0x555a63);} }
-  v.mesh.position.set(v.x,eau?0.15:(v.h||0)+(v.enAir?0:(v.assietteDy||0)),v.z);
+  v.mesh.position.set(v.x,eau?0.15+niveauFlot(v.x,v.z):(v.h||0)+(v.enAir?0:(v.assietteDy||0)),v.z);
   v.mesh.rotation.y=v.ang;
   const sautMer=DECOR_V2&&eau&&!!d.eau&&!echoue&&majSautMer(v,dt); // tremplins flottants
   if(sautMer){ v.mesh.position.y=0.15+(v.hMer||0); v.mesh.rotation.x=clamp(-(v.vyMer||0)*0.04-(v.rampeMer?0.25:0),-0.45,0.45); }
@@ -25759,7 +26159,7 @@ function lancerRagdollJoueurFx(){ burst(P.x,1,P.z,8,0xff9f5a,8); secousse(8); }
 // le conducteur en sort à la nage (majNoyade, hors de la physique qui l'appelle).
 const VEH_IA_NOYABLES=true; // demandé : « les voitures de police et autres IA se noient aussi »
 // de l'eau dans cette direction (sens +1 avant, -1 arrière), à moins de 30 u de la coque
-function eauDevant(v,sens){ const sA=Math.sin(v.ang)*sens, cA=Math.cos(v.ang)*sens; for(let k=v.def.long/2+2;k<v.def.long/2+30;k+=3) if(estEau(v.x+sA*k,v.z+cA*k)) return true; return false; }
+function eauDevant(v,sens){ const sA=Math.sin(v.ang)*sens, cA=Math.cos(v.ang)*sens; for(let k=v.def.long/2+2;k<v.def.long/2+30;k+=3) if(estEauNav(v.x+sA*k,v.z+cA*k)) return true; return false; }
 // Bateau échoué : posé sur le sable, gîte légère, nez un peu relevé (jamais la houle au-dessus du sable)
 function poseEchoue(v,dt){
   const k=clamp(4*dt,0,1);
@@ -25777,7 +26177,7 @@ function majNoyade(v,dt){
   if(v.conduit==='joueur'&&P.veh===v){ sortirVehicule(); toast('Véhicule noyé — inutilisable, à la nage !','warn'); vibre(60); }
   v.noyeT+=dt; v.v*=1-1.5*dt;
   v.x+=Math.sin(v.ang)*v.v*dt; v.z+=Math.cos(v.ang)*v.v*dt;
-  const fond=v.noyeBase>0?-1.3:-(1.6+(v.def.larg||2)*0.9), t=Math.min(1,v.noyeT/9); // une piscine est moins profonde que la mer
+  const fond=v.noyeBase>0?-1.3:(v.noyeBase<0?Math.max(CANAUX.fond+0.25-v.noyeBase,-(1.6+(v.def.larg||2)*0.9)):-(1.6+(v.def.larg||2)*0.9)), t=Math.min(1,v.noyeT/9); // une piscine est moins profonde que la mer
   v.h=(v.noyeBase||0)+fond*t*t*(3-2*t);
   v.mesh.position.set(v.x,v.h,v.z); v.mesh.rotation.x=lerp(v.mesh.rotation.x||0,0.22,dt); // nez vers le fond
   if(Math.random()<dt*6) spawnP(v.x+rand(-1,1),0.1,v.z+rand(-1,1),0,1.2,0,0.25,0.6,0xcfeaff,0,2); // bulles
@@ -27150,7 +27550,7 @@ function controleDir(v,frein){
     return {throttle:l*(1-Math.min(Math.abs(diff),1.2)*0.3),steer:sB*clamp(diff*2.4,-1,1),l,cap};
   let dB=diff; /* bateau, cible presque derrière, vue qui suit (3D, 1re personne) : la caméra, en retard sur le bateau, faisait passer la cible d'un côté à l'autre — le bateau zigzaguait sur place, ou virait toujours du même côté joystick tiré droit vers soi. On vire du côté où le joystick penche À L'ÉCRAN (à droite = tribord) */
   if(v.def.eau&&Math.abs(diff)>Math.PI-0.5&&META.vue!=='classique'&&!INT.actif){ const sx=Math.abs(INPUT.ex||0)>0.01?-Math.sign(INPUT.ex):(v.sensDT||Math.sign(diff)||1); v.sensDT=sx; dB=sx*Math.abs(diff); }
-  if(v.def.eau&&v.def.long<12&&estEau(v.x,v.z)&&estEau(v.x+Math.sin(v.ang)*(v.def.long*0.5+5),v.z+Math.cos(v.ang)*(v.def.long*0.5+5))) return {throttle:l*0.55,steer:sB*(Math.sign(dB)||1),l,cap}; // un petit bateau à flot ne recule pas : il vire en avançant (échoué, il recule vers l'eau ; les grands navires manœuvrent en arrière)
+  if(v.def.eau&&v.def.long<12&&estEauNav(v.x,v.z)&&estEauNav(v.x+Math.sin(v.ang)*(v.def.long*0.5+5),v.z+Math.cos(v.ang)*(v.def.long*0.5+5))) return {throttle:l*0.55,steer:sB*(Math.sign(dB)||1),l,cap}; // un petit bateau à flot ne recule pas : il vire en avançant (échoué, il recule vers l'eau ; les grands navires manœuvrent en arrière)
   if(v.def.eau) return {throttle:-l*0.75,steer:-sB*clamp(dB*1.4,-1,1),l,cap}; /* étrave face au quai ou à la plage : il recule, la poupe vers la cible (sB : même s'il avance encore) */
   return {throttle:-l*0.75,steer:clamp(diff*1.4,-1,1),l,cap}; // cible derrière : marche arrière
 }
@@ -27724,6 +28124,7 @@ function creerTrafic(){
   if(solidAt(x,z,2)) return;
   if(fA>1.05&&!apparitionCachee(x,z)) return; // vue immersive : jamais sous les yeux du joueur (nouvel essai à l'image suivante)
   if(z>MER-CELL*1.2) return;         // pas de trafic sur le sable
+  if(CANAUX.ok){ const ux=vert?0:1, uz=vert?1:0; for(let d=0;d<=60;d+=3) if(routeCanalInterdite(x+ux*d,z+uz*d)||routeCanalInterdite(x-ux*d,z-uz*d)) return; } /* canaux : jamais sur une rue retirée, ni à moins de 60 u d'elle (entre deux canaux, une voiture ferait la navette) */
   // jamais superposé à un véhicule déjà là (trafic, joueur, police...) —
   // un véhicule `mort` est déjà retiré de la scène (voir exploserVehicule),
   // il ne doit pas bloquer un nouveau spawn, comme ailleurs dans ce fichier
@@ -27944,7 +28345,7 @@ function majTrafic(v,dt){
   // contact (spawn rapproché, sonde manquée sur un véhicule long...).
   resoudreCollisionsVehicule(v,dt);
   majKnockback(v,dt);
-  v.mesh.position.set(v.x,0,v.z);
+  v.mesh.position.set(v.x,0,v.z); if(CANAUX.ok&&dansBBCanaux(v.x,v.z)) poserTraficPont(v); /* canaux : sur un tablier */
   if(v.fadeT>0){ v.fadeT-=dt; v.mesh.scale.setScalar(v.fadeT>0?1-v.fadeT/0.3:1); }
   majImpactPersonnages(v,dt);
   { const kR=v.mesh.userData.rayonRoue?1/v.mesh.userData.rayonRoue:1.6; for(const r of v.mesh.userData.roues) r.rotation.x+=v.v*dt*kR; } /* ud.rayonRoue (Monster Truck) : la roue roule à la vitesse réelle, v / R rad/s */
@@ -27976,6 +28377,8 @@ function majTrafic(v,dt){
   }
   const horsHills=HILLS.ok&&dansHills(v.x,v.z,2.5); // Los Reyes Hills : demi-tour devant la colline, comme devant la base
   if(horsHills){ pousserHorsHills(v); rebond=true; }
+  if(CANAUX.ok&&!rebond&&!routeCanalInterdite(v.x,v.z)){ const sg=v.axe==='z'?(Math.cos(v.ang)>=0?1:-1):(Math.sin(v.ang)>=0?1:-1), L=(v.def.long||4)/2+2.5+ROADW; /* canaux : demi-tour AVANT le carrefour qui précède une rue retirée (dans le carrefour, la file bloquait la rue croisée) ; déjà dedans : on en sort tout droit */
+    if(routeCanalInterdite(v.axe==='z'?v.x:v.x+sg*L,v.axe==='z'?v.z+sg*L:v.z)) rebond=true; }
   if(rebond){
     v.ang+=Math.PI; v.v*=0.5; v.contourne=null;
     // Bug remonté par un joueur : certains véhicules roulaient sur les
@@ -28185,8 +28588,8 @@ function majVehicules(dt){
       // (ou percuté par le joueur) sans jamais se dégager.
       resoudreCollisionsVehicule(v,dt);
       majKnockback(v,dt);
-      if(v.def.eau&&!estEau(v.x,v.z)){ v.v*=1-5*dt; poseEchoue(v,dt); } // bateau lâché sur le sable : il s'arrête vite, posé de travers
-      else { v.mesh.position.y=surEauVeh(v)?0.15:(v.def.air?(v.alt||0):solYGare(v));
+      if(v.def.eau&&!estEauNav(v.x,v.z)){ v.v*=1-5*dt; poseEchoue(v,dt); } // bateau lâché sur le sable : il s'arrête vite, posé de travers
+      else { v.mesh.position.y=surEauVeh(v)?0.15+niveauFlot(v.x,v.z):(v.def.air?(v.alt||0):solYGare(v));
       if(MER_V2&&surEauVeh(v)&&!v.def.air) assietteHoule(v.mesh,v.x,v.z,v.ang,0.15,v.def.long);
       if(v.mesh.userData.flottaison&&surEauVeh(v)) v.mesh.position.y+=v.mesh.userData.flottaison; } /* garé à flot : à son tirant d'eau */
       v.mesh.position.x=v.x; v.mesh.position.z=v.z;
@@ -28437,7 +28840,7 @@ function majPietons(dt){
     // hors champ ou dans le brouillard (apparitionCachee, comme le trafic et les ennemis)
     const a=rand(0,6.28), d=rand(42,68)*Math.min(1.5,facteurApparition());
     const x=clamp(P.x+Math.sin(a)*d,-HALF+4,HALF-4), z=clamp(P.z+Math.cos(a)*d,-HALF+4,HALF-4);
-    if(!solidAt(x,z,0.8)&&!estEau(x,z)&&apparitionCachee(x,z)) creerPieton(x,z);
+    if(!solidAt(x,z,0.8)&&!estEau(x,z)&&!(CANAUX.ok&&marcheCanal(x,z))&&apparitionCachee(x,z)) creerPieton(x,z); /* canaux : jamais sur les marches d'un quai */
   }
   for(let i=pietons.length-1;i>=0;i--){
     const p=pietons[i];
@@ -29589,7 +29992,7 @@ function addHeat(v,tir,brut,collat){            // brut : sans le coefficient (a
 // proche en allant vers la ville — jamais sur le joueur.
 function pointApparition(x,z){
   if(x<-HALF+3||x>(DECOR_V2?LIMITE_EST-6:HALF-3)||z<-HALF+3||z>MER-3) return false;
-  if(estEau(x,z)||solidAt(x,z,0.8)) return false;
+  if(estEau(x,z)||solidAt(x,z,0.8)||(CANAUX.ok&&(pontCanal(x,z)||marcheCanal(x,z)))) return false; /* canaux : jamais sur un pont ni sur les marches d'un quai */
   if(DECOR_V2&&(solY(x,z)>1.2||dansReliefLibre(x,z))) return false;
   return true;
 }
@@ -29680,9 +30083,11 @@ function majEvenements(dt){
     toast('Une cargaison est tombée d\u2019un camion pas loin…');
   } else if(r<0.54){ // convoi militaire traversant la ville
     const k=randi(1,NB-1), r2=-HALF+k*CELL;
-    const v=creerVehicule('milit',r2+3.2,clamp(P.z-70,-HALF+10,HALF-CELL),0,'trafic');
-    v.axe='z'; v.lane=r2+3.2; v.convoi=true;
-    toast('Un convoi militaire traverse Los Reyes','warn');
+    const xC=r2+3.2, zC=clamp(P.z-70,-HALF+10,HALF-CELL);
+    if(!(CANAUX.ok&&(routeCanalInterdite(xC,zC)||pontCanal(xC,zC)))){ /* canaux : jamais né sur une rue retirée (il partait tout droit dans l'eau) */
+      const v=creerVehicule('milit',xC,zC,0,'trafic');
+      v.axe='z'; v.lane=xC; v.convoi=true;
+      toast('Un convoi militaire traverse Los Reyes','warn'); }
   } else if(r<0.68){ // marchand clandestin (prix -25 %)
     const p=spawnRing(18,30);
     const g=new THREE.Group();
@@ -29883,7 +30288,7 @@ function majPatrouillesPolice(dt){
 function pointRoutePolice(){ let best=null, bs=-1e9;
   for(let k=0;k<=NB;k++){ const r=-HALF+k*CELL;
     for(let ax=0;ax<2;ax++) for(let s=-60;s<=60;s+=6){ const x=ax?r:P.x+s, z=ax?P.z+s:r, d=Math.hypot(x-P.x,z-P.z);
-      if(d<35||d>55||!pointApparition(x,z)) continue;
+      if(d<35||d>55||!pointApparition(x,z)||routeCanalInterdite(x,z)) continue;
       const sc=(horsEcran(x,z)?2:0)+(vueImmersive()&&apparitionCachee(x,z)?1:0)-Math.abs(d-45)/20+Math.random()*0.3;
       if(sc>bs){ bs=sc; best={x,z}; } } }
   return best; }
@@ -40207,9 +40612,10 @@ function garageApresSortie(sc){
   sc.courant=''; sc.visiteur=null; sc.casseArmee=null;
   const libererVitrine=()=>{ if(sc.voiture){ sc.g.remove(sc.voiture); libererObjet(sc.voiture); sc.voiture=null; } sc.voitureCle=''; sc.voitureRef=''; };
   if(!enVoiture||!slot||!slot.cle||!VEHDEFS[slot.cle]||(id&&vehPersoDehors(id))){ libererVitrine(); return; }
-  let px=P.x, pz=P.z+3;
-  for(let r=2;r<=14&&solidAt(px,pz,2.2);r+=2){ px=P.x+rand(-r,r); pz=P.z+rand(2,r); }
-  const nv=creerVehicule(slot.cle,px,pz,0);
+  const gnx=Math.round(-Math.sin(INT.rYaw||Math.PI)*1000)/1000, gnz=Math.round(-Math.cos(INT.rYaw||Math.PI)*1000)/1000; /* la normale de la porte (le garage des canaux regarde vers l'ouest) ; au sud : comme avant */
+  let px=P.x+gnx*3, pz=P.z+gnz*3;
+  for(let r=2;r<=14&&solidAt(px,pz,2.2);r+=2){ const a=rand(-r,r), b=rand(2,r); px=P.x+gnz*a+gnx*b; pz=P.z+gnz*b-gnx*a; }
+  const nv=creerVehicule(slot.cle,px,pz,Math.atan2(gnx,gnz));
   if(!nv){ libererVitrine(); return; }
   if(id){
     appliquerTuning(nv,id);
@@ -41178,7 +41584,7 @@ function nomsQuartiers(){
     while(pile.length){ const [x,z]=pile.pop(); cases.push([x,z]); for(const [dx,dz] of [[1,0],[-1,0],[0,1],[0,-1]]){ const nx=x+dx, nz=z+dz, nk=nx+','+nz; if(nx<0||nz<0||nx>=NB||nz>=NB||vu.has(nk)||quartier(nx,nz)!==q) continue; vu.add(nk); pile.push([nx,nz]); } }
     if(cases.length<2&&q!=='place') continue;
     let sx=0, sz=0; for(const [x,z] of cases){ sx+=x; sz+=z; }
-    L.push({x:-HALF+(sx/cases.length+0.5)*CELL, z:q==='plage'?MER-14:-HALF+(sz/cases.length+0.5)*CELL, nom:NOMS_QUARTIERS[q]}); }
+    L.push({x:-HALF+(sx/cases.length+0.5)*CELL, z:q==='plage'?MER-14:-HALF+(sz/cases.length+0.5)*CELL, nom:q==='port'&&CANAUX.ok?'LES CANAUX':NOMS_QUARTIERS[q]}); }
   if(HILLS.ok) L.push({x:(HILLS.x0+HILLS.x1)/2,z:(HILLS.z0+HILLS.z1)/2,nom:'LOS REYES HILLS'});
   if(DECOR_V2) L.push({x:MONT.x,z:MONT.z,nom:'MONT REYES'});
   L.push({x:HALF+80,z:-HALF+190,nom:'AÉROPORT'});
@@ -41997,6 +42403,7 @@ function startRun(){
     creerPickup('mun',GALION.tresor.x+1.2,GALION.tresor.z-0.6); pickups[pickups.length-1].t=1e9; }
   if(POIS.secret){creerPickup('cash',POIS.secret.x,POIS.secret.z,60);
     creerPickup('cash',POIS.secret.x+1.5,POIS.secret.z+1,45);creerPickup('med',POIS.secret.x-1.5,POIS.secret.z+1);}
+  canauxNettoyerVehicules(); /* canaux : un véhicule posé que le quartier a rendu impossible, retiré après coup (tirages inchangés) */
   ecran(null);
   el('hud').classList.add('on');
   bigMsg('SURVIS, ENCAISSE, RECOMMENCE');
@@ -45385,7 +45792,7 @@ function tick(t){
       majMeteo(dt);
       majMer(dt);
       majMerV2(dt);
-      if(DECOR_V2){ majHorsLesMurs(dt); majMobilier(); majLac(dt); majLumieres(dt); majJetee(dt); majPortVivant(dt); majAeroportVivant(dt); majAeroVie(dt); majVieHills(dt); majChantierV2(dt); majBaseV2(dt,dtJeu); majCampEntrainement(dt); majSportsParcs(dt); majConcession(dt); majDerby(dt,dtJeu); majHeliportManoir(dt); majPlanques(dt); majTour(dtJeu); majCascades(dt); majManeges(dt); majBrooklyn(dt); majCiel(dt); majCielCibles(dt); majNeonVivant(dt); majQuartiersFinitions(dt); }
+      if(DECOR_V2){ majHorsLesMurs(dt); majMobilier(); majLac(dt); majLumieres(dt); majJetee(dt); majPortVivant(dt); majAeroportVivant(dt); majAeroVie(dt); majVieHills(dt); majChantierV2(dt); majBaseV2(dt,dtJeu); majCampEntrainement(dt); majSportsParcs(dt); majConcession(dt); majDerby(dt,dtJeu); majHeliportManoir(dt); majPlanques(dt); majTour(dtJeu); majCascades(dt); majManeges(dt); majBrooklyn(dt); majCiel(dt); majCielCibles(dt); majNeonVivant(dt); majQuartiersFinitions(dt); majCanaux(dt); }
       majEpaveCanon(dt);
     }
     majHUD();

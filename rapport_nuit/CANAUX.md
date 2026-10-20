@@ -132,9 +132,13 @@ Retenu :
 1. **Déterminisme : construit puis retiré, en fin de décor.** Réserver la zone au début du décor (comme la colline) changerait ce
    que voient les bâtisseurs suivants (port vivant, mobilier, toits, façades : ils testent les solides) et donc leurs tirages : le
    mobilier hors zone bougerait. La ville ET tout le décor sont construits comme avant ; `reserverCanaux` (aucun tirage : retraits
-   et déplacements de portes) s'exécute juste avant `mkBalises` (les balises suivent les portes déplacées), `mkCanaux` juste après
-   (générateur privé : les nouvelles balises ne consomment rien). L'empreinte (`_aleaDecorS` après chaque bâtisseur, portes,
-   chalet, places garnies) doit rester identique.
+   et déplacements de portes) s'exécute APRÈS `mkBalises` et `montActiver` (réservée avant les balises, elle retirait des activités
+   du quartier — un coffre de toit — et `mkBalises` tirait moins : la trace du décor changeait) ; les balises des deux portes
+   déplacées suivent leur porte, celles posées sur ce qui est retiré disparaissent. `mkCanaux` vient en dernier, sur un générateur
+   privé. **Les bâtiments pas encore fusionnés (`MERGE`) sont repliés en un point, jamais retirés** : une clé vidée, c'est un
+   maillage de moins créé par `finaliserMerge`, donc des tirages en moins pour toute la partie (les voitures garées au hasard, hors
+   du quartier, changeaient de place). L'empreinte (`_aleaDecorS` après chaque bâtisseur, portes, chalet, places garnies) ET le
+   tirage principal après le chargement sont identiques à ceux d'avant.
 2. **Plan** (A–E de l'image → bx 9–13) : canal ouest = colonne bx 10 (eau x 137 → 157), canal est = bx 12 (x 221 → 241), du bord
    de la route nord (z −36) à la plage ; quais de 5,5 u ; les rues x = 126, 168, 210, 252 deviennent les rues des quais.
    **Rues transversales à ponts : z = 42 et z = 168** (quatre ponts) ; le pont sud-ouest (z = 168, canal ouest) a le tablier orange.
@@ -156,9 +160,76 @@ Retenu :
 6. **Nageurs et ponts** : on ne passe pas sous un pont à la nage (le tablier est un mur depuis l'eau, comme les quais) ; on sort de
    l'eau par les marches. Les bateaux, eux, passent.
 
+7. **Trafic** : il ne tourne jamais ; devant une rue retirée il fait demi-tour AVANT le carrefour qui la précède (au milieu du
+   carrefour, la file bloquait la rue croisée : 15 véhicules figés en 90 s au premier essai), et il n'apparaît plus à moins de 60 u
+   d'une rue retirée (entre deux canaux, une voiture ferait la navette). Le trafic du quartier est donc un peu moins dense.
+8. **Marches** : 16 escaliers de cinq marches, parallèles au quai, de −0,42 à 0,22 (`CANAUX.marches`) : 3 par quai des canaux,
+   2 dans la traverse, 1 par bassin. Rien n'y apparaît (`pointApparition`, piétons).
+9. **Sortie du garage en voiture** (`garageApresSortie`) : le véhicule est posé dans l'axe de la porte (avant : toujours 3 u au sud ;
+   les portes des garages existants regardent toutes au sud, rien ne change pour eux) — le garage du port regarde vers l'ouest.
+10. **« Sauvegarde dans l'ancien port »** : le jeu ne sauvegarde aucune position (on repart toujours de la grande place). Vérifié à
+    la place : planques du quartier (cabanon, voilier) achetées et sauvegardées, relues, nouvelle partie — rien de posé dans l'eau.
+11. **Véhicules posés devenus impossibles** (`canauxNettoyerVehicules`, fin de `startRun`) : retirés APRÈS leur création, jamais
+    avant (les tirages de la partie restent ceux d'avant) — dans l'eau d'un canal (sauf un bateau), sur une rue retirée ou un
+    tablier (une voiture), dans un bâtiment du quartier. Avec la graine par défaut : aucun.
+12. **Le convoi militaire** (événement) naissait parfois sur une rue retirée et partait tout droit dans l'eau : il n'apparaît pas
+    ce coup-là.
+
+## Phase 1 — squelette jouable (fait)
+
+Bandeau `LES CANAUX DE LOS REYES` (`index.html`, avant `AÉROPORT VIVANT`) ; la géométrie de l'eau (`CANAUX`, `formeSdf`,
+`dansCanal`, `pontCanal`, `marcheCanal`, `dansCoupe`, `routeCanalInterdite`, `estEauNav`, `niveauCanal`, `niveauFlot`) juste avant
+`estEau`.
+
+- [x] Réservation de la zone (`reserverCanaux`, aucun tirage) : 111 objets retirés, 39 521 triangles de maillages fusionnés
+  repliés (mobilier, façades, toits, conteneurs), bâtiments non fusionnés repliés, solides, trottoirs, plateformes, rampes,
+  lampadaires, feux, stands, enseignes, portiques du port vivant et leurs feux, balises orphelines.
+- [x] Lieux déplacés : **aquarium** (147 ; 65,95) → (116,1 ; 63), façade est du pâté (9,8), sortie (119 ; 63) ; **garage du port**
+  (147 ; 149,55) → (176,35 ; 147), façade ouest du pâté (11,10), sortie (174,95 ; 147), on en ressort au volant sur la rue x = 168.
+  Un bâtiment neuf pour chacun (matériaux propres). Aucun autre lieu ne bouge.
+- [x] Eau : une seule nappe, ~15 000 u² (deux canaux de 20 u, traverse de 18 u, bras de 12 u, bassins de 22 u, embouchures) ;
+  niveau −0,6 sous les quais, qui remonte à 0 jusqu'à la mer ; fond à −2,4 ; houle ×0,2 ; plan d'asphalte de la ville percé aux
+  canaux (même matériau). Le coin intérieur de l'embouchure ouest est arrondi (les bateaux s'y échouaient en sortant).
+- [x] Six ponts (tablier en dos d'âne de 31 u, plateau à 2,7 u, tirant d'air 3,3 u ; le sud-ouest orange) ; le tablier s'efface
+  quand le bateau ou le nageur du joueur passe dessous (matériaux propres).
+- [x] Quais maçonnés (mur de pierre du fond à la margelle, margelle claire), dallage des quais et des pâtés libérés (0,22), 16
+  escaliers ; la plage refaite autour des embouchures, la pellicule des vagues coupée, les pointillés des rues coupés à l'eau.
+- [x] Collisions : à la nage, quais et tabliers sont des murs (on sort par les marches) ; les bateaux passent sous les ponts
+  (`estEauNav`) ; voitures, police, trafic : sur les tabliers, noyés dans l'eau ; les nageurs (`rivePlusProche`) visent les marches.
+- [x] Trafic, apparitions, police à terre, voitures garées, convoi : jamais sur une rue retirée, un pont ou une marche.
+- [x] Carte : canaux, quais, ponts (l'orange), marches, aquarium et garage sur la minimap et la grande carte ; quartier nommé
+  « LES CANAUX ».
+
+### Mesures (phase 1)
+
+- **Empreinte** : trace du décor (`_aleaDecorS` après chaque bâtisseur, dont `mkBalises`), portes, chalet, places garnies :
+  identiques à avant ; seul le nombre d'objets de la scène baisse (5 449 → 5 370). Tirage principal après le chargement : identique.
+- **Relevé de protection du périmètre** (`releve_canaux.js --comparer canaux_avant.json`) : **aucun écart** ; seuls les
+  déplacements notés dans `canaux_deplacements.json` (aquarium, garage du port, 23 kiosques et food trucks retirés) ; 178 véhicules
+  posés identiques (hors zone : positions exactes).
+- **Bateaux** (pilote simulé à poursuite pure, `majVehiculePhys` réel) : vedette de police, vedette, jet-ski, offshore — circuit est
+  (embouchure ouest, canal ouest, traverse, canal est, bras est et demi-tour dans le bassin, embouchure est) en 46 à 54 s, circuit
+  ouest (bras ouest et son bassin) en 52 à 60 s, tronçon nord du canal est en 30 à 33 s : **sous les six ponts dans les deux sens**,
+  0 à 1 frôlement à 7 u/s, aucun échouage.
+- **Voitures sur les six ponts** (citadine, moto, bus, deux sens) : tablier à 2,7 u, tangage ≤ 0,35 rad, jamais noyées.
+- **Voiture lancée dans un canal** : noyée, le joueur nage jusqu'aux marches et remonte sur le quai en 6 s ; un quai sans marche
+  ne s'escalade pas depuis l'eau.
+- **Trafic, 90 s au calme depuis trois trottoirs du quartier** : 0 véhicule dans l'eau, 0 sur une rue retirée, 0 noyé ; arrêts de
+  plus de 10 s : 7 et 15 (graines 20260731 et 777) contre 10 et 6 sur HEAD dans la même scène — du même ordre ; ~35 % de
+  véhicules vus en moins dans le quartier (demi-tours avant les rues retirées).
+- **500 apparitions** (`spawnRing`) et 300 points de la police (`pointRoutePolice`) depuis le quartier : toutes sur la terre ferme.
+- **Construction** : `reserverCanaux` ~0,4 s, `mkCanaux` ~0,35 à 0,45 s sur ce PC (contours 1,9 s au premier jet : grille calculée
+  forme par forme, boucle sans fermeture) ; chargement complet : 26,4–27,5 s contre 25,8–26,7 s sur HEAD (navigateur sans carte
+  graphique : ~+0,6 s). **À mesurer sur iPhone.**
+- **Suite complète** : 828 vertes ; un échec attendu (« Port vivant » exigeait des parcs à conteneurs, retirés par la demande),
+  test adapté, vert. `valider.js` : vert.
+
+Captures (390 × 844) : `p1_carte_statique.png`, `p1_grande_carte.png`, `p1_traverse.png`, `p1_embouchure.png`,
+`p1_bassin_est.png`, `p1_pont_so.png` (le tablier orange effacé au-dessus du nageur), `p1_pont_imm.png`, `p1_quai_imm.png`.
+
 ## Phases
 
-- [ ] Phase 1 — squelette jouable
+- [x] Phase 1 — squelette jouable
 - [ ] Phase 2 — police maritime
 - [ ] Phase 3 — bâti
 - [ ] Phase 4 — nautique et ambiance

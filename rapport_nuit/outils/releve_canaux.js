@@ -66,15 +66,15 @@ const dansZone = (x, z) => x >= ZONE.x0 && x <= ZONE.x1 && z >= ZONE.z0 && z <= 
   const A = JSON.parse(fs.readFileSync(ref, 'utf8')), dep = fs.existsSync(path.join(R, 'rapport_nuit/canaux_deplacements.json')) ? JSON.parse(fs.readFileSync(path.join(R, 'rapport_nuit/canaux_deplacements.json'), 'utf8')) : {};
   const ko = [], notes = [];
   for (const L of ['portes', 'pois', 'garages', 'sorties', 'vehicules', 'stands', 'planques', 'activites', 'rides', 'stations', 'caches']) {
-    const nouv = new Map((r[L] || []).map((e) => [e.cle, e]));
-    for (const a of A[L] || []) { const b = nouv.get(a.cle);
+    const nouv = new Map(); for (const e of r[L] || []) { if (!nouv.has(e.cle)) nouv.set(e.cle, []); nouv.get(e.cle).push(e); } /* une clé peut être portée par plusieurs objets (deux planches au même endroit) : on prend le plus proche */
+    for (const a of A[L] || []) { const l = nouv.get(a.cle); let b = null; if (l) for (const e of l) if (!b || Math.hypot(e.x - a.x, e.z - a.z) < Math.hypot(b.x - a.x, b.z - a.z)) b = e;
       if (!b) { if (L === 'vehicules' || L === 'stands' || L === 'activites') { /* clé à la position : retrouvé par proximité ou par déplacement noté */
           const proche = (r[L] || []).find((e) => (e.key || '') === (a.key || '') && Math.hypot(e.x - a.x, e.z - a.z) < 0.05); if (proche) continue; }
         if (dep[a.cle]) { notes.push(a.cle + ' : ' + dep[a.cle]); continue; } ko.push(L + ' ' + a.cle + ' : disparu'); continue; }
       const bouge = Math.hypot(b.x - a.x, b.z - a.z) > 0.01;
       if (bouge && !dep[a.cle]) ko.push(L + ' ' + a.cle + ' : déplacé (' + a.x + ',' + a.z + ' → ' + b.x + ',' + b.z + ')' + (a.zone ? ' sans être noté dans canaux_deplacements.json' : ' HORS ZONE'));
       else if (bouge) notes.push(a.cle + ' déplacé (' + a.x + ',' + a.z + ' → ' + b.x + ',' + b.z + ') : ' + dep[a.cle]);
-      if (b.eau && !(L === 'vehicules' && b.bateau)) ko.push(L + ' ' + a.cle + ' : dans l’eau'); /* un bateau, lui, doit être à flot */
+      if (b.eau && !a.eau && !(L === 'vehicules' && b.bateau)) ko.push(L + ' ' + a.cle + ' : dans l’eau'); /* un bateau, lui, doit être à flot ; déjà dans l'eau avant (planque du voilier, marina) : inchangé */
       if (L === 'vehicules' && b.bateau && a.eau && !b.eau) ko.push(L + ' ' + a.cle + ' : bateau plus à flot');
       if (b.pont) ko.push(L + ' ' + a.cle + ' : sur un tablier de pont');
       if (a.aPied && b.aPied === false) ko.push(L + ' ' + a.cle + ' : plus accessible à pied');
