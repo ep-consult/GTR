@@ -7847,7 +7847,7 @@ function mkCanaux(){
       addSolid({x:(R.x0+R.x1)/2,z:(R.z0+R.z1)/2,hw:w/2,hd:d/2,h,toit:true}); };
     if(C.aquarium) bat(C.aquarium,'#2a6a8a',8.5);
     if(C.garage) bat(C.garage,'#4a5058',6.5);
-    tp('lieux'); C.tBuild=Math.round(performance.now()-t0);
+    tp('lieux'); canauxGraphe(); C.tBuild=Math.round(performance.now()-t0);
   });
 }
 /* ---------- startRun : un véhicule posé (garé au hasard, vélo d'un arceau retiré, hélico d'un toit retiré…) que le quartier a rendu
@@ -7881,6 +7881,143 @@ function dessinerCanauxCarte(g){
     g.fillStyle='#f0ebe0'; g.fillRect(mmX(p.x0),mmZ(p.z0+0.5),(p.x1-p.x0)*mmS,0.3); g.fillRect(mmX(p.x0),mmZ(p.z1-0.5)-0.3,(p.x1-p.x0)*mmS,0.3); }
   g.fillStyle='#efe6cf'; for(const m of C.marches) g.fillRect(mmX(m.x0),mmZ(m.z0),Math.max(0.6,(m.x1-m.x0)*mmS),Math.max(0.6,(m.z1-m.z0)*mmS));
   for(const R of [C.aquarium,C.garage]) if(R){ g.fillStyle='rgba(0,0,0,0.35)'; g.fillRect(mmX(R.x0)+0.6,mmZ(R.z0)+0.6,(R.x1-R.x0)*mmS,(R.z1-R.z0)*mmS); g.fillStyle='#5d6470'; g.fillRect(mmX(R.x0),mmZ(R.z0),(R.x1-R.x0)*mmS,(R.z1-R.z0)*mmS); } /* l'aquarium et le garage, sur leurs nouveaux pâtés */
+}
+/* ---------- POLICE MARITIME DES CANAUX (phase 2) ----------
+   Demandé : « le joueur sur l'eau ou à la nage dans un canal compte comme en mer ; les vedettes entrent par une embouchure ou
+   apparaissent hors de vue, suivent un graphe de navigation, ralentissent sous les ponts, font demi-tour dans les bassins, sont
+   recyclées si elles restent coincées hors de l'écran, deux au plus ; des renforts à terre vers les quais et les ponts, jamais dans
+   l'eau ; à 4 étoiles, une vedette en travers d'une embouchure (forçable) ; sans étoile, au plus une vedette de patrouille, témoin ;
+   rien ne change en haute mer ; la recherche ne disparaît jamais en entrant dans l'eau ».
+   - Le GRAPHE (canauxGraphe, à la construction) est tiré des formes de CANAUX : l'axe de chaque canal, de la tête à la mer, avec un
+     nœud à chaque pont, au bras, à la traverse ; l'axe des bras jusqu'au centre des bassins ; la traverse ; les deux embouchures
+     reliées par la mer (z = MER + 32). Chemin le plus court (cheminCanal, Dijkstra sur ~25 nœuds) de la vedette au joueur, refait
+     deux fois par seconde.
+   - Le PILOTE (piloterVedette) : poursuite pure le long du chemin (cible 6 u + 0,35 × vitesse devant), vitesse réglée sur le virage à
+     venir, plafonnée sous les ponts (PCANAL_V_PONT) et dans les bras (PCANAL_V_BRAS) ; bloqué plus d'une seconde : marche arrière
+     en contre-braquant ; coincée PCANAL_RECYCLE s hors de l'écran : retirée (une autre viendra).
+   - Une vedette des canaux est une vedette de police ordinaire (conduit 'police', v.vedetteCanal) : détournable, comptée dans les
+     véhicules de police, gyrophares ; elle ne débarque JAMAIS d'agents (ils tomberaient à l'eau) ; elle tire depuis le pont. */
+const PCANAL={noeuds:[],aretes:[],ok:false,patT:0,spawnT:0,annonceT:0};
+const PCANAL_MAX=2, PCANAL_V=26, PCANAL_V_PONT=11, PCANAL_V_BRAS=12, PCANAL_V_PATROUILLE=13, PCANAL_RECYCLE=4, PCANAL_PORTEE_TIR=30, PCANAL_PATROUILLE_D=170, PCANAL_RENFORT=5;
+function canauxGraphe(){
+  const C=CANAUX, G=PCANAL; G.noeuds.length=0; G.aretes.length=0; if(!C.ok) return;
+  const f=(id)=>C.eaux.find((q)=>q.id===id), cO=f('canalO'), cE=f('canalE'), tr=f('traverse'), bO=f('brasO'), sO=f('bassinO'), bE=f('brasE'), sE=f('bassinE'), e3=f('embO3');
+  const xO=(cO.x0+cO.x1)/2, xE=(cE.x0+cE.x1)/2, zT=(tr.z0+tr.z1)/2, zBO=(bO.z0+bO.z1)/2, zBE=(bE.z0+bE.z1)/2, xO3=(e3.x0+e3.x1)/2, zMerP=MER+32;
+  const zPonts=[]; for(const p of C.ponts) if(!zPonts.includes(p.zc)) zPonts.push(p.zc);
+  const n=(x,z,genre)=>{ G.noeuds.push({x,z,genre:genre||'canal',v:[]}); return G.noeuds.length-1; };
+  const a=(i,j)=>{ const A=G.noeuds[i], B=G.noeuds[j], d=Math.hypot(A.x-B.x,A.z-B.z); A.v.push([j,d]); B.v.push([i,d]); G.aretes.push([i,j,d]); };
+  const chaine=(x,zs,quoi)=>{ const L=[...new Set(zs)].sort((p,q)=>p-q).map((z)=>({z,i:n(x,z)})); for(let k=0;k+1<L.length;k++) a(L[k].i,L[k+1].i); const o={}; for(const q of L) o[q.z]=q.i; return o; };
+  const O=chaine(xO,[cO.z0+6,zBO,zT,...zPonts.filter((z)=>z<cO.z1)]), E=chaine(xE,[cE.z0+6,zBE,zT,...zPonts]);
+  const oSud=O[Math.max(...Object.keys(O).map(Number))], q1=n(xO+6,C.zMer+10.5), q2=n(xO3,C.zMer+22.5), mO=n(xO3,zMerP,'mer'); a(oSud,q1); a(q1,q2); a(q2,mO);
+  const eSud=E[Math.max(...Object.keys(E).map(Number))], mE=n(xE,zMerP,'mer'); a(eSud,mE); a(mO,mE);
+  const t=n((tr.x0+tr.x1)/2,zT); a(O[zT],t); a(t,E[zT]);
+  const bo=n((bO.x0+bO.x1)/2,zBO,'bras'), so=n(sO.x,sO.z,'bassin'); a(O[zBO],bo); a(bo,so);
+  const be=n((bE.x0+bE.x1)/2,zBE,'bras'), se=n(sE.x,sE.z,'bassin'); a(E[zBE],be); a(be,se);
+  G.mers=[mO,mE]; G.barrages=[{x:xO3,z:MER-11,ang:Math.PI/2},{x:xE,z:MER-11,ang:Math.PI/2}]; /* en travers de chaque embouchure, entre la plage et la mer */
+  G.ronde=[mO,O[zT],E[zT],mE]; /* la patrouille : de la mer au canal ouest, la traverse, le canal est, la mer (cheminCanal relie) */
+  G.ok=true;
+}
+/* le point du graphe le plus proche (sur une arête) */
+function projGraphe(x,z){ let best=null, bd=1e18; const G=PCANAL;
+  for(const [i,j,L] of G.aretes){ const A=G.noeuds[i], B=G.noeuds[j], ex=B.x-A.x, ez=B.z-A.z, t=clamp(((x-A.x)*ex+(z-A.z)*ez)/(L*L||1),0,1), px=A.x+ex*t, pz=A.z+ez*t, d=dist2(x,z,px,pz);
+    if(d<bd){ bd=d; best={i,j,t,L,x:px,z:pz,d:Math.sqrt(d)}; } }
+  return best; }
+/* le chemin le plus court par l'eau, de (x0,z0) à (x1,z1) : [[x,z]…] et sa longueur */
+function cheminCanal(x0,z0,x1,z1){
+  const G=PCANAL, N=G.noeuds.length, a=projGraphe(x0,z0), b=projGraphe(x1,z1); if(!a||!b) return null;
+  if((a.i===b.i&&a.j===b.j)||(a.i===b.j&&a.j===b.i)) return {pts:[[x0,z0],[a.x,a.z],[b.x,b.z],[x1,z1]],L:Math.hypot(a.x-b.x,a.z-b.z)};
+  const dist=new Float64Array(N).fill(1e18), prec=new Int32Array(N).fill(-1), vu=new Uint8Array(N);
+  dist[a.i]=a.t*a.L; dist[a.j]=(1-a.t)*a.L; prec[a.i]=-2; prec[a.j]=-2;
+  for(let k=0;k<N;k++){ let u=-1; for(let i=0;i<N;i++) if(!vu[i]&&(u<0||dist[i]<dist[u])) u=i; if(u<0||dist[u]>=1e18) break; vu[u]=1;
+    for(const [w,d] of G.noeuds[u].v) if(dist[u]+d<dist[w]){ dist[w]=dist[u]+d; prec[w]=u; } }
+  const fin=dist[b.i]+b.t*b.L<dist[b.j]+(1-b.t)*b.L?b.i:b.j, L=Math.min(dist[b.i]+b.t*b.L,dist[b.j]+(1-b.t)*b.L);
+  const ch=[]; for(let u=fin;u>=0;u=prec[u]) ch.unshift([G.noeuds[u].x,G.noeuds[u].z]);
+  return {pts:[[x0,z0],[a.x,a.z],...ch,[b.x,b.z],[x1,z1]],L}; }
+function joueurDansCanaux(){ return CANAUX.ok&&!INT.actif&&P.z<MER+2&&(P.nage||(!!P.veh&&surEauVeh(P.veh)))&&dansCanal(P.x,P.z); }
+function vedettesCanal(){ let n=0; for(const v of vehicules) if(!v.mort&&v.vedetteCanal&&v.conduit==='police') n++; return n; }
+/* où faire naître une vedette : par l'embouchure la plus proche (en mer, hors de vue) ou à un nœud du graphe caché, à 70–220 u par l'eau */
+function pointEntreeCanal(){
+  const G=PCANAL; if(!G.ok) return null; let best=null, bs=-1e9;
+  for(let i=0;i<G.noeuds.length;i++){ const q=G.noeuds[i], c=cheminCanal(q.x,q.z,P.x,P.z); if(!c||c.L<70||c.L>220) continue;
+    let occupe=false; for(const v of vehicules) if(!v.mort&&dist2(v.x,v.z,q.x,q.z)<100){ occupe=true; break; } if(occupe) continue;
+    const cache=horsEcran(q.x,q.z)&&(!vueImmersive()||apparitionCachee(q.x,q.z)), sc=(cache?3:0)+(q.genre==='mer'?1:0)-Math.abs(c.L-120)/60;
+    if(sc>bs){ bs=sc; const s=c.pts[2]||c.pts[c.pts.length-1]; best={x:q.x,z:q.z,ang:Math.atan2(s[0]-q.x,s[1]-q.z),cache}; } }
+  return best&&best.cache?best:null; }
+function creerVedetteCanal(patrouille){
+  const p=pointEntreeCanal(); if(!p) return null;
+  const v=creerVehicule('bateauP',p.x,p.z,p.ang,patrouille?'patrouilleCanal':'police'); if(!v) return null;
+  v.vedetteCanal=true; v.sirene=!patrouille; if(patrouille) v.patrouilleP=true; v.pcT=0; v.cad=1.5; return v; }
+/* le pilote : poursuite pure le long d'un chemin, vitesse au virage, plafonds sous les ponts et dans les bras */
+function piloterVedette(v,dt,cible,vMax,arret,ecart){
+  if(!v.pcChemin||v.pcT<=0||Math.hypot(cible[0]-v.pcCible[0],cible[1]-v.pcCible[1])>6){ const c=cheminCanal(v.x,v.z,cible[0],cible[1]); if(!c) return; v.pcChemin=c.pts; v.pcS=0; v.pcT=0.5; v.pcCible=cible.slice();
+    const segs=[]; let L=0; for(let i=0;i+1<c.pts.length;i++){ const A=c.pts[i], B=c.pts[i+1], l=Math.hypot(B[0]-A[0],B[1]-A[1]); if(l<0.01) continue; segs.push({A,B,l,s0:L}); L+=l; } v.pcSegs=segs; v.pcL=L; }
+  v.pcT-=dt; const segs=v.pcSegs, L=v.pcL; if(!segs||!segs.length) return;
+  const pt=(u)=>{ u=clamp(u,0,L); for(const g of segs) if(u<=g.s0+g.l){ const k=(u-g.s0)/g.l; return [g.A[0]+(g.B[0]-g.A[0])*k,g.A[1]+(g.B[1]-g.A[1])*k]; } const g=segs[segs.length-1]; return g.B; };
+  const dir=(u)=>{ const p=pt(u), q=pt(u+1); return Math.atan2(q[0]-p[0],q[1]-p[1]); };
+  let s=v.pcS, bd=1e18; for(let u=v.pcS;u<=Math.min(L,v.pcS+30);u+=0.5){ const q=pt(u), d=dist2(q[0],q[1],v.x,v.z); if(d<bd){ bd=d; s=u; } } v.pcS=s;
+  const vv=Math.abs(v.v), c=pt(s+6+vv*0.35); if(ecart){ const a=dir(s+3); c[0]+=Math.cos(a)*ecart; c[1]-=Math.sin(a)*ecart; } /* écart latéral : on serre un quai pour laisser passer */
+  const err=angDiff(v.ang,Math.atan2(c[0]-v.x,c[1]-v.z)), d0=dir(s); let virage=0; for(let D=4;D<=10+vv*1.3;D+=2) virage=Math.max(virage,Math.abs(angDiff(d0,dir(s+D))));
+  let vt=virage>1.2?6:(virage>0.7?8:(virage>0.35?12:vMax));
+  for(const p of CANAUX.ponts) if(Math.abs(v.x-p.xc)<16&&Math.abs(v.z-p.zc)<14){ vt=Math.min(vt,PCANAL_V_PONT); break; } /* sous un pont : au ralenti */
+  for(const e of CANAUX.eaux) if((e.id==='brasO'||e.id==='brasE'||e.id==='bassinO'||e.id==='bassinE')&&formeSdf(e,v.x,v.z)<2){ vt=Math.min(vt,PCANAL_V_BRAS); break; }
+  const reste=L-s; if(arret!==undefined) vt=Math.min(vt,Math.max(0,(reste-arret)*0.8)); /* on s'arrête à « arret » u du bout */
+  let steer=clamp(err*2.5,-1,1), th=clamp((Math.min(vt,Math.abs(err)>0.6?6:vt)-v.v)*0.2+0.25*(vt>0.5?1:0),-1,0.9);
+  if(v.pcRecul>0){ v.pcRecul-=dt; th=-0.6; steer=-steer; }
+  else if(v.pcBloque>1){ v.pcRecul=1.2; v.pcBloque=0; }
+  majVehiculePhys(v,dt,th,steer,false);
+  const avance=Math.abs(v.v)>1.2||vt<1.5; v.pcBloque=avance||v.pcRecul>0?0:(v.pcBloque||0)+dt; v.pcCoince=avance?0:(v.pcCoince||0)+dt; /* coincée : pas d'avancée alors qu'elle devrait */
+}
+function gyroVedette(v){ const b=v.mesh.userData.bar; if(!b) return; const cl=Math.floor(ETAT.runT*6)%2; b[0].material.color.setHex(cl?0xff3b4b:0x501018); b[1].material.color.setHex(cl?0x1a2a60:0x3a7bff); }
+/* une vedette des canaux à la poursuite (conduit 'police'), au barrage (4 étoiles) ou en patrouille ('patrouilleCanal') */
+function majVedetteCanal(v,dt){
+  const G=PCANAL; if(!G.ok){ v.vedetteCanal=false; return; }
+  const enCanal=joueurDansCanaux(), d=Math.sqrt(dist2(v.x,v.z,P.x,P.z));
+  if(v.conduit==='patrouilleCanal'){ /* la ronde : de mer en mer par les deux canaux et la traverse */
+    if(!v.pcRonde||Math.hypot(v.x-v.pcRonde[0],v.z-v.pcRonde[1])<10){ const k=v.pcK=((v.pcK===undefined?-1:v.pcK)+1)%G.ronde.length, q=G.noeuds[G.ronde[k]]; v.pcRonde=[q.x,q.z]; }
+    piloterVedette(v,dt,v.pcRonde,PCANAL_V_PATROUILLE);
+    if(v.pcCoince>PCANAL_RECYCLE&&horsEcran(v.x,v.z)) v.mort=true;
+    if(d>PCANAL_PATROUILLE_D*1.6&&horsEcran(v.x,v.z)) v.mort=true;
+    return; }
+  if(WANTED.stars===0){ /* plus recherché : une seule reste en patrouille, les autres repartent par la mer */
+    let pat=false; for(const o of vehicules) if(!o.mort&&o.conduit==='patrouilleCanal'){ pat=true; break; }
+    if(!pat){ v.conduit='patrouilleCanal'; v.sirene=false; v.patrouilleP=true; v.pcBarrage=null; return; }
+    const m=G.noeuds[G.mers[v.x<(G.noeuds[G.mers[0]].x+G.noeuds[G.mers[1]].x)/2?0:1]]; piloterVedette(v,dt,[m.x,m.z],PCANAL_V);
+    if(horsEcran(v.x,v.z)&&(d>120||v.z>MER+20)) v.mort=true; return; }
+  gyroVedette(v); v.cad-=dt;
+  if(v.pcBarrage){ /* 4 étoiles : en travers de l'embouchure, elle tient sa place (on peut la pousser : resoudreCollisionsVehicule) */
+    const B=v.pcBarrage, db=Math.hypot(v.x-B.x,v.z-B.z);
+    if(db>4) piloterVedette(v,dt,[B.x,B.z],PCANAL_V,0);
+    else { v.ang=angLerp(v.ang,B.ang,clamp(dt*0.9,0,1)); majVehiculePhys(v,dt,0,0,true); v.pcCoince=0; }
+    if(WANTED.stars<4||!enCanal) v.pcBarrage=null; }
+  else if(enCanal){ const pv=P.veh?Math.abs(P.veh.v):0, hx=P.veh?Math.sin(P.veh.ang):0, hz=P.veh?Math.cos(P.veh.ang):0, devant=(v.x-P.x)*hx+(v.z-P.z)*hz;
+    if(pv>3&&devant>0&&d<30){ /* le joueur fonce sur elle : elle serre un quai et le laisse passer (jamais un mur de police au milieu du canal) */
+      if(!v.pcCote) v.pcCote=((v.x-P.x)*hz-(v.z-P.z)*hx)>=0?1:-1; piloterVedette(v,dt,[P.x,P.z],6,undefined,v.pcCote*5.5); }
+    else if(d>10){ v.pcCote=0; piloterVedette(v,dt,[P.x,P.z],PCANAL_V,8); }
+    else { v.pcCote=0; majVehiculePhys(v,dt,v.v>Math.max(1,pv)?-0.5:(pv>1?0.3:0),clamp(angDiff(v.ang,Math.atan2(P.x-v.x,P.z-v.z))*1.5,-1,1),pv<1); v.pcCoince=0; } } /* tout près : elle colle à sa vitesse, sans le pousser */
+  else { /* le joueur est à terre : elle se poste au plus près, par l'eau */ const p=projGraphe(P.x,P.z); if(p) piloterVedette(v,dt,[p.x,p.z],PCANAL_V,4); }
+  if(v.cad<=0&&d<PCANAL_PORTEE_TIR&&ligneLibre(v.x,v.z,P.x,P.z)){ v.cad=1.4; const va=Math.atan2(P.x-v.x,P.z-v.z);
+    for(let k=0;k<2;k++) tirer(v.x,(v.h||0)+1.6+niveauFlot(v.x,v.z),v.z,va,13,55,7,'police',0x8ad2ff,hCibleJoueur(),d); }
+  if(v.pcCoince>PCANAL_RECYCLE&&horsEcran(v.x,v.z)){ v.mort=true; return; } /* coincée hors de l'écran : recyclée */
+  if(!enCanal&&d>200&&horsEcran(v.x,v.z)) v.mort=true;
+}
+/* chaque image (boucle) : barrage à 4 étoiles, patrouille sans étoile près des canaux */
+function majPoliceCanaux(dt){
+  const G=PCANAL; if(!G.ok||INT.actif||ETAT.mode!=='jeu') return;
+  const enCanal=joueurDansCanaux(); G.annonceT-=dt;
+  if(enCanal&&WANTED.stars>=2){ /* recherché dans les canaux : les vedettes de la mer suivent par l'embouchure, d'autres arrivent (deux au plus) */
+    for(const v of vehicules) if(!v.mort&&v.conduit==='police'&&v.def&&v.def.eau&&!v.vedetteCanal){ v.vedetteCanal=true; v.pcChemin=null; v.cad=v.cad||1.5; }
+    G.spawnT-=dt; if(G.spawnT<=0){ G.spawnT=PCANAL_RENFORT; if(vedettesCanal()<PCANAL_MAX){ const v=creerVedetteCanal(false); if(v&&G.annonceT<=0){ G.annonceT=25; toast('🚤 Vedette de police dans les canaux !','warn'); } } } }
+  else G.spawnT=Math.min(G.spawnT,1);
+  if(WANTED.stars>=4&&enCanal){ let b=null; for(const v of vehicules) if(!v.mort&&v.vedetteCanal&&v.conduit==='police'&&v.pcBarrage){ b=v; break; }
+    if(!b){ let best=null, bd=1e18; for(const v of vehicules){ if(v.mort||!v.vedetteCanal||v.conduit!=='police') continue; const d=dist2(v.x,v.z,P.x,P.z); if(d<bd){ bd=d; best=v; } }
+      const cible=G.barrages.slice().sort((p,q)=>{ const a=cheminCanal(P.x,P.z,p.x,p.z), c=cheminCanal(P.x,P.z,q.x,q.z); return (a?a.L:1e9)-(c?c.L:1e9); })[0];
+      let n=0, autre=null; for(const v of vehicules) if(!v.mort&&v.vedetteCanal&&v.conduit==='police'){ n++; if(v!==best) autre=v; }
+      const qui=n>=2?(autre||best):null; if(qui){ qui.pcBarrage=cible; qui.pcChemin=null; if(PCANAL.toastB!==WANTED.stars){ PCANAL.toastB=WANTED.stars; toast('🚤 La police barre l’embouchure !','warn'); } } } }
+  G.patT-=dt; if(G.patT>0) return; G.patT=3;
+  if(WANTED.stars>0||treveActivite()) return;
+  let n=0; for(const v of vehicules) if(!v.mort&&v.conduit==='patrouilleCanal') n++;
+  const c=CANAUX.bb, loin=Math.max(c.x0-P.x,P.x-c.x1,c.z0-P.z,P.z-c.z1,0);
+  if(n<1&&loin<PCANAL_PATROUILLE_D-60) creerVedetteCanal(true);
 }
 /* =====================================================================
    AÉROPORT VIVANT (14 octobre, demandé : « un terminal avec plein de
@@ -26193,10 +26330,10 @@ function entrerVehicule(v){
     toast('Véhicule volé !','warn'); addHeat(0.8);
   } else if(v.conduit&&v.conduit!=='joueur'){
     // bateau de police, poursuivant, coureur ou contrebandier : on éjecte l'occupant
-    if(v.conduit==='police'){ toast('Vedette de police détournée !','warn'); addHeat(1.6); }
+    if(v.conduit==='police'||v.conduit==='patrouilleCanal'){ toast('Vedette de police détournée !','warn'); addHeat(1.6); }
     else toast('Embarcation détournée !','warn');
     burst(v.x,1,v.z,8,0xcfeaff,6);
-    v.iaEau=false; v.crVit=0; v.contreb=false;
+    v.iaEau=false; v.crVit=0; v.contreb=false; v.vedetteCanal=false; v.patrouilleP=false; v.pcBarrage=null;
   }
   if(!v.volFait&&WANTED.heat>=1){WANTED.heat=Math.max(0,WANTED.heat-0.5);v.volFait=true;}
   P.veh=v; v.conduit='joueur'; if(v===GYACHT.v) majGrandYacht(); // pont du grand yacht retiré : la coque navigue
@@ -28561,9 +28698,10 @@ function majVehicules(dt){
     // tout véhicule qui NE passe PAS par majVehiculePhys — la police y passe
     // déjà (majVoiturePolice l'appelle), l'appeler aussi ici la ferait
     // décroître deux fois plus vite pour elle.
-    if(v.conduit!=='police'&&v.conduit!=='derby') majDeformation(v,dt);
+    if(v.conduit!=='police'&&v.conduit!=='derby'&&v.conduit!=='patrouilleCanal') majDeformation(v,dt);
     if(v.conduit==='trafic') majTrafic(v,dt);
     else if(v.conduit==='police') majVoiturePolice(v,dt);
+    else if(v.conduit==='patrouilleCanal') majVedetteCanal(v,dt); /* la vedette de patrouille des canaux */
     else if(v.conduit==='piste') majVehPiste(v,dt); // véhicules de piste de l'aéroport (AERO_VIE)
     else if(v.conduit==='derby') majDerbyIA(v,dt); // arène de derby
     else if(v.conduit==='iaCourse'){
@@ -28879,7 +29017,7 @@ function majPietons(dt){
     // dégagement : jamais un PNJ enfermé sans issue entre deux véhicules —
     // même logique que pour le joueur, voir degageDeVehicule.
     const deg=degageDeVehicule(p.x,p.z,0.25,null);
-    if(deg){ p.x=deg.x; p.z=deg.z; }
+    if(deg&&(!estEau(deg.x,deg.z)||estEau(p.x,p.z))){ p.x=deg.x; p.z=deg.z; } /* canaux : jamais poussé du quai dans l'eau */
     p.h.g.position.set(p.x,solY(p.x,p.z),p.z);
     p.h.g.rotation.y=p.dir;
     animeHumain(p.h,dt,vit,false);
@@ -29136,7 +29274,7 @@ function majEnnemis(dt){
     if(!e.boss&&!e.moto&&!e.heli&&e.h&&!e.aFui&&GANGS.includes(e.fac)&&e.hp<e.hpMax*0.24&&e.fuiteT===undefined&&Math.random()<0.02){
       e.fuiteT=3.2; e.aFui=true;
     }
-    if(e.fuiteT!==undefined&&e.h){
+    if(e.fuiteT!==undefined&&e.h&&!estEau(e.x,e.z)){ /* à l'eau (projeté) : il nage d'abord (plus bas) */
       e.fuiteT-=dt;
       const fa=Math.atan2(e.x-(e.cible?e.cible.x:P.x),e.z-(e.cible?e.cible.z:P.z));
       const fx2=e.x+Math.sin(fa)*e.def.vit*1.15*dt, fz2=e.z+Math.cos(fa)*e.def.vit*1.15*dt;
@@ -29148,7 +29286,7 @@ function majEnnemis(dt){
       continue;
     }
     // patrouille tranquille : errance sur le territoire
-    if(e.passif&&!e.moto&&!e.heli){
+    if(e.passif&&!e.moto&&!e.heli&&!estEau(e.x,e.z)){ /* projeté à l'eau (une coque qui frôle le quai d'un canal) : il nage jusqu'aux marches avant de reprendre sa ronde — il restait planté dans l'eau */
       e.patT=(e.patT||0)-dt;
       if(e.patT<=0){e.patT=rand(1.5,3.5);e.patDir=rand(0,6.28);}
       const versF=e.intervention&&dist2(e.x,e.z,POLICE_INTER.x,POLICE_INTER.z)>64; /* agent d'intervention sans gangster à portée : vers le dernier tireur */
@@ -29415,12 +29553,12 @@ function majEnnemis(dt){
     if(e.wave&&d>78){
       const a=rand(0,6.28);
       e.x=P.x+Math.sin(a)*36; e.z=P.z+Math.cos(a)*36;
-      if(solidAt(e.x,e.z,0.6)||estEau(e.x,e.z)){e.x=P.x+4;e.z=P.z+4;}
+      if(solidAt(e.x,e.z,0.6)||estEau(e.x,e.z)){e.x=P.x+4;e.z=P.z+4; if(estEau(e.x,e.z)){ const q=rivePlusProche(P.x,P.z); if(q){ e.x=q.x; e.z=q.z; } } } /* le joueur dans un canal : sur le quai (les marches), jamais dans l'eau */
     }
     if(!e.wave&&e.fac==='police'&&!e.garde&&d>85){ scene.remove(e.h.g); ennemis.splice(i,1); continue; }
     e.ang=angLerp(e.ang,versT,0.25);
     e.hSol=e.h.g.position.y;
-    { const dg=degageDeVehicule(e.x,e.z,0.3,null); if(dg){ e.x=dg.x; e.z=dg.z; } } // un véhicule est un mur : jamais un ennemi « dans » la carrosserie
+    { const dg=degageDeVehicule(e.x,e.z,0.3,null); if(dg&&(!estEau(dg.x,dg.z)||estEau(e.x,e.z))){ e.x=dg.x; e.z=dg.z; } } /* canaux : jamais poussé du quai dans l'eau par une vedette qui le frôle */ // un véhicule est un mur : jamais un ennemi « dans » la carrosserie
     if(e.feuT>0){ e.feuT-=dt; toucherEnnemi(e,9*dt,true,0); if(Math.random()<0.6) spawnP(e.x+rand(-0.3,0.3),rand(0.6,1.8),e.z+rand(-0.3,0.3),rand(-0.5,0.5),rand(1.5,3),rand(-0.5,0.5),rand(0.3,0.6),rand(0.4,0.8),pick([0xff7b2e,0xffb23a,0xff4b2e]),-1,1.2);
       if(!e.mort){ const fa=(e.feuDir=(e.feuDir||rand(0,6.28))+rand(-2,2)*dt), nx=e.x+Math.sin(fa)*5*dt, nz=e.z+Math.cos(fa)*5*dt; if(libreEntite(nx,nz,0.45)&&!estEau(nx,nz)){ e.x=nx; e.z=nz; } e.cad=Math.max(e.cad,0.3); } } // il brûle : il court en tous sens
     e.h.g.position.set(e.x,e.h.g.position.y,e.z);
@@ -30016,6 +30154,7 @@ function majWanted(dt){
   WANTED.tirCd-=dt; WANTED.heliCd-=dt;
   let copProche=false;
   for(const e of ennemis){ if(!e.mort&&e.fac==='police'&&!(e.intervention&&(e.cible||e.passif))&&dist2(e.x,e.z,P.x,P.z)<2100){copProche=true;break;} } /* un agent d'intervention occupé avec un gang ne te cherche pas */
+  if(!copProche&&PCANAL.ok) for(const v of vehicules){ if(!v.mort&&v.vedetteCanal&&v.conduit==='police'&&dist2(v.x,v.z,P.x,P.z)<8100){ copProche=true; break; } } /* canaux : une vedette à 90 u te garde dans le collimateur (on ne disparaît pas en sautant à l'eau) */
   if(!copProche) WANTED.heat=Math.max(0,WANTED.heat-WANTED_DECROISSANCE*dt*(WANTED.stars>=4?0.6:1)*(aCurio('canard_or')?1.25:1));
   WANTED.stars=Math.min(6,Math.floor(WANTED.heat));
   // zone militaire = alarme immédiate
@@ -30136,7 +30275,7 @@ function majEvenements(dt){
 const CHASSE_EAU={t:0};
 function majChasseursEau(dt){
   CHASSE_EAU.t-=dt;
-  const surEau=P.nage||(P.veh&&surEauVeh(P.veh));
+  const surEau=(P.nage||(P.veh&&surEauVeh(P.veh)))&&!joueurDansCanaux(); /* canaux : la police maritime des canaux (majPoliceCanaux) */
   // Boucles explicites plutôt que filter/some (règle perf CLAUDE.md) : cette
   // fonction tourne chaque frame, un chasseurs=vehicules.filter(...) allouait
   // un tableau à chaque frame même sans jamais être sur l'eau.
@@ -30207,6 +30346,7 @@ function majPatrouilles(dt){
 }
 /* voiture de police / camion : fonce vers le joueur puis débarque */
 function majVoiturePolice(v,dt){
+  if(v.vedetteCanal){ majVedetteCanal(v,dt); return; } /* canaux : le graphe de navigation */
   const d=Math.sqrt(dist2(v.x,v.z,P.x,P.z));
   const va=Math.atan2(P.x-v.x,P.z-v.z);
   let steer=clamp(angDiff(v.ang,va)*1.4,-1,1);
@@ -30228,7 +30368,8 @@ function majVoiturePolice(v,dt){
   if((d<15&&Math.abs(v.v)<3)||(v.bloqueT>1.2&&(d<55||(v.essais||0)>=2))){
     v.conduit=null;
     const t=v.def.milit?'soldat':(WANTED.stars>=4?'swat':'cop');
-    const a=creerEnnemi(t,v.x+2,v.z,false), b=creerEnnemi(WANTED.stars>=3||(v.intervention&&WAVES.n>=4)?'cop2':t,v.x-2,v.z,false);
+    const sec=(dx)=>{ const x=v.x+Math.cos(v.ang)*dx, z=v.z-Math.sin(v.ang)*dx; return estEau(x,z)?{x:v.x-Math.sin(v.ang)*(v.def.long*0.5+1),z:v.z-Math.cos(v.ang)*(v.def.long*0.5+1)}:{x,z}; }, pa=sec(2), pb=sec(-2); /* jamais dans l'eau (canaux) : derrière la voiture */
+    const a=estEau(pa.x,pa.z)?null:creerEnnemi(t,pa.x,pa.z,false), b=estEau(pb.x,pb.z)?null:creerEnnemi(WANTED.stars>=3||(v.intervention&&WAVES.n>=4)?'cop2':t,pb.x,pb.z,false);
     if(v.intervention){ if(a) a.intervention=true; if(b) b.intervention=true; } /* intervention pendant une vague (POLICE_INTER) */
   }
   if(WANTED.stars===0&&!v.intervention) v.conduit=null; /* la voiture d'intervention roule sans étoile */
@@ -30268,16 +30409,16 @@ const POL_PATR={t:1.5,vuT:0}, POL_PATR_N=3, POL_VOIT_N=2, POL_TEMOIN_D=55, POL_P
 function policeEnVille(){ return !INT.actif&&!P.nage&&P.z<MER-4&&P.z>-HALF+4&&Math.abs(P.x)<HALF-4&&!(HILLS.ok&&dansHills(P.x,P.z,0))&&quartierAt(P.x,P.z)!=='base'; }
 function temoinPolice(){ const d2=POL_TEMOIN_D*POL_TEMOIN_D;
   for(const e of ennemis){ if(e.mort||e.fac!=='police'||e.garde||e.heli||e.rag) continue; if(dist2(e.x,e.z,P.x,P.z)<d2&&ligneLibre(e.x,e.z,P.x,P.z)) return e; }
-  for(const v of vehicules){ if(v.mort||!v.patrouilleP||v.conduit!=='trafic') continue; if(dist2(v.x,v.z,P.x,P.z)<d2&&ligneLibre(v.x,v.z,P.x,P.z)) return v; }
+  for(const v of vehicules){ if(v.mort||!v.patrouilleP||(v.conduit!=='trafic'&&v.conduit!=='patrouilleCanal')) continue; if(dist2(v.x,v.z,P.x,P.z)<d2&&ligneLibre(v.x,v.z,P.x,P.z)) return v; } /* canaux : la vedette de patrouille */
   return null; }
-function policeTemoin(t){ if(t.mesh&&t.conduit==='trafic'){ t.conduit='police'; t.sirene=true; } /* la voiture de patrouille prend la poursuite */
+function policeTemoin(t){ if(t.mesh&&(t.conduit==='trafic'||t.conduit==='patrouilleCanal')){ t.conduit='police'; t.sirene=true; } /* la voiture (ou la vedette des canaux) de patrouille prend la poursuite */
   if(POL_PATR.vuT<=0){ POL_PATR.vuT=12; toast('🚨 Un policier t’a vu !','warn'); } }
 function majPatrouillesPolice(dt){
   const T=POL_PATR; T.t-=dt; T.vuT-=dt;
   if(T.t>0) return; T.t=2;
   if(ETAT.mode!=='jeu'||INT.actif) return;
   /* recherché : les voitures de patrouille à portée prennent la poursuite */
-  if(WANTED.stars>0) for(const v of vehicules) if(!v.mort&&v.patrouilleP&&v.conduit==='trafic'&&dist2(v.x,v.z,P.x,P.z)<80*80){ v.conduit='police'; v.sirene=true; }
+  if(WANTED.stars>0) for(const v of vehicules) if(!v.mort&&v.patrouilleP&&(v.conduit==='trafic'||v.conduit==='patrouilleCanal')&&dist2(v.x,v.z,P.x,P.z)<80*80){ v.conduit='police'; v.sirene=true; }
   if(!policeEnVille()||treveActivite()) return;
   let n=0; for(const e of ennemis) if(!e.mort&&e.patrouillePolice) n++;
   if(n>=POL_PATR_N) return;
@@ -45777,7 +45918,7 @@ function tick(t){
       majPatrouilles(dt);
       majInterventionPolice(dt); /* la police intervient dans les fusillades (vagues et rues) */
       majPatrouillesPolice(dt); /* patrouilles de police en ville, témoins des délits */
-      majChasseursEau(dt);
+      majChasseursEau(dt); majPoliceCanaux(dt);
       majEvenements(dt);
       majVagues(dtJeu);
       majMetiers(dt,dtJeu); // avant majMissions() : la flèche/jauge de mission lit MET.ciblePos/txt/jauge à jour

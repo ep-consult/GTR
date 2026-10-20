@@ -227,10 +227,47 @@ Bandeau `LES CANAUX DE LOS REYES` (`index.html`, avant `AÉROPORT VIVANT`) ; la 
 Captures (390 × 844) : `p1_carte_statique.png`, `p1_grande_carte.png`, `p1_traverse.png`, `p1_embouchure.png`,
 `p1_bassin_est.png`, `p1_pont_so.png` (le tablier orange effacé au-dessus du nageur), `p1_pont_imm.png`, `p1_quai_imm.png`.
 
+## Phase 2 — police maritime (fait)
+
+Code : fin du bandeau `LES CANAUX DE LOS REYES` (`PCANAL`, `canauxGraphe`, `projGraphe`, `cheminCanal`, `joueurDansCanaux`,
+`pointEntreeCanal`, `creerVedetteCanal`, `piloterVedette`, `majVedetteCanal`, `majPoliceCanaux`).
+
+- [x] Le joueur sur l'eau ou à la nage dans un canal compte comme en mer (`joueurDansCanaux`) : les vedettes de la mer
+  (`majChasseursEau`) ne s'y lancent plus en ligne droite ; une vedette de police déjà là suit le joueur par le graphe.
+- [x] **Graphe de navigation** (`canauxGraphe`, tiré des formes de `CANAUX`) : 25 nœuds — l'axe de chaque canal (tête, bras, ponts,
+  traverse), les bras jusqu'au centre des bassins, la traverse, l'embouchure ouest en trois points, les deux embouchures reliées par
+  la mer (z = MER + 32). Chemin le plus court (`cheminCanal`, Dijkstra), refait deux fois par seconde.
+- [x] **Vedettes `bateauP`** (conduit `police`, `v.vedetteCanal` : gyrophares, sirène, détournables, comptées comme la police) :
+  elles naissent hors de vue à un nœud du graphe à 70–220 u par l'eau (en mer : elles entrent par l'embouchure) ; deux au plus ;
+  poursuite pure le long du chemin (le pilote validé en phase 1) ; vitesse réglée sur le virage à venir, ≤ 11 u/s sous un pont,
+  ≤ 12 u/s dans les bras et les bassins ; bloquées : marche arrière ; coincées 4 s hors de l'écran : recyclées. Elles tirent selon
+  les règles de la police (`tirer`, cadence 1,4 s, portée 30 u, ligne de vue). **Jamais d'agents débarqués d'une vedette.**
+- [x] Tout près du joueur : elle colle à sa vitesse sans le pousser ; s'il fonce sur elle, elle serre un quai et le laisse passer
+  (sinon elle bouchait le canal et y fondait sous les chocs).
+- [x] **À terre** : les renforts de la recherche (agents, voitures) naissent sur la terre ferme près du joueur et viennent jusqu'aux
+  quais et aux ponts ; une voiture de police ne débarque jamais ses agents dans l'eau (derrière elle) ; un agent n'est plus jamais
+  poussé du quai dans l'eau par une coque qui le frôle (`degageDeVehicule`) ; un agent projeté à l'eau nage jusqu'aux marches
+  (avant : un agent de patrouille « passif » restait planté dans l'eau, bug d'origine révélé par les canaux).
+- [x] **4 étoiles** : une des deux vedettes se poste en travers de l'embouchure la plus proche du joueur (par l'eau), sans la boucher
+  (embouchure est : 20 u, la vedette 6,8 u) ; on la pousse en la percutant.
+- [x] **Patrouille** : sans étoile, près du quartier, au plus une vedette de patrouille (`patrouilleCanal`) fait la ronde de mer en
+  mer par les deux canaux et la traverse ; témoin (`temoinPolice`) : un délit sous ses yeux, elle prend la poursuite.
+- [x] **La recherche ne tombe pas** tant qu'une vedette des canaux est à 90 u (`copProche`). En haute mer : rien ne change.
+
+### Mesures (phase 2) — test « Police maritime des canaux », vraie boucle, plusieurs graines
+
+- 3 étoiles, le joueur arrêté au fond du bassin est : une vedette au contact en **15,7 s** ; 2 vedettes au plus ; étoiles intactes.
+- Poursuite de 60 s d'un canal à l'autre : une vedette à moins de 15 u ; aucune vedette coincée plus de **1,3 s** à l'écran ;
+  aucun agent entré dans l'eau en marchant (0 à 4 projetés par une coque, ressortis à la nage).
+- 4 étoiles : barrage en travers en **11 s** ; forcé, en mer en 24 à 35 s (pilote en ligne droite, sans finesse).
+- Patrouille : une seule ; témoin d'un délit, elle poursuit (1 étoile).
+- Haute mer : aucune vedette des canaux en poursuite.
+- Suite complète : **829 vertes**, aucun échec (un saut connu : la somme rare du Ciné-Palace). Relevé de périmètre : aucun écart.
+
 ## Phases
 
 - [x] Phase 1 — squelette jouable
-- [ ] Phase 2 — police maritime
+- [x] Phase 2 — police maritime
 - [ ] Phase 3 — bâti
 - [ ] Phase 4 — nautique et ambiance
 - [ ] Phase 5 — planque villa Miami

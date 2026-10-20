@@ -15398,6 +15398,62 @@ async function main() {
       });
       if (r.ko.length) fail('Canaux : rien de cassé : ' + r.ko.join(' ; ')); else ok('Canaux : rien de cassé : ' + r.info.join(' ; '));
     }
+    // -------------------------------------------------------------------
+    // Police maritime des canaux (20 octobre, phase 2) : recherché sur l'eau d'un canal, des vedettes (deux au plus) arrivent par
+    // une embouchure ou hors de vue et suivent le graphe de navigation (PCANAL, cheminCanal) ; jamais coincées à l'écran ; à terre,
+    // les renforts restent au sec ; la recherche ne tombe pas tant qu'une vedette est là ; à 4 étoiles, une vedette barre une
+    // embouchure, on la force ; sans étoile, une vedette de patrouille au plus, témoin ; en haute mer, rien ne change. Vraie boucle.
+    // -------------------------------------------------------------------
+    console.log('\n--- Police maritime des canaux : poursuite, bassin, barrage forçable, patrouille témoin, haute mer inchangée ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = []; let T = dernierT + 1000;
+        if (!PCANAL.ok) return { ko: ['PCANAL.ok faux : pas de graphe de navigation'], info };
+        const pas = (n, f) => { for (let i = 0; i < n; i++) { if (f && f(i) === false) return i; T += 1000 / 60; tick(T); } return n; };
+        const partie = () => { META.vue = 'classique'; if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9;
+          for (const v of vehicules.slice()) if (v.conduit === 'trafic' || v.conduit === 'police' || v.conduit === 'patrouilleCanal') { scene.remove(v.mesh); vehicules.splice(vehicules.indexOf(v), 1); } for (const e of ennemis) e.mort = true; WANTED.heat = 0; WANTED.stars = 0; PCANAL.spawnT = 0; PCANAL.patT = 0; };
+        const monter = (cle, x, z, ang) => { const v = creerVehicule(cle, x, z, ang, null); P.x = v.x; P.z = v.z; entrerVehicule(v); INPUT.jx = INPUT.jy = 0; return v; }, prot = () => { P.hp = 1e9; if (P.veh) P.veh.hp = 1e6; };
+        /* un agent n'entre jamais dans l'eau en marchant ; projeté par une coque qui frôle le quai, il nage jusqu'aux marches (jamais plus de 25 s) */
+        const prec = new Map(), dansLEau = new Map(), suivi = { coince: 0, aPied: 0, coinces: 0, projetes: 0 }, suivre = () => { for (const v of vehicules) if (!v.mort && v.vedetteCanal && !horsEcran(v.x, v.z)) suivi.coince = Math.max(suivi.coince, v.pcCoince || 0);
+          for (const e of ennemis) { if (e.mort || e.fac !== 'police' || e.heli) continue; const p = prec.get(e), eau = estEau(e.x, e.z) && dansCanal(e.x, e.z);
+            if (p && !p[2] && eau) { if (e.rag || p[3]) suivi.projetes++; else suivi.aPied++; }
+            const t = eau ? (dansLEau.get(e) || 0) + 1 / 60 : 0; dansLEau.set(e, t); if (t > 25) suivi.coinces++; prec.set(e, [e.x, e.z, eau, !!e.rag]); } };
+        /* 1. trois étoiles, le joueur arrêté en jet-ski au fond du bassin est : une vedette le rejoint en moins de 30 s */
+        { partie(); const bE = CANAUX.eaux.find((e) => e.id === 'bassinE'); monter('jetski', bE.x + 4, bE.z, -Math.PI / 2); WANTED.heat = 3.5; WANTED.stars = 3; let t = -1, nMax = 0, sMin = 9;
+          pas(40 * 60, (i) => { prot(); suivre(); sMin = Math.min(sMin, WANTED.stars); let n = 0; for (const v of vehicules) if (!v.mort && v.vedetteCanal) { n++; if (t < 0 && dist2(v.x, v.z, P.x, P.z) < 225) t = i / 60; } nMax = Math.max(nMax, n); });
+          if (t < 0 || t > 30) ko.push('3 étoiles au fond du bassin : ' + (t < 0 ? 'aucune vedette en 40 s' : 'vedette en ' + t.toFixed(1) + ' s'));
+          if (nMax > PCANAL_MAX) ko.push(nMax + ' vedettes dans les canaux (' + PCANAL_MAX + ' au plus)');
+          if (sMin < 3) ko.push('la recherche est tombée à ' + sMin + ' étoile(s) avec une vedette dans le bassin');
+          info.push('bassin à 3 étoiles : vedette au contact en ' + t.toFixed(1) + ' s, ' + nMax + ' vedettes'); }
+        /* 2. trois étoiles, le joueur file en vedette d'un canal à l'autre (joystick réel) */
+        { partie(); monter('bateau', 147, 230, Math.PI); WANTED.heat = 3.5; WANTED.stars = 3; const tour = [[147, 105], [231, 105], [231, 200], [231, 105], [147, 105], [147, 0]]; let k = 0, sMin = 9, dMin = 1e9;
+          pas(60 * 60, () => { prot(); const [tx, tz] = tour[k], dx = tx - P.x, dz = tz - P.z, d = Math.hypot(dx, dz); if (d < 8) k = (k + 1) % tour.length; INPUT.jx = dx / d * 0.75; INPUT.jy = dz / d * 0.75;
+            suivre(); sMin = Math.min(sMin, WANTED.stars); for (const w of vehicules) if (!w.mort && w.vedetteCanal) dMin = Math.min(dMin, Math.sqrt(dist2(w.x, w.z, P.x, P.z))); });
+          INPUT.jx = INPUT.jy = 0; if (dMin > 15) ko.push('poursuite : aucune vedette à moins de 15 u en 60 s (' + dMin.toFixed(0) + ')'); if (sMin < 3) ko.push('poursuite : la recherche est tombée à ' + sMin); }
+        if (suivi.coince > 5) ko.push('une vedette reste coincée ' + suivi.coince.toFixed(1) + ' s à l’écran');
+        if (suivi.aPied) ko.push(suivi.aPied + ' agent(s) de police entré(s) dans l’eau en marchant');
+        if (suivi.coinces) ko.push('un agent reste plus de 25 s dans l’eau');
+        info.push('vedettes coincées à l’écran : ' + suivi.coince.toFixed(1) + ' s au plus ; aucun agent entré dans l’eau en marchant (' + suivi.projetes + ' projeté(s), ressorti(s) à la nage)');
+        /* 3. quatre étoiles : une vedette barre l'embouchure, en travers ; on la force jusqu'à la mer */
+        { partie(); monter('bateau', 231, 200, 0); WANTED.heat = 4.5; WANTED.stars = 4; let tB = -1;
+          pas(40 * 60, (i) => { prot(); WANTED.heat = Math.max(WANTED.heat, 4.5); for (const w of vehicules) if (!w.mort && w.pcBarrage && Math.hypot(w.x - w.pcBarrage.x, w.z - w.pcBarrage.z) < 4.5 && Math.abs(angDiff(w.ang, w.pcBarrage.ang)) < 0.4) { if (tB < 0) tB = i / 60; } if (tB >= 0 && i > tB * 60 + 120) return false; });
+          let sorti = -1; pas(45 * 60, (i) => { prot(); WANTED.heat = Math.max(WANTED.heat, 4.5); const dx = 231 - P.x, dz = MER + 40 - P.z, d = Math.hypot(dx, dz); INPUT.jx = dx / d; INPUT.jy = dz / d; if (P.z > MER + 12) { sorti = i / 60; return false; } });
+          INPUT.jx = INPUT.jy = 0;
+          if (tB < 0) ko.push('4 étoiles : aucune vedette en travers d’une embouchure en 40 s'); if (sorti < 0) ko.push('4 étoiles : le barrage ne se force pas (bloqué en ' + P.x.toFixed(0) + ', ' + P.z.toFixed(0) + ')');
+          else info.push('4 étoiles : barrage en ' + tB.toFixed(0) + ' s, forcé, en mer en ' + sorti.toFixed(0) + ' s'); }
+        /* 4. sans étoile : une vedette de patrouille au plus ; un délit sous ses yeux, elle prend la poursuite */
+        { partie(); P.x = 160; P.z = 105; P.y = solY(P.x, P.z); let nMax = 0, pat = null;
+          pas(40 * 60, () => { prot(); let n = 0; for (const v of vehicules) if (!v.mort && v.conduit === 'patrouilleCanal') { n++; pat = v; } nMax = Math.max(nMax, n); });
+          if (nMax !== 1 || !pat) ko.push('patrouille : ' + nMax + ' vedette(s) sans étoile (1 attendue)');
+          else { P.x = pat.x + 9; P.z = pat.z; for (let k = 0; k < 40 && (estEau(P.x, P.z) || dansCanal(P.x, P.z)); k++) P.x += 1; P.y = solY(P.x, P.z); addHeat(0.6);
+            if (WANTED.stars < 1 || pat.conduit !== 'police') ko.push('patrouille : un délit sous ses yeux — ' + WANTED.stars + ' étoile(s), conduit ' + pat.conduit); else info.push('patrouille témoin : 1 étoile, elle poursuit'); } }
+        /* 5. en haute mer, rien ne change : les vedettes de la mer, aucune vedette des canaux en poursuite */
+        { partie(); monter('bateau', 60, MER + 90, Math.PI); WANTED.heat = 3.5; WANTED.stars = 3; pas(25 * 60, () => { prot(); });
+          const n = vehicules.filter((v) => !v.mort && v.vedetteCanal && v.conduit === 'police').length; if (n) ko.push('haute mer : ' + n + ' vedette(s) des canaux en poursuite'); }
+        partie(); return { ko, info };
+      });
+      if (r.ko.length) fail('Police maritime des canaux : ' + r.ko.join(' ; ')); else ok('Police maritime des canaux : ' + r.info.join(' ; '));
+    }
 
     // -------------------------------------------------------------------
     // Guidon des motos au cockpit (18 octobre, signalé avec une capture : le rétroviseur et la poignée du MODÈLE, entourés,
