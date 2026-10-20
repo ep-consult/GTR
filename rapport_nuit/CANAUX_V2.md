@@ -320,6 +320,79 @@ Décision :
     changer de place (la divergence apparaissait à la première visite du bowling). `canauxVieConstruire` note les clés des deux
     caches et retire à la fin celles qu'il a ajoutées.
 
+## Phase 6 — la carte, ce qui recouvrait l'eau, les performances (fait)
+
+- [x] **La carte comme la vue aérienne** (`dessinerCanauxCarte`, faite au fil des phases 2 à 4) : les jardins lot par lot, les toits
+  à la couleur de leur style (les toits plats des villas modernes en gris béton), l'ombre des maisons, les piscines, les condos et
+  leur piscine sur le toit, les pontons, les bateaux amarrés et pilotables, les passerelles, chaque pont à la couleur de son style
+  (le levis orange, le bois, la pierre). Captures : `final_minimap.png`, `final_grande_carte.png` (avant : `avant_v1_minimap.png`,
+  `avant_v1_grande_carte.png`, `avant_minimap.png`).
+- [x] **Rien ne recouvre l'eau** (trouvé en regardant ta capture iPhone de nuit `canaux_refs/v3/F_2D_nuit_bassin_est_recouvert.png`,
+  et visible sur ma propre capture `p2_bassin_secE.png`, que j'avais à tort attribuée à la seule route de bordure) : la dalle du
+  désert de l'aéroport (`mkAeroport`, une boîte de 320 × 570 u dont le bord ouest est à x = 277, 10 u sous le bord est de la ville,
+  à 0,011) passait AU-DESSUS de l'eau (−0,6) du bassin du bras est (déjà en V1) et du canal secondaire est (V2). Le lancer de rayon
+  d'un premier sondage ne la voyait pas (`Raycaster` sans `scene.updateMatrixWorld(true)` : les matrices ne sont calculées qu'au
+  rendu). `percerDesertCanaux` (dans `mkCanaux`, sur son générateur privé) refait le dessus de la dalle percé aux contours de
+  l'eau, comme le plan d'asphalte de la ville (mêmes coordonnées de texture ; ses faces de côté, à 1 cm du sol, ne se voient pas).
+  Test « Canaux V2 : rien ne recouvre l'eau » : 5 369 points d'eau du quartier balayés par un rayon vertical sur la scène réelle —
+  **362 points recouverts avant, aucun après**. Captures `fix_desert_secE.png`, `fix_desert_basE.png`, `fix_desert_est_nuit.png`.
+  Ce qui reste de ton brief V3 (les routes de bordure sous le sable, les jonctions désert / ville / plage, la bande verte, les
+  traits blancs des embouchures) n'est PAS traité ici : c'est le chantier V3, je n'y ai pas touché.
+- [x] **Captures finales** (390 × 844, mêmes cadrages sur la V1 — `avant_v1_*` — et sur la V2 — `final_*`) : vue aérienne façon
+  photo 5 (`*_aerien_photo5.png`), le canal ouest vu depuis l'eau façon photo 1 (`*_canal_photo1.png`), une villa moderne blanche,
+  sa piscine et son ponton façon photo 2 (`*_villa_photo2.png`, `final_villa_photo2b.png`), une villa méditerranéenne façon photo 3
+  (`*_medit_photo3.png`, `final_medit_photo3b.png`), la nuit (`*_nuit_aerien.png`, `final_nuit_fete.png`), les figurants
+  (`final_vie_peche.png`, `final_vie_laveur.png`, `final_vie_bbq.png` : le pêcheur au bout de son ponton, le laveur de bateau, le
+  barbecue de la cuisine d'été, un bronzeur au bord de la piscine).
+
+- [x] **Un test qui ne maîtrisait pas sa scène** (trouvé par la suite complète : « bateaux pilotables » passait seul et échouait dans
+  la suite) : le pilote simulé partageait les canaux avec les vedettes de patrouille de la police maritime, qui tournent sans
+  étoile ; selon l'état laissé par les tests précédents, l'une croisait sa route (126 de dégâts) — ou le décoinçait. Le test
+  retire désormais, à chaque pas, tout véhicule conduit par l'IA. L'échec est alors devenu déterministe, et il était réel : au
+  demi-tour du bassin du bras est, la vedette posait son nez contre le mur courbe et le pilote reculait tout droit de 0,5 u pour
+  repartir dans le même mur. Le pilote recule désormais en braquant (la poupe part à l'opposé de la route) et fait son demi-tour
+  sur un vrai cercle de 12 points ; rejoué sur quatre graines : 2/2 allers-retours à chaque fois. Le mur du bassin est celui de la
+  V1 : un joueur qui s'y plante recule en braquant, comme le pilote. Rejouée, la suite échouait encore au même point : la
+  curiosité « Volant du Dépôt », gagnée par un test précédent, donne +15 % d'accélération à TOUT véhicule du joueur, bateaux
+  compris ; la vedette arrive trop vite dans le bassin et se plante (reproduit seul : sans elle 2/2, avec elle 1/2, même point).
+  Le test neutralise la curiosité le temps de son pilote et la rend ensuite (le motif du test d'armes qui rend un pistolet nu) ;
+  rejoué seul avec la curiosité posée : 2/2, et elle est rendue. **Limite à jouer sur iPhone** : avec le Volant, une vedette
+  lancée trop vite dans un bassin peut se planter contre son mur courbe et ne s'en dégage qu'en reculant longtemps.
+
+### Mesures (phase 6)
+
+Même outil et mêmes points que la référence (`perf_canaux.js` : navigateur sans carte graphique, 390 × 844, vraie boucle ; les
+temps ne valent que comme proportions : deux passes de la MÊME version ont donné 18 puis 117 ms de rendu en survol — la machine
+était chargée par moments). Appels de rendu et triangles, eux, sont stables d'une passe à l'autre.
+
+| Point | V1 : appels / triangles | V2 : appels / triangles | Budget (appels / triangles) |
+|---|---|---|---|
+| classique · rue x = 168 | 181 / 216 k | 185 / 209 k | 208 / 346 k |
+| classique · rue x = 126 | 217 / 241 k | 168 / 201 k | 246 / 386 k |
+| classique · centre (189, 140) | 152 / 215 k | **184** / 228 k | **175** / 344 k |
+| immersive · rue x = 168 | 1 557 / 564 k | 1 686 / 614 k | 1 777 / 902 k |
+| immersive · rue x = 126 | 1 095 / 493 k | 1 158 / 518 k | 1 285 / 824 k |
+| immersive · centre | 1 673 / 579 k | 1 766 / 627 k | 1 888 / 888 k |
+| survol du quartier | 2 081 / 749 k | 2 233 / 798 k | 2 293 / 1 133 k |
+| géométries de la scène | 152,0 Mo | 160,1 Mo | 176 Mo |
+
+- Tick (ms, deux passes, V1 → V2) : classique 4,34 → 5,00 et 4,43 → 3,85 (x = 168), 3,48 → 3,94 et 3,45 → 3,40 (x = 126),
+  3,37 → 3,04 et 3,21 → 2,66 (centre) ; immersive 3,65 → 3,59, 4,24 → 3,66, 3,48 → 2,97 (1re passe). Dans le bruit, sous +1 ms.
+  Une valeur de la 2e passe (immersive · centre, 9,0 ms, avec 40 ms de rendu au même moment) est un pic de charge de la machine.
+- **Un dépassement, gardé tel quel (décision 18)** : en vue classique au centre (189, 140), 184 appels pour un budget de 175. Le
+  détail, mesuré : sans aucun véhicule, le décor du centre coûte 163 appels contre 156 en V1 (+4,5 %) ; le reste est **la vedette
+  de l'embarcadère** (25 appels), que la décision 3 a mise sur le quai nord de la traverse, dans le champ de ce point de mesure.
+- Triangles : +4 à +9 % selon le point (budget +60 %) ; mémoire des géométries : +8 Mo (budget +25 Mo).
+
+Décisions :
+
+17. **La dalle du désert est percée, pas déplacée** : la rétrécir à sa création aurait changé l'entrée `SOLS` du désert, donc les
+    bandes de transition entre sols (et leurs tirages) : la ville aurait bougé. Percer son dessus à la fin du décor, sur le
+    générateur privé des canaux, ne change rien ailleurs (empreinte et relevé identiques).
+18. **Le budget d'appels du centre en vue classique est dépassé de 9, et je ne l'ai pas maquillé** : déplacer la vedette de
+    l'embarcadère pour la sortir du champ de mesure ne gagnerait rien en jeu (elle coûte la même chose ailleurs). Ce point est à
+    regarder sur iPhone (priorité 1 ci-dessous).
+
 ## Phases
 
 - [x] Phase 1 — plan des lots et des doigts, canaux secondaires, allées, relevé du périmètre
@@ -327,4 +400,126 @@ Décision :
 - [x] Phase 3 — pontons accessibles et bateaux des villas
 - [x] Phase 4 — les ponts et les passerelles
 - [x] Phase 5 — vie, ambiance, nuit, sons
-- [ ] Phase 6 — carte et performances
+- [x] Phase 6 — carte et performances
+
+## Restitution
+
+### Ce qui a changé, et où
+
+- `index.html` (branche `canaux-v2` : un commit par phase — les phases 3 à 5 ensemble — et deux correctifs) — tout dans la section **LES CANAUX DE LOS REYES** et
+  ses voisines : le plan (`canauxDefinir`, `CANAUX_ILOTS`, `canauxLotsV2`, allées, deux canaux secondaires, rues retirées) ; le
+  générateur de villas (`VILLA_V2_*`, `aleaLot`, `villasV2Plan`, `villaV2`, `palmierV2`, `CONDOS_V2`, `condoV2`, `mkVillasV2`, la
+  nuit `majNuitCanaux`) ; les pontons et bateaux (`BATEAUX_V2`, `pontonsV2`, `mkPontonsV2`, `bateauDecorV2`, `matBateauxCanaux`,
+  `hauteurPonton`, `echelleProche`, `eauNavProche`) ; les ponts et passerelles (`STYLES_PONTS`, `decoPontV2`, `passerellesV2`,
+  `mkPasserelleV2`) ; la vie (`CVIE`, `canauxVieConstruire`, `majCanauxVie`, `CANAUX_SON`) ; la carte (`dessinerCanauxCarte`) ; la
+  dalle du désert (`percerDesertCanaux`, `mkAeroport.desert`). Hors section, des retouches ciblées : `startRun` (voitures garées au
+  hasard), `majVehiculePhys` (un bateau sort d'un ponton où il serait entré, glisse le long d'un ponton), `sortirVehicule` (le
+  débarquement sur un ponton), `rivePlusProche` (les échelles), l'apparition des piétons (ni ponton ni passerelle),
+  `canauxNettoyerVehicules`.
+- `scenarios.js` : sept blocs « Canaux V2 » (le plan, canaux secondaires, rien ne recouvre l'eau, les villas, pontons et bateaux —
+  avec « sortir à la nage » et « bateaux pilotables » —, les ponts, les passerelles, la vie) ; des tests V1 du quartier ajustés
+  à la V2 sans rien perdre (le profil d'une passerelle au-dessus d'une allée, le mur de quai cherché là où il n'y a pas de ponton,
+  la distance d'une amarre de ponton).
+- `CLAUDE.md` : la section « Canaux de Los Reyes » (sous-section « Canaux V2 »), la carte du fichier et ses ancres.
+- `rapport_nuit/CANAUX_V2.md` (ce suivi) et `rapport_nuit/captures/canaux_v2/` (avant, phases, finales).
+
+### Les villas : styles et modules
+
+Cinq styles, dix villas chacun, trois palettes chacun, 1 à 3 niveaux, en miroir, deux voisines jamais du même style (16 silhouettes
+différentes relevées par le test) : **moderne blanc** (cubes, toits plats débordants, bandeaux de bois, grandes baies, garde-corps
+de verre), **méditerranéen** (crépi pêche, sable ou rose, tuiles, arcades, balcons, volets), **tropical contemporain** (bois sombre,
+pierre, toit plat vert ou blanc très débordant), **Art déco** (pastel, bandeaux blancs, hublots, enseigne néon la nuit), **bungalow
+des années 50** (un niveau, toit à faible pente, brique et bardage). Côté eau : pelouse, terrasse, piscine (rectangle, en L, à
+débordement, à plage immergée, couloir de nage), transats, parasol, cuisine d'été, foyer, hamac, palmiers (royal ou cocotier),
+bougainvilliers, couronnement du quai. Côté allée : muret à piliers, allée pavée, voiture au fond de l'allée de garage (libre jusqu'à
+elle : une voiture du joueur y entre), boîte aux lettres. Trois condos de 6 à 8 niveaux en bordure est. 53 piscines.
+
+### Les comptes, et où
+
+- **51 villas** (V1 : 17) — 50 lots + la villa Miami. Rangées : doigt central nord, rive ouest (`midNO`, 5) et est (`midNE`, 5) ;
+  doigt central sud (`midSO`, `midSE`, 5 + 5) ; bande est nord (`estN`, 5) et sud (`estS`, 5) ; le doigt du canal secondaire est
+  (`estMO` sur le canal est, `estME` sur l'impasse, 7 + 7) ; le doigt du canal secondaire ouest (`ouestE` sur le canal ouest,
+  `ouestO` sur l'impasse, 3 + 3). Quatre grands lots en pointe des doigts : `midNO-0` et `midNE-0` (la Brigada, au nord),
+  `midSO-4` et `midSE-4` (au sud, un yacht à moteur chacun).
+- **46 pontons privés** (31 à quai, 4 en L, 11 en T), une échelle chacun ; les quatre lots entamés par un bassin de demi-tour n'en
+  ont pas (`estME-5`, `estME-6`, `ouestO-1`, `ouestO-2`). Le ponton de la villa Miami (V1) est inchangé.
+- **26 bateaux amarrés aux pontons (57 %)** : 21 du décor — 2 yachts à moteur (`midSO-4`, `midSE-4`), 4 sportfishing (dont
+  `midNO-4`, `midNE-0`), 2 day-cruisers (dont `estN-3`), 4 voiliers (dont `midNE-1`, `midNE-4`, `midSE-3`), 2 opens (dont
+  `midSE-2`), 2 petits bateaux, 5 quais à jet-skis (dont `estME-2`) — et **5 pilotables** : une vedette « Sirène » au ponton de
+  `ouestE-0` (canal ouest) et une à celui d'`estMO-6` (canal est), trois jet-skis à ceux de `midNO-3` (canal ouest), `midSE-0` (canal
+  est) et `estME-3` (canal secondaire est). Deux bateaux du décor circulent (un open sur la traverse, un jet-ski dans le canal est).
+  Le nautique de la V1 (embarcadère, atelier « Marée Basse », Brigada, vedette et jet-skis de l'embarcadère) est gardé.
+
+### Les ponts et les passerelles
+
+| Pont | Où | Style |
+|---|---|---|
+| nord-ouest | canal ouest, rue z = 42 | vénitien (arche blanche, balustres, lanternes) |
+| nord-est | canal est, rue z = 42 | promenade Art déco (trottoirs roses, garde-corps menthe, palmiers en jardinières, globes) — le joggeur |
+| sud-ouest | canal ouest, rue z = 168 | pont-levis orange (gardé, fixe ; cabine de l'éclusier, contrepoids, barrières) |
+| sud-est | canal est, rue z = 168 | bois tropical (platelage, pieux, cordage, torches tiki) |
+| plage ouest | embouchure ouest, front de mer | pont de la plage (rives blanches, garde-corps bleu, pavillons) |
+| plage est | embouchure est, front de mer | pont de pierre (pavés, deux arches, avant-bec) |
+
+Passerelles (à pied et à vélo, voitures arrêtées par trois bornes à chaque bout, eau navigable dessous, sur la carte) : **arche
+blanche** sur le bras ouest, **bois sur pieux** sur le bras est, **acier à treillis bleu** sur la traverse.
+
+### Les canaux secondaires, et pourquoi
+
+Deux impasses de 12 u, chacune finie par un bassin de demi-tour de 8 u : **ouest** (x 90,5 → 102,5, du bassin du bras ouest au
+bassin (99, 26)) et **est** (x 275,5 → 287,5, du bassin du bras est au bassin (279,5, 150)). Sans elles, les bandes de terre à
+l'ouest du canal ouest et à l'est du canal est n'avaient qu'une rive : une seule rangée de villas « les pieds dans l'eau », l'autre
+rangée sur une rue. Avec elles, chaque bande devient un doigt à deux rangées, comme sur la photo 5. Elles ne croisent aucune rue
+(aucun nouveau pont routier), sont dans `dansCanal` et dans le graphe des vedettes (une vedette de police y entre, fait demi-tour au
+bout et ressort), et n'accueillent jamais un gros bateau.
+
+### Les décisions prises seul
+
+1 à 4 (plan), 5 à 7 (villas), 8 à 12 (pontons et bateaux), 13 à 15 (ponts et passerelles), 16 (les caches partagés), 17 et 18
+(le désert, le budget) : chacune est écrite, avec sa raison, dans la phase où elle a été prise, plus haut.
+
+### Les vérifications
+
+1. **Le plan** : 51 villas, chacune les pieds dans l'eau et sur une allée ou une rue ; rien dans l'eau ni sur la chaussée.
+2. **Les villas** : cinq styles, voisines différentes, silhouettes, jardin côté eau, façade côté allée, allée de garage praticable.
+3. **Les pontons** : tous reliés au quai, chenal mesuré (10,8 / 10,5 / 9,5 / 6,5 u), trois accostages au joystick sur trois
+   pontons tirés au hasard puis l'allée rejointe à pied, 17 nageurs sortis par une échelle ou des marches, devant chacun des 50
+   lots une sortie à portée.
+4. **Les bateaux pilotables** : un aller-retour au joystick par canal principal (au bassin et retour).
+5. **Les ponts** : 12 traversées en voiture sans saut, 12 passages de bateau dessous ; **les passerelles** : à pied, à vélo, voiture
+   refusée, jet-ski dessous (6/6 chacun).
+6. **La vie** : figurants par sorte, bateaux qui circulent et s'arrêtent devant le joueur, son démarré au bord de l'eau et coupé à la
+   mort, fête la nuit.
+7. **Rien ne recouvre l'eau** : 5 369 points d'eau balayés, aucun recouvert (362 avant le correctif).
+8. **Les tests des canaux V1, de la police maritime, de la villa Miami et du joystick réel** repassent (vedettes et jet-skis au
+   vrai joystick, 500 piétons nés dans le quartier).
+9. **Relevé du périmètre** (`releve_canaux.js`, comparé à `canaux_avant.json`) : **aucun écart** après chaque phase ; les retraits
+   justifiés (kiosques du port) sont ceux de la V1. **Empreinte du décor** (931930327, portes, chalet) et **tirage principal**
+   identiques.
+10. **`valider.js`** : toutes les vérifications passent.
+11. **La suite complète** `scenarios.js` (graine 20260731) : **841 vérifications sur 842, aucune sautée, aucune erreur JS** ; la
+    seule en échec, « bateaux pilotables », est expliquée et corrigée plus haut (phase 6), puis repassée seule dans la condition
+    exacte de la suite (curiosité posée) et sur quatre graines. **La suite complète n'a pas été relancée une troisième fois** après
+    ce dernier correctif (il ne touche que ce test ; une passe dure environ une heure).
+12. **Captures** réelles 390 × 844 aux mêmes cadrages que la V1 (paires `avant_v1_*` / `final_*`).
+
+**Non vérifié, et qui ne peut l'être ici** : les performances réelles et le ressenti sur iPhone (mesures sans carte graphique, les
+temps ne valent que comme proportions) ; l'équilibre des sons (clapot, hors-bord, drisses, fête) — joués, coupés et testés, jamais
+écoutés ; le scintillement éventuel propre à un GPU d'iPhone (les surfaces proches : eau du canal, ombres des pontons à −0,55,
+dalles) ; le confort de l'accostage au doigt.
+
+### À regarder en priorité sur l'iPhone
+
+1. **La fluidité au-dessus du quartier**, en vue immersive et en survol (+6 à +7 % d'appels, +7 à +9 % de triangles par rapport
+   à la V1), et au **centre en vue classique** (184 appels contre 152 : la vedette de l'embarcadère y est dans le champ).
+2. **Les bateaux du décor qui bercent** (un seul maillage, une onde par sommet dans le shader) et l'eau turquoise : propres, ou
+   tremblotants ?
+3. **Accoster au doigt** à un ponton privé, débarquer, rejoindre l'allée à pied ; **sortir à la nage** par une échelle.
+4. **Une vedette lancée dans un bassin de demi-tour** (surtout avec le Volant du Dépôt, +15 % d'accélération) : se plante-t-elle
+   contre le mur courbe, et s'en dégage-t-on facilement en reculant en braquant ?
+5. **Les virages des canaux** au jet-ski : les murs de quai gardent le rebond et les dégâts de la V1 (au joystick simulé, la vedette
+   frôle le quai 7 fois sur le grand tour, 53 PV ; le jet-ski 2 fois, 20 PV) — à amortir seulement si c'est pénible en vrai.
+6. **La nuit** : fenêtres, néons Art déco, flaques de lumière, la fête (guirlande et musique), les feux de tête de mât.
+7. **Les figurants** : ils apparaissent à 130 u et ne s'animent qu'à 90 u ; vérifier qu'aucun ne « pope » dans le champ.
+8. **Le bord est** : l'eau du canal secondaire est et du bassin du bras est n'est plus sous le sable ; les jonctions du désert, de
+   la route de bordure et de la plage restent celles d'avant (ton brief V3).

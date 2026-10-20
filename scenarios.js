@@ -15732,7 +15732,12 @@ async function main() {
           if (pontonCanal(B.x, B.z)) ko.push('bateau ' + B.type + ' sur un ponton'); }
         /* 4) accoster à trois pontons au hasard, débarquer, rejoindre l'allée à pied (joystick, vraie boucle) */
         const H = window.__pv2 = {}; H.partie = () => { META.vue = 'classique'; if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9; for (const e of ennemis) e.mort = true; WANTED.heat = 0; WANTED.stars = 0; };
-        H.T = dernierT + 1000; H.pas = () => { for (const e of ennemis) e.mort = true; WANTED.stars = 0; WANTED.heat = 0; H.T += 1000 / 60; tick(H.T); P.hp = 1e9; };
+        /* le test maîtrise sa scène : à chaque pas, les véhicules conduits par l'IA (trafic, vedettes de patrouille de la police maritime,
+           qui tournent sans étoile) sont retirés — dans la suite complète, une patrouille croisait la vedette du pilote simulé selon
+           l'état laissé par les tests précédents. Les bateaux garés (pilotables des pontons compris) restent. */
+        H.T = dernierT + 1000; H.pas = () => { for (const e of ennemis) e.mort = true; WANTED.stars = 0; WANTED.heat = 0;
+          for (let i = vehicules.length - 1; i >= 0; i--) { const w = vehicules[i]; if (w !== P.veh && w.conduit && w.conduit !== 'joueur') { scene.remove(w.mesh); vehicules.splice(i, 1); } }
+          H.T += 1000 / 60; tick(H.T); P.hp = 1e9; };
         H.aller = (pts, tmax, rayon) => { let k = 0, t = 0; while (t < tmax) { const [tx, tz] = pts[k], dx = tx - P.x, dz = tz - P.z, d = Math.hypot(dx, dz); if (d < (rayon || 0.6)) { k++; if (k >= pts.length) { INPUT.jx = INPUT.jy = 0; return true; } continue; } INPUT.jx = dx / d; INPUT.jy = dz / d; pas(); t += 1 / 60; } INPUT.jx = INPUT.jy = 0; return false; };
         /* le pilote : il suit une ligne brisée au joystick (visée devant lui, vitesse selon le virage qui vient, marche arrière s'il est coincé) */
         /* les angles du trajet sont chanfreinés (4 u de part et d'autre) : un bateau ne vire pas à angle droit */
@@ -15747,8 +15752,8 @@ async function main() {
             if (s >= L - 3 && Math.hypot(fin[0] - v.x, fin[1] - v.z) < 3.2) { INPUT.jx = INPUT.jy = 0; return true; }
             if ((reag -= 1 / 60) <= 0) { reag = 0.1; const vv = Math.abs(v.v), d0 = dir(s); let virage = 0; for (let D = 3; D <= 8 + vv * 1.3; D += 2) virage = Math.max(virage, Math.abs(angDiff(d0, dir(s + D))));
               const vt = Math.min(L - s < 9 ? 3 : 99, virage > 1.2 ? 4 : (virage > 0.7 ? 6 : (virage > 0.35 ? 8 : 12))), c = pt(s + (virage > 0.7 ? 3.5 : 5.5) + Math.min(vv, vt) * 0.3), dx = c[0] - v.x, dz = c[1] - v.z, d = Math.hypot(dx, dz) || 1;
-              if (recul > 0) { jx = -Math.sin(v.ang); jy = -Math.cos(v.ang); } else if (v.v > vt + 1.5) { jx = jy = 0; } else { const k = clamp((vt - v.v) * 0.12 + 0.45, 0.35, 1); jx = dx / d * k; jy = dz / d * k; } }
-            if (recul > 0) recul -= 1 / 60; else if (bloque > 1.2) { recul = 1.0; bloque = 0; reag = 0; }
+              if (recul > 0) { const hx = Math.sin(v.ang), hz = Math.cos(v.ang), ps = (dx * hx + dz * hz) / d, lx = dx / d - ps * hx, lz = dz / d - ps * hz; jx = -hx - 0.7 * lx; jy = -hz - 0.7 * lz; } /* marche arrière en braquant : la poupe part à l'opposé de la route, le nez y revient */ else if (v.v > vt + 1.5) { jx = jy = 0; } else { const k = clamp((vt - v.v) * 0.12 + 0.45, 0.35, 1); jx = dx / d * k; jy = dz / d * k; } }
+            if (recul > 0) recul -= 1 / 60; else if (bloque > 1.2) { recul = 1.6; bloque = 0; reag = 0; }
             INPUT.jx = jx; INPUT.jy = jy; pas(); if (P.veh !== v) return false;
             if (Math.abs(v.v) < 0.8 && recul <= 0) bloque += 1 / 60; else if (recul <= 0) bloque = 0; }
           INPUT.jx = INPUT.jy = 0; return false; };
@@ -15787,6 +15792,10 @@ async function main() {
       if (r2.ko.length) fail('Canaux V2, sortir à la nage : ' + r2.ko.slice(0, 12).join(' ; ') + ' [' + r2.info.join(' | ') + ']'); else ok('Canaux V2, sortir à la nage : ' + r2.info.join(' ; '));
       const r3 = await page.evaluate(() => { const ko = [], info = [], C = CANAUX, H = window.__pv2, { partie, suivre } = H;
         /* 6) chaque bateau pilotable : on monte, on va faire demi-tour dans le bassin le plus proche (graphe des vedettes), on revient à son ponton */
+        /* la curiosité « Volant du Dépôt » (gagnée plus tôt dans la suite) donne +15 % d'accélération à tout véhicule du joueur : le
+           pilote mesure le bateau d'origine (avec elle, la vedette d'estMO-6 entre trop vite dans le bassin du bras est et se plante
+           contre son mur courbe — noté dans rapport_nuit/CANAUX_V2.md) */
+        const volant0 = META.curios ? META.curios.volant : undefined; if (META.curios) META.curios.volant = false;
         partie(); let revenus = 0; const pil = vehicules.filter((v) => !v.mort && v.canauxPilotable);
         if (pil.length < 2) ko.push(pil.length + ' bateau(x) pilotable(s) aux pontons des villas');
         for (const c of ['canalO', 'canalE']) if (!pil.some((v) => v.canauxPilotable.canal === c)) ko.push('aucun bateau pilotable dans ' + c);
@@ -15795,12 +15804,12 @@ async function main() {
         for (const v of choisis) { const p0 = v.canauxPilotable; P.x = v.x; P.z = v.z; entrerVehicule(v); if (P.veh !== v) { ko.push('on ne monte pas sur ' + v.key + ' (' + p0.lot + ')'); continue; } v.hp = 1e6;
           let bn = null, bL = 1e9; for (const n of PCANAL.noeuds) if (n.genre === 'bassin') { const ch = cheminCanal(v.x, v.z, n.x, n.z); if (ch && ch.L < bL) { bL = ch.L; bn = n; } }
           const cer = C.eaux.find((q) => q.t === 'c' && Math.hypot(q.x - bn.x, q.z - bn.z) < 2), aller1 = cheminCanal(v.x, v.z, bn.x, bn.z).pts.slice(0, -1), pIn = aller1[aller1.length - 1], Rr = cer.r - 3.5, a0 = Math.atan2(pIn[1] - bn.z, pIn[0] - bn.x);
-          const tour = [0, 1, 2, 3, 4, 5, 6].map((k) => [bn.x + Math.cos(a0 + k * Math.PI / 3) * Rr, bn.z + Math.sin(a0 + k * Math.PI / 3) * Rr]), retour = cheminCanal(tour[6][0], tour[6][1], p0.x, p0.z).pts;
+          const tour = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((k) => [bn.x + Math.cos(a0 + k * Math.PI / 6) * Rr, bn.z + Math.sin(a0 + k * Math.PI / 6) * Rr]), retour = cheminCanal(tour[12][0], tour[12][1], p0.x, p0.z).pts; /* un vrai cercle (12 points : pas d'angle chanfreiné qui coupe vers le mur) */
           const ok = suivre(v, aller1.concat(tour, retour), 150); if (!ok) ko.push(v.key + ' de ' + p0.lot + ' : pas revenu à son ponton (' + v.x.toFixed(1) + ', ' + v.z.toFixed(1) + ')'); else revenus++;
           if (1e6 - v.hp > 60) ko.push(v.key + ' de ' + p0.lot + ' : ' + (1e6 - v.hp).toFixed(0) + ' de dégâts en route'); sortirVehicule(true); }
         const par = {}, fl = C.pontons.filter((p) => p.v2 && !p.pente); for (const B of C.bateauxV2) par[B.type] = (par[B.type] || 0) + 1;
         info.push(fl.length + ' pontons (' + fl.filter((p) => p.type === 'quai').length + ' à quai, ' + fl.filter((p) => p.type === 'L').length + ' en L, ' + fl.filter((p) => p.type === 'T').length + ' en T), ' + fl.filter((p) => p.bateau).length + ' avec un bateau ; décor ' + JSON.stringify(par) + ' ; pilotables : ' + pil.map((v) => v.key + '@' + v.canauxPilotable.canal).join(', ') + ' — aller-retour au bassin : ' + revenus + '/' + choisis.length);
-        partie(); delete window.__pv2; return { ko, info }; });
+        if (META.curios) META.curios.volant = volant0; partie(); delete window.__pv2; return { ko, info }; });
       if (r3.ko.length) fail('Canaux V2, bateaux pilotables : ' + r3.ko.join(' ; ') + ' [' + r3.info.join(' | ') + ']'); else ok('Canaux V2, bateaux pilotables : ' + r3.info.join(' ; '));
     }
     // -------------------------------------------------------------------
