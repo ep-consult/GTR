@@ -395,3 +395,120 @@ Captures : `p5_dehors_a_vendre.png`, `p5_dehors_rue_imm.png`, `p5_ponton_bateaux
 - [x] Phase 3 — bâti
 - [x] Phase 4 — nautique et ambiance
 - [x] Phase 5 — planque villa Miami
+
+---
+
+## Vérifications de fin de chantier
+
+Bloc de tests (`scenarios.js`) : « Canaux de Los Reyes », « Canaux : rien de cassé », « Police maritime des canaux », « Canaux : le
+bâti », « Canaux : nautique et ambiance », « Canaux : au joystick réel », « Planques, 8 : la villa Miami » — listes lues dans la
+source (`CANAUX`, `PORTES`, `VEHDEFS`, `PLANQUES_DEF`…), scène maîtrisée (trafic, police, ennemis retirés), aucun saut.
+
+| # | Vérification demandée | Résultat |
+|---|---|---|
+| 1 | Une vedette entre depuis la mer par chacune des deux embouchures | **Réussi** — vedette de police et jet-ski, circuits « est » (entrée par l'embouchure ouest) et « ouest » (entrée par l'embouchure est), poursuite pure ; et au joystick réel par l'embouchure ouest, ressortie par l'est |
+| 2 | Navigation d'un canal à l'autre par la traverse | **Réussi** (les deux circuits, et au joystick) |
+| 3 | Entrée, demi-tour et sortie dans chaque bras | **Réussi** — tour complet des deux bassins (et du bassin est au joystick) |
+| 4 | Passage sous chaque pont, dans les deux sens | **Réussi** — les six ponts (il y en a six : deux de plus sur les embouchures), dans les deux sens ; au joystick réel : 4 ponts franchis par chaque bateau sur le grand tour (plage ouest, sud-ouest, nord-est dans les deux sens, sud-est, plage est) |
+| 5 | Une voiture traverse chaque pont | **Réussi** — citadine et bus, six ponts, deux sens ; tablier à 2,7 u, jamais noyées |
+| 6 | Embarquement et débarquement à deux points au moins | **Réussi** — embarcadère, ponton de l'atelier, marches (débarquement) ; jet-skis, vedette, bateaux de la villa Miami (embarquement) |
+| 7 | 500 apparitions : aucune dans l'eau ; aucune porte ni objectif dans l'eau | **Réussi** — 500 tirages de `spawnRing` (ennemis, véhicules de la recherche) et 200 points de la police (`pointRoutePolice`) depuis le quartier : tous sur la terre ferme ; 500 apparitions de piétons (`majPietons`, relevées sur `creerPieton`) depuis le quartier : aucune dans l'eau, sur une marche ou un ponton (« Canaux : au joystick réel ») ; portes, sorties, lieux de mission, activités : au sec (« rien de cassé » et le relevé) |
+| 8 | Trafic simulé 90 s : aucun véhicule dans un canal, aucun bloqué au bord d'une rue coupée | **Réussi, avec une nuance** — 90 s en trois points (phase 1) : 0 véhicule dans l'eau, 0 sur une rue retirée (demi-tour avant le carrefour qui la précède) ; arrêts de plus de 10 s : 7 et 15 (deux graines) contre 10 et 6 avant les canaux, dans la même scène — du même ordre, pas nuls (les files des carrefours, comme ailleurs en ville). La suite refait 30 s à chaque passage |
+| 9 | Police : vedette en < 30 s à 3 étoiles ; aucune coincée > 5 s à l'écran ; agents jamais dans l'eau ; 4 étoiles : embouchure gardée et forçable ; la recherche ne tombe pas | **Réussi** — 15,7 s ; 1,3 s au plus ; aucun agent entré dans l'eau en marchant (projetés par une coque : ressortent à la nage) ; barrage en 11 s, forcé ; étoiles intactes |
+| 10 | Voiture lancée dans un canal : noyade, le joueur remonte sur un quai | **Réussi** — noyée, sortie par les marches en ~6 s ; un quai sans marche ne s'escalade pas |
+| 11 | Sauvegarde dont la position est dans l'ancien port | **Vérifié autrement** — le jeu ne sauvegarde aucune position (on repart toujours de la grande place) ; vérifié à la place : planques du quartier achetées, sauvegardées, relues, nouvelle partie : rien n'est posé dans l'eau |
+| 12 | Empreinte de la ville identique | **Réussi** — trace du décor, portes, chalet, mobilier hors zone, tirage principal ; relevé du périmètre : aucun écart hors des déplacements notés |
+| 13 | Test de la planque Miami | **Réussi** (voir phase 5) |
+| 14 | `node valider.js` puis la suite complète | **Réussi** — `valider.js` vert ; suite complète **834 vertes, aucun échec, aucun saut** (graine 20260731), dont l'aquarium, le chalutier, les garages, la mer, la police, le trafic et les huit planques |
+| 15 | Captures 390 × 844 | **Faites** — vue d'ensemble `p1_carte_statique.png`, `p1_grande_carte.png`, `p3_grande_carte.png` ; embouchure `p1_embouchure.png` ; traverse
+`p1_traverse.png` ; bateau sous un pont, tablier effacé `p1_pont_so.png`, `p4_canal_imm.png` ; bassin `p1_bassin_est.png` ; poursuite
+`p6_poursuite_vedette.png`, `p6_poursuite_vedette_dessus.png` ; minimap `p6_minimap.png` ; villa Miami dehors `p5_dehors_a_vendre.png`,
+`p5_ponton_bateaux.png`, dedans `p5_dedans_*.png`, `p5_terrasse_imm.png`, `p5_golf.png` ; de nuit `p6_nuit_quai_imm.png`,
+`p6_nuit_traverse.png` |
+| 16 | Performance avant/après au centre du quartier | **Mesurée** (tableau ci-dessous), **non validée** : navigateur sans carte graphique, seules les proportions comptent |
+
+## Performance (avant = commit dc4fb38, après = cette branche)
+
+Navigateur sans carte graphique (rendu logiciel), 390 × 844, 120 images par point après 90 de mise en route, scène au calme
+(`perf_canaux.js`, non versionné). **Ces chiffres ne valent que comme proportions ; rien n'est validé pour l'iPhone.**
+
+| Vue · point | tick avant → après | rendu avant → après | appels avant → après | triangles avant → après |
+|---|---|---|---|---|
+| classique · rue x = 168 (quai est du canal ouest) | 4,75 → 4,28 ms | 18,2 → 17,3 ms | 164 → 181 | 137 k → 216 k |
+| classique · rue x = 126 (quai ouest) | 4,57 → 3,33 ms | 9,6 → 9,9 ms | 248 → 214 | 200 k → 241 k |
+| classique · centre (189, 140) | 4,91 → 3,15 ms | 9,2 → 8,5 ms | 248 → 152 | 183 k → 215 k |
+| immersive · rue x = 168 | 4,17 → 3,95 ms | 18,8 → 17,6 ms | 1 657 → 1 545 | 527 k → 564 k |
+| immersive · rue x = 126 | 4,14 → 3,59 ms | 12,6 → 12,9 ms | 1 122 → 1 117 | 407 k → 515 k |
+| immersive · centre | 3,79 → 3,03 ms | 14,6 → 15,2 ms | 1 602 → 1 642 | 505 k → 555 k |
+
+Le tick baisse un peu (moins de trafic dans le quartier : demi-tours avant les rues retirées) ; le rendu et le nombre d'appels
+restent du même ordre ; les **triangles augmentent de 7 à 58 %** (quais maçonnés, tabliers, villas, végétation des jardins) : c'est
+le premier point à surveiller sur l'iPhone. Construction : `mkCanaux` ~70 ms, `reserverCanaux` ~0,4 s (phase 1). Salle de la villa
+Miami : 56 à 95 appels, ~95 k triangles (le cabriolet du garage vitré en prend une bonne part), construite en ~50 ms à la 1re entrée.
+
+## Restitution
+
+### Changements réalisés et fichiers modifiés
+
+- `index.html` : bandeau `LES CANAUX DE LOS REYES` (avant `AÉROPORT VIVANT`) — géométrie de l'eau, réservation de la zone, quais,
+  ponts, marches, bâti, nautique, police maritime ; le bloc `8. LA VILLA MIAMI` (fin des intérieurs des planques) ; crochets dans
+  `estEau`, `solY`, `marchable`, la nage, le trafic, les apparitions, la police, les planques, la minimap, `startRun`,
+  `sortirVehicule`, la sortie des garages, la sauvegarde (`META.planques.miami`, `META.planquesJeux.golf`).
+- `scenarios.js` : sept blocs (voir plus haut) ; « Port vivant », « Tir à la tête » et le bus des ponts rendus maîtres de leur scène.
+- `CLAUDE.md` : section « Canaux de Los Reyes », carte du fichier et ancres.
+- `rapport_nuit/CANAUX.md` (ce suivi), `rapport_nuit/canaux_avant.json` (référence du relevé), `rapport_nuit/canaux_deplacements.json`
+  (écarts justifiés), `rapport_nuit/outils/releve_canaux.js` (relevé et comparaison), `rapport_nuit/captures/canaux/`.
+
+### Décisions prises seul
+
+Les décisions 1 à 12 ci-dessus, plus : la villa Miami au pâté (9,9), en face de la traverse, **tournée vers le sud** (sa façade et
+sa porte face à la caméra) ; son ponton sur le quai d'en face de la rue (les parcelles du quartier sont séparées des canaux par la
+rue des quais) ; 14 000 $ ; l'Espadon plutôt qu'une clé nouvelle ; la surveillance montre aussi les agents hors du radar, épinglés
+sur son bord ; golf à trois greens et dix balles, objectif 800 (golfeur simulé ~1 400–1 540, maladroit ~250–560) ; la vérification 11
+remplacée (le jeu ne sauvegarde pas de position) ; un test au joystick réel ajouté en fin de chantier (les pilotes des phases 1 et 2
+commandaient les gaz et le braquage directement).
+
+### Lieux déplacés (avant → après)
+
+| Lieu | Avant | Après |
+|---|---|---|
+| Aquarium (porte) | (147 ; 65,95) | (116,1 ; 63), façade est du pâté (9,8) |
+| Garage du port (porte) | (147 ; 149,55) | (176,35 ; 147), façade ouest du pâté (11,10) |
+| Kiosques et food trucks du mobilier du port | 35, sur les trottoirs et pâtés du port | retirés ; 6 kiosques sur les quais |
+| Dock « RUCHE 9 » (`POIS.port`) | (189, 63) | ne bouge pas : l'atelier « Marée Basse » |
+
+Rien d'autre ne bouge (relevé : aucun écart). Le chalutier, le cabanon, le voilier, la Baronne, le 4x4 amphibie, la moto et le
+tremplin du port restent à leur place.
+
+### Bateaux et jet-skis
+
+- **Pilotables** : trois jet-skis (deux pontons privés, le ponton de l'atelier), la vedette de l'embarcadère public, et — villa Miami
+  achetée — l'Espadon et le jet-ski à sa livrée, au ponton privé ; posés à chaque partie. Les vedettes de police (détournables).
+- **Décoratifs** : six bateaux bâchés le long des pontons privés et des quais (on ne les pilote pas : la bâche les distingue), le
+  bateau sur son ber de l'atelier « Marée Basse » ; dans la villa Miami, le canal, les greens flottants et les villas d'en face sont
+  du décor de salle.
+
+### Limites restantes
+
+- **Virages à angle droit** (canal → traverse, canal → bras) : au vrai joystick, un pilote prudent frôle le quai 4 à 8 fois sur le
+  grand tour ; un choc de quai coûte 0,9 × la vitesse en PV (la règle de toute la mer, que je n'ai pas modifiée) : le jet-ski (60 PV)
+  y perd ~35 PV. Parade possible si c'est gênant en jeu : amortir les chocs rasants dans les canaux.
+- Les parcelles sont séparées des canaux par la rue des quais (le plan de la phase 1) : les pontons privés, dont celui de la villa
+  Miami, sont sur le quai en face de leur villa, de l'autre côté de la rue.
+- Le trafic est un peu moins dense dans le quartier (~35 % de véhicules vus en moins : demi-tours avant les rues retirées).
+- La livrée de l'Espadon de la villa repeint les couleurs du modèle V4 actuel (repérées par leur teinte) : si le modèle change de
+  couleurs, la livrée se dégradera (à revoir avec le modèle).
+- La surveillance montre la police (vedettes, agents) — pas les gangs ; le cabriolet du garage vitré est un décor (non pilotable).
+- La vérification « sauvegarde dans l'ancien port » est remplacée : le jeu ne sauvegarde aucune position.
+- Rien n'est validé sur appareil : performance, lisibilité en portrait, ressenti de la navigation.
+
+### À tester en priorité sur l'iPhone
+
+1. **Fluidité** au centre du quartier, en vue immersive surtout (triangles +7 à +58 %), et la nuit (lampadaires des quais).
+2. **Naviguer au joystick** : les virages à angle droit, le passage sous les six ponts (tablier qui s'efface), les deux bassins ;
+   compter les frôlements de quai et ce qu'ils coûtent au jet-ski.
+3. **Police maritime** : à 3 étoiles dans un bras, la vedette qui arrive ; à 4 étoiles, le barrage d'une embouchure, le forcer.
+4. **Monter et descendre** : embarcadère, ponton de l'atelier, pontons privés, escaliers ; sortir de l'eau à la nage par les marches.
+5. **Villa Miami** : la rampe en voiture, l'entrée, la lisibilité de la salle en portrait, le golf (panneau en bas, ARRÊTER au milieu,
+   vent lisible ?), la minimap pendant la surveillance, le volume des synthés.
+6. Les captures de nuit sur l'appareil (néons, eau, lampadaires).
