@@ -15427,7 +15427,7 @@ async function main() {
           if (zMur === null) ko.push('aucun quai nu dans le canal ouest pour vérifier le mur'); else { P.x = O - 9.6; P.z = zMur; P.y = C.fond; P.nage = true; INPUT.jx = -1; pas(120); INPUT.jx = 0; if (P.x < O - 10.05 || !P.nage) ko.push('à la nage, le quai s’escalade sans marche (x ' + P.x.toFixed(2) + ', z ' + zMur + ')'); } }
         /* 5. le trafic (30 s, vraie boucle) et les apparitions : jamais dans l'eau, jamais sur une rue retirée */
         { partie(); P.x = 189; P.z = 63; P.y = solY(P.x, P.z); let eau = 0, coupe = 0, noyes = 0; const vus = new Set();
-          pas(30 * 60, (i) => { P.hp = 1e9; for (const e of ennemis) e.mort = true; WANTED.stars = 0; if (i % 30) return; for (const v of vehicules) { if (v.conduit !== 'trafic') continue; vus.add(v); if (dansCanal(v.x, v.z) && !pontCanal(v.x, v.z)) eau++; if (dansCoupe(v.x, v.z)) coupe++; if (v.noye) noyes++; } });
+          pas(30 * 60, (i) => { P.hp = 1e9; for (const e of ennemis) e.mort = true; WANTED.stars = 0; if (i % 30) return; for (const v of vehicules) { if (v.conduit !== 'trafic') continue; vus.add(v); if (dansCanal(v.x, v.z) && !pontCanal(v.x, v.z)) eau++; if (dansCoupe(v.x, v.z) && !levisCanal(v.x, v.z)) coupe++; if (v.noye) noyes++; } }); /* V3 : la chaussée d'un pont-levis traverse l'ancienne route de bordure retirée : elle n'est pas une rue retirée */
           if (eau || coupe || noyes) ko.push('trafic : ' + eau + ' relevés dans l’eau, ' + coupe + ' sur une rue retirée, ' + noyes + ' noyés'); else info.push('trafic : ' + vus.size + ' véhicules vus en 30 s, aucun dans l’eau ni sur une rue retirée');
           let mal = 0, n = 0; for (let i = 0; i < 500; i++) { P.x = rand(C.bb.x0, C.bb.x1); P.z = rand(C.bb.z0, Math.min(C.bb.z1, MER - 4)); const q = spawnRing(15, 40); if (!q) continue; n++; if (dansCanal(q.x, q.z) || pontCanal(q.x, q.z) || marcheCanal(q.x, q.z)) mal++; }
           let malP = 0; for (let i = 0; i < 200; i++) { P.x = rand(C.bb.x0, C.bb.x1); P.z = rand(C.bb.z0, Math.min(C.bb.z1, MER - 4)); const q = pointRoutePolice(); if (q && (routeCanalInterdite(q.x, q.z) || pontCanal(q.x, q.z))) malP++; }
@@ -16092,6 +16092,116 @@ async function main() {
         if (P.nage) ko.push('le nageur ne sort pas sur la berge de ' + e0.id + ' (' + P.x.toFixed(1) + ', ' + P.z.toFixed(1) + ')'); else info.push('nageur sorti sur la berge de ' + e0.id + ' en ' + t7.toFixed(1) + ' s');
         startRun(); return { ko, info }; });
       if (r.ko.length) fail('Canaux V3, le côté est : ' + r.ko.slice(0, 14).join(' ; ') + (r.ko.length > 14 ? ' … (' + r.ko.length + ')' : '') + ' [' + r.info.join(' | ') + ']'); else ok('Canaux V3, le côté est : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
+    // Canaux V3 : ponts-levis et tirant d'air (CANAUX_V3.md, phase 2) — lu dans CANAUX.levis, CANAUX.ponts, CANAUX.passerelles,
+    // HAUT_NAV (VEHDEFS.hautNav), PCANAL, YIA : le tirant d'air noté de chaque bateau est celui de son modèle (remesuré : la structure
+    // rigide, sans les antennes fouet) ; les tabliers fixes laissent passer les vedettes de police, pas le yacht ; le graphe ferme au
+    // yacht les arcs trop bas (sauf un pont-levis) ; un yacht piloté au joystick par un joueur attentif fait ouvrir les deux ponts
+    // (cycle complet : alerte, barrières, montée de 4 à 6 s jusqu'à 70°, ouvert tant qu'il est là, descente, barrières levées) sans un
+    // choc ; un jet-ski passe dessous pont fermé ; contre un pont fixe, le yacht s'arrête ; jamais de levée avec une voiture ou le
+    // joueur sur le tablier ; le trafic s'arrête à la ligne et repart (demi-tour sur la culée) ; le joueur lancé force la barrière et
+    // s'envole de la volée qui monte ; volée levée : un mur, jamais une chaussée ; un yacht de l'IA fait l'aller-retour mer ↔ marina en
+    // ouvrant les ponts ; la minimap ; le son, coupé à la mort ; tout est remis à zéro à la partie suivante.
+    // -------------------------------------------------------------------
+    console.log('\n--- Canaux V3 : ponts-levis — tirant d’air, cinématique, trafic, barrière forcée, yachts de l’IA ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [], C = CANAUX, G3 = C.grand; if (!C.ok || !C.levis || C.levis.length !== 2) return { ko: ['CANAUX.levis : ' + (C.levis ? C.levis.length : 0) + ' pont(s)-levis'], info };
+        const partie = () => { META.vue = 'classique'; if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9; for (const e of ennemis) e.mort = true; YIA.t = 1e9; };
+        let T = dernierT + 1000; const garder = new Set();
+        const pas = () => { for (const e of ennemis) e.mort = true; WANTED.stars = 0; WANTED.heat = 0; for (let i = vehicules.length - 1; i >= 0; i--) { const w = vehicules[i]; if (w !== P.veh && w.conduit && w.conduit !== 'joueur' && !garder.has(w)) { scene.remove(w.mesh); vehicules.splice(i, 1); } } for (const p of pietons) p.etat = 'mort'; T += 1000 / 60; tick(T); P.hp = 1e9; };
+        const attente = (L, dz) => { const y = creerVehicule('yacht', (CANAUX.grand.x0 + CANAUX.grand.x1) / 2, L.zc + dz, Math.PI, 'yachtIA'); y.yProchain = L; garder.add(y); return y; }; /* un yacht de l'IA qui attend au point d'attente : il demande l'ouverture */
+        const retirer = (v) => { if (!v) return; if (P.veh === v) sortirVehicule(true); v.mort = true; scene.remove(v.mesh); const i = vehicules.indexOf(v); if (i >= 0) vehicules.splice(i, 1); garder.delete(v); };
+        const xg = (G3.x0 + G3.x1) / 2, LN = C.levis[0], LS = C.levis[1];
+        partie();
+        /* 1) le tirant d'air noté = celui du modèle (structure rigide : on ignore les triangles de moins de 0,2 u de côté — antennes fouet) */
+        const hStruct = (v) => { v.mesh.updateMatrixWorld(true); const eau = niveauEau(v.x, v.z), A = new THREE.Vector3(), B = new THREE.Vector3(), Cc = new THREE.Vector3(); let h = 0;
+          v.mesh.traverse((o) => { if (!o.isMesh || !o.geometry || !o.geometry.attributes.position) return; for (let p = o; p; p = p.parent) if (!p.visible) return; const m = Array.isArray(o.material) ? o.material[0] : o.material; if (m && (m.blending === THREE.AdditiveBlending || (m.transparent && m.opacity < 0.2))) return;
+            const Pp = o.geometry.attributes.position, I = o.geometry.index, n = I ? I.count : Pp.count;
+            for (let t = 0; t < n; t += 3) { A.fromBufferAttribute(Pp, I ? I.getX(t) : t).applyMatrix4(o.matrixWorld); B.fromBufferAttribute(Pp, I ? I.getX(t + 1) : t + 1).applyMatrix4(o.matrixWorld); Cc.fromBufferAttribute(Pp, I ? I.getX(t + 2) : t + 2).applyMatrix4(o.matrixWorld);
+              if (Math.max(Math.max(A.x, B.x, Cc.x) - Math.min(A.x, B.x, Cc.x), Math.max(A.z, B.z, Cc.z) - Math.min(A.z, B.z, Cc.z)) < 0.2) continue; h = Math.max(h, A.y - eau, B.y - eau, Cc.y - eau); } }); return h; };
+        const mes = []; for (const k of Object.keys(VEHDEFS).filter((k) => VEHDEFS[k].eau)) { const d = VEHDEFS[k]; if (d.hautNav === undefined) { ko.push(k + ' : pas de tirant d’air (hautNav)'); continue; }
+          const v = creerVehicule(k, xg, d.navire ? MER + 34 : 110, 0, null); garder.add(v); for (let i = 0; i < 20; i++) pas(); const h = hStruct(v); retirer(v);
+          if (Math.abs(h - d.hautNav) > 0.3) ko.push(k + ' : tirant d’air noté ' + d.hautNav + ', mesuré ' + h.toFixed(2)); mes.push(k + ' ' + d.hautNav); }
+        info.push('tirants d’air : ' + mes.join(', '));
+        /* 2) les dégagements : ponts fixes, passerelles, ponts-levis baissés ; la police passe dessous, pas le yacht */
+        const deg = []; for (const p of C.ponts) deg.push(degagementCanal(p.xc, p.zc)); for (const q of C.passerelles || []) deg.push(degagementCanal(q.xc, q.zc)); for (const L of C.levis) deg.push(degagementCanal(xg, L.zc));
+        const dMin = Math.min(...deg); if (dMin <= VEHDEFS.bateauP.hautNav) ko.push('un tablier (' + dMin.toFixed(2) + ' u) arrête les vedettes de police (' + VEHDEFS.bateauP.hautNav + ')'); if (Math.max(...deg) >= VEHDEFS.yacht.hautNav) ko.push('un tablier laisse passer le yacht');
+        info.push('dégagements : ' + dMin.toFixed(2) + ' à ' + Math.max(...deg).toFixed(2) + ' u');
+        /* 3) le graphe : le yacht n'emprunte que des arcs assez hauts ou un pont-levis ; il ne rejoint jamais le réseau des petits bateaux */
+        const ma = PCANAL.noeuds[PCANAL.grand.marina], mer = PCANAL.noeuds[PCANAL.grand.mer], chY = cheminCanal(mer.x, mer.z, ma.x, ma.z, VEHDEFS.yacht.hautNav);
+        if (!chY) ko.push('pas de chemin pour le yacht de la mer à la marina'); else { let lv = 0; for (const A of PCANAL.noeuds) for (const e of A.v) if (e[3]) lv++; if (!lv) ko.push('aucun arc du graphe ne franchit un pont-levis'); info.push('yacht mer → marina : ' + chY.L.toFixed(0) + ' u, ' + lv / 2 + ' arcs à pont-levis'); }
+        if (cheminCanal(ma.x, ma.z, 147, 100, VEHDEFS.yacht.hautNav)) ko.push('le yacht trouve un chemin jusqu’au canal ouest (sous des ponts fixes)');
+        if (!cheminCanal(ma.x, ma.z, 147, 100, VEHDEFS.bateauP.hautNav)) ko.push('pas de chemin pour une vedette de police de la marina au canal ouest');
+        /* 4) le yacht contre un pont fixe : il s'arrête devant ; une vedette de police passe dessous */
+        { const p = C.ponts.find((q) => q.id === 'sudEst') || C.ponts[0];
+          for (const [k, doit] of [['yacht', false], ['bateauP', true]]) { partie(); const v = creerVehicule(k, p.xc, p.zc - 30, 0, null); P.x = v.x; P.z = v.z; entrerVehicule(v); for (let i = 0; i < 5; i++) pas(); let t = 0, passe = false;
+            while (t < 14) { INPUT.jx = (p.xc - v.x) * 0.15; INPUT.jy = 0.6; pas(); t += 1 / 60; if (v.z > p.z1 + 2) { passe = true; break; } } INPUT.jx = INPUT.jy = 0;
+            if (passe !== doit) ko.push(k + (doit ? ' ne passe pas sous' : ' passe sous') + ' le pont fixe ' + p.id + ' (z ' + v.z.toFixed(1) + ')'); retirer(v); }
+          info.push('pont fixe ' + p.id + ' : la vedette de police passe, le yacht s’arrête'); }
+        /* 5) un joueur attentif en yacht, de la mer à la marina : chaque pont fait son cycle complet, aucun choc */
+        partie(); { const v = creerVehicule('yacht', xg, LS.zc + 60, Math.PI, null); P.x = v.x; P.z = v.z; entrerVehicule(v); for (let i = 0; i < 5; i++) pas();
+          const hp0 = v.hp, et = { S: [], N: [] }, monte = {}, ouvre = {}, ferme = {}; let t = 0, thMax = { S: 0, N: 0 };
+          while (t < 120 && v.z > G3.zMa0 + 30) { let k = 0.55; for (const L of [LS, LN]) { const d = v.z - L.zc - (6 + v.def.long / 2); if (d > -4 && d < 24 && L.theta < LEVIS_THETA - 0.04) k = Math.min(k, Math.max(0, (d - 4) * 0.04)); } /* il ralentit et attend que le pont soit tout à fait ouvert */
+            const dx = xg - v.x; INPUT.jx = dx * 0.15 * k; INPUT.jy = -k; pas(); t += 1 / 60;
+            for (const [n, L] of [['S', LS], ['N', LN]]) { if (et[n][et[n].length - 1] !== L.etat) { et[n].push(L.etat); if (L.etat === 'monte' && monte[n] === undefined) monte[n] = t; if (L.etat === 'ouvert' && ouvre[n] === undefined) ouvre[n] = t; } thMax[n] = Math.max(thMax[n], L.theta); } }
+          INPUT.jx = INPUT.jy = 0; for (let i = 0; i < 25 * 60 && (LS.etat !== 'ferme' || LN.etat !== 'ferme'); i++) { pas(); t += 1 / 60;
+            for (const [n, L] of [['S', LS], ['N', LN]]) { if (et[n][et[n].length - 1] !== L.etat) { et[n].push(L.etat); if (L.etat === 'monte' && monte[n] === undefined) monte[n] = t; if (L.etat === 'ouvert' && ouvre[n] === undefined) ouvre[n] = t; } thMax[n] = Math.max(thMax[n], L.theta); } }
+          if (v.z > G3.zMa0 + 30) ko.push('le yacht n’arrive pas à la marina (z ' + v.z.toFixed(1) + ' en ' + t.toFixed(0) + ' s)');
+          if (v.hp < hp0) ko.push('le yacht a touché (' + hp0 + ' → ' + v.hp.toFixed(0) + ' PV)');
+          for (const [n, L] of [['S', LS], ['N', LN]]) { const cyc = et[n].join('>'); if (!/alerte>barrieres>monte>ouvert>descend>relevage>ferme/.test(cyc)) ko.push('pont ' + n + ' : cycle ' + cyc);
+            const dm = (ouvre[n] || 0) - (monte[n] || 0); if (!(dm >= 4 && dm <= 6.2)) ko.push('pont ' + n + ' : montée en ' + dm.toFixed(2) + ' s'); if (Math.abs(thMax[n] * 180 / Math.PI - 70) > 2) ko.push('pont ' + n + ' : ' + (thMax[n] * 180 / Math.PI).toFixed(1) + '° au plus'); }
+          info.push('yacht du joueur : mer → marina en ' + t.toFixed(0) + ' s, montée ' + ((ouvre.S - monte.S) || 0).toFixed(1) + ' s, ' + (thMax.S * 180 / Math.PI).toFixed(0) + '°, aucun choc, les deux ponts refermés');
+          retirer(v); }
+        /* 6) un jet-ski passe sous le pont-levis fermé (il ne s'ouvre pas pour lui) */
+        partie(); { const v = creerVehicule('jetski', xg, LS.zc + 25, Math.PI, null); P.x = v.x; P.z = v.z; entrerVehicule(v); for (let i = 0; i < 5; i++) pas(); let t = 0, ouvert = false;
+          while (t < 12 && v.z > LS.zc - 15) { INPUT.jx = (xg - v.x) * 0.1; INPUT.jy = -0.6; pas(); t += 1 / 60; if (LS.etat !== 'ferme') ouvert = true; } INPUT.jx = INPUT.jy = 0;
+          if (v.z > LS.zc - 15) ko.push('le jet-ski ne passe pas sous le pont-levis fermé (z ' + v.z.toFixed(1) + ')'); if (ouvert) ko.push('le pont-levis s’est ouvert pour un jet-ski'); retirer(v); }
+        /* 7) jamais de levée avec quelqu'un sur le tablier : une voiture garée, puis le joueur à pied */
+        partie(); { const yv = attente(LS, 24); const car = creerVehicule('citadine', xg, LS.zc - 2.5, Math.PI / 2, null); garder.add(car);
+          let t = 0, monteAvec = false; while (t < 14) { pas(); t += 1 / 60; if (LS.etat === 'monte' && LS.theta > 0.02) monteAvec = true; }
+          if (monteAvec) ko.push('le pont-levis se lève avec une voiture sur le tablier'); if (LS.etat !== 'barrieres') ko.push('voiture sur le tablier : état ' + LS.etat + ' (attendu : barrières baissées, en attente)');
+          retirer(car); t = 0; while (t < 4 && LS.etat === 'barrieres') { pas(); t += 1 / 60; } if (LS.etat !== 'monte' && LS.etat !== 'ouvert') ko.push('la voiture partie, le pont ne se lève pas (' + LS.etat + ')');
+          retirer(yv); }
+        partie(); { const yv = attente(LN, 24); P.x = xg; P.z = LN.zc + 2; P.y = solPied(P.x, P.z); let t = 0, monteAvec = false;
+          while (t < 10) { pas(); t += 1 / 60; if (LN.theta > 0.02) monteAvec = true; } if (monteAvec) ko.push('le pont-levis se lève avec le joueur à pied sur le tablier');
+          t = 0; while (t < 8 && LN.theta < 0.02) { INPUT.jx = -1; INPUT.jy = 0; pas(); t += 1 / 60; } INPUT.jx = 0; if (LN.theta < 0.02) ko.push('le joueur parti du tablier, le pont ne se lève pas (' + LN.etat + ', joueur en ' + P.x.toFixed(1) + ')');
+          retirer(yv); }
+        /* 8) le trafic : une voiture vers l'est sur la rue du pont nord s'arrête à la ligne pendant l'ouverture, puis passe, fait demi-tour sur la culée et revient */
+        partie(); { const yv = attente(LN, 24); P.x = 255; P.z = 20; P.y = solPied(P.x, P.z); /* le joueur près de la rue (loin de lui, le trafic est recyclé) */
+          const car = creerVehicule('citadine', LN.x0 - 15, LN.zc - 3.2, Math.PI / 2, 'trafic'); car._traf = true; car.axe = 'x'; car.lane = LN.zc - 3.2; car.uidT = ++TRAFIC_UID; garder.add(car);
+          let t = 0, avMax = -1e9, arretVu = false; while (t < 30 && LN.etat !== 'descend') { pas(); t += 1 / 60; if (LN.etat !== 'ferme') avMax = Math.max(avMax, car.x + car.def.long / 2); if (LN.etat === 'ouvert' && Math.abs(car.v) < 0.3) arretVu = true; if (t > 12) retirer(yv); }
+          if (!arretVu) ko.push('la voiture ne s’arrête pas pendant l’ouverture (x ' + car.x.toFixed(1) + ', ' + LN.etat + ')'); if (avMax > LN.xArretO + 0.6) ko.push('la voiture dépasse la ligne d’arrêt (' + avMax.toFixed(2) + ' > ' + LN.xArretO.toFixed(2) + ')');
+          let xMax = car.x, revenu = false; t = 0; while (t < 40) { pas(); t += 1 / 60; xMax = Math.max(xMax, car.x); if (xMax > LN.xP1 && car.x < LN.xP0 - 3) { revenu = true; break; } }
+          if (!revenu) ko.push('la voiture ne passe pas le pont refermé ou ne revient pas (x max ' + xMax.toFixed(1) + ', x ' + car.x.toFixed(1) + ', ' + LN.etat + ')'); else info.push('trafic : arrêt à la ligne, passage, demi-tour sur la culée (x max ' + xMax.toFixed(1) + ')');
+          retirer(car); }
+        /* 9) le joueur lancé force la barrière pendant la montée : elle casse et la volée devient un tremplin ; volée levée : un mur, pas une chaussée */
+        partie(); { const yv = attente(LN, 24); for (let i = 0; i < 5; i++) pas(); LN.etat = 'monte'; LN.bar = 1; LN.theta = 0.06; levisSolidesBarrieres(LN, true);
+          const v = creerVehicule('sport', LN.xBarO - 16, LN.zc - 3.2, Math.PI / 2, null); P.x = v.x; P.z = v.z; entrerVehicule(v); v.v = 20; let t = 0, air = false, ySur = -1e9;
+          while (t < 8) { INPUT.jx = 1; INPUT.jy = (LN.zc - 3.2 - v.z) * 0.2; pas(); t += 1 / 60; if (v.enAir && v.x > LN.xP0) air = true; if (v.x > LN.xP0 + 1 && v.x < LN.xP1 - 1 && !v.enAir) ySur = Math.max(ySur, (v.h || 0) - hauteurLevis(LN, v.x)); if (v.x > LN.x1 + 5 || v.noye) break; }
+          INPUT.jx = INPUT.jy = 0; if (!LN.forceO) ko.push('la barrière ouest n’a pas été forcée (voiture en ' + v.x.toFixed(1) + ', ' + (v.v || 0).toFixed(1) + ' u/s)');
+          if (!air) ko.push('pas d’envol depuis la volée qui monte (θ ' + LN.theta.toFixed(2) + ', voiture en ' + v.x.toFixed(1) + ')'); else info.push('barrière forcée, envol de la volée (θ ' + LN.theta.toFixed(2) + ')');
+          retirer(v); LN.theta = LEVIS_THETA; LN.etat = 'ouvert'; levisMurs(LN); const s = solidAt(LN.xP0 + 1, LN.zc, 0.3); if (!s || s.h < LN.H + 3) ko.push('volée levée : pas un mur');
+          if (solY(xg, LN.zc) > 0) ko.push('volée levée : le milieu du pont est une chaussée (sol ' + solY(xg, LN.zc).toFixed(2) + ')');
+          retirer(yv); }
+        /* 10) un yacht de l'IA : de la mer à la marina et retour, en faisant ouvrir les deux ponts, sans un choc */
+        partie(); { P.x = 0; P.z = 0; P.y = solPied(0, 0); YIA.t = 0; let t = 0, y = null, hp0 = 0, esc = false; const ouv = { S: 0, N: 0 };
+          while (t < 260) { pas(); t += 1 / 60; if (!y && YIA.v.length) { y = YIA.v[0]; garder.add(y); hp0 = y.hp; } for (const [n, L] of [['S', LS], ['N', LN]]) if (L.etat === 'ouvert') ouv[n] = 1;
+            if (y) { if (y.yIA && y.yIA.etat === 'escale') esc = true; if (y.mort || vehicules.indexOf(y) < 0) break; } }
+          if (!y) ko.push('aucun yacht de l’IA en 260 s'); else { if (!esc) ko.push('le yacht de l’IA n’arrive pas à la marina'); if (!ouv.S || !ouv.N) ko.push('le yacht de l’IA n’a pas fait ouvrir les deux ponts'); if (y.hp < hp0) ko.push('le yacht de l’IA a touché (' + hp0 + ' → ' + y.hp.toFixed(0) + ')');
+            if (!y.mort && vehicules.indexOf(y) >= 0) ko.push('le yacht de l’IA n’est pas reparti en mer en 260 s (' + (y.yIA && y.yIA.etat) + ', ' + y.x.toFixed(0) + ', ' + y.z.toFixed(0) + ')'); else info.push('yacht de l’IA : aller-retour en ' + t.toFixed(0) + ' s, les deux ponts ouverts, aucun choc'); } }
+        /* 11) la minimap : l'icône verte fermé, rouge ouvert */
+        { const cv = document.createElement('canvas'); cv.width = cv.height = 192; const g = cv.getContext('2d'), proj = (x, z) => (Math.abs(z - LN.zc) < 1 ? { x: 96, y: 96 } : { x: -50, y: -50 }), dedans = (q) => q.x > 0;
+          LN.etat = 'ferme'; dessinerLevisCarte(g, proj, dedans); const a = g.getImageData(96, 96, 1, 1).data; LN.etat = 'ouvert'; dessinerLevisCarte(g, proj, dedans); const b = g.getImageData(96, 96, 1, 1).data; LN.etat = 'ferme';
+          if (!(a[1] > a[0] + 60) || !(b[0] > b[1] + 60)) ko.push('minimap : fermé ' + Array.from(a).slice(0, 3) + ', ouvert ' + Array.from(b).slice(0, 3)); }
+        /* 12) le son : le moteur pendant la montée, coupé à la mort ; à la partie suivante, ponts fermés, rien de cassé, aucun solide */
+        partie(); { audioInit(); const yv = attente(LS, 24); P.x = xg - 20; P.z = LS.zc; P.y = solPied(P.x, P.z); let t = 0, son = false;
+          while (t < 12) { pas(); t += 1 / 60; if (LEVIS_SON.on) son = true; } if (!son && AUDIO.pret) ko.push('pas de moteur pendant la montée'); mourir(); if (LEVIS_SON.on) ko.push('le moteur du pont continue après la mort');
+          partie(); for (const L of C.levis) { if (L.etat !== 'ferme' || L.theta !== 0 || L.bar !== 0 || L.solBar.length || L.murs.length || L.forceO || L.forceE) ko.push(L.id + ' : pas remis à zéro (' + L.etat + ', θ ' + L.theta + ')'); }
+          if (YIA.v.length) ko.push('un yacht de l’IA reste d’une partie à l’autre'); }
+        partie(); return { ko, info }; });
+      if (r.ko.length) fail('Canaux V3, ponts-levis : ' + r.ko.slice(0, 14).join(' ; ') + (r.ko.length > 14 ? ' … (' + r.ko.length + ')' : '') + ' [' + r.info.join(' | ') + ']'); else ok('Canaux V3, ponts-levis : ' + r.info.join(' ; '));
     }
 
     // -------------------------------------------------------------------

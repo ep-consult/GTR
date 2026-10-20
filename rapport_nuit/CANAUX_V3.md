@@ -86,7 +86,7 @@ plafond des bateaux promus, jamais la densité proche.
 ## Phases
 
 - [x] Phase 1 — le côté est, les jonctions, les embouchures
-- [ ] Phase 2 — les ponts-levis (côté des gros bateaux) et les ponts en dur (côté des petits)
+- [x] Phase 2 — les ponts-levis (côté des gros bateaux) et les ponts en dur (côté des petits)
 - [ ] Phase 3 — tous les bateaux pilotables, de nouveaux modèles
 - [ ] Phase 4 — le chantier naval et le garage à voitures
 - [ ] Phase 5 — le lieu de fête central et les zones vides
@@ -183,3 +183,77 @@ centre du quartier) : il est découpé en zones de 60 u (`zonesTriangles`). **Pe
 - **Vu une fois, non reproduit** : « Police maritime des canaux, poursuite : la recherche est tombée à 2 » dans la série des 15 blocs ;
   le bloc repasse seul, derrière les blocs qui le précèdent dans la suite, et sur quatre graines (six exécutions). À surveiller dans
   la suite complète (le graphe a désormais des nœuds dans le grand canal, à plus de 90 u du canal ouest).
+
+## Phase 2 — les ponts-levis et le tirant d'air (fait)
+
+### Décisions
+- **Décision 9 — où sont les ponts-levis** : sur les rues z = 42 (entre la marina et le réseau) et z = 168 (entre la mer et le réseau),
+  là où le trafic roule déjà. Le mur d'enceinte ne peut pas s'ouvrir (protection) : la rive orientale n'a que 5,3 u ; chaque pont
+  aboutit à une **culée** sur la rive est, au plateau du pont, où le trafic fait demi-tour (comme à toutes les limites de la ville :
+  le demi-tour du trafic est instantané) ; la promenade surélevée y monte par deux rampes (9 u), on passe d'un pont à l'autre par la rive
+  est. Un véhicule long (bus) fait demi-tour avant, comme avant. Les bouts de rue coupés de la phase 1 sont rendus à la chaussée.
+- **Décision 10 — le tirant d'air** (`HAUT_NAV`, noté dans `VEHDEFS.hautNav`) : mesuré sur le modèle à flot, la **structure rigide**
+  (coque, pare-brise, arceau, rampe de gyrophares, radar, mât) — pas les antennes fouet, qui plient (sinon la Sirène mesurait 2,97 u et
+  la vedette de police 4,00 u, toutes deux bloquées sous des ponts qu'elles passent en V2). Jet-ski 1,10 ; Espadon 1,51 ; Sirène 1,97 ;
+  police 2,81 ; pêche 3,61 ; yacht 7,15 ; méga-yacht 11,46 ; cargo 23,23 (kayak 1,09, planche 0,28). Le test les remesure.
+- **Les dégagements** (`degagementCanal`, mesurés au milieu du chenal comme sur un panneau de navigation) : ponts V2 et ponts-levis
+  baissés 2,95 u (plateau 2,7, tablier 0,35, eau à −0,6), passerelles 2,88. Les ponts-levis reprennent le plateau et le dégagement des
+  ponts V2 : les petits bateaux et la police passent dessous pont fermé ; le yacht, le bateau de pêche ne passent aucun tablier fixe.
+- **Règle physique** : un bateau plus haut que le dégagement du tablier devant lui le heurte (`passeSousTablier`, dans le choc de
+  `majVehiculePhys` et dans `bloqueParSolide`) ; déjà dessous (un pont qui redescendrait), il peut toujours en sortir.
+- **Le graphe** connaît la hauteur de chaque arc (`canauxGrapheHauteurs` : le plus petit dégagement le long de l'arc, et le pont-levis
+  qu'il franchit) ; `cheminCanal(…, hNav)` n'emprunte que les arcs assez hauts, ou un pont-levis (il s'ouvre). Trouvé en route :
+  `cheminCanal` ne renvoyait jamais « aucun chemin » (le graphe était d'un seul tenant) — corrigé.
+
+### Les ponts (`mkLevisV3`, `CANAUX.levis`)
+- Rampe en dos d'âne côté ville (chaussée, murs de soutènement, garde-corps qui suivent), culée sous le pivot ouest, culée de la rive
+  est (garde-corps ouverts sur la promenade), **deux volées** qui tournent autour de leur pivot sur le quai, **contrepoids** derrière
+  chaque pivot (il descend dans la fosse), axe, **vérins** de chaque côté (fût fixé au quai, tige vers la volée, recalculés à chaque
+  image), **barrières** à deux bras rayés rouge et blanc, **feux** rouges qui clignotent, **cabine de l'éclusier** (vitrée, allumée la
+  nuit, enseigne PONT-LEVIS), **panneau du tirant d'air** « 2,9 m » sous chaque volée, côté chenal.
+- **Cinématique** (`majLevisV3`, sur `dtJeu`) : ferme → alerte (2,2 s : feux, sonnerie) → barrières (1,7 s, puis solides) → montée
+  (5 s jusqu'à 70° ; mesuré 5,0 s) → ouvert (tant qu'un bateau trop haut est dans la zone, plus 4 s) → descente (jamais avec un bateau
+  dessous : il remonte) → barrières levées → fermé. **Jamais de levée** avec un véhicule, le joueur, un piéton ou un ennemi sur le
+  tablier (les piétons pressent le pas vers le bout le plus proche) ; une volée ne monte pas tant qu'un véhicule y roule.
+- **Déclenchement** (`levisDemande`) : un bateau plus haut que le dégagement, le joueur ou un yacht de l'IA, qui va vers le pont à moins
+  de 80 u (un pont met ~9 s à s'ouvrir), ou qui attend au point d'attente.
+- **Le trafic** : ligne d'arrêt devant chaque barrière (`levisArretTrafic` : la vitesse plafonnée pour s'y arrêter, la file se fait
+  derrière par le suivi de file) ; une voiture déjà engagée passe (le pont attend que le tablier soit libre) ; la file qui attend un
+  pont-levis n'est plus recyclée hors écran au bout de 8 s (`levisFile`) ; jamais de trafic né sur un pont-levis ni à moins de 30 u
+  avant, ni de piéton né sur un tablier. La police est arrêtée par les barrières (solides) : une façon de semer.
+- **Le joueur qui force la barrière** lancé (plus de 11 u/s) : le bras casse et vole (`levisForcer`), la volée qui monte est une rampe
+  (`hauteurLevis`, lue par `solY`) : le décollage est celui de toutes les rampes, avec la vitesse de montée (mesuré : envol à θ 0,33) ;
+  au-delà de 26°, une volée levée est un mur (`levisMurs`) ; levée, le milieu du pont n'est jamais une chaussée (l'eau).
+- **Les yachts de l'IA** (`YIA`, `majYachtIA`) : un yacht « Impérial » naît au large hors de vue toutes les 2 à 4 minutes de jeu,
+  remonte le grand canal sur le graphe en attendant chaque pont au point d'attente, fait escale 25 s au centre du bassin d'évitage,
+  fait demi-tour au pas du côté qui le pose sur l'axe du canal, ressort tout droit et disparaît au large. Mesuré : aller-retour en
+  135 s, les deux ponts ouverts et refermés deux fois, aucun choc. C'est un vrai véhicule (conduit `yachtIA`) : on peut le voler.
+- **Minimap** : l'icône de chaque pont-levis, verte fermé, rouge sinon (`dessinerLevisCarte`). **Son** (`LEVIS_SON`) : sonnerie et
+  moteur selon la distance, coupés à la mort, en salle et à chaque partie.
+
+### Tests (phase 2)
+- Nouveau bloc « Canaux V3 : ponts-levis » (lit `CANAUX.levis`, `CANAUX.ponts`, `CANAUX.passerelles`, `VEHDEFS.hautNav`, `PCANAL`,
+  `YIA`) : tirants d'air remesurés sur chaque modèle ; dégagements (police oui, yacht non) ; graphe (le yacht atteint la marina par les
+  ponts-levis, jamais le canal ouest ; la police, si) ; contre le pont fixe sud-est, le yacht s'arrête et la vedette passe ; un joueur
+  attentif en yacht, au vrai joystick, de la mer à la marina : les deux ponts font leur cycle complet (montée 5,0 s, 70°), aucun choc,
+  33 s ; un jet-ski passe sous le pont fermé sans l'ouvrir ; une voiture garée puis le joueur à pied sur le tablier empêchent la
+  levée, partis, le pont se lève ; une voiture du trafic s'arrête à la ligne, passe une fois le pont refermé, fait demi-tour sur la
+  culée (x 304,8) et revient ; barrière forcée et envol de la volée qui monte (θ 0,33) ; volée levée = mur, le milieu = l'eau ; un
+  yacht de l'IA fait l'aller-retour (135 s) en ouvrant les deux ponts, sans choc ; icône verte / rouge sur la minimap ; moteur pendant
+  la montée, coupé à la mort ; tout remis à zéro à la partie suivante.
+- Les 22 blocs des canaux, du trafic (files, scintillement, bordures, circulation) et des vedettes (direction, V3) repassent. Le test
+  V1 « Canaux de Los Reyes » comptait la chaussée d'un pont-levis comme une rue retirée (elle traverse l'ancienne route de bordure,
+  retirée en phase 1) : il lit désormais `levisCanal`.
+- Trouvés en route : le trafic et les piétons pouvaient naître sur un tablier (ouvert compris : une voiture née sur une volée levée
+  bloquait la montée à 60°) ; la file d'attente d'un pont était recyclée hors écran au bout de 8 s ; `cheminCanal` sans « aucun chemin ».
+
+### Performances (phase 2)
+Mêmes points, plus « pont-levis nord » (280, 42) : classique 212 / 246 k au centre (0 % / 0 %), 149 / 197 k à la marina, 128 / 272 k
+au grand canal, 132 / 227 k à l'embouchure, 204 / 221 k à la fête, 169 / 224 k au pont nord ; immersive 1 747 / 613 k au centre (+1 % /
+0 %), 1 217 / 587 k au grand canal, 1 971 / 854 k à l'embouchure (+6 % / +8 %), 932 / 416 k au pont nord ; survol 2 440 / 1 011 k
+(+3 % / +9 %) ; géométries 8 595, 167,7 Mo (+8,6 Mo) ; tick 1,6 à 2,2 ms. Les volées sont fusionnées par matériau (6 maillages chacune,
+contre une vingtaine) et les lampes des feux en un maillage par pont : −88 appels au survol. **À juger sur iPhone.**
+
+### Captures (phase 2)
+`p2_levisN_ferme.png`, `p2_levisS_montee.png` (barrières baissées, vérins), `p2_levisN_ouvert_yacht.png` (le yacht « Impérial » sous
+le pont ouvert), `p2_levis_cote.png`, `p2_levisN_nuit.png` (cabine de l'éclusier allumée).

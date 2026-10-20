@@ -3012,6 +3012,11 @@ Object.assign(VEHDEFS,{
   derbyCompacte:{nom:'Citadine « Savonnette »',derby:true,profil:'citadine',vmax:27,acc:16,man:2.9,hp:230,long:4.2,larg:2.0,type:'car',cols:[0xff5ad0,0x35e0ff,0xffd23f,0x7dff7a,0xe8662a]},
   derbyPickup:{nom:'Pick-up « Bétaillère »',derby:true,profil:'pickup',vmax:22,acc:12,man:2.1,hp:380,long:5.0,larg:2.2,type:'car',cols:[0x8a4de0,0xd8261c,0x3a7a3a,0xe8c84a,0x2a6ad8]},
 });
+/* V3 : le tirant d'air de chaque bateau (u au-dessus de l'eau), mesuré sur son modèle à flot : la structure rigide (coque, pare-brise,
+   arceau, rampe de gyrophares, radar, mât) — pas les antennes fouet, qui plient (CANAUX_V3.md, phase 2 ; le test « Canaux V3 : ponts-levis »
+   le remesure). Un bateau plus haut que le dégagement d'un tablier le heurte. */
+const HAUT_NAV={yacht:7.15,bateau:1.97,surf:0.28,kayak:1.09,jetski:1.10,bateauP:2.81,peche:3.61,grandyacht:11.46,cargo:23.23,espadon:1.51};
+for(const k in HAUT_NAV) if(VEHDEFS[k]) VEHDEFS[k].hautNav=HAUT_NAV[k];
 
 /* ---------- Types d'ennemis ---------- */
 const ETYPES={
@@ -3460,12 +3465,13 @@ function formeSdf(e,x,z){ /* distance signée à une forme (négative dedans) */
 function formeContient(e,x,z){ if(e.t==='r') return x>e.x0&&x<e.x1&&z>e.z0&&z<e.z1; if(e.t==='c'){ const dx=x-e.x, dz=z-e.z; return dx*dx+dz*dz<e.r*e.r; } return formeSdf(e,x,z)<0; }
 function dansBBCanaux(x,z){ const B=CANAUX.bb; return x>B.x0&&x<B.x1&&z>B.z0&&z<B.z1; }
 function dansCanal(x,z){ if(!CANAUX.ok||!dansBBCanaux(x,z)) return false; for(const e of CANAUX.eaux) if(formeContient(e,x,z)) return true; return false; }
-function pontCanal(x,z){ if(!CANAUX.ok||!dansBBCanaux(x,z)) return null; for(const p of CANAUX.ponts) if(x>p.x0&&x<p.x1&&z>p.z0&&z<p.z1) return p; return null; }
+function pontCanal(x,z){ if(!CANAUX.ok||!dansBBCanaux(x,z)) return null; for(const p of CANAUX.ponts) if(x>p.x0&&x<p.x1&&z>p.z0&&z<p.z1) return p; for(const p of CANAUX.levis||[]) if(x>p.x0&&x<p.x1&&z>p.z0&&z<p.z1) return p; return null; } /* V3 : les ponts-levis (CANAUX.levis) aussi */
 function marcheCanal(x,z){ if(!CANAUX.ok||!dansBBCanaux(x,z)) return null; for(const m of CANAUX.marches) if(x>m.x0&&x<m.x1&&z>m.z0&&z<m.z1) return m; return null; }
 function pontonCanal(x,z){ if(!CANAUX.ok||!dansBBCanaux(x,z)) return null; for(const p of CANAUX.pontons) if(x>p.x0&&x<p.x1&&z>p.z0&&z<p.z1) return p; return null; } /* les pontons privés (phase 3) : praticables, un mur pour les bateaux */
 function dansCoupe(x,z){ if(!CANAUX.ok||!dansBBCanaux(x,z)) return false; for(const c of CANAUX.coupes) if(x>c.x0&&x<c.x1&&z>c.z0&&z<c.z1) return true; return false; }
 /* une chaussée qui n'existe plus : segment retiré, ou de l'eau sans tablier (le trafic y fait demi-tour, rien n'y est garé) */
-function routeCanalInterdite(x,z){ return CANAUX.ok&&dansBBCanaux(x,z)&&(dansCoupe(x,z)||(dansCanal(x,z)&&!pontCanal(x,z))); }
+function routeCanalInterdite(x,z){ return CANAUX.ok&&dansBBCanaux(x,z)&&((dansCoupe(x,z)&&!levisCanal(x,z))||(dansCanal(x,z)&&!pontCanal(x,z))); }
+function levisCanal(x,z){ for(const p of CANAUX.levis||[]) if(x>p.x0&&x<p.x1&&z>p.z0&&z<p.z1) return p; return null; } /* V3 : la chaussée d'un pont-levis (rampe, volées, culée) */
 /* l'eau pour un BATEAU : sous les tabliers aussi (les marches restent un mur) */
 function estEauNav(x,z){ if(CANAUX.ok&&amarreCanal(x,z)) return false; /* un bateau du décor amarré (phase 4) : un mur pour un bateau, de l'eau pour un nageur */ return estEau(x,z)||(CANAUX.ok&&dansCanal(x,z)&&!marcheCanal(x,z)&&!pontonCanal(x,z)); }
 /* le niveau de l'eau d'un canal : −0,6 (sous les quais), qui remonte jusqu'à celui de la mer entre la route du front de mer et la mer */
@@ -7593,7 +7599,12 @@ function canauxDefinir(){
   /* V3 : la bande nord de la marina (capitainerie, carburant, grue, carénage), la rive est contre le mur (enrochements, promenade,
      dunes) ; la route de bordure retirée (les rues z = 42, z = 168 et le front de mer s'arrêtent au quai du grand canal) */
   dalle('marinaN',268,G3.xRive,rue(6)+R,G3.zMa0); dalle('riveEst',G3.x1,G3.xRive,rue(6)+R,G3.zMurFin);
-  coupe('x294',rue(14)-R,rue(14)+R,rue(6)+R,zR); for(const k of [8,11]) coupe('z'+rue(k)+'G',rue(14)-R-1,rue(14)+R,rue(k)-R,rue(k)+R);
+  coupe('x294',rue(14)-R,rue(14)+R,rue(6)+R,zR);
+  /* V3, phase 2 : les rues z = 42 et z = 168 franchissent le grand canal par un pont-levis à bascule (deux volées) : rampe en dos d'âne
+     côté ville, culée sur la rive est (le trafic y fait demi-tour), la promenade y monte. Plateau, dégagement : ceux des ponts V2. */
+  C.levis=[]; for(const [id,k] of [['levisN',8],['levisS',11]]){ const zc=rue(k);
+    C.levis.push({id,levis:true,zc,z0:zc-6,z1:zc+6,x0:G3.x0-10.5,xP0:G3.x0,xP1:G3.x1,x1:G3.xRive,H:2.7,degage:2.7-EP_TABLIER-C.niveau,theta:0,etat:'ferme',t:0,
+      xBarO:G3.x0-2.6,xBarE:G3.x1+0.45,xArretO:G3.x0-3.6,xArretE:G3.x1+0.6,barO:0,barE:0,forceO:false,forceE:false}); }
   C.allees=[]; const allee=(id,x0,x1,z0,z1,impasse)=>C.allees.push({id,x0,x1,z0,z1,impasse:!!impasse});
   allee('aMidN',185,193,rue(6)+R,rue(8)-R); allee('aMidS',185,193,rue(11)+R,rue(13)-R); allee('aEstN',262,268,rue(6)+R,rue(8)-R); allee('aEstS',262,268,rue(11)+R,rue(13)-R);
   allee('aEstM',255,261.5,72,rue(11)-R,true); allee('pEstM',247,270,69.5,74.5,true); /* l'impasse du doigt est et sa placette de demi-tour, au bord du bras */
@@ -7620,7 +7631,7 @@ function canauxDefinir(){
   marinaV3Plan(C); /* V3 : la marina et la promenade de la rive est (des données) */
   let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9; const ext=(a,b,c,d)=>{ x0=Math.min(x0,a); x1=Math.max(x1,b); z0=Math.min(z0,c); z1=Math.max(z1,d); };
   for(const e of C.eaux){ if(e.t==='r') ext(e.x0,e.x1,e.z0,e.z1); else if(e.t==='c') ext(e.x-e.r,e.x+e.r,e.z-e.r,e.z+e.r); else for(const q of e.pts) ext(q[0],q[0],q[1],q[1]); }
-  for(const L2 of [C.ponts,C.coupes,C.dalles]) for(const p of L2) ext(p.x0,p.x1,p.z0,p.z1);
+  for(const L2 of [C.ponts,C.coupes,C.dalles,C.levis||[]]) for(const p of L2) ext(p.x0,p.x1,p.z0,p.z1);
   C.bb={x0:x0-1,x1:x1+1,z0:z0-1,z1:z1+1}; C.zMer=zR;
 }
 /* ---------- Canaux V2 : les rangées de lots (îlots) et leur découpe ----------
@@ -7706,7 +7717,22 @@ function hauteurPonton(po,x){ return po.pente?po.h0+(po.h-po.h0)*clamp(Math.abs(
 /* l'eau libre la plus proche (pour un bateau dont le centre est entré dans un ponton ou un bateau amarré) */
 function eauNavProche(x,z){ for(let r=0.6;r<=6;r+=0.6) for(let k=0;k<12;k++){ const a=k*0.5236, qx=x+Math.cos(a)*r, qz=z+Math.sin(a)*r; if(estEauNav(qx,qz)) return {x:qx,z:qz}; } return null; }
 function echelleProche(x,z){ let best=null, bd=1e9; for(const e of CANAUX.echelles||[]){ const d=dist2(x,z,e.eau.x,e.eau.z); if(d<bd){ bd=d; best=e; } } return best; }
-function hauteurPont(p,x){ const u=Math.abs(x-p.xc), demi=(p.x1-p.x0)/2; if(u<=p.plat) return p.H; const t=clamp((demi-u)/(demi-p.plat),0,1); return p.H*t*t*(3-2*t); }
+const EP_TABLIER=0.35; /* l'épaisseur d'un tablier de pont (sa sous-face : le dégagement) */
+/* V3 : la chaussée d'un pont-levis — rampe en dos d'âne côté ville, volées au plateau (ou levées : chacune tourne autour de son
+   pivot, sur le quai ; au-delà de sa pointe, l'eau), culée au plateau sur la rive est */
+function hauteurLevis(L,x){ const H=L.H;
+  if(x<L.xP0){ const t=clamp((x-L.x0)/(L.xP0-L.x0),0,1); return H*t*t*(3-2*t); }
+  if(x>L.xP1||L.theta<0.004) return H;
+  const lv=(L.xP1-L.xP0)/2, ct=Math.cos(L.theta), tt=Math.tan(L.theta), dW=x-L.xP0, dE=L.xP1-x;
+  if(dW<=lv*ct) return H+dW*tt; if(dE<=lv*ct) return H+dE*tt; return CANAUX.fond; }
+/* V3 : le dégagement au-dessus de l'eau en (x, z) — infini sans tablier ; celui d'un pont, d'une passerelle (mesuré au milieu du chenal,
+   comme sur les panneaux de navigation), d'un pont-levis (baissé : celui des ponts ; levé : la sous-face de la volée, infini entre elles) */
+function degagementCanal(x,z){ if(!CANAUX.ok||!dansBBCanaux(x,z)) return Infinity; const p=pontCanal(x,z);
+  if(p){ if(!p.levis) return p.degage||(p.H-EP_TABLIER-CANAUX.niveau); if(x<p.xP0||x>p.xP1) return Infinity; if(p.theta<0.004) return p.degage; const y=hauteurLevis(p,x); return y<0?Infinity:y-EP_TABLIER/Math.cos(p.theta)-niveauCanal(x,z); }
+  const q=passerelleCanal(x,z); if(q) return q.degage||(q.H-0.32-CANAUX.niveau); return Infinity; }
+function hautNavVeh(v){ const d=v&&v.def; return d?(d.hautNav!==undefined?d.hautNav:(d.eau?1.5:0)):0; }
+function passeSousTablier(v,x,z){ return hautNavVeh(v)<degagementCanal(x,z)-0.04; }
+function hauteurPont(p,x){ if(p.levis) return hauteurLevis(p,x); const u=Math.abs(x-p.xc), demi=(p.x1-p.x0)/2; if(u<=p.plat) return p.H; const t=clamp((demi-u)/(demi-p.plat),0,1); return p.H*t*t*(3-2*t); }
 function hauteurMarche(m,x,z){ let u=m.axe==='z'?(z-m.z0)/(m.z1-m.z0):(x-m.x0)/(m.x1-m.x0); if(m.sens<0) u=1-u; const n=5, k=Math.min(n-1,Math.floor(clamp(u,0,0.999)*n)); return m.hB+(m.hH-m.hB)*(k+1)/n; }
 function dansDalleCanaux(x,z){ for(const d of CANAUX.dalles) if(x>d.x0&&x<d.x1&&z>d.z0&&z<d.z1) return true; return false; }
 /* le sol du quartier (appelé par solY dans son emprise) : le fond d'un canal, une marche, un tablier, une dalle de quai */
@@ -8119,7 +8145,7 @@ function mkCanaux(){
       addSolid({x:(R.x0+R.x1)/2,z:(R.z0+R.z1)/2,hw:w/2,hd:d/2,h,toit:true}); };
     if(C.aquarium) bat(C.aquarium,'#2a6a8a',8.5);
     if(C.garage) bat(C.garage,'#4a5058',6.5);
-    tp('lieux'); mkBatiCanaux(); tp('bati'); mkCoteEstV3(); tp('coteEst'); mkNautiqueCanaux(); tp('nautique'); mkMiamiCanaux(); tp('miami'); canauxGraphe(); C.tBuild=Math.round(performance.now()-t0);
+    tp('lieux'); mkBatiCanaux(); tp('bati'); mkCoteEstV3(); tp('coteEst'); mkLevisV3(); tp('levis'); mkNautiqueCanaux(); tp('nautique'); mkMiamiCanaux(); tp('miami'); canauxGraphe(); canauxGrapheHauteurs(); C.tBuild=Math.round(performance.now()-t0);
   });
 }
 /* ---------- CANAUX V3, phase 1 : le côté est (CANAUX_V3.md) ----------
@@ -8142,7 +8168,8 @@ function mkLangueMer(C){ if(!MER_V2) return; let mer=null;
     const U=g.attributes.uv, A=g.attributes.position; for(let i=0;i<A.count;i++) U.setXY(i,(A.getX(i)+(e.x0+e.x1)/2)/14,(A.getZ(i)+(z0+z1)/2)/14);
     const m=new THREE.Mesh(g,ml); m.position.set((e.x0+e.x1)/2,0.105,(z0+z1)/2); m.renderOrder=1; scene.add(m); C.langues.push(m); } }
 function promenadeCanal(x,z){ for(const q of CANAUX.promenades||[]) if(x>q.x0&&x<q.x1&&z>q.z0&&z<q.z1) return q; return null; }
-function hauteurPromenade(q,z){ const t=clamp(Math.min(z-q.z0,q.z1-z)/q.r,0,1); return 0.22+(q.h-0.22)*t; }
+function hauteurPromenade(q,z){ const ya=q.ya===undefined?0.22:q.ya, yb=q.yb===undefined?0.22:q.yb, ra=q.ra||q.r, rb=q.rb||q.r; /* V3 phase 2 : un tronçon peut monter à la culée d'un pont-levis (ya, yb) */
+  if(z<q.z0+ra) return ya+(q.h-ya)*clamp((z-q.z0)/ra,0,1); if(z>q.z1-rb) return yb+(q.h-yb)*clamp((q.z1-z)/rb,0,1); return q.h; }
 function marinaV3Plan(C){
   const G3=C.grand, ma=C.eaux.find((e)=>e.id==='marina'); C.promenades=[]; C.marina=null; if(!G3||!ma) return;
   const h=C.niveau+0.32, M=C.marina={pontons:[],bornes:[],postes:[],ma};
@@ -8164,7 +8191,9 @@ function marinaV3Plan(C){
   for(const z of [-17,5.4]) C.echelles.push({x:epi.x1+0.05,z,eau:{x:epi.x1+1.3,z},ponton:epi,marina:true});
   C.echelles.push({x:honneur.x1-0.6,z:honneur.z1+0.05,eau:{x:honneur.x1-0.6,z:honneur.z1+1.3},ponton:honneur,marina:true});
   /* la promenade surélevée de la rive est : de la bande nord de la marina au bout du mur */
-  C.promenades.push({x0:G3.x1+1.2,x1:G3.x1+3.4,z0:G3.zEnceinte0+2.5,z1:G3.zMurFin-2,h:0.85,r:3}); }
+  { const cul=(C.levis||[]).map((L)=>[L.z0,L.z1,L.H]).sort((p,q)=>p[0]-q[0]); let za=G3.zEnceinte0+2.5, ya=0.22, ra=3; /* V3 phase 2 : un tronçon entre deux culées de pont-levis ; il y monte en 9 u */
+    for(const [c0,c1,H] of cul){ C.promenades.push({x0:G3.x1+1.2,x1:G3.x1+3.4,z0:za,z1:c0,h:0.85,r:3,ya,yb:H,ra,rb:9}); za=c1; ya=H; ra=9; }
+    C.promenades.push({x0:G3.x1+1.2,x1:G3.x1+3.4,z0:za,z1:G3.zMurFin-2,h:0.85,r:3,ya,yb:0.22,ra,rb:3}); } }
 
 let _GEO_ROC=null; /* V3 : un bloc de roche (dodécaèdre), créé à la première utilisation sous le générateur privé de mkCanaux */
 function rocCanaux(c,x,y,z,sx,sy,sz,ry,rx,col,a){ if(!_GEO_ROC) _GEO_ROC=new THREE.DodecahedronGeometry(1,0);
@@ -8183,28 +8212,30 @@ function mkCoteEstV3(){
   const C=CANAUX, G3=C.grand; if(!G3) return; const t0=performance.now();
   const c={pos:[],nor:[],col:[]}, cn={pos:[],nor:[],col:[]}, b=constructeurCanaux(c,0,0,0,1,0), bn=constructeurCanaux(cn,0,0,0,1,0), a=aleaLot(0.3131);
   const ROC=[0x8a8478,0x7a756c,0x958d80,0x6e6a62,0x9a9282], SABLE=[0xdcc48e,0xd2b884,0xe2cc98], roc=(x,y,z,s)=>rocCanaux(c,x,y,z,s*(0.8+a()*0.5),s*(0.55+a()*0.4),s*(0.8+a()*0.5),a()*6.28,(a()-0.5)*0.5,ROC[Math.floor(a()*ROC.length)],a);
-  const X1=G3.x1, XR=G3.xRive;
+  const X1=G3.x1, XR=G3.xRive, culee=(z,m)=>(C.levis||[]).some((L)=>z>L.z0-m&&z<L.z1+m), horsCul=(z0,z1,m)=>{ const out=[]; let a0=z0; /* V3 phase 2 : les culées des ponts-levis */
+    for(const L of (C.levis||[]).slice().sort((p,q)=>p.z0-q.z0)){ if(L.z1+m<=a0||L.z0-m>=z1) continue; if(L.z0-m>a0) out.push([a0,L.z0-m]); a0=Math.max(a0,L.z1+m); } if(a0<z1) out.push([a0,z1]); return out; };
   /* 1) la rive est : les enrochements au bord de l'eau, de la marina au bout du mur (un mur pour qui marche ; les bateaux : l'eau s'arrête là) */
-  for(let z=G3.zMa0+0.5;z<G3.zMurFin-0.3;z+=0.8){ roc(X1+0.25+a()*0.3,-0.55-a()*0.35,z+(a()-0.5)*0.3,0.95); roc(X1+0.85+a()*0.25,-0.05+a()*0.2,z+0.4+(a()-0.5)*0.3,0.7); if(a()<0.5) roc(X1+0.6,0.25,z,0.45); }
-  addSolid({x:X1+0.6,z:(G3.zMa0+G3.zMurFin)/2,hw:0.6,hd:(G3.zMurFin-G3.zMa0)/2,h:0.75});
+  for(let z=G3.zMa0+0.5;z<G3.zMurFin-0.3;z+=0.8){ if(culee(z,0.2)) continue; roc(X1+0.25+a()*0.3,-0.55-a()*0.35,z+(a()-0.5)*0.3,0.95); roc(X1+0.85+a()*0.25,-0.05+a()*0.2,z+0.4+(a()-0.5)*0.3,0.7); if(a()<0.5) roc(X1+0.6,0.25,z,0.45); }
+  for(const [za,zb] of horsCul(G3.zMa0,G3.zMurFin,0)) addSolid({x:X1+0.6,z:(za+zb)/2,hw:0.6,hd:(zb-za)/2,h:0.75});
   /* 2) la promenade surélevée : platelage, pieux, garde-corps côté eau, lampadaires et bancs côté dunes, rampes aux bouts, une borne (les voitures restent en bas) */
-  for(const q of C.promenades){ const xc=(q.x0+q.x1)/2, w=q.x1-q.x0;
-    for(const [za,zb,ya,yb] of [[q.z0,q.z0+q.r,0.22,q.h],[q.z0+q.r,q.z1-q.r,q.h,q.h],[q.z1-q.r,q.z1,q.h,0.22]]){ /* le tablier : rampe, plat, rampe (deux triangles par face) */
+  for(const q of C.promenades){ const xc=(q.x0+q.x1)/2, w=q.x1-q.x0, ra=q.ra||q.r, rb=q.rb||q.r, yA=q.ya===undefined?0.22:q.ya, yB=q.yb===undefined?0.22:q.yb, Hq=(z)=>hauteurPromenade(q,z);
+    for(const [za,zb,ya,yb] of [[q.z0,q.z0+ra,yA,q.h],[q.z0+ra,q.z1-rb,q.h,q.h],[q.z1-rb,q.z1,q.h,yB]]){ /* le tablier : rampe, plat, rampe (deux triangles par face) */
       b.tri([q.x0,ya,za],[q.x1,ya,za],[q.x1,yb,zb],0x9a7048,false,[0,1,0]); b.tri([q.x0,ya,za],[q.x1,yb,zb],[q.x0,yb,zb],0x9a7048,false,[0,1,0]);
       for(const xs of [q.x0,q.x1]){ b.tri([xs,0.22,za],[xs,ya,za],[xs,yb,zb],0x6e4a2c,true); b.tri([xs,0.22,za],[xs,yb,zb],[xs,0.22,zb],0x6e4a2c,true); } }
-    for(let z=q.z0+q.r+0.5;z<q.z1-q.r;z+=0.55) b.tri([q.x0,q.h+0.004,z],[q.x1,q.h+0.004,z],[q.x1,q.h+0.004,z+0.05],0x6e4a2c,false,[0,1,0]); /* les joints du platelage */
-    for(let z=q.z0+q.r;z<=q.z1-q.r+0.01;z+=2.4){ b.box(0.09,1.0,0.09,q.x0+0.08,q.h+0.5,z,0xe8e6e0); } /* le garde-corps côté eau */
-    for(const [y,ep] of [[q.h+1.0,0.07],[q.h+0.55,0.04]]) b.box(0.06,ep,q.z1-q.z0-2*q.r,q.x0+0.08,y,(q.z0+q.z1)/2,0xe8e6e0);
-    for(let z=q.z0+q.r+6;z<q.z1-q.r;z+=16){ b.cyl(0.07,3.4,q.x1-0.12,q.h+1.7,z,0x2a2d34); b.box(0.36,0.3,0.36,q.x1-0.12,q.h+3.45,z,0x2a2d34); bn.box(0.3,0.24,0.3,q.x1-0.12,q.h+3.3,z,0xfff0c0); } /* les lampadaires */
-    for(let z=q.z0+q.r+14;z<q.z1-q.r;z+=24){ b.box(0.5,0.08,1.6,q.x1-0.45,q.h+0.45,z,0x9a7048); b.box(0.08,0.45,1.6,q.x1-0.2,q.h+0.7,z,0x9a7048); for(const dz of [-0.65,0.65]) b.box(0.42,0.42,0.08,q.x1-0.45,q.h+0.22,z+dz,0x2a2d34); } /* les bancs */
-    for(const zb of [q.z0+0.4,q.z1-0.4]){ b.cyl(0.13,0.9,xc,0.22+0.45,zb,0x2a2d34); b.cyl(0.15,0.1,xc,0.22+0.92,zb,0xf2c43a); addSolid({x:xc,z:zb,hw:0.16,hd:0.16,h:1.2}); } }
+    for(let z=q.z0+ra+0.5;z<q.z1-rb;z+=0.55) b.tri([q.x0,q.h+0.004,z],[q.x1,q.h+0.004,z],[q.x1,q.h+0.004,z+0.05],0x6e4a2c,false,[0,1,0]); /* les joints du platelage */
+    for(let z=q.z0+(yA>0.5?0.3:ra);z<=q.z1-(yB>0.5?0.3:rb)+0.01;z+=2.4){ b.box(0.09,1.0,0.09,q.x0+0.08,Hq(z)+0.5,z,0xe8e6e0); } /* le garde-corps côté eau (sur les rampes des culées aussi) */
+    for(const [y,ep] of [[1.0,0.07],[0.55,0.04]]){ b.box(0.06,ep,q.z1-q.z0-ra-rb,q.x0+0.08,q.h+y,(q.z0+ra+q.z1-rb)/2,0xe8e6e0);
+      for(const [z1r,z2r] of [[q.z0,q.z0+ra],[q.z1-rb,q.z1]]){ const h1=Hq(z1r)+y, h2=Hq(z2r)+y; if(Math.max(h1,h2)-y<0.5) continue; for(const s of [-1,1]){ const xx=q.x0+0.08+s*0.03; b.tri([xx,h1-ep/2,z1r],[xx,h2-ep/2,z2r],[xx,h2+ep/2,z2r],0xe8e6e0,false,[s,0,0]); b.tri([xx,h1-ep/2,z1r],[xx,h2+ep/2,z2r],[xx,h1+ep/2,z1r],0xe8e6e0,false,[s,0,0]); } } } /* la lisse qui suit la rampe d'une culée */
+    for(let z=q.z0+ra+6;z<q.z1-rb;z+=16){ b.cyl(0.07,3.4,q.x1-0.12,q.h+1.7,z,0x2a2d34); b.box(0.36,0.3,0.36,q.x1-0.12,q.h+3.45,z,0x2a2d34); bn.box(0.3,0.24,0.3,q.x1-0.12,q.h+3.3,z,0xfff0c0); } /* les lampadaires */
+    for(let z=q.z0+ra+14;z<q.z1-rb;z+=24){ b.box(0.5,0.08,1.6,q.x1-0.45,q.h+0.45,z,0x9a7048); b.box(0.08,0.45,1.6,q.x1-0.2,q.h+0.7,z,0x9a7048); for(const dz of [-0.65,0.65]) b.box(0.42,0.42,0.08,q.x1-0.45,q.h+0.22,z+dz,0x2a2d34); } /* les bancs */
+    for(const zb of [q.z0+0.4,q.z1-0.4]){ const y0=Hq(zb); b.cyl(0.13,0.9,xc,y0+0.45,zb,0x2a2d34); b.cyl(0.15,0.1,xc,y0+0.92,zb,0xf2c43a); addSolid({x:xc,z:zb,hw:0.16,hd:0.16,h:y0+1.0}); } } /* la borne, à la hauteur du sol (sur une culée : à 2,7) */
   /* 3) les dunes plantées, contre le mur : bourrelets de sable, oyats, ganivelles, cactus, rochers (un talus où l'on ne marche pas) */
-  for(let z=G3.zEnceinte0+1;z<G3.zMurFin-0.5;z+=2.2){ const xd=(XR+X1+3.4)/2+0.2; b.boule(1.0+a()*0.3,0.45+a()*0.75,1.6+a()*0.8,xd,0.22,z,SABLE[Math.floor(a()*3)]);
+  for(let z=G3.zEnceinte0+1;z<G3.zMurFin-0.5;z+=2.2){ if(culee(z,1)) continue; const xd=(XR+X1+3.4)/2+0.2; b.boule(1.0+a()*0.3,0.45+a()*0.75,1.6+a()*0.8,xd,0.22,z,SABLE[Math.floor(a()*3)]);
     if(a()<0.8){ const xo=xd+(a()-0.5)*1.0, zo=z+(a()-0.5)*1.5; for(let k=0;k<5;k++){ const an=k*1.257+a(); b.cone(0.05,0.55+a()*0.4,xo+Math.cos(an)*0.18,0.5+0.35,zo+Math.sin(an)*0.18,a()<0.5?0xb8b070:0x9a9a5a); } } /* une touffe d'oyats */
     if(a()<0.07){ const xo=xd, zo=z; b.cyl(0.16,1.6,xo,0.22+0.8,zo,0x4a7a3a); b.cyl(0.11,0.6,xo+0.28,0.22+1.0,zo,0x4a7a3a); b.box(0.28,0.1,0.1,xo+0.14,0.22+0.75,zo,0x4a7a3a); } /* un cactus */
     if(a()<0.12) roc(xd+(a()-0.5),0.3,z,0.5); }
-  for(let z=G3.zEnceinte0+6;z<G3.zMurFin-6;z+=31) for(let k=0;k<14;k++){ const zz=z+k*0.36; b.box(0.05,0.85,0.07,X1+3.5,0.22+0.42,zz,0x8a6a48); if(k<13) for(const y of [0.45,0.8]) b.box(0.03,0.05,0.36,X1+3.5,0.22+y,zz+0.18,0x8a6a48); } /* les ganivelles */
-  addSolid({x:(XR+X1+3.4)/2,z:(G3.zEnceinte0+G3.zMurFin)/2,hw:(XR-X1-3.4)/2,hd:(G3.zMurFin-G3.zEnceinte0)/2,h:1.2});
+  for(let z=G3.zEnceinte0+6;z<G3.zMurFin-6;z+=31) for(let k=0;k<14;k++){ const zz=z+k*0.36; if(culee(zz,0.5)) continue; b.box(0.05,0.85,0.07,X1+3.5,0.22+0.42,zz,0x8a6a48); if(k<13) for(const y of [0.45,0.8]) b.box(0.03,0.05,0.36,X1+3.5,0.22+y,zz+0.18,0x8a6a48); } /* les ganivelles */
+  for(const [za,zb] of horsCul(G3.zEnceinte0,G3.zMurFin,0)) addSolid({x:(XR+X1+3.4)/2,z:(za+zb)/2,hw:(XR-X1-3.4)/2,hd:(zb-za)/2,h:1.2});
   /* 4) la marina : pontons (platelage, flotteurs, pieux), bornes eau et électricité, échelles */
   if(C.marina){ const M=C.marina;
     for(const p of M.pontons){ const w=p.x1-p.x0, d=p.z1-p.z0, xc=(p.x0+p.x1)/2, zc=(p.z0+p.z1)/2, long=d>=w;
@@ -8269,6 +8300,187 @@ function mkCoteEstV3(){
   if(bou.pos.length){ const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(bou.pos,3)); g.setAttribute('normal',new THREE.Float32BufferAttribute(bou.nor,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(bou.col,3)); g.setAttribute('aCentre',new THREE.Float32BufferAttribute(cenB,3)); g.computeBoundingSphere(); const me=new THREE.Mesh(g,matBateauxCanaux()); scene.add(me); C.bouees=me; }
   for(const [q0,m] of [[c,MOB_MAT],[cn,matFenCanaux()]]) for(const q of zonesTriangles(q0,60)){ const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(q.pos,3)); g.setAttribute('normal',new THREE.Float32BufferAttribute(q.nor,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(q.col,3)); g.computeBoundingSphere(); const me=new THREE.Mesh(g,m); if(m===_MAT_FEN_CANAUX){ me.visible=false; C.nuitMeshes.push(me); } scene.add(me); } /* par zones de 60 u : d'un seul tenant, tout le côté est (1,2 km de rive) était dessiné dès qu'un bout était dans le champ */
   C.tCoteEst=Math.round(performance.now()-t0); }
+/* ---------- CANAUX V3, phase 2 : les ponts-levis du grand canal (CANAUX.levis, CANAUX_V3.md) ----------
+   Deux ponts à bascule à deux volées, sur les rues z = 42 (entre la marina et le réseau) et z = 168 (entre la mer et le réseau) : rampe en
+   dos d'âne côté ville, culée sur la rive est (le trafic y fait demi-tour, la promenade y monte). Construits par mkLevisV3 (générateur
+   privé de mkCanaux). La cinématique (majLevisV3) tourne sur dtJeu :
+   ferme → alerte (feux rouges qui clignotent, sonnerie) → barrieres (elles se baissent, puis sont des solides) → monte (le tablier jusqu'à
+   70° en LEVIS_T_MONTE s, jamais tant que quelqu'un est sur une volée) → ouvert (tant qu'un bateau trop haut est dans la zone, plus
+   LEVIS_MARGE s) → descend (jamais avec un bateau dessous : il remonte) → relevage (les barrières remontent) → ferme.
+   Déclenchement : un bateau plus haut que le dégagement (le joueur, ou un yacht de l'IA — YIA), qui approche et va vers le pont, ou qui
+   attend au point d'attente. Le joueur qui force une barrière lancé : elle casse (levisForcer) et la volée qui monte devient un tremplin
+   (hauteurLevis, lue par solY : le décollage est celui de toutes les rampes) ; au-delà de LEVIS_MUR, une volée levée est un mur. */
+const LEVIS_THETA=1.22, LEVIS_T_MONTE=5, LEVIS_ALERTE=2.2, LEVIS_T_BARRIERE=1.7, LEVIS_MARGE=4, LEVIS_MUR=0.45, LEVIS_FORCE_V=11, LEVIS_APPROCHE=80; /* LEVIS_APPROCHE : la demande part de loin (un pont met ~9 s à s'ouvrir) */
+const _MAT_LEVIS={};
+function matsLevis(){ const M=_MAT_LEVIS; if(M.pret) return M; M.pret=true;
+  const route=cTex(256,(g,s)=>{ g.drawImage(texAsphalte.image,0,0,s,s); g.fillStyle='#f2efe6'; g.fillRect(0,s*0.05,s,4); g.fillRect(0,s*0.95-4,s,4); g.fillStyle='rgba(255,226,120,0.9)'; for(let x=0;x<s;x+=40) g.fillRect(x,s/2-3,22,6); });
+  route.wrapS=THREE.RepeatWrapping; M.route=new THREE.MeshLambertMaterial({map:route});
+  M.acier=new THREE.MeshLambertMaterial({color:0x2c5a8a}); M.acierF=new THREE.MeshLambertMaterial({color:0x22262c}); M.beton=new THREE.MeshLambertMaterial({color:0x8c877c});
+  M.chrome=new THREE.MeshLambertMaterial({color:0xd8dce2}); M.tige=new THREE.MeshLambertMaterial({color:0xeef0f2});
+  const raye=cTex(64,(g,s)=>{ for(let i=0;i<8;i++){ g.fillStyle=i%2?'#f4f2ec':'#d8262c'; g.fillRect(i*s/8,0,s/8+1,s); } }); raye.wrapS=THREE.RepeatWrapping; M.barriere=new THREE.MeshLambertMaterial({map:raye});
+  M.panneau=new THREE.MeshBasicMaterial({map:cTex(128,(g,s)=>{ g.fillStyle='#14161a'; g.fillRect(0,0,s,s/2); g.strokeStyle='#ffd23f'; g.lineWidth=5; g.strokeRect(4,4,s-8,s/2-8); g.fillStyle='#ffd23f'; g.font='900 30px Arial'; g.textAlign='center'; g.fillText('2,9 m',s/2,s/4+11); })});
+  M.panneau.map.repeat.set(1,0.5); M.panneau.map.offset.set(0,0.5);
+  return M; }
+/* une poutre entre deux points (vérin, tige) : un cylindre posé de A à B, mis à jour à chaque image */
+const _VQ=new THREE.Quaternion(), _VU=new THREE.Vector3(0,1,0), _VD=new THREE.Vector3();
+function poserEntre(m,ax,ay,az,bx,by,bz){ _VD.set(bx-ax,by-ay,bz-az); const l=_VD.length()||1e-3; m.position.set((ax+bx)/2,(ay+by)/2,(az+bz)/2); m.scale.y=l; m.quaternion.setFromUnitVectors(_VU,_VD.multiplyScalar(1/l)); }
+function mkLevisV3(){ const C=CANAUX; if(!C.levis||!C.levis.length) return; const M=matsLevis();
+  const c={pos:[],nor:[],col:[]}, cn={pos:[],nor:[],col:[]}, b=constructeurCanaux(c,0,0,0,1,0), bn=constructeurCanaux(cn,0,0,0,1,0);
+  const cylG=new THREE.CylinderGeometry(1,1,1,10);
+  for(const L of C.levis){ const H=L.H, lv=(L.xP1-L.xP0)/2, zc=L.zc, W=L.z1-L.z0, Lp={...L,theta:0};
+    /* 1) la rampe côté ville : chaussée en dos d'âne (route), murs de soutènement, garde-corps qui suivent */
+    { const N=18, pos=[], uv=[], ind=[]; for(let i=0;i<=N;i++){ const x=L.x0+(L.xP0-L.x0)*i/N, h=hauteurLevis(Lp,x)+0.02; pos.push(x,h,L.z0, x,h,L.z1); uv.push((x-L.x0)/12,0,(x-L.x0)/12,1); }
+      for(let i=0;i<N;i++){ const k=i*2; ind.push(k,k+1,k+3, k,k+3,k+2); }
+      const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2)); g.setIndex(ind); g.computeVertexNormals(); scene.add(new THREE.Mesh(g,M.route));
+      for(let i=0;i<N;i++){ const xa=L.x0+(L.xP0-L.x0)*i/N, xb=L.x0+(L.xP0-L.x0)*(i+1)/N, ha=hauteurLevis(Lp,xa), hb=hauteurLevis(Lp,xb);
+        for(const [z,s] of [[L.z0,-1],[L.z1,1]]){ b.tri([xa,0,z],[xb,0,z],[xb,hb,z],0xa29a8c,false,[0,0,s]); b.tri([xa,0,z],[xb,hb,z],[xa,ha,z],0xa29a8c,false,[0,0,s]); /* le mur de soutènement */
+          if(i%2===0&&ha>0.4) b.box(0.1,1.0,0.1,xa,ha+0.5,z-s*0.12,0x2c5a8a);
+          if(hb>0.4){ for(const y of [1.0,0.55]) { const zz=z-s*0.12; b.tri([xa,ha+y-0.04,zz],[xb,hb+y-0.04,zz],[xb,hb+y+0.04,zz],0xd8dce2,false,[0,0,s]); b.tri([xa,ha+y-0.04,zz],[xb,hb+y+0.04,zz],[xa,ha+y+0.04,zz],0xd8dce2,false,[0,0,s]); } } } } }
+    /* 2) les culées : celle de la ville sous le pivot ouest, celle de la rive est (on y fait demi-tour) ; un garde-corps de chaque côté de
+       la culée est, ouvert sur la promenade */
+    b.box(1.4,H-0.36-CANAUX.fond,W,L.xP0-0.7,(H-0.36+CANAUX.fond)/2,zc,0x9a9488);
+    { const w=L.x1-L.xP1, g=new THREE.Mesh(new THREE.PlaneGeometry(w,W),M.route); g.rotation.x=-Math.PI/2; g.position.set((L.xP1+L.x1)/2,H+0.02,zc); scene.add(g);
+      b.box(w,H-CANAUX.fond,W,(L.xP1+L.x1)/2,(H+CANAUX.fond)/2,zc,0x9a9488);
+      const pr=(CANAUX.promenades||[])[0], px0=pr?pr.x0:L.xP1+1.2, px1=pr?pr.x1:L.xP1+3.4;
+      for(const [z,s] of [[L.z0,-1],[L.z1,1]]) for(const [xa,xb] of [[L.xP1+0.4,px0],[px1,L.x1-0.1]]){ if(xb-xa<0.3) continue;
+        b.box(xb-xa,0.07,0.08,(xa+xb)/2,H+1.0,z-s*0.08,0xd8dce2); b.box(xb-xa,0.05,0.06,(xa+xb)/2,H+0.55,z-s*0.08,0xd8dce2); for(let x=xa;x<=xb+0.01;x+=1.1) b.box(0.08,1.0,0.08,x,H+0.5,z-s*0.08,0x2c5a8a);
+        addSolid({x:(xa+xb)/2,z:z-s*0.1,hw:(xb-xa)/2,hd:0.12,h:H+1.1}); } }
+    /* 3) les volées : un groupe par volée, au pivot (sur le quai), qui tourne autour de z ; le contrepoids derrière le pivot, qui descend
+       dans la fosse quand la volée se lève ; le panneau du tirant d'air côté chenal */
+    L.vol=[]; for(const [xp,sg] of [[L.xP0,1],[L.xP1,-1]]){ const g=new THREE.Group(); g.position.set(xp,H,zc); scene.add(g);
+      /* les pièces de la volée, fusionnées par matériau (un appel de rendu par matériau) */
+      const parts={acier:[],chrome:[],route:[],panneau:[],beton:[],acierF:[]}, box=(k,w,h,d,x,y,z)=>{ const q=new THREE.BoxGeometry(w,h,d); q.translate(x,y,z); parts[k].push(q); };
+      box('acier',lv,EP_TABLIER,W,sg*lv/2,-EP_TABLIER/2,0);
+      { const q=new THREE.PlaneGeometry(lv,W); q.rotateX(-Math.PI/2); q.translate(sg*lv/2,0.012,0); parts.route.push(q); }
+      for(const s of [-1,1]){ box('chrome',lv-0.1,0.07,0.08,sg*lv/2,1.0,s*(W/2-0.1)); box('chrome',lv-0.1,0.05,0.06,sg*lv/2,0.55,s*(W/2-0.1));
+        for(let k=0;k<=5;k++) box('acier',0.08,1.0,0.08,sg*(0.15+k*(lv-0.3)/5),0.5,s*(W/2-0.1));
+        const q=new THREE.PlaneGeometry(1.4,0.7); if(s<0) q.rotateY(Math.PI); q.translate(sg*(lv-0.9),-0.55,s*(W/2+0.02)); parts.panneau.push(q); }
+      box('beton',2.4,0.7,W-1.2,-sg*1.8,-0.75,0);
+      { const q=new THREE.CylinderGeometry(0.3,0.3,W+0.6,12); q.rotateX(Math.PI/2); q.translate(0,-EP_TABLIER-0.32,0); parts.acierF.push(q); } /* l'axe du pivot, sous la volée */
+      for(const k in parts) if(parts[k].length){ const q=parts[k].length>1?mergeGeoManuel(parts[k]):parts[k][0]; g.add(new THREE.Mesh(q,M[k])); }
+      /* les vérins : un fût fixé au quai, une tige vers la volée (de chaque côté, visibles) */
+      const verins=[]; for(const s of [-1,1]){ const fut=new THREE.Mesh(cylG,M.acierF), tige=new THREE.Mesh(cylG,M.tige); fut.scale.x=fut.scale.z=0.24; tige.scale.x=tige.scale.z=0.12; scene.add(fut); scene.add(tige);
+        verins.push({fut,tige,z:zc+s*(W/2+0.35),pied:[xp-sg*0.35,0.25]}); }
+      L.vol.push({g,sg,xp,verins}); }
+    /* 4) les barrières (une par sens, deux bras) et les feux ; la sonnerie est un son (LEVIS_SON) */
+    L.bras=[]; L.feux=[]; L.matFeu=new THREE.MeshBasicMaterial({color:0x401010}); const lampes=[];
+    for(const [xb,cote,sx] of [[L.xBarO,'O',-1],[L.xBarE,'E',1]]){ const hb=hauteurLevis(Lp,xb);
+      for(const s of [-1,1]){ const zp=zc+s*(W/2-0.25); b.box(0.28,1.1,0.28,xb,hb+0.55,zp,0xf2f2ee); b.box(0.36,0.4,0.36,xb,hb+1.25,zp,0x22262c);
+        const piv=new THREE.Group(); piv.position.set(xb,hb+1.05,zp); scene.add(piv); const arm=new THREE.Mesh(new THREE.BoxGeometry(0.14,0.14,W/2-0.6),M.barriere); arm.position.set(0,0,-s*(W/4-0.3)); piv.add(arm);
+        L.bras.push({piv,arm,s,cote});
+        /* le feu : un mât, deux lampes rouges tournées vers ceux qui arrivent */
+        const xf=xb+sx*1.2, zf=zc+s*(W/2+0.35); b.cyl(0.07,hb+2.6,xf,(hb+2.6)/2,zf,0x22262c); b.box(0.5,0.9,0.22,xf,hb+2.55,zf,0x14161a);
+        for(const dy of [0.2,-0.2]){ const q=new THREE.CircleGeometry(0.13,12); q.rotateY(sx>0?Math.PI/2:-Math.PI/2); q.translate(xf+sx*0.12,hb+2.55+dy,zf); lampes.push(q); } } }
+    { const m=new THREE.Mesh(mergeGeoManuel(lampes),L.matFeu); scene.add(m); L.feux.push(m); } /* les lampes des feux, en un maillage */
+    /* 5) la cabine de l'éclusier, sur le quai côté ville (au sud de la rue, sinon au nord), allumée la nuit */
+    for(const zcab of [L.z1+3.2,L.z0-3.2]){ const xcab=L.xP0-2.4; let libre=true; for(let dx=-1.6;dx<=1.6;dx+=0.8) for(let dz=-1.6;dz<=1.6;dz+=0.8) if(dansCanal(xcab+dx,zcab+dz)||solidAt(xcab+dx,zcab+dz,0.2)) libre=false; if(!libre) continue;
+      b.box(3.0,0.25,3.0,xcab,0.22+0.12,zcab,0x9a9488); b.box(2.8,1.0,2.8,xcab,0.22+0.75,zcab,0xe8e4da); bn.box(2.86,1.1,2.86,xcab,0.22+1.8,zcab,0xffe6a0); b.box(2.8,0.08,2.8,xcab,0.22+1.8,zcab,0x22262c);
+      for(const [dx,dz] of [[1.4,1.4],[-1.4,1.4],[1.4,-1.4],[-1.4,-1.4]]) b.box(0.12,1.1,0.12,xcab+dx,0.22+1.8,zcab+dz,0x2c5a8a);
+      b.box(3.3,0.25,3.3,xcab,0.22+2.48,zcab,0x2c5a8a); b.cyl(0.05,0.9,xcab+1.1,0.22+3.0,zcab+1.1,0x22262c); bn.boule(0.18,0.18,0.18,xcab+1.1,0.22+3.5,zcab+1.1,0xff6a3a);
+      addSolid({x:xcab,z:zcab,hw:1.55,hd:1.55,h:3}); L.cabine={x:xcab,z:zcab}; enseigneCanaux('PONT-LEVIS','#ffd23f',xcab,0.22+3.3,zcab+(zcab>zc?1.6:-1.6),zcab>zc?0:Math.PI,2.4); break; }
+    L.theta=0; L.etat='ferme'; L.bar=0; L.murs=[]; L.solBar=[]; levisPose(L,0); }
+  for(const [q0,m] of [[c,MOB_MAT],[cn,matFenCanaux()]]) for(const q of zonesTriangles(q0,60)){ const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(q.pos,3)); g.setAttribute('normal',new THREE.Float32BufferAttribute(q.nor,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(q.col,3)); g.computeBoundingSphere(); const me=new THREE.Mesh(g,m); if(m===_MAT_FEN_CANAUX){ me.visible=false; C.nuitMeshes.push(me); } scene.add(me); } }
+/* la pose : volées, contrepoids, vérins, bras des barrières, feux */
+function levisPose(L,dt){ const H=L.H;
+  for(const V of L.vol||[]){ V.g.rotation.z=V.sg*L.theta; const c=Math.cos(L.theta), s=Math.sin(L.theta), px=V.xp+V.sg*(2.4*c+EP_TABLIER*s), py=H+2.4*s-EP_TABLIER*c; /* l'attache du vérin, sous la volée à 2,4 u du pivot */
+    for(const vr of V.verins){ const fx=vr.pied[0], fy=vr.pied[1], mx=fx+(px-fx)*0.55, my=fy+(py-fy)*0.55; poserEntre(vr.fut,fx,fy,vr.z,mx,my,vr.z); poserEntre(vr.tige,mx,my,vr.z,px,py,vr.z); } }
+  for(const B of L.bras||[]){ const casse=B.cote==='O'?L.forceO:L.forceE; B.arm.visible=!casse; B.piv.rotation.x=B.s*(1-L.bar)*Math.PI/2*0.98; }
+  const clign=L.etat!=='ferme'&&Math.floor((ETAT.runT||0)*2.4)%2===0; if(L.matFeu) L.matFeu.color.setHex(clign?0xff2a2a:0x401010); }
+/* qui est sur le tablier (les volées, au niveau de la chaussée) : véhicules, joueur, piétons, ennemis */
+function levisOccupe(L,x0,x1){ const dans=(x,z,y)=>x>x0&&x<x1&&Math.abs(z-L.zc)<6.3&&(y===undefined||y>L.H-1.6);
+  for(const v of vehicules){ if(v.mort||v.def.eau||(v.def.air&&(v.alt||0)>L.H+3)) continue; if(dans(v.x,v.z)&&!(v.enAir&&(v.h||0)>L.H+1.5)) return true; } /* un véhicule (pas un bateau, pas en vol au-dessus) : garé ou arrêté, sa hauteur notée peut être celle d'avant */
+  if(!P.veh&&dans(P.x,P.z,P.y||0)) return true;
+  for(const p of pietons) if(p.etat!=='mort'&&dans(p.x,p.z)) return true;
+  for(const e of ennemis) if(!e.mort&&dans(e.x,e.z)) return true;
+  return false; }
+function levisTablierLibre(L){ return !levisOccupe(L,L.xP0-0.3,L.xP1+0.3); }
+/* les piétons sur le tablier quand les barrières sont baissées : ils pressent le pas vers le bout le plus proche */
+function levisEvacuer(L){ const xm=(L.xP0+L.xP1)/2; for(const p of pietons){ if(p.etat==='mort'||p.x<L.xP0-0.5||p.x>L.xP1+0.5||Math.abs(p.z-L.zc)>6.3) continue; p.dir=p.x<xm?-Math.PI/2:Math.PI/2; p.t=3; p.vit=Math.max(p.vit||0,2.6); } }
+/* un bateau trop haut (le joueur, un yacht de l'IA) qui approche et va vers le pont, ou qui attend au point d'attente */
+function levisDemande(L){ const xm=(L.xP0+L.xP1)/2;
+  for(const v of vehicules){ if(v.mort||!v.def.eau||hautNavVeh(v)<=L.degage||(v.conduit!=='joueur'&&v.conduit!=='yachtIA')) continue;
+    if(Math.abs(v.x-xm)>16) continue; const dz=L.zc-v.z; if(Math.abs(dz)>LEVIS_APPROCHE) continue;
+    if(Math.abs(dz)<6+v.def.long/2+2) return true; if(v.conduit==='yachtIA'&&v.yProchain===L) return true;
+    const vz=Math.cos(v.ang)*(v.v||0); if(vz*Math.sign(dz)>0.8) return true; }
+  return false; }
+/* un bateau dans la zone du pont (sous les volées ou contre elles) : tous, ou seulement ceux qui sont trop hauts */
+function levisBateauDansZone(L,hautsSeuls){ const xm=(L.xP0+L.xP1)/2;
+  for(const v of vehicules){ if(v.mort||!v.def.eau) continue; if(hautsSeuls&&hautNavVeh(v)<=L.degage) continue; if(Math.abs(v.x-xm)>(L.xP1-L.xP0)/2+1) continue;
+    if(Math.abs(v.z-L.zc)<6+v.def.long/2+(hautsSeuls?3:1.5)) return true; }
+  return false; }
+/* les barrières baissées sont des solides (sauf celle qu'on a forcée) */
+function levisSolidesBarrieres(L,on){ for(const s of L.solBar) retirerSolide(s); L.solBar.length=0; if(!on) return;
+  for(const [xb,casse] of [[L.xBarO,L.forceO],[L.xBarE,L.forceE]]) if(!casse){ const s={x:xb,z:L.zc,hw:0.3,hd:6.2,h:L.H+1.2,levis:true}; addSolid(s); L.solBar.push(s); } }
+function levisReparerBarrieres(L){ L.forceO=L.forceE=false; }
+/* le joueur lancé contre une barrière baissée (ou qui se baisse) la casse : le bras vole, la route est à lui */
+function levisForcer(L){ if(L.bar<0.3||!P.veh||P.veh.def.eau||P.veh.def.air) return; const v=P.veh; if(Math.abs(v.z-L.zc)>5.8||(v.v||0)<LEVIS_FORCE_V) return; const sx=Math.sin(v.ang);
+  for(const [cote,xb,sens] of [['O',L.xBarO,1],['E',L.xBarE,-1]]){ if(cote==='O'?L.forceO:L.forceE) continue; const d=(xb-v.x)*sens; if(sx*sens<0.5||d<0||d>v.def.long/2+1.6) continue;
+    if(cote==='O') L.forceO=true; else L.forceE=true; levisSolidesBarrieres(L,L.bar>=1&&L.etat!=='alerte');
+    burst(xb,L.H+1.1,L.zc,14,0xd8262c,9); burst(xb,L.H+1.1,L.zc,8,0xf4f2ec,7); bruit(0.18,0.55,900); secousse(2.5); vibre(40); spawnTexte(xb,L.H+3,L.zc,'BARRIÈRE FORCÉE !','#ff5a3a'); } }
+/* une volée levée au-delà de LEVIS_MUR est un mur (un solide qui suit son angle) */
+function levisMurs(L){ for(const s of L.murs) retirerSolide(s); L.murs.length=0; if(L.theta<=LEVIS_MUR) return; const lv=(L.xP1-L.xP0)/2, w=lv*Math.cos(L.theta), h=L.H+lv*Math.sin(L.theta);
+  for(const [xa,xb] of [[L.xP0,L.xP0+w],[L.xP1-w,L.xP1]]){ const s={x:(xa+xb)/2,z:L.zc,hw:Math.max(0.3,(xb-xa)/2),hd:6.1,h,levis:true}; addSolid(s); L.murs.push(s); } }
+function majLevisV3(dt){ const C=CANAUX; if(!C.ok||!C.levis||!C.levis.length||!C.levis[0].vol) return;
+  for(const L of C.levis){ const th0=L.theta; L.t+=dt; const req=levisDemande(L);
+    switch(L.etat){
+      case 'ferme': if(req){ L.etat='alerte'; L.t=0; } break;
+      case 'alerte': if(L.t>=LEVIS_ALERTE){ L.etat='barrieres'; L.t=0; } break;
+      case 'barrieres': if(L.bar<1){ L.bar=Math.min(1,L.bar+dt/LEVIS_T_BARRIERE); if(L.bar>=1) levisSolidesBarrieres(L,true); }
+        else if(levisTablierLibre(L)){ L.etat='monte'; L.t=0; } else levisEvacuer(L); break;
+      case 'monte': if(!levisOccupe(L,L.xP0+0.2,L.xP1-0.2)) L.theta=Math.min(LEVIS_THETA,L.theta+dt*LEVIS_THETA/LEVIS_T_MONTE); if(L.theta>=LEVIS_THETA){ L.etat='ouvert'; L.t=0; L.libreT=0; } break;
+      case 'ouvert': { const garder=req||levisBateauDansZone(L,true); L.libreT=garder?0:(L.libreT||0)+dt; if(L.libreT>=LEVIS_MARGE&&!levisBateauDansZone(L,false)){ L.etat='descend'; L.t=0; } } break;
+      case 'descend': if(req||levisBateauDansZone(L,false)){ L.etat='monte'; L.t=0; break; } L.theta=Math.max(0,L.theta-dt*LEVIS_THETA/LEVIS_T_MONTE); if(L.theta<=0){ L.theta=0; L.etat='relevage'; L.t=0; levisSolidesBarrieres(L,false); } break;
+      case 'relevage': L.bar=Math.max(0,L.bar-dt/LEVIS_T_BARRIERE); if(L.bar<=0){ L.etat='ferme'; L.t=0; levisReparerBarrieres(L); } break; }
+    levisForcer(L); if(Math.abs(L.theta-th0)>1e-5||(L.theta>LEVIS_MUR)!==(L.murs.length>0)) levisMurs(L); levisPose(L,dt); }
+  majLevisSon(dt); }
+/* à chaque partie : les ponts fermés, barrières levées, rien de cassé */
+function levisStartRun(){ for(const L of CANAUX.levis||[]){ if(!L.vol) continue; L.theta=0; L.bar=0; L.etat='ferme'; L.t=0; L.forceO=L.forceE=false; levisSolidesBarrieres(L,false); levisMurs(L); levisPose(L,0); } levisSonStop(); }
+/* le son : la sonnerie (alerte, barrières qui se baissent) et le moteur (le tablier qui bouge), selon la distance */
+const LEVIS_SON={on:false,osc:null,gn:null,fl:null,dingT:0,v:-1};
+function levisSonStart(){ if(LEVIS_SON.on||!AUDIO.pret) return; const ctx=AUDIO.ctx, t=ctx.currentTime; const o=ctx.createOscillator(); o.type='sawtooth'; o.frequency.value=46;
+  const fl=ctx.createBiquadFilter(); fl.type='lowpass'; fl.frequency.value=240; const gn=ctx.createGain(); gn.gain.value=0; o.connect(fl); fl.connect(gn); gn.connect(AUDIO.sfxG); o.start(t);
+  Object.assign(LEVIS_SON,{on:true,osc:o,gn,fl,v:-1}); }
+function levisSonStop(){ if(LEVIS_SON.osc){ try{ LEVIS_SON.osc.stop(); LEVIS_SON.gn.disconnect(); }catch(e){} } LEVIS_SON.osc=null; LEVIS_SON.on=false; }
+function majLevisSon(dt){ const ici=ETAT.mode==='jeu'&&!INT.actif; let moteur=0, ding=0; const x=P.veh?P.veh.x:P.x, z=P.veh?P.veh.z:P.z;
+  if(ici) for(const L of CANAUX.levis){ const d=Math.hypot(((L.xP0+L.xP1)/2)-x,L.zc-z); if(d>130) continue; const k=1-d/130;
+    if(L.etat==='monte'||L.etat==='descend') moteur=Math.max(moteur,k); if(L.etat==='alerte'||(L.etat==='barrieres'&&L.bar<1)||L.etat==='relevage') ding=Math.max(ding,k); }
+  if(moteur>0&&!LEVIS_SON.on) levisSonStart(); if(LEVIS_SON.on){ const v=0.06*moteur; if(Math.abs(v-LEVIS_SON.v)>0.002){ LEVIS_SON.v=v; LEVIS_SON.gn.gain.setTargetAtTime(v,AUDIO.ctx.currentTime,0.25); } if(!moteur&&!ici) levisSonStop(); }
+  LEVIS_SON.dingT-=dt; if(ding>0&&LEVIS_SON.dingT<=0){ LEVIS_SON.dingT=0.55; beep(1320,0.3,'sine',0.05*ding); beep(1980,0.18,'sine',0.018*ding); } }
+/* la minimap : chaque pont-levis, vert fermé, rouge sinon (ouvert, ou qui s'ouvre) */
+function dessinerLevisCarte(g,proj,dedans){ for(const L of CANAUX.levis||[]){ const q=proj((L.xP0+L.xP1)/2,L.zc); if(!dedans(q,5)) continue; const x=q.x, y=q.y;
+  g.fillStyle='rgba(8,10,14,0.8)'; g.fillRect(x-5.5,y-3.5,11,7); g.fillStyle=L.etat==='ferme'?'#3adc6a':'#ff3a3a'; g.fillRect(x-4.5,y-2.5,9,5); g.strokeStyle='#ffffff'; g.lineWidth=1; g.strokeRect(x-5.5,y-3.5,11,7); } }
+/* ---------- les yachts de l'IA (YIA) : l'aller-retour mer ↔ marina, toutes les 2 à 4 minutes de jeu, sur le graphe ----------
+   Un yacht « Impérial » naît au large (hors de vue), remonte le grand canal jusqu'au bassin d'évitage de la marina en attendant
+   l'ouverture de chaque pont-levis au point d'attente (v.yProchain), y fait escale, fait demi-tour au pas et repart en mer, où il
+   disparaît hors de vue. Un vrai véhicule (conduit 'yachtIA') : on peut le voler. */
+const YIA={v:[],t:0,max:1,r:null}, YIA_ESCALE=25;
+function yachtsIAStartRun(){ for(const v of YIA.v) if(!v.mort&&v.conduit==='yachtIA'){ v.mort=true; scene.remove(v.mesh); libererEntite(v.mesh); const i=vehicules.indexOf(v); if(i>=0) vehicules.splice(i,1); } YIA.v.length=0; if(!YIA.r) YIA.r=aleaLot(0.4242); YIA.t=40+YIA.r()*40; }
+function majYachtsIA(dt){ const C=CANAUX; if(!C.ok||!C.grand||!C.levis||!PCANAL.ok||INT.actif||ETAT.mode!=='jeu') return; for(let i=YIA.v.length-1;i>=0;i--){ const v=YIA.v[i]; if(v.mort||v.conduit!=='yachtIA'||vehicules.indexOf(v)<0) YIA.v.splice(i,1); }
+  YIA.t-=dt; if(YIA.t>0||YIA.v.length>=YIA.max) return; const G3=C.grand, xg=(G3.x0+G3.x1)/2, z=MER+70;
+  if(!horsEcran(xg,z)||(vueImmersive()&&!apparitionCachee(xg,z))){ YIA.t=8; return; }
+  const v=creerVehicule('yacht',xg,z,Math.PI,'yachtIA'); if(!v){ YIA.t=20; return; } v.yIA={etat:'aller',t:0}; v.vedetteCanal=false; YIA.v.push(v); YIA.t=120+YIA.r()*120; }
+function levisSurRoute(v,cz){ let best=null, bd=1e9; const xm0=CANAUX.grand.x0, xm1=CANAUX.grand.x1; if(v.x<xm0-14||v.x>xm1+2) return null;
+  for(const L of CANAUX.levis){ const ahead=(L.zc-v.z)*Math.sign(cz-v.z); if(ahead<-(6+v.def.long/2)) continue; if((L.zc-cz)*Math.sign(cz-v.z)>0) continue; if(Math.abs(L.zc-v.z)<bd){ bd=Math.abs(L.zc-v.z); best=L; } } return best; }
+function majYachtIA(v,dt){ const C=CANAUX, Y=v.yIA, ev=C.marina&&C.marina.evitage, G3=C.grand; if(!Y||!ev||!G3){ majVehiculePhys(v,dt,0,0,true); return; }
+  const xg=(G3.x0+G3.x1)/2, xe=ev.x, zAxe=G3.zMa1-4; /* le poste d'escale : le centre du bassin d'évitage (le demi-tour y est mesuré au joystick), loin du pont nord */
+  /* le pont-levis devant : on s'arrête au point d'attente tant qu'il n'est pas ouvert */
+  const versMer=Y.etat==='sortie'||Y.etat==='retour', L=levisSurRoute(v,versMer?MER+90:ev.z); v.yProchain=L; let plaf=9;
+  if(L&&L.theta<LEVIS_THETA-0.04){ const dBow=Math.abs(L.zc-v.z)-(6+v.def.long/2+4); plaf=Math.max(0,dBow)*0.5; }
+  const vers=(x,z,vmax)=>{ const d=Math.hypot(x-v.x,z-v.z), err=angDiff(v.ang,Math.atan2(x-v.x,z-v.z)), vt=Math.min(vmax,plaf,d*0.45); let th=clamp((vt-v.v)*0.3,-1,0.8), st=clamp(err*2.5,-1,1);
+    if(Y.recul>0){ Y.recul-=dt; th=-0.5; st=-st; } else { Y.bloque=(vt>0.8&&Math.abs(v.v)<0.3)?(Y.bloque||0)+dt:0; if(Y.bloque>1.5){ Y.recul=1.4; Y.bloque=0; } } /* coincé : il recule un peu en contre-braquant */
+    majVehiculePhys(v,dt,th,st,false); return d; };
+  switch(Y.etat){
+    case 'aller': v.pcPlafond=plaf; piloterVedette(v,dt,[xg,zAxe],9,0.5); if(dist2(v.x,v.z,xg,zAxe)<25) Y.etat='approche'; return;
+    case 'approche': { const d=vers(xe,ev.z,3); if(d<2||(d<5&&Math.abs(v.v)<0.4)){ Y.etat='escale'; Y.t=YIA_ESCALE; } return; }
+    case 'escale': v.yProchain=null; majVehiculePhys(v,dt,clamp(-v.v*0.3,-1,1),0,true); Y.t-=dt; if(Y.t<=0){ Y.etat='demitour'; Y.sens=undefined; } return;
+    case 'demitour': { /* au pas, braquage à fond du côté où le cercle de virage (5/man u) tombe au milieu du bassin */
+      const R=5/(v.def.man||0.9), xG=v.x+2*R*Math.sin(v.ang+Math.PI/2), xD=v.x+2*R*Math.sin(v.ang-Math.PI/2);
+      if(Y.sens===undefined) Y.sens=Math.abs(xG-xg)<Math.abs(xD-xg)?1:-1; /* le sens qui le fait finir sur l'axe du canal, cap au sud */
+      if(Math.abs(angDiff(v.ang,0))<0.25){ Y.etat='sortie'; return; }
+      majVehiculePhys(v,dt,clamp((2-v.v)*0.3,-0.5,0.5),Y.sens,false); return; }
+    case 'sortie': { vers(xg,G3.zMa1+14,4); if(v.z>G3.zMa1+4) Y.etat='retour'; return; } /* au pas, tout droit vers le pont : le demi-tour l'a posé sur l'axe */
+    case 'retour': if(v.z>MER+60&&horsEcran(v.x,v.z)){ v.mort=true; scene.remove(v.mesh); libererEntite(v.mesh); const i=vehicules.indexOf(v); if(i>=0) vehicules.splice(i,1); return; }
+      v.pcPlafond=plaf; piloterVedette(v,dt,[xg,MER+90],9); return; } }
 /* ---------- startRun : un véhicule posé (garé au hasard, vélo d'un arceau retiré, hélico d'un toit retiré…) que le quartier a rendu
    impossible est retiré APRÈS sa création — jamais avant : les tirages de la partie (et donc tout ce qui est posé hors du quartier)
    restent ceux d'avant. Dans l'eau d'un canal (sauf un bateau), sur un segment de rue retiré ou un tablier (une voiture), dans un
@@ -8836,7 +9048,7 @@ function dockersCanaux(){ const C=CANAUX;
   /* 4) les Dockside Boys à l'atelier (figurants : touchés, ils deviennent de vrais Dockers) */
   const P0=POIS.port, coul=[{haut:0x1f6a7a,bas:0x14202a,peau:0xb8865a,casq:0x0e3a46},{haut:0x2a8a9a,bas:0x1a262e,peau:0xc98d5e,casq:0x1f6a7a},{haut:0x1f6a7a,bas:0x1a262e,peau:0x8a5a3a,casq:0x14202a}];
     C.dockers=[]; for(const [dx,dz,a,k] of [[1,11,Math.PI/2,0],[11,5,-Math.PI/2,1],[7,-1,Math.PI,2],[30.5,13,Math.PI/2,0]]){ const h=makeHumain(Object.assign({visage:'mechant'},coul[k]),1); h.g.position.set(P0.x+dx,0.22,P0.z+dz); h.g.rotation.y=a; scene.add(h.g); figurant(h,null,k===1?'mur_pompe':'mur_batte'); C.dockers.push(h); } }
-function canauxStartRun(){ avecAleaPrive(2026,canauxStartRunPrive); SURV.fin=0; miamiBateaux(); } /* sur un générateur privé : la partie suivante tire comme avant */
+function canauxStartRun(){ avecAleaPrive(2026,canauxStartRunPrive); SURV.fin=0; miamiBateaux(); levisStartRun(); yachtsIAStartRun(); } /* V3 : ponts-levis fermés, yachts de l'IA retirés */ /* sur un générateur privé : la partie suivante tire comme avant */
 function canauxStartRunPrive(){
   const C=CANAUX; if(!C.ok) return;
   if(!C.dockers) dockersCanaux(); /* à la 1re partie : créés au chargement, ils remplissaient le cache des corps humains avant le premier ennemi de la partie (un tirage de moins pour tout ce qui suit) */
@@ -8897,14 +9109,21 @@ function projGraphe(x,z){ let best=null, bd=1e18; const G=PCANAL;
     if(d<bd){ bd=d; best={i,j,t,L,x:px,z:pz,d:Math.sqrt(d)}; } }
   return best; }
 /* le chemin le plus court par l'eau, de (x0,z0) à (x1,z1) : [[x,z]…] et sa longueur */
-function cheminCanal(x0,z0,x1,z1){
+/* V3 : la hauteur de chaque arc du graphe — le plus petit dégagement le long de l'arc (un tablier fixe), et le pont-levis qu'il franchit
+   (il s'ouvre : un bateau trop haut y passe en attendant) ; cheminCanal(…, hNav) n'emprunte que les arcs assez hauts pour lui */
+function canauxGrapheHauteurs(){ const G=PCANAL; if(!G.ok) return; const sav=(CANAUX.levis||[]).map((L)=>L.theta); for(const L of CANAUX.levis||[]) L.theta=0;
+  for(const A of G.noeuds) for(const e of A.v){ const B=G.noeuds[e[0]], n=Math.max(1,Math.ceil(e[1])); let h=Infinity, lv=null;
+    for(let k=0;k<=n;k++){ const x=A.x+(B.x-A.x)*k/n, z=A.z+(B.z-A.z)*k/n, d=degagementCanal(x,z); if(d<h) h=d; const L=levisCanal(x,z); if(L&&x>L.xP0&&x<L.xP1) lv=L.id; }
+    e[2]=h; e[3]=lv; }
+  (CANAUX.levis||[]).forEach((L,i)=>{ L.theta=sav[i]; }); }
+function cheminCanal(x0,z0,x1,z1,hNav){
   const G=PCANAL, N=G.noeuds.length, a=projGraphe(x0,z0), b=projGraphe(x1,z1); if(!a||!b) return null;
   if((a.i===b.i&&a.j===b.j)||(a.i===b.j&&a.j===b.i)) return {pts:[[x0,z0],[a.x,a.z],[b.x,b.z],[x1,z1]],L:Math.hypot(a.x-b.x,a.z-b.z)};
   const dist=new Float64Array(N).fill(1e18), prec=new Int32Array(N).fill(-1), vu=new Uint8Array(N);
   dist[a.i]=a.t*a.L; dist[a.j]=(1-a.t)*a.L; prec[a.i]=-2; prec[a.j]=-2;
   for(let k=0;k<N;k++){ let u=-1; for(let i=0;i<N;i++) if(!vu[i]&&(u<0||dist[i]<dist[u])) u=i; if(u<0||dist[u]>=1e18) break; vu[u]=1;
-    for(const [w,d] of G.noeuds[u].v) if(dist[u]+d<dist[w]){ dist[w]=dist[u]+d; prec[w]=u; } }
-  const fin=dist[b.i]+b.t*b.L<dist[b.j]+(1-b.t)*b.L?b.i:b.j, L=Math.min(dist[b.i]+b.t*b.L,dist[b.j]+(1-b.t)*b.L);
+    for(const [w,d,h,lv] of G.noeuds[u].v){ if(hNav&&h!==undefined&&h<=hNav&&!lv) continue; if(dist[u]+d<dist[w]){ dist[w]=dist[u]+d; prec[w]=u; } } } /* V3 : un arc trop bas pour ce bateau est fermé (un pont-levis s'ouvre) */
+  const fin=dist[b.i]+b.t*b.L<dist[b.j]+(1-b.t)*b.L?b.i:b.j, L=Math.min(dist[b.i]+b.t*b.L,dist[b.j]+(1-b.t)*b.L); if(L>=1e17) return null; /* V3 : aucun chemin (un bateau trop haut pour tous les tabliers sur la route) */
   const ch=[]; for(let u=fin;u>=0;u=prec[u]) ch.unshift([G.noeuds[u].x,G.noeuds[u].z]);
   return {pts:[[x0,z0],[a.x,a.z],...ch,[b.x,b.z],[x1,z1]],L}; }
 function joueurDansCanaux(){ return CANAUX.ok&&!INT.actif&&P.z<MER+2&&(P.nage||(!!P.veh&&surEauVeh(P.veh)))&&dansCanal(P.x,P.z); }
@@ -8923,7 +9142,7 @@ function creerVedetteCanal(patrouille){
   v.vedetteCanal=true; v.sirene=!patrouille; if(patrouille) v.patrouilleP=true; v.pcT=0; v.cad=1.5; return v; }
 /* le pilote : poursuite pure le long d'un chemin, vitesse au virage, plafonds sous les ponts et dans les bras */
 function piloterVedette(v,dt,cible,vMax,arret,ecart){
-  if(!v.pcChemin||v.pcT<=0||Math.hypot(cible[0]-v.pcCible[0],cible[1]-v.pcCible[1])>6){ const c=cheminCanal(v.x,v.z,cible[0],cible[1]); if(!c) return; v.pcChemin=c.pts; v.pcS=0; v.pcT=0.5; v.pcCible=cible.slice();
+  if(!v.pcChemin||v.pcT<=0||Math.hypot(cible[0]-v.pcCible[0],cible[1]-v.pcCible[1])>6){ const c=cheminCanal(v.x,v.z,cible[0],cible[1],hautNavVeh(v)); if(!c) return; v.pcChemin=c.pts; v.pcS=0; v.pcT=0.5; v.pcCible=cible.slice();
     const segs=[]; let L=0; for(let i=0;i+1<c.pts.length;i++){ const A=c.pts[i], B=c.pts[i+1], l=Math.hypot(B[0]-A[0],B[1]-A[1]); if(l<0.01) continue; segs.push({A,B,l,s0:L}); L+=l; } v.pcSegs=segs; v.pcL=L; }
   v.pcT-=dt; const segs=v.pcSegs, L=v.pcL; if(!segs||!segs.length) return;
   const pt=(u)=>{ u=clamp(u,0,L); for(const g of segs) if(u<=g.s0+g.l){ const k=(u-g.s0)/g.l; return [g.A[0]+(g.B[0]-g.A[0])*k,g.A[1]+(g.B[1]-g.A[1])*k]; } const g=segs[segs.length-1]; return g.B; };
@@ -8931,7 +9150,7 @@ function piloterVedette(v,dt,cible,vMax,arret,ecart){
   let s=v.pcS, bd=1e18; for(let u=v.pcS;u<=Math.min(L,v.pcS+30);u+=0.5){ const q=pt(u), d=dist2(q[0],q[1],v.x,v.z); if(d<bd){ bd=d; s=u; } } v.pcS=s;
   const vv=Math.abs(v.v), c=pt(s+6+vv*0.35); if(ecart){ const a=dir(s+3); c[0]+=Math.cos(a)*ecart; c[1]-=Math.sin(a)*ecart; } /* écart latéral : on serre un quai pour laisser passer */
   const err=angDiff(v.ang,Math.atan2(c[0]-v.x,c[1]-v.z)), d0=dir(s); let virage=0; for(let D=4;D<=10+vv*1.3;D+=2) virage=Math.max(virage,Math.abs(angDiff(d0,dir(s+D))));
-  let vt=virage>1.2?6:(virage>0.7?8:(virage>0.35?12:vMax));
+  let vt=virage>1.2?6:(virage>0.7?8:(virage>0.35?12:vMax)); if(v.pcPlafond!==undefined) vt=Math.min(vt,v.pcPlafond); /* V3 : un plafond posé par qui pilote (yacht de l'IA : point d'attente d'un pont-levis, demi-tour au pas) */
   for(const p of CANAUX.ponts) if(Math.abs(v.x-p.xc)<16&&Math.abs(v.z-p.zc)<14){ vt=Math.min(vt,PCANAL_V_PONT); break; } /* sous un pont : au ralenti */
   for(const e of CANAUX.eaux) if((e.id==='brasO'||e.id==='brasE'||e.id==='bassinO'||e.id==='bassinE')&&formeSdf(e,v.x,v.z)<2){ vt=Math.min(vt,PCANAL_V_BRAS); break; }
   const reste=L-s; if(arret!==undefined) vt=Math.min(vt,Math.max(0,(reste-arret)*0.8)); /* on s'arrête à « arret » u du bout */
@@ -26966,7 +27185,7 @@ function pousseHorsSolide(o,r){
 const KNOCK_FRICTION=3.2, KNOCK_VMAX=48;
 // un véhicule au sol peut-il se tenir en (x, z) ? (un solide plus haut que ce qu'il franchit, à la largeur de sa caisse)
 function bloqueParSolide(v,x,z){ const d=v.def; if(d.air||v.enAir) return false;
-  if(d.eau||surEauVeh(v)) return !!(CANAUX.ok&&dansBBCanaux(v.x,v.z)&&!estEauNav(x,z)); /* un bateau dans les canaux : le bord de l'eau est un mur pour la séparation et le recul d'un choc (Canaux V2 : une vedette poussait un jet-ski sur la rue, au fond d'une impasse) ; en mer, rien ne change */
+  if(d.eau||surEauVeh(v)) return !!(CANAUX.ok&&dansBBCanaux(v.x,v.z)&&(!estEauNav(x,z)||(!passeSousTablier(v,x,z)&&passeSousTablier(v,v.x,v.z)))); /* V3 : un tablier trop bas est un mur pour lui */ /* un bateau dans les canaux : le bord de l'eau est un mur pour la séparation et le recul d'un choc (Canaux V2 : une vedette poussait un jet-ski sur la rue, au fond d'une impasse) ; en mer, rien ne change */
   const so=solidAt(x,z,d.larg*0.42); return !!(so&&so.h>(v.h||0)+(d.franchit||0.5)); }
 /* Dégagement des murs (18 octobre) : un véhicule au sol dont la caisse mord dans un solide (coins, milieux des flancs,
    bouts) en est sorti, au plus 0,6 u par image, le long de l'axe le moins enfoncé du solide. Une voiture coincée
@@ -27303,7 +27522,8 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
   const paroi=DECOR_V2&&!eau&&!d.air&&!v.enAir&&dansReliefLibre(fx,fz)&&!(MONT.presDuSentier&&MONT.presDuSentier(fx,fz,7))&&!zoneVertSkate(fx,fz)&&!zoneVertSkate(v.x,v.z)&&!dansSkateXXL(fx,fz)&&!surRouteHills(fx,fz)&&!presTremplinHills(fx,fz)&&paroiDevant(v,d,fx,fz,dt,dansParcStunt(fx,fz)?PENTE_PARC_STUNT:penteMaxVeh(d)); // skatepark XXL : on roule sur les murs des transitions // pente maximale du véhicule (penteMaxVeh), montée sèche comprise ; tables du parc stunt : rampes aménagées // sur le sentier : on manœuvre dans les épingles
   const versPlage=eau&&!!d.eau&&!grosNavire(d)&&(v.conduit==='joueur'||!v.conduit)&&!estEauNav(nx,nz)&&!(CANAUX.ok&&dansBBCanaux(nx,nz)&&nz<CANAUX.zMer+0.5)&&solY(nx,nz)<0.6&&!solidAt(fx,fz,0.5); // sable : le bateau s'y échoue en douceur
   const auPasVersTerre=echoue&&Math.abs(v.v)<=2.2&&!eauDevant(v,Math.sign(v.v||1)); // échoué, au pas : seulement vers l'eau (jamais traverser la plage)
-  const heurte=eau?((!estEauNav(nx,nz)&&!versPlage&&!coinceCanal&&!(d.amphibie&&!solidAt(fx,fz,d.larg*0.35)))||auPasVersTerre):(!!sFront||paroi||((v.h||0)<0.7&&estEau(fx,fz)&&!VEH_IA_NOYABLES&&!!v.conduit&&v.conduit!=='joueur')); // VEH_IA_NOYABLES : police, trafic et autres IA entrent aussi dans l'eau et s'y noient
+  const sousTablierBas=eau&&!!d.eau&&CANAUX.ok&&dansBBCanaux(fx,fz)&&!passeSousTablier(v,fx,fz)&&passeSousTablier(v,v.x,v.z); /* V3 : trop haut pour le tablier devant (pont, passerelle, pont-levis baissé) : il le heurte ; déjà dessous, il peut toujours en sortir */
+  const heurte=eau?((!estEauNav(nx,nz)&&!versPlage&&!coinceCanal&&!(d.amphibie&&!solidAt(fx,fz,d.larg*0.35)))||auPasVersTerre||sousTablierBas):(!!sFront||paroi||((v.h||0)<0.7&&estEau(fx,fz)&&!VEH_IA_NOYABLES&&!!v.conduit&&v.conduit!=='joueur')); // VEH_IA_NOYABLES : police, trafic et autres IA entrent aussi dans l'eau et s'y noient
   if(heurte&&paroi&&!sFront){ // paroi de relief : on glisse le long (composante montante retirée), sans casse — on peut toujours tourner et repartir
     let gx=solY(fx+0.6,fz)-solY(fx-0.6,fz), gz=solY(fx,fz+0.6)-solY(fx,fz-0.6); const gl=Math.hypot(gx,gz)||1; gx/=gl; gz/=gl;
     const mx=nx-v.x, mz=nz-v.z, mg=mx*gx+mz*gz, tx=mx-Math.max(0,mg)*gx, tz=mz-Math.max(0,mg)*gz;
@@ -29475,6 +29695,7 @@ function creerTrafic(){
   if(solidAt(x,z,2)) return;
   if(fA>1.05&&!apparitionCachee(x,z)) return; // vue immersive : jamais sous les yeux du joueur (nouvel essai à l'image suivante)
   if(z>MER-CELL*1.2) return;         // pas de trafic sur le sable
+  if(CANAUX.ok&&CANAUX.levis) for(const L of CANAUX.levis) if(Math.abs(z-L.zc)<8&&x>L.x0-30&&x<L.x1+2) return; /* V3 : jamais né sur un pont-levis ni juste avant (il pourrait être ouvert) */
   if(CANAUX.ok){ const ux=vert?0:1, uz=vert?1:0; for(let d=0;d<=60;d+=3) if(routeCanalInterdite(x+ux*d,z+uz*d)||routeCanalInterdite(x-ux*d,z-uz*d)) return; } /* canaux : jamais sur une rue retirée, ni à moins de 60 u d'elle (entre deux canaux, une voiture ferait la navette) */
   // jamais superposé à un véhicule déjà là (trafic, joueur, police...) —
   // un véhicule `mort` est déjà retiré de la scène (voir exploserVehicule),
@@ -29504,6 +29725,17 @@ function creerTrafic(){
   // ville). Couvre les cas limites où le spawn tombe près du bord visible.
   v.mesh.scale.setScalar(0.05); v.fadeT=0.3;
 }
+/* V3 : les ponts-levis et le trafic — la limite est d'une rue qui passe un pont-levis : sa culée (pas pour un véhicule long, qui n'y
+   tient pas : il fait demi-tour avant, comme avant) ; la ligne d'arrêt devant une barrière quand le pont n'est pas fermé : la vitesse
+   est plafonnée pour s'y arrêter (le suivi de file fait la queue derrière). Un véhicule déjà engagé (son avant au-delà de la ligne)
+   continue : le pont ne se lève qu'une fois le tablier libre. */
+function limiteEstTrafic(v){ if(CANAUX.ok&&CANAUX.levis&&(v.def.long||4)<=6.5) for(const L of CANAUX.levis) if(Math.abs(v.z-L.zc)<5.5) return L.x1-(v.def.long||4)/2-0.4; return HALF-6; }
+function levisFile(v){ if(!CANAUX.ok||!CANAUX.levis||v.axe==='z') return false; for(const L of CANAUX.levis) if(L.etat!=='ferme'&&Math.abs(v.z-L.zc)<6&&v.x>L.x0-90&&v.x<L.x1) return true; return false; }
+function levisArretTrafic(v,hl){ if(v.axe==='z') return Infinity; let cap=Infinity; const sx=Math.sin(v.ang);
+  for(const L of CANAUX.levis){ if(L.etat==='ferme'||Math.abs(v.z-L.zc)>5.5) continue;
+    if(sx>0.3){ const av=v.x+hl; if(av>L.xArretO+0.3||v.x<L.x0-40) continue; cap=Math.min(cap,Math.sqrt(2*TRAFIC_DECEL*Math.max(0,L.xArretO-av))); }
+    else if(sx<-0.3){ const av=v.x-hl; if(av<L.xArretE-0.3) continue; cap=Math.min(cap,Math.sqrt(2*TRAFIC_DECEL*Math.max(0,av-L.xArretE))); } }
+  return cap; }
 function majTrafic(v,dt){
   let cibleV=9;
   if(DANGER.t>0&&dist2(v.x,v.z,DANGER.x,DANGER.z)<900) cibleV=16;
@@ -29566,6 +29798,7 @@ function majTrafic(v,dt){
   // traverse au dernier moment, vitesse trop élevée), majImpactPersonnages
   // gère le contact réel plus bas.
   if(!bloque) for(const p of pietons){ if(p.etat==='mort'||p.captureOvni) continue; if(dist2(px,pz,p.x,p.z)<8){bloque=true;break;} }
+  if(CANAUX.ok&&CANAUX.levis){ const cap=levisArretTrafic(v,hlV); if(cap<vSure){ vSure=cap; devantJoueur=false; meneur=null; } } /* V3 : un pont-levis qui n'est pas fermé — on s'arrête à la ligne, la file se fait derrière */
   // PRIORITÉ AU CARREFOUR, au point de conflit (là où nos deux trajectoires
   // se coupent), décidée assez tôt pour que les deux carrosseries ne se
   // retrouvent jamais chacune dans le couloir de l'autre (blocage mutuel
@@ -29706,7 +29939,7 @@ function majTrafic(v,dt){
   // s'accumulent ») : les routes de bordure (axes −HALF et +HALF) ont leurs voies à ±3,2 de l'axe, donc AU-DELÀ de ces
   // limites (−288 contre −290,8 et −297,2). Une voiture qui y roulait était ramenée à la limite et faisait demi-tour À
   // CHAQUE IMAGE : elle tournait sur place (11 000 rad en 120 s mesurés), la file s'empilait derrière en se percutant.
-  const LIMN=-HALF+6, LIMS=MER-CELL*1.4, LIMO=-HALF+6, LIME=HALF-6, BORD=HALF+5; /* BORD : la voie extérieure d'une route de bordure (−297,2) tient dedans */
+  const LIMN=-HALF+6, LIMS=MER-CELL*1.4, LIMO=-HALF+6, LIME=v.axe==='z'?HALF-6:limiteEstTrafic(v), BORD=HALF+5; /* V3 : sur une rue à pont-levis, le demi-tour se fait sur la culée de la rive est */ /* BORD : la voie extérieure d'une route de bordure (−297,2) tient dedans */
   let rebond=false;
   if(v.axe==='z'){ if(v.z<LIMN){ v.z=LIMN; rebond=true; } else if(v.z>LIMS){ v.z=LIMS; rebond=true; } v.x=clamp(v.x,-BORD,BORD); }
   else { if(v.x<LIMO){ v.x=LIMO; rebond=true; } else if(v.x>LIME){ v.x=LIME; rebond=true; } v.z=clamp(v.z,-BORD,LIMS); }
@@ -29801,7 +30034,7 @@ function majTrafic(v,dt){
   // arrêté depuis TRAFIC_PATIENCE s est recyclé, mais SEULEMENT hors de
   // l'écran : une boucle autour d'un pâté a toujours des maillons hors
   // champ, elle se défait donc sans que rien ne disparaisse sous les yeux.
-  v.arretT=Math.abs(v.v)<0.3?(v.arretT||0)+dt:0;
+  v.arretT=Math.abs(v.v)<0.3&&!levisFile(v)?(v.arretT||0)+dt:0; /* V3 : une file qui attend un pont-levis attend vraiment (il s'ouvre une vingtaine de secondes) */
   if(v.arretT>TRAFIC_PATIENCE&&horsEcran(v.x,v.z)) v.mort=true;
   // Interblocage DANS un croisement (16 octobre, apparu en simulation quand les routes de bordure ont recommencé à
   // circuler) : trois véhicules déjà engagés, chacun physiquement devant le suivant, s'attendent pour toujours — à
@@ -29916,6 +30149,7 @@ function majVehicules(dt){
     if(v.conduit==='trafic') majTrafic(v,dt);
     else if(v.conduit==='police') majVoiturePolice(v,dt);
     else if(v.conduit==='patrouilleCanal') majVedetteCanal(v,dt); /* la vedette de patrouille des canaux */
+    else if(v.conduit==='yachtIA') majYachtIA(v,dt); /* V3 : un yacht de l'IA, mer ↔ marina */
     else if(v.conduit==='piste') majVehPiste(v,dt); // véhicules de piste de l'aéroport (AERO_VIE)
     else if(v.conduit==='derby') majDerbyIA(v,dt); // arène de derby
     else if(v.conduit==='iaCourse'){
@@ -30192,7 +30426,7 @@ function majPietons(dt){
     // hors champ ou dans le brouillard (apparitionCachee, comme le trafic et les ennemis)
     const a=rand(0,6.28), d=rand(42,68)*Math.min(1.5,facteurApparition());
     const x=clamp(P.x+Math.sin(a)*d,-HALF+4,HALF-4), z=clamp(P.z+Math.cos(a)*d,-HALF+4,HALF-4);
-    if(!solidAt(x,z,0.8)&&!estEau(x,z)&&!(CANAUX.ok&&(marcheCanal(x,z)||pontonCanal(x,z)||passerelleCanal(x,z)))&&apparitionCachee(x,z)) creerPieton(x,z); /* canaux : jamais sur les marches d'un quai, un ponton, une passerelle (V2) */
+    if(!solidAt(x,z,0.8)&&!estEau(x,z)&&!(CANAUX.ok&&(marcheCanal(x,z)||pontonCanal(x,z)||passerelleCanal(x,z)||levisCanal(x,z)))&&apparitionCachee(x,z)) creerPieton(x,z); /* canaux : jamais sur les marches d'un quai, un ponton, une passerelle (V2) */
   }
   for(let i=pietons.length-1;i>=0;i--){
     const p=pietons[i];
@@ -36369,7 +36603,7 @@ function porteArmurerieProche(){
     if(!_porteArmSud) _porteArmSud={id:'armurerie',x:POIS.armurerie2.x,z:POIS.armurerie2.z-1.5,nx:0,nz:1}; return _porteArmSud; }
   return null; }
 function entrerInterieur(id,porte){
-  couperSonsEcrasement(); volSonCouper(); hudVolCacher();
+  couperSonsEcrasement(); levisSonStop(); volSonCouper(); hudVolCacher();
   if(INT.actif) return;
   // Rayon tracteur de l'OVNI : majVehicules cesse tout court tant que
   // INT.actif est posé (voir boucle()) — une cible encore en l'air resterait
@@ -43456,7 +43690,7 @@ function startRun(){
   // tourne encore) et suivait le joueur dans la partie suivante, en pleine
   // ville. Chaque arrêt est sans effet si l'ambiance ne tourne pas.
   metroAmbianceStop(); chalutierAmbianceStop(); radioAmbianceStop(); cineAmbianceStop(); depotAmbianceStop(); fermerDepotPanneau();
-  montSonStop(); canauxSonStop(); planqueAmbianceStop(); for(const k in INT.salles){ if(INT.salles[k].pq) planqueSalleArreter(INT.salles[k]); if(INT.salles[k].plgJ) plongeonArreter(INT.salles[k]); } REPERES.length=0; tresorReinit(); P.essouffle=false; P.penteM=0; FILET.pied.sur.length=FILET.veh.sur.length=0; FILET.pied.t=FILET.veh.t=0; /* mont V2 : le souffle, les points sûrs du filet */ // planques : ambiance, activités, véhicule de l'atelier, repères de la longue-vue
+  montSonStop(); canauxSonStop(); levisSonStop(); planqueAmbianceStop(); for(const k in INT.salles){ if(INT.salles[k].pq) planqueSalleArreter(INT.salles[k]); if(INT.salles[k].plgJ) plongeonArreter(INT.salles[k]); } REPERES.length=0; tresorReinit(); P.essouffle=false; P.penteM=0; FILET.pied.sur.length=FILET.veh.sur.length=0; FILET.pied.t=FILET.veh.t=0; /* mont V2 : le souffle, les points sûrs du filet */ // planques : ambiance, activités, véhicule de l'atelier, repères de la longue-vue
   if(INT.actif){ INT.actif=null; el('minimap').style.opacity='1'; }
   // lieux spéciaux : on remet à zéro ce qui appartient à la partie (les
   // curiosités, elles, sont acquises pour de bon et vivent dans META)
@@ -43814,7 +44048,7 @@ function mourir(){
   // depotLancerCourse), foule coupée (moteurStop() ci-dessus a déjà coupé le
   // moteur). Course déjà propre : deuxième appel sans effet.
   if(INT.actif&&INT.actif.depot){ if(INT.actif.courseEnCours) depotAnnulerCourse(INT.actif); depotAmbianceStop(); fermerDepotPanneau(); }
-  if(INT.actif&&INT.actif.pq) planqueSalleArreter(INT.actif); if(INT.actif&&INT.actif.plgJ) plongeonArreter(INT.actif); planqueAmbianceStop(); montSonStop(); canauxSonStop(); jumellesFin(); // planque : activité arrêtée, ambiance coupée tout de suite
+  if(INT.actif&&INT.actif.pq) planqueSalleArreter(INT.actif); if(INT.actif&&INT.actif.plgJ) plongeonArreter(INT.actif); planqueAmbianceStop(); montSonStop(); canauxSonStop(); levisSonStop(); jumellesFin(); // planque : activité arrêtée, ambiance coupée tout de suite
   P.h.g.rotation.z=Math.PI/2; P.h.g.position.y=0.35;
   reticule.visible=false;
   const record=ETAT.score>META.record;
@@ -47034,6 +47268,7 @@ function majMinimap(){
   for(const e of ennemis){ if(e.mort) continue; const q=proj(e.x,e.z); if(!dedans(q)) continue; const r=e.boss?5:2.8;
     mmCtx.fillStyle=e.fac==='police'?'#4a9aff':(e.fac==='frelons'?'#e6a41f':'#ff4a4a'); mmCtx.beginPath(); mmCtx.arc(q.x,q.y,r,0,7); mmCtx.fill(); mmCtx.lineWidth=1; mmCtx.strokeStyle='#0b0c10'; mmCtx.stroke(); }
   if(SURV.fin>ETAT.runT) dessinerSurveillance(mmCtx,proj,R); /* la salle de surveillance de la villa Miami */
+  if(CANAUX.levis&&CANAUX.levis.length) dessinerLevisCarte(mmCtx,proj,dedans); /* V3 : les ponts-levis, vert fermé, rouge ouvert */
   const badge=(x,z,coul,ico)=>{ const q=proj(x,z); if(dedans(q,4)) dessinerBadge(mmCtx,q.x,q.y,5.2,coul,ico,8); };
   if(META.monstertruckTrouve&&POIS.friche) badge(POIS.friche.x,POIS.friche.z,'#ff3b1a','🚛');
   if(POIS.skateXXL) badge(POIS.skateXXL.x,POIS.skateXXL.z,'#ff3bd0','🛹'); // Reyes Skatepark (désert)
@@ -47119,6 +47354,7 @@ function tick(t){
       majPietons(dt);
       majFigurants(dt);
       majFauneRue(dt);
+      majLevisV3(dtJeu); majYachtsIA(dtJeu); /* V3 : les ponts-levis du grand canal et les yachts de l'IA (avant la physique : une barrière forcée l'est avant le choc) */
       majVehicules(dt); majDebris(dt); majEjection(dt,dtJeu); /* siège éjectable, verrière, avion sans pilote */
       majGrandYacht();
       majRayonOvni(dt);
