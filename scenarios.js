@@ -10655,6 +10655,98 @@ async function main() {
     }
 
     // -------------------------------------------------------------------
+    // Intérieurs des planques, 8 : la villa Miami (20 octobre, canaux, phase 5) — dehors : la villa blanche sur son socle, sa
+    // rampe (une voiture y monte), « À VENDRE » tant qu'on ne l'a pas ; achetée : l'Espadon et un jet-ski à sa livrée au ponton
+    // privé, pilotables, jamais en travers du canal. Dedans : le couchant sur le canal (rien à plus de 185 u), lit, coffre derrière
+    // le panneau qui coulisse, la salle de surveillance (60 s de vedettes et d'agents sur la minimap, une fois par vague), le GOLF
+    // sur le ponton : golfeur simulé aux vrais boutons (joystick pour viser, FRAPPER maintenu puis relâché, il lit le vent ; 0,1 s
+    // d'erreur) — record, prime ; maladroit (au hasard) et passif : pas d'objectif. Sortie et mort coupent tout.
+    // -------------------------------------------------------------------
+    console.log('\n--- Planques, 8 : la villa Miami (achat, bateaux au ponton, surveillance, golf sur le ponton) ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = []; audioInit();
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); META.vue = 'classique'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6; WAVES.etat = 'repos'; WAVES.t = 1e9; for (const e of ennemis) e.mort = true;
+        const q = PLANQUES.liste.find((x) => x.def.id === 'miami'); if (!CANAUX.ok || !q || !planqueAInterieur(q)) return { ko: ['pas de villa Miami avec un intérieur'], info };
+        const sav = { poss: META.planques.miami, rec: META.planquesJeux.golf, arg: META.argent }; META.planques.miami = false; META.planquesJeux.golf = 0;
+        const rnd0 = Math.random; let gr = 1986; Math.random = () => { gr = (gr * 1664525 + 1013904223) >>> 0; return gr / 4294967296; };
+        let T = dernierT + 1000; const pas = (n) => { for (let i = 0; i < n; i++) { T += 1000 / 60; tick(T); } };
+        const appui = () => { majAction(); const b = el('btnAction'); const l = b.style.display === 'none' ? '' : b.textContent; if (b._fn && l) b._fn(); return l; };
+        const ev = (id, type) => { const b = document.getElementById(id); if (!b) return false; b.dispatchEvent(new PointerEvent(type, { bubbles: true, pointerId: 18 })); return true; };
+        const fin = () => { INPUT.jx = INPUT.jy = 0; Math.random = rnd0; META.planques.miami = sav.poss; META.planquesJeux.golf = sav.rec; META.argent = sav.arg; sauveMeta(); if (ETAT.mortTimer) { clearTimeout(ETAT.mortTimer); ETAT.mortTimer = null; } ETAT.timeScale = 1; startRun(); return { ko, info }; };
+        const C = CANAUX, R = C.miami, Pm = C.miamiPonton;
+        // 1. dehors : la villa sur la terre ferme, en face de la traverse, sa rampe, « À VENDRE »
+        if (dansCanal(R.x, R.z) || estEau(R.x, R.z) || Math.abs(solY(q.entree.x, q.entree.z) - q.entree.y) > 0.05) ko.push('le socle de la villa n’est pas sous la porte');
+        { const tr = C.eaux.find((e) => e.id === 'traverse'), cO = C.eaux.find((e) => e.id === 'canalO'); if (!(R.z > tr.z0 - 12 && R.z < tr.z1 + 12) || cO.x0 - R.x > 40) ko.push('la villa n’est pas au bord du canal, en face de la traverse'); }
+        { const v = creerVehicule('citadine', R.rampe.x, R.rampe.z0 + 8, Math.PI, null); v.conduit = 'joueur'; for (let i = 0; i < 240 && !(v.z < R.rampe.z1 - 3); i++) majVehiculePhys(v, 1 / 60, 0.55, 0, false);
+          if (!(v.z < R.rampe.z1 - 1) || !((v.h || 0) > R.h)) ko.push('une voiture ne monte pas la rampe (z ' + v.z.toFixed(1) + ', h ' + (v.h || 0).toFixed(2) + ')'); else info.push('une voiture monte la rampe jusqu’au socle'); scene.remove(v.mesh); vehicules.splice(vehicules.indexOf(v), 1); }
+        pas(2); if (!q.enseigne || !q.enseigne.visible) ko.push('pas d’enseigne « À VENDRE »');
+        // 2. l'achat : 14 000 $ (moins que la villa de la colline), les bateaux au ponton, l'enseigne retirée
+        if (!(q.def.prix < PRIX_VILLA)) ko.push('la villa Miami coûte plus que la villa');
+        META.argent = q.def.prix + 500; P.x = q.achat.x; P.z = q.achat.z; P.y = q.achat.y; const la = appui();
+        if (!META.planques.miami || META.argent !== 500) ko.push('achat (' + la + ', ' + META.argent + ' $)'); pas(2); if (q.enseigne.visible) ko.push('l’enseigne « À VENDRE » reste');
+        if (!TENUES.some((t) => t.cond() && /Miami/.test(t.condTxt))) ko.push('pas de tenue débloquée');
+        const bat = () => vehicules.filter((v) => !v.mort && v.miami);
+        { const B = bat(); if (B.length !== 2 || !B.some((v) => v.key === 'espadon') || !B.some((v) => v.key === 'jetski')) ko.push('bateaux de la villa : ' + B.map((v) => v.key).join(','));
+          const cO = C.eaux.find((e) => e.id === 'canalO');
+          for (const v of B) { if (!estEauNav(v.x, v.z)) ko.push(v.key + ' hors de l’eau'); if (Math.abs(v.z - (Pm.z0 + Pm.z1) / 2) > 7 || v.x - Pm.x1 > 3) ko.push(v.key + ' loin du ponton privé');
+            const libre = cO.x1 - (v.x + (v.def.larg || 2) / 2); if (libre < 11) ko.push(v.key + ' : le chenal ne garde que ' + libre.toFixed(1) + ' u');
+            P.x = v.x; P.z = v.z; entrerVehicule(v); if (P.veh !== v) { ko.push('on ne monte pas sur ' + v.key); continue; } const x0 = v.x, z0 = v.z; for (let i = 0; i < 120; i++) majVehiculePhys(v, 1 / 60, 0.5, 0, false);
+            if (Math.hypot(v.x - x0, v.z - z0) < 3) ko.push(v.key + ' ne démarre pas'); sortirVehicule(true); }
+          if (!ko.length) info.push('Espadon et jet-ski rose et turquoise au ponton privé, pilotables, chenal libre'); }
+        { startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6; WAVES.etat = 'repos'; WAVES.t = 1e9; for (const e of ennemis) e.mort = true; if (bat().length !== 2) ko.push('à la partie suivante : ' + bat().length + ' bateaux de la villa'); }
+        // 3. entrer : le couchant, les zones, le toit, rien au-delà de 185 u
+        P.x = q.entree.x; P.z = q.entree.z; P.y = q.entree.y; const l0 = appui(); const s = INT.actif;
+        if (!s || s.id !== 'miami') { ko.push('on n’entre pas dans la villa Miami (' + l0 + ')'); return fin(); }
+        pas(2); if (!AUDIO.pqAmbOn) ko.push('pas d’ambiance sonore'); if (!scene.background.equals(s.pqAmb.ciel)) ko.push('pas le couchant');
+        { const { zones } = zonesInterieurActives(); const so = zones.find((z) => z.champ === 'sortie'); for (const z of zones) if (z.champ !== 'sortie' && Math.hypot(z.x - so.x, z.z - so.z) < 8) ko.push(z.champ + ' à moins de 8 u de la sortie');
+          if (['pqLit', 'pqCoffre', 'pqSpec', 'pqJeu'].some((k) => !zones.find((z) => z.champ === k))) ko.push('zones : ' + zones.map((z) => z.champ).join(',')); }
+        { let loin = 0, quoi = ''; s.g.updateMatrixWorld(true); s.g.traverse((o) => { if (!o.isMesh || !o.geometry || !o.visible) return; const l0 = loin; if (!o.geometry.boundingBox) o.geometry.computeBoundingBox(); const bb = o.geometry.boundingBox.clone().applyMatrix4(o.matrixWorld);
+            for (const x of [bb.min.x, bb.max.x]) for (const z of [bb.min.z, bb.max.z]) loin = Math.max(loin, Math.hypot(x - s.ox, z - s.oz) - (o.geometry.type === 'SphereGeometry' || o.geometry.type === 'CircleGeometry' ? 0.3 * Math.hypot(bb.max.x - bb.min.x, bb.max.z - bb.min.z) : 0)); if (loin > l0 && loin > 186) quoi = o.geometry.type + ' (' + o.position.x.toFixed(0) + ', ' + o.position.z.toFixed(0) + ')'; });
+          if (loin > 186) ko.push('un objet à ' + loin.toFixed(0) + ' u du centre de la salle : ' + quoi); }
+        { const t = s.pq.toits.find((tt) => tt.dedans); P.x = s.ox; P.z = s.oz + 6; pas(2); const vis = t.objs.some((o) => o.visible); P.x = s.ox; P.z = s.oz - 15; pas(2); if (vis || !t.objs.every((o) => o.visible)) ko.push('le toit ne s’efface pas'); }
+        // 4. le lit, le coffre derrière le panneau qui coulisse
+        P.x = s.pqLit.x; P.z = s.pqLit.z; P.hp = 100; appui(); if (P.hp !== P.maxHp) ko.push('lit');
+        { const Pn = s.pq.panneau, x0 = Pn.m.position.x; P.x = s.pqCoffre.x; P.z = s.pqCoffre.z; pas(40); if (!(Pn.ouv > 0.9) || Math.abs(Pn.m.position.x - x0) < 1.5) ko.push('le panneau ne coulisse pas'); META.revenus = 27; const a0 = META.argent; appui(); if (META.argent !== a0 + 27) ko.push('coffre'); else info.push('lit, coffre derrière le panneau qui coulisse'); }
+        // 5. la salle de surveillance : 60 s de police sur la minimap, une fois par vague
+        { P.x = s.pqSpec.x; P.z = s.pqSpec.z; const l1 = appui(); if (!(SURV.fin > ETAT.runT + 59)) ko.push('surveillance (' + l1 + ')'); const f0 = SURV.fin; const l2 = appui(); if (!/⏳/.test(l2) || SURV.fin !== f0) ko.push('surveillance deux fois (' + l2 + ')'); }
+        // 6. le golf sur le ponton : le golfeur simulé aux vrais boutons, le maladroit, le passif
+        const golfeur = (style) => { P.x = s.pqJeu.x; P.z = s.pqJeu.z; const l = appui(); const Q = s.pq, G = Q.golf; if (!G) return { err: 'pas de partie (' + l + ')' };
+          if (!Q.tenu || !Q.cadrage || !Q.cadrage.actif) return { err: 'le golfeur n’est pas tenu, ou pas de cadrage' };
+          let cible = null, j = 0, vise = 0, tient = false, attente = 0;
+          for (let i = 0; i < 60 * 90 && Q.golf === G; i++) { pas(1); if (style === 'passif') { if (i > 60 * 20) { ev('gfStop', 'pointerdown'); break; } continue; }
+            if (G.vol || G.pause > 0) { INPUT.jx = 0; cible = null; continue; }
+            if (!cible) { /* il lit le vent et choisit le green le plus payant qu'il croit atteindre */
+              if (style === 'maladroit') { cible = { vise: (Math.random() - 0.5) * 1.2, j: Math.random() }; }
+              else { const gr = Q.greens[G.n % 3 === 2 ? 2 : (G.n % 3 === 1 ? 1 : 0)]; let th = Math.atan2(gr.x - Q.tee.x, -(gr.z - Q.tee.z)), jj = Math.hypot(gr.x - Q.tee.x, gr.z - Q.tee.z) / GOLF_PORTEE;
+                for (let k = 0; k < 8; k++) { const I = golfImpact(Q, th, jj, G.vent), ex = gr.x - I.x, ez = gr.z - I.z; /* l'écart, le long du tir (la puissance) et en travers (la visée) */
+                  jj = clamp(jj + (ex * Math.sin(th) - ez * Math.cos(th)) / GOLF_PORTEE, 0.05, 1); th = clamp(th + (ex * Math.cos(th) + ez * Math.sin(th)) / Math.max(5, GOLF_PORTEE * jj), -0.75, 0.75); }
+                cible = { vise: th, j: jj + (Math.random() - 0.5) * 0.12 }; } attente = 0; }
+            const dv = cible.vise - G.vise; if (!G.charge && Math.abs(dv) > 0.015) { INPUT.jx = clamp(dv * 6, -1, 1); continue; } INPUT.jx = 0;
+            if (!G.charge) { if (++attente > 12) { ev('gfFrapper', 'pointerdown'); tient = true; } continue; }
+            if (tient && G.dir > 0 && G.jauge >= cible.j - 0.02) { ev('gfFrapper', 'pointerup'); tient = false; cible = null; }
+            else if (tient && G.dir < 0 && G.jauge <= cible.j) { ev('gfFrapper', 'pointerup'); tient = false; cible = null; } }
+          INPUT.jx = 0; if (tient) ev('gfFrapper', 'pointerup'); return { score: G.score, coups: G.coups, fini: !Q.golf }; };
+        { const R0 = golfeur('passif'); if (R0.err) ko.push(R0.err); else if (R0.score > 0 || s.pq.golf || META.planquesJeux.golf > 0) ko.push('le passif marque ou la partie ne s’arrête pas'); else info.push('passif : 0 point, ARRÊTER rend la main'); }
+        { const R1 = golfeur('maladroit'); if (R1.err) ko.push(R1.err); else if (!R1.fini || R1.score >= GOLF_OBJECTIF) ko.push('le maladroit atteint l’objectif (' + R1.score + ')'); else info.push('maladroit : ' + R1.score + ' pts (' + R1.coups.join(', ') + ')'); }
+        { const a0 = META.argent, R2 = golfeur('bon'); if (R2.err) ko.push(R2.err); else if (!R2.fini || !(R2.score >= GOLF_OBJECTIF * 1.25)) ko.push('golfeur simulé : ' + R2.score + ' pts (' + R2.coups.join(', ') + ')');
+          else { info.push('golfeur simulé : ' + R2.score + ' pts (' + R2.coups.join(', ') + '), record, prime'); if (META.planquesJeux.golf !== R2.score) ko.push('record non noté'); if (!(META.argent >= a0 + GOLF_PRIME)) ko.push('pas de prime'); }
+          if (s.pq.tenu || document.getElementById('golfPan').style.display !== 'none') ko.push('la fin de la partie ne rend pas la main'); }
+        // 7. la sortie ; la surveillance sur la minimap en ville (une vedette et un agent, même hors du radar), puis éteinte
+        { const so = s.sortie; P.x = so.x; P.z = so.z; ETAT.intT = 0; appui(); if (INT.actif || dist2(P.x, P.z, q.porte.x, q.porte.z) > 9) ko.push('on ne ressort pas devant la villa'); if (AUDIO.pqAmbOn) ko.push('ambiance après la sortie'); }
+        { const ag = creerEnnemi('cop', P.x + 160, P.z, false), ved = creerVedetteCanal(true); SURV.fin = ETAT.runT + 30; /* la partie de golf a duré plus de 60 s */ SURV.n = 0; majMinimap(); majMinimap(); const n1 = SURV.n || 0;
+          const runT0 = ETAT.runT; ETAT.runT = SURV.fin + 1; SURV.n = 0; majMinimap(); majMinimap(); const n2 = SURV.n; ETAT.runT = runT0; if (ag) ag.mort = true; if (ved) ved.mort = true;
+          if (!ved || n1 < 2 || n2 !== 0) ko.push('surveillance sur la minimap : ' + n1 + ' marques, puis ' + n2); else info.push('surveillance : ' + n1 + ' marques sur la minimap (agent hors du radar' + (ved ? ', vedette' : '') + '), éteinte après 60 s'); }
+        // 8. la mort en pleine partie
+        { SURV.fin = 0; P.x = q.entree.x; P.z = q.entree.z; P.y = q.entree.y; appui(); const s2 = INT.actif; if (!s2) ko.push('pas rentré'); else { P.x = s2.pqJeu.x; P.z = s2.pqJeu.z; appui(); const enJeu = !!s2.pq.golf; P.hp = 0; mourir();
+            if (!enJeu || AUDIO.pqAmbOn || s2.pq.golf || s2.pq.tenu || document.getElementById('golfPan').style.display !== 'none') ko.push('la mort en pleine partie laisse ambiance ' + AUDIO.pqAmbOn + ', golf ' + !!s2.pq.golf); else info.push('ambiance et golf coupés à la mort'); } }
+        return fin();
+      });
+      if (r.ko.length) fail('Villa Miami : ' + r.ko.join(' | ') + ' [' + r.info.join(', ') + ']');
+      else ok('Villa Miami : ' + r.info.join(' ; '));
+    }
+
+    // -------------------------------------------------------------------
     // Retours de playtest, 3e série (14 octobre) — correctifs : un véhicule
     // est un mur pour les ennemis ; les petits bateaux virent (demi-tour en
     // avançant) ; un bateau piloté percute nageurs, surfeurs et kayaks ; un
@@ -15533,6 +15625,59 @@ async function main() {
         if (P.veh) sortirVehicule(true); startRun(); return { ko, info };
       });
       if (r.ko.length) fail('Canaux, nautique et ambiance : ' + r.ko.join(' ; ')); else ok('Canaux, nautique et ambiance : ' + r.info.join(' ; '));
+    }
+
+    // -------------------------------------------------------------------
+    // Canaux : au joystick réel (20 octobre, vérification de fin de chantier). Un pilote simulé ne tient QUE le joystick
+    // (INPUT.jx / jy, lu par litEntrees puis controleDir, dans la vraie boucle tick) : il entre par l'embouchure ouest, remonte le
+    // canal ouest sous ses ponts, prend la traverse, fait demi-tour dans le bassin est, redescend le canal est sous ses ponts et
+    // ressort en mer ; une vedette de police, puis un jet-ski. Parcours lu dans CANAUX (canauxDefinir), vue classique (le haut de
+    // l'écran = le nord), 0,1 s de réaction.
+    // -------------------------------------------------------------------
+    console.log('\n--- Canaux : au joystick réel (embouchures, traverse, bassin, sous les ponts) ; 500 piétons ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [], C = CANAUX; if (!C.ok) return { ko: ['CANAUX.ok faux'], info };
+        let T = dernierT + 1000; const f = (id) => C.eaux.find((e) => e.id === id), O = (f('canalO').x0 + f('canalO').x1) / 2, E = (f('canalE').x0 + f('canalE').x1) / 2,
+          zT = (f('traverse').z0 + f('traverse').z1) / 2, bE = f('bassinE'), e3 = f('embO3'), xO3 = (e3.x0 + e3.x1) / 2, zM = MER + 26;
+        const tour = (b, a0, sens) => { const R = b.r - 3.5; return [0, 1, 2, 3, 4, 5, 6].map((k) => { const a = a0 + sens * k * Math.PI / 3; return [b.x + Math.cos(a) * R, b.z + Math.sin(a) * R]; }); };
+        const pts = [[xO3, zM], [xO3, MER - 6], [(xO3 + O) / 2, C.zMer + 10], [O, C.zMer], [O, zT], [E, zT], [E, bE.z], [bE.x - bE.r + 2, bE.z], ...tour(bE, Math.PI, 1), [E, bE.z], [E, zM]];
+        const segs = []; let L = 0; for (let i = 0; i + 1 < pts.length; i++) { const a = pts[i], b = pts[i + 1], l = Math.hypot(b[0] - a[0], b[1] - a[1]); segs.push({ a, b, l, s0: L }); L += l; }
+        const pt = (u) => { u = clamp(u, 0, L); for (const g of segs) if (u <= g.s0 + g.l) { const k = (u - g.s0) / g.l; return [g.a[0] + (g.b[0] - g.a[0]) * k, g.a[1] + (g.b[1] - g.a[1]) * k]; } return pts[pts.length - 1]; };
+        const dir = (u) => { const a = pt(u), b = pt(u + 1); return Math.atan2(b[0] - a[0], b[1] - a[1]); };
+        const ponts = new Set(), sens = {};
+        for (const cle of ['bateauP', 'jetski']) {
+          META.vue = 'classique'; if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9;
+          for (const v of vehicules.slice()) if (v.conduit === 'trafic' || v.conduit === 'police' || v.vedetteCanal) { scene.remove(v.mesh); vehicules.splice(vehicules.indexOf(v), 1); }
+          const v = creerVehicule(cle, pts[0][0], pts[0][1], Math.PI, null); P.x = v.x; P.z = v.z; entrerVehicule(v); if (P.veh !== v) { ko.push('on ne monte pas sur ' + cle); continue; } v.hp = 1e6; let degats = 0, chocs = 0, hp0 = v.hp; /* le parcours, pas la casse : les chocs contre les quais sont comptés à part */
+          let s = 0, t = 0, hors = 0, bloque = 0, bloqueMax = 0, fini = false, jx = 0, jy = 0, reag = 0, recul = 0; const sousPont = new Set();
+          for (; t < 240; t += 1 / 60) { for (const e of ennemis) e.mort = true; WANTED.stars = 0; WANTED.heat = 0;
+            let best = s, bd = 1e9; for (let u = s; u <= Math.min(L, s + 30); u += 0.5) { const q = pt(u), d = Math.hypot(q[0] - v.x, q[1] - v.z); if (d < bd) { bd = d; best = u; } } s = best;
+            if (s >= L - 3) { fini = true; break; }
+            if ((reag -= 1 / 60) <= 0) { reag = 0.1; const vv = Math.abs(v.v), d0 = dir(s); let virage = 0; for (let D = 4; D <= 10 + vv * 1.3; D += 2) virage = Math.max(virage, Math.abs(angDiff(d0, dir(s + D))));
+              const vt = virage > 1.2 ? 5 : (virage > 0.7 ? 7 : (virage > 0.35 ? 10 : 16)), c = pt(s + (virage > 0.7 ? 4.5 : 7) + Math.min(vv, vt) * 0.3), dx = c[0] - v.x, dz = c[1] - v.z, d = Math.hypot(dx, dz) || 1;
+              if (recul > 0) { jx = -Math.sin(v.ang); jy = -Math.cos(v.ang); } /* coincé : il tire le joystick vers l'arrière du bateau (marche arrière) */
+              else if (v.v > vt + 2) { jx = jy = 0; } /* trop vite pour le virage qui vient : il lâche le joystick */
+              else { const k = clamp((vt - v.v) * 0.12 + 0.45, 0.35, 1); jx = dx / d * k; jy = dz / d * k; } }
+            if (recul > 0) recul -= 1 / 60; else if (bloque > 1.2) { recul = 1.2; bloque = 0; reag = 0; }
+            INPUT.jx = jx; INPUT.jy = jy; T += 1000 / 60; tick(T);
+            if (P.veh !== v) { ko.push(cle + ' : le pilote a quitté le bateau'); break; }
+            if (!estEauNav(v.x, v.z) && v.z < MER) hors++; if (v.hp < hp0 - 0.5) { degats += hp0 - v.hp; chocs++; } hp0 = v.hp; const p = pontCanal(v.x, v.z); if (p) { sousPont.add(p.id); ponts.add(p.id); sens[p.id + (v.v * Math.cos(v.ang) > 0 ? 's' : 'n')] = 1; }
+            if (Math.abs(v.v) < 1 && recul <= 0) { bloque += 1 / 60; bloqueMax = Math.max(bloqueMax, bloque); } else if (recul <= 0) bloque = 0; }
+          INPUT.jx = INPUT.jy = 0; if (P.veh) sortirVehicule(true);
+          if (!fini || hors > 0 || bloqueMax > 3) ko.push(cle + ' au joystick : ' + (fini ? 'fini' : 'pas fini (' + s.toFixed(0) + ' / ' + L.toFixed(0) + ' u)') + ', ' + hors + ' images hors de l’eau, bloqué ' + bloqueMax.toFixed(1) + ' s');
+          else info.push(cle + ' au joystick : ' + t.toFixed(0) + ' s, sous ' + sousPont.size + ' ponts, ' + chocs + ' frôlements de quai (' + degats.toFixed(0) + ' PV)'); }
+        if (ponts.size < 4) ko.push('seulement ' + ponts.size + ' ponts franchis au joystick');
+        /* les piétons : 500 apparitions tirées par majPietons depuis le quartier, aucune dans l'eau, sur une marche ou un ponton */
+        { for (const q of pietons) if (q.h && q.h.g) scene.remove(q.h.g); pietons.length = 0; let n = 0, mal = 0, essais = 0; const garde = 0; /* le test maîtrise sa scène : sinon le quota de piétons est déjà atteint */
+          const nes = [], cp0 = creerPieton; creerPieton = function (x, z) { nes.push([x, z]); return cp0.apply(this, arguments); }; /* l'apparition elle-même (majPietons fait aussi marcher le nouveau venu) */
+          try { while (n < 500 && essais < 20000) { essais++; P.x = rand(C.bb.x0, C.bb.x1); P.z = rand(C.bb.z0, Math.min(C.bb.z1, MER - 4)); nes.length = 0; majPietons(0.4);
+              for (const [x, z] of nes) { n++; if ((dansCanal(x, z) && !pontCanal(x, z)) || marcheCanal(x, z) || pontonCanal(x, z)) { mal++; info.push('piéton né en (' + x.toFixed(1) + ', ' + z.toFixed(1) + ')'); } }
+              while (pietons.length > garde) { const q = pietons.pop(); if (q.h && q.h.g) scene.remove(q.h.g); } } } finally { creerPieton = cp0; }
+          if (n < 500 || mal) ko.push('piétons : ' + mal + ' / ' + n + ' apparus dans l’eau, sur une marche ou un ponton'); else info.push(n + ' piétons apparus depuis le quartier, aucun dans l’eau'); }
+        startRun(); return { ko, info };
+      });
+      if (r.ko.length) fail('Canaux au joystick : ' + r.ko.join(' ; ')); else ok('Canaux au joystick : ' + r.info.join(' ; '));
     }
 
     // -------------------------------------------------------------------

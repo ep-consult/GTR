@@ -2003,8 +2003,8 @@ const META={
   style:{haut:-1,bas:-1,cheveux:-1,coiffure:'',chapeau:'',chapeauCoul:-1,lunettes:'',tatouage:''}, // pièces portées séparément (boutiques) : -1/'' = celles de la tenue
   garde:{}, // pièces achetées en boutique (VETEMENTS) : id → true
   modsArmes:{}, // modifications d'armes achetées à l'établi de l'armurerie : id → 'explosif,laser,…' (MODS_ARMES)
-  planques:{caravane:false,penthouse:false,cabanon:false,chalet:false,voilier:false,taudis:false}, // planques en plein air (PLANQUES_DEF), clés fixes
-  planquesJeux:{canettes:0,longueVue:0,punch:0,peche:0,hache:0,tresors:0,frappe:0,plongeon:0}, // records des activités des planques (19 octobre)
+  planques:{caravane:false,penthouse:false,cabanon:false,chalet:false,voilier:false,taudis:false,miami:false}, // planques en plein air (PLANQUES_DEF), clés fixes
+  planquesJeux:{canettes:0,longueVue:0,punch:0,peche:0,hache:0,tresors:0,frappe:0,plongeon:0,golf:0}, // records des activités des planques (19 octobre)
   pecheTrophees:{sardine:0,maquereau:0,dorade:0,bar:0,poulpe:0,espadon:0}, // le mur des trophées du cabanon : la plus lourde prise exposée de chaque espèce (kg), clés fixes
   // vue de jeu en ville (bouton 🎥 à côté de la pause, voir VUE) :
   // 'immersive' = caméra inclinée vers l'horizon, orientable au doigt, poursuite
@@ -2734,6 +2734,7 @@ const TENUES=[
   {id:'trappeur',nom:'Chemise de trappeur',ico:'🪓',condTxt:'Planque : le chalet retranché',cond:()=>!!(META.planques&&META.planques.chalet),haut:0x8a2a22,bas:0x3a4a2a,casq:0x5a3a20},
   {id:'capitaine',nom:'Uniforme de capitaine',ico:'⚓',condTxt:'Planque : le voilier',cond:()=>!!(META.planques&&META.planques.voilier),haut:0xf2f2ec,bas:0x1a2a4a,casq:0x1a2a4a},
   {id:'ferrailleur',nom:'Bleu de ferrailleur',ico:'🔧',condTxt:'Planque : le taudis de la zone',cond:()=>!!(META.planques&&META.planques.taudis),haut:0x3a4a6a,bas:0x3a3a3a,casq:0xd88a1a},
+  {id:'flamingo',nom:'Costume « Flamingo »',ico:'🦩',condTxt:'Planque : la villa Miami',cond:()=>!!(META.planques&&META.planques.miami),haut:0xf6f4ee,bas:0x2ad4d0,casq:0xff5ad0},
   {id:'faucon',nom:'Combinaison « Faucon »',ico:'🦅',condTxt:'Wingsuit : un vol de 500 m (plané 20 % plus long)',
    cond:()=>(META.wingRecord||0)>=500,haut:0x1a2a4a,bas:0x101620,casq:0xffd23f},
   // Tenues des mini-jeux (14 octobre, demandé : « des skins spéciaux débloqués par les mini-jeux, avec des
@@ -7556,11 +7557,13 @@ function canauxDefinir(){
   dalle('aquarium',cx(9)-P,cx(9)+P,cx(8)-P,cx(8)+P); dalle('garage',cx(11)-P,cx(11)+P,cx(10)-P,cx(10)+P);
   if(typeof PORT!=='undefined') for(const g of PORT.portiques) dalle('parc'+Math.round(g.g.position.x)+','+Math.round(g.cz),g.g.position.x-P,g.g.position.x+P,g.cz-P,g.cz+P);
   /* le bâti (phase 3) : les pâtés secs, deux lots chacun (tournés vers leur rue), trois petits immeubles près des bordures nord et est */
-  C.lots.length=0; { let rang=0; const immeubles={'11,6':3,'13,6':2,'13,10':2}, pris=['9,6','9,8','11,8','11,9','11,10','13,8'];
+  C.lots.length=0; { let rang=0; const immeubles={'11,6':3,'13,6':2,'13,10':2}, pris=['9,6','9,8','9,9','11,8','11,9','11,10','13,8'];
     for(const bx of [9,11,13]) for(let bz=6;bz<=12;bz++){ const k=bx+','+bz; if(quartier(bx,bz)!=='port'||pris.includes(k)) continue; const x=cx(bx), z=cx(bz);
       dalle('pate'+k,x-P,x+P,z-P,z+P);
       if(immeubles[k]) C.lots.push({pate:k,x,z,ry:0,immeuble:true,niv:immeubles[k],rang:rang++});
       else { C.lots.push({pate:k,x,z:z-P/2,ry:Math.PI,rang:rang++}); C.lots.push({pate:k,x,z:z+P/2,ry:0,rang:rang++}); } } }
+  /* la villa Miami (phase 5) : le pâté (9,9), en face de l'entrée de la traverse ; sa rampe donne sur la rue du nord (z = 84) */
+  { const x=cx(9), z=cx(9); dalle('miami',x-P,x+P,z-P,z+P); C.miami={x,z,h:0.9,rampe:{dx:9}}; }
   /* ce qui est retiré : les dalles (leur contenu), les rues retirées, le passage des embouchures sur la plage */
   for(const d of C.dalles) C.purge.push({x0:d.x0,x1:d.x1,z0:d.z0,z1:d.z1,mode:'rect'});
   for(const c of C.coupes) C.purge.push({x0:c.x0,x1:c.x1,z0:c.z0,z1:c.z1,mode:'rect'});
@@ -7572,7 +7575,9 @@ function canauxDefinir(){
   for(const z of [64,140,204]){ marche(O+L-1.8,O+L,z,z+4.4,'z',-1); marche(E-L,E-L+1.8,z,z+4.4,'z',-1); }
   marche(cx(11)-2.2,cx(11)+2.2,zT0,zT0+1.8,'x',1); marche(cx(11)-2.2,cx(11)+2.2,zT1-1.8,zT1,'x',-1);
   marche(cx(9)-2.2,cx(9)+2.2,zB+11-1.8,zB+11,'x',1); marche(cx(13)+0,cx(13)+4.4,zE-11,zE-11+1.8,'x',-1);
-  C.pontons=pontonsCanaux(); canauxNautiqueDefinir();
+  C.pontons=pontonsCanaux();
+  { const o=C.eaux.find((e)=>e.id==='canalO'); C.miamiPonton={x0:o.x0,x1:o.x0+2.4,z0:128,z1:140,h:C.niveau+0.32,cote:-1,canal:'canalO',miami:true}; C.pontons.push(C.miamiPonton); } /* le ponton privé de la villa Miami : quai ouest, entre l'escalier (z 118) et le pont du sud */
+  canauxNautiqueDefinir();
   let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9; const ext=(a,b,c,d)=>{ x0=Math.min(x0,a); x1=Math.max(x1,b); z0=Math.min(z0,c); z1=Math.max(z1,d); };
   for(const e of C.eaux){ if(e.t==='r') ext(e.x0,e.x1,e.z0,e.z1); else if(e.t==='c') ext(e.x-e.r,e.x+e.r,e.z-e.r,e.z+e.r); else for(const q of e.pts) ext(q[0],q[0],q[1],q[1]); }
   for(const L2 of [C.ponts,C.coupes,C.dalles]) for(const p of L2) ext(p.x0,p.x1,p.z0,p.z1);
@@ -7856,7 +7861,7 @@ function mkCanaux(){
       addSolid({x:(R.x0+R.x1)/2,z:(R.z0+R.z1)/2,hw:w/2,hd:d/2,h,toit:true}); };
     if(C.aquarium) bat(C.aquarium,'#2a6a8a',8.5);
     if(C.garage) bat(C.garage,'#4a5058',6.5);
-    tp('lieux'); mkBatiCanaux(); tp('bati'); mkNautiqueCanaux(); tp('nautique'); canauxGraphe(); C.tBuild=Math.round(performance.now()-t0);
+    tp('lieux'); mkBatiCanaux(); tp('bati'); mkNautiqueCanaux(); tp('nautique'); mkMiamiCanaux(); tp('miami'); canauxGraphe(); C.tBuild=Math.round(performance.now()-t0);
   });
 }
 /* ---------- startRun : un véhicule posé (garé au hasard, vélo d'un arceau retiré, hélico d'un toit retiré…) que le quartier a rendu
@@ -8050,7 +8055,7 @@ function canauxNautiqueDefinir(){
   const C=CANAUX, f=(id)=>C.eaux.find((q)=>q.id===id), cO=f('canalO'), cE=f('canalE'), h=C.niveau+0.32;
   C.embarcadere={x0:cO.x1-3,x1:cO.x1,z0:222,z1:236,h,cote:1,embarcadere:true}; C.atelierPonton={x0:cE.x0,x1:cE.x0+2.4,z0:71,z1:81,h,cote:-1,atelier:true};
   C.pontons.push(C.embarcadere,C.atelierPonton);
-  const priv=C.pontons.filter((p)=>!p.embarcadere&&!p.atelier);
+  const priv=C.pontons.filter((p)=>!p.embarcadere&&!p.atelier&&!p.miami);
   /* le décor : le long des pontons privés (côté chenal) un sur deux, et le long de murs de quai nus */
   C.amarres=[]; C.jetskis=[];
   const amarre=(x,z,cle,long,larg,teinte)=>C.amarres.push({x,z,cle,ang:0,x0:x-larg/2-0.2,x1:x+larg/2+0.2,z0:z-long/2-0.2,z1:z+long/2+0.2,teinte});
@@ -8104,7 +8109,7 @@ function dockersCanaux(){ const C=CANAUX;
   /* 4) les Dockside Boys à l'atelier (figurants : touchés, ils deviennent de vrais Dockers) */
   const P0=POIS.port, coul=[{haut:0x1f6a7a,bas:0x14202a,peau:0xb8865a,casq:0x0e3a46},{haut:0x2a8a9a,bas:0x1a262e,peau:0xc98d5e,casq:0x1f6a7a},{haut:0x1f6a7a,bas:0x1a262e,peau:0x8a5a3a,casq:0x14202a}];
     C.dockers=[]; for(const [dx,dz,a,k] of [[1,11,Math.PI/2,0],[11,5,-Math.PI/2,1],[7,-1,Math.PI,2],[30.5,13,Math.PI/2,0]]){ const h=makeHumain(Object.assign({visage:'mechant'},coul[k]),1); h.g.position.set(P0.x+dx,0.22,P0.z+dz); h.g.rotation.y=a; scene.add(h.g); figurant(h,null,k===1?'mur_pompe':'mur_batte'); C.dockers.push(h); } }
-function canauxStartRun(){ avecAleaPrive(2026,canauxStartRunPrive); } /* sur un générateur privé : la partie suivante tire comme avant */
+function canauxStartRun(){ avecAleaPrive(2026,canauxStartRunPrive); SURV.fin=0; miamiBateaux(); } /* sur un générateur privé : la partie suivante tire comme avant */
 function canauxStartRunPrive(){
   const C=CANAUX; if(!C.ok) return;
   if(!C.dockers) dockersCanaux(); /* à la 1re partie : créés au chargement, ils remplissaient le cache des corps humains avant le premier ennemi de la partie (un tirage de moins pour tout ce qui suit) */
@@ -8470,6 +8475,7 @@ const PLANQUES_DEF=[
   {id:'chalet',nom:'Chalet retranché',ico:'🏔️',prix:5000,rev:[50,90],spec:'armurerie',specTxt:'Armurerie de survivaliste : munitions pleines et grenades',veh:'motocross'},
   {id:'voilier',nom:'Voilier « Belle Échappée »',ico:'⛵',prix:7500,rev:[80,140],spec:'disparaitre',specTxt:'Lever l’ancre : la police perd ta trace',veh:null},
   {id:'taudis',nom:'Taudis de la zone',ico:'🛢️',prix:1500,rev:[40,80],spec:'grenades',specTxt:'Établi : 3 grenades artisanales',veh:'pickup'},
+  {id:'miami',nom:'Villa Miami',ico:'🦩',prix:14000,rev:[110,190],spec:'surveillance',specTxt:'Salle de surveillance : 60 s de vedettes et d’agents de police sur ta carte',veh:null}, /* les canaux (20 octobre) : ses bateaux, miamiBateaux */
 ];
 const PLANQUES={liste:[],usage:{},feux:[]}, PQ_R=2.6;
 function planquePossedee(id){ return !!(META.planques&&META.planques[id]); }
@@ -8644,7 +8650,7 @@ function planqueAction(z){
     return {label:rev>0?('💰 ENCAISSER LES REVENUS — '+rev+' $'):'💰 Coffre vide (revenus à chaque vague)',fn:()=>{
       if(rev<=0){ SFX.refus(); return; } META.argent+=rev; ETAT.cashRun+=rev; META.stats.cashTotal+=rev; META.revenus=0; sauveMeta(); toast('+'+rev+' $ encaissés','or'); SFX.achat(); } }; }
   const fait=U.spec===WAVES.n;
-  const lab={atelier:'🔧 ATELIER : RÉPARER LE VÉHICULE',base:'🪂 PLONGEOIR : SAUT BASE',punch:'🍹 PUNCH MAISON',armurerie:'🎯 ARMURERIE DU CHALET',disparaitre:'⛵ LEVER L’ANCRE : DISPARAÎTRE',grenades:'💣 ÉTABLI : GRENADES ARTISANALES'}[d.spec];
+  const lab={atelier:'🔧 ATELIER : RÉPARER LE VÉHICULE',base:'🪂 PLONGEOIR : SAUT BASE',punch:'🍹 PUNCH MAISON',armurerie:'🎯 ARMURERIE DU CHALET',disparaitre:'⛵ LEVER L’ANCRE : DISPARAÎTRE',grenades:'💣 ÉTABLI : GRENADES ARTISANALES',surveillance:'📡 SALLE DE SURVEILLANCE'}[d.spec];
   return {label:fait&&d.spec!=='base'?'⏳ '+lab.replace(/^\S+ /,'')+' (prochaine vague)':lab,fn:()=>planqueSpec(pq)};
 }
 function acheterPlanque(id){
@@ -8654,6 +8660,7 @@ function acheterPlanque(id){
   bigMsg(d.ico+' PLANQUE ACHETÉE'); toast(d.nom+' : '+d.specTxt+' — nouvelle tenue à la penderie','or');
   if(typeof checkTenues==='function') checkTenues(); sauveMeta();
   const pq=PLANQUES.liste.find((q)=>q.def.id===id); if(pq&&d.veh&&pq.vehPos&&!solidAt(pq.vehPos.x,pq.vehPos.z,1.8)) creerVehicule(d.veh,pq.vehPos.x,pq.vehPos.z,pq.vehPos.ang);
+  if(id==='miami') miamiBateaux(); /* ses bateaux, tout de suite au ponton */
 }
 function planqueSpec(pq){
   const d=pq.def, U=PLANQUES.usage[d.id]||(PLANQUES.usage[d.id]={lit:-1,spec:-1});
@@ -8672,6 +8679,7 @@ function planqueSpec(pq){
     WANTED.heat=0; WANTED.stars=0; for(const e of ennemis) if(e.fac==='police'&&!e.wave){ e.passif=true; e.cible=null; } toast('⛵ Tu lèves l’ancre : la police perd ta trace','or'); }
   else if(d.spec==='grenades'){ if(P.grenades>=5){ SFX.refus(); toast('Tes poches sont pleines (5 grenades)'); return false; }
     P.grenades=Math.min(5,P.grenades+3); const gn=document.getElementById('grenN'); if(gn) gn.textContent=P.grenades; toast('💣 +3 grenades artisanales','or'); }
+  else if(d.spec==='surveillance'){ SURV.fin=ETAT.runT+60; toast('📡 Les caméras du quartier : 60 s de police sur ta carte','or'); }
   U.spec=WAVES.n; SFX.achat(); return true;
 }
 function planquesStartRun(){
@@ -10181,6 +10189,227 @@ function plongeonUI(s,vis){ let d=document.getElementById('plgPan'); const J=s.p
   const nt=J.phase==='notes'&&J.notes?(J.notes.nom+'<br>'+J.notes.juges.map((v)=>'<span style="display:inline-block;background:#f4f8fc;color:#14202a;border-radius:4px;padding:1px 6px;margin:2px">'+v.toFixed(1)+'</span>').join('')+' × '+J.notes.dd+' = '+J.notes.pts):''; const ne=d.querySelector('#plgNotes'); if(ne._t!==nt){ ne._t=nt; ne.innerHTML=nt; }
   const bt=d.querySelector('#plgBtn'), lab=J.phase==='elan'?'SAUTER':(J.phase==='vol'?'MAINTIENS : TOURNE':'…'); if(bt._t!==lab){ bt._t=lab; bt.textContent=lab; }
   d.querySelector('#plgJauge').style.visibility=J.phase==='elan'?'visible':'hidden'; d.querySelector('#plgAig').style.left='calc('+((0.5+0.5*Math.sin(J.el))*100)+'% - 2px)'; }
+/* ---------- 8. LA VILLA MIAMI (phase 5) : chez Rafa « Flamingo » Duarte, ancien trafiquant reconverti dans le yachting ----------
+   Demandé : « une 8e planque dans le quartier des canaux, ambiance Miami années 80 revisitée, sur EXACTEMENT le modèle des 7
+   autres ». Dehors (mkMiamiCanaux, fin de mkCanaux) : une villa blanche cubique sur un socle, au bord du canal ouest, en face de
+   l'entrée de la traverse (une intersection d'eau) — pâté (9,9) —, sa rampe d'accès en voiture (RAMPES) jusqu'au socle (PLATS),
+   sa piscine, ses palmiers, ses néons ; son ponton privé sur le quai d'en face ; « VILLA À VENDRE » tant qu'elle n'est pas
+   achetée ; une balise. Achetée : à chaque partie (planquesStartRun → miamiBateaux), un offshore Espadon et un jet-ski à sa livrée
+   (rose et turquoise) au ponton. Dedans (PQ_INT.miami) : la villa ouverte sur le canal au coucher du soleil. Spécificité : la salle
+   de surveillance (SURV : 60 s de vedettes et d'agents de police sur la minimap). Activité : le golf sur le ponton (GOLF_*). */
+const MIAMI={pq:null}, MIAMI_LIVREE={coque:0xff5ad0,bande:0x2ad4d0};
+const SURV={fin:0}; /* la surveillance court jusqu'à ETAT.runT = SURV.fin */
+Object.assign(PQ_TEX_DESSIN,{ terrazzo:()=>cTex(256,(c,s)=>{ const r=pqAlea(1980); c.fillStyle='#ebe4d8'; c.fillRect(0,0,s,s); /* le terrazzo : éclats de marbre rose, turquoise, gris, noir */
+    for(let i=0;i<900;i++){ const v=r(); c.fillStyle=v<0.3?'#e8a0b8':(v<0.55?'#8ad0cc':(v<0.85?'#b8b2a8':'#3a3a40')); c.beginPath(); const x=r()*s, y=r()*s, k=1+r()*3.2; c.moveTo(x,y); c.lineTo(x+k,y+r()*k); c.lineTo(x+r()*k,y+k); c.fill(); } }) });
+function mkMiamiCanaux(){
+  /* la villa tournée vers le SUD (la rue z = 126) : la caméra regarde vers le nord, la façade, la porte, la piscine et la terrasse
+     sont face à elle (tournée vers le nord, la maison cachait le joueur devant sa porte) ; repère local : +z = vers la rue du nord */
+  const C=CANAUX, R=C.miami; if(!R) return; const x=R.x, z=R.z, H=R.h, ys=0.22+H, Y=H;
+  const geo={pos:[],nor:[],col:[]}, cb=constructeurCanaux(geo,x,z,Math.PI,1,0.22), W=cb.monde; /* W : local → monde (x − lx, z − lz) */
+  /* le socle blanc et ses murets ; la rampe d'accès (local z −15,5 → −7,5 : monde z 120,5 → 112,5, de la rue du sud au socle) */
+  cb.box(28,H,22,0,H/2,3.5,0xf2f0ea); cb.box(28.4,0.12,22.4,0,H+0.06,3.5,0xe8e2d6);
+  for(const sx of [-1,1]) cb.box(0.3,0.9,8,R.rampe.dx+sx*2.45,0.45,-11.5,0xf2f0ea);
+  { const q=W(R.rampe.dx,-11.5), rp=new THREE.Mesh(new THREE.BoxGeometry(4.4,0.14,Math.hypot(8,H)),new THREE.MeshLambertMaterial({color:0xb8b4ac})); rp.position.set(q.x,0.22+H/2,q.z); rp.rotation.x=Math.atan2(H,8); scene.add(rp); }
+  /* la villa : deux cubes blancs décalés, toit-terrasse, grandes baies, néons rose et turquoise */
+  const verre=0x1f4a5a; cb.box(19,4.2,11,-3,Y+2.1,4.5,0xfbfaf6); cb.box(19.6,0.25,11.6,-3,Y+4.32,4.5,0xe8e6e0); cb.box(13,3.8,9,1,Y+6.3,5.4,0xfbfaf6); cb.box(13.6,0.25,9.6,1,Y+8.32,5.4,0xe8e6e0);
+  cb.box(15,2.8,0.1,-3,Y+1.8,-1.02,verre); cb.box(10,2.4,0.1,1,Y+6.3,0.88,verre); cb.box(0.1,2.8,8,-12.53,Y+1.8,4.5,verre);
+  cb.box(19.6,0.12,0.12,-3,Y+4.1,-1.1,0xff5ad0); cb.box(13.6,0.12,0.12,1,Y+8.1,0.8,0x2ad4d0); cb.box(0.12,4,0.12,6.45,Y+2,-1.05,0x2ad4d0);
+  cb.box(3,2.5,0.1,5,Y+1.25,-1.03,0xf6f2e6); /* la porte d'entrée, pivotante, blanche */ cb.box(4,0.2,2.2,5,Y+2.9,-2,0xe8e6e0); /* son auvent */
+  /* les toits, vus de dessus : le pont de teck, le jacuzzi et les transats du toit haut ; jardinières et pergola du toit bas */
+  cb.box(11.6,0.08,7.4,1,Y+8.49,5.4,0xb08a5a); cb.cyl(1.25,0.3,4.4,Y+8.6,7.4,0xeef6f8); cb.cyl(1.05,0.32,4.4,Y+8.62,7.4,0x2ad4d0);
+  for(const tx of [-3.6,-1.6]) cb.box(0.8,0.25,1.9,tx,Y+8.66,3.4,0xff5ad0);
+  cb.box(13,1,0.1,1,Y+9,0.65,0xeef6f8); cb.box(0.1,1,9,-5.55,Y+9,5.4,0xeef6f8); /* le garde-corps de verre */
+  for(const [px,pz] of [[-12,0.3],[-12,8.7],[-6.4,0.3],[-6.4,8.7]]) cb.box(0.2,2.4,0.2,px,Y+5.6,pz,0xf2f0ea);
+  for(let k=0;k<7;k++) cb.box(6,0.12,0.25,-9.2,Y+6.8,0.6+k*1.3,0xf2f0ea); /* la pergola */
+  for(const pz of [1.2,8.2]) cb.box(5,0.5,0.9,-9.2,Y+4.7,pz,0x8a6a44), cb.boule(2.4,0.6,0.5,-9.2,Y+5.1,pz,0x3aa04a);
+  /* la piscine du socle, transats, palmiers */
+  cb.box(11.6,0.1,4.8,-5.5,Y+0.05,-3.6,0xe6e0d4); const pc=W(-5.5,-3.6), piscine={x:pc.x,z:pc.z,hw:5.2,hd:1.8};
+  for(const tx of [-10.5,-7.5,-4.5]) cb.box(0.8,0.25,1.8,tx,Y+0.3,-6.4,0xffffff);
+  for(const [px,pz] of [[12,-5.5],[12.4,8],[-12.6,-5.5],[-12.8,12]]) palmierCanaux(cb,px,pz,6);
+  for(const [lx,lz,hw,hd,h] of [[-3,4.5,9.5,5.5,Y+4.4],[1,5.4,6.5,4.5,Y+8.4]]){ const q=W(lx,lz), so={x:q.x,z:q.z,hw,hd,h:0.22+h,toit:true}; addSolid(so); (C.batiSolides=C.batiSolides||[]).push(so); }
+  { const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(geo.pos,3)); g.setAttribute('normal',new THREE.Float32BufferAttribute(geo.nor,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(geo.col,3)); g.computeBoundingSphere(); scene.add(new THREE.Mesh(g,MOB_MAT)); }
+  { const eau=new THREE.Mesh(new THREE.BoxGeometry(piscine.hw*2,0.1,piscine.hd*2),_MAT_PISC_CANAUX||(_MAT_PISC_CANAUX=new THREE.MeshLambertMaterial({color:0x3ab8d8,emissive:0x0a3a48,transparent:true,opacity:0.9}))); eau.position.set(piscine.x,0.22+Y+0.05,piscine.z); scene.add(eau);
+    BASSINS.push({x:piscine.x,z:piscine.z,hw:piscine.hw,hd:piscine.hd,y:0.22+Y+0.04}); }
+  /* le sol praticable : la rampe (elle monte vers le nord) et le socle */
+  { const r0=W(R.rampe.dx,-15.5), so=W(0,3.5); RAMPES.push({x:r0.x,z:r0.z,ang:Math.PI,long:8,haut:ys,larg:4.4}); PLATS.push({x:so.x,z:so.z,hw:14,hd:11,h:ys}); R.rampe.x=r0.x; R.rampe.z0=r0.z; R.rampe.z1=r0.z-8; }
+  /* la planque : achat, porte (sur la façade sud), entrée ; l'enseigne « À VENDRE » ; la balise */
+  const c0=W(5,-2.4), cP=W(5,-1.6), cE=W(5,-3.2), cS=W(5,-2.2);
+  const pq=pqNouvelle('miami',c0.x,c0.z,ys); MIAMI.pq=pq;
+  pq.porte={x:cP.x,z:cP.z,nx:0,nz:1,sortieD:1.4,y:ys}; pq.entree={x:cE.x,z:cE.z,y:ys}; pq.achat=pq.entree; pq.lit=pq.entree;
+  pq.enseigne=enseigneCanaux('VILLA À VENDRE','#ff5ad0',cS.x,ys+5.2,cS.z+0.2,0,6.5);
+  { const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:texBalise(pq.def.ico,'#2a8a4a'),transparent:true,depthWrite:false,depthTest:false,fog:false})); sp.scale.set(2.6,2.6,1); sp.position.set(pq.x,ys+7,pq.z); sp.renderOrder=5; scene.add(sp); BALISES.push({sp,x:pq.x,z:pq.z,y0:ys+7,ph:1.3}); }
+}
+/* ses bateaux, à chaque partie, une fois achetée : l'Espadon et un jet-ski à la livrée de la villa, au ponton privé */
+function miamiLivree(v,coque,bande,pont){ peindreMesh(v.mesh,coque); const L=v.def.long||4, l=(v.def.larg||2)*0.5+0.02, m=new THREE.MeshLambertMaterial({color:bande}), rouge={};
+  v.mesh.traverse((o)=>{ if(!o.isMesh||Array.isArray(o.material)||!o.material.color) return; const h=o.material.color.getHex(), c=(h===0xff3b5c||h===0xc4141e)?bande:((h===0x14161c||h===0x141518)?coque:((h===0x2a2d34&&pont!==undefined)?pont:-1)); if(c>=0){ o.material=rouge[h]||(rouge[h]=o.material.clone()); o.material.color.setHex(c); } }); /* la livrée : la coque sombre et les filets rouges du modèle (copies propres au bateau) */
+  for(const s of [-1,1]){ const b=new THREE.Mesh(new THREE.BoxGeometry(0.04,0.16,L*0.78),m); b.position.set(s*l,0.55,0); (v.mesh.userData.corps||v.mesh).add(b); } v.miami=true; lodFixerV4(v); } /* toujours détaillé : la version lointaine garde les couleurs d'origine */
+function miamiBateaux(){ const C=CANAUX, Pm=C.miamiPonton; if(!C.ok||!Pm||!planquePossedee('miami')) return; avecAleaPrive(1986,()=>{
+  const xo=Pm.x1+1.4; const a=creerVehicule('espadon',xo,Pm.z0+4,Math.PI); if(a) miamiLivree(a,MIAMI_LIVREE.coque,MIAMI_LIVREE.bande,0xf4f2ec); /* le pont blanc */
+  const j=creerVehicule('jetski',xo-0.4,Pm.z1-2.4,Math.PI); if(j) miamiLivree(j,MIAMI_LIVREE.bande,MIAMI_LIVREE.coque); }); }
+/* la surveillance : 60 s de vedettes et d'agents de police sur la minimap (dessinerSurveillance, appelée par majMinimap) */
+function dessinerSurveillance(g,proj,R){ const t=SURV.fin-ETAT.runT, pul=0.6+0.4*Math.sin(ETAT.runT*6); let n=0;
+  const marque=(x,z,vedette)=>{ n++; const q=proj(x,z), dx=q.x-96, dy=q.y-96, d=Math.hypot(dx,dy); let px=q.x, py=q.y; if(d>R-4){ px=96+dx/d*(R-4); py=96+dy/d*(R-4); }
+    g.fillStyle=vedette?'rgba(58,180,255,'+pul.toFixed(2)+')':'rgba(120,170,255,'+pul.toFixed(2)+')'; g.beginPath(); if(vedette){ g.moveTo(px,py-4); g.lineTo(px+3.4,py+3); g.lineTo(px-3.4,py+3); } else g.arc(px,py,2.6,0,7); g.fill(); g.lineWidth=1; g.strokeStyle='#ffffff'; g.stroke(); };
+  for(const v of vehicules) if(!v.mort&&(v.conduit==='police'||v.conduit==='patrouilleCanal'||v.patrouilleP||v.vedetteCanal)) marque(v.x,v.z,!!(v.def&&v.def.eau));
+  for(const e of ennemis) if(!e.mort&&e.fac==='police') marque(e.x,e.z,false);
+  g.fillStyle='rgba(8,10,14,0.7)'; g.fillRect(46,6,100,14); g.fillStyle='#ff5ad0'; g.font='800 10px Arial'; g.textAlign='center'; g.fillText('📡 SURVEILLANCE '+Math.ceil(t)+' s',96,16); g.textAlign='left'; SURV.n=n; } /* SURV.n : ce qui est montré (lu par le test) */
+
+/* ---------- l'intérieur ---------- */
+PQ_INT.miami=function(s,g,ox,oz,W,P2){
+  const T=pqOutils(s,g), {M,MF,MP,MB,MT,mesh,B,C,S,PL,solide,sprite}=T, Q=s.pq, r=pqAlea(1985);
+  const HOR=new THREE.Color(0xff9a6a), ROSE=0xff5ad0, TURQ=0x2ad4d0, BLANC=0xf6f4ee;
+  s.pqAmb={soleil:0.55,hemi:0.55,ciel:HOR,fogN:90,fogF:360,
+    lampe:(sa)=>sa.pq.dedans?{x:sa.ox,y:3.4,z:sa.oz+2,c:0xffb0d8,i:1.15,d:16}:{x:sa.ox,y:2.6,z:sa.oz-14,c:0xff9a6a,i:1.1,d:18}};
+  /* ---- le couchant sur le canal : dôme violet, rose et or, le soleil sur l'eau, les villas d'en face (tout à moins de 185 u) ---- */
+  g.add(pqCiel(ox,oz,[0x2a1a5a,0xd85a9a,0xffa868],185));
+  sprite(new THREE.SpriteMaterial({map:texGlow,color:0xff8040,transparent:true,depthWrite:false,fog:false,blending:THREE.AdditiveBlending}),24,12,-150,90);
+  sprite(new THREE.SpriteMaterial({map:texGlow,color:0xfff0c0,transparent:true,depthWrite:false,fog:false,blending:THREE.AdditiveBlending}),24,12,-150,22);
+  { const U={uT:{value:0},uC:{value:new THREE.Vector2(ox,oz)},uHor:{value:new THREE.Vector3(HOR.r,HOR.g,HOR.b)}}; const m=mesh(new THREE.CircleGeometry(176,48,0,Math.PI),new THREE.ShaderMaterial({uniforms:U,vertexShader:AQ_SOL_VS,fragmentShader:PQ_MER_FS()}),0,-0.6,-8.6); /* un demi-disque vers le nord : rien à plus de 185 u */ m.rotation.x=-Math.PI/2; m.userData.garder=true; Q.anim.push((dt)=>{ U.uT.value+=dt; }); }
+  for(let k=0;k<7;k++){ const vx=-60+k*20, w=10+r()*6, h=4+r()*4, coul=[0xf6f2ea,0xf8d8e0,0xd8f0ee,0xfaf0d8][k%4]; B(w,h,9,M(coul),vx,h/2-0.2,-74); B(w*0.6,0.25,1.5,M(0x3a7a9a),vx,0.2,-68.5); /* les villas d'en face et leurs pontons */
+    for(let j=0;j<3;j++) B(1.4,1.2,0.1,MB(r()<0.5?0xffd890:0x2a3a4a),vx-w/2+2+j*3,h*0.6,-69.4); if(k%2) { C(0.2,0.25,7,MF(0x8a6a44),vx+w/2+1.5,3.3,-70); S(1.6,M(0x2f8a3a),vx+w/2+1.5,7,-70,1,0.35,1); } }
+  /* ---- la terrasse sur le canal (le nord) : le ponton du golf, la piscine à débordement, transats, palmiers ---- */
+  const TER=0xc4baae; B(W-1,0.3,13,MT(pqTexRep('terrazzo',8,3),TER),0,-0.14,-15.4);
+  { const pm=new THREE.MeshLambertMaterial({color:0x3ab8d8,emissive:0x0a3a48,transparent:true,opacity:0.92}); const p=B(18,0.12,6,pm,-10,0.04,-17); p.userData.garder=true;
+    B(18.4,0.12,0.3,M(0xf2f0ea),-10,0.12,-13.9); B(0.3,0.12,6,M(0xf2f0ea),-19.1,0.12,-17); B(18,0.2,0.2,MB(TURQ),-10,0.02,-20.1); /* le bord qui déborde : un liseré turquoise au ras de l'eau */
+    BASSINS.push({x:ox-10,z:oz-17,hw:9,hd:3,y:0.06}); }
+  for(const tx of [-17,-13,-9,-5]){ B(0.8,0.3,2.1,M(0xffffff),tx,0.25,-11.6); B(0.82,0.06,0.9,M(ROSE),tx,0.42,-12.3); }
+  /* le ponton du golf : planches, un tee, le seau de balles, trois greens flottants dans le canal */
+  const bois=MT(pqTexRep('teck',3,1),0xd8aa78); B(8,0.25,9,bois,12,-0.1,-17.6); B(0.6,0.08,0.6,M(0x2f8a3a),12,0.08,-15.5); B(0.4,0.5,0.4,M(0xf2f0ea),13.6,0.25,-14.2);
+  Q.tee={x:12,z:-15.5}; Q.greens=[{x:6,z:-36,r:3,m:1},{x:20,z:-50,r:3.4,m:1.5},{x:10,z:-68,r:3.8,m:2}];
+  for(const gr of Q.greens){ const gm=C(gr.r,gr.r,0.25,M(0x4aa040),gr.x,-0.42,gr.z,24); gm.userData.garder=true; C(gr.r+0.25,gr.r+0.25,0.18,M(0xf2f0ea),gr.x,-0.48,gr.z,24); C(0.03,0.03,2.2,M(0xe8e8e8),gr.x,0.7,gr.z,5); const f=B(0.7,0.42,0.03,MB(ROSE),gr.x+0.36,1.6,gr.z); f.userData.garder=true; Q.anim.push(()=>{ f.rotation.y=Math.sin(Q.t*2+gr.x)*0.35; }); }
+  for(const [px,pz] of [[-22,-21],[22,-21],[-22,-9.5]]){ C(0.2,0.26,7,MF(0x8a6a44),px,3.4,pz); for(let k=0;k<6;k++){ const f=B(2.6,0.06,0.5,M(k%2?0x2f8a3e:0x3aa04a),px,6.9,pz); f.rotation.y=k*1.05; f.rotation.z=-0.32; f.translateX(1.1); } }
+  /* ---- la baie vitrée (le salon donne sur la terrasse), le sol de terrazzo, les néons ---- */
+  B(W-1,0.2,P2-14,MT(pqTexRep('terrazzo',8,6),0xcfc6ba),0,-0.08,6.5);
+  for(const x of [-18,-9,-1.4,1.4,9,18]) B(0.25,3.6,0.25,M(0xf2f0ea),x,1.8,-8.6); const baie=B(W-2,3.4,0.08,new THREE.MeshPhongMaterial({color:0x9ad8e8,transparent:true,opacity:0.22,shininess:120,specular:0xffffff}),0,1.8,-8.6); baie.userData.garder=true;
+  solide(-13.35,-8.6,12.15,0.15,3.6); solide(13.35,-8.6,12.15,0.15,3.6); /* la baie : un mur, sauf la porte-fenêtre au milieu (de −1,2 à 1,2) */
+  const neonR=MB(ROSE), neonT=MB(TURQ); B(W-2,0.12,0.12,neonR,0,3.55,-8.5); B(0.12,0.12,P2-16,neonT,-W/2+1.2,3.4,6.5); B(0.12,0.12,P2-16,neonT,W/2-1.2,3.4,6.5);
+  /* le jardin de devant (vu de dessus, au-delà de la verrière) : pelouse, allée, palmiers, deux flamants roses de jardin */
+  B(W+24,0.1,16,M(0x4f9444),0,-0.06,P2/2+8.2); B(4,0.12,16,M(0xe8e2d6),0,-0.02,P2/2+8.2);
+  const palmier=(px,pz,h,y0)=>{ C(0.18,0.24,h,MF(0x8a6a44),px,(y0||0)+h/2,pz); for(let k=0;k<6;k++){ const f=B(2.4,0.06,0.5,M(k%2?0x2f8a3e:0x3aa04a),px,(y0||0)+h-0.1,pz); f.rotation.y=k*1.05; f.rotation.z=-0.32; f.translateX(1); } };
+  for(const [px,pz] of [[-8,P2/2+4.5],[8,P2/2+4.5],[-19,P2/2+9],[19,P2/2+9]]) palmier(px,pz,6);
+  for(const fx of [-4.2,-5.4]){ const rose=M(0xff7ab8); S(0.28,rose,fx,0.75,P2/2+3,1,0.8,1.5); T.seg([fx,0.85,P2/2+2.7],[fx,1.35,P2/2+2.55],0.05,rose); S(0.11,rose,fx,1.4,P2/2+2.5); T.seg([fx,0.5,P2/2+3],[fx,0,P2/2+3],0.02,M(0x2a2a2a)); }
+  /* le salon, suite : le néon « FLAMINGO » sur le mur ouest, deux palmiers en pot, la lampe en arc */
+  { const n=mesh(new THREE.PlaneGeometry(7,2.3),new THREE.MeshBasicMaterial({map:texNeon('FLAMINGO','#ff5ad0',512,168),transparent:true,depthWrite:false,blending:THREE.AdditiveBlending}),-W/2+0.55,2.5,13); n.rotation.y=Math.PI/2; n.userData.garder=true; }
+  const hS=0.35; /* le sol surélevé autour du salon en contrebas */
+  for(const [px,pz] of [[-13.4,-6.6],[1.6,-6.6]]){ C(0.5,0.38,0.8,M(0xf2f0ea),px,0.4+hS,pz); palmier(px,pz,2.6,0.6+hS); }
+  T.seg([-13.2,hS,7.6],[-12.6,3.1,6.2],0.06,MP(0xd8b04a,80,0xffffff)); T.seg([-12.6,3.1,6.2],[-10.6,2.7,4.4],0.05,MP(0xd8b04a,80,0xffffff)); S(0.32,MB(0xfff0d0),-10.6,2.5,4.4);
+  /* le toit (masqué quand on est dessous, vue de dessus) */
+  const toit=B(W-1,0.3,P2-15,M(0xf2f0ea),0,3.8,6.6); toit.userData.garder=true; Q.toits.push({x0:-W/2,x1:W/2,z0:-8.6,z1:P2/2,objs:[toit],dedans:true});
+  /* ---- le salon blanc en contrebas : le sol autour est surélevé (PLATS), le salon reste au niveau 0 ---- */
+  const LX=-6, LZ=2, LW=12, LD=8;
+  for(const [x0,x1,z0,z1] of [[-W/2+0.5,LX-LW/2,-8.4,P2/2-0.5],[LX+LW/2,W/2-0.5,-8.4,P2/2-0.5],[LX-LW/2,LX+LW/2,-8.4,LZ-LD/2],[LX-LW/2,LX+LW/2,LZ+LD/2,P2/2-0.5]]){ if(x1-x0<0.5||z1-z0<0.5) continue;
+    PLATS.push({x:ox+(x0+x1)/2,z:oz+(z0+z1)/2,hw:(x1-x0)/2,hd:(z1-z0)/2,h:hS}); B(x1-x0,hS,z1-z0,MT(pqTexRep('terrazzo',(x1-x0)/6,(z1-z0)/6),0xd4cbbf),(x0+x1)/2,hS/2-0.05,(z0+z1)/2); }
+  /* les murs : pleins à l'est et à l'ouest ; au sud (vers la caméra), un parapet bas sous une verrière, ouvert devant la SORTIE */
+  { const mur=M(0xf2f0ea), zc=(P2/2-8.6)/2, lz=P2/2+8.6; for(const sx of [-1,1]){ B(0.4,3.7,lz,mur,sx*(W/2-0.3),1.85,zc); B(0.1,0.1,lz,MB(sx<0?ROSE:TURQ),sx*(W/2-0.55),2.6,zc); }
+    const vS=new THREE.MeshPhongMaterial({color:0xbfe8f2,transparent:true,opacity:0.16,shininess:120,specular:0xffffff});
+    for(const sx of [-1,1]){ const L=W/2-2.6, xc=sx*(2.6+L/2); B(L,1.05,0.35,mur,xc,0.52+hS*0,P2/2-0.3); const v=B(L,2.6,0.06,vS,xc,2.35,P2/2-0.3); v.userData.garder=true; B(0.3,3.7,0.4,mur,sx*2.6,1.85,P2/2-0.3); } }
+
+  for(let k=0;k<2;k++) B(LW,0.17,0.5,M(0xe8e2d6),LX,0.09+k*0.17,LZ-LD/2+0.25+k*0.5); /* les marches du salon */
+  const blanc=M(BLANC); B(LW-1,0.55,1.4,blanc,LX,0.3,LZ+LD/2-1); B(1.4,0.55,LD-2,blanc,LX-LW/2+1,0.3,LZ+0.5); B(LW-1,0.6,0.4,blanc,LX,0.75,LZ+LD/2-0.4); /* le canapé en U */
+  B(3,0.35,1.6,MP(0x1a1a20,90,0x8888aa),LX+1,0.2,LZ-0.5); B(4,0.03,3,M(ROSE),LX+0.5,0.02,LZ); /* table basse laquée, tapis rose */
+  /* ---- le bar en arc : comptoir courbe, tabourets, bouteilles lumineuses, néon ---- */
+  { const BX=10, BZ=4, a0=Math.PI*1.15, aL=Math.PI*0.7; /* l'arc côté ouest (x < BX) : les clients au salon, le barman dedans */
+    const arc=new THREE.Mesh(new THREE.CylinderGeometry(3.2,3.2,1.1,24,1,true,a0,aL),new THREE.MeshLambertMaterial({color:0xf2f0ea,side:THREE.DoubleSide})); arc.position.set(ox+BX,0.55+hS,oz+BZ); g.add(arc);
+    const plan=new THREE.Mesh(new THREE.CylinderGeometry(3.6,3.6,0.08,24,1,false,a0,aL),M(0x1a1a20)); plan.position.set(ox+BX,1.14+hS,oz+BZ); g.add(plan);
+    const nb=new THREE.Mesh(new THREE.CylinderGeometry(3.26,3.26,0.08,24,1,true,a0,aL),new THREE.MeshBasicMaterial({color:ROSE,side:THREE.DoubleSide})); nb.position.set(ox+BX,0.12+hS,oz+BZ); g.add(nb);
+    for(let k=0;k<4;k++){ const a=a0+aL*(0.14+k*0.24); C(0.32,0.32,0.08,M(TURQ),BX+Math.sin(a)*4.3,0.8+hS,BZ+Math.cos(a)*4.3); C(0.05,0.05,0.75,M(0xc8ccd2),BX+Math.sin(a)*4.3,0.4+hS,BZ+Math.cos(a)*4.3); }
+    B(0.3,2,4.4,MP(0x0c0c12,80,0x666688),BX+1.9,1.6+hS,BZ); for(let k=0;k<8;k++) C(0.1,0.1,0.42,MB([0xffd890,0x9ae8ff,0xffa0d8,0xa0ffb0][k%4]),BX+1.7,1.25+hS+(k%2)*0.6,BZ-1.6+k*0.45,8);
+    solide(BX-1.4,BZ,1.6,3,1.2); }
+  /* ---- les platines : la table de mixage, deux disques qui tournent, les enceintes ---- */
+  B(3.2,1,1.2,M(0x1a1a20),-16,0.5+hS,9); const d1=C(0.45,0.45,0.04,M(0x0a0a0a),-16.8,1.03+hS,9), d2=C(0.45,0.45,0.04,M(0x0a0a0a),-15.2,1.03+hS,9); d1.userData.garder=d2.userData.garder=true; Q.anim.push((dt)=>{ d1.rotation.y+=dt*3.5; d2.rotation.y+=dt*3.5; });
+  for(const sx of [-18.4,-13.6]) B(1,2,1,M(0x2a2a30),sx,1+hS,9.6); solide(-16,9,1.6,0.6,1.1);
+  /* ---- l'aquarium mural : de l'eau, du sable, du corail et des poissons qui nagent ---- */
+  { const AQ={x:-W/2+1.1,z:2}; B(0.6,2.6,9,M(0x1a1a20),AQ.x,1.6+hS,AQ.z); const eau=B(0.3,2.2,8.4,new THREE.MeshBasicMaterial({color:0x1a7ab8,transparent:true,opacity:0.85}),AQ.x+0.2,1.6+hS,AQ.z); eau.userData.garder=true;
+    B(0.32,0.3,8.4,M(0xe8d8a8),AQ.x+0.2,0.65+hS,AQ.z); for(let k=0;k<5;k++) S(0.25,M([0xff7a5a,0xffd23f,0xff5ad0][k%3]),AQ.x+0.25,0.9+hS,AQ.z-3.5+k*1.7,1,1.6,0.8);
+    const poissons=[]; for(let k=0;k<6;k++){ const f=S(0.12,MB([0xffa020,0x2ad4d0,0xff5ad0,0xffffff][k%4]),AQ.x+0.36,1.2+hS+k*0.28,AQ.z,1,0.6,1.8); f.userData.garder=true; poissons.push(f); }
+    Q.anim.push(()=>{ poissons.forEach((f,k)=>{ f.position.z=oz+AQ.z+Math.sin(Q.t*(0.5+k*0.13)+k)*3.6; f.position.y=1.2+hS+k*0.28+Math.sin(Q.t*1.3+k)*0.15; }); }); solide(AQ.x,AQ.z,0.4,4.5,2.8); }
+  /* ---- le garage vitré et sa voiture de collection (un cabriolet rouge, comme neuf) ---- */
+  { const GX=19.5, GZ=-3.5; B(9,0.06,6,M(0x2a2a30),GX,0.03+hS,GZ); const vitreG=new THREE.MeshPhongMaterial({color:0xbfe8f2,transparent:true,opacity:0.18,shininess:120,specular:0xffffff});
+    for(const [w,d,x,z] of [[9,0.08,GX,GZ-3],[9,0.08,GX,GZ+3],[0.08,6,GX-4.5,GZ]]) { const o=B(w,3,d,vitreG,x,1.5+hS,z); o.userData.garder=true; } B(9.2,0.15,6.2,M(0xf2f0ea),GX,3.05+hS,GZ);
+    const auto=VEH_V3.cabriolet?construireV3('cabriolet',null):makeVoiture('cabriolet'); if(auto){ auto.position.set(ox+GX,hS,oz+GZ); auto.rotation.y=Math.PI/2; peindreMesh(auto,0xc8202a); auto.traverse((o)=>{ o.userData.garder=true; }); g.add(auto); }
+    solide(GX,GZ,4.6,3.1,3); }
+  /* ---- la chambre avec vue (à l'est) : le lit, les tables de nuit, le grand miroir ; le coffre derrière un panneau qui coulisse ---- */
+  { const LX2=20, LZ2=14; B(4.4,0.5,5,M(0xf6f4ee),LX2,0.25+hS,LZ2); B(4.6,1.1,0.3,M(0xe8dcd0),LX2,0.8+hS,LZ2+2.6); B(4.2,0.12,3,M(ROSE),LX2,0.56+hS,LZ2-0.6); for(const sx of [-1,1]) B(0.7,0.6,0.7,M(0x1a1a20),LX2+sx*2.9,0.3+hS,LZ2+2.2);
+    solide(LX2,LZ2,2.2,2.5,0.6); Q.lit={x:LX2-3.4,z:LZ2};
+    const cx=8, cz=P2/2-7.6; B(4,2.8,0.4,M(0xece6dc),cx,1.4+hS,cz+0.4); B(1.4,1.4,0.6,MP(0x5a5e66,80,0xffffff),cx,1.1+hS,cz); const panneau=B(2,2.6,0.1,MT(pqTexRep('terrazzo',1,1),0xf2ece2),cx,1.4+hS,cz-0.3); panneau.userData.garder=true; Q.panneau={m:panneau,x0:ox+cx,ouv:0}; solide(cx,cz+0.4,2,0.3,2.8); Q.coffre={x:cx,z:cz-1.6}; }
+  /* ---- la salle de surveillance (à l'ouest) : six écrans des caméras du quartier, le bureau, le fauteuil ---- */
+  { const SX=-17, SZ=-3, cv=document.createElement('canvas'); cv.width=256; cv.height=128; const tx=new THREE.CanvasTexture(cv); Q.ecrans={cv,tx,t:0};
+    B(6,0.9,1.6,M(0x1a1a20),SX,0.45+hS,SZ+1.4); B(6,3,0.2,M(0x0c0c12),SX,2+hS,SZ+2.3); const e=PL(5.6,2.6,new THREE.MeshBasicMaterial({map:tx}),SX,2.05+hS,SZ+2.18,0,Math.PI); e.userData.garder=true; C(0.45,0.45,0.9,M(ROSE),SX,0.5+hS,SZ-0.2,12);
+    solide(SX,SZ+1.6,3,1,1); Q.surv={x:SX,z:SZ-1.2}; }
+  miamiEcrans(Q);
+  /* ---- les zones (toutes à 8 u au moins de la SORTIE) ---- */
+  s.pqLit={x:ox+Q.lit.x,z:oz+Q.lit.z}; s.pqCoffre={x:ox+Q.coffre.x,z:oz+Q.coffre.z}; s.pqSpec={x:ox+Q.surv.x,z:oz+Q.surv.z}; s.pqJeu={x:ox+Q.tee.x,z:oz+Q.tee.z+1.2};
+  Q.action=(sa,k)=>k==='pqSpec'?miamiSurvAction(sa):(k==='pqJeu'?golfAction(sa):null);
+  Q.maj=(sa,dt,dtJeu)=>{ miamiMajPanneau(sa,dtJeu); miamiEcrans(sa.pq,dt); majGolf(sa,dt,dtJeu); };
+  Q.arreter=(sa)=>{ golfArreter(sa,false); };
+};
+/* les écrans des caméras : six vignettes qui grésillent, les vedettes et les agents en points */
+function miamiEcrans(Q,dt){ const E=Q.ecrans; if(!E) return; E.t+=(dt||0); if(dt&&E.t<0.25) return; E.t=0; const c=E.cv.getContext('2d'); c.fillStyle='#05070a'; c.fillRect(0,0,256,128);
+  for(let k=0;k<6;k++){ const x=4+(k%3)*84, y=4+Math.floor(k/3)*62; c.fillStyle='#0c1a14'; c.fillRect(x,y,80,58); for(let i=0;i<60;i++){ c.fillStyle='rgba(120,200,160,'+(Math.random()*0.18).toFixed(2)+')'; c.fillRect(x+Math.random()*80,y+Math.random()*58,2,1); }
+    c.fillStyle='#7aff9a'; c.font='700 9px Arial'; c.fillText('CAM '+(k+1)+(k%2?' • REC':''),x+4,y+11); if(SURV.fin>ETAT.runT){ c.fillStyle='#4a9aff'; for(let i=0;i<3;i++) c.fillRect(x+10+((ETAT.runT*7+i*23+k*11)%60),y+20+i*12,4,4); } }
+  E.tx.needsUpdate=true; }
+function miamiMajPanneau(s,dtJeu){ const Q=s.pq, Pn=Q.panneau; if(!Pn) return; const pres=dist2(P.x,P.z,s.pqCoffre.x,s.pqCoffre.z)<12; Pn.ouv+=((pres?1:0)-Pn.ouv)*Math.min(1,dtJeu*4); Pn.m.position.x=Pn.x0-Pn.ouv*2.1; }
+function miamiSurvAction(s){ const pq=s.pq.pq; if(!pq) return null; const U=PLANQUES.usage.miami||(PLANQUES.usage.miami={lit:-1,spec:-1});
+  if(U.spec===WAVES.n) return {label:'⏳ SURVEILLANCE : les caméras se rechargent (prochaine vague)',fn:()=>{ SFX.refus(); toast('Déjà fait cette vague','warn'); }};
+  return {label:'📡 SALLE DE SURVEILLANCE — 60 s de police sur ta carte',fn:()=>{ planqueSpec(pq); }}; }
+
+/* ---------- LE GOLF SUR LE PONTON ----------
+   Dix balles vers trois greens flottants (18, 34 et 53 u : ×1, ×1,5, ×2). MAINTENIR FRAPPER : la jauge de puissance monte et
+   redescend ; relâcher frappe. Le joystick vise (gauche-droite). Le vent (affiché) dévie la balle. Elle tombe à l'eau dans une
+   gerbe ; les points dépendent de la distance au trou du green le plus proche : jusqu'à 120 × le multiplicateur. Record
+   META.planquesJeux.golf, prime une fois par vague au-delà de GOLF_OBJECTIF. */
+const GOLF_N=10, GOLF_OBJECTIF=800, GOLF_PRIME=250, GOLF_PORTEE=62, GOLF_JAUGE_VIT=0.85, GOLF_VENT_K=0.9;
+function golfAction(s){ const Q=s.pq; if(Q.golf) return null; const rec=META.planquesJeux.golf||0; return {label:'⛳ GOLF SUR LE PONTON — '+GOLF_N+' balles'+(rec?' (record '+rec+')':''),fn:()=>golfDemarrer(s)}; }
+function golfVent(){ const a=Math.random()*Math.PI*2, v=Math.random()*6; return {x:Math.sin(a)*v,z:Math.cos(a)*v,v}; }
+function golfDemarrer(s){ const Q=s.pq; if(Q.golf) return;
+  Q.golf={n:0,score:0,vise:0,charge:false,jauge:0,dir:1,vent:golfVent(),vol:null,pause:0,dernier:null,coups:[]}; Q.tenu=true;
+  const T=Q.tee; Q.cadrage={actif:true,oeil:{x:s.ox+T.x,y:3.4,z:s.oz+T.z+7},vise:{x:s.ox+T.x,y:0,z:s.oz+T.z-30},fov:-6};
+  P.x=s.ox+T.x-0.6; P.z=s.oz+T.z+0.3; P.ang=Math.PI; if(P.h){ P.h.g.position.set(P.x,0,P.z); P.h.g.rotation.y=P.ang; }
+  if(!Q.balle){ Q.balle=new THREE.Mesh(new THREE.SphereGeometry(0.11,10,8),new THREE.MeshLambertMaterial({color:0xffffff})); s.g.add(Q.balle); Q.mireG=new THREE.Mesh(new THREE.RingGeometry(0.8,1.05,24),new THREE.MeshBasicMaterial({color:0xff5ad0,transparent:true,opacity:0.8,depthWrite:false})); Q.mireG.rotation.x=-Math.PI/2; s.g.add(Q.mireG); }
+  Q.balle.visible=true; Q.mireG.visible=true; Q.balle.position.set(s.ox+T.x,0.15,s.oz+T.z); cacherBoutonsCombat(); golfUI(s,true); SFX.ui(); }
+function golfArreter(s,fini){ const Q=s&&s.pq; if(!Q||!Q.golf) return; Q.golf=null; Q.tenu=false; if(Q.cadrage) Q.cadrage.actif=false; if(Q.balle) Q.balle.visible=false; if(Q.mireG) Q.mireG.visible=false; golfUI(s,false); afficherBoutonsCombat(); }
+/* la chute de la balle, depuis le tee : direction, puissance, vent (même calcul pour le jeu et le pilote simulé) */
+function golfImpact(Q,vise,jauge,vent){ const T=Q.tee, d=GOLF_PORTEE*jauge, ux=Math.sin(vise), uz=-Math.cos(vise), tVol=0.9+jauge*1.4;
+  return {x:T.x+ux*d+vent.x*GOLF_VENT_K*tVol,z:T.z+uz*d+vent.z*GOLF_VENT_K*tVol,t:tVol}; }
+function golfPoints(Q,x,z){ let best=null; for(const g of Q.greens){ const d=Math.hypot(x-g.x,z-g.z); const pts=Math.max(0,Math.round((12-d)*10*g.m)); if(!best||pts>best.pts) best={g,d,pts}; } return best; }
+function golfArmer(s){ const G=s.pq.golf; if(!G||G.charge||G.vol||G.n>=GOLF_N) return; G.charge=true; G.jauge=0; G.dir=1; beep(220,0.06,'triangle',0.03); }
+function golfLacher(s){ const Q=s.pq, G=Q.golf; if(!G||!G.charge) return; G.charge=false; const I=golfImpact(Q,G.vise,G.jauge,G.vent);
+  G.vol={t:0,dur:I.t,de:{x:Q.tee.x,z:Q.tee.z},vers:I}; G.n++; bruit(0.12,0.08,2600,'highpass'); beep(880,0.05,'sine',0.04); vibre(15); }
+function majGolf(s,dt,dtJeu){ const Q=s.pq, G=Q.golf; if(!G) return; const T=Q.tee;
+  P.x=s.ox+T.x-0.6; P.z=s.oz+T.z+0.3; P.ang=Math.PI; if(P.h){ P.h.g.position.set(P.x,0,P.z); P.h.g.rotation.y=P.ang; }
+  if(!G.vol&&!G.charge) G.vise=clamp(G.vise+(INPUT.ex||0)*0.9*dtJeu,-0.75,0.75); /* le joystick vise */
+  if(G.charge){ G.jauge+=G.dir*GOLF_JAUGE_VIT*dtJeu; if(G.jauge>=1){ G.jauge=1; G.dir=-1; } else if(G.jauge<=0){ G.jauge=0; G.dir=1; } }
+  { const I=golfImpact(Q,G.vise,G.charge?G.jauge:0.6,{x:0,z:0}); Q.mireG.position.set(s.ox+I.x,0.05,s.oz+I.z); Q.mireG.visible=!G.vol; } /* le point visé (sans le vent) */
+  if(G.vol){ const V=G.vol; V.t+=dtJeu; const k=Math.min(1,V.t/V.dur), x=V.de.x+(V.vers.x-V.de.x)*k, z=V.de.z+(V.vers.z-V.de.z)*k, y=0.15+Math.sin(k*Math.PI)*(4+V.dur*6);
+    Q.balle.position.set(s.ox+x,y,s.oz+z);
+    if(k>=1){ const pts=golfPoints(Q,V.vers.x,V.vers.z), surGreen=pts.d<=pts.g.r; G.score+=pts.pts; G.coups.push(pts.pts); G.dernier={nom:surGreen?(pts.d<1?'DANS LE TROU !':'SUR LE GREEN — '+pts.pts):(pts.pts>0?'Plouf — '+pts.pts+' pts':'Plouf — à côté'),t:1.6};
+      for(let i=0;i<10;i++) spawnP(s.ox+x+rand(-0.4,0.4),0.1,s.oz+z+rand(-0.4,0.4),rand(-1,1),rand(2,4),rand(-1,1),0.22,0.5,surGreen?0x9aff8a:0xcfeaff,6); bruit(0.18,surGreen?0.04:0.1,surGreen?900:420,'lowpass');
+      if(surGreen) SFX.niveau(); G.vol=null; Q.balle.position.set(s.ox+T.x,0.15,s.oz+T.z); G.vent=golfVent(); if(G.n>=GOLF_N) G.pause=1.4; } }
+  if(G.dernier&&G.dernier.t>0) G.dernier.t-=dtJeu;
+  if(G.pause>0){ G.pause-=dtJeu; if(G.pause<=0) golfFin(s); }
+  golfUI(s,true); }
+function golfFin(s){ const Q=s.pq, G=Q.golf; if(!G) return; const sc=G.score, J=META.planquesJeux, rec=sc>(J.golf||0); if(rec){ J.golf=sc; sauveMeta(); }
+  const g=sc>=GOLF_OBJECTIF?primeMerUneFois('golf',GOLF_PRIME):0; golfArreter(s,true); bigMsg('⛳ '+sc+' POINTS');
+  toast('⛳ '+sc+' points'+(rec?' — record !':'')+(g?' — +'+g+' $':(sc>=GOLF_OBJECTIF?'':' — '+GOLF_OBJECTIF+' pour la prime de Rafa')),'or'); }
+function golfUI(s,vis){ let d=document.getElementById('golfPan'); const G=s.pq&&s.pq.golf; if(!vis||!G){ if(d&&d.style.display!=='none') d.style.display='none'; return; }
+  if(!d){ d=document.createElement('div'); d.id='golfPan'; d.style.cssText='position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 18px);z-index:35;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none;color:#fff;font:800 13px Arial;text-shadow:0 2px 3px #000';
+    d.innerHTML='<div style="position:fixed;left:0;right:0;top:calc(env(safe-area-inset-top,0px) + 236px);text-align:center"><div id="gfInfo" style="font:900 16px Arial"></div><div id="gfVent" style="font:700 13px Arial;color:#9ae8ff"></div><div id="gfRes" style="font:900 20px Arial;color:#ff5ad0;min-height:24px"></div><button class="pill" id="gfStop" style="pointer-events:auto;font:700 11px Arial;margin-top:4px">ARRÊTER</button></div>'
+      +'<div style="width:220px;height:14px;border-radius:7px;background:rgba(10,10,20,0.7);position:relative;border:2px solid #fff"><div style="position:absolute;left:55%;width:30%;top:0;bottom:0;background:rgba(42,212,208,0.55)"></div><div id="gfAig" style="position:absolute;top:-3px;bottom:-3px;width:4px;background:#ff5ad0"></div></div>'
+      +'<button id="gfFrapper" style="pointer-events:auto;width:150px;height:62px;border-radius:31px;border:3px solid #fff;background:linear-gradient(#ff5ad0,#b02a8a);color:#fff;font:900 16px Arial">⛳ FRAPPER</button>';
+    document.body.appendChild(d); const b=d.querySelector('#gfFrapper');
+    b.addEventListener('pointerdown',(e)=>{ e.preventDefault(); if(INT.actif&&INT.actif.pq) golfArmer(INT.actif); try{ b.setPointerCapture(e.pointerId); }catch(er){} });
+    const up=()=>{ if(INT.actif&&INT.actif.pq) golfLacher(INT.actif); }; b.addEventListener('pointerup',up); b.addEventListener('pointercancel',up);
+    d.querySelector('#gfStop').addEventListener('pointerdown',(e)=>{ e.preventDefault(); if(INT.actif) golfArreter(INT.actif,false); }); }
+  if(d.style.display!=='flex') d.style.display='flex';
+  const inf='⛳ Balle '+Math.min(GOLF_N,G.n+(G.vol?0:1))+' / '+GOLF_N+' — '+G.score+' pts', ie=d.querySelector('#gfInfo'); if(ie._t!==inf){ ie._t=inf; ie.textContent=inf; }
+  const fl=['↑','↗','→','↘','↓','↙','←','↖'][((Math.round(Math.atan2(G.vent.x,-G.vent.z)/(Math.PI/4))%8)+8)%8], vt='Vent '+fl+' '+G.vent.v.toFixed(1)+' m/s', ve=d.querySelector('#gfVent'); if(ve._t!==vt){ ve._t=vt; ve.textContent=vt; }
+  const re=d.querySelector('#gfRes'), rt=G.dernier&&G.dernier.t>0?G.dernier.nom:''; if(re._t!==rt){ re._t=rt; re.textContent=rt; }
+  d.querySelector('#gfAig').style.left='calc('+(G.jauge*100)+'% - 2px)'; }
+/* le son de la villa : le clapot du canal, le vent tiède, les synthés rétro qui respirent (plus forts dedans), une mouette */
+PQ_SONS.miami={nappes:[{type:'lowpass',f:480,q:0.6,v:0.03,lfo:0.18,prof:0.8,dedans:0.4},{f:1900,q:1.1,v:0.005,lfo:0.14,prof:0.9,dedans:0.3}],
+  evts:(s,dt,dd)=>{ const Q=s.pq; Q.synT=(Q.synT===undefined?1:Q.synT)-dt; if(Q.synT<=0){ Q.synT=2.4; const acc=[[220,277,330],[196,247,294],[175,220,262],[196,247,311]][(Q.synI=((Q.synI||0)+1)%4)], v=dd?0.012:0.004;
+      for(const f of acc) beep(f,2.2,'sawtooth',v*0.5,f*0.995); beep(acc[0]/2,2.2,'sine',v); }
+    Q.moT=(Q.moT===undefined?7:Q.moT)-dt; if(Q.moT<=0){ Q.moT=10+Math.random()*12; if(!dd){ beep(1500,0.18,'triangle',0.008,1200); setTimeout(()=>beep(1400,0.16,'triangle',0.007,1150),210); } } }};
 /* =====================================================================
    BOUTIQUES DE STYLE (14 octobre, demandé : « des boutiques où l'on se change, des habits classe en ville, fun
    sur la plage, adaptés aux quartiers, avec un tatoueur et un coiffeur ; se changer de manière dépareillée »).
@@ -32723,7 +32952,8 @@ const INTDEFS={
   cabanon:{nom:'Cabanon de plage',ico:'🏖️',w:44,d:36,sol:0xe8d0a0,mur:0xb89a72,ens:['CABANON','#ffd23f'],planque:'cabanon'},
   chalet:{nom:'Chalet retranché',ico:'🏔️',w:44,d:36,sol:0xe8eef4,mur:0x7a5434,ens:['CHALET','#ffd23f'],planque:'chalet'},
   voilier:{nom:'Voilier « Belle Échappée »',ico:'⛵',w:44,d:36,sol:0x1a8aa0,mur:0xf6f6f2,ens:['BELLE ÉCHAPPÉE','#ffd23f'],planque:'voilier'},
-  taudis:{nom:'Taudis de la zone',ico:'🛢️',w:44,d:36,sol:0x24252a,mur:0x7a6a5a,ens:['TAUDIS','#ffd23f'],planque:'taudis'}
+  taudis:{nom:'Taudis de la zone',ico:'🛢️',w:44,d:36,sol:0x24252a,mur:0x7a6a5a,ens:['TAUDIS','#ffd23f'],planque:'taudis'},
+  miami:{nom:'Villa Miami',ico:'🦩',w:52,d:44,sol:0xe8e0d4,mur:0xf6f4ee,ens:['VILLA MIAMI','#ff5ad0'],planque:'miami'}
 };
 // SITE 51 — dix objets de valeur, position relative (dx,dz depuis ox,oz), et
 // sas fermés à la prise (définitivement, pour la visite). Graphe et fermetures
@@ -32838,7 +33068,7 @@ const CATALOGUE=[
      fusionnés par matériau. Ni lumière ni applique dans le métro et le Site 51 (l'obscurité y est le jeu).
    Textures de détail en niveaux de gris, multipliées par la couleur d'origine de chaque salle : chaque salle
    garde sa palette. Rien n'est créé au chargement (textures à la première salle). */
-const SALLES_SANS_HABILLAGE=new Set(['aquarium','laverie','serre','radio','chalutier','cine','depot','boutique','caravane','penthouse','cabanon','chalet','voilier','taudis']);
+const SALLES_SANS_HABILLAGE=new Set(['aquarium','laverie','serre','radio','chalutier','cine','depot','boutique','caravane','penthouse','cabanon','chalet','voilier','taudis','miami']);
 const HABILLAGE_SALLES={
   superette:{sol:['carrelage',2.7],mur:['faience',1.6],lambris:['panneau',0x4a6a58],deco:['affiche','neon','horloge','affiche','grille','extincteur'],affiches:['PROMO −30 %','FRAIS DU JOUR','OUVERT 24/7'],accent:'#ffd23f'},
   club:{dalleLum:0.42,sol:['dalles',2],mur:['capitonne',1.2],lambris:['capitonne',0x1c1630],deco:['neon','affiche','applique','neon','affiche'],affiches:['NUIT NÉON','DJ KAA','VENDREDI'],accent:'#ff5ad0'},
@@ -46053,6 +46283,7 @@ function majMinimap(){
   for(const p of pickups){ const q=proj(p.x,p.z); if(!dedans(q)) continue; mmCtx.fillStyle='#58ff7a'; mmCtx.beginPath(); mmCtx.arc(q.x,q.y,2,0,7); mmCtx.fill(); }
   for(const e of ennemis){ if(e.mort) continue; const q=proj(e.x,e.z); if(!dedans(q)) continue; const r=e.boss?5:2.8;
     mmCtx.fillStyle=e.fac==='police'?'#4a9aff':(e.fac==='frelons'?'#e6a41f':'#ff4a4a'); mmCtx.beginPath(); mmCtx.arc(q.x,q.y,r,0,7); mmCtx.fill(); mmCtx.lineWidth=1; mmCtx.strokeStyle='#0b0c10'; mmCtx.stroke(); }
+  if(SURV.fin>ETAT.runT) dessinerSurveillance(mmCtx,proj,R); /* la salle de surveillance de la villa Miami */
   const badge=(x,z,coul,ico)=>{ const q=proj(x,z); if(dedans(q,4)) dessinerBadge(mmCtx,q.x,q.y,5.2,coul,ico,8); };
   if(META.monstertruckTrouve&&POIS.friche) badge(POIS.friche.x,POIS.friche.z,'#ff3b1a','🚛');
   if(POIS.skateXXL) badge(POIS.skateXXL.x,POIS.skateXXL.z,'#ff3bd0','🛹'); // Reyes Skatepark (désert)

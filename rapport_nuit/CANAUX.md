@@ -327,10 +327,71 @@ Code : `canauxNautiqueDefinir`, `mkNautiqueCanaux`, `amarreCanal`, `enseigneCana
 Captures : `p3_carte_statique.png` (jardins, maisons, piscines), `p3_villas_o.png`, `p3_quartier_imm.png`, `p3_immeuble.png`,
 `p4_embarcadere.png`, `p4_atelier.png`, `p4_canal_imm.png` (le tablier orange effacé au-dessus de la caméra).
 
+## Phase 5 — la villa Miami (fait)
+
+Code : bloc `8. LA VILLA MIAMI` à la fin des `INTÉRIEURS DES PLANQUES` (`MIAMI`, `MIAMI_LIVREE`, `SURV`, `mkMiamiCanaux`,
+`miamiLivree`, `miamiBateaux`, `dessinerSurveillance`, `PQ_INT.miami`, `miamiEcrans`, `miamiMajPanneau`, `miamiSurvAction`, le golf
+`GOLF_*`, `PQ_SONS.miami`) ; la parcelle et le ponton dans `canauxDefinir` (`CANAUX.miami`, `CANAUX.miamiPonton`) ; les crochets du
+système des planques (`PLANQUES_DEF`, `planqueAction`, `planqueSpec`, `acheterPlanque`), `canauxStartRun`, `majMinimap`, `TENUES`,
+`INTDEFS.miami`, `SALLES_SANS_HABILLAGE`, la sauvegarde (`META.planques.miami`, `META.planquesJeux.golf` : clés fixes).
+
+- [x] **La 8e planque, sur le modèle exact des sept autres** : `PLANQUES_DEF` (id `miami`, 14 000 $ — moins que la villa de la
+  colline, 20 000 $ —, revenus 110 à 190 $ par vague), clé fixe `META.planques.miami`, une salle `INTDEFS.miami` (`planque:'miami'`,
+  `PQ_INT.miami`, `construirePlanqueSalle`), zones `s.pqLit`, `s.pqCoffre`, `s.pqSpec`, `s.pqJeu` (toutes à plus de 8 u de la SORTIE),
+  porte hors de `PORTES` (`pq.porte`, `pq.entree`), sons `PQ_SONS.miami`, lumière `s.pqAmb`, record `META.planquesJeux.golf`, tenue
+  « Flamingo » (`TENUES`), balise, badge H de la carte (`listeCommerces` lit `PLANQUES.liste`).
+- [x] **Dehors** : pâté (9,9), au bord du canal ouest, en face de l'entrée de la traverse (une intersection d'eau). Villa blanche
+  cubique (deux volumes décalés, baies, néons rose et turquoise, auvent), sur un socle praticable (`PLATS`, 1,12 u), sa propre rampe
+  d'accès en voiture (`RAMPES`) depuis la rue du sud (z = 126) ; piscine (`BASSINS`), transats, palmiers ; vus de dessus, un toit de
+  teck avec jacuzzi et transats, une pergola et des jardinières. « VILLA À VENDRE » tant qu'elle n'est pas achetée.
+  **Tournée vers le sud** : la caméra regarde vers le nord ; tournée vers la rue du nord (premier essai), la maison cachait le
+  joueur devant sa porte et la façade n'était jamais vue (capture `p5_dehors_a_vendre.png`).
+- [x] **Ponton privé** (`CANAUX.miamiPonton`) : quai ouest du canal ouest, z 128 → 140, au bout de la rue de la villa — entre
+  l'escalier (z 118) et le pont du sud, hors de la traverse (les bateaux y tournent).
+- [x] **Ses bateaux** (`miamiBateaux`, à l'achat et à chaque partie par `canauxStartRun`, générateur privé) : l'**Espadon** (clé
+  existante `espadon`) et un **jet-ski**, à la livrée de la villa (`miamiLivree` : coque et flancs roses, pont blanc, filets
+  turquoise ; jet-ski turquoise à filets roses), amarrés au ponton côté chenal, pilotables ; le chenal garde au moins 11 u. Aucune
+  clé `VEHDEFS` nouvelle. La version lointaine (niveau de détail du trafic) gardait les couleurs d'origine : `lodFixerV4`.
+- [x] **Dedans** (`PQ_INT.miami`, 52 × 44 u) : la villa ouverte sur le canal au coucher du soleil — dôme violet, rose et or, le
+  soleil et son reflet, le canal (`PQ_MER_FS`, en demi-disque : **rien à plus de 185 u**, vérifié par le test), les villas d'en face
+  et leurs pontons ; sol de terrazzo (texture `terrazzo` ajoutée à `PQ_TEX_DESSIN`), néons rose et turquoise, néon « FLAMINGO »,
+  grande baie vitrée sur la terrasse, piscine à débordement (on y nage), palmiers, transats, **salon blanc en contrebas** (le sol
+  autour est un `PLATS` à 0,35 u : deux marches), canapé en U, bar en arc et ses tabourets, bouteilles lumineuses, platines (les
+  disques tournent), aquarium mural (les poissons nagent), **garage vitré et son cabriolet rouge de collection**, chambre avec vue
+  et son lit, **coffre derrière un panneau qui coulisse** quand on approche ; jardin de devant (pelouse, allée, palmiers, flamants
+  roses de jardin) vu de dessus derrière la verrière sud ; le toit s'efface quand on est dessous (`Q.toits`).
+- [x] **Spécificité, la salle de surveillance** (`spec:'surveillance'`, `planqueSpec`, une fois par vague) : six écrans des caméras
+  du quartier (canevas animé) ; on lance 60 s de surveillance (`SURV.fin`) : les vedettes et les agents de police apparaissent sur
+  la minimap (`dessinerSurveillance`, appelée par `majMinimap`), ceux hors du radar épinglés sur son bord, un compte à rebours.
+- [x] **Activité, le golf sur le ponton** (`GOLF_*`) : dix balles depuis un tee sur le ponton de teck vers trois greens flottants
+  dans le canal (21, 35 et 52 u ; ×1, ×1,5, ×2) ; le joystick vise (gauche-droite), FRAPPER maintenu fait monter et redescendre la
+  jauge de puissance, relâcher frappe ; le vent (affiché, flèche et m/s) dévie la balle ; elle tombe à l'eau dans une gerbe ;
+  points selon la distance au trou du green le plus proche (jusqu'à 120 × le multiplicateur). Record `META.planquesJeux.golf`,
+  prime de 250 $ au-delà de `GOLF_OBJECTIF` (800), une fois par vague (`primeMerUneFois`). Joueur tenu sur le tee, caméra derrière
+  lui (`Q.cadrage`), ARRÊTER à tout moment.
+- [x] **Ambiance** : coucher de soleil, clapot et vent tiède, accords de synthé rétro qui respirent (plus forts dedans), mouette ;
+  coupée par `sortirInterieur`, `mourir`, `startRun` (chemins communs des planques).
+
+### Mesures (phase 5)
+
+- Test « Planques, 8 : la villa Miami » : une voiture monte la rampe jusqu'au socle ; achat, enseigne retirée, tenue ; Espadon et
+  jet-ski au ponton, pilotables, chenal libre ; recréés à la partie suivante ; entrée, couchant, ambiance ; zones à plus de 8 u de la
+  SORTIE ; rien à plus de 186 u ; toit qui s'efface ; lit ; panneau qui coulisse et coffre ; surveillance une fois par vague, deux
+  marques sur la minimap (un agent hors du radar, une vedette), éteinte après 60 s ; **golfeur simulé** (vrais boutons, 0,1 s de
+  réaction, il lit le vent) : 1 393 à 1 539 points sur trois tirages, record, prime ; **maladroit** (visée et puissance au hasard) :
+  249 à 557 points ; **passif** : 0 point, ARRÊTER rend la main ; sortie devant la villa ; la mort en pleine partie coupe le golf et
+  l'ambiance.
+- Empreinte du décor (`"decor":931930327`), portes, chalet et tirage principal après le chargement : identiques. Relevé de
+  protection du périmètre : **aucun écart**.
+
+Captures : `p5_dehors_a_vendre.png`, `p5_dehors_rue_imm.png`, `p5_ponton_bateaux.png`, `p5_canal_villa_imm.png`,
+`p5_dedans_entree.png`, `p5_dedans_salon.png`, `p5_dedans_baie_imm.png`, `p5_terrasse_imm.png`, `p5_bar_garage_imm.png`,
+`p5_surveillance_imm.png`, `p5_chambre_imm.png`, `p5_golf.png`, `p5_golf_vol.png`.
+
 ## Phases
 
 - [x] Phase 1 — squelette jouable
 - [x] Phase 2 — police maritime
 - [x] Phase 3 — bâti
 - [x] Phase 4 — nautique et ambiance
-- [ ] Phase 5 — planque villa Miami
+- [x] Phase 5 — planque villa Miami
