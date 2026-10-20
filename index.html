@@ -26274,7 +26274,9 @@ function pousseHorsSolide(o,r){
 // majTrafic, majVehicules pour les garés).
 const KNOCK_FRICTION=3.2, KNOCK_VMAX=48;
 // un véhicule au sol peut-il se tenir en (x, z) ? (un solide plus haut que ce qu'il franchit, à la largeur de sa caisse)
-function bloqueParSolide(v,x,z){ const d=v.def; if(d.air||d.eau||v.enAir||surEauVeh(v)) return false; const so=solidAt(x,z,d.larg*0.42); return !!(so&&so.h>(v.h||0)+(d.franchit||0.5)); }
+function bloqueParSolide(v,x,z){ const d=v.def; if(d.air||v.enAir) return false;
+  if(d.eau||surEauVeh(v)) return !!(CANAUX.ok&&dansBBCanaux(v.x,v.z)&&!estEauNav(x,z)); /* un bateau dans les canaux : le bord de l'eau est un mur pour la séparation et le recul d'un choc (Canaux V2 : une vedette poussait un jet-ski sur la rue, au fond d'une impasse) ; en mer, rien ne change */
+  const so=solidAt(x,z,d.larg*0.42); return !!(so&&so.h>(v.h||0)+(d.franchit||0.5)); }
 /* Dégagement des murs (18 octobre) : un véhicule au sol dont la caisse mord dans un solide (coins, milieux des flancs,
    bouts) en est sorti, au plus 0,6 u par image, le long de l'axe le moins enfoncé du solide. Une voiture coincée
    contre un mur par une autre, poussée par l'élan d'un choc ou par la séparation entre véhicules, finissait DANS le

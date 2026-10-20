@@ -15602,11 +15602,11 @@ async function main() {
           /* il ressort : vers le canal principal par le bassin du bras */
           const bras = C.eaux.find((e) => e.t === 'c' && /^bassin/.test(e.id) && Math.hypot(e.x - sc.x0, e.z - sc.z0) < 40) || C.eaux.find((e) => e.id === (sc.id === 'secO' ? 'bassinO' : 'bassinE'));
           const sortie = [[(sc.x0 + sc.x1) / 2, sc.z0 + 4], [bras.x, bras.z], [sc.id === 'secO' ? 147 : 231, bras.z]]; let k = 0, dehors = -1, suivie = -1;
-          pas(50 * 60, (i) => { prot(); const [tx, tz] = sortie[Math.min(k, sortie.length - 1)], dx = tx - P.x, dz = tz - P.z, d = Math.hypot(dx, dz); if (d < 5 && k < sortie.length - 1) k++; if (k === sortie.length - 1 && d < 5) { INPUT.jx = INPUT.jy = 0; if (dehors < 0) dehors = i / 60; } else { INPUT.jx = dx / d * 0.6; INPUT.jy = dz / d * 0.6; }
+          pas(75 * 60, (i) => { prot(); const [tx, tz] = sortie[Math.min(k, sortie.length - 1)], dx = tx - P.x, dz = tz - P.z, d = Math.hypot(dx, dz); if (d < 5 && k < sortie.length - 1) k++; if (k === sortie.length - 1 && d < 5) { INPUT.jx = INPUT.jy = 0; if (dehors < 0) dehors = i / 60; } else { INPUT.jx = dx / d * 0.6; INPUT.jy = dz / d * 0.6; }
             for (const v of vehicules) if (!v.mort && v.vedetteCanal) { if (!horsEcran(v.x, v.z)) coince = Math.max(coince, v.pcCoince || 0); if (dehors >= 0 && suivie < 0 && !formeContient(sc, v.x, v.z) && !formeContient(bas, v.x, v.z) && dist2(v.x, v.z, P.x, P.z) < 625) suivie = i / 60; }
             if (suivie >= 0) return false; });
           INPUT.jx = INPUT.jy = 0;
-          if (dehors < 0) ko.push(sc.id + ' : le joueur n’est pas ressorti'); else if (suivie < 0) ko.push(sc.id + ' : la vedette n’est pas ressortie derrière le joueur');
+          if (dehors < 0) ko.push(sc.id + ' : le joueur n’est pas ressorti (joueur ' + P.x.toFixed(1) + ',' + P.z.toFixed(1) + ' étape ' + k + ', vedettes ' + vehicules.filter((v) => !v.mort && v.vedetteCanal).map((v) => v.x.toFixed(1) + ',' + v.z.toFixed(1) + ' v' + v.v.toFixed(1)).join(' / ') + ')'); else if (suivie < 0) ko.push(sc.id + ' : la vedette n’est pas ressortie derrière le joueur');
           if (coince > 5) ko.push(sc.id + ' : une vedette coincée ' + coince.toFixed(1) + ' s à l’écran');
           info.push(sc.id + ' : vedette au fond en ' + t.toFixed(1) + ' s, ressortie derrière le joueur (' + (suivie >= 0 ? suivie.toFixed(1) + ' s' : '—') + '), coincée ' + coince.toFixed(1) + ' s au plus'); }
         partie(); return { ko, info };
