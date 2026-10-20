@@ -212,7 +212,7 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 9995 | `TRESOR_CARTE` — la chasse au trésor du voilier : `tresorCandidats`, `tresorNouvelle`, `tresorDessiner`, `tresorCreuser`, `majTresorCarte` ; puis le taudis (`sacDemarrer`, `majSac`) et la villa (`plongeonDemarrer`, `majPlongeon`) |
 | 28185 | `controleDir()` — le joystick devient gaz et braquage ; bateaux : `sB` compense la marche arrière, une cible derrière se départage par le côté de l'écran (`v.sensDT`) |
 | 3453 | `CANAUX` — la géométrie de l'eau des canaux (avant `estEau`) : `formeSdf`, `dansCanal`, `pontCanal`, `marcheCanal`, `dansCoupe`, `routeCanalInterdite`, `estEauNav` (l'eau pour un bateau, sous les tabliers aussi), `niveauCanal`, `niveauFlot` |
-| 7954 | `VILLA_CANAUX` — le bâti des canaux (phase 3) : `constructeurCanaux`, `villaCanaux`, `immeubleCanaux`, `palmierCanaux`, `pontonsCanaux`, `mkBatiCanaux` |
+| 7954 | `VILLA_V2_STYLES` — le bâti des canaux V2 : `constructeurCanaux` (avant), `palmierCanaux`, `aleaLot`, `villasV2Plan`, `palmierV2`, `VILLA_V2_MAISON`, `villaV2`, `CONDOS_V2`, `mkVillasV2`, `majNuitCanaux`, puis la vie (`CVIE`, `canauxVieConstruire`, `majCanauxVie`, `CANAUX_SON`), les pontons construits (`coqueDecorV2`, `bateauDecorV2`, `mkPontonsV2`) et `mkBatiCanaux` |
 | 8097 | `canauxNautiqueDefinir` — nautique et ambiance (phase 4) : `mkNautiqueCanaux`, `amarreCanal`, `enseigneCanaux`, `dockersCanaux`, `canauxStartRun` |
 | 10247 | `MIAMI` — la villa Miami (8e planque, canaux phase 5) : `mkMiamiCanaux`, `miamiLivree`, `miamiBateaux`, `SURV` / `dessinerSurveillance`, `PQ_INT.miami`, `miamiEcrans`, `miamiSurvAction` ; texture `terrazzo` |
 | 10408 | `GOLF_N` — le golf sur le ponton de la villa Miami : `golfAction`, `golfDemarrer`, `golfImpact`, `golfPoints`, `golfArmer` / `golfLacher`, `majGolf`, `golfFin`, `golfUI` ; `PQ_SONS.miami` |
@@ -1130,9 +1130,8 @@ restitution dans le suivi. Hors périmètre (demandé) : taxi bateau, courses, p
   ralentissent sous les ponts, ne débarquent jamais d'agents ; 4 étoiles : barrage en travers d'une embouchure (forçable) ;
   patrouille sans étoile (`patrouilleCanal`, témoin) ; la recherche ne tombe pas tant qu'une vedette est à 90 u. À terre : agents
   jamais poussés dans l'eau (`degageDeVehicule`), un agent à l'eau nage aux marches.
-- **Bâti** (phase 3, `VILLA_CANAUX`, `villaCanaux`, `immeubleCanaux`, `mkBatiCanaux`) : 18 villas de quatre modèles (choisies par le
-  rang du lot, aucun tirage), 3 petits immeubles, piscines (`BASSINS`), pontons privés (`pontonsCanaux` : jamais devant une marche,
-  sous un pont, à hauteur d'un bras ou de la traverse), une géométrie à couleurs de sommets par pâté (`MOB_MAT`).
+- **Bâti** (phase 3) : 18 villas de quatre modèles et 3 petits immeubles — **remplacés par la V2** (voir « Canaux V2 » ci-dessous :
+  `villaV2`, `pontonsV2`, `mkBatiCanaux`).
 - **Nautique** (phase 4, `canauxNautiqueDefinir`, `mkNautiqueCanaux`) : bateaux du décor bâchés (modèles aplatis en couleurs de
   sommets), jet-skis et vedette de l'embarcadère pilotables (`canauxStartRun`, générateur privé à chaque partie), débarquement sur
   le ponton ou les marches les plus proches (`sortirVehicule`), l'atelier et ses Dockers figurants (`dockersCanaux`, créés à la 1re
@@ -1161,6 +1160,55 @@ restitution dans le suivi. Hors périmètre (demandé) : taxi bateau, courses, p
 - Tests : « Canaux de Los Reyes », « Canaux : rien de cassé », « Police maritime des canaux », « Canaux : le bâti », « Canaux :
   nautique et ambiance », « Canaux : au joystick réel » (vedette et jet-ski au vrai joystick par `controleDir`, 500 piétons),
   « Planques, 8 : la villa Miami » ; « Port vivant » (plus de parcs à conteneurs dans le port).
+
+### Canaux V2 (20 octobre) — de vraies villas de Miami au bord de l'eau, des ponts tous différents (branche `canaux-v2`, suivi `rapport_nuit/CANAUX_V2.md`)
+
+Demandé avec cinq photos (`rapport_nuit/canaux_refs/`, brief `rapport_nuit/PROMPT_CANAUX_V2.md`) : « chaque villa a une façade sur
+l'eau (jardin, piscine, mur de quai, ponton privé) et une sur une rue ou une allée (portail, allée de garage, voiture) ; trois fois
+plus de villas ; des doigts de terre entre les canaux ; des ponts tous différents ; de la vie ». Mêmes règles qu'en V1 : ville et décor
+construits comme avant, relevé du périmètre sans écart, empreinte du décor et tirage principal identiques.
+- **Le plan** (`canauxDefinir`) : les rues des quais disparaissent dans le quartier (`CANAUX.coupes`, 28 segments) ; deux **canaux
+  secondaires en impasse** (`secO`, `secE`, 12 u, bassin de demi-tour de 8 u au bout, dans `dansCanal` et le graphe des vedettes) ;
+  des **allées** au niveau de la rue, sans trafic (`CANAUX.allees`, `dansAlleeCanaux`, percées dans les dalles) ; dix rangées de
+  lots (`CANAUX_ILOTS`, `canauxLotsV2`) : **50 lots** de 12 à 17,5 u (largeur par `hacheLot`, jamais `Math.random`), chacun les pieds
+  dans l'eau ET sur une allée ou une rue, quatre grands lots en pointe des doigts (deux pour la Brigada). L'embarcadère public passe
+  sur le quai nord de la traverse. `lotCanaux` ; `surChaussee` ne voit jamais un lot.
+- **Les villas** (`villasV2Plan` — des données, à la fin de `canauxDefinir` —, `villaV2`, `VILLA_V2_MAISON`, `VILLA_V2_PALETTES`,
+  `aleaLot`) : cinq styles (moderne blanc, méditerranéen, tropical contemporain, Art déco, bungalow des années 50), trois palettes
+  chacun, 1 à 3 niveaux, en miroir ; deux voisines jamais du même style (une permutation par rangée). Côté eau : pelouse, terrasse,
+  piscine (rectangle, en L, à débordement, à plage immergée, couloir de nage sur un lot étroit — `BASSINS`), transats, parasol,
+  cuisine d'été, foyer, hamac, bougainvilliers, palmiers (`palmierV2` : royal ou cocotier, vraies palmes), couronnement du quai.
+  Côté allée : muret, allée pavée, voiture au fond de l'allée de garage (un solide ; `l.parking`, `l.portail`), boîte aux lettres.
+  Haies mitoyennes solides ; un passage à pied libre de l'allée au quai (`l.passage`). Un bassin qui entame un lot : la villa recule
+  (`l.entaille`). Une géométrie par rangée (`MOB_MAT`) et une pour la nuit (`_MAT_FEN_CANAUX`, `matFenCanaux`, `majNuitCanaux`).
+  Trois **condos** de 6 à 8 niveaux en bordure est (`CONDOS_V2`, `condoV2`), jamais devant un canal. Le constructeur
+  (`constructeurCanaux`) a aussi `cone`, `tri` (avec `vers` : l'extérieur de la face, miroir compris), `tronc`, `palme`.
+- **Les pontons** (`pontonsV2` — des données —, `mkPontonsV2`, `hauteurPonton`) : un par lot (pas sur un lot entamé), à quai, en L
+  ou en T (passerelle qui descend du quai au flotteur), pieux à chapeau blanc, taquets, bornes allumées la nuit, cabane à claustra ;
+  une **échelle** chacun (`CANAUX.echelles`, `echelleProche`, lue par `rivePlusProche` avec les marches). **Le chenal** : la rive
+  d'en face garde toujours la place d'un ponton ; sinon le bateau rapetisse — 10,5 u au moins dans un canal à deux rives, 6,5 dans
+  une impasse (mesuré par le test). **Bateaux** (`BATEAUX_V2`, `coqueDecorV2`, `bateauDecorV2`) sur ~57 % des pontons : yachts à
+  moteur (grands lots), sportfishing, day-cruisers, voiliers, opens, petits (parfois sur un élévateur), quais à jet-skis ; ceux du
+  décor dans UNE géométrie qui berce (`matBateauxCanaux`, attribut `aCentre`) et un mur pour un bateau (`CANAUX.amarres`, `v2`) ;
+  cinq pilotables (`CANAUX.pilotables`, créés par `canauxStartRunPrive`, `v.canauxPilotable`) : une vedette par canal principal,
+  trois jet-skis.
+- **Les ponts** (`STYLES_PONTS`, `peindreRoutePont`, `decoPontV2` dans le groupe du tablier) : levis orange (sud-ouest, gardé, fixe),
+  vénitien, promenade Art déco, bois tropical, et sur le front de mer plage et pierre ; même profil validé pour tous. **Passerelles**
+  (`passerellesV2`, `passerelleCanal`, `hauteurPasserelle`, `mkPasserelleV2`) : arche blanche (bras ouest), bois sur pieux (bras est),
+  acier léger (traverse) ; à pied et à vélo, eau navigable dessous, trois bornes à chaque bout (une voiture ne passe pas),
+  `estEau` faux sur le tablier, apparitions et véhicules posés exclus, tablier qui s'efface au-dessus d'un bateau.
+- **La vie** (`CVIE`, `canauxVieConstruire` à la 1re partie, `majCanauxVie`) : figurants (bronzeurs, barbecues, laveurs de bateau,
+  pêcheurs, enfants qui sautent du ponton, joggeur du pont de la promenade, promeneurs de chien), deux bateaux du décor qui
+  circulent et s'arrêtent devant le joueur, ombres sur l'eau, eau plus turquoise, flaques de lumière la nuit, une fête
+  (`CANAUX.fete`) ; sons `CANAUX_SON` (clapot, hors-bord au loin, drisses, fête), coupés en salle, à la mort, à chaque partie.
+- **Pièges trouvés** : (1) la boucle des voitures garées au hasard (`startRun`) consomme un tirage de plus quand une place candidate
+  passe le test des volumes : dans le quartier, elle décide comme avant lui (la rue d'origine) et `canauxNettoyerVehicules` retire
+  ensuite le mal placé (désormais aussi sur la pelouse d'un lot) ; (2) un bateau poussé par la séparation sortait de l'eau dans une
+  impasse : dans les canaux, `bloqueParSolide` traite le bord de l'eau comme un mur pour un bateau ; (3) **les caches partagés**
+  (`_matCache` de `mat()`, `VIS_CACHE`) remplis par des figurants créés en jeu : une salle construite ensuite crée un objet de moins,
+  tire un uuid de moins, et la ville se décale (21 véhicules garés ailleurs) — `canauxVieConstruire` retire ce qu'il y a ajouté.
+- **Tests** : « Canaux V2 : le plan », « … canaux secondaires », « … les villas », « … pontons et bateaux » (+ « sortir à la nage »,
+  « bateaux pilotables »), « … les ponts », « … les passerelles », « … la vie » ; tous les tests des canaux V1 repassent.
 
 ## Los Reyes Hills (15 octobre 2026) — `HILLS`, bandeau `LOS REYES HILLS`
 

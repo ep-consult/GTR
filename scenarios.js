@@ -15358,7 +15358,8 @@ async function main() {
         partie();
         /* 1. la géométrie : chaque forme d'eau est de l'eau, chaque tablier une chaussée au-dessus d'une eau navigable */
         for (const e of C.eaux) { const x = e.t === 'r' ? (e.x0 + e.x1) / 2 : (e.t === 'c' ? e.x : e.pts.reduce((a, q) => a + q[0], 0) / e.pts.length), z = e.t === 'r' ? (e.z0 + Math.min(e.z1, MER - 1)) / 2 : (e.t === 'c' ? e.z : e.pts.reduce((a, q) => a + q[1], 0) / e.pts.length);
-          if (!pontCanal(x, z) && !marcheCanal(x, z) && !(estEau(x, z) && solY(x, z) < C.niveau - 1)) ko.push('eau ' + e.id + ' : (' + x.toFixed(0) + ', ' + z.toFixed(0) + ') n’est pas de l’eau navigable'); }
+          const tab = pontCanal(x, z) || (typeof passerelleCanal === 'function' && passerelleCanal(x, z)); /* V2 : une passerelle piétonne est un tablier comme un pont */
+          if (!tab && !marcheCanal(x, z) && !(estEau(x, z) && solY(x, z) < C.niveau - 1)) ko.push('eau ' + e.id + ' : (' + x.toFixed(0) + ', ' + z.toFixed(0) + ') n’est pas de l’eau navigable'); else if (tab && !estEauNav(x, z)) ko.push('eau ' + e.id + ' : pas navigable sous son tablier'); }
         if (C.ponts.length !== 6) ko.push(C.ponts.length + ' ponts (6 attendus)');
         for (const p of C.ponts) { const h = solY(p.xc, p.zc); if (estEau(p.xc, p.zc) || !estEauNav(p.xc, p.zc) || Math.abs(h - p.H) > 0.01) ko.push('pont ' + p.id + ' : eau ' + estEau(p.xc, p.zc) + ', navigable ' + estEauNav(p.xc, p.zc) + ', tablier ' + h.toFixed(2));
           if (p.H - niveauEau(p.xc, p.zc) < 3) ko.push('pont ' + p.id + ' : tirant d’air ' + (p.H - niveauEau(p.xc, p.zc)).toFixed(2) + ' < 3');
@@ -15421,7 +15422,9 @@ async function main() {
           if (!sorti || P.nage || P.y < 0.15 || dansCanal(P.x, P.z)) ko.push('sortie de l’eau par les marches : ' + (sorti ? 'arrivé' : 'pas arrivé') + ' en (' + P.x.toFixed(1) + ', ' + P.z.toFixed(1) + '), y ' + P.y.toFixed(2) + (P.nage ? ', nage encore' : ''));
           else info.push('voiture noyée, sortie par les marches en ' + (n / 60).toFixed(0) + ' s');
           /* depuis l'eau, un quai sans marche est un mur */
-          P.x = O - 9.6; P.z = 30; P.y = C.fond; P.nage = true; INPUT.jx = -1; pas(120); INPUT.jx = 0; if (P.x < O - 10.05 || !P.nage) ko.push('à la nage, le quai s’escalade sans marche (x ' + P.x.toFixed(2) + ')'); }
+          /* V2 : un point du quai ouest sans marche, sans ponton ni échelle à moins de 5 u (un ponton s'escalade : c'est voulu) */
+          let zMur = null; for (let z = 30; z < 250 && zMur === null; z += 2) { let libre = dansCanal(O - 9.6, z) && !pontCanal(O - 9.6, z); for (let dz = -5; dz <= 5 && libre; dz += 0.5) for (const dx of [-9.9, -8, -6]) if (pontonCanal(O + dx, z + dz) || marcheCanal(O + dx, z + dz)) libre = false; if (libre) zMur = z; }
+          if (zMur === null) ko.push('aucun quai nu dans le canal ouest pour vérifier le mur'); else { P.x = O - 9.6; P.z = zMur; P.y = C.fond; P.nage = true; INPUT.jx = -1; pas(120); INPUT.jx = 0; if (P.x < O - 10.05 || !P.nage) ko.push('à la nage, le quai s’escalade sans marche (x ' + P.x.toFixed(2) + ', z ' + zMur + ')'); } }
         /* 5. le trafic (30 s, vraie boucle) et les apparitions : jamais dans l'eau, jamais sur une rue retirée */
         { partie(); P.x = 189; P.z = 63; P.y = solY(P.x, P.z); let eau = 0, coupe = 0, noyes = 0; const vus = new Set();
           pas(30 * 60, (i) => { P.hp = 1e9; for (const e of ennemis) e.mort = true; WANTED.stars = 0; if (i % 30) return; for (const v of vehicules) { if (v.conduit !== 'trafic') continue; vus.add(v); if (dansCanal(v.x, v.z) && !pontCanal(v.x, v.z)) eau++; if (dansCoupe(v.x, v.z)) coupe++; if (v.noye) noyes++; } });
@@ -15560,7 +15563,7 @@ async function main() {
         const ko = [], info = [], C = CANAUX; if (!C.ok) return { ko: ['CANAUX.ok faux'], info };
         const L = C.lots, VILLAS_V1 = 17; /* V1 : 16 villas et la villa Miami */ if (L.length + (C.miami ? 1 : 0) < 3 * VILLAS_V1) ko.push((L.length + 1) + ' villas (au moins ' + 3 * VILLAS_V1 + ' attendues)');
         for (const l of L) { const xe = l.xEau - l.dir * 1.5, xr = l.xRue + l.dir * 1.2;
-          if (!dansCanal(xe, l.z) || !estEauNav(xe, l.z)) ko.push(l.id + ' : pas d’eau navigable devant son quai');
+          if (!dansCanal(xe, l.z) || !(estEauNav(xe, l.z) || pontonCanal(xe, l.z))) ko.push(l.id + ' : pas d’eau navigable devant son quai'); /* V2, phase 3 : devant le quai, le ponton du lot (le chenal est vérifié par « Canaux V2, pontons et bateaux ») */
           if (!(dansAlleeCanaux(xr, l.z) || surChaussee(xr, l.z))) ko.push(l.id + ' : ni allée ni rue devant');
           if (l.w < 11.9 || l.w > 18.1) ko.push(l.id + ' : largeur ' + l.w.toFixed(1));
           /* le passage libre : du bord de l'allée au bord de l'eau, à pied */
@@ -15570,7 +15573,7 @@ async function main() {
         /* aucun volume du quartier dans l'eau ou sur une chaussée */
         for (const s of C.batiSolides || []) for (const [dx, dz] of [[-1, -1], [1, -1], [1, 1], [-1, 1], [0, 0]]) { const x = s.x + dx * s.hw * 0.98, z = s.z + dz * s.hd * 0.98; if (dansCanal(x, z) || pontCanal(x, z) || surChaussee(x, z) || dansAlleeCanaux(x, z)) { ko.push('volume dans l’eau, sur la chaussée ou une allée en (' + x.toFixed(0) + ', ' + z.toFixed(0) + ')'); break; } }
         /* les allées : au niveau de la rue, aucune voie de trafic (rien n'y roule tout seul) */
-        for (const a of C.allees) { const x = (a.x0 + a.x1) / 2, z = (a.z0 + a.z1) / 2; if (Math.abs(solY(x, z)) > 0.01) ko.push('allée ' + a.id + ' : sol à ' + solY(x, z).toFixed(2)); }
+        for (const a of C.allees) { const x = (a.x0 + a.x1) / 2, z = (a.z0 + a.z1) / 2; if (Math.abs(solY(x, z)) > 0.01 && !passerelleCanal(x, z)) ko.push('allée ' + a.id + ' : sol à ' + solY(x, z).toFixed(2)); }
         const nG = L.filter((l) => l.standing === 'grand').length; if (nG < 2) ko.push(nG + ' grand(s) lot(s)');
         info.push((L.length + 1) + ' villas (V1 : ' + VILLAS_V1 + ') dont ' + nG + ' grands lots et la villa Miami, ' + C.allees.length + ' allées et placettes, ' + C.coupes.length + ' segments de rue retirés');
         return { ko, info };
@@ -15661,6 +15664,204 @@ async function main() {
       if (r.ko.length) fail('Canaux V2, les villas : ' + r.ko.slice(0, 12).join(' ; ') + (r.ko.length > 12 ? ' … (' + r.ko.length + ')' : '')); else ok('Canaux V2, les villas : ' + r.info.join(' ; '));
     }
     // -------------------------------------------------------------------
+    // Canaux V2 : les pontons et les bateaux des villas (CANAUX_V2.md, phase 3) — lus dans CANAUX.pontons (v2), CANAUX.bateauxV2,
+    // CANAUX.pilotables, CANAUX.echelles. Chaque lot a son ponton (sauf ceux qu'un bassin entame), relié au quai ; le chenal des
+    // vedettes garde sa largeur partout (10,5 u à deux rives, 6,5 u dans une impasse) ; un bateau du décor est un mur pour un
+    // bateau ; un pilote accoste à trois pontons tirés au hasard, débarque sur le ponton et rejoint l'allée À PIED au joystick ; un
+    // nageur sort de l'eau devant CHAQUE lot (rivePlusProche : marches ou échelle) ; chaque bateau pilotable part et revient.
+    // -------------------------------------------------------------------
+    console.log('\n--- Canaux V2 : pontons et bateaux — reliés, chenal libre, accoster puis rejoindre l’allée, sortir à la nage, pilotables ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [], C = CANAUX; if (!C.ok) return { ko: ['CANAUX.ok faux'], info };
+        const graine = (s) => () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; }, R = graine(4242);
+        const fl = C.pontons.filter((p) => p.v2 && !p.pente);
+        /* 1) un ponton par lot (sauf entaille), relié au quai : du flotteur au quai, aucun trou d'eau ni de marche de plus de 0,6 */
+        for (const l of C.lots) { const p = l.ponton; if (!p) { if (!(l.entaille > 0)) ko.push(l.id + ' : pas de ponton'); continue; }
+          const zA = p.acces ? (p.acces.z0 + p.acces.z1) / 2 : (p.z0 + p.z1) / 2, x0 = (p.x0 + p.x1) / 2, x1 = l.xEau + l.dir * 0.9; let yAv = solY(x0, zA), trou = null;
+          for (let k = 0; k <= 1; k += 0.05) { const x = x0 + (x1 - x0) * k; if (estEau(x, zA)) { trou = 'eau'; break; } const y = solY(x, zA); if (Math.abs(y - yAv) > 0.6) { trou = 'marche de ' + Math.abs(y - yAv).toFixed(2); break; } yAv = y; }
+          if (trou) ko.push(l.id + ' : ponton pas relié au quai (' + trou + ')');
+          if (!p.echelle) ko.push(l.id + ' : ponton sans échelle'); }
+        if (fl.length < 40) ko.push(fl.length + ' pontons de villa');
+        /* 2) le chenal : à chaque mètre de chaque canal à rives de lots, la largeur d'eau navigable autour de l'axe */
+        for (const e of C.eaux.filter((q) => q.t === 'r' && /^(canalO|canalE|sec)/.test(q.id))) { const imp = /^sec/.test(e.id), min = imp ? 6.5 : 10.5, xc = (e.x0 + e.x1) / 2; let pire = 99, zp = 0;
+          for (let z = e.z0 + 2; z < Math.min(e.z1, C.zMer) - 2; z += 1) { if (C.marches.some((m) => z > m.z0 - 1 && z < m.z1 + 1)) continue; if (!fl.some((p) => p.canal === e.id && z > p.z0 - 8 && z < p.z1 + 8)) continue;
+            let a = xc, b = xc; while (a > e.x0 - 1 && estEauNav(a - 0.25, z)) a -= 0.25; while (b < e.x1 + 1 && estEauNav(b + 0.25, z)) b += 0.25; if (b - a < pire) { pire = b - a; zp = z; } }
+          if (pire < min) ko.push(e.id + ' : chenal de ' + pire.toFixed(1) + ' u en z = ' + zp); else info.push(e.id + ' ≥ ' + pire.toFixed(1) + ' u'); }
+        /* 3) un bateau du décor : un mur pour un bateau (centre et coins), jamais sur un ponton */
+        for (const B of C.bateauxV2) { for (const [dx, dz] of [[0, 0], [0.4, 0.4], [-0.4, -0.4]]) if (estEauNav(B.x + dx * B.W, B.z + dz * B.L)) { ko.push('bateau ' + B.type + ' du lot ' + B.lot + ' traversable'); break; }
+          if (pontonCanal(B.x, B.z)) ko.push('bateau ' + B.type + ' sur un ponton'); }
+        /* 4) accoster à trois pontons au hasard, débarquer, rejoindre l'allée à pied (joystick, vraie boucle) */
+        const H = window.__pv2 = {}; H.partie = () => { META.vue = 'classique'; if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9; for (const e of ennemis) e.mort = true; WANTED.heat = 0; WANTED.stars = 0; };
+        H.T = dernierT + 1000; H.pas = () => { for (const e of ennemis) e.mort = true; WANTED.stars = 0; WANTED.heat = 0; H.T += 1000 / 60; tick(H.T); P.hp = 1e9; };
+        H.aller = (pts, tmax, rayon) => { let k = 0, t = 0; while (t < tmax) { const [tx, tz] = pts[k], dx = tx - P.x, dz = tz - P.z, d = Math.hypot(dx, dz); if (d < (rayon || 0.6)) { k++; if (k >= pts.length) { INPUT.jx = INPUT.jy = 0; return true; } continue; } INPUT.jx = dx / d; INPUT.jy = dz / d; pas(); t += 1 / 60; } INPUT.jx = INPUT.jy = 0; return false; };
+        /* le pilote : il suit une ligne brisée au joystick (visée devant lui, vitesse selon le virage qui vient, marche arrière s'il est coincé) */
+        /* les angles du trajet sont chanfreinés (4 u de part et d'autre) : un bateau ne vire pas à angle droit */
+        H.chanfrein = (pts) => { const out = [pts[0]]; for (let i = 1; i + 1 < pts.length; i++) { const A = pts[i - 1], B = pts[i], Cc = pts[i + 1], l1 = Math.hypot(B[0] - A[0], B[1] - A[1]), l2 = Math.hypot(Cc[0] - B[0], Cc[1] - B[1]); if (l1 < 0.1 || l2 < 0.1) { out.push(B); continue; }
+            const u1 = [(B[0] - A[0]) / l1, (B[1] - A[1]) / l1], u2 = [(Cc[0] - B[0]) / l2, (Cc[1] - B[1]) / l2], ang = Math.acos(clamp(u1[0] * u2[0] + u1[1] * u2[1], -1, 1)), k = Math.min(4, l1 / 2, l2 / 2);
+            if (ang > 0.6) { out.push([B[0] - u1[0] * k, B[1] - u1[1] * k], [B[0] + u2[0] * k, B[1] + u2[1] * k]); } else out.push(B); } out.push(pts[pts.length - 1]); return out; };
+        H.suivre = (v, pts0, tmax) => { const pts = H.chanfrein(pts0), segs = []; let L = 0; for (let i = 0; i + 1 < pts.length; i++) { const a = pts[i], b = pts[i + 1], l = Math.hypot(b[0] - a[0], b[1] - a[1]); if (l < 0.05) continue; segs.push({ a, b, l, s0: L }); L += l; }
+          const pt = (u) => { u = clamp(u, 0, L); for (const g of segs) if (u <= g.s0 + g.l) { const k = (u - g.s0) / g.l; return [g.a[0] + (g.b[0] - g.a[0]) * k, g.a[1] + (g.b[1] - g.a[1]) * k]; } return pts[pts.length - 1]; };
+          const dir = (u) => { const a = pt(u), b = pt(u + 1); return Math.atan2(b[0] - a[0], b[1] - a[1]); }, fin = pts[pts.length - 1];
+          let s = 0, jx = 0, jy = 0, reag = 0, recul = 0, bloque = 0;
+          for (let t = 0; t < tmax; t += 1 / 60) { let best = s, bd = 1e9; for (let u = s; u <= Math.min(L, s + 16); u += 0.5) { const q = pt(u), d = Math.hypot(q[0] - v.x, q[1] - v.z); if (d < bd) { bd = d; best = u; } } s = best;
+            if (s >= L - 3 && Math.hypot(fin[0] - v.x, fin[1] - v.z) < 3.2) { INPUT.jx = INPUT.jy = 0; return true; }
+            if ((reag -= 1 / 60) <= 0) { reag = 0.1; const vv = Math.abs(v.v), d0 = dir(s); let virage = 0; for (let D = 3; D <= 8 + vv * 1.3; D += 2) virage = Math.max(virage, Math.abs(angDiff(d0, dir(s + D))));
+              const vt = Math.min(L - s < 9 ? 3 : 99, virage > 1.2 ? 4 : (virage > 0.7 ? 6 : (virage > 0.35 ? 8 : 12))), c = pt(s + (virage > 0.7 ? 3.5 : 5.5) + Math.min(vv, vt) * 0.3), dx = c[0] - v.x, dz = c[1] - v.z, d = Math.hypot(dx, dz) || 1;
+              if (recul > 0) { jx = -Math.sin(v.ang); jy = -Math.cos(v.ang); } else if (v.v > vt + 1.5) { jx = jy = 0; } else { const k = clamp((vt - v.v) * 0.12 + 0.45, 0.35, 1); jx = dx / d * k; jy = dz / d * k; } }
+            if (recul > 0) recul -= 1 / 60; else if (bloque > 1.2) { recul = 1.0; bloque = 0; reag = 0; }
+            INPUT.jx = jx; INPUT.jy = jy; pas(); if (P.veh !== v) return false;
+            if (Math.abs(v.v) < 0.8 && recul <= 0) bloque += 1 / 60; else if (recul <= 0) bloque = 0; }
+          INPUT.jx = INPUT.jy = 0; return false; };
+        const { partie, pas, aller, suivre } = H; partie(); let accoste = 0; const tires = []; const cands = fl.filter((p) => C.lots.find((l) => l.id === p.lot)); while (tires.length < 3 && tires.length < cands.length) { const p = cands[Math.floor(R() * cands.length)]; if (!tires.includes(p)) tires.push(p); }
+        for (const p of tires) { const l = C.lots.find((q) => q.id === p.lot), out = p.cote > 0 ? p.x0 : p.x1, sg = -p.cote, zc = (p.z0 + p.z1) / 2;
+          for (const v of vehicules.slice()) if (v !== P.veh && v.def && v.def.eau && dist2(v.x, v.z, out, zc) < 400 && !v.canauxPilotable) { scene.remove(v.mesh); vehicules.splice(vehicules.indexOf(v), 1); }
+          const e = C.eaux.find((q) => q.id === p.canal), xc = (e.x0 + e.x1) / 2, zDep = clamp(zc + (zc < (e.z0 + e.z1) / 2 ? 14 : -14), e.z0 + 3, Math.min(e.z1, C.zMer) - 3);
+          const v = creerVehicule('jetski', xc, zDep, zDep > zc ? Math.PI : 0, null); P.x = v.x; P.z = v.z; entrerVehicule(v); v.hp = 1e6;
+          /* l'approche : au bout du flotteur (côté échelle) s'il y a un bateau le long, sinon le long du bord extérieur */
+          const E = p.echelle, ap = E && E.bout ? [(p.x0 + p.x1) / 2 + sg * 0.6, (E.bout < 0 ? p.z0 : p.z1) + E.bout * 2.0] : [out + sg * 1.5, zc];
+          suivre(v, [[xc, zDep], [xc + (ap[0] - xc) * 0.4, ap[1]], ap], 30); INPUT.jx = INPUT.jy = 0; for (let i = 0; i < 40; i++) pas(); sortirVehicule(); for (let i = 0; i < 10; i++) pas();
+          const surP = pontonCanal(P.x, P.z), lq = lotCanaux(P.x, P.z); if ((!surP || surP.lot !== p.lot) && !(lq && lq.ilot === l.ilot)) { ko.push(p.lot + ' : débarqué hors de son ponton et de son quai (' + P.x.toFixed(1) + ', ' + P.z.toFixed(1) + (P.nage ? ', à la nage' : '') + ')'); scene.remove(v.mesh); vehicules.splice(vehicules.indexOf(v), 1); continue; }
+          const zg = surP && surP.lot === p.lot && p.acces ? (p.acces.z0 + p.acces.z1) / 2 : P.z, zp = l.z - Math.sin(l.ry) * l.passage, xq = l.xEau + l.dir * 0.8;
+          const ok = aller([[P.x, zg], [xq, zg], [xq, zp], [l.xRue + l.dir * 1.5, zp]], 30);
+          if (!ok) ko.push(p.lot + ' : de son ponton, on ne rejoint pas l’allée à pied (' + P.x.toFixed(1) + ', ' + P.z.toFixed(1) + ')'); else if (!(dansAlleeCanaux(P.x, P.z) || surChaussee(P.x, P.z))) ko.push(p.lot + ' : arrivé hors de l’allée'); else accoste++;
+          scene.remove(v.mesh); vehicules.splice(vehicules.indexOf(v), 1); }
+        info.push('accosté et rentré à pied ' + accoste + '/3');
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Canaux V2, pontons et bateaux : ' + r.ko.slice(0, 14).join(' ; ') + (r.ko.length > 14 ? ' … (' + r.ko.length + ')' : '') + ' [' + r.info.join(' | ') + ']'); else ok('Canaux V2, pontons et bateaux : ' + r.info.join(' ; '));
+      const r2 = await page.evaluate(() => { const ko = [], info = [], C = CANAUX, H = window.__pv2, { partie, pas } = H; partie();
+        /* 5) un nageur sort de l'eau devant chaque lot (rivePlusProche : l'échelle d'un ponton ou des marches ; il contourne un bateau par le chenal) */
+        let sortis = 0, tMax = 0;
+        const rangs = {}; for (const l of C.lots) (rangs[l.ilot] = rangs[l.ilot] || []).push(l); const ech = new Set(); for (const id in rangs) { const L = rangs[id].sort((a, b) => a.z - b.z); ech.add(L[(L.length * 0.5) | 0]); }
+        for (const l of C.lots) if (l.entaille > 0 || (l.ponton && l.ponton.bateau && l.ponton.bateau.pilote)) ech.add(l);
+        for (const l of C.lots) { const e = C.eaux.find((q) => q.t === 'r' && formeContient(q, l.xEau - l.dir * 1, l.z)), xs = e ? (e.x0 + e.x1) / 2 + l.dir * 1.5 : l.xEau - l.dir * 5, q = rivePlusProche(xs, l.z);
+          if (!q || Math.hypot(q.x - xs, q.z - l.z) > 26) { ko.push(l.id + ' : pas d’échelle ni de marches à moins de 26 u'); continue; } const o = (C.echelles || []).find((u) => u.x === q.x && u.z === q.z);
+          if (o) for (let k = 0; k <= 1; k += 0.1) { const x = o.eau.x + (xs - o.eau.x) * k; if (vehiculeBloquant(x, o.eau.z, 0.45) || vehiculeBloquant(o.eau.x + (o.x - o.eau.x) * k, o.eau.z + (o.z - o.eau.z) * k, 0.45)) { ko.push(l.id + ' : un bateau garé barre l’échelle'); break; } } }
+        for (const l of ech) { if (P.veh) sortirVehicule(true); const e = C.eaux.find((q) => q.t === 'r' && formeContient(q, l.xEau - l.dir * 1, l.z)); const xs = e ? (e.x0 + e.x1) / 2 + l.dir * 1.5 : l.xEau - l.dir * 5;
+          P.x = xs; P.z = l.z; P.y = niveauEau(P.x, P.z) - 0.3; P.vy = 0; P.chute = false; P.nage = true; pas();
+          const q = rivePlusProche(P.x, P.z), ech = q && (C.echelles || []).find((o) => o.x === q.x && o.z === q.z), pts = !q ? [] : (ech ? [[P.x, ech.eau.z], [ech.eau.x, ech.eau.z], [ech.x, ech.z]] : [[q.x, q.z]]);
+          let t = 0, k = 0; while (t < 16 && P.nage && pts.length) { const dx = pts[k][0] - P.x, dz = pts[k][1] - P.z, d = Math.hypot(dx, dz); if (d < 0.5 && k < pts.length - 1) { k++; continue; } INPUT.jx = dx / (d || 1); INPUT.jy = dz / (d || 1); pas(); t += 1 / 60; } /* le dernier point est SUR le ponton : il nage jusqu'à en sortir */
+          INPUT.jx = INPUT.jy = 0; if (P.nage) ko.push(l.id + ' : le nageur ne sort pas de l’eau (' + P.x.toFixed(1) + ', ' + P.z.toFixed(1) + ')'); else { sortis++; tMax = Math.max(tMax, t); } }
+        info.push(sortis + '/' + ech.size + ' nageurs sortis (' + tMax.toFixed(1) + ' s au plus), échelle ou marches à portée et dégagée devant chacun des ' + C.lots.length + ' lots');
+        return { ko, info }; });
+      if (r2.ko.length) fail('Canaux V2, sortir à la nage : ' + r2.ko.slice(0, 12).join(' ; ') + ' [' + r2.info.join(' | ') + ']'); else ok('Canaux V2, sortir à la nage : ' + r2.info.join(' ; '));
+      const r3 = await page.evaluate(() => { const ko = [], info = [], C = CANAUX, H = window.__pv2, { partie, suivre } = H;
+        /* 6) chaque bateau pilotable : on monte, on va faire demi-tour dans le bassin le plus proche (graphe des vedettes), on revient à son ponton */
+        partie(); let revenus = 0; const pil = vehicules.filter((v) => !v.mort && v.canauxPilotable);
+        if (pil.length < 2) ko.push(pil.length + ' bateau(x) pilotable(s) aux pontons des villas');
+        for (const c of ['canalO', 'canalE']) if (!pil.some((v) => v.canauxPilotable.canal === c)) ko.push('aucun bateau pilotable dans ' + c);
+        for (const v of pil) for (const d of [-4, 0, 4]) if (!estEauNav(v.x + Math.sin(v.ang) * d, v.z + Math.cos(v.ang) * d)) { ko.push(v.key + ' de ' + v.canauxPilotable.lot + ' : pas libre de partir'); break; }
+        const choisis = []; for (const c of ['canalO', 'canalE']) { let m = null, mL = 1e9; for (const v of pil) if (v.canauxPilotable.canal === c) for (const n of PCANAL.noeuds) if (n.genre === 'bassin') { const ch = cheminCanal(v.x, v.z, n.x, n.z); if (ch && ch.L < mL) { mL = ch.L; m = v; } } if (m) choisis.push(m); }
+        for (const v of choisis) { const p0 = v.canauxPilotable; P.x = v.x; P.z = v.z; entrerVehicule(v); if (P.veh !== v) { ko.push('on ne monte pas sur ' + v.key + ' (' + p0.lot + ')'); continue; } v.hp = 1e6;
+          let bn = null, bL = 1e9; for (const n of PCANAL.noeuds) if (n.genre === 'bassin') { const ch = cheminCanal(v.x, v.z, n.x, n.z); if (ch && ch.L < bL) { bL = ch.L; bn = n; } }
+          const cer = C.eaux.find((q) => q.t === 'c' && Math.hypot(q.x - bn.x, q.z - bn.z) < 2), aller1 = cheminCanal(v.x, v.z, bn.x, bn.z).pts.slice(0, -1), pIn = aller1[aller1.length - 1], Rr = cer.r - 3.5, a0 = Math.atan2(pIn[1] - bn.z, pIn[0] - bn.x);
+          const tour = [0, 1, 2, 3, 4, 5, 6].map((k) => [bn.x + Math.cos(a0 + k * Math.PI / 3) * Rr, bn.z + Math.sin(a0 + k * Math.PI / 3) * Rr]), retour = cheminCanal(tour[6][0], tour[6][1], p0.x, p0.z).pts;
+          const ok = suivre(v, aller1.concat(tour, retour), 150); if (!ok) ko.push(v.key + ' de ' + p0.lot + ' : pas revenu à son ponton (' + v.x.toFixed(1) + ', ' + v.z.toFixed(1) + ')'); else revenus++;
+          if (1e6 - v.hp > 60) ko.push(v.key + ' de ' + p0.lot + ' : ' + (1e6 - v.hp).toFixed(0) + ' de dégâts en route'); sortirVehicule(true); }
+        const par = {}, fl = C.pontons.filter((p) => p.v2 && !p.pente); for (const B of C.bateauxV2) par[B.type] = (par[B.type] || 0) + 1;
+        info.push(fl.length + ' pontons (' + fl.filter((p) => p.type === 'quai').length + ' à quai, ' + fl.filter((p) => p.type === 'L').length + ' en L, ' + fl.filter((p) => p.type === 'T').length + ' en T), ' + fl.filter((p) => p.bateau).length + ' avec un bateau ; décor ' + JSON.stringify(par) + ' ; pilotables : ' + pil.map((v) => v.key + '@' + v.canauxPilotable.canal).join(', ') + ' — aller-retour au bassin : ' + revenus + '/' + choisis.length);
+        partie(); delete window.__pv2; return { ko, info }; });
+      if (r3.ko.length) fail('Canaux V2, bateaux pilotables : ' + r3.ko.join(' ; ') + ' [' + r3.info.join(' | ') + ']'); else ok('Canaux V2, bateaux pilotables : ' + r3.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
+    // Canaux V2 : les ponts et les passerelles (CANAUX_V2.md, phase 4) — lus dans CANAUX.ponts (style) et CANAUX.passerelles. Six
+    // ponts de six styles (le pont-levis orange gardé au sud-ouest) : chacun traversé en voiture dans les deux sens sans un saut, un
+    // jet-ski passe dessous dans les deux sens et le tablier s'efface au-dessus de lui ; trois passerelles de trois styles : traversées
+    // à pied et à vélo dans les deux sens (on monte vraiment dessus), refusées à une voiture (les bornes), un jet-ski passe dessous.
+    // Pilotes au joystick, vraie boucle (tick).
+    // -------------------------------------------------------------------
+    console.log('\n--- Canaux V2 : ponts et passerelles — styles, voiture sans saut, bateau dessous, à pied, à vélo, voitures refusées ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [], C = CANAUX; if (!C.ok) return { ko: ['CANAUX.ok faux'], info };
+        const H = window.__ppv2 = {}; H.partie = () => { META.vue = 'classique'; if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9; for (const e of ennemis) e.mort = true; WANTED.heat = 0; WANTED.stars = 0; };
+        H.T = dernierT + 1000; H.pas = () => { for (const e of ennemis) e.mort = true; WANTED.stars = 0; WANTED.heat = 0; H.T += 1000 / 60; tick(H.T); P.hp = 1e9; if (P.veh) P.veh.hp = 1e6; };
+        H.vider = (x, z, r) => { for (const v of vehicules.slice()) if (v !== P.veh && !v.canauxPilotable && dist2(v.x, v.z, x, z) < r * r) { scene.remove(v.mesh); vehicules.splice(vehicules.indexOf(v), 1); } for (const p of pietons.slice()) if (dist2(p.x, p.z, x, z) < r * r) { scene.remove(p.h.g); pietons.splice(pietons.indexOf(p), 1); } };
+        H.monter = (cle, x, z, ang) => { const v = creerVehicule(cle, x, z, ang, null); P.x = v.x; P.z = v.z; entrerVehicule(v); v.hp = 1e6; return v; };
+        H.retirer = (v) => { if (P.veh === v) sortirVehicule(true); const i = vehicules.indexOf(v); if (i >= 0) { scene.remove(v.mesh); vehicules.splice(i, 1); } };
+        /* le jet-ski passe sous un tablier : de a à b au joystick, on note s'il a franchi la ligne et si le tablier s'est effacé */
+        H.dessous = (obj, a, b, axe) => { const v = H.monter('jetski', a[0], a[1], Math.atan2(b[0] - a[0], b[1] - a[1])); let ok = false, kMin = 1, t = 0;
+          for (; t < 14; t += 1 / 60) { const dx = b[0] - v.x, dz = b[1] - v.z, d = Math.hypot(dx, dz); if (d < 2) { ok = true; break; } const f = Math.abs(v.v) > 9 ? 0 : 0.6; INPUT.jx = dx / d * f; INPUT.jy = dz / d * f; H.vider(v.x, v.z, 25); H.pas(); kMin = Math.min(kMin, obj.k); }
+          INPUT.jx = INPUT.jy = 0; H.retirer(v); return { ok, kMin, t }; };
+        const styles = new Set(C.ponts.map((p) => p.style)); if (C.ponts.length !== 6 || styles.size !== 6) ko.push(C.ponts.length + ' ponts, ' + styles.size + ' styles');
+        const so = C.ponts.find((p) => p.id === 'sudOuest'); if (!so || so.style !== 'levis' || !so.orange) ko.push('le pont-levis orange n’est plus au sud-ouest');
+        const ps = C.passerelles || []; if (ps.length < 3 || new Set(ps.map((q) => q.style)).size < 3) ko.push(ps.length + ' passerelles, ' + new Set(ps.map((q) => q.style)).size + ' styles');
+        H.partie(); let traverses = 0, sauts = 0, dessous = 0;
+        for (const p of C.ponts) for (const sens of [1, -1]) { H.vider(p.xc, p.zc, 40); const xa = sens > 0 ? p.x0 - 9 : p.x1 + 9, xb = sens > 0 ? p.x1 + 9 : p.x0 - 9, zl = p.zc + sens * 3.2;
+          const v = H.monter('citadine', xa, zl, sens > 0 ? Math.PI / 2 : -Math.PI / 2); let air = 0, ok = false, hMax = 0;
+          for (let t = 0; t < 12; t += 1 / 60) { const dx = xb - v.x, dz = zl - v.z, d = Math.hypot(dx, dz); if (d < 2.5) { ok = true; break; } INPUT.jx = dx / d * 0.75; INPUT.jy = dz / d * 0.75; H.vider(v.x, v.z, 30); H.pas(); /* la scène est vide : ni trafic ni passant devant (le test est la traversée, pas la file) */ if (v.enAir) air++; hMax = Math.max(hMax, v.h || 0); }
+          INPUT.jx = INPUT.jy = 0; if (!ok) ko.push(p.id + ' (' + p.style + ') : la voiture ne traverse pas (sens ' + sens + ', ' + v.x.toFixed(1) + ')'); else traverses++;
+          if (air > 0) { sauts++; ko.push(p.id + ' : la voiture décolle (' + air + ' images en l’air)'); } if (ok && hMax < p.H - 0.5) ko.push(p.id + ' : la voiture n’est pas montée sur le tablier (' + hMax.toFixed(2) + ')'); H.retirer(v);
+          const d = H.dessous(p, [p.xc, p.zc - sens * 15], [p.xc, p.zc + sens * 15]); if (!d.ok) ko.push(p.id + ' : le jet-ski ne passe pas dessous (sens ' + sens + ')'); else dessous++; if (d.kMin > 0.5) ko.push(p.id + ' : le tablier ne s’efface pas au-dessus du jet-ski (' + d.kMin.toFixed(2) + ')'); }
+        info.push(C.ponts.map((p) => p.id + ' ' + p.style).join(', ') + ' : ' + traverses + '/12 traversées en voiture, ' + sauts + ' saut, ' + dessous + '/12 passages dessous');
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Canaux V2, les ponts : ' + r.ko.join(' ; ') + ' [' + r.info.join(' | ') + ']'); else ok('Canaux V2, les ponts : ' + r.info.join(' ; '));
+      const r2 = await page.evaluate(() => {
+        const ko = [], info = [], C = CANAUX, H = window.__ppv2; H.partie(); let pied = 0, velo = 0, refus = 0, dessous = 0;
+        for (const q of C.passerelles) { const x = q.xc + 0.75;
+          for (const sens of [1, -1]) { H.vider(q.xc, q.zc, 30); const za = sens > 0 ? q.z0 - 2.5 : q.z1 + 2.5, zb = sens > 0 ? q.z1 + 2.5 : q.z0 - 2.5;
+            /* à pied */ if (P.veh) sortirVehicule(true); P.x = x; P.z = za; P.y = solY(x, za); P.vy = 0; P.chute = false; P.nage = false; let yMax = -9, nage = false, ok = false;
+            for (let t = 0; t < 14; t += 1 / 60) { const dz = zb - P.z; if (Math.abs(dz) < 0.8) { ok = true; break; } INPUT.jx = (x - P.x) * 0.5; INPUT.jy = Math.sign(dz); H.vider(P.x, P.z, 20); H.pas(); yMax = Math.max(yMax, P.y); if (P.nage) nage = true; }
+            INPUT.jx = INPUT.jy = 0; if (!ok || nage) ko.push(q.id + ' : à pied, on ne traverse pas (sens ' + sens + (nage ? ', tombé à l’eau' : '') + ', z ' + P.z.toFixed(1) + ')'); else if (yMax < q.H - 0.4) ko.push(q.id + ' : à pied, pas monté sur la passerelle (' + yMax.toFixed(2) + ')'); else pied++;
+            /* à vélo */ const v = H.monter('velo', x, za, sens > 0 ? 0 : Math.PI); let okV = false, hV = 0;
+            for (let t = 0; t < 14; t += 1 / 60) { const dz = zb - v.z; if (Math.abs(dz) < 1.2) { okV = true; break; } INPUT.jx = (x - v.x) * 0.4; INPUT.jy = Math.sign(dz) * (Math.abs(v.v) > 7 ? 0.3 : 0.8); H.vider(v.x, v.z, 20); H.pas(); hV = Math.max(hV, v.h || 0); if (v.noye || P.veh !== v) break; }
+            INPUT.jx = INPUT.jy = 0; if (!okV || v.noye) ko.push(q.id + ' : à vélo, on ne traverse pas (sens ' + sens + ', z ' + v.z.toFixed(1) + (v.noye ? ', noyé' : '') + ')'); else velo++; H.retirer(v);
+            /* une voiture : arrêtée par les bornes */ const c = H.monter('citadine', q.xc, sens > 0 ? q.z0 - 6 : q.z1 + 6, sens > 0 ? 0 : Math.PI); let monte = false;
+            for (let t = 0; t < 5; t += 1 / 60) { INPUT.jx = (q.xc - c.x) * 0.3; INPUT.jy = sens * 0.8; H.pas(); if (passerelleCanal(c.x, c.z) && Math.abs(c.z - (sens > 0 ? q.z0 : q.z1)) > 1.2) monte = true; }
+            INPUT.jx = INPUT.jy = 0; if (monte) ko.push(q.id + ' : une voiture monte sur la passerelle (sens ' + sens + ')'); else refus++; H.retirer(c);
+            /* un jet-ski dessous */ const d = H.dessous(q, [q.xc - sens * 14, q.zc], [q.xc + sens * 14, q.zc]); if (!d.ok) ko.push(q.id + ' : le jet-ski ne passe pas dessous (sens ' + sens + ')'); else dessous++; if (d.kMin > 0.5) ko.push(q.id + ' : la passerelle ne s’efface pas au-dessus du jet-ski'); } }
+        info.push(C.passerelles.map((q) => q.id + ' ' + q.style).join(', ') + ' : à pied ' + pied + '/6, à vélo ' + velo + '/6, voiture refusée ' + refus + '/6, jet-ski dessous ' + dessous + '/6');
+        H.partie(); delete window.__ppv2; return { ko, info };
+      });
+      if (r2.ko.length) fail('Canaux V2, les passerelles : ' + r2.ko.join(' ; ') + ' [' + r2.info.join(' | ') + ']'); else ok('Canaux V2, les passerelles : ' + r2.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
+    // Canaux V2 : la vie, la nuit, les sons (CANAUX_V2.md, phase 5) — lus dans CVIE, CANAUX_SON, CANAUX : des figurants de chaque genre,
+    // tous déclarés (figurant()), posés à leur place dès leur création (rien à l'origine du monde), cachés loin du quartier ; le joggeur
+    // court sur le pont de la promenade ; l'enfant saute du ponton et remonte ; un bateau qui circule s'arrête devant le joueur ; un
+    // figurant touché devient un piéton et revient à la partie suivante ; la nuit, flaques de lumière et fenêtres ; le son du quartier
+    // démarre au bord de l'eau, se coupe à la mort.
+    // -------------------------------------------------------------------
+    console.log('\n--- Canaux V2 : la vie — figurants, bateaux qui circulent, nuit, sons ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [], C = CANAUX; if (!C.ok) return { ko: ['CANAUX.ok faux'], info };
+        const partie = () => { META.vue = 'classique'; if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9; for (const e of ennemis) e.mort = true; WANTED.heat = 0; WANTED.stars = 0; };
+        let T = dernierT + 1000; const pas = (n) => { for (let i = 0; i < (n || 1); i++) { for (const e of ennemis) e.mort = true; WANTED.stars = 0; T += 1000 / 60; tick(T); P.hp = 1e9; } };
+        partie(); if (!CVIE.ok) return { ko: ['la vie du quartier n’est pas construite'], info };
+        const par = {}; for (const a of CVIE.anim) par[a.genre] = (par[a.genre] || 0) + 1; par.bronzeur = CVIE.statiques.length;
+        for (const [g, m] of [['bronzeur', 2], ['bbq', 1], ['laveur', 1], ['peche', 1], ['enfant', 1], ['jog', 1], ['chien', 2]]) if ((par[g] || 0) < m) ko.push((par[g] || 0) + ' ' + g + ' (au moins ' + m + ')');
+        if (CVIE.bateaux.length < 2) ko.push(CVIE.bateaux.length + ' bateaux qui circulent');
+        const tous = CVIE.statiques.concat(CVIE.anim);
+        for (const a of tous) { if (!FIGURANTS.some((f) => f.h === a.h)) ko.push('un ' + (a.genre || 'bronzeur') + ' n’est pas un figurant'); const p = a.h.g.position; if (Math.hypot(p.x, p.z) < 60 || !dansBBCanaux(p.x, p.z)) ko.push('un ' + (a.genre || 'bronzeur') + ' hors du quartier (' + p.x.toFixed(0) + ', ' + p.z.toFixed(0) + ')'); }
+        for (const B of CVIE.bateaux) if (!dansBBCanaux(B.m.position.x, B.m.position.z)) ko.push('un bateau qui circule hors du quartier');
+        /* loin : cachés ; près : visibles */
+        P.x = -150; P.z = -150; pas(3); if (tous.some((a) => a.h.g.visible) || CVIE.bateaux.some((B) => B.m.visible)) ko.push('des figurants restent visibles loin du quartier');
+        P.x = 189; P.z = 40; P.y = solY(P.x, P.z); pas(3); if (CVIE.statiques.some((a) => !a.h.g.visible)) ko.push('des bronzeurs invisibles dans le quartier');
+        /* le joggeur court sur le tablier */
+        const jog = CVIE.anim.find((a) => a.genre === 'jog'); if (jog) { P.x = jog.p.xc; P.z = jog.p.zc + 8; P.y = solY(P.x, P.z); const x0 = jog.h.g.position.x; pas(120); const q = jog.h.g.position; if (Math.abs(q.x - x0) < 2) ko.push('le joggeur ne court pas'); if (Math.abs(q.y - hauteurPont(jog.p, q.x)) > 0.05) ko.push('le joggeur n’est pas sur le tablier'); }
+        /* l'enfant saute et remonte */
+        const enf = CVIE.anim.find((a) => a.genre === 'enfant'); if (enf) { P.x = enf.x0 + enf.sg * 8; P.z = enf.z; let cache = false, revu = false; for (let i = 0; i < 6.5 * 60; i++) { pas(); if (!enf.h.g.visible) cache = true; else if (cache) revu = true; } if (!cache || !revu) ko.push('l’enfant ne saute pas du ponton (' + cache + ', ' + revu + ')'); }
+        /* un bateau qui circule s'arrête devant le joueur (à bord d'un jet-ski, en travers de sa route) */
+        { const B = CVIE.bateaux[0], L = Math.hypot(B.B[0] - B.A[0], B.B[1] - B.A[1]), ux = (B.B[0] - B.A[0]) / L, uz = (B.B[1] - B.A[1]) / L; P.x = B.m.position.x; P.z = B.m.position.z + 10; P.y = solY(P.x, P.z); pas(60);
+          const x = B.m.position.x + ux * B.sens * 9, z = B.m.position.z + uz * B.sens * 9, v = creerVehicule('jetski', x, z, 0, null); P.x = v.x; P.z = v.z; entrerVehicule(v); let dMin = 99;
+          for (let i = 0; i < 240; i++) { INPUT.jx = INPUT.jy = 0; pas(); if (B.demi <= 0) dMin = Math.min(dMin, Math.hypot(B.m.position.x - v.x, B.m.position.z - v.z)); } if (dMin < 4.5) ko.push('le bateau qui circule ne s’arrête pas devant le joueur (' + dMin.toFixed(1) + ' u)'); else info.push('bateau arrêté à ' + dMin.toFixed(1) + ' u du joueur');
+          sortirVehicule(true); scene.remove(v.mesh); vehicules.splice(vehicules.indexOf(v), 1); }
+        /* un figurant touché devient un piéton ; il revient à la partie suivante */
+        { const a = CVIE.statiques[0]; P.x = a.x + 6; P.z = a.z; pas(2); convertirFigurant(FIGURANTS.find((f) => f.h === a.h)); if (!figConverti(a.h)) ko.push('le bronzeur touché n’est pas devenu un piéton'); pas(30); partie(); pas(2); if (figConverti(a.h)) ko.push('le bronzeur ne revient pas à la partie suivante'); }
+        /* la nuit : flaques de lumière et fenêtres ; le jour, rien */
+        P.x = 189; P.z = 40; ETAT.jour = 130; pas(30); const nuit = { flaques: !!(CVIE.flaques && CVIE.flaques.visible), fen: _MAT_FEN_CANAUX ? _MAT_FEN_CANAUX.opacity : 0 }; ETAT.jour = 20; pas(30); const jour = { flaques: !!(CVIE.flaques && CVIE.flaques.visible), fen: _MAT_FEN_CANAUX ? _MAT_FEN_CANAUX.opacity : 0 };
+        if (!nuit.flaques || nuit.fen < 0.5) ko.push('la nuit : flaques ' + nuit.flaques + ', fenêtres ' + nuit.fen.toFixed(2)); if (jour.flaques || jour.fen > 0.05) ko.push('le jour : flaques ' + jour.flaques + ', fenêtres ' + jour.fen.toFixed(2));
+        /* le son : au bord de l'eau, il joue ; à la mort, il se coupe */
+        if (typeof audioInit === 'function') audioInit(); if (AUDIO.pret) { P.x = 160; P.z = 10; P.y = solY(P.x, P.z); pas(10); const on = CANAUX_SON.on; mourir(); const apres = CANAUX_SON.on; partie(); if (!on) ko.push('le son du quartier ne démarre pas au bord de l’eau'); if (apres) ko.push('le son du quartier continue après la mort'); info.push('son : démarré au bord de l’eau, coupé à la mort'); } else info.push('son non vérifié (pas de contexte audio)');
+        info.push(JSON.stringify(par) + ', ' + CVIE.bateaux.length + ' bateaux qui circulent' + (C.fete ? ', fête la nuit au lot ' + C.fete.lot : ''));
+        partie(); return { ko, info };
+      });
+      if (r.ko.length) fail('Canaux V2, la vie : ' + r.ko.join(' ; ') + ' [' + r.info.join(' | ') + ']'); else ok('Canaux V2, la vie : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
     // Canaux : nautique et ambiance (20 octobre, phase 4) — bateaux du décor bâchés, amarrés hors du passage et un mur pour la
     // navigation ; deux ou trois jet-skis et la vedette de l'embarcadère, pilotables ; débarquement sur les pontons et les marches ;
     // l'atelier « Marée Basse » et ses Dockers (figurants) ; deux villas de la Brigada (gardes, voitures de luxe).
@@ -15672,8 +15873,8 @@ async function main() {
         META.vue = 'classique'; if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9;
         /* le décor : bâché, près du quai, un mur pour un bateau, jamais un véhicule */
         if (C.amarres.length < 1) ko.push(C.amarres.length + ' bateaux du décor amarrés');
-        for (const a of C.amarres) { const e = C.eaux.find((q) => q.id === 'canalO' && a.x > q.x0 - 1 && a.x < q.x1 + 1) || C.eaux.find((q) => q.id === 'canalE'), dq = Math.min(Math.abs(a.x - e.x0), Math.abs(a.x - e.x1));
-          if (dq > 5.2) ko.push('bateau du décor à ' + dq.toFixed(1) + ' u du quai (passage utile)'); if (estEauNav(a.x, a.z)) ko.push('un bateau du décor se traverse en bateau');
+        for (const a of C.amarres) { const e = C.eaux.find((q) => q.t === 'r' && formeContient(q, a.x, a.z)) || C.eaux.find((q) => q.id === 'canalE'), dq = Math.min(Math.abs(a.x - e.x0), Math.abs(a.x - e.x1));
+          if (dq > (a.v2 ? 3.6 + (a.x1 - a.x0) / 2 : 5.2)) ko.push('bateau du décor à ' + dq.toFixed(1) + ' u du quai (passage utile)'); /* V2 : le long du flotteur d'un ponton de villa (le chenal est vérifié par « Canaux V2, pontons et bateaux ») */ if (estEauNav(a.x, a.z)) ko.push('un bateau du décor se traverse en bateau');
           if (vehicules.some((v) => !v.mort && dist2(v.x, v.z, a.x, a.z) < 4)) ko.push('un véhicule pilotable à la place d’un bateau du décor'); }
         /* les pilotables : 2 ou 3 jet-skis aux pontons privés et à l'atelier, la vedette de l'embarcadère */
         const jet = vehicules.filter((v) => !v.mort && v.canauxAmarre && v.key === 'jetski'), ved = vehicules.filter((v) => !v.mort && v.canauxAmarre && v.def.eau && v.key !== 'jetski');

@@ -205,11 +205,126 @@ Captures : `p2_aerien_quartier.png`, `p2_aerien_doigt_nord.png`, `p2_aerien_est.
 Observation (non corrigée, déjà là en V1) : la route de bordure est (x ≈ 288–300) est recouverte par le fondu de sable du désert de
 l'aéroport : vue de dessus, la berge est du canal secondaire est paraît une plage.
 
+## Phase 3 — pontons accessibles et bateaux des villas (fait)
+
+Code : `BATEAUX_V2`, `pontonsV2` (des données, appelée par `canauxDefinir` après le nautique), `hauteurPonton`, `eauNavProche`,
+`echelleProche` (juste après `dansAlleeCanaux`) ; `coqueDecorV2`, `bateauDecorV2`, `matBateauxCanaux`, `mkPontonsV2` (juste avant
+`mkBatiCanaux`) ; `rivePlusProche` (marches OU échelle) ; `canauxStartRunPrive` (les pilotables) ; `majVehiculePhys` (un bateau
+glisse le long d'un ponton, sort d'un ponton où il serait entré) ; `sortirVehicule` (le point de débarquement) ; le constructeur
+gagne un `vers` pour `tri`.
+
+- [x] **46 pontons privés** (les 4 lots qu'un bassin de demi-tour entame n'en ont pas : leur quai donne sur le bassin), un par
+  lot, sur son mur de quai : 31 flottants le long du quai, 4 en L, 11 en T (passerelle de 1 u qui descend du quai au flotteur —
+  `hauteurPonton`). Platelage de bois ou de composite et ses joints, pieux à chapeau blanc, taquets, bornes basses allumées la nuit,
+  échelle ; sur les grands lots et quelques T, une cabane à claustra (photo 2) ; quelques petits bateaux hissés sur un élévateur.
+- [x] **Accessibles pour de vrai** : chaque flotteur est relié au quai (testé du flotteur au quai : ni eau ni marche de plus de
+  0,6) ; le quai d'un lot (1,4 u le long de l'eau, les haies s'arrêtent avant) mène au passage à pied, puis à l'allée. Un pilote
+  simulé accoste au joystick à trois pontons tirés au hasard, débarque, et rejoint l'allée À PIED au joystick.
+- [x] **Une échelle à chaque ponton** (`CANAUX.echelles`) : sur le bord extérieur, ou au bout du flotteur le plus loin du bateau
+  amarré (sinon le bateau la cache au nageur). `rivePlusProche` prend la plus proche des marches et des échelles. Un nageur sort de
+  l'eau devant un lot de chaque rangée et devant chaque lot à bateau pilotable (17/17, 6,7 s au plus) ; devant chacun des 50 lots,
+  une échelle ou des marches à portée et dégagées.
+- [x] **Le chenal** : mesuré à chaque mètre de chaque canal à rives de lots (eau navigable autour de l'axe) — 10,8 u au moins dans
+  le canal ouest, 10,5 dans le canal est, 9,5 et 6,5 dans les impasses (exigé : 10,5 à deux rives, 6,5 dans une impasse). Le placement
+  le garantit : la rive d'en face garde toujours la place d'un ponton à quai ; sinon le bateau rapetisse, puis le ponton redevient
+  « à quai ». À hauteur d'un carrefour, un ponton à quai et rien d'amarré (décision 10).
+- [x] **26 pontons sur 46 ont un bateau (57 %)** : 21 du décor — 2 yachts à moteur (les grands lots), 4 sportfishing à tour de
+  pêche, 2 day-cruisers, 4 voiliers (mât de 12 u, feu de tête de mât la nuit), 2 opens à T-top, 2 petits, 5 quais à jet-skis — et
+  5 pilotables. Jamais de gros bateau dans une impasse. Les bateaux du décor : une coque lissée section par section (bordé, liseré,
+  carène, pont, tableau arrière) et leur superstructure, quelques centaines de triangles chacun, tous dans UNE géométrie qui berce
+  (`_MAT_BATEAUX_CANAUX` : chaque sommet connaît le centre de son bateau et sa phase) ; un mur pour un bateau (`CANAUX.amarres`).
+- [x] **Pilotables** (`CANAUX.pilotables`, créés à chaque partie) : une vedette « Sirène » dans chaque canal principal et trois
+  jet-skis (canal ouest, canal est, impasse est) — emplacements dans « Restitution ». Un pilote simulé fait l'aller-retour de la
+  vedette la plus proche d'un bassin dans chaque canal (graphe des vedettes, demi-tour dans le bassin, retour à son ponton).
+
+Décisions :
+
+8. **Le bateau amarré le long du flotteur, côté chenal** (le brief dit « le long du ponton, côté quai » pour qu'il ne mange pas le
+   chenal) : avec des pontons flottants le long du quai, il n'y a pas de place côté quai ; c'est la largeur du chenal qui est
+   garantie et vérifiée (10,5 u), mesurée bateaux compris.
+9. **Les lots entamés par un bassin n'ont pas de ponton** (4) : leur quai est celui du bassin, où l'on ne peut pas amarrer sans
+   gêner le demi-tour des vedettes.
+10. **Aux carrefours** (à 6 u d'une traverse ou d'un bras qui débouche, sur les deux rives) : un ponton à quai et rien d'amarré.
+    Trouvé par la suite : une vedette qui tournait large de la traverse vers le canal est se coinçait entre le quai et le flotteur
+    d'un ponton en T. La V1 n'y posait aucun ponton ; la V2 garde un ponton par villa, sans bateau.
+11. **Plus jamais coincé contre un ponton** : l'eau entre le quai et le flotteur d'un ponton en L ou en T est un mur pour un bateau
+    (de l'eau pour un nageur) ; un bateau dont le centre s'est retrouvé dans un ponton ou un bateau amarré glisse vers l'eau libre
+    la plus proche (`eauNavProche`) ; contre un ponton ou un bateau amarré, il glisse le long au lieu de s'arrêter net. **Les murs
+    de quai gardent le rebond et les dégâts de la V1** (limite connue de la V1 : « à jouer sur iPhone avant d'amortir quoi que ce
+    soit »).
+12. **Le débarquement** sur un ponton se fait du côté du flotteur opposé au bateau : posé dans la « boîte » du jet-ski amarré, le
+    joueur ne pouvait plus faire un pas.
+
+## Phase 4 — des ponts tous différents, des passerelles (fait)
+
+Code (juste avant `mkPontCanal`) : `STYLES_PONTS`, `peindreRoutePont`, `bandePont`, `archePont`, `lanternePont`, `decoPontV2` ;
+`passerellesV2` (des données, dans `canauxDefinir`), `passerelleCanal`, `hauteurPasserelle`, `mkPasserelleV2`. `mkPontCanal` lit le
+style ; `solCanaux`, `estEau`, les apparitions, `canauxNettoyerVehicules`, `majCanaux` (le tablier qui s'efface) et la carte
+connaissent les passerelles.
+
+- [x] **Six ponts, six styles** (le décor de chacun est dans le groupe de son tablier : il s'efface avec lui) :
+  - *pont-levis* (sud-ouest, l'orange, gardé et toujours fixe) : tablier d'acier orange à deux volées (la jointure au milieu),
+    portique et contrepoids, cabine de l'éclusier sur le quai (un vrai volume), barrières levées rayées rouge et blanc, feux ;
+  - *vénitien* (nord-ouest) : arche de béton blanc sous le tablier (tympans), balustres et main courante, lanternes aux deux
+    bouts et à la clé ;
+  - *promenade Art déco* (nord-est) : larges trottoirs roses, garde-corps menthe à bandeaux roses et hublots, jardinières à
+    palmiers aux quatre coins, lampadaires rétro à globes ;
+  - *bois tropical* (sud-est) : platelage de planches, pieux sous le tablier, garde-corps de bois, cordage, torches tiki ;
+  - *pont de la plage* (front de mer, sud-ouest) : rives blanches, garde-corps d'acier bleu, pavillons, lanternes ;
+  - *pont de pierre* (front de mer, sud-est) : pavés, deux arches de pierre et l'avant-bec du pilier, lanternes de fer.
+- [x] **Trois passerelles piétonnes** (`CANAUX.passerelles`, en dos d'âne, 3,6 u de large, tirant d'air 3,2 u au milieu) :
+  arche blanche sur le bras ouest (de la placette du doigt ouest au quai nord), bois sur pieux sur le bras est (de la placette du
+  canal secondaire est au quai nord), acier léger à treillis bleu sur la traverse (de la rue de l'atelier à celle du garage).
+  Praticables à pied et à vélo (pente 0,25 à 0,34), l'eau navigable dessous ; **trois bornes à chaque bout** (1,5 u d'écart : une
+  voiture ne passe pas, un vélo ou une moto si) et des jardinières le long des rampes à terre (on n'y monte pas par le côté).
+
+Décisions :
+
+13. **Six ponts, pas quatre.** Le brief parle des « 4 ponts routiers » ; le quartier en a six (les quatre des canaux et les deux du
+    front de mer). Les quatre styles demandés vont aux ponts des canaux (le levis orange reste au sud-ouest) ; les deux du front de
+    mer reçoivent deux styles de plus (plage, pierre) : six ponts, six silhouettes.
+14. **Le profil validé est gardé pour tous** (`hauteurPont` : dos d'âne, plateau de 5 u, 2,7 u). Le « tablier plat » de la
+    promenade Art déco aurait demandé des rampes plus raides (une voiture décollait) ou un tirant d'air plus bas ; elle se
+    distingue par ses trottoirs, son garde-corps et ses palmiers.
+15. **Aucun piéton ne naît sur une passerelle** (ni sur un ponton ni sur une marche) : le test des 500 apparitions comptait
+    « dans l'eau » un piéton né sur le tablier d'une passerelle, au-dessus d'un bras.
+
+## Phase 5 — la vie, la nuit, les sons (fait)
+
+Code (bloc juste avant les pontons construits) : `CVIE`, `chienCanaux`, `canauxVieConstruire` (à la 1re partie, sur le générateur
+privé de `canauxStartRun`), `canauxLumieresNuit`, `canauxVieStartRun`, `majCanauxVie` (dans `majCanaux`), `CANAUX_SON`,
+`canauxSonStart` / `canauxSonStop` / `majCanauxSon` (dans la boucle, après `majMontSon`) ; `villaV2` note la place d'un bronzeur et
+d'un cuisinier (`l.vie`).
+
+- [x] **Figurants** (tous par `figurant()` : touchés, ils paniquent et deviennent des piétons ; ils reviennent à la partie
+  suivante) : 4 bronzeurs allongés sur un transat, 3 barbecues aux cuisines d'été, 3 laveurs de bateau sur le ponton (brosse), 3
+  pêcheurs au bout d'un ponton (canne), 2 enfants qui sautent du ponton et remontent, 1 joggeur qui fait des allers-retours sur le
+  pont de la promenade, 3 promeneurs de chien dans les allées. Posés à leur place dès leur création, cachés loin du quartier
+  (130 u), animés seulement de près (90 u).
+- [x] **Deux bateaux qui circulent** : un open sur la traverse, un jet-ski et son pilote dans le canal est ; aller-retour, demi-tour
+  au bout, **ils s'arrêtent devant le joueur** (11 u, à pied, à la nage ou à bord). Décor : ils ne sont pas des véhicules.
+- [x] **L'eau** : un turquoise plus clair que la mer (0x8fd2e2 → 0xa2ece6) ; les ombres des pontons et des bateaux sur l'eau (un
+  maillage translucide) ; les bateaux du décor bercent dans le shader (phase 3).
+- [x] **La nuit** : fenêtres chaudes, néons et foyers (phase 2), bornes des pontons, lanternes des ponts et passerelles, feu de
+  tête de mât, cabines des yachts ; **flaques de lumière** sous les bornes et les lanternes (un seul maillage additif) ; les
+  piscines s'éclairent ; une **fête** dans une villa moderne (guirlande de couleurs, `CANAUX.fete`).
+- [x] **Les sons** : clapot contre les quais (plus fort au bord de l'eau), un hors-bord au loin, les drisses des voiliers qui
+  tintent (à moins de 28 u d'un voilier), la fête la nuit (basse et accords étouffés). Hasard des sons sur un générateur propre ;
+  coupés en salle, à la mort (`mourir`) et à chaque partie (`startRun`).
+
+Décision :
+
+16. **Les caches partagés rendus tels quels** : les figurants sont construits avec le corps du jeu (`makeHumain`), qui met ses
+    couleurs dans le cache de `mat()` et ses visages dans `VIS_CACHE`. Une salle construite ensuite y trouvait un matériau déjà
+    fait, créait un objet Three.js de moins et tirait un uuid de moins : le relevé a vu 21 véhicules garés ailleurs dans la ville
+    changer de place (la divergence apparaissait à la première visite du bowling). `canauxVieConstruire` note les clés des deux
+    caches et retire à la fin celles qu'il a ajoutées.
+
 ## Phases
 
 - [x] Phase 1 — plan des lots et des doigts, canaux secondaires, allées, relevé du périmètre
 - [x] Phase 2 — générateur de villas, jardins côté eau, côté rue
-- [ ] Phase 3 — pontons accessibles et bateaux des villas
-- [ ] Phase 4 — les 4 ponts et les passerelles
-- [ ] Phase 5 — vie, ambiance, nuit, sons
+- [x] Phase 3 — pontons accessibles et bateaux des villas
+- [x] Phase 4 — les ponts et les passerelles
+- [x] Phase 5 — vie, ambiance, nuit, sons
 - [ ] Phase 6 — carte et performances

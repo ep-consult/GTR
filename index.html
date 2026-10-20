@@ -3473,7 +3473,7 @@ function niveauCanal(x,z){ const N=CANAUX.niveau; if(z<=CANAUX.zMer) return N; i
 /* ce qu'ajoute un canal à la hauteur d'un objet flottant (0 en mer) */
 function niveauFlot(x,z){ return CANAUX.ok&&z<MER&&dansCanal(x,z)?niveauCanal(x,z):0; }
 function estEau(x,z){
-  if(z<MER) return DECOR_V2&&((LAC!==null&&surLac(x,z))||dansCrique(x,z)||(BASSINS.length>0&&dansBassin(x,z))||(CANAUX.ok&&dansCanal(x,z)&&!pontCanal(x,z)&&!marcheCanal(x,z)&&!pontonCanal(x,z))); // le lac du parc (sauf sa passerelle), la baie de la crique et les bassins des cascades sont de l'eau
+  if(z<MER) return DECOR_V2&&((LAC!==null&&surLac(x,z))||dansCrique(x,z)||(BASSINS.length>0&&dansBassin(x,z))||(CANAUX.ok&&dansCanal(x,z)&&!pontCanal(x,z)&&!marcheCanal(x,z)&&!pontonCanal(x,z)&&!passerelleCanal(x,z))); // le lac du parc (sauf sa passerelle), la baie de la crique et les bassins des cascades sont de l'eau
   for(const p of PONTONS) if(dansRectPlat(p,x,z)) return false;
   for(const i of ILES) if(i.dans?i.dans(x,z):dist2(x,z,i.x,i.z)<i.r*i.r) return false; // i.dans : contour irrégulier (île aux trésors)
   return true;
@@ -7542,8 +7542,8 @@ function canauxDefinir(){
   const zB=cx(6); eau({t:'r',id:'brasO',x0:cx(9)+3,x1:O-L+1,z0:zB-6,z1:zB+6}); eau({t:'c',id:'bassinO',x:cx(9)-2,z:zB,r:11});
   const zE=cx(8); eau({t:'r',id:'brasE',x0:E+L-1,x1:cx(13)+7,z0:zE-6,z1:zE+6}); eau({t:'c',id:'bassinE',x:cx(13)+2,z:zE,r:11});
   /* les ponts : un tablier en dos d'âne de la largeur de la rue, d'un quai à l'autre */
-  const pont=(id,xc,zc,orange)=>C.ponts.push({id,x0:xc-P,x1:xc+P,z0:zc-6,z1:zc+6,xc,zc,H:2.7,plat:5,orange:!!orange,mats:null,k:1});
-  pont('nordOuest',O,rue(8)); pont('nordEst',E,rue(8)); pont('sudOuest',O,rue(11),true); pont('sudEst',E,rue(11)); pont('plageOuest',O,rue(13)); pont('plageEst',E,rue(13));
+  const pont=(id,xc,zc,orange,style)=>C.ponts.push({id,x0:xc-P,x1:xc+P,z0:zc-6,z1:zc+6,xc,zc,H:2.7,plat:5,orange:!!orange,style:style||(orange?'levis':'venitien'),mats:null,k:1}); /* V2 : un style par pont (STYLES_PONTS) */
+  pont('nordOuest',O,rue(8),false,'venitien'); pont('nordEst',E,rue(8),false,'artdeco'); pont('sudOuest',O,rue(11),true); pont('sudEst',E,rue(11),false,'tropical'); pont('plageOuest',O,rue(13),false,'plage'); pont('plageEst',E,rue(13),false,'pierre');
   /* les segments de rue retirés, d'un carrefour à l'autre (jamais d'amorce) */
   const coupe=(id,x0,x1,z0,z1)=>C.coupes.push({id,x0,x1,z0,z1});
   for(const k of [7,9,10,12]) for(const [n,X] of [['O',O],['E',E]]) coupe('z'+rue(k)+n,X-P,X+P,rue(k)-R,rue(k)+R);
@@ -7593,7 +7593,7 @@ function canauxDefinir(){
   C.marches=C.marches.filter((m)=>!C.lots.some((l)=>m.z1>l.z0-2&&m.z0<l.z1+2&&Math.abs((m.x0+m.x1)/2-l.xEau)<4)); /* V2 : une marche devant un lot laisse la place à son ponton (et à son échelle) */
   C.pontons=[];
   { const o=C.eaux.find((e)=>e.id==='canalO'); C.miamiPonton={x0:o.x0,x1:o.x0+2.4,z0:128,z1:140,h:C.niveau+0.32,cote:-1,canal:'canalO',miami:true}; C.pontons.push(C.miamiPonton); } /* le ponton privé de la villa Miami : quai ouest, entre l'escalier (z 118) et le pont du sud */
-  canauxNautiqueDefinir();
+  villasV2Plan(C); passerellesV2(C); canauxNautiqueDefinir(); pontonsV2(C); /* V2 : le plan des villas (des données), puis un ponton par lot et ses bateaux (phase 3) */
   let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9; const ext=(a,b,c,d)=>{ x0=Math.min(x0,a); x1=Math.max(x1,b); z0=Math.min(z0,c); z1=Math.max(z1,d); };
   for(const e of C.eaux){ if(e.t==='r') ext(e.x0,e.x1,e.z0,e.z1); else if(e.t==='c') ext(e.x-e.r,e.x+e.r,e.z-e.r,e.z+e.r); else for(const q of e.pts) ext(q[0],q[0],q[1],q[1]); }
   for(const L2 of [C.ponts,C.coupes,C.dalles]) for(const p of L2) ext(p.x0,p.x1,p.z0,p.z1);
@@ -7618,13 +7618,78 @@ function canauxLotsV2(C){
         standing:grand?'grand':'ordinaire',brigada:!!(grand&&I.brigada),graine:hacheLot(I.x0+I.x1,z+w/2)}); z+=w; }); } }
 function lotCanaux(x,z){ for(const l of CANAUX.lots) if(x>l.x0&&x<l.x1&&z>l.z0&&z<l.z1) return l; return null; }
 function dansAlleeCanaux(x,z){ for(const a of CANAUX.allees||[]) if(x>a.x0&&x<a.x1&&z>a.z0&&z<a.z1) return a; return null; }
+/* Canaux V2, phase 3 : le ponton privé de chaque lot et le bateau qui y est amarré (des données : appelée par canauxDefinir).
+   Un ponton par lot, sur SON mur de quai : flottant le long du quai (« quai », 2,2 u), ou relié au quai par une passerelle qui
+   descend (« L » : la passerelle à un bout, « T » : au milieu ; le flotteur 1 u plus loin). Une échelle sur le bord extérieur
+   (CANAUX.echelles : on sort de l'eau par là, rivePlusProche). Un bateau sur six sur dix environ, le long du flotteur : la taille
+   suit le standing et la largeur du canal — le chenal des vedettes garde 10,5 u dans un canal à deux rives, 6,5 u dans une impasse
+   (une seule rive) : sinon le bateau rapetisse, puis le ponton redevient « quai ». Quelques-uns sont pilotables (CANAUX.pilotables). */
+const BATEAUX_V2={ yachtMoteur:{L:13,W:3.8}, sportfishing:{L:10.5,W:3.3}, dayCruiser:{L:8.2,W:2.8}, voilier:{L:9,W:2.7}, open:{L:7,W:2.5}, petit:{L:5,W:2}, jetskis:{L:3,W:1.3} };
+const BATEAUX_V2_ORDRE=['yachtMoteur','sportfishing','dayCruiser','voilier','open','petit','jetskis']; /* du plus grand au plus petit (on rapetisse dans cet ordre) */
+function pontonsV2(C){
+  const eau=(x,z)=>C.eaux.some((e)=>formeContient(e,x,z)), h=C.niveau+0.32, occ=[], pil={};
+  C.echelles=[]; C.bateauxV2=[]; C.pilotables=[];
+  const lots=C.lots.slice().sort((p,q)=>(q.standing==='grand')-(p.standing==='grand')||p.graine-q.graine); /* les grands lots choisissent d'abord */
+  for(const l of lots){ const a=aleaLot(l.graine*1.37+0.11), dir=l.dir, xe=l.xEau;
+    const e=C.eaux.find((q)=>q.t==='r'&&formeContient(q,xe-dir*1,l.z)); if(!e) continue;
+    let ent=false; for(let z=l.z0+0.5;z<l.z1;z+=0.5) for(const t of [0.6,1.6]) if(eau(xe+dir*t,z)) ent=true; if(ent) continue; /* un bassin qui entame le lot : son quai suffit */
+    const W=e.x1-e.x0, impasse=/^sec/.test(e.id), chenal=impasse?6.5:10.5;
+    /* le flotteur : centré sur le lot, loin des tabliers et du bout du canal */
+    let Lf=Math.min(l.w-2.4,l.standing==='grand'?14:6+a()*5), zc=l.z+(a()-0.5)*Math.max(0,l.w-2.4-Lf);
+    let z0=Math.max(zc-Lf/2,e.z0+1.5), z1=Math.min(zc+Lf/2,e.z1-1.5); for(const p of C.ponts) if(p.x1>e.x0&&p.x0<e.x1){ if(p.z1+2.5>z0&&p.z0-2.5<z1){ if(zc<p.zc) z1=Math.min(z1,p.z0-2.5); else z0=Math.max(z0,p.z1+2.5); } }
+    /* à hauteur d'un carrefour (traverse, bras qui débouchent sur ce canal, d'un côté ou de l'autre) les bateaux tournent large — une vedette s'est coincée entre le quai et le flotteur d'un ponton en T à l'angle de la traverse : là, un ponton plat le long du quai, sans bateau */
+    const carrefours=C.eaux.filter((q)=>q!==e&&q.t==='r'&&q.x1>=e.x0-0.5&&q.x0<=e.x1+0.5&&q.z1>e.z0&&q.z0<e.z1&&!(q.x0>=e.x0-0.5&&q.x1<=e.x1+0.5)).map((q)=>[q.z0-6,q.z1+6]);
+    if(z1-z0<4) continue; zc=(z0+z1)/2; Lf=z1-z0;
+    let type=impasse?'quai':['quai','quai','L','T','T'][Math.floor(a()*5)]; const auCarrefour=carrefours.some(([ca,cb])=>cb>z0&&ca<z1); if(auCarrefour) type='quai';
+    /* le bateau : selon le standing, la largeur du canal, la place laissée par la rive d'en face, les voisins de la même rive */
+    const xAutre=dir>0?e.x0:e.x1; /* la rive d'en face : chaque lot qui y donne garde au moins la place d'un ponton à quai (2,2 u) */
+    const enFace=(zA,zB)=>{ let m=0; for(const o of occ) if(o.canal===e.id&&o.cote!==dir&&o.zz1>zA-3&&o.zz0<zB+3) m=Math.max(m,o.prof);
+      if(m<2.2&&C.lots.some((q)=>q!==l&&q.dir!==dir&&Math.abs(q.xEau-xAutre)<0.5&&q.z1>zA-3&&q.z0<zB+3)) m=2.2; return m; };
+    /* même rive : jamais deux bateaux l'un sur l'autre, jamais un bateau sur le flotteur (plus avancé) d'un voisin */
+    const libreRive=(zA,zB,pd)=>!occ.some((o)=>o.canal===e.id&&o.cote===dir&&((o.bz1>o.bz0&&o.bz1>zA-1&&o.bz0<zB+1)||(o.pd>pd+0.3&&o.z1>zA-0.5&&o.z0<zB+0.5)));
+    let veut=l.standing==='grand'?(impasse?'open':'yachtMoteur'):(a()<0.8?['sportfishing','dayCruiser','voilier','open','open','petit','jetskis','dayCruiser'][Math.floor(a()*8)]:null);
+    if(veut&&impasse&&BATEAUX_V2[veut].W>2.5) veut=['open','petit','jetskis'][Math.floor(a()*3)]; /* jamais un gros bateau dans une impasse */
+    const besoinPil=!impasse&&!pil[e.id+'open']?'open':(!pil[e.id+'jet']?'jetskis':null); if(besoinPil&&l.standing!=='grand'&&a()<0.55) veut=besoinPil; if(auCarrefour) veut=null; /* au carrefour : rien d'amarré */
+    const profP=(t)=>t==='quai'?2.2:3.0;
+    let choix=null;
+    for(const t of type==='quai'?['quai']:[type,'quai']){ for(let i=veut?BATEAUX_V2_ORDRE.indexOf(veut):BATEAUX_V2_ORDRE.length;i<=BATEAUX_V2_ORDRE.length&&!choix;i++){ const bt=BATEAUX_V2_ORDRE[i];
+        const prof=profP(t)+(bt?0.35+BATEAUX_V2[bt].W+0.25:0), bL=bt?BATEAUX_V2[bt].L:0; /* + 0,25 : la marge du mur d'un bateau amarré (amarreCanal) */
+        for(const dz of bt?[0,-1.5,1.5,-3,3,-4.5,4.5]:[0]){ const bc=zc+dz, bz0=bc-bL/2, bz1=bc+bL/2; /* le bateau glisse le long du flotteur pour trouver sa place */
+          if(bt&&Math.min(bz1,z1)-Math.max(bz0,z0)<Math.min(bL,Lf)*0.6) continue;
+          if(prof>W-chenal-enFace(Math.min(z0,bz0),Math.max(z1,bz1))) continue;
+          if(bt&&(!libreRive(bz0,bz1,profP(t))||bz0<e.z0+1||bz1>e.z1-1||C.ponts.some((p)=>p.x1>e.x0&&p.x0<e.x1&&p.z1+1.5>bz0&&p.z0-1.5<bz1)||carrefours.some(([ca,cb])=>cb>bz0&&ca<bz1))) continue;
+          choix={t,bt,prof,bc}; break; } } if(choix) break; }
+    if(!choix) continue; type=choix.t;
+    /* le flotteur et la passerelle (rectangles du quartier : praticables, un mur pour les bateaux) */
+    const off=type==='quai'?0:1.0, lF=type==='quai'?2.2:2.0, xa=xe-dir*off, xb=xe-dir*(off+lF), out=xb;
+    const flot={x0:Math.min(xa,xb),x1:Math.max(xa,xb),z0,z1,h,cote:dir,canal:e.id,lot:l.id,type,v2:true}; C.pontons.push(flot); l.ponton=flot;
+    if(type!=='quai'){ const zp=l.z-dir*l.s*(l.w/2-1.05), zg=type==='T'?zc:(zp>zc?z1-1.1:z0+1.1), /* « L » : la passerelle du côté du passage à pied du lot */ g={x0:Math.min(xe,xa),x1:Math.max(xe,xa),z0:zg-0.65,z1:zg+0.65,h,h0:0.22,xq:xe,xf:xa,pente:true,cote:dir,canal:e.id,lot:l.id,v2:true,passerelle:true}; C.pontons.push(g); flot.acces=g;
+      const ix0=Math.min(xe,xa), ix1=Math.max(xe,xa); for(const [za,zb] of [[z0,g.z0],[g.z1,z1]]) if(zb-za>0.2) C.amarres.push({x:(ix0+ix1)/2,z:(za+zb)/2,cle:'ecart',ang:0,x0:ix0,x1:ix1,z0:za,z1:zb,v2:true,ecart:true}); } /* l'eau entre le quai et le flotteur (1 u) : un mur pour un bateau (il s'y coinçait), de l'eau pour un nageur */
+    const zE=zc+(a()<0.5?-1:1)*Math.min(Lf/2-1,2.5);
+    const o={canal:e.id,cote:dir,z0,z1,pd:profP(type),prof:choix.prof,bz0:0,bz1:0,zz0:z0,zz1:z1}; occ.push(o);
+    if(choix.bt){ const B=BATEAUX_V2[choix.bt], bx=out-dir*(0.35+B.W/2), ang=a()<0.5?0:Math.PI, zb=choix.bc; o.bz0=zb-B.L/2; o.bz1=zb+B.L/2; o.zz0=Math.min(z0,o.bz0); o.zz1=Math.max(z1,o.bz1);
+      let pilote=null; if(choix.bt==='open'&&!impasse&&!pil[e.id+'open']){ pilote='bateau'; pil[e.id+'open']=1; } else if(choix.bt==='jetskis'&&!pil[e.id+'jet']){ pilote='jetski'; pil[e.id+'jet']=1; }
+      const bat={type:choix.bt,x:bx,z:zb,ang,L:B.L,W:B.W,lot:l.id,canal:e.id,graine:l.graine,grand:l.standing==='grand',pilote,ascenseur:choix.bt==='petit'&&a()<0.5};
+      if(pilote) C.pilotables.push({cle:pilote,x:bx,z:zb,ang,lot:l.id,canal:e.id}); else { C.bateauxV2.push(bat); const hw=B.W/2+0.15, hd=B.L/2+0.2; C.amarres.push({x:bx,z:zb,cle:choix.bt,ang,x0:bx-hw,x1:bx+hw,z0:zb-hd,z1:zb+hd,v2:true}); }
+      flot.bateau=bat; }
+    /* l'échelle : sur le bord extérieur ; s'il y a un bateau le long du flotteur, au bout du flotteur le plus loin de lui (sinon le bateau la cache au nageur) */
+    if(flot.bateau){ const B=flot.bateau, bout=Math.abs(z0-B.z)>Math.abs(z1-B.z)?-1:1, ez=bout<0?z0+0.7:z1-0.7, ex=(xa+xb)/2; flot.echelle={x:ex,z:ez,bout}; C.echelles.push({x:ex,z:ez,eau:{x:ex,z:ez+bout*1.4},ponton:flot}); }
+    else { flot.echelle={x:out+dir*0.6,z:zE}; C.echelles.push({x:out+dir*0.6,z:zE,eau:{x:out-dir*0.9,z:zE},ponton:flot}); } }
+  C.nPontonsV2=C.pontons.filter((p)=>p.v2&&!p.passerelle).length; }
+/* le sol d'un ponton : la passerelle descend du quai (0,22) au flotteur */
+function hauteurPonton(po,x){ return po.pente?po.h0+(po.h-po.h0)*clamp(Math.abs(x-po.xq)/Math.max(0.01,Math.abs(po.xf-po.xq)),0,1):po.h; }
+/* l'échelle la plus proche (pour qui nage dans un canal) : le point du ponton où l'on monte */
+/* l'eau libre la plus proche (pour un bateau dont le centre est entré dans un ponton ou un bateau amarré) */
+function eauNavProche(x,z){ for(let r=0.6;r<=6;r+=0.6) for(let k=0;k<12;k++){ const a=k*0.5236, qx=x+Math.cos(a)*r, qz=z+Math.sin(a)*r; if(estEauNav(qx,qz)) return {x:qx,z:qz}; } return null; }
+function echelleProche(x,z){ let best=null, bd=1e9; for(const e of CANAUX.echelles||[]){ const d=dist2(x,z,e.eau.x,e.eau.z); if(d<bd){ bd=d; best=e; } } return best; }
 function hauteurPont(p,x){ const u=Math.abs(x-p.xc), demi=(p.x1-p.x0)/2; if(u<=p.plat) return p.H; const t=clamp((demi-u)/(demi-p.plat),0,1); return p.H*t*t*(3-2*t); }
 function hauteurMarche(m,x,z){ let u=m.axe==='z'?(z-m.z0)/(m.z1-m.z0):(x-m.x0)/(m.x1-m.x0); if(m.sens<0) u=1-u; const n=5, k=Math.min(n-1,Math.floor(clamp(u,0,0.999)*n)); return m.hB+(m.hH-m.hB)*(k+1)/n; }
 function dansDalleCanaux(x,z){ for(const d of CANAUX.dalles) if(x>d.x0&&x<d.x1&&z>d.z0&&z<d.z1) return true; return false; }
 /* le sol du quartier (appelé par solY dans son emprise) : le fond d'un canal, une marche, un tablier, une dalle de quai */
 function solCanaux(x,z){
   const m=marcheCanal(x,z); if(m) return hauteurMarche(m,x,z);
-  const po=pontonCanal(x,z); if(po) return po.h;
+  const po=pontonCanal(x,z); if(po) return hauteurPonton(po,x); /* V2 : la passerelle descend du quai au flotteur */
+  const pq=passerelleCanal(x,z); if(pq) return hauteurPasserelle(pq,z); /* V2 : une passerelle piétonne (phase 4) */
   const p=pontCanal(x,z); if(p) return hauteurPont(p,x);
   if(dansCanal(x,z)) return CANAUX.fond;
   if(dansAlleeCanaux(x,z)) return 0; /* V2 : une allée, au niveau de la rue */
@@ -7776,7 +7841,7 @@ function matsCanaux(){ const M=_MAT_CANAUX; if(M.pret) return M; M.pret=true;
   paves.wrapS=paves.wrapT=THREE.RepeatWrapping;
   M.quai=new THREE.MeshLambertMaterial({map:pierre}); M.dalle=new THREE.MeshLambertMaterial({map:paves,color:0xa9a395}); M.margelle=new THREE.MeshLambertMaterial({color:0xc9c2b0}); /* teintés : en plein soleil, le dallage clair virait au blanc */
   const tEau=texEau.clone(); tEau.needsUpdate=true; tEau.wrapS=tEau.wrapT=THREE.RepeatWrapping; tEau.repeat.set(1,1); M.texEau=tEau;
-  M.eau=new THREE.MeshLambertMaterial({map:tEau,color:0x8fd2e2}); M.fond=new THREE.MeshBasicMaterial({color:0x1d4a52});
+  M.eau=new THREE.MeshLambertMaterial({map:tEau,color:0xa2ece6}); /* V2 : un turquoise plus clair que la mer */ M.fond=new THREE.MeshBasicMaterial({color:0x1d4a52});
   M.marche=new THREE.MeshLambertMaterial({color:0xd2c8b0});
   return M; }
 /* un ruban vertical le long d'une boucle (quai), du fond au dessus de la margelle */
@@ -7799,13 +7864,103 @@ function quaisDepuisBoucles(B,M){
   const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2)); g.setIndex(ind); g.computeVertexNormals();
   const gm=new THREE.BufferGeometry(); gm.setAttribute('position',new THREE.Float32BufferAttribute(posM,3)); gm.setIndex(indM); gm.computeVertexNormals();
   const m1=new THREE.Mesh(g,M.quai), m2=new THREE.Mesh(gm,M.margelle); m1.material.side=THREE.DoubleSide; m2.material.side=THREE.DoubleSide; return [m1,m2]; }
+/* ---------- CANAUX V2, phase 4 : des ponts tous différents et des passerelles piétonnes ----------
+   Les six ponts gardent le profil validé (hauteurPont : chaussée en dos d'âne, eau navigable dessous, tablier qui s'efface) ; chacun
+   a son caractère (STYLES_PONTS, décor decoPontV2 dans le groupe du tablier, qui s'efface avec lui) : le pont-levis orange
+   (sud-ouest, gardé, toujours fixe), le pont vénitien (nord-ouest), le pont de la promenade Art déco (nord-est), le pont en bois
+   tropical (sud-est), et sur la route du front de mer le pont de la plage (sud-ouest) et le pont de pierre (sud-est).
+   Les passerelles (CANAUX.passerelles, axe z : elles franchissent un bras ou la traverse) : un tablier en dos d'âne praticable à pied
+   et à vélo (passerelleCanal, hauteurPasserelle, lues par solCanaux), de l'eau navigable dessous, des bornes à chaque bout (les
+   voitures restent en bas). */
+const STYLES_PONTS={
+  levis:{rive:0xd9692a,parapet:0x2e3238,para:0.75},
+  venitien:{rive:0xf2efe6,parapet:0xf4f1ea,para:0.45},
+  artdeco:{rive:0xe8e0d0,parapet:0xbfe6d8,para:0.9},
+  tropical:{rive:0x7a5434,parapet:0,para:0},
+  plage:{rive:0xf4f4f2,parapet:0,para:0},
+  pierre:{rive:0xb89a72,parapet:0xc8aa80,para:0.8} };
+/* la chaussée de chaque style (texture du tablier ; u le long du pont, v en travers) */
+function peindreRoutePont(p,g,s){
+  const st=p.style||'venitien', bord=(c,k)=>{ g.fillStyle=c; g.fillRect(0,0,s,s*k); g.fillRect(0,s*(1-k),s,s*k); };
+  if(st==='levis'){ g.fillStyle='#d9692a'; g.fillRect(0,0,s,s); for(let x=0;x<s;x+=16){ g.fillStyle='rgba(80,30,10,0.35)'; g.fillRect(x,0,2,s); } }
+  else if(st==='tropical'){ g.fillStyle='#8a6440'; g.fillRect(0,0,s,s); for(let x=0,i=0;x<s;x+=12,i++){ g.fillStyle=['#93693f','#7e5a36','#8a6440','#9a7246'][(i*7+3)%4]; g.fillRect(x,0,11,s); g.fillStyle='#4a3420'; g.fillRect(x+11,0,1,s); for(let y=(i*37)%40;y<s;y+=40){ g.fillStyle='#3a2a1a'; g.fillRect(x+2,y,2,2); g.fillRect(x+8,y,2,2); } } return; }
+  else if(st==='pierre'){ g.fillStyle='#6e6254'; g.fillRect(0,0,s,s); for(let j=0;j<s;j+=16) for(let i=-1;i<s/16+1;i++){ const x=i*16+((j/16)%2?8:0), h=((i*13+j*7)%5); g.fillStyle=['#8a7a68','#7a6c5c','#968470','#827260','#9a8a76'][h]; g.fillRect(x+1,j+1,14,14); } bord('#b8a888',0.12); return; }
+  else { g.drawImage(texAsphalte.image,0,0,s,s); if(st==='artdeco') bord('#f2c4c8',0.17); else if(st==='venitien') bord('#e8e2d4',0.12); else if(st==='plage') bord('#e8eef2',0.1); }
+  g.fillStyle=st==='plage'?'#2a6ab8':'#f4f1e6'; g.fillRect(0,s*(st==='artdeco'?0.17:0.06),s,3); g.fillRect(0,s*(st==='artdeco'?0.83:0.94)-3,s,3);
+  if(st!=='levis'){ g.fillStyle='rgba(255,236,160,0.85)'; for(let x=0;x<s;x+=32) g.fillRect(x,s/2-2,18,4); } }
+/* une bande qui suit le tablier (garde-corps, rampe, bandeau) : de x0 à x1 le long du pont, à la hauteur f(x)+y0, épaisseur e, en z */
+function bandePont(b,p,z,y0,haut,ep,col,xa,xb){ const N=Math.max(4,Math.round((xb-xa)/1.2)); for(let i=0;i<N;i++){ const x1=xa+(xb-xa)*i/N, x2=xa+(xb-xa)*(i+1)/N, h1=hauteurPont(p,x1)+y0, h2=hauteurPont(p,x2)+y0;
+    for(const sz of [-1,1]){ const zz=z+sz*ep/2; b.tri([x1,h1,zz],[x2,h2,zz],[x2,h2+haut,zz],col,false,[0,0,sz]); b.tri([x1,h1,zz],[x2,h2+haut,zz],[x1,h1+haut,zz],col,false,[0,0,sz]); }
+    b.tri([x1,h1+haut,z-ep/2],[x2,h2+haut,z-ep/2],[x2,h2+haut,z+ep/2],col,false,[0,1,0]); b.tri([x1,h1+haut,z-ep/2],[x2,h2+haut,z+ep/2],[x1,h1+haut,z+ep/2],col,false,[0,1,0]); } }
+/* le tympan d'une arche sous le tablier (une face verticale, en z) : du dessous du tablier jusqu'à la courbe de l'arche */
+function archePont(b,p,z,col,arches){ const xa=p.xc-10.2, xb=p.xc+10.2, N=24; const ya=(x)=>{ let y=-0.6; for(const [c,r,h] of arches){ const u=(x-c)/r; if(Math.abs(u)<1) y=Math.max(y,-0.6+h*Math.sqrt(1-u*u)); } return y; };
+  for(let i=0;i<N;i++){ const x1=xa+(xb-xa)*i/N, x2=xa+(xb-xa)*(i+1)/N, t1=hauteurPont(p,x1)-0.3, t2=hauteurPont(p,x2)-0.3, a1=Math.min(t1,ya(x1)), a2=Math.min(t2,ya(x2));
+    b.tri([x1,a1,z],[x2,a2,z],[x2,t2,z],col,true); b.tri([x1,a1,z],[x2,t2,z],[x1,t1,z],col,true); } }
+function lanternePont(b,bn,x,y,z,col,haut,lumiere){ b.cyl(0.08,haut,x,y+haut/2,z,col); b.box(0.34,0.48,0.34,x,y+haut+0.2,z,col); b.box(0.26,0.36,0.26,x,y+haut+0.2,z,0xffe9b0); if(bn) bn.box(0.28,0.38,0.28,x,y+haut+0.2,z,lumiere||0xffe0a0); b.box(0.42,0.06,0.42,x,y+haut+0.47,z,col); }
+function decoPontV2(p,G){
+  const C=CANAUX, c={pos:[],nor:[],col:[]}, cn={pos:[],nor:[],col:[]}, b=constructeurCanaux(c,0,0,0,1,0), bn=constructeurCanaux(cn,0,0,0,1,0), st=p.style, H=(x)=>hauteurPont(p,x), zA=p.z0+0.15, zB=p.z1-0.15;
+  const libre=(x,z,r)=>!dansCanal(x,z)&&!lotCanaux(x,z)&&!solidAt(x,z,r)&&!dansAlleeCanaux(x,z);
+  if(st==='levis'){ b.box(0.1,0.03,p.z1-p.z0-0.6,p.xc,H(p.xc)+0.04,p.zc,0x3a2210); /* la jointure des deux volées */
+    const xp=p.xc-8.5; for(const zz of [zA,zB]){ b.box(0.55,6.2,0.55,xp,H(xp)+3.1,zz,0x2e3238); } b.box(0.5,0.6,p.z1-p.z0,xp,H(xp)+6.3,p.zc,0x2e3238); b.box(2.2,1.6,2.2,xp,H(xp)+5.1,p.zc,0x8a8a84); b.box(2.3,0.12,2.3,xp,H(xp)+5.95,p.zc,0xd9692a); /* le portique et son contrepoids */
+    for(const [x,s] of [[p.x0+1.2,1],[p.x1-1.2,-1]]) for(const zz of [zA+0.6,zB-0.6]){ for(let k=0;k<6;k++) b.box(0.16,0.5,0.16,x,H(x)+0.25+k*0.5,zz,k%2?0xf4f4f2:0xc8202a); b.box(0.12,0.9,0.36,x+s*0.6,H(x)+0.45,zz,0x2e3238); b.box(0.16,0.2,0.2,x+s*0.6,H(x)+0.8,zz,0x2e3238); bn.box(0.18,0.16,0.16,x+s*0.6,H(x)+0.8,zz+(zz<p.zc?-0.12:0.12),0xff3020); } /* barrières levées, feux */
+    for(const [x,z] of [[p.x1-2.6,p.z1+1.8],[p.x1-2.6,p.z0-1.8],[p.x0+4.2,p.z1+1.8],[p.x0+4.2,p.z0-1.8]]) if(libre(x,z,1.6)){ const y=solY(x,z); b.box(2.4,2.5,2.4,x,y+1.25,z,0xf4f1e6); b.box(2.44,0.7,2.44,x,y+1.7,z,0x23323f); b.box(2.8,0.2,2.8,x,y+2.6,z,0xd9692a); bn.box(2.3,0.5,2.46,x,y+1.7,z,VILLA_V2_FEN); addSolid({x,z,hw:1.2,hd:1.2,h:y+2.7}); p.cabine={x,z}; break; } } /* la cabine de l'éclusier */
+  else if(st==='venitien'){ for(const zz of [zA,zB]){ for(let x=p.x0+0.6;x<p.x1-0.5;x+=0.42) b.box(0.13,0.5,0.13,x,H(x)+0.7,zz,0xf6f3ec); bandePont(b,p,zz,0.95,0.12,0.36,0xf6f3ec,p.x0+0.3,p.x1-0.3); }
+    for(const zz of [p.z0,p.z1]) archePont(b,p,zz,0xf2efe6,[[p.xc,10.3,2.7]]);
+    for(const x of [p.x0+0.9,p.xc,p.x1-0.9]) for(const zz of [zA,zB]) lanternePont(b,bn,x,H(x)+0.45,zz,0x2a2d34,2.2); } /* aux deux bouts et à la clé de l'arche */
+  else if(st==='artdeco'){ for(const [zz,sz] of [[zA,-1],[zB,1]]){ bandePont(b,p,zz+sz*0.16,0.5,0.14,0.02,0xf2a8b8,p.x0+0.2,p.x1-0.2); bandePont(b,p,zz+sz*0.16,0.72,0.08,0.02,0xf2a8b8,p.x0+0.2,p.x1-0.2);
+      for(let x=p.x0+2;x<p.x1-1.5;x+=2.6) b.boule(0.2,0.2,0.05,x,H(x)+0.32,zz+sz*0.17,0x2a6a7a); }
+    for(const x of [p.x0+1.6,p.x1-1.6]) for(const zz of [p.z0+1,p.z1-1]){ const y=H(x); b.box(1.4,0.7,1.2,x,y+0.35,zz,0xf2c4c8); b.box(1.5,0.08,1.3,x,y+0.72,zz,0xf4f2ec); palmierV2(b,x,zz,y+4.2,false); }
+    for(const x of [p.xc-5,p.xc+5]) for(const zz of [zA+0.3,zB-0.3]){ const y=H(x); b.cyl(0.07,3,x,y+1.5,zz,0x2a6a7a); b.boule(0.24,0.24,0.24,x,y+3.1,zz,0xfff2d0); bn.boule(0.26,0.26,0.26,x,y+3.1,zz,0xffe8b0); } }
+  else if(st==='tropical'){ for(const zz of [zA,zB]){ for(let x=p.x0+0.4;x<p.x1-0.3;x+=1.5) b.box(0.16,1.05,0.16,x,H(x)+0.5,zz,0x6a4a2c); bandePont(b,p,zz,0.95,0.1,0.16,0x8a6440,p.x0+0.3,p.x1-0.3); bandePont(b,p,zz,0.55,0.06,0.06,0xc8b080,p.x0+0.3,p.x1-0.3); }
+    for(let x=p.xc-9;x<=p.xc+9.1;x+=3) for(const zz of [p.z0+0.6,p.zc,p.z1-0.6]){ const yb=H(x)-0.35; b.cyl(0.16,yb-C.fond,x,(yb+C.fond)/2,zz,0x5a4030); } /* les pieux */
+    for(const x of [p.x0+0.7,p.xc,p.x1-0.7]) for(const zz of [zA,zB]){ const y=H(x); b.cyl(0.07,2,x,y+1,zz,0xb89a5a); b.box(0.22,0.3,0.22,x,y+2.1,zz,0x3a2a1a); bn.box(0.2,0.34,0.2,x,y+2.4,zz,0xff9a30); } }
+  else if(st==='plage'){ for(const zz of [zA,zB]){ for(let x=p.x0+0.4;x<p.x1-0.3;x+=1.2) b.box(0.07,1,0.07,x,H(x)+0.5,zz,0x2a6ab8); bandePont(b,p,zz,0.95,0.07,0.07,0x2a6ab8,p.x0+0.3,p.x1-0.3); bandePont(b,p,zz,0.5,0.05,0.05,0x2a6ab8,p.x0+0.3,p.x1-0.3); }
+    for(const x of [p.x0+1,p.x1-1]) for(const [zz,cl] of [[zA,0x2a6ab8],[zB,0xf4f4f2]]){ const y=H(x); b.cyl(0.06,4.2,x,y+2.1,zz,0xe8e8e8); b.box(0.04,0.7,1.1,x,y+3.8,zz+(zz<p.zc?-0.6:0.6),cl); }
+    for(const zz of [zA,zB]) lanternePont(b,bn,p.xc,H(p.xc),zz,0xf4f4f2,2.6); }
+  else if(st==='pierre'){ for(const zz of [p.z0,p.z1]) archePont(b,p,zz,0xb08e64,[[p.xc-5,5,2.1],[p.xc+5,5,2.1]]);
+    for(const zz of [p.z0-0.1,p.z1+0.1]) b.box(1.2,2.6,0.4,p.xc,H(p.xc)-1.6,zz,0xa88a62); /* l'avant-bec du pilier central */
+    for(const x of [p.x0+1,p.xc,p.x1-1]) for(const zz of [zA,zB]) lanternePont(b,bn,x,H(x)+0.8,zz,0x1c1d20,1.8); }
+  const geo=(q)=>{ const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(q.pos,3)); g.setAttribute('normal',new THREE.Float32BufferAttribute(q.nor,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(q.col,3)); g.computeBoundingSphere(); return g; };
+  if(c.pos.length){ p.mats.deco=new THREE.MeshLambertMaterial({vertexColors:true,transparent:true,opacity:1}); G.add(new THREE.Mesh(geo(c),p.mats.deco)); }
+  if(cn.pos.length){ const m=new THREE.Mesh(geo(cn),matFenCanaux()); m.visible=false; CANAUX.nuitMeshes.push(m); scene.add(m); } }
+/* les passerelles : des données (canauxDefinir) */
+function passerellesV2(C){
+  C.passerelles=[]; const sol=(x,z)=>(C.allees||[]).some((a)=>x>a.x0&&x<a.x1&&z>a.z0&&z<a.z1)?0:(C.dalles.some((d)=>x>d.x0&&x<d.x1&&z>d.z0&&z<d.z1)?0.22:0);
+  for(const [id,x,zA,zB,style] of [['brasO',122,-33,-9,'arche'],['brasE',255,50,73,'bois'],['traverse',172,89.6,120.4,'acier']]){
+    const hw=1.8; C.passerelles.push({id,x0:x-hw,x1:x+hw,z0:zA,z1:zB,xc:x,zc:(zA+zB)/2,H:2.6,plat:1.5,yA:sol(x,zA+0.4),yB:sol(x,zB-0.4),style,axe:'z',mats:null,k:1}); } }
+function passerelleCanal(x,z){ if(!CANAUX.ok||!dansBBCanaux(x,z)) return null; for(const q of CANAUX.passerelles||[]) if(x>q.x0&&x<q.x1&&z>q.z0&&z<q.z1) return q; return null; }
+function hauteurPasserelle(q,z){ const bas=z<q.zc, u=bas?z-q.z0:q.z1-z, y0=bas?q.yA:q.yB, t=clamp(u/((q.z1-q.z0)/2-q.plat),0,1); return y0+(q.H-y0)*t*t*(3-2*t); }
+function mkPasserelleV2(q){
+  const C=CANAUX, c={pos:[],nor:[],col:[]}, cn={pos:[],nor:[],col:[]}, b=constructeurCanaux(c,0,0,0,1,0), bn=constructeurCanaux(cn,0,0,0,1,0), N=Math.round((q.z1-q.z0)/0.8), Hz=(z)=>hauteurPasserelle(q,z);
+  const S={arche:{dessus:0xf2efe6,cote:0xf4f1ea,rampe:0xf6f4ee},bois:{dessus:0x9a7048,cote:0x6e4a2c,rampe:0x7a5434},acier:{dessus:0x8a9098,cote:0x5a6068,rampe:0x2a6ab8}}[q.style];
+  for(let i=0;i<N;i++){ const z1=q.z0+(q.z1-q.z0)*i/N, z2=q.z0+(q.z1-q.z0)*(i+1)/N, h1=Hz(z1)+0.02, h2=Hz(z2)+0.02, cl=q.style==='bois'&&i%2?0x8e6640:S.dessus;
+    b.tri([q.x0,h1,z1],[q.x1,h1,z1],[q.x1,h2,z2],cl,false,[0,1,0]); b.tri([q.x0,h1,z1],[q.x1,h2,z2],[q.x0,h2,z2],cl,false,[0,1,0]); /* le tablier */
+    for(const [x,sx] of [[q.x0,-1],[q.x1,1]]){ const b1=Math.max(-0.4,h1-0.32), b2=Math.max(-0.4,h2-0.32); b.tri([x,b1,z1],[x,b2,z2],[x,h2,z2],S.cote,false,[sx,0,0]); b.tri([x,b1,z1],[x,h2,z2],[x,h1,z1],S.cote,false,[sx,0,0]); }
+    b.tri([q.x0,Math.max(-0.4,h1-0.32),z1],[q.x1,Math.max(-0.4,h2-0.32),z2],[q.x1,Math.max(-0.4,h1-0.32),z1],S.cote,false,[0,-1,0]); b.tri([q.x0,Math.max(-0.4,h1-0.32),z1],[q.x0,Math.max(-0.4,h2-0.32),z2],[q.x1,Math.max(-0.4,h2-0.32),z2],S.cote,false,[0,-1,0]); }
+  /* garde-corps : montants et main courante qui suivent le tablier */
+  const rampe=(x,y0,haut,ep,col)=>{ for(let i=0;i<N;i++){ const z1=q.z0+(q.z1-q.z0)*i/N, z2=q.z0+(q.z1-q.z0)*(i+1)/N, h1=Hz(z1)+y0, h2=Hz(z2)+y0;
+      for(const sx of [-1,1]){ const xx=x+sx*ep/2; b.tri([xx,h1,z1],[xx,h2,z2],[xx,h2+haut,z2],col,false,[sx,0,0]); b.tri([xx,h1,z1],[xx,h2+haut,z2],[xx,h1+haut,z1],col,false,[sx,0,0]); }
+      b.tri([x-ep/2,h1+haut,z1],[x+ep/2,h1+haut,z1],[x+ep/2,h2+haut,z2],col,false,[0,1,0]); b.tri([x-ep/2,h1+haut,z1],[x+ep/2,h2+haut,z2],[x-ep/2,h2+haut,z2],col,false,[0,1,0]); } };
+  for(const x of [q.x0+0.1,q.x1-0.1]){ for(let z=q.z0+0.3;z<q.z1;z+=q.style==='acier'?1.2:1.0) b.box(0.08,1,0.08,x,Hz(z)+0.5,z,S.rampe); rampe(x,0.98,0.08,0.12,S.rampe); if(q.style!=='arche') rampe(x,0.5,0.05,0.05,q.style==='bois'?0xc8b080:S.rampe); }
+  if(q.style==='arche'){ for(const x of [q.x0,q.x1]){ const zc=q.zc, R=(q.z1-q.z0)/2-3.5; for(let i=0;i<16;i++){ const z1=zc-R+2*R*i/16, z2=zc-R+2*R*(i+1)/16, a1=-0.6+2.0*Math.sqrt(Math.max(0,1-((z1-zc)/R)**2)), a2=-0.6+2.0*Math.sqrt(Math.max(0,1-((z2-zc)/R)**2)), t1=Hz(z1)-0.3, t2=Hz(z2)-0.3;
+      b.tri([x,Math.min(a1,t1),z1],[x,Math.min(a2,t2),z2],[x,t2,z2],0xf2efe6,true); b.tri([x,Math.min(a1,t1),z1],[x,t2,z2],[x,t1,z1],0xf2efe6,true); } }
+    for(const z of [q.z0+0.6,q.z1-0.6]) for(const x of [q.x0+0.1,q.x1-0.1]) lanternePont(b,bn,x,Hz(z)+1,z,0xf4f1ea,0.9); }
+  if(q.style==='bois'){ for(let z=q.z0+1.2;z<q.z1-1;z+=2.4) if(dansCanal(q.xc,z)) for(const x of [q.x0+0.2,q.x1-0.2]){ const yb=Hz(z)-0.32; b.cyl(0.13,yb-C.fond,x,(yb+C.fond)/2,z,0x5a4030); }
+    for(const z of [q.z0+0.4,q.z1-0.4]) for(const x of [q.x0+0.1,q.x1-0.1]){ const y=Hz(z); b.cyl(0.06,1.8,x,y+0.9,z,0xb89a5a); b.box(0.2,0.28,0.2,x,y+1.95,z,0x3a2a1a); bn.box(0.18,0.3,0.18,x,y+2.2,z,0xff9a30); } }
+  if(q.style==='acier'){ for(const x of [q.x0+0.1,q.x1-0.1]) for(let z=q.z0+0.3;z<q.z1-1.2;z+=1.2){ const h1=Hz(z), h2=Hz(z+1.2); b.tri([x-0.03,h1+0.1,z],[x+0.03,h1+0.1,z],[x+0.03,h2+0.95,z+1.2],S.rampe,true); b.tri([x-0.03,h1+0.1,z],[x+0.03,h2+0.95,z+1.2],[x-0.03,h2+0.95,z+1.2],S.rampe,true); }
+    lanternePont(b,bn,q.x1-0.1,Hz(q.zc)+1,q.zc,0x5a6068,1.6); }
+  /* les bornes (une voiture ne passe pas, un vélo et un piéton si) et les jardinières le long des rampes à terre */
+  for(const [z,y] of [[q.z0+0.35,q.yA],[q.z1-0.35,q.yB]]){ for(const dx of [-1.5,0,1.5]){ b.cyl(0.15,0.75,q.xc+dx,y+0.37,z,0x2a2d34); b.cyl(0.16,0.08,q.xc+dx,y+0.76,z,0xf4f4f2); addSolid({x:q.xc+dx,z,hw:0.15,hd:0.15,h:y+0.8}); } }
+  for(const [za,sens] of [[q.z0,1],[q.z1,-1]]){ let zw=za; while(!dansCanal(q.xc,zw+sens*0.5)&&Math.abs(zw-za)<10) zw+=sens*0.5; const l=Math.abs(zw-za)-0.8; if(l<1) continue; const zm=za+sens*(0.8+l/2);
+    for(const x of [q.x0-0.3,q.x1+0.3]){ b.box(0.5,0.6,l,x,solY(x,zm)+0.3,zm,0x9a948a); for(let k=0;k<Math.floor(l/0.9);k++) b.boule(0.32,0.3,0.32,x,solY(x,zm)+0.7,za+sens*(1.2+k*0.9),k%2?0x3f7a32:0xd03c8a); addSolid({x,z:zm,hw:0.25,hd:l/2,h:solY(x,zm)+0.9}); } }
+  const G=new THREE.Group(), geo=(qq)=>{ const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(qq.pos,3)); g.setAttribute('normal',new THREE.Float32BufferAttribute(qq.nor,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(qq.col,3)); g.computeBoundingSphere(); return g; };
+  q.mats={deco:new THREE.MeshLambertMaterial({vertexColors:true,transparent:true,opacity:1,side:THREE.DoubleSide})}; G.add(new THREE.Mesh(geo(c),q.mats.deco)); scene.add(G); q.g=G;
+  if(cn.pos.length){ const m=new THREE.Mesh(geo(cn),matFenCanaux()); m.visible=false; C.nuitMeshes.push(m); scene.add(m); } }
 /* le tablier d'un pont : chaussée en dos d'âne, sous-face, rives, parapets */
 function mkPontCanal(p){
-  const L=p.x1-p.x0, N=28, Z0=p.z0, Z1=p.z1, ep=0.35, para=0.75;
-  const route=cTex(256,(g,s)=>{ if(p.orange){ g.fillStyle='#d9692a'; g.fillRect(0,0,s,s); for(let x=0;x<s;x+=16){ g.fillStyle='rgba(80,30,10,0.35)'; g.fillRect(x,0,2,s); } }
-      else { g.drawImage(texAsphalte.image,0,0,s,s); } g.fillStyle='#f4f1e6'; g.fillRect(0,s*0.06,s,3); g.fillRect(0,s*0.94-3,s,3);
-      g.fillStyle='rgba(255,236,160,0.85)'; for(let x=0;x<s;x+=32) g.fillRect(x,s/2-2,18,4); });
-  const mats={route:new THREE.MeshLambertMaterial({map:route}),rive:new THREE.MeshLambertMaterial({color:p.orange?0xd9692a:0xd8d0bc}),parapet:new THREE.MeshLambertMaterial({color:p.orange?0x2e3238:0xf0ebe0})};
+  const SP=STYLES_PONTS[p.style]||STYLES_PONTS.venitien, L=p.x1-p.x0, N=28, Z0=p.z0, Z1=p.z1, ep=0.35, para=SP.para; /* V2 : le style du pont (STYLES_PONTS) */
+  const route=cTex(256,(g,s)=>peindreRoutePont(p,g,s));
+  const mats={route:new THREE.MeshLambertMaterial({map:route}),rive:new THREE.MeshLambertMaterial({color:SP.rive}),parapet:new THREE.MeshLambertMaterial({color:SP.parapet||0xf0ebe0})};
   for(const k in mats){ mats[k].transparent=true; mats[k].opacity=1; mats[k].depthWrite=true; }
   p.mats=mats;
   const pos=[], uv=[], ind=[], posR=[], indR=[], posP=[], indP=[];
@@ -7821,8 +7976,8 @@ function mkPontCanal(p){
     for(let i=0;i<N;i++){ const k=b+i*4; indP.push(k,k+4,k+5, k,k+5,k+1,  k+1,k+5,k+6, k+1,k+6,k+2,  k+2,k+6,k+7, k+2,k+7,k+3); } }
   const geo=(P,I,U)=>{ const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(P,3)); if(U) g.setAttribute('uv',new THREE.Float32BufferAttribute(U,2)); g.setIndex(I); g.computeVertexNormals(); return g; };
   const G=new THREE.Group(); G.add(new THREE.Mesh(geo(pos,ind,uv),mats.route)); const mr=new THREE.Mesh(geo(posR,indR),mats.rive); mr.material.side=THREE.DoubleSide; G.add(mr);
-  const mp=new THREE.Mesh(geo(posP,indP),mats.parapet); mp.material.side=THREE.DoubleSide; G.add(mp);
-  scene.add(G); p.g=G; return G; }
+  if(para>0){ const mp=new THREE.Mesh(geo(posP,indP),mats.parapet); mp.material.side=THREE.DoubleSide; G.add(mp); }
+  scene.add(G); p.g=G; decoPontV2(p,G); return G; }
 function mkMarcheCanal(m,M){ const G=new THREE.Group(), n=5;
   for(let k=0;k<n;k++){ const h=m.hB+(m.hH-m.hB)*(k+1)/n, y0=CANAUX.fond;
     let x0=m.x0, x1=m.x1, z0=m.z0, z1=m.z1; const t0=k/n, t1=(k+1)/n;
@@ -7861,6 +8016,7 @@ function mkCanaux(){
     for(const m of quaisDepuisBoucles(Beau,M)) scene.add(m); tp('quais');
     /* 5) les ponts, 6) les marches */
     for(const p of C.ponts) mkPontCanal(p);
+    for(const q of C.passerelles||[]) mkPasserelleV2(q); /* V2 : les passerelles piétonnes */
     for(const m of C.marches) mkMarcheCanal(m,M); tp('ponts');
     /* 7) la plage : le sable des cases traversées par une embouchure, refait autour de l'eau ; la pellicule des vagues coupée */
     for(const o of scene.children.slice()){ const gp=o.geometry&&o.geometry.parameters;
@@ -7908,19 +8064,24 @@ function mkCanaux(){
 function canauxNettoyerVehicules(){
   if(!CANAUX.ok) return 0; let n=0;
   for(let i=vehicules.length-1;i>=0;i--){ const v=vehicules[i]; if(v.mort||v.conduit==='joueur'||P.veh===v||!dansBBCanaux(v.x,v.z)) continue;
-    const d=v.def||{}, bateau=!!d.eau, eau=dansCanal(v.x,v.z)&&!pontCanal(v.x,v.z);
-    const mauvais=(eau&&!bateau&&!d.amphibie)||(!eau&&bateau&&dansCanal(v.x,v.z))||(!bateau&&!d.velo&&(dansCoupe(v.x,v.z)||pontCanal(v.x,v.z)))||(!d.air&&solidAt(v.x,v.z,0.3)&&dansDalleCanaux(v.x,v.z))||(!bateau&&!d.air&&!!lotCanaux(v.x,v.z)); /* V2 : jamais sur la pelouse d'une villa */
+    const d=v.def||{}, bateau=!!d.eau, eau=dansCanal(v.x,v.z)&&!pontCanal(v.x,v.z)&&!passerelleCanal(v.x,v.z);
+    const mauvais=(eau&&!bateau&&!d.amphibie)||(!eau&&bateau&&dansCanal(v.x,v.z))||(!bateau&&!d.velo&&(dansCoupe(v.x,v.z)||pontCanal(v.x,v.z)))||(!d.air&&solidAt(v.x,v.z,0.3)&&dansDalleCanaux(v.x,v.z))||(!bateau&&!d.air&&!!lotCanaux(v.x,v.z))||(!bateau&&!d.velo&&!!passerelleCanal(v.x,v.z)); /* V2 : jamais sur la pelouse d'une villa, ni une voiture sur une passerelle */
     if(!mauvais) continue; v.mort=true; scene.remove(v.mesh); libererEntite(v.mesh); vehicules.splice(i,1); n++; }
   CANAUX.vehRetires=n; return n; }
 /* ---------- en jeu : l'eau qui ondule, le tablier qui s'efface au-dessus du bateau du joueur ---------- */
 function majCanaux(dt){
-  if(!CANAUX.ok) return; majNuitCanaux(); const M=_MAT_CANAUX; if(M.texEau){ M.texEau.offset.x=(M.texEau.offset.x+dt*0.012)%1; M.texEau.offset.y=(M.texEau.offset.y+dt*0.007)%1; }
+  if(!CANAUX.ok) return; majNuitCanaux(); majCanauxVie(dt); if(_MAT_BATEAUX_CANAUX) _MAT_BATEAUX_CANAUX.userData.u.uT.value=(_MAT_BATEAUX_CANAUX.userData.u.uT.value+dt)%628.3; const M=_MAT_CANAUX; if(M.texEau){ M.texEau.offset.x=(M.texEau.offset.x+dt*0.012)%1; M.texEau.offset.y=(M.texEau.offset.y+dt*0.007)%1; }
   const v=P.veh, enBateau=v&&v.def&&(v.def.eau||v.def.amphibie), nage=P.nage;
   for(const p of CANAUX.ponts){ if(!p.mats) continue;
     const cam=camera.position, camDessous=cam.x>p.x0-2&&cam.x<p.x1+2&&cam.z>p.z0-3&&cam.z<p.z1+3&&cam.y<p.H+8; /* la caméra immersive tout près du tablier (dessous ou juste au-dessus) : il cachait la moitié de l'écran */
     const dessous=camDessous||((enBateau||nage)&&P.x>p.x0-4&&P.x<p.x1+4&&P.z>p.z0-6&&P.z<p.z1+6&&(P.veh?(P.veh.h||0):P.y)<hauteurPont(p,P.x)-0.5);
     const cible=dessous?0.22:1; if(Math.abs(p.k-cible)<0.005) continue; p.k+=(cible-p.k)*Math.min(1,dt*6); if(Math.abs(p.k-cible)<0.01) p.k=cible;
     for(const k in p.mats){ p.mats[k].opacity=p.k; p.mats[k].depthWrite=p.k>0.98; } }
+  for(const q of CANAUX.passerelles||[]){ if(!q.mats) continue; /* V2 : une passerelle (axe z) s'efface pareil */
+    const cam=camera.position, camDessous=cam.x>q.x0-3&&cam.x<q.x1+3&&cam.z>q.z0-2&&cam.z<q.z1+2&&cam.y<q.H+8;
+    const dessous=camDessous||((enBateau||nage)&&P.x>q.x0-6&&P.x<q.x1+6&&P.z>q.z0-4&&P.z<q.z1+4&&(P.veh?(P.veh.h||0):P.y)<hauteurPasserelle(q,P.z)-0.5);
+    const cible=dessous?0.22:1; if(Math.abs(q.k-cible)<0.005) continue; q.k+=(cible-q.k)*Math.min(1,dt*6); if(Math.abs(q.k-cible)<0.01) q.k=cible;
+    for(const k in q.mats){ q.mats[k].opacity=q.k; q.mats[k].depthWrite=q.k>0.98; } }
 }
 /* ---------- la carte : canaux, quais, ponts, nom du quartier ---------- */
 function dessinerCanauxCarte(g){
@@ -7931,10 +8092,15 @@ function dessinerCanauxCarte(g){
   g.fillStyle='#d6cdb5'; for(const c of C.coupes) g.fillRect(mmX(c.x0),mmZ(c.z0),(c.x1-c.x0)*mmS,(c.z1-c.z0)*mmS); /* les rues retirées : des promenades */
   g.fillStyle='#2f86a8'; g.strokeStyle='#e8e0cc'; g.lineWidth=0.35;
   for(const L of C.boucles){ g.beginPath(); L.forEach((p,i)=>i?g.lineTo(mmX(p[0]),mmZ(Math.min(p[1],MER))):g.moveTo(mmX(p[0]),mmZ(Math.min(p[1],MER)))); g.closePath(); g.fill(); g.stroke(); }
-  for(const p of C.ponts){ g.fillStyle=p.orange?'#d9692a':'#4a4c55'; g.fillRect(mmX(p.x0),mmZ(p.z0+0.5),(p.x1-p.x0)*mmS,(p.z1-p.z0-1)*mmS);
+  for(const q of C.passerelles||[]){ g.fillStyle={arche:'#f2efe6',bois:'#9a7048',acier:'#8a9098'}[q.style]||'#ddd'; g.fillRect(mmX(q.x0),mmZ(q.z0),(q.x1-q.x0)*mmS,(q.z1-q.z0)*mmS); } /* V2 : les passerelles */
+  for(const p of C.ponts){ g.fillStyle={levis:'#d9692a',venitien:'#e8e2d4',artdeco:'#f2c4c8',tropical:'#8a6440',plage:'#9ab8d8',pierre:'#a8906c'}[p.style]||'#4a4c55'; g.fillRect(mmX(p.x0),mmZ(p.z0+0.5),(p.x1-p.x0)*mmS,(p.z1-p.z0-1)*mmS);
     g.fillStyle='#f0ebe0'; g.fillRect(mmX(p.x0),mmZ(p.z0+0.5),(p.x1-p.x0)*mmS,0.3); g.fillRect(mmX(p.x0),mmZ(p.z1-0.5)-0.3,(p.x1-p.x0)*mmS,0.3); }
+  g.fillStyle='#b08a5a'; for(const p of C.pontons) if(p.v2) g.fillRect(mmX(p.x0),mmZ(p.z0),Math.max(0.5,(p.x1-p.x0)*mmS),Math.max(0.5,(p.z1-p.z0)*mmS)); /* V2 : les pontons */
+  g.fillStyle='#f4f4f2'; for(const b of (C.bateauxV2||[]).concat(C.pilotables||[])){ const L=b.L||(b.cle==='jetski'?2.6:6.5), W=b.W||(b.cle==='jetski'?1.1:2.4); g.fillRect(mmX(b.x-W/2),mmZ(b.z-L/2),W*mmS,L*mmS); } /* et leurs bateaux */
   g.fillStyle='#efe6cf'; for(const m of C.marches) g.fillRect(mmX(m.x0),mmZ(m.z0),Math.max(0.6,(m.x1-m.x0)*mmS),Math.max(0.6,(m.z1-m.z0)*mmS));
-  for(const s of C.batiSolides||[]){ g.fillStyle='rgba(0,0,0,0.3)'; g.fillRect(mmX(s.x-s.hw)+0.5,mmZ(s.z-s.hd)+0.5,s.hw*2*mmS,s.hd*2*mmS); g.fillStyle=s.h>7?'#8a9098':'#c8c2b6'; g.fillRect(mmX(s.x-s.hw),mmZ(s.z-s.hd),s.hw*2*mmS,s.hd*2*mmS); } /* maisons et immeubles */
+  const css=(c)=>'#'+(c>>>0).toString(16).padStart(6,'0'), toitV2=(l)=>{ const T=VILLA_V2_PALETTES[l.style][l.palette]; return css(l.style==='tropical'&&l.opts&&l.opts.toitVert?T.vert:(l.style==='moderne'?0x8a8478:T.toit)); }; /* V2 : les toits à la couleur de leur style, comme la vue aérienne */
+  for(const l of C.lots) for(const s of l.maison||[]){ g.fillStyle='rgba(0,0,0,0.32)'; g.fillRect(mmX(s.x-s.hw)+0.6,mmZ(s.z-s.hd)+0.6,s.hw*2*mmS,s.hd*2*mmS); g.fillStyle=toitV2(l); g.fillRect(mmX(s.x-s.hw),mmZ(s.z-s.hd),s.hw*2*mmS,s.hd*2*mmS); }
+  for(const Q of typeof CONDOS_V2!=='undefined'?CONDOS_V2:[]){ g.fillStyle='rgba(0,0,0,0.35)'; g.fillRect(mmX(Q.x-Q.w/2)+0.9,mmZ(Q.z-Q.d/2)+0.9,Q.w*mmS,Q.d*mmS); g.fillStyle='#e8e6e0'; g.fillRect(mmX(Q.x-Q.w/2),mmZ(Q.z-Q.d/2),Q.w*mmS,Q.d*mmS); g.fillStyle='#3ab8d8'; g.fillRect(mmX(Q.x-Q.w*0.25),mmZ(Q.z-Q.d*0.3),Q.w*0.5*mmS,Q.d*0.3*mmS); } /* les condos, leur piscine sur le toit */
   g.fillStyle='#3ab8d8'; for(const b of BASSINS) if(b.hw&&dansBBCanaux(b.x,b.z)) g.fillRect(mmX(b.x-b.hw),mmZ(b.z-b.hd),b.hw*2*mmS,b.hd*2*mmS); /* les piscines */
   for(const R of [C.aquarium,C.garage]) if(R){ g.fillStyle='rgba(0,0,0,0.35)'; g.fillRect(mmX(R.x0)+0.6,mmZ(R.z0)+0.6,(R.x1-R.x0)*mmS,(R.z1-R.z0)*mmS); g.fillStyle='#5d6470'; g.fillRect(mmX(R.x0),mmZ(R.z0),(R.x1-R.x0)*mmS,(R.z1-R.z0)*mmS); } /* l'aquarium et le garage, sur leurs nouveaux pâtés */
 }
@@ -7958,8 +8124,9 @@ function constructeurCanaux(c,X,Z,ry,s,Y0){
     solide:(x,z,hw,hd,h)=>{ const wx=X+(s*x)*cs+z*sn, wz=Z-(s*x)*sn+z*cs, r=Math.abs(sn)>0.5; solides.push({x:wx,z:wz,hw:r?hd:hw,hd:r?hw:hd,h:h+Y0,toit:true}); },
     monde:(x,z)=>({x:X+(s*x)*cs+z*sn,z:Z-(s*x)*sn+z*cs}),
     /* un triangle (points [x,y,z] du lot, miroir compris : l'ordre est rétabli) ; deux = les deux faces (une palme) */
-    tri:(A,B,D,col,deux)=>{ const W=(p)=>{ const lx=s*p[0]; return [X+lx*cs+p[2]*sn,p[1]+Y0,Z-lx*sn+p[2]*cs]; }, a=W(A), q=W(s>0?B:D), r=W(s>0?D:B);
+    tri:(A,B,D,col,deux,vers)=>{ const W=(p)=>{ const lx=s*p[0]; return [X+lx*cs+p[2]*sn,p[1]+Y0,Z-lx*sn+p[2]*cs]; }, a=W(A); let q=W(s>0?B:D), r=W(s>0?D:B);
       const ux=q[0]-a[0], uy=q[1]-a[1], uz=q[2]-a[2], vx=r[0]-a[0], vy=r[1]-a[1], vz=r[2]-a[2]; let nx=uy*vz-uz*vy, ny=uz*vx-ux*vz, nz=ux*vy-uy*vx; const l=Math.hypot(nx,ny,nz)||1; nx/=l; ny/=l; nz/=l; _c3.setHex(col);
+      if(vers){ const hx=s*vers[0]*cs+vers[2]*sn, hz=-s*vers[0]*sn+vers[2]*cs; if(nx*hx+ny*vers[1]+nz*hz<0){ const t=q; q=r; r=t; nx=-nx; ny=-ny; nz=-nz; } } /* vers : l'extérieur de la face (repère du lot) */
       for(const p of [a,q,r]){ c.pos.push(p[0],p[1],p[2]); c.nor.push(nx,ny,nz); c.col.push(_c3.r,_c3.g,_c3.b); }
       if(deux) for(const p of [a,r,q]){ c.pos.push(p[0],p[1],p[2]); c.nor.push(-nx,-ny,-nz); c.col.push(_c3.r,_c3.g,_c3.b); } },
     /* un tronc à cinq pans passant par des points (il peut pencher), du rayon r0 au pied à r1 en haut, couleurs en anneaux */
@@ -7991,6 +8158,7 @@ const VILLA_V2_PALETTES={
   bungalow:[{mur:0xf4f2ec,toit:0x6a6e74,acc:0x3aa0a8,bois:0x9a7048},{mur:0xf2e4b8,toit:0x8a5a3a,acc:0xd86a3a,bois:0x8a6040},{mur:0xc8e0e8,toit:0x5a5e66,acc:0xe8a020,bois:0xa07a50}]};
 const VILLA_V2_VERRE=0x2a3c4c, VILLA_V2_FEN=0xffd890;
 let _MAT_FEN_CANAUX=null;
+function matFenCanaux(){ if(!_MAT_FEN_CANAUX) _MAT_FEN_CANAUX=new THREE.MeshBasicMaterial({vertexColors:true,transparent:true,opacity:0,depthWrite:false}); CANAUX.nuitMeshes=CANAUX.nuitMeshes||[]; return _MAT_FEN_CANAUX; }
 function aleaLot(g){ let s=((g*4294967296)>>>0)||1; return ()=>{ s=(Math.imul(s,1664525)+1013904223)>>>0; return s/4294967296; }; } /* le hasard d'un lot : sa graine, jamais Math.random */
 /* le style, la palette, les étages et les modules de chaque lot : deux voisines jamais du même style (donc jamais de la même palette),
    cinq styles en rotation sur chaque rangée (une permutation propre à la rangée) */
@@ -8120,8 +8288,9 @@ function villaV2(c,cn,l,piscines){
       if(o.piscine==='debord') b.box(pw,0.22,0.12,px,0.12,pz-pd/2-0.3,0x2ad4d0); /* le bord à débordement face au canal */
       if(o.piscine==='plage') for(let k=0;k<3;k++) b.box(pw*0.3,0.06,0.4,px-pw*0.35,0.04-k*0.05,pz+pd/2-0.2-k*0.4,0xd8d0c0); /* la plage immergée */
       const nt=Math.min(4,Math.max(2,Math.floor(pw/2))); for(let k=0;k<nt;k++) b.box(0.66,0.22,1.7,px-pw/2+0.5+k*(pw-1)/Math.max(1,nt-1),0.24,Math.min(gz1-1,pz+pd/2+1.35),[0xf4f4f2,0xffffff,0x2ad4d0][k%3]); /* transats */
+      { const sn=Math.sin(l.ry), cs=Math.cos(l.ry), q=b.monde(px-pw/2+0.5,Math.min(gz1-1,pz+pd/2+1.35)); (l.vie=l.vie||{}).transat={x:q.x-sn*0.85,z:q.z-cs*0.85,ang:l.ry+Math.PI}; } /* phase 5 : un bronzeur, la tête vers la maison */
       if(o.parasol) { b.cyl(0.05,2.2,px+pw/2+0.6,1.1,pz,0xd8d8d8); b.cone(1.2,0.5,px+pw/2+0.6,2.35,pz,[0xf2f0ea,0x2ad4d0,0xe06a4a][Math.floor(a()*3)]); } } }
-  if(o.cuisine&&G>4){ const kx=hx0+1, kz=gz0+0.6; b.box(2.2,0.95,0.7,kx,0.48,kz,0x8a8478); b.box(2.3,0.08,0.8,kx,0.98,kz,0x3a3a40); b.box(0.6,0.3,0.5,kx+0.6,1.15,kz,0x2a2a2e); }
+  if(o.cuisine&&G>4){ const kx=hx0+1, kz=gz0+0.6; { const sn=Math.sin(l.ry), cs=Math.cos(l.ry), q=b.monde(kx,kz+0.9); (l.vie=l.vie||{}).cuisine={x:q.x,z:q.z,ang:Math.atan2(-sn,-cs)}; } /* phase 5 : le cuisinier, face à la cuisine */ b.box(2.2,0.95,0.7,kx,0.48,kz,0x8a8478); b.box(2.3,0.08,0.8,kx,0.98,kz,0x3a3a40); b.box(0.6,0.3,0.5,kx+0.6,1.15,kz,0x2a2a2e); }
   if(o.foyer&&G>3.5){ const fx=hx1+0.4, fz=gz0+0.8; b.cyl(0.55,0.35,fx,0.18,fz,0x7a7068); bn.cyl(0.32,0.06,fx,0.38,fz,0xff8a30); }
   if(o.hamac&&G>3){ b.box(0.12,1.6,0.12,hx0-0.3,0.8,gz0+0.3,0x7a5434); b.box(0.12,1.6,0.12,hx0-0.3,0.8,gz1-0.3,0x7a5434); b.box(0.5,0.08,Math.max(1,G-1.2),hx0-0.3,0.85,(gz0+gz1)/2,0xe8d8a8); }
   if(o.massif) for(let k=0;k<3;k++) b.boule(0.7,0.6,0.7,hx0+0.6+k*0.9,0.45,gz1-0.1,k%2?0xd03c8a:0xc02a78); /* bougainvilliers */
@@ -8144,11 +8313,11 @@ function condoV2(c,cn,C0){ const b=constructeurCanaux(c,C0.x,C0.z,0,1,0.22), bn=
   b.solide(0,0,w/2+1,d/2+1,H+0.4); return b.solides; }
 /* LE BÂTI V2 : une géométrie par rangée (jour) et une pour la nuit, les piscines, les condos */
 function mkVillasV2(){
-  const C=CANAUX; villasV2Plan(C); const rangs=new Map(), piscines=[], t0=performance.now(); C.batiSolides=C.batiSolides||[];
+  const C=CANAUX; const rangs=new Map(), piscines=[], t0=performance.now(); C.batiSolides=C.batiSolides||[];
   const parRang={}; for(const l of C.lots) (parRang[l.ilot]=parRang[l.ilot]||[]).push(l); for(const id in parRang){ const L=parRang[id].sort((p,q)=>p.z-q.z); L[L.length-1].dernier=true; }
-  if(!_MAT_FEN_CANAUX) _MAT_FEN_CANAUX=new THREE.MeshBasicMaterial({vertexColors:true,transparent:true,opacity:0,depthWrite:false});
+  matFenCanaux();
   const geo=(q,m)=>{ const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(q.pos,3)); g.setAttribute('normal',new THREE.Float32BufferAttribute(q.nor,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(q.col,3)); g.computeBoundingSphere(); const me=new THREE.Mesh(g,m); scene.add(me); return me; };
-  C.nuitMeshes=[]; C.nSommetsBati=0;
+  C.nuitMeshes=C.nuitMeshes||[]; C.nSommetsBati=0; /* (les ponts y ont déjà mis leurs lanternes) */
   for(const l of C.lots){ if(!rangs.has(l.ilot)) rangs.set(l.ilot,{c:{pos:[],nor:[],col:[]},cn:{pos:[],nor:[],col:[]}}); const R=rangs.get(l.ilot);
     for(const s of villaV2(R.c,R.cn,l,piscines)){ addSolid(s); C.batiSolides.push(s); } }
   { const R={c:{pos:[],nor:[],col:[]},cn:{pos:[],nor:[],col:[]}}; rangs.set('condos',R); for(const C0 of CONDOS_V2) for(const s of condoV2(R.c,R.cn,C0)){ addSolid(s); C.batiSolides.push(s); } }
@@ -8163,11 +8332,202 @@ function mkVillasV2(){
 function majNuitCanaux(){ const C=CANAUX; if(!C.nuitMeshes||!_MAT_FEN_CANAUX) return; const f=ETAT.nuitF||0, op=clamp((f-0.25)/0.5,0,1), vis=op>0.01;
   if(Math.abs(_MAT_FEN_CANAUX.opacity-op)>0.01) _MAT_FEN_CANAUX.opacity=op; for(const m of C.nuitMeshes) if(m.visible!==vis) m.visible=vis;
   if(_MAT_PISC_CANAUX){ const e=0.04+0.32*op; _MAT_PISC_CANAUX.emissive.setRGB(0.04*(1+op),0.23*(0.25+e),0.28*(0.25+e)); } }
+/* ---------- CANAUX V2, phase 5 : la vie, la nuit, les sons ----------
+   Figurants (figurant() : un coup, une balle, ils paniquent et deviennent de vrais piétons) : des bronzeurs sur les transats, des
+   barbecues aux cuisines d'été, des gens qui lavent leur bateau sur le ponton, des pêcheurs au bout d'un ponton, un joggeur sur le
+   pont de la promenade Art déco, des promeneurs de chien dans les allées, des enfants qui sautent du ponton. Deux bateaux du décor
+   circulent (un open sur la traverse, un jet-ski dans le canal est) et s'arrêtent devant le joueur. Construits à la 1re partie sur
+   un générateur privé (canauxVieConstruire), posés à leur place dès leur création, cachés loin du quartier (CVIE_LOD).
+   La nuit : des flaques de lumière (un seul maillage additif) sous les bornes des pontons et les lanternes des ponts.
+   Les sons (CANAUX_SON) : le clapot près de l'eau, les drisses des voiliers, un moteur au loin, la fête d'une villa la nuit. */
+const CVIE={ok:false,statiques:[],anim:[],bateaux:[],lod:true}, CVIE_LOD=130;
+function chienCanaux(c){ const g=new THREE.Group(), m=new THREE.MeshLambertMaterial({color:c}), pattes=[];
+  const corps=new THREE.Mesh(new THREE.BoxGeometry(0.28,0.28,0.7),m); corps.position.y=0.42; g.add(corps); const tete=new THREE.Mesh(new THREE.BoxGeometry(0.24,0.24,0.3),m); tete.position.set(0,0.6,0.42); g.add(tete);
+  const queue=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.06,0.3),m); queue.position.set(0,0.52,-0.45); queue.rotation.x=-0.6; g.add(queue);
+  for(const sx of [-0.1,0.1]) for(const sz of [-0.25,0.25]){ const p=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.3,0.08),m); p.position.set(sx,0.15,sz); g.add(p); pattes.push(p); } g.userData.pattes=pattes; return g; }
+function canauxVieConstruire(){
+  const C=CANAUX; if(CVIE.ok||!C.ok) return; CVIE.ok=true; const r=aleaLot(0.4242), choix=(L)=>L[Math.floor(r()*L.length)];
+  const mat0=new Set(Object.keys(_matCache)), vis0=new Set(Object.keys(VIS_CACHE)); /* les caches partagés (couleurs, visages) : rendus tels quels à la fin — sinon une salle construite plus tard y trouve un matériau déjà fait, crée un objet de moins et tire un uuid de moins (le relevé l'a vu : 21 véhicules garés ailleurs dans la ville) */
+  const civ=()=>({haut:choix([0xf2f4f8,0xff8aa8,0x8ad2ff,0xffd23f,0x2a3a5a,0x35c8e0,0xff5a6a]),bas:choix([0x1c2030,0xf2f4f8,0xc8b898,0x3a3e46,0x2a4a7a]),peau:choix(civPeau),casq:choix([0x14161c,0xd8c8a8,0x8a5a2a,0xe8d8a0]),visage:'gentil'});
+  const humain=(t,cfg)=>{ const h=makeHumain(cfg||civ(),t||1); scene.add(h.g); figurant(h); return h; };
+  const lots=C.lots.slice().sort((a,b)=>a.graine-b.graine);
+  /* bronzeurs : allongés sur un transat */
+  let n=0; for(const l of lots){ if(n>=4||!l.vie||!l.vie.transat) continue; const T=l.vie.transat, h=humain(1,{...civ(),haut:choix([0xff5a6a,0x35c8e0,0xffd23f])}); h.g.rotation.order='YXZ'; h.g.rotation.y=T.ang; h.g.rotation.x=-Math.PI/2; h.g.position.set(T.x,0.22+0.55,T.z); h.brasG.rotation.x=-2.6; CVIE.statiques.push({h,x:T.x,z:T.z}); n++; }
+  /* barbecues : devant la cuisine d'été */
+  n=0; for(const l of lots){ if(n>=3||!l.vie||!l.vie.cuisine) continue; const K=l.vie.cuisine, h=humain(); h.g.position.set(K.x,0.22,K.z); h.g.rotation.y=K.ang; CVIE.anim.push({genre:'bbq',h,x:K.x,z:K.z,t:r()*6}); n++; }
+  /* sur les pontons : laveurs (à côté d'un bateau du décor), pêcheurs (au bout d'un ponton sans bateau), enfants qui sautent */
+  const fl=C.pontons.filter((p)=>p.v2&&!p.pente); let lav=0, pec=0, enf=0;
+  for(const p of fl.slice().sort((a,b)=>(a.z0*7.3+a.x0)%1-(b.z0*7.3+b.x0)%1)){ const out=p.cote>0?p.x0:p.x1, xin=p.cote>0?p.x1:p.x0, sg=-p.cote, zc=(p.z0+p.z1)/2;
+    if(p.bateau&&!p.bateau.pilote&&lav<3){ const h=humain(1,{...civ(),haut:0xf2f4f8}); h.g.position.set(out-sg*0.5,p.h,zc); h.g.rotation.y=sg>0?Math.PI/2:-Math.PI/2; const brosse=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.06,1.2),new THREE.MeshLambertMaterial({color:0x2a6ab8})); brosse.position.set(0,0.95,0.6); h.g.add(brosse); CVIE.anim.push({genre:'laveur',h,x:out-sg*0.5,z:zc,t:r()*6}); lav++; continue; }
+    if(!p.bateau&&pec<3&&(pec<=enf)){ const ze=p.echelle&&!p.echelle.bout?(Math.abs(p.echelle.z-p.z0)>Math.abs(p.echelle.z-p.z1)?p.z0+0.8:p.z1-0.8):zc, h=humain(); h.g.position.set(out-sg*0.4,p.h,ze); h.g.rotation.y=sg>0?Math.PI/2:-Math.PI/2; /* face au chenal */
+      const canne=new THREE.Mesh(new THREE.BoxGeometry(0.04,0.04,2.6),new THREE.MeshLambertMaterial({color:0x2a2a2a})); canne.position.set(0.25,1.4,1.1); canne.rotation.x=-0.5; h.g.add(canne); h.brasD.rotation.x=-0.9; CVIE.anim.push({genre:'peche',h,x:out-sg*0.4,z:ze,t:r()*6}); pec++; continue; }
+    if(!p.bateau&&enf<2){ const h=humain(0.72); const x0=out-sg*0.3; h.g.position.set(x0,p.h,zc); h.g.rotation.y=sg>0?Math.PI/2:-Math.PI/2; CVIE.anim.push({genre:'enfant',h,x0,z:zc,y0:p.h,sg,t:r()*4}); enf++; } }
+  /* un joggeur sur le pont de la promenade (Art déco), des promeneurs de chien dans les allées */
+  const pa=C.ponts.find((p)=>p.style==='artdeco'); if(pa){ const h=humain(1,{...civ(),haut:0xff5a6a,bas:0x1c2030}); const z=pa.z1-0.9; h.g.position.set(pa.x0+1,hauteurPont(pa,pa.x0+1),z); CVIE.anim.push({genre:'jog',h,p:pa,u:0,sens:1,z}); }
+  for(const id of ['aMidN','aEstS','aMidS']){ const a=(C.allees||[]).find((q)=>q.id===id); if(!a) continue; const h=humain(), chien=chienCanaux(choix([0x6a5038,0x2a2a2e,0xc8a878,0xe8e4d2])); scene.add(chien);
+    const x=(a.x0+a.x1)/2+0.9; h.g.position.set(x,0,a.z0+3); chien.position.set(x-0.9,0,a.z0+4); CVIE.anim.push({genre:'chien',h,chien,a,x,z:a.z0+3,sens:1}); }
+  /* deux bateaux du décor qui circulent (un open sur la traverse, un jet-ski dans le canal est) : aller-retour, ils s'arrêtent devant le joueur */
+  const tr=C.eaux.find((e)=>e.id==='traverse'), cE=C.eaux.find((e)=>e.id==='canalE');
+  for(const [type,A,B] of [['open',[tr.x0+4,(tr.z0+tr.z1)/2-2.5],[tr.x1-4,(tr.z0+tr.z1)/2-2.5]],['jetskis',[(cE.x0+cE.x1)/2+2,120],[(cE.x0+cE.x1)/2+2,232]]]){
+    const c={pos:[],nor:[],col:[]}, cn={pos:[],nor:[],col:[]}, b=constructeurCanaux(c,0,0,0,1,0), bn=constructeurCanaux(cn,0,0,0,1,0), Bt={type,L:BATEAUX_V2[type].L,W:BATEAUX_V2[type].W,grand:false};
+    if(type==='jetskis'){ b.box(0.92,0.42,2.4,0,0.21,0,0xd83a3a); b.box(0.5,0.2,1.1,0,0.52,-0.25,0x2a2d34); b.box(0.86,0.22,0.6,0,0.55,0.75,0xd83a3a); } else bateauDecorV2(b,bn,Bt,aleaLot(0.77));
+    const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(c.pos,3)); g.setAttribute('normal',new THREE.Float32BufferAttribute(c.nor,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(c.col,3)); g.computeBoundingSphere();
+    const m=new THREE.Mesh(g,MOB_MAT); const ang=Math.atan2(B[0]-A[0],B[1]-A[1]); m.position.set(A[0],C.niveau,A[1]); m.rotation.y=ang; scene.add(m);
+    if(type==='jetskis'){ const h=makeHumain(civ(),1); h.g.position.set(0,0.3,-0.2); /* le pilote : pas un figurant (il vit sur le bateau) */ m.add(h.g); h.jambeG.rotation.x=h.jambeD.rotation.x=-1.1; h.brasG.rotation.x=h.brasD.rotation.x=-1.1; }
+    CVIE.bateaux.push({m,A,B,u:0,sens:1,v:0,vmax:type==='jetskis'?6:4,ang,demi:0}); }
+  { const F=C.lots.find((l)=>l.style==='moderne'&&l.vie&&l.vie.transat&&l.standing!=='grand'); if(F){ C.fete={x:F.x,z:F.z,lot:F.id}; const cn={pos:[],nor:[],col:[]}, bn=constructeurCanaux(cn,F.x,F.z,F.ry,F.s,0.22);
+      for(let k=0;k<12;k++){ const x=-F.w/2+1.2+k*(F.w-2.4)/11, z=-F.d/2+2.2+Math.sin(k*0.9)*0.4; bn.boule(0.13,0.13,0.13,x,2.6-Math.abs(Math.sin(k*0.55))*0.4,z,[0xff4060,0x40d0ff,0xffe040,0x60ff80][k%4]); }
+      const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(cn.pos,3)); g.setAttribute('normal',new THREE.Float32BufferAttribute(cn.nor,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(cn.col,3)); g.computeBoundingSphere();
+      const m=new THREE.Mesh(g,matFenCanaux()); m.visible=false; C.nuitMeshes.push(m); scene.add(m); } } /* la guirlande de la fête (la nuit) */
+  canauxLumieresNuit();
+  const miens=new Set(CVIE.statiques.concat(CVIE.anim).map((a)=>a.h)); for(const f of FIGURANTS) if(miens.has(f.h)&&!f.pos){ f.pos=f.h.g.position.clone(); f.rot=f.h.g.rotation.clone(); f.parent=f.h.g.parent; } /* leur place notée dès la création (restaurerFigurants l'a déjà relevée pour les autres) */
+  for(const k of Object.keys(_matCache)) if(!mat0.has(k)) delete _matCache[k]; for(const k of Object.keys(VIS_CACHE)) if(!vis0.has(k)) delete VIS_CACHE[k]; }
+/* les flaques de lumière de la nuit : un disque additif sous chaque borne de ponton et chaque lanterne de pont */
+function canauxLumieresNuit(){ const C=CANAUX, pos=[], col=[], disque=(x,y,z,r,k)=>{ const N=10; for(let i=0;i<N;i++){ const a1=i/N*6.283, a2=(i+1)/N*6.283; pos.push(x,y,z, x+Math.cos(a2)*r,y,z+Math.sin(a2)*r, x+Math.cos(a1)*r,y,z+Math.sin(a1)*r); col.push(0.55*k,0.42*k,0.2*k, 0,0,0, 0,0,0); } };
+  for(const p of C.pontons) if(p.v2&&!p.pente){ const xq=p.cote>0?p.x1:p.x0, sg=p.cote>0?-1:1; for(const zz of [p.z0+0.35,p.z1-0.35]) disque(xq+sg*0.25,p.h+0.02,zz,1.8,0.8); }
+  for(const p of C.ponts){ if(p.style==='artdeco'||p.style==='tropical'||p.style==='venitien') for(const x of [p.x0+1,p.x1-1]) for(const zz of [p.z0+0.6,p.z1-0.6]) disque(x,hauteurPont(p,x)+0.03,zz,2.6,0.9); }
+  for(const q of C.passerelles||[]) for(const z of [q.z0+0.6,q.z1-0.6]) disque(q.xc,hauteurPasserelle(q,z)+0.03,z,2.2,0.8);
+  const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(col,3)); g.computeBoundingSphere();
+  const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({vertexColors:true,transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false})); m.visible=false; m.renderOrder=2; scene.add(m); CVIE.flaques=m; }
+function canauxVieStartRun(){ /* à chaque partie : chacun reprend sa place (les figurants devenus piétons reviennent par restaurerFigurants) */
+  for(const a of CVIE.anim){ if(a.genre==='jog'){ a.u=0; a.sens=1; } if(a.genre==='chien'){ a.z=a.a.z0+3; a.sens=1; } if(a.genre==='enfant') a.t=0; }
+  for(const B of CVIE.bateaux){ B.u=0; B.sens=1; B.v=0; B.demi=0; B.m.position.set(B.A[0],CANAUX.niveau,B.A[1]); B.m.rotation.y=B.ang; } }
+function majCanauxVie(dt){
+  if(!CVIE.ok) return; const B0=CANAUX.bb, loin=P.x<B0.x0-CVIE_LOD||P.x>B0.x1+CVIE_LOD||P.z<B0.z0-CVIE_LOD||P.z>B0.z1+CVIE_LOD||INT.actif; /* la visibilité se décide AVANT le retour « loin » */
+  const vis=!loin; for(const a of CVIE.statiques) if(!figConverti(a.h)&&a.h.g.visible!==vis) a.h.g.visible=vis;
+  for(const a of CVIE.anim){ if(figConverti(a.h)) continue; if(a.genre==='enfant'){ if(!vis) a.h.g.visible=false; } else if(a.h.g.visible!==vis) a.h.g.visible=vis; if(a.chien&&a.chien.visible!==vis) a.chien.visible=vis; }
+  for(const B of CVIE.bateaux) if(B.m.visible!==vis) B.m.visible=vis;
+  if(CVIE.flaques){ const f=ETAT.nuitF||0, op=clamp((f-0.3)/0.4,0,1)*0.9; CVIE.flaques.visible=vis&&op>0.02; if(Math.abs(CVIE.flaques.material.opacity-op)>0.01) CVIE.flaques.material.opacity=op; }
+  if(loin) return;
+  const proche=(x,z)=>dist2(x,z,P.x,P.z)<90*90;
+  for(const a of CVIE.anim){ if(figConverti(a.h)) continue; const h=a.h; a.t=(a.t||0)+dt;
+    if(a.genre==='bbq'){ h.brasD.rotation.x=-0.9+Math.sin(a.t*3)*0.35; }
+    else if(a.genre==='laveur'){ h.brasD.rotation.x=-1.2+Math.sin(a.t*4)*0.5; h.brasD.rotation.z=Math.sin(a.t*2)*0.3; }
+    else if(a.genre==='peche'){ h.g.rotation.z=Math.sin(a.t*0.7)*0.02; }
+    else if(a.genre==='jog'&&proche(h.g.position.x,h.g.position.z)){ const p=a.p, L=p.x1-p.x0-2; a.u+=a.sens*3.4*dt; if(a.u>L){ a.u=L; a.sens=-1; } if(a.u<0){ a.u=0; a.sens=1; } const x=p.x0+1+a.u; h.g.position.set(x,hauteurPont(p,x),a.z); h.g.rotation.y=a.sens>0?Math.PI/2:-Math.PI/2; animeHumain(h,dt,3.4,false); }
+    else if(a.genre==='chien'&&proche(a.x,a.z)){ const A=a.a; a.z+=a.sens*1.3*dt; if(a.z>A.z1-3){ a.sens=-1; } if(a.z<A.z0+3){ a.sens=1; } h.g.position.set(a.x,0,a.z); h.g.rotation.y=a.sens>0?0:Math.PI; animeHumain(h,dt,1.3,false);
+      a.chien.position.set(a.x-0.9,0,a.z+a.sens*1.1); a.chien.rotation.y=h.g.rotation.y; const pp=a.chien.userData.pattes; for(let i=0;i<4;i++) pp[i].rotation.x=Math.sin(a.t*9+i*1.6)*0.5; }
+    else if(a.genre==='enfant'&&proche(a.x0,a.z)){ const c=a.t%5.5; /* debout 2 s, saut 0,8 s, sous l'eau 1,7 s, il remonte par l'échelle */
+      if(c<2){ h.g.visible=true; h.g.position.set(a.x0,a.y0,a.z); h.g.rotation.x=0; h.jambeG.rotation.x=h.jambeD.rotation.x=c>1.6?0.6:0; }
+      else if(c<2.8){ const u=(c-2)/0.8; h.g.position.set(a.x0+a.sg*2.4*u,a.y0+1.6*u*(1-u)*2-1.1*u*u,a.z); h.g.rotation.x=0; h.brasG.rotation.x=h.brasD.rotation.x=-2.8; }
+      else if(c<4.5){ h.g.visible=false; }
+      else { h.g.visible=true; h.g.position.set(a.x0,a.y0,a.z); h.brasG.rotation.x=h.brasD.rotation.x=0; } } }
+  /* les bateaux qui circulent : aller-retour, demi-tour au bout, arrêt devant le joueur (à pied, à la nage ou à bord) */
+  for(const B of CVIE.bateaux){ if(!proche(B.m.position.x,B.m.position.z)) continue; const L=Math.hypot(B.B[0]-B.A[0],B.B[1]-B.A[1]), ux=(B.B[0]-B.A[0])/L, uz=(B.B[1]-B.A[1])/L;
+    if(B.demi>0){ B.demi-=dt; B.m.rotation.y+=Math.PI*dt/2.2; if(B.demi<=0){ B.m.rotation.y=B.ang+(B.sens>0?0:Math.PI); } continue; }
+    const x=B.m.position.x, z=B.m.position.z, dvx=ux*B.sens, dvz=uz*B.sens, px=(P.veh?P.veh.x:P.x)-x, pz=(P.veh?P.veh.z:P.z)-z, devant=px*dvx+pz*dvz, cote=Math.abs(px*dvz-pz*dvx);
+    const cible=(devant>0&&devant<11&&cote<4.5)?0:B.vmax; B.v+=(cible-B.v)*Math.min(1,dt*1.5);
+    B.u+=B.sens*B.v*dt; if(B.u>L){ B.u=L; B.sens=-1; B.demi=2.2; } if(B.u<0){ B.u=0; B.sens=1; B.demi=2.2; }
+    B.m.position.set(B.A[0]+ux*B.u,CANAUX.niveau+Math.sin(B.u*0.9)*0.03,B.A[1]+uz*B.u); } }
+/* LES SONS DU QUARTIER (WebAudio, comme MONT_SON) : clapot, moteur au loin, et des événements brefs (drisses, fête) */
+const CANAUX_SON={nappes:[],on:false,drisseT:1,feteT:0,r:aleaLot(0.913)};
+function canauxSonStart(){ if(CANAUX_SON.on||!AUDIO.pret||!AUDIO.noise) return; const ctx=AUDIO.ctx, t=ctx.currentTime;
+  for(const n of [{type:'bandpass',f:520,q:0.8,lfo:0.32,prof:0.8},{type:'lowpass',f:260,q:0.7,lfo:0.07,prof:0.9}]){ const src=ctx.createBufferSource(); src.buffer=AUDIO.noise; src.loop=true;
+    const fl=ctx.createBiquadFilter(); fl.type=n.type; fl.frequency.value=n.f; fl.Q.value=n.q; const gn=ctx.createGain(); gn.gain.value=0; const lfo=ctx.createOscillator(); lfo.frequency.value=n.lfo; const lg=ctx.createGain(); lg.gain.value=0; lfo.connect(lg); lg.connect(gn.gain);
+    src.connect(fl); fl.connect(gn); gn.connect(AUDIO.sfxG); src.start(t); lfo.start(t); CANAUX_SON.nappes.push({src,lfo,gn,lg,n,v:-1}); }
+  CANAUX_SON.on=true; AUDIO.canauxOn=true; }
+function canauxSonStop(){ for(const x of CANAUX_SON.nappes){ try{ x.src.stop(); x.lfo.stop(); x.gn.disconnect(); }catch(e){} } CANAUX_SON.nappes.length=0; CANAUX_SON.on=false; AUDIO.canauxOn=false; }
+function majCanauxSon(dt){ const C=CANAUX, x=P.veh?P.veh.x:P.x, z=P.veh?P.veh.z:P.z, ici=DECOR_V2&&C.ok&&ETAT.mode==='jeu'&&!INT.actif&&dansBBCanaux(x,z);
+  if(!ici){ if(CANAUX_SON.on) canauxSonStop(); return; } if(!CANAUX_SON.on) canauxSonStart(); if(!CANAUX_SON.on) return;
+  let eau=0; if(dansCanal(x,z)) eau=1; else for(const [dx,dz] of [[5,0],[-5,0],[0,5],[0,-5]]) if(dansCanal(x+dx,z+dz)){ eau=0.6; break; }
+  const t=AUDIO.ctx.currentTime, vol=[0.035*eau,0.012]; /* le clapot contre les quais, un moteur hors-bord au loin */
+  CANAUX_SON.nappes.forEach((q,k)=>{ const v=vol[k]; if(Math.abs(q.v-v)>0.0005){ q.v=v; q.gn.gain.setTargetAtTime(v,t,0.8); q.lg.gain.setTargetAtTime(v*q.n.prof,t,0.8); } });
+  const R=CANAUX_SON.r; CANAUX_SON.drisseT-=dt; if(CANAUX_SON.drisseT<=0){ CANAUX_SON.drisseT=0.8+R()*2.2; let pres=false; for(const B of C.bateauxV2||[]) if(B.type==='voilier'&&dist2(B.x,B.z,x,z)<28*28){ pres=true; break; }
+    if(pres){ beep(2500+R()*900,0.05,'triangle',0.012); if(R()<0.4) beep(2900+R()*500,0.04,'triangle',0.008); } } /* les drisses qui tintent contre les mâts */
+  const F=C.fete; if(F&&(ETAT.nuitF||0)>0.55){ const d=Math.sqrt(dist2(F.x,F.z,x,z)); if(d<55){ CANAUX_SON.feteT-=dt; if(CANAUX_SON.feteT<=0){ CANAUX_SON.feteT=0.47; const k=1-d/55; beep(58,0.12,'sine',0.05*k,40); if(R()<0.5) beep(220+R()*110,0.18,'square',0.004*k); } } } } /* la fête d'une villa, la nuit : basse et accords étouffés */
+/* ---------- CANAUX V2, phase 3 : les pontons des villas et leurs bateaux (construits) ----------
+   Les pontons (pontonsV2 : des données) : platelage de bois ou de composite et ses joints, pieux à chapeau blanc, taquets, échelle,
+   bornes lumineuses (la nuit), passerelle qui descend du quai, parfois une cabane à claustra sur un grand lot. Les bateaux du décor :
+   une coque lissée section par section (coqueDecorV2 : bordé, liseré, carène, pont, tableau arrière) et leur superstructure par
+   type (bateauDecorV2) — quelques centaines de triangles chacun, tous dans UNE géométrie qui berce (_MAT_BATEAUX_CANAUX : un
+   petit tangage dans le shader, chaque bateau à sa phase). */
+let _MAT_BATEAUX_CANAUX=null;
+function coqueDecorV2(b,L,W,F,Fb,Tk,cH,cL,cB,cP){
+  const N=8, S=[]; for(let i=0;i<=N;i++){ const t=i/N, hw=W/2*(t<0.55?1:Math.sqrt(Math.max(0,1-((t-0.55)/0.45)*((t-0.55)/0.45))))*(t<0.1?0.93+t*0.7:1);
+    S.push({z:-L/2+L*t,hw:Math.max(0.03,hw),y:F+(Fb-F)*t*t,k:-Tk*(t<0.8?1:Math.max(0.2,(1-t)/0.2))}); }
+  const px=(s,niv)=>niv==='g'?s.hw:(niv==='c'?s.hw*0.88:(niv==='k'?0:s.hw*(0.88+0.12*(niv+0.12)/(s.y+0.12)))), py=(s,niv)=>niv==='g'?s.y:(niv==='c'?-0.12:(niv==='k'?s.k:niv));
+  const bandes=[['g',0.34,cH],[0.34,0.14,cL],[0.14,'c',cB],['c','k',cB]];
+  for(const sx of [1,-1]) for(let i=0;i<N;i++){ const A=S[i], B=S[i+1];
+    for(const [u,v,col] of bandes){ const a1=[sx*px(A,u),py(A,u),A.z], a2=[sx*px(A,v),py(A,v),A.z], b1=[sx*px(B,u),py(B,u),B.z], b2=[sx*px(B,v),py(B,v),B.z], vers=[sx,v==='k'?-1:0,0];
+      b.tri(a1,a2,b2,col,false,vers); b.tri(a1,b2,b1,col,false,vers); } }
+  for(let i=0;i<N;i++){ const A=S[i], B=S[i+1]; b.tri([A.hw,A.y,A.z],[-A.hw,A.y,A.z],[-B.hw,B.y,B.z],cP,false,[0,1,0]); b.tri([A.hw,A.y,A.z],[-B.hw,B.y,B.z],[B.hw,B.y,B.z],cP,false,[0,1,0]); }
+  const T=S[0], v=[0,0,-1]; b.tri([T.hw,T.y,T.z],[-T.hw,T.y,T.z],[-T.hw*0.88,-0.12,T.z],cH,false,v); b.tri([T.hw,T.y,T.z],[-T.hw*0.88,-0.12,T.z],[T.hw*0.88,-0.12,T.z],cH,false,v);
+  b.tri([T.hw*0.88,-0.12,T.z],[-T.hw*0.88,-0.12,T.z],[0,T.k,T.z],cB,false,v);
+  return S; }
+/* un pare-brise incliné (deux faces) : de (x0..x1, y0, z0) à (x0..x1, y1, z1) */
+function pareBriseV2(b,hw,y0,z0,y1,z1,col){ b.tri([-hw,y0,z0],[hw,y0,z0],[hw*0.92,y1,z1],col,true); b.tri([-hw,y0,z0],[hw*0.92,y1,z1],[-hw*0.92,y1,z1],col,true); }
+const BATEAU_V2_COQUES={ yachtMoteur:[1.15,1.85,0.75], sportfishing:[0.95,1.55,0.62], dayCruiser:[0.8,1.2,0.5], voilier:[0.75,1.05,1.3], open:[0.72,1.0,0.45], petit:[0.55,0.75,0.35] };
+function bateauDecorV2(b,bn,B,a){
+  const V=VILLA_V2_VERRE, blanc=0xf4f4f2, sombre=0x2a2d34, teck=0xa8784a, coussin=[0xe8e2d0,0x2ab0c0,0x1d3a6a,0xd8d0c0][Math.floor(a()*4)];
+  if(B.type==='jetskis'){ b.box(2.6,0.24,3.2,0,0.1,0,0x3a3e44); for(const sx of [-0.62,0.62]){ const c=[0xe8e6e0,0x2ab0c0,0xd83a3a,0xf0c020][Math.floor(a()*4)];
+      b.box(0.92,0.42,2.4,sx,0.42,0,c); b.box(0.5,0.2,1.1,sx,0.72,-0.25,sombre); b.box(0.7,0.08,0.08,sx,0.95,0.55,sombre); b.box(0.86,0.22,0.6,sx,0.75,0.75,c); } return; }
+  const [F,Fb,Tk]=BATEAU_V2_COQUES[B.type], L=B.L, W=B.W, hw=W/2;
+  const cH=B.grand||a()<0.62?blanc:[0x1d2a44,0x2a4a3a,0x8ab0c8,0x2a2d34,0xe8dcc0][Math.floor(a()*5)], cL=[0x1d3a6a,0xb02a2a,0x2ab0c0,0x2a2d34,0xd8b048][Math.floor(a()*5)], cB=[0x7a2a2a,0x1d2a44,0x2a2d34][Math.floor(a()*3)], cP=a()<0.6?teck:0xe8e6e0;
+  coqueDecorV2(b,L,W,F,Fb,Tk,cH,cL,cB,cP); const yP=(t)=>F+(Fb-F)*t*t; /* la hauteur du pont à la fraction t de la longueur (0 = la poupe) */
+  if(B.type==='petit'){ b.box(0.72,0.85,0.55,0,F+0.42,0.25,blanc); b.box(0.66,0.32,0.05,0,F+1.0,0.5,V); b.box(0.4,0.9,0.42,0,F+0.1,-L/2-0.18,sombre); b.box(0.44,0.3,0.5,0,F+0.6,-L/2-0.18,blanc);
+    b.box(1.3,0.35,0.5,0,F+0.17,-1.1,coussin); b.box(1.2,0.12,1.1,0,yP(0.75)+0.06,1.4,coussin); return; }
+  if(B.type==='open'){ b.box(0.95,1.0,0.85,0,F+0.5,0.4,blanc); pareBriseV2(b,0.5,F+1.0,0.83,F+1.35,0.6,V); b.box(0.8,0.5,0.5,0,F+0.25,-0.6,blanc); b.box(0.85,0.25,0.5,0,F+0.62,-0.6,coussin);
+    for(const sx of [-0.62,0.62]) for(const sz of [-0.25,1.05]) b.box(0.06,1.5,0.06,sx,F+1.0+0.75,sz,0xd8dce0); b.box(1.7,0.08,2.1,0,F+2.5,0.4,a()<0.5?blanc:0x1d3a6a);
+    for(const sx of [-0.45,0.45]){ b.box(0.42,1.05,0.5,sx,F+0.15,-L/2-0.2,sombre); b.box(0.46,0.32,0.56,sx,F+0.75,-L/2-0.2,blanc); }
+    b.box(1.6,0.15,1.3,0,yP(0.8)+0.08,L/2-1.6,coussin); return; }
+  if(B.type==='dayCruiser'){ const yc=yP(0.6), zc=0.9; b.box(2.1,0.5,2.8,0,yc+0.25,zc+0.3,blanc); b.box(2.14,0.16,2.2,0,yc+0.32,zc+0.3,V);
+    pareBriseV2(b,1.1,yc+0.5,zc-1.1,yc+0.95,zc-1.5,V); b.box(2.3,0.06,0.06,0,yc+0.97,zc-1.52,0xd8dce0);
+    b.box(W-0.5,0.42,0.5,0,F+0.21,-L/2+0.8,coussin); for(const sx of [-1,1]) b.box(0.45,0.42,1.8,sx*(hw-0.45),F+0.21,-L/2+2,coussin); b.box(0.8,0.7,0.6,hw-0.7,F+0.35,zc-1.9,blanc);
+    b.box(W*0.82,0.08,0.7,0,0.28,-L/2-0.35,teck); if(a()<0.7) bn.box(1.6,0.12,1.8,0,yc+0.32,zc+0.3,VILLA_V2_FEN); return; }
+  if(B.type==='sportfishing'){ const yc=yP(0.35); b.box(2.9,1.15,4.0,0,yc+0.58,0.7,blanc); b.box(2.95,0.42,3.4,0,yc+0.8,0.9,V); pareBriseV2(b,1.45,yc+1.15,2.7,yc+0.6,3.4,V);
+    b.box(2.7,0.12,2.8,0,yc+1.22,0.2,blanc); b.box(1.3,0.5,0.55,0,yc+1.53,1.1,blanc); for(const sx of [-1,1]) b.box(0.05,0.8,2.7,sx*1.33,yc+1.62,0.2,0xd8dce0);
+    for(const sx of [-0.68,0.68]) for(const sz of [-0.3,0.9]) b.box(0.07,3.0,0.07,sx,yc+2.75,sz,0xd8dce0); b.box(1.6,0.07,1.5,0,yc+4.28,0.3,blanc); b.box(1.1,0.35,0.4,0,yc+4.0,0.6,blanc);
+    for(const sx of [-1.35,1.35]) b.box(0.05,5.2,0.05,sx,yc+3.3,1.1,0xb8c0c8); /* les tangons */
+    b.cyl(0.22,0.45,0,F+0.22,-L/2+1.6,0xe8e6e0); b.box(0.5,0.55,0.12,0,F+0.6,-L/2+1.38,0xe8e6e0); b.box(W*0.8,0.08,0.7,0,0.3,-L/2-0.35,teck); /* la chaise de combat, la plateforme */
+    if(a()<0.7) bn.box(2.5,0.3,3.0,0,yc+0.8,0.9,VILLA_V2_FEN); return; }
+  if(B.type==='yachtMoteur'){ const yc=yP(0.3); b.box(3.3,1.45,6.4,0,yc+0.73,0.5,blanc); b.box(3.36,0.55,5.6,0,yc+0.88,0.7,V); pareBriseV2(b,1.65,yc+1.45,3.7,yc+0.75,4.3,V);
+    b.box(2.9,1.05,4.0,0,yc+1.98,-0.2,blanc); b.box(2.96,0.42,3.4,0,yc+2.0,-0.1,V); b.box(3.2,0.1,3.7,0,yc+2.62,-0.6,blanc);
+    for(const sx of [-1.2,1.2]) b.box(0.12,1.0,0.25,sx,yc+3.1,-1.6,blanc); b.box(2.6,0.15,0.3,0,yc+3.6,-1.6,blanc); b.box(0.4,0.15,0.4,0,yc+3.78,-1.6,0x2a2d34); /* l'arceau radar */
+    b.box(2.6,0.15,2.0,0,yP(0.85)+0.08,L/2-2.8,coussin); b.box(W-0.6,0.42,0.6,0,F+0.21,-L/2+0.9,coussin); b.box(W*0.9,0.1,1.0,0,0.3,-L/2-0.5,teck);
+    if(a()<0.75){ bn.box(3.0,0.38,5.0,0,yc+0.88,0.7,VILLA_V2_FEN); bn.box(2.7,0.3,3.0,0,yc+2.0,-0.1,VILLA_V2_FEN); } return; }
+  if(B.type==='voilier'){ const yc=yP(0.5); b.box(1.9,0.5,3.4,0,yc+0.25,0.6,0xf2ecdc); for(const sx of [-1,1]) b.box(0.04,0.14,2.4,sx*0.96,yc+0.32,0.6,V);
+    for(const sx of [-1,1]) b.box(0.12,0.3,3.2,sx*(hw-0.35),F+0.15,-L/2+2.2,0xf2ecdc); b.cyl(0.07,12,0,F+6,1.5,0xd8dce0); b.box(1.6,0.05,0.05,0,F+7.5,1.5,0xd8dce0);
+    b.box(0.1,0.1,3.8,0,F+1.6,-0.4,0xd8dce0); b.box(0.34,0.36,3.4,0,F+1.85,-0.35,[0x1d3a6a,0x2a6a4a,0xb8b0a0][Math.floor(a()*3)]); /* le mât, la bôme sous son étui */
+    for(const sx of [-1,1]) b.box(0.03,0.6,L*0.42,sx*(hw-0.1),Fb+0.25,L*0.28,0xd8dce0); bn.box(0.18,0.18,0.18,0,F+12.05,1.5,0xfff2c0); return; } }
+/* l'eau qui berce les bateaux du décor : chaque sommet connaît le centre de son bateau (aCentre.xy) et sa phase (aCentre.z) */
+function matBateauxCanaux(){
+  if(_MAT_BATEAUX_CANAUX) return _MAT_BATEAUX_CANAUX; const m=new THREE.MeshLambertMaterial({vertexColors:true}); m.userData.u={uT:{value:0}};
+  m.onBeforeCompile=(sh)=>{ sh.uniforms.uT=m.userData.u.uT; sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nattribute vec3 aCentre;\nuniform float uT;')
+      .replace('#include <begin_vertex>','#include <begin_vertex>\n  float bph=aCentre.z, bk=step(-5.0,bph);\n  transformed.y+=bk*(0.05*sin(uT*1.25+bph)+0.018*sin(uT*0.83+bph*1.7)*(transformed.x-aCentre.x)+0.008*sin(uT*0.61+bph*0.7)*(transformed.z-aCentre.y));'); };
+  m.customProgramCacheKey=()=>'bateauxCanaux'; return (_MAT_BATEAUX_CANAUX=m); }
+function mkPontonsV2(){
+  const C=CANAUX, N=C.niveau, c={pos:[],nor:[],col:[]}, cn={pos:[],nor:[],col:[]}, b=constructeurCanaux(c,0,0,0,1,0), bn=constructeurCanaux(cn,0,0,0,1,0), t0=performance.now();
+  for(const p of C.pontons){ if(!p.v2) continue; const a=aleaLot(((p.x0*13.1+p.z0*7.7)%1+1)%1||0.5), w=p.x1-p.x0, d=p.z1-p.z0, xc=(p.x0+p.x1)/2, zc=(p.z0+p.z1)/2;
+    if(p.passerelle){ const xq=p.xq, xf=p.xf, y0=p.h0+0.01, y1=p.h+0.01; b.tri([xq,y0,p.z0],[xq,y0,p.z1],[xf,y1,p.z1],0x9a7048,false,[0,1,0]); b.tri([xq,y0,p.z0],[xf,y1,p.z1],[xf,y1,p.z0],0x9a7048,false,[0,1,0]);
+      for(const zz of [p.z0,p.z1]){ b.box(0.06,0.9,0.06,xq,y0+0.45,zz,0xe8e6e0); b.box(0.06,0.9,0.06,xf,y1+0.45,zz,0xe8e6e0); b.tri([xq,y0+0.88,zz],[xf,y1+0.88,zz],[xf,y1+0.82,zz],0xe8e6e0,true); b.tri([xq,y0+0.88,zz],[xf,y1+0.82,zz],[xq,y0+0.82,zz],0xe8e6e0,true); }
+      continue; }
+    const bois=a()<0.7?0x9a7048:0x8e8a82, joint=bois===0x9a7048?0x6e4a2c:0x6a6660, out=p.cote>0?p.x0:p.x1, sg=p.cote>0?-1:1; /* sg : vers le chenal */
+    b.box(w,0.18,d,xc,p.h-0.09,zc,bois); for(let z=p.z0+0.5;z<p.z1-0.2;z+=0.5) b.tri([p.x0,p.h+0.004,z],[p.x1,p.h+0.004,z],[p.x1,p.h+0.004,z+0.05],joint,false,[0,1,0]);
+    for(let z=p.z0+0.2;z<=p.z1-0.15;z+=Math.max(2.2,(d-0.4)/Math.max(1,Math.round((d-0.4)/3)))){ b.cyl(0.13,p.h+0.55-C.fond,out+sg*0.1,(p.h+0.55+C.fond)/2,z,0x6a5a48); b.cyl(0.15,0.1,out+sg*0.1,p.h+0.6,z,0xf4f4f2); } /* les pieux et leur chapeau blanc */
+    for(const zz of [p.z0+0.9,p.z1-0.9]) b.box(0.12,0.1,0.36,out-sg*0.2,p.h+0.05,zz,0xd8dce0); /* les taquets */
+    if(p.echelle&&p.echelle.bout){ const ex=p.echelle.x, ez=(p.echelle.bout<0?p.z0:p.z1)+p.echelle.bout*0.05; for(const dx of [-0.26,0.26]){ b.box(0.05,1.5,0.05,ex+dx,p.h-0.45,ez,0xd8dce0); b.box(0.05,0.5,0.05,ex+dx,p.h+0.5,ez-p.echelle.bout*0.02,0xd8dce0); } for(let k=0;k<4;k++) b.box(0.52,0.04,0.04,ex,p.h-1.05+k*0.3,ez,0xd8dce0); } /* l'échelle au bout du flotteur */
+    else if(p.echelle){ const ex=out+sg*0.05, ez=p.echelle.z; for(const dz of [-0.26,0.26]) b.box(0.05,1.5,0.05,ex,p.h-0.45,ez+dz,0xd8dce0); for(let k=0;k<4;k++) b.box(0.04,0.04,0.52,ex,p.h-1.05+k*0.3,ez,0xd8dce0); b.box(0.05,0.5,0.05,ex-sg*0.02,p.h+0.5,ez-0.26,0xd8dce0); b.box(0.05,0.5,0.05,ex-sg*0.02,p.h+0.5,ez+0.26,0xd8dce0); }
+    const xq=p.cote>0?p.x1:p.x0; for(const zz of [p.z0+0.35,p.z1-0.35]){ b.cyl(0.1,0.55,xq+sg*0.25,p.h+0.28,zz,0x2a2d34); b.box(0.16,0.08,0.16,xq+sg*0.25,p.h+0.5,zz,0xe8e6e0); bn.box(0.17,0.09,0.17,xq+sg*0.25,p.h+0.5,zz,0xfff0b8); } /* les bornes basses (allumées la nuit) */
+    const l=C.lots.find((q)=>q.id===p.lot); if(p.type==='T'&&l&&(l.standing==='grand'||a()<0.3)){ const zk=p.z1-1.4; for(const dx of [-0.8,0.8]) for(const dz of [-0.8,0.8]) b.box(0.1,2.3,0.1,xc+dx,p.h+1.15,zk+dz,0xf2f0ea); /* la cabane à claustra */
+      for(let k=0;k<6;k++){ b.box(1.9,0.06,0.07,xc,p.h+2.32,zk-0.85+k*0.34,0xf2f0ea); b.box(0.07,0.06,1.9,xc-0.85+k*0.34,p.h+2.38,zk,0xf2f0ea); } b.box(1.2,0.3,0.6,xc,p.h+0.15,zk-0.4,0xe8e2d0); } }
+  /* les bateaux du décor : une géométrie qui berce (aCentre) et leurs lumières de la nuit */
+  const cb={pos:[],nor:[],col:[]}, cbn={pos:[],nor:[],col:[]}, cen=[];
+  for(const B of C.bateauxV2){ const a=aleaLot(B.graine*2.11+0.07), n0=cb.pos.length/3, Y0=B.ascenseur?0.45:N, q=constructeurCanaux(cb,B.x,B.z,B.ang,1,Y0), qn=constructeurCanaux(cbn,B.x,B.z,B.ang,1,Y0);
+    bateauDecorV2(q,qn,B,a); const ph=Math.abs(B.x*0.37+B.z*0.21)%6.283; for(let i=n0;i<cb.pos.length/3;i++) cen.push(B.x,B.z,B.ascenseur?-10:ph);
+    if(B.ascenseur){ for(const sx of [-1,1]) for(const sz of [-1,1]) b.cyl(0.12,3.2-C.fond,B.x+sx*(B.W/2+0.3),(3.2+C.fond)/2,B.z+sz*(B.L/2-0.7),0xb8c0c8); } } /* l'ascenseur à bateau (le bateau hissé ne berce pas : aCentre.z = −10) */
+  if(cb.pos.length){ const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(cb.pos,3)); g.setAttribute('normal',new THREE.Float32BufferAttribute(cb.nor,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(cb.col,3)); g.setAttribute('aCentre',new THREE.Float32BufferAttribute(cen,3)); g.computeBoundingSphere();
+    const me=new THREE.Mesh(g,matBateauxCanaux()); me.receiveShadow=true; scene.add(me); C.bateauxMesh=me; }
+  if(cbn.pos.length){ const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(cbn.pos,3)); g.setAttribute('normal',new THREE.Float32BufferAttribute(cbn.nor,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(cbn.col,3)); g.computeBoundingSphere(); const me=new THREE.Mesh(g,_MAT_FEN_CANAUX); me.visible=false; C.nuitMeshes.push(me); scene.add(me); }
+  for(const [q,m] of [[c,MOB_MAT],[cn,_MAT_FEN_CANAUX]]) if(q.pos.length){ const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(q.pos,3)); g.setAttribute('normal',new THREE.Float32BufferAttribute(q.nor,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(q.col,3)); g.computeBoundingSphere(); const me=new THREE.Mesh(g,m); if(m===_MAT_FEN_CANAUX){ me.visible=false; C.nuitMeshes.push(me); } scene.add(me); }
+  { const pos=[], q=(x0,z0,x1,z1)=>{ const y=N+0.02; pos.push(x0,y,z0, x0,y,z1, x1,y,z1, x0,y,z0, x1,y,z1, x1,y,z0); }; /* les ombres sur l'eau (le soleil au sud-est de la caméra : décalées vers le nord-ouest) */
+    for(const p of C.pontons) if(p.v2&&!p.pente) q(p.x0-0.45,p.z0-0.35,p.x1-0.45,p.z1-0.35); for(const B of C.bateauxV2) if(!B.ascenseur) q(B.x-B.W*0.42-0.5,B.z-B.L*0.45-0.4,B.x+B.W*0.42-0.5,B.z+B.L*0.45-0.4);
+    const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.computeBoundingSphere(); const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:0x06303a,transparent:true,opacity:0.28,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2,side:THREE.DoubleSide})); m.renderOrder=1; scene.add(m); C.ombres=m; }
+  C.tPontons=Math.round(performance.now()-t0); }
 function mkBatiCanaux(){
   const C=CANAUX; if(!C.lots) return; const t0=performance.now();
-  mkVillasV2();
+  mkVillasV2(); mkPontonsV2();
   /* les pontons : planchers de bois et leurs pieux */
-  { const c={pos:[],nor:[],col:[]}; for(const p of C.pontons){ const w=p.x1-p.x0, d=p.z1-p.z0, cx=(p.x0+p.x1)/2, cz=(p.z0+p.z1)/2;
+  { const c={pos:[],nor:[],col:[]}; for(const p of C.pontons){ if(p.v2) continue; /* V2 : mkPontonsV2 */ const w=p.x1-p.x0, d=p.z1-p.z0, cx=(p.x0+p.x1)/2, cz=(p.z0+p.z1)/2;
       mobPieces([['box',w,0.16,d,0,p.h-0.08,0,0x9a6e44]],cx,cz,0,c,0); for(let k=0;k<=Math.floor(d/1.2);k++) mobPieces([['box',w,0.02,0.06,0,p.h+0.005,-d/2+k*1.2,0x6e4a2c]],cx,cz,0,c,0);
       for(const sx of [-1,1]) for(const sz of [-1,1]) mobPieces([['cyl',0.14,p.h-C.fond+0.9,0.14,sx*(w/2-0.15),(p.h+C.fond+0.9)/2,sz*(d/2-0.2),0x5a4030]],cx,cz,0,c,0); }
     if(c.pos.length){ const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(c.pos,3)); g.setAttribute('normal',new THREE.Float32BufferAttribute(c.nor,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(c.col,3)); g.computeBoundingSphere(); scene.add(new THREE.Mesh(g,MOB_MAT)); } }
@@ -8235,7 +8595,7 @@ function mkNautiqueCanaux(){
       for(let i=0;i<P.length;i+=3){ pieces.pos.push(P[i],P[i+1],P[i+2]); pieces.nor.push(N[i],N[i+1],N[i+2]); pieces.col.push(_c3.r,_c3.g,_c3.b); } g.dispose(); }); };
   /* 1) les bateaux du décor, bâchés */
   const modele=(cle)=>DECOR_V2&&VEH_V3[cle]?construireV3(cle,null):makeVoiture(cle); /* le modèle V3/V4 seul, sur son générateur privé (makeVoiture tirerait sur celui du décor) */
-  for(const a of C.amarres){ const m=modele(a.cle); m.position.set(a.x,0.15+C.niveau,a.z); m.rotation.y=a.ang; aplatir(m);
+  for(const a of C.amarres){ if(a.v2) continue; /* V2 : les bateaux des pontons des villas (mkPontonsV2) */ const m=modele(a.cle); m.position.set(a.x,0.15+C.niveau,a.z); m.rotation.y=a.ang; aplatir(m);
     mobPieces([['box',2.0,0.5,3.6,0,1.15,-0.4,a.teinte],['box',2.1,0.08,3.7,0,1.42,-0.4,a.teinte===0xe8e6dc?0xc8c6bc:0x15294a]],a.x,a.z,a.ang,pieces,0.15+C.niveau); /* la bâche */ }
   /* 2) l'embarcadère public : un kiosque à billets, des bittes, deux lampadaires, l'enseigne */
   { const E=C.embarcadere, xc=(E.x0+E.x1)/2, zq=E.z0-3.4; /* V2 : le long du quai nord de la traverse — le kiosque à billets et les lampadaires sur le quai, les bittes au bord du ponton */
@@ -8269,6 +8629,8 @@ function canauxStartRunPrive(){
   if(!C.dockers) dockersCanaux(); /* à la 1re partie : créés au chargement, ils remplissaient le cache des corps humains avant le premier ennemi de la partie (un tirage de moins pour tout ce qui suit) */
   for(const j of C.jetskis||[]){ const v=creerVehicule('jetski',j.x,j.z,j.ang); if(v) v.canauxAmarre=true; }
   if(C.vedetteEmb){ const v=creerVehicule('bateau',C.vedetteEmb.x,C.vedetteEmb.z,C.vedetteEmb.ang); if(v) v.canauxAmarre=true; }
+  for(const p of C.pilotables||[]){ const v=creerVehicule(p.cle,p.x,p.z,p.ang); if(v){ v.canauxAmarre=true; v.canauxPilotable=p; } } /* V2 : les bateaux pilotables des pontons des villas */
+  canauxVieConstruire(); canauxVieStartRun(); /* V2, phase 5 : figurants, bateaux qui circulent, lumières de la nuit */
   const brig=C.lots.filter((l)=>l.brigada), luxe=['suvLuxe','limousine']; /* V2 : les grands lots de la pointe du doigt central */
   brig.forEach((l,i)=>{ const pk=l.parking||{x:l.xRue-l.dir*4.6,z:l.z+l.w/2-2.6,ang:l.dir>0?Math.PI/2:-Math.PI/2}; creerVehicule(luxe[i%2],pk.x,pk.z,pk.ang); /* sur l'allée de garage de la villa (villaV2) */
     for(const q of l.portail||[]){ const e=creerEnnemi('chr_fusil',q.x,q.z,false); if(e){ e.garde=true; e.posteX=e.x; e.posteZ=e.z; } } }); /* les deux gardes devant la porte */
@@ -26010,7 +26372,7 @@ function poseNage(h,dt,vit){ const g=h.g; if(g.rotation.order!=='YXZ') g.rotatio
   h.brasG.rotation.x=-(h.phase%(Math.PI*2)); h.brasD.rotation.x=-((h.phase+Math.PI)%(Math.PI*2)); h.brasG.rotation.z=0; h.brasD.rotation.z=0; }
 function finNage(h){ const g=h.g; if(g.rotation.order==='YXZ'){ g.rotation.x=0; g.rotation.z=0; g.rotation.order='XYZ'; } }
 // rive la plus proche (16 directions, jusqu'à 60 u), pour un PNJ tombé à l'eau qui ne sait pas nager
-function rivePlusProche(x,z){ if(CANAUX.ok&&dansCanal(x,z)){ const m=marcheProche(x,z); if(m) return {x:m.x,z:m.z}; } /* canaux : on sort de l'eau par les marches */ for(let r=3;r<=60;r+=3) for(let k=0;k<16;k++){ const a=k/16*Math.PI*2, px=x+Math.sin(a)*r, pz=z+Math.cos(a)*r; if(!estEau(px,pz)&&!solidAt(px,pz,0.5)) return {x:px,z:pz}; } return null; }
+function rivePlusProche(x,z){ if(CANAUX.ok&&dansCanal(x,z)){ const m=marcheProche(x,z), e=echelleProche(x,z); if(e&&(!m||dist2(x,z,e.eau.x,e.eau.z)<dist2(x,z,m.x,m.z))) return {x:e.x,z:e.z}; if(m) return {x:m.x,z:m.z}; } /* canaux : on sort de l'eau par les marches ou l'échelle d'un ponton (V2) */ for(let r=3;r<=60;r+=3) for(let k=0;k<16;k++){ const a=k/16*Math.PI*2, px=x+Math.sin(a)*r, pz=z+Math.cos(a)*r; if(!estEau(px,pz)&&!solidAt(px,pz,0.5)) return {x:px,z:pz}; } return null; }
 function degageDeVehicule(x,z,marge,ignore){
   const o=vehiculeBloquant(x,z,marge,ignore);
   if(!o) return null;
@@ -26606,7 +26968,9 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
   if(v.ecrPose) retirerPoseEcrasement(v); /* de même la pose de montée de l'écraseur (posée en fin de majVehiculePhys) */
   if(v.noye) return; // noyé : il coule (majNoyade), plus aucune conduite
   const d=v.def, eau=surEauVeh(v); // surEauVeh : dynamique pour l'amphibie, statique pour les bateaux
-  const echoue=!!d.eau&&!v.horsVille&&!estEauNav(v.x,v.z); // bateau posé sur le sable (échouage)
+  const coinceCanal=!!d.eau&&CANAUX.ok&&dansBBCanaux(v.x,v.z)&&dansCanal(v.x,v.z)&&!estEauNav(v.x,v.z); /* V2 : le centre dans un ponton ou un bateau amarré (poussé là par un rebond) — sans ça, « échoué » et plus aucun pas permis : coincé pour toujours */
+  if(coinceCanal){ const q=eauNavProche(v.x,v.z); if(q){ const dx=q.x-v.x, dz=q.z-v.z, l=Math.hypot(dx,dz)||1, k=Math.min(l,4*dt+0.03); v.x+=dx/l*k; v.z+=dz/l*k; } } /* il glisse vers l'eau libre la plus proche */
+  const echoue=!!d.eau&&!v.horsVille&&!estEauNav(v.x,v.z)&&!coinceCanal; // bateau posé sur le sable (échouage)
   if(echoue){ throttle*=0.25; steer*=0.3; if(!v.echoueT){ v.echoueT=1; if(v.conduit==='joueur'){ secousse(Math.min(3,Math.abs(v.v)*0.12)); vibre(25); } burst(v.x+Math.sin(v.ang)*d.long*0.4,0.3,v.z+Math.cos(v.ang)*d.long*0.4,8,0xe0c890,5); } }
   else if(v.echoueT){ v.echoueT=0; v.echoueSorti=false; } // de retour à l'eau
   const fac0=clamp(Math.abs(v.v)/d.vmax,0,1);
@@ -26720,12 +27084,18 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
   const paroi=DECOR_V2&&!eau&&!d.air&&!v.enAir&&dansReliefLibre(fx,fz)&&!(MONT.presDuSentier&&MONT.presDuSentier(fx,fz,7))&&!zoneVertSkate(fx,fz)&&!zoneVertSkate(v.x,v.z)&&!dansSkateXXL(fx,fz)&&!surRouteHills(fx,fz)&&!presTremplinHills(fx,fz)&&paroiDevant(v,d,fx,fz,dt,dansParcStunt(fx,fz)?PENTE_PARC_STUNT:penteMaxVeh(d)); // skatepark XXL : on roule sur les murs des transitions // pente maximale du véhicule (penteMaxVeh), montée sèche comprise ; tables du parc stunt : rampes aménagées // sur le sentier : on manœuvre dans les épingles
   const versPlage=eau&&!!d.eau&&!grosNavire(d)&&(v.conduit==='joueur'||!v.conduit)&&!estEauNav(nx,nz)&&!(CANAUX.ok&&dansBBCanaux(nx,nz)&&nz<CANAUX.zMer+0.5)&&solY(nx,nz)<0.6&&!solidAt(fx,fz,0.5); // sable : le bateau s'y échoue en douceur
   const auPasVersTerre=echoue&&Math.abs(v.v)<=2.2&&!eauDevant(v,Math.sign(v.v||1)); // échoué, au pas : seulement vers l'eau (jamais traverser la plage)
-  const heurte=eau?((!estEauNav(nx,nz)&&!versPlage&&!(d.amphibie&&!solidAt(fx,fz,d.larg*0.35)))||auPasVersTerre):(!!sFront||paroi||((v.h||0)<0.7&&estEau(fx,fz)&&!VEH_IA_NOYABLES&&!!v.conduit&&v.conduit!=='joueur')); // VEH_IA_NOYABLES : police, trafic et autres IA entrent aussi dans l'eau et s'y noient
+  const heurte=eau?((!estEauNav(nx,nz)&&!versPlage&&!coinceCanal&&!(d.amphibie&&!solidAt(fx,fz,d.larg*0.35)))||auPasVersTerre):(!!sFront||paroi||((v.h||0)<0.7&&estEau(fx,fz)&&!VEH_IA_NOYABLES&&!!v.conduit&&v.conduit!=='joueur')); // VEH_IA_NOYABLES : police, trafic et autres IA entrent aussi dans l'eau et s'y noient
   if(heurte&&paroi&&!sFront){ // paroi de relief : on glisse le long (composante montante retirée), sans casse — on peut toujours tourner et repartir
     let gx=solY(fx+0.6,fz)-solY(fx-0.6,fz), gz=solY(fx,fz+0.6)-solY(fx,fz-0.6); const gl=Math.hypot(gx,gz)||1; gx/=gl; gz/=gl;
     const mx=nx-v.x, mz=nz-v.z, mg=mx*gx+mz*gz, tx=mx-Math.max(0,mg)*gx, tz=mz-Math.max(0,mg)*gz;
     if(Math.max(0,mg)/dt>6&&v.conduit==='joueur'){ secousse(Math.max(0,mg)/dt*0.12); burst(fx,solY(fx,fz)*0.5,fz,4,0xb08860,4); }
     v.x+=tx; v.z+=tz; v.v*=1-clamp(Math.max(0,mg)/(Math.hypot(mx,mz)+1e-6),0,1)*0.6; // plus on arrive de face, plus on perd de vitesse
+  } else if(heurte&&eau&&d.eau&&CANAUX.ok&&dansBBCanaux(nx,nz)&&(pontonCanal(nx,nz)||amarreCanal(nx,nz))&&(estEauNav(nx,v.z)||estEauNav(v.x,nz))){
+    /* canaux V2 : contre un ponton ou un bateau amarré, le bateau glisse le long (un axe à la fois : ils sont alignés sur les canaux) au lieu
+       de s'arrêter net — une vedette restait collée au coin d'un ponton, chaque pas en avant refusé. Les murs de quai gardent leur rebond (V1). */
+    const okx=estEauNav(nx,v.z), okz=estEauNav(v.x,nz), mx=nx-v.x, mz=nz-v.z, l=Math.hypot(mx,mz)+1e-6;
+    if(okx&&(!okz||Math.abs(mx)>=Math.abs(mz))){ v.x=nx; v.v*=1-0.5*Math.abs(mz)/l; } else { v.z=nz; v.v*=1-0.5*Math.abs(mx)/l; }
+    if(Math.abs(v.v)>8&&v.conduit==='joueur'){ secousse(1.5); vibre(20); }
   } else if(heurte){
     const impact=Math.abs(v.v);
     if(impact>5){
@@ -27300,7 +27670,8 @@ function sortirVehicule(force){
       const a=Math.atan2(v.x-il.x,v.z-il.z);
       sx=il.x+Math.sin(a)*(il.r-1.5); sz=il.z+Math.cos(a)*(il.r-1.5); ok=true; break; } }
     if(!ok&&CANAUX.ok&&dansCanal(v.x,v.z)){ /* canaux : le ponton le plus proche (embarcadère, atelier, pontons privés), sinon les marches */
-      let best=null, bd=81; for(const p of CANAUX.pontons){ const qx=clamp(v.x,p.x0+0.6,p.x1-0.6), qz=clamp(v.z,p.z0+0.6,p.z1-0.6), d=dist2(v.x,v.z,qx,qz); if(d<bd){ bd=d; best={x:qx,z:qz}; } }
+      let best=null, bd=81; for(const p of CANAUX.pontons){ const qx=clamp(v.x,p.x0+0.6,p.x1-0.6), qz=clamp(v.z,p.z0+0.6,p.z1-0.6), d=dist2(v.x,v.z,qx,qz); if(d<bd){ bd=d; best={x:qx,z:qz,p}; } }
+      if(best&&vehiculeBloquant(best.x,best.z,0.45,null)===v){ const p=best.p; if(p.x1-p.x0<=p.z1-p.z0) best.x=v.x<(p.x0+p.x1)/2?p.x1-0.4:p.x0+0.4; else best.z=v.z<(p.z0+p.z1)/2?p.z1-0.4:p.z0+0.4; } /* V2 : jamais posé dans la boîte du bateau dont on descend (amarré contre le flotteur, il bloquait chaque pas) : de l'autre côté du flotteur */
       if(!best){ const m=marcheProche(v.x,v.z); if(m&&dist2(v.x,v.z,m.x,m.z)<36){ const mm=m.m; best={x:mm.axe==='z'?(mm.x0+mm.x1)/2:(mm.sens>0?mm.x1-0.5:mm.x0+0.5),z:mm.axe==='z'?(mm.sens>0?mm.z1-0.5:mm.z0+0.5):(mm.z0+mm.z1)/2}; } }
       if(best){ sx=best.x; sz=best.z; ok=true; } }
     // sinon on plonge à côté du bateau et on nage (plus de téléportation à la plage)
@@ -29602,7 +29973,7 @@ function majPietons(dt){
     // hors champ ou dans le brouillard (apparitionCachee, comme le trafic et les ennemis)
     const a=rand(0,6.28), d=rand(42,68)*Math.min(1.5,facteurApparition());
     const x=clamp(P.x+Math.sin(a)*d,-HALF+4,HALF-4), z=clamp(P.z+Math.cos(a)*d,-HALF+4,HALF-4);
-    if(!solidAt(x,z,0.8)&&!estEau(x,z)&&!(CANAUX.ok&&(marcheCanal(x,z)||pontonCanal(x,z)))&&apparitionCachee(x,z)) creerPieton(x,z); /* canaux : jamais sur les marches d'un quai */
+    if(!solidAt(x,z,0.8)&&!estEau(x,z)&&!(CANAUX.ok&&(marcheCanal(x,z)||pontonCanal(x,z)||passerelleCanal(x,z)))&&apparitionCachee(x,z)) creerPieton(x,z); /* canaux : jamais sur les marches d'un quai, un ponton, une passerelle (V2) */
   }
   for(let i=pietons.length-1;i>=0;i--){
     const p=pietons[i];
@@ -30754,7 +31125,7 @@ function addHeat(v,tir,brut,collat){            // brut : sans le coefficient (a
 // proche en allant vers la ville — jamais sur le joueur.
 function pointApparition(x,z){
   if(x<-HALF+3||x>(DECOR_V2?LIMITE_EST-6:HALF-3)||z<-HALF+3||z>MER-3) return false;
-  if(estEau(x,z)||solidAt(x,z,0.8)||(CANAUX.ok&&(pontCanal(x,z)||marcheCanal(x,z)||pontonCanal(x,z)))) return false; /* canaux : jamais sur un pont, les marches d'un quai ou un ponton */
+  if(estEau(x,z)||solidAt(x,z,0.8)||(CANAUX.ok&&(pontCanal(x,z)||marcheCanal(x,z)||pontonCanal(x,z)||passerelleCanal(x,z)))) return false; /* canaux : jamais sur un pont, une passerelle, les marches d'un quai ou un ponton */
   if(DECOR_V2&&(solY(x,z)>1.2||dansReliefLibre(x,z))) return false;
   return true;
 }
@@ -30847,7 +31218,7 @@ function majEvenements(dt){
   } else if(r<0.54){ // convoi militaire traversant la ville
     const k=randi(1,NB-1), r2=-HALF+k*CELL;
     const xC=r2+3.2, zC=clamp(P.z-70,-HALF+10,HALF-CELL);
-    if(!(CANAUX.ok&&(routeCanalInterdite(xC,zC)||pontCanal(xC,zC)))){ /* canaux : jamais né sur une rue retirée (il partait tout droit dans l'eau) */
+    if(!(CANAUX.ok&&(routeCanalInterdite(xC,zC)||pontCanal(xC,zC)||passerelleCanal(xC,zC)))){ /* canaux : jamais né sur une rue retirée (il partait tout droit dans l'eau) */
       const v=creerVehicule('milit',xC,zC,0,'trafic');
       v.axe='z'; v.lane=xC; v.convoi=true;
       toast('Un convoi militaire traverse Los Reyes','warn'); }
@@ -42866,7 +43237,7 @@ function startRun(){
   // tourne encore) et suivait le joueur dans la partie suivante, en pleine
   // ville. Chaque arrêt est sans effet si l'ambiance ne tourne pas.
   metroAmbianceStop(); chalutierAmbianceStop(); radioAmbianceStop(); cineAmbianceStop(); depotAmbianceStop(); fermerDepotPanneau();
-  montSonStop(); planqueAmbianceStop(); for(const k in INT.salles){ if(INT.salles[k].pq) planqueSalleArreter(INT.salles[k]); if(INT.salles[k].plgJ) plongeonArreter(INT.salles[k]); } REPERES.length=0; tresorReinit(); P.essouffle=false; P.penteM=0; FILET.pied.sur.length=FILET.veh.sur.length=0; FILET.pied.t=FILET.veh.t=0; /* mont V2 : le souffle, les points sûrs du filet */ // planques : ambiance, activités, véhicule de l'atelier, repères de la longue-vue
+  montSonStop(); canauxSonStop(); planqueAmbianceStop(); for(const k in INT.salles){ if(INT.salles[k].pq) planqueSalleArreter(INT.salles[k]); if(INT.salles[k].plgJ) plongeonArreter(INT.salles[k]); } REPERES.length=0; tresorReinit(); P.essouffle=false; P.penteM=0; FILET.pied.sur.length=FILET.veh.sur.length=0; FILET.pied.t=FILET.veh.t=0; /* mont V2 : le souffle, les points sûrs du filet */ // planques : ambiance, activités, véhicule de l'atelier, repères de la longue-vue
   if(INT.actif){ INT.actif=null; el('minimap').style.opacity='1'; }
   // lieux spéciaux : on remet à zéro ce qui appartient à la partie (les
   // curiosités, elles, sont acquises pour de bon et vivent dans META)
@@ -43224,7 +43595,7 @@ function mourir(){
   // depotLancerCourse), foule coupée (moteurStop() ci-dessus a déjà coupé le
   // moteur). Course déjà propre : deuxième appel sans effet.
   if(INT.actif&&INT.actif.depot){ if(INT.actif.courseEnCours) depotAnnulerCourse(INT.actif); depotAmbianceStop(); fermerDepotPanneau(); }
-  if(INT.actif&&INT.actif.pq) planqueSalleArreter(INT.actif); if(INT.actif&&INT.actif.plgJ) plongeonArreter(INT.actif); planqueAmbianceStop(); montSonStop(); jumellesFin(); // planque : activité arrêtée, ambiance coupée tout de suite
+  if(INT.actif&&INT.actif.pq) planqueSalleArreter(INT.actif); if(INT.actif&&INT.actif.plgJ) plongeonArreter(INT.actif); planqueAmbianceStop(); montSonStop(); canauxSonStop(); jumellesFin(); // planque : activité arrêtée, ambiance coupée tout de suite
   P.h.g.rotation.z=Math.PI/2; P.h.g.position.y=0.35;
   reticule.visible=false;
   const record=ETAT.score>META.record;
@@ -46523,7 +46894,7 @@ function tick(t){
     ETAT.comboT-=dt;
     if(ETAT.comboT<=0) ETAT.combo=1;
     if(ETAT.slowT>0){ ETAT.slowT-=dtReel; if(ETAT.slowT<=0&&ETAT.mode==='jeu') ETAT.timeScale=1; }
-    if(ETAT.mode==='jeu'){ majNitro(dtJeu); if(DECOR_V2) towEntrees(); if(DERBY.actif) derbyEntrees(); if(!MANEGES.actif&&!FPS.actif&&!EJECT.siege) majJoueur(dt,dtJeu); majFPS(dt,dtJeu); majIvresse(dtJeu); majTresorCarte(dt); majFilet(dtJeu); majMontSon(dt); if(DECOR_V2){ majRides(dtJeu); majPic(dt); majTow(dt,dtJeu); majBasket(dt,dtJeu); majSportJ(dt,dtJeu); majToitsSurprises(dt,dtJeu); } } // nitro décidée AVANT la physique du véhicule
+    if(ETAT.mode==='jeu'){ majNitro(dtJeu); if(DECOR_V2) towEntrees(); if(DERBY.actif) derbyEntrees(); if(!MANEGES.actif&&!FPS.actif&&!EJECT.siege) majJoueur(dt,dtJeu); majFPS(dt,dtJeu); majIvresse(dtJeu); majTresorCarte(dt); majFilet(dtJeu); majMontSon(dt); majCanauxSon(dt); if(DECOR_V2){ majRides(dtJeu); majPic(dt); majTow(dt,dtJeu); majBasket(dt,dtJeu); majSportJ(dt,dtJeu); majToitsSurprises(dt,dtJeu); } } // nitro décidée AVANT la physique du véhicule
     majEnnemis(dt);
     if(!INT.actif){
       majPietons(dt);
