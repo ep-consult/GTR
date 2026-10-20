@@ -1986,9 +1986,10 @@ const GARAGES_TUNING=[
 // variantes déjà payées, en bits (bit 0 = d'origine, toujours possédée) ;
 // investi : total dépensé sur ce véhicule (base du remboursement à la casse).
 // Objets à clés FIXES : fusionMeta complète une vieille sauvegarde sans eux.
+// Canaux V3, phase 4 : les catégories des BATEAUX (chantier naval) ont aussi leurs clés fixes — une vieille sauvegarde les reçoit à 0 / 1.
 function slotGarageDefaut(){ return {cle:'',coul:-1,neon:-1,nitro:false,moteur:0,vitesse:0,tenue:0,blindage:0,investi:0,
-  pieces:{aileron:0,parechocs:0,jupes:0,capot:0,jantes:0,echappement:0},
-  piecesPossedees:{aileron:1,parechocs:1,jupes:1,capot:1,jantes:1,echappement:1}}; }
+  pieces:{aileron:0,parechocs:0,jupes:0,capot:0,jantes:0,echappement:0,livree:0,pont:0,toit:0,parebrise:0,sieges:0,sono:0,feux:0,nom:0,drapeau:0},
+  piecesPossedees:{aileron:1,parechocs:1,jupes:1,capot:1,jantes:1,echappement:1,livree:1,pont:1,toit:1,parebrise:1,sieges:1,sono:1,feux:1,nom:1,drapeau:1}}; }
 // ANCIEN modèle (un emplacement par garage) : reste déclaré pour que
 // fusionMeta relise une vieille sauvegarde ; migré ensuite vers vehPerso
 // (migrerGaragesVersVehPerso) puis remis à vide.
@@ -3034,6 +3035,26 @@ Object.assign(VEHDEFS.jetski,{nom:'Jet-ski « Sport »',jetski:true,moteur:'jets
 const HAUT_NAV={yacht:7.15,bateau:1.97,surf:0.28,kayak:1.09,jetski:1.09,bateauP:2.81,peche:3.61,grandyacht:11.46,cargo:23.23,espadon:1.51,
   jetskiBras:1.28,jetskiTrio:1.2,offshore:1.85,yachtMoteur:4.53,sportfish:7.13,runabout:1.56,cruiserBois:2.26,voilier:11.36}; /* V5 (phase 3) : les petits passent sous les ponts (2,88 u au plus bas), yachts et voilier côté est seulement */
 for(const k in HAUT_NAV) if(VEHDEFS[k]) VEHDEFS[k].hautNav=HAUT_NAV[k];
+/* Canaux V3, phase 4 : les bateaux du chantier naval « Marée Basse » — tuningMeca (moteur, hélice, coque, blindage, nitro) et tuningNaut
+   (famille de pièces ; ancrages mesurés sur les modèles : poste = la zone du pilotage (z, sol y, demi-largeur w, demi-longueur l, haut du
+   pare-brise h), poupe = le pont arrière (z, y, w), arceau de l'offshore ; sans = les catégories qu'un bateau n'a pas : il a déjà un toit,
+   pas de selle…) ; bord = le haut de la coque quand la matière peinte monte sur la superstructure (la livrée et le nom restent sur la coque).
+   Vérifiés par le test « Canaux V3 : chantier naval ». Ni le kayak, ni la planche (pas de moteur), ni le voilier (son mât),
+   ni le méga-yacht et le porte-conteneurs (trop grands pour le hangar). */
+for(const [k,fam,anc,sans] of [
+  ['jetski','jetski',{poste:{z:-0.35,y:0.5,w:0.42,l:0.6,h:0.93},poupe:{z:-1.05,y:0.51,w:0.42}}],
+  ['jetskiBras','jetski',{poste:{z:-0.4,y:0.31,w:0.3,l:0.5,h:1.1},poupe:{z:-0.95,y:0.31,w:0.26}},['parebrise','sieges']],
+  ['jetskiTrio','jetski',{poste:{z:0.1,y:0.51,w:0.5,l:0.6,h:1.02},poupe:{z:-1.55,y:0.51,w:0.5}}],
+  ['offshore','course',{poste:{z:-1.55,y:0.42,w:0.95,l:1.2,h:1.08},poupe:{z:-4.25,y:1.04,w:1.15},arceau:{z:-2.22,y:1.69,w:1.05}}],
+  ['bateau','open',{poste:{z:0,y:0.3,w:0.62,l:1.05,h:1.8},poupe:{z:-2.85,y:1.18,w:1.05}}],
+  ['bateauP','open',{poste:{z:0,y:0.3,w:0.62,l:1.05,h:1.8},poupe:{z:-3.0,y:1.18,w:1.1}},['toit']],
+  ['espadon','open',{poste:{z:-0.75,y:0.3,w:0.75,l:1.1,h:1.01},poupe:{z:-2.75,y:0.3,w:1.0}}],
+  ['runabout','bois',{poste:{z:-0.5,y:0.84,w:0.9,l:1.0,h:0.93},poupe:{z:-2.3,y:0.84,w:0.88}}],
+  ['cruiserBois','bois',{poste:{z:-1.15,y:0.55,w:1.2,l:1.0,h:2.07},poupe:{z:-3.85,y:0.55,w:1.25},bord:1.42},['toit']],
+  ['yachtMoteur','yacht',{poste:{z:0.45,y:2.8,w:1.5,l:1.2,h:3.56},poupe:{z:-5.9,y:0.95,w:1.7},bord:1.92}],
+  ['sportfish','yacht',{poste:{z:0.95,y:2.41,w:1.3,l:1.0,h:3.07},poupe:{z:-4.7,y:0.75,w:1.5},bord:1.98}],
+  ['yacht','yacht',{poste:{z:0.8,y:4.25,w:2.4,l:1.5,h:5.2},poupe:{z:-10.3,y:1.3,w:2.6},bord:2.55}],
+  ['peche',null,null]]){ if(!VEHDEFS[k]) continue; VEHDEFS[k].tuningMeca=true; if(fam) VEHDEFS[k].tuningNaut={famille:fam,ancrages:anc,sans:sans||[]}; }
 
 /* ---------- Types d'ennemis ---------- */
 const ETYPES={
@@ -3490,7 +3511,7 @@ function dansCoupe(x,z){ if(!CANAUX.ok||!dansBBCanaux(x,z)) return false; for(co
 function routeCanalInterdite(x,z){ return CANAUX.ok&&dansBBCanaux(x,z)&&((dansCoupe(x,z)&&!levisCanal(x,z))||(dansCanal(x,z)&&!pontCanal(x,z))); }
 function levisCanal(x,z){ for(const p of CANAUX.levis||[]) if(x>p.x0&&x<p.x1&&z>p.z0&&z<p.z1) return p; return null; } /* V3 : la chaussée d'un pont-levis (rampe, volées, culée) */
 /* l'eau pour un BATEAU : sous les tabliers aussi (les marches restent un mur) */
-function estEauNav(x,z){ if(CANAUX.ok&&amarreCanal(x,z)) return false; /* un bateau du décor amarré (phase 4) : un mur pour un bateau, de l'eau pour un nageur */ return estEau(x,z)||(CANAUX.ok&&dansCanal(x,z)&&!marcheCanal(x,z)&&!pontonCanal(x,z)); }
+function estEauNav(x,z){ if(CANAUX.ok&&(amarreCanal(x,z)||(CANAUX.chantier&&dansDarseChantier(x,z)))) return false; /* V3 : la darse sous le hangar du chantier naval (couverte, derrière la porte) */ /* un bateau du décor amarré (phase 4) : un mur pour un bateau, de l'eau pour un nageur */ return estEau(x,z)||(CANAUX.ok&&dansCanal(x,z)&&!marcheCanal(x,z)&&!pontonCanal(x,z)); }
 /* le niveau de l'eau d'un canal : −0,6 (sous les quais), qui remonte jusqu'à celui de la mer entre la route du front de mer et la mer */
 function niveauCanal(x,z){ const N=CANAUX.niveau; if(z<=CANAUX.zMer) return N; if(z>=MER) return 0; const t=(z-CANAUX.zMer)/(MER-CANAUX.zMer); return N*(1-t*t*(3-2*t)); }
 /* ce qu'ajoute un canal à la hauteur d'un objet flottant (0 en mer) */
@@ -7647,6 +7668,7 @@ function canauxDefinir(){
   villasV2Plan(C); passerellesV2(C); canauxNautiqueDefinir(); pontonsV2(C); /* V2 : le plan des villas (des données), puis un ponton par lot et ses bateaux (phase 3) */
   marinaV3Plan(C); /* V3 : la marina et la promenade de la rive est (des données) */
   bateauxV3Plan(C); /* V3, phase 3 : le modèle de chaque poste, les gros bateaux côté est */
+  chantierNavalDefinir(C); /* V3, phase 4 : le chantier naval et le garage du port (des données) */
   let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9; const ext=(a,b,c,d)=>{ x0=Math.min(x0,a); x1=Math.max(x1,b); z0=Math.min(z0,c); z1=Math.max(z1,d); };
   for(const e of C.eaux){ if(e.t==='r') ext(e.x0,e.x1,e.z0,e.z1); else if(e.t==='c') ext(e.x-e.r,e.x+e.r,e.z-e.r,e.z+e.r); else for(const q of e.pts) ext(q[0],q[0],q[1],q[1]); }
   for(const L2 of [C.ponts,C.coupes,C.dalles,C.levis||[]]) for(const p of L2) ext(p.x0,p.x1,p.z0,p.z1);
@@ -7884,17 +7906,17 @@ function reserverCanaux(){
   if(typeof TOITS!=='undefined') for(const k of Object.keys(TOITS)) if(Array.isArray(TOITS[k])) hors(TOITS[k],(t)=>t&&typeof t.x==='number'&&ici(t.x,t.z));
   if(typeof SURPRISES!=='undefined') for(const k of Object.keys(SURPRISES)) if(Array.isArray(SURPRISES[k])) hors(SURPRISES[k],(t)=>t&&typeof t.x==='number'&&ici(t.x,t.z));
   ZONES_SANS_MOBILIER.push(...R.map((r)=>({x0:r.x0,x1:r.x1,z0:r.z0,z1:r.z1})));
-  /* les portes : l'aquarium sur la façade est du pâté (9,8), le garage du port sur la façade ouest du pâté (11,10) — on les bâtit en fin de décor */
+  /* les portes : l'aquarium sur la façade est du pâté (9,8), le garage du port (V3, phase 4) sur la façade nord du bâtiment double du chantier naval, sur la rue z = 168 — on les bâtit en fin de décor */
   const cx=(b)=>-HALF+b*CELL+CELL/2, P=(INNER+2)/2;
   for(const p of portesBougees){
     const bal=balisesBougees.filter((b)=>Math.abs(b.x-p.x)<0.01&&Math.abs(b.z-p.z)<0.01);
     if(p.id==='aquarium'){ C.aquarium={x0:cx(9)-11,x1:cx(9)+9.5,z0:cx(8)-9,z1:cx(8)+9}; const ax=C.aquarium.x1+1.6, az=cx(8);
       C.deplaces=(C.deplaces||[]).concat([{cle:'aquarium',avant:{x:p.x,z:p.z},apres:{x:ax,z:az}}]); deplacerPorte(p,ax,az,0,1,0); }
-    else { C.garage={x0:cx(11)-P+4,x1:cx(11)+11,z0:cx(10)-10,z1:cx(10)+10}; const gx=C.garage.x0-1.15, gz=cx(10), g=p.halo&&p.halo.parent; /* le rideau (1,05 derrière le seuil) contre le mur ; 4 u de trottoir jusqu'à la rue x = 168 */
+    else { const Gg=C.chantier.garage; C.garage={x0:Gg.x0,x1:Gg.x1,z0:Gg.z0,z1:Gg.z1}; const gx=C.chantier.garagePorte.x, gz=C.chantier.garagePorte.z, g=p.halo&&p.halo.parent; /* V3, phase 4 : le rideau (1,05 derrière le seuil) contre la façade nord du garage ; 2,9 u de trottoir jusqu'à la rue z = 168 */
       C.deplaces=(C.deplaces||[]).concat([{cle:'g_port',avant:{x:p.x,z:p.z},apres:{x:gx,z:gz}}]);
-      for(const e of ENSEIGNES) if(e.lieu&&Math.abs(e.p.position.x-p.x)<1.5&&Math.abs(e.p.position.z-(p.z-1.2))<1.6){ /* enseigne drapeau, tournée vers la caméra (comme orienterPorte sur un flanc) */
-        e.p.scale.setScalar(0.62); e.p.rotation.order='YXZ'; e.p.rotation.set(-0.32,0,0); e.p.position.set(gx+1.2-(0.3+8*0.62/2),4.4,gz+0.2); }
-      p.x=gx; p.z=gz; p.nx=-1; p.nz=0; p.hills=true; if(g){ g.position.set(gx,0,gz); g.rotation.y=-Math.PI/2; } }
+      for(const e of ENSEIGNES) if(e.lieu&&Math.abs(e.p.position.x-p.x)<1.5&&Math.abs(e.p.position.z-(p.z-1.2))<1.6){ /* l'enseigne sur le toit, face à la caméra (au nord, la façade est cachée par le bâtiment) */
+        e.p.scale.setScalar(0.85); e.p.rotation.order='YXZ'; e.p.rotation.set(-0.32,0,0); e.p.position.set(gx,Gg.h+2.3,Gg.z0+2.4); }
+      p.x=gx; p.z=gz; p.nx=0; p.nz=-1; p.hills=true; if(g){ g.position.set(gx,0,gz); g.rotation.y=Math.PI; } }
     for(const b of bal){ b.x=p.x; b.z=p.z; b.sp.position.x=p.x; b.sp.position.z=p.z; } }
   /* V3 : les bandes de transition de l'ancien bord du désert (x = 277), dans l'enceinte le long du quartier : le désert n'y est plus (le
      grand canal, la rive est, le bout des rues rendu à l'asphalte) — leurs triangles y sont repliés sous le sol */
@@ -8162,8 +8184,8 @@ function mkCanaux(){
       const t=new THREE.Mesh(new THREE.PlaneGeometry(w,d),new THREE.MeshLambertMaterial({color:0x5a5f66})); t.rotation.x=-Math.PI/2; t.position.set((R.x0+R.x1)/2,h+0.01,(R.z0+R.z1)/2); scene.add(t);
       addSolid({x:(R.x0+R.x1)/2,z:(R.z0+R.z1)/2,hw:w/2,hd:d/2,h,toit:true}); };
     if(C.aquarium) bat(C.aquarium,'#2a6a8a',8.5);
-    if(C.garage) bat(C.garage,'#4a5058',6.5);
-    tp('lieux'); mkBatiCanaux(); tp('bati'); mkCoteEstV3(); tp('coteEst'); mkLevisV3(); tp('levis'); mkNautiqueCanaux(); tp('nautique'); mkMiamiCanaux(); tp('miami'); canauxGraphe(); canauxGrapheHauteurs(); C.tBuild=Math.round(performance.now()-t0);
+    /* V3, phase 4 : le garage du port est dans le bâtiment double du chantier naval (mkChantierNaval, en fin de mkCanaux) */
+    tp('lieux'); mkBatiCanaux(); tp('bati'); mkCoteEstV3(); tp('coteEst'); mkLevisV3(); tp('levis'); mkNautiqueCanaux(); tp('nautique'); mkMiamiCanaux(); tp('miami'); mkChantierNaval(C); tp('chantier'); canauxGraphe(); canauxGrapheHauteurs(); C.tBuild=Math.round(performance.now()-t0);
   });
 }
 /* ---------- CANAUX V3, phase 1 : le côté est (CANAUX_V3.md) ----------
@@ -8581,6 +8603,165 @@ function majPromoBateaux(dt){ const C=CANAUX; if(!C.ok||!PROMO.postes.length) re
 /* à chaque partie : tous les bateaux à leur poste, en instances */
 function promoStartRun(){ for(const p of PROMO.promus) if(p.v&&!p.v.mort){ const v=p.v; v.mort=true; scene.remove(v.mesh); libererEntite(v.mesh); const j=vehicules.indexOf(v); if(j>=0) vehicules.splice(j,1); }
   PROMO.promus.length=0; for(const p of PROMO.postes){ p.v=null; p.coule=false; if(p.amarre) p.amarre.promu=false; posePoste(p,0,true); } for(const m of PROMO.meshes) m.instanceMatrix.needsUpdate=true; PROMO.t=0; }
+/* ---------- CANAUX V3, phase 4 : LE CHANTIER NAVAL « MARÉE BASSE » ET LE GARAGE DU PORT (CANAUX_V3.md) ----------
+   Demandé : « un bâtiment double au bord de l'eau, côté est : côté rue, un garage à voitures (le GARAGE DU PORT y est déplacé) ; côté
+   eau, le chantier naval, un hangar à bateaux à porte basculante sur l'eau, où l'on entre EN BATEAU par la mer ».
+   Décision (suivi, n° 13) : à la place du condo du sud, sur le grand canal est, entre la rue z = 168 et le front de mer — le seul bord
+   d'eau où TOUS les bateaux arrivent de la mer sans passer sous un pont fixe (le canal est de l'ancien atelier, x 221 → 241, a trois
+   ponts fixes : un yacht n'y entre jamais). Le garage (au nord, porte sur la rue z = 168) et le hangar (au sud, porte basculante sur le
+   canal) partagent un mur ; au sud, le chantier à ciel ouvert (portique élévateur, cale de halage, bateaux sur bers, atelier de
+   peinture). La darse sous le hangar est de l'eau qu'on voit par la porte ouverte, jamais navigable ; le hangar est un solide : on
+   « entre » par le bouton, comme au garage. Des données ici (chantierNavalDefinir, appelée par canauxDefinir) ; le bâti dans
+   mkChantierNaval (fin de mkCanaux, générateur privé) ; la porte qui s'ouvre devant un bateau du joueur : majChantierNaval. */
+const CHANTIER_NOM='CHANTIER NAVAL « MARÉE BASSE »', CHANTIER_RAYON=8, CHANTIER_PORTE_T=1.6, CHANTIER_OUVERTE=1.42;
+const CHANTIER_MSG_QUAI='⚓ Le chantier naval se visite EN BATEAU : la porte du hangar donne sur le canal';
+function chantierNavalDefinir(C){ const G3=C.grand, X1=G3.x0, N=C.niveau;
+  const CN=C.chantier={x0:270,x1:X1,z0:177.5,z1:246.5,
+    garage:{x0:270,x1:287,z0:177.5,z1:193.5,h:6.4},
+    hangar:{x0:270,x1:X1,z0:193.5,z1:213.5,h:7.6,faite:11.4},
+    porte:{z0:197.5,z1:209.5,h:6.2},
+    darse:{x0:279.5,x1:X1+0.5,z0:198.4,z1:208.6},
+    eauPt:{x:X1+3.4,z:203.5}, sortieBateau:{x:(G3.x0+G3.x1)/2,z:203.5},
+    quai:{x:X1-4.4,z:215.4}, portique:{x0:279.6,x1:287.6,z0:224.5,z1:235.5}, cale:{x0:279.5,z0:238.6,z1:243.9},
+    ouvreT:0, ouvre:0, pivot:null};
+  CN.garagePorte={x:274.6,z:CN.garage.z0-1.15}; /* à l'ouest de la rampe du pont-levis sud (x ≥ 278) : la voiture qui ressort est sur la rue */
+  C.eaux.push({t:'r',id:'darseChantier',x0:CN.darse.x0,x1:CN.darse.x1,z0:CN.darse.z0,z1:CN.darse.z1,couverte:true}); /* sous le hangar : de l'eau, jamais navigable (estEauNav), couverte par le toit */
+  CN.anse={x0:X1-3.2,x1:X1+0.5,z0:214.8,z1:222.4}; C.eaux.push({t:'r',id:'anseChantier',x0:CN.anse.x0,x1:CN.anse.x1,z0:CN.anse.z0,z1:CN.anse.z1}); /* une anse creusée dans le quai, au sud de la porte : le ponton d'entrée y loge sans rétrécir le grand canal (deux yachts de 6 u s'y croisent : test du côté est) */
+  CN.ponton={x0:CN.anse.x0,x1:CN.anse.x0+1.8,z0:CN.anse.z0,z1:CN.anse.z1,h:N+0.32,cote:-1,canal:'grandE',chantier:true}; C.pontons.push(CN.ponton); /* le ponton d'entrée */
+  (C.echelles=C.echelles||[]).push({x:CN.ponton.x1+0.05,z:CN.anse.z1-0.9,eau:{x:CN.ponton.x1+0.9,z:CN.anse.z1-0.9},ponton:CN.ponton,chantier:true});
+  CN.porteObj={id:'chantier',x:CN.quai.x,z:CN.quai.z,nx:1,nz:0,sortieD:0.4,y:0}; /* la porte de la salle (pas dans PORTES : une de plus décalerait la ville) — à pied, on ressort sur le quai */
+}
+function dansDarseChantier(x,z){ const CN=CANAUX.chantier; if(!CN) return false; const d=CN.darse; return x>d.x0-0.05&&x<CANAUX.grand.x0&&z>d.z0-0.05&&z<d.z1+0.05; }
+/* le bâti (dans mkCanaux, générateur privé) : une géométrie en couleurs de sommets (jour), une pour les fenêtres de nuit, une lumineuse */
+function mkChantierNaval(C){ const CN=C.chantier; if(!CN) return; const t0=performance.now(), Y=0.22, N=C.niveau;
+  const c={pos:[],nor:[],col:[]}, cn={pos:[],nor:[],col:[]}, cl={pos:[],nor:[],col:[]};
+  const b=constructeurCanaux(c,0,0,0,1,Y), bn=constructeurCanaux(cn,0,0,0,1,Y), bl=constructeurCanaux(cl,0,0,0,1,Y);
+  CN.solides=[]; const sol=(x,z,hw,hd,h)=>{ const s={x,z,hw,hd,h:h+Y,toit:true}; addSolid(s); CN.solides.push(s); };
+  const sav={mv3:_MV3,mc:_MAT_COND,caches:[_GEO_V3,_PEINT_V3,_ROUE_V3,_GEO_COND,_MATC_V3,_TEX_V3].map((o)=>[o,new Set(Object.keys(o))])};
+  const _m=new THREE.Matrix4(), _q=new THREE.Quaternion(), _e=new THREE.Euler(), _v=new THREE.Vector3(), _s=new THREE.Vector3(1,1,1);
+  const bateau=(cle,x,yQuille,z,ang)=>{ const d=VEHDEFS[cle], g=geoInstanceBateau(cle,d.cols[0]); if(!g.boundingBox) g.computeBoundingBox(); /* un modèle du jeu, aplati en couleurs de sommets, la quille à yQuille */
+    _m.compose(_v.set(x,yQuille-g.boundingBox.min.y,z),_q.setFromEuler(_e.set(0,ang,0)),_s); const P=g.attributes.position.array, Nn=g.attributes.normal.array, Co=g.attributes.color.array, p=new THREE.Vector3(), n=new THREE.Vector3(), nm=new THREE.Matrix3().getNormalMatrix(_m);
+    for(let i=0;i<P.length;i+=3){ p.set(P[i],P[i+1],P[i+2]).applyMatrix4(_m); n.set(Nn[i],Nn[i+1],Nn[i+2]).applyMatrix3(nm).normalize(); c.pos.push(p.x,p.y,p.z); c.nor.push(n.x,n.y,n.z); c.col.push(Co[i],Co[i+1],Co[i+2]); } };
+  /* 1) LE GARAGE DU PORT : crème à bandeau bleu-vert, toit plat à acrotère, fenêtres à l'ouest et à l'est (la porte : celle du garage, déplacée) */
+  { const G=CN.garage, gx=(G.x0+G.x1)/2, gz=(G.z0+G.z1)/2, gw=G.x1-G.x0, gd=G.z1-G.z0;
+    b.box(gw,G.h,gd,gx,G.h/2,gz,0xe6e0d2); b.box(gw+0.08,0.75,gd+0.08,gx,0.375,gz,0x8e8a82); b.box(gw+0.1,0.85,gd+0.1,gx,G.h-0.55,gz,0x2a7c86);
+    b.box(gw+0.3,0.28,gd+0.3,gx,G.h+0.14,gz,0x60666e);
+    for(const [w,d,x,z] of [[gw+0.3,0.25,gx,G.z0-0.02],[gw+0.3,0.25,gx,G.z1+0.02],[0.25,gd+0.3,G.x0-0.02,gz],[0.25,gd+0.3,G.x1+0.02,gz]]) b.box(w,0.5,d,x,G.h+0.43,z,0xd6d0c4);
+    for(const [x,z] of [[gx-4,gz+3],[gx+3,gz+4.5]]){ b.box(1.6,0.9,1.2,x,G.h+0.75,z,0xb8bec6); b.cyl(0.42,0.08,x,G.h+1.24,z,0x2a2d34); }
+    const fen=(x,z,axe)=>{ const w=axe==='x'?2.8:0.1, d=axe==='x'?0.1:2.8; b.box(w,1.9,d,x,3.4,z,0x22313c); b.box(axe==='x'?3.0:0.16,0.16,axe==='x'?0.16:3.0,x,4.42,z,0xd6d0c4); b.box(axe==='x'?3.0:0.18,0.12,axe==='x'?0.2:3.0,x,2.4,z,0xd6d0c4); bn.box(axe==='x'?2.7:0.06,1.8,axe==='x'?0.06:2.7,x,3.4,z,0xffd89a); };
+    fen(280.8,G.z0-0.04,'x'); fen(284.6,G.z0-0.04,'x'); for(const z of [181.5,186.5,191]){ fen(G.x0-0.04,z,'z'); fen(G.x1+0.04,z,'z'); }
+    sol(gx,gz,gw/2,gd/2,G.h); }
+  /* 2) LE HANGAR À BATEAUX : bardage ondulé gris-bleu, pignons au nord et au sud, toit à deux pans et ses lanterneaux, porte basculante sur le canal */
+  { const H=CN.hangar, P=CN.porte, hx=(H.x0+H.x1)/2, hz=(H.z0+H.z1)/2, hw=H.x1-H.x0, hd=H.z1-H.z0, mur=0xaab5bf, onde=0x8d99a4, zc=(P.z0+P.z1)/2;
+    b.box(0.3,H.h,hd,H.x0+0.15,H.h/2,hz,mur); b.box(hw,H.h,0.3,hx,H.h/2,H.z1-0.15,mur); b.box(hw,H.h,0.3,hx,H.h/2,H.z0+0.15,mur);
+    b.box(0.3,H.h,P.z0-H.z0,H.x1-0.15,H.h/2,(H.z0+P.z0)/2,mur); b.box(0.3,H.h,H.z1-P.z1,H.x1-0.15,H.h/2,(P.z1+H.z1)/2,mur); b.box(0.3,H.h-P.h,P.z1-P.z0,H.x1-0.15,(P.h+H.h)/2,zc,mur);
+    b.box(hw+0.06,0.9,0.36,hx,0.45,H.z1-0.15,0x8a8e94); b.box(0.36,0.9,hd,H.x0+0.15,0.45,hz,0x8a8e94);
+    for(let x=H.x0+0.6;x<H.x1-0.3;x+=0.9) b.box(0.08,H.h-0.9,0.08,x,(H.h+0.9)/2,H.z1+0.02,onde);
+    for(let z=H.z0+0.5;z<H.z1-0.3;z+=0.9) if(z<P.z0-0.5||z>P.z1+0.5) b.box(0.08,H.h-0.9,0.08,H.x1+0.02,(H.h+0.9)/2,z,onde); else b.box(0.08,H.h-P.h-0.1,0.08,H.x1+0.02,(H.h+P.h)/2,z,onde);
+    for(const [z,s] of [[H.z1+0.03,1],[H.z0-0.03,-1]]) b.tri([H.x0-0.1,H.h,z],[H.x1+0.1,H.h,z],[hx,H.faite,z],0xb9c3cc,false,[0,0,s]); /* les pignons */
+    b.toit(hw+0.9,hd+0.7,H.faite-H.h,'pignonZ',hx,H.h,hz,0x34506c); b.box(0.36,0.22,hd+0.7,hx,H.faite+0.05,hz,0x2a3e52);
+    for(const sx of [-1,1]){ const xe=sx<0?H.x0-0.45:H.x1+0.45; b.box(0.2,0.2,hd+0.7,xe,H.h-0.06,hz,0x6a7480);
+      for(const z0 of [hz-7.5,hz-1.2,hz+5.1]){ const z1=z0+2.4, pt=(t,z)=>[xe+(hx-xe)*t,H.h+(H.faite-H.h)*t+0.05,z]; b.tri(pt(0.3,z0),pt(0.78,z0),pt(0.78,z1),0xa8cfe0,false,[sx,1.6,0]); b.tri(pt(0.3,z0),pt(0.78,z1),pt(0.3,z1),0xa8cfe0,false,[sx,1.6,0]); } }
+    /* le cadre de la porte, les zébras, les pneus de défense, les lampes */
+    for(const z of [P.z0-0.25,P.z1+0.25]){ b.box(0.5,P.h+0.82,0.5,H.x1+0.14,(P.h-0.82)/2,z,0x2f343a); for(let k=0;k<5;k++) b.box(0.52,0.4,0.52,H.x1+0.14,0.2+k*0.8,z,k%2?0x1a1c20:0xffd23f);
+      b.cyl(0.42,0.32,H.x1+0.55,0.15,z,0x15171a); bl.box(0.3,0.22,0.3,H.x1+0.45,P.h+0.55,z,0xfff2c0); }
+    b.box(0.6,0.55,P.z1-P.z0+1.0,H.x1+0.14,P.h+0.2,zc,0x2f343a);
+    /* dedans : un plafond sous la charpente (vu d'en dessous, le toit, à une face, laissait voir le ciel), un sol et des parois sombres */
+    { const D=CN.darse, xs=(D.x0+H.x1-0.3)/2, ws=H.x1-0.3-D.x0; b.box(hw-0.7,0.12,hd-0.7,hx,H.h-0.1,hz,0x2a3036);
+      b.box(D.x0-H.x0-0.3,0.03,hd-0.6,(H.x0+0.3+D.x0)/2,0.02,hz,0x3a3f44); b.box(ws,0.03,D.z0-H.z0-0.3,xs,0.02,(H.z0+0.3+D.z0)/2,0x3a3f44); b.box(ws,0.03,H.z1-0.3-D.z1,xs,0.02,(D.z1+H.z1-0.3)/2,0x3a3f44);
+      for(const [w,d,x,z] of [[0.08,hd-0.7,H.x0+0.34,hz],[hw-0.7,0.08,hx,H.z0+0.34],[hw-0.7,0.08,hx,H.z1-0.34]]) b.box(w,H.h-0.3,d,x,(H.h-0.3)/2,z,0x4a535c); }
+    /* dedans, vu par la porte ouverte : un bateau sur sangles au-dessus de la darse, le pont roulant, des lampes */
+    { const D=CN.darse, xm=(D.x0+H.x1)/2; bateau('bateau',xm,N+1.4,zc,Math.PI/2);
+      b.box(H.x1-D.x0,0.5,0.4,xm,H.h-0.6,zc-1.6,0xd8a21f); b.box(H.x1-D.x0,0.5,0.4,xm,H.h-0.6,zc+1.6,0xd8a21f);
+      { const y0=N+1.2-Y, y1=H.h-0.8; for(const dx of [-1.7,1.7]) for(const sz of [-1,1]) b.box(0.1,y1-y0,0.22,xm+dx,(y0+y1)/2,zc+sz*1.35,0x1d2a3a); } /* les sangles, du pont roulant sous la coque */
+      for(const dz of [-3,0,3]) bl.box(1.2,0.15,0.4,xm-1.5,H.h-0.25,zc+dz,0xffe8b8); }
+    enseigneCanaux('CHANTIER NAVAL','#ffd23f',H.x1+0.35,P.h+Y+1.25,zc,Math.PI/2,6);
+    enseigneCanaux('MARÉE BASSE','#35c8e0',hx,Y+5.3,H.z1+0.32,0,9.5);
+    sol(hx,hz,hw/2,hd/2,H.h);
+    /* la porte basculante : un panneau qui pivote sur son bord haut (rotation.z > 0 : le bas part vers le canal) */
+    { const pc={pos:[],nor:[],col:[]}, L=P.h+Y-N+0.15, Wd=P.z1-P.z0-0.12, pl=[['box',0.16,L,Wd,0,-L/2,0,0xdfe4ea]];
+      for(let k=1;k<L/0.62;k++) pl.push(['box',0.2,0.06,Wd,0,-k*0.62,0,0xaeb7c0]);
+      for(const y of [-1.5,-2.15]) pl.push(['box',0.21,0.42,Wd,0,y,0,0x2f6fae]);
+      for(let k=0;k<8;k++) pl.push(['box',0.22,0.36,Wd/8,0,-L+0.22,-Wd/2+Wd/16+k*Wd/8,k%2?0x1a1c20:0xffd23f]);
+      mobPieces(pl,0,0,0,pc,0); const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pc.pos,3)); g.setAttribute('normal',new THREE.Float32BufferAttribute(pc.nor,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(pc.col,3)); g.computeBoundingSphere();
+      const pv=new THREE.Group(); pv.position.set(H.x1+0.05,P.h+Y,zc); pv.add(new THREE.Mesh(g,MOB_MAT)); scene.add(pv); CN.pivot=pv; CN.ouvre=0; } }
+  /* 3) LE CHANTIER À CIEL OUVERT : portique élévateur et son bateau sur sangles, bers, cale de halage, atelier de peinture, mâts, chariot */
+  { const T=CN.portique, tx=(T.x0+T.x1)/2, tz=(T.z0+T.z1)/2, bleu=0x2a62b8;
+    for(const x of [T.x0,T.x1]) for(const z of [T.z0,T.z1]){ b.box(0.55,7.4,0.55,x,3.7,z,bleu); b.box(0.55,0.9,1.5,x,0.45,z,0x1a1c20); sol(x,z,0.35,0.75,7.4); }
+    for(const x of [T.x0,T.x1]) b.box(0.7,0.9,T.z1-T.z0+0.7,x,7.65,tz,bleu); for(const z of [T.z0,T.z1]) b.box(T.x1-T.x0+0.7,0.7,0.7,tx,7.75,z,bleu);
+    b.box(1.3,1.3,1.9,T.x1+0.5,2.4,T.z1-1.2,0xf2c21f); b.box(1.0,0.9,0.1,T.x1+0.5,2.6,T.z1-2.16,0x22313c);
+    bateau('cruiserBois',tx,Y+1.15,tz,0);
+    for(const dz of [-2.4,2.4]){ for(const x of [T.x0+0.55,T.x1-0.55]) b.box(0.08,7.2-1.0,0.32,x,(7.2+1.0)/2,tz+dz,0x1d2a3a); b.box(T.x1-T.x0-1.0,0.08,0.32,tx,0.98,tz+dz,0x1d2a3a); }
+    sol(tx,tz,1.5,4.2,4.6);
+    /* deux bateaux sur leur ber (calages, béquilles) : l'offshore à refaire, la vedette au carénage */
+    for(const [cle,z,L] of [['offshore',220.4,9.5],['bateau',231.6,6.5]]){ const x=274.7; bateau(cle,x,Y+0.95,z,0);
+      for(const dz of [-L*0.3,0,L*0.3]) b.box(0.55,0.95,1.1,x,0.475,z+dz,0x6a5038);
+      for(const sx of [-1,1]) for(const dz of [-L*0.25,L*0.25]) b.box(0.12,1.55,0.12,x+sx*1.25,0.78,z+dz,0x3a3f46);
+      sol(x,z,1.45,L/2+0.2,3.2); }
+    /* la cale de halage : rails et traverses jusqu'au quai, un treuil, un runabout sur son chariot */
+    { const K=CN.cale, kz=(K.z0+K.z1)/2, xq=C.grand.x0-0.15, lg=xq-K.x0;
+      b.box(lg,0.03,K.z1-K.z0,(K.x0+xq)/2,0.015,kz,0x9a9c9e); for(const z of [K.z0+1.3,K.z1-1.3]) b.box(lg,0.12,0.14,(K.x0+xq)/2,0.09,z,0x5a5e66);
+      for(let x=K.x0+0.4;x<xq;x+=0.8) b.box(0.24,0.05,K.z1-K.z0-1.0,x,0.05,kz,0x6a5038);
+      b.box(1.0,0.9,1.3,K.x0-0.9,0.45,kz,0xc8322e); b.cyl(0.32,1.1,K.x0-0.9,1.0,kz,0x2a2d34);
+      b.box(3.6,0.35,2.4,284.2,0.38,kz,0x3a3f46); for(const dx of [-1.3,1.3]) for(const sz of [-1,1]) b.cyl(0.24,0.2,284.2+dx,0.24,kz+sz*1.25,0x15171a);
+      bateau('runabout',284.2,Y+0.62,kz,Math.PI/2); sol(284.2,kz,2.8,1.3,2.2); sol(K.x0-0.9,kz,0.6,0.7,1.2); }
+    /* l'atelier de peinture, au fond, et ses fûts */
+    b.box(7.4,3.6,7.2,273.8,1.8,242.5,0x7f8f7a); b.box(7.8,0.25,7.6,273.8,3.72,242.5,0x4a5048); b.box(2.6,2.7,0.1,273.8,1.35,238.85,0x3a3f46); b.box(2.8,0.5,0.14,273.8,3.0,238.84,0xd8a21f);
+    for(const x of [271.6,276]) b.cyl(0.3,0.7,x,4.15,243.4,0x8a9096); sol(273.8,242.5,3.7,3.6,3.6);
+    for(const [x,z,k] of [[278.6,239.6,'fut'],[278.6,240.6,'futOrange'],[279.4,240.1,'fut']]) mobPieces(MOB_CAT[k].pieces,x,z,0,c,Y);
+    /* les mâts sur leurs tréteaux, le long du hangar ; le chariot élévateur ; des bouées, une ancre, des hélices */
+    for(const x of [271.4,278.4]) b.box(0.16,0.9,1.1,x,0.45,215.9,0x6a5038); for(const [dz,dy] of [[-0.3,0.95],[0.05,0.98],[0.35,1.08]]) b.box(8.6,0.16,0.18,274.9,dy,215.9+dz,0xc8ccd2);
+    sol(274.9,215.9,4.4,0.6,1.2);
+    b.box(1.2,1.0,2.0,282.6,0.7,218.4,0xf2c21f); b.box(1.1,1.1,1.1,282.6,1.75,218.0,0x2a2d34); b.box(0.9,2.5,0.12,282.6,1.45,219.5,0x2a2d34);
+    for(const dx of [-0.3,0.3]) b.box(0.12,0.06,1.1,282.6+dx,0.14,220.1,0x2a2d34); for(const dx of [-0.55,0.55]) for(const dz of [-0.6,0.6]) b.cyl(0.26,0.22,282.6+dx,0.26,218.4+dz,0x15171a);
+    sol(282.6,218.7,0.7,1.5,2.4);
+    for(const [x,z,cc] of [[271,218.4,0xe05252],[271,219.4,0xf2f0ea],[271.7,218.9,0xe05252]]) b.boule(0.42,0.42,0.42,x,0.42,z,cc);
+    b.box(0.2,1.3,0.2,271.4,0.65,226.5,0x2a2d34); b.box(1.2,0.2,0.2,271.4,0.25,226.5,0x2a2d34); b.box(0.9,0.12,0.12,271.4,1.15,226.5,0x2a2d34); /* l'ancre posée */
+    mobPieces(MOB_CAT.palette.pieces,271.4,224.6,0,c,Y); for(let k=0;k<3;k++) b.cyl(0.36,0.06,271.1+k*0.3,0.62+k*0.07,224.6,0xc89a3a); /* les hélices sur leur palette */
+    /* le muret de l'allée et son entrée, les bittes du quai, les lampadaires */
+    for(const [z0,z1] of [[213.8,221.5],[236.6,246.3]]){ b.box(0.3,1.1,z1-z0,269.35,0.55,(z0+z1)/2,0xd6d0c4); sol(269.35,(z0+z1)/2,0.15,(z1-z0)/2,1.1); }
+    for(const z of [221.5,236.6]) b.box(0.6,1.7,0.6,269.35,0.85,z,0x2a7c86);
+    for(const z of [224.5,233.5,245.5]) mobPieces(MOB_CAT.bitte.pieces,C.grand.x0-0.45,z,0,c,Y);
+    for(const [x,z] of [[284.4,223.6],[287.6,246],[278.2,213.9]]){ b.box(0.16,5.6,0.16,x,2.8,z,0x2a2d34); b.box(0.9,0.12,0.22,x-0.4,5.6,z,0x2a2d34); bl.box(0.5,0.12,0.26,x-0.75,5.5,z,0xfff2c0); } }
+  /* la fusion : jour, nuit (les fenêtres), le lumineux */
+  for(const [q,m] of [[c,MOB_MAT],[cn,matFenCanaux()],[cl,MOB_MAT_LUM]]) if(q.pos.length){ const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(q.pos,3)); g.setAttribute('normal',new THREE.Float32BufferAttribute(q.nor,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(q.col,3)); g.computeBoundingSphere();
+    const me=new THREE.Mesh(g,m); if(m===_MAT_FEN_CANAUX){ me.visible=false; C.nuitMeshes.push(me); } scene.add(me); }
+  _MV3=sav.mv3; _MAT_COND=sav.mc; for(const [o,keys] of sav.caches) for(const kk of Object.keys(o)) if(!keys.has(kk)) delete o[kk];
+  C.tChantier=Math.round(performance.now()-t0); }
+/* ---------- en jeu : la porte basculante s'ouvre devant le bateau du joueur, et quelques secondes après sa sortie ---------- */
+function majChantierNaval(dt){ const CN=CANAUX.ok&&CANAUX.chantier; if(!CN||!CN.pivot) return; if(CN.ouvreT>0) CN.ouvreT-=dt;
+  const v=P.veh, veut=(!INT.actif&&!!v&&!!v.def&&!!v.def.eau&&dist2(v.x,v.z,CN.eauPt.x,CN.eauPt.z)<18*18)||CN.ouvreT>0, k0=CN.ouvre;
+  CN.ouvre=clamp(CN.ouvre+(veut?1:-1)*dt/CHANTIER_PORTE_T,0,1); if(CN.ouvre===k0) return;
+  const e=CN.ouvre*CN.ouvre*(3-2*CN.ouvre); CN.pivot.rotation.z=e*CHANTIER_OUVERTE;
+  if((k0===0||k0===1)&&!INT.actif&&dist2(P.x,P.z,CN.eauPt.x,CN.eauPt.z)<40*40) bruit(0.35,0.3,70); }
+/* ---------- l'entrée : en bateau, par la porte sur l'eau (bouton au ponton d'entrée) ---------- */
+function chantierPorteProche(x,z){ const CN=CANAUX.ok&&CANAUX.chantier; return !!CN&&dist2(x,z,CN.eauPt.x,CN.eauPt.z)<CHANTIER_RAYON*CHANTIER_RAYON; }
+function chantierQuaiProche(x,z){ const CN=CANAUX.ok&&CANAUX.chantier; return !!CN&&dist2(x,z,CN.quai.x,CN.quai.z)<5.5*5.5; }
+function bateauNaut(d){ return !!(d&&d.eau&&(d.tuningMeca||d.tuningNaut)); }
+function messageNonNaut(v){ const d=v.def||{};
+  if(!d.eau) return '⚓ Le chantier naval ne s’occupe que des bateaux';
+  if(d.pagaie||d.surf) return 'Pas de moteur à régler : il faut un bateau à moteur';
+  if(v.key==='voilier') return 'Son mât ne passe pas la porte du hangar';
+  if(v.key==='grandyacht'||v.key==='cargo') return 'Bien trop grand pour le hangar';
+  return 'Le chantier ne s’occupe pas de ce bateau'; }
+function chantierRefusBateau(v){
+  if(!v||!v.def) return 'Chantier introuvable';
+  if(ennemiHostileProche(P.x,P.z,GARAGE_FEU_DIST)) return GARAGE_MSG_FEU; /* la règle « trop chaud » du garage : la police ne bloque jamais */
+  if(!bateauNaut(v.def)) return messageNonNaut(v);
+  return null; }
+function entrerChantierEnBateau(){
+  const v=P.veh, refus=chantierRefusBateau(v); if(refus){ SFX.refus(); toast(refus,'warn'); return false; }
+  if(v.persoId&&fichePerso(v.persoId)){ GARAGE_HP[v.persoId]=v.hp; GARAGE_ARRIVEE={persoId:v.persoId}; }
+  else { const f=slotGarageDefaut(); f.cle=v.key; f.coul=v.mesh.userData.coul!==undefined?v.mesh.userData.coul:-1; GARAGE_ARRIVEE={visiteur:f,hp:v.hp}; }
+  sortirVehicule(true); garageRetirerVehicule(v);
+  entrerInterieur('chantier',CANAUX.chantier.porteObj); GARAGE_ARRIVEE=null; return true; }
+/* la sortie à la barre : à flot devant la porte, dans l'axe du canal, cap au sud (vers la mer) ; jamais sur un autre bateau ni hors de l'eau */
+function chantierPlaceSortie(cle){ const CN=CANAUX.chantier, d=VEHDEFS[cle]||{long:6,larg:2.5}, hl=d.long/2+0.3, hw=d.larg/2+0.3;
+  for(const dz of [0,-4,4,-8,8,-12,12,-16,16]){ const x=CN.sortieBateau.x, z=CN.sortieBateau.z+dz; let ok=true;
+    for(const [ax,az] of [[0,0],[hw,hl],[-hw,hl],[hw,-hl],[-hw,-hl],[0,hl],[0,-hl],[hw,0],[-hw,0]]) if(!estEauNav(x+ax,z+az)){ ok=false; break; }
+    if(ok) for(const w of vehicules) if(!w.mort&&dist2(w.x,w.z,x,z)<Math.pow(hl+(w.def?w.def.long/2:2)+0.5,2)){ ok=false; break; }
+    if(ok) return {x,z,ang:0}; }
+  return {x:CN.sortieBateau.x,z:CN.sortieBateau.z,ang:0}; }
 /* ---------- startRun : un véhicule posé (garé au hasard, vélo d'un arceau retiré, hélico d'un toit retiré…) que le quartier a rendu
    impossible est retiré APRÈS sa création — jamais avant : les tirages de la partie (et donc tout ce qui est posé hors du quartier)
    restent ceux d'avant. Dans l'eau d'un canal (sauf un bateau), sur un segment de rue retiré ou un tablier (une voiture), dans un
@@ -8628,6 +8809,7 @@ function dessinerCanauxCarte(g){
   for(const Q of typeof CONDOS_V2!=='undefined'?CONDOS_V2:[]){ g.fillStyle='rgba(0,0,0,0.35)'; g.fillRect(mmX(Q.x-Q.w/2)+0.9,mmZ(Q.z-Q.d/2)+0.9,Q.w*mmS,Q.d*mmS); g.fillStyle='#e8e6e0'; g.fillRect(mmX(Q.x-Q.w/2),mmZ(Q.z-Q.d/2),Q.w*mmS,Q.d*mmS); g.fillStyle='#3ab8d8'; g.fillRect(mmX(Q.x-Q.w*0.25),mmZ(Q.z-Q.d*0.3),Q.w*0.5*mmS,Q.d*0.3*mmS); } /* les condos, leur piscine sur le toit */
   g.fillStyle='#3ab8d8'; for(const b of BASSINS) if(b.hw&&dansBBCanaux(b.x,b.z)) g.fillRect(mmX(b.x-b.hw),mmZ(b.z-b.hd),b.hw*2*mmS,b.hd*2*mmS); /* les piscines */
   for(const R of [C.aquarium,C.garage]) if(R){ g.fillStyle='rgba(0,0,0,0.35)'; g.fillRect(mmX(R.x0)+0.6,mmZ(R.z0)+0.6,(R.x1-R.x0)*mmS,(R.z1-R.z0)*mmS); g.fillStyle='#5d6470'; g.fillRect(mmX(R.x0),mmZ(R.z0),(R.x1-R.x0)*mmS,(R.z1-R.z0)*mmS); } /* l'aquarium et le garage, sur leurs nouveaux pâtés */
+  if(C.chantier){ const H=C.chantier.hangar; g.fillStyle='rgba(0,0,0,0.35)'; g.fillRect(mmX(H.x0)+0.6,mmZ(H.z0)+0.6,(H.x1-H.x0)*mmS,(H.z1-H.z0)*mmS); g.fillStyle='#8fa2b4'; g.fillRect(mmX(H.x0),mmZ(H.z0),(H.x1-H.x0)*mmS,(H.z1-H.z0)*mmS); } /* V3, phase 4 : le hangar du chantier naval */
 }
 /* ---------- LE BÂTI DES CANAUX (V1 : phase 3 ; V2 : CANAUX_V2.md, phase 2) ----------
    V2 : chaque lot (CANAUX.lots, canauxLotsV2) reçoit sa villa du générateur (villaV2, plus bas) : les pieds dans l'eau côté jardin,
@@ -8825,7 +9007,7 @@ function villaV2(c,cn,l,piscines){
   if(o.quai==='beton') b.box(w-0.1,0.14,0.6,0,0.07,-d/2+0.3,0xf2f0ea); else for(let k=0;k<Math.floor(w/0.9);k++) b.box(0.86,0.18,0.62,-w/2+0.45+k*0.9,0.09,-d/2+0.31,k%2?0x9a9284:0x8a8274);
   return b.solides; }
 /* les résidences de condos (bordure est, derrière les villas) : tours blanches à bandeaux de balcons, verre teinté, piscine sur le toit */
-const CONDOS_V2=[{x:277.8,z:210,w:16,d:44,n:7}]; /* V3 : les deux condos du nord (z −19,5 et 19) ont laissé la place à la marina */
+const CONDOS_V2=[]; /* V3 : les deux condos du nord (z −19,5 et 19) ont laissé la place à la marina ; celui du sud (x 277,8, z 210), au chantier naval « Marée Basse » et au garage du port (phase 4) */
 function condoV2(c,cn,C0){ const b=constructeurCanaux(c,C0.x,C0.z,0,1,0.22), bn=constructeurCanaux(cn,C0.x,C0.z,0,1,0.22), a=aleaLot(hacheLot(C0.x,C0.z)), H=C0.n*3.1+1.2, {w,d}=C0;
   b.box(w+2,1.2,d+2,0,0.6,0,0xd8d4cc); /* le socle (parkings) */
   b.box(w,H-1.2,d,0,1.2+(H-1.2)/2,0,0xf4f4f2); for(let e=0;e<C0.n;e++){ const y=1.2+e*3.1;
@@ -9131,7 +9313,7 @@ function mkNautiqueCanaux(){
     enseigneCanaux('EMBARCADÈRE','#35c8e0',xc-4,3.4,zq-0.4,0,6.5); }
   /* 3) l'atelier « Marée Basse » : l'enseigne remplace RUCHE 9, un bateau sur son ber sous un portique, l'établi, moteurs et bouées */
   { const P0=POIS.port; for(const e of ENSEIGNES) if(e.p&&Math.abs(e.p.position.x-(P0.x-6))<1.2&&Math.abs(e.p.position.z-(P0.z+10.65))<1.6){ e.p.visible=false; e.masqueeCanaux=true; }
-    enseigneCanaux('MARÉE BASSE','#35c8e0',P0.x-6,3.8,P0.z+10.65,0,8);
+    enseigneCanaux('CALE SÈCHE','#35c8e0',P0.x-6,3.8,P0.z+10.65,0,8); /* V3, phase 4 : le nom « Marée Basse » est parti au chantier naval */
     const bx=P0.x+8, bz=P0.z+13, m=modele('bateau'); m.position.set(bx,1.25,bz); m.rotation.y=Math.PI/2; aplatir(m);
     mobPieces([['box',0.3,1.1,2.2,-1.8,0.55,0,0x7a5434],['box',0.3,1.1,2.2,1.8,0.55,0,0x7a5434],['box',0.3,5,0.3,-3.6,2.5,-1.6,0xe6a41f],['box',0.3,5,0.3,-3.6,2.5,1.6,0xe6a41f],
       ['box',0.3,5,0.3,3.6,2.5,-1.6,0xe6a41f],['box',0.3,5,0.3,3.6,2.5,1.6,0xe6a41f],['box',7.6,0.35,0.35,0,5,-1.6,0xe6a41f],['box',7.6,0.35,0.35,0,5,1.6,0xe6a41f],['box',0.05,2.5,0.05,0,3.8,0,0x2a2d34]],bx,bz,0,pieces,0.22);
@@ -9140,7 +9322,7 @@ function mkNautiqueCanaux(){
     addSolid({x:P0.x+10,z:P0.z-3,hw:1.5,hd:0.6,h:1.3});
     for(let k=0;k<3;k++) mobPieces([['box',0.5,1.1,0.4,0,0.75,0,0x2a2d34],['box',0.12,0.9,0.12,0,0,0.05,0x5a5e66],['box',0.6,0.12,0.25,0,1.3,0,0xe05252]],P0.x+3+k*1.2,P0.z-13,0,pieces,0.22); /* trois moteurs hors-bord sur leur chevalet */
     for(let k=0;k<5;k++) mobPieces([['boule',0.45,0.45,0.45,0,0.45+(k%2)*0.6,0,k%2?0xe05252:0xf2f0ea]],P0.x+11.5+(k>>1)*0.9,P0.z+6,0,pieces,0.22); /* bouées */
-    const A=C.atelierPonton; enseigneCanaux('MARÉE BASSE — CALE','#35c8e0',A.x0-2.6,2.6,A.z0-0.4,0,5); }
+    const A=C.atelierPonton; enseigneCanaux('CALE PUBLIQUE','#35c8e0',A.x0-2.6,2.6,A.z0-0.4,0,5); }
   /* la fusion : les bateaux par matériau, les pièces en couleurs de sommets */
   if(pieces.pos.length){ const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pieces.pos,3)); g.setAttribute('normal',new THREE.Float32BufferAttribute(pieces.nor,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(pieces.col,3)); g.computeBoundingSphere(); scene.add(new THREE.Mesh(g,MOB_MAT)); }
   C.tNautique=Math.round(performance.now()-t0); }
@@ -9148,7 +9330,7 @@ function mkNautiqueCanaux(){
 function dockersCanaux(){ const C=CANAUX;
   /* 4) les Dockside Boys à l'atelier (figurants : touchés, ils deviennent de vrais Dockers) */
   const P0=POIS.port, coul=[{haut:0x1f6a7a,bas:0x14202a,peau:0xb8865a,casq:0x0e3a46},{haut:0x2a8a9a,bas:0x1a262e,peau:0xc98d5e,casq:0x1f6a7a},{haut:0x1f6a7a,bas:0x1a262e,peau:0x8a5a3a,casq:0x14202a}];
-    C.dockers=[]; for(const [dx,dz,a,k] of [[1,11,Math.PI/2,0],[11,5,-Math.PI/2,1],[7,-1,Math.PI,2],[30.5,13,Math.PI/2,0]]){ const h=makeHumain(Object.assign({visage:'mechant'},coul[k]),1); h.g.position.set(P0.x+dx,0.22,P0.z+dz); h.g.rotation.y=a; scene.add(h.g); figurant(h,null,k===1?'mur_pompe':'mur_batte'); C.dockers.push(h); } }
+    C.dockers=[]; for(const [x,z,a,k] of [[277.4,224.8,Math.PI/2,0],[285.9,219.2,-Math.PI/2,1],[281.2,236.9,Math.PI,2],[271.4,229.6,Math.PI/2,0]]){ const h=makeHumain(Object.assign({visage:'mechant'},coul[k]),1); h.g.position.set(x,0.22,z); /* V3, phase 4 : au chantier naval « Marée Basse » */ h.g.rotation.y=a; scene.add(h.g); figurant(h,null,k===1?'mur_pompe':'mur_batte'); C.dockers.push(h); } }
 function canauxStartRun(){ avecAleaPrive(2026,canauxStartRunPrive); SURV.fin=0; miamiBateaux(); levisStartRun(); yachtsIAStartRun(); promoStartRun(); } /* V3 : ponts-levis fermés, yachts de l'IA retirés */ /* sur un générateur privé : la partie suivante tire comme avant */
 function canauxStartRunPrive(){
   const C=CANAUX; if(!C.ok) return;
@@ -9757,7 +9939,7 @@ function majPlanques(dt){ for(const pq of PLANQUES.liste) if(pq.enseigne){ const
    sortirInterieur, mourir et startRun. Records des activités : META.planquesJeux (clés fixes).
 ===================================================================== */
 const PQ_INT={}, PQ_SONS={}, PQ_TEX={};
-function porteSalle(id){ const p=PORTES.find((q)=>q.id===id); if(p) return p; const pq=PLANQUES.liste.find((q)=>q.def.id===id); return pq&&pq.porte?pq.porte:null; } /* la porte d'une salle : PORTES, ou celle d'une planque */
+function porteSalle(id){ if(id==='chantier') return CANAUX.chantier?CANAUX.chantier.porteObj:null; /* V3, phase 4 : la porte du hangar (hors de PORTES) */ const p=PORTES.find((q)=>q.id===id); if(p) return p; const pq=PLANQUES.liste.find((q)=>q.def.id===id); return pq&&pq.porte?pq.porte:null; } /* la porte d'une salle : PORTES, ou celle d'une planque */
 function planqueAInterieur(pq){ return !!(pq&&pq.porte&&pq.entree&&INTDEFS[pq.def.id]&&INTDEFS[pq.def.id].planque); }
 function planqueEntrer(pq){ if(INT.actif||!planqueAInterieur(pq)||!planquePossedee(pq.def.id)) return; entrerInterieur(pq.def.id,pq.porte); }
 function pqAlea(sd){ let h=(sd>>>0)||1; return ()=>{ h=(Math.imul(h,1664525)+1013904223)>>>0; return h/4294967296; }; } /* hasard de décor PRIVÉ : la salle est toujours la même */
@@ -21393,6 +21575,7 @@ function construireV3Spec(key,spec,def,coul,opts){
     const inter=new THREE.Group(); corps.add(inter); ud.interieurV3=inter; const Mp=matPeintV3(coul), I={g,corps,ud,def,key,coul,M,info:G.info,meshes:{}};
     for(const n in G.geos){ const base=n.replace(/\d+$/,''), m0=base==='peinture'?Mp:(spec.mats&&spec.mats[base]?spec.mats[base](coul,M):M[base]); if(!m0) throw new Error('V3 '+key+' : matière inconnue '+n);
       const m=new THREE.Mesh(G.geos[n],m0); (INTERIEUR_V3.has(base)||(spec.interieur&&spec.interieur.includes(base))?inter:corps).add(m); I.meshes[n]=m; }
+    ud.mV3=I.meshes; /* Canaux V3, phase 4 : les maillages par matière (le chantier naval teinte pont, sièges, pare-brise et peint la coque) */
     if(spec.inst) spec.inst(I);
     if(spec.lod||(opts&&opts.lod)) lodPoserV4(key,G,I); /* trafic, hélicos ennemis : la version lointaine (VÉHICULES V4) */
     if(!spec.sansOmbre) g.add(spriteBlob(def.long*1.05)); /* un aéronef pose la sienne au sol (ud.ombre, recalée par majVol) */ g.userData=ud;
@@ -34235,6 +34418,10 @@ const INTDEFS={
      l'on entre EN VÉHICULE. */
   tuning:{nom:'Garage',ico:'🔧',w:36,d:34,sol:0x2c2f36,mur:0x3b404a,
     ens:['GARAGE','#ff8c1a']},
+  /* Canaux V3, phase 4 : le chantier naval « Marée Basse » — la salle du garage pour les bateaux ; on y entre EN BATEAU par la porte
+     basculante du hangar (grand canal est) ; sa porte n'est pas dans PORTES (une de plus décalerait la ville) : porteSalle la rend */
+  chantier:{nom:'Chantier naval « Marée Basse »',ico:'⚓',w:40,d:36,sol:0x34383c,mur:0x56626c,
+    ens:['CHANTIER NAVAL','#35c8e0']},
   // boutique de style (17 octobre) : UNE salle pour les cinq boutiques, reconfigurée à l'entrée (porte.boutiqueId)
   boutique:{nom:'Boutique',ico:'🛍️',w:26,d:22,sol:0x6a5a4a,mur:0xe8e2d6,
     ens:['BOUTIQUE','#ff5ad0']},
@@ -34382,6 +34569,7 @@ const HABILLAGE_SALLES={
   metro:{sol:['beton',3],mur:['faience',1.2],lambris:['faience',0x3a3e2e],deco:['affiche','grille','affiche'],affiches:['LIGNE 4','HORS SERVICE','STATION LOS REYES'],accent:'#7a8a99',sansLumiere:true},
   site51:{sol:['beton',3],mur:['metal',2],lambris:['metal',0x2a2e26],deco:['grille','affiche','grille'],affiches:['ZONE RESTREINTE','NIVEAU 4','DÉCONTAMINATION'],accent:'#6de89a',sansLumiere:true},
   tuning:{sol:['beton',3],mur:['brique',2],lambris:['metal',0x3a3e46],deco:['outils','affiche','extincteur','outils','neon'],affiches:['PIÈCES D’ORIGINE','NITRO','GARAGE'],accent:'#ff9f2e'},
+  chantier:{sol:['beton',3],mur:['metal',2],lambris:['bois',0x5a4630],deco:['outils','affiche','extincteur','outils','neon'],affiches:['MARÉE BASSE','VERNIS MARIN','HÉLICES'],accent:'#35c8e0'},
 };
 const TEX_DETAIL={};
 function texDetail(k){
@@ -36892,6 +37080,8 @@ function construireSalle(id){
     construirePlanqueSalle(inter,g,ox,oz,W,P2,sol,dehors); // INTÉRIEURS DES PLANQUES (19 octobre)
   } else if(id==='tuning'){
     construireGarageTuning(inter,box,lampe);
+  } else if(id==='chantier'){
+    construireChantierNavalSalle(inter,g,sol,box,lampe,mMur); // CHANTIER NAVAL (Canaux V3, phase 4)
   }
   habillerSalleV2(inter,id,g,sol,mMur); // 18 octobre : sol, murs, lambris, matière des meubles, murs habillés
   peuplerSalle(inter,id,g); // 9e lot : figurants qui vivent (VIE_SALLES)
@@ -40637,7 +40827,8 @@ const VIE_SALLES={
   arcade:{n:5,repliques:['Record battu !','Encore un jeton…','Game over !']},
   cine:{n:3,repliques:['Il paraît que la fin est nulle.','Pop-corn ?']},
   radio:{n:1,repliques:['Dix secondes avant l’antenne !']},
-  tuning:{n:2,repliques:['Belle bête !','On lui met des néons ?'],tenue:{haut:0x3a5a8a,bas:0x2a3a5a,casq:0x14161c}}
+  tuning:{n:2,repliques:['Belle bête !','On lui met des néons ?'],tenue:{haut:0x3a5a8a,bas:0x2a3a5a,casq:0x14161c}},
+  chantier:{n:2,repliques:['Belle coque !','On lui refait le vernis ?','Attention à la darse !'],tenue:{haut:0x1f6a7a,bas:0x14202a,casq:0x0e3a46}}
 };
 const VIE_HAUTS=[0xe05252,0x35c8e0,0xf2c21f,0x7dff7a,0x8a4de0,0xe8ecf2,0xff8c1a,0x3a5a8a];
 // un point libre de la salle, atteignable en ligne droite depuis (x0,z0) sans traverser de meuble
@@ -41757,6 +41948,11 @@ const TUNING_PRIX={
   // gratuite) — À CALIBRER ; mêmes prix pour toutes les familles
   pieces:{aileron:[0,300,650],parechocs:[0,300,600],jupes:[0,250,550],
           capot:[0,250,500],jantes:[0,400,800],echappement:[0,200,450,700]}, // 4e : réservé au pickup (voir seul)
+  // Canaux V3, phase 4 : le CHANTIER NAVAL (bateaux) — à calibrer en jouant ; paliers : moteur = accélération, vitesse = hélice,
+  // tenue = coque (glisse), blindage ; pièces par catégorie et variante (0 = d'origine, gratuite), mêmes prix pour toutes les familles
+  bateaux:{peinture:250,neons:600,nitro:1400,moteur:[700,1500,2800],vitesse:[800,1700,3200],tenue:[600,1300,2500],blindage:[900,1900,3400],
+    pieces:{livree:[0,600,900,1200],pont:[0,350,450,700],toit:[0,1100,1800],parebrise:[0,300,500,450],sieges:[0,400,450,500],
+            sono:[0,700,1400],feux:[0,500,800,650],nom:[0,250,250,250,250,250,250,250],drapeau:[0,150,200,200]}},
 };
 // part de ce qui a été investi dans un véhicule rendue en le mettant à la casse
 const TUNING_CASSE_TAUX=0.25;
@@ -41770,7 +41966,7 @@ const TUNING_CASSE_TAUX=0.25;
 const TUNING_EFFETS={moteur:[1,1.22,1.45,1.7],vitesse:[1,1.1,1.2,1.32],tenue:[1,1.15,1.3,1.45],blindage:[1,0.75,0.55,0.4]};
 // libellé du gain d'un palier (menu d'atelier et récapitulatif de sortie)
 const TUNING_GAIN={moteur:'accélération',vitesse:'vitesse max',tenue:'adhérence',blindage:'dégâts reçus'};
-function gainPalier(cat,n){ const k=TUNING_EFFETS[cat][n]; return (k>=1?'+':'')+Math.round((k-1)*100)+' % '+TUNING_GAIN[cat]; }
+function gainPalier(cat,n,nav){ const k=TUNING_EFFETS[cat][n]; return (k>=1?'+':'')+Math.round((k-1)*100)+' % '+(nav?TUNING_GAIN_NAUT:TUNING_GAIN)[cat]; } /* nav : les mots du chantier naval */
 const TUNING_PALIERS_MAX=3;
 // icône de chaque palier dans le menu (pas d'icône dédiée au blindage)
 const TUNING_ICONES={moteur:'ico-garage-moteur',vitesse:'ico-garage-vitesse',tenue:'ico-garage-tenue'};
@@ -41933,6 +42129,169 @@ const PIECES_FAMILLES={
         return g; }}]},
   },
 };
+// ---- CHANTIER NAVAL (Canaux V3, phase 4) : les pièces des BATEAUX, un catalogue par famille (VEHDEFS.tuningNaut.famille) ----
+// Même règle que les voitures : posées par une passe (appliquerNaut, appelée par appliquerCarrosserie), JAMAIS dans makeVoiture ; une
+// pièce se paie une fois (piecesPossedees), aperçu avant achat ; clés de catégorie FIXES (slotGarageDefaut). Trois sortes de pièces :
+//  - peinte sur la coque (livrée, nom, rampe LED) : une décalcomanie tirée des triangles du bordé du VRAI modèle (geoDecalCoque), en
+//    coordonnées de la coque (de l'étrave à la poupe, de la flottaison au liston) — elle épouse toutes les formes ;
+//  - teinte d'une matière du modèle (pont, pare-brise, sièges) : une copie de la matière, propre à CE bateau (jamais celle du modèle) ;
+//  - une pièce posée aux ancrages déclarés (tuningNaut.ancrages, mesurés sur les modèles, vérifiés par le test « Canaux V3 : chantier
+//    naval ») : T-top, hardtop, aileron, arceau lumineux, bimini, sono, projecteur, LED sous-marines, pavillon.
+// Purement cosmétiques : aucun effet sur la physique.
+const PIECES_CATS_NAUT=['livree','pont','toit','parebrise','sieges','sono','feux','nom','drapeau'];
+const TUNING_NOMS_NAUT={moteur:'MOTEUR',vitesse:'HÉLICE',tenue:'COQUE (GLISSE)',blindage:'BLINDAGE'};
+const TUNING_GAIN_NAUT={moteur:'accélération',vitesse:'vitesse max',tenue:'glisse en virage',blindage:'dégâts reçus'};
+const NOMS_COQUE=['MARÉE HAUTE','RAFALE BLEUE','LOS REYES KID','BELLE DE NUIT','L’INSOUMISE','SEÑORITA','COUP DE SOLEIL'];
+const _MATS_NAUT={}, _TEX_NAUT={}, _DECAL_NAUT={}, _MATDEC_NAUT={};
+function matNaut(k){ if(_MATS_NAUT[k]) return _MATS_NAUT[k]; const Ph=(c,sp,sh,o)=>new THREE.MeshPhongMaterial(Object.assign({color:c,specular:sp,shininess:sh},o||{}));
+  const M={inox:()=>Ph(0xd8dde4,0xffffff,110), blanc:()=>Ph(0xf2f4f6,0x888888,40), noir:()=>new THREE.MeshLambertMaterial({color:0x17191d}), carbone:()=>Ph(0x1c1e22,0x5a5e66,60),
+    rouge:()=>Ph(0xd8261c,0x884444,50), toile:()=>new THREE.MeshLambertMaterial({color:0x1f3c6a,side:THREE.DoubleSide}),
+    toileRayee:()=>new THREE.MeshLambertMaterial({map:texNaut('raye'),side:THREE.DoubleSide}), hp:()=>new THREE.MeshLambertMaterial({color:0x24272c}),
+    led:()=>new THREE.MeshBasicMaterial({color:0x35e0ff}), phare:()=>new THREE.MeshBasicMaterial({color:0xfff3da}), vitreHt:()=>Ph(0x18242e,0x9ab4cc,90),
+    glowEau:()=>new THREE.MeshBasicMaterial({map:texGlow,color:0x2a9aff,transparent:true,opacity:0.8,depthWrite:false,blending:THREE.AdditiveBlending})};
+  return (_MATS_NAUT[k]=M[k]()); }
+/* les dessins (canevas en cache) : livrées et rampe LED en coordonnées de coque (x : de l'étrave à la poupe ; y : de la flottaison au liston), noms, pavillons, toile rayée */
+function texNaut(id){ if(_TEX_NAUT[id]) return _TEX_NAUT[id];
+  const [k,a,b]=id.split('|'), cv=document.createElement('canvas'), W=k==='drapeau'?128:(k==='raye'?64:512), H=k==='drapeau'?80:(k==='raye'?64:128); cv.width=W; cv.height=H; const g=cv.getContext('2d'); g.clearRect(0,0,W,H);
+  const y=(v)=>(1-v)*H;
+  if(k==='raye'){ for(let x=0;x<W;x+=16){ g.fillStyle=(x/16)%2?'#f2efe6':'#1f3c6a'; g.fillRect(x,0,16,H); } }
+  else if(k==='livree'&&a==='bandes'){ for(const [v0,v1,c] of [[0.5,0.63,'#f4f4f0'],[0.67,0.76,'#d8261c']]){ g.fillStyle=c; g.beginPath(); g.moveTo(30+(v1-v0)*90,y(v1)); g.lineTo(W-4,y(v1)); g.lineTo(W-4,y(v0)); g.lineTo(30,y(v0)); g.closePath(); g.fill(); } }
+  else if(k==='livree'&&a==='flammes'){ for(const [c,ech] of [['#c8261c',1],['#ff8a14',0.78],['#ffd23f',0.52]]){ g.fillStyle=c; g.beginPath(); g.moveTo(4,y(0.25)); g.lineTo(4,y(0.75));
+      for(let i=0;i<6;i++){ const xb=(60+i*48)*ech+10, vt=0.72-i*0.05; g.quadraticCurveTo(xb-18,y(vt+0.06),xb+30*ech+20,y(vt)); g.quadraticCurveTo(xb-6,y(vt-0.05),xb+4,y(vt-0.1)); }
+      g.lineTo(4+250*ech,y(0.4)); for(let i=0;i<4;i++){ const xb=4+(230-i*55)*ech; g.quadraticCurveTo(xb,y(0.36-i*0.01),xb-30*ech,y(0.3)); } g.closePath(); g.fill(); } }
+  else if(k==='livree'&&a==='damier'){ const s=14, v0=0.44, v1=0.84, n=Math.floor((y(v0)-y(v1))/s); for(let i=0;i*s<W-60;i++) for(let j=0;j<n;j++){ g.fillStyle=(i+j)%2?'#101114':'#f4f4f0'; g.fillRect(40+i*s,y(v1)+j*s,s,s); }
+    g.fillStyle='#d8261c'; g.fillRect(40,y(v1)-5,W-80,4); g.fillRect(40,y(v1)+n*s+1,W-80,4); }
+  else if(k==='led'){ g.fillStyle='#35e0ff'; for(let x=14;x<W-14;x+=22) g.fillRect(x,y(0.9)-3,13,6); }
+  else if(k==='nom'){ const clair=b==='1', or=b==='2'; let f=78; g.font='900 '+f+'px Arial'; while(g.measureText(a).width>W*0.88&&f>24){ f-=4; g.font='900 '+f+'px Arial'; }
+    g.textAlign='center'; g.textBaseline='middle'; g.lineJoin='round'; g.lineWidth=Math.max(4,f*0.14); g.strokeStyle=or?'#3a2408':(clair?'#f4f4f0':'#101318'); g.strokeText(a,W/2,H*0.5);
+    g.fillStyle=or?'#e8c45a':(clair?'#14284a':'#f4f4f0'); g.fillText(a,W/2,H*0.5); }
+  else if(k==='drapeau'){ if(a==='losreyes'){ const gr=g.createLinearGradient(0,0,0,H); gr.addColorStop(0,'#ff5a1f'); gr.addColorStop(0.55,'#ffb43a'); gr.addColorStop(1,'#2a6ad8'); g.fillStyle=gr; g.fillRect(0,0,W,H);
+      g.fillStyle='#fff2b0'; g.beginPath(); g.arc(W*0.5,H*0.58,H*0.22,Math.PI,0); g.fill(); g.fillStyle='#14284a'; g.fillRect(0,H*0.62,W,H*0.08); }
+    else if(a==='pirate'){ g.fillStyle='#101114'; g.fillRect(0,0,W,H); g.fillStyle='#f4f4f0'; g.beginPath(); g.arc(W*0.5,H*0.42,H*0.18,0,6.283); g.fill(); g.fillRect(W*0.42,H*0.5,W*0.16,H*0.12);
+      g.fillStyle='#101114'; for(const dx of [-0.07,0.07]){ g.beginPath(); g.arc(W*(0.5+dx),H*0.42,H*0.05,0,6.283); g.fill(); }
+      g.strokeStyle='#f4f4f0'; g.lineWidth=6; g.beginPath(); g.moveTo(W*0.3,H*0.7); g.lineTo(W*0.7,H*0.9); g.moveTo(W*0.7,H*0.7); g.lineTo(W*0.3,H*0.9); g.stroke(); }
+    else { const s=16; for(let i=0;i*s<W;i++) for(let j=0;j*s<H;j++){ g.fillStyle=(i+j)%2?'#101114':'#f4f4f0'; g.fillRect(i*s,j*s,s,s); } } }
+  const t=new THREE.CanvasTexture(cv); t.wrapS=k==='raye'?THREE.RepeatWrapping:THREE.ClampToEdgeWrapping; t.wrapT=k==='raye'?THREE.RepeatWrapping:THREE.ClampToEdgeWrapping; return (_TEX_NAUT[id]=t); }
+/* la décalcomanie : les triangles de flanc du bordé (normale vers le côté), décalés de 12 mm le long de leur normale ; u de l'étrave (0) à la
+   poupe (1), v de la flottaison (0) au liston (1) — linéaires en z et y, donc exacts dans chaque triangle. Le nom : une fenêtre vers la
+   poupe, lu de gauche à droite des deux côtés (u retourné à bâbord). Une géométrie par modèle et par sorte, partagée. */
+function geoDecalCoque(key,ud,mats,quoi){ const id=key+'|'+quoi; if(_DECAL_NAUT[id]!==undefined) return _DECAL_NAUT[id];
+  const tn=VEHDEFS[key].tuningNaut, bord=tn&&tn.ancrages&&tn.ancrages.bord, fen=(tn&&PIECES_NAUT[tn.famille].nomFenetre)||[0.56,0.94]; /* bord : le haut de la coque (un yacht peint aussi sa superstructure) ; fen : la fenêtre du nom */
+  const T=[], a=new THREE.Vector3(), b=new THREE.Vector3(), c=new THREE.Vector3(), e1=new THREE.Vector3(), e2=new THREE.Vector3(); let z0=1e9, z1=-1e9, y0=1e9, y1=-1e9;
+  for(const n in ud.mV3||{}){ if(!mats.includes(n.replace(/\d+$/,''))) continue; const g=ud.mV3[n].geometry, A=g.attributes.position, I=g.index, nt=(I?I.count:A.count)/3;
+    for(let t=0;t<nt;t++){ const ia=I?I.getX(t*3):t*3, ib=I?I.getX(t*3+1):t*3+1, ic=I?I.getX(t*3+2):t*3+2; a.fromBufferAttribute(A,ia); b.fromBufferAttribute(A,ib); c.fromBufferAttribute(A,ic);
+      const nn=e1.subVectors(b,a).cross(e2.subVectors(c,a)); const l=nn.length(); if(l<1e-7) continue; nn.multiplyScalar(1/l);
+      if(Math.abs(nn.x)<0.45||Math.abs(nn.z)>0.8||nn.y<-0.55) continue; if(bord&&Math.max(a.y,b.y,c.y)>bord) continue;
+      T.push([a.clone(),b.clone(),c.clone(),nn.clone()]); for(const p of [a,b,c]){ z0=Math.min(z0,p.z); z1=Math.max(z1,p.z); y0=Math.min(y0,p.y); y1=Math.max(y1,p.y); } } }
+  if(!T.length) return (_DECAL_NAUT[id]=null);
+  const L=z1-z0||1, Hh=y1-y0||1, pos=[], nor=[], uv=[], wA=fen[0], wB=fen[1]; /* la fenêtre du nom (fractions depuis l'étrave) */
+  for(const [p0,p1,p2,nn] of T){ const us=[p0,p1,p2].map((p)=>(z1-p.z)/L), vs=[p0,p1,p2].map((p)=>(p.y-y0)/Hh);
+    if(quoi==='nom'&&(Math.max(...us)<wA||Math.min(...us)>wB||Math.max(...vs)<0.25)) continue;
+    if(quoi==='led'&&Math.max(...vs)<0.6) continue;
+    [p0,p1,p2].forEach((p,k)=>{ pos.push(p.x+nn.x*0.012,p.y+nn.y*0.012,p.z+nn.z*0.012); nor.push(nn.x,nn.y,nn.z);
+      if(quoi==='nom'){ const s=(us[k]-wA)/(wB-wA); uv.push(nn.x<0?1-s:s,(vs[k]-0.25)/0.75); } else uv.push(us[k],vs[k]); }); }
+  if(!pos.length) return (_DECAL_NAUT[id]=null);
+  const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setAttribute('normal',new THREE.Float32BufferAttribute(nor,3)); g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2)); g.computeBoundingSphere(); g.userData.partagee=true;
+  return (_DECAL_NAUT[id]=g); }
+function matDecalNaut(texId,lum){ if(_MATDEC_NAUT[texId]) return _MATDEC_NAUT[texId]; const o={map:texNaut(texId),alphaTest:0.5,transparent:false,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2};
+  return (_MATDEC_NAUT[texId]=lum?new THREE.MeshBasicMaterial(o):new THREE.MeshLambertMaterial(o)); }
+/* une teinte : sur CE bateau, une copie de la matière (la matière du modèle est partagée par tous les bateaux du même type) */
+function recolorNaut(ud,mats,coul,spec){ const L=[]; for(const n in ud.mV3||{}){ if(!mats.includes(n.replace(/\d+$/,''))) continue; const m=ud.mV3[n], o=m.material; if(!o||!o.color) continue;
+  const cl=o.clone(); cl.color.setHex(coul); if(spec!==undefined&&cl.specular) cl.specular.setHex(spec); m.material=cl; L.push([m,o,cl]); } return L; }
+/* les pièces aux ancrages (repère du modèle : +z l'étrave, +x bâbord) */
+function pnMesh(g,geo,mt,x,y,z,rx,ry,rz){ const m=new THREE.Mesh(geo,mt); m.position.set(x,y,z); if(rx||ry||rz) m.rotation.set(rx||0,ry||0,rz||0); g.add(m); return m; }
+function pnTube(g,r,A,B,mt){ const dx=B[0]-A[0], dy=B[1]-A[1], dz=B[2]-A[2], l=Math.hypot(dx,dy,dz)||1e-3, m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,l,8),mt);
+  m.position.set((A[0]+B[0])/2,(A[1]+B[1])/2,(A[2]+B[2])/2); m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),new THREE.Vector3(dx/l,dy/l,dz/l)); g.add(m); return m; }
+function pnHautToit(p){ return Math.max(p.h+0.42,p.y+2.05); }
+function pnTtop(a){ const p=a.poste; if(!p) return null; const g=new THREE.Group(), yT=pnHautToit(p), I=matNaut('inox');
+  for(const sx of [-1,1]) for(const dz of [-p.l*0.55,p.l*0.45]) pnTube(g,0.035,[sx*p.w,p.y,p.z+dz],[sx*p.w,yT,p.z+dz],I);
+  for(const sx of [-1,1]) pnTube(g,0.025,[sx*p.w,p.y+(yT-p.y)*0.55,p.z-p.l*0.55],[sx*p.w,p.y+(yT-p.y)*0.55,p.z+p.l*0.45],I);
+  pnMesh(g,new THREE.BoxGeometry(2*p.w+0.6,0.09,2*p.l+0.4),matNaut('blanc'),0,yT+0.045,p.z-0.05); pnMesh(g,new THREE.BoxGeometry(2*p.w+0.64,0.05,2*p.l+0.44),matNaut('noir'),0,yT-0.02,p.z-0.05);
+  pnMesh(g,new THREE.SphereGeometry(0.2,12,8),matNaut('blanc'),0,yT+0.13,p.z+0.25).scale.set(1,0.5,1); for(const sx of [-1,1]) pnTube(g,0.012,[sx*(p.w+0.15),yT+0.09,p.z-p.l*0.4],[sx*(p.w+0.15),yT+1.1,p.z-p.l*0.4],I);
+  return g; }
+function pnHardtop(a,mc){ const p=a.poste; if(!p) return null; const g=new THREE.Group(), yT=pnHautToit(p), N=matNaut('noir'), zf=p.z+p.l+0.1;
+  pnMesh(g,new THREE.BoxGeometry(2*p.w+0.5,0.15,2*p.l+0.3),mc,0,yT+0.07,p.z); pnMesh(g,new THREE.BoxGeometry(2*p.w+0.54,0.06,2*p.l+0.34),N,0,yT-0.02,p.z);
+  for(const sx of [-1,1]){ pnTube(g,0.05,[sx*p.w,p.h-0.08,zf-0.25],[sx*(p.w+0.05),yT,zf-0.05],N); pnTube(g,0.05,[sx*p.w,p.y,p.z-p.l*0.85],[sx*p.w,yT,p.z-p.l*0.85],N); }
+  const hv=yT-(p.h-0.08); pnMesh(g,new THREE.BoxGeometry(2*p.w,hv,0.05),matNaut('vitreHt'),0,(yT+p.h-0.08)/2,zf-0.15,-0.28); return g; }
+function pnAileron(a){ const p=a.poupe; if(!p) return null; const g=new THREE.Group(), C=matNaut('carbone'), yw=p.y+0.95;
+  for(const sx of [-1,1]) pnMesh(g,new THREE.BoxGeometry(0.08,0.95,0.36),C,sx*p.w*0.55,p.y+0.47,p.z+0.15);
+  pnMesh(g,new THREE.BoxGeometry(2*p.w+0.4,0.07,0.62),C,0,yw,p.z,0.12); for(const sx of [-1,1]) pnMesh(g,new THREE.BoxGeometry(0.05,0.42,0.74),matNaut('rouge'),sx*(p.w+0.2),yw+0.08,p.z);
+  return g; }
+function pnArceauLum(a){ const r=a.arceau; if(!r) return null; const g=new THREE.Group(), N=matNaut('noir');
+  pnMesh(g,new THREE.BoxGeometry(2*r.w*0.9,0.1,0.14),N,0,r.y+0.08,r.z); for(const fx of [-0.75,-0.25,0.25,0.75]){ pnMesh(g,new THREE.BoxGeometry(0.24,0.18,0.16),N,fx*r.w,r.y+0.22,r.z+0.02); pnMesh(g,new THREE.BoxGeometry(0.2,0.14,0.02),matNaut('phare'),fx*r.w,r.y+0.22,r.z+0.11); }
+  return g; }
+function pnBimini(a,raye){ const p=a.poste; if(!p) return null; const g=new THREE.Group(), I=matNaut('inox'), yb=p.h+0.2, arc=new THREE.Group(); arc.position.set(0,yb,p.z); arc.scale.set(1,0.7,1); g.add(arc);
+  for(const dz of [-p.l,p.l*0.7]){ pnMesh(arc,new THREE.TorusGeometry(p.w,0.03,6,16,Math.PI),I,0,0,dz); for(const sx of [-1,1]) pnTube(g,0.03,[sx*p.w,p.y,p.z+dz],[sx*p.w,yb,p.z+dz],I); }
+  const tl=new THREE.Mesh(new THREE.CylinderGeometry(p.w+0.02,p.w+0.02,p.l*1.7,18,1,true,Math.PI/2,Math.PI),matNaut(raye?'toileRayee':'toile')); tl.rotation.x=Math.PI/2; tl.position.z=-p.l*0.15; arc.add(tl);
+  return g; }
+function pnSono(a,niv){ const p=a.poupe; if(!p) return null; const g=new THREE.Group(), H=matNaut('hp'), I=matNaut('inox'), petit=p.w<0.6;
+  for(const sx of (petit?[0]:[-1,1])){ const x=sx*(p.w-0.3), y=p.y+0.22, z=p.z+0.12; pnMesh(g,new THREE.CylinderGeometry(0.15,0.17,0.24,14),H,x,y,z,Math.PI/2);
+    pnMesh(g,new THREE.TorusGeometry(0.15,0.02,6,18),niv>1?matNaut('led'):I,x,y,z-0.13); }
+  if(niv>1&&!petit){ pnMesh(g,new THREE.BoxGeometry(0.72,0.36,0.46),H,0,p.y+0.18,p.z+0.42); pnMesh(g,new THREE.TorusGeometry(0.12,0.02,6,16),matNaut('led'),0,p.y+0.18,p.z+0.18); }
+  return g; }
+function pnLedEau(a,d){ const p=a.poupe; if(!p) return null; const g=new THREE.Group(), m=new THREE.Mesh(new THREE.PlaneGeometry(2*p.w+1.8,3.2),matNaut('glowEau')); m.rotation.x=-Math.PI/2; m.position.set(0,-0.1,p.z-(d?d.long*0.04:0)-1.6); g.add(m); return g; }
+function pnProjecteur(a){ const p=a.poste; if(!p) return null; const g=new THREE.Group(), I=matNaut('inox'), y=p.h+0.08, z=p.z+0.25;
+  pnMesh(g,new THREE.CylinderGeometry(0.07,0.09,0.14,10),I,0,y+0.07,z); pnMesh(g,new THREE.CylinderGeometry(0.13,0.15,0.26,14),I,0,y+0.24,z,Math.PI/2); pnMesh(g,new THREE.CircleGeometry(0.12,14),matNaut('phare'),0,y+0.24,z+0.135);
+  return g; }
+function pnDrapeau(a,motif,d){ const p=a.poupe; if(!p) return null; const g=new THREE.Group(), x=p.w*0.55, k=clamp((d?d.long:7)/7,0.42,1.25); /* à la taille du bateau */
+  pnTube(g,0.022*Math.max(1,k),[x,p.y,p.z+0.05],[x,p.y+1.5*k,p.z+0.05],matNaut('inox')); const f=new THREE.Mesh(new THREE.PlaneGeometry(0.92*k,0.58*k),new THREE.MeshLambertMaterial({map:texNaut('drapeau|'+motif),side:THREE.DoubleSide}));
+  f.rotation.y=Math.PI/2; f.position.set(x,p.y+1.5*k-0.3*k,p.z-0.46*k); f.userData.matPropre=true; g.add(f); return g; }
+/* le catalogue : une famille = les catégories qui ont du sens (une pièce de trop serait posée dans le vide) */
+const PN_LIVREE={nom:'LIVRÉE',variantes:[ORIGINE,{nom:'Bandes de course',decal:'livree',motif:'bandes'},{nom:'Flammes',decal:'livree',motif:'flammes'},{nom:'Damier de course',decal:'livree',motif:'damier'}]};
+const PN_SONO={nom:'SONO',variantes:[ORIGINE,{nom:'Enceintes',f:(a)=>pnSono(a,1)},{nom:'Sono de soirée',f:(a)=>pnSono(a,2)}]};
+const PN_FEUX={nom:'FEUX',variantes:[ORIGINE,{nom:'LED sous-marines',f:(a,d)=>pnLedEau(a,d)},{nom:'Projecteur',f:(a)=>pnProjecteur(a)},{nom:'Rampe LED de coque',decal:'led',lum:true}]};
+const PN_NOM={nom:'NOM SUR LA COQUE',variantes:[ORIGINE].concat(NOMS_COQUE.map((t)=>({nom:'« '+t+' »',decal:'nom',texte:t})))};
+const PN_DRAPEAU={nom:'PAVILLON',variantes:[ORIGINE,{nom:'Los Reyes',f:(a,d)=>pnDrapeau(a,'losreyes',d)},{nom:'Pavillon pirate',f:(a,d)=>pnDrapeau(a,'pirate',d)},{nom:'Damier',f:(a,d)=>pnDrapeau(a,'damier',d)}]};
+const pnTeintes=(nom,mats,L)=>({nom,mats,variantes:[ORIGINE].concat(L.map(([n,c,s])=>({nom:n,teinte:c,spec:s})))});
+const PN_VERRE=[['Fumé noir',0x0c0e12],['Miroir doré',0x8a6a20,0xffe08a],['Bleu glacier',0x6fb8e0]];
+const PIECES_NAUT={
+  jetski:{coque:['coque','peinture'],nomCoque:['coque'],nomFenetre:[0.2,0.9],livree:PN_LIVREE, /* le nom : sur la seule coque (sur les deux surfaces, il se lisait en double) */pont:pnTeintes('TAPIS DE PONT',['tapis'],[['Teck',0xa8743c],['Blanc',0xeceae2],['Carbone',0x2b2d31]]),
+    parebrise:pnTeintes('BULLE',['vitreO','vitre'],PN_VERRE),sieges:pnTeintes('SELLE',['selle'],[['Blanche',0xf2efe6],['Rouge',0xb02a2a],['Bleu marine',0x1d2f55]]),
+    sono:PN_SONO,feux:PN_FEUX,nom:PN_NOM,drapeau:PN_DRAPEAU},
+  course:{coque:['peinture'],livree:PN_LIVREE,pont:pnTeintes('PONT',['pont'],[['Blanc',0xeceae2],['Carbone',0x2b2d31],['Teck',0xa8743c]]),
+    toit:{nom:'AILERON / ARCEAU',variantes:[ORIGINE,{nom:'Aileron de course',f:(a)=>pnAileron(a)},{nom:'Arceau lumineux',f:(a)=>pnArceauLum(a)}]},
+    parebrise:pnTeintes('PARE-BRISE',['vitre'],PN_VERRE),sieges:pnTeintes('BAQUETS',['baquet'],[['Cuir blanc',0xf2efe6],['Rouge course',0xb02a2a],['Bleu marine',0x1d2f55]]),
+    sono:PN_SONO,feux:PN_FEUX,nom:PN_NOM,drapeau:PN_DRAPEAU},
+  open:{coque:['peinture'],livree:PN_LIVREE,pont:pnTeintes('PONT',['pont','teck'],[['Teck',0xa8743c],['Blanc',0xeceae2],['Carbone',0x2b2d31]]),
+    toit:{nom:'TOIT',variantes:[ORIGINE,{nom:'T-top',f:(a)=>pnTtop(a)},{nom:'Hardtop',f:(a,d,mc)=>pnHardtop(a,mc)}]},
+    parebrise:pnTeintes('PARE-BRISE',['vitre'],PN_VERRE),sieges:pnTeintes('SELLERIE',['sellerie','cuir'],[['Cuir blanc',0xf2efe6],['Cuir rouge',0xb02a2a],['Bleu marine',0x1d2f55]]),
+    sono:PN_SONO,feux:PN_FEUX,nom:PN_NOM,drapeau:PN_DRAPEAU},
+  bois:{coque:['peinture'],nomOr:true,pont:pnTeintes('PONT',['pont'],[['Acajou clair',0xa0582a],['Teck',0xa8743c],['Blanc',0xeceae2]]),
+    toit:{nom:'BIMINI',variantes:[ORIGINE,{nom:'Bimini marine',f:(a)=>pnBimini(a,false)},{nom:'Bimini rayé',f:(a)=>pnBimini(a,true)}]},
+    parebrise:pnTeintes('PARE-BRISE',['vitre'],PN_VERRE),sieges:pnTeintes('SELLERIE',['cuir'],[['Cuir crème',0xf0e2c4],['Cuir rouge',0xb02a2a],['Vert anglais',0x1f4a32]]),
+    sono:PN_SONO,feux:PN_FEUX,nom:PN_NOM,drapeau:PN_DRAPEAU},
+  yacht:{coque:['peinture'],livree:PN_LIVREE,pont:pnTeintes('PONT',['teck','pont'],[['Teck clair',0xc89a5a],['Blanc',0xeceae2],['Gris anthracite',0x3a3d42]]),
+    parebrise:pnTeintes('VITRAGES',['vitre','vitreO'],PN_VERRE),sieges:pnTeintes('SELLERIE',['cuir'],[['Cuir blanc',0xf2efe6],['Cuir rouge',0xb02a2a],['Bleu marine',0x1d2f55]]),
+    sono:PN_SONO,feux:PN_FEUX,nom:PN_NOM,drapeau:PN_DRAPEAU},
+};
+// une catégorie existe pour CE bateau : sa famille l'a, et le bateau ne l'exclut pas (tuningNaut.sans : il a déjà un toit, pas de selle…)
+function catDispoNaut(key,cat){ const tn=VEHDEFS[key]&&VEHDEFS[key].tuningNaut, fam=tn&&PIECES_NAUT[tn.famille]; return !!(fam&&fam[cat]&&!(tn.sans&&tn.sans.includes(cat))); }
+// le catalogue de pièces d'un véhicule : celui des bateaux (tuningNaut) ou des voitures et motos (tuningCarro), et ses prix
+function famillePieces(cle){ const d=VEHDEFS[cle]; if(!d) return null;
+  if(d.tuningNaut){ const f=PIECES_NAUT[d.tuningNaut.famille]; return f?{fam:f,cats:PIECES_CATS_NAUT.filter((c)=>catDispoNaut(cle,c)),prix:TUNING_PRIX.bateaux.pieces,naut:true}:null; }
+  if(d.tuningCarro){ const f=PIECES_FAMILLES[d.tuningCarro.famille]; return f?{fam:f,cats:PIECES_CATS.filter((c)=>!!f[c]),prix:TUNING_PRIX.pieces,naut:false}:null; }
+  return null; }
+function prixTuning(s){ return s&&s.naval?TUNING_PRIX.bateaux:TUNING_PRIX; }
+// le chantier ne montre que les bateaux de la collection, le garage que ce qui roule (« Mes véhicules » est commun aux deux)
+function ficheCompatible(s,f){ const d=f&&VEHDEFS[f.cle]; return !!d&&(!!d.eau===!!(s&&s.naval)); }
+function vehPersoNbTerre(){ let n=0; for(const id in META.vehPerso){ const f=fichePerso(id); if(f&&!VEHDEFS[f.cle].eau) n++; } return n; }
+/* la passe : retire la précédente, puis pose la livrée, le nom, les teintes, les pièces (sur ud.corps : elles suivent la houle et la gîte) */
+function appliquerNaut(groupe,key,pieces){ const ud=groupe.userData;
+  if(ud.naut){ ud.naut.parent&&ud.naut.parent.remove(ud.naut); ud.naut.traverse((o)=>{ if(o.geometry) o.geometry.dispose(); if(o.material&&o.userData.matPropre) o.material.dispose(); }); ud.naut=null; }
+  if(ud.nautDecals){ for(const m of ud.nautDecals) m.parent&&m.parent.remove(m); ud.nautDecals=null; }
+  if(ud.nautMats){ for(const [m,o,cl] of ud.nautMats){ m.material=o; cl.dispose(); } ud.nautMats=null; }
+  if(ud.nautCaches){ for(const m of ud.nautCaches) m.visible=true; ud.nautCaches=null; }
+  const d=VEHDEFS[key], tn=d&&d.tuningNaut, fam=tn&&PIECES_NAUT[tn.famille]; if(!fam||!pieces) return 0;
+  const parent=ud.corps||groupe, g=new THREE.Group(); parent.add(g); ud.naut=g; ud.nautDecals=[]; ud.nautMats=[]; ud.nautCaches=[]; let n=0;
+  const mc=ud.matPeinture||(ud.v3?_PEINT_V3[ud.coul]:mat(ud.coul)), a=tn.ancrages||{}, lum=mc&&mc.color?(0.3*mc.color.r+0.59*mc.color.g+0.11*mc.color.b):0.5;
+  for(const cat of PIECES_CATS_NAUT){ if(!catDispoNaut(key,cat)) continue; const i=pieces[cat]|0; if(!i) continue; const v=fam[cat].variantes[i]; if(!v) continue;
+    if(v.decal){ const geo=geoDecalCoque(key,ud,(v.decal==='nom'&&fam.nomCoque)||fam.coque||['peinture'],v.decal); if(!geo) continue;
+      const tex=v.decal==='livree'?'livree|'+v.motif:(v.decal==='led'?'led':'nom|'+v.texte+'|'+(fam.nomOr?2:(lum>0.62?1:0)));
+      const m=new THREE.Mesh(geo,matDecalNaut(tex,!!v.lum)); m.renderOrder=1; parent.add(m); ud.nautDecals.push(m); n++; }
+    else if(v.teinte!==undefined){ const L=recolorNaut(ud,fam[cat].mats,v.teinte,v.spec); if(L.length){ ud.nautMats.push(...L); n++; } }
+    else if(v.f){ const o=v.f(a,d,mc); if(o){ g.add(o); n++; } }
+    if(cat==='drapeau') for(const nm in ud.mV3||{}) if(nm.replace(/\d+$/,'')==='drapeau'){ ud.mV3[nm].visible=false; ud.nautCaches.push(ud.mV3[nm]); } } /* le pavillon d'origine laisse la place */
+  return n; }
 // ---- NITRO (toutes les durées sur dtJeu) ----
 const NITRO_CONSO=25;            // % de jauge par seconde de poussée (4 s de pleine poussée)
 const NITRO_RECHARGE=10;         // % par seconde
@@ -42026,7 +42385,7 @@ function migrerAchatVersVehPerso(){ const k=META.garage; if(!k||!VEHDEFS[k]) ret
   Object.assign(META.vehPerso[id],slotGarageDefaut(),{cle:k}); META.garage=null; sauveMeta(); return true; }
 migrerAchatVersVehPerso();
 // ce que le garage de la villa peut sortir : les véhicules rangés de la collection (pas déjà en ville), et l'ancien achat s'il n'a pas pu migrer
-function listeGarageVilla(){ const L=[]; for(const id in META.vehPerso){ const f=fichePerso(id); if(f&&!vehPersoDehors(id)) L.push({id,cle:f.cle}); }
+function listeGarageVilla(){ const L=[]; for(const id in META.vehPerso){ const f=fichePerso(id); if(f&&!vehPersoDehors(id)&&!VEHDEFS[f.cle].eau) L.push({id,cle:f.cle}); } /* un bateau de la collection sort du chantier naval */
   if(META.garage&&VEHDEFS[META.garage]) L.push({id:null,cle:META.garage}); return L; }
 // Éligibilité DÉCLARÉE dans VEHDEFS (jamais une liste ici) : tuningMeca =
 // tout ce qui roule et se conduit (char compris) ; tuningCarro = voitures et
@@ -42038,7 +42397,7 @@ function vehiculeGarable(v){ return !!(v&&v.def&&(v.def.tuningMeca||v.def.tuning
 function ficheMeca(slot){ return !!(slot&&VEHDEFS[slot.cle]&&VEHDEFS[slot.cle].tuningMeca); }
 function messageNonGarable(v){
   const d=v.def;
-  if(d.eau||d.surf) return 'Les bateaux, c’est au port — pas au garage';
+  if(d.eau||d.surf) return 'Les bateaux, c’est au chantier naval « Marée Basse », sur le grand canal est';
   if(d.air||d.ovni) return 'Pose-le d’abord… sur un héliport, pas dans un garage';
   if(v.key.indexOf('depot')===0) return 'Ce véhicule ne quitte pas le Dépôt';
   if(d.derby) return 'Une voiture de derby s’améliore au stand de l’arène';
@@ -42069,6 +42428,7 @@ function ennemiHostileProche(x,z,r){
 function garageRefusVehicule(v,gt){
   if(!v||!gt) return 'Garage introuvable';
   if(ennemiHostileProche(P.x,P.z,GARAGE_FEU_DIST)) return GARAGE_MSG_FEU;
+  if(v.def&&v.def.eau) return messageNonGarable(v); /* Canaux V3 : un bateau (tuningMeca) va au chantier naval, jamais au garage */
   if(!vehiculeGarable(v)) return messageNonGarable(v);
   return null;
 }
@@ -42128,7 +42488,7 @@ function garageChoisirVehicule(s,id){
   if(!s||!s.tuning) return false;
   if(id==='visiteur'){ if(!s.visiteur||!s.courant) return false; s.courant=''; }
   else {
-    if(!fichePerso(id)||s.courant===id) return false;
+    if(!fichePerso(id)||s.courant===id||!ficheCompatible(s,fichePerso(id))) return false; /* le chantier : ses bateaux ; le garage : ce qui roule */
     const dehors=vehPersoDehors(id);
     if(dehors){
       if(dehors.conduit==='joueur') return false;
@@ -42188,7 +42548,7 @@ function neonMesh(mesh,coul){
     for(const [kl,kL,op,y] of [[2.6,1.75,0.6,0.05],[1.45,1.2,0.75,0.07]]){ // halo, puis cœur (lisible de nuit, vu en rendu réel)
       const m=new THREE.MeshBasicMaterial({map:texGlow,color:coul,transparent:true,opacity:op,depthWrite:false,blending:THREE.AdditiveBlending});
       const p=new THREE.Mesh(new THREE.PlaneGeometry(d.larg*kl,d.long*kL),m);
-      p.rotation.x=-Math.PI/2; p.position.y=y; grp.add(p); ud.neonMats.push(m);
+      p.rotation.x=-Math.PI/2; p.position.y=d.eau?y-0.17:y; grp.add(p); ud.neonMats.push(m); /* un bateau : la lueur sur l'eau */
     }
     mesh.add(grp); ud.neon=grp;
   }
@@ -42218,6 +42578,7 @@ function libererObjet(o){
   if(ud){
     if(ud.matPeinture){ ud.matPeinture.dispose(); ud.matPeinture=null; }
     if(ud.neonMats){ for(const m of ud.neonMats) m.dispose(); ud.neonMats=null; }
+    if(ud.nautMats){ for(const e of ud.nautMats) e[2].dispose(); ud.nautMats=null; } /* les teintes du chantier naval */
   }
 }
 // Passe d'ancrage des pièces de carrosserie (JAMAIS dans makeVoiture) :
@@ -42228,6 +42589,7 @@ function libererObjet(o){
 // modèle d'exposition : jamais pour le trafic. Renvoie le nb de pièces posées.
 function appliquerCarrosserie(groupe,key,pieces){
   const ud=groupe.userData;
+  if(VEHDEFS[key]&&VEHDEFS[key].tuningNaut) return appliquerNaut(groupe,key,pieces); /* Canaux V3, phase 4 : un bateau (chantier naval) */
   if(ud.carro){ ud.carro.parent&&ud.carro.parent.remove(ud.carro); libererObjet(ud.carro); ud.carro=null; }
   if(ud.carroJantes){ for(const j of ud.carroJantes){ j.parent&&j.parent.remove(j); libererObjet(j); } ud.carroJantes=null; }
   if(ud.echapOrigine) ud.echapOrigine.visible=true;
@@ -42277,13 +42639,12 @@ function piecePosee(key,pieces,drapeau){
 function choisirPiece(s,cat,i){
   let slot=s&&s.tuning?ficheVue(s):null;
   if(!slot||!slot.cle) return false;
-  const tc=VEHDEFS[slot.cle]&&VEHDEFS[slot.cle].tuningCarro;
-  const fc=tc&&PIECES_FAMILLES[tc.famille]&&PIECES_FAMILLES[tc.famille][cat];
+  const fp=famillePieces(slot.cle), fc=fp&&fp.cats.includes(cat)&&fp.fam[cat]; /* voitures et motos (tuningCarro) ou bateaux (tuningNaut) */
   if(!fc||!(i>=0&&i<fc.variantes.length)||!varianteDispo(fc.variantes[i],slot.cle)) return false;
-  if(slot.pieces[cat]===i) return false;                    // déjà posée : rien à faire
+  if((slot.pieces[cat]|0)===i) return false;                // déjà posée : rien à faire
   const bit=1<<i;
   if(!(slot.piecesPossedees[cat]&bit)){
-    slot=garageAcheter(s,TUNING_PRIX.pieces[cat][i]); if(!slot) return false;
+    slot=garageAcheter(s,fp.prix[cat][i]); if(!slot) return false;
     slot.piecesPossedees[cat]|=bit;
   }
   slot.pieces[cat]=i; sauveMeta(); return true;
@@ -42329,10 +42690,11 @@ function majGrandYacht(){
 function recapTuning(f){
   if(!f) return '';
   const t=[];
-  for(const cat of Object.keys(TUNING_EFFETS)) if(f[cat]>0) t.push(TUNING_NOMS[cat].toLowerCase()+' '+f[cat]);
+  const NOMS=VEHDEFS[f.cle]&&VEHDEFS[f.cle].eau?TUNING_NOMS_NAUT:TUNING_NOMS; /* un bateau : moteur, hélice, coque */
+  for(const cat of Object.keys(TUNING_EFFETS)) if(f[cat]>0) t.push(NOMS[cat].toLowerCase()+' '+f[cat]);
   if(f.nitro) t.push('nitro');
   if(f.neon>=0) t.push('néons');
-  let np=0; for(const cat of PIECES_CATS) if(f.pieces&&(f.pieces[cat]|0)>0) np++;
+  let np=0; for(const cat of PIECES_CATS.concat(PIECES_CATS_NAUT)) if(f.pieces&&(f.pieces[cat]|0)>0) np++;
   if(np) t.push(np+' pièce'+(np>1?'s':''));
   return t.join(' · ');
 }
@@ -42409,6 +42771,78 @@ function construireGarageTuning(inter,box,lampe){
   inter.menuOuvert=false; inter.laisser=false; inter.sortirEnVoiture=false;
   inter.porteT=0; inter.porteFermee=true; inter.etoilesT=-1;
 }
+/* ---------- la salle du chantier naval (Canaux V3, phase 4) : le hangar à flot vu de dedans ----------
+   La salle du garage, pour les bateaux : inter.tuning ET inter.naval (menu, aperçu, achats, casse, rotation au doigt : ceux du garage ;
+   bateaux, prix et pièces : ceux du chantier). La darse va de la cale de halage (au nord) à la porte basculante (au sud, dans le mur de
+   la SORTIE) ; le bateau exposé est sur un ber tournant ; établis, moteurs hors-bord suspendus, pots de vernis, pont roulant, un
+   runabout sur sangles au-dessus de l'eau ; dehors, par la porte ouverte, le canal. */
+function construireChantierNavalSalle(inter,g,sol,box,lampe,mMur){
+  const ox=inter.ox, oz=inter.oz, W=inter.D.w, P2=inter.D.d, D={x0:8.5,x1:18.5,z0:-12,z1:P2/2}, xm=(D.x0+D.x1)/2, zm=(D.z0+D.z1)/2;
+  inter.dehors.position.y=-2.6; /* l'enveloppe sombre passe sous l'eau de la darse */
+  /* le sol : tout sauf la darse — le sol générique est rétréci, deux dalles le complètent (même matériau, recopié à l'entrée après l'habillage) */
+  sol.geometry.dispose(); sol.geometry=new THREE.BoxGeometry(D.x0+W/2,0.2,P2); sol.position.x=ox+(D.x0-W/2)/2;
+  inter.solsExtra=[]; inter.solMesh=sol;
+  for(const [x0,x1,z0,z1] of [[D.x0,W/2,-P2/2,D.z0],[D.x1,W/2,D.z0,P2/2]]){ const m=new THREE.Mesh(new THREE.BoxGeometry(x1-x0,0.2,z1-z0),sol.material); m.position.set(ox+(x0+x1)/2,0,oz+(z0+z1)/2); g.add(m); inter.solsExtra.push(m); }
+  /* la darse : parois, fond, eau, margelle et ligne jaune ; un solide (on ne marche pas sur l'eau) */
+  const mBeton=new THREE.MeshLambertMaterial({color:0x3c4246}), mMarg=new THREE.MeshLambertMaterial({color:0x8a8e92}), mJaune=new THREE.MeshBasicMaterial({color:0xffd23f});
+  const bloc=(w,h,d,m,x,y,z)=>{ const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m); o.position.set(ox+x,y,oz+z); g.add(o); return o; };
+  bloc(0.3,2.2,D.z1-D.z0,mBeton,D.x0-0.15,-1.0,zm); bloc(0.3,2.2,D.z1-D.z0,mBeton,D.x1+0.15,-1.0,zm); bloc(D.x1-D.x0+0.6,2.2,0.3,mBeton,xm,-1.0,D.z0-0.15);
+  bloc(D.x1-D.x0,0.2,D.z1-D.z0+16,mBeton,xm,-2.1,zm+8);
+  const eau=new THREE.Mesh(new THREE.PlaneGeometry(D.x1-D.x0+0.02,D.z1-D.z0+0.5),new THREE.MeshPhongMaterial({color:0x10343e,specular:0x4f7f8c,shininess:60,emissive:0x030c10}));
+  eau.rotation.x=-Math.PI/2; eau.position.set(ox+xm,-0.45,oz+zm); g.add(eau); inter.eauDarse=eau;
+  bloc(0.6,0.14,D.z1-D.z0-0.6,mMarg,D.x0-0.3,0.17,zm-0.3); bloc(0.6,0.14,D.z1-D.z0-0.6,mMarg,D.x1+0.3,0.17,zm-0.3); bloc(D.x1-D.x0+1.2,0.14,0.6,mMarg,xm,0.17,D.z0-0.3);
+  bloc(0.1,0.02,D.z1-D.z0-0.6,mJaune,D.x0-0.45,0.25,zm-0.3); bloc(0.1,0.02,D.z1-D.z0-0.6,mJaune,D.x1+0.45,0.25,zm-0.3); bloc(D.x1-D.x0+0.8,0.02,0.1,mJaune,xm,0.25,D.z0-0.45);
+  addSolid({x:ox+xm,z:oz+zm,hw:(D.x1-D.x0)/2,hd:(D.z1-D.z0)/2,h:1});
+  /* la cale de halage : du bout nord de la darse, un plan incliné et ses rails qui plongent dans l'eau ; le treuil en tête */
+  { const r=bloc(D.x1-D.x0-1.2,0.14,7.4,mBeton,xm,-0.62,D.z0+3.4); r.rotation.x=0.2;
+    for(const dx of [-2.2,2.2]){ const rl=bloc(0.16,0.12,7.6,matNaut('inox'),xm+dx,-0.5,D.z0+3.4); rl.rotation.x=0.2; }
+    box(1.6,1.1,1.2,0xc8322e,xm,0.55,D.z0-1.6); }
+  /* un runabout sur sangles au-dessus de la darse, sous son pont roulant */
+  { const m=construireV3('runabout',VEHDEFS.runabout.cols[0]); m.position.set(ox+xm,0.9,oz+4); g.add(m); inter.bateauSangles=m;
+    for(const dz of [-1.5,1.5]){ box(D.x1-D.x0+2,0.4,0.5,0xd8a21f,xm,4.1,4+dz,false); for(const dx of [-1.05,1.05]) box(0.08,3.1,0.24,0x1d2a3a,xm+dx,2.45,4+dz,false); } }
+  /* le ber tournant : plateau, calages de quille, béquilles (ils tournent avec lui) ; le bateau exposé y pose sa quille à berY (garageMajVitrine) */
+  inter.plateauX=ox-6; inter.plateauZ=oz-3; inter.berY=1.4;
+  const pm=new THREE.Mesh(new THREE.CylinderGeometry(6.2,6.4,0.4,32),new THREE.MeshLambertMaterial({color:0x2a2e36})); pm.position.set(inter.plateauX,0.2,inter.plateauZ); g.add(pm); inter.plateauMesh=pm;
+  const mBer=new THREE.MeshLambertMaterial({color:0x6a5038}), mPatin=new THREE.MeshLambertMaterial({color:0x1d2f55});
+  for(const dz of [-2.6,0,2.6]){ const k=new THREE.Mesh(new THREE.BoxGeometry(0.6,1.0,1.0),mBer); k.position.set(0,0.7,dz); pm.add(k); }
+  for(const sx of [-1,1]) for(const dz of [-1.8,1.8]){ const q=new THREE.Mesh(new THREE.BoxGeometry(0.14,1.3,0.14),mBer); q.position.set(sx*1.15,0.85,dz); q.rotation.z=sx*0.35; pm.add(q);
+    const p=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.08,0.6),mPatin); p.position.set(sx*1.35,1.5,dz); p.rotation.z=-sx*0.6; pm.add(p); }
+  for(let k=0;k<6;k++){ const r=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.05,1.4),mJaune); const a=k/6*Math.PI*2; r.position.set(Math.sin(a)*5.4,0.22,Math.cos(a)*5.4); r.rotation.y=a; pm.add(r); }
+  addSolid({x:inter.plateauX,z:inter.plateauZ,hw:4.2,hd:4.2,h:2});
+  /* l'établi et ses étaux (mur ouest), les moteurs hors-bord suspendus à leur rail, les pots de vernis sur les étagères (mur nord), cordages, bouées */
+  box(1.3,1.0,8,0x5a4632,-W/2+1.0,0.5,-6); box(0.12,1.8,7,0x3a3e46,-W/2+0.4,2.2,-6,false); for(const dz of [-8.4,-6.6,-4.8]) box(0.4,0.3,0.5,0x2a2d34,-W/2+1.0,1.15,dz,false);
+  box(0.25,0.25,10,0x2a2d34,-W/2+1.2,3.5,6,false); addSolid({x:ox-W/2+1.2,z:oz+6,hw:0.5,hd:5,h:3.5});
+  for(const [k,c] of [[0,0xc8322e],[1,0xf2f2f2],[2,0x1d3a6a],[3,0x2a2d34]]){ const z=2+k*2.6; box(0.1,0.6,0.1,0x2a2d34,-W/2+1.2,3.1,z,false); box(0.62,0.8,0.5,c,-W/2+1.2,2.45,z,false); box(0.16,1.1,0.24,0x2a2d34,-W/2+1.2,1.5,z,false); box(0.5,0.08,0.12,0x8a8e94,-W/2+1.2,1.0,z,false); }
+  for(const y of [0.9,1.6,2.3]) box(7,0.08,0.7,0x6a5038,-13,y,-P2/2+0.75,false);
+  { const cv={pos:[],nor:[],col:[]}, pots=[0xc8a050,0xb07a3a,0xe8e2d4,0x2a6ad8,0xd8261c,0x1d3a6a,0x7a8a6a,0xf2c21f];
+    for(let r=0;r<3;r++) for(let k=0;k<11;k++){ const h=0.22+((k*7+r*3)%3)*0.05; mobPieces([['cyl',0.13,h,0.13,0,h/2,0,pots[(k*5+r*3)%pots.length]],['cyl',0.135,0.03,0.135,0,h+0.015,0,0x8a8e94]],ox-16.2+k*0.6,oz-P2/2+0.75,0,cv,0.94+r*0.7); }
+    for(const [x,z,cc] of [[-17,8,0xe05252],[-16.2,8.6,0xf2f0ea],[-17.4,9.3,0xe05252],[-3,14.5,0xe05252]]) mobPieces([['boule',0.42,0.42,0.42,0,0.42,0,cc]],ox+x,oz+z,0,cv,0);
+    for(const [x,z] of [[-15,11],[-14,11.6]]) mobPieces([['cyl',0.55,0.18,0.55,0,0.09,0,0xc8b48a],['cyl',0.4,0.2,0.4,0,0.25,0,0xb8a47a]],ox+x,oz+z,0,cv,0);
+    const gg=new THREE.BufferGeometry(); gg.setAttribute('position',new THREE.Float32BufferAttribute(cv.pos,3)); gg.setAttribute('normal',new THREE.Float32BufferAttribute(cv.nor,3)); gg.setAttribute('color',new THREE.Float32BufferAttribute(cv.col,3)); gg.computeBoundingSphere(); g.add(new THREE.Mesh(gg,MOB_MAT)); }
+  /* la console d'atelier (le menu) : à plus de 8 u de la SORTIE */
+  box(3.4,1.2,1.2,0x2a3038,-12,0.6,5); box(2.6,0.9,0.12,0x35e0ff,-12,1.65,4.45,false); inter.atelier={x:ox-12,z:oz+7.4};
+  /* l'enseigne au mur nord, le bandeau lumineux */
+  const ens=new THREE.Mesh(new THREE.PlaneGeometry(9,3.75),new THREE.MeshBasicMaterial({map:texEnseigne('MARÉE BASSE','#35c8e0')})); ens.position.set(ox-6,2.6,oz-P2/2+0.4); g.add(ens);
+  inter.bandeauMat=new THREE.MeshBasicMaterial({color:0x35c8e0}); { const bd=new THREE.Mesh(new THREE.BoxGeometry(W-2,0.25,0.12),inter.bandeauMat); bd.position.set(ox,3.9,oz-P2/2+0.45); g.add(bd); }
+  /* le mur sud, ouvert sur la darse : le mur générique et sa corniche y sont masqués (leur solide reste), deux pans les remplacent */
+  for(const o of g.children) if(o.isMesh&&Math.abs(o.position.z-(oz+P2/2))<0.01&&Math.abs(o.position.x-ox)<0.01&&(o.material===mMur||o.position.y===4.5)) o.visible=false;
+  for(const [x0,x1] of [[-W/2,D.x0],[D.x1,W/2]]){ const m=new THREE.Mesh(new THREE.BoxGeometry(x1-x0,4.4,0.6),mMur); m.position.set(ox+(x0+x1)/2,2.2,oz+P2/2); g.add(m);
+    const c=new THREE.Mesh(new THREE.BoxGeometry(x1-x0+0.5,0.4,1.1),mat(0x23262e)); c.position.set(ox+(x0+x1)/2,4.5,oz+P2/2); g.add(c); }
+  box(D.x1-D.x0,0.6,0.6,0x3b404a,xm,4.7,P2/2,false);
+  /* la porte basculante, dans l'ouverture du mur sud au-dessus de la darse (rotation.x < 0 : le bas part vers le canal) */
+  { const pc={pos:[],nor:[],col:[]}, L=4.9, Wd=D.x1-D.x0-0.1, pl=[['box',Wd,L,0.16,0,-L/2,0,0xdfe4ea]];
+    for(let k=1;k<L/0.6;k++) pl.push(['box',Wd,0.06,0.2,0,-k*0.6,0,0xaeb7c0]); for(const y of [-1.3,-1.85]) pl.push(['box',Wd,0.38,0.21,0,y,0,0x2f6fae]);
+    for(let k=0;k<8;k++) pl.push(['box',Wd/8,0.32,0.22,-Wd/2+Wd/16+k*Wd/8,-L+0.2,0,k%2?0x1a1c20:0xffd23f]);
+    mobPieces(pl,0,0,0,pc,0); const gg=new THREE.BufferGeometry(); gg.setAttribute('position',new THREE.Float32BufferAttribute(pc.pos,3)); gg.setAttribute('normal',new THREE.Float32BufferAttribute(pc.nor,3)); gg.setAttribute('color',new THREE.Float32BufferAttribute(pc.col,3)); gg.computeBoundingSphere();
+    const pv=new THREE.Group(); pv.position.set(ox+xm,4.4,oz+P2/2-0.42); pv.add(new THREE.Mesh(gg,MOB_MAT)); g.add(pv); inter.porteMesh=pv; inter.porteAOuvert=-1.35; }
+  /* dehors, par la porte ouverte : le canal et ses quais */
+  { const m=new THREE.Mesh(new THREE.PlaneGeometry(D.x1-D.x0+6,9),new THREE.MeshPhongMaterial({color:0x0e2a33,specular:0x3a6a78,shininess:50})); m.rotation.x=-Math.PI/2; m.position.set(ox+xm,-0.45,oz+P2/2+4.5); g.add(m);
+    const mq=new THREE.MeshLambertMaterial({color:0x2a2d32}); for(const dx of [-1,1]) bloc(3,0.8,9,mq,xm+dx*((D.x1-D.x0)/2+1.5),-0.2,P2/2+4.5); } /* sombres et courts : vus de dessus, ils ne se lisent pas comme une pièce de plus */
+  lampe(-6,-3,0xffffff,13); lampe(xm,2,0x9fdcff,10); lampe(-14,6,0xffd23f,7); lampe(-12,-12,0xffffff,7);
+  /* l'état : celui de la salle du garage (menu, aperçu, porte, étoiles) */
+  inter.tuning=true; inter.naval=true; inter.gid='chantier'; inter.enseignes={};
+  inter.voiture=null; inter.voitureCle=''; inter.menuOuvert=false; inter.laisser=false; inter.sortirEnVoiture=false;
+  inter.porteT=0; inter.porteFermee=true; inter.etoilesT=-1; }
 // remet le véhicule exposé en accord avec sa fiche (ficheVue). Le modèle
 // est reconstruit dès que la FICHE change, même à type égal : deux
 // citadines de la collection n'ont pas la même peinture.
@@ -42431,6 +42865,7 @@ function garageMajVitrine(s){
       m.traverse(o=>{ if(o.isMesh) b.union(new THREE.Box3().setFromObject(o)); });
       s.camK=clamp(Math.max((b.max.z-b.min.z)/4.4,(b.max.y-b.min.y)/1.6,(b.max.x-b.min.x)/2.1),0.55,2.6); // < 1 : on se rapproche des motos et du quad
       s.camHautVeh=b.max.y-b.min.y;
+      if(s.naval) m.position.y+=s.berY-b.min.y; /* un bateau : la quille sur les calages du ber */
     }
   }
   if(s.voiture){
@@ -42444,29 +42879,30 @@ function garageMajVitrine(s){
   }
 }
 function garageSurEntree(s,porte){
-  s.gid=(porte&&porte.garageId&&GARAGE_PAR_ID[porte.garageId])?porte.garageId:GARAGES_TUNING[0].id;
-  const gt=GARAGE_PAR_ID[s.gid];
-  for(const id in s.enseignes) s.enseignes[id].visible=(id===s.gid);
-  s.bandeauMat.color.setHex(gt.coul);
+  let gt=null;
+  if(s.naval){ s.gid='chantier'; for(const f of s.solsExtra||[]) f.material=s.solMesh.material; } /* Canaux V3, phase 4 : le chantier naval (le sol découpé autour de la darse reprend le matériau habillé) */
+  else { s.gid=(porte&&porte.garageId&&GARAGE_PAR_ID[porte.garageId])?porte.garageId:GARAGES_TUNING[0].id; gt=GARAGE_PAR_ID[s.gid];
+    for(const id in s.enseignes) s.enseignes[id].visible=(id===s.gid);
+    s.bandeauMat.color.setHex(gt.coul); }
   // véhicule exposé : celui avec lequel on arrive ; à pied, le premier
   // véhicule de la collection qui ne roule pas en ville
   const arr=GARAGE_ARRIVEE;
   s.courant=''; s.visiteur=null; s.visiteurHp=0; s.casseArmee=null;
   if(arr&&arr.persoId) s.courant=arr.persoId;
   else if(arr&&arr.visiteur){ s.visiteur=arr.visiteur; s.visiteurHp=arr.hp; }
-  else for(const id of vehPersoIds()) if(!vehPersoDehors(id)){ s.courant=id; break; }
+  else for(const id of vehPersoIds()) if(!vehPersoDehors(id)&&ficheCompatible(s,fichePerso(id))){ s.courant=id; break; }
   garageMajVitrine(s);
   s.laisser=false; s.sortirEnVoiture=false; fermerGarageMenu(s);
   // porte roulante ouverte → se ferme ; les étoiles ne tombent qu'ensuite
-  s.porteT=0; s.porteFermee=false; s.porteMesh.position.y=s.porteYOuverte;
+  s.porteT=0; s.porteFermee=false; if(s.naval) s.porteMesh.rotation.x=s.porteAOuvert; else s.porteMesh.position.y=s.porteYOuverte;
   s.etoilesT=WANTED.heat>0?GARAGE_DELAI_ETOILES:-1;
-  toast('🔧 '+gt.nom+(s.voiture?' — ton '+VEHDEFS[s.voitureCle].nom+' est sur le plateau':''),'or');
+  toast((s.naval?'⚓ '+CHANTIER_NOM:'🔧 '+gt.nom)+(s.voiture?' — ton '+VEHDEFS[s.voitureCle].nom+(s.naval?' est sur le ber':' est sur le plateau'):''),'or');
 }
 function garageMajInterieur(s,dt,dtJeu){
   if(!s.porteFermee){
     s.porteT+=dtJeu;
     const k=Math.min(1,s.porteT/GARAGE_FERMETURE_DUREE);
-    s.porteMesh.position.y=lerp(s.porteYOuverte,s.porteYFermee,k);
+    if(s.naval) s.porteMesh.rotation.x=lerp(s.porteAOuvert,0,k); else s.porteMesh.position.y=lerp(s.porteYOuverte,s.porteYFermee,k);
     if(k>=1){ s.porteFermee=true; bruit(0.3,0.5,140); secousse(2); }
   } else if(s.etoilesT>=0){
     // la poursuite se termine sous les yeux du joueur : une étoile à la fois
@@ -42511,7 +42947,13 @@ function garageApresSortie(sc){
   sc.courant=''; sc.visiteur=null; sc.casseArmee=null;
   const libererVitrine=()=>{ if(sc.voiture){ sc.g.remove(sc.voiture); libererObjet(sc.voiture); sc.voiture=null; } sc.voitureCle=''; sc.voitureRef=''; };
   if(!enVoiture||!slot||!slot.cle||!VEHDEFS[slot.cle]||(id&&vehPersoDehors(id))){ libererVitrine(); return; }
-  const gnx=Math.round(-Math.sin(INT.rYaw||Math.PI)*1000)/1000, gnz=Math.round(-Math.cos(INT.rYaw||Math.PI)*1000)/1000; /* la normale de la porte (le garage des canaux regarde vers l'ouest) ; au sud : comme avant */
+  if(sc.naval){ /* Canaux V3, phase 4 : à flot devant la porte du hangar, cap vers la mer (chantierPlaceSortie) ; la porte reste ouverte le temps de partir */
+    const pl=chantierPlaceSortie(slot.cle), nb=creerVehicule(slot.cle,pl.x,pl.z,pl.ang); if(!nb){ libererVitrine(); return; }
+    if(id){ appliquerTuning(nb,id); if(GARAGE_HP[id]!==undefined) nb.hp=Math.min(nb.def.hp,GARAGE_HP[id]); const rec=recapTuning(fichePerso(id)); if(rec) toast('⚓ '+VEHDEFS[slot.cle].nom+' : '+rec,'or'); }
+    else nb.hp=Math.min(nb.def.hp,hpVisiteur||nb.def.hp);
+    nb.perso=true; P.x=nb.x; P.z=nb.z; entrerVehicule(nb); libererVitrine();
+    const CN=CANAUX.chantier; if(CN){ CN.ouvreT=5; CN.ouvre=1; if(CN.pivot) CN.pivot.rotation.z=CHANTIER_OUVERTE; } return; }
+  const ry=INT.rYaw===undefined?Math.PI:INT.rYaw, gnx=Math.round(-Math.sin(ry)*1000)/1000, gnz=Math.round(-Math.cos(ry)*1000)/1000; /* V3 : une porte au nord a rYaw = 0 (avant : « || π » la retournait vers le bâtiment) */ /* la normale de la porte (le garage des canaux regarde vers l'ouest) ; au sud : comme avant */
   let px=P.x+gnx*3, pz=P.z+gnz*3;
   for(let r=2;r<=14&&solidAt(px,pz,2.2);r+=2){ const a=rand(-r,r), b=rand(2,r); px=P.x+gnz*a+gnx*b; pz=P.z+gnz*b-gnx*a; }
   const nv=creerVehicule(slot.cle,px,pz,Math.atan2(gnx,gnz));
@@ -42547,14 +42989,14 @@ function ficheAchat(s){ const f=s&&s.tuning?ficheVue(s):null; return (f&&f.cle)?
 function peindreGarage(s,coul){
   let slot=ficheAchat(s);
   if(!slot||coul<0||slot.coul===coul) return false; // même teinte : rien à payer
-  slot=garageAcheter(s,TUNING_PRIX.peinture); if(!slot) return false;
+  slot=garageAcheter(s,prixTuning(s).peinture); if(!slot) return false;
   slot.coul=coul; sauveMeta(); return true;
 }
 function acheterNeons(s,coul){ // coul : la couleur essayée (par défaut la 1re)
   let slot=ficheAchat(s);
   if(!slot||slot.neon>=0) return false; // kit déjà posé
   if(TUNING_NEONS.indexOf(coul)<0) coul=TUNING_NEONS[0];
-  slot=garageAcheter(s,TUNING_PRIX.neons); if(!slot) return false;
+  slot=garageAcheter(s,prixTuning(s).neons); if(!slot) return false;
   slot.neon=coul; sauveMeta(); return true;
 }
 function couleurNeons(s,coul){ // gratuit une fois le kit posé
@@ -42565,7 +43007,7 @@ function couleurNeons(s,coul){ // gratuit une fois le kit posé
 function acheterNitro(s){
   let slot=ficheAchat(s);
   if(!slot||slot.nitro||!ficheMeca(slot)) return false; // déjà équipée, ou un vélo
-  slot=garageAcheter(s,TUNING_PRIX.nitro); if(!slot) return false;
+  slot=garageAcheter(s,prixTuning(s).nitro); if(!slot) return false;
   slot.nitro=true; sauveMeta(); return true;
 }
 function acheterPalier(s,cat){
@@ -42573,31 +43015,32 @@ function acheterPalier(s,cat){
   if(!slot||!TUNING_EFFETS[cat]||!ficheMeca(slot)) return false; // un vélo : style seulement
   const n=slot[cat];
   if(!(n>=0&&n<TUNING_PALIERS_MAX)) return false; // palier max atteint
-  slot=garageAcheter(s,TUNING_PRIX[cat][n]); if(!slot) return false;
+  slot=garageAcheter(s,prixTuning(s)[cat][n]); if(!slot) return false;
   slot[cat]=n+1; sauveMeta(); return true;
 }
 
 /* ---------- menu d'atelier (panneau bas, la voiture reste visible au-dessus) ---------- */
 function hexCss(c){ return '#'+c.toString(16).padStart(6,'0'); }
 function renderGarageMenu(s){
-  const slot=ficheAchat(s), gt=GARAGE_PAR_ID[s.gid];
-  GM.titre.innerHTML=ico('ico-garage-porte','🔧')+' '+gt.nom+(s.voitureCle?' — '+VEHDEFS[s.voitureCle].nom:'');
+  const slot=ficheAchat(s), nav=!!s.naval, gt=nav?null:GARAGE_PAR_ID[s.gid], PX=prixTuning(s), NOMS=nav?TUNING_NOMS_NAUT:TUNING_NOMS; /* nav : le chantier naval (Canaux V3, phase 4) */
+  GM.titre.innerHTML=(nav?'⚓ '+CHANTIER_NOM:ico('ico-garage-porte','🔧')+' '+gt.nom)+(s.voitureCle?' — '+VEHDEFS[s.voitureCle].nom:'');
   GM.argent.textContent=fmt$(META.argent);
   // MES VÉHICULES : toute la collection, depuis n'importe quel garage ;
   // celui qui est sur le plateau est celui avec lequel on sortira
-  const ids=vehPersoIds();
-  let h='<div class="gmSec">MES VÉHICULES — '+ids.length+'/'+VEHPERSO_MAX+' (choisis celui avec lequel tu sors)</div><div class="gmLigne">';
+  // (V3 : la collection est commune ; le chantier n'en montre que les bateaux, le garage que ce qui roule)
+  const ids=vehPersoIds().filter((id)=>ficheCompatible(s,fichePerso(id))), nTot=vehPersoNb(), ailleurs=nTot-ids.length;
+  let h='<div class="gmSec">'+(nav?'MES BATEAUX':'MES VÉHICULES')+' — '+nTot+'/'+VEHPERSO_MAX+(ailleurs?' ('+ailleurs+(nav?' au garage':' au chantier naval')+')':'')+' (choisis celui avec lequel tu sors)</div><div class="gmLigne">';
   for(const id of ids){
     const nom=VEHDEFS[META.vehPerso[id].cle].nom;
     if(s.courant===id) h+='<div class="gmBtn ok">✔ '+nom+'</div>';
-    else h+='<div class="gmBtn" data-a="choisir" data-v="'+id+'">'+nom+(vehPersoDehors(id)?' — en ville, RAPATRIER':'')+'</div>';
+    else h+='<div class="gmBtn" data-a="choisir" data-v="'+id+'">'+nom+(vehPersoDehors(id)?(nav?' — au mouillage, RAPATRIER':' — en ville, RAPATRIER'):'')+'</div>';
   }
   if(s.visiteur){
     const nom=VEHDEFS[s.visiteur.cle].nom;
     h+=s.courant?'<div class="gmBtn" data-a="choisir" data-v="visiteur">'+nom+' (pas à toi)</div>'
                 :'<div class="gmBtn ok">✔ '+nom+' (pas à toi)</div>';
   }
-  if(!ids.length&&!s.visiteur) h+='<div class="gmBtn off">Aucun véhicule — reviens au volant</div>';
+  if(!ids.length&&!s.visiteur) h+='<div class="gmBtn off">'+(nav?'Aucun bateau — reviens à la barre':'Aucun véhicule — reviens au volant')+'</div>';
   h+='</div>';
   if(s.visiteur){
     h+='<div class="gmLigne" style="margin-top:6px">'+(s.courant?'':'<div class="gmBtn" data-a="garder">🅿️ GARDER CE '+VEHDEFS[s.visiteur.cle].nom.toUpperCase()+' (gratuit)</div>')+'</div>'+
@@ -42607,40 +43050,39 @@ function renderGarageMenu(s){
   // peinture et néons : comme les pièces, 1er appui = aperçu sur le plateau
   // (rien débité), 2e appui (ou le bouton ACHETER) = achat — demandé : « du
   // style, à confirmer avant de payer »
-  h+='<div class="gmSec">'+ico('ico-garage-peinture')+'PEINTURE — '+TUNING_PRIX.peinture+' $ la teinte · touche pour essayer</div><div class="gmLigne">';
+  h+='<div class="gmSec">'+ico('ico-garage-peinture')+(nav?'PEINTURE DE COQUE':'PEINTURE')+' — '+PX.peinture+' $ la teinte · touche pour essayer</div><div class="gmLigne">';
   TUNING_TEINTES.forEach((c,i)=>{ h+='<div class="gmTeinte'+(slot.coul===c?' actuelle':'')+(s.apercuCoul===c?' apercu':'')+'" data-a="peinture" data-i="'+i+'" style="background:'+hexCss(c)+'"></div>'; });
-  if(s.apercuCoul>=0) h+='<div class="gmBtn achat" data-a="peintureAchat">ACHETER CETTE TEINTE — '+TUNING_PRIX.peinture+' $</div>';
-  h+='</div><div class="gmSec">'+ico('ico-garage-neon')+'NÉONS'+(slot.neon<0?' — kit '+TUNING_PRIX.neons+' $ · touche une couleur pour essayer':' — couleur gratuite')+'</div><div class="gmLigne">';
+  if(s.apercuCoul>=0) h+='<div class="gmBtn achat" data-a="peintureAchat">ACHETER CETTE TEINTE — '+PX.peinture+' $</div>';
+  h+='</div><div class="gmSec">'+ico('ico-garage-neon')+(nav?'NÉONS SOUS LA COQUE':'NÉONS')+(slot.neon<0?' — kit '+PX.neons+' $ · touche une couleur pour essayer':' — couleur gratuite')+'</div><div class="gmLigne">';
   TUNING_NEONS.forEach((c,i)=>{ h+='<div class="gmTeinte neon'+(slot.neon===c?' actuelle':'')+(s.apercuNeon===c?' apercu':'')+'" data-a="neonc" data-i="'+i+'" style="background:'+hexCss(c)+';box-shadow:0 0 10px '+hexCss(c)+'"></div>'; });
-  if(slot.neon<0) h+='<div class="gmBtn'+(s.apercuNeon>=0?' achat':'')+'" data-a="neons">'+(s.apercuNeon>=0?'POSER CE KIT — ':'ESSAYER LE KIT — ')+TUNING_PRIX.neons+' $</div>';
+  if(slot.neon<0) h+='<div class="gmBtn'+(s.apercuNeon>=0?' achat':'')+'" data-a="neons">'+(s.apercuNeon>=0?'POSER CE KIT — ':'ESSAYER LE KIT — ')+PX.neons+' $</div>';
   h+='</div>';
   // mécanique (nitro, paliers) : pas pour un vélo — style seulement
   if(ficheMeca(slot)){
   h+='<div class="gmSec">'+ico('ico-spec-nitro')+'NITRO</div><div class="gmLigne">';
-  h+=slot.nitro?'<div class="gmBtn ok">✔ ÉQUIPÉE (bouton NITRO au volant)</div>'
-               :'<div class="gmBtn" data-a="nitro">INSTALLER — '+TUNING_PRIX.nitro+' $</div>';
+  h+=slot.nitro?'<div class="gmBtn ok">✔ ÉQUIPÉE (bouton NITRO '+(nav?'à la barre, hors des salles':'au volant')+')</div>'
+               :'<div class="gmBtn" data-a="nitro">INSTALLER — '+PX.nitro+' $</div>';
   h+='</div>';
-  for(const cat of Object.keys(TUNING_EFFETS)){ // moteur, vitesse, tenue, blindage
+  for(const cat of Object.keys(TUNING_EFFETS)){ // moteur, vitesse, tenue, blindage (bateau : moteur, hélice, coque, blindage)
     const n=slot[cat];
-    h+='<div class="gmSec">'+(TUNING_ICONES[cat]?ico(TUNING_ICONES[cat]):'')+TUNING_NOMS[cat]+' — palier '+n+'/'+TUNING_PALIERS_MAX+(n?' ('+gainPalier(cat,n)+')':'')+'</div><div class="gmLigne">';
+    h+='<div class="gmSec">'+(TUNING_ICONES[cat]?ico(TUNING_ICONES[cat]):'')+NOMS[cat]+' — palier '+n+'/'+TUNING_PALIERS_MAX+(n?' ('+gainPalier(cat,n,nav)+')':'')+'</div><div class="gmLigne">';
     h+=n>=TUNING_PALIERS_MAX?'<div class="gmBtn ok">✔ AU MAXIMUM</div>'
-      :'<div class="gmBtn" data-a="palier" data-c="'+cat+'">PALIER '+(n+1)+' ('+gainPalier(cat,n+1)+') — '+TUNING_PRIX[cat][n]+' $</div>';
+      :'<div class="gmBtn" data-a="palier" data-c="'+cat+'">PALIER '+(n+1)+' ('+gainPalier(cat,n+1,nav)+') — '+PX[cat][n]+' $</div>';
     h+='</div>';
   }
   }
-  // carrosserie (voitures et motos civiles) : 1er appui = aperçu sur le
-  // plateau, 2e appui = achat ; une variante possédée se repose gratuitement
-  const tc=VEHDEFS[slot.cle]&&VEHDEFS[slot.cle].tuningCarro, fam=tc&&PIECES_FAMILLES[tc.famille];
-  if(fam){
-    h+='<div class="gmSec" style="color:#ff8c1a">CARROSSERIE — touche une pièce pour la voir sur le plateau</div>';
-    for(const cat of PIECES_CATS){
-      if(!fam[cat]) continue;
-      h+='<div class="gmSec">'+fam[cat].nom+'</div><div class="gmLigne">';
-      fam[cat].variantes.forEach((v,i)=>{
+  // carrosserie (voitures et motos civiles) ou style (bateaux) : 1er appui =
+  // aperçu sur le plateau, 2e appui = achat ; une variante possédée se repose gratuitement
+  const fp=famillePieces(slot.cle);
+  if(fp){
+    h+='<div class="gmSec" style="color:#ff8c1a">'+(nav?'STYLE — touche une pièce pour la voir sur le ber':'CARROSSERIE — touche une pièce pour la voir sur le plateau')+'</div>';
+    for(const cat of fp.cats){
+      const fc=fp.fam[cat]; h+='<div class="gmSec">'+fc.nom+'</div><div class="gmLigne">';
+      fc.variantes.forEach((v,i)=>{
         if(!varianteDispo(v,slot.cle)) return;
-        const posee=slot.pieces[cat]===i, possede=!!(slot.piecesPossedees[cat]&(1<<i));
+        const posee=(slot.pieces[cat]|0)===i, possede=!!((slot.piecesPossedees[cat]|0)&(1<<i));
         const vue=s.apercu&&s.apercu.cat===cat&&s.apercu.i===i;
-        const prix=TUNING_PRIX.pieces[cat][i];
+        const prix=fp.prix[cat][i];
         const nomV=v.nom+(v.treuil?' 🪝 remorquage':'');
         const txt=posee?'✔ '+nomV:(possede?nomV+' — POSER':(vue?'ACHETER '+nomV+' — '+prix+' $':nomV+' — '+prix+' $'));
         h+='<div class="gmBtn'+(posee?' ok':'')+'"'+(posee?'':' data-a="piece" data-c="'+cat+'" data-i="'+i+'"')+(vue?' style="border-color:#ffd23f;color:#ffd23f"':'')+'>'+txt+'</div>';
@@ -42649,7 +43091,7 @@ function renderGarageMenu(s){
     }
   }
   h+='<div class="gmSec">EN SORTANT</div><div class="gmLigne"><div class="gmBtn'+(s.laisser?' ok':'')+'" data-a="laisser">'+
-     (s.laisser?'🅿️ LE LAISSER GARÉ (sortie à pied)':'🚗 REPARTIR AU VOLANT')+'</div></div>';
+     (nav?(s.laisser?'⚓ LE LAISSER AU CHANTIER (sortie à pied)':'🚤 REPARTIR À LA BARRE'):(s.laisser?'🅿️ LE LAISSER GARÉ (sortie à pied)':'🚗 REPARTIR AU VOLANT'))+'</div></div>';
   // casse : véhicule de la collection uniquement, en deux appuis
   if(s.courant){
     const remb=Math.floor(slot.investi*TUNING_CASSE_TAUX);
@@ -42700,7 +43142,7 @@ GM.corps.addEventListener('pointerdown',e=>{
     else { s.apercuNeon=c; SFX.ui(); }
   }
   else if(a==='nitro'){ if(acheterNitro(s)) toast('🔥 Nitro installée — bouton NITRO au volant','or'); }
-  else if(a==='palier'){ const c=b.dataset.c; if(acheterPalier(s,c)) toast('⚙️ '+TUNING_NOMS[c]+' : palier '+ficheAchat(s)[c],'or'); }
+  else if(a==='palier'){ const c=b.dataset.c; if(acheterPalier(s,c)) toast('⚙️ '+(s.naval?TUNING_NOMS_NAUT:TUNING_NOMS)[c]+' : palier '+ficheAchat(s)[c],'or'); }
   else if(a==='laisser'){ s.laisser=!s.laisser; SFX.ui(); }
   else if(a==='choisir'){ if(garageChoisirVehicule(s,b.dataset.v)) SFX.ui(); }
   else if(a==='garder'){ if(garageEnregistrer(s)){ SFX.achat(); toast('🅿️ Ajouté à tes véhicules','or'); } }
@@ -42724,7 +43166,7 @@ el('gmFermer').addEventListener('pointerdown',e=>{ e.preventDefault(); fermerGar
 // triviales) — ni dans aucune autre salle.
 function nitroAutorisee(v){
   if(INT.actif) return false;
-  if(v.def.air||v.def.eau) return false;
+  if(v.def.air) return false; /* Canaux V3 : la nitro du chantier naval marche sur l'eau (jamais dans une salle) */
   return true;
 }
 function majNitro(dtJeu){
@@ -44501,7 +44943,7 @@ function majAction(){
     /* ---------- GARAGE TUNING : la SORTIE ressort au volant (ou à pied) ---------- */
     } else if(s.tuning&&dist2(P.x,P.z,s.sortie.x,s.sortie.z)<marquerZone(s.sortie,9)&&(ETAT.intT||0)<=0){
       const auVolant=!!s.voiture&&!s.laisser;
-      label=auVolant?('🚗 SORTIR EN '+VEHDEFS[s.voitureCle].nom.toUpperCase()):'SORTIR À PIED';
+      label=auVolant?((s.naval?'🚤 SORTIR À LA BARRE — ':'🚗 SORTIR EN ')+VEHDEFS[s.voitureCle].nom.toUpperCase()):'SORTIR À PIED';
       fn=()=>{ s.sortirEnVoiture=auVolant; sortirInterieur(); };
     } else if(dist2(P.x,P.z,s.sortie.x,s.sortie.z)<marquerZone(s.sortie,9)&&(ETAT.intT||0)<=0&&!serrePotAvantSortie(s)){
       label='SORTIR';
@@ -44976,7 +45418,7 @@ function majAction(){
       } else if(s.menuOuvert){
         label='🔧 ATELIER — menu ouvert'; fn=()=>{};
       } else {
-        label='🔧 ATELIER — PERSONNALISER';
+        label=s.naval?'⚓ ATELIER — PERSONNALISER':'🔧 ATELIER — PERSONNALISER';
         fn=()=>ouvrirGarageMenu(s);
       }
     } else if(s.podiums&&s.podiums.some(p=>dist2(P.x,P.z,p.x,p.z)<marquerZone(p,20))){
@@ -45250,6 +45692,11 @@ function majAction(){
       label='🏁 DÉPART — '+RIDE_DEFS[rideId].nom; fn=()=>demarrerRide(rideId);
     } else if(P.veh.def.air&&P.veh.vol){
       label='EN VOL'; fn=()=>{SFX.refus();};
+    } else if(P.veh.def.eau&&chantierPorteProche(P.veh.x,P.veh.z)){ /* V3, phase 4 : au ponton d'entrée du chantier naval, devant la porte du hangar */
+      const refus=chantierRefusBateau(P.veh); label=refus?'🔒 CHANTIER NAVAL':'⚓ ENTRER AU CHANTIER NAVAL';
+      fn=refus?()=>{ SFX.refus(); toast(refus,'warn'); }:entrerChantierEnBateau;
+    } else if(!P.veh.def.eau&&!P.veh.def.air&&chantierQuaiProche(P.x,P.z)){
+      label='🔒 CHANTIER NAVAL — en bateau'; fn=()=>{ SFX.refus(); toast(CHANTIER_MSG_QUAI,'warn'); };
     } else if(pgar){
       const gt=GARAGE_PAR_ID[pgar.garageId], refus=garageRefusVehicule(P.veh,gt);
       label=refus?('🔒 '+gt.nom):('🔧 ENTRER AU '+gt.nom);
@@ -45390,7 +45837,7 @@ function majAction(){
         if(ennemiHostileProche(P.x,P.z,GARAGE_FEU_DIST)){
           label='🔒 '+gt.nom+' — trop chaud';
           fn=()=>{ SFX.refus(); toast(GARAGE_MSG_FEU,'warn'); };
-        } else if(!vehPersoNb()){
+        } else if(!vehPersoNbTerre()){ /* V3 : un bateau de la collection ne sort pas d'un garage */
           label='🔧 '+gt.nom+' — entre au volant';
           fn=()=>{ SFX.refus(); toast('Un garage, ça se visite au volant. Reviens avec un véhicule.'); };
         } else {
@@ -45422,6 +45869,8 @@ function majAction(){
         :(vp.conduit==='trafic'||occupe)?(surEauVeh(vp)?'ABORDER LE BATEAU':'VOLER LE VÉHICULE')
         :(vp.def.air?'PILOTER':(surEauVeh(vp)?'EMBARQUER':'CONDUIRE'));
       fn=()=>entrerVehicule(vp);
+    } else if(!P.veh&&chantierQuaiProche(P.x,P.z)){ /* V3, phase 4 : à pied, côté eau du chantier naval */
+      label='🔒 CHANTIER NAVAL — on y entre en bateau'; fn=()=>{ SFX.refus(); toast(CHANTIER_MSG_QUAI,'warn'); };
     }
   }
   if(label){ b.style.display='block'; labelAction(b,label); b._fn=fn; }
@@ -47392,7 +47841,7 @@ function majCamera(dt){
   if(INT.actif&&INT.actif.tuning&&INT.actif.menuOuvert&&INT.actif.voiture){
     const s=INT.actif, a=GARAGE_CAM_ANGLE, k=s.camK||1; // caméra fixe : le véhicule tourne (seul ou au doigt)
     camera.position.set(s.plateauX+Math.sin(a)*GARAGE_CAM_DIST*k,GARAGE_CAM_H*k,s.plateauZ+Math.cos(a)*GARAGE_CAM_DIST*k);
-    camera.lookAt(s.plateauX,GARAGE_CAM_VISEE_Y*k+(s.camHautVeh||1.4)*0.5,s.plateauZ);
+    camera.lookAt(s.plateauX,GARAGE_CAM_VISEE_Y*k+(s.camHautVeh||1.4)*0.5+(s.naval?s.berY:0),s.plateauZ); /* un bateau est posé plus haut, sur son ber */
     camera.fov=lerp(camera.fov,52,0.12); camera.updateProjectionMatrix();
     return;
   }
@@ -47665,7 +48114,7 @@ function tick(t){
       majPietons(dt);
       majFigurants(dt);
       majFauneRue(dt);
-      majLevisV3(dtJeu); majYachtsIA(dtJeu); majPromoBateaux(dt); /* V3 : les bateaux amarrés, pilotables par promotion */ /* V3 : les ponts-levis du grand canal et les yachts de l'IA (avant la physique : une barrière forcée l'est avant le choc) */
+      majLevisV3(dtJeu); majYachtsIA(dtJeu); majPromoBateaux(dt); majChantierNaval(dt); /* V3, phase 4 : la porte du hangar */ /* V3 : les bateaux amarrés, pilotables par promotion */ /* V3 : les ponts-levis du grand canal et les yachts de l'IA (avant la physique : une barrière forcée l'est avant le choc) */
       majVehicules(dt); majDebris(dt); majEjection(dt,dtJeu); /* siège éjectable, verrière, avion sans pilote */
       majGrandYacht();
       majRayonOvni(dt);

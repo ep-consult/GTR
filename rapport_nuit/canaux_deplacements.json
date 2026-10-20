@@ -1,7 +1,7 @@
 {
  "porte:aquarium": "Aquarium : sa case (10,8) devient le canal ouest ; porte sur la façade est du pâté (9,8), sur la rue du quai (CANAUX.md, décision 4)",
  "sortie:aquarium": "suit la porte de l'Aquarium",
- "porte:tuning:g_port": "GARAGE DU PORT : sa case (10,10) devient le canal ouest ; porte sur la façade ouest du pâté (11,10), accès en voiture par la rue x = 168 (décision 4)",
+ "porte:tuning:g_port": "GARAGE DU PORT : sa case (10,10) devient le canal ouest (V1, décision 4) ; V3, phase 4 : dans le bâtiment double du chantier naval « Marée Basse » (à la place du condo du sud, sur le grand canal est), porte sur la façade nord du garage, accès en voiture par la rue z = 168 (CANAUX_V3.md, décision 13)",
  "sortie:tuning:g_port": "suit la porte du GARAGE DU PORT",
  "garage:g_port": "suit la porte du GARAGE DU PORT",
  "stand:117,-11": "kiosque ou food truck du mobilier du port, retiré avec son pâté ou son trottoir devenu canal, quai ou bras (décision 5 : le quartier rebâti a les siens, phase 3)",

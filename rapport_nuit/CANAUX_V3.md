@@ -88,7 +88,7 @@ plafond des bateaux promus, jamais la densité proche.
 - [x] Phase 1 — le côté est, les jonctions, les embouchures
 - [x] Phase 2 — les ponts-levis (côté des gros bateaux) et les ponts en dur (côté des petits)
 - [x] Phase 3 — tous les bateaux pilotables, de nouveaux modèles
-- [ ] Phase 4 — le chantier naval et le garage à voitures
+- [x] Phase 4 — le chantier naval et le garage à voitures
 - [ ] Phase 5 — le lieu de fête central et les zones vides
 - [ ] Phase 6 — carte, ambiance, performances
 
@@ -315,3 +315,103 @@ Classique : centre 198 / 304 k (référence 213 / 245 k : −7 % / +24 %), marin
 construit (une pointe de quelques millisecondes, une fois par modèle et par partie). **Hors budget** : les appels de rendu au point
 « marina » (194 contre 135 de référence, +44 %) — le point de référence était une barre de condos, c'est désormais une marina pleine
 de bateaux ; et les triangles à certains points du grand canal (+42 %, dans le budget de +60 %). **À juger sur iPhone.**
+
+## Phase 4 — le chantier naval « Marée Basse » et le garage du port (fait)
+
+### Décisions
+- **Décision 13 — où : sur le grand canal est, à la place du condo du sud** (x 270 → 288,5, z 177,5 → 246,5, entre la rue z = 168
+  et le front de mer). La demande disait « l'atelier « Marée Basse » devient ce chantier » (pâté (11,8), au bord du canal est
+  x 221 → 241) ; or ce canal a trois ponts fixes (2,88 u au plus bas) entre lui et la mer : un yacht, un sportfish (familles du
+  chantier) n'y arrivent jamais. Le grand canal est le seul bord d'eau où **tous** les bateaux arrivent de la mer sans passer sous un
+  pont fixe (de la mer directement, de la marina par le pont-levis sud). Le nom « Marée Basse », ses Dockside Boys et sa cale y
+  partent ; l'ancien atelier (11,8) garde ses volumes et devient une « cale sèche » (la phase 5 le refait : c'est un des blocs sombres
+  des captures B et D). Le condo du sud (`CONDOS_V2`) n'est plus construit.
+- **Le GARAGE DU PORT est déplacé dans le bâtiment double** (porte `g_port` en (274,6 ; 176,3) : façade nord du garage, sur la rue
+  z = 168 où le trafic roule, à l'ouest de la rampe du pont-levis sud ; salle partagée et `REPLIS` inchangés ; relevé : déplacement noté dans `canaux_deplacements.json`). Son ancien cube sombre
+  du pâté (11,10) (capture A) n'est plus construit : le pâté, au cœur du quartier, est libre pour le lieu de fête de la phase 5.
+- **Le bâtiment double** (`mkChantierNaval`, fin de `mkCanaux`, générateur privé) : au nord le garage (crème à bandeau bleu-vert, toit
+  plat, enseigne sur le toit face à la caméra — au nord, la façade est cachée par le bâtiment), au sud le hangar à bateaux (bardage
+  ondulé, pignons, toit à deux pans et lanterneaux) dont la **porte basculante** (12 u, de l'eau à 6,4 u) s'ouvre sur le grand canal ;
+  au sud, le chantier à ciel ouvert : portique élévateur et son cruiser sur sangles, offshore et vedette sur leurs bers, cale de
+  halage et runabout sur son chariot, atelier de peinture, mâts, chariot élévateur, bouées, hélices ; le ponton d'entrée au sud de la
+  porte (avec son échelle), dans une **anse** taillée dans le quai (`anseChantier`, x 284,1 → 287,8, z 214,8 → 222,4) : posé dans le
+  canal, il le ramenait à 10,8 u (deux yachts s'y croisent à 12 u). Sous le hangar, une **darse** (`darseChantier`, dans `CANAUX.eaux`, `couverte`) : de l'eau qu'on voit par
+  la porte ouverte (le cruiser sur sangles au-dessus, le pont roulant, un plafond — vu d'en dessous, le toit à une face laissait voir
+  le ciel), **jamais navigable** (`estEauNav`) ; le hangar est un solide : comme au garage, on « entre » par le bouton.
+- **La porte s'ouvre** devant le bateau du joueur (moins de 18 u, `majChantierNaval`, 1,6 s, un claquement) et reste ouverte 5 s après
+  sa sortie.
+- **L'entrée** : en bateau, devant la porte (8 u) : « ⚓ ENTRER AU CHANTIER NAVAL » ; à pied ou en voiture sur le quai côté eau :
+  « 🔒 CHANTIER NAVAL — on y entre en bateau ». La règle « trop chaud » est celle du garage (un tireur de gang à 6 u bloque, la
+  police jamais : rentrer au chantier sème la police, les étoiles tombent dedans). Refusés avec un message : kayak et planche (pas de
+  moteur), voilier (son mât), méga-yacht et porte-conteneurs (trop grands). La porte de la salle n'est pas dans `PORTES` (une de
+  plus décalerait la ville) : `porteSalle('chantier')` la rend.
+- **La salle** (`INTDEFS.chantier`, `construireChantierNavalSalle`) : la salle du garage pour les bateaux (`inter.tuning` et
+  `inter.naval`) — la darse de la cale de halage à la porte basculante (dans le mur de la SORTIE), un runabout sur sangles sous son
+  pont roulant, le bateau exposé sur un **ber tournant** (calages, béquilles ; il tourne seul ou au doigt), l'établi et ses étaux, les
+  moteurs hors-bord suspendus à leur rail, les pots de vernis, cordages et bouées, la console d'atelier ; par la porte ouverte, le
+  canal. Habillage V2 (béton, bardage, lambris de bois).
+- **« Mes véhicules » est commun** (`META.vehPerso`, `VEHPERSO_MAX`) : le chantier n'en montre que les bateaux, le garage que ce qui
+  roule (`ficheCompatible`) ; le garage de la villa ne sort jamais un bateau ; un bateau rangé ressort du chantier.
+- **Mécanique** (`tuningMeca` sur les bateaux) : moteur (accélération), hélice (vitesse max), coque — glisse (maniabilité), blindage,
+  nitro (sur l'eau, jamais dans une salle : `nitroAutorisee`). Mêmes effets que les voitures (`TUNING_EFFETS`), prix du chantier.
+- **Style** (`tuningNaut:{famille, ancrages, sans}`, catalogues `PIECES_NAUT` : jetski, course, open, bois, yacht) — peinture de
+  coque et néons sous la coque (ceux du garage ; la lueur se pose sur l'eau), et neuf catégories à clés **fixes** dans
+  `slotGarageDefaut` (`livree`, `pont`, `toit`, `parebrise`, `sieges`, `sono`, `feux`, `nom`, `drapeau`) :
+  livrée (bandes de course, flammes, damier de course), couleur du pont, toit (T-top, hardtop ; aileron ou arceau lumineux pour
+  l'offshore ; bimini marine ou rayé pour les bois), pare-brise (fumé, miroir doré, bleu glacier), sièges, sono (enceintes, sono de
+  soirée à LED), feux (LED sous-marines, projecteur, rampe LED de coque), **nom peint sur la coque** (sept noms : « Marée Haute »,
+  « Rafale Bleue », « Los Reyes Kid », « Belle de Nuit », « L'Insoumise », « Señorita », « Coup de Soleil » ; lettres d'or sur les
+  bois), pavillon (Los Reyes, pirate, damier). Livrée, nom et rampe LED sont des **décalcomanies tirées du bordé du vrai modèle**
+  (`geoDecalCoque` : les triangles de flanc, en coordonnées de coque — elles épousent toutes les formes ; lues des deux côtés, le nom
+  à l'endroit) ; pont, pare-brise et sièges, une **copie de la matière** propre au bateau ; le reste se pose aux ancrages mesurés
+  (poste de pilotage, poupe, arceau ; `bord` : le haut de la coque quand la peinture monte sur la superstructure d'un yacht).
+  Une famille n'a que ce qui a du sens (`sans` : le bateau de police et le cruiser ont déjà un toit, le jet à bras n'a ni bulle ni
+  selle). Aperçu avant achat, une pièce se paie une fois, garde d'entrée propre à chaque achat, casse à 25 % : ceux du garage.
+- **Prix** : `TUNING_PRIX.bateaux` (peinture 250 $, néons 600 $, nitro 1 400 $, paliers 600 à 3 400 $, pièces 150 à 1 800 $) — à
+  calibrer en jouant.
+- **La sortie** : à la barre, à flot devant la porte, dans l'axe du canal, cap au sud vers la mer (`chantierPlaceSortie` : les
+  quatre coins dans l'eau navigable, aucun bateau dessous, sinon 4, 8… u plus loin) ; à pied, sur le quai à côté de la porte.
+- Un bateau promu (phase 3) emmené au chantier quitte son poste : il reste vide jusqu'à la partie suivante (il est au joueur).
+
+### Pièges trouvés
+- `garageApresSortie` lisait l'orientation de la porte par `INT.rYaw||Math.PI` : une porte au nord a un `rYaw` nul, la voiture
+  ressortait vers le bâtiment.
+- Les aides de test du garage posaient le véhicule « 4 u au sud » de chaque porte : elles suivent désormais la normale de la porte.
+- La porte du garage au milieu de la façade (x 278,5) : la voiture ressortait sur la rampe du pont-levis sud (son rectangle commence
+  à x 278 : `pontCanal`), « pas au sec » pour « Canaux : rien de cassé ». Porte à x 274,6.
+- Le ponton d'entrée posé dans le canal le rétrécissait à 10,8 u (« côté est » : deux yachts à 12 u) : il est dans une anse du quai.
+- Le sol de la salle est le sol générique rétréci (la darse y est découpée) : le test d'habillage le reconnaît par `s.solMesh`.
+
+### Tests (phase 4)
+- Nouveau bloc « Canaux V3 : chantier naval » (lit `CANAUX.chantier`, `VEHDEFS.tuningNaut`, `PIECES_NAUT`, `TUNING_PRIX.bateaux`,
+  `PORTES`) : le bâtiment double au bord de l'eau, la darse jamais navigable, le hangar solide, la porte du garage sur sa rue avec du
+  trottoir ; pour chacun des 12 bateaux du chantier, ses ancrages sur son modèle (un sol sous la poupe et sous les pieds du toit) et
+  chacune des 320 pièces de son catalogue posée ; la porte qui s'ouvre, le bouton ENTRER, « trop chaud », la police qui ne bloque
+  pas ; le bateau sur le ber (la quille sur les calages) ; aperçu sans débit, achat, une pièce payée une fois ; le chantier ne liste
+  pas une voiture ; sortie à flot (les quatre coins dans l'eau, hors des solides), pièces et hélice sur le bateau ressorti, la nitro
+  sur l'eau ; refus à pied et en voiture côté eau ; un bateau refusé au garage, la voiture entre au garage du port et ressort sur la
+  rue cap au nord, le garage ne liste pas le bateau ; casse à 25 %.
+- Nouveau bloc « … les pièces d'un bateau survivent au rechargement » (sauvegarde, rechargement de la page, fiche relue).
+- Les 76 tests des garages repassent (l'éligibilité : un bateau `tuningMeca` est refusé au garage, accepté au chantier).
+- Repassés : « Canaux : rien de cassé » (le garage du port entré et quitté en voiture), « Canaux V2 : le plan », « … les villas »,
+  « Canaux V3 : le côté est » (13,0 u au plus étroit), « … ponts-levis », « Vue immersive dans les salles » (35 salles, chantier
+  compris), « Habillage V2 des salles » (21 salles, chantier compris).
+- Empreinte du décor, portes, chalet et tirage principal identiques à la phase 3 (seul le nombre d'objets de la scène grandit : 5 431 →
+  5 434) ; relevé du périmètre : aucun écart hors de ceux de `canaux_deplacements.json` (le garage du port, le phare).
+
+### Performances (phase 4, `perf_v3.js`, phase 3 → phase 4, mêmes points ; machine chargée ce soir-là : seules les proportions
+comptent, **à juger sur iPhone**)
+| Point | Appels (classique) | Triangles (classique) | Appels (immersive) | Triangles (immersive) |
+|---|---|---|---|---|
+| chantier (292, 200), jour | 177 → 199 | 374 k → 391 k | 1 696 → 1 721 | 882 k → 921 k |
+| chantier, nuit | 194 → 216 | 379 k → 394 k | 1 748 → 1 747 | 901 k → 903 k |
+| grand canal (296, 120) | 143 → 144 | 348 k → 349 k | 1 233 → 1 229 | 670 k → 666 k |
+| centre du quartier | 204 → 183 | 305 k → 304 k | 1 790 → 1 752 | 700 k → 708 k |
+| survol du côté est | — | — | 2 461 → 2 491 | 1 076 k → 1 115 k |
+
+Temps de tick inchangé (± 0,7 ms, le bruit de la machine) ; géométries : +1, +1,5 Mo (les pièces des bateaux du chantier,
+construites à la première visite). La salle se construit à la première entrée.
+
+### Captures (phase 4)
+`captures/canaux_v3/p4_*` : le bâtiment vu d'ensemble, porte fermée et ouverte depuis le canal, la rue du garage, le chantier, la
+salle (entrée, menu ouvert, intérieur), avant / après (`p4_avant_*`) ; `captures/canaux_v3/p4_bateaux/` : chaque bateau du chantier, toutes ses pièces posées.
