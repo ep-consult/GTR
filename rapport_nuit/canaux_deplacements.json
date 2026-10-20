@@ -35,5 +35,6 @@
  "stand:278,-30": "kiosque ou food truck du mobilier du port, retiré avec son pâté reconstruit en villas (phase 3) ; le quartier a ses propres kiosques sur les quais",
  "stand:277,225": "kiosque ou food truck du mobilier du port, retiré avec son pâté reconstruit en villas (phase 3) ; le quartier a ses propres kiosques sur les quais",
  "stand:282,235": "kiosque ou food truck du mobilier du port, retiré avec son pâté reconstruit en villas (phase 3) ; le quartier a ses propres kiosques sur les quais",
- "stand:269,230": "kiosque ou food truck du mobilier du port, retiré avec son pâté reconstruit en villas (phase 3) ; le quartier a ses propres kiosques sur les quais"
+ "stand:269,230": "kiosque ou food truck du mobilier du port, retiré avec son pâté reconstruit en villas (phase 3) ; le quartier a ses propres kiosques sur les quais",
+ "poi:phare": "Phare du port (V3, décision 7 de CANAUX_V3.md) : son îlot (x 291 → 305) barrait l'embouchure du grand canal est (x 288,5 → 302) ; glissé de 20 u vers l'est, d'un bloc (deplacerPhareV3, aucun tirage)"
 }

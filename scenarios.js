@@ -15728,7 +15728,8 @@ async function main() {
             let a = xc, b = xc; while (a > e.x0 - 1 && estEauNav(a - 0.25, z)) a -= 0.25; while (b < e.x1 + 1 && estEauNav(b + 0.25, z)) b += 0.25; if (b - a < pire) { pire = b - a; zp = z; } }
           if (pire < min) ko.push(e.id + ' : chenal de ' + pire.toFixed(1) + ' u en z = ' + zp); else info.push(e.id + ' ≥ ' + pire.toFixed(1) + ' u'); }
         /* 3) un bateau du décor : un mur pour un bateau (centre et coins), jamais sur un ponton */
-        for (const B of C.bateauxV2) { for (const [dx, dz] of [[0, 0], [0.4, 0.4], [-0.4, -0.4]]) if (estEauNav(B.x + dx * B.W, B.z + dz * B.L)) { ko.push('bateau ' + B.type + ' du lot ' + B.lot + ' traversable'); break; }
+        for (const B of C.bateauxV2) { const ca = Math.cos(B.ang || 0), sa = Math.sin(B.ang || 0); /* V3 : la largeur et la longueur dans le repère du bateau (ceux de la marina sont amarrés est-ouest) */
+          for (const [dx, dz] of [[0, 0], [0.4, 0.4], [-0.4, -0.4]]) { const lx = dx * B.W, lz = dz * B.L; if (estEauNav(B.x + lx * ca + lz * sa, B.z - lx * sa + lz * ca)) { ko.push('bateau ' + B.type + ' du lot ' + B.lot + ' traversable'); break; } }
           if (pontonCanal(B.x, B.z)) ko.push('bateau ' + B.type + ' sur un ponton'); }
         /* 4) accoster à trois pontons au hasard, débarquer, rejoindre l'allée à pied (joystick, vraie boucle) */
         const H = window.__pv2 = {}; H.partie = () => { META.vue = 'classique'; if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9; for (const e of ennemis) e.mort = true; WANTED.heat = 0; WANTED.stars = 0; };
@@ -15921,7 +15922,7 @@ async function main() {
         META.vue = 'classique'; if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9;
         /* le décor : bâché, près du quai, un mur pour un bateau, jamais un véhicule */
         if (C.amarres.length < 1) ko.push(C.amarres.length + ' bateaux du décor amarrés');
-        for (const a of C.amarres) { const e = C.eaux.find((q) => q.t === 'r' && formeContient(q, a.x, a.z)) || C.eaux.find((q) => q.id === 'canalE'), dq = Math.min(Math.abs(a.x - e.x0), Math.abs(a.x - e.x1));
+        for (const a of C.amarres) { const e = C.eaux.find((q) => q.t === 'r' && formeContient(q, a.x, a.z)) || C.eaux.find((q) => q.id === 'canalE'), dq = Math.min(Math.abs(a.x - e.x0), Math.abs(a.x - e.x1), a.marina ? Math.min(Math.abs(a.z - e.z0), Math.abs(a.z - e.z1)) : 1e9); /* V3 : à la marina, le yacht du ponton d'honneur est amarré le long du quai nord */
           if (dq > (a.v2 ? 3.6 + (a.x1 - a.x0) / 2 : 5.2)) ko.push('bateau du décor à ' + dq.toFixed(1) + ' u du quai (passage utile)'); /* V2 : le long du flotteur d'un ponton de villa (le chenal est vérifié par « Canaux V2, pontons et bateaux ») */ if (estEauNav(a.x, a.z)) ko.push('un bateau du décor se traverse en bateau');
           if (vehicules.some((v) => !v.mort && dist2(v.x, v.z, a.x, a.z) < 4)) ko.push('un véhicule pilotable à la place d’un bateau du décor'); }
         /* les pilotables : 2 ou 3 jet-skis aux pontons privés et à l'atelier, la vedette de l'embarcadère */
@@ -16003,6 +16004,94 @@ async function main() {
         startRun(); return { ko, info };
       });
       if (r.ko.length) fail('Canaux au joystick : ' + r.ko.join(' ; ')); else ok('Canaux au joystick : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
+    // Canaux V3 : le côté est (CANAUX_V3.md, phase 1) — lu dans CANAUX.grand, CANAUX.eaux, CANAUX.marina, CANAUX.musoirs, PCANAL,
+    // LITTORAL_COUPES, ILES : le grand canal le long du mur, navigable de la marina à la mer, assez large pour que deux yachts
+    // « Impérial » s'y croisent ; la rive est jamais de l'eau ; le graphe des vedettes relie la marina à la mer et au canal ouest ; un
+    // yacht fait demi-tour dans le bassin d'évitage au vrai joystick (controleDir), sans toucher un quai ; rien ne recouvre l'eau du
+    // grand canal ni de la marina (lancer de rayon) ; ni désert ni pelouse ni tarmac de l'aéroport sur la route de bordure, du mur
+    // nord à la marina ; aux embouchures : pas de margelle sur la plage (la cause des traits blancs), une langue de mer par chenal,
+    // l'écume de la mer coupée dans chaque chenal, deux musoirs (feu rouge à l'ouest, vert à l'est), aucun îlot dans le prolongement
+    // d'un chenal (le phare a glissé vers l'est) ; un nageur sort de l'eau sur la berge de sable d'une embouchure.
+    // -------------------------------------------------------------------
+    console.log('\n--- Canaux V3 : le côté est — grand canal, marina, rive est, embouchures ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [], C = CANAUX, G3 = C.grand; if (!C.ok || !G3) return { ko: ['CANAUX.grand absent'], info };
+        META.vue = 'classique'; if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9; for (const e of ennemis) e.mort = true;
+        let T = dernierT + 1000; const pas = () => { for (const e of ennemis) e.mort = true; WANTED.stars = 0; WANTED.heat = 0;
+          for (let i = vehicules.length - 1; i >= 0; i--) { const w = vehicules[i]; if (w !== P.veh && w.conduit && w.conduit !== 'joueur') { scene.remove(w.mesh); vehicules.splice(i, 1); } }
+          T += 1000 / 60; tick(T); P.hp = 1e9; };
+        /* 1) le grand canal : navigable de la marina à la mer, assez large pour deux yachts ; la rive est n'est jamais de l'eau */
+        const Y = VEHDEFS.yacht, xg = (G3.x0 + G3.x1) / 2; let nz = 0, pire = 1e9, zp = 0;
+        for (let z = G3.zMa0 + 2; z < MER - 1; z += 2) { if (pontCanal(xg, z)) continue; nz++; if (!estEauNav(xg, z)) { ko.push('grand canal non navigable en z = ' + z); break; }
+          let a = xg, b = xg; while (a > G3.x0 - 30 && estEauNav(a - 0.25, z)) a -= 0.25; while (b < G3.x1 + 5 && estEauNav(b + 0.25, z)) b += 0.25; if (b - a < pire) { pire = b - a; zp = z; } }
+        if (pire < 2 * Y.larg + 1) ko.push('grand canal de ' + pire.toFixed(1) + ' u en z = ' + zp + ' : deux yachts de ' + Y.larg + ' u ne s’y croisent pas');
+        let rive = 0; for (let z = G3.zEnceinte0 + 1; z < G3.zMurFin; z += 3) for (const x of [G3.x1 + 0.7, (G3.x1 + G3.xRive) / 2, G3.xRive - 0.3]) { rive++; if (estEau(x, z) || dansCanal(x, z)) { ko.push('rive est dans l’eau en (' + x.toFixed(1) + ', ' + z + ')'); break; } }
+        info.push('grand canal : ' + nz + ' sections navigables, ' + pire.toFixed(1) + ' u au plus étroit (deux yachts : ' + (2 * Y.larg) + ' u), rive est sèche sur ' + rive + ' points');
+        /* 2) le graphe des vedettes : la marina reliée à la mer et au canal ouest, toujours sur l'eau */
+        const Gg = PCANAL.grand; if (!Gg) ko.push('PCANAL.grand absent'); else { const m = PCANAL.noeuds[Gg.marina], s = PCANAL.noeuds[Gg.mer], ch = cheminCanal(m.x, m.z, s.x, s.z), ch2 = cheminCanal(147, 100, m.x, m.z);
+          if (!ch) ko.push('pas de chemin de la marina à la mer'); else { for (let i = 0; i + 1 < ch.pts.length; i++) { const [x0, z0] = ch.pts[i], [x1, z1] = ch.pts[i + 1], n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, z1 - z0) / 1.5));
+            for (let k = 0; k <= n; k++) { const x = x0 + (x1 - x0) * k / n, z = z0 + (z1 - z0) * k / n; if (!estEauNav(x, z)) { ko.push('le chemin marina → mer passe hors de l’eau en (' + x.toFixed(1) + ', ' + z.toFixed(1) + ')'); i = 1e9; break; } } } info.push('marina → mer : ' + ch.L.toFixed(0) + ' u'); }
+          if (!ch2) ko.push('pas de chemin du canal ouest à la marina'); else info.push('canal ouest → marina : ' + ch2.L.toFixed(0) + ' u'); }
+        /* 3) un yacht fait demi-tour dans le bassin d'évitage, au vrai joystick (au pas, braquage à fond), sans toucher un quai */
+        const ev = C.marina && C.marina.evitage; if (!ev) ko.push('pas de bassin d’évitage'); else {
+          for (const sens of [1, -1]) { if (P.veh) sortirVehicule(true); const v = creerVehicule('yacht', ev.x, ev.z, Math.PI, null); P.x = ev.x; P.z = ev.z; entrerVehicule(v); for (let i = 0; i < 10; i++) pas();
+            const a0 = v.ang, hp0 = v.hp; let t = 0, da = 0; while (t < 25) { da = Math.atan2(Math.sin(v.ang - a0), Math.cos(v.ang - a0)); if (Math.abs(da) > 3) break; const vise = v.ang + sens * 1.2; INPUT.jx = 0.2 * Math.sin(vise); INPUT.jy = 0.2 * Math.cos(vise); pas(); t += 1 / 60; }
+            INPUT.jx = INPUT.jy = 0;
+            if (Math.abs(da) <= 3) ko.push('yacht : pas de demi-tour ' + (sens > 0 ? 'à gauche' : 'à droite') + ' en 25 s (' + da.toFixed(2) + ' rad, en ' + v.x.toFixed(1) + ', ' + v.z.toFixed(1) + ')');
+            else if (v.hp < hp0) ko.push('yacht : demi-tour en touchant un quai (' + hp0 + ' → ' + v.hp.toFixed(0) + ' PV)'); else info.push('yacht : demi-tour ' + (sens > 0 ? 'à gauche' : 'à droite') + ' en ' + t.toFixed(1) + ' s');
+            sortirVehicule(true); scene.remove(v.mesh); const i = vehicules.indexOf(v); if (i >= 0) vehicules.splice(i, 1); }
+          info.push('bassin d’évitage : rayon ' + ev.r.toFixed(1) + ' u'); }
+        /* 4) rien ne recouvre l'eau du grand canal et de la marina (le décor seul : joueur, véhicules, figurants masqués) */
+        const caches = []; const cacher = (o) => { if (o && o.visible) { o.visible = false; caches.push(o); } };
+        for (const v of vehicules) cacher(v.mesh); for (const p of pietons) cacher(p.g); for (const B of CVIE.bateaux) cacher(B.m); if (P.h) cacher(P.h.g);
+        for (const f of (typeof FIGURANTS !== 'undefined' ? FIGURANTS : [])) cacher(f.h ? f.h.g : f.g);
+        scene.updateMatrixWorld(true); const visible = (o) => { for (let p = o; p; p = p.parent) if (!p.visible) return false; return true; };
+        const bb = new THREE.Box3(), cands = [];
+        scene.traverse((o) => { if (!o.isMesh || !o.geometry || o === C.eauMesh || o === C.bateauxMesh || !visible(o)) return; const m = Array.isArray(o.material) ? o.material[0] : o.material;
+          if (!m || m.transparent || m.blending === THREE.AdditiveBlending || m.visible === false) return;
+          if (!o.geometry.boundingBox) o.geometry.computeBoundingBox(); bb.copy(o.geometry.boundingBox).applyMatrix4(o.matrixWorld);
+          if (bb.max.x < 268 || bb.min.x > G3.x1 + 1 || bb.max.z < G3.zMa0 - 1 || bb.min.z > MER || bb.min.y > 0.5 || bb.max.y < -0.6) return; cands.push(o); });
+        const pres = (L, x, z, r) => { for (const e of L || []) if (Math.hypot(e.x - x, e.z - z) < r) return true; return false; };
+        const rc = new THREE.Raycaster(); rc.camera = camera; const bas = new THREE.Vector3(0, -1, 0), o3 = new THREE.Vector3(); let n4 = 0; const mauvais = [];
+        for (let x = 270.3; x < G3.x1; x += 1.5) for (let z = G3.zMa0 + 0.3; z < MER - 0.5; z += 1.5) {
+          if (!dansCanal(x, z) || !dansCanal(x + 0.8, z) || !dansCanal(x - 0.8, z) || !dansCanal(x, z + 0.8) || !dansCanal(x, z - 0.8)) continue;
+          if (!estEauNav(x, z) || pontonCanal(x, z) || pontonCanal(x + 0.3, z) || pontonCanal(x - 0.3, z) || pontonCanal(x, z + 0.3) || pontonCanal(x, z - 0.3) || amarreCanal(x, z) || pontCanal(x, z) || passerelleCanal(x, z) || marcheCanal(x, z) || pres(C.echelles, x, z, 1.8)) continue;
+          const y0 = niveauCanal(x, z); rc.set(o3.set(x, 30, z), bas); rc.far = 31; n4++;
+          const h = rc.intersectObjects(cands, false).find((h) => h.point.y > y0 + 0.03 && h.point.y < 0.5);
+          if (h) { const m = Array.isArray(h.object.material) ? h.object.material[0] : h.object.material; mauvais.push('(' + x.toFixed(1) + ', ' + z.toFixed(1) + ') y=' + h.point.y.toFixed(2) + ' ' + (m.color ? m.color.getHexString() : '')); } }
+        if (n4 < 600) ko.push('trop peu de points d’eau balayés dans le grand canal : ' + n4);
+        if (mauvais.length) ko.push(mauvais.length + ' point(s) du grand canal recouvert(s) : ' + mauvais.slice(0, 6).join(' ; '));
+        /* 5) ni désert, ni pelouse, ni tarmac de l'aéroport sur la route de bordure, du mur nord à la marina */
+        const matsAero = [mkAeroport.desert, mkAeroport.gaz, mkAeroport.tar].filter(Boolean).map((d) => d.material); let n5 = 0;
+        for (let z = -(HALF - 4); z < G3.zMa0; z += 6) for (const x of [HALF - 3, HALF, HALF + 3]) { rc.set(o3.set(x, 30, z), bas); rc.far = 31.2; n5++;
+          const h = rc.intersectObjects(scene.children, true).find((h) => visible(h.object) && matsAero.includes(h.object.material)); if (h) { ko.push('sol de l’aéroport sur la route de bordure en (' + x + ', ' + z + ')'); z = 1e9; break; } }
+        for (const o of caches) o.visible = true;
+        info.push(n4 + ' points d’eau balayés dans le grand canal et la marina, ' + n5 + ' points de la route de bordure');
+        /* 6) les embouchures : ni margelle sur la plage, langue de mer, écume coupée, musoirs, chenal libre jusqu'au large */
+        const embs = C.eaux.filter((e) => e.t === 'r' && e.z1 > MER - 1), Lc = LITTORAL_COUPES.value, Mg = matsCanaux().margelle; let nc = 0, n6 = 0;
+        for (let i = 0; i < 6; i++) if (Lc[2 * i + 1] > Lc[2 * i]) nc++;
+        if (nc !== embs.length) ko.push('écume : ' + nc + ' chenal(aux) coupé(s) pour ' + embs.length + ' embouchure(s)');
+        if (!C.langues || C.langues.length !== embs.length) ko.push('langue de mer : ' + (C.langues ? C.langues.length : 0) + ' pour ' + embs.length + ' embouchure(s)');
+        if (!/coupeC/.test(MER_GLSL_ECUME)) ko.push('l’écume de la mer ne connaît pas les chenaux');
+        if (!Mg) ko.push('matériau de la margelle introuvable (matsCanaux().margelle)');
+        for (const e of embs) { const xc = (e.x0 + e.x1) / 2, ms = (C.musoirs || []).filter((m) => m.canal === e.id);
+          if (ms.length !== 2 || !ms.some((m) => m.feu === 'rouge' && m.x < xc) || !ms.some((m) => m.feu === 'vert' && m.x > xc)) ko.push(e.id + ' : musoirs ' + JSON.stringify(ms));
+          for (const m of ms) if (!solidAt(m.x, m.z - 2, 0.3)) ko.push(e.id + ' : le musoir ' + m.feu + ' n’arrête personne');
+          let ile = null; for (let z = MER; z < MER + 40 && !ile; z += 2) for (const x of [e.x0 - 1, xc, e.x1 + 1]) for (const I of ILES) if (Math.hypot(I.x - x, I.z - z) < I.r + 1.5) ile = I;
+          if (ile) ko.push(e.id + ' : un îlot (' + ile.x + ', ' + ile.z + ') dans le prolongement du chenal');
+          if (Mg) for (let z = C.zMer + 2; z < MER - 1; z += 1) for (const x of [e.x0 - 0.15, e.x1 + 0.15]) { if (pontCanal(x, z)) continue; rc.set(o3.set(x, 5, z), bas); rc.far = 6; n6++;
+            const h = rc.intersectObjects(scene.children, true).find((h) => visible(h.object)); if (h && h.object.material === Mg) { ko.push(e.id + ' : margelle sur la plage en (' + x.toFixed(1) + ', ' + z + ')'); z = 1e9; break; } } }
+        info.push(embs.length + ' embouchures, ' + n6 + ' points de berge sans margelle, phare en (' + POIS.phare.x + ', ' + POIS.phare.z + ')');
+        /* 7) un nageur sort de l'eau sur la berge de sable d'une embouchure (la plage : ni marches ni échelle) */
+        const e0 = embs.find((e) => e.id === 'canalE') || embs[0]; if (P.veh) sortirVehicule(true);
+        P.x = e0.x0 + 2; P.z = MER - 7; P.y = niveauEau(P.x, P.z) - 0.3; P.vy = 0; P.chute = false; P.nage = true; pas();
+        let t7 = 0; while (t7 < 8 && P.nage) { INPUT.jx = -1; INPUT.jy = 0; pas(); t7 += 1 / 60; } INPUT.jx = INPUT.jy = 0;
+        if (P.nage) ko.push('le nageur ne sort pas sur la berge de ' + e0.id + ' (' + P.x.toFixed(1) + ', ' + P.z.toFixed(1) + ')'); else info.push('nageur sorti sur la berge de ' + e0.id + ' en ' + t7.toFixed(1) + ' s');
+        startRun(); return { ko, info }; });
+      if (r.ko.length) fail('Canaux V3, le côté est : ' + r.ko.slice(0, 14).join(' ; ') + (r.ko.length > 14 ? ' … (' + r.ko.length + ')' : '') + ' [' + r.info.join(' | ') + ']'); else ok('Canaux V3, le côté est : ' + r.info.join(' ; '));
     }
 
     // -------------------------------------------------------------------
