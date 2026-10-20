@@ -7985,6 +7985,22 @@ function mkMarcheCanal(m,M){ const G=new THREE.Group(), n=5;
     else { if(m.sens>0){ x0=m.x0+(m.x1-m.x0)*t0; x1=m.x0+(m.x1-m.x0)*t1; } else { x1=m.x1-(m.x1-m.x0)*t0; x0=m.x1-(m.x1-m.x0)*t1; } }
     const b=new THREE.Mesh(new THREE.BoxGeometry(x1-x0,h-y0,z1-z0),M.marche); b.position.set((x0+x1)/2,(h+y0)/2,(z0+z1)/2); G.add(b); }
   scene.add(G); return G; }
+/* La dalle du désert de l'aéroport (mkAeroport) commence à x = 277, 10 u sous le bord est de la ville. Le bassin du bras est
+   (V1) et le canal secondaire est (V2) passent dessous : l'eau est à −0,6, la dalle à 0,011 — vu de dessus, du sable sur l'eau
+   (capture iPhone de nuit, « le bassin est à moitié recouvert »). Comme le plan d'asphalte de la ville : son dessus est refait
+   percé à l'eau (mêmes coordonnées de texture que la face du dessus de la boîte ; ses autres faces, à 1 cm du sol, ne se voient
+   pas). Appelée dans mkCanaux, sur son générateur privé. */
+function percerDesertCanaux(C){
+  const d=mkAeroport.desert; if(!d||!d.geometry||!d.geometry.parameters||d.userData.perce) return;
+  const W=d.geometry.parameters.width, D=d.geometry.parameters.depth, Hb=d.geometry.parameters.height, X0=d.position.x-W/2, X1=d.position.x+W/2, Z0=d.position.z-D/2, Z1=d.position.z+D/2;
+  const eaux=C.eaux.filter((e)=>{ const b=empriseForme(e); return b.x1>X0&&b.x0<X1&&b.z1>Z0&&b.z0<Z1; }); if(!eaux.length) return;
+  const h=0.5, gx0=X0-2*h, gz0=Z0-2*h, GW=grilleCanaux(eaux,gx0,X1+2*h,gz0,Z1+2*h,h,3), V=GW.V, nz=GW.nz;
+  for(let i=0;i<GW.nx;i++) for(let j=0;j<nz;j++){ const x=gx0+i*h, z=gz0+j*h, ds=Math.max(X0-x,x-X1,Z0-z,z-Z1), k=i*nz+j; V[k]=Math.max(ds,-V[k]); } /* le désert hors de l'eau (négatif dedans) */
+  const formes=formesDepuisBoucles(contoursSdf(GW)); if(!formes.length) return;
+  const g=new THREE.ShapeGeometry(formes); g.rotateX(-Math.PI/2);
+  const A=g.attributes.position, U=g.attributes.uv; for(let i=0;i<A.count;i++){ const x=A.getX(i), z=A.getZ(i); A.setXYZ(i,x-d.position.x,Hb/2,z-d.position.z); U.setXY(i,(x-X0)/W,1-(z-Z0)/D); }
+  A.needsUpdate=true; g.computeBoundingSphere(); g.computeBoundingBox();
+  const vieux=d.geometry; d.geometry=g; vieux.dispose(); d.userData.perce=true; C.desertPerce=eaux.length; }
 function mkCanaux(){
   if(!CANAUX.ok) return;
   avecAleaPrive(1914,()=>{
@@ -8005,6 +8021,7 @@ function mkCanaux(){
       for(const L of Beau) if(Math.abs(aireBoucle(L))>4) sh.holes.push(new THREE.Path(L.map((p)=>new THREE.Vector2(p[0]-ox,-(p[1]-oz)))));
       const g=new THREE.ShapeGeometry(sh), U=g.attributes.uv, A=g.attributes.position; for(let i=0;i<A.count;i++) U.setXY(i,(A.getX(i)+W/2)/W,(A.getY(i)+Hh/2)/Hh);
       const vieux=sol.geometry; sol.geometry=g; vieux.dispose(); C.solPerce=true; } tp('sol');
+    percerDesertCanaux(C); tp('desert');
     /* 3) les dalles du quartier (quais, promenades, pâtés libérés) : trottoir de 0,22 hors de l'eau et des tabliers */
     const GA=grilleCanaux((C.allees||[]).map((a)=>({t:'r',x0:a.x0,x1:a.x1,z0:a.z0,z1:a.z1})),gx0,gx1,gz0,gz1,0.5,3); /* V2 : les allées, au niveau de la rue */
     const VD=new Float32Array(GD.V.length); for(let k=0;k<VD.length;k++) VD[k]=Math.max(GD.V[k],-GE.V[k],-GP.V[k],-GA.V[k]);
@@ -16034,6 +16051,7 @@ function mkAeroport(){
   // (269, jamais rapproché de la ville, HALF=294).
   const desert=new THREE.Mesh(new THREE.BoxGeometry(320,0.01,570),new THREE.MeshLambertMaterial({map:texDesert}));
   desert.position.set(AX+63,0.006,-3); scene.add(desert); solRect('desert',AX+63,-3,320,570,0.011); // SOLS : transitions (DECOR_V2)
+  mkAeroport.desert=desert; /* noté (aucun tirage) : mkCanaux perce son dessus à l'eau des canaux de l'est */
   // herbe d'aérodrome tout autour, puis tarmac texturé
   const gaz=new THREE.Mesh(new THREE.BoxGeometry(190,0.08,380),new THREE.MeshLambertMaterial({map:texHerbe}));
   gaz.position.set(AX+8,0.03,-70); scene.add(gaz); solRect('herbe',AX+8,-70,190,380,0.07);

@@ -15617,6 +15617,45 @@ async function main() {
       if (r.ko.length) fail('Canaux V2, canaux secondaires : ' + r.ko.join(' ; ') + ' [' + r.info.join(' | ') + ']'); else ok('Canaux V2, canaux secondaires : ' + r.info.join(' ; '));
     }
     // -------------------------------------------------------------------
+    // Canaux V2 : rien ne recouvre l'eau. La dalle du désert de l'aéroport (mkAeroport, x ≥ 277, à 0,011) passait au-dessus du
+    // canal secondaire est et du bassin du bras est (eau à −0,6) : vu de dessus, du sable sur l'eau (capture iPhone de nuit).
+    // percerDesertCanaux refait son dessus percé à l'eau. Balayage de toute l'eau du quartier (dansCanal, à 0,8 u des bords, hors
+    // des pontons, des bateaux amarrés, des échelles, des ponts et des passerelles) par un rayon vertical sur le rendu réel : rien
+    // d'opaque entre la surface de l'eau et 0,5 u au-dessus (les bateaux amarrés du décor exceptés, et la mer au-delà de MER). Joueur, véhicules, figurants et bateaux qui circulent sont masqués le temps
+    // du balayage (ils bougent ; ce n'est pas le décor).
+    // -------------------------------------------------------------------
+    console.log('\n--- Canaux V2 : rien ne recouvre l’eau — balayage par lancer de rayon de toute l’eau du quartier ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [], C = CANAUX; if (!C.ok) return { ko: ['CANAUX.ok faux'], info };
+        const caches = []; const cacher = (o) => { if (o && o.visible) { o.visible = false; caches.push(o); } };
+        for (const v of vehicules) cacher(v.mesh); for (const p of pietons) cacher(p.g); for (const e of ennemis) cacher(e.g || e.mesh);
+        for (const f of (typeof FIGURANTS !== 'undefined' ? FIGURANTS : [])) cacher(f.h ? f.h.g : f.g); for (const B of CVIE.bateaux) cacher(B.m); if (P.h) cacher(P.h.g);
+        scene.updateMatrixWorld(true);
+        const visible = (o) => { for (let p = o; p; p = p.parent) if (!p.visible) return false; return true; };
+        const B0 = C.bb, bb = new THREE.Box3(), cands = [];
+        scene.traverse((o) => { if (!o.isMesh || !o.geometry || o === C.eauMesh || o === C.bateauxMesh || !visible(o)) return; /* les bateaux amarrés du décor : leur étrave déborde un peu de leur boîte d'amarrage, ce n'est pas un sol */ const m = Array.isArray(o.material) ? o.material[0] : o.material;
+          if (!m || m.transparent || m.blending === THREE.AdditiveBlending || m.visible === false) return;
+          if (!o.geometry.boundingBox) o.geometry.computeBoundingBox(); bb.copy(o.geometry.boundingBox).applyMatrix4(o.matrixWorld);
+          if (bb.max.x < B0.x0 || bb.min.x > B0.x1 || bb.max.z < B0.z0 || bb.min.z > B0.z1 || bb.min.y > 0.5 || bb.max.y < -0.6) return; cands.push(o); });
+        const pres = (L, x, z, r) => { for (const e of L || []) if (Math.hypot((e.x !== undefined ? e.x : (e.x0 + e.x1) / 2) - x, (e.z !== undefined ? e.z : (e.z0 + e.z1) / 2) - z) < r) return true; return false; };
+        const rc = new THREE.Raycaster(); rc.camera = camera; const bas = new THREE.Vector3(0, -1, 0), o3 = new THREE.Vector3(); let n = 0; const mauvais = [];
+        const pas = 1.5, dEau = (x, z) => dansCanal(x, z);
+        for (let x = B0.x0 + 0.3; x < B0.x1; x += pas) for (let z = B0.z0 + 0.3; z < Math.min(B0.z1, MER - 0.5); z += pas) { /* au-delà de MER, c'est la mer */
+          if (!dEau(x, z) || !dEau(x + 0.8, z) || !dEau(x - 0.8, z) || !dEau(x, z + 0.8) || !dEau(x, z - 0.8)) continue;
+          if (!estEauNav(x, z) || pontonCanal(x, z) || pontonCanal(x + 0.3, z) || pontonCanal(x - 0.3, z) || pontonCanal(x, z + 0.3) || pontonCanal(x, z - 0.3) || amarreCanal(x, z) || pontCanal(x, z) || passerelleCanal(x, z) || marcheCanal(x, z) || pres(C.echelles, x, z, 1.8)) continue;
+          const y0 = niveauCanal(x, z); rc.set(o3.set(x, 30, z), bas); rc.far = 31;
+          const h = rc.intersectObjects(cands, false).find((h) => h.point.y > y0 + 0.03 && h.point.y < 0.5); n++;
+          if (h) { const m = Array.isArray(h.object.material) ? h.object.material[0] : h.object.material; mauvais.push('(' + x.toFixed(1) + ', ' + z.toFixed(1) + ') y=' + h.point.y.toFixed(2) + ' ' + (m.type || '') + ' ' + (m.color ? m.color.getHexString() : '') + (m.map ? ' texture' : '')); } }
+        for (const o of caches) o.visible = true;
+        if (n < 1500) ko.push('trop peu de points d’eau balayés : ' + n);
+        if (mauvais.length) ko.push(mauvais.length + ' point(s) d’eau recouvert(s) : ' + mauvais.slice(0, 6).join(' ; '));
+        if (!C.desertPerce) ko.push('la dalle du désert n’a pas été percée (percerDesertCanaux)');
+        info.push(n + ' points d’eau balayés, ' + cands.length + ' maillages candidats, dalle du désert percée à ' + (C.desertPerce || 0) + ' forme(s) d’eau');
+        return { ko, info }; });
+      if (r.ko.length) fail('Canaux V2, rien ne recouvre l’eau : ' + r.ko.join(' ; ') + ' [' + r.info.join(' | ') + ']'); else ok('Canaux V2, rien ne recouvre l’eau : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
     // Canaux V2 : les villas (CANAUX_V2.md, phase 2) — lues dans CANAUX.lots (villasV2Plan, villaV2) et CONDOS_V2 : deux voisines
     // jamais du même style ni de la même palette, au moins quatre silhouettes sur six voisines, au moins cinq styles ; chaque villa a
     // son jardin côté eau (la maison recule du quai) et sa façade côté allée (une avant-cour) ; l'allée de garage est libre de l'allée
