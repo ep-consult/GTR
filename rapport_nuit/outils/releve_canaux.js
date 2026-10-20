@@ -6,6 +6,8 @@
 // Comparaison : hors zone, tout doit être IDENTIQUE ; dans la zone, seul un déplacement listé dans
 // rapport_nuit/canaux_deplacements.json (clé → raison) est permis ; partout : jamais dans l'eau, jamais sur un tablier de pont,
 // accessible (à pied ; en voiture pour un garage ou un véhicule posé), porte avec du trottoir sec devant et SORTIE hors de l'eau.
+// Canaux V3 : la liste « bordEst » (ce qui borde le côté est : segments du mur d'enceinte, bordure est et ses limites, aérogare et
+// dépose-minute, arène de derby et son portail, Skatepark XXL, crique, plage, galion) doit rester IDENTIQUE (signature comparée).
 const fs = require('fs'), path = require('path');
 const { ouvrir, R } = require('./harnais.js');
 const args = process.argv.slice(2), sortie = args[0] && !args[0].startsWith('--') ? args[0] : path.join(R, 'rapport_nuit/canaux_avant.json');
@@ -22,7 +24,7 @@ const dansZone = (x, z) => x >= ZONE.x0 && x <= ZONE.x1 && z >= ZONE.z0 && z <= 
   const h = await ouvrir({ sansBoucle: true });
   const page = h.page;
   const r = await page.evaluate((replis, lieuxMission) => {
-    const out = { replis, lieuxMission, portes: [], pois: [], garages: [], sorties: [], vehicules: [], stands: [], planques: [], activites: [], rides: [], stations: [], caches: [] };
+    const out = { replis, lieuxMission, portes: [], pois: [], garages: [], sorties: [], vehicules: [], stands: [], planques: [], activites: [], rides: [], stations: [], caches: [], bordEst: [] };
     startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9;
     const pos = (o) => ({ x: +o.x.toFixed(2), z: +o.z.toFixed(2) });
     for (const p of PORTES) out.portes.push({ cle: 'porte:' + p.id + (p.garageId ? ':' + p.garageId : '') + (p.boutiqueId ? ':' + p.boutiqueId : ''), id: p.id, garageId: p.garageId || null, ...pos(p), nx: +(p.nx || 0).toFixed(3), nz: +(p.nz === undefined ? 1 : p.nz).toFixed(3), devant: +(typeof profondeurDevant === 'function' ? profondeurDevant(p) : 0).toFixed(2) });
@@ -38,6 +40,17 @@ const dansZone = (x, z) => x >= ZONE.x0 && x <= ZONE.x1 && z >= ZONE.z0 && z <= 
     if (typeof RIDE_DEFS !== 'undefined' && typeof rideDepart === 'function') for (const k of Object.keys(RIDE_DEFS)) { try { const d = rideDepart(k); if (d) out.rides.push({ cle: 'course:' + k, ...pos(d) }); } catch (e) {} }
     if (typeof STATIONS_VELO !== 'undefined') STATIONS_VELO.forEach((s) => out.stations.push({ cle: 'stationVelo:' + Math.round(s.x) + ',' + Math.round(s.z), ...pos(s) }));
     if (POIS.rack) out.caches.push({ cle: 'cache:rack', ...pos(POIS.rack) });
+    { const B = out.bordEst, f2 = (v) => (typeof v === 'number' ? +v.toFixed(2) : v), sig = (o, ks) => ks.map((k) => k + '=' + f2(o[k])).join(' ');
+      const vus = new Set(); for (const arr of sGrid.values()) for (const s of arr) { if (vus.has(s)) continue; vus.add(s);
+        if (Math.abs(s.x - (HALF + 14)) < 1.5 && s.hw < 1.5 && s.hd > 20) B.push({ cle: 'mur:x' + Math.round(s.x) + ':z' + Math.round(s.z - s.hd) + '..' + Math.round(s.z + s.hd), x: s.x, z: s.z, sig: sig(s, ['x', 'z', 'hw', 'hd', 'h']) });
+        else if (typeof LIMITE_EST !== 'undefined' && Math.abs(s.x - (LIMITE_EST + 6)) < 1 && s.hd > 100) B.push({ cle: 'bordureEst', x: s.x, z: s.z, sig: sig(s, ['x', 'z', 'hw', 'hd', 'h']) }); }
+      if (typeof LIMITE_EST !== 'undefined') B.push({ cle: 'limites', x: 0, z: 0, sig: 'LIMITE_EST=' + LIMITE_EST + ' LIMITE_EST_MER=' + LIMITE_EST_MER + ' LIMITE_SUD_MER=' + LIMITE_SUD_MER + ' MER=' + MER });
+      if (typeof AERO !== 'undefined' && AERO.T) B.push({ cle: 'aerogare', x: (AERO.T.x0 + AERO.T.x1) / 2, z: (AERO.T.z0 + AERO.T.z1) / 2, sig: sig(AERO.T, ['x0', 'x1', 'z0', 'z1']) + ' depose=' + f2(AERO.T.x0 - 4.5) });
+      if (typeof DERBY !== 'undefined') B.push({ cle: 'derby', x: DERBY.x, z: DERBY.z, sig: sig(DERBY, ['x', 'z', 'hw', 'hd']) + (DERBY.porte ? ' porte=' + sig(DERBY.porte, ['x', 'z', 'hw', 'hd']) : '') });
+      if (typeof SKX !== 'undefined') B.push({ cle: 'skateXXL', x: (SKX.x0 + SKX.x1) / 2, z: (SKX.z0 + SKX.z1) / 2, sig: sig(SKX, ['x0', 'x1', 'z0', 'z1']) });
+      if (typeof CRIQUE !== 'undefined' && CRIQUE) B.push({ cle: 'crique', x: CRIQUE.x0, z: CRIQUE.z0, sig: sig(CRIQUE, ['x0', 'x1', 'z0']) });
+      if (POIS.naufrage) B.push({ cle: 'galion', x: POIS.naufrage.x, z: POIS.naufrage.z, sig: sig(POIS.naufrage, ['x', 'z']) });
+      for (let x = -300; x <= 420; x += 12) { if (x > 80 && x < 310) continue; for (const z of [MER - 18, MER - 8, MER - 2]) B.push({ cle: 'plage:' + x + ',' + z, x, z, sig: 'sable=' + (typeof estSable === 'function' ? estSable(x, z) : '?') + ' eau=' + estEau(x, z) + ' sol=' + f2(solY(x, z)) }); } }
     /* accessibilité : inondation sur une grille de 1 u (à pied : rayon 0,45 ; en voiture : rayon 1,4), depuis une rue loin de la zone */
     const X0 = 60, X1 = 312, Z0 = -70, Z1 = 312, W = X1 - X0 + 1, Hh = Z1 - Z0 + 1;
     const grille = (ray) => { const ok = new Uint8Array(W * Hh), y = new Float32Array(W * Hh);
@@ -65,13 +78,14 @@ const dansZone = (x, z) => x >= ZONE.x0 && x <= ZONE.x1 && z >= ZONE.z0 && z <= 
   /* comparaison */
   const A = JSON.parse(fs.readFileSync(ref, 'utf8')), dep = fs.existsSync(path.join(R, 'rapport_nuit/canaux_deplacements.json')) ? JSON.parse(fs.readFileSync(path.join(R, 'rapport_nuit/canaux_deplacements.json'), 'utf8')) : {};
   const ko = [], notes = [];
-  for (const L of ['portes', 'pois', 'garages', 'sorties', 'vehicules', 'stands', 'planques', 'activites', 'rides', 'stations', 'caches']) {
+  for (const L of ['portes', 'pois', 'garages', 'sorties', 'vehicules', 'stands', 'planques', 'activites', 'rides', 'stations', 'caches', 'bordEst']) {
     const nouv = new Map(); for (const e of r[L] || []) { if (!nouv.has(e.cle)) nouv.set(e.cle, []); nouv.get(e.cle).push(e); } /* une clé peut être portée par plusieurs objets (deux planches au même endroit) : on prend le plus proche */
     for (const a of A[L] || []) { const l = nouv.get(a.cle); let b = null; if (l) for (const e of l) if (!b || Math.hypot(e.x - a.x, e.z - a.z) < Math.hypot(b.x - a.x, b.z - a.z)) b = e;
       if (!b) { if (L === 'vehicules' || L === 'stands' || L === 'activites') { /* clé à la position : retrouvé par proximité ou par déplacement noté */
           const proche = (r[L] || []).find((e) => (e.key || '') === (a.key || '') && Math.hypot(e.x - a.x, e.z - a.z) < 0.05); if (proche) continue; }
         if (dep[a.cle]) { notes.push(a.cle + ' : ' + dep[a.cle]); continue; } ko.push(L + ' ' + a.cle + ' : disparu'); continue; }
       const bouge = Math.hypot(b.x - a.x, b.z - a.z) > 0.01;
+      if (L === 'bordEst') { if (a.sig !== b.sig && !dep[a.cle]) ko.push('bord est ' + a.cle + ' : changé (' + a.sig + ' → ' + b.sig + ')'); else if (a.sig !== b.sig) notes.push(a.cle + ' changé : ' + dep[a.cle]); continue; }
       if (bouge && !dep[a.cle]) ko.push(L + ' ' + a.cle + ' : déplacé (' + a.x + ',' + a.z + ' → ' + b.x + ',' + b.z + ')' + (a.zone ? ' sans être noté dans canaux_deplacements.json' : ' HORS ZONE'));
       else if (bouge) notes.push(a.cle + ' déplacé (' + a.x + ',' + a.z + ' → ' + b.x + ',' + b.z + ') : ' + dep[a.cle]);
       if (b.eau && !a.eau && !(L === 'vehicules' && b.bateau)) ko.push(L + ' ' + a.cle + ' : dans l’eau'); /* un bateau, lui, doit être à flot ; déjà dans l'eau avant (planque du voilier, marina) : inchangé */
