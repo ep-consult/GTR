@@ -264,10 +264,73 @@ Code : fin du bandeau `LES CANAUX DE LOS REYES` (`PCANAL`, `canauxGraphe`, `proj
 - Haute mer : aucune vedette des canaux en poursuite.
 - Suite complète : **829 vertes**, aucun échec (un saut connu : la somme rare du Ciné-Palace). Relevé de périmètre : aucun écart.
 
+## Phase 3 — bâti (fait)
+
+Code : `VILLA_CANAUX`, `VILLA_CANAUX_TEINTES`, `constructeurCanaux`, `palmierCanaux`, `villaCanaux`, `immeubleCanaux`,
+`pontonsCanaux`, `mkBatiCanaux` (bandeau des canaux) ; les lots dans `canauxDefinir` (`CANAUX.lots`).
+
+- [x] Chaque pâté sec du quartier (12 ; l'atelier du port, (11,8), reste pour la phase 4) est vidé comme en phase 1 (construit puis
+  retiré, sans tirage) et rebâti : **18 villas** sur des lots de 31 × 15,5 u tournés vers leur rue, **3 petits immeubles** (2 et
+  3 niveaux) aux pâtés (11,6), (13,6) au nord et (13,10) à l'est.
+- [x] **Quatre modèles de villas** (`VILLA_CANAUX`) en trois teintes chacun et en miroir, choisis par le rang du lot (aucun tirage) :
+  le cube blanc (deux volumes décalés, baies, claire-voie de bois, terrasse sur le toit), le bungalow de bois (bardage, toit à deux
+  pans, véranda), le duplex (rez enduit, étage en bois en porte-à-faux, balcon), la maison de plage pastel (toit à quatre pans,
+  volets, terrasse à garde-corps). Chaque lot : pelouse, haies mitoyennes, clôture basse, portail et entrée de voiture ouverts, allée,
+  terrasse et transats, boîte aux lettres, un ou deux palmiers ; **13 piscines** où l'on nage (`BASSINS`).
+- [x] Hauteur maximale 9,8 u (trois niveaux), jamais de tour ; les maisons sont derrière la rue des quais : aucune façade ne masque
+  une voie d'eau (vérifié aussi en vue immersive).
+- [x] **Pontons privés** (`CANAUX.pontons`) : planchers flottants de 2,4 u le long des quais, en face des lots ; praticables (on y
+  monte depuis l'eau), un mur pour les bateaux ; jamais devant une marche, sous un pont, ni à hauteur d'un bras ou de la traverse
+  (les bateaux y tournent : un ponton en face faisait tomber une étoile en poursuite).
+- [x] **Six kiosques à beignets de crevettes** sur les quais (`STANDS`, spécialité `port` du quartier) remplacent les kiosques du
+  mobilier retirés.
+- [x] Géométries : UNE géométrie à couleurs de sommets par pâté (le matériau du mobilier, `MOB_MAT` ; toits par `geoToit`), un seul
+  matériau neuf (l'eau des piscines) ; 45 000 sommets pour tout le bâti.
+- [x] Carte : jardins, maisons, immeubles et piscines.
+
+## Phase 4 — nautique et ambiance (fait)
+
+Code : `canauxNautiqueDefinir`, `mkNautiqueCanaux`, `amarreCanal`, `enseigneCanaux`, `dockersCanaux`, `canauxStartRun`
+(`canauxStartRunPrive`), le débarquement dans `sortirVehicule`.
+
+- [x] **Six bateaux du décor bâchés** (vedettes et offshores, modèles V3/V4 aplatis en couleurs de sommets : aucun appel de rendu
+  de plus — par matériau, ils en coûtaient 48), le long des pontons privés et de murs de quai nus, jamais à plus de 5 u du quai ;
+  un mur pour la navigation (`estEauNav` : `amarreCanal`), de l'eau pour un nageur. **La bâche les distingue des pilotables.**
+- [x] **Trois jet-skis pilotables** (deux pontons privés, le ponton de l'atelier) et **la vedette de l'embarcadère public**, posés à
+  chaque partie par `canauxStartRun`, sur un générateur privé (la partie suivante tire comme avant).
+- [x] **L'embarcadère public** (canal ouest, quai est, z 222–236) : un ponton de 3 × 14 u, kiosque à billets, bittes, lampadaires,
+  l'enseigne « EMBARCADÈRE » ; on y arrive à pied depuis la rue x = 168.
+- [x] **Débarquer** : à la descente d'un bateau dans un canal, on monte sur le ponton le plus proche (9 u), sinon sur les marches
+  (6 u), sinon on plonge — embarcadère, atelier, quatre pontons privés et seize escaliers.
+- [x] **L'atelier « Marée Basse »** (POIS.port, pâté (11,8)) : les volumes du dock RUCHE 9 restent (la cour du 4x4 amphibie se
+  cherche au hasard parmi eux : un solide de plus changerait le tirage de toute la partie) ; il est habillé autour — l'enseigne
+  « MARÉE BASSE » à la place de « RUCHE 9 », un bateau sur son ber sous un portique jaune, l'établi, trois moteurs hors-bord, des
+  bouées — et a son ponton sur le quai d'en face (« MARÉE BASSE — CALE »), accessible par la rue x = 210. Sec, sans porte.
+- [x] **Les Dockside Boys** : quatre figurants (`figurant`, type `mur_batte` ou `mur_pompe` : touchés, ils deviennent de vrais
+  Dockers) à l'atelier et sur son quai, créés à la première partie (au chargement, ils remplissaient le cache des corps humains
+  avant le premier ennemi de la partie : un tirage de moins pour tout ce qui suivait).
+- [x] **La Krasnaya Brigada** : deux villas « cube », une voiture de luxe dans l'allée (SUV, limousine), deux gardes au portail.
+
+### Mesures (phases 3 et 4)
+
+- Relevé de protection du périmètre : **aucun écart** (185 véhicules posés : les 178 d'avant, identiques, et les nouveaux du
+  quartier ; 53 stands). Empreinte du décor identique (après deux corrections : les enseignes et les bateaux du décor tiraient sur le
+  générateur du décor — enseigne propre aux canaux, modèle V3/V4 direct).
+- Tests : « Canaux, le bâti » (18 villas des quatre modèles, 3 immeubles, 13 piscines, 6 pontons, 6 kiosques, 45 144 sommets ;
+  aucun volume dans l'eau ni sur la chaussée, aucune allée bouchée, un jet-ski bute sur un ponton) ; « Canaux, nautique et
+  ambiance » (bâchés près du quai, pilotables qui démarrent, embarcadère depuis la rue, débarquement à l'embarcadère, à l'atelier et
+  aux marches, Dockers figurants, enseigne remplacée, 4 gardes et 2 voitures de la Brigada).
+- Suite complète : **832 vertes, aucun échec, aucun saut**. Deux tests rendus maîtres de leur scène au passage : « Tir à la tête »
+  (un ennemi de la partie tirait aussi sur la cible) et le bus des ponts (une moto garée au hasard sur la rue d'un pont).
+- Construction : bâti ~10 ms, nautique ~18 ms ; `mkCanaux` en tout ~70 ms sur ce PC.
+
+Captures : `p3_carte_statique.png` (jardins, maisons, piscines), `p3_villas_o.png`, `p3_quartier_imm.png`, `p3_immeuble.png`,
+`p4_embarcadere.png`, `p4_atelier.png`, `p4_canal_imm.png` (le tablier orange effacé au-dessus de la caméra).
+
 ## Phases
 
 - [x] Phase 1 — squelette jouable
 - [x] Phase 2 — police maritime
-- [ ] Phase 3 — bâti
-- [ ] Phase 4 — nautique et ambiance
+- [x] Phase 3 — bâti
+- [x] Phase 4 — nautique et ambiance
 - [ ] Phase 5 — planque villa Miami

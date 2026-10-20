@@ -14176,6 +14176,7 @@ async function main() {
         if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); META.vue = 'fps'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WANTED.heat = 0;
         for (const e of ennemis) e.mort = true; WAVES.etat = 'repos'; WAVES.t = 1e9; viderOiseaux();
         for (const v of vehicules) { scene.remove(v.mesh); libererEntite(v.mesh); } vehicules.length = 0; for (const q of pietons) scene.remove(q.h.g); pietons.length = 0;
+        for (const q of ennemis) { if (q.h && q.h.g) scene.remove(q.h.g); if (q.mesh) scene.remove(q.mesh); } ennemis.length = 0; /* le test maîtrise sa scène : un ennemi de la partie (garde, patrouille) tirait aussi sur le gangster visé (corps : deux balles au lieu d'une) */
         // une rue libre devant le joueur
         let x0 = POIS.place.x, z0 = POIS.place.z, ang = 0, best = -1;
         for (let gx = -2; gx <= 2; gx++) for (let gz = -2; gz <= 2; gz++) { const cx = POIS.place.x + gx * 13, cz = POIS.place.z + gz * 13; if (solidAt(cx, cz, 2)) continue; for (const a of [0, Math.PI / 2, Math.PI, -Math.PI / 2]) { let L = 0; for (let d = 2; d < 30; d++) { if (solidAt(cx + Math.sin(a) * d, cz + Math.cos(a) * d, 1.2)) break; L = d; } if (L > best) { best = L; ang = a; x0 = cx; z0 = cz; } } }
@@ -15310,6 +15311,7 @@ async function main() {
           bilan.push(k + ' ' + n + ' ' + res.t.toFixed(0) + ' s/' + res.chocs + ' choc(s)'); }
         info.push('bateaux : ' + bilan.join(', '));
         /* 3. les voitures sur les six ponts, dans les deux sens : le tablier, jamais l'eau */
+        for (const v of vehicules.slice()) { scene.remove(v.mesh); vehicules.splice(vehicules.indexOf(v), 1); } /* le test maîtrise sa scène : une moto garée au hasard sur la rue d'un pont arrêtait le bus */
         for (const cle of ['citadine', 'busville']) for (const p of C.ponts) for (const sg of [1, -1]) { const zl = p.zc + 3.2 * sg, x0 = sg > 0 ? p.x0 - 20 : p.x1 + 20, x1 = sg > 0 ? p.x1 + 20 : p.x0 - 20;
           const v = creerVehicule(cle, x0, zl, sg > 0 ? Math.PI / 2 : -Math.PI / 2, null); v.conduit = 'joueur'; P.veh = v; let hMax = 0, t = 0;
           for (; t < 20; t += dt) { majVehiculePhys(v, dt, 0.6, clamp((angDiff(v.ang, sg > 0 ? Math.PI / 2 : -Math.PI / 2) + clamp((zl - v.z) * -0.05 * sg, -0.3, 0.3)) * 2, -1, 1), false); if (v.noye) break; hMax = Math.max(hMax, v.h || 0); if ((sg > 0 && v.x > x1) || (sg < 0 && v.x < x1)) break; }
@@ -15453,6 +15455,84 @@ async function main() {
         partie(); return { ko, info };
       });
       if (r.ko.length) fail('Police maritime des canaux : ' + r.ko.join(' ; ')); else ok('Police maritime des canaux : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
+    // Canaux : le bâti (20 octobre, phase 3) — villas basses variées, trois petits immeubles, piscines où l'on nage, pontons
+    // praticables (un mur pour les bateaux), kiosques du quartier ; rien dans l'eau ni sur une rue, rien de plus haut que trois
+    // niveaux, l'entrée de voiture de chaque villa dégagée. Lots lus dans CANAUX.lots, modèles dans VILLA_CANAUX.
+    // -------------------------------------------------------------------
+    console.log('\n--- Canaux : le bâti — villas, immeubles, piscines, pontons, kiosques ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [], C = CANAUX; if (!C.ok || !C.lots.length) return { ko: ['aucun lot bâti dans le quartier'], info };
+        const villas = C.lots.filter((l) => !l.immeuble), imm = C.lots.filter((l) => l.immeuble), modeles = new Set(villas.map((l) => VILLA_CANAUX_ORDRE[l.rang % VILLA_CANAUX_ORDRE.length]));
+        if (villas.length < 12) ko.push(villas.length + ' villas seulement'); if (imm.length < 2 || imm.length > 3) ko.push(imm.length + ' petits immeubles (2 ou 3 attendus)');
+        for (const m of Object.keys(VILLA_CANAUX)) if (!modeles.has(m)) ko.push('le modèle « ' + m + ' » n’est jamais construit');
+        /* les volumes : jamais dans l'eau, sur une rue ou un tablier ; jamais plus haut que trois niveaux */
+        const S = C.batiSolides || []; if (!S.length) ko.push('aucun volume bâti (solides)');
+        for (const s of S) { if (s.h > 10.5) ko.push('volume de ' + s.h.toFixed(1) + ' u de haut en (' + s.x.toFixed(0) + ', ' + s.z.toFixed(0) + ')');
+          for (const [dx, dz] of [[-1, -1], [1, -1], [1, 1], [-1, 1], [0, 0]]) { const x = s.x + dx * s.hw, z = s.z + dz * s.hd; if (dansCanal(x, z) || pontCanal(x, z) || surChaussee(x, z)) { ko.push('volume bâti dans l’eau ou sur la chaussée en (' + x.toFixed(0) + ', ' + z.toFixed(0) + ')'); break; } } }
+        /* l'entrée de voiture de chaque villa : de la rue au fond de l'allée, rien en travers */
+        for (const l of villas) { const s = l.rang % 2 ? -1 : 1, fz = Math.cos(l.ry); for (const zz of [7.6, 5, 2]) { const x = l.x + s * 9.5 * Math.cos(l.ry), z = l.z + zz * fz; if (solidAt(x, z, 1.2, undefined, 0.5)) { ko.push('allée bouchée au lot ' + l.rang + ' (' + x.toFixed(0) + ', ' + z.toFixed(0) + ')'); break; } } }
+        /* les piscines : de l'eau où l'on nage, au niveau du jardin */
+        const pisc = BASSINS.filter((b) => b.hw && dansBBCanaux(b.x, b.z)); if (pisc.length < 6) ko.push(pisc.length + ' piscines seulement');
+        for (const b of pisc) if (!estEau(b.x, b.z) || Math.abs(niveauEau(b.x, b.z) - b.y) > 0.01) ko.push('piscine (' + b.x.toFixed(0) + ', ' + b.z.toFixed(0) + ') : pas de l’eau');
+        /* les pontons : praticables, on y monte depuis l'eau, un mur pour les bateaux */
+        if (C.pontons.length < 3) ko.push(C.pontons.length + ' pontons seulement');
+        for (const p of C.pontons) { const x = (p.x0 + p.x1) / 2, z = (p.z0 + p.z1) / 2; if (estEau(x, z) || estEauNav(x, z) || Math.abs(solY(x, z) - p.h) > 0.01 || solY(x, z) > C.niveau + 0.45) ko.push('ponton (' + x.toFixed(0) + ', ' + z.toFixed(0) + ') : eau ' + estEau(x, z) + ', navigable ' + estEauNav(x, z) + ', sol ' + solY(x, z).toFixed(2)); }
+        /* un bateau bute sur un ponton, le joueur y monte depuis l'eau */
+        { const p = C.pontons[0], x = p.cote < 0 ? p.x1 + 4 : p.x0 - 4, z = (p.z0 + p.z1) / 2, v = creerVehicule('jetski', x, z, p.cote < 0 ? -Math.PI / 2 : Math.PI / 2, null); v.conduit = 'joueur';
+          let mini = 1e9; for (let i = 0; i < 180; i++) { majVehiculePhys(v, 1 / 60, 0.6, 0, false); mini = Math.min(mini, p.cote < 0 ? v.x - p.x1 : p.x0 - v.x); }
+          if (mini < -0.3) ko.push('le jet-ski traverse le ponton (' + mini.toFixed(2) + ' u)'); scene.remove(v.mesh); vehicules.splice(vehicules.indexOf(v), 1); }
+        /* les kiosques du quartier : sur la terre ferme */
+        const kio = STANDS.filter((s) => s.q === 'port' && dansBBCanaux(s.x, s.z)); if (kio.length < 4) ko.push(kio.length + ' kiosques dans le quartier');
+        for (const s of kio) if (estEau(s.x, s.z) || dansCanal(s.x, s.z)) ko.push('kiosque dans l’eau');
+        info.push(villas.length + ' villas (' + [...modeles].join(', ') + '), ' + imm.length + ' petits immeubles, ' + pisc.length + ' piscines, ' + C.pontons.length + ' pontons, ' + kio.length + ' kiosques ; ' + (C.nSommetsBati | 0) + ' sommets');
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Canaux, le bâti : ' + r.ko.join(' ; ')); else ok('Canaux, le bâti : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
+    // Canaux : nautique et ambiance (20 octobre, phase 4) — bateaux du décor bâchés, amarrés hors du passage et un mur pour la
+    // navigation ; deux ou trois jet-skis et la vedette de l'embarcadère, pilotables ; débarquement sur les pontons et les marches ;
+    // l'atelier « Marée Basse » et ses Dockers (figurants) ; deux villas de la Brigada (gardes, voitures de luxe).
+    // -------------------------------------------------------------------
+    console.log('\n--- Canaux : nautique et ambiance — bateaux amarrés, jet-skis, embarcadère, débarquement, Marée Basse, Brigada ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [], C = CANAUX; if (!C.ok) return { ko: ['CANAUX.ok faux'], info };
+        META.vue = 'classique'; if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9;
+        /* le décor : bâché, près du quai, un mur pour un bateau, jamais un véhicule */
+        if (C.amarres.length < 4) ko.push(C.amarres.length + ' bateaux du décor amarrés');
+        for (const a of C.amarres) { const e = C.eaux.find((q) => q.id === 'canalO' && a.x > q.x0 - 1 && a.x < q.x1 + 1) || C.eaux.find((q) => q.id === 'canalE'), dq = Math.min(Math.abs(a.x - e.x0), Math.abs(a.x - e.x1));
+          if (dq > 5.2) ko.push('bateau du décor à ' + dq.toFixed(1) + ' u du quai (passage utile)'); if (estEauNav(a.x, a.z)) ko.push('un bateau du décor se traverse en bateau');
+          if (vehicules.some((v) => !v.mort && dist2(v.x, v.z, a.x, a.z) < 4)) ko.push('un véhicule pilotable à la place d’un bateau du décor'); }
+        /* les pilotables : 2 ou 3 jet-skis aux pontons privés et à l'atelier, la vedette de l'embarcadère */
+        const jet = vehicules.filter((v) => !v.mort && v.canauxAmarre && v.key === 'jetski'), ved = vehicules.filter((v) => !v.mort && v.canauxAmarre && v.def.eau && v.key !== 'jetski');
+        if (jet.length < 2 || jet.length > 3) ko.push(jet.length + ' jet-skis pilotables (2 ou 3 attendus)'); if (!ved.length) ko.push('aucune vedette à l’embarcadère');
+        for (const v of jet.concat(ved)) { if (!estEauNav(v.x, v.z)) ko.push(v.key + ' amarré hors de l’eau'); P.x = v.x; P.z = v.z; entrerVehicule(v); if (P.veh !== v) { ko.push('on ne monte pas sur ' + v.key); continue; }
+          const x0 = v.x, z0 = v.z; for (let i = 0; i < 120; i++) majVehiculePhys(v, 1 / 60, 0.5, 0, false); if (Math.hypot(v.x - x0, v.z - z0) < 3) ko.push(v.key + ' ne démarre pas (' + Math.hypot(v.x - x0, v.z - z0).toFixed(1) + ' u)');
+          sortirVehicule(true); }
+        /* l'embarcadère, depuis la route : de la chaussée au ponton, à pied, rien en travers */
+        const E = C.embarcadere; { const z = (E.z0 + E.z1) / 2 + 3; let bloque = false; for (let x = E.x1 + 10; x > E.x0 + 0.5; x -= 0.5) if (solidAt(x, z, 0.4) || (estEau(x, z) && !pontonCanal(x, z))) { bloque = true; break; }
+          if (bloque) ko.push('l’embarcadère ne se rejoint pas à pied depuis la rue'); if (!surChaussee(E.x1 + 10, z)) ko.push('pas de chaussée à 10 u de l’embarcadère'); }
+        /* débarquer : à l'embarcadère, au ponton de l'atelier (le ponton), à côté de marches (les marches) */
+        const debarque = (x, z) => { const v = creerVehicule('jetski', x, z, 0, null); P.x = v.x; P.z = v.z; entrerVehicule(v); sortirVehicule(); const o = { ponton: !!pontonCanal(P.x, P.z), marche: !!marcheCanal(P.x, P.z), eau: estEau(P.x, P.z) }; scene.remove(v.mesh); vehicules.splice(vehicules.indexOf(v), 1); return o; };
+        const A = C.atelierPonton, m0 = C.marches.find((m) => m.axe === 'z' && m.sens > 0);
+        const d1 = debarque(E.x0 - 2.5, (E.z0 + E.z1) / 2), d2 = debarque(A.x1 + 2.5, (A.z0 + A.z1) / 2), d3 = debarque(m0.x0 < 150 ? m0.x1 + 3 : m0.x0 - 3, (m0.z0 + m0.z1) / 2);
+        if (!d1.ponton) ko.push('à l’embarcadère, on ne débarque pas sur le ponton'); if (!d2.ponton) ko.push('à l’atelier, on ne débarque pas sur le ponton'); if (!d3.marche && !d3.ponton) ko.push('près des marches, on ne débarque pas dessus');
+        /* l'atelier « Marée Basse » : au sec, son ponton en face, ses Dockers (des figurants) ; l'enseigne RUCHE 9 cachée */
+        if (!POIS.port || estEau(POIS.port.x, POIS.port.z) || dansCanal(POIS.port.x, POIS.port.z)) ko.push('POIS.port pas au sec');
+        if (Math.hypot(POIS.port.x - (A.x0 + A.x1) / 2, POIS.port.z - (A.z0 + A.z1) / 2) > 45) ko.push('le ponton de l’atelier est loin de l’atelier');
+        if (!C.dockers || C.dockers.length < 3 || C.dockers.some((h) => !FIGURANTS.some((f) => f.h === h))) ko.push('les Dockside Boys de l’atelier ne sont pas des figurants');
+        if (ENSEIGNES.filter((e) => e.masqueeCanaux).length !== 1) ko.push('l’enseigne RUCHE 9 n’est pas remplacée');
+        /* la Brigada : deux villas, une voiture de luxe dans l'allée, deux gardes au portail */
+        const gardes = ennemis.filter((e) => !e.mort && e.garde && e.fac === 'chrome' && dansBBCanaux(e.x, e.z)), luxe = vehicules.filter((v) => !v.mort && !v.conduit && ['suvLuxe', 'limousine'].includes(v.key) && dansBBCanaux(v.x, v.z) && C.lots.some((l) => Math.abs(v.x - l.x) < 15.5 && Math.abs(v.z - l.z) < 7.8));
+        if (gardes.length < 4) ko.push(gardes.length + ' gardes de la Brigada'); if (luxe.length < 2) ko.push(luxe.length + ' voitures de luxe dans les allées');
+        info.push(C.amarres.length + ' bateaux du décor bâchés, ' + jet.length + ' jet-skis et ' + ved.length + ' vedette pilotables, débarquement à l’embarcadère, à l’atelier et aux marches, ' + C.dockers.length + ' Dockers, ' + gardes.length + ' gardes et ' + luxe.length + ' voitures de la Brigada');
+        if (P.veh) sortirVehicule(true); startRun(); return { ko, info };
+      });
+      if (r.ko.length) fail('Canaux, nautique et ambiance : ' + r.ko.join(' ; ')); else ok('Canaux, nautique et ambiance : ' + r.info.join(' ; '));
     }
 
     // -------------------------------------------------------------------
