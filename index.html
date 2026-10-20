@@ -230,6 +230,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
 #btnJump{right:108px;bottom:calc(env(safe-area-inset-bottom,0px) + 186px);width:52px;height:52px;font-size:20px;overflow:hidden;border-color:#ffd23f88}
 #btnJetpack{right:108px;bottom:calc(env(safe-area-inset-bottom,0px) + 246px);width:58px;height:58px;font-size:21px;overflow:hidden;border-color:#35c8ff88}
 #btnJump small{font-size:8px;display:block}
+#btnJump.ejection{border-color:#ffc21a;background:repeating-linear-gradient(45deg,rgba(255,194,26,.42) 0 6px,rgba(18,18,18,.6) 6px 12px)}
+#btnJump.ejection small{font-size:7px;letter-spacing:-.2px}
 #specCd{position:absolute;inset:0;background:#000b;color:var(--cyan);font-size:15px;display:none;align-items:center;justify-content:center;border-radius:50%}
 #btnBrake{right:122px;bottom:calc(env(safe-area-inset-bottom,0px) + 42px);width:66px;height:66px;font-size:22px;display:none;border-color:#ff9f2e66}
 #btnBrake.gros{right:16px;bottom:calc(env(safe-area-inset-bottom,0px) + 62px);width:92px;height:92px;font-size:32px}
@@ -2912,7 +2914,7 @@ const VEHDEFS={
   // pilotage normal). Le chasseur garde les 3 s pleines (appareil lourd) ;
   // la voltige réduit à 1,5 s (déclenchement plus rapide et vif) via
   // FIGURE_SEUIL_DEFAUT, voir plus haut.
-  chasseur:{nom:'Chasseur "Épervier"',vmax:56,acc:17,man:1.7,hp:240,long:8,larg:2,type:'car',air:'avion',armes:true,cache:true,figures:true,figureSeuil:3,cols:[0x3e4434]},
+  chasseur:{nom:'Chasseur "Épervier"',vmax:56,acc:17,man:1.7,hp:240,long:8,larg:2,type:'car',air:'avion',armes:true,cache:true,figures:true,figureSeuil:3,cols:[0x3e4434],siegeEjectable:true},
   // Avion de voltige : petit, léger, très vif — vmax/acc/man élevés, hp
   // faible (fragile). turnVol pilote son propre taux de virage EN VOL (les
   // autres avions restent sur le taux fixe partagé, voir majVol — ne pas y
@@ -23295,14 +23297,14 @@ const ONDE_ROUGE=new THREE.Mesh(new THREE.TorusGeometry(1,0.4,8,32),
   new THREE.MeshBasicMaterial({color:0xff2020,transparent:true,opacity:0,depthWrite:false}));
 ONDE_ROUGE.rotation.x=-Math.PI/2; ONDE_ROUGE.visible=false; scene.add(ONDE_ROUGE);
 ONDE_ROUGE.userData={t:0};
-function explosionFx(x,z){
-  spawnP(x,1.5,z,0,0,0,0.34,7,0xfff2c0,0,44);
-  spawnP(x,1.5,z,0,0,0,0.42,4.5,0xff9f2e,0,30);
-  burst(x,1.2,z,18,0xff9f2e,13,7);
-  burst(x,1.2,z,12,0xff5030,10,5);
-  burst(x,1.4,z,8,0xffd23f,15,4);
-  for(let i=0;i<9;i++) fumee(x+rand(-1.8,1.8),rand(0.5,2.4),z+rand(-1.8,1.8),0x3a3d44);
-  ONDE.visible=true; ONDE.position.set(x,0.4,z); ONDE.scale.set(1,1,1);
+function explosionFx(x,z,y){ const b=y||0; /* y : la hauteur du sol de l'explosion (un appareil sur un toit, un relief) */
+  spawnP(x,b+1.5,z,0,0,0,0.34,7,0xfff2c0,0,44);
+  spawnP(x,b+1.5,z,0,0,0,0.42,4.5,0xff9f2e,0,30);
+  burst(x,b+1.2,z,18,0xff9f2e,13,7);
+  burst(x,b+1.2,z,12,0xff5030,10,5);
+  burst(x,b+1.4,z,8,0xffd23f,15,4);
+  for(let i=0;i<9;i++) fumee(x+rand(-1.8,1.8),b+rand(0.5,2.4),z+rand(-1.8,1.8),0x3a3d44);
+  ONDE.visible=true; ONDE.position.set(x,b+0.4,z); ONDE.scale.set(1,1,1);
   ONDE.material.opacity=0.9; ONDE.userData.t=0.4;
   SFX.explo(); secousse(13); DANGER.x=x; DANGER.z=z; DANGER.t=3;
 }
@@ -24969,12 +24971,12 @@ function exploserVehicule(v){
   // rayonNettoyerVehicule, CLAUDE.md nettoyage d'état).
   rayonNettoyerVehicule(v);
   const duJoueur=(v===P.veh);
-  explosionFx(v.x,v.z);
+  explosionFx(v.x,v.z,v.def.air?Math.max(0,(v.alt||0)-1.2):0); /* un appareil : là où il est (toit, montagne), pas au niveau de la rue */
   if(v.def.citerne){ // camion-citerne : boule de feu, souffle à 12 u
     for(let k=0;k<4;k++) explosionFx(v.x+rand(-4,4),v.z+rand(-4,4)); secousse(10);
     for(const o of vehicules) if(o!==v&&!o.mort&&!o.captureOvni&&!(o.def.air&&o.vol)&&dist2(o.x,o.z,v.x,v.z)<144) abimerVehicule(o,110,v.tapeJoueur);
     for(const e of ennemis){ if(!e.mort&&!e.heli&&!e.captureOvni&&dist2(e.x,e.z,v.x,v.z)<144) toucherEnnemi(e,120,v.tapeJoueur,14); } }
-  if(duJoueur){ sortirVehicule(true); toucherJoueur(35); }
+  if(duJoueur){ if(v.def.air&&v.vol) mortCrashAerien(v); else { sortirVehicule(true); toucherJoueur(35); } } /* en vol : le pilote meurt avec l'appareil (avant : à pied au pied de l'épave) */
   else if(dist2(v.x,v.z,P.x,P.z)<36&&Math.abs((P.y||0)-(v.h||0))<5) toucherJoueur(45); // jamais le joueur loin au-dessus (sous voile après avoir sauté du véhicule)
   for(const e of ennemis){ if(!e.mort&&!e.heli&&!e.captureOvni&&dist2(e.x,e.z,v.x,v.z)<40) toucherEnnemi(e,95,v.tapeJoueur,10); }
   for(const p of pietons){ if(p.etat!=='mort'&&!p.captureOvni&&dist2(p.x,p.z,v.x,v.z)<30) tuerPieton(p,v.tapeJoueur,8); }
@@ -26018,7 +26020,7 @@ function entrerVehicule(v){
       toast('🧲 Survole un véhicule (anneau vert) et appuie sur AIMANT pour l’accrocher, rappuie pour le lâcher','or'); }
     if(v.def.air==='avion') toast(META.vue!=='classique'?'Monte la manette GAZ, puis tire le joystick vers toi pour décoller':'Pointe le joystick vers le bout de la piste et fonce !','or');
     else if(!v.def.ovni) toast('Maintiens MONTER pour décoller','or');
-    el('btnSpec').style.display='none'; el('btnJump').style.display='flex';
+    el('btnSpec').style.display='none'; el('btnJump').style.display='flex'; labelSaut(siegeEjectable(v)); /* le chasseur : ÉJECTION */
   }
   // Nitro (garages tuning) : bouton ESQUIVE, libre au volant — même réemploi
   // que CABRER/PELLE/AMBULANCE/MISSILE, qui gardent la priorité.
@@ -26178,7 +26180,7 @@ function boutonsAPied(){
   el('btnBrake').innerHTML=ico('ico-btn-brake','🛑')+'<small>FREIN</small>'; /* l'icône aussi : en vol, c'était la flèche DESCENDRE */
   el('btnDodge').innerHTML=ico('ico-btn-dodge','💨')+'<small>ESQUIVE</small>';
   el('btnGren').innerHTML=ico('ico-btn-grenade','💣')+'<small id="grenN">'+P.grenades+'</small>';
-  el('btnJump').style.display='none'; el('btnSpec').style.display='flex';
+  el('btnJump').style.display='none'; el('btnSpec').style.display='flex'; labelSaut(false);
   if(el('manetteGaz').style.display==='block'){ el('manetteGaz').style.display='none'; el('btnSprint').style.display=''; } el('btnDodge').classList.remove('volB'); MANETTE.frein=false; MANETTE.doigt=null; /* la manette des gaz de l'avion (SPRINT n'est rendu que s'il lui avait cédé la place) */
 }
 function ouvrirParachute(){
@@ -26215,27 +26217,138 @@ function sauterEnParachute(){
   const spInit=clamp(Math.abs(v.v||0)*0.6,0,CHUTE_VMAX_H);
   P.chuteVx=Math.sin(v.ang)*spInit; P.chuteVz=Math.cos(v.ang)*spInit;
   paraMesh.visible=false;
-  el('btnFire').style.display='flex'; el('btnDodge').style.display='flex';
-  el('btnDodge').innerHTML=ico('ico-btn-dodge','💨')+'<small>ESQUIVE</small>';
-  el('btnSwitch').style.display='flex'; el('btnSwitch').innerHTML=ico('ico-btn-switch','🔁')+'<small>ARME</small>';
-  el('btnBrake').style.display='none'; el('btnBrake').classList.remove('gros'); el('btnBrake').classList.remove('volA');
-  el('vehWrap').style.display='none';
-  NITRO_HUD.wrap.style.display='none'; v.nitroActif=false; // garages tuning : les DEUX chemins de sortie
-  el('btnSprint').innerHTML=ico('ico-btn-sprint','🏃')+'<small>SPRINT</small>'; // reset complet : LANCE (pompier) change aussi l'icône, pas que le texte
-  el('btnBrake').innerHTML=ico('ico-btn-brake','🛑')+'<small>FREIN</small>'; /* l'icône aussi : en vol, c'était la flèche DESCENDRE */
-  el('btnGren').innerHTML=ico('ico-btn-grenade','💣')+'<small id="grenN">'+P.grenades+'</small>'; // voir le même correctif dans sortirVehicule
-  el('btnSpec').style.display='flex';
+  boutonsAPied(); v.nitroActif=false; /* les boutons « à pied » (la manette des gaz rangée aussi) ; garages tuning : les DEUX chemins de sortie */
   el('btnJump').style.display='flex'; // reste dispo : appuie pour ouvrir la voile
   majArmeJoueur(); moteurStop();
   toast('Chute libre — appuie sur 🪂 pour ouvrir !','warn'); SFX.ui(); vibre(50);
   // l'appareil abandonné en plein vol s'écrase sans faire de mal au joueur qui vient d'en sortir
-  if(!v.mort){ v.mort=true; explosionFx(v.x,v.z); }
+  if(!v.mort){ v.mort=true; explosionFx(v.x,v.z,Math.max(0,valt-1.2)); if(!META.defis.crash) META.defis.crash=true; } /* « Assurance tous risques » : on a survécu à la perte de son appareil */
 }
-el('btnJump').addEventListener('pointerdown',()=>{ if(P.veh) sauterEnParachute(); else ouvrirParachute(); });
+el('btnJump').addEventListener('pointerdown',()=>{ if(P.veh){ if(siegeEjectable(P.veh)) ejecterSiege(); else sauterEnParachute(); } else ouvrirParachute(); });
+/* ---------- Siège éjectable et crash mortel (20 octobre) ----------
+   Demandé : « ajouter un siège éjectable sur le chasseur, et régler les crashs d'avion et d'hélicoptère : il faut que le joueur
+   meure ; actuellement il revit en bas du crash ». Avant : un appareil détruit avec le joueur à bord le reposait à pied à côté
+   de l'épave (sortirVehicule) avec 35 de dégâts — au sol comme en plein vol.
+   - Crash mortel (mortCrashAerien, appelée par exploserVehicule) : un appareil du joueur détruit EN VOL (crash, abattu) emporte
+     son pilote. Au sol (garé, au roulage), rien ne change. Pour s'en sortir : sauter (SAUT, tout appareil) ou s'éjecter.
+     Le défi « Assurance tous risques » (survivre à un crash aérien) se gagne désormais en quittant à temps un appareil perdu.
+   - Siège éjectable (VEHDEFS.siegeEjectable : le chasseur) : le bouton SAUT devient ÉJECTION (rayé jaune et noir, labelSaut).
+     La verrière saute, la fusée part EJ_DELAI s plus tard le long du DESSUS de l'avion (sur le dos au ras du sol, elle envoie
+     dans le sol : mortel, comme en vrai) ; le siège monte avec le pilote assis, traînée de fumée, se sépare au sommet et la
+     voile s'ouvre toute seule (ouvrirParachute) : on finit sous voile comme après un saut. L'avion, sans pilote, poursuit sa
+     trajectoire (gravité, nez qui suit la vitesse, roulis) et s'écrase plus loin (exploserVehicule à l'impact). En vol seulement.
+   Physique sur dtJeu. Le siège est retiré par ejectionFinSiege (mourir) ; tout par ejectionVider (startRun). */
+const EJECT={siege:null,t:0,feu:false,fum:0,ang:0,vel:new THREE.Vector3(),up:new THREE.Vector3(),hip:new THREE.Vector3(),modele:null,flamme:null,siegeLibre:null,verrieres:[],avions:[],geoV:null,matV:null,dernierImpact:null};
+const EJ_CATAPULTE=7, EJ_FUSEE=140, EJ_FUSEE_T=0.24, EJ_DELAI=0.12, EJ_SEPARE_MIN=0.6, EJ_SEPARE_MAX=1.4, EJ_FREIN=1.1, EJ_AVION_VIE=25;
+/* EJ_CATAPULTE : vitesse du coup de canon du siège (u/s, le long du dessus de l'avion) ; EJ_FUSEE : poussée de la fusée (u/s²)
+   pendant EJ_FUSEE_T s, EJ_DELAI s après la verrière ; séparation entre EJ_SEPARE_MIN et EJ_SEPARE_MAX s, au sommet ; EJ_FREIN :
+   freinage horizontal du siège (1/s) ; EJ_AVION_VIE : un avion sans pilote encore en l'air au bout de ce temps explose. */
+const _eA=new THREE.Vector3(), _eB=new THREE.Vector3(), _eC=new THREE.Vector3(), _eQ=new THREE.Quaternion(), _eZ=new THREE.Vector3(0,0,1);
+function siegeEjectable(v){ return !!(v&&v.def&&v.def.siegeEjectable); }
+function labelSaut(ej){ const b=el('btnJump'); if(!b) return; const k=ej?'ej':'saut'; if(b._lbl===k) return; b._lbl=k;
+  b.innerHTML=ico('ico-btn-jump','🪂')+'<small>'+(ej?'ÉJECTION':'SAUT')+'</small>'; b.classList.toggle('ejection',!!ej); }
+function mortCrashAerien(v){ /* l'appareil du joueur détruit en vol : le pilote reste dans l'épave en feu */
+  const x=v.x, z=v.z; sortirVehicule(true);
+  P.x=x; P.z=z; P.y=solPied(x,z); P.chute=false; P.para=false; P.wing=false; P.vy=0; P.chuteVx=0; P.chuteVz=0; paraMesh.visible=false;
+  P.hp=0; P.bouclier=0; if(P.h) P.h.g.visible=false;
+  if(!v.crashAir){ toast('Abattu en plein vol','warn'); bigMsg('💥 ABATTU'); }
+  mourir(); }
+function modeleSiegeEjectable(){ if(EJECT.modele) return EJECT.modele; /* à la première éjection (matériaux propres, jamais ceux de mat()) */
+  const g=new THREE.Group(), mo=new THREE.MeshLambertMaterial({color:0x4b5338}), mm=new THREE.MeshLambertMaterial({color:0x2b2e33}),
+    mj=new THREE.MeshLambertMaterial({color:0xffc21a}), mc=new THREE.MeshLambertMaterial({color:0x1d1f22});
+  const bx=(w,h,d,m,x,y,z,rx)=>{ const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m); o.position.set(x,y,z); if(rx) o.rotation.x=rx; g.add(o); return o; };
+  bx(0.6,0.1,0.56,mo,0,0.42,0.03); bx(0.06,0.18,0.56,mm,-0.31,0.5,0.03); bx(0.06,0.18,0.56,mm,0.31,0.5,0.03); /* assise et ses joues */
+  bx(0.6,0.95,0.12,mo,0,0.97,-0.27,-0.12); bx(0.5,0.36,0.26,mo,0,1.58,-0.33); bx(0.52,0.06,0.27,mj,0,1.43,-0.33); /* dossier, têtière (le parachute), bande jaune */
+  bx(0.07,1.35,0.1,mm,-0.33,0.95,-0.36); bx(0.07,1.35,0.1,mm,0.33,0.95,-0.36); /* rails */
+  const an=new THREE.Mesh(new THREE.TorusGeometry(0.09,0.022,6,16),mj); an.position.set(0,0.52,0.33); an.rotation.x=-0.5; g.add(an); /* la poignée, entre les jambes */
+  const fu=new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.12,0.36,10),mc); fu.position.set(0,0.2,-0.18); g.add(fu); /* la fusée sous l'assise */
+  const fl=new THREE.Mesh(new THREE.ConeGeometry(0.16,1.1,10,1,true),new THREE.MeshBasicMaterial({color:0xffa040,transparent:true,opacity:0.9,blending:THREE.AdditiveBlending,depthWrite:false}));
+  fl.rotation.x=Math.PI; fl.position.set(0,-0.5,-0.18); fl.visible=false; g.add(fl); EJECT.flamme=fl;
+  EJECT.modele=g; return g; }
+function ejecterSiege(){
+  const v=P.veh;
+  if(!v||!siegeEjectable(v)||!v.vol||INT.actif){ SFX.refus(); if(v&&siegeEjectable(v)&&!v.vol) toast('Éjection : en vol seulement','warn'); return; }
+  ejectionFinSiege(); if(EJECT.siegeLibre){ scene.remove(EJECT.siegeLibre.m); EJECT.siegeLibre=null; }
+  loopRingEl.style.display='none'; volSonCouper(); hudVolCacher();
+  if(!v.q||!v.vel||!v.simOk){ volSimInit(v,v.tang||0); v.vel.y=v.va||0; } /* pilotage d'avant : l'orientation depuis le cap, l'assiette, l'inclinaison */
+  v.mesh.position.set(v.x,v.alt,v.z); v.mesh.quaternion.copy(v.q); v.mesh.updateMatrixWorld(true); /* la maquette exactement sur l'appareil */
+  /* la verrière : la boîte des vitres du modèle, dans le repère de l'avion ; les vitres s'effacent, une verrière part à leur place */
+  const inv=new THREE.Matrix4().copy(v.mesh.matrixWorld).invert(), bb=new THREE.Box3(), b1=new THREE.Box3(), m=new THREE.Matrix4(); let nV=0;
+  v.mesh.traverse((o)=>{ if(!o.isMesh||!o.visible||Array.isArray(o.material)||!ckEstVitre(o.material)) return; if(!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+    b1.copy(o.geometry.boundingBox).applyMatrix4(m.multiplyMatrices(inv,o.matrixWorld)); bb.union(b1); nV++; o.visible=false; });
+  const lg=v.def.long||8, k=v.mesh.scale.x||1; let cx=0, cy=1.1, cz=lg*0.18, sx=0.9, sy=0.5, sz=2.2;
+  if(nV){ cx=(bb.min.x+bb.max.x)/2; cz=(bb.min.z+bb.max.z)/2; cy=bb.min.y; sx=Math.max(0.5,bb.max.x-bb.min.x); sy=Math.max(0.25,bb.max.y-bb.min.y); sz=Math.max(0.8,bb.max.z-bb.min.z); }
+  if(!EJECT.geoV){ EJECT.geoV=new THREE.SphereGeometry(0.5,16,8,0,Math.PI*2,0,Math.PI/2); EJECT.matV=new THREE.MeshPhongMaterial({color:0x5d7f96,transparent:true,opacity:0.5,shininess:90,depthWrite:false}); }
+  const cv=new THREE.Mesh(EJECT.geoV,EJECT.matV); cv.scale.set(sx*k,sy*2*k,sz*k); cv.position.copy(v.mesh.localToWorld(_eA.set(cx,cy,cz))); cv.quaternion.copy(v.mesh.quaternion); scene.add(cv);
+  EJECT.up.set(0,1,0).applyQuaternion(v.mesh.quaternion);
+  EJECT.verrieres.push({m:cv,t:0,vel:v.vel.clone().addScaledVector(EJECT.up,16),rx:rand(-3,-1.5),rz:rand(-1,1)});
+  /* le siège et le pilote assis dessus, la hanche à sa place sous la verrière */
+  const S=modeleSiegeEjectable(); S.quaternion.copy(v.mesh.quaternion); S.position.copy(v.mesh.localToWorld(_eA.set(cx,cy-0.95,cz-0.03))); scene.add(S);
+  P.h.g.visible=true; S.add(P.h.g); P.h.g.position.set(0,0,0); P.h.g.rotation.set(0,0,0);
+  P.h.jambeG.rotation.set(-1.45,0,0); P.h.jambeD.rotation.set(-1.45,0,0); P.h.brasG.rotation.set(-0.7,0,0.1); P.h.brasD.rotation.set(-0.7,0,-0.1);
+  S.updateMatrixWorld(true); S.worldToLocal(P.h.jambeG.getWorldPosition(EJECT.hip)); P.h.g.position.set(0,0.5-EJECT.hip.y,-0.12-EJECT.hip.z);
+  EJECT.vel.copy(v.vel).addScaledVector(EJECT.up,EJ_CATAPULTE); EJECT.t=0; EJECT.feu=false; EJECT.fum=0; EJECT.ang=v.ang; EJECT.siege=S;
+  /* l'avion poursuit sans pilote, hors des véhicules de la ville */
+  v.conduit=null; P.veh=null; const iv=vehicules.indexOf(v); if(iv>=0) vehicules.splice(iv,1);
+  EJECT.avions.push({v,t:0,roul:(Math.random()<0.5?-1:1)*rand(0.3,0.9),fum:0});
+  if(!META.defis.crash) META.defis.crash=true; /* « Assurance tous risques » : on a survécu à la perte de son appareil */
+  S.updateMatrixWorld(true); P.h.g.getWorldPosition(_eA);
+  P.surMoto=false; P.x=_eA.x; P.y=_eA.y; P.z=_eA.z; P.ang=v.ang;
+  P.chute=true; P.para=false; P.wing=false; P.vy=EJECT.vel.y; P.chuteVx=0; P.chuteVz=0; P.chuteY0=P.y; P.chuteT=0; P.chuteHaut=P.y-solPied(P.x,P.z);
+  reticule.visible=false; paraMesh.visible=false;
+  boutonsAPied(); v.nitroActif=false; el('btnJump').style.display='none';
+  majArmeJoueur(); moteurStop();
+  bruit(0.09,0.8,1800,'highpass'); vibre(90); secousse(9); toast('💺 ÉJECTION !','warn'); }
+function ejectionFinSiege(){ const S=EJECT.siege; if(!S) return; /* le pilote rendu à la scène, à sa place ; le siège retiré */
+  S.updateMatrixWorld(true); P.h.g.getWorldPosition(_eA); scene.add(P.h.g); P.h.g.position.copy(_eA); P.h.g.rotation.set(0,P.ang||0,0);
+  if(EJECT.flamme) EJECT.flamme.visible=false; scene.remove(S); EJECT.siege=null; }
+function ejectionSeparer(){ const S=EJECT.siege; if(!S) return; /* au sommet : le siège tombe seul, la voile s'ouvre */
+  S.updateMatrixWorld(true); P.h.g.getWorldPosition(_eA); scene.add(P.h.g); P.h.g.position.copy(_eA); P.h.g.rotation.set(0,P.ang,0);
+  P.h.jambeG.rotation.set(0,0,0); P.h.jambeD.rotation.set(0,0,0); P.h.brasG.rotation.set(0,0,0); P.h.brasD.rotation.set(0,0,0);
+  P.x=_eA.x; P.y=_eA.y; P.z=_eA.z; if(EJECT.flamme) EJECT.flamme.visible=false; EJECT.siege=null;
+  EJECT.siegeLibre={m:S,t:0,vel:EJECT.vel.clone().addScaledVector(EJECT.up,-3)};
+  const sol=solPied(P.x,P.z); if(P.y<=sol+0.05){ P.y=sol; P.chute=false; P.vy=0; return; }
+  P.chute=true; P.chuteY0=P.y; P.chuteT=0; P.chuteHaut=P.y-sol; P.vy=EJECT.vel.y;
+  const sp=Math.hypot(EJECT.vel.x,EJECT.vel.z), kv=sp>CHUTE_VMAX_H?CHUTE_VMAX_H/sp:1; P.chuteVx=EJECT.vel.x*kv; P.chuteVz=EJECT.vel.z*kv;
+  P.para=false; ouvrirParachute(); }
+function majSiegeEjecte(h){ const S=EJECT.siege; EJECT.t+=h; const t=EJECT.t, feu=t>EJ_DELAI&&t<EJ_DELAI+EJ_FUSEE_T;
+  if(feu){ if(!EJECT.feu){ EJECT.feu=true; SFX.roquette(); vibre(60); } EJECT.up.set(0,1,0).applyQuaternion(S.quaternion); EJECT.vel.addScaledVector(EJECT.up,EJ_FUSEE*h); }
+  EJECT.flamme.visible=feu; if(feu) EJECT.flamme.scale.set(1,0.8+Math.random()*0.5,1);
+  EJECT.vel.y-=VOL_G*h; const fr=1-EJ_FREIN*h; EJECT.vel.x*=fr; EJECT.vel.z*=fr;
+  S.position.addScaledVector(EJECT.vel,h); if(t>EJ_DELAI) S.rotateX(-0.9*h); /* il bascule doucement en arrière */
+  if(t>EJ_DELAI&&t<EJ_DELAI+1.1&&(EJECT.fum++)%2===0) fumeeMissile(S.position.x,S.position.y+0.2,S.position.z,feu);
+  S.updateMatrixWorld(true); P.h.g.getWorldPosition(_eA); P.x=_eA.x; P.y=_eA.y; P.z=_eA.z;
+  const sol=solPied(P.x,P.z);
+  if(P.y<=sol){ if(EJECT.vel.y<-5&&!estEau(P.x,P.z)){ mortEjection(); return; } ejectionSeparer(); return; } /* le siège envoyé dans le sol (sur le dos au ras du sol) : mortel */
+  if(t>EJ_SEPARE_MIN&&(EJECT.vel.y<1.5||t>EJ_SEPARE_MAX)) ejectionSeparer(); }
+function mortEjection(){ ejectionFinSiege(); P.hp=0; P.chute=false; P.vy=0; P.y=solPied(P.x,P.z); burst(P.x,P.y+0.5,P.z,14,0x8a7a62,8); toast('Éjection sur le dos, au ras du sol…','warn'); mourir(); }
+function majAvionSansPilote(o,h){ const v=o.v; o.t+=h; /* gravité, nez qui suit la vitesse, roulis ; à l'impact, l'explosion */
+  v.vel.y-=VOL_G*h; v.vel.multiplyScalar(1-0.06*h);
+  _eA.set(0,0,1).applyQuaternion(v.q); _eB.copy(v.vel).normalize(); _eC.crossVectors(_eA,_eB); const s=_eC.length();
+  if(s>1e-4){ _eQ.setFromAxisAngle(_eC.multiplyScalar(1/s),Math.min(Math.asin(Math.min(1,s)),1.4*h)); v.q.premultiply(_eQ); }
+  _eQ.setFromAxisAngle(_eZ,o.roul*h); v.q.multiply(_eQ); v.q.normalize();
+  v.x+=v.vel.x*h; v.alt+=v.vel.y*h; v.z+=v.vel.z*h; v.mesh.position.set(v.x,v.alt,v.z); v.mesh.quaternion.copy(v.q);
+  if((o.fum++)%3===0) fumee(v.x,v.alt,v.z,0x2c2f35);
+  const sol=poseY(v.x,v.z), so=solidAt(v.x,v.z,2.5), eau=estEau(v.x,v.z)&&v.alt<=0.8;
+  if(v.alt<=sol+0.3||(so&&so.h>v.alt)||eau||o.t>EJ_AVION_VIE){
+    v.alt=Math.max(v.alt,sol); v.h=Math.max(0,sol); v.vol=false; if(eau) eclaboussure(v.x,v.z,3);
+    o.impact={x:v.x,z:v.z,t:o.t}; EJECT.dernierImpact=o.impact; exploserVehicule(v); libererEntite(v.mesh); return true; }
+  return false; }
+function majEjection(dt,dtJeu){
+  if(!EJECT.siege&&!EJECT.siegeLibre&&!EJECT.verrieres.length&&!EJECT.avions.length) return;
+  const h=Math.min(VOL_DT_MAX,dtJeu||0); if(h<=0) return;
+  for(let i=EJECT.verrieres.length-1;i>=0;i--){ const c=EJECT.verrieres[i]; c.t+=h; c.vel.y-=VOL_G*h; c.vel.multiplyScalar(1-0.8*h); c.m.position.addScaledVector(c.vel,h); c.m.rotateX(c.rx*h); c.m.rotateZ(c.rz*h);
+    if(c.t>9||c.m.position.y<solY(c.m.position.x,c.m.position.z)-0.5){ scene.remove(c.m); EJECT.verrieres.splice(i,1); } }
+  const L=EJECT.siegeLibre; if(L){ L.t+=h; L.vel.y-=VOL_G*h; L.vel.multiplyScalar(1-0.5*h); L.m.position.addScaledVector(L.vel,h); L.m.rotateX(-2.2*h);
+    if(L.t>8||L.m.position.y<solY(L.m.position.x,L.m.position.z)){ scene.remove(L.m); EJECT.siegeLibre=null; } }
+  if(EJECT.siege) majSiegeEjecte(h);
+  for(let i=EJECT.avions.length-1;i>=0;i--) if(majAvionSansPilote(EJECT.avions[i],h)) EJECT.avions.splice(i,1); }
+function ejectionVider(){ ejectionFinSiege(); if(EJECT.siegeLibre){ scene.remove(EJECT.siegeLibre.m); EJECT.siegeLibre=null; }
+  for(const c of EJECT.verrieres) scene.remove(c.m); EJECT.verrieres.length=0;
+  for(const o of EJECT.avions){ scene.remove(o.v.mesh); libererEntite(o.v.mesh); } EJECT.avions.length=0; EJECT.dernierImpact=null; }
 function crashAerien(v){
   volSonCouper(); hudVolCacher(); /* alarmes et HUD du vol simulé */
-  toast('CRASH !','warn'); bigMsg('💥 CRASH');
-  META.defis.crash=true;
+  toast('CRASH !','warn'); bigMsg('💥 CRASH'); v.crashAir=true; /* (le défi « Assurance tous risques » se gagne en survivant : saut, éjection) */
   addHeat(0.8);
   exploserVehicule(v);
   for(let t=0;t<6;t++){ if(!pousseHorsSolide(P,0.6)) break; }
@@ -41547,6 +41660,7 @@ function startRun(){
   vitrineUltimes(); // une fois : le Bolide et l'Enzo sur les podiums du showroom
   // icône de la capacité spéciale du personnage (adrénaline, nitro, onde)
   el('specIco').innerHTML=ico('ico-spec-'+PERSOS[META.perso].spec,'⚡');
+  ejectionVider(); /* siège éjectable, verrières, avions sans pilote (AVANT construireJoueur : le corps peut être sur le siège) */
   nettoieMonde();
   META.parties++; META.stats.parties++;
   // Message d'indication, une seule fois dans la vie de la sauvegarde — au
@@ -41889,6 +42003,7 @@ function startRun(){
   majPastilleDefis();
 }
 function mourir(){
+  ejectionFinSiege(); /* mort pendant la montée du siège éjectable : le corps rendu à la scène */
   couperSonsEcrasement(); /* tôle et verre de l'écrasement (CLAUDE.md : les sons coupés dans toutes les sorties) */
   volSonCouper(); hudVolCacher(); /* alarmes et HUD du vol simulé */
   if(ETAT.mode==='mort') return;
@@ -45232,13 +45347,13 @@ function tick(t){
     ETAT.comboT-=dt;
     if(ETAT.comboT<=0) ETAT.combo=1;
     if(ETAT.slowT>0){ ETAT.slowT-=dtReel; if(ETAT.slowT<=0&&ETAT.mode==='jeu') ETAT.timeScale=1; }
-    if(ETAT.mode==='jeu'){ majNitro(dtJeu); if(DECOR_V2) towEntrees(); if(DERBY.actif) derbyEntrees(); if(!MANEGES.actif&&!FPS.actif) majJoueur(dt,dtJeu); majFPS(dt,dtJeu); majIvresse(dtJeu); majTresorCarte(dt); majFilet(dtJeu); majMontSon(dt); if(DECOR_V2){ majRides(dtJeu); majPic(dt); majTow(dt,dtJeu); majBasket(dt,dtJeu); majSportJ(dt,dtJeu); majToitsSurprises(dt,dtJeu); } } // nitro décidée AVANT la physique du véhicule
+    if(ETAT.mode==='jeu'){ majNitro(dtJeu); if(DECOR_V2) towEntrees(); if(DERBY.actif) derbyEntrees(); if(!MANEGES.actif&&!FPS.actif&&!EJECT.siege) majJoueur(dt,dtJeu); majFPS(dt,dtJeu); majIvresse(dtJeu); majTresorCarte(dt); majFilet(dtJeu); majMontSon(dt); if(DECOR_V2){ majRides(dtJeu); majPic(dt); majTow(dt,dtJeu); majBasket(dt,dtJeu); majSportJ(dt,dtJeu); majToitsSurprises(dt,dtJeu); } } // nitro décidée AVANT la physique du véhicule
     majEnnemis(dt);
     if(!INT.actif){
       majPietons(dt);
       majFigurants(dt);
       majFauneRue(dt);
-      majVehicules(dt); majDebris(dt);
+      majVehicules(dt); majDebris(dt); majEjection(dt,dtJeu); /* siège éjectable, verrière, avion sans pilote */
       majGrandYacht();
       majRayonOvni(dt);
     }

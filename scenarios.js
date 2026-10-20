@@ -15175,6 +15175,79 @@ async function main() {
       if (!(a.meta === true && a.on && b.meta === true && b.on)) fail('Axe Y inversé : réglage ' + JSON.stringify(a) + ', après rechargement ' + JSON.stringify(b));
       else ok('Axe Y inversé : réglé dans les Paramètres, sauvegardé, toujours actif après rechargement');
     }
+    // -------------------------------------------------------------------
+    // Siège éjectable et crash mortel (20 octobre) : un appareil du joueur détruit EN VOL (crash, abattu) tue son pilote
+    // (avant : il ressortait à pied au pied de l'épave) ; au sol, rien ne change. Le chasseur (VEHDEFS.siegeEjectable) a un
+    // siège éjectable à la place du SAUT : verrière, fusée, voile automatique ; l'avion sans pilote s'écrase plus loin.
+    // Appareils lus dans VEHDEFS ; vraie boucle (tick) à 60 images par seconde.
+    // -------------------------------------------------------------------
+    console.log('\n--- Siège éjectable et crash mortel : crash et appareil abattu en vol = mort, au sol non ; éjection du chasseur ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = []; let T = dernierT + 1000; const B = INPUT.btn;
+        const pas = (n, f) => { for (let i = 0; i < n; i++) { if (f && f(i) === false) return i; T += 1000 / 60; tick(T); } return n; };
+        const trafic0 = creerTrafic; creerTrafic = () => {}; try { audioInit(); } catch (e) {}
+        const ejectables = Object.keys(VEHDEFS).filter((k) => VEHDEFS[k].siegeEjectable), avion = Object.keys(VEHDEFS).find((k) => VEHDEFS[k].air === 'avion' && !VEHDEFS[k].siegeEjectable),
+          heli = Object.keys(VEHDEFS).find((k) => VEHDEFS[k].air === 'helico' && !VEHDEFS[k].ovni);
+        if (!ejectables.length) ko.push('aucun appareil à siège éjectable dans VEHDEFS');
+        const enVol = (cle, o) => { o = o || {}; META.vue = 'classique'; if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; ETAT.jour = 40; ETAT.timeScale = 1;
+          P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9; for (const x of vehicules) { scene.remove(x.mesh); libererEntite(x.mesh); } vehicules.length = 0; for (const e of ennemis) e.mort = true;
+          const v = creerVehicule(cle, o.x !== undefined ? o.x : 0, o.z !== undefined ? o.z : MER + 160, o.ang !== undefined ? o.ang : Math.PI / 2, null); P.x = v.x; P.z = v.z; entrerVehicule(v);
+          v.vol = o.sol ? false : true; v.alt = o.sol ? 0 : (o.alt || 90); v.v = o.V !== undefined ? o.V : (v.def.air === 'avion' ? PROFILS_VOL[cle].Vmax * 0.9 : 10); v.va = o.va || 0; v.bank = o.bank || 0; v.tang = o.tang || 0; v.gaz = 0.8; v.decolT = 0;
+          if (v.def.air === 'avion' && !o.sol) volSimInit(v, v.tang); MANETTE.val = v.gaz; MANETTE.touche = false; INPUT.jx = INPUT.jy = 0; B.sprint = B.frein = false; return v; };
+        const mort = () => ETAT.mode === 'mort', lbl = () => (el('btnJump').textContent || '').trim(), appuiSaut = () => el('btnJump').dispatchEvent(new Event('pointerdown'));
+        /* 1. crash d'un avion au sol, joueur « invincible » (1e9 PV) : il meurt quand même, le corps reste dans l'épave */
+        { const v = enVol(avion, { alt: 30, V: 34, x: POIS.place.x, z: POIS.place.z - 30, ang: 0, tang: -0.9 }); pas(300, () => { if (mort()) return false; });
+          if (!mort()) ko.push(avion + ' : crash au sol, le joueur survit (' + (P.veh ? 'toujours à bord' : 'à pied, ' + Math.round(P.hp) + ' PV') + ')');
+          else if (P.veh || P.h.g.visible) ko.push(avion + ' : mort au crash, mais ' + (P.veh ? 'toujours à bord' : 'le corps visible à côté de l’épave'));
+          else info.push(avion + ' : crash au sol mortel'); }
+        /* 2. hélicoptère lancé contre un immeuble (l'effet de sol empêche de s'écraser en descendant : c'est voulu) */
+        { let cible = null; for (let rr = 20; rr < 400 && !cible; rr += 10) for (let a = 0; a < 6.28 && !cible; a += 0.2) { const x = POIS.place.x + Math.cos(a) * rr, z = POIS.place.z + Math.sin(a) * rr, s = solidAt(x, z, 0.5, 24);
+            if (s && s.base === undefined && !solidAt(x, z + 40, 3) && !estEau(x, z + 40)) cible = { x, z, h: s.h }; }
+          if (!cible) ko.push('aucun immeuble de plus de 24 u pour le test de l’hélicoptère');
+          else { const v = enVol(heli, { alt: Math.min(cible.h * 0.5, 20), x: cible.x, z: cible.z + 40, ang: Math.PI, V: 20 }); v.hvx = 0; v.hvz = -22; v.inclF = 0; v.inclL = 0;
+            pas(300, () => { INPUT.jy = -1; if (mort()) return false; }); INPUT.jy = 0;
+            if (!mort()) ko.push(heli + ' : lancé contre un immeuble de ' + cible.h.toFixed(0) + ' u, le joueur survit (' + (P.veh ? 'à bord' : 'à pied') + ')'); else info.push(heli + ' : contre un immeuble, mortel'); } }
+        /* 3. abattu en plein vol (avion) */
+        { const v = enVol(avion, { alt: 80 }); pas(5); abimerVehicule(v, 1e7); pas(3);
+          if (!mort()) ko.push(avion + ' abattu en vol : le joueur survit'); else info.push('abattu en vol : mortel'); }
+        /* 4. détruit AU SOL, joueur à bord : comme une voiture (il en sort, blessé) */
+        { const v = enVol(avion, { sol: true, x: POIS.place.x, z: POIS.place.z }); P.hp = P.maxHp = 300; abimerVehicule(v, 1e7); pas(3);
+          if (mort()) ko.push(avion + ' détruit au sol : le joueur meurt (il devrait en sortir blessé)'); else if (P.veh) ko.push(avion + ' détruit au sol : toujours à bord'); else info.push('détruit au sol : sorti, ' + Math.round(P.hp) + ' PV'); }
+        /* 5. le SAUT d'un avion : on survit, l'appareil est perdu, le défi « Assurance tous risques » */
+        { const v = enVol(avion, { alt: 120 }); META.defis.crash = false; if (lbl().indexOf('SAUT') < 0 || el('btnJump').classList.contains('ejection')) ko.push(avion + ' : bouton « ' + lbl() + ' » au lieu de SAUT');
+          appuiSaut(); pas(240); if (mort() || P.veh) ko.push('saut en parachute : ' + (mort() ? 'mort' : 'toujours à bord')); if (!META.defis.crash) ko.push('saut : le défi « Assurance tous risques » n’est pas gagné'); }
+        for (const cle of ejectables) {
+          /* 6. le bouton ÉJECTION ; au sol, refusée */
+          { const v = enVol(cle, { sol: true, x: POIS.place.x, z: POIS.place.z }); if (lbl().indexOf('ÉJECTION') < 0 || !el('btnJump').classList.contains('ejection')) ko.push(cle + ' : bouton « ' + lbl() + ' » au lieu de ÉJECTION');
+            appuiSaut(); pas(5); if (P.veh !== v || EJECT.siege) ko.push(cle + ' : éjection au sol acceptée'); sortirVehicule(true); if (lbl().indexOf('SAUT') < 0 || el('btnJump').classList.contains('ejection')) ko.push('à pied : le bouton reste « ' + lbl() + ' »'); }
+          /* 7. éjection en vol : verrière, montée du siège, voile automatique, l'avion s'écrase plus loin, le pilote se pose vivant */
+          { const v = enVol(cle, { alt: 120 }); pas(20); META.defis.crash = false; const y0 = v.alt, x0 = v.x, z0 = v.z; appuiSaut();
+            const nVer = EJECT.verrieres.length, siege = !!EJECT.siege, nAv = EJECT.avions.length; let yMax = -1e9, tPara = -1, tImpact = -1, son = VOL_SON.osc || VOL_SON.mode, hud = HUD_VOL.el && HUD_VOL.el.style.display !== 'none';
+            pas(60 * 50, (i) => { if (mort()) return false; yMax = Math.max(yMax, P.y); if (P.para && tPara < 0) tPara = i / 60; if (EJECT.dernierImpact && tImpact < 0) tImpact = i / 60; if (tImpact >= 0 && tPara >= 0 && !P.chute) return false; });
+            if (P.veh || !siege || !nVer || !nAv) ko.push(cle + ' : éjection incomplète (à bord ' + !!P.veh + ', siège ' + siege + ', verrière ' + nVer + ', avion sans pilote ' + nAv + ')');
+            if (son || hud) ko.push(cle + ' : après l’éjection, ' + (son ? 'l’alarme sonne' : 'le HUD de vol reste'));
+            if (!(yMax - y0 > 12)) ko.push(cle + ' : le siège ne monte que de ' + (yMax - y0).toFixed(1) + ' u');
+            if (!(tPara >= 0 && tPara < 2.2)) ko.push(cle + ' : la voile ne s’ouvre pas d’elle-même (' + tPara.toFixed(2) + ' s)');
+            const dI = EJECT.dernierImpact ? Math.hypot(EJECT.dernierImpact.x - x0, EJECT.dernierImpact.z - z0) : 0;
+            if (tImpact < 0) ko.push(cle + ' : l’avion sans pilote ne s’écrase pas'); else if (dI < 60) ko.push(cle + ' : l’avion s’écrase à ' + dI.toFixed(0) + ' u seulement');
+            if (mort()) ko.push(cle + ' : le pilote éjecté meurt'); else if (P.chute) ko.push(cle + ' : toujours en l’air après 50 s');
+            if (!META.defis.crash) ko.push(cle + ' : éjection sans le défi « Assurance tous risques »');
+            if (!ko.length) info.push(cle + ' : éjecté à ' + y0.toFixed(0) + ' u, monte de ' + (yMax - y0).toFixed(0) + ' u, voile ouverte à ' + tPara.toFixed(1) + ' s, avion écrasé à ' + dI.toFixed(0) + ' u après ' + tImpact.toFixed(1) + ' s, posé vivant'); }
+          /* 8. au ras du sol, à plat : on survit ; sur le dos au ras du sol : le siège part dans le sol */
+          { const v = enVol(cle, { alt: 6, V: 40, x: 0, z: MER + 160 }); appuiSaut(); pas(60 * 12, () => { if (mort() || (!EJECT.siege && !P.chute)) return false; });
+            if (mort()) ko.push(cle + ' : éjection à 6 u à plat mortelle'); else info.push('éjection à 6 u, à plat : survécu'); }
+          { const v = enVol(cle, { alt: 7, V: 40, x: POIS.place.x, z: POIS.place.z, bank: Math.PI }); appuiSaut(); pas(120, () => { if (mort()) return false; });
+            if (!mort()) ko.push(cle + ' : éjection sur le dos à 7 u, le pilote survit'); else info.push('sur le dos à 7 u : mortel'); }
+          /* 9. mort pendant la montée du siège : le corps rendu à la scène, le siège retiré ; une nouvelle partie vide tout */
+          { const v = enVol(cle, { alt: 120 }); appuiSaut(); pas(20); mourir(); const ok1 = !EJECT.siege && P.h.g.parent === scene; startRun();
+            if (!ok1) ko.push(cle + ' : mort pendant l’éjection, siège ou corps mal rendus'); if (EJECT.avions.length || EJECT.verrieres.length || EJECT.siegeLibre) ko.push('startRun : éjection pas vidée'); }
+        }
+        creerTrafic = trafic0; INPUT.jx = INPUT.jy = 0; ETAT.timeScale = 1; startRun(); ecran(null); ETAT.mode = 'jeu'; META.vue = 'classique'; majCamera(1 / 30);
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Siège éjectable et crash mortel : ' + r.ko.join(' ; ')); else ok('Siège éjectable et crash mortel : ' + r.info.join(' ; '));
+    }
 
     // -------------------------------------------------------------------
     // Guidon des motos au cockpit (18 octobre, signalé avec une capture : le rétroviseur et la poignée du MODÈLE, entourés,
