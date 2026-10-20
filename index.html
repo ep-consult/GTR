@@ -1263,6 +1263,10 @@ const MOTEURS={
   sport: {base:30, haut:84,  vit:6, saw:0.062, sq:0.018, souffle:0.048, filtre:820,  rug:3},
   camion:{base:18, haut:42,  vit:4, saw:0.070, sq:0.012, souffle:0.055, filtre:420,  rug:1.8},
   bateau:{base:20, haut:46,  vit:1, saw:0.056, sq:0.010, souffle:0.065, filtre:400,  rug:1.6},
+  course:{base:24, haut:74,  vit:1, saw:0.078, sq:0.022, souffle:0.06,  filtre:520,  rug:3.4}, /* V3 : le bateau de course, rauque */
+  jetski:{base:36, haut:92,  vit:1, saw:0.05,  sq:0.02,  souffle:0.05,  filtre:1100, rug:2.2}, /* V3 : les jet-skis, aigus */
+  diesel:{base:13, haut:30,  vit:1, saw:0.07,  sq:0.008, souffle:0.07,  filtre:300,  rug:2.0}, /* V3 : les yachts et le voilier, un diesel grave */
+  v8:    {base:18, haut:50,  vit:1, saw:0.066, sq:0.012, souffle:0.05,  filtre:460,  rug:2.8}, /* V3 : les bateaux en bois, un V8 marin */
   avion: {base:30, haut:66,  vit:1, saw:0.050, sq:0.014, souffle:0.070, filtre:700,  rug:2},
   helico:{base:14, haut:26,  vit:1, saw:0.034, sq:0.020, souffle:0.070, filtre:420,  rug:1.2},
   char:  {base:15, haut:34,  vit:3, saw:0.078, sq:0.012, souffle:0.055, filtre:360,  rug:1.6},
@@ -1281,7 +1285,7 @@ function profilMoteur(def){
   if(def.air==='helico') return MOTEURS.helico;
   if(def.air) return MOTEURS.avion;
   if(def.canon) return MOTEURS.char;
-  if(def.eau) return MOTEURS.bateau;
+  if(def.eau) return MOTEURS[def.moteur]||MOTEURS.bateau; /* V3 : son moteur propre */
   if(def.type==='moto') return MOTEURS.moto;
   if(def.vmax>=36) return MOTEURS.sport;
   if(def.long>=5.2) return MOTEURS.camion;
@@ -3012,10 +3016,23 @@ Object.assign(VEHDEFS,{
   derbyCompacte:{nom:'Citadine « Savonnette »',derby:true,profil:'citadine',vmax:27,acc:16,man:2.9,hp:230,long:4.2,larg:2.0,type:'car',cols:[0xff5ad0,0x35e0ff,0xffd23f,0x7dff7a,0xe8662a]},
   derbyPickup:{nom:'Pick-up « Bétaillère »',derby:true,profil:'pickup',vmax:22,acc:12,man:2.1,hp:380,long:5.0,larg:2.2,type:'car',cols:[0x8a4de0,0xd8261c,0x3a7a3a,0xe8c84a,0x2a6ad8]},
 });
+/* V3, phase 3 : les bateaux V5 (rapport_nuit/BATEAUX_V5.md) — jet-skis (jetski : la famille du cockpit et de la pose), le bateau de course
+   (dejauge : il saute de crête en crête, sillage : un sillage plus large), les yachts, les bateaux en bois, le voilier ; moteur : le son */
+Object.assign(VEHDEFS,{
+  jetskiBras:{nom:'Jet à bras « Kamikaze »',vmax:35,acc:22,man:3.8,hp:45,long:2.3,larg:0.78,type:'bateau',eau:true,jetski:true,moteur:'jetski',cols:[0x9fe02a,0xff5a1f]},
+  jetskiTrio:{nom:'Jet trois places « Croisière »',vmax:32,acc:16,man:2.8,hp:80,long:3.5,larg:1.25,type:'bateau',eau:true,jetski:true,moteur:'jetski',cols:[0x1a3a6a,0xd83a3a]},
+  offshore:{nom:'Offshore « Tonnerre »',vmax:52,acc:17,man:2.1,hp:190,long:9.5,larg:2.6,type:'bateau',eau:true,moteur:'course',dejauge:1,sillage:2,cols:[0xd8261c,0x1a2a8a,0xe8a01a]},
+  yachtMoteur:{nom:'Yacht « Riviera 43 »',vmax:24,acc:7,man:1.1,hp:600,long:13,larg:3.8,type:'bateau',eau:true,moteur:'diesel',cols:[0xf2f4f8,0x1a2a44]},
+  sportfish:{nom:'Sportfish « Marlin »',vmax:26,acc:8,man:1.3,hp:520,long:10.5,larg:3.3,type:'bateau',eau:true,moteur:'diesel',cols:[0xf2f4f8,0x0e2a4a]},
+  runabout:{nom:'Runabout « Aquarama »',vmax:30,acc:11,man:2.4,hp:110,long:5.2,larg:2.0,type:'bateau',eau:true,moteur:'v8',cols:[0x6a2c12]},
+  cruiserBois:{nom:'Cruiser « Capitaine »',vmax:22,acc:7,man:1.4,hp:260,long:8.2,larg:2.8,type:'bateau',eau:true,moteur:'v8',cols:[0x6a2c12]},
+  voilier:{nom:'Voilier « Alizé »',vmax:14,acc:4,man:1.2,hp:280,long:9,larg:2.7,type:'bateau',eau:true,moteur:'diesel',cols:[0xf4f4f2,0x1a3a6a]} });
+Object.assign(VEHDEFS.jetski,{nom:'Jet-ski « Sport »',jetski:true,moteur:'jetski'});
 /* V3 : le tirant d'air de chaque bateau (u au-dessus de l'eau), mesuré sur son modèle à flot : la structure rigide (coque, pare-brise,
    arceau, rampe de gyrophares, radar, mât) — pas les antennes fouet, qui plient (CANAUX_V3.md, phase 2 ; le test « Canaux V3 : ponts-levis »
    le remesure). Un bateau plus haut que le dégagement d'un tablier le heurte. */
-const HAUT_NAV={yacht:7.15,bateau:1.97,surf:0.28,kayak:1.09,jetski:1.10,bateauP:2.81,peche:3.61,grandyacht:11.46,cargo:23.23,espadon:1.51};
+const HAUT_NAV={yacht:7.15,bateau:1.97,surf:0.28,kayak:1.09,jetski:1.09,bateauP:2.81,peche:3.61,grandyacht:11.46,cargo:23.23,espadon:1.51,
+  jetskiBras:1.28,jetskiTrio:1.2,offshore:1.85,yachtMoteur:4.53,sportfish:7.13,runabout:1.56,cruiserBois:2.26,voilier:11.36}; /* V5 (phase 3) : les petits passent sous les ponts (2,88 u au plus bas), yachts et voilier côté est seulement */
 for(const k in HAUT_NAV) if(VEHDEFS[k]) VEHDEFS[k].hautNav=HAUT_NAV[k];
 
 /* ---------- Types d'ennemis ---------- */
@@ -3692,7 +3709,7 @@ function sillageBateau(v,dt){
   v.sillT=clamp(0.5/vit,0.035,0.12);
   const sA=Math.sin(v.ang), cA=Math.cos(v.ang), arr=v.def.long*0.5, lat=v.def.larg*0.45;
   const bx=v.x-sA*arr, bz=v.z-cA*arr, ouv=Math.min(4,vit*0.3);
-  const t=clamp(vit/14,0.4,1.2);
+  const t=clamp(vit/14,0.4,1.2)*(v.def.sillage||1); /* V3 : un sillage énorme derrière le bateau de course */
   spawnSillage(bx,bz,-sA*1.2,-cA*1.2,1.8,v.def.larg*0.8,v.def.larg*2.0,0.8*t);
   spawnSillage(bx+cA*lat,bz-sA*lat, cA*ouv,-sA*ouv,1.5,0.7,1.8,0.7*t);
   spawnSillage(bx-cA*lat,bz+sA*lat,-cA*ouv, sA*ouv,1.5,0.7,1.8,0.7*t);
@@ -7629,6 +7646,7 @@ function canauxDefinir(){
   { const o=C.eaux.find((e)=>e.id==='canalO'); C.miamiPonton={x0:o.x0,x1:o.x0+2.4,z0:128,z1:140,h:C.niveau+0.32,cote:-1,canal:'canalO',miami:true}; C.pontons.push(C.miamiPonton); } /* le ponton privé de la villa Miami : quai ouest, entre l'escalier (z 118) et le pont du sud */
   villasV2Plan(C); passerellesV2(C); canauxNautiqueDefinir(); pontonsV2(C); /* V2 : le plan des villas (des données), puis un ponton par lot et ses bateaux (phase 3) */
   marinaV3Plan(C); /* V3 : la marina et la promenade de la rive est (des données) */
+  bateauxV3Plan(C); /* V3, phase 3 : le modèle de chaque poste, les gros bateaux côté est */
   let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9; const ext=(a,b,c,d)=>{ x0=Math.min(x0,a); x1=Math.max(x1,b); z0=Math.min(z0,c); z1=Math.max(z1,d); };
   for(const e of C.eaux){ if(e.t==='r') ext(e.x0,e.x1,e.z0,e.z1); else if(e.t==='c') ext(e.x-e.r,e.x+e.r,e.z-e.r,e.z+e.r); else for(const q of e.pts) ext(q[0],q[0],q[1],q[1]); }
   for(const L2 of [C.ponts,C.coupes,C.dalles,C.levis||[]]) for(const p of L2) ext(p.x0,p.x1,p.z0,p.z1);
@@ -7659,7 +7677,7 @@ function dansAlleeCanaux(x,z){ for(const a of CANAUX.allees||[]) if(x>a.x0&&x<a.
    (CANAUX.echelles : on sort de l'eau par là, rivePlusProche). Un bateau sur six sur dix environ, le long du flotteur : la taille
    suit le standing et la largeur du canal — le chenal des vedettes garde 10,5 u dans un canal à deux rives, 6,5 u dans une impasse
    (une seule rive) : sinon le bateau rapetisse, puis le ponton redevient « quai ». Quelques-uns sont pilotables (CANAUX.pilotables). */
-const BATEAUX_V2={ yachtMoteur:{L:13,W:3.8}, sportfishing:{L:10.5,W:3.3}, dayCruiser:{L:8.2,W:2.8}, voilier:{L:9,W:2.7}, open:{L:7,W:2.5}, petit:{L:5,W:2}, jetskis:{L:3,W:1.3} };
+const BATEAUX_V2={ yachtMoteur:{L:13,W:3.8}, sportfishing:{L:10.5,W:3.3}, dayCruiser:{L:8.2,W:2.8}, voilier:{L:9,W:2.7}, open:{L:7,W:2.5}, petit:{L:5,W:2}, jetskis:{L:3,W:1.3}, course:{L:9.5,W:2.6} }; /* V3 : course = l'offshore « Tonnerre » */
 const BATEAUX_V2_ORDRE=['yachtMoteur','sportfishing','dayCruiser','voilier','open','petit','jetskis']; /* du plus grand au plus petit (on rapetisse dans cet ordre) */
 function pontonsV2(C){
   const eau=(x,z)=>C.eaux.some((e)=>formeContient(e,x,z)), h=C.niveau+0.32, occ=[], pil={};
@@ -8184,7 +8202,11 @@ function marinaV3Plan(C){
     C.bateauxV2.push(bat); const lx=Math.abs(Math.sin(ang))>0.5, hw=(lx?B.L:B.W)/2+0.2, hd=(lx?B.W:B.L)/2+0.15;
     C.amarres.push({x,z,cle:type,ang,x0:x-hw,x1:x+hw,z0:z-hd,z1:z+hd,v2:true,marina:true}); M.postes.push(bat); return bat; };
   const xP=(L)=>epi.x1+0.35+L/2;
-  for(const [zd,cote,type] of [[-13,-1,'petit'],[-13,1,'dayCruiser'],[-5,-1,'open'],[-5,1,'voilier'],[3,-1,'open']]){ const B=BATEAUX_V2[type]; poste(type,xP(B.L),zd+cote*(0.5+0.35+B.W/2),Math.PI/2); }
+  for(const [zd,cote,type] of [[-13,-1,'petit'],[-13,1,'dayCruiser'],[-5,-1,'open'],[-5,1,'voilier'],[3,-1,'voilier']]){ const B=BATEAUX_V2[type]; poste(type,xP(B.L),zd+cote*(0.5+0.35+B.W/2),Math.PI/2); }
+  /* V3, phase 3 : le ponton visiteurs, au nord-est (hors du chemin des yachts qui vont au bassin d'évitage) : les gros bateaux, à couple des deux côtés */
+  { const vis=pon(ma.x1-6.5,ma.x1-4.7,ma.z0+1.8,ma.z0+21,'visiteurs'); M.visiteurs=vis;
+    for(const [type,cote,zc] of [['sportfishing',-1,-16],['voilier',-1,-5.6],['yachtMoteur',1,-15.4],['sportfishing',1,-3.6]]){ const B=BATEAUX_V2[type]; poste(type,cote<0?vis.x0-0.3-B.W/2:vis.x1+0.3+B.W/2,zc,Math.PI); }
+    C.echelles.push({x:vis.x0-0.05,z:vis.z1-1.2,eau:{x:vis.x0-1.3,z:vis.z1-1.2},ponton:vis,marina:true}); for(let z=vis.z0+2;z<vis.z1;z+=7) M.bornes.push([(vis.x0+vis.x1)/2,z]); }
   M.evitage={x:(ma.x0+ma.x1)/2,z:(7+ma.z1)/2,r:Math.min(ma.x1-ma.x0,ma.z1-7)/2}; /* le bassin d'évitage, libre */
   { const B=BATEAUX_V2.yachtMoteur; poste('yachtMoteur',honneur.x0+1+B.L/2,honneur.z1+0.35+B.W/2,Math.PI/2); }
   /* les échelles (sortir de l'eau) : le long de l'épi et du ponton d'honneur */
@@ -8481,6 +8503,84 @@ function majYachtIA(v,dt){ const C=CANAUX, Y=v.yIA, ev=C.marina&&C.marina.evitag
     case 'sortie': { vers(xg,G3.zMa1+14,4); if(v.z>G3.zMa1+4) Y.etat='retour'; return; } /* au pas, tout droit vers le pont : le demi-tour l'a posé sur l'axe */
     case 'retour': if(v.z>MER+60&&horsEcran(v.x,v.z)){ v.mort=true; scene.remove(v.mesh); libererEntite(v.mesh); const i=vehicules.indexOf(v); if(i>=0) vehicules.splice(i,1); return; }
       v.pcPlafond=plaf; piloterVedette(v,dt,[xg,MER+90],9); return; } }
+/* ---------- CANAUX V3, phase 3 : tous les bateaux pilotables (rapport_nuit/BATEAUX_V5.md) ----------
+   Chaque poste des pontons (C.bateauxV2) reçoit le modèle d'un vrai véhicule (B.veh ; deux jet-skis par quai à jet-skis, B.jets) et peut
+   sortir en mer avec son tirant d'air : les gros bateaux (plus hauts qu'un tablier fixe) ne sont amarrés que côté est (le grand canal) et à
+   la marina ; ceux qui étaient côté ouest deviennent, à la même place, un cruiser en bois ou un open ; l'offshore « Tonnerre » prend le
+   poste d'une grande villa du canal est (bateauxV3Plan, des données).
+   Au loin, un bateau amarré est une INSTANCE (geoInstanceBateau : le vrai modèle fusionné en une géométrie à couleurs de sommets, par
+   modèle et par livrée ; un InstancedMesh par géométrie, qui berce) ; à moins de PROMO_R u du joueur, il est remplacé à la même place,
+   même modèle, même livrée, par un vrai véhicule (au plus PROMO_MAX à la fois) ; loin et à son poste, il redevient une instance ;
+   déplacé, il reste un véhicule tant qu'on est près, puis il est rendu à son poste hors de vue ; coulé, le poste reste vide jusqu'à la
+   partie suivante (majPromoBateaux, promoStartRun). */
+const BATEAU_VEH={yachtMoteur:'yachtMoteur',sportfishing:'sportfish',dayCruiser:'cruiserBois',voilier:'voilier',open:'bateau',petit:'runabout',course:'offshore'};
+const JETS_QUAI=['jetski','jetskiTrio','jetskiBras'], EAUX_EST=new Set(['grandE','grandEM','marina','cale','secE','basSecE','bassinE']);
+const PROMO_R=12, PROMO_RETOUR=28, PROMO_MAX=2; /* mesuré : à 26 u et 6 bateaux, +85 % d'appels de rendu à la marina (un bateau promu : ~25 maillages) ; on ne monte que dans un */
+function bateauxV3Plan(C){ if(!C.grand) return;
+  const haut=(t)=>{ const k=BATEAU_VEH[t]; return !!(k&&VEHDEFS[k]&&VEHDEFS[k].hautNav>2.8); }, amarreDe=(B)=>C.amarres.find((a)=>Math.abs(a.x-B.x)<0.01&&Math.abs(a.z-B.z)<0.01);
+  const retailler=(B,t)=>{ const D=BATEAUX_V2[t], a=amarreDe(B), l=!B.marina&&C.lots.find((q)=>q.id===B.lot); if(l&&l.ponton&&l.ponton.cote) B.x+=l.ponton.cote*(B.W-D.W)/2; /* le flanc reste contre le flotteur */ if(a){ a.x=B.x; } B.type=t; B.L=D.L; B.W=D.W; B.grand=D.L>11; if(a){ const lx=Math.abs(Math.sin(B.ang))>0.5, hw=(lx?B.L:B.W)/2+0.2, hd=(lx?B.W:B.L)/2+0.15; Object.assign(a,{x0:B.x-hw,x1:B.x+hw,z0:B.z-hd,z1:B.z+hd,cle:t}); } };
+  let course=false; C.bateauxDeplaces=[];
+  for(const B of C.bateauxV2){ B.elevateur=!!B.ascenseur; B.ascenseur=false; /* l'élévateur abaissé : le bateau à flot, qu'on peut prendre */
+    if(haut(B.type)&&!EAUX_EST.has(B.canal)){ C.bateauxDeplaces.push(B.type+'@'+B.lot); retailler(B,B.L>=8.2?'dayCruiser':'open'); }
+    if(!course&&B.canal==='canalE'&&B.L>=8.2&&!B.marina&&C.lots.some((l)=>l.id===B.lot&&l.standing==='grand')){ retailler(B,'course'); course=true; B.course=true; } }
+  for(const B of C.bateauxV2){ B.veh=B.type==='jetskis'?null:BATEAU_VEH[B.type]; if(B.type==='jetskis'){ const r=hacheLot(B.x,B.z); B.jets=[JETS_QUAI[Math.floor(r*3)%3],JETS_QUAI[Math.floor(r*7+1)%3]]; } } }
+/* la géométrie d'une instance : le vrai modèle du véhicule, fusionné, à couleurs de sommets (le verre : sombre). Construit sous le générateur
+   privé de mkCanaux ; les caches des modèles V3 (matériaux, géométries, textures) sont rendus tels qu'ils étaient : un véhicule créé plus
+   tard en jeu tire les mêmes nombres qu'avant (sinon la partie se décale : voitures garées ailleurs) */
+const _GEO_INST={};
+function geoInstanceBateau(key,coul){ const id=key+':'+coul; if(_GEO_INST[id]) return _GEO_INST[id];
+  const g=construireV3Spec(key,VEH_V3[key],VEHDEFS[key],coul); g.updateMatrixWorld(true); const parts=[], c=new THREE.Color();
+  g.traverse((o)=>{ if(!o.isMesh||o.isSprite||!o.geometry||!o.geometry.attributes.position) return; for(let p=o;p&&p!==g;p=p.parent) if(!p.visible) return; if(!o.layers.test(camera.layers)) return;
+    const mt=Array.isArray(o.material)?o.material[0]:o.material; if(mt&&mt.blending===THREE.AdditiveBlending) return;
+    const hex=mt&&mt.transparent?0x1e3040:(mt&&mt.map?(mt.userData&&mt.userData.couleurLod!==undefined?mt.userData.couleurLod:0x2a2c30):(mt&&mt.color?mt.color.getHex():0x333333)); c.setHex(hex);
+    const q=o.geometry.index?o.geometry.toNonIndexed():o.geometry.clone(); q.applyMatrix4(o.matrixWorld); if(!q.attributes.normal) q.computeVertexNormals();
+    const n=q.attributes.position.count, a=new Float32Array(n*3); for(let i=0;i<n;i++){ a[i*3]=c.r; a[i*3+1]=c.g; a[i*3+2]=c.b; } parts.push([q,a]); });
+  /* les triangles de moins de AIRE_INST u² (vis, taquets, mains courantes fines) : invisibles au-delà de la portée de promotion ; la moitié du poids */
+  const AIRE_INST=0.003, _a=new THREE.Vector3(), _b=new THREE.Vector3(), _c=new THREE.Vector3(); const P0=[], N0=[], C0=[];
+  for(const [q,a] of parts){ const p=q.attributes.position.array, nn=q.attributes.normal.array;
+    for(let i=0;i<p.length;i+=9){ _a.set(p[i],p[i+1],p[i+2]); _b.set(p[i+3]-p[i],p[i+4]-p[i+1],p[i+5]-p[i+2]); _c.set(p[i+6]-p[i],p[i+7]-p[i+1],p[i+8]-p[i+2]); if(_b.cross(_c).length()/2<AIRE_INST) continue;
+      for(let j=0;j<9;j++){ P0.push(p[i+j]); N0.push(nn[i+j]); C0.push(a[i+j]); } } q.dispose(); }
+  const P=new Float32Array(P0), N=new Float32Array(N0), Cc=new Float32Array(C0);
+  const out=new THREE.BufferGeometry(); out.setAttribute('position',new THREE.BufferAttribute(P,3)); out.setAttribute('normal',new THREE.BufferAttribute(N,3)); out.setAttribute('color',new THREE.BufferAttribute(Cc,3)); out.computeBoundingSphere(); out.userData.partagee=true;
+  return (_GEO_INST[id]=out); }
+const PROMO={postes:[],promus:[],meshes:[],t:0,mat:null};
+function mkBateauxInstances(C){
+  const sav={mv3:_MV3,mc:_MAT_COND,caches:[_GEO_V3,_PEINT_V3,_ROUE_V3,_GEO_COND,_MATC_V3,_TEX_V3].map((o)=>[o,new Set(Object.keys(o))])};
+  PROMO.postes=[]; for(const B of C.bateauxV2){ const co=Math.cos(B.ang), si=Math.sin(B.ang);
+    if(B.veh) PROMO.postes.push({B,cle:B.veh,x:B.x,z:B.z,ang:B.ang,quai:false,amarre:C.amarres.find((a)=>Math.abs(a.x-B.x)<0.01&&Math.abs(a.z-B.z)<0.01)||null});
+    else if(B.jets){ const am=C.amarres.find((a)=>Math.abs(a.x-B.x)<0.01&&Math.abs(a.z-B.z)<0.01)||null; B.jets.forEach((k,i)=>{ const sx=i?0.62:-0.62; PROMO.postes.push({B,cle:k,x:B.x+sx*co,z:B.z-sx*si,ang:B.ang,quai:true,amarre:am}); }); } }
+  for(const p of PROMO.postes){ const cols=VEHDEFS[p.cle].cols; p.coul=cols[Math.floor(hacheLot(p.x*1.7,p.z*0.9)*cols.length)%cols.length]; p.y=p.quai?C.niveau+0.34:niveauCanal(p.x,p.z)+0.16; p.ph=Math.abs(p.x*0.37+p.z*0.21)%6.283; }
+  const parGeo=new Map(); for(const p of PROMO.postes){ const k=p.cle+':'+p.coul; if(!parGeo.has(k)) parGeo.set(k,[]); parGeo.get(k).push(p); }
+  PROMO.mat=new THREE.MeshLambertMaterial({vertexColors:true}); PROMO.meshes=[];
+  for(const [k,L] of parGeo){ const [cle,coul]=k.split(':'), geo=geoInstanceBateau(cle,+coul), m=new THREE.InstancedMesh(geo,PROMO.mat,L.length); m.receiveShadow=true;
+    L.forEach((p,i)=>{ p.mesh=m; p.i=i; }); scene.add(m); PROMO.meshes.push(m); }
+  _MV3=sav.mv3; _MAT_COND=sav.mc; for(const [o,keys] of sav.caches) for(const kk of Object.keys(o)) if(!keys.has(kk)) delete o[kk];
+  for(const p of PROMO.postes) posePoste(p,0,true);
+  for(const m of PROMO.meshes){ m.instanceMatrix.needsUpdate=true; const L=PROMO.postes.filter((p)=>p.mesh===m); let cx=0, cz=0; for(const p of L){ cx+=p.x; cz+=p.z; } cx/=L.length; cz/=L.length; let r=0; for(const p of L) r=Math.max(r,Math.hypot(p.x-cx,p.z-cz));
+    m.geometry.boundingSphere=new THREE.Sphere(new THREE.Vector3(cx,0,cz),r+(m.geometry.boundingSphere?m.geometry.boundingSphere.radius:12)+2); } } /* r128 : un InstancedMesh est écarté du champ sur la sphère de SA géométrie — elle englobe toutes ses instances */
+const _MPO=new THREE.Matrix4(), _QPO=new THREE.Quaternion(), _EPO=new THREE.Euler(), _VPO=new THREE.Vector3(), _SPO=new THREE.Vector3();
+function posePoste(p,t,vis){ const b=p.quai?0:Math.sin(t*1.1+p.ph); _EPO.set(p.quai?0:b*0.02,p.ang,p.quai?0:Math.cos(t*0.9+p.ph)*0.025,'YXZ'); _QPO.setFromEuler(_EPO);
+  _VPO.set(p.x,p.y+(p.quai?0:b*0.035),p.z); _SPO.setScalar(vis?1:0.0001); _MPO.compose(_VPO,_QPO,_SPO); p.mesh.setMatrixAt(p.i,_MPO); }
+/* le bercement des instances proches, la promotion, le retour à quai (4 fois par seconde ; le bercement, à chaque image) */
+function majPromoBateaux(dt){ const C=CANAUX; if(!C.ok||!PROMO.postes.length) return; const px=P.veh?P.veh.x:P.x, pz=P.veh?P.veh.z:P.z, t=ETAT.runT||0;
+  const sales=new Set(); for(const p of PROMO.postes){ if(p.v||p.coule||p.quai) continue; if(dist2(p.x,p.z,px,pz)>140*140) continue; posePoste(p,t,true); sales.add(p.mesh); }
+  for(const m of sales) m.instanceMatrix.needsUpdate=true;
+  if(INT.actif||ETAT.mode!=='jeu') return; PROMO.t-=dt; if(PROMO.t>0) return; PROMO.t=0.25;
+  for(let i=PROMO.promus.length-1;i>=0;i--){ const p=PROMO.promus[i], v=p.v;
+    if(!v||v.mort||vehicules.indexOf(v)<0){ PROMO.promus.splice(i,1); p.v=null; p.coule=true; if(p.amarre) p.amarre.promu=false; continue; } /* coulé, ou retiré : le poste reste vide jusqu'à la partie suivante */
+    if(P.veh===v) continue; const d=Math.hypot(v.x-px,v.z-pz); if(d<PROMO_RETOUR) continue;
+    const aPoste=Math.hypot(v.x-p.x,v.z-p.z)<1.5&&Math.abs(angDiff(v.ang,p.ang))<0.3;
+    if(!aPoste){ if(d<60||!horsEcran(v.x,v.z)) continue; let occupe=false; for(const w of vehicules) if(w!==v&&!w.mort&&dist2(w.x,w.z,p.x,p.z)<16) occupe=true; if(occupe) continue; } /* déplacé : rendu à son poste, hors de vue */
+    v.mort=true; scene.remove(v.mesh); libererEntite(v.mesh); const j=vehicules.indexOf(v); if(j>=0) vehicules.splice(j,1);
+    PROMO.promus.splice(i,1); p.v=null; if(p.amarre) p.amarre.promu=false; posePoste(p,t,true); p.mesh.instanceMatrix.needsUpdate=true; }
+  if(PROMO.promus.length>=PROMO_MAX) return; let best=null, bd=PROMO_R*PROMO_R;
+  for(const p of PROMO.postes){ if(p.v||p.coule) continue; const d2=dist2(p.x,p.z,px,pz); if(d2<bd){ bd=d2; best=p; } }
+  if(!best) return; const v=creerVehicule(best.cle,best.x,best.z,best.ang,null); if(!v) return;
+  if(v.mesh.userData.coul!==best.coul){ peindreMesh(v.mesh,best.coul); v.mesh.userData.coul=best.coul; } /* la livrée de l'instance */ v.v=0; v.canauxPromu=best; best.v=v; PROMO.promus.push(best); if(best.amarre) best.amarre.promu=true;
+  posePoste(best,t,false); best.mesh.instanceMatrix.needsUpdate=true; }
+/* à chaque partie : tous les bateaux à leur poste, en instances */
+function promoStartRun(){ for(const p of PROMO.promus) if(p.v&&!p.v.mort){ const v=p.v; v.mort=true; scene.remove(v.mesh); libererEntite(v.mesh); const j=vehicules.indexOf(v); if(j>=0) vehicules.splice(j,1); }
+  PROMO.promus.length=0; for(const p of PROMO.postes){ p.v=null; p.coule=false; if(p.amarre) p.amarre.promu=false; posePoste(p,0,true); } for(const m of PROMO.meshes) m.instanceMatrix.needsUpdate=true; PROMO.t=0; }
 /* ---------- startRun : un véhicule posé (garé au hasard, vélo d'un arceau retiré, hélico d'un toit retiré…) que le quartier a rendu
    impossible est retiré APRÈS sa création — jamais avant : les tirages de la partie (et donc tout ce qui est posé hors du quartier)
    restent ceux d'avant. Dans l'eau d'un canal (sauf un bateau), sur un segment de rue retiré ou un tablier (une voiture), dans un
@@ -8938,8 +9038,8 @@ function mkPontonsV2(){
   /* les bateaux du décor : une géométrie qui berce (aCentre) et leurs lumières de la nuit */
   const cb={pos:[],nor:[],col:[]}, cbn={pos:[],nor:[],col:[]}, cen=[];
   for(const B of C.bateauxV2){ const a=aleaLot(B.graine*2.11+0.07), n0=cb.pos.length/3, Y0=B.ascenseur?0.45:N, q=constructeurCanaux(cb,B.x,B.z,B.ang,1,Y0), qn=constructeurCanaux(cbn,B.x,B.z,B.ang,1,Y0);
-    bateauDecorV2(q,qn,B,a); const ph=Math.abs(B.x*0.37+B.z*0.21)%6.283; for(let i=n0;i<cb.pos.length/3;i++) cen.push(B.x,B.z,B.ascenseur?-10:ph);
-    if(B.ascenseur){ for(const sx of [-1,1]) for(const sz of [-1,1]) b.cyl(0.12,3.2-C.fond,B.x+sx*(B.W/2+0.3),(3.2+C.fond)/2,B.z+sz*(B.L/2-0.7),0xb8c0c8); } } /* l'ascenseur à bateau (le bateau hissé ne berce pas : aCentre.z = −10) */
+    if(B.type==='jetskis') q.box(2.6,0.24,3.2,0,0.1,0,0x3a3e44); /* V3 : le quai à jet-skis (les jet-skis : des instances, pilotables) */ const ph=Math.abs(B.x*0.37+B.z*0.21)%6.283; for(let i=n0;i<cb.pos.length/3;i++) cen.push(B.x,B.z,B.ascenseur?-10:ph);
+    if(B.elevateur){ for(const sx of [-1,1]) for(const sz of [-1,1]) b.cyl(0.12,3.2-C.fond,B.x+sx*(B.W/2+0.3),(3.2+C.fond)/2,B.z+sz*(B.L/2-0.7),0xb8c0c8); } } /* l'ascenseur à bateau (le bateau hissé ne berce pas : aCentre.z = −10) */
   if(cb.pos.length){ const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(cb.pos,3)); g.setAttribute('normal',new THREE.Float32BufferAttribute(cb.nor,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(cb.col,3)); g.setAttribute('aCentre',new THREE.Float32BufferAttribute(cen,3)); g.computeBoundingSphere();
     const me=new THREE.Mesh(g,matBateauxCanaux()); me.receiveShadow=true; scene.add(me); C.bateauxMesh=me; }
   if(cbn.pos.length){ const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(cbn.pos,3)); g.setAttribute('normal',new THREE.Float32BufferAttribute(cbn.nor,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(cbn.col,3)); g.computeBoundingSphere(); const me=new THREE.Mesh(g,_MAT_FEN_CANAUX); me.visible=false; C.nuitMeshes.push(me); scene.add(me); }
@@ -8947,6 +9047,7 @@ function mkPontonsV2(){
   { const pos=[], q=(x0,z0,x1,z1)=>{ const y=N+0.02; pos.push(x0,y,z0, x0,y,z1, x1,y,z1, x0,y,z0, x1,y,z1, x1,y,z0); }; /* les ombres sur l'eau (le soleil au sud-est de la caméra : décalées vers le nord-ouest) */
     for(const p of C.pontons) if((p.v2||p.marina)&&!p.pente) q(p.x0-0.45,p.z0-0.35,p.x1-0.45,p.z1-0.35); for(const B of C.bateauxV2) if(!B.ascenseur) q(B.x-B.W*0.42-0.5,B.z-B.L*0.45-0.4,B.x+B.W*0.42-0.5,B.z+B.L*0.45-0.4);
     const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.computeBoundingSphere(); const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:0x06303a,transparent:true,opacity:0.28,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2,side:THREE.DoubleSide})); m.renderOrder=1; scene.add(m); C.ombres=m; }
+  mkBateauxInstances(C); /* V3, phase 3 : les bateaux amarrés, tirés de leur vrai modèle, pilotables par promotion */
   C.tPontons=Math.round(performance.now()-t0); }
 function mkBatiCanaux(){
   const C=CANAUX; if(!C.lots) return; const t0=performance.now();
@@ -8987,7 +9088,7 @@ function enseigneCanaux(txt,coul,x,y,z,ry,larg){ /* mkEnseigne fait naître le d
   const L=larg||6, p=new THREE.Mesh(new THREE.PlaneGeometry(L,L/2.4),new THREE.MeshBasicMaterial({map:texEnseigne(txt,coul),transparent:false}));
   p.position.set(x,y,z); p.rotation.order='YXZ'; p.rotation.y=ry; const t=0.32, hh=L/2.4/2; p.rotation.x=-t; p.position.x+=Math.sin(ry)*hh*Math.sin(t); p.position.z+=Math.cos(ry)*hh*Math.sin(t);
   const dos=new THREE.Mesh(p.geometry,p.material); dos.rotation.y=Math.PI; dos.position.z=-0.04; p.add(dos); scene.add(p); ENSEIGNES.push({p,lieu:false}); return p; }
-function amarreCanal(x,z){ if(!CANAUX.ok||!dansBBCanaux(x,z)) return null; for(const a of CANAUX.amarres) if(x>a.x0&&x<a.x1&&z>a.z0&&z<a.z1) return a; return null; }
+function amarreCanal(x,z){ if(!CANAUX.ok||!dansBBCanaux(x,z)) return null; for(const a of CANAUX.amarres) if(!a.promu&&x>a.x0&&x<a.x1&&z>a.z0&&z<a.z1) return a; return null; } /* V3 : un poste dont le bateau est un vrai véhicule n'est plus un mur */
 /* les places : appelée par canauxDefinir (des données seulement) */
 function canauxNautiqueDefinir(){
   const C=CANAUX, f=(id)=>C.eaux.find((q)=>q.id===id), cO=f('canalO'), cE=f('canalE'), h=C.niveau+0.32;
@@ -9048,7 +9149,7 @@ function dockersCanaux(){ const C=CANAUX;
   /* 4) les Dockside Boys à l'atelier (figurants : touchés, ils deviennent de vrais Dockers) */
   const P0=POIS.port, coul=[{haut:0x1f6a7a,bas:0x14202a,peau:0xb8865a,casq:0x0e3a46},{haut:0x2a8a9a,bas:0x1a262e,peau:0xc98d5e,casq:0x1f6a7a},{haut:0x1f6a7a,bas:0x1a262e,peau:0x8a5a3a,casq:0x14202a}];
     C.dockers=[]; for(const [dx,dz,a,k] of [[1,11,Math.PI/2,0],[11,5,-Math.PI/2,1],[7,-1,Math.PI,2],[30.5,13,Math.PI/2,0]]){ const h=makeHumain(Object.assign({visage:'mechant'},coul[k]),1); h.g.position.set(P0.x+dx,0.22,P0.z+dz); h.g.rotation.y=a; scene.add(h.g); figurant(h,null,k===1?'mur_pompe':'mur_batte'); C.dockers.push(h); } }
-function canauxStartRun(){ avecAleaPrive(2026,canauxStartRunPrive); SURV.fin=0; miamiBateaux(); levisStartRun(); yachtsIAStartRun(); } /* V3 : ponts-levis fermés, yachts de l'IA retirés */ /* sur un générateur privé : la partie suivante tire comme avant */
+function canauxStartRun(){ avecAleaPrive(2026,canauxStartRunPrive); SURV.fin=0; miamiBateaux(); levisStartRun(); yachtsIAStartRun(); promoStartRun(); } /* V3 : ponts-levis fermés, yachts de l'IA retirés */ /* sur un générateur privé : la partie suivante tire comme avant */
 function canauxStartRunPrive(){
   const C=CANAUX; if(!C.ok) return;
   if(!C.dockers) dockersCanaux(); /* à la 1re partie : créés au chargement, ils remplissaient le cache des corps humains avant le premier ennemi de la partie (un tirage de moins pour tout ce qui suit) */
@@ -15229,7 +15330,7 @@ function rampeMerSous(x,z){
   return null;
 }
 function majSautMer(v,dt){
-  if(!MERV.ok||grosNavire(v.def)||v.def.long>9) return false; // petits bateaux seulement
+  if(!MERV.ok||grosNavire(v.def)||(v.def.long>9&&!v.def.dejauge)) return false; // petits bateaux seulement (V3 : et le bateau de course, qui déjauge)
   if(v.vyMer!==undefined&&v.hMer>0){ // en l'air
     v.vyMer-=26*dt; v.hMer+=v.vyMer*dt; v.airMer+=dt;
     if(v.hMer<=0){ v.hMer=0; const air=v.airMer; v.vyMer=undefined;
@@ -15244,7 +15345,7 @@ function majSautMer(v,dt){
   // 17 octobre au soir (signalé : « les claquements sur l'eau sont beaucoup trop fréquents ; garde du mouvement, réduis nettement
   // fréquence et amplitude ») : un bond tous les 25 à 60 u (avant : 6 à 15 u, soit trois par seconde à pleine vitesse), moins haut
   if(Math.abs(v.v)>11&&v.z>MER+14&&!v.rampeMer&&!MERV.rampes.some((r)=>dist2(r.x,r.z,v.x,v.z)<900)){ v.distVague=(v.distVague===undefined?20:v.distVague)-Math.abs(v.v)*dt;
-    if(v.distVague<=0){ v.distVague=25+Math.random()*35; v.vyMer=Math.min(2.6,1.1+Math.abs(v.v)*0.045); v.hMer=0.01; v.airMer=0; if(MER_V2) eclaboussure(v.x,v.z,0.6+Math.abs(v.v)*0.012); return true; } }
+    if(v.distVague<=0){ const dj=v.def.dejauge; v.distVague=dj?12+Math.random()*16:25+Math.random()*35; v.vyMer=Math.min(dj?4.4:2.6,(1.1+Math.abs(v.v)*0.045)*(dj?1.5:1)); /* V3 : le bateau de course saute de crête en crête, plus souvent et plus haut */ v.hMer=0.01; v.airMer=0; if(MER_V2) eclaboussure(v.x,v.z,0.6+Math.abs(v.v)*0.012); return true; } }
   if(v.rampeMer){ const r=v.rampeMer.r; v.rampeMer=null; // on quitte le tremplin
     if(Math.abs(v.v)>9&&v.hMer>r.haut*0.7){ v.vyMer=Math.min(14,Math.abs(v.v)*0.42); v.airMer=0; if(v.conduit==='joueur') SFX.swing(); return true; } }
   v.hMer=0; return false;
@@ -22280,6 +22381,7 @@ function matTexteV3(id){ if(_TEX_V3[id]) return _TEX_V3[id]; let t, dec=false;
   else if(id==='helipad'){ t=texV3(256,256,(x,w,h)=>{ x.clearRect(0,0,w,h); x.fillStyle='rgba(20,24,32,1)'; x.beginPath(); x.arc(w/2,h/2,124,0,7); x.fill(); x.strokeStyle='#ffd23f'; x.lineWidth=12; x.beginPath(); x.arc(w/2,h/2,104,0,7); x.stroke();
       x.fillStyle='#ffd23f'; x.font='900 140px Arial, sans-serif'; x.textAlign='center'; x.textBaseline='middle'; x.fillText('H',w/2,h/2+4); }); dec=true; }
   else if(id==='lrpd'){ t=ecrire('LRPD  07','#f2f4f8',30,224,56); dec=true; }
+  else if(id==='num77'||id==='num07'){ const n=id==='num77'?'77':'07'; t=texV3(128,128,(x,w,h)=>{ x.clearRect(0,0,w,h); x.fillStyle='#f4f4f0'; x.beginPath(); x.arc(64,64,60,0,7); x.fill(); x.lineWidth=7; x.strokeStyle='#14161b'; x.stroke(); x.fillStyle='#14161b'; x.font='900 70px Arial, sans-serif'; x.textAlign='center'; x.textBaseline='middle'; x.fillText(n,64,68); }); dec=true; } /* V3 : le numéro de course (offshore, jet-ski Sport) */
   else if(id==='nomSirene'){ t=texV3(256,60,(x,w,h)=>{ x.clearRect(0,0,w,h); x.fillStyle='#1d3557'; x.font='italic bold 40px Georgia, serif'; x.textAlign='center'; x.textBaseline='middle'; x.fillText('Sirène',w/2,h/2+2); }); dec=true; }
   else if(id==='bastion'){ t=ecrire('BASTION','#d8d6c8',44,256,56); dec=true; }
   else if(id==='bastionAv') t=texV3(160,32,(x,w,h)=>{ x.fillStyle='#262a22'; x.fillRect(0,0,w,h); x.fillStyle='#d8d6c8'; x.font='bold 21px Arial, sans-serif'; x.textAlign='center'; x.textBaseline='middle'; x.fillText('BASTION-03',w/2,h/2+1); });
@@ -25062,13 +25164,15 @@ VEH_V3.jetski={ ouvert:true, interieur:['guidon'],
     B.tube('guidon',0.022,[-0.32,0.92,0.28],[0.32,0.92,0.28],6); B.tube('guidon',0.03,[0,0.7,0.36],[0,0.9,0.3],6);
     for(const sx of [-1,1]){ B.cyl('noirMat',0.03,0.03,0.12,8,sx*0.36,0.92,0.28,0,0,Math.PI/2); B.tube('acier',0.01,[sx*0.3,0.92,0.3],[sx*0.42,1.05,0.3],4); B.bloc('noirMat',0.12,0.07,0.03,sx*0.45,1.08,0.3,0.01,0.01); }
     B.bx('ecranI',0.14,0.07,0.01,0,0.94,0.36,-0.5);
+    /* V3 « Sport » : sponsons de course aux flancs arrière, numéro sur les flancs du capot, bandes sur le pont */
+    for(const sx of [-1,1]){ B.bloc('acc',0.05,0.08,0.42,sx*0.53,0.14,-0.95,0.01,0.02,0,0,sx*0.35); B.geo('num',new THREE.PlaneGeometry(0.24,0.24).rotateY(sx>0?Math.PI/2:-Math.PI/2),sx*0.505,0.44,0.62); B.bx('acc',0.05,0.008,1.1,sx*0.12,0.585,0.2); }
     /* la selle biplace à dosseret, les repose-pieds, la plateforme et la poignée ; la buse */
     B.bloc('selle',0.42,0.2,1.05,0,0.6,-0.42,0.06,0.08); B.bloc('selle',0.4,0.18,0.12,0,0.76,-0.86,0.04,0.05);
     for(const sx of [-1,1]) B.bx('tapis',0.22,0.012,1.0,sx*0.36,0.5,-0.35);
     B.bx('tapis',0.8,0.012,0.32,0,0.47,-1.12); B.tube('acier',0.016,[-0.15,0.82,-0.95],[0.15,0.82,-0.95],4);
     B.cyl('sombre',0.08,0.1,0.2,12,0,0.06,-1.3,Math.PI/2); B.bx('sombre',0.3,0.02,0.3,0,-0.12,-0.95);
     return {}; },
-  mats:{ coque:()=>matV3Couleur(0xf2f4f6), acc:()=>matV3Couleur(0x15171c), noirMat:()=>matV3Couleur(0x15171c), guidon:()=>matV3Couleur(0x1a1c22),
+  mats:{ coque:()=>matV3Couleur(0xf2f4f6), acc:()=>matV3Couleur(0x15171c), noirMat:()=>matV3Couleur(0x15171c), guidon:()=>matV3Couleur(0x1a1c22), num:()=>matTexteV3('num07'),
     selle:()=>new THREE.MeshPhongMaterial({color:0x1c1e24,specular:0x333333,shininess:30}), tapis:()=>matV3Couleur(0x2a2d34) },
   inst(I){ I.ud.siege={y:0.3,z:-0.35}; }
 };
@@ -25095,6 +25199,211 @@ VEH_V3.kayak={ ouvert:true,
         const g=new THREE.ExtrudeGeometry(sh,{depth:0.012,bevelEnabled:false}); g.translate(0,0,-0.006); if(sx<0) g.rotateZ(Math.PI); g.rotateX(sx*0.5); g.translate(sx*1.0,0,0); B.geo('pale',g); }
       G=_GEO_V3['kayak:pagaie']=B.fin(); }
     const pag=new THREE.Group(); pag.position.set(0,0.75,0.25); pag.add(new THREE.Mesh(G.manche,matV3Couleur(0x1a1c22))); pag.add(new THREE.Mesh(G.pale,matV3Couleur(0xffd23f))); I.corps.add(pag); I.ud.pagaie=pag; }
+};
+/* ---------- V5 · bateaux (Canaux V3, phase 3 ; fiches dans rapport_nuit/BATEAUX_V5.md) ----------
+   Même mécanique que les V3/V4 (VEH_V3[clé] : geo, mats, inst ; construireV3Spec sur un générateur privé). Coques par formeBateauV4 +
+   coqueVedetteV3 (bandes de bordé, liseré, carène, pont) ou carrosserieV4 (jet-skis). Tirant d'air : HAUT_NAV (remesuré par le test). */
+/* 1. Jet à bras « Kamikaze » → Kawasaki SX-R : coque étroite à redans, pont plat ouvert à l'arrière (le plateau où l'on se tient debout),
+   capot avant bombé, bras de direction articulé à l'étrave qui monte vers le pilote, guidon à poignées et protège-mains, pas de selle */
+VEH_V3.jetskiBras={ ouvert:true, interieur:['guidon'],
+  geo(B,d){
+    const S=carrosserieV4(B,'coque',{z0:-1.15,z1:1.15,g0:0,
+      haut:[[-1.15,0.36],[-0.5,0.36],[0.1,0.42],[0.6,0.52],[1.0,0.48],[1.15,0.34]],bas:[[-1.15,0.03],[-0.5,-0.1],[0.4,-0.09],[0.95,0.05],[1.15,0.28]],
+      larg:[[-1.15,0.34],[-0.5,0.38],[0.3,0.37],[0.8,0.2],[1.15,0.03]],rentre:0.14,epaule:0.72,bombe:0.02,creux:0.25,yLarge:0.26,yEpaule:0.66}); /* étrave fine (test « Bateaux » : l'avant plus étroit que le tableau) */
+    S.bande(B,'peinture',-0.15,1.15,S.uY(0,0.3),1,2,0.006,18,6); for(const sx of [-1,1]) S.bande(B,'acc',-1.1,1.0,S.uY(0,0.2),S.uY(0,0.25),sx,0.008,20,2);
+    /* le plateau à l'arrière (on s'y tient debout), ses bords et le tapis antidérapant */
+    B.bx('tapis',0.5,0.02,0.95,0,0.3,-0.62); for(const sx of [-1,1]) B.bx('noirMat',0.05,0.07,1.0,sx*0.3,0.33,-0.6);
+    /* le capot bombé, ses ouïes ; le bras : articulation à l'étrave, tube, guidon, poignées, protège-mains */
+    B.sph('peinture',1,0,0.52,0.55,0.3,0.12,0.42); for(let k=0;k<3;k++) B.bx('sombre',0.12,0.012,0.03,0,0.63,0.62+k*0.07);
+    B.cyl('sombre',0.06,0.06,0.2,10,0,0.5,0.86,0,0,Math.PI/2); B.tube('guidon',0.035,[0,0.52,0.84],[0,1.02,0.06],6); B.tube('guidon',0.03,[0,1.02,0.06],[0,1.1,0.0],6);
+    B.tube('guidon',0.022,[-0.3,1.1,0.0],[0.3,1.1,0.0],6); for(const sx of [-1,1]){ B.cyl('noirMat',0.03,0.03,0.12,8,sx*0.34,1.1,0.0,0,0,Math.PI/2); B.bloc('noirMat',0.03,0.08,0.12,sx*0.41,1.12,0.03,0.01,0.01); }
+    B.bx('ecranI',0.1,0.05,0.01,0,1.06,0.1,-0.6);
+    B.cyl('sombre',0.07,0.09,0.18,12,0,0.05,-1.15,Math.PI/2); B.bx('sombre',0.24,0.02,0.24,0,-0.1,-0.85);
+    return {}; },
+  mats:{ coque:()=>matV3Couleur(0x1c2a1a), acc:()=>matV3Couleur(0x9fe02a), noirMat:()=>matV3Couleur(0x15171c), guidon:()=>matV3Couleur(0x1a1c22), tapis:()=>matV3Couleur(0x2a2d34) },
+  inst(I){ I.ud.siege={debout:true,y:0.3,z:-0.66}; }
+};
+/* 2. Jet trois places « Croisière » → Yamaha FX Cruiser : longue coque à bourrelets, grand capot et ses rétroviseurs, pare-brise fumé,
+   selle étagée à trois places et dosseret, vide-poche, plateforme de bain et son échelle, poignées de remontée ; livrée bicolore */
+VEH_V3.jetskiTrio={ ouvert:true, interieur:['guidon'],
+  geo(B,d){
+    const S=carrosserieV4(B,'coque',{z0:-1.75,z1:1.75,g0:0,
+      haut:[[-1.75,0.46],[-1.0,0.5],[-0.1,0.52],[0.7,0.66],[1.3,0.6],[1.75,0.42]],bas:[[-1.75,0.04],[-0.8,-0.13],[0.6,-0.11],[1.3,0.07],[1.75,0.36]],
+      larg:[[-1.75,0.52],[-0.8,0.62],[0.6,0.62],[1.3,0.4],[1.75,0.06]],rentre:0.16,epaule:0.72,bombe:0.02,creux:0.25,yLarge:0.34,yEpaule:0.74});
+    S.bande(B,'peinture',-1.75,1.75,S.uY(0,0.3),1,2,0.006,30,8); for(const sx of [-1,1]){ S.bande(B,'acc',-1.6,1.3,S.uY(0,0.22),S.uY(0,0.27),sx,0.008,28,2); B.bx('sombre',0.03,0.03,2.2,sx*0.58,0.02,-0.3); }
+    B.sph('peinture',1,0,0.66,0.92,0.44,0.16,0.62); B.sph('acc',1,0,0.72,0.72,0.3,0.11,0.26); B.bx('vitreO',0.62,0.2,0.02,0,0.94,0.6,-0.7);
+    B.tube('guidon',0.024,[-0.36,0.98,0.44],[0.36,0.98,0.44],6); B.tube('guidon',0.032,[0,0.74,0.54],[0,0.96,0.46],6);
+    for(const sx of [-1,1]){ B.cyl('noirMat',0.032,0.032,0.13,8,sx*0.4,0.98,0.44,0,0,Math.PI/2); B.tube('acier',0.01,[sx*0.34,0.98,0.46],[sx*0.5,1.12,0.48],4); B.bloc('noirMat',0.14,0.08,0.03,sx*0.53,1.15,0.48,0.01,0.01); }
+    B.bx('ecranI',0.2,0.09,0.01,0,1.0,0.52,-0.5);
+    /* la selle à trois places, étagée, et son dosseret ; repose-pieds ; la plateforme et l'échelle ; la buse */
+    B.bloc('selle',0.46,0.2,0.62,0,0.62,0.0,0.06,0.08); B.bloc('selle',0.46,0.22,0.62,0,0.66,-0.62,0.06,0.08); B.bloc('selle',0.46,0.24,0.56,0,0.7,-1.2,0.06,0.08);
+    B.bloc('selle',0.44,0.2,0.12,0,0.88,-1.5,0.04,0.05); for(const sx of [-1,1]) B.bx('tapis',0.24,0.012,1.6,sx*0.4,0.5,-0.5);
+    B.bx('tapis',0.98,0.012,0.36,0,0.46,-1.62); B.tube('acier',0.016,[-0.18,0.9,-1.42],[0.18,0.9,-1.42],4); for(const k of [0,1]) B.tube('acier',0.012,[0.3,0.44-k*0.16,-1.82],[0.44,0.44-k*0.16,-1.82],4);
+    B.cyl('sombre',0.08,0.1,0.2,12,0,0.06,-1.75,Math.PI/2); B.bx('sombre',0.3,0.02,0.3,0,-0.13,-1.35);
+    return {}; },
+  mats:{ coque:()=>matV3Couleur(0xf2f4f6), acc:()=>matV3Couleur(0x1a3a6a), noirMat:()=>matV3Couleur(0x15171c), guidon:()=>matV3Couleur(0x1a1c22),
+    selle:()=>new THREE.MeshPhongMaterial({color:0x2a2e36,specular:0x333333,shininess:30}), tapis:()=>matV3Couleur(0x2a2d34) },
+  inst(I){ I.ud.siege={y:0.42,z:0.0}; }
+};
+/* 3. Offshore « Tonnerre » → cigarette de course (Cigarette 42 / Fountain) : très longue coque en V profond à redans, étrave effilée, pont
+   avant immense et ses prises d'air, cockpit bas à deux baquets sous un pare-brise enveloppant, arceau de course, capot moteur à écopes,
+   deux gros hors-bord de course et leurs hélices de surface, livrée de course numérotée (77) ; on y est assis, harnaché ; il déjauge */
+VEH_V3.offshore={ interieur:['console','baquet'],
+  geo(B,d){ const L=9.5, W=2.6, F=formeBateauV4(L,W,{pa:0.4,livet:0.84,tonture:0.2,quille:-0.55,etrave:0.66,pont:0.42,plein:0.36,tab:0.9,fin:0.52,ep:0.07}); coqueVedetteV3(B,F,30);
+    /* la livrée : deux grandes flèches le long du flanc, le numéro sur l'avant, les bandes du pont avant */
+    for(const sx of [-1,1]){ for(let i=0;i<9;i++){ const z0=-4.3+i*0.95, z=z0+0.47, y=0.5+i*0.022, x=bordeV4(F,z,y), ang=Math.atan2(F.hw(z0)-F.hw(z0+0.95),0.95);
+        B.bx('flamme',0.004,0.16,0.97,sx*x,y,z,0,-sx*ang,-sx*0.09); B.bx('blanc',0.004,0.05,0.97,sx*(x-0.002),y-0.13,z,0,-sx*ang,-sx*0.09); }
+      { const z=2.2, y=0.6, x=bordeV4(F,z,y)+0.006; B.geo('num',new THREE.PlaneGeometry(0.62,0.62).rotateY(sx>0?Math.PI/2:-Math.PI/2),sx*x,y,z); } }
+    for(let i=0;i<6;i++){ const z=0.6+i*0.6; B.bx('flamme',0.36,0.012,0.56,0,F.ys(z)+0.012,z); B.bx('blanc',0.08,0.013,0.56,0,F.ys(z)+0.013,z); }
+    for(const sx of [-1,1]){ B.bloc('sombre',0.3,0.14,0.8,sx*0.55,F.ys(1.6)+0.06,1.6,0.04,0.06); B.bx('noirMat',0.22,0.08,0.02,sx*0.55,F.ys(1.6)+0.09,2.0); } /* les prises d'air du pont avant */
+    /* le cockpit : pare-brise enveloppant bas (le seul verre), deux baquets, planche en carbone, volant de course, l'arceau */
+    const zK=-1.2, y0=F.yD(zK);
+    B.bx('vitre',1.9,0.3,0.012,0,F.ys(zK+0.9)+0.13,zK+0.95,-0.85); for(const sx of [-1,1]) B.bx('vitre',0.012,0.26,0.6,sx*0.98,F.ys(zK+0.9)+0.1,zK+0.7,0,sx*0.38,0);
+    B.bloc('console',1.9,0.36,0.36,0,y0+0.2,zK+0.62,0.03,0.04,-0.4); B.bx('ecranI',0.3,0.14,0.01,-0.42,y0+0.42,zK+0.5,-0.7); B.tore('volant',0.15,0.022,-0.42,y0+0.46,zK+0.36,0.55,0,0);
+    for(const sx of [-1,1]){ B.bloc('baquet',0.56,0.3,0.6,sx*0.42,y0+0.15,zK-0.35,0.06,0.08); B.bloc('baquet',0.56,0.66,0.14,sx*0.42,y0+0.52,zK-0.7,0.05,0.07); B.bloc('baquet',0.12,0.2,0.56,sx*0.69,y0+0.38,zK-0.35,0.03,0.04); } B.bloc('baquet',1.9,0.55,0.3,0,y0+0.28,zK-1.05,0.05,0.07); /* la banquette arrière, qui ferme le cockpit */
+    B.tube('arceau',0.05,[-1.0,F.ys(-2.2),-2.2],[-0.95,F.ys(-2.2)+0.8,-2.25],8); B.tube('arceau',0.05,[1.0,F.ys(-2.2),-2.2],[0.95,F.ys(-2.2)+0.8,-2.25],8); B.tube('arceau',0.05,[-0.95,F.ys(-2.2)+0.8,-2.25],[0.95,F.ys(-2.2)+0.8,-2.25],8);
+    /* le capot moteur et ses écopes ; les deux hors-bord de course, leurs chaises ; les feux */
+    B.bloc('peinture',1.9,0.2,1.8,0,F.yD(-3.4)+0.12,-3.4,0.06,0.1); for(const sx of [-1,1]) B.bloc('noirMat',0.34,0.22,0.6,sx*0.5,F.yD(-3.4)+0.3,-3.1,0.05,0.08);
+    for(const mx of [-0.5,0.5]){ const zm=F.zAr-0.5, yT=F.ys(F.zAr); B.bloc('sombre',0.34,0.3,0.26,mx,yT-0.16,F.zAr-0.15,0.03);
+      B.bloc('moteur',0.62,0.92,0.86,mx,yT+0.22,zm,0.08,0.16); B.sph('moteur',1,mx,yT+0.66,zm,0.31,0.13,0.44); B.bloc('flamme',0.63,0.08,0.87,mx,yT+0.1,zm,0.02,0.1);
+      B.bloc('sombre',0.14,0.6,0.26,mx,-0.12,zm-0.03,0.04,0.05); B.cyl('sombre',0.09,0.08,0.5,12,mx,-0.42,zm-0.05,Math.PI/2); }
+    for(const sx of [-1,1]) B.bx(sx>0?'feu':'vert',0.022,0.05,0.12,sx*(F.hw(2.6)+0.012),F.ys(2.6)-0.08,2.6,0,sx*0.25,0);
+    return {F}; },
+  mats:{ accent:()=>matV3Couleur(0x1a1c22), bande:()=>matV3Couleur(0xf2f4f8), antif:()=>matV3Couleur(0x0c0d10), liston:()=>matV3Couleur(0x0a0c10), liner:()=>matV3Couleur(0x1a1c22),
+    plat:()=>matV3Couleur(0x22252c), pont:()=>matV3Couleur(0x2a2d34), flamme:()=>matV3Couleur(0xffd23f), noirMat:()=>matV3Couleur(0x0c0d10), arceau:()=>matV3Couleur(0x1a1c22),
+    baquet:()=>new THREE.MeshPhongMaterial({color:0x111216,specular:0x444444,shininess:40}), console:()=>matV3Couleur(0x0c0d10), num:()=>matTexteV3('num77'),
+    moteur:()=>new THREE.MeshPhongMaterial({color:0x0c0d10,specular:0x666666,shininess:80}), vert:()=>new THREE.MeshBasicMaterial({color:0x1fd85a}) },
+  inst(I){ const F=I.info.F; helicesBateauV4(I,[[-0.5,-0.42,F.zAr-0.8],[0.5,-0.42,F.zAr-0.8]],1.6); I.ud.siege={assis:true,x:-0.42,y:0.18,z:-1.55}; I.ud.quilleEchoue=0.42; }
+};
+/* 4. Yacht « Riviera 43 » → Riviera 4600 / Princess F45 : motor-yacht à flybridge de taille moyenne, étrave haute, salon aux flancs vitrés
+   et pare-brise incliné, flybridge (poste de pilotage, banquettes, bain de soleil, petit arceau radar), vitres de coque, plateforme de bain
+   en teck, cockpit arrière ; le pilote debout à la barre du flybridge */
+VEH_V3.yachtMoteur={ interieur:['cuir'],
+  geo(B,d){ const L=13, W=3.8, F=formeBateauV4(L,W,{pa:0.68,livet:1.45,tonture:0.42,quille:-0.85,etrave:0.6,pont:0.95,plein:0.48,tab:0.94,fin:0.62,ep:0.1}); coqueVedetteV3(B,F,28); const yD=0.95, yF=2.75;
+    B.profil('vitre',[[-2.5,yD],[-2.5,2.62],[1.4,2.66],[2.9,1.6],[2.9,yD]],3.0,0.05);
+    B.profil('peinture',[[-3.7,2.6],[-3.7,yF],[1.6,yF+0.02],[1.5,2.62]],3.3,0.04);
+    for(const sx of [-1,1]){ B.tube('peinture',0.06,[sx*1.45,1.62,2.9],[sx*1.45,2.64,1.5],8); B.bx('peinture',0.12,1.7,0.14,sx*1.45,1.8,-2.48);
+      B.profil('peinture',[[-3.65,yF],[-3.65,yF+0.5],[0.8,yF+0.5],[1.5,yF]],0.07,0.02,sx*1.6); }
+    B.profil('peinture',[[0.7,yF],[0.7,yF+0.55],[1.25,yF+0.5],[1.6,yF]],2.9,0.03); B.bx('vitreO',2.6,0.24,0.03,0,yF+0.7,1.1,-0.5);
+    B.bloc('tableau',1.1,0.8,0.45,0,yF+0.4,0.95,0.04,0.06); B.bx('ecranI',0.36,0.22,0.02,0.22,yF+0.86,0.76,-0.5); B.tore('volant',0.17,0.022,0,yF+0.86,0.7,0.6,0,0);
+    B.bloc('cuir',2.8,0.42,0.5,0,yF+0.21,-3.3,0.06,0.08); for(const sx of [-1,1]) B.bloc('cuir',0.5,0.42,1.9,sx*1.2,yF+0.21,-2.2,0.06,0.08); B.bloc('teck',1.0,0.05,1.1,0,yF+0.6,-2.4,0.02,0.03);
+    for(const sx of [-1,1]) B.geo('peinture',new THREE.BoxGeometry(0.2,1.3,0.36).rotateX(0.25).translate(sx*1.2,yF+0.62,-1.2)); B.bx('peinture',2.6,0.2,0.4,0,yF+1.28,-1.38); B.cyl('blanc',0.3,0.3,0.22,16,0,yF+1.5,-1.38);
+    vitreCoqueV4(B,F,'vitreO',-2.6,2.4,0.78,0.3,5);
+    for(const sx of [-1,1]){ const z=F.zPa+0.6; B.bx(sx>0?'feu':'vert',0.03,0.07,0.18,sx*(F.hw(z)+0.02),F.ys(z)-0.1,z,0,sx*0.3,0); }
+    { const z=3.9, y=F.ys(z); B.bloc('cuir',2.0,0.2,1.9,0,y+0.1,z,0.07,0.09); }
+    const rail=[]; for(let k=0;k<=6;k++){ const z=3.0+(F.zAv-0.5-3.0)*k/6; rail.push([z,Math.max(0.1,F.hw(z)-0.1)]); }
+    for(const sx of [-1,1]) for(let k=0;k<rail.length;k++){ const [z,x]=rail[k]; B.tube('acier',0.025,[sx*x,F.ys(z),z],[sx*x,F.ys(z)+0.5,z],5); if(k) B.tube('acier',0.025,[sx*rail[k-1][1],F.ys(rail[k-1][0])+0.5,rail[k-1][0]],[sx*x,F.ys(z)+0.5,z],5); }
+    B.bloc('cuir',3.0,0.4,0.5,0,yD+0.2,-5.6,0.06,0.08); B.bloc('teck',1.2,0.06,0.8,0,yD+0.6,-4.8,0.02,0.03); B.cyl('acier',0.05,0.05,0.55,8,0,yD+0.3,-4.8);
+    B.bloc('teck',W*0.84,0.12,1.0,0,0.42,-6.95,0.03,0.05); for(const sx of [-1,1]) for(let i=0;i<3;i++) B.bloc('teck',0.55,0.07,0.28,sx*1.3,0.6+i*0.17,-6.45+i*0.02,0.01,0.02);
+    B.bloc('tableau',1.1,0.8,0.5,0.5,yD+0.4,1.9,0.04,0.06); B.bloc('cuir',0.5,0.45,2.0,1.0,yD+0.22,-1.2,0.06,0.08); B.bloc('cuir',1.8,0.45,0.5,0.2,yD+0.22,-2.2,0.06,0.08);
+    return {F}; },
+  mats:{ accent:()=>matV3Couleur(0x1a2a44), bande:()=>matV3Couleur(0x1a2a44), antif:()=>matV3Couleur(0x1d2c3e), liston:()=>matV3Couleur(0xd8dce2), liner:()=>matV3Couleur(0xf0f0ec),
+    plat:()=>matV3Couleur(0xe8e6e0), pont:()=>matV3Couleur(0xa07a50), teck:()=>matV3Couleur(0x9a7048), cuir:()=>matV3Couleur(0xe8dcc4), vert:()=>new THREE.MeshBasicMaterial({color:0x1fd85a}) },
+  inst(I){ helicesBateauV4(I,[[-0.75,-0.78,-5.1],[0.75,-0.78,-5.1]],2.4); I.ud.siege={debout:true,y:2.78,z:0.45}; I.ud.quilleEchoue=0.75; }
+};
+/* 5. Sportfish « Marlin » → Viking 52 / Bertram : yacht de pêche sportive, étrave haute et évasée, cabine à l'avant, flybridge, TOUR À
+   THON (quatre montants, la vigie et son poste de pilotage en haut), tangons (outriggers) de chaque côté, grand cockpit arrière et sa
+   chaise de combat, porte-cannes, porte de tableau ; le pilote debout au flybridge */
+VEH_V3.sportfish={ interieur:['cuir'],
+  geo(B,d){ const L=10.5, W=3.3, F=formeBateauV4(L,W,{pa:0.6,livet:1.35,tonture:0.6,quille:-0.75,etrave:0.6,pont:0.75,plein:0.5,tab:0.95,fin:0.62,ep:0.09}); coqueVedetteV3(B,F,28); const yD=0.75, yB=2.35;
+    /* la cabine et ses vitres ; le flybridge sur son toit */
+    B.profil('blanc',[[-0.8,yD],[-0.8,yB],[2.2,yB],[3.3,1.5],[3.3,yD]],2.6,0.05); B.profil('vitre',[[-0.6,1.55],[-0.6,2.15],[2.05,2.15],[2.95,1.55]],2.64,0.02);
+    B.bx('vitre',2.3,0.5,0.03,0,1.85,3.05,-0.7);
+    B.bx('blanc',2.9,0.06,3.2,0,yB+0.03,0.65); for(const sx of [-1,1]) B.profil('blanc',[[-1.0,yB],[-1.0,yB+0.5],[1.9,yB+0.5],[2.3,yB]],0.06,0.01,sx*1.45); B.bx('blanc',2.96,0.5,0.06,0,yB+0.25,-1.0); B.bx('vitreO',2.6,0.22,0.03,0,yB+0.62,1.7,-0.55);
+    B.bloc('tableau',1.0,0.7,0.45,0,yB+0.35,1.4,0.04,0.05); B.bx('ecranI',0.34,0.2,0.02,0.2,yB+0.76,1.2,-0.5); B.tore('volant',0.16,0.02,0,yB+0.78,1.15,0.6,0,0);
+    for(const sx of [-1,1]) B.bloc('cuir',0.55,0.4,1.5,sx*1.05,yB+0.2,0.3,0.05,0.07);
+    /* la tour à thon : quatre montants, ceinture, la vigie, son toit, son petit poste */
+    const T=[[-1.1,-0.6],[1.1,-0.6],[-0.9,1.2],[0.9,1.2]], yT=6.1;
+    for(const [x,z] of T) B.tube('tour',0.045,[x,yB,z],[x*0.55,yT,z*0.6+0.1],8);
+    for(const yy of [yB+1.6,yT]) for(let i=0;i<4;i++){ const a=T[i], b=T[[1,3,0,2][i]], k=(yy-yB)/(yT-yB), ax=a[0]*(1-0.45*k), az=a[1]*(1-0.4*k)+0.1*k, bxx=b[0]*(1-0.45*k), bz=b[1]*(1-0.4*k)+0.1*k; B.tube('tour',0.035,[ax,yy,az],[bxx,yy,bz],6); }
+    B.bx('teck',1.2,0.06,1.2,0,yT,0.36); B.bx('tour',1.4,0.05,1.4,0,yT+0.75,0.36); for(const [x,z] of [[-0.6,-0.24],[0.6,-0.24],[-0.6,0.96],[0.6,0.96]]) B.tube('tour',0.03,[x,yT,z],[x,yT+0.75,z],5);
+    B.bloc('tableau',0.6,0.5,0.3,0,yT+0.28,0.8,0.02,0.03);
+    /* les tangons, rabattus le long de la tour */
+    for(const sx of [-1,1]) B.tube('acier',0.03,[sx*1.25,yB+0.3,0.4],[sx*2.1,yB+4.6,-1.4],6);
+    /* le cockpit arrière : chaise de combat, porte-cannes, bacs, porte de tableau */
+    B.cyl('acier',0.1,0.14,0.55,12,0,yD+0.27,-3.1); B.bloc('cuir',0.62,0.16,0.56,0,yD+0.62,-3.1,0.04,0.06); B.bloc('cuir',0.6,0.55,0.12,0,yD+0.95,-3.38,0.04,0.06);
+    for(const sx of [-1,1]){ for(let k=0;k<3;k++) B.cyl('acier',0.03,0.03,0.32,8,sx*(F.hw(-2.4-k*0.8)-0.2),F.ys(-2.4-k*0.8)+0.1,-2.4-k*0.8,0.3,0,0);
+      B.bloc('blanc',0.5,0.5,0.9,sx*1.2,yD+0.25,-1.6,0.03,0.05); }
+    B.bx('sombre',0.8,0.6,0.03,0.6,yD+0.3,F.zAr+0.06);
+    vitreCoqueV4(B,F,'vitreO',0.4,2.8,1.0,0.22,4);
+    for(const sx of [-1,1]){ const z=F.zPa+0.5; B.bx(sx>0?'feu':'vert',0.03,0.07,0.16,sx*(F.hw(z)+0.02),F.ys(z)-0.1,z,0,sx*0.3,0); }
+    return {F}; },
+  mats:{ accent:()=>matV3Couleur(0x0e2a4a), bande:()=>matV3Couleur(0x0e2a4a), antif:()=>matV3Couleur(0x1a1c22), liston:()=>matV3Couleur(0xd8dce2), liner:()=>matV3Couleur(0xf0f0ec),
+    plat:()=>matV3Couleur(0xe8e6e0), pont:()=>matV3Couleur(0xd8d4c8), teck:()=>matV3Couleur(0x9a7048), cuir:()=>matV3Couleur(0xeae2d0), tour:()=>matV3Couleur(0xd8dce2), vert:()=>new THREE.MeshBasicMaterial({color:0x1fd85a}) },
+  inst(I){ helicesBateauV4(I,[[-0.65,-0.7,-4.0],[0.65,-0.7,-4.0]],2.2); I.ud.siege={debout:true,y:2.38,z:0.95}; I.ud.quilleEchoue=0.7; }
+};
+/* 6. Runabout « Aquarama » → Riva Aquarama / Junior des années 60 : coque en acajou verni (bordé lisse, filets d'érable clair sur le pont),
+   carène blanche, pare-brise chromé enveloppant, sièges en cuir crème, taquets et poignées chromés, mât de pavillon à la poupe ; on y
+   est assis au volant ; petit : il passe sous les ponts */
+VEH_V3.runabout={ interieur:['cuir','volantBois'],
+  geo(B,d){ const L=5.2, W=2.0, F=formeBateauV4(L,W,{pa:0.62,livet:0.66,tonture:0.18,quille:-0.36,etrave:0.6,pont:0.34,plein:0.45,tab:0.92,fin:0.72,ep:0.05}); coqueVedetteV3(B,F,26);
+    /* le pont avant en acajou et ses filets clairs ; le pare-brise chromé ; les sièges, le volant en bois ; le capot moteur */
+    for(let i=-3;i<=3;i++){ const x=i*0.13; B.bx('filet',0.018,0.006,2.1,x,F.ys(1.2)+0.008,1.25); }
+    const zK=0.05, y0=F.yD(zK);
+    B.bx('vitre',1.6,0.26,0.012,0,F.ys(zK+0.6)+0.13,zK+0.62,-0.5); B.tube('chromeI',0.018,[-0.82,F.ys(zK+0.6)+0.26,zK+0.58],[0.82,F.ys(zK+0.6)+0.26,zK+0.58],6); for(const sx of [-1,1]) B.tube('chromeI',0.016,[sx*0.82,F.ys(zK+0.6),zK+0.66],[sx*0.82,F.ys(zK+0.6)+0.26,zK+0.58],4);
+    B.bloc('planche',1.5,0.24,0.2,0,y0+0.32,zK+0.48,0.02,0.03); B.tore('volantBois',0.17,0.022,-0.38,y0+0.46,zK+0.32,0.6,0,0); B.bx('ecranI',0.16,0.08,0.01,0.3,y0+0.4,zK+0.39,-0.3);
+    B.bloc('cuir',1.6,0.22,0.55,0,y0+0.11,zK-0.3,0.05,0.07); B.bloc('cuir',1.6,0.4,0.14,0,y0+0.3,zK-0.58,0.05,0.07);
+    B.bloc('cuir',1.6,0.22,0.55,0,y0+0.11,zK-1.1,0.05,0.07); B.bloc('cuir',1.6,0.4,0.14,0,y0+0.3,zK-1.38,0.05,0.07);
+    B.bloc('pont',1.5,0.08,1.0,0,F.ys(-1.9)+0.02,-1.9,0.03,0.05); for(const sx of [-1,1]) B.bx('chromeI',0.06,0.03,0.4,sx*0.3,F.ys(-1.9)+0.07,-1.9);
+    for(const z of [2.2,-2.35]) B.bloc('chromeI',0.18,0.05,0.06,0,F.ys(z)+0.03,z,0.01);
+    B.tube('chromeI',0.012,[0,F.ys(F.zAr+0.1),F.zAr+0.1],[0,F.ys(F.zAr+0.1)+0.75,F.zAr+0.05],4); B.bx('drapeau',0.01,0.22,0.34,0,F.ys(F.zAr+0.1)+0.62,F.zAr-0.12);
+    for(const sx of [-1,1]) B.bx(sx>0?'feu':'vert',0.02,0.04,0.1,sx*(F.hw(1.6)+0.01),F.ys(1.6)-0.06,1.6,0,sx*0.25,0);
+    return {F}; },
+  mats:{ accent:()=>matV3Couleur(0xd8d0bc), bande:()=>new THREE.MeshPhongMaterial({color:0x6a2c12,specular:0x664433,shininess:70}), antif:()=>matV3Couleur(0xf0ece2),
+    liston:()=>matV3Couleur(0xd8dce2), liner:()=>matV3Couleur(0x5a2810), plat:()=>matV3Couleur(0x6a2c12), pont:()=>new THREE.MeshPhongMaterial({color:0x74321a,specular:0x664433,shininess:70}),
+    filet:()=>matV3Couleur(0xe8d8b0), cuir:()=>matV3Couleur(0xeee2c8), chromeI:()=>new THREE.MeshPhongMaterial({color:0xe8ecf2,specular:0xffffff,shininess:110}), planche:()=>matV3Couleur(0x5a2810),
+    volantBois:()=>matV3Couleur(0x7a3a1a), drapeau:()=>matV3Couleur(0xd83a3a), vert:()=>new THREE.MeshBasicMaterial({color:0x1fd85a}) },
+  inst(I){ helicesBateauV4(I,[[0,-0.3,-2.2]],1.3); I.ud.siege={assis:true,x:-0.38,y:0.02,z:-0.25}; I.ud.quilleEchoue=0.3; }
+};
+/* 7. Cruiser « Capitaine » → Chris-Craft Constellation des années 50 : coque en acajou verni à bordé, carène blanche, rouf à toit blanc et
+   ses hublots ronds cerclés de chrome, pare-brise à montants chromés, bastingage chromé sur le pont avant, cockpit ouvert à l'arrière avec
+   la barre à roue et la banquette, mât de pavillon ; le capitaine debout à la barre ; il passe sous les ponts */
+VEH_V3.cruiserBois={ interieur:['cuir','volantBois'],
+  geo(B,d){ const L=8.2, W=2.8, F=formeBateauV4(L,W,{pa:0.7,livet:0.95,tonture:0.42,quille:-0.55,etrave:0.6,pont:0.55,plein:0.48,tab:0.93,fin:0.68,ep:0.07}); coqueVedetteV3(B,F,28);
+    /* le rouf : parois en acajou, toit blanc, hublots ; le pare-brise */
+    const z0=-0.2, z1=2.6, yD=0.55, yR=1.55; B.profil('plat',[[z0,yD],[z0,yR],[z1-0.4,yR],[z1,yD+0.4],[z1,yD]],2.0,0.04); B.profil('toit',[[z0-0.1,yR],[z0-0.1,yR+0.1],[z1-0.35,yR+0.1],[z1-0.3,yR]],2.1,0.03);
+    for(const sx of [-1,1]) for(let k=0;k<3;k++){ const z=0.3+k*0.7; B.tore('chromeI',0.14,0.025,sx*1.01,1.15,z,0,Math.PI/2,0); B.cyl('vitreO',0.13,0.13,0.02,14,sx*1.01,1.15,z,0,0,Math.PI/2); }
+    B.bx('vitre',1.9,0.42,0.02,0,yR+0.32,z0-0.12,0.35); for(const sx of [-1,1]) B.tube('chromeI',0.02,[sx*0.95,yR+0.1,z0-0.05],[sx*0.95,yR+0.52,z0-0.2],4); B.tube('chromeI',0.02,[-0.95,yR+0.52,z0-0.2],[0.95,yR+0.52,z0-0.2],4);
+    /* le bastingage chromé du pont avant */
+    const rail=[]; for(let k=0;k<=5;k++){ const z=2.7+(F.zAv-0.4-2.7)*k/5; rail.push([z,Math.max(0.08,F.hw(z)-0.08)]); }
+    for(const sx of [-1,1]) for(let k=0;k<rail.length;k++){ const [z,x]=rail[k]; B.tube('chromeI',0.02,[sx*x,F.ys(z),z],[sx*x,F.ys(z)+0.42,z],4); if(k) B.tube('chromeI',0.02,[sx*rail[k-1][1],F.ys(rail[k-1][0])+0.42,rail[k-1][0]],[sx*x,F.ys(z)+0.42,z],4); }
+    /* le cockpit : la barre à roue sur son pupitre, la banquette, le moteur sous son capot ; le mât de pavillon */
+    B.bloc('planche',1.0,0.6,0.32,0.45,yD+0.3,-0.6,0.02,0.03); B.tore('volantBois',0.24,0.025,0.45,yD+0.82,-0.8,0.3,0,0); for(let k=0;k<6;k++){ const a=k*Math.PI/3; B.tube('volantBois',0.012,[0.45,yD+0.82,-0.8],[0.45+Math.cos(a)*0.24,yD+0.82+Math.sin(a)*0.24*0.95,-0.8+Math.sin(a)*0.07],3); }
+    B.bx('ecranI',0.2,0.12,0.01,-0.1,yD+0.58,-0.45,-0.4);
+    B.bloc('cuir',2.2,0.38,0.5,0,yD+0.19,-3.3,0.05,0.07); B.bloc('cuir',2.2,0.45,0.12,0,yD+0.45,-3.58,0.04,0.06); B.bloc('pont',1.4,0.25,1.2,0,yD+0.12,-2.0,0.04,0.06);
+    B.tube('chromeI',0.014,[0,F.ys(F.zAr+0.1),F.zAr+0.1],[0,F.ys(F.zAr+0.1)+0.95,F.zAr+0.05],4); B.bx('drapeau',0.01,0.26,0.4,0,F.ys(F.zAr+0.1)+0.8,F.zAr-0.15);
+    for(const sx of [-1,1]) B.bx(sx>0?'feu':'vert',0.03,0.06,0.14,sx*1.06,yR-0.1,1.8);
+    return {F}; },
+  mats:{ accent:()=>matV3Couleur(0xd8d0bc), bande:()=>new THREE.MeshPhongMaterial({color:0x6a2c12,specular:0x664433,shininess:70}), antif:()=>matV3Couleur(0xf0ece2),
+    liston:()=>matV3Couleur(0xd8dce2), liner:()=>matV3Couleur(0x5a2810), plat:()=>new THREE.MeshPhongMaterial({color:0x74321a,specular:0x664433,shininess:60}), pont:()=>matV3Couleur(0xd8c8a0),
+    toit:()=>matV3Couleur(0xf2efe6), cuir:()=>matV3Couleur(0xd84a3a), chromeI:()=>new THREE.MeshPhongMaterial({color:0xe8ecf2,specular:0xffffff,shininess:110}), planche:()=>matV3Couleur(0x5a2810),
+    volantBois:()=>matV3Couleur(0x7a3a1a), drapeau:()=>matV3Couleur(0x2a4a9a), vert:()=>new THREE.MeshBasicMaterial({color:0x1fd85a}) },
+  inst(I){ helicesBateauV4(I,[[0,-0.5,-3.4]],1.8); I.ud.siege={debout:true,y:0.56,z:-1.15}; I.ud.quilleEchoue=0.5; }
+};
+/* 8. Voilier « Alizé » → sloop de croisière de 30 pieds (type Bénéteau First / Jeanneau) : coque blanche à liseré, pont en teck, rouf et ses
+   hublots, quille et safran, mât de 11 m, bôme et grand-voile ferlée sous son taud bleu, génois enroulé sur l'étai, haubans, pataras,
+   barre à roue dans le cockpit, balcons et filières ; moteur auxiliaire ; le barreur debout à la roue ; il ne passe aucun pont */
+VEH_V3.voilier={ interieur:['volant'],
+  geo(B,d){ const L=9, W=2.7, F=formeBateauV4(L,W,{pa:0.84,livet:0.92,tonture:0.36,quille:-0.45,etrave:0.62,pont:0.8,plein:0.5,tab:0.9,fin:0.65,ep:0.07}); coqueVedetteV3(B,F,28);
+    /* la quille et le safran */ B.bloc('antif',0.16,1.3,1.4,0,-1.05,0.2,0.04,0.08); B.bloc('antif',0.09,0.9,0.5,0,-0.65,-3.6,0.02,0.05);
+    /* le rouf et ses hublots */ B.profil('peinture',[[-1.2,0.8],[-1.2,1.35],[1.6,1.35],[2.3,0.95],[2.3,0.8]],1.8,0.06); for(const sx of [-1,1]) B.bx('vitreO',0.02,0.16,1.6,sx*0.91,1.12,0.2);
+    /* le mât, la bôme, la grand-voile ferlée et son taud, le génois enroulé, l'étai, les haubans, le pataras */
+    const zM=0.9, yM=11.2; B.cyl('alu',0.08,0.065,yM-1.35,10,0,1.35+(yM-1.35)/2,zM); B.cyl('alu',0.06,0.06,3.6,8,0,2.0,zM-1.8,Math.PI/2); B.cyl('housse',0.17,0.12,3.4,10,0,2.12,zM-1.85,Math.PI/2);
+    B.tube('acier',0.012,[0,yM-0.2,zM],[0,F.ys(F.zAv-0.15)+0.1,F.zAv-0.15],4); B.tube('voile',0.07,[0,yM-0.8,zM+0.08],[0,F.ys(F.zAv-0.3)+0.5,F.zAv-0.3],8);
+    for(const sx of [-1,1]){ B.tube('acier',0.01,[0,yM-0.6,zM],[sx*1.2,F.ys(zM),zM-0.2],4); B.tube('acier',0.01,[0,yM*0.55,zM],[sx*1.2,F.ys(zM),zM-0.2],4); B.tube('alu',0.025,[0,yM*0.55,zM],[sx*0.6,yM*0.55,zM],4); }
+    B.tube('acier',0.01,[0,yM,zM],[0,F.ys(F.zAr+0.2)+0.2,F.zAr+0.2],4);
+    /* la capote de la descente et sa vitre ; le cockpit creusé (fond 0,4 sous le pont), ses hiloires, ses bancs en teck, le dossier du tableau */
+    { const yd=F.yD(-1.4); B.bloc('housse',1.5,0.42,0.7,0,yd+0.21,-1.45,0.08,0.12); B.bx('vitre',1.1,0.24,0.02,0,yd+0.26,-1.09,-0.35); }
+    { const yc=F.yD(-2.8)-0.4; B.bx('liner',1.7,0.04,3.0,0,yc,-2.8); for(const sx of [-1,1]) B.profil('teck',[[-4.3,yc],[-4.3,F.yD(-4.3)+0.32],[-1.3,F.yD(-1.3)+0.32],[-1.3,yc]],0.08,0.01,sx*0.95); B.bx('liner',1.9,F.yD(-4.3)+0.32-yc,0.08,0,(F.yD(-4.3)+0.32+yc)/2,-4.32); }
+    for(const sx of [-1,1]) B.bloc('teck',0.45,0.38,2.2,sx*0.68,F.yD(-2.6)-0.21,-2.6,0.03,0.05);
+    B.cyl('acier',0.05,0.05,0.9,8,0,F.yD(-3.3)-0.4+0.45,-3.3); B.tore('volant',0.42,0.025,0,F.yD(-3.3)+0.5,-3.35,0.2,0,0); B.sph('ecranI',0.1,0,F.yD(-3.3)+0.38,-3.18,1,0.6,1);
+    for(const sx of [-1,1]) for(let k=0;k<5;k++){ const z=-3.8+k*1.9, x=Math.max(0.1,F.hw(z)-0.08); B.tube('acier',0.016,[sx*x,F.ys(z),z],[sx*x,F.ys(z)+0.6,z],4); }
+    for(const sx of [-1,1]) B.tube('acier',0.01,[sx*(F.hw(-3.8)-0.08),F.ys(-3.8)+0.6,-3.8],[sx*(F.hw(3.8)-0.08),F.ys(3.8)+0.6,3.8],4);
+    for(const sx of [-1,1]) B.bx(sx>0?'feu':'vert',0.03,0.06,0.14,sx*(F.hw(3.6)+0.01),F.ys(3.6)-0.06,3.6,0,sx*0.25,0);
+    return {F}; },
+  mats:{ accent:()=>matV3Couleur(0x1a3a6a), bande:()=>matV3Couleur(0xf4f4f2), antif:()=>matV3Couleur(0x1a2a44), liston:()=>matV3Couleur(0x1a3a6a), liner:()=>matV3Couleur(0xf0f0ec),
+    plat:()=>matV3Couleur(0xe8e6e0), pont:()=>matV3Couleur(0xa07a50), teck:()=>matV3Couleur(0x9a7048), alu:()=>matV3Couleur(0xc8ccd2), housse:()=>matV3Couleur(0x1a4a8a), voile:()=>matV3Couleur(0xf2f2ee), vert:()=>new THREE.MeshBasicMaterial({color:0x1fd85a}) },
+  inst(I){ helicesBateauV4(I,[[0,-0.55,-3.1]],1.4); I.ud.siege={debout:true,y:I.info.F.yD(-3.75)-0.4,z:-3.75}; /* dans le cockpit creusé */ I.ud.quilleEchoue=0.5; }
 };
 /* ---------- V4 · bateaux 6. Planche de surf → shortboard : contour en goutte au nez pointu et au tail « squash », rocker (le nez et la
    queue relevés), rails arrondis, latte centrale, pad de grip à la queue, trois ailerons (thruster), leash enroulé ; à la teinte ---------- */
@@ -27679,7 +27988,7 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
   else if(eau) v.mesh.rotation.x=Math.sin(ETAT.runT*2.2)*0.03;
   /* bateau : le nez se lève avec la vitesse et à l'accélération (il déjauge), il gîte vers l'INTÉRIEUR du virage (fort pour le
      jet-ski) — par-dessus l'assiette de la houle, posée juste avant à chaque image ; jamais les grands navires, la planche, le kayak */
-  if(eau&&!sautMer&&!echoue&&d.eau&&!d.surf&&!d.pagaie&&!grosNavire(d)){ const jet=v.key==='jetski';
+  if(eau&&!sautMer&&!echoue&&d.eau&&!d.surf&&!d.pagaie&&!grosNavire(d)){ const jet=!!d.jetski; /* V3 : tous les jet-skis */
     const nez=BATEAU_NEZ*fac+clamp((v.accL||0)*0.004,0,0.05), gite=-clamp((v.v||0)*(v.lacet||0)*(jet?0.013:0.006),jet?-0.45:-0.2,jet?0.45:0.2);
     v.bateauNez=lerp(v.bateauNez||0,nez,clamp(dt*3,0,1)); v.bateauGite=lerp(v.bateauGite||0,gite,clamp(dt*3,0,1));
     v.mesh.rotation.x-=v.bateauNez; v.mesh.rotation.z=(MER_V2?v.mesh.rotation.z:0)+v.bateauGite; }
@@ -27790,7 +28099,7 @@ function entrerVehicule(v){
   if(v.key==='monstertruck'&&!META.defis.monstertruck){META.defis.monstertruck=true;toast('Terrain vague : le Monster Truck est à toi','or');}
   // sur une moto/jet-ski, le pilote reste visible et est attaché au véhicule
   const sgA=v.mesh.userData&&v.mesh.userData.siege;
-  if(v.def.type==='moto'||v.def.surf||v.key==='jetski'||v.def.eau||(sgA&&sgA.assis)){
+  if(v.def.type==='moto'||v.def.surf||v.def.jetski||v.def.eau||(sgA&&sgA.assis)){
     P.h.g.visible=true; P.surMoto=true;
     v.mesh.add(P.h.g);
     if(v.def.surf){ // debout sur la planche, bras écartés pour l'équilibre
@@ -27798,7 +28107,7 @@ function entrerVehicule(v){
       P.h.jambeG.rotation.x=0.35; P.h.jambeD.rotation.x=-0.35;
       P.h.brasG.rotation.z=0.9; P.h.brasD.rotation.z=-0.9;
       P.h.brasG.rotation.x=0; P.h.brasD.rotation.x=0;
-    } else if(v.key==='jetski'){   // assis, penché sur le guidon
+    } else if(v.def.jetski&&!(sgA&&sgA.debout)){   // assis, penché sur le guidon (V3 : tous les jet-skis à selle ; celui à bras se pilote debout)
       const sg=v.mesh.userData.siege; P.h.g.position.set(0,sg?sg.y:0.5,sg?sg.z:-0.35); P.h.g.rotation.set(0,0,0);
       P.h.jambeG.rotation.x=-1.2; P.h.jambeD.rotation.x=-1.2;
       P.h.brasG.rotation.x=-1.3; P.h.brasD.rotation.x=-1.3;
@@ -27811,7 +28120,7 @@ function entrerVehicule(v){
     } else if(v.def.pagaie&&v.mesh.userData.v3){ // kayak V4 (sit-on-top) : assis dans le baquet, jambes allongées vers les cale-pieds, mains à la pagaie
       P.h.g.position.set(0,-0.02,-0.3); P.h.g.rotation.set(0,0,0); P.h.jambeG.rotation.x=P.h.jambeD.rotation.x=-1.45;
       P.h.brasG.rotation.x=P.h.brasD.rotation.x=-1.1; P.h.brasG.rotation.z=P.h.brasD.rotation.z=0;
-    } else if(v.def.eau){           // vedette : debout derrière le pare-brise
+    } else if(v.def.eau&&!(sgA&&sgA.assis)){           // vedette : debout derrière le pare-brise (V3 : le bateau de course et le runabout : assis, plus bas)
       const sg=v.mesh.userData.siege; P.h.g.position.set(0,sg?sg.y:0.75,sg?sg.z:-v.def.long*0.02); P.h.g.rotation.set(0,0,0);
       P.h.jambeG.rotation.x=0; P.h.jambeD.rotation.x=0;
       P.h.brasG.rotation.x=-1.1; P.h.brasD.rotation.x=-1.1;
@@ -45727,7 +46036,7 @@ const COCKPIT_DEFS={
   grue:{fam:'camion',dz:0.2},                                 /* Grue V3 : la cabine d'opérateur s'ajoute au vitrage ; l'œil à la tête du conducteur */
   van:{dz:-0.13,dy:0.04},
   ambulance:{dz:-0.1},
-  bateau:{eye:{x:0,y:1.8,z:-0.56}}, bateauP:{eye:{x:0,y:1.8,z:-0.54}}, /* vedettes V3 : debout derrière la console (0,95 u derrière son centre, à 0,06 L), l'œil à 1,5 u au-dessus du pont du cockpit */
+  bateau:{eye:{x:0,y:1.8,z:-0.56}}, bateauP:{eye:{x:0,y:1.8,z:-0.54}}, offshore:{eye:{x:-0.42,y:1.32,z:-1.5}}, runabout:{eye:{x:-0.38,y:1.12,z:-0.22}}, /* V3 : assis au volant, sous le haut du pare-brise */ /* vedettes V3 : debout derrière la console (0,95 u derrière son centre, à 0,06 L), l'œil à 1,5 u au-dessus du pont du cockpit */
   bond:{dz:-0.15,dy:-0.08},                                /* GT V3 : baquets reculés et bas, l'œil à la tête du conducteur */                                     /* Ambulance V3 : le haut du pare-brise dans le champ (cabine de fourgon) */                                 /* Fourgon V3 : l'œil à la tête du conducteur, 1 m derrière le pied du pare-brise (le pavillon et les pare-soleil dans le champ) */
   quad:{fam:'moto'},
   scarabee:{dy:0.1}, /* V4 (Baja Bug) : l'œil à hauteur d'un pilote assis, sous le haut du pare-brise */jetprive:{dz:-0.7,dy:0.3},avion:{dy:-0.3},voltige:{dy:0.32},fret:{dy:-0.42}, /* vieux modèles d'avion : la verrière dépasse à peine du fuselage, l'œil au ras ; V4 Cessna 172 : l'œil sous l'aile haute ; C-130 : sous la traverse des « sourcils » */
@@ -45814,7 +46123,7 @@ function ckBoitesVitres(g){ g.updateMatrixWorld(true); const L=[];
   P.principale=L[0]; return P; }
 function ckFamille(v){ const d=v.def, k=v.key, o=COCKPIT_DEFS[k]; if(o&&o.fam) return o.fam;
   if(d.skate||d.surf) return 'debout'; if(d.pagaie) return 'kayak'; if(d.velo) return 'velo'; if(d.ovni) return 'ovni'; if(d.air==='helico') return 'helico'; if(d.air) return 'avion';
-  if(d.navire||d.cargo) return 'passerelle'; if(d.eau) return k==='jetski'?'jetski':'bateau'; if(d.canon) return 'char'; if(d.type==='moto') return 'moto';
+  if(d.navire||d.cargo) return 'passerelle'; if(d.eau) return d.jetski?'jetski':'bateau'; /* V3 : tous les jet-skis */ if(d.canon) return 'char'; if(d.type==='moto') return 'moto';
   if(d.pelle||d.grue||k==='busville'||/Bus$/.test(k)||d.milit||d.pompier||d.ambulance||d.depanneuse||d.citerne||d.modeleAero||d.dca||d.blinde||d.bus) return 'camion';
   return 'auto'; }
 function ckStyle(v,fam){ const d=v.def, k=v.key, o=COCKPIT_DEFS[k]; if(o&&o.style) return o.style;
@@ -45841,7 +46150,7 @@ function cockpitDims(v){ const g=v.mesh, d=v.def, k=v.key, L=d.long, W=d.larg, f
     else if(fam==='avion') eye={x:cab.w>1.5?0.36:0,y:cab.y0+h*0.86,z:cab.zA-Math.min(1.3,(cab.zA-cab.zR)*0.62)}; /* au ras du haut de la verrière : en dessous, c'est le fuselage */
     else eye={x:0,y:hC*0.6,z:0}; /* char, soucoupe : corrigés par COCKPIT_DEFS */
     if(sg&&sg.assis&&(fam==='auto'||fam==='camion')){ eye={x:sg.x||0,y:clamp(sg.y+1.32,cab.y0+0.25,cab.y1+0.35),z:(sg.z||0)-0.12}; approx=false; } /* assis à ciel ouvert : à la hauteur des yeux du pilote assis */
-  } else if(fam==='moto'||fam==='jetski'){ if(sg){ eye={x:0,y:sg.y+(fam==='jetski'?0.9:(d.cross?1.15:1.05)),z:sg.z+(fam==='jetski'?0.15:(d.cross?-0.05:0.05))}; } else { approx=true; eye={x:0,y:hC+0.45,z:-L*0.05}; } } /* le pilote du jeu garde sa taille debout */
+  } else if(fam==='moto'||fam==='jetski'){ if(sg){ eye={x:0,y:sg.y+(fam==='jetski'?(sg.debout?1.5:0.9):(d.cross?1.15:1.05)),z:sg.z+(fam==='jetski'?0.15:(d.cross?-0.05:0.05))}; } else { approx=true; eye={x:0,y:hC+0.45,z:-L*0.05}; } } /* le pilote du jeu garde sa taille debout */
   else if(fam==='velo'){ eye={x:0,y:(d.bmx?0.38:0.52)+0.9,z:-0.08}; }
   else if(fam==='debout'){ eye={x:0,y:(d.skate?0.16:0.2)+1.4,z:0}; }
   else if(fam==='kayak'){ eye={x:0,y:0.95,z:0.1}; }
@@ -46165,6 +46474,7 @@ const CK_HAB={
   moto:{cad:'motoRond'}, motoR:{cad:'motoRond'}, motoS:{cad:'tft'}, fantome:{cad:'chopper'}, motocross:{cad:'enduro'}, motoMil:{cad:'enduro'}, quad:{cad:'quad'},
   velo:{cad:'compteurVelo'}, bmx:{cad:'aucun'}, jetski:{cad:'jetski'}, skate:{cad:'aucun'}, surf:{cad:'aucun'}, kayak:{cad:'kayak'},
   bateau:{cad:'nautique'}, yacht:{cad:'yacht'}, bateauP:{cad:'bateauPolice'}, espadon:{cad:'offshore'}, peche:{cad:'peche'},
+  jetskiBras:{cad:'jetski'}, jetskiTrio:{cad:'jetski'}, offshore:{cad:'offshore'}, yachtMoteur:{cad:'yacht'}, sportfish:{cad:'yacht'}, runabout:{cad:'bois'}, cruiserBois:{cad:'bois'}, voilier:{cad:'nautique'}, /* V3 : les bateaux V5 */
   grandyacht:{cad:'passerelleLuxe'}, cargo:{cad:'passerelle'},
   avion:{cad:'vintage6'}, tourisme:{cad:'six'}, voltige:{cad:'voltige'}, jetprive:{cad:'verre'}, ligne:{cad:'ligne'}, fret:{cad:'fret'}, chasseur:{cad:'chasseur'},
   helico:{cad:'helicoSimple'}, ecureuil:{cad:'sixHelico'}, vip:{cad:'helicoVerre'}, titan:{cad:'titan'}, vautour:{cad:'combat'}, ovni:{cad:'holo'}
@@ -46221,6 +46531,7 @@ const CK_CADRANS={
   aucun:'Rien à lire : la machine seule',
   jetski:'Jet-ski : écran cyan (vitesse, cap)',
   kayak:'Kayak : la pagaie et un compas de pont',
+  bois:'Bateau en bois : planche en acajou verni, cadrans crème cerclés de chrome (nœuds, régime), petites jauges',
   nautique:'Bateau : console blanche, cadrans cerclés de chrome (nœuds, régime), compas',
   yacht:'Yacht : poste de luxe, deux écrans (carte marine, moteurs)',
   bateauPolice:'Vedette de police : écran radar, cadrans, radio',
@@ -46785,8 +47096,8 @@ function ckDeuxRouesAff(a,v,V){ const g=a.ctx, W=a.w, H=a.h, T=ETAT.runT, st=a.t
    compas sous dôme, écrans de navigation ; plus de boîte posée devant le barreur ---------- */
 function ckBateau2(G,S,v,D,H,epG,epD,manche){ const C=COCKPIT, e=D.eye, st=H.cad, pas=D.fam==='passerelle', coulC=couleurCaisseCk(v);
   const Gs=new THREE.Group(); G.add(Gs); const mCh=ckM(0xc8ced8,'m'), mNoir=ckM(0x121315), mBois=ckM(0,'bois');
-  const coque={nautique:ckM(0xf2f4f6,'p'),yacht:ckM(0xf2f4f6,'p'),bateauPolice:ckM(0x5a606a,'p'),offshore:ckM(0x1a1c20,'p'),peche:ckM(0x8a5a30),passerelle:ckM(0x6a7078),passerelleLuxe:ckM(0xe8e4dc,'p')}[st]||ckM(0xf2f4f6,'p');
-  const panneau={nautique:ckM(0x1a1c20),yacht:mBois,bateauPolice:ckM(0x2a2e34),offshore:ckM(0,'carbone'),peche:mBois,passerelle:ckM(0x3a3f46),passerelleLuxe:mBois}[st]||ckM(0x1a1c20);
+  const coque={nautique:ckM(0xf2f4f6,'p'),yacht:ckM(0xf2f4f6,'p'),bateauPolice:ckM(0x5a606a,'p'),offshore:ckM(0x1a1c20,'p'),peche:ckM(0x8a5a30),bois:ckM(0x6a2c12,'p'),passerelle:ckM(0x6a7078),passerelleLuxe:ckM(0xe8e4dc,'p')}[st]||ckM(0xf2f4f6,'p');
+  const panneau={nautique:ckM(0x1a1c20),yacht:mBois,bateauPolice:ckM(0x2a2e34),offshore:ckM(0,'carbone'),peche:mBois,bois:mBois,passerelle:ckM(0x3a3f46),passerelleLuxe:mBois}[st]||ckM(0x1a1c20);
   const Wc=pas?1.7:(st==='yacht'?1.0:0.82), x0=e.x;
   /* la console : un profil extrudé (dos vers le barreur, panneau incliné, dessus), centrée sur le barreur */
   const P=[[0.6,-1.4],[0.6,-0.36],[0.72,-0.23],[0.98,-0.2],[1.1,-0.26],[1.1,-1.4]].map(([dz,dy])=>[e.z+dz,e.y+dy]);
@@ -46797,7 +47108,7 @@ function ckBateau2(G,S,v,D,H,epG,epD,manche){ const C=COCKPIT, e=D.eye, st=H.cad
   const ecran=(type,w,h,larg,haut,dx,dy,dz,incl)=>{ const a=ckAffichage(type,w,h); const o=new THREE.Mesh(new THREE.PlaneGeometry(larg,haut),a.mat); o.rotation.set(-incl,Math.PI,0,'YXZ'); o.position.set(e.x-dx,e.y+dy,e.z+dz); G.add(o); if(!C.affs.includes(a)) C.affs.push(a); return o; };
   const incl=0.745; /* la pente du panneau */
   bx(panneau,Wc-0.06,0.17,0.02,x0,e.y-0.307,e.z+0.668,incl); /* le panneau des instruments (reculé : sa face avant cachait les écrans) */
-  if(st==='nautique'||st==='offshore'||st==='peche'){ C.instr=ecran('bt_'+st,384,144,0.36,0.135,0,-0.293,0.648,incl); }
+  if(st==='nautique'||st==='offshore'||st==='peche'||st==='bois'){ C.instr=ecran('bt_'+st,384,144,0.36,0.135,0,-0.293,0.648,incl); }
   else if(st==='bateauPolice'){ C.instr=ecran('bt_police',256,192,0.2,0.15,0.1,-0.29,0.65,incl); ecran('bt_nautique',384,144,0.2,0.075,-0.13,-0.3,0.645,incl); }
   else if(st==='yacht'){ C.instr=ecran('bt_carte',256,192,0.22,0.165,0.13,-0.29,0.648,incl); ecran('bt_moteurs',256,192,0.22,0.165,-0.13,-0.29,0.648,incl); }
   else if(st==='passerelle'){ C.instr=ecran('radar',256,256,0.25,0.25,0.15,-0.29,0.648,incl); ecran('bt_ecdis',256,192,0.3,0.225,-0.2,-0.29,0.648,incl); ecran('bt_nautique',384,144,0.22,0.083,0.48,-0.3,0.645,incl); }
@@ -46825,8 +47136,8 @@ function ckBateau2(G,S,v,D,H,epG,epD,manche){ const C=COCKPIT, e=D.eye, st=H.cad
 /* les afficheurs des bateaux */
 function ckBateauAff(a,v,V){ const g=a.ctx, W=a.w, H=a.h, T=ETAT.runT, st=a.type.slice(3), Mk=Math.max(20,Math.ceil((v.def.vmax||20)*1.944/10)*10);
   switch(st){
-    case 'nautique': case 'offshore': case 'peche': { const off=st==='offshore', pe=st==='peche'; g.fillStyle=off?'#060606':(pe?'#2a1a0c':'#101216'); g.fillRect(0,0,W,H);
-      const o=pe?{bord:'laiton',fond:'#f2e8cc',fond2:'#fbf4e2',num:'#2a1a0c',aig:'#111',famille:'Georgia,serif'}:(off?{bord:'noir',fond:'#030303',num:'#ffffff',aig:'#ff2a2a',lumAig:true}:{bord:'chrome',fond:'#0a0b0e',num:'#f2f4f8',aig:'#ff7a1a'});
+    case 'nautique': case 'offshore': case 'peche': case 'bois': { const off=st==='offshore', bo=st==='bois', pe=st==='peche'||bo; g.fillStyle=off?'#060606':(bo?'#4a2010':(pe?'#2a1a0c':'#101216')); g.fillRect(0,0,W,H);
+      const o=bo?{bord:'chrome',fond:'#f4ecd8',fond2:'#fffaf0',num:'#1a1a1a',aig:'#b81818',famille:'Georgia,serif'}:pe?{bord:'laiton',fond:'#f2e8cc',fond2:'#fbf4e2',num:'#2a1a0c',aig:'#111',famille:'Georgia,serif'}:(off?{bord:'noir',fond:'#030303',num:'#ffffff',aig:'#ff2a2a',lumAig:true}:{bord:'chrome',fond:'#0a0b0e',num:'#f2f4f8',aig:'#ff7a1a'});
       ckDial(g,72,74,58,V.kn,Mk,Object.assign({n:Mk/10,sub:2,lib:'NŒUDS'},o)); ckDial(g,312,74,58,V.tr/1000,6,Object.assign({n:6,sub:2,rouge:0.83,lib:'×1000'},o));
       if(pe){ ckDial(g,192,52,34,0.55,1,Object.assign({n:4,sub:1,chiffres:false,lib:'HUILE',tlib:0.22,ylib:0.5,reflet:false},o)); ckDial(g,192,112,28,CK_ESS,1,Object.assign({n:2,sub:2,chiffres:false,lib:'GAZOLE',tlib:0.24,ylib:0.55,reflet:false},o)); }
       else { ckTexte(g,String(Math.round(V.cap)).padStart(3,'0')+'°',192,42,24,off?'#ff3b3b':'#ffd23f'); ckTexte(g,'CAP',192,66,11,'#8f9aaa'); ckTexte(g,'TRIM',192,96,11,'#8f9aaa'); ckJauge(g,152,104,80,8,0.4+V.ratio*0.3,off?'#ff3b3b':'#35c8ff'); ckTexte(g,'ÉTAT',192,124,11,'#8f9aaa'); ckJauge(g,152,130,80,6,V.hp,V.hp<0.3?'#ff3b3b':'#3aff7a'); } return true; }
@@ -47354,7 +47665,7 @@ function tick(t){
       majPietons(dt);
       majFigurants(dt);
       majFauneRue(dt);
-      majLevisV3(dtJeu); majYachtsIA(dtJeu); /* V3 : les ponts-levis du grand canal et les yachts de l'IA (avant la physique : une barrière forcée l'est avant le choc) */
+      majLevisV3(dtJeu); majYachtsIA(dtJeu); majPromoBateaux(dt); /* V3 : les bateaux amarrés, pilotables par promotion */ /* V3 : les ponts-levis du grand canal et les yachts de l'IA (avant la physique : une barrière forcée l'est avant le choc) */
       majVehicules(dt); majDebris(dt); majEjection(dt,dtJeu); /* siège éjectable, verrière, avion sans pilote */
       majGrandYacht();
       majRayonOvni(dt);

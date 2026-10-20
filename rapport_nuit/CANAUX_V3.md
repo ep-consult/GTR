@@ -87,7 +87,7 @@ plafond des bateaux promus, jamais la densité proche.
 
 - [x] Phase 1 — le côté est, les jonctions, les embouchures
 - [x] Phase 2 — les ponts-levis (côté des gros bateaux) et les ponts en dur (côté des petits)
-- [ ] Phase 3 — tous les bateaux pilotables, de nouveaux modèles
+- [x] Phase 3 — tous les bateaux pilotables, de nouveaux modèles
 - [ ] Phase 4 — le chantier naval et le garage à voitures
 - [ ] Phase 5 — le lieu de fête central et les zones vides
 - [ ] Phase 6 — carte, ambiance, performances
@@ -257,3 +257,61 @@ contre une vingtaine) et les lampes des feux en un maillage par pont : −88 app
 ### Captures (phase 2)
 `p2_levisN_ferme.png`, `p2_levisS_montee.png` (barrières baissées, vérins), `p2_levisN_ouvert_yacht.png` (le yacht « Impérial » sous
 le pont ouvert), `p2_levis_cote.png`, `p2_levisN_nuit.png` (cabine de l'éclusier allumée).
+
+## Phase 3 — tous les bateaux pilotables, de nouveaux modèles (fait)
+
+Les fiches des nouveaux bateaux, leurs captures (deux vues et le poste à la 1re personne) et l'évaluation des anciens :
+**`rapport_nuit/BATEAUX_V5.md`** (`captures/bateaux_v5/`).
+
+### Les nouveaux modèles
+- Huit nouveaux bateaux au niveau V3/V4 (fiches `VEH_V3` + `VEHDEFS`) : jet à bras « Kamikaze » (debout), jet trois places
+  « Croisière », offshore « Tonnerre » (le plus rapide : vmax 52 ; il déjauge, sillage ×2, son `course` rauque), yacht « Riviera 43 »
+  (flybridge), sportfish « Marlin » (tour à thon), runabout « Aquarama » (acajou verni), cruiser « Capitaine » (bois, hublots), voilier
+  « Alizé » ; le jet-ski refait en « Sport ». Chacun : son tirant d'air (`HAUT_NAV`), son son (`MOTEURS.course`, `jetski`, `diesel`,
+  `v8`), son tableau de bord (`CK_HAB` ; nouveau tableau `bois` : planche d'acajou, cadrans crème cerclés de chrome), son pilote
+  (debout, assis — `ud.siege.assis` : la pose assise des cabriolets, plus celle des vedettes — ou à califourchon).
+- Les jet-skis sont une famille (`VEHDEFS.jetski:true`) : pose, cockpit et gîte ne dépendent plus de la clé `jetski`.
+
+### Décisions
+- **Décision 11 — la promotion à la demande** : au loin, chaque bateau amarré est une instance tirée de son VRAI modèle (fusionnée à
+  couleurs de sommets, par modèle et par livrée, un `InstancedMesh` chacune, qui berce) ; à moins de **12 u** du joueur, l'instance
+  est remplacée à la même place, même modèle, même livrée, par un vrai véhicule ; **deux au plus** à la fois ; loin (28 u) et à son
+  poste, il redevient une instance ; déplacé, il reste un véhicule tant qu'on est près, puis il est rendu à son poste hors de vue ;
+  coulé, le poste reste vide jusqu'à la partie suivante. Mesuré d'abord à 26 u et 6 bateaux : +85 % d'appels de rendu à la marina (un
+  bateau promu, c'est ~25 maillages) ; le bouton MONTER n'en sert qu'un.
+- **Décision 12 — chacun peut sortir en mer** : les dix gros bateaux (2 yachts, 4 sportfish, 4 voiliers) amarrés côté ouest ne
+  passaient aucun pont : à la même place, ils deviennent un cruiser en bois (poste de 8,2 u et plus) ou un open, le flanc toujours
+  contre le flotteur ; les gros sont à la marina — ponton d'honneur, doigts (deux voiliers), et un **ponton visiteurs** au nord-est
+  (deux sportfish, un yacht, un voilier), hors du chemin des yachts de l'IA vers le bassin d'évitage. L'offshore prend le poste d'une
+  grande villa du canal est. 36 postes, chacun avec un chemin jusqu'à la mer pour son tirant d'air (test, `cheminCanal` avec `hNav`).
+- **Les instances allégées** : les triangles de moins de 0,003 u² (vis, taquets, mains courantes fines) sont retirés de la géométrie
+  d'instance (à 12 u et au-delà, invisibles) : la moitié du poids (185 k triangles pour les 36 bateaux, ~95 k après).
+
+### Pièges trouvés
+- Construire un modèle V3 pendant la génération remplit des caches partagés (`_MV3`, `_GEO_V3`, `_PEINT_V3`, `_MATC_V3`, `_TEX_V3`…) :
+  un véhicule créé ensuite en jeu tirait moins de nombres (la partie se décalait). `mkBateauxInstances` rend ces caches tels qu'ils
+  étaient ; relevé du périmètre (187 véhicules posés compris) sans écart, empreinte et tirage principal identiques.
+- r128 écarte un `InstancedMesh` du champ sur la sphère de SA géométrie (centrée sur l'origine) : elle englobe désormais toutes ses
+  instances, sinon les bateaux disparaissaient dès que l'origine du monde sortait du champ.
+- `majSautMer` réservait les bonds de crête aux bateaux de moins de 9 u : le bateau de course (9,5 u) ne déjaugeait pas.
+- `peindreMesh` repeint un modèle V3 sans mettre à jour sa couleur notée (`ud.coul`) : la promotion la note.
+
+### Tests (phase 3)
+- Nouveau bloc « Canaux V3 : bateaux pilotables » (lit `PROMO.postes`, `CANAUX.bateauxV2`, `VEHDEFS`, `PCANAL`) : chaque poste a un
+  vrai modèle et un chemin jusqu'à la mer, aucun gros côté ouest ; promotion à la même place, même modèle, même livrée, instance
+  masquée, deux au plus ; retour en instance de loin ; pris, emmené, lâché : rendu à son poste ; coulé : poste vide, rendu à la partie
+  suivante ; les neuf modèles se pilotent (vitesses en 6 s : jet-skis 32 à 37, offshore 48, yachts 23 à 26, runabout 30, cruiser 22,
+  voilier 13) ; l'offshore est le plus rapide et fait deux fois plus de bonds en mer qu'une vedette (4 contre 2 en 8 s).
+- « Véhicules V3 », « Vedettes V3 » (accepte désormais un barreur assis : la coque fermée se mesure à hauteur de l'assise), « Bateaux »,
+  « Cockpits » (88 véhicules), « Cockpits V2 », « Reflets au cockpit », « Inclinaisons », et les 20 blocs des canaux repassent. Trois
+  tests V2 lisaient les bateaux comme des murs de décor ou ne connaissaient que les quais : un poste promu (un vrai véhicule tient la
+  place) et un bateau amarré à un ponton de la marina sont désormais reconnus.
+
+### Performances (phase 3, `perf_v3.js`)
+Classique : centre 198 / 304 k (référence 213 / 245 k : −7 % / +24 %), marina 194 / 282 k, grand canal 143 / 348 k, embouchure 147 /
+303 k, fête 253 / 315 k, pont nord 176 / 300 k. Immersive : centre 1 738 / 685 k (0 % / +11 %), marina 904 / 449 k, grand canal 1 211 /
+659 k, embouchure 1 905 / 924 k (+2 % / +17 %), fête 1 707 / 667 k ; survol 2 536 / 1 120 k (+7 % / +20 %). Géométries 8 615, 169,6 Mo
+(+10,5 Mo). Tick profilé : 0,9 à 1,5 ms à ces points (la promotion : moins de 0,03 ms) ; la première promotion d'un modèle le
+construit (une pointe de quelques millisecondes, une fois par modèle et par partie). **Hors budget** : les appels de rendu au point
+« marina » (194 contre 135 de référence, +44 %) — le point de référence était une barre de condos, c'est désormais une marina pleine
+de bateaux ; et les triangles à certains points du grand canal (+42 %, dans le budget de +60 %). **À juger sur iPhone.**
