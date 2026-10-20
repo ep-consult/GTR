@@ -130,10 +130,85 @@ une chaussée). Les lots ont une maison provisoire (`villaProvisoireV2`) en atte
 
 Captures : `p1_aerien_quartier.png`, `p1_aerien_photo5.png` (maisons provisoires).
 
+## Phase 2 — le générateur de villas (fait)
+
+Code (bandeau « LE BÂTI DES CANAUX », juste après `constructeurCanaux`) : `VILLA_V2_STYLES`, `VILLA_V2_PALETTES`, `aleaLot`,
+`villasV2Plan` (style, palette, étages, miroir, modules de chaque lot), `VILLA_V2_MAISON` (une maison par style), `villaV2` (le lot
+entier), `CONDOS_V2` / `condoV2`, `mkVillasV2`, `majNuitCanaux` ; `palmierV2` (palmier royal et cocotier) ; le constructeur gagne
+`cone`, `tri`, `tronc`, `palme`. Les modèles V1 (`VILLA_CANAUX`, `villaCanaux`, `immeubleCanaux`, `pontonsCanaux`) sont retirés.
+
+- [x] **Un générateur déterministe** : tout ce qu'une villa tire vient de sa graine (`hacheLot` de sa position → `aleaLot`, un
+  générateur congruentiel), jamais `Math.random` ; le générateur de la ville et celui du décor ne voient rien (empreinte identique).
+- [x] **Cinq styles** (10 villas chacun), chacun avec ses modules et **trois palettes** :
+  - *moderne blanc* (photos 1 et 2) : cubes empilés, étage en porte-à-faux sur poteaux, baie vitrée sur le jardin, brise-soleil de
+    lames de bois, garde-corps de verre du toit-terrasse, balcon à claustras, escalier extérieur, pont de teck sur le toit ;
+  - *méditerranéen* (photo 3) : crépi pastel, tuiles en croupe, loggia à arcades sur le jardin, balcon à balustres, volets, auvent de
+    tuiles sur la porte, tour d'angle (toujours sur un grand lot) ;
+  - *tropical contemporain* : socle de pierre, dalles de toit qui débordent sur poteaux fins, bardage de bois sombre, grand vitrage,
+    toit végétalisé, végétation qui déborde sur l'allée ;
+  - *Art déco* : angles arrondis, bandeaux horizontaux, fenêtres à visières, hublot, fronton en gradins, néon discret la nuit ;
+  - *bungalow des années 50* : plain-pied, toit bas à deux pans, mur de claustras de parpaings, jardinière fleurie.
+- [x] **1 à 3 niveaux** (bungalow : 1 ; tropical : 2 au plus ; un grand lot : 2 ou 3), **en miroir** (allée de garage d'un côté ou de
+  l'autre). Deux voisines **jamais du même style** (une permutation des cinq styles par rangée), donc jamais de la même palette ;
+  16 silhouettes en tout, au moins quatre sur six voisines (test).
+- [x] **Côté eau** : pelouse, terrasse au pied de la maison, piscine (rectangle, en L, à débordement face au canal, à plage
+  immergée ; sur un lot étroit, un couloir de nage le long de l'allée de garage), transats, parasol, cuisine d'été, foyer (il
+  rougeoie la nuit), hamac, massifs de bougainvilliers, rocaille, palmiers royaux et cocotiers penchés vers l'eau, couronnement du
+  mur de quai (béton blanc ou moellons). 53 piscines (`BASSINS` : on y nage).
+- [x] **Côté allée** : muret à piliers devant la maison, allée pavée, la voiture garée au fond de l'allée de garage (le portail
+  reste dégagé ; voiture de luxe sur les grands lots ; une voiture du décor est un obstacle), boîte aux lettres, palmier
+  d'alignement. Haies mitoyennes solides (on ne passe pas d'un jardin à l'autre) ; le passage à pied de l'allée au quai reste libre.
+- [x] **La Brigada** : sa limousine et son SUV sur l'allée de garage des deux grands lots de la pointe nord (`l.parking`), deux
+  gardes devant la porte (`l.portail`).
+- [x] **Trois condos** de 6 à 8 niveaux en bordure est, derrière les villas (balcons filants, verre teinté, piscine et ascenseur
+  sur le toit, marquise, palmiers) ; aucun canal juste derrière eux (test).
+- [x] **La nuit** : les fenêtres allumées (une sur deux environ), les néons Art déco et les foyers dans une seconde géométrie par
+  rangée (`_MAT_FEN_CANAUX`, opacité qui suit la nuit) ; l'eau des piscines s'éclaire un peu.
+- [x] Les palmiers (ceux des villas, des quais et du jardin de la villa Miami) sont redessinés : vraies palmes arquées
+  (lanières à deux faces), tronc à cinq pans, courbe et annelé pour le cocotier, gaine verte du palmier royal ; même coût qu'avant.
+
+Décisions :
+
+5. **La voiture garée au fond de l'allée de garage** (4,2 u de l'allée) : l'entrée reste libre, une voiture du joueur peut s'y
+   engager (test au joystick sur les allées de garage vides).
+6. **Un bassin de demi-tour qui entame un lot** (bout des deux canaux secondaires) : la villa entière recule d'autant
+   (`l.entaille`), la bande entamée reste un quai dallé. Sans ça, la pelouse recouvrait l'eau du bassin et deux haies y plongeaient.
+7. **Les voitures garées au hasard (startRun) décident comme avant le quartier** : une place candidate dans le quartier ne
+   regarde ni les volumes ni les canaux (la rue d'origine), puis `canauxNettoyerVehicules` retire un véhicule mal placé — désormais
+   aussi sur la pelouse d'un lot. Trouvé par le relevé : les nouveaux volumes changeaient le nombre de tirages, 13 véhicules
+   garés ailleurs dans la ville (plage, désert, centre) avaient disparu.
+
+### Mesures (phase 2)
+
+- Relevé du périmètre : **aucun écart** (après la décision 7) ; empreinte du décor et tirage principal : identiques.
+- Construction des villas : `CANAUX.tVillas` ; géométrie : une par rangée (jour) et une par rangée (nuit).
+- Performance, phase 1 contre phase 2, **dans les mêmes conditions** (la machine était plus chargée que lors des mesures de
+  référence : les temps de tick sont ×3 sur les deux versions, seules les proportions comptent) :
+
+| Point | Phase 1 : appels / triangles | Phase 2 : appels / triangles |
+|---|---|---|
+| classique, rue x = 168 | 177 / 174 k | 181 / 179 k |
+| classique, centre | 178 / 184 k | 180 / 199 k |
+| immersive, rue x = 168 | 1 568 / 547 k | 1 544 / 563 k |
+| immersive, centre | 1 680 / 568 k | 1 646 / 572 k |
+| survol du quartier | 1 964 / 680 k | 1 935 / 748 k |
+| géométries de la scène | 146,6 Mo | 155,3 Mo |
+
+  Par rapport à la V1 (budget) : survol 708 k → 748 k triangles (+6 %), appels en baisse, 151 → 155 Mo : dans le budget.
+- Tests : « Canaux V2 : les villas » (nouveau) ; le plan, les impasses, le nautique (Brigada), le réseau, rien de cassé, la police,
+  le joystick et la villa Miami repassent.
+
+Captures : `p2_aerien_quartier.png`, `p2_aerien_doigt_nord.png`, `p2_aerien_est.png`, `p2_villas_canalE.png`,
+`p2_villas_canalO.png`, `p2_villas_allee.png`, `p2_villas_secE.png`, `p2_palmiers_proche.png`, `p2_bassin_secE.png`,
+`p2_bassin_secO.png`, `p2_nuit_villas.png`, `p2_nuit_aerien.png`.
+
+Observation (non corrigée, déjà là en V1) : la route de bordure est (x ≈ 288–300) est recouverte par le fondu de sable du désert de
+l'aéroport : vue de dessus, la berge est du canal secondaire est paraît une plage.
+
 ## Phases
 
 - [x] Phase 1 — plan des lots et des doigts, canaux secondaires, allées, relevé du périmètre
-- [ ] Phase 2 — générateur de villas, jardins côté eau, côté rue
+- [x] Phase 2 — générateur de villas, jardins côté eau, côté rue
 - [ ] Phase 3 — pontons accessibles et bateaux des villas
 - [ ] Phase 4 — les 4 ponts et les passerelles
 - [ ] Phase 5 — vie, ambiance, nuit, sons

@@ -15614,6 +15614,53 @@ async function main() {
       if (r.ko.length) fail('Canaux V2, canaux secondaires : ' + r.ko.join(' ; ') + ' [' + r.info.join(' | ') + ']'); else ok('Canaux V2, canaux secondaires : ' + r.info.join(' ; '));
     }
     // -------------------------------------------------------------------
+    // Canaux V2 : les villas (CANAUX_V2.md, phase 2) — lues dans CANAUX.lots (villasV2Plan, villaV2) et CONDOS_V2 : deux voisines
+    // jamais du même style ni de la même palette, au moins quatre silhouettes sur six voisines, au moins cinq styles ; chaque villa a
+    // son jardin côté eau (la maison recule du quai) et sa façade côté allée (une avant-cour) ; l'allée de garage est libre de l'allée
+    // jusqu'à la voiture garée, et une voiture y entre vraiment (au joystick) là où rien n'est garé ; les condos sont en bordure, aucun
+    // canal juste derrière eux (vu de la caméra, au sud, ils ne masquent pas l'eau).
+    // -------------------------------------------------------------------
+    console.log('\n--- Canaux V2 : les villas — styles voisins, silhouettes, jardin côté eau, façade et allée de garage, condos ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [], C = CANAUX; if (!C.ok) return { ko: ['CANAUX.ok faux'], info };
+        const rangs = {}; for (const l of C.lots) (rangs[l.ilot] = rangs[l.ilot] || []).push(l);
+        const styles = new Set(); let fenetres = 0, nbFen = 0;
+        for (const id in rangs) { const L = rangs[id].slice().sort((a, b) => a.z - b.z);
+          for (let i = 0; i < L.length; i++) { const l = L[i]; styles.add(l.style); if (!l.style || l.palette === undefined) { ko.push(l.id + ' : sans style'); continue; }
+            if (i > 0 && L[i - 1].style === l.style) ko.push(l.id + ' : même style que sa voisine (' + l.style + ')');
+            if (i > 0 && L[i - 1].style === l.style && L[i - 1].palette === l.palette) ko.push(l.id + ' : même palette que sa voisine'); }
+          for (let i = 0; i + Math.min(6, L.length) <= L.length; i++) { const W = L.slice(i, i + Math.min(6, L.length)), n = new Set(W.map((l) => l.silhouette)).size; if (n < Math.min(4, W.length)) ko.push(id + ' : ' + n + ' silhouettes sur ' + W.length + ' voisines'); } }
+        if (styles.size < 5) ko.push(styles.size + ' styles (au moins 5)');
+        for (const l of C.lots) { const M = (l.maison || []).slice().sort((a, b) => b.hw * b.hd - a.hw * a.hd)[0]; if (!M) { ko.push(l.id + ' : pas de maison'); continue; }
+          const faceEau = M.x - l.dir * M.hw, faceRue = M.x + l.dir * M.hw, jardin = Math.abs(faceEau - l.xEau), cour = Math.abs(l.xRue - faceRue);
+          if (jardin < 3) ko.push(l.id + ' : jardin côté eau de ' + jardin.toFixed(1) + ' u'); if (cour < 3) ko.push(l.id + ' : avant-cour de ' + cour.toFixed(1) + ' u');
+          if (!l.parking) { ko.push(l.id + ' : pas d’allée de garage'); continue; }
+          /* l'allée de garage : libre de l'allée jusqu'à la voiture garée (ou sur 6 u) — un véhicule de 1,9 u de large y passe */
+          const zp = l.parking.z, fin = l.opts && l.opts.voiture || l.brigada ? Math.abs(l.xRue - l.parking.x) - 3.4 : 6;
+          for (let k = -1; k <= fin; k += 0.5) { const x = l.xRue - l.dir * k; const so = solidAt(x, zp, 0.9); if (so && so.h > 0.6) { ko.push(l.id + ' : allée de garage bouchée à ' + k.toFixed(1) + ' u de l’allée'); break; } } }
+        /* une vraie voiture entre (au joystick) dans une allée de garage libre : pas un choc, au moins 5 u dans le lot */
+        const libres = C.lots.filter((l) => l.parking && !(l.opts && l.opts.voiture) && !l.brigada);
+        if (!libres.length) info.push('aucune allée de garage vide (toutes ont leur voiture)');
+        META.vue = 'classique'; if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9; for (const e of ennemis) e.mort = true; WANTED.heat = 0; WANTED.stars = 0;
+        let T = dernierT + 1000, entres = 0;
+        for (const l of libres.slice(0, 3)) { for (const v of vehicules.slice()) if (v !== P.veh && v.conduit === 'trafic') { scene.remove(v.mesh); vehicules.splice(vehicules.indexOf(v), 1); }
+          const v = creerVehicule('citadine', l.xRue + l.dir * 3.5, l.parking.z, l.dir > 0 ? -Math.PI / 2 : Math.PI / 2, null); P.x = v.x; P.z = v.z; entrerVehicule(v); v.hp = 1e6; const hp0 = v.hp; let k = 0;
+          for (let i = 0; i < 4 * 60; i++) { INPUT.jx = -l.dir * 0.45; INPUT.jy = 0; T += 1000 / 60; tick(T); k = (l.xRue - v.x) * l.dir; if (k > 5) break; }
+          INPUT.jx = INPUT.jy = 0; for (let i = 0; i < 30; i++) { T += 1000 / 60; tick(T); }
+          if (k < 5) ko.push(l.id + ' : la voiture n’entre pas dans l’allée de garage (' + k.toFixed(1) + ' u)'); else entres++;
+          if (v.hp < hp0 - 1) ko.push(l.id + ' : choc en entrant (' + (hp0 - v.hp).toFixed(0) + ')');
+          sortirVehicule(true); scene.remove(v.mesh); vehicules.splice(vehicules.indexOf(v), 1); }
+        /* les condos : en bordure, rien d'une voie d'eau juste derrière (au nord) sur 0,7 × leur hauteur */
+        for (const Q of CONDOS_V2) { const H = Q.n * 3.1 + 1.2; let eau = null; for (let x = Q.x - Q.w / 2; x <= Q.x + Q.w / 2 && !eau; x += 2) for (let dz = 0; dz <= H * 0.7; dz += 2) if (dansCanal(x, Q.z - Q.d / 2 - 1 - dz)) { eau = [x, Q.z - Q.d / 2 - 1 - dz]; break; }
+          if (eau) ko.push('condo (' + Q.x + ', ' + Q.z + ') : un canal derrière lui en (' + eau[0].toFixed(0) + ', ' + eau[1].toFixed(0) + ')'); if (Q.n < 4 || Q.n > 8) ko.push('condo de ' + Q.n + ' niveaux'); }
+        const sil = new Set(C.lots.map((l) => l.silhouette)).size, par = {}; for (const l of C.lots) par[l.style] = (par[l.style] || 0) + 1;
+        info.push(C.lots.length + ' villas, ' + styles.size + ' styles ' + JSON.stringify(par) + ', ' + sil + ' silhouettes, ' + (C.nPiscines || 0) + ' piscines, ' + CONDOS_V2.length + ' condos ; voiture entrée dans ' + entres + ' allée(s) de garage vide(s)');
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Canaux V2, les villas : ' + r.ko.slice(0, 12).join(' ; ') + (r.ko.length > 12 ? ' … (' + r.ko.length + ')' : '')); else ok('Canaux V2, les villas : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
     // Canaux : nautique et ambiance (20 octobre, phase 4) — bateaux du décor bâchés, amarrés hors du passage et un mur pour la
     // navigation ; deux ou trois jet-skis et la vedette de l'embarcadère, pilotables ; débarquement sur les pontons et les marches ;
     // l'atelier « Marée Basse » et ses Dockers (figurants) ; deux villas de la Brigada (gardes, voitures de luxe).

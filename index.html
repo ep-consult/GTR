@@ -7909,12 +7909,12 @@ function canauxNettoyerVehicules(){
   if(!CANAUX.ok) return 0; let n=0;
   for(let i=vehicules.length-1;i>=0;i--){ const v=vehicules[i]; if(v.mort||v.conduit==='joueur'||P.veh===v||!dansBBCanaux(v.x,v.z)) continue;
     const d=v.def||{}, bateau=!!d.eau, eau=dansCanal(v.x,v.z)&&!pontCanal(v.x,v.z);
-    const mauvais=(eau&&!bateau&&!d.amphibie)||(!eau&&bateau&&dansCanal(v.x,v.z))||(!bateau&&!d.velo&&(dansCoupe(v.x,v.z)||pontCanal(v.x,v.z)))||(!d.air&&solidAt(v.x,v.z,0.3)&&dansDalleCanaux(v.x,v.z));
+    const mauvais=(eau&&!bateau&&!d.amphibie)||(!eau&&bateau&&dansCanal(v.x,v.z))||(!bateau&&!d.velo&&(dansCoupe(v.x,v.z)||pontCanal(v.x,v.z)))||(!d.air&&solidAt(v.x,v.z,0.3)&&dansDalleCanaux(v.x,v.z))||(!bateau&&!d.air&&!!lotCanaux(v.x,v.z)); /* V2 : jamais sur la pelouse d'une villa */
     if(!mauvais) continue; v.mort=true; scene.remove(v.mesh); libererEntite(v.mesh); vehicules.splice(i,1); n++; }
   CANAUX.vehRetires=n; return n; }
 /* ---------- en jeu : l'eau qui ondule, le tablier qui s'efface au-dessus du bateau du joueur ---------- */
 function majCanaux(dt){
-  if(!CANAUX.ok) return; const M=_MAT_CANAUX; if(M.texEau){ M.texEau.offset.x=(M.texEau.offset.x+dt*0.012)%1; M.texEau.offset.y=(M.texEau.offset.y+dt*0.007)%1; }
+  if(!CANAUX.ok) return; majNuitCanaux(); const M=_MAT_CANAUX; if(M.texEau){ M.texEau.offset.x=(M.texEau.offset.x+dt*0.012)%1; M.texEau.offset.y=(M.texEau.offset.y+dt*0.007)%1; }
   const v=P.veh, enBateau=v&&v.def&&(v.def.eau||v.def.amphibie), nage=P.nage;
   for(const p of CANAUX.ponts){ if(!p.mats) continue;
     const cam=camera.position, camDessous=cam.x>p.x0-2&&cam.x<p.x1+2&&cam.z>p.z0-3&&cam.z<p.z1+3&&cam.y<p.H+8; /* la caméra immersive tout près du tablier (dessous ou juste au-dessus) : il cachait la moitié de l'écran */
@@ -7938,51 +7938,11 @@ function dessinerCanauxCarte(g){
   g.fillStyle='#3ab8d8'; for(const b of BASSINS) if(b.hw&&dansBBCanaux(b.x,b.z)) g.fillRect(mmX(b.x-b.hw),mmZ(b.z-b.hd),b.hw*2*mmS,b.hd*2*mmS); /* les piscines */
   for(const R of [C.aquarium,C.garage]) if(R){ g.fillStyle='rgba(0,0,0,0.35)'; g.fillRect(mmX(R.x0)+0.6,mmZ(R.z0)+0.6,(R.x1-R.x0)*mmS,(R.z1-R.z0)*mmS); g.fillStyle='#5d6470'; g.fillRect(mmX(R.x0),mmZ(R.z0),(R.x1-R.x0)*mmS,(R.z1-R.z0)*mmS); } /* l'aquarium et le garage, sur leurs nouveaux pâtés */
 }
-/* ---------- LE BÂTI DES CANAUX (phase 3) ----------
-   Demandé : « surtout des villas basses de 1 à 2 niveaux (volumes simples, façades claires, bois, jardins, terrasses, clôtures
-   basses), quelques petites piscines, des palmiers espacés, des pontons privés, des accès en voiture cohérents ; quelques modèles
-   de villas réutilisables et variés ; deux ou trois petits immeubles de 2 à 3 niveaux près des bordures nord et est, jamais de
-   tour, jamais de façade qui masque une voie d'eau ; des espaces ouverts ; géométries fusionnées, peu de matériaux neufs ».
-   - Chaque pâté sec du quartier (CANAUX.lots, canauxDefinir) est coupé en deux lots de 31 × 15,5 u, chacun tourné vers SA rue
-     (au nord ou au sud) : pelouse, haies mitoyennes, clôture basse à portail, allée de voiture, la maison au fond, terrasse,
-     parfois une piscine (BASSINS : on y nage), un ou deux palmiers. Quatre modèles (VILLA_CANAUX), chacun en trois teintes et
-     en miroir : choisis par le rang du lot, sans tirage. Trois petits immeubles (pâtés (11,6), (13,6), (13,10)).
-   - Tout le bâti est UNE géométrie à couleurs de sommets par pâté (le matériau du mobilier, MOB_MAT : aucun matériau neuf), les
-     toits par geoToit ; l'eau des piscines, un seul matériau. Solides : les volumes des maisons et des immeubles (toit:true).
-   - Pontons privés (CANAUX.pontons) le long des quais, en face des lots : planchers flottants de 2,4 u, praticables à pied
-     (on y monte depuis l'eau), un mur pour les bateaux ; jamais devant une marche. */
-const VILLA_CANAUX={
-  /* chaque modèle pose ses pièces dans le repère du lot : x de −15,5 à 15,5, z de −7,75 (le fond) à 7,75 (la rue), y depuis le dallage */
-  cube(b,T){ const blanc=T.murs, verre=0x23323f, gris=0x3a3e44; /* le cube blanc : deux volumes décalés, baies, claire-voie de bois, toit-terrasse */
-    b.box(11,3.2,6.6,-2,1.6,-3.6,blanc); b.box(11.4,0.18,7,-2,3.29,-3.6,gris); b.box(7.4,2.9,5.6,-3.6,4.83,-4.1,blanc); b.box(7.8,0.18,6,-3.6,6.37,-4.1,gris);
-    b.box(8.4,1.9,0.08,-2.2,1.55,-0.27,verre); b.box(5.6,1.5,0.08,-4.2,5,-1.27,verre); b.box(2.4,2.6,0.12,-0.2,4.8,-1.25,T.bois);
-    for(let k=0;k<6;k++) b.box(0.08,2.6,0.14,-1.3+k*0.44,4.8,-1.2,T.bois); b.box(1.1,2.2,0.08,3,1.1,-0.27,0x5a4030);
-    b.box(3.4,0.06,5.2,1.9,3.42,-3.9,T.bois); for(const x of [0.25,3.55]) b.box(0.06,0.95,5.2,x,3.9,-3.9,0xeef6f8); b.box(3.4,0.95,0.06,1.9,3.9,-1.33,0xeef6f8); /* la terrasse sur le toit du rez-de-chaussée */
-    b.solide(-2,-3.6,5.5,3.3,3.3); b.solide(-3.6,-4.1,3.7,2.8,6.4); return {terrasse:[-8.5,1.5,5.2,3.2]}; },
-  bungalow(b,T){ const verre=0x23323f; /* le bungalow de bois : un niveau, toit à deux pans, véranda sur la rue */
-    b.box(12,3,7,-1.5,1.5,-3.8,T.murs); for(let k=0;k<9;k++) b.box(12.04,0.05,7.04,-1.5,0.3+k*0.33,-3.8,T.lignes); /* le bardage */
-    b.toit(12.9,7.9,2.3,'pignon',-1.5,3,-3.8,T.toit);
-    b.box(6.5,0.3,2.4,-1.5,0.15,0.9,T.bois); for(const x of [-4.5,1.5]) b.box(0.18,2.5,0.18,x,1.55,2,0xf2f0ea); b.box(6.9,0.14,2.6,-1.5,2.85,0.95,T.toit);
-    for(const x of [-6,-3.2,1.2,3.6]) b.box(1.5,1.3,0.08,x,1.7,-0.27,verre); b.box(1,2.1,0.08,-1.5,1.05,-0.27,0x6a4630);
-    b.solide(-1.5,-3.8,6,3.5,3.4); return {terrasse:[8.5,-3,4,3]}; },
-  duplex(b,T){ const verre=0x23323f, gris=0x3a3e44; /* le duplex : rez enduit, étage en bois en porte-à-faux, balcon */
-    b.box(9,3.2,6.6,-4,1.6,-3.6,T.murs); b.box(9.4,0.18,7,-4,3.29,-3.6,gris); b.box(8.2,2.9,5.2,-1.4,4.83,-4.3,T.bois); for(let k=0;k<7;k++) b.box(0.06,2.9,5.24,-5.1+k*1.2,4.83,-4.3,T.lignes);
-    b.box(8.6,0.18,5.6,-1.4,6.37,-4.3,gris); b.box(4,1.6,0.08,-2.4,4.9,-1.67,verre); b.box(6.4,1.9,0.08,-4.6,1.55,-0.27,verre);
-    b.box(3.2,0.12,1.4,-1.8,3.45,-1,gris); b.box(3.2,0.9,0.05,-1.8,3.95,-0.32,0xeef6f8); b.box(1,2.1,0.08,0.8,1.05,-0.27,0x2a2a2e);
-    b.solide(-4,-3.6,4.5,3.3,3.3); b.solide(-1.4,-4.3,4.1,2.6,6.4); return {terrasse:[6.5,-3.2,4.5,3.4]}; },
-  plage(b,T){ const verre=0x23323f; /* la maison de plage : pastel, toit à quatre pans, grande terrasse de bois à garde-corps */
-    b.box(10.5,3.4,7,-3,1.7,-3.8,T.murs); b.toit(11.3,7.8,1.9,'croupe',-3,3.4,-3.8,T.toit);
-    for(const x of [-6.6,-3.6,-0.6]){ b.box(1.6,1.6,0.08,x,1.9,-0.27,verre); b.box(0.35,1.7,0.1,x-1.05,1.9,-0.25,T.bois); b.box(0.35,1.7,0.1,x+1.05,1.9,-0.25,T.bois); }
-    b.box(7.5,0.35,3.2,-3,0.18,1.3,0xa87850); for(let k=0;k<11;k++) b.box(0.08,0.9,0.08,-6.6+k*0.72,0.8,2.85,0xf6f4ee); b.box(7.5,0.07,0.07,-3,1.25,2.85,0xf6f4ee);
-    b.solide(-3,-3.8,5.25,3.5,3.5); return {terrasse:[7,-2.5,4,3]}; },
-};
-const VILLA_CANAUX_TEINTES={
-  cube:[{murs:0xf4f2ec,bois:0x9a6a40},{murs:0xeef0f2,bois:0x7a5434},{murs:0xf6efe4,bois:0xb08050}],
-  bungalow:[{murs:0x9ec4d6,lignes:0x86aec2,toit:0x5a5e66,bois:0x9a7048},{murs:0xb6cfa4,lignes:0x9cb88a,toit:0x6a4a36,bois:0x8a6040},{murs:0xf0e4c4,lignes:0xdccca8,toit:0x4a5a6a,bois:0xa07a50}],
-  duplex:[{murs:0xe8e4dc,bois:0xa8744a,lignes:0x8a5c38},{murs:0xdfe6ea,bois:0x8a6448,lignes:0x6e4c34},{murs:0xf2ece2,bois:0xc08a58,lignes:0x9a6a40}],
-  plage:[{murs:0xf2c8c0,toit:0xc8643a,bois:0x5aa0b8},{murs:0xf4e2a0,toit:0xe8e8e4,bois:0x4a8aa0},{murs:0xb8e4d4,toit:0xc87a4a,bois:0xf2f2ee}],
-};
-const VILLA_CANAUX_ORDRE=['cube','bungalow','plage','duplex','bungalow','cube','duplex','plage'];
+/* ---------- LE BÂTI DES CANAUX (V1 : phase 3 ; V2 : CANAUX_V2.md, phase 2) ----------
+   V2 : chaque lot (CANAUX.lots, canauxLotsV2) reçoit sa villa du générateur (villaV2, plus bas) : les pieds dans l'eau côté jardin,
+   la façade, le portail et la voiture côté allée. Le bâti est toujours UNE géométrie à couleurs de sommets par rangée (le matériau
+   du mobilier) ; les fenêtres de la nuit dans une seconde ; l'eau des piscines, un seul matériau. Solides : les volumes des maisons,
+   les murets, les haies mitoyennes, les voitures garées. Les condos (CONDOS_V2) : bordure est, derrière les villas. */
 let _MAT_PISC_CANAUX=null;
 /* le constructeur : des pièces (mobPieces) et des toits (geoToit), dans le repère d'un lot (X, Z, ry, miroir s) */
 function constructeurCanaux(c,X,Z,ry,s,Y0){
@@ -7990,72 +7950,222 @@ function constructeurCanaux(c,X,Z,ry,s,Y0){
   const b={ box:(w,h,d,x,y,z,col)=>mobPieces([['box',w,h,d,s*x,y,z,col]],X,Z,ry,c,Y0),
     cyl:(r,h,x,y,z,col)=>mobPieces([['cyl',r,h,r,s*x,y,z,col]],X,Z,ry,c,Y0),
     boule:(a,h,d,x,y,z,col)=>mobPieces([['boule',a,h,d,s*x,y,z,col]],X,Z,ry,c,Y0),
+    cone:(r,h,x,y,z,col)=>mobPieces([['cone',r,h,r,s*x,y,z,col]],X,Z,ry,c,Y0),
     toit:(w,d,h,type,x,y,z,col)=>{ const g=geoToit(w,d,h,type), P=g.attributes.position.array, N=g.attributes.normal.array; _c3.setHex(col);
       for(let i=0;i<P.length;i+=3){ const lx=P[i]*s+s*x, ly=P[i+1]+y+Y0, lz=P[i+2]+z; c.pos.push(X+lx*cs+lz*sn,ly,Z-lx*sn+lz*cs); const nx=N[i]*s, nz=N[i+2]; c.nor.push(nx*cs+nz*sn,N[i+1],-nx*sn+nz*cs); c.col.push(_c3.r,_c3.g,_c3.b); }
       if(s<0){ const n=P.length/3, i0=c.pos.length/3-n; for(let t=0;t<n;t+=3){ for(const A of [c.pos,c.nor,c.col]){ const a=(i0+t+1)*3, q=(i0+t+2)*3; for(let k=0;k<3;k++){ const v=A[a+k]; A[a+k]=A[q+k]; A[q+k]=v; } } } } /* en miroir : l'ordre des sommets s'inverse */
       g.dispose(); },
     solide:(x,z,hw,hd,h)=>{ const wx=X+(s*x)*cs+z*sn, wz=Z-(s*x)*sn+z*cs, r=Math.abs(sn)>0.5; solides.push({x:wx,z:wz,hw:r?hd:hw,hd:r?hw:hd,h:h+Y0,toit:true}); },
-    monde:(x,z)=>({x:X+(s*x)*cs+z*sn,z:Z-(s*x)*sn+z*cs}) };
+    monde:(x,z)=>({x:X+(s*x)*cs+z*sn,z:Z-(s*x)*sn+z*cs}),
+    /* un triangle (points [x,y,z] du lot, miroir compris : l'ordre est rétabli) ; deux = les deux faces (une palme) */
+    tri:(A,B,D,col,deux)=>{ const W=(p)=>{ const lx=s*p[0]; return [X+lx*cs+p[2]*sn,p[1]+Y0,Z-lx*sn+p[2]*cs]; }, a=W(A), q=W(s>0?B:D), r=W(s>0?D:B);
+      const ux=q[0]-a[0], uy=q[1]-a[1], uz=q[2]-a[2], vx=r[0]-a[0], vy=r[1]-a[1], vz=r[2]-a[2]; let nx=uy*vz-uz*vy, ny=uz*vx-ux*vz, nz=ux*vy-uy*vx; const l=Math.hypot(nx,ny,nz)||1; nx/=l; ny/=l; nz/=l; _c3.setHex(col);
+      for(const p of [a,q,r]){ c.pos.push(p[0],p[1],p[2]); c.nor.push(nx,ny,nz); c.col.push(_c3.r,_c3.g,_c3.b); }
+      if(deux) for(const p of [a,r,q]){ c.pos.push(p[0],p[1],p[2]); c.nor.push(-nx,-ny,-nz); c.col.push(_c3.r,_c3.g,_c3.b); } },
+    /* un tronc à cinq pans passant par des points (il peut pencher), du rayon r0 au pied à r1 en haut, couleurs en anneaux */
+    tronc:(pts,r0,r1,cols)=>{ const n=pts.length-1, A=[]; for(let i=0;i<=n;i++){ const r=r0+(r1-r0)*i/n, R=[]; for(let k=0;k<5;k++){ const t=k*1.2566; R.push([pts[i][0]+Math.cos(t)*r,pts[i][1],pts[i][2]+Math.sin(t)*r]); } A.push(R); }
+      for(let i=0;i<n;i++){ const col=cols[i%cols.length]; for(let k=0;k<5;k++){ const k1=(k+1)%5, a0=A[i][k], b0=A[i][k1], c1=A[i+1][k1], d1=A[i+1][k]; b.tri(a0,d1,c1,col); b.tri(a0,c1,b0,col); } } },
+    /* une palme : une lanière qui part du cœur (px, py, pz) vers l'angle an, s'élargit puis s'effile, et retombe (chute) */
+    palme:(px,py,pz,an,L,chute,larg,col)=>{ const dx=Math.cos(an), dz=Math.sin(an), P=[]; for(let i=0;i<=3;i++){ const t=i/3, w=larg*(t<0.34?0.3+t*2:(1-t)*1.5+0.03), cx=px+dx*L*t, cy=py+0.5*L*t*(1-t)*0.6-chute*t*t, cz=pz+dz*L*t;
+        P.push([[cx+dz*w,cy-0.14*w,cz-dx*w],[cx-dz*w,cy-0.14*w,cz+dx*w]]); }
+      for(let i=0;i<3;i++){ const [l0,r0]=P[i], [l1,r1]=P[i+1]; b.tri(l0,r0,r1,col,true); b.tri(l0,r1,l1,col,true); } } };
   b.solides=solides; return b; }
-function palmierCanaux(b,x,z,h){ h=h||4.6; const tronc=0x8a6a44, f1=0x2f8a3e, f2=0x3aa04a;
-  b.cyl(0.16,h,x,h/2,z,tronc); b.cyl(0.24,0.4,x,0.2,z,0x7a5a3a);
-  b.boule(1.7,0.16,0.42,x+1.2,h-0.25,z,f1); b.boule(1.7,0.16,0.42,x-1.2,h-0.25,z,f2); b.boule(0.42,0.16,1.7,x,h-0.25,z+1.2,f2); b.boule(0.42,0.16,1.7,x,h-0.25,z-1.2,f1); b.boule(0.55,0.4,0.55,x,h,z,0x3a7a34); }
-/* un lot de villa : pelouse, haies, clôture et portail, allée, maison, terrasse, piscine, palmiers */
-function villaCanaux(c,lot,piscines){
-  const k=lot.rang, mod=VILLA_CANAUX_ORDRE[k%VILLA_CANAUX_ORDRE.length], T=VILLA_CANAUX_TEINTES[mod][(k*7+3)%3], s=k%2?-1:1, Y=0.22, b=constructeurCanaux(c,lot.x,lot.z,lot.ry,s,Y);
-  const herbe=[0x3f6c2a,0x467432,0x3a6427][k%3], haie=0x24521f, cloture=0xe8e6e0, allee=0x8f8b84, xa=9.5; /* teintes foncées : sous le matériau du mobilier, les couleurs claires viraient au fluo */ /* l'allée de voiture, côté du portail */
-  b.box(30.2,0.04,14.6,0,0.02,-0.05,herbe); b.box(3.6,0.05,7.2,xa,0.03,4.1,allee); b.box(1.4,0.05,4,3.2,0.03,5.6,0xa8a194); /* pelouse, allée, chemin de la porte */
-  for(const x of [-15.2,15.2]) b.box(0.6,1,15,x,0.5,0,haie); b.box(30.4,1,0.6,0,0.5,-7.45,haie);
-  for(const [a,e] of [[-15.4,2],[4.6,7.4],[11.6,15.4]]){ const l=e-a; if(l<0.4) continue; b.box(l,0.75,0.25,(a+e)/2,0.38,7.55,cloture); } /* la clôture basse : portail piéton et entrée de voiture ouverts */
-  for(const x of [2,4.6,7.4,11.6]) b.box(0.32,1,0.32,x,0.5,7.55,cloture);
-  const r=VILLA_CANAUX[mod](b,T), [tx,tz,tw,td]=r.terrasse; b.box(tw,0.18,td,tx,0.09,tz,T.bois||0xa07a50);
-  for(const x of [tx-tw/2+0.8,tx+tw/2-0.8]){ b.box(0.7,0.22,1.7,x,0.3,tz,0xf2f4f6); } /* deux transats */
-  if(k%3!==1){ const px=k%2?-9.5:-8.5, pz=3.6, pw=k%3?3.2:2.4, pd=1.7; b.box(pw*2+1,0.08,pd*2+1,px,0.06,pz,0xe6e0d4); /* la piscine : margelle, eau (BASSINS : on y nage) */
-    const w=b.monde(px,pz); piscines.push({x:w.x,z:w.z,hw:pw,hd:pd}); }
-  palmierCanaux(b,13.2,-5.2,4.8); if(k%2) palmierCanaux(b,-13,5.2,4.2);
-  b.box(0.08,1,0.08,xa-2.3,0.5,7.1,0x2a2d34); b.box(0.42,0.32,0.55,xa-2.3,1.1,7.1,T.bois||0x2a5a8a); /* boîte aux lettres */
+function palmierCanaux(b,x,z,h){ palmierV2(b,x,z,h||4.6,true); } /* les palmiers des quais et du jardin de la villa Miami : le dessin V2 */
+/* ---------- CANAUX V2 : LE GÉNÉRATEUR DE VILLAS (phase 2, CANAUX_V2.md) ----------
+   Une villa par lot (CANAUX.lots), décidée par sa seule graine (hacheLot de sa position : jamais Math.random) : un style, une
+   palette, un nombre d'étages, des modules, un jardin côté eau, une façade côté allée. Repère du lot (constructeurCanaux) : x le
+   long de la façade, z de l'eau (−d/2) à l'allée (+d/2), y depuis le dallage. Bandes du lot : l'allée de garage (côté −x, 3,6 u :
+   la voiture garée devant), la maison, le passage à pied (côté +x, 1,5 u : de l'allée au bord de l'eau, jamais bouché) ; en miroir
+   (s = −1) les côtés s'échangent. Tout est à couleurs de sommets dans UNE géométrie par rangée (le matériau du mobilier) ; les
+   fenêtres allumées la nuit dans une seconde (_MAT_FEN_CANAUX, opacité suivant la nuit) ; l'eau des piscines, un seul matériau.
+   Styles (photos de rapport_nuit/canaux_refs) : moderne blanc (cubes empilés, porte-à-faux, baies, garde-corps de verre, escalier
+   extérieur, brise-soleil, claustras), méditerranéen (crépi pastel, tuiles en croupe, loggia à arcades, balustres, tour d'angle),
+   tropical contemporain (toits-dalles débordants et végétalisés, bois sombre, pierre, pilotis), Art déco (angles arrondis, bandeaux,
+   hublots, visières, néon), bungalow des années 50 (plain-pied, toit bas, carport, claustras de parpaings). */
+const VILLA_V2_STYLES=['moderne','medit','tropical','artdeco','bungalow'];
+const VILLA_V2_PALETTES={
+  moderne:[{mur:0xf4f2ec,bois:0x9a6a40,toit:0x3a3e44,acc:0xdfe8ee},{mur:0xeceef0,bois:0x6e4a30,toit:0x2e3238,acc:0xd4dee6},{mur:0xf6eee2,bois:0xb08050,toit:0x4a4e54,acc:0xf2f0ea}],
+  medit:[{mur:0xe8d2a8,toit:0xc0603a,acc:0xf6f2e8,bois:0x7a4a2a},{mur:0xf0c4b4,toit:0xb4552f,acc:0xf8f0e6,bois:0x6a3e24},{mur:0xf4c898,toit:0xc8703e,acc:0xfaf2e2,bois:0x8a5634}],
+  tropical:[{mur:0x4a3424,pierre:0x8a8478,toit:0xe6e2da,vert:0x4a7a3a,acc:0x2a2a2e},{mur:0x5c4030,pierre:0x9a948a,toit:0xd8d4cc,vert:0x3f6c34,acc:0x3a3632},{mur:0x6a4a34,pierre:0xa8a090,toit:0xeeeae2,vert:0x527e3e,acc:0x2e2a26}],
+  artdeco:[{mur:0xb8e4d4,bande:0xf4f2ec,acc:0x2a8a8a,toit:0xe8e6e0},{mur:0xf2c8cc,bande:0xf6f2ee,acc:0xc8507a,toit:0xe8e6e0},{mur:0xd6ccee,bande:0xf4f2ec,acc:0x6a5ab0,toit:0xe8e6e0}],
+  bungalow:[{mur:0xf4f2ec,toit:0x6a6e74,acc:0x3aa0a8,bois:0x9a7048},{mur:0xf2e4b8,toit:0x8a5a3a,acc:0xd86a3a,bois:0x8a6040},{mur:0xc8e0e8,toit:0x5a5e66,acc:0xe8a020,bois:0xa07a50}]};
+const VILLA_V2_VERRE=0x2a3c4c, VILLA_V2_FEN=0xffd890;
+let _MAT_FEN_CANAUX=null;
+function aleaLot(g){ let s=((g*4294967296)>>>0)||1; return ()=>{ s=(Math.imul(s,1664525)+1013904223)>>>0; return s/4294967296; }; } /* le hasard d'un lot : sa graine, jamais Math.random */
+/* le style, la palette, les étages et les modules de chaque lot : deux voisines jamais du même style (donc jamais de la même palette),
+   cinq styles en rotation sur chaque rangée (une permutation propre à la rangée) */
+function villasV2Plan(C){
+  const rangs={}; for(const l of C.lots) (rangs[l.ilot]=rangs[l.ilot]||[]).push(l);
+  for(const id in rangs){ const L=rangs[id].sort((a,b)=>a.z-b.z), r=aleaLot(hacheLot(L[0].x0*3+1,L[0].z0*7+2)), perm=VILLA_V2_STYLES.slice();
+    for(let i=perm.length-1;i>0;i--){ const j=Math.floor(r()*(i+1)); const t=perm[i]; perm[i]=perm[j]; perm[j]=t; }
+    L.forEach((l,i)=>{ const a=aleaLot(l.graine); l.style=perm[i%perm.length]; const pals=VILLA_V2_PALETTES[l.style]; l.palette=Math.floor(a()*pals.length);
+      const prof=l.d<16, grand=l.standing==='grand'; let n=l.style==='bungalow'?1:(grand?2+(a()<0.5?1:0):(prof?1+(a()<0.55?1:0):1+(a()<0.7?1:0)));
+      if(l.style==='tropical') n=Math.min(n,2); if(l.style==='moderne'&&!prof&&a()<0.3) n=Math.min(3,n+1); l.etages=n;
+      l.s=a()<0.5?1:-1; /* le miroir : l'allée de garage d'un côté ou de l'autre */
+      l.opts={ tour:l.style==='medit'&&(grand||a()<0.35), escalier:l.style==='moderne'&&l.d>=18&&a()<0.6, porteAFaux:a()<0.7, toitVert:l.style==='tropical'&&a()<0.8, pergola:a()<0.5,
+        piscine:['rect','L','debord','plage'][Math.floor(a()*4)], cuisine:!prof&&a()<0.5, foyer:a()<0.45, hamac:a()<0.35, parasol:a()<0.6, massif:a()<0.7, rocaille:a()<0.35,
+        quai:a()<0.55?'beton':'moellons', palmiers:1+Math.floor(a()*(prof?2:3)), voiture:grand||a()<0.85 };
+      l.silhouette=l.style+'/'+n+(l.opts.tour?'/tour':'')+(l.opts.porteAFaux&&n>1?'/paf':'')+(l.opts.toitVert?'/vert':''); }); } }
+/* une voiture garée, en quelques volumes (vue de dessus et de près ; un modèle V4 en coûterait 3 000 triangles) — le long de z */
+function voitureDecorV2(b,x,z,coul,luxe,carre){ const L=luxe?4.7:4.2, h=luxe?0.62:0.7, nz=carre?1:-1;
+  b.box(1.86,h,L,x,0.32+h/2,z,coul); b.box(1.62,luxe?0.5:0.58,luxe?1.9:2.2,x,0.32+h+(luxe?0.25:0.29),z+nz*0.2,VILLA_V2_VERRE); b.box(1.5,0.06,luxe?1.5:1.9,x,0.32+h+(luxe?0.51:0.59),z+nz*0.2,coul);
+  for(const sx of [-1,1]) for(const sz of [-1,1]) b.box(0.26,0.62,0.62,x+sx*0.86,0.31,z+sz*(L/2-0.8),0x18191c);
+  b.box(1.7,0.14,0.08,x,0.5,z+nz*(L/2+0.02),0xf2f0e0); b.box(1.7,0.14,0.08,x,0.5,z-nz*(L/2+0.02),0xb82828); }
+/* un palmier : royal (droit, haut) ou cocotier (penché vers l'eau, en trois tronçons) */
+function palmierV2(b,x,z,h,coco){ const r0=(Math.abs(Math.sin(x*12.9898+z*78.233+h*3.1))*43758.5453)%1, f1=0x2f8a3e, f2=0x3aa04a, n=coco?6:7, pts=[]; /* r0 : un hachage de la position, jamais Math.random */
+  const pench=coco?1.1+r0*1.3:0; for(let i=0;i<=n;i++){ const t=i/n; pts.push([x,h*t,z-pench*Math.pow(t,1.8)]); } /* le cocotier penche vers l'eau (−z du lot) */
+  b.tronc(pts,coco?0.2:0.25,coco?0.12:0.19,coco?[0x8a6a44,0x7a5a3a]:[0x9e968a,0x8c8478]); const [tx,,tz]=pts[n];
+  if(!coco) b.tronc([[tx,h-1.4,tz],[tx,h+0.15,tz]],0.23,0.2,[0x6e8a4a]); /* la gaine verte du palmier royal */
+  const nf=coco?8:10, L=coco?2.8:3.2;
+  for(let k=0;k<nf;k++){ const an=r0*6.283+k*6.283/nf+(k%2?0.15:0); b.palme(tx,h+0.12,tz,an,L*(0.82+0.09*((k*7+3)%5)),(coco?1.7:1.2)+(k%3)*0.25,0.6,k%2?f1:f2); }
+  b.boule(0.36,0.3,0.36,tx,h+0.12,tz,0x3a6a2e); if(coco) for(let k=0;k<3;k++) b.boule(0.16,0.16,0.16,tx+Math.cos(k*2.1)*0.27,h-0.18,tz+Math.sin(k*2.1)*0.27,0x5a3a1e); }
+/* une baie vitrée (côté jour) et, la nuit, sa lumière (sur la face, un peu devant) : n = la normale locale (±z ou ±x) */
+function baieV2(b,bn,cx,cy,cz,larg,haut,axe,sg,allume){ if(axe==='z'){ b.box(larg,haut,0.08,cx,cy,cz,VILLA_V2_VERRE); if(allume) bn.box(larg*0.9,haut*0.85,0.04,cx,cy,cz+sg*0.07,VILLA_V2_FEN); }
+  else { b.box(0.08,haut,larg,cx,cy,cz,VILLA_V2_VERRE); if(allume) bn.box(0.04,haut*0.85,larg*0.9,cx+sg*0.07,cy,cz,VILLA_V2_FEN); } }
+/* LES STYLES : chacun pose sa maison dans le rectangle [x0, x1] × [z0 (côté jardin), z1 (côté allée)], n étages ; T = la palette ;
+   rend la hauteur du toit (pour la vue de dessus) et les volumes solides */
+const VILLA_V2_MAISON={
+  moderne(b,bn,R,n,T,o,a){ const {x0,x1,z0,z1}=R, w=x1-x0, d=z1-z0, xc=(x0+x1)/2, zc=(z0+z1)/2, H=3.2, sol=[];
+    b.box(w,H,d,xc,H/2,zc,T.mur); b.box(w+0.3,0.2,d+0.3,xc,H+0.1,zc,T.toit); sol.push([xc,zc,w/2,d/2,H+0.2]);
+    baieV2(b,bn,xc-w*0.08,1.45,z0-0.04,w*0.72,2.2,'z',-1,a()<0.7); baieV2(b,bn,xc+w*0.22,1.6,z1+0.04,w*0.3,1.4,'z',1,a()<0.5); b.box(1.1,2.3,0.08,xc-w*0.22,1.15,z1+0.04,T.bois); /* la porte d'entrée en bois */
+    for(let k=0;k<Math.floor(w/0.7)&&k<9;k++) b.box(0.1,2.4,0.16,x0+0.4+k*0.55,1.4,z0-0.12,T.bois); /* brise-soleil devant la baie (lames de bois) */
+    let y=H+0.2;
+    for(let e=1;e<n;e++){ const paf=o.porteAFaux?1.4:0, ww=w*(e===1?0.82:0.6), dd=d*0.78, xx=x0+ww/2+(e===2?w*0.2:0), zz=z1-dd/2-(e===1?1.6:2.4)+(e===1?-paf:0);
+      b.box(ww,2.9,dd,xx,y+1.45,zz,T.mur); b.box(ww+0.3,0.18,dd+0.3,xx,y+2.99,zz,T.toit); sol.push([xx,zz,ww/2,dd/2,y+3.1]);
+      baieV2(b,bn,xx,y+1.45,zz-dd/2-0.04,ww*0.8,1.9,'z',-1,a()<0.6); baieV2(b,bn,xx,y+1.6,zz+dd/2+0.04,ww*0.5,1.2,'z',1,a()<0.4);
+      if(e===1){ const tz0=z0, tz1=zz-dd/2; if(tz1-tz0>1.2) { for(const zg of [tz0+0.1]) b.box(w-ww,0.95,0.06,x0+ww+(w-ww)/2,y+0.5,zg,T.acc); } /* garde-corps de verre de la terrasse du toit */
+        if(o.porteAFaux&&paf>0){ for(const xs of [xx-ww/2+0.3,xx+ww/2-0.3]) b.box(0.18,y,0.18,xs,y/2,zz-dd/2+0.25,T.mur); } /* les poteaux du porte-à-faux */
+        if(a()<0.5){ b.box(ww*0.5,1.1,0.12,xx+ww*0.2,y+1.5,zz-dd/2-0.9,T.bois); for(let k=0;k<6;k++) b.box(0.06,1.1,0.14,xx+ww*0.2-ww*0.22+k*ww*0.09,y+1.5,zz-dd/2-0.95,0x3a2a1e); b.box(ww*0.55,0.12,1.2,xx+ww*0.2,y+0.06,zz-dd/2-0.5,T.toit); } } /* un balcon à claustras */
+      y+=3.1; }
+    if(o.escalier){ for(let k=0;k<9;k++) b.box(1,0.16,0.42,x0-0.55,0.12+k*0.35,z1-1-k*0.42,T.mur); b.box(0.06,1,3.8,x0-1.03,2,z1-2.8,0xf2f2f2); } /* l'escalier extérieur, contre le flanc côté allée de garage (derrière la voiture) */
+    b.box(w*0.5,0.08,d*0.5,xc-w*0.15,y+0.04,zc,T.bois); /* le pont de teck du toit-terrasse */
+    return {haut:y,sol}; },
+  medit(b,bn,R,n,T,o,a){ const {x0,x1,z0,z1}=R, w=x1-x0, d=z1-z0, xc=(x0+x1)/2, zc=(z0+z1)/2, H=3.1*n, sol=[];
+    b.box(w,H,d,xc,H/2,zc,T.mur); b.toit(w+1,d+1,Math.min(2.4,d*0.3),'croupe',xc,H,zc,T.toit); sol.push([xc,zc,w/2,d/2,H+0.3]);
+    /* la loggia à arcades côté jardin : piliers, arcs (linteaux en gradins), le fond sombre */
+    const na=Math.max(2,Math.min(4,Math.floor(w/2.6))), pas=w/na; b.box(w-0.4,2.5,0.05,xc,1.3,z0-0.02,0x5a4a3a);
+    for(let k=0;k<=na;k++) b.box(0.42,2.6,0.5,x0+k*pas,1.3,z0-0.25,T.acc);
+    for(let k=0;k<na;k++){ const xm=x0+(k+0.5)*pas; b.box(pas-0.42,0.5,0.5,xm,2.85,z0-0.25,T.acc); b.box((pas-0.42)*0.6,0.25,0.5,xm,2.5,z0-0.25,T.acc); b.box((pas-0.42)*0.22,0.2,0.5,xm-(pas-0.42)*0.39,2.35,z0-0.25,T.acc); b.box((pas-0.42)*0.22,0.2,0.5,xm+(pas-0.42)*0.39,2.35,z0-0.25,T.acc);
+      if(a()<0.7) bn.box((pas-0.6)*0.8,1.6,0.04,xm,1.2,z0+0.02,VILLA_V2_FEN); }
+    b.box(w+0.2,0.28,0.9,xc,3.15,z0-0.45,T.acc); /* le balcon au-dessus de la loggia (si un étage) */
+    for(let e=1;e<n;e++){ const y=e*3.1; for(let k=0;k<Math.floor(w/1.6);k++) baieV2(b,bn,x0+0.9+k*1.6,y+1.5,z0-0.04,0.8,1.6,'z',-1,a()<0.5);
+      for(let k=0;k<Math.floor(w*1.6);k++) b.box(0.1,0.7,0.1,x0+0.2+k*(w-0.4)/Math.floor(w*1.6),y+0.65,z0-0.82,T.acc); b.box(w,0.1,0.12,xc,y+1.02,z0-0.82,T.acc); } /* balustres */
+    for(let k=0;k<Math.floor(w/1.8);k++){ const xw=x0+1+k*1.8; baieV2(b,bn,xw,1.6,z1+0.04,0.8,1.3,'z',1,a()<0.45); b.box(0.3,1.4,0.06,xw-0.6,1.6,z1+0.06,T.bois); b.box(0.3,1.4,0.06,xw+0.6,1.6,z1+0.06,T.bois); } /* fenêtres et volets côté allée */
+    b.box(1.2,2.4,0.08,xc,1.2,z1+0.05,T.bois); b.box(1.8,0.25,0.9,xc,2.6,z1+0.45,T.toit); /* porte et auvent de tuiles */
+    if(o.tour){ const tw=Math.min(3.6,w*0.32), tx=x1-tw/2, tz=z1-tw/2, th=H+3; b.box(tw,th,tw,tx,th/2,tz,T.mur); b.toit(tw+0.6,tw+0.6,1.6,'croupe',tx,th,tz,T.toit); sol.push([tx,tz,tw/2,tw/2,th+0.3]);
+      baieV2(b,bn,tx,th-1.3,tz-tw/2-0.04,tw*0.5,1.1,'z',-1,true); }
+    return {haut:H+2,sol}; },
+  tropical(b,bn,R,n,T,o,a){ const {x0,x1,z0,z1}=R, w=x1-x0, d=z1-z0, xc=(x0+x1)/2, zc=(z0+z1)/2, H=3.1, sol=[], deb=1.3;
+    b.box(w,H,d,xc,H/2,zc,T.pierre); sol.push([xc,zc,w/2,d/2,H*n+0.4]);
+    for(let k=0;k<Math.floor(w/0.5);k++) if(k%5) b.box(0.14,H-0.2,0.06,x0+0.25+k*0.5,H/2,z1+0.04,T.mur); /* bardage de bois sombre côté allée */
+    baieV2(b,bn,xc,1.5,z0-0.04,w*0.86,2.6,'z',-1,a()<0.75); b.box(1.1,2.4,0.1,x0+1.4,1.2,z1+0.06,T.acc);
+    b.box(w+deb*2,0.22,d+deb*2,xc,H+0.11,zc,T.toit); /* la dalle de toit qui déborde */
+    for(const xs of [x0-deb+0.2,x1+deb-0.2]) for(const zs of [z0-deb+0.2]) b.box(0.14,H,0.14,xs,H/2,zs,T.acc); /* poteaux fins */
+    if(n>1){ const ww=w*0.74, dd=d*0.8, xx=x0+ww/2+(o.porteAFaux?0:w*0.26), zz=zc+0.4; b.box(ww,2.9,dd,xx,H+0.22+1.45,zz,T.mur); for(let k=0;k<Math.floor(ww/0.5);k++) if(k%4) b.box(0.12,2.7,0.05,xx-ww/2+0.25+k*0.5,H+0.22+1.45,zz-dd/2-0.04,0x3a2a1c);
+      baieV2(b,bn,xx,H+0.22+1.5,zz-dd/2-0.06,ww*0.6,1.9,'z',-1,a()<0.6); b.box(ww+deb*2,0.22,dd+deb*2,xx,H*2+0.4,zz,T.toit); }
+    const yT=(n>1?H*2+0.4:H+0.11)+0.12; if(o.toitVert){ const rw=(n>1?w*0.74:w)+0.6, rx=n>1?x0+(w*0.74)/2+(o.porteAFaux?0:w*0.26):xc; b.box(rw,0.12,(n>1?d*0.8:d)+0.6,rx,yT,n>1?zc+0.4:zc,T.vert);
+      for(let k=0;k<5;k++) b.boule(0.7,0.4,0.7,rx-rw/2+0.8+k*(rw-1.6)/4,yT+0.3,(n>1?zc+0.4:zc)+(k%2?0.8:-0.8),k%2?0x3a6a2a:0x5a8a3a); } /* le toit végétalisé */
+    for(let k=0;k<4;k++) b.boule(0.9,0.8,0.9,x0-deb+0.4+k*(w+deb*2-0.8)/3,0.5,z1+deb*0.5,k%2?0x2f6a2a:0x3f7a32); /* la végétation qui déborde côté allée */
+    return {haut:yT,sol}; },
+  artdeco(b,bn,R,n,T,o,a){ const {x0,x1,z0,z1}=R, w=x1-x0, d=z1-z0, xc=(x0+x1)/2, zc=(z0+z1)/2, H=3.1*n, sol=[], rc=Math.min(1.4,d*0.18);
+    b.box(w-rc*2,H,d,xc,H/2,zc,T.mur); b.box(w,H,d-rc*2,xc,H/2,zc,T.mur); for(const xs of [x0+rc,x1-rc]) for(const zs of [z0+rc,z1-rc]) b.cyl(rc,H,xs,H/2,zs,T.mur); /* les angles arrondis */
+    sol.push([xc,zc,w/2,d/2,H+1]);
+    for(let e=0;e<n;e++){ const y=e*3.1; b.box(w-rc*2+0.06,0.22,d+0.06,xc,y+2.75,zc,T.bande); b.box(w+0.06,0.22,d-rc*2+0.06,xc,y+2.75,zc,T.bande); /* bandeaux horizontaux */
+      for(let k=0;k<Math.max(1,Math.floor((w-2*rc)/2.2));k++){ const xw=x0+rc+1.1+k*2.2; baieV2(b,bn,xw,y+1.45,z0-0.04,1.4,1.5,'z',-1,a()<0.6); b.box(1.8,0.1,0.6,xw,y+2.35,z0-0.3,T.bande); } /* fenêtres et leurs visières */
+      b.cyl(0.42,0.08,xc+w*0.25,y+1.7,z1+0.02,T.acc); }
+    b.box(1.2,2.4,0.08,xc-w*0.15,1.2,z1+0.05,T.acc); /* la porte */
+    const yp=H; b.box(w*0.4,1.2,0.4,xc,yp+0.6,z1-0.2,T.mur); b.box(w*0.2,0.6,0.42,xc,yp+1.5,z1-0.2,T.mur); /* le fronton en gradins */
+    bn.box(0.08,H*0.8,0.08,xc+w*0.2,H*0.45,z1+0.08,T.acc===0x2a8a8a?0x40f0e0:(T.acc===0xc8507a?0xff60a0:0xa080ff)); /* le néon discret (la nuit) */
+    b.box(w-0.6,0.1,d-0.6,xc,H+0.05,zc,T.toit); return {haut:H+1.8,sol}; },
+  bungalow(b,bn,R,n,T,o,a){ const {x0,x1,z0,z1}=R, w=x1-x0, d=z1-z0, xc=(x0+x1)/2, zc=(z0+z1)/2, H=3, sol=[];
+    b.box(w,H,d,xc,H/2,zc,T.mur); b.toit(w+1.2,d+1.4,1.1,'pignon',xc,H,zc,T.toit); sol.push([xc,zc,w/2,d/2,H+0.6]);
+    baieV2(b,bn,xc,1.55,z0-0.04,w*0.6,1.9,'z',-1,a()<0.7); baieV2(b,bn,xc+w*0.2,1.6,z1+0.04,w*0.3,1.3,'z',1,a()<0.5); b.box(1,2.2,0.08,xc-w*0.25,1.1,z1+0.05,T.acc);
+    /* le mur de claustras (parpaings ajourés) côté allée */
+    for(let i=0;i<4;i++) for(let j=0;j<5;j++) b.box(0.42,0.42,0.16,x0+0.4+j*0.5,0.5+i*0.5,z1+0.8,0xf2f0ea); b.box(2.6,0.12,0.2,x0+1.4,2.55,z1+0.8,0xf2f0ea);
+    b.box(w*0.5,0.5,0.6,xc+w*0.15,0.25,z1+0.6,0x9a6a48); for(let k=0;k<3;k++) b.boule(0.4,0.4,0.4,xc+w*0.15-0.8+k*0.8,0.6,z1+0.6,0xd03c8a); /* la jardinière fleurie */
+    return {haut:H+1.1,sol}; } };
+/* LE LOT ENTIER : la maison, le jardin côté eau, la façade côté allée, le bord de l'eau */
+function villaV2(c,cn,l,piscines){
+  const T=VILLA_V2_PALETTES[l.style][l.palette], a=aleaLot(l.graine*0.917+0.031), o=l.opts, w=l.w, s=l.s, Y=0.22;
+  /* un bassin de demi-tour qui entame le lot (bout d'un canal secondaire) : tout le lot recule d'autant (l'eau mord jusqu'à ent) */
+  let ent=0; { const sn=Math.sin(l.ry), cs=Math.cos(l.ry); for(let x=-w/2+0.3;x<=w/2-0.3;x+=0.5) for(let tt=0.4;tt<l.d/2;tt+=0.4){ const lz=-l.d/2+tt; if(dansCanal(l.x+(s*x)*cs+lz*sn,l.z-(s*x)*sn+lz*cs)) ent=Math.max(ent,tt+0.7); } }
+  l.entaille=ent; const d=l.d-ent, X=l.x+Math.sin(l.ry)*ent/2, Z=l.z+Math.cos(l.ry)*ent/2;
+  const b=constructeurCanaux(c,X,Z,l.ry,s,Y), bn=constructeurCanaux(cn,X,Z,l.ry,s,Y);
+  const prof=d>=24, etroit=d<16, F=prof?5.6:(d>=18?5:(d>=13?4.4:3.6)), H=Math.min(prof?10:(d>=18?8.2:5.8),d-F-2.6), hx0=-w/2+3.8, hx1=w/2-1.7, hz1=d/2-F, hz0=hz1-H, xp=w/2-1.05; /* l'allée de garage côté −x, le passage à pied côté +x */
+  l.passage=s*xp; l.allee=-s*(w/2-2.05); /* dans le repère du lot (x local, miroir compris) */
+  { const q=b.monde(-w/2+2.05,d/2-4.2); l.parking={x:q.x,z:q.z,ang:l.dir>0?Math.PI/2:-Math.PI/2}; l.portail=[b.monde((hx0+hx1)/2-1.8,d/2-1.1),b.monde((hx0+hx1)/2+1.8,d/2-1.1)]; }
+  const herbe=[0x3f6c2a,0x467432,0x4b7a35][Math.floor(a()*3)];
+  b.box(w-0.1,0.04,d-0.7,0,0.02,0.25,herbe); /* la pelouse */
+  b.box(3.3,0.05,F+H*0.5,-w/2+2.05,0.035,d/2-(F+H*0.5)/2,[0xb8b0a0,0x9a948a,0xc8bca8][Math.floor(a()*3)]); /* l'allée pavée */
+  b.box(1.3,0.045,d-1.2,xp,0.03,0.3,0xc8c0b0); /* le passage dallé jusqu'au quai */
+  /* la maison */
+  const M=VILLA_V2_MAISON[l.style](b,bn,{x0:hx0,x1:hx1,z0:hz0,z1:hz1},l.etages,T,o,a);
+  { const i0=b.solides.length; for(const [x,z,hw,hd,h] of M.sol) b.solide(x,z,hw,hd,h); l.maison=b.solides.slice(i0); l.hautToit=M.haut; } /* les volumes de la maison (le test les lit) */
+  /* côté allée : muret, piliers, portail, boîte aux lettres, palmier d'alignement */
+  const murC=l.style==='medit'?T.mur:(l.style==='tropical'?T.pierre:0xf2f0ea);
+  b.box(hx1-hx0+0.2,0.9,0.3,(hx0+hx1)/2,0.45,d/2-0.2,murC); b.box(hx1-hx0+0.4,0.08,0.38,(hx0+hx1)/2,0.94,d/2-0.2,0xe8e4dc); b.solide((hx0+hx1)/2,d/2-0.2,(hx1-hx0)/2+0.1,0.2,1);
+  for(const xs of [hx0-0.15,hx1+0.15,-w/2+0.25]) b.box(0.5,1.3,0.5,xs,0.65,d/2-0.2,murC);
+  b.box(0.08,1.1,0.08,-w/2+3.1,0.55,d/2-0.25,0x2a2d34); b.box(0.4,0.32,0.5,-w/2+3.1,1.2,d/2-0.25,[0xf0c020,0x2a6ab8,0xe8e4dc][Math.floor(a()*3)]); /* boîte aux lettres */
+  palmierV2(b,hx1-0.6,d/2-1.3,6.5+a()*2.5,false);
+  if(o.voiture&&!l.brigada){ const lux=l.standing==='grand'; { voitureDecorV2(b,-w/2+2.05,d/2-4.2,lux?[0x111216,0xf4f4f2,0x1a2a44][Math.floor(a()*3)]:[0xc83a2a,0x2a5a9a,0xd8d8d0,0x3a3e44,0x6aa0b8,0xe0c040][Math.floor(a()*6)],lux,a()<0.5); b.solide(-w/2+2.05,d/2-4.2,0.95,lux?2.35:2.1,1.4); } } /* une voiture garée (au fond de l'allée de garage, le portail dégagé) est un obstacle */
+  /* les haies mitoyennes (solides : on ne passe pas d'un jardin à l'autre) — chaque lot pose celle de son côté −x ; le dernier de la rangée, les deux */
+  const haie=0x24521f, ez=s*l.dir; for(const sx of l.dernier?[1,-1]:[1]){ const xh=sx*ez*(w/2-0.22); b.box(0.44,1.15,d-2.4,xh,0.58,0.2,haie); b.solide(xh,0.2,0.22,(d-2.4)/2,1.2); } /* x local du bord z0 (le lot précédent) : s × dir × w/2 */
+  /* le jardin côté eau : terrasse, piscine, transats, parasol, cuisine d'été, foyer, hamac, massifs, palmiers */
+  const gz0=-d/2+1.6, gz1=hz0-0.2, G=gz1-gz0; /* 1,6 u le long du quai : le chemin jusqu'au ponton */
+  if(G>1.2){ const tz=Math.max(gz0,gz1-1.8); b.box(hx1-hx0,0.1,gz1-tz,(hx0+hx1)/2,0.05,(tz+gz1)/2,o.toitVert?0x8a6a4a:(a()<0.5?0xa87850:0xd8d0c0)); } /* la terrasse au pied de la maison */
+  if(etroit){ const pz0=gz0+0.3, pz1=d/2-6.9, ll=pz1-pz0; if(ll>=3.2){ const pz=(pz0+pz1)/2; b.box(2.8,0.1,ll+0.6,-w/2+2.05,0.06,pz,0xe8e2d6); piscines.push({b,x:-w/2+2.05,z:pz,hw:1,hd:ll/2-0.1}); b.box(0.66,0.22,1.7,hx0+0.9,0.24,gz0+1.2,0xf4f4f2); } } /* les lots étroits : une piscine en longueur, le long de l'allée de garage, derrière la voiture */
+  if(G>3){ const pw=Math.min(hx1-hx0-1,8.5), pd=Math.min(G-2.6,3.4); if(pd>=1.4&&pw>=2.4){ const px=(hx0+hx1)/2, pz=gz0+0.9+pd/2+(o.piscine==='debord'?-0.4:0);
+      b.box(pw+0.8,0.1,pd+0.8,px,0.06,pz,0xe8e2d6); piscines.push({b,x:px,z:pz,hw:pw/2,hd:pd/2});
+      if(o.piscine==='L'&&pw>4){ const lx=px+pw/2-0.9, lz=pz+pd/2+0.7; if(lz+0.7<gz1-1.8){ b.box(2.6,0.1,1.8,lx,0.06,lz,0xe8e2d6); piscines.push({b,x:lx,z:lz,hw:0.9,hd:0.7}); } }
+      if(o.piscine==='debord') b.box(pw,0.22,0.12,px,0.12,pz-pd/2-0.3,0x2ad4d0); /* le bord à débordement face au canal */
+      if(o.piscine==='plage') for(let k=0;k<3;k++) b.box(pw*0.3,0.06,0.4,px-pw*0.35,0.04-k*0.05,pz+pd/2-0.2-k*0.4,0xd8d0c0); /* la plage immergée */
+      const nt=Math.min(4,Math.max(2,Math.floor(pw/2))); for(let k=0;k<nt;k++) b.box(0.66,0.22,1.7,px-pw/2+0.5+k*(pw-1)/Math.max(1,nt-1),0.24,Math.min(gz1-1,pz+pd/2+1.35),[0xf4f4f2,0xffffff,0x2ad4d0][k%3]); /* transats */
+      if(o.parasol) { b.cyl(0.05,2.2,px+pw/2+0.6,1.1,pz,0xd8d8d8); b.cone(1.2,0.5,px+pw/2+0.6,2.35,pz,[0xf2f0ea,0x2ad4d0,0xe06a4a][Math.floor(a()*3)]); } } }
+  if(o.cuisine&&G>4){ const kx=hx0+1, kz=gz0+0.6; b.box(2.2,0.95,0.7,kx,0.48,kz,0x8a8478); b.box(2.3,0.08,0.8,kx,0.98,kz,0x3a3a40); b.box(0.6,0.3,0.5,kx+0.6,1.15,kz,0x2a2a2e); }
+  if(o.foyer&&G>3.5){ const fx=hx1+0.4, fz=gz0+0.8; b.cyl(0.55,0.35,fx,0.18,fz,0x7a7068); bn.cyl(0.32,0.06,fx,0.38,fz,0xff8a30); }
+  if(o.hamac&&G>3){ b.box(0.12,1.6,0.12,hx0-0.3,0.8,gz0+0.3,0x7a5434); b.box(0.12,1.6,0.12,hx0-0.3,0.8,gz1-0.3,0x7a5434); b.box(0.5,0.08,Math.max(1,G-1.2),hx0-0.3,0.85,(gz0+gz1)/2,0xe8d8a8); }
+  if(o.massif) for(let k=0;k<3;k++) b.boule(0.7,0.6,0.7,hx0+0.6+k*0.9,0.45,gz1-0.1,k%2?0xd03c8a:0xc02a78); /* bougainvilliers */
+  if(o.rocaille) for(let k=0;k<4;k++) b.boule(0.35+k*0.06,0.3,0.35,hx1-0.6-k*0.4,0.2,gz0+0.3+k*0.25,0x8a8478);
+  for(let k=0;k<o.palmiers;k++){ const coco=a()<0.6; palmierV2(b,k%2?hx1+0.2-k*0.3:hx0-0.6+k*0.4,gz0+0.2+k*Math.max(0.6,G*0.3),coco?7+a()*2:8+a()*3,coco); }
+  /* le bord de l'eau : le couronnement du mur de quai (béton blanc ou moellons) */
+  if(o.quai==='beton') b.box(w-0.1,0.14,0.6,0,0.07,-d/2+0.3,0xf2f0ea); else for(let k=0;k<Math.floor(w/0.9);k++) b.box(0.86,0.18,0.62,-w/2+0.45+k*0.9,0.09,-d/2+0.31,k%2?0x9a9284:0x8a8274);
   return b.solides; }
-/* Canaux V2, phase 1 : un lot provisoire (pelouse, maison contre l'allée, clôture) — le générateur de villas le remplace (phase 2) */
-function villaProvisoireV2(c,l){ const b=constructeurCanaux(c,l.x,l.z,l.ry,1,0.22), w=l.w, d=l.d, hd=Math.min(9,d*0.5), hw=w-4, zc=d/2-1.6-hd/2;
-  b.box(w-0.3,0.04,d-0.4,0,0.02,0,[0x3f6c2a,0x467432,0x3a6427][Math.floor(l.graine*3)]); b.box(hw,3.2,hd,0,1.6,zc,0xf4f2ec); b.box(hw+0.4,0.2,hd+0.4,0,3.3,zc,0x3a3e44);
-  for(const sx of [-1,1]) b.box(0.25,0.9,d-0.4,sx*(w/2-0.15),0.45,0,0x24521f);
-  b.solide(0,zc,hw/2,hd/2,3.4); return b.solides; }
-/* un petit immeuble de deux ou trois niveaux (parcelle entière, repère : z vers sa rue) */
-function immeubleCanaux(c,P0,niv){
-  const b=constructeurCanaux(c,P0.x,P0.z,P0.ry,1,0.22), murs=[0xece6da,0xdfe8ee,0xf2e6d6][P0.rang%3], H=niv*3.1, verre=0x23323f, gris=0x3a3e44;
-  b.box(30.2,0.04,30.2,0,0.02,0,0x8f8b84); b.box(22,H,12,0,H/2,-4,murs); b.box(22.6,0.5,12.6,0,H+0.25,-4,gris);
-  for(let n=0;n<niv;n++){ const y=1.7+n*3.1; for(let k=0;k<6;k++){ b.box(2,1.5,0.08,-9+k*3.6,y,2.04,verre); if(n>0) { b.box(2.8,0.12,1.2,-9+k*3.6,y-0.8,2.6,0xf4f2ec); b.box(2.8,0.85,0.05,-9+k*3.6,y-0.35,3.2,0xeef6f8); } }
-    for(const x of [-11.04,11.04]) for(let k=0;k<3;k++) b.box(0.08,1.5,1.8,x,y,-8+k*3.6,verre); }
-  b.box(4,0.18,2.6,0,2.9,3.2,gris); b.box(2.2,2.4,0.08,0,1.2,2.04,0x2a2a2e); /* l'auvent de l'entrée */
-  b.box(1.6,0.9,1.2,-6,H+0.95,-6,0xb8bcc2); b.box(1.6,0.9,1.2,6,H+0.95,-7,0xb8bcc2); /* climatiseurs sur le toit */
-  for(const x of [-13,13]) palmierCanaux(b,x,9,5); b.box(12,0.05,6,-5,0.03,10,0x3f6c2a); b.box(5,0.05,10,9,0.03,9.5,0x7f7b74);
-  b.solide(0,-4,11,6,H+0.5); return b.solides; }
-/* les pontons privés : un plancher flottant le long du quai, en face d'un lot */
-function pontonsCanaux(){
-  const C=CANAUX, L=[]; if(!C.lots) return L;
-  const f=(id)=>C.eaux.find((e)=>e.id===id), cO=f('canalO'), cE=f('canalE'), carrefours=['traverse','brasO','brasE'].map(f);
-  const reserve=[{x0:cO.x1-3,z0:216,z1:242},{x0:cE.x0,z0:65,z1:87}]; /* l'embarcadère public, le ponton de l'atelier */
-  for(const lot of C.lots){ if(lot.immeuble) continue;
-    const ouest=lot.x<cO.x0, est=lot.x>cE.x1, [e,cote]=ouest?[cO,-1]:(est?[cE,1]:(lot.rang%2?[cE,-1]:[cO,1])); /* entre les deux canaux : un lot sur deux de chaque côté */
-    const q=cote<0?{x0:e.x0,x1:e.x0+2.4}:{x0:e.x1-2.4,x1:e.x1}, z0=lot.z-3.5, z1=lot.z+3.5;
-    if(z0<e.z0+3||z1>C.zMer-14) continue;
-    if(C.marches.some((m)=>m.z1>z0-3&&m.z0<z1+3&&m.x1>q.x0-1&&m.x0<q.x1+1)) continue; /* jamais devant une marche */
-    if(C.ponts.some((p)=>p.z1>z0-4&&p.z0<z1+4)) continue; /* ni sous un pont */
-    if(carrefours.some((c)=>c.z1>z0-14&&c.z0<z1+14)) continue; /* ni à hauteur d'un bras ou de la traverse, d'un côté ou de l'autre : les bateaux y tournent */
-    if(reserve.some((r)=>r.x0===q.x0&&r.z1>z0&&r.z0<z1)) continue;
-    { const xb=cote<0?e.x0-1:e.x1+1; let ouvert=false; for(let z=z0-2;z<=z1+2;z+=1) if(C.eaux.some((o)=>formeContient(o,xb,z))){ ouvert=true; break; } if(ouvert) continue; }
-    if(L.some((o)=>o.x0===q.x0&&o.z1>z0-2&&o.z0<z1+2)) continue;
-    L.push({x0:q.x0,x1:q.x1,z0,z1,h:C.niveau+0.32,cote,canal:e.id}); }
-  return L; }
-function mkBatiCanaux(){
-  const C=CANAUX; if(!C.lots) return; const t0=performance.now(), piscines=[], parPate=new Map();
-  for(const lot of C.lots){ const k=lot.ilot; if(!parPate.has(k)) parPate.set(k,{pos:[],nor:[],col:[]}); const c=parPate.get(k);
-    const sol=villaProvisoireV2(c,lot); for(const s of sol){ addSolid(s); (C.batiSolides=C.batiSolides||[]).push(s); } }
-  for(const c of parPate.values()){ const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(c.pos,3)); g.setAttribute('normal',new THREE.Float32BufferAttribute(c.nor,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(c.col,3));
-    g.computeBoundingSphere(); const m=new THREE.Mesh(g,MOB_MAT); m.receiveShadow=true; scene.add(m); C.nSommetsBati=(C.nSommetsBati||0)+c.pos.length/3; }
+/* les résidences de condos (bordure est, derrière les villas) : tours blanches à bandeaux de balcons, verre teinté, piscine sur le toit */
+const CONDOS_V2=[{x:277.8,z:-19.5,w:16,d:23,n:8},{x:277.8,z:19,w:16,d:22,n:6},{x:277.8,z:210,w:16,d:44,n:7}];
+function condoV2(c,cn,C0){ const b=constructeurCanaux(c,C0.x,C0.z,0,1,0.22), bn=constructeurCanaux(cn,C0.x,C0.z,0,1,0.22), a=aleaLot(hacheLot(C0.x,C0.z)), H=C0.n*3.1+1.2, {w,d}=C0;
+  b.box(w+2,1.2,d+2,0,0.6,0,0xd8d4cc); /* le socle (parkings) */
+  b.box(w,H-1.2,d,0,1.2+(H-1.2)/2,0,0xf4f4f2); for(let e=0;e<C0.n;e++){ const y=1.2+e*3.1;
+    for(const sx of [-1,1]){ b.box(0.9,0.14,d+0.4,sx*(w/2+0.45),y+0.05,0,0xffffff); b.box(0.06,0.9,d+0.4,sx*(w/2+0.88),y+0.55,0,0xbfe0ea); b.box(0.06,2.2,d-0.6,sx*(w/2+0.03),y+1.4,0,0x6a9aaa);
+      for(let k=0;k<Math.floor(d/2.4);k++) if(a()<0.55) bn.box(0.04,1.7,1.8,sx*(w/2+0.08),y+1.4,-d/2+1.5+k*2.4,VILLA_V2_FEN); } }
+  b.box(w+0.4,0.4,d+0.4,0,H+0.2,0,0xe8e6e0); b.box(w*0.5,0.12,d*0.35,0,H+0.42,-d*0.15,0x2ad4d0); b.box(w*0.7,0.1,d*0.55,0,H+0.41,0,0xd8d0c0); /* la piscine sur le toit */
+  b.box(3,2.6,3,0,H+1.5,d*0.3,0xf4f4f2); /* la cage d'ascenseur */
+  b.box(2,0.2,3,w/2+1.2,3,0,0x3a3e44); /* la marquise de l'entrée, côté route de bordure */
+  for(const sz of [-1,1]) for(const sx of [-1,1]) palmierV2(b,sx*(w/2-1.5),sz*(d/2+1.6),9+a()*3,false);
+  b.solide(0,0,w/2+1,d/2+1,H+0.4); return b.solides; }
+/* LE BÂTI V2 : une géométrie par rangée (jour) et une pour la nuit, les piscines, les condos */
+function mkVillasV2(){
+  const C=CANAUX; villasV2Plan(C); const rangs=new Map(), piscines=[], t0=performance.now(); C.batiSolides=C.batiSolides||[];
+  const parRang={}; for(const l of C.lots) (parRang[l.ilot]=parRang[l.ilot]||[]).push(l); for(const id in parRang){ const L=parRang[id].sort((p,q)=>p.z-q.z); L[L.length-1].dernier=true; }
+  if(!_MAT_FEN_CANAUX) _MAT_FEN_CANAUX=new THREE.MeshBasicMaterial({vertexColors:true,transparent:true,opacity:0,depthWrite:false});
+  const geo=(q,m)=>{ const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(q.pos,3)); g.setAttribute('normal',new THREE.Float32BufferAttribute(q.nor,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(q.col,3)); g.computeBoundingSphere(); const me=new THREE.Mesh(g,m); scene.add(me); return me; };
+  C.nuitMeshes=[]; C.nSommetsBati=0;
+  for(const l of C.lots){ if(!rangs.has(l.ilot)) rangs.set(l.ilot,{c:{pos:[],nor:[],col:[]},cn:{pos:[],nor:[],col:[]}}); const R=rangs.get(l.ilot);
+    for(const s of villaV2(R.c,R.cn,l,piscines)){ addSolid(s); C.batiSolides.push(s); } }
+  { const R={c:{pos:[],nor:[],col:[]},cn:{pos:[],nor:[],col:[]}}; rangs.set('condos',R); for(const C0 of CONDOS_V2) for(const s of condoV2(R.c,R.cn,C0)){ addSolid(s); C.batiSolides.push(s); } }
+  for(const R of rangs.values()){ const m=geo(R.c,MOB_MAT); m.receiveShadow=true; C.nSommetsBati+=R.c.pos.length/3; if(R.cn.pos.length){ const mn=geo(R.cn,_MAT_FEN_CANAUX); mn.visible=false; C.nuitMeshes.push(mn); } }
+  /* les piscines : l'eau (on y nage : BASSINS), un seul matériau */
   if(piscines.length){ if(!_MAT_PISC_CANAUX) _MAT_PISC_CANAUX=new THREE.MeshLambertMaterial({color:0x3ab8d8,emissive:0x0a3a48,transparent:true,opacity:0.9});
-    const c={pos:[],nor:[],col:[]}; for(const p of piscines){ mobPieces([['box',p.hw*2,0.1,p.hd*2,0,0,0,0xffffff]],p.x,p.z,0,c,0.3); BASSINS.push({x:p.x,z:p.z,hw:p.hw,hd:p.hd,y:0.31}); }
+    const c={pos:[],nor:[],col:[]}; for(const p of piscines){ const w=p.b.monde(p.x,p.z), hw=p.hd, hd=p.hw; /* les lots tournent d'un quart de tour : largeur et profondeur s'échangent dans le monde */
+      mobPieces([['box',hw*2,0.1,hd*2,0,0,0,0xffffff]],w.x,w.z,0,c,0.3); BASSINS.push({x:w.x,z:w.z,hw,hd,y:0.31}); }
     const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(c.pos,3)); g.setAttribute('normal',new THREE.Float32BufferAttribute(c.nor,3)); g.computeBoundingSphere(); scene.add(new THREE.Mesh(g,_MAT_PISC_CANAUX)); }
+  C.nPiscines=piscines.length; C.tVillas=Math.round(performance.now()-t0); }
+/* la nuit : les fenêtres allumées (et les néons, les foyers) suivent la nuit */
+function majNuitCanaux(){ const C=CANAUX; if(!C.nuitMeshes||!_MAT_FEN_CANAUX) return; const f=ETAT.nuitF||0, op=clamp((f-0.25)/0.5,0,1), vis=op>0.01;
+  if(Math.abs(_MAT_FEN_CANAUX.opacity-op)>0.01) _MAT_FEN_CANAUX.opacity=op; for(const m of C.nuitMeshes) if(m.visible!==vis) m.visible=vis;
+  if(_MAT_PISC_CANAUX){ const e=0.04+0.32*op; _MAT_PISC_CANAUX.emissive.setRGB(0.04*(1+op),0.23*(0.25+e),0.28*(0.25+e)); } }
+function mkBatiCanaux(){
+  const C=CANAUX; if(!C.lots) return; const t0=performance.now();
+  mkVillasV2();
   /* les pontons : planchers de bois et leurs pieux */
   { const c={pos:[],nor:[],col:[]}; for(const p of C.pontons){ const w=p.x1-p.x0, d=p.z1-p.z0, cx=(p.x0+p.x1)/2, cz=(p.z0+p.z1)/2;
       mobPieces([['box',w,0.16,d,0,p.h-0.08,0,0x9a6e44]],cx,cz,0,c,0); for(let k=0;k<=Math.floor(d/1.2);k++) mobPieces([['box',w,0.02,0.06,0,p.h+0.005,-d/2+k*1.2,0x6e4a2c]],cx,cz,0,c,0);
@@ -8070,7 +8180,7 @@ function mkBatiCanaux(){
     for(const [x,z,ry] of pts){ if(solidAt(x,z,1.2)||dansCanal(x,z)||lotCanaux(x,z)||dansAlleeCanaux(x,z)) continue; mobPieces(K.pieces,x,z,ry,c,0.22); mobPieces(K.lum,x,z,ry,cl,0.22);
       const r=Math.abs(Math.sin(ry))>0.5; addSolid({x,z,hw:r?K.solide.hd:K.solide.hw,hd:r?K.solide.hw:K.solide.hd,h:K.solide.h+0.22}); STANDS.push({x:x+Math.sin(ry)*1.6,z:z+Math.cos(ry)*1.6,q:'port',cd:0}); C.nKiosques=(C.nKiosques||0)+1; }
     for(const [q,m] of [[c,MOB_MAT],[cl,MOB_MAT_LUM]]) if(q.pos.length){ const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(q.pos,3)); g.setAttribute('normal',new THREE.Float32BufferAttribute(q.nor,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(q.col,3)); g.computeBoundingSphere(); scene.add(new THREE.Mesh(g,m)); } }
-  C.tBati=Math.round(performance.now()-t0); C.nPiscines=piscines.length; }
+  C.tBati=Math.round(performance.now()-t0); }
 /* ---------- NAUTIQUE ET AMBIANCE (phase 4) ----------
    Demandé : « des bateaux de plaisance et de petits bateaux de luxe amarrés hors du passage utile (pas de grand yacht) ; deux ou
    trois jet-skis pilotables aux pontons privés ; un embarcadère public identifiable, avec une vedette pilotable accessible depuis
@@ -8160,8 +8270,8 @@ function canauxStartRunPrive(){
   for(const j of C.jetskis||[]){ const v=creerVehicule('jetski',j.x,j.z,j.ang); if(v) v.canauxAmarre=true; }
   if(C.vedetteEmb){ const v=creerVehicule('bateau',C.vedetteEmb.x,C.vedetteEmb.z,C.vedetteEmb.ang); if(v) v.canauxAmarre=true; }
   const brig=C.lots.filter((l)=>l.brigada), luxe=['suvLuxe','limousine']; /* V2 : les grands lots de la pointe du doigt central */
-  brig.forEach((l,i)=>{ creerVehicule(luxe[i%2],l.xRue-l.dir*4.6,l.z+l.w/2-2.6,l.dir>0?Math.PI/2:-Math.PI/2);
-    for(const dz of [-2.4,2.4]){ const e=creerEnnemi('chr_fusil',l.xRue-l.dir*1.4,l.z-l.w/2+5+dz,false); if(e){ e.garde=true; e.posteX=e.x; e.posteZ=e.z; } } });
+  brig.forEach((l,i)=>{ const pk=l.parking||{x:l.xRue-l.dir*4.6,z:l.z+l.w/2-2.6,ang:l.dir>0?Math.PI/2:-Math.PI/2}; creerVehicule(luxe[i%2],pk.x,pk.z,pk.ang); /* sur l'allée de garage de la villa (villaV2) */
+    for(const q of l.portail||[]){ const e=creerEnnemi('chr_fusil',q.x,q.z,false); if(e){ e.garde=true; e.posteX=e.x; e.posteZ=e.z; } } }); /* les deux gardes devant la porte */
 }
 /* ---------- POLICE MARITIME DES CANAUX (phase 2) ----------
    Demandé : « le joueur sur l'eau ou à la nage dans un canal compte comme en mer ; les vedettes entrent par une embouchure ou
@@ -43046,7 +43156,8 @@ function startRun(){
     const vert=Math.random()<0.5;
     const x=vert?r+4.6*(Math.random()<0.5?1:-1):rand(-HALF+15,HALF-15);
     const z=vert?rand(-HALF+15,HALF-CELL-10):r+4.6*(Math.random()<0.5?1:-1);
-    if(solidAt(x,z,2.2)||estEau(x,z)) continue;
+    const qc=CANAUX.ok&&dansBBCanaux(x,z); /* canaux : décidé comme avant le quartier (la rue d'origine, ni volume ni canal) — sinon le nombre de tirages suivait les villas ; un véhicule mal placé est retiré après coup (canauxNettoyerVehicules) */
+    if((!qc&&solidAt(x,z,2.2))||(estEau(x,z)&&!(qc&&dansCanal(x,z)))) continue;
     if(HILLS.ok&&dansHills(x,z,3)) continue; // les anciennes rues de la grille passent sous Los Reyes Hills
     let libre=true;
     for(const o of vehicules) if(dist2(o.x,o.z,x,z)<60){libre=false;break;}
