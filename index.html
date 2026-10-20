@@ -7550,20 +7550,35 @@ function canauxDefinir(){
   coupe('x'+rue(10),rue(10)-R,rue(10)+R,rue(6)+R,rue(7)-R);   /* x = 126 au nord de z = 0 : le bras ouest */
   coupe('x'+rue(13),rue(13)-R,rue(13)+R,rue(8)+R,rue(9)-R);   /* x = 252 entre z = 42 et 84 : le bras est */
   coupe('x'+rue(11),rue(11)-R,rue(11)+R,rue(9)+R,rue(10)-R); coupe('x'+rue(12),rue(12)-R,rue(12)+R,rue(9)+R,rue(10)-R); /* la traverse */
+  /* Canaux V2 (CANAUX_V2.md, décision 1) : les rues des quais disparaissent pour que chaque villa touche l'eau — x = 168 et x = 210
+     au nord et au sud du doigt central, x = 252 sauf au droit des ponts, x = 126 au nord du pont z = 42 et devant la villa Miami, les
+     bouts de rue en impasse qui traversaient les doigts. Gardées : celles d'un lieu ou d'un véhicule du relevé (aquarium, atelier,
+     garage du port, voiture musclée, moto), les rues des ponts, la rue nord, la route de bordure, le front de mer. */
+  for(const [id,x0,x1,z0,z1] of [['x168N',rue(11)-R,rue(11)+R,rue(6)+R,rue(8)-R],['x210N',rue(12)-R,rue(12)+R,rue(6)+R,rue(8)-R],['z0M',rue(11)+R,rue(12)-R,rue(7)-R,rue(7)+R],
+      ['x168S',rue(11)-R,rue(11)+R,rue(11)+R,rue(13)-R],['x210S',rue(12)-R,rue(12)+R,rue(11)+R,rue(13)-R],['z210M',rue(11)+R,rue(12)-R,rue(12)-R,rue(12)+R],
+      ['x252N',rue(13)-R,rue(13)+R,rue(6)+R,rue(8)-R],['z0E2',rue(13)+R,rue(14)-R,rue(7)-R,rue(7)+R],['x252M',rue(13)-R,rue(13)+R,rue(9)-R,rue(11)-R],
+      ['z84E2',rue(13)+R,rue(14)-R,rue(9)-R,rue(9)+R],['z126E2',rue(13)+R,rue(14)-R,rue(10)-R,rue(10)+R],['x252S',rue(13)-R,rue(13)+R,rue(11)+R,rue(13)-R],
+      ['z210E2',rue(13)+R,rue(14)-R,rue(12)-R,rue(12)+R],['x126N',rue(10)-R,rue(10)+R,rue(7)-R,rue(8)-R],['z0W',rue(9)+R,rue(10)-R,rue(7)-R,rue(7)+R],['x126M',rue(10)-R,rue(10)+R,rue(9)+R,rue(10)-R]]) coupe(id,x0,x1,z0,z1);
+  /* deux canaux secondaires en impasse (V2, décision 2), chacun fini par un bassin de demi-tour : le long de la rue x = 84 (branché sur
+     le bassin du bras ouest), le long de la route de bordure (branché sur le bassin du bras est) ; ils ne croisent aucune rue */
+  eau({t:'r',id:'secO',x0:rue(9)+6.5,x1:rue(9)+18.5,z0:zB+1,z1:26}); eau({t:'c',id:'basSecO',x:99,z:26,r:8});
+  eau({t:'r',id:'secE',x0:HALF-18.5,x1:HALF-6.5,z0:zE-3,z1:150}); eau({t:'c',id:'basSecE',x:HALF-14.5,z:150,r:8});
   /* les dalles du quartier (quais, promenades sur les rues retirées, pâtés libérés) : trottoir à 0,22 hors de l'eau et des ponts */
   const dalle=(id,x0,x1,z0,z1)=>C.dalles.push({id,t:'r',x0,x1,z0,z1});
   dalle('colO',O-P,O+P,rue(6)+R,zR-11); dalle('colE',E-P,E+P,rue(6)+R,zR-11);
   dalle('traverse',rue(11)-R,rue(12)+R,rue(9)+R,rue(10)-R); dalle('brasO',cx(9)-P,rue(10)+R,rue(6)+R,rue(7)-R); dalle('brasE',rue(13)-R,cx(13)+P,rue(8)+R,rue(9)-R);
   dalle('aquarium',cx(9)-P,cx(9)+P,cx(8)-P,cx(8)+P); dalle('garage',cx(11)-P,cx(11)+P,cx(10)-P,cx(10)+P);
   if(typeof PORT!=='undefined') for(const g of PORT.portiques) dalle('parc'+Math.round(g.g.position.x)+','+Math.round(g.cz),g.g.position.x-P,g.g.position.x+P,g.cz-P,g.cz+P);
-  /* le bâti (phase 3) : les pâtés secs, deux lots chacun (tournés vers leur rue), trois petits immeubles près des bordures nord et est */
-  C.lots.length=0; { let rang=0; const immeubles={'11,6':3,'13,6':2,'13,10':2}, pris=['9,6','9,8','9,9','11,8','11,9','11,10','13,8'];
-    for(const bx of [9,11,13]) for(let bz=6;bz<=12;bz++){ const k=bx+','+bz; if(quartier(bx,bz)!=='port'||pris.includes(k)) continue; const x=cx(bx), z=cx(bz);
-      dalle('pate'+k,x-P,x+P,z-P,z+P);
-      if(immeubles[k]) C.lots.push({pate:k,x,z,ry:0,immeuble:true,niv:immeubles[k],rang:rang++});
-      else { C.lots.push({pate:k,x,z:z-P/2,ry:Math.PI,rang:rang++}); C.lots.push({pate:k,x,z:z+P/2,ry:0,rang:rang++}); } } }
-  /* la villa Miami (phase 5) : le pâté (9,9), en face de l'entrée de la traverse ; sa rampe donne sur la rue du nord (z = 84) */
-  { const x=cx(9), z=cx(9); dalle('miami',x-P,x+P,z-P,z+P); C.miami={x,z,h:0.9,rampe:{dx:9}}; }
+  /* Canaux V2 : les bandes de terre (les doigts), les allées (au niveau de la rue, sans trafic), les lots */
+  dalle('bandeO',cx(9)-P,rue(10)+R,rue(6)+R,rue(8)-R); dalle('bandeMN',rue(11)-R,rue(12)+R,rue(6)+R,rue(8)-R); dalle('bandeMS',rue(11)-R,rue(12)+R,rue(11)+R,rue(13)-R);
+  dalle('bandeEN',rue(13)-R,cx(13)+P,rue(6)+R,rue(8)-R); dalle('bandeEM',rue(13)-R,cx(13)+P,rue(9)-R,rue(11)-R); dalle('bandeES',rue(13)-R,cx(13)+P,rue(11)+R,rue(13)-R);
+  C.allees=[]; const allee=(id,x0,x1,z0,z1,impasse)=>C.allees.push({id,x0,x1,z0,z1,impasse:!!impasse});
+  allee('aMidN',185,193,rue(6)+R,rue(8)-R); allee('aMidS',185,193,rue(11)+R,rue(13)-R); allee('aEstN',262,268,rue(6)+R,rue(8)-R); allee('aEstS',262,268,rue(11)+R,rue(13)-R);
+  allee('aEstM',255,261.5,72,rue(11)-R,true); allee('pEstM',247,270,69.5,74.5,true); /* l'impasse du doigt est et sa placette de demi-tour, au bord du bras */
+  allee('aOuest',116,122.5,-12,rue(8)-R,true); allee('pOuest',110,135,-14,-7.5,true); /* l'impasse du doigt ouest et sa placette, à l'entrée du bras */
+  C.lots.length=0; canauxLotsV2(C);
+  /* la villa Miami (phase 5) : le pâté (9,9), en face de l'entrée de la traverse ; V2 : son lot va jusqu'au canal ouest (la rue du quai y disparaît) */
+  { const x=cx(9), z=cx(9); dalle('miami',x-P,rue(10)+R,z-P,z+P); C.miami={x,z,h:0.9,rampe:{dx:9}}; }
   /* ce qui est retiré : les dalles (leur contenu), les rues retirées, le passage des embouchures sur la plage */
   for(const d of C.dalles) C.purge.push({x0:d.x0,x1:d.x1,z0:d.z0,z1:d.z1,mode:'rect'});
   for(const c of C.coupes) C.purge.push({x0:c.x0,x1:c.x1,z0:c.z0,z1:c.z1,mode:'rect'});
@@ -7575,7 +7590,8 @@ function canauxDefinir(){
   for(const z of [64,140,204]){ marche(O+L-1.8,O+L,z,z+4.4,'z',-1); marche(E-L,E-L+1.8,z,z+4.4,'z',-1); }
   marche(cx(11)-2.2,cx(11)+2.2,zT0,zT0+1.8,'x',1); marche(cx(11)-2.2,cx(11)+2.2,zT1-1.8,zT1,'x',-1);
   marche(cx(9)-2.2,cx(9)+2.2,zB+11-1.8,zB+11,'x',1); marche(cx(13)+0,cx(13)+4.4,zE-11,zE-11+1.8,'x',-1);
-  C.pontons=pontonsCanaux();
+  C.marches=C.marches.filter((m)=>!C.lots.some((l)=>m.z1>l.z0-2&&m.z0<l.z1+2&&Math.abs((m.x0+m.x1)/2-l.xEau)<4)); /* V2 : une marche devant un lot laisse la place à son ponton (et à son échelle) */
+  C.pontons=[];
   { const o=C.eaux.find((e)=>e.id==='canalO'); C.miamiPonton={x0:o.x0,x1:o.x0+2.4,z0:128,z1:140,h:C.niveau+0.32,cote:-1,canal:'canalO',miami:true}; C.pontons.push(C.miamiPonton); } /* le ponton privé de la villa Miami : quai ouest, entre l'escalier (z 118) et le pont du sud */
   canauxNautiqueDefinir();
   let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9; const ext=(a,b,c,d)=>{ x0=Math.min(x0,a); x1=Math.max(x1,b); z0=Math.min(z0,c); z1=Math.max(z1,d); };
@@ -7583,6 +7599,25 @@ function canauxDefinir(){
   for(const L2 of [C.ponts,C.coupes,C.dalles]) for(const p of L2) ext(p.x0,p.x1,p.z0,p.z1);
   C.bb={x0:x0-1,x1:x1+1,z0:z0-1,z1:z1+1}; C.zMer=zR;
 }
+/* ---------- Canaux V2 : les rangées de lots (îlots) et leur découpe ----------
+   Toutes les rangées longent un mur de quai nord-sud : x0..x1 = la profondeur (de l'eau à l'allée), z0..z1 = la longueur ; dir = +1
+   si l'allée est à l'est (le lot regarde l'est), −1 à l'ouest. Repère d'un lot : x le long de la façade, z de l'eau (−d/2) à
+   l'allée (+d/2) ; ry le tourne dans le monde (constructeurCanaux). Les grands lots sont aux bouts (pointe de doigt). */
+const CANAUX_ILOTS=[
+  {id:'midNO',x0:157,x1:185,z0:-35.5,z1:35.5,dir:1,grand:'nord',brigada:true},{id:'midNE',x0:193,x1:221,z0:-35.5,z1:35.5,dir:-1,grand:'nord',brigada:true},
+  {id:'midSO',x0:157,x1:185,z0:174.5,z1:245.5,dir:1,grand:'sud'},{id:'midSE',x0:193,x1:221,z0:174.5,z1:245.5,dir:-1,grand:'sud'},
+  {id:'estN',x0:241,x1:262,z0:-35.5,z1:35.5,dir:1},{id:'estMO',x0:241,x1:255,z0:75,z1:161.5,dir:1},{id:'estME',x0:261.5,x1:275.5,z0:75,z1:161.5,dir:-1},
+  {id:'estS',x0:241,x1:262,z0:174.5,z1:245.5,dir:1},{id:'ouestO',x0:102.5,x1:116,z0:-6.5,z1:35.5,dir:1},{id:'ouestE',x0:122.5,x1:137,z0:-6.5,z1:35.5,dir:-1}];
+function hacheLot(x,z){ let h=(Math.round(x*8)*73856093)^(Math.round(z*8)*19349663); h=Math.imul(h^(h>>>13),1274126177); h^=h>>>16; return (h>>>0)/4294967296; } /* jamais Math.random */
+function canauxLotsV2(C){
+  for(const I of CANAUX_ILOTS){ const L=I.z1-I.z0, d=I.x1-I.x0, G=17.5; let reste=L, nG=I.grand?1:0; reste-=nG*G;
+    const n=Math.max(1,Math.floor(reste/12.2)), base=reste/n, amp=Math.max(0,Math.min(0.22,2*(base-12)/base)), poids=[]; for(let i=0;i<n;i++) poids.push(1+amp*(hacheLot(I.x0+i,I.z0)-0.5)); const sp=poids.reduce((a,b)=>a+b,0); /* au moins 12 u de large */
+    const larg=poids.map((q)=>q/sp*reste); if(I.grand==='nord') larg.unshift(G); else if(I.grand==='sud') larg.push(G);
+    let z=I.z0; larg.forEach((w,i)=>{ const grand=(I.grand==='nord'&&i===0)||(I.grand==='sud'&&i===larg.length-1);
+      C.lots.push({id:I.id+'-'+i,ilot:I.id,x:(I.x0+I.x1)/2,z:z+w/2,w,d,z0:z,z1:z+w,x0:I.x0,x1:I.x1,dir:I.dir,ry:I.dir>0?Math.PI/2:-Math.PI/2,xEau:I.dir>0?I.x0:I.x1,xRue:I.dir>0?I.x1:I.x0,
+        standing:grand?'grand':'ordinaire',brigada:!!(grand&&I.brigada),graine:hacheLot(I.x0+I.x1,z+w/2)}); z+=w; }); } }
+function lotCanaux(x,z){ for(const l of CANAUX.lots) if(x>l.x0&&x<l.x1&&z>l.z0&&z<l.z1) return l; return null; }
+function dansAlleeCanaux(x,z){ for(const a of CANAUX.allees||[]) if(x>a.x0&&x<a.x1&&z>a.z0&&z<a.z1) return a; return null; }
 function hauteurPont(p,x){ const u=Math.abs(x-p.xc), demi=(p.x1-p.x0)/2; if(u<=p.plat) return p.H; const t=clamp((demi-u)/(demi-p.plat),0,1); return p.H*t*t*(3-2*t); }
 function hauteurMarche(m,x,z){ let u=m.axe==='z'?(z-m.z0)/(m.z1-m.z0):(x-m.x0)/(m.x1-m.x0); if(m.sens<0) u=1-u; const n=5, k=Math.min(n-1,Math.floor(clamp(u,0,0.999)*n)); return m.hB+(m.hH-m.hB)*(k+1)/n; }
 function dansDalleCanaux(x,z){ for(const d of CANAUX.dalles) if(x>d.x0&&x<d.x1&&z>d.z0&&z<d.z1) return true; return false; }
@@ -7592,6 +7627,7 @@ function solCanaux(x,z){
   const po=pontonCanal(x,z); if(po) return po.h;
   const p=pontCanal(x,z); if(p) return hauteurPont(p,x);
   if(dansCanal(x,z)) return CANAUX.fond;
+  if(dansAlleeCanaux(x,z)) return 0; /* V2 : une allée, au niveau de la rue */
   if(dansDalleCanaux(x,z)) return 0.22;
   return null; }
 function hPontCanal(x,z){ const p=pontCanal(x,z); return p?hauteurPont(p,x):0; }
@@ -7815,7 +7851,8 @@ function mkCanaux(){
       const g=new THREE.ShapeGeometry(sh), U=g.attributes.uv, A=g.attributes.position; for(let i=0;i<A.count;i++) U.setXY(i,(A.getX(i)+W/2)/W,(A.getY(i)+Hh/2)/Hh);
       const vieux=sol.geometry; sol.geometry=g; vieux.dispose(); C.solPerce=true; } tp('sol');
     /* 3) les dalles du quartier (quais, promenades, pâtés libérés) : trottoir de 0,22 hors de l'eau et des tabliers */
-    const VD=new Float32Array(GD.V.length); for(let k=0;k<VD.length;k++) VD[k]=Math.max(GD.V[k],-GE.V[k],-GP.V[k]);
+    const GA=grilleCanaux((C.allees||[]).map((a)=>({t:'r',x0:a.x0,x1:a.x1,z0:a.z0,z1:a.z1})),gx0,gx1,gz0,gz1,0.5,3); /* V2 : les allées, au niveau de la rue */
+    const VD=new Float32Array(GD.V.length); for(let k=0;k<VD.length;k++) VD[k]=Math.max(GD.V[k],-GE.V[k],-GP.V[k],-GA.V[k]);
     const Bd=contoursSdf({V:VD,nx:GD.nx,nz:GD.nz,x0:gx0,z0:gz0,h:0.5}), fd=formesDepuisBoucles(Bd);
     const gd=new THREE.ExtrudeGeometry(fd,{depth:0.22,bevelEnabled:false,curveSegments:4}); gd.rotateX(-Math.PI/2);
     { const A=gd.attributes.position, U=gd.attributes.uv; for(let i=0;i<A.count;i++) U.setXY(i,A.getX(i)/4,A.getZ(i)/4); }
@@ -7889,7 +7926,8 @@ function majCanaux(dt){
 function dessinerCanauxCarte(g){
   if(!CANAUX.ok||!CANAUX.boucles) return; const C=CANAUX;
   g.fillStyle='#d6cdb5'; for(const d of C.dalles) if(!/^pate/.test(d.id)) g.fillRect(mmX(d.x0),mmZ(d.z0),(d.x1-d.x0)*mmS,(d.z1-d.z0)*mmS); /* les quais et promenades */
-  for(const d of C.dalles) if(/^pate/.test(d.id)){ g.fillStyle='#4f7a3a'; g.fillRect(mmX(d.x0),mmZ(d.z0),(d.x1-d.x0)*mmS,(d.z1-d.z0)*mmS); } /* les jardins des villas */
+  for(const l of C.lots){ g.fillStyle='#4f7a3a'; g.fillRect(mmX(l.x0),mmZ(l.z0),(l.x1-l.x0)*mmS,(l.z1-l.z0)*mmS); g.fillStyle='#3d6430'; g.fillRect(mmX(l.x0),mmZ(l.z0),(l.x1-l.x0)*mmS,0.25); } /* V2 : les jardins des villas, lot par lot */
+  g.fillStyle='#4a4c55'; for(const a of C.allees||[]) g.fillRect(mmX(a.x0),mmZ(a.z0),(a.x1-a.x0)*mmS,(a.z1-a.z0)*mmS); /* les allées */
   g.fillStyle='#d6cdb5'; for(const c of C.coupes) g.fillRect(mmX(c.x0),mmZ(c.z0),(c.x1-c.x0)*mmS,(c.z1-c.z0)*mmS); /* les rues retirées : des promenades */
   g.fillStyle='#2f86a8'; g.strokeStyle='#e8e0cc'; g.lineWidth=0.35;
   for(const L of C.boucles){ g.beginPath(); L.forEach((p,i)=>i?g.lineTo(mmX(p[0]),mmZ(Math.min(p[1],MER))):g.moveTo(mmX(p[0]),mmZ(Math.min(p[1],MER)))); g.closePath(); g.fill(); g.stroke(); }
@@ -7977,6 +8015,11 @@ function villaCanaux(c,lot,piscines){
   palmierCanaux(b,13.2,-5.2,4.8); if(k%2) palmierCanaux(b,-13,5.2,4.2);
   b.box(0.08,1,0.08,xa-2.3,0.5,7.1,0x2a2d34); b.box(0.42,0.32,0.55,xa-2.3,1.1,7.1,T.bois||0x2a5a8a); /* boîte aux lettres */
   return b.solides; }
+/* Canaux V2, phase 1 : un lot provisoire (pelouse, maison contre l'allée, clôture) — le générateur de villas le remplace (phase 2) */
+function villaProvisoireV2(c,l){ const b=constructeurCanaux(c,l.x,l.z,l.ry,1,0.22), w=l.w, d=l.d, hd=Math.min(9,d*0.5), hw=w-4, zc=d/2-1.6-hd/2;
+  b.box(w-0.3,0.04,d-0.4,0,0.02,0,[0x3f6c2a,0x467432,0x3a6427][Math.floor(l.graine*3)]); b.box(hw,3.2,hd,0,1.6,zc,0xf4f2ec); b.box(hw+0.4,0.2,hd+0.4,0,3.3,zc,0x3a3e44);
+  for(const sx of [-1,1]) b.box(0.25,0.9,d-0.4,sx*(w/2-0.15),0.45,0,0x24521f);
+  b.solide(0,zc,hw/2,hd/2,3.4); return b.solides; }
 /* un petit immeuble de deux ou trois niveaux (parcelle entière, repère : z vers sa rue) */
 function immeubleCanaux(c,P0,niv){
   const b=constructeurCanaux(c,P0.x,P0.z,P0.ry,1,0.22), murs=[0xece6da,0xdfe8ee,0xf2e6d6][P0.rang%3], H=niv*3.1, verre=0x23323f, gris=0x3a3e44;
@@ -8006,8 +8049,8 @@ function pontonsCanaux(){
   return L; }
 function mkBatiCanaux(){
   const C=CANAUX; if(!C.lots) return; const t0=performance.now(), piscines=[], parPate=new Map();
-  for(const lot of C.lots){ const k=lot.pate; if(!parPate.has(k)) parPate.set(k,{pos:[],nor:[],col:[]}); const c=parPate.get(k);
-    const sol=lot.immeuble?immeubleCanaux(c,lot,lot.niv):villaCanaux(c,lot,piscines); for(const s of sol){ addSolid(s); (C.batiSolides=C.batiSolides||[]).push(s); } }
+  for(const lot of C.lots){ const k=lot.ilot; if(!parPate.has(k)) parPate.set(k,{pos:[],nor:[],col:[]}); const c=parPate.get(k);
+    const sol=villaProvisoireV2(c,lot); for(const s of sol){ addSolid(s); (C.batiSolides=C.batiSolides||[]).push(s); } }
   for(const c of parPate.values()){ const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(c.pos,3)); g.setAttribute('normal',new THREE.Float32BufferAttribute(c.nor,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(c.col,3));
     g.computeBoundingSphere(); const m=new THREE.Mesh(g,MOB_MAT); m.receiveShadow=true; scene.add(m); C.nSommetsBati=(C.nSommetsBati||0)+c.pos.length/3; }
   if(piscines.length){ if(!_MAT_PISC_CANAUX) _MAT_PISC_CANAUX=new THREE.MeshLambertMaterial({color:0x3ab8d8,emissive:0x0a3a48,transparent:true,opacity:0.9});
@@ -8020,11 +8063,11 @@ function mkBatiCanaux(){
     if(c.pos.length){ const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(c.pos,3)); g.setAttribute('normal',new THREE.Float32BufferAttribute(c.nor,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(c.col,3)); g.computeBoundingSphere(); scene.add(new THREE.Mesh(g,MOB_MAT)); } }
   /* les palmiers des quais, espacés */
   { const c={pos:[],nor:[],col:[]}, b=constructeurCanaux(c,0,0,0,1,0.22); for(const d of C.dalles){ if(!/^col/.test(d.id)) continue; const xs=[d.x0+2.2,d.x1-2.2];
-      for(const x of xs) for(let z=d.z0+18;z<d.z1-6;z+=34){ if(C.ponts.some((p)=>Math.abs(z-p.zc)<10)||C.marches.some((m)=>Math.abs(z-(m.z0+m.z1)/2)<6)||dansCoupe(x,z)||dansCanal(x,z)) continue; palmierCanaux(b,x,z,4.4); } }
+      for(const x of xs) for(let z=d.z0+18;z<d.z1-6;z+=34){ if(C.ponts.some((p)=>Math.abs(z-p.zc)<10)||C.marches.some((m)=>Math.abs(z-(m.z0+m.z1)/2)<6)||dansCoupe(x,z)||dansCanal(x,z)||lotCanaux(x,z)||dansAlleeCanaux(x,z)) continue; palmierCanaux(b,x,z,4.4); } }
     const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(c.pos,3)); g.setAttribute('normal',new THREE.Float32BufferAttribute(c.nor,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(c.col,3)); g.computeBoundingSphere(); scene.add(new THREE.Mesh(g,MOB_MAT)); }
   /* les kiosques du quartier (il garde sa spécialité, les beignets de crevettes) : sur les quais, la vitrine vers la promenade */
-  { const K=MOB_CAT.kiosque, c={pos:[],nor:[],col:[]}, cl={pos:[],nor:[],col:[]}, pts=[[195,92.4,Math.PI],[183,117.6,0],[159.8,185,Math.PI/2],[218.2,140,-Math.PI/2],[272,51,Math.PI],[100,-9,0]];
-    for(const [x,z,ry] of pts){ if(solidAt(x,z,1.2)||dansCanal(x,z)) continue; mobPieces(K.pieces,x,z,ry,c,0.22); mobPieces(K.lum,x,z,ry,cl,0.22);
+  { const K=MOB_CAT.kiosque, c={pos:[],nor:[],col:[]}, cl={pos:[],nor:[],col:[]}, pts=[[195,92.4,Math.PI],[183,117.6,0],[218.2,140,-Math.PI/2],[272,51,Math.PI],[108.6,-10.4,Math.PI/2]];
+    for(const [x,z,ry] of pts){ if(solidAt(x,z,1.2)||dansCanal(x,z)||lotCanaux(x,z)||dansAlleeCanaux(x,z)) continue; mobPieces(K.pieces,x,z,ry,c,0.22); mobPieces(K.lum,x,z,ry,cl,0.22);
       const r=Math.abs(Math.sin(ry))>0.5; addSolid({x,z,hw:r?K.solide.hd:K.solide.hw,hd:r?K.solide.hw:K.solide.hd,h:K.solide.h+0.22}); STANDS.push({x:x+Math.sin(ry)*1.6,z:z+Math.cos(ry)*1.6,q:'port',cd:0}); C.nKiosques=(C.nKiosques||0)+1; }
     for(const [q,m] of [[c,MOB_MAT],[cl,MOB_MAT_LUM]]) if(q.pos.length){ const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(q.pos,3)); g.setAttribute('normal',new THREE.Float32BufferAttribute(q.nor,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(q.col,3)); g.computeBoundingSphere(); scene.add(new THREE.Mesh(g,m)); } }
   C.tBati=Math.round(performance.now()-t0); C.nPiscines=piscines.length; }
@@ -8053,7 +8096,7 @@ function amarreCanal(x,z){ if(!CANAUX.ok||!dansBBCanaux(x,z)) return null; for(c
 /* les places : appelée par canauxDefinir (des données seulement) */
 function canauxNautiqueDefinir(){
   const C=CANAUX, f=(id)=>C.eaux.find((q)=>q.id===id), cO=f('canalO'), cE=f('canalE'), h=C.niveau+0.32;
-  C.embarcadere={x0:cO.x1-3,x1:cO.x1,z0:222,z1:236,h,cote:1,embarcadere:true}; C.atelierPonton={x0:cE.x0,x1:cE.x0+2.4,z0:71,z1:81,h,cote:-1,atelier:true};
+  C.embarcadere={x0:178,x1:200,z0:96,z1:98.4,h,axe:'x',embarcadere:true}; /* V2 : sur le quai nord de la traverse, au bout de la rue de l'atelier (le canal ouest est aux villas) */ C.atelierPonton={x0:cE.x0,x1:cE.x0+2.4,z0:71,z1:81,h,cote:-1,atelier:true};
   C.pontons.push(C.embarcadere,C.atelierPonton);
   const priv=C.pontons.filter((p)=>!p.embarcadere&&!p.atelier&&!p.miami);
   /* le décor : le long des pontons privés (côté chenal) un sur deux, et le long de murs de quai nus */
@@ -8067,8 +8110,9 @@ function canauxNautiqueDefinir(){
   C.jetskis.push({x:C.atelierPonton.x1+0.9,z:76,ang:0});
   for(const [x,z,cle,t] of [[cO.x0+1.5,182,'espadon',0x1d3a6a],[cE.x1-1.5,150,'bateau',0xe8e6dc],[cO.x1-1.5,22,'bateau',0x1d3a6a],[cE.x0+1.5,22,'espadon',0xe8e6dc]]){
     if(C.marches.some((m)=>Math.abs((m.z0+m.z1)/2-z)<8&&Math.abs((m.x0+m.x1)/2-x)<4)||C.ponts.some((p)=>Math.abs(p.zc-z)<12)||C.pontons.some((p)=>Math.abs((p.z0+p.z1)/2-z)<8&&Math.abs(p.x0-x)<5)) continue;
+    if(C.lots.some((l)=>Math.abs(l.xEau-x)<7&&z>l.z0-4&&z<l.z1+4)) continue; /* V2 : devant un lot, c'est la place de son ponton et de son bateau (phase 3) */
     amarre(x,z,cle,6.6,2.5,t); }
-  C.vedetteEmb={x:C.embarcadere.x0-1.4,z:(C.embarcadere.z0+C.embarcadere.z1)/2,ang:Math.PI};
+  C.vedetteEmb={x:(C.embarcadere.x0+C.embarcadere.x1)/2,z:C.embarcadere.z1+1.4,ang:Math.PI/2};
 }
 /* le décor (dans mkCanaux, générateur privé) */
 function mkNautiqueCanaux(){
@@ -8084,11 +8128,11 @@ function mkNautiqueCanaux(){
   for(const a of C.amarres){ const m=modele(a.cle); m.position.set(a.x,0.15+C.niveau,a.z); m.rotation.y=a.ang; aplatir(m);
     mobPieces([['box',2.0,0.5,3.6,0,1.15,-0.4,a.teinte],['box',2.1,0.08,3.7,0,1.42,-0.4,a.teinte===0xe8e6dc?0xc8c6bc:0x15294a]],a.x,a.z,a.ang,pieces,0.15+C.niveau); /* la bâche */ }
   /* 2) l'embarcadère public : un kiosque à billets, des bittes, deux lampadaires, l'enseigne */
-  { const E=C.embarcadere, zc=(E.z0+E.z1)/2, xq=E.x1+2.6;
-    mobPieces([['box',2,2.4,2.6,0,1.2,0,0x2a6a8a],['box',2.4,0.18,3,0,2.5,0,0xf2f0ea],['box',0.06,1,1.6,-1.03,1.5,0,0x9ad0e0]],xq,zc-4,0,pieces,0.22); addSolid({x:xq,z:zc-4,hw:1,hd:1.3,h:2.6});
-    for(const z of [E.z0+1,zc,E.z1-1]) mobPieces([['cyl',0.18,0.5,0.18,0,0.25,0,0x2a2d34]],E.x0+0.3,z,0,pieces,E.h);
-    for(const z of [E.z0+2,E.z1-2]){ mobPieces([['box',0.14,4.2,0.14,0,2.1,0,0x2a2d34],['box',0.5,0.18,0.3,0,4.2,0,0xffe9b0]],xq-1.2,z,0,pieces,0.22); }
-    enseigneCanaux('EMBARCADÈRE','#35c8e0',xq+0.4,3.4,E.z0-0.6,0,6.5); }
+  { const E=C.embarcadere, xc=(E.x0+E.x1)/2, zq=E.z0-3.4; /* V2 : le long du quai nord de la traverse — le kiosque à billets et les lampadaires sur le quai, les bittes au bord du ponton */
+    mobPieces([['box',2.6,2.4,2,0,1.2,0,0x2a6a8a],['box',3,0.18,2.4,0,2.5,0,0xf2f0ea],['box',1.6,1,0.06,0,1.5,1.03,0x9ad0e0]],E.x1+2.2,zq,0,pieces,0.22); addSolid({x:E.x1+2.2,z:zq,hw:1.3,hd:1,h:2.6});
+    for(const x of [E.x0+1,xc,E.x1-1]) mobPieces([['cyl',0.18,0.5,0.18,0,0.25,0,0x2a2d34]],x,E.z1-0.3,0,pieces,E.h);
+    for(const x of [E.x0+2,E.x1-2]){ mobPieces([['box',0.14,4.2,0.14,0,2.1,0,0x2a2d34],['box',0.3,0.18,0.5,0,4.2,0,0xffe9b0]],x,E.z0-1.2,0,pieces,0.22); }
+    enseigneCanaux('EMBARCADÈRE','#35c8e0',xc-4,3.4,zq-0.4,0,6.5); }
   /* 3) l'atelier « Marée Basse » : l'enseigne remplace RUCHE 9, un bateau sur son ber sous un portique, l'établi, moteurs et bouées */
   { const P0=POIS.port; for(const e of ENSEIGNES) if(e.p&&Math.abs(e.p.position.x-(P0.x-6))<1.2&&Math.abs(e.p.position.z-(P0.z+10.65))<1.6){ e.p.visible=false; e.masqueeCanaux=true; }
     enseigneCanaux('MARÉE BASSE','#35c8e0',P0.x-6,3.8,P0.z+10.65,0,8);
@@ -8115,9 +8159,9 @@ function canauxStartRunPrive(){
   if(!C.dockers) dockersCanaux(); /* à la 1re partie : créés au chargement, ils remplissaient le cache des corps humains avant le premier ennemi de la partie (un tirage de moins pour tout ce qui suit) */
   for(const j of C.jetskis||[]){ const v=creerVehicule('jetski',j.x,j.z,j.ang); if(v) v.canauxAmarre=true; }
   if(C.vedetteEmb){ const v=creerVehicule('bateau',C.vedetteEmb.x,C.vedetteEmb.z,C.vedetteEmb.ang); if(v) v.canauxAmarre=true; }
-  const cubes=C.lots.filter((l)=>!l.immeuble&&VILLA_CANAUX_ORDRE[l.rang%VILLA_CANAUX_ORDRE.length]==='cube').slice(0,2), luxe=['suvLuxe','limousine'];
-  cubes.forEach((l,i)=>{ const s=l.rang%2?-1:1, cr=Math.cos(l.ry), x=l.x+s*9.5*cr, z=l.z+3.6*cr; creerVehicule(luxe[i%2],x,z,cr>0?0:Math.PI);
-    for(const dx of [-2.4,2.4]){ const e=creerEnnemi('chr_fusil',x+dx*cr,l.z+6.6*cr,false); if(e){ e.garde=true; e.posteX=e.x; e.posteZ=e.z; } } });
+  const brig=C.lots.filter((l)=>l.brigada), luxe=['suvLuxe','limousine']; /* V2 : les grands lots de la pointe du doigt central */
+  brig.forEach((l,i)=>{ creerVehicule(luxe[i%2],l.xRue-l.dir*4.6,l.z+l.w/2-2.6,l.dir>0?Math.PI/2:-Math.PI/2);
+    for(const dz of [-2.4,2.4]){ const e=creerEnnemi('chr_fusil',l.xRue-l.dir*1.4,l.z-l.w/2+5+dz,false); if(e){ e.garde=true; e.posteX=e.x; e.posteZ=e.z; } } });
 }
 /* ---------- POLICE MARITIME DES CANAUX (phase 2) ----------
    Demandé : « le joueur sur l'eau ou à la nage dans un canal compte comme en mer ; les vedettes entrent par une embouchure ou
@@ -8150,6 +8194,9 @@ function canauxGraphe(){
   const t=n((tr.x0+tr.x1)/2,zT); a(O[zT],t); a(t,E[zT]);
   const bo=n((bO.x0+bO.x1)/2,zBO,'bras'), so=n(sO.x,sO.z,'bassin'); a(O[zBO],bo); a(bo,so);
   const be=n((bE.x0+bE.x1)/2,zBE,'bras'), se=n(sE.x,sE.z,'bassin'); a(E[zBE],be); a(be,se);
+  /* V2 : les canaux secondaires en impasse, du bassin du bras jusqu'au bassin de demi-tour */
+  for(const [cid,bid,de] of [['secO','basSecO',so],['secE','basSecE',se]]){ const c=f(cid), b=f(bid); if(!c||!b) continue; const xc=(c.x0+c.x1)/2;
+    const k1=n(xc,cid==='secO'?c.z0+10:c.z0+16,'bras'), k2=n(xc,(c.z0+c.z1)/2+8,'bras'), k3=n(b.x,b.z,'bassin'); a(de,k1); a(k1,k2); a(k2,k3); }
   G.mers=[mO,mE]; G.barrages=[{x:xO3,z:MER-11,ang:Math.PI/2},{x:xE,z:MER-11,ang:Math.PI/2}]; /* en travers de chaque embouchure, entre la plage et la mer */
   G.ronde=[mO,O[zT],E[zT],mE]; /* la patrouille : de la mer au canal ouest, la traverse, le canal est, la mer (cheminCanal relie) */
   G.ok=true;
@@ -16979,7 +17026,7 @@ var ENSEIGNES=[]; // (var : jamais en zone morte) {p, lieu} : toutes les enseign
 function surChaussee(x,z){
   if(Math.abs(x)>HALF||Math.abs(z)>HALF||z>MER-30) return false;
   if(HILLS.ok&&dansHills(x,z)){ const H=HILLS, i=Math.round((x-H.x0)/H.pas), j=Math.round((z-H.z0)/H.pas); return !!(H.route&&H.route[j*H.nx+i]); } // Los Reyes Hills : ses routes en lacets, plus la grille
-  if(CANAUX.ok&&routeCanalInterdite(x,z)) return false; /* canaux : un segment de rue retiré, ou l'eau */
+  if(CANAUX.ok&&(routeCanalInterdite(x,z)||(dansBBCanaux(x,z)&&lotCanaux(x,z)))) return false; /* canaux : un segment de rue retiré, l'eau, ou un lot (V2 : il déborde sur la bordure de l'ancienne rue) */
   const m=(v)=>{ const k=((v+HALF)%CELL+CELL)%CELL; return Math.min(k,CELL-k); };
   return m(x)<ROADW/2||m(z)<ROADW/2;
 }
