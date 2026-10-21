@@ -9020,7 +9020,7 @@ function majLagonBateaux(dt){ const L=CANAUX.lagon, G=PCANAL; if(!L||!G.ok||INT.
   LGN.t-=dt; if(LGN.t>0||LGN.v.length>=LGN.max) return; LGN.t=6;
   let poste=null; for(const p of L.postes){ if(p.v) continue; let libre=true; for(const w of vehicules) if(!w.mort&&dist2(w.x,w.z,p.x,p.z)<36){ libre=false; break; } if(libre){ poste=p; break; } } if(!poste) return;
   let dep=null; for(const i of G.mers){ const n=G.noeuds[i]; if(n&&horsEcran(n.x,n.z)&&dist2(n.x,n.z,P.x,P.z)>90*90&&!(vueImmersive()&&!apparitionCachee(n.x,n.z))){ dep=i; break; } } if(dep===null) return;
-  const n=G.noeuds[dep], cle=LGN_CLES[Math.floor(LAGON.r()*LGN_CLES.length)], v=creerVehicule(cle,n.x,n.z,Math.PI,'lagonIA'); if(!v){ LGN.t=15; return; }
+  const n=G.noeuds[dep], cle=LGN_CLES[Math.floor(LAGON.r()*LGN_CLES.length)]; let v=null; avecAleaPrive(Math.floor(LAGON.r()*1e9),()=>{ v=creerVehicule(cle,n.x,n.z,Math.PI,'lagonIA'); }); if(!v){ LGN.t=15; return; } /* sur un générateur privé : un bateau de plus ne change pas les tirages de la partie (un match du derby se jouait autrement) */
   v.lgn={etat:'aller',poste,t:0,escale:40+LAGON.r()*35,mer:dep}; poste.v=v; v.vedetteCanal=false; LGN.v.push(v); LGN.t=45+LAGON.r()*45; }
 /* un bateau qui roule (ou piloté) à moins de R devant, dans un cône de ±35° — pas un bateau amarré : deux bateaux qui se croisaient de
    front à l'embouchure du canal ouest se poussaient jusqu'à l'explosion */
@@ -31341,7 +31341,7 @@ function majPietons(dt){
     const nx=p.x+Math.sin(p.dir)*vit*dt, nz=p.z+Math.cos(p.dir)*vit*dt;
     if(!solidAt(nx,p.z,0.4)&&!estEau(nx,p.z)&&!vehiculeBloquant(nx,p.z,0.35)) p.x=nx; else p.dir+=Math.PI/2;
     if(!solidAt(p.x,nz,0.4)&&!estEau(p.x,nz)&&!vehiculeBloquant(p.x,nz,0.35)) p.z=nz; else p.dir+=Math.PI/2;
-    p.x=clamp(p.x,-HALF,HALF); p.z=clamp(p.z,-HALF,HALF);
+    p.x=clamp(p.x,-HALF,DECOR_V2?LIMITE_EST:HALF); p.z=clamp(p.z,-HALF,HALF); /* à l'est, la terre va jusqu'à LIMITE_EST (aéroport, mont, Pic) : borné à HALF, un piéton du dehors était téléporté sur x = 294 — le grand canal depuis les canaux V3 */
     // dégagement : jamais un PNJ enfermé sans issue entre deux véhicules —
     // même logique que pour le joueur, voir degageDeVehicule.
     const deg=degageDeVehicule(p.x,p.z,0.25,null);

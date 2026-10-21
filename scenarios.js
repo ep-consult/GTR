@@ -184,7 +184,7 @@ async function main() {
   info('http://127.0.0.1:' + PORT + '/ (Three.js et eruda servis en local, aucun réseau requis)');
 
   console.log('Lancement de Chromium headless...');
-  const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
+  const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'], protocolTimeout: 900000 }); // certains blocs sont UNE longue évaluation : sur une machine chargée, ils dépassaient les 180 s par défaut
   const page = await browser.newPage();
   await page.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true, deviceScaleFactor: 3 });
   await page.evaluateOnNewDocument('Math.random = (' + mulberry32.toString() + ')(' + SEED + ');');
@@ -2920,7 +2920,7 @@ async function main() {
       META.curios.platine = 1; sauveMeta();
       return { salle, tenue, borne };
     });
-    await page.reload({ waitUntil: 'load', timeout: 30000 });
+    await page.reload({ waitUntil: 'load', timeout: 90000 });
     await page.waitForFunction(() => typeof PORTES !== 'undefined' && PORTES.length > 0, { timeout: 20000 });
     const dicosApres = await page.evaluate((d) => ({ lieu: META.lieuxVus[d.salle] === true, tenue: META.tenuesPoss[d.tenue] === true,
       depart: META.tenuesPoss.depart === true, record: META.stats.arcadePersoBest[d.borne] === 4321 }), dicosAvant);
@@ -6671,7 +6671,7 @@ async function main() {
     else ok('Garages : véhicule laissé dans un garage, retrouvé depuis un autre garage');
     if (garGare.slotApresGameOver !== 'pickup' || !garGare.retrouveApresGameOver) fail('Garages : véhicule garé perdu au game over');
     else ok('Garages : véhicule garé retrouvé après un game over');
-    await page.reload({ waitUntil: 'load', timeout: 30000 });
+    await page.reload({ waitUntil: 'load', timeout: 90000 });
     await page.waitForFunction(() => typeof PORTES !== 'undefined' && PORTES.length > 0, { timeout: 20000 });
     await injecterAidesGarage();
     const garRecharge = await page.evaluate(() => {
@@ -6928,7 +6928,7 @@ async function main() {
       sauveMeta();
       return JSON.parse(JSON.stringify((window.__gar.fiche('muscle') || slotGarageDefaut()).pieces));
     });
-    await page.reload({ waitUntil: 'load', timeout: 30000 });
+    await page.reload({ waitUntil: 'load', timeout: 90000 });
     await page.waitForFunction(() => typeof PORTES !== 'undefined' && PORTES.length > 0, { timeout: 20000 });
     await injecterAidesGarage();
     const garCarroRl = await page.evaluate(() => {
@@ -7235,7 +7235,7 @@ async function main() {
         else { delete vieux.garages; vieux.vehPerso = { v1: { cle: 'sport', tenue: 3 } }; }
         localStorage.setItem(SAVE_KEY, JSON.stringify(vieux));
       }, cas);
-      await page.reload({ waitUntil: 'load', timeout: 30000 });
+      await page.reload({ waitUntil: 'load', timeout: 90000 });
       await page.waitForFunction(() => typeof PORTES !== 'undefined' && PORTES.length > 0, { timeout: 20000 });
       const r = await page.evaluate((cas) => {
         const att = slotGarageDefaut(), probs = [];
@@ -7982,7 +7982,7 @@ async function main() {
         const o = { eau: estEau(365, 278), sommet: solPied(365, 255) };
         // collines d'accès : montée continue jusqu'aux plateaux (aucune marche de plus de 1,2 u par pas de 1 u)
         let saut = 0; for (let z = 190; z < 247; z++) saut = Math.max(saut, Math.abs(solY(366, z + 1) - solY(366, z))); o.sautNord = +saut.toFixed(2);
-        saut = 0; for (let x = 300; x < 331; x++) saut = Math.max(saut, Math.abs(solY(x + 1, 276) - solY(x, 276))); o.sautOuest = +saut.toFixed(2);
+        saut = 0; for (let x = 300; x < 331; x++) { if (estEau(x, 276) || estEau(x + 1, 276)) continue; saut = Math.max(saut, Math.abs(solY(x + 1, 276) - solY(x, 276))); } o.sautOuest = +saut.toFixed(2); /* Canaux V3 : de x 288,5 à 302, l'embouchure du grand canal — sa berge n'est pas une marche du chemin */
         P.x = 365; P.z = 262; P.y = solPied(365, 262); await dors(300);
         const hp0 = P.hp, sc0 = ETAT.score;
         P.z = 273.2; await dors(400); // un pas dans le vide au bout du plongeoir
@@ -12806,7 +12806,7 @@ async function main() {
       for (const d of DEFIS) META.defis.faits[d.id] = true;
       sauveMeta();
     }, valeurs);
-    await page.reload({ waitUntil: 'load', timeout: 30000 });
+    await page.reload({ waitUntil: 'load', timeout: 90000 });
     await page.waitForFunction(() => typeof PORTES !== 'undefined' && PORTES.length > 0, { timeout: 20000 });
     const metaApres = await page.evaluate(() => ({ argent: META.argent, niveau: META.niveau }));
     if (metaApres.argent !== valeurs.argent || metaApres.niveau !== valeurs.niveau) {
@@ -12835,7 +12835,7 @@ async function main() {
     // 'platine', posée à la génération de la ville — on l'acquiert puis on
     // recharge, sans dépendre de ce qu'ont laissé les tests précédents.
     await page.evaluate(() => { META.curios.platine = 1; sauveMeta(); });
-    await page.reload({ waitUntil: 'load', timeout: 30000 });
+    await page.reload({ waitUntil: 'load', timeout: 90000 });
     await page.waitForFunction(() => typeof PORTES !== 'undefined' && PORTES.length > 0, { timeout: 20000 });
     const regle8 = await page.evaluate(() => {
       startRun();
@@ -15263,7 +15263,7 @@ async function main() {
     console.log('\n--- Pilotage simulé : l’axe Y inversé se règle dans les Paramètres et survit au rechargement ---');
     {
       const a = await page.evaluate(() => { const s = el('tInverseY'); META.inverserY = false; s.classList.remove('on'); s.dispatchEvent(new Event('pointerdown')); return { meta: META.inverserY, on: s.classList.contains('on') }; });
-      await page.reload({ waitUntil: 'load', timeout: 30000 });
+      await page.reload({ waitUntil: 'load', timeout: 90000 });
       await page.waitForFunction(() => typeof PORTES !== 'undefined' && PORTES.length > 0, { timeout: 20000 });
       const b = await page.evaluate(() => { const r = { meta: META.inverserY, on: el('tInverseY').classList.contains('on') }; META.inverserY = false; el('tInverseY').classList.remove('on'); sauveMeta(); return r; });
       if (!(a.meta === true && a.on && b.meta === true && b.on)) fail('Axe Y inversé : réglage ' + JSON.stringify(a) + ', après rechargement ' + JSON.stringify(b));
@@ -15633,7 +15633,7 @@ async function main() {
       const r = await page.evaluate(() => {
         const ko = [], info = [], C = CANAUX; if (!C.ok) return { ko: ['CANAUX.ok faux'], info };
         const caches = []; const cacher = (o) => { if (o && o.visible) { o.visible = false; caches.push(o); } };
-        for (const v of vehicules) cacher(v.mesh); for (const p of pietons) cacher(p.g); for (const e of ennemis) cacher(e.g || e.mesh);
+        for (const v of vehicules) cacher(v.mesh); for (const p of pietons) cacher(p.h ? p.h.g : p.g); for (const e of ennemis) cacher(e.h ? e.h.g : (e.g || e.mesh)); for (const o of (typeof EPAVES !== 'undefined' ? EPAVES : [])) cacher(o.mesh); for (const d of (typeof DEBRIS !== 'undefined' ? DEBRIS : [])) cacher(d.o); for (const k of pickups) cacher(k.mesh); /* ce qu'ont laissé les tests précédents (le corps d'un piéton ou d'un ennemi est h.g) */
         for (const f of (typeof FIGURANTS !== 'undefined' ? FIGURANTS : [])) cacher(f.h ? f.h.g : f.g); for (const B of CVIE.bateaux) cacher(B.m); if (P.h) cacher(P.h.g);
         scene.updateMatrixWorld(true);
         const visible = (o) => { for (let p = o; p; p = p.parent) if (!p.visible) return false; return true; };
@@ -15650,7 +15650,7 @@ async function main() {
           if (!estEauNav(x, z) || pontonCanal(x, z) || pontonCanal(x + 0.3, z) || pontonCanal(x - 0.3, z) || pontonCanal(x, z + 0.3) || pontonCanal(x, z - 0.3) || amarreCanal(x, z) || pontCanal(x, z) || passerelleCanal(x, z) || marcheCanal(x, z) || pres(C.echelles, x, z, 1.8)) continue;
           const y0 = niveauCanal(x, z); rc.set(o3.set(x, 30, z), bas); rc.far = 31;
           const h = rc.intersectObjects(cands, false).find((h) => h.point.y > y0 + 0.03 && h.point.y < 0.5); n++;
-          if (h) { const m = Array.isArray(h.object.material) ? h.object.material[0] : h.object.material; mauvais.push('(' + x.toFixed(1) + ', ' + z.toFixed(1) + ') y=' + h.point.y.toFixed(2) + ' ' + (m.type || '') + ' ' + (m.color ? m.color.getHexString() : '') + (m.map ? ' texture' : '')); } }
+          if (h) { const m = Array.isArray(h.object.material) ? h.object.material[0] : h.object.material; mauvais.push('(' + x.toFixed(1) + ', ' + z.toFixed(1) + ') y=' + h.point.y.toFixed(2) + ' ' + (m.type || '') + ' ' + (m.color ? m.color.getHexString() : '') + (m.map ? ' texture' : '') + (h.object.parent && h.object.parent !== scene ? ' dans ' + (h.object.parent.name || h.object.parent.type) : '') + ' ' + (h.object.geometry ? h.object.geometry.type + '×' + (h.object.geometry.attributes.position ? h.object.geometry.attributes.position.count : 0) : '')); } }
         for (const o of caches) o.visible = true;
         if (n < 1500) ko.push('trop peu de points d’eau balayés : ' + n);
         if (mauvais.length) ko.push(mauvais.length + ' point(s) d’eau recouvert(s) : ' + mauvais.slice(0, 6).join(' ; '));
@@ -16051,7 +16051,7 @@ async function main() {
           info.push('bassin d’évitage : rayon ' + ev.r.toFixed(1) + ' u'); }
         /* 4) rien ne recouvre l'eau du grand canal et de la marina (le décor seul : joueur, véhicules, figurants masqués) */
         const caches = []; const cacher = (o) => { if (o && o.visible) { o.visible = false; caches.push(o); } };
-        for (const v of vehicules) cacher(v.mesh); for (const p of pietons) cacher(p.g); for (const B of CVIE.bateaux) cacher(B.m); if (P.h) cacher(P.h.g);
+        for (const v of vehicules) cacher(v.mesh); for (const p of pietons) cacher(p.h ? p.h.g : p.g); for (const e of ennemis) cacher(e.h ? e.h.g : (e.g || e.mesh)); for (const o of (typeof EPAVES !== 'undefined' ? EPAVES : [])) cacher(o.mesh); for (const d of (typeof DEBRIS !== 'undefined' ? DEBRIS : [])) cacher(d.o); for (const k of pickups) cacher(k.mesh); /* ce qu'ont laissé les tests précédents (le corps d'un piéton ou d'un ennemi est h.g) */ for (const B of CVIE.bateaux) cacher(B.m); if (P.h) cacher(P.h.g);
         for (const f of (typeof FIGURANTS !== 'undefined' ? FIGURANTS : [])) cacher(f.h ? f.h.g : f.g);
         scene.updateMatrixWorld(true); const visible = (o) => { for (let p = o; p; p = p.parent) if (!p.visible) return false; return true; };
         const bb = new THREE.Box3(), cands = [];
@@ -16066,7 +16066,7 @@ async function main() {
           if (!estEauNav(x, z) || pontonCanal(x, z) || pontonCanal(x + 0.3, z) || pontonCanal(x - 0.3, z) || pontonCanal(x, z + 0.3) || pontonCanal(x, z - 0.3) || amarreCanal(x, z) || pontCanal(x, z) || passerelleCanal(x, z) || marcheCanal(x, z) || pres(C.echelles, x, z, 1.8)) continue;
           const y0 = niveauCanal(x, z); rc.set(o3.set(x, 30, z), bas); rc.far = 31; n4++;
           const h = rc.intersectObjects(cands, false).find((h) => h.point.y > y0 + 0.03 && h.point.y < 0.5);
-          if (h) { const m = Array.isArray(h.object.material) ? h.object.material[0] : h.object.material; mauvais.push('(' + x.toFixed(1) + ', ' + z.toFixed(1) + ') y=' + h.point.y.toFixed(2) + ' ' + (m.color ? m.color.getHexString() : '')); } }
+          if (h) { const m = Array.isArray(h.object.material) ? h.object.material[0] : h.object.material; mauvais.push('(' + x.toFixed(1) + ', ' + z.toFixed(1) + ') y=' + h.point.y.toFixed(2) + ' ' + (m.color ? m.color.getHexString() : '') + (h.object.parent && h.object.parent !== scene ? ' dans ' + (h.object.parent.name || h.object.parent.type) : '') + ' ' + (h.object.geometry ? h.object.geometry.type + '×' + (h.object.geometry.attributes.position ? h.object.geometry.attributes.position.count : 0) : '')); } }
         if (n4 < 600) ko.push('trop peu de points d’eau balayés dans le grand canal : ' + n4);
         if (mauvais.length) ko.push(mauvais.length + ' point(s) du grand canal recouvert(s) : ' + mauvais.slice(0, 6).join(' ; '));
         /* 5) ni désert, ni pelouse, ni tarmac de l'aéroport sur la route de bordure, du mur nord à la marina */
@@ -16146,10 +16146,11 @@ async function main() {
             if (passe !== doit) ko.push(k + (doit ? ' ne passe pas sous' : ' passe sous') + ' le pont fixe ' + p.id + ' (z ' + v.z.toFixed(1) + ')'); retirer(v); }
           info.push('pont fixe ' + p.id + ' : la vedette de police passe, le yacht s’arrête'); }
         /* 5) un joueur attentif en yacht, de la mer à la marina : chaque pont fait son cycle complet, aucun choc */
-        partie(); { const v = creerVehicule('yacht', xg, LS.zc + 60, Math.PI, null); P.x = v.x; P.z = v.z; entrerVehicule(v); for (let i = 0; i < 5; i++) pas();
+        partie(); for (const w of vehicules.slice()) if (!(w.def && w.def.eau) && [LS, LN].some((L) => Math.abs(w.z - L.zc) < 9 && w.x > L.x0 - 6 && w.x < L.x1 + 2)) retirer(w); /* la scène : rien de garé sur les tabliers (selon le tirage, une voiture de startRun y retardait la levée) */
+        { const v = creerVehicule('yacht', xg, LS.zc + 60, Math.PI, null); P.x = v.x; P.z = v.z; entrerVehicule(v); for (let i = 0; i < 5; i++) pas();
           const hp0 = v.hp, et = { S: [], N: [] }, monte = {}, ouvre = {}, ferme = {}; let t = 0, thMax = { S: 0, N: 0 };
-          while (t < 120 && v.z > C.marina.evitage.z + 6) { /* jusqu'au bassin d'évitage (au nord : les pontons) */ let k = 0.55; for (const L of [LS, LN]) { const d = v.z - L.zc - (6 + v.def.long / 2); if (d > -4 && d < 24 && L.theta < LEVIS_THETA - 0.04) k = Math.min(k, Math.max(0, (d - 4) * 0.04)); } /* il ralentit et attend que le pont soit tout à fait ouvert */
-            const dx = xg - v.x; INPUT.jx = dx * 0.15 * k; INPUT.jy = -k; pas(); t += 1 / 60;
+          while (t < 120 && v.z > C.marina.evitage.z + 6) { /* jusqu'au bassin d'évitage (au nord : les pontons) */ let vMax = 99; for (const L of [LS, LN]) { const d = v.z - L.zc - (6 + v.def.long / 2); if (d > -4 && d < 90 && L.theta < LEVIS_THETA - 0.04) vMax = Math.min(vMax, Math.max(0, (d - 3) * 0.45)); } /* il règle sa vitesse sur la distance au pont pas encore tout à fait levé (la demande part à 80 u, le pont met ~9 s à s'ouvrir) */
+            const vv = v.v || 0, dx = xg - v.x; INPUT.jx = dx * 0.15 * 0.55; INPUT.jy = vv > vMax + 0.3 ? 0.6 : (vv < vMax - 0.5 ? -0.55 : 0); pas(); t += 1 / 60; /* au-dessus : il freine (un yacht glisse longtemps gaz coupés) */
             for (const [n, L] of [['S', LS], ['N', LN]]) { if (et[n][et[n].length - 1] !== L.etat) { et[n].push(L.etat); if (L.etat === 'monte' && monte[n] === undefined) monte[n] = t; if (L.etat === 'ouvert' && ouvre[n] === undefined) ouvre[n] = t; } thMax[n] = Math.max(thMax[n], L.theta); } }
           INPUT.jx = INPUT.jy = 0; for (let i = 0; i < 25 * 60 && (LS.etat !== 'ferme' || LN.etat !== 'ferme'); i++) { pas(); t += 1 / 60;
             for (const [n, L] of [['S', LS], ['N', LN]]) { if (et[n][et[n].length - 1] !== L.etat) { et[n].push(L.etat); if (L.etat === 'monte' && monte[n] === undefined) monte[n] = t; if (L.etat === 'ouvert' && ouvre[n] === undefined) ouvre[n] = t; } thMax[n] = Math.max(thMax[n], L.theta); } }
@@ -16360,7 +16361,7 @@ async function main() {
       await page.evaluate(() => { for (const id in META.vehPerso) Object.assign(META.vehPerso[id], slotGarageDefaut());
         Object.assign(META.vehPerso.v0, { cle: 'offshore', coul: TUNING_TEINTES[2], neon: TUNING_NEONS[1], nitro: true, vitesse: 2, investi: 4321 });
         Object.assign(META.vehPerso.v0.pieces, { livree: 3, nom: 5, toit: 2, drapeau: 2, feux: 3 }); Object.assign(META.vehPerso.v0.piecesPossedees, { livree: 1 | 8, nom: 1 | 32, toit: 1 | 4, drapeau: 1 | 4, feux: 1 | 8 }); sauveMeta(); });
-      await page.reload({ waitUntil: 'load', timeout: 30000 });
+      await page.reload({ waitUntil: 'load', timeout: 90000 });
       await page.waitForFunction(() => typeof PORTES !== 'undefined' && PORTES.length > 0, { timeout: 20000 });
       const b = await page.evaluate(() => { const f = META.vehPerso.v0, r = { cle: f.cle, p: Object.assign({}, f.pieces), pp: Object.assign({}, f.piecesPossedees), vit: f.vitesse, nitro: f.nitro, inv: f.investi, toutes: PIECES_CATS_NAUT.every((c) => f.pieces[c] !== undefined && f.piecesPossedees[c] !== undefined) };
         for (const id in META.vehPerso) Object.assign(META.vehPerso[id], slotGarageDefaut()); sauveMeta(); return r; });
