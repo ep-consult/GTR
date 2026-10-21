@@ -18407,6 +18407,95 @@ async function main() {
       else ok('Retours 20 oct., lot 9 : ' + r.info.join(' ; '));
     }
     // -------------------------------------------------------------------
+    // Retours du 20 octobre, lot 10 : la Reyes Air Race (défi voltige et course d'avions à passages dangereux). Le parcours est lu
+    // dans le jeu (AIR.depart, AIR.anneaux, AIR_MEDAILLES), jamais recopié. Un pilote simulé tient le vrai joystick (INPUT.jx / jy)
+    // et la manette des gaz (MANETTE) en pilotage simulé : il suit la ligne d'un anneau à l'autre, anticipe les virages, ralentit
+    // avant les plus serrés — il boucle le parcours sans crash et décroche l'or ; un pilote passif (manche lâché) ne valide rien et
+    // finit dans le Pic. Ponts-levis levés presque à la verticale pendant la course, pénalité d'un anneau manqué (moitié avec la
+    // tenue), bonus de voltige, prime une fois par vague, record, abandon, mort.
+    // -------------------------------------------------------------------
+    console.log('\n--- Retours du 20 octobre, lot 10 : la Reyes Air Race ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = []; let T = dernierT + 1000; const pas = () => { T += 1000 / 60; tick(T); };
+        if (!AIR.ok || !AIR.depart || AIR.anneaux.length < 12) return { ko: ['la course n’est pas construite (' + AIR.anneaux.length + ' anneaux)'], info };
+        const trafic0 = creerTrafic; creerTrafic = () => {}; const sim0 = PILOTAGE_SIM; PILOTAGE_SIM = true; META.inverserY = false;
+        const top = (x, z) => { let h = solY(x, z); const arr = sGrid.get(gk(Math.floor((x + 300) / GS), Math.floor((z + 300) / GS))); if (arr) for (const s of arr) { if (s.actif === false || s.base !== undefined) continue; if (Math.abs(x - s.x) <= s.hw + 2.5 && Math.abs(z - s.z) <= s.hd + 2.5) h = Math.max(h, s.h); } return h; };
+        /* chaque anneau est un passage praticable : son centre est dégagé (relief et solides, comme les voit le crash) */
+        for (const o of [AIR.depart, ...AIR.anneaux]) { const h = top(o.x, o.z); if (!(h < o.y - 1.5)) ko.push((o.lieu || 'départ') + ' : centre à ' + o.y + ' u, obstacle à ' + h.toFixed(1)); }
+        const lieux = AIR.anneaux.map((o) => o.lieu).join(' | ');
+        for (const motif of [/canyon/i, /Pic/, /pont-levis/i, /tours/i, /ras de l’eau/i]) if (!motif.test(lieux)) ko.push('le parcours ne passe pas par ' + motif);
+        /* une partie propre, un avion de voltige en vol juste avant l'anneau de départ, dans son axe */
+        const partie = (cle) => { if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); META.vue = 'immersive'; startRun(); ecran(null); ETAT.mode = 'jeu'; ETAT.jour = 40; ETAT.timeScale = 1;
+          P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9; for (const e of ennemis) e.mort = true; for (const x of [...vehicules]) { if (x.def && x.def.air) continue; if (Math.abs(x.x - 295) < 40 && x.z > -40 && x.z < 300) { scene.remove(x.mesh); vehicules.splice(vehicules.indexOf(x), 1); } }
+          const D = AIR.depart, A = PROFILS_VOL[cle], v = creerVehicule(cle, D.x - D.n.x * 12, D.z - D.n.z * 12, D.a, null); P.x = v.x; P.z = v.z; entrerVehicule(v);
+          v.vol = true; v.alt = D.y; v.v = Math.min(40, A.Vmax * 0.9); v.va = 0; v.bank = 0; v.tang = 0; v.gaz = 1; v.decolT = 0; volSimInit(v, 0); MANETTE.val = 1; MANETTE.touche = true; INPUT.jx = INPUT.jy = 0; return v; };
+        const wrap = (a) => { while (a > Math.PI) a -= 2 * Math.PI; while (a < -Math.PI) a += 2 * Math.PI; return a; };
+        /* le pilote : la ligne de l'anneau d'avant à l'anneau à passer (l'anneau suivant quand la ligne tourne et qu'on en approche),
+           le cap corrigé de l'écart latéral, l'inclinaison voulue, le taux de montée sur la pente de la ligne, la vitesse selon le virage */
+        const pilote = (v, G) => { const A = AIR.actif; if (!A) return; const R = AIR.anneaux, k = A.i, o = R[k], p0 = k ? R[k - 1] : AIR.depart, n2 = R[k + 1];
+          const cap = (a, b) => Math.atan2(b.x - a.x, b.z - a.z);
+          let s0 = p0, s1 = o; if (n2) { const rest = (o.x - v.x) * o.n.x + (o.z - v.z) * o.n.z, dp = Math.abs(wrap(cap(o, n2) - cap(p0, o))); if (dp > 0.2 && rest < 30 * Math.tan(Math.min(1.2, dp) / 2) + v.v * 0.45) { s0 = o; s1 = n2; } }
+          const uL = Math.hypot(s1.x - s0.x, s1.z - s0.z) || 1, Ux = (s1.x - s0.x) / uL, Uz = (s1.z - s0.z) / uL, ct = (v.x - s0.x) * Uz - (v.z - s0.z) * Ux;
+          const e = wrap(Math.atan2(Ux, Uz) - Math.max(-1, Math.min(1, Math.atan(ct / 24))) - v.ang), de = (e - (G.e === undefined ? e : G.e)) * 60; G.e = e;
+          const phiD = Math.max(-1.15, Math.min(1.15, e * 1.6 + de * 0.7)), br = (v.bank - (G.b === undefined ? v.bank : G.b)) * 60; G.b = v.bank;
+          INPUT.jx = Math.max(-1, Math.min(1, (v.bank - phiD) * 2.4 + br * 0.12));
+          const L = Math.hypot(o.x - p0.x, o.z - p0.z) || 1, sA = Math.max(0, Math.min(1, ((v.x - p0.x) * (o.x - p0.x) + (v.z - p0.z) * (o.z - p0.z)) / (L * L))), ty = p0.y + (o.y - p0.y) * sA;
+          const vyD = Math.max(-14, Math.min(14, (ty - v.alt) * 1.3 + (o.y - p0.y) / L * v.v)), vy = v.vel.y; G.I = Math.max(-0.5, Math.min(0.5, (G.I || 0) + (vyD - vy) / 60 * 0.5));
+          const q = (v.tang - (G.t === undefined ? v.tang : G.t)) * 60; G.t = v.tang; const pousse = 0.3 + 0.5 * Math.max(0, 1 - Math.abs(v.bank) / 0.5);
+          INPUT.jy = Math.max(-pousse, Math.min(1, (vyD - vy) * 0.22 + G.I - q * 0.12 + (1 / Math.max(0.3, Math.cos(v.bank)) - 1) * 0.35));
+          const dv = n2 ? Math.abs(wrap(cap(o, n2) - cap(p0, o))) : 0, Vt = Math.min(o.r <= 5 ? 36 : 40, dv > 0.9 ? 30 : (dv > 0.6 ? 32 : (dv > 0.3 ? 36 : 40)));
+          MANETTE.val = Math.max(0, Math.min(1, 0.6 + (Vt - v.v) * 0.15)); MANETTE.touche = true; };
+        /* 1. avant la course : seul l'anneau de départ se voit */
+        { const v = partie('voltige'); pas(); if (AIR.actif) ko.push('la course démarre sans traverser le départ'); if (AIR.anneaux.some((o) => o.g.visible)) ko.push('des anneaux de course visibles avant le départ'); if (!AIR.depart.g.visible) ko.push('anneau de départ invisible');
+          if (!pointsActivites().some((p) => /Air Race/.test(p.nom || ''))) ko.push('la course n’est pas dans les activités de la carte'); sortirVehicule(true); }
+        /* 2. le pilote simulé : tout le parcours, sans crash */
+        const W0 = WAVES.n, arg0 = META.argent, rec0 = META.defis.airT; META.defis.airT = 0; META.defis.airMed = 0; let v = partie('voltige'), G = {}, demarre = -1, fin = null, levis = 1e9, hud = false, vus = true, t = 0;
+        for (let i = 0; i < 60 * 120; i++) { pilote(v, G); pas(); t += 1 / 60; if (AIR.actif && demarre < 0) { demarre = t; vus = AIR.anneaux[0].g.visible && AIR.anneaux[1].g.visible && !AIR.anneaux[2].g.visible; }
+          if (AIR.actif) { const hd = document.getElementById('airHud'); if (hd && hd.style.display === 'block') hud = true;
+            for (const L of CANAUX.levis || []) if (Math.abs(v.z - L.zc) < 10 && Math.abs(v.x - (L.xP0 + L.xP1) / 2) < 8) levis = Math.min(levis, L.theta); }
+          if (P.veh !== v || v.mort) break; if (!AIR.actif && demarre >= 0) { fin = AIR.dernier; break; } }
+        INPUT.jx = INPUT.jy = 0;
+        if (demarre < 0) ko.push('le pilote traverse le départ, la course ne démarre pas'); if (!vus) ko.push('au départ, on ne voit pas l’anneau à passer et le suivant (seuls)');
+        if (!hud) ko.push('pas de bandeau de course'); if (P.veh !== v || v.mort) ko.push('pilote simulé : crash à ' + Math.round(v.x) + ',' + Math.round(v.alt) + ',' + Math.round(v.z));
+        if (!fin) ko.push('pilote simulé : course non terminée'); else {
+          if (!(fin.med === 3)) ko.push('pilote simulé : ' + fin.tot.toFixed(1) + ' s, médaille ' + fin.med + ' (l’or attendu, sous ' + AIR_MEDAILLES[2] + ' s)');
+          if (!(levis >= 1.45 && levis < 1e9)) ko.push('ponts-levis pas levés au passage de l’avion (' + levis + ')');
+          if (META.argent <= arg0) ko.push('pas de prime'); if (!(META.defis.airT > 0 && Math.abs(META.defis.airT - fin.tot) < 0.11)) ko.push('record ' + META.defis.airT + ' pour ' + fin.tot); if (META.defis.airMed !== 3) ko.push('meilleure médaille ' + META.defis.airMed);
+          info.push('pilote simulé (voltige) : ' + fin.tot.toFixed(1) + ' s, médaille ' + ['—', 'bronze', 'argent', 'or'][fin.med] + ', ' + AIR.anneaux.length + ' anneaux, ponts-levis à ' + (levis * 57.3).toFixed(0) + '° au passage'); }
+        /* 3. la prime : une fois par vague ; une 2e course la même vague ne paie pas */
+        if (fin) { const a1 = META.argent; v = partie('voltige'); WAVES.n = W0; AIR.prime = W0; G = {}; let f2 = null;
+          for (let i = 0; i < 60 * 120; i++) { pilote(v, G); pas(); if (P.veh !== v || v.mort) break; if (!AIR.actif && AIR.dernier && AIR.dernier !== fin) { f2 = AIR.dernier; break; } }
+          if (!f2) ko.push('2e course non terminée'); else if (META.argent > a1 + 1) ko.push('2e prime la même vague (+' + (META.argent - a1) + ' $)'); else info.push('2e course la même vague : ' + f2.tot.toFixed(1) + ' s, pas de prime'); }
+        /* 4. le pilote passif : il traverse le départ puis lâche le manche → rien de validé, la course s'arrête (le Pic) */
+        { v = partie('voltige'); let valides = 0, mort = false, i0 = -1; for (let i = 0; i < 60 * 60; i++) { INPUT.jx = 0; INPUT.jy = 0; MANETTE.val = 1; MANETTE.touche = true; pas();
+            if (AIR.actif && i0 < 0) i0 = AIR.actif.i; if (AIR.actif) valides = Math.max(valides, AIR.actif.i - AIR.actif.manques); if (ETAT.mode !== 'jeu' || P.veh !== v) { mort = ETAT.mode === 'mort' || P.hp <= 0 || v.mort; break; } if (!AIR.actif && i0 >= 0) break; }
+          if (AIR.actif) ko.push('pilote passif : la course continue après 60 s'); if (valides > 0) ko.push('pilote passif : ' + valides + ' anneau(x) validé(s)');
+          info.push('passif : ' + (mort ? 'crash' : 'abandon') + ', aucun anneau'); if (ETAT.mode !== 'jeu') { ecran(null); ETAT.mode = 'jeu'; } }
+        /* 5. un anneau manqué : +AIR_PENALITE s (moitié avec la combinaison de la course) ; le bonus de voltige */
+        { const ten0 = META.tenue; let pen = [], tour = 0;
+          for (const ten of ['', 'reyesAir']) { v = partie('voltige'); META.tenue = ten; G = {}; for (let i = 0; i < 60 * 3 && !AIR.actif; i++) { pilote(v, G); pas(); }
+            const A = AIR.actif; if (!A) { pen.push(-1); continue; } const k = AIR.anneaux.findIndex((o) => /large/.test(o.lieu)), o = AIR.anneaux[k]; A.i = k; airMontrer(); /* un anneau du grand large, rien autour */
+            v.x = o.x - o.n.x * 40; v.z = o.z - o.n.z * 40; v.alt = o.y + 12; v.ang = o.a; v.bank = 0; v.tang = 0; v.v = 36; volSimInit(v, 0); AIR.prev = null; INPUT.jx = INPUT.jy = 0;
+            for (let i = 0; i < 120 && AIR.actif && AIR.actif.i === k; i++) pas(); pen.push(AIR.actif ? AIR.actif.pen : -2);
+            if (ten === '' && AIR.actif) { META.stats.loopings = A.fig0 + 5; majAirRace(1 / 60, 1 / 60); tour = A.bonus; } airArreter(null); }
+          META.tenue = ten0;
+          if (!(pen[0] === AIR_PENALITE && pen[1] === AIR_PENALITE / 2)) ko.push('pénalités ' + pen + ' (attendu ' + AIR_PENALITE + ' puis ' + AIR_PENALITE / 2 + ' avec la tenue)');
+          if (tour !== AIR_BONUS * AIR_BONUS_MAX) ko.push('bonus de voltige ' + tour + ' pour 5 figures (plafond ' + AIR_BONUS * AIR_BONUS_MAX + ')'); else info.push('anneau manqué +' + pen[0] + ' s (' + pen[1] + ' avec la tenue), voltige −' + tour + ' s au plus'); }
+        /* 6. abandon : descendre de l'avion, mourir ; une nouvelle partie remet tout à zéro */
+        { v = partie('voltige'); G = {}; for (let i = 0; i < 60 * 3 && !AIR.actif; i++) { pilote(v, G); pas(); } if (!AIR.actif) ko.push('abandon : course pas démarrée');
+          sortirVehicule(true); pas(); if (AIR.actif) ko.push('descendre de l’avion n’arrête pas la course'); if (AIR.anneaux.some((o) => o.g.visible)) ko.push('anneaux encore visibles après l’abandon');
+          v = partie('voltige'); G = {}; for (let i = 0; i < 60 * 3 && !AIR.actif; i++) { pilote(v, G); pas(); } mourir(); if (AIR.actif) ko.push('la mort n’arrête pas la course'); ecran(null); ETAT.mode = 'jeu';
+          startRun(); if (AIR.actif || AIR.prime !== -1) ko.push('startRun ne remet pas la course à zéro'); const hd = document.getElementById('airHud'); if (hd && hd.style.display !== 'none') ko.push('bandeau de course resté'); }
+        /* 7. le défi et la tenue */
+        { const D = DEFIS_THEMES.find((d) => d.theme === 'airRace'); if (!D || !TENUES.some((t) => t.id === 'reyesAir') || D.tenue !== 'reyesAir') ko.push('défi ou tenue de la course absents'); else info.push('défi « ' + D.noms.join(' / ') + ' », tenue « Combinaison de la Reyes Air Race »'); }
+        META.defis.airT = rec0 || 0; creerTrafic = trafic0; PILOTAGE_SIM = sim0; INPUT.jx = INPUT.jy = 0; MANETTE.touche = false; if (P.veh) sortirVehicule(true); META.vue = 'classique'; startRun(); ecran(null); ETAT.mode = 'jeu';
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Retours 20 oct., lot 10 : ' + r.ko.slice(0, 20).join(' ; ') + ' [' + r.info.join(' | ') + ']');
+      else ok('Retours 20 oct., lot 10 : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];

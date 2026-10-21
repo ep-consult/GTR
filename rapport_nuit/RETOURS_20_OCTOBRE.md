@@ -34,7 +34,7 @@ lourds. Aucune référence à un autre jeu ni à une marque.
 | 8 | 8.3 « Jus de Plage » (découpe de fruits) | ☑ |
 | 8 | 8.4 Manèges de la marina à la 1re personne | ☑ |
 | 9 | 9.1 Akimbo à la 1re personne | ☑ |
-| 10 | 10.1 Défi voltige et course d'avions | ☐ |
+| 10 | 10.1 Défi voltige et course d'avions | ☑ |
 
 ---
 
@@ -578,4 +578,52 @@ V2 », « Ball-trap », « Caravane » repassent.
 
 Captures : `captures/retours_20/9_akimbo_hanche.png` (la gauche tire), `9_akimbo_hanche_hud.png`, `9_akimbo_visee.png`,
 `9_akimbo_recharge.png`, `9_akimbo_uzi.png`.
+
+
+## Lot 10 — La Reyes Air Race (fait)
+
+**Lectures retenues.** « Sous les ponts des canaux » : aucun pont des canaux ne laisse passer un avion (tirant d'air de 3,3 u au plus,
+et le crash du pilotage simulé compte le tablier comme le sol) ; la course passe donc **au ras de l'eau du grand canal, entre les volées
+des deux ponts-levis**, que la course lève presque à la verticale (86° au lieu de 70° : le couloir entre les volées passe de ±1,9 à
+±3,6 u). « Le long des falaises » : la face ouest du Pic du Vertige (90 u à pic). « Dans les canyons » : le canyon des mesas, au
+défilé de 10 u entre deux mesas (la porte des mesas). « Au ras du sol » : le grand large et le grand canal à 6 u. « Entre les tours » :
+l'avenue x = −84, entre les quatre paires de tours du centre. « Défi voltige » : chaque looping ou tonneau compté par le pilotage
+simulé pendant la course retire 2 s (3 figures au plus). « Paliers » : bronze, argent, or (défi « airRace », tenue à l'or).
+
+- **Le parcours** (`AIR_DEPART`, `AIR_ANNEAUX`, `mkAirRace` en fin de décor sur un générateur privé) : départ au col du Mont Reyes (on
+  le traverse vers le sud), puis vingt anneaux — la porte des mesas, le défilé et la sortie du canyon, la face ouest du Pic, un grand
+  arc au ras de l'eau au large (rayon ~90 u, il met dans l'axe du canal), l'embouchure, les ponts-levis sud et nord, la marina, le long
+  du canal, les toits, l'arc au-delà du mur nord, l'avenue et deux passages entre les tours, l'arrivée au pied de la colline. Le tracé
+  a été relevé sur le vrai relief et les vrais solides (une carte des hauteurs telle que la voit le crash), puis **volé** par un pilote
+  simulé jusqu'à ce que chaque virage soit faisable : l'avion de voltige vire sur ~55 u à pleine vitesse, ~30 u à 32 u/s — les virages
+  serrés se prennent en ralentissant. Le cap de chaque anneau est celui qui vient de l'anneau d'avant (calculé).
+- **La course** (`majAirRace`, `airTraverse`) : un avion en pilotage simulé (`avionSim`) qui traverse le départ lance le chrono ; seuls
+  l'anneau à passer et le suivant sont visibles (balise au-dessus du premier). Dans le cercle : validé ; à côté (à moins de
+  `AIR_MARGE` = 30 u du bord) : manqué, +4 s ; l'anneau évité et le suivant traversé : manqué aussi. Abandon : descendre de l'avion,
+  le crash (mortel : `mortCrashAerien`), la mort, 45 s sans un anneau. Temps final = chrono + pénalités − bonus de voltige ; médailles
+  `AIR_MEDAILLES` (85 / 72 / 62 s), record `META.defis.airT` (le meilleur temps) et `META.defis.airMed`, prime une fois par vague dès
+  le bronze (×1,5 l'argent, ×2 l'or), défi à paliers « Pilote de course aérienne », « Médaillé d'argent du ciel », « Roi du ciel de Los
+  Reyes », et la combinaison de la Reyes Air Race à l'or (casque blanc, écharpe à damier : un anneau manqué ne coûte que 2 s). Trêve
+  des vagues pendant la course.
+- **Le bandeau** (`airUI`) : en haut, entre les jauges et la minimap — chrono, pénalités, bonus, anneau, distance, au-dessus ou
+  au-dessous ; le lieu de l'anneau. (Une 1re version sous la rangée Vue / Pause cachait la flèche d'objectif.)
+- **Les ponts-levis** (`levisThetaMax`, `LEVIS_THETA_COURSE`) : `levisDemande` les demande pendant toute la course (alerte, barrières,
+  montée : ~10 s, l'avion y arrive vers 28 s), `majLevisV3` les monte à 86° ; ils redescendent après, comme pour un bateau.
+
+**Pilotes simulés** (test « Retours du 20 octobre, lot 10 », joystick `INPUT.jx` / `INPUT.jy` et manette `MANETTE`, parcours lu dans
+le jeu) : le pilote suit la ligne d'un anneau à l'autre, anticipe les virages (il prend la ligne suivante à l'approche d'un anneau où
+elle tourne), ralentit selon le virage, ne pousse jamais fort sur le manche en virage incliné (une poussée en virage fait tourner à
+l'envers) : **58,0 s, aucun anneau manqué, l'or** ; ponts-levis à 86° quand il passe. Pilote passif (manche lâché après le départ) :
+aucun anneau, il finit dans le Pic. Sondes hors test : le Colibri (~59 s + deux anneaux manqués, l'argent) et l'avion de tourisme
+(~64 s + un anneau manqué) bouclent aussi — l'avion de voltige est l'avion de la course. Une 2e course la même vague ne paie pas ;
+pénalité +4 s (2 s avec la combinaison), bonus de voltige plafonné à 6 s ; abandon en descendant, à la mort ; `startRun` remet tout à
+zéro.
+
+**Mesures** (machine sans carte graphique : proportions seulement) : au col, l'anneau de départ, sa bannière et ses mâts : +5 appels
+de rendu en vue immersive (1 245 contre 1 240), +1 en vue de dessus ; au canal : 0. Pendant la course, deux anneaux de plus (deux
+appels chacun : les douze quartiers fusionnés).
+
+Captures : `captures/retours_20/10_depart.png` (le départ au col), `10_porte.png` (la porte des mesas), `10_large.png`,
+`10_levis.png` et `10_levis_hud.png` (au ras de l'eau du grand canal, entre les volées levées), `10_tours.png` (le virage vers
+l'avenue des tours).
 

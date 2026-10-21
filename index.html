@@ -2106,7 +2106,7 @@ const META={
          gadget:{poss:false,lv:0},couteau:{poss:false,lv:0},batte2:{poss:false,lv:0},bouleC:{poss:false,lv:0},sabre:{poss:false,lv:0},pompe:{poss:false,lv:0},uzi:{poss:false,lv:0},silence:{poss:false,lv:0},pm:{poss:false,lv:0},fusil:{poss:false,lv:0},sniper:{poss:false,lv:0},flamme:{poss:false,lv:0},roquette:{poss:false,lv:0},desintegrateur:{poss:false,lv:0}},
   upg:{vitesse:0,vie:0,regen:0,melee:0,recharge:0,butin:0},
   defis:{coffresToits:0,avionsPoses:0,manege:0,styleAchats:0,fauves:0,aimant:0, // 3e série (14 octobre)
-  paquebot:0,epave:0,bouteilles:0,tortues:0,contrebande:0,kite:0,wake:0,falaise:0,jus:0, /* jus : record de Jus de Plage (lot 8.3) */ // retours du 20 octobre, lots 6 et 7 (falaise : record du Reyes Cliff Diving) : le large (kite et wake : records de points)
+  paquebot:0,epave:0,bouteilles:0,tortues:0,contrebande:0,kite:0,wake:0,falaise:0,jus:0,airT:0,airMed:0, /* airT : meilleur temps de la Reyes Air Race (s), airMed : meilleure médaille (lot 10) */ /* jus : record de Jus de Plage (lot 8.3) */ // retours du 20 octobre, lots 6 et 7 (falaise : record du Reyes Cliff Diving) : le large (kite et wake : records de points)
     vols:0,dist:0,detruits:0,chefs:0,etoile6:false,bateau:false,ile:false,avion:false,heli:false,crash:false,saut:false,toit:false,banque:false,sommet:false,villa:false,jackpot:false,
     // lot 11/12 (Dépôt de bus, Jetpack, Monster Truck) : chaque victoire de
     // circuit est marquée séparément (jamais déduite de META.depotCircuits,
@@ -2257,6 +2257,7 @@ const DEFIS_THEMES=[
   {theme:'tortues',noms:['Ami des tortues','Gardien des tortues','Protecteur des océans'],det:n=>'Libère '+n+' tortues prises dans des filets',val:m=>m.defis.tortues,paliers:[3,12,30],recs:[250,800,1800]},
   {theme:'contrebande',noms:['Garde-pêche','Douanier des mers','Terreur des contrebandiers'],det:n=>'Saisis '+n+(n>1?' cargaisons':' cargaison')+' de contrebandiers',val:m=>m.defis.contrebande,paliers:[1,5,15],recs:[300,1000,2400]},
   {theme:'kitesurf',noms:['Kitesurfeur','Rider du vent','Roi du kite'],det:n=>'Marque '+n+' points en une session de kitesurf',val:m=>m.defis.kite,paliers:[1500,4000,8000],recs:[250,800,2000],tenue:'kitesurfeur'},
+  {theme:'airRace',noms:['Pilote de course aérienne','Médaillé d’argent du ciel','Roi du ciel de Los Reyes'],det:n=>'Décroche '+['','le bronze','l’argent','l’or'][n]+' à la Reyes Air Race',val:m=>m.defis.airMed,paliers:[1,2,3],recs:[300,800,2000],tenue:'reyesAir'}, // lot 10
   {theme:'falaise',noms:['Plongeur de falaise','Acrobate des falaises','Roi de la falaise'],det:n=>'Marque '+n+' points au Reyes Cliff Diving',val:m=>m.defis.falaise,paliers:[150,300,450],recs:[300,800,2000],tenue:'falaise'}, // lot 7
   {theme:'wakeboard',noms:['Rider du sillage','As du wakeboard','Légende du wake'],det:n=>'Marque '+n+' points en une session de wakeboard',val:m=>m.defis.wake,paliers:[3000,9000,15000],recs:[250,800,2000]},
   // retours du 20 octobre, 4.3 : la chasse (META.chasse) — le gibier seulement ; une bête paisible ou protégée garde son karma et n'entre dans aucun défi
@@ -2887,6 +2888,8 @@ const TENUES=[
    cond:()=>tenueDefiFinal('voltigeur'),haut:0x6a3a1a,bas:0x3a3020,casq:0x6a3a1a},
   {id:'pigeon',nom:'Costume de pigeon',ico:'🐦',condTxt:'Défi « Terreur des pigeons » : 100 pigeons abattus — ESQUIVE fait voleter (petits bonds planés), chute ralentie',
    cond:()=>tenueDefiFinal('pigeon'),haut:0x9ca2ac,bas:0x6a707c,casq:0x6a707c},
+  {id:'reyesAir',nom:'Combinaison de la Reyes Air Race',ico:'🏁',condTxt:'Défi « Roi du ciel de Los Reyes » : l’or à la Reyes Air Race — un anneau manqué ne coûte que la moitié de la pénalité',
+   cond:()=>tenueDefiFinal('airRace'),haut:0xd8303a,bas:0x14161c,casq:0xf4f0e6},
   {id:'falaise',nom:'Tenue de plongeur de falaise',ico:'🌊',condTxt:'Défi « Roi de la falaise » : 450 points au Reyes Cliff Diving — les plongeons dans l’eau rapportent 50 % de points en plus',
    cond:()=>tenueDefiFinal('falaise'),haut:0x0a2a4a,bas:0xd8282a,casq:0x0a2a4a},
   {id:'kitesurfeur',nom:'Combinaison de kitesurf',ico:'🪁',condTxt:'Défi « Roi du kite » : 8 000 points en une session de kitesurf — les sauts de kite 15 % plus hauts',
@@ -4555,7 +4558,7 @@ function construireVille(){
     if(qq!=='plage'&&qq!=='parc'&&bx%3===1&&bz%3===1) mkFeu(cx+INNER/2+1.4,cz-INNER/2-1.4);
   }
   placerPortes();
-  if(DECOR_V2){ sansAleaVille(()=>{ reserverHills(); reserverChantier(); reserverBase(); reserverSports(); ameliorerPortes(); mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkBasket(); mkCiel(); mkKiosqueBanderole(); mkCrique(); mkMontReyes(); mkVieMont(); mkBordureEst(); mkCanyonsDesert(); mkPicVertige(); mkParcStunt(); mkSkateXXL(); mkRides(); mkMerVivante(); mkRemorquage(); mkLarge(); deplacerVoltige(); mkAeroportVivant(); mkHeliGrue(); mkPlanques(); mkBoutiques(); mkGrandHuit(); mkToitsVivants(); mkTracesSable(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkMontReyesV2(); mkNeonVivant(); mkQuartiersFinitions(); mkFacadesVariees(); mkCascades(); if(MERV.ok) mkVolcanIle(); mkAeroVie(); mkLosReyesHills(); mkBordsHills(); mkChantierV2(); mkPlanquesV2(); montSolides(); mkBaseV2(); mkBallTrap(); mkSportsParcs(); mkHalosBoutiques(); mkSurprisesToits(); mkArenaDerby(); mkRatelierSkateXXL(); mkStationsVelo(); mkSautVertige(); mkCampEntrainement(); mkCageV2(); mkBalises(); montActiver(); reserverCanaux(); mkCanaux(); mkMerV3(); avecAleaPrive(8303,mkJusDePlage); mkTourniquet(); /* lot 8 : le stand de jus, les chaises volantes (générateurs privés) */ }); } // cascades et volcan EN DERNIER : leurs tirages du décor ne décalent rien de ce qui précède (mobilier...) // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
+  if(DECOR_V2){ sansAleaVille(()=>{ reserverHills(); reserverChantier(); reserverBase(); reserverSports(); ameliorerPortes(); mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkBasket(); mkCiel(); mkKiosqueBanderole(); mkCrique(); mkMontReyes(); mkVieMont(); mkBordureEst(); mkCanyonsDesert(); mkPicVertige(); mkParcStunt(); mkSkateXXL(); mkRides(); mkMerVivante(); mkRemorquage(); mkLarge(); deplacerVoltige(); mkAeroportVivant(); mkHeliGrue(); mkPlanques(); mkBoutiques(); mkGrandHuit(); mkToitsVivants(); mkTracesSable(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkMontReyesV2(); mkNeonVivant(); mkQuartiersFinitions(); mkFacadesVariees(); mkCascades(); if(MERV.ok) mkVolcanIle(); mkAeroVie(); mkLosReyesHills(); mkBordsHills(); mkChantierV2(); mkPlanquesV2(); montSolides(); mkBaseV2(); mkBallTrap(); mkSportsParcs(); mkHalosBoutiques(); mkSurprisesToits(); mkArenaDerby(); mkRatelierSkateXXL(); mkStationsVelo(); mkSautVertige(); mkCampEntrainement(); mkCageV2(); mkBalises(); montActiver(); reserverCanaux(); mkCanaux(); mkMerV3(); avecAleaPrive(8303,mkJusDePlage); mkTourniquet(); mkAirRace(); /* lot 10 : la Reyes Air Race */ /* lot 8 : le stand de jus, les chaises volantes (générateurs privés) */ }); } // cascades et volcan EN DERNIER : leurs tirages du décor ne décalent rien de ce qui précède (mobilier...) // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
   finaliserMerge();
   construireMinimapStatique();
 }
@@ -8615,7 +8618,7 @@ function levisTablierLibre(L){ return !levisOccupe(L,L.xP0-0.3,L.xP1+0.3); }
 /* les piétons sur le tablier quand les barrières sont baissées : ils pressent le pas vers le bout le plus proche */
 function levisEvacuer(L){ const xm=(L.xP0+L.xP1)/2; for(const p of pietons){ if(p.etat==='mort'||p.x<L.xP0-0.5||p.x>L.xP1+0.5||Math.abs(p.z-L.zc)>6.3) continue; p.dir=p.x<xm?-Math.PI/2:Math.PI/2; p.t=3; p.vit=Math.max(p.vit||0,2.6); } }
 /* un bateau trop haut (le joueur, un yacht de l'IA) qui approche et va vers le pont, ou qui attend au point d'attente */
-function levisDemande(L){ const xm=(L.xP0+L.xP1)/2;
+function levisDemande(L){ const xm=(L.xP0+L.xP1)/2; if(typeof AIR!=='undefined'&&AIR.actif) return true; /* la Reyes Air Race passe entre les volées levées (lot 10) */
   for(const v of vehicules){ if(v.mort||!v.def.eau||hautNavVeh(v)<=L.degage||(v.conduit!=='joueur'&&v.conduit!=='yachtIA')) continue;
     if(Math.abs(v.x-xm)>16) continue; const dz=L.zc-v.z; if(Math.abs(dz)>LEVIS_APPROCHE) continue;
     if(Math.abs(dz)<6+v.def.long/2+2) return true; if(v.conduit==='yachtIA'&&v.yProchain===L) return true;
@@ -8645,8 +8648,8 @@ function majLevisV3(dt){ const C=CANAUX; if(!C.ok||!C.levis||!C.levis.length||!C
       case 'alerte': if(L.t>=LEVIS_ALERTE){ L.etat='barrieres'; L.t=0; } break;
       case 'barrieres': if(L.bar<1){ L.bar=Math.min(1,L.bar+dt/LEVIS_T_BARRIERE); if(L.bar>=1) levisSolidesBarrieres(L,true); }
         else if(levisTablierLibre(L)){ L.etat='monte'; L.t=0; } else levisEvacuer(L); break;
-      case 'monte': if(!levisOccupe(L,L.xP0+0.2,L.xP1-0.2)) L.theta=Math.min(LEVIS_THETA,L.theta+dt*LEVIS_THETA/LEVIS_T_MONTE); if(L.theta>=LEVIS_THETA){ L.etat='ouvert'; L.t=0; L.libreT=0; } break;
-      case 'ouvert': { const garder=req||levisBateauDansZone(L,true); L.libreT=garder?0:(L.libreT||0)+dt; if(L.libreT>=LEVIS_MARGE&&!levisBateauDansZone(L,false)){ L.etat='descend'; L.t=0; } } break;
+      case 'monte': if(!levisOccupe(L,L.xP0+0.2,L.xP1-0.2)&&L.theta<levisThetaMax()) L.theta=Math.min(levisThetaMax(),L.theta+dt*LEVIS_THETA/LEVIS_T_MONTE); if(L.theta>=levisThetaMax()){ L.etat='ouvert'; L.t=0; L.libreT=0; } break;
+      case 'ouvert': { if(L.theta<levisThetaMax()-1e-3){ L.etat='monte'; L.t=0; break; } /* la course demande plus haut (lot 10) */ const garder=req||levisBateauDansZone(L,true); L.libreT=garder?0:(L.libreT||0)+dt; if(L.libreT>=LEVIS_MARGE&&!levisBateauDansZone(L,false)){ L.etat='descend'; L.t=0; } } break;
       case 'descend': if(req||levisBateauDansZone(L,false)){ L.etat='monte'; L.t=0; break; } L.theta=Math.max(0,L.theta-dt*LEVIS_THETA/LEVIS_T_MONTE); if(L.theta<=0){ L.theta=0; L.etat='relevage'; L.t=0; levisSolidesBarrieres(L,false); } break;
       case 'relevage': L.bar=Math.max(0,L.bar-dt/LEVIS_T_BARRIERE); if(L.bar<=0){ L.etat='ferme'; L.t=0; levisReparerBarrieres(L); } break; }
     levisForcer(L); if(Math.abs(L.theta-th0)>1e-5||(L.theta>LEVIS_MUR)!==(L.murs.length>0)) levisMurs(L); levisPose(L,dt); }
@@ -12568,6 +12571,9 @@ const TENUE_ACC={
     A.add(mkBoxG(0.06,0.06,0.5,0x14161c,0,1.82,0)); A.add(mkBoxG(0.5,0.06,0.06,0x14161c,0,1.82,0)); for(const s of [-1,1]) A.add(mkBoxG(0.08,0.2,0.18,0xd8ff3a,s*0.25,1.58,0)); },
   athlete:(A)=>{ if(!A.tete) return; A.add(mkBoxG(0.45,0.06,0.45,0xf2f4f8,0,1.7,0)); A.add(mkBoxG(0.46,0.02,0.46,0x2a6ad8,0,1.7,0)); }, /* bandeau éponge */
   ballers:(A)=>{ if(!A.tete) return; A.add(mkBoxG(0.45,0.06,0.45,0xff8a2a,0,1.7,0)); },
+  reyesAir:(A)=>{ /* la combinaison de la course aérienne (lot 10) : casque blanc à visière, écharpe à damier */
+    if(A.tete){ const c=new THREE.Mesh(new THREE.SphereGeometry(0.31,14,8,0,Math.PI*2,0,Math.PI/2),mat(0xf4f0e6)); c.position.y=1.68; A.add(c); A.add(mkBoxG(0.5,0.12,0.06,0x1a2a4a,0,1.72,0.27)); }
+    for(let k=0;k<4;k++) A.add(mkBoxG(0.16,0.1,0.44,k%2?0x14161c:0xf4f0e6,-0.24+k*0.16,0.62,0),A.h.torse); },
   falaise:(A)=>{ /* plongeur de falaise (lot 7) : bonnet de bain, lunettes relevées, lycra et short de bain */
     if(A.tete){ const c=new THREE.Mesh(new THREE.SphereGeometry(0.29,14,8,0,Math.PI*2,0,Math.PI/2),mat(0x0a2a4a)); c.scale.set(1,0.9,1.05); c.position.y=1.7; A.add(c); for(const s of [-1,1]) A.add(mkBoxG(0.13,0.08,0.05,0x35e0ff,s*0.1,1.82,0.22)); A.add(mkBoxG(0.48,0.03,0.48,0x14161c,0,1.8,0)); }
     A.add(mkBoxG(0.64,0.1,0.42,0x35e0ff,0,0.3,0),A.h.torse); },
@@ -12962,6 +12968,104 @@ function jusDessiner(){ const A=JUS.actif, cv=document.getElementById('jusCv'); 
   if(A.comboTxt){ c.globalAlpha=A.comboTxt.t; c.textAlign='center'; c.fillStyle='#ffd23f'; c.font='900 '+Math.round(30*k)+'px Arial'; c.fillText(A.comboTxt.txt,W/2,H*0.38); c.globalAlpha=1; }
   if(A.t<0){ c.textAlign='center'; c.fillStyle='#fff'; c.font='900 '+Math.round(70*k)+'px Arial'; c.fillText(A.t<-0.8?'PRÊT ?':'TRANCHE !',W/2,H*0.45); }
   if(A.fin){ c.textAlign='center'; c.fillStyle='#fff'; c.font='900 '+Math.round(36*k)+'px Arial'; c.fillText(A.fin==='vies'?'PLUS DE VIES':'TEMPS !',W/2,H*0.42); c.font='800 '+Math.round(20*k)+'px Arial'; c.fillText(A.score+' fruits · '+jusRecette(A).nom,W/2,H*0.42+34*k); } }
+/* ---------- La Reyes Air Race (retours du 20 octobre, lot 10) : le parcours. Relevé sur le relief et les solides réels (sonde de
+   hauteurs, puis vol d’un pilote simulé dans le vrai pilotage) : le départ au col du Mont Reyes, la porte des mesas (un défilé de
+   10 u entre deux mesas), la face ouest du Pic du Vertige, un grand arc au ras de l’eau qui met dans l’axe du grand canal, les deux
+   ponts-levis (levés pour la course), la marina, les toits, l’arc au-delà du mur nord, l’avenue entre les tours du centre, l’arrivée
+   au pied de la colline. Le cap de chaque anneau vient de l’anneau d’avant (mkAirRace). ---------- */
+const AIR_DEPART={x:515.5,y:36,z:-150,a:0,r:9,lieu:'Le col du Mont'}; /* face au sud, vers le canyon */
+const AIR_ANNEAUX=[
+  {x:515.5,y:9,z:-64,r:4,lieu:'Canyon — la porte des mesas'},
+  {x:515.5,y:9,z:-4,r:5,lieu:'Canyon — le défilé'},
+  {x:508,y:12,z:50,r:6,lieu:'Canyon — la sortie'},
+  {x:478,y:30,z:125,r:7,lieu:'Le Pic — face ouest'},
+  {x:478,y:6,z:370,r:7,lieu:'Au ras de l’eau'},
+  {x:432,y:6,z:449,r:7,lieu:'Le grand large'},
+  {x:341,y:6,z:449,r:7,lieu:'Le grand large'},
+  {x:295.25,y:6,z:370,r:6,lieu:'Cap sur l’embouchure'},
+  {x:295.25,y:6,z:288,r:5,lieu:'L’embouchure du grand canal'},
+  {x:295.25,y:6,z:168,r:3.5,lieu:'Pont-levis sud'},
+  {x:295.25,y:6,z:42,r:3.5,lieu:'Pont-levis nord'},
+  {x:295.25,y:9,z:0,r:6,lieu:'La marina'},
+  {x:295.25,y:26,z:-110,r:8,lieu:'Le long du canal'},
+  {x:150,y:40,z:-260,r:8,lieu:'Au-dessus des toits'},
+  {x:-4,y:40,z:-320,r:8,lieu:'Au-delà du mur nord'},
+  {x:-60.6,y:40,z:-296.6,r:8,lieu:'Le virage du nord'},
+  {x:-84,y:38,z:-240,r:8,lieu:'L’avenue des tours'},
+  {x:-84,y:36,z:-189,r:6,lieu:'Entre les tours'},
+  {x:-84,y:33,z:-105,r:6,lieu:'Entre les tours'},
+  {x:-84,y:30,z:-20,r:7,lieu:'Arrivée — au pied de la colline'}];
+const AIR_MEDAILLES=[85,72,62]; /* temps final (s) : bronze, argent, or — le pilote simulé de l’avion de voltige boucle en ~58 s sans un anneau manqué */
+const LEVIS_THETA_COURSE=1.5; /* pendant la course, les ponts-levis se lèvent presque à la verticale (86°) : le couloir entre les volées fait ±3,6 u */
+function levisThetaMax(){ return AIR.actif?LEVIS_THETA_COURSE:LEVIS_THETA; }
+/* =====================================================================
+   REYES AIR RACE — LE DÉFI VOLTIGE (retours du 20 octobre, lot 10 ; demandé : « défi voltige et course d'avions à passages
+   dangereux : un parcours d'anneaux dans les endroits les plus difficiles de la carte — sous les ponts des canaux, le long des
+   falaises, dans les canyons, au ras du sol, entre les tours — en pilotage simulé ; chrono, pénalités, record, paliers, skin de
+   pilote ; faisable par un pilote simulé, raté par un pilote passif »).
+   L'anneau de DÉPART flotte au col du Mont Reyes, face au canyon (AIR_DEPART) : le traverser vers le sud aux commandes d'un avion en
+   pilotage simulé (avionSim) lance le chrono. Puis les anneaux d'AIR_ANNEAUX, dans l'ordre : chacun a son passage (lieu, rayon) — la
+   porte des mesas du canyon, la face ouest du Pic du Vertige, le grand large au ras de l'eau, le grand canal au ras de l'eau entre
+   les volées des deux ponts-levis (levisDemande les lève pendant la course, presque à la verticale : levisThetaMax), la marina, les
+   toits, l'avenue entre les tours du centre. Le cap de passage de chaque anneau est celui qui vient
+   de l'anneau d'avant (calculé, jamais recopié). Traversé dans le cercle : validé ; à côté (à moins de AIR_MARGE du bord) : manqué,
+   AIR_PENALITE s de plus, on passe au suivant. Chaque looping ou tonneau du pilotage simulé pendant la course retire AIR_BONUS s
+   (le défi voltige, AIR_BONUS_MAX au plus). Abandon : sortir de l'avion, le crash, la mort, AIR_ATTENTE s sans valider un anneau.
+   Temps final = chrono + pénalités − bonus ; médailles (AIR_MEDAILLES : bronze, argent, or) ; record (META.defis.airT, le meilleur
+   temps, et META.defis.airMed, la meilleure médaille), prime une fois par vague dès le bronze, la tenue de pilote à l'or (défi
+   « airRace »). Seuls l'anneau de départ, l'anneau à passer et le suivant sont visibles (et une balise au-dessus de l'anneau à
+   passer, vue à travers tout). Tout sur dtJeu.
+===================================================================== */
+const AIR_PENALITE=4, AIR_MARGE=30, AIR_BONUS=2, AIR_BONUS_MAX=3, AIR_ATTENTE=45, AIR_PRIME=400;
+const AIR={ok:false,anneaux:[],depart:null,actif:null,prev:null,prime:-1,fl:null};
+function airMats(){ const M=(c,e)=>new THREE.MeshLambertMaterial({color:c,emissive:new THREE.Color(e)}); return {rouge:M(0xd8303a,0x5a0a10),blanc:M(0xf4f0e6,0x404040),vert:M(0x3ee07a,0x1a7a3a),or:M(0xffd23f,0x7a5a10),noir:M(0x23262e,0x000000)}; }
+function airAnneauMesh(r,Ms,depart){ /* un anneau à damier rouge et blanc (deux demi-tores par quartier), la face vers +z ; le départ est doré */
+  const g=new THREE.Group(), n=12; for(let i=0;i<n;i++){ const t=new THREE.Mesh(new THREE.TorusGeometry(r,depart?0.6:0.42,8,8,Math.PI*2/n),depart?(i%2?Ms.or:Ms.noir):(i%2?Ms.rouge:Ms.blanc)); t.rotation.z=i*Math.PI*2/n; g.add(t); }
+  const halo=new THREE.Mesh(new THREE.RingGeometry(r*0.985,r*1.06,40),new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0.35,side:THREE.DoubleSide,depthWrite:false})); halo.userData.garder=true; g.add(halo); g.userData.halo=halo; fusionnerEnfants(g); /* douze quartiers → deux appels de rendu */ return g; }
+function mkAirRace(){ if(!DECOR_V2||typeof AIR_ANNEAUX==='undefined') return; avecAleaPrive(1010,()=>{ const Ms=airMats(); AIR.mats=Ms;
+    const D=AIR_DEPART, gD=airAnneauMesh(D.r,Ms,true); gD.position.set(D.x,D.y,D.z); gD.rotation.y=D.a; scene.add(gD);
+    for(const s of [-1,1]){ const m=new THREE.Mesh(new THREE.CylinderGeometry(0.25,0.25,D.y,8),Ms.blanc); m.position.set(D.x+Math.cos(D.a)*s*(D.r+1),D.y/2,D.z-Math.sin(D.a)*s*(D.r+1)); scene.add(m); }
+    const pan=document.createElement('canvas'); pan.width=512; pan.height=128; const c=pan.getContext('2d'); c.fillStyle='#14161c'; c.fillRect(0,0,512,128); c.fillStyle='#ffd23f'; c.font='900 58px Arial'; c.textAlign='center'; c.fillText('REYES AIR RACE',256,82);
+    const ens=new THREE.Mesh(new THREE.PlaneGeometry(D.r*1.7,D.r*0.43),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(pan),side:THREE.DoubleSide})); ens.position.set(0,D.r+2.2,0); gD.add(ens);
+    AIR.depart={...D,g:gD,n:new THREE.Vector3(Math.sin(D.a),0,Math.cos(D.a))};
+    let px=D.x, pz=D.z; for(let i=0;i<AIR_ANNEAUX.length;i++){ const A=AIR_ANNEAUX[i], a=Math.atan2(A.x-px,A.z-pz), g=airAnneauMesh(A.r,Ms,false); g.position.set(A.x,A.y,A.z); g.rotation.y=a; g.visible=false; scene.add(g);
+      AIR.anneaux.push({...A,a,g,n:new THREE.Vector3(Math.sin(a),0,Math.cos(a)),i}); px=A.x; pz=A.z; }
+    const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:texBalise('✈️','#d8303a'),transparent:true,depthWrite:false,depthTest:false,fog:false})); sp.scale.set(3,3,1); sp.renderOrder=6; sp.visible=false; scene.add(sp); AIR.fl=sp;
+    const spD=new THREE.Sprite(new THREE.SpriteMaterial({map:texBalise('🏁','#ffd23f'),transparent:true,depthWrite:false,depthTest:false,fog:false})); spD.scale.set(2.6,2.6,1); spD.position.set(D.x,D.y+D.r+5,D.z); spD.renderOrder=5; scene.add(spD); BALISES.push({sp:spD,x:D.x,z:D.z,y0:D.y+D.r+5,ph:0.4});
+    AIR.ok=true; }); }
+function airAvion(){ const v=P.veh; return v&&v.def&&v.def.air==='avion'&&avionSim(v)&&v.vol?v:null; }
+function airTraverse(o,p0,p1){ /* p0 → p1 traverse-t-il le plan de l'anneau o ? renvoie l'écart au centre au point de passage, ou -1 */
+  const n=o.n, s0=(p0.x-o.x)*n.x+(p0.z-o.z)*n.z, s1=(p1.x-o.x)*n.x+(p1.z-o.z)*n.z; if(!(s0<0&&s1>=0)) return -1; const f=s0/(s0-s1);
+  const x=p0.x+(p1.x-p0.x)*f, y=p0.y+(p1.y-p0.y)*f, z=p0.z+(p1.z-p0.z)*f; return Math.hypot(x-o.x,y-o.y,z-o.z); }
+function airDemarrer(v){ AIR.actif={i:0,t:0,pen:0,bonus:0,manques:0,attente:0,fig0:META.stats.loopings||0,v,fin:null};
+  for(const o of AIR.anneaux) o.g.visible=false; airMontrer(); bigMsg('✈️ REYES AIR RACE — GO !'); SFX.niveau(); vibre(40); /* les ponts-levis se lèvent pour la course (levisDemande, levisThetaMax) */ }
+function airMontrer(){ const A=AIR.actif; for(let k=0;k<AIR.anneaux.length;k++){ const o=AIR.anneaux[k], vis=!!A&&(k===A.i||k===A.i+1); o.g.visible=vis; if(vis){ o.g.scale.setScalar(1); o.g.userData.halo.material.opacity=k===A.i?0.5:0.12; } }
+  const o=A&&AIR.anneaux[A.i]; if(AIR.fl){ AIR.fl.visible=!!o; if(o) AIR.fl.position.set(o.x,o.y+o.r+4,o.z); } }
+function airArreter(raison){ const A=AIR.actif; if(!A) return; AIR.actif=null; airMontrer(); airUI(false); if(raison) toast('✈️ Course abandonnée : '+raison,'warn'); }
+function airFin(){ const A=AIR.actif; AIR.actif=null; airMontrer(); const tot=Math.max(0,A.t+A.pen-A.bonus), med=tot<=AIR_MEDAILLES[2]?3:(tot<=AIR_MEDAILLES[1]?2:(tot<=AIR_MEDAILLES[0]?1:0)), nom=['','BRONZE','ARGENT','OR'][med];
+  const rec=META.defis.airT||0, nouveau=!rec||tot<rec; if(nouveau) META.defis.airT=Math.round(tot*10)/10; if(med>(META.defis.airMed||0)) META.defis.airMed=med;
+  let msg='Temps '+tot.toFixed(1)+' s ('+A.t.toFixed(1)+' s'+(A.pen?' + '+A.pen+' s de pénalités':'')+(A.bonus?' − '+A.bonus+' s de voltige':'')+')'+(nouveau?' — record !':'');
+  if(med&&AIR.prime!==WAVES.n){ AIR.prime=WAVES.n; const g=AIR_PRIME*(med===3?2:(med===2?1.5:1)); META.argent+=g; ETAT.cashRun+=g; META.stats.cashTotal+=g; msg+=' · prime +'+g+' $'; }
+  A.fin={tot,med}; AIR.dernier=A.fin; bigMsg(med?'🏅 '+nom+' — '+tot.toFixed(1)+' s':'✈️ '+tot.toFixed(1)+' s — pas de médaille'); toast(msg,'or'); SFX.niveau(); airUI(false); checkDefis(); sauveMeta(); }
+function majAirRace(dt,dtJeu){ if(!AIR.ok) return; const v=airAvion(), D=AIR.depart, tps=performance.now()*0.001;
+  D.g.rotation.z=Math.sin(tps*0.6)*0.05; if(AIR.fl&&AIR.fl.visible) AIR.fl.material.rotation=0;
+  const A=AIR.actif; if(A){ for(let k=A.i;k<=A.i+1&&k<AIR.anneaux.length;k++){ const o=AIR.anneaux[k]; o.g.rotation.z+=dt*(k===A.i?0.8:0.3); if(k===A.i) o.g.userData.halo.material.opacity=0.35+0.25*Math.sin(tps*6); } }
+  if(!v){ AIR.prev=null; if(A) airArreter(P.veh?'l’avion est au sol':'tu as quitté l’avion'); return; }
+  const p1={x:v.x,y:v.alt,z:v.z}, p0=AIR.prev; AIR.prev=p1; if(!p0) return;
+  if(!A){ const d=airTraverse(D,p0,p1); if(d>=0&&d<=D.r) airDemarrer(v); return; }
+  if(A.v!==v){ airArreter('changement d’avion'); return; }
+  A.t+=dtJeu; A.attente+=dtJeu; const figs=(META.stats.loopings||0)-A.fig0; A.bonus=Math.min(AIR_BONUS_MAX,figs)*AIR_BONUS;
+  const o=AIR.anneaux[A.i], suiv=AIR.anneaux[A.i+1]; let d=airTraverse(o,p0,p1);
+  if(d<0&&suiv){ const d2=airTraverse(suiv,p0,p1); if(d2>=0&&d2<=suiv.r){ A.pen+=AIR_PENALITE*tenueK('reyesAir',0.5); A.manques++; spawnTexte(v.x,v.alt+3,v.z,'+'+AIR_PENALITE*tenueK('reyesAir',0.5)+' s','#ff4f6a'); A.i++; d=d2; } } /* l'anneau d'avant a été évité : pénalité, et celui-ci compte */
+  if(d>=0&&d<=AIR.anneaux[A.i].r){ const oo=AIR.anneaux[A.i]; A.attente=0; spawnTexte(v.x,v.alt+3,v.z,'✓ '+oo.lieu,'#3ee07a'); SFX.ui(); vibre(25); oo.g.visible=false; A.i++; if(A.i>=AIR.anneaux.length){ airFin(); return; } airMontrer(); }
+  else if(d>=0&&d<=AIR.anneaux[A.i].r+AIR_MARGE){ const oo=AIR.anneaux[A.i]; A.pen+=AIR_PENALITE*tenueK('reyesAir',0.5); A.manques++; A.attente=0; spawnTexte(v.x,v.alt+3,v.z,'MANQUÉ +'+AIR_PENALITE*tenueK('reyesAir',0.5)+' s','#ff4f6a'); SFX.refus(); vibre(60); oo.g.visible=false; A.i++; if(A.i>=AIR.anneaux.length){ airFin(); return; } airMontrer(); }
+  if(A.attente>AIR_ATTENTE){ airArreter('plus aucun anneau depuis '+AIR_ATTENTE+' s'); return; }
+  airUI(true); }
+function airUI(vis){ let d=document.getElementById('airHud'); const A=AIR.actif; if(!vis||!A){ if(d&&d.style.display!=='none') d.style.display='none'; return; }
+  if(!d){ d=document.createElement('div'); d.id='airHud'; d.style.cssText='position:fixed;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 4px);max-width:min(124px,32vw);white-space:nowrap;z-index:33;pointer-events:none;color:#fff;font:900 12px Arial;line-height:1.25;text-shadow:0 2px 3px #000;text-align:center;background:rgba(20,22,28,.82);border:1px solid rgba(255,210,63,.7);border-radius:10px;padding:4px 6px'; /* en haut, entre les jauges et la minimap : sur le score et l’annonce des vagues (en trêve pendant la course), jamais sur la flèche d’objectif ni sur le HUD de vol */ document.body.appendChild(d); }
+  if(d.style.display!=='block') d.style.display='block'; const o=AIR.anneaux[A.i], v=A.v, dist=o?Math.round(Math.hypot(o.x-v.x,o.z-v.z)):0, dy=o?Math.round(o.y-v.alt):0;
+  const txt='<span style="font-size:16px">⏱ '+A.t.toFixed(1)+' s</span>'+(A.pen?' <span style="color:#ff4f6a">+'+A.pen+'</span>':'')+(A.bonus?' <span style="color:#3ee07a">−'+A.bonus+'</span>':'')+'<br>✈ '+(A.i+1)+'/'+AIR.anneaux.length+' · '+dist+' m '+(dy>2?'▲':(dy<-2?'▼':'●'))+'<span style="display:block;white-space:normal;font-weight:700;font-size:11px;color:#ffd23f">'+(o?o.lieu:'')+'</span>';
+  if(d._t!==txt){ d._t=txt; d.innerHTML=txt; } }
 /* =====================================================================
    TOITS VIVANTS (14 octobre, demandé : « varier les styles d'immeubles et faire vivre les toits : quelques
    hélicos, des éléments à fouiller, des choses spéciales et fun : un terrain, une piscine, un rooftop, un bar »).
@@ -16879,6 +16983,7 @@ function pointsActivites(){
   if(TOW.kWake) add(TOW.kWake.x,TOW.kWake.z,'🏄','#1a8ac8',1,'Wakeboard','activite',{desc:'Derrière le bateau-tracteur : sauts et figures'});
   if(TOW.kPara) add(TOW.kPara.x,TOW.kPara.z,'🪂','#1a8ac8',1,'Parachute ascensionnel','activite',{desc:'Monte à 32 m, puis lâche la corde'});
   if(typeof KITE!=='undefined'&&KITE.kiosque) add(KITE.kiosque.x,KITE.kiosque.z,'🪁','#1a8ac8',1,'Kitesurf','activite',{desc:'De travers au vent : sauts, 360, backroll, kiteloop',prix:KITE_DEF.prix+' $'}); /* lot 6 : construits après mkBalises — aucune balise de plus pendant le décor */
+  if(typeof AIR!=='undefined'&&AIR.ok) add(AIR.depart.x,AIR.depart.z,'🏁','#ffd23f',AIR.depart.y,'Reyes Air Race','activite',{desc:'Traverse en avion l’anneau de départ : '+AIR.anneaux.length+' anneaux, des tours du centre au canyon'});
   if(typeof JUS!=='undefined'&&JUS.ok) add(JUS.pos.x,JUS.pos.z,'🍹','#d83a7a',JUS.pos.y,'Jus de Plage','activite',{desc:'Tranche les fruits au doigt : ton jus rend des PV ou de la vitesse'});
   if(MANEGES.tour) add(MANEGES.tour.entree.x,MANEGES.tour.entree.z,'🌀','#2a6ac8',MANEGES.tour.y,'Le Tourbillon','activite',{desc:'Les chaises volantes de la plage, à la 1re personne'});
   if(typeof CLIFF!=='undefined'&&CLIFF.ok) add(CLIFF.inscr.x,CLIFF.inscr.z,'🌊','#1a5aa8',CLIFF.inscr.y,'Reyes Cliff Diving','activite',{desc:'Trois plongeons, de 10 à 27 m, devant le public et les juges'});
@@ -17583,7 +17688,7 @@ function majKite(dt,dtJeu){ const T=KITE.actif; if(!T) return; if(P.veh||ETAT.mo
 function mkMerV3(){ if(!DECOR_V2||!MERV.ok) return; avecAleaPrive(2026,()=>{ mkPaquebot(); mkLargeV3(); mkKitesurf(); mkCliffDiving(); /* lot 7 : la compétition de la crique */
     for(const [ok,x,z,y,ico,coul] of [[PAQ.ok,PAQ.x,PAQ.z,26,'⚓','#c83a2a'],[!!KITE.kiosque,KITE.kiosque&&KITE.kiosque.x,KITE.kiosque&&KITE.kiosque.z,7,'🪁','#1a8ac8'],[CLIFF.ok,CLIFF.inscr&&CLIFF.inscr.x,CLIFF.inscr&&CLIFF.inscr.z,24,'🌊','#1a5aa8']]){ if(!ok) continue; /* leurs balises : posées ici, après mkBalises (une balise de plus pendant le décor décalerait ses tirages) */
       const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:texBalise(ico,coul),transparent:true,depthWrite:false,depthTest:false,fog:false})); sp.scale.set(2.6,2.6,1); sp.position.set(x,y,z); sp.renderOrder=5; scene.add(sp); BALISES.push({sp,x,z,y0:y,ph:0}); } }); }
-function merV3Reset(){ kiteArreter(false); cliffArreter(false); jusArreter(true); JUS.jusVague=-1; JUS.prime=-1; paqRemettre(); PAQ.vagueCoffre=PAQ.vaguePlongee=PAQ.vagueAnnonce=PAQ.vagueRupture=-1; if(LARGE3.ok){ LARGE3.vague=-2; if(LARGE3.contre) LARGE3.contre.vague=-1; } }
+function merV3Reset(){ kiteArreter(false); cliffArreter(false); jusArreter(true); JUS.jusVague=-1; JUS.prime=-1; airArreter(null); AIR.prime=-1; AIR.prev=null; paqRemettre(); PAQ.vagueCoffre=PAQ.vaguePlongee=PAQ.vagueAnnonce=PAQ.vagueRupture=-1; if(LARGE3.ok){ LARGE3.vague=-2; if(LARGE3.contre) LARGE3.contre.vague=-1; } }
 function merV3NouvelleVague(){ if(PAQ.ok&&PAQ.etat!=='alerte'&&PAQ.etat!=='rupture') paqRemettre(); } /* le Majestic est de nouveau là ; la vie au large se renouvelle d'elle-même (largeNouvelleVague) */
 function actionMerV3(){ return actionPaquebot()||actionLarge3()||kiosqueKite(); }
 function majMerV3(dt,dtJeu){ majPaquebot(dt,dtJeu); majLarge3(dt,dtJeu); majKite(dt,dtJeu); majCliff(dt,dtJeu); }
@@ -43696,7 +43801,7 @@ function metierEnCours(){ return !!(MET.pompier||MET.taxi||MET.depanneuse||MET.a
 // supercross, bouées, REYES BOWL JAM), wakeboard ou parachute ascensionnel, métier en cours. Les vagues et les
 // événements (guerres de gangs...) sont gelés, et les gangs déjà là patrouillent sans s'occuper du joueur. La
 // police, elle, continue si l'on est recherché.
-function treveActivite(){ return !!(RIDES.actif||JUS.actif||(DECOR_V2&&(TOW.actif||KITE.actif||CLIFF.actif))||BASKET.actif||SPORTJ.actif||MANEGES.actif||TOUR.actif||metierEnCours()||BASE.defi||FPS.actif||DERBY.actif); }
+function treveActivite(){ return !!(RIDES.actif||JUS.actif||AIR.actif||(DECOR_V2&&(TOW.actif||KITE.actif||CLIFF.actif))||BASKET.actif||SPORTJ.actif||MANEGES.actif||TOUR.actif||metierEnCours()||BASE.defi||FPS.actif||DERBY.actif); }
 // Balise dédiée, jamais la même que `balise` (déjà prise par MISSION.cur) —
 // les deux peuvent être actives en même temps sans se marcher dessus.
 const metierBalise=new THREE.Mesh(new THREE.CylinderGeometry(1.4,1.4,9,12,1,true),
@@ -46866,7 +46971,7 @@ function mourir(){
   // depotLancerCourse), foule coupée (moteurStop() ci-dessus a déjà coupé le
   // moteur). Course déjà propre : deuxième appel sans effet.
   if(INT.actif&&INT.actif.depot){ if(INT.actif.courseEnCours) depotAnnulerCourse(INT.actif); depotAmbianceStop(); fermerDepotPanneau(); }
-  if(INT.actif&&INT.actif.pq) planqueSalleArreter(INT.actif); if(INT.actif&&INT.actif.plgJ) plongeonArreter(INT.actif); planqueAmbianceStop(); montSonStop(); canauxSonStop(); levisSonStop(); lagonArreter(); jumellesFin(); if(DECOR_V2){ kiteArreter(false); cliffArreter(false); } jusArreter(true); // planque : activité arrêtée, ambiance coupée tout de suite
+  if(INT.actif&&INT.actif.pq) planqueSalleArreter(INT.actif); if(INT.actif&&INT.actif.plgJ) plongeonArreter(INT.actif); planqueAmbianceStop(); montSonStop(); canauxSonStop(); levisSonStop(); lagonArreter(); jumellesFin(); if(DECOR_V2){ kiteArreter(false); cliffArreter(false); } jusArreter(true); airArreter(null); // planque : activité arrêtée, ambiance coupée tout de suite
   P.h.g.rotation.z=Math.PI/2; P.h.g.position.y=0.35;
   reticule.visible=false;
   const record=ETAT.score>META.record;
@@ -50140,7 +50245,7 @@ function tick(t){
     ETAT.comboT-=dt;
     if(ETAT.comboT<=0) ETAT.combo=1;
     if(ETAT.slowT>0){ ETAT.slowT-=dtReel; if(ETAT.slowT<=0&&ETAT.mode==='jeu') ETAT.timeScale=1; }
-    if(ETAT.mode==='jeu'){ majNitro(dtJeu); if(DECOR_V2){ towEntrees(); kiteEntrees(); } if(DERBY.actif) derbyEntrees(); if(!MANEGES.actif&&!FPS.actif&&!EJECT.siege&&!CLIFF.actif&&!JUS.actif) majJoueur(dt,dtJeu); jusMaj(dt,dtJeu); majFPS(dt,dtJeu); majIvresse(dtJeu); majAcro(); majTresorCarte(dt); majFilet(dtJeu); majMontSon(dt); majCanauxSon(dt); if(DECOR_V2){ majRides(dtJeu); majPic(dt); majTow(dt,dtJeu); majMerV3(dt,dtJeu); majBasket(dt,dtJeu); majSportJ(dt,dtJeu); majToitsSurprises(dt,dtJeu); } } // nitro décidée AVANT la physique du véhicule
+    if(ETAT.mode==='jeu'){ majNitro(dtJeu); if(DECOR_V2){ towEntrees(); kiteEntrees(); } if(DERBY.actif) derbyEntrees(); if(!MANEGES.actif&&!FPS.actif&&!EJECT.siege&&!CLIFF.actif&&!JUS.actif) majJoueur(dt,dtJeu); jusMaj(dt,dtJeu); majAirRace(dt,dtJeu); majFPS(dt,dtJeu); majIvresse(dtJeu); majAcro(); majTresorCarte(dt); majFilet(dtJeu); majMontSon(dt); majCanauxSon(dt); if(DECOR_V2){ majRides(dtJeu); majPic(dt); majTow(dt,dtJeu); majMerV3(dt,dtJeu); majBasket(dt,dtJeu); majSportJ(dt,dtJeu); majToitsSurprises(dt,dtJeu); } } // nitro décidée AVANT la physique du véhicule
     majEnnemis(dt);
     if(!INT.actif){
       majPietons(dt);
