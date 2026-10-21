@@ -29756,7 +29756,7 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
     else if(v.retombeV){ if(v.v>vmaxEff){ v.v=Math.max(vmaxEff,v.v-18*dt); vmaxEff=v.v; } else v.retombeV=false; } }
   const retombeNitro=v.nitro&&!v.nitroActif&&v.v>d.vmax; // nitro tout juste coupée
   if(retombeNitro) v.v=Math.max(d.vmax,v.v-14*dt);
-  v.v=clamp(v.v,-d.vmax*0.42,retombeNitro?v.v:vmaxEff);
+  v.v=clamp(v.v,d.eau?-clamp(d.vmax*BATEAU_RECUL_K,3,BATEAU_RECUL_MAX):-d.vmax*0.42,retombeNitro?v.v:vmaxEff); /* un bateau recule au pas (lot 11.1 : jusqu'à 22 u/s à reculons pour l'offshore, sinon) */
   if(v.rouesPerdues) effetsRouesPerdues(v,dt); // dégâts V2 : roue arrachée
   if(echoue){ // la coque glisse sur le sable : freinage fort et progressif, puis on peut repartir au pas vers l'eau
     if(Math.abs(v.v)>2.2) v.v-=Math.sign(v.v)*Math.min(Math.abs(v.v)-2.2,(5+Math.abs(v.v)*1.0)*dt); else v.v=clamp(v.v,-2.2,2.2);
@@ -31428,6 +31428,7 @@ function majSurfJoueur(v,dt){
   hudW('vehFill',100);
   moteurUpdate(0);
 }
+const BATEAU_RECUL_K=0.25, BATEAU_RECUL_MAX=8; /* la marche arrière d'un bateau : 25 % de sa vitesse max, entre 3 et 8 u/s (lot 11.1) */
 function controleDir(v,frein){
   const l=Math.hypot(INPUT.mx,INPUT.mz);
   if(l<0.15) return {throttle:0,steer:0,l:0};
@@ -31443,10 +31444,13 @@ function controleDir(v,frein){
   if(frein) return {throttle:l*0.45,steer:sB*clamp(diff*3.2,-1,1),l,cap};
   if(Math.abs(diff)<2.1)
     return {throttle:l*(1-Math.min(Math.abs(diff),1.2)*0.3),steer:sB*clamp(diff*2.4,-1,1),l,cap};
-  let dB=diff; /* bateau, cible presque derrière, vue qui suit (3D, 1re personne) : la caméra, en retard sur le bateau, faisait passer la cible d'un côté à l'autre — le bateau zigzaguait sur place, ou virait toujours du même côté joystick tiré droit vers soi. On vire du côté où le joystick penche À L'ÉCRAN (à droite = tribord) */
-  if(v.def.eau&&Math.abs(diff)>Math.PI-0.5&&META.vue!=='classique'&&!INT.actif){ const sx=Math.abs(INPUT.ex||0)>0.01?-Math.sign(INPUT.ex):(v.sensDT||Math.sign(diff)||1); v.sensDT=sx; dB=sx*Math.abs(diff); }
-  if(v.def.eau&&v.def.long<12&&estEauNav(v.x,v.z)&&estEauNav(v.x+Math.sin(v.ang)*(v.def.long*0.5+5),v.z+Math.cos(v.ang)*(v.def.long*0.5+5))) return {throttle:l*0.55,steer:sB*(Math.sign(dB)||1),l,cap}; // un petit bateau à flot ne recule pas : il vire en avançant (échoué, il recule vers l'eau ; les grands navires manœuvrent en arrière)
-  if(v.def.eau) return {throttle:-l*0.75,steer:-sB*clamp(dB*1.4,-1,1),l,cap}; /* étrave face au quai ou à la plage : il recule, la poupe vers la cible (sB : même s'il avance encore) */
+  /* bateau, joystick dans son dos (à moins de 60° de l'arrière) : MARCHE ARRIÈRE (21 octobre, lot 11.1, demandé : « le bateau, le
+     jet-ski ou autre doit pouvoir reculer droit quand on met le joystick vers l'arrière »), braquée sur l'écart à la POUPE — nul quand on
+     tire droit vers l'arrière : il recule droit ; un peu de côté, la poupe part de ce côté. Avant, un petit bateau à flot faisait
+     demi-tour en avançant, et la marche arrière braquait sur l'écart à l'ÉTRAVE (à fond pour une cible pile derrière : il tournait sur
+     place). Pour faire demi-tour, on pousse sur le côté. sB : la poupe va vers la cible même s'il avance encore. En vue qui suit, la
+     caméra reste derrière l'étrave (vueCamera : le cap du bateau, pas son mouvement) : tiré vers soi, il recule vers la caméra. */
+  if(v.def.eau){ const eR=angDiff(v.ang+Math.PI,cap); return {throttle:-l*0.75,steer:sB*clamp(eR*1.8,-1,1),l,cap}; }
   return {throttle:-l*0.75,steer:clamp(diff*1.4,-1,1),l,cap}; // cible derrière : marche arrière
 }
 /* ---- Moto cross : cabrage (bouton CABRER, tenu). L'angle monte tant

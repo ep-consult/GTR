@@ -35,7 +35,7 @@ lourds. Aucune référence à un autre jeu ni à une marque.
 | 8 | 8.4 Manèges de la marina à la 1re personne | ☑ |
 | 9 | 9.1 Akimbo à la 1re personne | ☑ |
 | 10 | 10.1 Défi voltige et course d'avions | ☑ |
-| 11 | 11.1 Les bateaux reculent droit (joystick vers l'arrière) | ☐ |
+| 11 | 11.1 Les bateaux reculent droit (joystick vers l'arrière) | ☑ |
 | 11 | 11.2 Les rues des ponts-levis butent sur l'aéroport : une route périphérique qui les relie | ☐ |
 
 ---
@@ -655,6 +655,18 @@ Demandé pendant la validation finale, à traiter à la suite des dix lots :
 
 - **11.1** « Les bateaux ne peuvent pas reculer, ça rend les manœuvres très compliquées : le bateau, le jet-ski ou autre doit pouvoir
   reculer droit quand on met le joystick vers l'arrière. »
+
+  **Fait.** Lecture retenue : « vers l'arrière » = le joystick dans le dos du bateau, à moins de 60° de l'arrière (à l'écran en vue qui
+  suit, tiré vers soi ; en vue de dessus, à l'opposé de l'étrave). Avant (`controleDir`), un petit bateau à flot faisait demi-tour en
+  avançant, et la marche arrière (grands bateaux, étrave face au quai) braquait sur l'écart à l'ÉTRAVE — à fond pour une cible pile
+  derrière : il tournait sur place. Désormais, tout ce qui flotte (vedettes, jet-skis, kayak, yachts, cargo) passe en marche arrière,
+  braquée sur l'écart à la POUPE : tiré droit vers l'arrière, le bateau recule droit (cap inchangé à 0,02 rad près, aucune dérive
+  latérale, dans les trois vues) ; en biais, la poupe part du côté du joystick, en miroir. Pour faire demi-tour, on pousse sur le côté.
+  La caméra de poursuite d'un bateau suit son étrave (pas son mouvement) : la marche arrière est stable à l'écran. **Au pas** : la
+  marche arrière d'un bateau est bornée à 25 % de sa vitesse max, entre 3 et 8 u/s (`BATEAU_RECUL_K`, `BATEAU_RECUL_MAX` ; avant,
+  42 % comme une voiture : 22 u/s à reculons pour l'offshore). Mesuré sur les 17 bateaux : recul de 3 à 8 u/s. Tests « Direction des
+  vedettes » (réécrit : marche arrière droite au pas pour chaque vedette, dans les trois vues, et la poupe du côté du joystick en
+  biais) et « Retours 3e série » (adapté) ; les 25 blocs où l'on conduit un bateau repassent (canaux, mer, Lagon, lot 6…).
 - **11.2** (capture iPhone : un bateau dans le grand canal, le pont-levis, la rue qui finit sur la pelouse de l'aéroport) « Les deux
   routes qui mènent vers les ponts-levis arrivent sur l'aéroport : un gros blocage et une voie sans issue. Modifier le trajet, peut-être
   une route en périphérie qui passe à ce niveau sur l'aéroport, puisqu'il y a de la place, et qui se rejoint : on pourra rejoindre

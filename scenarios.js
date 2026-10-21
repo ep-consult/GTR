@@ -8302,9 +8302,12 @@ async function main() {
     // Direction des vedettes (19 octobre, signalé : « elle ne tourne que d'un
     // seul côté »). Au large, à l'arrêt et lancée, dans les trois vues : le cap
     // part du côté du joystick, en miroir exact. Un bateau qui RECULE encore
-    // (rebond contre un quai) vire du côté du joystick quand on le relance ; en
-    // vue qui suit, joystick tiré vers soi, il fait demi-tour du côté où il
-    // penche à l'écran (la caméra en retard le faisait zigzaguer sur place).
+    // (rebond contre un quai) vire du côté du joystick quand on le relance.
+    // Joystick dans le dos du bateau (lot 11.1, 21 octobre, demandé : « reculer
+    // droit quand on met le joystick vers l'arrière ») : marche arrière — droit
+    // vers l'arrière, il recule droit (cap inchangé, au pas) ; en biais, la poupe
+    // part du côté du joystick, en miroir (avant : un petit bateau faisait
+    // demi-tour en avançant).
     // -------------------------------------------------------------------
     console.log('\n--- Direction des vedettes : à gauche et à droite de la même façon ---');
     {
@@ -8318,19 +8321,21 @@ async function main() {
           const pas = (n, jx, jy) => { let dA = 0; for (let i = 0; i < n; i++) { INPUT.jx = jx; INPUT.jy = jy; litEntrees(); const a = v.ang; majConduite(1 / 30); dA += angDiff(a, v.ang); majCamera(1 / 30); } return dA; };
           pas(lance ? 60 : 30, 0, lance ? -1 : 0); if (v0 !== undefined) v.v = v0;
           const a = deg * Math.PI / 180, d = pas(30, Math.sin(a), -Math.cos(a)); INPUT.jx = INPUT.jy = 0; litEntrees(); return d; };
-        const petit = (k) => VEHDEFS[k].long < 12; /* un grand bateau manœuvre en arrière (cible derrière : il recule, la poupe vers elle) : seulement le miroir */
         for (const k of cles) for (const vue of ['classique', 'immersive', 'fps']) for (const lance of [false, true]) for (const deg of [30, 90, 150]) {
           const dD = essai(k, vue, lance, deg), dG = essai(k, vue, lance, -deg), nom = k + ' ' + vue + (lance ? ' lancé ' : ' arrêt ') + deg + '°';
-          if ((petit(k) || deg < 120) && !(dD < -0.1 && dG > 0.1)) o.ko.push(nom + ' : droite ' + dD.toFixed(2) + ', gauche ' + dG.toFixed(2));
+          if (deg < 120 && !(dD < -0.1 && dG > 0.1)) o.ko.push(nom + ' : droite ' + dD.toFixed(2) + ', gauche ' + dG.toFixed(2));
+          else if (deg >= 120 && !lance && !(dD > 0.05 && dG < -0.05)) o.ko.push(nom + ' : en marche arrière, la poupe ne part pas du côté du joystick (' + dD.toFixed(2) + ' / ' + dG.toFixed(2) + ')');
           else if (Math.abs(dD + dG) > 0.05) o.ko.push(nom + ' : pas en miroir (' + dD.toFixed(2) + ' / ' + dG.toFixed(2) + ')'); }
         for (const k of cles) { const dD = essai(k, 'classique', true, 60, -4), dG = essai(k, 'classique', true, -60, -4);
           if (!(dD < -0.03 && dG > 0.03)) o.ko.push(k + ' relancé en reculant : droite ' + dD.toFixed(2) + ', gauche ' + dG.toFixed(2)); }
-        for (const k of cles.filter(petit)) for (const vue of ['immersive', 'fps']) { const dD = essai(k, vue, true, 178), dG = essai(k, vue, true, -178);
-          if (!(dD < -0.5 && dG > 0.5)) o.ko.push(k + ' ' + vue + ' tiré vers soi : demi-tour droite ' + dD.toFixed(2) + ', gauche ' + dG.toFixed(2)); }
+        /* joystick droit vers l'arrière, à l'arrêt, dans les trois vues : il recule droit, au pas */
+        let reculs = 0; for (const k of cles) for (const vue of ['classique', 'immersive', 'fps']) { const dA = essai(k, vue, false, 180), v = P.veh, vv = v ? v.v : 0, vMax = Math.max(3, Math.min(8, VEHDEFS[k].vmax * 0.25)) + 0.01;
+          if (!(Math.abs(dA) < 0.06 && vv < -1 && vv >= -vMax)) o.ko.push(k + ' ' + vue + ' tiré vers soi : cap ' + dA.toFixed(2) + ' rad, vitesse ' + vv.toFixed(1) + ' (il doit reculer droit, au pas)'); else reculs++; }
+        o.reculs = reculs;
         o.vus = cles; META.vue = vue0; startRun(); return o; });
       if (!dv.vus.length) fail('Direction des vedettes : aucune vedette lue dans VEHDEFS');
       else if (dv.ko.length) fail('Direction des vedettes : ' + dv.ko.slice(0, 12).join(' | ') + (dv.ko.length > 12 ? ' … (' + dv.ko.length + ')' : ''));
-      else ok('Direction des vedettes : ' + dv.vus.join(', ') + ' (grands bateaux : en miroir) virent à gauche et à droite en miroir (3 vues, arrêt et lancées), relancées en reculant vers le joystick, demi-tour tiré vers soi des deux côtés');
+      else ok('Direction des vedettes : ' + dv.vus.join(', ') + ' (grands bateaux : en miroir) virent à gauche et à droite en miroir (3 vues, arrêt et lancées), relancées en reculant vers le joystick ; tirées vers soi, elles reculent droit au pas (' + dv.reculs + ' essais)');
     }
 
     // -------------------------------------------------------------------
@@ -10770,14 +10775,14 @@ async function main() {
         if (!e) ko.push('ennemi non créé'); else if (dedans) ko.push('un ennemi est entré ' + dedans + ' fois dans le char');
         else info.push('char : un mur pour les ennemis');
         tank.mort = true; if (e) e.mort = true;
-        // 2) petits bateaux : demi-tour en avançant, braquage même lent
+        // 2) petits bateaux, joystick droit vers l'arrière : ils reculent droit, au pas (lot 11.1 — avant : demi-tour en avançant)
         for (const k of ['bateau', 'jetski', 'bateauP', 'espadon']) {
           const v = creerVehicule(k, 0, MER + 110, 0, null); P.x = v.x; P.z = v.z; entrerVehicule(v); v.v = 5;
           for (let i = 0; i < 90; i++) { INPUT.mx = 0; INPUT.mz = -1; const c = controleDir(v, false); majVehiculePhys(v, 1 / 30, c.throttle, c.steer, false); }
-          INPUT.mz = 0; if (!(v.v > 0) || Math.abs(angDiff(v.ang, Math.PI)) > 1.2) ko.push(k + ' ne fait pas demi-tour en avançant (v ' + v.v.toFixed(1) + ', cap ' + v.ang.toFixed(2) + ')');
+          INPUT.mz = 0; if (!(v.v < -1) || v.v < -8.01 || Math.abs(angDiff(v.ang, 0)) > 0.05) ko.push(k + ' ne recule pas droit au pas (v ' + v.v.toFixed(1) + ', cap ' + v.ang.toFixed(2) + ')');
           sortirVehicule(true); v.mort = true;
         }
-        info.push('vedettes : demi-tour en avançant');
+        info.push('vedettes : joystick vers l’arrière, elles reculent droit au pas');
         // 3) en bateau : nageur ennemi percuté, surfeur fauché, kayak chaviré
         const b = creerVehicule('bateau', 30, MER + 90, 0, null); P.x = b.x; P.z = b.z; entrerVehicule(b);
         const n = creerEnnemi('mur_nageur', b.x, b.z + 5, true); if (n) { n.passif = true; n.dansEau = true; }
