@@ -408,3 +408,16 @@ construction), habillage V2 des salles (qui ne demande plus de texture à une en
 Captures : `captures/retours_20/5_avant_villa.png`, `5_villa_entree.png`, `5_villa_patio.png`, `5_villa_vue_nord.png`,
 `5_villa_grand_salon.png`, `5_monte_charge_chantier.png`, `5_monte_charge_niveau3.png`.
 
+
+## Suite complète après le lot 5 (388 blocs) — trois échecs, corrigés
+
+- **« Textes : défis homonymes »** : le thème du musée (lot 3) reprenait « Monte-en-l'air », déjà le premier palier des toits.
+  Il devient « Rat de musée ».
+- **« Retours du 20 octobre, 1.3 »** (seulement dans la suite) : le rayon de la caméra vers la cabine du monte-charge touchait
+  l'accessoire de la tenue que portait encore le joueur (depuis le lot 3, une tenue a un vrai modèle, et un test plus ancien en
+  laisse une sur le joueur). Le test cherche du décor devant la cabine : le joueur et sa tenue en sont exclus.
+- **« Arène de derby : le pilote ne gagne jamais »** (0 sur 8 dans la suite, 3 sur 8 seul) : le match est à pas fixe et sur sa
+  graine, mais ce que les tests précédents laissent (tenue, personnage, records des cascades du lot 3, caches de matériaux)
+  change les tirages faits pendant le match. Le test fixe désormais tenue, personnage et records avant la mise en place ; il
+  reste dépendant des caches partagés, et le pilote gagne un match sur quatre en moyenne (zéro sur huit arrive une fois sur dix
+  par construction) : il joue huit matchs de plus quand les huit premiers sont perdus. Aucun changement du jeu.

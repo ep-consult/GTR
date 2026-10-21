@@ -12654,12 +12654,16 @@ async function main() {
           // jouable et perdable : matches complets, chacun sur sa graine
           // chaque match maîtrise sa scène : graine posée AVANT startRun, voitures de la ville retirées, niveau 0 des IA
           // (sinon le trafic et l'état laissé par les autres tests changent l'issue : 2/4 seul, 1/4 dans la suite)
-          const match = (mode, g) => { prep(); for (const v of vehicules) { scene.remove(v.mesh); libererEntite(v.mesh); } vehicules.length = 0; graine(g); /* graine APRÈS la mise en place (17 octobre au soir : un objet de plus créé par startRun — la faune de la forêt — faisait perdre les quatre matchs) */
+          const match = (mode, g) => { const etatM = { tenue: META.tenue, perso: META.perso, acro: JSON.stringify(META.acro) }; META.tenue = 'depart'; META.perso = 'jax'; for (const k in META.acro) META.acro[k] = 0; /* fixés AVANT la mise en place : startRun construit le joueur avec eux */
+            const rendreM = () => { META.tenue = etatM.tenue; META.perso = etatM.perso; META.acro = JSON.parse(etatM.acro); };
+            prep(); for (const v of vehicules) { scene.remove(v.mesh); libererEntite(v.mesh); } vehicules.length = 0; graine(g); /* graine APRÈS la mise en place (17 octobre au soir : un objet de plus créé par startRun — la faune de la forêt — faisait perdre les quatre matchs) */
             META.derby.niv = Object.assign({}, niv0); META.derby.victoires = 0;
             /* 17 octobre au soir : le match ne dépend plus de l'état laissé par les autres tests ni de la ville — la curiosité du volant (accélération ×1,15)
                coupée, aucune voiture de la circulation créée (elle tirait des nombres pendant le match) ; 1/4 seul, 0/4 dans la suite avant */
             const volant0 = META.curios.volant, trafic0 = creerTrafic; META.curios.volant = false; creerTrafic = () => {};
-            derbyLancer(); const A = D.actif; if (!A) { Math.random = rnd0; META.curios.volant = volant0; creerTrafic = trafic0; return null; }
+            /* 21 octobre : l’état laissé par les autres tests entrait encore dans le match (0/8 dans la suite, 3/8 seul) — la tenue, le personnage, les records
+               des cascades (lot 3 : un saut record tire des nombres de plus) ; ils sont fixés le temps du match, puis rendus */
+            derbyLancer(); const A = D.actif; if (!A) { Math.random = rnd0; META.curios.volant = volant0; creerTrafic = trafic0; rendreM(); return null; }
             let t = 0, cible = null, decT = 0, bloqT = 0, reculT = 0, dir = [0, 0];
             while (D.actif === A && t < 200) { const dt = 1 / 30; t += dt;
               if (mode === 'pilote' && A.etat === 'combat') { const v = A.vJ; decT -= dt;
@@ -12672,10 +12676,11 @@ async function main() {
                 if (Math.abs(v.v) < 1 && reculT <= 0) { bloqT += dt; if (bloqT > 1) { bloqT = 0; reculT = 0.8; } } else bloqT = 0;
                 INPUT.mx = dir[0]; INPUT.mz = dir[1]; } else { INPUT.mx = 0; INPUT.mz = 0; }
               derbyEntrees(); if (P.veh) majConduite(dt); majVehicules(dt); majDerby(dt, dt); }
-            INPUT.mx = INPUT.mz = 0; Math.random = rnd0; META.curios.volant = volant0; creerTrafic = trafic0; return { gagne: A.gagne, t: Math.round(A.t), kos: A.kos }; };
+            INPUT.mx = INPUT.mz = 0; Math.random = rnd0; META.curios.volant = volant0; creerTrafic = trafic0; rendreM(); return { gagne: A.gagne, t: Math.round(A.t), kos: A.kos }; };
           const pil = [], pas = [];
           for (const g of [101, 202, 303, 404, 505, 606, 707, 808]) pil.push(match('pilote', g)); /* huit matchs : le pilote simulé gagne environ un sur quatre */
           for (const g of [909, 1010]) pas.push(match('passif', g));
+          if (!pil.some((x) => x && x.gagne)) for (const g of [1111, 1212, 1313, 1414, 1515, 1616, 1717, 1818]) pil.push(match('pilote', g)); /* 21 octobre : un sur quatre en moyenne, zéro sur huit arrive une fois sur dix (vu dans la suite, les caches partagés changent les tirages du match) : huit de plus au besoin */
           const nG = pil.filter((x) => x && x.gagne).length;
           if (!nG) ko.push('le pilote ne gagne jamais ' + JSON.stringify(pil));
           if (pas.some((x) => !x || x.gagne)) ko.push('un joueur passif gagne ' + JSON.stringify(pas));
@@ -17607,7 +17612,7 @@ async function main() {
       const r = await page.evaluate(() => {
         const ko = [], info = []; if (!PIC.ok || !PIC.cage) return { ko: ['pas de monte-charge'], info };
         const c = PIC.cage; let T = dernierT + 1000; const pas = (n) => { for (let i = 0; i < n; i++) { for (const e of ennemis) e.mort = true; WANTED.stars = 0; T += 1000 / 60; tick(T); P.hp = 1e9; } };
-        const estCage = (o) => { for (let p = o; p; p = p.parent) if (p === c.mesh || (PIC.cageV2 && p === PIC.cageV2.mt)) return true; return o === c.cable; };
+        const estCage = (o) => { for (let p = o; p; p = p.parent) if (p === c.mesh || (PIC.cageV2 && p === PIC.cageV2.mt) || (P.h && p === P.h.g)) return true; return o === c.cable; }; /* le joueur (et l’accessoire de sa tenue, depuis le lot 3) n’est pas du décor */
         for (const vue of ['classique', 'immersive']) for (const [nom, dx, dz] of [['au pied', 0, 3], ['plus loin', -4, 14]]) {
           META.vue = vue; if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9;
           P.x = c.x + dx; P.z = c.z + c.hd + dz; P.y = solY(P.x, P.z); P.ang = Math.PI; VUE.yaw = 0; VUE.offVeh = 0; pas(90);

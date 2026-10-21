@@ -2285,7 +2285,7 @@ const DEFIS_THEMES=[
   {theme:'serre',noms:['Main verte','Jardinier de nuit'],det:n=>'Tiens '+n+(n>1?' nuits':' nuit')+' de la floraison à la serre',val:m=>m.plantes,paliers:[1,6],recs:[300,1000]},
   {theme:'cine',noms:['Projectionniste','La séance du siècle'],det:n=>'Tiens '+n+(n>1?' séances':' séance')+' au Ciné-Palace',val:m=>m.stats.cineSeances,paliers:[1,6],recs:[300,1000]},
   {theme:'metro',noms:['Explorateur du métro','Rat des tunnels'],det:n=>'Descends '+n+' fois dans le métro abandonné',val:m=>m.stats.metroDescentes,paliers:[1,6],recs:[250,900]},
-  {theme:'musee',noms:['Monte-en-l’air','Gentleman cambrioleur'],det:n=>'Réussis '+n+(n>1?' casses':' casse')+' au musée',val:m=>m.stats.casses,paliers:[1,3],recs:[400,1200]},
+  {theme:'musee',noms:['Rat de musée','Gentleman cambrioleur'],det:n=>'Réussis '+n+(n>1?' casses':' casse')+' au musée',val:m=>m.stats.casses,paliers:[1,3],recs:[400,1200]},
   {theme:'chalutier',noms:['Mousse','Patron pêcheur'],det:n=>'Ramène une prise de '+n+' kg au chalutier',val:m=>(m.stats.plusGrossePrise&&m.stats.plusGrossePrise.poids)||0,paliers:[10,60],recs:[300,1200]}, /* 60 kg : le Vieux Roi */
   {theme:'sandwich',noms:['Bonne fourchette','Estomac d’acier'],det:n=>'Viens à bout de '+n+(n>1?' défis':' défi')+' du Roi des Sandwichs',val:m=>m.sandwich,paliers:[1,5],recs:[300,1000]},
   {theme:'voyance',noms:['Client de Zohra','Initié'],det:n=>'Consulte Madame Zohra '+n+' fois',val:m=>m.zohra,paliers:[1,5],recs:[150,700]},
