@@ -11,7 +11,7 @@ lourds. Aucune référence à un autre jeu ni à une marque.
 |---|---|---|
 | 1 | 1.1 4x4 amphibie téléporté | ☑ |
 | 1 | 1.2 Cockpit du long-courrier tout gris (et tous les aéronefs) | ☑ |
-| 1 | 1.3 Monte-charge du Pic caché par un rocher | ☐ |
+| 1 | 1.3 Monte-charge du Pic caché par un rocher | ☑ |
 | 2 | 2.1 Un seul jeu d'icônes (minimap et grande carte) | ☐ |
 | 2 | 2.2 Le joueur en flèche orientée | ☐ |
 | 2 | 2.3 Toucher une icône : bulle et « Y aller » | ☐ |
@@ -79,4 +79,29 @@ chaque aéronef en vol ET là où le joueur le trouve garé.
   (« ligne garé : le décor à 1,8 u devant le cockpit »).
 - Captures : `captures/retours_20/1_2_avant_cockpit_long_courrier_porte.png`, `1_2_apres_cockpit_long_courrier_porte.png`,
   `1_2_avant_passerelle_dans_le_nez.png`, `1_2_apres_passerelle_flanc_gauche.png`.
+
+## 1.3 — Le monte-charge du Pic du Vertige caché par un rocher (fait)
+
+**Lecture retenue** : « caché par un rocher » = la cabine invisible de la caméra du jeu au pied de la falaise ; on vérifie en vue 2D et
+3D, au pied et de plus loin.
+
+- **Cause** (lancer de rayon de la caméra du jeu à la cabine) : deux choses devant elle, côté caméra — la tour du monte-charge était
+  posée DEVANT la cabine (`zT = c.z + c.hd + 0,4`), ses croisillons en travers ; et les éboulis du pied du Pic (les blocs orangés)
+  tombaient juste devant elle.
+- **Le monte-charge V2** (`mkCageV2`, en fin de décor sur un générateur privé) : un mât de deux poteaux sur les CÔTÉS de la cabine,
+  pieds rayés jaune et noir, feux rouges en tête, traverses et croix DERRIÈRE la cabine, contre la falaise ; une cabine vitrée sur
+  les quatre faces (porte vitrée à deux battants), montants jaunes, plancher, toit et plafonnier, bandeau de sécurité au ras du
+  plancher, mains courantes, patins sur les poteaux ; la tête et la poulie d'avant restent. Pièces fusionnées par matériau.
+- **Sans décaler les tirages** : les éboulis devant la cabine sont tirés comme avant mais pas posés (même nombre de tirages, un seul
+  maillage fusionné) ; les poteaux et traverses d'avant ne sont plus dans les pièces fusionnées (aucun tirage) ; croisillons, ancienne
+  cabine et câble sont construits comme avant puis retirés. Empreinte du décor (dont la trace de `mkPicVertige`), portes, tirage
+  principal et séquence identiques. Le plancher reste celui du relief (`hauteurPic`) : la règle et la montée ne changent pas.
+- **Coût** (caméra au pied du monte-charge) : +3 appels de rendu, +1 k triangles (vue de dessus 90 → 93, immersive 593 → 596).
+- **Test** « Retours du 20 octobre, 1.3 » : vue de dessus et vue immersive, au pied et plus loin, rien d'autre que le monte-charge
+  entre la caméra et la cabine (trois hauteurs) ; vitrée sur les quatre faces ; elle monte toujours le joueur au sommet (10 s).
+  L'ancienne version échoue (la tour et les éboulis devant, aucune vitre).
+- **Outil** : le harnais de mes sondes démarre désormais en vue de dessus, comme `scenarios.js` (en vue immersive, « Sommet du Pic »
+  et « Bateaux échoués » échouaient seuls : la caméra et le joystick suivent la vue).
+- Captures : `captures/retours_20/1_3_avant_monte_charge_2d.png`, `1_3_avant_monte_charge_3d.png`, `1_3_apres_monte_charge_2d.png`,
+  `1_3_apres_monte_charge_3d.png`, `1_3_apres_monte_charge_pied.png`, `1_3_apres_monte_charge_mi_hauteur.png`.
 

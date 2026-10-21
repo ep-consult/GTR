@@ -4427,7 +4427,7 @@ function construireVille(){
     if(qq!=='plage'&&qq!=='parc'&&bx%3===1&&bz%3===1) mkFeu(cx+INNER/2+1.4,cz-INNER/2-1.4);
   }
   placerPortes();
-  if(DECOR_V2){ sansAleaVille(()=>{ reserverHills(); reserverChantier(); reserverBase(); reserverSports(); ameliorerPortes(); mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkBasket(); mkCiel(); mkKiosqueBanderole(); mkCrique(); mkMontReyes(); mkVieMont(); mkBordureEst(); mkCanyonsDesert(); mkPicVertige(); mkParcStunt(); mkSkateXXL(); mkRides(); mkMerVivante(); mkRemorquage(); mkLarge(); deplacerVoltige(); mkAeroportVivant(); mkHeliGrue(); mkPlanques(); mkBoutiques(); mkGrandHuit(); mkToitsVivants(); mkTracesSable(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkMontReyesV2(); mkNeonVivant(); mkQuartiersFinitions(); mkFacadesVariees(); mkCascades(); if(MERV.ok) mkVolcanIle(); mkAeroVie(); mkLosReyesHills(); mkBordsHills(); mkChantierV2(); mkPlanquesV2(); montSolides(); mkBaseV2(); mkBallTrap(); mkSportsParcs(); mkHalosBoutiques(); mkSurprisesToits(); mkArenaDerby(); mkRatelierSkateXXL(); mkStationsVelo(); mkSautVertige(); mkCampEntrainement(); mkBalises(); montActiver(); reserverCanaux(); mkCanaux(); }); } // cascades et volcan EN DERNIER : leurs tirages du décor ne décalent rien de ce qui précède (mobilier...) // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
+  if(DECOR_V2){ sansAleaVille(()=>{ reserverHills(); reserverChantier(); reserverBase(); reserverSports(); ameliorerPortes(); mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkBasket(); mkCiel(); mkKiosqueBanderole(); mkCrique(); mkMontReyes(); mkVieMont(); mkBordureEst(); mkCanyonsDesert(); mkPicVertige(); mkParcStunt(); mkSkateXXL(); mkRides(); mkMerVivante(); mkRemorquage(); mkLarge(); deplacerVoltige(); mkAeroportVivant(); mkHeliGrue(); mkPlanques(); mkBoutiques(); mkGrandHuit(); mkToitsVivants(); mkTracesSable(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkMontReyesV2(); mkNeonVivant(); mkQuartiersFinitions(); mkFacadesVariees(); mkCascades(); if(MERV.ok) mkVolcanIle(); mkAeroVie(); mkLosReyesHills(); mkBordsHills(); mkChantierV2(); mkPlanquesV2(); montSolides(); mkBaseV2(); mkBallTrap(); mkSportsParcs(); mkHalosBoutiques(); mkSurprisesToits(); mkArenaDerby(); mkRatelierSkateXXL(); mkStationsVelo(); mkSautVertige(); mkCampEntrainement(); mkCageV2(); mkBalises(); montActiver(); reserverCanaux(); mkCanaux(); }); } // cascades et volcan EN DERNIER : leurs tirages du décor ne décalent rien de ce qui précède (mobilier...) // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
   finaliserMerge();
   construireMinimapStatique();
 }
@@ -7242,7 +7242,8 @@ function mkPicVertige(){
   scene.add(new THREE.Mesh(g,new THREE.MeshLambertMaterial({vertexColors:true,side:THREE.DoubleSide})));
   // éboulis au pied, buissons et rochers sur le plateau (décor, jamais solides)
   const pieces=[];
-  for(let i=0;i<70;i++){ const phi=aD(0,Math.PI*2), [x,z]=pt(phi,aD(1.01,1.09)); pieces.push(['boule',aD(1,2.6),aD(0.7,1.8),aD(1,2.4),x,0.4,z,choixD([0x9a4a2a,0xb8603a,0x8a3e22])]); }
+  { const cg=PIC.cage, devantCage=(x,z)=>Math.abs(x-cg.x)<cg.hw+4&&z>cg.z-cg.hd-1.5&&z<cg.z+cg.hd+9; /* retours du 20 octobre : les éboulis devant le monte-charge le cachaient à la caméra — tirés comme avant (mêmes tirages), pas posés */
+    for(let i=0;i<70;i++){ const phi=aD(0,Math.PI*2), [x,z]=pt(phi,aD(1.01,1.09)), e=['boule',aD(1,2.6),aD(0.7,1.8),aD(1,2.4),x,0.4,z,choixD([0x9a4a2a,0xb8603a,0x8a3e22])]; if(!devantCage(x,z)) pieces.push(e); } }
   for(let i=0;i<40;i++){ const phi=aD(0,Math.PI*2), [x,z]=pt(phi,aD(0.1,0.85)); if(dist2(x,z,PIC.plg.x,PIC.plg.z0)<64||dist2(x,z,PIC.cage.x,PIC.cage.z)<64) continue;
     pieces.push(aleaDecor()<0.5?['boule',aD(0.6,1.4),aD(0.5,1),aD(0.6,1.4),x,PIC.H-0.2,z,0x8a7a58]:['boule',aD(0.7,1.2),aD(0.5,0.8),aD(0.7,1.2),x,PIC.H,z,0x6a7a3a]); }
   // plongeoir : planche, poutres de soutien, garde-corps latéraux, panneau
@@ -7264,11 +7265,13 @@ function mkPicVertige(){
   mkBox(0.12,4,0.12,mat(0xd8dce4),pl.x+4,pl.h+2,pl.z0-1); PIC.manche=new THREE.Mesh(new THREE.ConeGeometry(0.42,2,10,1,true),new THREE.MeshLambertMaterial({color:0xff7a1a,side:THREE.DoubleSide}));
   PIC.manche.rotation.z=Math.PI/2; PIC.manche.position.set(pl.x+5,pl.h+3.8,pl.z0-1); scene.add(PIC.manche);
   // monte-charge : deux poutrelles à treillis, tête avec poulie, cabine grillagée à bandes jaunes et noires
-  const c=PIC.cage, acier=0x4a4e56, zT=c.z+c.hd+0.4, hT=PIC.H+6;
-  for(const s of [-1,1]) pieces.push(['box',0.36,hT,0.36,c.x+s*(c.hw+0.35),hT/2,zT,acier]);
+  /* retours du 20 octobre (1.3) : la tour était DEVANT la cabine (côté caméra) et la cachait — le monte-charge V2 (mkCageV2, en fin de
+     décor, sur un générateur privé) la remplace ; ses poteaux et ses traverses ne sont plus dans les pièces fusionnées (aucun tirage),
+     les croisillons, l'ancienne cabine et son câble sont construits comme avant (leurs tirages) puis retirés par mkCageV2 */
+  const c=PIC.cage, acier=0x4a4e56, zT=c.z+c.hd+0.4, hT=PIC.H+6, n0Croix=scene.children.length;
   const croix=new THREE.Group(); for(let y=0;y<hT-6;y+=6) barreG(croix,[c.x-(c.hw+0.35),y,zT],[c.x+(c.hw+0.35),y+6,zT],0.1,acier); // croisillons dans le plan de la tour
   fusionnerFixes(croix.children.slice(),scene); // un seul appel de rendu
-  for(let y=6;y<hT;y+=6) pieces.push(['box',c.hw*2+0.9,0.2,0.2,c.x,y,zT,acier]);
+  PIC.vieux={croix:scene.children.slice(n0Croix)};
   mkBox(c.hw*2+1.4,0.5,c.hd*2+1.4,mat(0x2a2d34),c.x,hT+0.25,c.z);
   const poulie=new THREE.Mesh(new THREE.CylinderGeometry(0.7,0.7,0.3,14),mat(0xd8b02a)); poulie.rotation.z=Math.PI/2; poulie.position.set(c.x,hT+0.9,c.z); scene.add(poulie);
   const cab=new THREE.Group(), jaune=0xffd23f, pc=[]; // pièces de la cabine, fusionnées par matériau
@@ -7279,7 +7282,7 @@ function mkPicVertige(){
   for(const s of [-1,1]) pc.push(mkBoxG(0.04,2.4,c.hd*2,0x9aa0a8,s*(c.hw-0.02),1.3,0)); // grillage latéral
   fusionnerFixes(pc,cab);
   cab.position.set(c.x,c.y,c.z); scene.add(cab); c.mesh=cab;
-  c.cable=mkBox(0.06,1,0.06,mat(0x14161c),c.x,0,c.z);
+  c.cable=mkBox(0.06,1,0.06,mat(0x14161c),c.x,0,c.z); PIC.vieux.cab=cab; PIC.vieux.cable=c.cable;
   // en bas : guérite, barrière, panneau ; cible d'atterrissage
   mkEnseigne('PIC DU VERTIGE — MONTE-CHARGE','#35e0ff',c.x-6,5.2,c.z+4,0,10);
   mkBox(2.4,2.6,2,mat(0x5a6470),c.x-5.5,1.3,c.z+3.2); mkBox(2.6,0.2,2.2,mat(0x2a2d34),c.x-5.5,2.7,c.z+3.2);
@@ -7444,6 +7447,37 @@ function majPic(dt){
   bigMsg(txt); SFX.niveau(); vibre(60);
 }
 function resetPic(){ if(!PIC.ok) return; const c=PIC.cage; c.y=c.cible=c.yBas; c.avecJoueur=false; PIC.saut=null; PIC.primeVague=-1; c.mesh.position.y=c.y; }
+/* MONTE-CHARGE V2 (retours du 20 octobre, 1.3 : « il est caché par un rocher ; refais-le : cabine vitrée, structure lisible, rien devant
+   lui vu de la caméra ») : la tour d'avant était DEVANT la cabine (côté caméra), ses croisillons en travers, et des éboulis au pied
+   devant elle. Le mât : deux poteaux sur les CÔTÉS de la cabine (pieds rayés jaune et noir, feux rouges en tête), traverses et croix
+   DERRIÈRE elle, contre la falaise ; la cabine : vitrée sur les quatre faces (porte vitrée à deux battants devant), montants jaunes,
+   plancher, toit et plafonnier, bandeau de sécurité, mains courantes, patins sur les poteaux. Construit en fin de décor sur un
+   générateur privé (aucun tirage de la ville ni du décor) ; la tête et la poulie d'avant restent. Le plancher reste celui du relief
+   (hauteurPic, PIC.cage) : la règle est inchangée. */
+function mkCageV2(){ if(!PIC.ok||!PIC.vieux||PIC.cageV2) return; const c=PIC.cage, hT=PIC.H+6;
+  avecAleaPrive(2010,()=>{
+    const M=(col)=>new THREE.MeshLambertMaterial({color:col}), acier=M(0x3a3e46), jaune=M(0xffd23f), noir=M(0x15171c), sol=M(0x2a2d34), rouge=new THREE.MeshBasicMaterial({color:0xff3a2a}), lampe=new THREE.MeshBasicMaterial({color:0xfff1c0});
+    const verre=new THREE.MeshPhongMaterial({color:0xbfe8ff,transparent:true,opacity:0.22,shininess:90,specular:0xffffff,depthWrite:false,side:THREE.DoubleSide});
+    const B=(par,w,h,d,m,x,y,z)=>{ const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m); o.position.set(x,y,z); par.push(o); return o; }; /* des pièces, fusionnées ensuite par matériau (fusionnerFixes) */
+    const mt=new THREE.Group(), PM=[], PC=[]; scene.add(mt); const xC=c.hw+0.42, zF=c.z-c.hd-0.2;
+    for(const s of [-1,1]){ B(PM,0.36,hT,0.36,acier,c.x+s*xC,hT/2,c.z); for(let k=0;k<4;k++) B(PM,0.42,0.5,0.42,k%2?noir:jaune,c.x+s*xC,0.25+k*0.5,c.z);
+      const f=new THREE.Mesh(new THREE.SphereGeometry(0.18,10,8),rouge); f.position.set(c.x+s*xC,hT+0.2,c.z); PM.push(f); }
+    for(let y=5;y<hT;y+=5) B(PM,xC*2+0.36,0.16,0.16,acier,c.x,y,zF); /* traverses DERRIÈRE la cabine */
+    for(let y=0;y+5<=hT;y+=5){ const L=Math.hypot(xC*2,5), a=Math.atan2(xC*2,5); for(const s of [-1,1]){ const o=B(PM,0.09,L,0.09,acier,c.x,y+2.5,zF); o.rotation.z=s*a; } }
+    for(const s of [-1,1]) B(PM,0.12,hT,0.12,acier,c.x+s*(xC-0.24),hT/2,zF+0.1); /* les liaisons des poteaux à la croix du fond */
+    const cab=new THREE.Group(); cab.position.set(c.x,c.y,c.z); scene.add(cab); const w=c.hw*2, d=c.hd*2, h=2.6;
+    B(PC,w,0.2,d,sol,0,-0.1,0); B(PC,w+0.1,0.14,d+0.1,noir,0,h+0.05,0); B(PC,w*0.5,0.04,d*0.5,lampe,0,h-0.03,0);
+    for(const [sx,sz] of [[-1,-1],[1,-1],[-1,1],[1,1]]) B(PC,0.12,h,0.12,jaune,sx*(c.hw-0.06),h/2,sz*(c.hd-0.06));
+    for(const s of [-1,1]) B(PC,0.04,h-0.5,d-0.2,verre,s*(c.hw-0.02),h/2+0.1,0); /* les flancs */
+    B(PC,w-0.2,h-0.5,0.04,verre,0,h/2+0.1,-(c.hd-0.02)); /* le fond */
+    B(PC,w-0.2,h-0.5,0.04,verre,0,h/2+0.1,c.hd-0.02); B(PC,0.06,h-0.5,0.06,jaune,0,h/2+0.1,c.hd-0.02); /* la porte vitrée et son montant */
+    for(let k=0;k<6;k++) B(PC,w/6,0.18,0.06,k%2?noir:jaune,-c.hw+w/6*(k+0.5),0.22,c.hd); /* le bandeau de sécurité, face caméra, au ras du plancher */
+    for(const s of [-1,1]){ B(PC,0.05,0.05,d-0.4,acier,s*(c.hw-0.18),1.05,0); for(const y of [0.5,2.2]) B(PC,0.36,0.2,0.24,acier,s*(c.hw+0.2),y,0); } /* mains courantes, patins sur les poteaux */
+    fusionnerFixes(PM,mt); fusionnerFixes(PC,cab); /* mât : 4 appels de rendu, cabine : 6 (une quarantaine de pièces) */
+    const cable=new THREE.Mesh(new THREE.BoxGeometry(0.06,1,0.06),noir); cable.position.set(c.x,0,c.z); scene.add(cable);
+    for(const o of PIC.vieux.croix) scene.remove(o); scene.remove(PIC.vieux.cab); scene.remove(PIC.vieux.cable);
+    c.mesh=cab; c.cable=cable; cab.position.y=c.y; PIC.cageV2={mt,cab,verre};
+  }); }
 
 /* PISTE DE SUPERCROSS (STUNT) — demandé : « la piste de stunt pas dans l'herbe
    mais la même matière que les sauts, en mode supercross, en plus des gros

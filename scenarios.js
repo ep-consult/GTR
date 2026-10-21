@@ -17590,6 +17590,39 @@ async function main() {
       else ok('Retours 20 oct., 1.2 : ' + r.info.join(' ; ') + ' — diagnostic du cockpit valide, rien du décor à moins de 6 u au centre de l’écran');
     }
     // -------------------------------------------------------------------
+    // Retours du 20 octobre, 1.3 (signalé : « le monte-charge de la falaise est caché par un rocher ; refais-le : cabine vitrée,
+    // structure lisible, rien devant lui vu de la caméra, en vue 2D et 3D »). La caméra du jeu, joueur au pied du monte-charge (et
+    // plus loin), en vue de dessus et en vue immersive : de la caméra à la cabine (trois hauteurs), rien d'autre que le monte-charge ;
+    // la cabine est vitrée ; elle monte toujours le joueur au sommet.
+    // -------------------------------------------------------------------
+    console.log('\n--- Retours du 20 octobre, 1.3 : le monte-charge du Pic du Vertige, vitré, rien devant lui ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = []; if (!PIC.ok || !PIC.cage) return { ko: ['pas de monte-charge'], info };
+        const c = PIC.cage; let T = dernierT + 1000; const pas = (n) => { for (let i = 0; i < n; i++) { for (const e of ennemis) e.mort = true; WANTED.stars = 0; T += 1000 / 60; tick(T); P.hp = 1e9; } };
+        const estCage = (o) => { for (let p = o; p; p = p.parent) if (p === c.mesh || (PIC.cageV2 && p === PIC.cageV2.mt)) return true; return o === c.cable; };
+        for (const vue of ['classique', 'immersive']) for (const [nom, dx, dz] of [['au pied', 0, 3], ['plus loin', -4, 14]]) {
+          META.vue = vue; if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9;
+          P.x = c.x + dx; P.z = c.z + c.hd + dz; P.y = solY(P.x, P.z); P.ang = Math.PI; VUE.yaw = 0; VUE.offVeh = 0; pas(90);
+          camera.updateMatrixWorld(true); scene.updateMatrixWorld(true); const rc = new THREE.Raycaster(); rc.camera = camera;
+          for (const hy of [0.5, 1.4, 2.4]) { const cible = new THREE.Vector3(c.x, c.y + hy, c.z), dir = cible.clone().sub(camera.position), D = dir.length(); dir.normalize(); rc.set(camera.position, dir); rc.far = D - 0.3;
+            const h = rc.intersectObjects(scene.children, true).find((q) => { const o = q.object; if (o.isSprite || estCage(o)) return false; for (let p = o; p; p = p.parent) if (!p.visible) return false; return true; });
+            if (h) { const m = Array.isArray(h.object.material) ? h.object.material[0] : h.object.material; ko.push(vue + ', ' + nom + ' : à ' + hy + ' u, ' + (h.object.geometry ? h.object.geometry.type : '?') + ' ' + (m && m.color ? '#' + m.color.getHexString() : '') + ' devant la cabine (' + h.point.x.toFixed(1) + ', ' + h.point.y.toFixed(1) + ', ' + h.point.z.toFixed(1) + ')'); } } }
+        // la cabine vitrée
+        const bv = new THREE.Box3(); c.mesh.traverse((o) => { if (o.isMesh && o.material && o.material.transparent && o.material.opacity < 0.5) { o.geometry.computeBoundingBox(); bv.union(o.geometry.boundingBox); } }); /* les vitres, fusionnées : leur boîte couvre les quatre faces */
+        if (bv.isEmpty() || bv.max.x - bv.min.x < 2 * c.hw * 0.95 || bv.max.z - bv.min.z < 2 * c.hd * 0.95 || bv.max.y - bv.min.y < 1.8) ko.push('cabine : pas vitrée sur les quatre faces (' + (bv.isEmpty() ? 'aucune vitre' : (bv.max.x - bv.min.x).toFixed(2) + ' × ' + (bv.max.z - bv.min.z).toFixed(2) + ' × ' + (bv.max.y - bv.min.y).toFixed(2)) + ')'); else info.push('cabine vitrée sur les quatre faces (' + (bv.max.x - bv.min.x).toFixed(1) + ' × ' + (bv.max.z - bv.min.z).toFixed(1) + ' × ' + (bv.max.y - bv.min.y).toFixed(1) + ' u)');
+        // elle monte toujours le joueur
+        META.vue = 'classique'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9;
+        P.x = c.x; P.z = c.z; P.y = c.y; pas(5); lancerCage(c.yHaut); let t = 0; while (c.y !== c.yHaut && t < 40) { pas(6); t += 0.1; }
+        if (c.y !== c.yHaut) ko.push('la cabine n’arrive pas en haut (' + c.y.toFixed(1) + ' / ' + c.yHaut.toFixed(1) + ')'); else if (Math.abs(P.y - c.yHaut) > 1.5) ko.push('le joueur n’est pas monté avec la cabine (' + P.y.toFixed(1) + ')');
+        else info.push('montée au sommet en ' + t.toFixed(0) + ' s, le joueur dedans');
+        lancerCage(c.yBas); t = 0; while (c.y !== c.yBas && t < 40) { pas(6); t += 0.1; }
+        startRun(); return { ko, info };
+      });
+      if (r.ko.length) fail('Retours 20 oct., 1.3 : ' + r.ko.join(' ; ') + ' [' + r.info.join(' | ') + ']');
+      else ok('Retours 20 oct., 1.3 : vue de dessus et vue immersive, au pied et plus loin, rien devant la cabine ; ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];
