@@ -634,16 +634,16 @@ l'avenue des tours).
 
 860 vérifications réussies, aucune sautée, aucune erreur JS ; cinq échecs :
 
-- **Balayage des salles** :  (le PNJ adversaire du duel du Monstre, lot 8.2) a une position sans rayon — le balayage le
-  prenait pour une zone oubliée. Ajouté à  (règle de la carte : un champ de salle n'est jamais un  sans rayon).
+- **Balayage des salles** : `inter.gerard` (le PNJ adversaire du duel du Monstre, lot 8.2) a une position sans rayon — le balayage le
+  prenait pour une zone oubliée. Ajouté à `CHAMPS_DECOR_SALLE` (règle de la carte : un champ de salle n'est jamais un `{x,z}` sans rayon).
 - **Lot 7, le plongeur passif marquait 1,5 à 2,2 points** : tombé de la plateforme sans sauter, il était noté comme un plongeon, et le
-  bruit des juges (±0,5) donnait parfois un demi-point à une exécution nulle. Une chute () vaut désormais 0 chez les trois juges
+  bruit des juges (±0,5) donnait parfois un demi-point à une exécution nulle. Une chute (`J.chute`) vaut désormais 0 chez les trois juges
   (« Chute de la plateforme »), comme annoncé.
 - **1.1, l'amphibie abîmé sur la plage de la ville** : au retour du large, après un demi-tour d'un côté ou de l'autre selon l'état
   laissé par les tests d'avant, il revenait jusqu'à 30 u de côté — droit dans le stand de Lani (lot 8). Le test choisit maintenant un
   couloir de plage dégagé et revient sur sa ligne (il maîtrise sa scène).
-- **1.3, « quelque chose devant la cabine »** : c'était le Pic lui-même — la caméra immersive revient à pied vers , que le
-  test ne fixait pas ; laissé au nord par un test précédent, elle partait dans la montagne. Le test fixe , laisse 4 s à la
+- **1.3, « quelque chose devant la cabine »** : c'était le Pic lui-même — la caméra immersive revient à pied vers `VUE.yawUser`, que le
+  test ne fixait pas ; laissé au nord par un test précédent, elle partait dans la montagne. Le test fixe `VUE.yawUser`, laisse 4 s à la
   caméra, ne compte que le décor (ni véhicule, ni passant, ni effet) et décrit l'objet touché s'il échoue encore. Vérifié avec une
   caméra laissée au nord-ouest à dessein.
 - **Mer, la houle du bateau** : test en temps réel ; en fin de suite, le navigateur chargé ne simulait que 1,4 s de mer (3,3 u/s) : il
