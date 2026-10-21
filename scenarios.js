@@ -13213,7 +13213,7 @@ async function main() {
               INPUT.mx = dir[0]; INPUT.mz = dir[1]; } else { INPUT.mx = 0; INPUT.mz = 0; }
             derbyEntrees(); if (P.veh) majConduite(dt); majVehicules(dt); majDerby(dt, dt);
             for (const v of A2.voitures) { if (v.mort) continue; if (!dansArene(v.x, v.z, -1)) hors++; const L = v.def.long / 2, W = v.def.larg / 2, s = Math.sin(v.ang), c = Math.cos(v.ang);
-              for (const [a, b] of [[L, W], [L, -W], [-L, W], [-L, -W]]) { const x = v.x + s * a + c * b, z = v.z + c * a - s * b, so = solidAt(x, z, 0); if (so && so.h > (v.h || 0) + 0.5) profMax = Math.max(profMax, Math.min(so.hw - Math.abs(x - so.x), so.hd - Math.abs(z - so.z))); } } }
+              for (const [a, b] of [[L, W], [L, -W], [-L, W], [-L, -W]]) { const x = v.x + s * a + c * b, z = v.z + c * a - s * b, so = solidAt(x, z, 0); if (so && so.h > (v.h || 0) + 0.5) { const sx = Math.sign(v.x - so.x) || 1, sz = Math.sign(v.z - so.z) || 1; profMax = Math.max(profMax, Math.min(so.hw - sx * (x - so.x), so.hd - sz * (z - so.z))); } } } } /* la profondeur depuis la face du côté de la voiture : depuis la face la plus proche du coin, un coin qui a presque traversé le mur (1,4 u) comptait pour quelques centimètres */
           INPUT.mx = INPUT.mz = 0; Math.random = rnd0; const kos = A2.voitures.filter((v) => v.derbyKO).length, roues = A2.voitures.reduce((n, v) => n + nbRouesPerdues(v), 0);
           if (hors || profMax > 0.25 || kos < 2) ko.push('derby : ' + hors + ' image(s) hors de l’arène, enfoncement ' + profMax.toFixed(2) + ' u, ' + kos + ' épave(s)');
           else info.push('derby : aucune voiture hors de l’arène, enfoncement max ' + profMax.toFixed(2) + ' u, ' + kos + ' épaves, ' + roues + ' roues arrachées en ' + Math.round(t) + ' s');

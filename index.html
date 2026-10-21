@@ -14873,7 +14873,7 @@ function majDerby(dt,dtJeu){
   // franchi le mur de pneus est ramenée dedans, sur la ligne qui la relie au centre
   if(A.etat!=='fin') for(const v of A.voitures){ if(v.mort||dansArene(v.x,v.z,0.6)) continue;
     let a=0, b=1; for(let k=0;k<12;k++){ const t=(a+b)/2; if(dansArene(D.x+(v.x-D.x)*t,D.z+(v.z-D.z)*t,1.2)) a=t; else b=t; }
-    v.x=D.x+(v.x-D.x)*a; v.z=D.z+(v.z-D.z)*a; v.knockVx=0; v.knockVz=0; v.v*=-0.3; }
+    v.x=D.x+(v.x-D.x)*a; v.z=D.z+(v.z-D.z)*a; v.knockVx=0; v.knockVz=0; v.v*=-0.3; for(let k=0;k<3&&degagerDesMurs(v);k++); } /* ramenée par son centre : un coin pouvait rester dans les pneus — dégagé tout de suite */
   if(A.etat==='compte'){
     if(P.veh!==A.vJ){ derbyFin(false,'abandon'); return; }
     const av=Math.ceil(A.compte); A.compte-=dtJeu; const ap=Math.ceil(A.compte);
@@ -28079,7 +28079,10 @@ function degagerDesMurs(v){
     if(so.coinDerby){ /* coins en escalier des murs de pneus SEULEMENT — appliquée à tout petit solide, la règle poussait un skate hors d'un potelet du mobilier à chaque image (il reculait à 3 u/s sur deux graines) ; petit bloc : sorti vers le centre du véhicule — poussé le long d'un axe, le coin passait dans le bloc voisin de l'escalier, qui le renvoyait sur l'autre axe (0,66 u pendant 8 à 23 images, mesuré au derby) */
       let ux=v.x-so.x, uz=v.z-so.z; const lu=Math.hypot(ux,uz); if(lu>1e-6){ ux/=lu; uz/=lu; const tx=Math.abs(ux)>1e-6?(Math.sign(ux)*so.hw-dx)/ux:1e9, tz=Math.abs(uz)>1e-6?(Math.sign(uz)*so.hd-dz)/uz:1e9, t=Math.min(tx,tz)+0.02, qx=ux*t, qz=uz*t;
         if(Math.hypot(qx,qz)>Math.hypot(mx,mz)){ mx=qx; mz=qz; } continue; } }
-    if(ex<ez){ const p=(Math.sign(dx)||1)*(ex+0.02); if(Math.abs(p)>Math.abs(mx)) mx=p; } else { const p=(Math.sign(dz)||1)*(ez+0.02); if(Math.abs(p)>Math.abs(mz)) mz=p; } }
+    /* la profondeur se compte depuis la face du côté du VÉHICULE (son centre), et on le ramène de ce côté : comptée depuis la face la plus
+       proche du point, un coin qui avait passé le milieu d'un mur mince (1,4 u au derby) était poussé vers l'extérieur, À TRAVERS le mur */
+    const sx=Math.sign(v.x-so.x)||Math.sign(dx)||1, sz=Math.sign(v.z-so.z)||Math.sign(dz)||1, fx=so.hw-sx*dx, fz=so.hd-sz*dz;
+    if(fx<fz){ const p=sx*(fx+0.02); if(Math.abs(p)>Math.abs(mx)) mx=p; } else { const p=sz*(fz+0.02); if(Math.abs(p)>Math.abs(mz)) mz=p; } }
   if(!mx&&!mz) return false;
   const l=Math.hypot(mx,mz), k=Math.min(1,0.6/l); v.x+=mx*k; v.z+=mz*k; v.knockVx=0; v.knockVz=0; return true;
 }
@@ -31079,7 +31082,7 @@ function majVehicules(dt){
   }
   // dégagement des murs : tout véhicule au sol qui a bougé cette image (hors des salles)
   for(let i=0;i<vehicules.length;i++){ const v=vehicules[i]; if(v.mort||v.noye||v.captureOvni||v.tracte||v.def.air||v.def.eau||v.enAir||v.x<-4000) continue;
-    if(v.x===v._dgx&&v.z===v._dgz) continue; if(!surEauVeh(v)) degagerDesMurs(v); v._dgx=v.x; v._dgz=v.z; }
+    if(v.x===v._dgx&&v.z===v._dgz&&!v.conduit) continue; if(!surEauVeh(v)) for(let k=0;k<3&&degagerDesMurs(v);k++); v._dgx=v.x; v._dgz=v.z; } /* jusqu'à trois passes : sorti d'un bloc de l'escalier d'un coin, le coin entrait dans le bloc voisin (une épave tremblait de 0,2 u à chaque image) */ /* l'économie (même place qu'au dernier dégagement) seulement pour un véhicule que personne ne conduit : au derby, une voiture coincée entre une autre et un bloc revenait chaque image exactement au même point, sans jamais être dégagée (0,54 u dans le bloc) */
   COLL.actif=false;
   for(let i=vehicules.length-1;i>=0;i--){
     const v=vehicules[i];
