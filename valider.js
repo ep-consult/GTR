@@ -438,8 +438,8 @@ const idsAttendus = Object.keys(INTDEFS);
 const idsPresents = new Set(PORTES.map((p) => p.id));
 info(idsAttendus.length + ' salles définies dans INTDEFS, ' + PORTES.length + ' portes posées dans PORTES');
 // une planque (INTDEFS[id].planque) n'a pas de porte dans PORTES (une de plus décalerait la ville) : sa porte vient de la
-// planque elle-même, lue par porteSalle(id) dans le jeu
-const manquantes = idsAttendus.filter((id) => !idsPresents.has(id) && !(INTDEFS[id].planque && global.__porteSalle__ && global.__porteSalle__(id)));
+// planque elle-même, lue par porteSalle(id) dans le jeu ; de même pour le chantier naval des canaux (Canaux V3, phase 4)
+const manquantes = idsAttendus.filter((id) => !idsPresents.has(id) && !(global.__porteSalle__ && global.__porteSalle__(id)));
 if (manquantes.length) fail('Portes manquantes pour : ' + manquantes.join(', '));
 else ok('Toutes les salles ont une porte (PORTES, ou celle de leur planque)');
 

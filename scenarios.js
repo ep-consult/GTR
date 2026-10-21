@@ -15375,7 +15375,10 @@ async function main() {
           const idx = (x, z) => Math.round(x - B.x0) * nz + Math.round(z - B.z0), eauN = (x, z) => z >= MER || estEauNav(x, z) || marcheCanal(x, z);
           const d = C.eaux.find((e) => e.id === 'bassinO'); pile.push([d.x, d.z]); vu[idx(d.x, d.z)] = 1;
           while (pile.length) { const [x, z] = pile.pop(); for (const [a, b] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const X = x + a, Z = z + b; if (X < B.x0 || X > B.x1 || Z < B.z0 || Z > MER + 4) continue; const k = idx(X, Z); if (vu[k] || !eauN(X, Z)) continue; vu[k] = 1; pile.push([X, Z]); } }
-          for (const e of C.eaux) { if (e.couverte) continue; /* V3 : la darse sous le hangar du chantier naval (jamais navigable) */ const x = e.t === 'c' ? e.x : (e.t === 'r' ? (e.x0 + e.x1) / 2 : e.pts.reduce((a, q) => a + q[0], 0) / e.pts.length), z = e.t === 'c' ? e.z : (e.t === 'r' ? (e.z0 + Math.min(e.z1, MER)) / 2 : e.pts.reduce((a, q) => a + q[1], 0) / e.pts.length); if (!vu[idx(x, z)]) ko.push('eau ' + e.id + ' : pas reliée au reste'); }
+          for (const e of C.eaux) { if (e.couverte) continue; /* V3 : la darse sous le hangar du chantier naval (jamais navigable) */ const x = e.t === 'c' ? e.x : (e.t === 'r' ? (e.x0 + e.x1) / 2 : e.pts.reduce((a, q) => a + q[0], 0) / e.pts.length), z = e.t === 'c' ? e.z : (e.t === 'r' ? (e.z0 + Math.min(e.z1, MER)) / 2 : e.pts.reduce((a, q) => a + q[1], 0) / e.pts.length); if (!vu[idx(x, z)]) { /* le centre peut tomber sur un ponton (l'anse du chantier naval) : un seul point navigable de la forme atteint suffit */
+            const bx = e.t === 'c' ? [e.x - e.r, e.x + e.r, e.z - e.r, e.z + e.r] : (e.t === 'r' ? [e.x0, e.x1, e.z0, Math.min(e.z1, MER)] : [Math.min(...e.pts.map((q) => q[0])), Math.max(...e.pts.map((q) => q[0])), Math.min(...e.pts.map((q) => q[1])), Math.max(...e.pts.map((q) => q[1]))]);
+            let relie = false; for (let X = Math.ceil(bx[0]); X <= bx[1] && !relie; X++) for (let Z = Math.ceil(bx[2]); Z <= bx[3] && !relie; Z++) if (formeSdf(e, X, Z) < -0.3 && estEauNav(X, Z) && vu[idx(X, Z)]) relie = true;
+            if (!relie) ko.push('eau ' + e.id + ' : pas reliée au reste'); } }
           for (const x of [159, 231]) if (!vu[idx(x, MER + 3)]) ko.push('embouchure x = ' + x + ' : la mer n’est pas atteinte'); }
         /* 2. les bateaux : poursuite pure le long d'un tracé — embouchures, canaux, traverse, bras et demi-tour dans les bassins, sous les six ponts dans les deux sens */
         const piloter = (v, pts, tmax) => { const res = { chocs: 0, bloqueMax: 0, horsEau: 0, fini: false, t: 0 }; let s = 0, bloque = 0, vPrec = 0, recul = 0;
@@ -16365,6 +16368,98 @@ async function main() {
       else ok('Chantier naval, rechargement : l’offshore garde sa livrée, son nom, son aileron, son pavillon, ses feux, son hélice et sa nitro ; toutes les catégories ont leur clé');
     }
 
+    // -------------------------------------------------------------------
+    // Canaux V3 : le Lagon, beach club du cœur du quartier, et les quais rendus à la promenade (CANAUX_V3.md, phase 5) — lu dans
+    // CANAUX.lagon, LAGON (foule, figurants, gardes), LGN, LAGON_SON, BASSINS, PCANAL, CANAUX.location, CANAUX.promenade : la rue z = 126
+    // retirée (sans trafic), la piscine est de l'eau où l'on nage, le ponton d'accostage un mur pour les bateaux ; chaque poste d'escale
+    // a un chemin depuis la mer pour les bateaux de l'IA ; un bateau de l'IA accoste, fait escale et repart ; la foule (dizaines de
+    // personnes, tous les rôles) bouge, panique au premier coup de feu ; danser (la danse du Club Néon : un bon danseur est payé une fois
+    // par vague), boire au bar tiki (ivresse), plonger du plongeoir et du ponton (dans l'eau, sans dégâts) ; la zone VIP : avertissement,
+    // puis les gardes de la Brigada sortent les armes ; la musique monte avec la proximité, coupée en salle et à la mort ; la nuit, des
+    // feux d'artifice ; la station de location (jet-skis, kayak) pilotable ; le marché aux poissons garde les volumes du dock ; les promeneurs
+    // marchent, un véhicule lancé fait paniquer ; ni voiture ni kiosque dans le club ; l'aquarium garde son solide et sa porte ; les quais
+    // publics meublés ; sur 5 minutes, les bateaux de l'IA naissent, accostent, repartent, jamais coincés ni détruits en route.
+    // -------------------------------------------------------------------
+    console.log('\n--- Canaux V3 : le Lagon (beach club), la promenade des quais, le marché aux poissons ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [], C = CANAUX, L = C.lagon; if (!C.ok || !L || !LAGON.ok) return { ko: ['pas de Lagon (CANAUX.lagon, LAGON.ok)'], info };
+        const partie = () => { META.vue = 'classique'; if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9; for (const e of ennemis) if (!LAGON.gardes.includes(e)) e.mort = true; };
+        let T = dernierT + 1000; const pas = (n) => { for (let k = 0; k < (n || 1); k++) { for (const e of ennemis) if (!LAGON.gardes.includes(e)) e.mort = true; WANTED.stars = 0; WANTED.heat = 0; T += 1000 / 60; tick(T); P.hp = 1e9; } };
+        const bouton = () => { const b = document.getElementById('btnAction'); return b && b.style.display !== 'none' ? b.textContent : ''; };
+        const aller = (x, z) => { if (P.veh) sortirVehicule(true); P.x = x; P.z = z; P.y = solPied(x, z); P.vy = 0; P.chute = false; P.nage = false; };
+        partie();
+        /* 1) le lieu : la rue retirée, la piscine, le ponton, les postes et leur chemin depuis la mer */
+        if (!C.coupes.some((c) => c.id === 'z126M') || !routeCanalInterdite(L.xc, (C.coupes.find((c) => c.id === 'z126M').z0 + C.coupes.find((c) => c.id === 'z126M').z1) / 2)) ko.push('la rue z = 126 n’est pas retirée');
+        const Pq = L.piscine; if (!estEau(Pq.x, Pq.z) || Math.abs(niveauEau(Pq.x, Pq.z) - Pq.y) > 0.01) ko.push('la piscine n’est pas de l’eau à son niveau');
+        if (!pontonCanal((L.ponton.x0 + L.ponton.x1) / 2, (L.ponton.z0 + L.ponton.z1) / 2) || estEauNav((L.ponton.x0 + L.ponton.x1) / 2, (L.ponton.z0 + L.ponton.z1) / 2)) ko.push('le ponton du Lagon n’est pas praticable ou pas un mur pour les bateaux');
+        const mer = PCANAL.noeuds[PCANAL.mers[0]]; for (const p of L.postes) { if (!estEauNav(p.x, p.z)) ko.push('poste (' + p.x + ', ' + p.z + ') hors de l’eau navigable');
+          for (const k of LGN_CLES) if (!cheminCanal(mer.x, mer.z, p.x, p.z, VEHDEFS[k].hautNav)) ko.push(k + ' : pas de chemin de la mer au poste ' + p.x); }
+        /* 2) la foule et les figurants */
+        const F = LAGON.foule, roles = {}; for (const g of F.gens) roles[g.role] = (roles[g.role] || 0) + 1;
+        if (F.gens.length < 36) ko.push('foule : ' + F.gens.length + ' personnes'); for (const k of ['danse', 'bar', 'transat', 'nage', 'debout', 'plongeur']) if (!roles[k]) ko.push('personne dans le rôle ' + k);
+        const figs = {}; for (const f of LAGON.figs) figs[f.role] = (figs[f.role] || 0) + 1; for (const k of ['barman', 'dj', 'dockers', 'vip', 'mn']) if (!figs[k]) ko.push('pas de figurant ' + k);
+        if (LAGON.figs.some((f) => !FIGURANTS.some((q) => q.h === f.h))) ko.push('un figurant du Lagon n’en est pas un (figurant())'); if ((LAGON.gardesFig || []).length !== 2 || LAGON.gardes.length) ko.push((LAGON.gardesFig || []).length + ' gardes de la Brigada (des figurants armés), ' + LAGON.gardes.length + ' déjà ennemis');
+        aller(L.xc, L.piste.z1 + 1); pas(20); const g0 = F.gens.find((g) => g.role === 'danse'); const m4 = new THREE.Matrix4(), y0 = []; for (let k = 0; k < 20; k++) { pas(); F.torse.getMatrixAt(F.gens.indexOf(g0), m4); y0.push(new THREE.Vector3().setFromMatrixPosition(m4).y); }
+        if (Math.max(...y0) - Math.min(...y0) < 0.05) ko.push('les danseurs ne bougent pas');
+        info.push(F.gens.length + ' personnes ' + JSON.stringify(roles) + ', ' + LAGON.figs.length + ' figurants ' + JSON.stringify(figs));
+        /* 3) danser : la danse du Club Néon, payée une fois par vague */
+        aller((L.piste.x0 + L.piste.x1) / 2, (L.piste.z0 + L.piste.z1) / 2); pas(2); if (!/DANSER/.test(bouton())) ko.push('pas de bouton DANSER sur la piste (« ' + bouton() + ' »)');
+        const danser = () => { danseDebut(LAGON); const per = 60 / DANSE.bpm; let n = 0; while (LAGON.danse && n < 2000) { pas(); n++; const d = LAGON.danse; if (d && d.t > 0) { const k = Math.round(d.t / per); if (k >= 1 && k <= DANSE.temps && d.tape !== k && Math.abs(d.t - k * per) < 0.04) danseTape(LAGON); } } };
+        const a0 = META.argent; danser(); const a1 = META.argent; danser(); const a2 = META.argent;
+        if (!(a1 > a0)) ko.push('le bon danseur n’est pas payé'); if (a2 !== a1) ko.push('la danse a payé deux fois dans la vague'); info.push('danse : +' + (a1 - a0) + ' $ la première fois, rien ensuite');
+        /* 4) boire au bar tiki */
+        aller(L.barPt.x, L.barPt.z); pas(2); if (!/COCKTAIL/.test(bouton())) ko.push('pas de cocktail au bar (« ' + bouton() + ' »)'); const iv0 = P.ivresse || 0; boireCocktail(); if (!((P.ivresse || 0) > iv0)) ko.push('le cocktail ne fait rien'); P.ivresse = 0;
+        /* 5) plonger : du plongeoir dans la piscine, du ponton dans la traverse — sans dégâts */
+        aller(L.plongeoir.x, L.plongeoir.z + 2.4); pas(2); if (!/PLONGER/.test(bouton())) ko.push('pas de PLONGER au pied du plongeoir (« ' + bouton() + ' »)');
+        P.hp = P.maxHp = 100; lagonPlonger(); let n = 0; while (!P.nage && n < 240) { T += 1000 / 60; tick(T); n++; } if (!P.nage || !dansBassin(P.x, P.z) || P.hp < 100) ko.push('plongeoir : pas dans la piscine sans dégâts (nage ' + P.nage + ', ' + P.x.toFixed(1) + ', ' + P.z.toFixed(1) + ', PV ' + P.hp + ')'); else info.push('plongeoir : dans la piscine en ' + (n / 60).toFixed(1) + ' s');
+        aller((L.ponton.x0 + L.ponton.x1) / 2, (L.ponton.z0 + L.ponton.z1) / 2); pas(2); if (!/PLONGER DU PONTON/.test(bouton())) ko.push('pas de PLONGER sur le ponton (« ' + bouton() + ' »)');
+        lagonPlongerPonton(); n = 0; while (!P.nage && n < 240) { T += 1000 / 60; tick(T); n++; } if (!P.nage || !dansCanal(P.x, P.z) || P.hp < 100) ko.push('ponton : pas dans la traverse sans dégâts'); P.hp = P.maxHp = 1e9;
+        /* 6) la panique : un coup de feu près du club */
+        aller(L.xc, L.piste.z1 + 2); pas(2); DANGER.x = L.xc; DANGER.z = L.piste.z1 + 2; DANGER.t = 2; pas(30); if (!(LAGON.paniqueT > 0)) ko.push('pas de panique après un coup de feu');
+        { const g = F.gens.find((q) => q.role === 'danse'); if (Math.hypot(g.x - g.bx, g.z - g.bz) < 0.5) ko.push('la foule ne fuit pas'); } LAGON.paniqueT = 0; DANGER.t = 0;
+        /* 7) la zone VIP : un avertissement, puis les gardes sortent les armes */
+        partie(); if (LAGON.gardes.length || LAGON.gardesFig.some((f) => figConverti(f.h))) ko.push('les gardes ne sont pas calmes avant l’intrusion'); /* le coup de feu du 6) les a armés : une nouvelle partie les remet au cordon */
+        aller(L.xc, L.piste.z1 + 2); for (let k = 0; k < 10; k++) { WANTED.stars = 2; T += 1000 / 60; tick(T); P.hp = 1e9; } /* pas() remet les étoiles à zéro */ if (LAGON.gardes.length || LAGON.gardesFig.some((f) => figConverti(f.h))) ko.push('les gardes s’arment pour les étoiles du joueur'); WANTED.stars = 0;
+        aller((L.vip.x0 + L.vip.x1) / 2, (L.vip.z0 + L.vip.z1) / 2); for (let k = 0; k < 200; k++) pas(); if (LAGON.gardes.length !== 2 || LAGON.gardes.some((e) => e.mort || e.passif)) ko.push('les gardes ne sortent pas les armes dans la zone VIP (' + LAGON.gardes.length + ')');
+        /* 8) un bateau de l'IA accoste, fait escale, repart */
+        partie(); aller(L.xc, L.z1 + 30); const p0 = L.postes[0], n0 = PCANAL.noeuds.reduce((b, q) => (!b || dist2(q.x, q.z, p0.x, p0.z) < dist2(b.x, b.z, p0.x, p0.z)) && dist2(q.x, q.z, p0.x, p0.z) > 30 * 30 ? q : b, null);
+        const vb = creerVehicule('runabout', n0.x, n0.z, Math.PI, 'lagonIA'); vb.lgn = { etat: 'aller', poste: p0, t: 0, escale: 3, mer: PCANAL.mers[0] }; p0.v = vb; LGN.v.push(vb); LGN.t = 1e9;
+        let etats = []; for (let k = 0; k < 60 * 70 && vehicules.includes(vb); k++) { pas(); if (etats[etats.length - 1] !== vb.lgn.etat) etats.push(vb.lgn.etat); if (vb.lgn.etat === 'depart' && vb.lgn.t > 6) break; }
+        if (!etats.includes('escale') || !etats.includes('depart')) ko.push('bateau de l’IA : ' + etats.join(' → ') + ' (' + vb.x.toFixed(0) + ', ' + vb.z.toFixed(0) + ')'); else info.push('bateau de l’IA : ' + etats.join(' → '));
+        /* 9) la musique : elle monte avec la proximité, coupée en salle et à la mort */
+        audioInit(); aller(L.xc, L.z1 + 60); pas(10); const vLoin = LAGON_SON.on ? LAGON_SON.v : 0; aller(L.xc, (L.piste.z0 + L.piste.z1) / 2 + 3); pas(10); const vPres = LAGON_SON.on ? LAGON_SON.v : 0;
+        if (!LAGON_SON.on || !(vPres > vLoin)) ko.push('la musique ne monte pas en approchant (' + vLoin + ' → ' + vPres + ')'); P.hp = 1; toucherJoueur(9999); pas(2); if (LAGON_SON.on) ko.push('la musique continue après la mort'); info.push('musique : ' + vLoin.toFixed(3) + ' de loin, ' + vPres.toFixed(3) + ' sur la piste');
+        /* 10) la nuit : feux d'artifice, guirlandes */
+        partie(); aller(L.xc, L.piste.z1 + 4); ETAT.jour = 130; ETAT.nuitF = 1; pas(30); let nFeu = 0; const sp0 = spawnP; window.spawnP = function (...q) { nFeu++; return sp0.apply(this, q); }; LAGON.feuT = 0; pas(1); window.spawnP = sp0; /* la réserve de particules tourne en anneau : on compte celles qui partent */
+        if (!(nFeu >= 20)) ko.push('pas de feux d’artifice la nuit (' + nFeu + ' particules lancées)'); ETAT.jour = 20;
+        /* 11) la promenade : la station de location pilotable, des bancs et des pêcheurs, le marché garde les volumes du dock */
+        const loc = vehicules.filter((v) => v.location); if (loc.length < 3) ko.push(loc.length + ' bateaux de location'); for (const v of loc) if (!estEauNav(v.x, v.z)) ko.push('bateau de location hors de l’eau');
+        if (!C.promenade || C.promenade.pecheurs.length < 3 || C.promenade.marche.length < 3) ko.push('la promenade n’a pas ses pêcheurs et son marché');
+        if (!solidAt(POIS.port.x - 6, POIS.port.z + 6, 0.3)) ko.push('le grand volume du dock (marché) n’est plus un solide');
+        info.push(loc.length + ' bateaux de location, ' + C.promenade.pecheurs.length + ' pêcheurs, ' + C.promenade.marche.length + ' au marché');
+        /* 12) les promeneurs marchent ; un véhicule lancé dans le club fait paniquer la foule */
+        partie(); aller(L.xc, L.z1 + 25); pas(5); { const q = LAGON.promeneurs[0], x0 = q.x; pas(60); if (Math.abs(q.x - x0) < 0.5) ko.push('les promeneurs ne marchent pas'); }
+        { LAGON.paniqueT = 0; aller(L.xc, L.zq + 5.5); const v = creerVehicule('citadine', L.xc - 4, L.zq + 5.5, -Math.PI / 2, null); /* sur la terrasse (plus au sud, c'est la piscine : la voiture s'y noie) */ entrerVehicule(v); v.v = 14; pas(1); if (!(LAGON.paniqueT > 0)) ko.push('un véhicule lancé dans le club ne fait pas paniquer'); sortirVehicule(true); LAGON.paniqueT = 0; }
+        /* 13) aucun véhicule garé ni kiosque dans le club ; l'aquarium garde son solide et sa porte ; les quais publics meublés */
+        partie(); for (const v of vehicules) if (!v.mort && !(v.def && v.def.eau) && dansLagon(v.x, v.z)) ko.push('véhicule ' + (v.def.nom || '') + ' garé dans le Lagon');
+        if (STANDS.some((s) => dansLagon(s.x, s.z))) ko.push('un kiosque dans le Lagon');
+        { const A = C.aquarium, pa = PORTES.find((p) => p.id === 'aquarium'); if (!solidAt((A.x0 + A.x1) / 2, (A.z0 + A.z1) / 2, 0.3)) ko.push('l’aquarium n’est plus un solide'); if (!pa || Math.abs(pa.x - (A.x1 + 1.6)) > 0.01) ko.push('la porte de l’aquarium a bougé'); }
+        if (!(C.promenade.quais >= 30)) ko.push('quais publics : ' + C.promenade.quais + ' bancs, lampadaires ou jardinières');
+        for (const s of C.promenade.solides) if (estEau(s.x, s.z)) ko.push('un meuble de la promenade dans l’eau (' + s.x.toFixed(1) + ', ' + s.z.toFixed(1) + ')');
+        info.push(C.promenade.quais + ' ensembles sur les quais publics');
+        /* 14) les bateaux de l'IA sur la durée : ils naissent en mer, accostent, repartent et disparaissent ; jamais coincés (5 min simulées) */
+        partie(); aller(L.xc, L.piste.z1 + 4); LGN.t = 0; const suivi = new Map(); let cycles = 0, coinceMax = 0, vus = 0;
+        for (let s = 0; s < 300 * 30; s++) { for (const e of ennemis) if (!LAGON.gardes.includes(e)) e.mort = true; WANTED.stars = 0; T += 1000 / 30; tick(T); P.hp = 1e9; P.x = L.xc; P.z = L.piste.z1 + 4;
+          for (const v of LGN.v) { if (v.lgn && v.lgn.escale > 8) v.lgn.escale = 8; let q = suivi.get(v); if (!q) { q = { x: v.x, z: v.z, t: 0, coince: 0, escale: false }; suivi.set(v, q); vus++; }
+            if (v.lgn.etat === 'escale') q.escale = true; q.t += 1 / 30; if (q.t >= 1) { const d = Math.hypot(v.x - q.x, v.z - q.z); if ((v.lgn.etat === 'aller' || v.lgn.etat === 'depart') && d < 0.5) q.coince++; else q.coince = 0; coinceMax = Math.max(coinceMax, q.coince); q.x = v.x; q.z = v.z; q.t = 0; } }
+          for (const v of LGN.v) { const q = suivi.get(v); if (q) { q.etat = v.lgn.etat; q.tt = v.lgn.t; q.px = v.x; q.pz = v.z; q.mort = v.mort; q.cond = v.conduit; } }
+          for (const [v, q] of suivi) if (!LGN.v.includes(v) && !q.fini) { q.fini = true; if (v.hp <= 0) ko.push('un bateau de l’IA (' + v.def.nom + ') détruit en route (' + (q.px || 0).toFixed(0) + ', ' + (q.pz || 0).toFixed(0) + ')'); if (q.escale) cycles++; else ko.push('un bateau de l’IA (' + v.def.nom + ') est parti sans faire escale : ' + q.etat + ' ' + (q.tt || 0).toFixed(1) + ' s, (' + (q.px || 0).toFixed(0) + ', ' + (q.pz || 0).toFixed(0) + '), mort ' + v.mort + ', ' + v.conduit + ', dans vehicules ' + vehicules.includes(v)); } }
+        if (vus < 2 || cycles < 2) ko.push('bateaux de l’IA sur 5 min : ' + vus + ' nés, ' + cycles + ' escales complètes'); if (coinceMax > 12) ko.push('un bateau de l’IA est resté coincé ' + coinceMax + ' s');
+        info.push('bateaux de l’IA sur 5 min : ' + vus + ' nés, ' + cycles + ' allers-retours complets, immobile ' + coinceMax + ' s au plus hors escale');
+        partie(); return { ko, info }; });
+      if (r.ko.length) fail('Canaux V3, le Lagon : ' + r.ko.slice(0, 14).join(' ; ') + (r.ko.length > 14 ? ' … (' + r.ko.length + ')' : '') + ' [' + r.info.join(' | ') + ']'); else ok('Canaux V3, le Lagon : ' + r.info.join(' ; '));
+    }
     // -------------------------------------------------------------------
     // Guidon des motos au cockpit (18 octobre, signalé avec une capture : le rétroviseur et la poignée du MODÈLE, entourés,
     // doublaient ceux du cockpit) : pour chaque moto (motoCabrable, lue dans VEHDEFS), au cockpit, plus aucun triangle du modèle

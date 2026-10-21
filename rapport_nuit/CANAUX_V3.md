@@ -89,8 +89,8 @@ plafond des bateaux promus, jamais la densité proche.
 - [x] Phase 2 — les ponts-levis (côté des gros bateaux) et les ponts en dur (côté des petits)
 - [x] Phase 3 — tous les bateaux pilotables, de nouveaux modèles
 - [x] Phase 4 — le chantier naval et le garage à voitures
-- [ ] Phase 5 — le lieu de fête central et les zones vides
-- [ ] Phase 6 — carte, ambiance, performances
+- [x] Phase 5 — le lieu de fête central et les zones vides
+- [x] Phase 6 — carte, ambiance, performances
 
 ## Phase 1 — le côté est, les jonctions, les embouchures (fait)
 
@@ -415,3 +415,158 @@ construites à la première visite). La salle se construit à la première entr�
 ### Captures (phase 4)
 `captures/canaux_v3/p4_*` : le bâtiment vu d'ensemble, porte fermée et ouverte depuis le canal, la rue du garage, le chantier, la
 salle (entrée, menu ouvert, intérieur), avant / après (`p4_avant_*`) ; `captures/canaux_v3/p4_bateaux/` : chaque bateau du chantier, toutes ses pièces posées.
+
+## Phase 5 — le Lagon, les quais rendus à la promenade, plus un bloc sombre (fait)
+
+### Décisions
+- **Décision 14 — où : le pâté (11,10), au cœur du quartier.** Le cube sombre du garage du port (capture A) en est parti à la phase 4 ;
+  le Lagon prend le pâté, la rue z = 126 devant lui (déjà sans trafic depuis la V1 : elle devient la terrasse du club, `z126M`) et le
+  quai sud de la traverse (capture B), où l'on accoste. On y arrive à pied (entrée sous l'arche au sud, passages à l'ouest et à l'est),
+  en voiture (la rue x = 168 et la rue z = 168 le bordent) et en bateau (ponton d'accostage sur la traverse, trois postes).
+- **Le lieu** (`lagonDefinir` — des données, appelée par `canauxDefinir` —, `mkLagon` en fin de `mkCanaux`, générateur privé) :
+  terrasse en platelage sur l'ancienne rue et le quai ; bar tiki (comptoir, tabourets, étagère de bouteilles lumineuses, lampions sous
+  l'avant-toit) ; scène et cabine du DJ (enceintes, écran qui change de couleur au rythme) ; piste de danse à carreaux lumineux (trois
+  matériaux qui tournent au tempo, éteints pendant la panique) ; plage de sable, transats, parasols, deux lits de plage à baldaquin ;
+  grande piscine (18 × 11 u, de l'eau où l'on nage : `BASSINS`), son plongeoir de 4,2 u et la chaise du maître-nageur ; zone VIP de la
+  Brigada (estrade, canapés, cordon, `VIP`) ; palmiers, haies basses ; arche d'entrée et son enseigne « LE LAGON » ; guirlandes entre
+  six mâts (ampoules de verre teinté le jour, allumées la nuit, les fils en un seul appel de rendu) ; torches ; banquettes et tables
+  basses face à l'eau, deux passerelles vers le ponton.
+- **Décision 16 — la foule et les figurants.** La demande dit « des dizaines de figurants (`figurant()`) » ; un corps complet coûte 7
+  maillages et une ombre (13 appels de rendu mesurés), des dizaines feraient exploser le budget. Donc : la **foule** (`lagonFouleConstruire`,
+  `lagonFoulePoser`) — 49 personnes (18 danseurs, 6 au bar, 6 sur les transats, 6 dans la piscine, 8 debout qui discutent, 2 plongeurs
+  qui montent l'échelle et sautent, 3 promeneurs en aller-retour sur le quai nord de la traverse et la terrasse) en **quatre
+  `InstancedMesh`** (jambes, torse, tête, bras : quatre appels pour tout le monde), qui fuit à la panique, cachée au-delà de
+  `LAGON_FOULE_LOD` (170 u) ; et **17 vrais figurants** (`figurant()`) pour ceux qu'on vise : barman, DJ, trois Dockside Boys au bar,
+  deux de la Brigada au carré VIP et ses deux gardes, le maître-nageur, trois pêcheurs à la canne, deux marchands et deux clients au
+  marché. Touchés, ils deviennent de vrais piétons (ou gangsters). Les 15 immobiles sont **dessinés en un seul maillage**
+  (`lagonFigurantsFusion` : leurs propres maillages masqués, le groupe visible — on les touche, on les percute, ils paniquent comme
+  avant ; converti, un figurant retrouve son corps et quitte le maillage fusionné, `majLagonFusion`) : au centre du Lagon, vue de
+  dessus, 328 → 234 appels. Les caches partagés (`_matCache`, `VIS_CACHE`) sont rendus comme pour la vie des canaux.
+- **Ce qu'on y fait, sans nouveau système** : **DANSER** (la danse du Club Néon : `danseDebut`, `danseTape`, `danseFin` ; la boucle
+  est devenue une fonction partagée `majDanse`, le club garde la sienne et ses bagarres `majBagarreClub`) — un bon danseur est payé une
+  fois par vague (`dansePrimeVague`) ; **COCKTAIL** au bar tiki (`boireCocktail` : l'ivresse `P.ivresse` du club) ; **PLONGER DU
+  PLONGEOIR** (une vraie chute : `P.chute`, réception par `plongeonJoueur`, sans dégâts) ; **PLONGER DU PONTON** dans la traverse.
+  Le bouton d'action passe par `lagonAction` (branche de `majAction`, à pied).
+- **La panique** : un tir ou une explosion à moins de 40 u (`DANGER`), ou un véhicule lancé (plus de 8 u/s) dans le club : la foule
+  fuit en s'écartant du danger, la piste s'éteint, la danse s'arrête, une clameur ; elle retombe en 10 s. Les figurants paniquent par leur
+  propre système (`FIGURANTS`).
+- **La zone VIP** : y entrer à pied → un avertissement (« Zone VIP de la Brigada : on ne passe pas »), et au-delà de 2,5 s les deux
+  gardes du cordon (des figurants armés, `LAGON.gardesFig`) deviennent de vrais gangsters `chrome` hostiles (`convertirSoldat`) ; un
+  coup de feu à moins de 26 u arme aussi les gardes, les Dockside Boys et la Brigada du carré (le mécanisme des soldats de la base) —
+  jamais les seules étoiles du joueur (`sansAlarme`).
+- **Les bateaux de l'IA** (`LGN`, `majLagonBateaux`, `majLagonBateau`, conduit `lagonIA`) : au plus deux à la fois, de vrais véhicules
+  (on peut les voler), nés en mer hors de vue sur le graphe des vedettes (`PCANAL.mers`), qui remontent par le graphe (`cheminCanal`,
+  `piloterVedette`), accostent à un poste libre, font escale 40 à 75 s, repartent et disparaissent en mer hors de vue. Modèles :
+  vedette, runabout, jet trois places, Espadon, cruiser (`LGN_CLES` : tous ont un chemin depuis la mer pour leur tirant d'air).
+- **Décision 15 — se croiser dans un canal.** Mesuré sur 5 minutes simulées (`sonde_5min`) : deux bateaux qui se croisaient de front
+  à l'embouchure du canal ouest se poussaient jusqu'à l'explosion (l'Espadon, 150 PV), et la vedette de police en patrouille suivait
+  les bateaux à 8 u et les percutait par l'arrière à chaque ralentissement (40 à 50 chocs en 5 min). Désormais : un bateau de l'IA
+  ralentit derrière un bateau qui roule (`bateauDevant` : 16 u, cône de ±35°, jamais un bateau amarré) ; deux bateaux qui se
+  croisent se rangent chacun sur leur droite, **seulement s'il reste de l'eau au-delà** (`piloterVedette` : l'écart latéral, qu'elle
+  avait déjà pour la police, plaquait sinon le bateau contre le coin du quai à l'embouchure), et celui qui arrive au Lagon ralentit ;
+  calé contre un quai plus de 2 s, un coup de marche arrière ; un choc de quai ne les abîme pas (un jet trois places, 80 PV, explosait
+  au coin du canal ouest et de la traverse — la « limite connue » des virages à angle droit de la V1), ni un choc avec un autre
+  véhicule de l'IA ou une patrouille (`resoudreCollisionsVehicule` : 130 à 160 PV perdus en 5 min, mesurés par une pile d'appels) ;
+  les tirs et les chocs du joueur, eux, les abîment toujours. La **patrouille de police** garde ses distances derrière un bateau de
+  l'IA (jamais derrière celui du joueur : la poursuite ne change pas) et se range de face. Après : 15 à 18 chocs légers en 5 min,
+  aucun bateau détruit, aucun immobile plus de 1 s hors escale, 3 à 4 allers-retours complets.
+- **La musique** (`LAGON_SON`) : une boucle house synthétisée à 124 battements (grosse caisse, charleston, claps, basse la-fa-do-sol,
+  accords), qui monte avec la proximité (gain et passe-bas, de 140 u au bord de la piste) ; coupée en salle, à la mort, à chaque
+  partie (`lagonArreter` dans `mourir` et `startRun`).
+- **La nuit** : les guirlandes, les spots de la piscine, les néons s'allument (`C.nuitMeshes`) ; des feux d'artifice au-dessus de la
+  traverse toutes les 1,6 à 3,4 s (les particules `spawnP` de la jetée).
+- **Ni voiture ni kiosque dans le club** : `canauxNettoyerVehicules` retire une voiture garée au hasard dans le Lagon (`dansLagon`) ;
+  le kiosque du port posé en V2 sur le quai sud de la traverse n'est plus construit là (le bar tiki y est).
+- **L'enseigne de l'arche s'efface** quand elle passe entre la caméra et le joueur (vue qui suit) : en entrant, elle remplissait le
+  bas de l'écran.
+
+### Les zones vides
+- **Les blocs sombres** : le garage du port (capture A) est parti à la phase 4 ; l'atelier « Marée Basse » (capture B, D : un « dock
+  RUCHE 9 », pâté (11,8)) **porte une cachette de l'amphibie** parmi ses volumes : il n'en perd aucun solide, il est **habillé** en
+  **marché aux poissons** (halle carrelée de blanc à bandeau bleu, toit à deux pans et verrière, vitrines allumées la nuit, rideau
+  métallique ; les trois conteneurs deviennent des chambres froides à bâches rayées ; deux étals de poissons sur la glace, cagettes,
+  marchands et clients ; enseigne « MARCHÉ AUX POISSONS » à la place de « CALE SÈCHE ») ; l'**aquarium** (le cube de verre sombre de la
+  V1, `bat()`) est refait dans le style du quartier (`mkAquariumCanaux` : socle blanc, façade bleu lagon à bandes vitrées allumées la
+  nuit, crête de vague, un requin sur le toit) — même emprise, même solide, même porte.
+- **Le quai nord de la traverse** (captures B, D) : aire de jeux (toboggan, bac à sable), glacier, terrasses de café autour du kiosque,
+  jardinières, palmiers, bancs face à l'eau, pêcheurs ; la **station de location** (kiosque « LOCATION · JET-SKI · KAYAK » et son ponton,
+  un jet-ski, un jet trois places et un kayak : de vrais véhicules garés, pilotables, à chaque partie).
+- **Tous les autres quais publics** (`mkPromenadeCanaux`, 5) : les deux rives des canaux ouest et est hors des villas, la rive est
+  du grand canal, le quai sud de la traverse hors du Lagon — tous les 8 u, un banc face à l'eau et son lampadaire côté rue, ou une
+  jardinière ; jamais sur un lot, une allée, une rue, un pont, un pont-levis, une passerelle, une marche, une échelle, un ponton, ni
+  près d'une porte, d'un kiosque ou d'un palmier des quais : 42 ensembles. Les grandes surfaces d'asphalte qui restent autour de la
+  passerelle d'acier (capture D) sont de vraies rues (x = 168 au nord, z = 84, le carrefour x = 168 / z = 126) : le trafic y roule.
+
+### Pièges trouvés
+- **Le tirage de la partie suivante** (relevé du périmètre : 21 véhicules garés ailleurs dans toute la ville). Trois causes, trouvées
+  en comptant les tirages de `startRun` → toutes les salles → `startRun` (la séquence du relevé) contre la phase 4 : (1) deux gardes de
+  la Brigada, de vrais ennemis dès le début de partie — tout ce qui parcourt les ennemis tire des nombres (d'où les figurants armés) ;
+  (2) les modèles neufs de la station de location (jet trois places, kayak) restaient dans les caches partagés (`_GEO_V3`, `_MATC_V3`…)
+  — ils sont rendus après la création ; (3) ce que la phase 5 tire sur le générateur PRIVÉ des canaux changeait la couleur des voitures
+  de luxe de la Brigada, garées juste après, et cette couleur entre dans le cache partagé de `mat()` : la location et le Lagon passent
+  désormais APRÈS la Brigada dans `canauxStartRunPrive`. Résultat : même nombre de tirages et même valeur suivante que la phase 4, relevé
+  sans écart. **Tout ajout à `canauxStartRunPrive` va à la fin.**
+- Les ampoules des guirlandes vues de jour (des boules sombres de 6 cm) faisaient, vues de dessus, une **poussière noire** sur la
+  piscine et le sable : ampoules de verre teinté, et le fil dessiné (`LineSegments`).
+- Le test « véhicule lancé » posait la voiture dans la piscine : elle s'y noyait et le joueur en sortait.
+- `valider.js` cherchait chaque salle dans `PORTES` (sauf les planques) : le chantier naval de la phase 4 n'y est pas (une porte de
+  plus décalerait la ville) — il lit désormais `porteSalle(id)` pour toute salle.
+- Les trois bateaux de location étaient garés l'un derrière l'autre, la proue contre la poupe du suivant : aucun ne démarrait
+  (« Canaux, nautique et ambiance ») ; ils sont côte à côte, la proue vers le milieu de la traverse.
+- Le test des feux d'artifice comptait les particules ACTIVES : la réserve tourne en anneau, pleine elle ne grossit plus (89 → 92) ;
+  il compte désormais les particules lancées.
+- « Minimap V2 » a échoué une fois dans un lot (8 pixels rouges pour un seuil de 9 à l'angle du nord, un test qui attend en temps
+  réel) ; il passe seul, dans l'ordre de la suite, trois fois de suite, et sur la phase 4 : sans lien avec la carte. À surveiller.
+- « Canaux de Los Reyes » vérifiait qu'un plan d'eau est relié au reste en regardant son CENTRE : celui de l'anse du chantier naval
+  (phase 4) tombe sur son ponton ; un seul point navigable de la forme atteint par le remplissage suffit désormais.
+
+### Tests (phase 5)
+- Nouveau bloc « Canaux V3 : le Lagon » (lit `CANAUX.lagon`, `LAGON`, `LGN`, `LAGON_SON`, `BASSINS`, `PCANAL`, `CANAUX.location`,
+  `CANAUX.promenade`) : la rue retirée, la piscine (eau au bon niveau), le ponton (praticable, un mur pour un bateau), un chemin depuis
+  la mer pour chaque modèle et chaque poste ; la foule (49, tous les rôles, les danseurs bougent), les figurants (tous des
+  `figurant()`), deux gardes au cordon qui ne sont pas encore des ennemis et ne s'arment pas pour des étoiles ; danser (payé une fois par vague), boire, plonger du plongeoir et du ponton (sans dégâts) ; la panique
+  (un coup de feu, un véhicule lancé) ; la zone VIP (les deux gardes deviennent des gangsters hostiles) ; un bateau de l'IA qui accoste, fait escale et repart ; la musique (de loin, sur
+  la piste, coupée à la mort) ; les feux d'artifice la nuit ; la location ; le marché garde les volumes du dock ; les promeneurs
+  marchent ; ni voiture ni kiosque dans le club ; l'aquarium garde son solide et sa porte ; les quais meublés, rien dans l'eau ; **cinq
+  minutes simulées** de bateaux de l'IA : nés, escale, départ, jamais coincés, jamais détruits.
+
+### Performances (phases 5 et 6, `perf_v3.js`, phase 4 → phases 5-6, mêmes points ; machine chargée : seules les proportions comptent, **à juger sur iPhone**)
+
+| Point | Classique : appels / triangles | Immersive : appels / triangles |
+|---|---|---|
+| centre du quartier = le Lagon (189, 140) | 209 / 321 k → 234 / 326 k (+12 %) | 1 707 / 684 k → 1 759 / 725 k (+3 %) |
+| fête de nuit (189, 105) | 195 / 297 k → 235 / 332 k (+21 %) | 1 715 / 681 k → 1 702 / 690 k (−1 %) |
+| Lagon nord (189, 132) | 185 / 295 k → 230 / 314 k (+24 %) | 1 747 / 713 k → 1 730 / 694 k (−1 %) |
+| quai ouest (160, 60) | 217 / 300 k → 217 / 312 k | 1 323 / 606 k → 1 300 / 594 k |
+| marina NE, grand canal, embouchure est, chantier | ±3 % | ±2 % |
+| survol du côté est | — | 2 487 / 1 155 k → 2 518 / 1 125 k (+1 %) |
+
+Par rapport à la référence du budget (V2 finale) : centre 213 / 245 k → 234 / 326 k (+10 % d'appels, +33 % de triangles), fête de
+nuit 228 / 236 k → 235 / 332 k (+3 %, +41 %) — **dans le budget** (+15 %, +60 %). En vue de dessus, au nord du Lagon, +24 % par rapport
+à la phase 4 : le DJ et le barman (deux corps animés, 26 appels) et les gerbes de la nuit (une particule = un appel ; ramenées de 40 à
+26 par gerbe). Géométries : +23, +1,5 Mo. Construction : `mkLagon` et `mkPromenadeCanaux` dans `mkCanaux` (`CANAUX.tLagon`,
+`CANAUX.tPromenade`). **Trouvé en mesurant** : les figurants coûtaient 119 appels de rendu au centre du Lagon (d'où la fusion des
+immobiles et les promeneurs dans la foule).
+
+### Captures (phase 5)
+`captures/canaux_v3/p5_*` : le Lagon vu d'en haut et de près, le carré VIP et ses gardes, en vue qui suit (jour, nuit, à l'entrée sous
+l'arche), le quai nord de la traverse (promenade, location), le marché aux poissons, l'aquarium, la rive est.
+
+## Phase 6 — la carte, les balises, les performances (fait)
+
+- **Grande carte et minimap** : le grand canal, la marina et les nouvelles jonctions étaient déjà dans les contours de l'eau
+  (`C.boucles`, phase 1) ; s'y ajoutent **tous les pontons** (marina, chantier, Lagon, location — seuls ceux des villas V2 étaient
+  dessinés), **les ponts-levis** (la volée orange au-dessus de l'eau, les culées) et **leur état** sur la grande carte aussi
+  (`dessinerLevisCarte` : vert fermé, rouge levé — la minimap l'avait depuis la phase 2). Badges (`listeCommerces`, minimap et grande
+  carte) : le **chantier naval** (🚤, un bateau) et **le Lagon** (🎉).
+- **Activités et balises** (`activitesCanauxV3`) : la **marina** (⛵) et la **location de jet-skis et de kayaks** (🛶) au filtre
+  « Activités » de la grande carte ; balises 3D du **chantier naval**, du **Lagon** et de la **marina** (`balisesCanauxV3`). **Piège** :
+  `mkBalises` lit `pointsActivites` PENDANT le décor — une balise de plus y aurait décalé ses tirages (`aD`) : ces activités n'entrent
+  dans la liste qu'une fois les canaux construits (`CANAUX.balisesV3`, posé en fin de `mkCanaux`), et leurs balises sont posées là, sur
+  le générateur privé des canaux. Le chantier et le Lagon ne sont pas répétés dans les activités de la carte (deux icônes au même
+  endroit) : leur badge suffit.
+- **Performances** : voir la phase 5 (mesures communes).
+- Tests : « Carte et catalogue » (51 activités sur la carte et en balises), « Minimap », « Minimap V2 », « Vue immersive, retours »
+  (84 balises) repassent.
+- Captures : `captures/canaux_v3/p6_carte_est.png`, `p6_carte_quartier.png`, `p6_carte_lagon.png`, `p6_minimap_chantier.png`,
+  `p6_minimap_lagon.png`.

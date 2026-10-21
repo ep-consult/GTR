@@ -4,6 +4,7 @@
  "porte:tuning:g_port": "GARAGE DU PORT : sa case (10,10) devient le canal ouest (V1, décision 4) ; V3, phase 4 : dans le bâtiment double du chantier naval « Marée Basse » (à la place du condo du sud, sur le grand canal est), porte sur la façade nord du garage, accès en voiture par la rue z = 168 (CANAUX_V3.md, décision 13)",
  "sortie:tuning:g_port": "suit la porte du GARAGE DU PORT",
  "garage:g_port": "suit la porte du GARAGE DU PORT",
+ "stand:183,119": "kiosque du port posé en V2 sur le quai sud de la traverse : c'est désormais la terrasse du Lagon, où le bar tiki sert à boire (CANAUX_V3.md, phase 5, décision 14) ; le quartier garde ses autres kiosques (quai nord de la traverse, quai du canal est, marina)",
  "stand:117,-11": "kiosque ou food truck du mobilier du port, retiré avec son pâté ou son trottoir devenu canal, quai ou bras (décision 5 : le quartier rebâti a les siens, phase 3)",
  "stand:101,-19": "kiosque ou food truck du mobilier du port, retiré avec son pâté ou son trottoir devenu canal, quai ou bras (décision 5 : le quartier rebâti a les siens, phase 3)",
  "stand:96,11": "kiosque ou food truck du mobilier du port, retiré avec son pâté ou son trottoir devenu canal, quai ou bras (décision 5 : le quartier rebâti a les siens, phase 3)",
