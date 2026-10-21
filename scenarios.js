@@ -17939,6 +17939,97 @@ async function main() {
       else ok('Retours 20 oct., lot 4 : ' + r.info.join(' ; '));
     }
     // -------------------------------------------------------------------
+    // Retours du 20 octobre, lot 5 (demandé : « la villa planque restylée : un vrai extérieur — jardin, terrasse, piscine,
+    // végétation — et une vue sur les alentours — collines, ville au loin, ciel —, au niveau des autres planques V2, rien au-delà de
+    // 185 u ; le concours de plongeon conservé » ; « l'immeuble en construction : l'ancienne grue supprimée, un monte-charge du même
+    // type que celui de la falaise, qui dessert les étages ; tirages inchangés »). Les zones sont lues sur la salle (champs de la
+    // salle, zonesInterieurActives), les toits sur s.pq.toits ; on atteint chaque zone à pied depuis la SORTIE (parcours en largeur
+    // sur les vrais solides).
+    // -------------------------------------------------------------------
+    console.log('\n--- Retours du 20 octobre, lot 5 : la villa planque restylée, le monte-charge du chantier ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = []; audioInit(); let T = dernierT + 1000;
+        const pas = (n, f) => { for (let i = 0; i < n; i++) { if (f && f(i) === false) return i; T += 1000 / 60; tick(T); } return n; };
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); META.vue = 'classique'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9; for (const e of ennemis) e.mort = true;
+        const sav = { villa: META.planque };
+        /* 5.1 — la villa : un dehors, une vue, rien au-delà de 185 u, les zones intactes et atteignables, les toits, la lumière, le son */
+        { META.planque = true; const porte = (typeof porteSalle === 'function' ? porteSalle('planque') : null) || PORTES.find((p) => p.id === 'planque'); entrerInterieur('planque', porte); const s = INT.actif;
+          if (!s || s.id !== 'planque') ko.push('on n’entre pas dans la villa');
+          else { pas(3);
+            if (!s.pq || s.pq.id !== 'villa' || !s.pqAmb) ko.push('la villa n’a ni dehors ni lumière à elle');
+            else { if (!scene.background.equals(s.pqAmb.ciel)) ko.push('pas la lumière de l’après-midi'); if (!AUDIO.pqAmbOn) ko.push('pas d’ambiance sonore'); }
+            // le ciel, la ville en contrebas, la végétation ; rien au-delà de 185 u
+            let ciel = false, ville = false, loin = 0, n = 0; s.g.updateMatrixWorld(true); const bb = new THREE.Box3();
+            s.g.traverse((o) => { if (!o.isMesh || !o.visible) return; let v = true; for (let q = o.parent; q; q = q.parent) if (q.visible === false) v = false; if (!v) return; n++;
+              if (o.material && o.material.side === THREE.BackSide && o.geometry.type === 'SphereGeometry') ciel = true; if (o.material && o.material.isShaderMaterial && o.position.y < -40) ville = true;
+              bb.setFromObject(o); const d = Math.max(Math.abs(bb.min.x - s.ox), Math.abs(bb.max.x - s.ox), Math.abs(bb.min.z - s.oz), Math.abs(bb.max.z - s.oz)); if (d > 186) loin++; });
+            if (!ciel) ko.push('pas de dôme de ciel'); if (!ville) ko.push('pas de ville en contrebas'); if (loin) ko.push(loin + ' objets au-delà de 185 u');
+            // l'ancienne enveloppe : murs, sol, fond noir masqués ; le tapis de la SORTIE reste
+            const murs = s.g.children.filter((o) => o.isMesh && o.position.y === 2.2 && o.geometry.parameters && o.geometry.parameters.height === 4.4 && (o.geometry.parameters.width > 40 || o.geometry.parameters.depth > 30));
+            if (murs.length !== 4 || murs.some((m) => m.visible)) ko.push('l’ancienne enveloppe se voit encore (' + murs.filter((m) => m.visible).length + ' murs)'); if (!s.tapisSortie.visible) ko.push('le tapis de la SORTIE a disparu');
+            // chaque zone de la villa existe, à plus de 8 u de la SORTIE, et on l'atteint à pied depuis la SORTIE
+            const champs = ['lit', 'coffreP', 'garage', 'garageSuiv', 'vitrine', 'tableau', 'trophees', 'penderie', 'piscine', 'plongeoirV'];
+            for (const k of champs) if (!s[k]) ko.push('la villa a perdu : ' + k);
+            { const { zones } = zonesInterieurActives(); const so = zones.find((z) => z.champ === 'sortie'); for (const z of zones) if (z.champ !== 'sortie' && Math.hypot(z.x - so.x, z.z - so.z) < 8) ko.push(z.champ + ' à moins de 8 u de la sortie'); }
+            { const pasG = 0.5, W = s.D.w / 2 - 1.2, Dd = s.D.d / 2 - 1.2, nx = Math.floor(2 * W / pasG) + 1, nz = Math.floor(2 * Dd / pasG) + 1, vu = new Uint8Array(nx * nz), file = [];
+              const id = (x, z) => Math.round((z - (s.oz - Dd)) / pasG) * nx + Math.round((x - (s.ox - W)) / pasG); const libre = (x, z) => !solidAt(x, z, 0.5);
+              const x0 = s.sortie.x, z0 = Math.min(s.sortie.z, s.oz + Dd); file.push([x0, z0]); vu[id(x0, z0)] = 1; let tete = 0;
+              while (tete < file.length) { const [x, z] = file[tete++]; for (const [dx, dz] of [[pasG, 0], [-pasG, 0], [0, pasG], [0, -pasG]]) { const X = x + dx, Z = z + dz; if (Math.abs(X - s.ox) > W || Math.abs(Z - s.oz) > Dd) continue; const k = id(X, Z); if (vu[k] || !libre(X, Z)) continue; vu[k] = 1; file.push([X, Z]); } }
+              const atteint = (zx, zz, rr) => file.some(([x, z]) => Math.hypot(x - zx, z - zz) < rr);
+              const pasAtteint = champs.filter((k) => s[k] && !atteint(s[k].x, s[k].z, Math.max(1.2, (s[k].r || 1.6) - 0.3))); /* le rayon de la zone, noté par marquerZone */
+              if (pasAtteint.length) ko.push('zones qu’on n’atteint pas depuis la SORTIE : ' + pasAtteint.join(', ')); else info.push('villa : ' + champs.length + ' zones atteintes à pied depuis la SORTIE (' + file.length + ' cases libres)'); }
+            // les toits : masqués quand on est dessous, visibles du dehors
+            { let nt = 0; for (const t of s.pq.toits) { if (!t.dedans) continue; nt++; P.x = s.ox + (t.x0 + t.x1) / 2; P.z = s.oz + (t.z0 + t.z1) / 2; pas(2); const cache = !t.objs.some((o) => o.visible); P.x = s.sortie.x; P.z = s.sortie.z - 1; pas(2); const vus = t.objs.every((o) => o.visible); if (!cache || !vus) ko.push('un toit (' + t.x0 + '…' + t.x1 + ', ' + t.z0 + '…' + t.z1 + ') ne s’efface pas dessous'); }
+              if (nt < 3) ko.push(nt + ' toits de la maison'); }
+            // la sortie coupe l'ambiance
+            sortirInterieur(); if (AUDIO.pqAmbOn) ko.push('l’ambiance de la villa continue dehors'); else info.push('villa : ciel, ville en contrebas, ' + n + ' objets dessinés, toits, lumière et son'); } }
+        /* 5.2 — le chantier : plus de grue à tour ; le monte-charge dessert chaque niveau (vrai bouton d'action), on l'appelle d'une passerelle,
+           on ne tombe ni dans le puits ni des passerelles ; startRun le remet au sol */
+        { const L = MCH.L, c = POIS.chantier, V = CHANTIER.vieilleGrue;
+          if (!L || !c || !V) ko.push('pas de monte-charge au chantier');
+          else { for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0;
+            // la grue : son solide retiré, plus un triangle visible au-dessus de l'immeuble (hors du monte-charge)
+            const Ht = L.niv[L.N]; if (solidAt(V.sol.x, V.sol.z, 0)) ko.push('le solide de la grue est resté');
+            { let n = 0; const A = new THREE.Vector3(), B = new THREE.Vector3(), C = new THREE.Vector3(), e1 = new THREE.Vector3(), e2 = new THREE.Vector3(), bb = new THREE.Box3(), exclus = new Set([L.cab, L.cable, L.mt]);
+              scene.traverse((o) => { if (!o.isMesh || !o.geometry || !o.geometry.attributes.position) return; for (let q = o; q; q = q.parent) if (exclus.has(q)) return;
+                o.updateMatrixWorld(); bb.setFromObject(o); if (bb.max.y < Ht + 5 || bb.max.x < c.x - 30 || bb.min.x > c.x + 30 || bb.max.z < c.z - 30 || bb.min.z > c.z + 30) return;
+                const p = o.geometry.attributes.position, ix = o.geometry.index, nt = ix ? ix.count / 3 : p.count / 3;
+                for (let t = 0; t < nt; t++) { const i0 = ix ? ix.getX(t * 3) : t * 3, i1 = ix ? ix.getX(t * 3 + 1) : t * 3 + 1, i2 = ix ? ix.getX(t * 3 + 2) : t * 3 + 2;
+                  A.fromBufferAttribute(p, i0).applyMatrix4(o.matrixWorld); B.fromBufferAttribute(p, i1).applyMatrix4(o.matrixWorld); C.fromBufferAttribute(p, i2).applyMatrix4(o.matrixWorld);
+                  if ((A.y + B.y + C.y) / 3 < Ht + 5 || Math.abs((A.x + B.x + C.x) / 3 - c.x) > 16 || Math.abs((A.z + B.z + C.z) / 3 - c.z) > 16) continue;
+                  if (e1.subVectors(B, A).cross(e2.subVectors(C, A)).length() > 2e-3) n++; } });
+              if (n) ko.push(n + ' triangles de la grue encore visibles au-dessus de l’immeuble'); else info.push('chantier : plus de grue à tour'); }
+            // le monte-charge au vrai bouton : du sol au dernier niveau, un niveau à la fois ; à chaque niveau, la passerelle mène à la dalle
+            const appui = () => { majAction(); const b = el('btnAction'); const l = b.style.display === 'none' ? '' : b.textContent; if (b._fn && l) b._fn(); return l; };
+            const sens = (() => { P.x = L.x; P.z = L.z + 8; P.y = solPied(P.x, P.z); pas(3); const z0 = P.z; INPUT.jx = 0; INPUT.jy = 1; pas(4); const s = P.z > z0 ? 1 : -1; INPUT.jy = 0; pas(2); return s; })(); /* le sens de l'axe du joystick vers le sud */
+            P.x = L.x; P.z = L.z; P.y = solPied(P.x, P.z); pas(5); let okN = 0;
+            for (let k = 1; k <= L.N; k++) { const l = appui(); let suivi = true; pas(80, () => { if (L.y !== L.cible && Math.abs(P.y - L.y) > 0.05) suivi = false; });
+              if (!/MONTER/.test(l) || Math.abs(L.y - L.niv[k]) > 0.01 || Math.abs(P.y - L.niv[k]) > 0.05 || !suivi) { ko.push('niveau ' + k + ' : « ' + l + ' », cabine ' + L.y.toFixed(2) + ', joueur ' + P.y.toFixed(2)); break; }
+              INPUT.jy = -sens; pas(45); INPUT.jy = 0; pas(2); /* on sort par la porte, la passerelle, jusque dans l'immeuble */
+              if (P.z > L.zMur - 2 || Math.abs(P.y - L.niv[k]) > 0.05 || P.chute) ko.push('niveau ' + k + ' : la passerelle ne mène pas à la dalle (z ' + (P.z - L.zMur).toFixed(2) + ', y ' + P.y.toFixed(2) + ')'); else okN++;
+              INPUT.jy = sens; pas(60); INPUT.jy = 0; pas(2); if (!mchDansCabine(0)) { ko.push('niveau ' + k + ' : on ne revient pas dans la cabine (z ' + (P.z - L.z).toFixed(2) + ')'); break; } }
+            { const l = appui(); pas(400, () => L.y !== L.cible); if (!/REDESCENDRE/.test(l) || L.y !== L.niv[0] || Math.abs(P.y - L.niv[0]) > 0.1) ko.push('redescendre : « ' + l + ' », cabine ' + L.y.toFixed(2) + ', joueur ' + P.y.toFixed(2)); }
+            if (okN === L.N) info.push('monte-charge : ' + L.N + ' niveaux desservis au bouton d’action, puis redescente au sol');
+            // l'appeler d'une passerelle (niveau 3), la cabine étant au sol ; d'abord la porte palière : on pousse vers le puits, on reste sur la passerelle
+            P.x = L.x; P.z = L.zPorte - 0.6; P.y = L.niv[3]; pas(5); let yMin = 1e9, zMax = -1e9;
+            INPUT.jy = sens; pas(60, () => { yMin = Math.min(yMin, P.y); zMax = Math.max(zMax, P.z); }); INPUT.jy = 0; pas(5);
+            if (yMin < L.niv[3] - 0.1 || zMax > L.zPorte + 0.1) ko.push('porte palière : on entre dans le puits sans la cabine (y ' + yMin.toFixed(2) + ', z ' + (zMax - L.zPorte).toFixed(2) + ')');
+            INPUT.jx = 1; pas(40, () => { yMin = Math.min(yMin, P.y); }); INPUT.jx = -1; pas(80, () => { yMin = Math.min(yMin, P.y); }); INPUT.jx = 0;
+            if (yMin < L.niv[3] - 0.1 || Math.abs(P.x - L.x) > 0.95) ko.push('garde-corps : on tombe de la passerelle (y ' + yMin.toFixed(2) + ', x ' + (P.x - L.x).toFixed(2) + ')');
+            P.x = L.x; P.z = L.zPorte - 0.6; pas(2); { const l = appui(); pas(300, () => L.y !== L.cible); if (!/APPELER/.test(l) || Math.abs(L.y - L.niv[3]) > 0.01) ko.push('appel depuis le niveau 3 : « ' + l + ' », cabine ' + L.y.toFixed(2)); }
+            INPUT.jy = sens; pas(40); INPUT.jy = 0; pas(3); if (!mchDansCabine(0) || Math.abs(P.y - L.niv[3]) > 0.05) ko.push('on n’entre pas dans la cabine appelée (z ' + (P.z - L.z).toFixed(2) + ', y ' + P.y.toFixed(2) + ')');
+            else { const l = appui(); pas(5); INPUT.jx = 1; pas(40); INPUT.jx = 0; if (!mchDansCabine(0) || Math.abs(P.y - L.y) > 0.05) ko.push('on sort de la cabine en marche (' + l + ')'); pas(120, () => L.y !== L.cible); }
+            // au sol, la cabine en haut : on ne passe pas dessous
+            mchLancer(L.N); pas(400, () => L.y !== L.cible); P.chute = false; P.x = L.x; P.z = L.z + L.hd + 1.5; P.y = solPied(P.x, P.z); pas(3); INPUT.jy = -sens; let dedans = false; pas(60, () => { if (mchDansCabine(-0.15)) dedans = true; }); INPUT.jy = 0;
+            if (dedans) ko.push('au sol, on passe sous la cabine restée en haut'); else info.push('portes palières, garde-corps, appel depuis une passerelle');
+            startRun(); ecran(null); ETAT.mode = 'jeu'; if (MCH.L.y !== MCH.L.niv[0] || MCH.L.cible !== MCH.L.niv[0]) ko.push('startRun ne remet pas la cabine au sol'); } }
+        META.planque = sav.villa; startRun(); return { ko, info };
+      });
+      if (r.ko.length) fail('Retours 20 oct., lot 5 : ' + r.ko.slice(0, 25).join(' ; ') + (r.ko.length > 25 ? ' … (' + r.ko.length + ')' : '') + ' [' + r.info.join(' | ') + ']');
+      else ok('Retours 20 oct., lot 5 : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];
@@ -17964,8 +18055,10 @@ async function main() {
           if (o.geometry && o.geometry.type === 'BoxGeometry' && o !== s.dehors && estMatPartage(o.material) && s.g.children.indexOf(o) < s.habillageN) nus++; // les objets nés en jeu (piles, poids…) gardent le leur
           if (o.geometry && o.geometry.type === 'BoxGeometry' && o.material && o.material.map && o.position.y > 0.2 && o.position.y < 3.9 && !(o.position.y === 2.2 && o.geometry.parameters.height === 4.4)) { nMeubles++; matieres.add(o.material); } // les murs partagent le leur
           if (o.material && o.material.isMeshBasicMaterial && o.material.map === texGlow && o.position.y > 1.5) lumieres++; }
-        if (!solTex) ko.push(id + ' : sol sans texture');
-        if (murTex < 3) ko.push(id + ' : murs sans texture (' + murTex + ')');
+        /* une salle qui masque l'enveloppe générique (la villa V2 : son propre sol, ses propres murs, retours du 20 octobre, 5.1) n'a rien à texturer */
+        const envMasquee = !s.g.children.some((o) => o.isMesh && o.visible && o.position.y === 2.2 && o.geometry.parameters && o.geometry.parameters.height === 4.4 && (o.geometry.parameters.width === s.D.w || o.geometry.parameters.depth === s.D.d));
+        if (!solTex && !envMasquee) ko.push(id + ' : sol sans texture');
+        if (murTex < 3 && !envMasquee) ko.push(id + ' : murs sans texture (' + murTex + ')');
         if (nus) ko.push(id + ' : ' + nus + ' meuble(s) encore en matériau uni partagé');
         if (nMeubles > 1 && matieres.size < nMeubles) ko.push(id + ' : des meubles partagent leur matériau (' + matieres.size + ' pour ' + nMeubles + ')');
         if (HABILLAGE_SALLES[id] && HABILLAGE_SALLES[id].sansLumiere && lumieres) ko.push(id + ' : ' + lumieres + ' lumière(s) ajoutée(s) dans une salle où l’obscurité est le jeu');

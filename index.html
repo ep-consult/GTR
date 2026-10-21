@@ -12053,6 +12053,177 @@ function plongeonUI(s,vis){ let d=document.getElementById('plgPan'); const J=s.p
   const nt=J.phase==='notes'&&J.notes?(J.notes.nom+'<br>'+J.notes.juges.map((v)=>'<span style="display:inline-block;background:#f4f8fc;color:#14202a;border-radius:4px;padding:1px 6px;margin:2px">'+v.toFixed(1)+'</span>').join('')+' × '+J.notes.dd+' = '+J.notes.pts):''; const ne=d.querySelector('#plgNotes'); if(ne._t!==nt){ ne._t=nt; ne.innerHTML=nt; }
   const bt=d.querySelector('#plgBtn'), lab=J.phase==='elan'?'SAUTER':(J.phase==='vol'?'MAINTIENS : TOURNE':'…'); if(bt._t!==lab){ bt._t=lab; bt.textContent=lab; }
   d.querySelector('#plgJauge').style.visibility=J.phase==='elan'?'visible':'hidden'; d.querySelector('#plgAig').style.left='calc('+((0.5+0.5*Math.sin(J.el))*100)+'% - 2px)'; }
+/* ---------- 7 bis. LA VILLA V2 (retours du 20 octobre, 5.1) : un vrai dehors, une vue ----------
+   Le manoir du sommet de Los Reyes Hills, un après-midi doré. Une villa moderne en U (enduit blanc, pierre, grandes baies vitrées,
+   toits plats à sous-face de teck, masqués quand on est dessous) autour de la piscine et de son plongeoir, qui ne bougent pas — le
+   concours de plongeon non plus ; au sud, le jardin (pelouse tondue, allée de dalles, lavande, haies, palmiers, oliviers, cyprès,
+   bougainvilliers, un salon sous pergola, une table sous une treille, un foyer) jusqu'au portail ; au nord, derrière la maison, une
+   terrasse de travertin et sa balustrade de verre au bord du plateau ; en contrebas, les collines dorées, la ville au loin
+   (PQ_VILLE_JOUR_FS), la mer à l'est, le panneau LOS REYES sur une crête, le ciel (pqCiel) — rien au-delà de 185 u.
+   Toutes les zones de la villa (lit, coffre, garage, cabinet, tableau, trophées, penderie, plongeoir) restent à leur place :
+   l'ancienne villa est construite comme avant (ses tirages, ses meubles, ses solides), puis l'enveloppe générique, l'ancien
+   dallage, le salon d'intérieur, les plantes et les plafonniers sont masqués ; tout le neuf est posé sur un générateur privé. */
+const VILLA_HAB={w:44,d:38}; /* l'ancienne villa : ses zones et ses meubles tiennent dans ce rectangle ; INTDEFS.planque, plus grand, porte le jardin */
+const PQ_VILLE_JOUR_FS=()=>'uniform vec2 uC; uniform vec3 uHor; varying vec3 vW;'+CHAL_GLSL_BRUIT+
+  /* la ville vue du sommet, l'après-midi : des toits clairs (gravier, tuiles, terrasses blanches), un pâté sur huit est un parc, des
+     piscines, des rues grises ; au loin, elle se fond dans la brume de l'horizon */
+  'void main(){ vec2 p=(vW.xz-uC)/10.0; vec2 c2=fract(p), b=floor(p); float d=min(min(c2.x,1.0-c2.x),min(c2.y,1.0-c2.y)), hb=hashC(b);'+
+  ' float rue=1.0-smoothstep(0.08,0.11,d); vec2 q=floor(p*3.0); float hq=hashC(q);'+
+  ' vec3 toit=mix(vec3(0.80,0.76,0.68),vec3(0.60,0.59,0.57),hq); if(hq>0.7) toit=vec3(0.74,0.42,0.30)*(0.85+0.3*hashC(q+3.1)); if(hq<0.1) toit=vec3(0.92,0.92,0.88);'+
+  ' if(hb<0.12) toit=vec3(0.32,0.50,0.26)+vec3(0.06,0.08,0.02)*hashC(floor(p*9.0));'+
+  ' toit=mix(toit,vec3(0.30,0.78,0.88),step(0.94,hashC(floor(p*7.0+1.7)))*step(0.12,hb));'+
+  ' vec3 c=mix(toit,vec3(0.44,0.45,0.47),rue); c*=0.9+0.12*hashC(floor(p*21.0));'+
+  ' c*=0.88; c=mix(c,uHor,smoothstep(2.5,14.0,length(p))); gl_FragColor=vec4(c,1.0); }';
+Object.assign(PQ_TEX_DESSIN,{
+  gazon:()=>cTex(256,(c,s)=>{ const r=pqAlea(77); c.fillStyle='#5c9838'; c.fillRect(0,0,s,s); c.fillStyle='rgba(255,255,255,0.06)'; c.fillRect(0,0,s,s/2); /* les bandes de la tondeuse */
+    for(let i=0;i<2600;i++){ c.fillStyle=r()<0.5?'rgba(30,70,20,0.32)':'rgba(160,210,96,0.28)'; c.fillRect(r()*s,r()*s,1,2+r()*3); } }),
+  gravier:()=>cTex(256,(c,s)=>{ const r=pqAlea(78); c.fillStyle='#bdb3a2'; c.fillRect(0,0,s,s); for(let i=0;i<3000;i++){ const v=150+r()*80|0; c.fillStyle='rgb('+v+','+(v-6)+','+(v-16)+')'; c.beginPath(); c.arc(r()*s,r()*s,0.8+r()*1.6,0,6.3); c.fill(); } }),
+  travertin:()=>cTex(256,(c,s)=>{ const r=pqAlea(79); c.fillStyle='#e6dccb'; c.fillRect(0,0,s,s); for(let i=0;i<500;i++){ c.fillStyle='rgba(160,135,100,'+(0.05+r()*0.1)+')'; c.fillRect(r()*s,r()*s,2+r()*14,1+r()*2); }
+    c.strokeStyle='rgba(120,100,80,0.45)'; c.lineWidth=2; for(let k=0;k<=2;k++){ c.beginPath(); c.moveTo(0,k*s/2); c.lineTo(s,k*s/2); c.stroke(); c.beginPath(); c.moveTo(k*s/2,0); c.lineTo(k*s/2,s); c.stroke(); } }),
+});
+function villaV2Construire(s,g,env,plages){ const T=pqOutils(s,g), {M,MF,MP,MB,MT,mesh,B,C,S,PL,solide,seg,sprite}=T, ox=s.ox, oz=s.oz, r=pqAlea(4711);
+  // ---- l'ancien : l'enveloppe générique (le fond noir, le sol, les murs, les corniches, les plinthes ; pas le tapis de SORTIE) et ce que la V2 remplace ----
+  for(let i=0;i<env;i++){ const o=g.children[i]; if(o&&o!==s.tapisSortie) o.visible=false; }
+  for(const [a,b] of plages) for(let i=a;i<b;i++) if(g.children[i]) g.children[i].visible=false;
+  const i0=g.children.length; s.pq={id:'villa',toits:[],anim:[],t:0,dedans:false}; const Q=s.pq;
+  const HOR=new THREE.Color(0xe9dcc0);
+  s.pqAmb={soleil:0.78,hemi:0.6,ciel:HOR,fogN:80,fogF:250,lampe:(sa)=>sa.pq.dedans?{x:P.x,y:3.4,z:P.z,c:0xffdcae,i:0.85,d:14}:{x:sa.ox,y:4,z:sa.oz+1.5,c:0x9fdcff,i:0.35,d:16}};
+  // ---- le ciel d'un après-midi doré, le soleil à l'ouest ----
+  g.add(pqCiel(ox,oz,[0x2c68bc,0x8fbfe6,0xe9dcc0],185));
+  sprite(new THREE.SpriteMaterial({map:texGlow,color:0xfff2c8,transparent:true,depthWrite:false,fog:false,blending:THREE.AdditiveBlending}),-115,62,-120,54);
+  // ---- en contrebas : la ville (nord), la mer et sa plage (est), des tours au loin ----
+  { const U={uC:{value:new THREE.Vector2(ox,oz)},uHor:{value:new THREE.Vector3(HOR.r,HOR.g,HOR.b)}}; const v=mesh(new THREE.PlaneGeometry(360,360),new THREE.ShaderMaterial({uniforms:U,vertexShader:AQ_SOL_VS,fragmentShader:PQ_VILLE_JOUR_FS()}),0,-44,0); v.rotation.x=-Math.PI/2; v.userData.garder=true; }
+  PL(110,330,new THREE.MeshLambertMaterial({color:0x3f7fb6}),125,-43.7,-10,-Math.PI/2); PL(5,330,new THREE.MeshLambertMaterial({color:0xe8dcc0}),68,-43.68,-10,-Math.PI/2);
+  { const verreT=MP(0x8ea6c0,70,0xffffff), beton=MF(0xd8d4cc); for(let k=0;k<9;k++){ const x=18+k*8+(r()-0.5)*4, z=-118-(k%3)*14-r()*8, w=6+r()*5, h=22+r()*34; mesh(new THREE.BoxGeometry(w,h,w),k%3?verreT:beton,x,-44+h/2,z); } }
+  // ---- les collines dorées de Los Reyes Hills : sous le plateau, puis au loin (une géométrie à couleurs de sommets) ----
+  { const parts=[], cols=[0xa8905c,0x9a8656,0x8a8450,0x707a46,0xb49c68];
+    const colline=(cx,cz,rx,rz,h,c)=>{ const geo=new THREE.SphereGeometry(1,14,7,0,Math.PI*2,0,Math.PI/2), p=geo.attributes.position;
+      for(let i=0;i<p.count;i++){ const x=p.getX(i), y=p.getY(i), z=p.getZ(i), k=1+0.14*Math.sin(x*7.1+z*5.3+cx)*Math.cos(z*6.7-x*3.1+cz)*(0.3+y); p.setXYZ(i,clamp(cx+x*rx*k,-182,182),-44+y*h*k,clamp(cz+z*rz*k,-182,182)); } /* jamais au-delà de 185 u */
+      parts.push({g:geo,c}); };
+    for(const [cx,cz,rx,rz,h] of [[-120,-62,40,30,46],[-150,-8,35,45,52],[-96,-122,45,30,40],[-42,-162,50,22,32],[62,-168,40,20,28],[-138,64,40,40,50],[-60,140,50,30,40],[120,96,40,30,30]]) colline(cx,cz,rx,rz,h,cols[(parts.length*3)%cols.length]);
+    for(let k=0;k<26;k++){ const a=r()*6.283, d=58+r()*110, cx=Math.cos(a)*d, cz=Math.sin(a)*d; if(cx>60&&cz<40) continue; colline(cx,cz,4+r()*6,4+r()*6,(d<80?16:26)+r()*14,k%2?0x56603a:0x646e42); } /* le maquis, en taches */
+    const m=new THREE.Mesh(montFusion(parts),new THREE.MeshLambertMaterial({vertexColors:true})); m.position.set(ox,0,oz); m.userData.garder=true; g.add(m); for(const p of parts) p.g.dispose(); }
+  // ---- le flanc de la colline : du pied des murs de soutènement (y −9) jusqu'à la ville (y −44), 35 u plus loin, à couleurs de sommets ----
+  { const nu=28, nv=9, pos=[], col=[], idx=[], c3=new THREE.Color(), cs=[0xa8905c,0x9a8656,0x7a7e48,0x56603a,0x8a8270];
+    const coins=[[-35.4,-30.4],[35.4,-30.4],[35.4,30.4],[-35.4,30.4]], ext=[[-72,-68],[72,-68],[72,68],[-72,68]];
+    for(let s2=0;s2<4;s2++){ const A0=coins[s2], A1=coins[(s2+1)%4], B0=ext[s2], B1=ext[(s2+1)%4], base=pos.length/3;
+      for(let j=0;j<=nv;j++) for(let i=0;i<=nu;i++){ const u=i/nu, v=j/nv, ax=A0[0]+(A1[0]-A0[0])*u, az=A0[1]+(A1[1]-A0[1])*u, bx=B0[0]+(B1[0]-B0[0])*u, bz=B0[1]+(B1[1]-B0[1])*u;
+        const n=Math.sin(ax*0.31+az*0.17+j*1.7)*Math.cos(az*0.23-ax*0.11+i*0.9), x=ax+(bx-ax)*v, z=az+(bz-az)*v, y=-9-35*Math.pow(v,0.75)+(v>0&&v<1?n*2.2:0);
+        pos.push(x,y,z); c3.setHex(cs[Math.abs(Math.round(n*3+i*0.37+j*0.53))%cs.length]); col.push(c3.r,c3.g,c3.b); }
+      for(let j=0;j<nv;j++) for(let i=0;i<nu;i++){ const a=base+j*(nu+1)+i, b=a+1, c=a+nu+1, d=c+1; idx.push(a,c,b,b,c,d); } }
+    const geo=new THREE.BufferGeometry(); geo.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); geo.setAttribute('color',new THREE.Float32BufferAttribute(col,3)); geo.setIndex(idx); geo.computeVertexNormals();
+    const m=new THREE.Mesh(geo,new THREE.MeshLambertMaterial({vertexColors:true,side:THREE.DoubleSide})); m.position.set(ox,0,oz); m.userData.garder=true; g.add(m); }
+  // ---- le panneau LOS REYES sur une crête à l'ouest ----
+  { const cv=document.createElement('canvas'); cv.width=512; cv.height=96; const c=cv.getContext('2d'); c.fillStyle='#f6f4ee'; c.font='900 78px Arial'; c.textAlign='center'; c.textBaseline='middle'; c.fillText('LOS REYES',256,52);
+    const pn=PL(34,6.4,new THREE.MeshLambertMaterial({map:new THREE.CanvasTexture(cv),alphaTest:0.5,side:THREE.DoubleSide}),-118,-6,-58,0,Math.atan2(118,58)); pn.userData.garder=true; }
+  // ---- le plateau : murs de soutènement de pierre au bord, la balustrade de verre au nord ----
+  const pierre=MT(pqTexRep('pierreCh',8,1),0xd8cbb6), capM=MF(0xe2d8c6), verreB=new THREE.MeshPhongMaterial({color:0xcfe6f2,transparent:true,opacity:0.22,shininess:120,specular:0xffffff,depthWrite:false,side:THREE.DoubleSide}), inox=MP(0xc8ccd2,90,0xffffff);
+  for(const [x,z,w,d] of [[0,-30,70.8,0.8],[0,30,70.8,0.8],[-35,0,0.8,60.8],[35,0,0.8,60.8]]){ B(w,9,d,pierre,x,-4.4,z); B(w+0.3,0.22,d+0.3,capM,x,0.12,z); }
+  for(let x=-34;x<=34;x+=2){ C(0.04,0.04,1.1,inox,x,0.75,-29.55,6); } B(70,0.06,0.08,inox,0,1.3,-29.55); PL(70,1.0,verreB,0,0.75,-29.55,0,0);
+  // ---- les sols : pelouse tondue, gravier de l'allée des voitures, travertin des terrasses, dallage de l'allée ----
+  const gazon=MT(pqTexRep('gazon',12,4)), gazonL=MT(pqTexRep('gazon',3,10)), grav=MT(pqTexRep('gravier',3,12)), grav2=MT(pqTexRep('gravier',9,1)), trav=MT(pqTexRep('travertin',8,3),0xd6cab4), travP=MT(pqTexRep('travertin',4,2),0xd6cab4);
+  PL(70,16,gazon,0,0.1,22,-Math.PI/2); PL(13,44,gazonL,-28.5,0.1,-8,-Math.PI/2); PL(13,44,gazonL,28.5,0.1,-8,-Math.PI/2);
+  PL(44,11,trav,0,0.12,-24.5,-Math.PI/2); /* la terrasse du nord, derrière la maison */
+  PL(9,6,grav2,-26.5,0.12,-14,-Math.PI/2); PL(4,42,grav,-31,0.12,4.5,-Math.PI/2); PL(28,3.2,grav2,-17,0.12,26.9,-Math.PI/2); /* l'allée des voitures : du garage au portail */
+  for(const [x,z,w,d] of [[0,-7.35,24,3.3],[0,11.35,24,5.3],[-9.9,1.5,4.2,14.4],[9.9,1.5,4.2,14.4]]) PL(w,d,travP,x,0.13,z,-Math.PI/2); /* le patio autour de la piscine (le bassin et son liseré ne bougent pas) */
+  for(let z=15;z<=27;z+=1.25) PL(1.8,0.95,travP,0,0.14,z,-Math.PI/2); /* l'allée de dalles, du portail au patio */
+  // ---- la maison : un U d'enduit blanc et de pierre, des baies vitrées sur le patio ----
+  const chaux=M(0xe4ded2), verre=new THREE.MeshPhongMaterial({color:0xbfd8ec,transparent:true,opacity:0.2,shininess:120,specular:0xffffff,depthWrite:false,side:THREE.DoubleSide}), bronze=M(0x3a3430);
+  const mur=(x0,z0,x1,z1,h,ouv,mt)=>{ const dx=x1-x0, dz=z1-z0, ry=Math.atan2(-dz,dx), P0=(a)=>[x0+dx*a,z0+dz*a];
+    const morceau=(a,b,y0,y1)=>{ const [xa,za]=P0(a), [xb,zb]=P0(b), l=Math.hypot(xb-xa,zb-za); if(l<0.02||y1-y0<0.02) return; const o=mesh(new THREE.BoxGeometry(l,y1-y0,0.3),mt||chaux,(xa+xb)/2,(y0+y1)/2,(za+zb)/2); o.rotation.y=ry; };
+    const sol=(a,b)=>{ const [xa,za]=P0(a), [xb,zb]=P0(b); solide((xa+xb)/2,(za+zb)/2,Math.max(0.16,Math.abs(xb-xa)/2),Math.max(0.16,Math.abs(zb-za)/2),h); };
+    const vitre=(a,b,y0,y1)=>{ const [xa,za]=P0(a), [xb,zb]=P0(b), l=Math.hypot(xb-xa,zb-za), v=mesh(new THREE.PlaneGeometry(l,y1-y0),verre,(xa+xb)/2,(y0+y1)/2,(za+zb)/2); v.rotation.y=ry;
+      const n=Math.max(1,Math.round(l/1.6)); for(let k=0;k<=n;k++){ const t=a+(b-a)*k/n, [xm,zm]=P0(t), mo=mesh(new THREE.BoxGeometry(0.08,y1-y0,0.14),bronze,xm,(y0+y1)/2,zm); mo.rotation.y=ry; }
+      for(const y of [y0,y1]){ const tr=mesh(new THREE.BoxGeometry(l,0.08,0.16),bronze,(xa+xb)/2,y,(za+zb)/2); tr.rotation.y=ry; } };
+    let a0=0; for(const [a,b,typ,y0,y1] of ouv){ morceau(a0,a,0,h); sol(a0,a);
+      if(typ==='f'){ morceau(a,b,0,y0); vitre(a,b,y0,y1); sol(a,b); } /* une baie : vitrée, on ne la traverse pas */
+      else { const m2=a+(b-a)*0.5, [xa,za]=P0(a), [xb,zb]=P0(m2), l=Math.hypot(xb-xa,zb-za), nx=dz/Math.hypot(dx,dz), nz=-dx/Math.hypot(dx,dz), v=mesh(new THREE.PlaneGeometry(l,y1-0.1),verre,(xa+xb)/2+nx*0.22,y1/2,(za+zb)/2+nz*0.22); v.rotation.y=ry; } /* une porte-fenêtre ouverte : le vantail glissé de côté */
+      morceau(a,b,y1,h); a0=b; }
+    morceau(a0,1,0,h); sol(a0,1); };
+  const HN=6.4, HA=4.8; /* l'aile nord (le grand salon, double hauteur), les ailes est et ouest */
+  mur(-22,-19,22,-19,HN,[[0.06,0.22,'f',1.0,5.2],[0.72,0.86,'f',1.0,5.2]]);
+  mur(-22,-19,-22,-9,HN,[],pierre); mur(22,-19,22,-9,HN,[[0.25,0.75,'f',1.0,4.6]]);
+  mur(-22,-9,-22,14,HA,[[0.18,0.36,'f',1.0,3.7],[0.62,0.82,'f',1.0,3.7]]); mur(22,-9,22,14,HA,[[0.62,0.85,'f',1.0,3.7]]);
+  mur(-22,14,-12,14,HA,[[0.2,0.8,'f',1.0,3.7]]); mur(12,14,22,14,HA,[[0.2,0.8,'f',1.0,3.7]]);
+  mur(-12,-9,12,-9,HN,[[0,0.15,'f',0.12,6.1],[0.15,0.35,'p',0,3.3],[0.35,0.65,'f',0.12,6.1],[0.65,0.85,'p',0,3.3],[0.85,1,'f',0.12,6.1]]); /* la façade de verre du grand salon, sur le patio */
+  mur(-12,-9,-12,14,HA,[[0,0.1,'f',0.12,4.4],[0.1,0.28,'p',0,3.2],[0.28,0.52,'f',0.12,4.4],[0.52,0.7,'p',0,3.2],[0.7,1,'f',0.12,4.4]]);
+  mur(12,-9,12,14,HA,[[0,0.12,'f',0.12,4.4],[0.12,0.3,'p',0,3.2],[0.3,0.55,'f',0.12,4.4],[0.55,0.73,'p',0,3.2],[0.73,1,'f',0.12,4.4]]);
+  for(const sd of [-1,1]){ const o=mesh(new THREE.BoxGeometry(10,HN-HA,0.3),chaux,sd*17,(HN+HA)/2,-9); } /* la marche entre le toit du grand salon et ceux des ailes */
+  // la porte du garage (ouest), une applique de chaque côté
+  { const gx=-22.17; B(0.06,3.2,6,MF(0x4e4a46),gx,1.6,-14); for(let k=1;k<6;k++) B(0.08,0.05,6,MF(0x3a3632),gx-0.02,k*0.53,-14); for(const z of [-17.6,-10.4]){ B(0.2,0.4,0.2,bronze,gx-0.1,3.4,z); S(0.1,MB(0xffe2a8),gx-0.2,3.4,z); } }
+  // les sols de la maison : marbre du grand salon, béton du garage, noyer des ailes
+  PL(34,10,MT(pqTexRep('marbre',6,2),0xf2ede4),5,0.13,-14,-Math.PI/2); PL(10,10,MF(0x8a8c90),-17,0.13,-14,-Math.PI/2);
+  PL(10,23,MT(pqTexRep('noyer',3,6)),-17,0.13,2.5,-Math.PI/2); PL(10,23,MT(pqTexRep('noyer',3,6)),17,0.13,2.5,-Math.PI/2);
+  // ---- les toits plats : dalle blanche, sous-face de teck, gravier clair dessus ; masqués quand on est dessous ----
+  const teck=MT(pqTexRep('teck',6,2)), dalle=MF(0xdcd6ca), gravT=MF(0x9a948a), lant=MP(0x9cc0d8,90,0xffffff);
+  const toit=(x0,x1,z0,z1,y)=>{ const w=x1-x0, d=z1-z0, cx=(x0+x1)/2, cz=(z0+z1)/2, gr=new THREE.Group(); gr.userData.garder=true; g.add(gr);
+    for(const [geo,m,yy,rx] of [[new THREE.BoxGeometry(w,0.36,d),dalle,y+0.18,0],[new THREE.PlaneGeometry(w-0.8,d-0.8),gravT,y+0.37,-Math.PI/2],[new THREE.PlaneGeometry(w-0.1,d-0.1),teck,y-0.005,Math.PI/2]]){ const o=new THREE.Mesh(geo,m); o.position.set(ox+cx,yy,oz+cz); o.rotation.x=rx; gr.add(o); }
+    for(let k=0;k<Math.floor(w/9);k++){ const o=new THREE.Mesh(new THREE.BoxGeometry(2.2,0.25,Math.min(3,d-3)),lant); o.position.set(ox+x0+4.5+k*9,y+0.5,oz+cz); gr.add(o); } /* les lanterneaux */
+    Q.toits.push({x0,x1,z0,z1,objs:[gr],dedans:true,vis:true}); };
+  toit(-22.6,22.6,-19.6,-7.9,HN); toit(-22.6,-10.8,-9,14.6,HA); toit(10.8,22.6,-9,14.6,HA);
+  // ---- dedans : une cuisine, une grande table, des tapis, des lampes, des tableaux ----
+  { const marbreN=MP(0xf4f0e8,60,0xffffff), noyerM=MT(pqTexRep('noyer',1,1)), cuir=MP(0x6a3a22,20,0x3a2a1a), lin=M(0xe8e2d6);
+    B(2.8,0.92,1.2,MF(0x2a2c30),-5,0.46,-15.2); B(3.0,0.06,1.4,marbreN,-5,0.95,-15.2); solide(-5,-15.2,1.5,0.7,1); for(let k=0;k<3;k++){ C(0.18,0.2,0.05,M(0x2a2c30),-6+k,0.72,-14.2,10); C(0.03,0.03,0.7,inox,-6+k,0.36,-14.2,6); }
+    for(let k=0;k<3;k++){ seg([-6+k,6.3,-15.2],[-6+k,3.6,-15.2],0.01,M(0x1a1a1a),3); S(0.18,MB(0xffe2b0),-6+k,3.5,-15.2,1,0.7,1); } /* la cuisine et ses suspensions */
+    B(3.4,0.08,1.4,noyerM,7.5,0.76,-14.6); for(const [dx,dz] of [[-1.5,-0.55],[1.5,-0.55],[-1.5,0.55],[1.5,0.55]]) B(0.08,0.74,0.08,M(0x2a2420),7.5+dx,0.37,-14.6+dz); solide(7.5,-14.6,1.7,0.7,0.8);
+    for(const dx of [-1.1,0,1.1]) for(const sd of [-1,1]){ B(0.48,0.06,0.48,lin,7.5+dx,0.46,-14.6+sd*1.05); B(0.48,0.5,0.06,lin,7.5+dx,0.72,-14.6+sd*1.3); }
+    PL(8,5,MT(pqTex('laine')),2,0.14,-13.2,-Math.PI/2); PL(5,6,MT(pqTex('laine'),0xd8c8b0),-17,0.14,1,-Math.PI/2); PL(5,6,MT(pqTex('laine'),0xc8d0d8),17,0.14,4,-Math.PI/2);
+    for(const [x,z] of [[-14,-17.5],[13.5,-17.5],[-20.5,-5],[20.5,7],[-14,12.6],[14,12.6]]){ C(0.3,0.24,0.6,MF(0xe8e2d6),x,0.3,z,12); S(0.55,MF(0x3f7a3a),x,1.1,z,1,1.3,1); } /* des plantes en pot dans les coins */
+    for(const [x,z,ry,t] of [[-21.82,-6.5,Math.PI/2,'rothko'],[21.82,12.3,-Math.PI/2,'kandinsky'],[-8,-18.82,0,'mondrian']]){ const nx=Math.sin(ry), nz=Math.cos(ry); B(ry===0?2.2:0.08,1.6,ry===0?0.08:2.2,M(0x2a2420),x,2.4,z); PL(1.9,1.3,MT(pqTex(t)),x+nx*0.06,2.4,z+nz*0.06,0,ry); } } /* des tableaux sur les murs pleins */
+  // ---- le patio : des oliviers en pot aux angles, des lanternes ----
+  const oliv=(x,z,h,pot)=>{ if(pot){ C(0.7,0.55,0.8,MF(0xc8b8a0),x,0.4,z,12); solide(x,z,0.6,0.6,0.8); } else solide(x,z,0.35,0.35,h); const y0=pot?0.8:0;
+    seg([x,y0,z],[x+0.2,y0+h*0.45,z-0.1],0.16,MF(0x6a5a44),6); seg([x+0.2,y0+h*0.45,z-0.1],[x-0.1,y0+h*0.7,z+0.15],0.11,MF(0x6a5a44),6);
+    for(let k=0;k<5;k++){ const a=k*1.26+r(); S(0.9+r()*0.4,MF(k%2?0x7d8a5e:0x8a9a6a),x+Math.cos(a)*0.9,y0+h*0.72+r()*0.6,z+Math.sin(a)*0.9,1,0.75,1); } };
+  oliv(-10.6,-7.6,2.6,true); oliv(10.6,-7.6,2.6,true);
+  for(const [x,z] of [[-11.4,13.4],[11.4,13.4],[-11.4,-8.4],[11.4,-8.4]]){ B(0.3,0.5,0.3,bronze,x,0.25,z); S(0.12,MB(0xffe2a8),x,0.55,z); }
+  // ---- le salon d'extérieur sous pergola, là où était le salon (mêmes solides) : canapé, banquette, mur de pierre et écran ----
+  { const cous=M(0xece6da), cadre=MT(pqTexRep('teck',2,1));
+    B(6,0.42,1.6,cadre,-7,0.21,9.5); B(5.9,0.22,1.5,cous,-7,0.52,9.5); B(6,0.6,0.32,cadre,-7,0.72,10.2); B(5.8,0.42,0.26,cous,-7,0.85,10.0);
+    B(1.6,0.42,4,cadre,-10.2,0.21,12.6); B(1.5,0.22,3.9,cous,-10.2,0.52,12.6); B(0.32,0.6,4,cadre,-10.9,0.72,12.6); for(const z of [11.6,13.6]) B(0.5,0.5,0.5,M(z<12?0xd85a3a:0x3a8ac8),-10.2,0.82,z);
+    B(4.6,2.9,0.42,pierre,-7,1.45,7.2); PL(3.4,1.9,MB(0x101418),-7,1.7,7.43,0,0); B(2.6,0.32,0.7,cadre,-7,0.16,8.05);
+    B(2.6,0.36,1.2,MF(0xd8cbb6),-6.5,0.18,13.3); S(0.25,MF(0x3f7a3a),-6.5,0.55,13.3); /* une table basse de pierre, un pot */
+    for(const [x,z] of [[-10.8,7.6],[-3.2,7.6],[-10.8,14.4],[-3.2,14.4]]){ B(0.16,3.0,0.16,cadre,x,1.5,z); solide(x,z,0.1,0.1,3); }
+    const lam=new THREE.Group(); lam.userData.garder=true; g.add(lam); for(let k=0;k<9;k++){ const o=new THREE.Mesh(new THREE.BoxGeometry(7.9,0.1,0.18),teck); o.position.set(ox-7,3.05,oz+7.6+k*0.85); lam.add(o); }
+    for(const z of [7.6,14.4]){ const o=new THREE.Mesh(new THREE.BoxGeometry(8,0.2,0.2),teck); o.position.set(ox-7,2.95,oz+z); lam.add(o); }
+    Q.toits.push({x0:-11.4,x1:-2.6,z0:7,z1:15,objs:[lam],dedans:false,vis:true}); }
+  // ---- le jardin du sud : lavande le long de l'allée, oliviers, palmiers, cyprès, haies, le portail ----
+  for(const sd of [-1,1]){ B(1.0,0.12,11.8,MF(0xb8ab94),sd*1.75,0.16,21); let k=0; for(let z=15.5;z<=26.5;z+=0.62) for(const dx of [-0.24,0.24]){ const x=sd*1.75+dx+((k++)%2?0.05:-0.05); S(0.27,MF(0x6f7f5e),x,0.36,z,1,0.62,1); C(0,0.12,0.36,MF(k%3?0x8a6ac8:0x9c7cd6),x,0.66,z,6); } } /* la lavande : des touffes grises et leurs épis */
+  oliv(-8,22,3.4,false); oliv(8,22,3.4,false); oliv(26,10,3.6,false); oliv(-25.5,-24,3.4,false);
+  const troncM=MF(0x8a6a48), palmeM=new THREE.MeshLambertMaterial({map:pqTex('palme'),alphaTest:0.5,side:THREE.DoubleSide});
+  const palmier=(x,z,h,pen)=>{ let px=x, pz=z, py=0; for(let k=0;k<6;k++){ const nx=px+pen[0]*k*0.12, nz=pz+pen[1]*k*0.12, ny=py+h/6; seg([px,py,pz],[nx,ny,nz],0.24-k*0.02,troncM,7); px=nx; pz=nz; py=ny; }
+    for(let k=0;k<9;k++){ const a=k/9*6.283, f=mesh(new THREE.PlaneGeometry(1.1,3.4),palmeM,px,py,pz); f.rotation.set(k%2?-1.35:-1.75,a,0,'YXZ'); f.translateY(1.55); }
+    for(let k=0;k<3;k++) S(0.16,M(0x5a3a1a),px+Math.cos(k*2.1)*0.25,py-0.2,pz+Math.sin(k*2.1)*0.25); solide(x,z,0.35,0.35,h); };
+  palmier(-26.5,20.5,8,[0.4,-0.2]); palmier(-23.5,23.2,7,[-0.3,-0.4]); palmier(21,26,7.4,[0.3,-0.5]); palmier(30.5,22,6.6,[-0.5,-0.2]); palmier(29,-4,7.2,[-0.4,0.3]); palmier(-26.5,4,6.8,[0.5,0.2]); palmier(-18,-26,6.4,[0.2,0.3]); palmier(18,-26,6.8,[-0.2,0.3]);
+  for(let z=-14;z<=22;z+=4.5){ C(0,0.85,7,MF(0x2c4a2a),-34,3.8,z,8); C(0.12,0.15,0.5,troncM,-34,0.25,z,6); solide(-34,z,0.45,0.45,7); } /* les cyprès le long de l'allée */
+  const haie=MF(0x2f5a2c);
+  for(const [x0,x1] of [[-34.3,-4],[4,34.3]]){ B(x1-x0,1.0,0.8,haie,(x0+x1)/2,0.5,29.1); solide((x0+x1)/2,29.1,(x1-x0)/2,0.4,1); }
+  B(0.8,1.0,56,haie,34.2,0.5,0); solide(34.2,0,0.4,28,1); /* à l'ouest, les cyprès bordent l'allée */
+  for(const sd of [-1,1]){ B(0.8,2.3,0.8,pierre,sd*3.2,1.15,29.2); B(1.0,0.16,1.0,capM,sd*3.2,2.38,29.2); S(0.2,MB(0xffe2a8),sd*3.2,2.6,29.2); solide(sd*3.2,29.2,0.4,0.4,2.3);
+    const v=B(2.0,1.8,0.06,MF(0x2a2622),sd*2.0,0.95,28.6); v.rotation.y=sd*0.9; } /* le portail, grand ouvert */
+  // les bougainvilliers sur les murs du sud des ailes
+  for(const sd of [-1,1]) for(let k=0;k<12;k++){ const x=sd*(12.6+k*0.8), y=0.6+((k*7)%5)*0.75; S(0.42+((k*3)%4)*0.06,MF(k%3?0xc8287a:0x3f7a3a),x,y,14.35,1,0.8,0.5); }
+  // ---- le foyer (sud-est) et la treille de la grande table (sud-ouest) ----
+  { const fx=16, fz=21.5; C(1.25,1.35,0.45,pierre,fx,0.22,fz,16); C(0.95,0.95,0.06,MF(0x1a1410),fx,0.46,fz,16); solide(fx,fz,1.2,1.2,0.5);
+    const fm=new THREE.SpriteMaterial({map:pqTex('flamme'),transparent:true,depthWrite:false,blending:THREE.AdditiveBlending}), fl=[]; for(let k=0;k<4;k++) fl.push(sprite(fm,fx-0.35+k*0.23,0.85,fz,0.55,0.8));
+    sprite(new THREE.SpriteMaterial({map:texGlow,color:0xff8a3a,transparent:true,opacity:0.4,depthWrite:false,blending:THREE.AdditiveBlending}),fx,0.9,fz,3);
+    Q.anim.push(()=>{ fl.forEach((f,k)=>{ const v=Q.t*(10+k*1.7); f.scale.set(0.5+Math.sin(v)*0.08,0.7+Math.sin(v*1.6)*0.16,1); }); });
+    for(let k=0;k<4;k++){ const a=k*1.571+0.785, x=fx+Math.cos(a)*3, z=fz+Math.sin(a)*3; const ch=B(1.0,0.4,1.0,MT(pqTexRep('teck',1,1)),x,0.2,z); ch.rotation.y=-a; const cu=B(0.9,0.14,0.9,M(0xece6da),x,0.47,z); cu.rotation.y=-a; solide(x,z,0.5,0.5,0.5); } }
+  { const tx=-16, tz=21.5, cadre=MT(pqTexRep('teck',2,1)); B(3.4,0.08,1.4,cadre,tx,0.76,tz); for(const [dx,dz] of [[-1.5,-0.55],[1.5,-0.55],[-1.5,0.55],[1.5,0.55]]) B(0.08,0.74,0.08,M(0x2a2420),tx+dx,0.37,tz+dz); solide(tx,tz,1.7,0.7,0.8);
+    for(const dx of [-1.1,0,1.1]) for(const sd of [-1,1]){ B(0.48,0.06,0.48,M(0xe8e2d6),tx+dx,0.46,tz+sd*1.05); B(0.48,0.5,0.06,M(0xe8e2d6),tx+dx,0.72,tz+sd*1.3); }
+    for(const [dx,dz] of [[-3,-2],[3,-2],[-3,2],[3,2]]){ B(0.16,2.8,0.16,cadre,tx+dx,1.4,tz+dz); solide(tx+dx,tz+dz,0.1,0.1,2.8); }
+    const tr=new THREE.Group(); tr.userData.garder=true; g.add(tr); for(let k=0;k<8;k++){ const o=new THREE.Mesh(new THREE.BoxGeometry(6.4,0.1,0.16),teck); o.position.set(ox+tx,2.85,oz+tz-1.9+k*0.54); tr.add(o); }
+    for(let k=0;k<10;k++){ const o=new THREE.Mesh(new THREE.SphereGeometry(0.45,7,5),MF(k%3?0x3f7a3a:0xc8287a)); o.position.set(ox+tx-2.8+((k*7)%10)*0.62,2.95,oz+tz-1.6+((k*3)%8)*0.42); o.scale.y=0.5; tr.add(o); } /* la treille fleurie */
+    Q.toits.push({x0:tx-3.4,x1:tx+3.4,z0:tz-2.4,z1:tz+2.4,objs:[tr],dedans:false,vis:true}); }
+  // ---- la terrasse du nord : transats face à la vue, parasols, une longue-vue ----
+  for(const x of [-9,-5,5,9]){ const cadre=MT(pqTexRep('teck',1,1)); B(0.8,0.3,2.0,cadre,x,0.15,-26); const d2=B(0.75,0.12,1.3,M(0xf4f2ec),x,0.36,-26.3); const dos=B(0.75,0.1,0.8,M(0xf4f2ec),x,0.6,-25.3); dos.rotation.x=-0.7; solide(x,-26,0.4,1.0,0.5); }
+  for(const x of [-7,7]){ C(0.04,0.04,2.6,inox,x,1.3,-26,6); const ps=C(0,1.8,0.6,M(0xf4f0e6),x,2.6,-26,12); }
+  { const lx=14.5, lz=-28.2; C(0.05,0.08,1.2,inox,lx,0.6,lz,6); const tube=C(0.09,0.12,0.9,MP(0x2a2c30,80,0xffffff),lx,1.3,lz-0.2,10); tube.rotation.x=1.2; solide(lx,lz,0.2,0.2,1.3); }
+  fusionnerDans(g,i0);
+}
+/* le son de la villa : une brise sur la colline, des oiseaux dans le jardin, le carillon de la terrasse ; plus doux dedans */
+PQ_SONS.villa={nappes:[{type:'bandpass',f:520,q:0.6,v:0.014,lfo:0.09,prof:0.8,dedans:0.25},{type:'highpass',f:3200,q:0.7,v:0.004,lfo:0.31,prof:1,dedans:0.15}],
+  evts:(s,dt,dd)=>{ const Q=s.pq; Q.oisT=(Q.oisT===undefined?2:Q.oisT)-dt; if(Q.oisT<=0){ Q.oisT=1.5+Math.random()*4; if(!dd){ const f=2600+Math.random()*1600, n=2+Math.floor(Math.random()*3); for(let i=0;i<n;i++) setTimeout(()=>{ if(AUDIO.pqAmbOn) beep(f+Math.random()*300,0.05,'sine',0.006,f*1.25); },i*110); } }
+    Q.carT=(Q.carT===undefined?7:Q.carT)-dt; if(Q.carT<=0){ Q.carT=8+Math.random()*10; const v=dd?0.003:0.007; for(let i=0;i<3;i++) setTimeout(()=>{ if(AUDIO.pqAmbOn) beep(1900+i*240,0.5,'sine',v); },i*160); } }};
 /* ---------- 8. LA VILLA MIAMI (phase 5) : chez Rafa « Flamingo » Duarte, ancien trafiquant reconverti dans le yachting ----------
    Demandé : « une 8e planque dans le quartier des canaux, ambiance Miami années 80 revisitée, sur EXACTEMENT le modèle des 7
    autres ». Dehors (mkMiamiCanaux, fin de mkCanaux) : une villa blanche cubique sur un socle, au bord du canal ouest, en face de
@@ -13611,6 +13782,7 @@ function mkChantierV2(){
   const Ht=h0+N*HN;
   for(const px of [sx1+0.3,(sx1+B.x1)/2,B.x1-0.3]) for(const pz of [B.z0+0.3,(B.z0+B.z1)/2,B.z1-0.3]){ mkBox(0.5,Ht,0.5,beton,px,Ht/2,pz); addSolid({x:px,z:pz,hw:0.25,hd:0.25,h:Ht}); }
   // échafaudage sur les faces sud et est : tubes, planchers par niveau, filet vert
+  const iEch0=scene.children.length; /* 5.2 : la lisse sud de chaque niveau est refaite en deux morceaux autour de la passerelle du monte-charge */
   for(let k=0;k<=N;k++){ const h=h0+k*HN;
     mkBox(larg+1.6,0.08,0.9,bois,(B.x0+B.x1)/2,h+0.05,B.z1+0.9); mkBox(0.9,0.08,prof+1.6,bois,B.x1+0.9,h+0.05,(B.z0+B.z1)/2);
     mkBox(larg+1.6,0.06,0.06,tube,(B.x0+B.x1)/2,h+1.1,B.z1+1.35); mkBox(0.06,0.06,prof+1.6,tube,B.x1+1.35,h+1.1,(B.z0+B.z1)/2); }
@@ -13618,15 +13790,15 @@ function mkChantierV2(){
   for(let q=0;q<=7;q++){ const z=B.z0-0.4+q*(prof+0.8)/7; for(const dx of [0.45,1.35]) mkBox(0.08,Ht+1.2,0.08,tube,B.x1+dx,(Ht+1.2)/2,z); }
   { const filet=new THREE.MeshLambertMaterial({color:0x3a8a3a,transparent:true,opacity:0.35,depthWrite:false,side:THREE.DoubleSide});
     const fn=new THREE.Mesh(new THREE.PlaneGeometry(prof+0.8,Ht*0.55),filet); fn.rotation.y=Math.PI/2; fn.position.set(B.x1+1.5,Ht*0.72,(B.z0+B.z1)/2); scene.add(fn); }
-  mkEnseigne('LOS REYES TOWER — CHANTIER','#ffd23f',(B.x0+B.x1)/2,4.2,B.z1+1.7,0,9);
+  const ensC=mkEnseigne('LOS REYES TOWER — CHANTIER','#ffd23f',(B.x0+B.x1)/2,4.2,B.z1+1.7,0,9);
   // grue à tour : mât en treillis, flèche au-dessus de l'immeuble, contre-flèche et lest, cabine, crochet
-  { const gx=B.x1+1.6, gz=B.z0-0.8, Hm=Ht+12;
+  { const iG0=scene.children.length, gx=B.x1+1.6, gz=B.z0-0.8, Hm=Ht+12; /* 5.2 : construite comme avant (ses tirages), puis réduite à rien avant la fusion */
     for(const [dx,dz] of [[-0.6,-0.6],[0.6,-0.6],[-0.6,0.6],[0.6,0.6]]) mkBox(0.14,Hm,0.14,jaune,gx+dx,Hm/2,gz+dz);
     for(let y=1.5;y<Hm;y+=1.6){ const d1=mkBox(1.4,0.08,0.08,jaune,gx,y,gz-0.6); d1.rotation.z=0.85; const d2=mkBox(0.08,0.08,1.4,jaune,gx+0.6,y,gz); d2.rotation.x=0.85; }
     mkBox(1.8,1.4,1.8,mat(0x3a3e46),gx,Hm+0.7,gz); mkBox(1.2,1,1.2,mat(0x1a2a3a),gx+0.9,Hm+0.9,gz+0.6);
     mkBox(26,0.7,0.9,jaune,gx-11,Hm+1.7,gz); mkBox(9,0.7,0.9,jaune,gx+5.5,Hm+1.7,gz); mkBox(2.4,2,1.4,betonF,gx+9,Hm+0.9,gz);
     mkBox(0.3,3,0.3,jaune,gx,Hm+3.3,gz); const cb=mkBox(0.04,10,0.04,mat(0x23262e),gx-16,Hm-3.3,gz); mkBox(0.6,0.5,0.4,jaune,gx-16,Hm-8.5,gz);
-    addSolid({x:gx,z:gz,hw:0.8,hd:0.8,h:Hm}); }
+    const solG={x:gx,z:gz,hw:0.8,hd:0.8,h:Hm}; addSolid(solG); CHANTIER.vieilleGrue={i0:iG0,i1:scene.children.length,sol:solG}; }
   // aire de l'hélico-grue (le pad est posé par mkHeliGrue) : marquage, cônes, manche à air, projecteurs, poutrelles
   { const H=CHANTIER.heli; mkBox(9,0.03,9,mat(0x3a3e46),H.x,0.18,H.z);
     for(const [dx,dz] of [[-4.6,-4.6],[4.6,-4.6],[-4.6,4.6],[4.6,4.6]]){ const co=new THREE.Mesh(new THREE.ConeGeometry(0.25,0.6,8),mat(0xff7a1a)); co.position.set(H.x+dx,0.45,H.z+dz); scene.add(co); }
@@ -13648,14 +13820,88 @@ function mkChantierV2(){
     const mb=new THREE.MeshLambertMaterial({map:bache}), m=INNER/2-0.2;
     const pal=(x0,z0,x1,z1)=>{ const l=Math.hypot(x1-x0,z1-z0), p=new THREE.Mesh(new THREE.BoxGeometry(l,2,0.06),mb); p.position.set((x0+x1)/2,1,(z0+z1)/2); p.rotation.y=-Math.atan2(z1-z0,x1-x0); scene.add(p); };
     pal(c.x-m,c.z-m,c.x+m,c.z-m); pal(c.x-m,c.z-m,c.x-m,c.z+m); pal(c.x-m,c.z+m,c.x-2,c.z+m); pal(c.x+m,c.z-m,c.x+m,c.z-1); }
+  /* retours du 20 octobre, 5.2 : la grue à tour supprimée sans rien décaler — ses pièces gardent leurs tirages et passent dans la fusion, réduites à
+     un point ; son solide est retiré ; de même la lisse sud de l'échafaudage, refaite autour de la passerelle du monte-charge */
+  { const V=CHANTIER.vieilleGrue; for(let i=V.i0;i<V.i1;i++) scene.children[i].scale.multiplyScalar(1e-4); retirerSolide(V.sol); for(let k=0;k<=N;k++) scene.children[iEch0+4*k+2].scale.multiplyScalar(1e-4); }
   fusionnerDecor(i0);
+  avecAleaPrive(2121,()=>mkMonteChargeChantier(B,h0,HN,N,ensC)); /* le monte-charge : générateur privé, matériaux propres */
 }
 function majChantierV2(dt){
   if(!CHANTIER.ok) return; const B=CHANTIER.bat;
   const dedans=!P.veh&&P.x>B.x0-1.5&&P.x<B.x1+1.5&&P.z>B.z0-1.5&&P.z<B.z1+1.5&&!INT.actif;
   for(const n of CHANTIER.niveaux){ const v=!(dedans&&n.h>P.y+2.4); if(n.grp.visible!==v) n.grp.visible=v; } // l'étage au-dessus du joueur s'efface
   for(const f of CHANTIER.fumees) if(Math.random()<dt*f.d) spawnP(f.x+rand(-0.15,0.15),f.y,f.z+rand(-0.15,0.15),rand(-0.2,0.2),rand(0.6,1.2),rand(-0.2,0.2),2.2,0.4,0xc8c4c0,0);
+  majMonteChargeChantier(dt); /* 5.2 */
 }
+/* ---- LE MONTE-CHARGE DU CHANTIER (retours du 20 octobre, 5.2 : « supprimer l'ancienne grue ; un monte-charge du même type que celui
+   de la falaise refaite, qui dessert les étages ») : au sud-est de la Los Reyes Tower, face à la caméra. Un mât à treillis (pied rayé
+   jaune et noir, feu rouge en tête) amarré à l'immeuble à chaque niveau ; une cabine vitrée à montants jaunes (bandeau de sécurité
+   côté caméra, mains courantes, plafonnier) dont la porte, au nord, se ferme pendant le trajet ; une passerelle à garde-corps à
+   chaque niveau, de la dalle à la porte. Le plancher de la cabine est un plancher d'ETAGES qui bouge avec elle ; dans la cabine, on
+   monte d'un niveau à la fois et on redescend au sol d'un coup ; sur une passerelle, on l'appelle. Portes palières : on n'entre
+   dans le puits qu'au niveau de la cabine ; en hauteur, on n'en sort que par sa porte ; on ne tombe pas des passerelles.
+   Construit sur un générateur privé, matériaux propres (jamais mat()). ---- */
+const MCH={L:null}, MCH_VIT=4.5;
+function mkMonteChargeChantier(B,h0,HN,N,ens){ if(ens){ ens.position.x=B.x0+4; ens.scale.x*=0.75; } /* l'enseigne du chantier, plus courte et à l'ouest : la cabine monte à côté */
+  const L={x:B.x0+9.2, /* entre deux montants de l'échafaudage, la passerelle à l'écart des poteaux de l'immeuble */z:B.z1+2.8,hw:1.1,hd:1.2,y:h0,cible:h0,h0,HN,N,niv:[],avecJoueur:false,zMur:B.z1}; for(let k=0;k<=N;k++) L.niv.push(h0+k*HN);
+  const Ht=h0+N*HN, hT=Ht+3.4; L.hT=hT; L.zPorte=L.z-L.hd;
+  const M=(col)=>new THREE.MeshLambertMaterial({color:col}), acier=M(0x8a9098), jaune=M(0xffd23f), noir=M(0x15171c), sol=M(0x2a2d34), bois=M(0xb8905a), tube=M(0xd8d8d0), beton=M(0x8a8a84), rouge=new THREE.MeshBasicMaterial({color:0xff3a2a}), lampe=new THREE.MeshBasicMaterial({color:0xfff1c0});
+  const verre=new THREE.MeshPhongMaterial({color:0xbfe8ff,transparent:true,opacity:0.22,shininess:90,specular:0xffffff,depthWrite:false,side:THREE.DoubleSide});
+  const Bx=(par,w,h,d,m,x,y,z)=>{ const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m); o.position.set(x,y,z); par.push(o); return o; };
+  // le mât, à l'est de la cabine : quatre membrures, des diagonales sur ses faces sud et est, le pied rayé, le feu rouge, les amarrages
+  const mt=new THREE.Group(), PM=[]; scene.add(mt); const xm=L.x+L.hw+0.55;
+  for(const [dx,dz] of [[-0.4,-0.4],[0.4,-0.4],[-0.4,0.4],[0.4,0.4]]) Bx(PM,0.1,hT,0.1,acier,xm+dx,hT/2,L.z+dz);
+  for(let k=1;k*0.9<hT-0.5;k++){ const y=k*0.9, s=k%2?1:-1; const a=Bx(PM,0.06,1.2,0.06,acier,xm,y,L.z+0.4); a.rotation.z=s*0.73; const b=Bx(PM,0.06,1.2,0.06,acier,xm+0.4,y,L.z); b.rotation.x=s*0.73; }
+  for(let k=0;k<4;k++) Bx(PM,0.92,0.5,0.92,k%2?noir:jaune,xm,0.25+k*0.5,L.z);
+  { const f=new THREE.Mesh(new THREE.SphereGeometry(0.16,10,8),rouge); f.position.set(xm,hT+0.6,L.z); PM.push(f); }
+  Bx(PM,1.3,0.5,1.3,acier,xm-0.2,hT+0.25,L.z); Bx(PM,1.8,0.2,1.8,beton,xm,0.1,L.z);
+  for(let k=1;k<=N;k++) Bx(PM,0.08,0.08,L.z-B.z1,acier,xm,L.niv[k]-0.5,(L.z+B.z1)/2); /* les amarrages, de la tête du mât à la dalle */
+  Bx(PM,0.5,0.7,0.3,jaune,L.x-L.hw-0.45,1.1,L.z+L.hd-0.2); Bx(PM,0.06,1.0,0.06,acier,L.x-L.hw-0.45,0.5,L.z+L.hd-0.2); /* le boîtier de commande au pied */
+  fusionnerFixes(PM,mt); addSolid({x:xm,z:L.z,hw:0.55,hd:0.55,h:hT}); L.mt=mt;
+  // la cabine (elle monte et descend) : plancher, toit, plafonnier, montants jaunes, flancs et fond vitrés, bandeau de sécurité face caméra
+  const cab=new THREE.Group(), PC=[]; cab.position.set(L.x,L.y,L.z); scene.add(cab); const w=L.hw*2, d=L.hd*2, h=2.5;
+  Bx(PC,w,0.2,d,sol,0,-0.1,0); Bx(PC,w+0.1,0.14,d+0.1,noir,0,h+0.05,0); Bx(PC,w*0.5,0.04,d*0.5,lampe,0,h-0.03,0);
+  for(const [sx,sz] of [[-1,-1],[1,-1],[-1,1],[1,1]]) Bx(PC,0.12,h,0.12,jaune,sx*(L.hw-0.06),h/2,sz*(L.hd-0.06));
+  for(const s of [-1,1]) Bx(PC,0.04,h-0.5,d-0.2,verre,s*(L.hw-0.02),h/2+0.1,0);
+  Bx(PC,w-0.2,h-0.5,0.04,verre,0,h/2+0.1,L.hd-0.02);
+  for(let k=0;k<6;k++) Bx(PC,w/6,0.18,0.06,k%2?noir:jaune,-L.hw+w/6*(k+0.5),0.22,L.hd);
+  for(const s of [-1,1]) Bx(PC,0.05,0.05,d-0.4,acier,s*(L.hw-0.18),1.05,0);
+  for(const y of [0.5,2.2]) Bx(PC,0.36,0.2,0.24,acier,L.hw+0.2,y,0); /* les patins sur le mât */
+  fusionnerFixes(PC,cab);
+  const porte=new THREE.Mesh(new THREE.BoxGeometry(w-0.2,h-0.5,0.04),verre); porte.position.set(0,h/2+0.1,-(L.hd-0.02)); cab.add(porte);
+  const cable=new THREE.Mesh(new THREE.BoxGeometry(0.05,1,0.05),noir); cable.position.set(L.x+L.hw-0.15,0,L.z); scene.add(cable);
+  // une passerelle à chaque niveau : plancher, garde-corps jaunes ; la lisse sud de l'échafaudage refaite en deux morceaux autour d'elle
+  for(let k=0;k<=N;k++){ const hk=L.niv[k], gr=(CHANTIER.niveaux[k]&&CHANTIER.niveaux[k].grp)||scene;
+    for(const [x0,x1] of [[B.x0-0.8,L.x-1.0],[L.x+1.0,B.x1+0.8]]){ const r=new THREE.Mesh(new THREE.BoxGeometry(x1-x0,0.06,0.06),tube); r.position.set((x0+x1)/2,hk+1.1,B.z1+1.35); scene.add(r); }
+    if(k===0) continue; const z0=B.z1-0.1, z1=L.zPorte, zc=(z0+z1)/2, lz=z1-z0;
+    const pl=new THREE.Mesh(new THREE.BoxGeometry(1.9,0.12,lz),bois); pl.position.set(L.x,hk-0.06,zc); gr.add(pl);
+    for(const s of [-1,1]){ for(const y of [0.55,1.05]){ const r=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.06,lz),jaune); r.position.set(L.x+s*0.95,hk+y,zc); gr.add(r); }
+      for(const z of [z0+0.1,z1-0.05]){ const pt=new THREE.Mesh(new THREE.BoxGeometry(0.06,1.1,0.06),jaune); pt.position.set(L.x+s*0.95,hk+0.55,z); gr.add(pt); } }
+    ETAGES.push({x:L.x,z:zc,hw:0.95,hd:lz/2,h:hk}); }
+  L.etage={x:L.x,z:L.z,hw:L.hw-0.05,hd:L.hd-0.05,h:L.y}; ETAGES.push(L.etage); /* le plancher de la cabine */
+  L.cab=cab; L.porte=porte; L.cable=cable; MCH.L=L; majMonteChargeChantier(0); }
+function mchNiveau(y){ const L=MCH.L; return clamp(Math.round((y-L.h0)/L.HN),0,L.N); }
+function mchDansCabine(m){ const L=MCH.L; return Math.abs(P.x-L.x)<L.hw+(m||0)&&Math.abs(P.z-L.z)<L.hd+(m||0); }
+function mchLancer(k){ const L=MCH.L; if(!L) return; L.cible=L.niv[k]; L.avecJoueur=!P.veh&&mchDansCabine(0.2)&&Math.abs(P.y-L.y)<1.2; SFX.ui(); vibre(30);
+  if(L.avecJoueur) toast(k===0?'🛗 Descente au sol':'🛗 Niveau '+k+' / '+L.N,'or'); }
+function majMonteChargeChantier(dt){ const L=MCH.L; if(!L) return;
+  if(ETAT.mode==='jeu'&&L.y!==L.cible){ const dy=L.cible-L.y; L.y+=Math.sign(dy)*Math.min(Math.abs(dy),MCH_VIT*dt);
+    if(L.avecJoueur&&!P.veh){ P.x=clamp(P.x,L.x-L.hw+0.4,L.x+L.hw-0.4); P.z=clamp(P.z,L.z-L.hd+0.4,L.z+L.hd-0.4); P.y=L.y; P.chute=false; P.vy=0; P.para=false; } /* la porte est fermée pendant le trajet */
+    if(L.y===L.cible) L.avecJoueur=false; }
+  L.etage.h=L.y; L.cab.position.y=L.y; L.cable.scale.y=Math.max(0.1,L.hT-L.y-2.6); L.cable.position.y=L.y+2.6+(L.hT-L.y-2.6)/2; L.porte.visible=L.y!==L.cible;
+  if(ETAT.mode!=='jeu'||P.veh||INT.actif||L.avecJoueur) return;
+  const enHaut=P.y>L.h0+0.6;
+  if(mchDansCabine(0)){
+    if(Math.abs(P.y-L.y)>0.35){ /* la porte palière : la cabine n'est pas à ce niveau — on ressort par le côté le plus proche */
+      const ex=[[Math.abs(P.x-(L.x-L.hw)),'x',L.x-L.hw-0.08],[Math.abs(P.x-(L.x+L.hw)),'x',L.x+L.hw+0.08],[Math.abs(P.z-(L.z-L.hd)),'z',L.z-L.hd-0.08],[Math.abs(P.z-(L.z+L.hd)),'z',L.z+L.hd+0.08]].filter((e)=>!enHaut||e[2]===L.z-L.hd-0.08).sort((a,b)=>a[0]-b[0])[0];
+      if(ex[1]==='x') P.x=ex[2]; else P.z=ex[2]; if(P.chute&&enHaut){ P.chute=false; P.vy=0; } }
+    else if(L.y>L.h0+0.5){ P.x=clamp(P.x,L.x-L.hw+0.35,L.x+L.hw-0.35); P.z=Math.min(P.z,L.z+L.hd-0.35); } } /* en hauteur, on ne sort de la cabine que par sa porte */
+  else if(enHaut&&Math.abs(P.x-L.x)<1.35&&P.z>L.zMur-0.2&&P.z<L.zPorte+0.05){ const k=mchNiveau(P.y); if(Math.abs(P.y-L.niv[k])<0.5) P.x=clamp(P.x,L.x-0.82,L.x+0.82); } } /* les garde-corps des passerelles */
+function actionMonteCharge(){ const L=MCH.L; if(!L||P.veh||INT.actif) return null; const arret=L.y===L.cible, k=mchNiveau(L.y);
+  if(arret&&mchDansCabine(0.3)&&Math.abs(P.y-L.y)<1.2) return k<L.N?{label:'🛗 MONTER — niveau '+(k+1)+' / '+L.N,fn:()=>mchLancer(k+1)}:{label:'🛗 REDESCENDRE AU SOL',fn:()=>mchLancer(0)};
+  if(arret&&Math.abs(P.x-L.x)<1.4&&P.z>L.zMur-2.2&&P.z<L.zPorte+0.3){ const kj=mchNiveau(P.y); if(Math.abs(P.y-L.niv[kj])<0.6&&kj!==k) return {label:'🛗 APPELER LE MONTE-CHARGE',fn:()=>mchLancer(kj)}; }
+  return null; }
+function resetMonteCharge(){ const L=MCH.L; if(!L) return; L.y=L.cible=L.h0; L.avecJoueur=false; majMonteChargeChantier(0); }
 // --- Planques V2 : caravane Airstream en plein désert dégagé, chalet d'altitude dans les sapins au Mont Reyes ---
 function deplacerPlanque(pq,x,z,y){ const ox=pq.x, oz=pq.z;
   if(pq.vieux){ for(const o of pq.vieux.objs) scene.remove(o); for(const s of pq.vieux.sol) retirerSolide(s); }
@@ -35252,7 +35498,7 @@ const INTDEFS={
   // d'interaction à moins de 8 unités — voir CLAUDE.md / le bug déjà
   // rencontré où le garage et le cabinet de curiosités, à 2,24 unités l'un
   // de l'autre, se marchaient dessus.
-  planque:{nom:'Villa planque',ico:'🏡',w:44,d:38,sol:0x8a7a5e,mur:0xd8ccb0,
+  planque:{nom:'Villa planque',ico:'🏡',w:70,d:60,sol:0x8a7a5e,mur:0xd8ccb0, /* retours du 20 octobre, 5.1 : la villa (VILLA_HAB, 44 × 38) au milieu de son jardin */
     ens:['TA PLANQUE','#7dff7a']},
   casino:{nom:'Casino Los Reyes',ico:'🎰',w:30,d:24,sol:0x5a1f2a,mur:0x2a1420,
     ens:['CASINO','#ffd23f']},
@@ -36069,6 +36315,7 @@ function construireSalle(id){
     inter.vente={x:ox,z:oz+P2/2-6.4};
     lampe(-8,-3,0xffffff,10); lampe(8,-3,0xffffff,10); lampe(0,4,0xffffff,10);
   } else if(id==='planque'){
+    const W=VILLA_HAB.w, P2=VILLA_HAB.d, iEnv=g.children.length; /* la villa V2 (5.1) : l'ancienne villa garde ses mesures, l'enveloppe générique (avant iEnv) sera masquée */
     // --- VILLA PLANQUE : le vrai chez-soi du joueur — salon, lit, coffre
     // personnel, garage, cabinet de curiosités, tableau de la ville, mur de
     // trophées, penderie, piscine. Bug déjà rencontré : le garage et le
@@ -36084,22 +36331,23 @@ function construireSalle(id){
     // entièrement la piscine (dessinée à plat au même niveau), qui devenait
     // invisible — on ne voyait qu'un rectangle légèrement teinté. Voir le
     // vrai bassin en contrebas plus bas (parois, margelle, liseré bleu).
-    const PISC_CX=0, PISC_CZ=1.5, PISC_HW=5.6, PISC_HD=5.0;
+    const PISC_CX=0, PISC_CZ=1.5, PISC_HW=5.6, PISC_HD=5.0, iSol0=g.children.length;
     for(let i=-8;i<8;i++) for(let j=-7;j<7;j++){
       const lx=i*2.9+1.45, lz=j*2.9+1.45;
       if(Math.abs(lx-PISC_CX)<PISC_HW+2.2&&Math.abs(lz-PISC_CZ)<PISC_HD+2.2) continue; // trou du bassin
       const t=new THREE.Mesh(new THREE.PlaneGeometry(2.9,2.9),mat((i+j)%2?0x94825f:0x8a7a5e));
       t.rotation.x=-Math.PI/2; t.position.set(ox+lx,0.11,oz+lz); g.add(t);
     }
+    const iSol1=g.children.length;
     // salon (canapé + table basse + télé) — entre la piscine et la sortie,
     // purement décoratif (jamais vérifié par majAction, pas de contrainte
     // d'espacement pour lui).
-    const tapis2=new THREE.Mesh(new THREE.PlaneGeometry(9,6),mat(0x7a3a3a));
+    const iSal0=g.children.length, tapis2=new THREE.Mesh(new THREE.PlaneGeometry(9,6),mat(0x7a3a3a));
     tapis2.rotation.x=-Math.PI/2; tapis2.position.set(ox-7,0.13,oz+11); g.add(tapis2);
     box(6,0.9,1.6,0x3a4a5a,-7,0.45,9.5);
     box(1.6,0.9,4,0x3a4a5a,-10.2,0.45,12.6);
     box(3,0.4,1.6,0x5a4a38,-7,0.2,13.4,false);
-    box(4.4,2.6,0.3,0x14161c,-7,1.6,7.2);
+    box(4.4,2.6,0.3,0x14161c,-7,1.6,7.2); const iSal1=g.children.length;
     // lit (nord-est)
     box(4,0.7,5,0x8a7060,17,0.35,-10);
     box(4,0.4,1.2,0xe8ecf2,17,0.85,-12.2,false);
@@ -36109,11 +36357,11 @@ function construireSalle(id){
     box(0.6,0.6,0.2,0xffd23f,17,1,9.75,false);
     mkEnseigne('COFFRE','#ffd23f',ox+17,2.2,oz+9.9,0,5);
     inter.coffreP={x:ox+17,z:oz+9};
-    [[-W/2+2,P2/2-3],[W/2-2,P2/2-3]].forEach(p=>{
+    const iPl0=g.children.length; [[-W/2+2,P2/2-3],[W/2-2,P2/2-3]].forEach(p=>{
       box(1,0.8,1,0x8a5a3a,p[0],0.4,p[1],false);
       const f=new THREE.Mesh(new THREE.SphereGeometry(1.1,8,6),mat(0x2fae4f));
       f.position.set(ox+p[0],1.6,oz+p[1]); f.scale.y=1.3; g.add(f);
-    });
+    }); const iPl1=g.children.length;
     // porte de garage (nord-ouest)
     const gar=new THREE.Mesh(new THREE.PlaneGeometry(6,3),
       new THREE.MeshBasicMaterial({color:0x35e0ff,transparent:true,opacity:0.3,depthWrite:false}));
@@ -36272,8 +36520,9 @@ function construireSalle(id){
     const becC=new THREE.Mesh(new THREE.ConeGeometry(0.14,0.3,6),mat(0xff8a2e));
     becC.rotation.z=Math.PI/2; becC.position.set(ox+3.65,-0.35,oz+2.5); g.add(becC);
     mkEnseigne('PISCINE','#35e0ff',ox,3.2,oz-3.5,0,7);
-    lampe(0,10,0xffe9b0,9); lampe(17,-2,0xffe9b0,7); lampe(-17,-2,0xffe9b0,7);
-    lampe(0,-8,0xffd23f,7); lampe(19,7,0xffd23f,6); lampe(-19,7,0xff9f5a,6);
+    const iLa0=g.children.length; lampe(0,10,0xffe9b0,9); lampe(17,-2,0xffe9b0,7); lampe(-17,-2,0xffe9b0,7);
+    lampe(0,-8,0xffd23f,7); lampe(19,7,0xffd23f,6); lampe(-19,7,0xff9f5a,6); const iLa1=g.children.length;
+    avecAleaPrive(5151,()=>villaV2Construire(inter,g,iEnv,[[iSol0,iSol1],[iSal0,iSal1],[iPl0,iPl1],[iLa0,iLa1]])); /* retours du 20 octobre, 5.1 : le dehors, la vue (le neuf sur un générateur privé) */
   }
   else if(id==='casino'){
     // --- CASINO : moquette rouge, machines à sous, tables de jeu ---
@@ -45354,7 +45603,7 @@ function startRun(){
   P.hp=P.maxHp; P.stam=P.stamMax; P.bouclier=0; P.bouclierMax=60; P.giletLourd=false; P.veh=null;
   P.buffs={dmg:0,vit:0,butin:0,lourd:0,sprintLibre:0,vol:0,cadence:0}; P.ivresse=0; P.iframes=0; P.dodgeT=0; P.rechT=0; P.specCd=0; P.ecraseT=0;
   P.grenades=3; boutonsAPied(); // jamais el('grenN') seul : voir boutonsAPied (mort au volant)
-  if(DECOR_V2){ reparerMobilier(); cielRetablir(); fpsArreter(); derbyArreter(); sportjArreter(); SPORTJ.primes=null; SPORTJ.gagnes=null; footDemarrer(); SURPRISES.tyro=null; for(const su of SURPRISES.liste) if(su.vague!==undefined) su.vague=-1; poserTexteBanderole(META.banderole); if(RIDES.porte){ RIDES.actif=null; RIDES.porte.visible=false; RIDES.txt.style.display='none'; rivalesFin(); if(RIDES.fleche) RIDES.fleche.visible=false; RIDES.records={}; RIDES.primeVague={}; } resetPic(); resetMer(); basketArreter(); BASKET.reussi=false; BASKET.vague=-1; } P.wingsuit=false; P.wing=false; if(P.wingMesh) P.wingMesh.visible=false; nettoyerPnjMetier(); MET2.serie={taxi:0,ambulance:0,pompier:0}; // course en cours : jamais survivante d'une partie à l'autre // mobilier renversé réparé ; message acheté sur la banderole
+  if(DECOR_V2){ reparerMobilier(); cielRetablir(); fpsArreter(); derbyArreter(); sportjArreter(); SPORTJ.primes=null; SPORTJ.gagnes=null; footDemarrer(); SURPRISES.tyro=null; for(const su of SURPRISES.liste) if(su.vague!==undefined) su.vague=-1; poserTexteBanderole(META.banderole); if(RIDES.porte){ RIDES.actif=null; RIDES.porte.visible=false; RIDES.txt.style.display='none'; rivalesFin(); if(RIDES.fleche) RIDES.fleche.visible=false; RIDES.records={}; RIDES.primeVague={}; } resetPic(); resetMonteCharge(); resetMer(); basketArreter(); BASKET.reussi=false; BASKET.vague=-1; } P.wingsuit=false; P.wing=false; if(P.wingMesh) P.wingMesh.visible=false; nettoyerPnjMetier(); MET2.serie={taxi:0,ambulance:0,pompier:0}; // course en cours : jamais survivante d'une partie à l'autre // mobilier renversé réparé ; message acheté sur la banderole
   // Jetpack : perdu au game over, comme les armes (voir CLAUDE.md) — il
   // faut remonter le chercher. Le lieu, lui (META.jetpackTrouve), reste acquis.
   P.jetpack=false; P.jetpackVol=false; P.jetFuel=100; P.jetVx=0; P.jetVz=0; P.jetWarnT=0; P.jetAvertVu=false;
@@ -46649,7 +46898,7 @@ function majAction(){
     const pertArm=!P.veh&&!INT.actif?porteArmurerieProche():null; // les deux armureries de la carte : la salle V2
     let ff=null;
     if(POIS.fastfoods) for(const f of POIS.fastfoods) if(dist2(P.x,P.z,f.x,f.z)<10){ff=f;break;}
-    const picAct=DECOR_V2?(actionPic()||actionMer()):null; // Pic du Vertige (monte-charge, saut BASE) ; mer (trésor, paillote, plongée, remorquage)
+    const picAct=DECOR_V2?(actionPic()||actionMonteCharge()||actionMer()):null; // Pic du Vertige (monte-charge, saut BASE) ; mer (trésor, paillote, plongée, remorquage)
     if(MONT_VIE.jum.actif){ label='🔭 RANGER LES JUMELLES'; fn=jumellesFin; }
     else if(POIS.toitH&&POIS.toitH.jetpack&&dist2(P.x,P.z,POIS.toitH.jetpack.x,POIS.toitH.jetpack.z)<9&&Math.abs(P.y-POIS.toitH.jetpack.h)<4){
       if(P.jetpack){ label='✅ JETPACK ÉQUIPÉ'; fn=()=>{SFX.refus();}; }

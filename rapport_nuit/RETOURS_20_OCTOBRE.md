@@ -22,8 +22,8 @@ lourds. Aucune référence à un autre jeu ni à une marque.
 | 4 | 4.1 Tableau de chasse | ☑ |
 | 4 | 4.2 Trophées au chalet | ☑ |
 | 4 | 4.3 Défis de chasse et costume de pigeon | ☑ |
-| 5 | 5.1 Villa planque restylée | ☐ |
-| 5 | 5.2 Chantier : la grue remplacée par un monte-charge | ☐ |
+| 5 | 5.1 Villa planque restylée | ☑ |
+| 5 | 5.2 Chantier : la grue remplacée par un monte-charge | ☑ |
 | 6 | 6.1 Paquebot « Reyes Majestic » qui se brise | ☐ |
 | 6 | 6.2 Vie au large | ☐ |
 | 6 | 6.3 Kitesurf | ☐ |
@@ -336,4 +336,75 @@ repassés : défis, planques, chalet, tenues des mini-jeux, défis de la 3e sér
 
 Captures : `captures/retours_20/4_mur_trophees.png` (quelques espèces au tableau, plaques vides et « BRACONNÉ »),
 `4_mur_trophees_toutes_especes.png`, `4_costume_pigeon.png` (de face, de dos, ailes ouvertes), `4_ecran_tableau_de_chasse.png`.
+
+## Lot 5 — Planques et constructions (fait : 5.1 et 5.2, un seul commit)
+
+### 5.1 — La villa planque restylée
+
+**Lecture retenue** : la villa est « le manoir du sommet » de Los Reyes Hills ; « au niveau des autres planques V2 » = un vrai lieu
+(un dehors, une lumière, des sons, un ciel en dôme), comme la caravane ou le chalet. Tout ce qu'elle offrait reste à sa place et
+marche pareil : lit, coffre, garage (et SUIVANT), cabinet de curiosités, tableau de la ville, mur de trophées, penderie, piscine,
+plongeoir et concours de plongeon — on change le lieu autour d'eux, pas eux.
+
+- **La maison** (`villaV2Construire`) : une villa moderne en U, enduit blanc et pierre, ouverte au sud sur la piscine. L'aile nord
+  est le grand salon en double hauteur (façade de verre sur le patio, cuisine à îlot et ses suspensions, grande table, le tableau
+  de la ville, le garage au bout, sa porte sur l'allée) ; les ailes est et ouest (lit, coffre, mur de trophées / penderie,
+  cabinet) ont des baies vitrées et des portes-fenêtres ouvertes (le vantail glissé de côté). Toits plats à sous-face de teck,
+  gravier et lanterneaux, **masqués quand on est dessous** (comme le chalet).
+- **Le dehors** : le patio de travertin autour du bassin (oliviers en pot, lanternes), le salon d'extérieur sous pergola à la place
+  du salon d'intérieur (mêmes solides : canapé, banquette, mur de pierre et son écran) ; au sud, le jardin jusqu'au portail grand
+  ouvert — pelouse tondue, allée de dalles bordée de lavande, oliviers, palmiers, haies, une table sous une treille fleurie, un foyer
+  et ses fauteuils, des bougainvilliers sur les murs ; à l'ouest, l'allée des voitures en gravier bordée de cyprès, du garage au
+  portail ; au nord, derrière la maison, une terrasse de travertin (transats, parasols, une longue-vue) et sa **balustrade de verre
+  au bord du plateau**.
+- **La vue** : le plateau finit par des murs de soutènement de pierre ; en dessous, **le flanc de la colline** (herbe sèche dorée,
+  maquis) descend jusqu'à **la ville, 44 u plus bas** (`PQ_VILLE_JOUR_FS` : toits clairs, tuiles, piscines, parcs, rues, qui se
+  fondent dans la brume), **la mer et sa plage à l'est**, des tours au loin, les **collines dorées** de Los Reyes Hills, le
+  **panneau LOS REYES** sur une crête, le soleil de l'après-midi (`pqCiel`). Rien au-delà de 185 u (les sommets des reliefs
+  lointains sont bornés).
+- **Lumière et son** : un après-midi doré (`s.pqAmb`, la lampe suit l'intérieur), une brise, des oiseaux dans le jardin, le carillon
+  de la terrasse (`PQ_SONS.villa`), coupés à la sortie, à la mort et à chaque partie (la villa a désormais un `s.pq`).
+- **Tirages** : l'ancienne villa est construite comme avant (ses tirages, ses meubles, ses solides) ; l'enveloppe générique,
+  l'ancien dallage, le salon d'intérieur, les plantes et les plafonniers sont **masqués** ; le neuf est sur un générateur privé.
+  La ville, le décor et le tirage principal sont identiques. Seule différence : une partie qui passe par la villa tire ensuite
+  autrement (2 262 tirages de moins à la visite) — l'habillage générique ne pose plus de lambris ni de cadres sur des murs
+  génériques, désormais masqués. C'est la villa qui a changé, pas la ville.
+- **Coût** (salle de la villa, machine sans carte graphique : seules les proportions comptent) : **moins d'appels de rendu** —
+  285 → 188 à l'entrée, 283 → 201 au patio, 212 → 174 dans le grand salon, 209 → 143 au nord (l'ancien dallage était fait de 190
+  dalles séparées) ; +30 à 47 k triangles (ciel, flanc de colline, ville, collines). À juger sur iPhone.
+
+### 5.2 — Le chantier : la grue remplacée par un monte-charge
+
+**Lecture retenue** : « du même type que celui de la falaise » = cabine vitrée à montants jaunes, bandeau de sécurité face caméra,
+mât à pied rayé jaune et noir et feu rouge en tête, rien devant lui vu de la caméra (1.3). « Qui dessert les étages » = on s'arrête
+à chaque niveau (`ETAGES`), une passerelle mène de la porte de la cabine à la dalle.
+
+- **La grue à tour supprimée sans rien décaler** : elle est construite comme avant (ses tirages) puis **réduite à un point avant la
+  fusion** du décor (ses pièces passent dans la fusion, invisibles) ; son solide est retiré. De même la lisse sud de l'échafaudage,
+  refaite en deux morceaux autour de la passerelle. Empreinte du décor, portes, chalet, mobilier et tirage principal identiques.
+- **Le monte-charge** (`mkMonteChargeChantier`, `MCH`) au sud-est de la Los Reyes Tower, face à la caméra, entre deux montants de
+  l'échafaudage (la passerelle évite les poteaux de l'immeuble) : un mât à treillis amarré à l'immeuble à chaque niveau, une cabine
+  vitrée dont la porte (au nord) se ferme pendant le trajet, une passerelle à garde-corps à chaque niveau. L'enseigne du chantier,
+  plus courte, est décalée à l'ouest.
+- **Il se joue** : dans la cabine, le bouton d'action monte d'un niveau (« 🛗 MONTER — niveau 3 / 6 »), et du dernier redescend au
+  sol d'un coup ; sur une passerelle, on l'appelle (« 🛗 APPELER LE MONTE-CHARGE »). Le plancher de la cabine est un plancher
+  d'`ETAGES` qui bouge avec elle ; le joueur est porté (porte fermée). **Portes palières** : on n'entre dans le puits qu'au niveau de
+  la cabine (sinon on reste sur la passerelle) ; en hauteur on ne sort de la cabine que par sa porte ; au sol, la cabine en haut, on
+  ne passe pas dessous ; on ne tombe pas des passerelles. Remis au sol à chaque partie.
+
+### Test, mesures, captures
+
+« Retours du 20 octobre, lot 5 » : la villa a un dehors à elle (ciel en dôme, ville en contrebas), rien au-delà de 185 u, l'ancienne
+enveloppe masquée (le tapis de la SORTIE reste), **les dix zones de la villa existent, à plus de 8 u de la SORTIE, et on les atteint
+à pied depuis la SORTIE** (parcours en largeur sur les vrais solides, au rayon réel de chaque zone) ; chaque toit s'efface quand on
+est dessous ; la lumière et l'ambiance, coupée à la sortie ; le chantier : plus un triangle de la grue au-dessus de l'immeuble, son
+solide retiré ; le monte-charge au vrai bouton : les six niveaux desservis, et à chacun on sort par la passerelle jusqu'à la dalle et
+on revient, puis la redescente ; l'appel depuis le niveau 3 ; la porte palière (pousser vers le puits vide : on reste sur la
+passerelle), les garde-corps, la cabine qu'on ne quitte pas en marche, le puits au sol ; startRun remet la cabine au sol. Anciens
+tests repassés : « Planques, 7 » (le concours de plongeon), portes, vue immersive dans les salles, hélicoptères (le Titan au
+chantier), figurants, retours du 18 octobre (garage de la villa), 1.3, origine du monde, retours du 16 octobre (l'immeuble en
+construction), habillage V2 des salles (qui ne demande plus de texture à une enveloppe générique masquée).
+
+Captures : `captures/retours_20/5_avant_villa.png`, `5_villa_entree.png`, `5_villa_patio.png`, `5_villa_vue_nord.png`,
+`5_villa_grand_salon.png`, `5_monte_charge_chantier.png`, `5_monte_charge_niveau3.png`.
 
