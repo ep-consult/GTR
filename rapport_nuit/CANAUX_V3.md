@@ -570,3 +570,211 @@ l'arche), le quai nord de la traverse (promenade, location), le marché aux pois
   (84 balises) repassent.
 - Captures : `captures/canaux_v3/p6_carte_est.png`, `p6_carte_quartier.png`, `p6_carte_lagon.png`, `p6_minimap_chantier.png`,
   `p6_minimap_lagon.png`.
+
+## Validation finale — la suite complète
+
+`valider.js` : tout passe. Empreinte du décor (931930327, portes, chalet, mobilier), tirage principal et séquence du relevé
+(`startRun` → toutes les salles → `startRun`, même valeur suivante 0,772371) identiques à la V2 ; relevé du périmètre sans écart
+hors de ceux notés dans `canaux_deplacements.json`.
+
+La suite complète de `scenarios.js` a demandé cinq passes. Ce que les quatre premières ont trouvé (des blocs qui passaient seuls) :
+- **Un vrai bug, ancien mais devenu visible** (« PNJ à l'eau ») : `majPietons` bornait tout piéton à x ≤ HALF (294). Un piéton
+  du dehors — relevé d'un bassin du Pic, figurant de l'aéroport ou du mont converti — était **téléporté sur x = 294** : en V2, la
+  route de bordure ; depuis la V3, **le grand canal**, où il se retrouvait à nager. La borne est désormais `LIMITE_EST` (la terre va
+  jusque-là avec `DECOR_V2`).
+- **Crique des plongeurs** : la mesure des marches du chemin de la plage (z = 276, x 300 → 331) traversait la berge de l'embouchure
+  du grand canal (x 288,5 → 302) et la prenait pour une marche ; l'eau est sautée.
+- **« Rien ne recouvre l'eau »** (V2 et V3) : le balayage par lancer de rayon cachait les véhicules, mais pas le corps des piétons et
+  des ennemis (`h.g`), les épaves, les débris ni les objets à ramasser laissés par les tests précédents : un seul de ces objets posé
+  sur le quai de l'embouchure faisait « recouvrir l'eau ». Le test les cache, et nomme l'objet touché s'il en reste un.
+- **Ponts-levis, le yacht du joueur** : le pilote simulé ne réduisait les gaz qu'à 24 u du pont et ne freinait qu'à 4 u — un yacht
+  glisse longtemps ; il règle désormais sa vitesse sur la distance au pont pas encore levé (la demande part à 80 u, le pont met
+  ~9 s à s'ouvrir : un vrai joueur doit lui aussi ralentir). Et la scène est maîtrisée : selon le tirage, une voiture garée par
+  `startRun` sur un tablier retardait la levée.
+- **Un vrai défaut du derby, déjà en V2** (« Dégâts V2 » : une voiture enfoncée de 0,66 u dans le mur de pneus, dans la suite
+  seulement) : rejoué sur 20 graines, deux matchs sur vingt laissaient un coin de voiture dans le mur (0,42 et 0,69 u ; la V2 aussi,
+  graine 89 : 0,45 u) — la V3 n'avait fait que déplacer le tirage du match, la graine du test tombait sur un mauvais. Trois causes :
+  `degagerDesMurs` comptait la profondeur depuis la face la plus proche du POINT — un coin qui avait passé le milieu d'un mur de
+  1,4 u était poussé vers l'extérieur, à travers (la mesure du test faisait la même erreur : quelques centimètres pour un coin qui
+  avait presque traversé) ; la passe de dégagement sautait un véhicule revenu exactement au même point qu'au dernier dégagement
+  (coincée entre une autre voiture et un bloc, elle y revenait à chaque image) ; une seule passe par image (sorti d'un bloc de
+  l'escalier d'un coin, le coin entrait dans le voisin). Corrigé (profondeur et retour du côté du centre du véhicule, économie
+  réservée aux véhicules que personne ne conduit, jusqu'à trois passes, dégagement aussitôt après le rappel dans l'arène) : sur 40
+  graines, 0,02 u au plus.
+- **Un banc au-dessus de l'eau, dans la ville d'un joueur qui a le Disque de Platine** (« rien ne recouvre l'eau », V2 et V3, dans
+  la suite seulement) : trouvé en rejouant la sauvegarde de la suite et en coupant ses clés en deux — c'est `curios` : avec le
+  Disque de Platine, la porte de la radio existe et le mobilier de la ville se place autrement ; un banc y tombait à cheval sur le
+  bord de l'embouchure du grand canal, et `reserverCanaux` ne repliait un maillage fusionné que triangle par triangle (les trois
+  sommets dans l'eau). Le mobilier est désormais retiré pièce par pièce (`MOB.objets` : la plage de sommets de chaque pièce, simple
+  comptabilité, aucun tirage), avec son solide, son stand, son arceau. **Limite** : le relevé du périmètre et les contrôles se font
+  avec une sauvegarde neuve ; une autre sauvegarde (une curiosité qui ouvre un lieu) donne une autre ville — seul ce cas-là a été
+  rejoué.
+- **Les bateaux de l'IA du Lagon** naissaient sur le générateur commun (`creerVehicule` tire les uuid) ; ils naissent désormais sur
+  un générateur privé (`LGN`).
+- **Le temps** : sur une machine chargée, certains blocs, qui sont UNE longue évaluation, dépassaient les 180 s du protocole par
+  défaut de Puppeteer (`protocolTimeout` 900 s) ; et les rechargements de page des tests de persistance attendaient 30 s quand le
+  premier chargement en attend déjà 90 (la 3e passe s'est arrêtée là, au bloc « Persistance », après 292 blocs verts) : 90 s
+  partout. Le chargement n'a pas ralenti avec la V3 : 35 à 40 s sur cette machine chargée pour la V2 comme pour la V3 (deux
+  mesures chacune, ±3 s de bruit).
+
+**Résultat (5e passe, 21 octobre)** : `scenarios.js` complet — **849 vérifications réussies, 0 échec, aucune sautée** (graine
+20260731), aucune erreur JavaScript dans la page ; `valider.js` : tout passe.
+
+## RESTITUTION
+
+### Ce qui a changé, et où
+- **`index.html`** — tout est dans la section `LES CANAUX DE LOS REYES`, en sous-bandeaux `CANAUX V3, phase 1` à `phase 5`
+  (le côté est et la marina ; les ponts-levis et le tirant d'air ; la promotion des bateaux ; le chantier naval et le garage du port ;
+  le Lagon et la promenade), plus : les huit nouveaux bateaux dans `VÉHICULES V4` (fiches `VEH_V3`), leurs tableaux de bord
+  (`CK_HAB`), la salle `INTDEFS.chantier` (`construireChantierNavalSalle`), le garage généralisé aux bateaux (`GARAGES TUNING` :
+  `tuningNaut`, `PIECES_NAUT`, `TUNING_PRIX.bateaux`, `ficheCompatible`, `famillePieces`, `prixTuning`), la danse partagée
+  (`majDanse`, `majBagarreClub` dans `CLUB NÉON V2`), la carte (`listeCommerces`, `pointsActivites`, `drawCarte`).
+- **`scenarios.js`** — six blocs nouveaux (« Canaux V3 : le côté est », « … ponts-levis », « … bateaux pilotables », « … chantier
+  naval », « … les pièces d'un bateau survivent au rechargement », « … le Lagon ») ; des tests anciens rendus justes (voir les phases).
+- **`valider.js`** — une salle sans porte dans `PORTES` se lit par `porteSalle(id)` (le chantier naval).
+- **`rapport_nuit/`** — ce suivi, `BATEAUX_V5.md` (les bateaux), `canaux_deplacements.json` (le phare, le garage du port),
+  `canaux_v3_avant.json` (la référence du relevé), `captures/canaux_v3/` et `captures/bateaux_v5/`, `outils/releve_canaux.js`
+  (la liste `bordEst`).
+- **`CLAUDE.md`** — la section « Canaux V3 », la carte du fichier régénérée, les ancres.
+
+### Les décisions prises seul (détaillées dans les phases)
+1. Le grand canal est prend la bande de la route de bordure (x 288,5 → 302), du sud de la marina à la mer, sans toucher le mur ; il
+   absorbe le canal secondaire est.
+2. La route de bordure est disparaît dans le quartier (personne n'y naissait).
+3. La rive est : enrochements, promenade surélevée, dunes contre le mur.
+4. La marina à la place des deux condos du nord.
+5. L'embouchure du grand canal à travers la plage, entre deux musoirs.
+6. Les ponts-levis sur les deux rues où le trafic roule (z = 42, z = 168), culée sur la rive est (le mur ne s'ouvre pas).
+7. Le phare glisse de 20 u vers l'est (son îlot barrait l'embouchure).
+8. La moitié sud de la marina est un bassin d'évitage (le yacht n'y faisait pas demi-tour).
+9. Où sont les ponts-levis (voir 6) et la culée.
+10. Le tirant d'air mesuré sur la structure rigide (pas les antennes fouet).
+11. La promotion à la demande : instances au loin, deux vrais véhicules au plus, à 12 u.
+12. Chaque bateau peut sortir en mer : les gros du côté ouest deviennent des cruisers ou des opens, les gros sont à la marina.
+13. Le chantier naval sur le grand canal (le seul bord d'eau sans pont fixe vers la mer), à la place du condo du sud ; le garage du
+    port y déménage ; l'atelier « Marée Basse » devient le marché aux poissons.
+14. Le Lagon sur le pâté (11,10), l'ancienne rue z = 126 et le quai sud de la traverse.
+15. Deux bateaux qui se croisent se rangent (s'il y a de l'eau), on ralentit derrière un bateau, la patrouille garde ses distances.
+16. La foule du Lagon en `InstancedMesh` et 17 vrais figurants seulement (dont les gardes, en figurants armés) ; les immobiles en un
+    seul maillage.
+
+### La carte du côté est (plan, coordonnées du monde ; x vers l'est, z vers le sud)
+
+```
+          x 270           x 288,5        x 302    x 307,3 (face du mur)
+ z −36  ┌─ bande nord : capitainerie, station-carburant, grue, aire de carénage ─┐
+ z −24  │ MARINA : épi le long du quai ouest, 3 catways, ponton d'honneur (nord),│
+        │ ponton visiteurs (nord-est) ; au sud, le BASSIN D'ÉVITAGE (r ≈ 15 u)    │
+ z  34  │                 ┊ GRAND CANAL (x 288,5 → 302, 13,5 u) ┊ RIVE EST :      │
+ z  42  ╞═ PONT-LEVIS NORD (rue z = 42) ═════════════════════════╡ culée, rampes  │
+ z  60  │ le canal secondaire est absorbé : 27 u d'eau            │ enrochements,  │
+        │ (x 275,5 → 302) devant les villas de la rangée estME    │ promenade      │
+ z 158  │                                                         │ surélevée,     │
+ z 168  ╞═ PONT-LEVIS SUD (rue z = 168) ══════════════════════════╡ dunes contre   │
+ z 177  │ GARAGE DU PORT (porte au nord, x 274,6)                 │ le mur         │
+ z 194  │ HANGAR « MARÉE BASSE » : darse couverte, porte basculante → canal        │
+ z 214  │ chantier à ciel ouvert (portique, bers, cale) ; ponton dans une anse     │
+ z 246  │                                                         │                │
+ z 286  └ plage : deux MUSOIRS (feu rouge à l'ouest, vert à l'est), langue de mer ┘
+          le phare, sur son îlot, glissé de 20 u vers l'est (318, 304)
+```
+Relié au réseau des canaux par le bassin du bras est ; chemins mesurés : marina → mer 314 u, canal ouest → marina 254 u.
+
+### Les ponts-levis
+Deux, sur les rues où le trafic roule (z = 42 et z = 168), entre la ville et une culée sur la rive est (le mur d'enceinte ne s'ouvre pas).
+Deux volées et leurs contrepoids, vérins, barrières, feux, sonnerie, cabine de l'éclusier, panneau « 2,9 m ». Cycle : alerte 2,2 s →
+barrières 1,7 s → montée 5 s jusqu'à 70° → ouvert tant qu'un bateau trop haut est dans la zone (+ 4 s) → descente → barrières levées.
+Jamais de levée avec quelqu'un sur le tablier ni de descente sur un bateau. Le trafic attend à la ligne ; le joueur lancé casse la
+barrière et s'envole de la volée qui monte (`final_saut_barriere.png`). Un yacht de l'IA fait l'aller-retour mer ↔ marina toutes les 2
+à 4 minutes (135 s, deux ponts ouverts). Sur la minimap et la grande carte : vert fermé, rouge levé. Dégagement de tous les tabliers
+fixes : 2,88 à 2,95 u.
+
+### Tous les bateaux
+
+| Clé | Nom | Tirant d'air | Vmax | PV | Où | Chantier naval |
+|---|---|---|---|---|---|---|
+| `jetski` | Jet-ski « Sport » | 1,09 | 37 | 60 | pontons des villas, villa Miami, location | jet-ski |
+| `jetskiBras` | Jet à bras « Kamikaze » | 1,28 | 35 | 45 | pontons des villas (debout) | jet-ski (ni bulle ni selle) |
+| `jetskiTrio` | Jet trois places « Croisière » | 1,20 | 32 | 80 | pontons, location, escales au Lagon | jet-ski |
+| `offshore` | Offshore « Tonnerre » | 1,85 | 52 | 190 | grande villa du canal est ; chantier | course |
+| `bateau` | Vedette « Sirène » | 1,97 | 27 | 220 | embarcadère, canaux, escales au Lagon | open |
+| `bateauP` | Vedette de police | 2,81 | 33 | 260 | police maritime (IA) | open (sans toit) |
+| `espadon` | Vedette « Espadon » | 1,51 | 42 | 150 | villa Miami, escales au Lagon | open |
+| `runabout` | Runabout « Aquarama » | 1,56 | 30 | 110 | pontons des villas, Lagon, chantier | bois |
+| `cruiserBois` | Cruiser « Capitaine » | 2,26 | 22 | 260 | 12 postes des villas, Lagon, chantier | bois (sans toit) |
+| `yachtMoteur` | Yacht « Riviera 43 » | 4,53 | 24 | 600 | marina | yacht |
+| `sportfish` | Sportfish « Marlin » | 7,13 | 26 | 520 | marina (ponton visiteurs) | yacht |
+| `yacht` | Yacht « Impérial » | 7,15 | 21 | 900 | marina, yachts de l'IA | yacht |
+| `voilier` | Voilier « Alizé » | 11,36 | 14 | 280 | marina | refusé (son mât) |
+| `peche` | Bateau de pêche | 3,61 | 17 | 300 | port, mer | mécanique seulement |
+| `grandyacht` | Méga-yacht « Reyes Royale » | 11,46 | 16 | 5 000 | au mouillage | refusé (trop grand) |
+| `cargo` | Porte-conteneurs « Reyes Star » | 23,23 | 11 | 6 000 | au mouillage | refusé (trop grand) |
+| `kayak` | Kayak | 1,09 | 9 | 40 | location, plage | refusé (pas de moteur) |
+| `surf` | Planche de surf | 0,28 | 19 | 26 | plage | refusée |
+
+Tous les bateaux amarrés du quartier sont pilotables (promotion à la demande : 36 postes, chacun avec un chemin jusqu'à la mer pour son
+tirant d'air). Fiches : `rapport_nuit/BATEAUX_V5.md`.
+
+### Le chantier naval : pièces et prix (`TUNING_PRIX.bateaux`, à calibrer en jouant)
+- **Mécanique** : moteur 700 / 1 500 / 2 800 $ ; hélice 800 / 1 700 / 3 200 $ ; coque (glisse) 600 / 1 300 / 2 500 $ ; blindage 900 /
+  1 900 / 3 400 $ ; nitro 1 400 $ (sur l'eau seulement). Peinture de coque 250 $, néons sous la coque 600 $.
+- **Style** (une pièce se paie une fois, aperçu gratuit, casse à 25 % de l'investi) : livrée (bandes de course 600, flammes 900, damier
+  de course 1 200) ; pont (teck, blanc, carbone, acajou… 350 à 700) ; toit (T-top 1 100, hardtop 1 800 ; aileron de course ou arceau
+  lumineux pour l'offshore ; bimini marine ou rayé pour les bois) ; pare-brise (fumé 300, miroir doré 500, bleu glacier 450) ; sièges
+  (cuir blanc, rouge, bleu marine, crème, vert anglais : 400 à 500) ; sono (enceintes 700, sono de soirée à LED 1 400) ; feux (LED
+  sous-marines 500, projecteur 800, rampe LED de coque 650) ; nom sur la coque (250 chacun : « MARÉE HAUTE », « RAFALE BLEUE »,
+  « LOS REYES KID », « BELLE DE NUIT », « L'INSOUMISE », « SEÑORITA », « COUP DE SOLEIL » — lettres d'or sur les bois) ; pavillon
+  (Los Reyes 150, pirate 200, damier 200).
+
+### Ce qui a bougé (avant → après)
+- **Le phare** : (298, 304) → (318, 304), d'un bloc (son îlot barrait l'embouchure du grand canal).
+- **Le garage du port** : (176, 147) en V2 (un cube sombre, capture A) → (274,6 ; 176,3), dans le bâtiment double du chantier naval.
+- **L'atelier « Marée Basse »** : le nom et les Dockside Boys partent au chantier naval ; le dock (pâté (11,8), mêmes volumes, la cachette
+  de l'amphibie dedans) devient le marché aux poissons.
+- **Les trois condos de la bordure est** : les deux du nord → la marina, celui du sud → le chantier naval (`CONDOS_V2` est vide).
+- **La route de bordure est** disparaît dans le quartier (sous l'eau ou sous la rive est) ; la dalle du désert, la pelouse et le tarmac
+  de l'aéroport sont percés dans l'enceinte.
+- **Un kiosque du port** (183, 119) : retiré, c'est la terrasse du Lagon (noté dans `canaux_deplacements.json`).
+- **L'aquarium** : même place, même porte, bâtiment refait.
+- Relevé du périmètre (`releve_canaux.js`, référence `canaux_v3_avant.json`) : **aucun écart** hors de ceux notés ; empreinte du décor
+  (931930327, portes, chalet), tirage principal et séquence `startRun` → salles → `startRun` identiques à la V2.
+
+### Mesures (sans carte graphique, 390 × 844 : seules les proportions comptent — **rien n'est validé tant que ce n'est pas joué sur iPhone**)
+
+| Point | Budget (V2) | V3 finale | Écart |
+|---|---|---|---|
+| centre du quartier = le Lagon, classique | 213 appels / 245 k | 234 / 326 k | +10 % / +33 % |
+| fête de nuit, classique | 228 / 236 k | 235 / 332 k | +3 % / +41 % |
+| grand canal, classique | 137 / 244 k | 148 / 355 k | +8 % / +45 % |
+| embouchure est, classique | 128 / 189 k | 164 / 326 k | **+28 % / +72 %** |
+| marina NE, classique | 135 / 175 k | 194 / 287 k | **+44 % / +64 %** |
+| centre, immersive | 1 732 / 616 k | 1 759 / 725 k | +2 % / +18 % |
+| grand canal, immersive | 1 153 / 539 k | 1 241 / 677 k | +8 % / +26 % |
+| embouchure est, immersive | 1 861 / 793 k | 1 981 / 975 k | +6 % / +23 % |
+| survol du côté est | 2 377 / 932 k | 2 518 / 1 125 k | +6 % / +21 % |
+
+Géométries : 8 527 → 8 676 (+13,6 Mo au total des six phases) ; véhicules réels ~190 → ~195 (deux bateaux promus au plus, deux de l'IA
+au Lagon, un yacht de l'IA). **Hors budget** : en vue de dessus seulement, la marina (le point de référence était une barre de condos,
+c'est une marina pleine de bateaux) et l'embouchure est (le chantier naval et ses bateaux à moins de 80 u : de la densité proche, que la
+règle du budget dit de ne pas réduire). En vue qui suit (la vue par défaut) et en survol : dans le budget.
+
+### À regarder en priorité sur iPhone
+1. La fluidité en vue qui suit au-dessus du grand canal, de l'embouchure et en survol (jusqu'à ~2 000 appels de rendu, ~1 M de
+   triangles) ; si elle faiblit : le niveau de détail du décor de l'est (`zonesTriangles`) et le plafond des bateaux promus.
+2. Le Lagon de nuit : la musique synthétisée (une dizaine d'oscillateurs par mesure), les feux d'artifice, la foule.
+3. La première promotion d'un modèle de bateau (une pointe de quelques millisecondes, une fois par modèle et par partie).
+4. Les ponts-levis : l'attente devant la barrière, la sonnerie, le saut de la barrière.
+5. Le pilotage dans les virages à angle droit des canaux (frôlements de quai : la limite connue de la V1).
+6. Le chantier naval : le menu en portrait, le ber qu'on tourne au doigt, la porte qui s'ouvre devant le bateau, la lisibilité des noms
+   et des livrées sur la coque.
+7. Le Lagon : la danse (fenêtre de l'appui), le plongeoir, le carré VIP et ses gardes.
+
+### Ce qui n'a pas pu être vérifié
+- Les performances réelles et le ressenti (iPhone) : non jugés ici.
+- Le son sur l'appareil (musique du Lagon, sonnerie des ponts, moteurs des nouveaux bateaux) : vérifié par les tests (démarré, coupé),
+  pas écouté.
+- Les captures « avant / après » aux cadrages A à G : les captures du playtest sont prises d'un hélicoptère réel ; les « après »
+  (`captures/canaux_v3/final_*`) sont faites avec des caméras posées au même endroit et dans la même direction, pas au pixel près.
+- Les autres sauvegardes : une curiosité qui ouvre un lieu (le Disque de Platine et la porte de la radio) donne une autre ville ;
+  les contrôles (empreinte, relevé du périmètre) sont faits avec une sauvegarde neuve, et seule la sauvegarde de la suite (avec le
+  Disque de Platine) a été rejouée sur l'eau du quartier.
