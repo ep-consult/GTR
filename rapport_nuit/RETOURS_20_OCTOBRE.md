@@ -711,3 +711,81 @@ Demandé pendant la validation finale, à traiter à la suite des dix lots :
   Test « Retours du 20 octobre, lot 11.2 » (lit `CANAUX.levis`, `PERI.chemins`, `PERI.plats`) ; « Canaux V3 : ponts-levis » attend
   désormais le retour par la boucle et le pont sud (avant : demi-tour sur la culée). **À essayer sur iPhone** : le virage serré en
   haut de chaque rampe (rayon ~7 u : il faut ralentir, comme à un carrefour) et la lisibilité de l'entrée vue depuis le pont.
+
+## Restitution — fin de la grande liste du 20 octobre
+
+Les dix lots sont faits, dans l'ordre, un commit par point validé (`d36e849` → `3323b0e`), puis le lot 11 ajouté en cours de route (les
+retours du 21 octobre : `b16b998` la marche arrière des bateaux, `6f4cf36` la route périphérique des ponts-levis) — branche
+`retours-20-octobre`, rien de poussé ni de fusionné. Chaque lot : un test `scenarios.js` qui lit ses listes à la source, des
+captures en rendu réel, une section dans `CLAUDE.md` et la carte du fichier régénérée (les bandeaux ajoutés par les lots 8 et 10 y sont entrés à la main : Jus de Plage,
+Reyes Air Race, karaoké V2, duel du Monstre). Contrôles de déterminisme identiques à chaque lot : empreinte du décor (931930327),
+portes, chalet, mobilier, tirage principal après le chargement, sonde des salles (`startRun` → toutes les salles → `startRun`).
+
+**Suite complète finale** (`node scenarios.js`, graine 20260731, après le lot 11.2) : **865 vérifications, toutes passées, aucune
+sautée, aucune erreur JS dans la page**. `node valider.js` : toutes les vérifications passées. Déterminisme vérifié une dernière fois
+après le lot 11.2 : empreinte du décor, portes, chalet, tirage principal et sonde des salles identiques.
+
+### À jouer sur iPhone, en priorité
+
+0. **Le lot 11, ajouté en cours de chantier** : la **marche arrière des bateaux** (11.1 : joystick tiré vers soi en vue qui suit, ou à l'opposé de
+   l'étrave en vue de dessus — le bateau recule droit, au pas ; en biais, la poupe part du côté du joystick) et la **route
+   périphérique** (11.2 : depuis un pont-levis, continuer tout droit vers l'est ; le virage en haut de chaque rampe est serré, ~7 u de
+   rayon, comme à un carrefour : ralentir). Regarder aussi le trafic qui fait le tour d'un pont à l'autre.
+1. **La Reyes Air Race** (lot 10), avec l'avion de voltige (hangar VOLTIGE, au sud du tarmac). Le départ est au col du Mont Reyes : on
+   y arrive par le nord-ouest et on le traverse vers le sud. Trois passages à juger au doigt : la **porte des mesas** (10 u entre deux
+   mesas, juste après le départ — un crash y est mortel), le **grand canal** au ras de l'eau entre les volées levées des deux
+   ponts-levis (couloir de ±3,6 u), l'**avenue des tours**. Le pilote simulé a des réflexes parfaits (58 s, l'or) : les seuils des
+   médailles (`AIR_MEDAILLES` 85 / 72 / 62 s) sont à recaler sur de vrais essais, comme les rayons des anneaux.
+2. **Le karaoké** (8.1) : la latence audio de Safari. Les fenêtres de jugement sont de 50 / 95 / 140 ms ; si les notes « parfaites »
+   tombent systématiquement en « bien », il faudra un décalage de calibrage.
+3. **Jus de Plage** (8.3) : le geste de tranche au doigt sur le canevas plein écran (fluidité, précision du glisser) et la lisibilité
+   des pièges (oursins, méduses).
+4. **L'akimbo à la 1re personne** (9) : la place des deux armes en portrait, la lisibilité de la visée rapprochée.
+5. **Les manèges à la 1re personne** (8.4) : le confort (le grand huit en vue intérieure bascule dans les loopings ; le Tourbillon
+   penche jusqu'à 45°), et le bouton de vue pour sortir de la 1re personne.
+6. **Le Reyes Majestic** (6.1) : la caméra de bord sur les promenades, les passagers qui suivent, la cassure (coût de rendu : c'est la
+   ville derrière le navire qui coûte pendant la cassure).
+7. **Le duel du Monstre** (8.2), le kitesurf et le wakeboard (6.3, 6.4), le Reyes Cliff Diving (7) : le rythme des boutons et
+   la difficulté réelle.
+8. **Coûts de rendu à surveiller** (mesurés sans carte graphique, proportions seulement) : le Tourbillon (+17 appels en vue
+   immersive, +35 de dessus), le stand de Lani (+21 / +54, la vue de dessus voit aussi le Tourbillon), le paquebot (+40 à 70 u,
+   +55 à 160 u), l'anneau de départ de la course (+5).
+
+### Points interprétés (lectures retenues, détaillées en tête de chaque lot)
+
+- **1.1** « téléporté en amont » = renvoyé vers la ville d'un coup. **1.2** « tout gris » = la vue par le pare-brise bouchée (le nez
+  dans la passerelle). **1.3** « caché par un rocher » = la cabine invisible depuis la caméra du jeu.
+- **2** « même logo » = même pictogramme et même couleur pour une catégorie, sur les deux cartes ; la flèche de la grande carte = celle
+  du radar ; toucher une pastille ouvre une bulle avec « Y aller ».
+- **3** « chaque activité » = chaque activité qui laisse une trace mesurable ; « vrai modèle » = des pièces posées sur le corps.
+- **4** « les animaux abattus » = ceux que tue le joueur ; les défis de chasse ne comptent que le gibier (le karma est gardé pour les
+  bêtes paisibles et protégées).
+- **5** la villa = le manoir du sommet de Los Reyes Hills ; « du même type que celui de la falaise » = la cabine vitrée du Pic.
+- **6.1** le paquebot est échoué (il ne coule qu'à la fin du compte à rebours) ; la mission est un sauvetage ; « rejouable une fois
+  par vague » = il est de nouveau là, intact, à la vague suivante. **6.3** un kiosque plutôt qu'un véhicule.
+- **7** les falaises = celles de la crique des plongeurs, plus une tour de 27 u ; le système de saut = celui du concours de la villa.
+- **8.1** la salle garde son nom, le jeu s'appelle « la scène », trois chansons originales. **8.2** un duel contre l'habitué
+  (Gérard « la Mâchoire »). **8.3** le stand de Lani. **8.4** les manèges de la marina = le grand huit et la grande roue existants,
+  plus un troisième construit pour l'occasion (le Tourbillon).
+- **9** « chaque arme qui autorise l'akimbo » = celles que la pièce « double » accepte ; la visée akimbo rapproche les deux armes sans
+  organe de visée.
+- **10** « sous les ponts des canaux » : aucun pont ne laisse passer un avion ; la course passe au ras de l'eau entre les volées des
+  ponts-levis, levés presque à la verticale pour elle. « Défi voltige » = un bonus par looping ou tonneau compté pendant la course.
+- **11.1** « vers l'arrière » = le joystick dans le dos du bateau (à moins de 60° de l'arrière) ; pour faire demi-tour, on pousse sur
+  le côté. **11.2** la route passe le long du mur, côté aéroport, en boucle à sens unique entre les deux culées ; elle ne traverse ni
+  le tarmac ni les pistes et ne mène nulle part ailleurs ; la butte qui bouchait le pont sud est aplanie.
+
+### Trouvé en route
+
+- Le bandeau `TOITS VIVANTS` avait été dédoublé par l'insertion du lot 8 (un commentaire recollé, sans effet sur le code) : corrigé
+  (`f5de41c`), et la carte du fichier ne listait pas les nouveaux bandeaux : complétée.
+- Dans le pilotage simulé, **pousser sur le manche en virage incliné fait tourner à l'envers** (portance négative) : le pilote du
+  test ne pousse jamais fort en virage. Un joueur qui pique en plein virage pour rattraper un anneau bas le découvrira : c'est la
+  physique voulue du pilotage simulé, pas un défaut de la course.
+- La suite complète après le lot 10 avait cinq échecs, corrigés (`64c3796`) : le mannequin Gérard pris pour une zone oubliée, une
+  chute au Cliff Diving notée par les juges, trois tests qui ne maîtrisaient pas leur scène (amphibie, monte-charge, houle).
+- Lot 11.2 : les garde-corps de la route étaient posés à hauteur du sol (la fonction de hauteur ne répondait qu'une fois la route
+  finie), une voiture qui dérape de côté échappait à la sonde de choc, une voiture qui ressortait vers l'ouest « rebondissait » dans
+  la boucle pour toujours ; et le boulevard était caché sous le tarmac et la pelouse de l'aéroport (vu en rendu réel). Tous corrigés.
+- Le bloc « Bordures » échoue quand on le lance seul, sur la version d'avant comme sur celle-ci (il dépend des blocs qui le
+  précèdent) ; il passe dans la suite complète.
