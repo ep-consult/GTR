@@ -24,10 +24,10 @@ lourds. Aucune référence à un autre jeu ni à une marque.
 | 4 | 4.3 Défis de chasse et costume de pigeon | ☑ |
 | 5 | 5.1 Villa planque restylée | ☑ |
 | 5 | 5.2 Chantier : la grue remplacée par un monte-charge | ☑ |
-| 6 | 6.1 Paquebot « Reyes Majestic » qui se brise | ☐ |
-| 6 | 6.2 Vie au large | ☐ |
-| 6 | 6.3 Kitesurf | ☐ |
-| 6 | 6.4 Wakeboard amélioré | ☐ |
+| 6 | 6.1 Paquebot « Reyes Majestic » qui se brise | ☑ |
+| 6 | 6.2 Vie au large | ☑ |
+| 6 | 6.3 Kitesurf | ☑ |
+| 6 | 6.4 Wakeboard amélioré | ☑ |
 | 7 | 7.1 « Reyes Cliff Diving » | ☐ |
 | 8 | 8.1 Karaoké en jeu de rythme | ☐ |
 | 8 | 8.2 Défi du burger | ☐ |
@@ -421,3 +421,52 @@ Captures : `captures/retours_20/5_avant_villa.png`, `5_villa_entree.png`, `5_vil
   change les tirages faits pendant le match. Le test fixe désormais tenue, personnage et records avant la mise en place ; il
   reste dépendant des caches partagés, et le pilote gagne un match sur quatre en moyenne (zéro sur huit arrive une fois sur dix
   par construction) : il joue huit matchs de plus quand les huit premiers sont perdus. Aucun changement du jeu.
+
+
+## Lot 6 — Mer et large (fait : 6.1 à 6.4, un seul commit)
+
+Module `LE LARGE V3` (juste avant les courses du mont), construit tout à la fin du décor (`mkMerV3`, générateur privé, matériaux
+propres) : empreinte du décor, portes, chalet, mobilier et tirage principal identiques ; sonde des salles identique.
+
+**Lectures retenues.** 6.1 « monter à bord, explorer, une mission ou un défi » : le paquebot est ÉCHOUÉ sur un récif (il ne coule
+qu'à la fin du compte à rebours, sinon on n'aurait jamais le temps d'y monter) ; la mission est un sauvetage (mener les passagers
+aux canots), le butin le coffre du commissaire, et la plongée sur l'épave vient après. « Rejouable une fois par vague » : il est
+de nouveau là, intact, à la vague suivante. 6.2 : quatre rencontres qu'on ne trouve qu'au large (bouteilles, tortues, contrebandiers,
+poissons volants), chacune avec son défi. 6.3 : un kiosque sur la plage plutôt qu'un véhicule, comme le wakeboard. 6.4 :
+« considérablement » = de nouvelles figures et une vraie série (double-up, 540, GRAB, RALEY), un sillage plus large, un record.
+
+- **6.1 Le « Reyes Majestic »** (`PAQ`, `mkPaquebot`, `majPaquebot`) : un paquebot de 92 u échoué au large (`paqSite`), deux moitiés
+  qui pivotent sur la quille (la cassure), coque, ponts, superstructures à fenêtres, cheminées, canots. On monte par l'échelle de
+  coupée (à la nage, ou depuis un bateau : MONTER À BORD) ; le compte à rebours part (`PAQ_DUREE` 100 s) : huit passagers à mener
+  aux deux postes d'embarquement (« SUIVEZ-MOI ! », ils marchent **dans les pas du joueur** — `PAQ.trace` : en ligne droite, ils
+  restaient coincés contre une superstructure, 4 sur 8 dans le premier essai du test), 40 $ chacun et une prime quand tous sont
+  saufs ; le coffre du commissaire (3 s sans bouger, 520 $, une fois par vague). À zéro, il se brise en deux : les moitiés se
+  relèvent en V jusqu'à 66° et sombrent, ceux qui sont encore à bord sont jetés à la mer (jamais tués), les passagers oubliés
+  finissent dans des radeaux. L'épave : des bulles, PLONGER (380 $, une fois par vague). **Caméra de bord** (`paqCameraPont`) : le
+  pont promenade fait 1,3 u entre le bastingage et la superstructure, sous les canots — la caméra habituelle passait au-dessus des
+  superstructures et le joueur disparaissait, de dessus comme en vue immersive ; sur une promenade, elle se place au-dessus de la
+  mer, de son côté. **En bateau**, la chaîne du bouton d'action s'arrêtait sur SORTIR : les actions de la mer y sont désormais
+  proposées (monter à bord, saisir une cargaison).
+- **6.2 La vie au large** (`LARGE3`, `largeNouvelleVague` : une graine par vague) : douze bouteilles à la mer (ramassées en passant
+  dessus, un message dedans), des tortues prises dans des filets (LIBÉRER), la vedette des contrebandiers qui file sur sa boucle
+  (la toucher en bateau l'arraisonne, SAISIR la cargaison : 350 $), des poissons volants le long d'un bateau rapide.
+- **6.3 Le kitesurf** (`KITE`, kiosque sur la plage) : l'aile en vol au bout de ses lignes, le vent de mer (`KITE_VENT`) ; on tire des
+  bords, SPRINT = saut (plus haut avec de la vitesse), en l'air ESQUIVE, GRENADE, SPRINT = figures ; une figure pas finie à la
+  réception = chute. 60 s, objectif 4 000, prime une fois par vague, record `META.defis.kite`, défi « Kitesurf » et combinaison au
+  dernier palier (sauts 15 % plus hauts).
+- **6.4 Le wakeboard** : double-up (toutes les 14 s le bateau vire : 3,5 s de vague doublée, un saut avec figure ×1,2), 540 (un tour
+  et demi), GRAB (SPRINT tenu en l'air), RALEY (sauté lancé de travers, seulement avec une figure), série qui multiplie, gerbe d'écume dans les virages, sillage plus large, record
+  `META.defis.wake`, défi « Wakeboard ».
+- **Défis** : Majestic, épaves, bouteilles, tortues, contrebande, kitesurf, wakeboard (compteurs `META.defis` à clés fixes).
+
+**Mesures** (machine sans carte graphique : proportions seulement). Le paquebot dans le champ, même vue avec et sans lui : +40
+appels de rendu et +2 k triangles à 70 u (1 029 contre 989), +55 et +5 k à 160 u (2 435 contre 2 380). Plage, kiosque du kite : +8
+appels. Pendant la cassure, la vue embrasse la ville derrière le navire : c'est elle qui coûte.
+
+**Pilotes simulés** (test « Retours du 20 octobre, lot 6 ») : les huit passagers menés en 78 s sur 100, en marchant sur le pont
+(chemin par les portes) ; kite : rider simulé ~13 900 points (16 sauts), passif 0, figures trop tardives = chutes ; wakeboard :
+~64 000 points avec la série, ~4 100 sans figures (objectif hors de portée).
+
+Captures : `captures/retours_20/6_majestic_mer.png`, `6_majestic_pont.png`, `6_majestic_cassure.png`, `6_majestic_cassure2.png`,
+`6_majestic_epave.png`, `6_kite.png`, `6_wake.png`.
+

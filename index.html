@@ -2106,6 +2106,7 @@ const META={
          gadget:{poss:false,lv:0},couteau:{poss:false,lv:0},batte2:{poss:false,lv:0},bouleC:{poss:false,lv:0},sabre:{poss:false,lv:0},pompe:{poss:false,lv:0},uzi:{poss:false,lv:0},silence:{poss:false,lv:0},pm:{poss:false,lv:0},fusil:{poss:false,lv:0},sniper:{poss:false,lv:0},flamme:{poss:false,lv:0},roquette:{poss:false,lv:0},desintegrateur:{poss:false,lv:0}},
   upg:{vitesse:0,vie:0,regen:0,melee:0,recharge:0,butin:0},
   defis:{coffresToits:0,avionsPoses:0,manege:0,styleAchats:0,fauves:0,aimant:0, // 3e série (14 octobre)
+  paquebot:0,epave:0,bouteilles:0,tortues:0,contrebande:0,kite:0,wake:0, // retours du 20 octobre, lot 6 : le large (kite et wake : records de points)
     vols:0,dist:0,detruits:0,chefs:0,etoile6:false,bateau:false,ile:false,avion:false,heli:false,crash:false,saut:false,toit:false,banque:false,sommet:false,villa:false,jackpot:false,
     // lot 11/12 (Dépôt de bus, Jetpack, Monster Truck) : chaque victoire de
     // circuit est marquée séparément (jamais déduite de META.depotCircuits,
@@ -2249,6 +2250,14 @@ const DEFIS_THEMES=[
   {theme:'planques',noms:['Premier pied-à-terre','Agent immobilier','Baron de l’immobilier'],det:n=>'Achète '+n+(n>1?' planques':' planque'),val:m=>Object.values(m.planques||{}).filter((x)=>x===true||(x&&x.achetee)).length,paliers:[1,3,6],recs:[400,1500,4000]},
   {theme:'derby',noms:['Casse-cou','Roi de l’arène','Légende du derby'],det:n=>'Gagne '+n+(n>1?' derbys':' derby')+' dans l’arène',val:m=>(m.derby&&m.derby.victoires)||0,paliers:[1,5,15],recs:[500,1500,4000]},
   {theme:'fauves',noms:['Chasseur','Dompteur de fauves'],det:n=>'Viens à bout de '+n+' bêtes sauvages (sangliers, jaguar, ours)',val:m=>m.defis.fauves,paliers:[3,12],recs:[400,1300]},
+  // retours du 20 octobre, lot 6 : le large
+  {theme:'paquebot',noms:['Sauveteur en mer','Garde-côte','Héros du Majestic'],det:n=>'Mène '+n+' passagers du Reyes Majestic aux canots',val:m=>m.defis.paquebot,paliers:[8,30,80],recs:[300,900,2200]},
+  {theme:'epaves',noms:['Plongeur d’épave','Chasseur d’épaves'],det:n=>'Plonge '+n+' fois sur l’épave du Reyes Majestic',val:m=>m.defis.epave,paliers:[1,5],recs:[300,1200]},
+  {theme:'bouteilles',noms:['Collectionneur de bouteilles','Facteur des mers','Messager des océans'],det:n=>'Repêche '+n+' bouteilles à la mer',val:m=>m.defis.bouteilles,paliers:[5,25,60],recs:[200,700,1600]},
+  {theme:'tortues',noms:['Ami des tortues','Gardien des tortues','Protecteur des océans'],det:n=>'Libère '+n+' tortues prises dans des filets',val:m=>m.defis.tortues,paliers:[3,12,30],recs:[250,800,1800]},
+  {theme:'contrebande',noms:['Garde-pêche','Douanier des mers','Terreur des contrebandiers'],det:n=>'Saisis '+n+(n>1?' cargaisons':' cargaison')+' de contrebandiers',val:m=>m.defis.contrebande,paliers:[1,5,15],recs:[300,1000,2400]},
+  {theme:'kitesurf',noms:['Kitesurfeur','Rider du vent','Roi du kite'],det:n=>'Marque '+n+' points en une session de kitesurf',val:m=>m.defis.kite,paliers:[1500,4000,8000],recs:[250,800,2000],tenue:'kitesurfeur'},
+  {theme:'wakeboard',noms:['Rider du sillage','As du wakeboard','Légende du wake'],det:n=>'Marque '+n+' points en une session de wakeboard',val:m=>m.defis.wake,paliers:[3000,9000,15000],recs:[250,800,2000]},
   // retours du 20 octobre, 4.3 : la chasse (META.chasse) — le gibier seulement ; une bête paisible ou protégée garde son karma et n'entre dans aucun défi
   {theme:'pigeons',noms:['Chasseur de pigeons','Fléau des places','Terreur des pigeons'],det:n=>'Abats '+n+' pigeons en ville',val:m=>m.chasse.pigeon,paliers:[10,40,100],recs:[300,800,2000],tenue:'pigeon'},
   {theme:'mouettes',noms:['Chasseur de mouettes','Fléau de la plage','Terreur des mouettes'],det:n=>'Abats '+n+' mouettes au bord de mer',val:m=>m.chasse.mouette,paliers:[5,20,50],recs:[250,700,1600]},
@@ -2875,6 +2884,8 @@ const TENUES=[
    cond:()=>tenueDefiFinal('voltigeur'),haut:0x6a3a1a,bas:0x3a3020,casq:0x6a3a1a},
   {id:'pigeon',nom:'Costume de pigeon',ico:'🐦',condTxt:'Défi « Terreur des pigeons » : 100 pigeons abattus — ESQUIVE fait voleter (petits bonds planés), chute ralentie',
    cond:()=>tenueDefiFinal('pigeon'),haut:0x9ca2ac,bas:0x6a707c,casq:0x6a707c},
+  {id:'kitesurfeur',nom:'Combinaison de kitesurf',ico:'🪁',condTxt:'Défi « Roi du kite » : 8 000 points en une session de kitesurf — les sauts de kite 15 % plus hauts',
+   cond:()=>tenueDefiFinal('kitesurfeur'),haut:0x1a8ac8,bas:0x14161c,casq:0xf2f2ee},
   {id:'athlete',nom:'Tenue « Reyes Athletics »',ico:'🎾',condTxt:'Gagner le match de tennis du complexe sportif — le sprint fatigue 30 % moins',
    cond:()=>!!(META.exploits&&META.exploits.sportif),haut:0xf2f4f8,bas:0x2a6ad8,casq:0x14161c},
 ];
@@ -4539,7 +4550,7 @@ function construireVille(){
     if(qq!=='plage'&&qq!=='parc'&&bx%3===1&&bz%3===1) mkFeu(cx+INNER/2+1.4,cz-INNER/2-1.4);
   }
   placerPortes();
-  if(DECOR_V2){ sansAleaVille(()=>{ reserverHills(); reserverChantier(); reserverBase(); reserverSports(); ameliorerPortes(); mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkBasket(); mkCiel(); mkKiosqueBanderole(); mkCrique(); mkMontReyes(); mkVieMont(); mkBordureEst(); mkCanyonsDesert(); mkPicVertige(); mkParcStunt(); mkSkateXXL(); mkRides(); mkMerVivante(); mkRemorquage(); mkLarge(); deplacerVoltige(); mkAeroportVivant(); mkHeliGrue(); mkPlanques(); mkBoutiques(); mkGrandHuit(); mkToitsVivants(); mkTracesSable(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkMontReyesV2(); mkNeonVivant(); mkQuartiersFinitions(); mkFacadesVariees(); mkCascades(); if(MERV.ok) mkVolcanIle(); mkAeroVie(); mkLosReyesHills(); mkBordsHills(); mkChantierV2(); mkPlanquesV2(); montSolides(); mkBaseV2(); mkBallTrap(); mkSportsParcs(); mkHalosBoutiques(); mkSurprisesToits(); mkArenaDerby(); mkRatelierSkateXXL(); mkStationsVelo(); mkSautVertige(); mkCampEntrainement(); mkCageV2(); mkBalises(); montActiver(); reserverCanaux(); mkCanaux(); }); } // cascades et volcan EN DERNIER : leurs tirages du décor ne décalent rien de ce qui précède (mobilier...) // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
+  if(DECOR_V2){ sansAleaVille(()=>{ reserverHills(); reserverChantier(); reserverBase(); reserverSports(); ameliorerPortes(); mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkBasket(); mkCiel(); mkKiosqueBanderole(); mkCrique(); mkMontReyes(); mkVieMont(); mkBordureEst(); mkCanyonsDesert(); mkPicVertige(); mkParcStunt(); mkSkateXXL(); mkRides(); mkMerVivante(); mkRemorquage(); mkLarge(); deplacerVoltige(); mkAeroportVivant(); mkHeliGrue(); mkPlanques(); mkBoutiques(); mkGrandHuit(); mkToitsVivants(); mkTracesSable(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkMontReyesV2(); mkNeonVivant(); mkQuartiersFinitions(); mkFacadesVariees(); mkCascades(); if(MERV.ok) mkVolcanIle(); mkAeroVie(); mkLosReyesHills(); mkBordsHills(); mkChantierV2(); mkPlanquesV2(); montSolides(); mkBaseV2(); mkBallTrap(); mkSportsParcs(); mkHalosBoutiques(); mkSurprisesToits(); mkArenaDerby(); mkRatelierSkateXXL(); mkStationsVelo(); mkSautVertige(); mkCampEntrainement(); mkCageV2(); mkBalises(); montActiver(); reserverCanaux(); mkCanaux(); mkMerV3(); }); } // cascades et volcan EN DERNIER : leurs tirages du décor ne décalent rien de ce qui précède (mobilier...) // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
   finaliserMerge();
   construireMinimapStatique();
 }
@@ -12552,6 +12563,11 @@ const TENUE_ACC={
     A.add(mkBoxG(0.06,0.06,0.5,0x14161c,0,1.82,0)); A.add(mkBoxG(0.5,0.06,0.06,0x14161c,0,1.82,0)); for(const s of [-1,1]) A.add(mkBoxG(0.08,0.2,0.18,0xd8ff3a,s*0.25,1.58,0)); },
   athlete:(A)=>{ if(!A.tete) return; A.add(mkBoxG(0.45,0.06,0.45,0xf2f4f8,0,1.7,0)); A.add(mkBoxG(0.46,0.02,0.46,0x2a6ad8,0,1.7,0)); }, /* bandeau éponge */
   ballers:(A)=>{ if(!A.tete) return; A.add(mkBoxG(0.45,0.06,0.45,0xff8a2a,0,1.7,0)); },
+  kitesurfeur:(A)=>{ /* combinaison de kitesurf (lot 6) : casque blanc à bande bleue, gilet d'impact, harnais et son crochet, chaussons */
+    if(A.tete){ A.add(mkBoxG(0.5,0.42,0.5,0xf2f2ee,0,1.66,0)); A.add(mkBoxG(0.14,0.43,0.51,0x1a8ac8,0,1.66,0)); }
+    A.add(mkBoxG(0.66,0.5,0.44,0x14161c,0,0.12,0),A.h.torse); A.add(mkBoxG(0.4,0.34,0.03,0x1a8ac8,0,0.16,0.225),A.h.torse);
+    A.add(mkBoxG(0.68,0.16,0.46,0x3a3e46,0,-0.24,0),A.h.torse); A.add(mkBoxG(0.36,0.06,0.1,0xc8ccd2,0,-0.24,0.26),A.h.torse);
+    for(const j of [A.h.jambeG,A.h.jambeD]) A.add(mkBoxG(0.23,0.2,0.26,0x14161c,0,-0.56,0.02),j); },
   pigeon:(A)=>{ /* costume de pigeon (4.3) : capuche à bec et à yeux orange, jabot irisé, ailes grises aux bras (deux barres sombres), queue en éventail */
     if(A.tete){ A.add(mkBoxG(0.5,0.5,0.5,0x6a707c,0,1.62,-0.01)); A.add(mkBoxG(0.12,0.08,0.16,0xe0a030,0,1.57,0.31)); A.add(mkBoxG(0.12,0.05,0.06,0xe8e0d0,0,1.62,0.27));
       for(const s of [-1,1]){ A.add(mkBoxG(0.11,0.11,0.03,0xf08a2a,s*0.13,1.7,0.255)); A.add(mkBoxG(0.05,0.05,0.035,0x111111,s*0.13,1.7,0.26)); } A.add(mkBoxG(0.16,0.08,0.1,0x5e636e,0,1.9,-0.06)); }
@@ -16619,6 +16635,8 @@ function pointsActivites(){
   for(const id in RIDE_DEFS){ const d=rideDepart(id); if(d) add(d.x,d.z,RIDE_DEFS[id].eau?'🚤':'🏁','#c8901a',undefined,RIDE_DEFS[id].nom,'course',{ride:id}); }
   if(TOW.kWake) add(TOW.kWake.x,TOW.kWake.z,'🏄','#1a8ac8',1,'Wakeboard','activite',{desc:'Derrière le bateau-tracteur : sauts et figures'});
   if(TOW.kPara) add(TOW.kPara.x,TOW.kPara.z,'🪂','#1a8ac8',1,'Parachute ascensionnel','activite',{desc:'Monte à 32 m, puis lâche la corde'});
+  if(typeof KITE!=='undefined'&&KITE.kiosque) add(KITE.kiosque.x,KITE.kiosque.z,'🪁','#1a8ac8',1,'Kitesurf','activite',{desc:'De travers au vent : sauts, 360, backroll, kiteloop',prix:KITE_DEF.prix+' $'}); /* lot 6 : construits après mkBalises — aucune balise de plus pendant le décor */
+  if(typeof PAQ!=='undefined'&&PAQ.ok) add(PAQ.x,PAQ.z,'⚓','#c83a2a',0,'Reyes Majestic','activite',{desc:'Le paquebot échoué au large : des passagers à sauver, puis l’épave'});
   if(PIC.wingsuit) add(PIC.wingsuit.x,PIC.wingsuit.z,'🦅','#7a3ac8',PIC.wingsuit.y,'Wingsuit','activite',{desc:'Au sommet du Pic du Vertige'});
   if(PIC.plg) add(PIC.plg.x,PIC.plg.z0,'🪂','#7a3ac8',PIC.H,'Saut BASE','activite',{desc:'Le plongeoir du Pic du Vertige'});
   if(PIC.cage) add(PIC.cage.x,PIC.cage.z,'🛗','#5a6a7a',PIC.cage.yBas||0,'Monte-charge','activite',{desc:'Monte au sommet du Pic du Vertige'});
@@ -16961,7 +16979,7 @@ function finTow(raison){
   TOW.bateau.visible=false; TOW.corde.visible=false; TOW.planche.visible=false; RIDES.txt.style.display='none'; for(const m of TOW.sillage) m.visible=false; P.h.g.rotation.x=0; P.h.g.rotation.z=0;
   if(TOW.planche.parent===P.h.g){ P.h.g.remove(TOW.planche); scene.add(TOW.planche); }
   for(const j of [P.h.jambeG,P.h.jambeD,P.h.brasG,P.h.brasD]) j.rotation.set(0,0,0);
-  if(T.id==='wake'){ boutonsAPied(); let msg='🏄 WAKEBOARD — '+Math.round(T.pts)+' pts';
+  if(T.id==='wake'){ boutonsAPied(); const rec=Math.round(T.pts)>(META.defis.wake||0); if(rec){ META.defis.wake=Math.round(T.pts); sauveMeta(); checkDefis(); } let msg='🏄 WAKEBOARD — '+Math.round(T.pts)+' pts'+(rec?' — record !':'');
     if(T.pts>=TOW_DEFS.wake.objectif){ META.defis.mer++; exploitMiniJeu('wake'); const m=primeMerUneFois('wake',TOW_DEFS.wake.prime); if(m) msg+=' +'+m+' $'; }
     bigMsg(msg); P.y=0.3; } // relâché dans l'eau, on nage
   else if(raison!=='lache'){ paraMesh.visible=false; P.para=false; P.chute=false; P.y=0.3; }
@@ -16980,40 +16998,45 @@ function majTow(dt,dtJeu){
     // plus loin avec l'élan, et le OLLIE doit donner de l'amplitude ») : en l'air, l'élan latéral est conservé
     // (on vole plus loin) ; au sol, on revient vers où pointe le joystick
     const enAir=T.h>0;
+    T.duT=(T.duT===undefined?9:T.duT)-dt; if(T.du>0) T.du-=dt; if(T.duT<=0){ T.duT=14; T.du=3.5; spawnTexte(P.x,3.2,P.z,'⚡ DOUBLE-UP !','#35e0ff'); beep(660,0.15,'square',0.03,990); } /* retours du 20 octobre, 6.4 : le bateau vire, la vague du sillage double 3,5 s */
+    if(!enAir&&Math.abs(T.vlat)>4&&Math.random()<0.8) spawnP(P.x+(Math.random()-0.5)*0.6,0.3,P.z+(Math.random()-0.5)*0.6,-T.vlat*0.15*rx+(Math.random()-0.5),1.4+Math.random(),-T.vlat*0.15*rz+(Math.random()-0.5),0.4,0.38,0xeef8ff,6); /* la gerbe de la carre */
     T.vlat=clamp(lerp(T.vlat,(cible-T.lat)*2.2,clamp((enAir?0.6:3)*dt,0,1)),-15,15); T.lat=clamp(T.lat+T.vlat*dt,enAir?-11:-8.5,enAir?11:8.5); // la corde limite la vitesse latérale
     T.ollieT=Math.max(0,(T.ollieT||0)-dt); T.comp=Math.max(0,(T.comp||0)-dt*3);
     if(T.h<=0&&T.chute<=0){
       for(const w of [-2.2,2.2]) if((T.lat-w)*((T.lat-T.vlat*dt)-w)<0&&Math.abs(T.vlat)>6){ // franchir la vague du sillage : envol, selon l'élan
-        const pop=T.ollieT>0?1.4:1; T.vy=(3.6+Math.max(0,Math.abs(T.vlat)-5)*0.95)*pop; T.h=0.01; T.air=0; T.pop=pop>1; SFX.swing();
+        const pop=T.ollieT>0?1.4:1, du=T.du>0?1.35:1; T.vy=(3.6+Math.max(0,Math.abs(T.vlat)-5)*0.95)*pop*du; T.h=0.01; T.air=0; T.pop=pop>1; T.vlat0=Math.abs(T.vlat); T.duSaut=du>1; T.grab=0; SFX.swing();
         if(MER_V2) eclaboussure(P.x,P.z,1.2+Math.abs(T.vlat)*0.06); if(pop>1) spawnTexte(P.x,2.6,P.z,'POP !','#35e0ff'); }
       if(T.h<=0&&T.req.ollie){ T.vy=6.2; T.h=0.01; T.air=0; T.ollieT=0.5; SFX.swing(); } // OLLIE : petit saut à plat ; juste avant la vague, il décuple le saut
     }
     if(T.req.ollie&&T.h>0&&T.h<0.6&&T.vy<0) T.ollieT=0.5; // un OLLIE en retombant d'un petit saut compte aussi
     T.req.ollie=false;
     if(T.h>0){ T.vy-=26*dt; T.h+=T.vy*dt; T.air+=dt;
-      if(T.req.spin&&T.spin<=0) T.spin=0.0001; if(T.req.flip&&T.flip<=0) T.flip=0.0001; T.req.spin=T.req.flip=false; // 360 et BACKFLIP se combinent
-      if(T.spin>0&&T.spin<1) T.spin=Math.min(1,T.spin+dt/0.55); if(T.flip>0&&T.flip<1) T.flip=Math.min(1,T.flip+dt/0.7);
+      if(T.req.spin){ if(T.spin<=0){ T.spin=0.0001; T.tours=1; } else if(T.spin<1&&T.tours===1) T.tours=1.5; } if(T.req.flip&&T.flip<=0) T.flip=0.0001; T.req.spin=T.req.flip=false; // 360 (un 2e appui pendant la rotation : 540) et BACKFLIP se combinent
+      if(T.spin>0&&T.spin<1) T.spin=Math.min(1,T.spin+dt/(0.55*(T.tours||1))); if(T.flip>0&&T.flip<1) T.flip=Math.min(1,T.flip+dt/0.7);
+      if(INPUT.btn.sprint||INPUT.btn.sprintK) T.grab=Math.min(0.8,(T.grab||0)+dt); /* GRAB : SPRINT tenu en l'air, la main sur la planche */
       if(T.h<=0){ T.h=0; T.comp=Math.min(1,0.4+T.air*0.5); if(MER_V2&&T.air>0.4) eclaboussure(P.x,P.z,1+T.air); // réception : on amortit
-        if((T.spin>0&&T.spin<1)||(T.flip>0&&T.flip<1)){ T.chute=1.6; toast('Chute ! Figure pas finie','warn'); if(MER_V2) eclaboussure(P.x,P.z,1.6); else burst(P.x,0.3,P.z,10,0x9fd8ff,5,6); vibre(60); }
-        else if(T.air>0.3){ const fig=(T.spin>=1?1:0)+(T.flip>=1?1:0), nom=T.spin>=1&&T.flip>=1?'BACKFLIP 360':(T.flip>=1?'BACKFLIP':(T.spin>=1?'360':'SAUT'));
-          const pts=Math.round((40+T.air*100+(T.spin>=1?120:0)+(T.flip>=1?180:0))*(fig===2?1.5:1)*(T.pop?1.25:1)); T.pts+=pts; spawnTexte(P.x,3,P.z,nom+' ! +'+pts,'#ff5ad0'); if(fig) SFX.ramasse(); }
-        T.spin=0; T.flip=0; } }
+        if((T.spin>0&&T.spin<1)||(T.flip>0&&T.flip<1)){ T.chute=1.6; T.combo=0; toast('Chute ! Figure pas finie','warn'); if(MER_V2) eclaboussure(P.x,P.z,1.6); else burst(P.x,0.3,P.z,10,0x9fd8ff,5,6); vibre(60); }
+        else if(T.air>0.3){ const sp=T.spin>=1?(T.tours>1?'540':'360'):'', gr=(T.grab||0)>=0.25, ra=(T.vlat0||0)>11, fig=(sp?1:0)+(T.flip>=1?1:0)+(gr?1:0), nom=[T.flip>=1?'BACKFLIP':'',sp,gr?'GRAB':'',ra&&(sp||T.flip>=1||gr)?'RALEY':''].filter(Boolean).join(' ')||'SAUT';
+          if(fig) T.combo=(T.combo||0)+1; const kc=1+0.25*Math.min(4,Math.max(0,(T.combo||0)-1)); /* la série : chaque figure propre d'affilée ajoute 25 % (×2 au plus) */
+          const pts=Math.round((40+T.air*100+(sp?(T.tours>1?220:120):0)+(T.flip>=1?180:0)+(gr?T.grab*250:0)+(ra&&fig?150:0))*(fig>=2?1.5:1)*(T.pop?1.25:1)*(T.duSaut&&fig?1.2:1)*kc); /* RALEY et double-up ne paient qu'avec une figure : sans figures, l'objectif reste hors de portée */ T.pts+=pts; spawnTexte(P.x,3,P.z,nom+' ! +'+pts+(kc>1?' (×'+(+kc.toFixed(2))+')':''),'#ff5ad0'); if(fig) SFX.ramasse(); secousse(0.6+T.air*0.6); }
+        T.spin=0; T.flip=0; T.tours=1; T.grab=0; } }
     else { T.req.spin=T.req.flip=false; }
     if(T.chute>0){ T.chute-=dt; T.lat=lerp(T.lat,0,dt*2); }
     const L=12, d=Math.sqrt(Math.max(1,L*L-T.lat*T.lat));
     x=b.x-fx*d+rx*T.lat; z=b.z-fz*d+rz*T.lat; y=0.85+T.h; // au-dessus de la houle
-    const rotY=ang-Math.PI/2+(T.spin>0?T.spin*Math.PI*2:0), rotX=T.flip>0?-T.flip*Math.PI*2:0; // de profil : la planche dans l'axe du bateau
+    const rotY=ang-Math.PI/2+(T.spin>0?T.spin*Math.PI*2*(T.tours||1):0), rotX=T.flip>0?-T.flip*Math.PI*2:0; // de profil : la planche dans l'axe du bateau
     const carve=clamp(T.vlat*0.03,-0.35,0.35), flexion=enAir?(T.vy>0?0.05:0.3):(0.22+T.comp*0.35);
     y-=0.62-flexion*0.25; // les pieds sur la planche (la planche suit le corps : figures comprises)
     P.h.g.rotation.order='YXZ'; P.h.g.rotation.y=rotY; P.h.g.rotation.x=rotX+(T.chute>0?-1.3:0); P.h.g.rotation.z=(enAir?0.04:0.16)-carve*0.4; // penché contre la corde, carving (la planche, solidaire, prend la carre)
     P.h.jambeG.rotation.set(-flexion,0,0.19); P.h.jambeD.rotation.set(flexion*0.6,0,-0.19); // pieds sur les fixations, genoux fléchis
     P.h.brasG.rotation.set(-0.3,0,1.25-carve); P.h.brasD.rotation.set(-0.3,0,1.05-carve); // les deux mains sur la poignée, vers le bateau
+    if(enAir&&(T.grab||0)>0.05){ P.h.brasD.rotation.set(1.0,0,0.25); P.h.jambeD.rotation.x-=0.5; P.h.jambeG.rotation.x-=0.3; } /* le GRAB : la main à la planche, les genoux remontés */
     for(const [k,m] of TOW.sillage.entries()){ const sg=k?1:-1, L0=4, L1=16, l0=0.6, l1=3.4; // ruban du V : de la poupe vers l'arrière, en s'écartant
       const ax=b.x-fx*L0+rx*sg*l0, az=b.z-fz*L0+rz*sg*l0, bx2=b.x-fx*L1+rx*sg*l1, bz2=b.z-fz*L1+rz*sg*l1, mx=(ax+bx2)/2, mz=(az+bz2)/2, y=(MER_V2?houleY(mx,mz):0)+0.42;
-      m.position.set(mx,y-0.18,mz); m.scale.set(1.6+0.3*Math.sin(ETAT.runT*9+k),1,Math.hypot(bx2-ax,bz2-az)); m.lookAt(bx2,y-0.18,bz2); }
+      m.position.set(mx,y-0.18,mz); m.scale.set((1.6+0.3*Math.sin(ETAT.runT*9+k))*(T.du>0?1.7:1),1,Math.hypot(bx2-ax,bz2-az)); m.lookAt(bx2,y-0.18,bz2); }
     TOW.cap=ang; // vue immersive : la caméra se met derrière la planche (vueCamera)
     if(MER_V2){ TOW.faux=TOW.faux||{x:0,z:0,ang:0,v:16,def:{long:7,larg:2.6}}; Object.assign(TOW.faux,{x:b.x,z:b.z,ang}); sillageBateau(TOW.faux,dt); } // vraie écume derrière le bateau
-    RIDES.txt.textContent='🏄 WAKEBOARD — '+Math.round(T.pts)+' / '+D.objectif+' pts — '+Math.ceil(Math.max(0,T.t))+' s';
+    RIDES.txt.textContent='🏄 WAKEBOARD — '+Math.round(T.pts)+' / '+D.objectif+' pts — '+Math.ceil(Math.max(0,T.t))+' s'+((T.combo||0)>1?' — SÉRIE ×'+(+(1+0.25*Math.min(4,T.combo-1)).toFixed(2)):'')+(T.du>0?' — ⚡ DOUBLE-UP':'');
   } else {
     if(!T.lache){ T.h=Math.min(32,T.h+dt*5); x=b.x-fx*22; z=b.z-fz*22; y=0.8+T.h;
       paraMesh.visible=true; paraMesh.position.set(x,y+PARA_DIST,z);
@@ -17035,6 +17058,289 @@ function towEntrees(){ const T=TOW.actif; if(!T||T.id!=='wake'||T.lache) return;
 function lacherCorde(){ const T=TOW.actif; if(!T||T.id!=='para'||T.lache) return; T.lache=true; TOW.corde.visible=false;
   P.chute=true; P.chuteY0=P.y; P.chuteT=0; P.chuteHaut=P.y; P.para=true; P.vy=-1; P.chuteVx=0; P.chuteVz=0; toast('🪂 Corde lâchée — vise le radeau !','or'); SFX.ui(); }
 function resetMer(){ if(TOW.actif) finTow('annule'); TOW.actif=null; MERV.primes={}; for(const s of MERV.spots) s.vague=-1; ILE2.vague=-1; for(const a of FAUNE) a.mort=true; placerFaune(); placerFauneMont(); }
+/* ---------- LE LARGE V3 (retours du 20 octobre, lot 6 : « il n'y a rien à faire au large ») ----------
+   6.1 le paquebot « Reyes Majestic », échoué sur un récif au large : on y monte par l'échelle de coupée, on mène ses passagers aux
+   canots, on force le coffre du commissaire de bord ; au bout du compte à rebours, il se brise en deux et sombre ; on plonge ensuite
+   sur son épave. Une fois par vague (il est de nouveau là à la vague suivante). 6.2 la vie au large : des bouteilles à la mer, des
+   tortues prises dans des filets, la vedette des contrebandiers à arraisonner, des poissons volants le long des bateaux rapides.
+   6.3 le kitesurf. (6.4, le wakeboard : dans majTow.) Construit tout à la fin du décor (mkMerV3), sur un générateur privé, avec des
+   matériaux propres (jamais mat() : son cache est partagé par la ville). */
+const PAQ={ok:false,x:0,z:0,pont:9,etat:'attente',t:0,passagers:[],sauves:0,stations:[],coffre:null,forcage:null,echelle:null,sol:[],moities:[],canots:[],radeaux:[],debris:[],vagueCoffre:-1,vaguePlongee:-1,vagueAnnonce:-1,vagueRupture:-1,klaxonT:0,grinceT:0,bullesT:0,jete:false};
+const PAQ_DUREE=100, PAQ_PRIME=300, PAQ_COFFRE=520, PAQ_EPAVE=380, PAQ_PAR_PASSAGER=40;
+function paqMats(){ if(PAQ.m) return PAQ.m; const M=(c)=>new THREE.MeshLambertMaterial({color:c});
+  const fen=cTex(128,(c,s)=>{ c.fillStyle='#f2f2ee'; c.fillRect(0,0,s,s); c.fillStyle='#1c2c44'; c.fillRect(s*0.18,s*0.3,s*0.64,s*0.38); c.fillStyle='rgba(160,200,230,0.5)'; c.fillRect(s*0.2,s*0.32,s*0.25,s*0.12); c.fillStyle='#c8c8c0'; c.fillRect(0,s*0.9,s,s*0.1); });
+  fen.wrapS=fen.wrapT=THREE.RepeatWrapping;
+  const hub=cTex(128,(c,s)=>{ c.clearRect(0,0,s,s); c.fillStyle='#c8a050'; c.beginPath(); c.arc(s/2,s/2,s*0.3,0,6.3); c.fill(); c.fillStyle='#0c1420'; c.beginPath(); c.arc(s/2,s/2,s*0.22,0,6.3); c.fill(); });
+  hub.wrapS=hub.wrapT=THREE.RepeatWrapping;
+  return PAQ.m={coque:M(0x1a2238),blanc:M(0xf2f2ee),rouge:M(0xc0282a),pont:M(0xa8835a),noir:M(0x14161c),orange:M(0xff7a1a),gris:M(0x8a9098),jaune:M(0xffd23f),
+    fen:new THREE.MeshLambertMaterial({map:fen}),hub:new THREE.MeshLambertMaterial({map:hub,alphaTest:0.5,side:THREE.DoubleSide}),corde:M(0xc8b080),roche:new THREE.MeshLambertMaterial({color:0x4a4640,flatShading:true}),
+    ecume:new THREE.MeshBasicMaterial({color:0xeef8ff,transparent:true,opacity:0.5,depthWrite:false}),gilet:M(0xff8a1a),peau:M(0xd8a070),peau2:M(0x8a5a3a),jean:M(0x2a3a5a),bois:M(0x8a6a44)}; }
+/* une silhouette de passager en gilet de sauvetage : un corps (un maillage), deux bras qui font signe */
+function paqPassager(k){ const m=paqMats(), g=new THREE.Group(), P2=[], Bx=(w,h,d,mt,x,y,z)=>{ const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mt); o.position.set(x,y,z); P2.push(o); return o; };
+  const haut=[0xc83a3a,0x3a7ac8,0xe8e4dc,0x2a8a5a,0xd8b02a,0x8a3ac8][k%6], mh=new THREE.MeshLambertMaterial({color:haut}), peau=k%3?m.peau:m.peau2;
+  for(const s of [-1,1]) Bx(0.18,0.8,0.2,m.jean,s*0.11,0.4,0); Bx(0.46,0.62,0.26,mh,0,1.11,0); Bx(0.5,0.5,0.3,m.gilet,0,1.16,0); Bx(0.3,0.3,0.3,peau,0,1.6,0); Bx(0.32,0.1,0.32,k%2?m.noir:m.bois,0,1.78,0);
+  fusionnerFixes(P2,g); const bras=[]; for(const s of [-1,1]){ const p=new THREE.Group(); p.position.set(s*0.31,1.38,0); const b=new THREE.Mesh(new THREE.BoxGeometry(0.13,0.55,0.13),mh); b.position.y=-0.25; p.add(b); g.add(p); bras.push(p); }
+  scene.add(g); return {g,bras,etat:'attend',x:0,z:0,x0:0,z0:0,ph:k*1.3}; }
+function paqSite(){ for(const [x,z] of [[-180,612],[-120,640],[-220,560],[-60,660],[120,650],[240,630]]){ let ok=true;
+    for(let dx=-62;dx<=62&&ok;dx+=6) for(let dz=-24;dz<=24&&ok;dz+=6){ const X=x+dx, Z=z+dz; if(!estEau(X,Z)||solidAt(X,Z,1)) ok=false; }
+    if(ok) return {x,z}; } return null; }
+function mkPaquebot(){ const S=paqSite(); if(!S) return; const X=S.x, Z=S.z, H=PAQ.pont, m=paqMats(); PAQ.x=X; PAQ.z=Z;
+  // la coque, en deux moitiés qui pivotent sur la quille au milieu (la cassure) : poupe arrondie à l'ouest, étrave fine à l'est
+  const contour=(poupe)=>{ const s=new THREE.Shape(); if(poupe){ s.moveTo(0,-7.4); s.lineTo(-40,-7.4); s.quadraticCurveTo(-46,-7.4,-46,0); s.quadraticCurveTo(-46,7.4,-40,7.4); s.lineTo(0,7.4); }
+    else { s.moveTo(0,-7.4); s.lineTo(26,-7.4); s.quadraticCurveTo(40,-6.8,46,0); s.quadraticCurveTo(40,6.8,26,7.4); s.lineTo(0,7.4); } s.closePath(); return s; };
+  const extru=(sh,y0,y1,k)=>{ const g2=new THREE.ExtrudeGeometry(sh,{depth:y1-y0,bevelEnabled:false,curveSegments:10}); g2.rotateX(-Math.PI/2); if(k) g2.scale(k,1,k); g2.translate(0,y0+4,0); return g2; }; /* le repère d'une moitié : la quille au milieu, 4 u sous l'eau */
+  for(const poupe of [true,false]){ const piv=new THREE.Group(); piv.position.set(X,-4,Z); scene.add(piv); const F=[], sd=poupe?-1:1, sh=contour(poupe);
+    const Bx=(w,h,d,mt,x,y,z)=>{ const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mt); o.position.set(x,y+4,z); F.push(o); return o; };
+    F.push(new THREE.Mesh(extru(sh,-5,5.6),m.coque)); F.push(new THREE.Mesh(extru(sh,5.6,H),m.blanc)); F.push(new THREE.Mesh(extru(sh,-0.4,0.5,1.008),m.rouge));
+    { const dp=new THREE.ShapeGeometry(sh,10); dp.rotateX(-Math.PI/2); dp.translate(0,H+4.02,0); F.push(new THREE.Mesh(dp,m.pont)); }
+    // les hublots sur les flancs, les superstructures à fenêtres (pqBoiteUV : une fenêtre tous les 2 u, un étage par rangée), les cheminées
+    for(const z of [-7.42,7.42]){ const L=poupe?38:26, pl=new THREE.Mesh(new THREE.PlaneGeometry(L,1.0),m.hub); pl.position.set(sd*(L/2+1),3.4+4,z); pl.rotation.y=z>0?0:Math.PI; const uv=pl.geometry.attributes.uv; for(let i=0;i<uv.count;i++) uv.setX(i,uv.getX(i)*L/1.4); F.push(pl); }
+    const tiers=poupe?[[30,12,9,12],[26,11,12,15],[18,10,15,18]]:[[30,12,9,12],[26,11,12,15],[14,10,15,18]];
+    for(const [L,B,y0,y1] of tiers){ const o=new THREE.Mesh(pqBoiteUV(L,y1-y0,B,2),m.fen); o.position.set(sd*L/2,(y0+y1)/2+4,0); F.push(o); Bx(L+0.3,0.2,B+0.3,m.blanc,sd*L/2,y1,0); }
+    if(!poupe){ const br=new THREE.Mesh(pqBoiteUV(8,3,14,2),m.fen); br.position.set(18,16.5+4,0); F.push(br); Bx(8.4,0.25,14.4,m.blanc,18,18.1,0); Bx(0.15,7,0.15,m.gris,26,15.5,0); Bx(1.6,0.2,0.4,m.gris,18,19.3,0); } /* la passerelle de commandement et ses ailerons, le mât */
+    { const fx=poupe?-11:5; const fu=new THREE.Mesh(new THREE.CylinderGeometry(1.7,2.1,7,16),m.rouge); fu.scale.z=1.4; fu.position.set(fx,21.5+4,0); F.push(fu); const ft=new THREE.Mesh(new THREE.CylinderGeometry(1.72,1.72,1.2,16),m.noir); ft.scale.z=1.4; ft.position.set(fx,24.4+4,0); F.push(ft);
+      const fb=new THREE.Mesh(new THREE.CylinderGeometry(1.95,1.95,0.5,16),m.jaune); fb.scale.z=1.4; fb.position.set(fx,22.6+4,0); F.push(fb); }
+    // les canots de sauvetage le long du premier pont (sauf les deux des postes d'embarquement, à part : on les descend), les bossoirs
+    for(const z of [-6.6,6.6]) for(const x of [6.5,13,19.5,26]){ if(z>0&&x===19.5) continue; const c=new THREE.Mesh(new THREE.SphereGeometry(1,10,6),m.orange); c.scale.set(2.6,0.55,0.85); c.position.set(sd*x,11.4+4,z); F.push(c); Bx(5,0.15,1.6,m.blanc,sd*x,11.8,z); for(const dx of [-2,2]) Bx(0.12,1.6,0.12,m.gris,sd*x+dx,11.5,z*0.97); }
+    // le garde-corps du pont, l'échelle de coupée (poupe, côté caméra), le nom sur l'étrave
+    for(const z of [-7.25,7.25]){ const L=poupe?40:26; Bx(L,0.06,0.06,m.blanc,sd*L/2,H+1.05,z); for(let k=0;k<=L/2;k++) Bx(0.06,1.05,0.06,m.blanc,sd*k*2,H+0.52,z); }
+    if(poupe){ for(const dx of [-0.5,0.5]) Bx(0.06,H,0.06,m.corde,-36+dx,H/2,7.6); for(let y=0.4;y<H;y+=0.6) Bx(1.0,0.06,0.12,m.bois,-36,y,7.6); }
+    else { const cv=document.createElement('canvas'); cv.width=512; cv.height=64; const c=cv.getContext('2d'); c.fillStyle='#f6f4ee'; c.font='900 46px Arial'; c.textAlign='center'; c.textBaseline='middle'; c.fillText('REYES MAJESTIC',256,34);
+      const mt=new THREE.MeshLambertMaterial({map:new THREE.CanvasTexture(cv),alphaTest:0.5}); for(const z of [-7.43,7.43]){ const pl=new THREE.Mesh(new THREE.PlaneGeometry(12,1.5),mt); pl.position.set(30,4.2+4,z); pl.rotation.y=z>0?0:Math.PI; F.push(pl); } }
+    fusionnerFixes(F,piv); PAQ.moities.push({g:piv,sd}); }
+  // le récif sous l'étrave (il est échoué dessus), son écume ; les deux canots des postes d'embarquement
+  { const rg=new THREE.Group(); rg.position.set(X+46,0,Z); scene.add(rg); for(const [dx,dz,r] of [[2,-4,3.4],[4.5,2.5,2.6],[-1,5.2,2],[6,-1,2.2]]){ const ro=new THREE.Mesh(new THREE.IcosahedronGeometry(r,1),m.roche); ro.position.set(dx,r*0.25,dz); ro.scale.y=0.7; rg.add(ro); }
+    const ec=new THREE.Mesh(new THREE.RingGeometry(6,9,24),m.ecume); ec.rotation.x=-Math.PI/2; ec.position.set(2,0.22,0); rg.add(ec); PAQ.recif=rg; addSolid({x:X+49,z:Z,hw:5,hd:6,h:3}); }
+  for(const sd of [-1,1]){ const g=new THREE.Group(); const c=new THREE.Mesh(new THREE.SphereGeometry(1,10,6),m.orange); c.scale.set(2.6,0.55,0.85); g.add(c); const t=new THREE.Mesh(new THREE.BoxGeometry(5,0.15,1.6),m.blanc); t.position.y=0.4; g.add(t);
+    const ttes=[]; for(let k=0;k<5;k++){ const h=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.32,0.3),k%2?m.peau:m.peau2); h.position.set(-1.6+k*0.8,0.62,0); h.visible=false; g.add(h); ttes.push(h); }
+    g.position.set(X+sd*19.5,11.4,Z+6.6); scene.add(g); PAQ.canots.push({g,ttes,x0:X+sd*19.5,z0:Z+6.6,n:0,y:11.4,vx:0,vz:0}); PAQ.stations.push({x:X+sd*19.5,z:Z+6.8,canot:PAQ.canots[PAQ.canots.length-1]}); }
+  // les radeaux de survie (pour ceux qu'on n'a pas menés aux canots, à la cassure), les débris qui flottent
+  for(let k=0;k<4;k++){ const g=new THREE.Group(); const t=new THREE.Mesh(new THREE.TorusGeometry(1.1,0.35,6,14),m.orange); t.rotation.x=Math.PI/2; g.add(t); const tt=new THREE.Mesh(new THREE.ConeGeometry(1.2,1.2,8,1,true),m.orange); tt.position.y=0.8; g.add(tt); g.visible=false; scene.add(g); PAQ.radeaux.push({g,x:0,z:0,vx:0,vz:0}); }
+  for(let k=0;k<10;k++){ const g=new THREE.Mesh(k%3===0?new THREE.TorusGeometry(0.45,0.14,6,12):new THREE.BoxGeometry(0.9+(k%4)*0.3,0.4,0.7),k%3===0?m.orange:m.bois); if(k%3===0) g.rotation.x=Math.PI/2; g.visible=false; scene.add(g); PAQ.debris.push({g,x:0,z:0,vx:0,vz:0,rot:0}); }
+  // les solides : la superstructure (un mur) AVANT la coque (le pont, un toit qu'on arpente) — solidAt rend le premier trouvé
+  PAQ.sol=[{x:X,z:Z,hw:30,hd:6,h:12,toit:true},{x:X-6,z:Z,hw:34,hd:7.4,h:H,toit:true},{x:X+34,z:Z,hw:6,hd:5,h:H,toit:true},{x:X+42.5,z:Z,hw:2.5,hd:2.2,h:H,toit:true},{x:X-42.5,z:Z,hw:2.5,hd:5.4,h:H,toit:true}];
+  for(const s of PAQ.sol) addSolid(s);
+  // les passagers, la porte du salon (le coffre du commissaire), l'échelle
+  for(let k=0;k<8;k++){ const p=paqPassager(k); PAQ.passagers.push(p); }
+  PAQ.coffre={x:X-8,z:Z+6.4}; { const po=new THREE.Mesh(new THREE.BoxGeometry(1.4,2.2,0.12),m.bois); po.position.set(X-8,H+1.1,Z+6.06); scene.add(po); PAQ.porte=po; }
+  PAQ.echelle={x:X-36,z:Z+8.6,xp:X-36,zp:Z+6.5};
+  PAQ.ok=true; paqRemettre(); }
+/* le navire intact, ses passagers à leur place, ses solides : au début de la partie et de chaque vague */
+function paqRemettre(){ if(!PAQ.ok) return; const X=PAQ.x, Z=PAQ.z, H=PAQ.pont; PAQ.etat='attente'; PAQ.t=0; PAQ.sauves=0; PAQ.trace=[]; PAQ.forcage=null; PAQ.jete=false; PAQ.jeteJ=false;
+  for(const h of PAQ.moities){ h.g.position.set(X,-4,Z); h.g.rotation.set(0,0,0); h.g.visible=true; }
+  for(const s of PAQ.sol){ retirerSolide(s); addSolid(s); }
+  const places=[[-40,2],[-38,-3],[-34,4.5],[34,2],[36,-2.5],[38,1],[-24,6.6],[12,-6.6]];
+  PAQ.passagers.forEach((p,k)=>{ const [dx,dz]=places[k]; p.x=p.x0=X+dx; p.z=p.z0=Z+dz; p.etat='attend'; p.g.visible=true; p.g.position.set(p.x,H,p.z); p.g.rotation.set(0,0,0); });
+  for(const c of PAQ.canots){ c.n=0; c.y=11.4; c.g.position.set(c.x0,c.y,c.z0); c.g.rotation.set(0,0,0); c.g.visible=true; for(const t of c.ttes) t.visible=false; }
+  for(const r of PAQ.radeaux) r.g.visible=false; for(const d of PAQ.debris) d.g.visible=false; if(PAQ.porte) PAQ.porte.visible=true; }
+function paqSurPont(x,z){ const dx=x-PAQ.x, dz=Math.abs(z-PAQ.z), hw=dx<-40?5.2:(dx<=28?7.0:(dx<=40?4.7:1.9)); return dx>-45.5&&dx<44.5&&dz<hw&&!(Math.abs(dx)<30.4&&dz<6.3); } /* la forme du pont : poupe arrondie, étrave fine, sans les superstructures */
+function paqABord(){ return PAQ.ok&&!P.veh&&P.y>PAQ.pont-0.6&&Math.abs(P.x-PAQ.x)<47&&Math.abs(P.z-PAQ.z)<8; }
+function paqSurEau(){ return P.nage||(P.veh&&P.veh.def&&P.veh.def.eau); }
+/* la caméra de bord : sur un pont promenade (1,3 u entre le bastingage et la superstructure, sous les canots), la caméra habituelle
+   passait au-dessus des superstructures et le joueur disparaissait dessous, de dessus comme en vue immersive ; elle se place au-dessus
+   de la mer, du côté du joueur, et le regarde (la superstructure derrière lui) ; sur la poupe et l'étrave à découvert, rien ne change */
+const _PAQ_CAM=new THREE.Vector3();
+function paqCameraPont(dt){ if(!PAQ.ok||P.veh||INT.actif||PAQ.etat==='rupture'||PAQ.etat==='epave'||!paqABord()){ PAQ.camK=0; return false; }
+  const dz=P.z-PAQ.z, dx=P.x-PAQ.x; if(Math.abs(dz)<5.4||dx<-31||dx>27){ PAQ.camK=0; return false; }
+  const sd=dz>0?1:-1, cx=P.x, cy=PAQ.pont+9.5, cz=PAQ.z+sd*25; if(!PAQ.camK){ _PAQ_CAM.copy(camera.position); PAQ.camK=1; }
+  const k=clamp(dt*4,0,1); _PAQ_CAM.x+=(cx-_PAQ_CAM.x)*k; _PAQ_CAM.y+=(cy-_PAQ_CAM.y)*k; _PAQ_CAM.z+=(cz-_PAQ_CAM.z)*k; camera.position.copy(_PAQ_CAM); camera.up.set(0,1,0);
+  camera.lookAt(P.x,P.y+1.1,P.z); camera.fov=lerp(camera.fov,58,clamp(dt*3,0,1)); camera.updateProjectionMatrix(); VUE.yawRendu=sd>0?0:Math.PI; return true; }
+function actionPaquebot(){ if(!PAQ.ok||INT.actif) return null; const E=PAQ.etat, ech=PAQ.echelle;
+  if((E==='attente'||E==='alerte')&&paqSurEau()&&dist2(P.x,P.z,ech.x,ech.z)<(P.veh?49:16)) return {label:'🪜 MONTER À BORD DU REYES MAJESTIC',fn:paqMonter};
+  if(E==='alerte'&&paqABord()){
+    if(PAQ.coffre&&PAQ.vagueCoffre!==WAVES.n&&!PAQ.forcage&&dist2(P.x,P.z,PAQ.coffre.x,PAQ.coffre.z)<6.25) return {label:'🔓 FORCER LE COFFRE DU COMMISSAIRE DE BORD',fn:()=>{ PAQ.forcage={t:0}; SFX.ui(); toast('🔓 Ne bouge pas : 3 s…','or'); }};
+    for(const p of PAQ.passagers) if(p.etat==='attend'&&dist2(P.x,P.z,p.x,p.z)<6.25){ const n=PAQ.passagers.filter((q)=>q.etat==='attend').length; return {label:'🦺 « SUIVEZ-MOI ! » — vers les canots ('+n+' à bord)',fn:()=>{ p.etat='suit'; PAQ.trace=PAQ.trace||[]; p.ti=PAQ.trace.length; PAQ.trace.push({x:P.x,z:P.z}); SFX.ui(); vibre(15); }}; } }
+  if(E==='epave'&&P.nage&&PAQ.vaguePlongee!==WAVES.n&&dist2(P.x,P.z,PAQ.x,PAQ.z)<144) return {label:'🤿 PLONGER SUR L’ÉPAVE DU REYES MAJESTIC',fn:paqPlonger};
+  return null; }
+function paqMonter(){ if(P.veh) sortirVehicule(true); const e=PAQ.echelle; P.x=e.xp; P.z=e.zp; P.y=PAQ.pont; P.chute=false; P.vy=0; P.nage=false; P.ang=Math.PI; if(P.h) P.h.g.position.set(P.x,P.y,P.z);
+  if(PAQ.etat==='attente'){ PAQ.etat='alerte'; PAQ.t=PAQ_DUREE; bigMsg('⚓ LE REYES MAJESTIC VA SE BRISER — mène les passagers aux canots !'); toast('🦺 '+PAQ.passagers.length+' passagers à bord : touche-les pour qu’ils te suivent, puis mène-les aux postes d’embarquement (orange)','or'); paqKlaxon(1); }
+  SFX.ui(); vibre(30); }
+function paqPlonger(){ PAQ.vaguePlongee=WAVES.n; const f=document.getElementById('fonduNoir'); if(f){ f.style.transition='opacity 0.4s'; f.style.opacity='0.85'; setTimeout(()=>{ f.style.transition='opacity 1.4s'; f.style.opacity='0'; },650); }
+  META.argent+=PAQ_EPAVE; ETAT.cashRun+=PAQ_EPAVE; ETAT.score+=300; META.defis.epave++; sauveMeta(); checkDefis(); bigMsg('🤿 L’ÉPAVE DU MAJESTIC — un coffret de bijoux, +'+PAQ_EPAVE+' $'); SFX.niveau(); }
+function paqKlaxon(v){ const d=Math.sqrt(dist2(P.x,P.z,PAQ.x,PAQ.z)), k=clamp(1-d/320,0,1)*(v||1); if(k<=0.02) return; beep(98,1.5,'sawtooth',0.05*k,92); beep(147,1.5,'sawtooth',0.03*k,140); }
+function paqSauver(p,st){ p.etat='sauve'; p.g.visible=false; PAQ.sauves++; const c=st.canot; if(c.n<c.ttes.length) c.ttes[c.n].visible=true; c.n++;
+  META.argent+=PAQ_PAR_PASSAGER; ETAT.cashRun+=PAQ_PAR_PASSAGER; ETAT.score+=100; META.defis.paquebot++; spawnTexte(p.x,PAQ.pont+2.4,p.z,'SAUVÉ ! +'+PAQ_PAR_PASSAGER+' $','#7dff7a'); SFX.ramasse(); checkDefis();
+  if(PAQ.sauves>=PAQ.passagers.length){ const g=primeMerUneFois('paquebot',PAQ_PRIME); bigMsg('🦺 TOUS LES PASSAGERS SONT SAUFS'+(g?' — +'+g+' $':'')); SFX.niveau(); } }
+/* la cassure : les deux moitiés se relèvent en V, puis sombrent ; ceux qui sont encore à bord sont jetés à la mer (jamais tués) */
+function paqRompre(){ PAQ.etat='rupture'; PAQ.t=0; PAQ.vagueRupture=WAVES.n; PAQ.jete=false; if(PAQ.porte) PAQ.porte.visible=false; /* les solides restent 1,6 s : on est jeté à la mer, on ne passe pas à travers le pont */
+  const d=Math.sqrt(dist2(P.x,P.z,PAQ.x,PAQ.z)), k=clamp(1-d/300,0,1); if(k>0){ bruit(1.8,0.14*k,170,'lowpass'); beep(55,1.4,'sawtooth',0.09*k,30); secousse(10*k); }
+  if(paqABord()) bigMsg('💥 LE NAVIRE SE BRISE — SAUTE À L’EAU !'); else if(d<300) bigMsg('💥 LE REYES MAJESTIC SE BRISE EN DEUX');
+  const restants=PAQ.passagers.filter((p)=>p.etat!=='sauve'); PAQ.radeaux.forEach((r,k)=>{ const p=restants[k*2]; r.g.visible=!!p; if(!p) return; r.x=PAQ.x+(p.x-PAQ.x)*1.05; r.z=PAQ.z+(p.z>PAQ.z?14:-14); r.vx=(Math.random()-0.5)*0.6; r.vz=(p.z>PAQ.z?1:-1)*0.8; });
+  for(const p of restants){ p.etat='radeau'; p.g.visible=false; }
+  PAQ.debris.forEach((d2,k)=>{ d2.g.visible=true; d2.x=PAQ.x+(Math.random()-0.5)*20; d2.z=PAQ.z+(k%2?1:-1)*(9+Math.random()*6); d2.vx=(Math.random()-0.5)*1.2; d2.vz=(d2.z>PAQ.z?1:-1)*(0.6+Math.random()*0.8); d2.rot=Math.random()*6; }); }
+function majPaquebot(dt,dtJeu){ if(!PAQ.ok) return; const X=PAQ.x, Z=PAQ.z, H=PAQ.pont, T=ETAT.runT||0;
+  const dCam=Math.sqrt(dist2(camera.position.x,camera.position.z,X,Z)), loin=dCam>440;
+  for(const h of PAQ.moities) if(PAQ.etat!=='epave') h.g.visible=!loin;
+  const dJ=Math.sqrt(dist2(P.x,P.z,X,Z));
+  if(PAQ.vagueAnnonce!==WAVES.n&&dJ<160&&PAQ.etat==='attente'&&ETAT.mode==='jeu'){ PAQ.vagueAnnonce=WAVES.n; toast('⚓ Le paquebot Reyes Majestic est échoué sur un récif — monte à bord par l’échelle (côté sud, à la poupe)','or'); }
+  // les passagers : ils font signe, ils suivent, ils embarquent
+  if(PAQ.etat==='alerte'&&paqABord()){ const tr=PAQ.trace||(PAQ.trace=[]), n=tr.length; if(!n||dist2(P.x,P.z,tr[n-1].x,tr[n-1].z)>0.16){ tr.push({x:P.x,z:P.z}); if(tr.length>600){ tr.shift(); for(const q of PAQ.passagers) if(q.ti>0) q.ti--; } } } /* le fil des pas du joueur : les passagers marchent dans ses pas (en ligne droite, ils restaient coincés contre une superstructure) */
+  for(const [k,p] of PAQ.passagers.entries()){ if(p.etat==='sauve'||p.etat==='radeau'){ continue; } const vis=!loin&&dCam<220; p.g.visible=vis;
+    if(p.etat==='attend'){ const w=Math.sin(T*6+p.ph); p.bras[0].rotation.z=2.6+w*0.4; p.bras[1].rotation.z=-2.6-w*0.4; p.g.rotation.y=Math.atan2(P.x-p.x,P.z-p.z); }
+    else if(p.etat==='suit'){ const rang=PAQ.passagers.filter((q,j)=>q.etat==='suit'&&j<k).length, gap=1.3+rang*1.1, tr=PAQ.trace||(PAQ.trace=[]); if(p.ti===undefined) p.ti=tr.length;
+      let lim=tr.length-1, acc=0; while(lim>0&&acc<gap){ acc+=Math.hypot(tr[lim].x-tr[lim-1].x,tr[lim].z-tr[lim-1].z); lim--; } /* le point du fil à « gap » derrière le joueur : on s'arrête là */
+      let pas=9*dtJeu; while(pas>1e-4&&p.ti<=lim&&ETAT.mode==='jeu'){ const q=tr[p.ti], dx=q.x-p.x, dz=q.z-p.z, d=Math.hypot(dx,dz); if(d<0.05){ p.ti++; continue; } const v=Math.min(d,pas); p.x+=dx/d*v; p.z+=dz/d*v; pas-=v; p.g.rotation.y=Math.atan2(dx,dz); if(v>=d) p.ti++; }
+      const w=Math.sin(T*9+p.ph)*0.5; p.bras[0].rotation.z=0.2+w*0.2; p.bras[1].rotation.z=-0.2-w*0.2; p.g.position.set(p.x,H+Math.abs(Math.sin(T*9+p.ph))*0.05,p.z);
+      if(PAQ.etat==='alerte') for(const st of PAQ.stations) if(dist2(p.x,p.z,st.x,st.z)<6.25){ paqSauver(p,st); break; } }
+    if(p.etat==='attend') p.g.position.set(p.x,H,p.z); }
+  if(PAQ.etat==='alerte'&&ETAT.mode==='jeu'){ PAQ.t-=dtJeu; PAQ.klaxonT-=dtJeu; PAQ.grinceT-=dtJeu;
+    if(PAQ.klaxonT<=0){ PAQ.klaxonT=12; paqKlaxon(1); } if(PAQ.grinceT<=0){ PAQ.grinceT=3+Math.random()*5; const k=clamp(1-dJ/250,0,1); if(k>0) bruit(0.9,0.05*k,110+Math.random()*60,'lowpass'); }
+    if(PAQ.forcage){ if(!paqABord()||dist2(P.x,P.z,PAQ.coffre.x,PAQ.coffre.z)>9){ PAQ.forcage=null; toast('🔓 Forçage interrompu','warn'); }
+      else { PAQ.forcage.t+=dtJeu; if(PAQ.forcage.t>=3){ PAQ.forcage=null; PAQ.vagueCoffre=WAVES.n; META.argent+=PAQ_COFFRE; ETAT.cashRun+=PAQ_COFFRE; ETAT.score+=200; sauveMeta(); bigMsg('💰 LE COFFRE DU COMMISSAIRE — +'+PAQ_COFFRE+' $'); SFX.niveau(); } } }
+    const txt=dJ<240&&!RIDES.actif&&!TOW.actif&&!(typeof KITE!=='undefined'&&KITE.actif); if(!txt&&PAQ.txt){ PAQ.txt=false; RIDES.txt.style.display='none'; }
+    if(txt){ PAQ.txt=true; const n=PAQ.passagers.filter((q)=>q.etat==='attend'||q.etat==='suit').length; RIDES.txt.style.display='block'; RIDES.txt.textContent='⚓ REYES MAJESTIC — '+n+' passager'+(n>1?'s':'')+' à sauver — '+Math.ceil(Math.max(0,PAQ.t))+' s'+(PAQ.forcage?' — coffre : '+(3-PAQ.forcage.t).toFixed(1)+' s':''); }
+    if(PAQ.t<=0){ if(PAQ.txt){ PAQ.txt=false; RIDES.txt.style.display='none'; } paqRompre(); } }
+  else if(PAQ.etat==='rupture'){ if(ETAT.mode==='jeu') PAQ.t+=dtJeu; const t=PAQ.t, ss=(a,b,x)=>{ const u=clamp((x-a)/(b-a),0,1); return u*u*(3-2*u); };
+    const th=0.36*ss(0,5,t)+0.8*ss(9,30,t), y=-4-44*Math.pow(ss(7,32,t),1.3), ec=2.2*ss(0,6,t);
+    for(const h of PAQ.moities){ h.g.rotation.z=-h.sd*0+h.sd*th; h.g.position.set(X+h.sd*ec,y,Z); } /* poupe (sd −1) et étrave (sd +1) se relèvent en V */
+    if(t<9&&Math.random()<dt*14) spawnP(X+(Math.random()-0.5)*4,H+Math.random()*4,Z+(Math.random()-0.5)*8,(Math.random()-0.5)*2,4+Math.random()*3,(Math.random()-0.5)*2,1.6,2.6,0x9a9ca4,0);
+    if(t>6&&t<30&&Math.random()<dt*10&&MER_V2) eclaboussure(X+(Math.random()-0.5)*30,Z+(Math.random()-0.5)*14,1.2+Math.random());
+    if(!PAQ.jete&&t>1.6){ PAQ.jete=true; for(const s of PAQ.sol) retirerSolide(s); }
+    if(PAQ.jete&&!PAQ.jeteJ&&paqABord()){ PAQ.jeteJ=true; P.chute=true; P.chuteY0=P.y; P.chuteT=0; P.chuteHaut=P.y; P.vy=6; P.chuteVx=0; P.chuteVz=(P.z>Z?1:-1)*9; toucherJoueur(10); toast('🌊 Jeté à la mer !','warn'); }
+    for(const c of PAQ.canots){ if(c.n>0){ c.y=Math.max(0.35,c.y-dtJeu*2.2); if(c.y<=0.4){ c.g.position.x+=0.9*dtJeu*(c.x0>X?1:-1); c.g.position.z+=1.1*dtJeu; } c.g.position.y=c.y+(MER_V2&&c.y<0.5?houleY(c.g.position.x,c.g.position.z):0); } else c.g.visible=t<7; }
+    if(t>=33){ PAQ.etat='epave'; for(const h of PAQ.moities) h.g.visible=false; toast('🫧 Le Majestic repose sur le fond — des bulles marquent l’épave : on peut y plonger','or'); } }
+  else if(PAQ.etat==='epave'){ PAQ.bullesT-=dt; if(PAQ.bullesT<=0&&dCam<200){ PAQ.bullesT=0.25; spawnP(X+(Math.random()-0.5)*16,0.2,Z+(Math.random()-0.5)*8,0,1.6,0,1.2,0.5+Math.random()*0.4,0xe8f6ff,0); }
+    for(const c of PAQ.canots) if(c.n>0&&c.g.visible){ c.g.position.x+=0.5*dtJeu*(c.x0>X?1:-1); c.g.position.z+=0.6*dtJeu; c.g.position.y=0.35+(MER_V2?houleY(c.g.position.x,c.g.position.z):0); } }
+  // radeaux et débris qui dérivent sur la houle
+  if(PAQ.etat==='rupture'||PAQ.etat==='epave'){ for(const r of PAQ.radeaux) if(r.g.visible){ r.x+=r.vx*dtJeu; r.z+=r.vz*dtJeu; r.g.position.set(r.x,0.3+(MER_V2?houleY(r.x,r.z):0),r.z); }
+    for(const d2 of PAQ.debris) if(d2.g.visible){ d2.x+=d2.vx*dtJeu; d2.z+=d2.vz*dtJeu; d2.rot+=dtJeu*0.3; d2.g.position.set(d2.x,0.15+(MER_V2?houleY(d2.x,d2.z):0),d2.z); d2.g.rotation.y=d2.rot; } } }
+/* ---------- 6.2 LA VIE AU LARGE : bouteilles à la mer, tortues prises dans des filets, la vedette des contrebandiers, poissons volants ---------- */
+const LARGE3={ok:false,bouteilles:[],tortues:[],contre:null,poissons:[],poissonT:0,vague:-2};
+const MSG_BOUTEILLES=['« Si tu lis ceci, rapporte-moi mon tuba. — Kai, le cabanon »','« J’ai caché 20 $ sous le troisième palmier de la plage. Ou le quatrième. »','« Les mouettes du port volent les frites. Méfie-toi. »','« Marie-moi, Lou. — un marin du voilier »','« Le Majestic ? Je l’avais dit qu’il passait trop près du récif. »','« Recette : un tiers de rhum, un tiers d’ananas, un tiers de soleil. »','« Je suis une tortue. Enfin, j’écris pour une tortue. »','« Ne nagez pas à l’est des bouées jaunes. Signé : un requin repenti. »','« Bonjour de la station météo n° 4. Il fait beau. Il fait toujours beau. »','« La vedette des contrebandiers passe au large à chaque vague. »','« Quelqu’un a vu mon kite ? Rouge et jaune, un peu fâché. »','« Dusty, si tu lis ça : la radio CB marche, réponds ! »','« Le trésor de l’île n’est jamais deux fois au même endroit. »','« Cette bouteille a fait trois fois le tour de Los Reyes. »','« Pour Bruno, au chalet : arrête de compter les pigeons. »','« Ici repose mon dernier sandwich. Le Roi des Sandwichs en est témoin. »'];
+function largeMats(){ if(LARGE3.m) return LARGE3.m; const M=(c)=>new THREE.MeshLambertMaterial({color:c});
+  return LARGE3.m={verre:new THREE.MeshPhongMaterial({color:0x3a8a5a,transparent:true,opacity:0.82,shininess:90,specular:0xffffff}),liege:M(0xb88a52),papier:M(0xf2e8c8),carap:M(0x4a6a3a),peauT:M(0x7a8a5a),filet:new THREE.MeshLambertMaterial({color:0x2a4a3a,transparent:true,opacity:0.8,side:THREE.DoubleSide}),flot:M(0xff7a1a),
+    coqueGo:M(0x2a2c32),blanc:M(0xf2f2ee),noir:M(0x14161c),caisse:M(0x8a6a44),moteur:M(0x3a3e46),poisson:new THREE.MeshPhongMaterial({color:0xc8d8e8,shininess:90,specular:0xffffff})}; }
+function mkLargeV3(){ const m=largeMats();
+  // 12 bouteilles (deux maillages instanciés : le verre, le bouchon)
+  { const gv=new THREE.CylinderGeometry(0.16,0.18,0.62,10); gv.rotateZ(Math.PI/2); const gb=new THREE.CylinderGeometry(0.07,0.07,0.16,8); gb.rotateZ(Math.PI/2); gb.translate(0.38,0,0);
+    LARGE3.imV=new THREE.InstancedMesh(gv,m.verre,12); LARGE3.imB=new THREE.InstancedMesh(gb,m.liege,12); for(const im of [LARGE3.imV,LARGE3.imB]){ im.frustumCulled=false; im.count=12; scene.add(im); }
+    for(let k=0;k<12;k++) LARGE3.bouteilles.push({x:0,z:0,prise:true,ph:k*0.7}); }
+  // 3 tortues prises dans un filet
+  for(let k=0;k<3;k++){ const g=new THREE.Group(); const ca=new THREE.Mesh(new THREE.SphereGeometry(0.9,10,6,0,Math.PI*2,0,Math.PI/2),m.carap); ca.scale.set(1,0.55,1.25); g.add(ca); const te=new THREE.Mesh(new THREE.SphereGeometry(0.28,8,6),m.peauT); te.position.set(0,0.05,1.3); g.add(te);
+    const nag=[]; for(const [sx,sz] of [[-1,0.5],[1,0.5],[-1,-0.7],[1,-0.7]]){ const n=new THREE.Mesh(new THREE.BoxGeometry(0.8,0.06,0.3),m.peauT); n.position.set(sx*0.8,0,sz); g.add(n); nag.push({m:n,sx}); }
+    const fi=new THREE.Mesh(new THREE.PlaneGeometry(3.4,3.4,6,6),m.filet); fi.rotation.x=-Math.PI/2; fi.position.y=0.25; const wf=new THREE.WireframeGeometry(fi.geometry); const fil=new THREE.LineSegments(wf,new THREE.LineBasicMaterial({color:0x1a2a20})); fil.rotation.x=-Math.PI/2; fil.position.y=0.27; g.add(fil);
+    for(const [dx,dz] of [[-1.7,-1.7],[1.7,-1.7],[-1.7,1.7],[1.7,1.7]]){ const f=new THREE.Mesh(new THREE.SphereGeometry(0.2,8,6),m.flot); f.position.set(dx,0.2,dz); g.add(f); }
+    g.visible=false; scene.add(g); LARGE3.tortues.push({g,nag,fil,x:0,z:0,etat:'libre',t:0,a:0}); }
+  // la vedette des contrebandiers : un go-fast, deux moteurs, deux silhouettes, trois caisses
+  { const g=new THREE.Group(), F=[]; const Bx=(w,h,d,mt,x,y,z)=>{ const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mt); o.position.set(x,y,z); F.push(o); return o; };
+    const sh=new THREE.Shape(); sh.moveTo(-1.3,-4); sh.lineTo(1.3,-4); sh.lineTo(1.3,2); sh.quadraticCurveTo(1.1,4,0,5); sh.quadraticCurveTo(-1.1,4,-1.3,2); sh.closePath();
+    const co=new THREE.ExtrudeGeometry(sh,{depth:1.1,bevelEnabled:false}); co.rotateX(-Math.PI/2); co.translate(0,-0.3,0); F.push(new THREE.Mesh(co,m.coqueGo));
+    Bx(2.2,0.7,2.2,m.noir,0,1.0,-0.8); Bx(2.3,0.06,0.5,m.blanc,0,0.82,1.6); for(const s of [-0.6,0.6]){ Bx(0.45,0.9,0.5,m.moteur,s,0.6,-4.3); } for(const s of [-0.5,0.5]){ Bx(0.4,0.7,0.3,m.noir,s,1.6,-0.6); Bx(0.26,0.26,0.26,m.coqueGo,s,2.1,-0.6); }
+    fusionnerFixes(F,g); g.visible=false; scene.add(g); const caisses=[]; for(let k=0;k<3;k++){ const c=new THREE.Mesh(new THREE.BoxGeometry(0.9,0.6,0.7),m.caisse); c.visible=false; scene.add(c); caisses.push(c); }
+    LARGE3.contre={g,caisses,s:0,etat:'absent',vague:-1,x:0,z:0,ang:0,v:20,cx:150,cz:560,rx:170,rz:70}; }
+  // les poissons volants
+  for(let k=0;k<6;k++){ const f=new THREE.Mesh(new THREE.SphereGeometry(0.18,8,5),m.poisson); f.scale.set(0.6,0.6,2.2); const ai=new THREE.Mesh(new THREE.PlaneGeometry(0.9,0.3),m.poisson); ai.rotation.x=-Math.PI/2; f.add(ai); f.visible=false; scene.add(f); LARGE3.poissons.push({m:f,t:1,dur:1,x0:0,z0:0,dx:0,dz:0}); }
+  LARGE3.dum=new THREE.Object3D(); LARGE3.ok=true; }
+/* chaque vague : de nouvelles bouteilles, de nouvelles tortues dans des filets, la vedette repart — tiré sur une graine propre à la vague */
+function largeNouvelleVague(){ if(!LARGE3.ok) return; LARGE3.vague=WAVES.n; let sd=(WAVES.n*7919+1234567)>>>0; const r=()=>{ sd=(sd*1664525+1013904223)>>>0; return sd/4294967296; };
+  const place=(z0,z1,marge)=>{ for(let e=0;e<60;e++){ const x=LIMITE_OUEST_MER+40+r()*(LIMITE_EST_MER-LIMITE_OUEST_MER-120), z=MER+z0+r()*(z1-z0); if(!estEau(x,z)||solidAt(x,z,marge)) continue; if(PAQ.ok&&Math.abs(x-PAQ.x)<60&&Math.abs(z-PAQ.z)<26) continue; return {x,z}; } return null; };
+  for(const b of LARGE3.bouteilles){ const p=place(40,380,2); if(p){ b.x=p.x; b.z=p.z; b.prise=false; } else b.prise=true; }
+  for(const t of LARGE3.tortues){ const p=place(60,360,4); if(p){ t.x=p.x; t.z=p.z; t.etat='prise'; t.t=0; t.a=r()*6.28; t.g.visible=true; t.fil.visible=true; t.g.position.set(t.x,0,t.z); } else { t.etat='libre'; t.g.visible=false; } }
+  const C=LARGE3.contre; C.etat='route'; C.s=r()*6.28; C.v=20; for(const c of C.caisses) c.visible=false; }
+function actionLarge3(){ if(!LARGE3.ok||INT.actif||!paqSurEau()) return null; const rr=P.veh?20:12.25;
+  for(const t of LARGE3.tortues) if(t.etat==='prise'&&dist2(P.x,P.z,t.x,t.z)<rr) return {label:'✂️ LIBÉRER LA TORTUE DU FILET',fn:()=>{ t.etat='fuit'; t.t=0; t.fil.visible=false; META.argent+=30; ETAT.cashRun+=30; ETAT.score+=80; META.defis.tortues++; sauveMeta(); checkDefis(); spawnTexte(t.x,1.6,t.z,'LIBRE ! +30 $','#7dff7a'); SFX.ramasse(); vibre(20); }};
+  const C=LARGE3.contre; if(C&&C.etat==='arrete'&&C.vague!==WAVES.n&&dist2(P.x,P.z,C.x,C.z)<(P.veh?36:16)) return {label:'📦 SAISIR LA CARGAISON DES CONTREBANDIERS',fn:()=>{ C.vague=WAVES.n; C.etat='saisi'; for(const c of C.caisses) c.visible=false; META.argent+=350; ETAT.cashRun+=350; ETAT.score+=250; META.defis.contrebande++; sauveMeta(); checkDefis(); bigMsg('📦 CARGAISON SAISIE — +350 $'); SFX.niveau(); }};
+  return null; }
+function majLarge3(dt,dtJeu){ if(!LARGE3.ok) return; if(LARGE3.vague!==WAVES.n) largeNouvelleVague(); const T=ETAT.runT||0, cx=camera.position.x, cz=camera.position.z, D=LARGE3.dum;
+  // les bouteilles : elles dansent sur la houle ; on les ramasse en passant dessus (à la nage ou en bateau)
+  LARGE3.bouteilles.forEach((b,k)=>{ if(b.prise){ D.position.set(0,-50,0); D.scale.setScalar(0.0001); } else { const y=0.12+(MER_V2?houleY(b.x,b.z):0); D.position.set(b.x,y,b.z); D.rotation.set(Math.sin(T*1.7+b.ph)*0.3,b.ph*3,Math.sin(T*1.3+b.ph)*0.25); D.scale.setScalar(1);
+      if(paqSurEau()&&ETAT.mode==='jeu'&&dist2(P.x,P.z,b.x,b.z)<(P.veh?10:4.4)){ b.prise=true; META.argent+=20; ETAT.cashRun+=20; ETAT.score+=50; META.defis.bouteilles++; sauveMeta(); checkDefis(); toast('🍾 '+MSG_BOUTEILLES[(META.defis.bouteilles+k)%MSG_BOUTEILLES.length]+' (+20 $)','or'); SFX.ramasse(); } }
+    D.updateMatrix(); LARGE3.imV.setMatrixAt(k,D.matrix); LARGE3.imB.setMatrixAt(k,D.matrix); });
+  LARGE3.imV.instanceMatrix.needsUpdate=true; LARGE3.imB.instanceMatrix.needsUpdate=true;
+  // les tortues : elles se débattent dans le filet ; libérées, elles s'en vont et plongent
+  for(const t of LARGE3.tortues){ if(t.etat==='libre') continue; const vis=dist2(cx,cz,t.x,t.z)<160*160; t.g.visible=vis; if(!vis) continue;
+    if(t.etat==='prise'){ const w=Math.sin(T*9+t.a)*0.6; for(const n of t.nag) n.m.rotation.z=n.sx*w; t.g.rotation.y=t.a+Math.sin(T*1.3)*0.3; t.g.position.y=(MER_V2?houleY(t.x,t.z):0)-0.05; }
+    else { t.t+=dtJeu; t.x+=Math.sin(t.a)*4*dtJeu; t.z+=Math.cos(t.a)*4*dtJeu; t.g.rotation.y=t.a; for(const n of t.nag) n.m.rotation.z=n.sx*Math.sin(T*6)*0.5; t.g.position.set(t.x,-0.05-Math.max(0,t.t-2)*0.5,t.z); if(t.t>5){ t.etat='libre'; t.g.visible=false; } } }
+  // la vedette des contrebandiers : elle file sur sa boucle au large ; un bateau du joueur qui la touche l'arraisonne
+  { const C=LARGE3.contre; if(C.etat==='route'){ const dJ=Math.sqrt(dist2(P.x,P.z,C.x,C.z)); if(P.veh&&P.veh.def.eau&&dJ<40) C.v=lerp(C.v,27,dtJeu); else C.v=lerp(C.v,20,dtJeu);
+      C.s+=C.v*dtJeu/Math.hypot(C.rx,C.rz); const x=C.cx+Math.cos(C.s)*C.rx, z=C.cz+Math.sin(C.s)*C.rz; C.ang=Math.atan2(x-C.x,z-C.z)||C.ang; C.x=x; C.z=z;
+      const vis=dist2(cx,cz,C.x,C.z)<300*300; C.g.visible=vis; if(vis){ C.g.position.set(C.x,0.2+(MER_V2?houleY(C.x,C.z):0),C.z); C.g.rotation.set(-0.06,C.ang,0); if(MER_V2){ C.faux=C.faux||{x:0,z:0,ang:0,v:20,def:{long:9,larg:2.6}}; Object.assign(C.faux,{x:C.x,z:C.z,ang:C.ang,v:C.v}); sillageBateau(C.faux,dt); } }
+      if(P.veh&&P.veh.def.eau&&Math.abs(P.veh.v||0)>4&&dJ<5.2&&C.vague!==WAVES.n){ C.etat='arrete'; C.v=0; bigMsg('🚤 ARRAISONNÉE ! Saisis la cargaison'); SFX.choc(0.6); vibre(60); C.caisses.forEach((c,k)=>{ c.visible=true; c.userData.dx=Math.cos(k*2.1)*3; c.userData.dz=Math.sin(k*2.1)*3; }); } }
+    else if(C.etat==='arrete'){ C.g.visible=true; C.g.position.y=0.15+(MER_V2?houleY(C.x,C.z):0); C.caisses.forEach((c)=>{ c.position.set(C.x+c.userData.dx,0.2+(MER_V2?houleY(C.x+c.userData.dx,C.z+c.userData.dz):0),C.z+c.userData.dz); c.rotation.y=T*0.3; }); }
+    else if(C.etat==='saisi') C.g.visible=dist2(cx,cz,C.x,C.z)<300*300; }
+  // les poissons volants : le long d'un bateau rapide, au large
+  { const v=P.veh; LARGE3.poissonT-=dt; if(v&&v.def.eau&&Math.abs(v.v||0)>14&&P.z>MER+50&&LARGE3.poissonT<=0){ LARGE3.poissonT=2+Math.random()*3; const sd=Math.random()<0.5?-1:1, ca=Math.cos(v.ang), sa=Math.sin(v.ang);
+      LARGE3.poissons.forEach((f,k)=>{ if(k>3) return; f.t=0; f.dur=1.1+Math.random()*0.5; const ox=v.x+ca*sd*(3+k*0.6)+sa*(k*0.8), oz=v.z-sa*sd*(3+k*0.6)+ca*(k*0.8); f.x0=ox; f.z0=oz; f.dx=sa*(v.v*0.9)*f.dur; f.dz=ca*(v.v*0.9)*f.dur; f.m.visible=true; }); }
+    for(const f of LARGE3.poissons){ if(!f.m.visible) continue; f.t+=dt; const u=f.t/f.dur; if(u>=1){ f.m.visible=false; if(MER_V2) eclaboussure(f.x0+f.dx,f.z0+f.dz,0.4); continue; }
+      const x=f.x0+f.dx*u, z=f.z0+f.dz*u, y=0.2+Math.sin(u*Math.PI)*1.6; f.m.position.set(x,y,z); f.m.rotation.set(-Math.cos(u*Math.PI)*0.5,Math.atan2(f.dx,f.dz),0); } } }
+/* ---------- 6.3 LE KITESURF : le kiosque sur la plage, l'aile, le vent, les sauts et les figures ---------- */
+const KITE={actif:null,kiosque:null,planche:null,aile:null,lignes:[],barre:null,cap:undefined};
+const KITE_DEF={prix:70,duree:60,objectif:4000,prime:250}, KITE_VENT={x:0.3,z:-0.954}; /* le vent de mer souffle vers le nord-nord-est (vers la plage, un peu de travers) : on tire des bords le long du rivage */
+function kiteMats(){ if(KITE.m) return KITE.m; const M=(c)=>new THREE.MeshLambertMaterial({color:c}); return KITE.m={bambou:M(0xc8a060),toile:M(0xe8dcc0),planche:M(0x2a8ac8),pad:M(0x14161c),ligne:new THREE.MeshBasicMaterial({color:0xf2f2ee}),barre:M(0x2a2c30),aile:new THREE.MeshLambertMaterial({vertexColors:true,side:THREE.DoubleSide})}; }
+function mkKitesurf(){ const m=kiteMats(); let K=null;
+  for(let x=60;x<=300&&!K;x+=8) for(let z=MER-24;z<=MER+4&&!K;z+=2){ if(estEau(x,z)||solY(x,z)>0.8||solidAt(x,z,3)) continue; let ok=true; for(let dz=6;dz<=20;dz+=2) if(!estEau(x,z+dz)) ok=false; if(ok&&estEau(x,z+4)) K={x,z}; }
+  if(!K) return; KITE.kiosque=K; const g=new THREE.Group(), F=[]; g.position.set(K.x,solY(K.x,K.z),K.z); scene.add(g);
+  const Bx=(w,h,d,mt,x,y,z)=>{ const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mt); o.position.set(x,y,z); F.push(o); return o; };
+  for(const [x,z] of [[-1.4,-1],[1.4,-1],[-1.4,1],[1.4,1]]) Bx(0.14,2.6,0.14,m.bambou,x,1.3,z); Bx(3.4,0.12,2.6,m.toile,0,2.65,0); Bx(3,0.9,0.5,m.bambou,0,0.45,0.9);
+  for(let k=0;k<3;k++){ const pl=Bx(0.42,0.04,1.4,m.planche,-1.0+k*0.8,0.8,-0.9); pl.rotation.x=1.2; } fusionnerFixes(F,g);
+  const ail=new THREE.Mesh(kiteGeoAile(),m.aile); ail.scale.setScalar(0.5); ail.position.set(0,4.2,-0.5); ail.rotation.x=-0.3; g.add(ail);
+  { const cv=document.createElement('canvas'); cv.width=256; cv.height=64; const c=cv.getContext('2d'); c.fillStyle='#1a5aa8'; c.fillRect(0,0,256,64); c.fillStyle='#f6f4ee'; c.font='900 40px Arial'; c.textAlign='center'; c.textBaseline='middle'; c.fillText('KITESURF',128,34);
+    const pn=new THREE.Mesh(new THREE.PlaneGeometry(2.6,0.65),new THREE.MeshLambertMaterial({map:new THREE.CanvasTexture(cv)})); pn.position.set(0,3.05,1.35); g.add(pn); }
+  // la planche (twin-tip) et l'aile de l'activité, les deux lignes, la barre
+  const pl=new THREE.Group(); const b=new THREE.Mesh(new THREE.BoxGeometry(0.42,0.05,1.35),m.planche); pl.add(b); for(const s of [-1,1]){ const p=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.1,0.22),m.pad); p.position.set(0,0.07,s*0.32); pl.add(p); } pl.visible=false; scene.add(pl); KITE.planche=pl;
+  KITE.aile=new THREE.Mesh(kiteGeoAile(),m.aile); KITE.aile.visible=false; scene.add(KITE.aile);
+  for(let k=0;k<2;k++){ const l=new THREE.Mesh(new THREE.BoxGeometry(0.03,0.03,1),m.ligne); l.visible=false; scene.add(l); KITE.lignes.push(l); }
+  KITE.barre=new THREE.Mesh(new THREE.BoxGeometry(0.7,0.05,0.05),m.barre); KITE.barre.visible=false; scene.add(KITE.barre); }
+/* l'aile : un arc de toile à caissons, rouge, blanc et jaune (couleurs de sommets) ; son centre en (0,0,0), ses bouts en (±4,−2,0) */
+function kiteGeoAile(){ const n=14, pos=[], col=[], idx=[], c3=new THREE.Color(), cols=[0xd8282a,0xf2f2ee,0xffd23f];
+  for(let i=0;i<=n;i++){ const a=-1.15+2.3*i/n, x=Math.sin(a)*4.4, y=Math.cos(a)*4.4-4.4; c3.setHex(cols[Math.floor(i/2)%3]); for(const z of [-0.9,0.9]){ pos.push(x,y+(z>0?-0.12:0.12),z*(1-Math.abs(a)*0.25)); col.push(c3.r,c3.g,c3.b); } }
+  for(let i=0;i<n;i++){ const a=i*2, b=a+1, c=a+2, d=a+3; idx.push(a,c,b,b,c,d); }
+  const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(col,3)); g.setIndex(idx); g.computeVertexNormals(); return g; }
+function kiosqueKite(){ const K=KITE.kiosque; if(!K||KITE.actif||P.veh||P.nage||INT.actif||TOW.actif) return null; if(dist2(P.x,P.z,K.x,K.z)>12) return null; return {label:'🪁 KITESURF — '+KITE_DEF.prix+' $',fn:lancerKite}; }
+function lancerKite(){ const K=KITE.kiosque; if(!K) return; if(META.argent<KITE_DEF.prix){ SFX.refus(); toast('Il te faut '+KITE_DEF.prix+' $','warn'); return; } META.argent-=KITE_DEF.prix; SFX.achat();
+  KITE.actif={t:KITE_DEF.duree,x:K.x,z:K.z+18,ang:Math.atan2(-KITE_VENT.z,KITE_VENT.x),v:6,h:0,vy:0,air:0,hMax:0,spin:0,flip:0,loop:0,tricks:0,pts:0,chute:0,req:{},zone:{x0:K.x-130,x1:K.x+130,z0:MER+16,z1:MER+150},horsT:0};
+  KITE.planche.visible=true; KITE.aile.visible=true; KITE.barre.visible=true; for(const l of KITE.lignes) l.visible=true; P.h.g.add(KITE.planche); KITE.planche.position.set(0,0.03,0); KITE.planche.rotation.set(0,Math.PI/2,0); P.h.g.rotation.order='YXZ';
+  el('btnSprint').innerHTML=ico('ico-btn-sprint','⬆️')+'<small>SAUT</small>'; el('btnGren').innerHTML='🔄<small>BACKROLL</small>'; el('btnDodge').innerHTML='🌀<small>360</small>';
+  RIDES.txt.style.display='block'; bigMsg('🪁 KITESURF — de travers au vent, SAUT pour décoller'); vibre(40); }
+function kiteEntrees(){ const T=KITE.actif; if(!T) return; if(pressed('sprint')||edgeKey('ShiftLeft')) T.req.saut=true; if(pressed('gren')||edgeKey('KeyG')) T.req.flip=true; if(pressed('esquive')||edgeKey('KeyK')) T.req.spin=true; }
+function kiteArreter(fin){ const T=KITE.actif; if(!T) return; KITE.actif=null; KITE.cap=undefined; KITE.planche.visible=false; KITE.aile.visible=false; KITE.barre.visible=false; for(const l of KITE.lignes) l.visible=false;
+  if(KITE.planche.parent===P.h.g){ P.h.g.remove(KITE.planche); scene.add(KITE.planche); } P.h.g.rotation.x=0; P.h.g.rotation.z=0; for(const j of [P.h.jambeG,P.h.jambeD,P.h.brasG,P.h.brasD]) j.rotation.set(0,0,0);
+  RIDES.txt.style.display='none'; boutonsAPied(); if(!fin) return;
+  const pts=Math.round(T.pts), rec=pts>(META.defis.kite||0); if(rec) META.defis.kite=pts; let msg='🪁 KITESURF — '+pts+' pts'+(rec?' — record !':'');
+  if(pts>=KITE_DEF.objectif){ const m=primeMerUneFois('kite',KITE_DEF.prime); if(m) msg+=' +'+m+' $'; } sauveMeta(); checkDefis(); bigMsg(msg); P.y=0.3; }
+function majKite(dt,dtJeu){ const T=KITE.actif; if(!T) return; if(P.veh||ETAT.mode!=='jeu'){ kiteArreter(false); return; } T.t-=dtJeu;
+  const W=KITE_VENT, l=Math.hypot(INPUT.mx,INPUT.mz), Z=T.zone;
+  // le cap : vers le joystick ; hors de la zone, on revient vers le centre
+  let cible=l>0.2?Math.atan2(INPUT.mx,INPUT.mz):T.ang; if(T.x<Z.x0||T.x>Z.x1||T.z<Z.z0||T.z>Z.z1){ cible=Math.atan2((Z.x0+Z.x1)/2-T.x,(Z.z0+Z.z1)/2-T.z); T.horsT-=dtJeu; if(T.horsT<=0){ T.horsT=4; toast('🪁 Reste dans la baie du kite','warn'); } }
+  if(T.h<=0&&T.chute<=0) T.ang=angLerp(T.ang,cible,clamp(2.4*dtJeu,0,1));
+  const hx=Math.sin(T.ang), hz=Math.cos(T.ang), c=hx*W.x+hz*W.z, vT=T.chute>0?1.5:(c>=0?17-7*c*c:17*Math.max(0.25,1+c/0.6)); /* de travers au vent : le plus vite ; face au vent : l'aile décroche */
+  if(T.h<=0) T.v=lerp(T.v,vT,clamp(1.3*dtJeu,0,1));
+  let nx=T.x+hx*T.v*dtJeu, nz=T.z+hz*T.v*dtJeu; if(!estEau(nx,nz)||solidAt(nx,nz,0.6)){ T.ang+=Math.PI*0.9; T.v=3; nx=T.x; nz=T.z; } T.x=nx; T.z=nz;
+  // le saut : l'aile tire vers le haut ; en l'air, 360, backroll, kiteloop (SAUT en l'air)
+  if(T.h<=0&&T.chute<=0&&T.req.saut&&T.v>8){ T.vy=(6+T.v*0.38)*tenueK('kitesurfeur',1.15); T.h=0.01; T.air=0; T.hMax=0; T.spin=T.flip=T.loop=0; T.tricks=0; SFX.swing(); if(MER_V2) eclaboussure(T.x,T.z,1.4); }
+  else if(T.h>0&&T.req.saut&&T.loop<=0){ T.loop=0.0001; T.vy=Math.max(T.vy,0)+3; }
+  T.req.saut=false;
+  if(T.h>0){ T.vy-=13*dtJeu; T.h+=T.vy*dtJeu; T.air+=dtJeu; T.hMax=Math.max(T.hMax,T.h);
+    if(T.req.spin&&T.spin<=0) T.spin=0.0001; if(T.req.flip&&T.flip<=0) T.flip=0.0001; T.req.spin=T.req.flip=false;
+    if(T.spin>0&&T.spin<1) T.spin=Math.min(1,T.spin+dtJeu/0.6); if(T.flip>0&&T.flip<1) T.flip=Math.min(1,T.flip+dtJeu/0.75); if(T.loop>0&&T.loop<1) T.loop=Math.min(1,T.loop+dtJeu/0.9);
+    if(T.h<=0){ T.h=0; if(MER_V2) eclaboussure(T.x,T.z,1+T.air); secousse(1+T.air);
+      if((T.spin>0&&T.spin<1)||(T.flip>0&&T.flip<1)||(T.loop>0&&T.loop<1)){ T.chute=1.8; T.v=1.5; toast('Chute ! Figure pas finie','warn'); vibre(60); }
+      else if(T.air>0.35){ const n=(T.spin>=1?1:0)+(T.flip>=1?1:0)+(T.loop>=1?1:0), noms=[T.loop>=1?'KITELOOP':'',T.flip>=1?'BACKROLL':'',T.spin>=1?'360':''].filter(Boolean).join(' + ')||'SAUT';
+        const pts=Math.round((30+T.air*60+T.hMax*10+(T.spin>=1?80:0)+(T.flip>=1?120:0)+(T.loop>=1?160:0))*(n>=2?1.25:1)*(n>=3?1.2:1)); T.pts+=pts; T.v*=0.75; /* la réception freine : il faut relancer avant le saut suivant */ spawnTexte(P.x,P.y+3,P.z,noms+' ! +'+pts,'#ffd23f'); if(n) SFX.ramasse(); }
+      T.spin=T.flip=T.loop=0; } }
+  else { T.req.spin=T.req.flip=false; } if(T.chute>0) T.chute-=dtJeu;
+  // le joueur, la planche, l'aile et ses lignes ; l'écume, le sillage
+  const enAir=T.h>0, cote=Math.sign(hx*(-W.z)+hz*W.x)||1, x=T.x, z=T.z, y=(MER_V2?houleY(x,z):0)+0.22+T.h;
+  P.x=x; P.z=z; P.y=y; P.chute=false; P.vy=0; P.para=false; P.nage=false; P.ang=T.ang; P.h.g.position.set(x,y,z);
+  P.h.g.rotation.order='YXZ'; P.h.g.rotation.y=T.ang-Math.PI/2+(T.spin>0?T.spin*Math.PI*2:0); P.h.g.rotation.x=(T.flip>0?-T.flip*Math.PI*2:0)+(T.chute>0?-1.2:0); P.h.g.rotation.z=enAir?0:0.28*cote;
+  const fl=enAir?0.15:0.32; P.h.jambeG.rotation.set(-fl,0,0.2); P.h.jambeD.rotation.set(fl*0.6,0,-0.2); P.h.brasG.rotation.set(-1.3,0,0.2); P.h.brasD.rotation.set(-1.3,0,-0.2);
+  const kx=x+W.x*17-hz*cote*0+(-W.z)*cote*7, kz=z+W.z*17+(W.x)*cote*7, ky=y+12+(T.loop>0?Math.sin(T.loop*Math.PI*2)*4:0)+Math.sin((ETAT.runT||0)*1.3)*0.6;
+  KITE.aile.position.set(kx,ky,kz); KITE.aile.lookAt(x,y+1,z); if(T.loop>0) KITE.aile.rotateZ(T.loop*Math.PI*2);
+  const bx=x+hx*0.45, bz=z+hz*0.45, by=y+1.15; KITE.barre.position.set(bx,by,bz); KITE.barre.rotation.y=T.ang;
+  KITE.aile.updateMatrixWorld(); KITE.lignes.forEach((ln,k)=>{ const tip=(KITE.v3||(KITE.v3=new THREE.Vector3())).set(k?4.01:-4.01,-2.6,0).applyMatrix4(KITE.aile.matrixWorld), sx=bx+Math.cos(T.ang)*(k?0.32:-0.32), sz=bz-Math.sin(T.ang)*(k?0.32:-0.32), d=Math.hypot(tip.x-sx,tip.y-by,tip.z-sz);
+    ln.scale.z=d; ln.position.set((tip.x+sx)/2,(tip.y+by)/2,(tip.z+sz)/2); ln.lookAt(tip); });
+  if(!enAir&&T.v>9&&Math.random()<0.7) spawnP(x-hx*0.8+(Math.random()-0.5)*0.4,0.25,z-hz*0.8+(Math.random()-0.5)*0.4,-hx*2+(Math.random()-0.5),1.5+Math.random(),-hz*2+(Math.random()-0.5),0.4,0.4,0xeef8ff,6);
+  if(MER_V2&&!enAir){ KITE.faux=KITE.faux||{x:0,z:0,ang:0,v:0,def:{long:1.6,larg:0.6}}; Object.assign(KITE.faux,{x,z,ang:T.ang,v:T.v}); sillageBateau(KITE.faux,dt); }
+  KITE.cap=T.ang; RIDES.txt.textContent='🪁 KITESURF — '+Math.round(T.pts)+' / '+KITE_DEF.objectif+' pts — '+Math.ceil(Math.max(0,T.t))+' s';
+  if(T.t<=0) kiteArreter(true); }
+/* ---------- la construction (fin du décor, générateur privé), la partie, la vague ---------- */
+function mkMerV3(){ if(!DECOR_V2||!MERV.ok) return; avecAleaPrive(2026,()=>{ mkPaquebot(); mkLargeV3(); mkKitesurf();
+    for(const [ok,x,z,y,ico,coul] of [[PAQ.ok,PAQ.x,PAQ.z,26,'⚓','#c83a2a'],[!!KITE.kiosque,KITE.kiosque&&KITE.kiosque.x,KITE.kiosque&&KITE.kiosque.z,7,'🪁','#1a8ac8']]){ if(!ok) continue; /* leurs balises : posées ici, après mkBalises (une balise de plus pendant le décor décalerait ses tirages) */
+      const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:texBalise(ico,coul),transparent:true,depthWrite:false,depthTest:false,fog:false})); sp.scale.set(2.6,2.6,1); sp.position.set(x,y,z); sp.renderOrder=5; scene.add(sp); BALISES.push({sp,x,z,y0:y,ph:0}); } }); }
+function merV3Reset(){ kiteArreter(false); paqRemettre(); PAQ.vagueCoffre=PAQ.vaguePlongee=PAQ.vagueAnnonce=PAQ.vagueRupture=-1; if(LARGE3.ok){ LARGE3.vague=-2; if(LARGE3.contre) LARGE3.contre.vague=-1; } }
+function merV3NouvelleVague(){ if(PAQ.ok&&PAQ.etat!=='alerte'&&PAQ.etat!=='rupture') paqRemettre(); } /* le Majestic est de nouveau là ; la vie au large se renouvelle d'elle-même (largeNouvelleVague) */
+function actionMerV3(){ return actionPaquebot()||actionLarge3()||kiosqueKite(); }
+function majMerV3(dt,dtJeu){ majPaquebot(dt,dtJeu); majLarge3(dt,dtJeu); majKite(dt,dtJeu); }
 /* ---------- COURSES DU MONT ET DU CANYON (DECOR_V2) ----------
    Deux défis chronométrés (dtJeu), à faire sur deux roues ou en buggy :
    - MONTÉE DU MONT REYES : du pied au sommet par le sentier en lacets,
@@ -33550,6 +33856,7 @@ function lancerVague(){
   rayonNettoyerTout(); // rayon tracteur de l'OVNI : jamais une cible bloquée en l'air au changement de vague
   WAVES.n++; WAVES.etat='active'; WAVES.queue=[]; WAVES.spawnT=0.2;
   cielRetablir(); // le dirigeable et les avions abattus reviennent
+  if(DECOR_V2) merV3NouvelleVague(); /* retours du 20 octobre, lot 6 : le Reyes Majestic est de nouveau là */
   SFX.vague();
   // le gang dépend du quartier où se trouve le joueur (sinon rotation)
   let gang=gangDuQuartier(quartierAt(P.x,P.z));
@@ -42805,7 +43112,7 @@ function metierEnCours(){ return !!(MET.pompier||MET.taxi||MET.depanneuse||MET.a
 // supercross, bouées, REYES BOWL JAM), wakeboard ou parachute ascensionnel, métier en cours. Les vagues et les
 // événements (guerres de gangs...) sont gelés, et les gangs déjà là patrouillent sans s'occuper du joueur. La
 // police, elle, continue si l'on est recherché.
-function treveActivite(){ return !!(RIDES.actif||(DECOR_V2&&TOW.actif)||BASKET.actif||SPORTJ.actif||MANEGES.actif||TOUR.actif||metierEnCours()||BASE.defi||FPS.actif||DERBY.actif); }
+function treveActivite(){ return !!(RIDES.actif||(DECOR_V2&&(TOW.actif||KITE.actif))||BASKET.actif||SPORTJ.actif||MANEGES.actif||TOUR.actif||metierEnCours()||BASE.defi||FPS.actif||DERBY.actif); }
 // Balise dédiée, jamais la même que `balise` (déjà prise par MISSION.cur) —
 // les deux peuvent être actives en même temps sans se marcher dessus.
 const metierBalise=new THREE.Mesh(new THREE.CylinderGeometry(1.4,1.4,9,12,1,true),
@@ -45603,7 +45910,7 @@ function startRun(){
   P.hp=P.maxHp; P.stam=P.stamMax; P.bouclier=0; P.bouclierMax=60; P.giletLourd=false; P.veh=null;
   P.buffs={dmg:0,vit:0,butin:0,lourd:0,sprintLibre:0,vol:0,cadence:0}; P.ivresse=0; P.iframes=0; P.dodgeT=0; P.rechT=0; P.specCd=0; P.ecraseT=0;
   P.grenades=3; boutonsAPied(); // jamais el('grenN') seul : voir boutonsAPied (mort au volant)
-  if(DECOR_V2){ reparerMobilier(); cielRetablir(); fpsArreter(); derbyArreter(); sportjArreter(); SPORTJ.primes=null; SPORTJ.gagnes=null; footDemarrer(); SURPRISES.tyro=null; for(const su of SURPRISES.liste) if(su.vague!==undefined) su.vague=-1; poserTexteBanderole(META.banderole); if(RIDES.porte){ RIDES.actif=null; RIDES.porte.visible=false; RIDES.txt.style.display='none'; rivalesFin(); if(RIDES.fleche) RIDES.fleche.visible=false; RIDES.records={}; RIDES.primeVague={}; } resetPic(); resetMonteCharge(); resetMer(); basketArreter(); BASKET.reussi=false; BASKET.vague=-1; } P.wingsuit=false; P.wing=false; if(P.wingMesh) P.wingMesh.visible=false; nettoyerPnjMetier(); MET2.serie={taxi:0,ambulance:0,pompier:0}; // course en cours : jamais survivante d'une partie à l'autre // mobilier renversé réparé ; message acheté sur la banderole
+  if(DECOR_V2){ merV3Reset(); reparerMobilier(); cielRetablir(); fpsArreter(); derbyArreter(); sportjArreter(); SPORTJ.primes=null; SPORTJ.gagnes=null; footDemarrer(); SURPRISES.tyro=null; for(const su of SURPRISES.liste) if(su.vague!==undefined) su.vague=-1; poserTexteBanderole(META.banderole); if(RIDES.porte){ RIDES.actif=null; RIDES.porte.visible=false; RIDES.txt.style.display='none'; rivalesFin(); if(RIDES.fleche) RIDES.fleche.visible=false; RIDES.records={}; RIDES.primeVague={}; } resetPic(); resetMonteCharge(); resetMer(); basketArreter(); BASKET.reussi=false; BASKET.vague=-1; } P.wingsuit=false; P.wing=false; if(P.wingMesh) P.wingMesh.visible=false; nettoyerPnjMetier(); MET2.serie={taxi:0,ambulance:0,pompier:0}; // course en cours : jamais survivante d'une partie à l'autre // mobilier renversé réparé ; message acheté sur la banderole
   // Jetpack : perdu au game over, comme les armes (voir CLAUDE.md) — il
   // faut remonter le chercher. Le lieu, lui (META.jetpackTrouve), reste acquis.
   P.jetpack=false; P.jetpackVol=false; P.jetFuel=100; P.jetVx=0; P.jetVz=0; P.jetWarnT=0; P.jetAvertVu=false;
@@ -45976,7 +46283,7 @@ function mourir(){
   // depotLancerCourse), foule coupée (moteurStop() ci-dessus a déjà coupé le
   // moteur). Course déjà propre : deuxième appel sans effet.
   if(INT.actif&&INT.actif.depot){ if(INT.actif.courseEnCours) depotAnnulerCourse(INT.actif); depotAmbianceStop(); fermerDepotPanneau(); }
-  if(INT.actif&&INT.actif.pq) planqueSalleArreter(INT.actif); if(INT.actif&&INT.actif.plgJ) plongeonArreter(INT.actif); planqueAmbianceStop(); montSonStop(); canauxSonStop(); levisSonStop(); lagonArreter(); jumellesFin(); // planque : activité arrêtée, ambiance coupée tout de suite
+  if(INT.actif&&INT.actif.pq) planqueSalleArreter(INT.actif); if(INT.actif&&INT.actif.plgJ) plongeonArreter(INT.actif); planqueAmbianceStop(); montSonStop(); canauxSonStop(); levisSonStop(); lagonArreter(); jumellesFin(); if(DECOR_V2) kiteArreter(false); // planque : activité arrêtée, ambiance coupée tout de suite
   P.h.g.rotation.z=Math.PI/2; P.h.g.position.y=0.35;
   reticule.visible=false;
   const record=ETAT.score>META.record;
@@ -46881,6 +47188,7 @@ function majAction(){
     } else if(POIS.garage&&dist2(P.x,P.z,POIS.garage.x,POIS.garage.z)<30&&P.veh.hp<P.veh.def.hp){
       label='RÉPARER (60 $)';
       fn=()=>{if(META.argent>=60){META.argent-=60;P.veh.hp=P.veh.def.hp;reparerVisuels(P.veh);SFX.achat();toast('Véhicule réparé','or');}else SFX.refus();};
+    } else if(DECOR_V2&&P.veh.def.eau&&actionMerV3()){ const a3=actionMerV3(); label=a3.label; fn=a3.fn; /* en bateau : monter à bord du Majestic, saisir la cargaison des contrebandiers (retours du 20 octobre, lot 6) */
     } else { label='SORTIR'; fn=()=>sortirVehicule(); }
   } else if(auSol()) {
     let vp=null,vd=1e9;
@@ -46898,7 +47206,7 @@ function majAction(){
     const pertArm=!P.veh&&!INT.actif?porteArmurerieProche():null; // les deux armureries de la carte : la salle V2
     let ff=null;
     if(POIS.fastfoods) for(const f of POIS.fastfoods) if(dist2(P.x,P.z,f.x,f.z)<10){ff=f;break;}
-    const picAct=DECOR_V2?(actionPic()||actionMonteCharge()||actionMer()):null; // Pic du Vertige (monte-charge, saut BASE) ; mer (trésor, paillote, plongée, remorquage)
+    const picAct=DECOR_V2?(actionPic()||actionMonteCharge()||actionMer()||actionMerV3()):null; // Pic du Vertige (monte-charge, saut BASE) ; mer (trésor, paillote, plongée, remorquage)
     if(MONT_VIE.jum.actif){ label='🔭 RANGER LES JUMELLES'; fn=jumellesFin; }
     else if(POIS.toitH&&POIS.toitH.jetpack&&dist2(P.x,P.z,POIS.toitH.jetpack.x,POIS.toitH.jetpack.z)<9&&Math.abs(P.y-POIS.toitH.jetpack.h)<4){
       if(P.jetpack){ label='✅ JETPACK ÉQUIPÉ'; fn=()=>{SFX.refus();}; }
@@ -47390,7 +47698,7 @@ function vueCamera(dt,sx,sz){
   VUE.k=lerp(VUE.k,cible,clamp(dt*2.4,0,1));
   if(VUE.k<0.002){ VUE.k=0; VUE.yawRendu=0; if(VUE.ciel&&VUE.ciel.visible) VUE.ciel.visible=false; return 0; }
   if(volSimVue()&&P.veh.q){ const kk=VUE.k*VUE.k*(3-2*VUE.k); return cameraVolSim(dt,P.veh,kk); } /* avion simulé en vol : la poursuite qui suit le roulis */
-  const v=P.veh, air=!!(v&&v.def.air), glisse=typeof TOW!=='undefined'&&TOW.actif&&TOW.actif.id==='wake'&&TOW.cap!==undefined;
+  const v=P.veh, air=!!(v&&v.def.air), glisse=(typeof TOW!=='undefined'&&TOW.actif&&TOW.actif.id==='wake'&&TOW.cap!==undefined)||(typeof KITE!=='undefined'&&!!KITE.actif&&KITE.cap!==undefined);
   VUE.kVeh=lerp(VUE.kVeh,v||glisse?1:0,clamp(dt*2,0,1));
   if(v){ // poursuite (16 octobre, demandé) : on tourne la caméra avec un second doigt, elle revient derrière dès qu'on lâche ;
     // au sol, elle suit le MOUVEMENT plutôt que le nez : dans un drift, on voit la voiture glisser de travers
@@ -47398,7 +47706,7 @@ function vueCamera(dt,sx,sz){
     const dirMvt=!air&&!v.def.eau&&(v.v||0)>5&&v.dirAng!==undefined?angLerp(v.ang||0,v.dirAng,0.75):(v.ang||0);
     VUE.yaw=angLerp(VUE.yaw,dirMvt+Math.PI+(VUE.offVeh||0),clamp(dt*(VUE.drag?10:(air?(v.def.air==='avion'?AVION_CAM_SUIVI:1.5):2.4)),0,1)); VUE.yawUser=VUE.yaw;
     VUE.offVehRendu=(VUE.offVeh||0)+angDiff(v.ang||0,dirMvt); } /* le joystick reste calé sur le nez du véhicule (comme avant) : ni le doigt ni le drift ne le font tourner */
-  else if(glisse){ VUE.yaw=angLerp(VUE.yaw,TOW.cap+Math.PI,clamp(dt*2,0,1)); VUE.yawUser=VUE.yaw; } // wakeboard : derrière la planche, le bateau devant
+  else if(glisse){ VUE.yaw=angLerp(VUE.yaw,(KITE.actif?KITE.cap:TOW.cap)+Math.PI,clamp(dt*2,0,1)); VUE.yawUser=VUE.yaw; } // wakeboard : derrière la planche, le bateau devant
   else VUE.yaw=angLerp(VUE.yaw,VUE.yawUser,clamp(dt*12,0,1));
   const kv=VUE.kVeh, vit=v?Math.abs(v.v||0):0, lg=v?(v.def.long||4):0, ks=sal&&!sal.depot?1:0; // en salle (le Dépôt, hangar immense, garde la vue de ville)
   let H=lerp(lerp(VUE.PIED.H,VUE.SALLE.H,ks),VUE.VEH.H+lg*0.42+(air?4:0)+(v&&v.def.eau?1.5:0),kv), D=lerp(lerp(VUE.PIED.D,VUE.SALLE.D,ks),VUE.VEH.D+lg*0.95+Math.min(vit,40)*0.1+accAvion(v)*AVION_POUSSE_RECUL,kv), devant=lerp(lerp(VUE.PIED.devant,VUE.SALLE.devant,ks),VUE.VEH.devant+Math.min(vit,40)*0.25,kv);
@@ -49010,6 +49318,7 @@ function majCamera(dt){
   if(FPS.actif){ fpsCamera(); return; } // tir à la première personne : l'œil du joueur
   if(LV.actif){ cameraLongueVue(); return; } // la longue-vue du penthouse : la vraie ville, depuis le toit
   if(MONT_VIE.jum.actif){ cameraJumelles(dt); return; } /* les jumelles du belvédère du Mont Reyes */
+  if(DECOR_V2&&paqCameraPont(dt)) return; /* le pont promenade du Reyes Majestic (retours du 20 octobre, lot 6) */
   if(COCKPIT.g&&!vueCockpit()) cockpitRetirer(); if(vueCockpit()){ cameraCockpit(dt); return; } /* au volant à la 1re personne : le cockpit (nuit du 17 octobre) */
   if(vueChute()){ cameraChute(dt); return; } else if(CHUTE1P.actif) quitterChute(); /* en chute à la 1re personne : base jump, wingsuit, voile (17 octobre au soir) */
   // Garage tuning, menu d'atelier ouvert : vue de présentation — caméra
@@ -49284,7 +49593,7 @@ function tick(t){
     ETAT.comboT-=dt;
     if(ETAT.comboT<=0) ETAT.combo=1;
     if(ETAT.slowT>0){ ETAT.slowT-=dtReel; if(ETAT.slowT<=0&&ETAT.mode==='jeu') ETAT.timeScale=1; }
-    if(ETAT.mode==='jeu'){ majNitro(dtJeu); if(DECOR_V2) towEntrees(); if(DERBY.actif) derbyEntrees(); if(!MANEGES.actif&&!FPS.actif&&!EJECT.siege) majJoueur(dt,dtJeu); majFPS(dt,dtJeu); majIvresse(dtJeu); majAcro(); majTresorCarte(dt); majFilet(dtJeu); majMontSon(dt); majCanauxSon(dt); if(DECOR_V2){ majRides(dtJeu); majPic(dt); majTow(dt,dtJeu); majBasket(dt,dtJeu); majSportJ(dt,dtJeu); majToitsSurprises(dt,dtJeu); } } // nitro décidée AVANT la physique du véhicule
+    if(ETAT.mode==='jeu'){ majNitro(dtJeu); if(DECOR_V2){ towEntrees(); kiteEntrees(); } if(DERBY.actif) derbyEntrees(); if(!MANEGES.actif&&!FPS.actif&&!EJECT.siege) majJoueur(dt,dtJeu); majFPS(dt,dtJeu); majIvresse(dtJeu); majAcro(); majTresorCarte(dt); majFilet(dtJeu); majMontSon(dt); majCanauxSon(dt); if(DECOR_V2){ majRides(dtJeu); majPic(dt); majTow(dt,dtJeu); majMerV3(dt,dtJeu); majBasket(dt,dtJeu); majSportJ(dt,dtJeu); majToitsSurprises(dt,dtJeu); } } // nitro décidée AVANT la physique du véhicule
     majEnnemis(dt);
     if(!INT.actif){
       majPietons(dt);

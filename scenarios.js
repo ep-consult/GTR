@@ -18035,6 +18035,104 @@ async function main() {
       else ok('Retours 20 oct., lot 5 : ' + r.info.join(' ; '));
     }
     // -------------------------------------------------------------------
+    // Retours du 20 octobre, lot 6 (demandé : « il n'y a rien à faire au large » — un paquebot qui se brise, avec de quoi y faire,
+    // rejouable une fois par vague ; de la vie au large ; un kitesurf ; un wakeboard bien meilleur). Le paquebot se joue au vrai
+    // bouton d'action (monter, mener chaque passager, forcer le coffre, plonger) en marchant sur son pont ; le kite et le wakeboard
+    // par des pilotes simulés aux vraies commandes (joystick, SAUT/OLLIE, ESQUIVE, GRENADE) avec un temps de réaction humain ; un
+    // passif échoue. Les listes sont lues aux sources (PAQ.passagers, PAQ.stations, LARGE3, KITE, DEFIS_THEMES, TENUE_ACC).
+    // -------------------------------------------------------------------
+    console.log('\n--- Retours du 20 octobre, lot 6 : le Reyes Majestic, la vie au large, le kitesurf, le wakeboard ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = []; audioInit(); let T = dernierT + 1000;
+        const pas = (n, f) => { for (let i = 0; i < n; i++) { if (f && f(i) === false) return i; T += 1000 / 60; tick(T); } return n; };
+        const appui = () => { majAction(); const b = el('btnAction'); const l = b.style.display === 'none' ? '' : b.textContent; if (b._fn && l) b._fn(); return l; };
+        const sav = { defis: JSON.stringify(META.defis), faits: JSON.stringify(META.defis.faits), argent: META.argent, tenue: META.tenue, poss: JSON.stringify(META.tenuesPoss), vue: META.vue };
+        const rnd0 = Math.random; let gr = 6606; Math.random = () => { gr = (gr * 1664525 + 1013904223) >>> 0; return gr / 4294967296; };
+        const depart = () => { if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); META.vue = 'classique'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9; for (const e of ennemis) e.mort = true; };
+        depart();
+        /* ---- 6.1 le paquebot ---- */
+        if (!PAQ.ok) ko.push('pas de paquebot au large');
+        else { const X = PAQ.x, Z = PAQ.z, H = PAQ.pont;
+          // on marche sur le pont : un pas à la fois, le pont nous porte
+          const aller = (x, z) => { for (let k = 0; k < 900; k++) { const dx = x - P.x, dz = z - P.z, d = Math.hypot(dx, dz); if (d < 0.12) break; const v = Math.min(d, 0.1); P.x += dx / d * v; P.z += dz / d * v; pas(1); if (P.y < H - 0.5) return false; } return true; };
+          /* le pont : deux coursives (sud, nord) le long des superstructures, le pont arrière, le pont avant ; on va d'une zone à l'autre par leurs passages */
+          const NO = { SW: [X - 33, Z + 6.6], NW: [X - 33, Z - 6.6], PC: [X - 35, Z], SE: [X + 27, Z + 6.6], NE: [X + 27, Z - 6.6], BS: [X + 31, Z + 4.2], BN: [X + 31, Z - 4.2], BC: [X + 33, Z] };
+          const AR = [['SW', 'PC'], ['NW', 'PC'], ['SE', 'BS'], ['NE', 'BN'], ['BS', 'BC'], ['BN', 'BC'], ['SW', 'SE'], ['NW', 'NE'], ['BS', 'BN']];
+          const zone = (x, z) => x - X < -30.4 ? 'poupe' : (x - X > 29 ? 'proue' : (z > Z ? 'sud' : 'nord')), porteDe = { poupe: ['PC', 'SW', 'NW'], proue: ['BC', 'BS', 'BN'], sud: ['SW', 'SE'], nord: ['NW', 'NE'] };
+          const vers = (x, z) => { const a = zone(P.x, P.z), b = zone(x, z); if (a === b) return aller(x, z); const d = {}, pr = {}, Q = new Set(Object.keys(NO)); for (const k of Q) d[k] = 1e9; for (const k of porteDe[a]) d[k] = Math.hypot(NO[k][0] - P.x, NO[k][1] - P.z);
+            while (Q.size) { let u = null; for (const k of Q) if (!u || d[k] < d[u]) u = k; Q.delete(u); for (const [p1, p2] of AR) { const v = p1 === u ? p2 : (p2 === u ? p1 : null); if (!v || !Q.has(v)) continue; const nd = d[u] + Math.hypot(NO[u][0] - NO[v][0], NO[u][1] - NO[v][1]); if (nd < d[v]) { d[v] = nd; pr[v] = u; } } }
+            let best = null; for (const k of porteDe[b]) { const tot = d[k] + Math.hypot(NO[k][0] - x, NO[k][1] - z); if (!best || tot < best[1]) best = [k, tot]; } const ch = []; for (let k = best[0]; k; k = pr[k]) ch.unshift(k);
+            if (a === 'sud' || a === 'nord') { if (!aller(P.x, NO[ch[0]][1])) return false; } for (const k of ch) if (!aller(NO[k][0], NO[k][1])) return false; return aller(x, z); };
+          const e = PAQ.echelle; P.x = e.x; P.z = e.z + 0.3; P.y = 0; pas(4); if (!P.nage) ko.push('pas à la nage au pied de l’échelle (y ' + P.y.toFixed(2) + ')');
+          let l = appui(); pas(3); if (!/MONTER À BORD/.test(l) || !paqABord() || PAQ.etat !== 'alerte') ko.push('monter à bord : « ' + l + ' », état ' + PAQ.etat);
+          const a0 = META.argent, n0 = META.defis.paquebot, t0 = PAQ.t; PAQ.t = 1e6; let mene = 0, tJeu = 0; const pasT = pas; /* le chrono du naufrage est tenu à l'écart ; on mesure le temps mis */
+          for (const p of PAQ.passagers) { const c0 = T; if (!vers(p.x + 0.9, p.z)) { ko.push('on tombe du pont en allant vers un passager'); break; }
+            l = appui(); if (!/SUIVEZ-MOI/.test(l)) { ko.push('passager : « ' + l + ' »'); break; }
+            const st = PAQ.stations.reduce((b, s) => Math.abs(s.x - p.x) < Math.abs(b.x - p.x) ? s : b); if (!vers(st.x, st.z)) { ko.push('on tombe du pont en menant un passager'); break; } pas(60); if (p.etat === 'sauve') mene++; tJeu += (T - c0) / 1000; }
+          if (tJeu > PAQ_DUREE) ko.push('mener les passagers prend ' + Math.round(tJeu) + ' s, plus que le compte à rebours (' + PAQ_DUREE + ' s)');
+          if (mene !== PAQ.passagers.length) ko.push(mene + ' passagers menés aux canots sur ' + PAQ.passagers.length);
+          else { const g = META.argent - a0, att = PAQ.passagers.length * PAQ_PAR_PASSAGER + PAQ_PRIME; if (g !== att || META.defis.paquebot - n0 !== mene) ko.push('passagers : ' + g + ' $ pour ' + att); else info.push('Majestic : ' + mene + ' passagers menés aux canots en marchant sur le pont, ' + g + ' $ (prime comprise) en ' + Math.round(tJeu) + ' s sur ' + PAQ_DUREE); }
+          // le coffre du commissaire : 3 s sans bouger, une fois par vague
+          { if (!vers(PAQ.coffre.x, PAQ.coffre.z + 0.4)) ko.push('on tombe en allant au coffre'); const a1 = META.argent; l = appui(); pas(200); if (!/COFFRE/.test(l) || META.argent - a1 !== PAQ_COFFRE) ko.push('coffre : « ' + l + ' », ' + (META.argent - a1) + ' $');
+            majAction(); if (/COFFRE/.test(el('btnAction').style.display === 'none' ? '' : el('btnAction').textContent)) ko.push('le coffre se force deux fois dans la vague'); }
+          // la cassure : jeté à la mer sans en mourir, les deux moitiés se relèvent puis sombrent, l'épave
+          { const hp0 = P.hp; let thMax = 0, yMin = 0, aLEau = false; PAQ.t = 0.05; pas(2400, () => { for (const h of PAQ.moities) { thMax = Math.max(thMax, Math.abs(h.g.rotation.z)); yMin = Math.min(yMin, h.g.position.y); } if (P.nage) aLEau = true; return PAQ.etat !== 'epave'; });
+            if (PAQ.etat !== 'epave') ko.push('le navire ne sombre pas (' + PAQ.etat + ')'); if (!aLEau) ko.push('le joueur n’est pas jeté à la mer'); if (hp0 - P.hp > 12 || P.hp <= 0) ko.push('la cassure blesse trop (' + (hp0 - P.hp) + ' PV)');
+            if (thMax < 0.6 || yMin > -30) ko.push('la cassure ne se voit pas (' + thMax.toFixed(2) + ' rad, ' + yMin.toFixed(1) + ' u)'); else info.push('cassure : les moitiés se relèvent jusqu’à ' + Math.round(thMax * 57) + '° et sombrent à ' + Math.round(yMin) + ' u, joueur jeté à la mer (' + (hp0 - P.hp) + ' PV)');
+            if (PAQ.moities.some((h) => h.g.visible)) ko.push('l’épave se voit encore en surface'); if (solidAt(X, Z, 0)) ko.push('les solides du navire sont restés'); }
+          // l'épave : plonger, une fois par vague
+          { P.x = X + 3; P.z = Z + 2; P.y = 0; pas(4); const a2 = META.argent; l = appui(); if (!/PLONGER/.test(l) || META.argent - a2 !== PAQ_EPAVE) ko.push('épave : « ' + l + ' », ' + (META.argent - a2) + ' $'); pas(3); majAction(); if (/PLONGER/.test(el('btnAction').textContent) && el('btnAction').style.display !== 'none') ko.push('on plonge deux fois dans la vague'); }
+          // la vague suivante : le Majestic est de nouveau là, intact, ses passagers à bord, ses solides
+          { WAVES.n++; merV3NouvelleVague(); if (PAQ.etat !== 'attente' || PAQ.moities.some((h) => !h.g.visible || h.g.rotation.z !== 0) || !solidAt(X, Z, 0) || PAQ.passagers.some((p) => p.etat !== 'attend')) ko.push('la vague suivante ne remet pas le Majestic'); else info.push('rejouable : intact à la vague suivante'); }
+          // ceux qu'on n'a pas menés aux canots : dans les radeaux de survie, jamais oubliés sur le pont
+          { P.x = e.x; P.z = e.z + 0.3; P.y = 0; pas(4); appui(); pas(3); PAQ.t = 0.05; pas(120); const rad = PAQ.radeaux.filter((r2) => r2.g.visible).length; if (rad < 3 || PAQ.passagers.some((p) => p.g.visible)) ko.push('les passagers restés à bord : ' + rad + ' radeaux, ' + PAQ.passagers.filter((p) => p.g.visible).length + ' encore visibles'); pas(2400, () => PAQ.etat !== 'epave'); }
+        }
+        /* ---- 6.2 la vie au large ---- */
+        depart(); pas(3);
+        if (!LARGE3.ok) ko.push('pas de vie au large');
+        else { if (LARGE3.vague !== WAVES.n) ko.push('la vie au large n’est pas tirée pour la vague');
+          const libres = LARGE3.bouteilles.filter((b) => !b.prise); if (libres.length < 10 || libres.some((b) => !estEau(b.x, b.z))) ko.push(libres.length + ' bouteilles à l’eau');
+          { const b = libres[0], a0 = META.argent, n0 = META.defis.bouteilles; P.x = b.x + 0.6; P.z = b.z; P.y = 0; pas(3); if (!b.prise || META.argent - a0 !== 20 || META.defis.bouteilles - n0 !== 1) ko.push('bouteille : non ramassée en nageant dessus'); else info.push(libres.length + ' bouteilles à la mer, ramassées à la nage'); }
+          { const t = LARGE3.tortues.find((q) => q.etat === 'prise'); if (!t) ko.push('pas de tortue dans un filet'); else { const n0 = META.defis.tortues; P.x = t.x + 1.5; P.z = t.z; P.y = 0; pas(3); const l = appui(); pas(400); if (!/LIBÉRER/.test(l) || META.defis.tortues - n0 !== 1 || t.etat !== 'libre' || t.g.visible) ko.push('tortue : « ' + l + ' », ' + t.etat); else info.push('tortues libérées (' + LARGE3.tortues.filter((q) => q.etat !== 'libre').length + ' encore prises)'); } }
+          { const C = LARGE3.contre; if (C.etat !== 'route') ko.push('la vedette des contrebandiers ne circule pas (' + C.etat + ')');
+            else { const v = creerVehicule('bateau', C.x + 30, C.z, 0, null); if (!v) ko.push('pas de bateau pour la poursuite'); else { entrerVehicule(v); for (let k = 0; k < 400 && C.etat === 'route'; k++) { v.x = C.x - Math.sin(C.ang) * 3; v.z = C.z - Math.cos(C.ang) * 3; v.v = 12; v.ang = C.ang; pas(1); }
+                if (C.etat !== 'arrete') ko.push('la vedette n’est pas arraisonnée au contact'); else { v.v = 0; pas(5); const a0 = META.argent; const l = appui(); if (!/SAISIR/.test(l) || META.argent - a0 !== 350) ko.push('saisie : « ' + l + ' »'); else info.push('vedette des contrebandiers arraisonnée, cargaison saisie'); }
+                let poisson = false; v.x = PAQ.ok ? PAQ.x + 120 : 100; v.z = MER + 200; v.ang = 1.2; for (let k = 0; k < 400; k++) { v.v = 20; pas(1); if (LARGE3.poissons.some((f) => f.m.visible)) { poisson = true; break; } } if (!poisson) ko.push('pas de poissons volants le long d’un bateau rapide'); sortirVehicule(true); } } } }
+        /* ---- 6.3 le kitesurf : le kiosque, un rider simulé aux vraies commandes, un passif ---- */
+        const rider = (style) => { depart(); const K = KITE.kiosque; P.x = K.x; P.z = K.z; P.y = solY(K.x, K.z); pas(3); META.argent = Math.max(META.argent, 500); const l = appui(); const S = KITE.actif; if (!S) return { err: 'pas de kite (« ' + l + ' »)' };
+          const W = KITE_VENT, px = -W.z, pz = W.x; let sens = 1, reac = 0, chutes = 0, sauts = 0, hMax = 0;
+          for (let i = 0; i < 60 * 70 && KITE.actif === S; i++) { /* de travers au vent, le long de la plage : on change de bord avant le bout de la zone */
+            if (S.x > S.zone.x1 - 25) sens = -1; else if (S.x < S.zone.x0 + 25) sens = 1; INPUT.jx = px * sens; INPUT.jy = pz * sens;
+            if (style === 'bon') { reac -= 1 / 60; if (reac <= 0) { reac = 0.2; if (S.h <= 0 && S.chute <= 0 && S.v > 12) { INPUT.edge.sprint = true; sauts++; } else if (S.h > 0 && S.air > 0.1 && S.air < 0.5) { if (S.spin <= 0) INPUT.edge.esquive = true; if (S.flip <= 0) INPUT.edge.gren = true; if (S.loop <= 0) INPUT.edge.sprint = true; } } }
+            if (style === 'tard') { reac -= 1 / 60; if (reac <= 0) { reac = 0.2; if (S.h <= 0 && S.chute <= 0 && S.v > 12) INPUT.edge.sprint = true; else if (S.h > 0 && S.vy < -6 && S.flip <= 0) INPUT.edge.gren = true; } }
+            const c0 = S.chute; pas(1); if (S.chute > 0 && c0 <= 0) chutes++; hMax = Math.max(hMax, S.h); }
+          INPUT.jx = INPUT.jy = 0; return { pts: Math.round(S.pts), chutes, sauts, hMax, fini: !KITE.actif }; };
+        if (!KITE.kiosque) ko.push('pas de kiosque de kitesurf');
+        else { const K = KITE.kiosque; if (estEau(K.x, K.z) || solY(K.x, K.z) > 0.8) ko.push('le kiosque n’est pas sur la plage');
+          const p0 = META.defis.faits, rec0 = META.defis.kite; META.defis.kite = 0;
+          const R1 = rider('bon'); if (R1.err) ko.push(R1.err); else if (!R1.fini || R1.pts < KITE_DEF.objectif) ko.push('rider simulé : ' + R1.pts + ' pts (' + R1.sauts + ' sauts, ' + R1.chutes + ' chutes)'); else info.push('kite : rider simulé ' + R1.pts + ' pts (' + R1.sauts + ' sauts, ' + R1.hMax.toFixed(1) + ' u au plus haut), record ' + META.defis.kite);
+          const R2 = rider('passif'); if (!R2.err && R2.pts >= KITE_DEF.objectif) ko.push('le passif réussit le kite (' + R2.pts + ')'); else info.push('passif : ' + (R2.pts || 0) + ' pts');
+          const R3 = rider('tard'); if (!R3.err && !(R3.chutes > 0)) ko.push('une figure commencée trop tard ne fait pas chuter (' + R3.chutes + ')'); else info.push('figures trop tardives : ' + R3.chutes + ' chutes, ' + R3.pts + ' pts');
+          // la tenue au dernier palier
+          { const fin = DEFIS.find((d) => d.tenue === 'kitesurfeur'); if (!fin) ko.push('pas de tenue au dernier palier du kite'); else { META.defis.kite = fin.prog(META)[1]; META.defis.faits = {}; META.defis.aReclamer = {}; checkDefis(); delete META.tenuesPoss.kitesurfeur; for (const d of DEFIS) if (d.theme === 'kitesurf') recupererDefi(d.id, 1); if (!META.tenuesPoss.kitesurfeur || !TENUE_ACC.kitesurfeur) ko.push('la combinaison de kitesurf n’est pas offerte'); } } }
+        /* ---- 6.4 le wakeboard : un pilote aux vraies commandes (série, 540, GRAB), le double-up, le record ; sans figures, l'objectif reste hors de portée ---- */
+        const wake = (style) => { depart(); P.x = TOW.kWake.x; P.z = TOW.kWake.z; P.y = solY(P.x, P.z) + 0.1; META.argent = Math.max(META.argent, 500); pas(3); lancerTow('wake'); const S = TOW.actif; if (!S) return { err: 'pas de wakeboard' }; let du = false, reac = 0, cote = 1, noms = new Set();
+          const txt0 = spawnTexte; spawnTexte = function (x, y, z, t2) { if (typeof t2 === 'string') noms.add(t2.split(' !')[0]); return txt0.apply(this, arguments); };
+          for (let i = 0; i < 60 * 50 && TOW.actif === S; i++) { const b = towPoint(S.s), fl = Math.hypot(b.fx, b.fz), rx = b.fz / fl, rz = -b.fx / fl;
+            if (S.du > 0) du = true; if (Math.abs(S.lat) > 7) cote = -Math.sign(S.lat); INPUT.jx = rx * cote; INPUT.jy = rz * cote; /* d'un bord à l'autre du sillage, en coupant la vague */
+            reac -= 1 / 60; if (reac <= 0) { reac = 0.18; if (style === 'bon' && S.h > 0 && S.air < 0.35) { if (S.spin <= 0) INPUT.edge.esquive = true; else if (S.tours === 1 && S.duSaut && S.air > 0.1) INPUT.edge.esquive = true; /* le 540 : sur un saut de double-up */ if (S.flip <= 0 && S.vy > 3) INPUT.edge.gren = true; } }
+            INPUT.btn.sprint = style === 'bon' && S.h > 0.3; pas(1); }
+          INPUT.btn.sprint = false; INPUT.jx = INPUT.jy = 0; spawnTexte = txt0; return { pts: Math.round(S.pts), du, noms: [...noms] }; };
+        { META.defis.wake = 0; const W1 = wake('bon'); if (W1.err) ko.push(W1.err); else { if (!W1.du) ko.push('pas de double-up pendant la session'); if (!W1.noms.some((n) => /540/.test(n)) || !W1.noms.some((n) => /GRAB/.test(n))) ko.push('figures du wakeboard : ' + W1.noms.slice(0, 8).join(', '));
+            if (META.defis.wake !== W1.pts) ko.push('record du wakeboard non noté (' + META.defis.wake + ' / ' + W1.pts + ')'); else info.push('wakeboard : ' + W1.pts + ' pts (' + W1.noms.filter((n) => /540|GRAB|RALEY|BACKFLIP/.test(n)).slice(0, 4).join(', ') + '), double-up, record'); }
+          const W2 = wake('sauts'); if (!W2.err && W2.pts >= TOW_DEFS.wake.objectif) ko.push('sans figures, le wakeboard atteint l’objectif (' + W2.pts + ')'); else info.push('sans figures : ' + W2.pts + ' pts'); }
+        Math.random = rnd0; const d0 = JSON.parse(sav.defis); META.defis = d0; META.argent = sav.argent; META.tenue = sav.tenue; META.tenuesPoss = JSON.parse(sav.poss); META.vue = sav.vue; INPUT.jx = INPUT.jy = 0; depart(); return { ko, info };
+      });
+      if (r.ko.length) fail('Retours 20 oct., lot 6 : ' + r.ko.slice(0, 25).join(' ; ') + (r.ko.length > 25 ? ' … (' + r.ko.length + ')' : '') + ' [' + r.info.join(' | ') + ']');
+      else ok('Retours 20 oct., lot 6 : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];
