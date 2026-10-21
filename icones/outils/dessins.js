@@ -802,4 +802,121 @@ I['ico-garage-tenue'] = () => {
   ]];
 };
 
+/* ======================= 05 — LIEUX DE LA CARTE ======================= */
+// Retours du 20 octobre, 2.1 : un pictogramme par CATÉGORIE de lieu, le même sur la minimap et la grande carte, posé
+// dans une pastille de la couleur de la catégorie. Silhouettes pleines et larges (lisibles à 16 px), peu d'évidements.
+
+I['ico-lieu-police'] = () => {
+  // écusson de police, étoile évidée
+  const pts = []; for (let k = 0; k < 10; k++) { const a = (-90 + k * 36) * Math.PI / 180, r = k % 2 ? 2.3 : 5.6; pts.push([12 + r * Math.cos(a), 11.6 + r * Math.sin(a)]); }
+  return [[lisse([[12.0, 1.6, 1], [20.4, 4.4, 1], [20.4, 10.6], [19.2, 16.2], [12.0, 22.4, 1], [4.8, 16.2], [3.6, 10.6], [3.6, 4.4, 1]]), poly(pts, true)]];
+};
+
+I['ico-lieu-garage'] = () => {
+  // clé plate en diagonale : tête ouverte en haut à droite, manche percé en bas à gauche
+  const C = [16.4, 7.6], R = 5.4, th = -45, w = 1.75, d = 0.2, rad = (a) => a * Math.PI / 180, dir = (a) => [Math.cos(rad(a)), Math.sin(rad(a))];
+  const da = Math.asin(w / R) * 180 / Math.PI, tete = [];
+  for (let a = th + da; a <= th + 360 - da + 0.01; a += 15) { const u = dir(a); tete.push([C[0] + R * u[0], C[1] + R * u[1], 1]); }
+  { const u = dir(th + 360 - da); tete.push([C[0] + R * u[0], C[1] + R * u[1], 1]); }
+  const u = dir(th), n = [-u[1], u[0]];
+  tete.push([C[0] + d * u[0] - w * n[0], C[1] + d * u[1] - w * n[1], 1], [C[0] + d * u[0] + w * n[0], C[1] + d * u[1] + w * n[1], 1]);
+  return [[poly(tete), capsule(4.4, 19.6, 13.6, 10.4, 3.6), cercle(5.2, 18.8, 1.0, true)]];
+};
+
+I['ico-lieu-boutique'] = () => [[
+  // sac de courses : anse en arc, corps évasé, pli du haut évidé
+  arcEpais(12.0, 9.4, 2.9, 4.7, 180, 360),
+  lisse([[4.6, 8.4, 1], [19.4, 8.4, 1], [20.3, 19.6], [19.6, 21.6], [4.4, 21.6], [3.7, 19.6]]),
+  boite(12.0, 11.1, 12.6, 1.0, 0, 0.5, true),
+]];
+
+I['ico-lieu-resto'] = () => [[
+  // burger : pain du dessus (graines évidées), steak, pain du dessous
+  lisse([[3.4, 10.4, 1], [20.6, 10.4, 1], [20.0, 7.0], [17.0, 4.0], [12.0, 3.0], [7.0, 4.0], [4.0, 7.0]]),
+  ellipse(8.6, 7.0, 0.75, 0.45, true), ellipse(12.4, 5.4, 0.75, 0.45, true), ellipse(15.6, 7.4, 0.75, 0.45, true),
+  boite(12.0, 13.3, 19.4, 2.7, 0, 1.35),
+  lisse([[3.6, 16.2, 1], [20.4, 16.2, 1], [20.4, 18.4], [19.0, 20.6], [5.0, 20.6], [3.6, 18.4]]),
+]];
+
+I['ico-lieu-salle'] = () => [[
+  // une porte entrouverte : chambranle, battant en perspective, poignée évidée
+  poly([[4.6, 21.6], [4.6, 2.4], [19.4, 2.4], [19.4, 21.6], [17.4, 21.6], [17.4, 4.4], [6.6, 4.4], [6.6, 21.6]]),
+  poly([[6.6, 4.4], [14.2, 6.0], [14.2, 22.6], [6.6, 21.6]]),
+  cercle(12.4, 13.8, 0.85, true),
+]];
+
+I['ico-lieu-a-vendre'] = () => {
+  // étiquette de prix, pointe en haut à gauche, œillet évidé près de la pointe
+  const loc = [[-8.4, -5.0, 1], [3.0, -5.0], [9.2, 0, 1], [3.0, 5.0], [-8.4, 5.0, 1]], co = Math.cos(-135 * Math.PI / 180), si = Math.sin(-135 * Math.PI / 180);
+  const P = (p) => [12.4 + p[0] * co - p[1] * si, 12.4 + p[0] * si + p[1] * co, p[2]], t = P([4.4, 0]);
+  return [[lisse(loc.map(P)), cercle(t[0], t[1], 1.6, true)]];
+};
+
+I['ico-lieu-planque'] = () => [[
+  // maison : toit à deux pans, cheminée, porte évidée
+  poly([[12.0, 2.4], [22.4, 11.6], [19.6, 11.6], [19.6, 21.4], [4.4, 21.4], [4.4, 11.6], [1.6, 11.6]]),
+  boite(17.2, 5.4, 2.4, 5.0, 0, 0.3),
+  boite(12.0, 17.0, 4.2, 8.2, 0, 0.7, true),
+]];
+
+I['ico-lieu-activite'] = () => {
+  // étoile à cinq branches
+  const pts = []; for (let k = 0; k < 10; k++) { const a = (-90 + k * 36) * Math.PI / 180, r = k % 2 ? 4.7 : 11.0; pts.push([12 + r * Math.cos(a), 12.9 + r * Math.sin(a)]); }
+  return [[poly(pts)]];
+};
+
+I['ico-lieu-course'] = () => {
+  // drapeau à damier sur sa hampe
+  const x0 = 6.6, x1 = 21.4, y0 = 2.6, y1 = 13.6, nx = 4, ny = 3, cw = (x1 - x0) / nx, ch = (y1 - y0) / ny, cases = [];
+  for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) if ((i + j) % 2) cases.push(poly([[x0 + i * cw, y0 + j * ch], [x0 + (i + 1) * cw, y0 + j * ch], [x0 + (i + 1) * cw, y0 + (j + 1) * ch], [x0 + i * cw, y0 + (j + 1) * ch]], true));
+  return [[capsule(4.6, 2.2, 4.6, 21.8, 2.2), poly([[x0 - 0.4, y0], [x1, y0], [x1, y1], [x0 - 0.4, y1]]), ...cases]];
+};
+
+I['ico-lieu-port'] = () => [[
+  // ancre : organeau, verge, jas, bras et pattes
+  cercle(12.0, 4.3, 2.6), cercle(12.0, 4.3, 1.1, true),
+  barre(12.0, 6.4, 12.0, 20.6, 2.4),
+  boite(12.0, 9.0, 10.0, 2.2, 0, 1.1),
+  arcEpais(12.0, 12.0, 7.4, 9.6, 18, 162),
+  poly([[17.2, 16.6], [22.4, 12.0], [21.4, 18.2]]), poly([[6.8, 16.6], [1.6, 12.0], [2.6, 18.2]]),
+]];
+
+I['ico-lieu-avion'] = () => [[
+  // avion vu du dessus, nez vers le haut
+  capsule(12.0, 2.6, 12.0, 20.6, 2.8),
+  poly([[12.0, 8.2], [22.4, 13.6], [22.4, 15.4], [12.0, 12.6], [1.6, 15.4], [1.6, 13.6]]),
+  poly([[12.0, 17.4], [16.8, 20.6], [16.8, 22.0], [12.0, 20.8], [7.2, 22.0], [7.2, 20.6]]),
+]];
+
+I['ico-lieu-velo'] = () => {
+  // vélo de profil : deux roues, cadre, selle, guidon
+  const A = [5.8, 15.6], B = [11.6, 15.6], S = [9.6, 9.4], H = [16.0, 9.4], F = [18.2, 15.6];
+  return [[cercle(A[0], A[1], 4.6), cercle(A[0], A[1], 3.0, true), cercle(F[0], F[1], 4.6), cercle(F[0], F[1], 3.0, true)],
+    [epais([A, S, H, F], 1.5), epais([A, B, H], 1.5), epais([S, B], 1.4), boite(9.0, 8.4, 3.6, 1.3, 0, 0.6), epais([H, [15.6, 6.9], [17.9, 6.6]], 1.3)]];
+};
+
+I['ico-lieu-toit'] = () => [[
+  // château d'eau sur un toit : cuve cerclée, toit conique, pieds croisés, toit-terrasse
+  poly([[6.4, 7.2], [12.0, 2.0], [17.6, 7.2]]),
+  boite(12.0, 10.6, 10.0, 7.4, 0, 1.0),
+  boite(12.0, 9.4, 8.6, 0.75, 0, 0.3, true), boite(12.0, 12.0, 8.6, 0.75, 0, 0.3, true),
+  barre(8.6, 14.0, 7.2, 19.6, 1.3), barre(15.4, 14.0, 16.8, 19.6, 1.3),
+  epais([[8.2, 15.2], [15.6, 18.4]], 0.8), epais([[15.8, 15.2], [8.4, 18.4]], 0.8),
+  boite(12.0, 20.9, 21.0, 2.4, 0, 0.4),
+]];
+
+I['ico-lieu-nature'] = () => [[
+  // montagne à deux sommets, neige du grand sommet séparée par une ligne en dents de scie
+  poly([[1.6, 20.8], [9.4, 4.6], [13.6, 12.4], [16.2, 8.6], [22.4, 20.8]]),
+  epais([[7.0, 10.6], [8.4, 11.6], [9.6, 10.2], [10.8, 11.6], [11.9, 10.4]], 0.9, true),
+]];
+
+I['ico-lieu-decouverte'] = () => [[
+  // jumelles : deux fûts, pont, oculaires, objectifs évidés
+  boite(7.2, 14.4, 7.4, 11.4, 0, 2.8), boite(16.8, 14.4, 7.4, 11.4, 0, 2.8),
+  boite(12.0, 10.6, 4.6, 3.6, 0, 0.8),
+  boite(7.2, 5.6, 4.8, 3.8, 0, 1.0), boite(16.8, 5.6, 4.8, 3.8, 0, 1.0),
+  cercle(7.2, 16.6, 2.2, true), cercle(16.8, 16.6, 2.2, true),
+]];
+
 module.exports = I;

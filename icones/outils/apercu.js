@@ -6,6 +6,7 @@ const CATEGORIES = [
   ['02-hud.png', 'Commandes HUD'],
   ['03-capacites-carte.png', 'Capacités et carte'],
   ['04-garage.png', 'Garage'],
+  ['05-lieux.png', 'Lieux de la carte'], // retours du 20 octobre, lot 2 : sans planche de référence
 ];
 const echap = (t) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
@@ -21,7 +22,7 @@ module.exports = (inventaire, sprite) => {
       '        <code>' + l.id + '</code>\n        <p>' + echap(l.description) + '</p>\n      </article>').join('\n');
     return '    <section class="categorie">\n      <h2>' + titre + ' <span>(' + icones.length + ')</span></h2>\n      <div class="grille">\n' + cartes + '\n      </div>\n    </section>';
   }).join('\n');
-  const refs = CATEGORIES.map(([planche, titre]) => '      <figure class="ref"><img src="references/' + planche + '" alt="Planche de référence : ' + titre + '"><figcaption>references/' + planche + '</figcaption></figure>').join('\n');
+  const refs = CATEGORIES.filter(([planche]) => require('fs').existsSync(require('path').join(__dirname, '..', 'references', planche))).map(([planche, titre]) => '      <figure class="ref"><img src="references/' + planche + '" alt="Planche de référence : ' + titre + '"><figcaption>references/' + planche + '</figcaption></figure>').join('\n');
   return `<!doctype html>
 <html lang="fr">
 <head>

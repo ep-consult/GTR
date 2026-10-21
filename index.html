@@ -414,6 +414,22 @@ body.ck1P .notif.gros,body.a1P .notif.gros,body.volSim .notif.gros{font-size:12.
 .chipF{padding:6px 10px;border-radius:9px;font-size:11px;font-weight:800;border:1px solid var(--ligne);
   background:#0d0f15;color:var(--gris);white-space:nowrap}
 .chipF.on{border-color:var(--cyan);color:var(--cyan);box-shadow:0 0 8px #35e0ff2e}
+/* retours du 20 octobre, lot 2 : la pastille de la catégorie dans son filtre, et la bulle d'un lieu touché sur la carte */
+#carteFiltres .chipF{padding:5px 8px;font-size:10.5px;display:inline-flex;align-items:center}
+#carteFiltres .chipF:not(.on){opacity:.55}
+.pastF{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;margin-right:5px;flex-shrink:0;box-shadow:0 0 0 1px #0b0c10}
+.pastF .icoSvg{width:11px;height:11px;margin:0!important;vertical-align:0}
+#carteBulle{position:absolute;z-index:3;width:228px;padding:9px 11px 10px;border-radius:12px;background:#14161ef4;border:1px solid #ffffff3a;box-shadow:0 8px 20px #000c;color:#eef1f6;display:none;text-align:left}
+#carteBulle .bTete{display:flex;align-items:center;gap:8px}
+#carteBulle .pastF{width:26px;height:26px;margin:0}
+#carteBulle .pastF .icoSvg{width:17px;height:17px}
+#carteBulle .bNom{font-weight:900;font-size:13px;line-height:1.2}
+#carteBulle .bCat{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#8b93a7}
+#carteBulle .bDesc{margin-top:6px;font-size:11.5px;line-height:1.35;color:#cfd6e4}
+#carteBulle .bEtat{margin-top:4px;font-size:11.5px;font-weight:900;color:#ffd23f}
+#carteBulle .bPied{margin-top:8px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+#carteBulle .bDist{font-size:11px;font-weight:800;color:#8b93a7}
+#carteBulle .bAller{padding:7px 13px;border-radius:9px;border:0;background:#7dff7a;color:#0b0c10;font-weight:900;font-size:12px;letter-spacing:.04em}
 .sw{width:52px;height:28px;border-radius:15px;background:#232733;position:relative;border:1px solid var(--ligne)}
 .sw::after{content:"";position:absolute;top:3px;left:4px;width:20px;height:20px;border-radius:50%;background:#8b93a7;transition:.15s}
 .sw.on{background:#0d3f52;border-color:var(--cyan)}
@@ -591,6 +607,52 @@ body.ck1P .notif.gros,body.a1P .notif.gros,body.volSim .notif.gros{font-size:12.
   </symbol>
   <symbol id="ico-btn-descendre" viewBox="0 0 24 24">
     <path fill="currentColor" d="M1.8 12.2L7.8 12.2L7.8 1.4L16.2 1.4L16.2 12.2L22.2 12.2L12 22.6Z"/>
+  </symbol>
+  <symbol id="ico-lieu-police" viewBox="0 0 24 24">
+    <path fill="currentColor" d="M3.6 4.4L12 1.6L20.4 4.4Q20.4 10.6 19.8 13.4Q19.2 16.2 15.6 19.3L12 22.4Q4.8 16.2 4.2 13.4Q3.6 10.6 3.6 7.5L3.6 4.4ZM10.65 9.74L6.67 9.87L9.81 12.31L8.71 16.13L12 13.9L15.29 16.13L14.19 12.31L17.33 9.87L13.35 9.74L12 6Z"/>
+  </symbol>
+  <symbol id="ico-lieu-garage" viewBox="0 0 24 24">
+    <path fill="currentColor" d="M21.25 5.23L21.7 6.56L21.79 7.97L21.51 9.35L20.88 10.61L19.95 11.67L18.77 12.45L17.44 12.9L16.03 12.99L14.65 12.71L13.39 12.08L12.33 11.15L11.55 9.97L11.1 8.64L11.01 7.23L11.29 5.85L11.92 4.59L12.85 3.53L14.03 2.75L15.36 2.3L16.77 2.21L18.15 2.49L18.77 2.75L15.3 6.22L17.78 8.7ZM3.13 18.33L12.33 9.13A1.8 1.8 0 0 1 14.87 9.13L14.87 9.13A1.8 1.8 0 0 1 14.87 11.67L5.67 20.87A1.8 1.8 0 0 1 3.13 20.87L3.13 20.87A1.8 1.8 0 0 1 3.13 18.33ZM4.2 18.8A1 1 0 1 0 6.2 18.8A1 1 0 1 0 4.2 18.8Z"/>
+  </symbol>
+  <symbol id="ico-lieu-boutique" viewBox="0 0 24 24">
+    <path fill="currentColor" d="M7.3 9.4A4.7 4.7 0 0 1 16.7 9.4L14.9 9.4A2.9 2.9 0 0 0 9.1 9.4ZM4.15 14L4.6 8.4L19.4 8.4Q20.3 19.6 19.95 20.6Q19.6 21.6 12 21.6Q4.4 21.6 4.05 20.6Q3.7 19.6 4.15 14ZM5.7 11.1L5.7 11.1A0.5 0.5 0 0 0 6.2 11.6L17.8 11.6A0.5 0.5 0 0 0 18.3 11.1L18.3 11.1A0.5 0.5 0 0 0 17.8 10.6L6.2 10.6A0.5 0.5 0 0 0 5.7 11.1Z"/>
+  </symbol>
+  <symbol id="ico-lieu-resto" viewBox="0 0 24 24">
+    <path fill="currentColor" d="M3.4 10.4Q4 7 5.5 5.5Q7 4 9.5 3.5Q12 3 14.5 3.5Q17 4 18.5 5.5Q20 7 20.3 8.7L20.6 10.4L3.4 10.4ZM7.85 7A0.75 0.45 0 1 0 9.35 7A0.75 0.45 0 1 0 7.85 7ZM11.65 5.4A0.75 0.45 0 1 0 13.15 5.4A0.75 0.45 0 1 0 11.65 5.4ZM14.85 7.4A0.75 0.45 0 1 0 16.35 7.4A0.75 0.45 0 1 0 14.85 7.4ZM3.65 11.95L20.35 11.95A1.35 1.35 0 0 1 21.7 13.3L21.7 13.3A1.35 1.35 0 0 1 20.35 14.65L3.65 14.65A1.35 1.35 0 0 1 2.3 13.3L2.3 13.3A1.35 1.35 0 0 1 3.65 11.95ZM3.6 17.3L3.6 16.2L20.4 16.2Q20.4 18.4 19.7 19.5Q19 20.6 12 20.6Q5 20.6 4.3 19.5Q3.6 18.4 3.6 17.3Z"/>
+  </symbol>
+  <symbol id="ico-lieu-salle" viewBox="0 0 24 24">
+    <path fill="currentColor" d="M4.6 21.6L4.6 2.4L19.4 2.4L19.4 21.6L17.4 21.6L17.4 4.4L6.6 4.4L6.6 21.6ZM6.6 4.4L14.2 6L14.2 22.6L6.6 21.6ZM11.55 13.8A0.85 0.85 0 1 0 13.25 13.8A0.85 0.85 0 1 0 11.55 13.8Z"/>
+  </symbol>
+  <symbol id="ico-lieu-a-vendre" viewBox="0 0 24 24">
+    <path fill="currentColor" d="M21.88 14.8L14.8 21.88Q6.74 13.81 6.32 9.85L5.89 5.89Q13.81 6.74 17.84 10.77L21.88 14.8ZM7.69 9.29A1.6 1.6 0 1 0 10.89 9.29A1.6 1.6 0 1 0 7.69 9.29Z"/>
+  </symbol>
+  <symbol id="ico-lieu-planque" viewBox="0 0 24 24">
+    <path fill="currentColor" d="M12 2.4L22.4 11.6L19.6 11.6L19.6 21.4L4.4 21.4L4.4 11.6L1.6 11.6ZM16.3 2.9L18.1 2.9A0.3 0.3 0 0 1 18.4 3.2L18.4 7.6A0.3 0.3 0 0 1 18.1 7.9L16.3 7.9A0.3 0.3 0 0 1 16 7.6L16 3.2A0.3 0.3 0 0 1 16.3 2.9ZM9.9 13.6L9.9 20.4A0.7 0.7 0 0 0 10.6 21.1L13.4 21.1A0.7 0.7 0 0 0 14.1 20.4L14.1 13.6A0.7 0.7 0 0 0 13.4 12.9L10.6 12.9A0.7 0.7 0 0 0 9.9 13.6Z"/>
+  </symbol>
+  <symbol id="ico-lieu-activite" viewBox="0 0 24 24">
+    <path fill="currentColor" d="M12 1.9L14.76 9.1L22.46 9.5L16.47 14.35L18.47 21.8L12 17.6L5.53 21.8L7.53 14.35L1.54 9.5L9.24 9.1Z"/>
+  </symbol>
+  <symbol id="ico-lieu-course" viewBox="0 0 24 24">
+    <path fill="currentColor" d="M5.7 2.2L5.7 21.8A1.1 1.1 0 0 1 4.6 22.9L4.6 22.9A1.1 1.1 0 0 1 3.5 21.8L3.5 2.2A1.1 1.1 0 0 1 4.6 1.1L4.6 1.1A1.1 1.1 0 0 1 5.7 2.2ZM6.2 2.6L21.4 2.6L21.4 13.6L6.2 13.6ZM6.6 9.93L10.3 9.93L10.3 6.27L6.6 6.27ZM10.3 6.27L14 6.27L14 2.6L10.3 2.6ZM10.3 13.6L14 13.6L14 9.93L10.3 9.93ZM14 9.93L17.7 9.93L17.7 6.27L14 6.27ZM17.7 6.27L21.4 6.27L21.4 2.6L17.7 2.6ZM17.7 13.6L21.4 13.6L21.4 9.93L17.7 9.93Z"/>
+  </symbol>
+  <symbol id="ico-lieu-port" viewBox="0 0 24 24">
+    <path fill="currentColor" d="M9.4 4.3A2.6 2.6 0 1 1 14.6 4.3A2.6 2.6 0 1 1 9.4 4.3ZM10.9 4.3A1.1 1.1 0 1 0 13.1 4.3A1.1 1.1 0 1 0 10.9 4.3ZM13.2 6.4L13.2 20.6L10.8 20.6L10.8 6.4ZM8.1 7.9L15.9 7.9A1.1 1.1 0 0 1 17 9L17 9A1.1 1.1 0 0 1 15.9 10.1L8.1 10.1A1.1 1.1 0 0 1 7 9L7 9A1.1 1.1 0 0 1 8.1 7.9ZM21.13 14.97A9.6 9.6 0 0 1 2.87 14.97L4.96 14.29A7.4 7.4 0 0 0 19.04 14.29ZM17.2 16.6L22.4 12L21.4 18.2ZM2.6 18.2L1.6 12L6.8 16.6Z"/>
+  </symbol>
+  <symbol id="ico-lieu-avion" viewBox="0 0 24 24">
+    <path fill="currentColor" d="M13.4 2.6L13.4 20.6A1.4 1.4 0 0 1 12 22L12 22A1.4 1.4 0 0 1 10.6 20.6L10.6 2.6A1.4 1.4 0 0 1 12 1.2L12 1.2A1.4 1.4 0 0 1 13.4 2.6ZM12 8.2L22.4 13.6L22.4 15.4L12 12.6L1.6 15.4L1.6 13.6ZM12 17.4L16.8 20.6L16.8 22L12 20.8L7.2 22L7.2 20.6Z"/>
+  </symbol>
+  <symbol id="ico-lieu-velo" viewBox="0 0 24 24">
+    <path fill="currentColor" d="M1.2 15.6A4.6 4.6 0 1 1 10.4 15.6A4.6 4.6 0 1 1 1.2 15.6ZM2.8 15.6A3 3 0 1 0 8.8 15.6A3 3 0 1 0 2.8 15.6ZM13.6 15.6A4.6 4.6 0 1 1 22.8 15.6A4.6 4.6 0 1 1 13.6 15.6ZM15.2 15.6A3 3 0 1 0 21.2 15.6A3 3 0 1 0 15.2 15.6Z"/>
+    <path fill="currentColor" d="M5.16 15.21L9.18 8.65L16.53 8.65L18.91 15.35L17.49 15.85L15.47 10.15L10.02 10.15L6.44 15.99ZM5.8 14.85L11.21 14.85L15.39 8.97L16.61 9.83L11.99 16.35L5.8 16.35ZM10.27 9.19L12.27 15.39L10.93 15.81L8.93 9.61ZM7.8 7.75L10.2 7.75A0.6 0.6 0 0 1 10.8 8.35L10.8 8.45A0.6 0.6 0 0 1 10.2 9.05L7.8 9.05A0.6 0.6 0 0 1 7.2 8.45L7.2 8.35A0.6 0.6 0 0 1 7.8 7.75ZM15.36 9.5L14.85 6.34L17.82 5.96L17.98 7.24L16.35 7.46L16.64 9.3Z"/>
+  </symbol>
+  <symbol id="ico-lieu-toit" viewBox="0 0 24 24">
+    <path fill="currentColor" d="M6.4 7.2L12 2L17.6 7.2ZM8 6.9L16 6.9A1 1 0 0 1 17 7.9L17 13.3A1 1 0 0 1 16 14.3L8 14.3A1 1 0 0 1 7 13.3L7 7.9A1 1 0 0 1 8 6.9ZM7.7 9.33L7.7 9.48A0.3 0.3 0 0 0 8 9.78L16 9.78A0.3 0.3 0 0 0 16.3 9.48L16.3 9.33A0.3 0.3 0 0 0 16 9.03L8 9.03A0.3 0.3 0 0 0 7.7 9.33ZM7.7 11.93L7.7 12.08A0.3 0.3 0 0 0 8 12.38L16 12.38A0.3 0.3 0 0 0 16.3 12.08L16.3 11.93A0.3 0.3 0 0 0 16 11.63L8 11.63A0.3 0.3 0 0 0 7.7 11.93ZM9.23 14.16L7.83 19.76L6.57 19.44L7.97 13.84ZM16.03 13.84L17.43 19.44L16.17 19.76L14.77 14.16ZM8.36 14.83L15.76 18.03L15.44 18.77L8.04 15.57ZM15.96 15.57L8.56 18.77L8.24 18.03L15.64 14.83ZM1.9 19.7L22.1 19.7A0.4 0.4 0 0 1 22.5 20.1L22.5 21.7A0.4 0.4 0 0 1 22.1 22.1L1.9 22.1A0.4 0.4 0 0 1 1.5 21.7L1.5 20.1A0.4 0.4 0 0 1 1.9 19.7Z"/>
+  </symbol>
+  <symbol id="ico-lieu-nature" viewBox="0 0 24 24">
+    <path fill="currentColor" d="M1.6 20.8L9.4 4.6L13.6 12.4L16.2 8.6L22.4 20.8ZM6.74 10.97L8.47 12.21L9.6 10.89L10.79 12.28L12.23 10.7L11.57 10.1L10.81 10.92L9.6 9.51L8.33 10.99L7.26 10.23Z"/>
+  </symbol>
+  <symbol id="ico-lieu-decouverte" viewBox="0 0 24 24">
+    <path fill="currentColor" d="M6.3 8.7L8.1 8.7A2.8 2.8 0 0 1 10.9 11.5L10.9 17.3A2.8 2.8 0 0 1 8.1 20.1L6.3 20.1A2.8 2.8 0 0 1 3.5 17.3L3.5 11.5A2.8 2.8 0 0 1 6.3 8.7ZM15.9 8.7L17.7 8.7A2.8 2.8 0 0 1 20.5 11.5L20.5 17.3A2.8 2.8 0 0 1 17.7 20.1L15.9 20.1A2.8 2.8 0 0 1 13.1 17.3L13.1 11.5A2.8 2.8 0 0 1 15.9 8.7ZM10.5 8.8L13.5 8.8A0.8 0.8 0 0 1 14.3 9.6L14.3 11.6A0.8 0.8 0 0 1 13.5 12.4L10.5 12.4A0.8 0.8 0 0 1 9.7 11.6L9.7 9.6A0.8 0.8 0 0 1 10.5 8.8ZM5.8 3.7L8.6 3.7A1 1 0 0 1 9.6 4.7L9.6 6.5A1 1 0 0 1 8.6 7.5L5.8 7.5A1 1 0 0 1 4.8 6.5L4.8 4.7A1 1 0 0 1 5.8 3.7ZM15.4 3.7L18.2 3.7A1 1 0 0 1 19.2 4.7L19.2 6.5A1 1 0 0 1 18.2 7.5L15.4 7.5A1 1 0 0 1 14.4 6.5L14.4 4.7A1 1 0 0 1 15.4 3.7ZM5 16.6A2.2 2.2 0 1 0 9.4 16.6A2.2 2.2 0 1 0 5 16.6ZM14.6 16.6A2.2 2.2 0 1 0 19 16.6A2.2 2.2 0 1 0 14.6 16.6Z"/>
   </symbol>
 </svg>
 <!-- ICONES SVG : fin -->
@@ -796,20 +858,10 @@ body.ck1P .notif.gros,body.a1P .notif.gros,body.volSim .notif.gros{font-size:12.
       <button class="zoomBtn" id="carteZoomIn">+</button>
       <button class="zoomBtn" id="carteZoomOut">−</button>
     </div>
+    <div id="carteBulle"></div>
   </div>
-  <div id="carteFiltres" style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:9px">
-    <button class="chipF on" data-f="ennemis">👥 Ennemis</button>
-    <button class="chipF on" data-f="vehicules">🚗 Véhicules</button>
-    <button class="chipF on" data-f="commerces">🏪 Commerces</button>
-    <button class="chipF on" data-f="batiments">🎯 Bâtiments</button>
-    <button class="chipF on" data-f="activites">🎢 Activités</button>
-  </div>
-  <div class="aide" style="margin-top:8px;font-size:12px;text-align:center">
-    <b style="color:#ff3b5c">A</b> Armureries · <b style="color:#2b6fd8">P</b> Police · <b style="color:#c7a020">G</b> Garage ·
-    <b style="color:#d88a20">F</b> Fast-foods · <b style="color:#2a9ac0">M</b> Marina · <b style="color:#f2c94c">V</b> Aéro-club ·
-    <b style="color:#ffd23f">◆</b> Mission · 🏪🎧🏦 Visitables
-  </div>
-  <div id="waypInfo" style="margin-top:8px;font-size:11px;font-weight:800;color:#7dff7a;letter-spacing:.04em">Touche la carte pour définir une destination</div>
+  <div id="carteFiltres" style="display:flex;gap:5px;justify-content:center;flex-wrap:wrap;margin-top:9px;width:min(380px,94vw)"></div> <!-- un filtre par catégorie, construit au chargement (CATS_LIEUX) -->
+  <div id="waypInfo" style="margin-top:8px;font-size:11px;font-weight:800;color:#7dff7a;letter-spacing:.04em;text-align:center">Touche une pastille pour la voir · ailleurs pour poser une destination</div>
   <!-- Récompense du métier Taxi (10 courses) : transport rapide vers la
        destination déjà pointée sur la carte (WAYP), jamais un second système
        de sélection de lieu à construire — celui-ci existe déjà. -->
@@ -10100,7 +10152,7 @@ function mkAeroportVivant(){
   addSolid({x:HALF+42,z:-5.6,hw:1.6,hd:0.8,h:2.7});
   const radar=new THREE.Group(); radar.position.set(HALF+42,3.0,-5.6); scene.add(radar); radar.add(mkBoxG(2.6,0.5,0.12,0xd8dce4,0,0.35,0)); radar.add(mkBoxG(0.15,0.4,0.15,0x5a626c,0,0,0)); AERO.radar=radar;
   mkEnseigne('TOUR DE CONTRÔLE','#7dff7a',HALF+42,4.6,-5.0,0,7);
-  AERO.balises.push({x:T.x0-4.5,z:cz,ico:'✈️',coul:'#1a4fa0'});
+  AERO.balises.push({x:T.x0-4.5,z:cz,ico:'✈️',coul:'#1a4fa0',nom:'Tour de contrôle',cat:'aviation'});
   fusionnerDecor(i0); // ~340 appels de rendu de moins quand l'aérogare est à l'écran
   AERO.pret=true; aeroTableaux();
 }
@@ -12171,7 +12223,7 @@ function mkBoutiques(){
       let ancre; for(const kk in POIS){ const v=POIS[kk]; if(v&&!Array.isArray(v)&&typeof v.x==='number'&&dist2(v.x,v.z,dx,dz)<400){ ancre=kk; break; } } // le surf shop est SUR la plage : voulu
       PORTES.push({id:'boutique',x:dx,z:dz,nx,nz,boutiqueId:k,halo,sortieD:0.6,ancre}); } // 17 octobre : on essaie à l'intérieur, à l'abri
     ZONES_SANS_MOBILIER.push({x0:x-5,x1:x+5,z0:z-5,z1:z+5});
-    AERO.balises.push({x,z,ico:D.ico,coul:'#8a4de0'}); }
+    AERO.balises.push({x,z,ico:D.ico,coul:'#8a4de0',nom:D.nom,cat:'boutique'}); }
 }
 // ---------- la boutique en salle (17 octobre) : reconfigurée à l'entrée, cabine à l'abri ----------
 const MURS_BOUTIQUE={chic:0xe8e2d6,surf:0xcde8ec,street:0x40354f,barbier:0xeadccb,tatoueur:0x2c2c33};
@@ -12259,7 +12311,7 @@ function mkGrandHuit(){
     if(!k){ const nez=mkBoxG(1.1,0.4,0.5,0xd83a3a,0,0.3,1.05); nez.rotation.x=-0.3; w.add(nez); } scene.add(w); train.push(w); }
   MANEGES.huit={C,L,s:0,v:6,train,gare:{x:gx,z:gz+2.6},lift:[0.02,0.2]};
   ZONES_SANS_MOBILIER.push({x0:-96,x1:-18,z0:268,z1:332});
-  AERO.balises.push({x:gx,z:gz+2.6,ico:'🎢',coul:'#c83a9a'});
+  AERO.balises.push({x:gx,z:gz+2.6,ico:'🎢',coul:'#c83a9a',nom:'Grand huit',cat:'activite'});
 }
 function huitVitesse(H,u,y){ if(u>H.lift[0]&&u<H.lift[1]) return 4.5; return clamp(Math.sqrt(Math.max(20,2*9.8*(22.6-y)))*0.92,4.5,24); }
 function majManeges(dt){
@@ -14443,7 +14495,7 @@ function mkBallTrap(){
   for(let k=-4;k<=4;k++) if(!dansReliefLibre(x+k*6,z+22)) mkBox(0.15,1.2,0.15,bois2,x+k*6,0.6,z+22); // la clôture du ranch, au pied des mesas
   for(const [cx,cz] of [[-14,12],[16,17],[-20,6],[22,9]]){ if(dansReliefLibre(x+cx,z+cz)) continue; const ca=new THREE.Mesh(new THREE.CylinderGeometry(0.4,0.45,3.2,8),mat(0x3f7a44)); ca.position.set(x+cx,1.6,z+cz); scene.add(ca); for(const s of [-1,1]){ const b=new THREE.Mesh(new THREE.CylinderGeometry(0.25,0.28,1.4,8),mat(0x3f7a44)); b.position.set(x+cx+s*0.6,2.1,z+cz); scene.add(b); } }
   mkEnseigne('BALL-TRAP DU RANCH COYOTE LOCO','#ff7a1a',x,4.2,z-3.4,0,9);
-  AERO.balises.push({x,z,ico:'🎯',coul:'#ff7a1a'});
+  AERO.balises.push({x,z,ico:'🎯',coul:'#ff7a1a',nom:'Ball-trap du ranch Coyote Loco',cat:'activite'});
 }
 /* =====================================================================
    TERRAINS DE SPORT DES PARCS (17 octobre, demandé : « dans les parcs, un terrain de foot et d'autres terrains de
@@ -14521,7 +14573,7 @@ function mkSportsParcs(){
     const h1=makeHumain({haut:0x14161c,bas:0x2a2e36,peau:choixD(civPeau),casq:0x14161c,visage:'neutre'},1); h1.g.position.set(wx,Y+0.6,wz); scene.add(h1.g); figurant(h1); SPORTS.workout.push({h:h1,type:'traction',y0:Y+0.6});
     const h2=makeHumain({haut:0xff5ad0,bas:0x2a2e36,peau:choixD(civPeau),casq:0x3a2a1c,visage:'neutre'},1); h2.g.position.set(wx-2.6,Y+0.35,wz+2.5); h2.g.rotation.x=-1.25; scene.add(h2.g); figurant(h2); SPORTS.workout.push({h:h2,type:'pompes',y0:Y+0.35}); }
   mkEnseigne('COMPLEXE SPORTIF DU PARC','#35e0ff',cx,4.2,cz+14.2,0,8);
-  AERO.balises.push({x:X,z:Z,ico:'⚽',coul:'#7dff7a'}); AERO.balises.push({x:cx,z:cz,ico:'🎾',coul:'#35e0ff'});
+  AERO.balises.push({x:X,z:Z,ico:'⚽',coul:'#7dff7a',nom:'Stade du parc',cat:'activite'}); AERO.balises.push({x:cx,z:cz,ico:'🎾',coul:'#35e0ff',nom:'Complexe sportif du parc',cat:'activite'});
   fusionnerDecor(i0); majTableauFoot();
 }
 // les halos des portes de boutique, posés en fin de décor (aucun tirage avant le mobilier)
@@ -15101,7 +15153,7 @@ function mkArenaDerby(){
   { const t=document.createElement('div'); t.id='derbyTxt';
     t.style.cssText='position:absolute;top:calc(env(safe-area-inset-top,0px) + 100px);left:50%;transform:translateX(-50%);z-index:30;display:none;padding:6px 14px;border-radius:10px;background:rgba(10,12,18,0.82);border:2px solid #ff7a1a;color:#ffb070;font-weight:900;font-size:15px;white-space:nowrap;pointer-events:none';
     el('hud').appendChild(t); D.txt=t; }
-  AERO.balises.push({x:D.stand.x,z:D.stand.z,ico:'💥',coul:'#ff7a1a'});
+  AERO.balises.push({x:D.stand.x,z:D.stand.z,ico:'💥',coul:'#ff7a1a',nom:'Arène de derby',cat:'activite'});
   D.ok=true; derbyTableau();
 }
 /* CASCADES ET VOLCAN (15 octobre, demandé : « de la cascade à des endroits, avec de la déco, et de la lave sur
@@ -15376,7 +15428,7 @@ function mkHeliGrue(){
   const hpx=cTex(128,(g2,s2)=>{ g2.clearRect(0,0,s2,s2); g2.strokeStyle='#ff8c1a'; g2.lineWidth=8; g2.beginPath(); g2.arc(s2/2,s2/2,52,0,7); g2.stroke(); g2.fillStyle='#ff8c1a'; g2.font='900 70px Arial'; g2.textAlign='center'; g2.textBaseline='middle'; g2.fillText('H',s2/2,s2/2+2); });
   const pad=new THREE.Mesh(new THREE.PlaneGeometry(8,8),new THREE.MeshBasicMaterial({map:hpx,transparent:true,depthWrite:false})); pad.rotation.x=-Math.PI/2; pad.position.set(p.x,0.2,p.z); scene.add(pad);
   POIS.heliGrue={x:p.x,z:p.z,ancre:'chantier'}; // fait partie du chantier
-  AERO.balises.push({x:p.x,z:p.z,ico:'🧲',coul:'#c8601a'});
+  AERO.balises.push({x:p.x,z:p.z,ico:'🧲',coul:'#c8601a',nom:'Hélico-grue « Titan »',cat:'aviation'});
 }
 function aeroPose(d){ const m=d.mesh; m.position.set(d.x,d.alt,d.z); m.rotation.y=d.ang; m.rotation.x=d.tangage||0; m.rotation.z=0; }
 function aeroAtterrissage(d,porte){
@@ -16082,27 +16134,27 @@ function texBalise(ico,coul){
 }
 // tout ce qu'on peut faire hors des salles (lu aux sources, jamais recopié) : balises 3D ET filtre « Activités » de la carte
 function pointsActivites(){
-  const L=[], add=(x,z,ico,coul,y,nom)=>{ if(isFinite(x)&&isFinite(z)) L.push({x,z,ico,coul,y,nom}); };
-  for(const id in RIDE_DEFS){ const d=rideDepart(id); if(d) add(d.x,d.z,RIDE_DEFS[id].eau?'🚤':'🏁','#c8901a',undefined,RIDE_DEFS[id].nom); }
-  if(TOW.kWake) add(TOW.kWake.x,TOW.kWake.z,'🏄','#1a8ac8',1,'Wakeboard');
-  if(TOW.kPara) add(TOW.kPara.x,TOW.kPara.z,'🪂','#1a8ac8',1,'Parachute ascensionnel');
-  if(PIC.wingsuit) add(PIC.wingsuit.x,PIC.wingsuit.z,'🦅','#7a3ac8',PIC.wingsuit.y,'Wingsuit');
-  if(PIC.plg) add(PIC.plg.x,PIC.plg.z0,'🪂','#7a3ac8',PIC.H,'Saut BASE');
-  if(PIC.cage) add(PIC.cage.x,PIC.cage.z,'🛗','#5a6a7a',PIC.cage.yBas||0,'Monte-charge');
-  if(POIS.banderole) add(POIS.banderole.x,POIS.banderole.z,'✈️','#c8901a',0,'Banderole');
-  if(MERV.paillote) add(MERV.paillote.x,MERV.paillote.z,'🍹','#1a8a6a',1,'Paillote');
-  if(MERV.tresor) add(MERV.tresor.x,MERV.tresor.z,'⛏️','#8a6a2a',undefined,'Île au trésor');
-  if(POIS.skateXXL) add(POIS.skateXXL.x,POIS.skateXXL.z,'🛹','#c83a9a',undefined,'Skatepark XXL');
-  if(BASKET.ok) add(BASKET.depart.x,BASKET.depart.z,'🏀','#c8601a',undefined,'Basket');
-  if(POIS.toitH&&POIS.toitH.jetpack) add(POIS.toitH.jetpack.x,POIS.toitH.jetpack.z,'🚀','#1a8ac8',POIS.toitH.h,'Jetpack');
-  for(const b of AERO.balises) add(b.x,b.z,b.ico,b.coul,0);
-  if(typeof BASE!=='undefined'&&BASE.ok){ add(BASE.depart.x,BASE.depart.z,'🎖️','#4a5238',0,'Parcours du combattant'); }
-  if(typeof SAUTS_HILLS!=='undefined') for(const sj of SAUTS_HILLS) if(sj.ok) add(sj.x,sj.zBas-6,'🏔️','#ff7a1a',sj.hBas,sj.nom);
-  if(typeof SAUTV!=='undefined'&&SAUTV.ok) add(SAUTV.x,SAUTV.zE-6,'🎯','#ff7a1a',SAUTV.hE,'Saut du Vertige');
-  if(typeof HELIPORT!=='undefined'&&HELIPORT.console) add(HELIPORT.console.x,HELIPORT.console.z,'🚁','#d8b02a',HELIPORT.pad.h,'Héliport du manoir');
-  if(typeof SURPRISES!=='undefined') for(const sp of SURPRISES.liste) if(sp.type==='tyro'||sp.type==='dj') add(sp.x,sp.z,sp.type==='tyro'?'🪢':'🎧','#c83a9a',sp.y,sp.type==='tyro'?'Tyrolienne':'Fête sur le toit');
-  for(const pq of PLANQUES.liste) add(pq.x,pq.z,pq.def.ico,'#2a8a4a',pq.y,pq.def.nom);
-  for(const a of activitesCanauxV3()) if(a.carte!==false) add(a.x,a.z,a.ico,a.coul,a.y,a.nom); /* le chantier et le Lagon ont déjà leur badge (listeCommerces) : pas deux icônes au même endroit */
+  const L=[], add=(x,z,ico,coul,y,nom,cat,o)=>{ if(isFinite(x)&&isFinite(z)) L.push(Object.assign({x,z,ico,coul,y,nom,cat:cat||'activite'},o||{})); }; /* cat : la catégorie de la carte (CATS_LIEUX) */
+  for(const id in RIDE_DEFS){ const d=rideDepart(id); if(d) add(d.x,d.z,RIDE_DEFS[id].eau?'🚤':'🏁','#c8901a',undefined,RIDE_DEFS[id].nom,'course',{ride:id}); }
+  if(TOW.kWake) add(TOW.kWake.x,TOW.kWake.z,'🏄','#1a8ac8',1,'Wakeboard','activite',{desc:'Derrière le bateau-tracteur : sauts et figures'});
+  if(TOW.kPara) add(TOW.kPara.x,TOW.kPara.z,'🪂','#1a8ac8',1,'Parachute ascensionnel','activite',{desc:'Monte à 32 m, puis lâche la corde'});
+  if(PIC.wingsuit) add(PIC.wingsuit.x,PIC.wingsuit.z,'🦅','#7a3ac8',PIC.wingsuit.y,'Wingsuit','activite',{desc:'Au sommet du Pic du Vertige'});
+  if(PIC.plg) add(PIC.plg.x,PIC.plg.z0,'🪂','#7a3ac8',PIC.H,'Saut BASE','activite',{desc:'Le plongeoir du Pic du Vertige'});
+  if(PIC.cage) add(PIC.cage.x,PIC.cage.z,'🛗','#5a6a7a',PIC.cage.yBas||0,'Monte-charge','activite',{desc:'Monte au sommet du Pic du Vertige'});
+  if(POIS.banderole) add(POIS.banderole.x,POIS.banderole.z,'✈️','#c8901a',0,'Ton message dans le ciel','activite',{desc:'L’avion à banderole',prix:'250 $'});
+  if(MERV.paillote) add(MERV.paillote.x,MERV.paillote.z,'🍹','#1a8a6a',1,'Paillote','resto',{desc:'Un cocktail qui soigne'});
+  if(MERV.tresor) add(MERV.tresor.x,MERV.tresor.z,'⛏️','#8a6a2a',undefined,'Île au trésor','activite',{desc:'Le camp des pirates : creuse sous la croix'});
+  if(POIS.skateXXL) add(POIS.skateXXL.x,POIS.skateXXL.z,'🛹','#c83a9a',undefined,'Reyes Skatepark XXL','activite',{desc:'Le bowl géant du désert'});
+  if(BASKET.ok) add(BASKET.depart.x,BASKET.depart.z,'🏀','#c8601a',undefined,'Concours de basket','activite');
+  if(POIS.toitH&&POIS.toitH.jetpack) add(POIS.toitH.jetpack.x,POIS.toitH.jetpack.z,'🚀','#1a8ac8',POIS.toitH.h,'Jetpack','toit',{desc:'Sur le toit de la Tour Los Reyes',info:()=>META.jetpackTrouve?'Déjà trouvé':'À trouver : monte sur le toit'});
+  for(const b of AERO.balises) add(b.x,b.z,b.ico,b.coul,0,b.nom,b.cat);
+  if(typeof BASE!=='undefined'&&BASE.ok){ add(BASE.depart.x,BASE.depart.z,'🎖️','#4a5238',0,'Parcours du combattant','activite',{desc:'Fort Reyes : 25 s pour le finir'}); }
+  if(typeof SAUTS_HILLS!=='undefined') for(const sj of SAUTS_HILLS) if(sj.ok) add(sj.x,sj.zBas-6,'🏔️','#ff7a1a',sj.hBas,sj.nom,'activite',{desc:'Le tremplin de Los Reyes Hills'});
+  if(typeof SAUTV!=='undefined'&&SAUTV.ok) add(SAUTV.x,SAUTV.zE-6,'🎯','#ff7a1a',SAUTV.hE,'Saut du Vertige','activite',{desc:'Du sommet de la falaise jusqu’à la barge'});
+  if(typeof HELIPORT!=='undefined'&&HELIPORT.console) add(HELIPORT.console.x,HELIPORT.console.z,'🚁','#d8b02a',HELIPORT.pad.h,'Héliport du manoir','aviation',{desc:'Ton hélicoptère, posé à chaque partie',info:()=>META.planque?'À toi : choisis ton hélicoptère à la console':'Verrouillé : réservé au propriétaire de la villa'});
+  if(typeof SURPRISES!=='undefined') for(const sp of SURPRISES.liste) if(sp.type==='tyro'||sp.type==='dj') add(sp.x,sp.z,sp.type==='tyro'?'🪢':'🎧','#c83a9a',sp.y,sp.type==='tyro'?'Tyrolienne':'Fête sur le toit','toit');
+  for(const pq of PLANQUES.liste) add(pq.x,pq.z,pq.def.ico,'#2a8a4a',pq.y,pq.def.nom,'planque');
+  for(const a of activitesCanauxV3()) if(a.carte!==false) add(a.x,a.z,a.ico,a.coul,a.y,a.nom,a.cat); /* le chantier et le Lagon ont déjà leur pastille (lieuxCarte) : pas deux icônes au même endroit */
   return L; }
 /* Canaux V3, phase 6 : le chantier naval, le Lagon, la marina, la location de jet-skis — seulement une fois les canaux construits
    (CANAUX.balisesV3, posé en fin de mkCanaux) : mkBalises lit pointsActivites pendant le décor, et une balise de plus y décalerait les
@@ -16110,8 +16162,8 @@ function pointsActivites(){
 function activitesCanauxV3(){ const C=CANAUX, L=[]; if(!C.ok||!C.balisesV3) return L;
   if(C.chantier) L.push({x:C.chantier.porteObj.x,z:C.chantier.porteObj.z,ico:'🚤',coul:'#1a8ac8',y:0,nom:'Chantier naval « Marée Basse »',carte:false});
   if(C.lagon) L.push({x:C.lagon.xc,z:(C.lagon.piste.z0+C.lagon.piste.z1)/2,ico:'🎉',coul:'#c83a9a',y:0,nom:'Le Lagon',carte:false});
-  if(C.marina&&C.marina.ma){ const m=C.marina.ma; L.push({x:(m.x0+m.x1)/2,z:(m.z0+m.z1)/2,ico:'⛵',coul:'#2a9ac0',y:0,nom:'Marina de Los Reyes'}); }
-  if(C.location){ const p=C.location.ponton; L.push({x:(p.x0+p.x1)/2,z:p.z1+2.2,ico:'🛶',coul:'#1a8ac8',y:0,nom:'Location de jet-skis et de kayaks'}); }
+  if(C.marina&&C.marina.ma){ const m=C.marina.ma; L.push({x:(m.x0+m.x1)/2,z:(m.z0+m.z1)/2,ico:'⛵',coul:'#2a9ac0',y:0,nom:'Marina de Los Reyes',cat:'port'}); }
+  if(C.location){ const p=C.location.ponton; L.push({x:(p.x0+p.x1)/2,z:p.z1+2.2,ico:'🛶',coul:'#1a8ac8',y:0,nom:'Location de jet-skis et de kayaks',cat:'port'}); }
   return L; }
 function balisesCanauxV3(){ CANAUX.balisesV3=true; for(const a of activitesCanauxV3()){ if(a.ico==='🛶') continue; /* la location : un kiosque, pas une balise de plus */
     const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:texBalise(a.ico,a.coul),transparent:true,depthWrite:false,depthTest:false,fog:false})), y0=Math.max(0,solY(a.x,a.z)||0)+7;
@@ -19437,29 +19489,135 @@ function dessinerBadge(ctx,x,y,r,couleurAnneau,icone,tailleIcone){
   ctx.strokeStyle=couleurAnneau; ctx.lineWidth=Math.max(1,r*0.18); ctx.stroke();
   if(icone) dessinerIconePOI(ctx,icone,x,y,tailleIcone,'#fff');
 }
-// Commerces/POI génériques (armurerie, police, garage, fast-foods, marina,
-// aéro-club) — recalculée à la demande (peu d'entrées, coût négligeable)
-// plutôt que pré-cuite dans mmStatic, pour pouvoir être filtrée sur la
-// grande carte (voir MAPUI.filtres) sans dédoubler le dessin.
-function listeCommerces(){
-  const L=[];
-  const add=(p,txt,c,id)=>{ if(p) L.push({x:p.x,z:p.z,txt,c,id}); };
-  add(POIS.armurerie,'A','#ff3b5c'); add(POIS.armurerie2,'A','#ff3b5c');
-  add(POIS.commissariat,'P','#2b6fd8'); add(POIS.garage,'G','#c7a020');
-  if(POIS.fastfoods) for(const f of POIS.fastfoods) add(f,'F','#d88a20');
-  add(POIS.marina,'M','#2a9ac0');
-  // L'aérodrome : un véhicule à trouver, pas un secret — visible dès le
-  // début de partie comme les commerces ci-dessus, sans condition de
-  // découverte (un joueur ne l'a jamais trouvé quand il fallait le
-  // débloquer d'abord). id dédié : drawCarte() lui donne un badge spécial
-  // (avion qui pulse tant qu'il n'a jamais été piloté), à exclure de la
-  // boucle générique pour ne pas dessiner les deux au même endroit.
-  add(POIS.aerodrome,'V','#f2c94c','aerodrome');
-  for(const pq of PLANQUES.liste) add(pq,'H',planquePossedee(pq.def.id)?'#2fae4f':'#8a8f9a'); // planques : vertes si possédées
-  if(CANAUX.ok&&CANAUX.chantier) add(CANAUX.chantier.porteObj,'🚤','#1a8ac8','chantierNaval'); /* Canaux V3, phase 6 : le chantier naval (on y entre en bateau) */
-  if(CANAUX.ok&&CANAUX.lagon) add({x:CANAUX.lagon.xc,z:CANAUX.lagon.piste.z1},'🎉','#ff3bd0','lagon'); /* et le Lagon, le beach club */
+/* ---------------------------------------------------------------------
+   LIEUX DE LA CARTE (retours du 20 octobre, lot 2 — demandé : « un seul jeu d'icônes cohérent pour tous les lieux, identique
+   sur la minimap et la grande carte ; une bulle quand on touche une icône ; un filtre par catégorie, rien d'oublié »).
+   Chaque lieu a une CATÉGORIE ; une catégorie = une pastille ronde de sa couleur et SON pictogramme du sprite icones/
+   (ico-lieu-*, emoji de secours sans le sprite). La liste est lue aux sources (PORTES et INTDEFS, PLANQUES, les POIS des
+   commerces, pointsActivites, STANDS, SURPRISES, TOITS, MONT2.sites, STATIONS_VELO…), jamais recopiée ; une seule fois
+   (lieuxCarte, en cache : tout est construit avant la 1re image) ; l'état (planque achetée…) est lu au dessin.
+--------------------------------------------------------------------- */
+const CATS_LIEUX={ // l'ordre est celui des filtres de la grande carte ; filtre : deux catégories sous un même bouton
+  armurerie:{nom:'Armureries',titre:'Armurerie',ico:'ico-arme-pistolet',em:'🔫',coul:'#e8344f',desc:'Armes, munitions, gilets, établi et stand de tir'},
+  police:{nom:'Police',titre:'Police',ico:'ico-lieu-police',em:'🚔',coul:'#2a4fc8',desc:'Le commissariat de Los Reyes'},
+  garage:{nom:'Garages',titre:'Garage',ico:'ico-lieu-garage',em:'🔧',coul:'#f08a1a',desc:'Améliore, range et ressors tes véhicules'},
+  boutique:{nom:'Boutiques',titre:'Boutique',ico:'ico-lieu-boutique',em:'🛍️',coul:'#e04ab8',desc:'Un magasin où l’on entre'},
+  resto:{nom:'Manger',titre:'Restauration',ico:'ico-lieu-resto',em:'🍔',coul:'#9ac83a',desc:'Rend des PV contre un peu d’argent'},
+  salle:{nom:'Salles',titre:'Lieu à visiter',ico:'ico-lieu-salle',em:'🚪',coul:'#f2c230',desc:'On y entre : une activité t’attend'},
+  vente:{nom:'Planques',titre:'Planque à vendre',ico:'ico-lieu-a-vendre',em:'🏷️',coul:'#8a8f9a',desc:'À acheter sur place',filtre:'planque'},
+  planque:{nom:'Planques',titre:'Ta planque',ico:'ico-lieu-planque',em:'🏠',coul:'#1fae6a',desc:'Repos, coffre et spécificité, une fois par vague'},
+  activite:{nom:'Activités',titre:'Activité',ico:'ico-lieu-activite',em:'⭐',coul:'#8a4de0',desc:'Une activité en plein air'},
+  course:{nom:'Courses',titre:'Course',ico:'ico-lieu-course',em:'🏁',coul:'#f2f2f2',desc:'Une course chronométrée'},
+  port:{nom:'Ports',titre:'Port',ico:'ico-lieu-port',em:'⚓',coul:'#1aa0d8',desc:'Des bateaux à prendre'},
+  aviation:{nom:'Aviation',titre:'Aviation',ico:'ico-lieu-avion',em:'✈️',coul:'#a8bccf',desc:'Avions et hélicoptères'},
+  velo:{nom:'Vélos',titre:'Station de vélos',ico:'ico-lieu-velo',em:'🚲',coul:'#138a8a',desc:'Vélos REYES BIKE en libre-service'},
+  toit:{nom:'Toits',titre:'Sur les toits',ico:'ico-lieu-toit',em:'🏙️',coul:'#8a4a2a',desc:'Une surprise sur un toit'},
+  nature:{nom:'Nature',titre:'Nature',ico:'ico-lieu-nature',em:'⛰️',coul:'#2f7a2a',desc:'Le Mont Reyes et ses alentours'},
+  decouverte:{nom:'Découvertes',titre:'Découverte',ico:'ico-lieu-decouverte',em:'🔭',coul:'#15161a',picto:'#ffd23f',anneau:'#ffd23f',desc:'Repéré ou trouvé'},
+};
+const FILTRES_LIEUX=[]; for(const k in CATS_LIEUX){ const f=CATS_LIEUX[k].filtre||k; if(!FILTRES_LIEUX.includes(f)) FILTRES_LIEUX.push(f); }
+/* de dessous à dessus : ce qui compte le plus est dessiné en dernier (et se touche en premier) */
+const ORDRE_LIEUX=['resto','velo','toit','nature','port','aviation','activite','course','boutique','garage','police','armurerie','salle','vente','planque','decouverte'];
+const RANG_LIEU={}; ORDRE_LIEUX.forEach((k,i)=>{ RANG_LIEU[k]=i; });
+/* une phrase par salle, pour la bulle (ce qu'on y fait) — les autres lieux disent leur catégorie et leur état */
+const ACCROCHES_SALLES={club:'Danse, bar… et bagarre',banque:'La banque de Los Reyes',tour:'L’ascenseur de la tour',casino:'Machines à sous, blackjack, vidéo-poker, roue',
+  laverie:'L’essorage de la machine 7',voyance:'Madame Zohra lit l’avenir',karaoke:'Chante en rythme',aquarium:'« 1, 2, 3… Gaston ! »',bowling:'Deux parties par vague',
+  sport:'Soulève de la fonte',serre:'La nuit de la floraison',sandwich:'Le défi du Roi des Sandwichs',musee:'La mémoire de Los Reyes',arcade:'Bornes, tickets, tableau des scores',
+  cine:'La séance du siècle',metro:'Le métro abandonné',radio:'Émission pirate',chalutier:'Une sortie de pêche en mer',site51:'Une grille d’aération… bizarre',
+  depot:'Courses clandestines',superette:'Supérette ouverte 24 h sur 24',pharma:'Soins et trousses',conces:'Voitures neuves REYES MOTORS',boutique:'Vêtements et style'};
+const LIEUX={liste:null,pret:false}; /* pret : la ville et tout le décor sont construits (posé après construireVille) */
+const casse1=(s)=>s?s.charAt(0)+s.slice(1).toLowerCase():s; // « GARAGE NORD » → « Garage nord »
+function catLieu(l){ return l.dyn?l.dyn():l.cat; }
+function lieuxCarte(){
+  if(LIEUX.liste) return LIEUX.liste;
+  const L=[], RD={armurerie:30,police:30,boutique:16,garage:16,planque:16,vente:16,port:16};
+  const add=(cat,x,z,nom,o)=>{ if(!CATS_LIEUX[cat]||!isFinite(x)||!isFinite(z)) return null; const r=RD[cat]||3;
+    for(const q of L) if(q.cat===cat&&Math.abs(q.x-x)<r&&Math.abs(q.z-z)<r) return q; /* le même lieu vu par deux sources */
+    const l=Object.assign({cat,x,z,nom:nom||CATS_LIEUX[cat].titre},o||{}); L.push(l); return l; };
+  // 1. les portes des salles (INTDEFS)
+  for(const p of PORTES){ const D=INTDEFS[p.id]; if(!D) continue; const id=p.id;
+    if(id==='armurerie') add('armurerie',p.x,p.z,D.nom,{src:p});
+    else if(id==='poste') add('police',p.x,p.z,D.nom,{src:p});
+    else if(id==='tuning'){ const gt=p.garageId&&typeof GARAGE_PAR_ID!=='undefined'?GARAGE_PAR_ID[p.garageId]:null; add('garage',p.x,p.z,gt?gt.nom:D.nom,{src:p,info:()=>{ let n=0; for(const k in META.vehPerso) if(META.vehPerso[k].cle) n++; return 'Mes véhicules : '+n+' / '+VEHPERSO_MAX; }}); }
+    else if(id==='boutique'||id==='superette'||id==='pharma'||id==='conces'){ const B=p.boutiqueId&&BOUTIQUES_DEF[p.boutiqueId]; add('boutique',p.x,p.z,B?B.nom:D.nom,{src:p,desc:B?'Vêtements et style':ACCROCHES_SALLES[id]}); }
+    else if(id==='planque') add('planque',p.x,p.z,D.nom,{src:p,dyn:()=>META.planque?'planque':'vente',info:()=>META.planque?'À toi — lit, coffre, garage, piscine':'À vendre : '+fmt$(PRIX_VILLA)});
+    else add('salle',p.x,p.z,D.nom,{src:p,desc:ACCROCHES_SALLES[id]}); }
+  // 2. ce qui a une porte hors de PORTES : la 2e armurerie, le chantier naval, les planques
+  if(POIS.armurerie) add('armurerie',POIS.armurerie.x,POIS.armurerie.z,'Armurerie');
+  if(POIS.armurerie2) add('armurerie',POIS.armurerie2.x,POIS.armurerie2.z,'Armurerie (sud)');
+  if(POIS.commissariat) add('police',POIS.commissariat.x,POIS.commissariat.z,'Commissariat');
+  if(POIS.garage) add('garage',POIS.garage.x,POIS.garage.z,'Garage — réparations',{desc:'Répare ton véhicule (60 $), livraisons des missions'});
+  if(CANAUX.ok&&CANAUX.chantier) add('garage',CANAUX.chantier.porteObj.x,CANAUX.chantier.porteObj.z,'Chantier naval « Marée Basse »',{desc:'Le garage des bateaux : on y entre en bateau'});
+  for(const pq of PLANQUES.liste){ const d=pq.def; add('planque',pq.x,pq.z,d.nom,{src:pq,dyn:()=>planquePossedee(d.id)?'planque':'vente',info:()=>planquePossedee(d.id)?'À toi — '+d.specTxt:'À vendre : '+fmt$(d.prix)}); }
+  if(POIS.fastfoods) for(const f of POIS.fastfoods) add('resto',f.x,f.z,f.nom||'Fast-food',{desc:'Fast-food'});
+  if(POIS.marina) add('port',POIS.marina.x,POIS.marina.z,'Marina',{desc:'Bateaux, wakeboard et parachute ascensionnel'});
+  if(POIS.aerodrome) add('aviation',POIS.aerodrome.x,POIS.aerodrome.z,'Aéro-club',{src:POIS.aerodrome,info:()=>META.defis.voltigePilote?'L’avion de voltige':'L’avion de voltige t’attend : jamais piloté'});
+  if(POIS.aeroport) add('aviation',POIS.aeroport.x,POIS.aeroport.z,'Aéroport de Los Reyes',{desc:'Aérogare, tour de contrôle, hangars'});
+  if(CANAUX.ok&&CANAUX.lagon) add('activite',CANAUX.lagon.xc,CANAUX.lagon.piste.z1,'Le Lagon',{desc:'Beach club : danse, cocktails, plongeoir'});
+  // 3. les activités en plein air (la liste des balises : pointsActivites, chacune déclare sa catégorie)
+  for(const a of pointsActivites()){ const o={desc:a.desc,info:a.info}; if(a.ride) o.info=()=>{ const D=RIDE_DEFS[a.ride], rec=RIDES.records[a.ride];
+      return (RIDES.primeVague[a.ride]===WAVES.n?'Prime déjà gagnée cette vague':'Prime : '+fmt$(D.prime)+' (une fois par vague)')+(rec?' · record '+rec.toFixed(1)+' s':''); };
+    if(a.prix) o.info=()=>a.prix;
+    add(a.cat||'activite',a.x,a.z,a.nom,o); }
+  if(JETEE.ok&&JETEE.roue) add('activite',JETEE.roue.position.x,JETEE.roue.position.z+3.2,'Grande roue de la jetée',{info:()=>'Un tour : '+fmt$(MANEGES.prixTour)});
+  if(SKATE.ok) add('activite',SKATE.x,SKATE.z,'Skatepark du parc',{desc:'Tremplins, funbox, quarter-pipe'});
+  if(CRIQUE) add('activite',(CRIQUE.x0+CRIQUE.x1)/2,CRIQUE.z0+8,'Crique des plongeurs',{desc:'Trois falaises, trois plongeoirs : l’eau ne blesse jamais'});
+  if(BASE.ok&&BASE.porte) add('activite',BASE.porte.x,BASE.porte.z,'Fort Reyes',{desc:'La base militaire : S’ENGAGER à la guérite',info:()=>BASE.revoque?'Accès révoqué pour cette partie':(BASE.laissez?'Visite libre pour cette partie':'')});
+  if(BASE.ok&&BASE.heli) add('aviation',BASE.heli.x,BASE.heli.z,'Héliport de Fort Reyes',{desc:'Le « Vautour », armé de roquettes'});
+  if(GALION.ok&&GALION.tresor) add('decouverte',GALION.tresor.x,GALION.tresor.z,'Galion échoué',{desc:'Son coffre, par la brèche côté plage'});
+  // 4. la restauration : les stands de chaque quartier
+  for(const s of STANDS){ const N=NOURRITURE_QUARTIER[s.q]; if(!N) continue; add('resto',s.x,s.z,'Stand — '+casse1(N.nom),{petit:true,info:()=>casse1(N.nom)+' : '+fmt$(N.prix)+', +'+N.pv+' PV'}); }
+  // 5. les toits : surprises et hélicoptères posés
+  const NOMS_SURPRISES={tyro:'Tyrolienne',trampo:'Trampoline',pigeons:'Pigeonnier',tag:'Mur à taguer',dj:'Fête sur le toit'};
+  for(const sp of SURPRISES.liste) add('toit',sp.x,sp.z,NOMS_SURPRISES[sp.type]||'Surprise',{desc:'Sur le toit (une fois par vague)'});
+  for(const h of TOITS.helis) add('toit',h.x,h.z,'Hélipad : '+(VEHDEFS[h.cle]?VEHDEFS[h.cle].nom:'hélicoptère'),{desc:'Un hélicoptère posé sur le toit'});
+  // 6. la nature : les lieux du Mont Reyes, le lac du parc, l'île au canard
+  const NOMS_MONT={lac:'Lac du Mont Reyes',chute:'Cascade',grotte:'Grotte aux cristaux',pont:'Pont de singe',parapente:'Aire de parapente',refuge:'Refuge du Mont Reyes',
+    belvedere:'Belvédère',camp:'Campement',alpage:'Alpage'};
+  const DESC_MONT={grotte:'Un coffre à fouiller une fois par vague',refuge:'La soupe du gardien : 15 $, +40 PV',belvedere:'Les jumelles',parapente:'Décoller en parapente',lac:'On y nage'};
+  if(MONT2.ok) for(const k in NOMS_MONT){ const S=MONT2.sites[k]; if(S&&isFinite(S.x)) add('nature',S.x,S.z,NOMS_MONT[k],{desc:DESC_MONT[k]}); }
+  if(LAC) add('nature',LAC.x,LAC.z,'Lac du parc',{desc:'Barques, canards et passerelle'});
+  if(POIS.canard) add('nature',POIS.canard.x,POIS.canard.z,'Île au Canard',{desc:'La paillote et son cocktail'});
+  // 7. les vélos en libre-service
+  for(const st of STATIONS_VELO) add('velo',st.x,st.z,'Station REYES BIKE',{info:()=>st.places+' places'});
+  L.sort((a,b)=>RANG_LIEU[a.cat]-RANG_LIEU[b.cat]); // le dessin suit l'ordre de la liste
+  if(LIEUX.pret) LIEUX.liste=L; /* en cache seulement une fois tout construit */
   return L;
 }
+/* les découvertes du moment : repérées à la longue-vue, la carte au trésor de Lou, le Monster Truck trouvé (chaque objet
+   garde son lieu : aucune allocation par image) */
+function lieuxDuMoment(f){
+  for(const q of reperesActifs()){ const l=q._lieu||(q._lieu={cat:'decouverte',x:q.x,z:q.z,nom:q.nom||'Repéré',desc:'Repéré à la longue-vue du penthouse, jusqu’à la vague suivante'}); f(l); }
+  if(TRESOR_CARTE.actif&&!TRESOR_CARTE.trouve&&TRESOR_CARTE.vague===WAVES.n){ const l=TRESOR_CARTE._lieu||(TRESOR_CARTE._lieu={cat:'decouverte',nom:'Carte au trésor de Lou',desc:'La cachette est dans cette zone : CREUSER sur place'});
+    l.x=TRESOR_CARTE.zx; l.z=TRESOR_CARTE.zz; f(l); }
+  if(META.monstertruckTrouve&&POIS.friche){ const l=POIS.friche._lieu||(POIS.friche._lieu={cat:'decouverte',x:POIS.friche.x,z:POIS.friche.z,nom:'Monster Truck',desc:'Trouvé dans la friche : il t’attend à chaque partie'}); f(l); }
+}
+/* pictogramme du sprite en chemins de canevas (Path2D), en cache ; null sans le sprite (emoji de secours) */
+const PICTOS={};
+function pictoChemins(id){ if(id in PICTOS) return PICTOS[id]; let L=null;
+  try{ const s=ICONES_SVG&&typeof Path2D!=='undefined'&&document.getElementById(id); if(s&&s.querySelectorAll){ L=[]; for(const p of s.querySelectorAll('path')) L.push(new Path2D(p.getAttribute('d'))); if(!L.length) L=null; } }catch(e){ L=null; }
+  return PICTOS[id]=L; }
+const lumCoul=(h)=>{ const n=parseInt(h.slice(1),16); return ((n>>16)&255)*0.3+((n>>8)&255)*0.59+(n&255)*0.11; };
+/* la pastille d'une catégorie, dessinée une fois par taille dans un petit canevas (r : rayon en unités du canevas cible, k : pixels
+   par unité) puis posée par drawImage — sur la minimap, redessinée une image sur deux, jamais de chemin ni d'ombre recalculés */
+const PASTILLES={};
+function pastilleImg(cat,r,k){ const cle=cat+'|'+r+'|'+k; let c=PASTILLES[cle]; if(c) return c;
+  const C=CATS_LIEUX[cat], m=Math.max(1.5,r*0.22), cote=Math.ceil((2*r+2*m)*k); c=document.createElement('canvas'); c.width=c.height=cote; const g=c.getContext('2d');
+  if(g){ g.scale(k,k); const o=r+m;
+    g.fillStyle='rgba(0,0,0,0.38)'; g.beginPath(); g.arc(o,o+r*0.1,r+m*0.7,0,7); g.fill(); /* ombre portée, sans flou */
+    g.fillStyle=C.coul; g.beginPath(); g.arc(o,o,r,0,7); g.fill();
+    g.lineWidth=Math.max(0.8,r*0.15); g.strokeStyle=C.anneau||'#0b0c10'; g.beginPath(); g.arc(o,o,r-g.lineWidth/2,0,7); g.stroke();
+    const P=pictoChemins(C.ico), s=r*1.24, enc=C.picto||(lumCoul(C.coul)>165?'#15161a':'#ffffff');
+    if(P){ g.save(); g.translate(o-s/2,o-s/2); g.scale(s/24,s/24); g.fillStyle=enc; for(const p of P) g.fill(p); g.restore(); }
+    else dessinerIconePOI(g,C.em,o,o,r*1.1,enc); }
+  return PASTILLES[cle]=c; }
+function dessinerPastille(ctx,x,y,r,cat,k,ech){ const c=pastilleImg(cat,r,k), w=c.width/k*(ech||1); ctx.drawImage(c,x-w/2,y-w/2,w,w); }
+/* zones touchables de la dernière image d'une carte (réutilisées : aucune allocation) */
+function zonesTouche(n){ return {n:0,x:new Float32Array(n),y:new Float32Array(n),r:new Float32Array(n),l:new Array(n)}; }
+function zoneAjouter(Z,x,y,r,l){ if(Z.n>=Z.l.length) return; Z.x[Z.n]=x; Z.y[Z.n]=y; Z.r[Z.n]=r; Z.l[Z.n]=l; Z.n++; }
+function zoneTouchee(Z,x,y,marge){ let best=null, bd=1e9; for(let i=Z.n-1;i>=0;i--){ const d=Math.hypot(Z.x[i]-x,Z.y[i]-y); if(d<=Z.r[i]+marge&&d<bd-0.5){ bd=d; best=Z.l[i]; } } return best; }
+// l'ancienne liste des commerces (encore lue par les anciens marqueurs de mission) : les lieux des catégories marchandes
+function listeCommerces(){ return lieuxCarte().filter((l)=>l.cat==='armurerie'||l.cat==='police'||l.cat==='garage'||l.cat==='resto'&&!l.petit); }
 // Los Reyes Hills sur la carte : la colline ombrée selon la hauteur, les routes en lacets
 function dessinerHillsCarte(g){
   const H=HILLS;
@@ -44344,7 +44502,11 @@ el('penderieList').addEventListener('pointerdown',e=>{
 // centre de vue (recentré sur le joueur à chaque ouverture, voir miniWrap),
 // filtres d'affichage — demandé explicitement (« plus de zoom, sélectionner
 // et désélectionner les éléments »).
-const MAPUI={zoom:1,panX:0,panZ:0,filtres:{ennemis:true,vehicules:true,commerces:true,batiments:true,activites:true}};
+const MAPUI={zoom:1,panX:0,panZ:0,filtres:{ennemis:true,vehicules:true},hits:zonesTouche(500),bulle:null};
+for(const f of FILTRES_LIEUX) MAPUI.filtres[f]=true; /* retours du 20 octobre, 2.4 : un filtre par catégorie de lieu */
+/* la grande carte en pleine définition (avant : 336 px étirés, flous sur iPhone) ; tout est dessiné en coordonnées 336 */
+const CARTE_K=Math.min(3,Math.max(1,Math.round(window.devicePixelRatio||1)));
+{ const cv=el('carteCv'); if(cv){ cv.width=cv.height=336*CARTE_K; } }
 // Fenêtre visible actuelle, en unités mm-logiques (0..192, voir mmX/mmZ) —
 // recalculée à chaque dessin. Le clamp garantit qu'à zoom=1 toute la ville
 // est visible quel que soit panX/panZ (ils n'ont alors aucun effet), et
@@ -44389,6 +44551,7 @@ function dessinerNomsQuartiers(g){
 }
 function drawCarte(){
   const g=el('carteCv').getContext('2d');
+  g.setTransform(CARTE_K,0,0,CARTE_K,0,0);
   g.imageSmoothingEnabled=true;
   g.clearRect(0,0,336,336);
   const {mcx,mcz,demiVisible}=mapVue();
@@ -44414,45 +44577,15 @@ function drawCarte(){
     g.fillStyle='#ffd23f'; g.save(); g.translate(p.x,p.z); g.rotate(Math.PI/4);
     g.fillRect(-5,-5,10,10); g.restore();
   }
-  // Commerces/POI (armurerie, police, garage, fast-foods, marina) + aéro-club
-  // à part (badge spécial, avion qui pulse tant qu'il n'a jamais été piloté).
-  if(MAPUI.filtres.commerces){
-    for(const c of listeCommerces()){
-      if(c.id==='aerodrome') continue;
-      const p=carteProj(c.x,c.z); dessinerBadge(g,p.x,p.z,9,c.c,c.txt,11);
-    }
-    if(POIS.aerodrome){
-      const p=carteProj(POIS.aerodrome.x,POIS.aerodrome.z);
-      if(!META.defis.voltigePilote){
-        const pulse=0.75+Math.sin(ETAT.runT*3)*0.25;
-        dessinerBadge(g,p.x,p.z,13*pulse,'#f2c94c','✈️',14*pulse);
-      } else dessinerBadge(g,p.x,p.z,9,'#f2c94c','✈️',11);
-    }
-  }
-  // Bâtiments visitables (les 26 salles) + découvertes uniques (Monster
-  // Truck, jetpack) — même filtre, ce sont tous des « lieux à visiter ».
-  if(MAPUI.filtres.batiments){
-    for(const pt of PORTES){
-      const D=INTDEFS[pt.id]; if(!D) continue;
-      const p=carteProj(pt.x,pt.z);
-      dessinerBadge(g,p.x,p.z,9,'#ffd23f',D.ico,11);
-    }
-    // Monster Truck : un lieu, jamais un butin — n'apparaît qu'une fois
-    // découvert (voir majCamp), puis y reste en permanence, y compris après
-    // game over.
-    if(META.monstertruckTrouve&&POIS.friche){
-      const p=carteProj(POIS.friche.x,POIS.friche.z); dessinerBadge(g,p.x,p.z,9,'#ff3b1a','🚛',11);
-    }
-    if(META.jetpackTrouve&&POIS.toitH&&POIS.toitH.jetpack){
-      const p=carteProj(POIS.toitH.jetpack.x,POIS.toitH.jetpack.z); dessinerBadge(g,p.x,p.z,9,'#35c8ff','🚀',11);
-    }
-  }
-  for(const q of reperesActifs()){ const p=carteProj(q.x,q.z); dessinerBadge(g,p.x,p.z,9,q.coul,q.ico,11); } // repérés à la longue-vue du penthouse
-  if(TRESOR_CARTE.actif&&!TRESOR_CARTE.trouve&&TRESOR_CARTE.vague===WAVES.n){ const p=carteProj(TRESOR_CARTE.zx,TRESOR_CARTE.zz); dessinerBadge(g,p.x,p.z,10,'#c8963a','🗺️',12); } // la carte au trésor de Lou
-  // activités en plein air (courses, sports, sauts, ball-trap, héliport, tyrolienne…), sous les lieux
   if(CANAUX.levis&&CANAUX.levis.length) dessinerLevisCarte(g,(x,z)=>{ const p=carteProj(x,z); return {x:p.x,y:p.z}; },(q,m)=>q.x>-m&&q.x<336+m&&q.y>-m&&q.y<336+m); /* V3 : vert fermé, rouge levé */
-  if(MAPUI.filtres.activites){ if(!MAPUI.activites) MAPUI.activites=pointsActivites();
-    for(const a of MAPUI.activites){ const p=carteProj(a.x,a.z); if(p.x<-10||p.x>346||p.z<-10||p.z>346) continue; dessinerBadge(g,p.x,p.z,8,a.coul||'#c8901a',a.ico,10); } }
+  // les lieux (retours du 20 octobre, lot 2) : la pastille de leur catégorie, filtrée par catégorie ; les stands à partir du zoom ×2 ;
+  // l'aéro-club pulse tant que l'avion de voltige n'a jamais été piloté. Chaque pastille dessinée est une zone qu'on touche.
+  const Z=MAPUI.hits; Z.n=0; const rB=Math.min(10,7.5+0.8*(MAPUI.zoom-1)), voirPetits=MAPUI.zoom>=2;
+  const poser=(l,ech)=>{ const cat=catLieu(l), C=CATS_LIEUX[cat]; if(!MAPUI.filtres[C.filtre||cat]||(l.petit&&!voirPetits)) return;
+    const p=carteProj(l.x,l.z); if(p.x<-12||p.x>348||p.z<-12||p.z>348) return; dessinerPastille(g,p.x,p.z,rB,cat,CARTE_K,ech); zoneAjouter(Z,p.x,p.z,rB*(ech||1),l); };
+  for(const l of lieuxCarte()) poser(l,l.src===POIS.aerodrome&&!META.defis.voltigePilote?1.25+Math.sin(ETAT.runT*3)*0.2:1);
+  lieuxDuMoment((l)=>poser(l,1));
+  if(MAPUI.bulle){ const p=carteProj(MAPUI.bulle.x,MAPUI.bulle.z); g.lineWidth=2.6; g.strokeStyle='#ffffff'; g.beginPath(); g.arc(p.x,p.z,rB+4.5,0,7); g.stroke(); g.lineWidth=1.2; g.strokeStyle='#0b0c10'; g.beginPath(); g.arc(p.x,p.z,rB+6.2,0,7); g.stroke(); } /* le lieu sélectionné */
   // point d'arrivée choisi par le joueur
   if(WAYP.actif){
     const w=carteProj(WAYP.x,WAYP.z), wx=w.x, wz=w.z;
@@ -44473,15 +44606,31 @@ function drawCarte(){
     g.strokeStyle='#ffd23f'; g.lineWidth=2.4;
     g.beginPath(); g.arc(ppc.x,ppc.z,12,0,7); g.stroke();
     g.fillStyle='#15161a'; g.beginPath(); g.arc(ppc.x,ppc.z,3,0,7); g.fill();
-  } else {
-    g.fillStyle='#35e0ff'; g.beginPath(); g.arc(ppc.x,ppc.z,6,0,7); g.fill();
-    g.strokeStyle='#35e0ff'; g.lineWidth=2;
-    g.beginPath(); g.arc(ppc.x,ppc.z,9,0,7); g.stroke();
-    g.save(); g.translate(ppc.x,ppc.z); g.rotate(P.ang);
-    g.fillStyle='#35e0ff'; g.beginPath(); g.moveTo(0,-14); g.lineTo(-5,-7); g.lineTo(5,-7); g.closePath(); g.fill();
+  } else { /* retours du 20 octobre, 2.2 : la flèche du radar, orientée comme lui (la carte est nord en haut) — avant, un triangle
+    tourné de P.ang, qui pointait à l'opposé dès qu'on allait vers le nord ou le sud */
+    g.save(); g.translate(ppc.x,ppc.z); g.rotate(Math.atan2(Math.sin(P.ang),-Math.cos(P.ang)));
+    g.fillStyle='rgba(53,224,255,0.22)'; g.beginPath(); g.arc(0,0,15,0,7); g.fill();
+    g.shadowColor='rgba(0,0,0,0.6)'; g.shadowBlur=4; g.fillStyle='#f2f4f8'; g.beginPath(); g.moveTo(0,-13); g.lineTo(9.5,9.5); g.lineTo(0,5); g.lineTo(-9.5,9.5); g.closePath(); g.fill();
+    g.shadowBlur=0; g.fillStyle='#35e0ff'; g.beginPath(); g.moveTo(0,-9); g.lineTo(6,6.4); g.lineTo(0,3.2); g.lineTo(-6,6.4); g.closePath(); g.fill();
     g.restore();
   }
+  if(MAPUI.bulle) placerBulle();
 }
+/* la bulle d'un lieu touché (retours du 20 octobre, 2.3) : nom, ce que c'est, prix ou état, distance, « Y aller » */
+function ouvrirBulle(l){ const b=el('carteBulle'); if(!b||!l) return; MAPUI.bulle=l; const cat=catLieu(l), C=CATS_LIEUX[cat], pc=posCarte(), d=Math.round(Math.hypot(l.x-pc.x,l.z-pc.z));
+  const etat=l.info?l.info():'', enc=C.picto||(lumCoul(C.coul)>165?'#15161a':'#fff');
+  b.innerHTML='<div class="bTete"><span class="pastF" style="background:'+C.coul+';color:'+enc+'">'+ico(C.ico,C.em)+'</span><div><div class="bNom"></div><div class="bCat"></div></div></div>'+
+    '<div class="bDesc"></div>'+(etat?'<div class="bEtat"></div>':'')+'<div class="bPied"><span class="bDist"></span><button class="bAller" id="bulleAller">Y ALLER</button></div>';
+  b.querySelector('.bNom').textContent=l.nom; b.querySelector('.bCat').textContent=C.titre; b.querySelector('.bDesc').textContent=l.desc||C.desc; if(etat) b.querySelector('.bEtat').textContent=etat;
+  b.querySelector('.bDist').textContent=d<8?'Tu y es':'à '+(d>=1000?(d/1000).toFixed(1).replace('.',',')+' km':d+' m');
+  el('bulleAller').addEventListener('pointerdown',(e)=>{ e.preventDefault(); e.stopPropagation(); allerVers(l); });
+  b.style.display='block'; if(ETAT.mode==='carte') drawCarte(); else placerBulle(); }
+function placerBulle(){ const b=el('carteBulle'), l=MAPUI.bulle; if(!b||!l) return; const cv=el('carteCv'), k=(cv.clientWidth||336)/336, p=carteProj(l.x,l.z), W=cv.clientWidth||336, H=cv.clientHeight||336;
+  const bw=b.offsetWidth||228, bh=b.offsetHeight||120, x=p.x*k, y=p.z*k;
+  b.style.left=Math.round(clamp(x-bw/2,4,W-bw-4))+'px'; b.style.top=Math.round(y<H*0.5?Math.min(y+16,H-bh-4):Math.max(4,y-bh-16))+'px'; }
+function fermerBulle(){ const avait=!!MAPUI.bulle; MAPUI.bulle=null; const b=el('carteBulle'); if(b) b.style.display='none'; if(avait&&ETAT.mode==='carte') drawCarte(); }
+function allerVers(l){ WAYP.actif=true; WAYP.x=l.x; WAYP.z=l.z; WAYP.nom=l.nom; const wi=el('waypInfo'); if(wi) wi.textContent='🎯 '+l.nom+' — appuie de nouveau pour effacer';
+  fermerBulle(); SFX.ui(); toast('🎯 Destination : '+l.nom); ecran(null); ETAT.mode='jeu'; }
 /* --- carte cliquable : on pose un point d'arrivée, le GPS s'y branche --- */
 function carteVersMonde(px,py){
   const cv=el('carteCv');
@@ -44504,6 +44653,7 @@ function poserWaypoint(px,py){
     ['canard','Île au Canard'],['yacht','Yacht']];
   for(const [key,nom] of nomsPOI){ const p=POIS[key]; if(p) cand.push({x:p.x,z:p.z,nom}); }
   if(POIS.fastfoods) for(const f of POIS.fastfoods) cand.push({x:f.x,z:f.z,nom:f.nom||'Fast-food'});
+  for(const l of lieuxCarte()) cand.push({x:l.x,z:l.z,nom:l.nom}); /* tous les lieux de la carte */
   for(const c of cand){ const d=dist2(c.x,c.z,w.x,w.z); if(d<bd){bd=d;best=c;} }
   if(best&&bd<900){ WAYP.x=best.x; WAYP.z=best.z; WAYP.nom=best.nom; }
   else { WAYP.x=w.x; WAYP.z=w.z; WAYP.nom='Destination'; }
@@ -44556,9 +44706,12 @@ el('carteCv').addEventListener('pointerup',e=>{
   const dragged=carteDrag.dragged; carteDrag=null;
   if(dragged) return; // vue déplacée : pas de destination posée
   try{
+  { const r=el('carteCv').getBoundingClientRect(), l=zoneTouchee(MAPUI.hits,(e.clientX-r.left)/r.width*336,(e.clientY-r.top)/r.height*336,8); /* une pastille touchée : sa bulle */
+    if(l){ if(MAPUI.bulle===l) fermerBulle(); else ouvrirBulle(l); SFX.ui(); return; }
+    if(MAPUI.bulle){ fermerBulle(); return; } }
   const w=carteVersMonde(e.clientX,e.clientY);
   if(WAYP.actif&&dist2(w.x,w.z,WAYP.x,WAYP.z)<400){   // re-clic sur le point : on l'efface
-    WAYP.actif=false; const wi2=el('waypInfo'); if(wi2) wi2.textContent='Touche la carte pour définir une destination';
+    WAYP.actif=false; const wi2=el('waypInfo'); if(wi2) wi2.textContent='Touche une pastille pour la voir · ailleurs pour poser une destination';
     drawCarte(); SFX.ui(); return;
   }
   poserWaypoint(e.clientX,e.clientY);
@@ -44567,25 +44720,31 @@ el('carteCv').addEventListener('pointerup',e=>{
 function carteZoomSet(z){ MAPUI.zoom=clamp(z,1,4); drawCarte(); }
 el('carteZoomIn').addEventListener('pointerdown',e=>{ e.preventDefault(); carteZoomSet(MAPUI.zoom*1.5); SFX.ui(); });
 el('carteZoomOut').addEventListener('pointerdown',e=>{ e.preventDefault(); carteZoomSet(MAPUI.zoom/1.5); SFX.ui(); });
-for(const btn of document.querySelectorAll('#carteFiltres .chipF')){
-  btn.addEventListener('pointerdown',e=>{
-    e.preventDefault();
-    const f=btn.dataset.f;
-    MAPUI.filtres[f]=!MAPUI.filtres[f];
-    btn.classList.toggle('on',MAPUI.filtres[f]);
-    drawCarte(); SFX.ui();
-  });
-}
+{ const box=el('carteFiltres'), tous=()=>{ for(const k in MAPUI.filtres) if(!MAPUI.filtres[k]) return false; return true; };
+  const chip=(f,html)=>{ const b=document.createElement('button'); b.className='chipF on'; b.dataset.f=f; b.innerHTML=html; box.appendChild(b); };
+  if(box){ chip('tout','Tout'); chip('ennemis',ico('ico-carte-ennemis','👥')+' Ennemis'); chip('vehicules',ico('ico-carte-vehicules','🚗')+' Véhicules');
+    for(const f of FILTRES_LIEUX){ const C=CATS_LIEUX[f]; chip(f,'<span class="pastF" style="background:'+C.coul+';color:'+(C.picto||(lumCoul(C.coul)>165?'#15161a':'#fff'))+'">'+ico(C.ico,C.em)+'</span>'+C.nom); } }
+  for(const btn of document.querySelectorAll('#carteFiltres .chipF')){
+    btn.addEventListener('pointerdown',e=>{
+      e.preventDefault();
+      const f=btn.dataset.f;
+      if(f==='tout'){ const t=tous(); for(const k in MAPUI.filtres) MAPUI.filtres[k]=!t; } else MAPUI.filtres[f]=!MAPUI.filtres[f];
+      for(const b of document.querySelectorAll('#carteFiltres .chipF')) b.classList.toggle('on',b.dataset.f==='tout'?tous():!!MAPUI.filtres[b.dataset.f]);
+      if(MAPUI.bulle){ const C=CATS_LIEUX[catLieu(MAPUI.bulle)]; if(!MAPUI.filtres[C.filtre||catLieu(MAPUI.bulle)]) fermerBulle(); }
+      drawCarte(); SFX.ui();
+    });
+  } }
 // Minimap : PINCER zoome/dézoome (demandé explicitement), un simple TOUCHER
 // ouvre la grande carte — au relâcher, pour ne jamais confondre les deux.
 const MINI_ZOOM_MAX=4, MINI_ZOOM_MIN=0.35; // radar : affiché à RADAR.base × MINI.zoom (18 octobre)
-const MINI={zoom:1,doigts:new Map(),d0:1,z0:1,pince:false,bouge:false,x0:0,y0:0};
-function ouvrirCarte(){
+const MINI={zoom:1,doigts:new Map(),d0:1,z0:1,pince:false,bouge:false,x0:0,y0:0,hits:zonesTouche(200)};
+function ouvrirCarte(lieu){
   // Recentrée sur le joueur, au zoom de la minimap — les filtres, eux,
   // restent tels que le joueur les a laissés (préférence d'affichage).
   const pc0=posCarte();
-  MAPUI.zoom=clamp(MINI.zoom,1,4); MAPUI.panX=pc0.x; MAPUI.panZ=pc0.z;
-  ETAT.mode='carte'; drawCarte(); ecran('carte'); SFX.ui();
+  MAPUI.zoom=clamp(MINI.zoom,1,4); MAPUI.panX=pc0.x; MAPUI.panZ=pc0.z; fermerBulle();
+  if(lieu){ MAPUI.zoom=Math.max(MAPUI.zoom,2); MAPUI.panX=lieu.x; MAPUI.panZ=lieu.z; } /* une pastille touchée sur la minimap : la carte s'ouvre sur elle, sa bulle ouverte */
+  ETAT.mode='carte'; drawCarte(); ecran('carte'); if(lieu) ouvrirBulle(lieu); SFX.ui();
 }
 {
   const mw=el('miniWrap'); mw.style.touchAction='none';
@@ -44609,11 +44768,11 @@ function ouvrirCarte(){
     if(MINI.doigts.size>0) return;
     const toucher=e.type==='pointerup'&&!MINI.pince&&!MINI.bouge;
     MINI.pince=false;
-    if(toucher&&ETAT.mode==='jeu') ouvrirCarte();
+    if(toucher&&ETAT.mode==='jeu'){ const r=mw.getBoundingClientRect(); ouvrirCarte(zoneTouchee(MINI.hits,(e.clientX-r.left)/r.width*192,(e.clientY-r.top)/r.height*192,6)); }
   };
   mw.addEventListener('pointerup',fin); mw.addEventListener('pointercancel',fin);
 }
-el('carteClose').addEventListener('pointerdown',()=>{ecran(null);ETAT.mode='jeu';});
+el('carteClose').addEventListener('pointerdown',()=>{fermerBulle();ecran(null);ETAT.mode='jeu';});
 el('btnAppelTaxi').addEventListener('pointerdown',()=>{
   if(!WAYP.actif){ SFX.refus(); toast('Touche d’abord la carte pour choisir une destination'); return; }
   if(META.argent<50){ SFX.refus(); toast('Il te faut 50 $'); return; }
@@ -48472,21 +48631,18 @@ function majMinimap(){
   mmCtx.save(); mmCtx.translate(96,96); mmCtx.rotate(th); mmCtx.scale(zm,zm); mmCtx.translate(-mmX(pc.x),-mmZ(pc.z)); mmCtx.imageSmoothingEnabled=true; mmCtx.drawImage(mmStatic,0,0,192,192); mmCtx.restore();
   if(VUE.k>0.5&&!pc.dedans){ const gr=mmCtx.createRadialGradient(96,96,6,96,96,78); gr.addColorStop(0,'rgba(255,255,255,0.26)'); gr.addColorStop(1,'rgba(255,255,255,0)');
     mmCtx.fillStyle=gr; mmCtx.beginPath(); mmCtx.moveTo(96,96); mmCtx.arc(96,96,78,-Math.PI/2-0.6,-Math.PI/2+0.6); mmCtx.closePath(); mmCtx.fill(); } // cône de vue
-  // portes des bâtiments visitables : petits carrés jaunes cernés (badges complets sur la grande carte)
-  mmCtx.lineWidth=1.2; mmCtx.strokeStyle='#15161a';
-  for(const p of PORTES){ const q=proj(p.x,p.z); if(!dedans(q,3)) continue; mmCtx.fillStyle='#ffd23f'; mmCtx.fillRect(q.x-2.6,q.y-2.6,5.2,5.2); mmCtx.strokeRect(q.x-2.6,q.y-2.6,5.2,5.2); }
-  for(const c of listeCommerces()){ const q=proj(c.x,c.z); if(dedans(q,4)) dessinerBadge(mmCtx,q.x,q.y,5.2,c.c,c.txt,8); }
+  // les lieux (retours du 20 octobre, lot 2) : les mêmes pastilles que la grande carte, avec les mêmes filtres ; les stands dès qu'on
+  // zoome (pincement) ; chaque pastille est une zone qu'on touche (la carte s'ouvre sur elle)
+  const Z=MINI.hits; Z.n=0; const voirPetits=MINI.zoom>=1.5;
+  const poserM=(l)=>{ const cat=catLieu(l), C=CATS_LIEUX[cat]; if(!MAPUI.filtres[C.filtre||cat]||(l.petit&&!voirPetits)) return; const q=proj(l.x,l.z); if(!dedans(q,5)) return;
+    dessinerPastille(mmCtx,q.x,q.y,7.5,cat,MM_K); zoneAjouter(Z,q.x,q.y,7.5,l); };
+  for(const l of lieuxCarte()) poserM(l);
+  lieuxDuMoment(poserM);
   for(const p of pickups){ const q=proj(p.x,p.z); if(!dedans(q)) continue; mmCtx.fillStyle='#58ff7a'; mmCtx.beginPath(); mmCtx.arc(q.x,q.y,2,0,7); mmCtx.fill(); }
   for(const e of ennemis){ if(e.mort) continue; const q=proj(e.x,e.z); if(!dedans(q)) continue; const r=e.boss?5:2.8;
     mmCtx.fillStyle=e.fac==='police'?'#4a9aff':(e.fac==='frelons'?'#e6a41f':'#ff4a4a'); mmCtx.beginPath(); mmCtx.arc(q.x,q.y,r,0,7); mmCtx.fill(); mmCtx.lineWidth=1; mmCtx.strokeStyle='#0b0c10'; mmCtx.stroke(); }
   if(SURV.fin>ETAT.runT) dessinerSurveillance(mmCtx,proj,R); /* la salle de surveillance de la villa Miami */
   if(CANAUX.levis&&CANAUX.levis.length) dessinerLevisCarte(mmCtx,proj,dedans); /* V3 : les ponts-levis, vert fermé, rouge ouvert */
-  const badge=(x,z,coul,ico)=>{ const q=proj(x,z); if(dedans(q,4)) dessinerBadge(mmCtx,q.x,q.y,5.2,coul,ico,8); };
-  if(META.monstertruckTrouve&&POIS.friche) badge(POIS.friche.x,POIS.friche.z,'#ff3b1a','🚛');
-  if(POIS.skateXXL) badge(POIS.skateXXL.x,POIS.skateXXL.z,'#ff3bd0','🛹'); // Reyes Skatepark (désert)
-  if(META.jetpackTrouve&&POIS.toitH&&POIS.toitH.jetpack) badge(POIS.toitH.jetpack.x,POIS.toitH.jetpack.z,'#35c8ff','🚀');
-  for(const q of reperesActifs()) badge(q.x,q.z,q.coul,q.ico); // repérés à la longue-vue du penthouse (jusqu'à la vague suivante)
-  if(TRESOR_CARTE.actif&&!TRESOR_CARTE.trouve&&TRESOR_CARTE.vague===WAVES.n) badge(TRESOR_CARTE.zx,TRESOR_CARTE.zz,'#c8963a','🗺️'); // la carte au trésor de Lou : la zone, jamais la croix
   // Le Micro Vintage : les caches non fouillées de la salle (40 m), à leur offset réel autour de la porte
   if(INT.actif&&aCurio('micro')) for(const f of INT.actif.fouilles){
     if(f.prisVague===WAVES.n) continue;
@@ -48524,7 +48680,7 @@ function majMinimap(){
 ===================================================================== */
 // étoiles du HUD
 for(let i=0;i<6;i++){const s=document.createElement('span');s.textContent=i<5?'★':'✪';el('stars').appendChild(s);}
-construireVille();
+construireVille(); LIEUX.pret=true;
 recalcJoueur(); construireJoueur();
 P.x=POIS.place.x; P.z=POIS.place.z+8;
 { const bp=el('mPlay'); bp.disabled=false; bp.textContent='▶ Jouer'; } /* la ville est construite : le menu, peint pendant la construction, disait « Chargement de Los Reyes… » */

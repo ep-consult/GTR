@@ -17,9 +17,9 @@ const svg = fs.readFileSync(path.join(RACINE, 'icones.svg'), 'utf8');
 const inv = lireInventaire();
 
 /* ---------------- contrôles statiques ---------------- */
-if (inv.length === 46) ok('inventaire.csv : 46 IDs'); else ko('inventaire.csv : ' + inv.length + ' IDs');
+if (inv.length >= 46) ok('inventaire.csv : ' + inv.length + ' IDs'); else ko('inventaire.csv : ' + inv.length + ' IDs');
 const ids = [...svg.matchAll(/<symbol id="([^"]+)"/g)].map((m) => m[1]);
-if (ids.length === 46) ok('46 éléments <symbol>'); else ko(ids.length + ' éléments <symbol>');
+if (ids.length === inv.length) ok(ids.length + ' éléments <symbol>'); else ko(ids.length + ' éléments <symbol>');
 if (new Set(ids).size === ids.length) ok('aucun ID dupliqué'); else ko('IDs dupliqués');
 const manquants = inv.map((l) => l.id).filter((id) => !ids.includes(id)), enTrop = ids.filter((id) => !inv.some((l) => l.id === id));
 if (!manquants.length && !enTrop.length) ok('IDs identiques à inventaire.csv (casse comprise, ex. ico-arme-bouleC)'); else ko('IDs : manquants ' + manquants + ' / en trop ' + enTrop);
@@ -70,7 +70,7 @@ ok('taille des tracés : ' + Math.min(...nbs) + ' à ' + Math.max(...nbs) + ' no
   const embarque = html.slice(html.indexOf('<svg xmlns'), html.indexOf('</svg>', html.indexOf('<svg xmlns')));
   const norm = (t) => [...t.matchAll(/<symbol[\s\S]*?<\/symbol>/g)].map((m) => m[0].replace(/\s+/g, ' ').replace(/> </g, '><').trim());
   const a = norm(svg), b = norm(embarque);
-  if (a.length === 46 && JSON.stringify(a) === JSON.stringify(b)) ok('apercu.html : copie embarquée des 46 symboles identique à icones.svg');
+  if (a.length === inv.length && JSON.stringify(a) === JSON.stringify(b)) ok('apercu.html : copie embarquée des ' + a.length + ' symboles identique à icones.svg');
   else ko('apercu.html : copie embarquée différente du sprite (' + b.length + ' symboles)');
 
   // 2) 126 rendus aux dimensions exactes, chacun non vide
@@ -78,7 +78,7 @@ ok('taille des tracés : ' + Math.min(...nbs) + ' à ' + Math.max(...nbs) + ' no
     const r = s.getBoundingClientRect(); return { id: s.closest('.carte').dataset.id, w: r.width, h: r.height, attr: +s.getAttribute('width') };
   }));
   const tailleKo = rendus.filter((r) => r.w !== r.attr || r.h !== r.attr);
-  if (rendus.length === 138) ok('138 rendus dans la galerie (46 × 24/48/64 px)'); else ko(rendus.length + ' rendus dans la galerie');
+  if (rendus.length === inv.length * 3) ok(rendus.length + ' rendus dans la galerie (' + inv.length + ' × 24/48/64 px)'); else ko(rendus.length + ' rendus dans la galerie');
   if (!tailleKo.length) ok('dimensions effectives exactes : 24 × 24, 48 × 48 et 64 × 64 px (aucun zoom CSS)'); else ko('dimensions inexactes : ' + tailleKo.slice(0, 5).map((r) => r.id + ' ' + r.w).join(', '));
 
   // 3) chaque icône : boîte dans le viewBox, marges, rendu non vide, couleur héritée, trous transparents
@@ -131,7 +131,7 @@ ok('taille des tracés : ' + Math.min(...nbs) + ' à ' + Math.max(...nbs) + ' no
   if (!horsCadre.length) ok('géométrie entièrement dans le viewBox 0 0 24 24 (aucun clipping)'); else ko('hors du viewBox : ' + horsCadre.join(', '));
   marges.sort((u, v) => u[0] - v[0]);
   ok('marge minimale ' + marges[0][0].toFixed(2) + ' u (' + marges[0][1] + '), médiane ' + marges[21][0].toFixed(2) + ' u — cible 1 u, silhouettes longues calées sur leur plus grande dimension');
-  if (!vides.length) ok('les 46 icônes produisent un rendu non vide à 24, 48 et 64 px'); else ko('rendu vide : ' + vides.join(', '));
+  if (!vides.length) ok('les ' + inv.length + ' icônes produisent un rendu non vide à 24, 48 et 64 px'); else ko('rendu vide : ' + vides.join(', '));
   if (!couleur.length) ok('currentColor hérité partout : seules la couleur CSS et le fond apparaissent (aucune couleur codée en dur, y compris les tracés fins)'); else ko('couleur non héritée : ' + couleur.join(', '));
   if (!trous.length) ok('évidements transparents : sur fond clair comme sombre, chaque pixel vide prend la couleur du fond'); else ko('évidements non transparents : ' + trous.join(', '));
 

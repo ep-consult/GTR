@@ -7289,6 +7289,7 @@ async function main() {
     {
       const pz = await page.evaluate(() => {
         startRun(); ETAT.mode = 'jeu'; MINI.zoom = 1; WAYP.actif = false;
+        for (const f of FILTRES_LIEUX) MAPUI.filtres[f] = false; /* retours du 20 octobre, lot 2 : toucher une pastille ouvre sa bulle ; ici, les gestes seuls */
         const ev = (cible, type, id, x, y) => cible.dispatchEvent(new PointerEvent(type, { bubbles: true, pointerId: id, clientX: x, clientY: y, isPrimary: id === 1 }));
         const mw = document.getElementById('miniWrap'), r = mw.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
         const out = {};
@@ -7315,7 +7316,7 @@ async function main() {
         // un toucher simple pose toujours la destination
         ev(cv, 'pointerdown', 1, mx + 30, my + 30); ev(cv, 'pointerup', 1, mx + 30, my + 30);
         out.waypApresToucher = WAYP.actif;
-        WAYP.actif = false; ecran(null); ETAT.mode = 'jeu'; MINI.zoom = 1;
+        WAYP.actif = false; ecran(null); ETAT.mode = 'jeu'; MINI.zoom = 1; for (const f of FILTRES_LIEUX) MAPUI.filtres[f] = true;
         return out;
       });
       if (!(pz.zoomApres > 1.5) || pz.modeApresPince !== 'jeu') fail('Minimap : le pincement ne zoome pas ou ouvre la carte (' + JSON.stringify(pz) + ')');
@@ -12477,7 +12478,7 @@ async function main() {
         const L = pointsActivites(), icos = new Set(L.map((a) => a.ico));
         if (DECOR_V2) for (const [ic, nom] of [['🎖️', 'parcours de Fort Reyes'], ['🏔️', 'BIG JUMP'], ['🚁', 'héliport du manoir'], ['🎯', 'ball-trap'], ['⚽', 'stade'], ['🎾', 'complexe sportif']]) if (!icos.has(ic)) ko.push('pas de pastille : ' + nom);
         if (BALISES.length < L.length) ko.push(BALISES.length + ' balises pour ' + L.length + ' activités');
-        if (MAPUI.filtres.activites !== true) ko.push('pas de filtre Activités'); else { try { drawCarte(); } catch (e) { ko.push('drawCarte : ' + e.message); } }
+        if (MAPUI.filtres.activite !== true) ko.push('pas de filtre Activités'); else { try { drawCarte(); } catch (e) { ko.push('drawCarte : ' + e.message); } }
         info.push(L.length + ' activités sur la carte et en balises, fond ' + mmStatic.width + ' px');
         if (!noms) ko.push('catalogue.html illisible'); else { const manque = noms.filter((n) => { try { return eval('typeof ' + n) === 'undefined'; } catch (e) { return true; } }); if (manque.length) ko.push('le catalogue lit des noms absents du jeu : ' + manque.join(', ')); else info.push('catalogue : les ' + noms.length + ' noms qu’il lit existent'); }
         return { ko, info };
@@ -12564,8 +12565,8 @@ async function main() {
       const r = await page.evaluate(() => {
         const ko = [], info = [];
         if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu';
-        const marques = listeCommerces().filter((c) => c.txt === 'A');
-        if (marques.length < 2) ko.push(marques.length + ' marqueur(s) « A » sur la carte');
+        const marques = lieuxCarte().filter((c) => c.cat === 'armurerie'); /* retours du 20 octobre, lot 2 : la pastille des armureries */
+        if (marques.length < 2) ko.push(marques.length + ' pastille(s) d’armurerie sur la carte');
         for (const m of marques) {
           P.x = m.x; P.z = m.z + 1; P.y = 0; majAction();
           const b = document.getElementById('btnAction'), lab = b.textContent;
@@ -17627,6 +17628,112 @@ async function main() {
       });
       if (r.ko.length) fail('Retours 20 oct., 1.3 : ' + r.ko.join(' ; ') + ' [' + r.info.join(' | ') + ']');
       else ok('Retours 20 oct., 1.3 : vue de dessus et vue immersive, au pied et plus loin, rien devant la cabine ; ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
+    // Retours du 20 octobre, lot 2 (demandé : « un seul jeu d'icônes cohérent pour tous les lieux, identique sur la minimap et la
+    // grande carte ; la flèche du joueur cohérente avec le radar ; une bulle quand on touche une icône, avec « Y aller » ; un filtre
+    // par catégorie, rien d'oublié »). Les lieux sont lus aux sources (PORTES, INTDEFS, PLANQUES_DEF, pointsActivites, STANDS,
+    // SURPRISES, TOITS, MONT2.sites, STATIONS_VELO) : chacun a sa pastille, dessinée sur les deux cartes avec le pictogramme de sa
+    // catégorie ; les gestes passent par de vrais événements de pointeur.
+    // -------------------------------------------------------------------
+    console.log('\n--- Retours du 20 octobre, lot 2 : les lieux de la carte, la flèche, la bulle, les filtres ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); META.vue = 'classique'; startRun(); ecran(null); ETAT.mode = 'jeu'; WAYP.actif = false; MISSION.cur = null; MET.ciblePos = null;
+        for (const e of ennemis) e.mort = true;
+        const L = lieuxCarte(), cats = Object.keys(CATS_LIEUX), ev = (cible, type, x, y) => cible.dispatchEvent(new PointerEvent(type, { bubbles: true, pointerId: 1, clientX: x, clientY: y, isPrimary: true }));
+        // 2.1 — chaque catégorie a son pictogramme dans le sprite, et sa pastille
+        for (const k of cats) { const C = CATS_LIEUX[k]; if (!document.getElementById(C.ico)) ko.push('catégorie ' + k + ' : pas de symbole ' + C.ico); if (!pictoChemins(C.ico)) ko.push('catégorie ' + k + ' : pictogramme illisible'); }
+        if (new Set(cats.map((k) => CATS_LIEUX[k].ico)).size !== cats.length) ko.push('deux catégories partagent un pictogramme');
+        for (const l of L) if (!CATS_LIEUX[catLieu(l)]) ko.push('lieu « ' + l.nom + ' » sans catégorie');
+        // l'inventaire, lu aux sources : chaque lieu y a SA pastille, de la bonne catégorie
+        const pres = (x, z, cats2, r0) => L.some((l) => cats2.includes(catLieu(l)) && Math.abs(l.x - x) < (r0 || 17) && Math.abs(l.z - z) < (r0 || 17));
+        const catPorte = (id) => id === 'armurerie' ? ['armurerie'] : id === 'poste' ? ['police'] : (id === 'tuning' || id === 'chantier') ? ['garage'] : ['boutique', 'superette', 'pharma', 'conces'].includes(id) ? ['boutique'] : (id === 'planque' || (INTDEFS[id] && INTDEFS[id].planque)) ? ['planque', 'vente'] : ['salle'];
+        let nP = 0; for (const p of PORTES) if (INTDEFS[p.id]) { nP++; if (!pres(p.x, p.z, catPorte(p.id))) ko.push('porte ' + p.id + ' (' + Math.round(p.x) + ', ' + Math.round(p.z) + ') sans pastille'); }
+        for (const id in INTDEFS) { const D = INTDEFS[id]; if (D.planque) { const pq = PLANQUES.liste.find((q) => q.def.id === D.planque); if (!pq || !pres(pq.x, pq.z, ['planque', 'vente'])) ko.push('salle ' + id + ' (planque) sans pastille'); continue; }
+          const p = porteSalle(id); if (!p) { info.push('salle ' + id + ' sans porte dans cette partie'); continue; } /* une salle cachée (la radio sans le Disque de Platine) n'a ni porte ni pastille */ if (!pres(p.x, p.z, catPorte(id))) ko.push('salle ' + id + ' sans pastille'); }
+        for (const d of PLANQUES_DEF) { const pq = PLANQUES.liste.find((q) => q.def.id === d.id); if (!pq || !pres(pq.x, pq.z, ['planque', 'vente'])) ko.push('planque ' + d.id + ' sans pastille'); }
+        const PA = pointsActivites(); for (const a of PA) if (!pres(a.x, a.z, a.cat === 'planque' ? ['planque', 'vente'] : [a.cat], 17)) ko.push('activité « ' + (a.nom || a.ico) + ' » (' + a.cat + ') sans pastille');
+        for (const a of PA) if (!a.nom) ko.push('activité ' + a.ico + ' sans nom (la bulle n’aurait rien à dire)');
+        for (const s of SURPRISES.liste) if (!pres(s.x, s.z, ['toit'], 4)) ko.push('toit : surprise ' + s.type + ' sans pastille');
+        for (const hh of TOITS.helis) if (!pres(hh.x, hh.z, ['toit'], 4)) ko.push('toit : hélipad sans pastille');
+        for (const s of STANDS) if (!pres(s.x, s.z, ['resto'], 4)) ko.push('stand ' + s.q + ' sans pastille');
+        for (const st of STATIONS_VELO) if (!pres(st.x, st.z, ['velo'], 4)) ko.push('station de vélos sans pastille');
+        if (MONT2.ok) for (const k of ['lac', 'grotte', 'refuge', 'belvedere', 'parapente', 'pont']) { const S = MONT2.sites[k]; if (S && !pres(S.x, S.z, ['nature'], 4)) ko.push('mont : ' + k + ' sans pastille'); }
+        const nArm = L.filter((l) => l.cat === 'armurerie').length; if (nArm !== 2) ko.push(nArm + ' armureries sur la carte (2 attendues)');
+        // le même logo pour toute une catégorie, sur la grande carte ET sur la minimap : on relève l'image posée pour chaque lieu
+        const poses = [], dI = CanvasRenderingContext2D.prototype.drawImage;
+        CanvasRenderingContext2D.prototype.drawImage = function (img, ...a) { if (img && img.width && PASTILLES_INV.has(img)) poses.push({ ctx: this, img }); return dI.call(this, img, ...a); };
+        const PASTILLES_INV = new Map(); for (const k in PASTILLES) PASTILLES_INV.set(PASTILLES[k], k.split('|')[0]);
+        const vus = { carte: {}, mini: {} }, relever = (ou) => { for (const q of poses) { const cat = PASTILLES_INV.get(q.img); (vus[ou][cat] = vus[ou][cat] || new Set()).add(q.img); } poses.length = 0; };
+        // chaque lieu est dessiné et touchable : la grande carte centrée sur lui (×4), puis la minimap, joueur posé à côté (pincée)
+        const manquesC = [], manquesM = [];
+        for (const l of L.concat([])) {
+          MAPUI.zoom = 4; MAPUI.panX = l.x; MAPUI.panZ = l.z; drawCarte(); for (const k in PASTILLES) if (!PASTILLES_INV.has(PASTILLES[k])) PASTILLES_INV.set(PASTILLES[k], k.split('|')[0]); poses.length = 0; drawCarte(); relever('carte');
+          let ok1 = false; for (let i = 0; i < MAPUI.hits.n; i++) if (MAPUI.hits.l[i] === l) ok1 = true; if (!ok1) manquesC.push(l.nom);
+          P.x = l.x + 3; P.z = l.z + 3; MINI.zoom = 2; majMinimap(); for (const k in PASTILLES) if (!PASTILLES_INV.has(PASTILLES[k])) PASTILLES_INV.set(PASTILLES[k], k.split('|')[0]); poses.length = 0; majMinimap(); relever('mini');
+          let ok2 = false; for (let i = 0; i < MINI.hits.n; i++) if (MINI.hits.l[i] === l) ok2 = true; if (!ok2) manquesM.push(l.nom); }
+        CanvasRenderingContext2D.prototype.drawImage = dI;
+        if (manquesC.length) ko.push('grande carte : ' + manquesC.length + ' lieux pas dessinés (' + manquesC.slice(0, 6).join(', ') + ')');
+        if (manquesM.length) ko.push('minimap : ' + manquesM.length + ' lieux pas dessinés (' + manquesM.slice(0, 6).join(', ') + ')');
+        for (const ou of ['carte', 'mini']) for (const cat in vus[ou]) if (vus[ou][cat].size !== 1) ko.push(ou + ' : la catégorie ' + cat + ' a ' + vus[ou][cat].size + ' images différentes');
+        const parCat = {}; for (const l of L) parCat[catLieu(l)] = (parCat[catLieu(l)] || 0) + 1;
+        info.push(L.length + ' lieux, ' + Object.keys(parCat).length + ' catégories (' + Object.entries(parCat).map(([k, n]) => k + ' ' + n).join(', ') + '), ' + nP + ' portes');
+        // à vendre, puis achetée : la pastille change
+        const pqT = PLANQUES.liste.find((q) => !planquePossedee(q.def.id)); if (pqT) { const l = L.find((q) => q.src === pqT); const avant = l && catLieu(l); META.planques[pqT.def.id] = true; const apres = l && catLieu(l); delete META.planques[pqT.def.id];
+          if (avant !== 'vente' || apres !== 'planque') ko.push('planque ' + pqT.def.id + ' : ' + avant + ' → ' + apres + ' (vente → planque attendu)'); else info.push('planque à vendre → achetée : la pastille change'); }
+        // 2.2 — la flèche du joueur : sur la grande carte comme sur le radar, la pointe va où il va
+        const fleche = (g, x, y, K) => { const d = g.getImageData(Math.round(x * K), Math.round(y * K), 1, 1).data; return (d[0] > 200 && d[1] > 200 && d[2] > 200) || (d[0] < 120 && d[1] > 170 && d[2] > 200) ? 1 : 0; }; /* blanc ou cyan : la flèche */
+        const axe = (g, cx, cy, fx, fz, K, d0, d1) => { let n = 0, t = 0; for (let d = d0; d <= d1 + 1e-6; d += 0.5) { n += fleche(g, cx + fx * d, cy + fz * d, K); t++; } return n / t; };
+        for (const f of FILTRES_LIEUX) MAPUI.filtres[f] = false; MAPUI.filtres.ennemis = MAPUI.filtres.vehicules = false;
+        P.x = 0; P.z = MER + 120;
+        for (const a of [0, Math.PI / 2, Math.PI, -Math.PI / 2, 0.7]) { P.ang = a; const fx = Math.sin(a), fz = Math.cos(a);
+          ouvrirCarte(); MAPUI.zoom = 2; MAPUI.panX = P.x; MAPUI.panZ = P.z; drawCarte(); const g = el('carteCv').getContext('2d'), p = carteProj(P.x, P.z);
+          const av = axe(g, p.x, p.z, fx, fz, CARTE_K, 4, 11), ar = axe(g, p.x, p.z, -fx, -fz, CARTE_K, 6, 12);
+          if (!(av >= 0.8 && ar <= 0.15)) ko.push('grande carte, cap ' + a.toFixed(2) + ' : la flèche ne pointe pas où va le joueur (' + av.toFixed(2) + ' / ' + ar.toFixed(2) + ')');
+          ecran(null); ETAT.mode = 'jeu'; majMinimap(); const av2 = axe(mmCtx, 96, 96, fx, fz, MM_K, 3, 7), ar2 = axe(mmCtx, 96, 96, -fx, -fz, MM_K, 4, 7.5);
+          if (!(av2 >= 0.5 && ar2 <= 0.15)) /* la flèche du radar est fine : la moitié des points du devant au moins, rien derrière */ ko.push('radar, cap ' + a.toFixed(2) + ' : la flèche ne pointe pas où va le joueur (' + av2.toFixed(2) + ' / ' + ar2.toFixed(2) + ')'); }
+        for (const k in MAPUI.filtres) MAPUI.filtres[k] = true;
+        // 2.3 — la bulle : toucher une pastille l'ouvre (nom, catégorie, état, distance), « Y aller » pose la destination et ferme la carte
+        const cv = el('carteCv'), toucher = (l) => { const rc = cv.getBoundingClientRect(), p = carteProj(l.x, l.z), x = rc.left + p.x / 336 * rc.width, y = rc.top + p.z / 336 * rc.height; ev(cv, 'pointerdown', x, y); ev(cv, 'pointerup', x, y); };
+        const essais = [L.find((l) => l.cat === 'armurerie'), L.find((l) => catLieu(l) === 'vente'), L.find((l) => l.cat === 'course'), L.find((l) => l.cat === 'salle')].filter(Boolean);
+        for (const l of essais) { P.x = POIS.place.x; P.z = POIS.place.z; ouvrirCarte(); MAPUI.zoom = 4; MAPUI.panX = l.x; MAPUI.panZ = l.z; drawCarte(); WAYP.actif = false; toucher(l);
+          const b = el('carteBulle'), txt = b.textContent;
+          if (b.style.display !== 'block' || MAPUI.bulle !== l) { ko.push('bulle : toucher « ' + l.nom + ' » ne l’ouvre pas'); continue; }
+          if (!txt.includes(l.nom) || !txt.includes(CATS_LIEUX[catLieu(l)].titre) || !/à \d+ m|à [\d,]+ km|Tu y es/.test(txt)) ko.push('bulle de « ' + l.nom + ' » incomplète : ' + txt);
+          if (catLieu(l) === 'vente' && !/À vendre : \d/.test(txt)) ko.push('bulle d’une planque à vendre sans prix : ' + txt);
+          if (l.cat === 'course' && !/Prime/.test(txt)) ko.push('bulle d’une course sans prime : ' + txt);
+          if (WAYP.actif) ko.push('toucher une pastille a posé une destination');
+          const br = b.getBoundingClientRect(), wr = cv.parentElement.getBoundingClientRect(); if (br.left < wr.left - 1 || br.right > wr.right + 1) ko.push('bulle hors du cadre de la carte');
+          const ba = el('bulleAller'), rb = ba.getBoundingClientRect(); ev(ba, 'pointerdown', rb.left + 5, rb.top + 5);
+          if (!WAYP.actif || Math.hypot(WAYP.x - l.x, WAYP.z - l.z) > 0.01 || WAYP.nom !== l.nom || ETAT.mode !== 'jeu' || b.style.display !== 'none') ko.push('« Y aller » sur « ' + l.nom + ' » : destination ' + WAYP.actif + ', mode ' + ETAT.mode); }
+        info.push('bulle et « Y aller » vérifiés sur ' + essais.map((l) => l.nom).join(', '));
+        // toucher ailleurs ferme la bulle sans poser de destination ; le toucher suivant pose la destination
+        { const l = essais[0]; ouvrirCarte(); MAPUI.zoom = 4; MAPUI.panX = l.x; MAPUI.panZ = l.z; drawCarte(); WAYP.actif = false; toucher(l); const rc = cv.getBoundingClientRect();
+          let px = 0, py = 0, trouve = false; for (let gy = 20; gy < 320 && !trouve; gy += 14) for (let gx = 20; gx < 320 && !trouve; gx += 14) if (!zoneTouchee(MAPUI.hits, gx, gy, 14)) { px = gx; py = gy; trouve = true; }
+          const x = rc.left + px / 336 * rc.width, y = rc.top + py / 336 * rc.height; ev(cv, 'pointerdown', x, y); ev(cv, 'pointerup', x, y);
+          if (MAPUI.bulle || WAYP.actif) ko.push('toucher ailleurs : bulle ' + !!MAPUI.bulle + ', destination ' + WAYP.actif); ev(cv, 'pointerdown', x, y); ev(cv, 'pointerup', x, y); if (!WAYP.actif) ko.push('le toucher suivant ne pose pas de destination'); WAYP.actif = false; ecran(null); ETAT.mode = 'jeu'; }
+        // la minimap : toucher une pastille ouvre la carte sur elle, sa bulle ouverte
+        { const l = essais[0]; P.x = l.x + 6; P.z = l.z + 6; MINI.zoom = 2; majMinimap(); let q = null; for (let i = 0; i < MINI.hits.n; i++) if (MINI.hits.l[i] === l) q = { x: MINI.hits.x[i], y: MINI.hits.y[i] };
+          if (!q) ko.push('minimap : la pastille de « ' + l.nom + ' » n’est pas touchable'); else { const mw = el('miniWrap'), rm = mw.getBoundingClientRect(), x = rm.left + q.x / 192 * rm.width, y = rm.top + q.y / 192 * rm.height;
+            ev(mw, 'pointerdown', x, y); ev(mw, 'pointerup', x, y); if (ETAT.mode !== 'carte' || MAPUI.bulle !== l) ko.push('minimap : toucher « ' + l.nom + ' » n’ouvre pas sa bulle (mode ' + ETAT.mode + ')'); else info.push('minimap : toucher une pastille ouvre la carte sur sa bulle'); }
+          fermerBulle(); ecran(null); ETAT.mode = 'jeu'; MINI.zoom = 1; }
+        // 2.4 — un filtre par catégorie : le bouton existe, il retire ses pastilles des deux cartes ; « Tout » les remet
+        const chips = [...document.querySelectorAll('#carteFiltres .chipF')].map((b) => b.dataset.f);
+        for (const f of FILTRES_LIEUX.concat(['ennemis', 'vehicules', 'tout'])) if (!chips.includes(f)) ko.push('pas de filtre ' + f);
+        for (const f of FILTRES_LIEUX) { const l = L.find((q) => (CATS_LIEUX[catLieu(q)].filtre || catLieu(q)) === f && !q.petit); if (!l) continue; const btn = document.querySelector('#carteFiltres .chipF[data-f="' + f + '"]'), rb = btn.getBoundingClientRect();
+          ouvrirCarte(); MAPUI.zoom = 4; MAPUI.panX = l.x; MAPUI.panZ = l.z; ev(btn, 'pointerdown', rb.left + 3, rb.top + 3); drawCarte(); let vu = false; for (let i = 0; i < MAPUI.hits.n; i++) if (MAPUI.hits.l[i] === l) vu = true;
+          ecran(null); ETAT.mode = 'jeu'; P.x = l.x + 3; P.z = l.z + 3; majMinimap(); let vuM = false; for (let i = 0; i < MINI.hits.n; i++) if (MINI.hits.l[i] === l) vuM = true;
+          if (vu || vuM || MAPUI.filtres[f] || btn.classList.contains('on')) ko.push('filtre ' + f + ' : « ' + l.nom + ' » reste affiché (carte ' + vu + ', minimap ' + vuM + ')');
+          ev(btn, 'pointerdown', rb.left + 3, rb.top + 3); if (!MAPUI.filtres[f]) ko.push('filtre ' + f + ' : ne se rallume pas'); }
+        { const t = document.querySelector('#carteFiltres .chipF[data-f="tout"]'); t.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); const n0 = Object.values(MAPUI.filtres).filter(Boolean).length;
+          t.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); const n1 = Object.values(MAPUI.filtres).filter(Boolean).length; if (n0 !== 0 || n1 !== Object.keys(MAPUI.filtres).length) ko.push('« Tout » : ' + n0 + ' puis ' + n1 + ' filtres allumés'); }
+        for (const k in MAPUI.filtres) MAPUI.filtres[k] = true; fermerBulle(); WAYP.actif = false; ecran(null); ETAT.mode = 'jeu'; startRun();
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Retours 20 oct., lot 2 : ' + r.ko.slice(0, 25).join(' ; ') + (r.ko.length > 25 ? ' … (' + r.ko.length + ' en tout)' : '') + ' [' + r.info.join(' | ') + ']');
+      else ok('Retours 20 oct., lot 2 : ' + r.info.join(' ; '));
     }
     // -------------------------------------------------------------------
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
