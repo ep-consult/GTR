@@ -4558,7 +4558,7 @@ function construireVille(){
     if(qq!=='plage'&&qq!=='parc'&&bx%3===1&&bz%3===1) mkFeu(cx+INNER/2+1.4,cz-INNER/2-1.4);
   }
   placerPortes();
-  if(DECOR_V2){ sansAleaVille(()=>{ reserverHills(); reserverChantier(); reserverBase(); reserverSports(); ameliorerPortes(); mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkBasket(); mkCiel(); mkKiosqueBanderole(); mkCrique(); mkMontReyes(); mkVieMont(); mkBordureEst(); mkCanyonsDesert(); mkPicVertige(); mkParcStunt(); mkSkateXXL(); mkRides(); mkMerVivante(); mkRemorquage(); mkLarge(); deplacerVoltige(); mkAeroportVivant(); mkHeliGrue(); mkPlanques(); mkBoutiques(); mkGrandHuit(); mkToitsVivants(); mkTracesSable(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkMontReyesV2(); mkNeonVivant(); mkQuartiersFinitions(); mkFacadesVariees(); mkCascades(); if(MERV.ok) mkVolcanIle(); mkAeroVie(); mkLosReyesHills(); mkBordsHills(); mkChantierV2(); mkPlanquesV2(); montSolides(); mkBaseV2(); mkBallTrap(); mkSportsParcs(); mkHalosBoutiques(); mkSurprisesToits(); mkArenaDerby(); mkRatelierSkateXXL(); mkStationsVelo(); mkSautVertige(); mkCampEntrainement(); mkCageV2(); mkBalises(); montActiver(); reserverCanaux(); mkCanaux(); mkMerV3(); avecAleaPrive(8303,mkJusDePlage); mkTourniquet(); mkAirRace(); /* lot 10 : la Reyes Air Race */ /* lot 8 : le stand de jus, les chaises volantes (générateurs privés) */ }); } // cascades et volcan EN DERNIER : leurs tirages du décor ne décalent rien de ce qui précède (mobilier...) // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
+  if(DECOR_V2){ sansAleaVille(()=>{ reserverHills(); reserverChantier(); reserverBase(); reserverSports(); ameliorerPortes(); mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkBasket(); mkCiel(); mkKiosqueBanderole(); mkCrique(); mkMontReyes(); mkVieMont(); mkBordureEst(); mkCanyonsDesert(); mkPicVertige(); mkParcStunt(); mkSkateXXL(); mkRides(); mkMerVivante(); mkRemorquage(); mkLarge(); deplacerVoltige(); mkAeroportVivant(); mkHeliGrue(); mkPlanques(); mkBoutiques(); mkGrandHuit(); mkToitsVivants(); mkTracesSable(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkMontReyesV2(); mkNeonVivant(); mkQuartiersFinitions(); mkFacadesVariees(); mkCascades(); if(MERV.ok) mkVolcanIle(); mkAeroVie(); mkLosReyesHills(); mkBordsHills(); mkChantierV2(); mkPlanquesV2(); montSolides(); mkBaseV2(); mkBallTrap(); mkSportsParcs(); mkHalosBoutiques(); mkSurprisesToits(); mkArenaDerby(); mkRatelierSkateXXL(); mkStationsVelo(); mkSautVertige(); mkCampEntrainement(); mkCageV2(); mkBalises(); montActiver(); reserverCanaux(); mkCanaux(); mkMerV3(); avecAleaPrive(8303,mkJusDePlage); mkTourniquet(); mkAirRace(); /* lot 10 : la Reyes Air Race */ avecAleaPrive(1121,mkPeripherique); /* lot 11.2 : la route périphérique des ponts-levis */ /* lot 8 : le stand de jus, les chaises volantes (générateurs privés) */ }); } // cascades et volcan EN DERNIER : leurs tirages du décor ne décalent rien de ce qui précède (mobilier...) // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
   finaliserMerge();
   construireMinimapStatique();
 }
@@ -8668,8 +8668,118 @@ function majLevisSon(dt){ const ici=ETAT.mode==='jeu'&&!INT.actif; let moteur=0,
   if(moteur>0&&!LEVIS_SON.on) levisSonStart(); if(LEVIS_SON.on){ const v=0.06*moteur; if(Math.abs(v-LEVIS_SON.v)>0.002){ LEVIS_SON.v=v; LEVIS_SON.gn.gain.setTargetAtTime(v,AUDIO.ctx.currentTime,0.25); } if(!moteur&&!ici) levisSonStop(); }
   LEVIS_SON.dingT-=dt; if(ding>0&&LEVIS_SON.dingT<=0){ LEVIS_SON.dingT=0.55; beep(1320,0.3,'sine',0.05*ding); beep(1980,0.18,'sine',0.018*ding); } }
 /* la minimap : chaque pont-levis, vert fermé, rouge sinon (ouvert, ou qui s'ouvre) */
-function dessinerLevisCarte(g,proj,dedans){ for(const L of CANAUX.levis||[]){ const q=proj((L.xP0+L.xP1)/2,L.zc); if(!dedans(q,5)) continue; const x=q.x, y=q.y;
+function dessinerLevisCarte(g,proj,dedans){ dessinerPeriCarte(g,proj); /* lot 11.2 : la route périphérique */ for(const L of CANAUX.levis||[]){ const q=proj((L.xP0+L.xP1)/2,L.zc); if(!dedans(q,5)) continue; const x=q.x, y=q.y;
   g.fillStyle='rgba(8,10,14,0.8)'; g.fillRect(x-5.5,y-3.5,11,7); g.fillStyle=L.etat==='ferme'?'#3adc6a':'#ff3a3a'; g.fillRect(x-4.5,y-2.5,9,5); g.strokeStyle='#ffffff'; g.lineWidth=1; g.strokeRect(x-5.5,y-3.5,11,7); } }
+/* ---------- CANAUX V3 — la route périphérique des ponts-levis (retours du 21 octobre, lot 11.2 ; demandé, capture iPhone à l'appui :
+   « les deux routes qui mènent vers les ponts-levis arrivent sur l'aéroport : un gros blocage et une voie sans issue ; une route en
+   périphérie qui passe à ce niveau sur l'aéroport, puisqu'il y a de la place, et qui se rejoint : on pourra rejoindre les deux
+   ponts-levis »). Les rues z = 42 et z = 168 franchissent le grand canal sur leurs ponts-levis et butaient sur le mur d'enceinte
+   (x 307,3) : le trafic faisait demi-tour sur la culée (limiteEstTrafic), on n'allait nulle part. Désormais le mur s'ouvre au bout
+   de chaque culée ; une plateforme à la hauteur de la culée (2,7 u) passe le mur, une rampe descend (pont nord : vers le sud ; pont
+   sud : vers le nord) et un boulevard longe le mur côté aéroport (x 309,5 → 322,5) : rue nord → pont-levis nord → boulevard →
+   pont-levis sud → rue sud, et l'inverse. Le trafic suit la boucle (PERI.chemins : deux voies à sens unique qui ne se croisent
+   jamais) au lieu de faire demi-tour. La butte érodée qui bouchait la sortie du pont sud (une des trois posées à la place des dunes,
+   CANYON.mesas, sans course ni tremplin) est aplanie. Tout est bâti en fin de décor sur un générateur privé (mkPeripherique) : la
+   ville et le décor ne bougent pas. Le relief (hauteurPeri, dans RELIEFS) est ce sur quoi on roule ET ce qu'on voit. ---------- */
+const PERI={ok:false,XB:316,DEMI:6.5,H:2.7,HB:0.13,RAMPE:18,V:8,VCOURBE:5,plats:[],chemins:null,murs:[]}; /* HB : le boulevard, au-dessus des sols de l'aéroport (tarmac 0,12) */
+function hauteurPeri(x,z){ if(!PERI.plats.length) return 0; /* dès que le relief existe (les garde-corps se posent dessus pendant la construction) */ for(const Q of PERI.plats) if(x>=Q.x0&&x<=Q.x1&&z>=Q.z0&&z<=Q.z1) return Q.h(z); return 0; }
+/* un chemin : une polyligne dense (un point tous les ~0,5 u), longueurs cumulées ; les virages en quarts de cercle */
+function periChemin(segs){ const pts=[]; const push=(x,z)=>{ const n=pts.length; if(!n||Math.hypot(x-pts[n-1].x,z-pts[n-1].z)>0.05) pts.push({x,z}); };
+  for(const s of segs){ if(s.arc){ const {cx,cz,r,a0,a1}=s, n=Math.max(6,Math.ceil(Math.abs(a1-a0)*r/0.5)); for(let i=0;i<=n;i++){ const a=a0+(a1-a0)*i/n; push(cx+r*Math.cos(a),cz+r*Math.sin(a)); } }
+    else { const n=Math.max(1,Math.ceil(Math.hypot(s.x1-s.x0,s.z1-s.z0)/0.5)); for(let i=0;i<=n;i++) push(s.x0+(s.x1-s.x0)*i/n,s.z0+(s.z1-s.z0)*i/n); } }
+  let L=0; pts[0].s=0; for(let i=1;i<pts.length;i++){ L+=Math.hypot(pts[i].x-pts[i-1].x,pts[i].z-pts[i-1].z); pts[i].s=L; }
+  return {pts,L}; }
+function periPoint(c,s){ const P=c.pts; s=clamp(s,0,c.L); let a=0, b=P.length-1; while(b-a>1){ const m=(a+b)>>1; if(P[m].s<=s) a=m; else b=m; } const p=P[a], q=P[b], f=(s-p.s)/Math.max(1e-6,q.s-p.s);
+  return {x:p.x+(q.x-p.x)*f,z:p.z+(q.z-p.z)*f,ang:Math.atan2(q.x-p.x,q.z-p.z),courbe:Math.abs(angDiff(Math.atan2(P[Math.min(P.length-1,b+3)].x-q.x,P[Math.min(P.length-1,b+3)].z-q.z),Math.atan2(q.x-p.x,q.z-p.z)))>0.04}; }
+function mkPeripherique(){ const C=CANAUX; if(!DECOR_V2||!C.ok||!C.levis||C.levis.length<2||!C.grand) return;
+  const LS=C.levis.slice().sort((a,b)=>a.zc-b.zc), LN=LS[0], LZ=LS[1], H=PERI.H, XM=LN.x1, X0=PERI.XB-PERI.DEMI, X1=PERI.XB+PERI.DEMI, R=PERI.RAMPE;
+  if(Math.abs(LZ.zc-LN.zc)<2*R+24) return; PERI.LN=LN; PERI.LS=LZ;
+  /* 1) la butte qui bouche la sortie du pont sud (et toute mesa qui mordrait sur la route) : aplanie, relief et maillage */
+  const boites=[]; for(const m of CANYON.mesas){ if(!(m.h>0)) continue; const e=(m.e||2.4)+2.1*(m.bruit===undefined?1:m.bruit), bx0=m.x-m.hw-e, bx1=m.x+m.hw+e, bz0=m.z-m.hd-e, bz1=m.z+m.hd+e;
+    if(bx1<XM-1||bx0>X1+4||bz1<LN.z0-2||bz0>LZ.z1+4) continue; m.h=0; m.aplanie=true; boites.push({x0:bx0-1,x1:bx1+1,z0:bz0-1,z1:bz1+1}); }
+  if(boites.length){ const dans=(x,z)=>boites.some((b)=>x>b.x0&&x<b.x1&&z>b.z0&&z<b.z1), mS=matStrates();
+    scene.traverse((o)=>{ if(!o.isMesh||o.material!==mS||!o.geometry||!o.geometry.index) return; const P=o.geometry.attributes.position, A=P.array; let n=0;
+      for(let i=0;i<A.length;i+=3){ const x=A[i]+o.position.x, z=A[i+2]+o.position.z; if(!dans(x,z)) continue; A[i+1]=hauteurCanyon(x,z)+0.03; n++; }
+      if(!n) return; P.needsUpdate=true; const I=o.geometry.index.array, J=[]; for(let i=0;i<I.length;i+=3){ const a=I[i]*3, b=I[i+1]*3, c=I[i+2]*3; if(A[a+1]<0.05&&A[b+1]<0.05&&A[c+1]<0.05&&dans(A[a]+o.position.x,A[a+2]+o.position.z)) continue; J.push(I[i],I[i+1],I[i+2]); }
+      o.geometry.setIndex(J); o.geometry.computeVertexNormals(); o.geometry.computeBoundingSphere(); });
+    PERI.buttes=boites; }
+  /* 2) le relief : plateformes à la hauteur des culées (le mur compris : rien ne creuse entre la culée et la plateforme), rampes */
+  const zN0=LN.z0, zN1=LN.z1, zS0=LZ.z0, zS1=LZ.z1;
+  const HB=PERI.HB; PERI.plats=[{x0:XM-0.01,x1:X1,z0:zN0,z1:zN1,h:()=>H},{x0:X0,x1:X1,z0:zN1,z1:zN1+R,h:(z)=>HB+(H-HB)*(1-(z-zN1)/R)},
+    {x0:X0,x1:X1,z0:zS0-R,z1:zS0,h:(z)=>HB+(H-HB)*(z-(zS0-R))/R},{x0:XM-0.01,x1:X1,z0:zS0,z1:zS1,h:()=>H},{x0:X0,x1:X1,z0:zN1+R,z1:zS0-R,h:()=>HB}];
+  RELIEFS.push({x0:XM-0.02,x1:X1+0.01,z0:zN0-0.01,z1:zS1+0.01,f:hauteurPeri});
+  /* 3) le mur d'enceinte : la longue boîte « est bas » cachée (gardée : ses tirages), trois tronçons à sa place, piliers d'entrée */
+  const xm=HALF+14, mur=scene.children.find((o)=>o.isMesh&&o.geometry&&o.geometry.type==='BoxGeometry'&&Math.abs(o.position.x-xm)<0.01&&o.geometry.parameters.depth>200&&o.position.z-o.geometry.parameters.depth/2<zN0&&o.position.z+o.geometry.parameters.depth/2>zS1);
+  const solMur=[]; for(const arr of sGrid.values()) for(const s of arr) if(Math.abs(s.x-xm)<0.01&&s.hd>100&&s.z+s.hd>zS1&&s.z-s.hd<zN0&&!solMur.includes(s)) solMur.push(s);
+  if(mur&&solMur.length===1){ const za=mur.position.z-mur.geometry.parameters.depth/2, zb=mur.position.z+mur.geometry.parameters.depth/2; mur.visible=false; retirerSolide(solMur[0]); PERI.murVieux=mur;
+    for(const [a,b] of [[za,zN0],[zN1,zS0],[zS1,zb]]){ if(b-a<0.5) continue; const tx=texMur.clone(); tx.needsUpdate=true; tx.wrapS=tx.wrapT=THREE.RepeatWrapping; tx.repeat.set((b-a)/7,1);
+      const m=new THREE.Mesh(new THREE.BoxGeometry(1.4,3.4,b-a),new THREE.MeshLambertMaterial({map:tx})); m.position.set(xm,1.7,(a+b)/2); scene.add(m); PERI.murs.push(m);
+      addSolid({x:xm,z:(a+b)/2,hw:0.7,hd:(b-a)/2,h:3.4}); } }
+  /* 4) ce qu'on voit : chaussée (plateformes, rampes, boulevard), murs de soutènement, garde-corps, marquage, lampadaires, piliers */
+  const G=new THREE.Group(), M=(c,e)=>new THREE.MeshLambertMaterial({color:c,emissive:new THREE.Color(e||0)}), mA=M(0x3a3d43), mB=M(0xf2f2ee), mJ=M(0xf2c230), mP=M(0x9a9488), mG=M(0xd8dce2), mF=M(0x2a2d34), mL=M(0xfff2c8,0x6a5a30);
+  const quad=(pts,mat,y0)=>{ const g=new THREE.BufferGeometry(), p=[]; for(const q of pts) p.push(q[0],q[1]+(y0||0),q[2]); g.setAttribute('position',new THREE.Float32BufferAttribute(p,3)); g.setIndex([0,1,2,0,2,3]); g.computeVertexNormals(); const m=new THREE.Mesh(g,mat); G.add(m); return m; };
+  const dalle=(x0,x1,z0,z1,y0,y1,mat,dy)=>quad([[x0,y0,z0],[x0,y1,z1],[x1,y1,z1],[x1,y0,z0]],mat,dy); /* y0 au bord z0, y1 au bord z1 (rampes selon z) */
+  const paroi=(x0,z0,x1,z1,h0,h1,mat)=>quad([[x0,0,z0],[x1,0,z1],[x1,h1,z1],[x0,h0,z0]],mat);
+  const box=(w,h,d,x,y,z,mat)=>{ const b=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat); b.position.set(x,y,z); G.add(b); return b; };
+  const e=0.04; /* au-dessus du sol et du relief, sans scintiller */
+  dalle(XM,X1,zN0,zN1,H,H,mA,e); dalle(X0,X1,zN1,zN1+R,H,HB,mA,e); dalle(X0,X1,zN1+R,zS0-R,HB,HB,mA,e); dalle(X0,X1,zS0-R,zS0,HB,H,mA,e); dalle(XM,X1,zS0,zS1,H,H,mA,e);
+  paroi(X0,zN1+R,X0,zS0-R,HB+e,HB+e,mP); paroi(X1,zN1+R,X1,zS0-R,HB+e,HB+e,mP); /* la bordure du boulevard, au-dessus de la pelouse */
+  /* murs de soutènement : le long des bords extérieurs (les plateformes au nord et au sud, le flanc est, le flanc ouest des rampes) */
+  paroi(xm+0.7,zN0,X1,zN0,H,H,mP); paroi(xm+0.7,zS1,X1,zS1,H,H,mP); paroi(X1,zN0,X1,zN1,H,H,mP); paroi(X1,zN1,X1,zN1+R,H,0,mP); paroi(X1,zS0-R,X1,zS0,0,H,mP); paroi(X1,zS0,X1,zS1,H,H,mP);
+  paroi(X0,zN1,X0,zN1+R,H,0,mP); paroi(X0,zS0-R,X0,zS0,0,H,mP); paroi(xm+0.7,zN1,X0,zN1,H,H,mP); paroi(xm+0.7,zS0,X0,zS0,H,H,mP);
+  /* garde-corps : poteaux et deux lisses, sur la hauteur du relief ; solides le long des mêmes bords (le haut + 1) */
+  const garde=(x0,z0,x1,z1,ox,oz)=>{ /* (ox, oz) : vers l'extérieur — le solide déborde de ce côté (mince, une voiture qui dérape le traversait) */ const L=Math.hypot(x1-x0,z1-z0), n=Math.max(1,Math.round(L/2.4)); for(let i=0;i<=n;i++){ const x=x0+(x1-x0)*i/n, z=z0+(z1-z0)*i/n, h=hauteurPeri(x-Math.sign(x1-x0)*0.01,z)||hauteurPeri(x+0.05,z)||0; box(0.09,1.0,0.09,x,h+0.5+e,z,mG); }
+    for(let i=0;i<n;i++){ const xa=x0+(x1-x0)*i/n, za=z0+(z1-z0)*i/n, xb=x0+(x1-x0)*(i+1)/n, zb=z0+(z1-z0)*(i+1)/n, ha=hauteurPeri(xa,za)||hauteurPeri(xa-0.05,za), hb=hauteurPeri(xb,zb)||hauteurPeri(xb-0.05,zb);
+      for(const y of [1.0,0.55]){ const g=new THREE.BufferGeometry(), dx=xb-xa, dz=zb-za, l=Math.hypot(dx,dz)||1, nx=-dz/l*0.03, nz=dx/l*0.03;
+        g.setAttribute('position',new THREE.Float32BufferAttribute([xa-nx,ha+y-0.04+e,za-nz, xb-nx,hb+y-0.04+e,zb-nz, xb-nx,hb+y+0.04+e,zb-nz, xa-nx,ha+y+0.04+e,za-nz, xa+nx,ha+y-0.04+e,za+nz, xb+nx,hb+y-0.04+e,zb+nz, xb+nx,hb+y+0.04+e,zb+nz, xa+nx,ha+y+0.04+e,za+nz],3));
+        g.setIndex([0,1,2,0,2,3,4,6,5,4,7,6,3,2,6,3,6,7]); g.computeVertexNormals(); G.add(new THREE.Mesh(g,mG)); }
+      addSolid({x:(xa+xb)/2+ox*0.55,z:(za+zb)/2+oz*0.55,hw:Math.max(0.15,Math.abs(xb-xa)/2)+Math.abs(ox)*0.55,hd:Math.max(0.15,Math.abs(zb-za)/2)+Math.abs(oz)*0.55,h:Math.max(ha,hb)+1,peri:true}); } };
+  garde(xm+0.8,zN0+0.15,X1-0.15,zN0+0.15,0,-1); garde(X1-0.15,zN0+0.15,X1-0.15,zN1+R-1.5,1,0); garde(X0+0.15,zN1+0.15,X0+0.15,zN1+R-1.5,-1,0);
+  garde(xm+0.8,zS1-0.15,X1-0.15,zS1-0.15,0,1); garde(X1-0.15,zS0-R+1.5,X1-0.15,zS1-0.15,1,0); garde(X0+0.15,zS0-R+1.5,X0+0.15,zS0-0.15,-1,0);
+  /* marquage : rives blanches, axe jaune en tirets, sur le boulevard et les rampes ; sur les plateformes, la ligne d'arrêt devant chaque culée */
+  const trait=(x,z0,z1,w,mat,dash)=>{ for(let z=z0;z<z1-0.01;z+=dash?4:(z1-z0)){ const zb=Math.min(z1,z+(dash?2:(z1-z0))); const ya=hauteurPeri(x,z+0.01), yb=hauteurPeri(x,zb-0.01); quad([[x-w,ya,z],[x-w,yb,zb],[x+w,yb,zb],[x+w,ya,z]],mat,e+0.012); } };
+  trait(PERI.XB,zN1,zS0,0.09,mJ,true); trait(X0+0.45,zN1,zS0,0.08,mB,false); trait(X1-0.45,zN1,zS0,0.08,mB,false);
+  for(const [z0,z1] of [[zN0+0.5,zN1-0.5],[zS0+0.5,zS1-0.5]]) quad([[XM+0.3,H,z0],[XM+0.3,H,z1],[XM+0.6,H,z1],[XM+0.6,H,z0]],mB,e+0.012);
+  /* lampadaires le long du flanc est du boulevard, tête éclairée */
+  for(let z=zN1+R+6;z<zS0-R-2;z+=22){ box(0.16,6,0.16,X1+0.6,3,z,mF); box(1.6,0.12,0.16,X1-0.2,6,z,mF); box(0.5,0.12,0.4,X1-0.9,5.92,z,mL); }
+  /* piliers des deux entrées dans le mur, comme ceux du portail de l'aéroport */
+  for(const z of [zN0-1.1,zN1+1.1,zS0-1.1,zS1+1.1]){ box(2.2,5,2.2,xm,2.5,z,mF); box(2.4,0.5,2.4,xm,5.2,z,mJ); }
+  fusionnerEnfants(G); scene.add(G); PERI.g=G;
+  /* 5) les chemins du trafic : sens unique, on roule à droite comme sur la grille (vers l'est : voie z − 3,2 ; vers le sud : x + 3,2) */
+  const xs=XM-7.3, xf=XM-1.2, ls=3.2, xe=PERI.XB+ls, xo=PERI.XB-ls; /* xs : on entre et on sort sur la culée, à l'ouest du mur */
+  const zAe=LN.zc-ls, zAo=LN.zc+ls, zBe=LZ.zc-ls, zBo=LZ.zc+ls, rA=xe-(XM+4.7), rB=xo-(XM-0.7);
+  PERI.chemins={
+    AB:{...periChemin([{x0:xs,z0:zAe,x1:xe-rA,z1:zAe},{arc:true,cx:xe-rA,cz:zAe+rA,r:rA,a0:-Math.PI/2,a1:0},{x0:xe,z0:zAe+rA,x1:xe,z1:zBo-rA},{arc:true,cx:xe-rA,cz:zBo-rA,r:rA,a0:0,a1:Math.PI/2},{x0:xe-rA,z0:zBo,x1:xf,z1:zBo}]),sortie:zBo,L1:LZ},
+    BA:{...periChemin([{x0:xs,z0:zBe,x1:xo-rB,z1:zBe},{arc:true,cx:xo-rB,cz:zBe-rB,r:rB,a0:Math.PI/2,a1:0},{x0:xo,z0:zBe-rB,x1:xo,z1:zAo+rB},{arc:true,cx:xo-rB,cz:zAo+rB,r:rB,a0:0,a1:-Math.PI/2},{x0:xo-rB,z0:zAo,x1:xf,z1:zAo}]),sortie:zAo,L1:LN}}; /* on entre sur la culée (x ≈ 305 : le demi-tour d'avant), on ressort à son bord est : l'arrêt devant un pont-levis levé reste celui du trafic (levisArretTrafic) */
+  PERI.chemins.AB.entree=LN; PERI.chemins.BA.entree=LZ; PERI.xs=xs;
+  PERI.ok=true; }
+/* le trafic : à la place du demi-tour sur la culée, un véhicule qui arrive vers l'est entre sur la boucle et ressort vers l'ouest sur l'autre rue */
+function periEntrer(v){ if(!PERI.ok||Math.sin(v.ang)<0.5||v.x<PERI.xs) return false; /* un long véhicule fait demi-tour avant le canal, comme avant */ let c=null; for(const k of ['AB','BA']){ const q=PERI.chemins[k]; if(Math.abs(v.z-q.entree.zc)<5.5) c=q; } if(!c) return false;
+  v.peri={c,s:clamp(v.x-PERI.xs,0,c.L-1)}; v.contourne=null; return true; }
+function majPeriTrafic(v,dt){ if(dist2(v.x,v.z,P.x,P.z)>120*120){ v.mort=true; return; } /* comme tout le trafic : recyclé loin du joueur */ const c=v.peri.c, Pt=periPoint(c,v.peri.s), sA=Math.sin(Pt.ang), cA=Math.cos(Pt.ang), hl=(v.def.long||4)/2, hw=(v.def.larg||2)/2;
+  /* devant : un véhicule (trafic, joueur, épave), le joueur à pied — on s'arrête avant */
+  let libre=1e9; const voir=(o,ox,oz,ol,ow)=>{ const dx=ox-v.x, dz=oz-v.z; if(dx*dx+dz*dz>400) return; const f=dx*sA+dz*cA, l=Math.abs(dx*cA-dz*sA); if(f<=0||l>hw+ow+0.6) return; const g=f-hl-ol; if(g<libre) libre=g; };
+  for(const o of vehicules){ if(o===v||o.mort) continue; if(o.peri){ if(o.peri.c===c&&o.peri.s>v.peri.s){ const g=o.peri.s-v.peri.s-hl-(o.def.long||4)/2; if(g<libre) libre=g; } continue; } /* sur la boucle : le même chemin se lit le long de la route, l'autre sens ne le croise jamais (5,6 u au plus près, dans les virages) */ voir(o,o.x,o.z,(o.def.long||4)/2,(o.def.larg||2)/2); } for(const o of EPAVES) voir(o,o.x,o.z,(o.def&&o.def.long||4)/2,(o.def&&o.def.larg||2)/2);
+  if(!P.veh) voir(null,P.x,P.z,0.4,0.4);
+  const vc=Pt.courbe?PERI.VCOURBE:PERI.V, vSure=Math.max(0,Math.sqrt(Math.max(0,2*6*(libre-2.2)))), cible=Math.min(vc,vSure,levisArretTrafic(v,hl)); /* en ressortant vers l'ouest : l'arrêt devant un pont-levis levé */
+  v.v=cible<v.v?Math.max(cible,v.v-12*dt):Math.min(cible,v.v+5*dt); v.arretT=v.v<0.3&&!levisFile(v)?(v.arretT||0)+dt:0; if(v.arretT>TRAFIC_PATIENCE&&horsEcran(v.x,v.z)){ v.mort=true; return; } /* bloqué derrière un véhicule abandonné : le filet du trafic (jamais devant un pont-levis levé) */
+  v.peri.s+=v.v*dt; const Q=periPoint(c,v.peri.s); v.x=Q.x; v.z=Q.z; v.ang=Q.ang;
+  const y=solY(v.x,v.z), yA=solY(v.x+Math.sin(v.ang)*1.5,v.z+Math.cos(v.ang)*1.5); v.mesh.position.set(v.x,y,v.z); v.mesh.rotation.order='YXZ'; v.mesh.rotation.set(-Math.atan2(yA-y,1.5),v.ang,0);
+  majImpactPersonnages(v,dt); { const kR=v.mesh.userData.rayonRoue?1/v.mesh.userData.rayonRoue:1.6; for(const r of v.mesh.userData.roues||[]) r.rotation.x+=v.v*dt*kR; }
+  if(v.peri.s>=c.L-0.05){ v.peri=null; v.axe='x'; v.ang=-Math.PI/2; v.lane=c.sortie; v.z=c.sortie; v.mesh.rotation.set(0,v.ang,0); } }
+/* sur les parties hautes (plateformes, rampes), un véhicule est retenu au bord comme contre un mur : la sonde de choc ne regarde que
+   devant, une voiture qui dérape de côté dans le virage passait le garde-corps et tombait de 2,7 u (trouvé par le test, au joystick) */
+function periRetenir(v){ if(!PERI.ok||v.peri||v.x<HALF+13||v.x>PERI.XB+PERI.DEMI+3||v.z<PERI.LN.z0-3||v.z>PERI.LS.z1+3) return;
+  if((v.h||0)<0.35&&solY(v.x,v.z)<0.35) return; /* au pied, autour de la route : rien */
+  const LN=PERI.LN, LS=PERI.LS, X0=PERI.XB-PERI.DEMI, X1=PERI.XB+PERI.DEMI, R=PERI.RAMPE, d=v.def, sa=Math.abs(Math.sin(v.ang)), ca=Math.abs(Math.cos(v.ang));
+  const ex=sa*d.long/2+ca*d.larg/2+0.15, ez=ca*d.long/2+sa*d.larg/2+0.15; let x=v.x, z=v.z;
+  if(z<LN.z0+0.15+ez) z=LN.z0+0.15+ez; if(z>LS.z1-0.15-ez) z=LS.z1-0.15-ez;
+  if((z<LN.z1+R-1.5||z>LS.z0-R+1.5)&&x>X1-0.15-ex) x=X1-0.15-ex;
+  if(((z>LN.z1&&z<LN.z1+R-1.5)||(z<LS.z0&&z>LS.z0-R+1.5))&&x<X0+0.15+ex) x=X0+0.15+ex;
+  if(x!==v.x||z!==v.z){ v.x=x; v.z=z; v.v*=0.9; v.knockVx=0; v.knockVz=0; if(v.mesh) v.mesh.position.x=x, v.mesh.position.z=z; } }
+function dessinerPeriCarte(g,proj){ if(!PERI.ok) return; const LN=PERI.LN, LZ=PERI.LS, X0=PERI.XB-PERI.DEMI, X1=PERI.XB+PERI.DEMI, xm=LN.x1;
+  g.fillStyle='#4a4e56'; for(const [a,b,c,d] of [[xm,LN.z0,X1,LZ.z1]]){ const p=[proj(a,b),proj(c,b),proj(c,d),proj(a,d)]; g.beginPath(); g.moveTo(p[0].x,p[0].y); for(let i=1;i<4;i++) g.lineTo(p[i].x,p[i].y); g.closePath(); g.fill(); }
+  g.fillStyle='#c8a050'; { const p=[proj(xm+1.6,LN.z1),proj(X0,LN.z1),proj(X0,LZ.z0),proj(xm+1.6,LZ.z0)]; g.beginPath(); g.moveTo(p[0].x,p[0].y); for(let i=1;i<4;i++) g.lineTo(p[i].x,p[i].y); g.closePath(); g.fill(); } }
 /* ---------- les yachts de l'IA (YIA) : l'aller-retour mer ↔ marina, toutes les 2 à 4 minutes de jeu, sur le graphe ----------
    Un yacht « Impérial » naît au large (hors de vue), remonte le grand canal jusqu'au bassin d'évitage de la marina en attendant
    l'ouverture de chaque pont-levis au point d'attente (v.yProchain), y fait escale, fait demi-tour au pas et repart en mer, où il
@@ -32116,6 +32226,7 @@ function levisArretTrafic(v,hl){ if(v.axe==='z') return Infinity; let cap=Infini
     else if(sx<-0.3){ const av=v.x-hl; if(av<L.xArretE-0.3) continue; cap=Math.min(cap,Math.sqrt(2*TRAFIC_DECEL*Math.max(0,av-L.xArretE))); } }
   return cap; }
 function majTrafic(v,dt){
+  if(v.peri){ majPeriTrafic(v,dt); return; } /* lot 11.2 : sur la route périphérique des ponts-levis */
   let cibleV=9;
   if(DANGER.t>0&&dist2(v.x,v.z,DANGER.x,DANGER.z)<900) cibleV=16;
   // sonde d'obstacle — portée et seuil désormais dépendants du GABARIT réel
@@ -32321,7 +32432,7 @@ function majTrafic(v,dt){
   const LIMN=-HALF+6, LIMS=MER-CELL*1.4, LIMO=-HALF+6, LIME=v.axe==='z'?HALF-6:limiteEstTrafic(v), BORD=HALF+5; /* V3 : sur une rue à pont-levis, le demi-tour se fait sur la culée de la rive est */ /* BORD : la voie extérieure d'une route de bordure (−297,2) tient dedans */
   let rebond=false;
   if(v.axe==='z'){ if(v.z<LIMN){ v.z=LIMN; rebond=true; } else if(v.z>LIMS){ v.z=LIMS; rebond=true; } v.x=clamp(v.x,-BORD,BORD); }
-  else { if(v.x<LIMO){ v.x=LIMO; rebond=true; } else if(v.x>LIME){ v.x=LIME; rebond=true; } v.z=clamp(v.z,-BORD,LIMS); }
+  else { if(v.x<LIMO){ v.x=LIMO; rebond=true; } else if(v.x>LIME&&Math.sin(v.ang)>0){ if(periEntrer(v)) return; /* lot 11.2 : au bout d'une culée, la boucle plutôt que le demi-tour ; un véhicule qui en ressort vers l'ouest ne rebondit pas */ v.x=LIME; rebond=true; } v.z=clamp(v.z,-BORD,LIMS); }
   // Zone militaire interdite à la circulation civile — signalé : des
   // véhicules civils y roulaient, traversaient les murs (majTrafic ne
   // vérifie jamais solidAt, seuls les murs eux-mêmes existent) et
@@ -32578,7 +32689,7 @@ function majVehicules(dt){
     }
   }
   // dégagement des murs : tout véhicule au sol qui a bougé cette image (hors des salles)
-  for(let i=0;i<vehicules.length;i++){ const v=vehicules[i]; if(v.mort||v.noye||v.captureOvni||v.tracte||v.def.air||v.def.eau||v.enAir||v.x<-4000) continue;
+  for(let i=0;i<vehicules.length;i++){ const v=vehicules[i]; if(PERI.ok&&v.x>HALF+13&&!v.mort&&!v.def.air&&!v.def.eau) periRetenir(v); /* lot 11.2 : le bord de la route périphérique (en l'air aussi : un bond au bord) */ if(v.mort||v.noye||v.captureOvni||v.tracte||v.def.air||v.def.eau||v.enAir||v.x<-4000) continue;
     if(v.x===v._dgx&&v.z===v._dgz&&!v.conduit) continue; if(!surEauVeh(v)) for(let k=0;k<3&&degagerDesMurs(v);k++); v._dgx=v.x; v._dgz=v.z; } /* jusqu'à trois passes : sorti d'un bloc de l'escalier d'un coin, le coin entrait dans le bloc voisin (une épave tremblait de 0,2 u à chaque image) */ /* l'économie (même place qu'au dernier dégagement) seulement pour un véhicule que personne ne conduit : au derby, une voiture coincée entre une autre et un bloc revenait chaque image exactement au même point, sans jamais être dégagée (0,54 u dans le bloc) */
   COLL.actif=false;
   for(let i=vehicules.length-1;i>=0;i--){

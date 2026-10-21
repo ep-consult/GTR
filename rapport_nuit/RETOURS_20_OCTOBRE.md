@@ -36,7 +36,7 @@ lourds. Aucune référence à un autre jeu ni à une marque.
 | 9 | 9.1 Akimbo à la 1re personne | ☑ |
 | 10 | 10.1 Défi voltige et course d'avions | ☑ |
 | 11 | 11.1 Les bateaux reculent droit (joystick vers l'arrière) | ☑ |
-| 11 | 11.2 Les rues des ponts-levis butent sur l'aéroport : une route périphérique qui les relie | ☐ |
+| 11 | 11.2 Les rues des ponts-levis butent sur l'aéroport : une route périphérique qui les relie | ☑ |
 
 ---
 
@@ -649,7 +649,7 @@ l'avenue des tours).
 - **Mer, la houle du bateau** : test en temps réel ; en fin de suite, le navigateur chargé ne simulait que 1,4 s de mer (3,3 u/s) : il
   mesure désormais jusqu'à ce que le bateau ait pris de la vitesse.
 
-## Lot 11 — Retours du 21 octobre (à faire, ajoutés en cours de chantier)
+## Lot 11 — Retours du 21 octobre (ajoutés en cours de chantier)
 
 Demandé pendant la validation finale, à traiter à la suite des dix lots :
 
@@ -671,3 +671,43 @@ Demandé pendant la validation finale, à traiter à la suite des dix lots :
   routes qui mènent vers les ponts-levis arrivent sur l'aéroport : un gros blocage et une voie sans issue. Modifier le trajet, peut-être
   une route en périphérie qui passe à ce niveau sur l'aéroport, puisqu'il y a de la place, et qui se rejoint : on pourra rejoindre
   les deux ponts-levis. »
+
+  **Fait.** Lecture retenue : les rues des deux ponts-levis (z 42 et 168) finissaient sur la culée de la rive est, contre le mur
+  d'enceinte de l'aéroport (le trafic y faisait demi-tour : la « voie sans issue ») ; la route nouvelle les relie **le long du mur,
+  côté aéroport**, en boucle — elle ne traverse ni le tarmac ni les pistes (pas de croisement avec les avions qui roulent) et ne mène
+  nulle part ailleurs (aucune nouvelle rue dans l'aéroport : ça aurait touché les apparitions, les taxis, les balises). Ce qui est
+  posé (`mkPeripherique`, en toute fin de décor, générateur privé : ville et décor inchangés — empreinte du décor, portes, chalet et
+  tirage principal identiques) :
+  - le **mur d'enceinte ouvert** au bout de chaque culée (l'ancienne longue boîte est cachée, gardée pour ses tirages ; trois tronçons
+    et des piliers d'entrée comme au portail de l'aéroport) ;
+  - à chaque bout, une **plateforme à la hauteur de la culée** (2,7 u, le tablier du pont-levis est en hauteur), puis une **rampe** de
+    18 u (pente 14 %) et un **boulevard** de 13 u le long du mur, garde-corps, murs de soutènement, marquage, lampadaires ; le
+    boulevard est posé juste au-dessus des sols de l'aéroport (le tarmac, la pelouse et le désert étaient au-dessus de l'asphalte :
+    vu de dessus, les voitures roulaient « dans l'herbe », trouvé en rendu réel) ;
+  - la **butte** (une mesa du désert) qui bouchait la sortie du pont sud est aplanie, relief et maillage ;
+  - la route est dessinée sur la minimap et la grande carte.
+
+  **Le trafic** : une boucle à sens unique sans aucun croisement (on roule à droite comme sur la grille) — une voiture qui arrive vers
+  l'est au bout d'une culée y entre au lieu de faire demi-tour et ressort vers l'ouest par l'autre rue, donc par l'autre pont-levis ;
+  à la sortie, elle s'arrête à la ligne si ce pont-levis est levé. Un long véhicule (bus, camion : ils n'allaient déjà pas sur la culée)
+  fait demi-tour avant le canal, comme avant. Le joueur passe la boucle au volant comme à pied.
+
+  **Trouvé en route** (par le test, au vrai joystick) : les garde-corps étaient posés à hauteur du SOL et non des plateformes (la
+  fonction de hauteur ne répondait qu'une fois la route finie) — une voiture lancée passait dessus et tombait de 2,7 u ; une voiture
+  qui dérape de côté dans le virage n'est pas vue par la sonde de choc (elle ne regarde que devant) : sur les parties hautes, un
+  véhicule est désormais tenu au bord comme contre un mur. Une voiture qui ressortait vers l'ouest « rebondissait » sur la limite
+  du demi-tour et rentrait dans la boucle pour toujours.
+
+  **Mesures** : relief continu sur les deux chemins (0,08 u au plus entre deux points à 0,5 u), aucun solide sur la chaussée ; une
+  voiture du trafic fait le tour en 26 à 30 s, dans les deux sens ; au volant (citadine, moto) 12 à 18 s d'une rue à l'autre, jamais
+  hors de la chaussée, aucun dégât ; à pied 16 s ; deux minutes de trafic réel semé sur les deux rues : 6 voitures par la boucle,
+  aucun blocage (trois graines). Coût de rendu près de la boucle : +7 à +18 appels de rendu (1 à 2 %), triangles +0,3 à +3 %,
+  temps de rendu dans le bruit (machine sans carte graphique).
+
+  Captures (avant / après, rendu réel) : `l11_2_avant_vue_haut.png` / `l11_2_vue_haut.png` (vue de dessus, nord en haut : les deux
+  rues qui butent sur l'aéroport et la butte au sud, puis la route), `l11_2_avant_entree_nord.png` / `l11_2_entree_nord.png`,
+  `l11_2_boulevard.png`, `l11_2_sortie_sud.png`, `l11_2_jeu_boulevard.png` (la vue du jeu, minimap comprise).
+
+  Test « Retours du 20 octobre, lot 11.2 » (lit `CANAUX.levis`, `PERI.chemins`, `PERI.plats`) ; « Canaux V3 : ponts-levis » attend
+  désormais le retour par la boucle et le pont sud (avant : demi-tour sur la culée). **À essayer sur iPhone** : le virage serré en
+  haut de chaque rampe (rayon ~7 u : il faut ralentir, comme à un carrefour) et la lisibilité de l'entrée vue depuis le pont.

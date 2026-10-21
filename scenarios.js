@@ -16185,13 +16185,13 @@ async function main() {
           while (t < 10) { pas(); t += 1 / 60; if (LN.theta > 0.02) monteAvec = true; } if (monteAvec) ko.push('le pont-levis se lève avec le joueur à pied sur le tablier');
           t = 0; while (t < 8 && LN.theta < 0.02) { INPUT.jx = -1; INPUT.jy = 0; pas(); t += 1 / 60; } INPUT.jx = 0; if (LN.theta < 0.02) ko.push('le joueur parti du tablier, le pont ne se lève pas (' + LN.etat + ', joueur en ' + P.x.toFixed(1) + ')');
           retirer(yv); }
-        /* 8) le trafic : une voiture vers l'est sur la rue du pont nord s'arrête à la ligne pendant l'ouverture, puis passe, fait demi-tour sur la culée et revient */
+        /* 8) le trafic : une voiture vers l'est sur la rue du pont nord s'arrête à la ligne pendant l'ouverture, puis passe et revient — par la route périphérique et la rue du pont sud depuis le lot 11.2 (avant : demi-tour sur la culée) */
         partie(); { const yv = attente(LN, 24); P.x = 255; P.z = 20; P.y = solPied(P.x, P.z); /* le joueur près de la rue (loin de lui, le trafic est recyclé) */
           const car = creerVehicule('citadine', LN.x0 - 15, LN.zc - 3.2, Math.PI / 2, 'trafic'); car._traf = true; car.axe = 'x'; car.lane = LN.zc - 3.2; car.uidT = ++TRAFIC_UID; garder.add(car);
           let t = 0, avMax = -1e9, arretVu = false; while (t < 30 && LN.etat !== 'descend') { pas(); t += 1 / 60; if (LN.etat !== 'ferme') avMax = Math.max(avMax, car.x + car.def.long / 2); if (LN.etat === 'ouvert' && Math.abs(car.v) < 0.3) arretVu = true; if (t > 12) retirer(yv); }
           if (!arretVu) ko.push('la voiture ne s’arrête pas pendant l’ouverture (x ' + car.x.toFixed(1) + ', ' + LN.etat + ')'); if (avMax > LN.xArretO + 0.6) ko.push('la voiture dépasse la ligne d’arrêt (' + avMax.toFixed(2) + ' > ' + LN.xArretO.toFixed(2) + ')');
-          let xMax = car.x, revenu = false; t = 0; while (t < 40) { pas(); t += 1 / 60; xMax = Math.max(xMax, car.x); if (xMax > LN.xP1 && car.x < LN.xP0 - 3) { revenu = true; break; } }
-          if (!revenu) ko.push('la voiture ne passe pas le pont refermé ou ne revient pas (x max ' + xMax.toFixed(1) + ', x ' + car.x.toFixed(1) + ', ' + LN.etat + ')'); else info.push('trafic : arrêt à la ligne, passage, demi-tour sur la culée (x max ' + xMax.toFixed(1) + ')');
+          let xMax = car.x, revenu = false, periVu = false; t = 0; while (t < 70) { if (car.peri && !periVu) { periVu = true; P.x = 270; P.z = 105; P.y = solPied(P.x, P.z); } /* au milieu des deux rues : le trafic est recyclé à plus de 120 u du joueur */ pas(); t += 1 / 60; xMax = Math.max(xMax, car.x); if (xMax > LN.xP1 && car.x < LN.xP0 - 3) { revenu = true; break; } }
+          if (!revenu) ko.push('la voiture ne passe pas le pont refermé ou ne revient pas (x max ' + xMax.toFixed(1) + ', x ' + car.x.toFixed(1) + ', ' + LN.etat + ')'); else info.push('trafic : arrêt à la ligne, passage, ' + (periVu ? 'retour par la route périphérique et le pont sud en ' + t.toFixed(0) + ' s' : 'demi-tour sur la culée') + ' (x max ' + xMax.toFixed(1) + ')'); if (PERI.ok && !periVu) ko.push('la voiture ne prend pas la route périphérique');
           retirer(car); }
         /* 9) le joueur lancé force la barrière pendant la montée : elle casse et la volée devient un tremplin ; volée levée : un mur, pas une chaussée */
         partie(); { const yv = attente(LN, 24); for (let i = 0; i < 5; i++) pas(); LN.etat = 'monte'; LN.bar = 1; LN.theta = 0.06; levisSolidesBarrieres(LN, true);
@@ -18508,6 +18508,92 @@ async function main() {
       });
       if (r.ko.length) fail('Retours 20 oct., lot 10 : ' + r.ko.slice(0, 20).join(' ; ') + ' [' + r.info.join(' | ') + ']');
       else ok('Retours 20 oct., lot 10 : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
+    // Retours du 20 octobre, lot 11.2 (21 octobre, demandé avec une capture : « les deux routes qui mènent aux ponts-levis arrivent
+    // sur l'aéroport : une voie sans issue, un gros blocage ; une route en mode périphérie qui les relie »). Tout est lu dans le jeu
+    // (CANAUX.levis, PERI.chemins, PERI.plats, PERI.murs) : le relief suit le tracé sans marche ni obstacle, le mur d'enceinte est
+    // ouvert au bout des deux culées, la butte qui bouchait le pont sud est aplanie ; une voiture du trafic qui arrive vers l'est
+    // sur une rue de pont-levis fait le tour et revient vers l'ouest par l'autre rue (les deux sens), et s'arrête à la ligne si le
+    // pont de sortie est levé ; un long véhicule fait demi-tour avant le canal comme avant ; le joueur passe la boucle au volant (au
+    // vrai joystick) et à pied ; deux minutes de trafic réel autour des ponts : personne n'y reste bloqué.
+    // -------------------------------------------------------------------
+    console.log('\n--- Retours du 20 octobre, lot 11.2 : la route périphérique des ponts-levis ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = []; let T = dernierT + 1000;
+        if (!PERI.ok || !PERI.chemins || !CANAUX.levis || CANAUX.levis.length !== 2) return { ko: ['la route périphérique n’est pas construite (PERI.ok ' + PERI.ok + ')'], info };
+        const LN = PERI.LN, LS = PERI.LS, C2 = PERI.chemins;
+        /* 1) le tracé : relief continu, rien qui barre la chaussée, montée aux culées, mur ouvert, butte aplanie */
+        for (const k of ['AB', 'BA']) { const c = C2[k]; let saut = 0, yPrev = null, yMax = 0; const bloque = [];
+          for (let s = 0; s <= c.L; s += 0.5) { const p = periPoint(c, s), y = solY(p.x, p.z); if (yPrev !== null) saut = Math.max(saut, Math.abs(y - yPrev)); yPrev = y; yMax = Math.max(yMax, y);
+            for (const dl of [-1, 0, 1]) { const qx = p.x + Math.cos(p.ang) * dl, qz = p.z - Math.sin(p.ang) * dl, so = solidAt(qx, qz, 0.4); if (so && so.h > y + 0.3 && bloque.length < 3) bloque.push(qx.toFixed(1) + ',' + qz.toFixed(1)); } }
+          if (saut > 0.2) ko.push(k + ' : une marche de ' + saut.toFixed(2) + ' u sur le tracé'); if (Math.abs(yMax - PERI.H) > 0.05) ko.push(k + ' : la chaussée monte à ' + yMax.toFixed(2) + ' (culées à ' + PERI.H + ')');
+          if (bloque.length) ko.push(k + ' : un solide sur la chaussée en ' + bloque.join(' | ')); }
+        for (const L of [LN, LS]) { if (solidAt(L.x1 + 1, L.zc, 0.4)) ko.push(L.id + ' : le mur d’enceinte ferme toujours le bout de la culée'); if (Math.abs(solY(L.x1 + 0.5, L.zc) - PERI.H) > 0.05) ko.push(L.id + ' : marche entre la culée et la plateforme (' + solY(L.x1 + 0.5, L.zc).toFixed(2) + ')'); }
+        if (!solidAt(HALF + 14, (LN.z1 + LS.z0) / 2, 0.3)) ko.push('le mur d’enceinte manque entre les deux entrées');
+        for (const m of CANYON.mesas) if (m.h > 0 && m.x + m.hw > LN.x1 && m.x - m.hw < PERI.XB + PERI.DEMI + 2 && m.z + m.hd > LN.z0 && m.z - m.hd < LS.z1) ko.push('une mesa sur la route (' + m.x.toFixed(0) + ', ' + m.z.toFixed(0) + ')');
+        /* une partie propre, vue classique, sans ennemis ni trafic parasite près des ponts */
+        const garder = new Set(); const partie = () => { META.vue = 'classique'; if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; ETAT.timeScale = 1;
+          P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9; YIA.t = 1e9; for (const e of ennemis) e.mort = true; garder.clear(); P.x = 250; P.z = 100; P.y = solPied(P.x, P.z); };
+        const pas = (seul) => { for (const e of ennemis) e.mort = true; WANTED.stars = 0; WANTED.heat = 0;
+          if (seul) for (let i = vehicules.length - 1; i >= 0; i--) { const w = vehicules[i]; if (w !== P.veh && w.conduit && w.conduit !== 'joueur' && !garder.has(w)) { w.mort = true; scene.remove(w.mesh); vehicules.splice(i, 1); } } /* mort : une voiture qui lui cédait le passage ne l'attend pas pour toujours */
+          T += 1000 / 60; tick(T); P.hp = 1e9; };
+        const voiture = (cle, L, sens) => { const lane = L.zc - 3.2 * sens, v = creerVehicule(cle, sens > 0 ? 262 : 300, lane, sens > 0 ? Math.PI / 2 : -Math.PI / 2, 'trafic'); v._traf = true; v.axe = 'x'; v.lane = lane; v.uidT = ++TRAFIC_UID; v.v = 6; garder.add(v); return v; };
+        const retirer = (v) => { if (!v) return; if (P.veh === v) sortirVehicule(true); v.mort = true; scene.remove(v.mesh); const i = vehicules.indexOf(v); if (i >= 0) vehicules.splice(i, 1); garder.delete(v); };
+        /* 2) le trafic : d'une rue de pont-levis à l'autre, dans les deux sens */
+        for (const [nom, Lde, Lvers] of [['nord → sud', LN, LS], ['sud → nord', LS, LN]]) { partie(); const v = voiture('citadine', Lde, 1);
+          let t = 0, boucle = false, demi = 0, aPrev = v.ang, yMax = 0; while (t < 50) { pas(true); t += 1 / 60; if (v.peri) boucle = true; yMax = Math.max(yMax, v.mesh.position.y);
+            if (Math.abs(angDiff(aPrev, v.ang)) > 2.5) demi++; aPrev = v.ang; if (boucle && !v.peri && v.x < Lvers.x0 - 4) break; }
+          if (!boucle) ko.push(nom + ' : la voiture n’entre pas sur la route périphérique (' + v.x.toFixed(1) + ', ' + v.z.toFixed(1) + ')');
+          else if (!(v.x < Lvers.x0 - 4 && Math.abs(v.z - (Lvers.zc + 3.2)) < 0.3 && Math.sin(v.ang) < -0.9)) ko.push(nom + ' : la voiture ne revient pas vers l’ouest par l’autre rue (' + v.x.toFixed(1) + ', ' + v.z.toFixed(1) + ', cap ' + (v.ang * 57.3).toFixed(0) + '°, ' + t.toFixed(0) + ' s)');
+          else info.push(nom + ' en ' + t.toFixed(0) + ' s (monte à ' + yMax.toFixed(1) + ' u)'); if (demi) ko.push(nom + ' : ' + demi + ' demi-tour(s) brusque(s)'); retirer(v); }
+        /* 3) en ressortant, le pont-levis de la sortie levé : arrêt à la ligne ; refermé, elle passe */
+        partie(); { const v = voiture('citadine', LN, 1); LS.etat = 'ouvert'; LS.theta = LEVIS_THETA; LS.bar = 1; levisMurs(LS); let t = 0, avMin = 1e9, arret = false;
+          while (t < 45) { LS.libreT = 0; pas(true); t += 1 / 60; if (!v.peri && v.z > LS.z0) { avMin = Math.min(avMin, v.x - v.def.long / 2); if (Math.abs(v.v) < 0.2) arret = true; } if (arret && t > 34) break; } /* le pont tenu levé (libreT : il redescend sinon) */
+          if (!arret) ko.push('pont de sortie levé : la voiture ne s’arrête pas (' + v.x.toFixed(1) + ', ' + v.z.toFixed(1) + ')'); if (avMin < LS.xArretE - 0.6) ko.push('pont de sortie levé : la voiture passe la ligne (' + avMin.toFixed(2) + ' < ' + LS.xArretE.toFixed(2) + ')');
+          LS.etat = 'descend'; LS.t = 0; let passe = false; t = 0; while (t < 25) { pas(true); t += 1 / 60; if (v.x < LS.xP0 - 3) { passe = true; break; } }
+          if (!passe) ko.push('pont refermé : la voiture ne repart pas (' + v.x.toFixed(1) + ', ' + LS.etat + ')'); else info.push('pont de sortie levé : arrêt à ' + (avMin - LS.xArretE).toFixed(2) + ' u de la ligne, puis passage'); retirer(v); }
+        /* 4) un long véhicule (bus) fait demi-tour avant le canal, comme avant : jamais téléporté sur la boucle */
+        partie(); { const v = voiture('busville', LN, 1); let t = 0, xMax = v.x, periVu = false, saut = 0, xP = v.x; while (t < 25) { pas(true); t += 1 / 60; xMax = Math.max(xMax, v.x); if (v.peri) periVu = true; saut = Math.max(saut, Math.abs(v.x - xP)); xP = v.x; if (Math.sin(v.ang) < -0.9 && v.x < xMax - 6) break; }
+          if (periVu) ko.push('le bus est entré sur la boucle'); if (saut > 1) ko.push('le bus a sauté de ' + saut.toFixed(1) + ' u'); if (!(Math.sin(v.ang) < -0.9)) ko.push('le bus ne fait pas demi-tour (' + v.x.toFixed(1) + ')'); retirer(v); }
+        /* 5) le joueur au volant, au vrai joystick (vue classique : la direction du joystick est celle du monde), d'une rue à l'autre */
+        const conduire = (k, cle) => { partie(); const c = C2[k], L1 = c.entree, L2 = c.L1, v = creerVehicule(cle, 268, L1.zc - 3.2, Math.PI / 2, null); P.x = v.x; P.z = v.z; entrerVehicule(v); const hp0 = v.hp;
+          let t = 0, s = 0, ecartMax = 0, ouEcart = '', yMax = 0, fini = false; const pts = []; for (let x = 268; x < c.pts[0].x; x += 1) pts.push({ x, z: L1.zc - 3.2 }); for (let q = 0; q <= c.L; q += 1) pts.push(periPoint(c, q)); for (let x = c.pts[c.pts.length - 1].x - 1; x > 268; x -= 1) pts.push({ x, z: L2.zc + 3.2 });
+          let i0 = 0; while (t < 60) { let bi = i0, bd = 1e9; for (let i = i0; i < Math.min(pts.length, i0 + 40); i++) { const d = Math.hypot(pts[i].x - v.x, pts[i].z - v.z); if (d < bd) { bd = d; bi = i; } } i0 = bi; { const X0 = PERI.XB - PERI.DEMI, X1 = PERI.XB + PERI.DEMI; let hors = 0; /* hors de la chaussée (au-delà de la culée, à l'est du mur) : de combien */
+              if (v.x > HALF + 14) { if (v.z > LN.z1 && v.z < LS.z0) hors = Math.max(X0 - v.x, v.x - X1); else hors = Math.max(v.x - X1, LN.z0 - v.z, v.z - LS.z1, (v.z > LN.z1 && v.z < LS.z0) ? 0 : -1); }
+              if (hors > ecartMax) { ecartMax = hors; ouEcart = v.x.toFixed(0) + ',' + v.z.toFixed(0) + ' à ' + Math.abs(v.v).toFixed(0) + ' u/s'; } }
+            const cib = pts[Math.min(pts.length - 1, bi + 7)], dx = cib.x - v.x, dz = cib.z - v.z, l = Math.hypot(dx, dz) || 1, vir = Math.abs(angDiff(v.ang, Math.atan2(dx, dz)));
+            let virLoin = 0; for (let j = bi; j < Math.min(pts.length - 2, bi + 16); j++) virLoin = Math.max(virLoin, Math.abs(angDiff(Math.atan2(pts[j + 1].x - pts[j].x, pts[j + 1].z - pts[j].z), Math.atan2(pts[bi + 1 < pts.length ? bi + 1 : bi].x - pts[bi].x, pts[bi + 1 < pts.length ? bi + 1 : bi].z - pts[bi].z) || 0)));
+            const vise = virLoin > 0.6 ? 9 : 22, k2 = Math.abs(v.v) > vise ? 0.25 : (vir > 0.35 ? 0.5 : 0.85); INPUT.btn.frein = Math.abs(v.v) > vise + 3;
+            INPUT.jx = dx / l * k2; INPUT.jy = dz / l * k2; pas(true); t += 1 / 60; yMax = Math.max(yMax, v.y || 0, v.mesh.position.y); if (bi >= pts.length - 3) { fini = true; break; } }
+          INPUT.jx = INPUT.jy = 0; INPUT.btn.frein = false; for (let i = 0; i < 30; i++) pas(true); const deg = hp0 - v.hp;
+          if (!fini) ko.push('au volant (' + cle + ', ' + k + ') : bloqué en ' + v.x.toFixed(1) + ', ' + v.z.toFixed(1) + ' après ' + t.toFixed(0) + ' s');
+          else info.push('au volant (' + cle + ') : ' + t.toFixed(0) + ' s, hors de la chaussée ' + Math.max(0, ecartMax).toFixed(1) + ' u, ' + deg.toFixed(0) + ' de dégâts');
+          if (ecartMax > 0.3) ko.push('au volant (' + cle + ', ' + k + ') : sort de la chaussée de ' + ecartMax.toFixed(1) + ' u en ' + ouEcart); if (deg > 5) ko.push('au volant (' + cle + ', ' + k + ') : ' + deg.toFixed(0) + ' de dégâts (un mur ?)');
+          if (P.veh) sortirVehicule(true); retirer(v); };
+        conduire('AB', 'citadine'); conduire('BA', 'moto');
+        /* 6) à pied : de la culée nord à la culée sud par la boucle */
+        partie(); { const c = C2.AB; P.x = c.pts[0].x; P.z = c.pts[0].z; P.y = solPied(P.x, P.z); let t = 0, s = 0, fini = false;
+          while (t < 50) { let bs = s, bd = 1e9; for (let q = s; q < Math.min(c.L, s + 12); q += 0.5) { const p = periPoint(c, q), d = Math.hypot(p.x - P.x, p.z - P.z); if (d < bd) { bd = d; bs = q; } } s = bs;
+            const cib = periPoint(c, s + 4), dx = cib.x - P.x, dz = cib.z - P.z, l = Math.hypot(dx, dz) || 1; INPUT.jx = dx / l; INPUT.jy = dz / l; pas(true); t += 1 / 60; if (s >= c.L - 1.5) { fini = true; break; } }
+          INPUT.jx = INPUT.jy = 0; if (!fini) ko.push('à pied : bloqué en ' + P.x.toFixed(1) + ', ' + P.z.toFixed(1) + ' (' + s.toFixed(0) + ' / ' + c.L.toFixed(0) + ' u)'); else info.push('à pied : ' + t.toFixed(0) + ' s'); }
+        /* 7) deux minutes de trafic réel autour des ponts : personne ne reste bloqué sur la boucle ni sur les culées */
+        partie(); { P.x = 282; P.z = 105; P.y = solPied(P.x, P.z); for (const L of [LN, LS]) for (const [x, sens] of [[205, 1], [235, 1], [262, 1], [292, -1], [250, -1]]) { const lane = L.zc - 3.2 * sens, w = creerVehicule(x < 240 && sens > 0 ? 'taxi' : 'citadine', x, lane, sens > 0 ? Math.PI / 2 : -Math.PI / 2, 'trafic'); w._traf = true; w.axe = 'x'; w.lane = lane; w.uidT = ++TRAFIC_UID; }
+          const arret = new Map(); let pire = 0, ouPire = '', nPeri = new Set(), t = 0;
+          while (t < 120) { pas(false); t += 1 / 60;
+            for (const v of vehicules) { if (v.conduit !== 'trafic' || v.mort) continue; const zone = v.peri || (v.x > LN.x0 && Math.abs(v.z - LN.zc) < 6) || (v.x > LS.x0 && Math.abs(v.z - LS.zc) < 6); if (v.peri) nPeri.add(v);
+              if (!zone || Math.abs(v.v) > 0.3) { arret.delete(v); continue; } const a = (arret.get(v) || 0) + 1 / 60; arret.set(v, a); if (a > pire) { pire = a; ouPire = v.x.toFixed(0) + ',' + v.z.toFixed(0) + (v.peri ? ' (boucle)' : '') + (levisFile(v) ? ' (pont levé)' : ''); } } }
+          if (pire > 20) ko.push('trafic réel : un véhicule arrêté ' + pire.toFixed(0) + ' s sur la boucle ou une culée');
+          info.push('trafic réel, 120 s : ' + nPeri.size + ' véhicule(s) par la boucle, arrêt le plus long ' + pire.toFixed(1) + ' s' + (pire > 3 ? ' en ' + ouPire : '')); }
+        /* 8) la carte : la route est dessinée sur la minimap */
+        { const cv = document.createElement('canvas'); cv.width = cv.height = 64; const g = cv.getContext('2d'); g.fillStyle = '#000'; g.fillRect(0, 0, 64, 64);
+          dessinerPeriCarte(g, (x, z) => ({ x: 32 + (x - PERI.XB) * 0.5, y: 32 + (z - (LN.zc + LS.zc) / 2) * 0.5 })); const p = g.getImageData(32, 32, 1, 1).data; if (p[0] + p[1] + p[2] < 60) ko.push('la route n’est pas dessinée sur la carte'); }
+        INPUT.jx = INPUT.jy = 0; if (P.veh) sortirVehicule(true); META.vue = 'classique'; startRun(); ecran(null); ETAT.mode = 'jeu';
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Retours 20 oct., lot 11.2 : ' + r.ko.slice(0, 20).join(' ; ') + ' [' + r.info.join(' | ') + ']');
+      else ok('Retours 20 oct., lot 11.2 : ' + r.info.join(' ; '));
     }
     // -------------------------------------------------------------------
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
