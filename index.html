@@ -2106,7 +2106,7 @@ const META={
          gadget:{poss:false,lv:0},couteau:{poss:false,lv:0},batte2:{poss:false,lv:0},bouleC:{poss:false,lv:0},sabre:{poss:false,lv:0},pompe:{poss:false,lv:0},uzi:{poss:false,lv:0},silence:{poss:false,lv:0},pm:{poss:false,lv:0},fusil:{poss:false,lv:0},sniper:{poss:false,lv:0},flamme:{poss:false,lv:0},roquette:{poss:false,lv:0},desintegrateur:{poss:false,lv:0}},
   upg:{vitesse:0,vie:0,regen:0,melee:0,recharge:0,butin:0},
   defis:{coffresToits:0,avionsPoses:0,manege:0,styleAchats:0,fauves:0,aimant:0, // 3e série (14 octobre)
-  paquebot:0,epave:0,bouteilles:0,tortues:0,contrebande:0,kite:0,wake:0, // retours du 20 octobre, lot 6 : le large (kite et wake : records de points)
+  paquebot:0,epave:0,bouteilles:0,tortues:0,contrebande:0,kite:0,wake:0,falaise:0, // retours du 20 octobre, lots 6 et 7 (falaise : record du Reyes Cliff Diving) : le large (kite et wake : records de points)
     vols:0,dist:0,detruits:0,chefs:0,etoile6:false,bateau:false,ile:false,avion:false,heli:false,crash:false,saut:false,toit:false,banque:false,sommet:false,villa:false,jackpot:false,
     // lot 11/12 (Dépôt de bus, Jetpack, Monster Truck) : chaque victoire de
     // circuit est marquée séparément (jamais déduite de META.depotCircuits,
@@ -2257,6 +2257,7 @@ const DEFIS_THEMES=[
   {theme:'tortues',noms:['Ami des tortues','Gardien des tortues','Protecteur des océans'],det:n=>'Libère '+n+' tortues prises dans des filets',val:m=>m.defis.tortues,paliers:[3,12,30],recs:[250,800,1800]},
   {theme:'contrebande',noms:['Garde-pêche','Douanier des mers','Terreur des contrebandiers'],det:n=>'Saisis '+n+(n>1?' cargaisons':' cargaison')+' de contrebandiers',val:m=>m.defis.contrebande,paliers:[1,5,15],recs:[300,1000,2400]},
   {theme:'kitesurf',noms:['Kitesurfeur','Rider du vent','Roi du kite'],det:n=>'Marque '+n+' points en une session de kitesurf',val:m=>m.defis.kite,paliers:[1500,4000,8000],recs:[250,800,2000],tenue:'kitesurfeur'},
+  {theme:'falaise',noms:['Plongeur de falaise','Acrobate des falaises','Roi de la falaise'],det:n=>'Marque '+n+' points au Reyes Cliff Diving',val:m=>m.defis.falaise,paliers:[150,300,450],recs:[300,800,2000],tenue:'falaise'}, // lot 7
   {theme:'wakeboard',noms:['Rider du sillage','As du wakeboard','Légende du wake'],det:n=>'Marque '+n+' points en une session de wakeboard',val:m=>m.defis.wake,paliers:[3000,9000,15000],recs:[250,800,2000]},
   // retours du 20 octobre, 4.3 : la chasse (META.chasse) — le gibier seulement ; une bête paisible ou protégée garde son karma et n'entre dans aucun défi
   {theme:'pigeons',noms:['Chasseur de pigeons','Fléau des places','Terreur des pigeons'],det:n=>'Abats '+n+' pigeons en ville',val:m=>m.chasse.pigeon,paliers:[10,40,100],recs:[300,800,2000],tenue:'pigeon'},
@@ -2884,6 +2885,8 @@ const TENUES=[
    cond:()=>tenueDefiFinal('voltigeur'),haut:0x6a3a1a,bas:0x3a3020,casq:0x6a3a1a},
   {id:'pigeon',nom:'Costume de pigeon',ico:'🐦',condTxt:'Défi « Terreur des pigeons » : 100 pigeons abattus — ESQUIVE fait voleter (petits bonds planés), chute ralentie',
    cond:()=>tenueDefiFinal('pigeon'),haut:0x9ca2ac,bas:0x6a707c,casq:0x6a707c},
+  {id:'falaise',nom:'Tenue de plongeur de falaise',ico:'🌊',condTxt:'Défi « Roi de la falaise » : 450 points au Reyes Cliff Diving — les plongeons dans l’eau rapportent 50 % de points en plus',
+   cond:()=>tenueDefiFinal('falaise'),haut:0x0a2a4a,bas:0xd8282a,casq:0x0a2a4a},
   {id:'kitesurfeur',nom:'Combinaison de kitesurf',ico:'🪁',condTxt:'Défi « Roi du kite » : 8 000 points en une session de kitesurf — les sauts de kite 15 % plus hauts',
    cond:()=>tenueDefiFinal('kitesurfeur'),haut:0x1a8ac8,bas:0x14161c,casq:0xf2f2ee},
   {id:'athlete',nom:'Tenue « Reyes Athletics »',ico:'🎾',condTxt:'Gagner le match de tennis du complexe sportif — le sprint fatigue 30 % moins',
@@ -6429,7 +6432,7 @@ function plongeonJoueur(haut){
   P.h.g.rotation.x=0;
   if(haut<4||ETAT.runT-PLONGEON.dernier<6) return;
   PLONGEON.dernier=ETAT.runT;
-  const pts=Math.round(haut*12*ETAT.combo); ETAT.score+=pts;
+  const pts=Math.round(haut*12*ETAT.combo*tenueK('falaise',1.5)); ETAT.score+=pts; /* la tenue du plongeur de falaise : +50 % */
   spawnTexte(P.x,3,P.z,(haut>=15?'PLONGEON DE L’EXTRÊME ! +':'PLONGEON ! +')+pts,haut>=15?'#ff5ad0':'#35e0ff');
   if(haut>PLONGEON.record){ PLONGEON.record=haut; if(haut>=15) toast('🤿 Plongeon de '+Math.round(haut)+' u — respect','or'); }
 }
@@ -12563,6 +12566,9 @@ const TENUE_ACC={
     A.add(mkBoxG(0.06,0.06,0.5,0x14161c,0,1.82,0)); A.add(mkBoxG(0.5,0.06,0.06,0x14161c,0,1.82,0)); for(const s of [-1,1]) A.add(mkBoxG(0.08,0.2,0.18,0xd8ff3a,s*0.25,1.58,0)); },
   athlete:(A)=>{ if(!A.tete) return; A.add(mkBoxG(0.45,0.06,0.45,0xf2f4f8,0,1.7,0)); A.add(mkBoxG(0.46,0.02,0.46,0x2a6ad8,0,1.7,0)); }, /* bandeau éponge */
   ballers:(A)=>{ if(!A.tete) return; A.add(mkBoxG(0.45,0.06,0.45,0xff8a2a,0,1.7,0)); },
+  falaise:(A)=>{ /* plongeur de falaise (lot 7) : bonnet de bain, lunettes relevées, lycra et short de bain */
+    if(A.tete){ const c=new THREE.Mesh(new THREE.SphereGeometry(0.29,14,8,0,Math.PI*2,0,Math.PI/2),mat(0x0a2a4a)); c.scale.set(1,0.9,1.05); c.position.y=1.7; A.add(c); for(const s of [-1,1]) A.add(mkBoxG(0.13,0.08,0.05,0x35e0ff,s*0.1,1.82,0.22)); A.add(mkBoxG(0.48,0.03,0.48,0x14161c,0,1.8,0)); }
+    A.add(mkBoxG(0.64,0.1,0.42,0x35e0ff,0,0.3,0),A.h.torse); },
   kitesurfeur:(A)=>{ /* combinaison de kitesurf (lot 6) : casque blanc à bande bleue, gilet d'impact, harnais et son crochet, chaussons */
     if(A.tete){ A.add(mkBoxG(0.5,0.42,0.5,0xf2f2ee,0,1.66,0)); A.add(mkBoxG(0.14,0.43,0.51,0x1a8ac8,0,1.66,0)); }
     A.add(mkBoxG(0.66,0.5,0.44,0x14161c,0,0.12,0),A.h.torse); A.add(mkBoxG(0.4,0.34,0.03,0x1a8ac8,0,0.16,0.225),A.h.torse);
@@ -16636,6 +16642,7 @@ function pointsActivites(){
   if(TOW.kWake) add(TOW.kWake.x,TOW.kWake.z,'🏄','#1a8ac8',1,'Wakeboard','activite',{desc:'Derrière le bateau-tracteur : sauts et figures'});
   if(TOW.kPara) add(TOW.kPara.x,TOW.kPara.z,'🪂','#1a8ac8',1,'Parachute ascensionnel','activite',{desc:'Monte à 32 m, puis lâche la corde'});
   if(typeof KITE!=='undefined'&&KITE.kiosque) add(KITE.kiosque.x,KITE.kiosque.z,'🪁','#1a8ac8',1,'Kitesurf','activite',{desc:'De travers au vent : sauts, 360, backroll, kiteloop',prix:KITE_DEF.prix+' $'}); /* lot 6 : construits après mkBalises — aucune balise de plus pendant le décor */
+  if(typeof CLIFF!=='undefined'&&CLIFF.ok) add(CLIFF.inscr.x,CLIFF.inscr.z,'🌊','#1a5aa8',CLIFF.inscr.y,'Reyes Cliff Diving','activite',{desc:'Trois plongeons, de 10 à 27 m, devant le public et les juges'});
   if(typeof PAQ!=='undefined'&&PAQ.ok) add(PAQ.x,PAQ.z,'⚓','#c83a2a',0,'Reyes Majestic','activite',{desc:'Le paquebot échoué au large : des passagers à sauver, puis l’épave'});
   if(PIC.wingsuit) add(PIC.wingsuit.x,PIC.wingsuit.z,'🦅','#7a3ac8',PIC.wingsuit.y,'Wingsuit','activite',{desc:'Au sommet du Pic du Vertige'});
   if(PIC.plg) add(PIC.plg.x,PIC.plg.z0,'🪂','#7a3ac8',PIC.H,'Saut BASE','activite',{desc:'Le plongeoir du Pic du Vertige'});
@@ -17334,13 +17341,94 @@ function majKite(dt,dtJeu){ const T=KITE.actif; if(!T) return; if(P.veh||ETAT.mo
   KITE.cap=T.ang; RIDES.txt.textContent='🪁 KITESURF — '+Math.round(T.pts)+' / '+KITE_DEF.objectif+' pts — '+Math.ceil(Math.max(0,T.t))+' s';
   if(T.t<=0) kiteArreter(true); }
 /* ---------- la construction (fin du décor, générateur privé), la partie, la vague ---------- */
-function mkMerV3(){ if(!DECOR_V2||!MERV.ok) return; avecAleaPrive(2026,()=>{ mkPaquebot(); mkLargeV3(); mkKitesurf();
-    for(const [ok,x,z,y,ico,coul] of [[PAQ.ok,PAQ.x,PAQ.z,26,'⚓','#c83a2a'],[!!KITE.kiosque,KITE.kiosque&&KITE.kiosque.x,KITE.kiosque&&KITE.kiosque.z,7,'🪁','#1a8ac8']]){ if(!ok) continue; /* leurs balises : posées ici, après mkBalises (une balise de plus pendant le décor décalerait ses tirages) */
+function mkMerV3(){ if(!DECOR_V2||!MERV.ok) return; avecAleaPrive(2026,()=>{ mkPaquebot(); mkLargeV3(); mkKitesurf(); mkCliffDiving(); /* lot 7 : la compétition de la crique */
+    for(const [ok,x,z,y,ico,coul] of [[PAQ.ok,PAQ.x,PAQ.z,26,'⚓','#c83a2a'],[!!KITE.kiosque,KITE.kiosque&&KITE.kiosque.x,KITE.kiosque&&KITE.kiosque.z,7,'🪁','#1a8ac8'],[CLIFF.ok,CLIFF.inscr&&CLIFF.inscr.x,CLIFF.inscr&&CLIFF.inscr.z,24,'🌊','#1a5aa8']]){ if(!ok) continue; /* leurs balises : posées ici, après mkBalises (une balise de plus pendant le décor décalerait ses tirages) */
       const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:texBalise(ico,coul),transparent:true,depthWrite:false,depthTest:false,fog:false})); sp.scale.set(2.6,2.6,1); sp.position.set(x,y,z); sp.renderOrder=5; scene.add(sp); BALISES.push({sp,x,z,y0:y,ph:0}); } }); }
-function merV3Reset(){ kiteArreter(false); paqRemettre(); PAQ.vagueCoffre=PAQ.vaguePlongee=PAQ.vagueAnnonce=PAQ.vagueRupture=-1; if(LARGE3.ok){ LARGE3.vague=-2; if(LARGE3.contre) LARGE3.contre.vague=-1; } }
+function merV3Reset(){ kiteArreter(false); cliffArreter(false); paqRemettre(); PAQ.vagueCoffre=PAQ.vaguePlongee=PAQ.vagueAnnonce=PAQ.vagueRupture=-1; if(LARGE3.ok){ LARGE3.vague=-2; if(LARGE3.contre) LARGE3.contre.vague=-1; } }
 function merV3NouvelleVague(){ if(PAQ.ok&&PAQ.etat!=='alerte'&&PAQ.etat!=='rupture') paqRemettre(); } /* le Majestic est de nouveau là ; la vie au large se renouvelle d'elle-même (largeNouvelleVague) */
 function actionMerV3(){ return actionPaquebot()||actionLarge3()||kiosqueKite(); }
-function majMerV3(dt,dtJeu){ majPaquebot(dt,dtJeu); majLarge3(dt,dtJeu); majKite(dt,dtJeu); }
+function majMerV3(dt,dtJeu){ majPaquebot(dt,dtJeu); majLarge3(dt,dtJeu); majKite(dt,dtJeu); majCliff(dt,dtJeu); }
+/* ---------- REYES CLIFF DIVING (retours du 20 octobre, lot 7) ----------
+   La compétition de plongeon de falaise de la crique des plongeurs : trois plongeons — la planche du bras ouest (10 u), la plateforme
+   de béton de la falaise nord (17 u), la tour de la compétition plantée sur la falaise (27 u). Le système du concours de la villa
+   (PLG_*) : l'élan, MAINTENIR pour tourner groupé, entrer dans l'eau tête la première à la verticale, trois juges ; plus c'est haut,
+   plus on a le temps de tourner (jusqu'à trois saltos et demi) et plus la note compte (coefficient de hauteur). Le public sur les bras
+   de la crique, trois bateaux de juges qui lèvent leurs cartons, une caméra de retransmission. Record (META.defis.falaise), prime une
+   fois par vague, combinaison au dernier palier. Construit en fin de décor sur un générateur privé (mkCliffDiving). */
+const CLIFF={ok:false,actif:null,sauts:[],juges:[],public:null,inscr:null,ovation:0};
+const CLIFF_OBJECTIF=300, CLIFF_PRIME=300, CLIFF_EAU=0.2, CLIFF_G=9.8, CLIFF_TOUR=7, CLIFF_AUTO=7, CLIFF_LENT=0.6;
+function mkCliffDiving(){ if(!CRIQUE) return; const M=(c)=>new THREE.MeshLambertMaterial({color:c}), acier=M(0x8a9098), jaune=M(0xffd23f), rouge=M(0xd8282a), blanc=M(0xf2f2ee), bois=M(0xc8a070), noir=M(0x14161c);
+  // les trois départs (lus sur la crique) : la planche du bras ouest, la plateforme de béton, la tour
+  CLIFF.sauts=[{nom:'la planche du bras ouest',x:350.1,z:279,h:10.0,dx:1,dz:0},{nom:'la plateforme de la falaise',x:365,z:271.4,h:17.0,dx:0,dz:1},{nom:'la tour de la compétition',x:354,z:269.6,h:27.0,dx:0,dz:1}];
+  // la tour : quatre poteaux d'acier sur la falaise (17 u), des croix, une échelle, la planche en porte-à-faux au-dessus de la baie, la bannière
+  { const g=new THREE.Group(), F=[]; scene.add(g); const Bx=(w,h,d,mt,x,y,z)=>{ const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mt); o.position.set(x,y,z); F.push(o); return o; }; const x0=354, z0=262, y0=17, y1=27;
+    for(const [dx,dz] of [[-1.2,-1.6],[1.2,-1.6],[-1.2,1.6],[1.2,1.6]]){ Bx(0.2,y1-y0,0.2,acier,x0+dx,(y0+y1)/2,z0+dz); addSolid({x:x0+dx,z:z0+dz,hw:0.15,hd:0.15,h:y1}); }
+    for(let y=y0+2;y<y1;y+=2.5){ for(const dz of [-1.6,1.6]){ const c=Bx(2.8,0.08,0.08,acier,x0,y,z0+dz); c.rotation.z=(Math.round(y)%2?1:-1)*0.6; } for(const dx of [-1.2,1.2]){ const c=Bx(0.08,0.08,3.6,acier,x0+dx,y,z0); c.rotation.x=(Math.round(y)%2?1:-1)*0.5; } }
+    Bx(3.0,0.25,3.8,acier,x0,y1-0.12,z0); for(let y=y0+0.5;y<y1;y+=0.45) Bx(0.9,0.06,0.08,jaune,x0-1.35,y,z0-1.75);
+    Bx(1.0,0.2,7.6,bois,x0,y1-0.1,z0+5.4); Bx(1.02,0.05,1.0,jaune,x0,y1+0.02,z0+7.6); for(const s of [-1,1]) Bx(0.06,1.0,3.6,blanc,x0+s*0.55,y1+0.5,z0+3.2); /* la planche, son bout peint */
+    fusionnerFixes(F,g);
+    const cv=document.createElement('canvas'); cv.width=512; cv.height=128; const c=cv.getContext('2d'); c.fillStyle='#0a2a4a'; c.fillRect(0,0,512,128); c.fillStyle='#35e0ff'; c.fillRect(0,110,512,18); c.fillStyle='#f6f4ee'; c.font='900 54px Arial'; c.textAlign='center'; c.textBaseline='middle'; c.fillText('REYES CLIFF DIVING',256,58);
+    const ban=new THREE.Mesh(new THREE.PlaneGeometry(6.4,1.6),new THREE.MeshLambertMaterial({map:new THREE.CanvasTexture(cv)})); ban.position.set(x0,y1-2.4,z0+1.75); scene.add(ban);
+    for(const s of [-1,1]){ const f=new THREE.Mesh(new THREE.PlaneGeometry(1.4,0.9),new THREE.MeshLambertMaterial({color:s<0?0x35e0ff:0xd8282a,side:THREE.DoubleSide})); f.position.set(x0+s*1.6,y1+2.6,z0-1.6); scene.add(f); const m2=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,3,6),acier); m2.position.set(x0+s*0.9,y1+1.5,z0-1.6); scene.add(m2); CLIFF['fanion'+(s<0?'G':'D')]=f; } }
+  // l'inscription au pied de la tour, sur la falaise
+  { const g=new THREE.Group(), F=[]; scene.add(g); const ix=349, iz=259, y=17.0, Bo=(w,h,d,m,x,yy,z)=>{ const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m); o.position.set(x,yy,z); F.push(o); return o; };
+    Bo(2.4,1.0,0.8,rouge,ix,y+0.5,iz); Bo(2.6,0.08,1.0,blanc,ix,y+1.04,iz); Bo(2.8,0.1,1.6,noir,ix,y+2.5,iz); for(const s2 of [-1,1]) Bo(0.08,2.5,0.08,acier,ix+s2*1.3,y+1.25,iz-0.6); /* le stand des inscriptions et son auvent */
+    fusionnerFixes(F,g); addSolid({x:ix,z:iz,hw:1.2,hd:0.4,h:y+1}); CLIFF.inscr={x:ix,z:iz+1.4,y}; }
+  // le public : sur le haut des bras de la crique, une seule géométrie à couleurs de sommets (il saute aux beaux plongeons)
+  { const parts=[], T=(geo,x,y,z)=>{ geo.translate(x,y,z); return geo; }, peaux=[0xd8a070,0x8a5a3a,0xf0c8a0,0x6a4028], hauts=[0xd83a3a,0x3a7ac8,0xf2f2ee,0x2a8a5a,0xffd23f,0xff7a1a,0x8a3ac8];
+    const gens=[]; for(let k=0;k<14;k++) gens.push([334+(k%7)*1.4,10.4,272+Math.floor(k/7)*3.2+(k%2)*0.6]); for(let k=0;k<14;k++) gens.push([388+(k%7)*1.4,5.4,272+Math.floor(k/7)*3.4+(k%2)*0.6]);
+    gens.forEach(([x,y,z],k)=>{ parts.push({g:T(new THREE.BoxGeometry(0.42,0.8,0.26),x,y+0.4,z),c:0x2a3a5a}); parts.push({g:T(new THREE.BoxGeometry(0.46,0.6,0.28),x,y+1.1,z),c:hauts[k%hauts.length]}); parts.push({g:T(new THREE.BoxGeometry(0.3,0.3,0.3),x,y+1.6,z),c:peaux[k%peaux.length]});
+      if(k%3===0) parts.push({g:T(new THREE.BoxGeometry(0.12,0.5,0.12),x+0.3,y+1.75,z),c:peaux[k%peaux.length]}); });
+    const m=new THREE.Mesh(montFusion(parts),new THREE.MeshLambertMaterial({vertexColors:true})); m.userData.garder=true; scene.add(m); for(const p of parts) p.g.dispose(); CLIFF.public=m; }
+  // les trois bateaux des juges, au débouché de la baie, et leurs cartons
+  for(let k=0;k<3;k++){ const x=355+k*10, z=300, g=new THREE.Group(); g.position.set(x,0.15,z); scene.add(g);
+    const co=new THREE.Mesh(new THREE.SphereGeometry(1,10,6,0,Math.PI*2,Math.PI/2,Math.PI/2),M(k%2?0xf2f2ee:0x1a5aa8)); co.scale.set(1.3,0.8,2.6); co.rotation.x=Math.PI; co.position.y=0.5; g.add(co); const pt=new THREE.Mesh(new THREE.BoxGeometry(2.4,0.12,4.6),bois); pt.position.y=0.55; g.add(pt);
+    const j=new THREE.Group(); for(const [w,h,d,c,y] of [[0.4,0.8,0.26,0x2a2c32,0.4],[0.46,0.6,0.28,0xf2f2ee,1.1],[0.3,0.3,0.3,0xd8a070,1.6]]){ const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),M(c)); o.position.y=y; j.add(o); } j.position.set(0,0.6,-0.6); j.rotation.y=Math.PI; g.add(j);
+    const cv=document.createElement('canvas'); cv.width=128; cv.height=96; const tx=new THREE.CanvasTexture(cv); const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tx,transparent:true,depthWrite:false})); sp.scale.set(2.2,1.65,1); sp.position.set(0,3.6,-0.6); sp.visible=false; g.add(sp);
+    CLIFF.juges.push({g,sp,cv,tx,x,z}); }
+  CLIFF.ok=true; }
+function cliffCarton(j,note){ const c=j.cv.getContext('2d'); c.fillStyle='#f6f4ee'; c.fillRect(0,0,128,96); c.strokeStyle='#14161c'; c.lineWidth=6; c.strokeRect(3,3,122,90); c.fillStyle='#14161c'; c.font='900 58px Arial'; c.textAlign='center'; c.textBaseline='middle'; c.fillText(note.toFixed(1),64,52); j.tx.needsUpdate=true; j.sp.visible=true; }
+function cliffAction(){ if(!CLIFF.ok||CLIFF.actif||P.veh||INT.actif) return null; const I=CLIFF.inscr; if(dist2(P.x,P.z,I.x,I.z)>9||Math.abs(P.y-I.y)>2) return null;
+  const rec=META.defis.falaise||0; return {label:'🌊 REYES CLIFF DIVING — 3 plongeons, de 10 à 27 m'+(rec?' (record '+rec+')':''),fn:cliffDemarrer}; }
+function cliffDemarrer(){ if(CLIFF.actif) return; CLIFF.actif={n:0,total:0,hist:[],J:null}; cacherBoutonsCombat(); cliffPlacer(); bigMsg('🌊 REYES CLIFF DIVING — premier plongeon : '+CLIFF.sauts[0].nom); SFX.ui(); }
+function cliffPlacer(){ const A=CLIFF.actif, S=CLIFF.sauts[A.n]; A.J={phase:'elan',t:0,el:0,q:0,vy:0,y:S.h,d:-0.4,ang:0,tourne:false,notes:null,attente:0}; P.x=S.x-S.dx*0.4; P.z=S.z-S.dz*0.4; P.y=S.h; P.ang=Math.atan2(S.dx,S.dz); P.chute=false; P.nage=false; P.vy=0;
+  for(const j of CLIFF.juges) j.sp.visible=false; beep(2400,0.18,'square',0.03); }
+function cliffAppui(bas){ const A=CLIFF.actif; if(!A||!A.J) return; const J=A.J; if(J.phase==='elan'&&bas){ J.q=0.5+0.5*Math.sin(J.el); J.vy=4.6+3.0*J.q; J.phase='vol'; J.t=0; beep(220,0.12,'sine',0.05,440); vibre(20); } else if(J.phase==='vol') J.tourne=bas; }
+function cliffArreter(fin){ const A=CLIFF.actif; if(!A) return; CLIFF.actif=null; cliffUI(false); for(const j of CLIFF.juges) j.sp.visible=false; if(P.h){ P.h.g.rotation.x=0; P.h.brasD.rotation.x=0; P.h.brasG.rotation.x=0; P.h.g.visible=true; }
+  afficherBoutonsCombat(); P.y=0.3; P.chute=false; P.nage=true; if(!fin) return;
+  const sc=Math.round(A.total*10)/10, rec=sc>(META.defis.falaise||0); if(rec) META.defis.falaise=sc; const g=sc>=CLIFF_OBJECTIF?primeMerUneFois('falaise',CLIFF_PRIME):0; sauveMeta(); checkDefis();
+  bigMsg('🌊 '+sc+' POINTS'); toast('🌊 Reyes Cliff Diving : '+sc+' points'+(rec?' — record !':'')+(g?' — +'+g+' $':(sc>=CLIFF_OBJECTIF?'':' — '+CLIFF_OBJECTIF+' pour la prime')),'or'); }
+function cliffEntree(){ const A=CLIFF.actif, J=A.J, S=CLIFF.sauts[A.n]; const demi=Math.max(1,Math.round(J.ang/Math.PI)), cible=Math.PI*(demi%2?demi:demi+1), err=Math.abs(J.ang-cible); /* tête la première : un nombre impair de demi-tours */
+  const vertical=Math.max(0,1-err/0.9), haut=clamp(J.q||0,0,1), exec=clamp(10*vertical*(0.75+0.25*haut),0,10), dd=1+0.5*Math.min(CLIFF_TOUR,demi), kh=1+S.h/27;
+  const juges=[0,1,2].map(()=>Math.round(clamp(exec+(Math.random()-0.5)*1.0,0,10)*2)/2), pts=Math.round(juges.reduce((a,b)=>a+b,0)*dd*kh*10)/10;
+  A.total=Math.round((A.total+pts)*10)/10; A.hist.push(pts); A.n++; J.phase='notes'; J.attente=2.8; J.notes={juges,dd,kh,pts,demi,nom:demi>=7?'Triple salto et demi !':(demi>=5?'Double salto et demi':(demi>=3?'Salto et demi':'Plongeon simple'))};
+  juges.forEach((n,k)=>cliffCarton(CLIFF.juges[k],n));
+  const gros=vertical<0.6, x=P.x, z=P.z; for(let i=0;i<(gros?4:2);i++) burst(x+(Math.random()-0.5)*0.6,0.4,z,gros?14:8,0xd8f0ff,gros?7:4,gros?7:4); if(MER_V2) eclaboussure(x,z,gros?2.4:1.2); bruit(gros?0.55:0.2,gros?0.12:0.05,gros?600:1400,'lowpass'); vibre(gros?50:15);
+  if(!gros){ CLIFF.ovation=2.4; bruit(1.4,0.05,900,'bandpass'); } }
+function majCliff(dt,dtJeu){ const A=CLIFF.actif; if(CLIFF.public){ CLIFF.ovation=Math.max(0,CLIFF.ovation-dt); CLIFF.public.position.y=CLIFF.ovation>0?Math.abs(Math.sin((ETAT.runT||0)*11))*0.35:0; }
+  if(CLIFF.fanionG){ const w=Math.sin((ETAT.runT||0)*3)*0.25; CLIFF.fanionG.rotation.y=w; CLIFF.fanionD.rotation.y=-w; }
+  if(!A) return; if(P.veh||ETAT.mode!=='jeu'){ cliffArreter(false); return; } const J=A.J, S=CLIFF.sauts[Math.min(A.n,2)], h=P.h; J.t+=dtJeu;
+  if(J.phase==='elan'){ J.el+=dtJeu*3.2; if(J.t>CLIFF_AUTO){ J.q=0.15; J.vy=4.6+3.0*J.q; J.phase='vol'; J.t=0; } if(h){ h.brasD.rotation.x=h.brasG.rotation.x=-0.4-0.3*Math.sin(J.el); } } /* on ne reste pas sur la planche : au bout de 7 s, on tombe sans élan */
+  else if(J.phase==='vol'){ J.vy-=CLIFF_G*dtJeu; J.y+=J.vy*dtJeu; J.d+=1.3*dtJeu; J.ang+=(J.tourne?9:CLIFF_LENT)*dtJeu; /* tendu, on tourne lentement : de 27 m, à peine un demi-tour sans grouper (avec la vitesse de la villa, le passif entrait tête la première par hasard) */ if(h){ const a=J.tourne?-2.4:-2.9; h.brasD.rotation.x=h.brasG.rotation.x=a; } if(J.y<=CLIFF_EAU) cliffEntree(); }
+  else if(J.phase==='notes'){ J.attente-=dtJeu; if(J.attente<=0){ if(A.n>=CLIFF.sauts.length){ cliffArreter(true); return; } cliffPlacer(); return; } }
+  const Sv=CLIFF.sauts[J.phase==='notes'?A.n-1:A.n]||S, th=J.phase==='vol'?J.ang:0, yb=J.phase==='notes'?CLIFF_EAU-0.6:J.y;
+  P.x=Sv.x+Sv.dx*(J.d-(J.phase==='vol'?0.9*Math.sin(th):0)); P.z=Sv.z+Sv.dz*(J.d-(J.phase==='vol'?0.9*Math.sin(th):0)); P.y=yb; P.chute=false; P.vy=0; P.nage=J.phase==='notes';
+  if(h){ h.g.rotation.order='YXZ'; h.g.rotation.set(th,Math.atan2(Sv.dx,Sv.dz),0); h.g.position.set(P.x,(J.phase==='notes'?CLIFF_EAU-0.6:J.y+0.9-0.9*Math.cos(th)),P.z); h.g.visible=J.phase!=='notes'||J.attente<1.2; }
+  cliffUI(true); }
+function cameraCliff(dt){ const A=CLIFF.actif, J=A.J, S=CLIFF.sauts[J&&J.phase==='notes'?A.n-1:A.n]||CLIFF.sauts[2], fy=clamp(P.y,1,S.h)+0.4;
+  const cx=S.x+S.dz*16+S.dx*6, cz=S.z+S.dz*24+S.dx*20, cy=S.h*0.45+5; CLIFF.camY=lerp(CLIFF.camY||fy,fy,clamp(dt*4,0,1));
+  camera.position.set(cx,cy,cz); camera.lookAt(S.x+S.dx*2.5,CLIFF.camY,S.z+S.dz*2.5); camera.fov=lerp(camera.fov,52,0.15); camera.updateProjectionMatrix(); VUE.yawRendu=0; } /* la caméra de retransmission, depuis la mer : de profil sur la falaise, elle suit le plongeur */
+function cliffUI(vis){ let d=document.getElementById('clfPan'); const A=CLIFF.actif, J=A&&A.J; if(!vis||!J){ if(d&&d.style.display!=='none') d.style.display='none'; return; }
+  if(!d){ d=document.createElement('div'); d.id='clfPan'; d.style.cssText='position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 16px);z-index:35;display:flex;flex-direction:column;align-items:center;gap:7px;pointer-events:none;color:#f4f8fc;font:800 13px Arial;text-shadow:0 2px 3px #000';
+    d.innerHTML='<div id="clfInfo" style="font:900 16px Arial"></div><div id="clfNotes" style="font:900 18px Arial;min-height:46px;text-align:center"></div><div id="clfJauge" style="width:min(70vw,280px)"><div style="font:700 11px Arial;text-align:left">ÉLAN</div><div style="position:relative;height:16px;background:#0c1620;border:2px solid #f4f8fc;border-radius:8px;overflow:hidden"><div style="position:absolute;right:0;top:0;bottom:0;width:22%;background:#2fae4f"></div><div id="clfAig" style="position:absolute;top:0;bottom:0;width:4px;background:#ffd23f"></div></div></div>'+
+      '<div style="display:flex;gap:12px;pointer-events:auto"><button id="clfBtn" style="min-width:150px;min-height:58px;border-radius:14px;border:2px solid #f4f8fc;background:#1a5aa8;color:#fff;font:900 16px Arial"></button><button id="clfStop" style="min-height:58px;border-radius:14px;border:2px solid #f4f8fc;background:#3a3e46;color:#fff;font:800 13px Arial;padding:0 12px">ARRÊTER</button></div>';
+    document.body.appendChild(d); const b=d.querySelector('#clfBtn'); b.addEventListener('pointerdown',(e)=>{ e.preventDefault(); cliffAppui(true); try{ b.setPointerCapture(e.pointerId); }catch(er){} });
+    const up=()=>cliffAppui(false); b.addEventListener('pointerup',up); b.addEventListener('pointercancel',up); d.querySelector('#clfStop').addEventListener('pointerdown',(e)=>{ e.preventDefault(); cliffArreter(false); }); }
+  if(d.style.display!=='flex') d.style.display='flex'; const S=CLIFF.sauts[Math.min(A.n,2)], inf='🌊 Plongeon '+Math.min(3,A.n+(J.phase==='notes'?0:1))+' / 3 — '+Math.round((J.phase==='notes'?CLIFF.sauts[A.n-1]:S).h)+' m — '+A.total+' pts';
+  const ie=d.querySelector('#clfInfo'); if(ie._t!==inf){ ie._t=inf; ie.textContent=inf; }
+  const nt=J.phase==='notes'&&J.notes?(J.notes.nom+'<br>'+J.notes.juges.map((v)=>'<span style="display:inline-block;background:#f4f8fc;color:#14202a;border-radius:4px;padding:1px 6px;margin:2px">'+v.toFixed(1)+'</span>').join('')+' × '+J.notes.dd+' × '+J.notes.kh.toFixed(2)+' = '+J.notes.pts):''; const ne=d.querySelector('#clfNotes'); if(ne._t!==nt){ ne._t=nt; ne.innerHTML=nt; }
+  const bt=d.querySelector('#clfBtn'), lab=J.phase==='elan'?'SAUTER':(J.phase==='vol'?'MAINTIENS : TOURNE':'…'); if(bt._t!==lab){ bt._t=lab; bt.textContent=lab; }
+  d.querySelector('#clfJauge').style.visibility=J.phase==='elan'?'visible':'hidden'; d.querySelector('#clfAig').style.left='calc('+((0.5+0.5*Math.sin(J.el))*100)+'% - 2px)'; }
 /* ---------- COURSES DU MONT ET DU CANYON (DECOR_V2) ----------
    Deux défis chronométrés (dtJeu), à faire sur deux roues ou en buggy :
    - MONTÉE DU MONT REYES : du pied au sommet par le sentier en lacets,
@@ -43112,7 +43200,7 @@ function metierEnCours(){ return !!(MET.pompier||MET.taxi||MET.depanneuse||MET.a
 // supercross, bouées, REYES BOWL JAM), wakeboard ou parachute ascensionnel, métier en cours. Les vagues et les
 // événements (guerres de gangs...) sont gelés, et les gangs déjà là patrouillent sans s'occuper du joueur. La
 // police, elle, continue si l'on est recherché.
-function treveActivite(){ return !!(RIDES.actif||(DECOR_V2&&(TOW.actif||KITE.actif))||BASKET.actif||SPORTJ.actif||MANEGES.actif||TOUR.actif||metierEnCours()||BASE.defi||FPS.actif||DERBY.actif); }
+function treveActivite(){ return !!(RIDES.actif||(DECOR_V2&&(TOW.actif||KITE.actif||CLIFF.actif))||BASKET.actif||SPORTJ.actif||MANEGES.actif||TOUR.actif||metierEnCours()||BASE.defi||FPS.actif||DERBY.actif); }
 // Balise dédiée, jamais la même que `balise` (déjà prise par MISSION.cur) —
 // les deux peuvent être actives en même temps sans se marcher dessus.
 const metierBalise=new THREE.Mesh(new THREE.CylinderGeometry(1.4,1.4,9,12,1,true),
@@ -46283,7 +46371,7 @@ function mourir(){
   // depotLancerCourse), foule coupée (moteurStop() ci-dessus a déjà coupé le
   // moteur). Course déjà propre : deuxième appel sans effet.
   if(INT.actif&&INT.actif.depot){ if(INT.actif.courseEnCours) depotAnnulerCourse(INT.actif); depotAmbianceStop(); fermerDepotPanneau(); }
-  if(INT.actif&&INT.actif.pq) planqueSalleArreter(INT.actif); if(INT.actif&&INT.actif.plgJ) plongeonArreter(INT.actif); planqueAmbianceStop(); montSonStop(); canauxSonStop(); levisSonStop(); lagonArreter(); jumellesFin(); if(DECOR_V2) kiteArreter(false); // planque : activité arrêtée, ambiance coupée tout de suite
+  if(INT.actif&&INT.actif.pq) planqueSalleArreter(INT.actif); if(INT.actif&&INT.actif.plgJ) plongeonArreter(INT.actif); planqueAmbianceStop(); montSonStop(); canauxSonStop(); levisSonStop(); lagonArreter(); jumellesFin(); if(DECOR_V2){ kiteArreter(false); cliffArreter(false); } // planque : activité arrêtée, ambiance coupée tout de suite
   P.h.g.rotation.z=Math.PI/2; P.h.g.position.y=0.35;
   reticule.visible=false;
   const record=ETAT.score>META.record;
@@ -47206,7 +47294,7 @@ function majAction(){
     const pertArm=!P.veh&&!INT.actif?porteArmurerieProche():null; // les deux armureries de la carte : la salle V2
     let ff=null;
     if(POIS.fastfoods) for(const f of POIS.fastfoods) if(dist2(P.x,P.z,f.x,f.z)<10){ff=f;break;}
-    const picAct=DECOR_V2?(actionPic()||actionMonteCharge()||actionMer()||actionMerV3()):null; // Pic du Vertige (monte-charge, saut BASE) ; mer (trésor, paillote, plongée, remorquage)
+    const picAct=DECOR_V2?(actionPic()||actionMonteCharge()||actionMer()||actionMerV3()||cliffAction()):null; // Pic du Vertige (monte-charge, saut BASE) ; mer (trésor, paillote, plongée, remorquage)
     if(MONT_VIE.jum.actif){ label='🔭 RANGER LES JUMELLES'; fn=jumellesFin; }
     else if(POIS.toitH&&POIS.toitH.jetpack&&dist2(P.x,P.z,POIS.toitH.jetpack.x,POIS.toitH.jetpack.z)<9&&Math.abs(P.y-POIS.toitH.jetpack.h)<4){
       if(P.jetpack){ label='✅ JETPACK ÉQUIPÉ'; fn=()=>{SFX.refus();}; }
@@ -49318,6 +49406,7 @@ function majCamera(dt){
   if(FPS.actif){ fpsCamera(); return; } // tir à la première personne : l'œil du joueur
   if(LV.actif){ cameraLongueVue(); return; } // la longue-vue du penthouse : la vraie ville, depuis le toit
   if(MONT_VIE.jum.actif){ cameraJumelles(dt); return; } /* les jumelles du belvédère du Mont Reyes */
+  if(typeof CLIFF!=='undefined'&&CLIFF.actif){ cameraCliff(dt); return; } /* Reyes Cliff Diving : la caméra de retransmission (lot 7) */
   if(DECOR_V2&&paqCameraPont(dt)) return; /* le pont promenade du Reyes Majestic (retours du 20 octobre, lot 6) */
   if(COCKPIT.g&&!vueCockpit()) cockpitRetirer(); if(vueCockpit()){ cameraCockpit(dt); return; } /* au volant à la 1re personne : le cockpit (nuit du 17 octobre) */
   if(vueChute()){ cameraChute(dt); return; } else if(CHUTE1P.actif) quitterChute(); /* en chute à la 1re personne : base jump, wingsuit, voile (17 octobre au soir) */
@@ -49593,7 +49682,7 @@ function tick(t){
     ETAT.comboT-=dt;
     if(ETAT.comboT<=0) ETAT.combo=1;
     if(ETAT.slowT>0){ ETAT.slowT-=dtReel; if(ETAT.slowT<=0&&ETAT.mode==='jeu') ETAT.timeScale=1; }
-    if(ETAT.mode==='jeu'){ majNitro(dtJeu); if(DECOR_V2){ towEntrees(); kiteEntrees(); } if(DERBY.actif) derbyEntrees(); if(!MANEGES.actif&&!FPS.actif&&!EJECT.siege) majJoueur(dt,dtJeu); majFPS(dt,dtJeu); majIvresse(dtJeu); majAcro(); majTresorCarte(dt); majFilet(dtJeu); majMontSon(dt); majCanauxSon(dt); if(DECOR_V2){ majRides(dtJeu); majPic(dt); majTow(dt,dtJeu); majMerV3(dt,dtJeu); majBasket(dt,dtJeu); majSportJ(dt,dtJeu); majToitsSurprises(dt,dtJeu); } } // nitro décidée AVANT la physique du véhicule
+    if(ETAT.mode==='jeu'){ majNitro(dtJeu); if(DECOR_V2){ towEntrees(); kiteEntrees(); } if(DERBY.actif) derbyEntrees(); if(!MANEGES.actif&&!FPS.actif&&!EJECT.siege&&!CLIFF.actif) majJoueur(dt,dtJeu); majFPS(dt,dtJeu); majIvresse(dtJeu); majAcro(); majTresorCarte(dt); majFilet(dtJeu); majMontSon(dt); majCanauxSon(dt); if(DECOR_V2){ majRides(dtJeu); majPic(dt); majTow(dt,dtJeu); majMerV3(dt,dtJeu); majBasket(dt,dtJeu); majSportJ(dt,dtJeu); majToitsSurprises(dt,dtJeu); } } // nitro décidée AVANT la physique du véhicule
     majEnnemis(dt);
     if(!INT.actif){
       majPietons(dt);

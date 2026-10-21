@@ -28,7 +28,7 @@ lourds. Aucune référence à un autre jeu ni à une marque.
 | 6 | 6.2 Vie au large | ☑ |
 | 6 | 6.3 Kitesurf | ☑ |
 | 6 | 6.4 Wakeboard amélioré | ☑ |
-| 7 | 7.1 « Reyes Cliff Diving » | ☐ |
+| 7 | 7.1 « Reyes Cliff Diving » | ☑ |
 | 8 | 8.1 Karaoké en jeu de rythme | ☐ |
 | 8 | 8.2 Défi du burger | ☐ |
 | 8 | 8.3 « Jus de Plage » (découpe de fruits) | ☐ |
@@ -469,4 +469,30 @@ appels. Pendant la cassure, la vue embrasse la ville derrière le navire : c'est
 
 Captures : `captures/retours_20/6_majestic_mer.png`, `6_majestic_pont.png`, `6_majestic_cassure.png`, `6_majestic_cassure2.png`,
 `6_majestic_epave.png`, `6_kite.png`, `6_wake.png`.
+
+
+## Lot 7 — Reyes Cliff Diving (fait)
+
+**Lecture retenue.** « Sur les falaises » : la crique des plongeurs, qui a déjà trois falaises de 17, 10 et 5 u au-dessus d'une baie
+d'eau de mer ; les plateformes demandées (10 à 27 m) sont la planche du bras ouest (10 u), une plateforme de béton sur la falaise nord
+(17 u) et une tour de compétition plantée sur la falaise (27 u). « Le même système de saut que le concours de la villa » : l'élan,
+MAINTENIR pour tourner groupé, relâcher pour entrer tête la première, trois juges (`PLG_*` repris).
+
+- **La compétition** (`CLIFF`, `mkCliffDiving` en fin de décor sur un générateur privé, `cliffAction`, `cliffDemarrer`, `majCliff`) :
+  on s'inscrit au pied de la tour, en haut de la falaise nord (`CLIFF.inscr`), trois plongeons de plus en plus hauts. SAUTER en haut de l'élan (la jauge),
+  MAINTENIR : on tourne groupé, relâcher : on s'ouvre et on entre ; difficulté = nombre de demi-tours (jusqu'à trois saltos et demi
+  depuis 27 u), exécution = verticale à l'entrée, coefficient de hauteur (`kh` = 1 + h / 27). Un plongeur qui ne saute pas finit par
+  tomber de la plateforme (0 point).
+- **Le spectacle** : la tour à escalier, bannière « REYES CLIFF DIVING », fanions, le public sur les bras de la crique (un maillage),
+  trois bateaux de juges qui lèvent leurs cartons après chaque plongeon, une **caméra de retransmission** depuis la mer, de profil
+  (`cameraCliff`), le panneau des notes (`#clfPan` : notes des trois juges × difficulté × hauteur).
+- Record `META.defis.falaise`, prime une fois par vague au-delà de `CLIFF_OBJECTIF` (300), défi « Plongeur de falaise » (150, 300,
+  450) et la tenue de plongeur de falaise au dernier palier (bonnet, lunettes, lycra : les plongeons dans l'eau de toute la ville
+  rapportent 50 % de points en plus). Joueur tenu pendant la compétition (`majJoueur` n'est pas appelée), trêve des vagues, arrêtée par
+  `mourir` et `startRun`.
+- **Pilotes simulés** (test « Retours du 20 octobre, lot 7 », aux vrais boutons) : plongeur ~470 points (100 / 125 / 243) ;
+  maladroit qui tourne sans s'arrêter ~54 ; passif 0. Les cartons, la caméra depuis la mer, la fin dans l'eau, la prime unique et la
+  tenue sont vérifiés.
+
+Captures : `captures/retours_20/7_site.png`, `7_vol.png`, `7_notes_hud.png`.
 

@@ -18133,6 +18133,57 @@ async function main() {
       else ok('Retours 20 oct., lot 6 : ' + r.info.join(' ; '));
     }
     // -------------------------------------------------------------------
+    // Retours du 20 octobre, lot 7 (demandé : « une compétition de plongeon de falaise — Reyes Cliff Diving — sur les falaises, avec le
+    // même système de saut que le concours de la villa, en plus spectaculaire : plateformes de 10 à 27 m, public, bateaux juges ;
+    // points, record, prime une fois par vague, skin au palier final »). Un plongeur simulé aux vrais boutons (SAUTER, MAINTIENS), avec un
+    // temps de réaction humain ; un maladroit qui tourne sans s'arrêter ; un passif qui ne touche à rien. Les départs, les juges et le
+    // barème sont lus aux sources (CLIFF.sauts, CLIFF.juges, CLIFF_OBJECTIF).
+    // -------------------------------------------------------------------
+    console.log('\n--- Retours du 20 octobre, lot 7 : Reyes Cliff Diving ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = []; audioInit(); let T = dernierT + 1000;
+        const pas = (n, f) => { for (let i = 0; i < n; i++) { if (f && f(i) === false) return i; T += 1000 / 60; tick(T); } return n; };
+        const appui = () => { majAction(); const b = el('btnAction'); const l = b.style.display === 'none' ? '' : b.textContent; if (b._fn && l) b._fn(); return l; };
+        const ev = (id, type) => { const b = document.getElementById(id); if (!b) return false; b.dispatchEvent(new PointerEvent(type, { bubbles: true, pointerId: 21 })); return true; };
+        const sav = { rec: META.defis.falaise, faits: JSON.stringify(META.defis.faits), arec: JSON.stringify(META.defis.aReclamer), argent: META.argent, poss: JSON.stringify(META.tenuesPoss) };
+        const rnd0 = Math.random; let gr = 7707; Math.random = () => { gr = (gr * 1664525 + 1013904223) >>> 0; return gr / 4294967296; };
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); META.vue = 'classique'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9; for (const e of ennemis) e.mort = true;
+        if (!CLIFF.ok) { Math.random = rnd0; return { ko: ['pas de Reyes Cliff Diving'], info }; }
+        const hs = CLIFF.sauts.map((s) => s.h); if (Math.min(...hs) > 10.5 || Math.max(...hs) < 26.5) ko.push('plateformes de ' + hs.join(', ') + ' m');
+        for (const s of CLIFF.sauts) { const xe = s.x + s.dx * 3, ze = s.z + s.dz * 3; if (!estEau(xe, ze)) ko.push('pas d’eau sous ' + s.nom); }
+        if (CLIFF.juges.length !== 3 || !CLIFF.public) ko.push('juges ' + CLIFF.juges.length + ', public ' + !!CLIFF.public);
+        const plongeur = (style) => { const I = CLIFF.inscr; P.x = I.x; P.z = I.z; P.y = I.y; pas(3); const l = appui(); const A = CLIFF.actif; if (!A) return { err: 'pas de compétition (« ' + l + ' »)' };
+          let tient = false, lache = -1, t = 0, camMer = false, cartons = 0;
+          for (let i = 0; i < 60 * 90 && CLIFF.actif === A; i++) { pas(1); t += 1 / 60; const J = A.J; if (!J) continue;
+            if (J.phase === 'elan') { if (tient) { ev('clfBtn', 'pointerup'); tient = false; } lache = -1; const e = 0.5 + 0.5 * Math.sin(J.el); if (style === 'bon' && e > 0.94) { ev('clfBtn', 'pointerdown'); ev('clfBtn', 'pointerup'); } if (style === 'maladroit' && i % 41 === 0) { ev('clfBtn', 'pointerdown'); ev('clfBtn', 'pointerup'); } }
+            else if (J.phase === 'vol') { const S = CLIFF.sauts[A.n]; if (camera.position.z > S.z + S.dz * 10 + 8 || camera.position.x > S.x + 4) camMer = true;
+              if (style === 'maladroit') { if (!tient) { ev('clfBtn', 'pointerdown'); tient = true; } continue; } if (style !== 'bon') continue;
+              const a = CLIFF_G / 2, b = -J.vy, c = CLIFF_EAU - J.y, tE = (-b + Math.sqrt(Math.max(0, b * b - 4 * a * c))) / (2 * a); /* le temps qui reste avant l'eau */
+              let cible = Math.PI; for (let k = 7; k >= 1; k -= 2) if (J.ang + 9 * Math.max(0, tE - 0.35) >= Math.PI * k) { cible = Math.PI * k; break; } /* le plus de demi-tours qu'on a le temps de finir, tête la première */
+              if (!tient && lache < 0 && J.ang < cible - 0.6) { ev('clfBtn', 'pointerdown'); tient = true; }
+              if (tient && lache < 0 && J.ang + 9 * 0.15 + CLIFF_LENT * Math.max(0, tE - 0.15) >= cible) lache = t + 0.15;
+              if (tient && lache >= 0 && t >= lache) { ev('clfBtn', 'pointerup'); tient = false; } }
+            else { if (tient) { ev('clfBtn', 'pointerup'); tient = false; } if (CLIFF.juges.every((j) => j.sp.visible)) cartons++; } }
+          if (tient) ev('clfBtn', 'pointerup'); return { total: A.total, hist: A.hist, fini: !CLIFF.actif, camMer, cartons, nage: P.nage }; };
+        // le bon plongeur : la prime (une fois par vague), le record ; la deuxième fois dans la vague, pas de prime
+        { META.defis.falaise = 0; const a0 = META.argent; const R = plongeur('bon'); if (R.err) ko.push(R.err);
+          else { if (!R.fini || !(R.total >= CLIFF_OBJECTIF)) ko.push('plongeur simulé : ' + R.total + ' pts (' + R.hist.join(', ') + ')');
+            if (META.defis.falaise !== R.total) ko.push('record non noté'); if (META.argent - a0 !== CLIFF_PRIME) ko.push('prime : ' + (META.argent - a0) + ' $');
+            if (!R.camMer) ko.push('pas de caméra de retransmission depuis la mer'); if (!R.cartons) ko.push('les juges ne lèvent pas leurs cartons'); if (!R.nage) ko.push('on ne finit pas dans l’eau');
+            if (document.getElementById('clfPan').style.display !== 'none') ko.push('le panneau reste affiché'); else info.push('plongeur simulé : ' + R.total + ' pts (' + R.hist.join(' / ') + '), record, prime, cartons des juges, caméra depuis la mer'); }
+          const a1 = META.argent; const R2 = plongeur('bon'); if (!R2.err && META.argent !== a1) ko.push('deux primes dans la vague'); }
+        { const R = plongeur('maladroit'); if (R.err) ko.push(R.err); else if (R.total >= CLIFF_OBJECTIF) ko.push('le maladroit réussit (' + R.total + ')'); else info.push('maladroit : ' + R.total + ' pts'); }
+        { const R = plongeur('passif'); if (R.err) ko.push(R.err); else if (R.total > 0) ko.push('le passif marque ' + R.total); else info.push('passif : 0 pt (il finit par tomber de chaque plateforme)'); }
+        // la mort arrête tout ; la tenue au dernier palier
+        { const I = CLIFF.inscr; P.x = I.x; P.z = I.z; P.y = I.y; pas(3); appui(); if (!CLIFF.actif) ko.push('pas de départ avant la mort'); mourir(); if (CLIFF.actif || document.getElementById('clfPan').style.display !== 'none') ko.push('la mort n’arrête pas la compétition'); if (ETAT.mortTimer) { clearTimeout(ETAT.mortTimer); ETAT.mortTimer = null; } startRun(); ecran(null); ETAT.mode = 'jeu'; }
+        { const fin = DEFIS.find((d) => d.tenue === 'falaise'); if (!fin) ko.push('pas de tenue au dernier palier'); else { META.defis.falaise = fin.prog(META)[1]; META.defis.faits = {}; META.defis.aReclamer = {}; checkDefis(); delete META.tenuesPoss.falaise; for (const d of DEFIS) if (d.theme === 'falaise') recupererDefi(d.id, 1); if (!META.tenuesPoss.falaise || !TENUE_ACC.falaise) ko.push('la tenue de plongeur de falaise n’est pas offerte'); else info.push('tenue au dernier palier'); } }
+        Math.random = rnd0; META.defis.falaise = sav.rec; META.defis.faits = JSON.parse(sav.faits); META.defis.aReclamer = JSON.parse(sav.arec); META.argent = sav.argent; META.tenuesPoss = JSON.parse(sav.poss); startRun(); return { ko, info };
+      });
+      if (r.ko.length) fail('Retours 20 oct., lot 7 : ' + r.ko.slice(0, 25).join(' ; ') + ' [' + r.info.join(' | ') + ']');
+      else ok('Retours 20 oct., lot 7 : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];
