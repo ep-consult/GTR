@@ -6287,7 +6287,7 @@ async function main() {
     // l'intuition, voir CLAUDE.md) les 3 cas : tenir en continu fait
     // toujours chuter, relâcher avant la fin du délai de grâce sauve
     // toujours, et une conduite normale sans jamais cabrer ne déclenche
-    // rien. Lit les constantes CROSS_CABRAGE_* en direct, jamais recopiées.
+    // rien. Lit CABRAGE_MOTO en direct, jamais recopié (liste du 22 octobre : un jeu d'équilibre, plus de délai de grâce).
     // -------------------------------------------------------------------
     console.log('\n--- Moto cross : cabrage (bouton CABRER, chute si tenu trop longtemps, sauvetage si relâché à temps) ---');
     const crossTest = await page.evaluate(() => {
@@ -6309,20 +6309,20 @@ async function main() {
         t += 0.016;
       }
       chute = !P.veh;
-      res.tenirEnContinuFaitChuter = chute && t < 3;
+      res.tenirEnContinuFaitChuter = chute && t < 5;
 
       startRun(); viderVehiculesVille();
       const mt2 = creerVehicule('motocross', X0, Z0, 0, null);
       P.veh = mt2; mt2.conduit = 'joueur';
       INPUT.btn.esquive = true;
       let atteintDanger = false;
-      for (let i = 0; i < 60 && P.veh; i++) {
+      for (let i = 0; i < 200 && P.veh; i++) {
         mt2.v = 15; mt2.x = X0; mt2.z = Z0;
         majConduite(0.016);
-        if (P.veh && P.veh.wheelieA > CROSS_CABRAGE_DANGER) { atteintDanger = true; break; }
+        if (P.veh && P.veh.wheelieA > CABRAGE_MOTO.cross.ab) { atteintDanger = true; break; }
       }
       INPUT.btn.esquive = false; // relâche dès l'entrée en zone de danger
-      for (let i = 0; i < 60 && P.veh; i++) { mt2.v = 15; mt2.x = X0; mt2.z = Z0; majConduite(0.016); }
+      for (let i = 0; i < 160 && P.veh; i++) { mt2.v = 15; mt2.x = X0; mt2.z = Z0; majConduite(0.016); }
       res.atteintLaZoneDeDanger = atteintDanger;
       res.relacherATempsSauveToujours = !!P.veh;
       res.angleRedescendBienAZero = P.veh ? P.veh.wheelieA < 0.01 : false;
@@ -15044,9 +15044,9 @@ async function main() {
           const roues = v.mesh.userData.roues.filter((r) => r.parent === v.mesh).sort((a, b) => a.position.z - b.position.z), rAr = roues[0], rAv = roues[roues.length - 1];
           const m = () => { v.mesh.updateMatrixWorld(true); return { a: v.wheelieA || 0, ar: W(rAr).y, av: W(rAv).y, tete: W(P.h.tete).y, rx: v.mesh.rotation.x }; };
           const btn = el('btnDodge').textContent;
-          pas(30, false); const plat = m(); pas(24, true); const cab = m(); pas(60, false); const ret = m();
+          pas(30, false); const plat = m(); pas(45, true); const cab = m(); pas(150, false); const ret = m(); /* liste du 22 octobre, point 1 : la roue se lève par la dynamique (≈ 0,7 s) */
           if (!/CABRER/.test(btn)) ko.push(cle + ' : ESQUIVE « ' + btn + ' »');
-          if (!(cab.a > 0.3)) ko.push(cle + ' : tenu 0,4 s, angle ' + cab.a.toFixed(2));
+          if (!(cab.a > 0.3)) ko.push(cle + ' : tenu 0,75 s, angle ' + cab.a.toFixed(2));
           if (Math.abs(cab.ar - plat.ar) > 0.03) ko.push(cle + ' : la roue arrière quitte le sol (' + plat.ar.toFixed(2) + ' → ' + cab.ar.toFixed(2) + ')');
           if (!(cab.av - plat.av > 0.3)) ko.push(cle + ' : l’avant ne monte pas (' + plat.av.toFixed(2) + ' → ' + cab.av.toFixed(2) + ')');
           if (!(cab.tete - plat.tete > 0.06)) ko.push(cle + ' : le pilote ne se lève pas (tête ' + plat.tete.toFixed(2) + ' → ' + cab.tete.toFixed(2) + ')');
@@ -15054,13 +15054,13 @@ async function main() {
           pas(18, true); sortirVehicule(true); v.mesh.updateMatrixWorld(true);
           if (Math.abs(v.mesh.rotation.x - plat.rx) > 0.01 || Math.abs(W(rAv).y - plat.av) > 0.02 || Math.abs(P.h.g.rotation.x) > 1e-6) ko.push(cle + ' : descendu en plein cabrage, moto ou pilote restés penchés');
           const v2 = monter(cle, 'classique'); entrerVehicule(v2); let t = 0; const X2 = v2.x, Z2 = v2.z;
-          while (P.veh === v2 && t < 4) { B.esquive = true; v2.v = 15; v2.x = X2; v2.z = Z2; T += 1000 / 60; tick(T); t += 1 / 60; } B.esquive = false;
-          if (P.veh === v2) ko.push(cle + ' : tenu 4 s, jamais de bascule');
+          while (P.veh === v2 && t < 7) { B.esquive = true; v2.v = 15; v2.x = X2; v2.z = Z2; T += 1000 / 60; tick(T); t += 1 / 60; } B.esquive = false;
+          if (P.veh === v2) ko.push(cle + ' : gaz de cabrage tenu 7 s, jamais sur le dos');
           /* au cockpit : l'œil monte avec la moto, le regard se lève de (1 − CABRAGE_TETE_1P) de l'angle */
           const v3 = monter(cle, 'fps'); entrerVehicule(v3); const X3 = v3.x, Z3 = v3.z;
           const pas3 = (n, esq) => { for (let i = 0; i < n && P.veh === v3; i++) { B.esquive = esq; INPUT.jx = INPUT.jy = 0; v3.v = 15; v3.x = X3; v3.z = Z3; T += 1000 / 60; tick(T); } };
           const cam = () => { camera.updateMatrixWorld(); const d = camera.getWorldDirection(new THREE.Vector3()); return { y: camera.position.y, reg: Math.asin(d.y), a: v3.wheelieA || 0 }; };
-          pas3(30, false); const c0 = cam(); pas3(24, true); const c1 = cam(); B.esquive = false;
+          pas3(30, false); const c0 = cam(); pas3(45, true); const c1 = cam(); B.esquive = false;
           const attendu = c1.a * (1 - CABRAGE_TETE_1P);
           if (!COCKPIT.g) ko.push(cle + ' : pas de cockpit en 1re personne');
           if (c1.y < c0.y - 0.005) ko.push(cle + ' : au cockpit, l’œil descend (' + c0.y.toFixed(2) + ' → ' + c1.y.toFixed(2) + ')');
@@ -17789,10 +17789,10 @@ async function main() {
         /* 3.2 — le cabrage : un pilote qui réagit en 0,12 s tient plus de 20 s (record, chrono à l'écran) ; tenir en continu fait basculer ; sans appui, rien */
         const moto = (cle) => { if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; ETAT.timeScale = 1; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9; for (const x of vehicules) { scene.remove(x.mesh); libererEntite(x.mesh); } vehicules.length = 0; for (const e of ennemis) e.mort = true;
           const v = creerVehicule(cle, 0, MER + 40, 0, null); P.x = v.x; P.z = v.z; entrerVehicule(v); return v; };
-        const rouler = (v, n, regle) => { const hist = []; let max = 0, txt = ''; for (let i = 0; i < n && P.veh === v; i++) { v.v = 12; v.x = 0; v.z = MER + 40; hist.push(v.wheelieA || 0);
-            const vu = hist[Math.max(0, hist.length - 1 - 7)]; B.esquive = regle(vu, i); majConduite(1 / 60); max = Math.max(max, v.wheelieA || 0); if (i === 600) txt = ACRO.txt; } B.esquive = false; return { max, txt, tombe: P.veh !== v }; };
+        const rouler = (v, n, regle) => { const hist = []; let max = 0, txt = ''; for (let i = 0; i < n && P.veh === v; i++) { v.v = 12; v.x = 0; v.z = MER + 40; v.odo = (v.odo || 0) + 12 / 60; hist.push({ a: v.wheelieA || 0, w: v.wheelieW || 0 });
+            const vu = hist[Math.max(0, hist.length - 1 - 7)]; B.esquive = regle(vu.a, i, vu.w); majConduite(1 / 60); max = Math.max(max, v.wheelieA || 0); if (i === 600) txt = ACRO.txt; } B.esquive = false; return { max, txt, tombe: P.veh !== v }; };
         for (const cle of Object.keys(VEHDEFS).filter((k) => motoCabrable({ def: VEHDEFS[k] }))) {
-          META.acro.cabrage = 0; const v = moto(cle), E = EQUILIBRE_CABRAGE[styleCabrage(v)]; const o = rouler(v, 60 * 24, (a) => a < E.ab + 0.02); if (P.veh === v) majConduite(1 / 60); B.esquive = false; for (let i = 0; i < 90 && P.veh === v; i++) majConduite(1 / 60); majAcro();
+          META.acro.cabrage = 0; const v = moto(cle), C = CABRAGE_MOTO[styleCabrage(v)]; const o = rouler(v, 60 * 24, (a, i, w) => a + w * 0.35 < C.ab + 0.08); /* liste du 22 octobre, point 1 : un jeu d'équilibre (on dose sur l'angle et sa vitesse) */ if (P.veh === v) majConduite(1 / 60); B.esquive = false; for (let i = 0; i < 90 && P.veh === v; i++) majConduite(1 / 60); majAcro();
           if (o.tombe) ko.push(cle + ' : le pilote vif (0,12 s) bascule'); else if (!(META.acro.cabrage >= 20)) ko.push(cle + ' : cabrage tenu ' + (META.acro.cabrage || 0).toFixed(1) + ' s seulement');
           else info.push(cle + ' ' + META.acro.cabrage.toFixed(0) + ' s');
           if (!/CABRAGE/.test(o.txt)) ko.push(cle + ' : pas de chrono à l’écran pendant le cabrage (« ' + o.txt + ' »)');
@@ -18594,6 +18594,52 @@ async function main() {
       });
       if (r.ko.length) fail('Retours 20 oct., lot 11.2 : ' + r.ko.slice(0, 20).join(' ; ') + ' [' + r.info.join(' | ') + ']');
       else ok('Retours 20 oct., lot 11.2 : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
+    // Liste du 22 octobre, point 1 : le cabrage des motos est un jeu d'équilibre (dynamique de CABRAGE_MOTO, lue dans le jeu).
+    // Plus aucune bascule par seuil ni minuterie, plus aucun message « trop cabré » dans la source. Pour chaque moto de VEHDEFS
+    // (motoCabrable) : un pilote simulé qui dose les gaz (il voit l'angle et sa vitesse avec 0,15 s de retard) tient au moins
+    // 20 s, chrono et points à l'écran, record et points à la fin ; gaz à fond (CABRER + joystick poussé) : sur le dos ; lâché :
+    // la roue avant retombe, sans chute ; FREIN : l'avant redescend plus vite.
+    // -------------------------------------------------------------------
+    console.log('\n--- Liste du 22 octobre, point 1 : le cabrage des motos, un jeu d’équilibre ---');
+    {
+      const src = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
+      const r = await page.evaluate(() => {
+        const ko = [], info = [], B = INPUT.btn;
+        for (const k of Object.keys(CABRAGE_MOTO)) { const C = CABRAGE_MOTO[k]; for (const c of ['ab', 'g', 'gaz', 'moteur', 'frein', 'amort', 'dos']) if (!(C[c] > 0)) ko.push(k + ' : réglage ' + c + ' manquant'); if ('danger' in C || 'grace' in C) ko.push(k + ' : un seuil de danger ou un délai de grâce existe encore'); }
+        const moto = (cle) => { if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; ETAT.timeScale = 1; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9; for (const x of vehicules) { scene.remove(x.mesh); libererEntite(x.mesh); } vehicules.length = 0; for (const e of ennemis) e.mort = true;
+          const v = creerVehicule(cle, 0, MER + 40, 0, null); P.x = v.x; P.z = v.z; entrerVehicule(v); return v; };
+        /* roule à 13 u/s, la position tenue (isole le cabrage du décor) ; regle(a, w) avec un retard de 9 images (0,15 s) */
+        const rouler = (v, n, regle, joy) => { const hist = []; let max = 0, txt = '', tLeve = 0; for (let i = 0; i < n && P.veh === v; i++) { v.v = 13; v.x = 0; v.z = MER + 40;
+            v.odo = (v.odo || 0) + 13 / 60; hist.push({ a: v.wheelieA || 0, w: v.wheelieW || 0 }); const vu = hist[Math.max(0, hist.length - 1 - 9)]; B.esquive = regle(vu.a, vu.w, i); INPUT.mx = 0; INPUT.mz = joy ? -1 : 0;
+            majConduite(1 / 60); max = Math.max(max, v.wheelieA || 0); if ((v.wheelieA || 0) > 0.1) tLeve += 1 / 60; if (i === 900) txt = ACRO.txt; } B.esquive = false; INPUT.mx = INPUT.mz = 0; return { max, txt, tLeve, tombe: P.veh !== v }; };
+        for (const cle of Object.keys(VEHDEFS).filter((k) => motoCabrable({ def: VEHDEFS[k] }))) {
+          const C = () => CABRAGE_MOTO[styleCabrage(P.veh || { def: VEHDEFS[cle], key: cle })];
+          /* le doseur : il tient 24 s */
+          META.acro.cabrage = 0; const v = moto(cle), s0 = ETAT.score, cib = C().ab + 0.08; const o = rouler(v, 60 * 24, (a, w) => a + w * 0.35 < cib);
+          if (P.veh === v) { for (let i = 0; i < 120 && P.veh === v; i++) { v.v = 13; majConduite(1 / 60); } majAcro && majAcro(); }
+          if (o.tombe) ko.push(cle + ' : le doseur (0,15 s) passe sur le dos'); else if (!(META.acro.cabrage >= 20)) ko.push(cle + ' : cabrage tenu ' + (META.acro.cabrage || 0).toFixed(1) + ' s seulement');
+          if (!/CABRAGE .*pts/.test(o.txt)) ko.push(cle + ' : chrono et points absents de l’écran (« ' + o.txt + ' »)');
+          const pts = ETAT.score - s0; if (!(pts >= CABRAGE_PTS(20))) ko.push(cle + ' : ' + pts + ' points pour un cabrage de ' + (META.acro.cabrage || 0).toFixed(1) + ' s');
+          /* gaz à fond : sur le dos, par la dynamique (angle au-delà de dos), jamais à un instant fixé */
+          const v2 = moto(cle); const o2 = rouler(v2, 60 * 8, () => true, true); if (!o2.tombe) ko.push(cle + ' : gaz à fond 8 s, jamais sur le dos (angle max ' + o2.max.toFixed(2) + ')');
+          /* lâché : la roue retombe, sans chute */
+          const v3 = moto(cle); const o3 = rouler(v3, 120, (a, w, i) => i < 30); if (o3.tombe) ko.push(cle + ' : lâché tôt, il tombe'); else if ((v3.wheelieA || 0) > 0.01) ko.push(cle + ' : lâché, la roue reste levée (' + v3.wheelieA.toFixed(2) + ')');
+          /* sans appui : rien */
+          const v4 = moto(cle); const o4 = rouler(v4, 120, () => false); if (o4.max > 0.001) ko.push(cle + ' : il cabre sans appui');
+          /* le frein arrière ramène l'avant plus vite que le seul frein moteur */
+          const chute = (frein) => { const w = moto(cle); for (let i = 0; i < 40 && P.veh === w; i++) { w.v = 13; B.esquive = true; majConduite(1 / 60); } B.esquive = false; B.frein = frein; let n = 0; while (P.veh === w && (w.wheelieA || 0) > 0.02 && n < 300) { w.v = 13; majConduite(1 / 60); n++; } B.frein = false; return n; };
+          const nM = chute(false), nF = chute(true); if (!(nF < nM)) ko.push(cle + ' : le frein ne ramène pas l’avant plus vite (' + nF + ' / ' + nM + ' images)');
+          info.push(cle + ' ' + (META.acro.cabrage || 0).toFixed(0) + ' s, ' + pts + ' pts, sur le dos en ' + (o2.tLeve).toFixed(1) + ' s');
+        }
+        if (P.veh) sortirVehicule(true); B.esquive = B.frein = false;
+        return { ko, info };
+      });
+      if (/trop cabr/i.test(src)) r.ko.push('« trop cabré » est encore dans la source');
+      if (/CROSS_CABRAGE_GRACE|CROSS_CABRAGE_DANGER|wheelieChuteT/.test(src)) r.ko.push('un délai de grâce ou un seuil de danger reste dans la source');
+      if (r.ko.length) fail('Liste 22 oct., point 1 : ' + r.ko.slice(0, 20).join(' ; ') + ' [' + r.info.join(' | ') + ']');
+      else ok('Liste 22 oct., point 1 : ' + r.info.join(' ; '));
     }
     // -------------------------------------------------------------------
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');

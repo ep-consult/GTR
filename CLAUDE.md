@@ -1425,6 +1425,11 @@ un commit par point, puis un 11e (retours du 21 octobre : la marche arrière des
   une voiture qui dérape de côté n'est pas vue par la sonde de choc (devant seulement) — `periRetenir` la tient au bord des
   parties hautes. Test « Retours du 20 octobre, lot 11.2 » ; « Canaux V3 : ponts-levis » attend le retour par la boucle.
 
+## Liste de retours du 22 octobre — branche `retours-22oct`, suivi `rapport_nuit/LISTE_22OCT.md`
+
+Dix-sept points, un commit par point ; captures `rapport_nuit/captures/liste_22oct/`.
+- **1, le cabrage des motos** : un jeu d'équilibre, voir « Cabrage de toutes les motos ».
+
 ## Los Reyes Hills (15 octobre 2026) — `HILLS`, bandeau `LOS REYES HILLS`
 
 Demandé : « un vrai quartier résidentiel, de vraies villas différentes, de
@@ -2747,9 +2752,17 @@ Demandé : « le cabrage de la moto cross, ajoute-le sur toutes les motos ; en p
 seul l'avant se lève tout seul ». Avant, seule la CAISSE de la moto cross tournait (`ud.corps`, roue avant relevée à la main à
 y = 0,4 — fausse sur les modèles V2) : le pilote et la caméra du cockpit, accrochés au modèle, restaient à plat.
 - **Toutes les motos** (`motoCabrable` : `type:'moto'` sans vélo, skate, eau ni planche — Moto, Frelon, sportive, Fantôme,
-  cross, cross militaire) : ESQUIVE = CABRER, tenu ; au-delà du seuil de danger, `CROSS_CABRAGE_GRACE` s avant la bascule
-  (dégâts, éjection). Réglages par style (`CABRAGE_MOTO` : vitesse, angle max, seuil) — sportive la plus vive (29°), chopper la
-  plus sage (18°), la cross garde les siens (`CROSS_CABRAGE_*`).
+  cross, cross militaire) : ESQUIVE = CABRER.
+- **Un vrai jeu d'équilibre** (liste du 22 octobre, point 1 — remplace le seuil de danger et le délai de grâce, supprimés avec
+  leur message) : `majCabrageMoto` intègre l'angle `v.wheelieA` et sa vitesse `v.wheelieW` sur le temps réel :
+  a'' = gaz·u − moteur·(1 − u) − frein·FREIN + g·sin(a − ab) − amort·a' + bosses, plus un coup de gaz sous 0,25 rad
+  (`CABRAGE_COUP`) ; u = `gazCabrage()` (CABRER tenu, 0,7 au neutre, 1 joystick poussé) ; lâché, le frein moteur repose la roue,
+  FREIN (frein arrière) la repose vite. Le point d'équilibre `ab` est instable : seul le dosage tient la roue en l'air ; gaz à
+  fond, la moto passe sur le dos (a ≥ `dos` : chute, « Sur le dos ! ») en ~1 s. Réglages par style (`CABRAGE_MOTO` : ab, g, gaz,
+  moteur, frein, amort, dos, bosses ; la tenue « cascadeur » amortit ×1,2). Chrono et points à l'écran (`acroHud`, à 44 % de la
+  hauteur : sous la pile des notifications), points à la fin (`CABRAGE_PTS`), record `META.acro.cabrage`. Banc hors navigateur :
+  un pilote qui réagit en 0,15 à 0,25 s tient indéfiniment au neutre. **Un test qui tient la position de la moto doit faire
+  avancer `v.odo`** (sinon les bosses deviennent une poussée constante).
 - **La moto ENTIÈRE pivote sur l'axe de sa roue arrière** (`poseCabrage` : pivot lu sur la vraie roue arrière, `v.cabrePivot`) :
   la roue arrière reste au sol, l'avant monte, le pilote (enfant du modèle) se lève avec elle et se penche un peu en avant, bras
   tendus (`CABRAGE_PENCHE`). La pose s'AJOUTE à l'assiette de la pente : `majVehiculePhys` la retire en tête
@@ -2760,7 +2773,8 @@ y = 0,4 — fausse sur les modèles V2) : le pilote et la caméra du cockpit, ac
 - **Nitro de garage sur une moto** : sur SPRINT (libre au volant d'une moto de route), plus sur ESQUIVE ; la moto cross reste sans
   nitro (SPRINT = 360).
 - Test : « Cabrage des motos » (chaque moto lue dans `VEHDEFS` : roue arrière au sol, avant et tête qui montent, retour à plat,
-  bascule tenue, descente en plein cabrage, œil et regard au cockpit, nitro sur SPRINT).
+  gaz tenu = sur le dos, descente en plein cabrage, œil et regard au cockpit, nitro sur SPRINT) ; « Liste du 22 octobre, point 1 »
+  (doseur 20 s et plus, chrono et points, gaz à fond sur le dos, lâché la roue retombe, frein, rien dans la source).
 
 ## Montée de l'hélicoptère (17 octobre au soir) — `HELI_VA_ACC`, `HELI_TANG_AVANT`
 

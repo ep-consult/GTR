@@ -268,7 +268,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
 /* PILE UNIQUE DE NOTIFICATIONS — remplace les anciens #bigMsg (centre écran,
    60% de hauteur) et #toastBox (bas d'écran, au-dessus des boutons) qui
    masquaient encore les commandes par endroits malgré plusieurs correctifs
-   ciblés (signalé sur iPhone : ALERTE MAXIMALE, Trop cabré !, Vague
+   ciblés (signalé sur iPhone : ALERTE MAXIMALE, Sur le dos !, Vague
    terminée recouvraient SORTIR/SPRINT/ESQUIVE/ARME). Correctif structurel,
    pas cosmétique : TOUTE notification éphémère (toast() et bigMsg()) passe
    maintenant par cette seule pile, ancrée en HAUT sous la barre d'objectif
@@ -294,7 +294,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--noir);
 .notif.on{opacity:1;transform:translateY(0)}
 .notif.or{border-left-color:var(--vert)}
 /* alerte importante (toast(...,'warn')) : 4s, teinte rouge — ALERTE
-   MAXIMALE, Trop cabré !, etc. */
+   MAXIMALE, Sur le dos !, etc. */
 .notif.alert{border-left-color:var(--rouge);background:#1c0f12b3}
 /* bigMsg() : grand moment (niveau, crash, vague terminée...), 4s, typo plus
    marquée héritée de l'ancien #bigMsg — reste dans la pile, ne recouvre
@@ -2942,8 +2942,8 @@ const VEHDEFS={
   moto:{nom:'Moto',tuningMeca:true,tuningCarro:{famille:'deuxroues',ancrages:{avant:{x:0,y:0.9,z:0.7},arriere:{x:0,y:0.95,z:-1.18},toit:{x:0,y:1.1,z:0.47},basCaisse:{x:0.2,y:0.42,z:0}}},vmax:34,acc:21,man:3.4,hp:70,long:2.4,larg:0.9,type:'moto',cols:[0xd05038,0x3a70c0,0x24272e]},
   motoR:{nom:'Moto "Frelon"',tuningMeca:true,tuningCarro:{famille:'deuxroues',ancrages:{avant:{x:0,y:0.9,z:0.7},arriere:{x:0,y:0.95,z:-1.18},toit:{x:0,y:1.1,z:0.47},basCaisse:{x:0.2,y:0.42,z:0}}},vmax:41,acc:24,man:3.6,hp:60,long:2.4,larg:0.9,type:'moto',cols:[0xe6a41f]},
   // Moto cross : la première moto capable de cabrer (bouton CABRER — toutes les motos depuis le 18 octobre, voir
-  // majCabrageMoto/entrerVehicule) — un vrai risque de chute si l'angle est
-  // tenu trop longtemps, jamais un simple effet cosmétique (CLAUDE.md,
+  // majCabrageMoto/entrerVehicule) — un vrai risque de chute si l'on donne
+  // trop de gaz (un jeu d'équilibre), jamais un simple effet cosmétique (CLAUDE.md,
   // « un minigame doit être perdable »). Look tout-terrain propre, voir
   // makeVoiture (def.cross).
   // Vélos (DECOR_V2) : garés aux arceaux, sans moteur (profilMoteur → null),
@@ -30514,7 +30514,7 @@ function sortirVehicule(force){
   desintRingEl.style.display='none'; // au cas où on sortait en pleine charge du Désintégrateur
   if(v.def.type==='moto') v.mesh.rotation.z=0; // on redresse la moto au parking
   if(motoCabrable(v)){ // la moto redescend à plat au parking (sinon elle resterait cabrée après la descente), le pilote se redresse
-    v.wheelieA=0; v.wheelieChuteT=undefined; retirerPoseCabrage(v); v.cabrePose=false;
+    v.wheelieA=0; v.wheelieW=0; retirerPoseCabrage(v); v.cabrePose=false;
     if(P.surMoto&&P.h) P.h.g.rotation.x=0;
   }
   if(v.sirene){ v.sirene=false; sireneStop(); }
@@ -31563,39 +31563,39 @@ function controleDir(v,frein){
   if(v.def.eau){ const eR=angDiff(v.ang+Math.PI,cap); return {throttle:-l*0.75,steer:sB*clamp(eR*1.8,-1,1),l,cap}; }
   return {throttle:-l*0.75,steer:clamp(diff*1.4,-1,1),l,cap}; // cible derrière : marche arrière
 }
-/* ---- Moto cross : cabrage (bouton CABRER, tenu). L'angle monte tant
-   qu'on tient le bouton, redescend plus vite dès qu'on relâche. Passé le
-   seuil de danger, un compte à rebours démarre — visible (le pilote
-   bascule de plus en plus) avant la chute, jamais instantané, même
-   logique que l'avertissement du jetpack (CLAUDE.md) : « une mort qu'on
-   n'a pas vue venir est injuste ». Relâcher à temps ramène l'angle sous le
-   seuil et annule le compte à rebours. Vérifié par simulation
-   (scenarios.js) : tenir en continu fait toujours chuter, relâcher avant
-   la fin du délai de grâce sauve toujours. */
-const CROSS_CABRAGE_RATE=1.1, CROSS_CABRAGE_RELACHE=2.6, CROSS_CABRAGE_MAX=0.68,
-      CROSS_CABRAGE_DANGER=0.55, CROSS_CABRAGE_GRACE=0.8;
-/* ---- Cabrage de TOUTES les motos (18 octobre, demandé : « le cabrage de la moto cross, ajoute-le sur toutes les motos ; en
-   première personne la personne ne se lève pas, seul l'avant se lève tout seul »). Avant, seule la caisse de la moto cross
-   tournait (et sa roue avant était relevée à la main) : le pilote et la caméra du cockpit, accrochés au MODÈLE, restaient à plat.
-   Désormais la moto ENTIÈRE pivote autour de l'axe de sa roue arrière (poseCabrage) : le pilote, enfant du modèle, se lève avec
-   elle et se penche un peu en avant pour tenir l'équilibre (CABRAGE_PENCHE) ; au cockpit, l'œil monte et le regard se lève — le
-   casque en rattrape une part (CABRAGE_TETE_1P) — pendant que le guidon monte devant. Même geste pour toutes (ESQUIVE tenu ; au
-   delà du seuil de danger, un délai avant la bascule) ; réglages par style (CABRAGE_MOTO), la moto cross garde les siens. La pose
-   s'ajoute à l'assiette de la pente : majVehiculePhys la retire en tête (v.cabreX, v.cabreD), poseCabrage la remet après. */
-const CABRAGE_MOTO={cross:{vit:CROSS_CABRAGE_RATE,max:CROSS_CABRAGE_MAX,danger:CROSS_CABRAGE_DANGER},
-  sport:{vit:1.25,max:0.66,danger:0.54}, route:{vit:0.95,max:0.62,danger:0.5}, chopper:{vit:0.8,max:0.56,danger:0.46}};
-const CABRAGE_TETE_1P=0.4, CABRAGE_PENCHE=0.55;
+/* ---- Cabrage de TOUTES les motos (18 octobre) : la moto ENTIÈRE pivote autour de l'axe de sa roue arrière (poseCabrage) — le
+   pilote, enfant du modèle, se lève avec elle et se penche (CABRAGE_PENCHE) ; au cockpit l'œil monte et le regard se lève, le casque
+   en rattrape une part (CABRAGE_TETE_1P). La pose s'ajoute à l'assiette de la pente : majVehiculePhys la retire en tête (v.cabreX,
+   v.cabreD), poseCabrage la remet après.
+   UN VRAI JEU D'ÉQUILIBRE (liste du 22 octobre, point 1, demandé : « supprime le message d'avertissement et toute bascule déclenchée par un
+   seuil d'angle ou une minuterie ; la roue avant reste en l'air tant que le joueur tient le point d'équilibre en dosant les gaz et le
+   joystick ; trop de gaz : elle passe sur le dos ; pas assez : la roue retombe »). Une dynamique, sur le temps réel :
+     a'' = gaz·u − moteur·(1 − u) − frein·FREIN + g·sin(a − ab) − amort·a' + bosses
+   u = le gaz de cabrage : ESQUIVE (CABRER) tenu, dosé par l'appui du joystick (0,7 au neutre, 1 poussé à fond) ; lâché, le frein moteur
+   ramène l'avant ; FREIN (le frein arrière) le ramène vite. Le point d'équilibre ab est instable, comme une vraie moto : sous lui la
+   gravité repose la roue, au-delà elle tire la moto vers l'arrière — seul le dosage la tient. Chute = la moto passe le point de
+   bascule physique (a ≥ dos, sur le dos), jamais un délai. Réglé hors navigateur (« simcabre ») : un pilote qui réagit en 0,15 s
+   tient indéfiniment, en 0,2 s une trentaine de secondes, en 0,25 s une quinzaine ; gaz à fond : sur le dos en ~1,4 s ; lâché : la
+   roue retombe. Points à la fin selon la durée (CABRAGE_PTS), record META.acro.cabrage (clé fixe). */
+const CABRAGE_MOTO={cross:{ab:0.62,g:3.0,gaz:4.0,moteur:1.6,frein:5,amort:2.6,dos:1.35,bosses:0.9},
+  sport:{ab:0.6,g:3.2,gaz:4.3,moteur:1.6,frein:5.5,amort:2.4,dos:1.33,bosses:0.9},
+  route:{ab:0.62,g:2.9,gaz:3.9,moteur:1.7,frein:5,amort:2.7,dos:1.35,bosses:0.8},
+  chopper:{ab:0.56,g:2.7,gaz:3.6,moteur:1.8,frein:4.5,amort:2.9,dos:1.3,bosses:0.7}};
+const CABRAGE_COUP=4.5, CABRAGE_TETE_1P=0.4, CABRAGE_PENCHE=0.55, CABRAGE_PTS=(t)=>Math.round(40*t+6*t*t);
 function motoCabrable(v){ const d=v&&v.def; return !!d&&d.type==='moto'&&!d.velo&&!d.skate&&!d.eau&&!d.surf; }
 function styleCabrage(v){ return v.def.cross?'cross':(v.key==='motoS'?'sport':(v.key==='fantome'?'chopper':'route')); }
-function majCabrageMoto(v,dt){ /* renvoie true si le pilote vient de basculer */
-  const st=styleCabrage(v), C=CABRAGE_MOTO[st], tenu=!!(INPUT.btn.esquive||INPUT.btn.esquiveK), lance=Math.abs(v.v)>3&&!v.enAir;
-  v.wheelieA=lance?equilibreCabrage(v,EQUILIBRE_CABRAGE[st],C.vit,tenu,C.max,dt):clamp((v.wheelieA||0)-CROSS_CABRAGE_RELACHE*dt,0,C.max); /* retours du 20 octobre, 3.2 : l'équilibre */
-  acroCabrage(v,dt/(ETAT.timeScale||1));
-  if(v.wheelieA>C.danger){
-    if(v.wheelieChuteT===undefined){ v.wheelieChuteT=CROSS_CABRAGE_GRACE; toast('Trop cabré !','warn'); SFX.refus(); vibre(25); }
-    v.wheelieChuteT-=dt;
-    if(v.wheelieChuteT<=0){ acroFinCabrage(true); toucherJoueur(18); sortirVehicule(true); lancerRagdollJoueurFx(); toast('Tu bascules en arrière — trop cabré trop longtemps','warn'); return true; }
-  } else v.wheelieChuteT=undefined;
+function gazCabrage(){ const tenu=!!(INPUT.btn.esquive||INPUT.btn.esquiveK); if(!tenu) return 0; return 0.7+0.3*clamp(Math.hypot(INPUT.mx||0,INPUT.mz||0),0,1); }
+function majCabrageMoto(v,dt){ /* renvoie true si le pilote vient de passer sur le dos */
+  const C=CABRAGE_MOTO[styleCabrage(v)], lance=Math.abs(v.v)>3&&!v.enAir, dtr=dt/(ETAT.timeScale||1); let a=v.wheelieA||0, w=v.wheelieW||0;
+  if(!lance){ a=Math.max(0,a-1.8*dtr); w=0; } /* au pas ou en l'air : l'avant redescend */
+  else { const u=gazCabrage(), fr=(INPUT.btn.frein||INPUT.btn.freinK)?1:0, am=C.amort*tenueK('cascadeur',1.2);
+    let acc=C.gaz*u-C.moteur*(1-u)-C.frein*fr+C.g*Math.sin(a-C.ab)-am*w;
+    if(a<0.25) acc+=CABRAGE_COUP*u*(1-a/0.25); /* le coup de gaz qui décolle la roue avant (embrayage) : rien au-delà de 0,25 rad, loin de l'équilibre */
+    if(a>0.05) acc+=(bruitRoute((v.odo||0)*0.9)-0.5)*2*C.bosses; /* les bosses de la route */
+    w+=acc*dtr; a+=w*dtr; if(a<=0){ a=0; if(w<0) w=0; } }
+  v.wheelieA=a; v.wheelieW=w;
+  acroCabrage(v,dtr);
+  if(a>=C.dos){ v.wheelieA=0; v.wheelieW=0; if(v===P.veh){ acroFinCabrage(true); toucherJoueur(18); sortirVehicule(true); lancerRagdollJoueurFx(); toast('Sur le dos ! Trop de gaz','warn'); SFX.refus(); vibre(40); return true; } }
   poseCabrage(v); return false; }
 function poseCabrage(v){ const a=v.wheelieA||0, g=v.mesh, pil=P.surMoto&&P.veh===v;
   if(!(a>0.0005)||v.figSpin>0||v.figFlip>0){ v.cabreX=0; v.cabreD=null;
@@ -31623,16 +31623,17 @@ function equilibreCabrage(v,E,vit,tenu,max,dt){ const a=v.wheelieA||0, K=E.K*ten
   return clamp(a+da*dt,0,max); }
 const ACRO={el:null,txt:'',cabreT:0,cabreCle:'',dosT:0,dosV:null};
 function acroHud(txt){ if(!ACRO.el){ const t=document.createElement('div'); t.id='acroTxt';
-    t.style.cssText='position:absolute;top:calc(env(safe-area-inset-top,0px) + 202px);left:50%;transform:translateX(-50%);z-index:30;display:none;padding:5px 12px;border-radius:10px;background:rgba(10,12,18,0.8);border:2px solid #ffd23f;color:#ffe9a0;font:900 14px Arial;letter-spacing:.03em;white-space:nowrap;pointer-events:none';
+    t.style.cssText='position:absolute;top:44%;left:50%;transform:translateX(-50%);z-index:30;display:none;padding:5px 12px;border-radius:10px;background:rgba(10,12,18,0.8);border:2px solid #ffd23f;color:#ffe9a0;font:900 14px Arial;letter-spacing:.03em;white-space:nowrap;pointer-events:none';
     const hud=el('hud'); if(!hud) return; hud.appendChild(t); ACRO.el=t; }
   if(ACRO.txt===txt) return; ACRO.txt=txt; ACRO.el.textContent=txt; ACRO.el.style.display=txt?'block':'none'; }
 const secS=(t)=>t.toFixed(1).replace('.',',')+' s';
 /* le cabrage du joueur (motos, vélos, skate) : chronométré sur le temps réel, record à la fin — jamais si l'on bascule */
 function acroCabrage(v,dtJ){ if(v!==P.veh) return; const cle=v.def.velo?'cabrageVelo':'cabrage', leve=(v.wheelieA||0)>ACRO_CABRE_MIN&&!v.enAir;
-  if(leve){ ACRO.cabreT+=dtJ; ACRO.cabreCle=cle; if(ACRO.cabreT>=ACRO_CHRONO_MIN) acroHud((v.def.velo?'🚲 MANUAL ':'🏍️ CABRAGE ')+secS(ACRO.cabreT)+' · record '+secS(META.acro[cle]||0)); }
+  if(leve){ ACRO.cabreT+=dtJ; ACRO.cabreCle=cle; if(ACRO.cabreT>=ACRO_CHRONO_MIN) acroHud((v.def.velo?'🚲 MANUAL ':'🏍️ CABRAGE ')+secS(ACRO.cabreT)+(v.def.velo?'':' · '+CABRAGE_PTS(ACRO.cabreT)+' pts')+' · record '+secS(META.acro[cle]||0)); }
   else if(ACRO.cabreT>0) acroFinCabrage(false); }
 function acroFinCabrage(rate){ const t=ACRO.cabreT, cle=ACRO.cabreCle; ACRO.cabreT=0; ACRO.cabreCle=''; if(!ACRO.dosT) acroHud('');
   if(!cle||rate||t<ACRO_CHRONO_MIN) return;
+  if(cle==='cabrage'){ const pts=CABRAGE_PTS(t); ETAT.score+=pts; ACRO.derniersPts=pts; spawnTexte(P.x,3.2,P.z,'+'+pts+' CABRAGE '+secS(t),'#ffd23f'); } /* points selon la durée (point 1) */
   if(t>(META.acro[cle]||0)){ META.acro[cle]=+t.toFixed(2); toast('🏆 Record de '+(cle==='cabrage'?'cabrage':'manual')+' : '+secS(t),'or'); SFX.niveau(); sauveMeta(); } }
 /* une figure d'avion : comptée dans le vol (v.figVol) et au total ; record de figures en un vol */
 function acroFigure(v,cle){ if(!META.acro) return 0; const F=v.figVol||(v.figVol={loopings:0,tonneaux:0,vrilles:0});
@@ -31977,7 +31978,7 @@ function majConduite(dt){
   const c=controleDir(v,frein);
   majVehiculePhys(v,dt,c.throttle,c.steer,frein);
   if(dansSkateXXL(v.x,v.z)) majSkateXXL(v,dt); // skatepark XXL : airs de bowl
-  if(motoCabrable(v)&&majCabrageMoto(v,dt)) return; /* toutes les motos cabrent (ESQUIVE tenu) ; trop longtemps : la bascule */
+  if(motoCabrable(v)&&majCabrageMoto(v,dt)) return; /* toutes les motos cabrent : un jeu d'équilibre (liste du 22 octobre, point 1) */
   if(v.def.velo){
     // BUNNY HOP : appui bref d'ESQUIVE (au relâcher), roues au sol → envol par la
     // physique de saut partagée (v.enAir/v.vy, majVehiculePhys) ; par-dessus
@@ -31993,7 +31994,7 @@ function majConduite(dt){
     v.hopTenu=veut;
     const cabre=veut&&((v.manuT||0)>=VELO_TAP||enManual)&&!v.enAir&&Math.abs(v.v)>1.5;
     v.wheelieA=!v.enAir&&Math.abs(v.v)>1.5?equilibreCabrage(v,EQUILIBRE_CABRAGE.velo,VELO_CABRE_VIT,cabre,VELO_CABRE_MAX,dt):clamp((v.wheelieA||0)-VELO_CABRE_VIT*1.6*dt,0,VELO_CABRE_MAX); /* l'équilibre (3.2) */
-    if(v.wheelieA>=VELO_CABRE_MAX-0.002){ const long=v===P.veh&&ACRO.cabreT>=ACRO_CHRONO_MIN; v.wheelieA=0; if(v===P.veh) acroFinCabrage(true); if(long){ toast('Trop cabré : tu reposes la roue avant','warn'); vibre(25); } } /* au-delà de la butée, l'équilibre est perdu */
+    if(v.wheelieA>=VELO_CABRE_MAX-0.002){ const long=v===P.veh&&ACRO.cabreT>=ACRO_CHRONO_MIN; v.wheelieA=0; if(v===P.veh) acroFinCabrage(true); if(long){ toast('Roue avant reposée','warn'); vibre(25); } } /* au-delà de la butée, l'équilibre est perdu */
     acroCabrage(v,dt/(ETAT.timeScale||1));
     if(v.wheelieA>0.001&&!v.enAir){ v.mesh.rotation.order='YXZ'; v.mesh.rotation.x=-v.wheelieA; v.mesh.position.y+=v.def.long*0.45*Math.sin(v.wheelieA); } // pivot sur la roue arrière
     else if(v.wheelieA<=0.001&&v.cabreAff){ v.mesh.rotation.x=0; }
