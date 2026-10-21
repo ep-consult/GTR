@@ -17743,8 +17743,8 @@ function cliffArreter(fin){ const A=CLIFF.actif; if(!A) return; CLIFF.actif=null
   const sc=Math.round(A.total*10)/10, rec=sc>(META.defis.falaise||0); if(rec) META.defis.falaise=sc; const g=sc>=CLIFF_OBJECTIF?primeMerUneFois('falaise',CLIFF_PRIME):0; sauveMeta(); checkDefis();
   bigMsg('🌊 '+sc+' POINTS'); toast('🌊 Reyes Cliff Diving : '+sc+' points'+(rec?' — record !':'')+(g?' — +'+g+' $':(sc>=CLIFF_OBJECTIF?'':' — '+CLIFF_OBJECTIF+' pour la prime')),'or'); }
 function cliffEntree(){ const A=CLIFF.actif, J=A.J, S=CLIFF.sauts[A.n]; const demi=Math.max(1,Math.round(J.ang/Math.PI)), cible=Math.PI*(demi%2?demi:demi+1), err=Math.abs(J.ang-cible); /* tête la première : un nombre impair de demi-tours */
-  const vertical=Math.max(0,1-err/0.9), haut=clamp(J.q||0,0,1), exec=clamp(10*vertical*(0.75+0.25*haut),0,10), dd=1+0.5*Math.min(CLIFF_TOUR,demi), kh=1+S.h/27;
-  const juges=[0,1,2].map(()=>Math.round(clamp(exec+(Math.random()-0.5)*1.0,0,10)*2)/2), pts=Math.round(juges.reduce((a,b)=>a+b,0)*dd*kh*10)/10;
+  const vertical=Math.max(0,1-err/0.9), haut=clamp(J.q||0,0,1), exec=J.chute?0:clamp(10*vertical*(0.75+0.25*haut),0,10), dd=1+0.5*Math.min(CLIFF_TOUR,demi), kh=1+S.h/27;
+  const juges=[0,1,2].map(()=>exec>0?Math.round(clamp(exec+(Math.random()-0.5)*1.0,0,10)*2)/2:0), pts= /* une chute de la plateforme (on n'a pas sauté) : zéro partout, le bruit des juges n'y ajoute rien */Math.round(juges.reduce((a,b)=>a+b,0)*dd*kh*10)/10;
   A.total=Math.round((A.total+pts)*10)/10; A.hist.push(pts); A.n++; J.phase='notes'; J.attente=2.8; J.notes={juges,dd,kh,pts,demi,nom:demi>=7?'Triple salto et demi !':(demi>=5?'Double salto et demi':(demi>=3?'Salto et demi':'Plongeon simple'))};
   juges.forEach((n,k)=>cliffCarton(CLIFF.juges[k],n));
   const gros=vertical<0.6, x=P.x, z=P.z; for(let i=0;i<(gros?4:2);i++) burst(x+(Math.random()-0.5)*0.6,0.4,z,gros?14:8,0xd8f0ff,gros?7:4,gros?7:4); if(MER_V2) eclaboussure(x,z,gros?2.4:1.2); bruit(gros?0.55:0.2,gros?0.12:0.05,gros?600:1400,'lowpass'); vibre(gros?50:15);
@@ -17752,7 +17752,7 @@ function cliffEntree(){ const A=CLIFF.actif, J=A.J, S=CLIFF.sauts[A.n]; const de
 function majCliff(dt,dtJeu){ const A=CLIFF.actif; if(CLIFF.public){ CLIFF.ovation=Math.max(0,CLIFF.ovation-dt); CLIFF.public.position.y=CLIFF.ovation>0?Math.abs(Math.sin((ETAT.runT||0)*11))*0.35:0; }
   if(CLIFF.fanionG){ const w=Math.sin((ETAT.runT||0)*3)*0.25; CLIFF.fanionG.rotation.y=w; CLIFF.fanionD.rotation.y=-w; }
   if(!A) return; if(P.veh||ETAT.mode!=='jeu'){ cliffArreter(false); return; } const J=A.J, S=CLIFF.sauts[Math.min(A.n,2)], h=P.h; J.t+=dtJeu;
-  if(J.phase==='elan'){ J.el+=dtJeu*3.2; if(J.t>CLIFF_AUTO){ J.q=0.15; J.vy=4.6+3.0*J.q; J.phase='vol'; J.t=0; } if(h){ h.brasD.rotation.x=h.brasG.rotation.x=-0.4-0.3*Math.sin(J.el); } } /* on ne reste pas sur la planche : au bout de 7 s, on tombe sans élan */
+  if(J.phase==='elan'){ J.el+=dtJeu*3.2; if(J.t>CLIFF_AUTO){ J.q=0.15; J.vy=4.6+3.0*J.q; J.phase='vol'; J.t=0; J.chute=true; } if(h){ h.brasD.rotation.x=h.brasG.rotation.x=-0.4-0.3*Math.sin(J.el); } } /* on ne reste pas sur la planche : au bout de 7 s, on tombe sans élan */
   else if(J.phase==='vol'){ J.vy-=CLIFF_G*dtJeu; J.y+=J.vy*dtJeu; J.d+=1.3*dtJeu; J.ang+=(J.tourne?9:CLIFF_LENT)*dtJeu; /* tendu, on tourne lentement : de 27 m, à peine un demi-tour sans grouper (avec la vitesse de la villa, le passif entrait tête la première par hasard) */ if(h){ const a=J.tourne?-2.4:-2.9; h.brasD.rotation.x=h.brasG.rotation.x=a; } if(J.y<=CLIFF_EAU) cliffEntree(); }
   else if(J.phase==='notes'){ J.attente-=dtJeu; if(J.attente<=0){ if(A.n>=CLIFF.sauts.length){ cliffArreter(true); return; } cliffPlacer(); return; } }
   const Sv=CLIFF.sauts[J.phase==='notes'?A.n-1:A.n]||S, th=J.phase==='vol'?J.ang:0, yb=J.phase==='notes'?CLIFF_EAU-0.6:J.y;
@@ -47017,7 +47017,7 @@ function marquerZone(obj,r2){ if(obj) obj.r=Math.sqrt(r2); return r2; }
 // seule au 2e tour, autonome comme turrets/creature) rejoignent la même
 // exemption — voir majInterieur, pas majAction.
 const CHAMPS_DECOR_SALLE=new Set(['pnj','culturiste','plaque','gardiens','cameras','piles','dangers','bateau','turrets','creature','boucleHuile','toitPasserelle','danse','bagarreur','figurants',
-  'canne','bout','bouchonPos','recifs','bancs','vueHaut']); // Chalutier V2 : poste de pêche (le joueur y est placé), pointe de la canne, bouchon, et récifs/bancs en coordonnées de MER (pas de la salle) // Club Néon : danse en cours (position figée du danseur) et fêtard bagarreur (un ennemi) ne sont pas des zones
+  'canne','bout','bouchonPos','recifs','bancs','vueHaut','gerard']); // Monstre V2 (lot 8.2) : Gérard, l'adversaire du duel (un PNJ). Chalutier V2 : poste de pêche (le joueur y est placé), pointe de la canne, bouchon, et récifs/bancs en coordonnées de MER (pas de la salle) // Club Néon : danse en cours (position figée du danseur) et fêtard bagarreur (un ennemi) ne sont pas des zones
 // Rejoue majAction() avec le joueur hors de portée de tout, pour que la
 // chaîne if/else-if s'évalue en entier (aucune branche ne « gagne » et
 // n'interrompt les suivantes) et que chaque marquerZone() de la salle

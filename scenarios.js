@@ -7525,7 +7525,7 @@ async function main() {
         const b = creerVehicule('bateau', POIS.plage.x + 20, MER + 45, 0, null);
         P.x = b.x + 2; P.z = b.z; entrerVehicule(b); KEYS.KeyW = true;
         const ys = [], rx = [];
-        for (let i = 0; i < 12; i++) { await dors(120); ys.push(b.mesh.position.y); rx.push(b.mesh.rotation.x); }
+        for (let i = 0; i < 48 && (i < 12 || Math.abs(b.v) < 8); i++) { await dors(120); ys.push(b.mesh.position.y); rx.push(b.mesh.rotation.x); } /* en temps réel : en fin de suite, le navigateur chargé simule peu d'images (3,3 u/s après 1,4 s) — on mesure jusqu'à ce que le bateau ait pris de la vitesse */
         KEYS.KeyW = false;
         out.sillage = actifs(); out.vitesse = Math.abs(b.v);
         out.houleBateau = Math.max(...ys) - Math.min(...ys); out.tangage = Math.max(...rx) - Math.min(...rx);
@@ -17540,14 +17540,22 @@ async function main() {
           if (Math.hypot(v.x - p[0], v.z - p[1]) > 1) ko.push(k + ' posé sur l’île en (' + p[0].toFixed(0) + ', ' + p[1].toFixed(0) + ') : renvoyé en (' + v.x.toFixed(0) + ', ' + v.z.toFixed(0) + ')'); retirer(v); }
         // 2. l'amphibie au joystick : plage de l'île → mer → retour, des trois côtés, puis la plage de la ville
         const trajets = [['île, côté sud', [0, 1]], ['île, côté ouest', [-1, 0]], ['île, côté est', [1, 0]], ['plage de la ville', null]];
-        for (const [nom, cap0] of trajets) { partie(); const cap = cap0 || [0, 1], p = cap0 ? bord(cap, 0.86) : [-60, MER - 6]; if (!p) { ko.push(nom + ' : pas de plage sur l’île'); continue; }
+        /* la plage de la ville : un couloir de sable dégagé (le stand de Lani du lot 8, le mobilier de plage…) — le test maîtrise sa scène */
+        const plageLibre = (x) => { for (let z = MER - 16; z <= MER + 46; z += 2) for (const dx of [-7, -3.5, 0, 3.5, 7]) if (solidAt(x + dx, z, 1.5)) return false; return !estEau(x, MER - 6); };
+        for (const [nom, cap0] of trajets) { partie(); let xv = -60; if (!cap0) for (let x = -60; x < 240; x += 4) if (plageLibre(x)) { xv = x; break; } const cap = cap0 || [0, 1], p = cap0 ? bord(cap, 0.86) : [xv, MER - 6]; if (!p) { ko.push(nom + ' : pas de plage sur l’île'); continue; }
           for (let i = vehicules.length - 1; i >= 0; i--) { const x = vehicules[i], L = (x.def && x.def.long) || 4; if (Math.hypot(x.x - p[0], x.z - p[1]) < 60 + L / 2) { x.mort = true; scene.remove(x.mesh); vehicules.splice(i, 1); } } /* la route dégagée : le porte-conteneurs au mouillage barrait le trajet est */
           const v = creerVehicule('amphibie', p[0], p[1], Math.atan2(cap[0], cap[1]), null); P.x = v.x; P.z = v.z; entrerVehicule(v);
           const hp0 = v.hp, x0 = v.x, z0 = v.z; let px = v.x, pz = v.z, saut = 0, phase = 'aller', t = 0, auLarge = false, choc = '', hpP = v.hp;
           for (let k = 0; k < 60 * 40 && phase !== 'fini'; k++) { const d = (v.x - x0) * cap[0] + (v.z - z0) * cap[1];
             if (phase === 'aller' && d > 40) phase = 'retour'; if (phase === 'retour' && d < -4) phase = 'fini';
             if (surEauVeh(v)) auLarge = true;
-            INPUT.jx = phase === 'aller' ? cap[0] : -cap[0]; INPUT.jy = phase === 'aller' ? cap[1] : -cap[1]; pas(); t += 1 / 60;
+            if (phase === 'aller' || cap0) { INPUT.jx = phase === 'aller' ? cap[0] : -cap[0]; INPUT.jy = phase === 'aller' ? cap[1] : -cap[1]; }
+            else { /* au retour, il revient sur SA ligne de départ : après le demi-tour (d'un côté ou de l'autre selon l'état laissé par
+                      les tests d'avant), revenir tout droit le menait jusqu'à 30 u de côté — sur la plage de la ville, droit dans le stand
+                      de Lani (lot 8), un obstacle de la plage comme un autre */
+              const pp = [cap[1], -cap[0]], l = (v.x - x0) * pp[0] + (v.z - z0) * pp[1], c = Math.max(-0.8, Math.min(0.8, l / 12)), jx = -cap[0] - pp[0] * c, jy = -cap[1] - pp[1] * c, n = Math.hypot(jx, jy) || 1;
+              INPUT.jx = jx / n; INPUT.jy = jy / n; }
+            pas(); t += 1 / 60;
             saut = Math.max(saut, Math.hypot(v.x - px, v.z - pz)); px = v.x; pz = v.z; if (v.hp < hpP && !choc) choc = ' en (' + v.x.toFixed(0) + ', ' + v.z.toFixed(0) + '), plus proche : ' + voisin(v) + (solidAt(v.x, v.z, 3) ? ', un solide' : ''); hpP = v.hp; if (v.mort || v.noye || P.veh !== v) break; }
           INPUT.jx = INPUT.jy = 0;
           if (saut > 1) ko.push(nom + ' : un saut de ' + saut.toFixed(1) + ' u en une image');
@@ -17615,11 +17623,12 @@ async function main() {
         const estCage = (o) => { for (let p = o; p; p = p.parent) if (p === c.mesh || (PIC.cageV2 && p === PIC.cageV2.mt) || (P.h && p === P.h.g)) return true; return o === c.cable; }; /* le joueur (et l’accessoire de sa tenue, depuis le lot 3) n’est pas du décor */
         for (const vue of ['classique', 'immersive']) for (const [nom, dx, dz] of [['au pied', 0, 3], ['plus loin', -4, 14]]) {
           META.vue = vue; if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9;
-          P.x = c.x + dx; P.z = c.z + c.hd + dz; P.y = solY(P.x, P.z); P.ang = Math.PI; VUE.yaw = 0; VUE.offVeh = 0; pas(90);
+          P.x = c.x + dx; P.z = c.z + c.hd + dz; P.y = solY(P.x, P.z); P.ang = Math.PI; VUE.yaw = VUE.yawUser = 0; VUE.offVeh = 0; pas(240); /* à pied, la caméra immersive revient vers VUE.yawUser : le fixer aussi (le test d'avant le laissait n'importe où, la caméra partait dans le Pic) ; 4 s pour qu'elle soit posée */
           camera.updateMatrixWorld(true); scene.updateMatrixWorld(true); const rc = new THREE.Raycaster(); rc.camera = camera;
           for (const hy of [0.5, 1.4, 2.4]) { const cible = new THREE.Vector3(c.x, c.y + hy, c.z), dir = cible.clone().sub(camera.position), D = dir.length(); dir.normalize(); rc.set(camera.position, dir); rc.far = D - 0.3;
-            const h = rc.intersectObjects(scene.children, true).find((q) => { const o = q.object; if (o.isSprite || estCage(o)) return false; for (let p = o; p; p = p.parent) if (!p.visible) return false; return true; });
-            if (h) { const m = Array.isArray(h.object.material) ? h.object.material[0] : h.object.material; ko.push(vue + ', ' + nom + ' : à ' + hy + ' u, ' + (h.object.geometry ? h.object.geometry.type : '?') + ' ' + (m && m.color ? '#' + m.color.getHexString() : '') + ' devant la cabine (' + h.point.x.toFixed(1) + ', ' + h.point.y.toFixed(1) + ', ' + h.point.z.toFixed(1) + ')'); } } }
+            const mobiles = new Set(); for (const L of [vehicules, ennemis, pietons]) for (const e of L) { const m = e.mesh || (e.h && e.h.g); if (m) mobiles.add(m); } /* seul le DÉCOR compte : un véhicule, un passant, un effet (traits, gouttes) ne sont pas un rocher devant la cabine */
+            const h = rc.intersectObjects(scene.children, true).find((q) => { const o = q.object; if (o.isSprite || o.isLine || o.isPoints || estCage(o)) return false; for (let p = o; p; p = p.parent) { if (!p.visible || mobiles.has(p)) return false; } return true; });
+            if (h) { const m = Array.isArray(h.object.material) ? h.object.material[0] : h.object.material; const ch = []; for (let p = h.object; p && p !== scene && ch.length < 5; p = p.parent) ch.push((p.name || p.type) + (Object.keys(p.userData || {}).length ? '{' + Object.keys(p.userData).slice(0, 4).join(',') + '}' : '')); ko.push(vue + ', ' + nom + ' : à ' + hy + ' u, ' + (h.object.geometry ? h.object.geometry.type : '?') + ' ' + (m && m.color ? '#' + m.color.getHexString() : '') + ' devant la cabine (' + h.point.x.toFixed(1) + ', ' + h.point.y.toFixed(1) + ', ' + h.point.z.toFixed(1) + ') — ' + ch.join(' < ') + ', caméra (' + camera.position.x.toFixed(0) + ', ' + camera.position.y.toFixed(0) + ', ' + camera.position.z.toFixed(0) + '), joueur (' + P.x.toFixed(0) + ', ' + P.y.toFixed(0) + ', ' + P.z.toFixed(0) + ')'); } } }
         // la cabine vitrée
         const bv = new THREE.Box3(); c.mesh.traverse((o) => { if (o.isMesh && o.material && o.material.transparent && o.material.opacity < 0.5) { o.geometry.computeBoundingBox(); bv.union(o.geometry.boundingBox); } }); /* les vitres, fusionnées : leur boîte couvre les quatre faces */
         if (bv.isEmpty() || bv.max.x - bv.min.x < 2 * c.hw * 0.95 || bv.max.z - bv.min.z < 2 * c.hd * 0.95 || bv.max.y - bv.min.y < 1.8) ko.push('cabine : pas vitrée sur les quatre faces (' + (bv.isEmpty() ? 'aucune vitre' : (bv.max.x - bv.min.x).toFixed(2) + ' × ' + (bv.max.z - bv.min.z).toFixed(2) + ' × ' + (bv.max.y - bv.min.y).toFixed(2)) + ')'); else info.push('cabine vitrée sur les quatre faces (' + (bv.max.x - bv.min.x).toFixed(1) + ' × ' + (bv.max.z - bv.min.z).toFixed(1) + ' × ' + (bv.max.y - bv.min.y).toFixed(1) + ' u)');
