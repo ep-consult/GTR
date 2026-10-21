@@ -8273,7 +8273,7 @@ async function main() {
         const o = { ko: [], vus: [] };
         const scene0 = () => { startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e6; for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0; };
         let X = null; for (let x = -HALF + 20; x < HALF - 20 && X === null; x += 7) { let libre = estEau(x, MER + 4) && !estEau(x, MER - 16);
-          for (let z = MER - 30; z <= MER + 40 && libre; z += 1) if (solidAt(x, z, 2.5)) libre = false;
+          for (let z = MER - 30; z <= MER + 40 && libre; z += 1) if (solidAt(x, z, 6)) libre = false; /* 6 u de part et d'autre (2,5 avant) : en reculant vers l'eau, un bateau échoué vire et dérive de 3 u — le jet à bras (V3), plus court, montait plus haut sur le sable et accrochait un objet de plage */
           for (const p of PONTONS) if (Math.abs(x - p.x) < p.hw + 14 && Math.abs(MER - p.z) < p.hd + 40) libre = false;
           for (const il of ILES) if (dist2(x, MER, il.x, il.z) < (il.r + 30) ** 2) libre = false;
           if (libre) X = x; }
@@ -17507,6 +17507,53 @@ async function main() {
         startRun(); return { ko, info }; });
       if (r.ko.length) fail('Véhicules V4, niveau de détail : ' + r.ko.join(' | '));
       else ok('Véhicules V4, niveau de détail : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
+    // Retours du 20 octobre, 1.1 (signalé : « sur l'eau, quand je reviens vers l'île, le 4x4 amphibie est d'un coup téléporté en
+    // amont et il s'abîme »). La borne sud des véhicules terrestres (HALF + 8, la plage) ignorait les îles : posé sur l'île aux
+    // trésors, ou y remontant de la mer, un véhicule terrestre était renvoyé sur z = 302, dans la mer devant la plage. L'île est lue
+    // dans ILE2 ; un pilote au joystick réel (vue de dessus : haut = nord) fait la plage de l'île → la mer → retour, des trois côtés,
+    // puis la plage de la ville ; aucun saut de plus de 1 u par image, aucun dégât.
+    // -------------------------------------------------------------------
+    console.log('\n--- Retours du 20 octobre, 1.1 : le 4x4 amphibie et l’île aux trésors — ni téléportation, ni dégâts ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        const partie = () => { META.vue = 'classique'; if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9; for (const e of ennemis) e.mort = true; };
+        let T = dernierT + 1000; const pas = () => { for (const e of ennemis) e.mort = true; WANTED.stars = 0; T += 1000 / 60; tick(T); P.hp = 1e9; };
+        const retirer = (v) => { if (P.veh === v) sortirVehicule(true); v.mort = true; scene.remove(v.mesh); const i = vehicules.indexOf(v); if (i >= 0) vehicules.splice(i, 1); };
+        const I = ILE2, bord = (cap, f) => { const a = Math.atan2(cap[1] / I.rz, cap[0] / I.rx); let u = f; for (let k = 0; k < 40; k++) { const x = I.cx + Math.cos(a) * I.rx * ileR(a) * u, z = I.cz + Math.sin(a) * I.rz * ileR(a) * u; if (!estEau(x, z)) return [x, z]; u -= 0.01; } return null; };
+        // 1. posés sur l'île : ils y restent
+        partie();
+        for (const k of ['amphibie', 'jeep', 'motocross']) { const p = bord([0, 1], 0.6); const v = creerVehicule(k, p[0], p[1], 0, null); P.x = v.x; P.z = v.z; entrerVehicule(v); for (let i = 0; i < 5; i++) pas();
+          if (Math.hypot(v.x - p[0], v.z - p[1]) > 1) ko.push(k + ' posé sur l’île en (' + p[0].toFixed(0) + ', ' + p[1].toFixed(0) + ') : renvoyé en (' + v.x.toFixed(0) + ', ' + v.z.toFixed(0) + ')'); retirer(v); }
+        // 2. l'amphibie au joystick : plage de l'île → mer → retour, des trois côtés, puis la plage de la ville
+        const trajets = [['île, côté sud', [0, 1]], ['île, côté ouest', [-1, 0]], ['île, côté est', [1, 0]], ['plage de la ville', null]];
+        for (const [nom, cap0] of trajets) { partie(); const cap = cap0 || [0, 1], p = cap0 ? bord(cap, 0.86) : [-60, MER - 6]; if (!p) { ko.push(nom + ' : pas de plage sur l’île'); continue; }
+          const v = creerVehicule('amphibie', p[0], p[1], Math.atan2(cap[0], cap[1]), null); P.x = v.x; P.z = v.z; entrerVehicule(v);
+          const hp0 = v.hp, x0 = v.x, z0 = v.z; let px = v.x, pz = v.z, saut = 0, phase = 'aller', t = 0, auLarge = false;
+          for (let k = 0; k < 60 * 40 && phase !== 'fini'; k++) { const d = (v.x - x0) * cap[0] + (v.z - z0) * cap[1];
+            if (phase === 'aller' && d > 40) phase = 'retour'; if (phase === 'retour' && d < -4) phase = 'fini';
+            if (surEauVeh(v)) auLarge = true;
+            INPUT.jx = phase === 'aller' ? cap[0] : -cap[0]; INPUT.jy = phase === 'aller' ? cap[1] : -cap[1]; pas(); t += 1 / 60;
+            saut = Math.max(saut, Math.hypot(v.x - px, v.z - pz)); px = v.x; pz = v.z; if (v.mort || v.noye || P.veh !== v) break; }
+          INPUT.jx = INPUT.jy = 0;
+          if (saut > 1) ko.push(nom + ' : un saut de ' + saut.toFixed(1) + ' u en une image');
+          if (v.hp < hp0) ko.push(nom + ' : abîmé (' + hp0 + ' → ' + v.hp.toFixed(0) + ' PV)');
+          if (!auLarge) ko.push(nom + ' : jamais sur l’eau'); if (phase !== 'fini') ko.push(nom + ' : pas revenu (' + phase + ', ' + v.x.toFixed(0) + ', ' + v.z.toFixed(0) + ')');
+          info.push(nom + ' ' + t.toFixed(0) + ' s, ' + saut.toFixed(2) + ' u par image au plus'); retirer(v); }
+        // 3. une moto cross qui quitte l'île vers la mer s'y noie là où elle est — jamais renvoyée devant la plage de la ville
+        { partie(); const p = bord([0, 1], 0.8); const v = creerVehicule('motocross', p[0], p[1], 0, null); P.x = v.x; P.z = v.z; entrerVehicule(v); let saut = 0, px = v.x, pz = v.z;
+          for (let k = 0; k < 60 * 8 && !v.noye; k++) { INPUT.jx = 0; INPUT.jy = 1; pas(); saut = Math.max(saut, Math.hypot(v.x - px, v.z - pz)); px = v.x; pz = v.z; } INPUT.jx = INPUT.jy = 0;
+          if (!v.noye) ko.push('moto cross partie de l’île vers la mer : pas noyée (' + v.x.toFixed(0) + ', ' + v.z.toFixed(0) + ')'); if (saut > 1) ko.push('moto cross : un saut de ' + saut.toFixed(1) + ' u');
+          else info.push('moto cross de l’île à la mer : noyée sur place (z ' + v.z.toFixed(0) + ')'); retirer(v); }
+        // 4. la plage de la ville reste une borne : une voiture qui y fonce s'arrête et se noie au bord, comme avant
+        { partie(); const v = creerVehicule('berline', -60, MER - 8, 0, null); P.x = v.x; P.z = v.z; entrerVehicule(v); for (let k = 0; k < 60 * 6 && !v.noye; k++) { INPUT.jx = 0; INPUT.jy = 1; pas(); } INPUT.jx = INPUT.jy = 0;
+          if (v.z > HALF + 8.01) ko.push('une berline partie de la plage file au large (z ' + v.z.toFixed(1) + ')'); retirer(v); }
+        partie(); return { ko, info };
+      });
+      if (r.ko.length) fail('Retours 20 oct., 1.1 : ' + r.ko.join(' ; ') + ' [' + r.info.join(' | ') + ']');
+      else ok('Retours 20 oct., 1.1 : posés sur l’île, l’amphibie, le 4x4 et la moto cross y restent ; ' + r.info.join(' ; ') + ' ; aucun dégât ; la plage de la ville reste une borne');
     }
     // -------------------------------------------------------------------
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');

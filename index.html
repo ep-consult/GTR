@@ -28298,6 +28298,7 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
   if(v.cabreX) retirerPoseCabrage(v); /* le cabrage des motos s'ajoute à l'assiette : retiré ici, reposé après (poseCabrage) */
   if(v.ecrPose) retirerPoseEcrasement(v); /* de même la pose de montée de l'écraseur (posée en fin de majVehiculePhys) */
   if(v.noye) return; // noyé : il coule (majNoyade), plus aucune conduite
+  const zAvantPhys=v.z; /* la borne sud des véhicules terrestres (plus bas) : seulement pour celui qui vient de la plage */
   const d=v.def, eau=surEauVeh(v); // surEauVeh : dynamique pour l'amphibie, statique pour les bateaux
   const coinceCanal=!!d.eau&&CANAUX.ok&&dansBBCanaux(v.x,v.z)&&dansCanal(v.x,v.z)&&!estEauNav(v.x,v.z); /* V2 : le centre dans un ponton ou un bateau amarré (poussé là par un rebond) — sans ça, « échoué » et plus aucun pas permis : coincé pour toujours */
   if(coinceCanal){ const q=eauNavProche(v.x,v.z); if(q){ const dx=q.x-v.x, dz=q.z-v.z, l=Math.hypot(dx,dz)||1, k=Math.min(l,4*dt+0.03); v.x+=dx/l*k; v.z+=dz/l*k; } } /* il glisse vers l'eau libre la plus proche */
@@ -28445,7 +28446,8 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
   // voir IOFF) — jamais bornés aux limites de la ville, sinon ils seraient
   // instantanément ramenés en centre-ville dès le premier appel.
   if(!v.horsVille){
-    const B=SAUTV.barge, surBarge=!!B&&Math.abs(v.x-B.x)<B.hw+3&&(v.z>HALF||(v.sautHills&&v.sautHills.vertige)), zMax=eau||surBarge?(eau?LIMITE_SUD_MER:B.z1+2):HALF+8; // la barge du Saut du Vertige est au large : on y vole et on y roule
+    const B=SAUTV.barge, surBarge=!!B&&Math.abs(v.x-B.x)<B.hw+3&&(v.z>HALF||(v.sautHills&&v.sautHills.vertige)); let zMax=eau||surBarge?(eau?LIMITE_SUD_MER:B.z1+2):HALF+8; // la barge du Saut du Vertige est au large : on y vole et on y roule
+    if(zMax===HALF+8&&v.z>HALF+8&&(d.amphibie||zAvantPhys>HALF+8||!estEau(v.x,v.z))) zMax=LIMITE_SUD_MER; /* retours du 20 octobre : au large, une île ou un ponton est de la terre — borné à la plage, un véhicule terrestre sur l'île aux trésors (l'amphibie qui y remonte de la mer, ou qui en repart) était téléporté sur z = 302, dans la mer devant la plage, à 100 u de là. La borne ne retient plus que celui qui vient de la plage ; parti d'une île dans la mer, un véhicule terrestre s'y noie là où il est */
     // Audit des bordures : un véhicule s'arrêtait 8 u avant les murs ouest et
     // nord (limite invisible) ; il va désormais jusqu'au mur, qui l'arrête.
     // En mer, jamais à l'ouest de la ligne du mur (jetée).
