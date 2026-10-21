@@ -1319,6 +1319,9 @@ un commit par point ; captures `rapport_nuit/captures/retours_20/`.
   îles — un véhicule terrestre sur l'île aux trésors était renvoyé sur z = 302, dans la mer devant la plage. Une île ou un ponton au
   large est de la terre (`estEau` faux) et la borne ne retient que le véhicule qui vient de la plage (`zAvantPhys`). Test
   « Retours du 20 octobre, 1.1 ».
+- **1.2 Le cockpit du long-courrier tout gris** : garé à sa porte, son nez entrait dans la cabine de la passerelle (un mur gris à 1,8 u
+  du cockpit). La passerelle s'abouche désormais à la porte avant gauche (`mkAeroportVivant`, mêmes objets, mêmes tirages). Test
+  « Retours du 20 octobre, 1.2 » : chaque aéronef en vol et garé, rien du décor à moins de 6 u au centre du cockpit.
 
 ## Los Reyes Hills (15 octobre 2026) — `HILLS`, bandeau `LOS REYES HILLS`
 

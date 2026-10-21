@@ -17556,6 +17556,40 @@ async function main() {
       else ok('Retours 20 oct., 1.1 : posés sur l’île, l’amphibie, le 4x4 et la moto cross y restent ; ' + r.info.join(' ; ') + ' ; aucun dégât ; la plage de la ville reste une borne');
     }
     // -------------------------------------------------------------------
+    // Retours du 20 octobre, 1.2 (signalé : « cockpit du long-courrier tout gris : on voit les commandes, mais pas de pare-brise, comme
+    // si l'écran était gris ; pareil pour tous les avions et hélicos »). Garé à sa porte de l'aérogare, le nez du long-courrier entrait
+    // dans la cabine de la passerelle : du cockpit, un mur gris à 1,8 u. Chaque aéronef de VEHDEFS en vol, et chaque aéronef garé par
+    // startRun là où le joueur le trouve : diagnostic du cockpit, et au centre de l'écran rien du décor à moins de 6 u.
+    // -------------------------------------------------------------------
+    console.log('\n--- Retours du 20 octobre, 1.2 : le cockpit de chaque aéronef voit dehors (en vol et là où il est garé) ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [];
+        const partie = () => { META.vue = 'fps'; if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9; for (const e of ennemis) e.mort = true; };
+        let T = dernierT + 1000; const pas = (n) => { for (let k = 0; k < n; k++) { for (const e of ennemis) e.mort = true; WANTED.stars = 0; T += 1000 / 60; tick(T); P.hp = 1e9; } };
+        const devant = (v) => { camera.updateMatrixWorld(true); scene.updateMatrixWorld(true); const rc = new THREE.Raycaster(); rc.camera = camera; let dmin = 1e9;
+          for (const [ex, ey] of [[0, 0.15], [0, 0.35], [-0.3, 0.25], [0.3, 0.25]]) { rc.setFromCamera(new THREE.Vector2(ex, ey), camera);
+            const h = rc.intersectObjects(scene.children, true).find((q) => !q.object.isSprite && q.object.visible && !v.mesh.getObjectById(q.object.id)); if (h) dmin = Math.min(dmin, h.distance); } return dmin; };
+        // 1. en vol, au-dessus de la place
+        const cles = Object.keys(VEHDEFS).filter((k) => VEHDEFS[k].air); let nVol = 0;
+        for (const k of cles) { partie(); const v = creerVehicule(k, POIS.place.x + 20, POIS.place.z + 60, Math.PI, null); if (!v) { ko.push(k + ' : pas créé'); continue; }
+          P.x = v.x; P.z = v.z; entrerVehicule(v); v.alt = 45; v.v = (v.def.vmax || 30) * 0.6; v.enVol = true; if (typeof avionSim === 'function' && avionSim(v)) { try { volSimInit(v); } catch (e) {} }
+          for (let i = 0; i < 30; i++) { INPUT.jx = 0; INPUT.jy = 0; pas(1); v.alt = Math.max(v.alt || 0, 40); }
+          if (!COCKPIT.g) { ko.push(k + ' en vol : pas de cockpit'); continue; } const dg = cockpitDiagnostic(v); if (!dg.ok) ko.push(k + ' en vol : diagnostic ' + JSON.stringify(dg).slice(0, 160));
+          const d = devant(v); if (d < 6) ko.push(k + ' en vol : le décor à ' + d.toFixed(1) + ' u devant le cockpit'); nVol++; }
+        // 2. garés par startRun, là où le joueur les trouve
+        partie(); const gares = vehicules.filter((v) => v.def.air && !v.mort).map((v) => v.key); const vus = new Set(); let nGare = 0, pire = 1e9, pireCle = '';
+        for (const k of gares) { if (vus.has(k)) continue; vus.add(k); partie(); const v = vehicules.find((w) => w.key === k && w.def.air && !w.mort); if (!v) continue;
+          P.x = v.x; P.z = v.z; entrerVehicule(v); pas(25); if (!COCKPIT.g) { ko.push(k + ' garé : pas de cockpit'); continue; }
+          const d = devant(v); if (d < pire) { pire = d; pireCle = k; } if (d < 6) ko.push(k + ' garé en (' + v.x.toFixed(0) + ', ' + v.z.toFixed(0) + ') : le décor à ' + d.toFixed(1) + ' u devant le cockpit'); nGare++; sortirVehicule(true); }
+        info.push(nVol + ' aéronefs en vol, ' + nGare + ' garés (le plus près : ' + pireCle + ' à ' + pire.toFixed(1) + ' u)');
+        { const L = vehicules.find((w) => w.key === 'ligne'); if (L) info.push('long-courrier à sa porte : passerelle sur le flanc gauche'); }
+        partie(); META.vue = 'classique'; return { ko, info };
+      });
+      if (r.ko.length) fail('Retours 20 oct., 1.2 : ' + r.ko.join(' ; '));
+      else ok('Retours 20 oct., 1.2 : ' + r.info.join(' ; ') + ' — diagnostic du cockpit valide, rien du décor à moins de 6 u au centre de l’écran');
+    }
+    // -------------------------------------------------------------------
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];
