@@ -16,9 +16,9 @@ lourds. Aucune référence à un autre jeu ni à une marque.
 | 2 | 2.2 Le joueur en flèche orientée | ☑ |
 | 2 | 2.3 Toucher une icône : bulle et « Y aller » | ☑ |
 | 2 | 2.4 Filtres revus, inventaire de tous les lieux | ☑ |
-| 3 | 3.1 Refonte des défis (paliers, argent, skins, ×2 prêt) | ☐ |
-| 3 | 3.2 Défis de cascade mesurés (cabrage, vrilles, loopings, tonneaux, vol sur le dos…) | ☐ |
-| 3 | 3.3 Skins spéciaux liés aux exploits | ☐ |
+| 3 | 3.1 Refonte des défis (paliers, argent, skins, ×2 prêt) | ☑ |
+| 3 | 3.2 Défis de cascade mesurés (cabrage, vrilles, loopings, tonneaux, vol sur le dos…) | ☑ |
+| 3 | 3.3 Skins spéciaux liés aux exploits | ☑ |
 | 4 | 4.1 Tableau de chasse | ☐ |
 | 4 | 4.2 Trophées au chalet | ☐ |
 | 4 | 4.3 Défis de chasse et costume de pigeon | ☐ |
@@ -191,4 +191,64 @@ dans les lieux).
 Captures : `captures/retours_20/2_avant_minimap.png`, `2_apres_minimap.png`, `2_avant_minimap_zoom.png`, `2_apres_minimap_zoom.png`,
 `2_avant_carte.png`, `2_apres_carte.png`, `2_avant_carte_zoom.png`, `2_apres_carte_zoom_bulle.png`, `2_icones_lieux.png` (les quinze
 pictogrammes à 120, 48, 24 et 16 px).
+
+## Lot 3 — Défis, récompenses et skins (fait : 3.1 à 3.3, un seul commit)
+
+Les trois points se tiennent (un défi de cascade a besoin de la mesure, son dernier palier offre une tenue) : un commit, un test.
+
+### 3.1 — Des défis à paliers pour chaque activité
+
+**Lecture retenue** : « chaque activité » = chaque activité qui laisse une trace mesurable (un record ou un compteur déjà tenu par le
+jeu) ; les nouveaux thèmes lisent ces valeurs (`META.acro`, `META.planquesJeux`, `META.stats`, `META.strikes`…) sans ajouter de
+compteur caché. « Souvent un skin » = deux tenues neuves offertes au dernier palier (cabrage, vol sur le dos) ; les autres skins
+arrivent avec leurs lots (chasse : costume de pigeon ; mer : kitesurf ; plongeon de falaise ; course aérienne). « Le ×2 prêt
+partout » = chaque récompense de défi, anciennes comme nouvelles, passe par `recupererDefi` et son bouton ×2 (`PUB_X2`, masqué tant
+que `disponible()` est faux).
+
+- 29 thèmes de plus (58 en tout, 166 défis) : cabrage, manual, loopings, tonneaux, vrilles, vol sur le dos, meeting (figures en un
+  vol), saut le plus long, wingsuit, tir sur canettes, pêche, lancer de hache, sac de frappe, plongeon de la villa, golf, longue-vue,
+  cartes au trésor de Lou, bowling, karaoké, aquarium, laverie, serre, ciné, métro, musée, chalutier, Roi des Sandwichs, Madame Zohra,
+  bornes d'arcade. Chaque palier paie ; `themeDefi` porte `tenue` au dernier, `recupererDefi` l'offre (`tenueDefiFinal`), l'écran des
+  défis l'annonce (« — et la tenue … »).
+
+### 3.2 — Les cascades mesurées
+
+- **Le cabrage a un point d'équilibre** (`EQUILIBRE_CABRAGE`, `equilibreCabrage`) : sous lui, le gaz tenu lève l'avant et le lâcher
+  le repose ; au-dessus, la moto part seule vers l'arrière et le gaz n'ajoute presque plus rien — on le tient en dosant l'appui, au
+  rythme des bosses (`bruitRoute`). Réglé hors navigateur puis vérifié dans le jeu : un pilote qui réagit en 0,12 s tient 24 s sur
+  chacune des six motos (40 s hors navigateur), en 0,2 s de 4 à 25 s, en 0,3 s l'avant retombe ; tenu en continu, la bascule en
+  ~1,3 s (inchangé : « Moto cross » et « Cabrage des motos » repassent) ; sans appui, rien.
+- **Le manual** (vélo, BMX, skate) : le même équilibre ; en plein manual, un appui bref dose l'équilibre au lieu de déclencher un
+  bunny hop ; au-delà de la butée, la roue avant se repose (aucune chute). Pilote 0,12 s : 14 s.
+- **Chrono à l'écran** (`#acroTxt`, sous la flèche du GPS) dès 1 s : « 🏍️ CABRAGE 6,9 s · record … », « 🚲 MANUAL … »,
+  « 🙃 SUR LE DOS … » ; records `META.acro` (clés fixes) ; une bascule ne compte pas.
+- **Les figures d'un vol** (`acroFigure`) : loopings, tonneaux, vrilles comptés dans le vol (`v.figVol`, remis à zéro posé) et au
+  total ; record de chaque figure en un vol et de toutes les figures en un vol ; « 🔁 LOOPING ! ×2 ». Pilotage simulé et pilotage
+  d'avant (looping, vrille, tonneaux continus du manche). Les tours de vrille du pilotage simulé sont comptés au cap (`v.cumVr`).
+- **Le vol sur le dos** (pilotage simulé, `acroDos` : le dessus de l'avion vers le bas, à plus de 5 u du sol) : chrono, record.
+- **Le saut le plus long en véhicule** (`acroSaut` : de l'appel à la réception, à plat).
+
+### 3.3 — Des tenues à vrai modèle
+
+**Lecture retenue** : « un vrai modèle » = des pièces posées sur le corps du modèle humain (casques, masques, plastrons,
+chapeaux…), pas un nouveau corps ; elles suivent l'échelle, le muscle et les animations ; un chapeau acheté en boutique passe
+par-dessus (il gagne).
+
+- `TENUE_ACC`, `habillerTenue` (joueur, aperçu de la penderie, photos du catalogue ; générateur privé) : combinaison de plongée
+  (masque, tuba, bouteille, palmes — **bonus nouveau** : les requins ne t'attaquent plus), Pro Rider (casque cross, plastron, bottes),
+  **combinaison du cascadeur** (nouvelle : casque blanc à bande, étoiles, ceinture, bottes — cabrage plus stable, K ×0,8), **pilote de
+  voltige** (nouvelle : casque de cuir, lunettes relevées, écharpe — roulis et tangage des avions +12 %), cow-boy (chapeau), Fort Reyes
+  (casque), Casse-cou (casque du derby), aiguilleur (casque antibruit), athlète et Ballers (bandeaux), skateur (casquette à l'envers),
+  Badlands (bandana et lunettes de moto). 12 tenues à vrai modèle ; la penderie et le catalogue (lus dans `TENUES`) sont à jour.
+
+### Test, mesures, captures
+
+« Retours du 20 octobre, lot 3 » : thèmes (paliers croissants, argent, tenues connues), ×2 sur chaque récompense quand une pub est
+prête et payé double, tenue offerte au dernier palier ; cabrage tenu ≥ 20 s par un pilote à 0,12 s sur CHAQUE moto de `VEHDEFS` et
+chrono à l'écran, bascule si tenu en continu, rien sans appui ; manual ≥ 12 s ; loopings et tonneaux comptés dans le vol et au total ;
+8 s sur le dos chronométrées ; vrille comptée ; chaque tenue de `TENUE_ACC` posée sur le corps, bonus écrit. Anciens tests repassés :
+cabrage, vélos, figures deux roues, skate, défis (deux blocs), tenues des mini-jeux, planques, pilotage simulé, mort pendant un défi,
+trêve. Aucun coût de rendu en jeu (quelques boîtes sur le joueur) ; empreinte du décor, portes et tirages identiques.
+
+Captures : `captures/retours_20/3_tenues_vrai_modele.png` (les 12 tenues), `3_chrono_cabrage.png`, `3_ecran_defis.png`.
 

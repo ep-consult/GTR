@@ -126,7 +126,7 @@ async function tuning(){
 async function tenues(){
   const s=section('tenues','Tenues — '+G.TENUES.length,'<code>TENUES</code> : comment on les débloque et ce qu’elles donnent.'), gr=document.createElement('div'); gr.className='grille'; s.appendChild(gr);
   for(const tn of G.TENUES){ const c=carte((tn.ico||'')+' '+esc(tn.nom),esc(tn.condTxt||''),[]); gr.appendChild(c);
-    try{ const h=G.makeHumain({haut:tn.haut,bas:tn.bas,peau:0xd9a066,casq:tn.casq,visage:'neutre'},1); poserImage(c,photo(h.g,[0.3,0.25,1])); }catch(e){ poserImage(c,null); } await pause(); }
+    try{ const h=G.makeHumain({haut:tn.haut,bas:tn.bas,peau:0xd9a066,casq:tn.casq,visage:'neutre'},1); G.habillerTenue(h,tn.id,null); poserImage(c,photo(h.g,[0.3,0.25,1])); }catch(e){ poserImage(c,null); } await pause(); }
   const s2=section('boutiques','Boutiques de style','<code>BOUTIQUES_DEF</code> et <code>VETEMENTS</code>'); const gr2=document.createElement('div'); gr2.className='grille large'; s2.appendChild(gr2);
   for(const k in G.BOUTIQUES_DEF){ const D=G.BOUTIQUES_DEF[k], L=G.VETEMENTS.filter((v)=>v.b===k);
     const c=carte((D.ico||'')+' '+esc(D.nom),L.map((v)=>(typeof v.val==='number'?'<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:'+hex(v.val)+';margin-right:4px"></span>':'')+esc(v.nom)+' <span style="color:#7dff7a">'+v.prix+' $</span>').join('<br>'),[[D.q,'cyan']],false); gr2.appendChild(c); } }
@@ -201,7 +201,7 @@ async function lancer(){
   for(let i=0;i<300;i++){ try{ if(w.eval('typeof PORTES!=="undefined"&&PORTES.length>0&&typeof VEHDEFS!=="undefined"')) break; }catch(e){ return erreur(); } await new Promise((r)=>setTimeout(r,200)); }
   W=w; W.requestAnimationFrame=()=>0; // la boucle du jeu s'arrête : on ne fait que lire
   G=W.eval('({VEHDEFS,ARMES,ORDRE_ARMES,MODS_ARMES,GILETS,TENUES,VETEMENTS,BOUTIQUES_DEF,HILLS,ETYPES,NOMS_GANG,PERSOS,FAUNE_DEFS,INTDEFS,PORTES,PLANQUES_DEF,CURIOS,DEFIS,PIECES_FAMILLES,mmStatic,renderer,scene,'+
-    'HELIS_MANOIR:typeof HELIS_MANOIR!=="undefined"?HELIS_MANOIR:[],makeVoiture,mkArmeModele,makeHumain,mkAnimal,construireSalle,pointsActivites,photoCockpit,cockpitInfo})');
+    'HELIS_MANOIR:typeof HELIS_MANOIR!=="undefined"?HELIS_MANOIR:[],makeVoiture,mkArmeModele,makeHumain,habillerTenue,mkAnimal,construireSalle,pointsActivites,photoCockpit,cockpitInfo})');
   T=W.THREE; studio=monterStudio();
   const n=(o)=>Object.keys(o).length; etat.textContent='Lu en direct dans index.html — '+n(G.VEHDEFS)+' véhicules, '+G.ORDRE_ARMES.length+' armes, '+G.TENUES.length+' tenues, '+n(G.INTDEFS)+' salles, '+n(G.ETYPES)+' types de PNJ. Vignettes en cours…';
   for(const f2 of [journal,vehicules,cockpits,armes,tuning,tenues,villas,pnj,salles,activites,carteVille]){ try{ await f2(); }catch(e){ console.error(e); } }

@@ -2062,6 +2062,7 @@ const META={
   modsArmes:{}, // modifications d'armes achetées à l'établi de l'armurerie : id → 'explosif,laser,…' (MODS_ARMES)
   planques:{caravane:false,penthouse:false,cabanon:false,chalet:false,voilier:false,taudis:false,miami:false}, // planques en plein air (PLANQUES_DEF), clés fixes
   planquesJeux:{canettes:0,longueVue:0,punch:0,peche:0,hache:0,tresors:0,frappe:0,plongeon:0,golf:0}, // records des activités des planques (19 octobre)
+  acro:{cabrage:0,cabrageVelo:0,dos:0,saut:0,loopings:0,tonneaux:0,vrilles:0,loopingsVol:0,tonneauxVol:0,vrillesVol:0,figuresVol:0}, // records et totaux des cascades (retours du 20 octobre, 3.2), clés fixes
   pecheTrophees:{sardine:0,maquereau:0,dorade:0,bar:0,poulpe:0,espadon:0}, // le mur des trophées du cabanon : la plus lourde prise exposée de chaque espèce (kg), clés fixes
   // vue de jeu en ville (bouton 🎥 à côté de la pause, voir VUE) :
   // 'immersive' = caméra inclinée vers l'horizon, orientable au doigt, poursuite
@@ -2205,7 +2206,7 @@ const DEFIS_SIMPLES=[
 const ROMAIN=['I','II','III','IV','V','VI'];
 function themeDefi(o){
   return o.paliers.map((n,k)=>({id:(o.ids&&o.ids[k])||o.theme+'_'+(k+1),theme:o.theme,palier:k,nbPaliers:o.paliers.length,
-    nom:(o.noms&&o.noms[k])||(o.nom+' '+ROMAIN[k]),det:o.det(n),rec:o.recs[k],
+    nom:(o.noms&&o.noms[k])||(o.nom+' '+ROMAIN[k]),det:o.det(n),rec:o.recs[k],tenue:k===o.paliers.length-1?o.tenue:undefined,
     prog:m=>[o.fmt?o.fmt(o.val(m)):o.val(m),n],cond:m=>o.val(m)>=n}));
 }
 const DEFIS_THEMES=[
@@ -2239,7 +2240,40 @@ const DEFIS_THEMES=[
   {theme:'fauves',noms:['Chasseur','Dompteur de fauves'],det:n=>'Viens à bout de '+n+' bêtes sauvages (sangliers, jaguar, ours)',val:m=>m.defis.fauves,paliers:[3,12],recs:[400,1300]},
   {theme:'aimant',noms:['Grutier volant','As de l’aimant'],det:n=>'Accroche '+n+(n>1?' véhicules':' véhicule')+' avec l’aimant de l’hélico-grue « Titan »',val:m=>m.defis.aimant,paliers:[1,8],recs:[350,1200]},
   {theme:'exploits',noms:['Touche-à-tout','Champion des mini-jeux','Légende des mini-jeux'],det:n=>'Débloque '+n+(n>1?' tenues':' tenue')+' de mini-jeu (basket, tour de contrôle, supercross, bowl, wakeboard, Badlands, parcours militaire, ball-trap, derby, tennis)',val:m=>Object.values(m.exploits||{}).filter(Boolean).length,paliers:[1,3,6],recs:[300,1000,3000]},
-  {theme:'armurier',noms:['Bricoleur d’armes','Armurier'],det:n=>'Pose '+n+(n>1?' modifications':' modification')+' sur tes armes à l’établi de l’armurerie',val:m=>Object.values(m.modsArmes||{}).reduce((s,v)=>s+(v?String(v).split(',').filter(Boolean).length:0),0),paliers:[1,6],recs:[250,1000]}
+  {theme:'armurier',noms:['Bricoleur d’armes','Armurier'],det:n=>'Pose '+n+(n>1?' modifications':' modification')+' sur tes armes à l’établi de l’armurerie',val:m=>Object.values(m.modsArmes||{}).reduce((s,v)=>s+(v?String(v).split(',').filter(Boolean).length:0),0),paliers:[1,6],recs:[250,1000]},
+  // --- retours du 20 octobre, lot 3 (demandé : « chaque activité du jeu doit avoir des défis à paliers, avec de l'argent à la clé, et
+  // souvent un skin au palier final ») : les cascades mesurées (3.2), les activités des planques, les salles, le plein air. Valeurs lues
+  // dans les records et compteurs existants (META.acro, META.planquesJeux, META.stats…) ; tenue : la tenue offerte au dernier palier,
+  // à la récupération (recupererDefi).
+  {theme:'cabrage',noms:['Roue arrière','Funambule à moto','Cascadeur'],det:n=>'Tiens un cabrage à moto '+n+' s d’affilée',val:m=>m.acro.cabrage,fmt:x=>x.toFixed(1),paliers:[5,12,20],recs:[300,800,2000],tenue:'cascadeur'},
+  {theme:'manual',noms:['Manual','Équilibriste'],det:n=>'Tiens la roue arrière à vélo, en BMX ou en skate '+n+' s d’affilée',val:m=>m.acro.cabrageVelo,fmt:x=>x.toFixed(1),paliers:[4,12],recs:[250,900]},
+  {theme:'loopings',noms:['Boucleur','Roi du looping','Maître de la boucle'],det:n=>'Boucle '+n+(n>1?' loopings':' looping')+' en avion',val:m=>m.acro.loopings,paliers:[1,10,40],recs:[250,900,2500]},
+  {theme:'tonneaux',noms:['Tonneau','Toupie volante','Derviche du ciel'],det:n=>'Roule '+n+(n>1?' tonneaux':' tonneau')+' en avion',val:m=>m.acro.tonneaux,paliers:[1,15,60],recs:[250,900,2500]},
+  {theme:'vrilles',noms:['Vrille','Feuille morte'],det:n=>'Tourne '+n+(n>1?' tours':' tour')+' de vrille en avion (et sors-en)',val:m=>m.acro.vrilles,paliers:[1,10],recs:[400,1500]},
+  {theme:'dos',noms:['Tête en bas','Vol inversé','As de la voltige'],det:n=>'Vole '+n+' s d’affilée sur le dos (pilotage simulé)',val:m=>m.acro.dos,fmt:x=>x.toFixed(1),paliers:[5,15,30],recs:[350,1000,2500],tenue:'voltigeur'},
+  {theme:'meeting',noms:['Programme libre','Meeting aérien'],det:n=>'Enchaîne '+n+' figures (loopings, tonneaux, vrilles) en un seul vol',val:m=>m.acro.figuresVol,paliers:[3,10],recs:[400,1500]},
+  {theme:'saut',noms:['Petit saut','Grand saut','Vol plané'],det:n=>'Saute '+n+' m en véhicule, de l’appel à la réception',val:m=>m.acro.saut,paliers:[30,80,250],recs:[250,800,2000]},
+  {theme:'wingsuit',noms:['Homme volant','Faucon de Los Reyes'],det:n=>'Plane '+n+' m en wingsuit',val:m=>m.wingRecord,paliers:[250,1000],recs:[400,1800]},
+  {theme:'canettes',noms:['Tireur de canettes','Gâchette de Dusty','Œil de lynx'],det:n=>'Marque '+n+' points au tir sur canettes de la caravane',val:m=>m.planquesJeux.canettes,paliers:[3000,8000,16000],recs:[250,700,1800]},
+  {theme:'peche',noms:['Pêcheur du dimanche','Pêcheur du ponton','Le grand bleu'],det:n=>'Sors un poisson de '+n+' kg au bout du ponton du cabanon',val:m=>m.planquesJeux.peche,paliers:[1,4,30],recs:[200,600,2000]},
+  {theme:'hache',noms:['Bûcheron','Lanceur de hache'],det:n=>'Marque '+n+' points au lancer de hache du chalet',val:m=>m.planquesJeux.hache,paliers:[20,40],recs:[300,1000]},
+  {theme:'frappe',noms:['Sac de frappe','Le Marteau'],det:n=>'Marque '+n+' points au sac de frappe du taudis',val:m=>m.planquesJeux.frappe,paliers:[1500,3000],recs:[300,1000]},
+  {theme:'plongeonVilla',noms:['Plongeur de la villa','Champion du plongeoir'],det:n=>'Marque '+n+' points au concours de plongeon de la villa',val:m=>m.planquesJeux.plongeon,paliers:[100,170],recs:[400,1200]},
+  {theme:'golf',noms:['Golfeur du ponton','Roi du green flottant'],det:n=>'Marque '+n+' points au golf de la villa Miami',val:m=>m.planquesJeux.golf,paliers:[400,900],recs:[400,1200]},
+  {theme:'longueVue',noms:['Guetteur','Vigie de la tour'],det:n=>'Repère '+n+' choses à la longue-vue du penthouse en une séance',val:m=>m.planquesJeux.longueVue,paliers:[3,8],recs:[300,1000]},
+  {theme:'tresorsLou',noms:['Lecteur de cartes','Pirate de Lou'],det:n=>'Déterre '+n+(n>1?' trésors':' trésor')+' grâce aux cartes de Lou (voilier)',val:m=>m.planquesJeux.tresors,paliers:[1,5],recs:[300,1200]},
+  {theme:'bowling',noms:['Strike !','Roi de la piste'],det:n=>'Fais '+n+(n>1?' strikes':' strike')+' au bowling',val:m=>m.strikes,paliers:[3,20],recs:[250,1000]},
+  {theme:'karaoke',noms:['Voix de salle de bains','Star du karaoké'],det:n=>'Chante '+n+(n>1?' chansons':' chanson')+' au karaoké',val:m=>m.karaoke,paliers:[1,10],recs:[200,900]},
+  {theme:'aquarium',noms:['Ami de Gaston','Dresseur de poulpe'],det:n=>'Attrape Gaston '+n+' fois à l’aquarium',val:m=>m.gaston,paliers:[1,6],recs:[300,1000]},
+  {theme:'laverie',noms:['Blanchisseur','Lessiveur de la Bulle Bleue'],det:n=>'Réussis '+n+(n>1?' lavages':' lavage')+' de la machine 7',val:m=>m.lessives,paliers:[2,10],recs:[300,1000]},
+  {theme:'serre',noms:['Main verte','Jardinier de nuit'],det:n=>'Tiens '+n+(n>1?' nuits':' nuit')+' de la floraison à la serre',val:m=>m.plantes,paliers:[1,6],recs:[300,1000]},
+  {theme:'cine',noms:['Projectionniste','La séance du siècle'],det:n=>'Tiens '+n+(n>1?' séances':' séance')+' au Ciné-Palace',val:m=>m.stats.cineSeances,paliers:[1,6],recs:[300,1000]},
+  {theme:'metro',noms:['Explorateur du métro','Rat des tunnels'],det:n=>'Descends '+n+' fois dans le métro abandonné',val:m=>m.stats.metroDescentes,paliers:[1,6],recs:[250,900]},
+  {theme:'musee',noms:['Monte-en-l’air','Gentleman cambrioleur'],det:n=>'Réussis '+n+(n>1?' casses':' casse')+' au musée',val:m=>m.stats.casses,paliers:[1,3],recs:[400,1200]},
+  {theme:'chalutier',noms:['Mousse','Patron pêcheur'],det:n=>'Ramène une prise de '+n+' kg au chalutier',val:m=>(m.stats.plusGrossePrise&&m.stats.plusGrossePrise.poids)||0,paliers:[10,60],recs:[300,1200]}, /* 60 kg : le Vieux Roi */
+  {theme:'sandwich',noms:['Bonne fourchette','Estomac d’acier'],det:n=>'Viens à bout de '+n+(n>1?' défis':' défi')+' du Roi des Sandwichs',val:m=>m.sandwich,paliers:[1,5],recs:[300,1000]},
+  {theme:'voyance',noms:['Client de Zohra','Initié'],det:n=>'Consulte Madame Zohra '+n+' fois',val:m=>m.zohra,paliers:[1,5],recs:[150,700]},
+  {theme:'arcade',noms:['Joueur d’arcade','Roi des bornes'],det:n=>'Inscris un record personnel sur '+n+(n>1?' bornes':' borne')+' du Palais de l’Arcade',val:m=>Object.values(m.stats.arcadePersoBest||{}).filter((x)=>x>0).length,paliers:[1,5],recs:[250,1000]}
 ];
 const DEFIS=DEFIS_SIMPLES.concat(...DEFIS_THEMES.map(themeDefi));
 const DEFI_PAR_ID={}; for(const d of DEFIS) DEFI_PAR_ID[d.id]=d;
@@ -2270,9 +2304,12 @@ function recupererDefi(id,mult){
   delete META.defis.aReclamer[id]; META.defis.faits[id]=true;
   const gain=d.rec*mult; META.argent+=gain;
   toast('🏆 '+d.nom+' : +'+gain+' $'+(mult>1?' (×2)':''),'or'); SFX.achat();
+  if(d.tenue&&!META.tenuesPoss[d.tenue]){ const tn=TENUES.find((x)=>x.id===d.tenue); META.tenuesPoss[d.tenue]=true; if(tn) setTimeout(()=>toast(tn.ico+' Tenue débloquée : '+tn.nom+' (penderie)','or'),900); } /* retours du 20 octobre, 3.1 : la tenue du dernier palier */
   checkDefis(); // le palier suivant est peut-être déjà atteint
   sauveMeta(); majPastilleDefis(); return true;
 }
+function defiTenueTxt(d){ if(!d.tenue){ if(d.theme) for(const x of DEFIS) if(x.theme===d.theme&&x.tenue){ const t2=TENUES.find((y)=>y.id===x.tenue); return t2?' — une tenue au dernier palier '+t2.ico:''; } return ''; } const tn=TENUES.find((x)=>x.id===d.tenue); return tn?' — et la tenue « '+tn.nom.replace(/^Tenue de |^Combinaison du /,'')+' » '+tn.ico:''; }
+function tenueDefiFinal(id){ for(const d of DEFIS) if(d.tenue===id&&META.defis.faits[d.id]) return true; return false; }
 function recupererDefiX2(id){
   if(!PUB_X2.disponible()||!META.defis.aReclamer[id]) return;
   PUB_X2.montrer((vue)=>{ if(vue) recupererDefi(id,2); if(el('defis').classList.contains('on')) renderDefis(); });
@@ -2769,7 +2806,7 @@ const TENUES=[
    cond:()=>true,haut:null,bas:null,casq:null},
   {id:'survet',nom:'Survêtement',ico:'🏃',condTxt:'1er palier de muscle (salle de sport)',
    cond:()=>(META.muscle||0)>=1,haut:0x3a3d44,bas:0x1c1f26,casq:0x2a2e36},
-  {id:'plongee',nom:'Combinaison de plongée',ico:'🤿',condTxt:'Curiosité : La Perle Noire (aquarium)',
+  {id:'plongee',nom:'Combinaison de plongée',ico:'🤿',condTxt:'Curiosité : La Perle Noire (aquarium) — les requins ne t’attaquent plus',
    cond:()=>aCurio('perle'),haut:0x16232c,bas:0x101a20,casq:0x0e1a22},
   {id:'cire',nom:'Ciré de pêcheur',ico:'🎣',condTxt:'Curiosité : La Boussole du Capitaine (chalutier)',
    cond:()=>aCurio('boussole'),haut:0xffc93f,bas:0x2a4a5a,casq:0xffc93f},
@@ -2815,6 +2852,11 @@ const TENUES=[
    cond:()=>!!(META.exploits&&META.exploits.balltrap),haut:0xc84a2a,bas:0x3a5a8a,casq:0x8a6a44},
   {id:'cassecou',nom:'Combinaison « Casse-cou »',ico:'💥',condTxt:'Gagner un derby de l’arène — dégâts reçus au volant −15 %',
    cond:()=>!!(META.exploits&&META.exploits.derby),haut:0xe8662a,bas:0x14161c,casq:0xf2f2ee},
+  // retours du 20 octobre, 3.3 : les tenues des défis à paliers (offertes au dernier palier, tenueDefiFinal) — un vrai modèle (TENUE_ACC)
+  {id:'cascadeur',nom:'Combinaison du cascadeur',ico:'🏍️',condTxt:'Défi « Cascadeur » : un cabrage de 20 s à moto — le cabrage est plus stable',
+   cond:()=>tenueDefiFinal('cascadeur'),haut:0xf2f2ee,bas:0xf2f2ee,casq:0x2a5ad8},
+  {id:'voltigeur',nom:'Tenue de pilote de voltige',ico:'🛩️',condTxt:'Défi « As de la voltige » : 30 s de vol sur le dos — roulis et tangage des avions +12 %',
+   cond:()=>tenueDefiFinal('voltigeur'),haut:0x6a3a1a,bas:0x3a3020,casq:0x6a3a1a},
   {id:'athlete',nom:'Tenue « Reyes Athletics »',ico:'🎾',condTxt:'Gagner le match de tennis du complexe sportif — le sprint fatigue 30 % moins',
    cond:()=>!!(META.exploits&&META.exploits.sportif),haut:0xf2f4f8,bas:0x2a6ad8,casq:0x14161c},
 ];
@@ -12193,6 +12235,49 @@ function habillerTete(h,S){
     if(f==='etoiles'){ for(const [x,y] of [[-0.16,1.66],[-0.13,1.6],[-0.17,1.55]]){ const e=add(mkBoxG(0.035,0.035,0.01,encre,x,y,0.213)); e.rotation.z=0.78; } }
     if(f==='bras'){ for(const br of [h.brasG,h.brasD]){ for(let k=0;k<3;k++){ const m=mkBoxG(0.24,0.05,0.25,encre,0,-0.32-k*0.14,0); m.rotation.y=k*0.4; br.add(m); } } } }
 }
+/* ---- Les tenues ont un vrai modèle (retours du 20 octobre, 3.3, demandé : « des skins spéciaux stylés liés aux exploits, chacun
+   avec un vrai modèle visible et un petit bonus ») : avant, une tenue ne faisait que repeindre le haut, le bas et les cheveux. Les
+   pièces sont posées sur le corps du modèle humain (tête 0,42 u à y 1,56, visage vers +z ; torse 0,62 × 0,75 × 0,38 à y 0,98 ;
+   bras et jambes à part), dans son repère : elles suivent l'échelle, le muscle et les animations. Un couvre-chef de tenue cache la
+   mèche (geoCasq) ; un chapeau acheté en boutique passe par-dessus la tenue (il gagne). Construites sur un générateur privé. */
+const _ACC_C=(r,h,rt,coul,seg)=>new THREE.Mesh(new THREE.CylinderGeometry(rt===undefined?r:rt,r,h,seg||14),mat(coul));
+const TENUE_ACC={
+  plongee:(A)=>{ /* combinaison de plongée : masque, tuba, bouteille sur le dos, palmes */
+    if(A.tete){ A.add(mkBoxG(0.44,0.17,0.07,0x14161c,0,1.6,0.225)); A.add(mkBoxG(0.36,0.11,0.02,0x5ad8e8,0,1.6,0.262)); A.add(mkBoxG(0.46,0.05,0.46,0x14161c,0,1.62,0));
+      const t=A.add(_ACC_C(0.03,0.42,undefined,0xffd23f,8)); t.position.set(0.24,1.78,0.05); }
+    const b=A.add(_ACC_C(0.11,0.58,undefined,0xffd23f,12),A.h.torse); b.position.set(0,0.05,-0.29); const r=A.add(_ACC_C(0.04,0.1,undefined,0x3a3d44,8),A.h.torse); r.position.set(0,0.4,-0.29);
+    for(const j of [A.h.jambeG,A.h.jambeD]){ const p=A.add(mkBoxG(0.24,0.04,0.46,0x14161c,0,-0.63,0.12),j); p.userData.tenueAcc=true; } },
+  prorider:(A)=>{ /* tenue de supercross : casque à visière et mentonnière, plastron, bottes */
+    if(A.tete){ A.add(mkBoxG(0.5,0.48,0.5,0xf2f4f8,0,1.6,0)); A.add(mkBoxG(0.52,0.05,0.24,0xd83a3a,0,1.85,0.3)); A.add(mkBoxG(0.36,0.1,0.06,0x14161c,0,1.62,0.26)); A.add(mkBoxG(0.3,0.12,0.14,0xd83a3a,0,1.42,0.27)); }
+    A.add(mkBoxG(0.68,0.42,0.44,0x14161c,0,0.18,0),A.h.torse); A.add(mkBoxG(0.5,0.3,0.03,0xd83a3a,0,0.2,0.225),A.h.torse);
+    for(const j of [A.h.jambeG,A.h.jambeD]) A.add(mkBoxG(0.24,0.3,0.25,0xf2f4f8,0,-0.5,0.01),j); },
+  cascadeur:(A)=>{ /* combinaison du cascadeur : casque blanc à bande bleue, étoiles sur la poitrine, ceinture, bottes */
+    if(A.tete){ A.add(mkBoxG(0.5,0.46,0.5,0xf2f2ee,0,1.6,0)); A.add(mkBoxG(0.14,0.47,0.51,0x2a5ad8,0,1.6,0)); A.add(mkBoxG(0.4,0.12,0.04,0x2a3a5a,0,1.62,0.255)); }
+    for(const [x,y] of [[-0.15,0.2],[0.15,0.2],[0,0.06]]){ const e=A.add(mkBoxG(0.09,0.09,0.02,0x2a5ad8,x,y,0.2),A.h.torse); e.rotation.z=0.78; }
+    A.add(mkBoxG(0.64,0.08,0.4,0xd83a3a,0,-0.3,0),A.h.torse); A.add(mkBoxG(0.12,0.08,0.02,0xffd23f,0,-0.3,0.205),A.h.torse);
+    for(const j of [A.h.jambeG,A.h.jambeD]) A.add(mkBoxG(0.23,0.24,0.24,0xd83a3a,0,-0.54,0.01),j); },
+  voltigeur:(A)=>{ /* pilote de voltige : casque de cuir, lunettes relevées, écharpe blanche qui flotte */
+    if(A.tete){ A.add(mkBoxG(0.46,0.24,0.46,0x6a3a1a,0,1.74,-0.01)); for(const s of [-1,1]) A.add(mkBoxG(0.06,0.2,0.18,0x6a3a1a,s*0.23,1.56,0));
+      for(const s of [-1,1]) A.add(mkBoxG(0.14,0.1,0.06,0x8ad2e8,s*0.1,1.79,0.235)); A.add(mkBoxG(0.46,0.04,0.04,0x3a2a1a,0,1.79,0.23)); }
+    A.add(mkBoxG(0.5,0.1,0.42,0xf2f2ee,0,0.38,0.01),A.h.torse); const ec=A.add(mkBoxG(0.12,0.04,0.42,0xf2f2ee,0.12,0.34,-0.38),A.h.torse); ec.rotation.x=-0.5; A.ech=ec; },
+  cowboy:(A)=>{ if(!A.tete) return; /* chapeau de cow-boy, bord relevé */
+    const b=A.add(_ACC_C(0.46,0.04,undefined,0x8a6a44,18)); b.position.y=1.8; b.scale.z=0.86; for(const s of [-1,1]){ const r=A.add(mkBoxG(0.12,0.04,0.5,0x8a6a44,s*0.42,1.85,0)); r.rotation.z=s*0.6; }
+    const c=A.add(_ACC_C(0.25,0.24,0.2,0x8a6a44,14)); c.position.y=1.94; const ru=A.add(_ACC_C(0.252,0.05,undefined,0x3a2a1a,14)); ru.position.y=1.86; },
+  militaire:(A)=>{ if(!A.tete) return; /* casque lourd de Fort Reyes */
+    const c=new THREE.Mesh(new THREE.SphereGeometry(0.31,14,8,0,Math.PI*2,0,Math.PI/2),mat(0x4a5238)); c.scale.set(1,0.85,1.05); c.position.y=1.72; A.add(c); A.add(_ACC_C(0.33,0.03,undefined,0x3a4228,16)).position.y=1.72; },
+  cassecou:(A)=>{ if(!A.tete) return; /* casque du derby, numéro sur le côté */
+    A.add(mkBoxG(0.5,0.46,0.5,0xe8662a,0,1.62,0)); A.add(mkBoxG(0.38,0.12,0.04,0x14161c,0,1.62,0.255)); for(const s of [-1,1]) A.add(mkBoxG(0.02,0.16,0.16,0xf2f2ee,s*0.255,1.66,0)); },
+  aiguilleur:(A)=>{ if(!A.tete) return; /* casque antibruit */
+    A.add(mkBoxG(0.06,0.06,0.5,0x14161c,0,1.82,0)); A.add(mkBoxG(0.5,0.06,0.06,0x14161c,0,1.82,0)); for(const s of [-1,1]) A.add(mkBoxG(0.08,0.2,0.18,0xd8ff3a,s*0.25,1.58,0)); },
+  athlete:(A)=>{ if(!A.tete) return; A.add(mkBoxG(0.45,0.06,0.45,0xf2f4f8,0,1.7,0)); A.add(mkBoxG(0.46,0.02,0.46,0x2a6ad8,0,1.7,0)); }, /* bandeau éponge */
+  ballers:(A)=>{ if(!A.tete) return; A.add(mkBoxG(0.45,0.06,0.45,0xff8a2a,0,1.7,0)); },
+  skateur:(A)=>{ if(!A.tete) return; A.add(mkBoxG(0.47,0.14,0.47,0x8a4de0,0,1.82,0)); A.add(mkBoxG(0.4,0.04,0.22,0x8a4de0,0,1.77,-0.32)); }, /* casquette à l'envers */
+  badlands:(A)=>{ if(!A.tete) return; A.add(mkBoxG(0.44,0.16,0.05,0xc9703a,0,1.46,0.22)); for(const s of [-1,1]) A.add(mkBoxG(0.15,0.1,0.06,0x3a3d44,s*0.1,1.76,0.235)); A.add(mkBoxG(0.46,0.04,0.46,0x3a2a1a,0,1.76,0)); }, /* bandana et lunettes de moto */
+};
+function habillerTenue(h,id,S){ const F=TENUE_ACC[id]; if(!h||!F) return; const g=h.g; let casq=null; g.children.forEach((o)=>{ if(o.geometry===geoCasq) casq=o; });
+  const A={g,h,tete:!(S&&S.chapeau),add:(m,parent)=>{ (parent||g).add(m); m.userData.tenueAcc=true; return m; }};
+  if(A.tete&&casq&&!['athlete','ballers','badlands','aiguilleur'].includes(id)) casq.visible=false; /* un casque cache la mèche ; un bandeau la laisse */
+  avecAleaPrive(4242,()=>F(A)); h.ech=A.ech||null; }
 function vetementPossede(id){ return !!(META.garde&&META.garde[id]); }
 function porteVetement(S,v){ if(!S) return false; return v.type==='haut'?S.haut===v.val:v.type==='bas'?S.bas===v.val:v.type==='cheveux'?S.cheveux===v.val:v.type==='coiffure'?S.coiffure===v.val:v.type==='chapeau'?(S.chapeau===v.val&&S.chapeauCoul===v.coul):v.type==='lunettes'?S.lunettes===v.val:S.tatouage===v.val; }
 function mettreVetement(S,v,retirer){ if(v.type==='haut') S.haut=retirer?-1:v.val; else if(v.type==='bas') S.bas=retirer?-1:v.val; else if(v.type==='cheveux') S.cheveux=retirer?-1:v.val;
@@ -16401,7 +16486,7 @@ function majMerVivante(dt){
   for(const s of MERV.spots){ s.t-=dt; if(s.t<=0&&dist2(s.x,s.z,P.x,P.z)<14400&&s.vague!==WAVES.n){ s.t=0.35; spawnP(s.x+rand(-0.8,0.8),0.1,s.z+rand(-0.8,0.8),0,1.6,0,0.28,0.7,0xe8f6ff,0,2); } }
   // requins : patrouille en cercle, charge un nageur proche, mord
   for(const q of MERV.requins){
-    const nage=P.nage&&!P.veh&&dist2(P.x,P.z,q.x,q.z)<196;
+    const nage=P.nage&&!P.veh&&META.tenue!=='plongee'&&dist2(P.x,P.z,q.x,q.z)<196; /* la combinaison de plongée (3.3) : les requins passent */
     if(nage){ const a=Math.atan2(P.x-q.x,P.z-q.z); q.x+=Math.sin(a)*7*dt; q.z+=Math.cos(a)*7*dt; q.g.rotation.y=a; q.mord-=dt;
       if(dist2(P.x,P.z,q.x,q.z)<2.6&&q.mord<=0){ q.mord=1.5; toucherJoueur(18,q.x,q.z); toast('🦈 Requin ! Sors de l’eau !','warn'); if(MER_V2) eclaboussure(q.x,q.z,1.4); } }
     else { q.a+=dt*0.25; const tx=q.cx+Math.sin(q.a)*q.r, tz=q.cz+Math.cos(q.a)*q.r; q.x=lerp(q.x||tx,tx,clamp(dt*0.8,0,1)); q.z=lerp(q.z||tz,tz,clamp(dt*0.8,0,1)); q.g.rotation.y=q.a+Math.PI/2; }
@@ -26783,6 +26868,7 @@ function construireJoueur(){
   const st=(typeof BOUT!=='undefined'&&BOUT.ouvert&&BOUT.essai)?BOUT.essai:META.style; // en cabine d'essayage : la pièce essayée
   P.h=makeHumain(coifCouleurs(st),1); // couleurs du perso, recouvertes par la tenue équipée (penderie) puis les pièces de boutique — voir coifCouleurs
   habillerTete(P.h,st); // coiffure, chapeau, lunettes, tatouage
+  habillerTenue(P.h,META.tenue,st); // les pièces de la tenue portée (casque, masque, plastron…)
   scene.add(P.h.g);
   // un modèle par arme (mkArmeModele) ; seul celui de l'arme en main est visible
   P.armeMeshes={}; P.armeMeshesG={}; for(const id in ARMES){ const m=habillerArme(mkArmeModele(id),id); if(m){ P.armeMeshes[id]=m; P.h.brasD.add(m); }
@@ -28685,6 +28771,7 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
           if(v.conduit==='joueur'){
             secousse(v.hop?0.8:Math.min(8,-v.vy*0.5)); vibre(v.hop?12:40);
             if(v.airT>0.55&&!v.hop){ // un bunny hop n'est pas une cascade (voir majConduite)
+              acroSaut(v); /* 3.2 : le saut le plus long */
               const pts=Math.round(40*ETAT.combo);
               ETAT.score+=pts; spawnTexte(v.x,3,v.z,'SAUT ! +'+pts,'#ffd23f');
               if(v.airT>1) META.defis.saut=true;
@@ -28706,7 +28793,7 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
       const seuilEnvol=DECOR_V2&&dansReliefLibre(v.x,v.z)&&!MONT.kickers.some((k)=>dist2(k.x,k.z,v.x,v.z)<64)?2.4:0.9; // au tremplin du sentier : on décolle
       if(prev-gY>seuilEnvol&&Math.abs(v.v)>9){ // vraie crête : envol (pas une bordure de trottoir)
         const lvV=DECOR_V2&&presTremplinVertige(v.x,v.z), lvH=DECOR_V2&&(presTremplinHills(v.x,v.z)||lvV); v.sautHills=lvH?{x:v.x,z:v.z,vertige:lvV}:null; // tremplin de la colline et Saut du Vertige : réception de cascade
-        v.enAir=true; v.h=prev; v.vy=Math.max(2,(DECOR_V2&&(presTremplinStunt(v.x,v.z)||presTremplinPic(v.x,v.z)||lvH)?pvLevre:v.penteVy)*0.85); v.airT=0; // tables du parc stunt : vrai envol dans l'axe de la rampe
+        v.airX0=v.x; v.airZ0=v.z; /* 3.2 : l'appel du saut */ v.enAir=true; v.h=prev; v.vy=Math.max(2,(DECOR_V2&&(presTremplinStunt(v.x,v.z)||presTremplinPic(v.x,v.z)||lvH)?pvLevre:v.penteVy)*0.85); v.airT=0; // tables du parc stunt : vrai envol dans l'axe de la rampe
         if(lvV) v.vy=Math.abs(v.v)*SAUTV.levre*0.9; // Saut du Vertige : l'angle de la lèvre (à 55 u/s, la mesure d'une image tombait encore dans le creux de la table)
         if(seuilEnvol<1&&DECOR_V2&&dansReliefLibre(v.x,v.z)) v.vy=Math.min(v.vy,6.5); // tremplin du sentier : un saut, jamais un envol hors du lacet
         if(v.conduit==='joueur') SFX.swing();
@@ -29592,7 +29679,7 @@ function majLooping(v,dt){
   if(Math.random()<0.85) fumee(tx,ty,tz,coulFumee);
   if(frac>=1){
     v.loopEnCours=null; v.mesh.rotation.x=0; v.va=0; v.tang=0; v.vt=0;
-    META.stats.loopings=(META.stats.loopings||0)+1;
+    META.stats.loopings=(META.stats.loopings||0)+1; acroFigure(v,'loopings');
     spawnTexte(v.x,v.alt+2.4,v.z,'🔁 LOOPING !','#ffd23f');
     toast('Looping réussi !','or'); SFX.niveau(); vibre(40);
   }
@@ -29616,7 +29703,7 @@ function majVrille(v,dt){
   if(Math.random()<0.85) fumee(tx,v.alt,tz,coulFumee);
   if(frac>=1){
     v.vrilleEnCours=null; v.mesh.rotation.z=0; v.bank=0; v.vb=0; v.lacetAv=0;
-    META.stats.loopings=(META.stats.loopings||0)+1; // comptée comme un looping, comme demandé
+    META.stats.loopings=(META.stats.loopings||0)+1; acroFigure(v,'vrilles'); // comptée comme un looping, comme demandé
     spawnTexte(v.x,v.alt+2.4,v.z,'🌀 VRILLE !','#35e0ff');
     toast('Vrille réussie !','or'); SFX.niveau(); vibre(40);
   }
@@ -29706,7 +29793,7 @@ function volManche(v,dt,plus,moins){ const A=pilotageAvion(v), ex=clamp(INPUT.ex
   if(!v.tonneau){ v.tonT=A.tonneau&&fond&&hS>12&&Math.abs(v.bank||0)>A.incl*0.9?(v.tonT||0)+dtd:0;
     if(v.tonT>0.5){ v.tonneau=sens; v.tonFin=0; v.tonDep=v.bank; v.tonT=0; } }
   if(v.tonneau){ v.bank+=v.tonneau*A.vRoul*dt; v.vb=v.tonneau*A.vRoul;
-    if(Math.abs(v.bank-v.tonDep)>=Math.PI*2){ v.tonDep+=v.tonneau*Math.PI*2; META.stats.loopings=(META.stats.loopings||0)+1; spawnTexte(v.x,v.alt+2.4,v.z,'🌀 VRILLE !','#35e0ff'); SFX.niveau(); vibre(30); } }
+    if(Math.abs(v.bank-v.tonDep)>=Math.PI*2){ v.tonDep+=v.tonneau*Math.PI*2; META.stats.loopings=(META.stats.loopings||0)+1; acroFigure(v,'tonneaux'); spawnTexte(v.x,v.alt+2.4,v.z,'🌀 VRILLE !','#35e0ff'); SFX.niveau(); vibre(30); } }
   else { roulisAvion(v,v.tonFin?0:-ex*A.incl,dt,A.vRoul,A.vRoul*0.8,A.incl); if(v.tonFin&&Math.abs(v.bank)<A.incl*0.9) v.tonFin=0; }
   /* le tangage : proportionnel au manche (tiré = nez haut), à plat quand on le lâche ; décroché, le nez tombe */
   const decroche=v.v<19, thC=decroche?-0.25:(v.tonneau||v.tonFin?0:ey*A.tang);
@@ -29768,7 +29855,7 @@ function volPas(v,A,h){
   if(A.assietteMax){ if(cTang>0) cTang*=clamp((A.assietteMax-thP)/0.12,0,1); else cTang*=clamp((A.assietteMax*0.7+thP)/0.12,0,1); } /* gros porteurs : les butées d'assiette */
   if(A.inclMax&&cRoul*phP<0) cRoul*=clamp((A.inclMax-Math.abs(phP))/0.15,0,1); /* … et d'inclinaison (rouler à droite = φ qui baisse) */
   if(A.protegeAlpha&&cTang>0) cTang*=clamp((aS*0.85-alpha)/(aS*0.2),0,1); /* la protection d'incidence : tirer ne fait plus décrocher */
-  let wx=-cTang*A.pitchRate*eff*clamp(V/(A.Vmax*0.8),0.5,1.3), wy=0, wz=cRoul*A.rollRate*eff; /* le tangage croît avec la vitesse (la portance ∝ v² : un rayon de boucle à peu près constant — à vitesse de tangage fixe, la boucle tombait de 30 % dans sa moitié rapide) */
+  let wx=-cTang*A.pitchRate*eff*tenueK('voltigeur',1.12)*clamp(V/(A.Vmax*0.8),0.5,1.3), wy=0, wz=cRoul*A.rollRate*eff*tenueK('voltigeur',1.12); /* le tangage croît avec la vitesse (la portance ∝ v² : un rayon de boucle à peu près constant — à vitesse de tangage fixe, la boucle tombait de 30 % dans sa moitié rapide) */
   const st=A.stabilite||0; /* la stabilité naturelle : manche lâché, retour vers l'horizontale — jamais contre une attitude tenue au manche */
   const gam=V>1?Math.asin(clamp(vel.y/V,-1,1)):0; /* la pente de la trajectoire */
   if(st>0){ wz+=clamp(st*VOL_STAB_ROULIS*phi,-A.rollRate*0.8,A.rollRate*0.8)*(1-Math.abs(J.x))*(1-Math.abs(J.y)); wx+=clamp(st*VOL_STAB_TANG*gam*Math.cos(phi),-A.pitchRate*0.6,A.pitchRate*0.6)*(1-Math.abs(J.y)); } /* (vers une trajectoire à plat ; en ressource — le manche tiré ou poussé —, pas de retour en roulis : une boucle passe sur le dos sans se vriller) */
@@ -29828,8 +29915,8 @@ function volPas(v,A,h){
   v.cumTang+=-v.wx*h; v.cumRoul+=v.wz*h;
   if(Math.abs(J.y)<0.3){ v.relT+=h; if(v.relT>1) v.cumTang=0; } else v.relT=0;
   if(Math.abs(J.x)<0.3){ v.relR+=h; if(v.relR>1) v.cumRoul=0; } else v.relR=0;
-  if(Math.abs(v.cumTang)>=Math.PI*2){ v.cumTang-=Math.sign(v.cumTang)*Math.PI*2; META.stats.loopings=(META.stats.loopings||0)+1; spawnTexte(v.x,v.alt+2.4,v.z,'🔁 LOOPING !','#ffd23f'); SFX.niveau(); vibre(40); }
-  if(Math.abs(v.cumRoul)>=Math.PI*2&&!v.vrilleSim){ v.cumRoul-=Math.sign(v.cumRoul)*Math.PI*2; META.stats.loopings=(META.stats.loopings||0)+1; spawnTexte(v.x,v.alt+2.4,v.z,'🌀 TONNEAU !','#35e0ff'); SFX.niveau(); vibre(30); }
+  if(Math.abs(v.cumTang)>=Math.PI*2){ v.cumTang-=Math.sign(v.cumTang)*Math.PI*2; META.stats.loopings=(META.stats.loopings||0)+1; const k=acroFigure(v,'loopings'); spawnTexte(v.x,v.alt+2.4,v.z,'🔁 LOOPING !'+(k>1?' ×'+k:''),'#ffd23f'); SFX.niveau(); vibre(40); }
+  if(Math.abs(v.cumRoul)>=Math.PI*2&&!v.vrilleSim){ v.cumRoul-=Math.sign(v.cumRoul)*Math.PI*2; META.stats.loopings=(META.stats.loopings||0)+1; const k=acroFigure(v,'tonneaux'); spawnTexte(v.x,v.alt+2.4,v.z,'🌀 TONNEAU !'+(k>1?' ×'+k:''),'#35e0ff'); SFX.niveau(); vibre(30); }
   return 'vol'; }
 /* les alertes du vol : décrochage (klaxon) et sol (bips rapides) ; un seul oscillateur, coupé à toutes les sorties (volSonCouper) */
 const VOL_SON={osc:null,g:null,mode:null};
@@ -29907,6 +29994,10 @@ function majVolSim(v,dt,monter,desc){
     if(v.gaz!==undefined) v.gaz=Math.min(v.gaz,0.45); v.mesh.rotation.set(0,v.ang,0);
     const surf=v.alt; toast(surf>4?'Posé sur le toit !':'Posé — lâche le joystick pour freiner','or'); if(surf>4&&!META.defis.toit){ META.defis.toit=true; bigMsg('POSÉ SUR LE TOIT'); } return 'pose'; }
   volAttitude(v); v.v=v.vel.length(); v.va=v.vel.y; v.vb=v.wz; v.vt=-v.wx;
+  acroDos(v,dtJ,v.alt-poseY(v.x,v.z)); /* 3.2 : le vol sur le dos (le repère vient d'être posé par volAttitude) */
+  if(v.vrilleSim){ const d=Math.atan2(Math.sin(v.ang-(v.angVr===undefined?v.ang:v.angVr)),Math.cos(v.ang-(v.angVr===undefined?v.ang:v.angVr))); v.cumVr=(v.cumVr||0)+Math.abs(d);
+    if(v.cumVr>=Math.PI*2){ v.cumVr-=Math.PI*2; META.stats.loopings=(META.stats.loopings||0)+1; const k=acroFigure(v,'vrilles'); spawnTexte(v.x,v.alt+2.4,v.z,'🌀 VRILLE !'+(k>1?' ×'+k:''),'#35e0ff'); SFX.niveau(); vibre(30); } } else v.cumVr=0;
+  v.angVr=v.ang;
   v.accAv=lerp(v.accAv||0,dtJ>0?(v.v-V0)/dtJ:0,clamp(dtJ*4,0,1));
   return 'vol'; }
 function majVol(v,dt){
@@ -30241,12 +30332,13 @@ const CABRAGE_TETE_1P=0.4, CABRAGE_PENCHE=0.55;
 function motoCabrable(v){ const d=v&&v.def; return !!d&&d.type==='moto'&&!d.velo&&!d.skate&&!d.eau&&!d.surf; }
 function styleCabrage(v){ return v.def.cross?'cross':(v.key==='motoS'?'sport':(v.key==='fantome'?'chopper':'route')); }
 function majCabrageMoto(v,dt){ /* renvoie true si le pilote vient de basculer */
-  const C=CABRAGE_MOTO[styleCabrage(v)], cabre=(INPUT.btn.esquive||INPUT.btn.esquiveK)&&Math.abs(v.v)>3&&!v.enAir;
-  v.wheelieA=clamp((v.wheelieA||0)+(cabre?C.vit:-CROSS_CABRAGE_RELACHE)*dt,0,C.max);
+  const st=styleCabrage(v), C=CABRAGE_MOTO[st], tenu=!!(INPUT.btn.esquive||INPUT.btn.esquiveK), lance=Math.abs(v.v)>3&&!v.enAir;
+  v.wheelieA=lance?equilibreCabrage(v,EQUILIBRE_CABRAGE[st],C.vit,tenu,C.max,dt):clamp((v.wheelieA||0)-CROSS_CABRAGE_RELACHE*dt,0,C.max); /* retours du 20 octobre, 3.2 : l'équilibre */
+  acroCabrage(v,dt/(ETAT.timeScale||1));
   if(v.wheelieA>C.danger){
     if(v.wheelieChuteT===undefined){ v.wheelieChuteT=CROSS_CABRAGE_GRACE; toast('Trop cabré !','warn'); SFX.refus(); vibre(25); }
     v.wheelieChuteT-=dt;
-    if(v.wheelieChuteT<=0){ toucherJoueur(18); sortirVehicule(true); lancerRagdollJoueurFx(); toast('Tu bascules en arrière — trop cabré trop longtemps','warn'); return true; }
+    if(v.wheelieChuteT<=0){ acroFinCabrage(true); toucherJoueur(18); sortirVehicule(true); lancerRagdollJoueurFx(); toast('Tu bascules en arrière — trop cabré trop longtemps','warn'); return true; }
   } else v.wheelieChuteT=undefined;
   poseCabrage(v); return false; }
 function poseCabrage(v){ const a=v.wheelieA||0, g=v.mesh, pil=P.surMoto&&P.veh===v;
@@ -30258,6 +30350,53 @@ function poseCabrage(v){ const a=v.wheelieA||0, g=v.mesh, pil=P.surMoto&&P.veh==
   g.rotation.order='YXZ'; g.rotation.x-=a; g.position.x+=dx; g.position.y+=dy; g.position.z+=dzM; /* l'axe arrière ne bouge pas : le nez monte, la roue arrière reste au sol */
   v.cabreX=a; v.cabreD=[dx,dy,dzM];
   if(pil){ v.cabrePose=true; P.h.g.rotation.x=a*CABRAGE_PENCHE; P.h.brasG.rotation.x=-1.1-a*0.5; if(!(v.tirBrasT>0)) P.h.brasD.rotation.x=-1.1-a*0.5; } } /* il se penche sur le guidon, les bras tendus */
+/* ---- Cascades mesurées (retours du 20 octobre, 3.2, demandé : « le cabrage peut tenir beaucoup plus longtemps — un bon joueur
+   tient 20 s ou plus —, chrono affiché, record ; vrilles, loopings et tonneaux en un vol et au total ; temps de vol sur le dos ; le
+   même esprit partout où ça a du sens »). Records et totaux : META.acro (clés fixes).
+   L'ÉQUILIBRE du cabrage : avant, l'angle montait tant qu'on tenait et la moto basculait 0,8 s après le seuil — on ne pouvait que
+   le relâcher. Désormais il a un point d'équilibre (ab) : en dessous, le gaz tenu lève l'avant et le lâcher le repose ; au-dessus,
+   la moto part d'elle-même vers l'arrière (K) et le gaz n'ajoute presque plus rien (haut) : on le tient en dosant l'appui, au
+   rythme des bosses (bruitRoute). Tenu en continu : la bascule en ~1,3 s (comme avant) ; sans appui : rien. Réglé hors navigateur
+   (rapport_nuit, « sim_cabrage ») : un pilote qui réagit en 0,12 s tient 40 s, en 0,2 s de 4 à 25 s, en 0,3 s l'avant retombe. */
+const EQUILIBRE_CABRAGE={cross:{ab:0.40,K:3.4,haut:0.35,rel:1.35},sport:{ab:0.40,K:3.8,haut:0.35,rel:1.4},route:{ab:0.36,K:3.1,haut:0.35,rel:1.25},
+  chopper:{ab:0.32,K:2.7,haut:0.35,rel:1.15},velo:{ab:0.30,K:2.6,haut:0.35,rel:1.4}};
+const ACRO_CABRE_MIN=0.1, ACRO_CHRONO_MIN=1, ACRO_DOS_UY=-0.55, ACRO_DOS_HSOL=5; /* roue avant levée au-delà de 0,1 rad ; chrono affiché après 1 s ; sur le dos : le dessus de l'avion vers le bas, à 5 u du sol au moins */
+function equilibreCabrage(v,E,vit,tenu,max,dt){ const a=v.wheelieA||0, K=E.K*tenueK('cascadeur',0.8); /* la combinaison du cascadeur : un équilibre plus doux */
+  let da=a<E.ab?(tenu?vit:-E.rel):(tenu?vit*E.haut:-E.rel)+K*(a-E.ab);
+  if(a>0.05) da+=(bruitRoute((v.odo||0)*0.9)-0.5)*0.9; /* les bosses de la route */
+  return clamp(a+da*dt,0,max); }
+const ACRO={el:null,txt:'',cabreT:0,cabreCle:'',dosT:0,dosV:null};
+function acroHud(txt){ if(!ACRO.el){ const t=document.createElement('div'); t.id='acroTxt';
+    t.style.cssText='position:absolute;top:calc(env(safe-area-inset-top,0px) + 202px);left:50%;transform:translateX(-50%);z-index:30;display:none;padding:5px 12px;border-radius:10px;background:rgba(10,12,18,0.8);border:2px solid #ffd23f;color:#ffe9a0;font:900 14px Arial;letter-spacing:.03em;white-space:nowrap;pointer-events:none';
+    const hud=el('hud'); if(!hud) return; hud.appendChild(t); ACRO.el=t; }
+  if(ACRO.txt===txt) return; ACRO.txt=txt; ACRO.el.textContent=txt; ACRO.el.style.display=txt?'block':'none'; }
+const secS=(t)=>t.toFixed(1).replace('.',',')+' s';
+/* le cabrage du joueur (motos, vélos, skate) : chronométré sur le temps réel, record à la fin — jamais si l'on bascule */
+function acroCabrage(v,dtJ){ if(v!==P.veh) return; const cle=v.def.velo?'cabrageVelo':'cabrage', leve=(v.wheelieA||0)>ACRO_CABRE_MIN&&!v.enAir;
+  if(leve){ ACRO.cabreT+=dtJ; ACRO.cabreCle=cle; if(ACRO.cabreT>=ACRO_CHRONO_MIN) acroHud((v.def.velo?'🚲 MANUAL ':'🏍️ CABRAGE ')+secS(ACRO.cabreT)+' · record '+secS(META.acro[cle]||0)); }
+  else if(ACRO.cabreT>0) acroFinCabrage(false); }
+function acroFinCabrage(rate){ const t=ACRO.cabreT, cle=ACRO.cabreCle; ACRO.cabreT=0; ACRO.cabreCle=''; if(!ACRO.dosT) acroHud('');
+  if(!cle||rate||t<ACRO_CHRONO_MIN) return;
+  if(t>(META.acro[cle]||0)){ META.acro[cle]=+t.toFixed(2); toast('🏆 Record de '+(cle==='cabrage'?'cabrage':'manual')+' : '+secS(t),'or'); SFX.niveau(); sauveMeta(); } }
+/* une figure d'avion : comptée dans le vol (v.figVol) et au total ; record de figures en un vol */
+function acroFigure(v,cle){ if(!META.acro) return 0; const F=v.figVol||(v.figVol={loopings:0,tonneaux:0,vrilles:0});
+  F[cle]++; META.acro[cle]=(META.acro[cle]||0)+1; const n=F.loopings+F.tonneaux+F.vrilles;
+  if(F[cle]>(META.acro[cle+'Vol']||0)) META.acro[cle+'Vol']=F[cle]; if(n>(META.acro.figuresVol||0)) META.acro.figuresVol=n; return F[cle]; }
+function acroFinVol(v){ if(v) v.figVol=null; if(ACRO.dosT>0) acroFinDos(true); }
+/* le vol sur le dos (pilotage simulé) : chrono, record */
+function acroDos(v,dtJ,hSol){ const dos=_sU.y<ACRO_DOS_UY&&hSol>ACRO_DOS_HSOL;
+  if(dos){ ACRO.dosT+=dtJ; ACRO.dosV=v; if(ACRO.dosT>=ACRO_CHRONO_MIN) acroHud('🙃 SUR LE DOS '+secS(ACRO.dosT)+' · record '+secS(META.acro.dos||0)); }
+  else if(ACRO.dosT>0) acroFinDos(false); }
+function acroFinDos(rate){ const t=ACRO.dosT; ACRO.dosT=0; ACRO.dosV=null; if(!ACRO.cabreT) acroHud('');
+  if(rate||t<ACRO_CHRONO_MIN) return;
+  if(t>(META.acro.dos||0)){ META.acro.dos=+t.toFixed(2); toast('🏆 Record de vol sur le dos : '+secS(t),'or'); SFX.niveau(); sauveMeta(); } }
+/* chaque image : le chrono s'arrête si l'on n'est plus sur le véhicule (descente, mort, salle) */
+function majAcro(){ const v=P.veh; if(ACRO.cabreT>0&&(!v||v.def.type!=='moto'||INT.actif)) acroFinCabrage(false); if(ACRO.dosT>0&&(!v||v!==ACRO.dosV||!v.vol||INT.actif)) acroFinDos(true);
+  if(v&&v.def.air&&!v.vol&&v.figVol) v.figVol=null; } /* posé : le vol suivant recompte ses figures */
+function acroReset(){ ACRO.cabreT=0; ACRO.cabreCle=''; ACRO.dosT=0; ACRO.dosV=null; acroHud(''); }
+/* le saut le plus long en véhicule (de l'appel à la réception, à plat) */
+function acroSaut(v){ if(v.conduit!=='joueur'||v.airX0===undefined) return; const d=Math.hypot(v.x-v.airX0,v.z-v.airZ0); v.airX0=undefined;
+  if(d>(META.acro.saut||0)&&d>8){ META.acro.saut=Math.round(d); if(d>25){ toast('🏆 Saut le plus long : '+Math.round(d)+' m','or'); SFX.niveau(); } sauveMeta(); } }
 function retirerPoseCabrage(v){ const g=v&&v.mesh; if(!g||!v.cabreX) return; g.rotation.x+=v.cabreX; if(v.cabreD){ g.position.x-=v.cabreD[0]; g.position.y-=v.cabreD[1]; g.position.z-=v.cabreD[2]; } v.cabreX=0; v.cabreD=null; }
 /* ---- Lance à eau du camion de pompiers : outil de CONTRÔLE, pas une arme.
    Repousse fortement et fait TOMBER (ragdoll non mortel, voir majRagdoll)
@@ -30593,10 +30732,13 @@ function majConduite(dt){
     // (< VELO_TAP) = BUNNY HOP au relâcher ; ESQUIVE MAINTENU = cabré (manual), roue avant levée.
     const veut=!!(INPUT.btn.esquive||INPUT.btn.esquiveK);
     if(veut) v.manuT=v.hopTenu?(v.manuT||0)+dt:0;
-    if(!veut&&v.hopTenu&&!v.enAir&&(v.manuT||0)<VELO_TAP){ v.enAir=true; v.hop=true; v.vy=v.def.hop*tenueK('skateur',1.14); v.airT=0; v.h=v.h||0; bruit(0.05,0.25,900); vibre(15); }
+    const enManual=(v.wheelieA||0)>0.05; /* en plein manual, un appui bref dose l'équilibre : ni bunny hop, ni délai (3.2) */
+    if(!veut&&v.hopTenu&&!v.enAir&&!enManual&&(v.manuT||0)<VELO_TAP){ v.enAir=true; v.hop=true; v.vy=v.def.hop*tenueK('skateur',1.14); v.airT=0; v.h=v.h||0; bruit(0.05,0.25,900); vibre(15); }
     v.hopTenu=veut;
-    const cabre=veut&&(v.manuT||0)>=VELO_TAP&&!v.enAir&&Math.abs(v.v)>1.5;
-    v.wheelieA=clamp((v.wheelieA||0)+(cabre?VELO_CABRE_VIT:-VELO_CABRE_VIT*1.6)*dt,0,VELO_CABRE_MAX);
+    const cabre=veut&&((v.manuT||0)>=VELO_TAP||enManual)&&!v.enAir&&Math.abs(v.v)>1.5;
+    v.wheelieA=!v.enAir&&Math.abs(v.v)>1.5?equilibreCabrage(v,EQUILIBRE_CABRAGE.velo,VELO_CABRE_VIT,cabre,VELO_CABRE_MAX,dt):clamp((v.wheelieA||0)-VELO_CABRE_VIT*1.6*dt,0,VELO_CABRE_MAX); /* l'équilibre (3.2) */
+    if(v.wheelieA>=VELO_CABRE_MAX-0.002){ const long=v===P.veh&&ACRO.cabreT>=ACRO_CHRONO_MIN; v.wheelieA=0; if(v===P.veh) acroFinCabrage(true); if(long){ toast('Trop cabré : tu reposes la roue avant','warn'); vibre(25); } } /* au-delà de la butée, l'équilibre est perdu */
+    acroCabrage(v,dt/(ETAT.timeScale||1));
     if(v.wheelieA>0.001&&!v.enAir){ v.mesh.rotation.order='YXZ'; v.mesh.rotation.x=-v.wheelieA; v.mesh.position.y+=v.def.long*0.45*Math.sin(v.wheelieA); } // pivot sur la roue arrière
     else if(v.wheelieA<=0.001&&v.cabreAff){ v.mesh.rotation.x=0; }
     v.cabreAff=v.wheelieA>0.001;
@@ -43976,7 +44118,7 @@ function initPreview2(){
 function setPreview2(){
   initPreview2();
   if(PREVIEW2.h) PREVIEW2.grp.remove(PREVIEW2.h.g);
-  PREVIEW2.h=makeHumain(coifCouleurs(),1.1); habillerTete(PREVIEW2.h,META.style); // couleurs du perso + tenue équipée + pièces de boutique, exactement comme le vrai joueur
+  PREVIEW2.h=makeHumain(coifCouleurs(),1.1); habillerTete(PREVIEW2.h,META.style); habillerTenue(PREVIEW2.h,META.tenue,META.style); // couleurs du perso + tenue équipée + pièces de boutique, exactement comme le vrai joueur
   appliqueMuscle(PREVIEW2.h); // respecte le palier de muscle courant (règle explicite du point 4)
   PREVIEW2.grp.add(PREVIEW2.h.g);
 }
@@ -44322,7 +44464,7 @@ function renderDefis(){
   let hRec='';
   if(aRec.length){
     hRec+='<div class="panneau" style="border-color:#7dff7a88"><h3>🎁 Récompenses à récupérer — '+aRec.length+'</h3>';
-    for(const d of aRec) hRec+='<div class="ligneItem"><div class="ico">🎁</div><div class="inf"><div class="nom">'+d.nom+'</div><div class="det">'+d.det+'</div></div>'+
+    for(const d of aRec) hRec+='<div class="ligneItem"><div class="ico">🎁</div><div class="inf"><div class="nom">'+d.nom+'</div><div class="det">'+d.det+defiTenueTxt(d)+'</div></div>'+
       '<button class="btnRecup" data-recup="'+d.id+'">RÉCUPÉRER +'+d.rec+' $</button>'+(PUB_X2.disponible()?'<button class="btnRecup x2" data-recupx2="'+d.id+'">×2 🎬</button>':'')+'</div>';
     hRec+='</div>';
   }
@@ -44337,7 +44479,7 @@ function renderDefis(){
     const [v,mx]=d.prog(META);
     const pal=d.theme?' <span style="opacity:.6">— palier '+(d.palier+1)+'/'+d.nbPaliers+'</span>':'';
     h+='<div class="ligneItem"><div class="ico">'+(fait?'🏆':'🎯')+'</div><div class="inf">'+
-       '<div class="nom">'+d.nom+pal+'</div><div class="det">'+d.det+' — '+(fait?'terminé':v+' / '+mx)+'</div></div>'+
+       '<div class="nom">'+d.nom+pal+'</div><div class="det">'+d.det+' — '+(fait?'terminé':v+' / '+mx)+defiTenueTxt(d)+'</div></div>'+
        '<span class="pill '+(fait?'equip':'lock')+'">'+d.rec+' $</span></div>';
   }
   h+='</div>';
@@ -45003,6 +45145,7 @@ function ameliorerTexturesSol(){
   scene.traverse((o)=>{ if(!o.isMesh||Array.isArray(o.material)||!o.material||!o.material.map) return; const fz=forces.get(o.material.map); if(fz) variationSol(o.material,fz[0],fz[1],fz[2]); });
 }
 function startRun(){
+  acroReset(); /* chronos des cascades (3.2) */
   couperSonsEcrasement(); /* tôle et verre de l'écrasement (CLAUDE.md : les sons coupés dans toutes les sorties) */
   volSonCouper(); hudVolCacher(); /* alarmes et HUD du vol simulé */
   if(ETAT.mortTimer){ clearTimeout(ETAT.mortTimer); ETAT.mortTimer=null; } // Rejouer avant l'écran de mort : il tombait au milieu de la partie suivante
@@ -45362,6 +45505,7 @@ function startRun(){
   majPastilleDefis();
 }
 function mourir(){
+  acroReset();
   ejectionFinSiege(); /* mort pendant la montée du siège éjectable : le corps rendu à la scène */
   couperSonsEcrasement(); /* tôle et verre de l'écrasement (CLAUDE.md : les sons coupés dans toutes les sorties) */
   volSonCouper(); hudVolCacher(); /* alarmes et HUD du vol simulé */
@@ -48716,7 +48860,7 @@ function tick(t){
     ETAT.comboT-=dt;
     if(ETAT.comboT<=0) ETAT.combo=1;
     if(ETAT.slowT>0){ ETAT.slowT-=dtReel; if(ETAT.slowT<=0&&ETAT.mode==='jeu') ETAT.timeScale=1; }
-    if(ETAT.mode==='jeu'){ majNitro(dtJeu); if(DECOR_V2) towEntrees(); if(DERBY.actif) derbyEntrees(); if(!MANEGES.actif&&!FPS.actif&&!EJECT.siege) majJoueur(dt,dtJeu); majFPS(dt,dtJeu); majIvresse(dtJeu); majTresorCarte(dt); majFilet(dtJeu); majMontSon(dt); majCanauxSon(dt); if(DECOR_V2){ majRides(dtJeu); majPic(dt); majTow(dt,dtJeu); majBasket(dt,dtJeu); majSportJ(dt,dtJeu); majToitsSurprises(dt,dtJeu); } } // nitro décidée AVANT la physique du véhicule
+    if(ETAT.mode==='jeu'){ majNitro(dtJeu); if(DECOR_V2) towEntrees(); if(DERBY.actif) derbyEntrees(); if(!MANEGES.actif&&!FPS.actif&&!EJECT.siege) majJoueur(dt,dtJeu); majFPS(dt,dtJeu); majIvresse(dtJeu); majAcro(); majTresorCarte(dt); majFilet(dtJeu); majMontSon(dt); majCanauxSon(dt); if(DECOR_V2){ majRides(dtJeu); majPic(dt); majTow(dt,dtJeu); majBasket(dt,dtJeu); majSportJ(dt,dtJeu); majToitsSurprises(dt,dtJeu); } } // nitro décidée AVANT la physique du véhicule
     majEnnemis(dt);
     if(!INT.actif){
       majPietons(dt);

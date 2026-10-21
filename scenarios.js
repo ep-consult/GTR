@@ -17736,6 +17736,91 @@ async function main() {
       else ok('Retours 20 oct., lot 2 : ' + r.info.join(' ; '));
     }
     // -------------------------------------------------------------------
+    // Retours du 20 octobre, lot 3 (demandé : « des défis à paliers pour chaque activité, de l'argent, souvent un skin au palier
+    // final, le ×2 par pub prêt partout ; des défis de cascade mesurés — cabrage qu'un bon joueur tient 20 s ou plus, chrono et record,
+    // vrilles, loopings et tonneaux en un vol et au total, vol sur le dos chronométré — ; des skins stylés avec un vrai modèle et un
+    // petit bonus »). Les thèmes, les tenues et les records sont lus aux sources (DEFIS_THEMES, DEFIS, TENUES, TENUE_ACC, META.acro) ;
+    // les cascades passent par les vraies commandes (ESQUIVE tenu, joystick) avec un temps de réaction humain.
+    // -------------------------------------------------------------------
+    console.log('\n--- Retours du 20 octobre, lot 3 : défis à paliers, cascades mesurées, tenues à vrai modèle ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = []; let T = dernierT + 1000; const B = INPUT.btn;
+        const pas = (n, f) => { for (let i = 0; i < n; i++) { if (f && f(i) === false) return i; T += 1000 / 60; tick(T); } return n; };
+        const sav = JSON.stringify(META.acro), savFaits = JSON.stringify(META.defis.faits), savRec = JSON.stringify(META.defis.aReclamer), arg0 = META.argent, ten0 = META.tenue, chap0 = META.style ? META.style.chapeau : '', poss0 = JSON.stringify(META.tenuesPoss);
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); META.vue = 'classique'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9;
+        /* 3.1 — chaque thème : des paliers croissants, de l'argent à chacun ; plusieurs offrent une tenue au dernier ; les tenues existent */
+        let nT = 0, nTen = 0; for (const o of DEFIS_THEMES) { nT++; if (!(o.paliers.length >= 1)) ko.push('thème ' + o.theme + ' sans paliers');
+          for (let k = 1; k < o.paliers.length; k++) if (!(o.paliers[k] > o.paliers[k - 1])) ko.push('thème ' + o.theme + ' : paliers non croissants');
+          for (const rr of o.recs) if (!(rr > 0)) ko.push('thème ' + o.theme + ' : un palier sans argent');
+          if (o.tenue) { nTen++; if (!TENUES.find((t) => t.id === o.tenue)) ko.push('thème ' + o.theme + ' : tenue ' + o.tenue + ' inconnue'); } }
+        if (nTen < 2) ko.push(nTen + ' thème(s) avec une tenue au dernier palier');
+        for (const k of ['cabrage', 'dos', 'loopings', 'tonneaux', 'vrilles', 'saut', 'manual', 'meeting']) if (!DEFIS_THEMES.some((o) => o.theme === k)) ko.push('pas de thème ' + k);
+        for (const d of DEFIS) { try { const p = d.prog(META); if (!Array.isArray(p) || p.length !== 2 || !isFinite(+p[0])) ko.push('défi ' + d.id + ' : progression illisible'); } catch (e) { ko.push('défi ' + d.id + ' : ' + e.message); } }
+        info.push(nT + ' thèmes, ' + DEFIS.length + ' défis, ' + nTen + ' tenues au dernier palier');
+        /* le ×2 : bouton pour chaque récompense quand une pub est disponible, paiement double, tenue du dernier palier offerte */
+        { const dispo = PUB_X2.disponible, montre = PUB_X2.montrer; PUB_X2.disponible = () => true; PUB_X2.montrer = (fin) => fin(true);
+          const fin = DEFIS.find((d) => d.tenue === 'cascadeur'); META.defis.aReclamer = {}; META.defis.faits = {}; for (const d of DEFIS) if (d.theme === 'cabrage' && d.palier < fin.palier) META.defis.faits[d.id] = true;
+          META.defis.aReclamer[fin.id] = true; const autres = DEFIS.filter((d) => d.theme && d.palier === 0 && d.theme !== 'cabrage').slice(0, 3); for (const d of autres) META.defis.aReclamer[d.id] = true;
+          delete META.tenuesPoss.cascadeur; renderDefis(); const nX2 = document.querySelectorAll('#defisList [data-recupx2]').length, nR = document.querySelectorAll('#defisList [data-recup]').length;
+          if (nX2 !== nR || nX2 < 4) ko.push('×2 : ' + nX2 + ' boutons pour ' + nR + ' récompenses');
+          const a0 = META.argent; recupererDefiX2(fin.id); if (META.argent - a0 !== fin.rec * 2) ko.push('×2 : ' + (META.argent - a0) + ' $ pour ' + fin.rec + ' × 2');
+          if (!META.tenuesPoss.cascadeur) ko.push('la tenue du dernier palier n’est pas offerte'); else info.push('×2 prêt sur ' + nX2 + ' récompenses, tenue offerte au dernier palier');
+          PUB_X2.disponible = dispo; PUB_X2.montrer = montre; renderDefis(); if (document.querySelectorAll('#defisList [data-recupx2]').length) ko.push('×2 visible sans pub disponible'); }
+        /* 3.2 — le cabrage : un pilote qui réagit en 0,12 s tient plus de 20 s (record, chrono à l'écran) ; tenir en continu fait basculer ; sans appui, rien */
+        const moto = (cle) => { if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; ETAT.timeScale = 1; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9; for (const x of vehicules) { scene.remove(x.mesh); libererEntite(x.mesh); } vehicules.length = 0; for (const e of ennemis) e.mort = true;
+          const v = creerVehicule(cle, 0, MER + 40, 0, null); P.x = v.x; P.z = v.z; entrerVehicule(v); return v; };
+        const rouler = (v, n, regle) => { const hist = []; let max = 0, txt = ''; for (let i = 0; i < n && P.veh === v; i++) { v.v = 12; v.x = 0; v.z = MER + 40; hist.push(v.wheelieA || 0);
+            const vu = hist[Math.max(0, hist.length - 1 - 7)]; B.esquive = regle(vu, i); majConduite(1 / 60); max = Math.max(max, v.wheelieA || 0); if (i === 600) txt = ACRO.txt; } B.esquive = false; return { max, txt, tombe: P.veh !== v }; };
+        for (const cle of Object.keys(VEHDEFS).filter((k) => motoCabrable({ def: VEHDEFS[k] }))) {
+          META.acro.cabrage = 0; const v = moto(cle), E = EQUILIBRE_CABRAGE[styleCabrage(v)]; const o = rouler(v, 60 * 24, (a) => a < E.ab + 0.02); if (P.veh === v) majConduite(1 / 60); B.esquive = false; for (let i = 0; i < 90 && P.veh === v; i++) majConduite(1 / 60); majAcro();
+          if (o.tombe) ko.push(cle + ' : le pilote vif (0,12 s) bascule'); else if (!(META.acro.cabrage >= 20)) ko.push(cle + ' : cabrage tenu ' + (META.acro.cabrage || 0).toFixed(1) + ' s seulement');
+          else info.push(cle + ' ' + META.acro.cabrage.toFixed(0) + ' s');
+          if (!/CABRAGE/.test(o.txt)) ko.push(cle + ' : pas de chrono à l’écran pendant le cabrage (« ' + o.txt + ' »)');
+          const v2 = moto(cle); const o2 = rouler(v2, 300, () => true); if (!o2.tombe) ko.push(cle + ' : tenu en continu, il ne bascule pas');
+          const v3 = moto(cle); const o3 = rouler(v3, 120, () => false); if (o3.max > 0.001) ko.push(cle + ' : il cabre sans appui'); }
+        { META.acro.cabrageVelo = 0; const v = moto('bmx'); for (let i = 0; i < 30; i++) majConduite(1 / 60); const o = rouler(v, 60 * 14, (a) => a < EQUILIBRE_CABRAGE.velo.ab + 0.02); B.esquive = false; for (let i = 0; i < 60 && P.veh === v; i++) majConduite(1 / 60); majAcro();
+          if (!(META.acro.cabrageVelo >= 12)) ko.push('BMX : manual tenu ' + (META.acro.cabrageVelo || 0).toFixed(1) + ' s seulement (' + JSON.stringify(o) + ')'); else info.push('BMX : manual ' + META.acro.cabrageVelo.toFixed(0) + ' s'); }
+        if (P.veh) sortirVehicule(true);
+        /* le vol : figures comptées dans le vol et au total ; vol sur le dos chronométré */
+        PILOTAGE_SIM = true; const trafic0 = creerTrafic; creerTrafic = () => {};
+        const enVol = (cle, o) => { if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; ETAT.timeScale = 1; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9;
+          for (const x of vehicules) { scene.remove(x.mesh); libererEntite(x.mesh); } vehicules.length = 0; for (const e of ennemis) e.mort = true;
+          const A = PROFILS_VOL[cle], v = creerVehicule(cle, 0, MER + 160, Math.PI / 2, null); P.x = v.x; P.z = v.z; entrerVehicule(v);
+          v.vol = true; v.alt = o.alt || 120; v.v = o.V || A.Vmax; v.va = 0; v.bank = o.bank || 0; v.tang = 0; v.gaz = o.gaz !== undefined ? o.gaz : 1; v.decolT = 0; volSimInit(v, 0);
+          MANETTE.val = v.gaz; MANETTE.touche = false; INPUT.jx = INPUT.jy = 0; B.sprint = B.frein = false; return v; };
+        const libre = Object.keys(PROFILS_VOL).find((k) => PROFILS_VOL[k].stabilite === 0), agile = Object.keys(PROFILS_VOL).find((k) => PROFILS_VOL[k].gMax >= 6);
+        { META.acro.loopings = 0; META.acro.loopingsVol = 0; const v = enVol(agile, {}); pas(60 * 14, (i) => { INPUT.jy = 1; if (P.veh !== v) return false; if (META.acro.loopings >= 2) return false; }); INPUT.jy = 0;
+          if (!(META.acro.loopings >= 2 && v.figVol && v.figVol.loopings >= 2 && META.acro.loopingsVol >= 2)) ko.push(agile + ' : loopings comptés ' + META.acro.loopings + ' (vol : ' + JSON.stringify(v.figVol) + ')'); else info.push(agile + ' : 2 loopings comptés dans le vol');
+          META.acro.tonneaux = 0; pas(60 * 8, (i) => { INPUT.jx = 1; if (P.veh !== v || META.acro.tonneaux >= 2) return false; }); INPUT.jx = 0;
+          if (!(META.acro.tonneaux >= 2 && v.figVol.tonneaux >= 2 && META.acro.figuresVol >= 4)) ko.push(agile + ' : tonneaux comptés ' + META.acro.tonneaux + ', figures en un vol ' + META.acro.figuresVol); }
+        { META.acro.dos = 0; const A = PROFILS_VOL[libre], v = enVol(libre, { alt: 120, V: A.Vmax * 0.9, gaz: 0.8, bank: Math.PI }); let txt = '';
+          pas(60 * 8, (i) => { if (P.veh !== v) return false; if (i === 300) txt = ACRO.txt; }); const v0 = v; v0.q.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), Math.PI)); /* on le remet à l'endroit */
+          pas(30); majAcro(); if (!(META.acro.dos >= 6)) ko.push(libre + ' : vol sur le dos chronométré ' + (META.acro.dos || 0).toFixed(1) + ' s (attendu ~8)'); else info.push(libre + ' : ' + META.acro.dos.toFixed(1) + ' s sur le dos');
+          if (!/SUR LE DOS/.test(txt)) ko.push('pas de chrono du vol sur le dos à l’écran (« ' + txt + ' »)'); }
+        { META.acro.vrilles = 0; const A = PROFILS_VOL[libre], v = enVol(libre, { alt: 160, V: A.Vmin * 0.85, gaz: 0 });
+          pas(60 * 12, (i) => { INPUT.jy = 1; INPUT.jx = 1; if (P.veh !== v || META.acro.vrilles >= 1) return false; }); INPUT.jx = INPUT.jy = 0;
+          if (!(META.acro.vrilles >= 1)) ko.push(libre + ' : aucun tour de vrille compté (vrilleSim ' + v.vrilleSim + ')'); else info.push(libre + ' : vrille comptée'); }
+        creerTrafic = trafic0; if (P.veh) sortirVehicule(true);
+        /* le saut le plus long : un saut sur une rampe de la ville */
+        { META.acro.saut = 0; const v = { conduit: 'joueur', airX0: 10, airZ0: 10, x: 50, z: 40 }; acroSaut(v); if (META.acro.saut !== 50) ko.push('saut le plus long : ' + META.acro.saut + ' m pour 50'); }
+        /* 3.3 — chaque tenue de TENUE_ACC : un vrai modèle (pièces sur le corps du joueur, de la penderie et du catalogue), au bon endroit */
+        for (const id in TENUE_ACC) { const tn = TENUES.find((t) => t.id === id); if (!tn) { ko.push('pièces pour une tenue inconnue : ' + id); continue; }
+          META.tenue = id; META.style = Object.assign(META.style || {}, { chapeau: '' }); construireJoueur(); let n = 0; const bb = new THREE.Box3(); P.h.g.updateMatrixWorld(true);
+          P.h.g.traverse((o) => { if (o.userData && o.userData.tenueAcc && o.isMesh) { n++; bb.expandByObject(o); } });
+          const base = new THREE.Box3().setFromObject(P.h.torse).union(new THREE.Box3().setFromObject(P.h.tete));
+          if (!n) ko.push('tenue ' + id + ' : aucune pièce posée'); else if (bb.min.y < P.h.g.position.y - 0.3 || bb.max.y > base.max.y + 1.2) ko.push('tenue ' + id + ' : pièces hors du corps (' + bb.min.y.toFixed(2) + ' → ' + bb.max.y.toFixed(2) + ')');
+          if (!/ — /.test(tn.condTxt)) ko.push('tenue ' + id + ' : aucun bonus écrit à la penderie'); }
+        { META.tenue = 'voltigeur'; if (tenueK('voltigeur', 1.12) !== 1.12) ko.push('tenue de voltige : bonus inactif'); META.tenue = 'cascadeur'; if (tenueK('cascadeur', 0.8) !== 0.8) ko.push('combinaison du cascadeur : bonus inactif'); }
+        { META.tenue = 'plongee'; setPreview2(); let n = 0; PREVIEW2.h.g.traverse((o) => { if (o.userData && o.userData.tenueAcc) n++; }); if (!n) ko.push('penderie : la combinaison de plongée sans ses pièces'); }
+        info.push(Object.keys(TENUE_ACC).length + ' tenues à vrai modèle');
+        if (META.style) META.style.chapeau = chap0; META.tenue = ten0; META.tenuesPoss = JSON.parse(poss0); META.acro = JSON.parse(sav); META.defis.faits = JSON.parse(savFaits); META.defis.aReclamer = JSON.parse(savRec); META.argent = arg0;
+        construireJoueur(); startRun(); return { ko, info };
+      });
+      if (r.ko.length) fail('Retours 20 oct., lot 3 : ' + r.ko.slice(0, 25).join(' ; ') + (r.ko.length > 25 ? ' … (' + r.ko.length + ')' : '') + ' [' + r.info.join(' | ') + ']');
+      else ok('Retours 20 oct., lot 3 : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];
