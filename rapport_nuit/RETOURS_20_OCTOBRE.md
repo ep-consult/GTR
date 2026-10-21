@@ -19,9 +19,9 @@ lourds. Aucune référence à un autre jeu ni à une marque.
 | 3 | 3.1 Refonte des défis (paliers, argent, skins, ×2 prêt) | ☑ |
 | 3 | 3.2 Défis de cascade mesurés (cabrage, vrilles, loopings, tonneaux, vol sur le dos…) | ☑ |
 | 3 | 3.3 Skins spéciaux liés aux exploits | ☑ |
-| 4 | 4.1 Tableau de chasse | ☐ |
-| 4 | 4.2 Trophées au chalet | ☐ |
-| 4 | 4.3 Défis de chasse et costume de pigeon | ☐ |
+| 4 | 4.1 Tableau de chasse | ☑ |
+| 4 | 4.2 Trophées au chalet | ☑ |
+| 4 | 4.3 Défis de chasse et costume de pigeon | ☑ |
 | 5 | 5.1 Villa planque restylée | ☐ |
 | 5 | 5.2 Chantier : la grue remplacée par un monte-charge | ☐ |
 | 6 | 6.1 Paquebot « Reyes Majestic » qui se brise | ☐ |
@@ -251,4 +251,89 @@ cabrage, vélos, figures deux roues, skate, défis (deux blocs), tenues des mini
 trêve. Aucun coût de rendu en jeu (quelques boîtes sur le joueur) ; empreinte du décor, portes et tirages identiques.
 
 Captures : `captures/retours_20/3_tenues_vrai_modele.png` (les 12 tenues), `3_chrono_cabrage.png`, `3_ecran_defis.png`.
+
+## Lot 4 — La chasse et les trophées (fait : 4.1 à 4.3, un seul commit)
+
+Les trois points se tiennent (le mur du chalet montre le tableau, les défis lisent le tableau, le costume est le dernier palier d'un
+défi) : un commit, un test.
+
+### 4.1 — Le tableau de chasse
+
+**Lecture retenue** : « les animaux abattus » = ceux que le joueur tue, de toutes les façons (balle, coup, véhicule lancé) — les seuls
+que le jeu sache tuer : la faune de l'île, du mont, de l'alpage et de la forêt (`FAUNE_DEFS`), les pigeons et les mouettes
+(`OIS_TYPES`), les rapaces du mont. Les chiens des rues n'y sont pas (ce n'est pas de la chasse : ils gardent leur message et leurs
+−50 points) ; les requins, les marmottes et les dauphins ne meurent pas.
+
+- `META.chasse` (17 clés fixes, une par espèce de `CHASSE_ESPECES`) ; compté là où la bête meurt (`chasseCompte` dans
+  `toucherAnimal`, `oiseauTue`, `mvRapaceTue`) ; la première bête d'une espèce est annoncée.
+- **L'écran** `#chasseScr` (`renderChasse`) : le total, le gibier et les bêtes paisibles ou protégées, l'avancement du costume de
+  pigeon, puis chaque espèce par lieu (la ville et la plage, l'île, le mont, l'alpage, la forêt du chalet), son nombre et ce qu'elle
+  vaut (gibier, bête paisible, espèce protégée). On l'ouvre depuis la **pause** (« Tableau de chasse ») et depuis le **mur des
+  trophées du chalet**.
+
+### 4.2 — Les trophées au chalet de montagne
+
+**Lecture retenue** : le chalet est plein (cheminée, lit, râtelier, table…) et sa salle est vue de haut ; les trophées vont sur un
+mur à eux, à l'est du chalet : **un abri de rondins** (mur du fond, deux joues, toit de neige qui s'efface quand on est dessous,
+comme celui du chalet), tourné vers la caméra.
+
+- Un écusson par espèce, dans l'ordre de `CHASSE_ESPECES` (deux rangées de bêtes à poil, une rangée d'oiseaux) ; la **tête montée**
+  (ours gueule ouverte, cerf et ses bois, panthère aux yeux jaunes, sangliers et leurs défenses, bouquetin et ses cornes en arc,
+  chamois, vache et sa cloche, chèvre, biche, renard, lapin) ou **l'oiseau naturalisé, ailes ouvertes, sur sa branche** (pigeon,
+  mouette, aigle, vautour à collerette, faucon) **apparaît à la première bête abattue**, comme le mur des trophées de pêche du
+  cabanon (`tropheeGeo`, couleurs de sommets, `tropheesPlaces`).
+- Une **plaque de laiton** sous chaque écusson (le nom, « ×N ») ; une espèce pas encore chassée : une plaque de bois sombre « ? nom ».
+  Une bête paisible ou protégée a sa plaque **cerclée de rouge et marquée « BRACONNÉ »** ; l'enseigne « TABLEAU DE CHASSE » au-dessus.
+  Toutes les plaques sur une seule toile (une texture, redessinée à chaque entrée).
+- Devant le mur, **la caméra vient de face, par-dessus l'épaule, et suit le joueur le long du mur** (`chaletTropheesCadrage`, le
+  cadrage du lancer de hache) ; le bouton d'action « 🏆 TABLEAU DE CHASSE — N bêtes » ouvre l'écran.
+- **Coût** (salle du chalet, machine sans carte graphique : seules les proportions comptent) : les têtes visibles sont fusionnées en
+  un seul maillage, refait à chaque entrée ; **+8 appels de rendu** (180 → 188 à l'entrée, 157 → 165 dans le chalet, 149 → 157 au
+  lancer de hache), +3 k triangles ; devant le mur, 68 appels (le cadrage regarde le mur). Construit sur un générateur privé
+  (`avecAleaPrive`) : la salle tire ce qu'elle tirait.
+
+### 4.3 — Les défis de chasse et le costume de pigeon
+
+**Lecture retenue** : « défis de chasse » = le gibier seulement : pigeons, mouettes, sangliers (île et forêt), et le nombre
+d'espèces de gibier au tableau ; l'ours et le jaguar comptent déjà dans le défi « Chasseur / Dompteur de fauves ». « Voleter » =
+le bouton ESQUIVE, costume porté (aucun bouton de plus).
+
+- Quatre thèmes (`DEFIS_THEMES`) : **Terreur des pigeons** (10, 40, 100 — le **costume de pigeon** au dernier palier),
+  **Terreur des mouettes** (5, 20, 50), **Maître d'équipage** (sangliers : 5, 15, 40), **Grand veneur** (3 puis 6 espèces de gibier
+  au tableau). De l'argent à chaque palier, le ×2 comme les autres.
+- **Le costume** (`TENUES.pigeon`, `TENUE_ACC.pigeon`, un vrai modèle) : capuche grise à bec et à yeux orange, jabot irisé vert et
+  violet, ailes grises aux bras (deux barres sombres, rémiges noires), queue en éventail.
+- **Voleter** (`PIGEON`, `pigeonPeut`, `pigeonBattement`, `pigeonPlane`) : au sol, ESQUIVE = **un bond plané** (il vaut une
+  esquive : 0,35 s d'invulnérabilité ; 14 d'endurance) ; en l'air, **jusqu'à trois battements d'ailes**, de plus en plus faibles,
+  **jamais à plus de 3,6 u au-dessus du sol d'où l'on a sauté** ; toute chute est **ralentie** (4,2 u/s au plus : on se pose sans
+  un bobo, même d'un toit) ; on plane à l'allure de la marche, en pilotant au joystick. Les bras battent (vite après un battement).
+  **Jamais un vrai vol** : on ne regagne jamais de hauteur au-delà du plafond, un battement coûte de l'endurance, et rien en salle,
+  en véhicule, à la nage, sous voile, en wingsuit ni au jetpack. En 1re personne, le bond garde la vue à pied.
+
+### Comment la chasse et le karma cohabitent
+
+Le karma des bêtes paisibles (bouquetin, chamois, vache, chèvre, cerf, biche, renard, lapin) et des espèces protégées (aigle,
+vautour, faucon) est **gardé tel quel** : chaque bête coûte toujours 50 points et son message (« BAD KARMA », « ESPÈCE PROTÉGÉE »…).
+Le tableau de chasse les **compte quand même** (on sait ce qu'on a fait) et le mur du chalet les **expose sous une plaque rouge
+« BRACONNÉ »** — c'est la honte, pas un trophée. **Aucun défi ne les compte** et aucun ne rapporte d'argent : seul le gibier (pigeons,
+mouettes, sangliers, jaguar, ours) fait avancer les défis. Le test le vérifie sur tous les thèmes de `DEFIS_THEMES` : avec 60 bêtes
+paisibles ou protégées de chaque espèce au tableau, aucun défi n'avance.
+
+### Test, mesures, captures
+
+« Retours du 20 octobre, lot 4 » : chaque espèce qui peut mourir (lue dans `FAUNE_DEFS`, `OIS_TYPES`, les rapaces de `MONT_VIE`) a
+sa place au tableau, sa clé de sauvegarde et son écusson ; un sanglier tué **au poing** (`attaquer`) entre au tableau et rapporte
+ses points ; un cerf entre au tableau et coûte 50 points comme avant ; pigeon, mouette, vautour (un oiseau mort compté une fois) ;
+l'écran depuis la pause (chaque espèce, le total, le retour) ; aucun défi n'avance sur une bête paisible, quatre thèmes de chasse ;
+100 pigeons : les trois paliers payés et le costume ; le costume posé sur le corps (ailes aux bras) ; voleter au vrai bouton ESQUIVE
+sur une rue plate : 6 bonds en 10 s, 3,21 u au plus haut (plafond 3,6), 3 battements au plus, 1,7 s en l'air au plus, aucun dégât ;
+une chute de 30 u : 0 PV en costume (4,2 u/s au plus), 52 PV sans ; sans costume, ESQUIVE reste une esquive ; en salle et à la nage,
+pas de vol ; en 1re personne, le bond garde la vue à pied ; au chalet : les têtes des espèces au tableau (un seul maillage), chaque
+tête dans le mur, au-dessus de sa plaque, sans en toucher une autre ; les plaques (laiton, bois, rouge) lues sur la toile ; la zone
+ouvre l'écran ; le cadrage de face, qui s'en va loin du mur ; une vache abattue apparaît à l'entrée suivante. Anciens tests
+repassés : défis, planques, chalet, tenues des mini-jeux, défis de la 3e série, wingsuit, vue 1re personne, robustesse, animaux, tir
+à la tête, chute 1P, faune en pente, vie du mont, origine du monde, lot 3. Empreinte du décor, portes et tirages identiques.
+
+Captures : `captures/retours_20/4_mur_trophees.png` (quelques espèces au tableau, plaques vides et « BRACONNÉ »),
+`4_mur_trophees_toutes_especes.png`, `4_costume_pigeon.png` (de face, de dos, ailes ouvertes), `4_ecran_tableau_de_chasse.png`.
 

@@ -17821,6 +17821,124 @@ async function main() {
       else ok('Retours 20 oct., lot 3 : ' + r.info.join(' ; '));
     }
     // -------------------------------------------------------------------
+    // Retours du 20 octobre, lot 4 (demandé : « un tableau de chasse — nombre d'animaux abattus par espèce, dans un écran dédié — ;
+    // des trophées au chalet de montagne qui apparaissent au fil de la chasse ; des défis de chasse à paliers avec de l'argent, et au
+    // palier final des pigeons le costume de pigeon, qui permet de voleter : petits bonds planés, chute ralentie, jamais un vrai vol ;
+    // la logique de karma des animaux paisibles est gardée »). Les espèces sont lues aux sources (FAUNE_DEFS, OIS_TYPES, les rapaces de
+    // MONT_VIE, CHASSE_ESPECES) ; les bêtes meurent par les vraies fonctions (coup de poing, toucherAnimal, oiseauTue, mvRapaceTue) ;
+    // le costume se joue au vrai bouton ESQUIVE.
+    // -------------------------------------------------------------------
+    console.log('\n--- Retours du 20 octobre, lot 4 : tableau de chasse, trophées au chalet, défis de chasse, costume de pigeon ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = []; let T = dernierT + 1000;
+        const pas = (n, f) => { for (let i = 0; i < n; i++) { if (f && f(i) === false) return i; T += 1000 / 60; tick(T); } return n; };
+        const sav = { chasse: JSON.stringify(META.chasse), faits: JSON.stringify(META.defis.faits), rec: JSON.stringify(META.defis.aReclamer), poss: JSON.stringify(META.tenuesPoss), arg: META.argent, tenue: META.tenue, chalet: META.planques.chalet, vue: META.vue };
+        const rnd0 = Math.random; let gr = 4404; Math.random = () => { gr = (gr * 1664525 + 1013904223) >>> 0; return gr / 4294967296; };
+        const zero = () => { for (const k in META.chasse) META.chasse[k] = 0; };
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); META.vue = 'classique'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9; for (const e of ennemis) e.mort = true;
+        for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0; zero(); META.defis.aReclamer = {}; META.defis.faits = {};
+        /* 4.1 — chaque bête qui peut mourir a sa place au tableau (et une clé fixe de la sauvegarde), et sa place au mur du chalet */
+        const especes = new Set([...Object.keys(FAUNE_DEFS), ...Object.keys(OIS_TYPES), ...MONT_VIE.rapaces.map((x) => x.type)]);
+        for (const id of especes) { if (!chasseEspece(id)) ko.push('espèce ' + id + ' absente du tableau'); if (META.chasse[id] !== 0) ko.push('pas de clé de sauvegarde pour ' + id); }
+        const places = tropheesPlaces(); for (const e of CHASSE_ESPECES) { if (META.chasse[e.id] === undefined) ko.push('clé de sauvegarde manquante : ' + e.id); if (!places.find((p) => p.id === e.id)) ko.push('pas d’écusson au chalet pour ' + e.id); if (!CHASSE_LIEUX[e.lieu]) ko.push(e.id + ' : lieu inconnu'); }
+        info.push(CHASSE_ESPECES.length + ' espèces');
+        /* les bêtes meurent pour de vrai : un sanglier au poing (attaquer), un cerf (paisible), un pigeon, une mouette, un vautour */
+        const vivant = (t) => FAUNE.find((a) => a.type === t && !a.mort);
+        { const a = vivant('sanglier') || vivant('sanglierF'); if (!a) ko.push('pas de sanglier vivant');
+          else { const t = a.type; P.x = a.x - 1.1; P.z = a.z; P.y = a.y; P.ang = Math.PI / 2; P.h.g.position.set(P.x, P.y, P.z); majArmeJoueur('poings'); P.armeCur = 'poings'; ETAT.score = 1000; const s0 = ETAT.score;
+            for (let k = 0; k < 40 && !a.mort; k++) { P.cadT = 0; P.frappeT = 0; a.x = P.x + 1.1; a.z = P.z; attaquer(); }
+            if (!a.mort) ko.push('le sanglier ne meurt pas au poing (' + a.hp + ' PV)'); else if (META.chasse[t] !== 1) ko.push('sanglier abattu au poing : ' + META.chasse[t] + ' au tableau');
+            else if (!(ETAT.score > s0)) ko.push('le gibier ne rapporte plus de points'); else info.push('sanglier au poing : au tableau, ' + (ETAT.score - s0) + ' points'); } }
+        { const a = vivant('cerf') || vivant('biche') || vivant('bouquetin'); if (!a) ko.push('pas de bête paisible vivante');
+          else { const t = a.type; ETAT.score = 1000; toucherAnimal(a, 999); if (META.chasse[t] !== 1) ko.push('bête paisible : ' + META.chasse[t] + ' au tableau'); if (ETAT.score !== 950) ko.push('le karma des bêtes paisibles a changé (' + (ETAT.score - 1000) + ' points)'); else info.push(t + ' : au tableau, −50 de karma comme avant'); } }
+        { oiseauxConstruire(); const p = oisNouveau('pigeon', P.x, 1, P.z, P.x, P.z), m = oisNouveau('mouette', P.x, 6, P.z, P.x, P.z); oiseauTue(p); oiseauTue(m); oiseauTue(p);
+          if (META.chasse.pigeon !== 1 || META.chasse.mouette !== 1) ko.push('oiseaux : ' + META.chasse.pigeon + ' pigeon, ' + META.chasse.mouette + ' mouette (un mort compté deux fois ?)'); }
+        { const rv = MONT_VIE.rapaces.find((x) => x.type === 'vautour'); if (!rv) ko.push('pas de vautour'); else { ETAT.score = 1000; mvRapaceTue(rv); if (META.chasse.vautour !== 1 || ETAT.score !== 950) ko.push('vautour : ' + META.chasse.vautour + ' au tableau, ' + (ETAT.score - 1000) + ' points'); mvRapaceReset(rv); } }
+        /* l'écran dédié : depuis la pause, chaque espèce, le retour à la pause */
+        { const ev = (id) => { const b = document.getElementById(id); if (b) b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 9 })); return !!b; };
+          ETAT.mode = 'pause'; ecran('pauseM'); if (!ev('pChasse') || !el('chasseScr').classList.contains('on')) ko.push('la pause n’ouvre pas le tableau de chasse');
+          const txt = el('chasseList').textContent; const manque = CHASSE_ESPECES.filter((e) => txt.indexOf(e.nom) < 0).map((e) => e.nom); if (manque.length) ko.push('écran : manque ' + manque.join(', '));
+          if (!/5 bêtes abattues/.test(txt)) ko.push('écran : total faux (' + (txt.match(/\d+ bêtes? abattues?/) || ['?'])[0] + ')');
+          ev('chasseClose'); if (!el('pauseM').classList.contains('on')) ko.push('le retour ne ramène pas à la pause'); ecran(null); ETAT.mode = 'jeu'; }
+        /* 4.3 — les défis de chasse : le gibier seulement (une bête paisible ou protégée n'en fait avancer aucun) ; argent à chaque palier ; costume au dernier des pigeons */
+        { const base = JSON.parse(JSON.stringify(META)), mI = JSON.parse(JSON.stringify(META)), mG = JSON.parse(JSON.stringify(META)); for (const k in base.chasse) base.chasse[k] = 0;
+          for (const e of CHASSE_ESPECES) { mI.chasse[e.id] = chasseInterdite(e.id) ? 60 : 0; mG.chasse[e.id] = chasseInterdite(e.id) ? 0 : 60; }
+          let nG = 0; for (const o of DEFIS_THEMES) { const v0 = o.val(base), vI = o.val(mI), vG = o.val(mG); if (vI !== v0) ko.push('le défi ' + o.theme + ' avance sur des bêtes paisibles ou protégées'); if (vG !== v0) nG++; }
+          if (nG < 4) ko.push(nG + ' thèmes de défis de chasse'); else info.push(nG + ' thèmes de chasse, aucune bête paisible n’y compte');
+          const dP = DEFIS.filter((d) => d.theme === 'pigeons'), fin = dP[dP.length - 1]; if (!fin || fin.tenue !== 'pigeon') ko.push('le dernier palier des pigeons n’offre pas le costume');
+          else { META.chasse.pigeon = 99; checkDefis(); if (META.defis.aReclamer[fin.id]) ko.push('costume avant 100 pigeons'); META.chasse.pigeon = fin.prog(META)[1]; checkDefis(); delete META.tenuesPoss.pigeon; const a0 = META.argent;
+            for (const d of dP) { if (!META.defis.aReclamer[d.id]) ko.push('défi ' + d.nom + ' pas accompli à ' + META.chasse.pigeon + ' pigeons'); recupererDefi(d.id, 1); }
+            const gain = META.argent - a0, attendu = dP.reduce((s, d) => s + d.rec, 0); if (gain !== attendu) ko.push('défis des pigeons : ' + gain + ' $ pour ' + attendu);
+            if (!META.tenuesPoss.pigeon || !tenueDefiFinal('pigeon') || !TENUES.find((t) => t.id === 'pigeon').cond()) ko.push('le costume de pigeon n’est pas débloqué'); else info.push('défis des pigeons : ' + gain + ' $ et le costume'); } }
+        /* le costume : un vrai modèle (capuche, ailes aux bras, queue) */
+        { META.tenue = 'pigeon'; construireJoueur(); let n = 0, ailes = 0; P.h.g.traverse((o) => { if (o.userData && o.userData.tenueAcc && o.isMesh) { n++; let q = o.parent; while (q) { if (q === P.h.brasG || q === P.h.brasD) { ailes++; break; } q = q.parent; } } });
+          if (n < 10 || ailes < 4) ko.push('costume de pigeon : ' + n + ' pièces dont ' + ailes + ' aux bras'); }
+        /* voleter : une bande plate et libre de 30 u du nord au sud (une rue de la ville), le trafic retiré à chaque image */
+        let X = 0, Z = 0, trouve = false; for (let x = -HALF + 20; x < HALF - 20 && !trouve; x += 4) for (let z = -HALF + 20; z < HALF - 20 && !trouve; z += 4) { const y0 = solPied(x, z); let okp = !estEau(x, z) && Math.hypot(x - POIS.place.x, z - POIS.place.z) > 30;
+          for (let dz = -15; dz <= 15 && okp; dz += 1.5) for (const dx of [-3, 0, 3]) if (solidAt(x + dx, z + dz, 0.6) || Math.abs(solPied(x + dx, z + dz) - y0) > 0.02 || estEau(x + dx, z + dz) || (typeof dansReliefLibre === 'function' && dansReliefLibre(x + dx, z + dz))) { okp = false; break; }
+          if (okp) { X = x; Z = z; trouve = true; } }
+        const sansTrafic = () => { if (vehicules.length) { for (const v of vehicules) scene.remove(v.mesh); vehicules.length = 0; } };
+        if (!trouve) ko.push('pas de terrain plat pour voleter');
+        else {
+          const poser = () => { P.x = X; P.z = Z; P.y = solPied(X, Z); P.chute = false; P.vy = 0; P.para = false; P.wing = false; P.pigeonHop = false; P.pigeonBatt = 0; P.pigeonCd = 0; P.stam = P.stamMax; P.dodgeCd = 0; INPUT.jx = INPUT.jy = 0; pas(2); };
+          const y0 = solPied(X, Z);
+          // sans le costume : ESQUIVE reste une esquive
+          META.tenue = 'depart'; construireJoueur(); poser(); INPUT.edge.esquive = true; pas(1); if (P.chute || !(P.dodgeT > 0)) ko.push('sans costume, ESQUIVE ne fait plus d’esquive');
+          // avec : un bond plané ; on martèle ESQUIVE 10 s en avançant — jamais au-dessus du plafond, jamais plus de PIGEON.battMax battements, on retombe à chaque bond
+          META.tenue = 'pigeon'; construireJoueur(); poser(); const hp0 = P.hp; let hMax = 0, bMax = 0, bonds = 0, enAir = 0, airMax = 0, prec = false;
+          pas(600, (i) => { sansTrafic(); INPUT.jx = 0; INPUT.jy = bonds % 2 ? 0.6 : -0.6; /* un bond sur deux dans l'autre sens : on reste sur le terrain plat */ if (i % 12 === 0) INPUT.edge.esquive = true; if (P.chute) { enAir += 1 / 60; airMax = Math.max(airMax, enAir); hMax = Math.max(hMax, P.y - y0); bMax = Math.max(bMax, P.pigeonBatt || 0); } else enAir = 0; if (P.chute && !prec) bonds++; prec = P.chute; if (P.stam < 30) P.stam = P.stamMax; });
+          INPUT.jx = INPUT.jy = 0; pas(200, () => { sansTrafic(); return P.chute; });
+          if (bonds < 3) ko.push('voleter : ' + bonds + ' bond(s) en 10 s'); if (hMax > PIGEON.plafond + 0.05) ko.push('voleter : ' + hMax.toFixed(2) + ' u de haut (plafond ' + PIGEON.plafond + ')'); if (hMax < 1.2) ko.push('voleter : ' + hMax.toFixed(2) + ' u seulement');
+          if (bMax > PIGEON.battMax) ko.push(bMax + ' battements dans un bond'); if (airMax > 4) ko.push('voleter : ' + airMax.toFixed(1) + ' s en l’air (un vrai vol ?)'); if (P.hp !== hp0) ko.push('voleter blesse (' + (hp0 - P.hp) + ' PV)');
+          info.push('bande plate (' + Math.round(X) + ', ' + Math.round(Z) + ') : ' + bonds + ' bonds en 10 s, ' + hMax.toFixed(2) + ' u au plus haut, ' + bMax + ' battements, ' + airMax.toFixed(1) + ' s en l’air au plus');
+          // la chute ralentie : de 30 u, posé sans un bobo ; sans le costume, la même chute fait mal
+          const tomber = () => { poser(); P.y = y0 + 30; P.chute = true; P.chuteY0 = P.y; P.chuteT = 0; P.chuteHaut = 30; P.vy = 0; const h0 = P.hp; let vMin = 0; pas(1200, () => { sansTrafic(); vMin = Math.min(vMin, P.vy); return P.chute; }); return { degats: h0 - P.hp, vMin, pose: !P.chute }; };
+          const c1 = tomber(); META.tenue = 'depart'; construireJoueur(); const c2 = tomber(); META.tenue = 'pigeon'; construireJoueur();
+          if (!c1.pose || c1.degats > 0 || c1.vMin < -PIGEON.vyMax - 0.01) ko.push('chute de 30 u en costume : ' + c1.degats + ' PV, ' + c1.vMin.toFixed(1) + ' u/s'); if (!(c2.degats > 0)) ko.push('sans le costume, une chute de 30 u ne fait plus mal');
+          else info.push('chute de 30 u : 0 PV en costume (au plus ' + (-c1.vMin).toFixed(1) + ' u/s), ' + Math.round(c2.degats) + ' PV sans');
+          // en 1re personne, le bond garde la vue à pied ; une vraie chute passe à la vue de chute
+          META.vue = 'fps'; poser(); pas(5); INPUT.edge.esquive = true; pas(10); if (!P.chute || !vuePremiere() || vueChute()) ko.push('1re personne : le bond change de vue'); pas(200, () => P.chute); META.vue = 'classique';
+          // jamais en véhicule ni à la nage
+          { poser(); P.nage = true; if (pigeonPeut()) ko.push('voleter à la nage'); P.nage = false; }
+        }
+        /* 4.2 — le mur des trophées du chalet : les écussons, les têtes qui apparaissent au fil de la chasse, les plaques, la zone, le cadrage */
+        { zero(); META.chasse.ours = 2; META.chasse.pigeon = 3; META.chasse.cerf = 1; META.planques.chalet = true; META.vue = 'classique';
+          const q = PLANQUES.liste.find((x) => x.def.id === 'chalet'); const appui = () => { majAction(); const b = el('btnAction'); const l = b.style.display === 'none' ? '' : b.textContent; if (b._fn && l) b._fn(); return l; };
+          const entrer = () => { if (INT.actif) sortirInterieur(); P.chute = false; P.x = q.entree.x; P.z = q.entree.z; P.y = q.entree.y; appui(); return INT.actif; };
+          let s = entrer(); if (!s || s.id !== 'chalet') ko.push('on n’entre pas au chalet');
+          else { const Tr = s.pq.troph, A = TROPH_ABRI; const vis = Object.keys(Tr.vis).filter((k) => Tr.vis[k]).sort().join(','), nv = ['cerf', 'ours', 'pigeon'].reduce((a, k) => a + Tr.m[k].geometry.attributes.position.count, 0);
+            if (vis !== 'cerf,ours,pigeon') ko.push('trophées visibles : ' + vis + ' (attendu cerf, ours, pigeon)');
+            if (!Tr.fus || !Tr.fus.visible || Tr.fus.parent !== Tr.gr || Tr.fus.geometry.attributes.position.count !== nv || Object.values(Tr.m).some((m) => m.visible)) ko.push('le mur n’est pas un seul maillage des trois têtes');
+            // chaque tête sur son écusson, au-dessus de sa plaque, sans en toucher une autre
+            const boites = []; for (const p of Tr.places) { const m = Tr.m[p.id]; const v0 = m.visible; m.visible = true; m.updateMatrixWorld(true); const b = new THREE.Box3().setFromObject(m); m.visible = v0;
+              const lx0 = b.min.x - s.ox, lx1 = b.max.x - s.ox, lz0 = b.min.z - s.oz, lz1 = b.max.z - s.oz;
+              if (lx0 < A.x - A.w / 2 || lx1 > A.x + A.w / 2 || b.min.y < 0 || b.max.y > A.h || lz0 < A.z + 0.1 || lz1 > A.z + 0.75) ko.push(p.id + ' hors du mur (' + lx0.toFixed(2) + '…' + lx1.toFixed(2) + ', y ' + b.min.y.toFixed(2) + '…' + b.max.y.toFixed(2) + ', z ' + lz0.toFixed(2) + '…' + lz1.toFixed(2) + ')');
+              if (b.min.y < p.y - 0.37) ko.push(p.id + ' : la tête mange sa plaque (' + b.min.y.toFixed(2) + ' < ' + (p.y - 0.37).toFixed(2) + ')');
+              for (const [id2, b2] of boites) if (b.min.x < b2.max.x - 0.01 && b.max.x > b2.min.x + 0.01 && b.min.y < b2.max.y - 0.01 && b.max.y > b2.min.y + 0.01) ko.push(p.id + ' touche ' + id2); boites.push([p.id, b]); }
+            // les plaques : laiton pour une espèce au tableau, bois sombre sinon ; rouge pour une bête paisible ou protégée
+            { const c = Tr.cv.getContext('2d'), K = 160, X0 = A.x - 3.2; /* chaque plaque : la part de laiton, la part de rouge, sur toute sa surface */
+              const lire = (p) => { const w = Math.min(p.pas * 0.86, 0.92) * K, h = 0.22 * K, d = c.getImageData(Math.round((p.x - X0) * K - w / 2), Math.round((3.4 - (p.y - 0.37)) * K), Math.round(w), Math.round(h)).data; let la = 0, ro = 0, n = 0;
+                for (let i = 0; i < d.length; i += 4) { n++; if (d[i] > 160 && d[i + 1] > 110 && d[i + 2] < 120) la++; if (d[i] > 140 && d[i + 1] < 70 && d[i + 2] < 70) ro++; } return { la: la / n, ro: ro / n }; };
+              for (const p of Tr.places) { const n = META.chasse[p.id], q2 = lire(p);
+                if (n > 0 && q2.la < 0.3) ko.push('plaque de ' + p.id + ' : ' + Math.round(q2.la * 100) + ' % de laiton'); if (!n && q2.la > 0) ko.push('plaque vide de ' + p.id + ' en laiton');
+                if (n > 0 && chasseInterdite(p.id) && q2.ro < 0.05) ko.push('plaque de ' + p.id + ' (paisible ou protégée) sans rouge'); if (n > 0 && !chasseInterdite(p.id) && q2.ro > 0.01) ko.push('plaque de ' + p.id + ' (gibier) en rouge'); } }
+            // la zone du mur : le tableau de chasse ; le cadrage de face
+            P.x = s.pqPlus.x; P.z = s.pqPlus.z; pas(30); const l = appui(); if (!/TABLEAU DE CHASSE — 6 bêtes/.test(l) || !el('chasseScr').classList.contains('on')) ko.push('mur : « ' + l + ' »'); el('chasseClose').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 9 })); ecran(null); ETAT.mode = 'jeu';
+            if (!(s.pq.cadrage === s.pq.cadTroph && s.pq.cadTroph.actif && s.camCadK > 0.5)) ko.push('pas de cadrage devant le mur'); P.x = s.ox; P.z = s.oz + 12; pas(5); if (s.pq.cadTroph.actif) ko.push('le cadrage reste loin du mur');
+            { const { zones } = zonesInterieurActives(); const so = zones.find((z) => z.champ === 'sortie'), zp = zones.find((z) => z.champ === 'pqPlus'); if (!zp) ko.push('pas de zone du mur'); else if (Math.hypot(zp.x - so.x, zp.z - so.z) < 8) ko.push('la zone du mur est à moins de 8 u de la sortie'); }
+            // pas de vol en salle : ESQUIVE reste une esquive
+            P.x = s.ox; P.z = s.oz + 6; P.stam = P.stamMax; P.dodgeCd = 0; INPUT.edge.esquive = true; pas(1); if (P.chute) ko.push('le costume vole dans une salle');
+            // au fil de la chasse : une vache de plus, elle apparaît à l'entrée suivante
+            sortirInterieur(); META.chasse.vache = 1; s = entrer(); if (!s || !s.pq.troph.vis.vache || s.pq.troph.fus.geometry.attributes.position.count !== nv + s.pq.troph.m.vache.geometry.attributes.position.count) ko.push('la vache abattue n’apparaît pas au mur'); else info.push('mur : têtes au fil de la chasse, plaques, zone, cadrage');
+            sortirInterieur(); } }
+        Math.random = rnd0; META.chasse = JSON.parse(sav.chasse); META.defis.faits = JSON.parse(sav.faits); META.defis.aReclamer = JSON.parse(sav.rec); META.tenuesPoss = JSON.parse(sav.poss); META.argent = sav.arg; META.tenue = sav.tenue; META.planques.chalet = sav.chalet; META.vue = sav.vue;
+        INPUT.jx = INPUT.jy = 0; construireJoueur(); startRun(); return { ko, info };
+      });
+      if (r.ko.length) fail('Retours 20 oct., lot 4 : ' + r.ko.slice(0, 25).join(' ; ') + (r.ko.length > 25 ? ' … (' + r.ko.length + ')' : '') + ' [' + r.info.join(' | ') + ']');
+      else ok('Retours 20 oct., lot 4 : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];

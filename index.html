@@ -815,6 +815,15 @@ body.ck1P .notif.gros,body.a1P .notif.gros,body.volSim .notif.gros{font-size:12.
   <button class="retour" id="trophClose">Retour</button>
 </div>
 
+<!-- ================= TABLEAU DE CHASSE (retours du 20 octobre, 4.1) ================= -->
+<div class="screen" id="chasseScr">
+  <div class="stitre">Tableau de chasse</div>
+  <div class="ssous">ce que tu as abattu, espèce par espèce</div>
+  <div class="hazard"></div>
+  <div id="chasseList"></div>
+  <button class="retour" id="chasseClose">Retour</button>
+</div>
+
 <!-- ================= PENDERIE (planque) ================= -->
 <div class="screen" id="penderieScr">
   <div class="stitre">Penderie</div>
@@ -935,6 +944,7 @@ body.ck1P .notif.gros,body.a1P .notif.gros,body.volSim .notif.gros{font-size:12.
   <div class="hazard"></div>
   <button class="mbtn play" id="pResume">Reprendre</button>
   <button class="mbtn" id="pDefis">Défis <span class="pastille" id="pastillePDefis"></span></button>
+  <button class="mbtn" id="pChasse">Tableau de chasse</button>
   <button class="mbtn" id="pHelp">Commandes</button>
   <button class="mbtn" id="pQuit">Abandonner la partie</button>
 </div>
@@ -2063,6 +2073,7 @@ const META={
   planques:{caravane:false,penthouse:false,cabanon:false,chalet:false,voilier:false,taudis:false,miami:false}, // planques en plein air (PLANQUES_DEF), clés fixes
   planquesJeux:{canettes:0,longueVue:0,punch:0,peche:0,hache:0,tresors:0,frappe:0,plongeon:0,golf:0}, // records des activités des planques (19 octobre)
   acro:{cabrage:0,cabrageVelo:0,dos:0,saut:0,loopings:0,tonneaux:0,vrilles:0,loopingsVol:0,tonneauxVol:0,vrillesVol:0,figuresVol:0}, // records et totaux des cascades (retours du 20 octobre, 3.2), clés fixes
+  chasse:{pigeon:0,mouette:0,sanglier:0,jaguar:0,ours:0,bouquetin:0,chamois:0,aigle:0,vautour:0,faucon:0,vache:0,chevre:0,sanglierF:0,cerf:0,biche:0,renard:0,lapin:0}, // tableau de chasse (retours du 20 octobre, 4.1) : bêtes abattues par espèce (CHASSE_ESPECES), clés fixes
   pecheTrophees:{sardine:0,maquereau:0,dorade:0,bar:0,poulpe:0,espadon:0}, // le mur des trophées du cabanon : la plus lourde prise exposée de chaque espèce (kg), clés fixes
   // vue de jeu en ville (bouton 🎥 à côté de la pause, voir VUE) :
   // 'immersive' = caméra inclinée vers l'horizon, orientable au doigt, poursuite
@@ -2238,6 +2249,11 @@ const DEFIS_THEMES=[
   {theme:'planques',noms:['Premier pied-à-terre','Agent immobilier','Baron de l’immobilier'],det:n=>'Achète '+n+(n>1?' planques':' planque'),val:m=>Object.values(m.planques||{}).filter((x)=>x===true||(x&&x.achetee)).length,paliers:[1,3,6],recs:[400,1500,4000]},
   {theme:'derby',noms:['Casse-cou','Roi de l’arène','Légende du derby'],det:n=>'Gagne '+n+(n>1?' derbys':' derby')+' dans l’arène',val:m=>(m.derby&&m.derby.victoires)||0,paliers:[1,5,15],recs:[500,1500,4000]},
   {theme:'fauves',noms:['Chasseur','Dompteur de fauves'],det:n=>'Viens à bout de '+n+' bêtes sauvages (sangliers, jaguar, ours)',val:m=>m.defis.fauves,paliers:[3,12],recs:[400,1300]},
+  // retours du 20 octobre, 4.3 : la chasse (META.chasse) — le gibier seulement ; une bête paisible ou protégée garde son karma et n'entre dans aucun défi
+  {theme:'pigeons',noms:['Chasseur de pigeons','Fléau des places','Terreur des pigeons'],det:n=>'Abats '+n+' pigeons en ville',val:m=>m.chasse.pigeon,paliers:[10,40,100],recs:[300,800,2000],tenue:'pigeon'},
+  {theme:'mouettes',noms:['Chasseur de mouettes','Fléau de la plage','Terreur des mouettes'],det:n=>'Abats '+n+' mouettes au bord de mer',val:m=>m.chasse.mouette,paliers:[5,20,50],recs:[250,700,1600]},
+  {theme:'sangliers',noms:['Chasseur de sangliers','Piqueur','Maître d’équipage'],det:n=>'Abats '+n+' sangliers (l’île aux trésors et la forêt du chalet)',val:m=>m.chasse.sanglier+m.chasse.sanglierF,paliers:[5,15,40],recs:[300,900,2200]},
+  {theme:'tableauChasse',noms:['Fusil de l’année','Grand veneur'],det:n=>'Inscris '+n+' espèces de gibier au tableau de chasse',val:m=>chasseEspecesGibier(m),paliers:[3,6],recs:[400,1500]},
   {theme:'aimant',noms:['Grutier volant','As de l’aimant'],det:n=>'Accroche '+n+(n>1?' véhicules':' véhicule')+' avec l’aimant de l’hélico-grue « Titan »',val:m=>m.defis.aimant,paliers:[1,8],recs:[350,1200]},
   {theme:'exploits',noms:['Touche-à-tout','Champion des mini-jeux','Légende des mini-jeux'],det:n=>'Débloque '+n+(n>1?' tenues':' tenue')+' de mini-jeu (basket, tour de contrôle, supercross, bowl, wakeboard, Badlands, parcours militaire, ball-trap, derby, tennis)',val:m=>Object.values(m.exploits||{}).filter(Boolean).length,paliers:[1,3,6],recs:[300,1000,3000]},
   {theme:'armurier',noms:['Bricoleur d’armes','Armurier'],det:n=>'Pose '+n+(n>1?' modifications':' modification')+' sur tes armes à l’établi de l’armurerie',val:m=>Object.values(m.modsArmes||{}).reduce((s,v)=>s+(v?String(v).split(',').filter(Boolean).length:0),0),paliers:[1,6],recs:[250,1000]},
@@ -2857,6 +2873,8 @@ const TENUES=[
    cond:()=>tenueDefiFinal('cascadeur'),haut:0xf2f2ee,bas:0xf2f2ee,casq:0x2a5ad8},
   {id:'voltigeur',nom:'Tenue de pilote de voltige',ico:'🛩️',condTxt:'Défi « As de la voltige » : 30 s de vol sur le dos — roulis et tangage des avions +12 %',
    cond:()=>tenueDefiFinal('voltigeur'),haut:0x6a3a1a,bas:0x3a3020,casq:0x6a3a1a},
+  {id:'pigeon',nom:'Costume de pigeon',ico:'🐦',condTxt:'Défi « Terreur des pigeons » : 100 pigeons abattus — ESQUIVE fait voleter (petits bonds planés), chute ralentie',
+   cond:()=>tenueDefiFinal('pigeon'),haut:0x9ca2ac,bas:0x6a707c,casq:0x6a707c},
   {id:'athlete',nom:'Tenue « Reyes Athletics »',ico:'🎾',condTxt:'Gagner le match de tennis du complexe sportif — le sprint fatigue 30 % moins',
    cond:()=>!!(META.exploits&&META.exploits.sportif),haut:0xf2f4f8,bas:0x2a6ad8,casq:0x14161c},
 ];
@@ -11479,12 +11497,13 @@ PQ_INT.chalet=function(s,g,ox,oz,W,P2){
     C(0.22,0.18,0.4,MP(0x6a6e76,60,0xc8ccd4),hx+1.3,0.2,lz+0.4,12); for(let k=0;k<4;k++){ const hk=pqHacheModele({bois:M(0x9a7a4a),acier:MP(0x6a6e76,80,0xffffff),fil:MP(0xc8ccd4,120,0xffffff)}); hk.position.set(T.ox+hx+1.3+(k-1.5)*0.06,0.1,T.oz+lz+0.4+(k%2)*0.05); hk.rotation.set((k-1.5)*0.12,k,0.1); g.add(hk); hk.userData.garder=true; }
     const ard=document.createElement('canvas'); ard.width=256; ard.height=128; const at=new THREE.CanvasTexture(ard); B(1.5,0.86,0.06,M(0x5a3a20),hx-2.2,1.5,lz+0.2); const ap=PL(1.4,0.76,new THREE.MeshBasicMaterial({map:at}),hx-2.2,1.5,lz+0.24,0,0); ap.userData.garder=true; for(const dx of [-0.6,0.6]) B(0.08,1.5,0.08,M(0x5a3a20),hx-2.2+dx,0.75,lz+0.2); solide(hx-2.2,lz+0.2,0.75,0.1,1.9); Q.ardoise={cv:ard,tex:at};
     Q.plantees=[]; }
-  // ---- les zones : le lit, la malle, le râtelier, le pas de tir ----
-  s.pqLit={x:ox+Q.lit.x+1.3,z:oz+Q.lit.z}; s.pqCoffre={x:ox+cx-cw/2+1.2,z:oz+cz+2.5}; s.pqSpec={x:ox+cx+cw/2-1.4,z:oz+cz-1.9}; s.pqJeu={x:ox+Q.hache0.x,z:oz+Q.hache0.z};
+  avecAleaPrive(4242,()=>chaletTropheesConstruire(s,g,T)); /* le mur des trophées (retours du 20 octobre, 4.2) ; ses tirages sur un générateur privé */
+  // ---- les zones : le lit, la malle, le râtelier, le pas de tir, le mur des trophées ----
+  s.pqLit={x:ox+Q.lit.x+1.3,z:oz+Q.lit.z}; s.pqPlus={x:ox+TROPH_ABRI.x,z:oz+TROPH_ABRI.z+2.7}; s.pqCoffre={x:ox+cx-cw/2+1.2,z:oz+cz+2.5}; s.pqSpec={x:ox+cx+cw/2-1.4,z:oz+cz-1.9}; s.pqJeu={x:ox+Q.hache0.x,z:oz+Q.hache0.z};
   for(const tt of Q.toits) for(const o of tt.objs) o.userData.garder=true;
-  Q.surEntree=(sa)=>{ chaletRatelierArmes(sa); hacheArdoise(sa); };
-  Q.action=(sa,k)=>k==='pqSpec'?chaletRatelierAction(sa):(k==='pqJeu'?hacheAction(sa):null);
-  Q.maj=(sa,dt,dtJeu)=>{ chaletMajRatelier(sa,dtJeu); majHache(sa,dt,dtJeu); };
+  Q.surEntree=(sa)=>{ chaletRatelierArmes(sa); hacheArdoise(sa); chaletTropheesMaj(sa); };
+  Q.action=(sa,k)=>k==='pqSpec'?chaletRatelierAction(sa):(k==='pqJeu'?hacheAction(sa):(k==='pqPlus'?chaletTropheesAction(sa):null));
+  Q.maj=(sa,dt,dtJeu)=>{ chaletMajRatelier(sa,dtJeu); majHache(sa,dt,dtJeu); chaletTropheesCadrage(sa); };
   Q.arreter=(sa)=>{ hacheArreter(sa,false); };
 };
 // le son du chalet : le vent de la montagne (plus fort dehors), le feu qui crépite dedans, un corbeau, le bois qui craque
@@ -11492,6 +11511,97 @@ PQ_SONS.chalet={nappes:[{type:'bandpass',f:420,q:0.5,v:0.03,lfo:0.11,prof:0.9,de
   evts:(s,dt,dd)=>{ const Q=s.pq; const df=Math.sqrt(dist2(P.x,P.z,s.ox+Q.feu.x,s.oz+Q.feu.z)); if(df<9&&Math.random()<dt*(dd?9:3)) bruit(0.02+Math.random()*0.05,0.04*(1-df/9),2200+Math.random()*1800,'highpass');
     if(dd&&Math.random()<dt*0.5) bruit(0.18,0.02,180+Math.random()*80,'lowpass');
     Q.crT=(Q.crT===undefined?6:Q.crT)-dt; if(Q.crT<=0){ Q.crT=9+Math.random()*12; const v=dd?0.005:0.012; beep(420,0.16,'sawtooth',v,330); setTimeout(()=>beep(400,0.16,'sawtooth',v,300),230); } }};
+/* ---- LE MUR DES TROPHÉES (retours du 20 octobre, 4.2) : un abri de rondins à l'est du chalet ; un écusson par espèce de CHASSE_ESPECES —
+   la tête (ou l'oiseau naturalisé, ailes ouvertes) apparaît à la première bête abattue, comme le mur des trophées de pêche du cabanon ;
+   dessous, une plaque de laiton (le nom, le nombre), cerclée de rouge et marquée « BRACONNÉ » pour une bête paisible ou protégée ---- */
+const TROPH_ABRI={x:7.8,z:-9.75,w:6.6,h:3.4};
+const OIS_TROPH={pigeon:{bw:0.16,bh:0.22,c:0x8a909c,p:0x8a6a9a,t:0x6a707c,tw:0.1,b:0xe0a030,bl:0.05,aw:0.3,ah:0.13,a:0x9ca2ac,f:0x3a3e46,q:0x5e636e},
+  mouette:{bw:0.2,bh:0.26,c:0xf4f6f8,p:0xffffff,t:0xf4f6f8,tw:0.12,b:0xf2c030,bl:0.08,aw:0.42,ah:0.14,a:0xb8c0c8,f:0x14161c,q:0xe8ecf0},
+  aigle:{bw:0.24,bh:0.34,c:0x3a2a1a,p:0x4a3422,t:0xc8a868,tw:0.13,b:0xd8b030,bl:0.08,aw:0.5,ah:0.2,a:0x3a2a1a,f:0x1a1410,q:0x2a1e12},
+  vautour:{bw:0.26,bh:0.34,c:0x2a2420,p:0x3a3028,t:0xc89a8a,tw:0.11,b:0x8a8a7a,bl:0.08,aw:0.56,ah:0.22,a:0x2a2420,f:0x14100c,q:0x1a1612,ruff:0xe8e0d0},
+  faucon:{bw:0.18,bh:0.28,c:0x6a5a4a,p:0xd8d0c0,t:0x4a3e34,tw:0.1,b:0xd8b030,bl:0.05,aw:0.38,ah:0.13,a:0x6a5a4a,f:0x2a241e,q:0x4a3e34}};
+/* une tête montée (ou un oiseau) en une géométrie à couleurs de sommets ; repère : l'écusson en z = 0, la bête regarde +z (la salle) */
+function tropheeGeo(id){ const P2=[], E=new THREE.Euler(), Mx=new THREE.Matrix4();
+  const bx=(w,h,d,x,y,z,c,rx,ry,rz)=>{ const g=new THREE.BoxGeometry(w,h,d); if(rx||ry||rz){ E.set(rx||0,ry||0,rz||0); g.applyMatrix4(Mx.makeRotationFromEuler(E)); } g.translate(x,y,z); P2.push({g,c}); };
+  const yeux=(dx,y,z,c)=>{ for(const s of [-1,1]) bx(0.045,0.045,0.02,s*dx,y,z,c||0x111111); };
+  const D=FAUNE_DEFS[id], col=D?D.col:0x888888;
+  if(id==='ours'){ bx(0.5,0.48,0.16,0,-0.04,0.08,col); bx(0.44,0.38,0.34,0,0.04,0.3,col); bx(0.22,0.17,0.2,0,-0.04,0.55,0x6a5a48); bx(0.1,0.06,0.04,0,0.0,0.66,0x15171c); bx(0.17,0.05,0.16,0,-0.15,0.53,0x8a2a2a);
+    for(const s of [-1,1]){ bx(0.025,0.05,0.02,s*0.06,-0.12,0.61,0xf2ecd8); bx(0.11,0.11,0.06,s*0.18,0.26,0.26,col); } yeux(0.1,0.1,0.475); }
+  else if(id==='cerf'||id==='biche'){ bx(0.28,0.34,0.16,0,-0.14,0.08,col); bx(0.2,0.3,0.18,0,-0.03,0.2,col,-0.5); bx(0.2,0.2,0.26,0,0.12,0.33,col); bx(0.13,0.12,0.16,0,0.07,0.52,0x4a3020); bx(0.06,0.04,0.03,0,0.1,0.6,0x15171c); yeux(0.1,0.16,0.46);
+    for(const s of [-1,1]) bx(0.06,id==='biche'?0.22:0.17,0.1,s*0.15,0.24,0.3,col,0,0,-s*0.7);
+    if(id==='cerf') for(const s of [-1,1]){ bx(0.035,0.44,0.035,s*0.14,0.44,0.32,0x6a5236,-0.15,0,-s*0.35); bx(0.03,0.22,0.03,s*0.3,0.68,0.3,0x6a5236,0,0,-s*0.9); for(let t=0;t<3;t++) bx(0.028,0.16,0.028,s*(0.13+t*0.05),0.34+t*0.14,0.38,0x6a5236,0.7,0,s*0.2); } }
+  else if(id==='sanglier'||id==='sanglierF'){ bx(0.4,0.38,0.16,0,-0.04,0.08,col); bx(0.3,0.28,0.32,0,0.02,0.3,col); bx(0.18,0.15,0.16,0,-0.05,0.53,0x8a6a50); bx(0.15,0.12,0.02,0,-0.05,0.62,0xb08a70);
+    for(const s of [-1,1]){ bx(0.03,0.11,0.03,s*0.1,0.0,0.56,0xf2ecd8,0,0,-s*0.3); bx(0.08,0.11,0.05,s*0.14,0.2,0.24,col,0,0,-s*0.4); } bx(0.08,0.14,0.36,0,0.2,0.2,0x2a1a10); yeux(0.1,0.08,0.465); }
+  else if(id==='jaguar'){ bx(0.38,0.34,0.16,0,-0.06,0.08,col); bx(0.32,0.26,0.28,0,0.04,0.28,col); bx(0.16,0.12,0.14,0,-0.03,0.48,0x3a3a40); bx(0.07,0.05,0.03,0,0.01,0.55,0x15171c); bx(0.15,0.05,0.12,0,-0.11,0.47,0x8a2a2a);
+    for(const s of [-1,1]){ bx(0.022,0.06,0.02,s*0.05,-0.08,0.535,0xf2ecd8); bx(0.08,0.08,0.05,s*0.12,0.2,0.24,col); } yeux(0.08,0.08,0.425,0xffd23f);
+    for(const [x,y] of [[-0.1,0.13],[0.08,0.15],[0,0.11],[0.12,0.03],[-0.13,0.01]]) bx(0.04,0.04,0.01,x,y,0.425,0x4a4a54); }
+  else if(id==='bouquetin'){ bx(0.26,0.32,0.16,0,-0.1,0.08,col); bx(0.18,0.2,0.26,0,0.06,0.28,col); bx(0.12,0.11,0.12,0,0.0,0.46,0x6a5a44); bx(0.06,0.12,0.05,0,-0.1,0.44,0x5a4a34); yeux(0.08,0.1,0.415);
+    for(const s of [-1,1]){ for(let k=0;k<6;k++){ const an=0.2+k*0.34; bx(0.075-k*0.007,0.075-k*0.007,0.15,s*(0.06+k*0.012),0.16+Math.sin(an)*0.3,0.32-(1-Math.cos(an))*0.22,0x4a3a28,an+0.4); } bx(0.05,0.1,0.06,s*0.12,0.12,0.28,col,0,0,-s*0.9); } }
+  else if(id==='chamois'){ bx(0.24,0.3,0.16,0,-0.1,0.08,col); bx(0.17,0.19,0.24,0,0.06,0.27,col); bx(0.15,0.17,0.04,0,0.05,0.4,0xece4d4); bx(0.06,0.04,0.03,0,-0.01,0.43,0x15171c);
+    for(const s of [-1,1]){ bx(0.04,0.17,0.045,s*0.05,0.05,0.405,0x1a1410); bx(0.03,0.2,0.03,s*0.05,0.27,0.3,0x111111); bx(0.03,0.03,0.09,s*0.05,0.37,0.26,0x111111); bx(0.05,0.1,0.06,s*0.11,0.15,0.26,col,0,0,-s*0.8); } }
+  else if(id==='vache'){ bx(0.42,0.4,0.16,0,-0.08,0.08,col); bx(0.32,0.32,0.3,0,0.04,0.28,col); bx(0.12,0.26,0.02,0,0.08,0.435,0xf2ece0); bx(0.3,0.16,0.14,0,-0.1,0.48,0xe8b0a0);
+    for(const s of [-1,1]){ bx(0.05,0.03,0.02,s*0.06,-0.1,0.555,0x5a3a3a); bx(0.24,0.05,0.05,s*0.25,0.2,0.28,0xe8e0c8,0,0,s*0.35); bx(0.14,0.06,0.08,s*0.22,0.08,0.26,col); } yeux(0.11,0.1,0.435); bx(0.36,0.04,0.1,0,-0.2,0.2,0x3a2a1a); bx(0.1,0.12,0.08,0,-0.29,0.24,0xd8b048); }
+  else if(id==='chevre'){ bx(0.24,0.3,0.16,0,-0.1,0.08,col); bx(0.16,0.18,0.26,0,0.06,0.29,col); bx(0.11,0.1,0.1,0,0.0,0.46,0xd8d0c0); bx(0.05,0.14,0.04,0,-0.11,0.43,0xd8d0c0); yeux(0.075,0.1,0.425,0x3a2a10);
+    for(const s of [-1,1]){ bx(0.035,0.22,0.035,s*0.05,0.24,0.24,0x8a7a6a,-0.5); bx(0.14,0.04,0.07,s*0.13,0.1,0.28,col); } }
+  else if(id==='renard'){ bx(0.24,0.22,0.14,0,-0.08,0.07,col); bx(0.22,0.18,0.2,0,0.02,0.24,col); bx(0.24,0.07,0.16,0,-0.06,0.28,0xf2ecdc); bx(0.1,0.08,0.18,0,-0.03,0.42,col); bx(0.08,0.04,0.12,0,-0.06,0.44,0xf2ecdc); bx(0.04,0.03,0.03,0,-0.01,0.52,0x15171c); yeux(0.06,0.06,0.345,0x3a2a10);
+    for(const s of [-1,1]){ bx(0.07,0.14,0.04,s*0.08,0.17,0.22,col,0,0,-s*0.25); bx(0.072,0.04,0.045,s*0.095,0.235,0.22,0x2a1a10,0,0,-s*0.25); } }
+  else if(id==='lapin'){ bx(0.18,0.16,0.12,0,-0.08,0.06,col); bx(0.16,0.15,0.16,0,0.0,0.2,col); bx(0.09,0.07,0.06,0,-0.03,0.3,0xd8ccc0); bx(0.03,0.02,0.02,0,-0.01,0.335,0xd88a8a); yeux(0.055,0.03,0.285);
+    for(const s of [-1,1]){ bx(0.05,0.26,0.03,s*0.045,0.2,0.18,col,0,0,-s*0.15); bx(0.03,0.2,0.02,s*0.045,0.2,0.197,0xe8a8a0,0,0,-s*0.15); } }
+  else { const O=OIS_TROPH[id]||OIS_TROPH.pigeon, ty=O.bh/2+O.tw*0.4; /* un oiseau naturalisé, ailes ouvertes, sur sa branche */
+    bx(O.bw,O.bh,0.16,0,0,0.14,O.c); bx(O.bw*0.8,O.bh*0.7,0.03,0,-0.02,0.23,O.p); bx(O.tw,O.tw,O.tw,0,ty,0.18,O.t); bx(0.04,0.035,O.bl,0,ty-0.01,0.18+O.tw/2+O.bl/2,O.b); yeux(O.tw*0.3,ty+0.02,0.18+O.tw/2+0.005);
+    if(O.ruff) bx(O.bw*1.1,0.06,0.2,0,O.bh/2,0.16,O.ruff);
+    for(const s of [-1,1]){ bx(O.aw,O.ah,0.03,s*(O.bw/2+O.aw*0.45),0.05+O.aw*0.15,0.12,O.a,0,0,s*0.35); bx(O.aw*0.55,O.ah*0.85,0.025,s*(O.bw/2+O.aw*1.1),0.05+O.aw*0.42,0.115,O.f,0,0,s*0.6); bx(0.03,0.06,0.03,s*0.04,-O.bh/2-0.03,0.2,0xd8b030); }
+    bx(O.bw*0.8,O.bh*0.55,0.02,0,-O.bh/2-O.bh*0.2,0.1,O.q); bx(0.62,0.045,0.045,0,-O.bh/2-0.07,0.2,0x5a3a20); }
+  const g=montFusion(P2); for(const p of P2) p.g.dispose(); g.computeBoundingBox(); return g; }
+/* les places des écussons : deux rangées de bêtes à poil, une rangée d'oiseaux, dans l'ordre de CHASSE_ESPECES */
+function tropheesPlaces(){ const A=TROPH_ABRI, mam=CHASSE_ESPECES.filter((e)=>!e.oiseau), ois=CHASSE_ESPECES.filter((e)=>e.oiseau), n1=Math.ceil(mam.length/2), L0=A.w-0.6, out=[];
+  for(const [L,y] of [[mam.slice(0,n1),2.62],[mam.slice(n1),1.68],[ois,0.76]]){ const pas=L0/L.length; L.forEach((e,k)=>out.push({id:e.id,oiseau:!!e.oiseau,x:A.x-L0/2+pas*(k+0.5),y,pas})); }
+  return out; }
+function chaletTropheesConstruire(s,g,T){ const Q=s.pq, A=TROPH_ABRI, {MF,MT,B,PL,mesh,solide}=T, ox=s.ox, oz=s.oz;
+  const rondM=MT(pqTex('rondins')), planche=MT(pqTexRep('plancherCh',2,1));
+  // l'abri : le mur du fond, deux joues, le plancher ; le toit à un pan couvert de neige (masqué quand on est dessous, comme celui du chalet)
+  mesh(pqBoiteUV(A.w,A.h,0.3,1.3),rondM,A.x,A.h/2,A.z); solide(A.x,A.z,A.w/2,0.18,A.h);
+  for(const sd of [-1,1]){ mesh(pqBoiteUV(0.3,A.h-0.3,2.2,1.3),rondM,A.x+sd*(A.w/2+0.15),(A.h-0.3)/2,A.z+1.05); solide(A.x+sd*(A.w/2+0.15),A.z+1.05,0.18,1.15,A.h); }
+  PL(A.w,2.2,planche,A.x,0.04,A.z+1.25,-Math.PI/2);
+  const toit=[]; { const p=B(A.w+1.2,0.16,3.0,MF(0x3a2a20),A.x,A.h-0.1,A.z+1.2); p.rotation.x=0.2; toit.push(p); const n=B(A.w+1.3,0.12,2.9,MF(0xf4f8fc),A.x,A.h+0.04,A.z+1.2); n.rotation.x=0.2; toit.push(n); }
+  for(const o of toit) o.userData.garder=true; Q.toits.push({x0:A.x-A.w/2-1.5,x1:A.x+A.w/2+1.5,z0:A.z-0.5,z1:A.z+6.5,objs:toit,dedans:false,vis:true});
+  // les écussons (fixes), les trophées (un maillage chacun, toujours cachés : ceux des espèces au tableau sont fusionnés en un seul, chaletTropheesMaj)
+  const places=tropheesPlaces(), bord=MF(0x8a6a44), ecu=MF(0x4a2e1a), gr=new THREE.Group(); gr.userData.garder=true; g.add(gr);
+  Q.troph={mat:new THREE.MeshLambertMaterial({vertexColors:true}),m:{},vis:{},places,gr,fus:null};
+  for(const p of places){ B(0.66,0.66,0.04,bord,p.x,p.y,A.z+0.17); B(0.58,0.58,0.06,ecu,p.x,p.y,A.z+0.2);
+    const geo=tropheeGeo(p.id), bb=geo.boundingBox, w=bb.max.x-bb.min.x, h=bb.max.y-bb.min.y, k=Math.min(p.oiseau?1.2:1.3,(p.pas*(p.oiseau?0.86:0.78))/w,(p.oiseau?0.6:0.58)/h), kz=Math.min(k,0.42/(bb.max.z-bb.min.z)); /* la saillie bornée : vue d'en haut, une tête trop longue mangeait sa plaque */
+    geo.translate(-(bb.min.x+bb.max.x)/2,-(bb.min.y+bb.max.y)/2,-bb.min.z); geo.scale(k,k,kz);
+    const m=new THREE.Mesh(geo,Q.troph.mat); m.position.set(ox+p.x,p.y,oz+A.z+0.23); m.visible=false; gr.add(m); Q.troph.m[p.id]=m; }
+  // les plaques et l'enseigne : une seule toile pour tout le mur (160 px par unité)
+  const cv=document.createElement('canvas'); cv.width=1024; cv.height=544; Q.troph.cv=cv; Q.troph.tx=new THREE.CanvasTexture(cv);
+  const pl=PL(6.4,3.4,new THREE.MeshLambertMaterial({map:Q.troph.tx,alphaTest:0.5}),A.x,1.7,A.z+0.235,0,0); pl.userData.garder=true; }
+function chaletTropheesMaj(s){ const T=s.pq&&s.pq.troph; if(!T) return; const A=TROPH_ABRI, C=META.chasse||{};
+  /* les têtes des espèces au tableau, fusionnées en un maillage (un appel de rendu pour tout le mur), refait à chaque entrée ; ses uuid sur un générateur privé */
+  let n=0; for(const id in T.m){ T.vis[id]=(C[id]||0)>0; T.m[id].visible=false; if(T.vis[id]) n+=T.m[id].geometry.attributes.position.count; }
+  if(T.fus){ T.gr.remove(T.fus); T.fus.geometry.dispose(); T.fus=null; }
+  if(n) avecAleaPrive(4243,()=>{ const pos=new Float32Array(n*3), nor=new Float32Array(n*3), col=new Float32Array(n*3), v=new THREE.Vector3(), w=new THREE.Vector3(), mn=new THREE.Matrix3(); let o=0;
+    for(const id in T.m){ if(!T.vis[id]) continue; const m=T.m[id], g=m.geometry, P2=g.attributes.position, N2=g.attributes.normal, C2=g.attributes.color; m.updateMatrix(); mn.getNormalMatrix(m.matrix);
+      for(let i=0;i<P2.count;i++,o++){ v.fromBufferAttribute(P2,i).applyMatrix4(m.matrix); w.fromBufferAttribute(N2,i).applyMatrix3(mn).normalize(); pos[o*3]=v.x; pos[o*3+1]=v.y; pos[o*3+2]=v.z; nor[o*3]=w.x; nor[o*3+1]=w.y; nor[o*3+2]=w.z; col[o*3]=C2.getX(i); col[o*3+1]=C2.getY(i); col[o*3+2]=C2.getZ(i); } }
+    const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.BufferAttribute(pos,3)); g.setAttribute('normal',new THREE.BufferAttribute(nor,3)); g.setAttribute('color',new THREE.BufferAttribute(col,3)); g.computeBoundingSphere();
+    T.fus=new THREE.Mesh(g,T.mat); T.gr.add(T.fus); });
+  const cv=T.cv, c=cv.getContext('2d'), K=160, X0=A.x-3.2, px=(x)=>(x-X0)*K, py=(y)=>(3.4-y)*K;
+  c.clearRect(0,0,cv.width,cv.height); c.textAlign='center'; c.textBaseline='middle';
+  const fit=(t,w,f,poids)=>{ let fs=f; c.font=poids+' '+fs+'px Arial'; const m=c.measureText(t).width; if(m>w){ fs=Math.max(8,Math.floor(fs*w/m)); c.font=poids+' '+fs+'px Arial'; } };
+  // l'enseigne
+  { const x0=px(A.x-1.6), y0=py(3.34), w=3.2*K, h=0.28*K; c.fillStyle='#3a2414'; c.fillRect(x0,y0,w,h); c.strokeStyle='#8a6a44'; c.lineWidth=4; c.strokeRect(x0+2,y0+2,w-4,h-4);
+    c.fillStyle='#f2e6c8'; fit('TABLEAU DE CHASSE',w-24,30,'900'); c.fillText('TABLEAU DE CHASSE',x0+w/2,y0+h/2+1); }
+  for(const p of T.places){ const n=C[p.id]||0, e=chasseEspece(p.id), interdit=chasseInterdite(p.id), w=Math.min(p.pas*0.86,0.92)*K, h=0.22*K, x0=px(p.x)-w/2, y0=py(p.y-0.37);
+    if(n>0){ const gd=c.createLinearGradient(0,y0,0,y0+h); gd.addColorStop(0,'#e8c060'); gd.addColorStop(1,'#a8822a'); c.fillStyle=gd; } else c.fillStyle='#3a2414';
+    c.fillRect(x0,y0,w,h); c.lineWidth=interdit&&n>0?5:2; c.strokeStyle=interdit&&n>0?'#c0282a':(n>0?'#6a4a14':'#5a3a20'); c.strokeRect(x0+1,y0+1,w-2,h-2);
+    if(n>0){ c.fillStyle='#2a1a0a'; fit(e.nom,w*0.66,15,'700'); c.fillText(e.nom,x0+w*0.37,y0+h*(interdit?0.36:0.5)); c.fillStyle=interdit?'#a01818':'#2a1a0a'; fit('×'+n,w*0.3,19,'900'); c.fillText('×'+n,x0+w*0.84,y0+h/2+1);
+      if(interdit){ c.fillStyle='#a01818'; fit('BRACONNÉ',w*0.6,10,'900'); c.fillText('BRACONNÉ',x0+w*0.37,y0+h*0.76); } }
+    else { c.fillStyle='#8a7050'; fit('? '+e.nom,w-10,13,'700'); c.fillText('? '+e.nom,x0+w/2,y0+h/2+1); } }
+  T.tx.needsUpdate=true; }
+/* devant le mur, la caméra vient de face, par-dessus l'épaule, et suit le joueur le long du mur (cadragePlanque, comme le lancer de hache) */
+function chaletTropheesCadrage(s){ const Q=s.pq, A=TROPH_ABRI; if(!Q.troph||Q.hache) return; const lx=P.x-s.ox, lz=P.z-s.oz, dans=ETAT.mode==='jeu'&&Math.abs(lx-A.x)<A.w/2+0.4&&lz>A.z+0.4&&lz<A.z+4.6;
+  if(!Q.cadTroph) Q.cadTroph={actif:false,oeil:{x:0,y:4.0,z:s.oz+A.z+6.4},vise:{x:0,y:1.05,z:s.oz+A.z},fov:10};
+  if(dans){ const x=s.ox+clamp(lx,A.x-2.1,A.x+2.1); Q.cadTroph.oeil.x=x; Q.cadTroph.vise.x=x; Q.cadTroph.actif=true; Q.cadrage=Q.cadTroph; } else if(Q.cadrage===Q.cadTroph) Q.cadTroph.actif=false; }
+function chaletTropheesAction(s){ const n=chasseTotal(false); return {label:'🏆 TABLEAU DE CHASSE — '+n+' bête'+(n>1?'s':''),fn:()=>{ ETAT.retour='jeu'; renderChasse(); ecran('chasseScr'); SFX.ui(); }}; }
 /* ---- LE RÂTELIER : les armes à feu qu'on possède (vrais modèles), les portes qui s'ouvrent, le plein une fois par vague ---- */
 function chaletRatelierArmes(s){ const Q=s.pq, G=Q.rackArmes; if(!G) return; while(G.children.length) G.remove(G.children[0]);
   const ids=Object.keys(ARMES).filter((id)=>ARMES[id].type==='gun'&&META.armes[id]&&META.armes[id].poss).slice(0,6);
@@ -12271,6 +12381,12 @@ const TENUE_ACC={
     A.add(mkBoxG(0.06,0.06,0.5,0x14161c,0,1.82,0)); A.add(mkBoxG(0.5,0.06,0.06,0x14161c,0,1.82,0)); for(const s of [-1,1]) A.add(mkBoxG(0.08,0.2,0.18,0xd8ff3a,s*0.25,1.58,0)); },
   athlete:(A)=>{ if(!A.tete) return; A.add(mkBoxG(0.45,0.06,0.45,0xf2f4f8,0,1.7,0)); A.add(mkBoxG(0.46,0.02,0.46,0x2a6ad8,0,1.7,0)); }, /* bandeau éponge */
   ballers:(A)=>{ if(!A.tete) return; A.add(mkBoxG(0.45,0.06,0.45,0xff8a2a,0,1.7,0)); },
+  pigeon:(A)=>{ /* costume de pigeon (4.3) : capuche à bec et à yeux orange, jabot irisé, ailes grises aux bras (deux barres sombres), queue en éventail */
+    if(A.tete){ A.add(mkBoxG(0.5,0.5,0.5,0x6a707c,0,1.62,-0.01)); A.add(mkBoxG(0.12,0.08,0.16,0xe0a030,0,1.57,0.31)); A.add(mkBoxG(0.12,0.05,0.06,0xe8e0d0,0,1.62,0.27));
+      for(const s of [-1,1]){ A.add(mkBoxG(0.11,0.11,0.03,0xf08a2a,s*0.13,1.7,0.255)); A.add(mkBoxG(0.05,0.05,0.035,0x111111,s*0.13,1.7,0.26)); } A.add(mkBoxG(0.16,0.08,0.1,0x5e636e,0,1.9,-0.06)); }
+    A.add(mkBoxG(0.66,0.14,0.46,0x5a8a6a,0,0.38,0),A.h.torse); A.add(mkBoxG(0.46,0.1,0.03,0x8a5a9a,0,0.3,0.23),A.h.torse);
+    for(const [b,s] of [[A.h.brasG,-1],[A.h.brasD,1]]){ A.add(mkBoxG(0.035,0.6,0.42,0x9ca2ac,s*0.11,-0.3,-0.1),b); for(const y of [-0.24,-0.36]) A.add(mkBoxG(0.04,0.05,0.36,0x3a3e46,s*0.115,y,-0.1),b); A.add(mkBoxG(0.03,0.18,0.44,0x3a3e46,s*0.11,-0.66,-0.12),b); }
+    const q=A.add(mkBoxG(0.46,0.04,0.38,0x5e636e,0,-0.32,-0.34),A.h.torse); q.rotation.x=-0.55; const q2=A.add(mkBoxG(0.48,0.045,0.1,0x2a2c32,0,-0.44,-0.5),A.h.torse); q2.rotation.x=-0.55; },
   skateur:(A)=>{ if(!A.tete) return; A.add(mkBoxG(0.47,0.14,0.47,0x8a4de0,0,1.82,0)); A.add(mkBoxG(0.4,0.04,0.22,0x8a4de0,0,1.77,-0.32)); }, /* casquette à l'envers */
   badlands:(A)=>{ if(!A.tete) return; A.add(mkBoxG(0.44,0.16,0.05,0xc9703a,0,1.46,0.22)); for(const s of [-1,1]) A.add(mkBoxG(0.15,0.1,0.06,0x3a3d44,s*0.1,1.76,0.235)); A.add(mkBoxG(0.46,0.04,0.46,0x3a2a1a,0,1.76,0)); }, /* bandana et lunettes de moto */
 };
@@ -15964,11 +16080,45 @@ const FAUNE_PORTEE_Y=2.6;
 function fauneBloque(x,z,y){ for(const a of FAUNE){ if(a.mort||a.type==='lapin'||Math.abs(a.y-y)>1.6) continue; const r=a.D.long*0.45+0.3, d2=dist2(x,z,a.x,a.z); if(d2<r*r&&d2<dist2(P.x,P.z,a.x,a.z)) return true; } return false; }
 function toucherAnimal(a,dmg){
   if(a.mort) return; a.hp-=dmg; a.colere=true; burst(a.x,a.y+0.8,a.z,4,0xb8282a,4);
-  if(a.hp<=0){ a.mort=true; a.corpsT=5; a.g.rotation.z=Math.PI/2; SFX.mort();
+  if(a.hp<=0){ a.mort=true; a.corpsT=5; a.g.rotation.z=Math.PI/2; SFX.mort(); chasseCompte(a.type); /* le tableau de chasse (4.1) : toutes les bêtes, paisibles comprises */
     if(a.D.paisible){ ETAT.score=Math.max(0,ETAT.score-50); const m=pick(a.type==='bouquetin'||a.type==='chamois'?MSG_BOUQUETIN:(a.zone==='alpage'?MSG_ALPAGE:MSG_FORET)); spawnTexte(a.x,a.y+2.2,a.z,m,'#ff5a6a'); toast('🐐 '+m,'warn'); return; } // un animal paisible : du karma en moins, rien à gagner
     const pts=a.type==='jaguar'?250:(a.type==='ours'?320:80); ETAT.score+=pts; META.defis.fauves++;
     creerPickup('cash',a.x,a.z,randi(a.D.cash[0],a.D.cash[1])); spawnTexte(a.x,a.y+2.5,a.z,(a.type==='jaguar'?'JAGUAR !':(a.type==='ours'?'OURS !':'SANGLIER'))+' +'+pts,'#ffd23f'); }
 }
+/* ---------- TABLEAU DE CHASSE (retours du 20 octobre, 4.1) : chaque bête abattue par le joueur, espèce par espèce (META.chasse, clés fixes) ----------
+   Comptée là où elle meurt : toucherAnimal (faune de l'île, du mont, de l'alpage, de la forêt), oiseauTue (pigeons, mouettes), mvRapaceTue (aigles,
+   vautours, faucon). Le karma ne change pas : une bête paisible (FAUNE_DEFS.paisible) ou un rapace (espèce protégée) coûte toujours ses 50 points
+   et son message ; elle entre au tableau (on sait ce qu'on a fait), jamais dans un défi (chasseInterdite). */
+const CHASSE_ESPECES=[
+  {id:'pigeon',nom:'Pigeon',ico:'🐦',lieu:'ville',oiseau:true},{id:'mouette',nom:'Mouette',ico:'🕊️',lieu:'ville',oiseau:true},
+  {id:'sanglier',nom:'Sanglier',ico:'🐗',lieu:'ile'},{id:'jaguar',nom:'Jaguar',ico:'🐆',lieu:'ile'},
+  {id:'ours',nom:'Ours',ico:'🐻',lieu:'mont'},{id:'bouquetin',nom:'Bouquetin',ico:'🐐',lieu:'mont'},{id:'chamois',nom:'Chamois',ico:'🦌',lieu:'mont'},
+  {id:'aigle',nom:'Aigle royal',ico:'🦅',lieu:'mont',oiseau:true,protege:true},{id:'vautour',nom:'Vautour',ico:'🦅',lieu:'mont',oiseau:true,protege:true},{id:'faucon',nom:'Faucon',ico:'🦅',lieu:'mont',oiseau:true,protege:true},
+  {id:'vache',nom:'Vache',ico:'🐄',lieu:'alpage'},{id:'chevre',nom:'Chèvre',ico:'🐐',lieu:'alpage'},
+  {id:'sanglierF',nom:'Sanglier de la forêt',ico:'🐗',lieu:'foret'},{id:'cerf',nom:'Cerf',ico:'🦌',lieu:'foret'},{id:'biche',nom:'Biche',ico:'🦌',lieu:'foret'},{id:'renard',nom:'Renard',ico:'🦊',lieu:'foret'},{id:'lapin',nom:'Lapin',ico:'🐇',lieu:'foret'}];
+const CHASSE_LIEUX={ville:'La ville et la plage',ile:'L’île aux trésors',mont:'Le Mont Reyes',alpage:'L’alpage du mont',foret:'La forêt du chalet'};
+function chasseEspece(id){ for(const e of CHASSE_ESPECES) if(e.id===id) return e; return null; }
+function chasseInterdite(id){ const e=chasseEspece(id); return !!((e&&e.protege)||(FAUNE_DEFS[id]&&FAUNE_DEFS[id].paisible)); } /* paisible ou protégée : du karma en moins, jamais un défi */
+function chasseCompte(id){ const C=META.chasse; if(!C||C[id]===undefined) return; C[id]++;
+  if(C[id]===1){ const e=chasseEspece(id), nom=e?e.nom:id; if(chasseInterdite(id)) toast('📋 '+nom+' : au tableau de chasse… sur une plaque rouge','warn'); else toast('🏆 '+nom+' : premier au tableau de chasse'+(META.planques&&META.planques.chalet?' — son trophée est au chalet':''),'or'); }
+  checkDefis(); }
+function chasseTotal(gibier){ let n=0; for(const e of CHASSE_ESPECES) if(!gibier||!chasseInterdite(e.id)) n+=META.chasse[e.id]||0; return n; }
+function chasseEspecesGibier(m){ let n=0; for(const e of CHASSE_ESPECES) if(!chasseInterdite(e.id)&&((m||META).chasse[e.id]||0)>0) n++; return n; }
+/* ---------- LE COSTUME DE PIGEON (retours du 20 octobre, 4.3 ; palier final du défi des pigeons) : ESQUIVE = voleter ----------
+   Au sol, un bond plané (il vaut une esquive : 0,35 s d'invulnérabilité) ; en l'air, jusqu'à PIGEON.battMax battements d'ailes, de plus en
+   plus faibles, jamais au-dessus de PIGEON.plafond u du sol d'où l'on a sauté ; toute chute est ralentie (PIGEON.vyMax : on se pose sans un
+   bobo). Jamais un vrai vol : on ne regagne jamais de hauteur au-delà du plafond, et un battement coûte de l'endurance. Jamais en salle, en
+   véhicule, à la nage, sous voile, en wingsuit ni au jetpack. */
+const PIGEON={bond:7.6,elan:9,batt:6.4,battMax:3,plafond:3.6,g:16,vyMax:4.2,accH:18,dragH:0.9,vmaxH:10,stamBond:14,stamBatt:9,cd:0.45};
+function pigeonPlane(){ return META.tenue==='pigeon'&&!INT.actif&&!P.veh&&!P.nage&&!P.para&&!P.wing&&!P.jetpackVol; }
+function pigeonPeut(){ if(!pigeonPlane()||ETAT.mode!=='jeu') return false;
+  if(!P.chute) return (P.pigeonCd||0)<=0&&P.stam>=PIGEON.stamBond;
+  return (P.pigeonBatt||0)<PIGEON.battMax&&P.stam>=PIGEON.stamBatt&&P.y<(P.pigeonHop?P.pigeonPlaf:P.chuteY0+0.3); }
+function pigeonBattement(){ const l=Math.hypot(INPUT.mx,INPUT.mz), dx=l>0.1?INPUT.mx/l:Math.sin(P.ang), dz=l>0.1?INPUT.mz/l:Math.cos(P.ang);
+  if(!P.chute){ P.chute=true; P.chuteY0=P.y; P.chuteT=0; P.chuteHaut=0.5; P.para=false; P.vy=PIGEON.bond; P.chuteVx=dx*PIGEON.elan; P.chuteVz=dz*PIGEON.elan; P.pigeonBatt=0; P.pigeonHop=true; P.pigeonPlaf=P.y+PIGEON.plafond;
+    P.stam-=PIGEON.stamBond; P.iframes=Math.max(P.iframes||0,0.35); P.pigeonCd=PIGEON.cd; }
+  else { P.pigeonBatt=(P.pigeonBatt||0)+1; P.vy=Math.max(P.vy,PIGEON.batt*(1-0.2*(P.pigeonBatt-1))); P.chuteVx+=dx*3; P.chuteVz+=dz*3; P.stam-=PIGEON.stamBatt; }
+  P.stamDelai=0.8; P.pigeonFlapT=0.35; burst(P.x,P.y+1.2,P.z,4,0xb8bcc4,3,2); if(typeof bruit==='function') bruit(0.06,0.14,1300); vibre(12); }
 function majFaune(dt){
   for(const a of FAUNE){
     if(a.mort){ if(a.corpsT>0){ a.corpsT-=dt; if(a.corpsT<=0) a.g.visible=false; } continue; }
@@ -16400,7 +16550,7 @@ function montVieStartRun(){ if(!DECOR_V2||!MONT2.ok) return; montVieConstruire()
   for(const p of M.gens){ p.yS=p.y1=p.by=undefined; p.s=p.s0||0; p.v=0; p.pauseT=0; p.prochPause=30+((p.s0||0)%40); p.vuLac=false; p.tombe=false; if(p.velo){ p.velo.rotation.set(0,0,0); p.velo.visible=true; } }
   for(const r of M.rapaces) mvRapaceReset(r); }
 function mvRapaceReset(r){ r.mort=false; r.chute=false; r.g.visible=true; r.g.rotation.set(0,0,0); if(r.e) r.e.mort=false; if(r.type==='faucon'){ r.etat='plane'; r.t=20; } }
-function mvRapaceTue(r){ r.mort=true; r.chute=true; r.vy=0; if(r.e) r.e.mort=true; const o=r.g.position; burst(o.x,o.y,o.z,10,r.type==='faucon'?0x8a7a6a:0x3a2a1a,5,6); SFX.mort();
+function mvRapaceTue(r){ r.mort=true; r.chute=true; r.vy=0; if(r.e) r.e.mort=true; chasseCompte(r.type); const o=r.g.position; burst(o.x,o.y,o.z,10,r.type==='faucon'?0x8a7a6a:0x3a2a1a,5,6); SFX.mort();
   ETAT.score=Math.max(0,ETAT.score-50); const m=pick(MSG_RAPACE); spawnTexte(o.x,o.y+1.5,o.z,m,'#ff5a6a'); toast('🦅 '+m,'warn'); }
 function mvRapace(r,dt,loin){ const g=r.g;
   if(r.mort){ if(r.chute){ r.vy-=22*dt; g.position.y+=r.vy*dt; g.rotation.z+=dt*7; g.rotation.x+=dt*3; const sol=hauteurMont(g.position.x,g.position.z); if(g.position.y<=sol+0.2){ g.position.y=sol+0.2; r.chute=false; r.restT=6; } } else if(r.restT>0){ r.restT-=dt; if(r.restT<=0) g.visible=false; } return; }
@@ -27375,7 +27525,7 @@ function majJoueur(dt,dtJeu){
     P.wingV=lerp(P.wingV,WING_V,1.2*dt); P.chuteVx=Math.sin(P.wingAng)*P.wingV; P.chuteVz=Math.cos(P.wingAng)*P.wingV; P.ang=P.wingAng;
     vx=P.chuteVx; vz=P.chuteVz;
   } else if(P.chute){
-    const accH=P.para?PARA_ACC_H:CHUTE_ACC_H, dragH=P.para?PARA_DRAG_H:CHUTE_DRAG_H, maxH=P.para?PARA_VMAX_H:CHUTE_VMAX_H;
+    const pg=!P.para&&pigeonPlane(), accH=P.para?PARA_ACC_H:(pg?PIGEON.accH:CHUTE_ACC_H), dragH=P.para?PARA_DRAG_H:(pg?PIGEON.dragH:CHUTE_DRAG_H), maxH=P.para?PARA_VMAX_H:(pg?PIGEON.vmaxH:CHUTE_VMAX_H); /* costume de pigeon : on plane à l'allure de la marche */
     if(bouge){ P.chuteVx+=INPUT.mx*accH*dt; P.chuteVz+=INPUT.mz*accH*dt; }
     P.chuteVx*=Math.max(0,1-dragH*dt); P.chuteVz*=Math.max(0,1-dragH*dt);
     const spH=Math.hypot(P.chuteVx,P.chuteVz);
@@ -27443,6 +27593,8 @@ function majJoueur(dt,dtJeu){
       paraMesh.position.set(P.x,P.y+PARA_DIST,P.z);
       paraMesh.rotation.y+=dt*0.4;
       if(Math.random()<0.15) spawnP(P.x+rand(-0.4,0.4),P.y+1,P.z+rand(-0.4,0.4),0,-0.3,0,0.18,0.4,0xe8ecf2,0,2);
+    } else if(pigeonPlane()){ // costume de pigeon (4.3) : le bond retombe, la chute est ralentie (PIGEON.vyMax), jamais au-dessus du plafond
+      P.chuteT+=dtJeu; P.vy=Math.max(P.vy-PIGEON.g*dtJeu,-PIGEON.vyMax); if(P.vy>0&&P.y>=(P.pigeonHop?P.pigeonPlaf:P.chuteY0+0.3)) P.vy=0; P.y+=P.vy*dtJeu; if(P.pigeonFlapT>0) P.pigeonFlapT-=dtJeu;
     } else {
       // Chute libre "à mains nues" (pas de voile) : un joueur remontait un
       // immeuble haut et touchait le sol presque aussitôt, sans aucune
@@ -27466,7 +27618,7 @@ function majJoueur(dt,dtJeu){
     if(P.y<=gY&&DECOR_V2&&!P.para&&!P.wing&&trampolineSous(P.x,P.z,gY)){ // trampoline des toits : on rebondit, sans dégâts
       P.y=gY; P.vy=clamp(-P.vy*0.9,12,19); P.chuteT=0; P.chuteHaut=0.5; P.chuteY0=P.y; P.trampoT=2; SFX.swing(); vibre(10);
     } else if(P.y<=gY){
-      P.y=gY; P.chute=false;
+      P.y=gY; P.chute=false; P.pigeonBatt=0; P.pigeonHop=false;
       P.h.g.rotation.x=0;
       if(P.para){ burst(P.x,P.y+0.2,P.z,10,0xe8ecf2,5,6); SFX.ui(); }
       else if(DECOR_V2&&estEau(P.x,P.z)) plongeonJoueur(P.chuteHaut); // dans l'eau : un plongeon, jamais des dégâts
@@ -27519,7 +27671,10 @@ function majJoueur(dt,dtJeu){
   if((INPUT.btn.tir||INPUT.btn.tirK)&&P.cadT<=0&&P.frappeT<=0&&!armeM) attaquer();
   else if(VUE1P.actif&&VUE1P.verrou&&META.tirAuto!==false&&!armeM&&ARMES[P.armeCur].type==='gun'&&P.cadT<=0&&P.frappeT<=0&&P.rechT<=0&&(P.mags[P.armeCur]||0)>0) attaquer(); /* tir automatique : la mire est sur une cible */
   if(P.frappeT>0){P.frappeT-=dt;if(P.frappeT<=0)P.h.brasD.rotation.x=0;}
-  if((pressed('esquive')||edgeKey('KeyK'))&&P.dodgeCd<=0&&P.stam>=25&&!P.nage){
+  if(P.pigeonCd>0) P.pigeonCd-=dtJeu;
+  const appuiEsq=pressed('esquive')||edgeKey('KeyK');
+  if(appuiEsq&&pigeonPeut()) pigeonBattement(); /* costume de pigeon (4.3) : ESQUIVE = voleter (un bond plané au sol, un battement d'ailes en l'air) */
+  else if(appuiEsq&&P.dodgeCd<=0&&P.stam>=25&&!P.nage){
     const l=Math.hypot(INPUT.mx,INPUT.mz);
     const dx=l>0.1?INPUT.mx/l:Math.sin(P.ang), dz=l>0.1?INPUT.mz/l:Math.cos(P.ang);
     P.dodgeT=0.32; P.dodgeVx=dx*27; P.dodgeVz=dz*27; P.dodgeCd=0.9; P.iframes=0.45;
@@ -27549,6 +27704,9 @@ function majJoueur(dt,dtJeu){
   if(!P.surMoto){ const ne=P.nage?niveauEau(P.x,P.z):0; P.h.g.position.set(P.x,P.nage?ne-0.78+(dansPiscine(P.x,P.z)||ne>0?0:houleY(P.x,P.z)):P.y,P.z); }
   if(P.chute&&P.wing&&!P.para){ // wingsuit (18 octobre) : bras écartés et un peu rabattus, jambes ouvertes ; l'orientation du corps (à plat, ventre au sol, tête en avant, roulis) est posée après le cap : orienterWingsuit
     P.h.brasG.rotation.set(0,0,-1.3); P.h.brasD.rotation.set(0,0,1.3); P.h.jambeG.rotation.set(0,0,-0.2); P.h.jambeD.rotation.set(0,0,0.2);
+  } else if(P.chute&&!P.para&&pigeonPlane()){ // costume de pigeon : les bras en ailes qui battent (vite juste après un battement), le corps droit, les jambes repliées
+    P.pigeonPh=(P.pigeonPh||0)+dt*(P.pigeonFlapT>0?26:8); const b=Math.sin(P.pigeonPh)*(P.pigeonFlapT>0?0.55:0.16);
+    P.h.brasG.rotation.set(0,0,-(1.25+b)); P.h.brasD.rotation.set(0,0,1.25+b); P.h.jambeG.rotation.set(0.4,0,0); P.h.jambeD.rotation.set(0.4,0,0); P.h.g.rotation.x=0.16; P.h.g.rotation.z=lerp(P.h.g.rotation.z,0,0.15);
   } else if(P.chute&&!P.para){
     // Posture de VRAIE chute libre (demandé explicitement) : bras tendus en
     // avant façon Superman (jamais juste écartés comme un pantin), jambes
@@ -31595,7 +31753,7 @@ function majOiseaux(dt){ const O=OISEAUX; if(!DECOR_V2||INT.actif||ETAT.mode!=='
     if(pv&&vitV>8&&o.y-(pv.h||0)<2&&Math.hypot(o.x-pv.x,o.z-pv.z)<1.2) oiseauTue(o,Math.sin(pv.ang)*vitV*0.3,Math.cos(pv.ang)*vitV*0.3);
   }
   oiseauxRendu(); }
-function oiseauTue(o,vx,vz){ if(o.mort) return; o.mort=true; o.tombeT=4; o.vx=vx||0; o.vz=vz||0; o.vy=Math.max(o.vy,1); burst(o.x,o.y+0.15,o.z,10,o.type==='mouette'?0xf4f6f8:0xb8bcc4,3,2); }
+function oiseauTue(o,vx,vz){ if(o.mort) return; o.mort=true; chasseCompte(o.type); o.tombeT=4; o.vx=vx||0; o.vz=vz||0; o.vy=Math.max(o.vy,1); burst(o.x,o.y+0.15,o.z,10,o.type==='mouette'?0xf4f6f8:0xb8bcc4,3,2); }
 /* les matrices des trois InstancedMesh : corps, ailes qui battent (posé : repliées, en vol plané : à peine) */
 function oiseauxRendu(){ const O=OISEAUX, D=O.dum; let n=0; const c=new THREE.Color();
   for(const o of O.liste){ if(n>=OIS_MAX) break; const k=o.T.k, sol=o.etat==='sol'||o.etat==='pose';
@@ -44523,6 +44681,20 @@ function renderTrophees(){
   h+='</div>';
   el('trophList').innerHTML=h;
 }
+/* le tableau de chasse (retours du 20 octobre, 4.1) : ouvert depuis la pause et depuis le mur des trophées du chalet */
+function renderChasse(){ const C=META.chasse, tot=chasseTotal(false), gib=chasseTotal(true);
+  let h='<div class="panneau"><h3>Ton tableau</h3><div class="ligneItem"><div class="ico">🎯</div><div class="inf"><div class="nom">'+tot+' bête'+(tot>1?'s':'')+' abattue'+(tot>1?'s':'')+'</div>'+
+    '<div class="det">dont '+gib+' de gibier (les défis de chasse) · '+(tot-gib)+' paisible'+(tot-gib>1?'s':'')+' ou protégée'+(tot-gib>1?'s':'')+' (−50 de karma chacune)</div></div></div>';
+  const dF=DEFIS.find((d)=>d.tenue==='pigeon');
+  if(dF){ const [v,n]=dF.prog(META), ok=tenueDefiFinal('pigeon'); h+='<div class="ligneItem"'+(ok?'':' style="opacity:.75"')+'><div class="ico">🐦</div><div class="inf"><div class="nom">Costume de pigeon</div><div class="det">'+
+    (ok?'Gagné — porte-le (penderie) : ESQUIVE fait voleter':'Le défi « '+dF.nom+' » : '+n+' pigeons')+'</div></div><span class="pill '+(ok?'equip':'lock')+'">'+(ok?'✓':Math.min(v,n)+' / '+n)+'</span></div>'; }
+  h+='</div>';
+  for(const lieu in CHASSE_LIEUX){ h+='<div class="panneau"><h3>'+CHASSE_LIEUX[lieu]+'</h3>';
+    for(const e of CHASSE_ESPECES){ if(e.lieu!==lieu) continue; const n=C[e.id]||0, interdit=chasseInterdite(e.id);
+      h+='<div class="ligneItem"'+(n?'':' style="opacity:.5"')+'><div class="ico">'+e.ico+'</div><div class="inf"><div class="nom">'+e.nom+'</div><div class="det">'+
+        (interdit?(e.protege?'Espèce protégée — −50 de karma':'Bête paisible — −50 de karma'):'Gibier — compte pour les défis')+'</div></div><span class="pill '+(n&&!interdit?'equip':'lock')+'">'+n+'</span></div>'; }
+    h+='</div>'; }
+  el('chasseList').innerHTML=h; }
 // Correspondance curiosité -> salle : établie en recoupant le champ `lieu`
 // de chaque entrée de CURIOS (son nom affiché) avec INTDEFS[id].nom — les
 // deux tableaux SOURCES du jeu, jamais une liste tierce recopiée à la main
@@ -45011,6 +45183,8 @@ el('tReset').addEventListener('pointerdown',()=>{
   SFX.etoile();
 });
 el('helpClose').addEventListener('pointerdown',()=>{ETAT.retour==='pause'?ecran('pauseM'):fermerVers();});
+el('chasseClose').addEventListener('pointerdown',()=>{ETAT.retour==='pause'?ecran('pauseM'):fermerVers();});
+el('pChasse').addEventListener('pointerdown',()=>{ ETAT.retour='pause'; renderChasse(); ecran('chasseScr'); });
 el('btnPause').addEventListener('pointerdown',togglePause);
 const BTN_VUE=el('btnVue'); // bascule de vue (VUE) : à côté de la pause
 BTN_VUE.addEventListener('pointerdown',e=>{ e.preventDefault(); basculerVue(); });
@@ -45146,6 +45320,7 @@ function ameliorerTexturesSol(){
 }
 function startRun(){
   acroReset(); /* chronos des cascades (3.2) */
+  P.pigeonHop=false; P.pigeonBatt=0; P.pigeonCd=0; /* costume de pigeon (4.3) */
   couperSonsEcrasement(); /* tôle et verre de l'écrasement (CLAUDE.md : les sons coupés dans toutes les sorties) */
   volSonCouper(); hudVolCacher(); /* alarmes et HUD du vol simulé */
   if(ETAT.mortTimer){ clearTimeout(ETAT.mortTimer); ETAT.mortTimer=null; } // Rejouer avant l'écran de mort : il tombait au milieu de la partie suivante
@@ -47072,7 +47247,7 @@ window.addEventListener('pointerup',vueFinDrag); window.addEventListener('pointe
 const _poingZ=new THREE.Vector3(0,0,-1), _poingD=new THREE.Vector3(); /* le poing à mains nues (poingPremiere) : les jointures vers −z */
 const VUE1P={actif:false,montage:null,arme:null,k:0,vise:false,recul:0,flash:0,frappe:0,pas:0,touche:0,zoom:1,mire:null,lunette:null,appuiSniper:false};
 const OEIL_1P=1.52;
-function vuePremiere(){ return vue1P()&&ETAT.mode==='jeu'&&!INT.actif&&!P.veh&&!FPS.actif&&!P.chute&&!P.para&&!P.wing&&!P.jetpackVol&&!P.nage&&!MANEGES.actif&&!BOUT.ouvert
+function vuePremiere(){ return vue1P()&&ETAT.mode==='jeu'&&!INT.actif&&!P.veh&&!FPS.actif&&!(P.chute&&!P.pigeonHop)&&!P.para&&!P.wing&&!P.jetpackVol&&!P.nage&&!MANEGES.actif&&!BOUT.ouvert
   &&!(typeof TOW!=='undefined'&&TOW.actif)&&!(DECOR_V2&&typeof SURPRISES!=='undefined'&&SURPRISES.tyro)&&!lunetteSniper()&&P.hp>0&&!!P.h; }
 // la cible sous la mire : un cône étroit autour du regard (plus étroit en visant), élargi de près
 function viseAuto1P(portee,verrou){ const cone=verrou?(VUE1P.k>0.5?0.03:0.055):(VUE1P.k>0.5?0.045:0.1), oeil=P.y+OEIL_1P, pit=VUE.pitch1P||0; let best=null, bs=1e9;
@@ -48554,7 +48729,7 @@ function photoCockpit(cle,lw,lh){ const d=VEHDEFS[cle]; if(!d) return null; cons
    VOILE ! » sous 45 m en chute libre. Le joystick suit la vue (VUE.yawRendu) : à droite, on vire à droite. */
 const CHUTE1P={actif:false,hud:null,ph:0,majT:0,txt:''};
 const _chuteV=new THREE.Vector3(), _chuteE=new THREE.Euler(), _chuteQ=new THREE.Quaternion();
-function vueChute(){ return vue1P()&&ETAT.mode==='jeu'&&!INT.actif&&!P.veh&&(P.chute||P.para||P.wing)&&!FPS.actif&&!MANEGES.actif&&!(typeof TOW!=='undefined'&&TOW.actif)&&P.hp>0&&!!P.h; }
+function vueChute(){ return vue1P()&&ETAT.mode==='jeu'&&!INT.actif&&!P.veh&&((P.chute&&!P.pigeonHop)||P.para||P.wing)&&!FPS.actif&&!MANEGES.actif&&!(typeof TOW!=='undefined'&&TOW.actif)&&P.hp>0&&!!P.h; }
 function quitterChute(){ const C=CHUTE1P; C.actif=false; if(P.h&&!VUE1P.actif) P.h.g.visible=true; if(C.hud) C.hud.style.display='none'; C.txt=''; }
 function cameraChute(dt){ const C=CHUTE1P; C.actif=true; if(P.h.g.visible) P.h.g.visible=false; if(reticule.visible) reticule.visible=false;
   const wing=P.wing&&!P.para, para=!!P.para, libre=!wing&&!para, cap=wing&&P.wingAng!==undefined?P.wingAng:P.ang, vy=P.vy||0;
