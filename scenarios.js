@@ -665,7 +665,7 @@ async function main() {
         if (!s || !s[cas.zone]) return { erreur: 'salle ' + cas.salle + ' sans zone ' + cas.zone };
         const MAX = window[cas.max] !== undefined ? window[cas.max] : eval(cas.max);
         const terminer = () => {
-          if (cas.salle === 'karaoke') { if (s.karaOn) { s.karaPos = 1; evaluerKaraoke(s); } }
+          if (cas.salle === 'karaoke') { if (s.karaOn) karaArreter(s); } // la scène (lot 8.1) : abandon
           else { laverieArreter(s); s.sacPret = false; } // le point de reset du jeu (panneau, boutons)
         };
         const lancer = () => {
@@ -675,6 +675,7 @@ async function main() {
           const b = document.getElementById('btnAction');
           const avant = META.argent;
           if (b._fn) b._fn();
+          if (cas.salle === 'karaoke') { const c = document.getElementById('karaC_neon'); if (c) c.click(); } // le karaoké : on choisit la chanson
           const lance = META.argent < avant;
           terminer();
           return { lance, label: b.textContent };
@@ -2823,10 +2824,10 @@ async function main() {
     else ok('Bowling : trois strikes donnent bien la curiosité et l\'arme associées');
 
     // -------------------------------------------------------------------
-    // Karaoké : trois arrêts parfaits d'affilée doivent donner le sans-faute
-    // (bonus, curiosité 'platine').
+    // Karaoké (lot 8.1 du 20 octobre : un jeu de rythme à pistes) : un chanteur parfait, au vrai bouton de chaque piste, finit
+    // « Cœur de Chrome » avec un S — le Disque de Platine (la Radio, plus bas, en dépend).
     // -------------------------------------------------------------------
-    console.log('\n--- Karaoké : sans-faute (3 arrêts parfaits) ---');
+    console.log('\n--- Karaoké : un S sur « Cœur de Chrome » (chanteur parfait) ---');
     const karaoke = await page.evaluate(() => {
       const p = PORTES.find((x) => x.id === 'karaoke');
       startRun();
@@ -2834,22 +2835,21 @@ async function main() {
       const s = INT.actif;
       META.argent = 200;
       P.x = s.scene2.x; P.z = s.scene2.z;
-      majAction(); document.getElementById('btnAction')._fn(); // CHANTER — 60 $
-      const demarre = s.karaOn === true;
-      for (let i = 0; i < 3 && s.karaOn; i++) {
-        s.karaPos = 0; // pile au centre : parfait
-        majAction(); document.getElementById('btnAction')._fn(); // ARRÊTER LE CURSEUR
-      }
-      const karaPerf = s.karaPerf, karaFini = s.karaOn === false;
-      const curioObtenue = aCurio('platine');
+      majAction(); document.getElementById('btnAction')._fn(); // CHANTER — 60 $ : le choix de la chanson
+      const c = document.getElementById('karaC_chrome'); if (c) c.click();
+      const A = KARA.a, demarre = s.karaOn === true && !!A; let T = dernierT + 1000, n = 0, k = 0; const ev = [];
+      if (A) for (const x of A.notes) ev.push({ t: x.t, l: x.l, d: 1 }, { t: x.d > 0 ? x.t + x.d + 0.02 : x.t + 0.07, l: x.l, d: 0 });
+      ev.sort((u, v) => u.t - v.t || u.d - v.d);
+      while (A && KARA.a === A && n++ < 60 * 120) { while (k < ev.length && ev[k].t <= A.t + 1 / 120) { const e = ev[k++]; document.getElementById('karaB' + e.l).dispatchEvent(new PointerEvent(e.d ? 'pointerdown' : 'pointerup', { bubbles: true, pointerId: 41 })); } T += 1000 / 60; tick(T); }
+      const B = KARA.bilan, karaFini = s.karaOn === false, curioObtenue = aCurio('platine');
       if (INT.actif) sortirInterieur();
-      return { demarre, karaPerf, karaFini, curioObtenue };
+      return { demarre, note: B ? B.note : null, prec: B ? B.prec : null, karaFini, curioObtenue };
     });
     if (!karaoke.demarre) fail('Karaoké : CHANTER ne démarre pas la chanson');
-    if (karaoke.karaPerf !== 3 || !karaoke.karaFini) fail('Karaoké : trois arrêts parfaits n\'ont pas donné 3 « parfait » (karaPerf=' + karaoke.karaPerf + ', fini=' + karaoke.karaFini + ')');
-    else ok('Karaoké : trois arrêts parfaits d\'affilée sont bien comptés');
-    if (!karaoke.curioObtenue) fail('Karaoké : le sans-faute n\'a pas donné Le Disque de Platine');
-    else ok('Karaoké : le sans-faute donne bien Le Disque de Platine');
+    if (karaoke.note !== 'S' || !karaoke.karaFini) fail('Karaoké : le chanteur parfait ne fait pas de S (note ' + karaoke.note + ', ' + karaoke.prec + ' %, fini=' + karaoke.karaFini + ')');
+    else ok('Karaoké : le chanteur parfait finit « Cœur de Chrome » avec un S (' + karaoke.prec + ' %)');
+    if (!karaoke.curioObtenue) fail('Karaoké : le S n\'a pas donné Le Disque de Platine');
+    else ok('Karaoké : le S donne bien Le Disque de Platine');
 
     // -------------------------------------------------------------------
     // Véhicule aérien (hélicoptère) : les libellés des boutons SPRINT/FREIN
@@ -18182,6 +18182,176 @@ async function main() {
       });
       if (r.ko.length) fail('Retours 20 oct., lot 7 : ' + r.ko.slice(0, 25).join(' ; ') + ' [' + r.info.join(' | ') + ']');
       else ok('Retours 20 oct., lot 7 : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
+    // Retours du 20 octobre, lot 8 : les mini-jeux revus et nouveaux. Le karaoké devenu jeu de rythme à pistes (KARA_CHANSONS),
+    // le duel du Monstre contre Gérard (BURGER_COUCHES), Jus de Plage (JUS_FRUITS, JUS_PIEGES) et les manèges à la 1re personne
+    // (MANEGES_DEFS). Chaque jeu passe par son vrai chemin (bouton d'action, panneau, boutons du panneau) ; un pilote simulé aux
+    // vrais boutons, avec un temps de réaction ou une imprécision humaine, réussit ; un joueur passif (ou maladroit) échoue.
+    // -------------------------------------------------------------------
+    console.log('\n--- Retours du 20 octobre, lot 8.1 : le karaoké, jeu de rythme ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = []; let T = dernierT + 1000;
+        const pas = (n, dtm) => { for (let i = 0; i < n; i++) { T += dtm || 1000 / 60; tick(T); } };
+        const ev = (id, type) => { const b = document.getElementById(id); if (!b) return false; b.dispatchEvent(new PointerEvent(type, { bubbles: true, pointerId: 31 })); return true; };
+        const sav = { rec: JSON.stringify(META.karaokeRec), argent: META.argent, curios: JSON.stringify(META.curios), kar: META.karaoke };
+        const rnd0 = Math.random; let gr = 8101; const alea = () => { gr = (gr * 1664525 + 1013904223) >>> 0; return gr / 4294967296; };
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9;
+        // les partitions : la même à chaque fois, plus longues et plus denses selon la difficulté, des tenues et des accords
+        const stats = KARA_CHANSONS.map((C) => { const n = karaPartition(C), n2 = karaPartition(C), d = n[n.length - 1].t + n[n.length - 1].d;
+          if (JSON.stringify(n) !== JSON.stringify(n2)) ko.push(C.id + ' : la partition change d’une fois à l’autre');
+          return { id: C.id, n: n.length, d, ten: n.filter((x) => x.d > 0).length, acc: n.filter((x, i) => i > 0 && n[i - 1].t === x.t).length, pistes: new Set(n.map((x) => x.l)).size }; });
+        for (let i = 1; i < stats.length; i++) if (!(stats[i].n > stats[i - 1].n * 1.4)) ko.push('pas plus dense : ' + stats[i].id);
+        if (stats.some((s) => s.d < 50 || s.pistes !== 4)) ko.push('chansons trop courtes ou pistes ' + JSON.stringify(stats));
+        if (!stats.slice(1).every((s) => s.ten > 5 && s.acc > 3)) ko.push('ni tenues ni accords dans les chansons difficiles');
+        info.push(stats.map((s) => s.id + ' ' + s.n + ' notes, ' + Math.round(s.d) + ' s, ' + s.ten + ' tenues, ' + s.acc + ' accords').join(' ; '));
+        const p = PORTES.find((x) => x.id === 'karaoke'); entrerInterieur('karaoke', p); const s = INT.actif;
+        const chanter = (id) => { WAVES.n++; META.argent = Math.max(META.argent, 500); P.x = s.scene2.x; P.z = s.scene2.z; majAction(); const b = el('btnAction'), l = b.textContent; if (b._fn) b._fn();
+          const c = document.getElementById('karaC_' + id); if (!c || c.disabled) return { err: 'choix « ' + id + ' » absent ou fermé (' + l + ')' }; c.click(); return KARA.a ? { ok: true } : { err: 'la chanson ne démarre pas' }; };
+        const pilote = (jit, saute, faux) => { /* appuie sur la piste de chaque note (imprécision ±jit s), relâche au bout des tenues */
+          const A = KARA.a, ev2 = []; for (const n of A.notes) { if (alea() < saute) continue; const tp = n.t + (alea() * 2 - 1) * jit; ev2.push({ t: tp, l: n.l, d: 1 }, { t: n.d > 0 ? n.t + n.d + 0.02 : tp + 0.07, l: n.l, d: 0 }); }
+          if (faux) for (let t = 1; t < A.fin; t += faux) { const l = Math.floor(alea() * 4), tp = t + alea() * 0.2; ev2.push({ t: tp, l, d: 1 }, { t: tp + 0.06, l, d: 0 }); }
+          ev2.sort((a, b) => a.t - b.t || a.d - b.d); let k = 0, n = 0;
+          while (KARA.a === A && n++ < 60 * 120) { while (k < ev2.length && ev2[k].t <= A.t + 1 / 120) { const e = ev2[k++]; ev('karaB' + e.l, e.d ? 'pointerdown' : 'pointerup'); } pas(1); }
+          for (let l = 0; l < 4; l++) ev('karaB' + l, 'pointerup'); return KARA.bilan; };
+        // « Vipère Fièvre » est fermée tant que « Cœur de Chrome » n'est pas finie
+        META.karaokeRec = { neon: 0, chrome: 0, vipere: 0 }; { WAVES.n++; P.x = s.scene2.x; P.z = s.scene2.z; majAction(); el('btnAction')._fn(); const c = document.getElementById('karaC_vipere'); if (!c || !c.disabled) ko.push('« Vipère Fièvre » ouverte d’emblée'); karaChoixUI(false); }
+        // le chanteur simulé, sur la moyenne : une note S, le Disque de Platine, le record, la difficile s'ouvre
+        { delete META.curios.platine; META.argent = 1000; const a0 = META.argent, R = chanter('chrome'); if (R.err) ko.push(R.err); else {
+            if (META.argent !== a0 - 60) ko.push('le micro n’est pas payé 60 $'); if (el('btnFire').style.display !== 'none') ko.push('boutons de combat visibles pendant la chanson');
+            if (!s.tenu || !s.cadrage || !s.cadrage.actif) ko.push('le joueur n’est pas tenu sur scène');
+            const a1 = META.argent, B = pilote(0.045, 0, 0);
+            if (!B || B.huee || B.note !== 'S') ko.push('chanteur simulé : ' + JSON.stringify(B)); else info.push('chanteur simulé (±45 ms) : S, ' + B.prec + ' %, ' + B.score + ' pts, combo ' + B.comboMax + ', +' + (META.argent - a1) + ' $');
+            if (!aCurio('platine')) ko.push('pas de Disque de Platine pour un S'); if (!(META.karaokeRec.chrome > 0)) ko.push('record non noté');
+            if (s.karaOn || s.tenu || el('karaB0').parentNode.style.visibility !== 'hidden') ko.push('la scène ne se libère pas à la fin'); } }
+        { P.x = s.scene2.x; P.z = s.scene2.z; majAction(); el('btnAction')._fn(); const c = document.getElementById('karaC_vipere'); if (!c || c.disabled) ko.push('« Vipère Fièvre » toujours fermée après « Cœur de Chrome »'); karaChoixUI(false); }
+        // le passif se fait huer (rien gagné, quelques PV), le maladroit ne fait pas de S
+        { META.argent = 1000; const a0 = META.argent, h0 = P.hp, R = chanter('neon'); if (R.err) ko.push(R.err); else { const B = pilote(9, 1, 0); if (!B || !B.huee) ko.push('le passif finit sa chanson'); else info.push('passif : hué (la jauge de la salle se vide), rien gagné');
+            if (META.argent !== a0 - 60) ko.push('le passif gagne de l’argent'); if (!(P.hp < h0)) ko.push('pas de pénalité pour le hué'); } }
+        { const R = chanter('neon'); if (R.err) ko.push(R.err); else { const B = pilote(0.17, 0.1, 0.7); if (B && !B.huee && B.note === 'S') ko.push('le maladroit fait un S'); else info.push('maladroit (±170 ms, 10 % oubliées, fausses notes) : ' + (B ? (B.huee ? 'hué' : B.note + ' ' + B.prec + ' %') : '?')); } }
+        // deux chansons par vague ; la mort coupe tout
+        { WAVES.n++; s.karaVague = WAVES.n; s.karaN = KARAOKE_SESSIONS_MAX; P.x = s.scene2.x; P.z = s.scene2.z; majAction(); const l = el('btnAction').textContent; if (!/réservé/.test(l)) ko.push('pas de plafond par vague (' + l + ')'); }
+        { const R = chanter('neon'); if (R.err) ko.push(R.err); else { pas(30); mourir(); if (KARA.a || s.karaOn || (document.getElementById('karaPan') && document.getElementById('karaPan').style.display !== 'none')) ko.push('la mort n’arrête pas la chanson'); if (ETAT.mortTimer) { clearTimeout(ETAT.mortTimer); ETAT.mortTimer = null; } } }
+        Math.random = rnd0; startRun(); META.karaokeRec = JSON.parse(sav.rec); META.argent = sav.argent; META.curios = JSON.parse(sav.curios); META.karaoke = sav.kar; return { ko, info };
+      });
+      if (r.ko.length) fail('Retours 20 oct., lot 8.1 : ' + r.ko.slice(0, 25).join(' ; ') + ' [' + r.info.join(' | ') + ']');
+      else ok('Retours 20 oct., lot 8.1 : ' + r.info.join(' ; '));
+    }
+    console.log('\n--- Retours du 20 octobre, lot 8.2 : le duel du Monstre ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = []; let T = dernierT + 1000;
+        const pas = (n) => { for (let i = 0; i < n; i++) { T += 1000 / 60; tick(T); } };
+        const ev = (id) => { const b = document.getElementById(id); if (!b) return false; b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 32 })); return true; };
+        const sav = { argent: META.argent, sw: META.sandwich, curios: JSON.stringify(META.curios) };
+        let gr = 8202; const alea = () => { gr = (gr * 1664525 + 1013904223) >>> 0; return gr / 4294967296; };
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9;
+        const p = PORTES.find((x) => x.id === 'sandwich'); entrerInterieur('sandwich', p); const s = INT.actif;
+        if (!s.burgers || s.burgers.j.L.length !== BURGER_COUCHES.length || s.burgers.g.L.length !== BURGER_COUCHES.length) return { ko: ['pas de Monstres de ' + BURGER_COUCHES.length + ' couches'], info };
+        if (s.monstre && s.monstre.visible) ko.push('l’ancien sandwich est encore visible');
+        const lancer = () => { WAVES.n++; META.argent = Math.max(META.argent, 200); P.x = s.defiPos.x; P.z = s.defiPos.z; majAction(); const b = el('btnAction'), l = b.textContent; if (b._fn) b._fn(); return s.bg ? null : 'le duel ne démarre pas (« ' + l + ' »)'; };
+        const visibles = (E) => E.L.filter((g) => g.visible).length;
+        const joue = (style) => { const A = s.bg; let n = 0, cible = 0.5, ph0 = 1, spam = 0, couches = [], dernierProg = -1;
+          while (s.bg === A && n++ < 60 * 70) { const J = A.j; if (A.t >= 0 && !A.fin) {
+              if (J.ph < ph0) cible = 0.5 + (alea() - 0.5) * 0.25; ph0 = J.ph;
+              if (style === 'bon' && J.boit <= 0) { if (J.naus > 70) ev('bgBoire'); else if (!J.boostUse && J.naus < 30 && J.prog >= 6) ev('bgBoost'); else if (!J.mordu && J.ph >= cible) ev('bgMord'); }
+              if (style === 'glouton' && A.t >= spam) { spam = A.t + 0.2; ev('bgMord'); }
+              if (Math.floor(J.prog) !== dernierProg) { dernierProg = Math.floor(J.prog); couches.push(visibles(s.burgers.j)); } }
+            pas(1); }
+          return { couches, gerard: visibles(s.burgers.g) }; };
+        // le mangeur simulé (au rythme, à ±0,09 s du milieu de la fenêtre ; il boit à 70, prend sa sauce au calme) bat Gérard
+        { delete META.curios.ceinture; META.sandwich = 0; const e = lancer(); if (e) ko.push(e); else {
+            if (!s.tenu || el('btnFire').style.display !== 'none' || document.getElementById('bgPan').style.display === 'none') ko.push('ni tenu à table, ni panneau, ou boutons de combat visibles');
+            const a0 = META.argent, sw0 = META.sandwich, R = joue('bon');
+            if (META.sandwich !== sw0 + 1 || !(META.argent > a0)) ko.push('le mangeur simulé ne gagne pas (' + JSON.stringify(R.couches.slice(-3)) + ')');
+            else info.push('mangeur simulé : gagné, +' + (META.argent - a0) + ' $, couches visibles ' + R.couches[0] + ' → ' + R.couches[R.couches.length - 1] + ', Gérard à ' + R.gerard + ' couches');
+            if (!(R.couches[0] === BURGER_COUCHES.length && R.couches[R.couches.length - 1] <= 2)) ko.push('le Monstre ne se mange pas couche par couche (' + R.couches.join(',') + ')');
+            if (!(R.gerard < BURGER_COUCHES.length)) ko.push('Gérard ne mange pas'); if (!aCurio('ceinture')) ko.push('pas de Ceinture de Champion');
+            if (s.tenu || s.swEtat || document.getElementById('bgPan').style.display !== 'none') ko.push('la table ne se libère pas'); } }
+        { const a0 = META.argent; P.x = s.defiPos.x; P.z = s.defiPos.z; majAction(); el('btnAction')._fn(); if (s.bg || META.argent !== a0) ko.push('deux duels dans la vague'); }
+        // le passif voit Gérard finir ; le glouton (une bouchée toutes les 0,2 s, sans boire) craque
+        { const e = lancer(); if (e) ko.push(e); else { const sw0 = META.sandwich; joue('passif'); if (META.sandwich !== sw0) ko.push('le passif gagne'); else info.push('passif : Gérard finit avant lui'); } }
+        { const e = lancer(); if (e) ko.push(e); else { const sw0 = META.sandwich, h0 = P.hp; joue('glouton'); if (META.sandwich !== sw0 || !(P.hp < h0)) ko.push('le glouton ne craque pas'); else info.push('glouton : nausée à 100, -8 PV'); } }
+        // la mort et la sortie arrêtent le duel
+        { const e = lancer(); if (e) ko.push(e); else { pas(40); mourir(); if (s.bg || s.swEtat || s.tenu || document.getElementById('bgPan').style.display !== 'none') ko.push('la mort n’arrête pas le duel'); if (ETAT.mortTimer) { clearTimeout(ETAT.mortTimer); ETAT.mortTimer = null; } startRun(); ecran(null); ETAT.mode = 'jeu'; } }
+        { entrerInterieur('sandwich', p); const e = lancer(); if (e) ko.push(e); else { pas(20); sortirInterieur(); if (s.bg || s.swEtat || s.tenu) ko.push('sortir n’arrête pas le duel'); } }
+        META.argent = sav.argent; META.sandwich = sav.sw; META.curios = JSON.parse(sav.curios); startRun(); return { ko, info };
+      });
+      if (r.ko.length) fail('Retours 20 oct., lot 8.2 : ' + r.ko.slice(0, 25).join(' ; ') + ' [' + r.info.join(' | ') + ']');
+      else ok('Retours 20 oct., lot 8.2 : ' + r.info.join(' ; '));
+    }
+    console.log('\n--- Retours du 20 octobre, lot 8.3 : Jus de Plage ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = []; let T = dernierT + 1000;
+        const pas = (n) => { for (let i = 0; i < n; i++) { T += 1000 / 60; tick(T); } };
+        const sav = { rec: META.defis.jus, argent: META.argent };
+        let gr = 8303; const alea = () => { gr = (gr * 1664525 + 1013904223) >>> 0; return gr / 4294967296; };
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); META.vue = 'classique'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9; for (const e of ennemis) e.mort = true;
+        if (!JUS.ok) return { ko: ['pas de stand Jus de Plage'], info };
+        if (estEau(JUS.pos.x, JUS.pos.z) || !estSable(JUS.g.position.x, JUS.g.position.z + 2)) ko.push('le stand n’est pas sur le sable');
+        if (!pointsActivites().some((a) => a.nom === 'Jus de Plage')) ko.push('le stand n’est pas sur la carte');
+        const lancer = () => { P.x = JUS.pos.x; P.z = JUS.pos.z; P.y = JUS.pos.y; pas(2); majAction(); const b = el('btnAction'), l = b.textContent; if (b._fn) b._fn(); return JUS.actif ? null : 'le jeu ne démarre pas (« ' + l + ' »)'; };
+        const cv = () => document.getElementById('jusCv');
+        const geste = (x0, y0, x1, y1) => { const c = cv(), R = c.getBoundingClientRect(), kx = R.width / c.width, ky = R.height / c.height; const E = (t, x, y) => c.dispatchEvent(new PointerEvent(t, { bubbles: true, pointerId: 33, clientX: R.left + x * kx, clientY: R.top + y * ky }));
+          E('pointerdown', x0, y0); E('pointermove', (x0 + x1) / 2, (y0 + y1) / 2); E('pointermove', x1, y1); E('pointerup', x1, y1); };
+        const joue = (style) => { const A = JUS.actif; let n = 0, prochain = 0;
+          while (JUS.actif === A && n++ < 60 * 60) { if (A.t >= prochain && !A.fin) {
+              if (style === 'bon') { prochain = A.t + 0.11; const cibles = A.objets.filter((o) => !o.piege && !o.coupe && o.y < A.H * 0.98 && o.y > A.H * 0.05).sort((a, b) => b.y - a.y);
+                for (const o of cibles) { const pieges = A.objets.filter((q) => q.piege), libre = (x0, y0, x1, y1) => pieges.every((q) => { const dx = x1 - x0, dy = y1 - y0, L2 = dx * dx + dy * dy, t = Math.max(0, Math.min(1, ((q.x - x0) * dx + (q.y - y0) * dy) / L2)), px = x0 + dx * t, py = y0 + dy * t; return Math.hypot(q.x - px, q.y - py) > q.R * 1.6; });
+                  const d = o.R * 1.5, essais = [[o.x - d, o.y, o.x + d, o.y], [o.x, o.y - d, o.x, o.y + d], [o.x - d, o.y - d, o.x + d, o.y + d]]; const g = essais.find((e) => libre(...e)); if (g) { geste(...g); break; } } }
+              if (style === 'maladroit') { prochain = A.t + 0.3; const y = A.H * (0.2 + alea() * 0.6); geste(A.W * 0.05, y, A.W * 0.95, y + (alea() - 0.5) * A.H * 0.2); } }
+            pas(1); }
+          return A; };
+        // le trancheur simulé (un geste toutes les 0,11 s, contre le fruit qui tombe le plus bas, jamais à travers un piège)
+        { WAVES.n++; META.defis.jus = 0; const a0 = META.argent; P.hp = 100; P.maxHp = 200; P.buffs.vit = 0; const e = lancer(); if (e) ko.push(e); else {
+            if (el('btnFire').style.display !== 'none') ko.push('boutons de combat visibles'); const x0 = P.x, z0 = P.z;
+            const A = joue('bon'), R = jusRecette(A); if (!(A.score >= JUS_OBJECTIF)) ko.push('trancheur simulé : ' + A.score + ' fruits (' + A.vies + ' vies, ' + A.piege + ' pièges, ' + A.perdus + ' perdus)');
+            else info.push('trancheur simulé : ' + A.score + ' fruits, ' + A.piege + ' piège, ' + A.perdus + ' perdus, ' + R.nom + ' (' + R.n + ' parts)');
+            if (META.argent - a0 !== JUS_PRIME) ko.push('prime : ' + (META.argent - a0)); if (!(P.hp > 100 || P.buffs.vit > 0)) ko.push('le jus ne fait rien (PV ' + P.hp + ', vitesse ' + P.buffs.vit + ')');
+            if (META.defis.jus !== A.score) ko.push('record non noté'); if (Math.hypot(P.x - x0, P.z - z0) > 0.5) ko.push('le joueur bouge pendant le jeu'); } }
+        // un deuxième jeu dans la vague : ni jus, ni prime
+        { const a0 = META.argent; P.hp = 100; P.buffs.vit = 0; const e = lancer(); if (e) ko.push(e); else { joue('bon'); if (META.argent !== a0 || P.hp > 100 || P.buffs.vit > 0) ko.push('deux jus ou deux primes dans la vague'); } }
+        // le passif perd ses trois vies (rien), le maladroit tranche des pièges
+        { WAVES.n++; const a0 = META.argent; P.hp = 100; P.buffs.vit = 0; const e = lancer(); if (e) ko.push(e); else { const A = joue('passif'); if (A.vies > 0 || A.score > 0 || META.argent !== a0 || P.hp > 100 || P.buffs.vit > 0) ko.push('le passif gagne quelque chose'); else info.push('passif : trois fruits par terre en ' + A.t.toFixed(1) + ' s, rien'); } }
+        { WAVES.n++; const e = lancer(); if (e) ko.push(e); else { const A = joue('maladroit'); if (A.score >= JUS_OBJECTIF) ko.push('le maladroit réussit'); else info.push('maladroit (coups au hasard) : ' + A.score + ' fruits, ' + A.piege + ' pièges'); } }
+        // la mort arrête le jeu
+        { WAVES.n++; const e = lancer(); if (e) ko.push(e); else { pas(30); mourir(); if (JUS.actif || document.getElementById('jusPan').style.display !== 'none') ko.push('la mort n’arrête pas le jeu'); if (ETAT.mortTimer) { clearTimeout(ETAT.mortTimer); ETAT.mortTimer = null; } } }
+        META.defis.jus = sav.rec; META.argent = sav.argent; startRun(); return { ko, info };
+      });
+      if (r.ko.length) fail('Retours 20 oct., lot 8.3 : ' + r.ko.slice(0, 25).join(' ; ') + ' [' + r.info.join(' | ') + ']');
+      else ok('Retours 20 oct., lot 8.3 : ' + r.info.join(' ; '));
+    }
+    console.log('\n--- Retours du 20 octobre, lot 8.4 : les manèges à la 1re personne ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = []; let T = dernierT + 1000;
+        const pas = (n) => { for (let i = 0; i < n; i++) { T += 1000 / 30; tick(T); } };
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); META.vue = 'immersive'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9; for (const e of ennemis) e.mort = true;
+        const Tq = MANEGES.tour; if (!Tq) return { ko: ['pas de Tourbillon'], info };
+        if (estEau(Tq.x, Tq.z) || estEau(Tq.entree.x, Tq.entree.z)) ko.push('le Tourbillon est dans l’eau');
+        const departs = { huit: () => MANEGES.huit.gare, roue: () => ({ x: JETEE.roue.position.x, z: JETEE.roue.position.z + 3.2 }), tour: () => Tq.entree };
+        const tete = new THREE.Vector3(), dir = new THREE.Vector3();
+        for (const D of MANEGES_DEFS) { const d = departs[D.id]; if (!d) { ko.push('pas de départ pour ' + D.id); continue; } const q = d(); P.x = q.x; P.z = q.z; P.y = solPied(P.x, P.z); META.argent = Math.max(META.argent, 100); const m0 = META.defis.manege;
+          majAction(); const b = el('btnAction'), l = b.textContent; if (b._fn) b._fn(); if (!MANEGES.actif || MANEGES.actif.type !== D.id) { ko.push(D.nom + ' : pas de tour (« ' + l + ' »)'); continue; }
+          let dMax = 0, nFr = 0, cam0 = null, bouge = 0, ext = null, angMax = 0, rMax = 0;
+          for (let i = 0; i < 30 * 80 && MANEGES.actif; i++) { pas(1); nFr++;
+            if (P.h.g.visible) { if (!ext) ko.push(D.nom + ' : le corps reste visible à la 1re personne'); }
+            tete.set(P.x, P.y + 1.3, P.z); const dd = camera.position.distanceTo(tete); if (!MANEGES.ext && i > 5 && MANEGES.actif) dMax = Math.max(dMax, dd); /* les premières images : la caméra est posée avant que le joueur ne soit mis sur le manège */
+            if (cam0) bouge = Math.max(bouge, camera.position.distanceTo(cam0)); else cam0 = camera.position.clone();
+            if (D.id === 'tour') { angMax = Math.max(angMax, Tq.theta[0]); rMax = Math.max(rMax, Math.hypot(P.x - Tq.x, P.z - Tq.z)); }
+            if (i === 300 && !ext) { basculerVue(); pas(2); ext = { d: camera.position.distanceTo(tete), corps: P.h.g.visible }; basculerVue(); pas(2); if (MANEGES.ext) ko.push(D.nom + ' : le bouton de vue ne revient pas à la 1re personne'); } }
+          if (MANEGES.actif) { ko.push(D.nom + ' : le tour ne finit pas'); finManege(false); continue; }
+          if (!(dMax < 2.2)) ko.push(D.nom + ' : la caméra s’écarte de la tête (' + dMax.toFixed(2) + ' u)'); if (!(bouge > 8)) ko.push(D.nom + ' : la caméra ne suit pas le manège');
+          if (!ext || !(ext.d > 5) || !ext.corps) ko.push(D.nom + ' : pas de vue extérieure au bouton de vue (' + JSON.stringify(ext) + ')');
+          if (!P.h.g.visible) ko.push(D.nom + ' : le corps reste caché après le tour'); if (META.defis.manege !== m0 + 1) ko.push(D.nom + ' : tour non compté');
+          if (D.id === 'tour' && !(angMax > 0.55 && rMax > TOURB_R + 2.6)) ko.push('les chaises ne s’écartent pas (' + angMax.toFixed(2) + ' rad, ' + rMax.toFixed(1) + ' u)');
+          info.push(D.nom + ' : ' + (nFr / 30).toFixed(0) + ' s, caméra à ' + dMax.toFixed(2) + ' u de la tête, vue extérieure à ' + ext.d.toFixed(1) + ' u' + (D.id === 'tour' ? ', chaise à ' + (angMax * 57.3).toFixed(0) + '°' : '')); }
+        startRun(); return { ko, info };
+      });
+      if (r.ko.length) fail('Retours 20 oct., lot 8.4 : ' + r.ko.slice(0, 25).join(' ; ') + ' [' + r.info.join(' | ') + ']');
+      else ok('Retours 20 oct., lot 8.4 : ' + r.info.join(' ; '));
     }
     // -------------------------------------------------------------------
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');

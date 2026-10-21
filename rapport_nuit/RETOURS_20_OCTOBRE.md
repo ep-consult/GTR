@@ -29,10 +29,10 @@ lourds. Aucune référence à un autre jeu ni à une marque.
 | 6 | 6.3 Kitesurf | ☑ |
 | 6 | 6.4 Wakeboard amélioré | ☑ |
 | 7 | 7.1 « Reyes Cliff Diving » | ☑ |
-| 8 | 8.1 Karaoké en jeu de rythme | ☐ |
-| 8 | 8.2 Défi du burger | ☐ |
-| 8 | 8.3 « Jus de Plage » (découpe de fruits) | ☐ |
-| 8 | 8.4 Manèges de la marina à la 1re personne | ☐ |
+| 8 | 8.1 Karaoké en jeu de rythme | ☑ |
+| 8 | 8.2 Défi du burger | ☑ |
+| 8 | 8.3 « Jus de Plage » (découpe de fruits) | ☑ |
+| 8 | 8.4 Manèges de la marina à la 1re personne | ☑ |
 | 9 | 9.1 Akimbo à la 1re personne | ☐ |
 | 10 | 10.1 Défi voltige et course d'avions | ☐ |
 
@@ -495,4 +495,60 @@ MAINTENIR pour tourner groupé, relâcher pour entrer tête la première, trois 
   tenue sont vérifiés.
 
 Captures : `captures/retours_20/7_site.png`, `7_vol.png`, `7_notes_hud.png`.
+
+
+## Lot 8 — Mini-jeux (fait : 8.1 à 8.4, un seul commit)
+
+**Lectures retenues.** 8.1 « un jeu de rythme à pistes, avec un nom original » : la salle du karaoké garde son nom (Micro
+Cassé) et le jeu s'appelle « la scène » ; quatre pistes de couleur, des notes qui tombent, trois chansons ORIGINALES (paroles
+écrites pour le jeu, aucune référence à un jeu existant). 8.2 « contre un PNJ, en rythme, avec nausée et boost » : un duel contre
+Gérard « la Mâchoire », l'habitué de la sandwicherie (le Monstre d'avant était un compteur de taps contre une jauge). 8.3 : le
+stand « Jus de Plage » de Lani, sur le sable entre la gare du grand huit et l'eau ; le geste (trancher au doigt des fruits jetés en
+l'air) est décrit par la demande, le nom et les règles sont propres au jeu. 8.4 « les manèges de la marina » : le grand huit et la
+grande roue (qui existaient, sans vue intérieure) et un troisième, construit pour l'occasion : **le Tourbillon**, des chaises
+volantes ; chacun a sa vue à la 1re personne, et le bouton de vue bascule pendant le tour entre l'intérieur et une vue extérieure.
+
+- **8.1 La scène du karaoké** (`KARA`, `KARA_CHANSONS`, `karaPartition`, `karaAppui`, `karaMaj`, `karaFin`, `karaDessiner`) : « Néon sur
+  Los Reyes » (facile, 92 bpm), « Cœur de Chrome » (moyen, 112 bpm), « Vipère Fièvre » (difficile, 138 bpm, ouverte par un score sur
+  la deuxième). La partition est tirée de la graine de la chanson (`karaPartition` : noires, croches, notes tenues, accords sur deux
+  pistes) et calée sur le tempo ; fenêtres de 50 / 95 / 140 ms (PARFAIT, BIEN, JUSTE), combo et multiplicateur, notes tenues
+  (relâcher trop tôt = LÂCHÉ). La **jauge de la salle** monte avec les bonnes notes et fond avec les ratés et les fausses notes : vide,
+  le chanteur est hué et sort de scène (rien de gagné). Notes S / A / B / C à la précision, gain selon la note, record par chanson
+  (`META.karaokeRec`, clés fixes), Disque de Platine pour un S sur l'une des deux dernières. Toujours deux chansons par vague
+  (`KARAOKE_SESSIONS_MAX`), 60 $ le micro. Voix et accompagnement synthétisés (`karaSonStart`, `karaVoix` : la note jouée chante, la
+  fausse note grince). Le joueur est tenu sur scène, caméra cadrée sur la scène et l'écran des paroles (`s.cadrage`), quatre gros
+  boutons en bas.
+- **8.2 Le duel du Monstre** (`BURGER_COUCHES`, `burgerDemarrer`, `burgerMaj`, `burgerMordre`, `burgerBoire`, `burgerBoost`,
+  `finMonstre`) : deux Monstres de douze couches (pain, steaks, cheddar, bacon, salade…) qui fondent couche par couche à l'écran. On
+  MORD en rythme (un curseur va et vient : dans le vert, la bouchée compte et la série monte ; hors du vert, elle compte à moitié et
+  la nausée monte plus) ; chaque couche a son poids en nausée ; BOIRE fait redescendre la nausée mais coûte 1,4 s ; la SAUCE DU ROI
+  (une fois) double le rythme 3,5 s puis donne +15 de nausée. Gérard mord à son rythme (un peu plus vif à chaque Monstre gagné),
+  boit quand il tangue, prend sa sauce au milieu, et peut craquer. Nausée à 100 = perdu (−8 PV), Gérard qui finit avant = perdu,
+  50 s écoulées = perdu. Un Monstre par vague (inchangé), 40 $, gain et Ceinture de Champion comme avant.
+- **8.3 Jus de Plage** (`JUS`, `JUS_FRUITS`, `JUS_PIEGES`, `mkJusDePlage` en fin de décor sur un générateur privé, `jusDemarrer`,
+  `jusTrancher`, `jusMaj`, `jusConclure`) : 45 s, trois vies ; les fruits jaillissent du bas de l'écran, un glisser du doigt les
+  tranche (plusieurs d'un geste = combo) ; un oursin ou une méduse tranchés coûtent une vie et gâchent le jus ; un fruit retombé
+  aussi. Le verre se remplit par couleur : « Jus Soleil » (mangue, ananas, coco : des PV), « Coup de fouet » (pastèque, fraise,
+  citron vert : de la vitesse), « Cocktail de Lani » à moitié-moitié ; la pitaya dorée compte triple. Un jus (le bonus) par vague,
+  record `META.defis.jus`, prime une fois par vague au-delà de 60 fruits, défi « Jus de Plage ». Le mobilier qui mordait sur le stand
+  est replié pièce par pièce (`replierMobilierDans`).
+- **8.4 Les manèges à la 1re personne** (`MANEGES_DEFS`, `cameraManege`, `mkTourniquet`, `majTourniquet`) : grand huit (l'œil au
+  premier rang, dans le repère du wagon : on bascule dans les loopings et les dévers, champ qui s'ouvre avec la vitesse), grande roue
+  (dans la nacelle, la ville qui monte), le Tourbillon (douze chaises sur des chaînes, l'angle d'équilibre calculé à la vitesse de
+  rotation — jusqu'à 45° —, la couronne qui penche, les ampoules ; on regarde dans le sens de la marche). Le doigt fait
+  regarder autour, le regard revient seul. Le bouton de vue passe à l'extérieur et revient. Défi des manèges : le Tourbillon compte.
+
+**Pilotes simulés** (tests « Retours du 20 octobre, lot 8.1 » à « 8.4 », aux vrais boutons) : chanteur à ±45 ms : S, 100 %,
+« Cœur de Chrome » ; passif et maladroit (±170 ms, une note sur dix oubliée, fausses notes) : hués. Mangeur en rythme : gagne (Gérard
+à 2 couches de la fin) ; passif : Gérard gagne ; glouton qui mord sans boire : nausée à 100. Trancheur : 86 fruits, Cocktail de Lani ;
+passif : trois fruits par terre en 7,4 s ; maladroit (coups au hasard) : 5 fruits. Les trois manèges : la caméra à la tête du
+passager pendant tout le tour (1,5 u au plus, au premier rang du grand huit), la vue extérieure à 6 à 26 u, la chaise du Tourbillon à
+45°.
+
+**Mesures** (machine sans carte graphique : proportions seulement). Au Tourbillon : 274 appels de rendu en vue immersive (257 avant
+le lot), 237 en vue de dessus (202) ; au stand de Lani : 279 (258) et 220 (166) — la vue de dessus du stand voit aussi le Tourbillon.
+Pièces fixes fusionnées par matériau (`fusionnerEnfants`) ; une chaise et ses chaînes = deux appels.
+
+Captures : `captures/retours_20/8_karaoke.png`, `8_burger.png`, `8_jus.png`, `8_jus_stand.png`, `8_huit1p.png`, `8_roue1p.png`,
+`8_tour1p.png`, `8_tour_ext.png`.
 

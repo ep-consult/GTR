@@ -2106,7 +2106,7 @@ const META={
          gadget:{poss:false,lv:0},couteau:{poss:false,lv:0},batte2:{poss:false,lv:0},bouleC:{poss:false,lv:0},sabre:{poss:false,lv:0},pompe:{poss:false,lv:0},uzi:{poss:false,lv:0},silence:{poss:false,lv:0},pm:{poss:false,lv:0},fusil:{poss:false,lv:0},sniper:{poss:false,lv:0},flamme:{poss:false,lv:0},roquette:{poss:false,lv:0},desintegrateur:{poss:false,lv:0}},
   upg:{vitesse:0,vie:0,regen:0,melee:0,recharge:0,butin:0},
   defis:{coffresToits:0,avionsPoses:0,manege:0,styleAchats:0,fauves:0,aimant:0, // 3e série (14 octobre)
-  paquebot:0,epave:0,bouteilles:0,tortues:0,contrebande:0,kite:0,wake:0,falaise:0, // retours du 20 octobre, lots 6 et 7 (falaise : record du Reyes Cliff Diving) : le large (kite et wake : records de points)
+  paquebot:0,epave:0,bouteilles:0,tortues:0,contrebande:0,kite:0,wake:0,falaise:0,jus:0, /* jus : record de Jus de Plage (lot 8.3) */ // retours du 20 octobre, lots 6 et 7 (falaise : record du Reyes Cliff Diving) : le large (kite et wake : records de points)
     vols:0,dist:0,detruits:0,chefs:0,etoile6:false,bateau:false,ile:false,avion:false,heli:false,crash:false,saut:false,toit:false,banque:false,sommet:false,villa:false,jackpot:false,
     // lot 11/12 (Dépôt de bus, Jetpack, Monster Truck) : chaque victoire de
     // circuit est marquée séparément (jamais déduite de META.depotCircuits,
@@ -2119,7 +2119,7 @@ const META={
     faits:{}, aReclamer:{}},
   decouverts:{},
   // --- lieux spéciaux : curiosités collectées + progression propre à chaque lieu ---
-  curios:{}, zohra:0, karaoke:0, gaston:0, lessives:0, fouilles:0,
+  curios:{}, zohra:0, karaoke:0, karaokeRec:{neon:0,chrome:0,vipere:0}, gaston:0, /* karaokeRec : record par chanson (lot 8.1, clés fixes) */ lessives:0, fouilles:0,
   muscle:0, strikes:0, bowlingMax:0, sandwich:0, plantes:0,
   // musée : chaque pièce de valeur n'est prenable qu'une fois, pour toute la partie
   museeArtefacts:{cone:false,laveuse:false,meteorite:false},
@@ -2245,7 +2245,7 @@ const DEFIS_THEMES=[
   // --- 3e série (14 octobre, demandé : « plus de défis qui utilisent toutes les nouveautés ») ---
   {theme:'toits',noms:['Monte-en-l’air','Pilleur de toits'],det:n=>'Fouille '+n+(n>1?' coffres':' coffre')+' sur les toits de la ville',val:m=>m.defis.coffresToits,paliers:[1,10],recs:[300,1200]},
   {theme:'tour',noms:['Aiguilleur','Contrôleur aérien','Maître du ciel'],det:n=>'Pose '+n+' avions depuis la tour de contrôle de l’aéroport',val:m=>m.defis.avionsPoses,paliers:[10,40,100],recs:[400,1200,2500]},
-  {theme:'manege',noms:['Ticket de manège','Accro aux sensations'],det:n=>'Fais '+n+(n>1?' tours':' tour')+' de grand huit ou de grande roue',val:m=>m.defis.manege,paliers:[1,10],recs:[150,700]},
+  {theme:'manege',noms:['Ticket de manège','Accro aux sensations'],det:n=>'Fais '+n+(n>1?' tours':' tour')+' de manège (grand huit, grande roue, Tourbillon)',val:m=>m.defis.manege,paliers:[1,10],recs:[150,700]},
   {theme:'style',noms:['Coquet','Fashion victim'],det:n=>'Achète '+n+(n>1?' pièces':' pièce')+' dans les boutiques, chez le barbier ou le tatoueur',val:m=>m.defis.styleAchats,paliers:[1,8],recs:[200,900]},
   {theme:'planques',noms:['Premier pied-à-terre','Agent immobilier','Baron de l’immobilier'],det:n=>'Achète '+n+(n>1?' planques':' planque'),val:m=>Object.values(m.planques||{}).filter((x)=>x===true||(x&&x.achetee)).length,paliers:[1,3,6],recs:[400,1500,4000]},
   {theme:'derby',noms:['Casse-cou','Roi de l’arène','Légende du derby'],det:n=>'Gagne '+n+(n>1?' derbys':' derby')+' dans l’arène',val:m=>(m.derby&&m.derby.victoires)||0,paliers:[1,5,15],recs:[500,1500,4000]},
@@ -2289,6 +2289,8 @@ const DEFIS_THEMES=[
   {theme:'longueVue',noms:['Guetteur','Vigie de la tour'],det:n=>'Repère '+n+' choses à la longue-vue du penthouse en une séance',val:m=>m.planquesJeux.longueVue,paliers:[3,8],recs:[300,1000]},
   {theme:'tresorsLou',noms:['Lecteur de cartes','Pirate de Lou'],det:n=>'Déterre '+n+(n>1?' trésors':' trésor')+' grâce aux cartes de Lou (voilier)',val:m=>m.planquesJeux.tresors,paliers:[1,5],recs:[300,1200]},
   {theme:'bowling',noms:['Strike !','Roi de la piste'],det:n=>'Fais '+n+(n>1?' strikes':' strike')+' au bowling',val:m=>m.strikes,paliers:[3,20],recs:[250,1000]},
+  {theme:'scene',noms:['Voix qui porte','Idole de la scène','Légende du Micro Cassé'],det:n=>'Marque '+n.toLocaleString('fr-FR')+' points sur une chanson du karaoké',val:m=>Math.max(m.karaokeRec.neon,m.karaokeRec.chrome,m.karaokeRec.vipere),paliers:[15000,45000,100000],recs:[200,600,1500]}, // lot 8.1
+  {theme:'jus',noms:['Presse-citron','Roi du smoothie','Lame de Lani'],det:n=>'Tranche '+n+' fruits en une partie de Jus de Plage',val:m=>m.defis.jus,paliers:[30,60,90],recs:[150,400,1000]}, // lot 8.3
   {theme:'karaoke',noms:['Voix de salle de bains','Star du karaoké'],det:n=>'Chante '+n+(n>1?' chansons':' chanson')+' au karaoké',val:m=>m.karaoke,paliers:[1,10],recs:[200,900]},
   {theme:'aquarium',noms:['Ami de Gaston','Dresseur de poulpe'],det:n=>'Attrape Gaston '+n+' fois à l’aquarium',val:m=>m.gaston,paliers:[1,6],recs:[300,1000]},
   {theme:'laverie',noms:['Blanchisseur','Lessiveur de la Bulle Bleue'],det:n=>'Réussis '+n+(n>1?' lavages':' lavage')+' de la machine 7',val:m=>m.lessives,paliers:[2,10],recs:[300,1000]},
@@ -4553,7 +4555,7 @@ function construireVille(){
     if(qq!=='plage'&&qq!=='parc'&&bx%3===1&&bz%3===1) mkFeu(cx+INNER/2+1.4,cz-INNER/2-1.4);
   }
   placerPortes();
-  if(DECOR_V2){ sansAleaVille(()=>{ reserverHills(); reserverChantier(); reserverBase(); reserverSports(); ameliorerPortes(); mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkBasket(); mkCiel(); mkKiosqueBanderole(); mkCrique(); mkMontReyes(); mkVieMont(); mkBordureEst(); mkCanyonsDesert(); mkPicVertige(); mkParcStunt(); mkSkateXXL(); mkRides(); mkMerVivante(); mkRemorquage(); mkLarge(); deplacerVoltige(); mkAeroportVivant(); mkHeliGrue(); mkPlanques(); mkBoutiques(); mkGrandHuit(); mkToitsVivants(); mkTracesSable(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkMontReyesV2(); mkNeonVivant(); mkQuartiersFinitions(); mkFacadesVariees(); mkCascades(); if(MERV.ok) mkVolcanIle(); mkAeroVie(); mkLosReyesHills(); mkBordsHills(); mkChantierV2(); mkPlanquesV2(); montSolides(); mkBaseV2(); mkBallTrap(); mkSportsParcs(); mkHalosBoutiques(); mkSurprisesToits(); mkArenaDerby(); mkRatelierSkateXXL(); mkStationsVelo(); mkSautVertige(); mkCampEntrainement(); mkCageV2(); mkBalises(); montActiver(); reserverCanaux(); mkCanaux(); mkMerV3(); }); } // cascades et volcan EN DERNIER : leurs tirages du décor ne décalent rien de ce qui précède (mobilier...) // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
+  if(DECOR_V2){ sansAleaVille(()=>{ reserverHills(); reserverChantier(); reserverBase(); reserverSports(); ameliorerPortes(); mkJeteeForaine(-205); mkSkatepark(4,1); mkPortVivant(); mkBrooklyn(); mkBasket(); mkCiel(); mkKiosqueBanderole(); mkCrique(); mkMontReyes(); mkVieMont(); mkBordureEst(); mkCanyonsDesert(); mkPicVertige(); mkParcStunt(); mkSkateXXL(); mkRides(); mkMerVivante(); mkRemorquage(); mkLarge(); deplacerVoltige(); mkAeroportVivant(); mkHeliGrue(); mkPlanques(); mkBoutiques(); mkGrandHuit(); mkToitsVivants(); mkTracesSable(); reserverNeon(); }); mkMobilierUrbain(); mkTransitionsSols(); sansAleaVille(()=>{ mkMontReyesV2(); mkNeonVivant(); mkQuartiersFinitions(); mkFacadesVariees(); mkCascades(); if(MERV.ok) mkVolcanIle(); mkAeroVie(); mkLosReyesHills(); mkBordsHills(); mkChantierV2(); mkPlanquesV2(); montSolides(); mkBaseV2(); mkBallTrap(); mkSportsParcs(); mkHalosBoutiques(); mkSurprisesToits(); mkArenaDerby(); mkRatelierSkateXXL(); mkStationsVelo(); mkSautVertige(); mkCampEntrainement(); mkCageV2(); mkBalises(); montActiver(); reserverCanaux(); mkCanaux(); mkMerV3(); avecAleaPrive(8303,mkJusDePlage); mkTourniquet(); /* lot 8 : le stand de jus, les chaises volantes (générateurs privés) */ }); } // cascades et volcan EN DERNIER : leurs tirages du décor ne décalent rien de ce qui précède (mobilier...) // après les portes : jamais devant l'une d'elles ; transitions : tous les sols sont posés
   finaliserMerge();
   construireMinimapStatique();
 }
@@ -12682,7 +12684,7 @@ function majBoutique(dt){ if(!BOUT.ouvert) return; if(ETAT.mode!=='jeu'||(INT.ac
    - GRANDE ROUE de la jetée : un tour dans une nacelle, vue panoramique sur la ville.
    Vagues en trêve pendant un tour (treveActivite). Spectacle sur dt.
 ===================================================================== */
-const MANEGES={actif:null,huit:null,prixTour:20};
+const MANEGES={actif:null,huit:null,tour:null,prixTour:20,ext:false,regard:{yaw:0,pitch:0,doigt:false}}; /* tour : le Tourbillon ; ext : la vue extérieure (bouton de vue pendant un tour) ; regard : au doigt (lot 8.4) */
 function mkGrandHuit(){
   const pts=[[-60,1.4,276],[-48,1.4,276],[-40,6,281],[-33,14,287],[-28,22,293],[-24,15,300],[-23,4,307],[-29,3,316],[-42,7,323],[-57,13,326],[-72,7,323],
     [-85,9,315],[-90,12,304],[-86,8,294],[-78,4,286],[-70,2.2,280]].map(([x,y,z])=>new THREE.Vector3(x,y,z));
@@ -12709,6 +12711,7 @@ function mkGrandHuit(){
 }
 function huitVitesse(H,u,y){ if(u>H.lift[0]&&u<H.lift[1]) return 4.5; return clamp(Math.sqrt(Math.max(20,2*9.8*(22.6-y)))*0.92,4.5,24); }
 function majManeges(dt){
+  majTourniquet(dt);
   const H=MANEGES.huit, M=MANEGES.actif;
   if(H){ const u=(H.s/H.L)%1, p=H.C.getPointAt(u); H.v=lerp(H.v,huitVitesse(H,u,p.y),clamp(dt*2,0,1)); H.s+=H.v*dt;
     if(!M||M.type!=='huit') H.s%=H.L;
@@ -12725,6 +12728,11 @@ function majManeges(dt){
   } else if(M.type==='roue'){
     const n=JETEE.nacelles[0], wp=new THREE.Vector3(); n.m.getWorldPosition(wp); P.x=wp.x; P.z=wp.z+0.1; P.y=wp.y-1.1; P.h.g.position.set(P.x,P.y,P.z); P.h.g.rotation.set(0,0,0);
     P.h.jambeG.rotation.x=-1.4; P.h.jambeD.rotation.x=-1.4; M.a+=dt*0.25; if(M.a>=Math.PI*2) finManege(true);
+  } else if(M.type==='tour'){ /* le Tourbillon : assis dans la première chaise, on part avec elle */
+    M.t+=dt; const T=MANEGES.tour, C=tourChaise(); P.x=C.pos.x; P.z=C.pos.z; P.y=C.pos.y+0.04; P.h.g.position.set(P.x,P.y,P.z);
+    const dx=C.pos.x-T.x, dz=C.pos.z-T.z; P.h.g.rotation.set(0,Math.atan2(dz,-dx),T.theta[0]*0.6); P.h.jambeG.rotation.x=-1.4; P.h.jambeD.rotation.x=-1.4;
+    const vite=T.w>TOURB_OMEGA*0.85; P.h.brasG.rotation.x=vite?-2.6:-0.5; P.h.brasD.rotation.x=vite?-2.6:-0.5; M.sens+=T.w*dt*0.05;
+    if(vite&&!M.cri){ M.cri=true; spawnTexte(P.x,P.y+2.2,P.z,pick(['WOUHOU !','JE VOLE !','PLUS VITE !']),'#35e0ff'); vibre(30); } if(M.t>=TOURB_DUREE) finManege(true);
   }
 }
 function lancerManege(type){
@@ -12732,19 +12740,230 @@ function lancerManege(type){
   META.argent-=MANEGES.prixTour; SFX.achat();
   const M={type,ret:{x:P.x,z:P.z},sens:0,cri:false,a:0};
   if(type==='huit'){ const H=MANEGES.huit; H.s=H.L*0.995; H.v=4; M.fin=H.L*0.995+H.L; } // départ de la gare, un tour complet
-  MANEGES.actif=M; P.h.g.rotation.order='XYZ'; bigMsg(type==='huit'?'🎢 ACCROCHE-TOI !':'🎡 TOUR DE GRANDE ROUE'); vibre(30);
+  M.t=0; MANEGES.ext=false; MANEGES.regard.yaw=MANEGES.regard.pitch=0; MANEGES.actif=M; P.h.g.rotation.order='XYZ'; bigMsg(type==='huit'?'🎢 ACCROCHE-TOI !':(type==='tour'?'🌀 LE TOURBILLON':'🎡 TOUR DE GRANDE ROUE')); vibre(30);
+  toast('À la 1re personne : glisse le doigt pour regarder autour. Le bouton de vue passe à l’extérieur.','or');
 }
 function finManege(complet){
   const M=MANEGES.actif; if(!M) return; MANEGES.actif=null;
+  if(P.h) P.h.g.visible=true; MANEGES.ext=false; MANEGES.regard.yaw=MANEGES.regard.pitch=0; /* la 1re personne cachait le corps */
   P.x=M.ret.x; P.z=M.ret.z; P.y=solPied(P.x,P.z); P.h.g.quaternion.set(0,0,0,1); P.h.g.rotation.set(0,0,0);
   for(const j of [P.h.jambeG,P.h.jambeD,P.h.brasG,P.h.brasD]) j.rotation.set(0,0,0);
-  if(complet){ META.defis.manege++; const b=M.type==='huit'?Math.round(150+M.sens*40):120; ETAT.score+=b; bigMsg((M.type==='huit'?'🎢 SENSATIONS ! +':'🎡 QUELLE VUE ! +')+b+' pts'); SFX.niveau(); }
+  if(complet){ META.defis.manege++; const b=M.type==='huit'?Math.round(150+M.sens*40):(M.type==='tour'?Math.round(110+M.sens*30):120); ETAT.score+=b; bigMsg((M.type==='huit'?'🎢 SENSATIONS ! +':(M.type==='tour'?'🌀 ÇA TOURNE ! +':'🎡 QUELLE VUE ! +'))+b+' pts'); SFX.niveau(); }
 }
 function manegeProche(){ if(P.veh||MANEGES.actif) return null;
   if(MANEGES.huit&&dist2(P.x,P.z,MANEGES.huit.gare.x,MANEGES.huit.gare.z)<9) return 'huit';
   if(JETEE.roue&&dist2(P.x,P.z,JETEE.roue.position.x,JETEE.roue.position.z+3.2)<7&&P.y>JETEE.roue.position.y-14) return 'roue';
+  if(MANEGES.tour&&dist2(P.x,P.z,MANEGES.tour.entree.x,MANEGES.tour.entree.z)<9&&Math.abs(P.y-MANEGES.tour.y)<2) return 'tour';
   return null; }
+/* ---------- Lot 8 : les places du stand de jus et du tourniquet, sur le sable entre la gare du grand huit et la marina (relevées sur la
+   carte : sable, hors chaussée, hors solides, loin de la voie du grand huit) ; replierMobilierDans : le mobilier dont une pièce mord sur
+   une emprise est replié sous le sol, pièce par pièce (comme reserverCanaux) — une sauvegarde qui déplace le mobilier (la porte de la
+   radio) ne pose jamais un banc dans le manège ---------- */
+const JUS_STAND={x:-90,z:274,ry:0}; /* le stand de Lani (lot 8.3), le comptoir face à la mer */
+const TOURB_POS={x:-34,z:268}; /* le Tourbillon (lot 8.4) */
+function fusionnerEnfants(G){ /* les pièces fixes d'un groupe, fusionnées par matériau (un appel de rendu par matériau) */ const L=G.children.filter((o)=>o.isMesh&&!o.isInstancedMesh&&!o.userData.garder); for(const o of L) G.remove(o); if(L.length>1) fusionnerFixes(L,G); else for(const o of L) G.add(o); }
+function replierMobilierDans(x0,x1,z0,z1,dedans){ if(typeof MOB==='undefined'||!MOB.objets) return 0; let n=0;
+  for(const ob of MOB.objets){ const m=MOB.zones[ob.zone]; if(ob.plie||!m||ob.x<x0-8||ob.x>x1+8||ob.z<z0-8||ob.z>z1+8) continue; const A=m.geometry.attributes.position.array; let touche=false;
+    for(let q=ob.debut;q<ob.debut+ob.nb;q++) if(dedans(A[q*3],A[q*3+2])){ touche=true; break; } if(!touche) continue;
+    ob.plie=true; n++; const O=m.userData.orig; for(let q=ob.debut;q<ob.debut+ob.nb;q++){ A[q*3+1]=-60; if(O) O[q*3+1]=-60; } m.geometry.attributes.position.needsUpdate=true;
+    const mL=MOB.zonesL[ob.zone]; if(mL&&ob.nbL){ const B=mL.geometry.attributes.position.array; for(let q=ob.debutL;q<ob.debutL+ob.nbL;q++) B[q*3+1]=-60; mL.geometry.attributes.position.needsUpdate=true; }
+    if(ob.sol) retirerSolide(ob.sol); if(ob.stand){ const j=STANDS.indexOf(ob.stand); if(j>=0) STANDS.splice(j,1); } if(ob.arceau){ const j=MOB.arceaux.indexOf(ob.arceau); if(j>=0) MOB.arceaux.splice(j,1); }
+    const Lc=MOB.cassables&&MOB.cassables.get(Math.floor(ob.x/8)+','+Math.floor(ob.z/8)); if(Lc) for(let j=Lc.length-1;j>=0;j--) if(Lc[j].zone===ob.zone&&Lc[j].debut===ob.debut) Lc.splice(j,1); }
+  return n; }
+/* ---------- Manèges de la marina, 1re personne (retours du 20 octobre, lot 8.4 ; demandé : « grande roue, tourniquet, et grand
+   huit s'il ne l'a pas déjà : chacun avec une vue à la 1re personne ») ----------
+   Le TOURNIQUET « Le Tourbillon » (mkTourniquet, en fin de décor, générateur privé) : des chaises volantes sur le sable entre la gare
+   du grand huit et l'eau — un mât rayé, une couronne qui tourne et penche, douze chaises au bout de leurs chaînes qui s'écartent
+   avec la vitesse (l'angle d'équilibre : tan θ = ω²r/g). Il tourne à vide par cycles ; un tour acheté dure TOURB_DUREE.
+   Les trois manèges (MANEGES_DEFS) se font à la 1re personne par défaut (cameraManege) : au premier rang du grand huit (la caméra
+   suit le wagon, la voie roule et plonge sous les yeux), assis dans la nacelle de la grande roue, assis dans sa chaise (on penche
+   avec elle) ; le corps du joueur est caché, on regarde autour en glissant le doigt (MANEGES.regard, il revient seul). Le bouton
+   de vue bascule pendant un tour entre la 1re personne et une vue extérieure (MANEGES.ext). */
+const MANEGES_DEFS=[{id:'huit',nom:'Grand huit',ico:'🎢'},{id:'roue',nom:'Grande roue',ico:'🎡'},{id:'tour',nom:'Le Tourbillon',ico:'🌀'}];
+const TOURB_N=12, TOURB_R=3.3, TOURB_L=4.2, TOURB_HAUT=8.2, TOURB_OMEGA=1.25, TOURB_DUREE=30;
+const _MQ={q:null,m:null,v1:null,v2:null,v3:null,e:null};
+function mkTourniquet(){ if(!DECOR_V2) return; avecAleaPrive(8404,()=>{ const x=TOURB_POS.x, z=TOURB_POS.z, y=solY(x,z), g=new THREE.Group(); g.position.set(x,y,z); replierMobilierDans(x-10,x+10,z-10,z+10,(px,pz)=>Math.hypot(px-x,pz-z)<9.8); /* rien du mobilier dans le manège */
+  const M=(c,e)=>new THREE.MeshLambertMaterial({color:c,emissive:new THREE.Color(e||0)}), rouge=M(0xd8303a), blanc=M(0xf4f0e6), or=M(0xe0b040), bleu=M(0x2a6ac8), metal=M(0x9aa2ad), noir=M(0x23262e), ampoule=M(0xfff2b0,0xffd060);
+  const socle=new THREE.Mesh(new THREE.CylinderGeometry(2.4,2.7,0.45,28),bleu); socle.position.y=0.22; g.add(socle);
+  for(let k=0;k<8;k++){ const s=new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.5,TOURB_HAUT/8,16),k%2?rouge:blanc); s.position.y=0.45+(k+0.5)*TOURB_HAUT/8; g.add(s); }
+  const cour=new THREE.Group(); cour.position.y=TOURB_HAUT+0.45; g.add(cour);
+  const toit=new THREE.Mesh(new THREE.ConeGeometry(TOURB_R+0.5,1.7,24,1,true),rouge); toit.material.side=THREE.DoubleSide; toit.position.y=0.95; cour.add(toit);
+  const bord=new THREE.Mesh(new THREE.CylinderGeometry(TOURB_R+0.5,TOURB_R+0.5,0.42,24,1,true),or); bord.material.side=THREE.DoubleSide; cour.add(bord);
+  const fl=new THREE.Mesh(new THREE.ConeGeometry(0.22,0.9,8),or); fl.position.y=2.2; cour.add(fl);
+  const amp=new THREE.InstancedMesh(new THREE.SphereGeometry(0.1,6,4),ampoule,28), mm=new THREE.Matrix4(); for(let i=0;i<28;i++){ const a=i/28*Math.PI*2; mm.makeTranslation(Math.cos(a)*(TOURB_R+0.52),0,Math.sin(a)*(TOURB_R+0.52)); amp.setMatrixAt(i,mm); } cour.add(amp);
+  const chaises=[], geoCh=new THREE.CylinderGeometry(0.02,0.02,TOURB_L,4);
+  for(let i=0;i<TOURB_N;i++){ const a=i/TOURB_N*Math.PI*2, piv=new THREE.Group(); piv.position.set(Math.cos(a)*TOURB_R,-0.15,Math.sin(a)*TOURB_R); cour.add(piv);
+    const bras=new THREE.Group(); piv.add(bras); for(const s of [-1,1]){ const c=new THREE.Mesh(geoCh,metal); c.position.set(0,-TOURB_L/2,s*0.22); bras.add(c); }
+    const ch=new THREE.Group(); ch.position.y=-TOURB_L; ch.rotation.y=-Math.PI/2; bras.add(ch); /* la chaise regarde dans le sens de la marche */ const coul=[rouge,bleu,or,blanc][i%4];
+    const assise=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.08,0.52),coul); ch.add(assise); const dos=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.62,0.52),coul); dos.position.set(-0.24,0.3,0); ch.add(dos);
+    const pied=new THREE.Mesh(new THREE.BoxGeometry(0.34,0.05,0.5),metal); pied.position.set(0.26,-0.36,0); pied.rotation.z=0.5; ch.add(pied); const barre=new THREE.Mesh(new THREE.BoxGeometry(0.04,0.04,0.5),metal); barre.position.set(0.24,0.32,0); ch.add(barre);
+    chaises.push({piv,bras,ch,a}); }
+  for(let i=0;i<20;i++){ if(i===0||i===19) continue; const a=i/20*Math.PI*2+Math.PI/2, p=new THREE.Mesh(new THREE.BoxGeometry(0.1,0.9,0.1),blanc); p.position.set(Math.cos(a)*9.2,0.45,Math.sin(a)*9.2); g.add(p);
+    const l=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.06,2.9),rouge); l.position.set(Math.cos(a+0.157)*9.15,0.82,Math.sin(a+0.157)*9.15); l.rotation.y=-(a+0.157); g.add(l); }
+  const pan=document.createElement('canvas'); pan.width=512; pan.height=128; const c=pan.getContext('2d'); c.fillStyle='#2a6ac8'; c.fillRect(0,0,512,128); c.fillStyle='#ffd23f'; c.font='900 64px Arial'; c.textAlign='center'; c.fillText('LE TOURBILLON',256,84);
+  const ens=new THREE.Mesh(new THREE.PlaneGeometry(3.4,0.85),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(pan)})); ens.position.set(0,2.6,9.25); g.add(ens); for(const s of [-1,1]){ const m=new THREE.Mesh(new THREE.BoxGeometry(0.12,3,0.12),blanc); m.position.set(s*1.7,1.5,9.25); g.add(m); }
+  fusionnerEnfants(g); fusionnerEnfants(cour); for(const C of chaises){ C.ch.updateMatrix(); for(const o of [...C.ch.children]){ C.ch.remove(o); o.applyMatrix4(C.ch.matrix); C.bras.add(o); } fusionnerEnfants(C.bras); } /* la chaise et ses chaînes dans le bras : deux matériaux, deux appels par chaise (C.ch reste, vide : la place du passager) */ /* 130 objets → une soixantaine d'appels (mesuré) */
+  scene.add(g); addSolid({x,z,hw:1.9,hd:1.9,h:TOURB_HAUT+0.4}); MANEGES.tour={g,cour,chaises,x,z,y,w:0,ang:0,cyc:0,entree:{x,z:z+10.2},theta:new Array(TOURB_N).fill(0)};
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:texBalise('🌀','#2a6ac8'),transparent:true,depthWrite:false,depthTest:false,fog:false})); sp.scale.set(2.6,2.6,1); sp.position.set(x,y+TOURB_HAUT+4.5,z); sp.renderOrder=5; scene.add(sp); BALISES.push({sp,x,z,y0:y+TOURB_HAUT+4.5,ph:0.7}); }); mgRegardDoigt(); }
+function majTourniquet(dt){ const T=MANEGES.tour; if(!T) return; const M=MANEGES.actif, nous=M&&M.type==='tour';
+  let wc; if(nous){ const t=M.t; wc=t<6?TOURB_OMEGA*t/6:(t<TOURB_DUREE-6?TOURB_OMEGA:TOURB_OMEGA*Math.max(0,TOURB_DUREE-t)/6); }
+  else { T.cyc=(T.cyc+dt)%32; wc=T.cyc<22?TOURB_OMEGA*0.8:0; if(dist2(P.x,P.z,T.x,T.z)>140*140){ T.w=0; return; } }
+  T.w+=(wc-T.w)*Math.min(1,dt*(nous?3:0.6)); T.ang+=T.w*dt; T.cour.rotation.y=T.ang; const tilt=0.1*(T.w/TOURB_OMEGA); T.cour.rotation.x=Math.sin(T.ang*0.5)*tilt; T.cour.rotation.z=Math.cos(T.ang*0.5)*tilt;
+  for(let i=0;i<T.chaises.length;i++){ const C=T.chaises[i]; let th=T.theta[i]; for(let k=0;k<3;k++){ const r=TOURB_R+TOURB_L*Math.sin(th); th=Math.atan(T.w*T.w*r/9.8); } T.theta[i]+=(th-T.theta[i])*Math.min(1,dt*2.5);
+    C.piv.rotation.y=-C.a; C.bras.rotation.z=T.theta[i]; } }
+function tourChaise(){ /* la chaise du joueur (la première) : sa position et la direction de sa chaîne, dans le monde */ const T=MANEGES.tour, C=T.chaises[0];
+  if(!_MQ.v1){ _MQ.v1=new THREE.Vector3(); _MQ.v2=new THREE.Vector3(); _MQ.v3=new THREE.Vector3(); }
+  C.ch.getWorldPosition(_MQ.v1); C.bras.localToWorld(_MQ.v2.set(0,0,0)); _MQ.v3.copy(_MQ.v2).sub(_MQ.v1).normalize(); return {pos:_MQ.v1,haut:_MQ.v3,pivot:_MQ.v2}; }
+function mgRegardDoigt(){ /* glisser le doigt pendant un tour à la 1re personne : regarder autour ; relâché, le regard revient */
+  const cv=renderer.domElement; let id=null, x0=0, y0=0;
+  cv.addEventListener('pointerdown',(e)=>{ if(!MANEGES.actif||MANEGES.ext) return; id=e.pointerId; x0=e.clientX; y0=e.clientY; MANEGES.regard.doigt=true; });
+  cv.addEventListener('pointermove',(e)=>{ if(e.pointerId!==id||!MANEGES.actif) return; const R=MANEGES.regard; R.yaw=clamp(R.yaw-(e.clientX-x0)*0.006,-1.6,1.6); R.pitch=clamp(R.pitch-(e.clientY-y0)*0.005,-0.9,0.7); x0=e.clientX; y0=e.clientY; });
+  const fin=(e)=>{ if(e.pointerId===id){ id=null; MANEGES.regard.doigt=false; } }; cv.addEventListener('pointerup',fin); cv.addEventListener('pointercancel',fin); }
+function camBase(eye,f,u){ /* oriente la caméra : regarde le long de f, le haut selon u, puis le regard au doigt */
+  if(!_MQ.m){ _MQ.m=new THREE.Matrix4(); _MQ.q=new THREE.Quaternion(); _MQ.e=new THREE.Euler(0,0,0,'YXZ'); _MQ.r=new THREE.Vector3(); _MQ.u=new THREE.Vector3(); _MQ.z=new THREE.Vector3(); }
+  const r=_MQ.r.crossVectors(f,u).normalize(), u2=_MQ.u.crossVectors(r,f).normalize(), z=_MQ.z.copy(f).negate();
+  _MQ.m.makeBasis(r,u2,z); camera.position.copy(eye); camera.quaternion.setFromRotationMatrix(_MQ.m); const R=MANEGES.regard; _MQ.e.set(R.pitch,R.yaw,0); _MQ.q.setFromEuler(_MQ.e); camera.quaternion.multiply(_MQ.q); }
+function cameraManege(dt){ const M=MANEGES.actif, R=MANEGES.regard; if(!R.doigt){ R.yaw*=Math.max(0,1-dt*2.2); R.pitch*=Math.max(0,1-dt*2.2); }
+  const prem=!MANEGES.ext; if(P.h) P.h.g.visible=!prem; VUE.yawRendu=0;
+  if(!_MQ.f){ _MQ.f=new THREE.Vector3(); _MQ.up=new THREE.Vector3(); _MQ.eye=new THREE.Vector3(); }
+  const f=_MQ.f, up=_MQ.up, eye=_MQ.eye;
+  if(M.type==='huit'){ const H=MANEGES.huit, w=H.train[0];
+    if(prem){ up.set(0,1,0).applyQuaternion(w.quaternion); f.set(0,0,1).applyQuaternion(w.quaternion); eye.copy(w.position).addScaledVector(up,1.5).addScaledVector(f,-0.1);
+      if(H.v>12){ eye.x+=(Math.random()-0.5)*0.02*H.v/24; eye.y+=(Math.random()-0.5)*0.02*H.v/24; } camBase(eye,f,up); camera.fov=lerp(camera.fov,82+H.v*0.25,0.1); }
+    else { const u=(H.s/H.L)%1, p=H.C.getPointAt(u), tg=H.C.getTangentAt(u); camera.position.set(p.x-tg.x*9,p.y+5,p.z-tg.z*9); camera.lookAt(p.x,p.y+0.8,p.z); camera.fov=lerp(camera.fov,62,0.1); } }
+  else if(M.type==='roue'){ if(prem){ eye.set(P.x,P.y+1.45,P.z-0.05); f.set(Math.sin(M.a*0.6)*0.25,-0.22,-1).normalize(); up.set(0,1,0); camBase(eye,f,up); camera.fov=lerp(camera.fov,70,0.1); }
+    else { camera.position.set(P.x+3,P.y+3,P.z+12); camera.lookAt(P.x,P.y-2,P.z-30); camera.fov=lerp(camera.fov,60,0.1); } }
+  else if(M.type==='tour'){ const T=MANEGES.tour, C=tourChaise();
+    if(prem){ up.set(0,1,0).add(C.haut).normalize(); f.set(C.pos.x-T.x,0,C.pos.z-T.z).normalize(); f.set(f.z,0,-f.x); if(T.w<0) f.negate(); /* le sens de la marche (la couronne tourne vers +y) */
+      eye.copy(C.pos).addScaledVector(up,1.05); camBase(eye,f,up); camera.fov=lerp(camera.fov,76,0.1); }
+    else { camera.position.set(T.x,T.y+6.5,T.z+19); camera.lookAt(T.x,T.y+5,T.z); camera.fov=lerp(camera.fov,60,0.1); } }
+  camera.updateProjectionMatrix(); }
 /* =====================================================================
+   JUS DE PLAGE (retours du 20 octobre, lot 8.3 ; demandé : « un mini-jeu où l'on tranche au doigt des fruits lancés en l'air, en
+   évitant les pièges ; les fruits coupés font ton jus, au stand de la plage : bonus de PV ou de vitesse selon le jus »).
+   Le stand de Lani (mkJusDePlage, en fin de décor, générateur privé) sur la plage, près du grand huit. Au comptoir : 45 s, les
+   fruits sautent du panier (JUS_FRUITS) et l'on tranche d'un glisser du doigt — un geste qui en coupe plusieurs fait un combo ;
+   les pièges (oursins, méduses) font perdre une vie et gâchent le jus ; un fruit qui retombe sans être coupé coûte une vie
+   aussi (trois vies). Ce qu'on a coupé remplit le verre, par couleur : le jus « Soleil » (mangue, ananas, coco : des PV) ou le
+   « Coup de fouet » (pastèque, fraise, citron vert : de la vitesse), le cocktail si c'est moitié-moitié ; la pitaya dorée compte
+   triple. Un jus par vague (le bonus), record (META.defis.jus), prime une fois par vague au-delà de JUS_OBJECTIF. Tout sur dtJeu
+   (le joueur est tenu au comptoir, les vagues en trêve) ; le dessin est un canevas plein écran, la scène 3D derrière.
+===================================================================== */
+const JUS_DUREE=45, JUS_VIES=3, JUS_OBJECTIF=60, JUS_PRIME=180;
+const JUS_FRUITS=[ /* r : rayon (fraction de la largeur), jus : la famille, k : le poids dans le verre */
+  {id:'pasteque',nom:'pastèque',r:0.085,peau:'#2f8a3a',chair:'#ff4f6a',jus:'vit',k:1},{id:'fraise',nom:'fraise',r:0.045,peau:'#e2263a',chair:'#ffb3bd',jus:'vit',k:1},
+  {id:'citron',nom:'citron vert',r:0.05,peau:'#5ac83a',chair:'#d8f5a0',jus:'vit',k:1},{id:'mangue',nom:'mangue',r:0.06,peau:'#ff9a2a',chair:'#ffd23f',jus:'pv',k:1},
+  {id:'ananas',nom:'ananas',r:0.07,peau:'#c8a02a',chair:'#fff07a',jus:'pv',k:1},{id:'coco',nom:'noix de coco',r:0.06,peau:'#6a4022',chair:'#f6f2ea',jus:'pv',k:1},
+  {id:'pitaya',nom:'pitaya dorée',r:0.055,peau:'#ffcf3a',chair:'#fff6e0',jus:'or',k:3,rare:true}];
+const JUS_PIEGES=[{id:'oursin',nom:'oursin',r:0.055,coul:'#2a1a3a'},{id:'meduse',nom:'méduse',r:0.06,coul:'#c87ad8'}];
+const JUS={actif:null,pos:null,vague:-1,jusVague:-1,prime:-1};
+function mkJusDePlage(){ /* fin du décor, générateur privé : le stand de Lani, sur le sable entre la gare du grand huit et l'eau */
+  if(!DECOR_V2) return; replierMobilierDans(JUS_STAND.x-5,JUS_STAND.x+5,JUS_STAND.z-2,JUS_STAND.z+5,(px,pz)=>Math.abs(px-JUS_STAND.x)<4.8&&pz>JUS_STAND.z-1.6&&pz<JUS_STAND.z+4.4); const x=JUS_STAND.x, z=JUS_STAND.z, y=solY(x,z), M=(c,e)=>new THREE.MeshLambertMaterial({color:c,emissive:new THREE.Color(e||0)}), g=new THREE.Group(); g.position.set(x,y,z); g.rotation.y=JUS_STAND.ry;
+  const bx=(w,h,d,m,px,py,pz)=>{ const b=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m); b.position.set(px,py,pz); g.add(b); return b; };
+  const bois=M(0xb07a44), boisF=M(0x7a4a24), blanc=M(0xf4f0e6), turq=M(0x20b8c0), rose=M(0xff5a8a), paille=M(0xd8b866);
+  bx(4.2,1.1,1.2,bois,0,0.55,0.9); bx(4.4,0.08,1.4,blanc,0,1.14,0.9); for(let k=0;k<6;k++) bx(0.66,0.98,0.04,k%2?turq:blanc,-1.65+k*0.66,0.55,1.51);
+  for(const sx of [-2,2]) bx(0.14,2.8,0.14,boisF,sx,1.4,0.3); bx(4.6,0.1,2.4,paille,0,2.86,0.6).rotation.x=-0.12; for(let k=0;k<12;k++){ const f=bx(0.38,0.32,0.06,paille,-2.1+k*0.38,2.66,1.8); f.rotation.x=0.2; }
+  const panier=(px,c)=>{ bx(0.7,0.36,0.5,boisF,px,1.36,0.8); const mf=M(c); for(let k=0;k<5;k++){ const s=new THREE.Mesh(new THREE.SphereGeometry(0.12,8,6),mf); s.position.set(px-0.24+k*0.12,1.6,0.72+(k%2)*0.14); g.add(s); } };
+  panier(-1.5,0xff9a2a); panier(-0.7,0x2f8a3a); panier(0.9,0xe2263a); panier(1.6,0x5ac83a);
+  const bl=new THREE.Mesh(new THREE.CylinderGeometry(0.2,0.16,0.5,12),new THREE.MeshLambertMaterial({color:0xbfe8ff,transparent:true,opacity:0.6})); bl.position.set(0.1,1.48,0.75); g.add(bl); bx(0.34,0.22,0.34,M(0x23262e),0.1,1.26,0.75);
+  const pan=document.createElement('canvas'); pan.width=512; pan.height=160; const c=pan.getContext('2d'), gr=c.createLinearGradient(0,0,512,0); gr.addColorStop(0,'#ff5a8a'); gr.addColorStop(1,'#ffb02a'); c.fillStyle=gr; c.fillRect(0,0,512,160);
+  c.fillStyle='#fff'; c.font='900 70px Arial'; c.textAlign='center'; c.fillText('JUS DE PLAGE',256,92); c.font='700 30px Arial'; c.fillText('chez Lani · tranche ton jus !',256,138);
+  const ens=new THREE.Mesh(new THREE.PlaneGeometry(3.6,1.1),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(pan)})); ens.position.set(0,3.35,1.62); ens.rotation.x=-0.25; g.add(ens);
+  for(const sx of [-1.4,1.4]){ const t=new THREE.Mesh(new THREE.CylinderGeometry(0.28,0.28,0.06,14),blanc); t.position.set(sx,0.82,2.9); g.add(t); bx(0.08,0.8,0.08,blanc,sx,0.4,2.9); const pa=new THREE.Mesh(new THREE.ConeGeometry(1.1,0.5,10),sx<0?rose:turq); pa.position.set(sx,2.3,2.9); g.add(pa); bx(0.05,2.1,0.05,blanc,sx,1.1,2.9); }
+  { /* Lani, derrière son comptoir (des volumes simples : un humain du jeu créé pendant le décor remplirait le cache des corps) */ const L=new THREE.Group(), peau=M(0xb07a54);
+    const p=(geo,m,px,py,pz)=>{ const o=new THREE.Mesh(geo,m); o.position.set(px,py,pz); L.add(o); return o; }; p(new THREE.BoxGeometry(0.5,0.62,0.3),rose,0,1.25,0); p(new THREE.BoxGeometry(0.48,0.5,0.28),turq,0,0.7,0);
+    p(new THREE.SphereGeometry(0.21,12,10),peau,0,1.78,0); p(new THREE.SphereGeometry(0.23,12,8,0,Math.PI*2,0,Math.PI/2),M(0x1a1410),0,1.82,-0.02); for(const s of [-1,1]){ const b=p(new THREE.BoxGeometry(0.13,0.5,0.13),peau,s*0.33,1.28,0.12); b.rotation.x=-0.7; }
+    for(const s of [-1,1]) p(new THREE.BoxGeometry(0.17,0.5,0.17),peau,s*0.12,0.22,0); p(new THREE.TorusGeometry(0.2,0.05,6,14),rose,0,1.98,0).rotation.x=Math.PI/2; L.position.set(0.6,0,-0.2); g.add(L); JUS.lani=L; }
+  fusionnerEnfants(JUS.lani); fusionnerEnfants(g); /* ~75 objets → une quinzaine */
+  scene.add(g); JUS.g=g; JUS.pos={x:x+Math.sin(JUS_STAND.ry)*2.6,z:z+Math.cos(JUS_STAND.ry)*2.6,y}; JUS.ok=true;
+  const ca=Math.cos(JUS_STAND.ry), sa=Math.sin(JUS_STAND.ry); addSolid({x:x+sa*0.9,z:z+ca*0.9,hw:Math.abs(ca)*2.2+Math.abs(sa)*0.7,hd:Math.abs(sa)*2.2+Math.abs(ca)*0.7,h:1.2});
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:texBalise('🍹','#d83a7a'),transparent:true,depthWrite:false,depthTest:false,fog:false})); sp.scale.set(2.6,2.6,1); sp.position.set(x,y+6.4,z); sp.renderOrder=5; scene.add(sp); BALISES.push({sp,x,z,y0:y+6.4,ph:2.1}); }
+function jusProche(){ return JUS.ok&&!P.veh&&!JUS.actif&&dist2(P.x,P.z,JUS.pos.x,JUS.pos.z)<9&&Math.abs(P.y-JUS.pos.y)<2; }
+function jusAction(){ if(!jusProche()) return null; if(JUS.jusVague===WAVES.n) return {label:'🍹 JUS DE PLAGE — pour le plaisir (ton jus de la vague est bu)',fn:jusDemarrer};
+  return {label:'🍹 JUS DE PLAGE — TRANCHE TON JUS',fn:jusDemarrer}; }
+function jusDemarrer(){ if(JUS.actif||!JUS.ok) return; let sd=(WAVES.n*2654435761+(META.defis.jus||0)*97+7)>>>0;
+  JUS.actif={t:-1.6,vies:JUS_VIES,score:0,coupes:{},verre:[],objets:[],moitie:[],gouttes:[],trace:[],spawnT:0.4,combo:0,comboT:0,traitN:0,dernierTrait:-1,r:()=>{ sd=(sd*1664525+1013904223)>>>0; return sd/4294967296; },piege:0,perdus:0,fin:null,finT:0};
+  P.vy=0; P.chute=false; cacherBoutonsCombat(); jusUI(true); bigMsg('🍹 JUS DE PLAGE'); toast('Glisse le doigt pour trancher les fruits. Pas les oursins, pas les méduses.','or'); SFX.ui(); }
+function jusArreter(silence){ const A=JUS.actif; if(!A) return; JUS.actif=null; jusUI(false); afficherBoutonsCombat(); if(!silence) toast('Lani range ses fruits.'); }
+function jusLancer(A,W,H){ /* une volée : un à quatre objets jetés du bas, plus nombreux à mesure que le temps passe */
+  const r=A.r, prog=Math.min(1,Math.max(0,A.t)/JUS_DUREE), n=1+Math.floor(r()*(1.6+prog*2.6)), g=H*0.95;
+  for(let i=0;i<n;i++){ const piege=r()<0.1+0.12*prog, rare=!piege&&r()<0.05, D=piege?JUS_PIEGES[Math.floor(r()*JUS_PIEGES.length)]:(rare?JUS_FRUITS[JUS_FRUITS.length-1]:JUS_FRUITS[Math.floor(r()*(JUS_FRUITS.length-1))]);
+    const x=W*(0.15+r()*0.7), apex=H*(0.18+r()*0.35), vy=-Math.sqrt(2*g*(H*1.05-apex)), vx=(W*0.5-x)*(0.25+r()*0.5)/1.4;
+    A.objets.push({D,piege,x,y:H*1.05,vx,vy,a:r()*6,va:(r()-0.5)*5,R:D.r*W,coupe:false}); } }
+function jusTrancher(A,x0,y0,x1,y1){ /* le segment du doigt contre chaque objet */ let n=0;
+  for(const o of A.objets){ if(o.coupe) continue; const dx=x1-x0, dy=y1-y0, L2=dx*dx+dy*dy||1, t=Math.max(0,Math.min(1,((o.x-x0)*dx+(o.y-y0)*dy)/L2)), px=x0+dx*t, py=y0+dy*t;
+    if((o.x-px)*(o.x-px)+(o.y-py)*(o.y-py)>o.R*o.R*1.05) continue; o.coupe=true;
+    if(o.piege){ A.vies--; A.piege++; A.verre.splice(Math.max(0,A.verre.length-3),3); jusEclat(A,o,o.D.coul,18); A.flash=0.35; SFX.refus(); vibre(90); secousse(3); continue; }
+    n++; A.score+=o.D.k; A.coupes[o.D.id]=(A.coupes[o.D.id]||0)+1; for(let k=0;k<o.D.k;k++) A.verre.push(o.D);
+    const ang=Math.atan2(dy,dx)+Math.PI/2; for(const s of [-1,1]) A.moitie.push({D:o.D,x:o.x,y:o.y,vx:o.vx+Math.cos(ang)*s*90,vy:o.vy+Math.sin(ang)*s*90-60,a:o.a,va:s*4,R:o.R,s,t:1.6});
+    jusEclat(A,o,o.D.chair,10); SFX.coup(); vibre(10); }
+  if(n>0){ A.combo+=n; A.comboT=0.28; } return n; }
+function jusEclat(A,o,coul,n){ for(let i=0;i<n;i++){ const a=A.r()*6.28, v=60+A.r()*220; A.gouttes.push({x:o.x,y:o.y,vx:Math.cos(a)*v,vy:Math.sin(a)*v-80,t:0.6+A.r()*0.4,c:coul,r:2+A.r()*4}); } }
+function jusMaj(dt,dtJeu){ const A=JUS.actif; if(!A) return; if(ETAT.mode!=='jeu'||P.veh||INT.actif){ jusArreter(true); return; }
+  P.vy=0; P.chute=false; if(P.h){ P.h.brasD.rotation.x=-1.2+Math.sin(A.t*14)*0.3*(A.comboT>0?1:0.2); }
+  const cv=document.getElementById('jusCv'); const W=cv?cv.width:400, H=cv?cv.height:700; A.W=W; A.H=H; A.t+=dtJeu;
+  if(A.fin){ A.finT-=dtJeu; jusDessiner(); if(A.finT<=0) jusConclure(A); return; }
+  if(A.t>=0){ A.spawnT-=dtJeu; if(A.spawnT<=0){ jusLancer(A,W,H); A.spawnT=Math.max(0.65,1.35-0.55*A.t/JUS_DUREE)+A.r()*0.35; } }
+  const g=H*0.95; for(const o of A.objets){ o.vy+=g*dtJeu; o.x+=o.vx*dtJeu; o.y+=o.vy*dtJeu; o.a+=o.va*dtJeu; }
+  for(let i=A.objets.length-1;i>=0;i--){ const o=A.objets[i]; if(o.coupe){ A.objets.splice(i,1); continue; } if(o.vy>0&&o.y>H+o.R*1.2){ A.objets.splice(i,1); if(!o.piege){ A.vies--; A.perdus++; A.flash=0.25; SFX.refus(); } } }
+  for(let i=A.moitie.length-1;i>=0;i--){ const m=A.moitie[i]; m.vy+=g*dtJeu; m.x+=m.vx*dtJeu; m.y+=m.vy*dtJeu; m.a+=m.va*dtJeu; m.t-=dtJeu; if(m.t<=0||m.y>H+80) A.moitie.splice(i,1); }
+  for(let i=A.gouttes.length-1;i>=0;i--){ const d=A.gouttes[i]; d.vy+=g*0.6*dtJeu; d.x+=d.vx*dtJeu; d.y+=d.vy*dtJeu; d.t-=dtJeu; if(d.t<=0) A.gouttes.splice(i,1); }
+  if(A.comboT>0){ A.comboT-=dtJeu; if(A.comboT<=0){ if(A.combo>=3){ const b=A.combo; A.score+=b; A.comboTxt={txt:'COMBO ×'+A.combo+' +'+b,t:1}; SFX.niveau(); } A.combo=0; } }
+  if(A.comboTxt){ A.comboTxt.t-=dtJeu; if(A.comboTxt.t<=0) A.comboTxt=null; } if(A.flash>0) A.flash-=dtJeu;
+  for(let i=A.trace.length-1;i>=0;i--){ A.trace[i].t-=dtJeu; if(A.trace[i].t<=0) A.trace.splice(i,1); }
+  if(A.vies<=0&&!A.fin){ A.fin='vies'; A.finT=1.6; } else if(A.t>=JUS_DUREE&&!A.fin){ A.fin='temps'; A.finT=1.8; }
+  jusDessiner(); }
+function jusRecette(A){ let pv=0, vit=0, or=0; for(const D of A.verre){ if(D.jus==='pv') pv++; else if(D.jus==='vit') vit++; else or++; } pv+=or/2; vit+=or/2; const n=A.verre.length;
+  const type=n===0?null:(Math.abs(pv-vit)<=n*0.15?'cocktail':(pv>vit?'soleil':'fouet')); return {n,pv,vit,type,nom:type==='soleil'?'Jus Soleil':(type==='fouet'?'Coup de fouet':(type==='cocktail'?'Cocktail de Lani':'—'))}; }
+function jusConclure(A){ JUS.actif=null; jusUI(false); afficherBoutonsCombat(); const R=jusRecette(A), rec=META.defis.jus||0;
+  if(A.score>rec) META.defis.jus=A.score; let msg='🍹 '+A.score+' fruits'+(A.score>rec?' — record !':'');
+  if(A.fin==='vies'&&A.score<JUS_OBJECTIF*0.25){ bigMsg('🍹 RATÉ'); toast('Trop de fruits par terre (et un oursin dans le mixeur ?). Lani te sert un verre d’eau.','warn'); checkDefis(); sauveMeta(); return; }
+  if(JUS.jusVague!==WAVES.n&&R.n>0){ JUS.jusVague=WAVES.n; const k=Math.min(1,R.n/40);
+    if(R.type==='soleil'||R.type==='cocktail'){ const soin=Math.round((R.type==='cocktail'?0.6:1)*(15+45*k)); P.hp=Math.min(P.maxHp,P.hp+soin); msg+=' · '+R.nom+' : +'+soin+' PV'; }
+    if(R.type==='fouet'||R.type==='cocktail'){ const d=Math.round((R.type==='cocktail'?0.6:1)*(20+40*k)); P.buffs.vit=Math.max(P.buffs.vit||0,d); msg+=' · '+R.nom+' : vitesse '+d+' s'; }
+    SFX.soin(); } else if(R.n>0) msg+=' · ton jus de la vague est déjà bu';
+  if(A.score>=JUS_OBJECTIF&&JUS.prime!==WAVES.n){ JUS.prime=WAVES.n; META.argent+=JUS_PRIME; ETAT.cashRun+=JUS_PRIME; META.stats.cashTotal+=JUS_PRIME; msg+=' · prime +'+JUS_PRIME+' $'; }
+  bigMsg('🍹 '+(R.type?R.nom.toUpperCase():'JUS DE PLAGE')); toast(msg,'or'); SFX.niveau(); checkDefis(); sauveMeta(); }
+function jusUI(vis){ let d=document.getElementById('jusPan'); if(!vis){ if(d) d.style.display='none'; return; }
+  if(!d){ d=document.createElement('div'); d.id='jusPan'; d.style.cssText='position:fixed;inset:0;z-index:36;display:none;touch-action:none';
+    d.innerHTML='<canvas id="jusCv" style="position:absolute;inset:0;width:100%;height:100%;touch-action:none"></canvas><button id="jusStop" style="position:absolute;right:10px;top:calc(env(safe-area-inset-top,0px) + 70px);border-radius:10px;border:1px solid #fff;background:rgba(0,0,0,.45);color:#fff;font:800 12px Arial;padding:6px 10px">✕ ARRÊTER</button>';
+    document.body.appendChild(d); const cv=d.querySelector('#jusCv'); let bas=false, px=0, py=0;
+    const pos=(e)=>{ const r=cv.getBoundingClientRect(); return [(e.clientX-r.left)*cv.width/Math.max(1,r.width),(e.clientY-r.top)*cv.height/Math.max(1,r.height)]; };
+    cv.addEventListener('pointerdown',(e)=>{ e.preventDefault(); const A=JUS.actif; if(!A) return; try{ cv.setPointerCapture(e.pointerId); }catch(er){} bas=true; [px,py]=pos(e); A.trace.push({x:px,y:py,t:0.16}); });
+    cv.addEventListener('pointermove',(e)=>{ const A=JUS.actif; if(!A||!bas) return; const [x,y]=pos(e); if(A.t>=0&&!A.fin) jusTrancher(A,px,py,x,y); A.trace.push({x,y,t:0.16}); if(A.trace.length>14) A.trace.shift(); px=x; py=y; });
+    const up=()=>{ bas=false; }; cv.addEventListener('pointerup',up); cv.addEventListener('pointercancel',up);
+    d.querySelector('#jusStop').addEventListener('pointerdown',(e)=>{ e.preventDefault(); jusArreter(false); }); }
+  d.style.display='block'; const cv=d.querySelector('#jusCv'), dpr=Math.min(2,window.devicePixelRatio||1), W=Math.round(innerWidth*dpr), H=Math.round(innerHeight*dpr); if(cv.width!==W||cv.height!==H){ cv.width=W; cv.height=H; } }
+function jusDessiner(){ const A=JUS.actif, cv=document.getElementById('jusCv'); if(!A||!cv) return; const c=cv.getContext('2d'), W=cv.width, H=cv.height, k=W/400;
+  const gr=c.createLinearGradient(0,0,0,H); gr.addColorStop(0,'rgba(255,170,90,.62)'); gr.addColorStop(0.45,'rgba(255,120,140,.45)'); gr.addColorStop(0.62,'rgba(40,160,200,.55)'); gr.addColorStop(0.8,'rgba(240,210,150,.7)'); gr.addColorStop(1,'rgba(176,122,68,.92)'); c.fillStyle=gr; c.fillRect(0,0,W,H);
+  if(A.flash>0){ c.fillStyle='rgba(255,40,60,'+(A.flash*0.8)+')'; c.fillRect(0,0,W,H); }
+  const fruit=(D,x,y,R,a,moitie)=>{ c.save(); c.translate(x,y); c.rotate(a);
+    if(D.id==='oursin'){ c.strokeStyle='#1a0a2a'; c.lineWidth=2.2*k; for(let i=0;i<18;i++){ const b=i*0.35; c.beginPath(); c.moveTo(Math.cos(b)*R*0.6,Math.sin(b)*R*0.6); c.lineTo(Math.cos(b)*R*1.25,Math.sin(b)*R*1.25); c.stroke(); } c.fillStyle='#3a1a4a'; c.beginPath(); c.arc(0,0,R*0.7,0,7); c.fill(); c.restore(); return; }
+    if(D.id==='meduse'){ c.fillStyle='rgba(220,140,240,.85)'; c.beginPath(); c.arc(0,0,R,Math.PI,0); c.fill(); c.strokeStyle='rgba(220,140,240,.7)'; c.lineWidth=2*k; for(let i=-2;i<=2;i++){ c.beginPath(); c.moveTo(i*R*0.35,0); c.quadraticCurveTo(i*R*0.35+R*0.3,R*0.7,i*R*0.3,R*1.4); c.stroke(); } c.restore(); return; }
+    if(moitie){ c.beginPath(); c.arc(0,0,R,moitie<0?Math.PI:0,moitie<0?2*Math.PI:Math.PI); c.closePath(); c.fillStyle=D.peau; c.fill(); c.beginPath(); c.arc(0,0,R*0.84,moitie<0?Math.PI:0,moitie<0?2*Math.PI:Math.PI); c.closePath(); c.fillStyle=D.chair; c.fill(); c.restore(); return; }
+    c.fillStyle=D.peau; c.beginPath(); if(D.id==='ananas'||D.id==='mangue') c.ellipse(0,0,R*0.82,R,0,0,7); else c.arc(0,0,R,0,7); c.fill();
+    if(D.id==='pasteque'){ c.strokeStyle='#1f5a26'; c.lineWidth=3*k; for(let i=-2;i<=2;i++){ c.beginPath(); c.ellipse(i*R*0.32,0,R*0.12,R*0.95,0,0,7); c.stroke(); } }
+    if(D.id==='ananas'){ c.strokeStyle='#8a6a1a'; c.lineWidth=1.5*k; for(let i=-3;i<=3;i++){ c.beginPath(); c.moveTo(-R,i*R*0.3); c.lineTo(R,i*R*0.3+R*0.4); c.stroke(); } c.fillStyle='#3a9a3a'; c.beginPath(); c.moveTo(-R*0.4,-R*0.9); c.lineTo(0,-R*1.6); c.lineTo(R*0.4,-R*0.9); c.fill(); }
+    if(D.id==='fraise'){ c.fillStyle='#fff2a0'; for(let i=0;i<7;i++){ c.beginPath(); c.arc(Math.cos(i*0.9)*R*0.5,Math.sin(i*1.7)*R*0.5,1.5*k,0,7); c.fill(); } c.fillStyle='#2a8a2a'; c.fillRect(-R*0.4,-R*1.05,R*0.8,R*0.3); }
+    if(D.id==='pitaya'){ c.fillStyle='rgba(255,255,255,.7)'; c.beginPath(); c.arc(-R*0.3,-R*0.3,R*0.25,0,7); c.fill(); c.strokeStyle='#fff8c0'; c.lineWidth=2*k; c.beginPath(); c.arc(0,0,R*1.25+Math.sin(A.t*8)*2*k,0,7); c.stroke(); }
+    c.fillStyle='rgba(255,255,255,.28)'; c.beginPath(); c.arc(-R*0.35,-R*0.35,R*0.28,0,7); c.fill(); c.restore(); };
+  for(const m of A.moitie){ c.globalAlpha=Math.min(1,m.t*1.5); fruit(m.D,m.x,m.y,m.R,m.a,m.s); } c.globalAlpha=1;
+  for(const o of A.objets) fruit(o.D,o.x,o.y,o.R,o.a,0);
+  for(const d of A.gouttes){ c.globalAlpha=Math.min(1,d.t*2); c.fillStyle=d.c; c.beginPath(); c.arc(d.x,d.y,d.r*k,0,7); c.fill(); } c.globalAlpha=1;
+  if(A.trace.length>1){ c.lineCap='round'; for(let i=1;i<A.trace.length;i++){ const p=A.trace[i-1], q=A.trace[i]; c.strokeStyle='rgba(255,255,255,'+(q.t/0.16)+')'; c.lineWidth=(3+i*0.8)*k; c.beginPath(); c.moveTo(p.x,p.y); c.lineTo(q.x,q.y); c.stroke(); } }
+  /* le verre, à droite : il se remplit des couleurs coupées */
+  const gx=W-62*k, gy=H*0.62, gw=40*k, gh=110*k; c.fillStyle='rgba(255,255,255,.25)'; c.fillRect(gx,gy,gw,gh); const n=Math.min(40,A.verre.length);
+  for(let i=0;i<n;i++){ const D=A.verre[A.verre.length-n+i]; c.fillStyle=D.chair; c.fillRect(gx+2*k,gy+gh-(i+1)*gh/40,gw-4*k,gh/40+0.5); }
+  c.strokeStyle='#fff'; c.lineWidth=2*k; c.strokeRect(gx,gy,gw,gh); c.strokeStyle='#ff5a8a'; c.beginPath(); c.moveTo(gx+gw*0.7,gy-26*k); c.lineTo(gx+gw*0.5,gy+gh*0.4); c.stroke();
+  const R=jusRecette(A); c.fillStyle='#fff'; c.font='800 '+Math.round(11*k)+'px Arial'; c.textAlign='center'; c.textAlign='right'; c.fillText(R.type?R.nom:'ton jus',gx+gw,gy+gh+16*k);
+  c.textAlign='left'; c.font='900 '+Math.round(24*k)+'px Arial'; c.fillStyle='#fff'; c.fillText('🍹 '+A.score,14*k,H*0.16); c.font='800 '+Math.round(13*k)+'px Arial';
+  c.fillText('⏱ '+Math.ceil(Math.max(0,JUS_DUREE-Math.max(0,A.t)))+' s   '+'❤'.repeat(Math.max(0,A.vies))+'♡'.repeat(Math.max(0,JUS_VIES-A.vies)),14*k,H*0.16+22*k);
+  c.fillText('objectif '+JUS_OBJECTIF+(META.defis.jus?' · record '+META.defis.jus:''),14*k,H*0.16+42*k);
+  if(A.comboTxt){ c.globalAlpha=A.comboTxt.t; c.textAlign='center'; c.fillStyle='#ffd23f'; c.font='900 '+Math.round(30*k)+'px Arial'; c.fillText(A.comboTxt.txt,W/2,H*0.38); c.globalAlpha=1; }
+  if(A.t<0){ c.textAlign='center'; c.fillStyle='#fff'; c.font='900 '+Math.round(70*k)+'px Arial'; c.fillText(A.t<-0.8?'PRÊT ?':'TRANCHE !',W/2,H*0.45); }
+  if(A.fin){ c.textAlign='center'; c.fillStyle='#fff'; c.font='900 '+Math.round(36*k)+'px Arial'; c.fillText(A.fin==='vies'?'PLUS DE VIES':'TEMPS !',W/2,H*0.42); c.font='800 '+Math.round(20*k)+'px Arial'; c.fillText(A.score+' fruits · '+jusRecette(A).nom,W/2,H*0.42+34*k); } }
+/* =====================================================================
+   TOITS VIVANTS (14 octobre/* =====================================================================
    TOITS VIVANTS (14 octobre, demandé : « varier les styles d'immeubles et faire vivre les toits : quelques
    hélicos, des éléments à fouiller, des choses spéciales et fun : un terrain, une piscine, un rooftop, un bar »).
    Les toits plats des immeubles (solides toit:true assez larges) reçoivent, selon leur rang (choix déterministe,
@@ -16642,6 +16861,8 @@ function pointsActivites(){
   if(TOW.kWake) add(TOW.kWake.x,TOW.kWake.z,'🏄','#1a8ac8',1,'Wakeboard','activite',{desc:'Derrière le bateau-tracteur : sauts et figures'});
   if(TOW.kPara) add(TOW.kPara.x,TOW.kPara.z,'🪂','#1a8ac8',1,'Parachute ascensionnel','activite',{desc:'Monte à 32 m, puis lâche la corde'});
   if(typeof KITE!=='undefined'&&KITE.kiosque) add(KITE.kiosque.x,KITE.kiosque.z,'🪁','#1a8ac8',1,'Kitesurf','activite',{desc:'De travers au vent : sauts, 360, backroll, kiteloop',prix:KITE_DEF.prix+' $'}); /* lot 6 : construits après mkBalises — aucune balise de plus pendant le décor */
+  if(typeof JUS!=='undefined'&&JUS.ok) add(JUS.pos.x,JUS.pos.z,'🍹','#d83a7a',JUS.pos.y,'Jus de Plage','activite',{desc:'Tranche les fruits au doigt : ton jus rend des PV ou de la vitesse'});
+  if(MANEGES.tour) add(MANEGES.tour.entree.x,MANEGES.tour.entree.z,'🌀','#2a6ac8',MANEGES.tour.y,'Le Tourbillon','activite',{desc:'Les chaises volantes de la plage, à la 1re personne'});
   if(typeof CLIFF!=='undefined'&&CLIFF.ok) add(CLIFF.inscr.x,CLIFF.inscr.z,'🌊','#1a5aa8',CLIFF.inscr.y,'Reyes Cliff Diving','activite',{desc:'Trois plongeons, de 10 à 27 m, devant le public et les juges'});
   if(typeof PAQ!=='undefined'&&PAQ.ok) add(PAQ.x,PAQ.z,'⚓','#c83a2a',0,'Reyes Majestic','activite',{desc:'Le paquebot échoué au large : des passagers à sauver, puis l’épave'});
   if(PIC.wingsuit) add(PIC.wingsuit.x,PIC.wingsuit.z,'🦅','#7a3ac8',PIC.wingsuit.y,'Wingsuit','activite',{desc:'Au sommet du Pic du Vertige'});
@@ -17344,7 +17565,7 @@ function majKite(dt,dtJeu){ const T=KITE.actif; if(!T) return; if(P.veh||ETAT.mo
 function mkMerV3(){ if(!DECOR_V2||!MERV.ok) return; avecAleaPrive(2026,()=>{ mkPaquebot(); mkLargeV3(); mkKitesurf(); mkCliffDiving(); /* lot 7 : la compétition de la crique */
     for(const [ok,x,z,y,ico,coul] of [[PAQ.ok,PAQ.x,PAQ.z,26,'⚓','#c83a2a'],[!!KITE.kiosque,KITE.kiosque&&KITE.kiosque.x,KITE.kiosque&&KITE.kiosque.z,7,'🪁','#1a8ac8'],[CLIFF.ok,CLIFF.inscr&&CLIFF.inscr.x,CLIFF.inscr&&CLIFF.inscr.z,24,'🌊','#1a5aa8']]){ if(!ok) continue; /* leurs balises : posées ici, après mkBalises (une balise de plus pendant le décor décalerait ses tirages) */
       const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:texBalise(ico,coul),transparent:true,depthWrite:false,depthTest:false,fog:false})); sp.scale.set(2.6,2.6,1); sp.position.set(x,y,z); sp.renderOrder=5; scene.add(sp); BALISES.push({sp,x,z,y0:y,ph:0}); } }); }
-function merV3Reset(){ kiteArreter(false); cliffArreter(false); paqRemettre(); PAQ.vagueCoffre=PAQ.vaguePlongee=PAQ.vagueAnnonce=PAQ.vagueRupture=-1; if(LARGE3.ok){ LARGE3.vague=-2; if(LARGE3.contre) LARGE3.contre.vague=-1; } }
+function merV3Reset(){ kiteArreter(false); cliffArreter(false); jusArreter(true); JUS.jusVague=-1; JUS.prime=-1; paqRemettre(); PAQ.vagueCoffre=PAQ.vaguePlongee=PAQ.vagueAnnonce=PAQ.vagueRupture=-1; if(LARGE3.ok){ LARGE3.vague=-2; if(LARGE3.contre) LARGE3.contre.vague=-1; } }
 function merV3NouvelleVague(){ if(PAQ.ok&&PAQ.etat!=='alerte'&&PAQ.etat!=='rupture') paqRemettre(); } /* le Majestic est de nouveau là ; la vie au large se renouvelle d'elle-même (largeNouvelleVague) */
 function actionMerV3(){ return actionPaquebot()||actionLarge3()||kiosqueKite(); }
 function majMerV3(dt,dtJeu){ majPaquebot(dt,dtJeu); majLarge3(dt,dtJeu); majKite(dt,dtJeu); majCliff(dt,dtJeu); }
@@ -37643,7 +37864,8 @@ function construireSalle(id){
     const oliv=new THREE.Mesh(new THREE.SphereGeometry(0.14,8,6),mat(0x2a3a1a));
     oliv.position.y=yy+0.5; sw.add(oliv);
     sw.position.set(ox,0.8,oz+2.4); g.add(sw);
-    inter.monstre=sw; inter.monstreY=yy;
+    inter.monstre=sw; inter.monstreY=yy; sw.visible=false; /* l'ancien sandwich reste construit (ses tirages), les deux Monstres du duel le remplacent */
+    avecAleaPrive(8202,()=>burgerConstruire(inter,ox,oz,g));
     mkEnseigne('LE MONSTRE — 40 $','#ff5a6a',ox,3.2,oz+1.1,0,11);
     inter.defiPos={x:ox+3.6,z:oz+2.4};
     // le poste soda, de l'autre côté de la table : boire oblige à lâcher le sandwich
@@ -37680,7 +37902,7 @@ function construireSalle(id){
     // le Roi lui-même, moustachu, derrière son comptoir
     const roi=pnj(0,-6,{haut:0xe8ecf2,bas:0x8a5a2a,peau:0xd9a066,casq:0xd8304a,visage:'cool'},'caisse');
     roi.torse.scale.set(1.35,1.05,1.3);
-    pnj(-6.5,4.8,{haut:pick(civHaut),bas:pick(civBas),peau:pick(civPeau),casq:0x4a3520,visage:'gentil'});
+    pnj(-6.5,4.8,{haut:pick(civHaut),bas:pick(civBas),peau:pick(civPeau),casq:0x4a3520,visage:'gentil'}); inter.gerard=inter.pnj[inter.pnj.length-1]; /* Gérard « la Mâchoire » : l'adversaire du duel */
     pnj(6.5,4.8,{haut:pick(civHaut),bas:pick(civBas),peau:pick(civPeau),casq:0x2a2018,visage:'neutre'});
     lampe(0,-4,0xffe0a0,9); lampe(0,3,0xffe0a0,9); lampe(-7,-6,0xffd23f,6);
   }
@@ -38741,7 +38963,8 @@ function sortirInterieur(){
   const sc=INT.actif;
   annulerFouille(true); cacherJauges(); cacherControlesBorne();
   if(ARCADE.jeu||ARCADE.attenteInitiales){ finirBorneJeu(); ARCADE.attenteInitiales=null; }
-  if(sc.karaOn){ sc.karaOn=false; sc.karaBarre.visible=false; toast('Tu quittes la scène en pleine chanson'); }
+  if(sc.karaOn){ karaArreter(sc); toast('Tu quittes la scène en pleine chanson'); } karaChoixUI(false); if(KARA.bilanT>0){ KARA.bilanT=0; karaUI(false); }
+  if(sc.swEtat){ if(sc.bg) burgerArreter(sc); finMonstre(sc,false,'abandon'); } // le duel du Monstre : sortir, c'est abandonner
   if(sc.seanceOn){ cineArreterSeance(sc); toast('Tu quittes en pleine séance. Le public n’est pas content.'); }
   // Métro : filet de sécurité générique — le butin réellement gagné est déjà
   // encaissé par metroEncaisser() avant cet appel (voir majAction, SORTIR) ;
@@ -38803,51 +39026,200 @@ function declencherAlarme(s,raison){
   }
   s.vagueT=14;   // d'autres arrivent régulièrement tant qu'on reste
 }
-/* ---------- karaoké : évaluation d'un arrêt de curseur ---------- */
-function evaluerKaraoke(s){
-  if(!s.karaOn) return;
-  const ec=Math.abs(s.karaPos);             // 0 = pile au centre, 1 = extrémité
-  const parfait=ec<0.14, bon=ec<0.36;
-  if(!bon){
-    s.karaOn=false; s.karaBarre.visible=false; karaWrap.style.display='none';
-    SFX.refus(); vibre(120); secousse(4);
-    toast('La salle hurle. Pas de la bonne façon.','warn');
-    bigMsg('😖 FAUSSE NOTE');
-    toucherJoueur(5);
-    for(let i=0;i<8;i++) spawnP(P.x+rand(-1,1),rand(1.4,2.6),P.z+rand(-1,1),
-      rand(-2,2),rand(1,2),rand(-2,2),0.7,0.5,0x8a8f9a,3);
-    return;
-  }
-  if(parfait){ s.karaPerf++; spawnTexte(P.x,2.8,P.z,'PARFAIT','#ffd23f'); SFX.etoile(); }
-  else { spawnTexte(P.x,2.8,P.z,'JUSTE','#7dff7a'); SFX.ui(); }
-  vibre(35);
-  s.karaStep++;
-  if(s.karaStep>=3){
-    s.karaOn=false; s.karaBarre.visible=false; karaWrap.style.display='none';
-    const bonus=s.karaPerf===3;
-    const g=bonus?randi(600,900):randi(160,320);
-    META.argent+=g; ETAT.cashRun+=g; META.stats.cashTotal+=g;
-    META.karaoke++;
-    gainXp(bonus?60:25);
-    for(let i=0;i<(bonus?40:18);i++) spawnP(P.x+rand(-2.5,2.5),rand(1,4),P.z+rand(-2.5,2.5),
-      rand(-1.5,1.5),rand(1.5,4),rand(-1.5,1.5),1.5,0.5,
-      pick([0xff5ad0,0xffd23f,0x35e0ff,0x7dff7a]),0);
-    SFX.niveau();
-    if(bonus){
-      bigMsg('⭐ SANS-FAUTE ⭐');
-      toast('Standing ovation : +'+g+' $','or');
-      if(!aCurio('platine')) donnerCurio('platine');
-    } else {
-      bigMsg('🎤 BIEN CHANTÉ');
-      toast('Le public applaudit : +'+g+' $ ('+s.karaPerf+'/3 parfaits)','or');
-      if(!aCurio('platine')) toast('Un sans-faute complet vaudrait bien plus…','warn');
-    }
-    checkDefis(); sauveMeta();
-  } else {
-    s.karaVit*=1.5;                        // ça accélère : c'est là que ça se joue
-    s.karaPos=0; s.karaDir=Math.random()<0.5?1:-1;
-  }
-}
+/* =====================================================================
+   KARAOKÉ « MICRO CASSÉ » V2 — LA SCÈNE (retours du 20 octobre, lot 8.1 ; demandé : « plus long et plus difficile, façon jeu de
+   rythme à pistes : notes qui descendent, plusieurs pistes, tenues, combo, niveaux de difficulté ; un nom original »).
+   Trois chansons (KARA_CHANSONS : facile, moyen, difficile — la difficile s'ouvre quand on a fini la moyenne), quatre pistes ; les
+   notes descendent vers la ligne de chant et l'on chante en touchant sa piste au bon moment (parfait ±50 ms, bien ±95, juste ±140) ;
+   une tenue se garde jusqu'au bout. Combo et multiplicateur (×1 à ×4) ; la jauge de la salle monte avec le chant juste et tombe à
+   chaque note ratée ou fausse : vide, la salle te sort de scène (rien gagné). La partition sort d'une graine propre à la chanson
+   (karaPartition : la même à chaque fois, elle s'apprend). Musique synthétisée (KARA_SON : batterie, basse, accords ; la voix est
+   jouée par les notes touchées, un couac pour une note ratée). Note finale (S, A, B, C) sur la précision, record par chanson
+   (META.karaokeRec, clés fixes), le Disque de Platine pour un S sur la moyenne ou la difficile. Toujours deux chansons par vague
+   (KARAOKE_SESSIONS_MAX), 60 $ le micro. Tout se joue sur dtJeu ; le joueur est tenu sur l'estrade, la caméra le regarde depuis
+   la salle, l'écran du fond affiche les paroles.
+===================================================================== */
+const KARA_FEN={parfait:0.05,bien:0.095,juste:0.14};
+const KARA_LIGNE=0.84;                       /* la ligne de chant, en fraction de la hauteur de la piste */
+const KARA_COUL=['#3ee07a','#ff4f6a','#ffd23f','#3aa8ff'];
+const KARA_NOTE={S:92,A:80,B:65};           /* précision (%) pour chaque note */
+const KARA_GAIN={S:2.5,A:1.8,B:1.3,C:1};
+const KARA_CHANSONS=[
+  {id:'neon',nom:'Néon sur Los Reyes',niv:'FACILE',bpm:92,mesures:20,chute:1.9,graine:11,base:120,accords:[48,45,41,43],
+   dens:{noire:0.72,croche:0,tenue:0.14,accord:0},
+   paroles:['Sous les néons de Los Reyes','la nuit s’allume, on s’en va','les palmiers dansent sur la plage','et toute la ville chante avec moi']},
+  {id:'chrome',nom:'Cœur de Chrome',niv:'MOYEN',bpm:112,mesures:28,chute:1.55,graine:23,base:200,accords:[45,41,48,43],
+   dens:{noire:0.84,croche:0.3,tenue:0.16,accord:0.08},
+   paroles:['J’ai un cœur de chrome','qui roule à cent à l’heure','sur le boulevard des rêves','les phares au fond des yeux']},
+  {id:'vipere',nom:'Vipère Fièvre',niv:'DIFFICILE',bpm:138,mesures:40,chute:1.25,graine:37,base:320,accords:[40,36,38,35],verrou:'chrome',
+   dens:{noire:0.95,croche:0.55,tenue:0.18,accord:0.16},
+   paroles:['Fièvre verte sur le port','la vipère siffle encore','elle mord, elle mord','et la salle en redemande']},
+];
+const KARA={a:null,choixS:null,bilan:null,bilanT:0};
+function karaChanson(id){ for(const C of KARA_CHANSONS) if(C.id===id) return C; return null; }
+function karaOuverte(C){ return !C.verrou||(META.karaokeRec[C.verrou]||0)>0; }
+function karaPartition(C){ /* la partition : une graine par chanson, aucun Math.random — elle s'apprend */
+  let g=(C.graine*9301+49297)>>>0; const r=()=>{ g=(g*1664525+1013904223)>>>0; return g/4294967296; };
+  const spb=60/C.bpm, debut=4*spb, notes=[], libre=[-9,-9,-9,-9]; let derniere=-1;
+  for(let m=0;m<C.mesures;m++){ const refrain=(m%8)>=4&&m>0&&m<C.mesures-1, k=refrain?1.2:1, finale=m===C.mesures-1;
+    for(let c=0;c<8;c++){ const t=debut+(m*4+c/2)*spb, noire=c%2===0;
+      let p=noire?C.dens.noire*k:C.dens.croche*k; if(m===0) p=(c===0||c===4)?1:0; if(finale) p=c===0?1:0; if(r()>=p) continue;
+      const n=finale?(C.dens.accord>0?2:1):((r()<C.dens.accord*k&&noire)?2:1), pris=[];
+      for(let q=0;q<n;q++){ let l=-1; for(let e=0;e<8;e++){ const L=Math.floor(r()*4); if(libre[L]<=t+1e-6&&pris.indexOf(L)<0&&!(n===1&&L===derniere&&e<3)){ l=L; break; } } if(l<0) continue;
+        let d=0; if(finale) d=4*spb; else if(noire&&n===1&&r()<C.dens.tenue*k) d=(1+Math.floor(r()*3))*spb;
+        pris.push(l); libre[l]=t+(d>0?d+spb*0.5:0.18); notes.push({t,l,d,etat:0,q:-1,acc:0}); derniere=l; } } }
+  notes.sort((a,b)=>a.t-b.t||a.l-b.l); return notes; }
+function karaMult(A){ return 1+Math.min(3,Math.floor(A.combo/10)); }
+function karaPrecision(A){ let w=0; for(const n of A.notes){ let v=n.etat===-1||n.q<0?0:[1,0.75,0.45][n.q]; if(n.etat===3) v*=0.5; w+=v; } return A.notes.length?100*w/A.notes.length:0; }
+function karaNote(p){ return p>=KARA_NOTE.S?'S':(p>=KARA_NOTE.A?'A':(p>=KARA_NOTE.B?'B':'C')); }
+/* ---------- le choix de la chanson ---------- */
+function karaChoisir(s){ if(s.karaOn) return; KARA.choixS=s; karaChoixUI(true); SFX.ui(); }
+function karaChoixUI(vis){ let d=document.getElementById('karaChoix'); if(!vis){ if(d) d.style.display='none'; KARA.choixS=null; return; }
+  if(!d){ d=document.createElement('div'); d.id='karaChoix'; d.style.cssText='position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:45;width:min(88vw,360px);background:rgba(22,12,30,.94);border:2px solid #ffd23f;border-radius:16px;padding:14px 14px 12px;color:#f4f0fa;font:700 13px Arial;box-shadow:0 8px 30px rgba(0,0,0,.6)';
+    document.body.appendChild(d); }
+  let h='<div style="font:900 17px Arial;color:#ffd23f;text-align:center;margin-bottom:4px">🎤 MICRO CASSÉ — LA SCÈNE</div><div style="text-align:center;font:600 12px Arial;opacity:.85;margin-bottom:10px">Quatre pistes : touche la tienne quand la note passe la ligne, garde le doigt sur les tenues. 60 $ le micro.</div>';
+  for(const C of KARA_CHANSONS){ const ok=karaOuverte(C), rec=META.karaokeRec[C.id]||0, coul=C.niv==='FACILE'?'#3ee07a':(C.niv==='MOYEN'?'#ffd23f':'#ff4f6a');
+    h+='<button id="karaC_'+C.id+'" '+(ok?'':'disabled ')+'style="display:block;width:100%;margin:6px 0;padding:9px 10px;border-radius:12px;border:2px solid '+(ok?coul:'#555')+';background:'+(ok?'rgba(255,255,255,.07)':'rgba(0,0,0,.3)')+';color:'+(ok?'#fff':'#888')+';text-align:left;font:800 14px Arial">'
+      +(ok?'🎵 ':'🔒 ')+C.nom+'<br><span style="font:700 11px Arial;color:'+coul+'">'+C.niv+'</span><span style="font:600 11px Arial;opacity:.8"> · '+C.bpm+' BPM · '+Math.round(C.mesures*4*60/C.bpm)+' s'+(ok?(rec?' · record '+rec.toLocaleString('fr-FR'):''):' · finis « '+karaChanson(C.verrou).nom+' »')+'</span></button>'; }
+  h+='<button id="karaCFermer" style="display:block;margin:8px auto 0;padding:6px 18px;border-radius:10px;border:1px solid #aaa;background:none;color:#ddd;font:700 12px Arial">Plus tard</button>';
+  d.innerHTML=h; d.style.display='block';
+  for(const C of KARA_CHANSONS){ const b=d.querySelector('#karaC_'+C.id); if(b&&karaOuverte(C)) b.addEventListener('click',()=>{ const s=KARA.choixS; karaChoixUI(false); if(s) karaDemarrer(s,C.id); }); }
+  d.querySelector('#karaCFermer').addEventListener('click',()=>{ karaChoixUI(false); SFX.ui(); }); }
+/* ---------- la chanson ---------- */
+function karaDemarrer(s,id){ const C=karaChanson(id); if(!C||s.karaOn||KARA.a) return false;
+  if(!karaOuverte(C)){ SFX.refus(); toast('Finis d’abord « '+karaChanson(C.verrou).nom+' ».'); return false; }
+  if(s.karaVague!==WAVES.n){ s.karaVague=WAVES.n; s.karaN=0; }
+  if((s.karaN||0)>=KARAOKE_SESSIONS_MAX){ SFX.refus(); toast('Deux chansons par vague. Laisse les autres massacrer un tube aussi.'); return false; }
+  if(META.argent<60){ SFX.refus(); toast('Le micro se loue 60 $'); return false; }
+  META.argent-=60; s.karaN=(s.karaN||0)+1; s.karaOn=true;
+  const notes=karaPartition(C), dern=notes[notes.length-1];
+  KARA.a={s,C,notes,t:-2.4,i0:0,score:0,combo:0,comboMax:0,salle:55,nq:[0,0,0],rate:0,faux:0,lache:0,app:[false,false,false,false],ten:[null,null,null,null],
+    flash:[0,0,0,0],jug:[null,null,null,null],fin:dern.t+dern.d+1.2,spb:60/C.bpm,debut:4*60/C.bpm,son:null,ecranT:0,huee:0};
+  KARA.bilan=null; KARA.bilanT=0;
+  const sc=s.scene2; s.tenu=true; s.cadrage={actif:true,oeil:{x:sc.x,y:2.9,z:sc.z+9.2},vise:{x:sc.x,y:-0.8,z:sc.z-3.4},fov:-6}; /* la scène et l'écran des paroles dans le haut de l'écran, au-dessus des pistes */
+  karaPlacer(s,0); cacherBoutonsCombat(); karaUI(true); karaSonStart(KARA.a); karaEcran(s,KARA.a,true);
+  bigMsg('🎤 '+C.nom); SFX.ui(); return true; }
+function karaPlacer(s,t){ const sc=s.scene2; P.x=sc.x; P.z=sc.z-0.9; P.y=0.5; P.vy=0; P.chute=false; P.ang=0;
+  if(!P.h) return; P.h.g.position.set(P.x,P.y,P.z); P.h.g.rotation.set(0,Math.sin(t*2.1)*0.18,0);
+  P.h.brasD.rotation.set(-2.1,0,0.25); P.h.brasG.rotation.set(Math.sin(t*4.2)*0.5-0.4,0,-0.3-Math.max(0,Math.sin(t*2.1))*0.5); }
+function karaJuge(A,l,txt,coul){ A.jug[l]={txt,coul,t:0.55}; }
+function karaAppui(l,bas){ const A=KARA.a; if(!A||l<0||l>3) return;
+  if(!bas){ A.app[l]=false; const n=A.ten[l]; if(n){ A.ten[l]=null; if(A.t<n.t+n.d-0.12){ n.etat=3; A.salle=Math.max(0,A.salle-4); A.lache++; karaJuge(A,l,'LÂCHÉ','#ff9a3a'); karaVoixStop(A,l); }
+      else { n.etat=2; A.score+=50*karaMult(A); karaJuge(A,l,'TENUE !','#ffd23f'); } } return; }
+  if(A.app[l]) return; A.app[l]=true; A.flash[l]=0.2; if(A.t<-0.3) return;
+  let best=null, bd=1e9; for(let i=A.i0;i<A.notes.length;i++){ const n=A.notes[i]; if(n.t-A.t>KARA_FEN.juste) break; if(n.l!==l||n.etat!==0) continue; const d=Math.abs(n.t-A.t); if(d<=KARA_FEN.juste&&d<bd){ bd=d; best=n; } }
+  if(!best){ A.combo=0; A.salle=Math.max(0,A.salle-3); A.faux++; karaJuge(A,l,'FAUX','#a0a4b0'); karaCouac(A); return; }
+  const q=bd<=KARA_FEN.parfait?0:(bd<=KARA_FEN.bien?1:2); best.q=q; best.etat=best.d>0?4:1; if(best.d>0) A.ten[l]=best;
+  A.combo++; if(A.combo>A.comboMax) A.comboMax=A.combo; A.nq[q]++; A.score+=[100,70,40][q]*karaMult(A); A.salle=Math.min(100,A.salle+[2.2,1.5,0.6][q]);
+  karaJuge(A,l,['PARFAIT','BIEN','JUSTE'][q],['#ffd23f','#7dff7a','#35e0ff'][q]); karaVoix(A,best); vibre(q?8:14);
+  if(A.combo===25||A.combo===50||A.combo===100){ bigMsg('🔥 COMBO '+A.combo); const s=A.s; for(let i=0;i<24;i++) spawnP(s.scene2.x+rand(-4,4),rand(2.5,4.5),s.scene2.z+rand(0,6),rand(-1,1),rand(1,3),rand(-1,1),1.4,0.4,pick([0xff5ad0,0xffd23f,0x35e0ff,0x7dff7a]),0); } }
+function karaMaj(s,dt,dtJeu){ const A=KARA.a;
+  if(!A){ if(KARA.bilanT>0){ KARA.bilanT-=dtJeu; if(KARA.bilanT<=0) karaUI(false); else karaDessiner(); } return; }
+  if(A.s!==s){ karaArreter(A.s); return; }
+  A.t+=dtJeu; const mult=karaMult(A);
+  for(let i=A.i0;i<A.notes.length;i++){ const n=A.notes[i]; if(n.t>A.t-KARA_FEN.juste) break; if(n.etat===0){ n.etat=-1; A.combo=0; A.rate++; A.salle=Math.max(0,A.salle-7); karaJuge(A,n.l,'RATÉ','#ff4f6a'); karaCouac(A); } }
+  while(A.i0<A.notes.length&&A.notes[A.i0].etat!==0&&A.notes[A.i0].t<A.t-0.3) A.i0++;
+  for(let l=0;l<4;l++){ const n=A.ten[l]; if(n&&A.app[l]){ n.acc+=dtJeu; while(n.acc>=0.1){ n.acc-=0.1; A.score+=8*mult; } if(A.t>=n.t+n.d){ A.ten[l]=null; n.etat=2; A.score+=50*mult; karaJuge(A,l,'TENUE !','#ffd23f'); karaVoixStop(A,l); } }
+    A.flash[l]=Math.max(0,A.flash[l]-dtJeu); const j=A.jug[l]; if(j){ j.t-=dtJeu; if(j.t<=0) A.jug[l]=null; } }
+  karaPlacer(s,A.t); if(s.disco) s.disco.rotation.y+=dt*(1.5+mult); if(s.ecran){ A.ecranT-=dt; if(A.ecranT<=0){ A.ecranT=0.1; karaEcran(s,A,true); } }
+  if(A.salle<25){ A.huee-=dtJeu; if(A.huee<=0){ A.huee=0.9; spawnP(s.scene2.x+rand(-3,3),rand(1.5,2.5),s.scene2.z+rand(3,7),rand(-0.6,0.6),rand(2,3.5),rand(-3,-1.5),1,0.3,0xd83a3a,4); } }
+  karaSonMaj(A); karaDessiner();
+  if(A.salle<=0) karaFin(s,false); else if(A.t>=A.fin) karaFin(s,true); }
+function karaFin(s,reussi){ const A=KARA.a; if(!A) return; karaFermer(s);
+  if(!reussi){ KARA.bilan={note:'—',prec:Math.round(karaPrecision(A)),score:A.score,C:A.C,huee:true}; KARA.bilanT=3.2; karaUI(true);
+    bigMsg('😖 HUÉ !'); toast('La salle te sort de scène. Rien de gagné, sauf une leçon.','warn'); SFX.refus(); vibre(120); secousse(4); toucherJoueur(5);
+    for(let i=0;i<10;i++) spawnP(P.x+rand(-1,1),rand(1.4,2.6),P.z+rand(-1,1),rand(-2,2),rand(1,2),rand(-2,2),0.7,0.5,0xd83a3a,3); return; }
+  const C=A.C, prec=karaPrecision(A), note=karaNote(prec), g=Math.round(C.base*KARA_GAIN[note]), rec=META.karaokeRec[C.id]||0;
+  META.argent+=g; ETAT.cashRun+=g; META.stats.cashTotal+=g; META.karaoke++; gainXp(note==='S'?70:(note==='A'?45:25));
+  if(A.score>rec) META.karaokeRec[C.id]=A.score;
+  KARA.bilan={note,prec:Math.round(prec),score:A.score,C,rec:A.score>rec,g,comboMax:A.comboMax}; KARA.bilanT=4.5; karaUI(true);
+  for(let i=0;i<(note==='S'?44:20);i++) spawnP(s.scene2.x+rand(-3,3),rand(1,4),s.scene2.z+rand(-1,5),rand(-1.5,1.5),rand(1.5,4),rand(-1.5,1.5),1.5,0.5,pick([0xff5ad0,0xffd23f,0x35e0ff,0x7dff7a]),0);
+  SFX.niveau(); bigMsg((note==='S'?'⭐ ':'🎤 ')+note+' — '+Math.round(prec)+' %');
+  toast('« '+C.nom+' » : '+A.score.toLocaleString('fr-FR')+' pts, combo max '+A.comboMax+(A.score>rec?' — record !':'')+' · +'+g+' $','or');
+  if(note==='S'&&C.id!=='neon'){ if(!aCurio('platine')) donnerCurio('platine'); }
+  else if(!aCurio('platine')) toast('Un S sur « Cœur de Chrome » ou « Vipère Fièvre »… le Disque de Platine t’attend.','warn');
+  if(C.id==='chrome'&&rec===0) toast('« Vipère Fièvre » est ouverte !','or');
+  checkDefis(); sauveMeta(); }
+function karaFermer(s){ const A=KARA.a; KARA.a=null; if(s){ s.karaOn=false; s.tenu=false; if(s.cadrage) s.cadrage.actif=false; if(s.ecran) karaEcran(s,null,false); }
+  karaSonStop(A); afficherBoutonsCombat(); if(P.h){ P.h.brasD.rotation.set(0,0,0); P.h.brasG.rotation.set(0,0,0); P.h.g.rotation.set(0,P.ang||0,0); } }
+function karaArreter(s){ /* abandon (bouton, sortie, mort, nouvelle partie) : rien de gagné, rien de perdu */ karaChoixUI(false); if(KARA.a) karaFermer(s||KARA.a.s); KARA.bilan=null; KARA.bilanT=0; karaUI(false); if(s&&s.karaOn!==undefined) s.karaOn=false; }
+/* ---------- l'écran du fond : le titre, les paroles qui s'allument au fil de la chanson ---------- */
+function karaEcran(s,A,on){ const e=s.ecran; if(!e) return;
+  if(!on){ if(e.userData.karaMap){ e.material.map=null; e.material.color.setHex(0x2a6a9a); e.material.needsUpdate=true; e.userData.karaMap=false; } return; }
+  let cv=s.karaCv; if(!cv){ cv=s.karaCv=document.createElement('canvas'); cv.width=512; cv.height=200; s.karaTex=new THREE.CanvasTexture(cv); }
+  if(!e.userData.karaMap){ e.material.map=s.karaTex; e.material.color.setHex(0xffffff); e.material.needsUpdate=true; e.userData.karaMap=true; }
+  const c=cv.getContext('2d'), C=A.C, gr=c.createLinearGradient(0,0,0,200); gr.addColorStop(0,'#1a0a2a'); gr.addColorStop(1,'#3a0f4a'); c.fillStyle=gr; c.fillRect(0,0,512,200);
+  for(let i=0;i<24;i++){ const h=8+40*Math.abs(Math.sin(A.t*(3+i*0.37)+i)); c.fillStyle='rgba(255,90,208,.25)'; c.fillRect(8+i*21,196-h,14,h); }
+  c.textAlign='center'; c.fillStyle='#ffd23f'; c.font='900 26px Arial'; c.fillText(C.nom.toUpperCase(),256,40);
+  const tl=(A.t-A.debut)/(8*A.spb); if(tl<0){ c.fillStyle='#fff'; c.font='900 56px Arial'; c.fillText(A.t<-1.6?'3':(A.t<-0.8?'2':(A.t<0?'1':'♪')),256,128); s.karaTex.needsUpdate=true; return; }
+  const li=Math.floor(tl)%C.paroles.length, L=C.paroles[li], fr=tl-Math.floor(tl), nc=Math.floor(L.length*Math.min(1,fr*1.15));
+  c.font='800 30px Arial'; const w=c.measureText(L).width, x0=256-w/2; c.textAlign='left'; c.fillStyle='rgba(255,255,255,.45)'; c.fillText(L,x0,112); c.fillStyle='#35e0ff'; c.fillText(L.slice(0,nc),x0,112);
+  c.font='700 22px Arial'; c.fillStyle='rgba(255,255,255,.35)'; c.textAlign='center'; c.fillText(C.paroles[(li+1)%C.paroles.length],256,152); s.karaTex.needsUpdate=true; }
+/* ---------- le panneau : les quatre pistes, les boutons ---------- */
+function karaUI(vis){ let d=document.getElementById('karaPan');
+  if(!vis){ if(d&&d.style.display!=='none') d.style.display='none'; return; }
+  if(!d){ d=document.createElement('div'); d.id='karaPan'; d.style.cssText='position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 10px);z-index:35;display:none;flex-direction:column;align-items:center;gap:6px;pointer-events:none';
+    d.innerHTML='<div style="position:relative"><canvas id="karaCv" style="display:block;width:min(94vw,400px);height:min(50vh,430px)"></canvas><button id="karaStop" style="position:absolute;right:4px;top:4px;pointer-events:auto;border-radius:10px;border:1px solid #ddd;background:rgba(0,0,0,.5);color:#fff;font:800 11px Arial;padding:5px 9px">✕ ARRÊTER</button></div>'
+      +'<div id="karaBtns" style="display:flex;gap:6px;pointer-events:auto;width:min(94vw,400px)">'+[0,1,2,3].map((l)=>'<button id="karaB'+l+'" style="flex:1;height:66px;border-radius:14px;border:3px solid '+KARA_COUL[l]+';background:rgba(0,0,0,.45);color:'+KARA_COUL[l]+';font:900 22px Arial;touch-action:none">●</button>').join('')+'</div>';
+    document.body.appendChild(d);
+    for(let l=0;l<4;l++){ const b=d.querySelector('#karaB'+l); b.addEventListener('pointerdown',(e)=>{ e.preventDefault(); try{ b.setPointerCapture(e.pointerId); }catch(er){} karaAppui(l,true); });
+      const up=(e)=>{ karaAppui(l,false); }; b.addEventListener('pointerup',up); b.addEventListener('pointercancel',up); }
+    d.querySelector('#karaStop').addEventListener('pointerdown',(e)=>{ e.preventDefault(); const A=KARA.a; if(A){ const s=A.s; karaArreter(s); toast('Tu quittes la scène en pleine chanson.'); } else karaUI(false); });
+    window.addEventListener('keydown',(e)=>{ if(!KARA.a||e.repeat) return; const l='dfjk'.indexOf(e.key.toLowerCase()); if(l>=0){ e.preventDefault(); karaAppui(l,true); } });
+    window.addEventListener('keyup',(e)=>{ if(!KARA.a) return; const l='dfjk'.indexOf(e.key.toLowerCase()); if(l>=0) karaAppui(l,false); }); }
+  if(d.style.display!=='flex') d.style.display='flex'; d.querySelector('#karaBtns').style.visibility=KARA.a?'visible':'hidden'; d.querySelector('#karaStop').style.visibility=KARA.a?'visible':'hidden'; }
+function karaDessiner(){ const cv=document.getElementById('karaCv'); if(!cv) return; const A=KARA.a, B=KARA.bilan;
+  const dpr=Math.min(2,window.devicePixelRatio||1), W=Math.round((cv.clientWidth||360)*dpr), H=Math.round((cv.clientHeight||400)*dpr); if(cv.width!==W||cv.height!==H){ cv.width=W; cv.height=H; }
+  const c=cv.getContext('2d'); c.clearRect(0,0,W,H); const k=W/360;
+  if(!A){ if(!B) return; c.fillStyle='rgba(16,8,26,.88)'; c.fillRect(0,H*0.2,W,H*0.55); c.textAlign='center';
+    c.fillStyle=B.huee?'#ff4f6a':'#ffd23f'; c.font='900 '+Math.round(64*k)+'px Arial'; c.fillText(B.huee?'HUÉ':B.note,W/2,H*0.2+78*k);
+    c.fillStyle='#fff'; c.font='800 '+Math.round(17*k)+'px Arial'; c.fillText('« '+B.C.nom+' »',W/2,H*0.2+110*k);
+    c.font='700 '+Math.round(15*k)+'px Arial'; c.fillText(B.score.toLocaleString('fr-FR')+' pts · précision '+B.prec+' %',W/2,H*0.2+138*k);
+    if(!B.huee){ c.fillStyle='#7dff7a'; c.fillText('+'+B.g+' $'+(B.rec?' · NOUVEAU RECORD':'')+' · combo max '+B.comboMax,W/2,H*0.2+162*k); } return; }
+  const C=A.C, top=H*0.07, bas=H*KARA_LIGNE, wT=W*0.40, wB=W*0.92, cx=W/2;
+  const xl=(l,y)=>{ const u=(y-top)/(bas-top), w=wT+(wB-wT)*u; return cx+(l-1.5)*w/4; }, lw=(y)=>{ const u=(y-top)/(bas-top); return (wT+(wB-wT)*u)/4; };
+  const yT=(t)=>{ const u=1-(t-A.t)/C.chute; return top+(bas-top)*u; };
+  c.fillStyle='rgba(12,6,20,.62)'; c.beginPath(); c.moveTo(cx-wT/2,top); c.lineTo(cx+wT/2,top); c.lineTo(cx+wB*0.55,H); c.lineTo(cx-wB*0.55,H); c.closePath(); c.fill();
+  for(let l=0;l<=4;l++){ c.strokeStyle='rgba(255,255,255,.14)'; c.lineWidth=1.5*k; c.beginPath(); c.moveTo(cx+(l-2)*wT/4,top); c.lineTo(cx+(l-2)*wB*0.55/2,H); c.stroke(); }
+  const pb=(A.t*2/A.spb)%2<1; c.strokeStyle=pb?'rgba(255,255,255,.12)':'rgba(255,255,255,.06)';
+  for(let b=Math.ceil(A.t/A.spb);b*A.spb<A.t+C.chute;b++){ const y=yT(b*A.spb); if(y<top) continue; c.lineWidth=(b%4===0?2.5:1)*k; c.beginPath(); c.moveTo(xl(-0.5,y),y); c.lineTo(xl(3.5,y),y); c.stroke(); }
+  for(let l=0;l<4;l++){ if(A.flash[l]>0||A.app[l]){ c.fillStyle=KARA_COUL[l]+(A.app[l]?'44':'22'); c.fillRect(xl(l-0.5,bas)-2,bas-40*k,lw(bas),48*k); } }
+  for(let i=Math.max(0,A.i0-30);i<A.notes.length;i++){ const n=A.notes[i]; if(n.t>A.t+C.chute) break; if(n.etat===1||n.etat===2) continue;
+    const y0=Math.min(bas,yT(n.t)), col=KARA_COUL[n.l];
+    if(n.d>0){ const y1=Math.max(top,yT(n.t+n.d)); if(y1<bas&&n.etat!==3){ const actif=n.etat===4; c.fillStyle=col+(actif?'cc':'77'); const wa=lw((y0+y1)/2)*0.32; c.beginPath(); c.moveTo(xl(n.l,y1)-wa*0.7,y1); c.lineTo(xl(n.l,y1)+wa*0.7,y1); c.lineTo(xl(n.l,y0)+wa,y0); c.lineTo(xl(n.l,y0)-wa,y0); c.closePath(); c.fill(); } }
+    if(n.etat===4||n.etat===3) continue; if(y0<top-10) continue; const r=lw(y0)*0.36;
+    c.globalAlpha=n.etat===-1?0.35:1; c.fillStyle=col; c.beginPath(); c.ellipse(xl(n.l,y0),y0,r,r*0.62,0,0,Math.PI*2); c.fill();
+    c.fillStyle='rgba(255,255,255,.75)'; c.beginPath(); c.ellipse(xl(n.l,y0)-r*0.2,y0-r*0.18,r*0.38,r*0.2,0,0,Math.PI*2); c.fill(); c.globalAlpha=1; }
+  for(let l=0;l<4;l++){ const x=xl(l,bas), r=lw(bas)*0.38; c.lineWidth=3*k; c.strokeStyle=KARA_COUL[l]; c.beginPath(); c.ellipse(x,bas,r,r*0.62,0,0,Math.PI*2); c.stroke();
+    if(A.app[l]){ c.fillStyle=KARA_COUL[l]+'66'; c.fill(); } const j=A.jug[l]; if(j){ c.globalAlpha=Math.min(1,j.t*2.5); c.fillStyle=j.coul; c.textAlign='center'; c.font='900 '+Math.round(13*k)+'px Arial'; c.fillText(j.txt,x,bas-26*k-(0.55-j.t)*30*k); c.globalAlpha=1; } }
+  c.textAlign='left'; c.fillStyle='#fff'; c.font='900 '+Math.round(18*k)+'px Arial'; c.fillText(A.score.toLocaleString('fr-FR'),10*k,24*k);
+  c.font='700 '+Math.round(11*k)+'px Arial'; c.fillStyle='#ffd23f'; c.fillText(C.nom+' · '+C.niv,10*k,40*k);
+  if(A.combo>=4){ c.textAlign='center'; c.fillStyle=karaMult(A)>1?'#ff5ad0':'#fff'; c.font='900 '+Math.round(20*k)+'px Arial'; c.fillText(A.combo+' COMBO'+(karaMult(A)>1?'  ×'+karaMult(A):''),cx,H*0.5); }
+  const pr=Math.max(0,Math.min(1,A.t/A.fin)); c.fillStyle='rgba(255,255,255,.18)'; c.fillRect(10*k,48*k,W*0.4,4*k); c.fillStyle='#35e0ff'; c.fillRect(10*k,48*k,W*0.4*pr,4*k);
+  const sx=W-18*k, sh=H*0.42, sy=H*0.18; c.fillStyle='rgba(255,255,255,.15)'; c.fillRect(sx,sy,8*k,sh); const v=A.salle/100; c.fillStyle=v>0.6?'#3ee07a':(v>0.3?'#ffd23f':'#ff4f6a'); c.fillRect(sx,sy+sh*(1-v),8*k,sh*v);
+  c.textAlign='center'; c.font=Math.round(16*k)+'px Arial'; c.fillText(v>0.7?'😍':(v>0.45?'🙂':(v>0.25?'😐':'😖')),sx+4*k,sy-8*k);
+  if(A.t<0){ c.fillStyle='#fff'; c.font='900 '+Math.round(64*k)+'px Arial'; c.fillText(A.t<-1.6?'3':(A.t<-0.8?'2':'1'),cx,H*0.42); } }
+/* ---------- la musique : batterie, basse, accords sur la grille de la chanson ; la voix sur les notes touchées ---------- */
+function karaSonStart(A){ if(!AUDIO.pret||!AUDIO.ctx||!A) return; const ctx=AUDIO.ctx, gn=ctx.createGain(); gn.gain.value=0.5; gn.connect(AUDIO.sfxG);
+  A.son={gn,t0:ctx.currentTime-A.t,pas:Math.ceil((A.t)/(A.spb/2)),voix:[null,null,null,null]}; }
+function karaSonStop(A){ const K=A&&A.son; if(!K) return; try{ K.gn.gain.setTargetAtTime(0,AUDIO.ctx.currentTime,0.05); setTimeout(()=>{ try{ K.gn.disconnect(); }catch(e){} },400); }catch(e){} A.son=null; }
+function karaSonMaj(A){ const K=A.son; if(!K) return; const ctx=AUDIO.ctx, now=ctx.currentTime; if(Math.abs((now-K.t0)-A.t)>0.12){ K.t0=now-A.t; K.pas=Math.ceil(A.t/(A.spb/2)); }
+  const pas=A.spb/2, C=A.C, out=K.gn;
+  while(K.t0+K.pas*pas<now+0.2){ const T=Math.max(now,K.t0+K.pas*pas), st=K.pas; K.pas++; if(st<0) { if(st%2===0){ const o=ctx.createOscillator(), g=ctx.createGain(); o.frequency.value=1200; g.gain.setValueAtTime(0.25,T); g.gain.exponentialRampToValueAtTime(0.001,T+0.05); o.connect(g); g.connect(out); o.start(T); o.stop(T+0.06); } continue; }
+    const s8=st%8, mes=Math.floor(st/8), root=C.accords[mes%4];
+    if(s8===0||s8===4){ const o=ctx.createOscillator(), g=ctx.createGain(); o.type='sine'; o.frequency.setValueAtTime(130,T); o.frequency.exponentialRampToValueAtTime(42,T+0.12); g.gain.setValueAtTime(0.9,T); g.gain.exponentialRampToValueAtTime(0.001,T+0.2); o.connect(g); g.connect(out); o.start(T); o.stop(T+0.22); }
+    if((s8===2||s8===6)&&AUDIO.noise){ const n=ctx.createBufferSource(); n.buffer=AUDIO.noise; const f=ctx.createBiquadFilter(); f.type='bandpass'; f.frequency.value=1800; f.Q.value=0.7; const g=ctx.createGain(); g.gain.setValueAtTime(0.45,T); g.gain.exponentialRampToValueAtTime(0.001,T+0.13); n.connect(f); f.connect(g); g.connect(out); n.start(T); n.stop(T+0.15); }
+    if(AUDIO.noise){ const n=ctx.createBufferSource(); n.buffer=AUDIO.noise; const f=ctx.createBiquadFilter(); f.type='highpass'; f.frequency.value=7500; const g=ctx.createGain(); g.gain.setValueAtTime(0.12,T); g.gain.exponentialRampToValueAtTime(0.001,T+0.04); n.connect(f); f.connect(g); g.connect(out); n.start(T); n.stop(T+0.05); }
+    { const o=ctx.createOscillator(), g=ctx.createGain(); o.type='triangle'; o.frequency.value=440*Math.pow(2,(root-12-69)/12); g.gain.setValueAtTime(0.28,T); g.gain.exponentialRampToValueAtTime(0.001,T+pas*0.9); o.connect(g); g.connect(out); o.start(T); o.stop(T+pas); }
+    if(s8===1||s8===5){ for(const iv of [12,16,19]){ const o=ctx.createOscillator(), g=ctx.createGain(); o.type='square'; o.frequency.value=440*Math.pow(2,(root+iv-69)/12); g.gain.setValueAtTime(0.035,T); g.gain.exponentialRampToValueAtTime(0.001,T+pas*1.4); o.connect(g); g.connect(out); o.start(T); o.stop(T+pas*1.5); } } } }
+function karaVoix(A,n){ const K=A.son; if(!K) return; const ctx=AUDIO.ctx, T=ctx.currentTime, mes=Math.max(0,Math.floor((n.t-A.debut)/(4*A.spb))), root=A.C.accords[mes%4];
+  const m=root+24+[0,4,7,12][n.l], o=ctx.createOscillator(), v=ctx.createOscillator(), vg=ctx.createGain(), g=ctx.createGain(), du=n.d>0?n.d:0.32;
+  o.type='sawtooth'; o.frequency.value=440*Math.pow(2,(m-69)/12); v.frequency.value=5.5; vg.gain.value=4; v.connect(vg); vg.connect(o.frequency);
+  const f=ctx.createBiquadFilter(); f.type='lowpass'; f.frequency.value=1800; g.gain.setValueAtTime(0.0001,T); g.gain.exponentialRampToValueAtTime(0.16,T+0.02); g.gain.setTargetAtTime(0.0001,T+du,0.06);
+  o.connect(f); f.connect(g); g.connect(K.gn); o.start(T); v.start(T); o.stop(T+du+0.4); v.stop(T+du+0.4); K.voix[n.l]={g}; }
+function karaVoixStop(A,l){ const K=A&&A.son; if(!K||!K.voix[l]) return; try{ K.voix[l].g.gain.cancelScheduledValues(AUDIO.ctx.currentTime); K.voix[l].g.gain.setTargetAtTime(0.0001,AUDIO.ctx.currentTime,0.03); }catch(e){} K.voix[l]=null; }
+function karaCouac(A){ const K=A&&A.son; if(!K) return; const ctx=AUDIO.ctx, T=ctx.currentTime, o=ctx.createOscillator(), g=ctx.createGain(); o.type='square'; o.frequency.setValueAtTime(150,T); o.frequency.linearRampToValueAtTime(95,T+0.16);
+  g.gain.setValueAtTime(0.12,T); g.gain.exponentialRampToValueAtTime(0.001,T+0.18); o.connect(g); g.connect(K.gn); o.start(T); o.stop(T+0.2); }
 /* ---------- bowling : évaluation d'un lancer ---------- */
 function lancerBowling(s){
   // qualité de la ligne (0 = parfait) puis de la force
@@ -38927,17 +39299,140 @@ function finSoulevé(s,gagne){
     if(s.culturiste&&s.culturiste.h) s.culturiste.h.g.rotation.y+=0.6;
   }
 }
-/* ---------- sandwich : fin du défi ---------- */
-function finMonstre(s,gagne){
+/* =====================================================================
+   LE DÉFI DU MONSTRE V2 — LE DUEL (retours du 20 octobre, lot 8.2 ; demandé : « un énorme burger visible qu'on mange couche par
+   couche, et une vraie compétition interactive contre un adversaire PNJ : rythme, nausée, coup de boost »).
+   Deux Monstres sur la table : douze couches (BURGER_COUCHES, du pain du dessus au pain du dessous, 22 bouchées), l'un pour toi,
+   l'autre pour Gérard « la Mâchoire », le champion du tableau. On mord au rythme de la mâchoire : une barre va et vient, la
+   bouchée prise dans la fenêtre verte compte entière, hors fenêtre une demi-bouchée et plus de nausée, deux bouchées dans le même
+   temps = on s'étouffe ; quatre bouchées en rythme d'affilée, chacune compte un quart de plus. La nausée monte selon la couche
+   (le steak et le bacon pèsent, la salade presque pas) et retombe doucement ; BOIRE la fait baisser mais on ne mord pas en
+   buvant ; la SAUCE DU ROI (une fois) double le rythme 3,5 s, puis elle pique. Gérard mange à son rythme, boit, prend sa sauce.
+   Perdu : nausée à 100, Gérard finit avant toi, ou le temps (BURGER_DUREE). Gagné : la récompense d'avant (finMonstre :
+   argent, Ceinture de Champion, digestion). Un défi par vague (s.swVague). Le joueur et Gérard sont tenus à table, la caméra de
+   côté ; tout se joue sur dtJeu. Les burgers et leurs matériaux sont construits sur un générateur privé (aucun tirage de plus).
+===================================================================== */
+const BURGER_COUCHES=[ /* de haut en bas (on mange par le dessus) : b = bouchées, n = nausée par bouchée, h = épaisseur */
+  {id:'painH',nom:'le pain',b:3,n:5,h:0.34},{id:'cornichons',nom:'les cornichons',b:1,n:4,h:0.05},{id:'steak3',nom:'le steak',b:3,n:9,h:0.2},
+  {id:'oignons',nom:'les oignons',b:1,n:6,h:0.06},{id:'cheddar2',nom:'le cheddar',b:1,n:7,h:0.05},{id:'bacon',nom:'le bacon',b:2,n:9,h:0.07},
+  {id:'steak2',nom:'le steak',b:3,n:9,h:0.2},{id:'tomate',nom:'la tomate',b:1,n:3,h:0.07},{id:'salade',nom:'la salade',b:1,n:2,h:0.07},
+  {id:'cheddar1',nom:'le cheddar',b:1,n:7,h:0.05},{id:'steak1',nom:'le steak',b:3,n:9,h:0.2},{id:'painB',nom:'le pain du dessous',b:2,n:5,h:0.2}];
+const BURGER_TOTAL=BURGER_COUCHES.reduce((a,c)=>a+c.b,0);
+const BURGER_CYCLE=0.75, BURGER_FEN=0.34, BURGER_DUREE=50, BURGER_DECROIT=3.5, BURGER_NAUSEE_K=1.25;
+const BURGER_SODA=30, BURGER_SODA_T=1.4, BURGER_BOOST_T=3.5, BURGER_BOOST_NAUSEE=15, BURGER_ETOUFFE=10, BURGER_HORS=8;
+function burgerConstruire(inter,ox,oz,g){ /* appelée dans la construction de la salle, sous avecAleaPrive : les deux Monstres */
+  const R=0.66, M=(c,e)=>new THREE.MeshLambertMaterial({color:c,emissive:new THREE.Color(e||0x000000)});
+  const cv=document.createElement('canvas'); cv.width=256; cv.height=128; const cx=cv.getContext('2d'), gr=cx.createLinearGradient(0,0,0,128); gr.addColorStop(0,'#c07a2c'); gr.addColorStop(0.6,'#dca050'); gr.addColorStop(1,'#e8b866');
+  cx.fillStyle=gr; cx.fillRect(0,0,256,128); let sd=77; const r=()=>{ sd=(sd*1664525+1013904223)>>>0; return sd/4294967296; };
+  for(let i=0;i<90;i++){ const x=r()*256, y=8+r()*80; cx.fillStyle='#f6ead0'; cx.beginPath(); cx.ellipse(x,y,3.2,1.6+y/60,r()*3,0,Math.PI*2); cx.fill(); }
+  const texPain=new THREE.CanvasTexture(cv), mPain=new THREE.MeshLambertMaterial({map:texPain}), mPainB=M(0xc8904a), mSteak=M(0x5a3420), mCheddar=M(0xf2a81f,0x2a1400),
+    mSalade=M(0x5ab83a), mTomate=M(0xd83a2a), mBacon=M(0xb8483a), mOignon=M(0xf0e6d8), mCorni=M(0x6a9a3a), mAssiette=M(0xf2f0ea), mPique=M(0xe8e0c8), mOlive=M(0x2a3a1a), mDrap=M(0xd8304a);
+  const bosse=(geo,k,f)=>{ const p=geo.attributes.position; for(let i=0;i<p.count;i++){ const x=p.getX(i), z=p.getZ(i), a=Math.atan2(z,x), d=Math.hypot(x,z); if(d<1e-3) continue; const s=1+k*f(a,i); p.setX(i,x*s); p.setZ(i,z*s); } geo.computeVertexNormals(); return geo; };
+  const couche=(c)=>{ const G=new THREE.Group(), h=c.h;
+    if(c.id==='painH'){ const s=new THREE.Mesh(new THREE.SphereGeometry(R*1.04,22,10,0,Math.PI*2,0,Math.PI/2),mPain); s.scale.y=h/(R*1.04); G.add(s); }
+    else if(c.id==='painB'){ G.add(new THREE.Mesh(new THREE.CylinderGeometry(R*1.02,R*0.96,h,24),mPainB)); }
+    else if(c.id.indexOf('steak')===0){ G.add(new THREE.Mesh(bosse(new THREE.CylinderGeometry(R*1.06,R*1.06,h,26,2),0.05,(a,i)=>Math.sin(a*7+i)*0.5+Math.sin(a*13)*0.5),mSteak)); }
+    else if(c.id.indexOf('cheddar')===0){ const geo=new THREE.BoxGeometry(R*1.9,h,R*1.9,8,1,8), p=geo.attributes.position; for(let i=0;i<p.count;i++){ const d=Math.hypot(p.getX(i),p.getZ(i)); if(d>R) p.setY(i,p.getY(i)-(d-R)*0.9); } geo.computeVertexNormals(); const m=new THREE.Mesh(geo,mCheddar); m.rotation.y=c.id==='cheddar1'?0.4:1.2; G.add(m); }
+    else if(c.id==='salade'){ G.add(new THREE.Mesh(bosse(new THREE.CylinderGeometry(R*1.12,R*1.12,h,40,1),0.09,(a)=>Math.sin(a*9)),mSalade)); }
+    else if(c.id==='tomate'){ for(const [x,z] of [[-0.3,-0.2],[0.3,-0.15],[0,0.3]]){ const m=new THREE.Mesh(new THREE.CylinderGeometry(R*0.5,R*0.5,h,18),mTomate); m.position.set(x*R*1.1,0,z*R*1.1); G.add(m); } }
+    else if(c.id==='bacon'){ for(let k=0;k<3;k++){ const geo=new THREE.BoxGeometry(R*2.1,h,0.22,14,1,1), p=geo.attributes.position; for(let i=0;i<p.count;i++) p.setY(i,p.getY(i)+Math.sin(p.getX(i)*9+k)*0.03); geo.computeVertexNormals(); const m=new THREE.Mesh(geo,mBacon); m.position.z=(k-1)*0.3; m.rotation.y=(k-1)*0.25; G.add(m); } }
+    else if(c.id==='oignons'){ for(const [x,z,rr] of [[-0.25,0.1,0.22],[0.22,-0.18,0.25],[0.15,0.28,0.18],[-0.2,-0.3,0.2]]){ const m=new THREE.Mesh(new THREE.TorusGeometry(rr,0.04,6,16),mOignon); m.rotation.x=Math.PI/2; m.position.set(x,0,z); G.add(m); } }
+    else if(c.id==='cornichons'){ for(let k=0;k<6;k++){ const a=k*1.05, m=new THREE.Mesh(new THREE.CylinderGeometry(0.15,0.15,h,12),mCorni); m.position.set(Math.cos(a)*0.38,0,Math.sin(a)*0.38); G.add(m); } }
+    return G; };
+  const burger=(x,z,cote)=>{ const B=new THREE.Group(); B.position.set(x,0.8,z); const ass=new THREE.Mesh(new THREE.CylinderGeometry(R*1.45,R*1.3,0.06,28),mAssiette); ass.position.y=0.03; B.add(ass);
+    let y=0.06; const L=[]; for(let i=BURGER_COUCHES.length-1;i>=0;i--){ const c=BURGER_COUCHES[i], G=couche(c); y+=c.h/2; G.position.y=y; G.userData.y0=y; y+=c.h/2; B.add(G); L[i]=G; }
+    const pique=new THREE.Group(); pique.add(new THREE.Mesh(new THREE.CylinderGeometry(0.025,0.025,0.8,6),mPique)); const ol=new THREE.Mesh(new THREE.SphereGeometry(0.11,10,8),mOlive); ol.position.y=0.42; pique.add(ol);
+    const dr=new THREE.Mesh(new THREE.PlaneGeometry(0.28,0.16),mDrap); dr.material.side=THREE.DoubleSide; dr.position.set(0.15,0.3,0); pique.add(dr); pique.position.y=y+0.25; B.add(pique);
+    g.add(B); return {g:B,L,pique,cote,haut:y}; };
+  inter.burgers={j:burger(ox+0.78,oz+2.4,1),g:burger(ox-0.78,oz+2.4,-1)};
+  /* le soda posé sur la table, à côté de chaque Monstre */
+  for(const [x,cl] of [[ox+1.5,0xd8304a],[ox-1.5,0x35708a]]){ const v=new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.12,0.42,12),M(cl)); v.position.set(x,1.01,oz+3.4); g.add(v); }
+}
+function burgerRemettre(s){ const B=s&&s.burgers; if(!B) return; for(const k of ['j','g']){ const E=B[k]; for(const G of E.L){ G.visible=true; G.scale.set(1,1,1); G.position.x=0; G.position.z=0; } E.pique.visible=true; E.pique.position.y=E.haut+0.25; } }
+function burgerDessin(E,prog){ /* chaque couche fond à mesure qu'on la mange, mordue du côté du mangeur ; le pic suit le haut */
+  let cum=0, haut=0; for(let i=0;i<BURGER_COUCHES.length;i++){ const c=BURGER_COUCHES[i], G=E.L[i], f=Math.max(0,Math.min(1,(prog-cum)/c.b)); cum+=c.b;
+    G.visible=f<0.999; const k=1-0.62*f; G.scale.set(k,1,k); G.position.x=-E.cote*0.66*0.62*f*0.7; if(G.visible&&haut===0) haut=G.position.y+c.h/2; }
+  E.pique.visible=prog<BURGER_COUCHES[0].b; if(haut) E.pique.position.y=haut+0.25; }
+function burgerCouche(prog){ let cum=0; for(const c of BURGER_COUCHES){ if(prog<cum+c.b-1e-6) return c; cum+=c.b; } return BURGER_COUCHES[BURGER_COUCHES.length-1]; }
+function burgerMangeur(){ return {prog:0,naus:0,boit:0,boost:0,boostUse:false,ph:0,mordu:false,serie:0,jug:null,jugT:0,out:false}; }
+function burgerDemarrer(s){ if(s.swEtat) return;
+  if(s.swVague===WAVES.n){ SFX.refus(); toast('Un Monstre par vague. Question de dignité.'); return; }
+  if(META.argent<40){ SFX.refus(); toast('Le Monstre coûte 40 $'); return; }
+  if(P.hp<25){ SFX.refus(); toast('Dans ton état ? Non.'); return; }
+  META.argent-=40; s.swVague=WAVES.n; s.swEtat='defi'; s.swBouchees=0; s.swNausee=0; s.swT=BURGER_DUREE;
+  let sd=(WAVES.n*7919+META.sandwich*104729+13)>>>0;
+  s.bg={t:-2.2,j:burgerMangeur(),g:burgerMangeur(),r:()=>{ sd=(sd*1664525+1013904223)>>>0; return sd/4294967296; },cycG:Math.max(0.66,0.8-0.025*Math.min(6,META.sandwich)),adresse:Math.min(0.9,0.82+0.012*META.sandwich),fin:null};
+  burgerRemettre(s); s.tenu=true; const B=s.burgers.j.g.position; s.cadrage={actif:true,oeil:{x:(s.burgers.j.g.position.x+s.burgers.g.g.position.x)/2,y:8.5,z:B.z+5.1},vise:{x:(s.burgers.j.g.position.x+s.burgers.g.g.position.x)/2,y:0.2,z:B.z},fov:8}; /* de haut et de près, dans la salle (le mur sud est à 5,6 u de la table) : les deux mangeurs et leurs Monstres au-dessus du panneau */
+  const Ge=s.gerard; if(Ge){ Ge.pose0=Ge.pose; Ge.pose='duel'; }
+  cacherBoutonsCombat(); burgerUI(s,true); burgerPlacer(s); bigMsg('🍔 LE MONSTRE — LE DUEL'); toast('Gérard « la Mâchoire » contre toi. Mords dans le vert, bois avant de craquer.','or'); SFX.ui(); }
+function burgerPlacer(s){ const B=s.burgers, A=s.bg; if(!B) return; const yj=B.j.g.position, yg=B.g.g.position;
+  P.x=yj.x+1.72; P.z=yj.z; P.y=0; P.vy=0; P.chute=false; P.ang=-Math.PI/2; if(P.h){ P.h.g.position.set(P.x,0,P.z); P.h.g.rotation.set(0,P.ang,0); }
+  const Ge=s.gerard; if(Ge&&Ge.h){ Ge.h.g.position.set(yg.x-1.72,0,yg.z); Ge.h.g.rotation.set(0,Math.PI/2,0); }
+  if(!A) return; for(const [E,h] of [[A.j,P.h],[A.g,Ge&&Ge.h]]){ if(!h) continue; const k=Math.max(0,E.jugT-0.25)/0.35; h.brasD.rotation.x=E.boit>0?-2.4:-0.6-1.4*k; h.brasG.rotation.x=E.boit>0?-0.4:-0.6-1.2*k;
+    h.g.rotation.z=E.naus>70?Math.sin(A.t*9)*0.04*(E.naus-70)/30:0; } }
+function burgerJuge(E,txt,coul){ E.jug={txt,coul}; E.jugT=0.6; }
+function burgerMord(s,E,bon,qui){ const A=s.bg; if(E.mordu){ E.naus+=BURGER_ETOUFFE; E.serie=0; burgerJuge(E,'TU T’ÉTOUFFES','#ff9a3a'); if(qui==='j'){ SFX.refus(); vibre(60); } return; }
+  E.mordu=true; const c=burgerCouche(E.prog); let p=bon?1:0.5; if(bon){ E.serie++; if(E.serie>=4) p+=0.25; } else E.serie=0;
+  E.naus+=c.n*BURGER_NAUSEE_K+(bon?0:BURGER_HORS); E.prog=Math.min(BURGER_TOTAL,E.prog+p); burgerDessin(s.burgers[qui],E.prog);
+  burgerJuge(E,bon?(E.serie>=4?'EN RYTHME ! +'+p:'MIAM'):'TROP TÔT/TARD',bon?(E.serie>=4?'#ffd23f':'#7dff7a'):'#ff9a3a');
+  const pos=s.burgers[qui].g.position; for(let i=0;i<5;i++) spawnP(pos.x+rand(-0.4,0.4),1.4+rand(0,0.8),pos.z+rand(-0.4,0.4),rand(-1,1),rand(0.5,1.6),rand(-1,1),0.6,0.22,pick([0xd8a050,0x5a3420,0x5ab83a,0xf2a81f]),6);
+  if(qui==='j'){ vibre(bon?18:40); SFX.coup(); if(s===INT.actif){ s.swBouchees=Math.floor(E.prog); s.swNausee=E.naus; } } }
+function burgerMordre(s){ const A=s&&s.bg; if(!A||A.fin||A.t<0) return; const J=A.j; if(J.boit>0) return; burgerMord(s,J,Math.abs(J.ph-0.5)<BURGER_FEN/2,'j'); }
+function burgerBoire(s){ const A=s&&s.bg; if(!A||A.fin||A.t<0) return; const J=A.j; if(J.boit>0) return; J.boit=BURGER_SODA_T; J.serie=0; burgerJuge(J,'GLOU GLOU','#35e0ff'); SFX.soin(); vibre(15); }
+function burgerBoost(s){ const A=s&&s.bg; if(!A||A.fin||A.t<0) return; const J=A.j; if(J.boostUse||J.boit>0) return; J.boostUse=true; J.boost=BURGER_BOOST_T; burgerJuge(J,'SAUCE DU ROI !','#ff5a3a'); bigMsg('🌶️ SAUCE DU ROI'); SFX.niveau(); vibre(40); }
+function burgerMaj(s,dt,dtJeu){ const A=s.bg; if(!A) return; A.t+=dtJeu; burgerPlacer(s);
+  if(A.fin){ A.finT-=dtJeu; burgerUI(s,true); if(A.finT<=0){ const g=A.fin==='gagne'; s.bg=null; burgerSortir(s); finMonstre(s,g); } return; }
+  if(A.t>=0){ for(const qui of ['j','g']){ const E=A[qui]; if(E.out) continue; const cyc=(qui==='j'?BURGER_CYCLE:A.cycG)*(E.boost>0?0.5:1);
+      E.ph+=dtJeu/cyc; if(E.ph>=1){ E.ph-=1; E.mordu=false; }
+      if(E.boit>0){ E.boit-=dtJeu; E.naus=Math.max(0,E.naus-BURGER_SODA*dtJeu/BURGER_SODA_T); }
+      if(E.boost>0){ E.boost-=dtJeu; if(E.boost<=0){ E.naus+=BURGER_BOOST_NAUSEE; burgerJuge(E,'ÇA PIQUE !','#ff5a3a'); } }
+      E.naus=Math.max(0,E.naus-BURGER_DECROIT*dtJeu); E.jugT=Math.max(0,E.jugT-dtJeu); }
+    /* Gérard : il mord une fois par temps, juste ou pas selon son adresse ; il boit quand ça tangue, prend sa sauce au milieu */
+    const G=A.g; if(!G.out&&G.boit<=0){ if(!G.mordu&&G.ph>=0.42&&G.ph<0.6) burgerMord(s,G,A.r()<A.adresse,'g');
+      if(G.naus>74) burgerBoireG(G); else if(!G.boostUse&&G.prog>=7&&G.naus<35){ G.boostUse=true; G.boost=BURGER_BOOST_T; burgerJuge(G,'SAUCE !','#ff5a3a'); } }
+    if(G.naus>=100&&!G.out){ G.out=true; burgerJuge(G,'GÉRARD CRAQUE','#ff4f6a'); toast('Gérard « la Mâchoire » rend les armes. Finis ton Monstre !','or'); }
+    const J=A.j; if(J.naus>=100){ A.fin='naus'; A.finT=1.4; toast('Une bouchée de trop.','warn'); }
+    else if(J.prog>=BURGER_TOTAL){ A.fin='gagne'; A.finT=1.6; }
+    else if(G.prog>=BURGER_TOTAL){ A.fin='gerard'; A.finT=1.6; toast('Gérard « la Mâchoire » lève les bras. Il a fini avant toi.','warn'); }
+    else if(A.t>=BURGER_DUREE){ A.fin='temps'; A.finT=1.4; toast('Le temps est écoulé, le Monstre a gagné.','warn'); }
+    s.swT=Math.max(0,BURGER_DUREE-A.t); }
+  burgerUI(s,true); }
+function burgerBoireG(G){ G.boit=BURGER_SODA_T+0.2; G.serie=0; burgerJuge(G,'GLOU GLOU','#35e0ff'); }
+function burgerSortir(s){ if(!s) return; s.tenu=false; if(s.cadrage) s.cadrage.actif=false; burgerUI(s,false); afficherBoutonsCombat();
+  const Ge=s.gerard; if(Ge&&Ge.h){ Ge.pose=Ge.pose0||null; Ge.h.g.position.set(Ge.x,0,Ge.z); Ge.h.g.rotation.set(0,Ge.ry||0,0); Ge.h.brasD.rotation.set(0,0,0); Ge.h.brasG.rotation.set(0,0,0); }
+  if(P.h){ P.h.brasD.rotation.set(0,0,0); P.h.brasG.rotation.set(0,0,0); P.h.g.rotation.z=0; } }
+function burgerArreter(s){ /* abandon, sortie, mort, nouvelle partie : rien n'est payé */ if(!s) return; s.bg=null; burgerSortir(s); }
+function burgerUI(s,vis){ let d=document.getElementById('bgPan'); const A=s&&s.bg;
+  if(!vis||!A){ if(d&&d.style.display!=='none') d.style.display='none'; return; }
+  if(!d){ d=document.createElement('div'); d.id='bgPan'; d.style.cssText='position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 12px);z-index:35;display:none;flex-direction:column;align-items:center;gap:7px;pointer-events:none;color:#fff;font:800 12px Arial;text-shadow:0 1px 3px #000';
+    const barre=(id,coul)=>'<div style="height:9px;background:rgba(255,255,255,.18);border-radius:5px;overflow:hidden"><div id="'+id+'" style="height:100%;width:0;background:'+coul+'"></div></div>';
+    d.innerHTML='<div id="bgTitre" style="font:900 15px Arial"></div>'
+      +'<div style="display:flex;gap:14px;width:min(92vw,380px)"><div style="flex:1">TOI <span id="bgJn"></span>'+barre('bgJp','#ffd23f')+'<div style="margin-top:3px;font:700 10px Arial">NAUSÉE</div>'+barre('bgJq','#7dff7a')+'<div id="bgJj" style="height:16px;font:900 12px Arial"></div></div>'
+      +'<div style="flex:1;text-align:right">GÉRARD <span id="bgGn"></span>'+barre('bgGp','#ff5a6a')+'<div style="margin-top:3px;font:700 10px Arial">NAUSÉE</div>'+barre('bgGq','#7dff7a')+'<div id="bgGj" style="height:16px;font:900 12px Arial"></div></div></div>'
+      +'<div style="width:min(80vw,320px)"><div style="font:700 10px Arial;text-align:center">MÂCHE EN RYTHME</div><div style="position:relative;height:16px;background:rgba(255,255,255,.15);border-radius:8px"><div style="position:absolute;left:'+(50-BURGER_FEN*50)+'%;width:'+(BURGER_FEN*100)+'%;top:0;bottom:0;background:rgba(62,224,122,.55);border-radius:8px"></div><div id="bgCur" style="position:absolute;top:-3px;width:6px;height:22px;background:#fff;border-radius:3px"></div></div></div>'
+      +'<div style="display:flex;gap:9px;pointer-events:auto"><button id="bgBoire" style="min-height:56px;padding:0 12px;border-radius:14px;border:2px solid #35e0ff;background:#14506a;color:#fff;font:900 14px Arial">🥤 BOIRE</button>'
+      +'<button id="bgMord" style="min-width:140px;min-height:62px;border-radius:16px;border:2px solid #fff;background:#d8304a;color:#fff;font:900 18px Arial">😋 MORDRE</button>'
+      +'<button id="bgBoost" style="min-height:56px;padding:0 10px;border-radius:14px;border:2px solid #ff9a3a;background:#7a2a0a;color:#fff;font:900 13px Arial">🌶️ SAUCE</button></div>'
+      +'<button id="bgStop" style="pointer-events:auto;border-radius:10px;border:1px solid #ccc;background:rgba(0,0,0,.4);color:#ddd;font:700 11px Arial;padding:4px 10px">Abandonner</button>';
+    document.body.appendChild(d); const on=(id,f)=>d.querySelector('#'+id).addEventListener('pointerdown',(e)=>{ e.preventDefault(); const s2=INT.actif; if(s2&&s2.bg) f(s2); });
+    on('bgMord',burgerMordre); on('bgBoire',burgerBoire); on('bgBoost',burgerBoost); on('bgStop',(s2)=>{ burgerArreter(s2); finMonstre(s2,false); }); }
+  if(d.style.display!=='flex') d.style.display='flex'; const J=A.j, G=A.g, set=(id,v)=>{ const e=d.querySelector('#'+id); if(e._v!==v){ e._v=v; e.textContent=v; } }, w=(id,v,c)=>{ const e=d.querySelector('#'+id); e.style.width=Math.round(Math.max(0,Math.min(100,v)))+'%'; if(c) e.style.background=c; };
+  set('bgTitre',A.t<0?(A.t<-1.4?'3…':(A.t<-0.7?'2…':'1…')):(A.fin?(A.fin==='gagne'?'🏆 TU AS GAGNÉ !':'😖 PERDU'):'🍔 LE MONSTRE · '+Math.ceil(Math.max(0,BURGER_DUREE-A.t))+' s · '+burgerCouche(J.prog).nom));
+  set('bgJn',Math.floor(J.prog)+' / '+BURGER_TOTAL); set('bgGn',(G.out?'KO · ':'')+Math.floor(G.prog)+' / '+BURGER_TOTAL);
+  w('bgJp',J.prog/BURGER_TOTAL*100); w('bgGp',G.prog/BURGER_TOTAL*100); const nc=(n)=>n>75?'#ff4f6a':(n>45?'#ffd23f':'#7dff7a'); w('bgJq',J.naus,nc(J.naus)); w('bgGq',G.naus,nc(G.naus));
+  set('bgJj',J.jugT>0&&J.jug?J.jug.txt:''); set('bgGj',G.jugT>0&&G.jug?G.jug.txt:''); d.querySelector('#bgJj').style.color=J.jug?J.jug.coul:'#fff'; d.querySelector('#bgGj').style.color=G.jug?G.jug.coul:'#fff';
+  d.querySelector('#bgCur').style.left='calc('+(J.ph*100)+'% - 3px)'; d.querySelector('#bgBoost').style.opacity=J.boostUse?'0.35':'1'; d.querySelector('#bgBoire').style.opacity=J.boit>0?'0.5':'1'; }
+/* ---------- sandwich : fin du défi (le duel du Monstre, lot 8.2 : burgerMaj conclut ; raison : naus, gerard, temps, abandon) ---------- */
+function finMonstre(s,gagne,raison){
   if(!s.swEtat) gagne=false; // garde d'entrée propre : sans défi en cours, rien n'est payé
+  if(s.bg) burgerArreter(s);
   s.swEtat=null; swWrap.style.display='none';
-  s.monstre.scale.set(1,1,1); s.monstre.visible=true;
   if(gagne){
     META.sandwich++;
     const gain=randi(320,520);
     META.argent+=gain; ETAT.cashRun+=gain; META.stats.cashTotal+=gain;
-    bigMsg('🥪 LE MONSTRE EST MORT');
-    toast('Ton nom passe au tableau. +'+gain+' $','or');
+    bigMsg('🍔 LE MONSTRE EST MORT');
+    toast('Tu bats Gérard « la Mâchoire ». Ton nom passe au tableau. +'+gain+' $','or');
     SFX.niveau(); vibre(140);
     if(!aCurio('ceinture')){ donnerCurio('ceinture'); recalcJoueur(); }
     // effet secondaire : trop lourd pour courir
@@ -38945,11 +39440,13 @@ function finMonstre(s,gagne){
     toast('Tu ne cours plus très vite pendant 20 s. C\u2019était prévisible.','warn');
     checkDefis(); sauveMeta();
   } else {
-    toast('Tu rends les armes. Et le reste.','warn');
+    const r=raison||'naus';
+    if(r==='naus'){ toast('Tu rends les armes. Et le reste.','warn'); P.hp=Math.max(1,P.hp-8);
+      for(let i=0;i<10;i++) spawnP(P.x+rand(-0.6,0.6),rand(0.6,1.6),P.z+rand(0,1.4),rand(-1,1),rand(0.5,1.5),rand(0,2),0.8,0.5,0x7a8a3a,3); }
+    else if(r==='gerard') toast('Gérard « la Mâchoire » garde son titre. Il te tend une serviette.','warn');
+    else if(r==='temps') toast('Le temps est écoulé : le Monstre a gagné cette fois.','warn');
+    else toast('Tu poses ta serviette. Gérard finit le tien aussi.','warn');
     SFX.refus(); vibre(100);
-    P.hp=Math.max(1,P.hp-8);
-    for(let i=0;i<10;i++) spawnP(P.x+rand(-0.6,0.6),rand(0.6,1.6),P.z+rand(0,1.4),
-      rand(-1,1),rand(0.5,1.5),rand(0,2),0.8,0.5,0x7a8a3a,3);
   }
 }
 /* =====================================================================
@@ -42629,21 +43126,10 @@ function majInterieur(dt,dtJeu){
   if(s.machine7) laverieMaj(s,dt,dtJeu);
   // ---- concessionnaire : les véhicules exposés tournent doucement ----
   if(s.podiums) for(const pod of s.podiums) if(pod.mesh) pod.mesh.rotation.y+=dt*0.35;
-  // ---- karaoké : balayage du curseur ----
-  if(s.karaOn){
-    s.karaPos+=s.karaDir*s.karaVit*dt;
-    if(s.karaPos>1){ s.karaPos=1; s.karaDir=-1; }
-    if(s.karaPos<-1){ s.karaPos=-1; s.karaDir=1; }
-    s.karaCurs.position.x=s.karaPos*4.35;
-    if(s.ecran) s.ecran.material.color.setHex(Math.abs(s.karaPos)<0.14?0x2fae4f:0x2a6a9a);
-    if(s.disco) s.disco.rotation.y+=dt*3;
-    karaWrap.style.display='block';
-    karaCurEl.style.left=(50+s.karaPos*50)+'%';
-    karaLblEl.textContent='MANCHE '+(s.karaStep+1)+' / 3'+(s.karaPerf?'  ·  '+s.karaPerf+' parfait'+(s.karaPerf>1?'s':''):'');
-  } else {
-    if(karaWrap.style.display!=='none') karaWrap.style.display='none';
-    if(s.disco) s.disco.rotation.y+=dt*0.5;
-  }
+  // ---- karaoké : la scène (karaMaj, lot 8.1) ----
+  if(s.scene2&&(s.karaOn||KARA.bilanT>0)) karaMaj(s,dt,dtJeu);
+  else { if(karaWrap.style.display!=='none') karaWrap.style.display='none'; if(s.disco) s.disco.rotation.y+=dt*0.5; }
+  if(KARA.choixS===s&&dist2(P.x,P.z,s.scene2.x,s.scene2.z)>49) karaChoixUI(false);
   // ---- aquarium : « 1, 2, 3… GASTON ! » (aquariumMaj) ----
   if(s.perchoirs) aquariumMaj(s,dt,dtJeu);
   // ---- bowling : curseur de ligne / de force, puis boule qui roule ----
@@ -42691,18 +43177,9 @@ function majInterieur(dt,dtJeu){
       rand(-0.6,0.6),rand(0.8,1.6),rand(-0.6,0.6),0.5,0.3,0xbfe4ff,1);
   } else if(spWrap.style.display!=='none') spWrap.style.display='none';
   if(s.sac){ s.sac.ph+=dt*1.4; s.sac.mesh.rotation.z=Math.sin(s.sac.ph)*0.12; }
-  // ---- sandwich : le chrono tourne, la nausée retombe lentement ----
-  if(s.swEtat==='defi'){
-    s.swT-=dt;
-    s.swNausee=Math.max(0,s.swNausee-5*dt);
-    swWrap.style.display='block';
-    swFaimEl.style.width=Math.round(s.swBouchees/10*100)+'%';
-    swNausEl.style.width=Math.round(clamp(s.swNausee,0,100))+'%';
-    swLblEl.textContent='BOUCHÉE '+s.swBouchees+' / 10   ·   '+Math.ceil(Math.max(0,s.swT))+' s';
-    s.monstre.scale.set(1-s.swBouchees*0.07,1-s.swBouchees*0.085,1-s.swBouchees*0.07);
-    if(s.swNausee>=100){ toast('Trop vite. Beaucoup trop vite.','warn'); finMonstre(s,false); }
-    else if(s.swT<=0){ finMonstre(s,false); }
-  } else if(swWrap.style.display!=='none') swWrap.style.display='none';
+  // ---- sandwich : le duel du Monstre (burgerMaj, lot 8.2) ----
+  if(s.bg) burgerMaj(s,dt,dtJeu);
+  if(swWrap.style.display!=='none') swWrap.style.display='none';
   // ---- serre : la nuit de la floraison (serreMaj) ----
   if(s.pots) serreMaj(s,dt,dtJeu);
   // ---- voyance : la boule pulse, le chat surveille ----
@@ -42755,6 +43232,7 @@ function majInterieur(dt,dtJeu){
   if(s.figurants) majVieSalle(s,dt);
   // PNJ : danseurs qui bougent, employés qui s'agitent
   for(const p of s.pnj){
+    if(p.pose==='duel') continue; /* Gérard, à table pour le duel du Monstre (burgerPlacer) */
     p.ph+=dt*(p.pose==='danse'?7:2.2);
     if(p.pose==='danse'){
       p.h.g.position.y=Math.abs(Math.sin(p.ph))*0.22;
@@ -43200,7 +43678,7 @@ function metierEnCours(){ return !!(MET.pompier||MET.taxi||MET.depanneuse||MET.a
 // supercross, bouées, REYES BOWL JAM), wakeboard ou parachute ascensionnel, métier en cours. Les vagues et les
 // événements (guerres de gangs...) sont gelés, et les gangs déjà là patrouillent sans s'occuper du joueur. La
 // police, elle, continue si l'on est recherché.
-function treveActivite(){ return !!(RIDES.actif||(DECOR_V2&&(TOW.actif||KITE.actif||CLIFF.actif))||BASKET.actif||SPORTJ.actif||MANEGES.actif||TOUR.actif||metierEnCours()||BASE.defi||FPS.actif||DERBY.actif); }
+function treveActivite(){ return !!(RIDES.actif||JUS.actif||(DECOR_V2&&(TOW.actif||KITE.actif||CLIFF.actif))||BASKET.actif||SPORTJ.actif||MANEGES.actif||TOUR.actif||metierEnCours()||BASE.defi||FPS.actif||DERBY.actif); }
 // Balise dédiée, jamais la même que `balise` (déjà prise par MISSION.cur) —
 // les deux peuvent être actives en même temps sans se marcher dessus.
 const metierBalise=new THREE.Mesh(new THREE.CylinderGeometry(1.4,1.4,9,12,1,true),
@@ -46030,7 +46508,7 @@ function startRun(){
     if(sa.casier) sa.casier.pris=false;
     if(sa.preuves) sa.preuves.pris=false;
     sa.litArme=false; // un lit armé dans la partie d'avant lançait la vague suivante au premier appui
-    if(sa.karaOn!==undefined){ sa.karaOn=false; if(sa.karaBarre) sa.karaBarre.visible=false; sa.karaVague=-1; sa.karaN=0; }
+    if(sa.karaOn!==undefined){ karaArreter(sa); sa.karaVague=-1; sa.karaN=0; }
     if(sa.machine7){ sa.lavVague=-1; sa.lavN=0; } // laverie : plafond de la machine 7 levé
     if(sa.gastonMesh){ sa.gastonMesh.visible=false; sa.gastonVague=-1; sa.gastonTrouve=false; }
     if(sa.perchoirs){ aquariumArreter(sa); sa.aqFinT=0; sa.aqFin=null; sa.aqSaut=null; sa.aqCuve=-1; }
@@ -46038,8 +46516,7 @@ function startRun(){
       sa.bwParties=0; sa.bwVague=-1; }
     if(sa.spEtat!==undefined){ sa.spEtat=null;
       if(sa.barres) for(const b2 of sa.barres) b2.grp.position.y=b2.y0; }
-    if(sa.swEtat!==undefined){ sa.swEtat=null; sa.swVague=-1;
-      if(sa.monstre){ sa.monstre.scale.set(1,1,1); sa.monstre.visible=true; } }
+    if(sa.swEtat!==undefined){ burgerArreter(sa); sa.swEtat=null; sa.swVague=-1; burgerRemettre(sa); }
     if(sa.srVague!==undefined){ serreArreter(sa); sa.srVague=-1; sa.srFini=false; sa.srFinT=0; if(sa.etoile) sa.etoile.visible=false;
       for(const p of sa.pots){ p.fanee=false; p.fl.material.color.setHex(p.coul); p.fl.scale.set(1,0.7,1); } }
     if(sa.club){ sa.danse=null; sa.dansePrimeVague=-1; sa.bagarreT=rand(20,32); sa.bagarreur=null; } // Club Néon : rien ne survit au game over
@@ -46356,10 +46833,10 @@ function mourir(){
   if(INT.actif&&INT.actif.aqActif) aquariumArreter(INT.actif); // Aquarium : la chasse s'arrête, boutons rendus
   if(INT.actif&&INT.actif.machine7&&INT.actif.cycleOn) laverieArreter(INT.actif); // Laverie : l'essorage s'arrête
   if(INT.actif){ const sa=INT.actif; /* anciens mini-jeux (nuit du 16 octobre) : la boucle continue pendant la mort et leurs chronos concluaient — dégâts du soulevé raté, « Monstre » perdu, et la vitrine du musée en cours de forçage était volée et inscrite dans META deux secondes après la mort */
-    if(sa.karaOn){ sa.karaOn=false; if(sa.karaBarre) sa.karaBarre.visible=false; }
+    if(sa.karaOn||KARA.a) karaArreter(sa);
     if(sa.bwEtat){ sa.bwEtat=null; sa.bwAnim=0; if(sa.boule) sa.boule.visible=false; }
     if(sa.spEtat) sa.spEtat=null;
-    if(sa.swEtat){ sa.swEtat=null; if(sa.monstre){ sa.monstre.scale.set(1,1,1); sa.monstre.visible=true; } }
+    if(sa.swEtat){ burgerArreter(sa); sa.swEtat=null; }
     if(sa.casseEtat==='actif'){ sa.casseEtat=null; sa.casseT=0; sa.soupcon=0; sa.bruitAcc=0; }
     sa.forcerCible=null; sa.forcerT=0; sa.litArme=false; }
   if(INT.actif&&INT.actif.pots&&INT.actif.srNuit) serreArreter(INT.actif); // Serre : la nuit s'arrête
@@ -46371,7 +46848,7 @@ function mourir(){
   // depotLancerCourse), foule coupée (moteurStop() ci-dessus a déjà coupé le
   // moteur). Course déjà propre : deuxième appel sans effet.
   if(INT.actif&&INT.actif.depot){ if(INT.actif.courseEnCours) depotAnnulerCourse(INT.actif); depotAmbianceStop(); fermerDepotPanneau(); }
-  if(INT.actif&&INT.actif.pq) planqueSalleArreter(INT.actif); if(INT.actif&&INT.actif.plgJ) plongeonArreter(INT.actif); planqueAmbianceStop(); montSonStop(); canauxSonStop(); levisSonStop(); lagonArreter(); jumellesFin(); if(DECOR_V2){ kiteArreter(false); cliffArreter(false); } // planque : activité arrêtée, ambiance coupée tout de suite
+  if(INT.actif&&INT.actif.pq) planqueSalleArreter(INT.actif); if(INT.actif&&INT.actif.plgJ) plongeonArreter(INT.actif); planqueAmbianceStop(); montSonStop(); canauxSonStop(); levisSonStop(); lagonArreter(); jumellesFin(); if(DECOR_V2){ kiteArreter(false); cliffArreter(false); } jusArreter(true); // planque : activité arrêtée, ambiance coupée tout de suite
   P.h.g.rotation.z=Math.PI/2; P.h.g.position.y=0.35;
   reticule.visible=false;
   const record=ETAT.score>META.record;
@@ -46747,30 +47224,16 @@ function majAction(){
         if(META.zohra===2) toast('Zohra te regarde autrement. Reviens la voir.','or');
         sauveMeta();
       };
-    /* ---------- KARAOKÉ ---------- */
+    /* ---------- KARAOKÉ : la scène (lot 8.1) ---------- */
     } else if(s.scene2&&dist2(P.x,P.z,s.scene2.x,s.scene2.z)<marquerZone(s.scene2,16)){
-      if(s.karaOn){
-        label='⏹ ARRÊTER LE CURSEUR ('+(s.karaStep+1)+'/3)';
-        fn=()=>evaluerKaraoke(s);
-      } else {
-        // plafond par vague (règle « pas de farming infini ») : une session
-        // compte dès qu'elle est lancée, fausse note ou abandon compris
+      if(s.karaOn){ label=''; fn=null; /* la chanson se joue aux quatre pistes du panneau */ }
+      else {
+        // plafond par vague (règle « pas de farming infini ») : une chanson compte dès qu'elle est lancée
         if(s.karaVague!==WAVES.n){ s.karaVague=WAVES.n; s.karaN=0; }
         if((s.karaN||0)>=KARAOKE_SESSIONS_MAX){
           label='🎤 Le micro est réservé — reviens à la prochaine vague';
           fn=()=>{ SFX.refus(); toast('Deux chansons par vague. Laisse les autres massacrer un tube aussi.'); };
-        } else {
-        label='🎤 CHANTER — 60 $';
-        fn=()=>{
-          if(META.argent<60){SFX.refus();toast('Le micro se loue 60 $');return;}
-          s.karaN=(s.karaN||0)+1;
-          META.argent-=60; s.karaOn=true; s.karaStep=0; s.karaPerf=0;
-          s.karaPos=0; s.karaDir=1; s.karaVit=1.05;
-          s.karaBarre.visible=true;
-          bigMsg('🎤 À TOI DE CHANTER'); toast('Arrête le curseur dans le vert. Trois fois.','or');
-          SFX.ui();
-        };
-        }
+        } else { label='🎤 CHANTER — 60 $'; fn=()=>karaChoisir(s); }
       }
     /* ---------- AQUARIUM : « 1, 2, 3… GASTON ! » — pendant la partie, l'indicateur du regard suffit ---------- */
     } else if(s.perchoirs&&s.aqActif){
@@ -46885,38 +47348,13 @@ function majAction(){
       fn=()=>{ SFX.refus(); };
     /* ---------- LE ROI DES SANDWICHS ---------- */
     } else if(s.sodaPos&&s.swEtat==='defi'&&dist2(P.x,P.z,s.sodaPos.x,s.sodaPos.z)<marquerZone(s.sodaPos,7)){
-      label='🥤 BOIRE (nausée '+Math.round(s.swNausee)+')';
-      fn=()=>{
-        s.swNausee=Math.max(0,s.swNausee-32);
-        toast('Grande gorgée. Retourne au sandwich !');
-        SFX.soin(); vibre(15);
-      };
+      label='🥤 BOIRE'; fn=()=>burgerBoire(s); /* le duel se joue au panneau ; le poste reste une zone de la salle */
     } else if(s.defiPos&&dist2(P.x,P.z,s.defiPos.x,s.defiPos.z)<marquerZone(s.defiPos,8)){
-      if(s.swEtat==='defi'){
-        label='😋 MORDRE ('+s.swBouchees+'/10 · nausée '+Math.round(s.swNausee)+')';
-        fn=()=>{
-          s.swBouchees++; s.swNausee+=randi(11,16)+s.swBouchees;  // les dernières bouchées pèsent
-          vibre(20); SFX.coup();
-          if(P.h){ P.h.brasD.rotation.x=-1.9; P.h._frappe=0.15; }
-          if(s.swNausee>=100){ toast('Une bouchée de trop.','warn'); finMonstre(s,false); }
-          else if(s.swBouchees>=10) finMonstre(s,true);
-          else if(s.swNausee>70) toast('Ça tangue. Le soda est juste là.','warn');
-        };
-      } else if(s.swVague===WAVES.n){
-        label='🥪 Le Roi prépare le prochain Monstre';
+      if(s.swEtat==='defi'){ label=''; fn=null; /* MORDRE, BOIRE, SAUCE : au panneau du duel */ }
+      else if(s.swVague===WAVES.n){
+        label='🍔 Le Roi prépare le prochain Monstre';
         fn=()=>{ SFX.refus(); toast('Un Monstre par vague. Question de dignité.'); };
-      } else {
-        label='🥪 DÉFI DU MONSTRE — 40 $';
-        fn=()=>{
-          if(META.argent<40){SFX.refus();toast('Le Monstre coûte 40 $');return;}
-          if(P.hp<25){SFX.refus();toast('Dans ton état ? Non.');return;}
-          META.argent-=40; s.swVague=WAVES.n;
-          s.swEtat='defi'; s.swBouchees=0; s.swNausee=0; s.swT=32;
-          bigMsg('🥪 LE MONSTRE');
-          toast('Mords à la table, bois au soda en face. Nausée à 100 = perdu.','or');
-          SFX.ui();
-        };
-      }
+      } else { label='🍔 LE MONSTRE — DUEL CONTRE GÉRARD — 40 $'; fn=()=>burgerDemarrer(s); }
     } else if(s.tableau&&dist2(P.x,P.z,s.tableau.x,s.tableau.z)<marquerZone(s.tableau,13)){
       label='🏆 TABLEAU DES CHAMPIONS';
       fn=()=>{
@@ -47294,7 +47732,7 @@ function majAction(){
     const pertArm=!P.veh&&!INT.actif?porteArmurerieProche():null; // les deux armureries de la carte : la salle V2
     let ff=null;
     if(POIS.fastfoods) for(const f of POIS.fastfoods) if(dist2(P.x,P.z,f.x,f.z)<10){ff=f;break;}
-    const picAct=DECOR_V2?(actionPic()||actionMonteCharge()||actionMer()||actionMerV3()||cliffAction()):null; // Pic du Vertige (monte-charge, saut BASE) ; mer (trésor, paillote, plongée, remorquage)
+    const picAct=DECOR_V2?(actionPic()||actionMonteCharge()||actionMer()||actionMerV3()||cliffAction()||jusAction()):null; // Pic du Vertige (monte-charge, saut BASE) ; mer (trésor, paillote, plongée, remorquage)
     if(MONT_VIE.jum.actif){ label='🔭 RANGER LES JUMELLES'; fn=jumellesFin; }
     else if(POIS.toitH&&POIS.toitH.jetpack&&dist2(P.x,P.z,POIS.toitH.jetpack.x,POIS.toitH.jetpack.z)<9&&Math.abs(P.y-POIS.toitH.jetpack.h)<4){
       if(P.jetpack){ label='✅ JETPACK ÉQUIPÉ'; fn=()=>{SFX.refus();}; }
@@ -47342,7 +47780,7 @@ function majAction(){
     } else if(DECOR_V2&&tourProche()){
       label='📡 TOUR DE CONTRÔLE — GUIDER LES AVIONS'; fn=lancerTour;
     } else if(!P.veh&&manegeProche()){
-      const m=manegeProche(); label=(m==='huit'?'🎢 GRAND HUIT':'🎡 GRANDE ROUE')+' — UN TOUR '+MANEGES.prixTour+' $'; fn=()=>lancerManege(m);
+      const m=manegeProche(); label=(m==='huit'?'🎢 GRAND HUIT':(m==='tour'?'🌀 LE TOURBILLON':'🎡 GRANDE ROUE'))+' — UN TOUR '+MANEGES.prixTour+' $'; fn=()=>lancerManege(m);
     } else if(!P.veh&&!INT.actif&&BOUTIQUES.length&&boutiqueProche()&&PORTES.some((q)=>q.boutiqueId===boutiqueProche().id)){
       const b=boutiqueProche(), pt=PORTES.find((q)=>q.boutiqueId===b.id); label=b.def.ico+' ENTRER — '+b.def.nom.toUpperCase(); fn=()=>entrerInterieur('boutique',pt);
     } else if(!P.veh&&BT.ok&&ballTrapAction()){
@@ -47848,6 +48286,7 @@ function vueCamera(dt,sx,sz){
 const VUE_ZENITH=new THREE.Color(0x2a5ab0);
 // bascule de vue (bouton #btnVue, à côté de la pause)
 function basculerVue(){ // 18 octobre (demandé) : de dessus → immersive → à la 1re personne → de dessus
+  if(MANEGES.actif){ MANEGES.ext=!MANEGES.ext; SFX.ui(); vibre(20); toast(MANEGES.ext?'🎥 Vue extérieure':'👀 Vue à la 1re personne','or'); return; } /* pendant un tour de manège : 1re personne ↔ extérieur (lot 8.4) */
   META.vue=META.vue==='classique'?'immersive':(META.vue==='immersive'?'fps':'classique');
   if(META.vue==='immersive'){ VUE.yawUser=P.veh?(P.veh.ang||0)+Math.PI:(P.ang||0)+Math.PI; VUE.yaw=VUE.yawUser; }
   if(META.vue==='fps'){ VUE.yawUser=(P.ang||0)+Math.PI; VUE.yaw=VUE.yawUser; VUE.pitch1P=0; }
@@ -49422,9 +49861,7 @@ function majCamera(dt){
     camera.fov=lerp(camera.fov,52,0.12); camera.updateProjectionMatrix();
     return;
   }
-  if(MANEGES.actif&&MANEGES.actif.type==='huit'){ const H=MANEGES.huit, u=(H.s/H.L)%1, p=H.C.getPointAt(u), tg=H.C.getTangentAt(u); // grand huit : derrière le premier wagon
-    camera.position.set(p.x+tg.x*0.4,p.y+2.3,p.z+tg.z*0.4); camera.lookAt(p.x+tg.x*14,p.y+tg.y*14+1.2,p.z+tg.z*14); camera.fov=lerp(camera.fov,78,0.1); /* vue subjective, premier rang */ camera.updateProjectionMatrix(); VUE.yawRendu=0; return; }
-  if(MANEGES.actif&&MANEGES.actif.type==='roue'){ camera.position.set(P.x+3,P.y+3,P.z+12); camera.lookAt(P.x,P.y-2,P.z-30); camera.fov=lerp(camera.fov,60,0.1); camera.updateProjectionMatrix(); VUE.yawRendu=0; return; } // la vue sur la ville
+  if(MANEGES.actif){ cameraManege(dt); return; } /* manèges : à la 1re personne (lot 8.4), ou de l'extérieur au bouton de vue */
   if(BOUT.ouvert&&(!INT.actif||INT.actif.cabineBoutique)){ const a=(BOUT.b?BOUT.b.ry:0); // cabine d'essayage : de face, le joueur dans la moitié haute de l'écran
     camera.position.set(P.x+Math.sin(a)*6.2,P.y+1.5,P.z+Math.cos(a)*6.2); camera.lookAt(P.x,P.y+0.1,P.z); camera.fov=lerp(camera.fov,50,0.15); camera.updateProjectionMatrix(); VUE.yawRendu=0; return; }
   const enVol=P.veh&&P.veh.def.air?(P.veh.alt||0):0;
@@ -49682,7 +50119,7 @@ function tick(t){
     ETAT.comboT-=dt;
     if(ETAT.comboT<=0) ETAT.combo=1;
     if(ETAT.slowT>0){ ETAT.slowT-=dtReel; if(ETAT.slowT<=0&&ETAT.mode==='jeu') ETAT.timeScale=1; }
-    if(ETAT.mode==='jeu'){ majNitro(dtJeu); if(DECOR_V2){ towEntrees(); kiteEntrees(); } if(DERBY.actif) derbyEntrees(); if(!MANEGES.actif&&!FPS.actif&&!EJECT.siege&&!CLIFF.actif) majJoueur(dt,dtJeu); majFPS(dt,dtJeu); majIvresse(dtJeu); majAcro(); majTresorCarte(dt); majFilet(dtJeu); majMontSon(dt); majCanauxSon(dt); if(DECOR_V2){ majRides(dtJeu); majPic(dt); majTow(dt,dtJeu); majMerV3(dt,dtJeu); majBasket(dt,dtJeu); majSportJ(dt,dtJeu); majToitsSurprises(dt,dtJeu); } } // nitro décidée AVANT la physique du véhicule
+    if(ETAT.mode==='jeu'){ majNitro(dtJeu); if(DECOR_V2){ towEntrees(); kiteEntrees(); } if(DERBY.actif) derbyEntrees(); if(!MANEGES.actif&&!FPS.actif&&!EJECT.siege&&!CLIFF.actif&&!JUS.actif) majJoueur(dt,dtJeu); jusMaj(dt,dtJeu); majFPS(dt,dtJeu); majIvresse(dtJeu); majAcro(); majTresorCarte(dt); majFilet(dtJeu); majMontSon(dt); majCanauxSon(dt); if(DECOR_V2){ majRides(dtJeu); majPic(dt); majTow(dt,dtJeu); majMerV3(dt,dtJeu); majBasket(dt,dtJeu); majSportJ(dt,dtJeu); majToitsSurprises(dt,dtJeu); } } // nitro décidée AVANT la physique du véhicule
     majEnnemis(dt);
     if(!INT.actif){
       majPietons(dt);
