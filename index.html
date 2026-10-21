@@ -4609,7 +4609,7 @@ function aleaDecor(){ _aleaDecorS|=0; _aleaDecorS=(_aleaDecorS+0x6D2B79F5)|0; le
 const aD=(a,b)=>a+aleaDecor()*(b-a), choixD=(t)=>t[Math.floor(aleaDecor()*t.length)];
 const MOB_Y_TROTTOIR=0.22;         // dessus des dalles de trottoir (boîte de 0,22 posée à 0,11)
 const MOB_ZONES=7;                 // 7×7 zones de fusion (~2 pâtés chacune) : seules celles en vue sont dessinées
-const MOB={zones:[],cassables:new Map(),casses:[],arceaux:[]}; // arceaux : [{x,z,ry}] où garer les vélos (startRun) // cassables : grille 8 u -> [{zone,debut,nb,x,z,r}]
+const MOB={zones:[],zonesL:[],objets:[],cassables:new Map(),casses:[],arceaux:[]}; /* objets : chaque pièce posée, sa plage de sommets dans sa zone (b et l), son solide, son stand, son arceau — reserverCanaux retire une pièce ENTIÈRE qui touche l'eau */ // arceaux : [{x,z,ry}] où garer les vélos (startRun) // cassables : grille 8 u -> [{zone,debut,nb,x,z,r}]
 const MOB_MAT=new THREE.MeshLambertMaterial({vertexColors:true});
 const MOB_MAT_LUM=new THREE.MeshBasicMaterial({vertexColors:true});
 // --- géométrie d'un objet : pièces [type, dims..., x, y, z, couleur, (ry)] -> tableaux à plat
@@ -4825,14 +4825,14 @@ function mkMobilierUrbain(){
     const D=MOB_CAT[type], zn=zones[mobZone(x,z)], yPose=Y0===undefined?MOB_Y_TROTTOIR:Y0;
     // posé SUR le trottoir (dessus à 0,22) : à y=0, tout était enfoncé de
     // 0,22 (pieds de bancs, fosses d'arbres, terre des massifs invisibles)
-    const debut=zn.b.pos.length/3, nb=mobPieces(D.pieces,x,z,ry,zn.b,yPose);
-    if(D.lum) mobPieces(D.lum,x,z,ry,zn.l,yPose);
+    const debut=zn.b.pos.length/3, nb=mobPieces(D.pieces,x,z,ry,zn.b,yPose), ob={zone:mobZone(x,z),debut,nb,debutL:zn.l.pos.length/3,nbL:0,x,z,sol:null,stand:null,arceau:null}; MOB.objets.push(ob);
+    if(D.lum) ob.nbL=mobPieces(D.lum,x,z,ry,zn.l,yPose);
     if(D.solide){ const c=Math.abs(Math.cos(ry)), s=Math.abs(Math.sin(ry));
-      addSolid({x,z,hw:D.solide.hw*c+D.solide.hd*s,hd:D.solide.hw*s+D.solide.hd*c,h:D.solide.h}); }
+      ob.sol={x,z,hw:D.solide.hw*c+D.solide.hd*s,hd:D.solide.hw*s+D.solide.hd*c,h:D.solide.h}; addSolid(ob.sol); }
     if(type==='lampadaire') FLAQUES_LUM.push([x+0.8*Math.cos(ry),z-0.8*Math.sin(ry)]);
-    if(type==='arceaux') MOB.arceaux.push({x,z,ry});
-    if(type==='chariotGlace') STANDS.push({x,z,q:'plage',cd:0});
-    if(type==='kiosque'||type==='foodTruck') STANDS.push({x:x+Math.sin(ry)*(type==='kiosque'?1.6:0)+Math.cos(ry)*(type==='foodTruck'?1.9:0),z:z+Math.cos(ry)*(type==='kiosque'?1.6:0)-Math.sin(ry)*(type==='foodTruck'?1.9:0),q:quartier(Math.floor((x+HALF)/CELL),Math.floor((z+HALF)/CELL)),cd:0});
+    if(type==='arceaux') MOB.arceaux.push(ob.arceau={x,z,ry});
+    if(type==='chariotGlace') STANDS.push(ob.stand={x,z,q:'plage',cd:0});
+    if(type==='kiosque'||type==='foodTruck') STANDS.push(ob.stand={x:x+Math.sin(ry)*(type==='kiosque'?1.6:0)+Math.cos(ry)*(type==='foodTruck'?1.9:0),z:z+Math.cos(ry)*(type==='kiosque'?1.6:0)-Math.sin(ry)*(type==='foodTruck'?1.9:0),q:quartier(Math.floor((x+HALF)/CELL),Math.floor((z+HALF)/CELL)),cd:0});
     if(D.casse){
       const k=Math.floor(x/8)+','+Math.floor(z/8);
       if(!MOB.cassables.has(k)) MOB.cassables.set(k,[]);
@@ -4902,7 +4902,7 @@ function mkMobilierUrbain(){
       g.setAttribute('color',new THREE.BufferAttribute(new Float32Array(d.col),3));
       g.computeBoundingSphere();
       const m=new THREE.Mesh(g,mat); m.matrixAutoUpdate=false; m.updateMatrix(); scene.add(m);
-      if(cle==='b'){ MOB.zones[i]=m; m.userData.orig=new Float32Array(d.pos); }
+      if(cle==='b'){ MOB.zones[i]=m; m.userData.orig=new Float32Array(d.pos); } else MOB.zonesL[i]=m;
     }
   });
 }
@@ -7871,6 +7871,17 @@ function reserverCanaux(){
   const estPlie=(o)=>o.isMesh&&o.parent===scene&&o.geometry&&o.geometry.attributes&&o.geometry.attributes.position&&!o.geometry.userData.partagee&&!o.isInstancedMesh
     &&o.position.lengthSq()<1e-8&&o.rotation.x===0&&o.rotation.y===0&&o.rotation.z===0&&o.scale.x===1&&o.scale.y===1&&o.scale.z===1&&o.geometry.attributes.position.count>=24;
   C.tResP={}; let t1=t0; const tp=(n)=>{ const t=performance.now(); C.tResP[n]=Math.round(t-t1); t1=t; };
+  /* le mobilier urbain, pièce par pièce : une pièce dont UN sommet touche l'eau ou une zone retirée est repliée ENTIÈRE (et son solide,
+     son stand, son arceau retirés) — triangle par triangle, un banc à cheval sur le bord de l'embouchure du grand canal restait au-dessus
+     de l'eau (la ville d'un joueur qui a le Disque de Platine : la porte de la radio y déplace le mobilier) */
+  const mobDedans=(x,z)=>x>=BB.x0&&x<=BB.x1&&z>=BB.z0&&z<=BB.z1&&(dansR(x,z,0)||(z>CANAUX.zMer-12&&sdfEauCanaux(x,z)<0.3)); C.mobPlies=0;
+  for(const ob of MOB.objets){ const m=MOB.zones[ob.zone]; if(ob.plie||!m||ob.x<BB.x0-6||ob.x>BB.x1+6||ob.z<BB.z0-6||ob.z>BB.z1+6) continue; const A=m.geometry.attributes.position.array; let touche=false;
+    for(let q=ob.debut;q<ob.debut+ob.nb;q++) if(mobDedans(A[q*3],A[q*3+2])){ touche=true; break; }
+    if(!touche) continue; ob.plie=true; C.mobPlies++; const O=m.userData.orig; for(let q=ob.debut;q<ob.debut+ob.nb;q++){ A[q*3+1]=-60; if(O) O[q*3+1]=-60; } m.geometry.attributes.position.needsUpdate=true;
+    const mL=MOB.zonesL[ob.zone]; if(mL&&ob.nbL){ const B=mL.geometry.attributes.position.array; for(let q=ob.debutL;q<ob.debutL+ob.nbL;q++) B[q*3+1]=-60; mL.geometry.attributes.position.needsUpdate=true; }
+    if(ob.sol) retirerSolide(ob.sol); if(ob.stand){ const j=STANDS.indexOf(ob.stand); if(j>=0) STANDS.splice(j,1); } if(ob.arceau){ const j=MOB.arceaux.indexOf(ob.arceau); if(j>=0) MOB.arceaux.splice(j,1); }
+    const Lc=MOB.cassables.get(Math.floor(ob.x/8)+','+Math.floor(ob.z/8)); if(Lc) for(let j=Lc.length-1;j>=0;j--) if(Lc[j].zone===ob.zone&&Lc[j].debut===ob.debut) Lc.splice(j,1); }
+  tp('mobilier');
   for(let i=scene.children.length-1;i>=0;i--){ const o=scene.children[i]; if(garder.has(o)) continue;
     const px=o.position.x, pz=o.position.z; if(px*px+pz*pz>1&&(px<BB.x0-40||px>BB.x1+40||pz<BB.z0-40||pz>BB.z1+40)) continue; /* posé loin du quartier : jamais calculer sa boîte (toute la scène y passait : 0,4 s) */
     if(o.isInstancedMesh||!presDuQuartier(o)) continue; /* sa sphère englobante (celle que le rendu calcule de toute façon) ne touche pas le quartier */
