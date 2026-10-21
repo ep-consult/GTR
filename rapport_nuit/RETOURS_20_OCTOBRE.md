@@ -33,7 +33,7 @@ lourds. Aucune référence à un autre jeu ni à une marque.
 | 8 | 8.2 Défi du burger | ☑ |
 | 8 | 8.3 « Jus de Plage » (découpe de fruits) | ☑ |
 | 8 | 8.4 Manèges de la marina à la 1re personne | ☑ |
-| 9 | 9.1 Akimbo à la 1re personne | ☐ |
+| 9 | 9.1 Akimbo à la 1re personne | ☑ |
 | 10 | 10.1 Défi voltige et course d'avions | ☐ |
 
 ---
@@ -551,4 +551,31 @@ Pièces fixes fusionnées par matériau (`fusionnerEnfants`) ; une chaise et ses
 
 Captures : `captures/retours_20/8_karaoke.png`, `8_burger.png`, `8_jus.png`, `8_jus_stand.png`, `8_huit1p.png`, `8_roue1p.png`,
 `8_tour1p.png`, `8_tour_ext.png`.
+
+
+## Lot 9 — Akimbo à la 1re personne (fait)
+
+**Lecture retenue.** « Chaque arme qui autorise l'akimbo » = celles que la pièce « double » de l'établi accepte
+(`MODS_ARMES.double.pour` : pistolet, pistolet silencieux, revolver, Uzi, P.M.), lue à la source. La mécanique du tir akimbo
+existait (cadence ×1,8, chargeur ×2, une main puis l'autre en 3e personne) ; c'est la 1re personne qui n'en montrait qu'une. « Visée
+cohérente » : avec une arme dans chaque main, on ne met pas l'œil dans un organe de visée — VISER rapproche les deux armes du
+centre, bouches à hauteur du regard, et resserre la mire de hanche (dispersion −35 % au lieu de −65 % pour une seule arme).
+
+- **Deux armes à l'écran** (`akimboMontage` : la droite tient la sienne sans main de soutien — `fpsMontage(…, seul)` —, la jumelle
+  est le même montage en miroir, `G.R.scale.x = −1`) ; reconstruit quand on pose ou retire la pièce (`V.akimboCle`).
+- **Tir alterné** : la gauche puis la droite (le `P.akimboG` d'`attaquer`) ; chaque arme a SA flamme (`akimboFlash`), SA douille
+  (`fpsEjecter`), SA culasse et SON recul (`V.rk` / `V.rkG`, `V.recul` / `V.reculG`).
+- **Visée** (`akimboPose`) : à la hanche chacune de son côté, en visant elles remontent vers le centre ; la mire reste.
+- **Rechargement** : les deux armes jouent leur manœuvre (`animRecharge` : le chargeur tombe, le neuf claque), la gauche un temps
+  après la droite.
+- **Stand de tir, ball-trap, tir sur canettes** (le moteur `FPS`) : les deux armes aussi, les coups alternent (`FPS.akG`).
+
+**Test** « Retours du 20 octobre, lot 9 » (les cinq armes lues dans `MODS_ARMES.double.pour`) : deux armes projetées de part et
+d'autre de l'écran par la vraie caméra (pistolet ±0,53 de demi-largeur, P.M. ±0,73), aucune main de soutien, tir GDGDGDGD avec un
+recul à gauche, visée qui les rapproche (pistolet ±0,33) sans ôter la mire, rechargement des deux, plus de jumelle sans la pièce,
+stand de tir. Les blocs « Vue à la 1re personne », « Visée V2 », « Rechargements », « Optiques », « Poings », « Armes », « Armurerie
+V2 », « Ball-trap », « Caravane » repassent.
+
+Captures : `captures/retours_20/9_akimbo_hanche.png` (la gauche tire), `9_akimbo_hanche_hud.png`, `9_akimbo_visee.png`,
+`9_akimbo_recharge.png`, `9_akimbo_uzi.png`.
 

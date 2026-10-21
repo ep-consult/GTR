@@ -18354,6 +18354,59 @@ async function main() {
       else ok('Retours 20 oct., lot 8.4 : ' + r.info.join(' ; '));
     }
     // -------------------------------------------------------------------
+    // Retours du 20 octobre, lot 9 : l'akimbo à la 1re personne. Pour chaque arme qui accepte la pièce « double »
+    // (MODS_ARMES.double.pour, lu à la source) : deux armes à l'écran (une de chaque côté, projetées par la vraie caméra), le tir
+    // alterne (une flamme, un recul, une douille par arme), la visée les rapproche du centre sans ôter la mire, le rechargement
+    // fait jouer les deux armes ; sans la pièce, une seule arme ; au stand de tir aussi.
+    // -------------------------------------------------------------------
+    console.log('\n--- Retours du 20 octobre, lot 9 : l’akimbo à la 1re personne ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = []; let T = dernierT + 1000;
+        const pas = (n) => { for (let i = 0; i < n; i++) { T += 1000 / 60; tick(T); } };
+        const sav = { armes: JSON.stringify(META.armes), mods: JSON.stringify(META.modsArmes), vue: META.vue };
+        const ids = Object.keys(ARMES).filter((id) => MODS_ARMES.double && MODS_ARMES.double.pour(ARMES[id], id));
+        if (ids.length < 4) ko.push('armes akimbo : ' + ids.join(','));
+        const proj = (o) => { const b = new THREE.Box3().setFromObject(o.mod), c = b.getCenter(new THREE.Vector3()); return c.project(camera); };
+        if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); META.vue = 'fps';
+        for (const id of ids) {
+          startRun(); ecran(null); ETAT.mode = 'jeu';
+          P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9; for (const e of ennemis) e.mort = true;
+          META.armes[id].poss = true; META.modsArmes[id] = 'double'; P.armeCur = id; P.mun[id] = 500; P.mags[id] = armeStats(id).mag; rebatirArmeJoueur(id);
+          VUE.pitch1P = 0; pas(6); const V = VUE1P, M = V.montage;
+          if (!V.actif || !M || !M.akimbo || !M.G) { ko.push(id + ' : pas de deuxième arme (' + (M ? 'montage sans jumelle' : 'pas de montage') + ')'); continue; }
+          camera.updateMatrixWorld(); M.R.updateMatrixWorld(true); M.G.R.updateMatrixWorld(true);
+          const d = proj(M), g = proj(M.G); if (!(d.x > 0.08 && g.x < -0.08 && Math.abs(d.x) < 1 && Math.abs(g.x) < 1 && d.y > -1 && g.y > -1)) ko.push(id + ' : à l’écran, droite ' + d.x.toFixed(2) + ', gauche ' + g.x.toFixed(2));
+          if (M.mainG || M.G.mainG) ko.push(id + ' : une main de soutien en akimbo');
+          /* le tir alterne : on tire au bouton, on note quelle arme flambe */
+          const seq = []; let fl0 = 0, flG0 = 0, rkMaxG = 0; INPUT.btn.tir = true;
+          for (let i = 0; i < 150 && seq.length < 8; i++) { pas(1); if (V.flash > fl0 + 0.01) seq.push('D'); if ((V.flashG || 0) > flG0 + 0.01) seq.push('G'); fl0 = V.flash; flG0 = V.flashG || 0; rkMaxG = Math.max(rkMaxG, V.rkG || 0); }
+          INPUT.btn.tir = false; pas(4);
+          const alterne = seq.length >= 6 && seq.every((c, i) => i === 0 || c !== seq[i - 1]);
+          if (!alterne) ko.push(id + ' : tir ' + seq.join('')); if (!(rkMaxG > 0.5)) ko.push(id + ' : pas de recul à gauche');
+          /* la visée : les deux armes remontent vers le centre, la mire reste */
+          INPUT.edge.viser = true; pas(30); camera.updateMatrixWorld(); M.R.updateMatrixWorld(true); M.G.R.updateMatrixWorld(true); const d2 = proj(M), g2 = proj(M.G);
+          if (!(V.k > 0.95 && Math.abs(d2.x) < Math.abs(d.x) - 0.04 && Math.abs(g2.x) < Math.abs(g.x) - 0.04)) ko.push(id + ' : la visée ne rapproche pas les armes (' + d2.x.toFixed(2) + ' / ' + g2.x.toFixed(2) + ')');
+          if (V.mire.style.display === 'none') ko.push(id + ' : la mire disparaît en visant'); INPUT.edge.viser = true; pas(20);
+          /* le rechargement : les deux armes jouent leur manœuvre */
+          P.mags[id] = 0; INPUT.btn.tir = true; pas(2); INPUT.btn.tir = false; let bougeD = 0, bougeG = 0; const r0 = M.W.rotation.z, rg0 = M.G.W.rotation.z;
+          for (let i = 0; i < 240 && (P.rechT > 0 || i < 5); i++) { pas(1); bougeD = Math.max(bougeD, Math.abs(M.W.rotation.z - r0)); bougeG = Math.max(bougeG, Math.abs(M.G.W.rotation.z - rg0)); }
+          if (!(bougeD > 0.2 && bougeG > 0.2)) ko.push(id + ' : rechargement ' + bougeD.toFixed(2) + ' / ' + bougeG.toFixed(2));
+          if (P.mags[id] !== armeStats(id).mag) ko.push(id + ' : chargeur après rechargement ' + P.mags[id]);
+          info.push(id + ' : ' + d.x.toFixed(2) + ' / ' + g.x.toFixed(2) + ' → ' + d2.x.toFixed(2) + ' / ' + g2.x.toFixed(2) + ', tir ' + seq.join(''));
+          /* sans la pièce : une seule arme */
+          META.modsArmes[id] = ''; pas(3); if (VUE1P.montage && VUE1P.montage.G) ko.push(id + ' : la jumelle reste sans la pièce'); }
+        /* le stand de tir : la jumelle aussi, les coups alternent */
+        { const id = ids[0]; META.modsArmes[id] = 'double'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9;
+          fpsDemarrer({ arme: id, duree: 30, x: P.x, y: 1.6, z: P.z, yaw: 0, cibles: [] }); const M = FPS.montage;
+          if (!M || !M.G) ko.push('stand : pas de jumelle'); else { let n = 0, akG = []; for (let i = 0; i < 4; i++) { fpsTirer && fpsTirer(); akG.push(FPS.akG); } if (!(akG[0] !== akG[1] && akG[1] !== akG[2])) ko.push('stand : coups ' + akG); else info.push('stand de tir : deux armes, coups alternés'); }
+          fpsArreter(); if (FPS.montage) ko.push('stand : montage resté'); }
+        META.armes = JSON.parse(sav.armes); META.modsArmes = JSON.parse(sav.mods); META.vue = sav.vue; startRun(); return { ko, info };
+      });
+      if (r.ko.length) fail('Retours 20 oct., lot 9 : ' + r.ko.slice(0, 25).join(' ; ') + ' [' + r.info.join(' | ') + ']');
+      else ok('Retours 20 oct., lot 9 : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];

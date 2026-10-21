@@ -14726,7 +14726,7 @@ function matsMains1P(manche,peau){ const k=manche|0, kp=peau===undefined?0xd9a06
     peau:new THREE.MeshPhongMaterial({color:new THREE.Color(kp).multiplyScalar(0.8),specular:0x3a2c22,shininess:16,map:_texPeau}),nu:k===kp, /* un peu plus sombre : la lumière d'appoint de l'arme l'écrasait en aplat clair */
     manche:new THREE.MeshLambertMaterial({color:k,map:_texTissu}),mancheF:new THREE.MeshLambertMaterial({color:new THREE.Color(k).multiplyScalar(0.72),map:_texTissu})}); }
 function fpsHautBras(R,visible){ R.traverse((o)=>{ if(o.userData.hautBras&&o.visible!==visible) o.visible=visible; }); } /* en visée, l'arme recule vers l'œil : les bras au-delà du coude traverseraient la caméra */
-function fpsMontage(id,modFourni,Lmods){
+function fpsMontage(id,modFourni,Lmods,seul){ /* seul : une main par arme, sans main de soutien (akimbo, lot 9) */
   const mod=modFourni||mkArmeModele(id); if(!mod) return null; mod.visible=true; if(!modFourni) habillerArme(mod,id,Lmods); /* Lmods : les pièces à l'essai (stand de tir depuis l'établi) */
   const A=ancreArme(id), P0=FPS_POSES[A.pose]||FPS_POSES.poing, R=new THREE.Group(), W=new THREE.Group(), H=new THREE.Group(); R.add(W); W.add(H); H.add(mod);
   H.rotation.set(Math.PI/2,0,Math.PI,'ZYX'); H.scale.setScalar(P0.k); H.updateMatrix();
@@ -14735,7 +14735,7 @@ function fpsMontage(id,modFourni,Lmods){
   let yMin=0; mod.traverse((o)=>{ if(o.isMesh&&o.geometry){ if(!o.geometry.boundingBox) o.geometry.computeBoundingBox(); yMin=Math.min(yMin,o.position.y+o.geometry.boundingBox.min.y); } });
   const bouche=vue(-yMin,A.canon), ejection=vue(A.main[0]+0.13,A.canon+0.02,-0.045);
   const c=coifCouleurs(), e=P0.k/0.5, manche=id==='roquette'?0x4f5a34:c.haut; /* la manche du haut porté, retroussée ; au bazooka, la manche militaire olive (demandé) */ fpsBras(W,'d',new THREE.Vector3(),A.priseD==='boule'?'poing':(A.priseD||'poignee'),c.peau,manche,e); let mainG=null, garde=null;
-  if(A.appui) mainG=fpsBras(W,'g',vue(A.appui[0],A.appui[1]),A.priseG||'garde',c.peau,manche,e); else if(A.deuxMains) mainG=fpsBras(W,'g',vue(A.main[0]+A.deuxMains,A.main[1]),'manche',c.peau,manche,e); else if(A.pose!=='melee'&&A.pose!=='lame'&&A.pose!=='sabre'&&A.pose!=='boule'&&A.pose!=='batte') mainG=fpsBras(W,'g',new THREE.Vector3(),'soutien',c.peau,manche,e); /* sabre : une main ; battes : deux */
+  if(seul){} else if(A.appui) mainG=fpsBras(W,'g',vue(A.appui[0],A.appui[1]),A.priseG||'garde',c.peau,manche,e); else if(A.deuxMains) mainG=fpsBras(W,'g',vue(A.main[0]+A.deuxMains,A.main[1]),'manche',c.peau,manche,e); else if(A.pose!=='melee'&&A.pose!=='lame'&&A.pose!=='sabre'&&A.pose!=='boule'&&A.pose!=='batte') mainG=fpsBras(W,'g',new THREE.Vector3(),'soutien',c.peau,manche,e); /* sabre : une main ; battes : deux */
   if(A.garde){ garde=fpsBras(R,'g',new THREE.Vector3(-0.072,-0.1,-0.3),'poing',c.peau,manche,0.74); garde.rotation.set(-0.25,0.3,0.4); } /* couteau : la main gauche levée en garde, poing fermé (elle ne suit pas le geste du couteau) */
   const fl=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:0xffc860,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,opacity:0}));
   fl.position.copy(bouche); fl.scale.set(0.14,0.14,1); W.add(fl);
@@ -14747,6 +14747,25 @@ function fpsMontage(id,modFourni,Lmods){
   const pouce=[]; W.traverse((o)=>{ if(o.userData.pouce) pouce.push(o); }); /* le pouce de la main de tir : il suit la crosse en visée */
   return {R,W,H,mod,A,P0,bouche,ejection,fl,fl2,douilles,iD:0,culasse:mod.userData.culasse||null,lagX:0,lagY:0,mainG,pouce,mainG0:mainG?mainG.position.clone():null,garde,vue,rech:RECHARGE_ARME[id]||null,rechU:-1}; /* mainG : la main gauche, que le rechargement déplace (animRecharge) */
 }
+/* ---------- Akimbo à la 1re personne (retours du 20 octobre, lot 9 ; demandé : « pour chaque arme qui autorise l'akimbo,
+   deux armes visibles à l'écran, une dans chaque main, avec tir alterné, recul, rechargement et visée cohérents ») ----------
+   Une arme qui porte la pièce « double » (MODS_ARMES.double, pour : pistolets, revolver, Uzi, P.M.) se monte deux fois
+   (akimboMontage) : la main droite tient la sienne sans main de soutien (fpsMontage(…, seul)), la jumelle est le même montage
+   en miroir (G.R.scale.x = −1 : la main gauche, l'arme reflétée). Le tir alterne (P.akimboG en ville, FPS.akG au stand) : la
+   flamme, la douille, la culasse et le recul de CHAQUE arme lui appartiennent (rk / rkG). À la hanche, chacune de son côté ;
+   VISER (akimboPose) les remonte vers le centre, bouches rapprochées — on tire d'instinct, sans organe de visée : la mire de
+   hanche reste et se resserre (la dispersion baisse de 35 % au lieu de 65). Au rechargement, les deux armes jouent leur
+   manœuvre (animRecharge, sans main : le chargeur tombe et revient), la gauche un temps après la droite. */
+function akimboDe(id,L){ const l=L||modsArme(id), D=MODS_ARMES.double; return !!(l&&l.indexOf('double')>=0&&D&&D.pour(ARMES[id],id)); }
+function akimboMontage(id,L){ const ak=akimboDe(id,L), M=fpsMontage(id,null,L,ak); if(M&&ak){ const G=fpsMontage(id,null,L,true); if(G){ G.R.scale.x=-1; M.G=G; M.akimbo=true; } } return M; }
+function akimboRetirer(M){ if(!M) return; for(const R of [M.R,M.G&&M.G.R]) if(R){ if(R.parent) R.parent.remove(R); libererEntite(R); } }
+function akimboPose(M,k,hx,hy,hz,kc,mv,ph,S){ /* S : VUE1P (ville) ou FPS (stand) — rk, rkG, reculG */ const G=M.G, P0=M.P0, rk=S.rk||0, rkG=S.rkG||0;
+  const x0=hx+0.03, y0=hy+0.012, xv=0.058, yv=-0.092, zv=hz-0.05;
+  const pose=(W,r,p)=>{ W.scale.setScalar(1); W.position.set(lerp(x0,xv,k),lerp(y0,yv,k)+Math.sin(p)*0.004*mv,lerp(hz,zv,k)+r*0.03); W.rotation.set(r*0.3+kc*0.45,lerp(P0.yaw+0.05,0.07,k),lerp(P0.roll||0,-0.12,k)); };
+  pose(M.W,rk,ph); pose(G.W,rkG,ph+Math.PI);
+  G.R.position.copy(M.R.position); G.R.quaternion.copy(M.R.quaternion); G.R.visible=M.R.visible; fpsHautBras(G.R,true);
+  if(G.culasse) for(const m of G.culasse) m.position.y=Math.min(1,(S.reculG||0)*2.6)*0.055; }
+function akimboFlash(G,on){ if(!G||!G.fl) return; G.fl.material.opacity=on?1:0; G.fl2.material.opacity=on?0.9:0; if(on){ G.fl.material.rotation=Math.random()*6.28; G.fl.scale.setScalar(0.11+Math.random()*0.06); G.fl2.scale.set(0.24+Math.random()*0.1,0.05,1); } }
 // une douille part de la fenêtre d'éjection, vers la droite et le haut (repère de la caméra)
 const _fpsE=new THREE.Vector3();
 function fpsEjecter(M){ if(!M||!M.douilles.length) return; const d=M.douilles[M.iD]; M.iD=(M.iD+1)%M.douilles.length;
@@ -14871,8 +14890,8 @@ function fpsDemarrer(cfg){
     document.body.appendChild(m); FPS.mire=m; }
   FPS.el.style.display='block'; FPS.mire.style.display='block'; FPS.mire.style.transform='';
   // l'arme en main, vue de l'œil, tenue à deux mains (fpsMontage : modèle V2, bras, mains, flamme, douilles)
-  if(FPS.montage){ if(FPS.montage.R.parent) FPS.montage.R.parent.remove(FPS.montage.R); libererEntite(FPS.montage.R); FPS.montage=null; }
-  FPS.montage=fpsMontage(cfg.arme,null,cfg.mods||undefined); if(FPS.montage){ sceneArme1P().add(FPS.montage.R); ligneDeMire(FPS.montage,cfg.arme); }
+  if(FPS.montage){ akimboRetirer(FPS.montage); FPS.montage=null; }
+  FPS.montage=akimboMontage(cfg.arme,cfg.mods||undefined); FPS.akG=false; FPS.rkG=0; FPS.flashG=0; FPS.reculG=0; if(FPS.montage){ sceneArme1P().add(FPS.montage.R); if(FPS.montage.G) sceneArme1P().add(FPS.montage.G.R); ligneDeMire(FPS.montage,cfg.arme); }
   FPS.vise=false; FPS.k=0; { const bv=el('btnViser'); if(bv){ bv.style.display='flex'; bv.classList.remove('on'); } } /* VISER : l'arme devant l'œil, comme en ville à la 1re personne */
   camera.near=0.05; camera.updateProjectionMatrix();
   el('fireIco').innerHTML=icoArme(cfg.arme); // le bouton TIR montre l'arme du mini-jeu, jamais celle qu'on a en main
@@ -14884,7 +14903,7 @@ function fpsHud(){ const C=FPS.actif; if(!C||!FPS.el) return; const s=Math.max(0
 function fpsArreter(){ const C=FPS.actif; if(!C) return; FPS.actif=null; BT.partie=false;
   for(const c of FPS.cibles) if(c.m){ scene.remove(c.m); libererEntite(c.m); } FPS.cibles.length=0;
   for(const t of FPS.traces) scene.remove(t.m); FPS.traces.length=0;
-  if(FPS.montage){ if(FPS.montage.R.parent) FPS.montage.R.parent.remove(FPS.montage.R); libererEntite(FPS.montage.R); FPS.montage=null; }
+  if(FPS.montage){ akimboRetirer(FPS.montage); FPS.montage=null; }
   if(FPS.el) FPS.el.style.display='none'; if(FPS.mire) FPS.mire.style.display='none';
   if(P.h) P.h.g.visible=true; afficherBoutonsCombat(); camera.near=0.5; camera.updateProjectionMatrix(); INPUT.btn.tir=false; FPS.drag=null;
   FPS.vise=false; FPS.k=0; { const bv=el('btnViser'); if(bv&&!VUE1P.actif) bv.style.display='none'; } if(VUE1P.lunette) VUE1P.lunette.style.display='none';
@@ -14895,7 +14914,7 @@ function fpsFinir(){ const C=fpsArreter(); if(!C) return; const bilan={score:FPS
 function fpsDirection(yaw,pitch,out){ const cp=Math.cos(pitch); out.set(-Math.sin(yaw)*cp,Math.sin(pitch),-Math.cos(yaw)*cp); return out; }
 const _fpsD=new THREE.Vector3(), _fpsW=new THREE.Vector3();
 function fpsTirer(){
-  const C=FPS.actif, st=FPS.st, A=ARMES[FPS.arme]; FPS.mun--; FPS.coups++; FPS.cadT=Math.max(0.05,st.cad); FPS.recul=Math.min(1,FPS.recul+(A.roquette?1:st.pellets>1?0.8:0.35)); FPS.rk=Math.min(1.6,(FPS.rk||0)+1); FPS.flash=0.06; fpsEjecter(FPS.montage);
+  const C=FPS.actif, st=FPS.st, A=ARMES[FPS.arme]; FPS.mun--; FPS.coups++; FPS.cadT=Math.max(0.05,st.cad); FPS.recul=Math.min(1,FPS.recul+(A.roquette?1:st.pellets>1?0.8:0.35)); if(FPS.montage&&FPS.montage.akimbo&&(FPS.akG=!FPS.akG)){ FPS.rkG=Math.min(1.6,(FPS.rkG||0)+1); FPS.flashG=0.06; FPS.reculG=Math.min(1,(FPS.reculG||0)+0.35); fpsEjecter(FPS.montage.G); } else { FPS.rk=Math.min(1.6,(FPS.rk||0)+1); FPS.flash=0.06; fpsEjecter(FPS.montage); } /* akimbo : une main puis l'autre (lot 9) */
   try{ SFX[A.son](); }catch(e){} vibre(st.pellets>1?30:12);
   const e=camera.position, n=Math.max(1,st.pellets||1), disp=(st.disp||0)*Math.PI/180*0.5*(1-0.65*(FPS.k||0)); // viser à la mire resserre le tir
   let toucheUne=false;
@@ -14931,7 +14950,7 @@ function majFPS(dt,dtJeu){
   { const ci=FPS.vise&&!(FPS.rechT>0)?1:0, k0=FPS.k||0; FPS.k=k0<ci?Math.min(ci,k0+dtJeu/VISEE_T):Math.max(ci,k0-dtJeu/VISEE_T); } /* en rechargeant, l'arme quitte l'œil ; 0,2 s comme en ville */
   const sens=(C.sensJoy||1.6)*(1-0.55*FPS.k); FPS.yaw-=(INPUT.mx||0)*sens*dtJeu; FPS.pitch-=(INPUT.mz||0)*sens*0.8*dtJeu;
   if(C.yawMin!==undefined) FPS.yaw=clamp(FPS.yaw,C.yawMin,C.yawMax); FPS.pitch=clamp(FPS.pitch,C.pitchMin===undefined?-0.35:C.pitchMin,C.pitchMax===undefined?0.9:C.pitchMax);
-  FPS.recul=Math.max(0,FPS.recul-dtJeu*5); FPS.rk=(FPS.rk||0)*Math.exp(-dtJeu*((FPS.montage&&FPS.montage.rec&&FPS.montage.rec.ret)||12)); FPS.flash=Math.max(0,FPS.flash-dtJeu);
+  FPS.recul=Math.max(0,FPS.recul-dtJeu*5); FPS.rk=(FPS.rk||0)*Math.exp(-dtJeu*((FPS.montage&&FPS.montage.rec&&FPS.montage.rec.ret)||12)); FPS.flash=Math.max(0,FPS.flash-dtJeu); FPS.flashG=Math.max(0,(FPS.flashG||0)-dtJeu); FPS.rkG=(FPS.rkG||0)*Math.exp(-dtJeu*12); FPS.reculG=Math.max(0,(FPS.reculG||0)-dtJeu*5);
   // tir et rechargement
   FPS.cadT-=dtJeu; if(FPS.rechT>0){ FPS.rechT-=dtJeu; if(FPS.rechT<=0){ FPS.mun=FPS.st.mag||1; SFX.ui(); } }
   else if((INPUT.btn.tir||INPUT.btn.tirK)&&FPS.cadT<=0&&FPS.mun>0){ fpsTirer(); if(ARMES[FPS.arme].manuel||(FPS.st.pellets||1)>1) INPUT.btn.tir=false; }
@@ -14959,13 +14978,13 @@ function fpsCamera(){
     M.lagX+=(clamp(dY*0.7,-0.025,0.025)-M.lagX)*0.18; M.lagY+=(clamp(-dP*0.7,-0.025,0.025)-M.lagY)*0.18;
     const rech=0, rU=FPS.rechT>0&&FPS.st&&FPS.st.rech?clamp(1-FPS.rechT/FPS.st.rech,0,1):-1; /* le rechargement : animRecharge, comme en ville (16 octobre) */
     const hx=P0.pos[0]+Math.sin(t*1.1)*0.0022+M.lagX, hy=P0.pos[1]+Math.sin(t*2.2)*0.0016+M.lagY-rech*0.075, hz=P0.pos[2]+r*0.045, mi=M.mire;
-    poseVisee1P(M,kV,hx,hy,hz,r*0.2,P0.yaw+M.lagX*0.8,P0.roll||0,FPS.rk||0); M.R.visible=!(M.lunette&&kV>0.85); fpsHautBras(M.R,true); /* VISER : l'œil sur la ligne de mire, comme en ville (poseVisee1P) */
+    if(M.akimbo) akimboPose(M,kV,hx,hy,hz,0,0,t*2,FPS); else poseVisee1P(M,kV,hx,hy,hz,r*0.2,P0.yaw+M.lagX*0.8,P0.roll||0,FPS.rk||0); M.R.visible=!(M.lunette&&kV>0.85); if(M.G) M.G.R.visible=M.R.visible; fpsHautBras(M.R,true); /* VISER : l'œil sur la ligne de mire, comme en ville (poseVisee1P) */
     if(M.culasse) for(const m of M.culasse) m.position.y=Math.min(1,r*2.6)*0.055; // la culasse des pistolets recule
     if(M.mod&&M.mod.userData.crosse){ const cv=kV<0.55; for(const c of M.mod.userData.crosse) if(c.visible!==cv) c.visible=cv; if(M.pouce) for(const c of M.pouce) if(c.visible!==cv) c.visible=cv; }
-    animRecharge(M,rU);
+    animRecharge(M,rU); if(M.G){ animRecharge(M.G,rU<0?-1:clamp(rU*1.1-0.1,0,1)); akimboFlash(M.G,(FPS.flashG||0)>0); majDouilles(M.G,1/60); }
     const f=FPS.flash>0; M.fl.material.opacity=f?1:0; M.fl2.material.opacity=f?0.9:0;
     if(f){ const k=M.A.pose==='lourd'?1.6:1; M.fl.material.rotation=Math.random()*6.28; M.fl.scale.setScalar((0.11+Math.random()*0.06)*k); M.fl2.material.rotation=Math.random()*6.28; M.fl2.scale.set((0.24+Math.random()*0.1)*k,0.05*k,1); } }
-  if(FPS.mire){ FPS.mire.style.transform='scale('+(1+FPS.recul*0.35)+')'; const dm=kV>0.6&&!(MV&&MV.hanche)?'none':'block'; if(FPS.mire.style.display!==dm) FPS.mire.style.display=dm; }
+  if(FPS.mire){ FPS.mire.style.transform='scale('+(1+FPS.recul*0.35)+')'; const dm=kV>0.6&&!(MV&&(MV.hanche||MV.akimbo))?'none':'block'; if(FPS.mire.style.display!==dm) FPS.mire.style.display=dm; }
   mirePremiere(); { const dl=M&&M.lunette&&kV>0.85?'block':'none'; if(VUE1P.lunette.style.display!==dl) VUE1P.lunette.style.display=dl; } /* la lunette : son image, comme en ville */
 }
 /* 16 octobre (signalé : « quand on vise, on doit bouger le joystick, aller viser en haut, puis tirer en bas à droite : on
@@ -28158,7 +28177,7 @@ function attaquer(){
   const typ=a.roquette?'roquette':(a.flamme?'flamme':null);
   // Jetpack : en vol, précision réduite (CLAUDE.md) — voler n'est pas un
   // stand de tir stable.
-  const dispVol=(P.jetpackVol?st.disp*2.4+6:st.disp)*(VUE1P.actif?1-0.65*VUE1P.k:1); // à la 1re personne, viser à la mire resserre le tir
+  const dispVol=(P.jetpackVol?st.disp*2.4+6:st.disp)*(VUE1P.actif?1-(VUE1P.montage&&VUE1P.montage.akimbo?0.35:0.65)*VUE1P.k:1); // à la 1re personne, viser à la mire resserre le tir
   const mo=modsArme(P.armeCur); TIR_MOD=a.flamme?(mo.includes('napalm')?'napalm':'feu'):(mo.includes('explosif')?'explosif':(mo.includes('incendiaire')?'feu':null));
   const main=mo.includes('double')&&(P.akimboG=!P.akimboG)?-1:1; // akimbo : une main puis l'autre
   const ox=Math.cos(ang)*0.35*main*(mo.includes('double')?1:0), oz=-Math.sin(ang)*0.35*main*(mo.includes('double')?1:0);
@@ -48341,7 +48360,9 @@ function viseAuto1P(portee,verrou){ const cone=verrou?(VUE1P.k>0.5?0.03:0.055):(
   for(const an of FAUNE) if(!an.mort) test(an,an.x,an.z,hCible(an));
   for(const o of OISEAUX.liste) if(!o.mort) test(o,o.x,o.z,hCible(o)); /* les oiseaux : sous la mire, on les vise */
   return best; }
-function tirPremiere(st){ const V=VUE1P, A=ARMES[P.armeCur]; V.recul=Math.min(1,V.recul+(A&&A.roquette?1:(st.pellets||1)>1?0.8:0.35)); V.rk=Math.min(1.6,(V.rk||0)+1); V.flash=0.06; if(V.montage&&V.montage.douilles) fpsEjecter(V.montage); }
+function tirPremiere(st){ const V=VUE1P, A=ARMES[P.armeCur];
+  if(V.montage&&V.montage.akimbo&&!P.akimboG){ V.reculG=Math.min(1,(V.reculG||0)+0.35); V.rkG=Math.min(1.6,(V.rkG||0)+1); V.flashG=0.06; if(V.montage.G.douilles) fpsEjecter(V.montage.G); return; } /* akimbo : ce coup part de la main gauche (attaquer bascule P.akimboG juste après) */
+  V.recul=Math.min(1,V.recul+(A&&A.roquette?1:(st.pellets||1)>1?0.8:0.35)); V.rk=Math.min(1.6,(V.rk||0)+1); V.flash=0.06; if(V.montage&&V.montage.douilles) fpsEjecter(V.montage); }
 // la mire de hanche (fine : quatre traits qui s'écartent avec la dispersion, un point) et l'image de la lunette
 function mirePremiere(){ const V=VUE1P;
   if(!V.mire){ const m=document.createElement('div'); m.id='mire1P'; m.style.cssText='position:fixed;left:50%;top:50%;width:0;height:0;z-index:33;pointer-events:none;display:none';
@@ -48361,7 +48382,7 @@ function mirePremiere(){ const V=VUE1P;
     h+='<div style="position:absolute;left:50%;top:50%;width:4px;height:4px;margin:-2px;border-radius:2px;background:#ff2020;box-shadow:0 0 3px #ff4040"></div>';
     l.innerHTML=h; document.body.appendChild(l); V.lunette=l; } }
 function majMirePremiere(st){ const V=VUE1P, q=V.mire&&V.mire._q; if(!q) return;
-  const lun=V.k>0.85&&V.montage&&V.montage.lunette, montrer=V.actif&&(V.k<0.6||!!(V.montage&&V.montage.hanche))&&!lun, /* la mire de hanche disparaît en visée (l'organe de visée la remplace), sauf au minigun */ ec=Math.round(4+Math.min(26,((st&&st.disp)||1)*1.6+V.recul*10+Math.min(1,Math.hypot(INPUT.mx,INPUT.mz))*5));
+  const lun=V.k>0.85&&V.montage&&V.montage.lunette, montrer=V.actif&&(V.k<0.6||!!(V.montage&&(V.montage.hanche||V.montage.akimbo)))&&!lun, /* la mire de hanche disparaît en visée (l'organe de visée la remplace), sauf au minigun */ ec=Math.round((4+Math.min(26,((st&&st.disp)||1)*1.6+V.recul*10+Math.min(1,Math.hypot(INPUT.mx,INPUT.mz))*5))*(V.montage&&V.montage.akimbo?1-0.35*V.k:1)); /* akimbo : la mire de hanche reste, et se resserre en visant */
   if(V.mire._ec!==ec){ V.mire._ec=ec; q.t.style.top=(-ec-7)+'px'; q.b.style.top=ec+'px'; q.l.style.left=(-ec-7)+'px'; q.r.style.left=ec+'px'; }
   const disp=montrer?'block':'none'; if(V.mire.style.display!==disp) V.mire.style.display=disp;
   q.x.style.opacity=V.touche>0?'1':'0';
@@ -48369,15 +48390,15 @@ function majMirePremiere(st){ const V=VUE1P, q=V.mire&&V.mire._q; if(!q) return;
   const dl=V.actif&&lun?'block':'none'; if(V.lunette.style.display!==dl) V.lunette.style.display=dl; }
 // l'arme en main : le montage du stand de tir ; sa ligne de mire, dans le repère de la main (W)
 function montagePremiere(){ const V=VUE1P;
-  if(V.montage){ if(V.montage.R.parent) V.montage.R.parent.remove(V.montage.R); libererEntite(V.montage.R); V.montage=null; }
-  V.arme=P.armeCur; const id=P.armeCur, a=ARMES[id];
-  if(mkArmeModeleDispo(id)&&mkArmeModele(id)){ V.montage=fpsMontage(id); } else if(id==='gadget'||id==='bouleC') V.montage=fpsMontage(id,modele1P(id)); /* ni l'un ni l'autre n'ont de modèle ailleurs : à la 1re personne, la main tient quelque chose */
+  if(V.montage){ akimboRetirer(V.montage); V.montage=null; }
+  V.arme=P.armeCur; const id=P.armeCur, a=ARMES[id]; V.akimboCle=akimboDe(id);
+  if(mkArmeModeleDispo(id)&&mkArmeModele(id)){ V.montage=akimboMontage(id); } /* akimbo : la jumelle dans la main gauche (lot 9) */ else if(id==='gadget'||id==='bouleC') V.montage=fpsMontage(id,modele1P(id)); /* ni l'un ni l'autre n'ont de modèle ailleurs : à la 1re personne, la main tient quelque chose */
   if(!V.montage){ /* les poings : garde de boxeur, jointures en avant, le droit un peu en retrait */
     const R=new THREE.Group(), W=new THREE.Group(); R.add(W); const c=coifCouleurs();
     const d=poingPremiere('d',c.peau,c.haut), g=poingPremiere('g',c.peau,c.haut); R.add(d); R.add(g); d.visible=false; g.visible=false; /* au repos et en marchant, rien à l'écran : le poing n'entre que pour frapper (cameraPremiere) */
     R.traverse((o)=>{ o.renderOrder=5; o.frustumCulled=false; }); V.montage={R,W,P0:{k:0.4,pos:[0.02,-0.14,-0.32],yaw:0,roll:0},poings:true,mains:[d,g],douilles:[],lagX:0,lagY:0}; }
   if(V.montage&&V.montage.mod){ const A=ancreArme(P.armeCur); V.montage.melee=A.pose==='melee'||A.pose==='lame'||A.pose==='sabre'||A.pose==='boule'||A.pose==='batte'; }
-  const M=V.montage; sceneArme1P().add(M.R); if(a&&a.type==='gun') ligneDeMire(M,id); /* une arme blanche ne se vise pas à la mire */
+  const M=V.montage; sceneArme1P().add(M.R); if(M.G) sceneArme1P().add(M.G.R); if(a&&a.type==='gun') ligneDeMire(M,id); /* une arme blanche ne se vise pas à la mire */
 }
 // la ligne de mire d'un montage : l'optique posée à l'établi (userData.visee), sinon le haut de l'arme (ses organes de
 // visée), un peu en avant de la poignée — dans le repère de la main W ; et le champ en visant (lunette : zoom)
@@ -48403,14 +48424,14 @@ function entrerPremiere(){ const V=VUE1P; V.actif=true; V.k=0; V.vise=false; V.r
   mirePremiere(); montagePremiere(); const b=el('btnViser'); if(b){ b.style.display='flex'; b.classList.remove('on'); }
   if(!V.aideVue){ V.aideVue=true; toast('☝ Glisse le pouce sur TIR pour regarder ; le tir part tout seul sur une cible ; double-tap : VISER','or'); } }
 function quitterPremiere(){ const V=VUE1P; V.actif=false; V.vise=false; V.k=0; document.body.classList.remove('a1P');
-  if(V.montage){ if(V.montage.R.parent) V.montage.R.parent.remove(V.montage.R); libererEntite(V.montage.R); V.montage=null; } V.arme=null;
+  if(V.montage){ akimboRetirer(V.montage); V.montage=null; } V.arme=null;
   if(P.h&&!P.veh) P.h.g.visible=true; camera.near=0.5; camera.updateProjectionMatrix();
   const b=el('btnViser'); if(b&&!FPS.actif) b.style.display='none'; majMirePremiere(null); }
-function cameraPremiere(dt){ const V=VUE1P; if(!V.actif) entrerPremiere(); if(V.arme!==P.armeCur) montagePremiere(); if(P.h&&P.h.g.visible) P.h.g.visible=false; if(reticule.visible) reticule.visible=false;
+function cameraPremiere(dt){ const V=VUE1P; if(!V.actif) entrerPremiere(); if(V.arme!==P.armeCur||V.akimboCle!==akimboDe(P.armeCur)) montagePremiere(); if(P.h&&P.h.g.visible) P.h.g.visible=false; if(reticule.visible) reticule.visible=false;
   const M=V.montage, st=ARMES[P.armeCur]&&ARMES[P.armeCur].type==='gun'?armeStats(P.armeCur):null;
   if(pressed('viser')){ V.vise=!V.vise&&!!(M&&M.mire)&&!!st; const b=el('btnViser'); if(b) b.classList.toggle('on',V.vise); SFX.ui(); } if(!st&&V.vise){ V.vise=false; const b=el('btnViser'); if(b) b.classList.remove('on'); }
   const rU=P.rechT>0&&P.rechTot&&(P.rechArme||P.armeCur)===V.arme?clamp(1-P.rechT/P.rechTot,0,1):-1; /* avancement du rechargement de l'arme en main */
-  { const ci=V.vise&&rU<0?1:0; V.k=V.k<ci?Math.min(ci,V.k+dt/VISEE_T):Math.max(ci,V.k-dt/VISEE_T); } /* à l'œil en 0,2 s, et retour (avant : une approche exponentielle) ; en rechargeant, l'arme quitte l'œil, puis y revient */ V.recul=Math.max(0,V.recul-dt*5); V.rk=(V.rk||0)*Math.exp(-dt*((M&&M.rec&&M.rec.ret)||12)); /* le recul de visée : un coup sec, un retour ferme */ V.flash=Math.max(0,V.flash-dt); V.frappe=Math.max(0,V.frappe-dt); V.touche=Math.max(0,V.touche-dt);
+  { const ci=V.vise&&rU<0?1:0; V.k=V.k<ci?Math.min(ci,V.k+dt/VISEE_T):Math.max(ci,V.k-dt/VISEE_T); } /* à l'œil en 0,2 s, et retour (avant : une approche exponentielle) ; en rechargeant, l'arme quitte l'œil, puis y revient */ V.recul=Math.max(0,V.recul-dt*5); V.rk=(V.rk||0)*Math.exp(-dt*((M&&M.rec&&M.rec.ret)||12)); /* le recul de visée : un coup sec, un retour ferme */ V.flash=Math.max(0,V.flash-dt); V.flashG=Math.max(0,(V.flashG||0)-dt); V.rkG=(V.rkG||0)*Math.exp(-dt*12); V.reculG=Math.max(0,(V.reculG||0)-dt*5); V.frappe=Math.max(0,V.frappe-dt); V.touche=Math.max(0,V.touche-dt);
   V.verrou=st?viseAuto1P(st.portee,true):null; /* la cible sous la mire (cône étroit) : mire rouge, tir automatique */
   const mv=Math.min(1,Math.hypot(INPUT.mx,INPUT.mz)), court=(INPUT.btn.sprint||INPUT.btn.sprintK)&&mv>0.3&&!P.nage?1:0; V.pas+=dt*(mv>0.12?(court?13:9)*mv:0);
   V.kCourse=lerp(V.kCourse||0,court&&V.k<0.3?1:0,clamp(dt*5,0,1)); /* en courant, l'arme se baisse et se balance */
@@ -48435,6 +48456,7 @@ function cameraPremiere(dt){ const V=VUE1P; if(!V.actif) entrerPremiere(); if(V.
         W.rotation.set(v[0]+r*0.05,v[1]+M.lagX*0.8,v[2]); W.position.x+=v[3]-P0.pos[0]; W.position.y+=v[4]-P0.pos[1]; W.position.z+=v[5]-P0.pos[2]; }
       else { W.rotation.set(P0.pitch+r*0.05,P0.yaw+M.lagX*0.8,P0.roll||0);
         if(V.frappe>0&&!V.coup){ const f=1-V.frappe/0.3, kp=Math.sin(Math.min(1,f*1.4)*Math.PI*0.5)*(f<0.7?1:1-(f-0.7)/0.3); W.position.z-=kp*0.17; W.position.y+=kp*0.06; W.position.x-=kp*0.05; W.rotation.x-=kp*0.45; } } } /* une arme blanche sans geste écrit (la boule) : elle part droit devant */
+    else if(M.akimbo) akimboPose(M,k,hx,hy,hz,kc,mv,V.pas*0.5,V); /* akimbo : les deux armes, chacune son recul (lot 9) */
     else { poseVisee1P(M,k,hx,hy,hz,r*0.2+kc*0.55+M.lagY*0.8,P0.yaw+M.lagX*0.8+kc*0.35,(P0.roll||0)+kc*0.15,V.rk||0); }
     if(M.poings&&M.mains){ /* Poings (16 octobre, 2e retour : « deux tiges vers l'avant ; ne pas voir les bras au repos, voir le coup ») : au repos les deux
          mains sont hors champ ; un coup (V.frappe, 0,3 s) fait entrer le poing du coin bas de son côté, il frappe juste sous la mire en tournant
@@ -48456,9 +48478,9 @@ function cameraPremiere(dt){ const V=VUE1P; if(!V.actif) entrerPremiere(); if(V.
     if(M.culasse) for(const m of M.culasse) m.position.y=Math.min(1,r*2.6)*0.055;
     if(M.mod&&M.mod.userData.crosse){ const cv=k<0.55; for(const c of M.mod.userData.crosse) if(c.visible!==cv) c.visible=cv; if(M.pouce) for(const c of M.pouce) if(c.visible!==cv) c.visible=cv; } /* le pouce de la main de tir, qui entourait la crosse, avec elle */ /* la crosse est sous la joue : en visée, elle sortirait du champ par le bas (vue de trop près, un grand trapèze de bois) */
     if(M.mod&&M.mod.userData.canons){ const tire=(V.rk||0)>0.05||!!(INPUT.btn.tir||INPUT.btn.tirK); M.spin=lerp(M.spin||0,tire?30:0,clamp(dt*(tire?5:1.2),0,1)); for(const c of M.mod.userData.canons) c.rotation.y+=M.spin*dt; } /* minigun : le faisceau se lance dès qu'on appuie, ralentit après la rafale */
-    animRecharge(M,rU); /* le rechargement se voit : chaque arme sa manœuvre */
+    animRecharge(M,rU); if(M.G) animRecharge(M.G,rU<0?-1:clamp(rU*1.1-0.1,0,1)); /* le rechargement se voit : chaque arme sa manœuvre (akimbo : la gauche un temps après la droite) */
     if(M.fl){ const f=V.flash>0; M.fl.material.opacity=f?1:0; M.fl2.material.opacity=f?0.9:0; if(f){ M.fl.material.rotation=Math.random()*6.28; M.fl.scale.setScalar(0.11+Math.random()*0.06); M.fl2.scale.set(0.24+Math.random()*0.1,0.05,1); } }
-    majDouilles(M,dt); }
+    majDouilles(M,dt); if(M.G){ akimboFlash(M.G,(V.flashG||0)>0); majDouilles(M.G,dt); } }
   majMirePremiere(st);
 }
 /* =====================================================================
