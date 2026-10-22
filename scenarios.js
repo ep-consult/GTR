@@ -19138,6 +19138,67 @@ async function main() {
       else ok('Liste 22 oct., point 6 : ' + r.info.join(' ; '));
     }
     // -------------------------------------------------------------------
+    // Liste du 22 octobre, point 9 : plus d'améliorations au chantier naval. Les catégories qui agissent (lues dans PIECES_NAUT : une
+    // variante qui porte eff, quai ou gerbe) : chaque bateau du chantier en a ; au chantier, l'aperçu ne débite rien, l'achat se paie une
+    // fois au prix de TUNING_PRIX ; ressorti, le bateau est plus rapide (trim), un choc de quai l'abîme moins (défenses), la gerbe sort
+    // derrière le jet-ski lancé ; le menu dit ce que fait la pièce ; après un rechargement, les clés et les pièces restent.
+    // -------------------------------------------------------------------
+    console.log('\n--- Liste du 22 octobre, point 9 : plus d’améliorations au chantier naval ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [], C = CANAUX, CN = C.chantier; if (!C.ok || !CN) return { ko: ['pas de chantier naval'], info };
+        const partie = () => { META.vue = 'classique'; if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9; for (const e of ennemis) e.mort = true; };
+        let T = dernierT + 1000; const pas = (n) => { for (let k = 0; k < (n || 1); k++) { for (const e of ennemis) e.mort = true; WANTED.stars = 0; WANTED.heat = 0; T += 1000 / 60; tick(T); P.hp = 1e9; } };
+        const vider = () => { for (const id in META.vehPerso) Object.assign(META.vehPerso[id], slotGarageDefaut()); };
+        partie(); vider(); META.argent = 1e6;
+        /* 1) les catégories qui agissent, lues à la source */
+        const actives = PIECES_CATS_NAUT.filter((c) => Object.values(PIECES_NAUT).some((f) => f[c] && f[c].variantes.some((v) => v.eff || v.quai || v.gerbe)));
+        if (actives.length < 3) ko.push('trop peu de catégories qui agissent (' + actives.join(', ') + ')');
+        for (const c of actives) { if (slotGarageDefaut().pieces[c] !== 0 || slotGarageDefaut().piecesPossedees[c] !== 1) ko.push('pas de clé fixe pour ' + c); if (!TUNING_PRIX.bateaux.pieces[c]) ko.push('pas de prix pour ' + c); }
+        const elig = Object.keys(VEHDEFS).filter((k) => VEHDEFS[k].tuningNaut); let nAgit = 0;
+        for (const k of elig) { const n = actives.filter((c) => catDispoNaut(k, c)).length; if (n < 2) ko.push(k + ' : ' + n + ' amélioration(s) qui agit'); nAgit += n; }
+        info.push(actives.length + ' catégories qui agissent (' + actives.join(', ') + '), ' + nAgit + ' au total sur ' + elig.length + ' bateaux');
+        /* 2) au chantier, en jet-ski : aperçu, achat, payé une fois, le menu dit l'effet */
+        const v = creerVehicule('jetski', CN.eauPt.x + 1, CN.eauPt.z + 2, Math.PI, null); P.x = v.x; P.z = v.z; entrerVehicule(v); pas(130);
+        entrerChantierEnBateau(); pas(3); const s = INT.actif; if (!s || s.id !== 'chantier') { ko.push('pas dans la salle du chantier'); return { ko, info }; }
+        const a0 = META.argent; s.apercu = { cat: 'gerbe', i: 2 }; garageMajVitrine(s); if (META.argent !== a0 || s.courant) ko.push('l’aperçu a débité ou enregistré');
+        ouvrirGarageMenu(s); const menu = GM.corps.innerHTML; fermerGarageMenu(s);
+        for (const c of ['trim', 'defenses', 'gerbe']) { const fc = PIECES_NAUT.jetski[c]; if (!fc) { ko.push('le jet-ski n’a pas ' + c); continue; } if (menu.indexOf(fc.nom) < 0) ko.push('le menu ne montre pas ' + fc.nom); if (menu.indexOf(fc.variantes[1].info) < 0) ko.push('le menu ne dit pas l’effet de ' + fc.variantes[1].nom); }
+        for (const [c, i] of [['trim', 2], ['defenses', 2], ['gerbe', 2]]) { const m0 = META.argent; if (!choisirPiece(s, c, i)) ko.push('achat ' + c + ' refusé'); else if (m0 - META.argent !== TUNING_PRIX.bateaux.pieces[c][i]) ko.push(c + ' payé ' + (m0 - META.argent) + ' $'); }
+        { const m1 = META.argent; choisirPiece(s, 'trim', 0); choisirPiece(s, 'trim', 2); if (META.argent !== m1) ko.push('le trim a été payé deux fois'); }
+        const f = fichePerso(s.courant); if (!f || f.pieces.trim !== 2 || f.pieces.defenses !== 2 || f.pieces.gerbe !== 2) ko.push('la fiche ne garde pas les pièces ' + JSON.stringify(f && f.pieces));
+        /* 3) ressorti : effets réels */
+        s.sortirEnVoiture = true; sortirInterieur(); pas(3); const b = P.veh;
+        if (!b || b.key !== 'jetski') ko.push('pas ressorti en jet-ski'); else {
+          const d0 = VEHDEFS.jetski, eV = PIECES_NAUT.jetski.trim.variantes[2].eff, eG = PIECES_NAUT.jetski.gerbe.variantes[2].eff;
+          const vAtt = d0.vmax * (eV.vmax || 1) * (eG.vmax || 1), mAtt = d0.man * (eV.man || 1);
+          if (Math.abs(b.def.vmax - vAtt) > 1e-6 || Math.abs(b.def.man - mAtt) > 1e-6) ko.push('effets du trim : vmax ' + b.def.vmax.toFixed(2) + ' (attendu ' + vAtt.toFixed(2) + '), man ' + b.def.man.toFixed(2));
+          if (b.quaiK !== PIECES_NAUT.jetski.defenses.variantes[2].quai) ko.push('défenses non posées (quaiK ' + b.quaiK + ')'); if (b.gerbe !== 2) ko.push('gerbe non posée');
+          info.push('jet-ski : vmax ' + d0.vmax + ' → ' + b.def.vmax.toFixed(1) + ', virage ' + d0.man + ' → ' + b.def.man.toFixed(2) + ', chocs de quai ×' + b.quaiK);
+          /* la gerbe : lancé sur l'eau libre, des éclaboussures derrière */
+          const gerbeAvant = (typeof SILLAGES !== 'undefined') ? null : null; let n = 0; const ecl0 = eclaboussure; window.eclaboussure = function (x, z, k) { n++; return ecl0(x, z, k); };
+          try { b.v = 20; b.gerbeT = 0; for (let k = 0; k < 20; k++) majGerbeNaut(b, 1 / 60); } finally { window.eclaboussure = ecl0; }
+          if (n < 3) ko.push('pas de gerbe derrière le jet-ski lancé (' + n + ')'); b.v = 0; n = 0; window.eclaboussure = function (x, z, k) { n++; return ecl0(x, z, k); }; try { for (let k = 0; k < 20; k++) majGerbeNaut(b, 1 / 60); } finally { window.eclaboussure = ecl0; } if (n) ko.push('une gerbe à l’arrêt');
+          info.push('gerbe derrière le jet-ski lancé'); }
+        /* 4) un choc de quai : défenses = moins de dégâts (même bateau, même choc) */
+        { const choc = (quai) => { const w = creerVehicule('bateau', CN.eauPt.x, CN.eauPt.z, 0, null); w.quaiK = quai; w.hp = w.maxHp = 1000; const t = abimerVehicule; let dg = 0; window.abimerVehicule = function (q, x) { if (q === w) dg += x; return t.apply(this, arguments); };
+            try { /* la vraie ligne du choc : même formule que majVehiculePhys */ const impact = 20, eau = true; abimerVehicule(w, impact * 1.5 * (eau ? 0.6 * (w.quaiK || 1) : 1) * 1, false); } finally { window.abimerVehicule = t; } w.mort = true; return dg; };
+          const src = majVehiculePhys.toString(); if (src.indexOf('0.6*(v.quaiK||1)') < 0) ko.push('le choc de quai ne lit pas les défenses');
+          const d1 = choc(1), d2 = choc(0.35); if (!(d2 < d1 * 0.4)) ko.push('défenses : ' + d2.toFixed(1) + ' contre ' + d1.toFixed(1)); else info.push('choc de quai : ' + d1.toFixed(0) + ' PV sans défenses, ' + d2.toFixed(0) + ' avec le boudin'); }
+        /* 5) un vrai bateau sorti sans pièces : rien ne change (aucune régression) */
+        { const fv = vehPersoLibre(); Object.assign(META.vehPerso[fv], slotGarageDefaut(), { cle: 'offshore' }); const w = creerVehicule('offshore', CN.eauPt.x, CN.eauPt.z, 0, null); appliquerTuning(w, fv);
+          if (w.def.vmax !== VEHDEFS.offshore.vmax || w.quaiK !== 1 || w.gerbe) ko.push('un offshore sans pièces change'); w.mort = true; }
+        if (P.veh) sortirVehicule(true); sauveMeta(); return { ko, info, id: f && s.courant };
+      });
+      /* rechargement : les clés et les pièces restent */
+      let rr = { ko: [] }; if (r.id) { await page.reload({ waitUntil: 'load', timeout: 90000 }); await page.waitForFunction(() => typeof PORTES !== 'undefined' && PORTES.length > 0, { timeout: 20000 });
+        rr = await page.evaluate((id) => { const ko = [], f = META.vehPerso[id]; if (!f || f.cle !== 'jetski' || f.pieces.trim !== 2 || f.pieces.defenses !== 2 || f.pieces.gerbe !== 2 || !(f.piecesPossedees.trim & 4)) ko.push('après rechargement : ' + JSON.stringify(f && f.pieces));
+          for (const k in META.vehPerso) Object.assign(META.vehPerso[k], slotGarageDefaut()); sauveMeta(); return { ko }; }, r.id); }
+      const ko = r.ko.concat(rr.ko);
+      if (ko.length) fail('Liste 22 oct., point 9 : ' + ko.join(' ; ') + ' [' + r.info.join(' | ') + ']');
+      else ok('Liste 22 oct., point 9 : ' + r.info.join(' ; ') + ' ; les pièces survivent au rechargement');
+    }
+    // -------------------------------------------------------------------
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];

@@ -2084,8 +2084,8 @@ const GARAGES_TUNING=[
 // Objets à clés FIXES : fusionMeta complète une vieille sauvegarde sans eux.
 // Canaux V3, phase 4 : les catégories des BATEAUX (chantier naval) ont aussi leurs clés fixes — une vieille sauvegarde les reçoit à 0 / 1.
 function slotGarageDefaut(){ return {cle:'',coul:-1,neon:-1,nitro:false,moteur:0,vitesse:0,tenue:0,blindage:0,investi:0,
-  pieces:{aileron:0,parechocs:0,jupes:0,capot:0,jantes:0,echappement:0,livree:0,pont:0,toit:0,parebrise:0,sieges:0,sono:0,feux:0,nom:0,drapeau:0},
-  piecesPossedees:{aileron:1,parechocs:1,jupes:1,capot:1,jantes:1,echappement:1,livree:1,pont:1,toit:1,parebrise:1,sieges:1,sono:1,feux:1,nom:1,drapeau:1}}; }
+  pieces:{aileron:0,parechocs:0,jupes:0,capot:0,jantes:0,echappement:0,livree:0,pont:0,toit:0,parebrise:0,sieges:0,sono:0,feux:0,nom:0,drapeau:0,trim:0,defenses:0,gerbe:0},
+  piecesPossedees:{aileron:1,parechocs:1,jupes:1,capot:1,jantes:1,echappement:1,livree:1,pont:1,toit:1,parebrise:1,sieges:1,sono:1,feux:1,nom:1,drapeau:1,trim:1,defenses:1,gerbe:1}}; }
 // ANCIEN modèle (un emplacement par garage) : reste déclaré pour que
 // fusionMeta relise une vieille sauvegarde ; migré ensuite vers vehPerso
 // (migrerGaragesVersVehPerso) puis remis à vide.
@@ -3891,6 +3891,10 @@ function majMerV2(dt){
 }
 // Sillage d'un bateau en mouvement : une traînée centrale + deux bras qui
 // s'écartent (le « V » d'un sillage), cadence liée à la vitesse.
+/* point 9 : la gerbe arrière d'un bateau qui porte une tuyère (v.gerbe 1 ou 2), au-delà de 10 u/s, sur dt (cosmétique) */
+function majGerbeNaut(v,dt){ const sp=Math.abs(v.v); if(sp<10||v.v<0){ v.gerbeT=0; return; } v.gerbeT=(v.gerbeT||0)-dt; if(v.gerbeT>0) return;
+  v.gerbeT=v.gerbe>1?0.07:0.11; const L=(v.def&&v.def.long)||4, bx=v.x-Math.sin(v.ang)*(L*0.5+1.2+sp*0.05), bz=v.z-Math.cos(v.ang)*(L*0.5+1.2+sp*0.05);
+  if(MER_V2) eclaboussure(bx,bz,Math.min(2.4,(v.gerbe>1?1.1:0.7)+sp*0.02)); else burst(bx,0.4,bz,4,0xe6f6ff,4); }
 function sillageBateau(v,dt){
   if(!MER_V2) return;
   const vit=Math.abs(v.v); if(vit<2.5) return;
@@ -30311,7 +30315,7 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
   } else if(heurte){
     const impact=Math.abs(v.v);
     if(impact>5){
-      if(v.conduit!=='lagonIA') abimerVehicule(v,impact*(d.milit?0.5:d.type==='moto'?2.4:1.5)*(eau?0.6:1)*(v.derby||(sFront&&sFront.pneus)?0.3:1),false); // derby, bout de la barge du Saut du Vertige : les murs de pneus amortissent ; Canaux V3 : un bateau qui fait escale au Lagon ne se détruit pas contre un quai (un jet trois places y explosait au coin du canal ouest et de la traverse) — les tirs et les chocs du joueur l'abîment toujours
+      if(v.conduit!=='lagonIA') abimerVehicule(v,impact*(d.milit?0.5:d.type==='moto'?2.4:1.5)*(eau?0.6*(v.quaiK||1):1)*(v.derby||(sFront&&sFront.pneus)?0.3:1),false); // derby, bout de la barge du Saut du Vertige : les murs de pneus amortissent ; Canaux V3 : un bateau qui fait escale au Lagon ne se détruit pas contre un quai (un jet trois places y explosait au coin du canal ouest et de la traverse) — les tirs et les chocs du joueur l'abîment toujours
       if(!eau) degatsChoc(v,v.x+(fx-v.x)*1.02,v.z+(fz-v.z)*1.02,clamp(impact/30,0,1.3)*(v.derby?0.5:1)); // dégâts V2 : le nez s'enfonce contre le mur
       burst(fx,0.8,fz,6,eau?0x9fd8ff:0xd8dce4,7);
       bruit(0.15,0.5,500);
@@ -30434,6 +30438,7 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
   }
   // sillage des bateaux
   if(eau&&MER_V2) sillageBateau(v,dt);
+  if(eau&&v.gerbe) majGerbeNaut(v,dt); /* point 9 : la gerbe arrière */
   else if(eau&&Math.abs(v.v)>4&&Math.random()<0.5)
     spawnP(v.x-sA*d.long/2,0.2,v.z-cA*d.long/2,rand(-1,1),rand(0.5,1.5),rand(-1,1),0.5,0.7,0xcfeaff,2);
   // écrasement arcade — voir majImpactPersonnages (partagée avec majTrafic)
@@ -44571,7 +44576,8 @@ const TUNING_PRIX={
   // tenue = coque (glisse), blindage ; pièces par catégorie et variante (0 = d'origine, gratuite), mêmes prix pour toutes les familles
   bateaux:{peinture:250,neons:600,nitro:1400,moteur:[700,1500,2800],vitesse:[800,1700,3200],tenue:[600,1300,2500],blindage:[900,1900,3400],
     pieces:{livree:[0,600,900,1200],pont:[0,350,450,700],toit:[0,1100,1800],parebrise:[0,300,500,450],sieges:[0,400,450,500],
-            sono:[0,700,1400],feux:[0,500,800,650],nom:[0,250,250,250,250,250,250,250],drapeau:[0,150,200,200]}},
+            sono:[0,700,1400],feux:[0,500,800,650],nom:[0,250,250,250,250,250,250,250],drapeau:[0,150,200,200],
+            trim:[0,900,1600],defenses:[0,450,800],gerbe:[0,600,1000]}}, /* point 9 */
 };
 // part de ce qui a été investi dans un véhicule rendue en le mettant à la casse
 const TUNING_CASSE_TAUX=0.25;
@@ -44757,7 +44763,7 @@ const PIECES_FAMILLES={
 //  - une pièce posée aux ancrages déclarés (tuningNaut.ancrages, mesurés sur les modèles, vérifiés par le test « Canaux V3 : chantier
 //    naval ») : T-top, hardtop, aileron, arceau lumineux, bimini, sono, projecteur, LED sous-marines, pavillon.
 // Purement cosmétiques : aucun effet sur la physique.
-const PIECES_CATS_NAUT=['livree','pont','toit','parebrise','sieges','sono','feux','nom','drapeau'];
+const PIECES_CATS_NAUT=['livree','pont','toit','parebrise','sieges','sono','feux','nom','drapeau','trim','defenses','gerbe']; /* liste du 22 octobre, point 9 : trim, défenses, gerbe (des effets réels : eff, quai, gerbe) */
 const TUNING_NOMS_NAUT={moteur:'MOTEUR',vitesse:'HÉLICE',tenue:'COQUE (GLISSE)',blindage:'BLINDAGE'};
 const TUNING_GAIN_NAUT={moteur:'accélération',vitesse:'vitesse max',tenue:'glisse en virage',blindage:'dégâts reçus'};
 const NOMS_COQUE=['MARÉE HAUTE','RAFALE BLEUE','LOS REYES KID','BELLE DE NUIT','L’INSOUMISE','SEÑORITA','COUP DE SOLEIL'];
@@ -44855,6 +44861,31 @@ function pnProjecteur(a){ const p=a.poste; if(!p) return null; const g=new THREE
 function pnDrapeau(a,motif,d){ const p=a.poupe; if(!p) return null; const g=new THREE.Group(), x=p.w*0.55, k=clamp((d?d.long:7)/7,0.42,1.25); /* à la taille du bateau */
   pnTube(g,0.022*Math.max(1,k),[x,p.y,p.z+0.05],[x,p.y+1.5*k,p.z+0.05],matNaut('inox')); const f=new THREE.Mesh(new THREE.PlaneGeometry(0.92*k,0.58*k),new THREE.MeshLambertMaterial({map:texNaut('drapeau|'+motif),side:THREE.DoubleSide}));
   f.rotation.y=Math.PI/2; f.position.set(x,p.y+1.5*k-0.3*k,p.z-0.46*k); f.userData.matPropre=true; g.add(f); return g; }
+/* Liste du 22 octobre, point 9 (demandé : « plus d'améliorations au chantier naval, mécanique et style, et pour les jet-skis ») : trois
+   catégories qui AGISSENT — trim (flaps ou sponsons : eff = multiplicateurs de vmax, acc, man, lus par appliquerTuning), défenses de coque
+   (quai = part des dégâts d'un choc de quai), gerbe arrière (gerbe = niveau : la gerbe d'eau derrière, majGerbeNaut). Payées une fois,
+   aperçu gratuit, comme les autres pièces. */
+function pnTrim(a,niv){ const p=a.poupe; if(!p) return null; const g=new THREE.Group(), I=matNaut('inox'), C=matNaut('carbone'), w=Math.max(0.16,p.w*0.38), x0=p.w*0.5;
+  for(const sx of [-1,1]){ pnMesh(g,new THREE.BoxGeometry(w,0.035,0.34),niv>1?C:I,sx*x0,0.06,p.z-0.16);
+    if(niv>1){ pnTube(g,0.03,[sx*x0,0.07,p.z-0.04],[sx*x0,Math.min(p.y,0.7),p.z+0.02],I); pnMesh(g,new THREE.CylinderGeometry(0.05,0.05,0.16,10),matNaut('rouge'),sx*x0,Math.min(p.y,0.7)-0.05,p.z+0.02); } }
+  return g; }
+function pnSponsons(a,niv){ const p=a.poupe, q=a.poste; if(!p) return null; const g=new THREE.Group(), C=niv>1?matNaut('carbone'):matNaut('noir'), x=(q?Math.max(q.w,p.w):p.w)+0.05;
+  for(const sx of [-1,1]) pnMesh(g,new THREE.BoxGeometry(0.08,0.12,niv>1?0.9:0.7),C,sx*x,0.12,p.z+0.35);
+  if(niv>1) pnMesh(g,new THREE.BoxGeometry(p.w*1.2,0.03,0.4),matNaut('inox'),0,0.04,p.z-0.12); /* la plaque de course */
+  return g; }
+function pnDefenses(a,niv,d){ const p=a.poupe, q=a.poste; if(!p) return null; const g=new THREE.Group(), x=Math.max(p.w,q?q.w:0)+0.1, L=d?d.long:6, z0=p.z+0.3, z1=z0+L*0.55;
+  if(niv===1){ const B=matNaut('blanc'), n=L>9?4:3; for(const sx of [-1,1]) for(let i=0;i<n;i++){ const z=z0+(z1-z0)*i/(n-1), y=Math.max(0.25,p.y-0.35);
+      pnMesh(g,new THREE.CylinderGeometry(0.11,0.11,0.42,12),B,sx*x,y,z); pnTube(g,0.008,[sx*x,y+0.21,z],[sx*(x-0.06),p.y+0.05,z],matNaut('noir')); } }
+  else for(const sx of [-1,1]) pnTube(g,0.075,[sx*x,Math.max(0.3,p.y-0.25),z0],[sx*x,Math.max(0.3,p.y-0.25),z1],matNaut('noir')); /* boudin de coque */
+  return g; }
+function pnGerbe(a,niv){ const p=a.poupe; if(!p) return null; const g=new THREE.Group(), I=matNaut('inox'), y=Math.max(0.12,p.y-0.32);
+  pnMesh(g,new THREE.CylinderGeometry(0.09,0.12,0.32,14),niv>1?I:matNaut('carbone'),0,y,p.z-0.12,Math.PI/2);
+  if(niv>1) pnMesh(g,new THREE.TorusGeometry(0.1,0.018,6,16),matNaut('led'),0,y,p.z-0.29);
+  return g; }
+const PN_TRIM={nom:'FLAPS DE TRIM',variantes:[ORIGINE,{nom:'Flaps de trim',info:'vitesse +6 %',eff:{vmax:1.06},f:(a)=>pnTrim(a,1)},{nom:'Trim hydraulique',info:'vitesse +9 %, reprise +12 %',eff:{vmax:1.09,acc:1.12},f:(a)=>pnTrim(a,2)}]};
+const PN_SPONSONS={nom:'SPONSONS',variantes:[ORIGINE,{nom:'Sponsons de virage',info:'virage +12 %',eff:{man:1.12},f:(a)=>pnSponsons(a,1)},{nom:'Sponsons + plaque de course',info:'virage +12 %, vitesse +6 %',eff:{man:1.12,vmax:1.06},f:(a)=>pnSponsons(a,2)}]};
+const PN_DEFENSES={nom:'DÉFENSES DE COQUE',variantes:[ORIGINE,{nom:'Pare-battages',info:'chocs de quai −45 %',quai:0.55,f:(a,d)=>pnDefenses(a,1,d)},{nom:'Boudin de coque',info:'chocs de quai −65 %',quai:0.35,f:(a,d)=>pnDefenses(a,2,d)}]};
+const PN_GERBE={nom:'GERBE ARRIÈRE',variantes:[ORIGINE,{nom:'Tuyère de gerbe',info:'gerbe d’eau',gerbe:1,f:(a)=>pnGerbe(a,1)},{nom:'Tuyère haute + LED',info:'grande gerbe, vitesse +3 %',gerbe:2,eff:{vmax:1.03},f:(a)=>pnGerbe(a,2)}]};
 /* le catalogue : une famille = les catégories qui ont du sens (une pièce de trop serait posée dans le vide) */
 const PN_LIVREE={nom:'LIVRÉE',variantes:[ORIGINE,{nom:'Bandes de course',decal:'livree',motif:'bandes'},{nom:'Flammes',decal:'livree',motif:'flammes'},{nom:'Damier de course',decal:'livree',motif:'damier'}]};
 const PN_SONO={nom:'SONO',variantes:[ORIGINE,{nom:'Enceintes',f:(a)=>pnSono(a,1)},{nom:'Sono de soirée',f:(a)=>pnSono(a,2)}]};
@@ -44866,23 +44897,25 @@ const PN_VERRE=[['Fumé noir',0x0c0e12],['Miroir doré',0x8a6a20,0xffe08a],['Ble
 const PIECES_NAUT={
   jetski:{coque:['coque','peinture'],nomCoque:['coque'],nomFenetre:[0.2,0.9],livree:PN_LIVREE, /* le nom : sur la seule coque (sur les deux surfaces, il se lisait en double) */pont:pnTeintes('TAPIS DE PONT',['tapis'],[['Teck',0xa8743c],['Blanc',0xeceae2],['Carbone',0x2b2d31]]),
     parebrise:pnTeintes('BULLE',['vitreO','vitre'],PN_VERRE),sieges:pnTeintes('SELLE',['selle'],[['Blanche',0xf2efe6],['Rouge',0xb02a2a],['Bleu marine',0x1d2f55]]),
-    sono:PN_SONO,feux:PN_FEUX,nom:PN_NOM,drapeau:PN_DRAPEAU},
+    sono:PN_SONO,feux:PN_FEUX,nom:PN_NOM,drapeau:PN_DRAPEAU,trim:PN_SPONSONS,defenses:PN_DEFENSES,gerbe:PN_GERBE},
   course:{coque:['peinture'],livree:PN_LIVREE,pont:pnTeintes('PONT',['pont'],[['Blanc',0xeceae2],['Carbone',0x2b2d31],['Teck',0xa8743c]]),
     toit:{nom:'AILERON / ARCEAU',variantes:[ORIGINE,{nom:'Aileron de course',f:(a)=>pnAileron(a)},{nom:'Arceau lumineux',f:(a)=>pnArceauLum(a)}]},
     parebrise:pnTeintes('PARE-BRISE',['vitre'],PN_VERRE),sieges:pnTeintes('BAQUETS',['baquet'],[['Cuir blanc',0xf2efe6],['Rouge course',0xb02a2a],['Bleu marine',0x1d2f55]]),
-    sono:PN_SONO,feux:PN_FEUX,nom:PN_NOM,drapeau:PN_DRAPEAU},
+    sono:PN_SONO,feux:PN_FEUX,nom:PN_NOM,drapeau:PN_DRAPEAU,trim:PN_TRIM,defenses:PN_DEFENSES,gerbe:PN_GERBE},
   open:{coque:['peinture'],livree:PN_LIVREE,pont:pnTeintes('PONT',['pont','teck'],[['Teck',0xa8743c],['Blanc',0xeceae2],['Carbone',0x2b2d31]]),
     toit:{nom:'TOIT',variantes:[ORIGINE,{nom:'T-top',f:(a)=>pnTtop(a)},{nom:'Hardtop',f:(a,d,mc)=>pnHardtop(a,mc)}]},
     parebrise:pnTeintes('PARE-BRISE',['vitre'],PN_VERRE),sieges:pnTeintes('SELLERIE',['sellerie','cuir'],[['Cuir blanc',0xf2efe6],['Cuir rouge',0xb02a2a],['Bleu marine',0x1d2f55]]),
-    sono:PN_SONO,feux:PN_FEUX,nom:PN_NOM,drapeau:PN_DRAPEAU},
+    sono:PN_SONO,feux:PN_FEUX,nom:PN_NOM,drapeau:PN_DRAPEAU,trim:PN_TRIM,defenses:PN_DEFENSES},
   bois:{coque:['peinture'],nomOr:true,pont:pnTeintes('PONT',['pont'],[['Acajou clair',0xa0582a],['Teck',0xa8743c],['Blanc',0xeceae2]]),
     toit:{nom:'BIMINI',variantes:[ORIGINE,{nom:'Bimini marine',f:(a)=>pnBimini(a,false)},{nom:'Bimini rayé',f:(a)=>pnBimini(a,true)}]},
     parebrise:pnTeintes('PARE-BRISE',['vitre'],PN_VERRE),sieges:pnTeintes('SELLERIE',['cuir'],[['Cuir crème',0xf0e2c4],['Cuir rouge',0xb02a2a],['Vert anglais',0x1f4a32]]),
-    sono:PN_SONO,feux:PN_FEUX,nom:PN_NOM,drapeau:PN_DRAPEAU},
+    sono:PN_SONO,feux:PN_FEUX,nom:PN_NOM,drapeau:PN_DRAPEAU,trim:PN_TRIM,defenses:PN_DEFENSES},
   yacht:{coque:['peinture'],livree:PN_LIVREE,pont:pnTeintes('PONT',['teck','pont'],[['Teck clair',0xc89a5a],['Blanc',0xeceae2],['Gris anthracite',0x3a3d42]]),
     parebrise:pnTeintes('VITRAGES',['vitre','vitreO'],PN_VERRE),sieges:pnTeintes('SELLERIE',['cuir'],[['Cuir blanc',0xf2efe6],['Cuir rouge',0xb02a2a],['Bleu marine',0x1d2f55]]),
-    sono:PN_SONO,feux:PN_FEUX,nom:PN_NOM,drapeau:PN_DRAPEAU},
+    sono:PN_SONO,feux:PN_FEUX,nom:PN_NOM,drapeau:PN_DRAPEAU,trim:PN_TRIM,defenses:PN_DEFENSES},
 };
+/* la variante posée d'une catégorie d'un bateau (point 9 : ses effets) */
+function varianteNaut(key,pieces,cat){ const tn=VEHDEFS[key]&&VEHDEFS[key].tuningNaut, fam=tn&&PIECES_NAUT[tn.famille]; if(!fam||!pieces||!catDispoNaut(key,cat)) return null; const i=pieces[cat]|0; return i?fam[cat].variantes[i]||null:null; }
 // une catégorie existe pour CE bateau : sa famille l'a, et le bateau ne l'exclut pas (tuningNaut.sans : il a déjà un toit, pas de selle…)
 function catDispoNaut(key,cat){ const tn=VEHDEFS[key]&&VEHDEFS[key].tuningNaut, fam=tn&&PIECES_NAUT[tn.famille]; return !!(fam&&fam[cat]&&!(tn.sans&&tn.sans.includes(cat))); }
 // le catalogue de pièces d'un véhicule : celui des bateaux (tuningNaut) ou des voitures et motos (tuningCarro), et ses prix
@@ -45368,6 +45401,10 @@ function appliquerTuning(v,id){
   v.blindage=TUNING_EFFETS.blindage[slot.blindage]; // 1 = d'origine (voir abimerVehicule)
   v.nitro=!!slot.nitro; v.nitroJauge=100; v.nitroRepos=0; v.nitroActif=false;
   v.treuil=piecePosee(v.key,slot.pieces,'treuil'); // accroche/remorquage (majRemorquage)
+  v.quaiK=1; v.gerbe=0; /* liste du 22 octobre, point 9 : les pièces des bateaux qui agissent */
+  if(base.tuningNaut) for(const cat of PIECES_CATS_NAUT){ const vn=varianteNaut(v.key,slot.pieces,cat); if(!vn) continue;
+    if(vn.eff){ if(vn.eff.vmax) v.def.vmax*=vn.eff.vmax; if(vn.eff.acc) v.def.acc*=vn.eff.acc; if(vn.eff.man) v.def.man*=vn.eff.man; }
+    if(vn.quai) v.quaiK=vn.quai; if(vn.gerbe) v.gerbe=vn.gerbe; }
 }
 
 /* ---------- la salle partagée ---------- */
@@ -45736,7 +45773,7 @@ function renderGarageMenu(s){
         const posee=(slot.pieces[cat]|0)===i, possede=!!((slot.piecesPossedees[cat]|0)&(1<<i));
         const vue=s.apercu&&s.apercu.cat===cat&&s.apercu.i===i;
         const prix=fp.prix[cat][i];
-        const nomV=v.nom+(v.treuil?' 🪝 remorquage':'');
+        const nomV=v.nom+(v.treuil?' 🪝 remorquage':'')+(v.info?' ('+v.info+')':''); /* point 9 : l'effet de la pièce */
         const txt=posee?'✔ '+nomV:(possede?nomV+' — POSER':(vue?'ACHETER '+nomV+' — '+prix+' $':nomV+' — '+prix+' $'));
         h+='<div class="gmBtn'+(posee?' ok':'')+'"'+(posee?'':' data-a="piece" data-c="'+cat+'" data-i="'+i+'"')+(vue?' style="border-color:#ffd23f;color:#ffd23f"':'')+'>'+txt+'</div>';
       });

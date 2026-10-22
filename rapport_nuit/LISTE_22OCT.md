@@ -16,7 +16,7 @@ Ordre suivi : 1, 17, 4, 3, 2, 5, puis le reste.
 | 6 | Les publics de décor fuient et se visent | ☑ |
 | 7 | La statue de la Liberté plus grande | ☑ |
 | 8 | Habits et tatouages réalistes | ☐ |
-| 9 | Plus d'améliorations au chantier naval | ☐ |
+| 9 | Plus d'améliorations au chantier naval | ☑ |
 | 10 | Le paquebot qui se brise, plus impressionnant | ☐ |
 | 11 | Explosions, camion-citerne, pompes à essence | ☑ |
 | 12 | Sortir ses véhicules depuis la villa | ☑ |
@@ -31,6 +31,39 @@ Ordre suivi : 1, 17, 4, 3, 2, 5, puis le reste.
 - **Branche** : `retours-22oct` part de `retours-20-octobre` (et non de `main`) : les points de la liste portent sur ce que les deux
   chantiers précédents ont construit (canaux V3, paquebot, Cliff Diving, cabrage en équilibre…).
 
+## 9 — Plus d'améliorations au chantier naval (fait)
+
+**Avant** : au chantier « Marée Basse », la mécanique (moteur, hélice, coque, blindage, nitro) et neuf catégories de style — aucune
+pièce de style n'agissait, et le jet-ski n'avait rien de propre.
+
+**Fait** : trois catégories nouvelles, qui **agissent** (clés fixes `trim`, `defenses`, `gerbe` dans `slotGarageDefaut` ; prix dans
+`TUNING_PRIX.bateaux.pieces`) :
+
+| Catégorie | Bateaux | Variantes et effet |
+|---|---|---|
+| FLAPS DE TRIM (`PN_TRIM`) | open, course, bois, yachts | flaps (vitesse +6 %), trim hydraulique à vérins (vitesse +9 %, reprise +12 %) — 900 / 1 600 $ |
+| SPONSONS (`PN_SPONSONS`) | jet-skis | sponsons de virage (virage +12 %), sponsons + plaque de course (virage +12 %, vitesse +6 %) |
+| DÉFENSES DE COQUE (`PN_DEFENSES`) | tous | pare-battages (chocs de quai −45 %), boudin de coque (−65 %) — 450 / 800 $ |
+| GERBE ARRIÈRE (`PN_GERBE`) | jet-skis, offshore | tuyère (gerbe d'eau derrière, au-delà de 10 u/s), tuyère haute à LED (grande gerbe, vitesse +3 %) — 600 / 1 000 $ |
+
+Une variante porte ses effets (`eff` : multiplicateurs de vitesse, reprise, virage ; `quai` ; `gerbe`), lus par `appliquerTuning`
+(`varianteNaut`) sur la copie propre de la définition — `VEHDEFS` jamais modifié. Le choc de quai lit `v.quaiK` ; la gerbe :
+`majGerbeNaut` (cosmétique, sur `dt`). Le menu dit ce que fait chaque pièce (« Trim hydraulique (vitesse +9 %, reprise +12 %) »).
+Aperçu gratuit, payée une fois, reposée gratuitement : le mécanisme des autres pièces.
+
+**Décision** : pas de nouveau palier mécanique (moteur, hélice… ont déjà trois paliers) — des pièces qui agissent, que l'on voit sur le
+ber, plutôt qu'un chiffre de plus ; des effets modestes (au plus +9 % de vitesse) pour ne pas déséquilibrer les courses en mer.
+
+**Test** « Liste du 22 octobre, point 9 » (catégories lues dans `PIECES_NAUT`) : chaque bateau du chantier a au moins deux pièces qui
+agissent (28 en tout), clés fixes et prix ; au chantier en jet-ski, l'aperçu ne débite rien, le menu montre les catégories et leurs
+effets, chaque achat au prix, le trim payé une fois ; ressorti, la vitesse et le virage attendus, les défenses et la gerbe posées, une
+gerbe derrière le jet-ski lancé et aucune à l'arrêt ; un choc de quai fait 6 PV au lieu de 18 avec le boudin ; un offshore sans pièces
+ne change pas ; les pièces survivent au rechargement. « Canaux V3 : chantier naval » (chaque variante se pose sur chaque modèle :
+376 pièces) et « … survivent au rechargement » repassent.
+
+**Captures** : `09_vedette.png`, `09_jetski.png` (sur le ber, menu ouvert ; avant : `avant_09_*.png`). Le ber tourne : la vedette et
+le jet-ski y sont vus de l'avant, les pièces de poupe (trim, tuyère) peu visibles sur ces images — à regarder sur iPhone en tournant
+le bateau au doigt.
 ## 6 — Les publics de décor fuient et se visent (fait)
 
 **Relevé** (« la disco en extérieur, le diving… ») — les publics du décor et leur état avant :
