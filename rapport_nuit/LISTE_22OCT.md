@@ -78,8 +78,8 @@ compté ; trop haut, la voltige heurte le tablier ; la Libellule passe sous la g
 une voiture qui a décollé, un passage au-dessus du tablier ; « Canaux V2 : ponts et passerelles » compte les sauts lancés au lieu de
 les refuser (au pas, aucun envol : c'est le test du point 17 qui le vérifie).
 
-**Captures** () :  (la voiture de sport à pleine vitesse reste sur le
-tablier du pont vénitien : 2,7 u au plus) et  (la même, en vol à 16 u au-dessus du canal) ; 
+**Captures** (`rapport_nuit/captures/liste_22oct/`) : `avant_17_saut_pont.png` (la voiture de sport à pleine vitesse reste sur le
+tablier du pont vénitien : 2,7 u au plus) et `17_saut_pont.png` (la même, en vol à 16 u au-dessus du canal) ; `17_avion_sous_pont.png`
 (la voltige sous l'arche du pont de la plage, vue depuis le canal).
 
 **Coût** (machine sans carte graphique, 240 images, même graine ; avant → après) : centre-ville tick 25,4 → 23,6 ms, rendu 86 → 92 ms
