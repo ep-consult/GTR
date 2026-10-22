@@ -19008,6 +19008,53 @@ async function main() {
       else ok('Liste 22 oct., point 13 : ' + r.info.join(' ; '));
     }
     // -------------------------------------------------------------------
+    // Liste du 22 octobre, point 14 : Reyes Cliff Diving épique, et la vraie mer au pied des falaises. L'eau de la baie (lancer de
+    // rayon depuis le ciel) porte le shader de la mer (MER_MAT, ou sa copie de la baie CRIQUE.merMat), au niveau de la mer, l'ancien plan turquoise est caché ; une
+    // vedette venue du large entre dans la baie au joystick. Un plongeon du haut de la tour (vraie boucle, vrais boutons de la
+    // compétition) : ralenti au décollage et près de l'eau (la chute dure plus que la chute libre), trois plans de caméra (derrière le
+    // plongeur, retransmission, au ras de l'eau), vent qui forcit avec la vitesse puis se tait, hauteur et vitesse affichées,
+    // ovation à une entrée propre, record par plongeon.
+    // -------------------------------------------------------------------
+    console.log('\n--- Liste du 22 octobre, point 14 : le plongeon de falaise épique, la vraie mer en bas ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = []; let T = dernierT + 1000;
+        const partie = () => { if (P.veh) sortirVehicule(true); META.vue = 'classique'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9; for (const e of ennemis) e.mort = true; };
+        const pas = (n, f) => { for (let i = 0; i < n; i++) { if (f && f(i) === false) return i; for (const e of ennemis) e.mort = true; T += 1000 / 60; tick(T); } return n; };
+        partie(); if (!CRIQUE || !CLIFF.ok) return { ko: ['pas de crique ou de compétition'], info };
+        /* 1. la vraie mer dans la baie */
+        scene.updateMatrixWorld(true); const rc = new THREE.Raycaster(); rc.camera = camera; let mer = 0, n = 0, niv = 0;
+        for (let x = CRIQUE.x0 + 4; x < CRIQUE.x1 - 3; x += 6) for (let z = CRIQUE.z0 + 3; z < MER; z += 5) { if (!estEau(x, z)) continue; n++; rc.set(new THREE.Vector3(x, 60, z), new THREE.Vector3(0, -1, 0));
+          const h = rc.intersectObjects(scene.children, true).find((o) => o.object.visible && o.object.material && !o.object.isSprite && o.point.y < 1); if (h && (h.object.material === MER_MAT || h.object.material === CRIQUE.merMat)) { mer++; niv = Math.max(niv, Math.abs(h.point.y - 0.13)); } }
+        if (!n || mer < n * 0.9) ko.push('baie : ' + mer + ' / ' + n + ' points montrent la mer'); if (niv > 0.05) ko.push('baie : niveau à ' + niv.toFixed(2) + ' de la mer');
+        if (CRIQUE.eauMesh && CRIQUE.eauMesh.visible) ko.push('l’ancienne eau turquoise est encore visible');
+        info.push('baie : ' + mer + '/' + n + ' points de vraie mer');
+        /* 2. accessible en bateau depuis le large */
+        { const xc = (CRIQUE.x0 + CRIQUE.x1) / 2, v = creerVehicule('bateau', xc, MER + 30, Math.PI, null); P.x = v.x; P.z = v.z; entrerVehicule(v); v.hp = 1e6; let zMin = v.z;
+          pas(60 * 14, () => { INPUT.jx = clamp((xc - v.x) * 0.05, -0.4, 0.4); INPUT.jy = -1; zMin = Math.min(zMin, v.z); if (v.z < CRIQUE.z0 + 6) return false; }); INPUT.jx = INPUT.jy = 0;
+          if (zMin > CRIQUE.z0 + 12) ko.push('la vedette n’entre pas dans la baie (z ' + zMin.toFixed(0) + ', baie de ' + CRIQUE.z0 + ' à ' + MER + ')'); else info.push('vedette entrée dans la baie jusqu’à z ' + zMin.toFixed(0));
+          sortirVehicule(true); const j = vehicules.indexOf(v); if (j >= 0) { scene.remove(v.mesh); vehicules.splice(j, 1); } }
+        /* 3. le plongeon épique (la tour, 3e saut) */
+        partie(); audioInit(); META.defis.falaiseSaut = 0; cliffDemarrer(); const A = CLIFF.actif; A.n = 2; cliffPlacer(); const S = CLIFF.sauts[2], J = () => A.J;
+        pas(60 * 3, () => { if (0.5 + 0.5 * Math.sin(J().el) > 0.93) return false; }); cliffAppui(true); /* SAUTER en haut de l'élan */
+        const t0 = performance.now(); let tv = 0, cams = new Set(), ventMax = 0, ralenti = false, info1 = '', camRas = 99, demi = 0;
+        const tFin = pas(60 * 8, () => { const j = J(); if (!j || j.phase !== 'vol') return false; tv += 1 / 60; cams.add(CLIFF.camMode); if (CLIFF.vent) ventMax = Math.max(ventMax, CLIFF.vent.k); if (j.lent) ralenti = true;
+          const t = document.getElementById('clfInfo'); if (t && /m ·/.test(t.textContent)) info1 = t.textContent; if (CLIFF.camMode === 'ras') camRas = Math.min(camRas, camera.position.y);
+          const tr = (j.vy + Math.sqrt(j.vy * j.vy + 2 * CLIFF_G * Math.max(0, j.y - CLIFF_EAU))) / CLIFF_G; /* le temps (de chute) avant l'eau : tendu, on tourne encore de CLIFF_LENT × tr */ cliffAppui(j.ang + CLIFF_LENT * tr < Math.PI * 3 - 0.05); demi = j.ang; });
+        cliffAppui(false); const j = J(); const libre = (j.vy0 = 0, Math.sqrt(2 * S.h / CLIFF_G));
+        if (!(tv > libre + 0.35)) ko.push('pas de ralenti : ' + tv.toFixed(2) + ' s de vol pour ' + libre.toFixed(2) + ' s de chute libre');
+        for (const m of ['depart', 'retrans', 'ras']) if (!cams.has(m)) ko.push('caméra « ' + m + ' » jamais vue (' + [...cams].join(', ') + ')');
+        if (camRas > 2) ko.push('caméra au ras de l’eau à ' + camRas.toFixed(1) + ' u');
+        if (!(ventMax > 0.6)) ko.push('vent : ' + ventMax.toFixed(2)); if (CLIFF.vent) ko.push('le vent souffle encore après l’entrée');
+        if (!info1) ko.push('ni hauteur ni vitesse affichées pendant la chute');
+        const notes = j.notes; if (!notes || notes.pts <= 0) ko.push('notes : ' + JSON.stringify(notes)); else { if (!(CLIFF.ovation > 2.4)) ko.push('pas d’ovation (' + CLIFF.ovation.toFixed(1) + ')'); if (META.defis.falaiseSaut !== notes.pts) ko.push('record de plongeon : ' + META.defis.falaiseSaut + ' pour ' + notes.pts); }
+        info.push('tour de ' + S.h + ' m : ' + tv.toFixed(2) + ' s de vol (chute libre ' + libre.toFixed(2) + ' s), caméras ' + [...cams].join(' → ') + ', vent ' + ventMax.toFixed(2) + ', « ' + info1 + ' », ' + (notes ? notes.nom + ' ' + notes.pts + ' pts' : '—'));
+        cliffArreter(false); partie(); return { ko, info };
+      });
+      if (r.ko.length) fail('Liste 22 oct., point 14 : ' + r.ko.join(' ; ') + ' [' + r.info.join(' | ') + ']');
+      else ok('Liste 22 oct., point 14 : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];

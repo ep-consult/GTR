@@ -21,7 +21,7 @@ Ordre suivi : 1, 17, 4, 3, 2, 5, puis le reste.
 | 11 | Explosions, camion-citerne, pompes à essence | ☐ |
 | 12 | Sortir ses véhicules depuis la villa | ☑ |
 | 13 | Plongeons : l'entrée dans l'eau compte | ☑ |
-| 14 | Le plongeon de falaise épique, l'eau en bas | ☐ |
+| 14 | Le plongeon de falaise épique, l'eau en bas | ☑ |
 | 15 | La tour de contrôle, un vrai jeu d'aiguilleur | ☐ |
 | 16 | Course de supercross et sa tenue | ☐ |
 | 17 | Les ponts : décoller en voiture, passer dessous en avion | ☑ |
@@ -30,6 +30,38 @@ Ordre suivi : 1, 17, 4, 3, 2, 5, puis le reste.
 
 - **Branche** : `retours-22oct` part de `retours-20-octobre` (et non de `main`) : les points de la liste portent sur ce que les deux
   chantiers précédents ont construit (canaux V3, paquebot, Cliff Diving, cabrage en équilibre…).
+
+## 14 — Le plongeon de falaise épique, la vraie mer en bas (fait)
+
+**Trouvé** : le « diving » est Reyes Cliff Diving (lot 7 du 20 octobre), à la crique des plongeurs. L'eau au pied des falaises était un
+plan à part (turquoise, son propre shader, 2 cm plus haut), posé au bout de la mer : une autre couleur, et une ligne d'écume du
+rivage en travers de l'entrée de la baie (la mer y dessinait son ressac, z = 286).
+
+**Fait** :
+- **La vraie mer** (`criqueVraieMer`, en fin de décor sur le générateur privé de `mkMerV3`) : l'ancien plan est caché ; à sa place, le
+  shader de la mer lui-même (une copie de son matériau, `CRIQUE.merMat`, où la distance au rivage est prise en valeur absolue : en deçà
+  de la ligne de rivage, le shader croyait être sur la plage — de l'écume partout, une eau presque blanche). Couleur continue au raccord
+  (le plan déborde de 0,6 u sur la mer : pas de liseré), même niveau, la baie s'assombrit vers le fond comme la mer vers le large ;
+  l'entrée de la baie prend le 6e emplacement de `LITTORAL_COUPES` (pas de ressac en travers), les canaux en gardent cinq (ils en
+  utilisent trois). Une vedette venue du large entre dans la baie (mesuré : jusqu'à z = 272 ; la baie va de 266 à 286).
+- **Le plongeon épique** (`CLIFF_RALENTI*`, `cliffVent`, `cameraCliff`) : **ralenti** (×0,32) les 0,45 premières secondes du vol et
+  sous 3,2 u — de la tour de 27 m, le vol dure 3,75 s (2,35 s en chute libre) ; la rotation suit le même temps, rien ne change pour la
+  note ; **caméra** en trois plans — derrière le plongeur au décollage (le vide sous lui, champ ouvert), la retransmission depuis la mer
+  pendant la chute (le champ se resserre à mesure qu'il descend), au ras de l'eau pour l'entrée ; **vent** (bruit filtré qui forcit et
+  monte en fréquence avec la vitesse, coupé à l'entrée et à l'arrêt) ; la **foule** retient son souffle au décollage et ovationne plus
+  longtemps de haut ; **gerbe** à l'échelle de la hauteur ; **hauteur et vitesse** à l'écran pendant la chute (« ▼ 12 m · 54 km/h ·
+  RALENTI ») ; **record par plongeon** (`META.defis.falaiseSaut`, clé fixe ; « RECORD ! » sous les notes).
+
+**Empreinte** : tirages identiques ; un enfant de scène de plus (le plan de mer de la baie).
+
+**Test** « Liste du 22 octobre, point 14 » : la baie (lancer de rayon depuis le ciel) montre le shader de la mer, au niveau de la mer,
+l'ancienne eau cachée ; une vedette entre dans la baie au joystick ; un plongeon de la tour par un pilote qui anticipe (il lâche quand
+l'angle plus la lente rotation qui reste le mènent à la verticale) : vol plus long que la chute libre, les trois plans de caméra, vent
+qui forcit puis se tait, hauteur et vitesse affichées, entrée propre (Salto et demi, 142,5 points), ovation, record noté. Le lot 7
+(pilote, maladroit, passif) et la crique repassent.
+
+**Captures** : `avant_14_baie.png` / `14_baie.png` (la baie vue de dessus), `14_depart_tour.png` (le plan derrière le plongeur),
+`14_entree_ras.png` (au ras de l'eau, ralenti).
 
 ## 13 — Plongeons : l'entrée dans l'eau compte (fait)
 
