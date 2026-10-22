@@ -22,7 +22,7 @@ Ordre suivi : 1, 17, 4, 3, 2, 5, puis le reste.
 | 12 | Sortir ses véhicules depuis la villa | ☑ |
 | 13 | Plongeons : l'entrée dans l'eau compte | ☑ |
 | 14 | Le plongeon de falaise épique, l'eau en bas | ☑ |
-| 15 | La tour de contrôle, un vrai jeu d'aiguilleur | ☐ |
+| 15 | La tour de contrôle, un vrai jeu d'aiguilleur | ☑ |
 | 16 | Course de supercross et sa tenue | ☐ |
 | 17 | Les ponts : décoller en voiture, passer dessous en avion | ☑ |
 
@@ -31,6 +31,46 @@ Ordre suivi : 1, 17, 4, 3, 2, 5, puis le reste.
 - **Branche** : `retours-22oct` part de `retours-20-octobre` (et non de `main`) : les points de la liste portent sur ce que les deux
   chantiers précédents ont construit (canaux V3, paquebot, Cliff Diving, cabrage en équilibre…).
 
+## 15 — La tour de contrôle : un vrai jeu d'aiguilleur (fait)
+
+**Avant** : les avions arrivaient des bords, tournaient en rond, un appui les posait (en ligne droite jusqu'au seuil) ; une piste, un
+atterrissage à la fois ; 10 avions en 80 s.
+
+**Fait** (module `TOUR DE CONTRÔLE` réécrit, même interface : `lancerTour`, `tourAutoriser`, `majTour`, `tourFinir`, `fermerTour`) :
+- **Le vent** (`TOUR.vent` : d'où il vient, sa force) : une flèche sur le radar, le cap et les nœuds dans le bandeau ; la partie
+  commence face au vent ; **il tourne** vers 55 s (« MÉTÉO : le vent tourne — changez de piste ! »). Bouton **PISTE 36 / 18 ⇄**
+  (`tourChangerPiste`), refusé si un avion est en base, en finale ou sur la piste ; les départs repartent vers le nouveau point
+  d'attente. Jusqu'à 10 kt de vent arrière on se pose ; au-delà, remise des gaz (un MAYDAY se pose quand même).
+- **Les arrivées** tournent en **hippodrome** sur deux points d'attente (NOVEMBER, SIERRA) ; un appui = « autorisé approche » :
+  **vent arrière** à l'est de la piste, **base**, **finale**, atterrissage, dégagement. Au début de la finale : piste occupée, avion de
+  devant trop près ou trop de vent arrière → **remise des gaz** (retour en vent arrière : du temps et du carburant). Dans le circuit,
+  la **séparation** (`TOUR_SEP`) : on ralentit derrière l'avion de devant ; piste prise, on allonge la base.
+- **Les départs** apparaissent au parking : un appui = roulage jusqu'au point d'attente (un départ à la fois) ; un second = alignement
+  et décollage — refusé si la piste est occupée ou si une arrivée est en base.
+- **Carburant** par arrivée (75 s), **urgences** MAYDAY une sur quatre (50 s) : à sec, l'avion s'écrase, partie perdue.
+- **Radio** : les trois derniers messages sous le radar (« TOUR : RY 292, autorisé atterrissage piste 36. », « KX 145 : remise des gaz !
+  (vent arrière de 12 kt) », « LR 530 : décollé, au revoir Los Reyes. »).
+- Objectif : **12 mouvements** (atterrissages et décollages) en **130 s** ; prime une fois par vague, défi « avions posés » (les
+  atterrissages), tenue de l'aiguilleur inchangés.
+
+**Équilibrage, prouvé par un pilote simulé au doigt** (il touche les avions sur le radar et le bouton de piste ; une décision toutes
+les 0,25 s : piste face au vent, décollage dans un trou, arrivée la plus à court de carburant, un roulage ; il laisse un trou dans les
+arrivées quand un départ attend, sauf urgence) : sur trois graines, il gagne en 116 à 123 s (0 à 1 remise des gaz) ; **sans rien
+faire**, un avion s'écrase à 76 s ; **en traînant** (9 s entre deux décisions), 10 à 11 mouvements sur 12 : perdu.
+
+**Décision** : le jeu se joue au doigt (un appui = l'autorisation suivante de l'avion touché) ; les remises des gaz sont automatiques
+(c'est la conséquence d'une mauvaise décision, jamais une action de plus à faire) ; les départs passent par un seul point d'attente.
+
+**Test** « Liste du 22 octobre, point 15 » : face au vent au départ, vent affiché ; une arrivée passe par entrée, vent arrière, base,
+finale, roulage et se pose ; pas de changement de piste pendant une finale, pas de décollage pendant une finale ; remise des gaz avec
+15 kt dans le dos (et son message radio) ; le pilote simulé (bon, passif, lent) sur trois graines ; jamais deux avions sur la piste ;
+tous les états vus (hippodrome, circuit, parking, roulage, point d'attente, alignement, décollage) ; le vent tourne. « Aéroport,
+suite » (lancement, trêve, prime une fois par vague, pas deux avions sur la piste) et « Défis de la 3e série » (un avion posé) adaptés
+et verts.
+
+**Captures** : `15_radar_debut.png`, `15_radar_vent.png` (après le changement de vent, piste 18 ; avant : `avant_15_*.png`).
+
+**Reste** : sur iPhone, vérifier que l'on touche facilement un avion quand deux étiquettes se chevauchent au parking.
 ## 10 — La cassure du Reyes Majestic, beaucoup plus impressionnante (fait)
 
 **Trouvé dans la source** : le « Titanic » est le paquebot échoué **Reyes Majestic** (`PAQ`, retours du 20 octobre, lot 6). **Avant** :

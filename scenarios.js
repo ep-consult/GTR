@@ -11106,21 +11106,10 @@ async function main() {
         const cit = vehicules.find((o) => o.key === 'citerne'); if (cit) { const vo = creerVehicule('citadine', cit.x + 7, cit.z, 0); const h0 = vo.hp; exploserVehicule(cit); if (!(vo.hp < h0 || vo.mort)) ko.push('la citerne ne souffle pas sa voisine'); }
         // tour de contrôle : le bouton, la trêve
         P.x = AERO.tour.x; P.z = AERO.tour.z; P.y = solPied(P.x, P.z); majAction(); if (!/TOUR DE CONTRÔLE/.test(el('btnAction').textContent)) ko.push('pas de bouton à la tour (' + el('btnAction').textContent + ')');
-        const joue = (strat) => { el('btnAction')._fn(); if (!TOUR.actif || !treveActivite()) ko.push('la partie ne démarre pas'); let t = 0, prochain = 0;
-          while (TOUR.actif && t < TOUR_DUREE + 5) { majTour(1 / 30); t += 1 / 30;
-            if (strat && !TOUR.piste && !TOUR.fin && t >= prochain) { let b = null; for (const a of TOUR.avions) if (a.etat !== 'final' && (!b || a.carbu < b.carbu)) b = a; if (b && tourAutoriser(b)) prochain = t + strat; } }
-          return { t, poses: TOUR.poses, fin: TOUR.fin, actif: TOUR.actif }; };
-        let a0 = META.argent; const bon = joue(0.2);
-        if (bon.fin !== 'gagne' || META.argent - a0 !== TOUR_PRIME) ko.push('bien joué : ' + JSON.stringify(bon) + ', prime ' + (META.argent - a0));
-        info.push('bien joué : ' + TOUR_OBJ + ' posés en ' + bon.t.toFixed(0) + ' s sur ' + TOUR_DUREE);
-        a0 = META.argent; const bis = joue(0.2); if (bis.fin !== 'gagne' || META.argent !== a0) ko.push('deuxième prime la même vague');
-        const rien = joue(null); if (rien.fin !== 'perdu' || rien.poses) ko.push('sans rien faire : ' + JSON.stringify(rien));
-        info.push('sans rien faire : crash à ' + rien.t.toFixed(0) + ' s');
-        const lent = joue(9); if (lent.fin !== 'perdu') ko.push('en traînant (9 s entre deux autorisations) : ' + JSON.stringify(lent)); else info.push('en traînant : perdu à ' + lent.t.toFixed(0) + ' s (' + lent.poses + ' posés)');
-        if (TOUR.actif) ko.push('le radar reste ouvert');
-        // pas de piste double : autoriser un deuxième avion pendant un atterrissage est refusé
-        el('btnAction')._fn(); for (let i = 0; i < 30 * 8; i++) majTour(1 / 30); const av = TOUR.avions.filter((a) => a.etat !== 'final');
-        if (av.length >= 2) { tourAutoriser(av[0]); if (tourAutoriser(av[1]) || TOUR.avions.filter((a) => a.etat === 'final').length !== 1) ko.push('deux avions sur la piste'); }
+        /* le jeu lui-même (vent, circuit, départs, pilote simulé qui gagne et perd) : test « Liste du 22 octobre, point 15 » ; ici le lancement, la trêve, la prime une fois par vague */
+        el('btnAction')._fn(); if (!TOUR.actif || !treveActivite()) ko.push('la partie ne démarre pas'); let a0 = META.argent; tourFinir(true); if (META.argent - a0 !== TOUR_PRIME) ko.push('pas de prime (' + (META.argent - a0) + ')'); for (let i = 0; i < 90; i++) majTour(1 / 30); if (TOUR.actif) ko.push('le radar reste ouvert après la fin');
+        el('btnAction')._fn(); a0 = META.argent; tourFinir(true); if (META.argent !== a0) ko.push('deuxième prime la même vague'); fermerTour(); info.push('tour de contrôle : lancée, trêve, prime une fois par vague');
+        el('btnAction')._fn(); for (let i = 0; i < 30 * 8; i++) majTour(1 / 30); const av = TOUR.avions.filter((q) => q.type === 'arr'); if (av.length >= 2) { tourAutoriser(av[0]); tourAutoriser(av[1]); let deux = 0; for (let i = 0; i < 30 * 40; i++) { majTour(1 / 30); if (TOUR.avions.filter((q) => q.etat === 'finale' || q.etat === 'roule_piste').length > 1) deux++; } if (deux) ko.push('deux avions sur la piste'); } fermerTour();
         startRun(); if (TOUR.actif || TOUR.vague !== -1) ko.push('startRun ne remet pas la tour à zéro');
         // aucune géométrie perdue d'une partie à l'autre (faune, véhicules, ennemis libérés)
         // même point de vue ET même tirage à chaque partie (le test maîtrise sa scène) : sans ça, le trafic et les voitures
@@ -19293,6 +19282,60 @@ async function main() {
         if (P.veh) sortirVehicule(true); return { ko, info }; });
       if (r.ko.length) fail('Liste 22 oct., point 10 : ' + r.ko.join(' ; ') + ' [' + r.info.join(' | ') + ']');
       else ok('Liste 22 oct., point 10 : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
+    // Liste du 22 octobre, point 15 : la tour de contrôle, un vrai jeu d'aiguilleur. Lu dans TOUR, TOUR_ATTENTES, TOUR_PARKING :
+    // le vent affiché et le sens de piste (le bouton change de piste, refusé piste occupée) ; une arrivée en hippodrome, autorisée,
+    // fait vent arrière, base, finale, se pose ; un départ roule, attend, s'aligne et décolle — refusé si la piste est occupée ; jamais
+    // deux avions sur la piste ; remise des gaz si la piste est occupée ou au vent arrière ; une urgence MAYDAY ; messages radio ; le
+    // vent tourne en cours de partie. Pilote simulé au vrai doigt (tourToucher sur l'avion, le bouton de piste) sur trois graines :
+    // il gagne en jouant bien ; passif ou lent, il perd.
+    // -------------------------------------------------------------------
+    console.log('\n--- Liste du 22 octobre, point 15 : la tour de contrôle, un vrai jeu d’aiguilleur ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = []; const rnd0 = Math.random;
+        if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; WAVES.etat = 'repos'; WAVES.t = 1e9; P.x = AERO.tour.x; P.z = AERO.tour.z; P.y = solPied(P.x, P.z);
+        const toucher = (a) => tourToucher(a.x, a.y);
+        const enCircuit = () => TOUR.avions.filter((a) => ['entree', 'vent_arriere', 'base', 'finale'].includes(a.etat)).length;
+        const agir = () => { /* une décision, comme au doigt : piste face au vent, décollage prêt, une arrivée (le moins de carburant), un roulage */
+          if (!tourVentBon() && tourChangerPiste()) return true;
+          const dep = TOUR.avions.find((a) => a.etat === 'point_attente'); const C0 = tourCircuit(); if (dep && !tourPisteOccupee() && !TOUR.avions.some((q) => q.etat === 'base' || q.etat === 'finale' || (q.etat === 'vent_arriere' && Math.hypot(q.x - C0.B.x, q.y - C0.B.y) < 0.5))) { toucher(dep); if (dep.etat === 'aligne') return true; }
+          const urgent = TOUR.avions.some((a) => a.type === 'arr' && (a.urg || a.carbu < 45) && (a.etat === 'attente' || a.etat === 'approche')); if (urgent || enCircuit() < (dep ? 2 : 3)) { /* un départ attend : on lui laisse un trou dans les arrivées */ let b = null; for (const a of TOUR.avions) if (a.type === 'arr' && (a.etat === 'attente' || a.etat === 'approche') && (!b || a.carbu < b.carbu)) b = a; if (b) { toucher(b); if (b.etat === 'entree') return true; } }
+          const pk = TOUR.avions.find((a) => a.etat === 'parking'); if (pk && !TOUR.avions.some((q) => q.etat === 'roulage' || q.etat === 'point_attente')) { toucher(pk); return true; } return false; };
+        const joue = (graine, strat) => { let g = graine; Math.random = () => { g = (g * 1664525 + 1013904223) >>> 0; return g / 4294967296; };
+          try { lancerTour(); let t = 0, prochain = 0, deux = 0, maxPiste = 0; const etats = new Set(), radio = new Set();
+            while (TOUR.actif && t < TOUR_DUREE + 6) { majTour(1 / 30); t += 1 / 30; for (const a of TOUR.avions) etats.add(a.etat); for (const m of TOUR.radio) radio.add(m.split(' ')[0] === 'TOUR' ? 'TOUR' : m.split(':')[1] ? m.split(':')[1].trim().split(' ')[0] : '');
+              const surPiste = TOUR.avions.filter((a) => ['finale', 'roule_piste', 'aligne', 'decolle'].includes(a.etat) && !(a.etat === 'decolle' && Math.abs(a.y) > 0.36)).length; maxPiste = Math.max(maxPiste, surPiste);
+              if (strat && !TOUR.fin && t >= prochain) { if (agir()) prochain = t + strat; else prochain = t + 0.25; } }
+            return { t, fin: TOUR.fin, mouv: TOUR.mouv, poses: TOUR.poses, remises: TOUR.remises, etats, maxPiste }; } finally { Math.random = rnd0; } };
+        /* 1) les règles : piste, vent, refus */
+        { let g = 7; Math.random = () => { g = (g * 1664525 + 1013904223) >>> 0; return g / 4294967296; }; try { lancerTour(); } finally { Math.random = rnd0; }
+          if (!tourVentBon()) ko.push('la partie commence vent arrière'); if (!TOUR.vent || !(TOUR.vent.kt > 0) || !/kt/.test(TOUR.info ? TOUR.txt + tourVentTxt() : '')) ko.push('pas de vent affiché');
+          for (let i = 0; i < 30 * 12; i++) majTour(1 / 30); const arr = TOUR.avions.find((a) => a.type === 'arr'); if (!arr || !['approche', 'attente'].includes(arr.etat)) ko.push('pas d’arrivée en attente (' + (arr && arr.etat) + ')');
+          toucher(arr); if (arr.etat !== 'entree') ko.push('l’arrivée n’entre pas dans le circuit');
+          const vus = new Set(); let tt = 0; while (TOUR.actif && tt < 40 && TOUR.avions.includes(arr)) { majTour(1 / 30); tt += 1 / 30; vus.add(arr.etat); if (arr.etat === 'finale' && tourChangerPiste()) ko.push('on change de piste pendant une finale');
+            if (arr.etat === 'finale') { const dp = tourNouveauDepart(); if (dp) { dp.etat = 'point_attente'; dp.x = tourCircuit().HP.x; dp.y = tourCircuit().HP.y; if (tourAutoriser(dp)) ko.push('un décollage autorisé pendant une finale'); TOUR.avions.splice(TOUR.avions.indexOf(dp), 1); } } }
+          for (const e of ['entree', 'vent_arriere', 'base', 'finale', 'roule_piste']) if (!vus.has(e)) ko.push('le circuit ne passe pas par ' + e);
+          if (TOUR.poses < 1) ko.push('l’arrivée ne se pose pas'); fermerTour(); }
+        /* 2) la remise des gaz : vent arrière sur la piste */
+        { let g = 9; Math.random = () => { g = (g * 1664525 + 1013904223) >>> 0; return g / 4294967296; }; try { lancerTour(); } finally { Math.random = rnd0; }
+          for (let i = 0; i < 30 * 10; i++) majTour(1 / 30); TOUR.vent.de += Math.PI; TOUR.vent.kt = 15; const arr = TOUR.avions.find((a) => a.type === 'arr' && !a.urg); toucher(arr); let tt = 0; while (TOUR.actif && tt < 30 && !TOUR.remises) { majTour(1 / 30); tt += 1 / 30; }
+          if (!TOUR.remises || arr.etat === 'finale') ko.push('pas de remise des gaz avec le vent dans le dos'); else if (!TOUR.radio.some((m) => /remise des gaz/.test(m))) ko.push('pas de message radio de remise des gaz'); fermerTour(); }
+        /* 3) le pilote simulé : bon, passif, lent, sur trois graines */
+        const res = [], tousEtats = new Set();
+        for (const gr of [11, 23, 57]) { const bon = joue(gr, 0.25), rien = joue(gr, null), lent = joue(gr, 9); res.push([gr, bon, rien, lent]);
+          if (bon.fin !== 'gagne') ko.push('graine ' + gr + ' : le bon aiguilleur perd (' + bon.mouv + ' mouvements, ' + bon.t.toFixed(0) + ' s)');
+          if (rien.fin !== 'perdu' || rien.mouv) ko.push('graine ' + gr + ' : sans rien faire, ' + JSON.stringify({ fin: rien.fin, mouv: rien.mouv }));
+          if (lent.fin !== 'perdu') ko.push('graine ' + gr + ' : en traînant (9 s entre deux décisions), ' + lent.fin + ' (' + lent.mouv + ')');
+          if (bon.maxPiste > 1) ko.push('graine ' + gr + ' : deux avions sur la piste');
+          for (const e of bon.etats) tousEtats.add(e); }
+        for (const e of ['attente', 'vent_arriere', 'base', 'finale', 'parking', 'roulage', 'point_attente', 'aligne', 'decolle']) if (!tousEtats.has(e)) ko.push('jamais « ' + e + ' » en trois parties');
+        if (!TOUR.ventTourne) ko.push('le vent ne tourne jamais');
+        info.push(res.map(([gr, b, r2, l]) => 'graine ' + gr + ' : bon ' + b.mouv + ' mouvements (' + b.poses + ' atterrissages) en ' + b.t.toFixed(0) + ' s, ' + b.remises + ' remise(s) des gaz ; passif perdu à ' + r2.t.toFixed(0) + ' s ; lent perdu (' + l.mouv + ')').join(' ; '));
+        startRun(); if (TOUR.actif) ko.push('startRun ne ferme pas la tour'); return { ko, info }; });
+      if (r.ko.length) fail('Liste 22 oct., point 15 : ' + r.ko.slice(0, 12).join(' ; ') + ' [' + r.info.join(' | ') + ']');
+      else ok('Liste 22 oct., point 15 : ' + r.info.join(' ; '));
     }
     // -------------------------------------------------------------------
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');

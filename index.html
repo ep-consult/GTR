@@ -16890,93 +16890,153 @@ function aeroStartRun(){
   aeroVieStartRun(); // véhicules de piste qui circulent, file de taxis
   hillsStartRun(); // Los Reyes Hills : voitures dans les lacets et dans les allées, sécurité privée
 }
-/* TOUR DE CONTRÔLE (14 octobre, demandé : « un jeu dans la tour de contrôle ») : écran radar plein écran.
-   Les avions arrivent des bords et tournent en attente ; toucher un avion l'autorise à atterrir. Une seule
-   piste : un atterrissage à la fois (TOUR_ATTERR s). Chaque avion a son carburant (TOUR_CARBU s, une
-   urgence sur quatre : TOUR_URGENCE s) : à sec, il s'écrase et la partie est perdue ; perdue aussi si le
-   temps est écoulé. Poser TOUR_OBJ avions : prime une fois par vague. Tout sur dtJeu. Coordonnées du radar
-   normalisées (rayon 1), piste verticale au centre. */
-const TOUR={actif:false,el:null,cv:null,ctx:null,avions:[],piste:null,poses:0,t:0,spawnT:0,n:0,vague:-1,fin:null,finT:0,balai:0,txt:''};
-const TOUR_OBJ=10, TOUR_DUREE=80, TOUR_ATTERR=4.5, TOUR_CARBU=28, TOUR_URGENCE=15, TOUR_PRIME=450;
-const TOUR_SEUIL={x:0,y:0.45}, TOUR_FIN={x:0,y:-0.4};
+/* TOUR DE CONTRÔLE (14 octobre, demandé : « un jeu dans la tour de contrôle » ; refait le 22 octobre, point 15 : « un vrai jeu
+   d'aiguilleur : vent affiché et choix du sens de piste ; arrivées sur un circuit d'approche (vent arrière, base, finale) ; attentes en
+   hippodrome ; départs à autoriser (roulage, alignement, décollage) ; piste occupée ; séparation minimale, remise des gaz, carburant,
+   urgences ; messages radio courts ; jouable au doigt »). Écran radar plein écran, coordonnées normalisées (rayon 1), piste
+   verticale au centre (de y −0,35 à +0,35). Un appui sur un avion lui donne l'autorisation SUIVANTE :
+   - une ARRIVÉE vient du bord et tourne en hippodrome sur l'un des deux points d'attente (TOUR_ATTENTES) ; autorisée, elle entre dans
+     le circuit (vent arrière à l'est de la piste, base, finale) et se pose ; au début de la finale, si la piste est occupée, si l'avion
+     de devant est trop près (TOUR_SEP) ou si elle aurait le vent dans le dos (mauvais sens de piste), REMISE DES GAZ : elle repart en
+     vent arrière (du temps et du carburant perdus). Carburant TOUR_CARBU s, urgences (une sur quatre, MAYDAY) TOUR_URGENCE s : à sec,
+     elle s'écrase — partie perdue ;
+   - un DÉPART attend au parking : autorisé, il roule jusqu'au point d'attente de la piste en service ; autorisé de nouveau, il s'aligne
+     et décolle — refusé si la piste est occupée ou si une arrivée est en courte finale ;
+   - le VENT (TOUR.vent : d'où il vient, sa force) est affiché ; il tourne une fois en cours de partie : le bouton PISTE 36 / 18 change le
+     sens (seulement piste libre et personne en finale).
+   TOUR_OBJ mouvements (atterrissages et décollages) en TOUR_DUREE s : prime une fois par vague. Tout sur dtJeu. */
+const TOUR={actif:false,el:null,cv:null,ctx:null,avions:[],piste:null,poses:0,mouv:0,t:0,spawnT:0,depT:0,n:0,vague:-1,fin:null,finT:0,balai:0,txt:'',sens:1,vent:{de:0,kt:10},ventTourne:false,radio:[],remises:0};
+const TOUR_OBJ=12, TOUR_DUREE=130, TOUR_CARBU=75, TOUR_URGENCE=50, TOUR_PRIME=450, TOUR_SEP=0.36, TOUR_V=0.13, TOUR_VFIN=0.1, TOUR_ROULE=0.05;
+const TOUR_ATTENTES=[{x:-0.66,y:0.18},{x:-0.62,y:-0.42}], TOUR_PARKING=[{x:-0.16,y:0.12},{x:-0.16,y:-0.02},{x:-0.16,y:-0.16}];
+const TOUR_SEUIL={x:0,y:-0.35}, TOUR_FIN={x:0,y:0.35}; /* le seuil et le bout de la piste, sens 36 (TOUR.sens = 1) ; en 18, tout s'inverse */
 function tourProche(){ return !P.veh&&!TOUR.actif&&AERO.tour&&P.y<4&&dist2(P.x,P.z,AERO.tour.x,AERO.tour.z)<9; }
+/* les points du circuit pour le sens en service : vent arrière (D), base (B), début de finale (F), seuil (Tq), sortie de piste (S),
+   point d'attente des départs (HP), bout de piste (E) */
+function tourCircuit(){ const s=TOUR.sens; return {D:{x:0.32,y:0.38*s},B:{x:0.32,y:-0.58*s},F:{x:0,y:-0.58*s},Tq:{x:0,y:-0.35*s},S:{x:0,y:-0.15*s},HP:{x:-0.08,y:-0.31*s},E:{x:0,y:0.35*s}}; }
+function tourRadio(t){ TOUR.radio.push(t); if(TOUR.radio.length>3) TOUR.radio.shift(); TOUR.radioTxt=null; }
+function tourVentBon(){ return Math.cos(TOUR.vent.de-(TOUR.sens>0?0:Math.PI))>0; } /* face au vent : le vent du nord (de = 0) veut la piste 36 */
 function lancerTour(){
   if(TOUR.actif) return;
   if(!TOUR.el){ const d=document.createElement('div'); d.id='tourCtrl';
     d.style.cssText='position:fixed;inset:0;z-index:60;background:#04100a;color:#b8ffb0;font:700 13px Arial;display:none;flex-direction:column;padding:calc(env(safe-area-inset-top) + 8px) 10px calc(env(safe-area-inset-bottom) + 10px)';
-    d.innerHTML='<div style="display:flex;align-items:center;gap:8px"><div style="flex:1;font:900 16px Arial;color:#7dff7a">📡 TOUR DE CONTRÔLE</div><button class="pill" id="tcQuit">✕ QUITTER</button></div>'+
+    d.innerHTML='<div style="display:flex;align-items:center;gap:8px"><div style="flex:1;font:900 16px Arial;color:#7dff7a">📡 TOUR DE CONTRÔLE</div><button class="pill" id="tcPiste">PISTE 36</button><button class="pill" id="tcQuit">✕ QUITTER</button></div>'+
       '<div id="tcInfo" style="margin:6px 0;font:700 13px Arial"></div><canvas id="tcCv" style="flex:1;width:100%;min-height:0;touch-action:none"></canvas>'+
-      '<div style="font:600 12px Arial;opacity:0.8;margin-top:6px">Touche un avion pour l’autoriser à atterrir. Une seule piste : un avion à la fois. Les urgences (rouge) d’abord !</div>';
-    document.body.appendChild(d); TOUR.el=d; TOUR.cv=d.querySelector('#tcCv'); TOUR.ctx=TOUR.cv.getContext('2d'); TOUR.info=d.querySelector('#tcInfo');
+      '<div id="tcRadio" style="font:700 12px monospace;color:#d8ffd0;background:rgba(125,255,122,0.08);border-radius:8px;padding:6px 8px;margin-top:6px;min-height:46px;white-space:pre-line"></div>'+
+      '<div style="font:600 11px Arial;opacity:0.75;margin-top:4px">Touche un avion : en attente → approche ; au parking → roulage ; au point d’attente → décollage. Piste face au vent !</div>';
+    document.body.appendChild(d); TOUR.el=d; TOUR.cv=d.querySelector('#tcCv'); TOUR.ctx=TOUR.cv.getContext('2d'); TOUR.info=d.querySelector('#tcInfo'); TOUR.radioEl=d.querySelector('#tcRadio'); TOUR.btnPiste=d.querySelector('#tcPiste');
     d.querySelector('#tcQuit').addEventListener('pointerdown',(e)=>{ e.preventDefault(); fermerTour(); });
+    TOUR.btnPiste.addEventListener('pointerdown',(e)=>{ e.preventDefault(); tourChangerPiste(); });
     TOUR.cv.addEventListener('pointerdown',(e)=>{ e.preventDefault(); const r=TOUR.cv.getBoundingClientRect(), R=Math.min(r.width,r.height)*0.46;
       tourToucher((e.clientX-r.left-r.width/2)/R,-(e.clientY-r.top-r.height/2)/R); }); }
-  TOUR.actif=true; TOUR.avions=[]; TOUR.piste=null; TOUR.poses=0; TOUR.t=0; TOUR.spawnT=0; TOUR.n=0; TOUR.fin=null; TOUR.finT=0; TOUR.txt='';
-  TOUR.el.style.display='flex'; SFX.ui(); bigMsg('📡 '+TOUR_OBJ+' AVIONS À POSER');
-}
+  const de=Math.random()<0.5?0.15:Math.PI-0.2; /* d'où vient le vent : du nord ou du sud, un peu de travers */
+  Object.assign(TOUR,{actif:true,avions:[],piste:null,poses:0,mouv:0,t:0,spawnT:0,depT:7,n:0,fin:null,finT:0,txt:'',radio:[],remises:0,vent:{de,kt:8+Math.floor(Math.random()*10)},ventTourne:false});
+  TOUR.sens=Math.cos(de)>0?1:-1; tourRadio('TOUR : vent '+tourVentTxt()+', piste '+(TOUR.sens>0?'36':'18')+' en service.');
+  TOUR.el.style.display='flex'; SFX.ui(); bigMsg('📡 '+TOUR_OBJ+' MOUVEMENTS : ATTERRISSAGES ET DÉCOLLAGES'); }
+function tourVentTxt(){ const d=((TOUR.vent.de*180/Math.PI)%360+360)%360; return String(Math.round(d/10)*10).padStart(3,'0')+'° '+TOUR.vent.kt+' kt'; }
 function fermerTour(){ if(!TOUR.actif) return; TOUR.actif=false; TOUR.avions=[]; TOUR.piste=null; if(TOUR.el) TOUR.el.style.display='none'; }
-function tourNouvelAvion(){
-  const n=TOUR.n++, a=Math.random()*Math.PI*2, urg=n%4===3;
-  TOUR.avions.push({x:Math.cos(a)*1.05,y:Math.sin(a)*1.05,cap:a+Math.PI,etat:'approche',carbu:urg?TOUR_URGENCE:TOUR_CARBU,urg,sens:Math.random()<0.5?1:-1,
-    nom:pick(['RY','AF','LR','KX','ZB'])+' '+(100+Math.floor(Math.random()*900)),ft:0,x0:0,y0:0});
-}
+function tourNom(){ return pick(['RY','AF','LR','KX','ZB','EZ'])+' '+(100+Math.floor(Math.random()*900)); }
+function tourNouvelAvion(){ const n=TOUR.n++, a=Math.PI*(0.55+Math.random()*0.9)+(n%2?0:Math.PI*0.9), urg=n%4===3, hold=n%2;
+  const av={x:Math.cos(a)*1.05,y:Math.sin(a)*1.05,cap:a+Math.PI,type:'arr',etat:'approche',hold,ha:Math.random()*6.3,carbu:urg?TOUR_URGENCE:TOUR_CARBU,carbu0:urg?TOUR_URGENCE:TOUR_CARBU,urg,nom:tourNom(),cible:null,v:TOUR_V};
+  TOUR.avions.push(av); tourRadio(av.nom+(urg?' : MAYDAY, carburant bas !':' : bonjour Los Reyes, en approche.')); if(urg) SFX.refus(); return av; }
+function tourNouveauDepart(){ const libre=TOUR_PARKING.find((p)=>!TOUR.avions.some((a)=>a.type==='dep'&&a.park===p)); if(!libre) return null;
+  const av={x:libre.x,y:libre.y,cap:Math.PI/2,type:'dep',etat:'parking',park:libre,carbu:Infinity,urg:false,nom:tourNom(),v:0};
+  TOUR.avions.push(av); tourRadio(av.nom+' : au parking, prêt à rouler.'); return av; }
+/* la piste est-elle prise : un avion dessus, ou une arrivée en finale */
+function tourPisteOccupee(sauf){ for(const a of TOUR.avions){ if(a===sauf) continue; if(a.etat==='aligne'||a.etat==='decolle'||a.etat==='roule_piste'||a.etat==='finale') return a; } return null; }
 function tourAutoriser(a){
-  if(!a||a.etat==='final'||TOUR.fin) return false;
-  if(TOUR.piste){ SFX.refus(); toast('Piste occupée — attends que '+TOUR.piste.nom+' se pose','warn'); return false; }
-  a.etat='final'; a.ft=0; a.x0=a.x; a.y0=a.y; TOUR.piste=a; SFX.ui(); return true;
-}
+  if(!a||TOUR.fin) return false; const C=tourCircuit();
+  if(a.type==='arr'&&(a.etat==='approche'||a.etat==='attente')){ a.etat='entree'; a.cible=C.D; a.v=TOUR_V; tourRadio('TOUR : '+a.nom+', autorisé approche piste '+(TOUR.sens>0?'36':'18')+', vent arrière.'); SFX.ui(); return true; }
+  if(a.type==='dep'&&a.etat==='parking'){ const dev=TOUR.avions.find((q)=>q.etat==='roulage'||q.etat==='point_attente'); if(dev){ SFX.refus(); toast(dev.nom+' est déjà au point d’attente — un départ à la fois','warn'); return false; } a.etat='roulage'; a.cible=C.HP; tourRadio('TOUR : '+a.nom+', roulez point d’attente piste '+(TOUR.sens>0?'36':'18')+'.'); SFX.ui(); return true; }
+  if(a.type==='dep'&&a.etat==='point_attente'){ const occ=tourPisteOccupee(a), court=TOUR.avions.some((q)=>q.type==='arr'&&q.etat==='base');
+    if(occ||court){ SFX.refus(); toast('Piste occupée — '+(occ||TOUR.avions.find((q)=>q.etat==='base')).nom+(occ?' est sur la piste':' arrive en base'),'warn'); return false; }
+    a.etat='aligne'; a.cible=C.Tq; a.v=TOUR_ROULE; TOUR.piste=a; tourRadio('TOUR : '+a.nom+', alignez-vous, autorisé décollage piste '+(TOUR.sens>0?'36':'18')+'.'); SFX.ui(); return true; }
+  return false; }
+function tourChangerPiste(){ if(!TOUR.actif||TOUR.fin) return false;
+  if(tourPisteOccupee()||TOUR.avions.some((a)=>a.etat==='base')){ SFX.refus(); toast('On ne change pas de piste : un avion est en base, en finale ou sur la piste','warn'); return false; }
+  TOUR.sens=-TOUR.sens; for(const a of TOUR.avions) if(a.etat==='point_attente') a.etat='roulage'; /* les départs roulent jusqu'au nouveau point d'attente */
+  tourRadio('TOUR : piste '+(TOUR.sens>0?'36':'18')+' en service.'); SFX.ui(); return true; }
 function tourToucher(nx,ny){ let best=null, bd=0.2*0.2; for(const a of TOUR.avions){ const d=(a.x-nx)**2+(a.y-ny)**2; if(d<bd){ bd=d; best=a; } } if(best) tourAutoriser(best); }
-function tourFinir(gagne){
+function tourFinir(gagne,pourquoi){
   if(TOUR.fin) return; TOUR.fin=gagne?'gagne':'perdu'; TOUR.finT=2.2;
-  if(gagne){ ETAT.score+=1500; exploitMiniJeu('tour'); let txt='🛬 '+TOUR_OBJ+' AVIONS POSÉS';
+  if(gagne){ ETAT.score+=1500; exploitMiniJeu('tour'); let txt='🛬 '+TOUR_OBJ+' MOUVEMENTS SANS INCIDENT';
     if(TOUR.vague!==WAVES.n){ TOUR.vague=WAVES.n; META.argent+=TOUR_PRIME; ETAT.cashRun+=TOUR_PRIME; txt+=' +'+TOUR_PRIME+' $'; sauveMeta(); } else toast('Prime déjà touchée cette vague','warn');
     bigMsg(txt); SFX.achat(); }
-  else { bigMsg(TOUR.t>=TOUR_DUREE?'⏱️ TROP LENT':'💥 CRASH — À SEC'); SFX.refus(); vibre(80); }
-}
+  else { bigMsg(pourquoi||(TOUR.t>=TOUR_DUREE?'⏱️ TROP LENT':'💥 CRASH — À SEC')); SFX.refus(); vibre(80); } }
+/* avancer vers un point à la vitesse v ; vrai quand on y est */
+function tourVers(a,c,v,dt){ const dx=c.x-a.x, dy=c.y-a.y, d=Math.hypot(dx,dy), p=v*dt; a.cap=Math.atan2(dy,dx); if(d<=p){ a.x=c.x; a.y=c.y; return true; } a.x+=dx/d*p; a.y+=dy/d*p; return false; }
+function tourRemise(a,pourquoi){ const C=tourCircuit(); a.etat='entree'; a.cible=C.D; a.v=TOUR_V; TOUR.remises++; tourRadio(a.nom+' : remise des gaz ! ('+pourquoi+')'); SFX.refus(); }
 function majTour(dt){
   if(!TOUR.actif) return;
   if(ETAT.mode==='mort'||INT.actif||P.veh){ fermerTour(); return; }
   if(ETAT.mode!=='jeu') return;
   if(TOUR.fin){ TOUR.finT-=dt; if(TOUR.finT<=0){ fermerTour(); return; } }
   else {
-    TOUR.t+=dt; TOUR.spawnT-=dt;
-    if(TOUR.spawnT<=0){ tourNouvelAvion(); TOUR.spawnT=TOUR.n<2?3:lerp(5.2,3.8,Math.min(1,TOUR.t/TOUR_DUREE)); }
+    TOUR.t+=dt; TOUR.spawnT-=dt; TOUR.depT-=dt; const C=tourCircuit();
+    if(TOUR.spawnT<=0){ tourNouvelAvion(); TOUR.spawnT=TOUR.n<2?4:lerp(10,7,Math.min(1,TOUR.t/TOUR_DUREE)); }
+    if(TOUR.depT<=0){ TOUR.depT=20; tourNouveauDepart(); }
+    if(!TOUR.ventTourne&&TOUR.t>=55){ TOUR.ventTourne=true; TOUR.vent.de=TOUR.vent.de+Math.PI+(Math.random()-0.5)*0.4; TOUR.vent.kt=12+Math.floor(Math.random()*10); tourRadio('MÉTÉO : le vent tourne, '+tourVentTxt()+' — changez de piste !'); bigMsg('🌬️ LE VENT TOURNE'); }
     for(let i=TOUR.avions.length-1;i>=0;i--){ const a=TOUR.avions[i];
-      if(a.etat==='final'){ a.ft+=dt; const t1=1.8;
-        if(a.ft<t1){ const u=a.ft/t1; a.x=lerp(a.x0,TOUR_SEUIL.x,u); a.y=lerp(a.y0,TOUR_SEUIL.y,u); a.cap=Math.atan2(TOUR_SEUIL.y-a.y0,TOUR_SEUIL.x-a.x0); }
-        else { const u=Math.min(1,(a.ft-t1)/(TOUR_ATTERR-t1)); a.x=TOUR_SEUIL.x; a.y=lerp(TOUR_SEUIL.y,TOUR_FIN.y,u); a.cap=-Math.PI/2; }
-        if(a.ft>=TOUR_ATTERR){ TOUR.avions.splice(i,1); TOUR.piste=null; TOUR.poses++; META.defis.avionsPoses++; ETAT.score+=100; if(TOUR.poses>=TOUR_OBJ) tourFinir(true); }
-        continue; }
-      a.carbu-=dt; if(a.carbu<=0){ a.etat='crash'; tourFinir(false); break; }
-      const r=Math.hypot(a.x,a.y);
-      if(a.etat==='approche'){ const v=0.07*dt; a.x-=a.x/r*v; a.y-=a.y/r*v; a.cap=Math.atan2(-a.y,-a.x); if(r<0.78) a.etat='attente'; }
-      else { const an=Math.atan2(a.y,a.x)+a.sens*0.22*dt; a.x=Math.cos(an)*0.76; a.y=Math.sin(an)*0.76; a.cap=an+a.sens*Math.PI/2; }
+      if(a.type==='arr'&&a.etat!=='roule_piste'&&a.etat!=='degage'){ a.carbu-=dt; if(a.carbu<=0){ a.etat='crash'; tourRadio(a.nom+' : … (plus de contact)'); tourFinir(false,'💥 '+a.nom+' S’ÉCRASE — À SEC'); break; } }
+      if(a.etat==='approche'){ const H=TOUR_ATTENTES[a.hold]; if(tourVers(a,H,0.09,dt)){ a.etat='attente'; tourRadio(a.nom+' : en attente au point '+(a.hold?'SIERRA':'NOVEMBER')+'.'); } }
+      else if(a.etat==='attente'){ const H=TOUR_ATTENTES[a.hold]; a.ha+=dt*0.9; /* l'hippodrome : deux droites et deux demi-tours */
+        const px=H.x+Math.cos(a.ha)*0.06, py=H.y+Math.max(-0.09,Math.min(0.09,Math.sin(a.ha)*0.16)); a.cap=Math.atan2(py-a.y,px-a.x); a.x=px; a.y=py; }
+      else if(a.etat==='entree'||a.etat==='vent_arriere'||a.etat==='base'){
+        /* séparation : on ralentit derrière l'avion de devant dans le circuit */
+        let v=TOUR_V; for(const q of TOUR.avions) if(q!==a&&(q.etat==='entree'||q.etat==='vent_arriere'||q.etat==='base'||q.etat==='finale')&&tourDevant(q,a)){ const d=Math.hypot(q.x-a.x,q.y-a.y); if(d<TOUR_SEP) v=Math.min(v,TOUR_V*clamp((d-0.06)/(TOUR_SEP-0.06),0.35,1)); }
+        if(a.etat!=='entree'&&tourPisteOccupee(a)&&Math.hypot(a.x-C.F.x,a.y-C.F.y)<0.45) v=Math.min(v,TOUR_V*0.4); /* piste prise : on allonge la base */
+        if(a.etat==='entree'){ if(tourVers(a,C.D,v,dt)){ a.etat='vent_arriere'; tourRadio(a.nom+' : vent arrière, numéro '+(1+TOUR.avions.filter((q)=>q!==a&&(q.etat==='vent_arriere'||q.etat==='base'||q.etat==='finale')).length)+'.'); } }
+        else if(a.etat==='vent_arriere'){ if(tourVers(a,C.B,v,dt)) a.etat='base'; }
+        else if(tourVers(a,C.F,v,dt)){ /* début de la finale : piste libre ? séparation ? vent ? */
+          const occ=tourPisteOccupee(a), proche=TOUR.avions.some((q)=>q!==a&&q.etat==='finale'&&Math.hypot(q.x-a.x,q.y-a.y)<0.1);
+          if(occ) tourRemise(a,'piste occupée par '+occ.nom); else if(proche) tourRemise(a,'trop près de l’avion de devant'); else if(!tourVentBon()&&TOUR.vent.kt>10&&!a.urg) tourRemise(a,'vent arrière de '+TOUR.vent.kt+' kt'); /* jusqu’à 10 kt de vent arrière, on se pose ; en MAYDAY, toujours */
+          else { a.etat='finale'; a.v=TOUR_VFIN; TOUR.piste=a; tourRadio('TOUR : '+a.nom+', autorisé atterrissage piste '+(TOUR.sens>0?'36':'18')+'.'); } } }
+      else if(a.etat==='finale'){ if(tourVers(a,C.Tq,TOUR_VFIN,dt)){ a.etat='roule_piste'; a.v=TOUR_VFIN; } }
+      else if(a.etat==='roule_piste'){ a.v=Math.max(0.05,a.v-dt*0.02); if(tourVers(a,C.S,a.v,dt)){ a.etat='degage'; TOUR.piste=null; TOUR.poses++; TOUR.mouv++; META.defis.avionsPoses++; ETAT.score+=100; tourRadio(a.nom+' : piste dégagée.'); } }
+      else if(a.etat==='degage'){ if(tourVers(a,{x:-0.3,y:C.S.y},0.05,dt)) { TOUR.avions.splice(i,1); continue; } }
+      else if(a.etat==='roulage'){ if(tourVers(a,C.HP,TOUR_ROULE,dt)){ a.etat='point_attente'; tourRadio(a.nom+' : point d’attente piste '+(TOUR.sens>0?'36':'18')+', prêt.'); } }
+      else if(a.etat==='aligne'){ if(tourVers(a,C.Tq,0.07,dt)){ a.etat='decolle'; a.v=0.04; } }
+      else if(a.etat==='decolle'){ a.v=Math.min(0.24,a.v+dt*0.08); if(tourVers(a,{x:0,y:1.15*TOUR.sens},a.v,dt)){ TOUR.avions.splice(i,1); continue; }
+        if(TOUR.piste===a&&Math.abs(a.y)>0.36&&Math.sign(a.y)===TOUR.sens){ TOUR.piste=null; TOUR.mouv++; ETAT.score+=100; tourRadio(a.nom+' : décollé, au revoir Los Reyes.'); } }
     }
+    if(!TOUR.fin&&TOUR.mouv>=TOUR_OBJ) tourFinir(true);
     if(!TOUR.fin&&TOUR.t>=TOUR_DUREE) tourFinir(false);
   }
-  const txt='Posés '+TOUR.poses+' / '+TOUR_OBJ+'   ·   ⏱️ '+Math.max(0,Math.ceil(TOUR_DUREE-TOUR.t))+' s   ·   piste '+(TOUR.piste?'OCCUPÉE':'libre');
-  if(txt!==TOUR.txt&&TOUR.info){ TOUR.txt=txt; TOUR.info.textContent=txt; }
-  TOUR.balai+=dt*2.2; dessinerTour();
-}
+  const txt='Mouvements '+TOUR.mouv+' / '+TOUR_OBJ+'  ·  ⏱️ '+Math.max(0,Math.ceil(TOUR_DUREE-TOUR.t))+' s  ·  🌬️ '+tourVentTxt()+'  ·  piste '+(TOUR.sens>0?'36':'18')+' '+(tourPisteOccupee()?'OCCUPÉE':'libre')+(tourVentBon()?'':' ⚠ VENT ARRIÈRE');
+  if(txt!==TOUR.txt&&TOUR.info){ TOUR.txt=txt; TOUR.info.textContent=txt; if(TOUR.btnPiste) TOUR.btnPiste.textContent='PISTE '+(TOUR.sens>0?'36':'18')+' ⇄'; }
+  if(TOUR.radioTxt===null&&TOUR.radioEl){ TOUR.radioTxt=TOUR.radio.join('\n'); TOUR.radioEl.textContent=TOUR.radioTxt; }
+  TOUR.balai+=dt*2.2; dessinerTour(); }
+/* q est-il devant a dans le circuit (plus avancé) */
+function tourDevant(q,a){ const rang=(o)=>o.etat==='finale'?4:o.etat==='base'?3:o.etat==='vent_arriere'?2:1; if(rang(q)!==rang(a)) return rang(q)>rang(a); const c=tourCircuit(), cib=[null,c.D,c.B,c.F,c.Tq][rang(a)]; return Math.hypot(q.x-cib.x,q.y-cib.y)<Math.hypot(a.x-cib.x,a.y-cib.y); }
 function dessinerTour(){
   const cv=TOUR.cv, c=TOUR.ctx; if(!cv||!c) return;
   const dpr=Math.min(2,window.devicePixelRatio||1), w=Math.round(cv.clientWidth*dpr), h=Math.round(cv.clientHeight*dpr);
   if(!w||!h) return; if(cv.width!==w||cv.height!==h){ cv.width=w; cv.height=h; }
-  const R=Math.min(w,h)*0.46, cx=w/2, cy=h/2, X=(x)=>cx+x*R, Y=(y)=>cy-y*R;
+  const R=Math.min(w,h)*0.46, cx=w/2, cy=h/2, X=(x)=>cx+x*R, Y=(y)=>cy-y*R, C=tourCircuit();
   c.fillStyle='#04100a'; c.fillRect(0,0,w,h);
-  c.strokeStyle='rgba(125,255,122,0.25)'; c.lineWidth=1*dpr; for(const k of [0.25,0.5,0.76,1]){ c.beginPath(); c.arc(cx,cy,R*k,0,Math.PI*2); c.stroke(); }
-  c.beginPath(); c.moveTo(cx-R,cy); c.lineTo(cx+R,cy); c.moveTo(cx,cy-R); c.lineTo(cx,cy+R); c.stroke();
-  const b=TOUR.balai, gr=c.createLinearGradient(cx,cy,cx+Math.cos(b)*R,cy-Math.sin(b)*R); gr.addColorStop(0,'rgba(125,255,122,0)'); gr.addColorStop(1,'rgba(125,255,122,0.5)');
+  c.strokeStyle='rgba(125,255,122,0.22)'; c.lineWidth=1*dpr; for(const k of [0.25,0.5,0.76,1]){ c.beginPath(); c.arc(cx,cy,R*k,0,Math.PI*2); c.stroke(); }
+  const b=TOUR.balai, gr=c.createLinearGradient(cx,cy,cx+Math.cos(b)*R,cy-Math.sin(b)*R); gr.addColorStop(0,'rgba(125,255,122,0)'); gr.addColorStop(1,'rgba(125,255,122,0.45)');
   c.strokeStyle=gr; c.lineWidth=3*dpr; c.beginPath(); c.moveTo(cx,cy); c.lineTo(cx+Math.cos(b)*R,cy-Math.sin(b)*R); c.stroke();
-  c.fillStyle=TOUR.piste?'#5a4a1a':'#2a3a30'; c.fillRect(X(-0.05),Y(TOUR_SEUIL.y),0.1*R,(TOUR_SEUIL.y-TOUR_FIN.y)*R);
-  c.strokeStyle='#e8ecf2'; c.setLineDash([6*dpr,6*dpr]); c.beginPath(); c.moveTo(X(0),Y(TOUR_SEUIL.y)); c.lineTo(X(0),Y(TOUR_FIN.y)); c.stroke(); c.setLineDash([]);
-  c.font=(11*dpr)+'px Arial'; c.textAlign='center';
-  for(const a of TOUR.avions){ const x=X(a.x), y=Y(a.y), s=13*dpr, cl=a.etat==='final'?'#ffd23f':(a.urg?((Math.floor(TOUR.t*4)%2)?'#ff5a3a':'#ffb0a0'):'#7dff7a');
+  /* le circuit en pointillés, les points d'attente, le parking */
+  c.strokeStyle='rgba(255,210,63,0.35)'; c.setLineDash([5*dpr,6*dpr]); c.beginPath(); c.moveTo(X(C.D.x),Y(C.D.y)); c.lineTo(X(C.B.x),Y(C.B.y)); c.lineTo(X(C.F.x),Y(C.F.y)); c.lineTo(X(C.Tq.x),Y(C.Tq.y)); c.stroke(); c.setLineDash([]);
+  c.font=(10*dpr)+'px Arial'; c.textAlign='center'; c.fillStyle='rgba(255,210,63,0.6)'; c.fillText('VENT ARRIÈRE',X(C.D.x+0.13),Y((C.D.y+C.B.y)/2)); c.fillText('BASE',X(C.B.x/2),Y(C.B.y)-6*dpr); c.fillText('FINALE',X(C.F.x)-24*dpr,Y((C.F.y+C.Tq.y)/2));
+  for(const [k,H] of TOUR_ATTENTES.entries()){ c.strokeStyle='rgba(125,200,255,0.4)'; c.beginPath(); c.ellipse?c.ellipse(X(H.x),Y(H.y),0.07*R,0.2*R,0,0,Math.PI*2):c.arc(X(H.x),Y(H.y),0.1*R,0,Math.PI*2); c.stroke(); c.fillStyle='rgba(125,200,255,0.7)'; c.fillText(k?'SIERRA':'NOVEMBER',X(H.x),Y(H.y)-0.24*R); }
+  for(const p of TOUR_PARKING){ c.strokeStyle='rgba(200,200,200,0.3)'; c.strokeRect(X(p.x)-8*dpr,Y(p.y)-8*dpr,16*dpr,16*dpr); }
+  /* la piste, ses numéros, le seuil en service */
+  const occ=tourPisteOccupee(); c.fillStyle=occ?'#5a4a1a':'#2a3a30'; c.fillRect(X(-0.045),Y(0.35),0.09*R,0.7*R);
+  c.strokeStyle='#e8ecf2'; c.setLineDash([6*dpr,6*dpr]); c.beginPath(); c.moveTo(X(0),Y(0.33)); c.lineTo(X(0),Y(-0.33)); c.stroke(); c.setLineDash([]);
+  c.fillStyle='#e8ecf2'; c.font='900 '+(11*dpr)+'px Arial'; c.fillText('36',X(0),Y(-0.39)); c.fillText('18',X(0),Y(0.42)); c.fillStyle='#7dff7a'; c.fillRect(X(-0.06),Y(C.Tq.y)-2*dpr,0.12*R,4*dpr);
+  /* le vent : une flèche en haut à gauche (d'où il vient) */
+  { const vx=X(-0.82), vy=Y(0.86), a=TOUR.vent.de, L=22*dpr; c.strokeStyle=tourVentBon()?'#7dff7a':'#ff5a3a'; c.lineWidth=3*dpr; c.beginPath(); c.moveTo(vx+Math.sin(a)*L,vy-Math.cos(a)*L); c.lineTo(vx-Math.sin(a)*L,vy+Math.cos(a)*L); c.stroke();
+    c.beginPath(); c.moveTo(vx-Math.sin(a)*L,vy+Math.cos(a)*L); c.lineTo(vx-Math.sin(a-0.5)*L*0.55,vy+Math.cos(a-0.5)*L*0.55); c.moveTo(vx-Math.sin(a)*L,vy+Math.cos(a)*L); c.lineTo(vx-Math.sin(a+0.5)*L*0.55,vy+Math.cos(a+0.5)*L*0.55); c.stroke();
+    c.fillStyle=c.strokeStyle; c.font='700 '+(10*dpr)+'px Arial'; c.fillText(TOUR.vent.kt+' kt',vx,vy+L+12*dpr); }
+  c.font=(11*dpr)+'px Arial';
+  for(const a of TOUR.avions){ const x=X(a.x), y=Y(a.y), s=(a.type==='dep'?10:13)*dpr, sel=a.etat==='finale'||a.etat==='aligne'||a.etat==='decolle'||a.etat==='roule_piste';
+    const cl=sel?'#ffd23f':(a.urg?((Math.floor(TOUR.t*4)%2)?'#ff5a3a':'#ffb0a0'):(a.type==='dep'?'#8ad8ff':(a.etat==='attente'||a.etat==='approche'?'#7dff7a':'#d8ffb0')));
     c.save(); c.translate(x,y); c.rotate(-a.cap); c.fillStyle=cl; c.beginPath(); c.moveTo(s*1.3,0); c.lineTo(-s,s*0.8); c.lineTo(-s*0.5,0); c.lineTo(-s,-s*0.8); c.closePath(); c.fill(); c.restore();
-    if(a.etat!=='final'){ c.fillStyle=cl; c.fillText(a.nom,x,y-17*dpr); const f=Math.max(0,a.carbu/(a.urg?TOUR_URGENCE:TOUR_CARBU));
-      c.fillStyle='rgba(255,255,255,0.2)'; c.fillRect(x-16*dpr,y+15*dpr,32*dpr,5*dpr); c.fillStyle=f<0.3?'#ff5a3a':'#7dff7a'; c.fillRect(x-16*dpr,y+15*dpr,32*dpr*f,5*dpr); } }
-  if(TOUR.fin){ c.fillStyle=TOUR.fin==='gagne'?'#7dff7a':'#ff5a3a'; c.font='900 '+(22*dpr)+'px Arial'; c.fillText(TOUR.fin==='gagne'?'TOUS POSÉS !':'ÉCHEC',cx,cy-R*0.15); }
-}
+    const et={approche:'',attente:'ATT',entree:'',vent_arriere:'VA',base:'BASE',finale:'FIN',roule_piste:'',degage:'',parking:'PARK',roulage:'ROUL',point_attente:'PRÊT ▶',aligne:'ALIGN',decolle:''}[a.etat]||'';
+    c.fillStyle=cl; c.fillText(a.nom+(et?' · '+et:''),x,y-17*dpr);
+    if(a.type==='arr'&&a.etat!=='roule_piste'&&a.etat!=='degage'){ const f=Math.max(0,a.carbu/a.carbu0); c.fillStyle='rgba(255,255,255,0.2)'; c.fillRect(x-16*dpr,y+15*dpr,32*dpr,5*dpr); c.fillStyle=f<0.3?'#ff5a3a':'#7dff7a'; c.fillRect(x-16*dpr,y+15*dpr,32*dpr*f,5*dpr); } }
+  if(TOUR.fin){ c.fillStyle=TOUR.fin==='gagne'?'#7dff7a':'#ff5a3a'; c.font='900 '+(22*dpr)+'px Arial'; c.fillText(TOUR.fin==='gagne'?'TRAFIC ÉCOULÉ !':'ÉCHEC',cx,cy-R*0.15); } }
 /* VIE DE L'AÉROPORT, suite (15 octobre, demandé : « rajoute encore de la vie dans l'aéroport »). Construit EN
    DERNIER dans le décor (ses tirages ne décalent rien) :
    - véhicules de piste qui CIRCULENT (vrais véhicules, conduit 'piste' : on peut les voler, ils s'arrêtent
