@@ -14669,7 +14669,7 @@ function majExpo(dt){ if(!EXPO.v.length&&!(EXPO.alarmeT>0)) return;
   if(EXPO.alarmeT>0){ EXPO.alarmeT-=dt; EXPO.alarmeS=(EXPO.alarmeS||0)-dt; if(EXPO.alarmeS<=0){ EXPO.alarmeS=0.55; sonA(EXPO.alarmeX,EXPO.alarmeZ,()=>{ beep(880,0.22,'triangle',0.22); sonApres(270,()=>beep(660,0.22,'triangle',0.22)); }); } }
   /* la vitrine : un véhicule lancé ou un coup la brise */
   const S=EXPO.vitreSol; if(S&&S.actif!==false){ for(const v of vehicules){ if(v.mort||Math.abs(v.x-S.x)>S.hw+3||Math.abs(v.z-S.z)>14) continue; const vit=Math.max(Math.abs(v.v||0),v._vExpo||0); v._vExpo=Math.abs(v.v||0); /* la vitesse de l'image d'avant : le choc contre la vitre l'a déjà annulée */
-      if(vit>=6&&Math.abs(v.x-S.x)<S.hw+1&&Math.abs(v.z-S.z)<(v.def.long||4)/2+1.2){ expoBriserVitre(); break; } }
+      if(vit>=6&&Math.abs(v.x-S.x)<S.hw+1&&Math.abs(v.z-S.z)<(v.def.long||4)/2+2){ expoBriserVitre(); break; } } /* +2 : le nez contre la vitre (avec 1,2 u, une voiture arrêtée par le solide à 3,1 u du centre de la vitrine ne la brisait pas : 0,2 u de marge) */
     if(S.actif!==false&&!P.veh&&P.frappeT>0&&Math.abs(P.x-S.x)<S.hw+0.5&&Math.abs(P.z-S.z)<2.2) expoBriserVitre(); } }
 function expoBriserVitre(){ const S=EXPO.vitreSol; if(!S||S.actif===false) return; S.actif=false; if(EXPO.vitre) EXPO.vitre.visible=false;
   for(let k=0;k<26;k++) spawnP(S.x+rand(-S.hw,S.hw),rand(0.3,4),S.z+rand(-0.2,0.6),rand(-2,2),rand(1,5),rand(1,5),0.7,1.1,0xbfe6ff,2);
