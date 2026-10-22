@@ -10,7 +10,7 @@ Ordre suivi : 1, 17, 4, 3, 2, 5, puis le reste.
 |---|---|---|
 | 1 | Cabrage des motos : un jeu d'équilibre, plus de « trop cabré » | ☑ |
 | 2 | Tous les véhicules du quartier des canaux jouables | ☐ |
-| 3 | Véhicules exposés (derby, REYES MOTORS) volables | ☐ |
+| 3 | Véhicules exposés (derby, REYES MOTORS) volables | ☑ |
 | 4 | Les sons propres | ☑ |
 | 5 | Cockpit du taxi : plus d'air sous le toit | ☐ |
 | 6 | Les publics de décor fuient et se visent | ☐ |
@@ -30,6 +30,42 @@ Ordre suivi : 1, 17, 4, 3, 2, 5, puis le reste.
 
 - **Branche** : `retours-22oct` part de `retours-20-octobre` (et non de `main`) : les points de la liste portent sur ce que les deux
   chantiers précédents ont construit (canaux V3, paquebot, Cliff Diving, cabrage en équilibre…).
+
+## 3 — Les véhicules exposés se volent (fait)
+
+**Cause** : chez REYES MOTORS (`mkConcessionHills`) et au stand du derby (`mkArenaDerby`), les voitures exposées étaient des modèles de
+décor (`makeVoiture` posé dans la scène, un solide en boîte dessous) : ni dans `vehicules`, ni conduites, ni abîmées. Le showroom
+était un seul solide plein : on ne pouvait pas entrer jusqu'aux deux voitures des podiums tournants (les ultimes, depuis le 18 octobre).
+
+**Fait** (module `EXPO`, juste après `majConcession`) :
+- **Le décor devient de vrais véhicules** : à la 1re partie, `expoConvertir` relève les places (deux podiums tournants dans le showroom,
+  quatre sur l'esplanade, les trois voitures du stand du derby), retire les modèles et leurs solides, pose un podium rond (`PLATS`).
+  À chaque partie, `expoStartRun` (fin de `startRun`, sur un générateur privé : la partie suivante tire comme avant, vérifié) crée un
+  vrai véhicule par place (`creerVehicule`, sans conducteur) ; celles du derby gardent leur habillage (`habillerDerby`). Les deux du
+  showroom tournent sur leur podium tant que personne n'y touche (`majExpo`).
+- **Le showroom s'ouvre** : son solide plein est remplacé par ses trois murs, son toit (un solide à base : on roule dessous) et sa
+  **vitrine** (`EXPO.vitreSol`), qu'un véhicule lancé (6 u/s ou plus, la vitesse de l'image d'avant : le choc l'a déjà annulée) ou un
+  coup de poing brise (`expoBriserVitre` : la vitre disparaît, éclats, bruit de verre). Réparée à chaque partie.
+- **Monter = voler** (`expoVol`, appelé par `entrerVehicule`) : alarme (sirène deux tons pendant 12 s, atténuée avec la distance),
+  étoiles — **3 au moins pour un ultime** (`EXPO_ETOILES_ULTIME`), 2 sinon (`EXPO_ETOILES`) —, message « 🚨 ALARME ». Le véhicule
+  volé (`v.voleExpo`) se conduit, s'abîme, explose comme tout autre.
+- **Garage** : `vehiculeGarable` refuse une voiture volée avec un message clair (« Voiture volée chez REYES MOTORS : achète-la au
+  showroom pour la garer ») ; une voiture de derby reste non garable (« Voiture de derby volée : elle ne se gare pas »). Ni « Mes
+  véhicules », ni garage tuning. L'achat au comptoir (`CATALOGUE`) livre toujours une voiture neuve, comme avant.
+- **Podium vide jusqu'à la partie suivante** : une place volée n'est pas regarnie ; `expoStartRun` retire ce qui reste et remet tout.
+- `derbyMajExpo` (les améliorations achetées sur les voitures exposées) porte désormais sur les vrais véhicules.
+
+**Décisions** : une voiture exposée n'est volable qu'en montant dedans (pas de « vol à distance ») ; l'alarme ne monte jamais la
+recherche si on en a déjà plus ; la vitrine se brise aussi au coup de poing (on n'est pas obligé d'arriver en voiture).
+
+**Test** « Liste du 22 octobre, point 3 » (places lues dans `EXPO`) : chaque véhicule exposé est dans `vehicules`, sans conducteur ;
+une voiture de l'esplanade, un ultime (après avoir brisé la vitrine avec une voiture lancée) et une voiture du derby : on monte,
+étoiles (2, 3, 2), on roule 10 u au joystick, elle s'abîme, le garage la refuse avec son message ; le podium volé reste vide puis se
+remplit à la partie suivante, la vitrine est réparée ; le catalogue est intact.
+
+**Reste / à essayer sur iPhone** : entrer dans le showroom en voiture par la vitrine (elle se brise au premier choc franc).
+
+**Captures** : `avant_03_showroom.png` (le showroom fermé, les voitures de décor) et `03_showroom.png` (vitrine brisée par une voiture lancée, les voitures de l'esplanade sur leurs podiums ronds).
 
 ## 4 — Les sons, propres (fait)
 

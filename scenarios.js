@@ -18779,6 +18779,50 @@ async function main() {
       else ok('Liste 22 oct., point 4 : ' + r.info.join(' ; '));
     }
     // -------------------------------------------------------------------
+    // Liste du 22 octobre, point 3 : les véhicules exposés (REYES MOTORS, stand du derby) sont de vrais véhicules. Lus dans EXPO
+    // (places notées depuis le décor) : chacun est dans `vehicules`, sur son podium ; monter = le voler (alarme, étoiles : 3 au moins
+    // pour un ultime, 2 sinon), on le conduit, on l'abîme ; volé, le garage le refuse avec un message ; le podium reste vide jusqu'à
+    // la partie suivante, puis il est rempli ; la vitrine du showroom se brise au choc (les ultimes de dedans se volent) ; un achat
+    // normal livre toujours sa voiture.
+    // -------------------------------------------------------------------
+    console.log('\n--- Liste du 22 octobre, point 3 : les véhicules exposés, volables ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = []; let T = dernierT + 1000; const pas = (n, f) => { for (let i = 0; i < n; i++) { if (f && f(i) === false) return; for (const e of ennemis) e.mort = true; T += 1000 / 60; tick(T); } };
+        const partie = () => { if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); META.vue = 'classique'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9; WANTED.stars = 0; WANTED.heat = 0; for (const e of ennemis) e.mort = true; };
+        partie(); if (!EXPO.converti || !EXPO.places.length) return { ko: ['aucune place d’exposition (' + EXPO.places.length + ')'], info };
+        const nC = EXPO.places.filter((p) => p.lieu === 'concession').length, nD = EXPO.places.filter((p) => p.lieu === 'derby').length; info.push(nC + ' à REYES MOTORS, ' + nD + ' au derby');
+        if (nC < 6 || nD < 3) ko.push('places : ' + nC + ' / ' + nD);
+        for (const v of EXPO.v) { if (vehicules.indexOf(v) < 0) ko.push(v.key + ' : pas un vrai véhicule'); if (v.conduit) ko.push(v.key + ' : conduit ' + v.conduit); }
+        if (EXPO.v.length !== EXPO.places.filter((p) => p.k).length) ko.push(EXPO.v.length + ' véhicules pour ' + EXPO.places.length + ' places');
+        /* le vol : un véhicule de l'esplanade, un ultime (vitrine brisée d'abord), une voiture de derby */
+        const vole = (v, tag) => { WANTED.stars = 0; WANTED.heat = 0; P.x = v.x + 3; P.z = v.z; P.y = solPied(P.x, P.z); entrerVehicule(v); const st = WANTED.stars;
+          if (P.veh !== v) ko.push(tag + ' : on ne monte pas'); if (!v.voleExpo) ko.push(tag + ' : pas marqué volé');
+          const attendu = v.expo.ultime ? 3 : 2; if (st < attendu) ko.push(tag + ' : ' + st + ' étoile(s) au lieu de ' + attendu);
+          const x0 = v.x, z0 = v.z; pas(90, () => { INPUT.jx = 0; INPUT.jy = 1; }); INPUT.jx = INPUT.jy = 0; if (Math.hypot(v.x - x0, v.z - z0) < 10) ko.push(tag + ' : ne roule pas (' + Math.hypot(v.x - x0, v.z - z0).toFixed(1) + ' u)');
+          const hp = v.hp; abimerVehicule(v, 30, false); if (!(v.hp < hp)) ko.push(tag + ' : indestructible');
+          if (vehiculeGarable(v)) ko.push(tag + ' : garable une fois volé'); const msg = messageNonGarable(v); if (!/vol/i.test(msg)) ko.push(tag + ' : message du garage « ' + msg + ' »');
+          info.push(tag + ' ' + v.key + ' volé : ' + st + ' étoile(s), « ' + msg + ' »'); sortirVehicule(true); };
+        const dehors = EXPO.v.find((v) => v.expo.lieu === 'concession' && !v.expo.ultime && !v.expo.tourne); if (dehors) vole(dehors, 'esplanade'); else ko.push('aucune voiture sur l’esplanade');
+        const ult = EXPO.v.find((v) => v.expo.ultime); if (!ult) ko.push('aucun ultime exposé'); else {
+          const S = EXPO.vitreSol; if (!S || S.actif === false) ko.push('pas de vitrine intacte'); else {
+            /* un véhicule lancé contre la vitrine la brise */
+            const c = creerVehicule('citadine', S.x, S.z + 9, Math.PI, null); P.x = c.x; P.z = c.z; entrerVehicule(c); c.v = 12; pas(90, () => { INPUT.jx = 0; INPUT.jy = -1; if (S.actif === false) return false; }); INPUT.jy = 0; sortirVehicule(true);
+            if (S.actif !== false) ko.push('la vitrine résiste à une voiture lancée'); else info.push('vitrine brisée'); }
+          vole(ult, 'ultime'); }
+        const dv = EXPO.v.find((v) => v.expo.lieu === 'derby'); if (dv) { vole(dv, 'derby'); if (!dv.def.derby && !/derby/i.test(messageNonGarable(dv))) ko.push('voiture de derby garable'); } else ko.push('aucune voiture de derby exposée');
+        /* le podium vide jusqu'à la partie suivante */
+        const pl = EXPO.places.find((p) => p.k === (dehors && dehors.key)); const vide = () => !vehicules.some((v) => v.expo && !v.voleExpo && Math.hypot(v.x - pl.x, v.z - pl.z) < 1);
+        if (dehors) { if (!vide()) ko.push('le podium volé se remplit tout seul'); partie(); if (vide()) ko.push('le podium n’est pas rempli à la partie suivante'); else info.push('podium rempli à la partie suivante'); if (EXPO.vitreSol && EXPO.vitreSol.actif === false) ko.push('la vitrine n’est pas réparée à la partie suivante'); }
+        /* un achat normal livre toujours sa voiture (CATALOGUE) */
+        { const k = CATALOGUE.find((o) => VEHDEFS[o.key] && !VEHDEFS[o.key].ultime); if (!k) ko.push('catalogue vide'); else info.push('catalogue intact (' + CATALOGUE.length + ' modèles)'); }
+        if (P.veh) sortirVehicule(true); partie();
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Liste 22 oct., point 3 : ' + r.ko.slice(0, 20).join(' ; ') + ' [' + r.info.join(' | ') + ']');
+      else ok('Liste 22 oct., point 3 : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];

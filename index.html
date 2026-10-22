@@ -14255,7 +14255,59 @@ function vitrineUltimes(){ // à la 1re partie, sur le générateur du décor (l
   if(CONCESSION.ultimes||CONCESSION.tournants.length<2) return; CONCESSION.ultimes=true;
   sansAleaVille(()=>{ ['bolide','enzo'].forEach((k,i)=>{ const a=CONCESSION.tournants[i], v=makeVoiture(k); v.position.copy(a.position); v.rotation.y=a.rotation.y; scene.remove(a); scene.add(v); CONCESSION.tournants[i]=v; }); });
 }
-function majConcession(dt){ if(!CONCESSION.tournants.length||dist2(P.x,P.z,-104,100)>120*120) return; for(const v of CONCESSION.tournants) v.rotation.y+=dt*0.35; }
+function majConcession(dt){ if(EXPO.converti) return; if(!CONCESSION.tournants.length||dist2(P.x,P.z,-104,100)>120*120) return; for(const v of CONCESSION.tournants) v.rotation.y+=dt*0.35; }
+/* ---- Les véhicules exposés (liste du 22 octobre, point 3, demandé : « au stand du derby et chez REYES MOTORS, les véhicules sont
+   exposés mais indestructibles et pas volables : tous deviennent de vrais véhicules ; voler une voiture exposée déclenche une alarme
+   et des étoiles, au moins 3 pour les ultimes ; une voiture volée n'entre ni dans Mes véhicules ni au garage tant qu'elle n'est pas
+   achetée ; le podium vide reste vide jusqu'à la partie suivante »).
+   Le décor (construit pendant la génération : ses tirages ne bougent pas) est retiré à la 1re partie, et ses places notées (EXPO.places) ;
+   à chaque partie (expoStartRun), un vrai véhicule par place (creerVehicule, conduit null), posé sur son podium (un PLATS rond). Le
+   showroom : son solide d'un bloc est remplacé par ses murs, son toit (un solide à base : on roule dessous) et sa vitrine — une vitre
+   qu'un véhicule lancé ou un coup brise (EXPO.vitre) ; dedans, les deux ultimes tournent sur leurs podiums. Monter dans un véhicule
+   exposé = le voler (expoVol) : alarme, étoiles (3 au moins pour un ultime, 2 sinon), « volée » (v.voleExpo) — refusée au garage. */
+const EXPO={places:[],v:[],converti:false,vitre:null,vitreSol:null,alarmeT:0}, EXPO_ETOILES_ULTIME=3, EXPO_ETOILES=2;
+function expoConvertir(){ if(EXPO.converti) return; EXPO.converti=true; const proche=(o,x,z)=>Math.abs(o.position.x-x)<0.2&&Math.abs(o.position.z-z)<0.2;
+  const solSur=(x,z,hw)=>{ for(const arr of sGrid.values()) for(const so of arr) if(Math.abs(so.x-x)<0.05&&Math.abs(so.z-z)<0.05&&Math.abs(so.hw-hw)<0.05) return so; return null; };
+  /* REYES MOTORS (mkConcessionHills) : deux podiums tournants dedans, quatre sur l'esplanade */
+  const x=-104, z=100.5, W=22, D=11, H=6.4, zA=z+D/2;
+  for(const v of CONCESSION.tournants){ EXPO.places.push({lieu:'concession',k:v.userData&&v.userData.cleExpo||null,x:v.position.x,z:v.position.z,ang:v.rotation.y,y:0.32,tourne:true}); scene.remove(v); }
+  ['bolide','enzo'].forEach((k,i)=>{ if(EXPO.places[i]) EXPO.places[i].k=CONCESSION.ultimes?k:(['hyper','cabriolet'][i]); });
+  for(const [k,dx,dz,ry] of [['suvLuxe',-14,8,0.5],['charger',14,8,-0.5],['sport',-15,1.5,0.9],['berline',15,1.5,-0.9]]){ const px=x+dx, pz=z+dz;
+    for(const o of [...scene.children]) if(o.type==='Group'&&proche(o,px,pz)&&o.userData&&o.userData.roues){ scene.remove(o); break; }
+    const so=solSur(px,pz,2.4); if(so) retirerSolide(so); EXPO.places.push({lieu:'concession',k,x:px,z:pz,ang:ry,y:0.3}); }
+  for(const p of EXPO.places) PLATS.push({x:p.x,z:p.z,r:2.6,h:p.y});
+  /* le showroom : murs, toit à base, vitrine qui se brise */
+  const bloc=solSur(x,z,W/2); if(bloc){ retirerSolide(bloc);
+    addSolid({x:x-(W/2-0.2),z,hw:0.2,hd:D/2,h:H}); addSolid({x:x+(W/2-0.2),z,hw:0.2,hd:D/2,h:H}); addSolid({x,z:z-D/2+0.2,hw:W/2,hd:0.2,h:H});
+    addSolid({x,z,hw:W/2,hd:D/2,h:H,base:H-0.5,toit:true});
+    EXPO.vitreSol={x,z:zA,hw:W/2-0.4,hd:0.25,h:H-1.3,vitreExpo:true}; addSolid(EXPO.vitreSol);
+    for(const o of scene.children) if(o.isMesh&&o.geometry&&o.geometry.type==='PlaneGeometry'&&o.material&&o.material.transparent&&Math.abs(o.position.x-x)<0.1&&Math.abs(o.position.z-zA)<0.1){ EXPO.vitre=o; break; } }
+  /* le stand du derby (mkArenaDerby) : trois voitures habillées */
+  for(const e of DERBY.expo){ const so=solSur(e.g.position.x,e.g.position.z,1.2); if(so) retirerSolide(so); EXPO.places.push({lieu:'derby',k:e.k,num:e.num,x:e.g.position.x,z:e.g.position.z,ang:e.g.rotation.y,y:0}); scene.remove(e.g); }
+  DERBY.expo=[]; }
+function expoStartRun(){ if(!DECOR_V2) return; expoConvertir();
+  for(const v of EXPO.v) if(v!==P.veh&&!v.mort){ const j=vehicules.indexOf(v); if(j>=0){ vehicules.splice(j,1); scene.remove(v.mesh); libererEntite(v.mesh); } } /* le podium vide se remplit à la partie suivante */
+  EXPO.v.length=0; EXPO.alarmeT=0;
+  if(EXPO.vitreSol){ EXPO.vitreSol.actif=true; if(EXPO.vitre) EXPO.vitre.visible=true; } /* la vitrine, réparée à chaque partie */
+  for(const p of EXPO.places){ if(!p.k||!VEHDEFS[p.k]) continue; const v=creerVehicule(p.k,p.x,p.z,p.ang,null); if(!v) continue;
+    v.expo={lieu:p.lieu,k:p.k,ultime:!!VEHDEFS[p.k].ultime,tourne:!!p.tourne}; v.h=p.y; v.mesh.position.y=p.y;
+    if(p.lieu==='derby'){ habillerDerby(v.mesh,p.k,p.num,derbyNiv()); v.expo.num=p.num; }
+    EXPO.v.push(v); } }
+/* monter dans un véhicule exposé : le vol */
+function expoVol(v){ if(!v||!v.expo||v.voleExpo) return; v.voleExpo=true; v.expo.tourne=false; const n=v.expo.ultime?EXPO_ETOILES_ULTIME:EXPO_ETOILES;
+  addHeat(Math.max(0,n+0.05-WANTED.heat),false,true); EXPO.alarmeT=12; EXPO.alarmeX=v.x; EXPO.alarmeZ=v.z;
+  bigMsg('🚨 ALARME — '+(v.expo.lieu==='derby'?'VOITURE DE DERBY VOLÉE':'VOL CHEZ REYES MOTORS')); SFX.etoile(); }
+function majExpo(dt){ if(!EXPO.v.length&&!(EXPO.alarmeT>0)) return;
+  for(const v of EXPO.v) if(v.expo.tourne&&!v.voleExpo&&!v.mort&&v!==P.veh&&dist2(P.x,P.z,v.x,v.z)<120*120){ v.ang+=dt*0.35; v.mesh.rotation.y=v.ang; }
+  if(EXPO.alarmeT>0){ EXPO.alarmeT-=dt; EXPO.alarmeS=(EXPO.alarmeS||0)-dt; if(EXPO.alarmeS<=0){ EXPO.alarmeS=0.55; sonA(EXPO.alarmeX,EXPO.alarmeZ,()=>{ beep(880,0.22,'triangle',0.22); sonApres(270,()=>beep(660,0.22,'triangle',0.22)); }); } }
+  /* la vitrine : un véhicule lancé ou un coup la brise */
+  const S=EXPO.vitreSol; if(S&&S.actif!==false){ for(const v of vehicules){ if(v.mort||Math.abs(v.x-S.x)>S.hw+3||Math.abs(v.z-S.z)>14) continue; const vit=Math.max(Math.abs(v.v||0),v._vExpo||0); v._vExpo=Math.abs(v.v||0); /* la vitesse de l'image d'avant : le choc contre la vitre l'a déjà annulée */
+      if(vit>=6&&Math.abs(v.x-S.x)<S.hw+1&&Math.abs(v.z-S.z)<(v.def.long||4)/2+1.2){ expoBriserVitre(); break; } }
+    if(S.actif!==false&&!P.veh&&P.frappeT>0&&Math.abs(P.x-S.x)<S.hw+0.5&&Math.abs(P.z-S.z)<2.2) expoBriserVitre(); } }
+function expoBriserVitre(){ const S=EXPO.vitreSol; if(!S||S.actif===false) return; S.actif=false; if(EXPO.vitre) EXPO.vitre.visible=false;
+  for(let k=0;k<26;k++) spawnP(S.x+rand(-S.hw,S.hw),rand(0.3,4),S.z+rand(-0.2,0.6),rand(-2,2),rand(1,5),rand(1,5),0.7,1.1,0xbfe6ff,2);
+  sonA(S.x,S.z,()=>{ bruit(0.4,0.5,3800,'bandpass'); [0,60,140,230].forEach((d,i)=>sonApres(d,()=>beep(2600+400*i,0.05,'sine',0.06,2000))); });
+  if(dist2(P.x,P.z,S.x,S.z)<40*40) addHeat(Math.max(0,1.05-WANTED.heat),false,true); }
 // manoir de la planque : deux étages blancs, grandes baies, toit-terrasse, colonnade d'entrée
 function mkManoirPlanque(){
   const m=HILLS.manoir, y=m.h, x=m.x, z=m.z-2, w=22, d=10, blanc=mat(0xf2ede2), vitre=mat(0x1a2a3a), toit=mat(0xb8b0a0);
@@ -16072,7 +16124,7 @@ function derbyChoisirVoiture(k){ const M=META.derby; if(DERBY_MODELES.indexOf(k)
 function derbyAcheterAmelio(id){ const M=META.derby; if(!(id in M.niv)) return; const lv=M.niv[id]|0; if(lv>=3) return; // garde d'entrée propre
   const px=DERBY_PRIX.niv[id][lv]; if(META.argent<px){ toast('Pas assez d’argent','warn'); SFX.refus(); return; }
   META.argent-=px; M.niv[id]=lv+1; const am=DERBY_AMELIO.find((x)=>x.id===id); toast(am.ico+' '+am.nom+' niveau '+(lv+1)+' — '+am.det(lv+1),'or'); SFX.achat(); sauveMeta(); derbyMajExpo(); }
-function derbyMajExpo(){ for(const e of DERBY.expo) habillerDerby(e.g,e.k,e.num,derbyNiv()); }
+function derbyMajExpo(){ for(const e of DERBY.expo) habillerDerby(e.g,e.k,e.num,derbyNiv()); for(const v of EXPO.v) if(v.expo&&v.expo.lieu==='derby'&&!v.mort) habillerDerby(v.mesh,v.expo.k,v.expo.num,derbyNiv()); } /* point 3 : les voitures exposées sont de vrais véhicules */
 // ---- l'arène (fin du décor, générateur du décor) ----
 function mkArenaDerby(){
   const D=DERBY, X=D.x, Z=D.z, hw=D.hw, hd=D.hd, c=D.c, e=1.4, Hm=1.3, P2=6, i0=scene.children.length;
@@ -30284,6 +30336,7 @@ function majNoyade(v,dt){
 }
 function entrerVehicule(v){
   if(P.h) finCoup(P.h); /* on ne monte pas en plein swing */
+  if(v&&v.expo&&!v.voleExpo) expoVol(v); /* point 3 : un véhicule exposé — le vol */
   if(v.conduit==='trafic'&&v.patrouilleP){ /* une voiture de patrouille (POL_PATR) : l'agent s'enfuit, et c'est une étoile */
     v.patrouilleP=false; creerPietonFuite(v.x+2,v.z);
     toast('🚓 Voiture de police volée !','warn'); addHeat(2.2);
@@ -44764,11 +44817,12 @@ function listeGarageVilla(){ const L=[]; for(const id in META.vehPerso){ const f
 // motos civiles, avec famille + ancrages — et les vélos, qui n'ont QUE
 // tuningCarro (style seulement : peinture, néons, pièces). Tout le reste
 // est refusé à la porte.
-function vehiculeGarable(v){ return !!(v&&v.def&&(v.def.tuningMeca||v.def.tuningCarro)); }
+function vehiculeGarable(v){ return !!(v&&v.def&&(v.def.tuningMeca||v.def.tuningCarro))&&!(v&&v.voleExpo); } /* point 3 : jamais une voiture volée en exposition */
 // moteur, vitesse, tenue, blindage, nitro : réservés aux véhicules tuningMeca
 function ficheMeca(slot){ return !!(slot&&VEHDEFS[slot.cle]&&VEHDEFS[slot.cle].tuningMeca); }
 function messageNonGarable(v){
   const d=v.def;
+  if(v.voleExpo) return v.expo&&v.expo.lieu==='derby'?'Voiture de derby volée : elle ne se gare pas':'Voiture volée chez REYES MOTORS : achète-la au showroom pour la garer';
   if(d.eau||d.surf) return 'Les bateaux, c’est au chantier naval « Marée Basse », sur le grand canal est';
   if(d.air||d.ovni) return 'Pose-le d’abord… sur un héliport, pas dans un garage';
   if(v.key.indexOf('depot')===0) return 'Ce véhicule ne quitte pas le Dépôt';
@@ -47138,6 +47192,7 @@ function startRun(){
     creerPickup('cash',POIS.secret.x+1.5,POIS.secret.z+1,45);creerPickup('med',POIS.secret.x-1.5,POIS.secret.z+1);}
   canauxNettoyerVehicules(); /* canaux : un véhicule posé que le quartier a rendu impossible, retiré après coup (tirages inchangés) */
   canauxStartRun(); /* canaux : jet-skis, vedette de l'embarcadère, Brigada — en dernier : leurs tirages ne décalent rien de ce qui précède */
+  avecAleaPrive(2203,expoStartRun); /* point 3 : les véhicules exposés (REYES MOTORS, derby), sur un générateur privé */
   ecran(null);
   el('hud').classList.add('on');
   bigMsg('SURVIS, ENCAISSE, RECOMMENCE');
@@ -50504,7 +50559,7 @@ function tick(t){
       majMeteo(dt);
       majMer(dt);
       majMerV2(dt);
-      if(DECOR_V2){ majHorsLesMurs(dt); majMobilier(); majLac(dt); majLumieres(dt); majJetee(dt); majPortVivant(dt); majAeroportVivant(dt); majAeroVie(dt); majVieHills(dt); majChantierV2(dt); majBaseV2(dt,dtJeu); majCampEntrainement(dt); majSportsParcs(dt); majConcession(dt); majDerby(dt,dtJeu); majHeliportManoir(dt); majPlanques(dt); majTour(dtJeu); majCascades(dt); majManeges(dt); majBrooklyn(dt); majCiel(dt); majCielCibles(dt); majNeonVivant(dt); majQuartiersFinitions(dt); majCanaux(dt); }
+      if(DECOR_V2){ majHorsLesMurs(dt); majMobilier(); majLac(dt); majLumieres(dt); majJetee(dt); majPortVivant(dt); majAeroportVivant(dt); majAeroVie(dt); majVieHills(dt); majChantierV2(dt); majBaseV2(dt,dtJeu); majCampEntrainement(dt); majSportsParcs(dt); majConcession(dt); majExpo(dt); majDerby(dt,dtJeu); majHeliportManoir(dt); majPlanques(dt); majTour(dtJeu); majCascades(dt); majManeges(dt); majBrooklyn(dt); majCiel(dt); majCielCibles(dt); majNeonVivant(dt); majQuartiersFinitions(dt); majCanaux(dt); }
       majEpaveCanon(dt);
     }
     majHUD();
