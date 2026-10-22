@@ -6282,7 +6282,20 @@ function cielRetablir(){ for(const c of CIEL_CIBLES){ if(c.etat==='vol') continu
    l'eau, salto pendant la chute, gerbe, bonus de score selon la hauteur. */
 let CRIQUE=null; // {x0,x1,z0} : la baie (z0 → la mer)
 function dansCrique(x,z){ return !!CRIQUE&&x>CRIQUE.x0&&x<CRIQUE.x1&&z>CRIQUE.z0; }
-const PLONGEON={dernier:-99,record:0};
+const PLONGEON={dernier:-99,record:0,aide:false,dernierRes:null};
+/* ---- Plonger, c'est tenir son corps (liste du 22 octobre, point 13, demandé : « une entrée verticale propre récompensée, à plat un
+   GROS PLAT : gerbe, claquement, message, perte du bonus, des dégâts — jamais mortel sous une hauteur protégée ; contrôle du corps »).
+   Au-dessus de l'eau, en chute de plus de 5 u (plongeeActive) : ESQUIVE tenu groupe le corps et le fait tourner (PLG_LIBRE_W), lâché il
+   se tend et la rotation s'arrête vite (PLG_LIBRE_TEND) ; P.plgA est l'angle du corps (0 : debout, pieds en bas ; π : tête en bas).
+   À l'entrée (plongeonJoueur), |cos| de cet angle dit la verticalité : ≥ PLG_LIBRE_PROPRE = propre (pieds ou tête la première, bonus
+   pour la tête et par demi-tour), sous PLG_LIBRE_PLAT = à plat. Les concours (villa, Reyes Cliff Diving) gardent leur système. */
+const PLG_LIBRE_W=7, PLG_LIBRE_TEND=8, PLG_LIBRE_PROPRE=0.8, PLG_LIBRE_PLAT=0.5, PLONGEON_PROTEGE=30;
+function plongeeActive(){ return DECOR_V2&&P.chute&&!P.para&&!P.wing&&!P.veh&&(P.chuteHaut||0)>5&&estEau(P.x,P.z); }
+function plongeeCorps(dt){ const tenu=!!(INPUT.btn.esquive||INPUT.btn.esquiveK); P.plgA=P.plgA||0; P.plgW=P.plgW||0;
+  if(!PLONGEON.aide){ PLONGEON.aide=true; toast('🤸 Au-dessus de l’eau : maintiens ESQUIVE pour tourner, lâche pour te tendre — entre droit, jamais à plat','or'); }
+  if(tenu) P.plgW+=(-PLG_LIBRE_W-P.plgW)*Math.min(1,dt*10); else P.plgW*=Math.exp(-PLG_LIBRE_TEND*dt);
+  P.plgA+=P.plgW*dt; P.h.g.rotation.x=P.plgA; }
+function plongeeVerticalite(a){ return Math.cos(a); } /* 1 : pieds en premier, −1 : tête la première, 0 : à plat */
 function texGres(){
   return cTex(128,(g,s)=>{ const c=['#c48c56','#b07a48','#d6a06a','#9a6a3e','#c99060'];
     for(let y=0;y<s;y+=8){ g.fillStyle=c[(y/8)%c.length]; g.fillRect(0,y,s,8); }
@@ -6479,12 +6492,19 @@ function geoFalaise(w,h,d){
 // Atterrissage du joueur : dans l'eau, jamais de dégâts — c'est un plongeon.
 // Bonus de score selon la hauteur (6 s entre deux bonus : pas de score à la chaîne).
 function plongeonJoueur(haut){
-  eclaboussure(P.x,P.z,Math.min(2.6,0.9+haut*0.1)); bruit(0.35,0.5,420); vibre(30);
+  const a=P.plgA||0, c=plongeeVerticalite(a), demi=Math.round(Math.abs(a)/Math.PI); P.plgA=0; P.plgW=0;
   P.h.g.rotation.x=0;
-  if(haut<4||ETAT.runT-PLONGEON.dernier<6) return;
+  if(haut>5&&Math.abs(c)<PLG_LIBRE_PLAT){ /* à plat : le GROS PLAT */
+    eclaboussure(P.x,P.z,2.8); bruit(0.14,0.95,1700,'bandpass'); bruit(0.4,0.7,300); beep(90,0.25,'sine',0.5,40); vibre(120); secousse(6);
+    const d=clamp((haut-4)*2.4,6,60), dmg=haut<PLONGEON_PROTEGE?Math.min(d,Math.max(0,P.hp-1)):d; if(dmg>0) toucherJoueur(dmg);
+    bigMsg('💥 GROS PLAT !'); spawnTexte(P.x,3,P.z,'AÏE !','#ff5a4a'); PLONGEON.dernierRes={type:'plat',haut,dmg,demi}; return; }
+  eclaboussure(P.x,P.z,Math.min(2.6,0.9+haut*0.1)*(Math.abs(c)>=PLG_LIBRE_PROPRE?0.6:1)); bruit(0.35,0.5,420); vibre(30); /* une entrée propre fait peu d'éclaboussures */
+  if(haut<4||ETAT.runT-PLONGEON.dernier<6){ PLONGEON.dernierRes={type:'court',haut,demi}; return; }
   PLONGEON.dernier=ETAT.runT;
-  const pts=Math.round(haut*12*ETAT.combo*tenueK('falaise',1.5)); ETAT.score+=pts; /* la tenue du plongeur de falaise : +50 % */
-  spawnTexte(P.x,3,P.z,(haut>=15?'PLONGEON DE L’EXTRÊME ! +':'PLONGEON ! +')+pts,haut>=15?'#ff5ad0':'#35e0ff');
+  const propre=Math.abs(c)>=PLG_LIBRE_PROPRE, tete=c<=-PLG_LIBRE_PROPRE, k=(propre?1:0.5)*(tete?1.5:1)*(1+0.5*demi);
+  const pts=Math.round(haut*12*ETAT.combo*tenueK('falaise',1.5)*k); ETAT.score+=pts; /* la tenue du plongeur de falaise : +50 % */
+  PLONGEON.dernierRes={type:propre?(tete?'tete':'pieds'):'moyen',haut,demi,pts};
+  spawnTexte(P.x,3,P.z,(propre?(tete?(demi>=3?'SALTO PARFAIT +':'TÊTE LA 1RE +'):'PLONGEON +'):'BOF… +')+pts,propre&&haut>=15?'#ff5ad0':'#35e0ff');
   if(haut>PLONGEON.record){ PLONGEON.record=haut; if(haut>=15) toast('🤿 Plongeon de '+Math.round(haut)+' u — respect','or'); }
 }
 /* ---------- QUARTIER NÉON PLUS VIVANT (DECOR_V2) ----------
@@ -28914,13 +28934,13 @@ function majJoueur(dt,dtJeu){
       const rampe=clamp(P.chuteHaut/10,0.2,4.0);
       const accel=lerp(CHUTE_ACC_MIN,CHUTE_ACC_MAX,Math.min(1,P.chuteT/rampe));
       P.vy=Math.max(P.vy-accel*dtJeu,-CHUTE_VY_MAX); P.y+=P.vy*dtJeu;
-      if(DECOR_V2&&P.chuteHaut>5&&estEau(P.x,P.z)) P.h.g.rotation.x-=dtJeu*6.5; // salto au-dessus de l'eau (plongeon)
+      if(plongeeActive()) plongeeCorps(dtJeu); /* liste du 22 octobre, point 13 : on tient son corps (ESQUIVE tenu = salto) */
     }
     if(P.y<=gY&&DECOR_V2&&!P.para&&!P.wing&&trampolineSous(P.x,P.z,gY)){ // trampoline des toits : on rebondit, sans dégâts
       P.y=gY; P.vy=clamp(-P.vy*0.9,12,19); P.chuteT=0; P.chuteHaut=0.5; P.chuteY0=P.y; P.trampoT=2; SFX.swing(); vibre(10);
     } else if(P.y<=gY){
       P.y=gY; P.chute=false; P.pigeonBatt=0; P.pigeonHop=false;
-      P.h.g.rotation.x=0;
+      P.h.g.rotation.x=0; if(!(DECOR_V2&&estEau(P.x,P.z))){ P.plgA=0; P.plgW=0; }
       if(P.para){ burst(P.x,P.y+0.2,P.z,10,0xe8ecf2,5,6); SFX.ui(); }
       else if(DECOR_V2&&estEau(P.x,P.z)) plongeonJoueur(P.chuteHaut); // dans l'eau : un plongeon, jamais des dégâts
       else if(P.wing){ finVolWingsuit(); toucherJoueur(70); secousse(8); toast('Posé en wingsuit sans voile… aïe','warn'); }
@@ -28975,7 +28995,7 @@ function majJoueur(dt,dtJeu){
   if(P.pigeonCd>0) P.pigeonCd-=dtJeu;
   const appuiEsq=pressed('esquive')||edgeKey('KeyK');
   if(appuiEsq&&pigeonPeut()) pigeonBattement(); /* costume de pigeon (4.3) : ESQUIVE = voleter (un bond plané au sol, un battement d'ailes en l'air) */
-  else if(appuiEsq&&P.dodgeCd<=0&&P.stam>=25&&!P.nage){
+  else if(appuiEsq&&P.dodgeCd<=0&&P.stam>=25&&!P.nage&&!plongeeActive()){
     const l=Math.hypot(INPUT.mx,INPUT.mz);
     const dx=l>0.1?INPUT.mx/l:Math.sin(P.ang), dz=l>0.1?INPUT.mz/l:Math.cos(P.ang);
     P.dodgeT=0.32; P.dodgeVx=dx*27; P.dodgeVz=dz*27; P.dodgeCd=0.9; P.iframes=0.45;

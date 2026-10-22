@@ -20,7 +20,7 @@ Ordre suivi : 1, 17, 4, 3, 2, 5, puis le reste.
 | 10 | Le paquebot qui se brise, plus impressionnant | ☐ |
 | 11 | Explosions, camion-citerne, pompes à essence | ☐ |
 | 12 | Sortir ses véhicules depuis la villa | ☑ |
-| 13 | Plongeons : l'entrée dans l'eau compte | ☐ |
+| 13 | Plongeons : l'entrée dans l'eau compte | ☑ |
 | 14 | Le plongeon de falaise épique, l'eau en bas | ☐ |
 | 15 | La tour de contrôle, un vrai jeu d'aiguilleur | ☐ |
 | 16 | Course de supercross et sa tenue | ☐ |
@@ -30,6 +30,32 @@ Ordre suivi : 1, 17, 4, 3, 2, 5, puis le reste.
 
 - **Branche** : `retours-22oct` part de `retours-20-octobre` (et non de `main`) : les points de la liste portent sur ce que les deux
   chantiers précédents ont construit (canaux V3, paquebot, Cliff Diving, cabrage en équilibre…).
+
+## 13 — Plongeons : l'entrée dans l'eau compte (fait)
+
+**Avant** : en chute au-dessus de l'eau, le corps tournait tout seul (un salto automatique à 6,5 rad/s) et toute entrée dans l'eau
+rapportait le même bonus selon la hauteur, jamais un dégât (`plongeonJoueur`).
+
+**Fait** (`plongeeActive`, `plongeeCorps`, `plongeeVerticalite`, `PLG_LIBRE_*`, `PLONGEON_PROTEGE`, `plongeonJoueur`) — pour les plongeons
+libres en ville (crique, mer, bassins, toits au bord de l'eau) ; les concours de la villa et de Reyes Cliff Diving gardent leur système :
+- **On tient son corps** : au-dessus de l'eau, en chute de plus de 5 u, ESQUIVE tenu groupe le corps et le fait tourner (7 rad/s),
+  lâché il se tend et la rotation s'arrête en une fraction de seconde. Sans rien toucher, on entre droit, pieds en premier. ESQUIVE ne
+  fait plus d'esquive pendant cette chute. Une aide s'affiche au premier plongeon de la partie.
+- **L'entrée** : l'angle du corps dit la verticalité. Droit (pieds ou tête la première) = plongeon propre, peu d'éclaboussures,
+  points × 1,5 tête la première et × (1 + 0,5 par demi-tour) ; à moitié = « BOF… », la moitié des points ; **à plat = GROS PLAT** —
+  une grosse gerbe, un claquement (bruit filtré et coup sourd), « 💥 GROS PLAT ! », « AÏE ! », secousse, vibration, aucun point, des
+  dégâts ((hauteur − 4) × 2,4, entre 6 et 60), **jamais mortels sous 30 u** (`PLONGEON_PROTEGE` : on garde au moins 1 PV) ; au-dessus,
+  ils peuvent l'être.
+
+**Test** « Liste du 22 octobre, point 13 » (vraie boucle, vrai bouton ESQUIVE, sauts de 12, 20 et 40 u au-dessus de la mer) : le
+plongeur qui tient ESQUIVE et lâche avant la tête en bas entre tête la première, points, aucun dégât (12 u : +324, 20 u : +540,
+40 u : +1 080) ; le passif entre droit (+144, +240, +480) ; le maladroit qui lâche à plat fait un GROS PLAT (−19, −38, −60 PV, aucun
+point) ; à 1 PV sous 30 u, il survit ; ESQUIVE ne déclenche pas d'esquive en l'air. « Crique des plongeurs » (17 u, pas dans le vide)
+repasse.
+
+**Captures** : `avant_13_gros_plat.png` (le même saut avant : salto automatique, bonus) / `13_gros_plat.png` (gerbe, message).
+
+**À essayer sur iPhone** : le dosage (tenir ESQUIVE environ 0,3 s pour un demi-tour sur un saut de 17 u).
 
 ## 12 — Sortir ses véhicules depuis la villa (fait)
 

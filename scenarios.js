@@ -18976,6 +18976,38 @@ async function main() {
       else ok('Liste 22 oct., point 12 : ' + r.info.join(' ; '));
     }
     // -------------------------------------------------------------------
+    // Liste du 22 octobre, point 13 : les plongeons libres. Le joueur tombe de 12, 20 et 40 u au-dessus de la mer (vraie boucle,
+    // vrai bouton ESQUIVE). Un plongeur qui tient son corps (il tourne en tenant ESQUIVE, lâche avant la tête en bas) entre tête la
+    // première : plongeon propre, points, aucun dégât. Un passif entre droit, pieds en premier : propre, moins de points. Un maladroit
+    // lâche à plat : GROS PLAT — message, aucun point, des dégâts, jamais mortel sous PLONGEON_PROTEGE (même à 1 PV). ESQUIVE ne fait
+    // pas d'esquive pendant la chute.
+    // -------------------------------------------------------------------
+    console.log('\n--- Liste du 22 octobre, point 13 : plonger, c’est tenir son corps ; à plat, le GROS PLAT ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = []; let T = dernierT + 1000;
+        if (P.veh) sortirVehicule(true); META.vue = 'classique'; startRun(); ecran(null); ETAT.mode = 'jeu'; WAVES.etat = 'repos'; WAVES.t = 1e9;
+        const x = 0, z = MER + 40; if (!estEau(x, z)) return { ko: ['pas d’eau au point de test (' + x + ', ' + z + ')'], info };
+        const sauter = (haut, pilote, hp) => { for (const e of ennemis) e.mort = true; P.hp = hp; P.maxHp = Math.max(P.maxHp, 100); P.iframes = 0; P.bouclier = 0;
+          P.x = x; P.z = z; P.y = haut; P.vy = 0; P.chute = true; P.chuteT = 0; P.chuteHaut = haut; P.chuteY0 = haut; P.para = false; P.wing = false; P.nage = false; P.plgA = 0; P.plgW = 0; PLONGEON.dernier = -99; PLONGEON.dernierRes = null;
+          const sc0 = ETAT.score; let dodge = false; INPUT.btn.esquive = false;
+          for (let i = 0; i < 60 * 8 && P.chute; i++) { INPUT.btn.esquive = pilote(P.plgA || 0); for (const e of ennemis) e.mort = true; T += 1000 / 60; tick(T); if (P.dodgeT > 0) dodge = true; }
+          INPUT.btn.esquive = false; return { res: PLONGEON.dernierRes, pts: ETAT.score - sc0, hp: P.hp, dodge }; };
+        const vif = (a) => Math.abs(a) < Math.PI - 0.9; /* tient ESQUIVE, lâche avant la tête en bas (la rotation s'arrête en ~0,9 rad) */
+        const passif = () => false, plat = (a) => Math.abs(a) < 1.0; /* lâche à 1 rad : le corps finit à plat */
+        for (const h of [12, 20, 40]) {
+          const A = sauter(h, vif, 100); if (!A.res || A.res.type !== 'tete' || A.pts <= 0 || A.hp < 100) ko.push(h + ' u, plongeur : ' + JSON.stringify(A)); if (A.dodge) ko.push(h + ' u : ESQUIVE a fait une esquive en l’air');
+          const B = sauter(h, passif, 100); if (!B.res || B.res.type !== 'pieds' || B.pts <= 0 || B.pts >= A.pts || B.hp < 100) ko.push(h + ' u, passif : ' + JSON.stringify(B) + ' (plongeur ' + A.pts + ')');
+          const C = sauter(h, plat, 100); if (!C.res || C.res.type !== 'plat' || C.pts > 0 || C.hp >= 100) ko.push(h + ' u, maladroit : ' + JSON.stringify(C));
+          info.push(h + ' u : tête la première +' + A.pts + ', droit +' + B.pts + ', gros plat −' + Math.round(100 - C.hp) + ' PV');
+          if (h < PLONGEON_PROTEGE) { const D = sauter(h, plat, 1); if (ETAT.mode !== 'jeu' || D.hp <= 0) ko.push(h + ' u : le gros plat tue à 1 PV (' + D.hp + ')'); }
+        }
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Liste 22 oct., point 13 : ' + r.ko.join(' ; ') + ' [' + r.info.join(' | ') + ']');
+      else ok('Liste 22 oct., point 13 : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];
