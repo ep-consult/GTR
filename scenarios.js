@@ -19055,6 +19055,53 @@ async function main() {
       else ok('Liste 22 oct., point 14 : ' + r.info.join(' ; '));
     }
     // -------------------------------------------------------------------
+    // Liste du 22 octobre, point 11 : les explosions, la citerne, les pompes. Une explosion montre éclair, boule de feu, débris
+    // (qui retombent au sol) et trace de brûlé, et secoue moins de loin ; le camion-citerne explose à coup sûr — sous une grenade,
+    // sous les balles, au souffle d'une voiture qui saute — et sa boule de feu atteint les voitures à 12 u ; les pompes (lues dans
+    // POMPES) : une balle sur une pompe de la station fait sauter toute la station en chaîne, abîme une voiture garée devant ; les
+    // pompes de la marina sautent aussi ; tout revient à la partie suivante.
+    // -------------------------------------------------------------------
+    console.log('\n--- Liste du 22 octobre, point 11 : explosions, camion-citerne, pompes à essence ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = []; let T = dernierT + 1000;
+        const partie = () => { if (P.veh) sortirVehicule(true); META.vue = 'classique'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9; for (const e of ennemis) e.mort = true; };
+        const pas = (n, f) => { for (let i = 0; i < n; i++) { if (f && f(i) === false) return; for (const e of ennemis) e.mort = true; P.hp = 1e9; T += 1000 / 60; tick(T); } };
+        partie();
+        /* 1. une explosion : ses effets, la secousse selon la distance */
+        const x0 = POIS.place.x, z0 = POIS.place.z; P.x = x0 + 4; P.z = z0; ETAT.shake = 0; explosionFx(x0, z0); const prePres = ETAT.shake;
+        const vus = { flash: EXPL.flash.some((f) => f.t > 0), feu: EXPL.feu.some((o) => o.t > 0), debris: EXPL.debris.filter((d) => d.t > 0).length, brule: EXPL.brule.some((b) => b.t > 0) };
+        pas(90); const auSol = EXPL.debris.filter((d) => d.t > 0 && d.m.position.y < d.sol + 0.4).length;
+        P.x = x0 + 200; ETAT.shake = 0; explosionFx(x0, z0); const preLoin = ETAT.shake;
+        if (!vus.flash || !vus.feu || vus.debris < 6 || !vus.brule) ko.push('effets : ' + JSON.stringify(vus)); if (auSol < 3) ko.push('débris au sol : ' + auSol);
+        if (!(prePres > preLoin * 3)) ko.push('secousse : ' + prePres.toFixed(1) + ' près, ' + preLoin.toFixed(1) + ' à 200 u');
+        info.push('explosion : éclair, boule de feu, ' + vus.debris + ' débris (' + auSol + ' retombés), brûlé ; secousse ' + prePres.toFixed(1) + ' près, ' + preLoin.toFixed(1) + ' loin');
+        /* 2. la citerne, à coup sûr */
+        const citerne = (nom, f) => { partie(); const x = x0 + 20, z = z0; for (const w of vehicules.slice()) if (dist2(w.x, w.z, x, z) < 400) { scene.remove(w.mesh); vehicules.splice(vehicules.indexOf(w), 1); }
+          const v = creerVehicule('citerne', x, z, 0, null), voisin = creerVehicule('citadine', x + 9, z, 0, null); const hpV = voisin.hp; f(v); let t = 0; pas(60 * 5, () => { t += 1 / 60; if (v.mort) return false; });
+          if (!v.mort) ko.push('citerne (' + nom + ') : pas d’explosion en 5 s (PV ' + Math.round(v.hp) + ')'); else info.push('citerne (' + nom + ') : boum en ' + t.toFixed(1) + ' s' + (voisin.hp < hpV ? ', voisine à 9 u touchée' : ''));
+          if (v.mort && !(voisin.hp < hpV || voisin.mort)) ko.push('citerne (' + nom + ') : la voiture à 9 u n’a rien'); };
+        citerne('grenade', (v) => explosionArme(v.x + 2, v.z, true));
+        citerne('balles', (v) => { for (let i = 0; i < 12; i++) abimerVehicule(v, 8, true); });
+        citerne('voiture qui saute', (v) => { const w = creerVehicule('citadine', v.x - 4, v.z, 0, null); exploserVehicule(w); });
+        /* 3. les pompes */
+        partie(); const S = POMPES.liste.filter((p) => p.lieu === 'station'), M = POMPES.liste.filter((p) => p.lieu === 'marina');
+        if (S.length < 2) ko.push(S.length + ' pompes à la station'); if (!M.length) ko.push('aucune pompe de la marina');
+        if (S.length) { const p = S[0]; for (const w of vehicules.slice()) if (dist2(w.x, w.z, p.x, p.z) < 900) { scene.remove(w.mesh); vehicules.splice(vehicules.indexOf(w), 1); }
+          const car = creerVehicule('citadine', p.x - 5, p.z, 0, null); const hp0 = car.hp; P.x = p.x - 30; P.z = p.z;
+          let coups = 0; for (let i = 0; i < 6 && p.etat === 'ok'; i++) { coups++; collisionBalle({ fac: 'joueur', x: p.x, y: p.y + 1, z: p.z, vx: 70, vy: 0, vz: 0, dmg: 8 }); }
+          if (p.etat !== 'feu') ko.push('la pompe touchée ne prend pas feu (' + p.etat + ', ' + p.pv + ' PV)');
+          let t = 0; pas(60 * 4, () => { t += 1 / 60; if (S.every((o) => o.etat === 'boum')) return false; });
+          const n = S.filter((o) => o.etat === 'boum').length; if (n !== S.length) ko.push('chaîne : ' + n + ' / ' + S.length + ' pompes de la station ont sauté'); else info.push('station : ' + coups + ' balles, les ' + n + ' pompes sautent en chaîne en ' + t.toFixed(1) + ' s');
+          if (!(car.hp < hp0 || car.mort)) ko.push('la voiture garée devant n’a rien'); if (S.some((o) => o.g && o.g.visible)) ko.push('une pompe sautée reste visible'); if (!S.every((o) => o.carc && o.carc.visible)) ko.push('pas de carcasse');
+          if (M.length) { pompesSouffle(M[0].x, M[0].z, 3, true); pas(60 * 2); if (M[0].etat !== 'boum') ko.push('pompe de la marina : ' + M[0].etat); else info.push('marina : ' + M.filter((o) => o.etat === 'boum').length + '/' + M.length + ' pompes sautées'); }
+          partie(); if (POMPES.liste.some((o) => o.etat !== 'ok' || (o.g && !o.g.visible) || (o.carc && o.carc.visible))) ko.push('les pompes ne reviennent pas à la partie suivante'); else info.push('tout revient à la partie suivante'); }
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Liste 22 oct., point 11 : ' + r.ko.join(' ; ') + ' [' + r.info.join(' | ') + ']');
+      else ok('Liste 22 oct., point 11 : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];

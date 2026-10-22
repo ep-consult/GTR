@@ -18,7 +18,7 @@ Ordre suivi : 1, 17, 4, 3, 2, 5, puis le reste.
 | 8 | Habits et tatouages réalistes | ☐ |
 | 9 | Plus d'améliorations au chantier naval | ☐ |
 | 10 | Le paquebot qui se brise, plus impressionnant | ☐ |
-| 11 | Explosions, camion-citerne, pompes à essence | ☐ |
+| 11 | Explosions, camion-citerne, pompes à essence | ☑ |
 | 12 | Sortir ses véhicules depuis la villa | ☑ |
 | 13 | Plongeons : l'entrée dans l'eau compte | ☑ |
 | 14 | Le plongeon de falaise épique, l'eau en bas | ☑ |
@@ -30,6 +30,44 @@ Ordre suivi : 1, 17, 4, 3, 2, 5, puis le reste.
 
 - **Branche** : `retours-22oct` part de `retours-20-octobre` (et non de `main`) : les points de la liste portent sur ce que les deux
   chantiers précédents ont construit (canaux V3, paquebot, Cliff Diving, cabrage en équilibre…).
+
+## 11 — Explosions, camion-citerne, pompes à essence (fait)
+
+**Constat** :
+- Une explosion : des particules et un anneau ; la même secousse d'écran (13) qu'elle soit à 3 u ou à 300 u.
+- Le camion-citerne (200 PV) : une grenade ou une roquette lui ôtait 95 PV — il n'explosait pas ; en feu (sous 32 %), il brûlait 6 à 9 s ;
+  et une voiture qui sautait à côté ne lui faisait rien (l'explosion d'un véhicule n'abîmait AUCUN véhicule voisin).
+- **Aucune station-service n'existe dans le jeu** : le seul carburant était deux pompes « CARBURANT » de décor sur le quai de la marina.
+
+**Fait** :
+- **Explosions** (`EXPL`, `explCreer`, `explFx`, `majExplo`, `viderExplo` ; `explosionFx(x, z, y, k)`) : par-dessus les particules d'avant,
+  un éclair (sprite additif), une boule de feu qui gonfle, monte et s'assombrit, des débris qui retombent et rebondissent au sol, une
+  colonne de fumée plus haute, une trace de brûlé qui s'efface en 25 s ; une taille `k` (citerne 2,2, pompe 1,35). Réserves fixes
+  (4 éclairs, 6 boules, 36 débris, 8 brûlés) créées à la première explosion sur un générateur privé : aucune allocation, aucun tirage.
+  **Secousse selon la distance** (pleine à côté, ~6 % à 70 u et au-delà).
+- **Le souffle d'un véhicule qui saute** abîme désormais les véhicules à 6 u (60 PV) — et allume les pompes à 6 u.
+- **La citerne à coup sûr** : sous 60 % de ses PV, ou au premier coup de 60 ou plus (souffle), elle prend feu (sifflement) et saute
+  en 1,5 à 2,5 s ; sa boule de feu est géante, elle touche les véhicules à 12 u et fait sauter les pompes à 14 u.
+- **Les pompes** (`POMPES`, `mkStationsEssence`, `pompesMarina`, `toucherPompe`, `pompeAllumer`, `pompeExploser`, `pompesSouffle`,
+  `majPompes`, `pompesStartRun`) : une station « REYES FUEL » construite à l'entrée de l'aéroport (terrain libre et plat à l'est du mur,
+  relevé par un balayage ; dalle, auvent à néons, quatre pompes sur leurs îlots, boutique, totem tourné vers la route ; en fin de décor,
+  générateur privé) ; les deux pompes de la marina deviennent explosives (une carcasse calcinée les recouvre). Une pompe prend feu
+  sous les balles (24 PV), au souffle d'une explosion ou d'un véhicule qui saute à côté, puis saute 0,45 s plus tard et allume ses
+  voisines dans 9 u : la **réaction en chaîne** ; elle abîme les véhicules (90 PV dans 8 u), les gens, le joueur proche ; brûlée, elle
+  fume. **Tout revient à la partie suivante.**
+
+**Empreinte** : tirages identiques (ville, décor, partie suivante) ; un enfant de scène de plus (la station).
+
+**Test** « Liste du 22 octobre, point 11 » : une explosion montre éclair, boule de feu, débris (retombés au sol) et brûlé ; la
+secousse vaut 12,3 à 4 u, 0,8 à 200 u ; la citerne saute sous une grenade (2,3 s), sous les balles (1,8 s), au souffle d'une voiture
+qui saute à 4 u (2,0 s), et touche une voiture à 9 u ; trois balles sur une pompe de la station : les quatre sautent en chaîne en
+1,1 s, la voiture garée devant est touchée, carcasses en place ; les pompes de la marina sautent ; tout revient à la partie suivante.
+
+**Coût** (machine sans carte graphique, tick + rendu, moyenne de 60 images après l'explosion d'une citerne au centre ; avant → après) :
+base 101 → 104 ms, après l'explosion 64 → 60 ms — aucune différence au-delà du bruit de mesure (les réserves sont fixes, une boule
+de feu est un maillage de 80 triangles). **À juger sur iPhone** : l'éclair additif plein écran de près.
+
+**Captures** : `avant_11_citerne.png` / `11_citerne.png` (0,25 s après l'explosion d'une citerne).
 
 ## 14 — Le plongeon de falaise épique, la vraie mer en bas (fait)
 
