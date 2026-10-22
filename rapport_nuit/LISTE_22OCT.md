@@ -11,7 +11,7 @@ Ordre suivi : 1, 17, 4, 3, 2, 5, puis le reste.
 | 1 | Cabrage des motos : un jeu d'équilibre, plus de « trop cabré » | ☑ |
 | 2 | Tous les véhicules du quartier des canaux jouables | ☐ |
 | 3 | Véhicules exposés (derby, REYES MOTORS) volables | ☐ |
-| 4 | Les sons propres | ☐ |
+| 4 | Les sons propres | ☑ |
 | 5 | Cockpit du taxi : plus d'air sous le toit | ☐ |
 | 6 | Les publics de décor fuient et se visent | ☐ |
 | 7 | La statue de la Liberté plus grande | ☐ |
@@ -30,6 +30,107 @@ Ordre suivi : 1, 17, 4, 3, 2, 5, puis le reste.
 
 - **Branche** : `retours-22oct` part de `retours-20-octobre` (et non de `main`) : les points de la liste portent sur ce que les deux
   chantiers précédents ont construit (canaux V3, paquebot, Cliff Diving, cabrage en équilibre…).
+
+## 4 — Les sons, propres (fait)
+
+**Audit** (avant ; mesures par rendu hors ligne, protocole du test, tableau plus bas) :
+- **Clics** : chaque son partait à plein niveau dès le premier échantillon (`setValueAtTime(vol, t)`) — 65 à 100 % de la crête dans la
+  1re milliseconde sur les 44 sons — et finissait par une coupure (`stop` 20 ms après une rampe qui n'atteignait pas zéro).
+- **Stridence** : carrés et dents de scie nus (`beep` avait `'square'` par défaut : interface, tirs, rechargements), souffles passés
+  au filtre passe-HAUT (lame, swing, manœuvres de rechargement, roquette) : jusqu'à 130 % de l'énergie au-dessus de 6 kHz (le
+  passe-haut résonnant y ajoutait même de l'énergie) ; désintégrateur 67 %, choc léger 85 %.
+- **Pas de son par arme** : l'Uzi, l'AA-12, le revolver, l'arbalète et le minigun empruntaient le son d'une autre arme (9 sons pour
+  14 armes à feu).
+- **Chocs** : un seul bruit plus ou moins fort ; un frôlement « claquait » comme un accident (choc 0,1 : crête 0,17, 85 % d'aigus).
+- **Niveaux** : rien sur la sortie — le désintégrateur de l'OVNI écrêtait (crête 1,23), une explosion (0,39) était à peine plus forte
+  qu'un fusil à pompe (0,40) ; tout était à plein volume quelle que soit la distance (un tir d'ennemi à 140 u comme à 5 u).
+- **Toujours le même son** : aucune variation entre deux tirs ; couches enchaînées par `setTimeout` (qui tombent à côté sous charge) ;
+  bruit blanc tiré sur `Math.random` à l'initialisation de l'audio.
+- **Aucune limite de voix** : une rafale de minigun empilait des centaines de sources.
+
+**Fait** (bandeau AUDIO, `busAudio`, `SON`, `beep`, `bruit`, `echoSon`, `SFX`) :
+- **Bus** (`busAudio`, aussi construit par le test sur un `OfflineAudioContext`) : master → compresseur (`SON_BUS` : −20 dB, 3,5:1,
+  attaque 4 ms) → limiteur (−3 dB, 20:1) → sortie ; les effets passent par un plateau qui retire 5 dB au-dessus de 5 kHz ; un bus
+  d'écho (retard de 0,23 s filtré à 1,6 kHz, deux ou trois retours) pour le sniper, le revolver, la pompe, les explosions.
+- **Enveloppes** : montée de 4 à 6 ms, décroissance exponentielle, puis retour à zéro en 12 ms avant l'arrêt. Le carré et la dent de
+  scie passent par un passe-bas (5 × la fréquence, 700 à 4 200 Hz) ; un souffle filtré en passe-bande ou passe-haut est plafonné à 6 kHz.
+- **Variations** : ± 3,5 % de hauteur par voix, ± 4 % de vitesse et un départ au hasard dans le bruit, tirés sur un générateur PRIVÉ
+  (`sonAlea`) ; le bruit blanc lui-même est un xorshift (aucun `Math.random` dans l'audio).
+- **Temps audio** : les couches d'un son partent décalées en temps audio (`sonApres`), plus jamais par `setTimeout`.
+- **Distance** (`sonA`) : plein volume à 14 u, puis (1 − d)² jusqu'au silence à 150 u — tirs des ennemis et explosions.
+- **Voix** : `SON_VOIX_MAX` = 32 sources en même temps (les sons d'interface passent toujours).
+- **Catalogue refait en couches** (attaque, corps, poids, queue) : un son pour chacune des 14 armes à feu (pistolet sec, revolver
+  lourd à queue, silencieux en « pff », arbalète, P.M., Uzi plus aigu, minigun grave et court, fusil, pompe grave, AA-12, sniper et son
+  écho, roquette, lance-flammes, désintégrateur) ; mêlée ; manœuvres ; interface en triangles et sinus. **Chocs selon la violence** :
+  la tôle (bruit grave qui s'ouvre avec la violence), sa résonance au-delà de 0,2, le pare-chocs (un coup sourd) au-delà de 0,45, le
+  verre qui éclate au-delà de 0,75.
+
+**Décision** : les crêtes « après » sont mesurées à la sortie du compresseur, qui a un gain de rattrapage — elles sont plus hautes que
+les « avant » (mesurées sans bus, il n'y en avait pas) ; ce qui compte est leur hiérarchie, désormais : explosion (0,74) > armes (0,12 à
+0,70) > mêlée (0,14 à 0,55) > interface (0,05 à 0,36), et rien n'écrête. **Piège trouvé** : dans un rendu hors ligne, le compresseur
+de WebAudio part FERMÉ à t = 0 (il atténue tout, même sous son seuil, pendant ~0,3 s) — le test joue chaque son 0,3 s après le début ;
+en jeu, le bus tourne en continu.
+
+**Test** « Liste du 22 octobre, point 4 » : chaque son du catalogue (lu dans `SFX`, plus `SFX.choc` à quatre violences) rendu hors
+ligne à travers les vrais bus ; aucun écrêtage, énergie au-dessus de 6 kHz sous 12 %, crête dans la fourchette de sa famille, moins de
+45 % de la crête dans la 1re milliseconde (les anciens sons : 65 à 100 %), fin qui retombe à zéro ; un tir à 10 u à plein volume, à
+100 u à ×0,14, muet à 160 u ; 80 rafales de P.M. tiennent sous 32 voix ; deux tirs de pistolet différents ; aucun `Math.random` dans
+le catalogue. La version d'avant y échoue (clics sur tous les sons, aigus de la lame, du swing, des manœuvres et de la roquette,
+pas de bus ni d'atténuation).
+
+**Reste / à écouter sur iPhone** : le niveau général (le compresseur remonte les sons faibles : la musique et les ambiances des
+salles passent par le même bus), la queue d'écho du sniper et des explosions, la sirène (désormais un triangle filtré). Les sons
+continus (moteur, ambiances des salles et des planques, rayon de l'OVNI) n'ont pas été refaits : ils n'avaient ni clic ni stridence
+mesurés (ce sont des nappes filtrées).
+
+**Mesures** (crête après le bus, part de l'énergie au-dessus de 6 kHz, part de la crête atteinte dans la 1re milliseconde) :
+
+| Son | Famille | Crête avant → après | Énergie > 6 kHz avant → après | 1re ms (part de la crête) avant → après |
+|---|---|---|---|---|
+| coup | melee | 0,159 → 0,539 | 0 % → 0 % | 65 % → 10 % |
+| batte | melee | 0,201 → 0,549 | 0 % → 0 % | 65 % → 13 % |
+| lame | melee | 0,332 → 0,29 | 91 % → 6 % | 99 % → 12 % |
+| swing | melee | 0,158 → 0,14 | 130 % → 8 % | 82 % → 29 % |
+| pistolet | armes | 0,249 → 0,702 | 1 % → 1 % | 84 % → 21 % |
+| revolver | armes | (nouveau) → 0,673 | — → 0 % | — → 22 % |
+| silence | armes | 0,055 → 0,166 | 0 % → 0 % | 75 % → 11 % |
+| arbalete | armes | (nouveau) → 0,282 | — → 0 % | — → 14 % |
+| pm | armes | 0,129 → 0,536 | 2 % → 1 % | 91 % → 13 % |
+| uzi | armes | (nouveau) → 0,439 | — → 2 % | — → 27 % |
+| minigun | armes | (nouveau) → 0,471 | — → 0 % | — → 14 % |
+| fusil | armes | 0,242 → 0,648 | 1 % → 0 % | 76 % → 10 % |
+| pompe | armes | 0,4 → 0,686 | 0 % → 0 % | 40 % → 18 % |
+| aa12 | armes | (nouveau) → 0,643 | — → 0 % | — → 19 % |
+| sniper | armes | 0,302 → 0,657 | 1 % → 0 % | 100 % → 18 % |
+| roquette | armes | 0,679 → 0,517 | 86 % → 1 % | 88 % → 5 % |
+| flamme | armes | 0,042 → 0,122 | 0 % → 0 % | 98 % → 25 % |
+| desintegrateur | armes | 0,408 → 0,463 | 67 % → 1 % | 100 % → 13 % |
+| desintOvni | explosions | 1,228 → 0,843 | 54 % → 0 % | 52 % → 14 % |
+| recharge | divers | 0,088 → 0,283 | 6 % → 3 % | 99 % → 22 % |
+| rechSort | divers | 0,289 → 0,25 | 105 % → 9 % | 98 % → 19 % |
+| rechInsere | divers | 0,175 → 0,395 | 2 % → 0 % | 83 % → 28 % |
+| rechCulasse | divers | 0,374 → 0,441 | 81 % → 2 % | 100 % → 11 % |
+| rechDouilles | divers | 0,045 → 0,097 | 0 % → 0 % | 100 % → 11 % |
+| vide | divers | 0,088 → 0,253 | 2 % → 1 % | 100 % → 10 % |
+| ramasse | interface | 0,117 → 0,297 | 8 % → 0 % | 100 % → 10 % |
+| headshot | interface | 0,13 → 0,286 | 9 % → 0 % | 100 % → 10 % |
+| cash | interface | 0,104 → 0,267 | 11 % → 0 % | 98 % → 10 % |
+| soin | interface | 0,15 → 0,374 | 0 % → 0 % | 100 % → 11 % |
+| degat | divers | 0,074 → 0,372 | 0 % → 0 % | 66 % → 4 % |
+| mort | divers | 0,219 → 0,475 | 4 % → 0 % | 52 % → 17 % |
+| etoile | interface | 0,161 → 0,361 | 8 % → 0 % | 99 % → 10 % |
+| vague | divers | 0,177 → 0,358 | 4 % → 0 % | 40 % → 14 % |
+| niveau | interface | 0,154 → 0,377 | 7 % → 0 % | 95 % → 10 % |
+| achat | interface | 0,133 → 0,34 | 8 % → 0 % | 100 % → 10 % |
+| refus | interface | 0,146 → 0,369 | 1 % → 0 % | 100 % → 10 % |
+| klaxon | divers | 0,178 → 0,42 | 4 % → 0 % | 56 % → 20 % |
+| spec | divers | 0,246 → 0,452 | 2 % → 0 % | 26 % → 15 % |
+| ui | interface | 0,073 → 0,182 | 4 % → 0 % | 100 % → 10 % |
+| explo | explosions | 0,394 → 0,739 | 0 % → 0 % | 33 % → 18 % |
+| choc0.1 | chocs | 0,166 → 0,111 | 85 % → 0 % | 100 % → 9 % |
+| choc0.5 | chocs | 0,416 → 0,578 | 14 % → 0 % | 96 % → 18 % |
+| choc0.9 | chocs | 0,645 → 0,602 | 12 % → 1 % | 99 % → 10 % |
+| choc1.4 | chocs | 0,791 → 0,658 | 14 % → 1 % | 100 % → 15 % |
 
 ## 17 — Les ponts : on décolle quand on passe vite, on passe dessous en avion (fait)
 

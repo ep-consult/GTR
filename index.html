@@ -1189,32 +1189,19 @@ const AUDIO={ctx:null,master:null,sfxG:null,musG:null,duckG:null,uiG:null,noise:
 function audioInit(){
   if(AUDIO.pret) return;
   const C=window.AudioContext||window.webkitAudioContext; if(!C) return;
-  const ctx=new C(); AUDIO.ctx=ctx;
-  AUDIO.master=ctx.createGain(); AUDIO.master.gain.value=0.9; AUDIO.master.connect(ctx.destination);
-  // duck : atténue sfx+musique hors partie (menus/pause/interstices) sans toucher aux réglages joueur
-  AUDIO.duckG=ctx.createGain(); AUDIO.duckG.gain.value=1; AUDIO.duckG.connect(AUDIO.master);
-  AUDIO.sfxG=ctx.createGain(); AUDIO.sfxG.gain.value=REGLAGES.sfx?0.85:0; AUDIO.sfxG.connect(AUDIO.duckG);
-  AUDIO.musG=ctx.createGain(); AUDIO.musG.gain.value=REGLAGES.musique?0.30:0; AUDIO.musG.connect(AUDIO.duckG);
-  // sons d'interface : ne passent PAS par le duck, doivent rester audibles dans les menus
-  AUDIO.uiG=ctx.createGain(); AUDIO.uiG.gain.value=REGLAGES.sfx?0.85:0; AUDIO.uiG.connect(AUDIO.master);
-  const len=ctx.sampleRate*1.2, buf=ctx.createBuffer(1,len,ctx.sampleRate), d=buf.getChannelData(0);
-  for(let i=0;i<len;i++) d[i]=Math.random()*2-1;
-  AUDIO.noise=buf;
-  // sirène (2 tons alternés), volume piloté par le niveau de recherche
+  const ctx=new C(); AUDIO.ctx=ctx; busAudio(ctx,ctx.destination,AUDIO);
+  // sirène (2 tons alternés), volume piloté par le niveau de recherche — un triangle filtré (le carré d'avant sifflait)
   const so=ctx.createOscillator(); so.type='triangle'; so.frequency.value=690;
+  const sf=ctx.createBiquadFilter(); sf.type='lowpass'; sf.frequency.value=2400;
   const sg=ctx.createGain(); sg.gain.value=0;
-  so.connect(sg); sg.connect(AUDIO.sfxG); so.start();
+  so.connect(sf); sf.connect(sg); sg.connect(AUDIO.sfxG); so.start();
   AUDIO.sirenOsc=so; AUDIO.sirenGain=sg;
-  // Rayon tracteur de l'OVNI : bourdonnement continu, jamais démarré/arrêté,
-  // juste modulé (même principe que la sirène ci-dessus) — voir rayonUpdate
-  // (modulation en jeu) et rayonCouperSon (coupe net à chaque point de
-  // sortie : sortie de véhicule, mort, entrée en intérieur, changement de
-  // vague — voir CLAUDE.md, nettoyage d'état).
+  // Rayon tracteur de l'OVNI : bourdonnement continu, jamais démarré/arrêté, juste modulé (voir rayonUpdate, rayonCouperSon)
   const ro=ctx.createOscillator(); ro.type='sine'; ro.frequency.value=170;
   const rg=ctx.createGain(); rg.gain.value=0;
   ro.connect(rg); rg.connect(AUDIO.sfxG); ro.start();
   AUDIO.rayonOsc=ro; AUDIO.rayonGain=rg;
-  const pl=ctx.createBufferSource(); pl.buffer=buf; pl.loop=true;
+  const pl=ctx.createBufferSource(); pl.buffer=AUDIO.noise; pl.loop=true;
   const plF=ctx.createBiquadFilter(); plF.type='lowpass'; plF.frequency.value=900;
   const plG=ctx.createGain(); plG.gain.value=0;
   pl.connect(plF); plF.connect(plG); plG.connect(AUDIO.sfxG); pl.start();
@@ -1222,6 +1209,40 @@ function audioInit(){
   AUDIO.pret=true;
   musiqueStart();
 }
+/* ---- Les bus (liste du 22 octobre, point 4, demandé : « les tirs, les chocs sont stridents et mal faits ; un compresseur et un
+   limiteur sur la sortie, des niveaux harmonisés »). master → compresseur → limiteur → sortie ; les effets passent par un plateau
+   qui adoucit les aigus (−5 dB au-dessus de 5 kHz) ; un bus d'écho (retard filtré) pour le sniper, le revolver, les explosions.
+   Le bruit blanc est tiré sur un générateur PRIVÉ (aucun tirage de Math.random). Construit aussi par le test sur un
+   OfflineAudioContext : rien ici ne dépend d'AUDIO.ctx. */
+const SON_BUS={seuil:-20,genou:10,ratio:3.5,attaque:0.004,gain:0.9}; /* le compresseur de sortie (réglé à la mesure : test « point 4 ») */
+function busAudio(ctx,sortie,A){
+  A=A||{}; const comp=ctx.createDynamicsCompressor(); comp.threshold.value=SON_BUS.seuil; comp.knee.value=SON_BUS.genou; comp.ratio.value=SON_BUS.ratio; comp.attack.value=SON_BUS.attaque; comp.release.value=0.2;
+  const lim=ctx.createDynamicsCompressor(); lim.threshold.value=-3; lim.knee.value=0; lim.ratio.value=20; lim.attack.value=0.0015; lim.release.value=0.08;
+  A.master=ctx.createGain(); A.master.gain.value=SON_BUS.gain; A.master.connect(comp); comp.connect(lim); lim.connect(sortie); A.comp=comp; A.lim=lim;
+  // duck : atténue sfx+musique hors partie (menus/pause/interstices) sans toucher aux réglages joueur
+  A.duckG=ctx.createGain(); A.duckG.gain.value=1; A.duckG.connect(A.master);
+  const plateau=ctx.createBiquadFilter(); plateau.type='highshelf'; plateau.frequency.value=5000; plateau.gain.value=-5; plateau.connect(A.duckG);
+  A.sfxG=ctx.createGain(); A.sfxG.gain.value=REGLAGES.sfx?0.85:0; A.sfxG.connect(plateau);
+  A.musG=ctx.createGain(); A.musG.gain.value=REGLAGES.musique?0.30:0; A.musG.connect(A.duckG);
+  // sons d'interface : ne passent PAS par le duck, doivent rester audibles dans les menus
+  A.uiG=ctx.createGain(); A.uiG.gain.value=REGLAGES.sfx?0.85:0; A.uiG.connect(A.master);
+  // l'écho : un retard de 0,23 s, filtré, qui revient deux ou trois fois
+  const ed=ctx.createDelay(1); ed.delayTime.value=0.23; const ef=ctx.createBiquadFilter(); ef.type='lowpass'; ef.frequency.value=1600; const eb=ctx.createGain(); eb.gain.value=0.38;
+  A.echo=ctx.createGain(); A.echo.gain.value=0.55; A.echo.connect(ed); ed.connect(ef); ef.connect(eb); eb.connect(ed); ef.connect(A.sfxG);
+  const len=Math.floor(ctx.sampleRate*1.2), buf=ctx.createBuffer(1,len,ctx.sampleRate), d=buf.getChannelData(0); let g=0x2545f491;
+  for(let i=0;i<len;i++){ g^=g<<13; g^=g>>>17; g^=g<<5; d[i]=((g>>>0)/4294967295)*2-1; } /* xorshift : jamais Math.random */
+  A.noise=buf; return A; }
+/* ---- les décalages, la distance, les voix, les variations ----
+   SON.t0 : un décalage en TEMPS AUDIO (sonApres) — plus de setTimeout entre deux couches d'un son (ils tombaient à côté sous
+   charge et ne se rendaient pas hors ligne). SON.gain : l'atténuation avec la distance (sonA, autour d'un appel). SON.voix : les voix
+   en cours, plafonnées à SON_VOIX_MAX (les sons d'interface passent toujours). SON.alea : un générateur privé (± 3,5 % de hauteur
+   par voix : jamais deux tirs identiques). */
+const SON={t0:0,gain:1,voix:0,dest:null,alea:0x9e3779b9}, SON_VOIX_MAX=32, SON_DIST_PLEIN=14, SON_DIST_MUET=150;
+function sonAlea(){ let x=SON.alea; x^=x<<13; x^=x>>>17; x^=x<<5; SON.alea=x>>>0; return SON.alea/4294967295; }
+function sonApres(ms,fn){ const t0=SON.t0; SON.t0=t0+ms/1000; try{ fn(); } finally{ SON.t0=t0; } }
+function sonA(x,z,fn){ if(!isFinite(x)||!isFinite(z)){ fn(); return; } const d=Math.hypot(x-(P.x||0),z-(P.z||0)); if(d>=SON_DIST_MUET) return;
+  const k=d<=SON_DIST_PLEIN?1:Math.pow(1-(d-SON_DIST_PLEIN)/(SON_DIST_MUET-SON_DIST_PLEIN),2); const g0=SON.gain; SON.gain*=k; try{ fn(); } finally{ SON.gain=g0; } }
+function sonVoix(src,dest){ if(dest!==AUDIO.uiG){ SON.voix++; src.onended=()=>{ SON.voix=Math.max(0,SON.voix-1); }; } }
 /* iOS suspend ou interrompt le contexte audio (appel, verrouillage, geste incomplet) et ne le relance jamais seul :
    on le reprend sur chaque geste fini et au retour au premier plan (nuit du 16 octobre) */
 function audioReprendre(){ try{ if(AUDIO.ctx&&AUDIO.ctx.state!=='running'&&AUDIO.ctx.resume){ const p=AUDIO.ctx.resume(); if(p&&p.catch) p.catch(()=>{}); } }catch(e){} }
@@ -1229,78 +1250,91 @@ window.addEventListener('pointerup',audioReprendre);
 document.addEventListener('visibilitychange',()=>{ if(!document.hidden) audioReprendre(); });
 function beep(f,dur,type,vol,slide,dest){
   if(!AUDIO.pret||!isFinite(f)||!isFinite(dur)) return; /* un NaN dans un paramètre WebAudio lève une exception dans le tick */
-  const ctx=AUDIO.ctx,t=ctx.currentTime;
-  const o=ctx.createOscillator(),g=ctx.createGain();
-  o.type=type||'square'; o.frequency.setValueAtTime(f,t);
-  if(slide) o.frequency.exponentialRampToValueAtTime(Math.max(20,slide),t+dur);
-  g.gain.setValueAtTime(vol||0.2,t); g.gain.exponentialRampToValueAtTime(0.001,t+dur);
-  o.connect(g); g.connect(dest||AUDIO.sfxG); o.start(t); o.stop(t+dur+0.02);
+  if(dest!==AUDIO.uiG&&SON.voix>=SON_VOIX_MAX) return;
+  const ctx=AUDIO.ctx, t=ctx.currentTime+Math.max(0,SON.t0), v=(vol||0.2)*SON.gain; if(v<0.002) return;
+  const j=1+(sonAlea()*2-1)*0.035, f0=Math.max(20,f*j), att=Math.min(0.006,dur*0.25);
+  const o=ctx.createOscillator(), g=ctx.createGain(); let sortie=o;
+  o.type=type||'triangle'; o.frequency.setValueAtTime(f0,t);
+  if(slide) o.frequency.exponentialRampToValueAtTime(Math.max(20,slide*j),t+dur);
+  if(o.type==='square'||o.type==='sawtooth'){ const lp=ctx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=clamp(f0*5,700,4200); lp.Q.value=0.6; o.connect(lp); sortie=lp; } /* le carré et la dent de scie, adoucis */
+  g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(v,t+att); g.gain.exponentialRampToValueAtTime(Math.max(0.0005,v*0.004),t+dur); g.gain.linearRampToValueAtTime(0,t+dur+0.012);
+  sortie.connect(g); g.connect(dest||SON.dest||AUDIO.sfxG); o.start(t); o.stop(t+dur+0.03); sonVoix(o,dest);
 }
 function bruit(dur,vol,freq,type,dest){
   if(!AUDIO.pret||!isFinite(dur)) return;
-  const ctx=AUDIO.ctx,t=ctx.currentTime;
-  const s=ctx.createBufferSource(); s.buffer=AUDIO.noise;
-  const f=ctx.createBiquadFilter(); f.type=type||'lowpass'; f.frequency.value=freq||900;
-  const g=ctx.createGain(); g.gain.setValueAtTime(vol||0.3,t); g.gain.exponentialRampToValueAtTime(0.001,t+dur);
-  s.connect(f); f.connect(g); g.connect(dest||AUDIO.sfxG); s.start(t); s.stop(t+dur+0.02);
+  if(dest!==AUDIO.uiG&&SON.voix>=SON_VOIX_MAX) return;
+  const ctx=AUDIO.ctx, t=ctx.currentTime+Math.max(0,SON.t0), v=(vol||0.3)*SON.gain; if(v<0.002) return;
+  const s=ctx.createBufferSource(); s.buffer=AUDIO.noise; s.playbackRate.value=1+(sonAlea()*2-1)*0.04;
+  const f=ctx.createBiquadFilter(); f.type=type||'lowpass'; f.frequency.value=(freq||900)*(1+(sonAlea()*2-1)*0.05);
+  const g=ctx.createGain(), att=Math.min(0.004,dur*0.2); let sortie=f;
+  if(f.type!=='lowpass'){ const lp=ctx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=6000; f.connect(lp); sortie=lp; } /* un souffle aigu ne monte jamais au-delà de 6 kHz */
+  g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(v,t+att); g.gain.exponentialRampToValueAtTime(Math.max(0.0005,v*0.004),t+dur); g.gain.linearRampToValueAtTime(0,t+dur+0.012);
+  s.connect(f); sortie.connect(g); g.connect(dest||SON.dest||AUDIO.sfxG); s.start(t,sonAlea()*0.6); s.stop(t+dur+0.03); sonVoix(s,dest);
 }
+/* une couche envoyée aussi dans l'écho (sniper, revolver, explosions) */
+function echoSon(fn,k){ if(!AUDIO.pret||!AUDIO.echo) return; const g0=SON.gain; SON.gain*=(k===undefined?0.5:k); const d0=SON.dest; try{ SON.dest=AUDIO.echo; fn(); } finally{ SON.gain=g0; SON.dest=d0; } }
+/* ---- Le catalogue (liste du 22 octobre, point 4 — audit et corrections dans rapport_nuit/LISTE_22OCT.md). Chaque son est fait de
+   couches : une attaque (un claquement de bruit court, filtré), un corps (bruit passe-bas qui décroît), du poids (une sinusoïde qui
+   descend), parfois une queue d'écho. Plus de carré ni de dent de scie nus (ils sifflaient) ; les couches suivantes partent en temps
+   audio (sonApres), jamais par setTimeout. Familles et niveaux de crête visés (après le limiteur) : interface 0,15–0,45, mêlée
+   0,3–0,7, armes 0,35–0,9, chocs 0,2–0,9, explosions 0,6–0,95 — vérifiés par le rendu hors ligne du test « point 4 ». */
 const SFX={
-  coup(){bruit(0.09,0.5,420);beep(150,0.07,'sine',0.25,60);},
-  batte(){bruit(0.12,0.6,300);beep(110,0.1,'sine',0.3,50);},
-  lame(){bruit(0.05,0.3,3200,'highpass');beep(1400,0.05,'sine',0.12,600);},
-  swing(){bruit(0.07,0.18,2400,'highpass');},
-  pistolet(){bruit(0.10,0.55,1600);beep(210,0.05,'square',0.2,90);},
-  pompe(){bruit(0.2,0.8,700);beep(90,0.14,'sine',0.4,40);},
-  pm(){bruit(0.06,0.4,2100);},
-  fusil(){bruit(0.09,0.55,1900);beep(160,0.05,'square',0.2,70);},
-  recharge(){beep(500,0.05,'square',0.12);setTimeout(()=>beep(760,0.05,'square',0.12),120);},
-  rechSort(){bruit(0.04,0.3,2600,'highpass');beep(900,0.03,'square',0.08,500);}, /* manœuvre à la 1re personne : chargeur qui sort, qui s'engage, culasse */
-  rechInsere(){bruit(0.05,0.45,1400);beep(260,0.04,'square',0.14,120);},
-  rechCulasse(){bruit(0.06,0.4,2000,'highpass');setTimeout(()=>{bruit(0.05,0.5,1100);beep(180,0.04,'square',0.12,90);},90);},
-  rechDouilles(){[0,70,130,210].forEach((d,i)=>setTimeout(()=>beep(2400+i*300,0.03,'sine',0.06,1800),d));},
-  vide(){beep(220,0.05,'square',0.12);},
-  ramasse(){beep(660,0.06,'square',0.16);setTimeout(()=>beep(990,0.08,'square',0.16),60);},
-  headshot(){beep(1480,0.05,'square',0.18);setTimeout(()=>beep(1980,0.07,'triangle',0.16),45);}, /* le tir à la tête : un ping sec, plus aigu que ramasse */
-  cash(){beep(880,0.05,'square',0.14,0,AUDIO.uiG);setTimeout(()=>beep(1320,0.09,'square',0.14,0,AUDIO.uiG),55);},
-  soin(){beep(520,0.12,'sine',0.2,780);},
-  explo(){bruit(0.6,1.0,250);beep(60,0.5,'sine',0.5,28);vibre(80);},
-  degat(){bruit(0.08,0.4,600);},
-  mort(){beep(300,0.5,'sawtooth',0.3,60);},
-  etoile(){beep(980,0.09,'square',0.22);setTimeout(()=>beep(740,0.12,'square',0.22),100);},
-  vague(){beep(220,0.25,'sawtooth',0.25,440);setTimeout(()=>beep(330,0.3,'sawtooth',0.25,660),180);},
-  niveau(){[523,659,784,1046].forEach((f,i)=>setTimeout(()=>beep(f,0.14,'square',0.2),i*90));},
-  achat(){beep(700,0.07,'square',0.18,0,AUDIO.uiG);setTimeout(()=>beep(1050,0.1,'square',0.18,0,AUDIO.uiG),80);},
-  refus(){beep(160,0.15,'square',0.2,0,AUDIO.uiG);},
-  klaxon(){beep(310,0.22,'sawtooth',0.25);},
-  spec(){beep(140,0.3,'sawtooth',0.35,600);},
-  flamme(){bruit(0.09,0.16,700);},
-  silence(){bruit(0.05,0.12,1400,'lowpass');beep(320,0.03,'sine',0.06);},
-  sniper(){bruit(0.14,0.7,1200);beep(140,0.2,'square',0.3,50);},
-  roquette(){bruit(0.3,0.6,900,'highpass');beep(220,0.35,'sawtooth',0.3,60);},
-  // Le Désintégrateur : son distinct, jamais entendu ailleurs — un
-  // sifflement descendant continu plutôt qu'une détonation.
-  desintegrateur(){beep(1500,0.2,'sawtooth',0.26,280);bruit(0.14,0.3,2400,'highpass');},
-  // Désintégrateur de l'OVNI : « assourdissant », demandé explicitement —
-  // couche un sifflement du rayon (aigu, descend vite), un sub-bass grave et
-  // long (le poids de l'impact) et un grondement large (l'onde de choc), le
-  // tout nettement plus fort/long que le Désintégrateur porté (arme discrète
-  // à munitions limitées ; ici un événement ponctuel, sans limite de tir).
-  desintOvni(){
-    beep(2600,0.4,'sawtooth',0.4,200);
-    beep(70,1.1,'sawtooth',0.55,25);
-    bruit(1.0,0.9,200,'lowpass');
-    bruit(0.5,0.7,3400,'highpass');
-  },
-  ui(){beep(480,0.04,'square',0.1,0,AUDIO.uiG);},
-  // Choc entre véhicules : un frôlement reste discret (court, sourd, pas de
-  // coup sec), un choc frontal à pleine vitesse est spectaculaire (plus
-  // long, plus fort, plus grave, avec un « thud » distinct) — viol 0..1,4.
+  /* mêlée */
+  coup(){bruit(0.08,0.45,380);beep(140,0.08,'sine',0.32,60);},
+  batte(){bruit(0.12,0.5,300);beep(105,0.12,'sine',0.4,48);bruit(0.02,0.18,1800,'bandpass');},
+  lame(){bruit(0.06,0.22,2800,'bandpass');beep(1250,0.06,'sine',0.07,700);},
+  swing(){bruit(0.09,0.24,1500,'bandpass');},
+  /* les armes à feu : chacune la sienne */
+  pistolet(){bruit(0.012,0.4,3200,'bandpass');bruit(0.09,0.55,1400);beep(170,0.07,'sine',0.38,70);},                         /* sec */
+  revolver(){bruit(0.014,0.5,2800,'bandpass');bruit(0.14,0.7,1050);beep(120,0.13,'sine',0.5,45);echoSon(()=>bruit(0.18,0.35,800),0.45);}, /* plus lourd, une queue */
+  silence(){bruit(0.05,0.22,900);beep(300,0.03,'sine',0.06,150);},                                                             /* un « pff » */
+  arbalete(){beep(190,0.13,'triangle',0.16,120);bruit(0.05,0.18,1300);},                                                       /* la corde qui claque */
+  pm(){bruit(0.01,0.28,3000,'bandpass');bruit(0.05,0.42,1700);beep(190,0.035,'sine',0.2,90);},
+  uzi(){bruit(0.009,0.26,3400,'bandpass');bruit(0.04,0.36,2100);beep(230,0.03,'sine',0.14,120);},                              /* plus aigu, plus vif */
+  minigun(){bruit(0.03,0.32,1400);beep(120,0.03,'sine',0.22,70);},                                                             /* la rafale : des coups très courts et graves */
+  fusil(){bruit(0.012,0.42,2900,'bandpass');bruit(0.08,0.55,1600);beep(150,0.07,'sine',0.36,60);},
+  pompe(){bruit(0.016,0.45,2400,'bandpass');bruit(0.22,0.85,620);beep(82,0.24,'sine',0.6,34);echoSon(()=>bruit(0.16,0.3,600),0.35);}, /* grave */
+  aa12(){bruit(0.012,0.38,2400,'bandpass');bruit(0.13,0.7,700);beep(95,0.13,'sine',0.48,40);},                                /* une pompe plus courte */
+  sniper(){bruit(0.016,0.7,3000,'bandpass');bruit(0.2,0.8,900);beep(105,0.28,'sine',0.55,38);echoSon(()=>{bruit(0.4,0.6,700);beep(90,0.3,'sine',0.25,40);},0.7);}, /* le claquement, l'écho */
+  roquette(){bruit(0.38,0.5,900,'bandpass');beep(210,0.38,'triangle',0.22,60);bruit(0.05,0.4,500);},
+  flamme(){bruit(0.1,0.26,650);},
+  // Le Désintégrateur : un sifflement descendant, jamais entendu ailleurs
+  desintegrateur(){beep(1350,0.2,'triangle',0.22,260);bruit(0.14,0.22,2200,'bandpass');},
+  // Désintégrateur de l'OVNI : « assourdissant » — sifflement, sub grave et long, grondement large, plus fort que le portatif
+  desintOvni(){ beep(2200,0.4,'triangle',0.32,200); beep(68,1.1,'sine',0.7,25); bruit(1.0,0.85,200,'lowpass'); bruit(0.5,0.45,2600,'bandpass'); echoSon(()=>bruit(0.8,0.5,300),0.6); },
+  /* manipulations */
+  recharge(){bruit(0.03,0.25,2200,'bandpass');beep(420,0.04,'triangle',0.1,300);sonApres(120,()=>{bruit(0.03,0.3,1600,'bandpass');beep(640,0.04,'triangle',0.1,420);});},
+  rechSort(){bruit(0.04,0.26,2400,'bandpass');beep(800,0.03,'triangle',0.06,500);}, /* manœuvre à la 1re personne : chargeur qui sort, qui s'engage, culasse */
+  rechInsere(){bruit(0.05,0.4,1300);beep(240,0.04,'sine',0.16,120);},
+  rechCulasse(){bruit(0.05,0.3,2000,'bandpass');sonApres(90,()=>{bruit(0.05,0.45,1100);beep(170,0.05,'sine',0.16,90);});},
+  rechDouilles(){[0,70,130,210].forEach((d,i)=>sonApres(d,()=>beep(2100+i*250,0.035,'sine',0.05,1700)));},
+  vide(){beep(260,0.04,'triangle',0.1,180);bruit(0.02,0.12,2000,'bandpass');},
+  /* récompenses et interface : des triangles et des sinus, plus de carrés */
+  ramasse(){beep(660,0.07,'triangle',0.16);sonApres(60,()=>beep(990,0.09,'triangle',0.16));},
+  headshot(){beep(1320,0.05,'triangle',0.16);sonApres(45,()=>beep(1760,0.08,'sine',0.14));}, /* le tir à la tête : un ping sec, plus aigu que ramasse */
+  cash(){beep(880,0.06,'triangle',0.14,0,AUDIO.uiG);sonApres(55,()=>beep(1320,0.1,'triangle',0.14,0,AUDIO.uiG));},
+  soin(){beep(520,0.14,'sine',0.2,780);},
+  degat(){bruit(0.08,0.38,550);beep(110,0.06,'sine',0.18,70);},
+  mort(){beep(300,0.55,'sawtooth',0.22,60);beep(150,0.55,'sine',0.25,40);},
+  etoile(){beep(980,0.1,'triangle',0.2);sonApres(100,()=>beep(740,0.13,'triangle',0.2));},
+  vague(){beep(220,0.28,'sawtooth',0.18,440);sonApres(180,()=>beep(330,0.32,'sawtooth',0.18,660));},
+  niveau(){[523,659,784,1046].forEach((f,i)=>sonApres(i*90,()=>beep(f,0.15,'triangle',0.2)));},
+  achat(){beep(700,0.08,'triangle',0.18,0,AUDIO.uiG);sonApres(80,()=>beep(1050,0.11,'triangle',0.18,0,AUDIO.uiG));},
+  refus(){beep(170,0.16,'triangle',0.2,130,AUDIO.uiG);},
+  klaxon(){beep(310,0.24,'sawtooth',0.2);beep(390,0.24,'sawtooth',0.12);},
+  spec(){beep(140,0.32,'sawtooth',0.26,600);},
+  ui(){beep(520,0.045,'triangle',0.1,0,AUDIO.uiG);},
+  /* l'explosion : sub, souffle, craquement, débris, écho */
+  explo(){ beep(70,0.9,'sine',0.75,26); bruit(0.9,0.95,320); bruit(0.08,0.55,1900,'bandpass'); sonApres(80,()=>bruit(0.5,0.22,1200,'bandpass')); echoSon(()=>{ bruit(0.9,0.6,260); },0.7); vibre(80); },
+  // Choc entre véhicules selon la violence (0 à 1,4) : un frôlement reste sourd et court ; au-delà, la tôle (un coup sourd et une
+  // résonance métallique), le pare-chocs (un « thud » grave), et au-delà de 0,75 le verre qui éclate.
   choc(viol){
     if(!isFinite(viol)) return; /* clamp(NaN) reste NaN : les collisions lui passent une violence calculée */
     const v=clamp(viol,0,1.4);
-    bruit(0.06+0.16*v,0.2+0.5*v,850-450*v,'lowpass');
-    bruit(0.03+0.05*v,0.12+0.28*v,2600,'highpass');
-    if(v>0.45) beep(85,0.1+0.12*v,'square',0.15+0.3*v,45);
+    bruit(0.05+0.18*v,0.18+0.5*v,820-380*v,'lowpass');                       /* la tôle */
+    if(v>0.2) beep(330+90*sonAlea(),0.08+0.22*v,'triangle',0.04+0.09*v,260); /* sa résonance */
+    if(v>0.45) beep(85,0.1+0.14*v,'sine',0.18+0.32*v,40);                    /* le pare-chocs */
+    if(v>0.75) sonApres(25,()=>{ bruit(0.12+0.12*v,0.12+0.14*v,4200,'bandpass'); [0,40,95].forEach((d,i)=>sonApres(d,()=>beep(3000+700*i*sonAlea(),0.04,'sine',0.035,2400))); }); /* le verre */
   }
 };
 function sirenUpdate(dt,intens){
@@ -2508,14 +2542,14 @@ const ARMES={
   pompe:{nom:'Pompe "Brisant"',ico:'💥',type:'gun',degats:9,pellets:6,cad:0.95,portee:26,disp:13,mag:6,rech:1.7,prix:700,niv:2,son:'pompe',tr:0xffb46a},
   pm:{nom:'P.M. "Guêpe"',ico:'🐝',type:'gun',degats:11,cad:0.11,portee:40,disp:6.5,mag:30,rech:1.45,prix:900,niv:3,son:'pm',tr:0x9ae6ff},
   fusil:{nom:'Fusil "Tempête"',ico:'⚡',type:'gun',degats:15,cad:0.13,portee:56,disp:3.5,mag:30,rech:1.8,prix:1600,niv:5,son:'fusil',tr:0xffe08a},
-  uzi:{nom:'Uzi "Frénésie"',ico:'💢',type:'gun',degats:9,cad:0.07,portee:34,disp:8,mag:32,rech:1.3,prix:1200,niv:4,son:'pm',tr:0xffd08a},
+  uzi:{nom:'Uzi "Frénésie"',ico:'💢',type:'gun',degats:9,cad:0.07,portee:34,disp:8,mag:32,rech:1.3,prix:1200,niv:4,son:'uzi',tr:0xffd08a},
   silence:{nom:'Pistolet silencieux',ico:'🔇',type:'gun',degats:22,cad:0.42,portee:42,disp:2,mag:12,rech:1.1,prix:1400,niv:4,son:'silence',tr:0xbfeacb,discret:true},
   sniper:{nom:'Sniper "Faucon"',ico:'🎯',type:'gun',degats:120,cad:1.35,portee:120,disp:0,mag:5,rech:2.4,prix:2600,niv:6,son:'sniper',tr:0xff5a6a,manuel:true},
   // (14 octobre, demandé : « un AA-12 pompe automatique, et d'autres armes ») : modèles dans mkArmeModele
-  aa12:{nom:'AA-12 "Ouragan"',ico:'💥',type:'gun',degats:11,cad:0.17,portee:13,disp:9,pellets:6,mag:20,rech:2.8,prix:3400,niv:6,son:'pompe',tr:0xffd28a},
-  revolver:{nom:'Revolver "Magnum"',ico:'🔫',type:'gun',degats:58,cad:0.62,portee:30,disp:1.5,mag:6,rech:2.2,prix:1400,niv:4,son:'pistolet',tr:0xffe08a},
-  arbalete:{nom:'Arbalète "Silex"',ico:'🏹',type:'gun',degats:90,cad:0.9,portee:34,disp:0.4,mag:1,rech:1.0,prix:1600,niv:5,son:'silence',tr:0xc8a060,discret:true},
-  minigun:{nom:'Minigun "Tonnerre"',ico:'🌀',type:'gun',degats:9,cad:0.045,portee:26,disp:6,mag:200,rech:4.5,prix:6500,niv:8,son:'pm',tr:0xffd28a,lourd:true},
+  aa12:{nom:'AA-12 "Ouragan"',ico:'💥',type:'gun',degats:11,cad:0.17,portee:13,disp:9,pellets:6,mag:20,rech:2.8,prix:3400,niv:6,son:'aa12',tr:0xffd28a},
+  revolver:{nom:'Revolver "Magnum"',ico:'🔫',type:'gun',degats:58,cad:0.62,portee:30,disp:1.5,mag:6,rech:2.2,prix:1400,niv:4,son:'revolver',tr:0xffe08a},
+  arbalete:{nom:'Arbalète "Silex"',ico:'🏹',type:'gun',degats:90,cad:0.9,portee:34,disp:0.4,mag:1,rech:1.0,prix:1600,niv:5,son:'arbalete',tr:0xc8a060,discret:true},
+  minigun:{nom:'Minigun "Tonnerre"',ico:'🌀',type:'gun',degats:9,cad:0.045,portee:26,disp:6,mag:200,rech:4.5,prix:6500,niv:8,son:'minigun',tr:0xffd28a,lourd:true},
   flamme:{nom:'Lance-flammes "Dragon"',ico:'🔥',type:'gun',degats:4,cad:0.05,portee:13,disp:8,mag:80,rech:2.2,prix:2200,niv:6,son:'flamme',tr:0xff7b2e,flamme:true},
   roquette:{nom:'Bazooka "Comète"',ico:'🚀',type:'gun',degats:40,cad:1.2,portee:60,disp:1,mag:1,rech:2.6,prix:3200,niv:7,son:'roquette',tr:0xffd28a,roquette:true},
   bouleC:{nom:'Boule « Comète »',ico:'🎳',type:'melee',degats:56,cad:0.9,portee:3.0,knock:30,prix:0,niv:1,son:'batte',cachee:true,
@@ -27741,7 +27775,7 @@ function explosionFx(x,z,y){ const b=y||0; /* y : la hauteur du sol de l'explosi
   for(let i=0;i<9;i++) fumee(x+rand(-1.8,1.8),b+rand(0.5,2.4),z+rand(-1.8,1.8),0x3a3d44);
   ONDE.visible=true; ONDE.position.set(x,b+0.4,z); ONDE.scale.set(1,1,1);
   ONDE.material.opacity=0.9; ONDE.userData.t=0.4;
-  SFX.explo(); secousse(13); DANGER.x=x; DANGER.z=z; DANGER.t=3;
+  sonA(x,z,()=>SFX.explo()); /* liste du 22 octobre, point 4 : atténuée avec la distance */ secousse(13); DANGER.x=x; DANGER.z=z; DANGER.t=3;
 }
 const texGoutte=cTex(32,(g,s)=>{
   const gr=g.createLinearGradient(0,0,0,s);
@@ -33525,7 +33559,7 @@ function majEnnemis(dt){
           for(let k=0;k<pel;k++)
             tirer(e.x+Math.sin(versT)*0.7,yE+1.35,e.z+Math.cos(versT)*0.7,versT,e.def.acc,55,e.def.degats,e.fac,e.fac==='police'?0x8ad2ff:0xffc46a,cy,d);
           if(GANGS.includes(e.fac)) signalerFusillade(e.x,e.z,e.fac); /* un gangster tire (sur le joueur, un rival ou la police), en vague ou non : la police est appelée */
-          SFX[e.def.arme]&&SFX[e.def.arme]();
+          sonA(e.x,e.z,()=>{ if(SFX[e.def.arme]) SFX[e.def.arme](); }) /* point 4 : atténué avec la distance */;
           e.shotsLeft--;
           if(e.shotsLeft>0) e.cad=Math.max(0.1,e.def.cad);
           else {e.shotsLeft=e.def.burst||1;e.cad=rand(0.8,1.5);}

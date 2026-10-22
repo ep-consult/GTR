@@ -18723,6 +18723,62 @@ async function main() {
       else ok('Liste 22 oct., point 17 : ' + r.info.join(' ; '));
     }
     // -------------------------------------------------------------------
+    // Liste du 22 octobre, point 4 : les sons, propres. Chaque son du catalogue (lu dans SFX, et SFX.choc à quatre violences) est
+    // rendu hors ligne (OfflineAudioContext) à travers les vrais bus du jeu (busAudio : compresseur, limiteur, plateau, écho) :
+    // aucun écrêtage ; l'énergie au-dessus de 6 kHz sous SON_HF_MAX de l'énergie totale ; une crête dans la fourchette de sa
+    // famille ; aucun clic (moins de 45 % de la crête dans la 1re milliseconde — les anciens sons y étaient à 84 à 99 % —, une fin qui retombe à zéro). Et : un tir d'ennemi à 100 u est atténué,
+    // à 160 u muet ; le plafond de voix tient ; une variation de hauteur entre deux tirs ; aucun Math.random dans les sons.
+    // -------------------------------------------------------------------
+    console.log('\n--- Liste du 22 octobre, point 4 : les sons, rendus hors ligne ---');
+    {
+      const r = await page.evaluate(async () => {
+        const ko = [], info = [], mesures = {}; const SON_HF_MAX = 0.12;
+        const FAM = { interface: ['ui', 'achat', 'refus', 'cash', 'niveau', 'etoile', 'ramasse', 'headshot', 'soin'], melee: ['coup', 'batte', 'lame', 'swing'],
+          armes: ['pistolet', 'revolver', 'silence', 'arbalete', 'pm', 'uzi', 'minigun', 'fusil', 'pompe', 'aa12', 'sniper', 'roquette', 'flamme', 'desintegrateur'], explosions: ['explo', 'desintOvni'] };
+        const PIC = { interface: [0.05, 0.5], melee: [0.12, 0.8], armes: [0.1, 0.95], chocs: [0.05, 0.95], explosions: [0.35, 0.99], divers: [0.03, 0.9] };
+        const fam = (k) => { for (const f of Object.keys(FAM)) if (FAM[f].includes(k)) return f; return k.startsWith('choc') ? 'chocs' : 'divers'; };
+        const sauve = {}; for (const k of ['ctx', 'master', 'sfxG', 'uiG', 'musG', 'duckG', 'echo', 'noise', 'pret']) sauve[k] = AUDIO[k];
+        const reg0 = REGLAGES.sfx; REGLAGES.sfx = true; const v0 = vibre; vibre = () => {};
+        const rendre = async (fn, filtreHF) => { const sr = 44100, off = new OfflineAudioContext(1, Math.round(sr * 2.4), sr); let sortie = off.destination;
+          if (filtreHF) { const hp = off.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 6000; hp.Q.value = 0.7; const hp2 = off.createBiquadFilter(); hp2.type = 'highpass'; hp2.frequency.value = 6000; hp2.Q.value = 0.7; hp.connect(hp2); hp2.connect(off.destination); sortie = hp; }
+          let B; if (typeof busAudio === 'function') B = busAudio(off, sortie, {}); else { B = {}; B.master = off.createGain(); B.master.gain.value = 0.9; B.master.connect(sortie); B.sfxG = off.createGain(); B.sfxG.gain.value = 0.85; B.sfxG.connect(B.master); B.uiG = off.createGain(); B.uiG.gain.value = 0.85; B.uiG.connect(B.master); B.musG = off.createGain(); B.duckG = B.master;
+            const len = sr * 1.2, buf = off.createBuffer(1, len, sr), d = buf.getChannelData(0); for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1; B.noise = buf; } /* la version d'avant : sans bus */
+          const avant = {}; for (const k of ['ctx', 'master', 'sfxG', 'uiG', 'musG', 'duckG', 'echo', 'noise', 'pret']) avant[k] = AUDIO[k];
+          Object.assign(AUDIO, { ctx: off, master: B.master, sfxG: B.sfxG, uiG: B.uiG, musG: B.musG, duckG: B.duckG, echo: B.echo, noise: B.noise, pret: true }); if (typeof SON !== 'undefined') { SON.voix = 0; SON.t0 = 0.3; SON.gain = 1; } /* 0,3 s après le début : à t = 0, le compresseur d'un rendu hors ligne part fermé (il atténue tout, même sous le seuil) — en jeu, le bus tourne en continu */
+          const st0 = window.setTimeout; const enAttente = []; window.setTimeout = (f, ms) => { enAttente.push([f, ms || 0]); return 0; }; /* la version d'avant enchaînait ses couches par setTimeout */
+          try { fn(); } finally { window.setTimeout = st0; if (typeof SON !== 'undefined') SON.t0 = 0; }
+          for (const [f, ms] of enAttente) { const t = off.currentTime; /* rejoue au bon instant : décale ctx.currentTime en avançant le rendu n'est pas possible — on décale l'horloge lue */ const cur = Object.getOwnPropertyDescriptor(BaseAudioContext.prototype, 'currentTime'); Object.defineProperty(off, 'currentTime', { get: () => ms / 1000, configurable: true }); try { f(); } catch (e) {} delete off.currentTime; }
+          Object.assign(AUDIO, avant); /* le contexte hors ligne seulement le temps de jouer le son : pendant le rendu, la musique et les ambiances (minuteries d'audioInit) y écriraient */ const b = await off.startRendering(); return b.getChannelData(0); };
+        const mesure = (x) => { let pic = 0, e = 0; for (let i = 0; i < x.length; i++) { const a = Math.abs(x[i]); if (a > pic) pic = a; e += x[i] * x[i]; }
+          let debut = 0; for (let i = 0; i < x.length; i++) if (Math.abs(x[i]) > 1e-4) { debut = i; break; } let att = 0; for (let i = debut; i < Math.min(x.length, debut + 44); i++) att = Math.max(att, Math.abs(x[i])); /* la première milliseconde */
+          let fin = 0; for (let i = x.length - 441; i < x.length; i++) fin = Math.max(fin, Math.abs(x[i])); return { pic, e, att, fin }; };
+        const sons = Object.keys(SFX).filter((k) => typeof SFX[k] === 'function' && k !== 'choc').map((k) => [k, () => SFX[k]()]).concat([0.1, 0.5, 0.9, 1.4].map((v) => ['choc' + v, () => SFX.choc(v)]));
+        for (const [k, fn] of sons) { const x = await rendre(fn, false), m = mesure(x), h = mesure(await rendre(fn, true)); const hf = m.e > 0 ? h.e / m.e : 0, f = fam(k), [pMin, pMax] = PIC[f];
+          mesures[k] = { pic: +m.pic.toFixed(3), hf: +hf.toFixed(3), att: +m.att.toFixed(3), fin: +m.fin.toFixed(4), fam: f };
+          if (m.pic >= 0.999) ko.push(k + ' : écrêté (' + m.pic.toFixed(3) + ')');
+          if (hf > SON_HF_MAX) ko.push(k + ' : ' + (hf * 100).toFixed(0) + ' % de l’énergie au-dessus de 6 kHz');
+          if (m.pic < pMin || m.pic > pMax) ko.push(k + ' (' + f + ') : crête ' + m.pic.toFixed(2) + ' hors de [' + pMin + ', ' + pMax + ']');
+          if (m.pic > 0 && m.att / m.pic > 0.45) ko.push(k + ' : attaque sèche (' + (100 * m.att / m.pic).toFixed(0) + ' % de la crête dès la 1re ms : un clic)');
+          if (m.fin > 0.002) ko.push(k + ' : ne retombe pas à zéro (' + m.fin.toFixed(4) + ' dans les 10 dernières ms)'); }
+        /* la distance, les voix, la variation */
+        if (typeof SON !== 'undefined' && typeof sonA === 'function') {
+          const g = (d) => { let gg = null; const b0 = beep; beep = function (f, du, ty, vol) { gg = (vol || 0.2) * SON.gain; }; try { sonA(P.x + d, P.z, () => beep(200, 0.1, 'sine', 1)); } finally { beep = b0; } return gg; };
+          const g10 = g(10), g100 = g(100), g160 = g(160); if (!(g10 === 1 && g100 > 0 && g100 < 0.3 && g160 === null)) ko.push('distance : gain ' + g10 + ' / ' + g100 + ' / ' + g160 + ' à 10, 100, 160 u'); else info.push('distance : ×1 à 10 u, ×' + g100.toFixed(2) + ' à 100 u, muet à 160');
+          const off = new OfflineAudioContext(1, 44100, 44100); const B = busAudio(off, off.destination, {}); Object.assign(AUDIO, { ctx: off, master: B.master, sfxG: B.sfxG, uiG: B.uiG, echo: B.echo, noise: B.noise, pret: true }); SON.voix = 0;
+          for (let i = 0; i < 80; i++) SFX.pm(); if (SON.voix > SON_VOIX_MAX) ko.push('plafond de voix dépassé : ' + SON.voix); else info.push('80 rafales : ' + SON.voix + ' voix (plafond ' + SON_VOIX_MAX + ')');
+          const a1 = await rendre(() => SFX.pistolet(), false), a2 = await rendre(() => SFX.pistolet(), false); let dif = 0; for (let i = 13000; i < 17500; i++) dif += Math.abs(a1[i] - a2[i]); /* le son part à 0,3 s */ if (!(dif > 1)) ko.push('deux tirs de pistolet identiques'); }
+        else ko.push('pas de sonA / SON (atténuation, voix)');
+        Object.assign(AUDIO, sauve); REGLAGES.sfx = reg0; vibre = v0;
+        const armes = Object.keys(ARMES).filter((k) => ARMES[k].son); const sonsArmes = new Set(armes.filter((k) => !ARMES[k].melee && ARMES[k].son !== 'batte' && ARMES[k].son !== 'lame' && ARMES[k].son !== 'coup').map((k) => ARMES[k].son));
+        info.push(sons.length + ' sons rendus, ' + sonsArmes.size + ' sons d’armes à feu distincts');
+        return { ko, info, mesures };
+      });
+      const src = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8'); const i0 = src.indexOf('const SFX={'), i1 = src.indexOf('function sirenUpdate'); if (i0 > 0 && i1 > i0 && /Math\.random/.test(src.slice(i0, i1))) r.ko.push('Math.random dans le catalogue des sons');
+      if (process.env.MESURES_SONS) fs.writeFileSync(process.env.MESURES_SONS, JSON.stringify(r.mesures, null, 1));
+      if (r.ko.length) fail('Liste 22 oct., point 4 : ' + r.ko.slice(0, 25).join(' ; ') + ' [' + r.info.join(' | ') + ']');
+      else ok('Liste 22 oct., point 4 : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];
