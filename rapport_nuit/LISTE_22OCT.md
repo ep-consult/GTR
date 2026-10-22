@@ -14,7 +14,7 @@ Ordre suivi : 1, 17, 4, 3, 2, 5, puis le reste.
 | 4 | Les sons propres | ☑ |
 | 5 | Cockpit du taxi : plus d'air sous le toit | ☑ |
 | 6 | Les publics de décor fuient et se visent | ☐ |
-| 7 | La statue de la Liberté plus grande | ☐ |
+| 7 | La statue de la Liberté plus grande | ☑ |
 | 8 | Habits et tatouages réalistes | ☐ |
 | 9 | Plus d'améliorations au chantier naval | ☐ |
 | 10 | Le paquebot qui se brise, plus impressionnant | ☐ |
@@ -30,6 +30,27 @@ Ordre suivi : 1, 17, 4, 3, 2, 5, puis le reste.
 
 - **Branche** : `retours-22oct` part de `retours-20-octobre` (et non de `main`) : les points de la liste portent sur ce que les deux
   chantiers précédents ont construit (canaux V3, paquebot, Cliff Diving, cabrage en équilibre…).
+
+## 7 — La statue de la Liberté, deux fois plus grande (fait)
+
+**Trouvée** : la « statue de la Liberté » vue en jeu est la statue de bronze des places garnies (`MOB_CAT.statue` : socle de pierre,
+figure de bronze au bras levé qui tient un flambeau doré), posée par `mkPlacesGarnies` dans les ensembles « statue » (centre, place,
+quartier néon) : 11 exemplaires avec la graine par défaut.
+
+**Fait** : `MOB_CAT.statue.ech = 2`. Les pièces sont posées à l'échelle (`mobPiecesEch` : dimensions et positions × 2) — une pièce de
+mobilier ne tire aucun nombre, la géométrie fusionnée de la zone garde le même nombre de sommets. Le **solide** (le socle) garde sa
+taille pendant la génération (les placements qui suivent dans le mobilier et le décor lisent `solidAt` : le grossir là changerait
+leurs décisions) et grandit une seule fois, au premier `startRun` (`statuesAgrandir`, liste `STATUES`) : emprise 1,6 → 3,2 u, hauteur
+3,8 → 7,6 u ; une statue repliée par les canaux est sautée. La statue fait 8,6 u de haut (4,3 avant). Les jardinières et les bancs de
+l'ensemble (à 3,1 et 3,8 u du centre) restent dégagés du socle (1,75 u de demi-côté).
+
+**Vérifié** : empreinte des tirages identique (décor, portes, chalet, mobilier) ; aucun socle agrandi sur la chaussée, dans l'eau ni
+sur un autre solide (test) ; une partie suivante ne le regrandit pas.
+
+**Test** « Liste du 22 octobre, point 7 » (statues lues dans `STATUES`) : hauteur de la géométrie ≥ 1,9 × l'original, solide ×2 après
+le premier `startRun`, ni chaussée, ni eau, ni chevauchement, pas de second agrandissement.
+
+**Captures** : `avant_07_statue.png` / `07_statue.png` (même place, même point de vue, vue immersive).
 
 ## 5 — Le cockpit du taxi : plus d'air sous le toit (fait)
 

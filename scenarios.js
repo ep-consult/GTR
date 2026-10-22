@@ -18902,6 +18902,33 @@ async function main() {
       else ok('Liste 22 oct., point 5 : pavillon au cockpit (part du haut de l’écran) : ' + r.info.join(', '));
     }
     // -------------------------------------------------------------------
+    // Liste du 22 octobre, point 7 : la statue de la Liberté des places, deux fois plus grande. Lue dans STATUES (chaque statue
+    // posée par le mobilier) : sa géométrie (la plage de sommets de son objet dans la zone du mobilier) monte deux fois plus haut
+    // que le modèle d'origine ; après le premier startRun, son solide fait le double (hauteur et emprise), il n'empiète ni sur la
+    // chaussée, ni sur l'eau, ni sur un autre solide ; une partie suivante ne le grossit pas une seconde fois.
+    // -------------------------------------------------------------------
+    console.log('\n--- Liste du 22 octobre, point 7 : la statue de la Liberté, deux fois plus grande ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = []; const partie = () => { if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; };
+        partie(); const D = MOB_CAT.statue; if (!STATUES.length) return { ko: ['aucune statue posée'], info };
+        const hOrig = Math.max(...D.pieces.map((p) => p[5] + p[2] / 2)); /* pièce : [type, l, h, p, x, y, z, couleur] */ let n = 0, nSol = 0;
+        for (const st of STATUES) { const ob = st.ob, m = MOB.zones[ob.zone]; if (!m) continue; const A = m.geometry.attributes.position.array; let yMin = 1e9, yMax = -1e9;
+          for (let q = ob.debut; q < ob.debut + ob.nb; q++) { yMin = Math.min(yMin, A[q * 3 + 1]); yMax = Math.max(yMax, A[q * 3 + 1]); }
+          if (yMax < -5) continue; /* repliée (canaux) */ n++;
+          if (yMax - yMin < hOrig * 1.9) ko.push('statue (' + ob.x.toFixed(0) + ', ' + ob.z.toFixed(0) + ') : ' + (yMax - yMin).toFixed(2) + ' u de haut pour ' + (hOrig * 2).toFixed(2));
+          const so = ob.sol; if (!so) continue; nSol++;
+          if (so.h < D.solide.h * 1.95 || so.hw < D.solide.hw * 1.9) ko.push('statue (' + ob.x.toFixed(0) + ', ' + ob.z.toFixed(0) + ') : solide ' + so.hw.toFixed(2) + ' × ' + so.h.toFixed(2));
+          for (const [ax, az] of [[-1, -1], [1, -1], [-1, 1], [1, 1], [0, 0]]) { const x = so.x + ax * so.hw, z = so.z + az * so.hd; if (surChaussee(x, z)) ko.push('statue (' + ob.x.toFixed(0) + ', ' + ob.z.toFixed(0) + ') : sur la chaussée'); if (estEau(x, z)) ko.push('statue (' + ob.x.toFixed(0) + ', ' + ob.z.toFixed(0) + ') : dans l’eau'); }
+          const vus = new Set(); for (const arr of sGrid.values()) for (const o of arr) { if (o === so || vus.has(o) || o.actif === false || o.base) continue; vus.add(o); if (Math.abs(o.x - so.x) < o.hw + so.hw - 0.05 && Math.abs(o.z - so.z) < o.hd + so.hd - 0.05) ko.push('statue (' + ob.x.toFixed(0) + ', ' + ob.z.toFixed(0) + ') : recouvre un solide (' + o.x.toFixed(1) + ', ' + o.z.toFixed(1) + ')'); } }
+        const h1 = STATUES.find((st) => st.ob.sol) ; const hAvant = h1 ? h1.ob.sol.h : 0; partie(); if (h1 && h1.ob.sol.h !== hAvant) ko.push('le solide regrandit à la partie suivante (' + hAvant + ' → ' + h1.ob.sol.h + ')');
+        info.push(n + ' statues, ' + nSol + ' solides agrandis, ' + (hOrig * 2).toFixed(1) + ' u de haut (' + hOrig.toFixed(1) + ' avant)');
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Liste 22 oct., point 7 : ' + r.ko.slice(0, 15).join(' ; ') + ' [' + r.info.join(' | ') + ']');
+      else ok('Liste 22 oct., point 7 : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];

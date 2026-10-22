@@ -4787,6 +4787,15 @@ const _gBox=new THREE.BoxGeometry(1,1,1).toNonIndexed(), _gCyl=new THREE.Cylinde
       _gBoule=new THREE.IcosahedronGeometry(1,0), _gCone=new THREE.ConeGeometry(1,1,5).toNonIndexed(),
       _gOcta=new THREE.OctahedronGeometry(1,0);
 const _c3=new THREE.Color(), _m4=new THREE.Matrix4(), _v3=new THREE.Vector3(), _n3=new THREE.Vector3(), _m3=new THREE.Matrix3();
+/* ---- La statue de la Liberté des places (liste du 22 octobre, point 7, demandé : « deux fois plus grande, le solide et le socle
+   suivent, jamais sur la route, sans décaler les tirages »). Ses pièces sont posées à l'échelle (mobPiecesEch : dimensions et
+   positions × ech — une pièce de mobilier ne tire aucun nombre) ; son SOLIDE garde sa taille pendant la génération (les placements
+   qui suivent le lisent : le grossir là changerait leurs décisions) et grandit une seule fois, au premier startRun (statuesAgrandir). */
+const STATUES=[];
+function mobPiecesEch(D){ if(D._piecesEch) return D._piecesEch; const k=D.ech; D._piecesEch=D.pieces.map((p)=>[p[0],p[1]*k,p[2]*k,p[3]*k,p[4]*k,p[5]*k,p[6]*k,p[7]]); return D._piecesEch; }
+function statuesAgrandir(){ if(STATUES.fait) return; STATUES.fait=true;
+  for(const st of STATUES){ const so=st.ob.sol; if(!so) continue; let dansGrille=false; for(const arr of sGrid.values()) if(arr.indexOf(so)>=0){ dansGrille=true; break; } if(!dansGrille) continue; /* repliée (canaux) : rien */
+    retirerSolide(so); so.hw*=st.ech; so.hd*=st.ech; so.h*=st.ech; addSolid(so); } }
 function mobPieces(pieces,X,Z,ry,cible,Y0){
   // cible : {pos:[], nor:[], col:[]} ; renvoie le nombre de sommets ajoutés
   const c=Math.cos(ry), s=Math.sin(ry); let n=0;
@@ -4860,7 +4869,7 @@ Object.assign(MOB_CAT,{
   statue:{pieces:[['box',1.5,1.4,1.5,0,0.7,0,PIERRE],['box',1.75,0.2,1.75,0,1.48,0,PIERRE2],['box',1.75,0.2,1.75,0,0.08,0,PIERRE2],
     ['box',0.24,0.85,0.26,-0.13,2.0,0,BRONZE],['box',0.24,0.85,0.26,0.13,2.0,0,BRONZE],['box',0.62,0.8,0.36,0,2.82,0,BRONZE],
     ['boule',0.23,0.25,0.23,0,3.42,0,BRONZE],['box',0.14,0.85,0.14,0.42,3.5,0,BRONZE],['box',0.14,0.6,0.14,-0.38,2.75,0.05,BRONZE],
-    ['box',0.08,0.5,0.4,0.42,4.05,0,0xd8b04a]],casse:false,solide:{hw:0.8,hd:0.8,h:3.8},r:1.1},
+    ['box',0.08,0.5,0.4,0.42,4.05,0,0xd8b04a]],casse:false,solide:{hw:0.8,hd:0.8,h:3.8},r:1.1,ech:2}, /* ech : liste du 22 octobre, point 7 — la statue de la Liberté des places, ×2 (statuesAgrandir) */
   toboggan:{pieces:[['box',0.08,1.7,0.08,-0.4,0.85,-1.1,0xe05252],['box',0.08,1.7,0.08,0.4,0.85,-1.1,0xe05252],['box',0.08,1.7,0.08,-0.4,0.85,-0.3,0xe05252],['box',0.08,1.7,0.08,0.4,0.85,-0.3,0xe05252],
     ['box',0.9,0.1,0.9,0,1.7,-0.7,0x3a6ad8],['box',0.7,0.08,0.7,0,1.35,0.25,0xf0c020],['box',0.7,0.08,0.7,0,0.95,0.85,0xf0c020],['box',0.7,0.08,0.7,0,0.55,1.45,0xf0c020],['box',0.7,0.08,0.6,0,0.2,2.0,0xf0c020],
     ['box',0.06,0.3,2.6,-0.36,1.1,0.9,0xf0c020],['box',0.06,0.3,2.6,0.36,1.1,0.9,0xf0c020]],casse:false,solide:{hw:0.55,hd:0.6,h:1.8},r:1.6},
@@ -4993,7 +5002,7 @@ function mkMobilierUrbain(){
     const D=MOB_CAT[type], zn=zones[mobZone(x,z)], yPose=Y0===undefined?MOB_Y_TROTTOIR:Y0;
     // posé SUR le trottoir (dessus à 0,22) : à y=0, tout était enfoncé de
     // 0,22 (pieds de bancs, fosses d'arbres, terre des massifs invisibles)
-    const debut=zn.b.pos.length/3, nb=mobPieces(D.pieces,x,z,ry,zn.b,yPose), ob={zone:mobZone(x,z),debut,nb,debutL:zn.l.pos.length/3,nbL:0,x,z,sol:null,stand:null,arceau:null}; MOB.objets.push(ob);
+    const debut=zn.b.pos.length/3, nb=mobPieces(D.ech?mobPiecesEch(D):D.pieces,x,z,ry,zn.b,yPose), ob={zone:mobZone(x,z),debut,nb,debutL:zn.l.pos.length/3,nbL:0,x,z,sol:null,stand:null,arceau:null}; MOB.objets.push(ob); if(D.ech) STATUES.push({ob,ech:D.ech});
     if(D.lum) ob.nbL=mobPieces(D.lum,x,z,ry,zn.l,yPose);
     if(D.solide){ const c=Math.abs(Math.cos(ry)), s=Math.abs(Math.sin(ry));
       ob.sol={x,z,hw:D.solide.hw*c+D.solide.hd*s,hd:D.solide.hw*s+D.solide.hd*c,h:D.solide.h}; addSolid(ob.sol); }
@@ -46893,6 +46902,7 @@ function startRun(){
   MET2.vague=-1; MET2.parVague={}; // compteurs de paie des métiers par vague : hérités de la partie d'avant au même numéro de vague
   clotureMatPropre(); // une fois : la clôture de l'aérodrome a son propre matériau translucide
   ameliorerTexturesSol(); // une fois : asphalte et sable redessinés, variation de teinte des sols
+  statuesAgrandir(); /* une fois : le solide des statues de la Liberté à leur nouvelle taille (liste du 22 octobre, point 7) */
   viderDebris(); // dégâts V2 : éclats, roues et pièces au sol
   viderJetEau(); /* lance à eau : jet et flaques */
   viderOiseaux();
