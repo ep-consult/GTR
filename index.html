@@ -5656,7 +5656,7 @@ function mkSkateXXL(){
   S.public=[];
   for(let r=0;r<4;r++){ mkBox(30,0.5,1.2,mat(r%2?0x3a3f48:0x4a505a),S.x0+26,0.25+r*0.55,S.z0-2-r*1.2); addSolid({x:S.x0+26,z:S.z0-2-r*1.2,hw:15,hd:0.6,h:0.5+r*0.55,toit:true});
     for(let k=0;k<7;k++){ const hm=makeHumain({haut:choixD([0xff5ad0,0x35e0ff,0xffd23f,0x7dff7a,0xe8ecf2,0xff8c1a]),bas:choixD([0x1c2030,0x2a2e3a,0x3a2f24]),peau:choixD(civPeau),casq:choixD([0x14161c,0x4a3520,0xd8b02a]),visage:'cool'},1);
-      hm.g.position.set(S.x0+13+k*4+aD(-0.8,0.8),0.5+r*0.55,S.z0-2-r*1.2); hm.g.rotation.y=0; scene.add(hm.g); S.public.push({h:hm,ph:aD(0,6),y0:hm.g.position.y}); } }
+      hm.g.position.set(S.x0+13+k*4+aD(-0.8,0.8),0.5+r*0.55,S.z0-2-r*1.2); hm.g.rotation.y=0; scene.add(hm.g); figurant(hm); /* liste du 22 octobre, point 6 : visé ou percuté, il devient un vrai piéton */ S.public.push({h:hm,ph:aD(0,6),y0:hm.g.position.y}); } }
   const cadre=mkBox(26,0.4,0.4,mat(0x2a2d34),S.x0+26,9.6,S.z0-8); mkBox(0.4,9.6,0.4,mat(0x2a2d34),S.x0+13.5,4.8,S.z0-8); mkBox(0.4,9.6,0.4,mat(0x2a2d34),S.x0+38.5,4.8,S.z0-8);
   mkEnseigne('REYES SKATEPARK','#ff3bd0',S.x0+26,7.6,S.z0-7.6,0,22);
   for(const [u,w] of [[-2,-2],[L+2,-2],[-2,Lz+2],[L+2,Lz+2]]){
@@ -5684,7 +5684,7 @@ function majSkateXXL(v,dt){
   if(v&&v.vertAir&&!v.enAir){ v.vertAir=false; v.v=Math.max(v.v,3); }
   if(SKX.ovation>0) SKX.ovation-=dt;
   const ov=SKX.ovation>0;
-  for(const p of SKX.public){ p.ph+=dt*(ov?9:2); p.h.g.position.y=p.y0+(ov?Math.abs(Math.sin(p.ph))*0.35:0); p.h.brasG.rotation.z=ov?2.6+Math.sin(p.ph)*0.3:0.2; p.h.brasD.rotation.z=ov?-2.6-Math.sin(p.ph)*0.3:-0.2; }
+  for(const p of SKX.public){ if(figConverti(p.h)) continue; p.ph+=dt*(ov?9:2); p.h.g.position.y=p.y0+(ov?Math.abs(Math.sin(p.ph))*0.35:0); p.h.brasG.rotation.z=ov?2.6+Math.sin(p.ph)*0.3:0.2; p.h.brasD.rotation.z=ov?-2.6-Math.sin(p.ph)*0.3:-0.2; }
 }
 /* ---------- PORT VIVANT (DECOR_V2) ----------
    Le quartier « port » est fait d'entrepôts dans les terres : on garde son
@@ -9369,7 +9369,7 @@ function lagonFoulePoser(t,force){ const F=LAGON.foule; if(!F) return; const L=C
         else if(u<11.2){ const k=(u-10)/1.2; y=Y_SOL_LAGON+p.h+k*1.4-k*k*(p.h+1.5)-0.2; g.x=p.x; g.z=p.z-1.9-k*2.4; ang=Math.PI; plonge=k*2.6; bras=3.1; brasD=3.1; if(!g.splash&&k>0.95){ g.splash=true; if(dist2(g.x,g.z,P.x,P.z)<150*150) eclaboussure(g.x,g.z,1.1); } }
         else { g.splash=false; y=Pq.y-1.15; g.x=p.x; g.z=p.z-4.4; } }
       else { dy=0; bras=0.2+Math.max(0,Math.sin(t*0.5+g.ph))*0.6; ang=g.ang+Math.sin(t*0.25+g.ph)*0.4; } }
-    _LE.set(plonge||(couche?-Math.PI/2:0),ang,0); _LQ.setFromEuler(_LE); _LMb.compose(_LV.set(g.x,y+dy,g.z),_LQ,_LS.set(g.k,g.k,g.k));
+    _LE.set(plonge||(couche?-Math.PI/2:0),ang,0); _LQ.setFromEuler(_LE); _LMb.compose(_LV.set(g.x,y+dy,g.z),_LQ,_LS.setScalar(g.parti?0:g.k)); /* point 6 : parti (devenu un vrai piéton) */
     if(couche){ lagonPart(F.jambes,i,0,0.15,-0.62,0); lagonPart(F.torse,i,0,0.15,0.1,0); lagonPart(F.tete,i,0,0.15,0.6,0); }
     else { lagonPart(F.jambes,i,0,0.42,0,0); lagonPart(F.torse,i,0,1.15,0,0); lagonPart(F.tete,i,0,1.62,0,0); }
     const sy=couche?0.15:1.42, sz=couche?0.1:0; lagonPart(F.bras,2*i,0.31,sy,sz,bras*0.5); lagonPart(F.bras,2*i+1,-0.31,sy,sz,-brasD*0.5);
@@ -13344,6 +13344,31 @@ function pompeExploser(p){ p.etat='boum'; p.t=8; p.duJoueur=!!p.duJoueur; explos
   if(!P.veh&&dist2(P.x,P.z,p.x,p.z)<36&&P.y-p.y<3) toucherJoueur(30); if(p.duJoueur) addHeat(0.5); }
 function pompesSouffle(x,z,r,duJoueur){ for(const p of POMPES.liste) if(p.etat==='ok'&&dist2(p.x,p.z,x,z)<r*r) pompeAllumer(p,duJoueur); }
 function toucherPompe(b){ if(!POMPES.liste.length) return false; for(const p of POMPES.liste){ if(p.etat!=='ok') continue; if(dist2(b.x,b.z,p.x,p.z)<0.7&&b.y>p.y-0.2&&b.y<p.y+2.1){ p.pv-=b.dmg||10; burst(b.x,b.y,b.z,3,0xffd88a,4); if(p.pv<=0) pompeAllumer(p,b.fac==='joueur',0.25); return true; } } return false; }
+/* ---- Les publics de décor (liste du 22 octobre, point 6, demandé : « le public de la disco en extérieur, du diving… : on doit
+   pouvoir leur tirer dessus, ils fuient, comme les autres figurants »). Trouvés : la foule du Lagon (la « disco en extérieur » : la
+   piste du DJ, 46 personnes instanciées), la tribune de l'arène de derby (instanciée), le public de Reyes Cliff Diving (une géométrie
+   fusionnée) — aucun ne se visait —, et le public du Skatepark XXL (de vrais corps, désormais des figurants ; les danseurs du DJ des
+   toits et les supporters du stade l'étaient déjà). Une balle du joueur sur un spectateur (FOULES, foulesMembres) : il disparaît de la
+   foule et un vrai piéton prend sa place, touché ; ses voisins (FOULE_VOISINS dans FOULE_FUITE u) deviennent de vrais piétons qui
+   fuient ; une explosion à côté fait fuir les plus proches. Tout revient à la partie suivante (foulesStartRun). */
+const FOULE_FUITE=6, FOULE_VOISINS=4;
+function foulesMembres(){ const L=[];
+  if(typeof LAGON!=='undefined'&&LAGON.foule&&!LAGON.foule.cache) for(const g of LAGON.foule.gens) L.push({f:'lagon',m:g,x:g.x,y:Y_SOL_LAGON,z:g.z});
+  if(typeof DERBY!=='undefined'&&DERBY.foule) for(const p of DERBY.foule.pos) L.push({f:'derby',m:p,x:p.x,y:p.y-0.33,z:p.z});
+  if(CLIFF.publicMembres) for(const p of CLIFF.publicMembres) L.push({f:'cliff',m:p,x:p.x,y:p.y,z:p.z});
+  return L; }
+function fouleCacher(e){ const m=e.m; m.parti=true;
+  if(e.f==='derby'&&DERBY.foule) DERBY.foule.repos=false;
+  if(e.f==='cliff'&&CLIFF.public){ const A=CLIFF.public.geometry.attributes.position; if(!CLIFF.publicOrig) CLIFF.publicOrig=A.array.slice(); for(let i=m.i0;i<m.i1;i++) A.array[i*3+1]=-60; A.needsUpdate=true; } }
+function fouleVersPieton(e,fuite){ if(e.m.parti) return null; fouleCacher(e); creerPieton(e.x,e.z); const p=pietons[pietons.length-1]; p.h.g.position.y=e.y; p.solRag=e.y; p.y=e.y; p.deFoule=e.f;
+  if(fuite){ p.etat='fuite'; p.t=4; } return p; }
+function fouleFuite(x,z,n,sauf){ let k=0; const L=foulesMembres().filter((e)=>!e.m.parti&&e!==sauf).sort((a,b)=>dist2(a.x,a.z,x,z)-dist2(b.x,b.z,x,z));
+  for(const e of L){ if(k>=n||dist2(e.x,e.z,x,z)>FOULE_FUITE*FOULE_FUITE) break; fouleVersPieton(e,true); k++; } if(typeof LAGON!=='undefined'&&LAGON.foule&&dist2(x,z,LAGON.px||x,LAGON.pz||z)<900) LAGON.paniqueT=Math.max(LAGON.paniqueT||0,6); return k; }
+function toucherFoule(b){ if(b.fac!=='joueur') return false; for(const e of foulesMembres()){ if(e.m.parti) continue; if(dist2(b.x,b.z,e.x,e.z)<0.5&&b.y>e.y-0.1&&b.y<e.y+1.9){
+      const p=fouleVersPieton(e,false); if(p) tuerPieton(p,true,6,b.x-b.vx*0.1,b.z-b.vz*0.1); fouleFuite(e.x,e.z,FOULE_VOISINS,e); DANGER.x=e.x; DANGER.z=e.z; DANGER.t=Math.max(DANGER.t,3); return true; } } return false; }
+function foulesStartRun(){ for(const e of foulesMembres()) e.m.parti=false; if(typeof DERBY!=='undefined'&&DERBY.foule) DERBY.foule.repos=false;
+  if(CLIFF.public&&CLIFF.publicOrig){ const A=CLIFF.public.geometry.attributes.position; A.array.set(CLIFF.publicOrig); A.needsUpdate=true; }
+  for(let i=pietons.length-1;i>=0;i--) if(pietons[i].deFoule){ scene.remove(pietons[i].h.g); pietons.splice(i,1); } }
 function majPompes(dt){ for(const p of POMPES.liste){ if(p.etat==='feu'){ p.t-=dt; if(Math.random()<0.5) burst(p.x,p.y+1.4,p.z,1,0xff7a2e,3,2); if(p.t<=0) pompeExploser(p); }
     else if(p.etat==='boum'&&p.t>0){ p.t-=dt; if(Math.random()<dt*6) fumee(p.x+rand(-0.4,0.4),p.y+1.4,p.z+rand(-0.4,0.4),0x2e3036); if(p.t>5&&Math.random()<dt*10) burst(p.x,p.y+0.9,p.z,1,0xff9f2e,3,3); } } }
 function pompesStartRun(){ pompesMarina(); for(const p of POMPES.liste){ p.etat='ok'; p.pv=POMPE_PV; p.t=0; p.duJoueur=false; if(p.g) p.g.visible=true; pompeCarcasse(p,false); } }
@@ -16184,7 +16209,7 @@ function derbyPublic(dt){
   const D=DERBY, F=D.foule; if(!F) return; D.cheer=Math.max(0,D.cheer-dt*0.5);
   const actif=!!D.actif, k=Math.min(1,D.cheer); if(!actif&&k<=0&&F.repos) return;
   F.t+=dt; const m=D._m;
-  for(let i=0;i<F.n;i++){ const p=F.pos[i]; let y=p.y; if(k>0) y+=Math.abs(Math.sin(F.t*9+p.ph))*0.35*k; else if(actif) y+=Math.max(0,Math.sin(F.t*2.2+p.ph))*0.06;
+  for(let i=0;i<F.n;i++){ const p=F.pos[i]; if(p.parti){ m.makeScale(0,0,0); F.corps.setMatrixAt(i,m); F.tetes.setMatrixAt(i,m); continue; } /* point 6 */ let y=p.y; if(k>0) y+=Math.abs(Math.sin(F.t*9+p.ph))*0.35*k; else if(actif) y+=Math.max(0,Math.sin(F.t*2.2+p.ph))*0.06;
     m.makeTranslation(p.x,y,p.z); F.corps.setMatrixAt(i,m); m.makeTranslation(p.x,y+0.52,p.z); F.tetes.setMatrixAt(i,m); }
   F.corps.instanceMatrix.needsUpdate=true; F.tetes.instanceMatrix.needsUpdate=true; F.repos=!actif&&k<=0;
   if(AUDIO.derbyFouleG) AUDIO.derbyFouleG.gain.value=0.035+0.07*k; }
@@ -18116,9 +18141,10 @@ function mkCliffDiving(){ if(!CRIQUE) return; const M=(c)=>new THREE.MeshLambert
   // le public : sur le haut des bras de la crique, une seule géométrie à couleurs de sommets (il saute aux beaux plongeons)
   { const parts=[], T=(geo,x,y,z)=>{ geo.translate(x,y,z); return geo; }, peaux=[0xd8a070,0x8a5a3a,0xf0c8a0,0x6a4028], hauts=[0xd83a3a,0x3a7ac8,0xf2f2ee,0x2a8a5a,0xffd23f,0xff7a1a,0x8a3ac8];
     const gens=[]; for(let k=0;k<14;k++) gens.push([334+(k%7)*1.4,10.4,272+Math.floor(k/7)*3.2+(k%2)*0.6]); for(let k=0;k<14;k++) gens.push([388+(k%7)*1.4,5.4,272+Math.floor(k/7)*3.4+(k%2)*0.6]);
-    gens.forEach(([x,y,z],k)=>{ parts.push({g:T(new THREE.BoxGeometry(0.42,0.8,0.26),x,y+0.4,z),c:0x2a3a5a}); parts.push({g:T(new THREE.BoxGeometry(0.46,0.6,0.28),x,y+1.1,z),c:hauts[k%hauts.length]}); parts.push({g:T(new THREE.BoxGeometry(0.3,0.3,0.3),x,y+1.6,z),c:peaux[k%peaux.length]});
+    const membres=[]; gens.forEach(([x,y,z],k)=>{ const p0=parts.length; membres.push({x,y,z,p0,haut:hauts[k%hauts.length],peau:peaux[k%peaux.length]}); parts.push({g:T(new THREE.BoxGeometry(0.42,0.8,0.26),x,y+0.4,z),c:0x2a3a5a}); parts.push({g:T(new THREE.BoxGeometry(0.46,0.6,0.28),x,y+1.1,z),c:hauts[k%hauts.length]}); parts.push({g:T(new THREE.BoxGeometry(0.3,0.3,0.3),x,y+1.6,z),c:peaux[k%peaux.length]});
       if(k%3===0) parts.push({g:T(new THREE.BoxGeometry(0.12,0.5,0.12),x+0.3,y+1.75,z),c:peaux[k%peaux.length]}); });
-    const m=new THREE.Mesh(montFusion(parts),new THREE.MeshLambertMaterial({vertexColors:true})); m.userData.garder=true; scene.add(m); for(const p of parts) p.g.dispose(); CLIFF.public=m; }
+    for(let k=0;k<membres.length;k++){ const a=membres[k], b=membres[k+1]; a.i0=a.p0*36; a.i1=(b?b.p0:parts.length)*36; } /* une boîte non indexée = 36 sommets (point 6) */
+    const m=new THREE.Mesh(montFusion(parts),new THREE.MeshLambertMaterial({vertexColors:true})); m.userData.garder=true; scene.add(m); for(const p of parts) p.g.dispose(); CLIFF.public=m; CLIFF.publicMembres=membres; }
   // les trois bateaux des juges, au débouché de la baie, et leurs cartons
   for(let k=0;k<3;k++){ const x=355+k*10, z=300, g=new THREE.Group(); g.position.set(x,0.15,z); scene.add(g);
     const co=new THREE.Mesh(new THREE.SphereGeometry(1,10,6,0,Math.PI*2,Math.PI/2,Math.PI/2),M(k%2?0xf2f2ee:0x1a5aa8)); co.scale.set(1.3,0.8,2.6); co.rotation.x=Math.PI; co.position.y=0.5; g.add(co); const pt=new THREE.Mesh(new THREE.BoxGeometry(2.4,0.12,4.6),bois); pt.position.y=0.55; g.add(pt);
@@ -27914,6 +27940,7 @@ function explosionArme(x,z,duJoueur){
   for(const v of vehicules){ if(v.mort||(v.def.air&&(v.alt||0)>6)) continue; if(dist2(v.x,v.z,x,z)<34) abimerVehicule(v,95,duJoueur); }
   for(const c of cassables){ if(c.hp>0&&dist2(c.x,c.z,x,z)<30) casserCaisse(c); }
   pompesSouffle(x,z,6.5,duJoueur); /* point 11 : une pompe à essence dans le souffle saute */
+  if(duJoueur) fouleFuite(x,z,6); /* point 6 : une explosion fait fuir les spectateurs proches */
   if(!P.veh&&P.y-solY(P.x,P.z)<3&&dist2(P.x,P.z,x,z)<18) toucherJoueur(28);
   if(duJoueur) addHeat(0.8);
 }
@@ -33842,6 +33869,7 @@ function impactSpecial(b,e){
 function collisionBalle(b){
   if(b.fac==='joueur'&&(toucherFigurant(b)||toucherCibleBase(b)||toucherCiel(b)||toucherRapace(b))) return true; // figurants de décor et des salles (16 octobre)
   if(toucherPompe(b)) return true; /* liste du 22 octobre, point 11 : les pompes à essence */
+  if(toucherFoule(b)) return true; /* point 6 : les publics de décor */
   if(b.fac==='joueur') for(let i=0;i<FAUNE.length;i++){ const a=FAUNE[i]; if(a.mort) continue; const hs=estHeadshot(b,a), sB=segBalle(b,a.x,a.z); if(hs||(Math.abs(sB.y-(a.y+0.7))<1.4&&sB.d2<1.2)){ toucherAnimal(a,b.dmg*(hs?HEADSHOT_K:1)); if(hs) annonceHeadshot(teteDe(a)); return true; } } // animaux de l'île et du mont (la tête dépasse devant le corps)
   if(b.fac==='joueur'&&OISEAUX.liste.length) for(const o of OISEAUX.liste){ if(o.mort) continue; const k=o.T.k, cx=o.x, cy=o.y+0.15*k, cz=o.z; /* oiseaux : petits et rapides, testés sur le trajet de la balle pendant la dernière image */
     const px=b.x-b.vx/30, py=b.y-b.vy/30, pz=b.z-b.vz/30, vx=b.vx/30, vy=b.vy/30, vz=b.vz/30, vv=vx*vx+vy*vy+vz*vz||1, t=clamp(((cx-px)*vx+(cy-py)*vy+(cz-pz)*vz)/vv,0,1);
@@ -47046,7 +47074,7 @@ function startRun(){
   MET2.vague=-1; MET2.parVague={}; // compteurs de paie des métiers par vague : hérités de la partie d'avant au même numéro de vague
   clotureMatPropre(); // une fois : la clôture de l'aérodrome a son propre matériau translucide
   ameliorerTexturesSol(); // une fois : asphalte et sable redessinés, variation de teinte des sols
-  pompesStartRun(); viderExplo(); /* liste du 22 octobre, point 11 : les pompes reviennent, les effets s'effacent */
+  pompesStartRun(); viderExplo(); foulesStartRun(); /* point 6 : les publics reviennent */ /* liste du 22 octobre, point 11 : les pompes reviennent, les effets s'effacent */
   statuesAgrandir(); /* une fois : le solide des statues de la Liberté à leur nouvelle taille (liste du 22 octobre, point 7) */
   viderDebris(); // dégâts V2 : éclats, roues et pièces au sol
   viderJetEau(); /* lance à eau : jet et flaques */

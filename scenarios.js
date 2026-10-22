@@ -19102,6 +19102,42 @@ async function main() {
       else ok('Liste 22 oct., point 11 : ' + r.info.join(' ; '));
     }
     // -------------------------------------------------------------------
+    // Liste du 22 octobre, point 6 : les publics de décor fuient et se visent. Pour chaque foule du registre (foulesMembres : le
+    // Lagon, la tribune du derby, le public de Cliff Diving) : une balle du joueur sur un spectateur — il disparaît de la foule, un
+    // vrai piéton touché le remplace, des voisins deviennent de vrais piétons qui fuient ; le public du Skatepark XXL est fait de
+    // figurants (une balle le convertit) ; une explosion du joueur près d'une foule en fait fuir ; tout revient à la partie suivante.
+    // -------------------------------------------------------------------
+    console.log('\n--- Liste du 22 octobre, point 6 : les publics de décor fuient et se visent ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = []; let T = dernierT + 1000;
+        const partie = () => { if (P.veh) sortirVehicule(true); META.vue = 'classique'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9; for (const e of ennemis) e.mort = true; };
+        const pas = (n) => { for (let i = 0; i < n; i++) { for (const e of ennemis) e.mort = true; P.hp = 1e9; T += 1000 / 60; tick(T); } };
+        partie();
+        for (const nom of ['lagon', 'derby', 'cliff']) { partie();
+          const ref = { lagon: () => CANAUX.lagon && { x: (CANAUX.lagon.x0 + CANAUX.lagon.x1) / 2, z: (CANAUX.lagon.zq + CANAUX.lagon.z1) / 2 }, derby: () => DERBY.foule && DERBY.foule.pos[0], cliff: () => CLIFF.publicMembres && CLIFF.publicMembres[0] }[nom]();
+          if (!ref) { ko.push(nom + ' : foule absente'); continue; } P.x = ref.x; P.z = ref.z + 20; pas(20);
+          const L = foulesMembres().filter((e) => e.f === nom); if (!L.length) { ko.push(nom + ' : aucun membre au registre'); continue; }
+          const e = L[Math.floor(L.length / 2)], n0 = pietons.length;
+          const touche = collisionBalle({ fac: 'joueur', x: e.x, y: e.y + 1.2, z: e.z, vx: 70, vy: 0, vz: 0, dmg: 20 });
+          const nouveaux = pietons.slice(n0), mort = nouveaux.filter((p) => p.etat === 'mort' || p.rag).length, fuite = nouveaux.filter((p) => p.etat === 'fuite').length;
+          if (!touche || !e.m.parti) ko.push(nom + ' : la balle ne touche pas le spectateur'); if (mort < 1) ko.push(nom + ' : pas de piéton touché à sa place'); if (fuite < 1) ko.push(nom + ' : personne ne fuit');
+          if (nom === 'cliff') { const A = CLIFF.public.geometry.attributes.position.array; if (A[e.m.i0 * 3 + 1] > -50) ko.push('cliff : le spectateur reste dans la géométrie'); }
+          pas(60); const loin = nouveaux.filter((p) => p.etat === 'fuite' && Math.hypot(p.x - e.x, p.z - e.z) > 2).length;
+          info.push(nom + ' : ' + L.length + ' spectateurs, 1 touché, ' + fuite + ' fuient' + (loin ? ' (' + loin + ' déjà à plus de 2 u)' : ''));
+          partie(); if (foulesMembres().some((o) => o.m.parti)) ko.push(nom + ' : la foule ne revient pas à la partie suivante');
+          if (nom === 'cliff') { const A = CLIFF.public.geometry.attributes.position.array; if (A[e.m.i0 * 3 + 1] < -50) ko.push('cliff : le spectateur ne revient pas'); } }
+        /* le Skatepark XXL : des figurants */
+        partie(); const sp = SKX.public && SKX.public[0]; if (!sp) ko.push('pas de public au Skatepark XXL'); else { const f = FIGURANTS.find((q) => q.h === sp.h); if (!f) ko.push('le public du Skatepark XXL n’est pas figurant'); else { const g = sp.h.g; P.x = g.position.x; P.z = g.position.z + 15;
+          collisionBalle({ fac: 'joueur', x: g.position.x, y: g.position.y + 1.2, z: g.position.z, vx: 0, vy: 0, vz: -70, dmg: 20 }); if (!figConverti(sp.h)) ko.push('le spectateur du Skatepark XXL ne réagit pas à la balle'); else info.push('Skatepark XXL : spectateur figurant, converti par la balle'); } }
+        /* une explosion fait fuir */
+        partie(); const D0 = DERBY.foule && DERBY.foule.pos[3]; if (D0) { P.x = D0.x; P.z = D0.z + 25; const n0 = pietons.length; explosionArme(D0.x, D0.z + 2, true); const n = pietons.slice(n0).filter((p) => p.etat === 'fuite').length; if (n < 2) ko.push('explosion près de la tribune : ' + n + ' fuyards'); else info.push('explosion près de la tribune : ' + n + ' spectateurs fuient'); }
+        partie(); return { ko, info };
+      });
+      if (r.ko.length) fail('Liste 22 oct., point 6 : ' + r.ko.join(' ; ') + ' [' + r.info.join(' | ') + ']');
+      else ok('Liste 22 oct., point 6 : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];

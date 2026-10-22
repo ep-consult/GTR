@@ -31,6 +31,36 @@ Ordre suivi : 1, 17, 4, 3, 2, 5, puis le reste.
 - **Branche** : `retours-22oct` part de `retours-20-octobre` (et non de `main`) : les points de la liste portent sur ce que les deux
   chantiers précédents ont construit (canaux V3, paquebot, Cliff Diving, cabrage en équilibre…).
 
+## 6 — Les publics de décor fuient et se visent (fait)
+
+**Relevé** (« la disco en extérieur, le diving… ») — les publics du décor et leur état avant :
+
+| Public | Fait de | Avant |
+|---|---|---|
+| Le Lagon (la « disco en extérieur » : la piste du DJ, le bar, la plage) | 49 personnes instanciées (quatre `InstancedMesh`) + 17 figurants | les 49 : panique au tir, **jamais visées** |
+| Tribune de l'arène de derby | 175 personnes instanciées | **jamais visées** |
+| Public de Reyes Cliff Diving | 28 personnes dans UNE géométrie fusionnée | **jamais visées** |
+| Public du Skatepark XXL | 28 vrais corps (`makeHumain`) | **ni visés ni percutés** (pas des figurants) |
+| Danseurs de la fête du DJ des toits, supporters du stade, aéroport, colline, mont, canaux | figurants | déjà visables (inchangé) |
+
+**Fait** (`FOULES` : `foulesMembres`, `fouleCacher`, `fouleVersPieton`, `fouleFuite`, `toucherFoule`, `foulesStartRun`) : une balle du
+joueur sur un spectateur d'une foule instanciée ou fusionnée — il disparaît de la foule (instance à l'échelle nulle, ou sommets
+repliés dans la géométrie fusionnée : la plage de chacun est notée à la construction, aucun tirage), un vrai piéton prend sa place et
+tombe, touché ; ses voisins (4 au plus, dans 6 u) deviennent de vrais piétons qui fuient ; au Lagon, la panique de la foule se
+déclenche aussi ; une explosion du joueur près d'une foule fait fuir les plus proches. Le public du Skatepark XXL devient des
+figurants (`figurant()` ; son animation saute un figurant converti) : visé ou percuté, il devient un vrai piéton, comme ceux de
+l'aéroport. Tout revient à la partie suivante.
+
+**Décision** : on ne convertit pas toute une foule d'un coup (175 corps à la tribune : trop lourd sur iPhone) — le touché et ses
+voisins seulement ; les autres restent du décor (au Lagon, ils paniquent).
+
+**Test** « Liste du 22 octobre, point 6 » (foules lues dans `foulesMembres`) : pour le Lagon, la tribune et le public de Cliff
+Diving, une balle touche un spectateur, un piéton touché le remplace, 3 ou 4 voisins fuient (et s'éloignent), le spectateur quitte la
+géométrie fusionnée, tout revient à la partie suivante ; le public du Skatepark XXL est figurant et réagit à une balle ; une grenade
+près de la tribune fait fuir 6 spectateurs.
+
+**Capture** : `06_tribune.png` (la tribune du derby, une seconde après une balle : les places vidées).
+
 ## 11 — Explosions, camion-citerne, pompes à essence (fait)
 
 **Constat** :
