@@ -1452,7 +1452,9 @@ Dix-sept points, un commit par point ; captures `rapport_nuit/captures/liste_22o
   **un son joué en ville loin du joueur passe par `sonA(x, z, fn)`** (plein à 14 u, muet à 150 u) ; 32 voix au plus (l'interface
   passe toujours). Test « point 4 » : rendu hors ligne de tout `SFX` à travers les vrais bus. **Piège** : dans un
   `OfflineAudioContext`, le compresseur part FERMÉ à t = 0 — jouer le son 0,3 s après le début du rendu.
-- **5, le pavillon du taxi** : toit du gabarit  relevé (taxi 1,51, Interceptor 1,50) et pavillon aminci ; au cockpit, le pavillon couvre 19 % du haut de l'écran (29 % avant) ; règle de l'œil () inchangée. Test « point 5 » : mesure par rayons sur la vraie caméra (exclure les ombres-sprites : un  les touche toujours).
+- **5, le pavillon du taxi** : toit du gabarit `berlineClassiqueV3` relevé (taxi 1,51, Interceptor 1,50) et pavillon
+  aminci ; au cockpit, le pavillon couvre 19 % du haut de l'écran (29 % avant) ; règle de l'œil (`CK_GARDE_TOIT`) inchangée. Test
+  « point 5 » : mesure par rayons sur la vraie caméra (exclure les ombres-sprites : un `Raycaster` les touche toujours).
 - **17, les ponts** (`ARCHES_PONTS`, juste après `hauteurPont`) : un tablier fait DÉCOLLER à sa courbure (`envolPont` : h''·vx² < −`SAUT_G`,
   vitesse verticale de la chaussée ; `pentePont`, `courburePont`, `vcritPont`) — remplace « légère bosse, jamais un saut » ; trois
   grandes arches à l'ouest (nordOuest 5 u, sudOuest 5,2, plageOuest 6,5 ; plageEst garde 2,7 avec des rampes longues) ; réception
