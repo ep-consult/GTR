@@ -15421,9 +15421,9 @@ async function main() {
         /* 3. les voitures sur les six ponts, dans les deux sens : le tablier, jamais l'eau */
         for (const v of vehicules.slice()) { scene.remove(v.mesh); vehicules.splice(vehicules.indexOf(v), 1); } /* le test maîtrise sa scène : une moto garée au hasard sur la rue d'un pont arrêtait le bus */
         for (const cle of ['citadine', 'busville']) for (const p of C.ponts) for (const sg of [1, -1]) { const zl = p.zc + 3.2 * sg, x0 = sg > 0 ? p.x0 - 20 : p.x1 + 20, x1 = sg > 0 ? p.x1 + 20 : p.x0 - 20;
-          const v = creerVehicule(cle, x0, zl, sg > 0 ? Math.PI / 2 : -Math.PI / 2, null); v.conduit = 'joueur'; P.veh = v; let hMax = 0, t = 0;
-          for (; t < 20; t += dt) { majVehiculePhys(v, dt, 0.6, clamp((angDiff(v.ang, sg > 0 ? Math.PI / 2 : -Math.PI / 2) + clamp((zl - v.z) * -0.05 * sg, -0.3, 0.3)) * 2, -1, 1), false); if (v.noye) break; hMax = Math.max(hMax, v.h || 0); if ((sg > 0 && v.x > x1) || (sg < 0 && v.x < x1)) break; }
-          if (v.noye || Math.abs(hMax - p.H) > 0.05 || !((sg > 0 && v.x > x1) || (sg < 0 && v.x < x1))) ko.push(cle + ' sur le pont ' + p.id + (sg > 0 ? ' vers l’est' : ' vers l’ouest') + ' : ' + (v.noye ? 'noyée' : 'tablier ' + hMax.toFixed(2) + ', arrivée ' + v.x.toFixed(0)));
+          const v = creerVehicule(cle, x0, zl, sg > 0 ? Math.PI / 2 : -Math.PI / 2, null); v.conduit = 'joueur'; P.veh = v; let hMax = 0, t = 0, saute = false; /* liste du 22 octobre, point 17 : lancée, une voiture peut décoller du dos d'âne (elle passe alors au-dessus du tablier) */
+          for (; t < 20; t += dt) { majVehiculePhys(v, dt, 0.6, clamp((angDiff(v.ang, sg > 0 ? Math.PI / 2 : -Math.PI / 2) + clamp((zl - v.z) * -0.05 * sg, -0.3, 0.3)) * 2, -1, 1), false); if (v.noye) break; if (v.sautPont) saute = true; hMax = Math.max(hMax, v.h || 0); if ((sg > 0 && v.x > x1) || (sg < 0 && v.x < x1)) break; }
+          if (v.noye || hMax < p.H - 0.05 || (!saute && hMax > p.H + 0.05) || !((sg > 0 && v.x > x1) || (sg < 0 && v.x < x1))) ko.push(cle + ' sur le pont ' + p.id + (sg > 0 ? ' vers l’est' : ' vers l’ouest') + ' : ' + (v.noye ? 'noyée' : 'tablier ' + hMax.toFixed(2) + ', arrivée ' + v.x.toFixed(0)));
           scene.remove(v.mesh); vehicules.splice(vehicules.indexOf(v), 1); P.veh = null; }
         /* 4. une voiture lancée dans un canal : elle se noie, le joueur nage jusqu'aux marches et remonte sur le quai (vraie boucle) */
         { partie(); const xq = O - 21 + 3.2, v = creerVehicule('citadine', xq - 6, 100, Math.PI / 2, null); P.x = v.x; P.z = v.z; entrerVehicule(v); v.v = 18; INPUT.jx = 1; INPUT.jy = 0;
@@ -15836,7 +15836,7 @@ async function main() {
     // à pied et à vélo dans les deux sens (on monte vraiment dessus), refusées à une voiture (les bornes), un jet-ski passe dessous.
     // Pilotes au joystick, vraie boucle (tick).
     // -------------------------------------------------------------------
-    console.log('\n--- Canaux V2 : ponts et passerelles — styles, voiture sans saut, bateau dessous, à pied, à vélo, voitures refusées ---');
+    console.log('\n--- Canaux V2 : ponts et passerelles — styles, voiture qui traverse (le saut lancé est permis), bateau dessous, à pied, à vélo, voitures refusées ---');
     {
       const r = await page.evaluate(() => {
         const ko = [], info = [], C = CANAUX; if (!C.ok) return { ko: ['CANAUX.ok faux'], info };
@@ -15857,9 +15857,9 @@ async function main() {
           const v = H.monter('citadine', xa, zl, sens > 0 ? Math.PI / 2 : -Math.PI / 2); let air = 0, ok = false, hMax = 0;
           for (let t = 0; t < 12; t += 1 / 60) { const dx = xb - v.x, dz = zl - v.z, d = Math.hypot(dx, dz); if (d < 2.5) { ok = true; break; } INPUT.jx = dx / d * 0.75; INPUT.jy = dz / d * 0.75; H.vider(v.x, v.z, 30); H.pas(); /* la scène est vide : ni trafic ni passant devant (le test est la traversée, pas la file) */ if (v.enAir) air++; hMax = Math.max(hMax, v.h || 0); }
           INPUT.jx = INPUT.jy = 0; if (!ok) ko.push(p.id + ' (' + p.style + ') : la voiture ne traverse pas (sens ' + sens + ', ' + v.x.toFixed(1) + ')'); else traverses++;
-          if (air > 0) { sauts++; ko.push(p.id + ' : la voiture décolle (' + air + ' images en l’air)'); } if (ok && hMax < p.H - 0.5) ko.push(p.id + ' : la voiture n’est pas montée sur le tablier (' + hMax.toFixed(2) + ')'); H.retirer(v);
+          if (air > 0) sauts++; /* liste du 22 octobre, point 17 : lancée, la voiture décolle (voulu) ; au pas, jamais — vérifié par le test du point 17 */ if (ok && hMax < p.H - 0.5) ko.push(p.id + ' : la voiture n’est pas montée sur le tablier (' + hMax.toFixed(2) + ')'); H.retirer(v);
           const d = H.dessous(p, [p.xc, p.zc - sens * 15], [p.xc, p.zc + sens * 15]); if (!d.ok) ko.push(p.id + ' : le jet-ski ne passe pas dessous (sens ' + sens + ')'); else dessous++; if (d.kMin > 0.5) ko.push(p.id + ' : le tablier ne s’efface pas au-dessus du jet-ski (' + d.kMin.toFixed(2) + ')'); }
-        info.push(C.ponts.map((p) => p.id + ' ' + p.style).join(', ') + ' : ' + traverses + '/12 traversées en voiture, ' + sauts + ' saut, ' + dessous + '/12 passages dessous');
+        info.push(C.ponts.map((p) => p.id + ' ' + p.style).join(', ') + ' : ' + traverses + '/12 traversées en voiture, ' + sauts + ' saut(s) lancés, ' + dessous + '/12 passages dessous');
         return { ko, info };
       });
       if (r.ko.length) fail('Canaux V2, les ponts : ' + r.ko.join(' ; ') + ' [' + r.info.join(' | ') + ']'); else ok('Canaux V2, les ponts : ' + r.info.join(' ; '));
@@ -18640,6 +18640,87 @@ async function main() {
       if (/CROSS_CABRAGE_GRACE|CROSS_CABRAGE_DANGER|wheelieChuteT/.test(src)) r.ko.push('un délai de grâce ou un seuil de danger reste dans la source');
       if (r.ko.length) fail('Liste 22 oct., point 1 : ' + r.ko.slice(0, 20).join(' ; ') + ' [' + r.info.join(' | ') + ']');
       else ok('Liste 22 oct., point 1 : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
+    // Liste du 22 octobre, point 17 : les ponts — on décolle quand on passe vite, on passe dessous en avion et en hélicoptère.
+    // Les ponts sont lus dans CANAUX.ponts (profil hauteurPont, ARCHES_PONTS). Pour chaque pont et chaque sens : une voiture de
+    // sport, une moto et un 4x4 lancés à pleine vitesse au vrai joystick décollent (temps de vol > 0,45 s), se reposent sur la
+    // chaussée (jamais dans l'eau, ni sur le côté), sans casse, record par pont ; au pas, aucun envol ; une voiture du trafic passe
+    // sans décoller ni dépasser 80 % de la vitesse critique. Puis, sous chaque pont déclaré passable (p.aero), un avion en pilotage
+    // simulé passe dessous sans crash (et « SOUS LE PONT ! ») ; trop haut, il heurte le tablier ; un hélicoptère passe sous la
+    // grande arche.
+    // -------------------------------------------------------------------
+    console.log('\n--- Liste du 22 octobre, point 17 : les ponts — sauts en voiture, passages dessous en avion ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = []; let T = dernierT + 1000; const B = INPUT.btn;
+        const pas = (n, f) => { for (let i = 0; i < n; i++) { if (f && f(i) === false) return false; for (const e of ennemis) e.mort = true; WANTED.stars = 0; WANTED.heat = 0; T += 1000 / 60; tick(T); P.hp = 1e9; } return true; };
+        const trafic0 = creerTrafic; creerTrafic = () => {};
+        const partie = () => { if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); META.vue = 'classique'; startRun(); ecran(null); ETAT.mode = 'jeu'; ETAT.timeScale = 1; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9; YIA.t = 1e9; for (const e of ennemis) e.mort = true;
+          for (let i = vehicules.length - 1; i >= 0; i--) { const w = vehicules[i]; if (w.x > 60 && w.x < 330 && w.z > 0 && w.z < 290 && !(w.def && w.def.eau)) { scene.remove(w.mesh); vehicules.splice(i, 1); } } };
+        const ponts = CANAUX.ponts; if (ponts.length < 6) return { ko: ['ponts des canaux : ' + ponts.length], info };
+        if (!ponts.some((p) => p.aero)) ko.push('aucun pont passable en avion');
+        /* 1) les sauts : chaque pont, chaque sens, trois véhicules */
+        for (const p of ponts) for (const sens of [1, -1]) for (const cle of ['sport', 'moto', 'jeep']) {
+          partie(); const lane = sens > 0 ? p.zc - 3.2 : p.zc + 3.2, x0 = p.xc - sens * 45;
+          const v = creerVehicule(cle, x0, lane, sens > 0 ? Math.PI / 2 : -Math.PI / 2, null); P.x = v.x; P.z = v.z; entrerVehicule(v); v.v = v.def.vmax;
+          let decolle = false, airMax = 0, hp0 = v.hp, hpR = null, noye = false, finX = null, finZ = null, enVolT = 0, apres = 0;
+          pas(60 * 7, () => { if (P.veh !== v) { noye = true; return false; } INPUT.jx = sens; INPUT.jy = clamp((lane - v.z) * 0.25, -0.5, 0.5); if (v.enAir) { enVolT += 1 / 60; airMax = Math.max(airMax, enVolT); if (v.sautPont) decolle = true; } else if (decolle && finX === null) { finX = v.x; finZ = v.z; } if (finX !== null && (apres += 1 / 60) > 0.2) { hpR = v.hp; return false; } });
+          INPUT.jx = INPUT.jy = 0; const tag = p.id + (sens > 0 ? '→' : '←') + ' ' + cle;
+          if (noye || v.noye) ko.push(tag + ' : à l’eau ou descendu (' + v.x.toFixed(0) + ', ' + v.z.toFixed(0) + ')');
+          else if (!decolle) ko.push(tag + ' : pas d’envol à ' + v.def.vmax + ' u/s');
+          else if (!(airMax > 0.45)) ko.push(tag + ' : envol de ' + airMax.toFixed(2) + ' s seulement');
+          else if (finX === null) ko.push(tag + ' : jamais reposé');
+          else { if (estEau(finX, finZ)) ko.push(tag + ' : réception dans l’eau'); if (Math.abs(finZ - lane) > 3) ko.push(tag + ' : réception à ' + (finZ - lane).toFixed(1) + ' u de la voie'); if (hp0 - (hpR === null ? v.hp : hpR) > 5) ko.push(tag + ' : ' + (hp0 - (hpR === null ? v.hp : hpR)).toFixed(0) + ' de dégâts à la réception'); }
+          if (cle === 'sport') info.push(tag + ' ' + airMax.toFixed(1) + ' s, ' + Math.round(META.sautsPonts[p.id]) + ' m');
+        }
+        /* les records par pont, clés fixes */
+        for (const p of ponts) if (!(META.sautsPonts && p.id in META.sautsPonts)) ko.push('META.sautsPonts : clé ' + p.id + ' manquante'); else if (!(META.sautsPonts[p.id] > 10)) ko.push(p.id + ' : record ' + META.sautsPonts[p.id] + ' m');
+        info.push('records ' + ponts.map((p) => p.id + ' ' + Math.round(META.sautsPonts[p.id]) + ' m').join(', '));
+        /* 2) au pas : aucun envol */
+        for (const p of ponts) { partie(); const v = creerVehicule('sport', p.xc - 40, p.zc - 3.2, Math.PI / 2, null); P.x = v.x; P.z = v.z; entrerVehicule(v); let air = false;
+          pas(60 * 8, () => { INPUT.jx = 0.32; INPUT.jy = clamp((p.zc - 3.2 - v.z) * 0.25, -0.5, 0.5); v.v = Math.min(v.v, 8); if (v.enAir) air = true; if (v.x > p.xc + 30) return false; }); INPUT.jx = INPUT.jy = 0;
+          if (air) ko.push(p.id + ' : envol au pas'); }
+        /* 3) le trafic : jamais d'envol, jamais au-delà de 80 % de la vitesse critique */
+        for (const p of ponts) { partie(); const lane = p.zc - 3.2, v = creerVehicule('citadine', p.xc - 40, lane, Math.PI / 2, 'trafic'); v._traf = true; v.axe = 'x'; v.lane = lane; v.uidT = ++TRAFIC_UID; P.x = p.xc; P.z = p.zc + 30;
+          DANGER.t = 20; DANGER.x = p.xc; DANGER.z = p.zc; let vMax = 0, air = false; pas(60 * 10, () => { DANGER.t = 20; if (v.mort || vehicules.indexOf(v) < 0) return false; if (pontCanal(v.x, v.z)) vMax = Math.max(vMax, Math.abs(v.v)); if (v.enAir) air = true; if (v.x > p.xc + 25) return false; });
+          if (air) ko.push(p.id + ' : le trafic décolle'); if (vMax > 0.85 * vcritPont(p)) ko.push(p.id + ' : trafic à ' + vMax.toFixed(1) + ' u/s sur le pont (critique ' + vcritPont(p).toFixed(1) + ')'); }
+        DANGER.t = 0;
+        /* 4) en avion, sous les ponts passables (pilotage simulé) ; trop haut : le tablier */
+        const amorce = (p) => { const x = (p.x0 + p.x1) / 2; let dz = 30; while (dz > 10 && !([-7, 0, 7].every((o) => dansCanal(x + o, p.zc + dz)) && [-7, 0, 7].every((o) => dansCanal(x + o, p.zc + dz - 4)))) dz -= 2; return dz; }; /* le canal tourne vers son embouchure */
+        const sim0 = PILOTAGE_SIM; PILOTAGE_SIM = true; const wrap = (a) => { while (a > Math.PI) a -= 2 * Math.PI; while (a < -Math.PI) a += 2 * Math.PI; return a; };
+        /* le pilote de la Reyes Air Race (lot 10), sur un segment s0 → s1 à l'altitude ty */
+        const pilote = (v, G, s0, s1, ty) => { const uL = Math.hypot(s1.x - s0.x, s1.z - s0.z) || 1, Ux = (s1.x - s0.x) / uL, Uz = (s1.z - s0.z) / uL, ct = (v.x - s0.x) * Uz - (v.z - s0.z) * Ux;
+          const e = wrap(Math.atan2(Ux, Uz) - Math.max(-1, Math.min(1, Math.atan(ct / 24))) - v.ang), de = (e - (G.e === undefined ? e : G.e)) * 60; G.e = e;
+          const phiD = Math.max(-1.15, Math.min(1.15, e * 1.6 + de * 0.7)), br = (v.bank - (G.b === undefined ? v.bank : G.b)) * 60; G.b = v.bank;
+          INPUT.jx = Math.max(-1, Math.min(1, (v.bank - phiD) * 2.4 + br * 0.12));
+          const vyD = Math.max(-6, Math.min(6, (ty - v.alt) * 1.0)), vy = v.vel ? v.vel.y : 0; G.I = Math.max(-0.12, Math.min(0.12, (G.I || 0) + (vyD - vy) / 60 * 0.2));
+          const q = (v.tang - (G.t === undefined ? v.tang : G.t)) * 60; G.t = v.tang; const pousse = 0.3 + 0.5 * Math.max(0, 1 - Math.abs(v.bank) / 0.5);
+          INPUT.jy = Math.max(-pousse, Math.min(1, (vyD - vy) * 0.22 + G.I - q * 0.12 + (1 / Math.max(0.3, Math.cos(v.bank)) - 1) * 0.35));
+          MANETTE.val = Math.max(0, Math.min(1, 0.6 + (32 - v.v) * 0.15)); MANETTE.touche = true; };
+        const vol = (cle, p, altVis) => { partie(); META.vue = 'immersive'; META.inverserY = false; /* le manche, comme à la Reyes Air Race */ const zc = p.zc, x = (p.x0 + p.x1) / 2, z0 = zc + amorce(p); /* dans le canal, au sud du pont */ const v = creerVehicule(cle, x, z0, Math.PI, null); P.x = v.x; P.z = v.z; entrerVehicule(v);
+          v.vol = true; v.alt = altVis; v.v = Math.max(PROFILS_VOL[cle] ? PROFILS_VOL[cle].Vmin * 1.25 : 30, 26); v.va = 0; v.bank = 0; v.tang = 0; v.gaz = 0.55; v.decolT = 0; if (PROFILS_VOL[cle]) volSimInit(v, 0); MANETTE.val = 0.55; MANETTE.touche = true; META.sousPonts[p.id] = false;
+          let crash = false, minAlt = 1e9, passe = false; const G = {}, s0 = { x, z: z0 }, s1 = { x, z: zc - 200 };
+          pas(60 * 6, (i) => { if (P.veh !== v || v.mort) { crash = true; return false; } if (pontCanal(v.x, v.z) === p) passe = true;
+            pilote(v, G, s0, s1, altVis); minAlt = Math.min(minAlt, v.alt); if (v.z < zc - 50) return false; });
+          INPUT.jx = INPUT.jy = 0; MANETTE.touche = false; return { crash, passe, bonus: !!META.sousPonts[p.id], minAlt, alt: v.alt }; };
+        for (const p of ponts.filter((o) => o.aero)) {
+          const cles = p.aero === 'leger' ? ['voltige'] : (p.aero === 'chasseur' ? ['voltige', 'chasseur'] : ['voltige', 'chasseur']);
+          const bas = (cle) => 1.0; /* au-dessus de la mer (0) et des canaux (−0,6) */
+          for (const cle of cles) { const o = vol(cle, p, bas(cle)); if (o.crash) ko.push(cle + ' sous ' + p.id + ' : crash (alt ' + o.alt.toFixed(2) + ')'); else if (!o.passe) ko.push(cle + ' sous ' + p.id + ' : pas passé'); else if (!o.bonus) ko.push(cle + ' sous ' + p.id + ' : pas de « SOUS LE PONT ! »'); else info.push(cle + ' sous ' + p.id + ' (alt ' + o.minAlt.toFixed(1) + ')'); }
+          const o2 = vol('voltige', p, p.H - 1.2); if (!o2.crash) ko.push('voltige trop haut sous ' + p.id + ' : pas de choc contre le tablier');
+        }
+        PILOTAGE_SIM = sim0;
+        /* 5) un hélicoptère sous la grande arche */
+        { const p = ponts.find((o) => o.aero === 'helico'); if (!p) ko.push('aucun pont pour l’hélicoptère'); else { partie(); const v = creerVehicule('helico', (p.x0 + p.x1) / 2, p.zc + amorce(p), Math.PI, null); P.x = v.x; P.z = v.z; entrerVehicule(v);
+            v.vol = true; v.alt = niveauCanal(p.xc, p.zc) + 1; v.va = 0; v.decolT = 0; let crash = false, passe = false; META.sousPonts[p.id] = false;
+            pas(60 * 12, () => { if (P.veh !== v || v.mort) { crash = true; return false; } if (pontCanal(v.x, v.z) === p) passe = true; INPUT.jx = clamp((p.xc - v.x) * 0.05, -0.3, 0.3); INPUT.jy = -0.5; if (v.z < p.zc - 30) return false; });
+            INPUT.jx = INPUT.jy = 0; if (crash) ko.push('hélicoptère sous ' + p.id + ' : crash'); else if (!passe) ko.push('hélicoptère sous ' + p.id + ' : pas passé (' + v.x.toFixed(0) + ', ' + v.z.toFixed(0) + ')'); else info.push('hélicoptère sous ' + p.id + (META.sousPonts[p.id] ? ', « SOUS LE PONT ! »' : '')); } }
+        creerTrafic = trafic0; if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu';
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Liste 22 oct., point 17 : ' + r.ko.slice(0, 25).join(' ; ') + ' [' + r.info.join(' | ') + ']');
+      else ok('Liste 22 oct., point 17 : ' + r.info.join(' ; '));
     }
     // -------------------------------------------------------------------
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');

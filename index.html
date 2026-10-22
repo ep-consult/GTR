@@ -2072,6 +2072,8 @@ const META={
   modsArmes:{}, // modifications d'armes achetées à l'établi de l'armurerie : id → 'explosif,laser,…' (MODS_ARMES)
   planques:{caravane:false,penthouse:false,cabanon:false,chalet:false,voilier:false,taudis:false,miami:false}, // planques en plein air (PLANQUES_DEF), clés fixes
   planquesJeux:{canettes:0,longueVue:0,punch:0,peche:0,hache:0,tresors:0,frappe:0,plongeon:0,golf:0}, // records des activités des planques (19 octobre)
+  sautsPonts:{nordOuest:0,nordEst:0,sudOuest:0,sudEst:0,plageOuest:0,plageEst:0}, /* liste du 22 octobre, point 17 : record de saut par pont (m), clés fixes */
+  sousPonts:{nordOuest:false,nordEst:false,sudOuest:false,sudEst:false,plageOuest:false,plageEst:false,levisN:false,levisS:false}, /* et les ponts passés dessous en vol */
   acro:{cabrage:0,cabrageVelo:0,dos:0,saut:0,loopings:0,tonneaux:0,vrilles:0,loopingsVol:0,tonneauxVol:0,vrillesVol:0,figuresVol:0}, // records et totaux des cascades (retours du 20 octobre, 3.2), clés fixes
   chasse:{pigeon:0,mouette:0,sanglier:0,jaguar:0,ours:0,bouquetin:0,chamois:0,aigle:0,vautour:0,faucon:0,vache:0,chevre:0,sanglierF:0,cerf:0,biche:0,renard:0,lapin:0}, // tableau de chasse (retours du 20 octobre, 4.1) : bêtes abattues par espèce (CHASSE_ESPECES), clés fixes
   pecheTrophees:{sardine:0,maquereau:0,dorade:0,bar:0,poulpe:0,espadon:0}, // le mur des trophées du cabanon : la plus lourde prise exposée de chaque espèce (kg), clés fixes
@@ -2279,6 +2281,7 @@ const DEFIS_THEMES=[
   {theme:'vrilles',noms:['Vrille','Feuille morte'],det:n=>'Tourne '+n+(n>1?' tours':' tour')+' de vrille en avion (et sors-en)',val:m=>m.acro.vrilles,paliers:[1,10],recs:[400,1500]},
   {theme:'dos',noms:['Tête en bas','Vol inversé','As de la voltige'],det:n=>'Vole '+n+' s d’affilée sur le dos (pilotage simulé)',val:m=>m.acro.dos,fmt:x=>x.toFixed(1),paliers:[5,15,30],recs:[350,1000,2500],tenue:'voltigeur'},
   {theme:'meeting',noms:['Programme libre','Meeting aérien'],det:n=>'Enchaîne '+n+' figures (loopings, tonneaux, vrilles) en un seul vol',val:m=>m.acro.figuresVol,paliers:[3,10],recs:[400,1500]},
+  {theme:'sousPonts',noms:['Sous le pont !','Rase-ponts','Le pilote des canaux'],det:n=>'Passe en vol sous '+n+' pont'+(n>1?'s':'')+' différent'+(n>1?'s':'')+' des canaux',val:m=>Object.keys(m.sousPonts||{}).filter((k)=>m.sousPonts[k]).length,paliers:[1,2,3],recs:[400,900,1800]},
   {theme:'saut',noms:['Petit saut','Grand saut','Vol plané'],det:n=>'Saute '+n+' m en véhicule, de l’appel à la réception',val:m=>m.acro.saut,paliers:[30,80,250],recs:[250,800,2000]},
   {theme:'wingsuit',noms:['Homme volant','Faucon de Los Reyes'],det:n=>'Plane '+n+' m en wingsuit',val:m=>m.wingRecord,paliers:[250,1000],recs:[400,1800]},
   {theme:'canettes',noms:['Tireur de canettes','Gâchette de Dusty','Œil de lynx'],det:n=>'Marque '+n+' points au tir sur canettes de la caravane',val:m=>m.planquesJeux.canettes,paliers:[3000,8000,16000],recs:[250,700,1800]},
@@ -7763,6 +7766,7 @@ function canauxDefinir(){
   /* les ponts : un tablier en dos d'âne de la largeur de la rue, d'un quai à l'autre */
   const pont=(id,xc,zc,orange,style)=>C.ponts.push({id,x0:xc-P,x1:xc+P,z0:zc-6,z1:zc+6,xc,zc,H:2.7,plat:5,orange:!!orange,style:style||(orange?'levis':'venitien'),mats:null,k:1}); /* V2 : un style par pont (STYLES_PONTS) */
   pont('nordOuest',O,rue(8),false,'venitien'); pont('nordEst',E,rue(8),false,'artdeco'); pont('sudOuest',O,rue(11),true); pont('sudEst',E,rue(11),false,'tropical'); pont('plageOuest',O,rue(13),false,'plage'); pont('plageEst',E,rue(13),false,'pierre');
+  for(const p of C.ponts){ const A=ARCHES_PONTS[p.id]; if(A){ p.H=A.H; p.plat=A.plat; p.aero=A.aero; } } /* liste du 22 octobre, point 17 : les grandes arches */
   /* les segments de rue retirés, d'un carrefour à l'autre (jamais d'amorce) */
   const coupe=(id,x0,x1,z0,z1)=>C.coupes.push({id,x0,x1,z0,z1});
   for(const k of [7,9,10,12]) for(const [n,X] of [['O',O],['E',E]]) coupe('z'+rue(k)+n,X-P,X+P,rue(k)-R,rue(k)+R);
@@ -7939,6 +7943,68 @@ function degagementCanal(x,z){ if(!CANAUX.ok||!dansBBCanaux(x,z)) return Infinit
 function hautNavVeh(v){ const d=v&&v.def; return d?(d.hautNav!==undefined?d.hautNav:(d.eau?1.5:0)):0; }
 function passeSousTablier(v,x,z){ return hautNavVeh(v)<degagementCanal(x,z)-0.04; }
 function hauteurPont(p,x){ if(p.levis) return hauteurLevis(p,x); const u=Math.abs(x-p.xc), demi=(p.x1-p.x0)/2; if(u<=p.plat) return p.H; const t=clamp((demi-u)/(demi-p.plat),0,1); return p.H*t*t*(3-2*t); }
+/* ---- Les ponts du 22 octobre (point 17, demandé : « on décolle quand on passe vite, et on passe dessous en avion »). Remplace la
+   règle « légère bosse, jamais un saut ». Le profil d'un tablier (hauteurPont) est un smoothstep : sa pente et sa courbure sont
+   exactes (pentePont, courburePont). Un véhicule au sol suit la chaussée tant que la courbure demandée h''·vx² reste au-dessus de
+   −SAUT_G ; au-delà, il ne peut plus « tourner vers le bas » assez vite et DÉCOLLE avec la vitesse verticale de la chaussée
+   (h'·vx) — la physique du saut existante (v.enAir, v.vy) prend la suite. Au pas : rien ; à pleine vitesse : un vrai saut.
+   Trois ponts de l'ouest en grande arche (ARCHES_PONTS) : la route derrière eux est longue et sèche, la réception reste sur la
+   chaussée (vérifié par le test) ; on passe dessous en avion léger, en chasseur, en hélicoptère (p.aero). */
+const ARCHES_PONTS={nordOuest:{H:5,plat:3,aero:'leger'},sudOuest:{H:5.2,plat:3,aero:'chasseur'},plageOuest:{H:6.5,plat:3,aero:'helico'},plageEst:{H:2.7,plat:1}}; /* plageEst : même hauteur (la vedette de police passe dessous), rampes plus longues — la voiture de sport retombe avant l'embouchure du grand canal */
+const ARCHES_STYLE={venitien:(p)=>[[p.xc,10.3,p.H]],pierre:(p)=>[[p.xc-5,5,2.1],[p.xc+5,5,2.1]]};
+const SAUT_G=26, NOMS_PONTS={venitien:'PONT VÉNITIEN',artdeco:'PONT ART DÉCO',levis:'PONT ORANGE',tropical:'PONT TROPICAL',plage:'PONT DE LA PLAGE',pierre:'PONT DE PIERRE'};
+function pentePont(p,x){ const u=x-p.xc, au=Math.abs(u), demi=(p.x1-p.x0)/2, L=demi-p.plat; if(au<=p.plat||au>=demi) return 0; const t=(demi-au)/L; return -Math.sign(u)*p.H*6*t*(1-t)/L; }
+function courburePont(p,x){ const au=Math.abs(x-p.xc), demi=(p.x1-p.x0)/2, L=demi-p.plat; if(au<=p.plat||au>=demi) return 0; const t=(demi-au)/L; return p.H*(6-12*t)/(L*L); }
+function vcritPont(p){ const L=(p.x1-p.x0)/2-p.plat; return Math.sqrt(SAUT_G/(6*p.H/(L*L))); } /* au-delà, la chaussée ne retient plus la caisse */
+function nomPont(p){ return NOMS_PONTS[p.style]||'PONT'; }
+/* l'envol (majVehiculePhys, au sol) : renvoie true si le véhicule vient de décoller du tablier */
+function envolPont(v,d,gY){ if(!CANAUX.ok||d.eau||d.air||v.enAir||!dansBBCanaux(v.x,v.z)) return false; const p=pontCanal(v.x,v.z); if(!p||p.levis) return false;
+  const vx=Math.sin(v.ang)*v.v; if(!(courburePont(p,v.x)*vx*vx<-SAUT_G)) return false;
+  v.enAir=true; v.h=gY; v.vy=pentePont(p,v.x)*vx; v.airT=0; v.airX0=v.x; v.airZ0=v.z; v.sautPont={id:p.id,nom:nomPont(p),x:v.x,z:v.z,hMax:gY}; if(v.conduit==='joueur') SFX.swing(); return true; }
+/* l'IA ralentit avant le sommet (jamais d'envol) : sa vitesse plafonnée à 75 % de la vitesse critique, 10 u avant le tablier */
+function plafondPontIA(v){ if(!CANAUX.ok||!dansBBCanaux(v.x,v.z)) return Infinity; const sA=Math.sin(v.ang), cA=Math.cos(v.ang); const p=pontCanal(v.x,v.z)||pontCanal(v.x+sA*10,v.z+cA*10); return p&&!p.levis?0.75*vcritPont(p):Infinity; }
+/* la réception d'un saut de pont : distance, points, record par pont (META.sautsPonts) */
+function finSautPont(v){ const S=v.sautPont; v.sautPont=null; if(!S||v!==P.veh||v.conduit!=='joueur') return;
+  const dist=Math.hypot(v.x-S.x,v.z-S.z), propre=Math.abs(v.mesh.rotation.z||0)<0.22, pts=Math.round((dist*8+(v.airT||0)*60)*(propre?1.5:1));
+  if(dist<4) return; ETAT.score+=pts; const m=Math.round(dist);
+  spawnTexte(v.x,3.4,v.z,m+' m — '+S.nom+' +'+pts+(propre?' PROPRE':''),'#ffd23f'); toast(m+' m — '+S.nom+(propre?' · réception propre':''),'or');
+  if(META.sautsPonts&&S.id in META.sautsPonts&&dist>META.sautsPonts[S.id]){ const anc=META.sautsPonts[S.id]; META.sautsPonts[S.id]=Math.round(dist*10)/10; sauveMeta(); if(anc>0) bigMsg('🏆 RECORD — '+m+' m, '+S.nom); } }
+/* ---- sous les tabliers, pour un aéronef : la collision suit ce qu'on voit. Le sol sous un tablier est l'eau (ou le quai) ; le
+   tablier, les tympans des arches (pont vénitien, pont de pierre) et les pieux du pont tropical sont solides ; rien d'autre. */
+function dessousTablier(x,z){ if(!CANAUX.ok||!dansBBCanaux(x,z)) return null; const p=pontCanal(x,z); if(p) return {p,bas:hauteurPont(p,x)-EP_TABLIER,haut:hauteurPont(p,x)};
+  const q=passerelleCanal(x,z); if(q) return {q,bas:hauteurPasserelle(q,z)-0.32,haut:hauteurPasserelle(q,z)}; return null; }
+function solSousTablier(x,z){ if(dansCanal(x,z)) return niveauCanal(x,z); if(dansDalleCanaux(x,z)) return 0.22; return 0; }
+/* le sol vu par un aéronef dont le bas est à y : sous un tablier, ce qu'il y a dessous ; sur l'eau des canaux, la surface (pas le fond) */
+function solAero(x,z,y){ const s=solY(x,z); if(!CANAUX.ok||!dansBBCanaux(x,z)) return s; const T=dessousTablier(x,z); if(T&&y<T.bas) return solSousTablier(x,z); if(!T&&dansCanal(x,z)) return Math.max(s,niveauCanal(x,z)); return s; }
+function poseYAero(x,z,y){ if(CANAUX.ok&&dansBBCanaux(x,z)){ const T=dessousTablier(x,z); if(T&&y<T.bas) return solSousTablier(x,z); if(!T&&dansCanal(x,z)) return niveauCanal(x,z); } return poseY(x,z); }
+function estEauAero(x,z,y){ if(estEau(x,z)) return true; if(!CANAUX.ok||!dansBBCanaux(x,z)) return false; const T=dessousTablier(x,z); return !!T&&y<T.bas&&dansCanal(x,z); }
+function archeY(p,x){ const A=ARCHES_STYLE[p.style]; if(!A) return Infinity; let y=-0.6; for(const [c,r,h] of A(p)){ const u=(x-c)/r; if(Math.abs(u)<1) y=Math.max(y,-0.6+h*Math.sqrt(1-u*u)); } return y; }
+function pointDansPont(p,x,y,z){ if(x<p.x0||x>p.x1||z<p.z0-0.25||z>p.z1+0.25) return false; const h=p.levis?hauteurLevis(p,x):hauteurPont(p,x);
+  if(y>h+1.1) return false; /* au-dessus du garde-corps */ if(y>=h-EP_TABLIER-0.05) return true; /* dans le tablier */
+  if((p.style==='venitien'||p.style==='pierre')&&(Math.abs(z-p.z0)<0.5||Math.abs(z-p.z1)<0.5)&&y>archeY(p,x)) return true; /* le tympan de l'arche */
+  if(p.style==='tropical'&&Math.abs(x-p.xc)<9.3) return true; /* la forêt de pieux */
+  return false; }
+/* les points d'appui d'un aéronef (26 directions : bouts d'aile, nez, queue, dérive, train, rotor), dans son repère, une fois par modèle */
+const _PTS_AERO={};
+function pointsAero(v){ const k=v.key; if(_PTS_AERO[k]) return _PTS_AERO[k]; const g=v.mesh; g.updateMatrixWorld(true); const inv=new THREE.Matrix4().copy(g.matrixWorld).invert(), M=new THREE.Matrix4(), w=new THREE.Vector3();
+  const dirs=[]; for(const a of [-1,0,1]) for(const b of [-1,0,1]) for(const c of [-1,0,1]) if(a||b||c) dirs.push([a,b,c]); const best=dirs.map(()=>({d:-Infinity,p:null}));
+  g.traverse((o)=>{ if(!o.isMesh||!o.visible||!o.geometry||!o.geometry.attributes.position) return; M.multiplyMatrices(inv,o.matrixWorld); const A=o.geometry.attributes.position;
+    for(let i=0;i<A.count;i++){ w.set(A.getX(i),A.getY(i),A.getZ(i)).applyMatrix4(M); for(let j=0;j<dirs.length;j++){ const D=dirs[j], dd=w.x*D[0]+w.y*D[1]+w.z*D[2]; if(dd>best[j].d){ best[j].d=dd; best[j].p=w.clone(); } } } });
+  return (_PTS_AERO[k]=best.filter((b)=>b.p).map((b)=>b.p)); }
+const _PA=new THREE.Vector3();
+/* vrai si l'aéronef, déplacé de (dx, dy, dz) depuis sa pose affichée, touche un tablier, un tympan ou les pieux d'un pont */
+function heurtePontAero(v,nx,ny,nz){ if(!CANAUX.ok||!dansBBCanaux(nx,nz)) return false; let pr=false;
+  for(const p of CANAUX.ponts.concat(CANAUX.levis||[])) if(Math.abs(nx-(p.x0+p.x1)/2)<(p.x1-p.x0)/2+16&&Math.abs(nz-(p.z0+p.z1)/2)<(p.z1-p.z0)/2+16){ pr=true; break; }
+  if(!pr) return false; v.mesh.updateMatrixWorld(true); const dx=nx-v.x, dz=nz-v.z, dy=ny-(v.alt||0);
+  for(const q of pointsAero(v)){ _PA.copy(q).applyMatrix4(v.mesh.matrixWorld); const x=_PA.x+dx, y=_PA.y+dy, z=_PA.z+dz;
+    for(const p of CANAUX.ponts) if(pointDansPont(p,x,y,z)) return true; for(const L of CANAUX.levis||[]) if(L.theta<0.004&&pointDansPont(L,x,y,z)) return true; }
+  return false; }
+/* passé sous un pont (le joueur, en vol) : « SOUS LE PONT ! », une prime la première fois par pont (META.sousPonts, clés fixes) */
+function sousPontAero(v){ if(!CANAUX.ok||v!==P.veh) return; const T=dansBBCanaux(v.x,v.z)?dessousTablier(v.x,v.z):null;
+  if(T&&T.p&&(v.alt||0)<T.bas){ v.sousPont=T.p.id; return; } if(T) return;
+  if(v.sousPont){ const id=v.sousPont; v.sousPont=null; const p=CANAUX.ponts.concat(CANAUX.levis||[]).find((o)=>o.id===id); const nom=p?(p.levis?'PONT-LEVIS':nomPont(p)):'PONT';
+    if(META.sousPonts&&id in META.sousPonts&&!META.sousPonts[id]){ META.sousPonts[id]=true; ETAT.score+=1500; META.argent+=400; ETAT.cashRun+=400; checkDefis(); bigMsg('SOUS LE PONT ! +400 $ — '+nom); SFX.niveau(); sauveMeta(); }
+    else { ETAT.score+=250; spawnTexte(v.x,(v.alt||0)+3,v.z,'SOUS LE PONT ! +250','#7dff7a'); } } }
 function hauteurMarche(m,x,z){ let u=m.axe==='z'?(z-m.z0)/(m.z1-m.z0):(x-m.x0)/(m.x1-m.x0); if(m.sens<0) u=1-u; const n=5, k=Math.min(n-1,Math.floor(clamp(u,0,0.999)*n)); return m.hB+(m.hH-m.hB)*(k+1)/n; }
 function dansDalleCanaux(x,z){ for(const d of CANAUX.dalles) if(x>d.x0&&x<d.x1&&z>d.z0&&z<d.z1) return true; return false; }
 /* le sol du quartier (appelé par solY dans son emprise) : le fond d'un canal, une marche, un tablier, une dalle de quai */
@@ -8196,7 +8262,7 @@ function decoPontV2(p,G){
     for(const [x,s] of [[p.x0+1.2,1],[p.x1-1.2,-1]]) for(const zz of [zA+0.6,zB-0.6]){ for(let k=0;k<6;k++) b.box(0.16,0.5,0.16,x,H(x)+0.25+k*0.5,zz,k%2?0xf4f4f2:0xc8202a); b.box(0.12,0.9,0.36,x+s*0.6,H(x)+0.45,zz,0x2e3238); b.box(0.16,0.2,0.2,x+s*0.6,H(x)+0.8,zz,0x2e3238); bn.box(0.18,0.16,0.16,x+s*0.6,H(x)+0.8,zz+(zz<p.zc?-0.12:0.12),0xff3020); } /* barrières levées, feux */
     for(const [x,z] of [[p.x1-2.6,p.z1+1.8],[p.x1-2.6,p.z0-1.8],[p.x0+4.2,p.z1+1.8],[p.x0+4.2,p.z0-1.8]]) if(libre(x,z,1.6)){ const y=solY(x,z); b.box(2.4,2.5,2.4,x,y+1.25,z,0xf4f1e6); b.box(2.44,0.7,2.44,x,y+1.7,z,0x23323f); b.box(2.8,0.2,2.8,x,y+2.6,z,0xd9692a); bn.box(2.3,0.5,2.46,x,y+1.7,z,VILLA_V2_FEN); addSolid({x,z,hw:1.2,hd:1.2,h:y+2.7}); p.cabine={x,z}; break; } } /* la cabine de l'éclusier */
   else if(st==='venitien'){ for(const zz of [zA,zB]){ for(let x=p.x0+0.6;x<p.x1-0.5;x+=0.42) b.box(0.13,0.5,0.13,x,H(x)+0.7,zz,0xf6f3ec); bandePont(b,p,zz,0.95,0.12,0.36,0xf6f3ec,p.x0+0.3,p.x1-0.3); }
-    for(const zz of [p.z0,p.z1]) archePont(b,p,zz,0xf2efe6,[[p.xc,10.3,2.7]]);
+    for(const zz of [p.z0,p.z1]) archePont(b,p,zz,0xf2efe6,ARCHES_STYLE.venitien(p));
     for(const x of [p.x0+0.9,p.xc,p.x1-0.9]) for(const zz of [zA,zB]) lanternePont(b,bn,x,H(x)+0.45,zz,0x2a2d34,2.2); } /* aux deux bouts et à la clé de l'arche */
   else if(st==='artdeco'){ for(const [zz,sz] of [[zA,-1],[zB,1]]){ bandePont(b,p,zz+sz*0.16,0.5,0.14,0.02,0xf2a8b8,p.x0+0.2,p.x1-0.2); bandePont(b,p,zz+sz*0.16,0.72,0.08,0.02,0xf2a8b8,p.x0+0.2,p.x1-0.2);
       for(let x=p.x0+2;x<p.x1-1.5;x+=2.6) b.boule(0.2,0.2,0.05,x,H(x)+0.32,zz+sz*0.17,0x2a6a7a); }
@@ -8208,7 +8274,7 @@ function decoPontV2(p,G){
   else if(st==='plage'){ for(const zz of [zA,zB]){ for(let x=p.x0+0.4;x<p.x1-0.3;x+=1.2) b.box(0.07,1,0.07,x,H(x)+0.5,zz,0x2a6ab8); bandePont(b,p,zz,0.95,0.07,0.07,0x2a6ab8,p.x0+0.3,p.x1-0.3); bandePont(b,p,zz,0.5,0.05,0.05,0x2a6ab8,p.x0+0.3,p.x1-0.3); }
     for(const x of [p.x0+1,p.x1-1]) for(const [zz,cl] of [[zA,0x2a6ab8],[zB,0xf4f4f2]]){ const y=H(x); b.cyl(0.06,4.2,x,y+2.1,zz,0xe8e8e8); b.box(0.04,0.7,1.1,x,y+3.8,zz+(zz<p.zc?-0.6:0.6),cl); }
     for(const zz of [zA,zB]) lanternePont(b,bn,p.xc,H(p.xc),zz,0xf4f4f2,2.6); }
-  else if(st==='pierre'){ for(const zz of [p.z0,p.z1]) archePont(b,p,zz,0xb08e64,[[p.xc-5,5,2.1],[p.xc+5,5,2.1]]);
+  else if(st==='pierre'){ for(const zz of [p.z0,p.z1]) archePont(b,p,zz,0xb08e64,ARCHES_STYLE.pierre(p));
     for(const zz of [p.z0-0.1,p.z1+0.1]) b.box(1.2,2.6,0.4,p.xc,H(p.xc)-1.6,zz,0xa88a62); /* l'avant-bec du pilier central */
     for(const x of [p.x0+1,p.xc,p.x1-1]) for(const zz of [zA,zB]) lanternePont(b,bn,x,H(x)+0.8,zz,0x1c1d20,1.8); }
   const geo=(q)=>{ const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(q.pos,3)); g.setAttribute('normal',new THREE.Float32BufferAttribute(q.nor,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(q.col,3)); g.computeBoundingSphere(); return g; };
@@ -29866,7 +29932,8 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
     else if(v.retombeV){ if(v.v>vmaxEff){ v.v=Math.max(vmaxEff,v.v-18*dt); vmaxEff=v.v; } else v.retombeV=false; } }
   const retombeNitro=v.nitro&&!v.nitroActif&&v.v>d.vmax; // nitro tout juste coupée
   if(retombeNitro) v.v=Math.max(d.vmax,v.v-14*dt);
-  v.v=clamp(v.v,d.eau?-clamp(d.vmax*BATEAU_RECUL_K,3,BATEAU_RECUL_MAX):-d.vmax*0.42,retombeNitro?v.v:vmaxEff); /* un bateau recule au pas (lot 11.1 : jusqu'à 22 u/s à reculons pour l'offshore, sinon) */
+  v.v=clamp(v.v,d.eau?-clamp(d.vmax*BATEAU_RECUL_K,3,BATEAU_RECUL_MAX):-d.vmax*0.42,retombeNitro?v.v:vmaxEff);
+  if(v.conduit&&v.conduit!=='joueur'&&!d.eau&&!d.air&&!v.enAir){ const pl=plafondPontIA(v); if(Math.abs(v.v)>pl) v.v=Math.sign(v.v)*pl; } /* l'IA ralentit avant le sommet d'un pont (point 17) */ /* un bateau recule au pas (lot 11.1 : jusqu'à 22 u/s à reculons pour l'offshore, sinon) */
   if(v.rouesPerdues) effetsRouesPerdues(v,dt); // dégâts V2 : roue arrachée
   if(echoue){ // la coque glisse sur le sable : freinage fort et progressif, puis on peut repartir au pas vers l'eau
     if(Math.abs(v.v)>2.2) v.v-=Math.sign(v.v)*Math.min(Math.abs(v.v)-2.2,(5+Math.abs(v.v)*1.0)*dt); else v.v=clamp(v.v,-2.2,2.2);
@@ -29999,6 +30066,7 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
       // Dépôt (la physique de saut est partagée). Les motos gardent leur
       // propre inclinaison en virage (ligne ci-dessous, hors saut).
       if(d.type!=='moto') v.mesh.rotation.z=clamp((v.mesh.rotation.z||0)+steer*dt*2.6,-0.7,0.7);
+      if(v.sautPont&&v.vy>0&&v.airT<0.25&&v.h<=gY) v.h=gY+0.001; /* point 17 : à l'envol d'un tablier, la chaussée monte encore une image (pas fixe) — on n'atterrit pas en montant */
       if(v.h<=gY){
         v.h=gY; v.enAir=false;
         if(estEau(v.x,v.z)){ if(!d.amphibie){ noyerVehicule(v); return; } if(MER_V2) eclaboussure(v.x,v.z,1.8); } // amerrissage : noyé, jamais d'explosion (avant : 80 de dégâts, une moto sautait) ; l'amphibie flotte
@@ -30007,9 +30075,9 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
           // chute bien plus haute qu'un gap fait des dégâts (sinon 5 sauts = véhicule détruit)
           // canyons et Mont Reyes : terrains de saut. Une réception ratée n'y abîme qu'au-delà
           // d'une chute de ~20 u, et moins fort (la course se perd au chrono, pas en explosant)
-          const relief=DECOR_V2&&(dansReliefLibre(v.x,v.z)||dansParcStunt(v.x,v.z)||dansSkateXXL(v.x,v.z)), seuilChoc=v.sautHills?-60:relief?-32:-9; // saut de la colline : réception de cascade, sans casse // parc stunt : terrain de saut, même au sol plat
+          const relief=DECOR_V2&&(dansReliefLibre(v.x,v.z)||dansParcStunt(v.x,v.z)||dansSkateXXL(v.x,v.z)), seuilChoc=v.sautHills?-60:relief?-32:(v.sautPont?-42:-9); /* un saut de pont : réception jouable, pas de casse sous ~34 u de chute */ // saut de la colline : réception de cascade, sans casse // parc stunt : terrain de saut, même au sol plat
           if(v.conduit==='joueur'&&RIDES.actif&&RIDE_DEFS[RIDES.actif.id].stunt) rideFigure(v); // DÉFI STUNT : chaque saut compte
-          if(v.vy<-40&&v.conduit==='joueur'&&P.veh===v&&!v.sautHills){ P.iframes=0; P.dodgeT=0; bigMsg('💀 IL FALLAIT SAUTER…'); toucherJoueur(P.hp+(P.bouclier||0)+1); } // chute de ~30 u et plus au volant (falaise du Pic) : mortel
+          if(v.vy<-40&&v.conduit==='joueur'&&P.veh===v&&!v.sautHills&&!v.sautPont){ P.iframes=0; P.dodgeT=0; bigMsg('💀 IL FALLAIT SAUTER…'); toucherJoueur(P.hp+(P.bouclier||0)+1); } // chute de ~30 u et plus au volant (falaise du Pic) : mortel
           if(v.vy<seuilChoc){ abimerVehicule(v,-v.vy*(relief?0.9:1.6),false); }
           // atterrissage sur les roues (roulis proche de zéro) : vitesse
           // conservée, et un saut long réussi rapporte un petit bonus ; à
@@ -30032,6 +30100,7 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
           }
         }
         if(v.sautHills) finSautHills(v);
+        if(v.sautPont) finSautPont(v);
         v.vy=0; v.hop=false;
       }
     } else {
@@ -30043,7 +30112,7 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
       // sur les reliefs sculptés (Mont Reyes, canyons), une pente qu'on dévale ne fait pas décoller :
       // seuls un vrai bord (falaise, tremplin, gap de mesa) ou une bosse franche lancent le véhicule
       const seuilEnvol=DECOR_V2&&dansReliefLibre(v.x,v.z)&&!MONT.kickers.some((k)=>dist2(k.x,k.z,v.x,v.z)<64)?2.4:0.9; // au tremplin du sentier : on décolle
-      if(prev-gY>seuilEnvol&&Math.abs(v.v)>9){ // vraie crête : envol (pas une bordure de trottoir)
+      if(!envolPont(v,d,gY)&&prev-gY>seuilEnvol&&Math.abs(v.v)>9){ /* liste du 22 octobre, point 17 : un tablier fait décoller à sa courbure */ // vraie crête : envol (pas une bordure de trottoir)
         const lvV=DECOR_V2&&presTremplinVertige(v.x,v.z), lvH=DECOR_V2&&(presTremplinHills(v.x,v.z)||lvV); v.sautHills=lvH?{x:v.x,z:v.z,vertige:lvV}:null; // tremplin de la colline et Saut du Vertige : réception de cascade
         v.airX0=v.x; v.airZ0=v.z; /* 3.2 : l'appel du saut */ v.enAir=true; v.h=prev; v.vy=Math.max(2,(DECOR_V2&&(presTremplinStunt(v.x,v.z)||presTremplinPic(v.x,v.z)||lvH)?pvLevre:v.penteVy)*0.85); v.airT=0; // tables du parc stunt : vrai envol dans l'axe de la rampe
         if(lvV) v.vy=Math.abs(v.v)*SAUTV.levre*0.9; // Saut du Vertige : l'angle de la lèvre (à 55 u/s, la mesure d'une image tombait encore dans le creux de la table)
@@ -31155,14 +31224,14 @@ function volPas(v,A,h){
   nx=v.x+vel.x*h; nz=v.z+vel.z*h;
   const X0=x0-VOL_BORD_DUR, X1=x1+VOL_BORD_DUR, Z0=z0-VOL_BORD_DUR, Z1=z1+VOL_BORD_DUR; /* la butée dure */
   if(nx<X0||nx>X1){ nx=clamp(nx,X0,X1); if((nx<=X0&&vel.x<0)||(nx>=X1&&vel.x>0)) vel.x=-vel.x*0.5; } if(nz<Z0||nz>Z1){ nz=clamp(nz,Z0,Z1); if((nz<=Z0&&vel.z<0)||(nz>=Z1&&vel.z>0)) vel.z=-vel.z*0.5; }
-  const surf=poseY(nx,nz);
+  const surf=poseYAero(nx,nz,ny); /* point 17 : sous un tablier, l'eau */
   if(ny<=surf+0.15){
     if(v.decolT>0){ v.x=nx; v.z=nz; v.alt=surf+0.15; if(vel.y<0) vel.y=0; return 'vol'; } /* le décollage : quelques instants au ras de la piste */
-    const eau=surf<0.5&&estEau(nx,nz);
+    const eau=surf<0.5&&estEauAero(nx,nz,ny);
     if(eau||vel.y<-VOL_POSE_VY||Math.abs(phi)>VOL_POSE_ROULIS||theta<-0.15||theta>0.55||V>A.Vmin*VOL_POSE_VMAX||v.vrilleSim) return 'crash';
     v.x=nx; v.z=nz; v.alt=surf; return 'pose'; }
-  if(v.decolT<=0){ const s=solidAt(nx,nz,2.5); if((s&&s.h>ny)||(DECOR_V2&&solY(nx,nz)>ny+0.3)) return 'crash'; }
-  v.x=nx; v.z=nz; v.alt=ny;
+  if(v.decolT<=0){ const s=solidAt(nx,nz,2.5); if((s&&s.h>ny)||(DECOR_V2&&solAero(nx,nz,ny)>ny+0.3)||heurtePontAero(v,nx,ny,nz)) return 'crash'; }
+  v.x=nx; v.z=nz; v.alt=ny; sousPontAero(v);
   /* les figures ne sont plus scriptées : on compte ce que l'avion a vraiment fait (une boucle, un tonneau) */
   v.cumTang+=-v.wx*h; v.cumRoul+=v.wz*h;
   if(Math.abs(J.y)<0.3){ v.relT+=h; if(v.relT>1) v.cumTang=0; } else v.relT=0;
@@ -31296,7 +31365,7 @@ function majVol(v,dt){
       // DESCENDRE tenu arrivait au contact à -13 u/s, au-delà du seuil de crash
       // (-5,5) : tout atterrissage normal explosait, sur le pont du yacht comme
       // ailleurs. Sous HELI_SOL u, la descente est amortie jusqu'au posé.
-      const hSol=v.alt-poseY(v.x,v.z);
+      const hSol=v.alt-poseYAero(v.x,v.z,v.alt);
       if(v.va<0&&hSol<HELI_SOL) v.va=Math.max(v.va,-HELI_POSE_V-(Math.max(0,hSol)/HELI_SOL)*(HELI_VA_DESCENTE-HELI_POSE_V));
       v.alt=clamp(v.alt+v.va*dt,0,v.def.altMax||150);  // très haut au-dessus de la ville (OVNI : encore plus, voir VEHDEFS)
       const l=Math.hypot(INPUT.mx,INPUT.mz);
@@ -31308,20 +31377,20 @@ function majVol(v,dt){
       } else { helicoCyclique(v,dt,l); dxH=v.hvx; dzH=v.hvz; }
       const nx=v.x+dxH*dt, nz=v.z+dzH*dt;
       const s=v.decolT>0?null:solidAt(nx,nz,2);
-      if((s&&s.h>v.alt)||(DECOR_V2&&v.decolT<=0&&solY(nx,nz)>v.alt+0.3)){ // immeuble ou relief (montagne, Pic, mesas)
+      if((s&&s.h>v.alt)||(DECOR_V2&&v.decolT<=0&&(solAero(nx,nz,v.alt)>v.alt+0.3||heurtePontAero(v,nx,v.alt,nz)))){ // immeuble ou relief (montagne, Pic, mesas) ; point 17 : les ponts
         if(Math.hypot(dxH,dzH)>6){ crashAerien(v); return; }
         v.v=0; v.hvx=0; v.hvz=0;
-      } else { v.x=nx; v.z=nz; }
-      const surf=poseY(v.x,v.z);
+      } else { v.x=nx; v.z=nz; sousPontAero(v); }
+      const surf=poseYAero(v.x,v.z,v.alt), plEau=niveauEau(v.x,v.z)+HELI_EAU_ALT; /* point 17 : le plancher au-dessus de l'eau des canaux (plus basse que la mer) */
       // pas de posé sur l'eau : l'hélico reste au ras des vagues (il explosait
       // en ratant le pont du yacht) ; seul un vrai piqué s'y écrase
-      if(surf<0.5&&estEau(v.x,v.z)&&v.va>=-5.5&&v.alt<HELI_EAU_ALT){
-        v.alt=HELI_EAU_ALT; v.va=0;
+      if(surf<0.5&&estEauAero(v.x,v.z,v.alt)&&v.va>=-5.5&&v.alt<plEau){
+        v.alt=plEau; v.va=0;
         if(!(v.eauAvisT>0)){ v.eauAvisT=3; toast('Impossible de se poser sur l’eau','warn'); }
       }
       if(v.eauAvisT>0) v.eauAvisT-=dt;
       if(v.alt<=surf+0.12&&v.va<=0){
-        if(v.decolT<=0&&((surf<0.5&&estEau(v.x,v.z))||v.va<-5.5)){ crashAerien(v); return; }
+        if(v.decolT<=0&&((surf<0.5&&estEauAero(v.x,v.z,v.alt))||v.va<-5.5)){ crashAerien(v); return; }
         v.vol=false; v.alt=surf; SFX.ui();
         if(surf>4&&!META.defis.toit){ META.defis.toit=true; bigMsg('POSÉ SUR LE TOIT'); }
       }
@@ -31394,11 +31463,11 @@ function majVol(v,dt){
       v.alt=clamp(v.alt+v.va*dt,0,180);  // très haut au-dessus de la ville
       const nx=v.x+Math.sin(v.ang)*v.v*dt, nz=v.z+Math.cos(v.ang)*v.v*dt;
       const s=v.decolT>0?null:solidAt(nx,nz,2.5);
-      if((s&&s.h>v.alt)||(DECOR_V2&&v.decolT<=0&&solY(nx,nz)>v.alt+0.3)){ crashAerien(v); return; } // immeuble ou relief
-      v.x=nx; v.z=nz;
-      const surfA=poseY(v.x,v.z);
+      if((s&&s.h>v.alt)||(DECOR_V2&&v.decolT<=0&&(solAero(nx,nz,v.alt)>v.alt+0.3||heurtePontAero(v,nx,v.alt,nz)))){ crashAerien(v); return; } // immeuble ou relief ; point 17 : les ponts
+      v.x=nx; v.z=nz; sousPontAero(v);
+      const surfA=poseYAero(v.x,v.z,v.alt);
       if(v.alt<=surfA+0.15&&v.va<=0){
-        if(v.decolT<=0&&((surfA<0.5&&estEau(v.x,v.z))||v.va<-4.5||v.v>32)){ crashAerien(v); return; }
+        if(v.decolT<=0&&((surfA<0.5&&estEauAero(v.x,v.z,v.alt))||v.va<-4.5||v.v>32)){ crashAerien(v); return; }
         v.vol=false; v.alt=surfA; v.v=Math.min(v.v,20); v.bank=0; v.vb=0; v.lacetAv=0; v.tang=0; v.vt=0; v.tonneau=0; v.tonFin=0; if(v.gaz!==undefined) v.gaz=Math.min(v.gaz,0.45); toast(surfA>4?'Posé sur le toit !':'Posé — lâche le joystick pour freiner','or');
         if(surfA>4&&!META.defis.toit){ META.defis.toit=true; bigMsg('POSÉ SUR LE TOIT'); }
       }
@@ -32230,6 +32299,7 @@ function majTrafic(v,dt){
   if(v.peri){ majPeriTrafic(v,dt); return; } /* lot 11.2 : sur la route périphérique des ponts-levis */
   let cibleV=9;
   if(DANGER.t>0&&dist2(v.x,v.z,DANGER.x,DANGER.z)<900) cibleV=16;
+  if(CANAUX.ok) cibleV=Math.min(cibleV,plafondPontIA(v)); /* point 17 : il passe le dos d'âne sans décoller */
   // sonde d'obstacle — portée et seuil désormais dépendants du GABARIT réel
   // de v et de o (avant : 6.5 fixes, seuil dist2<13 soit ~3.6 unités réelles
   // — beaucoup trop tôt pour un long véhicule comme le bus, et surtout ça
