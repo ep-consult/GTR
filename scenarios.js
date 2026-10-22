@@ -13116,7 +13116,7 @@ async function main() {
         if (!s.garage || !s.garageSuiv) ko.push('villa : zones du garage absentes');
         else { P.x = s.garageSuiv.x; P.z = s.garageSuiv.z; majAction(); el('btnAction')._fn(); P.x = s.garage.x; P.z = s.garage.z; majAction(); const lab = el('btnAction').textContent;
           const L = listeGarageVilla(); if (L.length !== VEHPERSO_MAX || !/SORTIR/.test(lab) || !lab.includes('(2/' + L.length + ')')) ko.push('villa : ' + lab + ' (' + L.length + ' rangés)');
-          const cle = L[1].cle; el('btnAction')._fn(); const sv = vehicules.find((v) => v.persoId === L[1].id); if (!sv || sv.key !== cle) ko.push('villa : le véhicule choisi n’est pas sorti');
+          const cle = L[1].cle; el('btnAction')._fn(); actionGarageVilla(lignesGarageVilla().find((l) => l.id === L[1].id)); /* liste du 22 octobre, point 12 : le bouton ouvre la liste */ const sv = vehicules.find((v) => v.persoId === L[1].id); if (!sv || sv.key !== cle) ko.push('villa : le véhicule choisi n’est pas sorti');
           else info.push('villa : ' + L.length + ' véhicules rangés, le 2e sorti (' + cle + ')'); }
         if (INT.actif) sortirInterieur(); META.planque = plq;
         // ancien emplacement unique : migré dans la collection
@@ -18927,6 +18927,53 @@ async function main() {
       });
       if (r.ko.length) fail('Liste 22 oct., point 7 : ' + r.ko.slice(0, 15).join(' ; ') + ' [' + r.info.join(' | ') + ']');
       else ok('Liste 22 oct., point 7 : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
+    // Liste du 22 octobre, point 12 : le garage de la villa — la liste de « Mes véhicules » (lue dans META.vehPerso) et des hélicos
+    // du manoir (HELIS_MANOIR) ; une voiture rangée sort devant la villa avec sa fiche ; une voiture restée en ville est rapatriée
+    // (une seule instance) ; un bateau est listé mais ne sort pas d'ici ; un hélico possédé se pose sur l'héliport ; le panneau se
+    // ferme en s'éloignant.
+    // -------------------------------------------------------------------
+    console.log('\n--- Liste du 22 octobre, point 12 : le garage de la villa, tous ses véhicules ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = []; const sauve = JSON.stringify({ vp: META.vehPerso, pl: META.planque, hm: META.helisManoir, h: META.heliManoir, g: META.garage });
+        if (P.veh) sortirVehicule(true); META.vue = 'classique'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9;
+        for (const v of [...vehicules]) if (v.persoId) { scene.remove(v.mesh); vehicules.splice(vehicules.indexOf(v), 1); }
+        for (let k = 0; k < VEHPERSO_MAX; k++) Object.assign(META.vehPerso['v' + k], slotGarageDefaut());
+        const bateau = Object.keys(VEHDEFS).find((k) => VEHDEFS[k].eau && VEHDEFS[k].tuningNaut) || 'bateau';
+        Object.assign(META.vehPerso.v0, { cle: 'citadine' }); Object.assign(META.vehPerso.v1, { cle: 'sport' }); Object.assign(META.vehPerso.v2, { cle: bateau }); Object.assign(META.vehPerso.v3, { cle: 'berline', investi: 900 });
+        META.garage = null; META.planque = true; META.helisManoir.ecureuil = true; META.heliManoir = 'helico';
+        const enVille = creerVehicule('sport', POIS.place.x, POIS.place.z, 0, null); enVille.persoId = 'v1'; enVille.perso = true;
+        const pv = PORTES.find((q) => q.id === 'planque'); entrerInterieur('planque', pv); const s = INT.actif;
+        if (!s || !s.garage) return { ko: ['pas de garage à la villa'], info };
+        const ouvrir = () => { P.x = s.garage.x; P.z = s.garage.z; majAction(); const lab = el('btnAction').textContent; el('btnAction')._fn(); return lab; };
+        const lab = ouvrir(); if (!/MES VÉHICULES/.test(lab)) ko.push('libellé du garage : ' + lab);
+        if (!GVILLA.ouvert || !GVILLA.el || GVILLA.el.style.display === 'none') ko.push('le panneau ne s’ouvre pas');
+        const L = lignesGarageVilla(), lignesDom = GVILLA.el.querySelectorAll('#gvListe .ligneItem').length;
+        const nHelis = HELIS_MANOIR.filter((q) => heliManoirPossede(q.cle)).length; if (L.length !== 4 + nHelis || lignesDom !== L.length) ko.push(L.length + ' lignes (' + lignesDom + ' affichées) pour 4 véhicules et ' + nHelis + ' hélicos');
+        const lb = L.find((l) => l.cle === bateau); if (!lb || lb.etat !== 'bateau' || actionGarageVilla(lb)) ko.push('le bateau : ' + (lb ? lb.etat : 'absent') + ' (ne doit pas sortir d’ici)');
+        const lv = L.find((l) => l.id === 'v1'); if (!lv || lv.etat !== 'ville') ko.push('la voiture en ville : ' + (lv ? lv.etat : 'absente'));
+        if (!/ramenée|En ville/.test(GVILLA.el.textContent)) ko.push('l’état « en ville » n’est pas écrit');
+        /* sortir celle qui est en ville : rapatriée, une seule instance, devant la villa, avec sa fiche */
+        if (!actionGarageVilla(lv)) ko.push('SORTIR refusé pour la voiture en ville');
+        const v1 = vehicules.filter((v) => v.persoId === 'v1' && !v.mort); if (INT.actif) ko.push('on est encore dans la villa');
+        if (v1.length !== 1 || vehicules.indexOf(enVille) >= 0) ko.push(v1.length + ' instance(s) de la voiture rapatriée, l’ancienne ' + (vehicules.indexOf(enVille) >= 0 ? 'encore en ville' : 'retirée'));
+        else if (Math.hypot(v1[0].x - P.x, v1[0].z - P.z) > 20) ko.push('la voiture sortie est loin de la porte (' + Math.hypot(v1[0].x - P.x, v1[0].z - P.z).toFixed(0) + ' u)');
+        else info.push('la voiture restée en ville est ramenée devant la villa');
+        /* une voiture rangée, puis l'hélico */
+        entrerInterieur('planque', pv); const s2 = INT.actif; ouvrir(); const l0 = lignesGarageVilla().find((l) => l.id === 'v3'); if (!actionGarageVilla(l0) || !vehicules.some((v) => v.persoId === 'v3' && v.key === 'berline')) ko.push('la berline rangée ne sort pas'); else info.push('berline rangée sortie avec sa fiche');
+        entrerInterieur('planque', pv); ouvrir(); const lh = lignesGarageVilla().find((l) => l.heli && l.cle === 'ecureuil');
+        if (!lh || !actionGarageVilla(lh) || META.heliManoir !== 'ecureuil' || !HELIPORT.v || HELIPORT.v.key !== 'ecureuil') ko.push('l’Écureuil ne se pose pas sur l’héliport (' + META.heliManoir + ', ' + (HELIPORT.v && HELIPORT.v.key) + ')'); else info.push('Écureuil posé sur l’héliport');
+        /* le panneau se ferme en s'éloignant */
+        if (!GVILLA.ouvert) ko.push('le panneau s’est fermé après l’hélico'); P.x = s2.garage.x + 15; majGarageVilla(); if (GVILLA.ouvert) ko.push('le panneau reste ouvert loin du garage');
+        if (INT.actif) sortirInterieur();
+        const sv = JSON.parse(sauve); META.vehPerso = sv.vp; META.planque = sv.pl; META.helisManoir = sv.hm; META.heliManoir = sv.h; META.garage = sv.g;
+        info.push(L.length + ' lignes : ' + L.map((l) => l.nom + ' [' + l.etat + ']').join(', '));
+        return { ko, info };
+      });
+      if (r.ko.length) fail('Liste 22 oct., point 12 : ' + r.ko.join(' ; ') + ' [' + r.info.join(' | ') + ']');
+      else ok('Liste 22 oct., point 12 : ' + r.info.join(' ; '));
     }
     // -------------------------------------------------------------------
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');

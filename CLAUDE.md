@@ -55,7 +55,7 @@ grep -n "^/\* =\{10,\}" index.html | while IFS=: read ln _; do \
   echo "$ln | $(sed -n "$((ln+1))p" index.html | sed 's/^[ \t]*//')"; done
 ```
 
-**Relevé du 22 octobre (liste du 22 octobre, point 7) — 50 675 lignes.**
+**Relevé du 22 octobre (liste du 22 octobre, point 12) — 50 703 lignes.**
 Attention : `maj_carte` recale les numéros dans l'ordre des lignes de la table ;
 un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la main.
 
@@ -117,13 +117,13 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 42672 | LE DÉPÔT DE BUS — courses clandestines |
 | 44110 | **MÉTIERS** — missions liées à un véhicule |
 | 44401 | **GARAGES TUNING** — prix, nitro, salle partagée, menu d'atelier |
-| 45679 | ÉCRANS / MENUS / BOUTIQUES |
-| 45955 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
-| 46809 | DÉBUT / FIN DE PARTIE |
-| 48348 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
-| 48598 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
-| 48921 | **COCKPITS** — vue 1re personne au volant (`COCKPIT`, `COCKPIT_FAMILLES`, `cockpitDims`, `mkCockpitInterieur`, `ckDessiner`, `rendreCockpit`, `cameraCockpit`, `cockpitDiagnostic`, `photoCockpit`) |
-| 50538 | BOUCLE PRINCIPALE |
+| 45712 | ÉCRANS / MENUS / BOUTIQUES |
+| 45988 | CASINO — machines à sous, blackjack, vidéo-poker, roue |
+| 46842 | DÉBUT / FIN DE PARTIE |
+| 48376 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
+| 48626 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
+| 48949 | **COCKPITS** — vue 1re personne au volant (`COCKPIT`, `COCKPIT_FAMILLES`, `cockpitDims`, `mkCockpitInterieur`, `ckDessiner`, `rendreCockpit`, `cameraCockpit`, `cockpitDiagnostic`, `photoCockpit`) |
+| 50566 | BOUCLE PRINCIPALE |
 
 ### Ancres fines (hors bandeaux)
 
@@ -133,6 +133,7 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 14323 | `EXPO` — les véhicules exposés volables (liste du 22 octobre, point 3) : `expoConvertir`, `expoStartRun`, `expoVol`, `majExpo`, `expoBriserVitre` (juste après `majConcession`) |
 | 9011 | `VDEC` — tout ce qui roule ou flotte dans les canaux se prend (liste du 22 octobre, point 2) : `vdecPreparer`, `majVDec`, `vdecPromouvoir`, `vdecCacher`, `vdecStartRun` (juste avant `promoStartRun`) |
 | 4794 | `STATUES` — la statue de la Liberté des places ×2 (liste du 22 octobre, point 7) : `mobPiecesEch`, `statuesAgrandir` (juste avant `mobPieces`) |
+| 44875 | `GVILLA` — le garage de la villa (liste du 22 octobre, point 12) : `ouvrirGarageVilla`, `lignesGarageVilla`, `renderGarageVilla`, `actionGarageVilla`, `majGarageVilla` (juste avant l’éligibilité du garage) |
 | 1025 | `ICONES_SVG` — interrupteur des icônes, `ico()`, `icoArme()`, `labelAction()` |
 | 1031 | `MER_V2` — interrupteur de la mer améliorée (false = mer d'avant à l'identique) |
 | 1038 | `DECOR_V2` — interrupteur du décor enrichi (voir « Décor V2 ») |
@@ -187,17 +188,17 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 44119 | `METIERS_CIBLE` |
 | 44419 | `TUNING_PRIX` — tous les prix du garage, groupés (pièces comprises), puis `TUNING_CASSE_TAUX` |
 | 44512 | `PIECES_FAMILLES` — catalogues de pièces par famille |
-| 44987 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
-| 45054 | `libererObjet()` — libère les géométries d'un objet retiré |
-| 45071 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
-| 45202 | `construireGarageTuning()` — la salle partagée |
-| 45653 | `majNitro()` |
+| 45020 | `garageCasser()` — après `garageEnregistrer`, `garageAcheter`, `garageChoisirVehicule` |
+| 45087 | `libererObjet()` — libère les géométries d'un objet retiré |
+| 45104 | `appliquerCarrosserie()` — passe d'ancrage des pièces |
+| 45235 | `construireGarageTuning()` — la salle partagée |
+| 45686 | `majNitro()` |
 | 29376 | `degatsChoc()` — dégâts V2 : `bosseler`, débris, `perdreRoue` ; murs : `degagerDesMurs` (plus haut) |
 | 13500 | `SAUTV` — Saut du Vertige : `hauteurSautVertige`, `mkSautVertige`, `mkBargeVertige`, `finSautVertige` |
-| 48786 | `VUE1P` — vue à la 1re personne : `cameraPremiere`, `ligneDeMire`, `viseAuto1P` |
+| 48814 | `VUE1P` — vue à la 1re personne : `cameraPremiere`, `ligneDeMire`, `viseAuto1P` |
 | 15785 | `SPORTJ` — le centre sportif se joue : `sportjDemarrer`, `majSportJ`, `sportjFrapper` |
 | 15207 | `RECHARGE_ARME` — rechargements à la 1re personne : `animRecharge`, `rechPiece`, `rechRemise`, `rechAccessoire` |
-| 49367 | `CK_HAB` — cockpits V2 : `CK_TH`, `CK_CADRANS`, `ckDial`, `ckCombine`, `ckHabitacle`, `ckVolant2`, `ckMain`, `ckDeuxRoues`, `ckBateau2`, `ckAvion2`, `ckHoloOvni` |
+| 49395 | `CK_HAB` — cockpits V2 : `CK_TH`, `CK_CADRANS`, `ckDial`, `ckCombine`, `ckHabitacle`, `ckVolant2`, `ckMain`, `ckDeuxRoues`, `ckBateau2`, `ckAvion2`, `ckHoloOvni` |
 | 21581 | `construireBatte(id)` — la batte cloutée et la Vertèbre (géométries partagées, manche et tête séparés) |
 | 27994 | `lancerMissileAvion()` — le missile des appareils : `missileProfil`, `missilePos`, `missileTraj`, traînée `MFUM` |
 | 31011 | `appuiVolCran()` — un appui bref sur MONTER / DESCENDRE vaut un cran (`APPUI_VOL_MIN`) |
@@ -208,7 +209,7 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 14807 | `CAMPENT` — le camp d'entraînement de Fort Reyes : `mkCampEntrainement`, `campConstruire`, `campEntrainementStartRun`, `majCampEntrainement` |
 | 21393 | `VISEURS_1P` — la visée à la 1re personne V2 : œil, organe, zoom et recul par arme, `VISEE_T`, `zoomVersChamp` (`ligneDeMire` 37322, `poseVisee1P` 37335) |
 | 15137 | `matsMains1P()` — gants noirs, avant-bras nus, manche retroussée de la 1re personne (`_texPeau`, `_texTissu`) ; `modele1P()` (15528) : Gadget et Boule « Comète » en main |
-| 49265 | `ARME_SC` — l'arme de la 1re personne rendue dans sa propre scène : `sceneArme1P`, `rendreArme1P` |
+| 49293 | `ARME_SC` — l'arme de la 1re personne rendue dans sa propre scène : `sceneArme1P`, `rendreArme1P` |
 | 2697 | `optiqueArme()` — les optiques de l'établi (point rouge, holographique, lunette ×4), qui REMPLACENT la mire d'origine (partie `viseur`) ; `remplaceOptique`, `atelierEssaiStand` (2786) |
 | 1073 | `AVION_MANCHE` — inclinaison, roulis, tangage, taux de virage, tonneaux et looping par avion (pilotage au manche) |
 | 11328 | `LV` — la longue-vue du penthouse : `lvOeil`, `lvVisible`, `majLongueVue`, `cameraLongueVue`, `REPERES`, `reperesActifs` ; avant : `PQ_INT.penthouse`, `PQ_VILLE_FS`, `pqBoiteUV` |
@@ -233,7 +234,7 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 8499 | `marinaV3Plan` — Canaux V3, phase 1, le côté est : la marina (`C.marina`, bassin d'évitage), `quaisDepuisBoucles` (tronçons de 2 u), `deplacerPhareV3`, `percerSolCanaux`, `mkLangueMer`, `zonesTriangles`, `mkCoteEstV3` |
 | 8659 | `mkLevisV3` — Canaux V3, phase 2, les ponts-levis : `levisDemande`, `levisForcer`, `majLevisV3`, `YIA` / `majYachtIA` (yachts de l'IA), `dessinerLevisCarte` ; tirant d'air : `HAUT_NAV`, `degagementCanal`, `passeSousTablier`, `hauteurLevis` (plus haut), `canauxGrapheHauteurs` (plus bas) ; trafic : `levisArretTrafic` |
 | 8966 | `PROMO` — Canaux V3, phase 3, la promotion des bateaux amarrés : `geoInstanceBateau`, `mkBateauxInstances`, `majPromoBateaux` |
-| 9058 | `chantierNavalDefinir` — Canaux V3, phase 4, le chantier naval « Marée Basse » et le garage du port : `mkChantierNaval`, `majChantierNaval`, `entrerChantierEnBateau`, `chantierPlaceSortie` ; la salle : `construireChantierNavalSalle` (45260) ; le style des bateaux : `PIECES_NAUT` (44727), `geoDecalCoque`, `appliquerNaut`, `ficheCompatible` |
+| 9058 | `chantierNavalDefinir` — Canaux V3, phase 4, le chantier naval « Marée Basse » et le garage du port : `mkChantierNaval`, `majChantierNaval`, `entrerChantierEnBateau`, `chantierPlaceSortie` ; la salle : `construireChantierNavalSalle` (45293) ; le style des bateaux : `PIECES_NAUT` (44727), `geoDecalCoque`, `appliquerNaut`, `ficheCompatible` |
 | 9218 | `lagonDefinir` — Canaux V3, phase 5, le Lagon : `mkLagon`, `lagonFouleConstruire` / `lagonFoulePoser` (la foule instanciée), `lagonFigurantsConstruire`, `lagonFigurantsFusion` (les figurants immobiles en un maillage), `majLagon`, `lagonAction`, `bateauDevant`, `LGN` / `majLagonBateau` (bateaux de l'IA), `LAGON_SON` ; puis `mkPromenadeCanaux` (les quais publics, le marché aux poissons) et `mkAquariumCanaux` |
 | 17329 | `activitesCanauxV3` — Canaux V3, phase 6 : le chantier, le Lagon, la marina, la location sur la carte ; `balisesCanauxV3` (posées en fin de `mkCanaux`) |
 | 7996 | `ARCHES_PONTS` — les ponts qui font sauter et qu’on passe en avion (liste du 22 octobre, point 17) : `envolPont`, `plafondPontIA`, `finSautPont`, `solAero`, `poseYAero`, `estEauAero`, `pointDansPont`, `pointsAero`, `heurtePontAero`, `sousPontAero` |
@@ -1460,6 +1461,9 @@ Dix-sept points, un commit par point ; captures `rapport_nuit/captures/liste_22o
   la géométrie est posée à l'échelle pendant la génération (aucun tirage), le solide garde sa taille jusqu'au premier `startRun` (les
   placements qui suivent le lisent) puis double. **Agrandir un objet du décor sans décaler les tirages : géométrie tout de suite,
   solide à la première partie.**
+- **12, le garage de la villa** (`GVILLA`, `ouvrirGarageVilla`, `lignesGarageVilla`, `actionGarageVilla`, `majGarageVilla`) : la zone
+  GARAGE ouvre la liste de « Mes véhicules » (rangé, en ville → rapatrié à la sortie, bateau grisé) et des hélicos du manoir (posés sur
+  l'héliport) ; `listeGarageVilla` compte aussi les véhicules restés en ville.
 - **17, les ponts** (`ARCHES_PONTS`, juste après `hauteurPont`) : un tablier fait DÉCOLLER à sa courbure (`envolPont` : h''·vx² < −`SAUT_G`,
   vitesse verticale de la chaussée ; `pentePont`, `courburePont`, `vcritPont`) — remplace « légère bosse, jamais un saut » ; trois
   grandes arches à l'ouest (nordOuest 5 u, sudOuest 5,2, plageOuest 6,5 ; plageEst garde 2,7 avec des rampes longues) ; réception

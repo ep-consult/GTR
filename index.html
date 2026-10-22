@@ -44865,8 +44865,41 @@ function migrerAchatVersVehPerso(){ const k=META.garage; if(!k||!VEHDEFS[k]) ret
   Object.assign(META.vehPerso[id],slotGarageDefaut(),{cle:k}); META.garage=null; sauveMeta(); return true; }
 migrerAchatVersVehPerso();
 // ce que le garage de la villa peut sortir : les véhicules rangés de la collection (pas déjà en ville), et l'ancien achat s'il n'a pas pu migrer
-function listeGarageVilla(){ const L=[]; for(const id in META.vehPerso){ const f=fichePerso(id); if(f&&!vehPersoDehors(id)&&!VEHDEFS[f.cle].eau) L.push({id,cle:f.cle}); } /* un bateau de la collection sort du chantier naval */
+function listeGarageVilla(){ const L=[]; for(const id in META.vehPerso){ const f=fichePerso(id); if(!f||VEHDEFS[f.cle].eau) continue; const d=vehPersoDehors(id); if(d&&d.conduit==='joueur') continue; L.push({id,cle:f.cle,dehors:!!d}); } /* liste du 22 octobre, point 12 : un véhicule resté en ville est rapatrié à la sortie */ /* un bateau de la collection sort du chantier naval */
   if(META.garage&&VEHDEFS[META.garage]) L.push({id:null,cle:META.garage}); return L; }
+/* ---- Le garage de la villa (liste du 22 octobre, point 12, demandé : « choisir n'importe quel véhicule de Mes véhicules, et les
+   hélicos du manoir, dans une liste lisible ; un véhicule resté en ville est rapatrié »). Un panneau (même style que l'héliport) :
+   chaque fiche de META.vehPerso — nom, état (rangé, en ville : rapatrié à la sortie, bateau : au chantier naval), ce qu'on y a
+   investi — et SORTIR ; puis les hélicos du manoir possédés : POSER SUR L'HÉLIPORT (comme la console de l'héliport). Fermé en
+   s'éloignant, en sortant, à la mort et à chaque partie (majGarageVilla, fermerGarageVilla). */
+const GVILLA={el:null,ouvert:false,s:null};
+function ouvrirGarageVilla(s){ const G=GVILLA; G.s=s; G.ouvert=true;
+  if(!G.el){ const d=document.createElement('div'); d.id='garageVillaPanel';
+    d.style.cssText='position:fixed;left:0;right:0;bottom:0;height:52%;z-index:40;background:linear-gradient(#141821ee,#0c0f15f8);border-top:2px solid #35e0ff;color:#e8ecf2;font:600 13px Arial;display:flex;flex-direction:column;padding:10px 12px calc(env(safe-area-inset-bottom) + 10px)';
+    d.innerHTML='<div style="display:flex;align-items:center;gap:8px"><div style="flex:1;font:900 16px Arial">🚗 Mes véhicules</div><button class="pill" id="gvFerme">✕</button></div><div style="color:#9aa4b2;margin:4px 0">Sortir un véhicule devant la villa — un véhicule resté en ville y est ramené</div><div id="gvListe" style="flex:1;overflow-y:auto"></div>';
+    document.body.appendChild(d); G.el=d; d.querySelector('#gvFerme').addEventListener('pointerdown',(e)=>{ e.preventDefault(); fermerGarageVilla(); }); }
+  G.el.style.display='flex'; renderGarageVilla(); SFX.ui(); }
+function fermerGarageVilla(){ const G=GVILLA; if(!G.ouvert) return; G.ouvert=false; if(G.el) G.el.style.display='none'; }
+function lignesGarageVilla(){ const L=[]; for(let k=0;k<VEHPERSO_MAX;k++){ const id='v'+k, f=fichePerso(id); if(!f) continue; const D=VEHDEFS[f.cle], d=vehPersoDehors(id);
+    L.push({id,cle:f.cle,nom:D.nom,etat:D.eau?'bateau':(d&&d.conduit==='joueur'?'conduit':(d?'ville':'range')),investi:f.investi||0}); }
+  if(META.garage&&VEHDEFS[META.garage]) L.push({id:null,cle:META.garage,nom:VEHDEFS[META.garage].nom,etat:'range',investi:0});
+  for(const q of HELIS_MANOIR) if(heliManoirPossede(q.cle)&&VEHDEFS[q.cle]) L.push({id:null,cle:q.cle,nom:VEHDEFS[q.cle].nom,etat:META.heliManoir===q.cle||(!heliManoirPossede(META.heliManoir)&&q.cle==='helico')?'dalle':'heli',heli:true});
+  return L; }
+function renderGarageVilla(){ const G=GVILLA; if(!G.el) return; const L=lignesGarageVilla(); let h='';
+  const TXT={range:'Rangé au garage',ville:'En ville — ramené à la sortie',bateau:'Bateau — se sort au chantier naval « Marée Basse »',conduit:'Tu es au volant',dalle:'Posé sur l’héliport du manoir',heli:'Hélico du manoir'};
+  L.forEach((l,i)=>{ const D=VEHDEFS[l.cle], det=TXT[l.etat]+' · '+Math.round(D.vmax*3.6)+' km/h'+(l.investi?' · '+l.investi+' $ investis':'');
+    const bt=l.heli?(l.etat==='dalle'?'<button class="pill equip">SUR LA DALLE ✓</button>':'<button class="pill" data-i="'+i+'">POSER SUR L’HÉLIPORT</button>')
+      :(l.etat==='range'||l.etat==='ville'?'<button class="pill buy" data-i="'+i+'">SORTIR</button>':'<button class="pill" disabled style="opacity:.45">—</button>');
+    h+='<div class="ligneItem"><div class="inf"><div class="nom">'+(l.heli?'🚁 ':'')+l.nom+'</div><div class="det">'+det+'</div></div>'+bt+'</div>'; });
+  if(!L.length) h='<div class="ligneItem"><div class="inf"><div class="nom">Garage vide</div><div class="det">Achète une voiture chez REYES MOTORS : elle se range dans « Mes véhicules »</div></div></div>';
+  const E=G.el.querySelector('#gvListe'); E.innerHTML=h; E.querySelectorAll('.pill[data-i]').forEach((b)=>b.addEventListener('pointerdown',(e)=>{ e.preventDefault(); actionGarageVilla(L[+b.dataset.i]); })); }
+/* sortir (ou poser) : sa propre garde — dans la villa, panneau ouvert, ligne encore valable */
+function actionGarageVilla(l){ const G=GVILLA, s=G.s; if(!G.ouvert||!l||!INT.actif||INT.actif!==s) return false;
+  if(l.heli){ if(!heliManoirPossede(l.cle)) return false; META.heliManoir=l.cle; sauveMeta(); poserHeliManoir(); SFX.ui(); toast('🚁 '+VEHDEFS[l.cle].nom+' posé sur l’héliport du manoir','or'); renderGarageVilla(); return true; }
+  if(l.id){ const f=fichePerso(l.id); if(!f||f.cle!==l.cle||VEHDEFS[f.cle].eau) return false; const d=vehPersoDehors(l.id); if(d){ if(d.conduit==='joueur') return false; GARAGE_HP[l.id]=d.hp; garageRetirerVehicule(d); toast('🚚 '+VEHDEFS[l.cle].nom+' rapatrié de la ville','or'); } }
+  else if(META.garage!==l.cle) return false;
+  s.livrer=l.cle; s.livrerId=l.id; fermerGarageVilla(); toast('Elle t’attend devant la villa','or'); SFX.ui(); sortirInterieur(); return true; }
+function majGarageVilla(){ const G=GVILLA; if(!G.ouvert) return; const s=G.s; if(ETAT.mode!=='jeu'||!INT.actif||INT.actif!==s||!s.garage||dist2(P.x,P.z,s.garage.x,s.garage.z)>8*8) fermerGarageVilla(); }
 // Éligibilité DÉCLARÉE dans VEHDEFS (jamais une liste ici) : tuningMeca =
 // tout ce qui roule et se conduit (char compris) ; tuningCarro = voitures et
 // motos civiles, avec famille + ancrages — et les vélos, qui n'ont QUE
@@ -47936,13 +47969,8 @@ function majAction(){
     } else if(s.garage&&dist2(P.x,P.z,s.garage.x,s.garage.z)<marquerZone(s.garage,14)){
       // garage de la villa : sort un véhicule RANGÉ de « Mes véhicules » (pas déjà en ville), choisi au tapis « SUIVANT »
       const L=listeGarageVilla(), n=L.length, i=(s.garageSel||0)%Math.max(1,n), q=L[i];
-      label=q?('🚗 SORTIR '+VEHDEFS[q.cle].nom.toUpperCase()+(n>1?' ('+(i+1)+'/'+n+')':'')):'🚗 Garage vide';
-      fn=()=>{
-        if(!q){SFX.refus();toast('Achète une voiture chez REYES MOTORS : elle se range dans « Mes véhicules »');return;}
-        INT.actif.livrer=q.cle; INT.actif.livrerId=q.id;
-        toast('Elle t\u2019attend devant la villa','or'); SFX.ui();
-        sortirInterieur();
-      };
+      label=q?('🚗 MES VÉHICULES — SORTIR '+VEHDEFS[q.cle].nom.toUpperCase()+(n>1?' ('+(i+1)+'/'+n+')':'')):'🚗 MES VÉHICULES';
+      fn=()=>ouvrirGarageVilla(s); /* liste du 22 octobre, point 12 : la liste, un appui par véhicule */
     } else if(s.garageSuiv&&dist2(P.x,P.z,s.garageSuiv.x,s.garageSuiv.z)<marquerZone(s.garageSuiv,4)){
       const n=listeGarageVilla().length;
       label=n>1?'🔁 VÉHICULE SUIVANT ('+n+' rangés)':(n?'🔁 Un seul véhicule rangé':'🔁 Aucun véhicule rangé');
@@ -50607,7 +50635,7 @@ function tick(t){
       majMissions(dt,dtJeu);
       majAction();
     }
-    majInterieur(dt,dtJeu);
+    majInterieur(dt,dtJeu); majGarageVilla(); /* liste du 22 octobre, point 12 : le panneau du garage de la villa se ferme en s'éloignant */
     majAtelierArme(dt); majBoutique(dt); /* établi de l'armurerie et cabine d'essayage : ils sont EN SALLE, ils tournent donc aussi en salle (avant : seulement dehors, l'arme restait figée malgré le doigt) ; chacun se ferme seul hors de propos */
     if(!INT.actif){
       majFeux(dt);

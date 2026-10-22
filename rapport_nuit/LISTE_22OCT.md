@@ -13,13 +13,13 @@ Ordre suivi : 1, 17, 4, 3, 2, 5, puis le reste.
 | 3 | Véhicules exposés (derby, REYES MOTORS) volables | ☑ |
 | 4 | Les sons propres | ☑ |
 | 5 | Cockpit du taxi : plus d'air sous le toit | ☑ |
-| 6 | Les publics de décor fuient et se visent | ☐ |
+| 6 | Les publics de décor fuient et se visent | ☑ |
 | 7 | La statue de la Liberté plus grande | ☑ |
 | 8 | Habits et tatouages réalistes | ☐ |
 | 9 | Plus d'améliorations au chantier naval | ☐ |
 | 10 | Le paquebot qui se brise, plus impressionnant | ☐ |
 | 11 | Explosions, camion-citerne, pompes à essence | ☐ |
-| 12 | Sortir ses véhicules depuis la villa | ☐ |
+| 12 | Sortir ses véhicules depuis la villa | ☑ |
 | 13 | Plongeons : l'entrée dans l'eau compte | ☐ |
 | 14 | Le plongeon de falaise épique, l'eau en bas | ☐ |
 | 15 | La tour de contrôle, un vrai jeu d'aiguilleur | ☐ |
@@ -30,6 +30,27 @@ Ordre suivi : 1, 17, 4, 3, 2, 5, puis le reste.
 
 - **Branche** : `retours-22oct` part de `retours-20-octobre` (et non de `main`) : les points de la liste portent sur ce que les deux
   chantiers précédents ont construit (canaux V3, paquebot, Cliff Diving, cabrage en équilibre…).
+
+## 12 — Sortir ses véhicules depuis la villa (fait)
+
+**Avant** : le garage de la villa ne sortait que les véhicules RANGÉS (pas ceux restés en ville), un par un, en faisant défiler au
+tapis SUIVANT ; le bouton ne disait que « SORTIR CITADINE (1/2) » ; ni les bateaux ni les hélicos du manoir n'y apparaissaient.
+
+**Fait** (`GVILLA`, `ouvrirGarageVilla`, `lignesGarageVilla`, `renderGarageVilla`, `actionGarageVilla`, `majGarageVilla`, juste avant
+l'éligibilité du garage) : la zone GARAGE (« 🚗 MES VÉHICULES — SORTIR … ») ouvre un panneau dans le style de l'héliport, une ligne
+par véhicule de « Mes véhicules » (lue dans `META.vehPerso`) : son nom, son état — rangé, **en ville (ramené à la sortie)**, bateau
+(« se sort au chantier naval Marée Basse », grisé : la villa est sur la colline), au volant —, sa vitesse et ce qu'on y a investi, et
+SORTIR ; puis les hélicos du manoir possédés (`HELIS_MANOIR`) : « POSER SUR L'HÉLIPORT » (comme la console de l'héliport, `poserHeliManoir`).
+Un véhicule resté en ville est retiré de la ville (`garageRetirerVehicule`, ses PV gardés) et livré devant la villa avec sa fiche :
+jamais deux exemplaires. Le tapis SUIVANT reste (il change le véhicule proposé par le bouton). Le panneau se ferme en s'éloignant, en
+sortant, à la mort et à chaque partie ; `actionGarageVilla` porte sa propre garde (dans la villa, panneau ouvert, ligne encore valable).
+
+**Test** « Liste du 22 octobre, point 12 » : quatre fiches (rangée, en ville, bateau, rangée avec investissement) et les hélicos
+possédés → autant de lignes affichées ; le bateau refuse de sortir ; la voiture en ville est ramenée (une seule instance, devant la
+porte) ; une berline rangée sort avec sa fiche ; l'Écureuil se pose sur l'héliport ; le panneau se ferme loin du garage. Le test du
+lot 1 du 18 octobre passe désormais par la liste.
+
+**Captures** : `avant_12_garage_villa.png` (le bouton seul) / `12_garage_villa.png` (la liste).
 
 ## 7 — La statue de la Liberté, deux fois plus grande (fait)
 
