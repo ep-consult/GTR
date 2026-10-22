@@ -18471,7 +18471,7 @@ async function main() {
         /* 3. la prime : une fois par vague ; une 2e course la même vague ne paie pas */
         if (fin) { const a1 = META.argent; v = partie('voltige'); WAVES.n = W0; AIR.prime = W0; G = {}; let f2 = null;
           for (let i = 0; i < 60 * 120; i++) { pilote(v, G); pas(); if (P.veh !== v || v.mort) break; if (!AIR.actif && AIR.dernier && AIR.dernier !== fin) { f2 = AIR.dernier; break; } }
-          if (!f2) ko.push('2e course non terminée'); else if (META.argent > a1 + 1) ko.push('2e prime la même vague (+' + (META.argent - a1) + ' $)'); else info.push('2e course la même vague : ' + f2.tot.toFixed(1) + ' s, pas de prime'); }
+          if (!f2) ko.push('2e course non terminée'); else if (META.argent - a1 >= AIR_PRIME || AIR.prime !== W0) ko.push('2e prime la même vague (+' + (META.argent - a1) + ' $)'); else info.push('2e course la même vague : ' + f2.tot.toFixed(1) + ' s, pas de prime' + (META.argent > a1 ? ' (+' + (META.argent - a1) + ' $ gagnés ailleurs pendant le vol)' : '')); } /* la prime vaut au moins AIR_PRIME : un gain plus petit vient d'ailleurs (la vraie boucle tourne deux minutes) */
         /* 4. le pilote passif : il traverse le départ puis lâche le manche → rien de validé, la course s'arrête (le Pic) */
         { v = partie('voltige'); let valides = 0, mort = false, i0 = -1; for (let i = 0; i < 60 * 60; i++) { INPUT.jx = 0; INPUT.jy = 0; MANETTE.val = 1; MANETTE.touche = true; pas();
             if (AIR.actif && i0 < 0) i0 = AIR.actif.i; if (AIR.actif) valides = Math.max(valides, AIR.actif.i - AIR.actif.manques); if (ETAT.mode !== 'jeu' || P.veh !== v) { mort = ETAT.mode === 'mort' || P.hp <= 0 || v.mort; break; } if (!AIR.actif && i0 >= 0) break; }

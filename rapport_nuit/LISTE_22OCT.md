@@ -685,3 +685,66 @@ Captures : `avant_01_cabrage.png` (« Tu bascules en arrière — trop cabré tr
 points pendant un cabrage de 7 s).
 
 **À essayer sur iPhone** : la difficulté réelle au doigt (des appuis courts sur CABRER) ; si c'est trop dur, augmenter `amort`.
+
+## RESTITUTION
+
+Les 17 points sont **faits** (aucun partiel, aucun abandonné), un commit chacun sur `retours-22oct` (rien n'est poussé ni fusionné).
+Chaque point a son test « Liste du 22 octobre, point n » dans `scenarios.js` (listes lues dans la source) et ses captures réelles
+390 × 844 avant / après dans `rapport_nuit/captures/liste_22oct/`.
+
+**Validation finale** : `node valider.js` vert ; suite complète : cinq passages de `node scenarios.js` (graine 20260731) ; le dernier : **880 vérifications vertes, aucune sautée, 2 échecs** — « Canaux V2 : canaux secondaires » (défaut antérieur, voir plus bas) et la 2e course de la Reyes Air Race (lot 10 : le test comptait TOUT l'argent gagné pendant les deux minutes de vol, +140 $ venus d'ailleurs, comme une prime ; il vérifie désormais la prime elle-même, vert seul). Aucune erreur JS dans la page. Empreinte de la ville identique à chaque point
+(décor 931930327, portes, chalet, mobilier ; « enfants » du décor 5574 : les ajouts notés aux points 2, 11 et 14) ; tirage principal
+et séquence `startRun` → salles → `startRun` identiques.
+
+La validation finale a trouvé et fait corriger : (1) le contrôle de l'écume des embouchures comptait la baie de la crique (6e case de
+`LITTORAL_COUPES`, point 14) comme une embouchure — test adapté ; (2) **la vitrine du showroom (point 3) ne se brisait pas toujours** :
+la voiture, arrêtée par le solide à 3,1 u du centre de la vitrine, était à 0,2 u de la limite de contact — marge élargie à 2 u dans le
+jeu ; (3) les tests des points 3 et 17 dépendaient de l'état laissé par la suite (trafic apparu sur la trajectoire, entrées) — ils
+maîtrisent désormais leur scène. **Défaut antérieur, non corrigé** : « Canaux V2 : canaux secondaires » échoue une fois sur deux, AUSSI
+sur la version d'avant la liste (vérifié 3 fois : 2 échecs) — la vedette de police reste bloquée dans le canal secondaire est en impasse et
+empêche le pilote simulé d'en ressortir ; à regarder sur iPhone (une vedette qui bouche une impasse en pleine poursuite).
+
+**Coût mesuré** (machine sans carte graphique : les proportions comptent ; à refaire sur iPhone) : point 2 (au cœur du quartier des
+canaux) : calcul 4,44 → 4,58 ms par image, rendu 23,5 → 23,5 ms, appels 1 035 → 1 117 (les véhicules du décor devenus vrais) ; point 3
+(devant le showroom) : calcul 3,99 → 3,34 ms, rendu 16,8 → 14,8 ms, appels 1 669 → 1 657 — mesures bruitées (un second passage
+« après » a donné des valeurs aberrantes, 18 ms au showroom, écartées) ; point 10 : 0,17 ms par image pour toute la cassure, 20 objets dessinés de plus ; point 11 : voir sa section (explosion d'une citerne au
+centre) ; point 17 : voir sa section.
+
+| # | Point | État | Cause trouvée / ce qui a été fait | À tester en priorité sur iPhone |
+|---|---|---|---|---|
+| 1 | Cabrage des motos | fait | le seuil « trop cabré » et son délai remplacés par un vrai équilibre (point instable, dosage du gaz, frein arrière) | tenir un cabrage au pouce, longtemps ; la moto qui passe sur le dos gaz à fond |
+| 2 | Véhicules du quartier des canaux | fait | voitures d'allée, bateaux bâchés et bateaux qui circulent étaient du décor : ils deviennent de vrais véhicules à l'approche (`VDEC`) | prendre une voiture d'allée et un bateau amarré ; fluidité dans le quartier |
+| 3 | Véhicules exposés | fait | le showroom était un solide plein, les voitures du décor ; vitrine qui se brise, voitures volables (`EXPO`) | entrer dans le showroom, briser la vitrine en voiture |
+| 4 | Les sons | fait | des clics au début et à la fin des sons, trop de voix à la fois, pas de bus commun : compresseur, limiteur, enveloppes, voix plafonnées | écouter au casque : tirs rapides, explosions, moteur |
+| 5 | Cockpit du taxi | fait | le pavillon du gabarit des berlines V3 était trop bas : plus d'air sous le toit (taxi, police) | vue 1re personne dans le taxi et la police |
+| 6 | Publics de décor | fait | les foules instanciées ou fusionnées (Lagon, derby, Cliff Diving) n'étaient pas visables : le touché devient un vrai piéton, ses voisins fuient | tirer dans la tribune du derby et la foule du Lagon |
+| 7 | Statue de la Liberté | fait | ×2, sans changer la ville | la voir sur une place |
+| 8 | Habits et tatouages | fait | une couleur unie par pièce : un dessin par pièce et par face, de vrais tatouages à l'encre | lisibilité des motifs à la distance de jeu ; la cabine d'essayage |
+| 9 | Chantier naval | fait | aucune pièce qui agisse : trim, sponsons, défenses de coque, gerbe arrière (effets réels), et l'arrière (échelle, porte-kayak, toboggan) | acheter, ressortir, sentir la vitesse ; un choc de quai avec le boudin |
+| 10 | Le paquebot qui se brise | fait | une foule de 48, chaloupes, fusées, lumières, poupe à la verticale, vapeur, sons | fluidité pendant la cassure ; lisibilité des petits personnages |
+| 11 | Explosions, citerne, pompes | fait | explosions refaites (éclair, boule de feu, débris, fumée), citerne qui saute à coup sûr, station REYES FUEL et pompes de la marina en chaîne | fluidité d'une explosion en chaîne à la station |
+| 12 | Véhicules depuis la villa | fait | le garage de la villa ne listait pas « Mes véhicules » : la liste complète, les rangés et ceux restés en ville, les hélicos du manoir | sortir une voiture de la collection depuis la villa |
+| 13 | Plongeons | fait | l'entrée dans l'eau ne comptait pas : salto au pouce, entrée droite = bonus, à plat = GROS PLAT (jamais mortel sous 30 u) | un plongeon libre réussi et un raté |
+| 14 | Cliff Diving épique | fait | ralenti, trois plans de caméra, vent, foule ; la vraie mer (shader) au pied des falaises | le saut de la tour de 27 u, la caméra |
+| 15 | Tour de contrôle | fait | un jeu « toucher pour poser » : vent et sens de piste, circuit, hippodromes, départs, remises des gaz, MAYDAY, radio ; pilote simulé qui gagne, passif et lent qui perdent | toucher un avion parmi des étiquettes serrées ; la difficulté |
+| 16 | Course de supercross | fait | un défi à points seulement : une course de 3 tours contre 5 pilotes, grille, positions, chrono ; la tenue Pro Rider complète | la difficulté de la course ; le bandeau des positions |
+| 17 | Les ponts | fait | un tablier ne faisait jamais décoller ; les avions ne pouvaient pas passer dessous : envol à la courbure, arches, « SOUS LE PONT ! » | passer un pont vite en voiture ; passer sous une arche en avion |
+
+### Décisions prises seul (en plus de celles notées dans chaque section)
+
+- **Branche** : `retours-22oct` part de `retours-20-octobre`.
+- **Ordre** : 1, 17, 4, 3, 2, 5, puis le reste (les points de jeu avant les points de décor).
+- **8** : sur un corps fait de boîtes, le détail passe par la texture ; les nouveaux tatouages (rose, dragon, ancre) ne sont pas portés
+  par les mannequins de la boutique (leurs tirages restent).
+- **9** : pas de palier mécanique de plus ; des pièces qui agissent modestement (au plus +9 % de vitesse).
+- **10** : la foule est un décor animé (pas de vrais piétons) — 48 personnes en deux appels de rendu.
+- **15** : un appui = l'autorisation suivante de l'avion ; les remises des gaz sont automatiques ; 10 kt de vent arrière tolérés ;
+  12 mouvements en 130 s (équilibré au pilote simulé).
+- **16** : la moto du joueur ne prend pas de dégâts de terrain pendant la course ; le kiosque est côté intérieur de la piste ; la tenue
+  se gagne au défi OU à la course (même clé `META.exploits.supercross`).
+
+### Ce qui n'a pas pu être fait ou vérifié
+
+- **Le test sur iPhone** : rien de cette liste n'a été joué sur l'appareil (fluidité, sons, lisibilité, difficulté) — à faire en priorité
+  sur les points 4 (sons), 10 et 11 (coût), 15 et 16 (difficulté).
+- Les mesures de coût sont faites sur une machine sans carte graphique : seules les proportions avant / après comptent.
