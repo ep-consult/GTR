@@ -9,7 +9,7 @@ Ordre suivi : 1, 17, 4, 3, 2, 5, puis le reste.
 | # | Point | État |
 |---|---|---|
 | 1 | Cabrage des motos : un jeu d'équilibre, plus de « trop cabré » | ☑ |
-| 2 | Tous les véhicules du quartier des canaux jouables | ☐ |
+| 2 | Tous les véhicules du quartier des canaux jouables | ☑ |
 | 3 | Véhicules exposés (derby, REYES MOTORS) volables | ☑ |
 | 4 | Les sons propres | ☑ |
 | 5 | Cockpit du taxi : plus d'air sous le toit | ☐ |
@@ -30,6 +30,46 @@ Ordre suivi : 1, 17, 4, 3, 2, 5, puis le reste.
 
 - **Branche** : `retours-22oct` part de `retours-20-octobre` (et non de `main`) : les points de la liste portent sur ce que les deux
   chantiers précédents ont construit (canaux V3, paquebot, Cliff Diving, cabrage en équilibre…).
+
+## 2 — Tous les véhicules du quartier des canaux se prennent (fait)
+
+**Relevé** (lu aux sources, refait par le test à chaque passage) — ce qu'on voit rouler ou flotter dans le quartier :
+
+| Quoi | Combien | Avant | Désormais |
+|---|---|---|---|
+| Voitures au fond des allées des villas (`voitureDecorV2`) | 41 | quelques boîtes dans la géométrie de la rangée, un solide | **promues** à l'approche (VDEC) |
+| Voitures de luxe des deux villas de la Brigada | 2 | vrais véhicules | inchangé |
+| Bateaux amarrés aux pontons des villas et à la marina | 36 postes | instances de leur vrai modèle, promus à 12 u (PROMO, V3) | inchangé |
+| Bateaux pilotables des pontons, jet-skis, vedette de l'embarcadère, location | — | vrais véhicules | inchangé |
+| Bateau bâché de la V1 (`C.amarres` sans `v2`) | 1 | modèle aplati dans le maillage du nautique | **promu** à l'approche |
+| Bateaux du décor qui circulent (`CVIE.bateaux` : un open, un jet-ski) | 2 | maillages animés | **promus** à l'approche (là où ils sont) |
+| Bateaux de l'IA (Lagon, yachts, police maritime) | — | vrais véhicules (on les aborde) | inchangé |
+| Bateau en carénage sur son ber, bateau dans les sangles du travel-lift | 2 | décor | **restent du décor** (décision ci-dessous) |
+
+**Fait** (module `VDEC`, juste avant `promoStartRun`) : le registre `VDEC.liste` (refait à chaque partie par `vdecPreparer`, depuis
+`l.voitDecor`, `C.amarres[].dec`, `CVIE.bateaux`) ; à 8 u du joueur (à pied, à la nage ou au volant), le plus proche devient un vrai
+véhicule à sa place, trois au plus en même temps (`majVDec`, quatre fois par seconde) : la voiture d'allée prend un vrai modèle
+(citadine, berline, pick-up, cabriolet ; Baronne, SUV de luxe ou cabriolet pour un grand lot, tiré par la position) à SA couleur, ses
+sommets dans la rangée sont repliés sous le sol et son solide retiré ; le bateau bâché devient son modèle (et son mur d'amarre
+s'ouvre) ; un bateau qui circule s'arrête là où il est (le pilote du jet-ski disparaît dans une gerbe d'eau : il a plongé). Laissé à son poste et loin (30 u), il
+redevient du décor ; emmené ailleurs, il reste un vrai véhicule et son poste est vide jusqu'à la partie suivante (`vdecStartRun`,
+appelé par `canauxStartRun`, sans aucun tirage) ; un bateau qui circulait reprend sa route d'où on l'a laissé s'il est resté sur son
+trajet. Pendant la génération, rien n'est créé : les données sont notées (la plage de sommets, le solide), mêmes tirages ; le bateau
+du travel-lift est passé dans son propre maillage (un enfant de scène de plus, l'empreinte des tirages est identique).
+
+**Décision** : les deux bateaux du chantier de la marina (en carénage sur son ber, et dans les sangles du travel-lift) restent du
+décor — ils sont en réparation, hors de l'eau ; la cale du travel-lift ne communique avec la marina que par une fente d'un mètre en
+diagonale (mesuré : aucun bateau ne peut en sortir), un vrai bateau posé dedans serait prisonnier. Ils sont notés `horsEau` et le
+test vérifie qu'ils le restent.
+
+**Test** « Liste du 22 octobre, point 2 » : chaque appel des constructeurs du décor (compté pendant la génération : 41 voitures, 3
+bateaux par `bateauDecorV2`) est couvert ; chaque bateau amarré a son poste PROMO ; les 44 entrées de VDEC se promeuvent à
+l'approche (la voiture : sommets repliés, solide retiré) et redeviennent du décor de loin ; une voiture d'allée, le bateau bâché et un
+bateau qui circule : le bouton d'action les propose, on MONTE, 10 u au joystick ; emmenés, ils restent et leur poste reste vide ; la
+voiture est de retour dans son allée à la partie suivante.
+
+**Reste / à essayer sur iPhone** : la promotion se fait à 8 u — on voit la voiture d'allée « devenir » un vrai modèle (plus détaillé)
+quand on s'approche ; si c'est gênant, rapprocher `VDEC_R`.
 
 ## 3 — Les véhicules exposés se volent (fait)
 

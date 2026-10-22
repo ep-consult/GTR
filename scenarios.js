@@ -18823,6 +18823,54 @@ async function main() {
       else ok('Liste 22 oct., point 3 : ' + r.info.join(' ; '));
     }
     // -------------------------------------------------------------------
+    // Liste du 22 octobre, point 2 : tout ce qu'on voit rouler ou flotter dans le quartier des canaux se prend. Le relevé est lu aux
+    // sources : chaque appel des constructeurs du décor (voitureDecorV2, bateauDecorV2 — comptés pendant la génération) a son vrai
+    // véhicule (VDEC pour les voitures d'allée, les bateaux bâchés, les bateaux qui circulent ; PROMO pour les bateaux amarrés), sauf les
+    // deux bateaux en réparation hors de l'eau (carénage, travel-lift : sa cale est fermée). Chaque entrée de VDEC se promeut à l'approche ; un de chaque genre : MONTER
+    // (le vrai choix du bouton d'action) et 10 u au joystick ; laissé à son poste, il redevient du décor (sommets et solide rendus) ;
+    // emmené, il reste un vrai véhicule et son poste est vide jusqu'à la partie suivante.
+    // -------------------------------------------------------------------
+    console.log('\n--- Liste du 22 octobre, point 2 : tous les véhicules du quartier des canaux se prennent ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [], C = CANAUX; if (!C.ok) return { ko: ['CANAUX.ok faux'], info }; let T = dernierT + 1000;
+        const partie = () => { if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); META.vue = 'classique'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9; YIA.t = 1e9; WANTED.stars = 0; WANTED.heat = 0; for (const e of ennemis) e.mort = true; };
+        const pas = (n, f) => { for (let i = 0; i < n; i++) { if (f && f(i) === false) return; for (const e of ennemis) e.mort = true; WANTED.stars = 0; WANTED.heat = 0; T += 1000 / 60; tick(T); } };
+        partie();
+        /* 1. le relevé, aux sources */
+        const L = VDEC.liste, n = (g) => L.filter((e) => e.genre === g).length;
+        const promoBat = C.bateauxV2.filter((B) => B.type !== 'jetskis').length, circNonJet = CVIE.bateaux.filter((B) => B.type !== 'jetskis').length;
+        info.push('relevé : ' + n('voiture') + ' voitures d’allée, ' + n('bache') + ' bateaux bâchés, ' + n('circule') + ' bateaux qui circulent, ' + n('grue') + ' au travel-lift (hors de l’eau) ; ' + PROMO.postes.length + ' postes amarrés (PROMO) ; en carénage : ' + (C.careneBateau ? 1 : 0));
+        if (n('voiture') !== C.nVoitDecor) ko.push(C.nVoitDecor + ' voitures du décor construites, ' + n('voiture') + ' au registre');
+        const attendu = circNonJet + (C.grueBateau ? 1 : 0) + (C.careneBateau ? 1 : 0); if (C.nBatDecor !== attendu) ko.push(C.nBatDecor + ' bateaux du décor construits par bateauDecorV2, ' + attendu + ' couverts (qui circulent ' + circNonJet + ', travel-lift, carénage)'); /* les bateaux amarrés sont des instances de leur vrai modèle (PROMO), vérifiées plus bas */
+        if (n('bache') !== C.amarres.filter((a) => !a.v2).length) ko.push('bateaux bâchés : ' + n('bache') + ' au registre pour ' + C.amarres.filter((a) => !a.v2).length);
+        if (!n('circule')) ko.push('il manque les bateaux qui circulent'); if (n('grue') || !(C.grueBateau && C.grueBateau.horsEau) || !(C.careneBateau && C.careneBateau.horsEau)) ko.push('bateaux en réparation : le travel-lift et le carénage doivent rester du décor, notés hors de l’eau'); /* décision du point 2 : la cale du travel-lift est fermée */
+        for (const B of C.bateauxV2) if (B.type !== 'jetskis' && !PROMO.postes.some((p) => p.B === B)) ko.push('bateau amarré sans poste PROMO (' + B.x.toFixed(0) + ', ' + B.z.toFixed(0) + ')');
+        /* 2. chaque entrée se promeut à l'approche, et redevient du décor de loin */
+        let promus = 0; for (const e of L) { vdecPos(e); P.x = e.x + 3; P.z = e.z; P.y = solPied(P.x, P.z); VDEC.t = 0; majVDec(1); if (!e.v) { ko.push(e.genre + ' (' + e.x.toFixed(0) + ', ' + e.z.toFixed(0) + ') : pas promu'); continue; } promus++;
+          if (vehicules.indexOf(e.v) < 0 || e.v.def !== VEHDEFS[e.cle] && e.v.key !== e.cle) ko.push(e.genre + ' : véhicule ' + e.v.key);
+          if (e.genre === 'voiture') { const A = e.src.mesh.geometry.attributes.position.array; if (A[e.src.i0 * 3 + 1] > -5) ko.push('voiture promue : le décor reste visible'); if (solidAt(e.x, e.z, 0.2)) ko.push('voiture promue : son solide reste'); }
+          P.x = e.x + 60; P.z = e.z; VDEC.t = 0; majVDec(1); if (e.v) ko.push(e.genre + ' : ne redevient pas du décor de loin'); else if (e.genre === 'voiture') { const A = e.src.mesh.geometry.attributes.position.array; if (A[e.src.i0 * 3 + 1] < -5) ko.push('voiture rendue : sommets pas restaurés'); } }
+        info.push(promus + '/' + L.length + ' promus à l’approche puis rendus au décor');
+        /* 3. un de chaque genre : MONTER (le véhicule que choisit le bouton d'action) et 10 u au joystick */
+        for (const g of ['voiture', 'bache', 'circule']) { partie(); const e = L.find((o) => o.genre === g); if (!e) continue; vdecPos(e);
+          const ex = e.genre === 'voiture' ? 3 : 2.5; P.x = e.x + ex; P.z = e.z; P.y = solPied(P.x, P.z); VDEC.t = 0; majVDec(1); const v = e.v; if (!v) { ko.push(g + ' : pas promu'); continue; }
+          let vp = null, vd = 1e9; for (const w of vehicules) { if (w.mort || w.noye || w.conduit === 'joueur') continue; const d = dist2(w.x, w.z, P.x, P.z), portee = surEauVeh(w) ? Math.max(64, (w.def.long * 0.55) ** 2) : 14; if (d <= portee && d < vd) { vd = d; vp = w; } }
+          if (vp !== v) { ko.push(g + ' : le bouton d’action ne propose pas ce véhicule (' + (vp ? vp.key : 'rien') + ')'); continue; }
+          entrerVehicule(v); if (P.veh !== v) { ko.push(g + ' : on ne monte pas'); continue; }
+          let best = 0; if (g === 'grue') { const x0 = v.x, z0 = v.z, wp = [[e.x - 1, e.z + 3.6], [e.x - 9, e.z + 9]]; let k = 0; pas(400, () => { const [tx, tz] = wp[k], dx = tx - v.x, dz = tz - v.z, d = Math.hypot(dx, dz); if (d < 1.5 && k < wp.length - 1) k++; INPUT.jx = dx / Math.max(d, 0.01) * 0.6; INPUT.jy = dz / Math.max(d, 0.01) * 0.6; if (Math.hypot(v.x - x0, v.z - z0) > 11) return false; }); INPUT.jx = INPUT.jy = 0; best = Math.hypot(v.x - x0, v.z - z0); } /* la cale du travel-lift débouche au sud-ouest : on suit sa sortie */ else for (const sg of [1, -1]) { const x0 = v.x, z0 = v.z; pas(150, () => { INPUT.jx = Math.sin(v.ang0 === undefined ? (v.ang0 = v.ang) : v.ang0) * sg; INPUT.jy = Math.cos(v.ang0) * sg; if (Math.hypot(v.x - x0, v.z - z0) > 12) return false; }); INPUT.jx = INPUT.jy = 0; best = Math.max(best, Math.hypot(v.x - x0, v.z - z0)); if (best >= 10) break; }
+          if (best < 10) ko.push(g + ' ' + v.key + ' : ' + best.toFixed(1) + ' u seulement'); else info.push(g + ' ' + v.key + ' : monté, ' + best.toFixed(0) + ' u');
+          sortirVehicule(true); const vx = v.x, vz = v.z; P.x = v.x + 80; VDEC.t = 0; majVDec(1);
+          if (g === 'circule') { const surR = vdecSurRoute(e.B, { x: vx, z: vz }) !== null; if (surR ? (e.v || e.B.promu || Math.hypot(e.B.m.position.x - vx, e.B.m.position.z - vz) > 2.6) : (vehicules.indexOf(v) < 0 || !e.parti)) ko.push('bateau qui circulait : ' + (surR ? 'ne reprend pas sa route là où on l’a laissé' : 'emmené hors de sa route, il disparaît')); else info.push('bateau qui circulait : ' + (surR ? 'reprend sa route là où on l’a laissé' : 'reste un vrai bateau hors de sa route')); continue; } /* il reprend son aller-retour d'où on l'a laissé */
+          if (vehicules.indexOf(v) < 0 || v.mort) ko.push(g + ' : emmené, il disparaît'); if (!e.parti) ko.push(g + ' : emmené, son poste ne se vide pas');
+          P.x = e.x + 3; P.z = e.z; VDEC.t = 0; majVDec(1); if (vehicules.some((w) => w !== v && !w.mort && Math.hypot(w.x - e.x, w.z - e.z) < 1.2)) ko.push(g + ' : le poste vidé se remplit avant la partie suivante');
+          if (g === 'voiture') { partie(); const e2 = VDEC.liste.find((o) => o.genre === 'voiture' && Math.abs(o.x - e.x) < 0.01 && Math.abs(o.z - e.z) < 0.01); const A = e2.src.mesh.geometry.attributes.position.array; if (A[e2.src.i0 * 3 + 1] < -5 || !solidAt(e2.x, e2.z, 0.2)) ko.push('voiture : pas rendue au décor à la partie suivante'); else info.push('partie suivante : la voiture est de retour dans son allée'); } }
+        partie(); return { ko, info };
+      });
+      if (r.ko.length) fail('Liste 22 oct., point 2 : ' + r.ko.slice(0, 20).join(' ; ') + ' [' + r.info.join(' | ') + ']');
+      else ok('Liste 22 oct., point 2 : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];
