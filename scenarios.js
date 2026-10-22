@@ -19338,6 +19338,53 @@ async function main() {
       else ok('Liste 22 oct., point 15 : ' + r.info.join(' ; '));
     }
     // -------------------------------------------------------------------
+    // Liste du 22 octobre, point 16 : une course de supercross, avec la tenue. Lu dans STUNT, SX, SX_TOURS : au kiosque, en moto cross,
+    // le bouton COURSE SUPERCROSS ; la grille tient le joueur pendant le décompte puis tombe ; cinq pilotes (les motards) roulent,
+    // sautent les tables et le double, passent les whoops et les virages relevés ; positions et tours en direct ; couper le terrain ne
+    // compte pas ; pilote simulé au joystick réel (controleDir) : en jouant bien il gagne (prime une fois par vague, tenue Pro Rider,
+    // record) ; passif, ou trop prudent, il perd ; la tenue Pro Rider complète (casque, lunettes, gants, bottes, maillot à numéro).
+    // -------------------------------------------------------------------
+    console.log('\n--- Liste du 22 octobre, point 16 : la course de supercross, avec la tenue ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = []; if (!STUNT.ok) return { ko: ['pas de piste de supercross'], info };
+        const rnd0 = Math.random, ex0 = META.exploits.supercross;
+        const course = (style, graine) => { if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9;
+          let g = graine; Math.random = () => { g = (g * 1664525 + 1013904223) >>> 0; return g / 4294967296; };
+          try { for (const o of vehicules.slice()) if (dansParcStunt(o.x, o.z)) { scene.remove(o.mesh); vehicules.splice(vehicules.indexOf(o), 1); } /* la piste vidée : le test maîtrise sa scène */
+            const k = sxDepart(), v = creerVehicule('motocross', k.x, k.z, 0, null); v.h = solY(k.x, k.z); P.x = v.x; P.z = v.z; entrerVehicule(v);
+            majAction(); const lab = el('btnAction').textContent; if (!/COURSE SUPERCROSS/.test(lab)) ko.push('pas de bouton au kiosque (« ' + lab + ' »)');
+            sxDemarrer(); if (!SX.actif) return null; let t = 0, tenu = true, rangs = new Set(), airIA = 0, hautIA = 0, tours = 0; const x0 = v.x, z0 = v.z;
+            while (SX.actif && t < 260) { const cp = coordPiste(v.x, v.z), q = pointPiste(cp.s + 10); let lim = (cp.seg === 'S' || cp.seg === 'N') ? 15 : 26; if (style === 'prudent') lim = 11;
+              if (style === 'passif') { INPUT.mx = INPUT.mz = 0; } else { const dx = q.x - v.x, dz = q.z - v.z, l = Math.hypot(dx, dz) || 1; INPUT.mx = dx / l; INPUT.mz = dz / l; }
+              const c = controleDir(v, false), thr = style === 'passif' ? 0 : (Math.abs(v.v) > lim ? 0 : c.throttle); majVehiculePhys(v, 1 / 30, thr, c.steer, Math.abs(v.v) > lim + 6); P.x = v.x; P.z = v.z;
+              majCourseSX(1 / 30); t += 1 / 30; if (SX.etat === 'grille' && Math.hypot(v.x - x0, v.z - z0) > 0.2) tenu = false;
+              if (SX.etat === 'course') rangs.add(sxRang()); for (const m of SX.ia) { if (m.air) airIA++; hautIA = Math.max(hautIA, m.y - hauteurStunt(m.x, m.z)); } tours = Math.max(tours, Math.floor(Math.max(0, SX.prog - SX_LIGNE) / STUNT.L)); }
+            INPUT.mx = INPUT.mz = 0; return { d: SX.dernier || {}, t, tenu, rangs: [...rangs], airIA, hautIA, tours, ia: SX.ia.map((m) => m.p) }; } finally { Math.random = rnd0; } };
+        META.exploits.supercross = false; const a0 = META.argent;
+        const bon = course('bon', 31); if (!bon) return { ko: ['la course ne démarre pas'], info };
+        if (!bon.tenu) ko.push('la grille ne tient pas le joueur pendant le décompte'); if (!bon.d.gagne) ko.push('le bon pilote perd (' + bon.d.msg + ' ; ' + bon.d.rang + 'e en ' + bon.t.toFixed(0) + ' s, ' + bon.tours + ' tours)');
+        if (bon.airIA < 100 || bon.hautIA < 1.5) ko.push('les pilotes IA ne sautent pas (' + bon.airIA + ' images en l’air, ' + bon.hautIA.toFixed(1) + ' u)'); if (bon.rangs.length < 2) ko.push('les positions ne bougent pas (' + bon.rangs.join(',') + ')');
+        if (Math.min(...bon.ia) < 2 * STUNT.L) ko.push('un pilote IA n’a pas fait deux tours (' + bon.ia.map((p) => (p / STUNT.L).toFixed(1)).join(', ') + ')');
+        if (!META.exploits.supercross) ko.push('la tenue Pro Rider n’est pas débloquée'); if (META.argent - a0 !== SX_PRIME) ko.push('prime : ' + (META.argent - a0)); if (!(META.defis.sxT > 0)) ko.push('pas de record');
+        info.push('bon pilote : 1er en ' + sxChrono(bon.t) + ' (positions vues : ' + bon.rangs.sort().join(', ') + '), IA ' + bon.airIA + ' images en l’air, sauts jusqu’à ' + bon.hautIA.toFixed(1) + ' u, prime ' + SX_PRIME + ' $');
+        /* la même vague : pas de deuxième prime ; le joueur qui coupe le terrain n'avance pas */
+        { const a1 = META.argent; if (P.veh) { sxDemarrer(); SX.t = 60; sxFinir(true); } if (META.argent !== a1) ko.push('deuxième prime dans la même vague (' + (META.argent - a1) + ')'); else info.push('une seule prime par vague'); }
+        const passif = course('passif', 31); if (passif.d.gagne) ko.push('le passif gagne'); else info.push('passif : ' + (passif.d.rang ? passif.d.rang + 'e' : passif.d.msg) + ' à ' + passif.t.toFixed(0) + ' s');
+        const prudent = course('prudent', 31); if (prudent.d.gagne) ko.push('le pilote trop prudent (11 u/s) gagne'); else info.push('trop prudent : ' + (prudent.d.rang ? prudent.d.rang + 'e' : prudent.d.msg));
+        /* couper le terrain ne compte pas */
+        { if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; const k = sxDepart(), v = creerVehicule('motocross', k.x, k.z, 0, null); P.x = v.x; P.z = v.z; entrerVehicule(v); sxDemarrer(); for (let i = 0; i < 100; i++) majCourseSX(1 / 30);
+          const p0 = SX.prog; v.x = STUNT.xO; v.z = STUNT.zS - 30; P.x = v.x; P.z = v.z; majCourseSX(1 / 30); if (SX.prog - p0 > 6) ko.push('couper le terrain fait avancer (' + (SX.prog - p0).toFixed(0) + ' u)'); sxArreter(); }
+        /* la tenue Pro Rider, complète */
+        { const t0 = META.tenue, st0 = JSON.stringify(META.style); META.tenue = 'prorider'; META.style = { haut: -1, bas: -1, cheveux: -1, coiffure: '', chapeau: '', chapeauCoul: -1, lunettes: '', tatouage: '' }; construireJoueur(); const h = P.h; let gants = 0, bottes = 0;
+          for (const b of [h.brasG, h.brasD]) b.children.forEach((o) => { if (o.isMesh && o.position.y < -0.45) gants++; }); for (const j of [h.jambeG, h.jambeD]) j.children.forEach((o) => { if (o.isMesh) bottes++; });
+          const maillot = Array.isArray(h.torse.material) && h.torse.material[5].map; if (gants < 2 || bottes < 8 || !maillot) ko.push('tenue Pro Rider incomplète (' + gants + ' gants, ' + bottes + ' pièces de bottes, maillot ' + !!maillot + ')'); else info.push('tenue Pro Rider : casque, lunettes, gants, bottes à boucles, maillot et pantalon à numéro');
+          META.tenue = t0; META.style = JSON.parse(st0); construireJoueur(); }
+        META.exploits.supercross = ex0 || META.exploits.supercross; if (P.veh) sortirVehicule(true); startRun(); return { ko, info }; });
+      if (r.ko.length) fail('Liste 22 oct., point 16 : ' + r.ko.join(' ; ') + ' [' + r.info.join(' | ') + ']');
+      else ok('Liste 22 oct., point 16 : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];

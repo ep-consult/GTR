@@ -23,7 +23,7 @@ Ordre suivi : 1, 17, 4, 3, 2, 5, puis le reste.
 | 13 | Plongeons : l'entrée dans l'eau compte | ☑ |
 | 14 | Le plongeon de falaise épique, l'eau en bas | ☑ |
 | 15 | La tour de contrôle, un vrai jeu d'aiguilleur | ☑ |
-| 16 | Course de supercross et sa tenue | ☐ |
+| 16 | Course de supercross et sa tenue | ☑ |
 | 17 | Les ponts : décoller en voiture, passer dessous en avion | ☑ |
 
 ## Décisions prises seul
@@ -31,6 +31,41 @@ Ordre suivi : 1, 17, 4, 3, 2, 5, puis le reste.
 - **Branche** : `retours-22oct` part de `retours-20-octobre` (et non de `main`) : les points de la liste portent sur ce que les deux
   chantiers précédents ont construit (canaux V3, paquebot, Cliff Diving, cabrage en équilibre…).
 
+## 16 — Une course de supercross, avec la tenue (fait)
+
+**Avant** : sur la piste de SUPERCROSS, un seul défi à points (figures en 45 s) ; trois motards de décor tournaient sur la piste ;
+la tenue « Pro Rider » (débloquée par ce défi) : un casque, un plastron et des genouillères sur un maillot uni.
+
+**Fait** (bandeau dans la section des motards : `SX`, `sxDemarrer`, `majCourseSX`, `sxPlacer`, `sxVitesse`, `sxRang`, `sxFinir`,
+`sxArreter`, `sxDeco`, `sxIA`) :
+- **Le départ** : au kiosque « COURSE SX », côté intérieur de la ligne droite est, en moto (pas de vélo, ni de quad) : le bouton
+  COURSE SUPERCROSS. Le joueur est posé sur la grille (deuxième ligne), cinq pilotes à côté (VEGA, KOVAC, DUARTE, REYNOLDS, SATO : le
+  modèle des motards, chacun sa couleur, construits à la première course sur un générateur privé) ; décompte 3-2-1, la grille de
+  barrières rouges et blanches **tombe** au GO (le joueur est tenu jusque-là). Les motards de décor laissent la piste pendant la course.
+- **La course** : **3 tours** ; chaque pilote suit l'axe de la piste dans son couloir, à la vitesse de son tronçon (tables, virages
+  relevés, whoops, double, step-up) selon son niveau, s'envole à la cassure d'une rampe et retombe (le relief de la piste,
+  `hauteurStunt`), ralentit derrière le joueur au lieu de le traverser ; rattrapage doux (±5 %) à plus de 45 u. Le joueur avance quand
+  il suit la piste : couper le terrain ne compte pas. **Positions et tours en direct, chrono** (« 🏁 SUPERCROSS — TOUR 2/3 — 3e / 6 —
+  1:12.4 »). Pendant la course, la moto du joueur encaisse les réceptions (sur trois tours, les dégâts des sauts la faisaient exploser).
+- **L'arrivée** : premier = **prime** (600 $, une fois par vague), la **tenue « Pro Rider »** (`exploitMiniJeu('supercross')`, clé fixe
+  déjà dans `META.exploits`), le **record** `META.defis.sxT` (clé fixe) ; sinon « 4e SUR 6 — il faut gagner ! ». Abandon en descendant
+  de la moto ou loin de la piste ; si tous les pilotes ont fini et que le joueur n'a pas bouclé ses tours 20 s après, perdu. Trêve des
+  vagues pendant la course, arrêt à la mort et à la nouvelle partie.
+- **La tenue « Pro Rider »**, au niveau d'une vraie tenue de supercross : maillot et pantalon de motocross dessinés (panneaux, numéro
+  73, « REYES MX », genouillères ; point 8), casque cross à visière et mentonnière, **lunettes** à verre orange et élastique, plastron à
+  plaque, **gants**, **bottes à boucles** et semelles. Elle se gagne au défi ou à la course.
+
+**Test** « Liste du 22 octobre, point 16 » (piste lue dans `STUNT`, pilotes dans `SX`) : le bouton au kiosque ; la grille tient le
+joueur ; pilote simulé au joystick réel (`controleDir`) : en jouant bien, **1er en 1:21** (positions vues 1, 4, 6), prime, tenue,
+record ; une seule prime par vague ; les IA en l'air plus de 2 500 images, sauts jusqu'à 5,3 u, deux tours au moins chacune ;
+**passif** et **trop prudent** (11 u/s) : tous les pilotes finissent, perdu ; couper le terrain ne fait pas avancer ; la tenue
+complète. « Zone extrême » (le défi supercross), « Motards », « Tenues des mini-jeux » repassent.
+
+**Captures** : `16_grille.png` (la grille avant le GO), `16_course.png` (un pilote en l'air sur une table),
+`16_tenue_prorider.png` (face et dos ; avant : `avant_16_tenue_prorider.png`).
+
+**Reste** : sur iPhone, juger la difficulté (le pilote simulé gagne de ~15 s : un joueur qui rate des réceptions doit pouvoir rester
+dans le coup) et la lisibilité du bandeau des positions.
 ## 15 — La tour de contrôle : un vrai jeu d'aiguilleur (fait)
 
 **Avant** : les avions arrivaient des bords, tournaient en rond, un appui les posait (en ligne droite jusqu'au seuil) ; une piste, un

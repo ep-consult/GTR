@@ -2142,7 +2142,7 @@ const META={
          gadget:{poss:false,lv:0},couteau:{poss:false,lv:0},batte2:{poss:false,lv:0},bouleC:{poss:false,lv:0},sabre:{poss:false,lv:0},pompe:{poss:false,lv:0},uzi:{poss:false,lv:0},silence:{poss:false,lv:0},pm:{poss:false,lv:0},fusil:{poss:false,lv:0},sniper:{poss:false,lv:0},flamme:{poss:false,lv:0},roquette:{poss:false,lv:0},desintegrateur:{poss:false,lv:0}},
   upg:{vitesse:0,vie:0,regen:0,melee:0,recharge:0,butin:0},
   defis:{coffresToits:0,avionsPoses:0,manege:0,styleAchats:0,fauves:0,aimant:0, // 3e série (14 octobre)
-  paquebot:0,epave:0,bouteilles:0,tortues:0,contrebande:0,kite:0,wake:0,falaise:0,falaiseSaut:0,jus:0,airT:0,airMed:0, /* airT : meilleur temps de la Reyes Air Race (s), airMed : meilleure médaille (lot 10) */ /* jus : record de Jus de Plage (lot 8.3) */ // retours du 20 octobre, lots 6 et 7 (falaise : record du Reyes Cliff Diving) : le large (kite et wake : records de points)
+  paquebot:0,epave:0,bouteilles:0,tortues:0,contrebande:0,kite:0,wake:0,falaise:0,falaiseSaut:0,jus:0,airT:0,airMed:0,sxT:0, /* sxT : meilleur temps de la course de supercross gagnée (liste du 22 octobre, point 16) */ /* airT : meilleur temps de la Reyes Air Race (s), airMed : meilleure médaille (lot 10) */ /* jus : record de Jus de Plage (lot 8.3) */ // retours du 20 octobre, lots 6 et 7 (falaise : record du Reyes Cliff Diving) : le large (kite et wake : records de points)
     vols:0,dist:0,detruits:0,chefs:0,etoile6:false,bateau:false,ile:false,avion:false,heli:false,crash:false,saut:false,toit:false,banque:false,sommet:false,villa:false,jackpot:false,
     // lot 11/12 (Dépôt de bus, Jetpack, Monster Truck) : chaque victoire de
     // circuit est marquée séparément (jamais déduite de META.depotCircuits,
@@ -2904,7 +2904,7 @@ const TENUES=[
    cond:()=>!!META.exploits.basket,haut:0xff8a2a,bas:0x1a2a4a,casq:0xf2f4f8},
   {id:'aiguilleur',nom:'Gilet d’aiguilleur du ciel',ico:'📡',condTxt:'Tour de contrôle : poser tous les avions — avions et hélicos 15 % plus rapides',
    cond:()=>!!META.exploits.tour,haut:0xd8ff3a,bas:0x2a2e36,casq:0x14161c},
-  {id:'prorider',nom:'Tenue « Pro Rider »',ico:'🏍️',condTxt:'Réussir le défi Supercross — figures en deux-roues +30 % de points',
+  {id:'prorider',nom:'Tenue « Pro Rider »',ico:'🏍️',condTxt:'Réussir le défi Supercross ou gagner la course de supercross — figures en deux-roues +30 % de points',
    cond:()=>!!META.exploits.supercross,haut:0xd83a3a,bas:0x14161c,casq:0xf2f4f8},
   {id:'skateur',nom:'Tenue de skateur',ico:'🛹',condTxt:'Réussir le Reyes Bowl Jam — bunny hop 30 % plus haut (BMX, vélo)',
    cond:()=>!!META.exploits.bowl,haut:0x8a4de0,bas:0x3a4a5a,casq:0x2a2018},
@@ -13058,10 +13058,13 @@ const TENUE_ACC={
       const t=A.add(_ACC_C(0.03,0.42,undefined,0xffd23f,8)); t.position.set(0.24,1.78,0.05); }
     const b=A.add(_ACC_C(0.11,0.58,undefined,0xffd23f,12),A.h.torse); b.position.set(0,0.05,-0.29); const r=A.add(_ACC_C(0.04,0.1,undefined,0x3a3d44,8),A.h.torse); r.position.set(0,0.4,-0.29);
     for(const j of [A.h.jambeG,A.h.jambeD]){ const p=A.add(mkBoxG(0.24,0.04,0.46,0x14161c,0,-0.63,0.12),j); p.userData.tenueAcc=true; } },
-  prorider:(A)=>{ /* tenue de supercross : casque à visière et mentonnière, plastron, bottes */
-    if(A.tete){ A.add(mkBoxG(0.5,0.48,0.5,0xf2f4f8,0,1.6,0)); A.add(mkBoxG(0.52,0.05,0.24,0xd83a3a,0,1.85,0.3)); A.add(mkBoxG(0.36,0.1,0.06,0x14161c,0,1.62,0.26)); A.add(mkBoxG(0.3,0.12,0.14,0xd83a3a,0,1.42,0.27)); }
-    A.add(mkBoxG(0.68,0.42,0.44,0x14161c,0,0.18,0),A.h.torse); A.add(mkBoxG(0.5,0.3,0.03,0xd83a3a,0,0.2,0.225),A.h.torse);
-    for(const j of [A.h.jambeG,A.h.jambeD]) A.add(mkBoxG(0.24,0.3,0.25,0xf2f4f8,0,-0.5,0.01),j); },
+  prorider:(A)=>{ /* tenue de supercross (liste du 22 octobre, point 16 : « complète et visible ») : casque cross à visière et mentonnière, lunettes
+       à élastique, plastron à numéro, gants, bottes à boucles ; le maillot et le pantalon à numéro sont dessinés (DESSINS_HABIT.motocross) */
+    if(A.tete){ A.add(mkBoxG(0.5,0.48,0.5,0xf2f4f8,0,1.6,0)); A.add(mkBoxG(0.52,0.05,0.24,0xd83a3a,0,1.85,0.3)); A.add(mkBoxG(0.3,0.12,0.14,0xd83a3a,0,1.42,0.27));
+      A.add(mkBoxG(0.4,0.13,0.07,0x14161c,0,1.62,0.265)); A.add(mkBoxG(0.32,0.08,0.02,0xff8a1a,0,1.62,0.3)); A.add(mkBoxG(0.52,0.05,0.52,0xd83a3a,0,1.62,0)); }
+    A.add(mkBoxG(0.68,0.42,0.44,0x14161c,0,0.18,0),A.h.torse); A.add(mkBoxG(0.5,0.3,0.03,0xd83a3a,0,0.2,0.225),A.h.torse); A.add(mkBoxG(0.24,0.16,0.02,0xf2f4f8,0,0.2,0.24),A.h.torse);
+    for(const b of [A.h.brasG,A.h.brasD]) A.add(mkBoxG(0.21,0.16,0.21,0x14161c,0,-0.53,0),b); /* gants */
+    for(const j of [A.h.jambeG,A.h.jambeD]){ A.add(mkBoxG(0.25,0.42,0.27,0xf2f4f8,0,-0.42,0.01),j); for(const y of [-0.3,-0.42,-0.54]) A.add(mkBoxG(0.26,0.035,0.28,0x14161c,0,y,0.01),j); A.add(mkBoxG(0.27,0.06,0.32,0x14161c,0,-0.63,0.03),j); } }, /* bottes à boucles, semelles */
   cascadeur:(A)=>{ /* combinaison du cascadeur : casque blanc à bande bleue, étoiles sur la poitrine, ceinture, bottes */
     if(A.tete){ A.add(mkBoxG(0.5,0.46,0.5,0xf2f2ee,0,1.6,0)); A.add(mkBoxG(0.14,0.47,0.51,0x2a5ad8,0,1.6,0)); A.add(mkBoxG(0.4,0.12,0.04,0x2a3a5a,0,1.62,0.255)); }
     for(const [x,y] of [[-0.15,0.2],[0.15,0.2],[0,0.06]]){ const e=A.add(mkBoxG(0.09,0.09,0.02,0x2a5ad8,x,y,0.2),A.h.torse); e.rotation.z=0.78; }
@@ -20119,6 +20122,85 @@ function renverserCycliste(b,vx,vz,vit,parJoueur){
    prend. Ils reviennent hors de vue (MOT_RETOUR s) et à chaque partie. Construits UNE fois, sur un générateur privé (aucun tirage
    de la ville, du décor ni de la partie). Ils ne sont dans aucune liste d'entités (ni piétons, ni véhicules) : le rayon de l'OVNI
    ne les prend pas, leurs touches passent par motardTombe (collisionBalle, majImpactPersonnages). */
+/* ---- La course de supercross (liste du 22 octobre, point 16, demandé : « sur la piste de SUPERCROSS, une vraie course : départ à la
+   grille qui tombe, 5 pilotes IA (les motards), 3 tours, positions en direct, chrono ; les IA franchissent les sauts, les whoops et
+   les virages relevés ; gagner donne la tenue de supercross ; prime une fois par vague ; perdable »). Au kiosque du bord de la ligne
+   droite est (sxDepart, une moto) : COURSE SUPERCROSS. Le joueur est posé sur la grille (deuxième ligne), cinq pilotes (mkMotard :
+   le modèle des motards, construits à la première course sur un générateur privé) à côté ; 3 s de décompte, la grille tombe. Chaque
+   pilote avance sur l'axe de la piste (pointPiste, son couloir lat), à la vitesse de son tronçon (tables, virages relevés, whoops,
+   step-up) × son niveau, s'envole à la cassure d'une rampe (hauteurStunt : le relief de la piste), retombe. Le joueur avance quand il
+   suit la piste (coordPiste ; couper le terrain ne compte pas). SX_TOURS tours ; premier = prime une fois par vague (primeMerUneFois),
+   tenue « Pro Rider » (exploitMiniJeu('supercross')), record META.defis.sxT ; sinon perdu. Abandon en descendant de la moto, loin de la
+   piste, à la mort ; tout sur dt (le joueur roule sur dt). */
+const SX_TOURS=3, SX_PRIME=600, SX_DECOMPTE=3, SX_LIGNE=12;
+const SX={actif:false,etat:'',t:0,ia:[],deco:null,prog:0,sPrev:0,fini:null,finT:0,vagueGagne:-1,txt:'',horsT:0,niveaux:[0.9,0.925,0.945,0.965,0.98],couloirs:[-1.7,-0.6,0.5,1.6,-1.1]};
+function sxPoint(s,lat){ const p=pointPiste(s); return {x:p.x+p.nx*lat,z:p.z+p.nz*lat}; }
+function sxH(s,lat){ const p=pointPiste(s); return hauteurStunt(p.x+p.nx*lat,p.z+p.nz*lat); }
+function sxDepart(){ return sxPoint(8,-(STUNT.demi+5)); } /* le kiosque, côté intérieur de la ligne droite est (à l’extérieur sont garées les motos du DÉFI SUPERCROSS) */
+function sxProche(){ if(!DECOR_V2||!STUNT.ok||SX.actif||RIDES.actif||!P.veh||!P.veh.def) return false; const d=P.veh.def; if(d.type!=='moto'||d.velo||d.eau||d.air) return false; const k=sxDepart(); return dist2(P.x,P.z,k.x,k.z)<36; }
+/* le décor de la course : la grille de départ (ses barrières tombent), le kiosque à l'enseigne — à la première approche, générateur privé */
+function sxDeco(){ if(SX.deco) return SX.deco; return (SX.deco=avecAleaPrive(1616,()=>{ const D={}, mB=new THREE.MeshLambertMaterial({color:0xf2f2ee}), mR=new THREE.MeshLambertMaterial({color:0xd83a3a}), mN=new THREE.MeshLambertMaterial({color:0x14161c});
+  const p=sxPoint(SX_LIGNE+0.5,0), g=new THREE.Group(); g.position.set(p.x,0,p.z); scene.add(g);
+  for(const sd of [-1,1]){ const po=new THREE.Mesh(new THREE.BoxGeometry(0.3,1.6,0.3),mN); po.position.set(sd*(STUNT.demi+0.6),0.8,0); g.add(po); }
+  const bar=new THREE.Group(); bar.position.set(0,0.15,0); g.add(bar); D.barres=bar;
+  for(let i=0;i<8;i++){ const pl=new THREE.Mesh(new THREE.BoxGeometry(1.05,0.75,0.08),i%2?mR:mB); pl.position.set(-3.85+i*1.1,0.38,0); bar.add(pl); }
+  const lg=new THREE.Mesh(new THREE.BoxGeometry(2*STUNT.demi+1,0.05,0.5),new THREE.MeshLambertMaterial({map:cTex(64,(c,s2)=>{ for(let i=0;i<8;i++) for(let j=0;j<2;j++){ c.fillStyle=(i+j)%2?'#14161c':'#f2f2ee'; c.fillRect(i*s2/8,j*s2/2,s2/8,s2/2); } })}));
+  lg.position.set(0,0.06,-0.6); g.add(lg); /* la ligne d'arrivée en damier */
+  const k=sxDepart(), kg=new THREE.Group(); kg.position.set(k.x,0,k.z); scene.add(kg);
+  const t=new THREE.Mesh(new THREE.BoxGeometry(2.6,2.2,1.8),mR); t.position.y=1.1; kg.add(t); const toit=new THREE.Mesh(new THREE.ConeGeometry(2.1,1,4),mB); toit.position.y=2.7; toit.rotation.y=Math.PI/4; kg.add(toit);
+  const cv=document.createElement('canvas'); cv.width=256; cv.height=64; const c=cv.getContext('2d'); if(c){ c.fillStyle='#14161c'; c.fillRect(0,0,256,64); c.fillStyle='#ffd23f'; c.font='900 30px Arial'; c.textAlign='center'; c.textBaseline='middle'; c.fillText('COURSE SX',128,34); }
+  const en=new THREE.Mesh(new THREE.PlaneGeometry(2.4,0.6),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv)})); en.position.set(0,1.7,0.92); kg.add(en); const en2=en.clone(); en2.rotation.y=Math.PI; en2.position.z=-0.92; kg.add(en2);
+  D.g=g; D.kiosque=kg; return D; })); }
+function sxIA(){ if(SX.ia.length) return SX.ia; avecAleaPrive(1717,()=>{ const c={nom:'course',b:boucleDePoints([[0,0],[1,0]]),n:5,vit:[18,20]};
+    for(let i=0;i<5;i++){ const m=mkMotard(c,i,i+1); m.g.visible=false; m.nom=['VEGA','KOVAC','DUARTE','REYNOLDS','SATO'][i]; SX.ia.push(m); } }); return SX.ia; }
+function sxDemarrer(){ if(SX.actif||!P.veh) return; const v=P.veh; sxDeco(); sxIA(); motardsLibererPiste();
+  const L=STUNT.L, grille=[[10,-2.6],[10,0],[10,2.6],[4,-2.6],[4,2.6]];
+  SX.ia.forEach((m,i)=>{ const [s0,lat]=grille[i]; m.p=s0; m.lat=lat; m.couloir=SX.couloirs[i]; m.k=SX.niveaux[i]; m.vCur=0; m.y=0; m.vy=0; m.air=false; m.fini=null; m.g.visible=true; m.moto.visible=true; motardPose(m); sxPlacer(m,0); });
+  const q=sxPoint(4,0); v.x=q.x; v.z=q.z; v.ang=0; v.v=0; v.h=solY(q.x,q.z); P.x=v.x; P.z=v.z; SX.slot={x:q.x,z:q.z};
+  Object.assign(SX,{actif:true,etat:'grille',t:-SX_DECOMPTE,prog:4,sPrev:4,fini:null,finT:0,txt:'',horsT:0,decl:3});
+  if(SX.deco){ SX.deco.barres.rotation.x=0; } RIDES.txt.style.display='block'; bigMsg('🏁 COURSE SUPERCROSS — '+SX_TOURS+' TOURS'); SFX.ui(); void L; }
+function sxArreter(){ if(!SX.actif&&!SX.ia.some((m)=>m.g.visible)) return; SX.actif=false; SX.etat=''; for(const m of SX.ia) m.g.visible=false; if(RIDES.txt&&!RIDES.actif) RIDES.txt.style.display='none'; }
+/* un pilote IA à sa place : sur l'axe, dans son couloir, au sol ou en l'air */
+function sxPlacer(m,dt){ const L=STUNT.L, s=((m.p%L)+L)%L, q=sxPoint(s,m.lat), q2=sxPoint(s+1,m.lat), gy=hauteurStunt(q.x,q.z);
+  if(m.air){ m.vy-=MOT_G*dt; m.y+=m.vy*dt; if(m.y<=gy){ m.y=gy; m.air=false; if(m.vy<-6) burst(q.x,gy+0.2,q.z,6,0xc8a878,4,4); m.vy=0; } }
+  else { const hAv=sxH(s-1.5,m.lat), hAp=sxH(s+1.5,m.lat), sAv=(gy-hAv)/1.5, sAp=(hAp-gy)/1.5;
+    if(dt>0&&m.vCur>9&&sAv>0.25&&sAv<1.3&&sAp<sAv-0.35){ m.air=true; m.vy=Math.min(m.vCur*sAv,10.5); m.y=gy+m.vy*dt; } else m.y=gy; }
+  const ang=Math.atan2(q2.x-q.x,q2.z-q.z), dA=angDiff(m.ang||ang,ang); m.ang=ang; const pit=m.air?-Math.atan2(m.vy,Math.max(4,m.vCur))*0.7:-Math.atan2(sxH(s+1.2,m.lat)-sxH(s-1.2,m.lat),2.4);
+  m.pit=lerp(m.pit||0,pit,Math.min(1,dt*8)); m.lean=lerp(m.lean||0,dt>0?clamp(-dA/dt*m.vCur*0.045,-0.6,0.6):0,Math.min(1,dt*5)); m.x=q.x; m.z=q.z;
+  m.g.position.set(q.x,m.y,q.z); m.g.rotation.set(m.pit,ang,m.lean); for(const r of m.moto.userData.roues||[]) r.rotation.x+=m.vCur*dt*2.2;
+  const jb=(m.sg.jambes||-0.7)*(m.air?0.45:0.75); m.h.jambeG.rotation.x=m.h.jambeD.rotation.x=jb; m.h.torse.rotation.x=m.air?0.12:0.32; }
+/* la vitesse visée d'un tronçon : tables, virage relevé, whoops, double, step-up, rollers */
+function sxVitesse(s){ const S=STUNT, L=S.L, A=Math.PI*S.R; s=((s%L)+L)%L; if(s<S.LE) return 20.5; if(s<S.LE+A||s>=2*S.LE+A) return 13.5; const a=s-S.LE-A; return a>8&&a<46?12.5:18.5; }
+function sxRang(){ let r=1; for(const m of SX.ia){ const devant=m.fini!=null?(SX.fini==null||m.fini<SX.fini):(SX.fini==null&&m.p>SX.prog); if(devant) r++; } return r; } /* un pilote arrivé avant le joueur, ou plus loin sur la piste */
+function sxChrono(t){ t=Math.max(0,t); const mn=Math.floor(t/60), sec=t-mn*60; return mn+':'+(sec<10?'0':'')+sec.toFixed(1); }
+function majCourseSX(dt){
+  if(!SX.actif){ if(DECOR_V2&&STUNT.ok&&!SX.deco&&dist2(P.x,P.z,STUNT.x,STUNT.zN)<160*160) sxDeco(); if(SX.cacheT>0){ SX.cacheT-=dt; if(SX.cacheT<=0) for(const m of SX.ia) m.g.visible=false; } return; } /* les pilotes quittent la piste 4 s après l'arrivée */
+  if(ETAT.mode!=='jeu'||INT.actif) return; const v=P.veh, L=STUNT.L, fin=SX_TOURS*L+SX_LIGNE;
+  if(!v||v.mort){ sxFinir(false,'🏁 ABANDON — tu as quitté ta moto'); return; }
+  SX.t+=dt;
+  if(SX.etat==='grille'){ v.x=SX.slot.x; v.z=SX.slot.z; v.v=0; v.ang=0; P.x=v.x; P.z=v.z; /* tenu sur la grille */
+    const n=Math.ceil(-SX.t); if(n!==SX.decl&&n>0){ SX.decl=n; bigMsg(String(n)); beep(440,0.15,'square',0.06); }
+    if(SX.t>=0){ SX.etat='course'; bigMsg('GO !'); beep(880,0.35,'square',0.08); vibre(60); } }
+  else if(SX.deco&&SX.deco.barres.rotation.x>-Math.PI/2) SX.deco.barres.rotation.x=Math.max(-Math.PI/2,SX.deco.barres.rotation.x-dt*9); /* la grille tombe */
+  for(const m of SX.ia){ if(SX.etat==='grille'){ sxPlacer(m,0); continue; }
+    let cible=sxVitesse(m.p+6)*m.k*(m.fini!=null?0.4:1); const ecart=m.p-SX.prog; if(ecart>45) cible*=0.95; else if(ecart<-45) cible*=1.04; /* rattrapage doux */
+    const dx=v.x-m.x, dz=v.z-m.z, sa=Math.sin(m.ang||0), ca=Math.cos(m.ang||0), av=dx*sa+dz*ca; if(av>0&&av<3.2&&Math.abs(dx*ca-dz*sa)<1.4) cible=Math.min(cible,Math.max(0,v.v-1)); /* le joueur juste devant : il ne le traverse pas */
+    m.vCur+=clamp(cible-m.vCur,-16*dt,8*dt); m.p+=m.vCur*dt; m.lat+=clamp(m.couloir-m.lat,-dt,dt); sxPlacer(m,dt);
+    if(m.fini==null&&m.p>=fin) m.fini=SX.t; }
+  if(SX.etat==='course'){ const c=coordPiste(v.x,v.z); let ds=c.s-SX.sPrev; if(ds>L/2) ds-=L; if(ds<-L/2) ds+=L; SX.sPrev=c.s;
+    if(Math.abs(c.lat)<=STUNT.demi+6&&ds>-3&&ds<6) SX.prog+=ds; /* couper le terrain ne compte pas */
+    SX.horsT=Math.abs(c.lat)>STUNT.demi+40||!dansParcStunt(v.x,v.z)?SX.horsT+dt:0; if(SX.horsT>4){ sxFinir(false,'🏁 ABANDON — tu as quitté la piste'); return; }
+    if(SX.prog>=fin){ SX.fini=SX.t; const r=sxRang(); sxFinir(r===1,null,r); return; }
+    if(SX.ia.every((m)=>m.fini!=null)&&SX.t-Math.max(...SX.ia.map((m)=>m.fini))>20){ sxFinir(false,'🏁 TOUS LES PILOTES ONT FINI — tu n’as pas bouclé tes '+SX_TOURS+' tours'); return; } }
+  const tour=Math.min(SX_TOURS,Math.floor(Math.max(0,SX.prog-SX_LIGNE)/L)+1), txt=SX.etat==='grille'?'🏁 SUPERCROSS — sur la grille… '+Math.ceil(-SX.t):'🏁 SUPERCROSS — TOUR '+tour+'/'+SX_TOURS+' — '+sxRang()+(sxRang()===1?'er':'e')+' / 6 — '+sxChrono(SX.t);
+  if(txt!==SX.txt){ SX.txt=txt; RIDES.txt.style.display='block'; RIDES.txt.textContent=txt; } }
+function sxFinir(gagne,msg,rang){ if(!SX.actif) return; const t=SX.t; SX.actif=false; SX.etat='';
+  if(gagne){ exploitMiniJeu('supercross'); const p=SX.vagueGagne===WAVES.n?0:primeMerUneFois('sxcourse',SX_PRIME); SX.vagueGagne=WAVES.n; ETAT.score+=2000;
+    if(!META.defis.sxT||t<META.defis.sxT){ META.defis.sxT=+t.toFixed(1); sauveMeta(); }
+    bigMsg('🏆 VAINQUEUR DU SUPERCROSS — '+sxChrono(t)+(p?' — +'+p+' $':'')); SFX.niveau(); }
+  else { bigMsg(msg||('🏁 '+rang+'e SUR 6 — '+sxChrono(t)+' — il faut gagner !')); SFX.refus(); }
+  SX.dernier={gagne:!!gagne,rang:rang||null,t,msg:msg||null};
+  SX.cacheT=4; if(RIDES.txt&&!RIDES.actif) RIDES.txt.style.display='none'; }
 const MOTARDS={liste:[],ok:false,epaves:[]};
 const MOT_RETOUR=40, MOT_G=26, MOT_LOD=150, MOT_EPAVES=4; /* au-delà de 150 u, un motard fait quelques pixels : caché (une trentaine d’appels de dessin chacun) */
 /* le sol le long d'une boucle, au mètre, mis en cache à la première lecture : la boucle ne bouge pas, et solY coûte ~0,1 ms
@@ -20153,7 +20235,7 @@ function motardsStartRun(){ if(!DECOR_V2) return; const M=MOTARDS;
 /* pendant un défi sur leur circuit (supercross, mont, montée sèche), les motards laissent la piste : cachés, ils ne reviennent
    qu'hors de vue une fois le défi fini (le pilote simulé du défi supercross percutait un motard resté sur la piste et s'écrasait
    sur sa moto couchée) */
-function motardReserve(m){ const id=RIDES.actif&&RIDES.actif.id; return !!id&&((id==='stunt'&&m.c.nom==='supercross')||((id==='mont'||id==='colline')&&m.c.nom==='mont')); }
+function motardReserve(m){ if(SX.actif&&m.c.nom==='supercross') return true; /* point 16 : la course */ const id=RIDES.actif&&RIDES.actif.id; return !!id&&((id==='stunt'&&m.c.nom==='supercross')||((id==='mont'||id==='colline')&&m.c.nom==='mont')); }
 function motardsLibererPiste(){ for(const m of MOTARDS.liste) if(m.actif&&motardReserve(m)){ m.cache=true; m.g.visible=false; } }
 /* devant le motard (à moins de d u, dans son couloir) */
 function devantMotard(m,x,z,d){ const s=Math.sin(m.ang), c=Math.cos(m.ang), dx=x-m.x, dz=z-m.z, av=dx*s+dz*c; return av>0&&av<d&&Math.abs(dx*c-dz*s)<1.6; }
@@ -29733,6 +29815,7 @@ function creerVehicule(key,x,z,ang,conduit){
 }
 function abimerVehicule(v,d,parJoueur){
   if(!v||v.mort) return;
+  if(SX.actif&&v===P.veh) return; /* liste du 22 octobre, point 16 : en course de supercross, la moto encaisse les réceptions (une moto de course ne se casse pas sur la piste) */
   if(parJoueur) v.tapeJoueur=true;
   if(v.def.surf){                 // la planche ne se détruit jamais
     if(d>25) wipeout(v);
@@ -44656,7 +44739,7 @@ function metierEnCours(){ return !!(MET.pompier||MET.taxi||MET.depanneuse||MET.a
 // supercross, bouées, REYES BOWL JAM), wakeboard ou parachute ascensionnel, métier en cours. Les vagues et les
 // événements (guerres de gangs...) sont gelés, et les gangs déjà là patrouillent sans s'occuper du joueur. La
 // police, elle, continue si l'on est recherché.
-function treveActivite(){ return !!(RIDES.actif||JUS.actif||AIR.actif||(DECOR_V2&&(TOW.actif||KITE.actif||CLIFF.actif))||BASKET.actif||SPORTJ.actif||MANEGES.actif||TOUR.actif||metierEnCours()||BASE.defi||FPS.actif||DERBY.actif); }
+function treveActivite(){ return !!(SX.actif||RIDES.actif||JUS.actif||AIR.actif||(DECOR_V2&&(TOW.actif||KITE.actif||CLIFF.actif))||BASKET.actif||SPORTJ.actif||MANEGES.actif||TOUR.actif||metierEnCours()||BASE.defi||FPS.actif||DERBY.actif); }
 // Balise dédiée, jamais la même que `balise` (déjà prise par MISSION.cur) —
 // les deux peuvent être actives en même temps sans se marcher dessus.
 const metierBalise=new THREE.Mesh(new THREE.CylinderGeometry(1.4,1.4,9,12,1,true),
@@ -47538,7 +47621,7 @@ function startRun(){
   P.hp=P.maxHp; P.stam=P.stamMax; P.bouclier=0; P.bouclierMax=60; P.giletLourd=false; P.veh=null;
   P.buffs={dmg:0,vit:0,butin:0,lourd:0,sprintLibre:0,vol:0,cadence:0}; P.ivresse=0; P.iframes=0; P.dodgeT=0; P.rechT=0; P.specCd=0; P.ecraseT=0;
   P.grenades=3; boutonsAPied(); // jamais el('grenN') seul : voir boutonsAPied (mort au volant)
-  if(DECOR_V2){ merV3Reset(); reparerMobilier(); cielRetablir(); fpsArreter(); derbyArreter(); sportjArreter(); SPORTJ.primes=null; SPORTJ.gagnes=null; footDemarrer(); SURPRISES.tyro=null; for(const su of SURPRISES.liste) if(su.vague!==undefined) su.vague=-1; poserTexteBanderole(META.banderole); if(RIDES.porte){ RIDES.actif=null; RIDES.porte.visible=false; RIDES.txt.style.display='none'; rivalesFin(); if(RIDES.fleche) RIDES.fleche.visible=false; RIDES.records={}; RIDES.primeVague={}; } resetPic(); resetMonteCharge(); resetMer(); basketArreter(); BASKET.reussi=false; BASKET.vague=-1; } P.wingsuit=false; P.wing=false; if(P.wingMesh) P.wingMesh.visible=false; nettoyerPnjMetier(); MET2.serie={taxi:0,ambulance:0,pompier:0}; // course en cours : jamais survivante d'une partie à l'autre // mobilier renversé réparé ; message acheté sur la banderole
+  if(DECOR_V2){ merV3Reset(); reparerMobilier(); cielRetablir(); fpsArreter(); derbyArreter(); sxArreter(); SX.vagueGagne=-1; sportjArreter(); SPORTJ.primes=null; SPORTJ.gagnes=null; footDemarrer(); SURPRISES.tyro=null; for(const su of SURPRISES.liste) if(su.vague!==undefined) su.vague=-1; poserTexteBanderole(META.banderole); if(RIDES.porte){ RIDES.actif=null; RIDES.porte.visible=false; RIDES.txt.style.display='none'; rivalesFin(); if(RIDES.fleche) RIDES.fleche.visible=false; RIDES.records={}; RIDES.primeVague={}; } resetPic(); resetMonteCharge(); resetMer(); basketArreter(); BASKET.reussi=false; BASKET.vague=-1; } P.wingsuit=false; P.wing=false; if(P.wingMesh) P.wingMesh.visible=false; nettoyerPnjMetier(); MET2.serie={taxi:0,ambulance:0,pompier:0}; // course en cours : jamais survivante d'une partie à l'autre // mobilier renversé réparé ; message acheté sur la banderole
   // Jetpack : perdu au game over, comme les armes (voir CLAUDE.md) — il
   // faut remonter le chercher. Le lieu, lui (META.jetpackTrouve), reste acquis.
   P.jetpack=false; P.jetpackVol=false; P.jetFuel=100; P.jetVx=0; P.jetVz=0; P.jetWarnT=0; P.jetAvertVu=false;
@@ -47875,6 +47958,7 @@ function mourir(){
   if(BASE.defi) finDefiBase(false); // parcours du combattant abandonné
   fpsArreter(); // ball-trap, stand de tir : la partie s'arrête, rien de gagné
   derbyArreter(); // derby : le match s'arrête, les voitures disparaissent, rien de gagné
+  sxArreter(); // point 16 : la course de supercross s'arrête, rien de gagné
   SURPRISES.tyro=null; // décroché de la tyrolienne
   ETAT.mode='mort'; ETAT.timeScale=0.28; document.body.style.boxShadow='none';
   annulerFouille(true); cacherJauges();
@@ -48756,6 +48840,8 @@ function majAction(){
       label='⚡ CHOC'; fn=chocDefibrillateur;
     } else if(P.veh.enAir&&!P.veh.def.air&&(P.veh.h||0)-solY(P.veh.x,P.veh.z)>10){
       label='🪂 SAUTER DU VÉHICULE'; fn=ejecterEnVol;
+    } else if(sxProche()){ /* liste du 22 octobre, point 16 */
+      label='🏁 COURSE SUPERCROSS — 3 TOURS, 5 PILOTES'; fn=sxDemarrer;
     } else if(rideId){
       label='🏁 DÉPART — '+RIDE_DEFS[rideId].nom; fn=()=>demarrerRide(rideId);
     } else if(P.veh.def.air&&P.veh.vol){
@@ -51195,6 +51281,7 @@ function tick(t){
     majEchappements(dtJeu); /* fumée noire des cheminées (Monster Truck) */
     majOiseaux(dt); /* pigeons et mouettes de la ville */
     majMotards(dt); /* motards du désert et de la montagne */
+    majCourseSX(dt); /* liste du 22 octobre, point 16 : la course de supercross */
     majGrenades(dt);
     majPickups(dt);
     if(ETAT.mode==='jeu'){
