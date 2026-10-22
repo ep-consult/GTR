@@ -17,7 +17,7 @@ Ordre suivi : 1, 17, 4, 3, 2, 5, puis le reste.
 | 7 | La statue de la Liberté plus grande | ☑ |
 | 8 | Habits et tatouages réalistes | ☑ |
 | 9 | Plus d'améliorations au chantier naval | ☑ |
-| 10 | Le paquebot qui se brise, plus impressionnant | ☐ |
+| 10 | Le paquebot qui se brise, plus impressionnant | ☑ |
 | 11 | Explosions, camion-citerne, pompes à essence | ☑ |
 | 12 | Sortir ses véhicules depuis la villa | ☑ |
 | 13 | Plongeons : l'entrée dans l'eau compte | ☑ |
@@ -31,6 +31,45 @@ Ordre suivi : 1, 17, 4, 3, 2, 5, puis le reste.
 - **Branche** : `retours-22oct` part de `retours-20-octobre` (et non de `main`) : les points de la liste portent sur ce que les deux
   chantiers précédents ont construit (canaux V3, paquebot, Cliff Diving, cabrage en équilibre…).
 
+## 10 — La cassure du Reyes Majestic, beaucoup plus impressionnante (fait)
+
+**Trouvé dans la source** : le « Titanic » est le paquebot échoué **Reyes Majestic** (`PAQ`, retours du 20 octobre, lot 6). **Avant** :
+à la cassure, les deux moitiés se relevaient en V (jusqu'à 66°) et sombraient ensemble en 33 s ; huit passagers (ceux qu'on mène
+aux canots), deux canots, quelques débris et de la fumée grise.
+
+**Fait** (`paqDrameConstruire`, `majPaqDrame`, `paqCassureFx`, `paqFusee`, `paqDrameRemettre`, `PAQ_RUPT` = 38 s) :
+- **La foule** : 48 passagers de plus (`PAQ_FOULE_N`), deux `InstancedMesh` (le corps teinté par personne ; le gilet et la tête) —
+  deux appels de rendu pour tous. À bord, chacun vit sur SA moitié ; pendant l'alerte ils s'agitent sur le pont ; à la cassure ils
+  glissent vers la cassure quand le pont penche (et tombent sur le dos), certains rattrapent le bastingage et y pendent puis lâchent,
+  d'autres sautent par-dessus bord ; dans l'eau ils nagent et s'éloignent sur la houle.
+- **Les chaloupes** : quatre chaloupes pleines (un maillage chacune) descendent de leurs bossoirs pendant l'alerte, chacune à son heure
+  (les cordes s'allongent), à la cassure celles qui restent tombent vite, puis s'éloignent à la rame.
+- **Les fusées de détresse** : toutes les 15 s pendant l'alerte, trois à la cassure — traînée, gerbe d'étoiles rouges et blanches, lueur,
+  sifflement et détonation.
+- **Les lumières** : les fenêtres et les hublots s'allument (la nuit surtout : `emissiveMap` des matériaux propres du navire), clignotent
+  à la cassure, deux coupures nettes, puis s'éteignent.
+- **La cassure** : l'étrave plonge la première (sous l'eau à 12 s) ; la poupe se dresse à **84°**, reste debout un instant, puis coule
+  droit (sous l'eau à 27 s) ; débris et étincelles au moment de la rupture, vapeur qui monte de la cassure, fumée noire des cheminées
+  tant qu'elles sont hors de l'eau, deux explosions de chaudières (gerbes, grondement, secousse), éclaboussures jusqu'au bout ;
+  craquements de la coque et cris au loin (WebAudio, selon la distance).
+- Tout revient à la vague suivante (foule à bord, chaloupes aux bossoirs, lumières).
+
+**Coût** (mesuré par le test, machine sans carte graphique : les proportions comptent) : 0,17 ms par image en moyenne pour toute la
+mise en scène (0,43 au plus), 20 objets dessinés de plus (2 pour la foule), particules dans la réserve fixe de `spawnP`. Rien n'est
+construit avant la première approche (générateur privé) : empreinte de la ville inchangée.
+
+**Test** « Liste du 22 octobre, point 10 » (par la vraie boucle, depuis un bateau au sud, la nuit) : fenêtres allumées, une chaloupe
+qui descend et une fusée pendant l'alerte ; à la cassure, des passagers qui glissent, s'accrochent, tombent, nagent ; la poupe au-delà
+de 80°, l'étrave sous l'eau avant la poupe ; trois fusées ; lumières éteintes ; craquements et cris ; l'épave ; coût et nombre
+d'objets bornés ; tout remis à la vague suivante. « Retours du 20 octobre, lot 6 » repasse (le joueur jeté à la mer, l'épave, les
+passagers menés aux canots).
+
+**Captures** (rendus réels, la nuit, d'un bateau ; avant : `avant_10_*.png`) : `10_alerte.png` (fenêtres, fusée), `10_cassure_03.png`,
+`10_cassure_12.png` (l'étrave plonge, chaloupes et radeaux), `10_cassure_20.png` (la poupe à la verticale, nageurs), `10_cassure_29.png`,
+`10_cassure_35.png`.
+
+**Reste** : sur iPhone, juger la lisibilité des petits personnages à la distance de jeu et la fluidité pendant la cassure (vapeur et
+fumée puisent dans la même réserve de particules que le combat).
 ## 8 — Les habits et les tatouages, plus réalistes (fait)
 
 **Avant** : une pièce = une couleur unie sur les boîtes du corps (la chemise hawaïenne : un orange uni) ; les tatouages, des petites

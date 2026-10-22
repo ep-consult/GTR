@@ -18043,7 +18043,7 @@ function resetMer(){ if(TOW.actif) finTow('annule'); TOW.actif=null; MERV.primes
    6.3 le kitesurf. (6.4, le wakeboard : dans majTow.) Construit tout à la fin du décor (mkMerV3), sur un générateur privé, avec des
    matériaux propres (jamais mat() : son cache est partagé par la ville). */
 const PAQ={ok:false,x:0,z:0,pont:9,etat:'attente',t:0,passagers:[],sauves:0,stations:[],coffre:null,forcage:null,echelle:null,sol:[],moities:[],canots:[],radeaux:[],debris:[],vagueCoffre:-1,vaguePlongee:-1,vagueAnnonce:-1,vagueRupture:-1,klaxonT:0,grinceT:0,bullesT:0,jete:false};
-const PAQ_DUREE=100, PAQ_PRIME=300, PAQ_COFFRE=520, PAQ_EPAVE=380, PAQ_PAR_PASSAGER=40;
+const PAQ_DUREE=100, PAQ_PRIME=300, PAQ_COFFRE=520, PAQ_EPAVE=380, PAQ_PAR_PASSAGER=40, PAQ_RUPT=38; /* PAQ_RUPT : la durée de la cassure (point 10) */
 function paqMats(){ if(PAQ.m) return PAQ.m; const M=(c)=>new THREE.MeshLambertMaterial({color:c});
   const fen=cTex(128,(c,s)=>{ c.fillStyle='#f2f2ee'; c.fillRect(0,0,s,s); c.fillStyle='#1c2c44'; c.fillRect(s*0.18,s*0.3,s*0.64,s*0.38); c.fillStyle='rgba(160,200,230,0.5)'; c.fillRect(s*0.2,s*0.32,s*0.25,s*0.12); c.fillStyle='#c8c8c0'; c.fillRect(0,s*0.9,s,s*0.1); });
   fen.wrapS=fen.wrapT=THREE.RepeatWrapping;
@@ -18109,7 +18109,8 @@ function paqRemettre(){ if(!PAQ.ok) return; const X=PAQ.x, Z=PAQ.z, H=PAQ.pont; 
   const places=[[-40,2],[-38,-3],[-34,4.5],[34,2],[36,-2.5],[38,1],[-24,6.6],[12,-6.6]];
   PAQ.passagers.forEach((p,k)=>{ const [dx,dz]=places[k]; p.x=p.x0=X+dx; p.z=p.z0=Z+dz; p.etat='attend'; p.g.visible=true; p.g.position.set(p.x,H,p.z); p.g.rotation.set(0,0,0); });
   for(const c of PAQ.canots){ c.n=0; c.y=11.4; c.g.position.set(c.x0,c.y,c.z0); c.g.rotation.set(0,0,0); c.g.visible=true; for(const t of c.ttes) t.visible=false; }
-  for(const r of PAQ.radeaux) r.g.visible=false; for(const d of PAQ.debris) d.g.visible=false; if(PAQ.porte) PAQ.porte.visible=true; }
+  for(const r of PAQ.radeaux) r.g.visible=false; for(const d of PAQ.debris) d.g.visible=false; if(PAQ.porte) PAQ.porte.visible=true;
+  paqDrameRemettre(); } /* point 10 : la foule à bord, les chaloupes à leurs bossoirs, les lumières allumées */
 function paqSurPont(x,z){ const dx=x-PAQ.x, dz=Math.abs(z-PAQ.z), hw=dx<-40?5.2:(dx<=28?7.0:(dx<=40?4.7:1.9)); return dx>-45.5&&dx<44.5&&dz<hw&&!(Math.abs(dx)<30.4&&dz<6.3); } /* la forme du pont : poupe arrondie, étrave fine, sans les superstructures */
 function paqABord(){ return PAQ.ok&&!P.veh&&P.y>PAQ.pont-0.6&&Math.abs(P.x-PAQ.x)<47&&Math.abs(P.z-PAQ.z)<8; }
 function paqSurEau(){ return P.nage||(P.veh&&P.veh.def&&P.veh.def.eau); }
@@ -18145,8 +18146,104 @@ function paqRompre(){ PAQ.etat='rupture'; PAQ.t=0; PAQ.vagueRupture=WAVES.n; PAQ
   const restants=PAQ.passagers.filter((p)=>p.etat!=='sauve'); PAQ.radeaux.forEach((r,k)=>{ const p=restants[k*2]; r.g.visible=!!p; if(!p) return; r.x=PAQ.x+(p.x-PAQ.x)*1.05; r.z=PAQ.z+(p.z>PAQ.z?14:-14); r.vx=(Math.random()-0.5)*0.6; r.vz=(p.z>PAQ.z?1:-1)*0.8; });
   for(const p of restants){ p.etat='radeau'; p.g.visible=false; }
   PAQ.debris.forEach((d2,k)=>{ d2.g.visible=true; d2.x=PAQ.x+(Math.random()-0.5)*20; d2.z=PAQ.z+(k%2?1:-1)*(9+Math.random()*6); d2.vx=(Math.random()-0.5)*1.2; d2.vz=(d2.z>PAQ.z?1:-1)*(0.6+Math.random()*0.8); d2.rot=Math.random()*6; }); }
+/* ---- La cassure du Majestic (liste du 22 octobre, point 10, demandé : « beaucoup plus impressionnant : des dizaines de passagers qui
+   glissent, s'accrochent, sautent, tombent à l'eau et nagent ; des chaloupes qui descendent ; des fusées de détresse ; les lumières qui
+   clignotent puis s'éteignent ; la poupe qui se dresse à la verticale avant de couler ; débris, vapeur, fumée, éclaboussures, son ; coût
+   sous contrôle »). La foule (PAQ_FOULE_N) : deux InstancedMesh (le corps, teinté par personne ; le gilet et la tête) — deux appels de
+   rendu pour tous ; chacun vit dans le repère de SA moitié (lx, lz sur le pont) tant qu'il est à bord, puis dans le monde (chute, nage).
+   Les chaloupes (PAQ.chaloupes) descendent de leurs bossoirs pendant l'alerte, à la cassure celles qui restent tombent vite, puis
+   s'éloignent à la rame. Les fusées (PAQ.fusees, trois places réutilisées) : traînée, gerbe d'étoiles rouges, lueur. Les fenêtres et les
+   hublots s'allument (emissiveMap des matériaux PROPRES du navire), clignotent à la cassure et s'éteignent. Particules : la réserve fixe
+   de spawnP. Tout est construit à la première approche, sous un générateur privé ; tout est cosmétique (dt), sauf le temps de la cassure. */
+const PAQ_FOULE_N=48, _PQM=new THREE.Matrix4(), _PQV=new THREE.Vector3(), _PQQ=new THREE.Quaternion(), _PQQ2=new THREE.Quaternion(), _PQS=new THREE.Vector3(1,1,1), _PQY=new THREE.Vector3(0,1,0), _PQX=new THREE.Vector3(1,0,0), _PQC=new THREE.Color();
+function paqDrameConstruire(){ if(PAQ.drame) return PAQ.drame; return (PAQ.drame=avecAleaPrive(1022,()=>{ const D={foule:[],chaloupes:[],fusees:[]}, m=paqMats();
+  const T=(g,x,y,z)=>{ g.translate(x,y,z); return g; };
+  const gc=montFusion([{g:T(new THREE.BoxGeometry(0.42,0.8,0.24),0,0.4,0),c:0x2a3040},{g:T(new THREE.BoxGeometry(0.46,0.6,0.26),0,1.1,0),c:0xffffff},
+    {g:T(new THREE.BoxGeometry(0.12,0.55,0.12),-0.3,1.6,0),c:0xffffff},{g:T(new THREE.BoxGeometry(0.12,0.55,0.12),0.3,1.6,0),c:0xffffff}]); /* bras levés */
+  const gg=montFusion([{g:T(new THREE.BoxGeometry(0.5,0.42,0.3),0,1.16,0),c:0xff8a1a},{g:T(new THREE.BoxGeometry(0.3,0.3,0.3),0,1.58,0),c:0xd8a070}]);
+  const mt=new THREE.MeshLambertMaterial({vertexColors:true});
+  D.corps=new THREE.InstancedMesh(gc,mt,PAQ_FOULE_N); D.gilets=new THREE.InstancedMesh(gg,new THREE.MeshLambertMaterial({vertexColors:true}),PAQ_FOULE_N); /* un matériau chacun : le programme du corps lit les couleurs par instance, celui des gilets non */
+  for(const im of [D.corps,D.gilets]){ im.instanceMatrix.setUsage(THREE.DynamicDrawUsage); im.frustumCulled=false; im.visible=false; scene.add(im); }
+  const teintes=[0xc83a3a,0x3a7ac8,0xe8e4dc,0x2a8a5a,0xd8b02a,0x8a3ac8,0x1c2030,0xf2c8d8];
+  for(let i=0;i<PAQ_FOULE_N;i++){ D.corps.setColorAt(i,_PQC.setHex(teintes[i%teintes.length])); const r=(k)=>hacheHabit(i*17+k);
+    /* sa place : la poupe à découvert (20), les ponts promenade (20), l'étrave (8) */
+    let sd, lx, lz; if(i<20){ sd=-1; lx=-31-r(1)*11; lz=(r(2)-0.5)*8; } else if(i<40){ sd=r(3)<0.6?-1:1; lx=sd*(3+r(4)*(sd<0?25:21)); lz=(r(5)<0.5?-1:1)*6.75; } else { sd=1; lx=28+r(6)*9; lz=(r(7)-0.5)*5; }
+    D.foule.push({i,sd,lx0:lx,lz0:lz,lx,lz,v:0,etat:'pont',ph:r(8)*6.3,ky:r(9)*6.3,saute:r(10)<0.3,accro:r(11)<0.45,lache:3+r(12)*7,t:0,x:0,y:0,z:0,vx:0,vy:0,vz:0}); }
+  if(D.corps.instanceColor) D.corps.instanceColor.needsUpdate=true;
+  /* les chaloupes : à la poupe, deux de chaque bord, chacune avec ses rameurs (une coque, un banc, des têtes : un maillage) et ses deux bossoirs */
+  const geoCh=(()=>{ const pa=[{g:new THREE.SphereGeometry(1,10,6).scale(2.4,0.55,0.85),c:0xff7a1a},{g:T(new THREE.BoxGeometry(4.4,0.15,1.5),0,0.4,0),c:0xf2f2ee}];
+    for(let k=0;k<4;k++){ const z=k%2?0.25:-0.25; pa.push({g:T(new THREE.BoxGeometry(0.3,0.32,0.3),-1.4+k*0.95,0.62,z),c:k%2?0xd8a070:0x8a5a3a}); pa.push({g:T(new THREE.BoxGeometry(0.4,0.3,0.3),-1.4+k*0.95,0.38,z),c:0xff8a1a}); }
+    return montFusion(pa); })(), matCh=new THREE.MeshLambertMaterial({vertexColors:true}); /* une chaloupe et ses rameurs : un maillage */
+  for(const [dx,dz,td] of [[-31,6.6,18],[-31,-6.6,34],[-36,6.2,52],[-36,-6.2,70]]){ const g=new THREE.Group(); g.add(new THREE.Mesh(geoCh,matCh)); const cordes=[]; for(const ex of [-1.8,1.8]){ const cr=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,1,5),m.corde); g.add(cr); cordes.push({m:cr,ex}); }
+    scene.add(g); g.visible=false; D.chaloupes.push({g,cordes,dx,dz,td,y:11.4,x:0,z:0,etat:'bossoir'}); }
+  /* les fusées de détresse : une tête lumineuse, une lueur ; trois places */
+  for(let k=0;k<3;k++){ const tete=new THREE.Mesh(new THREE.SphereGeometry(0.35,8,6),new THREE.MeshBasicMaterial({color:0xffe0b0})); tete.visible=false; scene.add(tete);
+    const lu=new THREE.Sprite(new THREE.SpriteMaterial({map:texGlow,color:0xff5a3a,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending})); lu.visible=false; lu.scale.set(30,30,1); scene.add(lu);
+    D.fusees.push({tete,lu,etat:'',t:0,x:0,y:0,z:0,vy:0}); }
+  /* les fenêtres la nuit : des carreaux jaunes sur fond noir (emissiveMap des matériaux du navire, jamais ceux de mat()) */
+  const fenN=cTex(128,(c,s2)=>{ c.fillStyle='#000'; c.fillRect(0,0,s2,s2); c.fillStyle='#ffd890'; c.fillRect(s2*0.18,s2*0.3,s2*0.64,s2*0.38); }); fenN.wrapS=fenN.wrapT=THREE.RepeatWrapping;
+  m.fen.emissiveMap=fenN; m.fen.emissive.setHex(0xffffff); m.fen.emissiveIntensity=0; m.fen.needsUpdate=true; m.hub.emissive.setHex(0xffc870); m.hub.emissiveIntensity=0; m.hub.needsUpdate=true;
+  D.lum=1; return D; })); }
+function paqDrameRemettre(){ const D=PAQ.drame; if(!D) return; for(const p of D.foule){ p.etat='pont'; p.lx=p.lx0; p.lz=p.lz0; p.v=0; p.t=0; p.lacheFait=false; }
+  for(const c of D.chaloupes){ c.etat='bossoir'; c.y=11.4; } for(const f of D.fusees){ f.etat=''; f.tete.visible=false; f.lu.visible=false; } D.lum=1; PAQ.fuseeT=5; PAQ.criT=1; PAQ.craqueT=0.5; PAQ.fxRupt=-1; }
+/* une fusée de détresse part du pont */
+function paqFusee(){ const D=PAQ.drame; if(!D) return; const f=D.fusees.find((q)=>!q.etat)||D.fusees[0]; f.etat='monte'; f.t=0; f.x=PAQ.x-22+Math.random()*30; f.z=PAQ.z+(Math.random()-0.5)*6; f.y=PAQ.pont+4; f.vy=42;
+  f.tete.visible=true; const k=clamp(1-Math.sqrt(dist2(P.x,P.z,f.x,f.z))/320,0,1); if(k>0.02){ bruit(0.9,0.05*k,2200,'highpass'); beep(900,0.8,'sine',0.02*k,1600); } PAQ.nFusees=(PAQ.nFusees||0)+1; }
+function majPaqDrame(dt,dtJeu,dCam){ const E=PAQ.etat, X=PAQ.x, Z=PAQ.z, H=PAQ.pont; if(dCam>440&&!PAQ.drame) return; const D=paqDrameConstruire(), proche=dCam<300;
+  const tA=E==='alerte'?PAQ_DUREE-PAQ.t:(E==='rupture'||E==='epave'?PAQ_DUREE+PAQ.t:0), tR=E==='rupture'?PAQ.t:(E==='epave'?PAQ_RUPT+1:-1), T=ETAT.runT||0, dJ=Math.sqrt(dist2(P.x,P.z,X,Z)), kS=clamp(1-dJ/320,0,1);
+  for(const h of PAQ.moities) h.g.updateMatrixWorld(true);
+  /* les lumières : allumées (la nuit surtout), elles clignotent à la cassure, puis s'éteignent */
+  { let L=E==='epave'?0:(tR>=0?(tR<12?((Math.sin(tR*23)>0.5-tR*0.08||Math.random()<0.15)?1:0)*(1-tR/14):0):1); if(tR>=0&&tR<12&&((tR>3.8&&tR<4.4)||(tR>8.6&&tR<9.2))) L=0; D.lum=L;
+    const n=(ETAT.nuitF||0), k=L*(0.25+0.95*n); const m=paqMats(); m.fen.emissiveIntensity=k; m.hub.emissiveIntensity=k*0.9; }
+  /* les fusées : pendant l'alerte toutes les 15 s, à la cassure trois d'un coup */
+  if(E==='alerte'&&ETAT.mode==='jeu'){ PAQ.fuseeT=(PAQ.fuseeT==null?5:PAQ.fuseeT)-dtJeu; if(PAQ.fuseeT<=0){ PAQ.fuseeT=15; paqFusee(); } }
+  if(tR>=0&&E==='rupture'){ for(const tf of [0.3,4,9]) if(PAQ.fxRupt<tf&&tR>=tf) paqFusee(); PAQ.fxRupt=tR; }
+  for(const f of D.fusees){ if(!f.etat) continue; f.t+=dt;
+    if(f.etat==='monte'){ f.y+=f.vy*dt; f.vy-=12*dt; f.tete.position.set(f.x,f.y,f.z); if(proche&&Math.random()<dt*40) spawnP(f.x,f.y-0.6,f.z,(Math.random()-0.5)*0.8,-2,(Math.random()-0.5)*0.8,0.9,1.4,0xffa040,0);
+      if(f.vy<6){ f.etat='eclat'; f.t=0; f.tete.visible=false; f.lu.visible=true; f.lu.position.set(f.x,f.y,f.z); if(proche) for(let i=0;i<34;i++){ const a=i*0.62, e=(i%5)/5-0.4; spawnP(f.x,f.y,f.z,Math.cos(a)*9*(1-Math.abs(e)),e*12+2,Math.sin(a)*9*(1-Math.abs(e)),2.4,1.6,i%3?0xff3a2a:0xfff0e0,4); }
+        const k=clamp(1-Math.sqrt(dist2(P.x,P.z,f.x,f.z))/360,0,1); if(k>0.02){ beep(140,0.4,'square',0.04*k,60); bruit(0.5,0.06*k,700); } } }
+    else { f.lu.material.opacity=Math.max(0,1-f.t/2.4)*0.9; f.lu.position.y-=dt*1.5; if(f.t>2.4){ f.etat=''; f.lu.visible=false; } } }
+  /* les chaloupes : elles descendent pendant l'alerte, chacune à son heure ; à la cassure, celles qui restent tombent vite ; puis on rame */
+  for(const c of D.chaloupes){ const visible=proche&&(E!=='attente'||dCam<300); c.g.visible=visible&&!(c.etat==='loin');
+    if(c.etat==='bossoir'){ c.x=X+c.dx; c.z=Z+c.dz; c.y=11.4; if(E==='rupture'||(E==='alerte'&&tA>=c.td)) c.etat='descend'; }
+    else if(c.etat==='descend'){ c.y-=dtJeu*(E==='rupture'?4.5:1.6); if(c.y<=0.35){ c.y=0.35; c.etat='rame'; if(MER_V2) eclaboussure(c.x,c.z,1.4); } }
+    else if(c.etat==='rame'){ const s2=c.dz>0?1:-1; c.z+=s2*1.6*dtJeu; c.x+=(c.dx+40)*0.01*dtJeu; if(Math.abs(c.z-Z)>140) c.etat='loin'; }
+    const yy=c.y+(c.etat==='rame'&&MER_V2?houleY(c.x,c.z):0); c.g.position.set(c.x,yy,c.z); c.g.rotation.z=c.etat==='descend'?Math.sin(T*1.7+c.dx)*0.05:0;
+    for(const cr of c.cordes){ const L=Math.max(0.05,13.6-yy); cr.m.visible=c.etat!=='rame'&&c.etat!=='loin'; cr.m.scale.y=L; cr.m.position.set(cr.ex,L/2+0.3,0); } }
+  /* la foule */
+  const vis=proche&&E!=='epave'||(E==='epave'&&proche&&D.foule.some((p)=>p.etat==='nage')); D.corps.visible=D.gilets.visible=vis; if(!vis) return;
+  const g=26;
+  for(const p of D.foule){ const half=PAQ.moities.find((h)=>h.sd===p.sd); if(!half) continue; const th=Math.abs(half.th||0);
+    if(p.etat==='pont'||p.etat==='glisse'){
+      if(tR>=0){ if(p.saute&&tR>1+((p.i*0.37)%8)&&Math.abs(p.lz)>6){ p.etat='tombe'; _PQV.set(p.lx,H+4,p.lz).applyMatrix4(half.g.matrixWorld); p.x=_PQV.x; p.y=_PQV.y; p.z=_PQV.z; p.vx=(Math.random()-0.5)*1.5; p.vy=4.5; p.vz=Math.sign(p.lz)*4.5; p.ky=Math.sign(p.lz)>0?0:Math.PI; continue; }
+        if(p.accro&&th>0.3&&!p.lacheFait){ p.etat='accroche'; p.t=0; p.lz=Math.sign(p.lz||1)*7.25; p.lacheFait=true; continue; } /* il rattrape le bastingage, une fois */
+        if(th>0.14){ p.etat='glisse'; p.v+=(g*Math.sin(th)-3)*dt; p.v=Math.max(0,p.v); p.lx-=Math.sign(p.lx)*p.v*dt; if(Math.abs(p.lx)<2.2){ p.etat='tombe'; _PQV.set(p.lx,H+4,p.lz).applyMatrix4(half.g.matrixWorld); p.x=_PQV.x; p.y=_PQV.y; p.z=_PQV.z; p.vx=-Math.sign(p.lx)*p.v*0.3; p.vy=0; p.vz=0; continue; } } }
+      _PQV.set(p.lx,H+4,p.lz).applyMatrix4(half.g.matrixWorld); if(_PQV.y<-1.2&&tR>=0){ p.etat='nage'; p.x=_PQV.x; p.z=_PQV.z; p.vz=Math.sign(p.z-Z||1); continue; }
+      const kk=p.etat==='glisse'?0.9:0; _PQQ2.setFromAxisAngle(_PQY,p.ky+(E==='alerte'?Math.sin(T*2+p.ph)*0.6:0)); _PQQ.copy(half.g.quaternion).multiply(_PQQ2);
+      if(kk){ _PQQ2.setFromAxisAngle(_PQX,-0.9); _PQQ.multiply(_PQQ2); } /* qui glisse tombe sur le dos */
+      _PQV.y+=E==='alerte'?Math.abs(Math.sin(T*7+p.ph))*0.12:0; _PQM.compose(_PQV,_PQQ,_PQS); }
+    else if(p.etat==='accroche'){ p.t+=dt; _PQV.set(p.lx,H+4+1.05,p.lz).applyMatrix4(half.g.matrixWorld); if(_PQV.y<0.5){ p.etat='nage'; p.x=_PQV.x; p.z=_PQV.z; p.vz=Math.sign(p.lz); continue; }
+      if(p.t>p.lache){ p.etat='tombe'; p.x=_PQV.x; p.y=_PQV.y-1.8; p.z=_PQV.z; p.vx=0; p.vy=0; p.vz=Math.sign(p.lz)*1.2; continue; }
+      _PQQ.setFromAxisAngle(_PQY,Math.sign(p.lz)>0?Math.PI:0); _PQV.y-=1.85+Math.sin(T*3+p.ph)*0.05; _PQV.x+=Math.sin(T*2.3+p.ph)*0.15; _PQM.compose(_PQV,_PQQ,_PQS); }
+    else if(p.etat==='tombe'){ p.vy-=g*dt; p.x+=p.vx*dt; p.y+=p.vy*dt; p.z+=p.vz*dt; const sY=MER_V2?houleY(p.x,p.z):0;
+      if(p.y<=sY){ p.etat='nage'; p.vz=Math.sign(p.z-Z||1); if(MER_V2&&proche&&Math.random()<0.6) eclaboussure(p.x,p.z,0.7); PAQ.plouf=(PAQ.plouf||0)+1; continue; }
+      _PQQ.setFromAxisAngle(_PQX,p.y*0.15+p.ph); _PQV.set(p.x,p.y,p.z); _PQM.compose(_PQV,_PQQ,_PQS); }
+    else if(p.etat==='nage'){ p.z+=p.vz*0.8*dt; p.x+=Math.sin(p.ph)*0.3*dt; const sY=MER_V2?houleY(p.x,p.z):0; _PQQ.setFromAxisAngle(_PQY,p.vz>0?0:Math.PI); _PQV.set(p.x,sY-1.25+Math.sin(T*3+p.ph)*0.06,p.z); _PQM.compose(_PQV,_PQQ,_PQS); }
+    D.corps.setMatrixAt(p.i,_PQM); D.gilets.setMatrixAt(p.i,_PQM); }
+  D.corps.instanceMatrix.needsUpdate=true; D.gilets.instanceMatrix.needsUpdate=true; }
+/* la cassure : débris au moment de la rupture, vapeur à la cassure, fumée des cheminées, craquements, cris au loin */
+function paqCassureFx(dt,t){ const X=PAQ.x, Z=PAQ.z, dJ=Math.sqrt(dist2(P.x,P.z,X,Z)), k=clamp(1-dJ/320,0,1), proche=Math.sqrt(dist2(camera.position.x,camera.position.z,X,Z))<300;
+  const st=PAQ.moities.find((h)=>h.sd<0), yb=st?st.g.position.y:-4;
+  if(proche){ if(t<1.6) for(let i=0;i<3;i++) spawnP(X+(Math.random()-0.5)*5,PAQ.pont+Math.random()*6,Z+(Math.random()-0.5)*12,(Math.random()-0.5)*14,6+Math.random()*10,(Math.random()-0.5)*14,1.8,0.7+Math.random()*0.8,i?0x2a2c30:0xffa040,22);
+    if(t>2&&t<PAQ_RUPT-4&&yb>-30&&Math.random()<dt*22) spawnP(X+(Math.random()-0.5)*8,0.4+Math.random(),Z+(Math.random()-0.5)*10,(Math.random()-0.5)*1.5,3+Math.random()*3,(Math.random()-0.5)*1.5,2.6,3.2+Math.random()*2.4,0xe8eef2,0); /* vapeur */
+    for(const h of PAQ.moities){ const fx=h.sd<0?-11:5; _PQV.set(fx,32,0).applyMatrix4(h.g.matrixWorld); if(_PQV.y>1&&Math.random()<dt*7) spawnP(_PQV.x,_PQV.y,_PQV.z,(Math.random()-0.5)*1.2,2.4,(Math.random()-0.5)*1.2,3.2,3+Math.random()*2,0x2a2c30,0); } /* fumée */
+    if((t>6.4&&t<6.6)||(t>14.2&&t<14.4)){ if(MER_V2) for(let i=0;i<3;i++) eclaboussure(X+(Math.random()-0.5)*10,Z+(Math.random()-0.5)*8,2.6); } }
+  if(k>0.02){ PAQ.craqueT=(PAQ.craqueT||0)-dt; if(PAQ.craqueT<=0&&t<PAQ_RUPT-8){ PAQ.craqueT=0.4+Math.random()*0.9; bruit(0.3+Math.random()*0.6,0.07*k,70+Math.random()*130,'lowpass'); beep(48+Math.random()*30,0.7,'sawtooth',0.03*k,30); PAQ.nCraque=(PAQ.nCraque||0)+1; }
+    PAQ.criT=(PAQ.criT||0)-dt; if(PAQ.criT<=0&&t<26){ PAQ.criT=0.7+Math.random()*1.3; const f=480+Math.random()*360; beep(f,0.5+Math.random()*0.4,'triangle',0.014*k,f*0.7); beep(f*1.5,0.4,'sine',0.006*k,f); PAQ.nCris=(PAQ.nCris||0)+1; }
+    if((t>6.4&&t<6.4+dt*1.5)||(t>14.2&&t<14.2+dt*1.5)){ beep(40,1.6,'sawtooth',0.12*k,24); bruit(1.4,0.16*k,120,'lowpass'); secousse(6*k); } } }
 function majPaquebot(dt,dtJeu){ if(!PAQ.ok) return; const X=PAQ.x, Z=PAQ.z, H=PAQ.pont, T=ETAT.runT||0;
   const dCam=Math.sqrt(dist2(camera.position.x,camera.position.z,X,Z)), loin=dCam>440;
+  { const t0=performance.now(); majPaqDrame(dt,dtJeu,dCam); PAQ.tDrame=(PAQ.tDrame||0)*0.95+(performance.now()-t0)*0.05; } /* liste du 22 octobre, point 10 */
   for(const h of PAQ.moities) if(PAQ.etat!=='epave') h.g.visible=!loin;
   const dJ=Math.sqrt(dist2(P.x,P.z,X,Z));
   if(PAQ.vagueAnnonce!==WAVES.n&&dJ<160&&PAQ.etat==='attente'&&ETAT.mode==='jeu'){ PAQ.vagueAnnonce=WAVES.n; toast('⚓ Le paquebot Reyes Majestic est échoué sur un récif — monte à bord par l’échelle (côté sud, à la poupe)','or'); }
@@ -18168,14 +18265,17 @@ function majPaquebot(dt,dtJeu){ if(!PAQ.ok) return; const X=PAQ.x, Z=PAQ.z, H=PA
     if(txt){ PAQ.txt=true; const n=PAQ.passagers.filter((q)=>q.etat==='attend'||q.etat==='suit').length; RIDES.txt.style.display='block'; RIDES.txt.textContent='⚓ REYES MAJESTIC — '+n+' passager'+(n>1?'s':'')+' à sauver — '+Math.ceil(Math.max(0,PAQ.t))+' s'+(PAQ.forcage?' — coffre : '+(3-PAQ.forcage.t).toFixed(1)+' s':''); }
     if(PAQ.t<=0){ if(PAQ.txt){ PAQ.txt=false; RIDES.txt.style.display='none'; } paqRompre(); } }
   else if(PAQ.etat==='rupture'){ if(ETAT.mode==='jeu') PAQ.t+=dtJeu; const t=PAQ.t, ss=(a,b,x)=>{ const u=clamp((x-a)/(b-a),0,1); return u*u*(3-2*u); };
-    const th=0.36*ss(0,5,t)+0.8*ss(9,30,t), y=-4-44*Math.pow(ss(7,32,t),1.3), ec=2.2*ss(0,6,t);
-    for(const h of PAQ.moities){ h.g.rotation.z=-h.sd*0+h.sd*th; h.g.position.set(X+h.sd*ec,y,Z); } /* poupe (sd −1) et étrave (sd +1) se relèvent en V */
+    const ec=2.2*ss(0,6,t); /* liste du 22 octobre, point 10 : l'étrave plonge la première ; la poupe se dresse à la verticale (85°), reste un instant, puis coule droit */
+    for(const h of PAQ.moities){ const poupe=h.sd<0, th=poupe?0.36*ss(0,5,t)+1.12*ss(8,21,t):0.36*ss(0,5,t)+0.42*ss(6,14,t), y=poupe?-4-9*ss(8,21,t)-62*Math.pow(ss(24,PAQ_RUPT-2,t),1.4):-4-52*Math.pow(ss(7,20,t),1.2);
+      h.g.rotation.z=h.sd*th; h.g.position.set(X+h.sd*ec,y,Z); h.th=th; } /* poupe (sd −1) et étrave (sd +1) */
+    paqCassureFx(dt,t);
     if(t<9&&Math.random()<dt*14) spawnP(X+(Math.random()-0.5)*4,H+Math.random()*4,Z+(Math.random()-0.5)*8,(Math.random()-0.5)*2,4+Math.random()*3,(Math.random()-0.5)*2,1.6,2.6,0x9a9ca4,0);
+    if(t>6&&t<PAQ_RUPT-6&&Math.random()<dt*10&&MER_V2) eclaboussure(X+(Math.random()-0.5)*30,Z+(Math.random()-0.5)*14,1.2+Math.random()); /* point 10 : jusqu'à ce que la poupe disparaisse */
     if(t>6&&t<30&&Math.random()<dt*10&&MER_V2) eclaboussure(X+(Math.random()-0.5)*30,Z+(Math.random()-0.5)*14,1.2+Math.random());
     if(!PAQ.jete&&t>1.6){ PAQ.jete=true; for(const s of PAQ.sol) retirerSolide(s); }
     if(PAQ.jete&&!PAQ.jeteJ&&paqABord()){ PAQ.jeteJ=true; P.chute=true; P.chuteY0=P.y; P.chuteT=0; P.chuteHaut=P.y; P.vy=6; P.chuteVx=0; P.chuteVz=(P.z>Z?1:-1)*9; toucherJoueur(10); toast('🌊 Jeté à la mer !','warn'); }
     for(const c of PAQ.canots){ if(c.n>0){ c.y=Math.max(0.35,c.y-dtJeu*2.2); if(c.y<=0.4){ c.g.position.x+=0.9*dtJeu*(c.x0>X?1:-1); c.g.position.z+=1.1*dtJeu; } c.g.position.y=c.y+(MER_V2&&c.y<0.5?houleY(c.g.position.x,c.g.position.z):0); } else c.g.visible=t<7; }
-    if(t>=33){ PAQ.etat='epave'; for(const h of PAQ.moities) h.g.visible=false; toast('🫧 Le Majestic repose sur le fond — des bulles marquent l’épave : on peut y plonger','or'); } }
+    if(t>=PAQ_RUPT){ PAQ.etat='epave'; for(const h of PAQ.moities) h.g.visible=false; toast('🫧 Le Majestic repose sur le fond — des bulles marquent l’épave : on peut y plonger','or'); } }
   else if(PAQ.etat==='epave'){ PAQ.bullesT-=dt; if(PAQ.bullesT<=0&&dCam<200){ PAQ.bullesT=0.25; spawnP(X+(Math.random()-0.5)*16,0.2,Z+(Math.random()-0.5)*8,0,1.6,0,1.2,0.5+Math.random()*0.4,0xe8f6ff,0); }
     for(const c of PAQ.canots) if(c.n>0&&c.g.visible){ c.g.position.x+=0.5*dtJeu*(c.x0>X?1:-1); c.g.position.z+=0.6*dtJeu; c.g.position.y=0.35+(MER_V2?houleY(c.g.position.x,c.g.position.z):0); } }
   // radeaux et débris qui dérivent sur la houle

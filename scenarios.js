@@ -19254,6 +19254,47 @@ async function main() {
       else ok('Liste 22 oct., point 8 : ' + r.info.join(' ; '));
     }
     // -------------------------------------------------------------------
+    // Liste du 22 octobre, point 10 : la cassure du Reyes Majestic, beaucoup plus impressionnante. Depuis un bateau au sud, la nuit,
+    // par la vraie boucle (tick) : pendant l'alerte, les fenêtres sont allumées, une chaloupe descend, une fusée part ; à la cassure, la
+    // foule (PAQ.drame.foule) glisse, s'accroche, saute, tombe à l'eau et nage ; l'étrave sombre avant la poupe, qui se dresse à plus de
+    // 80° ; trois fusées de plus, les lumières clignotent puis s'éteignent, craquements et cris ; l'épave ; le coût par image reste bas ;
+    // la vague suivante remet tout (foule à bord, chaloupes aux bossoirs, lumières).
+    // -------------------------------------------------------------------
+    console.log('\n--- Liste du 22 octobre, point 10 : la cassure du Reyes Majestic ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = []; let T = dernierT + 1000; if (!PAQ.ok) return { ko: ['pas de Reyes Majestic'], info };
+        const pas = (n, f) => { for (let i = 0; i < n; i++) { for (const q of ennemis) q.mort = true; WANTED.stars = 0; WANTED.heat = 0; P.hp = 1e9; ETAT.jour = 130; T += 1000 / 60; tick(T); if (f && f() === false) return; } };
+        if (P.veh) sortirVehicule(true); META.vue = 'classique'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9;
+        const X = PAQ.x, Z = PAQ.z, v = creerVehicule('bateau', X - 10, Z + 62, Math.PI, null); P.x = v.x; P.z = v.z; entrerVehicule(v); pas(10);
+        const D = PAQ.drame; if (!D || D.foule.length < 30) return { ko: ['pas de foule à bord (' + (D && D.foule.length) + ')'], info };
+        /* l'alerte : lumières, une chaloupe qui descend, une fusée */
+        PAQ.etat = 'alerte'; PAQ.t = PAQ_DUREE - 17; PAQ.fuseeT = 0.5; const f0 = PAQ.nFusees || 0; pas(240);
+        const m = paqMats(); if (!(m.fen.emissiveIntensity > 0.5) || !m.fen.emissiveMap) ko.push('les fenêtres ne s’allument pas la nuit (' + m.fen.emissiveIntensity + ')');
+        if (!D.chaloupes.some((c) => c.etat === 'descend' || c.etat === 'rame')) ko.push('aucune chaloupe ne descend pendant l’alerte'); if ((PAQ.nFusees || 0) - f0 < 1) ko.push('pas de fusée de détresse pendant l’alerte');
+        /* la cassure */
+        const vus = { glisse: 0, accroche: 0, tombe: 0, nage: 0 }, cnt = (e) => D.foule.filter((p) => p.etat === e).length; let thP = 0, tE = -1, tP = -1, lumMin = 9, eteint = false, f1 = PAQ.nFusees, c0 = PAQ.nCraque || 0, k0 = PAQ.nCris || 0, tMax = 0, ms = 0, nIm = 0;
+        PAQ.t = 0.01; pas(1);
+        pas(60 * (PAQ_RUPT + 3), () => { for (const e in vus) vus[e] = Math.max(vus[e], cnt(e)); const st = PAQ.moities.find((h) => h.sd < 0), et = PAQ.moities.find((h) => h.sd > 0);
+          if (PAQ.etat === 'rupture'){ thP = Math.max(thP, Math.abs(st.g.rotation.z)); if (tE < 0 && et.g.position.y < -20) tE = PAQ.t; if (tP < 0 && st.g.position.y < -20) tP = PAQ.t; if (PAQ.t > 15 && m.fen.emissiveIntensity === 0) eteint = true; lumMin = Math.min(lumMin, m.fen.emissiveIntensity); ms += PAQ.tDrame || 0; nIm++; tMax = Math.max(tMax, PAQ.tDrame || 0); }
+          return PAQ.etat !== 'epave'; });
+        for (const e in vus) if (vus[e] < 3) ko.push('personne ne ' + { glisse: 'glisse', accroche: 's’accroche', tombe: 'tombe', nage: 'nage' }[e] + ' (' + vus[e] + ')');
+        if (thP < 1.4) ko.push('la poupe ne se dresse pas à la verticale (' + Math.round(thP * 57) + '°)'); if (!(tE > 0 && tP > tE)) ko.push('l’étrave ne sombre pas avant la poupe (' + tE.toFixed(1) + ' s, ' + tP.toFixed(1) + ' s)');
+        if (PAQ.nFusees - f1 < 3) ko.push('pas trois fusées à la cassure (' + (PAQ.nFusees - f1) + ')'); if (!eteint || lumMin > 0) ko.push('les lumières ne s’éteignent pas');
+        if ((PAQ.nCraque || 0) - c0 < 6 || (PAQ.nCris || 0) - k0 < 6) ko.push('craquements ou cris absents (' + ((PAQ.nCraque || 0) - c0) + ', ' + ((PAQ.nCris || 0) - k0) + ')');
+        if (PAQ.etat !== 'epave') ko.push('le navire ne sombre pas (' + PAQ.etat + ')');
+        const moy = ms / Math.max(1, nIm); if (moy > 1.5) ko.push('la cassure coûte ' + moy.toFixed(2) + ' ms par image');
+        let objets = 0; for (const o of [D.corps, D.gilets]) objets++; for (const c of D.chaloupes) c.g.traverse((o) => { if (o.isMesh) objets++; }); for (const f of D.fusees) objets += 2;
+        if (objets > 26) ko.push(objets + ' objets dessinés de plus');
+        info.push('foule de ' + D.foule.length + ' (au plus ' + vus.glisse + ' qui glissent, ' + vus.accroche + ' accrochés, ' + vus.tombe + ' qui tombent, ' + vus.nage + ' à l’eau) ; poupe à ' + Math.round(thP * 57) + '°, étrave sous l’eau à ' + tE.toFixed(1) + ' s, poupe à ' + tP.toFixed(1) + ' s ; ' + (PAQ.nFusees - f0) + ' fusées ; lumières éteintes ; ' + objets + ' objets de plus (deux appels pour la foule) ; ' + moy.toFixed(2) + ' ms par image en moyenne (' + tMax.toFixed(2) + ' au plus)');
+        /* la vague suivante */
+        WAVES.n++; merV3NouvelleVague(); pas(2);
+        if (D.foule.some((p) => p.etat !== 'pont') || D.chaloupes.some((c) => c.etat !== 'bossoir') || D.lum !== 1) ko.push('la vague suivante ne remet pas la foule, les chaloupes ou les lumières');
+        if (P.veh) sortirVehicule(true); return { ko, info }; });
+      if (r.ko.length) fail('Liste 22 oct., point 10 : ' + r.ko.join(' ; ') + ' [' + r.info.join(' | ') + ']');
+      else ok('Liste 22 oct., point 10 : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];
