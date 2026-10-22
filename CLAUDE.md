@@ -1452,6 +1452,7 @@ Dix-sept points, un commit par point ; captures `rapport_nuit/captures/liste_22o
   **un son joué en ville loin du joueur passe par `sonA(x, z, fn)`** (plein à 14 u, muet à 150 u) ; 32 voix au plus (l'interface
   passe toujours). Test « point 4 » : rendu hors ligne de tout `SFX` à travers les vrais bus. **Piège** : dans un
   `OfflineAudioContext`, le compresseur part FERMÉ à t = 0 — jouer le son 0,3 s après le début du rendu.
+- **5, le pavillon du taxi** : toit du gabarit  relevé (taxi 1,51, Interceptor 1,50) et pavillon aminci ; au cockpit, le pavillon couvre 19 % du haut de l'écran (29 % avant) ; règle de l'œil () inchangée. Test « point 5 » : mesure par rayons sur la vraie caméra (exclure les ombres-sprites : un  les touche toujours).
 - **17, les ponts** (`ARCHES_PONTS`, juste après `hauteurPont`) : un tablier fait DÉCOLLER à sa courbure (`envolPont` : h''·vx² < −`SAUT_G`,
   vitesse verticale de la chaussée ; `pentePont`, `courburePont`, `vcritPont`) — remplace « légère bosse, jamais un saut » ; trois
   grandes arches à l'ouest (nordOuest 5 u, sudOuest 5,2, plageOuest 6,5 ; plageEst garde 2,7 avec des rampes longues) ; réception
@@ -2364,7 +2365,7 @@ véhicule : `rapport_nuit/SUIVI_COCKPITS.md` (coché par `rapport_nuit/outils/su
   toit et le pavillon couvrait 35 % du haut de l'écran. `cockpitDims` garde l'œil d'une voiture fermée à `CK_GARDE_TOIT` (20 cm)
   sous le toit mesuré (12 cm de moins au plus, jamais à moins de 15 cm du bas du vitrage) : ~30 %, comme les autres berlines (en
   portrait, 76° de champ vertical : le pavillon d'une vraie voiture en prend autant). Plus bas, la planche du modèle cache la route
-  (diagnostic du test « Cockpits »). La garniture de portière peut monter jusqu'à 6 cm sous l'œil (au lieu de 10) : sinon, l'œil plus
+  (diagnostic du test « Cockpits »). **22 octobre (liste, point 5)** : le toit du gabarit est relevé, le pavillon ne couvre plus que 19 %. La garniture de portière peut monter jusqu'à 6 cm sous l'œil (au lieu de 10) : sinon, l'œil plus
   bas, le bas de la vitre jaune du taxi dépassait au-dessus en tournant la tête.
 - **Conducteur à gauche** (le trafic roule à droite) : voitures, camions, bus, avions à deux places ; la jeep, le cabriolet
   (siège et volant extérieurs) et les silhouettes des conducteurs (`majChauffeur`) aussi. Hélicos (pilote à droite) et bateaux

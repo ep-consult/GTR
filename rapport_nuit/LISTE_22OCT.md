@@ -12,7 +12,7 @@ Ordre suivi : 1, 17, 4, 3, 2, 5, puis le reste.
 | 2 | Tous les véhicules du quartier des canaux jouables | ☑ |
 | 3 | Véhicules exposés (derby, REYES MOTORS) volables | ☑ |
 | 4 | Les sons propres | ☑ |
-| 5 | Cockpit du taxi : plus d'air sous le toit | ☐ |
+| 5 | Cockpit du taxi : plus d'air sous le toit | ☑ |
 | 6 | Les publics de décor fuient et se visent | ☐ |
 | 7 | La statue de la Liberté plus grande | ☐ |
 | 8 | Habits et tatouages réalistes | ☐ |
@@ -30,6 +30,29 @@ Ordre suivi : 1, 17, 4, 3, 2, 5, puis le reste.
 
 - **Branche** : `retours-22oct` part de `retours-20-octobre` (et non de `main`) : les points de la liste portent sur ce que les deux
   chantiers précédents ont construit (canaux V3, paquebot, Cliff Diving, cabrage en équilibre…).
+
+## 5 — Le cockpit du taxi : plus d'air sous le toit (fait)
+
+**Cause** : le gabarit des berlines V3 (`berlineClassiqueV3` : taxi et Interceptor) avait un toit bas (1,36 et 1,38 u au-dessus du
+sol) et un pavillon épais qui descendait 8 cm sous son bord : l'œil, gardé 20 cm sous le toit mesuré (`CK_GARDE_TOIT`, réglage du 19
+octobre), voyait le dessous du pavillon couvrir 29 % du haut de l'écran (mesuré).
+
+**Fait** : le toit des deux berlines est relevé (taxi 1,36 → 1,51, Interceptor 1,38 → 1,50 : une vraie berline de patrouille de
+l'époque fait ~1,45 m) ; le pavillon est aminci (son bord bas ne descend plus que jusqu'au haut des vitres, `o.toit − 0,045`). Ce qui
+est posé sur le toit suit `o.toit` (lanterne TAXI, rampe de gyrophares) ; l'ancrage « toit » des pièces du garage du taxi (écrit en
+dur, `VEH_V3.taxi.ancrages`) est relevé d'autant. `cockpitDims`, `ckToit` et `CK_GARDE_TOIT` sont inchangés : la règle reste juste,
+c'était le modèle qui était trop bas — et les autres voitures ne bougent pas.
+
+**Mesure** (test, vraie boucle, vue 1re personne, un rayon par ligne de l'écran sur l'axe, contre le modèle et le cockpit, vitres et
+ombres-sprites exclues) — part du haut de l'écran couverte par le pavillon : taxi 29 % → **19 %**, Interceptor 29 % → **19 %** ;
+pour comparaison, berline 22 %, Baronne 26 % (inchangées).
+
+**Test** « Liste du 22 octobre, point 5 » : taxi et Interceptor ≤ 20 %, un pavillon existe toujours (≥ 3 %), diagnostic du cockpit
+valide ; « Cockpits », « Cockpits V2 », « Véhicules V3 », « Véhicules V4 : niveau de détail » et les pièces du garage repassent.
+
+**Captures** : `avant_05_cockpit_taxi.png` / `05_cockpit_taxi.png`, `avant_05_cockpit_police.png` / `05_cockpit_police.png`.
+
+**À regarder sur iPhone** : la silhouette extérieure du taxi et de la police (toit un peu plus haut).
 
 ## 2 — Tous les véhicules du quartier des canaux se prennent (fait)
 

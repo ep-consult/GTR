@@ -18871,6 +18871,37 @@ async function main() {
       else ok('Liste 22 oct., point 2 : ' + r.info.join(' ; '));
     }
     // -------------------------------------------------------------------
+    // Liste du 22 octobre, point 5 : au cockpit du taxi (et de l'Interceptor, même gabarit V3), le pavillon ne mange plus le haut de
+    // l'écran. Mesuré dans la vraie boucle (vue 1re personne, cockpit construit par cameraCockpit) : un rayon par ligne de l'écran, sur
+    // l'axe, depuis la caméra, contre le modèle et le cockpit (objets visibles, vitres exclues) ; la part du haut de l'écran couverte
+    // d'un seul tenant est celle du pavillon. Taxi et police : 20 % au plus ; deux autres berlines à titre de comparaison. La route
+    // reste visible (rayon central libre : diagnostic du cockpit).
+    // -------------------------------------------------------------------
+    console.log('\n--- Liste du 22 octobre, point 5 : le pavillon au cockpit du taxi ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [], mes = {}; let T = dernierT + 1000;
+        const vis = (o) => { for (let p = o; p; p = p.parent) if (!p.visible) return false; return true; };
+        const couverture = (v) => { const rc = new THREE.Raycaster(); rc.far = 3; rc.camera = camera; camera.updateMatrixWorld(true); if (COCKPIT.g) COCKPIT.g.updateMatrixWorld(true); v.mesh.updateMatrixWorld(true);
+          const cibles = [v.mesh]; if (COCKPIT.g) cibles.push(COCKPIT.g); let haut = 0;
+          for (let y = 1; y > -0.2; y -= 0.01) { rc.setFromCamera({ x: 0, y }, camera); const hs = rc.intersectObjects(cibles, true).filter((h) => !h.object.isSprite && vis(h.object) && !ckEstVitre(Array.isArray(h.object.material) ? h.object.material[0] : h.object.material)); if (!hs.length) break; haut = (1 - y) / 2; }
+          return haut; };
+        for (const k of ['taxi', 'police', 'berline', 'baronne']) { if (!VEHDEFS[k]) { ko.push(k + ' absent'); continue; }
+          if (P.veh) sortirVehicule(true); META.vue = 'fps'; startRun(); ecran(null); ETAT.mode = 'jeu'; ETAT.jour = 40; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9; for (const e of ennemis) e.mort = true;
+          const x = POIS.place.x, z = POIS.place.z + 30; for (const w of vehicules.slice()) if (dist2(w.x, w.z, x, z) < 900) { scene.remove(w.mesh); vehicules.splice(vehicules.indexOf(w), 1); }
+          const v = creerVehicule(k, x, z, 0, null); P.x = v.x; P.z = v.z; entrerVehicule(v); for (let i = 0; i < 20; i++) { INPUT.jx = INPUT.jy = 0; T += 1000 / 60; tick(T); }
+          if (!vueCockpit() || COCKPIT.v !== v) { ko.push(k + ' : pas de cockpit'); continue; }
+          const c = couverture(v), d = cockpitDiagnostic(v); mes[k] = +c.toFixed(3); info.push(k + ' ' + Math.round(c * 100) + ' %');
+          if ((k === 'taxi' || k === 'police') && c > 0.2) ko.push(k + ' : le pavillon couvre ' + Math.round(c * 100) + ' % du haut de l’écran');
+          if (c < 0.03) ko.push(k + ' : aucun pavillon au-dessus de l’œil (' + Math.round(c * 100) + ' %)');
+          if (d && d.ok === false) ko.push(k + ' : diagnostic du cockpit ' + JSON.stringify(d).slice(0, 160)); }
+        if (P.veh) sortirVehicule(true); META.vue = 'classique';
+        return { ko, info, mes };
+      });
+      if (r.ko.length) fail('Liste 22 oct., point 5 : ' + r.ko.join(' ; ') + ' [' + r.info.join(', ') + ']');
+      else ok('Liste 22 oct., point 5 : pavillon au cockpit (part du haut de l’écran) : ' + r.info.join(', '));
+    }
+    // -------------------------------------------------------------------
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];
