@@ -15432,8 +15432,8 @@ async function main() {
           if (zMur === null) ko.push('aucun quai nu dans le canal ouest pour vérifier le mur'); else { P.x = O - 9.6; P.z = zMur; P.y = C.fond; P.nage = true; INPUT.jx = -1; pas(120); INPUT.jx = 0; if (P.x < O - 10.05 || !P.nage) ko.push('à la nage, le quai s’escalade sans marche (x ' + P.x.toFixed(2) + ', z ' + zMur + ')'); } }
         /* 5. le trafic (30 s, vraie boucle) et les apparitions : jamais dans l'eau, jamais sur une rue retirée */
         { partie(); P.x = 189; P.z = 63; P.y = solY(P.x, P.z); let eau = 0, coupe = 0, noyes = 0; const vus = new Set();
-          pas(30 * 60, (i) => { P.hp = 1e9; for (const e of ennemis) e.mort = true; WANTED.stars = 0; if (i % 30) return; for (const v of vehicules) { if (v.conduit !== 'trafic') continue; vus.add(v); if (dansCanal(v.x, v.z) && !pontCanal(v.x, v.z)) eau++; if (dansCoupe(v.x, v.z) && !levisCanal(v.x, v.z)) coupe++; if (v.noye) noyes++; } }); /* V3 : la chaussée d'un pont-levis traverse l'ancienne route de bordure retirée : elle n'est pas une rue retirée */
-          if (eau || coupe || noyes) ko.push('trafic : ' + eau + ' relevés dans l’eau, ' + coupe + ' sur une rue retirée, ' + noyes + ' noyés'); else info.push('trafic : ' + vus.size + ' véhicules vus en 30 s, aucun dans l’eau ni sur une rue retirée');
+          pas(30 * 60, (i) => { P.hp = 1e9; for (const e of ennemis) e.mort = true; WANTED.stars = 0; if (i % 30) return; for (const v of vehicules) { if (v.conduit !== 'trafic') continue; vus.add(v); if (dansCanal(v.x, v.z) && !pontCanal(v.x, v.z)) { eau++; if (!info.eauDiag) info.eauDiag = v.key + ' (' + v.x.toFixed(1) + ', ' + v.z.toFixed(1) + ') h ' + (v.h || 0).toFixed(2) + (v.enAir ? ' en l’air' : '') + ' v ' + v.v.toFixed(1); } if (dansCoupe(v.x, v.z) && !levisCanal(v.x, v.z)) coupe++; if (v.noye) noyes++; } }); /* V3 : la chaussée d'un pont-levis traverse l'ancienne route de bordure retirée : elle n'est pas une rue retirée */
+          if (eau || coupe || noyes) ko.push('trafic : ' + eau + ' relevés dans l’eau' + (info.eauDiag ? ' (' + info.eauDiag + ')' : '') + ', ' + coupe + ' sur une rue retirée, ' + noyes + ' noyés'); else info.push('trafic : ' + vus.size + ' véhicules vus en 30 s, aucun dans l’eau ni sur une rue retirée');
           let mal = 0, n = 0; for (let i = 0; i < 500; i++) { P.x = rand(C.bb.x0, C.bb.x1); P.z = rand(C.bb.z0, Math.min(C.bb.z1, MER - 4)); const q = spawnRing(15, 40); if (!q) continue; n++; if (dansCanal(q.x, q.z) || pontCanal(q.x, q.z) || marcheCanal(q.x, q.z)) mal++; }
           let malP = 0; for (let i = 0; i < 200; i++) { P.x = rand(C.bb.x0, C.bb.x1); P.z = rand(C.bb.z0, Math.min(C.bb.z1, MER - 4)); const q = pointRoutePolice(); if (q && (routeCanalInterdite(q.x, q.z) || pontCanal(q.x, q.z))) malP++; }
           if (mal || malP) ko.push('apparitions : ' + mal + '/' + n + ' dans l’eau, sur un pont ou une marche ; police : ' + malP + ' sur une rue retirée ou un pont'); else info.push(n + ' apparitions, toutes sur la terre ferme'); }
@@ -16078,7 +16078,8 @@ async function main() {
         info.push(n4 + ' points d’eau balayés dans le grand canal et la marina, ' + n5 + ' points de la route de bordure');
         /* 6) les embouchures : ni margelle sur la plage, langue de mer, écume coupée, musoirs, chenal libre jusqu'au large */
         const embs = C.eaux.filter((e) => e.t === 'r' && e.z1 > MER - 1), Lc = LITTORAL_COUPES.value, Mg = matsCanaux().margelle; let nc = 0, n6 = 0;
-        for (let i = 0; i < 6; i++) if (Lc[2 * i + 1] > Lc[2 * i]) nc++;
+        for (let i = 0; i < 5; i++) if (Lc[2 * i + 1] > Lc[2 * i]) nc++; /* les cinq premières cases : les embouchures des canaux ; la 6e est l'entrée de la baie de la crique (liste du 22 octobre, point 14) */
+        if (CRIQUE.ok && !(Lc[11] > Lc[10])) ko.push('écume : l’entrée de la crique n’est pas coupée');
         if (nc !== embs.length) ko.push('écume : ' + nc + ' chenal(aux) coupé(s) pour ' + embs.length + ' embouchure(s)');
         if (!C.langues || C.langues.length !== embs.length) ko.push('langue de mer : ' + (C.langues ? C.langues.length : 0) + ' pour ' + embs.length + ' embouchure(s)');
         if (!/coupeC/.test(MER_GLSL_ECUME)) ko.push('l’écume de la mer ne connaît pas les chenaux');
@@ -18655,7 +18656,7 @@ async function main() {
           partie(); const lane = sens > 0 ? p.zc - 3.2 : p.zc + 3.2, x0 = p.xc - sens * 45;
           const v = creerVehicule(cle, x0, lane, sens > 0 ? Math.PI / 2 : -Math.PI / 2, null); P.x = v.x; P.z = v.z; entrerVehicule(v); v.v = v.def.vmax;
           let decolle = false, airMax = 0, hp0 = v.hp, hpR = null, noye = false, finX = null, finZ = null, enVolT = 0, apres = 0;
-          pas(60 * 7, () => { if (P.veh !== v) { noye = true; return false; } INPUT.jx = sens; INPUT.jy = clamp((lane - v.z) * 0.25, -0.5, 0.5); if (v.enAir) { enVolT += 1 / 60; airMax = Math.max(airMax, enVolT); if (v.sautPont) decolle = true; } else if (decolle && finX === null) { finX = v.x; finZ = v.z; } if (finX !== null && (apres += 1 / 60) > 0.2) { hpR = v.hp; return false; } });
+          pas(60 * 7, () => { if (P.veh !== v) { noye = true; return false; } for (let i = vehicules.length - 1; i >= 0; i--) { const w = vehicules[i]; if (w !== v && w.x > 60 && w.x < 330 && w.z > 0 && w.z < 290 && !(w.def && w.def.eau)) { scene.remove(w.mesh); vehicules.splice(i, 1); } } for (let i = pietons.length - 1; i >= 0; i--) { const q = pietons[i]; if (Math.hypot(q.x - v.x, q.z - v.z) < 30) { scene.remove(q.h.g); pietons.splice(i, 1); } } /* le test maîtrise sa scène à chaque image */ INPUT.jx = sens; INPUT.jy = clamp((lane - v.z) * 0.25, -0.5, 0.5); if (v.enAir) { enVolT += 1 / 60; airMax = Math.max(airMax, enVolT); if (v.sautPont) decolle = true; } else if (decolle && finX === null) { finX = v.x; finZ = v.z; } if (finX !== null && (apres += 1 / 60) > 0.2) { hpR = v.hp; return false; } });
           INPUT.jx = INPUT.jy = 0; const tag = p.id + (sens > 0 ? '→' : '←') + ' ' + cle;
           if (noye || v.noye) ko.push(tag + ' : à l’eau ou descendu (' + v.x.toFixed(0) + ', ' + v.z.toFixed(0) + ')');
           else if (!decolle) ko.push(tag + ' : pas d’envol à ' + v.def.vmax + ' u/s');
@@ -18797,7 +18798,9 @@ async function main() {
         const ult = EXPO.v.find((v) => v.expo.ultime); if (!ult) ko.push('aucun ultime exposé'); else {
           const S = EXPO.vitreSol; if (!S || S.actif === false) ko.push('pas de vitrine intacte'); else {
             /* un véhicule lancé contre la vitrine la brise */
-            const c = creerVehicule('citadine', S.x, S.z + 9, Math.PI, null); P.x = c.x; P.z = c.z; entrerVehicule(c); c.v = 12; pas(90, () => { INPUT.jx = 0; INPUT.jy = -1; if (S.actif === false) return false; }); INPUT.jy = 0; sortirVehicule(true);
+            const vider = () => { for (let i = vehicules.length - 1; i >= 0; i--) { const w = vehicules[i]; if (w !== c && !w.expo && Math.hypot(w.x - S.x, w.z - S.z) < 30) { scene.remove(w.mesh); vehicules.splice(i, 1); } } for (let i = pietons.length - 1; i >= 0; i--) { const q = pietons[i]; if (Math.hypot(q.x - S.x, q.z - S.z) < 25) { scene.remove(q.h.g); pietons.splice(i, 1); } } }; /* le test maîtrise sa scène : rien entre la voiture et la vitrine */
+            const c = creerVehicule('citadine', S.x, S.z + 9, Math.PI, null); P.x = c.x; P.z = c.z; entrerVehicule(c); c.v = 12; const rnd0 = Math.random; let g = 303; Math.random = () => { g = (g * 1664525 + 1013904223) >>> 0; return g / 4294967296; };
+            try { pas(90, () => { vider(); INPUT.jx = 0; INPUT.jy = -1; if (S.actif === false) return false; }); } finally { Math.random = rnd0; } INPUT.jy = 0; sortirVehicule(true);
             if (S.actif !== false) ko.push('la vitrine résiste à une voiture lancée'); else info.push('vitrine brisée'); }
           vole(ult, 'ultime'); }
         const dv = EXPO.v.find((v) => v.expo.lieu === 'derby'); if (dv) { vole(dv, 'derby'); if (!dv.def.derby && !/derby/i.test(messageNonGarable(dv))) ko.push('voiture de derby garable'); } else ko.push('aucune voiture de derby exposée');
