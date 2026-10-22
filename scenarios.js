@@ -10973,6 +10973,7 @@ async function main() {
     console.log('\n--- Boutiques de style : vitrines, essayage, achat, pièces dépareillées, coiffeur, tatoueur ---');
     {
       const r = await page.evaluate(() => {
+        /* liste du 22 octobre, point 8 : une pièce dessinée porte des matériaux par face (la couleur de la pièce dans userData.coul) */ const couleurPortee = (o) => { const m = Array.isArray(o.material) ? o.material[4] : o.material; return m.userData && m.userData.coul !== undefined ? m.userData.coul : m.color.getHex(); };
         const ko = [], info = [];
         if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu';
         const sav = JSON.stringify({ s: META.style, g: META.garde }), arg0 = META.argent;
@@ -10988,10 +10989,10 @@ async function main() {
           if (Math.abs(camera.position.z - (P.z + 6.2)) > 1) ko.push('caméra de cabine pas de face'); }
         if (!BOUT.ouvert) ko.push('la cabine ne s’ouvre pas');
         META.argent = 1000; const hautAvant = META.style.haut;
-        actionBoutique('essayer', 'debard'); if (META.argent !== 1000 || META.style.haut !== hautAvant || P.h.torse.material.color.getHex() !== 0xffd23f) ko.push('essayer : payé, gardé ou pas visible');
-        fermerBoutique(); if (P.h.torse.material.color.getHex() === 0xffd23f && hautAvant !== 0xffd23f) ko.push('l’essai reste après la fermeture');
+        actionBoutique('essayer', 'debard'); if (META.argent !== 1000 || META.style.haut !== hautAvant || couleurPortee(P.h.torse) !== 0xffd23f) ko.push('essayer : payé, gardé ou pas visible');
+        fermerBoutique(); if (couleurPortee(P.h.torse) === 0xffd23f && hautAvant !== 0xffd23f) ko.push('l’essai reste après la fermeture');
         ouvrirBoutique(b); actionBoutique('acheter', 'shortT'); fermerBoutique();
-        if (META.argent !== 930 || !META.garde.shortT || META.style.bas !== 0x35c8e0 || P.h.jambeG.material.color.getHex() !== 0x35c8e0) ko.push('achat : ' + META.argent);
+        if (META.argent !== 930 || !META.garde.shortT || META.style.bas !== 0x35c8e0 || couleurPortee(P.h.jambeG) !== 0x35c8e0) ko.push('achat : ' + META.argent);
         // dépareillé : un haut d'une boutique, un bas d'une autre, par-dessus la tenue
         const c = BOUTIQUES.find((q) => q.id === 'chic'); P.x = c.x; P.z = c.z; ouvrirBoutique(c); META.argent = 2000; actionBoutique('acheter', 'costBleu'); fermerBoutique();
         if (META.style.haut !== 0x1c2a4a || META.style.bas !== 0x35c8e0) ko.push('pièces dépareillées non gardées');
@@ -19197,6 +19198,60 @@ async function main() {
       const ko = r.ko.concat(rr.ko);
       if (ko.length) fail('Liste 22 oct., point 9 : ' + ko.join(' ; ') + ' [' + r.info.join(' | ') + ']');
       else ok('Liste 22 oct., point 9 : ' + r.info.join(' ; ') + ' ; les pièces survivent au rechargement');
+    }
+    // -------------------------------------------------------------------
+    // Liste du 22 octobre, point 8 : les habits et les tatouages, plus réalistes. Lus à la source (VETEMENTS, TENUES, DESSINS_HABIT,
+    // DESSINS_TATOUAGE) : chaque haut et chaque bas des boutiques, chaque tenue (sauf celle de départ) a un dessin ; porté par le
+    // joueur, son torse, ses manches, ses jambes ont des textures dessinées (pas un aplat : des pixels de plusieurs couleurs) — la
+    // chemise hawaïenne a des fleurs, le maillot a son numéro au dos, le débardeur montre les bras, un short la peau ; chaque
+    // tatouage pose un vrai dessin à l'encre (des pixels sombres et transparents) et l'ancien aplat est masqué ; la cabine
+    // (BOUT.essai), la penderie (PREVIEW2) et les mannequins des boutiques portent les dessins ; aucun matériau de mat() touché.
+    // -------------------------------------------------------------------
+    console.log('\n--- Liste du 22 octobre, point 8 : les habits et les tatouages, plus réalistes ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = []; const st0 = JSON.stringify(META.style), tenue0 = META.tenue;
+        const S0 = () => ({ haut: -1, bas: -1, cheveux: -1, coiffure: '', chapeau: '', chapeauCoul: -1, lunettes: '', tatouage: '' });
+        /* une texture : nombre de couleurs distinctes et part de pixels transparents / sombres */
+        const lire = (tex) => { const c = tex && tex.image; if (!c || !c.getContext) return null; const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data, coul = new Set(); let tr = 0, sombre = 0;
+          for (let i = 0; i < d.length; i += 16) { coul.add((d[i] >> 4) + ',' + (d[i + 1] >> 4) + ',' + (d[i + 2] >> 4)); if (d[i + 3] < 20) tr++; else if (d[i] + d[i + 1] + d[i + 2] < 180) sombre++; } const n = d.length / 16; return { n: coul.size, tr: tr / n, sombre: sombre / n }; };
+        const mats = (m) => Array.isArray(m) ? m : [m];
+        const dessinee = (m, min) => mats(m).every((q) => q && q.map) && Math.max(...mats(m).map((q) => (lire(q.map) || { n: 0 }).n)) >= (min || 6); /* chaque face a sa toile, au moins une porte le dessin */
+        /* 1) la source : chaque pièce a un dessin */
+        const hb = VETEMENTS.filter((v) => v.type === 'haut' || v.type === 'bas'); for (const v of hb) if (!v.motif || !DESSINS_HABIT[v.motif]) ko.push(v.id + ' : pas de dessin');
+        const T = TENUES.filter((t) => t.haut !== null); for (const t of T) if (!DESSINS_HABIT[t.mH] || !DESSINS_HABIT[t.mB]) ko.push('tenue ' + t.id + ' : pas de dessin');
+        const tats = VETEMENTS.filter((v) => v.type === 'tatouage'); for (const v of tats) if (!DESSINS_TATOUAGE[v.val]) ko.push('tatouage ' + v.val + ' : pas de dessin');
+        for (const m of ['tribal', 'rose', 'dragon', 'ancre']) if (!tats.some((v) => v.val === m || (m === 'tribal' && v.val === 'bras'))) ko.push('pas de tatouage ' + m);
+        info.push(hb.length + ' hauts et bas, ' + T.length + ' tenues, ' + tats.length + ' tatouages dessinés');
+        /* 2) le joueur porte chaque pièce : textures dessinées, un matériau propre (jamais mat()) */
+        const cacheMat = new Set(Object.values(_matCache || {}));
+        META.tenue = 'depart';
+        for (const v of hb) { const S = S0(); S[v.type] = v.val; META.style = S; construireJoueur(); const h = P.h;
+          if (v.type === 'haut') { if (!dessinee(h.torse.material)) ko.push(v.id + ' : torse sans dessin'); if (cacheMat.has(h.torse.material) || mats(h.torse.material).some((q) => cacheMat.has(q))) ko.push(v.id + ' : un matériau de mat()');
+            if (MANCHES_NUES[v.motif]) { if (h.brasG.material.map || h.brasG.material.color.getHex() !== coifCouleurs(S).peau) ko.push(v.id + ' : les bras ne sont pas nus'); } else if (!dessinee(h.brasG.material, 3)) ko.push(v.id + ' : manches sans dessin'); }
+          else { if (!dessinee(h.jambeG.material)) ko.push(v.id + ' : jambes sans dessin'); } }
+        { const S = S0(); S.haut = VETEMENTS.find((v) => v.id === 'hawai').val; META.style = S; construireJoueur(); const L = lire(mats(P.h.torse.material)[4].map); if (!L || L.n < 25) ko.push('chemise hawaïenne : pas de motif (' + (L && L.n) + ' couleurs)'); else info.push('chemise hawaïenne : ' + L.n + ' couleurs sur le devant'); }
+        { const S = S0(); S.bas = VETEMENTS.find((v) => v.id === 'shortR').val; META.style = S; construireJoueur(); const c = mats(P.h.jambeG.material)[4].map.image, d = c.getContext('2d').getImageData(64, 120, 1, 1).data, pe = coifCouleurs(S).peau;
+          if (Math.abs(d[0] - ((pe >> 16) & 255)) > 12 || Math.abs(d[1] - ((pe >> 8) & 255)) > 12) ko.push('short : pas de peau sous le short'); }
+        for (const t of T) { META.style = S0(); META.tenue = t.id; construireJoueur(); if (!dessinee(P.h.torse.material) || !dessinee(P.h.jambeG.material)) ko.push('tenue ' + t.id + ' : pas portée dessinée'); }
+        META.tenue = 'depart';
+        /* 3) les tatouages : un vrai dessin, l'ancien aplat masqué */
+        for (const v of tats) { const S = S0(); S.tatouage = v.val; S.haut = VETEMENTS.find((q) => q.id === 'debard').val; META.style = S; construireJoueur(); const h = P.h, L = [];
+          h.g.traverse((o) => { if (o.userData && o.userData.tatouage === v.val) L.push(o); }); if (!L.length) { ko.push('tatouage ' + v.val + ' : rien de posé'); continue; }
+          const m = mats(L[0].material).find((q) => q.map), q = lire(m.map); if (!q || q.tr < 0.3 || q.sombre < 0.003) ko.push('tatouage ' + v.val + ' : pas un dessin à l’encre (' + JSON.stringify(q) + ')');
+          let vieux = 0; h.g.traverse((o) => { if (o.isMesh && o.visible && o.geometry && o.geometry.type === 'BoxGeometry' && o.material && !Array.isArray(o.material) && o.material.color && o.material.color.getHex() === 0x1a2030) { let p = o, vis = true; while (p) { if (!p.visible) vis = false; p = p.parent; } if (vis) vieux++; } });
+          if (vieux) ko.push('tatouage ' + v.val + ' : l’ancien aplat se voit encore'); }
+        info.push('chaque tatouage posé à l’encre, l’ancien aplat masqué');
+        /* 4) la cabine, la penderie, les mannequins */
+        { const v = VETEMENTS.find((q) => q.id === 'maillot'); META.style = S0(); if (typeof BOUT !== 'undefined') { const o = BOUT.ouvert, e = BOUT.essai; BOUT.ouvert = true; BOUT.essai = Object.assign(S0(), { haut: v.val }); construireJoueur();
+            const L = lire(mats(P.h.torse.material)[5].map); if (!L || L.n < 4) ko.push('cabine : le maillot essayé n’a pas son numéro au dos'); BOUT.ouvert = o; BOUT.essai = e; } }
+        { META.tenue = 'militaire'; const c = coifCouleurs(); if (c.mHaut !== 'camo') ko.push('penderie : la tenue ne passe pas son dessin (' + c.mHaut + ')'); const h = makeHumain(c, 1.1); if (!dessinee(h.torse.material)) ko.push('aperçu de la penderie sans dessin'); META.tenue = 'depart'; }
+        { const m = mannequinBoutique('surf', 0); if (!dessinee(m.torse.material)) ko.push('mannequin de la boutique sans dessin'); let n = 0; scene.traverse((o) => { if (o.isMesh && o.geometry === geoTorse && Array.isArray(o.material) && o.material[4].map && o.position.y > 0.9 && o.position.y < 1.1) n++; }); if (n < 5) ko.push('mannequins des vitrines : ' + n + ' habillés'); else info.push(n + ' torses dessinés dans la ville (mannequins des vitrines, joueur)'); }
+        /* 5) aucun matériau de mat() modifié : couleurs du cache intactes */
+        for (const k in (_matCache || {})) { const m = _matCache[k]; if (m && m.map) { ko.push('un matériau de mat() a reçu une texture'); break; } }
+        META.style = JSON.parse(st0); META.tenue = tenue0; construireJoueur(); return { ko, info }; });
+      if (r.ko.length) fail('Liste 22 oct., point 8 : ' + r.ko.slice(0, 14).join(' ; ') + (r.ko.length > 14 ? ' … (' + r.ko.length + ')' : '') + ' [' + r.info.join(' | ') + ']');
+      else ok('Liste 22 oct., point 8 : ' + r.info.join(' ; '));
     }
     // -------------------------------------------------------------------
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');

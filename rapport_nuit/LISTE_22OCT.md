@@ -15,7 +15,7 @@ Ordre suivi : 1, 17, 4, 3, 2, 5, puis le reste.
 | 5 | Cockpit du taxi : plus d'air sous le toit | ☑ |
 | 6 | Les publics de décor fuient et se visent | ☑ |
 | 7 | La statue de la Liberté plus grande | ☑ |
-| 8 | Habits et tatouages réalistes | ☐ |
+| 8 | Habits et tatouages réalistes | ☑ |
 | 9 | Plus d'améliorations au chantier naval | ☑ |
 | 10 | Le paquebot qui se brise, plus impressionnant | ☐ |
 | 11 | Explosions, camion-citerne, pompes à essence | ☑ |
@@ -31,6 +31,49 @@ Ordre suivi : 1, 17, 4, 3, 2, 5, puis le reste.
 - **Branche** : `retours-22oct` part de `retours-20-octobre` (et non de `main`) : les points de la liste portent sur ce que les deux
   chantiers précédents ont construit (canaux V3, paquebot, Cliff Diving, cabrage en équilibre…).
 
+## 8 — Les habits et les tatouages, plus réalistes (fait)
+
+**Avant** : une pièce = une couleur unie sur les boîtes du corps (la chemise hawaïenne : un orange uni) ; les tatouages, des petites
+boîtes d'encre (une barre pour la larme, quatre bâtons pour le tribal, trois anneaux autour des bras).
+
+**Fait** (`DESSINS_HABIT`, `texHabit`, `matsHabit`, `MANCHES_NUES` ; `DESSINS_TATOUAGE`, `tatouageDessine`) :
+- **Un dessin par pièce**, peint face par face (devant, dos, côtés, dessus, manches ; jambes : devant, dos, côtés) sur une toile de
+  128 px avec le grain du tissu : chemise blanche (col, boutonnière, poche), costumes (revers, chemise et cravate, pochette, boutons de
+  manche ; fines rayures pour le trader), **chemise hawaïenne** (hibiscus et feuilles de palmier sur le fond, col ouvert, manches
+  courtes), débardeur côtelé (bras nus, emmanchures), sweat à capuche (poche kangourou, cordons, capuche au dos), maillot de basket
+  (« REYES 23 », le numéro au dos, bras nus), **jean** (sergé, délavé, coutures orange, poches, ourlet), jogging (bandes), chino
+  (pli, poches), pantalon de costume (pli), shorts (la peau dessous ; boardshort à fleurs).
+- **Chaque tenue** de la penderie (33, `MOTIFS_TENUES`) : carreaux du trappeur, chemise western du cow-boy (empiècement, pressions
+  nacrées), camouflage et poches du treillis, cuir du « Badlands » (perfecto, fermeture en biais, lustre), blouson d'aviateur (col de
+  fourrure), combinaisons de course (bandes, écussons « REYES », « NITRO »), maillot de motocross (73), gilet haute visibilité « ATC »,
+  uniforme de gardien (écusson, épaulettes), capitaine (double rangée de boutons dorés, galons), paillettes de la tenue dorée,
+  plumes du costume de pigeon, chevrons du « Faucon », néoprène, bleu de travail taché de cambouis, blouse du Site 51 (stylos)…
+- **Tatouages** : de vrais dessins à l'encre sur une toile transparente, avec un léger fondu (larme, tribal sur la joue, étoiles
+  nautiques sur la tempe, manchettes tribales) ; trois de plus chez Encre Noire — **rose** (avant-bras gauche), **dragon** (bras droit),
+  **ancre et lettrage « LOS REYES »**. Sur la face : un plan posé devant la tête ; sur le bras : un manchon de l'avant-bras.
+- **Partout** : le joueur (`construireJoueur` → `coifCouleurs`, qui passe le dessin de la tenue puis celui des pièces), la cabine
+  d'essayage, l'aperçu de la penderie, les mannequins des vitrines et de la boutique.
+
+**Ville inchangée** : `mat()` reste appelé comme avant dans `makeHumain` (ses tirages), textures et matériaux sous un générateur privé,
+jamais un matériau de `mat()` modifié ; l'ancien dessin des tatouages est construit (ses tirages) puis masqué ; les tatouages ajoutés
+(`tardif`) ne changent pas les mannequins de la boutique. Vérifié : empreinte du décor, portes, chalet, mobilier, tirage principal et
+séquence `startRun` → salles → `startRun` identiques.
+
+**Décision** : sur un corps fait de boîtes, le détail passe par la texture (pas de nouvelle géométrie) ; un short ou une manche courte
+peignent la peau sur la toile (la couleur de peau entre dans la clé du cache).
+
+**Test** « Liste du 22 octobre, point 8 » (pièces lues dans `VETEMENTS`, `TENUES`, `DESSINS_*`) : chaque haut, bas, tenue et tatouage a
+son dessin ; porté par le joueur, chaque face a sa toile (des dizaines de couleurs : 72 sur le devant de la chemise hawaïenne) et
+aucun matériau de `mat()` ; le débardeur et le maillot montrent les bras ; le short montre la peau ; chaque tatouage est un dessin à
+l'encre et l'ancien aplat ne se voit plus ; la cabine (maillot essayé : le numéro au dos), la penderie (le treillis) et les mannequins
+portent les dessins. « Boutiques de style » adapté (la couleur portée se lit dans `userData.coul`) ; « Tenues des mini-jeux »,
+« Retours du 20 octobre, lot 3 », « Habillage V2 des salles » repassent.
+
+**Captures** (rendus réels, avant : `avant_08_*.png`) : `08_habits_face.png`, `08_habits_dos.png`, `08_habits_bas.png`,
+`08_tenues_1.png` à `08_tenues_3.png`, `08_tatouages_visage.png`, `08_tatouages_bras.png`.
+
+**Reste** : sur iPhone, regarder la lisibilité à la distance de jeu (vue de dessus : le personnage est petit, les détails fins — boutons,
+coutures — se fondent ; les motifs francs — fleurs, carreaux, numéros, camouflage — se lisent).
 ## 9 — Plus d'améliorations au chantier naval (fait)
 
 **Avant** : au chantier « Marée Basse », la mécanique (moteur, hélice, coque, blindage, nitro) et neuf catégories de style — aucune
