@@ -36,7 +36,7 @@ Ordre suivi : 1, 17, 4, 3, 2, 5, puis le reste.
 **Avant** : au chantier « Marée Basse », la mécanique (moteur, hélice, coque, blindage, nitro) et neuf catégories de style — aucune
 pièce de style n'agissait, et le jet-ski n'avait rien de propre.
 
-**Fait** : trois catégories nouvelles, qui **agissent** (clés fixes `trim`, `defenses`, `gerbe` dans `slotGarageDefaut` ; prix dans
+**Fait** : quatre catégories nouvelles, dont trois qui **agissent** (clés fixes `trim`, `defenses`, `gerbe`, `arriere` dans `slotGarageDefaut` ; prix dans
 `TUNING_PRIX.bateaux.pieces`) :
 
 | Catégorie | Bateaux | Variantes et effet |
@@ -45,6 +45,7 @@ pièce de style n'agissait, et le jet-ski n'avait rien de propre.
 | SPONSONS (`PN_SPONSONS`) | jet-skis | sponsons de virage (virage +12 %), sponsons + plaque de course (virage +12 %, vitesse +6 %) |
 | DÉFENSES DE COQUE (`PN_DEFENSES`) | tous | pare-battages (chocs de quai −45 %), boudin de coque (−65 %) — 450 / 800 $ |
 | GERBE ARRIÈRE (`PN_GERBE`) | jet-skis, offshore | tuyère (gerbe d'eau derrière, au-delà de 10 u/s), tuyère haute à LED (grande gerbe, vitesse +3 %) — 600 / 1 000 $ |
+| ARRIÈRE (`PN_ARRIERE`, style seul) | open, course, bois, yachts | échelle de bain, porte-kayak (400 / 650 $) ; le **toboggan** du pont supérieur à la mer sur les yachts (1 500 $) |
 
 Une variante porte ses effets (`eff` : multiplicateurs de vitesse, reprise, virage ; `quai` ; `gerbe`), lus par `appliquerTuning`
 (`varianteNaut`) sur la copie propre de la définition — `VEHDEFS` jamais modifié. Le choc de quai lit `v.quaiK` ; la gerbe :
@@ -59,11 +60,11 @@ agissent (28 en tout), clés fixes et prix ; au chantier en jet-ski, l'aperçu n
 effets, chaque achat au prix, le trim payé une fois ; ressorti, la vitesse et le virage attendus, les défenses et la gerbe posées, une
 gerbe derrière le jet-ski lancé et aucune à l'arrêt ; un choc de quai fait 6 PV au lieu de 18 avec le boudin ; un offshore sans pièces
 ne change pas ; les pièces survivent au rechargement. « Canaux V3 : chantier naval » (chaque variante se pose sur chaque modèle :
-376 pièces) et « … survivent au rechargement » repassent.
+397 pièces) et « … survivent au rechargement » repassent.
 
-**Captures** : `09_vedette.png`, `09_jetski.png` (sur le ber, menu ouvert ; avant : `avant_09_*.png`). Le ber tourne : la vedette et
-le jet-ski y sont vus de l'avant, les pièces de poupe (trim, tuyère) peu visibles sur ces images — à regarder sur iPhone en tournant
-le bateau au doigt.
+**Captures** (sur le ber, menu ouvert) : `09_yacht_toboggan.png` (le Riviera 43 : toboggan, boudin, trim), `09_open_kayak.png` (la
+vedette : porte-kayak, pare-battages, trim), `09_jetski_arriere.png` (sponsons, boudin, tuyère), `09_vedette.png` et `09_jetski.png`
+vus de l'avant ; avant : `avant_09_*.png`.
 ## 6 — Les publics de décor fuient et se visent (fait)
 
 **Relevé** (« la disco en extérieur, le diving… ») — les publics du décor et leur état avant :

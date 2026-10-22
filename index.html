@@ -2084,8 +2084,8 @@ const GARAGES_TUNING=[
 // Objets à clés FIXES : fusionMeta complète une vieille sauvegarde sans eux.
 // Canaux V3, phase 4 : les catégories des BATEAUX (chantier naval) ont aussi leurs clés fixes — une vieille sauvegarde les reçoit à 0 / 1.
 function slotGarageDefaut(){ return {cle:'',coul:-1,neon:-1,nitro:false,moteur:0,vitesse:0,tenue:0,blindage:0,investi:0,
-  pieces:{aileron:0,parechocs:0,jupes:0,capot:0,jantes:0,echappement:0,livree:0,pont:0,toit:0,parebrise:0,sieges:0,sono:0,feux:0,nom:0,drapeau:0,trim:0,defenses:0,gerbe:0},
-  piecesPossedees:{aileron:1,parechocs:1,jupes:1,capot:1,jantes:1,echappement:1,livree:1,pont:1,toit:1,parebrise:1,sieges:1,sono:1,feux:1,nom:1,drapeau:1,trim:1,defenses:1,gerbe:1}}; }
+  pieces:{aileron:0,parechocs:0,jupes:0,capot:0,jantes:0,echappement:0,livree:0,pont:0,toit:0,parebrise:0,sieges:0,sono:0,feux:0,nom:0,drapeau:0,trim:0,defenses:0,gerbe:0,arriere:0},
+  piecesPossedees:{aileron:1,parechocs:1,jupes:1,capot:1,jantes:1,echappement:1,livree:1,pont:1,toit:1,parebrise:1,sieges:1,sono:1,feux:1,nom:1,drapeau:1,trim:1,defenses:1,gerbe:1,arriere:1}}; }
 // ANCIEN modèle (un emplacement par garage) : reste déclaré pour que
 // fusionMeta relise une vieille sauvegarde ; migré ensuite vers vehPerso
 // (migrerGaragesVersVehPerso) puis remis à vide.
@@ -44577,7 +44577,7 @@ const TUNING_PRIX={
   bateaux:{peinture:250,neons:600,nitro:1400,moteur:[700,1500,2800],vitesse:[800,1700,3200],tenue:[600,1300,2500],blindage:[900,1900,3400],
     pieces:{livree:[0,600,900,1200],pont:[0,350,450,700],toit:[0,1100,1800],parebrise:[0,300,500,450],sieges:[0,400,450,500],
             sono:[0,700,1400],feux:[0,500,800,650],nom:[0,250,250,250,250,250,250,250],drapeau:[0,150,200,200],
-            trim:[0,900,1600],defenses:[0,450,800],gerbe:[0,600,1000]}}, /* point 9 */
+            trim:[0,900,1600],defenses:[0,450,800],gerbe:[0,600,1000],arriere:[0,400,650,1500]}}, /* point 9 */
 };
 // part de ce qui a été investi dans un véhicule rendue en le mettant à la casse
 const TUNING_CASSE_TAUX=0.25;
@@ -44763,7 +44763,7 @@ const PIECES_FAMILLES={
 //  - une pièce posée aux ancrages déclarés (tuningNaut.ancrages, mesurés sur les modèles, vérifiés par le test « Canaux V3 : chantier
 //    naval ») : T-top, hardtop, aileron, arceau lumineux, bimini, sono, projecteur, LED sous-marines, pavillon.
 // Purement cosmétiques : aucun effet sur la physique.
-const PIECES_CATS_NAUT=['livree','pont','toit','parebrise','sieges','sono','feux','nom','drapeau','trim','defenses','gerbe']; /* liste du 22 octobre, point 9 : trim, défenses, gerbe (des effets réels : eff, quai, gerbe) */
+const PIECES_CATS_NAUT=['livree','pont','toit','parebrise','sieges','sono','feux','nom','drapeau','trim','defenses','gerbe','arriere']; /* liste du 22 octobre, point 9 : trim, défenses, gerbe (des effets réels : eff, quai, gerbe) */
 const TUNING_NOMS_NAUT={moteur:'MOTEUR',vitesse:'HÉLICE',tenue:'COQUE (GLISSE)',blindage:'BLINDAGE'};
 const TUNING_GAIN_NAUT={moteur:'accélération',vitesse:'vitesse max',tenue:'glisse en virage',blindage:'dégâts reçus'};
 const NOMS_COQUE=['MARÉE HAUTE','RAFALE BLEUE','LOS REYES KID','BELLE DE NUIT','L’INSOUMISE','SEÑORITA','COUP DE SOLEIL'];
@@ -44773,6 +44773,7 @@ function matNaut(k){ if(_MATS_NAUT[k]) return _MATS_NAUT[k]; const Ph=(c,sp,sh,o
     rouge:()=>Ph(0xd8261c,0x884444,50), toile:()=>new THREE.MeshLambertMaterial({color:0x1f3c6a,side:THREE.DoubleSide}),
     toileRayee:()=>new THREE.MeshLambertMaterial({map:texNaut('raye'),side:THREE.DoubleSide}), hp:()=>new THREE.MeshLambertMaterial({color:0x24272c}),
     led:()=>new THREE.MeshBasicMaterial({color:0x35e0ff}), phare:()=>new THREE.MeshBasicMaterial({color:0xfff3da}), vitreHt:()=>Ph(0x18242e,0x9ab4cc,90),
+    kayak:()=>Ph(0xf2a01c,0xffffff,70), toboggan:()=>new THREE.MeshPhongMaterial({color:0x1fa2e0,specular:0xffffff,shininess:90,side:THREE.DoubleSide}), /* point 9 */
     glowEau:()=>new THREE.MeshBasicMaterial({map:texGlow,color:0x2a9aff,transparent:true,opacity:0.8,depthWrite:false,blending:THREE.AdditiveBlending})};
   return (_MATS_NAUT[k]=M[k]()); }
 /* les dessins (canevas en cache) : livrées et rampe LED en coordonnées de coque (x : de l'étrave à la poupe ; y : de la flottaison au liston), noms, pavillons, toile rayée */
@@ -44882,6 +44883,21 @@ function pnGerbe(a,niv){ const p=a.poupe; if(!p) return null; const g=new THREE.
   pnMesh(g,new THREE.CylinderGeometry(0.09,0.12,0.32,14),niv>1?I:matNaut('carbone'),0,y,p.z-0.12,Math.PI/2);
   if(niv>1) pnMesh(g,new THREE.TorusGeometry(0.1,0.018,6,16),matNaut('led'),0,y,p.z-0.29);
   return g; }
+/* l'arrière (style seul) : échelle de bain, porte-kayak, toboggan des yachts (du pont supérieur à la mer) */
+function pnEchelle(a){ const p=a.poupe; if(!p) return null; const g=new THREE.Group(), I=matNaut('inox'), x=p.w*0.42, z=p.z-0.06, y0=-0.35, y1=p.y+0.55;
+  for(const sx of [-0.22,0.22]) pnTube(g,0.022,[x+sx,y0,z],[x+sx,y1,z],I);
+  pnTube(g,0.022,[x-0.22,y1,z],[x-0.22,y1,z+0.3],I); pnTube(g,0.022,[x+0.22,y1,z],[x+0.22,y1,z+0.3],I);
+  for(let y=y0+0.15;y<p.y;y+=0.28) pnTube(g,0.018,[x-0.22,y,z],[x+0.22,y,z],I); return g; }
+function pnPorteKayak(a){ const p=a.poupe; if(!p) return null; const g=new THREE.Group(), I=matNaut('inox'), L=Math.min(2.8,2*p.w+0.5), y=p.y+0.95, z=p.z+0.35;
+  for(const sx of [-1,1]){ const x=sx*Math.min(p.w*0.6,L*0.3); pnTube(g,0.03,[x,p.y,z],[x,y-0.1,z],I); pnTube(g,0.025,[x,y-0.1,z-0.25],[x,y-0.1,z+0.25],I); }
+  const k=new THREE.Mesh(new THREE.SphereGeometry(0.5,14,8),matNaut('kayak')); k.scale.set(L/1,0.28,0.62); k.position.set(0,y+0.04,z); g.add(k);
+  pnMesh(g,new THREE.BoxGeometry(L*0.32,0.06,0.38),matNaut('noir'),0,y+0.17,z); return g; }
+function pnToboggan(a){ const p=a.poupe, q=a.poste; if(!p) return null; const g=new THREE.Group(), x=p.w*0.55, haut=Math.max(p.y+2.2,(q?q.y:p.y)+0.4);
+  const pts=[new THREE.Vector3(x,haut,p.z+1.4),new THREE.Vector3(x+0.5,haut-0.8,p.z+0.6),new THREE.Vector3(x+0.2,haut-1.6,p.z-0.3),new THREE.Vector3(x-0.3,0.6,p.z-1.0),new THREE.Vector3(x-0.3,0.05,p.z-2.0)];
+  g.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),40,0.32,10,false),matNaut('toboggan')));
+  pnTube(g,0.05,[x,p.y,p.z+1.4],[x,haut,p.z+1.4],matNaut('inox')); return g; }
+const PN_ARRIERE={nom:'ARRIÈRE',variantes:[ORIGINE,{nom:'Échelle de bain',f:(a)=>pnEchelle(a)},{nom:'Porte-kayak',f:(a)=>pnPorteKayak(a)}]};
+const PN_ARRIERE_YACHT={nom:'ARRIÈRE',variantes:PN_ARRIERE.variantes.concat([{nom:'Toboggan',f:(a)=>pnToboggan(a)}])};
 const PN_TRIM={nom:'FLAPS DE TRIM',variantes:[ORIGINE,{nom:'Flaps de trim',info:'vitesse +6 %',eff:{vmax:1.06},f:(a)=>pnTrim(a,1)},{nom:'Trim hydraulique',info:'vitesse +9 %, reprise +12 %',eff:{vmax:1.09,acc:1.12},f:(a)=>pnTrim(a,2)}]};
 const PN_SPONSONS={nom:'SPONSONS',variantes:[ORIGINE,{nom:'Sponsons de virage',info:'virage +12 %',eff:{man:1.12},f:(a)=>pnSponsons(a,1)},{nom:'Sponsons + plaque de course',info:'virage +12 %, vitesse +6 %',eff:{man:1.12,vmax:1.06},f:(a)=>pnSponsons(a,2)}]};
 const PN_DEFENSES={nom:'DÉFENSES DE COQUE',variantes:[ORIGINE,{nom:'Pare-battages',info:'chocs de quai −45 %',quai:0.55,f:(a,d)=>pnDefenses(a,1,d)},{nom:'Boudin de coque',info:'chocs de quai −65 %',quai:0.35,f:(a,d)=>pnDefenses(a,2,d)}]};
@@ -44901,18 +44917,18 @@ const PIECES_NAUT={
   course:{coque:['peinture'],livree:PN_LIVREE,pont:pnTeintes('PONT',['pont'],[['Blanc',0xeceae2],['Carbone',0x2b2d31],['Teck',0xa8743c]]),
     toit:{nom:'AILERON / ARCEAU',variantes:[ORIGINE,{nom:'Aileron de course',f:(a)=>pnAileron(a)},{nom:'Arceau lumineux',f:(a)=>pnArceauLum(a)}]},
     parebrise:pnTeintes('PARE-BRISE',['vitre'],PN_VERRE),sieges:pnTeintes('BAQUETS',['baquet'],[['Cuir blanc',0xf2efe6],['Rouge course',0xb02a2a],['Bleu marine',0x1d2f55]]),
-    sono:PN_SONO,feux:PN_FEUX,nom:PN_NOM,drapeau:PN_DRAPEAU,trim:PN_TRIM,defenses:PN_DEFENSES,gerbe:PN_GERBE},
+    sono:PN_SONO,feux:PN_FEUX,nom:PN_NOM,drapeau:PN_DRAPEAU,trim:PN_TRIM,defenses:PN_DEFENSES,gerbe:PN_GERBE,arriere:PN_ARRIERE},
   open:{coque:['peinture'],livree:PN_LIVREE,pont:pnTeintes('PONT',['pont','teck'],[['Teck',0xa8743c],['Blanc',0xeceae2],['Carbone',0x2b2d31]]),
     toit:{nom:'TOIT',variantes:[ORIGINE,{nom:'T-top',f:(a)=>pnTtop(a)},{nom:'Hardtop',f:(a,d,mc)=>pnHardtop(a,mc)}]},
     parebrise:pnTeintes('PARE-BRISE',['vitre'],PN_VERRE),sieges:pnTeintes('SELLERIE',['sellerie','cuir'],[['Cuir blanc',0xf2efe6],['Cuir rouge',0xb02a2a],['Bleu marine',0x1d2f55]]),
-    sono:PN_SONO,feux:PN_FEUX,nom:PN_NOM,drapeau:PN_DRAPEAU,trim:PN_TRIM,defenses:PN_DEFENSES},
+    sono:PN_SONO,feux:PN_FEUX,nom:PN_NOM,drapeau:PN_DRAPEAU,trim:PN_TRIM,defenses:PN_DEFENSES,arriere:PN_ARRIERE},
   bois:{coque:['peinture'],nomOr:true,pont:pnTeintes('PONT',['pont'],[['Acajou clair',0xa0582a],['Teck',0xa8743c],['Blanc',0xeceae2]]),
     toit:{nom:'BIMINI',variantes:[ORIGINE,{nom:'Bimini marine',f:(a)=>pnBimini(a,false)},{nom:'Bimini rayé',f:(a)=>pnBimini(a,true)}]},
     parebrise:pnTeintes('PARE-BRISE',['vitre'],PN_VERRE),sieges:pnTeintes('SELLERIE',['cuir'],[['Cuir crème',0xf0e2c4],['Cuir rouge',0xb02a2a],['Vert anglais',0x1f4a32]]),
-    sono:PN_SONO,feux:PN_FEUX,nom:PN_NOM,drapeau:PN_DRAPEAU,trim:PN_TRIM,defenses:PN_DEFENSES},
+    sono:PN_SONO,feux:PN_FEUX,nom:PN_NOM,drapeau:PN_DRAPEAU,trim:PN_TRIM,defenses:PN_DEFENSES,arriere:PN_ARRIERE},
   yacht:{coque:['peinture'],livree:PN_LIVREE,pont:pnTeintes('PONT',['teck','pont'],[['Teck clair',0xc89a5a],['Blanc',0xeceae2],['Gris anthracite',0x3a3d42]]),
     parebrise:pnTeintes('VITRAGES',['vitre','vitreO'],PN_VERRE),sieges:pnTeintes('SELLERIE',['cuir'],[['Cuir blanc',0xf2efe6],['Cuir rouge',0xb02a2a],['Bleu marine',0x1d2f55]]),
-    sono:PN_SONO,feux:PN_FEUX,nom:PN_NOM,drapeau:PN_DRAPEAU,trim:PN_TRIM,defenses:PN_DEFENSES},
+    sono:PN_SONO,feux:PN_FEUX,nom:PN_NOM,drapeau:PN_DRAPEAU,trim:PN_TRIM,defenses:PN_DEFENSES,arriere:PN_ARRIERE_YACHT},
 };
 /* la variante posée d'une catégorie d'un bateau (point 9 : ses effets) */
 function varianteNaut(key,pieces,cat){ const tn=VEHDEFS[key]&&VEHDEFS[key].tuningNaut, fam=tn&&PIECES_NAUT[tn.famille]; if(!fam||!pieces||!catDispoNaut(key,cat)) return null; const i=pieces[cat]|0; return i?fam[cat].variantes[i]||null:null; }

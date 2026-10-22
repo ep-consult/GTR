@@ -1485,7 +1485,8 @@ Dix-sept points, un commit par point ; captures `rapport_nuit/captures/liste_22o
   `foulesMembres`** (position, membre `parti`, et sa façon de le cacher).
 - **9, le chantier naval** (`PN_TRIM`, `PN_SPONSONS`, `PN_DEFENSES`, `PN_GERBE`, `varianteNaut`, `majGerbeNaut`) : trois catégories de
   pièces de bateau qui AGISSENT (clés fixes `trim`, `defenses`, `gerbe`) — une variante porte `eff` (vmax, acc, man), `quai` (part des
-  dégâts d'un choc de quai, `v.quaiK`) ou `gerbe` (la gerbe d'eau) ; `appliquerTuning` les lit ; le menu affiche `info`.
+  dégâts d'un choc de quai, `v.quaiK`) ou `gerbe` (la gerbe d'eau) ; `appliquerTuning` les lit ; le menu affiche `info` ; et
+  une catégorie de style `arriere` (`PN_ARRIERE` : échelle de bain, porte-kayak ; `PN_ARRIERE_YACHT` : + toboggan, `pnToboggan`).
 - **17, les ponts** (`ARCHES_PONTS`, juste après `hauteurPont`) : un tablier fait DÉCOLLER à sa courbure (`envolPont` : h''·vx² < −`SAUT_G`,
   vitesse verticale de la chaussée ; `pentePont`, `courburePont`, `vcritPont`) — remplace « légère bosse, jamais un saut » ; trois
   grandes arches à l'ouest (nordOuest 5 u, sudOuest 5,2, plageOuest 6,5 ; plageEst garde 2,7 avec des rampes longues) ; réception
