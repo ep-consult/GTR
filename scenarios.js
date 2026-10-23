@@ -19581,7 +19581,7 @@ async function main() {
         /* figurants : une balle du joueur */
         const fF = FIGURANTS.find((f) => f.h === C.F); if (!fF) ko.push('elle n’est pas un figurant'); else { const p = w(C.F.g); const tch = toucherFigurant({ fac: 'joueur', x: p.x, y: p.y + 1.2, z: p.z, vx: -60, vy: 0, vz: 0 });
           if (!tch || !figConverti(C.F)) ko.push('visée, elle ne devient pas un piéton'); else info.push('touchée par une balle : elle devient un vrai piéton' + (figConverti(C.M) ? ', lui aussi (lié)' : '')); }
-        if (P.veh) sortirVehicule(true); depart(); return { ko, info }; });
+        if (P.veh) sortirVehicule(true); depart(); META.vue = 'classique'; /* les autres tests sont écrits pour la vue de dessus */ return { ko, info }; });
       if (r.ko.length) fail('Perf-hauteur, couple de la proue : ' + r.ko.join(' ; ') + ' [' + r.info.join(' | ') + ']');
       else ok('Perf-hauteur, couple de la proue : ' + r.info.join(' ; '));
     }
