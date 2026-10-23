@@ -51458,8 +51458,12 @@ const PREP={tex:new WeakSet(),n:0,ms:0,complets:0,sc:null,lum:[]};
 const PREP_CLES_TEX=['map','alphaMap','emissiveMap','normalMap','bumpMap','specularMap','lightMap','aoMap','displacementMap','gradientMap'];
 function prepTextures(racine){ let n=0; if(typeof renderer.initTexture!=='function') return 0; /* le rendu simulé de valider.js n'en a pas */ const vu=(t)=>{ if(!t||!t.isTexture||t.isCubeTexture||t.isVideoTexture||PREP.tex.has(t)) return; const im=t.image; if(!im||im.width===0) return; PREP.tex.add(t); try{ renderer.initTexture(t); n++; }catch(e){} };
   racine.traverse((o)=>{ const ms=o.material; if(!ms) return; for(const m of (Array.isArray(ms)?ms:[ms])){ if(!m) continue; for(const k of PREP_CLES_TEX) vu(m[k]); if(m.uniforms) for(const k in m.uniforms){ const u=m.uniforms[k]; if(u&&u.value&&u.value.isTexture) vu(u.value); } } }); return n; }
+/* Téléphone et tablette (23 octobre, signalé sur iPhone : « un problème récurrent est survenu » en appuyant sur JOUER — Safari tue la
+   page) : envoyer d'un coup toutes les textures et toutes les géométries de la ville à la carte graphique fait un pic de mémoire que
+   le téléphone ne tient pas. On n'y compile que les shaders (léger) ; textures et géométries partent au fil du jeu, comme avant. */
+let PREP_LEGER=(()=>{ try{ const n=navigator, ua=n.userAgent||''; return /iPhone|iPad|iPod|Android|Mobile/i.test(ua)||(n.platform==='MacIntel'&&n.maxTouchPoints>1); }catch(e){ return true; } })();
 function preparerRendu(complet){ if(typeof renderer.compile!=='function') return; const t0=performance.now();
-  try{ renderer.compile(scene,camera); prepTextures(scene);
+  try{ renderer.compile(scene,camera); if(PREP_LEGER){ PREP.n++; PREP.ms+=performance.now()-t0; return; } prepTextures(scene);
     if(complet){ const coupes=[]; scene.traverse((o)=>{ if(o.frustumCulled&&o.material){ o.frustumCulled=false; coupes.push(o); } });
       const sc=renderer.getScissorTest(); renderer.setScissorTest(true); renderer.setScissor(0,0,1,1); renderer.render(scene,camera); renderer.setScissorTest(sc);
       for(const o of coupes) o.frustumCulled=true; PREP.complets++; } }

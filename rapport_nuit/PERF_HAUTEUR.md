@@ -446,3 +446,18 @@ quatre sans elle — je ne peux pas affirmer qu'il a disparu.
 le jet-ski passe le long d'elle, puis elle le suit ; arriver droit sur la tête d'un ponton privé : le bateau glisse sur le côté au lieu de
 rester collé.
 
+## Correctif urgent : JOUER plantait sur iPhone (23 octobre)
+
+**Signalé** : sur iPhone, par le serveur local, Los Reyes charge, mais en appuyant sur JOUER Safari affiche « Un problème récurrent est
+survenu » et n'entre pas en jeu. **Cause : l'étape 1.** Au premier JOUER, `preparerRendu(true)` faisait un rendu complet sans élagage
+et envoyait toutes les textures : mesuré, **8 371 géométries et 711 textures** partent d'un coup à la carte graphique (avant l'étape 1,
+~140 géométries et ~90 textures au départ, le reste au fil du jeu). Safari tue la page sur ce pic de mémoire.
+
+**Correctif** (`PREP_LEGER`, à côté de `preparerRendu`) : sur téléphone et tablette (iPhone, iPad, Android), on ne compile que les
+shaders ; textures et géométries partent au fil du jeu, comme avant. Mesuré avec un navigateur qui se présente comme un iPhone :
+142 géométries et 88 textures après 30 images (le bureau garde la préparation complète). **Conséquence** : sur iPhone, la première
+traversée d'une zone peut de nouveau marquer un léger à-coup (le gain de l'étape 1 sur ce point ne vaut plus que pour les shaders) ;
+les corrections des sols qui clignotent (étapes 2 à 5) ne sont pas touchées.
+
+**À vérifier sur iPhone en premier** : JOUER entre bien en jeu ; puis la soucoupe à 170 m.
+
