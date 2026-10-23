@@ -19,7 +19,7 @@ tache sombre qui change de forme en bas à gauche.
 | 7 | Une récompense pour le Titanic | fait |
 | 8 | Le couple à la proue | fait |
 | 9 | La page de statistiques | fait |
-| 10 | La vedette bloquée dans le canal en impasse | à faire |
+| 10 | La vedette bloquée dans le canal en impasse | fait |
 | 11 | Suite complète et `valider.js` | à faire |
 
 ## 1. Shaders, textures et géométries préparés au chargement — fait
@@ -402,3 +402,47 @@ l'écran ; argent dépensé, tirs qui touchent, types de véhicules comptés.
 `stats_vide_1.png` et `stats_vide_4.png` (une sauvegarde neuve).
 
 **À vérifier sur iPhone** : la fluidité du défilement (beaucoup de petits éléments) ; la lisibilité des libellés en petites capitales.
+
+## 10. La vedette de police dans le canal en impasse — fait
+
+**Cause** (défaut antérieur, relevé à la liste du 22 octobre : « Canaux V2 : canaux secondaires » échouait une fois sur deux). Trois défauts
+qui se cumulaient, trouvés l'un après l'autre en traçant la position du joueur et de la vedette seconde par seconde :
+1. **L'interblocage.** Quand le joueur fonce sur la vedette, elle serre un quai et le laisse passer — mais seulement s'il roule à plus de
+   3 u/s. Bloqué par elle, il n'avait plus de vitesse ; elle restait alors au milieu du canal et « collait à sa vitesse », nulle. Dans le
+   canal ouest (12 u de large), elle ne pouvait de toute façon pas se ranger (pas d'eau au-delà de son écart de 5,5 u).
+2. **La tête de ponton prise de face.** Le canal secondaire est n'est plus un canal étroit depuis la V3 (le grand canal l'a absorbé), mais
+   ses pontons privés y avancent leur tête. Contre un ponton, un bateau « glisse le long » — un axe à la fois ; pris de face, le pas qui
+   reste le long de lui est nul : le jet-ski, poussé là par le choc de la vedette, restait **nez collé 32 s** à la tête d'un ponton
+   (276,8 ; 123,8). Vrai aussi sans vedette : tout bateau qui arrive droit sur une tête de ponton.
+3. **La vedette qui recule dans l'axe du joueur** (ma première version) : en eau large, à moins de 12 u, elle reculait face à lui — droit
+   dans la ligne qu'il voulait suivre. L'ancien test échouait encore une fois sur trois.
+
+**Ce qui est fait** (`vedetteEtroit` et la règle `passe` en tête de la poursuite dans `majVedetteCanal`, `v.cede` lu par
+`resoudreCollisionsVehicule`, glissement de côté dans `majVehiculePhys`) :
+- le joueur « veut passer » quand elle est devant lui à moins de 30 u et qu'il avance (sa vitesse — ou, s'il est à l'arrêt, son joystick
+  tourné vers elle) ; dans un canal trop étroit pour se ranger, **elle s'arrête et lui cède le passage** (elle ne heurte plus son bateau
+  tant qu'il la dépasse, à moins de 9 u, puis elle le suit) ; ailleurs, lancé ou à moins de 14 u, **elle serre un quai** (la règle
+  existante, qui ne jouait que lancé à plus de 3 u/s) ;
+- contre une tête de ponton ou un bateau amarré pris de face, le bateau **glisse de côté** vers le bord libre le plus proche (3 u/s au plus).
+- Lancé, seul son cap compte : lire aussi le joystick faisait céder la vedette à chaque demi-tour du joueur (elle ralentissait derrière lui).
+
+**Trouvé en route, une erreur à moi (étape 6)** : en voulant laisser au motard ennemi abattu SA moto, j'avais écrit `def.motoKey` là où
+la fiche s'appelle `e.def` — à chaque motard ennemi abattu, `tuerEnnemi` levait « def is not defined » (la boucle protégée l'attrapait,
+mais la mort n'était pas traitée jusqu'au bout). Vue par ce test (un motard de la police dans les canaux), corrigée ici.
+
+**Test** « Perf-hauteur : la vedette ne bouche plus un canal en impasse » : sans hasard, pour chaque canal secondaire (lu dans
+`CANAUX.eaux`), la vedette posée dans l'axe face au joueur à 8, 14 et 22 u devant lui, le joueur en jet-ski, recherché, qui file vers
+l'embouchure ; il doit sortir en moins de 20 s. Il sort en **2,5 s** (canal ouest, 46 u) et **3,9 s** (canal est, 90 u) dans les six cas —
+le temps qu'il met sans vedette. Avant ces corrections : 15,9, 8,1 et 39,1 s au canal est (première version), ou bloqué. Le test maîtrise
+sa scène : seuls le joueur et la vedette (les bateaux du décor promus à l'approche sont retirés), sa graine posée après `startRun`.
+
+**4 fois sur 4** (quatre lancements de suite du nouveau test, de l'ancien « Canaux V2 : canaux secondaires » et de « Police maritime des
+canaux ») : les trois passent les quatre fois ; la vedette ressort derrière le joueur en 15 à 16 s (ouest) et 24 à 27 s (est).
+« Police maritime des canaux, poursuite : la recherche est tombée à 2 » est un échec intermittent **antérieur** (déjà noté « vu une fois,
+non reproduit » dans `CANAUX_V3.md`) ; il est apparu deux fois sur six passages avec la lecture du joystick lancé, plus aucune fois sur
+quatre sans elle — je ne peux pas affirmer qu'il a disparu.
+
+**À vérifier sur iPhone** : poursuivi dans un canal, faire demi-tour vers la vedette : elle se range (ou s'arrête dans un canal étroit) et
+le jet-ski passe le long d'elle, puis elle le suit ; arriver droit sur la tête d'un ponton privé : le bateau glisse sur le côté au lieu de
+rester collé.
+

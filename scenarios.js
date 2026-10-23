@@ -19624,6 +19624,37 @@ async function main() {
       else ok('Perf-hauteur, statistiques : ' + r.info.join(' ; '));
     }
     // -------------------------------------------------------------------
+    // Perf-hauteur, étape 10 : la vedette de police ne bouche plus un canal en impasse. Défaut antérieur (trouvé à la liste du 22 octobre,
+    // « Canaux V2 : canaux secondaires » échouait une fois sur deux) : dans le canal secondaire (12 u de large), la vedette ne pouvait pas se
+    // ranger (pas d'eau au-delà de son écart) ; arrêtée devant le joueur, elle « collait à sa vitesse » — nulle, puisqu'il était bloqué : il
+    // ne ressortait plus. Le scénario est forcé (aucun hasard) : pour chaque canal secondaire (lu dans CANAUX.eaux), la vedette posée dans
+    // l'axe, face au joueur, à 8, 14 et 22 u devant lui ; le joueur en jet-ski, recherché (3 étoiles), file vers l'embouchure au joystick :
+    // il doit en sortir en moins de 20 s, chaque fois (sans vedette : 3,9 s au canal est). Le test maîtrise sa scène : seuls le joueur et la vedette (les bateaux du décor
+    // promus à l’approche sont retirés à chaque image), une graine posée après startRun.
+    // -------------------------------------------------------------------
+    console.log('\n--- Perf-hauteur : la vedette ne bouche plus un canal en impasse ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = [], C = CANAUX; let T = dernierT + 1000; if (!PCANAL.ok) return { ko: ['pas de graphe des canaux'], info };
+        const pas = (n, f) => { for (let i = 0; i < n; i++) { if (f && f(i) === false) return i; T += 1000 / 60; tick(T); } return n; };
+        const secs = C.eaux.filter((e) => /^sec/.test(e.id) && e.t === 'r'); if (!secs.length) return { ko: ['aucun canal secondaire'], info };
+        for (const sc of secs) { const bas = C.eaux.find((e) => e.id === 'basSec' + sc.id.slice(3)); if (!bas) { ko.push(sc.id + ' : pas de bassin au bout'); continue; }
+          const xc = (sc.x0 + sc.x1) / 2, versBas = Math.sign(bas.z - (sc.z0 + sc.z1) / 2) || 1, zSortie = versBas > 0 ? sc.z0 + 4 : sc.z1 - 4; const temps = [];
+          for (const k of [8, 14, 22]) { META.vue = 'classique'; if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9;
+            for (const v of vehicules.slice()) if (v.conduit === 'trafic' || v.conduit === 'police' || v.conduit === 'patrouilleCanal' || dist2(v.x, v.z, xc, (sc.z0 + sc.z1) / 2) < 70 * 70) { if (v === P.veh) continue; scene.remove(v.mesh); vehicules.splice(vehicules.indexOf(v), 1); }
+            for (const e of ennemis) e.mort = true; PCANAL.spawnT = 1e9; PCANAL.patT = 1e9;
+            const js = creerVehicule('jetski', xc, bas.z - versBas * 4, versBas > 0 ? Math.PI : 0, null); P.x = js.x; P.z = js.z; entrerVehicule(js); INPUT.jx = INPUT.jy = 0;
+            const ved = creerVehicule('bateauP', xc, js.z - versBas * k, versBas > 0 ? 0 : Math.PI, 'police'); ved.vedetteCanal = true; ved.sirene = true; ved.cad = 99; ved.pcT = 0;
+            WANTED.heat = 3.5; WANTED.stars = 3; let sorti = -1; let g = 4242 + k; const rnd0 = Math.random; Math.random = () => { g = (g * 1664525 + 1013904223) >>> 0; return g / 4294967296; }; /* sa graine, après startRun */
+            try { pas(20 * 60, (i) => { for (const o of vehicules.slice()) if (o !== js && o !== ved && dist2(o.x, o.z, P.x, P.z) < 30 * 30) { scene.remove(o.mesh); vehicules.splice(vehicules.indexOf(o), 1); } /* la scène : seuls le joueur et la vedette (les bateaux du décor promus à l’approche ne comptent pas) */ P.hp = 1e9; js.hp = 1e6; ved.hp = 1e6; ved.cad = 99; WANTED.stars = 3; PCANAL.spawnT = 1e9; const tx = xc, tz = zSortie - versBas * 6, dx = tx - P.x, dz = tz - P.z, d = Math.hypot(dx, dz);
+              INPUT.jx = dx / d * 0.7; INPUT.jy = dz / d * 0.7; if ((P.z - zSortie) * versBas < 0) { sorti = i / 60; return false; } }); } finally { Math.random = rnd0; }
+            INPUT.jx = INPUT.jy = 0; if (sorti < 0) ko.push(sc.id + ', vedette à ' + k + ' u : le joueur n’est pas ressorti en 20 s (joueur ' + P.x.toFixed(1) + ',' + P.z.toFixed(1) + ', vedette ' + ved.x.toFixed(1) + ',' + ved.z.toFixed(1) + ' v' + ved.v.toFixed(1) + ')'); else temps.push(k + ' u : ' + sorti.toFixed(1) + ' s'); }
+          if (temps.length) info.push(sc.id + ' (' + (Math.abs(sc.z1 - sc.z0)).toFixed(0) + ' u de long) — sorti, vedette devant à ' + temps.join(', ')); }
+        WANTED.heat = 0; WANTED.stars = 0; PCANAL.spawnT = 0; PCANAL.patT = 0; if (P.veh) sortirVehicule(true); startRun(); return { ko, info }; });
+      if (r.ko.length) fail('Perf-hauteur, vedette dans l’impasse : ' + r.ko.join(' ; ') + ' [' + r.info.join(' | ') + ']');
+      else ok('Perf-hauteur, vedette dans l’impasse : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];

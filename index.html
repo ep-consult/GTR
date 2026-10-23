@@ -10334,11 +10334,12 @@ function piloterVedette(v,dt,cible,vMax,arret,ecart){
   majVehiculePhys(v,dt,th,steer,false);
   const avance=Math.abs(v.v)>1.2||vt<1.5; v.pcBloque=avance||v.pcRecul>0?0:(v.pcBloque||0)+dt; v.pcCoince=avance?0:(v.pcCoince||0)+dt; /* coincée : pas d'avancée alors qu'elle devrait */
 }
-function gyroVedette(v){ const b=v.mesh.userData.bar; if(!b) return; const cl=Math.floor(ETAT.runT*6)%2; b[0].material.color.setHex(cl?0xff3b4b:0x501018); b[1].material.color.setHex(cl?0x1a2a60:0x3a7bff); }
+/* trop étroit pour se ranger : pas d'eau à 7,7 u de part et d'autre (l'écart de 5,5 u et la marge de 2,2 de piloterVedette) */
+function vedetteEtroit(v){ const a=Math.atan2(v.x-P.x,v.z-P.z), ex=Math.cos(a), ez=-Math.sin(a); return !estEauNav(v.x+ex*7.7,v.z+ez*7.7)&&!estEauNav(v.x-ex*7.7,v.z-ez*7.7); }function gyroVedette(v){ const b=v.mesh.userData.bar; if(!b) return; const cl=Math.floor(ETAT.runT*6)%2; b[0].material.color.setHex(cl?0xff3b4b:0x501018); b[1].material.color.setHex(cl?0x1a2a60:0x3a7bff); }
 /* une vedette des canaux à la poursuite (conduit 'police'), au barrage (4 étoiles) ou en patrouille ('patrouilleCanal') */
 function majVedetteCanal(v,dt){
   const G=PCANAL; if(!G.ok){ v.vedetteCanal=false; return; }
-  const enCanal=joueurDansCanaux(), d=Math.sqrt(dist2(v.x,v.z,P.x,P.z)); v.pcPlafond=undefined;
+  const enCanal=joueurDansCanaux(), d=Math.sqrt(dist2(v.x,v.z,P.x,P.z)); v.pcPlafond=undefined; if(v.cede>0) v.cede=d<9?0.6:v.cede-dt; /* elle cède tant qu'il la dépasse (sinon la séparation les coinçait l'un contre l'autre) */
   if(v.conduit==='patrouilleCanal'){ /* la ronde : de mer en mer par les deux canaux et la traverse */
     if(!v.pcRonde||Math.hypot(v.x-v.pcRonde[0],v.z-v.pcRonde[1])<10){ const k=v.pcK=((v.pcK===undefined?-1:v.pcK)+1)%G.ronde.length, q=G.noeuds[G.ronde[k]]; v.pcRonde=[q.x,q.z]; }
     const w=bateauDevant(v,16), face=w&&Math.cos(w.ang-v.ang)<-0.5; if(w&&w!==P.veh) v.pcPlafond=face?3:(dist2(w.x,w.z,v.x,v.z)<9*9?0:Math.max(1.2,Math.abs(w.v||0)*0.7)); /* V3 : derrière un bateau de l'IA, elle garde ses distances (elle les percutait par l'arrière) ; de face, elle se range */
@@ -10358,8 +10359,12 @@ function majVedetteCanal(v,dt){
     else { v.ang=angLerp(v.ang,B.ang,clamp(dt*0.9,0,1)); majVehiculePhys(v,dt,0,0,true); v.pcCoince=0; }
     if(WANTED.stars<4||!enCanal) v.pcBarrage=null; }
   else if(enCanal){ const pv=P.veh?Math.abs(P.veh.v):0, hx=P.veh?Math.sin(P.veh.ang):0, hz=P.veh?Math.cos(P.veh.ang):0, devant=(v.x-P.x)*hx+(v.z-P.z)*hz;
-    if(pv>3&&devant>0&&d<30){ /* le joueur fonce sur elle : elle serre un quai et le laisse passer (jamais un mur de police au milieu du canal) */
-      if(!v.pcCote) v.pcCote=((v.x-P.x)*hz-(v.z-P.z)*hx)>=0?1:-1; piloterVedette(v,dt,[P.x,P.z],6,undefined,v.pcCote*5.5); }
+    const veut=!!P.veh&&(pv>1.5||Math.hypot(INPUT.jx||0,INPUT.jy||0)>0.3); /* le joueur veut avancer vers elle (bloqué, il n'a plus de vitesse : on lit son intention) */
+    const devJ=(v.x-P.x)*(INPUT.mx||0)+(v.z-P.z)*(INPUT.mz||0); /* là où il veut aller, s'il est à l'arrêt (son bateau a pu se mettre de travers en cherchant à passer) ; lancé, son cap suffit */
+    const passe=(devant>0||(pv<1.5&&devJ>0))&&d<30&&veut; /* perf-hauteur, étape 10 : il veut passer et elle est devant lui (avant : seulement s'il fonçait à plus de 3 u/s — bloqué par elle, il n'avait plus de vitesse, elle « collait » à cette vitesse nulle : interblocage) */
+    if(passe&&vedetteEtroit(v)){ v.cede=0.6; majVehiculePhys(v,dt,v.v>0.5?-0.6:(v.v<-0.5?0.4:0),0,true); v.pcCoince=0; } /* trop étroit pour se ranger : elle s'arrête et lui cède le passage (elle ne le heurte plus, il passe le long d'elle, puis elle le suit) */
+    else if(passe&&(pv>3||d<14)){ /* elle serre un quai et le laisse passer (jamais un mur de police au milieu du canal) */
+      if(!v.pcCote) v.pcCote=((v.x-P.x)*hz-(v.z-P.z)*hx)>=0?1:-1; piloterVedette(v,dt,[P.x,P.z],6,undefined,v.pcCote*5.5); if(d<9) v.cede=0.6; }
     else if(d>10){ v.pcCote=0; piloterVedette(v,dt,[P.x,P.z],PCANAL_V,8); }
     else { v.pcCote=0; majVehiculePhys(v,dt,v.v>Math.max(1,pv)?-0.5:(pv>1?0.3:0),clamp(angDiff(v.ang,Math.atan2(P.x-v.x,P.z-v.z))*1.5,-1,1),pv<1); v.pcCoince=0; } } /* tout près : elle colle à sa vitesse, sans le pousser */
   else { /* le joueur est à terre : elle se poste au plus près, par l'eau */ const p=projGraphe(P.x,P.z); if(p) piloterVedette(v,dt,[p.x,p.z],PCANAL_V,4); }
@@ -30668,6 +30673,7 @@ function resoudreCollisionsVehicule(v,dt){
     if(dxw*dxw+dzw*dzw>rr*rr) continue;
     if(o===v||o.mort||o.epave||o.noye) continue;
     if(o.porteur===v||v.porteur===o||(od.air&&d.navire)||(d.air&&od.navire)) continue; // aéronef et grand yacht : le pont est une plateforme (hélico posé, qui décolle ou s'y repose)
+    if((v.cede>0&&o===P.veh)||(o.cede>0&&v===P.veh)) continue; /* perf-hauteur, étape 10 : une vedette qui cède le passage dans un canal étroit */
     if(Math.abs(hV-hauteurReelleVehicule(o))>1.6) continue;
     const angV=v.ang, sV=Math.sin(angV), cV=Math.cos(angV);
     const distFwd=dxw*sV+dzw*cV, distRight=dxw*cV-dzw*sV;
@@ -30907,6 +30913,12 @@ function majVehiculePhys(v,dt,throttle,steer,frein){
        de s'arrêter net — une vedette restait collée au coin d'un ponton, chaque pas en avant refusé. Les murs de quai gardent leur rebond (V1). */
     const okx=estEauNav(nx,v.z), okz=estEauNav(v.x,nz), mx=nx-v.x, mz=nz-v.z, l=Math.hypot(mx,mz)+1e-6;
     if(okx&&(!okz||Math.abs(mx)>=Math.abs(mz))){ v.x=nx; v.v*=1-0.5*Math.abs(mz)/l; } else { v.z=nz; v.v*=1-0.5*Math.abs(mx)/l; }
+    /* perf-hauteur, étape 10 : la tête d'un ponton prise de face, le pas le long de lui est nul — le bateau restait nez collé (32 s, poussé
+       là par une vedette). Il glisse de côté vers le bord libre le plus proche, à 3 u/s au plus. */
+    const axZ=Math.abs(mz)>=Math.abs(mx);
+    if((axZ?!okz:!okx)&&(axZ?Math.abs(mx):Math.abs(mz))<0.35*l){ let cote=0;
+      for(let o=0.4;o<=4&&!cote;o+=0.4){ if(axZ?estEauNav(nx+o,nz):estEauNav(nx,nz+o)) cote=o; else if(axZ?estEauNav(nx-o,nz):estEauNav(nx,nz-o)) cote=-o; }
+      if(cote){ const p=Math.sign(cote)*Math.min(Math.abs(cote),3*dt); if(axZ?estEauNav(v.x+p,v.z):estEauNav(v.x,v.z+p)){ if(axZ) v.x+=p; else v.z+=p; } } }
     if(Math.abs(v.v)>8&&v.conduit==='joueur'){ secousse(1.5); vibre(20); }
   } else if(heurte){
     const impact=Math.abs(v.v);
@@ -34097,7 +34109,7 @@ function tuerEnnemi(e,parJoueur){
   }
   if(e.moto){
     burst(e.x,1,e.z,8,0xe6a41f,7);
-    const v=creerVehicule(def.motoKey||'motoR',e.x,e.z,e.ang); /* sa moto (avant : toujours la motoR, même pour un autre modèle) */
+    const v=creerVehicule((e.def&&e.def.motoKey)||'motoR',e.x,e.z,e.ang); /* sa moto (avant : toujours la motoR, même pour un autre modèle) */
     v.hp=v.def.hp*0.6;
     e.corpseT=0.01;
   }
