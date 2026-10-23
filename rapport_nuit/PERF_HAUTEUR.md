@@ -14,7 +14,7 @@ tache sombre qui change de forme en bas à gauche.
 | 2 | Superposition des sols, plan proche | fait |
 | 3 | Grésillement des arbres vus de loin | fait |
 | 4 | Performances en altitude | fait |
-| 5 | Test : deux images à 170 m, aucun pixel des sols qui change | à faire |
+| 5 | Test : deux images à 170 m, aucun pixel des sols qui change | fait |
 | 6 | Tous les véhicules du jeu jouables | à faire |
 | 7 | Une récompense pour le Titanic | à faire |
 | 8 | Le couple à la proue | à faire |
@@ -208,3 +208,23 @@ iPhone des mesures ci-dessus.
 
 **À vérifier sur iPhone** : la fluidité à 170 m au-dessus du centre et des canaux ; le passage des 65 m environ (les petits objets et les
 figurants disparaissent d'un coup : est-ce visible ?) ; la vue 3D en ville (même image, plus fluide).
+
+## 5. Test : aucun sol ne clignote à 170 m — fait
+
+Test « **Perf-hauteur : aucun sol ne clignote à 170 m** » (`scenarios.js`). Les sols plats sont relevés dans la scène (aucune liste
+recopiée). En deux points — au-dessus de l'aéroport, et au-dessus du désert et du cratère de la soucoupe — la soucoupe à 170 m en vue 2D :
+- le plan proche a reculé (> 10 u ; 31 et 33 u mesurés), le plan lointain suit le brouillard ;
+- **deux images réelles d'affilée**, la caméra au même endroit, les sols seuls (ce qui passe dessus — voitures, ombres, feux qui
+  clignotent — est caché au moment du rendu ; la mer qui ondule ne compte pas) : **0 pixel de sol changé** sur 329 000 ;
+- **profondeur 16 fois moins précise** que celle du navigateur de test (plan proche ÷16 : le combat de profondeur de l'appareil, que
+  le rendu logiciel ne montre pas), la caméra déplacée d'une image de vol, chaque sol d'une couleur : **0 pixel** où un autre sol gagne
+  qu'au rendu de référence ;
+- **le test se contrôle** : sans la correction (plan proche 0,5, ordre des sols retiré), il voit 94 000 et 49 000 pixels faux — s'il
+  en voyait moins de 1 000, il échouerait (il ne verrait plus le défaut).
+
+Une 1re version comparait deux images après une image de jeu : la caméra glissait encore vers sa place (456 pixels changés) et un feu
+qui s'allumait entre les deux images marquait 4 pixels ; corrigé dans le test (même caméra, objets cachés au moment du rendu).
+
+**Captures** (`captures/bug_hauteur/`) : `deux_images_avant.png` et `deux_images_apres.png` — deux images d'affilée, la caméra avancée
+d'une image de vol, profondeur ÷16, le bas de l'écran comme sur les zooms du joueur : avant, le cratère se découpe en bandes qui changent
+et le sable se raye ; après, un disque net et stable, le sable propre (et moins de voile : étape 4).

@@ -19389,6 +19389,57 @@ async function main() {
       else ok('Liste 22 oct., point 16 : ' + r.info.join(' ; '));
     }
     // -------------------------------------------------------------------
+    // Perf-hauteur (étapes 2 à 5) : aucun sol ne clignote à 170 m. Captures du joueur (iPhone, soucoupe en vue 2D à 168 m au-dessus
+    // de l'aéroport et du désert) : des bandes qui changent de surface d'une image à l'autre partout où deux sols se superposent.
+    // Les sols plats sont relevés dans la scène (aucune liste recopiée). En deux points (aéroport, désert et cratère de la soucoupe) :
+    // le plan proche recule avec la hauteur, le plan lointain suit le brouillard ; deux images réelles d'affilée, la soucoupe immobile :
+    // aucun pixel de sol fixe ne change ; puis, la profondeur rendue 16 fois moins précise que celle du navigateur de test (le plan
+    // proche divisé par 16 : le combat de profondeur de l'iPhone, que le rendu logiciel ne montre pas) et la caméra déplacée d'une image
+    // de vol, chaque sol peint d'une couleur à lui : aucun pixel où un autre sol gagne qu'au rendu de référence très précis. Le test se
+    // contrôle : sans la correction (plan proche 0,5, ordre des sols retiré), il doit voir des milliers de pixels faux.
+    // -------------------------------------------------------------------
+    console.log('\n--- Perf-hauteur : aucun sol ne clignote à 170 m ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = []; const gl = renderer.getContext(), W = gl.drawingBufferWidth, H = gl.drawingBufferHeight;
+        const lire = () => { const b = new Uint8Array(W * H * 4); gl.readPixels(0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, b); return b; };
+        const anime = (m) => { const k = m.customProgramCacheKey ? String(m.customProgramCacheKey()) : ''; return /mer|littoral|eau|lagon|vague|canal/i.test(k); };
+        for (const [nom, X, Z] of [['aéroport', 430, 140], ['désert et cratère', 365, 200]]) {
+          if (P.veh) sortirVehicule(true); META.vue = 'classique'; startRun(); ecran(null); ETAT.mode = 'jeu'; ETAT.jour = 40; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9;
+          const v = creerVehicule('ovni', X, Z, 0, null); P.x = X; P.z = Z; entrerVehicule(v); v.hp = 1e9; let T = dernierT + 1000;
+          const tenir = (n) => { for (let i = 0; i < n; i++) { for (const e of ennemis) e.mort = true; v.alt = 170; v.mesh.position.y = 170; v.x = X; v.z = Z; v.v = 0; P.x = X; P.z = Z; INPUT.jx = INPUT.jy = 0; T += 1000 / 60; tick(T); } };
+          tenir(90); ETAT.shake = 0; majCamera(0); const nearJeu = camera.near, farJeu = camera.far;
+          if (!(nearJeu > 10)) ko.push(nom + ' : plan proche ' + nearJeu.toFixed(2) + ' à 170 m (il doit reculer)');
+          if (!(farJeu <= scene.fog.far * 1.05 + 1)) ko.push(nom + ' : plan lointain ' + farJeu.toFixed(0) + ' au-delà du brouillard ' + scene.fog.far.toFixed(0));
+          scene.updateMatrixWorld(true); const bb = new THREE.Box3(), sols = [];
+          scene.traverse((o) => { if (!o.isMesh || o.isInstancedMesh || !o.geometry || Array.isArray(o.material)) return; const m = o.material; if (!m || m.transparent || m.depthWrite === false || m.visible === false || anime(m)) return;
+            for (let q = o; q; q = q.parent) if (!q.visible) return; const g = o.geometry; if (!g.boundingBox) g.computeBoundingBox(); bb.copy(g.boundingBox).applyMatrix4(o.matrixWorld);
+            if (bb.min.x < -4000 || bb.max.y - bb.min.y > 0.4 || bb.max.y > 3.5 || bb.max.y < -0.8 || (bb.max.x - bb.min.x) * (bb.max.z - bb.min.z) < 16) return; sols.push(o); });
+          const estSol = new Set(sols), autres = []; /* caché au moment du rendu : un feu qui clignote s'allume entre deux images */
+          const cacher = () => { autres.length = 0; scene.traverse((o) => { if ((o.isMesh || o.isSprite || o.isPoints || o.isLine) && o.visible && !estSol.has(o)) { o.visible = false; autres.push(o); } }); }, montrer = () => { for (const o of autres) o.visible = true; autres.length = 0; };
+          /* 1. deux images réelles d'affilée, les sols seuls (les voitures qui passent, les ombres, la mer qui bouge ne comptent pas), la caméra au même endroit */
+          const cp = camera.position.clone(), cq = camera.quaternion.clone(), cn = camera.near, cf = camera.far; cacher(); renderer.render(scene, camera); const a = lire(); montrer(); tenir(1); ETAT.shake = 0; camera.position.copy(cp); camera.quaternion.copy(cq); camera.near = cn; camera.far = cf; camera.updateProjectionMatrix(); camera.updateMatrixWorld(); cacher(); renderer.render(scene, camera); const b = lire(); montrer(); /* la même caméra : seul ce qui arrive aux sols compte */
+          let chg = 0, vus = 0; for (let i = 0; i < a.length; i += 4) { if (a[i] + a[i + 1] + a[i + 2] === 0) continue; vus++; if (Math.abs(a[i] - b[i]) + Math.abs(a[i + 1] - b[i + 1]) + Math.abs(a[i + 2] - b[i + 2]) > 24) chg++; }
+          /* 2. profondeur 16 fois moins précise, la caméra déplacée d'une image de vol : quel sol gagne chaque pixel */
+          const orig = new Map(); sols.forEach((o, i) => { const m = o.material; orig.set(o, m); o.material = new THREE.MeshBasicMaterial({ color: new THREE.Color().setHex(((i + 1) * 2654435761) & 0xffffff), side: m.side, polygonOffset: m.polygonOffset, polygonOffsetFactor: m.polygonOffsetFactor, polygonOffsetUnits: m.polygonOffsetUnits }); });
+          const fog = scene.fog, bg = scene.background; scene.fog = null; scene.background = new THREE.Color(0); cacher();
+          const rendre = (near) => { camera.near = near; camera.updateProjectionMatrix(); renderer.render(scene, camera); return lire(); };
+          const faux = (near) => { let n = 0; for (const dx of [0, 0.77]) { camera.position.x += dx; camera.updateMatrixWorld(); const ref = rendre(60), c = rendre(near); camera.position.x -= dx; camera.updateMatrixWorld();
+            for (let i = 0; i < c.length; i += 4) if (ref[i] + ref[i + 1] + ref[i + 2] && (c[i] !== ref[i] || c[i + 1] !== ref[i + 1] || c[i + 2] !== ref[i + 2])) n++; } return n; };
+          const nFaux = faux(nearJeu / 16);
+          for (const o of sols) { const m = o.material; m.userData.po = [m.polygonOffset, m.polygonOffsetFactor, m.polygonOffsetUnits]; if (orig.get(o).polygonOffset && SOLSR.fait) m.polygonOffset = false; }
+          const nSans = faux(0.5 / 16); /* sans la correction : le défaut des captures doit se voir */
+          for (const [o, m] of orig) { o.material.dispose(); o.material = m; } montrer(); scene.fog = fog; scene.background = bg; camera.near = nearJeu; camera.updateProjectionMatrix();
+          if (chg) ko.push(nom + ' : ' + chg + ' pixels de sol fixe changent entre deux images (sur ' + vus + ')');
+          if (nFaux) ko.push(nom + ' : ' + nFaux + ' pixels où un autre sol gagne (profondeur ÷16, deux images)');
+          if (nSans < 1000) ko.push(nom + ' : sans la correction, seulement ' + nSans + ' pixels faux — le test ne voit plus le défaut');
+          info.push(nom + ' : ' + sols.length + ' sols plats, plan proche ' + nearJeu.toFixed(1) + ', lointain ' + farJeu.toFixed(0) + ' ; ' + vus + ' pixels de sol, ' + chg + ' changés en deux images ; profondeur ÷16 : ' + nFaux + ' faux (sans la correction : ' + nSans + ')');
+        }
+        if (P.veh) sortirVehicule(true); startRun(); return { ko, info }; });
+      if (r.ko.length) fail('Perf-hauteur, sols à 170 m : ' + r.ko.join(' ; ') + ' [' + r.info.join(' | ') + ']');
+      else ok('Perf-hauteur, sols à 170 m : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];
