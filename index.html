@@ -7216,7 +7216,8 @@ function sprite3(m,x,y,z,s){ const sp=new THREE.Sprite(m); sp.position.set(x,y,z
 /* ---- l'animation du mont (tout est cosmétique : dt) ---- */
 function fumeeRefuge(t){ MONT2.fumee.sp.forEach((sp,k)=>{ const u=(t*0.25+k/5)%1; sp.position.set(MONT2.fumee.x+u*1.5+Math.sin(t+k)*0.3,MONT2.fumee.y+u*5,MONT2.fumee.z+u*0.8); sp.scale.setScalar(0.8+u*2.6); sp.material.opacity=0.4*(1-u); }); } /* la fumée de la cheminée du refuge */
 function parapenteOrbite(p,dt){ p.a+=p.v*dt; p.g.position.set(p.cx+Math.cos(p.a)*p.r,p.h+Math.sin(p.a*0.5)*3,p.cz+Math.sin(p.a)*p.r); p.g.rotation.y=-p.a; p.g.rotation.z=0.25; }
-function majMontV2(dt){ if(!MONT2.ok) return; MONT2.t+=dt; const t=MONT2.t, prox=dist2(camera.position.x,camera.position.z,MONT.x,MONT.z)<170*170; /* de près seulement : l'herbe, les fleurs, les cailloux */
+const MONT_PETITS_HAUT=70; /* perf-hauteur, étape 3 : au-delà, une touffe d'herbe (découpée par alphaTest), une fleur, un caillou ne font plus qu'un pixel et scintillent d'une image à l'autre */
+function majMontV2(dt){ if(!MONT2.ok) return; MONT2.t+=dt; const t=MONT2.t, prox=dist2(camera.position.x,camera.position.z,MONT.x,MONT.z)<170*170&&camera.position.y-hauteurMont(camera.position.x,camera.position.z)<MONT_PETITS_HAUT; /* de près seulement : l'herbe, les fleurs, les cailloux — et jamais vus de haut */
   for(const im of MONT2.petits) if(im.visible!==prox) im.visible=prox;
   { const proche=dist2(camera.position.x,camera.position.z,MONT.x,MONT.z)<200*200; for(const p of MONT2.parapentes) if(p.g.visible!==proche) p.g.visible=proche; } /* avant le retour « loin » */
   if(!prox&&dist2(camera.position.x,camera.position.z,MONT.x,MONT.z)>320*320) return;

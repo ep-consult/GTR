@@ -12,7 +12,7 @@ tache sombre qui change de forme en bas à gauche.
 |---|---|---|
 | 1 | Shaders, textures et géométries préparés au chargement | fait |
 | 2 | Superposition des sols, plan proche | fait |
-| 3 | Grésillement des arbres vus de loin | à faire |
+| 3 | Grésillement des arbres vus de loin | fait |
 | 4 | Performances en altitude | à faire |
 | 5 | Test : deux images à 170 m, aucun pixel des sols qui change | à faire |
 | 6 | Tous les véhicules du jeu jouables | à faire |
@@ -130,3 +130,29 @@ Tirages et empreinte de la ville identiques.
 **À vérifier sur iPhone** : la soucoupe à 170 m au-dessus de l'aéroport, du désert et de la plage (plus aucune bande) ; la 1re personne
 (arme, mains, organes de visée près de l'œil) et le cockpit ; un objet qui passerait tout près de la caméra en vol haut (un autre
 appareil à moins de ~30 u de la caméra serait coupé — jamais le sien).
+
+## 3. Le grésillement « des arbres » — fait
+
+**Cause trouvée.** La tache sombre en bas à gauche des captures (x 364, z 189, au bord du désert de l'aéroport) n'est pas un bosquet :
+c'est **le cratère de la soucoupe écrasée** (,  : la soucoupe garée, un anneau de roches, deux disques
+calcinés à 0,03 et 0,04 u). Les deux disques reposent sur la dalle du désert (0,011) et le sol de base (0) : quatre surfaces à 4 cm
+près, qui changeaient de place d'une image à l'autre exactement comme les bandes — d'où une forme qui change (le disque clair, le
+disque foncé, le sable par endroits). Corrigé par l'étape 2 (rangés : base 0, désert 1, disque 2, disque 3 ; 0 pixel faux à cet
+endroit, profondeur ÷16, deux images de suite).
+
+Les vrais arbres (sapins, pins, feuillus, palmiers de la ville) sont des maillages opaques sans texture découpée : vus de 168 m, ils
+ne font que quelques pixels et leurs bords crénèlent (le rendu est sans anticrénelage, choix de performance) — rien ne change de
+forme. Toutes les textures ont leurs mipmaps (WebGL2). **Les seuls feuillages découpés** () sont les touffes d'herbe et
+les fleurs du Mont Reyes : 1 100 touffes croisées de 0,9 u, qui, vues de haut, tombent sous le pixel — le test d'opacité les fait
+apparaître et disparaître d'une image à l'autre. Elles n'étaient masquées que selon la distance HORIZONTALE au mont (170 u) :
+au-dessus du mont, en vol, elles restaient affichées.
+
+**Ce qui est fait** : les petites choses du mont (herbe, fleurs, cailloux) ne s'affichent plus quand la caméra est à plus de
+ (70 u) au-dessus du relief sous elle (). Au sol, à pied ou en véhicule, rien ne change (la caméra
+de la vue 2D est à ~42 u au-dessus du joueur). Tests du Mont Reyes V2 (relief et sols, la vie) verts.
+
+**Non fait, à décider** : l'anticrénelage ( à la création du rendu) adoucirait les bords de tous les petits objets
+vus de haut ; sur les puces Apple il est peu coûteux, mais il touche tout le jeu et ne se change qu'au chargement — à essayer sur
+l'iPhone avant de le proposer.
+
+**À vérifier sur iPhone** : survoler le cratère de la soucoupe (bord du désert, au sud de l'aéroport) et le Mont Reyes à 170 m.
