@@ -15623,7 +15623,7 @@ function fpsDemarrer(cfg){
   FPS.el.style.display='block'; FPS.mire.style.display='block'; FPS.mire.style.transform='';
   // l'arme en main, vue de l'œil, tenue à deux mains (fpsMontage : modèle V2, bras, mains, flamme, douilles)
   if(FPS.montage){ akimboRetirer(FPS.montage); FPS.montage=null; }
-  FPS.montage=akimboMontage(cfg.arme,cfg.mods||undefined); FPS.akG=false; FPS.rkG=0; FPS.flashG=0; FPS.reculG=0; if(FPS.montage){ sceneArme1P().add(FPS.montage.R); if(FPS.montage.G) sceneArme1P().add(FPS.montage.G.R); ligneDeMire(FPS.montage,cfg.arme); }
+  FPS.montage=akimboMontage(cfg.arme,cfg.mods||undefined); FPS.akG=false; FPS.rkG=0; FPS.flashG=0; FPS.reculG=0; if(FPS.montage){ sceneArme1P().add(FPS.montage.R); if(FPS.montage.G) sceneArme1P().add(FPS.montage.G.R); ligneDeMire(FPS.montage,cfg.arme); preparerSceneAPart(sceneArme1P()); }
   FPS.vise=false; FPS.k=0; { const bv=el('btnViser'); if(bv){ bv.style.display='flex'; bv.classList.remove('on'); } } /* VISER : l'arme devant l'œil, comme en ville à la 1re personne */
   camera.near=0.05; camera.updateProjectionMatrix();
   el('fireIco').innerHTML=icoArme(cfg.arme); // le bouton TIR montre l'arme du mini-jeu, jamais celle qu'on a en main
@@ -18219,7 +18219,8 @@ function paqRompre(){ PAQ.etat='rupture'; PAQ.t=0; PAQ.vagueRupture=WAVES.n; PAQ
    hublots s'allument (emissiveMap des matériaux PROPRES du navire), clignotent à la cassure et s'éteignent. Particules : la réserve fixe
    de spawnP. Tout est construit à la première approche, sous un générateur privé ; tout est cosmétique (dt), sauf le temps de la cassure. */
 const PAQ_FOULE_N=48, _PQM=new THREE.Matrix4(), _PQV=new THREE.Vector3(), _PQQ=new THREE.Quaternion(), _PQQ2=new THREE.Quaternion(), _PQS=new THREE.Vector3(1,1,1), _PQY=new THREE.Vector3(0,1,0), _PQX=new THREE.Vector3(1,0,0), _PQC=new THREE.Color();
-function paqDrameConstruire(){ if(PAQ.drame) return PAQ.drame; return (PAQ.drame=avecAleaPrive(1022,()=>{ const D={foule:[],chaloupes:[],fusees:[]}, m=paqMats();
+function paqDrameConstruire(){ if(PAQ.drame) return PAQ.drame; const n0=scene.children.length; paqDrameConstruire2(); preparerNouveaux(n0); return PAQ.drame; } /* perf-hauteur, étape 1 : la foule, les chaloupes et les fusées prêtes avant la cassure */
+function paqDrameConstruire2(){ return (PAQ.drame=avecAleaPrive(1022,()=>{ const D={foule:[],chaloupes:[],fusees:[]}, m=paqMats();
   const T=(g,x,y,z)=>{ g.translate(x,y,z); return g; };
   const gc=montFusion([{g:T(new THREE.BoxGeometry(0.42,0.8,0.24),0,0.4,0),c:0x2a3040},{g:T(new THREE.BoxGeometry(0.46,0.6,0.26),0,1.1,0),c:0xffffff},
     {g:T(new THREE.BoxGeometry(0.12,0.55,0.12),-0.3,1.6,0),c:0xffffff},{g:T(new THREE.BoxGeometry(0.12,0.55,0.12),0.3,1.6,0),c:0xffffff}]); /* bras levés */
@@ -20153,7 +20154,7 @@ function sxDeco(){ if(SX.deco) return SX.deco; return (SX.deco=avecAleaPrive(161
   D.g=g; D.kiosque=kg; return D; })); }
 function sxIA(){ if(SX.ia.length) return SX.ia; avecAleaPrive(1717,()=>{ const c={nom:'course',b:boucleDePoints([[0,0],[1,0]]),n:5,vit:[18,20]};
     for(let i=0;i<5;i++){ const m=mkMotard(c,i,i+1); m.g.visible=false; m.nom=['VEGA','KOVAC','DUARTE','REYNOLDS','SATO'][i]; SX.ia.push(m); } }); return SX.ia; }
-function sxDemarrer(){ if(SX.actif||!P.veh) return; const v=P.veh; sxDeco(); sxIA(); motardsLibererPiste();
+function sxDemarrer(){ if(SX.actif||!P.veh) return; const v=P.veh; const n0=scene.children.length; sxDeco(); sxIA(); preparerNouveaux(n0); for(const m of SX.ia) preparerObjet(m.g); /* perf-hauteur, étape 1 */ motardsLibererPiste();
   const L=STUNT.L, grille=[[10,-2.6],[10,0],[10,2.6],[4,-2.6],[4,2.6]];
   SX.ia.forEach((m,i)=>{ const [s0,lat]=grille[i]; m.p=s0; m.lat=lat; m.couloir=SX.couloirs[i]; m.k=SX.niveaux[i]; m.vCur=0; m.y=0; m.vy=0; m.air=false; m.fini=null; m.g.visible=true; m.moto.visible=true; motardPose(m); sxPlacer(m,0); });
   const q=sxPoint(4,0); v.x=q.x; v.z=q.z; v.ang=0; v.v=0; v.h=solY(q.x,q.z); P.x=v.x; P.z=v.z; SX.slot={x:q.x,z:q.z};
@@ -29810,6 +29811,7 @@ function creerVehicule(key,x,z,ang,conduit){
   const v={key,def,mesh,x,z,ang:ang||0,dirAng:ang||0,v:0,hp:def.hp,conduit:conduit||null,mort:false,
     fumeT:0,volFait:false,tapeJoueur:false,lane:0,axe:'z',dirT:1,klaxT:0,
     eau:def.pompier?100:0,enFeu:false,feuT:0,feuFx:0};
+  if(LIEUX.pret) preparerObjet(mesh); /* perf-hauteur, étape 1 : ses shaders et ses textures prêts avant sa première image */
   vehicules.push(v);
   return v;
 }
@@ -39912,7 +39914,7 @@ function construireSalle(id){
   }
   habillerSalleV2(inter,id,g,sol,mMur); // 18 octobre : sol, murs, lambris, matière des meubles, murs habillés
   peuplerSalle(inter,id,g); // 9e lot : figurants qui vivent (VIE_SALLES)
-  scene.add(g);
+  scene.add(g); preparerObjet(g); /* perf-hauteur, étape 1 : la salle prête avant sa première image */
   INT.salles[id]=inter;
   return inter;
 }
@@ -47941,6 +47943,7 @@ function startRun(){
   canauxNettoyerVehicules(); /* canaux : un véhicule posé que le quartier a rendu impossible, retiré après coup (tirages inchangés) */
   canauxStartRun(); /* canaux : jet-skis, vedette de l'embarcadère, Brigada — en dernier : leurs tirages ne décalent rien de ce qui précède */
   avecAleaPrive(2203,expoStartRun); /* point 3 : les véhicules exposés (REYES MOTORS, derby), sur un générateur privé */
+  if(!PREP.partie){ PREP.partie=true; preparerRendu(true); } else prepTextures(scene); /* perf-hauteur, étape 1 : ce que la 1re partie crée (véhicules, gens, textures des sols refaites) */
   ecran(null);
   el('hud').classList.add('on');
   bigMsg('SURVIS, ENCAISSE, RECOMMENCE');
@@ -49524,6 +49527,7 @@ function montagePremiere(){ const V=VUE1P;
     R.traverse((o)=>{ o.renderOrder=5; o.frustumCulled=false; }); V.montage={R,W,P0:{k:0.4,pos:[0.02,-0.14,-0.32],yaw:0,roll:0},poings:true,mains:[d,g],douilles:[],lagX:0,lagY:0}; }
   if(V.montage&&V.montage.mod){ const A=ancreArme(P.armeCur); V.montage.melee=A.pose==='melee'||A.pose==='lame'||A.pose==='sabre'||A.pose==='boule'||A.pose==='batte'; }
   const M=V.montage; sceneArme1P().add(M.R); if(M.G) sceneArme1P().add(M.G.R); if(a&&a.type==='gun') ligneDeMire(M,id); /* une arme blanche ne se vise pas à la mire */
+  preparerSceneAPart(sceneArme1P()); /* perf-hauteur, étape 1 : l'arme prête avant la première image */
 }
 // la ligne de mire d'un montage : l'optique posée à l'établi (userData.visee), sinon le haut de l'arme (ses organes de
 // visée), un peu en avant de la poignée — dans le repère de la main W ; et le champ en visant (lunette : zoom)
@@ -50887,7 +50891,7 @@ function ckVitrerOvni(g){ if(!_MAT_VITRE_OVNI) _MAT_VITRE_OVNI=new THREE.MeshBas
   g.traverse((o)=>{ if(!o.isMesh||!o.material||!o.material.color||o.userData.matCk) return; if(!CK_OVNI_COQUE.includes(o.material.color.getHex())) return; o.userData.matCk=o.material; o.material=_MAT_VITRE_OVNI; }); }
 function cockpitConstruire(v){ cockpitRetirer(); cockpitVitrer(v.mesh); if(v.def.ovni) ckVitrerOvni(v.mesh); const D=cockpitDims(v), C=COCKPIT; if(D.fam==='velo') ckMasquerGuidon(v.mesh); else if(D.fam==='moto') ckMasquerGuidonMoto(v.mesh);
   C.fam=D.fam; C.style=ckStyle(v,D.fam); C.cab=D.cab; C.eye=D.eye; C.approx=D.approx; C.instr=null; C.volant=null; C.manettes=[]; C.affs=[]; C.jauge=null; C.volantA=0; C.bras=[]; C.pitch=CK_PITCH_STYLE[C.style]!==undefined?CK_PITCH_STYLE[C.style]:(CK_PITCH[D.fam]!==undefined?CK_PITCH[D.fam]:-0.06); C.altP=v.alt||0; C.vario=0; C.angP=v.ang||0; C.drAir=0;
-  const G=mkCockpitInterieur(v,D); G.matrixAutoUpdate=false; ckScene().add(G); C.g=G; C.v=v; G.matrix.copy(ckRepere(v)); G.updateMatrixWorld(true); majBrasCockpit(); cockpitInstruments(v);
+  const G=mkCockpitInterieur(v,D); G.matrixAutoUpdate=false; ckScene().add(G); C.g=G; C.v=v; G.matrix.copy(ckRepere(v)); G.updateMatrixWorld(true); majBrasCockpit(); cockpitInstruments(v); preparerSceneAPart(ckScene()); /* perf-hauteur, étape 1 */
   camera.fov=CK_FOV; camera.near=0.05; camera.updateProjectionMatrix(); if(P.h) P.h.g.visible=false; } /* le corps du joueur (assis sur une moto) serait devant l'œil */
 function cockpitRetirer(){ const C=COCKPIT; if(C.cls){ C.cls=false; document.body.classList.remove('ck1P'); } C.bras=[]; C.angPrec=undefined; C.regardVire=0; C.plonge=0; if(C.g){ if(C.g.parent) C.g.parent.remove(C.g); libererEntite(C.g); } const v=C.v; if(v&&v.mesh) cockpitDevitrer(v.mesh); C.g=null; C.v=null; C.instr=null; C.volant=null; C.manettes=[]; C.affs=[]; C.jauge=null;
   if(v&&P.veh===v&&P.h&&P.surMoto) P.h.g.visible=true; }
@@ -51228,6 +51232,36 @@ function majMinimap(){
 /* =====================================================================
    BOUCLE PRINCIPALE
 ===================================================================== */
+/* Préparation du rendu (perf-hauteur, étape 1). Avant : la première fois qu'un matériau, une texture ou une géométrie entrait dans le
+   champ, le shader était compilé et les données envoyées à la carte graphique AU MILIEU d'une image — mesuré sans carte graphique : la
+   1re image de jeu 10,8 s (25 shaders d'un coup), puis 1 à 3 s à chaque nouvelle zone survolée. Au chargement, preparerRendu(true) :
+   tous les shaders (renderer.compile, objets cachés compris), toutes les textures (initTexture) et un rendu complet sans élagage dont
+   rien ne s'affiche (ciseaux d'un pixel) : les géométries partent à la carte. À la 1re partie, encore une fois (ce que startRun crée).
+   Ce qui naît ensuite (cockpit, arme en main, salle, foule du paquebot, course de supercross, véhicules promus) : preparerObjet, qui
+   compile l'objet SEUL dans une scène de préparation aux mêmes lumières et au même brouillard (un compile de toute la ville coûte
+   ~0,5 s même quand tout est déjà prêt). Aucun tirage : les lumières de la scène de préparation naissent sur un générateur privé. */
+const PREP={tex:new WeakSet(),n:0,ms:0,complets:0,sc:null,lum:[]};
+const PREP_CLES_TEX=['map','alphaMap','emissiveMap','normalMap','bumpMap','specularMap','lightMap','aoMap','displacementMap','gradientMap'];
+function prepTextures(racine){ let n=0; if(typeof renderer.initTexture!=='function') return 0; /* le rendu simulé de valider.js n'en a pas */ const vu=(t)=>{ if(!t||!t.isTexture||t.isCubeTexture||t.isVideoTexture||PREP.tex.has(t)) return; const im=t.image; if(!im||im.width===0) return; PREP.tex.add(t); try{ renderer.initTexture(t); n++; }catch(e){} };
+  racine.traverse((o)=>{ const ms=o.material; if(!ms) return; for(const m of (Array.isArray(ms)?ms:[ms])){ if(!m) continue; for(const k of PREP_CLES_TEX) vu(m[k]); if(m.uniforms) for(const k in m.uniforms){ const u=m.uniforms[k]; if(u&&u.value&&u.value.isTexture) vu(u.value); } } }); return n; }
+function preparerRendu(complet){ if(typeof renderer.compile!=='function') return; const t0=performance.now();
+  try{ renderer.compile(scene,camera); prepTextures(scene);
+    if(complet){ const coupes=[]; scene.traverse((o)=>{ if(o.frustumCulled&&o.material){ o.frustumCulled=false; coupes.push(o); } });
+      const sc=renderer.getScissorTest(); renderer.setScissorTest(true); renderer.setScissor(0,0,1,1); renderer.render(scene,camera); renderer.setScissorTest(sc);
+      for(const o of coupes) o.frustumCulled=true; PREP.complets++; } }
+  catch(e){ console.error('préparation du rendu : '+(e&&e.message||e)); }
+  PREP.n++; PREP.ms+=performance.now()-t0; }
+/* la scène de préparation : une lumière de chaque sorte, autant que la ville en a de visibles (le shader en dépend), le même brouillard */
+function prepScene(){ const L=[]; scene.traverseVisible((o)=>{ if(o.isLight) L.push(o); }); const cle=L.map((o)=>o.type+(o.castShadow?'+o':'')).join(',');
+  if(!PREP.sc||PREP.cle!==cle) avecAleaPrive(4242,()=>{ PREP.sc=new THREE.Scene(); PREP.lum=L.map((o)=>{ const l=new o.constructor(); l.castShadow=o.castShadow; return l; }); PREP.cle=cle; });
+  PREP.sc.fog=scene.fog; PREP.sc.children=PREP.lum.slice(); return PREP.sc; }
+function preparerObjet(o){ if(!o||typeof renderer.compile!=='function') return; const t0=performance.now();
+  try{ const sc=prepScene(); sc.children.push(o); renderer.compile(sc,camera); sc.children=PREP.lum.slice(); prepTextures(o); } /* l'objet est prêté à la scène de préparation sans changer de parent */
+  catch(e){ console.error('préparation : '+(e&&e.message||e)); }
+  PREP.n++; PREP.ms+=performance.now()-t0; }
+function preparerNouveaux(n0){ for(let i=n0;i<scene.children.length;i++) preparerObjet(scene.children[i]); }
+/* une scène à part (cockpit, arme en main) : ses propres lumières */
+function preparerSceneAPart(sc){ if(!sc||typeof renderer.compile!=='function') return; try{ renderer.compile(sc,camera); prepTextures(sc); }catch(e){} }
 // étoiles du HUD
 for(let i=0;i<6;i++){const s=document.createElement('span');s.textContent=i<5?'★':'✪';el('stars').appendChild(s);}
 construireVille(); LIEUX.pret=true;
@@ -51235,6 +51269,7 @@ recalcJoueur(); construireJoueur();
 P.x=POIS.place.x; P.z=POIS.place.z+8;
 { const bp=el('mPlay'); bp.disabled=false; bp.textContent='▶ Jouer'; } /* la ville est construite : le menu, peint pendant la construction, disait « Chargement de Los Reyes… » */
 appliqueQualite(); majMenuStats();
+preparerRendu(true); /* perf-hauteur, étape 1 : shaders, textures et géométries prêts pendant le chargement */
 hudD('missionTxt','none');
 
 let dernierT=performance.now(), mmFrame=0, perfAcc=0, perfN=0, perfT=0;
