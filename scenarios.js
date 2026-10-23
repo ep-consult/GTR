@@ -19586,6 +19586,44 @@ async function main() {
       else ok('Perf-hauteur, couple de la proue : ' + r.info.join(' ; '));
     }
     // -------------------------------------------------------------------
+    // Perf-hauteur, étape 9 : la page des statistiques. Elle s'ouvre depuis le menu ET depuis la pause (et y revient) ; six cartes ;
+    // aucun « undefined », « NaN » ni « Infinity » dans le texte, avec une vieille sauvegarde (les champs récents absents) comme avec une
+    // sauvegarde pleine ; rien ne dépasse la largeur de l'écran (portrait) ; l'argent dépensé, les tirs qui touchent (une fois par tir)
+    // et les véhicules pris par type sont comptés.
+    // -------------------------------------------------------------------
+    console.log('\n--- Perf-hauteur : la page des statistiques ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = []; const sauve = JSON.stringify(META); const pd = (id) => el(id).dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+        const visible = (id) => el(id).classList.contains('on');
+        const verifier = (nom) => { renderStats(); const L = el('statsList'), t = L.textContent; if (/undefined|NaN|Infinity/.test(t)) ko.push(nom + ' : « ' + (t.match(/.{0,30}(undefined|NaN|Infinity).{0,10}/) || [''])[0] + ' »');
+          const n = L.querySelectorAll('.stCarte').length; if (n !== 6) ko.push(nom + ' : ' + n + ' cartes'); let deb = 0; ecran('statsScr'); for (const e of L.querySelectorAll('*')) { const b = e.getBoundingClientRect(); if (b.width && (b.right > innerWidth + 0.5 || b.left < -0.5)) deb++; } if (deb) ko.push(nom + ' : ' + deb + ' éléments dépassent la largeur'); return n; };
+        /* menu → statistiques → retour au menu */
+        ecran('menu'); pd('mStatsBtn'); if (!visible('statsScr')) ko.push('menu : l’écran ne s’ouvre pas'); pd('statsClose'); if (!visible('menu')) ko.push('menu : le retour ne ramène pas au menu');
+        /* pause → statistiques → retour à la pause */
+        ecran('pauseM'); pd('pStats'); if (!visible('statsScr')) ko.push('pause : l’écran ne s’ouvre pas'); pd('statsClose'); if (!visible('pauseM')) ko.push('pause : le retour ne ramène pas à la pause'); else info.push('s’ouvre depuis le menu et depuis la pause, et y revient');
+        /* une vieille sauvegarde : les champs récents absents */
+        const S = META.stats; for (const k of ['depense', 'touches', 'headshots', 'distBateau', 'distAir', 'voles', 'bigJump', 'sautVertige', 'loopings', 'avionsAbattus', 'arcadePersoBest']) delete S[k];
+        for (const k of ['acro', 'sousPonts', 'sautsPonts', 'planquesJeux', 'chasse', 'derby', 'exploits', 'decouverts', 'lieuxVus', 'wingRecord', 'bowlingMax']) delete META[k]; for (const k of ['naufrage', 'falaise', 'sxT', 'airT', 'airMed', 'courses', 'faits']) delete META.defis[k];
+        verifier('vieille sauvegarde'); info.push('vieille sauvegarde (champs récents absents) : ni « undefined » ni « NaN »');
+        /* restaurer, puis une sauvegarde pleine */
+        const O = JSON.parse(sauve); for (const k of Object.keys(O)) { if (k === 'argent') continue; META[k] = O[k]; }
+        Object.assign(META.stats, { kills: 98765, tirs: 123456, touches: 45678, headshots: 3210, distVeh: 9876.5, distBateau: 1234.5, distAir: 2345.6, cashTotal: 9876543, depense: 8765432, tempsTotal: 9999999, bigJump: 120, sautVertige: 380 });
+        Object.assign(META.stats.voles, { voiture: 9999, moto: 999, velo: 99, bateau: 999, avion: 99, helico: 99, autre: 9 }); META.record = 9999999; META.defis.naufrage = 48; META.acro.cabrage = 99.9;
+        verifier('sauvegarde pleine'); info.push('sauvegarde pleine (grands nombres) : rien ne déborde, aucune valeur absente');
+        for (const k of Object.keys(O)) { if (k === 'argent') continue; META[k] = O[k]; }
+        /* l'argent dépensé */
+        const d0 = META.stats.depense, a0 = META.argent; META.argent += 500; META.argent -= 120; if (Math.round(META.stats.depense - d0) !== 120) ko.push('argent dépensé : ' + (META.stats.depense - d0) + ' au lieu de 120'); META.argent = a0; META.stats.depense = d0;
+        /* les tirs qui touchent : une fois par tir */
+        const t0 = META.stats.touches; statTouche({ fac: 'joueur', tirN: 999991 }); statTouche({ fac: 'joueur', tirN: 999991 }); statTouche({ fac: 'joueur', tirN: 999992 }); statTouche({ fac: 'gang', tirN: -1 });
+        if (META.stats.touches - t0 !== 2) ko.push('tirs qui touchent : ' + (META.stats.touches - t0) + ' au lieu de 2'); META.stats.touches = t0;
+        /* les véhicules pris, par type */
+        const typ = typeStatVeh(VEHDEFS.citadine) + ',' + typeStatVeh(VEHDEFS.bateau) + ',' + typeStatVeh(VEHDEFS.ecureuil) + ',' + typeStatVeh(VEHDEFS.velo); if (typ !== 'voiture,bateau,helico,velo') ko.push('types de véhicules : ' + typ);
+        info.push('argent dépensé, tirs qui touchent (une fois par tir), véhicules pris par type : comptés'); ecran(null); ETAT.mode = 'jeu'; return { ko, info }; });
+      if (r.ko.length) fail('Perf-hauteur, statistiques : ' + r.ko.join(' ; ') + ' [' + r.info.join(' | ') + ']');
+      else ok('Perf-hauteur, statistiques : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];

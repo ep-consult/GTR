@@ -18,7 +18,7 @@ tache sombre qui change de forme en bas à gauche.
 | 6 | Tous les véhicules du jeu jouables | fait |
 | 7 | Une récompense pour le Titanic | fait |
 | 8 | Le couple à la proue | fait |
-| 9 | La page de statistiques | à faire |
+| 9 | La page de statistiques | fait |
 | 10 | La vedette bloquée dans le canal en impasse | à faire |
 | 11 | Suite complète et `valider.js` | à faire |
 
@@ -363,3 +363,42 @@ naufrage : agrippés, tombés, à l'eau ; de retour à la proue à la partie sui
 (l'étrave penche, ils s'agrippent).
 
 **À vérifier sur iPhone** : les voir en passant près de l'étrave en vue 3D (bateau, ou à la nage) ; le vent dans les cheveux.
+
+## 9. La page des statistiques — fait
+
+**Avant** : une seule liste de 21 lignes (icône, libellé, valeur), depuis le menu seulement.
+
+**Désormais** (`renderStats`, style `.stCarte`, `.stCase`, `.stBarre`, `.stAnneau`) : **six cartes**, chacune avec son icône du
+sprite (`ico`) et sa couleur, de gros chiffres sur deux colonnes, des barres et des anneaux :
+
+| carte | contenu |
+|---|---|
+| Partie et carrière | temps de jeu, parties, vagues survécues, meilleure vague (médaille), meilleur score, argent gagné, **argent dépensé**, meilleur combo, en poche |
+| Combat | ennemis neutralisés (et la répartition gangs / police / armée en barres), chefs de gang, **headshots**, tirs, **précision**, coups critiques, grenades, appareils abattus, bêtes chassées |
+| Conduite | distance au volant, véhicules pris, détruits, écrasés, sauts, loopings en deux-roues ; **records** en barres avec médailles (Big Jump, Saut du Vertige, saut d'un pont, cabrage) ; **véhicules pris, par type** en barres |
+| Mer et air | distance **en bateau** et **en vol**, ponts passés dessous, loopings en vol, tonneaux et vrilles, record de wingsuit ; la **répartition des distances** route / mer / air en barre empilée |
+| Mini-jeux et records | derbys gagnés et K.-O., courses gagnées, meilleurs temps du supercross et de l'Air Race (médaille de l'Air Race), passagers sauvés, centre sportif, bowling ; barres avec médailles : **arcade** (ton meilleur score par borne, contre son score de référence), **planques** (canettes, longue-vue, hache, plongeon, golf contre leurs objectifs ; pêche, sac de frappe, trésors), **au large et ailleurs** (sauvés du Majestic, Cliff Diving, Jus de Plage, avions posés à la tour, kitesurf, wakeboard) |
+| Collection | anneaux de progression : curiosités, tenues, mes véhicules, véhicules cachés, planques, armes, défis, lieux visités |
+
+Tout est lu dans `META` et dans les tables du jeu (`BORNES_ARCADE` et leurs `refScore`, `CURIOS_ACTIVES`, `TENUES`, `PLANQUES_DEF`,
+`DEFIS`, `INTDEFS`, `VEHPERSO_MAX`, les objectifs `CNT_OBJECTIF`, `LV_OBJECTIF`, `HACHE_OBJECTIF`, `PLG_OBJECTIF`, `GOLF_OBJECTIF`,
+`SAUV_OBJ`, `CLIFF_OBJECTIF`, `JUS_OBJECTIF`) — rien n'est recopié. **Médailles** : 🥉 un record posé, 🥈 l'objectif atteint, 🥇 1,5 fois
+l'objectif (🏅 sans objectif). Toute valeur passe par un garde-fou : une statistique absente d'une vieille sauvegarde vaut 0.
+
+**Nouveaux compteurs** (clés fixes dans `META.stats`) : `depense` (un accesseur sur `META.argent`, posé après le chargement, compte
+toute baisse : une quarantaine d'endroits — achats, amendes, pertes — sans en toucher un), `touches` (un tir qui touche, compté une fois
+par tir : un fusil à pompe tire six plombs), `headshots`, `distBateau`, `distAir`, `voles` (les véhicules pris, par type :
+`typeStatVeh`). Ils partent de 0 sur une sauvegarde existante.
+
+**Accès** : depuis le menu (inchangé) et **depuis la pause** (nouveau bouton « Statistiques »), avec un retour au bon écran (le retour
+ramenait toujours au menu). L'écran reste dans `.screen` (z-index 70) et défile dans la hauteur ; en portrait 390 × 844, rien ne dépasse la
+largeur (vérifié élément par élément, y compris avec des nombres à sept chiffres).
+
+**Test** « Perf-hauteur : la page des statistiques » : ouverture et retour depuis le menu et la pause ; six cartes ; ni « undefined »,
+ni « NaN », ni « Infinity » avec une vieille sauvegarde (champs récents supprimés) et avec une sauvegarde pleine ; aucun élément hors de
+l'écran ; argent dépensé, tirs qui touchent, types de véhicules comptés.
+
+**Captures** (`captures/perf_hauteur/`) : `stats_pleine_1.png` à `stats_pleine_5.png` (une sauvegarde bien remplie, en défilant),
+`stats_vide_1.png` et `stats_vide_4.png` (une sauvegarde neuve).
+
+**À vérifier sur iPhone** : la fluidité du défilement (beaucoup de petits éléments) ; la lisibilité des libellés en petites capitales.

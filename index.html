@@ -337,6 +337,36 @@ body.ck1P .notif.gros,body.a1P .notif.gros,body.volSim .notif.gros{font-size:12.
 .ligneItem .inf{flex:1;min-width:0}
 .ligneItem .nom{font-weight:900;font-size:14px}
 .ligneItem .det{font-size:11px;color:var(--gris);margin-top:1px}
+/* la page des statistiques V2 (perf-hauteur, étape 9) : cartes, gros chiffres, barres, anneaux, médailles ; portrait 9:16, rien ne déborde */
+#statsList{width:min(420px,94vw);display:flex;flex-direction:column;gap:12px;margin-top:10px;padding-bottom:6px}
+.stCarte{background:var(--carte);border:1px solid var(--ligne);border-radius:16px;padding:12px 12px 10px;overflow:hidden;box-shadow:0 6px 16px #0007}
+.stTete{display:flex;align-items:center;gap:9px;margin-bottom:9px}
+.stIco{width:32px;height:32px;flex:none;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#0d0f15;border:1px solid var(--c);color:var(--c);font-size:18px}
+.stIco svg{width:20px;height:20px}
+.stTete h3{font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--blanc);font-weight:900}
+.stGrille{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:7px}
+.stCase{background:#12141b;border-radius:11px;padding:8px 10px;min-width:0;border-left:3px solid var(--c)}
+.stCase.large{grid-column:1/-1}
+.stNb{font-size:22px;font-weight:900;line-height:1.1;color:var(--blanc);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stCase.large .stNb{font-size:28px}
+.stNb small{font-size:12px;color:var(--gris);font-weight:700;margin-left:4px}
+.stMed{font-size:14px;margin-left:5px}
+.stLib{font-size:10.5px;color:var(--gris);letter-spacing:.06em;text-transform:uppercase;margin-top:2px;line-height:1.25}
+.stSous{font-size:10px;color:var(--gris);letter-spacing:.16em;text-transform:uppercase;margin:11px 0 5px;font-weight:700}
+.stBarres{display:flex;flex-direction:column;gap:6px}
+.stBarre{display:grid;grid-template-columns:minmax(0,42%) minmax(0,1fr) auto;align-items:center;gap:8px;font-size:11.5px}
+.stBarre .nom{color:var(--gris);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stBarre .rail{height:9px;background:#0b0c10;border-radius:5px;overflow:hidden}
+.stBarre .rail i{display:block;height:100%;min-width:2px;border-radius:5px;background:linear-gradient(90deg,var(--c),#f2f4f8)}
+.stBarre .val{font-weight:900;font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--blanc)}
+.stAnneaux{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px 6px}
+.stAnneau{display:flex;flex-direction:column;align-items:center;text-align:center;min-width:0}
+.stAnneau svg{width:64px;height:64px}
+.stAnneau .t{font-size:10px;color:var(--gris);text-transform:uppercase;letter-spacing:.04em;margin-top:2px;line-height:1.2}
+.stEmpile{display:flex;height:12px;border-radius:6px;overflow:hidden;background:#0b0c10}
+.stEmpile i{display:block;height:100%}
+.stLegende{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;font-size:10.5px;color:var(--gris)}
+.stLegende span::before{content:'';display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--l);margin-right:4px;vertical-align:middle}
 .pill{padding:8px 13px;border-radius:9px;font-size:12px;font-weight:900;border:1px solid var(--ligne);background:#0d0f15;color:var(--blanc);white-space:nowrap}
 .pill.buy{border-color:var(--vert);color:var(--vert)}
 .pill.up{border-color:var(--orange);color:var(--orange)}
@@ -945,6 +975,7 @@ body.ck1P .notif.gros,body.a1P .notif.gros,body.volSim .notif.gros{font-size:12.
   <button class="mbtn play" id="pResume">Reprendre</button>
   <button class="mbtn" id="pDefis">Défis <span class="pastille" id="pastillePDefis"></span></button>
   <button class="mbtn" id="pChasse">Tableau de chasse</button>
+  <button class="mbtn" id="pStats">Statistiques</button>
   <button class="mbtn" id="pHelp">Commandes</button>
   <button class="mbtn" id="pQuit">Abandonner la partie</button>
 </div>
@@ -2129,6 +2160,7 @@ const META={
   stats:{kills:0,killsGang:0,killsPolice:0,killsArmee:0,chefs:0,vagues:0,parties:0,
     distVeh:0,distTotal:0,sauts:0,bigJump:0,sautVertige:0,avionsAbattus:0,vehVoles:0,vehDetruits:0,tempsTotal:0,pietonsFuis:0,
     grenades:0,tirs:0,critiques:0,meilleurCombo:0,cashTotal:0,vehEcrases:0,loopings:0,
+    depense:0,touches:0,headshots:0,distBateau:0,distAir:0,voles:{voiture:0,moto:0,velo:0,bateau:0,avion:0,helico:0,autre:0}, /* perf-hauteur, étape 9 : la page des statistiques (clés fixes) */
     // Mur de trophées (planque) : casses réussis au musée, descentes au
     // métro, séances tenues au Ciné-Palace, plus grosse prise du chalutier
     // (poids, sert de critère — voir chalutierPrise) et meilleur score
@@ -2439,6 +2471,11 @@ function effacerSauvegarde(){
   try{ localStorage.removeItem(SAVE_KEY); }catch(e){}
 }
 chargerMeta();
+/* l'argent dépensé (perf-hauteur, étape 9) : toute baisse de META.argent (une quarantaine d'endroits : achats, amendes, pertes) est comptée
+   dans META.stats.depense ; posé après le chargement (la sauvegarde relue n'est pas une dépense) ; une baisse énorme (un test qui rend
+   sa mise) n'est pas une dépense. */
+(function(){ let a=Number.isFinite(+META.argent)?+META.argent:0; Object.defineProperty(META,'argent',{enumerable:true,configurable:true,get(){ return a; },
+  set(v){ const x=+v; if(Number.isFinite(x)&&Number.isFinite(a)){ const d=a-x; if(d>0&&d<1e5&&META.stats) META.stats.depense=(+META.stats.depense||0)+d; } a=v; }}); })();
 
 /* ---------- CURIOSITÉS : les objets uniques des lieux spéciaux ----------
    Chacune se mérite en comprenant le lieu, jamais par un tirage au sort.
@@ -28453,6 +28490,7 @@ for(let i=0;i<90;i++){
   m.visible=false; scene.add(m);
   balles.push({on:false,mesh:m,x:0,y:0,z:0,vx:0,vy:0,vz:0,t:0,dmg:0,fac:'joueur'});
 }
+const STAT_TIR={dernier:-2}; function statTouche(b){ if(b.fac==='joueur'&&b.tirN>=0&&b.tirN!==STAT_TIR.dernier){ STAT_TIR.dernier=b.tirN; META.stats.touches++; } } /* étape 9 : un tir qui touche, compté une fois */
 let TIR_MOD=null; // munition spéciale de la salve en cours (balles explosives / incendiaires, flamme)
 // (16 octobre, signalé : « sur les collines et la montagne, ni moi ni les ennemis ne pouvons tirer ») : toutes les
 // hauteurs de tir et de touche se comptent depuis le SOL de chacun (solY), plus depuis y = 0
@@ -28472,7 +28510,7 @@ const _segB={d2:0,y:0};
 function segBalle(b,x,z){ const vx=b.vx/30, vz=b.vz/30, px=b.x-vx, pz=b.z-vz, vv=vx*vx+vz*vz||1, t=clamp(((x-px)*vx+(z-pz)*vz)/vv,0,1), qx=px+vx*t-x, qz=pz+vz*t-z; _segB.d2=qx*qx+qz*qz; _segB.y=b.y-(b.vy||0)/30*(1-t); return _segB; }
 function estHeadshot(b,c){ if(b.fac!=='joueur') return false; const t=teteDe(c), r=rayonTete(c), rh=r+0.5, sg=segBalle(b,t.x,t.z);
   return sg.d2<rh*rh&&sg.y>t.y-r*0.7&&sg.y<t.y+r+0.06; } /* au-dessus du menton : le torse est visé à 1,2, juste sous la tête */
-function annonceHeadshot(t){ const dC=camera.position.distanceTo(t); spawnTexte(t.x,t.y+0.5,t.z,'HEADSHOT !','#ff3b3b',clamp(dC/14,0.35,1)); ETAT.score+=50; vibre(25); if(SFX.headshot) SFX.headshot(); else if(SFX.ramasse) SFX.ramasse(); if(VUE1P.actif) VUE1P.headshot=0.5; HEADSHOTS.n++; }
+function annonceHeadshot(t){ const dC=camera.position.distanceTo(t); spawnTexte(t.x,t.y+0.5,t.z,'HEADSHOT !','#ff3b3b',clamp(dC/14,0.35,1)); ETAT.score+=50; vibre(25); if(SFX.headshot) SFX.headshot(); else if(SFX.ramasse) SFX.ramasse(); if(VUE1P.actif) VUE1P.headshot=0.5; HEADSHOTS.n++; META.stats.headshots++; }
 const HEADSHOTS={n:0};
 function tirer(x,y,z,ang,disp,vitesse,dmg,fac,coul,cibleY,distCible,typ){
   const b=balles.find(b=>!b.on); if(!b) return;
@@ -28481,7 +28519,7 @@ function tirer(x,y,z,ang,disp,vitesse,dmg,fac,coul,cibleY,distCible,typ){
   b.vx=Math.sin(a)*vitesse; b.vz=Math.cos(a)*vitesse;
   b.vy=(cibleY!==undefined&&distCible>1)?(cibleY-y)/(distCible/vitesse):0;
   b.t=typ==='flamme'?0.5:(typ==='roquette'?2.2:(typ==='bombe'?4:(typ==='boulet'?6:1.4)));
-  b.dmg=dmg; b.fac=fac; b.mod=fac==='joueur'?TIR_MOD:null;
+  b.dmg=dmg; b.fac=fac; b.mod=fac==='joueur'?TIR_MOD:null; b.tirN=fac==='joueur'?META.stats.tirs:-1; /* étape 9 : le tir qui l'a lancée */
   b.mesh.material.color.setHex(coul||0xffe08a);
   const sc=typ==='roquette'?2.4:(typ==='bombe'?2:1);
   if(typ==='boulet') b.mesh.scale.set(2.8,2.8,0.6); else b.mesh.scale.set(sc,sc,sc);
@@ -31089,6 +31127,7 @@ function majNoyade(v,dt){
   if(Math.random()<dt*6) spawnP(v.x+rand(-1,1),0.1,v.z+rand(-1,1),0,1.2,0,0.25,0.6,0xcfeaff,0,2); // bulles
   if(v.noyeT>14) v.mort=true; // disparu au fond
 }
+function typeStatVeh(d){ return d.air==='helico'?'helico':(d.air?'avion':(d.eau?'bateau':(d.velo?'velo':(d.type==='moto'?'moto':(d.type==='car'?'voiture':'autre'))))); }
 function entrerVehicule(v){
   if(P.h) finCoup(P.h); /* on ne monte pas en plein swing */
   if(v&&v.expo&&!v.voleExpo) expoVol(v); /* point 3 : un véhicule exposé — le vol */
@@ -31107,7 +31146,7 @@ function entrerVehicule(v){
   }
   if(!v.volFait&&WANTED.heat>=1){WANTED.heat=Math.max(0,WANTED.heat-0.5);v.volFait=true;}
   P.veh=v; v.conduit='joueur'; if(v===GYACHT.v) majGrandYacht(); // pont du grand yacht retiré : la coque navigue
-  META.defis.vols++;
+  META.defis.vols++; { const tv=typeStatVeh(v.def); META.stats.voles[tv]=(+META.stats.voles[tv]||0)+1; } /* étape 9 : les véhicules pris, par type */
   if(v.conduit==='trafic'||v._traf) META.stats.vehVoles++;
   if(v.def.cache&&!META.decouverts[v.key]){
     META.decouverts[v.key]=true;
@@ -32445,7 +32484,7 @@ function majSurfJoueur(v,dt){
   // --- percussions : surfeurs, nageurs, autres planches ---
   if(v.v>4) collisionsSurf(v.x,v.z,v.v,v.ang,true,v);
   P.x=v.x; P.z=v.z; P.ang=angG;
-  META.stats.distVeh+=Math.abs(v.v)*dt/1000;
+  META.stats.distVeh+=Math.abs(v.v)*dt/1000; META.stats.distAir+=Math.abs(v.v)*dt/1000; /* étape 9 */
   hudW('vehFill',100);
   moteurUpdate(0);
 }
@@ -32982,7 +33021,7 @@ function majConduite(dt){
     if(v.def.pompier) toggleSirenePompiers(v); else changerRadio();
   }
   META.defis.dist+=Math.abs(v.v)*dt/1000;
-  META.stats.distVeh+=Math.abs(v.v)*dt/1000;
+  META.stats.distVeh+=Math.abs(v.v)*dt/1000; if(v.def.eau) META.stats.distBateau+=Math.abs(v.v)*dt/1000; /* étape 9 */
   moteurUpdate(clamp(Math.abs(v.v)/v.def.vmax,0,1));
   P.x=v.x; P.z=v.z; P.ang=v.ang;
   if(pressed('spec')||edgeKey('KeyR')) capaciteSpeciale();
@@ -34443,7 +34482,7 @@ function collisionBalle(b){
   for(const e of ennemis){
     if(e.mort||e.fac===b.fac) continue;
     if(e.heli){
-      if(b.y>11&&dist2(b.x,b.z,e.x,e.z)<10){ toucherEnnemi(e,b.dmg,b.fac==='joueur',0,b.fac,b.x,b.z); return true; }
+      if(b.y>11&&dist2(b.x,b.z,e.x,e.z)<10){ statTouche(b); toucherEnnemi(e,b.dmg,b.fac==='joueur',0,b.fac,b.x,b.z); return true; }
       continue;
     }
     // Suspendu au rayon tracteur : b.y<2.6 suppose une cible au sol, jamais
@@ -34453,7 +34492,7 @@ function collisionBalle(b){
     // réelle) tout en la déclarant à tort « au sol ». Hors de portée des
     // tirs le temps du levage, cohérent avec l'IA déjà coupée.
     if(e.captureOvni) continue;
-    if(dist2(b.x,b.z,e.x,e.z)<(e.boss?2.2:0.8)&&b.y-solY(e.x,e.z)<2.6&&b.y-solY(e.x,e.z)>-0.3){ const hs=estHeadshot(b,e); toucherEnnemi(e,b.dmg*(hs?HEADSHOT_K:1),b.fac==='joueur',2,b.fac,b.x-b.vx*0.1,b.z-b.vz*0.1); if(hs) annonceHeadshot(teteDe(e)); impactSpecial(b,e); return true; }
+    if(dist2(b.x,b.z,e.x,e.z)<(e.boss?2.2:0.8)&&b.y-solY(e.x,e.z)<2.6&&b.y-solY(e.x,e.z)>-0.3){ const hs=estHeadshot(b,e); statTouche(b); toucherEnnemi(e,b.dmg*(hs?HEADSHOT_K:1),b.fac==='joueur',2,b.fac,b.x-b.vx*0.1,b.z-b.vz*0.1); if(hs) annonceHeadshot(teteDe(e)); impactSpecial(b,e); return true; }
   }
   if(b.fac!=='joueur'){
     if(P.veh){
@@ -47455,43 +47494,85 @@ el('btnAppelTaxi').addEventListener('pointerdown',()=>{
   ecran(null); ETAT.mode='jeu';
 });
 el('mDefis').addEventListener('pointerdown',()=>{ETAT.retour='menu';renderDefis();ecran('defis');});
+/* La page des statistiques V2 (perf-hauteur, étape 9) : six cartes — partie et carrière, combat, conduite, mer et air, mini-jeux et
+   records, collection — lues dans META et dans les tables du jeu (jamais recopiées) ; gros chiffres, barres (records, répartitions),
+   anneaux (collections), médailles sur les records (par rapport à l'objectif de l'activité quand il existe). Toute valeur passe par N :
+   une statistique absente d'une vieille sauvegarde s'affiche 0, jamais « undefined » ni NaN. Ouverte depuis le menu et depuis la pause. */
 function renderStats(){
-  const S=META.stats;
-  const mn=Math.floor(S.tempsTotal/60), h=Math.floor(mn/60);
-  const tps=h>0?(h+'h '+(mn%60)+'min'):(mn+'min');
-  const lignes=[
-    ['🎯','Ennemis neutralisés',S.kills],
-    ['🟢','— membres de gangs',S.killsGang],
-    ['🔵','— policiers',S.killsPolice],
-    ['🎖️','— soldats de l\u2019armée',S.killsArmee],
-    ['👑','Chefs de gang éliminés',S.chefs],
-    ['💥','Coups critiques',S.critiques],
-    ['🌊','Vagues survécues',S.vagues],
-    ['🏆','Meilleure vague',META.recordVague],
-    ['🔥','Meilleur combo',S.meilleurCombo],
-    ['🚗','Véhicules volés',S.vehVoles],
-    ['💣','Véhicules détruits',S.vehDetruits],
-    ['🛞','Distance en véhicule',S.distVeh.toFixed(1)+' km'],
-    ['🪂','Sauts réalisés',S.sauts],
-    ['🔁','Loopings réussis',S.loopings||0],
-    ['💰','Argent total gagné',fmt$(S.cashTotal)],
-    ['🔫','Coups de feu tirés',S.tirs],
-    ['🧨','Grenades lancées',S.grenades],
-    ['🗺️','Véhicules cachés trouvés',Object.keys(META.decouverts).length+' / '+nbVehiculesCaches()],
-    ['🎮','Parties jouées',S.parties],
-    ['⏱️','Temps de jeu',tps],
-    ['⭐','Meilleur score',META.record]
-  ];
-  let h2='<div class="panneau"><h3>Carrière</h3>';
-  lignes.forEach(l=>{
-    h2+='<div class="ligneItem"><div class="ico">'+l[0]+'</div><div class="inf"><div class="nom">'+l[1]+'</div></div>'+
-        '<span class="pill equip">'+l[2]+'</span></div>';
-  });
-  h2+='</div>';
+  const S=META.stats||{}, N=(v)=>{ const x=+v; return Number.isFinite(x)?x:0; }, nb=(v)=>Math.round(N(v)).toLocaleString('fr-FR'), dec=(v,k)=>N(v).toFixed(k===undefined?1:k).replace('.',',');
+  const compte=(o)=>{ let n=0; if(o&&typeof o==='object') for(const k in o) if(o[k]) n++; return n; }, cles=(o)=>o&&typeof o==='object'?Object.keys(o).length:0;
+  const echap=(t)=>String(t).replace(/[<>&]/g,(c)=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+  const carte=(icone,emo,titre,coul,corps)=>'<div class="stCarte" style="--c:'+coul+'"><div class="stTete"><div class="stIco">'+ico(icone,emo)+'</div><h3>'+titre+'</h3></div>'+corps+'</div>';
+  const cas=(val,lib,o)=>'<div class="stCase'+(o&&o.large?' large':'')+'"><div class="stNb">'+val+(o&&o.u?'<small>'+o.u+'</small>':'')+(o&&o.med?'<span class="stMed">'+o.med+'</span>':'')+'</div><div class="stLib">'+lib+'</div></div>';
+  const grille=(L)=>'<div class="stGrille">'+L.join('')+'</div>';
+  const sous=(t)=>'<div class="stSous">'+t+'</div>';
+  const barres=(L,coul)=>{ const max=Math.max(1e-9,...L.filter((x)=>!x.ref).map((x)=>N(x.v))); const plein=(x)=>x.ref?clamp(N(x.v)/(x.ref*1.5),0,1):clamp(N(x.v)/max,0,1); /* avec un objectif : pleine à 1,5 fois l'objectif ; sinon, par rapport au plus grand de la liste */
+    return '<div class="stBarres">'+L.map((x)=>'<div class="stBarre"><div class="nom">'+echap(x.nom)+'</div><div class="rail"><i style="width:'+Math.round(100*plein(x))+'%'+(coul?';background:'+coul:'')+'"></i></div><div class="val">'+(x.aff!==undefined?x.aff:nb(x.v))+(x.med?'<span class="stMed">'+x.med+'</span>':'')+'</div></div>').join('')+'</div>'; };
+  const anneau=(n,tot,lib,coul)=>{ n=N(n); tot=Math.max(0,N(tot)); const p=tot>0?clamp(n/tot,0,1):0, r=25, c=2*Math.PI*r;
+    return '<div class="stAnneau"><svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="'+r+'" fill="none" stroke="#0b0c10" stroke-width="7"/>'+(p>0?'<circle cx="32" cy="32" r="'+r+'" fill="none" stroke="'+coul+'" stroke-width="7" stroke-linecap="round" stroke-dasharray="'+(c*p).toFixed(1)+' '+c.toFixed(1)+'" transform="rotate(-90 32 32)"/>':'')+'<text x="32" y="30" text-anchor="middle" font-size="13" font-weight="900" fill="#f2f4f8">'+Math.round(n)+'</text><text x="32" y="44" text-anchor="middle" font-size="9" fill="#8b93a7">/ '+Math.round(tot)+'</text></svg><div class="t">'+lib+'</div></div>'; };
+  const medaille=(v,obj)=>{ v=N(v); if(!v) return ''; if(!obj) return '🏅'; return v>=obj*1.5?'🥇':(v>=obj?'🥈':'🥉'); };
+  const mn=Math.floor(N(S.tempsTotal)/60), h=Math.floor(mn/60), tps=h>0?h+' h '+(mn%60)+' min':mn+' min';
+  const tirs=N(S.tirs), touches=Math.min(N(S.touches),tirs), prec=tirs>0?Math.round(100*touches/tirs):0;
+  const kills=N(S.kills), gang=N(S.killsGang), pol=N(S.killsPolice), arm=N(S.killsArmee), chasse=Object.values(META.chasse||{}).reduce((a,b)=>a+N(b),0);
+  const A=META.acro||{}, D=META.defis||{}, PJ=META.planquesJeux||{}, sautPont=Math.max(0,...Object.values(META.sautsPonts||{}).map(N));
+  const ponts=compte(META.sousPonts), pontsTot=cles(META.sousPonts);
+  const dRoute=Math.max(0,N(S.distVeh)-N(S.distBateau)-N(S.distAir)), dTot=Math.max(0.0001,dRoute+N(S.distBateau)+N(S.distAir));
+  const pc=(x)=>Math.round(100*x/dTot);
+  let h2='';
+  /* partie et carrière */
+  h2+=carte('ico-lieu-planque','🏆','Partie et carrière','#ffd23f',grille([
+    cas(tps,'temps de jeu'),cas(nb(S.parties||META.parties),'parties jouées'),
+    cas(nb(S.vagues),'vagues survécues'),cas(nb(META.recordVague),'meilleure vague',{med:medaille(META.recordVague,10)}),
+    cas(nb(META.record),'meilleur score',{large:true,med:META.record?'🏅':''}),
+    cas(nb(S.cashTotal),'argent gagné',{u:'$'}),cas(nb(S.depense),'argent dépensé',{u:'$'}),
+    cas(nb(S.meilleurCombo),'meilleur combo'),cas(nb(META.argent),'en poche',{u:'$'})]));
+  /* combat */
+  h2+=carte('ico-arme-pistolet','🎯','Combat','#ff5a5a',grille([
+    cas(nb(kills),'ennemis neutralisés',{large:true}),cas(nb(S.chefs),'chefs de gang',{med:N(S.chefs)?'👑':''}),cas(nb(S.headshots),'headshots'),
+    cas(nb(tirs),'tirs'),cas(prec,'précision',{u:'%'}),cas(nb(S.critiques),'coups critiques'),cas(nb(S.grenades),'grenades'),
+    cas(nb(S.avionsAbattus),'appareils abattus'),cas(nb(chasse),'bêtes chassées')])
+    +sous('qui sont-ils')+barres([{nom:'Gangs',v:gang},{nom:'Police',v:pol},{nom:'Armée',v:arm}],'linear-gradient(90deg,#ff5a5a,#ffd23f)'));
+  /* conduite */
+  const V=S.voles||{}, NV={voiture:'Voitures',moto:'Motos',velo:'Vélos',bateau:'Bateaux',avion:'Avions',helico:'Hélicos',autre:'Autres'};
+  h2+=carte('ico-carte-vehicules','🚗','Conduite','#35e0ff',grille([
+    cas(dec(S.distVeh),'distance au volant',{u:'km'}),cas(nb(D.vols),'véhicules pris'),
+    cas(nb(S.vehDetruits),'véhicules détruits'),cas(nb(S.vehEcrases),'véhicules écrasés'),cas(nb(S.sauts),'sauts'),cas(nb(A.loopings),'loopings en deux-roues')])
+    +sous('records')+barres([{nom:'Big Jump',v:S.bigJump,aff:dec(S.bigJump,0)+' m',med:medaille(S.bigJump,typeof SAUT_HILLS_PRIME!=='undefined'?SAUT_HILLS_PRIME:0)},{nom:'Saut du Vertige',v:S.sautVertige,aff:dec(S.sautVertige,0)+' m',med:medaille(S.sautVertige,0)},{nom:'Saut d’un pont',v:sautPont,aff:dec(sautPont,0)+' m',med:medaille(sautPont,0)},{nom:'Cabrage',v:A.cabrage,aff:dec(A.cabrage,1)+' s',med:medaille(A.cabrage,0)}])
+    +sous('véhicules pris, par type')+barres(Object.keys(NV).map((k)=>({nom:NV[k],v:V[k]})),'linear-gradient(90deg,#35e0ff,#b48bff)'));
+  /* mer et air */
+  h2+=carte('ico-lieu-port','⛵','Mer et air','#5ad8e8',grille([
+    cas(dec(S.distBateau),'en bateau',{u:'km'}),cas(dec(S.distAir),'en vol',{u:'km'}),
+    cas(ponts+' / '+pontsTot,'ponts passés dessous',{med:ponts&&ponts>=pontsTot?'🥇':''}),cas(nb(N(S.loopings)),'loopings en vol'),
+    cas(nb(N(A.tonneauxVol)+N(A.vrillesVol)),'tonneaux et vrilles'),cas(dec(META.wingRecord,0),'wingsuit (record)',{u:'m'})])
+    +sous('les distances')+'<div class="stEmpile"><i style="width:'+pc(dRoute)+'%;background:#35e0ff"></i><i style="width:'+pc(N(S.distBateau))+'%;background:#5ad8e8"></i><i style="width:'+pc(N(S.distAir))+'%;background:#b48bff"></i></div>'
+    +'<div class="stLegende"><span style="--l:#35e0ff">route '+pc(dRoute)+' %</span><span style="--l:#5ad8e8">mer '+pc(N(S.distBateau))+' %</span><span style="--l:#b48bff">air '+pc(N(S.distAir))+' %</span></div>');
+  /* mini-jeux et records */
+  const AP=S.arcadePersoBest||{}; const arc=BORNES_ARCADE.filter((b)=>b.actif).map((b)=>({nom:b.nom,v:AP[b.id],ref:b.refScore,med:medaille(AP[b.id],b.refScore)}));
+  const plq=[{nom:'Canettes (caravane)',v:PJ.canettes,ref:CNT_OBJECTIF,med:medaille(PJ.canettes,CNT_OBJECTIF)},{nom:'Longue-vue (penthouse)',v:PJ.longueVue,ref:LV_OBJECTIF,med:medaille(PJ.longueVue,LV_OBJECTIF)},
+    {nom:'Hache (chalet)',v:PJ.hache,ref:HACHE_OBJECTIF,med:medaille(PJ.hache,HACHE_OBJECTIF)},{nom:'Plongeon (villa)',v:PJ.plongeon,ref:PLG_OBJECTIF,aff:dec(PJ.plongeon,0),med:medaille(PJ.plongeon,PLG_OBJECTIF)},
+    {nom:'Golf (villa Miami)',v:PJ.golf,ref:GOLF_OBJECTIF,med:medaille(PJ.golf,GOLF_OBJECTIF)},{nom:'Pêche (cabanon)',v:PJ.peche,aff:dec(PJ.peche,1)+' kg',med:medaille(PJ.peche,0)},
+    {nom:'Sac de frappe (taudis)',v:PJ.frappe,med:medaille(PJ.frappe,0)},{nom:'Trésors (voilier)',v:PJ.tresors,med:medaille(PJ.tresors,0)}];
+  const aut=[{nom:'Sauvés du Majestic (record)',v:D.naufrage,ref:SAUV_OBJ,med:medaille(D.naufrage,SAUV_OBJ)},{nom:'Cliff Diving',v:D.falaise,ref:CLIFF_OBJECTIF,aff:dec(D.falaise,0),med:medaille(D.falaise,CLIFF_OBJECTIF)},
+    {nom:'Jus de Plage',v:D.jus,ref:JUS_OBJECTIF,med:medaille(D.jus,JUS_OBJECTIF)},{nom:'Avions posés (tour)',v:D.avionsPoses,med:medaille(D.avionsPoses,0)},{nom:'Kitesurf',v:D.kite,med:medaille(D.kite,0)},{nom:'Wakeboard',v:D.wake,med:medaille(D.wake,0)}];
+  h2+=carte('ico-lieu-activite','🎮','Mini-jeux et records','#7dff7a',grille([
+    cas(nb(META.derby&&META.derby.victoires),'derbys gagnés',{med:N(META.derby&&META.derby.victoires)?'🏆':''}),cas(nb(META.derby&&META.derby.kos),'K.-O. au derby'),
+    cas(nb(D.courses),'courses gagnées'),cas(N(D.sxT)?dec(D.sxT,1):'—','supercross (meilleur temps)',{u:N(D.sxT)?'s':'',med:N(D.sxT)?'🏁':''}),
+    cas(N(D.airT)?dec(D.airT,1):'—','Air Race (meilleur temps)',{u:N(D.airT)?'s':'',med:['','🥉','🥈','🥇'][clamp(Math.round(N(D.airMed)),0,3)]}),cas(nb(D.paquebot),'passagers sauvés (total)'),
+    cas(nb(META.exploits&&META.exploits.sportif?1:0)+' / 1','centre sportif réussi'),cas(nb(META.bowlingMax),'bowling (record)')])
+    +sous('arcade (ton meilleur score)')+barres(arc)+sous('planques')+barres(plq,'linear-gradient(90deg,#ffd23f,#ff9f2e)')+sous('au large et ailleurs')+barres(aut,'linear-gradient(90deg,#7dff7a,#35e0ff)'));
+  /* collection */
+  const tenuesN=compte(META.tenuesPoss), vp=META.vehPerso||{}; let mesV=0; for(const k in vp) if(vp[k]&&vp[k].cle) mesV++;
+  const planquesN=compte(META.planques)+(META.planque?1:0), armes=META.armes||{}; let armesN=0; for(const k in armes) if(armes[k]&&armes[k].poss) armesN++;
+  const defisN=cles(D.faits);
+  h2+=carte('ico-lieu-decouverte','💎','Collection','#b48bff','<div class="stAnneaux">'+[
+    anneau(nbCurios(),CURIOS_ACTIVES.length,'curiosités','#ffd23f'),anneau(tenuesN,TENUES.length,'tenues','#ff8aa8'),anneau(mesV,VEHPERSO_MAX,'mes véhicules','#35e0ff'),
+    anneau(cles(META.decouverts),nbVehiculesCaches(),'véhicules cachés','#5ad8e8'),anneau(planquesN,PLANQUES_DEF.length+1,'planques','#7dff7a'),anneau(armesN,cles(armes),'armes','#ff5a5a'),
+    anneau(defisN,DEFIS.length,'défis','#b48bff'),anneau(cles(META.lieuxVus),Object.keys(INTDEFS).length,'lieux visités','#ff9f2e')].join('')+'</div>');
   el('statsList').innerHTML=h2;
 }
 el('mStatsBtn').addEventListener('pointerdown',()=>{ETAT.retour='menu';renderStats();ecran('statsScr');});
-el('statsClose').addEventListener('pointerdown',()=>fermerVers());
+el('statsClose').addEventListener('pointerdown',()=>{ ETAT.retour==='pause'?ecran('pauseM'):fermerVers(); });
+el('pStats').addEventListener('pointerdown',()=>{ ETAT.retour='pause'; renderStats(); ecran('statsScr'); }); /* étape 9 : depuis la pause aussi */
 el('defisClose').addEventListener('pointerdown',()=>{ if(ETAT.retour==='pause') ecran('pauseM'); else fermerVers(); });
 el('defisList').addEventListener('pointerdown',(e)=>{
   const b=e.target.closest('[data-recup],[data-recupx2]'); if(!b) return;
