@@ -11,7 +11,7 @@ tache sombre qui change de forme en bas à gauche.
 | # | Étape | État |
 |---|---|---|
 | 1 | Shaders, textures et géométries préparés au chargement | fait |
-| 2 | Superposition des sols, plan proche | à faire |
+| 2 | Superposition des sols, plan proche | fait |
 | 3 | Grésillement des arbres vus de loin | à faire |
 | 4 | Performances en altitude | à faire |
 | 5 | Test : deux images à 170 m, aucun pixel des sols qui change | à faire |
@@ -62,3 +62,71 @@ les images voisines : c'est le moteur de rendu logiciel du navigateur de test (v
 
 **À vérifier sur iPhone** : la durée du chargement (écran « Chargement de Los Reyes… ») ; le premier survol de la ville en soucoupe ;
 l'entrée dans une salle, la vue 1re personne, le cockpit (plus de saccade à la première fois).
+
+## 2. Superposition des sols et plan proche — fait
+
+**Cause.** La précision de la profondeur se partage entre le plan proche et le plan lointain : l'écart qu'on peut départager à une
+distance d vaut à peu près d² / (plan proche × 2²⁴). La caméra avait un plan proche fixe de 0,5 u. En vue 2D, la soucoupe à 168 m met la
+caméra à ~300 u au-dessus du sol : l'écart départageable y vaut ~1 cm, et la vue de dessus regarde presque à la verticale (deux sols
+écartés de 1 cm restent à 1 cm en profondeur ; en vue 3D, l'angle rasant les écarte bien plus). Or l'aéroport empile **cinq sols** —
+sol de base (0), dalle du désert (0,011), pelouse (0,07), tarmac (0,12), piste (0,17) — et d'autres couples sont exactement à la même
+hauteur (les dalles de la plage se chevauchent de 1 u). D'une image à l'autre, c'est l'autre surface qui passait devant.
+
+**Le relevé** (`rapport_nuit/outils/releve_sols.js` : un rayon vertical tous les 4 u sur toute la carte, surfaces horizontales à moins
+de 6 cm l'une de l'autre ; données complètes : `rapport_nuit/perf_hauteur_sols.json`) — **451 couples**, 222 entre sols opaques
+(482 000 u²) et 229 avec un voile transparent (bandes de transition, fondus du littoral ; 42 000 u²) :
+
+| écart | couples | surface (u²) |
+|---|---|---|
+| moins de 2 mm (pratiquement à la même hauteur) | 28 | 7 008 |
+| 2 à 5 mm | 33 | 2 016 |
+| 5 à 13 mm | 73 | 187 776 |
+| 13 à 30 mm | 161 | 181 536 |
+| 30 à 61 mm | 156 | 145 344 |
+
+Les plus grands : dalle du désert de l'aéroport sur le sol de base (167 000 u², 1,1 cm), désert de l'ouest (0,02) sur le sol de base
+(98 000 u²), pelouse de l'aéroport sur le désert (30 000 u², 5,9 cm), tarmac sur la pelouse (16 000 u², 5 cm), piste et voies de
+circulation sur le tarmac ; à la même hauteur exacte : les dalles de la plage (une jointure de 1 u tous les 42 u), les pelouses des
+villas de Los Reyes Hills sur le terrain, des surfaces d'un même maillage fusionné (rangées de villas des canaux : 0,26 / 0,273).
+
+**Ce qui est fait :**
+- **Le plan proche suit la hauteur** (`planProche`, `reglerPlanProche`, réglé à un seul endroit, à la fin de `majCamera`) : en vue 2D et
+  3D, la moitié de la hauteur de la caméra au-dessus du plus haut décor (`PROCHE_DECOR_MAX` = 118 u : le sommet du mont et ses arbres),
+  jamais plus de 22 % de la distance au joueur, entre 0,5 et 40 u. Au sol, rien ne change (0,5) ; la soucoupe à 168 m en 2D : 32 u
+  (précision ×64) ; à 80 m : 22 u ; en vue 3D derrière la soucoupe à 168 m : 7,3 u. Dans les salles : 0,5.
+- **1re personne, cockpit, chute 1P, stand de tir : 0,1** (`NEAR_1P`, au lieu de 0,05). Le cockpit et l'arme en main sont dessinés
+  dans leur propre scène, profondeur effacée : ils gardent 0,05 le temps de leur rendu (`pousserPlanProche`, `NEAR_SCENES`) — rien du
+  volant, des mains ou des organes de visée n'est coupé (tests « Vue à la 1re personne », « Cockpits », « Poings », « Avions au
+  cockpit », « Reflets au cockpit », « Soucoupe 1P », pavillon du taxi : verts).
+- **Un ordre fixe pour les sols superposés** (`rangerSols`, au chargement) : chaque sol plat opaque prend son rang dans l'empilement des
+  sols qu'il recouvre (à hauteur égale, le dernier construit passe dessus), traduit en `polygonOffset` (`SOLS_DECALAGE` : −0,25 et −2
+  par rang, 8 rangs au plus). 422 sols examinés, 82 rangés, 22 matériaux copiés (partagés par des sols de rangs différents, ou rendus
+  par `mat()` — on ne modifie jamais ceux-là), sur un générateur privé ; 3 matériaux à shader ajouté partagés entre rangs prennent le
+  rang le plus bas (un `clone` ne copie pas `onBeforeCompile`). Les voiles transparents posés au sol (bandes de transition, fondus) ne
+  s'écrivent pas dans la profondeur : leur ordre de dessin, trié par distance à la caméra, s'inversait en vol entre deux voiles qui se
+  recouvrent — ordre fixe désormais, du plus bas au plus haut (`renderOrder`). Coût : ~0,6 s au chargement dans le navigateur de test
+  (surtout les boîtes de 5 681 géométries, calculées une fois).
+- Pas de `logarithmicDepthBuffer` (tous les shaders maison seraient à revoir).
+
+**Mesure** (`rapport_nuit/outils/combat_profondeur.js`) : le rendu logiciel du navigateur de test a une profondeur bien plus précise
+que l'iPhone (il ne montre pas le clignotement). Le test divise donc le plan proche par K (la profondeur devient K fois moins précise,
+et le décalage des `polygonOffset` grossit d'autant : l'imitation est fidèle), donne une couleur unique à chaque sol plat, et compte les
+pixels où un autre sol gagne qu'au rendu de référence très précis — deux images de suite, la caméra déplacée d'une image de vol :
+
+| vue, hauteur (K = 16) | avant | après |
+|---|---|---|
+| 2D, soucoupe à 168 m au-dessus de l'aéroport et du désert | 137 000 pixels sur 329 000 (42 %) | 0 |
+| 2D, 80 m | 73 000 – 74 000 | 0 |
+| 2D, 20 m | 1 700 – 1 900 | 0 |
+| 3D, 168 m | 1 200 – 30 000 | 0 |
+| 3D, 20 m | 0 – 1 | 0 |
+| 2D, 168 m, K = 1 (précision du rendu de test) | 183 – 194 | 0 |
+
+Captures (rendu réel, profondeur ÷16) : `captures/bug_hauteur/sols_168m_precision16_avant.png` (les bandes des captures du joueur sur
+tout le désert et le tarmac) et `…_apres.png` ; en couleurs de sols, erreurs en rouge : `sols_168m_erreurs_avant.png` / `…_apres.png`.
+Vérifié en vue 3D au ras du tarmac : les roues des avions et les pieds des passants restent devant le sol (`polygonOffset` modeste).
+Tirages et empreinte de la ville identiques.
+
+**À vérifier sur iPhone** : la soucoupe à 170 m au-dessus de l'aéroport, du désert et de la plage (plus aucune bande) ; la 1re personne
+(arme, mains, organes de visée près de l'œil) et le cockpit ; un objet qui passerait tout près de la caméra en vol haut (un autre
+appareil à moins de ~30 u de la caméra serait coupé — jamais le sien).

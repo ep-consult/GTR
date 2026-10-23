@@ -15625,7 +15625,7 @@ function fpsDemarrer(cfg){
   if(FPS.montage){ akimboRetirer(FPS.montage); FPS.montage=null; }
   FPS.montage=akimboMontage(cfg.arme,cfg.mods||undefined); FPS.akG=false; FPS.rkG=0; FPS.flashG=0; FPS.reculG=0; if(FPS.montage){ sceneArme1P().add(FPS.montage.R); if(FPS.montage.G) sceneArme1P().add(FPS.montage.G.R); ligneDeMire(FPS.montage,cfg.arme); preparerSceneAPart(sceneArme1P()); }
   FPS.vise=false; FPS.k=0; { const bv=el('btnViser'); if(bv){ bv.style.display='flex'; bv.classList.remove('on'); } } /* VISER : l'arme devant l'œil, comme en ville à la 1re personne */
-  camera.near=0.05; camera.updateProjectionMatrix();
+  camera.near=NEAR_1P; camera.updateProjectionMatrix();
   el('fireIco').innerHTML=icoArme(cfg.arme); // le bouton TIR montre l'arme du mini-jeu, jamais celle qu'on a en main
   if(cfg.titre) bigMsg(cfg.titre); SFX.ui(); fpsHud();
 }
@@ -49570,7 +49570,7 @@ function cameraPremiere(dt){ const V=VUE1P; if(!V.actif) entrerPremiere(); if(V.
   V.impact=Math.max(0,(V.impact||0)-dt); const kI=V.impact/0.22; /* un coup qui porte : la vue encaisse (secousse brève), un éclat sous la mire */
   camera.rotation.set((VUE.pitch1P||0)+(M&&M.rec?(V.rk||0)*M.rec.c+(M.rec.v&&V.rk>0.1?(Math.random()-0.5)*M.rec.v*0.3:0):V.recul*0.035)+kI*kI*0.045*Math.sin(V.impact*90),VUE.yawUser+kI*kI*0.03*Math.sin(V.impact*70+1),(P.ivresse||0)>IVRESSE.pompette?Math.sin(ETAT.runT*1.1)*0.05:0);
   const fv=M&&M.fovVise?M.fovVise:52, fov=lerp(72,fv,V.k); V.zoom=fov/72;
-  if(Math.abs(camera.fov-fov)>0.01||camera.near!==0.05){ camera.fov=fov; camera.near=0.05; camera.updateProjectionMatrix(); }
+  if(Math.abs(camera.fov-fov)>0.01||camera.near!==NEAR_1P){ camera.fov=fov; camera.near=NEAR_1P; camera.updateProjectionMatrix(); }
   VUE.yawRendu=VUE.yawUser; VUE.yaw=VUE.yawUser; if(VUE.ciel) VUE.ciel.position.copy(camera.position);
   if(M){ const W=M.W, P0=M.P0||FPS_POSES.poing, t=performance.now()*0.001, r=V.recul, k=V.k*V.k*(3-2*V.k), kc=V.kCourse||0;
     M.R.position.copy(camera.position); M.R.quaternion.copy(camera.quaternion); M.R.visible=!(M.lunette&&V.k>0.85); fpsHautBras(M.R,true); /* bras entiers en visée aussi : masqué, le haut du bras laissait deux moignons coupés au milieu de l'écran (16 octobre) */
@@ -49964,8 +49964,10 @@ function rendreArme1P(){ const A=ARME_SC; if(!A.sc) return; let vis=false; for(c
   A.hemi.color.copy(hemi.color); A.hemi.groundColor.copy(hemi.groundColor); A.hemi.intensity=hemi.intensity; A.sol.color.copy(soleil.color); A.sol.intensity=soleil.intensity;
   A.sol.position.copy(soleil.position).sub(soleil.target.position); A.sol.target.position.set(0,0,0); A.amb.intensity=0.14+Math.max(0,0.5-hemi.intensity)*0.3; A.appoint.intensity=0.36+Math.max(0,0.6-hemi.intensity)*0.35;
   camera.updateMatrixWorld(); A.appoint.position.copy(camera.position).add(A.v1.set(0.35,0.55,0.9).applyQuaternion(camera.quaternion)); A.appoint.target.position.copy(camera.position).add(A.v2.set(0,-0.2,-1).applyQuaternion(camera.quaternion)); A.appoint.target.updateMatrixWorld();
-  const ac=renderer.autoClear; renderer.autoClear=false; renderer.clearDepth(); renderer.render(A.sc,camera); renderer.autoClear=ac; }
-function rendreCockpit(){ const C=COCKPIT; if(!C.g||!CK_SC.sc) return; ckLumieres(); const ac=renderer.autoClear; renderer.autoClear=false; renderer.clearDepth(); renderer.render(CK_SC.sc,camera); renderer.autoClear=ac; }
+  const ac=renderer.autoClear; renderer.autoClear=false; renderer.clearDepth(); const n0=pousserPlanProche(NEAR_SCENES); renderer.render(A.sc,camera); pousserPlanProche(n0); renderer.autoClear=ac; }
+function rendreCockpit(){ const C=COCKPIT; if(!C.g||!CK_SC.sc) return; ckLumieres(); const ac=renderer.autoClear; renderer.autoClear=false; renderer.clearDepth(); const n0=pousserPlanProche(NEAR_SCENES); renderer.render(CK_SC.sc,camera); pousserPlanProche(n0); renderer.autoClear=ac; }
+/* une scène à part (cockpit, arme en main) est rendue avec son propre plan proche, plus court que celui de la ville (profondeur effacée entre les deux) */
+function pousserPlanProche(n){ const n0=camera.near; if(n0!==n){ camera.near=n; camera.updateProjectionMatrix(); } return n0; }
 /* repère du cockpit : celui du véhicule ; la soucoupe tourne sur elle-même, son cockpit suit son cap */
 function ckRepere(v){ const g=v.mesh; g.updateMatrixWorld(true); g.matrixWorld.decompose(_ckP,_ckQ2,_ckS);
   if(v.def.ovni){ _ckE.set(g.rotation.x,v.ang||0,g.rotation.z,'YXZ'); _ckQ2.setFromEuler(_ckE); }
@@ -50892,7 +50894,7 @@ function ckVitrerOvni(g){ if(!_MAT_VITRE_OVNI) _MAT_VITRE_OVNI=new THREE.MeshBas
 function cockpitConstruire(v){ cockpitRetirer(); cockpitVitrer(v.mesh); if(v.def.ovni) ckVitrerOvni(v.mesh); const D=cockpitDims(v), C=COCKPIT; if(D.fam==='velo') ckMasquerGuidon(v.mesh); else if(D.fam==='moto') ckMasquerGuidonMoto(v.mesh);
   C.fam=D.fam; C.style=ckStyle(v,D.fam); C.cab=D.cab; C.eye=D.eye; C.approx=D.approx; C.instr=null; C.volant=null; C.manettes=[]; C.affs=[]; C.jauge=null; C.volantA=0; C.bras=[]; C.pitch=CK_PITCH_STYLE[C.style]!==undefined?CK_PITCH_STYLE[C.style]:(CK_PITCH[D.fam]!==undefined?CK_PITCH[D.fam]:-0.06); C.altP=v.alt||0; C.vario=0; C.angP=v.ang||0; C.drAir=0;
   const G=mkCockpitInterieur(v,D); G.matrixAutoUpdate=false; ckScene().add(G); C.g=G; C.v=v; G.matrix.copy(ckRepere(v)); G.updateMatrixWorld(true); majBrasCockpit(); cockpitInstruments(v); preparerSceneAPart(ckScene()); /* perf-hauteur, étape 1 */
-  camera.fov=CK_FOV; camera.near=0.05; camera.updateProjectionMatrix(); if(P.h) P.h.g.visible=false; } /* le corps du joueur (assis sur une moto) serait devant l'œil */
+  camera.fov=CK_FOV; camera.near=NEAR_1P; camera.updateProjectionMatrix(); if(P.h) P.h.g.visible=false; } /* le corps du joueur (assis sur une moto) serait devant l'œil */
 function cockpitRetirer(){ const C=COCKPIT; if(C.cls){ C.cls=false; document.body.classList.remove('ck1P'); } C.bras=[]; C.angPrec=undefined; C.regardVire=0; C.plonge=0; if(C.g){ if(C.g.parent) C.g.parent.remove(C.g); libererEntite(C.g); } const v=C.v; if(v&&v.mesh) cockpitDevitrer(v.mesh); C.g=null; C.v=null; C.instr=null; C.volant=null; C.manettes=[]; C.affs=[]; C.jauge=null;
   if(v&&P.veh===v&&P.h&&P.surMoto) P.h.g.visible=true; }
 function majCockpit(v,dt){ const C=COCKPIT; if(!C.g) return; const d=v.def, joueur=v===P.veh&&v.conduit==='joueur';
@@ -50923,7 +50925,7 @@ function cameraCockpit(dt){ const v=P.veh, C=COCKPIT; if(C.v!==v||!C.g) cockpitC
   { const man=avionManche(v), f=man?clamp(META.horizonCk===undefined?1:META.horizonCk,0,1):1, cible=man&&!v.tonneau&&!v.tonFin&&!(v.simOk&&Math.abs(v.bank||0)>1.1)?-(1-f)*clamp(Math.atan2(Math.sin(v.bank||0),Math.cos(v.bank||0)),-1.5,1.5):0;
     C.contreRoulis=lerp(C.contreRoulis||0,cible,clamp(dt*8,0,1)); } /* l'avion penche en entier ; l'œil se redresse de (1 − réglage) : l'horizon ne bascule que de la part choisie */
   _ckQ.setFromEuler(_ckE.set(C.pitch+(C.plonge||0)+(VUE.pitch1P||0)*0.5-(v.cabreX||0)*CABRAGE_TETE_1P,Math.PI+off+st0(v)*0.06+C.regardVire,C.contreRoulis||0,'YXZ')); camera.quaternion.copy(C.quat).multiply(_ckQ); /* l'avant du véhicule est +z, la caméra regarde −z ; le regard part un peu dans le virage (steerIn < 0 = à droite, lacet négatif = regard à droite) */
-  const fov=CK_FOV+Math.min(vit,45)*0.18+aA*AVION_POUSSE_FOV; if(Math.abs(camera.fov-fov)>0.05||camera.near!==0.05){ camera.fov=lerp(camera.fov,fov,0.2); camera.near=0.05; camera.updateProjectionMatrix(); }
+  const fov=CK_FOV+Math.min(vit,45)*0.18+aA*AVION_POUSSE_FOV; if(Math.abs(camera.fov-fov)>0.05||camera.near!==NEAR_1P){ camera.fov=lerp(camera.fov,fov,0.2); camera.near=NEAR_1P; camera.updateProjectionMatrix(); }
   VUE.k=1; VUE.kVeh=1; VUE.yaw=(v.ang||0)+Math.PI+off; VUE.yawUser=VUE.yaw; VUE.offVehRendu=off+C.regardVire; /* le regard dans le virage ne change pas la conduite (vueAngleEcran le retranche) */
   if(!_chalCam.d) _chalCam.d=new THREE.Vector3(); const cd=_chalCam.d; camera.getWorldDirection(cd); VUE.yawRendu=Math.hypot(cd.x,cd.z)>1e-3?Math.atan2(-cd.x,-cd.z):0;
   const ciel=vueCiel(); ciel.visible=!INT.actif; ciel.position.copy(camera.position); const U=VUE.cielU; U.uT.value+=dt;
@@ -50978,7 +50980,7 @@ function cameraChute(dt){ const C=CHUTE1P; C.actif=true; if(P.h.g.visible) P.h.g
   const roul=wing?WING_FX.roulis*0.8:(bruitRoute(C.ph*0.3+7)-0.5)*(para?0.04:0.06);
   _chuteQ.setFromEuler(_chuteE.set(pit,cap+Math.PI+(VUE.offChute||0),roul,'YXZ')); camera.quaternion.copy(_chuteQ);
   const vh=wing?(P.wingV||24):Math.hypot(P.chuteVx||0,P.chuteVz||0), vit=Math.hypot(vh,vy), fov=(para?74:80)+Math.min(vit,60)*0.12;
-  if(Math.abs(camera.fov-fov)>0.05||camera.near!==0.05){ camera.fov=lerp(camera.fov,fov,0.15); camera.near=0.05; camera.updateProjectionMatrix(); }
+  if(Math.abs(camera.fov-fov)>0.05||camera.near!==NEAR_1P){ camera.fov=lerp(camera.fov,fov,0.15); camera.near=NEAR_1P; camera.updateProjectionMatrix(); }
   VUE.k=1; VUE.yaw=VUE.yawUser=cap+Math.PI; if(!_chalCam.d) _chalCam.d=new THREE.Vector3(); const cd=_chalCam.d; camera.getWorldDirection(cd); VUE.yawRendu=Math.hypot(cd.x,cd.z)>1e-3?Math.atan2(-cd.x,-cd.z):VUE.yaw;
   const ciel=vueCiel(); ciel.visible=true; ciel.position.copy(camera.position); const U=VUE.cielU; U.uT.value+=dt;
   if(scene.background&&scene.background.isColor){ U.uCiel.value.copy(scene.background); U.uZenith.value.copy(scene.background).multiplyScalar(0.55).lerp(VUE_ZENITH,0.35); }
@@ -50990,7 +50992,22 @@ function cameraChute(dt){ const C=CHUTE1P; C.actif=true; if(P.h.g.visible) P.h.g
   C.majT-=dt; if(C.majT<=0){ C.majT=0.1; if(!C.hud){ const d=document.createElement('div'); d.id='altChute'; d.style.cssText='position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 196px);transform:translateX(-50%);z-index:9;pointer-events:none;font:800 15px/1.2 Arial;color:#fff;text-align:center;text-shadow:0 0 4px #000,0 0 2px #000;padding:4px 10px;border-radius:10px;background:rgba(10,14,22,0.45)'; document.body.appendChild(d); C.hud=d; }
     const alt=Math.max(0,P.y-solY(P.x,P.z)), t='▼ '+Math.round(alt)+' m · '+Math.round(Math.abs(vy)*3.6)+' km/h'+(libre&&alt<45?'<br><span style="color:#ff5a4a">OUVRE LA VOILE !</span>':'')+(wing?'<br><span style="color:#9fd8ff">WINGSUIT · '+Math.round(vh*3.6)+' km/h</span>':'');
     if(t!==C.txt){ C.txt=t; C.hud.innerHTML=t; } if(C.hud.style.display!=='block') C.hud.style.display='block'; } }
-function majCamera(dt){
+/* Le plan proche de la caméra (perf-hauteur, étape 2). La précision de la profondeur dépend du rapport distance² / plan proche : à
+   0,5 u, la soucoupe à 168 m en vue 2D (caméra à ~300 u du sol) ne départageait plus des sols écartés de 1 cm — désert de l'aéroport
+   (0,011) sur le sol de base, pelouse (0,07), tarmac (0,12) — qui changeaient de place d'une image à l'autre (captures du joueur). En
+   vue 2D et 3D, il recule avec la hauteur de la caméra au-dessus du plus haut décor (PROCHE_DECOR_MAX) et ne dépasse jamais une part
+   de la distance au joueur ; à la 1re personne, au cockpit, en chute 1P et au stand : NEAR_1P (0,1 ; le cockpit et l'arme en main, dans
+   leur scène à part, gardent NEAR_SCENES le temps de leur rendu). Réglé à un seul endroit, à la fin de majCamera. */
+const NEAR_1P=0.1, NEAR_SCENES=0.05, PROCHE_DECOR_MAX=118, CAMNEAR={principal:false,v:0.5};
+function planProche(){ if(INT.actif) return 0.5;
+  const c=camera.position, v=P.veh, tx=v?v.x:P.x, ty=v?v.mesh.position.y:P.y, tz=v?v.z:P.z, dj=Math.hypot(c.x-tx,c.y-ty,c.z-tz);
+  return clamp(Math.min(dj*0.22,(c.y-PROCHE_DECOR_MAX)*0.5),0.5,40); }
+function reglerPlanProche(){ let n;
+  if(FPS.actif||(VUE1P.actif&&vuePremiere())||(COCKPIT.g&&vueCockpit())||(CHUTE1P.actif&&vueChute())) n=NEAR_1P;
+  else n=CAMNEAR.principal?planProche():0.5;
+  if(Math.abs(camera.near-n)>1e-4){ camera.near=n; camera.updateProjectionMatrix(); } CAMNEAR.v=n; }
+function majCamera(dt){ CAMNEAR.principal=false; majCameraVue(dt); reglerPlanProche(); }
+function majCameraVue(dt){
   if(VOLCAM.ok&&!volSimVue()){ VOLCAM.ok=false; camera.up.set(0,1,0); } /* fin du vol simulé : la caméra retrouve son haut (la poursuite le penchait avec l'avion) */
   if(VUE1P.actif&&!vuePremiere()) quitterPremiere(); /* on quitte la 1re personne (salle, véhicule, chute, mini-jeu, manège…) : le corps revient, les bras s'en vont */
   if(FPS.actif){ fpsCamera(); return; } // tir à la première personne : l'œil du joueur
@@ -51015,6 +51032,7 @@ function majCamera(dt){
   if(MANEGES.actif){ cameraManege(dt); return; } /* manèges : à la 1re personne (lot 8.4), ou de l'extérieur au bouton de vue */
   if(BOUT.ouvert&&(!INT.actif||INT.actif.cabineBoutique)){ const a=(BOUT.b?BOUT.b.ry:0); // cabine d'essayage : de face, le joueur dans la moitié haute de l'écran
     camera.position.set(P.x+Math.sin(a)*6.2,P.y+1.5,P.z+Math.cos(a)*6.2); camera.lookAt(P.x,P.y+0.1,P.z); camera.fov=lerp(camera.fov,50,0.15); camera.updateProjectionMatrix(); VUE.yawRendu=0; return; }
+  CAMNEAR.principal=true; /* la vue 2D ou 3D : le plan proche suit la hauteur (reglerPlanProche) */
   const enVol=P.veh&&P.veh.def.air?(P.veh.alt||0):0;
   // Assiette d'un avion/hélico : sous la vue très inclinée normale (quasi
   // plongeante), un appareil qui pointe son nez vers la caméra se lit
@@ -51259,6 +51277,43 @@ function preparerObjet(o){ if(!o||typeof renderer.compile!=='function') return; 
   try{ const sc=prepScene(); sc.children.push(o); renderer.compile(sc,camera); sc.children=PREP.lum.slice(); prepTextures(o); } /* l'objet est prêté à la scène de préparation sans changer de parent */
   catch(e){ console.error('préparation : '+(e&&e.message||e)); }
   PREP.n++; PREP.ms+=performance.now()-t0; }
+/* Les sols superposés (perf-hauteur, étape 2). Relevé par rayons sur toute la carte : 451 couples de surfaces horizontales à moins de
+   6 cm l'une de l'autre — l'aéroport empile cinq sols (base 0, désert 0,011, pelouse 0,07, tarmac 0,12, piste 0,17), les dalles de la
+   plage se chevauchent de 1 u à la même hauteur exacte, etc. Le plan proche (planProche) règle les sols écartés ; rangerSols donne en
+   plus à chaque sol plat un ordre fixe : son rang dans l'empilement des sols qu'il recouvre (à hauteur égale, le dernier construit
+   passe dessus), traduit en polygonOffset (SOLS_DECALAGE). Une seule fois, au chargement ; un matériau partagé par des sols de rangs
+   différents, ou rendu par mat(), est copié pour le sol (générateur privé : aucun tirage) — jamais un matériau à shader ajouté
+   (onBeforeCompile n'est pas copié par clone) : celui-là prend le rang le plus bas de ses sols (SOLSR.partages). */
+const SOLS_DECALAGE={facteur:-0.25,unites:-2,max:8}, SOLSR={fait:false,n:0,rangs:0,copies:0,partages:0,ms:0};
+function rangerSols(){ if(SOLSR.fait) return; SOLSR.fait=true; const t0=performance.now(); scene.updateMatrixWorld(true);
+  const bb=new THREE.Box3(), C=[], TR=[], deMat=new Set([...Object.values(_matCache),...Object.values(_matCacheDecor)]);
+  scene.traverse((o)=>{ if(!o.isMesh||o.isInstancedMesh||!o.geometry||Array.isArray(o.material)) return; const m=o.material;
+    if(!m||m.visible===false) return; const voile=m.transparent||m.depthWrite===false; if(!voile&&m.polygonOffset) return;
+    const g=o.geometry; if(!g.boundingBox) g.computeBoundingBox(); bb.copy(g.boundingBox).applyMatrix4(o.matrixWorld); /* la boîte de la géométrie (setFromObject relit chaque sommet) */
+    if(bb.min.x<-4000||bb.max.y-bb.min.y>0.4||bb.max.y>3.5||bb.max.y<-0.8) return;
+    if((bb.max.x-bb.min.x)*(bb.max.z-bb.min.z)<16) return;
+    if(voile){ TR.push({o,y:bb.max.y,i:TR.length}); return; } /* un voile posé au sol (bandes de transition, fondus du littoral) */
+    C.push({o,m,y:bb.max.y,x0:bb.min.x,x1:bb.max.x,z0:bb.min.z,z1:bb.max.z,i:C.length,r:0}); });
+  C.sort((a,b)=>a.y-b.y||a.i-b.i); /* ordre de l'empilement : le plus bas d'abord ; à hauteur égale, l'ordre de construction */
+  const parX=C.slice().sort((a,b)=>a.x0-b.x0);
+  for(let k=0;k<parX.length;k++){ const a=parX[k]; for(let q=k+1;q<parX.length;q++){ const b=parX[q]; if(b.x0>=a.x1) break;
+    if(Math.abs(a.y-b.y)>0.06) continue; const ix=Math.min(a.x1,b.x1)-Math.max(a.x0,b.x0), iz=Math.min(a.z1,b.z1)-Math.max(a.z0,b.z0); if(ix<=0.2||iz<=0.2||ix*iz<1) continue;
+    (a.sous||(a.sous=[])).push(b); (b.sous||(b.sous=[])).push(a); } }
+  for(const c of C){ if(!c.sous) continue; for(const d of c.sous){ const dessous=d.y<c.y||(d.y===c.y&&d.i<c.i); if(dessous&&d.r+1>c.r) c.r=Math.min(SOLS_DECALAGE.max,d.r+1); } } /* C est trié : le rang des sols du dessous est déjà connu */
+  const parMat=new Map(); for(const c of C){ if(!c.r) continue; SOLSR.rangs++; let L=parMat.get(c.m); if(!L){ L=[]; parMat.set(c.m,L); } L.push(c); }
+  for(const c of C){ if(c.r) continue; const L=parMat.get(c.m); if(L) L.push(c); } /* un sol de rang 0 qui partage le matériau d'un sol rangé */
+  const poser=(m,r)=>{ m.polygonOffset=true; m.polygonOffsetFactor=SOLS_DECALAGE.facteur*r; m.polygonOffsetUnits=SOLS_DECALAGE.unites*r; };
+  const usages=new Map(); scene.traverse((o)=>{ const m=o.material; if(m&&parMat.has(m)) usages.set(m,(usages.get(m)||0)+1); });
+  avecAleaPrive(5150,()=>{ for(const [m,L] of parMat){ const rangs=[...new Set(L.map((c)=>c.r))]; const propre=Object.prototype.hasOwnProperty.call(m,'onBeforeCompile');
+    const tous=usages.get(m)||0; /* le matériau sert-il ailleurs (murs, objets) ? */
+    if(propre){ const r=Math.min(...rangs); if(r>0) poser(m,r); if(rangs.length>1) SOLSR.partages++; continue; }
+    const seul=rangs.length===1&&tous===L.length&&!deMat.has(m);
+    if(seul){ if(rangs[0]>0) poser(m,rangs[0]); continue; }
+    for(const r of rangs){ if(!r) continue; const m2=m.clone(); poser(m2,r); SOLSR.copies++; for(const c of L) if(c.r===r) c.o.material=m2; } } });
+  /* les voiles posés au sol ne s'écrivent pas dans la profondeur : seul l'ordre de dessin compte, et le tri par distance à la caméra
+     l'inversait en vol entre deux voiles qui se recouvrent. Ordre fixe : du plus bas au plus haut, avant tout autre objet transparent. */
+  TR.sort((a,b)=>a.y-b.y||a.i-b.i); TR.forEach((t,k)=>{ if(!t.o.renderOrder) t.o.renderOrder=-100000+k; }); SOLSR.voiles=TR.length;
+  SOLSR.n=C.length; SOLSR.ms=performance.now()-t0; }
 function preparerNouveaux(n0){ for(let i=n0;i<scene.children.length;i++) preparerObjet(scene.children[i]); }
 /* une scène à part (cockpit, arme en main) : ses propres lumières */
 function preparerSceneAPart(sc){ if(!sc||typeof renderer.compile!=='function') return; try{ renderer.compile(sc,camera); prepTextures(sc); }catch(e){} }
@@ -51269,7 +51324,7 @@ recalcJoueur(); construireJoueur();
 P.x=POIS.place.x; P.z=POIS.place.z+8;
 { const bp=el('mPlay'); bp.disabled=false; bp.textContent='▶ Jouer'; } /* la ville est construite : le menu, peint pendant la construction, disait « Chargement de Los Reyes… » */
 appliqueQualite(); majMenuStats();
-preparerRendu(true); /* perf-hauteur, étape 1 : shaders, textures et géométries prêts pendant le chargement */
+rangerSols(); /* perf-hauteur, étape 2 : l'ordre fixe des sols superposés */ preparerRendu(true); /* perf-hauteur, étape 1 : shaders, textures et géométries prêts pendant le chargement */
 hudD('missionTxt','none');
 
 let dernierT=performance.now(), mmFrame=0, perfAcc=0, perfN=0, perfT=0;

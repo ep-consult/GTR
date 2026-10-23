@@ -123,7 +123,7 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 49041 | JOUR/NUIT, CAMÉRA, HUD, MINIMAP |
 | 49291 | **VUE IMMERSIVE** — `VUE`, `vueCamera`, `basculerVue` (juste avant `majCamera`) |
 | 49615 | **COCKPITS** — vue 1re personne au volant (`COCKPIT`, `COCKPIT_FAMILLES`, `cockpitDims`, `mkCockpitInterieur`, `ckDessiner`, `rendreCockpit`, `cameraCockpit`, `cockpitDiagnostic`, `photoCockpit`) |
-| 51232 | BOUCLE PRINCIPALE |
+| 51250 | BOUCLE PRINCIPALE |
 
 ### Ancres fines (hors bandeaux)
 
@@ -207,7 +207,7 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 49479 | `VUE1P` — vue à la 1re personne : `cameraPremiere`, `ligneDeMire`, `viseAuto1P` |
 | 16097 | `SPORTJ` — le centre sportif se joue : `sportjDemarrer`, `majSportJ`, `sportjFrapper` |
 | 15519 | `RECHARGE_ARME` — rechargements à la 1re personne : `animRecharge`, `rechPiece`, `rechRemise`, `rechAccessoire` |
-| 50061 | `CK_HAB` — cockpits V2 : `CK_TH`, `CK_CADRANS`, `ckDial`, `ckCombine`, `ckHabitacle`, `ckVolant2`, `ckMain`, `ckDeuxRoues`, `ckBateau2`, `ckAvion2`, `ckHoloOvni` |
+| 50063 | `CK_HAB` — cockpits V2 : `CK_TH`, `CK_CADRANS`, `ckDial`, `ckCombine`, `ckHabitacle`, `ckVolant2`, `ckMain`, `ckDeuxRoues`, `ckBateau2`, `ckAvion2`, `ckHoloOvni` |
 | 22156 | `construireBatte(id)` — la batte cloutée et la Vertèbre (géométries partagées, manche et tête séparés) |
 | 28598 | `lancerMissileAvion()` — le missile des appareils : `missileProfil`, `missilePos`, `missileTraj`, traînée `MFUM` |
 | 31621 | `appuiVolCran()` — un appui bref sur MONTER / DESCENDRE vaut un cran (`APPUI_VOL_MIN`) |
@@ -275,6 +275,8 @@ un bandeau AJOUTÉ décale les libellés suivants — ajouter sa ligne à la mai
 | 13490 | `AIR_DEPART` — la Reyes Air Race (lot 10) : `AIR_ANNEAUX`, `AIR_MEDAILLES`, `LEVIS_THETA_COURSE`, `levisThetaMax`, puis `AIR`, `mkAirRace`, `airTraverse`, `airDemarrer`, `airFin`, `majAirRace`, `airUI` |
 | 8834 | `PERI` — la route périphérique des ponts-levis (lot 11.2) : `hauteurPeri`, `periChemin`, `periPoint`, `mkPeripherique`, `periEntrer`, `majPeriTrafic`, `periRetenir`, `dessinerPeriCarte` (juste avant les yachts de l'IA `YIA`) |
 | 31463 | `EJECT` — le siège éjectable et le crash mortel : `siegeEjectable`, `labelSaut`, `mortCrashAerien`, `ejecterSiege`, `majSiegeEjecte`, `ejectionSeparer`, `majAvionSansPilote`, `majEjection`, `ejectionVider` (juste après `sauterEnParachute`) |
+| 51261 | `PREP` — la préparation du rendu (perf-hauteur, étape 1) : `preparerRendu` (au chargement et à la 1re partie : shaders, textures, rendu complet sans élagage), `preparerObjet` (un objet né en jeu, compilé seul dans une scène aux mêmes lumières), `preparerSceneAPart`, `preparerNouveaux`, `prepTextures` ; juste avant : `SOLS_DECALAGE`, `rangerSols` (étape 2 : ordre fixe des sols superposés) |
+| 51001 | `NEAR_1P` — le plan proche de la caméra (perf-hauteur, étape 2) : `planProche`, `reglerPlanProche` (à la fin de `majCamera`, qui appelle `majCameraVue`), `CAMNEAR`, `PROCHE_DECOR_MAX`, `NEAR_SCENES` ; `pousserPlanProche` est à côté de `rendreCockpit` |
 
 ---
 
@@ -315,6 +317,13 @@ Les champs internes d'une salle ne sont jamais des objets `{x,z}` sans rayon :
 Une zone interactive doit se tenir à **au moins 8 unités** du centre de la zone
 SORTIE (rayon 3,00, et elle gagne toutes les chaînes `if / else if`). Bug déjà
 rencontré : le bouton du défi Monstre chevauchait la SORTIE et était inatteignable.
+
+### Sols superposés et plan proche (perf-hauteur)
+Deux sols plats qui se recouvrent à quelques millimètres clignotent vus de haut (la soucoupe à 168 m : bandes sur tout l'aéroport).
+`rangerSols` (au chargement) donne aux sols plats un ordre fixe par `polygonOffset` ; un sol posé **après** le chargement n'y est pas :
+le poser à 2 cm au moins de ce qu'il recouvre, ou lui donner son propre `polygonOffset`. Le plan proche de la caméra se règle à un
+seul endroit (`reglerPlanProche`, fin de `majCamera`) : jamais `camera.near=` ailleurs (sauf une scène à part, par `pousserPlanProche`).
+Test : « Perf-hauteur : aucun sol ne clignote à 170 m ».
 
 ### Merge de géométries
 Le merge des bâtiments **doit** se terminer par `finaliserMerge()` (~L2635), sinon
