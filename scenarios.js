@@ -19440,6 +19440,64 @@ async function main() {
       else ok('Perf-hauteur, sols à 170 m : ' + r.info.join(' ; '));
     }
     // -------------------------------------------------------------------
+    // Perf-hauteur, étape 6 : tous les véhicules du jeu jouables. Le relevé ne recopie aucune liste : chaque modèle de véhicule porte
+    // sa clé (makeVoiture, construireV3Spec : userData.cleVeh), un modèle de décor fait à la main userData.vehDecor ; toutes les salles
+    // sont construites. Tout modèle marqué qui n'est pas un vrai véhicule doit être rangé : GARÉ (VJOU : promu à l'approche), MONTÉ (un
+    // motard, un VTT, un cycliste, un pagayeur, un surfeur : PRENDRE), ou EXCEPTION (userData.vjouExclu, avec sa raison) — sinon le
+    // test échoue. Puis, pour chaque véhicule garé et un de chaque sorte de monté : on s'approche, le vrai bouton d'action (majAction)
+    // le prend, et on roule 10 u au joystick (en pilote qui choisit une direction libre devant lui). Aspect : un garé promu a le même
+    // modèle (même clé) ou porte la copie de son décor ; sa place est notée vide une fois emmené.
+    // -------------------------------------------------------------------
+    console.log('\n--- Perf-hauteur : tous les véhicules du jeu jouables ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = []; let T = dernierT + 1000; const pas = (n) => { for (let i = 0; i < n; i++) { for (const e of ennemis) e.mort = true; WANTED.stars = 0; P.hp = 1e9; T += 1000 / 60; tick(T); } };
+        const depart = () => { if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); META.vue = 'classique'; startRun(); ecran(null); ETAT.mode = 'jeu'; ETAT.jour = 40; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9; };
+        depart(); for (const id of Object.keys(INTDEFS)) { try { construireSalle(id); } catch (e) { ko.push('salle ' + id + ' : ' + e.message); } } sxIA(); pas(20);
+        /* le relevé */
+        const vrais = new Set(); for (const v of vehicules) v.mesh.traverse((o) => vrais.add(o)); if (P.h) P.h.g.traverse((o) => vrais.add(o));
+        const marque = (o) => o.userData && (o.userData.cleVeh || o.userData.vehDecor !== undefined);
+        const classes = { exception: [], gare: [], monte: [], nonCouvert: [] }; const raisons = {};
+        const monteDe = (o) => { for (let q = o; q; q = q.parent) { if (MOTARDS.liste.some((m) => m.moto === q)) return 'motard'; if (VELOS.some((b) => b.g === q)) return 'cycliste'; if (MONT_VIE.gens && MONT_VIE.gens.some((g) => g.velo === q)) return 'vtt'; if (q.userData && q.userData.vjouPrend) return q.userData.vjouPrend; } return null; };
+        scene.traverse((o) => { if (!marque(o) || vrais.has(o)) return; for (let q = o.parent; q; q = q.parent) if (marque(q)) return; /* une pièce d'un modèle déjà compté */
+          let ex = null; for (let q = o; q && !ex; q = q.parent) ex = q.userData && q.userData.vjouExclu; const nom = (o.userData.cleVeh || o.userData.vehDecor || 'décor') + '';
+          if (ex) { classes.exception.push(nom); raisons[nom + ' : ' + ex] = (raisons[nom + ' : ' + ex] || 0) + 1; return; }
+          if (o.userData.vjou) { classes.gare.push(nom); return; } const m = monteDe(o); if (m) { classes.monte.push(nom + ' (' + m + ')'); return; }
+          const p = new THREE.Vector3(); o.getWorldPosition(p); classes.nonCouvert.push(nom + ' @' + p.x.toFixed(0) + ',' + p.z.toFixed(0)); });
+        if (classes.nonCouvert.length) ko.push('véhicules du décor ni pilotables ni exceptés : ' + classes.nonCouvert.join(', '));
+        info.push('relevé : ' + classes.gare.length + ' garés promus à l’approche, ' + classes.monte.length + ' montés à prendre, ' + classes.exception.length + ' exceptions');
+        const nbEx = Object.keys(raisons).length; if (nbEx < 5) ko.push('exceptions : seulement ' + nbEx + ' raisons relevées');
+        /* rouler 10 u au joystick : un pilote choisit une direction libre devant lui (de l'eau pour un bateau, du sol libre sinon) */
+        const libre = (v, a) => { for (const d of (v.def.eau ? [1.5, 3] : [2, 4])) { /* un bateau sur un petit lac : 3 u d'eau devant lui suffisent */ const px = v.x + Math.sin(a) * d, pz = v.z + Math.cos(a) * d; if (v.def.eau ? !estEau(px, pz) : (estEau(px, pz) || solidAt(px, pz, 1.4))) return false; } return true; };
+        const rouler = (v) => { let L = 0, x = v.x, z = v.z, a = v.ang, essai = 0, Lseg = 0; for (let i = 0; i < 1200 && L < 10; i++) {
+            if (i % 45 === 0) { if (i > 0 && L - Lseg < 0.5) a = v.ang + (++essai) * Math.PI / 4 * (essai % 2 ? 1 : -1); else if (i === 0) { for (let k = 0; k < 16; k++) { const b = v.ang + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * Math.PI / 8; if (libre(v, b)) { a = b; break; } } } Lseg = L; } /* il n'avance plus : une autre direction, comme un joueur qui se dégage */
+            INPUT.jx = Math.sin(a); INPUT.jy = Math.cos(a); pas(1); L += Math.hypot(v.x - x, v.z - z); x = v.x; z = v.z; } INPUT.jx = INPUT.jy = 0; return L; };
+        const action = () => { majAction(); const b = el('btnAction'); return b && b.style.display !== 'none' && b._fn ? { label: b.textContent, fn: b._fn } : null; };
+        const PREND = /CONDUIRE|EMBARQUER|PILOTER|VOLER|ABORDER/;
+        /* les garés */
+        for (const e of VJOU.liste) { depart(); for (const o of vehicules.slice()) if (o.conduit !== 'joueur' && dist2(o.x, o.z, e.x, e.z) < 15 * 15 && !o.vjou) { scene.remove(o.mesh); vehicules.splice(vehicules.indexOf(o), 1); }
+          const eau = !!VEHDEFS[e.cle].eau; P.x = e.x + 6; P.z = e.z; P.y = solY(P.x, P.z); P.nage = eau;
+          VJOU.t = 0; majVJou(1 / 60); const v = e.v; if (!v) { ko.push(e.nom + ' : pas promu à l’approche'); continue; }
+          if (e.habit ? !v.habitVjou : (v.key !== e.cle || v.mesh.userData.cleVeh !== e.cle)) ko.push(e.nom + ' : promu sans son aspect');
+          if (e.g.visible) ko.push(e.nom + ' : le décor reste visible sous le vrai véhicule');
+          let A = null; for (let k = 0; k < 8 && !(A && PREND.test(A.label)); k++) { const a = k * Math.PI / 4, d = eau ? 3.5 : 1.6 + (v.def.larg || 2) / 2; P.x = v.x + Math.sin(a) * d; P.z = v.z + Math.cos(a) * d; P.y = solY(P.x, P.z); P.nage = eau; A = action(); } /* le tour du véhicule : un côté d'où le bouton le prend */
+          if (!A || !PREND.test(A.label)) { ko.push(e.nom + ' : aucun bouton pour le prendre autour (' + (A ? A.label : 'rien') + ')'); continue; }
+          A.fn(); const pv = P.veh; if (!pv || !pv.vjou) { ko.push(e.nom + ' : « ' + A.label + ' » ne le prend pas'); continue; } /* sur un lac, les barques voisines sont promues aussi : on prend la plus proche */
+          pv.hp = 1e9; const L = rouler(pv); if (L < 10) ko.push(e.nom + ' : ' + L.toFixed(1) + ' u seulement au joystick'); else info.push(e.nom + ' (« ' + A.label.trim() + ' ») : ' + L.toFixed(0) + ' u');
+          VJOU.t = 0; majVJou(1 / 60); if (!pv.vjou.pris) ko.push(e.nom + ' : emmené, sa place n’est pas notée vide'); }
+        /* un de chaque sorte de monté */
+        const essais = [['motard', () => MOTARDS.liste.find((m) => m.actif), (m) => [m.x, m.z]], ['cycliste', () => { if (!VELOS.length) mkVelo(POIS.place.x + 30, POIS.place.z + 6); return VELOS[VELOS.length - 1]; }, (b) => [b.x, b.z]], ['vtt', () => MONT_VIE.gens && MONT_VIE.gens.find((g) => g.type === 'vtt'), (g) => [g.velo.position.x, g.velo.position.z]]];
+        for (const [type, trouver, ou] of essais) { depart(); pas(5); const q = trouver(); if (!q) { ko.push(type + ' : introuvable'); continue; }
+          if (type === 'motard') { q.g.visible = true; } if (type === 'vtt') { q.velo.visible = true; q.h.g.visible = true; }
+          const [x, z] = ou(q); P.x = x + 1.5; P.z = z; P.y = solY(P.x, P.z); const A = action(); if (!A || !/PRENDRE/.test(A.label)) { ko.push(type + ' : pas de bouton PRENDRE à côté (' + (A ? A.label : 'rien') + ')'); continue; }
+          A.fn(); const v = P.veh; if (!v) { ko.push(type + ' : « ' + A.label + ' » ne donne pas l’engin'); continue; } v.hp = 1e9;
+          const L = rouler(v); if (L < 10) ko.push(type + ' : ' + L.toFixed(1) + ' u seulement'); else info.push(type + ' (« ' + A.label.trim() + ' ») : ' + v.key + ', ' + L.toFixed(0) + ' u'); }
+        info.push('exceptions : ' + Object.entries(raisons).map(([k, n]) => (n > 1 ? n + ' × ' : '') + k).join(' | '));
+        if (P.veh) sortirVehicule(true); depart(); return { ko, info }; });
+      if (r.ko.length) fail('Perf-hauteur, véhicules jouables : ' + r.ko.join(' ; ') + ' [' + r.info.join(' | ') + ']');
+      else ok('Perf-hauteur, véhicules jouables : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];

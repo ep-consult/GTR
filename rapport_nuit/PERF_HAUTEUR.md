@@ -15,7 +15,7 @@ tache sombre qui change de forme en bas à gauche.
 | 3 | Grésillement des arbres vus de loin | fait |
 | 4 | Performances en altitude | fait |
 | 5 | Test : deux images à 170 m, aucun pixel des sols qui change | fait |
-| 6 | Tous les véhicules du jeu jouables | à faire |
+| 6 | Tous les véhicules du jeu jouables | fait |
 | 7 | Une récompense pour le Titanic | à faire |
 | 8 | Le couple à la proue | à faire |
 | 9 | La page de statistiques | à faire |
@@ -228,3 +228,69 @@ qui s'allumait entre les deux images marquait 4 pixels ; corrigé dans le test (
 **Captures** (`captures/bug_hauteur/`) : `deux_images_avant.png` et `deux_images_apres.png` — deux images d'affilée, la caméra avancée
 d'une image de vol, profondeur ÷16, le bas de l'écran comme sur les zooms du joueur : avant, le cratère se découpe en bandes qui changent
 et le sable se raye ; après, un disque net et stable, le sable propre (et moins de voile : étape 4).
+
+## 6. Tous les véhicules du jeu jouables — fait
+
+**Le relevé, sans liste recopiée.** Chaque modèle de véhicule porte désormais sa clé dès sa construction (`makeVoiture` et
+`construireV3Spec` posent `userData.cleVeh`, sans aucun tirage) ; un engin de décor fait à la main porte `userData.vehDecor`. Le test
+construit toutes les salles, parcourt la scène, et range tout modèle marqué qui n'est pas un vrai véhicule ; **un modèle qui n'entre dans
+aucune case fait échouer le test** (un futur véhicule de décor devra être rendu pilotable ou excepté avec sa raison).
+
+Déjà pilotables avant cette étape (vrais véhicules, rien à faire) : le trafic, la police, les véhicules garés de la ville, des courses,
+de la base (`BASE.places`), du chantier, de la jeep du camp, de l'aéroport (véhicules de piste, avions des hangars, long-courrier garé à
+sa porte), de Los Reyes Hills, des canaux (voitures d'allée, bateaux amarrés et qui circulent : `VDEC`, `PROMO`), le showroom et le stand
+du derby (`EXPO` : volés, alarme et étoiles, jamais dans « Mes véhicules » sans achat — règle gardée), les engins pris aux pagayeurs et
+aux surfeurs, la moto d'un motard ennemi abattu.
+
+**Ce qui devient pilotable** (`VJOU`, juste avant `preparerNouveaux`) :
+
+| véhicule | combien | comment |
+|---|---|---|
+| char-monument de Fort Reyes (sur son socle) | 1 | garé : promu à l'approche (9 u à pied), même modèle |
+| char « Rhinocéros » du camp d'entraînement | 1 | garé : promu, son solide retiré le temps de la promotion |
+| camion « Aigle » du camp (sous le filet) | 1 | garé : promu, son solide retiré |
+| voiliers au mouillage au large | 5 | garés sur l'eau : promus à 14 u (à la nage ou en bateau), conduite du voilier « Alizé », **leur aspect gardé** (le vrai véhicule porte la copie du décor, son modèle masqué), solide retiré |
+| barques du lac du parc | 4 | garées sur l'eau : conduite du kayak (à la pagaie), aspect de la barque gardé |
+| barque du lac du Mont Reyes | 1 | idem |
+| motards du désert, du mont et du supercross | 7 | montés : « 🏍️ PRENDRE LA MOTO » à 3,6 u — le pilote est éjecté, la moto devient une vraie moto cross |
+| VTT du sentier du mont | 2 | montés : « 🚲 PRENDRE LE VÉLO » — le vététiste descend et s'enfuit (figurant devenu piéton) |
+| cyclistes de la ville | selon le moment | montés : « 🚲 PRENDRE LE VÉLO » — le cycliste descend et s'enfuit |
+
+Un garé laissé à sa place redevient du décor au-delà de 40 u ; emmené ou détruit, sa place reste vide jusqu'à la partie suivante
+(`vjouStartRun`). Prendre un engin monté est un vol (étoiles), comme voler une voiture.
+
+**Exceptions** (chacune porte sa raison dans `userData.vjouExclu`, relevée par le test) :
+
+| véhicule | raison |
+|---|---|
+| Vautour à l'exercice au-dessus du camp | vole en boucle (trajet scripté, 24 u de haut) : on ne monte pas dans un hélico en vol ; il se percute et s'abat |
+| avion de tourisme en tour de piste | en vol (trajet scripté) ; le même modèle est garé au hangar de l'aéroclub |
+| Écureuil autour de la tour de contrôle | en vol (trajet scripté) ; un Écureuil est garé sur l'hélipad de la Tour Los Reyes |
+| avion à banderole (Super Cub) | toujours en vol le long de la plage |
+| dirigeable | vole en boucle au-dessus de la ville, sans fiche de conduite ; il se percute et s'abat |
+| long-courrier en vol et au roulage | trajet scripté ; garé à sa porte, il devient un vrai véhicule |
+| hélicoptères ennemis | en vol |
+| bateau-tracteur du wakeboard | n'existe que pendant l'activité, qu'il tire |
+| rivales du rallye des bouées, pilotes de la course de supercross | n'existent que pendant leur course |
+| vedette des contrebandiers | la cible d'une activité (l'arraisonner, saisir la cargaison) |
+| bateaux des juges de Cliff Diving | ils portent les juges qui notent les plongeons |
+| canots de sauvetage du Reyes Majestic | ils appartiennent au naufrage (on y mène les passagers), sans fiche de conduite |
+| galion échoué | une épave |
+| salles : catalogue de REYES MOTORS, bus du Dépôt, runabout sur sangles du chantier naval, cabriolet du garage vitré de la villa Miami, véhicule exposé au garage tuning | on ne conduit pas dans une salle ; chacune a son propre chemin (acheter, choisir au tableau des courses, sortir par le garage, ressortir du garage au volant) |
+| food trucks des places garnies | ce sont des stands (on y achète à manger), fusionnés dans le mobilier, sans fiche de conduite — pas un modèle à part, donc hors du relevé |
+
+**Trouvé en route** : sur le lac du parc, une barque qui touchait la passerelle ou la rive « s'échouait » comme sur une plage, et le
+joueur était débarqué (aucun bateau n'y allait jusqu'ici) — depuis un lac ou un bassin, la rive et la passerelle sont des murs pour un
+bateau. Le motard ennemi abattu laissait toujours une `motoR`, même quand il roulait sur un autre modèle : il laisse la sienne.
+
+**Test** « Perf-hauteur : tous les véhicules du jeu jouables » : le relevé (12 garés, 9 montés, 25 exceptions, aucun non couvert) ;
+puis, pour chacun des 12 garés et un motard, un VTT, un cycliste : on s'approche, le vrai bouton d'action le prend (« CONDUIRE »,
+« EMBARQUER », « PRENDRE LA MOTO », « PRENDRE LE VÉLO »), même aspect, et 10 u au joystick (un pilote qui choisit une direction libre et
+se dégage s'il bute) ; la place notée vide une fois emmené.
+
+**Coût** (`scratchpad/ph/perf6.js`, à pied, 120 images) : `majVJou` 0,005 ms par appel (quatre fois par seconde) ; calcul par image au
+camp 16,3 → 17,1 ms, au lac 19,2 → 21,3, à Fort Reyes 20,9 → 22,0, au centre 23,0 → 20,6 (bruit de mesure : ±2 ms) ; appels de rendu
+inchangés. Empreinte de la ville et tirages identiques.
+
+**À vérifier sur iPhone** : prendre une moto à un motard qui s'arrête devant soi ; une barque sur le petit lac du parc (il est petit :
+on y tourne en rond) ; le char-monument qui descend de son socle ; un voilier au mouillage à la nage.
