@@ -25740,7 +25740,7 @@ function lodPoserV4(key,G,I){ const geo=lodGeoV4(key,G,I), m=new THREE.Mesh(geo,
   I.ud.lod={loin:m,det,etat:'proche'}; }
 /* appelée à chaque image pour chaque véhicule V3/V4 de la ville (majChauffeur) : rend vrai si le véhicule est loin (le reste est sauté) */
 function majLodV4(v,ud){ const L=ud.lod; if(!L) return false; let loin=false;
-  if(!v.lodFixe&&P.veh!==v&&!v.mort){ const d2=dist2(v.x,v.z,P.x,P.z); loin=L.etat==='loin'?d2>LOD_PROCHE*LOD_PROCHE:d2>LOD_LOIN*LOD_LOIN; }
+  if(!v.lodFixe&&P.veh!==v&&!v.mort){ const hc=Math.max(0,ALT_DECOR.hCam-60), d2=dist2(v.x,v.z,P.x,P.z)+hc*hc; /* perf-hauteur, étape 4 : vu de haut, la caméra est loin même au-dessus du véhicule */ loin=L.etat==='loin'?d2>LOD_PROCHE*LOD_PROCHE:d2>LOD_LOIN*LOD_LOIN; }
   if(loin&&L.etat!=='loin'){ L.etat='loin'; L.vis=[]; const cache=(o)=>{ if(!o) return; L.vis.push([o,o.visible]); o.visible=false; };
     for(const m of L.det) cache(m); for(const r of ud.roues||[]) cache(r); cache(ud.interieurV3); cache(ud.chauffeur); L.loin.visible=true; }
   else if(!loin&&L.etat==='loin'){ L.etat='proche'; for(const [o,vis] of L.vis) o.visible=vis; L.vis=null; L.loin.visible=false; }
@@ -51006,7 +51006,14 @@ function planProche(){ if(INT.actif) return 0.5;
 function reglerPlanProche(){ let n;
   if(FPS.actif||(VUE1P.actif&&vuePremiere())||(COCKPIT.g&&vueCockpit())||(CHUTE1P.actif&&vueChute())) n=NEAR_1P;
   else n=CAMNEAR.principal?planProche():0.5;
-  if(Math.abs(camera.near-n)>1e-4){ camera.near=n; camera.updateProjectionMatrix(); } CAMNEAR.v=n; }
+  altDecorEtat(); let f=900;
+  if(!INT.actif&&scene.fog){ /* en ville : en altitude, vue plongeante, le brouillard commence au sol sous la caméra et s'arrête au haut de l'écran ; le plan lointain le suit (rien n'est visible au-delà) */
+    let fn=60; const h=ALT_DECOR.hCam; if(CAMNEAR.principal&&h>60){ camera.getWorldDirection(_dirCam); const a=Math.asin(clamp(-_dirCam.y,-1,1)), top=a-camera.fov*Math.PI/360;
+      if(top>0.25){ fn=Math.max(60,h*0.8); scene.fog.far=Math.min(scene.fog.far,h/Math.sin(top)*1.05+20); } }
+    scene.fog.near=fn; f=clamp(scene.fog.far*1.03,120,900); }
+  if(VUE.ciel) VUE.ciel.scale.setScalar(Math.min(1,f*0.9/700)); /* le dôme du ciel reste en deçà du plan lointain */
+  if(Math.abs(camera.near-n)>1e-4||camera.far!==f){ camera.near=n; camera.far=f; camera.updateProjectionMatrix(); } CAMNEAR.v=n; }
+const _dirCam=new THREE.Vector3();
 function majCamera(dt){ CAMNEAR.principal=false; majCameraVue(dt); reglerPlanProche(); }
 function majCameraVue(dt){
   if(VOLCAM.ok&&!volSimVue()){ VOLCAM.ok=false; camera.up.set(0,1,0); } /* fin du vol simulé : la caméra retrouve son haut (la poursuite le penchait avec l'avion) */
@@ -51315,6 +51322,33 @@ function rangerSols(){ if(SOLSR.fait) return; SOLSR.fait=true; const t0=performa
      l'inversait en vol entre deux voiles qui se recouvrent. Ordre fixe : du plus bas au plus haut, avant tout autre objet transparent. */
   TR.sort((a,b)=>a.y-b.y||a.i-b.i); TR.forEach((t,k)=>{ if(!t.o.renderOrder) t.o.renderOrder=-100000+k; }); SOLSR.voiles=TR.length;
   SOLSR.n=C.length; SOLSR.ms=performance.now()-t0; }
+/* Vu de haut (perf-hauteur, étape 4). Soucoupe à 170 m en vue 2D au-dessus du centre : 2 031 appels de rendu (370 à 20 m), et sur
+   1 600 objets dans le champ, 1 170 font moins de 8 pixels à l'écran, 630 moins d'un pixel — surtout des pièces de véhicules (la version
+   lointaine du trafic se décidait sur la distance HORIZONTALE au joueur : sous la soucoupe, les voitures restaient détaillées) et de
+   personnages. Au-delà de ALT_DECOR.haut de caméra au-dessus du sol : les véhicules passent en version lointaine (majLodV4 compte la
+   hauteur de la caméra), et le temps du seul rendu (altDecorMasquer / altDecorRendre, rien ne change pour le jeu) on masque les petits
+   objets fixes du décor (rayon < ALT_DECOR.rayon, relevés une fois) et les figurants — jamais les piétons, ennemis, véhicules, ramassables
+   ni balises (le jeu s'en sert), ni le mobilier fusionné (ses zones portent aussi les fontaines et les statues). Le plan lointain suit le
+   brouillard (rien n'est visible au-delà) ; en altitude, le brouillard commence au sol sous la caméra (reglerPlanProche). */
+const ALT_DECOR={haut:150,bas:135,rayon:1.2,actif:false,liste:null,cachees:[],hCam:0,fig:0};
+function altDecorListe(){ const L=[], sph=new THREE.Sphere(), sc=new THREE.Vector3(); scene.updateMatrixWorld(true);
+  const exclus=new Set(); const ex=(o)=>{ if(o) o.traverse((q)=>exclus.add(q)); };
+  for(const v of vehicules) ex(v.mesh); for(const p of pietons) ex(p.mesh||(p.h&&p.h.g)); for(const e of ennemis) ex(e.mesh||(e.h&&e.h.g)); for(const p of pickups) ex(p.mesh); if(P.h) ex(P.h.g); for(const b of BALISES) ex(b.sp||b.mesh||b); for(const f of FIGURANTS) ex(f.h&&f.h.g);
+  scene.traverse((o)=>{ if(!(o.isMesh||o.isSprite||o.isPoints)||o.isInstancedMesh||exclus.has(o)||!o.geometry) return; if(o.material===MOB_MAT||o.material===MOB_MAT_LUM) return;
+    const g=o.geometry; if(!g.boundingSphere) g.computeBoundingSphere(); sph.copy(g.boundingSphere).applyMatrix4(o.matrixWorld); if(sph.center.x<-4000) return;
+    if(sph.radius<ALT_DECOR.rayon) L.push(o); });
+  return L; }
+function altDecorEtat(){ const c=camera.position, h=c.y-(INT.actif?0:solY(c.x,c.z)); ALT_DECOR.hCam=h;
+  ALT_DECOR.actif=!INT.actif&&(ALT_DECOR.actif?h>ALT_DECOR.bas:h>ALT_DECOR.haut); }
+function altDecorMasquer(){ if(!ALT_DECOR.actif) return; if(!ALT_DECOR.liste) ALT_DECOR.liste=altDecorListe(); const C=ALT_DECOR.cachees; C.length=0;
+  for(const o of ALT_DECOR.liste) if(o.visible){ o.visible=false; C.push(o); }
+  for(const f of FIGURANTS){ const g=f.h&&f.h.g; if(g&&g.visible&&!g.userData.converti){ g.visible=false; C.push(g); } }
+  for(const v of vehicules){ if(v===P.veh||!v.mesh) continue; const ud=v.mesh.userData; if(ud.lod&&ud.lod.etat==='loin') continue; /* la version lointaine est déjà un seul objet */
+    const L=ud.petitesPieces||(ud.petitesPieces=petitesPieces(v.mesh)); for(const o of L) if(o.visible){ o.visible=false; C.push(o); } } } /* roues, rétroviseurs, phares : la caisse reste */
+function petitesPieces(racine){ const L=[], sc=new THREE.Vector3(); racine.updateMatrixWorld(true); racine.traverse((o)=>{ if(o===racine||!(o.isMesh||o.isSprite)||!o.geometry) return; const g=o.geometry; if(!g.boundingSphere) g.computeBoundingSphere(); o.getWorldScale(sc); if(g.boundingSphere.radius*Math.max(sc.x,sc.y,sc.z)<ALT_DECOR.rayon) L.push(o); }); return L; }
+function altDecorRendre(){ const C=ALT_DECOR.cachees; for(let i=0;i<C.length;i++) C[i].visible=true; C.length=0; }
+/* l'image : la ville (sans le petit décor vu de haut), puis le cockpit et l'arme en main par-dessus */
+function rendreImage(){ altDecorMasquer(); try{ renderer.render(scene,camera); } finally { altDecorRendre(); } if(COCKPIT.g) rendreCockpit(); rendreArme1P(); }
 function preparerNouveaux(n0){ for(let i=n0;i<scene.children.length;i++) preparerObjet(scene.children[i]); }
 /* une scène à part (cockpit, arme en main) : ses propres lumières */
 function preparerSceneAPart(sc){ if(!sc||typeof renderer.compile!=='function') return; try{ renderer.compile(sc,camera); prepTextures(sc); }catch(e){} }
@@ -51336,7 +51370,7 @@ function boucle(t){
   requestAnimationFrame(boucle);
   try{ tick(t); }
   catch(e){ ETAT.erreursTick=(ETAT.erreursTick||0)+1; if(ETAT.erreursTick<=3||ETAT.erreursTick%300===0) console.error('Erreur dans la boucle : '+(e&&e.stack||e)); signalerErreur('boucle : '+(e&&e.message||e)); }
-  try{ renderer.render(scene,camera); if(COCKPIT.g) rendreCockpit(); /* l'intérieur du véhicule, par-dessus la ville */ rendreArme1P(); /* l'arme en main, par-dessus aussi */ }catch(e){ ETAT.erreursTick=(ETAT.erreursTick||0)+1; if(ETAT.erreursTick<=3) console.error('Erreur de rendu : '+(e&&e.message||e)); }
+  try{ rendreImage(); /* la ville (sans le petit décor vu de haut), le cockpit et l'arme en main par-dessus */ }catch(e){ ETAT.erreursTick=(ETAT.erreursTick||0)+1; if(ETAT.erreursTick<=3) console.error('Erreur de rendu : '+(e&&e.message||e)); }
 }
 function tick(t){
   let dtReel=Math.max(0,Math.min(0.05,(t-dernierT)/1000));

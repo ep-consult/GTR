@@ -13,7 +13,7 @@ tache sombre qui change de forme en bas à gauche.
 | 1 | Shaders, textures et géométries préparés au chargement | fait |
 | 2 | Superposition des sols, plan proche | fait |
 | 3 | Grésillement des arbres vus de loin | fait |
-| 4 | Performances en altitude | à faire |
+| 4 | Performances en altitude | fait |
 | 5 | Test : deux images à 170 m, aucun pixel des sols qui change | à faire |
 | 6 | Tous les véhicules du jeu jouables | à faire |
 | 7 | Une récompense pour le Titanic | à faire |
@@ -156,3 +156,55 @@ vus de haut ; sur les puces Apple il est peu coûteux, mais il touche tout le je
 l'iPhone avant de le proposer.
 
 **À vérifier sur iPhone** : survoler le cratère de la soucoupe (bord du désert, au sud de l'aéroport) et le Mont Reyes à 170 m.
+
+## 4. Performances en altitude — fait
+
+**Mesure de départ** (`rapport_nuit/outils/cout_altitude.js` : soucoupe en vue 2D, 40 images par point, calcul, rendu avec attente
+de la carte, appels de rendu, triangles) : au-dessus du centre-ville, 370 appels à 20 m, 1 395 à 80 m, **2 031 à 170 m** (809 000
+triangles). Sur les ~1 600 objets dans le champ à 170 m, 1 170 font moins de 8 pixels à l'écran et 630 moins d'un pixel : surtout des
+pièces de véhicules et de personnages. Deux causes en plus :
+- la version lointaine du trafic (`majLodV4`, un seul objet par véhicule) se décidait sur la distance **horizontale** au joueur : sous la
+  soucoupe, les voitures restaient détaillées (25 à 30 pièces chacune) alors que la caméra était à 300 u ;
+- le plan lointain de la caméra restait à 900 u quel que soit le brouillard (150 à 320 u en ville) : **tout ce qui est caché par le
+  brouillard était quand même dessiné** — vrai aussi au sol en vue 3D.
+
+**Ce qui est fait** :
+- **Le plan lointain suit le brouillard** (×1,03, entre 120 et 900 u ; `reglerPlanProche`) — rien n'est visible au-delà ; le dôme du
+  ciel de la vue 3D (700 u, sans brouillard) est réduit d'autant (son dégradé ne dépend que de la direction : identique à l'œil).
+- **En altitude, le brouillard se resserre et commence au sol** : vue plongeante (rayon du haut de l'écran à plus de 14° sous
+  l'horizon), il commence à 80 % de la hauteur de la caméra et s'arrête au sol vu en haut de l'écran (+5 %) ; à 170 m, il s'arrêtait à
+  524 u et commence désormais à 243 u au lieu de 60 — le sol sous la soucoupe n'est plus voilé (il l'était à plus de 50 %).
+- **Au-delà de 150 u de caméra au-dessus du sol** (`ALT_DECOR`, hystérésis à 135 ; ~65 m d'altitude en vue 2D) : les véhicules passent
+  en version lointaine (`majLodV4` compte la hauteur de la caméra au-delà de 60 u), et **le temps du seul rendu** (`rendreImage`,
+  `altDecorMasquer` / `altDecorRendre` : rien ne change pour le jeu, les collisions ni les autres systèmes) on masque les petits objets
+  fixes du décor (rayon < 1,2 u, relevés une fois), les figurants, et les petites pièces des véhicules sans version lointaine (roues,
+  rétroviseurs, phares : la caisse reste ; jamais celui du joueur). Pas les piétons, ennemis, ramassables, balises (le jeu en a besoin
+  vu de haut : le rayon de la soucoupe, les tirs), ni le mobilier fusionné (ses zones portent aussi les fontaines et les statues).
+- Les particules lointaines : rien de plus (elles sont peu nombreuses, et le plan lointain coupe déjà celles du brouillard).
+
+**Mesures** (rendu logiciel : les temps sont bruités, les appels de rendu et les triangles sont fiables) :
+
+| point, altitude | appels avant → après | triangles avant → après | calcul (ms) avant → après |
+|---|---|---|---|
+| centre, 20 m | 370 → 370 | 334 000 → 334 000 | 24,6 → 25,5 |
+| centre, 80 m | 1 395 → 485 | 579 000 → 417 000 | 24,9 → 27,3 |
+| centre, 170 m | **2 031 → 817** | 809 000 → 597 000 | 32,1 → 31,3 |
+| aéroport, 80 m | 367 → 219 | 340 000 → 326 000 | 13,4 → 15,2 |
+| aéroport, 170 m | 1 151 → 519 | 715 000 → 632 000 | 13,2 → 14,0 |
+| canaux, 80 m | 770 → 444 | 599 000 → 557 000 | 19,5 → 19,7 |
+| canaux, 170 m | 1 519 → 763 | 869 000 → 765 000 | 19,3 → 18,3 |
+| mont, 80 m | 746 → 229 | 329 000 → 283 000 | 18,3 → 19,7 |
+| mont, 170 m | 1 309 → 428 | 428 000 → 326 000 | 16,4 → 18,6 |
+| vue 3D au sol, dans l'axe d'une avenue | **1 967 → 624** | 566 000 → 344 000 | rendu 1 154 → 141 ms |
+
+Au sol en vue 2D, rien ne change (mêmes appels). En vue 3D au sol, l'image est identique à l'œil (capture comparée) et coûte trois
+fois moins d'appels. Le calcul (`tick`) ne bouge pas (le masquage coûte ~0,1 ms). Captures à 170 m au-dessus du centre :
+`captures/bug_hauteur/centre_170m_avant.png` / `…_apres.png` (moins voilé, mêmes repères).
+
+**Plafond de la caméra en 2D : proposé, pas fait.** La caméra de la vue 2D monte de 1,5 u par mètre d'altitude (52 + 0,75 × alt, puis
+le point visé suit aussi). Un plafond (par exemple 180 u au-dessus du sol, atteint vers 85 m d'altitude) réduirait encore la surface
+vue d'environ 40 % à 170 m, mais la soucoupe paraîtrait plus grosse et le sol plus proche qu'il ne l'est : à décider après l'essai sur
+iPhone des mesures ci-dessus.
+
+**À vérifier sur iPhone** : la fluidité à 170 m au-dessus du centre et des canaux ; le passage des 65 m environ (les petits objets et les
+figurants disparaissent d'un coup : est-ce visible ?) ; la vue 3D en ville (même image, plus fluide).
