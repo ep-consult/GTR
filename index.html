@@ -18180,7 +18180,7 @@ function paqRemettre(){ if(!PAQ.ok) return; sauvArreter(); sauvEtat().fini=false
   PAQ.passagers.forEach((p,k)=>{ const [dx,dz]=places[k]; p.x=p.x0=X+dx; p.z=p.z0=Z+dz; p.etat='attend'; p.g.visible=true; p.g.position.set(p.x,H,p.z); p.g.rotation.set(0,0,0); });
   for(const c of PAQ.canots){ c.n=0; c.y=11.4; c.g.position.set(c.x0,c.y,c.z0); c.g.rotation.set(0,0,0); c.g.visible=true; for(const t of c.ttes) t.visible=false; }
   for(const r of PAQ.radeaux) r.g.visible=false; for(const d of PAQ.debris) d.g.visible=false; if(PAQ.porte) PAQ.porte.visible=true;
-  paqDrameRemettre(); } /* point 10 : la foule à bord, les chaloupes à leurs bossoirs, les lumières allumées */
+  paqDrameRemettre(); paqCouplePoser(); } /* point 10 : la foule à bord, les chaloupes à leurs bossoirs, les lumières allumées ; étape 8 : le couple à la proue */
 function paqSurPont(x,z){ const dx=x-PAQ.x, dz=Math.abs(z-PAQ.z), hw=dx<-40?5.2:(dx<=28?7.0:(dx<=40?4.7:1.9)); return dx>-45.5&&dx<44.5&&dz<hw&&!(Math.abs(dx)<30.4&&dz<6.3); } /* la forme du pont : poupe arrondie, étrave fine, sans les superstructures */
 function paqABord(){ return PAQ.ok&&!P.veh&&P.y>PAQ.pont-0.6&&Math.abs(P.x-PAQ.x)<47&&Math.abs(P.z-PAQ.z)<8; }
 function paqSurEau(){ return P.nage||(P.veh&&P.veh.def&&P.veh.def.eau); }
@@ -18253,6 +18253,41 @@ function naufrageTrophee(s){ if(!s||!s.trophees) return; const rec=META.defis.na
     pl.position.y=-1.05; g.add(pl); g.userData.plaque={cv,tx,rec:-1}; g.rotation.y=-Math.PI/2; g.position.set(s.trophees.x+0.6,2.3,s.trophees.z+2.6); s.g?s.g.add(g):scene.add(g); s.naufTroph=g; });
   const T=s.naufTroph, P2=T.userData.plaque; T.visible=true; if(P2.rec!==rec){ P2.rec=rec; const c=P2.cv.getContext('2d'); c.fillStyle='#5a3a22'; c.fillRect(0,0,256,96); c.strokeStyle='#d8b060'; c.lineWidth=5; c.strokeRect(4,4,248,88);
     c.fillStyle='#ffe6a0'; c.textAlign='center'; c.font='bold 22px Arial'; c.fillText('REYES MAJESTIC',128,38); c.font='18px Arial'; c.fillText(rec+' naufragé'+(rec>1?'s':'')+' sauvé'+(rec>1?'s':''),128,70); P2.tx.needsUpdate=true; } }
+/* Le couple de la proue (perf-hauteur, étape 8) : deux passagers anonymes à la pointe de l'étrave — elle debout face au large, les bras
+   grands ouverts ; lui derrière, qui la tient par la taille. Le vent du large dans ses cheveux et sa robe (de près seulement). Posés avant
+   le naufrage (enfants de la moitié avant : ils penchent avec elle) ; à la cassure, ils s'agrippent au bastingage, puis tombent à la mer et
+   nagent, comme la foule. Ce sont des figurants (figurant) : visés, ils deviennent de vrais piétons. Construits la 1re fois qu'on approche,
+   sur un générateur privé, les caches partagés rendus tels quels (une couleur créée ici décalerait une salle construite plus tard). */
+const COUPLE_PROUE={lx:42.4,lz:0,ecart:0.5,lache:3.5};
+function paqCoupleConstruire(){ if(PAQ.couple) return PAQ.couple; const half=PAQ.moities.find((h)=>h.sd>0); if(!half) return null;
+  const mat0=new Set(Object.keys(_matCache)), vis0=new Set(Object.keys(VIS_CACHE)); let C=null;
+  avecAleaPrive(1912,()=>{ const F=makeHumain({haut:0xf4ece0,bas:0xf4ece0,peau:0xf0c8a8,casq:0xb04a2a,visage:'gentil'},0.96), M=makeHumain({haut:0x1a1c22,bas:0x1a1c22,peau:0xe8c0a0,casq:0x3a2a1c,visage:'gentil'},1.02);
+    const robe=new THREE.MeshLambertMaterial({color:0xf4ece0,side:THREE.DoubleSide}), roux=new THREE.MeshLambertMaterial({color:0xb04a2a,side:THREE.DoubleSide});
+    const jupe=new THREE.Mesh(new THREE.CylinderGeometry(0.24,0.52,0.82,12,1,true),robe); jupe.position.y=0.42; F.g.add(jupe); /* la robe, évasée jusqu'aux chevilles */
+    const volant=new THREE.Mesh(new THREE.CylinderGeometry(0.52,0.6,0.16,12,1,true),robe); volant.position.y=0.04; F.g.add(volant);
+    const meches=[]; { const piv=new THREE.Group(); piv.position.set(0,0.16,-0.17); const m=new THREE.Mesh(new THREE.BoxGeometry(0.36,0.58,0.06),roux); m.position.y=-0.28; piv.add(m); F.tete.add(piv); meches.push(piv); } /* la masse des cheveux */
+    for(let k=0;k<4;k++){ const piv=new THREE.Group(); piv.position.set(-0.13+k*0.087,0.1,-0.19); const m=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.7,0.035),roux); m.position.y=-0.34; piv.add(m); F.tete.add(piv); meches.push(piv); } /* et ses mèches longues, qui flottent */
+    for(const h of [F,M]) h.g.rotation.order='YXZ';
+    C={F,M,jupe,volant,meches,half,etat:'proue',t:0,vit:[{x:0,y:0,z:0},{x:0,y:0,z:0}]}; figurant(F,[M]); figurant(M,[F]); });
+  for(const k of Object.keys(_matCache)) if(!mat0.has(k)) delete _matCache[k]; for(const k of Object.keys(VIS_CACHE)) if(!vis0.has(k)) delete VIS_CACHE[k];
+  PAQ.couple=C; paqCouplePoser(); for(const f of FIGURANTS) if(f.h===C.F||f.h===C.M){ f.pos=f.h.g.position.clone(); f.rot=f.h.g.rotation.clone(); f.parent=f.h.g.parent; } /* leur place : la proue (restaurerFigurants les y ramène) */
+  preparerObjet(C.F.g); preparerObjet(C.M.g); return C; }
+/* à leur place sur la proue : elle à la pointe, face au large (+x), les bras en croix ; lui juste derrière, les mains à sa taille */
+function paqCouplePoser(){ const C=PAQ.couple; if(!C) return; const H=PAQ.pont, P2=COUPLE_PROUE;
+  for(const [h,dx] of [[C.F,0],[C.M,-P2.ecart]]){ if(figConverti(h)) continue; C.half.g.add(h.g); h.g.position.set(P2.lx+dx,H+4,P2.lz); h.g.rotation.set(0,Math.PI/2,0); h.g.visible=true; }
+  C.F.brasG.rotation.set(0,0,-1.45); C.F.brasD.rotation.set(0,0,1.45); /* brasG est à x −0,42 : vers l'extérieur, une rotation négative */ C.F.jambeG.rotation.x=C.F.jambeD.rotation.x=0;
+  C.M.brasG.rotation.set(-1.15,0,0.35); C.M.brasD.rotation.set(-1.15,0,-0.35); C.M.jambeG.rotation.x=C.M.jambeD.rotation.x=0; C.etat='proue'; C.t=0; }
+function majPaqCouple(dt,dtJeu,dCam){ if(!PAQ.ok) return; if(!PAQ.couple){ if(dCam>320) return; if(!paqCoupleConstruire()) return; } const C=PAQ.couple, T=ETAT.runT||0;
+  const proche=dCam<200; for(const h of [C.F,C.M]) if(!figConverti(h)&&h.g.visible!==proche&&C.etat!=='nage') h.g.visible=proche;
+  if(C.etat==='proue'){ if(proche){ const w=Math.sin(T*2.1), w2=Math.sin(T*3.7+1); if(!figConverti(C.F)){ C.F.brasG.rotation.z=-1.45; C.F.brasD.rotation.z=1.45; } if(!figConverti(C.M)){ C.M.brasG.rotation.set(-1.15,0,0.35); C.M.brasD.rotation.set(-1.15,0,-0.35); } /* le vent du large : il vient de l'avant, tout part vers l'arrière */
+      C.meches.forEach((m,k)=>{ m.rotation.x=(k?1.05:0.75)+0.3*Math.sin(T*4.2+k*0.9); m.rotation.z=0.12*Math.sin(T*3.1+k); }); /* la face est en +z : le vent rabat les cheveux en arrière (rotation positive) */
+      C.jupe.rotation.x=-0.1-0.05*w2; C.jupe.scale.set(1+0.04*w,1,1+0.08*w2); C.volant.rotation.x=-0.14-0.08*w; C.F.brasG.rotation.x=0.05*w; C.F.brasD.rotation.x=-0.05*w; }
+    const half=C.half; if(PAQ.etat==='rupture'&&Math.abs(half.th||0)>0.25){ C.etat='agrippe'; C.t=0; for(const h of [C.F,C.M]){ if(figConverti(h)) continue; h.brasG.rotation.set(-2.7,0,-0.2); h.brasD.rotation.set(-2.7,0,0.2); } } return; }
+  if(C.etat==='agrippe'){ C.t+=dtJeu; if(C.t>COUPLE_PROUE.lache){ C.etat='tombe'; C.t=0; [C.F,C.M].forEach((h,k)=>{ if(figConverti(h)) return; scene.attach(h.g); const V=C.vit[k]; V.x=(k?-1:1)*0.6; V.y=2; V.z=k?1.2:-1.2; h.brasG.rotation.set(-2.9,0,-0.6); h.brasD.rotation.set(-2.9,0,0.6); }); } return; }
+  if(C.etat==='tombe'||C.etat==='nage'){ let tous=true; [C.F,C.M].forEach((h,k)=>{ if(figConverti(h)) return; const g=h.g, V=C.vit[k];
+      if(C.etat==='tombe'){ V.y-=26*dtJeu; g.position.x+=V.x*dtJeu; g.position.y+=V.y*dtJeu; g.position.z+=V.z*dtJeu; g.rotation.x+=dtJeu*2.2; const sY=MER_V2?houleY(g.position.x,g.position.z):0; if(g.position.y>sY-0.4) tous=false; else if(MER_V2&&!g.userData.plouf){ g.userData.plouf=true; eclaboussure(g.position.x,g.position.z,0.9); } }
+      else { const sY=MER_V2?houleY(g.position.x,g.position.z):0; g.position.y=sY-1.2+Math.sin(T*3+k)*0.06; g.position.z+=(k?0.5:-0.5)*dtJeu; g.rotation.set(-1.35,g.rotation.y,0); h.brasG.rotation.x=-2.4+Math.sin(T*4+k)*0.6; h.brasD.rotation.x=-2.4-Math.sin(T*4+k)*0.6; } });
+    if(C.etat==='tombe'&&tous){ C.etat='nage'; for(const h of [C.F,C.M]) h.g.userData.plouf=false; } } }
 /* la cassure : les deux moitiés se relèvent en V, puis sombrent ; ceux qui sont encore à bord sont jetés à la mer (jamais tués) */
 function paqRompre(){ PAQ.etat='rupture'; PAQ.t=0; PAQ.vagueRupture=WAVES.n; PAQ.jete=false; sauvDemarrer(); /* perf-hauteur, étape 7 : le sauvetage des naufragés */ if(PAQ.porte) PAQ.porte.visible=false; /* les solides restent 1,6 s : on est jeté à la mer, on ne passe pas à travers le pont */
   const d=Math.sqrt(dist2(P.x,P.z,PAQ.x,PAQ.z)), k=clamp(1-d/300,0,1); if(k>0){ bruit(1.8,0.14*k,170,'lowpass'); beep(55,1.4,'sawtooth',0.09*k,30); secousse(10*k); }
@@ -18360,7 +18395,7 @@ function paqCassureFx(dt,t){ const X=PAQ.x, Z=PAQ.z, dJ=Math.sqrt(dist2(P.x,P.z,
     if((t>6.4&&t<6.4+dt*1.5)||(t>14.2&&t<14.2+dt*1.5)){ beep(40,1.6,'sawtooth',0.12*k,24); bruit(1.4,0.16*k,120,'lowpass'); secousse(6*k); } } }
 function majPaquebot(dt,dtJeu){ if(!PAQ.ok) return; const X=PAQ.x, Z=PAQ.z, H=PAQ.pont, T=ETAT.runT||0;
   const dCam=Math.sqrt(dist2(camera.position.x,camera.position.z,X,Z)), loin=dCam>440;
-  { const t0=performance.now(); majPaqDrame(dt,dtJeu,dCam); PAQ.tDrame=(PAQ.tDrame||0)*0.95+(performance.now()-t0)*0.05; } /* liste du 22 octobre, point 10 */
+  { const t0=performance.now(); majPaqDrame(dt,dtJeu,dCam); majPaqCouple(dt,dtJeu,dCam); PAQ.tDrame=(PAQ.tDrame||0)*0.95+(performance.now()-t0)*0.05; } /* liste du 22 octobre, point 10 ; perf-hauteur, étape 8 : le couple de la proue */
   for(const h of PAQ.moities) if(PAQ.etat!=='epave') h.g.visible=!loin;
   const dJ=Math.sqrt(dist2(P.x,P.z,X,Z));
   if(PAQ.vagueAnnonce!==WAVES.n&&dJ<160&&PAQ.etat==='attente'&&ETAT.mode==='jeu'){ PAQ.vagueAnnonce=WAVES.n; toast('⚓ Le paquebot Reyes Majestic est échoué sur un récif — monte à bord par l’échelle (côté sud, à la poupe)','or'); }
@@ -44044,11 +44079,12 @@ function convertirFigurant(f,fuite){
 }
 function tuerFigurant(f,sx,sz,k){ const g=f.h.g, p=convertirFigurant(f,true); if(!p) return; tuerPieton(p,true,k,sx,sz); DANGER.x=g.position.x; DANGER.z=g.position.z; DANGER.t=Math.max(DANGER.t,3); }
 // une balle du joueur sur un figurant (ville ou salle) : appelée par collisionBalle
+const _FIG_W=new THREE.Vector3();
 function toucherFigurant(b){
   if(INT.actif){ const s=INT.actif; if(!s.figurants) return false;
     for(let i=0;i<s.figurants.length;i++){ const f=s.figurants[i]; if(b.y<2.2&&dist2(b.x,b.z,f.x,f.z)<0.5){ salleFigurantTombe(s,i,b.x-b.vx*0.05,b.z-b.vz*0.05); return true; } } return false; }
-  for(const f of FIGURANTS){ const g=f.h.g; if(g.userData.converti||!g.visible) continue; const y=g.position.y;
-    if(b.y>y-0.2&&b.y<y+2.1&&dist2(b.x,b.z,g.position.x,g.position.z)<0.5){ if(f.ennemi){ const e=convertirSoldat(f); if(e) toucherEnnemi(e,b.dmg,true,2,'joueur',b.x,b.z); return true; } tuerFigurant(f,b.x-b.vx*0.05,b.z-b.vz*0.05,6); return true; } }
+  for(const f of FIGURANTS){ const g=f.h.g; if(g.userData.converti||!g.visible) continue; const wp=g.parent&&g.parent!==scene?g.getWorldPosition(_FIG_W):g.position, y=wp.y; /* un figurant rangé dans un groupe qui bouge (le couple de la proue, sur le navire) : sa place dans le monde */
+    if(b.y>y-0.2&&b.y<y+2.1&&dist2(b.x,b.z,wp.x,wp.z)<0.5){ if(f.ennemi){ const e=convertirSoldat(f); if(e) toucherEnnemi(e,b.dmg,true,2,'joueur',b.x,b.z); return true; } tuerFigurant(f,b.x-b.vx*0.05,b.z-b.vz*0.05,6); return true; } }
   return false;
 }
 function majFigurants(dt){

@@ -17,7 +17,7 @@ tache sombre qui change de forme en bas à gauche.
 | 5 | Test : deux images à 170 m, aucun pixel des sols qui change | fait |
 | 6 | Tous les véhicules du jeu jouables | fait |
 | 7 | Une récompense pour le Titanic | fait |
-| 8 | Le couple à la proue | à faire |
+| 8 | Le couple à la proue | fait |
 | 9 | La page de statistiques | à faire |
 | 10 | La vedette bloquée dans le canal en impasse | à faire |
 | 11 | Suite complète et `valider.js` | à faire |
@@ -337,3 +337,29 @@ ne paie plus ; à la nage, un naufragé se remorque et se dépose ; le trophée 
 
 **À vérifier sur iPhone** : la difficulté (repêcher presque à l'arrêt : est-ce lisible ? faut-il une aide, un cercle autour du naufragé
 le plus proche ?) ; la lisibilité des petits naufragés vus de haut en vue 2D.
+
+## 8. Le couple de la proue — fait
+
+Deux passagers anonymes (aucun nom) à la pointe de l'étrave du Reyes Majestic (`COUPLE_PROUE`, `paqCoupleConstruire`, `paqCouplePoser`,
+`majPaqCouple`, juste avant `paqRompre`) :
+- **elle** debout à la pointe, face au large, les bras grands ouverts à l'horizontale ; robe crème évasée jusqu'aux chevilles et volant ;
+  cheveux roux longs (une masse et quatre mèches) ; **lui** en habit sombre, juste derrière elle (0,5 u), les mains à sa taille ;
+- **le vent** du large : les mèches rabattues en arrière qui flottent, la robe et le volant qui ondulent (de près seulement : à moins de
+  200 u de la caméra, au-delà ils sont masqués) ; posés avant le naufrage, enfants de la moitié avant du navire (ils penchent avec elle) ;
+- **à la cassure**, quand l'étrave penche, ils s'agrippent au bastingage (bras levés), puis tombent à la mer et nagent ;
+- ce sont des **figurants** (`figurant`, liés l'un à l'autre) : une balle du joueur en fait de vrais piétons (lui aussi) ; à la partie
+  suivante, ils sont de retour à la proue (`paqRemettre`, et leur place relevée pour `restaurerFigurants`) ;
+- construits la première fois qu'on approche (320 u), sur un générateur privé, les caches partagés (`_matCache`, `VIS_CACHE`) rendus tels
+  quels.
+
+**Trouvé en route** : `toucherFigurant` comparait la balle à la position LOCALE du figurant — un figurant rangé dans un groupe qui bouge
+(ici, le navire) ne pouvait pas être touché. Il prend désormais sa place dans le monde.
+
+**Test** « Perf-hauteur : le couple de la proue du Reyes Majestic » : sur le pont, à la pointe, face au large ; bras ouverts (mains à
+1,9 u l'une de l'autre, à l'horizontale) ; lui 0,5 u derrière, les mains à 0,2 u de sa taille ; cheveux et robe qui bougent ; au
+naufrage : agrippés, tombés, à l'eau ; de retour à la proue à la partie suivante ; touchés par une balle : piétons.
+
+**Captures** (vue 3D, `captures/perf_hauteur/`) : `couple_proue_trois_quarts.png`, `couple_proue_face.png`, `couple_proue_naufrage.png`
+(l'étrave penche, ils s'agrippent).
+
+**À vérifier sur iPhone** : les voir en passant près de l'étrave en vue 3D (bateau, ou à la nage) ; le vent dans les cheveux.

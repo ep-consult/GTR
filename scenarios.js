@@ -19547,6 +19547,45 @@ async function main() {
       else ok('Perf-hauteur, sauvetage du Majestic : ' + r.info.join(' ; '));
     }
     // -------------------------------------------------------------------
+    // Perf-hauteur, étape 8 : le couple de la proue du Reyes Majestic. Construit quand on approche ; elle à la pointe de l'étrave,
+    // face au large, les bras grands ouverts ; lui juste derrière, les mains à sa taille ; le vent dans ses cheveux et sa robe (ils bougent
+    // d'une image à l'autre, de près) ; à la cassure, ils s'agrippent puis tombent à la mer et nagent ; à la partie suivante, ils sont de
+    // retour à la proue ; ce sont des figurants : une balle du joueur en fait de vrais piétons.
+    // -------------------------------------------------------------------
+    console.log('\n--- Perf-hauteur : le couple de la proue du Reyes Majestic ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = []; if (!PAQ.ok) return { ko: ['pas de Reyes Majestic'], info }; let T = dernierT + 1000;
+        const pas = (n) => { for (let i = 0; i < n; i++) { for (const e of ennemis) e.mort = true; WANTED.stars = 0; P.hp = 1e9; T += 1000 / 60; tick(T); } };
+        const depart = () => { if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); META.vue = 'immersive'; startRun(); ecran(null); ETAT.mode = 'jeu'; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9; };
+        depart(); const v = creerVehicule('bateau', PAQ.x + 58, PAQ.z + 8, -Math.PI / 2, null); P.x = v.x; P.z = v.z; entrerVehicule(v); pas(30);
+        const C = PAQ.couple; if (!C) return { ko: ['le couple n’est pas construit à l’approche'], info };
+        const w = (o) => { const p = new THREE.Vector3(); o.getWorldPosition(p); return p; }; const half = PAQ.moities.find((h) => h.sd > 0);
+        const pF = w(C.F.g), pM = w(C.M.g); let xMax = -1e9; half.g.updateMatrixWorld(true); for (const o of half.g.children) { if (!o.isMesh) continue; const b = new THREE.Box3().setFromObject(o); xMax = Math.max(xMax, b.max.x); }
+        if (Math.abs(pF.y - PAQ.pont) > 0.4) ko.push('elle n’est pas sur le pont (' + pF.y.toFixed(2) + ')'); if (!(pF.x - PAQ.x > 38)) ko.push('elle n’est pas à la pointe de l’étrave (x ' + (pF.x - PAQ.x).toFixed(1) + ')');
+        const face = new THREE.Vector3(0, 0, 1).applyQuaternion(C.F.g.getWorldQuaternion(new THREE.Quaternion())); if (face.x < 0.9) ko.push('elle ne fait pas face au large');
+        const bG = w(C.F.brasG), bD = w(C.F.brasD), mG = new THREE.Vector3(0, -0.7, 0).applyMatrix4(C.F.brasG.matrixWorld), mD = new THREE.Vector3(0, -0.7, 0).applyMatrix4(C.F.brasD.matrixWorld); const ouvert = Math.hypot(mG.x - mD.x, mG.z - mD.z);
+        if (ouvert < 1.4) ko.push('ses bras ne sont pas grands ouverts (écart des mains ' + ouvert.toFixed(2) + ' u)'); if (Math.abs(mG.y - bG.y) > 0.35 || Math.abs(mD.y - bD.y) > 0.35) ko.push('ses bras ne sont pas à l’horizontale');
+        if (!(pF.x - pM.x > 0.25 && pF.x - pM.x < 0.9)) ko.push('il n’est pas juste derrière elle (' + (pF.x - pM.x).toFixed(2) + ' u)');
+        const hG = new THREE.Vector3(0, -0.6, 0).applyMatrix4(C.M.brasG.matrixWorld), hD = new THREE.Vector3(0, -0.6, 0).applyMatrix4(C.M.brasD.matrixWorld), taille = w(C.F.g).add(new THREE.Vector3(0, 0.95, 0));
+        const dMains = Math.max(hG.distanceTo(taille), hD.distanceTo(taille)); if (dMains > 0.75) ko.push('ses mains ne sont pas à sa taille (' + dMains.toFixed(2) + ' u)');
+        const r0 = C.meches[0].rotation.x, j0 = C.jupe.scale.z; pas(20); if (Math.abs(C.meches[0].rotation.x - r0) < 0.01 && Math.abs(C.jupe.scale.z - j0) < 0.005) ko.push('ni les cheveux ni la robe ne bougent au vent');
+        else info.push('à la proue : elle face au large, bras ouverts (mains à ' + ouvert.toFixed(1) + ' u l’une de l’autre), lui ' + (pF.x - pM.x).toFixed(2) + ' u derrière, les mains à ' + dMains.toFixed(2) + ' u de sa taille ; cheveux et robe au vent');
+        /* le naufrage */
+        sortirVehicule(true); P.y = 0; P.nage = true; P.x = PAQ.x + 60; P.z = PAQ.z + 20; paqMonter(); PAQ.t = 0.2; P.x = PAQ.x + 60; P.z = PAQ.z + 20; P.y = 0; P.nage = true; const vus = new Set(); for (let i = 0; i < 60 * 30; i++) { pas(1); vus.add(C.etat); if (C.etat === 'nage' && i > 600) break; }
+        if (!vus.has('agrippe') || !vus.has('tombe') || C.etat !== 'nage') ko.push('naufrage : états vus ' + [...vus].join(', ') + ' (attendu : agrippe, tombe, nage)');
+        else { const y1 = w(C.F.g).y; if (y1 > 0.5) ko.push('naufrage : elle n’est pas à l’eau (' + y1.toFixed(2) + ')'); else info.push('naufrage : ils s’agrippent, tombent et nagent'); }
+        /* la partie suivante : de retour à la proue */
+        depart(); const v2 = creerVehicule('bateau', PAQ.x + 58, PAQ.z + 8, -Math.PI / 2, null); P.x = v2.x; P.z = v2.z; entrerVehicule(v2); pas(10);
+        if (C.etat !== 'proue' || C.F.g.parent !== half.g) ko.push('partie suivante : pas de retour à la proue (' + C.etat + ')'); else info.push('partie suivante : de retour à la proue');
+        /* figurants : une balle du joueur */
+        const fF = FIGURANTS.find((f) => f.h === C.F); if (!fF) ko.push('elle n’est pas un figurant'); else { const p = w(C.F.g); const tch = toucherFigurant({ fac: 'joueur', x: p.x, y: p.y + 1.2, z: p.z, vx: -60, vy: 0, vz: 0 });
+          if (!tch || !figConverti(C.F)) ko.push('visée, elle ne devient pas un piéton'); else info.push('touchée par une balle : elle devient un vrai piéton' + (figConverti(C.M) ? ', lui aussi (lié)' : '')); }
+        if (P.veh) sortirVehicule(true); depart(); return { ko, info }; });
+      if (r.ko.length) fail('Perf-hauteur, couple de la proue : ' + r.ko.join(' ; ') + ' [' + r.info.join(' | ') + ']');
+      else ok('Perf-hauteur, couple de la proue : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];
