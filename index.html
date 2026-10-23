@@ -2095,7 +2095,7 @@ function garagesMetaDefaut(){ const o={}; for(const g of GARAGES_TUNING) o[g.id]
 const VEHPERSO_MAX=6;
 function vehPersoMetaDefaut(){ const o={}; for(let i=0;i<VEHPERSO_MAX;i++) o['v'+i]=slotGarageDefaut(); return o; }
 const META={
-  exploits:{basket:false,tour:false,supercross:false,bowl:false,wake:false,badlands:false,base:false,balltrap:false,derby:false,sportif:false},
+  exploits:{naufrage:false,basket:false,tour:false,supercross:false,bowl:false,wake:false,badlands:false,base:false,balltrap:false,derby:false,sportif:false},
   derby:{voiture:'derbyBreak',poss:{derbyBreak:true,derbyCompacte:false,derbyPickup:false},niv:{pareChocs:0,blindage:0,moteur:0,pneus:0},victoires:0,kos:0}, // arène de derby (clés fixes) // mini-jeux réussis (tenues)
   argent:150, xp:0, niveau:1,
   record:0, recordVague:0, killsTotal:0, parties:0,
@@ -2142,7 +2142,7 @@ const META={
          gadget:{poss:false,lv:0},couteau:{poss:false,lv:0},batte2:{poss:false,lv:0},bouleC:{poss:false,lv:0},sabre:{poss:false,lv:0},pompe:{poss:false,lv:0},uzi:{poss:false,lv:0},silence:{poss:false,lv:0},pm:{poss:false,lv:0},fusil:{poss:false,lv:0},sniper:{poss:false,lv:0},flamme:{poss:false,lv:0},roquette:{poss:false,lv:0},desintegrateur:{poss:false,lv:0}},
   upg:{vitesse:0,vie:0,regen:0,melee:0,recharge:0,butin:0},
   defis:{coffresToits:0,avionsPoses:0,manege:0,styleAchats:0,fauves:0,aimant:0, // 3e série (14 octobre)
-  paquebot:0,epave:0,bouteilles:0,tortues:0,contrebande:0,kite:0,wake:0,falaise:0,falaiseSaut:0,jus:0,airT:0,airMed:0,sxT:0, /* sxT : meilleur temps de la course de supercross gagnée (liste du 22 octobre, point 16) */ /* airT : meilleur temps de la Reyes Air Race (s), airMed : meilleure médaille (lot 10) */ /* jus : record de Jus de Plage (lot 8.3) */ // retours du 20 octobre, lots 6 et 7 (falaise : record du Reyes Cliff Diving) : le large (kite et wake : records de points)
+  paquebot:0,naufrage:0,epave:0,bouteilles:0,tortues:0,contrebande:0,kite:0,wake:0,falaise:0,falaiseSaut:0,jus:0,airT:0,airMed:0,sxT:0, /* sxT : meilleur temps de la course de supercross gagnée (liste du 22 octobre, point 16) */ /* airT : meilleur temps de la Reyes Air Race (s), airMed : meilleure médaille (lot 10) */ /* jus : record de Jus de Plage (lot 8.3) */ // retours du 20 octobre, lots 6 et 7 (falaise : record du Reyes Cliff Diving) : le large (kite et wake : records de points)
     vols:0,dist:0,detruits:0,chefs:0,etoile6:false,bateau:false,ile:false,avion:false,heli:false,crash:false,saut:false,toit:false,banque:false,sommet:false,villa:false,jackpot:false,
     // lot 11/12 (Dépôt de bus, Jetpack, Monster Truck) : chaque victoire de
     // circuit est marquée séparément (jamais déduite de META.depotCircuits,
@@ -2916,6 +2916,8 @@ const TENUES=[
    cond:()=>!!(META.exploits&&META.exploits.base),haut:0x4a5238,bas:0x3a4228,casq:0x3a4228},
   {id:'cowboy',nom:'Tenue de cow-boy du ranch',ico:'🤠',condTxt:'Réussir le ball-trap du ranch Coyote Loco — fusils à pompe 20 % plus précis',
    cond:()=>!!(META.exploits&&META.exploits.balltrap),haut:0xc84a2a,bas:0x3a5a8a,casq:0x8a6a44},
+  {id:'smoking1912',nom:'Smoking 1912',ico:'🎩',condTxt:'Sauver 20 naufragés du Reyes Majestic — un naufragé en remorque ne te ralentit plus',
+   cond:()=>!!(META.exploits&&META.exploits.naufrage),haut:0x14161c,bas:0x14161c,casq:0x14161c},
   {id:'cassecou',nom:'Combinaison « Casse-cou »',ico:'💥',condTxt:'Gagner un derby de l’arène — dégâts reçus au volant −15 %',
    cond:()=>!!(META.exploits&&META.exploits.derby),haut:0xe8662a,bas:0x14161c,casq:0xf2f2ee},
   // retours du 20 octobre, 3.3 : les tenues des défis à paliers (offertes au dernier palier, tenueDefiFinal) — un vrai modèle (TENUE_ACC)
@@ -2942,12 +2944,12 @@ const MOTIFS_TENUES={survet:['survet','jogging'],plongee:['neoprene','neoprene']
   flamingo:['flamingo','chino'],faucon:['combiAile','combiAile'],ballers:['maillotB','shortSport'],aiguilleur:['hauteVis','chino'],prorider:['motocross','motocrossPant'],
   skateur:['tshirtLogo','jean'],wakeur:['neoprene','boardshort'],badlands:['cuir','cuir'],militaire:['camo','camo'],cowboy:['western','jean'],cassecou:['combiPilote','combiPilote'],
   cascadeur:['combiPilote','combiPilote'],voltigeur:['blousonAviateur','toile'],pigeon:['plumes','plumes'],reyesAir:['combiPilote','combiPilote'],falaise:['lycra','boardshort'],
-  kitesurfeur:['neoprene','neoprene'],athlete:['polo','shortSport']};
+  kitesurfeur:['neoprene','neoprene'],athlete:['polo','shortSport'],smoking1912:['costume','pantCostume']};
 for(const t of TENUES){ const m=MOTIFS_TENUES[t.id]; if(m){ t.mH=m[0]; t.mB=m[1]; } }
 // capacité d'une tenue : k si elle est portée, 1 sinon
 function tenueK(id,k){ return META.tenue===id?k:1; }
 // un exploit de mini-jeu : la 1re fois, la tenue est annoncée avec sa capacité
-const TENUE_EXPLOIT={basket:'ballers',tour:'aiguilleur',supercross:'prorider',bowl:'skateur',wake:'wakeur',badlands:'badlands',base:'militaire',balltrap:'cowboy',derby:'cassecou',sportif:'athlete'};
+const TENUE_EXPLOIT={naufrage:'smoking1912',basket:'ballers',tour:'aiguilleur',supercross:'prorider',bowl:'skateur',wake:'wakeur',badlands:'badlands',base:'militaire',balltrap:'cowboy',derby:'cassecou',sportif:'athlete'};
 function exploitMiniJeu(cle){
   if(!META.exploits||META.exploits[cle]) return; META.exploits[cle]=true; checkTenues();
   const tn=TENUES.find((x)=>x.id===TENUE_EXPLOIT[cle]);
@@ -13054,6 +13056,10 @@ function habillerTete(h,S){
    mèche (geoCasq) ; un chapeau acheté en boutique passe par-dessus la tenue (il gagne). Construites sur un générateur privé. */
 const _ACC_C=(r,h,rt,coul,seg)=>new THREE.Mesh(new THREE.CylinderGeometry(rt===undefined?r:rt,r,h,seg||14),mat(coul));
 const TENUE_ACC={
+  smoking1912:(A)=>{ /* le smoking de 1912 (perf-hauteur, étape 7) : haut-de-forme, plastron blanc, nœud papillon blanc, gilet de liège du Majestic */
+    if(A.tete){ A.add(_ACC_C(0.2,0.42,undefined,0x14161c,14)).position.set(0,2.02,0); A.add(_ACC_C(0.33,0.04,undefined,0x14161c,16)).position.set(0,1.81,0); A.add(mkBoxG(0.4,0.05,0.4,0xf2f2ee,0,1.82,0)).visible=false; }
+    A.add(mkBoxG(0.22,0.36,0.02,0xf4f4f0,0,0.18,0.215),A.h.torse); A.add(mkBoxG(0.16,0.06,0.04,0xf4f4f0,0,0.38,0.23),A.h.torse); A.add(mkBoxG(0.04,0.04,0.05,0xd8d8d0,0,0.38,0.24),A.h.torse);
+    for(const s of [-1,1]) A.add(mkBoxG(0.14,0.3,0.05,0xf2e2b8,s*0.15,0.12,0.24),A.h.torse); },
   plongee:(A)=>{ /* combinaison de plongée : masque, tuba, bouteille sur le dos, palmes */
     if(A.tete){ A.add(mkBoxG(0.44,0.17,0.07,0x14161c,0,1.6,0.225)); A.add(mkBoxG(0.36,0.11,0.02,0x5ad8e8,0,1.6,0.262)); A.add(mkBoxG(0.46,0.05,0.46,0x14161c,0,1.62,0));
       const t=A.add(_ACC_C(0.03,0.42,undefined,0xffd23f,8)); t.position.set(0.24,1.78,0.05); }
@@ -18167,7 +18173,7 @@ function mkPaquebot(){ const S=paqSite(); if(!S) return; const X=S.x, Z=S.z, H=P
   PAQ.echelle={x:X-36,z:Z+8.6,xp:X-36,zp:Z+6.5};
   PAQ.ok=true; paqRemettre(); }
 /* le navire intact, ses passagers à leur place, ses solides : au début de la partie et de chaque vague */
-function paqRemettre(){ if(!PAQ.ok) return; const X=PAQ.x, Z=PAQ.z, H=PAQ.pont; PAQ.etat='attente'; PAQ.t=0; PAQ.sauves=0; PAQ.trace=[]; PAQ.forcage=null; PAQ.jete=false; PAQ.jeteJ=false;
+function paqRemettre(){ if(!PAQ.ok) return; sauvArreter(); sauvEtat().fini=false; const X=PAQ.x, Z=PAQ.z, H=PAQ.pont; PAQ.etat='attente'; PAQ.t=0; PAQ.sauves=0; PAQ.trace=[]; PAQ.forcage=null; PAQ.jete=false; PAQ.jeteJ=false;
   for(const h of PAQ.moities){ h.g.position.set(X,-4,Z); h.g.rotation.set(0,0,0); h.g.visible=true; }
   for(const s of PAQ.sol){ retirerSolide(s); addSolid(s); }
   const places=[[-40,2],[-38,-3],[-34,4.5],[34,2],[36,-2.5],[38,1],[-24,6.6],[12,-6.6]];
@@ -18203,8 +18209,52 @@ function paqKlaxon(v){ const d=Math.sqrt(dist2(P.x,P.z,PAQ.x,PAQ.z)), k=clamp(1-
 function paqSauver(p,st){ p.etat='sauve'; p.g.visible=false; PAQ.sauves++; const c=st.canot; if(c.n<c.ttes.length) c.ttes[c.n].visible=true; c.n++;
   META.argent+=PAQ_PAR_PASSAGER; ETAT.cashRun+=PAQ_PAR_PASSAGER; ETAT.score+=100; META.defis.paquebot++; spawnTexte(p.x,PAQ.pont+2.4,p.z,'SAUVÉ ! +'+PAQ_PAR_PASSAGER+' $','#7dff7a'); SFX.ramasse(); checkDefis();
   if(PAQ.sauves>=PAQ.passagers.length){ const g=primeMerUneFois('paquebot',PAQ_PRIME); bigMsg('🦺 TOUS LES PASSAGERS SONT SAUFS'+(g?' — +'+g+' $':'')); SFX.niveau(); } }
+/* Le sauvetage du Reyes Majestic (perf-hauteur, étape 7). Avant : une fois le navire brisé, plus rien à faire (la foule tombait à
+   l'eau pour le décor). Désormais, à la cassure, un chrono (SAUV_DUREE) : les naufragés de la foule (point 10) se repêchent EN BATEAU
+   (à moins de 9 u/s, jusqu'à sa capacité : sauvCap) ou se remorquent À LA NAGE (un à la fois, la nage ralentie — sauf en smoking), puis
+   se déposent à une chaloupe (elles rament lentement pendant le sauvetage) ou à un canot. Compteur et chrono dans le bandeau. À la fin :
+   une prime une fois par vague selon le nombre de sauvés (SAUV_PAR chacun, SAUV_BONUS dès SAUV_OBJ), le record (META.defis.naufrage),
+   et dès SAUV_OBJ la première fois la tenue « Smoking 1912 » (META.exploits.naufrage) ; le trophée est au mur de la villa (naufrageTrophee). */
+const SAUV_DUREE=90, SAUV_OBJ=20, SAUV_PAR=30, SAUV_BONUS=400, SAUV_FROID=70, SAUV_VREPECHE=4.5; /* réglés au pilote simulé : bon pilote 20 et plus, maladroit et lent en dessous */
+function sauvEtat(){ return PAQ.sauv||(PAQ.sauv={actif:false,t:0,sauves:0,abord:[],remorque:null,fini:false,txt:false}); }
+function sauvCap(v){ const L=(v&&v.def&&v.def.long)||4; return L<4?1:(L<9?4:8); } /* jet-ski 1, vedette 4, grand bateau 8 */
+function sauvDemarrer(){ const S=sauvEtat(); S.actif=true; S.t=SAUV_DUREE; S.sauves=0; S.perdus=0; S.abord=[]; S.remorque=null; S.fini=false; if(PAQ.drame) for(const p of PAQ.drame.foule) p.tNage=0; }
+function sauvArreter(){ const S=sauvEtat(); S.actif=false; S.abord=[]; S.remorque=null; if(S.txt){ S.txt=false; RIDES.txt.style.display='none'; } }
+/* les points de dépôt : les chaloupes à l'eau, et les canots */
+function sauvDepots(){ const L=[], D=PAQ.drame; if(D) for(const c of D.chaloupes) if(c.etat==='rame') L.push({x:c.x,z:c.z}); for(const c of PAQ.canots) if(c.g.visible&&c.y<=0.45) L.push({x:c.g.position.x,z:c.g.position.z}); return L; }
+function sauvDeposer(liste,x,z){ const S=sauvEtat(); for(const p of liste){ p.etat='sauve'; S.sauves++; META.defis.paquebot++; } ETAT.score+=liste.length*120; spawnTexte(x,2.6,z,'🛟 '+liste.length+' SAUVÉ'+(liste.length>1?'S':'')+' !','#7dff7a'); SFX.ramasse(); vibre(25); checkDefis(); }
+function majSauvetage(dtJeu){ const S=sauvEtat(); if(!S.actif||ETAT.mode!=='jeu') return; const D=PAQ.drame; if(!D) return; S.t-=dtJeu;
+  const v=P.veh&&P.veh.def.eau?P.veh:null, px=v?v.x:P.x, pz=v?v.z:P.z;
+  for(const p of D.foule) if(p.etat==='nage'){ p.tNage=(p.tNage||0)+dtJeu; if(p.tNage>SAUV_FROID){ p.etat='perdu'; S.perdus=(S.perdus||0)+1; } } /* le froid : laissé trop longtemps à l'eau, il est perdu */
+  if(v&&Math.abs(v.v||0)<SAUV_VREPECHE&&S.abord.length<sauvCap(v)){ const r=(v.def.long||4)*0.4+1.5; /* on repêche presque à l'arrêt */ for(const p of D.foule) if(p.etat==='nage'&&dist2(p.x,p.z,px,pz)<r*r){ p.etat='abord'; S.abord.push(p); spawnTexte(p.x,2,p.z,'REPÊCHÉ','#ffd23f'); SFX.ui(); if(S.abord.length>=sauvCap(v)) break; } }
+  if(!v&&P.nage&&!S.remorque){ for(const p of D.foule) if(p.etat==='nage'&&dist2(p.x,p.z,P.x,P.z)<4){ p.etat='remorque'; S.remorque=p; toast('🛟 « Accroche-toi ! » — ramène-le à une chaloupe','or'); break; } }
+  if(S.abord.length&&!v){ for(const p of S.abord){ p.etat='nage'; p.x=P.x+(Math.random()-0.5)*3; p.z=P.z+(Math.random()-0.5)*3; } S.abord=[]; } /* on quitte le bateau : ils retombent à l'eau */
+  if(S.remorque&&!P.nage){ S.remorque.etat='nage'; S.remorque=null; }
+  for(const d of sauvDepots()){ if(v&&S.abord.length&&dist2(d.x,d.z,px,pz)<81){ sauvDeposer(S.abord,d.x,d.z); S.abord=[]; }
+    if(!v&&S.remorque&&dist2(d.x,d.z,P.x,P.z)<25){ sauvDeposer([S.remorque],d.x,d.z); S.remorque=null; } }
+  const reste=D.foule.filter((p)=>p.etat==='nage'||p.etat==='abord'||p.etat==='remorque'||p.etat==='tombe'||p.etat==='accroche'||p.etat==='pont'||p.etat==='glisse').length;
+  const dJ=Math.sqrt(dist2(P.x,P.z,PAQ.x,PAQ.z)), voir=dJ<300&&!RIDES.actif&&!TOW.actif;
+  if(voir){ S.txt=true; RIDES.txt.style.display='block'; RIDES.txt.textContent='🛟 NAUFRAGÉS — '+S.sauves+' sauvé'+(S.sauves>1?'s':'')+' (objectif '+SAUV_OBJ+')'+(v?' — à bord '+S.abord.length+'/'+sauvCap(v):(S.remorque?' — en remorque':''))+(S.perdus?' — '+S.perdus+' perdu'+(S.perdus>1?'s':''):'')+' — '+Math.ceil(Math.max(0,S.t))+' s'; }
+  else if(S.txt){ S.txt=false; RIDES.txt.style.display='none'; }
+  if(S.t<=0||(reste===0&&S.sauves>0)) sauvFin(); }
+function sauvFin(){ const S=sauvEtat(); if(!S.actif) return; const n=S.sauves; sauvArreter(); S.fini=true;
+  for(const p of PAQ.drame?PAQ.drame.foule:[]) if(p.etat==='abord'||p.etat==='remorque') p.etat='nage';
+  const rec=n>(META.defis.naufrage||0); if(rec) META.defis.naufrage=n;
+  const g=n>0?primeMerUneFois('naufrage',n*SAUV_PAR+(n>=SAUV_OBJ?SAUV_BONUS:0)):0;
+  if(n>=SAUV_OBJ){ bigMsg('🛟 SAUVETAGE RÉUSSI — '+n+' naufragés sauvés'+(g?' — +'+g+' $':'')+(rec?' — RECORD':'')); SFX.niveau(); exploitMiniJeu('naufrage'); }
+  else bigMsg(n?'🛟 '+n+' naufragé'+(n>1?'s':'')+' sauvé'+(n>1?'s':'')+' — il en fallait '+SAUV_OBJ+(g?' — +'+g+' $':''):'🛟 LES GARDE-CÔTES SONT ARRIVÉS — personne n’a été sauvé');
+  sauveMeta(); }
+/* le trophée du sauvetage, au mur des trophées de la villa : une bouée du Reyes Majestic et la plaque du record */
+function naufrageTrophee(s){ if(!s||!s.trophees) return; const rec=META.defis.naufrage||0; if(!rec){ if(s.naufTroph) s.naufTroph.visible=false; return; }
+  if(!s.naufTroph) avecAleaPrive(1912,()=>{ const g=new THREE.Group(), m=(c)=>new THREE.MeshLambertMaterial({color:c});
+    const tor=new THREE.Mesh(new THREE.TorusGeometry(0.62,0.17,10,20),m(0xf2f2ee)); g.add(tor);
+    for(let k=0;k<4;k++){ const b=new THREE.Mesh(new THREE.TorusGeometry(0.62,0.18,10,4,Math.PI/5),m(0xd83a2a)); b.rotation.z=k*Math.PI/2+0.3; g.add(b); }
+    const cv=document.createElement('canvas'); cv.width=256; cv.height=96; const tx=new THREE.CanvasTexture(cv); const pl=new THREE.Mesh(new THREE.PlaneGeometry(1.6,0.6),new THREE.MeshLambertMaterial({map:tx}));
+    pl.position.y=-1.05; g.add(pl); g.userData.plaque={cv,tx,rec:-1}; g.rotation.y=-Math.PI/2; g.position.set(s.trophees.x+0.6,2.3,s.trophees.z+2.6); s.g?s.g.add(g):scene.add(g); s.naufTroph=g; });
+  const T=s.naufTroph, P2=T.userData.plaque; T.visible=true; if(P2.rec!==rec){ P2.rec=rec; const c=P2.cv.getContext('2d'); c.fillStyle='#5a3a22'; c.fillRect(0,0,256,96); c.strokeStyle='#d8b060'; c.lineWidth=5; c.strokeRect(4,4,248,88);
+    c.fillStyle='#ffe6a0'; c.textAlign='center'; c.font='bold 22px Arial'; c.fillText('REYES MAJESTIC',128,38); c.font='18px Arial'; c.fillText(rec+' naufragé'+(rec>1?'s':'')+' sauvé'+(rec>1?'s':''),128,70); P2.tx.needsUpdate=true; } }
 /* la cassure : les deux moitiés se relèvent en V, puis sombrent ; ceux qui sont encore à bord sont jetés à la mer (jamais tués) */
-function paqRompre(){ PAQ.etat='rupture'; PAQ.t=0; PAQ.vagueRupture=WAVES.n; PAQ.jete=false; if(PAQ.porte) PAQ.porte.visible=false; /* les solides restent 1,6 s : on est jeté à la mer, on ne passe pas à travers le pont */
+function paqRompre(){ PAQ.etat='rupture'; PAQ.t=0; PAQ.vagueRupture=WAVES.n; PAQ.jete=false; sauvDemarrer(); /* perf-hauteur, étape 7 : le sauvetage des naufragés */ if(PAQ.porte) PAQ.porte.visible=false; /* les solides restent 1,6 s : on est jeté à la mer, on ne passe pas à travers le pont */
   const d=Math.sqrt(dist2(P.x,P.z,PAQ.x,PAQ.z)), k=clamp(1-d/300,0,1); if(k>0){ bruit(1.8,0.14*k,170,'lowpass'); beep(55,1.4,'sawtooth',0.09*k,30); secousse(10*k); }
   if(paqABord()) bigMsg('💥 LE NAVIRE SE BRISE — SAUTE À L’EAU !'); else if(d<300) bigMsg('💥 LE REYES MAJESTIC SE BRISE EN DEUX');
   const restants=PAQ.passagers.filter((p)=>p.etat!=='sauve'); PAQ.radeaux.forEach((r,k)=>{ const p=restants[k*2]; r.g.visible=!!p; if(!p) return; r.x=PAQ.x+(p.x-PAQ.x)*1.05; r.z=PAQ.z+(p.z>PAQ.z?14:-14); r.vx=(Math.random()-0.5)*0.6; r.vz=(p.z>PAQ.z?1:-1)*0.8; });
@@ -18249,7 +18299,7 @@ function paqDrameConstruire2(){ return (PAQ.drame=avecAleaPrive(1022,()=>{ const
   const fenN=cTex(128,(c,s2)=>{ c.fillStyle='#000'; c.fillRect(0,0,s2,s2); c.fillStyle='#ffd890'; c.fillRect(s2*0.18,s2*0.3,s2*0.64,s2*0.38); }); fenN.wrapS=fenN.wrapT=THREE.RepeatWrapping;
   m.fen.emissiveMap=fenN; m.fen.emissive.setHex(0xffffff); m.fen.emissiveIntensity=0; m.fen.needsUpdate=true; m.hub.emissive.setHex(0xffc870); m.hub.emissiveIntensity=0; m.hub.needsUpdate=true;
   D.lum=1; return D; })); }
-function paqDrameRemettre(){ const D=PAQ.drame; if(!D) return; for(const p of D.foule){ p.etat='pont'; p.lx=p.lx0; p.lz=p.lz0; p.v=0; p.t=0; p.lacheFait=false; }
+function paqDrameRemettre(){ const D=PAQ.drame; if(!D) return; for(const p of D.foule){ p.tNage=0; p.etat='pont'; p.lx=p.lx0; p.lz=p.lz0; p.v=0; p.t=0; p.lacheFait=false; }
   for(const c of D.chaloupes){ c.etat='bossoir'; c.y=11.4; } for(const f of D.fusees){ f.etat=''; f.tete.visible=false; f.lu.visible=false; } D.lum=1; PAQ.fuseeT=5; PAQ.criT=1; PAQ.craqueT=0.5; PAQ.fxRupt=-1; }
 /* une fusée de détresse part du pont */
 function paqFusee(){ const D=PAQ.drame; if(!D) return; const f=D.fusees.find((q)=>!q.etat)||D.fusees[0]; f.etat='monte'; f.t=0; f.x=PAQ.x-22+Math.random()*30; f.z=PAQ.z+(Math.random()-0.5)*6; f.y=PAQ.pont+4; f.vy=42;
@@ -18272,7 +18322,7 @@ function majPaqDrame(dt,dtJeu,dCam){ const E=PAQ.etat, X=PAQ.x, Z=PAQ.z, H=PAQ.p
   for(const c of D.chaloupes){ const visible=proche&&(E!=='attente'||dCam<300); c.g.visible=visible&&!(c.etat==='loin');
     if(c.etat==='bossoir'){ c.x=X+c.dx; c.z=Z+c.dz; c.y=11.4; if(E==='rupture'||(E==='alerte'&&tA>=c.td)) c.etat='descend'; }
     else if(c.etat==='descend'){ c.y-=dtJeu*(E==='rupture'?4.5:1.6); if(c.y<=0.35){ c.y=0.35; c.etat='rame'; if(MER_V2) eclaboussure(c.x,c.z,1.4); } }
-    else if(c.etat==='rame'){ const s2=c.dz>0?1:-1; c.z+=s2*1.6*dtJeu; c.x+=(c.dx+40)*0.01*dtJeu; if(Math.abs(c.z-Z)>140) c.etat='loin'; }
+    else if(c.etat==='rame'){ const s2=c.dz>0?1:-1, kr=PAQ.sauv&&PAQ.sauv.actif?0.5:1; /* pendant le sauvetage, elles attendent les naufragés */ c.z+=s2*1.6*kr*dtJeu; c.x+=(c.dx+40)*0.01*kr*dtJeu; if(Math.abs(c.z-Z)>140) c.etat='loin'; }
     const yy=c.y+(c.etat==='rame'&&MER_V2?houleY(c.x,c.z):0); c.g.position.set(c.x,yy,c.z); c.g.rotation.z=c.etat==='descend'?Math.sin(T*1.7+c.dx)*0.05:0;
     for(const cr of c.cordes){ const L=Math.max(0.05,13.6-yy); cr.m.visible=c.etat!=='rame'&&c.etat!=='loin'; cr.m.scale.y=L; cr.m.position.set(cr.ex,L/2+0.3,0); } }
   /* la foule */
@@ -18293,6 +18343,8 @@ function majPaqDrame(dt,dtJeu,dCam){ const E=PAQ.etat, X=PAQ.x, Z=PAQ.z, H=PAQ.p
     else if(p.etat==='tombe'){ p.vy-=g*dt; p.x+=p.vx*dt; p.y+=p.vy*dt; p.z+=p.vz*dt; const sY=MER_V2?houleY(p.x,p.z):0;
       if(p.y<=sY){ p.etat='nage'; p.vz=Math.sign(p.z-Z||1); if(MER_V2&&proche&&Math.random()<0.6) eclaboussure(p.x,p.z,0.7); PAQ.plouf=(PAQ.plouf||0)+1; continue; }
       _PQQ.setFromAxisAngle(_PQX,p.y*0.15+p.ph); _PQV.set(p.x,p.y,p.z); _PQM.compose(_PQV,_PQQ,_PQS); }
+    else if(p.etat==='abord'||p.etat==='sauve'||p.etat==='perdu'){ _PQM.makeScale(0,0,0); } /* perf-hauteur, étape 7 : repêché, déposé */
+    else if(p.etat==='remorque'){ p.x=P.x-Math.sin(P.ang)*1.3; p.z=P.z-Math.cos(P.ang)*1.3; const sY=MER_V2?houleY(p.x,p.z):0; _PQQ.setFromAxisAngle(_PQY,P.ang); _PQV.set(p.x,sY-1.2,p.z); _PQM.compose(_PQV,_PQQ,_PQS); } /* accroché au joueur qui nage */
     else if(p.etat==='nage'){ p.z+=p.vz*0.8*dt; p.x+=Math.sin(p.ph)*0.3*dt; const sY=MER_V2?houleY(p.x,p.z):0; _PQQ.setFromAxisAngle(_PQY,p.vz>0?0:Math.PI); _PQV.set(p.x,sY-1.25+Math.sin(T*3+p.ph)*0.06,p.z); _PQM.compose(_PQV,_PQQ,_PQS); }
     D.corps.setMatrixAt(p.i,_PQM); D.gilets.setMatrixAt(p.i,_PQM); }
   D.corps.instanceMatrix.needsUpdate=true; D.gilets.instanceMatrix.needsUpdate=true; }
@@ -18482,7 +18534,7 @@ function mkMerV3(){ if(!DECOR_V2||!MERV.ok) return; avecAleaPrive(2026,()=>{ mkP
 function merV3Reset(){ kiteArreter(false); cliffArreter(false); jusArreter(true); JUS.jusVague=-1; JUS.prime=-1; airArreter(null); AIR.prime=-1; AIR.prev=null; paqRemettre(); PAQ.vagueCoffre=PAQ.vaguePlongee=PAQ.vagueAnnonce=PAQ.vagueRupture=-1; if(LARGE3.ok){ LARGE3.vague=-2; if(LARGE3.contre) LARGE3.contre.vague=-1; } }
 function merV3NouvelleVague(){ if(PAQ.ok&&PAQ.etat!=='alerte'&&PAQ.etat!=='rupture') paqRemettre(); } /* le Majestic est de nouveau là ; la vie au large se renouvelle d'elle-même (largeNouvelleVague) */
 function actionMerV3(){ return actionPaquebot()||actionLarge3()||kiosqueKite(); }
-function majMerV3(dt,dtJeu){ majPaquebot(dt,dtJeu); majLarge3(dt,dtJeu); majKite(dt,dtJeu); majCliff(dt,dtJeu); }
+function majMerV3(dt,dtJeu){ majPaquebot(dt,dtJeu); majSauvetage(dtJeu); majLarge3(dt,dtJeu); majKite(dt,dtJeu); majCliff(dt,dtJeu); }
 /* ---------- REYES CLIFF DIVING (retours du 20 octobre, lot 7) ----------
    La compétition de plongeon de falaise de la crique des plongeurs : trois plongeons — la planche du bras ouest (10 u), la plateforme
    de béton de la falaise nord (17 u), la tour de la compétition plantée sur la falaise (27 u). Le système du concours de la villa
@@ -29382,7 +29434,7 @@ function majJoueur(dt,dtJeu){
   const sprint=!P.nage&&(INPUT.btn.sprint||INPUT.btn.sprintK)&&bouge&&((P.stam>1&&!P.essouffle)||P.buffs.nitroT>0); /* essoufflé (mont V2) : on reprend son souffle avant de repartir */
   const crawl=P.nage&&(INPUT.btn.sprint||INPUT.btn.sprintK)&&bouge&&P.stam>8; // demandé : SPRINT à la nage = crawl, plus rapide
   if(HUDC.sprintActif!==!!sprint){ HUDC.sprintActif=!!sprint; el('btnSprint').classList.toggle('actif',!!sprint); }
-  let vit=P.vitBase*(sprint?1.5:1)*(P.nage?(aCurio('perle')?0.567:0.42)*(crawl?1.7:1)*tenueK('wakeur',1.3):1);  // La Perle Noire : +35 % à la nage ; crawl : ×1,7 ; combinaison de wakeboard : ×1,3
+  let vit=P.vitBase*(sprint?1.5:1)*(P.nage?(aCurio('perle')?0.567:0.42)*(crawl?1.7:1)*tenueK('wakeur',1.3)*(PAQ.sauv&&PAQ.sauv.remorque?0.75*tenueK('smoking1912',1.34):1):1); /* perf-hauteur, étape 7 : un naufragé en remorque ralentit (pas en smoking) */  // La Perle Noire : +35 % à la nage ; crawl : ×1,7 ; combinaison de wakeboard : ×1,3
   if(P.buffs.lourd>0) vit*=0.68;                    // digestion du Monstre
   if(VUE1P.actif&&VUE1P.k>0.5) vit*=0.55;           // à la 1re personne, on marche lentement en visant à la mire
   if(P.buffs.vit>0) vit*=(PERSOS[META.perso].spec==='nitro'&&P.buffs.nitroT>0)?1.6:1.3;
@@ -44169,6 +44221,7 @@ function majBagarreClub(s,dtJeu,d){
 }
 function majInterieur(dt,dtJeu){
   const s=INT.actif; if(!s) return;
+  if(s.trophees&&s===INT.salles.planque) naufrageTrophee(s); /* perf-hauteur, étape 7 : la bouée du Reyes Majestic au mur des trophées */
   if(s.tuning) garageMajInterieur(s,dt,dtJeu); // porte roulante, étoiles, plateau
   if(s.pq) majPlanqueSalle(s,dt,dtJeu);
   if(s.plgJ) majPlongeon(s,dt,dtJeu); // la villa : le concours de plongeon // planque : toits, animations, activité, ambiance
@@ -44744,7 +44797,7 @@ function metierEnCours(){ return !!(MET.pompier||MET.taxi||MET.depanneuse||MET.a
 // supercross, bouées, REYES BOWL JAM), wakeboard ou parachute ascensionnel, métier en cours. Les vagues et les
 // événements (guerres de gangs...) sont gelés, et les gangs déjà là patrouillent sans s'occuper du joueur. La
 // police, elle, continue si l'on est recherché.
-function treveActivite(){ return !!(SX.actif||RIDES.actif||JUS.actif||AIR.actif||(DECOR_V2&&(TOW.actif||KITE.actif||CLIFF.actif))||BASKET.actif||SPORTJ.actif||MANEGES.actif||TOUR.actif||metierEnCours()||BASE.defi||FPS.actif||DERBY.actif); }
+function treveActivite(){ return !!((typeof PAQ!=='undefined'&&PAQ.sauv&&PAQ.sauv.actif)||SX.actif||RIDES.actif||JUS.actif||AIR.actif||(DECOR_V2&&(TOW.actif||KITE.actif||CLIFF.actif))||BASKET.actif||SPORTJ.actif||MANEGES.actif||TOUR.actif||metierEnCours()||BASE.defi||FPS.actif||DERBY.actif); }
 // Balise dédiée, jamais la même que `balise` (déjà prise par MISSION.cur) —
 // les deux peuvent être actives en même temps sans se marcher dessus.
 const metierBalise=new THREE.Mesh(new THREE.CylinderGeometry(1.4,1.4,9,12,1,true),
@@ -47955,6 +48008,7 @@ function startRun(){
 }
 function mourir(){
   acroReset();
+  if(typeof PAQ!=='undefined'&&PAQ.sauv&&PAQ.sauv.actif) sauvArreter(); /* perf-hauteur, étape 7 : le sauvetage s'arrête (rien n'est payé) */
   ejectionFinSiege(); /* mort pendant la montée du siège éjectable : le corps rendu à la scène */
   couperSonsEcrasement(); /* tôle et verre de l'écrasement (CLAUDE.md : les sons coupés dans toutes les sorties) */
   volSonCouper(); hudVolCacher(); /* alarmes et HUD du vol simulé */

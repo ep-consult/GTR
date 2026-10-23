@@ -19498,6 +19498,55 @@ async function main() {
       else ok('Perf-hauteur, véhicules jouables : ' + r.info.join(' ; '));
     }
     // -------------------------------------------------------------------
+    // Perf-hauteur, étape 7 : le sauvetage du Reyes Majestic. À la cassure, un chrono (SAUV_DUREE) : les naufragés (la foule du point 10)
+    // se repêchent en bateau (capacité : sauvCap) ou se remorquent à la nage, puis se déposent à une chaloupe ou un canot. Pilote simulé
+    // au joystick (il réagit toutes les 0,2 s) : en vedette, il va au naufragé le plus proche, ralentit pour le repêcher, et quand le
+    // bateau est plein il va à la chaloupe la plus proche — il atteint l'objectif (SAUV_OBJ) : prime (une seule fois par vague), record
+    // (META.defis.naufrage), tenue « Smoking 1912 » (META.exploits.naufrage), trophée au mur de la villa. Passif : personne n'est sauvé,
+    // rien n'est payé. À la nage : un naufragé se remorque et se dépose. Constantes lues dans la source.
+    // -------------------------------------------------------------------
+    console.log('\n--- Perf-hauteur : le sauvetage du Reyes Majestic ---');
+    {
+      const r = await page.evaluate(() => {
+        const ko = [], info = []; if (!PAQ.ok) return { ko: ['pas de Reyes Majestic'], info };
+        const ex0 = META.exploits.naufrage, rec0 = META.defis.naufrage, ten0 = META.tenue; let T = dernierT + 1000;
+        const pas = (n) => { for (let i = 0; i < n; i++) { for (const e of ennemis) e.mort = true; WANTED.stars = 0; P.hp = 1e9; if (P.veh) P.veh.hp = 1e6; T += 1000 / 60; tick(T); } };
+        const depart = () => { if (INT.actif) sortirInterieur(); if (P.veh) sortirVehicule(true); META.vue = 'classique'; startRun(); ecran(null); ETAT.mode = 'jeu'; ETAT.jour = 40; P.hp = P.maxHp = 1e9; WAVES.etat = 'repos'; WAVES.t = 1e9; };
+        const casser = () => { paqMonter(); PAQ.t = 0.2; pas(20); return PAQ.etat === 'rupture' && PAQ.sauv && PAQ.sauv.actif; };
+        const course = (style) => { const S = PAQ.sauv; let v = null; if (style === 'bon') { v = creerVehicule('bateau', PAQ.x - 10, PAQ.z + 26, 0, null); P.x = v.x; P.z = v.z; P.y = 0; entrerVehicule(v); }
+          else { P.y = 0; P.x = PAQ.x; P.z = PAQ.z + 30; P.nage = true; }
+          let cible = null, vit = 0, k = 0; const m0 = META.argent;
+          while (S.actif && k < (SAUV_DUREE + 8) * 60) { if (style === 'bon' && k % 12 === 0) { const D = PAQ.drame, plein = S.abord.length >= sauvCap(v);
+              const nage = D.foule.filter((p) => p.etat === 'nage'), depots = sauvDepots(); let best = null, bd = 1e9;
+              if (!plein && nage.length) for (const p of nage) { const d = dist2(p.x, p.z, v.x, v.z); if (d < bd) { bd = d; best = p; } }
+              else if (S.abord.length) for (const d0 of depots) { const d = dist2(d0.x, d0.z, v.x, v.z); if (d < bd) { bd = d; best = d0; } }
+              cible = best; if (cible) { const dx = cible.x - v.x, dz = cible.z - v.z, d = Math.hypot(dx, dz), voulu = clamp(d * 0.7, 3, 26); if (Math.abs(v.v || 0) > voulu) { INPUT.jx = 0; INPUT.jy = 0; } else { INPUT.jx = dx / d; INPUT.jy = dz / d; } } else { INPUT.jx = INPUT.jy = 0; } }
+            pas(1); k++; }
+          INPUT.jx = INPUT.jy = 0; return { sauves: S.sauves, gain: META.argent - m0, fini: S.fini }; };
+        /* passif */
+        depart(); if (!casser()) return { ko: ['la cassure ne lance pas le sauvetage'], info };
+        const passif = course('passif'); if (passif.sauves !== 0 || passif.gain !== 0) ko.push('passif : ' + passif.sauves + ' sauvés, ' + passif.gain + ' $'); else info.push('passif : personne n’est sauvé, rien n’est payé');
+        if (META.exploits.naufrage && !ex0) ko.push('passif : la tenue est donnée');
+        /* le bon pilote */
+        META.exploits.naufrage = false; META.defis.naufrage = 0; depart(); casser(); const bon = course('bon');
+        if (bon.sauves < SAUV_OBJ) ko.push('bon pilote : seulement ' + bon.sauves + ' sauvés (objectif ' + SAUV_OBJ + ')');
+        else info.push('bon pilote (vedette) : ' + bon.sauves + ' sauvés en ' + SAUV_DUREE + ' s, ' + bon.gain + ' $');
+        if (!(bon.gain >= SAUV_OBJ * SAUV_PAR + SAUV_BONUS)) ko.push('bon pilote : prime ' + bon.gain + ' $ (attendue ' + (bon.sauves * SAUV_PAR + SAUV_BONUS) + ')');
+        if (META.defis.naufrage !== bon.sauves) ko.push('record ' + META.defis.naufrage + ' au lieu de ' + bon.sauves);
+        if (!META.exploits.naufrage) ko.push('la tenue Smoking 1912 n’est pas débloquée'); const tn = TENUES.find((t) => t.id === 'smoking1912'); if (!tn || !tn.cond()) ko.push('tenue Smoking 1912 absente de TENUES ou verrouillée');
+        /* une seule prime par vague */
+        if (P.veh) sortirVehicule(true); paqRemettre(); casser(); const bis = course('bon'); /* la même partie, la même vague */ if (bis.gain !== 0) ko.push('deuxième sauvetage de la même vague payé ' + bis.gain + ' $'); else info.push('deuxième sauvetage de la même vague : ' + bis.sauves + ' sauvés, prime déjà prise');
+        /* à la nage : un naufragé remorqué jusqu'à une chaloupe */
+        depart(); casser(); pas(60 * 14); { const S = PAQ.sauv, D = PAQ.drame, p = D.foule.find((q) => q.etat === 'nage'); if (!p) ko.push('nage : aucun naufragé à l’eau'); else {
+          if (P.veh) sortirVehicule(true); P.y = 0; P.nage = true; P.x = p.x + 1; P.z = p.z; pas(2); if (S.remorque !== p) ko.push('nage : le naufragé ne s’accroche pas'); else {
+            const dep = sauvDepots()[0]; if (!dep) ko.push('nage : aucune chaloupe'); else { const s0 = S.sauves; P.x = dep.x + 2; P.z = dep.z; pas(2); if (S.sauves < s0 + 1) ko.push('nage : le remorqué n’est pas déposé'); else info.push('à la nage : un naufragé remorqué et déposé à une chaloupe'); } } } }
+        /* le trophée de la villa */
+        const sv = construireSalle('planque'); naufrageTrophee(sv); if (!sv.naufTroph || !sv.naufTroph.visible || sv.naufTroph.userData.plaque.rec !== META.defis.naufrage) ko.push('trophée de la villa absent ou sans le record'); else info.push('trophée au mur de la villa : bouée et plaque « ' + META.defis.naufrage + ' naufragés sauvés »');
+        META.exploits.naufrage = ex0; META.defis.naufrage = rec0; META.tenue = ten0; if (P.veh) sortirVehicule(true); depart(); return { ko, info }; });
+      if (r.ko.length) fail('Perf-hauteur, sauvetage du Majestic : ' + r.ko.join(' ; ') + ' [' + r.info.join(' | ') + ']');
+      else ok('Perf-hauteur, sauvetage du Majestic : ' + r.info.join(' ; '));
+    }
+    // -------------------------------------------------------------------
     console.log('\n--- Habillage V2 des salles : sol, murs, meubles, murs habillés, aucun solide ajouté ---');
     {
       const src = fs.readFileSync(INDEX_HTML, 'utf8'), vus = {}, doubles = [];

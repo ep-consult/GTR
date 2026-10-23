@@ -16,7 +16,7 @@ tache sombre qui change de forme en bas à gauche.
 | 4 | Performances en altitude | fait |
 | 5 | Test : deux images à 170 m, aucun pixel des sols qui change | fait |
 | 6 | Tous les véhicules du jeu jouables | fait |
-| 7 | Une récompense pour le Titanic | à faire |
+| 7 | Une récompense pour le Titanic | fait |
 | 8 | Le couple à la proue | à faire |
 | 9 | La page de statistiques | à faire |
 | 10 | La vedette bloquée dans le canal en impasse | à faire |
@@ -294,3 +294,46 @@ inchangés. Empreinte de la ville et tirages identiques.
 
 **À vérifier sur iPhone** : prendre une moto à un motard qui s'arrête devant soi ; une barque sur le petit lac du parc (il est petit :
 on y tourne en rond) ; le char-monument qui descend de son socle ; un voilier au mouillage à la nage.
+
+## 7. Une récompense pour le Titanic (le Reyes Majestic) — fait
+
+**Ce que le joueur y faisait.** Au large, le paquebot échoué : on monte par l'échelle de coupée, ce qui lance un compte à rebours de
+100 s ; on mène les 8 passagers aux postes d'embarquement (+40 $ chacun, 300 $ si tous sont saufs, une fois par vague) ; on force le
+coffre du commissaire de bord (520 $) ; puis le navire se brise (la foule de 48, les chaloupes, les fusées du point 10), on est jeté à la
+mer, et on peut plonger sur l'épave (380 $). **Pendant et après la cassure, il n'y avait plus rien à faire** : la foule tombait à l'eau
+pour le décor.
+
+**Le nouveau but : le sauvetage des naufragés** (`SAUV_*`, `sauvDemarrer`, `majSauvetage`, `sauvFin`, juste avant `paqRompre`) :
+- à la cassure, un **chrono de 90 s** (`SAUV_DUREE`) ; les gens de la foule tombés à l'eau sont des naufragés ;
+- **en bateau**, on les repêche presque à l'arrêt (moins de 4,5 u/s, à moins de 0,4 × la longueur + 1,5 u), jusqu'à sa capacité
+  (`sauvCap` : jet-ski 1, vedette 4, grand bateau 8) ; **à la nage**, on en remorque un (« Accroche-toi ! »), la nage ralentie de 25 % ;
+- on les dépose à une **chaloupe** (les quatre du point 10, qui rament deux fois moins vite pendant le sauvetage) ou à un canot ;
+- **le froid** : un naufragé laissé plus de 70 s à l'eau est perdu (`SAUV_FROID`) ;
+- dans le bandeau : sauvés (objectif 20), à bord ou en remorque, perdus, secondes restantes ;
+- à la fin : **prime une fois par vague** selon le nombre de sauvés (30 $ chacun, +400 $ dès 20 : `primeMerUneFois('naufrage', …)`),
+  **record** `META.defis.naufrage` (clé fixe), et dès 20 sauvés, la première fois, la **tenue « Smoking 1912 »** (`TENUES.smoking1912`,
+  clé fixe `META.exploits.naufrage` : haut-de-forme, plastron et nœud papillon blancs, gilet de liège ; capacité : un naufragé en
+  remorque ne ralentit plus) ;
+- le **trophée** : au mur des trophées de la villa, une bouée du Reyes Majestic et la plaque du record (`naufrageTrophee`), visible dès
+  le premier sauvetage ;
+- trêve des vagues pendant le sauvetage ; la mort l'arrête (rien n'est payé) ; la partie suivante le remet à zéro (`paqRemettre`) ;
+  le défi des passagers (`META.defis.paquebot`) compte aussi les naufragés sauvés.
+
+**Réglé au pilote simulé** (`scratchpad/ph/dbg_pilotes.js`, au joystick réel, deux graines) — une première version (110 s, repêchage à
+9 u/s, 6 par vedette) était trop facile : même un pilote maladroit en sauvait 28 à 34. Après réglage :
+
+| pilote | réaction | sauvés (graines 1 et 2) |
+|---|---|---|
+| bon (ralentit devant chaque naufragé) | 0,2 s | 25, 27 |
+| moyen | 0,4 s | 28, 25 |
+| lent (10 u/s au plus) | 0,3 s | 24, 25 |
+| maladroit (ne ralentit jamais) | 0,7 s | 7, 8 |
+| passif | — | 0 |
+
+**Test** « Perf-hauteur : le sauvetage du Reyes Majestic » : le passif ne sauve personne et ne gagne rien ; le bon pilote en vedette
+atteint l'objectif (24 sauvés dans le test), touche la prime (1 120 $), le record et la tenue ; un deuxième naufrage dans la même vague
+ne paie plus ; à la nage, un naufragé se remorque et se dépose ; le trophée de la villa porte le record. Capture du trophée :
+`captures/perf_hauteur/trophee_villa_naufrage.png`.
+
+**À vérifier sur iPhone** : la difficulté (repêcher presque à l'arrêt : est-ce lisible ? faut-il une aide, un cercle autour du naufragé
+le plus proche ?) ; la lisibilité des petits naufragés vus de haut en vue 2D.
